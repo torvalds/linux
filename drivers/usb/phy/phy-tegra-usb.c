@@ -1375,7 +1375,7 @@ static int tegra_usb_phy_probe(struct platform_device *pdev)
 	tegra_phy->is_legacy_phy =
 		of_property_read_bool(np, "nvidia,has-legacy-mode");
 
-	if (of_find_property(np, "dr_mode", NULL))
+	if (of_property_present(np, "dr_mode"))
 		tegra_phy->mode = usb_get_dr_mode(&pdev->dev);
 	else
 		tegra_phy->mode = USB_DR_MODE_HOST;
@@ -1486,18 +1486,16 @@ static int tegra_usb_phy_probe(struct platform_device *pdev)
 	return usb_add_phy_dev(&tegra_phy->u_phy);
 }
 
-static int tegra_usb_phy_remove(struct platform_device *pdev)
+static void tegra_usb_phy_remove(struct platform_device *pdev)
 {
 	struct tegra_usb_phy *tegra_phy = platform_get_drvdata(pdev);
 
 	usb_remove_phy(&tegra_phy->u_phy);
-
-	return 0;
 }
 
 static struct platform_driver tegra_usb_phy_driver = {
 	.probe		= tegra_usb_phy_probe,
-	.remove		= tegra_usb_phy_remove,
+	.remove_new	= tegra_usb_phy_remove,
 	.driver		= {
 		.name	= "tegra-phy",
 		.of_match_table = tegra_usb_phy_id_table,

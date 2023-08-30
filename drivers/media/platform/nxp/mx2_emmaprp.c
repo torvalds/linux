@@ -888,7 +888,7 @@ unreg_dev:
 	return ret;
 }
 
-static int emmaprp_remove(struct platform_device *pdev)
+static void emmaprp_remove(struct platform_device *pdev)
 {
 	struct emmaprp_dev *pcdev = platform_get_drvdata(pdev);
 
@@ -898,13 +898,11 @@ static int emmaprp_remove(struct platform_device *pdev)
 	v4l2_m2m_release(pcdev->m2m_dev);
 	v4l2_device_unregister(&pcdev->v4l2_dev);
 	mutex_destroy(&pcdev->dev_mutex);
-
-	return 0;
 }
 
 static struct platform_driver emmaprp_pdrv = {
 	.probe		= emmaprp_probe,
-	.remove		= emmaprp_remove,
+	.remove_new	= emmaprp_remove,
 	.driver		= {
 		.name	= MEM2MEM_NAME,
 	},

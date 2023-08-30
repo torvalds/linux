@@ -354,7 +354,7 @@ err_disable_pclk:
 	return ret;
 }
 
-static int cdns_rtc_remove(struct platform_device *pdev)
+static void cdns_rtc_remove(struct platform_device *pdev)
 {
 	struct cdns_rtc *crtc = platform_get_drvdata(pdev);
 
@@ -363,8 +363,6 @@ static int cdns_rtc_remove(struct platform_device *pdev)
 
 	clk_disable_unprepare(crtc->pclk);
 	clk_disable_unprepare(crtc->ref_clk);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -404,7 +402,7 @@ static struct platform_driver cdns_rtc_driver = {
 		.pm = &cdns_rtc_pm_ops,
 	},
 	.probe = cdns_rtc_probe,
-	.remove = cdns_rtc_remove,
+	.remove_new = cdns_rtc_remove,
 };
 module_platform_driver(cdns_rtc_driver);
 

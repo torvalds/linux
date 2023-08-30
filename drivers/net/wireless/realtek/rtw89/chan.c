@@ -141,6 +141,38 @@ void rtw89_config_entity_chandef(struct rtw89_dev *rtwdev,
 	__rtw89_config_entity_chandef(rtwdev, idx, chandef, true);
 }
 
+void rtw89_config_roc_chandef(struct rtw89_dev *rtwdev,
+			      enum rtw89_sub_entity_idx idx,
+			      const struct cfg80211_chan_def *chandef)
+{
+	struct rtw89_hal *hal = &rtwdev->hal;
+	enum rtw89_sub_entity_idx cur;
+
+	if (chandef) {
+		cur = atomic_cmpxchg(&hal->roc_entity_idx,
+				     RTW89_SUB_ENTITY_IDLE, idx);
+		if (cur != RTW89_SUB_ENTITY_IDLE) {
+			rtw89_debug(rtwdev, RTW89_DBG_TXRX,
+				    "ROC still processing on entity %d\n", idx);
+			return;
+		}
+
+		hal->roc_chandef = *chandef;
+	} else {
+		cur = atomic_cmpxchg(&hal->roc_entity_idx, idx,
+				     RTW89_SUB_ENTITY_IDLE);
+		if (cur == idx)
+			return;
+
+		if (cur == RTW89_SUB_ENTITY_IDLE)
+			rtw89_debug(rtwdev, RTW89_DBG_TXRX,
+				    "ROC already finished on entity %d\n", idx);
+		else
+			rtw89_debug(rtwdev, RTW89_DBG_TXRX,
+				    "ROC is processing on entity %d\n", cur);
+	}
+}
+
 static void rtw89_config_default_chandef(struct rtw89_dev *rtwdev)
 {
 	struct cfg80211_chan_def chandef = {0};
@@ -154,6 +186,7 @@ void rtw89_entity_init(struct rtw89_dev *rtwdev)
 	struct rtw89_hal *hal = &rtwdev->hal;
 
 	bitmap_zero(hal->entity_map, NUM_OF_RTW89_SUB_ENTITY);
+	atomic_set(&hal->roc_entity_idx, RTW89_SUB_ENTITY_IDLE);
 	rtw89_config_default_chandef(rtwdev);
 }
 
@@ -228,6 +261,8 @@ void rtw89_chanctx_ops_remove(struct rtw89_dev *rtwdev,
 		if (rtwvif->sub_entity_idx == roll)
 			rtwvif->sub_entity_idx = RTW89_SUB_ENTITY_0;
 	}
+
+	atomic_cmpxchg(&hal->roc_entity_idx, roll, RTW89_SUB_ENTITY_0);
 
 	drop = roll;
 

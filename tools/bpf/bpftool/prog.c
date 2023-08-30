@@ -840,11 +840,6 @@ prog_dump(struct bpf_prog_info *info, enum dump_mode mode,
 					      false))
 				goto exit_free;
 		}
-	} else if (visual) {
-		if (json_output)
-			jsonw_null(json_wtr);
-		else
-			dump_xlated_cfg(buf, member_len);
 	} else {
 		kernel_syms_load(&dd);
 		dd.nr_jited_ksyms = info->nr_jited_ksyms;
@@ -855,11 +850,11 @@ prog_dump(struct bpf_prog_info *info, enum dump_mode mode,
 		dd.prog_linfo = prog_linfo;
 
 		if (json_output)
-			dump_xlated_json(&dd, buf, member_len, opcodes,
-					 linum);
+			dump_xlated_json(&dd, buf, member_len, opcodes, linum);
+		else if (visual)
+			dump_xlated_cfg(&dd, buf, member_len, opcodes, linum);
 		else
-			dump_xlated_plain(&dd, buf, member_len, opcodes,
-					  linum);
+			dump_xlated_plain(&dd, buf, member_len, opcodes, linum);
 		kernel_syms_destroy(&dd);
 	}
 
@@ -910,37 +905,46 @@ static int do_dump(int argc, char **argv)
 	if (nb_fds < 1)
 		goto exit_free;
 
-	if (is_prefix(*argv, "file")) {
-		NEXT_ARG();
-		if (!argc) {
-			p_err("expected file path");
-			goto exit_close;
-		}
-		if (nb_fds > 1) {
-			p_err("several programs matched");
-			goto exit_close;
-		}
+	while (argc) {
+		if (is_prefix(*argv, "file")) {
+			NEXT_ARG();
+			if (!argc) {
+				p_err("expected file path");
+				goto exit_close;
+			}
+			if (nb_fds > 1) {
+				p_err("several programs matched");
+				goto exit_close;
+			}
 
-		filepath = *argv;
-		NEXT_ARG();
-	} else if (is_prefix(*argv, "opcodes")) {
-		opcodes = true;
-		NEXT_ARG();
-	} else if (is_prefix(*argv, "visual")) {
-		if (nb_fds > 1) {
-			p_err("several programs matched");
+			filepath = *argv;
+			NEXT_ARG();
+		} else if (is_prefix(*argv, "opcodes")) {
+			opcodes = true;
+			NEXT_ARG();
+		} else if (is_prefix(*argv, "visual")) {
+			if (nb_fds > 1) {
+				p_err("several programs matched");
+				goto exit_close;
+			}
+
+			visual = true;
+			NEXT_ARG();
+		} else if (is_prefix(*argv, "linum")) {
+			linum = true;
+			NEXT_ARG();
+		} else {
+			usage();
 			goto exit_close;
 		}
-
-		visual = true;
-		NEXT_ARG();
-	} else if (is_prefix(*argv, "linum")) {
-		linum = true;
-		NEXT_ARG();
 	}
 
-	if (argc) {
-		usage();
+	if (filepath && (opcodes || visual || linum)) {
+		p_err("'file' is not compatible with 'opcodes', 'visual', or 'linum'");
+		goto exit_close;
+	}
+	if (json_output && visual) {
+		p_err("'visual' is not compatible with JSON output");
 		goto exit_close;
 	}
 
@@ -1472,19 +1476,6 @@ auto_attach_program(struct bpf_program *prog, const char *path)
 	return err;
 }
 
-static int pathname_concat(char *buf, size_t buf_sz, const char *path, const char *name)
-{
-	int len;
-
-	len = snprintf(buf, buf_sz, "%s/%s", path, name);
-	if (len < 0)
-		return -EINVAL;
-	if ((size_t)len >= buf_sz)
-		return -ENAMETOOLONG;
-
-	return 0;
-}
-
 static int
 auto_attach_programs(struct bpf_object *obj, const char *path)
 {
@@ -1681,7 +1672,8 @@ static int load_with_options(int argc, char **argv, bool first_prog_only)
 		}
 
 		bpf_program__set_ifindex(pos, ifindex);
-		bpf_program__set_type(pos, prog_type);
+		if (bpf_program__type(pos) != prog_type)
+			bpf_program__set_type(pos, prog_type);
 		bpf_program__set_expected_attach_type(pos, expected_attach_type);
 	}
 
@@ -2420,8 +2412,8 @@ static int do_help(int argc, char **argv)
 
 	fprintf(stderr,
 		"Usage: %1$s %2$s { show | list } [PROG]\n"
-		"       %1$s %2$s dump xlated PROG [{ file FILE | opcodes | visual | linum }]\n"
-		"       %1$s %2$s dump jited  PROG [{ file FILE | opcodes | linum }]\n"
+		"       %1$s %2$s dump xlated PROG [{ file FILE | [opcodes] [linum] [visual] }]\n"
+		"       %1$s %2$s dump jited  PROG [{ file FILE | [opcodes] [linum] }]\n"
 		"       %1$s %2$s pin   PROG FILE\n"
 		"       %1$s %2$s { load | loadall } OBJ  PATH \\\n"
 		"                         [type TYPE] [dev NAME] \\\n"

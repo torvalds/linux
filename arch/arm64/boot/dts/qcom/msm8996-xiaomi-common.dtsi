@@ -12,8 +12,6 @@
 
 / {
 	clocks {
-		compatible = "simple-bus";
-
 		divclk1_cdc: divclk1 {
 			compatible = "gpio-gate-clock";
 			clocks = <&rpmcc RPM_SMD_DIV_CLK1>;
@@ -337,6 +335,52 @@
 	};
 };
 
+&slim_msm {
+	status = "okay";
+
+	slim@1 {
+		reg = <1>;
+		#address-cells = <2>;
+		#size-cells = <0>;
+
+		tasha_ifd: tas-ifd@0,0 {
+			compatible = "slim217,1a0";
+			reg = <0 0>;
+		};
+
+		wcd9335: codec@1,0 {
+			compatible = "slim217,1a0";
+			reg = <1 0>;
+
+			clock-names = "mclk", "slimbus";
+			clocks = <&divclk1_cdc>,
+				 <&rpmcc RPM_SMD_BB_CLK1>;
+			interrupt-parent = <&tlmm>;
+			interrupts = <54 IRQ_TYPE_LEVEL_HIGH>,
+				     <53 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "intr1", "intr2";
+			interrupt-controller;
+			#interrupt-cells = <1>;
+
+			pinctrl-0 = <&cdc_reset_active &wcd_intr_default>;
+			pinctrl-names = "default";
+
+			reset-gpios = <&tlmm 64 GPIO_ACTIVE_LOW>;
+			slim-ifc-dev = <&tasha_ifd>;
+
+			#sound-dai-cells = <1>;
+
+			vdd-buck-supply = <&vreg_s4a_1p8>;
+			vdd-buck-sido-supply = <&vreg_s4a_1p8>;
+			vdd-rx-supply = <&vreg_s4a_1p8>;
+			vdd-tx-supply = <&vreg_s4a_1p8>;
+			vdd-vbat-supply = <&vph_pwr>;
+			vdd-micbias-supply = <&vph_pwr_bbyp>;
+			vdd-io-supply = <&vreg_s4a_1p8>;
+		};
+	};
+};
+
 &slpi_pil {
 	status = "okay";
 
@@ -393,20 +437,6 @@
 
 &venus {
 	status = "okay";
-};
-
-&wcd9335 {
-	clock-names = "mclk", "slimbus";
-	clocks = <&divclk1_cdc>,
-		 <&rpmcc RPM_SMD_BB_CLK1>;
-
-	vdd-buck-supply = <&vreg_s4a_1p8>;
-	vdd-buck-sido-supply = <&vreg_s4a_1p8>;
-	vdd-rx-supply = <&vreg_s4a_1p8>;
-	vdd-tx-supply = <&vreg_s4a_1p8>;
-	vdd-vbat-supply = <&vph_pwr>;
-	vdd-micbias-supply = <&vph_pwr_bbyp>;
-	vdd-io-supply = <&vreg_s4a_1p8>;
 };
 
 &rpm_requests {

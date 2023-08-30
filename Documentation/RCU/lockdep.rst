@@ -65,7 +65,7 @@ checking of rcu_dereference() primitives:
 	rcu_access_pointer(p):
 		Return the value of the pointer and omit all barriers,
 		but retain the compiler constraints that prevent duplicating
-		or coalescsing.  This is useful when testing the
+		or coalescing.  This is useful when testing the
 		value of the pointer itself, for example, against NULL.
 
 The rcu_dereference_check() check expression can be any boolean

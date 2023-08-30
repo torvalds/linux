@@ -66,8 +66,10 @@ static int max_interrupt_work = 20;
 #include <linux/timer.h>
 #include <linux/ethtool.h>
 #include <linux/bitops.h>
-
 #include <linux/uaccess.h>
+
+#include <net/Space.h>
+
 #include <asm/io.h>
 #include <asm/dma.h>
 

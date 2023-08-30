@@ -22,20 +22,21 @@ static int ntfs_ioctl_fitrim(struct ntfs_sb_info *sbi, unsigned long arg)
 {
 	struct fstrim_range __user *user_range;
 	struct fstrim_range range;
+	struct block_device *dev;
 	int err;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	if (!bdev_max_discard_sectors(sbi->sb->s_bdev))
+	dev = sbi->sb->s_bdev;
+	if (!bdev_max_discard_sectors(dev))
 		return -EOPNOTSUPP;
 
 	user_range = (struct fstrim_range __user *)arg;
 	if (copy_from_user(&range, user_range, sizeof(range)))
 		return -EFAULT;
 
-	range.minlen = max_t(u32, range.minlen,
-			     bdev_discard_granularity(sbi->sb->s_bdev));
+	range.minlen = max_t(u32, range.minlen, bdev_discard_granularity(dev));
 
 	err = ntfs_trim_fs(sbi, &range);
 	if (err < 0)
@@ -190,8 +191,8 @@ static int ntfs_zero_range(struct inode *inode, u64 vbo, u64 vbo_to)
 
 	for (; idx < idx_end; idx += 1, from = 0) {
 		page_off = (loff_t)idx << PAGE_SHIFT;
-		to = (page_off + PAGE_SIZE) > vbo_to ? (vbo_to - page_off)
-						     : PAGE_SIZE;
+		to = (page_off + PAGE_SIZE) > vbo_to ? (vbo_to - page_off) :
+							     PAGE_SIZE;
 		iblock = page_off >> inode->i_blkbits;
 
 		page = find_or_create_page(mapping, idx,
@@ -223,16 +224,10 @@ static int ntfs_zero_range(struct inode *inode, u64 vbo, u64 vbo_to)
 				set_buffer_uptodate(bh);
 
 			if (!buffer_uptodate(bh)) {
-				lock_buffer(bh);
-				bh->b_end_io = end_buffer_read_sync;
-				get_bh(bh);
-				submit_bh(REQ_OP_READ, bh);
-
-				wait_on_buffer(bh);
-				if (!buffer_uptodate(bh)) {
+				err = bh_read(bh, 0);
+				if (err < 0) {
 					unlock_page(page);
 					put_page(page);
-					err = -EIO;
 					goto out;
 				}
 			}
@@ -570,13 +565,14 @@ static long ntfs_fallocate(struct file *file, int mode, loff_t vbo, loff_t len)
 		ni_unlock(ni);
 	} else {
 		/* Check new size. */
+		u8 cluster_bits = sbi->cluster_bits;
 
 		/* generic/213: expected -ENOSPC instead of -EFBIG. */
 		if (!is_supported_holes) {
 			loff_t to_alloc = new_size - inode_get_bytes(inode);
 
 			if (to_alloc > 0 &&
-			    (to_alloc >> sbi->cluster_bits) >
+			    (to_alloc >> cluster_bits) >
 				    wnd_zeroes(&sbi->used.bitmap)) {
 				err = -ENOSPC;
 				goto out;
@@ -597,7 +593,7 @@ static long ntfs_fallocate(struct file *file, int mode, loff_t vbo, loff_t len)
 		}
 
 		if (is_supported_holes) {
-			CLST vcn = vbo >> sbi->cluster_bits;
+			CLST vcn = vbo >> cluster_bits;
 			CLST cend = bytes_to_cluster(sbi, end);
 			CLST cend_v = bytes_to_cluster(sbi, ni->i_valid);
 			CLST lcn, clen;
@@ -660,21 +656,11 @@ out:
 int ntfs3_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 		  struct iattr *attr)
 {
-	struct super_block *sb = dentry->d_sb;
-	struct ntfs_sb_info *sbi = sb->s_fs_info;
 	struct inode *inode = d_inode(dentry);
 	struct ntfs_inode *ni = ntfs_i(inode);
 	u32 ia_valid = attr->ia_valid;
 	umode_t mode = inode->i_mode;
 	int err;
-
-	if (sbi->options->noacsrules) {
-		/* "No access rules" - Force any changes of time etc. */
-		attr->ia_valid |= ATTR_FORCE;
-		/* and disable for editing some attributes. */
-		attr->ia_valid &= ~(ATTR_UID | ATTR_GID | ATTR_MODE);
-		ia_valid = attr->ia_valid;
-	}
 
 	err = setattr_prepare(idmap, dentry, attr);
 	if (err)
@@ -719,7 +705,7 @@ int ntfs3_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 	}
 
 	if (ia_valid & (ATTR_UID | ATTR_GID | ATTR_MODE))
-		ntfs_save_wsl_perm(inode);
+		ntfs_save_wsl_perm(inode, NULL);
 	mark_inode_dirty(inode);
 out:
 	return err;
@@ -1065,8 +1051,8 @@ static ssize_t ntfs_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	if (ret)
 		goto out;
 
-	ret = is_compressed(ni) ? ntfs_compress_write(iocb, from)
-				: __generic_file_write_iter(iocb, from);
+	ret = is_compressed(ni) ? ntfs_compress_write(iocb, from) :
+					__generic_file_write_iter(iocb, from);
 
 out:
 	inode_unlock(inode);
@@ -1118,8 +1104,9 @@ static int ntfs_file_release(struct inode *inode, struct file *file)
 	int err = 0;
 
 	/* If we are last writer on the inode, drop the block reservation. */
-	if (sbi->options->prealloc && ((file->f_mode & FMODE_WRITE) &&
-				      atomic_read(&inode->i_writecount) == 1)) {
+	if (sbi->options->prealloc &&
+	    ((file->f_mode & FMODE_WRITE) &&
+	     atomic_read(&inode->i_writecount) == 1)) {
 		ni_lock(ni);
 		down_write(&ni->file.run_lock);
 
@@ -1159,8 +1146,7 @@ const struct inode_operations ntfs_file_inode_operations = {
 	.getattr	= ntfs_getattr,
 	.setattr	= ntfs3_setattr,
 	.listxattr	= ntfs_listxattr,
-	.permission	= ntfs_permission,
-	.get_inode_acl	= ntfs_get_acl,
+	.get_acl	= ntfs_get_acl,
 	.set_acl	= ntfs_set_acl,
 	.fiemap		= ntfs_fiemap,
 };

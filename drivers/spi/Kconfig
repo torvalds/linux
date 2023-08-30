@@ -79,6 +79,13 @@ config SPI_ALTERA_DFL
 	  Altera SPI master controller.  The SPI master is connected
 	  to a SPI slave to Avalon bridge in a Intel MAX BMC.
 
+config SPI_AMLOGIC_SPIFC_A1
+	tristate "Amlogic A1 SPIFC controller"
+	depends on ARCH_MESON || COMPILE_TEST
+	help
+	  This enables master mode support for the SPIFC (SPI flash
+	  controller) available in Amlogic A1 (A113L SoC).
+
 config SPI_AR934X
 	tristate "Qualcomm Atheros AR934X/QCA95XX SPI controller driver"
 	depends on ATH79 || COMPILE_TEST
@@ -239,7 +246,7 @@ config SPI_CADENCE
 
 config SPI_CADENCE_QUADSPI
 	tristate "Cadence Quad SPI controller"
-	depends on OF && (ARM || ARM64 || X86 || COMPILE_TEST)
+	depends on OF && (ARM || ARM64 || X86 || RISCV || COMPILE_TEST)
 	help
 	  Enable support for the Cadence Quad SPI Flash controller.
 
@@ -276,7 +283,7 @@ config SPI_COLDFIRE_QSPI
 
 config SPI_DAVINCI
 	tristate "Texas Instruments DaVinci/DA8x/OMAP-L/AM1x SoC SPI controller"
-	depends on ARCH_DAVINCI || ARCH_KEYSTONE
+	depends on ARCH_DAVINCI || ARCH_KEYSTONE || COMPILE_TEST
 	select SPI_BITBANG
 	help
 	  SPI master controller for DaVinci/DA8x/OMAP-L/AM1x SPI modules.
@@ -406,7 +413,8 @@ config SPI_HISI_SFC_V3XX
 
 config SPI_NXP_FLEXSPI
 	tristate "NXP Flex SPI controller"
-	depends on ARCH_LAYERSCAPE || HAS_IOMEM
+	depends on ARCH_LAYERSCAPE || ARCH_MXC || COMPILE_TEST
+	depends on HAS_IOMEM
 	help
 	  This enables support for the Flex SPI controller in master mode.
 	  Up to four slave devices can be connected on two buses with two
@@ -777,6 +785,7 @@ config SPI_PXA2XX_PCI
 
 config SPI_ROCKCHIP
 	tristate "Rockchip SPI controller driver"
+	depends on ARCH_ROCKCHIP || COMPILE_TEST
 	help
 	  This selects a driver for Rockchip SPI controller.
 
@@ -818,7 +827,7 @@ config SPI_RSPI
 
 config SPI_QCOM_QSPI
 	tristate "QTI QSPI controller"
-	depends on ARCH_QCOM
+	depends on ARCH_QCOM || COMPILE_TEST
 	help
 	  QSPI(Quad SPI) driver for Qualcomm QSPI controller.
 

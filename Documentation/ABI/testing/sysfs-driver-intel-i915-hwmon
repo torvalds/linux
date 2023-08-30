@@ -14,7 +14,9 @@ Description:	RW. Card reactive sustained  (PL1/Tau) power limit in microwatts.
 
 		The power controller will throttle the operating frequency
 		if the power averaged over a window (typically seconds)
-		exceeds this limit.
+		exceeds this limit. A read value of 0 means that the PL1
+		power limit is disabled, writing 0 disables the
+		limit. Writing values > 0 will enable the power limit.
 
 		Only supported for particular Intel i915 graphics platforms.
 

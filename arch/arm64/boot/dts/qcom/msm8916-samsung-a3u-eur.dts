@@ -112,6 +112,14 @@
 	status = "okay";
 };
 
+&wcnss {
+	status = "okay";
+};
+
+&wcnss_iris {
+	compatible = "qcom,wcn3620";
+};
+
 &msmgpio {
 	panel_vdd3_default: panel-vdd3-default-state {
 		pins = "gpio9";

@@ -219,7 +219,8 @@ static struct snd_soc_dai_link speyside_dai[] = {
 		.init = speyside_wm8996_init,
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF
 				| SND_SOC_DAIFMT_CBM_CFM,
-		.params = &dsp_codec_params,
+		.c2c_params = &dsp_codec_params,
+		.num_c2c_params = 1,
 		.ignore_suspend = 1,
 		SND_SOC_DAILINK_REG(dsp_codec),
 	},

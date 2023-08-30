@@ -13,6 +13,7 @@
 #include <linux/phy.h>
 #include <linux/netdevice.h>
 #include <linux/bitfield.h>
+#include <linux/smscphy.h>
 
 #define TSTCNTL		20
 #define  TSTCNTL_READ		BIT(15)
@@ -23,18 +24,6 @@
 #define  TSTCNTL_WRITE_ADDRESS	GENMASK(4, 0)
 #define TSTREAD1	21
 #define TSTWRITE	23
-#define INTSRC_FLAG	29
-#define  INTSRC_ANEG_PR		BIT(1)
-#define  INTSRC_PARALLEL_FAULT	BIT(2)
-#define  INTSRC_ANEG_LP_ACK	BIT(3)
-#define  INTSRC_LINK_DOWN	BIT(4)
-#define  INTSRC_REMOTE_FAULT	BIT(5)
-#define  INTSRC_ANEG_COMPLETE	BIT(6)
-#define  INTSRC_ENERGY_DETECT	BIT(7)
-#define INTSRC_MASK	30
-
-#define INT_SOURCES (INTSRC_LINK_DOWN | INTSRC_ANEG_COMPLETE | \
-		     INTSRC_ENERGY_DETECT)
 
 #define BANK_ANALOG_DSP		0
 #define BANK_WOL		1
@@ -195,59 +184,6 @@ read_status_continue:
 	return genphy_read_status(phydev);
 }
 
-static int meson_gxl_ack_interrupt(struct phy_device *phydev)
-{
-	int ret = phy_read(phydev, INTSRC_FLAG);
-
-	return ret < 0 ? ret : 0;
-}
-
-static int meson_gxl_config_intr(struct phy_device *phydev)
-{
-	int ret;
-
-	if (phydev->interrupts == PHY_INTERRUPT_ENABLED) {
-		/* Ack any pending IRQ */
-		ret = meson_gxl_ack_interrupt(phydev);
-		if (ret)
-			return ret;
-
-		ret = phy_write(phydev, INTSRC_MASK, INT_SOURCES);
-	} else {
-		ret = phy_write(phydev, INTSRC_MASK, 0);
-
-		/* Ack any pending IRQ */
-		ret = meson_gxl_ack_interrupt(phydev);
-	}
-
-	return ret;
-}
-
-static irqreturn_t meson_gxl_handle_interrupt(struct phy_device *phydev)
-{
-	int irq_status;
-
-	irq_status = phy_read(phydev, INTSRC_FLAG);
-	if (irq_status < 0) {
-		phy_error(phydev);
-		return IRQ_NONE;
-	}
-
-	irq_status &= INT_SOURCES;
-
-	if (irq_status == 0)
-		return IRQ_NONE;
-
-	/* Aneg-complete interrupt is used for link-up detection */
-	if (phydev->autoneg == AUTONEG_ENABLE &&
-	    irq_status == INTSRC_ENERGY_DETECT)
-		return IRQ_HANDLED;
-
-	phy_trigger_machine(phydev);
-
-	return IRQ_HANDLED;
-}
-
 static struct phy_driver meson_gxl_phy[] = {
 	{
 		PHY_ID_MATCH_EXACT(0x01814400),
@@ -257,8 +193,8 @@ static struct phy_driver meson_gxl_phy[] = {
 		.soft_reset     = genphy_soft_reset,
 		.config_init	= meson_gxl_config_init,
 		.read_status	= meson_gxl_read_status,
-		.config_intr	= meson_gxl_config_intr,
-		.handle_interrupt = meson_gxl_handle_interrupt,
+		.config_intr	= smsc_phy_config_intr,
+		.handle_interrupt = smsc_phy_handle_interrupt,
 		.suspend        = genphy_suspend,
 		.resume         = genphy_resume,
 		.read_mmd	= genphy_read_mmd_unsupported,
@@ -268,9 +204,16 @@ static struct phy_driver meson_gxl_phy[] = {
 		.name		= "Meson G12A Internal PHY",
 		/* PHY_BASIC_FEATURES */
 		.flags		= PHY_IS_INTERNAL,
+		.probe		= smsc_phy_probe,
+		.config_init	= smsc_phy_config_init,
 		.soft_reset     = genphy_soft_reset,
-		.config_intr	= meson_gxl_config_intr,
-		.handle_interrupt = meson_gxl_handle_interrupt,
+		.read_status	= lan87xx_read_status,
+		.config_intr	= smsc_phy_config_intr,
+		.handle_interrupt = smsc_phy_handle_interrupt,
+
+		.get_tunable	= smsc_phy_get_tunable,
+		.set_tunable	= smsc_phy_set_tunable,
+
 		.suspend        = genphy_suspend,
 		.resume         = genphy_resume,
 		.read_mmd	= genphy_read_mmd_unsupported,

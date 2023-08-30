@@ -25,6 +25,14 @@
         "Unit": "cpu_atom"
     },
     {
+        "BriefDescription": "Counts the number of cycles that the head (oldest load) of the load buffer and retirement are both stalled due to a DL1 miss.",
+        "EventCode": "0x05",
+        "EventName": "LD_HEAD.L1_MISS_AT_RET",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x81",
+        "Unit": "cpu_atom"
+    },
+    {
         "BriefDescription": "Counts the number of cycles that the head (oldest load) of the load buffer and retirement are both stalled due to other block cases.",
         "EventCode": "0x05",
         "EventName": "LD_HEAD.OTHER_AT_RET",
@@ -278,10 +286,9 @@
         "Unit": "cpu_atom"
     },
     {
-        "BriefDescription": "Demand Data Read requests who miss L3 cache",
+        "BriefDescription": "Counts demand data read requests that miss the L3 cache.",
         "EventCode": "0x21",
         "EventName": "OFFCORE_REQUESTS.L3_MISS_DEMAND_DATA_RD",
-        "PublicDescription": "Demand Data Read requests who miss L3 cache.",
         "SampleAfterValue": "100003",
         "UMask": "0x10",
         "Unit": "cpu_core"

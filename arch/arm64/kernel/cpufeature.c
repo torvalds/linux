@@ -140,6 +140,13 @@ void dump_cpu_features(void)
 	pr_emerg("0x%*pb\n", ARM64_NCAPS, &cpu_hwcaps);
 }
 
+#define ARM64_CPUID_FIELDS(reg, field, min_value)			\
+		.sys_reg = SYS_##reg,							\
+		.field_pos = reg##_##field##_SHIFT,						\
+		.field_width = reg##_##field##_WIDTH,						\
+		.sign = reg##_##field##_SIGNED,							\
+		.min_field_value = reg##_##field##_##min_value,
+
 #define __ARM64_FTR_BITS(SIGNED, VISIBLE, STRICT, TYPE, SHIFT, WIDTH, SAFE_VAL) \
 	{						\
 		.sign = SIGNED,				\
@@ -1490,10 +1497,18 @@ static const DEVICE_ATTR_RO(aarch32_el0);
 
 static int __init aarch32_el0_sysfs_init(void)
 {
+	struct device *dev_root;
+	int ret = 0;
+
 	if (!allow_mismatched_32bit_el0)
 		return 0;
 
-	return device_create_file(cpu_subsys.dev_root, &dev_attr_aarch32_el0);
+	dev_root = bus_get_dev_root(&cpu_subsys);
+	if (dev_root) {
+		ret = device_create_file(dev_root, &dev_attr_aarch32_el0);
+		put_device(dev_root);
+	}
+	return ret;
 }
 device_initcall(aarch32_el0_sysfs_init);
 
@@ -2206,22 +2221,25 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 		.capability = ARM64_HAS_GIC_CPUIF_SYSREGS,
 		.type = ARM64_CPUCAP_STRICT_BOOT_CPU_FEATURE,
 		.matches = has_useable_gicv3_cpuif,
-		.sys_reg = SYS_ID_AA64PFR0_EL1,
-		.field_pos = ID_AA64PFR0_EL1_GIC_SHIFT,
-		.field_width = 4,
-		.sign = FTR_UNSIGNED,
-		.min_field_value = 1,
+		ARM64_CPUID_FIELDS(ID_AA64PFR0_EL1, GIC, IMP)
 	},
 	{
 		.desc = "Enhanced Counter Virtualization",
 		.capability = ARM64_HAS_ECV,
 		.type = ARM64_CPUCAP_SYSTEM_FEATURE,
 		.matches = has_cpuid_feature,
+		ARM64_CPUID_FIELDS(ID_AA64MMFR0_EL1, ECV, IMP)
+	},
+	{
+		.desc = "Enhanced Counter Virtualization (CNTPOFF)",
+		.capability = ARM64_HAS_ECV_CNTPOFF,
+		.type = ARM64_CPUCAP_SYSTEM_FEATURE,
+		.matches = has_cpuid_feature,
 		.sys_reg = SYS_ID_AA64MMFR0_EL1,
 		.field_pos = ID_AA64MMFR0_EL1_ECV_SHIFT,
 		.field_width = 4,
 		.sign = FTR_UNSIGNED,
-		.min_field_value = 1,
+		.min_field_value = ID_AA64MMFR0_EL1_ECV_CNTPOFF,
 	},
 #ifdef CONFIG_ARM64_PAN
 	{
@@ -2229,12 +2247,8 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 		.capability = ARM64_HAS_PAN,
 		.type = ARM64_CPUCAP_SYSTEM_FEATURE,
 		.matches = has_cpuid_feature,
-		.sys_reg = SYS_ID_AA64MMFR1_EL1,
-		.field_pos = ID_AA64MMFR1_EL1_PAN_SHIFT,
-		.field_width = 4,
-		.sign = FTR_UNSIGNED,
-		.min_field_value = 1,
 		.cpu_enable = cpu_enable_pan,
+		ARM64_CPUID_FIELDS(ID_AA64MMFR1_EL1, PAN, IMP)
 	},
 #endif /* CONFIG_ARM64_PAN */
 #ifdef CONFIG_ARM64_EPAN
@@ -2243,11 +2257,7 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 		.capability = ARM64_HAS_EPAN,
 		.type = ARM64_CPUCAP_SYSTEM_FEATURE,
 		.matches = has_cpuid_feature,
-		.sys_reg = SYS_ID_AA64MMFR1_EL1,
-		.field_pos = ID_AA64MMFR1_EL1_PAN_SHIFT,
-		.field_width = 4,
-		.sign = FTR_UNSIGNED,
-		.min_field_value = 3,
+		ARM64_CPUID_FIELDS(ID_AA64MMFR1_EL1, PAN, PAN3)
 	},
 #endif /* CONFIG_ARM64_EPAN */
 #ifdef CONFIG_ARM64_LSE_ATOMICS
@@ -2256,11 +2266,7 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 		.capability = ARM64_HAS_LSE_ATOMICS,
 		.type = ARM64_CPUCAP_SYSTEM_FEATURE,
 		.matches = has_cpuid_feature,
-		.sys_reg = SYS_ID_AA64ISAR0_EL1,
-		.field_pos = ID_AA64ISAR0_EL1_ATOMIC_SHIFT,
-		.field_width = 4,
-		.sign = FTR_UNSIGNED,
-		.min_field_value = 2,
+		ARM64_CPUID_FIELDS(ID_AA64ISAR0_EL1, ATOMIC, IMP)
 	},
 #endif /* CONFIG_ARM64_LSE_ATOMICS */
 	{
@@ -2281,21 +2287,13 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 		.capability = ARM64_HAS_NESTED_VIRT,
 		.type = ARM64_CPUCAP_SYSTEM_FEATURE,
 		.matches = has_nested_virt_support,
-		.sys_reg = SYS_ID_AA64MMFR2_EL1,
-		.sign = FTR_UNSIGNED,
-		.field_pos = ID_AA64MMFR2_EL1_NV_SHIFT,
-		.field_width = 4,
-		.min_field_value = ID_AA64MMFR2_EL1_NV_IMP,
+		ARM64_CPUID_FIELDS(ID_AA64MMFR2_EL1, NV, IMP)
 	},
 	{
 		.capability = ARM64_HAS_32BIT_EL0_DO_NOT_USE,
 		.type = ARM64_CPUCAP_SYSTEM_FEATURE,
 		.matches = has_32bit_el0,
-		.sys_reg = SYS_ID_AA64PFR0_EL1,
-		.sign = FTR_UNSIGNED,
-		.field_pos = ID_AA64PFR0_EL1_EL0_SHIFT,
-		.field_width = 4,
-		.min_field_value = ID_AA64PFR0_EL1_ELx_32BIT_64BIT,
+		ARM64_CPUID_FIELDS(ID_AA64PFR0_EL1, EL0, AARCH32)
 	},
 #ifdef CONFIG_KVM
 	{
@@ -2303,11 +2301,7 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 		.capability = ARM64_HAS_32BIT_EL1,
 		.type = ARM64_CPUCAP_SYSTEM_FEATURE,
 		.matches = has_cpuid_feature,
-		.sys_reg = SYS_ID_AA64PFR0_EL1,
-		.sign = FTR_UNSIGNED,
-		.field_pos = ID_AA64PFR0_EL1_EL1_SHIFT,
-		.field_width = 4,
-		.min_field_value = ID_AA64PFR0_EL1_ELx_32BIT_64BIT,
+		ARM64_CPUID_FIELDS(ID_AA64PFR0_EL1, EL1, AARCH32)
 	},
 	{
 		.desc = "Protected KVM",
@@ -2320,17 +2314,14 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 		.desc = "Kernel page table isolation (KPTI)",
 		.capability = ARM64_UNMAP_KERNEL_AT_EL0,
 		.type = ARM64_CPUCAP_BOOT_RESTRICTED_CPU_LOCAL_FEATURE,
+		.cpu_enable = kpti_install_ng_mappings,
+		.matches = unmap_kernel_at_el0,
 		/*
 		 * The ID feature fields below are used to indicate that
 		 * the CPU doesn't need KPTI. See unmap_kernel_at_el0 for
 		 * more details.
 		 */
-		.sys_reg = SYS_ID_AA64PFR0_EL1,
-		.field_pos = ID_AA64PFR0_EL1_CSV3_SHIFT,
-		.field_width = 4,
-		.min_field_value = 1,
-		.matches = unmap_kernel_at_el0,
-		.cpu_enable = kpti_install_ng_mappings,
+		ARM64_CPUID_FIELDS(ID_AA64PFR0_EL1, CSV3, IMP)
 	},
 	{
 		/* FP/SIMD is not implemented */
@@ -2345,21 +2336,14 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 		.capability = ARM64_HAS_DCPOP,
 		.type = ARM64_CPUCAP_SYSTEM_FEATURE,
 		.matches = has_cpuid_feature,
-		.sys_reg = SYS_ID_AA64ISAR1_EL1,
-		.field_pos = ID_AA64ISAR1_EL1_DPB_SHIFT,
-		.field_width = 4,
-		.min_field_value = 1,
+		ARM64_CPUID_FIELDS(ID_AA64ISAR1_EL1, DPB, IMP)
 	},
 	{
 		.desc = "Data cache clean to Point of Deep Persistence",
 		.capability = ARM64_HAS_DCPODP,
 		.type = ARM64_CPUCAP_SYSTEM_FEATURE,
 		.matches = has_cpuid_feature,
-		.sys_reg = SYS_ID_AA64ISAR1_EL1,
-		.sign = FTR_UNSIGNED,
-		.field_pos = ID_AA64ISAR1_EL1_DPB_SHIFT,
-		.field_width = 4,
-		.min_field_value = 2,
+		ARM64_CPUID_FIELDS(ID_AA64ISAR1_EL1, DPB, DPB2)
 	},
 #endif
 #ifdef CONFIG_ARM64_SVE
@@ -2367,13 +2351,9 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 		.desc = "Scalable Vector Extension",
 		.type = ARM64_CPUCAP_SYSTEM_FEATURE,
 		.capability = ARM64_SVE,
-		.sys_reg = SYS_ID_AA64PFR0_EL1,
-		.sign = FTR_UNSIGNED,
-		.field_pos = ID_AA64PFR0_EL1_SVE_SHIFT,
-		.field_width = 4,
-		.min_field_value = ID_AA64PFR0_EL1_SVE_IMP,
-		.matches = has_cpuid_feature,
 		.cpu_enable = sve_kernel_enable,
+		.matches = has_cpuid_feature,
+		ARM64_CPUID_FIELDS(ID_AA64PFR0_EL1, SVE, IMP)
 	},
 #endif /* CONFIG_ARM64_SVE */
 #ifdef CONFIG_ARM64_RAS_EXTN
@@ -2382,12 +2362,8 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 		.capability = ARM64_HAS_RAS_EXTN,
 		.type = ARM64_CPUCAP_SYSTEM_FEATURE,
 		.matches = has_cpuid_feature,
-		.sys_reg = SYS_ID_AA64PFR0_EL1,
-		.sign = FTR_UNSIGNED,
-		.field_pos = ID_AA64PFR0_EL1_RAS_SHIFT,
-		.field_width = 4,
-		.min_field_value = ID_AA64PFR0_EL1_RAS_IMP,
 		.cpu_enable = cpu_clear_disr,
+		ARM64_CPUID_FIELDS(ID_AA64PFR0_EL1, RAS, IMP)
 	},
 #endif /* CONFIG_ARM64_RAS_EXTN */
 #ifdef CONFIG_ARM64_AMU_EXTN
@@ -2401,12 +2377,8 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 		.capability = ARM64_HAS_AMU_EXTN,
 		.type = ARM64_CPUCAP_WEAK_LOCAL_CPU_FEATURE,
 		.matches = has_amu,
-		.sys_reg = SYS_ID_AA64PFR0_EL1,
-		.sign = FTR_UNSIGNED,
-		.field_pos = ID_AA64PFR0_EL1_AMU_SHIFT,
-		.field_width = 4,
-		.min_field_value = ID_AA64PFR0_EL1_AMU_IMP,
 		.cpu_enable = cpu_amu_enable,
+		ARM64_CPUID_FIELDS(ID_AA64PFR0_EL1, AMU, IMP)
 	},
 #endif /* CONFIG_ARM64_AMU_EXTN */
 	{
@@ -2426,34 +2398,22 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 		.desc = "Stage-2 Force Write-Back",
 		.type = ARM64_CPUCAP_SYSTEM_FEATURE,
 		.capability = ARM64_HAS_STAGE2_FWB,
-		.sys_reg = SYS_ID_AA64MMFR2_EL1,
-		.sign = FTR_UNSIGNED,
-		.field_pos = ID_AA64MMFR2_EL1_FWB_SHIFT,
-		.field_width = 4,
-		.min_field_value = 1,
 		.matches = has_cpuid_feature,
+		ARM64_CPUID_FIELDS(ID_AA64MMFR2_EL1, FWB, IMP)
 	},
 	{
 		.desc = "ARMv8.4 Translation Table Level",
 		.type = ARM64_CPUCAP_SYSTEM_FEATURE,
 		.capability = ARM64_HAS_ARMv8_4_TTL,
-		.sys_reg = SYS_ID_AA64MMFR2_EL1,
-		.sign = FTR_UNSIGNED,
-		.field_pos = ID_AA64MMFR2_EL1_TTL_SHIFT,
-		.field_width = 4,
-		.min_field_value = 1,
 		.matches = has_cpuid_feature,
+		ARM64_CPUID_FIELDS(ID_AA64MMFR2_EL1, TTL, IMP)
 	},
 	{
 		.desc = "TLB range maintenance instructions",
 		.capability = ARM64_HAS_TLB_RANGE,
 		.type = ARM64_CPUCAP_SYSTEM_FEATURE,
 		.matches = has_cpuid_feature,
-		.sys_reg = SYS_ID_AA64ISAR0_EL1,
-		.field_pos = ID_AA64ISAR0_EL1_TLB_SHIFT,
-		.field_width = 4,
-		.sign = FTR_UNSIGNED,
-		.min_field_value = ID_AA64ISAR0_EL1_TLB_RANGE,
+		ARM64_CPUID_FIELDS(ID_AA64ISAR0_EL1, TLB, RANGE)
 	},
 #ifdef CONFIG_ARM64_HW_AFDBM
 	{
@@ -2467,13 +2427,9 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 		 */
 		.type = ARM64_CPUCAP_WEAK_LOCAL_CPU_FEATURE,
 		.capability = ARM64_HW_DBM,
-		.sys_reg = SYS_ID_AA64MMFR1_EL1,
-		.sign = FTR_UNSIGNED,
-		.field_pos = ID_AA64MMFR1_EL1_HAFDBS_SHIFT,
-		.field_width = 4,
-		.min_field_value = 2,
 		.matches = has_hw_dbm,
 		.cpu_enable = cpu_enable_hw_dbm,
+		ARM64_CPUID_FIELDS(ID_AA64MMFR1_EL1, HAFDBS, DBM)
 	},
 #endif
 	{
@@ -2481,21 +2437,14 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 		.capability = ARM64_HAS_CRC32,
 		.type = ARM64_CPUCAP_SYSTEM_FEATURE,
 		.matches = has_cpuid_feature,
-		.sys_reg = SYS_ID_AA64ISAR0_EL1,
-		.field_pos = ID_AA64ISAR0_EL1_CRC32_SHIFT,
-		.field_width = 4,
-		.min_field_value = 1,
+		ARM64_CPUID_FIELDS(ID_AA64ISAR0_EL1, CRC32, IMP)
 	},
 	{
 		.desc = "Speculative Store Bypassing Safe (SSBS)",
 		.capability = ARM64_SSBS,
 		.type = ARM64_CPUCAP_SYSTEM_FEATURE,
 		.matches = has_cpuid_feature,
-		.sys_reg = SYS_ID_AA64PFR1_EL1,
-		.field_pos = ID_AA64PFR1_EL1_SSBS_SHIFT,
-		.field_width = 4,
-		.sign = FTR_UNSIGNED,
-		.min_field_value = ID_AA64PFR1_EL1_SSBS_IMP,
+		ARM64_CPUID_FIELDS(ID_AA64PFR1_EL1, SSBS, IMP)
 	},
 #ifdef CONFIG_ARM64_CNP
 	{
@@ -2503,12 +2452,8 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 		.capability = ARM64_HAS_CNP,
 		.type = ARM64_CPUCAP_SYSTEM_FEATURE,
 		.matches = has_useable_cnp,
-		.sys_reg = SYS_ID_AA64MMFR2_EL1,
-		.sign = FTR_UNSIGNED,
-		.field_pos = ID_AA64MMFR2_EL1_CnP_SHIFT,
-		.field_width = 4,
-		.min_field_value = 1,
 		.cpu_enable = cpu_enable_cnp,
+		ARM64_CPUID_FIELDS(ID_AA64MMFR2_EL1, CnP, IMP)
 	},
 #endif
 	{
@@ -2516,45 +2461,29 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 		.capability = ARM64_HAS_SB,
 		.type = ARM64_CPUCAP_SYSTEM_FEATURE,
 		.matches = has_cpuid_feature,
-		.sys_reg = SYS_ID_AA64ISAR1_EL1,
-		.field_pos = ID_AA64ISAR1_EL1_SB_SHIFT,
-		.field_width = 4,
-		.sign = FTR_UNSIGNED,
-		.min_field_value = 1,
+		ARM64_CPUID_FIELDS(ID_AA64ISAR1_EL1, SB, IMP)
 	},
 #ifdef CONFIG_ARM64_PTR_AUTH
 	{
 		.desc = "Address authentication (architected QARMA5 algorithm)",
 		.capability = ARM64_HAS_ADDRESS_AUTH_ARCH_QARMA5,
 		.type = ARM64_CPUCAP_BOOT_CPU_FEATURE,
-		.sys_reg = SYS_ID_AA64ISAR1_EL1,
-		.sign = FTR_UNSIGNED,
-		.field_pos = ID_AA64ISAR1_EL1_APA_SHIFT,
-		.field_width = 4,
-		.min_field_value = ID_AA64ISAR1_EL1_APA_PAuth,
 		.matches = has_address_auth_cpucap,
+		ARM64_CPUID_FIELDS(ID_AA64ISAR1_EL1, APA, PAuth)
 	},
 	{
 		.desc = "Address authentication (architected QARMA3 algorithm)",
 		.capability = ARM64_HAS_ADDRESS_AUTH_ARCH_QARMA3,
 		.type = ARM64_CPUCAP_BOOT_CPU_FEATURE,
-		.sys_reg = SYS_ID_AA64ISAR2_EL1,
-		.sign = FTR_UNSIGNED,
-		.field_pos = ID_AA64ISAR2_EL1_APA3_SHIFT,
-		.field_width = 4,
-		.min_field_value = ID_AA64ISAR2_EL1_APA3_PAuth,
 		.matches = has_address_auth_cpucap,
+		ARM64_CPUID_FIELDS(ID_AA64ISAR2_EL1, APA3, PAuth)
 	},
 	{
 		.desc = "Address authentication (IMP DEF algorithm)",
 		.capability = ARM64_HAS_ADDRESS_AUTH_IMP_DEF,
 		.type = ARM64_CPUCAP_BOOT_CPU_FEATURE,
-		.sys_reg = SYS_ID_AA64ISAR1_EL1,
-		.sign = FTR_UNSIGNED,
-		.field_pos = ID_AA64ISAR1_EL1_API_SHIFT,
-		.field_width = 4,
-		.min_field_value = ID_AA64ISAR1_EL1_API_PAuth,
 		.matches = has_address_auth_cpucap,
+		ARM64_CPUID_FIELDS(ID_AA64ISAR1_EL1, API, PAuth)
 	},
 	{
 		.capability = ARM64_HAS_ADDRESS_AUTH,
@@ -2565,34 +2494,22 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 		.desc = "Generic authentication (architected QARMA5 algorithm)",
 		.capability = ARM64_HAS_GENERIC_AUTH_ARCH_QARMA5,
 		.type = ARM64_CPUCAP_SYSTEM_FEATURE,
-		.sys_reg = SYS_ID_AA64ISAR1_EL1,
-		.sign = FTR_UNSIGNED,
-		.field_pos = ID_AA64ISAR1_EL1_GPA_SHIFT,
-		.field_width = 4,
-		.min_field_value = ID_AA64ISAR1_EL1_GPA_IMP,
 		.matches = has_cpuid_feature,
+		ARM64_CPUID_FIELDS(ID_AA64ISAR1_EL1, GPA, IMP)
 	},
 	{
 		.desc = "Generic authentication (architected QARMA3 algorithm)",
 		.capability = ARM64_HAS_GENERIC_AUTH_ARCH_QARMA3,
 		.type = ARM64_CPUCAP_SYSTEM_FEATURE,
-		.sys_reg = SYS_ID_AA64ISAR2_EL1,
-		.sign = FTR_UNSIGNED,
-		.field_pos = ID_AA64ISAR2_EL1_GPA3_SHIFT,
-		.field_width = 4,
-		.min_field_value = ID_AA64ISAR2_EL1_GPA3_IMP,
 		.matches = has_cpuid_feature,
+		ARM64_CPUID_FIELDS(ID_AA64ISAR2_EL1, GPA3, IMP)
 	},
 	{
 		.desc = "Generic authentication (IMP DEF algorithm)",
 		.capability = ARM64_HAS_GENERIC_AUTH_IMP_DEF,
 		.type = ARM64_CPUCAP_SYSTEM_FEATURE,
-		.sys_reg = SYS_ID_AA64ISAR1_EL1,
-		.sign = FTR_UNSIGNED,
-		.field_pos = ID_AA64ISAR1_EL1_GPI_SHIFT,
-		.field_width = 4,
-		.min_field_value = ID_AA64ISAR1_EL1_GPI_IMP,
 		.matches = has_cpuid_feature,
+		ARM64_CPUID_FIELDS(ID_AA64ISAR1_EL1, GPI, IMP)
 	},
 	{
 		.capability = ARM64_HAS_GENERIC_AUTH,
@@ -2624,13 +2541,9 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 		.desc = "E0PD",
 		.capability = ARM64_HAS_E0PD,
 		.type = ARM64_CPUCAP_SYSTEM_FEATURE,
-		.sys_reg = SYS_ID_AA64MMFR2_EL1,
-		.sign = FTR_UNSIGNED,
-		.field_width = 4,
-		.field_pos = ID_AA64MMFR2_EL1_E0PD_SHIFT,
-		.matches = has_cpuid_feature,
-		.min_field_value = 1,
 		.cpu_enable = cpu_enable_e0pd,
+		.matches = has_cpuid_feature,
+		ARM64_CPUID_FIELDS(ID_AA64MMFR2_EL1, E0PD, IMP)
 	},
 #endif
 	{
@@ -2638,11 +2551,7 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 		.capability = ARM64_HAS_RNG,
 		.type = ARM64_CPUCAP_SYSTEM_FEATURE,
 		.matches = has_cpuid_feature,
-		.sys_reg = SYS_ID_AA64ISAR0_EL1,
-		.field_pos = ID_AA64ISAR0_EL1_RNDR_SHIFT,
-		.field_width = 4,
-		.sign = FTR_UNSIGNED,
-		.min_field_value = 1,
+		ARM64_CPUID_FIELDS(ID_AA64ISAR0_EL1, RNDR, IMP)
 	},
 #ifdef CONFIG_ARM64_BTI
 	{
@@ -2655,11 +2564,7 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 #endif
 		.matches = has_cpuid_feature,
 		.cpu_enable = bti_enable,
-		.sys_reg = SYS_ID_AA64PFR1_EL1,
-		.field_pos = ID_AA64PFR1_EL1_BT_SHIFT,
-		.field_width = 4,
-		.min_field_value = ID_AA64PFR1_EL1_BT_IMP,
-		.sign = FTR_UNSIGNED,
+		ARM64_CPUID_FIELDS(ID_AA64PFR1_EL1, BT, IMP)
 	},
 #endif
 #ifdef CONFIG_ARM64_MTE
@@ -2668,120 +2573,80 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 		.capability = ARM64_MTE,
 		.type = ARM64_CPUCAP_STRICT_BOOT_CPU_FEATURE,
 		.matches = has_cpuid_feature,
-		.sys_reg = SYS_ID_AA64PFR1_EL1,
-		.field_pos = ID_AA64PFR1_EL1_MTE_SHIFT,
-		.field_width = 4,
-		.min_field_value = ID_AA64PFR1_EL1_MTE_MTE2,
-		.sign = FTR_UNSIGNED,
 		.cpu_enable = cpu_enable_mte,
+		ARM64_CPUID_FIELDS(ID_AA64PFR1_EL1, MTE, MTE2)
 	},
 	{
 		.desc = "Asymmetric MTE Tag Check Fault",
 		.capability = ARM64_MTE_ASYMM,
 		.type = ARM64_CPUCAP_BOOT_CPU_FEATURE,
 		.matches = has_cpuid_feature,
-		.sys_reg = SYS_ID_AA64PFR1_EL1,
-		.field_pos = ID_AA64PFR1_EL1_MTE_SHIFT,
-		.field_width = 4,
-		.min_field_value = ID_AA64PFR1_EL1_MTE_MTE3,
-		.sign = FTR_UNSIGNED,
+		ARM64_CPUID_FIELDS(ID_AA64PFR1_EL1, MTE, MTE3)
 	},
 #endif /* CONFIG_ARM64_MTE */
 	{
 		.desc = "RCpc load-acquire (LDAPR)",
 		.capability = ARM64_HAS_LDAPR,
 		.type = ARM64_CPUCAP_SYSTEM_FEATURE,
-		.sys_reg = SYS_ID_AA64ISAR1_EL1,
-		.sign = FTR_UNSIGNED,
-		.field_pos = ID_AA64ISAR1_EL1_LRCPC_SHIFT,
-		.field_width = 4,
 		.matches = has_cpuid_feature,
-		.min_field_value = 1,
+		ARM64_CPUID_FIELDS(ID_AA64ISAR1_EL1, LRCPC, IMP)
 	},
 #ifdef CONFIG_ARM64_SME
 	{
 		.desc = "Scalable Matrix Extension",
 		.type = ARM64_CPUCAP_SYSTEM_FEATURE,
 		.capability = ARM64_SME,
-		.sys_reg = SYS_ID_AA64PFR1_EL1,
-		.sign = FTR_UNSIGNED,
-		.field_pos = ID_AA64PFR1_EL1_SME_SHIFT,
-		.field_width = 4,
-		.min_field_value = ID_AA64PFR1_EL1_SME_IMP,
 		.matches = has_cpuid_feature,
 		.cpu_enable = sme_kernel_enable,
+		ARM64_CPUID_FIELDS(ID_AA64PFR1_EL1, SME, IMP)
 	},
 	/* FA64 should be sorted after the base SME capability */
 	{
 		.desc = "FA64",
 		.type = ARM64_CPUCAP_SYSTEM_FEATURE,
 		.capability = ARM64_SME_FA64,
-		.sys_reg = SYS_ID_AA64SMFR0_EL1,
-		.sign = FTR_UNSIGNED,
-		.field_pos = ID_AA64SMFR0_EL1_FA64_SHIFT,
-		.field_width = 1,
-		.min_field_value = ID_AA64SMFR0_EL1_FA64_IMP,
 		.matches = has_cpuid_feature,
 		.cpu_enable = fa64_kernel_enable,
+		ARM64_CPUID_FIELDS(ID_AA64SMFR0_EL1, FA64, IMP)
 	},
 	{
 		.desc = "SME2",
 		.type = ARM64_CPUCAP_SYSTEM_FEATURE,
 		.capability = ARM64_SME2,
-		.sys_reg = SYS_ID_AA64PFR1_EL1,
-		.sign = FTR_UNSIGNED,
-		.field_pos = ID_AA64PFR1_EL1_SME_SHIFT,
-		.field_width = ID_AA64PFR1_EL1_SME_WIDTH,
-		.min_field_value = ID_AA64PFR1_EL1_SME_SME2,
 		.matches = has_cpuid_feature,
 		.cpu_enable = sme2_kernel_enable,
+		ARM64_CPUID_FIELDS(ID_AA64PFR1_EL1, SME, SME2)
 	},
 #endif /* CONFIG_ARM64_SME */
 	{
 		.desc = "WFx with timeout",
 		.capability = ARM64_HAS_WFXT,
 		.type = ARM64_CPUCAP_SYSTEM_FEATURE,
-		.sys_reg = SYS_ID_AA64ISAR2_EL1,
-		.sign = FTR_UNSIGNED,
-		.field_pos = ID_AA64ISAR2_EL1_WFxT_SHIFT,
-		.field_width = 4,
 		.matches = has_cpuid_feature,
-		.min_field_value = ID_AA64ISAR2_EL1_WFxT_IMP,
+		ARM64_CPUID_FIELDS(ID_AA64ISAR2_EL1, WFxT, IMP)
 	},
 	{
 		.desc = "Trap EL0 IMPLEMENTATION DEFINED functionality",
 		.capability = ARM64_HAS_TIDCP1,
 		.type = ARM64_CPUCAP_SYSTEM_FEATURE,
-		.sys_reg = SYS_ID_AA64MMFR1_EL1,
-		.sign = FTR_UNSIGNED,
-		.field_pos = ID_AA64MMFR1_EL1_TIDCP1_SHIFT,
-		.field_width = 4,
-		.min_field_value = ID_AA64MMFR1_EL1_TIDCP1_IMP,
 		.matches = has_cpuid_feature,
 		.cpu_enable = cpu_trap_el0_impdef,
+		ARM64_CPUID_FIELDS(ID_AA64MMFR1_EL1, TIDCP1, IMP)
 	},
 	{
 		.desc = "Data independent timing control (DIT)",
 		.capability = ARM64_HAS_DIT,
 		.type = ARM64_CPUCAP_SYSTEM_FEATURE,
-		.sys_reg = SYS_ID_AA64PFR0_EL1,
-		.sign = FTR_UNSIGNED,
-		.field_pos = ID_AA64PFR0_EL1_DIT_SHIFT,
-		.field_width = 4,
-		.min_field_value = ID_AA64PFR0_EL1_DIT_IMP,
 		.matches = has_cpuid_feature,
 		.cpu_enable = cpu_enable_dit,
+		ARM64_CPUID_FIELDS(ID_AA64PFR0_EL1, DIT, IMP)
 	},
 	{},
 };
 
 #define HWCAP_CPUID_MATCH(reg, field, min_value)			\
-		.matches = has_user_cpuid_feature,					\
-		.sys_reg = SYS_##reg,							\
-		.field_pos = reg##_##field##_SHIFT,						\
-		.field_width = reg##_##field##_WIDTH,						\
-		.sign = reg##_##field##_SIGNED,							\
-		.min_field_value = reg##_##field##_##min_value,
+		.matches = has_user_cpuid_feature,			\
+		ARM64_CPUID_FIELDS(reg, field, min_value)
 
 #define __HWCAP_CAP(name, cap_type, cap)					\
 		.desc = name,							\

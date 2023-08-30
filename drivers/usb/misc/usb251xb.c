@@ -377,7 +377,6 @@ out_err:
 	return err;
 }
 
-#ifdef CONFIG_OF
 static void usb251xb_get_ports_field(struct usb251xb *hub,
 				    const char *prop_name, u8 port_cnt,
 				    bool ds_only, u8 *fld)
@@ -410,10 +409,7 @@ static int usb251xb_get_ofdata(struct usb251xb *hub,
 		return -ENODEV;
 	}
 
-	if (of_get_property(np, "skip-config", NULL))
-		hub->skip_config = 1;
-	else
-		hub->skip_config = 0;
+	hub->skip_config = of_property_read_bool(np, "skip-config");
 
 	hub->gpio_reset = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(hub->gpio_reset))
@@ -431,40 +427,40 @@ static int usb251xb_get_ofdata(struct usb251xb *hub,
 		hub->device_id = USB251XB_DEF_DEVICE_ID;
 
 	hub->conf_data1 = USB251XB_DEF_CONFIG_DATA_1;
-	if (of_get_property(np, "self-powered", NULL)) {
+	if (of_property_read_bool(np, "self-powered")) {
 		hub->conf_data1 |= BIT(7);
 
 		/* Configure Over-Current sens when self-powered */
 		hub->conf_data1 &= ~BIT(2);
-		if (of_get_property(np, "ganged-sensing", NULL))
+		if (of_property_read_bool(np, "ganged-sensing"))
 			hub->conf_data1 &= ~BIT(1);
-		else if (of_get_property(np, "individual-sensing", NULL))
+		else if (of_property_read_bool(np, "individual-sensing"))
 			hub->conf_data1 |= BIT(1);
-	} else if (of_get_property(np, "bus-powered", NULL)) {
+	} else if (of_property_read_bool(np, "bus-powered")) {
 		hub->conf_data1 &= ~BIT(7);
 
 		/* Disable Over-Current sense when bus-powered */
 		hub->conf_data1 |= BIT(2);
 	}
 
-	if (of_get_property(np, "disable-hi-speed", NULL))
+	if (of_property_read_bool(np, "disable-hi-speed"))
 		hub->conf_data1 |= BIT(5);
 
-	if (of_get_property(np, "multi-tt", NULL))
+	if (of_property_read_bool(np, "multi-tt"))
 		hub->conf_data1 |= BIT(4);
-	else if (of_get_property(np, "single-tt", NULL))
+	else if (of_property_read_bool(np, "single-tt"))
 		hub->conf_data1 &= ~BIT(4);
 
-	if (of_get_property(np, "disable-eop", NULL))
+	if (of_property_read_bool(np, "disable-eop"))
 		hub->conf_data1 |= BIT(3);
 
-	if (of_get_property(np, "individual-port-switching", NULL))
+	if (of_property_read_bool(np, "individual-port-switching"))
 		hub->conf_data1 |= BIT(0);
-	else if (of_get_property(np, "ganged-port-switching", NULL))
+	else if (of_property_read_bool(np, "ganged-port-switching"))
 		hub->conf_data1 &= ~BIT(0);
 
 	hub->conf_data2 = USB251XB_DEF_CONFIG_DATA_2;
-	if (of_get_property(np, "dynamic-power-switching", NULL))
+	if (of_property_read_bool(np, "dynamic-power-switching"))
 		hub->conf_data2 |= BIT(7);
 
 	if (!of_property_read_u32(np, "oc-delay-us", &property_u32)) {
@@ -487,17 +483,17 @@ static int usb251xb_get_ofdata(struct usb251xb *hub,
 		}
 	}
 
-	if (of_get_property(np, "compound-device", NULL))
+	if (of_property_read_bool(np, "compound-device"))
 		hub->conf_data2 |= BIT(3);
 
 	hub->conf_data3 = USB251XB_DEF_CONFIG_DATA_3;
-	if (of_get_property(np, "port-mapping-mode", NULL))
+	if (of_property_read_bool(np, "port-mapping-mode"))
 		hub->conf_data3 |= BIT(3);
 
 	if (data->led_support && of_get_property(np, "led-usb-mode", NULL))
 		hub->conf_data3 &= ~BIT(1);
 
-	if (of_get_property(np, "string-support", NULL))
+	if (of_property_read_bool(np, "string-support"))
 		hub->conf_data3 |= BIT(0);
 
 	hub->non_rem_dev = USB251XB_DEF_NON_REMOVABLE_DEVICES;
@@ -626,13 +622,6 @@ static const struct of_device_id usb251xb_of_match[] = {
 	}
 };
 MODULE_DEVICE_TABLE(of, usb251xb_of_match);
-#else /* CONFIG_OF */
-static int usb251xb_get_ofdata(struct usb251xb *hub,
-			       const struct usb251xb_data *data)
-{
-	return 0;
-}
-#endif /* CONFIG_OF */
 
 static void usb251xb_regulator_disable_action(void *data)
 {
@@ -754,7 +743,7 @@ MODULE_DEVICE_TABLE(i2c, usb251xb_id);
 static struct i2c_driver usb251xb_i2c_driver = {
 	.driver = {
 		.name = DRIVER_NAME,
-		.of_match_table = of_match_ptr(usb251xb_of_match),
+		.of_match_table = usb251xb_of_match,
 		.pm = &usb251xb_pm_ops,
 	},
 	.probe_new = usb251xb_i2c_probe,

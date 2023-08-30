@@ -95,7 +95,7 @@ static int dmic_set(struct snd_kcontrol *kcontrol,
 	priv->dmic_switch = ucontrol->value.integer.value[0];
 	if (priv->dmic_sel) {
 		gpiod_set_value(priv->dmic_sel, priv->dmic_switch);
-		dev_info(dapm->card->dev, "dmic_set_value %d\n",
+		dev_dbg(dapm->card->dev, "dmic_set_value %d\n",
 			 priv->dmic_switch);
 	}
 	return 0;
@@ -139,7 +139,7 @@ static int primary_codec_init(struct snd_soc_pcm_runtime *rtd)
 	}
 
 	if (!priv->dmic_sel) {
-		dev_info(card->dev, "dmic_sel is null\n");
+		dev_dbg(card->dev, "dmic_sel is null\n");
 		return 0;
 	}
 
@@ -1152,7 +1152,7 @@ static int mt8186_mt6366_rt1019_rt5682s_dev_probe(struct platform_device *pdev)
 		card->name = card->topology_shortname;
 		sof_on = 1;
 	} else {
-		dev_info(&pdev->dev, "Probe without adsp\n");
+		dev_dbg(&pdev->dev, "Probe without adsp\n");
 	}
 
 	if (of_property_read_bool(pdev->dev.of_node, "mediatek,dai-link")) {

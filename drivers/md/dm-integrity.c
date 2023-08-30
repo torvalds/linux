@@ -3118,7 +3118,7 @@ static int dm_integrity_reboot(struct notifier_block *n, unsigned long code, voi
 
 static void dm_integrity_postsuspend(struct dm_target *ti)
 {
-	struct dm_integrity_c *ic = (struct dm_integrity_c *)ti->private;
+	struct dm_integrity_c *ic = ti->private;
 	int r;
 
 	WARN_ON(unregister_reboot_notifier(&ic->reboot_notifier));
@@ -3167,7 +3167,7 @@ static void dm_integrity_postsuspend(struct dm_target *ti)
 
 static void dm_integrity_resume(struct dm_target *ti)
 {
-	struct dm_integrity_c *ic = (struct dm_integrity_c *)ti->private;
+	struct dm_integrity_c *ic = ti->private;
 	__u64 old_provided_data_sectors = le64_to_cpu(ic->sb->provided_data_sectors);
 	int r;
 
@@ -3290,7 +3290,7 @@ static void dm_integrity_resume(struct dm_target *ti)
 static void dm_integrity_status(struct dm_target *ti, status_type_t type,
 				unsigned int status_flags, char *result, unsigned int maxlen)
 {
-	struct dm_integrity_c *ic = (struct dm_integrity_c *)ti->private;
+	struct dm_integrity_c *ic = ti->private;
 	unsigned int arg_count;
 	size_t sz = 0;
 
@@ -4703,11 +4703,12 @@ static int __init dm_integrity_init(void)
 	}
 
 	r = dm_register_target(&integrity_target);
+	if (r < 0) {
+		kmem_cache_destroy(journal_io_cache);
+		return r;
+	}
 
-	if (r < 0)
-		DMERR("register failed %d", r);
-
-	return r;
+	return 0;
 }
 
 static void __exit dm_integrity_exit(void)

@@ -12,13 +12,7 @@
 #ifndef _S390_CHECKSUM_H
 #define _S390_CHECKSUM_H
 
-#ifdef CONFIG_GENERIC_CSUM
-
-#include <asm-generic/checksum.h>
-
-#else /* CONFIG_GENERIC_CSUM */
-
-#include <linux/uaccess.h>
+#include <linux/kasan-checks.h>
 #include <linux/in6.h>
 
 /*
@@ -40,6 +34,7 @@ static inline __wsum csum_partial(const void *buff, int len, __wsum sum)
 		.odd = (unsigned long) len,
 	};
 
+	kasan_check_read(buff, len);
 	asm volatile(
 		"0:	cksm	%[sum],%[rp]\n"
 		"	jo	0b\n"
@@ -135,5 +130,4 @@ static inline __sum16 csum_ipv6_magic(const struct in6_addr *saddr,
 	return csum_fold((__force __wsum)(sum >> 32));
 }
 
-#endif /* CONFIG_GENERIC_CSUM */
 #endif /* _S390_CHECKSUM_H */

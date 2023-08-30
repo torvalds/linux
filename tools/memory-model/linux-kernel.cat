@@ -37,8 +37,20 @@ let mb = ([M] ; fencerel(Mb) ; [M]) |
 	([M] ; fencerel(Before-atomic) ; [RMW] ; po? ; [M]) |
 	([M] ; po? ; [RMW] ; fencerel(After-atomic) ; [M]) |
 	([M] ; po? ; [LKW] ; fencerel(After-spinlock) ; [M]) |
-	([M] ; po ; [UL] ; (co | po) ; [LKW] ;
-		fencerel(After-unlock-lock) ; [M])
+(*
+ * Note: The po-unlock-lock-po relation only passes the lock to the direct
+ * successor, perhaps giving the impression that the ordering of the
+ * smp_mb__after_unlock_lock() fence only affects a single lock handover.
+ * However, in a longer sequence of lock handovers, the implicit
+ * A-cumulative release fences of lock-release ensure that any stores that
+ * propagate to one of the involved CPUs before it hands over the lock to
+ * the next CPU will also propagate to the final CPU handing over the lock
+ * to the CPU that executes the fence.  Therefore, all those stores are
+ * also affected by the fence.
+ *)
+	([M] ; po-unlock-lock-po ;
+		[After-unlock-lock] ; po ; [M]) |
+	([M] ; po? ; [Srcu-unlock] ; fencerel(After-srcu-read-unlock) ; [M])
 let gp = po ; [Sync-rcu | Sync-srcu] ; po?
 let strong-fence = mb | gp
 
@@ -69,8 +81,8 @@ let dep = addr | data
 let rwdep = (dep | ctrl) ; [W]
 let overwrite = co | fr
 let to-w = rwdep | (overwrite & int) | (addr ; [Plain] ; wmb)
-let to-r = addr | (dep ; [Marked] ; rfi)
-let ppo = to-r | to-w | fence | (po-unlock-lock-po & int)
+let to-r = (addr ; [R]) | (dep ; [Marked] ; rfi)
+let ppo = to-r | to-w | (fence & int) | (po-unlock-lock-po & int)
 
 (* Propagation: Ordering from release operations and strong fences. *)
 let A-cumul(r) = (rfe ; [Marked])? ; r

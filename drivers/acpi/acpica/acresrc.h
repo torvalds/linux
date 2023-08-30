@@ -3,7 +3,7 @@
  *
  * Name: acresrc.h - Resource Manager function prototypes
  *
- * Copyright (C) 2000 - 2022, Intel Corp.
+ * Copyright (C) 2000 - 2023, Intel Corp.
  *
  *****************************************************************************/
 
@@ -306,6 +306,7 @@ extern struct acpi_rsconvert_info acpi_rs_convert_pin_config[];
 extern struct acpi_rsconvert_info acpi_rs_convert_pin_group[];
 extern struct acpi_rsconvert_info acpi_rs_convert_pin_group_function[];
 extern struct acpi_rsconvert_info acpi_rs_convert_pin_group_config[];
+extern struct acpi_rsconvert_info acpi_rs_convert_clock_input[];
 
 /* These resources require separate get/set tables */
 
@@ -361,6 +362,7 @@ extern struct acpi_rsdump_info acpi_rs_dump_pin_config[];
 extern struct acpi_rsdump_info acpi_rs_dump_pin_group[];
 extern struct acpi_rsdump_info acpi_rs_dump_pin_group_function[];
 extern struct acpi_rsdump_info acpi_rs_dump_pin_group_config[];
+extern struct acpi_rsdump_info acpi_rs_dump_clock_input[];
 #endif
 
 #endif				/* __ACRESRC_H__ */

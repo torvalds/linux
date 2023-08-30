@@ -10,7 +10,7 @@ maintainers:
   - devicetree-spec@vger.kernel.org
 
 allOf:
-  - $ref: "reserved-memory.yaml"
+  - $ref: reserved-memory.yaml
 
 properties:
   compatible:

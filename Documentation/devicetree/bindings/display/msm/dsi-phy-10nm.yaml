@@ -58,7 +58,7 @@ properties:
       maximum: 31
 
   qcom,phy-drive-ldo-level:
-    $ref: "/schemas/types.yaml#/definitions/uint32"
+    $ref: /schemas/types.yaml#/definitions/uint32
     description:
       The PHY LDO has an amplitude tuning feature to adjust the LDO output
       for the HSTX drive. Use supported levels (mV) to offset the drive level

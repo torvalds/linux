@@ -420,25 +420,6 @@ static int __init _mxc_timer_init(struct imx_timer *imxtm)
 	return mxc_clockevent_init(imxtm);
 }
 
-void __init mxc_timer_init(unsigned long pbase, int irq, enum imx_gpt_type type)
-{
-	struct imx_timer *imxtm;
-
-	imxtm = kzalloc(sizeof(*imxtm), GFP_KERNEL);
-	BUG_ON(!imxtm);
-
-	imxtm->clk_per = clk_get_sys("imx-gpt.0", "per");
-	imxtm->clk_ipg = clk_get_sys("imx-gpt.0", "ipg");
-
-	imxtm->base = ioremap(pbase, SZ_4K);
-	BUG_ON(!imxtm->base);
-
-	imxtm->type = type;
-	imxtm->irq = irq;
-
-	_mxc_timer_init(imxtm);
-}
-
 static int __init mxc_timer_init_dt(struct device_node *np,  enum imx_gpt_type type)
 {
 	struct imx_timer *imxtm;

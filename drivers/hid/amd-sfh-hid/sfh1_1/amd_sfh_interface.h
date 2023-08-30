@@ -33,9 +33,9 @@ struct sfh_cmd_base {
 		struct {
 			u32 sensor_id		: 4;
 			u32 cmd_id		: 4;
-			u32 sub_cmd_id		: 6;
-			u32 length		: 12;
-			u32 rsvd		: 5;
+			u32 sub_cmd_id		: 8;
+			u32 sub_cmd_value	: 12;
+			u32 rsvd		: 3;
 			u32 intr_disable	: 1;
 		} cmd;
 	};
@@ -133,7 +133,7 @@ struct sfh_mag_data {
 
 struct sfh_als_data {
 	struct sfh_common_data commondata;
-	u16 lux;
+	u32 lux;
 };
 
 struct hpd_status {

@@ -1,0 +1,270 @@
+// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
+/*
+ * Copyright 2022 Toradex
+ */
+
+#include <dt-bindings/leds/common.h>
+
+/ {
+	aliases {
+		rtc0 = &rtc_i2c;
+		rtc1 = &rtc;
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_leds_ixora>;
+
+		/* LED_4_GREEN / MXM3_188 */
+		led-1 {
+			color = <LED_COLOR_ID_GREEN>;
+			default-state = "off";
+			function = LED_FUNCTION_STATUS;
+			gpios = <&lsio_gpio5 27 GPIO_ACTIVE_HIGH>;
+		};
+
+		/* LED_4_RED / MXM3_178 */
+		led-2 {
+			color = <LED_COLOR_ID_RED>;
+			default-state = "off";
+			function = LED_FUNCTION_STATUS;
+			gpios = <&lsio_gpio5 29 GPIO_ACTIVE_HIGH>;
+		};
+
+		/* LED_5_GREEN / MXM3_152 */
+		led-3 {
+			color = <LED_COLOR_ID_GREEN>;
+			default-state = "off";
+			function = LED_FUNCTION_STATUS;
+			gpios = <&lsio_gpio5 20 GPIO_ACTIVE_HIGH>;
+		};
+
+		/* LED_5_RED / MXM3_156 */
+		led-4 {
+			color = <LED_COLOR_ID_RED>;
+			default-state = "off";
+			function = LED_FUNCTION_STATUS;
+			gpios = <&lsio_gpio5 21 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
+	reg_3v3_vmmc: regulator-3v3-vmmc {
+		compatible = "regulator-fixed";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_enable_3v3_vmmc>;
+		/* MMC1_PWR_CTRL */
+		gpio = <&lsio_gpio5 19 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		regulator-max-microvolt = <3300000>;
+		regulator-min-microvolt = <3300000>;
+		regulator-name = "3v3_vmmc";
+	};
+
+	reg_can1_supply: regulator-can1-supply {
+		compatible = "regulator-fixed";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_enable_can1_power>;
+		gpio = <&lsio_gpio5 22 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		regulator-name = "can1_supply";
+	};
+
+	reg_can2_supply: regulator-can2-supply {
+		compatible = "regulator-fixed";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_sata1_act>;
+		gpio = <&lsio_gpio2 8 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		regulator-name = "can2_supply";
+	};
+
+	reg_usb_host_vbus: regulator-usb-host-vbus {
+		regulator-name = "VCC_USBH(2|4)";
+	};
+};
+
+&adc0 {
+	status = "okay";
+};
+
+&adc1 {
+	status = "okay";
+};
+
+/* TODO: Audio Mixer */
+
+/* TODO: Asynchronous Sample Rate Converter (ASRC) */
+
+/* TODO: Display Controller */
+
+/* TODO: DPU */
+
+/* Apalis ETH1 */
+&fec1 {
+	status = "okay";
+};
+
+/* Apalis CAN1 */
+&flexcan1 {
+	xceiver-supply = <&reg_can1_supply>;
+	status = "okay";
+};
+
+/* Apalis CAN2 */
+&flexcan2 {
+	xceiver-supply = <&reg_can2_supply>;
+	status = "okay";
+};
+
+/* TODO: GPU */
+
+/* Apalis I2C1 */
+&i2c2 {
+	status = "okay";
+
+	eeprom: eeprom@50 {
+		compatible = "atmel,24c02";
+		reg = <0x50>;
+		pagesize = <16>;
+	};
+
+	/* M41T0M6 real time clock on carrier board */
+	rtc_i2c: rtc@68 {
+		status = "okay";
+	};
+};
+
+/* Apalis I2C3 (CAM) */
+&i2c3 {
+	status = "okay";
+};
+
+&iomuxc {
+	pinctrl-0 = <&pinctrl_cam1_gpios>, <&pinctrl_dap1_gpios>,
+		    <&pinctrl_esai0_gpios>, <&pinctrl_fec2_gpios>,
+		    <&pinctrl_gpio3>, <&pinctrl_gpio4>, <&pinctrl_gpio_usbh_oc_n>,
+		    <&pinctrl_lpuart1ctrl>, <&pinctrl_lvds0_i2c0_gpio>,
+		    <&pinctrl_lvds1_i2c0_gpios>, <&pinctrl_mipi_dsi_0_1_en>,
+		    <&pinctrl_mipi_dsi1_gpios>, <&pinctrl_mlb_gpios>,
+		    <&pinctrl_qspi1a_gpios>, <&pinctrl_sim0_gpios>,
+		    <&pinctrl_uart24_forceoff>, <&pinctrl_usdhc1_gpios>;
+
+	/* PMIC MMC1 power-switch */
+	pinctrl_enable_3v3_vmmc: enable3v3vmmcgrp {
+		fsl,pins = <IMX8QM_USDHC1_DATA4_LSIO_GPIO5_IO19	0x00000021>; /* MXM3_148, PMIC */
+	};
+
+	/* FlexCAN PMIC */
+	pinctrl_enable_can1_power: enablecan1powergrp {
+		fsl,pins = <IMX8QM_USDHC1_DATA7_LSIO_GPIO5_IO22	0x00000021>; /* MXM3_158, PMIC */
+	};
+
+	pinctrl_leds_ixora: ledsixoragrp {
+		fsl,pins = <IMX8QM_USDHC2_DATA1_LSIO_GPIO5_IO27	0x06000061>, /* LED_4_GREEN */
+			   <IMX8QM_USDHC2_DATA3_LSIO_GPIO5_IO29	0x06000061>, /* LED_4_RED */
+			   <IMX8QM_USDHC1_DATA5_LSIO_GPIO5_IO20	0x06000061>, /* LED_5_GREEN */
+			   <IMX8QM_USDHC1_DATA6_LSIO_GPIO5_IO21	0x06000061>; /* LED_5_RED */
+	};
+
+	pinctrl_uart24_forceoff: uart24forceoffgrp {
+		fsl,pins = <IMX8QM_USDHC2_CMD_LSIO_GPIO5_IO25		0x00000021>;
+	};
+};
+
+/* Apalis SPI1 */
+&lpspi0 {
+	status = "okay";
+};
+
+/* Apalis SPI2 */
+&lpspi2 {
+	status = "okay";
+};
+
+/* Apalis UART3 */
+&lpuart0 {
+	status = "okay";
+};
+
+/* Apalis UART1 */
+&lpuart1 {
+	status = "okay";
+};
+
+/* Apalis UART4 */
+&lpuart2 {
+	status = "okay";
+};
+
+/* Apalis UART2 */
+&lpuart3 {
+	status = "okay";
+};
+
+&lsio_gpio5 {
+	gpio-line-names = "gpio5-00", "gpio5-01", "gpio5-02", "gpio5-03",
+			  "gpio5-04", "gpio5-05", "gpio5-06", "gpio5-07",
+			  "gpio5-08", "gpio5-09", "gpio5-10", "gpio5-11",
+			  "gpio5-12", "gpio5-13", "gpio5-14", "gpio5-15",
+			  "gpio5-16", "gpio5-17", "gpio5-18", "gpio5-19",
+			  "LED-5-GREEN", "LED-5-RED", "gpio5-22", "gpio5-23",
+			  "gpio5-24", "UART24-FORCEOFF", "gpio5-26",
+			  "LED-4-GREEN", "gpio5-28", "LED-4-RED", "gpio5-30",
+			  "gpio5-31";
+	ngpios = <32>;
+};
+
+/* Apalis PWM3, MXM3 pin 6 */
+&lsio_pwm0 {
+	status = "okay";
+};
+
+/* Apalis PWM4, MXM3 pin 8 */
+&lsio_pwm1 {
+	status = "okay";
+};
+
+/* Apalis PWM1, MXM3 pin 2 */
+&lsio_pwm2 {
+	status = "okay";
+};
+
+/* Apalis PWM2, MXM3 pin 4 */
+&lsio_pwm3 {
+	status = "okay";
+};
+
+/* TODO: Apalis PCIE1 */
+
+/* TODO: Apalis BKL1_PWM */
+
+/* TODO: Apalis DAP1 */
+
+/* TODO: Apalis Analogue Audio */
+
+/* TODO: Apalis SATA1 */
+
+/* TODO: Apalis SPDIF1 */
+
+/* TODO: Apalis USBH2, Apalis USBH3 and on-module Wi-Fi via on-module HSIC Hub */
+
+/* Apalis USBO1 */
+&usbotg1 {
+	status = "okay";
+};
+
+/* TODO: Apalis USBH4 SuperSpeed */
+
+/* Apalis MMC1 */
+&usdhc2 {
+	pinctrl-0 = <&pinctrl_usdhc2_4bit>, <&pinctrl_mmc1_cd>;
+	pinctrl-1 = <&pinctrl_usdhc2_4bit_100mhz>, <&pinctrl_mmc1_cd>;
+	pinctrl-2 = <&pinctrl_usdhc2_4bit_200mhz>, <&pinctrl_mmc1_cd>;
+	pinctrl-3 = <&pinctrl_usdhc2_4bit_sleep>, <&pinctrl_mmc1_cd_sleep>;
+	bus-width = <4>;
+	cap-power-off-card;
+	/delete-property/ no-1-8-v;
+	vmmc-supply = <&reg_3v3_vmmc>;
+	status = "okay";
+};

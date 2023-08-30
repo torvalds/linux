@@ -1641,8 +1641,8 @@ static int si5351_i2c_probe(struct i2c_client *client)
 		}
 	}
 
-	ret = of_clk_add_hw_provider(client->dev.of_node, si53351_of_clk_get,
-				     drvdata);
+	ret = devm_of_clk_add_hw_provider(&client->dev, si53351_of_clk_get,
+					  drvdata);
 	if (ret) {
 		dev_err(&client->dev, "unable to add clk provider\n");
 		return ret;
@@ -1651,18 +1651,12 @@ static int si5351_i2c_probe(struct i2c_client *client)
 	return 0;
 }
 
-static void si5351_i2c_remove(struct i2c_client *client)
-{
-	of_clk_del_provider(client->dev.of_node);
-}
-
 static struct i2c_driver si5351_driver = {
 	.driver = {
 		.name = "si5351",
 		.of_match_table = of_match_ptr(si5351_dt_ids),
 	},
 	.probe_new = si5351_i2c_probe,
-	.remove = si5351_i2c_remove,
 	.id_table = si5351_i2c_ids,
 };
 module_i2c_driver(si5351_driver);

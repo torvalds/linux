@@ -40,10 +40,6 @@ struct  rt712_sdca_priv {
 	bool fu0f_mixer_r_mute;
 };
 
-struct sdw_stream_data {
-	struct sdw_stream_runtime *sdw_stream;
-};
-
 /* NID */
 #define RT712_VENDOR_REG			0x20
 #define RT712_VENDOR_CALI			0x58

@@ -118,7 +118,7 @@ config MACH_OMAP_OSK
 	depends on ARCH_OMAP16XX
 	help
 	  TI OMAP 5912 OSK (OMAP Starter Kit) board support. Say Y here
-          if you have such a board.
+	  if you have such a board.
 
 config MACH_OMAP_PALMTE
 	bool "Palm Tungsten E"

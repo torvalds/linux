@@ -216,7 +216,7 @@ static int rtd119x_rtc_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int rtd119x_rtc_remove(struct platform_device *pdev)
+static void rtd119x_rtc_remove(struct platform_device *pdev)
 {
 	struct rtd119x_rtc *data = platform_get_drvdata(pdev);
 
@@ -224,13 +224,11 @@ static int rtd119x_rtc_remove(struct platform_device *pdev)
 
 	clk_disable_unprepare(data->clk);
 	clk_put(data->clk);
-
-	return 0;
 }
 
 static struct platform_driver rtd119x_rtc_driver = {
 	.probe = rtd119x_rtc_probe,
-	.remove = rtd119x_rtc_remove,
+	.remove_new = rtd119x_rtc_remove,
 	.driver = {
 		.name = "rtd1295-rtc",
 		.of_match_table	= rtd119x_rtc_dt_ids,

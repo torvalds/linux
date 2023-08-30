@@ -151,6 +151,9 @@ static int custom_probe(struct platform_device *pdev)
 	simple_priv		= &custom_priv->simple_priv;
 	simple_priv->ops	= &custom_ops; /* customize dai_link ops */
 
+	/* "audio-graph-card2-custom-sample" is too long */
+	simple_priv->snd_card.name = "card2-custom";
+
 	/* use audio-graph-card2 parsing with own custom hooks */
 	ret = audio_graph2_parse_of(simple_priv, dev, &custom_hooks);
 	if (ret < 0)

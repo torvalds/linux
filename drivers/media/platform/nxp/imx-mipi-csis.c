@@ -1503,7 +1503,7 @@ err_disable_clock:
 	return ret;
 }
 
-static int mipi_csis_remove(struct platform_device *pdev)
+static void mipi_csis_remove(struct platform_device *pdev)
 {
 	struct v4l2_subdev *sd = platform_get_drvdata(pdev);
 	struct mipi_csis_device *csis = sd_to_mipi_csis_device(sd);
@@ -1520,8 +1520,6 @@ static int mipi_csis_remove(struct platform_device *pdev)
 	media_entity_cleanup(&csis->sd.entity);
 	fwnode_handle_put(csis->sd.fwnode);
 	pm_runtime_set_suspended(&pdev->dev);
-
-	return 0;
 }
 
 static const struct of_device_id mipi_csis_of_match[] = {
@@ -1544,7 +1542,7 @@ MODULE_DEVICE_TABLE(of, mipi_csis_of_match);
 
 static struct platform_driver mipi_csis_driver = {
 	.probe		= mipi_csis_probe,
-	.remove		= mipi_csis_remove,
+	.remove_new	= mipi_csis_remove,
 	.driver		= {
 		.of_match_table = mipi_csis_of_match,
 		.name		= CSIS_DRIVER_NAME,

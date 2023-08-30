@@ -552,6 +552,15 @@ void gfs2_make_fs_ro(struct gfs2_sbd *sdp)
 		gfs2_quota_sync(sdp->sd_vfs, 0);
 		gfs2_statfs_sync(sdp->sd_vfs, 0);
 
+		/* We do two log flushes here. The first one commits dirty inodes
+		 * and rgrps to the journal, but queues up revokes to the ail list.
+		 * The second flush writes out and removes the revokes.
+		 *
+		 * The first must be done before the FLUSH_SHUTDOWN code
+		 * clears the LIVE flag, otherwise it will not be able to start
+		 * a transaction to write its revokes, and the error will cause
+		 * a withdraw of the file system. */
+		gfs2_log_flush(sdp, NULL, GFS2_LFC_MAKE_FS_RO);
 		gfs2_log_flush(sdp, NULL, GFS2_LOG_HEAD_FLUSH_SHUTDOWN |
 			       GFS2_LFC_MAKE_FS_RO);
 		wait_event_timeout(sdp->sd_log_waitq,
@@ -1408,6 +1417,14 @@ static void gfs2_evict_inode(struct inode *inode)
 	int ret;
 
 	if (inode->i_nlink || sb_rdonly(sb) || !ip->i_no_addr)
+		goto out;
+
+	/*
+	 * In case of an incomplete mount, gfs2_evict_inode() may be called for
+	 * system files without having an active journal to write to.  In that
+	 * case, skip the filesystem evict.
+	 */
+	if (!sdp->sd_jdesc)
 		goto out;
 
 	gfs2_holder_mark_uninitialized(&gh);

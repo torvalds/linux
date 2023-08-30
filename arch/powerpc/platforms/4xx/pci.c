@@ -57,7 +57,7 @@ static inline int ppc440spe_revA(void)
 static void fixup_ppc4xx_pci_bridge(struct pci_dev *dev)
 {
 	struct pci_controller *hose;
-	int i;
+	struct resource *r;
 
 	if (dev->devfn != 0 || dev->bus->self != NULL)
 		return;
@@ -79,9 +79,9 @@ static void fixup_ppc4xx_pci_bridge(struct pci_dev *dev)
 	/* Hide the PCI host BARs from the kernel as their content doesn't
 	 * fit well in the resource management
 	 */
-	for (i = 0; i < DEVICE_COUNT_RESOURCE; i++) {
-		dev->resource[i].start = dev->resource[i].end = 0;
-		dev->resource[i].flags = 0;
+	pci_dev_for_each_resource(dev, r) {
+		r->start = r->end = 0;
+		r->flags = 0;
 	}
 
 	printk(KERN_INFO "PCI: Hiding 4xx host bridge resources %s\n",
@@ -348,7 +348,7 @@ static void __init ppc4xx_probe_pci_bridge(struct device_node *np)
 	}
 
 	/* Check if primary bridge */
-	if (of_get_property(np, "primary", NULL))
+	if (of_property_read_bool(np, "primary"))
 		primary = 1;
 
 	/* Get bus range if any */
@@ -530,7 +530,7 @@ static void __init ppc4xx_probe_pcix_bridge(struct device_node *np)
 	struct pci_controller *hose = NULL;
 	void __iomem *reg = NULL;
 	const int *bus_range;
-	int big_pim = 0, msi = 0, primary = 0;
+	int big_pim, msi, primary;
 
 	/* Fetch config space registers address */
 	if (of_address_to_resource(np, 0, &rsrc_cfg)) {
@@ -546,16 +546,13 @@ static void __init ppc4xx_probe_pcix_bridge(struct device_node *np)
 	}
 
 	/* Check if it supports large PIMs (440GX) */
-	if (of_get_property(np, "large-inbound-windows", NULL))
-		big_pim = 1;
+	big_pim = of_property_read_bool(np, "large-inbound-windows");
 
 	/* Check if we should enable MSIs inbound hole */
-	if (of_get_property(np, "enable-msi-hole", NULL))
-		msi = 1;
+	msi = of_property_read_bool(np, "enable-msi-hole");
 
 	/* Check if primary bridge */
-	if (of_get_property(np, "primary", NULL))
-		primary = 1;
+	primary = of_property_read_bool(np, "primary");
 
 	/* Get bus range if any */
 	bus_range = of_get_property(np, "bus-range", NULL);
@@ -1915,14 +1912,13 @@ static void __init ppc4xx_pciex_port_setup_hose(struct ppc4xx_pciex_port *port)
 	struct resource dma_window;
 	struct pci_controller *hose = NULL;
 	const int *bus_range;
-	int primary = 0, busses;
+	int primary, busses;
 	void __iomem *mbase = NULL, *cfg_data = NULL;
 	const u32 *pval;
 	u32 val;
 
 	/* Check if primary bridge */
-	if (of_get_property(port->node, "primary", NULL))
-		primary = 1;
+	primary = of_property_read_bool(port->node, "primary");
 
 	/* Get bus range if any */
 	bus_range = of_get_property(port->node, "bus-range", NULL);

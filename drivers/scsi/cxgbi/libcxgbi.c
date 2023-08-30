@@ -337,7 +337,7 @@ void cxgbi_hbas_remove(struct cxgbi_device *cdev)
 EXPORT_SYMBOL_GPL(cxgbi_hbas_remove);
 
 int cxgbi_hbas_add(struct cxgbi_device *cdev, u64 max_lun,
-		unsigned int max_conns, struct scsi_host_template *sht,
+		unsigned int max_conns, const struct scsi_host_template *sht,
 		struct scsi_transport_template *stt)
 {
 	struct cxgbi_hba *chba;
@@ -2314,9 +2314,9 @@ static int cxgbi_sock_tx_queue_up(struct cxgbi_sock *csk, struct sk_buff *skb)
 		frags++;
 
 	if (frags >= SKB_WR_LIST_SIZE) {
-		pr_err("csk 0x%p, frags %u, %u,%u >%lu.\n",
+		pr_err("csk 0x%p, frags %u, %u,%u >%u.\n",
 		       csk, skb_shinfo(skb)->nr_frags, skb->len,
-		       skb->data_len, SKB_WR_LIST_SIZE);
+		       skb->data_len, (unsigned int)SKB_WR_LIST_SIZE);
 		return -EINVAL;
 	}
 

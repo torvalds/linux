@@ -389,6 +389,13 @@ static void i915_hotplug_work_func(struct work_struct *work)
 
 	spin_unlock_irq(&dev_priv->irq_lock);
 
+	/* Skip calling encode hotplug handlers if ignore long HPD set*/
+	if (dev_priv->display.hotplug.ignore_long_hpd) {
+		drm_dbg_kms(&dev_priv->drm, "Ignore HPD flag on - skip encoder hotplug handlers\n");
+		mutex_unlock(&dev_priv->drm.mode_config.mutex);
+		return;
+	}
+
 	drm_connector_list_iter_begin(&dev_priv->drm, &conn_iter);
 	for_each_intel_connector_iter(connector, &conn_iter) {
 		enum hpd_pin pin;
@@ -940,4 +947,6 @@ void intel_hpd_debugfs_register(struct drm_i915_private *i915)
 			    i915, &i915_hpd_storm_ctl_fops);
 	debugfs_create_file("i915_hpd_short_storm_ctl", 0644, minor->debugfs_root,
 			    i915, &i915_hpd_short_storm_ctl_fops);
+	debugfs_create_bool("i915_ignore_long_hpd", 0644, minor->debugfs_root,
+			    &i915->display.hotplug.ignore_long_hpd);
 }

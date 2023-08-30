@@ -34,7 +34,6 @@
 #define PCI_DEVICE_ID_OROLIA_ARTCARD		0xa000
 
 static struct class timecard_class = {
-	.owner		= THIS_MODULE,
 	.name		= "timecard",
 };
 
@@ -662,6 +661,7 @@ static struct ocp_resource ocp_fb_resource[] = {
 				.num_chipselect = 1,
 				.bits_per_word = 8,
 				.num_devices = 1,
+				.force_irq = true,
 				.devices = &(struct spi_board_info) {
 					.modalias = "spi-nor",
 				},

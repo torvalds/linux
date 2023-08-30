@@ -512,16 +512,16 @@ static void __init _ti_omap4_clkctrl_setup(struct device_node *node)
 	struct clk_hw_omap *hw;
 	struct clk *clk;
 	struct omap_clkctrl_clk *clkctrl_clk = NULL;
-	const __be32 *addrp;
 	bool legacy_naming;
 	const char *clkctrl_name;
 	u32 addr;
 	int ret;
 	char *c;
 	u16 soc_mask = 0;
+	struct resource res;
 
-	addrp = of_get_address(node, 0, NULL, NULL);
-	addr = (u32)of_translate_address(node, addrp);
+	of_address_to_resource(node, 0, &res);
+	addr = (u32)res.start;
 
 #ifdef CONFIG_ARCH_OMAP4
 	if (of_machine_is_compatible("ti,omap4"))

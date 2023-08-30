@@ -45,7 +45,8 @@ static int check_extent_in_eb(struct btrfs_backref_walk_ctx *ctx,
 	int root_count;
 	bool cached;
 
-	if (!btrfs_file_extent_compression(eb, fi) &&
+	if (!ctx->ignore_extent_item_pos &&
+	    !btrfs_file_extent_compression(eb, fi) &&
 	    !btrfs_file_extent_encryption(eb, fi) &&
 	    !btrfs_file_extent_other_encoding(eb, fi)) {
 		u64 data_offset;
@@ -552,7 +553,7 @@ static int add_all_parents(struct btrfs_backref_walk_ctx *ctx,
 				count++;
 			else
 				goto next;
-			if (!ctx->ignore_extent_item_pos) {
+			if (!ctx->skip_inode_ref_list) {
 				ret = check_extent_in_eb(ctx, &key, eb, fi, &eie);
 				if (ret == BTRFS_ITERATE_EXTENT_INODES_STOP ||
 				    ret < 0)
@@ -564,7 +565,7 @@ static int add_all_parents(struct btrfs_backref_walk_ctx *ctx,
 						  eie, (void **)&old, GFP_NOFS);
 			if (ret < 0)
 				break;
-			if (!ret && !ctx->ignore_extent_item_pos) {
+			if (!ret && !ctx->skip_inode_ref_list) {
 				while (old->next)
 					old = old->next;
 				old->next = eie;
@@ -1606,7 +1607,7 @@ again:
 				goto out;
 		}
 		if (ref->count && ref->parent) {
-			if (!ctx->ignore_extent_item_pos && !ref->inode_list &&
+			if (!ctx->skip_inode_ref_list && !ref->inode_list &&
 			    ref->level == 0) {
 				struct btrfs_tree_parent_check check = { 0 };
 				struct extent_buffer *eb;
@@ -1647,7 +1648,7 @@ again:
 						  (void **)&eie, GFP_NOFS);
 			if (ret < 0)
 				goto out;
-			if (!ret && !ctx->ignore_extent_item_pos) {
+			if (!ret && !ctx->skip_inode_ref_list) {
 				/*
 				 * We've recorded that parent, so we must extend
 				 * its inode list here.
@@ -1743,7 +1744,7 @@ int btrfs_find_all_leafs(struct btrfs_backref_walk_ctx *ctx)
 static int btrfs_find_all_roots_safe(struct btrfs_backref_walk_ctx *ctx)
 {
 	const u64 orig_bytenr = ctx->bytenr;
-	const bool orig_ignore_extent_item_pos = ctx->ignore_extent_item_pos;
+	const bool orig_skip_inode_ref_list = ctx->skip_inode_ref_list;
 	bool roots_ulist_allocated = false;
 	struct ulist_iterator uiter;
 	int ret = 0;
@@ -1764,7 +1765,7 @@ static int btrfs_find_all_roots_safe(struct btrfs_backref_walk_ctx *ctx)
 		roots_ulist_allocated = true;
 	}
 
-	ctx->ignore_extent_item_pos = true;
+	ctx->skip_inode_ref_list = true;
 
 	ULIST_ITER_INIT(&uiter);
 	while (1) {
@@ -1789,7 +1790,7 @@ static int btrfs_find_all_roots_safe(struct btrfs_backref_walk_ctx *ctx)
 	ulist_free(ctx->refs);
 	ctx->refs = NULL;
 	ctx->bytenr = orig_bytenr;
-	ctx->ignore_extent_item_pos = orig_ignore_extent_item_pos;
+	ctx->skip_inode_ref_list = orig_skip_inode_ref_list;
 
 	return ret;
 }
@@ -1912,7 +1913,7 @@ int btrfs_is_data_extent_shared(struct btrfs_inode *inode, u64 bytenr,
 		goto out_trans;
 	}
 
-	walk_ctx.ignore_extent_item_pos = true;
+	walk_ctx.skip_inode_ref_list = true;
 	walk_ctx.trans = trans;
 	walk_ctx.fs_info = fs_info;
 	walk_ctx.refs = &ctx->refs;
@@ -1921,8 +1922,7 @@ int btrfs_is_data_extent_shared(struct btrfs_inode *inode, u64 bytenr,
 	level = -1;
 	ULIST_ITER_INIT(&uiter);
 	while (1) {
-		bool is_shared;
-		bool cached;
+		const unsigned long prev_ref_count = ctx->refs.nnodes;
 
 		walk_ctx.bytenr = bytenr;
 		ret = find_parent_nodes(&walk_ctx, &shared);
@@ -1940,21 +1940,36 @@ int btrfs_is_data_extent_shared(struct btrfs_inode *inode, u64 bytenr,
 		ret = 0;
 
 		/*
-		 * If our data extent was not directly shared (without multiple
-		 * reference items), than it might have a single reference item
-		 * with a count > 1 for the same offset, which means there are 2
-		 * (or more) file extent items that point to the data extent -
-		 * this happens when a file extent item needs to be split and
-		 * then one item gets moved to another leaf due to a b+tree leaf
-		 * split when inserting some item. In this case the file extent
-		 * items may be located in different leaves and therefore some
-		 * of the leaves may be referenced through shared subtrees while
-		 * others are not. Since our extent buffer cache only works for
-		 * a single path (by far the most common case and simpler to
-		 * deal with), we can not use it if we have multiple leaves
-		 * (which implies multiple paths).
+		 * More than one extent buffer (bytenr) may have been added to
+		 * the ctx->refs ulist, in which case we have to check multiple
+		 * tree paths in case the first one is not shared, so we can not
+		 * use the path cache which is made for a single path. Multiple
+		 * extent buffers at the current level happen when:
+		 *
+		 * 1) level -1, the data extent: If our data extent was not
+		 *    directly shared (without multiple reference items), then
+		 *    it might have a single reference item with a count > 1 for
+		 *    the same offset, which means there are 2 (or more) file
+		 *    extent items that point to the data extent - this happens
+		 *    when a file extent item needs to be split and then one
+		 *    item gets moved to another leaf due to a b+tree leaf split
+		 *    when inserting some item. In this case the file extent
+		 *    items may be located in different leaves and therefore
+		 *    some of the leaves may be referenced through shared
+		 *    subtrees while others are not. Since our extent buffer
+		 *    cache only works for a single path (by far the most common
+		 *    case and simpler to deal with), we can not use it if we
+		 *    have multiple leaves (which implies multiple paths).
+		 *
+		 * 2) level >= 0, a tree node/leaf: We can have a mix of direct
+		 *    and indirect references on a b+tree node/leaf, so we have
+		 *    to check multiple paths, and the extent buffer (the
+		 *    current bytenr) may be shared or not. One example is
+		 *    during relocation as we may get a shared tree block ref
+		 *    (direct ref) and a non-shared tree block ref (indirect
+		 *    ref) for the same node/leaf.
 		 */
-		if (level == -1 && ctx->refs.nnodes > 1)
+		if ((ctx->refs.nnodes - prev_ref_count) > 1)
 			ctx->use_path_cache = false;
 
 		if (level >= 0)
@@ -1964,16 +1979,43 @@ int btrfs_is_data_extent_shared(struct btrfs_inode *inode, u64 bytenr,
 		if (!node)
 			break;
 		bytenr = node->val;
-		level++;
-		cached = lookup_backref_shared_cache(ctx, root, bytenr, level,
-						     &is_shared);
-		if (cached) {
-			ret = (is_shared ? 1 : 0);
-			break;
+		if (ctx->use_path_cache) {
+			bool is_shared;
+			bool cached;
+
+			level++;
+			cached = lookup_backref_shared_cache(ctx, root, bytenr,
+							     level, &is_shared);
+			if (cached) {
+				ret = (is_shared ? 1 : 0);
+				break;
+			}
 		}
 		shared.share_count = 0;
 		shared.have_delayed_delete_refs = false;
 		cond_resched();
+	}
+
+	/*
+	 * If the path cache is disabled, then it means at some tree level we
+	 * got multiple parents due to a mix of direct and indirect backrefs or
+	 * multiple leaves with file extent items pointing to the same data
+	 * extent. We have to invalidate the cache and cache only the sharedness
+	 * result for the levels where we got only one node/reference.
+	 */
+	if (!ctx->use_path_cache) {
+		int i = 0;
+
+		level--;
+		if (ret >= 0 && level >= 0) {
+			bytenr = ctx->path_cache_entries[level].bytenr;
+			ctx->use_path_cache = true;
+			store_backref_shared_cache(ctx, root, bytenr, level, ret);
+			i = level + 1;
+		}
+
+		for ( ; i < BTRFS_MAX_LEVEL; i++)
+			ctx->path_cache_entries[i].bytenr = 0;
 	}
 
 	/*

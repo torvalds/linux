@@ -138,6 +138,10 @@ enum {
 	XFRM_DEV_OFFLOAD_PACKET,
 };
 
+enum {
+	XFRM_DEV_OFFLOAD_FLAG_ACQ = 1,
+};
+
 struct xfrm_dev_offload {
 	struct net_device	*dev;
 	netdevice_tracker	dev_tracker;
@@ -145,6 +149,7 @@ struct xfrm_dev_offload {
 	unsigned long		offload_handle;
 	u8			dir : 2;
 	u8			type : 2;
+	u8			flags : 2;
 };
 
 struct xfrm_mode {
@@ -1049,6 +1054,7 @@ struct xfrm_offload {
 struct sec_path {
 	int			len;
 	int			olen;
+	int			verified_cnt;
 
 	struct xfrm_state	*xvec[XFRM_MAX_DEPTH];
 	struct xfrm_offload	ovec[XFRM_MAX_OFFLOAD_DEPTH];

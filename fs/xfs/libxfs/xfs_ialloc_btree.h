@@ -53,7 +53,7 @@ struct xfs_btree_cur *xfs_inobt_stage_cursor(struct xfs_perag *pag,
 extern int xfs_inobt_maxrecs(struct xfs_mount *, int, int);
 
 /* ir_holemask to inode allocation bitmap conversion */
-uint64_t xfs_inobt_irec_to_allocmask(struct xfs_inobt_rec_incore *);
+uint64_t xfs_inobt_irec_to_allocmask(const struct xfs_inobt_rec_incore *irec);
 
 #if defined(DEBUG) || defined(XFS_WARN)
 int xfs_inobt_rec_check_count(struct xfs_mount *,

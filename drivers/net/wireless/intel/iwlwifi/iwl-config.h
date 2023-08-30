@@ -469,6 +469,7 @@ struct iwl_dev_info {
 	u16 mac_type;
 	u16 rf_type;
 	u8 mac_step;
+	u8 rf_step;
 	u8 rf_id;
 	u8 no_160;
 	u8 cores;
@@ -639,26 +640,40 @@ extern const struct iwl_cfg iwl_cfg_ma_a0_gf4_a0;
 extern const struct iwl_cfg iwl_cfg_ma_a0_mr_a0;
 extern const struct iwl_cfg iwl_cfg_ma_a0_ms_a0;
 extern const struct iwl_cfg iwl_cfg_ma_a0_fm_a0;
+extern const struct iwl_cfg iwl_cfg_ma_b0_hr_b0;
+extern const struct iwl_cfg iwl_cfg_ma_b0_gf_a0;
+extern const struct iwl_cfg iwl_cfg_ma_b0_gf4_a0;
+extern const struct iwl_cfg iwl_cfg_ma_b0_mr_a0;
+extern const struct iwl_cfg iwl_cfg_ma_b0_fm_a0;
 extern const struct iwl_cfg iwl_cfg_snj_a0_mr_a0;
 extern const struct iwl_cfg iwl_cfg_snj_a0_ms_a0;
 extern const struct iwl_cfg iwl_cfg_so_a0_hr_a0;
 extern const struct iwl_cfg iwl_cfg_so_a0_ms_a0;
 extern const struct iwl_cfg iwl_cfg_quz_a0_hr_b0;
+extern const struct iwl_cfg iwl_cfg_bz_a0_hr_a0;
 extern const struct iwl_cfg iwl_cfg_bz_a0_hr_b0;
 extern const struct iwl_cfg iwl_cfg_bz_a0_gf_a0;
 extern const struct iwl_cfg iwl_cfg_bz_a0_gf4_a0;
 extern const struct iwl_cfg iwl_cfg_bz_a0_mr_a0;
 extern const struct iwl_cfg iwl_cfg_bz_a0_fm_a0;
 extern const struct iwl_cfg iwl_cfg_bz_a0_fm4_a0;
+extern const struct iwl_cfg iwl_cfg_bz_a0_fm_b0;
+extern const struct iwl_cfg iwl_cfg_bz_a0_fm4_b0;
 extern const struct iwl_cfg iwl_cfg_gl_a0_fm_a0;
 extern const struct iwl_cfg iwl_cfg_gl_b0_fm_b0;
 extern const struct iwl_cfg iwl_cfg_bz_z0_gf_a0;
 extern const struct iwl_cfg iwl_cfg_bnj_a0_fm_a0;
 extern const struct iwl_cfg iwl_cfg_bnj_a0_fm4_a0;
 extern const struct iwl_cfg iwl_cfg_bnj_a0_gf_a0;
+extern const struct iwl_cfg iwl_cfg_bnj_b0_gf_a0;
 extern const struct iwl_cfg iwl_cfg_bnj_a0_gf4_a0;
+extern const struct iwl_cfg iwl_cfg_bnj_b0_gf4_a0;
+extern const struct iwl_cfg iwl_cfg_bnj_a0_hr_a0;
 extern const struct iwl_cfg iwl_cfg_bnj_a0_hr_b0;
+extern const struct iwl_cfg iwl_cfg_bnj_b0_hr_a0;
+extern const struct iwl_cfg iwl_cfg_bnj_b0_hr_b0;
 extern const struct iwl_cfg iwl_cfg_bnj_b0_fm_b0;
+extern const struct iwl_cfg iwl_cfg_bnj_b0_fm4_b0;
 #endif /* CONFIG_IWLMVM */
 
 #endif /* __IWL_CONFIG_H__ */

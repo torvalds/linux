@@ -469,7 +469,7 @@ ATTRIBUTE_GROUPS(devfreq_event);
 
 static int __init devfreq_event_init(void)
 {
-	devfreq_event_class = class_create(THIS_MODULE, "devfreq-event");
+	devfreq_event_class = class_create("devfreq-event");
 	if (IS_ERR(devfreq_event_class)) {
 		pr_err("%s: couldn't create class\n", __FILE__);
 		return PTR_ERR(devfreq_event_class);

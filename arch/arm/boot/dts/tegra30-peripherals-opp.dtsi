@@ -210,6 +210,20 @@
 			opp-suspend;
 		};
 
+		opp-266500000-1000 {
+			opp-microvolt = <1000000 1000000 1350000>;
+			opp-hz = /bits/ 64 <266500000>;
+			opp-supported-hw = <0x0007>;
+			required-opps = <&core_opp_1000>;
+		};
+
+		opp-266500000-1250 {
+			opp-microvolt = <1250000 1250000 1350000>;
+			opp-hz = /bits/ 64 <266500000>;
+			opp-supported-hw = <0x0008>;
+			required-opps = <&core_opp_1250>;
+		};
+
 		opp-333500000-1000 {
 			opp-microvolt = <1000000 1000000 1350000>;
 			opp-hz = /bits/ 64 <333500000>;
@@ -422,6 +436,12 @@
 			opp-supported-hw = <0x000F>;
 			opp-peak-kBps = <1632000>;
 			opp-suspend;
+		};
+
+		opp-266500000 {
+			opp-hz = /bits/ 64 <266500000>;
+			opp-supported-hw = <0x000F>;
+			opp-peak-kBps = <2132000>;
 		};
 
 		opp-333500000 {

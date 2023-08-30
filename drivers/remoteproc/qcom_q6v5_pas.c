@@ -94,7 +94,7 @@ struct qcom_adsp {
 	size_t region_assign_size;
 
 	int region_assign_idx;
-	int region_assign_perms;
+	u64 region_assign_perms;
 
 	struct qcom_rproc_glink glink_subdev;
 	struct qcom_rproc_subdev smd_subdev;
@@ -186,7 +186,7 @@ static int adsp_shutdown_poll_decrypt(struct qcom_adsp *adsp)
 
 static int adsp_unprepare(struct rproc *rproc)
 {
-	struct qcom_adsp *adsp = (struct qcom_adsp *)rproc->priv;
+	struct qcom_adsp *adsp = rproc->priv;
 
 	/*
 	 * adsp_load() did pass pas_metadata to the SCM driver for storing
@@ -203,7 +203,7 @@ static int adsp_unprepare(struct rproc *rproc)
 
 static int adsp_load(struct rproc *rproc, const struct firmware *fw)
 {
-	struct qcom_adsp *adsp = (struct qcom_adsp *)rproc->priv;
+	struct qcom_adsp *adsp = rproc->priv;
 	int ret;
 
 	/* Store firmware handle to be used in adsp_start() */
@@ -244,7 +244,7 @@ release_dtb_firmware:
 
 static int adsp_start(struct rproc *rproc)
 {
-	struct qcom_adsp *adsp = (struct qcom_adsp *)rproc->priv;
+	struct qcom_adsp *adsp = rproc->priv;
 	int ret;
 
 	ret = qcom_q6v5_prepare(&adsp->q6v5);
@@ -360,7 +360,7 @@ static void qcom_pas_handover(struct qcom_q6v5 *q6v5)
 
 static int adsp_stop(struct rproc *rproc)
 {
-	struct qcom_adsp *adsp = (struct qcom_adsp *)rproc->priv;
+	struct qcom_adsp *adsp = rproc->priv;
 	int handover;
 	int ret;
 
@@ -390,7 +390,7 @@ static int adsp_stop(struct rproc *rproc)
 
 static void *adsp_da_to_va(struct rproc *rproc, u64 da, size_t len, bool *is_iomem)
 {
-	struct qcom_adsp *adsp = (struct qcom_adsp *)rproc->priv;
+	struct qcom_adsp *adsp = rproc->priv;
 	int offset;
 
 	offset = da - adsp->mem_reloc;
@@ -405,7 +405,7 @@ static void *adsp_da_to_va(struct rproc *rproc, u64 da, size_t len, bool *is_iom
 
 static unsigned long adsp_panic(struct rproc *rproc)
 {
-	struct qcom_adsp *adsp = (struct qcom_adsp *)rproc->priv;
+	struct qcom_adsp *adsp = rproc->priv;
 
 	return qcom_q6v5_panic(&adsp->q6v5);
 }
@@ -683,7 +683,7 @@ static int adsp_probe(struct platform_device *pdev)
 	rproc->auto_boot = desc->auto_boot;
 	rproc_coredump_set_elf_info(rproc, ELFCLASS32, EM_NONE);
 
-	adsp = (struct qcom_adsp *)rproc->priv;
+	adsp = rproc->priv;
 	adsp->dev = &pdev->dev;
 	adsp->rproc = rproc;
 	adsp->minidump_id = desc->minidump_id;

@@ -152,16 +152,14 @@ static inline u32 avs_tmon_temp_to_code(struct brcmstb_thermal_priv *priv,
 
 static int brcmstb_get_temp(struct thermal_zone_device *tz, int *temp)
 {
-	struct brcmstb_thermal_priv *priv = tz->devdata;
+	struct brcmstb_thermal_priv *priv = thermal_zone_device_priv(tz);
 	u32 val;
 	long t;
 
 	val = __raw_readl(priv->tmon_base + AVS_TMON_STATUS);
 
-	if (!(val & AVS_TMON_STATUS_valid_msk)) {
-		dev_err(priv->dev, "reading not valid\n");
+	if (!(val & AVS_TMON_STATUS_valid_msk))
 		return -EIO;
-	}
 
 	val = (val & AVS_TMON_STATUS_data_msk) >> AVS_TMON_STATUS_data_shift;
 
@@ -262,7 +260,7 @@ static irqreturn_t brcmstb_tmon_irq_thread(int irq, void *data)
 
 static int brcmstb_set_trips(struct thermal_zone_device *tz, int low, int high)
 {
-	struct brcmstb_thermal_priv *priv = tz->devdata;
+	struct brcmstb_thermal_priv *priv = thermal_zone_device_priv(tz);
 
 	dev_dbg(priv->dev, "set trips %d <--> %d\n", low, high);
 

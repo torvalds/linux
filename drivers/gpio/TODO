@@ -59,11 +59,6 @@ the device tree back-end. It is legacy and should not be used in new code.
 
 Work items:
 
-- Get rid of struct of_mm_gpio_chip altogether: use the generic  MMIO
-  GPIO for all current users (see below). Delete struct of_mm_gpio_chip,
-  to_of_mm_gpio_chip(), of_mm_gpiochip_add_data(), of_mm_gpiochip_remove()
-  from the kernel.
-
 - Change all consumer drivers that #include <linux/of_gpio.h> to
   #include <linux/gpio/consumer.h> and stop doing custom parsing of the
   GPIO lines from the device tree. This can be tricky and often ivolves
@@ -79,6 +74,16 @@ Work items:
 
 - Delete <linux/of_gpio.h> when all the above is complete and everything
   uses <linux/gpio/consumer.h> or <linux/gpio/driver.h> instead.
+
+
+Get rid of <linux/gpio/legacy-of-mm-gpiochip.h>
+
+Work items:
+
+- Get rid of struct of_mm_gpio_chip altogether: use the generic  MMIO
+  GPIO for all current users (see below). Delete struct of_mm_gpio_chip,
+  to_of_mm_gpio_chip(), of_mm_gpiochip_add_data(), of_mm_gpiochip_remove(),
+  CONFIG_OF_GPIO_MM_GPIOCHIP from the kernel.
 
 
 Get rid of <linux/gpio.h>

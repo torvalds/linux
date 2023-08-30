@@ -1999,6 +1999,17 @@ config WATCHDOG_RTAS
 	  To compile this driver as a module, choose M here. The module
 	  will be called wdrtas.
 
+# RISC-V Architecture
+
+config STARFIVE_WATCHDOG
+	tristate "StarFive Watchdog support"
+	depends on ARCH_STARFIVE || COMPILE_TEST
+	select WATCHDOG_CORE
+	default ARCH_STARFIVE
+	help
+	  Say Y here to support the watchdog of StarFive JH7100 and JH7110
+	  SoC. This driver can also be built as a module if choose M.
+
 # S390 Architecture
 
 config DIAG288_WATCHDOG

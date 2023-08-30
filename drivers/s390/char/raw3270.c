@@ -1319,7 +1319,7 @@ static int raw3270_init(void)
 	if (rc == 0) {
 		/* Create attributes for early (= console) device. */
 		mutex_lock(&raw3270_mutex);
-		class3270 = class_create(THIS_MODULE, "3270");
+		class3270 = class_create("3270");
 		list_for_each_entry(rp, &raw3270_devices, list) {
 			get_device(&rp->cdev->dev);
 			raw3270_create_attributes(rp);

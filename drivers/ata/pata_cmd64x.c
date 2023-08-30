@@ -319,7 +319,7 @@ static void cmd646r1_bmdma_stop(struct ata_queued_cmd *qc)
 	ata_bmdma_stop(qc);
 }
 
-static struct scsi_host_template cmd64x_sht = {
+static const struct scsi_host_template cmd64x_sht = {
 	ATA_BMDMA_SHT(DRV_NAME),
 };
 

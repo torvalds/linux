@@ -361,7 +361,7 @@ static int glink_rpm_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int glink_rpm_remove(struct platform_device *pdev)
+static void glink_rpm_remove(struct platform_device *pdev)
 {
 	struct glink_rpm *rpm = platform_get_drvdata(pdev);
 	struct qcom_glink *glink = rpm->glink;
@@ -371,8 +371,6 @@ static int glink_rpm_remove(struct platform_device *pdev)
 	qcom_glink_native_remove(glink);
 
 	mbox_free_channel(rpm->mbox_chan);
-
-	return 0;
 }
 
 static const struct of_device_id glink_rpm_of_match[] = {
@@ -383,7 +381,7 @@ MODULE_DEVICE_TABLE(of, glink_rpm_of_match);
 
 static struct platform_driver glink_rpm_driver = {
 	.probe = glink_rpm_probe,
-	.remove = glink_rpm_remove,
+	.remove_new = glink_rpm_remove,
 	.driver = {
 		.name = "qcom_glink_rpm",
 		.of_match_table = glink_rpm_of_match,

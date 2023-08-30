@@ -19,12 +19,6 @@ void memcpy_flushcache(void *dst, const void *src, size_t cnt)
 }
 EXPORT_SYMBOL_GPL(memcpy_flushcache);
 
-void memcpy_page_flushcache(char *to, struct page *page, size_t offset,
-			    size_t len)
-{
-	memcpy_flushcache(to, page_address(page) + offset, len);
-}
-
 unsigned long __copy_user_flushcache(void *to, const void __user *from,
 				     unsigned long n)
 {

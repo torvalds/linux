@@ -273,25 +273,6 @@
 
 #define UMC_SDP_INIT			BIT(31)
 
-enum amd_families {
-	K8_CPUS = 0,
-	F10_CPUS,
-	F15_CPUS,
-	F15_M30H_CPUS,
-	F15_M60H_CPUS,
-	F16_CPUS,
-	F16_M30H_CPUS,
-	F17_CPUS,
-	F17_M10H_CPUS,
-	F17_M30H_CPUS,
-	F17_M60H_CPUS,
-	F17_M70H_CPUS,
-	F19_CPUS,
-	F19_M10H_CPUS,
-	F19_M50H_CPUS,
-	NUM_FAMILIES,
-};
-
 /* Error injection control structure */
 struct error_injection {
 	u32	 section;
@@ -332,6 +313,16 @@ struct amd64_umc {
 
 	/* cache the dram_type */
 	enum mem_type dram_type;
+};
+
+struct amd64_family_flags {
+	/*
+	 * Indicates that the system supports the new register offsets, etc.
+	 * first introduced with Family 19h Model 10h.
+	 */
+	__u64 zn_regs_v2	: 1,
+
+	      __reserved	: 63;
 };
 
 struct amd64_pvt {
@@ -375,6 +366,12 @@ struct amd64_pvt {
 	/* x4, x8, or x16 syndromes in use */
 	u8 ecc_sym_sz;
 
+	const char *ctl_name;
+	u16 f1_id, f2_id;
+	/* Maximum number of memory controllers per die/node. */
+	u8 max_mcs;
+
+	struct amd64_family_flags flags;
 	/* place to store error injection parameters prior to issue */
 	struct error_injection injection;
 
@@ -465,29 +462,15 @@ struct ecc_settings {
  * functions and per device encoding/decoding logic.
  */
 struct low_ops {
-	void (*map_sysaddr_to_csrow)	(struct mem_ctl_info *mci, u64 sys_addr,
-					 struct err_info *);
-	int (*dbam_to_cs)		(struct amd64_pvt *pvt, u8 dct,
-					 unsigned cs_mode, int cs_mask_nr);
-};
-
-struct amd64_family_flags {
-	/*
-	 * Indicates that the system supports the new register offsets, etc.
-	 * first introduced with Family 19h Model 10h.
-	 */
-	__u64 zn_regs_v2	: 1,
-
-	      __reserved	: 63;
-};
-
-struct amd64_family_type {
-	const char *ctl_name;
-	u16 f1_id, f2_id;
-	/* Maximum number of memory controllers per die/node. */
-	u8 max_mcs;
-	struct amd64_family_flags flags;
-	struct low_ops ops;
+	void (*map_sysaddr_to_csrow)(struct mem_ctl_info *mci, u64 sys_addr,
+				     struct err_info *err);
+	int  (*dbam_to_cs)(struct amd64_pvt *pvt, u8 dct,
+			   unsigned int cs_mode, int cs_mask_nr);
+	int (*hw_info_get)(struct amd64_pvt *pvt);
+	bool (*ecc_enabled)(struct amd64_pvt *pvt);
+	void (*setup_mci_misc_attrs)(struct mem_ctl_info *mci);
+	void (*dump_misc_regs)(struct amd64_pvt *pvt);
+	void (*get_err_info)(struct mce *m, struct err_info *err);
 };
 
 int __amd64_read_pci_cfg_dword(struct pci_dev *pdev, int offset,

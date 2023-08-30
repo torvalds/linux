@@ -23,6 +23,10 @@
 		reg = <0x40000000 0x40000000>;
 	};
 
+	aliases {
+		mmc0 = &mshc_0;
+	};
+
 	firmware@203f000 {
 		compatible = "samsung,secure-firmware";
 		reg = <0x0203f000 0x1000>;
@@ -476,6 +480,7 @@
 	vmmc-supply = <&buck9_reg>;
 	broken-cd;
 	card-detect-delay = <200>;
+	mmc-ddr-1_8v;
 	samsung,dw-mshc-ciu-div = <3>;
 	samsung,dw-mshc-sdr-timing = <2 3>;
 	samsung,dw-mshc-ddr-timing = <1 2>;

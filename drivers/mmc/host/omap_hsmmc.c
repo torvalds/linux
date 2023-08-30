@@ -1736,18 +1736,18 @@ static struct omap_hsmmc_platform_data *of_get_hsmmc_pdata(struct device *dev)
 	if (legacy && legacy->name)
 		pdata->name = legacy->name;
 
-	if (of_find_property(np, "ti,dual-volt", NULL))
+	if (of_property_read_bool(np, "ti,dual-volt"))
 		pdata->controller_flags |= OMAP_HSMMC_SUPPORTS_DUAL_VOLT;
 
-	if (of_find_property(np, "ti,non-removable", NULL)) {
+	if (of_property_read_bool(np, "ti,non-removable")) {
 		pdata->nonremovable = true;
 		pdata->no_regulator_off_init = true;
 	}
 
-	if (of_find_property(np, "ti,needs-special-reset", NULL))
+	if (of_property_read_bool(np, "ti,needs-special-reset"))
 		pdata->features |= HSMMC_HAS_UPDATED_RESET;
 
-	if (of_find_property(np, "ti,needs-special-hs-handling", NULL))
+	if (of_property_read_bool(np, "ti,needs-special-hs-handling"))
 		pdata->features |= HSMMC_HAS_HSPE_SUPPORT;
 
 	return pdata;
@@ -1791,9 +1791,11 @@ static int omap_hsmmc_probe(struct platform_device *pdev)
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	irq = platform_get_irq(pdev, 0);
-	if (res == NULL || irq < 0)
+	if (!res)
 		return -ENXIO;
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0)
+		return irq;
 
 	base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(base))

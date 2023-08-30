@@ -73,11 +73,12 @@ static const char * const success_tests[] = {
 	"test_task_acquire_release_current",
 	"test_task_acquire_leave_in_map",
 	"test_task_xchg_release",
-	"test_task_get_release",
+	"test_task_map_acquire_release",
 	"test_task_current_acquire_release",
 	"test_task_from_pid_arg",
 	"test_task_from_pid_current",
 	"test_task_from_pid_invalid",
+	"task_kfunc_acquire_trusted_walked",
 };
 
 void test_task_kfunc(void)

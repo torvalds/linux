@@ -479,7 +479,6 @@
 		pins = "gpio42";
 		function = "gpio";
 		bias-pull-up;
-		input-enable;
 	};
 };
 

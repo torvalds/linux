@@ -2058,7 +2058,7 @@ static int elf_core_dump(struct coredump_params *cprm)
 
 	has_dumped = 1;
 
-	offset += sizeof(elf);				/* Elf header */
+	offset += sizeof(elf);				/* ELF header */
 	offset += segs * sizeof(struct elf_phdr);	/* Program headers */
 
 	/* Write notes phdr entry */
@@ -2174,7 +2174,6 @@ static void __exit exit_elf_binfmt(void)
 
 core_initcall(init_elf_binfmt);
 module_exit(exit_elf_binfmt);
-MODULE_LICENSE("GPL");
 
 #ifdef CONFIG_BINFMT_ELF_KUNIT_TEST
 #include "binfmt_elf_test.c"

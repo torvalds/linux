@@ -12,7 +12,6 @@
 #include "../include/hw_ip/pci/pci_general.h"
 
 #include <linux/pci.h>
-#include <linux/aer.h>
 #include <linux/module.h>
 
 #define CREATE_TRACE_POINTS
@@ -221,12 +220,9 @@ int hl_device_open(struct inode *inode, struct file *filp)
 
 	hl_debugfs_add_file(hpriv);
 
+	memset(&hdev->captured_err_info, 0, sizeof(hdev->captured_err_info));
 	atomic_set(&hdev->captured_err_info.cs_timeout.write_enable, 1);
-	atomic_set(&hdev->captured_err_info.razwi_info.razwi_detected, 0);
-	atomic_set(&hdev->captured_err_info.page_fault_info.page_fault_detected, 0);
 	hdev->captured_err_info.undef_opcode.write_enable = true;
-	hdev->captured_err_info.razwi_info.razwi_info_available = false;
-	hdev->captured_err_info.page_fault_info.page_fault_info_available = false;
 
 	hdev->open_counter++;
 	hdev->last_successful_open_jif = jiffies;
@@ -237,6 +233,7 @@ int hl_device_open(struct inode *inode, struct file *filp)
 out_err:
 	mutex_unlock(&hdev->fpriv_list_lock);
 	hl_mem_mgr_fini(&hpriv->mem_mgr);
+	hl_mem_mgr_idr_destroy(&hpriv->mem_mgr);
 	hl_ctx_mgr_fini(hpriv->hdev, &hpriv->ctx_mgr);
 	filp->private_data = NULL;
 	mutex_destroy(&hpriv->ctx_lock);
@@ -324,6 +321,7 @@ static void copy_kernel_module_params_to_device(struct hl_device *hdev)
 	hdev->asic_prop.fw_security_enabled = is_asic_secured(hdev->asic_type);
 
 	hdev->major = hl_major;
+	hdev->hclass = hl_class;
 	hdev->memory_scrub = memory_scrub;
 	hdev->reset_on_lockup = reset_on_lockup;
 	hdev->boot_error_status_mask = boot_error_status_mask;
@@ -550,9 +548,7 @@ static int hl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	pci_set_drvdata(pdev, hdev);
 
-	pci_enable_pcie_error_reporting(pdev);
-
-	rc = hl_device_init(hdev, hl_class);
+	rc = hl_device_init(hdev);
 	if (rc) {
 		dev_err(&pdev->dev, "Fatal error during habanalabs device init\n");
 		rc = -ENODEV;
@@ -562,7 +558,6 @@ static int hl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	return 0;
 
 disable_device:
-	pci_disable_pcie_error_reporting(pdev);
 	pci_set_drvdata(pdev, NULL);
 	destroy_hdev(hdev);
 
@@ -585,7 +580,6 @@ static void hl_pci_remove(struct pci_dev *pdev)
 		return;
 
 	hl_device_fini(hdev);
-	pci_disable_pcie_error_reporting(pdev);
 	pci_set_drvdata(pdev, NULL);
 	destroy_hdev(hdev);
 }
@@ -702,7 +696,7 @@ static int __init hl_init(void)
 
 	hl_major = MAJOR(dev);
 
-	hl_class = class_create(THIS_MODULE, HL_NAME);
+	hl_class = class_create(HL_NAME);
 	if (IS_ERR(hl_class)) {
 		pr_err("failed to allocate class\n");
 		rc = PTR_ERR(hl_class);

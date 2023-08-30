@@ -79,7 +79,8 @@ void iwl_mvm_roc_done_wk(struct work_struct *wk)
 
 		if (!WARN_ON(!mvm->p2p_device_vif)) {
 			mvmvif = iwl_mvm_vif_from_mac80211(mvm->p2p_device_vif);
-			iwl_mvm_flush_sta(mvm, &mvmvif->bcast_sta, true);
+			iwl_mvm_flush_sta(mvm, &mvmvif->deflink.bcast_sta,
+					  true);
 		}
 	}
 
@@ -94,6 +95,11 @@ void iwl_mvm_roc_done_wk(struct work_struct *wk)
 		/* do the same in case of hot spot 2.0 */
 		iwl_mvm_flush_sta(mvm, &mvm->aux_sta, true);
 
+		if (mvm->mld_api_is_used) {
+			iwl_mvm_mld_rm_aux_sta(mvm);
+			goto out_unlock;
+		}
+
 		/* In newer version of this command an aux station is added only
 		 * in cases of dedicated tx queue and need to be removed in end
 		 * of use */
@@ -101,6 +107,7 @@ void iwl_mvm_roc_done_wk(struct work_struct *wk)
 			iwl_mvm_rm_aux_sta(mvm);
 	}
 
+out_unlock:
 	mutex_unlock(&mvm->mutex);
 }
 
@@ -170,7 +177,8 @@ static bool iwl_mvm_te_check_disconnect(struct iwl_mvm *mvm,
 		struct iwl_mvm_sta *mvmsta;
 
 		rcu_read_lock();
-		mvmsta = iwl_mvm_sta_from_staid_rcu(mvm, mvmvif->ap_sta_id);
+		mvmsta = iwl_mvm_sta_from_staid_rcu(mvm,
+						    mvmvif->deflink.ap_sta_id);
 		if (!WARN_ON(!mvmsta))
 			iwl_mvm_sta_modify_disable_tx(mvm, mvmsta, false);
 		rcu_read_unlock();

@@ -1052,6 +1052,7 @@ void cec_received_msg_ts(struct cec_adapter *adap,
 	u8 cmd = msg->msg[1];
 	bool is_reply = false;
 	bool valid_la = true;
+	bool monitor_valid_la = true;
 	u8 min_len = 0;
 
 	if (WARN_ON(!msg->len || msg->len > CEC_MAX_MSG_SIZE))
@@ -1090,11 +1091,14 @@ void cec_received_msg_ts(struct cec_adapter *adap,
 	mutex_lock(&adap->lock);
 	dprintk(2, "%s: %*ph\n", __func__, msg->len, msg->msg);
 
-	adap->last_initiator = 0xff;
+	if (!adap->transmit_in_progress)
+		adap->last_initiator = 0xff;
 
 	/* Check if this message was for us (directed or broadcast). */
-	if (!cec_msg_is_broadcast(msg))
+	if (!cec_msg_is_broadcast(msg)) {
 		valid_la = cec_has_log_addr(adap, msg_dest);
+		monitor_valid_la = valid_la;
+	}
 
 	/*
 	 * Check if the length is not too short or if the message is a
@@ -1227,7 +1231,7 @@ void cec_received_msg_ts(struct cec_adapter *adap,
 	mutex_unlock(&adap->lock);
 
 	/* Pass the message on to any monitoring filehandles */
-	cec_queue_msg_monitor(adap, msg, valid_la);
+	cec_queue_msg_monitor(adap, msg, monitor_valid_la);
 
 	/* We're done if it is not for us or a poll message */
 	if (!valid_la || msg->len <= 1)
@@ -1582,7 +1586,7 @@ static void cec_claim_log_addrs(struct cec_adapter *adap, bool block)
  *
  * This function is called with adap->lock held.
  */
-static int cec_adap_enable(struct cec_adapter *adap)
+int cec_adap_enable(struct cec_adapter *adap)
 {
 	bool enable;
 	int ret = 0;
@@ -1591,6 +1595,9 @@ static int cec_adap_enable(struct cec_adapter *adap)
 		 adap->log_addrs.num_log_addrs;
 	if (adap->needs_hpd)
 		enable = enable && adap->phys_addr != CEC_PHYS_ADDR_INVALID;
+
+	if (adap->devnode.unregistered)
+		enable = false;
 
 	if (enable == adap->is_enabled)
 		return 0;

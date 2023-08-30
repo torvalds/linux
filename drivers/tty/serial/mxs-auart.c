@@ -1587,8 +1587,8 @@ static int mxs_auart_probe(struct platform_device *pdev)
 	}
 	s->port.line = ret;
 
-	if (of_get_property(np, "uart-has-rtscts", NULL) ||
-	    of_get_property(np, "fsl,uart-has-rtscts", NULL) /* deprecated */)
+	if (of_property_read_bool(np, "uart-has-rtscts") ||
+	    of_property_read_bool(np, "fsl,uart-has-rtscts") /* deprecated */)
 		set_bit(MXS_AUART_RTSCTS, &s->flags);
 
 	if (s->port.line >= ARRAY_SIZE(auart_port)) {

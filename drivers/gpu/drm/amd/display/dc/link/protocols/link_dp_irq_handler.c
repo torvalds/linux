@@ -33,13 +33,14 @@
 #include "link_dpcd.h"
 #include "link_dp_training.h"
 #include "link_dp_capability.h"
+#include "link_edp_panel_control.h"
 #include "link/accessories/link_dp_trace.h"
 #include "link/link_dpms.h"
 #include "dm_helpers.h"
 
 #define DC_LOGGER_INIT(logger)
 
-bool dc_link_check_link_loss_status(
+bool dp_parse_link_loss_status(
 	struct dc_link *link,
 	union hpd_irq_data *hpd_irq_dpcd_data)
 {
@@ -155,9 +156,9 @@ static bool handle_hpd_irq_psr_sink(struct dc_link *link)
 			/* PSR error, disable and re-enable PSR */
 			if (link->psr_settings.psr_allow_active) {
 				allow_active = false;
-				dc_link_set_psr_allow_active(link, &allow_active, true, false, NULL);
+				edp_set_psr_allow_active(link, &allow_active, true, false, NULL);
 				allow_active = true;
-				dc_link_set_psr_allow_active(link, &allow_active, true, false, NULL);
+				edp_set_psr_allow_active(link, &allow_active, true, false, NULL);
 			}
 
 			return true;
@@ -174,7 +175,7 @@ static bool handle_hpd_irq_psr_sink(struct dc_link *link)
 	return false;
 }
 
-void dc_link_dp_handle_link_loss(struct dc_link *link)
+void dp_handle_link_loss(struct dc_link *link)
 {
 	struct pipe_ctx *pipes[MAX_PIPES];
 	struct dc_state *state = link->dc->current_state;
@@ -200,7 +201,7 @@ void dc_link_dp_handle_link_loss(struct dc_link *link)
 	}
 }
 
-enum dc_status dc_link_dp_read_hpd_rx_irq_data(
+enum dc_status dp_read_hpd_rx_irq_data(
 	struct dc_link *link,
 	union hpd_irq_data *irq_data)
 {
@@ -247,7 +248,7 @@ enum dc_status dc_link_dp_read_hpd_rx_irq_data(
 }
 
 /*************************Short Pulse IRQ***************************/
-bool dc_link_dp_allow_hpd_rx_irq(const struct dc_link *link)
+bool dp_should_allow_hpd_rx_irq(const struct dc_link *link)
 {
 	/*
 	 * Don't handle RX IRQ unless one of following is met:
@@ -262,8 +263,9 @@ bool dc_link_dp_allow_hpd_rx_irq(const struct dc_link *link)
 	return false;
 }
 
-bool dc_link_handle_hpd_rx_irq(struct dc_link *link, union hpd_irq_data *out_hpd_irq_dpcd_data, bool *out_link_loss,
-							bool defer_handling, bool *has_left_work)
+bool dp_handle_hpd_rx_irq(struct dc_link *link,
+		union hpd_irq_data *out_hpd_irq_dpcd_data, bool *out_link_loss,
+		bool defer_handling, bool *has_left_work)
 {
 	union hpd_irq_data hpd_irq_dpcd_data = {0};
 	union device_service_irq device_service_clear = {0};
@@ -288,7 +290,7 @@ bool dc_link_handle_hpd_rx_irq(struct dc_link *link, union hpd_irq_data *out_hpd
 		 * dal_dpsst_ls_read_hpd_irq_data
 		 * Order of calls is important too
 		 */
-	result = dc_link_dp_read_hpd_rx_irq_data(link, &hpd_irq_dpcd_data);
+	result = dp_read_hpd_rx_irq_data(link, &hpd_irq_dpcd_data);
 	if (out_hpd_irq_dpcd_data)
 		*out_hpd_irq_dpcd_data = hpd_irq_dpcd_data;
 
@@ -315,7 +317,7 @@ bool dc_link_handle_hpd_rx_irq(struct dc_link *link, union hpd_irq_data *out_hpd
 		return false;
 	}
 
-	if (!dc_link_dp_allow_hpd_rx_irq(link)) {
+	if (!dp_should_allow_hpd_rx_irq(link)) {
 		DC_LOG_HW_HPD_IRQ("%s: skipping HPD handling on %d\n",
 			__func__, link->link_index);
 		return false;
@@ -348,9 +350,9 @@ bool dc_link_handle_hpd_rx_irq(struct dc_link *link, union hpd_irq_data *out_hpd
 	 * then DM should call DC to do the detection.
 	 * NOTE: Do not handle link loss on eDP since it is internal link*/
 	if ((link->connector_signal != SIGNAL_TYPE_EDP) &&
-		dc_link_check_link_loss_status(
-			link,
-			&hpd_irq_dpcd_data)) {
+			dp_parse_link_loss_status(
+					link,
+					&hpd_irq_dpcd_data)) {
 		/* Connectivity log: link loss */
 		CONN_DATA_LINK_LOSS(link,
 					hpd_irq_dpcd_data.raw,
@@ -360,7 +362,7 @@ bool dc_link_handle_hpd_rx_irq(struct dc_link *link, union hpd_irq_data *out_hpd
 		if (defer_handling && has_left_work)
 			*has_left_work = true;
 		else
-			dc_link_dp_handle_link_loss(link);
+			dp_handle_link_loss(link);
 
 		status = false;
 		if (out_link_loss)

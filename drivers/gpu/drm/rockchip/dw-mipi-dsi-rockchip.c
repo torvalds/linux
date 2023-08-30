@@ -359,11 +359,6 @@ static inline void dsi_write(struct dw_mipi_dsi_rockchip *dsi, u32 reg, u32 val)
 	writel(val, dsi->base + reg);
 }
 
-static inline u32 dsi_read(struct dw_mipi_dsi_rockchip *dsi, u32 reg)
-{
-	return readl(dsi->base + reg);
-}
-
 static void dw_mipi_dsi_phy_write(struct dw_mipi_dsi_rockchip *dsi,
 				  u8 test_code,
 				  u8 test_data)

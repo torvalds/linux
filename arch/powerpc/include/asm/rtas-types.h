@@ -2,7 +2,7 @@
 #ifndef _ASM_POWERPC_RTAS_TYPES_H
 #define _ASM_POWERPC_RTAS_TYPES_H
 
-#include <linux/spinlock_types.h>
+#include <linux/compiler_attributes.h>
 
 typedef __be32 rtas_arg_t;
 
@@ -12,7 +12,7 @@ struct rtas_args {
 	__be32 nret;
 	rtas_arg_t args[16];
 	rtas_arg_t *rets;     /* Pointer to return values in args[]. */
-};
+} __aligned(8);
 
 struct rtas_t {
 	unsigned long entry;		/* physical address pointer */

@@ -6271,7 +6271,8 @@ bool dml32_CalculateDETSwathFillLatencyHiding(unsigned int NumberOfActiveSurface
 		double	PixelClock[],
 		double	VRatioY[],
 		double	VRatioC[],
-		enum dm_use_mall_for_pstate_change_mode UsesMALLForPStateChange[])
+		enum dm_use_mall_for_pstate_change_mode UsesMALLForPStateChange[],
+		enum unbounded_requesting_policy UseUnboundedRequesting)
 {
 	int k;
 	double SwathSizeAllSurfaces = 0;
@@ -6282,6 +6283,9 @@ bool dml32_CalculateDETSwathFillLatencyHiding(unsigned int NumberOfActiveSurface
 	double SwathSizePerSurfaceY[DC__NUM_DPP__MAX];
 	double SwathSizePerSurfaceC[DC__NUM_DPP__MAX];
 	bool NotEnoughDETSwathFillLatencyHiding = false;
+
+	if (UseUnboundedRequesting == dm_unbounded_requesting)
+		return false;
 
 	/* calculate sum of single swath size for all pipes in bytes */
 	for (k = 0; k < NumberOfActiveSurfaces; k++) {

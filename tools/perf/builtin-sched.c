@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
 #include "builtin.h"
-#include "perf.h"
 #include "perf-sys.h"
 
 #include "util/cpumap.h"
@@ -27,6 +26,7 @@
 
 #include "util/debug.h"
 #include "util/event.h"
+#include "util/util.h"
 
 #include <linux/kernel.h>
 #include <linux/log2.h>
@@ -1516,6 +1516,14 @@ static int process_sched_wakeup_event(struct perf_tool *tool,
 	return 0;
 }
 
+static int process_sched_wakeup_ignore(struct perf_tool *tool __maybe_unused,
+				      struct evsel *evsel __maybe_unused,
+				      struct perf_sample *sample __maybe_unused,
+				      struct machine *machine __maybe_unused)
+{
+	return 0;
+}
+
 union map_priv {
 	void	*ptr;
 	bool	 color;
@@ -1816,10 +1824,11 @@ static int perf_sched__process_comm(struct perf_tool *tool __maybe_unused,
 
 static int perf_sched__read_events(struct perf_sched *sched)
 {
-	const struct evsel_str_handler handlers[] = {
+	struct evsel_str_handler handlers[] = {
 		{ "sched:sched_switch",	      process_sched_switch_event, },
 		{ "sched:sched_stat_runtime", process_sched_runtime_event, },
 		{ "sched:sched_wakeup",	      process_sched_wakeup_event, },
+		{ "sched:sched_waking",	      process_sched_wakeup_event, },
 		{ "sched:sched_wakeup_new",   process_sched_wakeup_event, },
 		{ "sched:sched_migrate_task", process_sched_migrate_task_event, },
 	};
@@ -1838,6 +1847,10 @@ static int perf_sched__read_events(struct perf_sched *sched)
 	}
 
 	symbol__init(&session->header.env);
+
+	/* prefer sched_waking if it is captured */
+	if (evlist__find_tracepoint_by_name(session->evlist, "sched:sched_waking"))
+		handlers[2].handler = process_sched_wakeup_ignore;
 
 	if (perf_session__set_tracepoints_handlers(session, handlers))
 		goto out_delete;

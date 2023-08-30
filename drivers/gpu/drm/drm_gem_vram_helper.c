@@ -916,6 +916,17 @@ static int bo_driver_move(struct ttm_buffer_object *bo,
 {
 	struct drm_gem_vram_object *gbo;
 
+	if (!bo->resource) {
+		if (new_mem->mem_type != TTM_PL_SYSTEM) {
+			hop->mem_type = TTM_PL_SYSTEM;
+			hop->flags = TTM_PL_FLAG_TEMPORARY;
+			return -EMULTIHOP;
+		}
+
+		ttm_bo_move_null(bo, new_mem);
+		return 0;
+	}
+
 	gbo = drm_gem_vram_of_bo(bo);
 
 	return drm_gem_vram_bo_driver_move(gbo, evict, ctx, new_mem);

@@ -100,6 +100,16 @@ config ARM_SMMU_V3_PMU
 	   through the SMMU and allow the resulting information to be filtered
 	   based on the Stream ID of the corresponding master.
 
+config ARM_PMUV3
+	depends on HW_PERF_EVENTS && ((ARM && CPU_V7) || ARM64)
+	bool "ARM PMUv3 support" if !ARM64
+	default ARM64
+	  help
+	  Say y if you want to use the ARM performance monitor unit (PMU)
+	  version 3. The PMUv3 is the CPU performance monitors on ARMv8
+	  (aarch32 and aarch64) systems that implement the PMUv3
+	  architecture.
+
 config ARM_DSU_PMU
 	tristate "ARM DynamIQ Shared Unit (DSU) PMU"
 	depends on ARM64

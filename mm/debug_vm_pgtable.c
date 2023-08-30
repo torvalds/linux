@@ -934,7 +934,7 @@ static void __init hugetlb_basic_tests(struct pgtable_debug_args *args)
 #ifdef CONFIG_ARCH_WANT_GENERAL_HUGETLB
 	pte = pfn_pte(args->fixed_pmd_pfn, args->page_prot);
 
-	WARN_ON(!pte_huge(pte_mkhuge(pte)));
+	WARN_ON(!pte_huge(arch_make_huge_pte(pte, PMD_SHIFT, VM_ACCESS_FLAGS)));
 #endif /* CONFIG_ARCH_WANT_GENERAL_HUGETLB */
 }
 #else  /* !CONFIG_HUGETLB_PAGE */
@@ -1048,7 +1048,7 @@ static void __init destroy_args(struct pgtable_debug_args *args)
 
 	if (args->pte_pfn != ULONG_MAX) {
 		page = pfn_to_page(args->pte_pfn);
-		__free_pages(page, 0);
+		__free_page(page);
 
 		args->pte_pfn = ULONG_MAX;
 	}
@@ -1086,7 +1086,7 @@ debug_vm_pgtable_alloc_huge_page(struct pgtable_debug_args *args, int order)
 	struct page *page = NULL;
 
 #ifdef CONFIG_CONTIG_ALLOC
-	if (order >= MAX_ORDER) {
+	if (order > MAX_ORDER) {
 		page = alloc_contig_pages((1 << order), GFP_KERNEL,
 					  first_online_node, NULL);
 		if (page) {
@@ -1096,7 +1096,7 @@ debug_vm_pgtable_alloc_huge_page(struct pgtable_debug_args *args, int order)
 	}
 #endif
 
-	if (order < MAX_ORDER)
+	if (order <= MAX_ORDER)
 		page = alloc_pages(GFP_KERNEL, order);
 
 	return page;
@@ -1290,7 +1290,7 @@ static int __init init_args(struct pgtable_debug_args *args)
 		}
 	}
 
-	page = alloc_pages(GFP_KERNEL, 0);
+	page = alloc_page(GFP_KERNEL);
 	if (page)
 		args->pte_pfn = page_to_pfn(page);
 

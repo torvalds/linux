@@ -359,6 +359,7 @@ MODULE_DEVICE_TABLE(of, rt5759_device_table);
 static struct i2c_driver rt5759_driver = {
 	.driver = {
 		.name = "rt5759",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = of_match_ptr(rt5759_device_table),
 	},
 	.probe_new = rt5759_probe,

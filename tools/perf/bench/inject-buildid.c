@@ -12,6 +12,7 @@
 #include <linux/time64.h>
 #include <linux/list.h>
 #include <linux/err.h>
+#include <linux/zalloc.h>
 #include <internal/lib.h>
 #include <subcmd/parse-options.h>
 
@@ -122,7 +123,7 @@ static void release_dso(void)
 	for (i = 0; i < nr_dsos; i++) {
 		struct bench_dso *dso = &dsos[i];
 
-		free(dso->name);
+		zfree(&dso->name);
 	}
 	free(dsos);
 }

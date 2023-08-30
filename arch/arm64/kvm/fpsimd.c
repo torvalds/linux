@@ -81,26 +81,34 @@ void kvm_arch_vcpu_load_fp(struct kvm_vcpu *vcpu)
 
 	fpsimd_kvm_prepare();
 
+	/*
+	 * We will check TIF_FOREIGN_FPSTATE just before entering the
+	 * guest in kvm_arch_vcpu_ctxflush_fp() and override this to
+	 * FP_STATE_FREE if the flag set.
+	 */
 	vcpu->arch.fp_state = FP_STATE_HOST_OWNED;
 
 	vcpu_clear_flag(vcpu, HOST_SVE_ENABLED);
 	if (read_sysreg(cpacr_el1) & CPACR_EL1_ZEN_EL0EN)
 		vcpu_set_flag(vcpu, HOST_SVE_ENABLED);
 
-	/*
-	 * We don't currently support SME guests but if we leave
-	 * things in streaming mode then when the guest starts running
-	 * FPSIMD or SVE code it may generate SME traps so as a
-	 * special case if we are in streaming mode we force the host
-	 * state to be saved now and exit streaming mode so that we
-	 * don't have to handle any SME traps for valid guest
-	 * operations. Do this for ZA as well for now for simplicity.
-	 */
 	if (system_supports_sme()) {
 		vcpu_clear_flag(vcpu, HOST_SME_ENABLED);
 		if (read_sysreg(cpacr_el1) & CPACR_EL1_SMEN_EL0EN)
 			vcpu_set_flag(vcpu, HOST_SME_ENABLED);
 
+		/*
+		 * If PSTATE.SM is enabled then save any pending FP
+		 * state and disable PSTATE.SM. If we leave PSTATE.SM
+		 * enabled and the guest does not enable SME via
+		 * CPACR_EL1.SMEN then operations that should be valid
+		 * may generate SME traps from EL1 to EL1 which we
+		 * can't intercept and which would confuse the guest.
+		 *
+		 * Do the same for PSTATE.ZA in the case where there
+		 * is state in the registers which has not already
+		 * been saved, this is very unlikely to happen.
+		 */
 		if (read_sysreg_s(SYS_SVCR) & (SVCR_SM_MASK | SVCR_ZA_MASK)) {
 			vcpu->arch.fp_state = FP_STATE_FREE;
 			fpsimd_save_and_flush_cpu_state();

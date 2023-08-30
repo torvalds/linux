@@ -553,6 +553,7 @@ static struct platform_driver cpcap_regulator_driver = {
 	.probe		= cpcap_regulator_probe,
 	.driver		= {
 		.name	= "cpcap-regulator",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = of_match_ptr(cpcap_regulator_id_table),
 	},
 };

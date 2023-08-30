@@ -416,7 +416,7 @@ err_core_put:
 	return ret;
 }
 
-static int venus_remove(struct platform_device *pdev)
+static void venus_remove(struct platform_device *pdev)
 {
 	struct venus_core *core = platform_get_drvdata(pdev);
 	const struct venus_pm_ops *pm_ops = core->pm_ops;
@@ -447,8 +447,6 @@ static int venus_remove(struct platform_device *pdev)
 	mutex_destroy(&core->pm_lock);
 	mutex_destroy(&core->lock);
 	venus_dbgfs_deinit(core);
-
-	return ret;
 }
 
 static void venus_core_shutdown(struct platform_device *pdev)
@@ -891,7 +889,7 @@ MODULE_DEVICE_TABLE(of, venus_dt_match);
 
 static struct platform_driver qcom_venus_driver = {
 	.probe = venus_probe,
-	.remove = venus_remove,
+	.remove_new = venus_remove,
 	.driver = {
 		.name = "qcom-venus",
 		.of_match_table = venus_dt_match,

@@ -144,7 +144,7 @@ struct test_pattern {
 	unsigned int cust_pattern_size;
 };
 
-#define SUBVP_DRR_MARGIN_US 600 // 600us for DRR margin (SubVP + DRR)
+#define SUBVP_DRR_MARGIN_US 100 // 100us for DRR margin (SubVP + DRR)
 
 enum mall_stream_type {
 	SUBVP_NONE, // subvp not in use
@@ -293,6 +293,7 @@ struct dc_stream_state {
 
 	bool has_non_synchronizable_pclk;
 	bool vblank_synchronized;
+	bool fpo_in_use;
 	struct mall_stream_config mall_stream_config;
 };
 

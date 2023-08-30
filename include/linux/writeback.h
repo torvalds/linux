@@ -70,8 +70,6 @@ struct writeback_control {
 	 */
 	unsigned no_cgroup_owner:1;
 
-	unsigned punt_to_cgroup:1;	/* cgrp punting, see __REQ_CGROUP_PUNT */
-
 	/* To enable batching of swap writes to non-block-device backends,
 	 * "plug" can be set point to a 'struct swap_iocb *'.  When all swap
 	 * writes have been submitted, if with swap_iocb is not NULL,
@@ -96,9 +94,6 @@ struct writeback_control {
 static inline blk_opf_t wbc_to_write_flags(struct writeback_control *wbc)
 {
 	blk_opf_t flags = 0;
-
-	if (wbc->punt_to_cgroup)
-		flags = REQ_CGROUP_PUNT;
 
 	if (wbc->sync_mode == WB_SYNC_ALL)
 		flags |= REQ_SYNC;

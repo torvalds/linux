@@ -826,6 +826,14 @@
         "UMask": "0x1"
     },
     {
+        "BriefDescription": "Counts bus locks, accounts for cache line split locks and UC locks.",
+        "EventCode": "0xF4",
+        "EventName": "SQ_MISC.BUS_LOCK",
+        "PublicDescription": "Counts the more expensive bus lock needed to enforce cache coherency for certain memory accesses that need to be done atomically.  Can be created by issuing an atomic instruction (via the LOCK prefix) which causes a cache line split or accesses uncacheable memory.",
+        "SampleAfterValue": "100003",
+        "UMask": "0x10"
+    },
+    {
         "BriefDescription": "Cycles the queue waiting for offcore responses is full.",
         "EventCode": "0xf4",
         "EventName": "SQ_MISC.SQ_FULL",

@@ -205,16 +205,15 @@ static void __noreturn holly_restart(char *cmd)
 	__be32 __iomem *ocn_bar1 = NULL;
 	unsigned long bar;
 	struct device_node *bridge = NULL;
-	const void *prop;
-	int size;
+	struct resource res;
 	phys_addr_t addr = 0xc0000000;
 
 	local_irq_disable();
 
 	bridge = of_find_node_by_type(NULL, "tsi-bridge");
 	if (bridge) {
-		prop = of_get_property(bridge, "reg", &size);
-		addr = of_translate_address(bridge, prop);
+		of_address_to_resource(bridge, 0, &res);
+		addr = res.start;
 		of_node_put(bridge);
 	}
 	addr += (TSI108_PB_OFFSET + 0x414);
@@ -241,16 +240,6 @@ static void __noreturn holly_restart(char *cmd)
 	for (;;) ;
 }
 
-/*
- * Called very early, device-tree isn't unflattened
- */
-static int __init holly_probe(void)
-{
-	if (!of_machine_is_compatible("ibm,holly"))
-		return 0;
-	return 1;
-}
-
 static int ppc750_machine_check_exception(struct pt_regs *regs)
 {
 	const struct exception_table_entry *entry;
@@ -267,14 +256,13 @@ static int ppc750_machine_check_exception(struct pt_regs *regs)
 
 define_machine(holly){
 	.name                   	= "PPC750 GX/CL TSI",
-	.probe                  	= holly_probe,
+	.compatible			= "ibm,holly",
 	.setup_arch             	= holly_setup_arch,
 	.discover_phbs			= holly_init_pci,
 	.init_IRQ               	= holly_init_IRQ,
 	.show_cpuinfo           	= holly_show_cpuinfo,
 	.get_irq                	= mpic_get_irq,
 	.restart                	= holly_restart,
-	.calibrate_decr         	= generic_calibrate_decr,
 	.machine_check_exception	= ppc750_machine_check_exception,
 	.progress               	= udbg_progress,
 };

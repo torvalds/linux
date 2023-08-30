@@ -8,7 +8,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Cycles a demand request was blocked due to Fill Buffers inavailability.",
+        "BriefDescription": "Cycles a demand request was blocked due to Fill Buffers unavailability.",
         "CounterMask": "1",
         "EventCode": "0x48",
         "EventName": "L1D_PEND_MISS.FB_FULL",
@@ -16,7 +16,7 @@
         "UMask": "0x2"
     },
     {
-        "BriefDescription": "L1D miss oustandings duration in cycles",
+        "BriefDescription": "L1D miss outstandings duration in cycles",
         "EventCode": "0x48",
         "EventName": "L1D_PEND_MISS.PENDING",
         "PublicDescription": "This event counts duration of L1D miss outstanding, that is each cycle number of Fill Buffers (FB) outstanding required by Demand Reads. FB either is held by demand loads, or it is held by non-demand loads and gets hit at least once by demand. The valid outstanding interval is defined until the FB deallocation by one of the following ways: from FB allocation, if FB is allocated by demand; from the demand Hit FB, if it is allocated by hardware or software prefetch.\nNote: In the L1D, a Demand Read contains cacheable or noncacheable demand loads, including ones causing cache-line splits and reads due to page walks resulted from any request type.",
@@ -424,22 +424,22 @@
         "UMask": "0x20"
     },
     {
-        "BriefDescription": "All retired load uops.",
+        "BriefDescription": "Retired load uops.",
         "Data_LA": "1",
         "EventCode": "0xD0",
         "EventName": "MEM_UOPS_RETIRED.ALL_LOADS",
         "PEBS": "1",
-        "PublicDescription": "This event counts load uops retired to the architected path with a filter on bits 0 and 1 applied.\nNote: This event counts AVX-256bit load/store double-pump memory uops as a single uop at retirement. This event also counts SW prefetches.",
+        "PublicDescription": "Counts all retired load uops. This event accounts for SW prefetch uops of PREFETCHNTA or PREFETCHT0/1/2 or PREFETCHW.",
         "SampleAfterValue": "2000003",
         "UMask": "0x81"
     },
     {
-        "BriefDescription": "All retired store uops.",
+        "BriefDescription": "Retired store uops.",
         "Data_LA": "1",
         "EventCode": "0xD0",
         "EventName": "MEM_UOPS_RETIRED.ALL_STORES",
         "PEBS": "1",
-        "PublicDescription": "This event counts store uops retired to the architected path with a filter on bits 0 and 1 applied.\nNote: This event counts AVX-256bit load/store double-pump memory uops as a single uop at retirement.",
+        "PublicDescription": "Counts all retired store uops.",
         "SampleAfterValue": "2000003",
         "UMask": "0x82"
     },
@@ -511,10 +511,10 @@
         "UMask": "0x80"
     },
     {
-        "BriefDescription": "Cacheable and noncachaeble code read requests",
+        "BriefDescription": "Cacheable and non-cacheable code read requests",
         "EventCode": "0xB0",
         "EventName": "OFFCORE_REQUESTS.DEMAND_CODE_RD",
-        "PublicDescription": "This event counts both cacheable and noncachaeble code read requests.",
+        "PublicDescription": "This event counts both cacheable and non-cacheable code read requests.",
         "SampleAfterValue": "100003",
         "UMask": "0x2"
     },
@@ -629,7 +629,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.ALL_DATA_RD.ANY_RESPONSE",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x0000010091",
+        "MSRValue": "0x10091",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -656,7 +656,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.ALL_DATA_RD.L3_HIT.SNOOP_HIT_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x04003C0091",
+        "MSRValue": "0x4003C0091",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -665,7 +665,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.ALL_DATA_RD.L3_HIT.SNOOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x02003C0091",
+        "MSRValue": "0x2003C0091",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -674,7 +674,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.ALL_DATA_RD.L3_HIT.SNOOP_NONE",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x00803C0091",
+        "MSRValue": "0x803C0091",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -683,7 +683,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.ALL_DATA_RD.L3_HIT.SNOOP_NOT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x01003C0091",
+        "MSRValue": "0x1003C0091",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -710,7 +710,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.ALL_DATA_RD.SUPPLIER_NONE.SNOOP_HIT_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x0400020091",
+        "MSRValue": "0x400020091",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -719,7 +719,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.ALL_DATA_RD.SUPPLIER_NONE.SNOOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x0200020091",
+        "MSRValue": "0x200020091",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -728,7 +728,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.ALL_DATA_RD.SUPPLIER_NONE.SNOOP_NONE",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x0080020091",
+        "MSRValue": "0x80020091",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -737,7 +737,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.ALL_DATA_RD.SUPPLIER_NONE.SNOOP_NOT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x0100020091",
+        "MSRValue": "0x100020091",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -746,7 +746,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.ALL_PF_CODE_RD.ANY_RESPONSE",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x0000010240",
+        "MSRValue": "0x10240",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -773,7 +773,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.ALL_PF_CODE_RD.L3_HIT.SNOOP_HIT_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x04003C0240",
+        "MSRValue": "0x4003C0240",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -782,7 +782,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.ALL_PF_CODE_RD.L3_HIT.SNOOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x02003C0240",
+        "MSRValue": "0x2003C0240",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -791,7 +791,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.ALL_PF_CODE_RD.L3_HIT.SNOOP_NONE",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x00803C0240",
+        "MSRValue": "0x803C0240",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -800,7 +800,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.ALL_PF_CODE_RD.L3_HIT.SNOOP_NOT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x01003C0240",
+        "MSRValue": "0x1003C0240",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -827,7 +827,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.ALL_PF_CODE_RD.SUPPLIER_NONE.SNOOP_HIT_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x0400020240",
+        "MSRValue": "0x400020240",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -836,7 +836,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.ALL_PF_CODE_RD.SUPPLIER_NONE.SNOOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x0200020240",
+        "MSRValue": "0x200020240",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -845,7 +845,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.ALL_PF_CODE_RD.SUPPLIER_NONE.SNOOP_NONE",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x0080020240",
+        "MSRValue": "0x80020240",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -854,7 +854,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.ALL_PF_CODE_RD.SUPPLIER_NONE.SNOOP_NOT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x0100020240",
+        "MSRValue": "0x100020240",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -863,7 +863,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.ALL_PF_DATA_RD.ANY_RESPONSE",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x0000010090",
+        "MSRValue": "0x10090",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -890,7 +890,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.ALL_PF_DATA_RD.L3_HIT.SNOOP_HIT_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x04003C0090",
+        "MSRValue": "0x4003C0090",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -899,7 +899,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.ALL_PF_DATA_RD.L3_HIT.SNOOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x02003C0090",
+        "MSRValue": "0x2003C0090",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -908,7 +908,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.ALL_PF_DATA_RD.L3_HIT.SNOOP_NONE",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x00803C0090",
+        "MSRValue": "0x803C0090",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -917,7 +917,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.ALL_PF_DATA_RD.L3_HIT.SNOOP_NOT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x01003C0090",
+        "MSRValue": "0x1003C0090",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -944,7 +944,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.ALL_PF_DATA_RD.SUPPLIER_NONE.SNOOP_HIT_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x0400020090",
+        "MSRValue": "0x400020090",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -953,7 +953,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.ALL_PF_DATA_RD.SUPPLIER_NONE.SNOOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x0200020090",
+        "MSRValue": "0x200020090",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -962,7 +962,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.ALL_PF_DATA_RD.SUPPLIER_NONE.SNOOP_NONE",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x0080020090",
+        "MSRValue": "0x80020090",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -971,7 +971,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.ALL_PF_DATA_RD.SUPPLIER_NONE.SNOOP_NOT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x0100020090",
+        "MSRValue": "0x100020090",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -980,7 +980,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.ALL_PF_RFO.ANY_RESPONSE",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x0000010120",
+        "MSRValue": "0x10120",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -1007,7 +1007,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.ALL_PF_RFO.L3_HIT.SNOOP_HIT_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x04003C0120",
+        "MSRValue": "0x4003C0120",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -1016,7 +1016,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.ALL_PF_RFO.L3_HIT.SNOOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x02003C0120",
+        "MSRValue": "0x2003C0120",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -1025,7 +1025,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.ALL_PF_RFO.L3_HIT.SNOOP_NONE",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x00803C0120",
+        "MSRValue": "0x803C0120",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -1034,7 +1034,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.ALL_PF_RFO.L3_HIT.SNOOP_NOT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x01003C0120",
+        "MSRValue": "0x1003C0120",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -1061,7 +1061,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.ALL_PF_RFO.SUPPLIER_NONE.SNOOP_HIT_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x0400020120",
+        "MSRValue": "0x400020120",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -1070,7 +1070,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.ALL_PF_RFO.SUPPLIER_NONE.SNOOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x0200020120",
+        "MSRValue": "0x200020120",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -1079,7 +1079,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.ALL_PF_RFO.SUPPLIER_NONE.SNOOP_NONE",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x0080020120",
+        "MSRValue": "0x80020120",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -1088,7 +1088,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.ALL_PF_RFO.SUPPLIER_NONE.SNOOP_NOT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x0100020120",
+        "MSRValue": "0x100020120",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -1097,7 +1097,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.ALL_RFO.ANY_RESPONSE",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x0000010122",
+        "MSRValue": "0x10122",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -1124,7 +1124,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.ALL_RFO.L3_HIT.SNOOP_HIT_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x04003C0122",
+        "MSRValue": "0x4003C0122",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -1133,7 +1133,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.ALL_RFO.L3_HIT.SNOOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x02003C0122",
+        "MSRValue": "0x2003C0122",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -1142,7 +1142,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.ALL_RFO.L3_HIT.SNOOP_NONE",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x00803C0122",
+        "MSRValue": "0x803C0122",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -1151,7 +1151,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.ALL_RFO.L3_HIT.SNOOP_NOT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x01003C0122",
+        "MSRValue": "0x1003C0122",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -1178,7 +1178,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.ALL_RFO.SUPPLIER_NONE.SNOOP_HIT_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x0400020122",
+        "MSRValue": "0x400020122",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -1187,7 +1187,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.ALL_RFO.SUPPLIER_NONE.SNOOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x0200020122",
+        "MSRValue": "0x200020122",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -1196,7 +1196,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.ALL_RFO.SUPPLIER_NONE.SNOOP_NONE",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x0080020122",
+        "MSRValue": "0x80020122",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -1205,7 +1205,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.ALL_RFO.SUPPLIER_NONE.SNOOP_NOT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x0100020122",
+        "MSRValue": "0x100020122",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -1214,7 +1214,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.COREWB.ANY_RESPONSE",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x0000010008",
+        "MSRValue": "0x10008",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -1241,7 +1241,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.COREWB.L3_HIT.SNOOP_HIT_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x04003C0008",
+        "MSRValue": "0x4003C0008",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -1250,7 +1250,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.COREWB.L3_HIT.SNOOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x02003C0008",
+        "MSRValue": "0x2003C0008",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -1259,7 +1259,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.COREWB.L3_HIT.SNOOP_NONE",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x00803C0008",
+        "MSRValue": "0x803C0008",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -1268,7 +1268,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.COREWB.L3_HIT.SNOOP_NOT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x01003C0008",
+        "MSRValue": "0x1003C0008",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -1295,7 +1295,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.COREWB.SUPPLIER_NONE.SNOOP_HIT_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x0400020008",
+        "MSRValue": "0x400020008",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -1304,7 +1304,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.COREWB.SUPPLIER_NONE.SNOOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x0200020008",
+        "MSRValue": "0x200020008",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -1313,7 +1313,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.COREWB.SUPPLIER_NONE.SNOOP_NONE",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x0080020008",
+        "MSRValue": "0x80020008",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -1322,7 +1322,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.COREWB.SUPPLIER_NONE.SNOOP_NOT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x0100020008",
+        "MSRValue": "0x100020008",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -1331,7 +1331,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.ANY_RESPONSE",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x0000010004",
+        "MSRValue": "0x10004",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -1358,7 +1358,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_HIT.SNOOP_HIT_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x04003C0004",
+        "MSRValue": "0x4003C0004",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -1367,7 +1367,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_HIT.SNOOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x02003C0004",
+        "MSRValue": "0x2003C0004",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -1376,7 +1376,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_HIT.SNOOP_NONE",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x00803C0004",
+        "MSRValue": "0x803C0004",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -1385,7 +1385,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L3_HIT.SNOOP_NOT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x01003C0004",
+        "MSRValue": "0x1003C0004",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -1412,7 +1412,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.SUPPLIER_NONE.SNOOP_HIT_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x0400020004",
+        "MSRValue": "0x400020004",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -1421,7 +1421,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.SUPPLIER_NONE.SNOOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x0200020004",
+        "MSRValue": "0x200020004",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -1430,7 +1430,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.SUPPLIER_NONE.SNOOP_NONE",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x0080020004",
+        "MSRValue": "0x80020004",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -1439,7 +1439,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.SUPPLIER_NONE.SNOOP_NOT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x0100020004",
+        "MSRValue": "0x100020004",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -1448,7 +1448,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.ANY_RESPONSE",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x0000010001",
+        "MSRValue": "0x10001",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -1475,7 +1475,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_HIT.SNOOP_HIT_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x04003C0001",
+        "MSRValue": "0x4003C0001",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -1484,7 +1484,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_HIT.SNOOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x02003C0001",
+        "MSRValue": "0x2003C0001",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -1493,7 +1493,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_HIT.SNOOP_NONE",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x00803C0001",
+        "MSRValue": "0x803C0001",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -1502,7 +1502,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L3_HIT.SNOOP_NOT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x01003C0001",
+        "MSRValue": "0x1003C0001",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -1529,7 +1529,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.SUPPLIER_NONE.SNOOP_HIT_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x0400020001",
+        "MSRValue": "0x400020001",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -1538,7 +1538,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.SUPPLIER_NONE.SNOOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x0200020001",
+        "MSRValue": "0x200020001",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -1547,7 +1547,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.SUPPLIER_NONE.SNOOP_NONE",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x0080020001",
+        "MSRValue": "0x80020001",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -1556,7 +1556,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.SUPPLIER_NONE.SNOOP_NOT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x0100020001",
+        "MSRValue": "0x100020001",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -1565,7 +1565,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.ANY_RESPONSE",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x0000010002",
+        "MSRValue": "0x10002",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -1592,7 +1592,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_HIT.SNOOP_HIT_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x04003C0002",
+        "MSRValue": "0x4003C0002",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -1601,7 +1601,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_HIT.SNOOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x02003C0002",
+        "MSRValue": "0x2003C0002",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -1610,7 +1610,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_HIT.SNOOP_NONE",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x00803C0002",
+        "MSRValue": "0x803C0002",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -1619,7 +1619,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L3_HIT.SNOOP_NOT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x01003C0002",
+        "MSRValue": "0x1003C0002",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -1628,7 +1628,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.OTHER.ANY_RESPONSE",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x0000018000",
+        "MSRValue": "0x18000",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -1655,7 +1655,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.OTHER.L3_HIT.SNOOP_HIT_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x04003C8000",
+        "MSRValue": "0x4003C8000",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -1664,7 +1664,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.OTHER.L3_HIT.SNOOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x02003C8000",
+        "MSRValue": "0x2003C8000",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -1673,7 +1673,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.OTHER.L3_HIT.SNOOP_NONE",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x00803C8000",
+        "MSRValue": "0x803C8000",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -1682,7 +1682,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.OTHER.L3_HIT.SNOOP_NOT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x01003C8000",
+        "MSRValue": "0x1003C8000",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -1709,7 +1709,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.OTHER.SUPPLIER_NONE.SNOOP_HIT_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x0400028000",
+        "MSRValue": "0x400028000",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -1718,7 +1718,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.OTHER.SUPPLIER_NONE.SNOOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x0200028000",
+        "MSRValue": "0x200028000",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -1727,7 +1727,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.OTHER.SUPPLIER_NONE.SNOOP_NONE",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x0080028000",
+        "MSRValue": "0x80028000",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -1736,7 +1736,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.OTHER.SUPPLIER_NONE.SNOOP_NOT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x0100028000",
+        "MSRValue": "0x100028000",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -1745,7 +1745,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.PF_L2_CODE_RD.ANY_RESPONSE",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x0000010040",
+        "MSRValue": "0x10040",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -1772,7 +1772,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.PF_L2_CODE_RD.L3_HIT.SNOOP_HIT_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x04003C0040",
+        "MSRValue": "0x4003C0040",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -1781,7 +1781,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.PF_L2_CODE_RD.L3_HIT.SNOOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x02003C0040",
+        "MSRValue": "0x2003C0040",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -1790,7 +1790,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.PF_L2_CODE_RD.L3_HIT.SNOOP_NONE",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x00803C0040",
+        "MSRValue": "0x803C0040",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -1799,7 +1799,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.PF_L2_CODE_RD.L3_HIT.SNOOP_NOT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x01003C0040",
+        "MSRValue": "0x1003C0040",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -1826,7 +1826,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.PF_L2_CODE_RD.SUPPLIER_NONE.SNOOP_HIT_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x0400020040",
+        "MSRValue": "0x400020040",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -1835,7 +1835,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.PF_L2_CODE_RD.SUPPLIER_NONE.SNOOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x0200020040",
+        "MSRValue": "0x200020040",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -1844,7 +1844,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.PF_L2_CODE_RD.SUPPLIER_NONE.SNOOP_NONE",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x0080020040",
+        "MSRValue": "0x80020040",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -1853,7 +1853,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.PF_L2_CODE_RD.SUPPLIER_NONE.SNOOP_NOT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x0100020040",
+        "MSRValue": "0x100020040",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -1862,7 +1862,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.PF_L2_DATA_RD.ANY_RESPONSE",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x0000010010",
+        "MSRValue": "0x10010",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -1889,7 +1889,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.PF_L2_DATA_RD.L3_HIT.SNOOP_HIT_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x04003C0010",
+        "MSRValue": "0x4003C0010",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -1898,7 +1898,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.PF_L2_DATA_RD.L3_HIT.SNOOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x02003C0010",
+        "MSRValue": "0x2003C0010",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -1907,7 +1907,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.PF_L2_DATA_RD.L3_HIT.SNOOP_NONE",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x00803C0010",
+        "MSRValue": "0x803C0010",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -1916,7 +1916,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.PF_L2_DATA_RD.L3_HIT.SNOOP_NOT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x01003C0010",
+        "MSRValue": "0x1003C0010",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -1943,7 +1943,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.PF_L2_DATA_RD.SUPPLIER_NONE.SNOOP_HIT_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x0400020010",
+        "MSRValue": "0x400020010",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -1952,7 +1952,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.PF_L2_DATA_RD.SUPPLIER_NONE.SNOOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x0200020010",
+        "MSRValue": "0x200020010",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -1961,7 +1961,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.PF_L2_DATA_RD.SUPPLIER_NONE.SNOOP_NONE",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x0080020010",
+        "MSRValue": "0x80020010",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -1970,7 +1970,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.PF_L2_DATA_RD.SUPPLIER_NONE.SNOOP_NOT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x0100020010",
+        "MSRValue": "0x100020010",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -1979,7 +1979,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.PF_L2_RFO.ANY_RESPONSE",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x0000010020",
+        "MSRValue": "0x10020",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -2006,7 +2006,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.PF_L2_RFO.L3_HIT.SNOOP_HIT_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x04003C0020",
+        "MSRValue": "0x4003C0020",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -2015,7 +2015,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.PF_L2_RFO.L3_HIT.SNOOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x02003C0020",
+        "MSRValue": "0x2003C0020",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -2024,7 +2024,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.PF_L2_RFO.L3_HIT.SNOOP_NONE",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x00803C0020",
+        "MSRValue": "0x803C0020",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -2033,7 +2033,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.PF_L2_RFO.L3_HIT.SNOOP_NOT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x01003C0020",
+        "MSRValue": "0x1003C0020",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -2060,7 +2060,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.PF_L2_RFO.SUPPLIER_NONE.SNOOP_HIT_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x0400020020",
+        "MSRValue": "0x400020020",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -2069,7 +2069,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.PF_L2_RFO.SUPPLIER_NONE.SNOOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x0200020020",
+        "MSRValue": "0x200020020",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -2078,7 +2078,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.PF_L2_RFO.SUPPLIER_NONE.SNOOP_NONE",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x0080020020",
+        "MSRValue": "0x80020020",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -2087,7 +2087,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.PF_L2_RFO.SUPPLIER_NONE.SNOOP_NOT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x0100020020",
+        "MSRValue": "0x100020020",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -2096,7 +2096,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.PF_L3_CODE_RD.ANY_RESPONSE",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x0000010200",
+        "MSRValue": "0x10200",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -2123,7 +2123,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.PF_L3_CODE_RD.L3_HIT.SNOOP_HIT_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x04003C0200",
+        "MSRValue": "0x4003C0200",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -2132,7 +2132,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.PF_L3_CODE_RD.L3_HIT.SNOOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x02003C0200",
+        "MSRValue": "0x2003C0200",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -2141,7 +2141,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.PF_L3_CODE_RD.L3_HIT.SNOOP_NONE",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x00803C0200",
+        "MSRValue": "0x803C0200",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -2150,7 +2150,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.PF_L3_CODE_RD.L3_HIT.SNOOP_NOT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x01003C0200",
+        "MSRValue": "0x1003C0200",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -2177,7 +2177,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.PF_L3_CODE_RD.SUPPLIER_NONE.SNOOP_HIT_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x0400020200",
+        "MSRValue": "0x400020200",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -2186,7 +2186,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.PF_L3_CODE_RD.SUPPLIER_NONE.SNOOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x0200020200",
+        "MSRValue": "0x200020200",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -2195,7 +2195,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.PF_L3_CODE_RD.SUPPLIER_NONE.SNOOP_NONE",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x0080020200",
+        "MSRValue": "0x80020200",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -2204,7 +2204,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.PF_L3_CODE_RD.SUPPLIER_NONE.SNOOP_NOT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x0100020200",
+        "MSRValue": "0x100020200",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -2213,7 +2213,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.PF_L3_DATA_RD.ANY_RESPONSE",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x0000010080",
+        "MSRValue": "0x10080",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -2240,7 +2240,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.PF_L3_DATA_RD.L3_HIT.SNOOP_HIT_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x04003C0080",
+        "MSRValue": "0x4003C0080",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -2249,7 +2249,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.PF_L3_DATA_RD.L3_HIT.SNOOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x02003C0080",
+        "MSRValue": "0x2003C0080",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -2258,7 +2258,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.PF_L3_DATA_RD.L3_HIT.SNOOP_NONE",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x00803C0080",
+        "MSRValue": "0x803C0080",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -2267,7 +2267,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.PF_L3_DATA_RD.L3_HIT.SNOOP_NOT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x01003C0080",
+        "MSRValue": "0x1003C0080",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -2294,7 +2294,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.PF_L3_DATA_RD.SUPPLIER_NONE.SNOOP_HIT_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x0400020080",
+        "MSRValue": "0x400020080",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -2303,7 +2303,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.PF_L3_DATA_RD.SUPPLIER_NONE.SNOOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x0200020080",
+        "MSRValue": "0x200020080",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -2312,7 +2312,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.PF_L3_DATA_RD.SUPPLIER_NONE.SNOOP_NONE",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x0080020080",
+        "MSRValue": "0x80020080",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -2321,7 +2321,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.PF_L3_DATA_RD.SUPPLIER_NONE.SNOOP_NOT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x0100020080",
+        "MSRValue": "0x100020080",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -2330,7 +2330,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.PF_L3_RFO.ANY_RESPONSE",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x0000010100",
+        "MSRValue": "0x10100",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -2357,7 +2357,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.PF_L3_RFO.L3_HIT.SNOOP_HIT_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x04003C0100",
+        "MSRValue": "0x4003C0100",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -2366,7 +2366,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.PF_L3_RFO.L3_HIT.SNOOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x02003C0100",
+        "MSRValue": "0x2003C0100",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -2375,7 +2375,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.PF_L3_RFO.L3_HIT.SNOOP_NONE",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x00803C0100",
+        "MSRValue": "0x803C0100",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -2384,7 +2384,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.PF_L3_RFO.L3_HIT.SNOOP_NOT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x01003C0100",
+        "MSRValue": "0x1003C0100",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -2411,7 +2411,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.PF_L3_RFO.SUPPLIER_NONE.SNOOP_HIT_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x0400020100",
+        "MSRValue": "0x400020100",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -2420,7 +2420,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.PF_L3_RFO.SUPPLIER_NONE.SNOOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x0200020100",
+        "MSRValue": "0x200020100",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -2429,7 +2429,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.PF_L3_RFO.SUPPLIER_NONE.SNOOP_NONE",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x0080020100",
+        "MSRValue": "0x80020100",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -2438,7 +2438,7 @@
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.PF_L3_RFO.SUPPLIER_NONE.SNOOP_NOT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x0100020100",
+        "MSRValue": "0x100020100",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },

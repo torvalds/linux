@@ -47,6 +47,7 @@ properties:
 
 patternProperties:
   "^.*@[0-4],[a-f0-9]+$":
+    additionalProperties: true
     type: object
     $ref: mc-peripheral-props.yaml#
 

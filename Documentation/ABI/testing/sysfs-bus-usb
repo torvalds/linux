@@ -166,6 +166,23 @@ Description:
 		The file will be present for all speeds of USB devices, and will
 		always read "no" for USB 1.1 and USB 2.0 devices.
 
+What:		/sys/bus/usb/devices/<INTERFACE>/wireless_status
+Date:		February 2023
+Contact:	Bastien Nocera <hadess@hadess.net>
+Description:
+		Some USB devices use a USB receiver dongle to communicate
+		wirelessly with their device using proprietary protocols. This
+		attribute allows user-space to know whether the device is
+		connected to its receiver dongle, and, for example, consider
+		the device to be absent when choosing whether to show the
+		device's battery, show a headset in a list of outputs, or show
+		an on-screen keyboard if the only wireless keyboard is
+		turned off.
+		This attribute is not to be used to replace protocol specific
+		statuses available in WWAN, WLAN/Wi-Fi, Bluetooth, etc.
+		If the device does not use a receiver dongle with a wireless
+		device, then this attribute will not exist.
+
 What:		/sys/bus/usb/devices/.../<hub_interface>/port<X>
 Date:		August 2012
 Contact:	Lan Tianyu <tianyu.lan@intel.com>

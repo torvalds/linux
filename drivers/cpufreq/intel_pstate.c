@@ -1473,10 +1473,13 @@ static struct kobject *intel_pstate_kobject;
 
 static void __init intel_pstate_sysfs_expose_params(void)
 {
+	struct device *dev_root = bus_get_dev_root(&cpu_subsys);
 	int rc;
 
-	intel_pstate_kobject = kobject_create_and_add("intel_pstate",
-						&cpu_subsys.dev_root->kobj);
+	if (dev_root) {
+		intel_pstate_kobject = kobject_create_and_add("intel_pstate", &dev_root->kobj);
+		put_device(dev_root);
+	}
 	if (WARN_ON(!intel_pstate_kobject))
 		return;
 
@@ -2384,12 +2387,6 @@ static const struct x86_cpu_id intel_pstate_cpu_ee_disable_ids[] = {
 	{}
 };
 
-static const struct x86_cpu_id intel_pstate_hwp_boost_ids[] = {
-	X86_MATCH(SKYLAKE_X,		core_funcs),
-	X86_MATCH(SKYLAKE,		core_funcs),
-	{}
-};
-
 static int intel_pstate_init_cpu(unsigned int cpunum)
 {
 	struct cpudata *cpu;
@@ -2408,12 +2405,9 @@ static int intel_pstate_init_cpu(unsigned int cpunum)
 		cpu->epp_default = -EINVAL;
 
 		if (hwp_active) {
-			const struct x86_cpu_id *id;
-
 			intel_pstate_hwp_enable(cpu);
 
-			id = x86_match_cpu(intel_pstate_hwp_boost_ids);
-			if (id && intel_pstate_acpi_pm_profile_server())
+			if (intel_pstate_acpi_pm_profile_server())
 				hwp_boost = true;
 		}
 	} else if (hwp_active) {

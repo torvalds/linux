@@ -433,7 +433,6 @@
 		function = "gpio";
 		drive-strength = <2>;
 		bias-disable;
-		input-enable;
 	};
 
 	sdc1_on: sdc1-on-state {

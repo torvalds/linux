@@ -34,11 +34,6 @@
 #define PREFIX_LEN "8"
 #define FAMILY AF_INET
 
-#define SYS(cmd) ({ \
-	if (!ASSERT_OK(system(cmd), (cmd))) \
-		goto out; \
-})
-
 struct xsk {
 	void *umem_area;
 	struct xsk_umem *umem;
@@ -273,6 +268,8 @@ static int verify_xsk_metadata(struct xsk *xsk)
 	if (!ASSERT_NEQ(meta->rx_hash, 0, "rx_hash"))
 		return -1;
 
+	ASSERT_EQ(meta->rx_hash_type, 0, "rx_hash_type");
+
 	xsk_ring_cons__release(&xsk->rx, 1);
 	refill_rx(xsk, comp_addr);
 
@@ -298,16 +295,16 @@ void test_xdp_metadata(void)
 
 	/* Setup new networking namespace, with a veth pair. */
 
-	SYS("ip netns add xdp_metadata");
+	SYS(out, "ip netns add xdp_metadata");
 	tok = open_netns("xdp_metadata");
-	SYS("ip link add numtxqueues 1 numrxqueues 1 " TX_NAME
+	SYS(out, "ip link add numtxqueues 1 numrxqueues 1 " TX_NAME
 	    " type veth peer " RX_NAME " numtxqueues 1 numrxqueues 1");
-	SYS("ip link set dev " TX_NAME " address 00:00:00:00:00:01");
-	SYS("ip link set dev " RX_NAME " address 00:00:00:00:00:02");
-	SYS("ip link set dev " TX_NAME " up");
-	SYS("ip link set dev " RX_NAME " up");
-	SYS("ip addr add " TX_ADDR "/" PREFIX_LEN " dev " TX_NAME);
-	SYS("ip addr add " RX_ADDR "/" PREFIX_LEN " dev " RX_NAME);
+	SYS(out, "ip link set dev " TX_NAME " address 00:00:00:00:00:01");
+	SYS(out, "ip link set dev " RX_NAME " address 00:00:00:00:00:02");
+	SYS(out, "ip link set dev " TX_NAME " up");
+	SYS(out, "ip link set dev " RX_NAME " up");
+	SYS(out, "ip addr add " TX_ADDR "/" PREFIX_LEN " dev " TX_NAME);
+	SYS(out, "ip addr add " RX_ADDR "/" PREFIX_LEN " dev " RX_NAME);
 
 	rx_ifindex = if_nametoindex(RX_NAME);
 	tx_ifindex = if_nametoindex(TX_NAME);
@@ -405,5 +402,5 @@ out:
 	xdp_metadata__destroy(bpf_obj);
 	if (tok)
 		close_netns(tok);
-	system("ip netns del xdp_metadata");
+	SYS_NOFAIL("ip netns del xdp_metadata");
 }

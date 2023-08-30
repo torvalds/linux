@@ -15,7 +15,6 @@
 #include <linux/slab.h>
 #include <linux/i2c.h>
 #include <linux/delay.h>
-#include <asm/delay.h>
 
 #include <linux/w1.h>
 
@@ -36,7 +35,7 @@ MODULE_PARM_DESC(active_pullup, "Active pullup (apply to all buses): " \
 
 /* extra configurations - e.g. 1WS */
 static int extra_config;
-module_param(extra_config, int, S_IRUGO | S_IWUSR);
+module_param(extra_config, int, 0644);
 MODULE_PARM_DESC(extra_config, "Extra Configuration settings 1=APU,2=PPM,3=SPU,8=1WS");
 
 /*
@@ -78,10 +77,8 @@ MODULE_PARM_DESC(extra_config, "Extra Configuration settings 1=APU,2=PPM,3=SPU,8
  * To set the channel, write the value at the index of the channel.
  * Read and compare against the corresponding value to verify the change.
  */
-static const u8 ds2482_chan_wr[8] =
-	{ 0xF0, 0xE1, 0xD2, 0xC3, 0xB4, 0xA5, 0x96, 0x87 };
-static const u8 ds2482_chan_rd[8] =
-	{ 0xB8, 0xB1, 0xAA, 0xA3, 0x9C, 0x95, 0x8E, 0x87 };
+static const u8 ds2482_chan_wr[8] = { 0xF0, 0xE1, 0xD2, 0xC3, 0xB4, 0xA5, 0x96, 0x87 };
+static const u8 ds2482_chan_rd[8] = { 0xB8, 0xB1, 0xAA, 0xA3, 0x9C, 0x95, 0x8E, 0x87 };
 
 
 /*
@@ -454,7 +451,8 @@ static int ds2482_probe(struct i2c_client *client)
 				     I2C_FUNC_SMBUS_BYTE))
 		return -ENODEV;
 
-	if (!(data = kzalloc(sizeof(struct ds2482_data), GFP_KERNEL))) {
+	data = kzalloc(sizeof(struct ds2482_data), GFP_KERNEL);
+	if (!data) {
 		err = -ENOMEM;
 		goto exit;
 	}
@@ -544,6 +542,7 @@ static void ds2482_remove(struct i2c_client *client)
  */
 static const struct i2c_device_id ds2482_id[] = {
 	{ "ds2482", 0 },
+	{ "ds2484", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ds2482_id);

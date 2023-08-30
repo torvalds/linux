@@ -355,6 +355,9 @@ struct enetc_ndev_priv {
 	u16 rx_bd_count, tx_bd_count;
 
 	u16 msg_enable;
+
+	u8 preemptible_tcs;
+
 	enum enetc_active_offloads active_offloads;
 
 	u32 speed; /* store speed for compare update pspeed */
@@ -433,6 +436,7 @@ int enetc_xdp_xmit(struct net_device *ndev, int num_frames,
 /* ethtool */
 void enetc_set_ethtool_ops(struct net_device *ndev);
 void enetc_mm_link_state_update(struct enetc_ndev_priv *priv, bool link);
+void enetc_mm_commit_preemptible_tcs(struct enetc_ndev_priv *priv);
 
 /* control buffer descriptor ring (CBDR) */
 int enetc_setup_cbdr(struct device *dev, struct enetc_hw *hw, int bd_count,

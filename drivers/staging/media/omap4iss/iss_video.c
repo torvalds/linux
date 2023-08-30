@@ -237,7 +237,9 @@ static int
 __iss_video_get_format(struct iss_video *video,
 		       struct v4l2_mbus_framefmt *format)
 {
-	struct v4l2_subdev_format fmt;
+	struct v4l2_subdev_format fmt = {
+		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+	};
 	struct v4l2_subdev *subdev;
 	u32 pad;
 	int ret;
@@ -246,9 +248,7 @@ __iss_video_get_format(struct iss_video *video,
 	if (!subdev)
 		return -EINVAL;
 
-	memset(&fmt, 0, sizeof(fmt));
 	fmt.pad = pad;
-	fmt.which = V4L2_SUBDEV_FORMAT_ACTIVE;
 
 	mutex_lock(&video->mutex);
 	ret = v4l2_subdev_call(subdev, pad, get_fmt, NULL, &fmt);
@@ -610,7 +610,9 @@ static int
 iss_video_try_format(struct file *file, void *fh, struct v4l2_format *format)
 {
 	struct iss_video *video = video_drvdata(file);
-	struct v4l2_subdev_format fmt;
+	struct v4l2_subdev_format fmt = {
+		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+	};
 	struct v4l2_subdev *subdev;
 	u32 pad;
 	int ret;
@@ -625,7 +627,6 @@ iss_video_try_format(struct file *file, void *fh, struct v4l2_format *format)
 	iss_video_pix_to_mbus(&format->fmt.pix, &fmt.format);
 
 	fmt.pad = pad;
-	fmt.which = V4L2_SUBDEV_FORMAT_ACTIVE;
 	ret = v4l2_subdev_call(subdev, pad, get_fmt, NULL, &fmt);
 	if (ret)
 		return ret;
@@ -638,7 +639,9 @@ static int
 iss_video_get_selection(struct file *file, void *fh, struct v4l2_selection *sel)
 {
 	struct iss_video *video = video_drvdata(file);
-	struct v4l2_subdev_format format;
+	struct v4l2_subdev_format format = {
+		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+	};
 	struct v4l2_subdev *subdev;
 	struct v4l2_subdev_selection sdsel = {
 		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
@@ -679,7 +682,6 @@ iss_video_get_selection(struct file *file, void *fh, struct v4l2_selection *sel)
 		return ret;
 
 	format.pad = pad;
-	format.which = V4L2_SUBDEV_FORMAT_ACTIVE;
 	ret = v4l2_subdev_call(subdev, pad, get_fmt, NULL, &format);
 	if (ret < 0)
 		return ret == -ENOIOCTLCMD ? -ENOTTY : ret;

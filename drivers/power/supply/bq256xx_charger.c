@@ -70,6 +70,9 @@
 #define BQ25611D_VBATREG_THRESH_uV	4290000
 #define BQ25618_VBATREG_THRESH_uV	4300000
 
+#define BQ256XX_CHG_CONFIG_MASK		BIT(4)
+#define BQ256XX_CHG_CONFIG_BIT_SHIFT	4
+
 #define BQ256XX_ITERM_MASK		GENMASK(3, 0)
 #define BQ256XX_ITERM_STEP_uA		60000
 #define BQ256XX_ITERM_OFFSET_uA		60000
@@ -259,6 +262,7 @@ struct bq256xx_device {
  * @bq256xx_set_iterm: pointer to instance specific set_iterm function
  * @bq256xx_set_iprechg: pointer to instance specific set_iprechg function
  * @bq256xx_set_vindpm: pointer to instance specific set_vindpm function
+ * @bq256xx_set_charge_type: pointer to instance specific set_charge_type function
  *
  * @bq256xx_def_ichg: default ichg value in microamps
  * @bq256xx_def_iindpm: default iindpm value in microamps
@@ -290,6 +294,7 @@ struct bq256xx_chip_info {
 	int (*bq256xx_set_iterm)(struct bq256xx_device *bq, int iterm);
 	int (*bq256xx_set_iprechg)(struct bq256xx_device *bq, int iprechg);
 	int (*bq256xx_set_vindpm)(struct bq256xx_device *bq, int vindpm);
+	int (*bq256xx_set_charge_type)(struct bq256xx_device *bq, int type);
 
 	int bq256xx_def_ichg;
 	int bq256xx_def_iindpm;
@@ -447,6 +452,27 @@ static int bq256xx_get_state(struct bq256xx_device *bq,
 	state->ntc_fault = charger_status_1 & BQ256XX_NTC_FAULT_MASK;
 
 	return 0;
+}
+
+static int bq256xx_set_charge_type(struct bq256xx_device *bq, int type)
+{
+	int chg_config = 0;
+
+	switch (type) {
+	case POWER_SUPPLY_CHARGE_TYPE_NONE:
+		chg_config = 0x0;
+		break;
+	case POWER_SUPPLY_CHARGE_TYPE_TRICKLE:
+	case POWER_SUPPLY_CHARGE_TYPE_FAST:
+		chg_config = 0x1;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return regmap_update_bits(bq->regmap, BQ256XX_CHARGER_CONTROL_0,
+				BQ256XX_CHG_CONFIG_MASK,
+				(chg_config ? 1 : 0) << BQ256XX_CHG_CONFIG_BIT_SHIFT);
 }
 
 static int bq256xx_get_ichg_curr(struct bq256xx_device *bq)
@@ -915,6 +941,12 @@ static int bq256xx_set_charger_property(struct power_supply *psy,
 			return ret;
 		break;
 
+	case POWER_SUPPLY_PROP_CHARGE_TYPE:
+		ret = bq->chip_info->bq256xx_set_charge_type(bq, val->intval);
+		if (ret)
+			return ret;
+		break;
+
 	default:
 		break;
 	}
@@ -1197,6 +1229,7 @@ static int bq256xx_property_is_writeable(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_CHARGE_TERM_CURRENT:
 	case POWER_SUPPLY_PROP_STATUS:
 	case POWER_SUPPLY_PROP_INPUT_VOLTAGE_LIMIT:
+	case POWER_SUPPLY_PROP_CHARGE_TYPE:
 		return true;
 	default:
 		return false;
@@ -1286,6 +1319,7 @@ static const struct bq256xx_chip_info bq256xx_chip_info_tbl[] = {
 		.bq256xx_set_iterm = bq256xx_set_term_curr,
 		.bq256xx_set_iprechg = bq256xx_set_prechrg_curr,
 		.bq256xx_set_vindpm = bq256xx_set_input_volt_lim,
+		.bq256xx_set_charge_type = bq256xx_set_charge_type,
 
 		.bq256xx_def_ichg = BQ2560X_ICHG_DEF_uA,
 		.bq256xx_def_iindpm = BQ256XX_IINDPM_DEF_uA,
@@ -1316,6 +1350,7 @@ static const struct bq256xx_chip_info bq256xx_chip_info_tbl[] = {
 		.bq256xx_set_iterm = bq256xx_set_term_curr,
 		.bq256xx_set_iprechg = bq256xx_set_prechrg_curr,
 		.bq256xx_set_vindpm = bq256xx_set_input_volt_lim,
+		.bq256xx_set_charge_type = bq256xx_set_charge_type,
 
 		.bq256xx_def_ichg = BQ2560X_ICHG_DEF_uA,
 		.bq256xx_def_iindpm = BQ256XX_IINDPM_DEF_uA,
@@ -1346,6 +1381,7 @@ static const struct bq256xx_chip_info bq256xx_chip_info_tbl[] = {
 		.bq256xx_set_iterm = bq256xx_set_term_curr,
 		.bq256xx_set_iprechg = bq256xx_set_prechrg_curr,
 		.bq256xx_set_vindpm = bq256xx_set_input_volt_lim,
+		.bq256xx_set_charge_type = bq256xx_set_charge_type,
 
 		.bq256xx_def_ichg = BQ2560X_ICHG_DEF_uA,
 		.bq256xx_def_iindpm = BQ256XX_IINDPM_DEF_uA,
@@ -1376,6 +1412,7 @@ static const struct bq256xx_chip_info bq256xx_chip_info_tbl[] = {
 		.bq256xx_set_iterm = bq256xx_set_term_curr,
 		.bq256xx_set_iprechg = bq256xx_set_prechrg_curr,
 		.bq256xx_set_vindpm = bq256xx_set_input_volt_lim,
+		.bq256xx_set_charge_type = bq256xx_set_charge_type,
 
 		.bq256xx_def_ichg = BQ2560X_ICHG_DEF_uA,
 		.bq256xx_def_iindpm = BQ256XX_IINDPM_DEF_uA,
@@ -1406,6 +1443,7 @@ static const struct bq256xx_chip_info bq256xx_chip_info_tbl[] = {
 		.bq256xx_set_iterm = bq256xx_set_term_curr,
 		.bq256xx_set_iprechg = bq256xx_set_prechrg_curr,
 		.bq256xx_set_vindpm = bq256xx_set_input_volt_lim,
+		.bq256xx_set_charge_type = bq256xx_set_charge_type,
 
 		.bq256xx_def_ichg = BQ25611D_ICHG_DEF_uA,
 		.bq256xx_def_iindpm = BQ256XX_IINDPM_DEF_uA,
@@ -1436,6 +1474,7 @@ static const struct bq256xx_chip_info bq256xx_chip_info_tbl[] = {
 		.bq256xx_set_iterm = bq25618_619_set_term_curr,
 		.bq256xx_set_iprechg = bq25618_619_set_prechrg_curr,
 		.bq256xx_set_vindpm = bq256xx_set_input_volt_lim,
+		.bq256xx_set_charge_type = bq256xx_set_charge_type,
 
 		.bq256xx_def_ichg = BQ25618_ICHG_DEF_uA,
 		.bq256xx_def_iindpm = BQ256XX_IINDPM_DEF_uA,
@@ -1466,6 +1505,7 @@ static const struct bq256xx_chip_info bq256xx_chip_info_tbl[] = {
 		.bq256xx_set_iterm = bq25618_619_set_term_curr,
 		.bq256xx_set_iprechg = bq25618_619_set_prechrg_curr,
 		.bq256xx_set_vindpm = bq256xx_set_input_volt_lim,
+		.bq256xx_set_charge_type = bq256xx_set_charge_type,
 
 		.bq256xx_def_ichg = BQ25618_ICHG_DEF_uA,
 		.bq256xx_def_iindpm = BQ256XX_IINDPM_DEF_uA,

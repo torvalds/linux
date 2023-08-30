@@ -537,21 +537,13 @@ exit_falcon:
 	return err;
 }
 
-static int vic_remove(struct platform_device *pdev)
+static void vic_remove(struct platform_device *pdev)
 {
 	struct vic *vic = platform_get_drvdata(pdev);
-	int err;
 
-	err = host1x_client_unregister(&vic->client.base);
-	if (err < 0) {
-		dev_err(&pdev->dev, "failed to unregister host1x client: %d\n",
-			err);
-		return err;
-	}
+	host1x_client_unregister(&vic->client.base);
 
 	falcon_exit(&vic->falcon);
-
-	return 0;
 }
 
 static const struct dev_pm_ops vic_pm_ops = {
@@ -566,7 +558,7 @@ struct platform_driver tegra_vic_driver = {
 		.pm = &vic_pm_ops
 	},
 	.probe = vic_probe,
-	.remove = vic_remove,
+	.remove_new = vic_remove,
 };
 
 #if IS_ENABLED(CONFIG_ARCH_TEGRA_124_SOC)

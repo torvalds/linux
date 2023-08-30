@@ -496,7 +496,7 @@ static int ps8622_probe(struct i2c_client *client)
 		ps8622->lane_count = ps8622->max_lane_count;
 	}
 
-	if (!of_find_property(dev->of_node, "use-external-pwm", NULL)) {
+	if (!of_property_read_bool(dev->of_node, "use-external-pwm")) {
 		ps8622->bl = backlight_device_register("ps8622-backlight",
 				dev, ps8622, &ps8622_backlight_ops,
 				NULL);

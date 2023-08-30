@@ -967,7 +967,7 @@ ATTRIBUTE_GROUPS(hpsa_shost);
 #define HPSA_NRESERVED_CMDS	(HPSA_CMDS_RESERVED_FOR_DRIVER +\
 				 HPSA_MAX_CONCURRENT_PASSTHRUS)
 
-static struct scsi_host_template hpsa_driver_template = {
+static const struct scsi_host_template hpsa_driver_template = {
 	.module			= THIS_MODULE,
 	.name			= HPSA,
 	.proc_name		= HPSA,
@@ -9108,7 +9108,6 @@ static void hpsa_remove_one(struct pci_dev *pdev)
 
 	free_percpu(h->lockup_detected);		/* init_one 2 */
 	h->lockup_detected = NULL;			/* init_one 2 */
-	/* (void) pci_disable_pcie_error_reporting(pdev); */	/* init_one 1 */
 
 	hpda_free_ctlr_info(h);				/* init_one 1 */
 }
@@ -9476,8 +9475,6 @@ static void hpsa_free_performant_mode(struct ctlr_info *h)
 static int hpsa_put_ctlr_into_performant_mode(struct ctlr_info *h)
 {
 	u32 trans_support;
-	unsigned long transMethod = CFGTBL_Trans_Performant |
-					CFGTBL_Trans_use_short_tags;
 	int i, rc;
 
 	if (hpsa_simple_mode)
@@ -9489,14 +9486,10 @@ static int hpsa_put_ctlr_into_performant_mode(struct ctlr_info *h)
 
 	/* Check for I/O accelerator mode support */
 	if (trans_support & CFGTBL_Trans_io_accel1) {
-		transMethod |= CFGTBL_Trans_io_accel1 |
-				CFGTBL_Trans_enable_directed_msix;
 		rc = hpsa_alloc_ioaccel1_cmd_and_bft(h);
 		if (rc)
 			return rc;
 	} else if (trans_support & CFGTBL_Trans_io_accel2) {
-		transMethod |= CFGTBL_Trans_io_accel2 |
-				CFGTBL_Trans_enable_directed_msix;
 		rc = hpsa_alloc_ioaccel2_cmd_and_bft(h);
 		if (rc)
 			return rc;

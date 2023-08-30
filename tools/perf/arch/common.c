@@ -51,9 +51,7 @@ const char *const s390_triplets[] = {
 
 const char *const sh_triplets[] = {
 	"sh-unknown-linux-gnu-",
-	"sh64-unknown-linux-gnu-",
 	"sh-linux-gnu-",
-	"sh64-linux-gnu-",
 	NULL
 };
 
@@ -130,7 +128,7 @@ static int lookup_triplets(const char *const *triplets, const char *name)
 }
 
 static int perf_env__lookup_binutils_path(struct perf_env *env,
-					  const char *name, const char **path)
+					  const char *name, char **path)
 {
 	int idx;
 	const char *arch = perf_env__arch(env), *cross_env;
@@ -202,7 +200,7 @@ out_error:
 	return -1;
 }
 
-int perf_env__lookup_objdump(struct perf_env *env, const char **path)
+int perf_env__lookup_objdump(struct perf_env *env, char **path)
 {
 	/*
 	 * For live mode, env->arch will be NULL and we can use

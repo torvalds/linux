@@ -156,22 +156,6 @@ curtable && /\.procname[\t ]*=[\t ]*".+"/ {
     }
 }
 
-/register_sysctl_paths\(.*\)/ {
-    match($0, /register_sysctl_paths\(([^)]+), ([^)]+)\)/, tables)
-    if (debug) print "Attaching table " tables[2] " to path " tables[1]
-    if (paths[tables[1]] == table) {
-	for (entry in entries[tables[2]]) {
-	    printentry(entry)
-	}
-    }
-    split(paths[tables[1]], components, "/")
-    if (length(components) > 1 && components[1] == table) {
-	# Count the first subdirectory as seen
-	seen[components[2]]++
-    }
-}
-
-
 END {
     for (entry in documented) {
 	if (!seen[entry]) {

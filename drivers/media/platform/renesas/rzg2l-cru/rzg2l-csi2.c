@@ -819,7 +819,7 @@ error_pm:
 	return ret;
 }
 
-static int rzg2l_csi2_remove(struct platform_device *pdev)
+static void rzg2l_csi2_remove(struct platform_device *pdev)
 {
 	struct rzg2l_csi2 *csi2 = platform_get_drvdata(pdev);
 
@@ -829,8 +829,6 @@ static int rzg2l_csi2_remove(struct platform_device *pdev)
 	v4l2_subdev_cleanup(&csi2->subdev);
 	media_entity_cleanup(&csi2->subdev.entity);
 	pm_runtime_disable(&pdev->dev);
-
-	return 0;
 }
 
 static int __maybe_unused rzg2l_csi2_pm_runtime_suspend(struct device *dev)
@@ -859,7 +857,7 @@ static const struct of_device_id rzg2l_csi2_of_table[] = {
 };
 
 static struct platform_driver rzg2l_csi2_pdrv = {
-	.remove	= rzg2l_csi2_remove,
+	.remove_new = rzg2l_csi2_remove,
 	.probe	= rzg2l_csi2_probe,
 	.driver	= {
 		.name = "rzg2l-csi2",

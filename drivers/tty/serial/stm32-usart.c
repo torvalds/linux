@@ -693,8 +693,9 @@ static void stm32_usart_transmit_chars(struct uart_port *port)
 	int ret;
 
 	if (!stm32_port->hw_flow_control &&
-	    port->rs485.flags & SER_RS485_ENABLED) {
-		stm32_port->txdone = false;
+	    port->rs485.flags & SER_RS485_ENABLED &&
+	    (port->x_char ||
+	     !(uart_circ_empty(xmit) || uart_tx_stopped(port)))) {
 		stm32_usart_tc_interrupt_disable(port);
 		stm32_usart_rs485_rts_enable(port);
 	}
@@ -743,7 +744,6 @@ static void stm32_usart_transmit_chars(struct uart_port *port)
 		stm32_usart_tx_interrupt_disable(port);
 		if (!stm32_port->hw_flow_control &&
 		    port->rs485.flags & SER_RS485_ENABLED) {
-			stm32_port->txdone = true;
 			stm32_usart_tc_interrupt_enable(port);
 		}
 	}

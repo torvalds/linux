@@ -60,6 +60,9 @@ static bool mtl_dsp_check_ipc_irq(struct snd_sof_dev *sdev)
 	u32 irq_status;
 	u32 hfintipptr;
 
+	if (sdev->dspless_mode_selected)
+		return false;
+
 	/* read Interrupt IP Pointer */
 	hfintipptr = snd_sof_dsp_read(sdev, HDA_DSP_BAR, MTL_HFINTIPPTR) & MTL_HFINTIPPTR_PTR_MASK;
 	irq_status = snd_sof_dsp_read(sdev, HDA_DSP_BAR, hfintipptr + MTL_DSP_IRQSTS);
@@ -120,6 +123,9 @@ static void mtl_enable_ipc_interrupts(struct snd_sof_dev *sdev)
 	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
 	const struct sof_intel_dsp_desc *chip = hda->desc;
 
+	if (sdev->dspless_mode_selected)
+		return;
+
 	/* enable IPC DONE and BUSY interrupts */
 	snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR, chip->ipc_ctl,
 				MTL_DSP_REG_HFIPCXCTL_BUSY | MTL_DSP_REG_HFIPCXCTL_DONE,
@@ -130,6 +136,9 @@ static void mtl_disable_ipc_interrupts(struct snd_sof_dev *sdev)
 {
 	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
 	const struct sof_intel_dsp_desc *chip = hda->desc;
+
+	if (sdev->dspless_mode_selected)
+		return;
 
 	/* disable IPC DONE and BUSY interrupts */
 	snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR, chip->ipc_ctl,
@@ -142,6 +151,9 @@ static void mtl_enable_sdw_irq(struct snd_sof_dev *sdev, bool enable)
 	u32 mask;
 	u32 val;
 	int ret;
+
+	if (sdev->dspless_mode_selected)
+		return;
 
 	/* Enable/Disable SoundWire interrupt */
 	mask = MTL_DSP_REG_HfSNDWIE_IE_MASK;
@@ -169,6 +181,9 @@ static int mtl_enable_interrupts(struct snd_sof_dev *sdev, bool enable)
 	u32 mask;
 	u32 val;
 	int ret;
+
+	if (sdev->dspless_mode_selected)
+		return 0;
 
 	/* read Interrupt IP Pointer */
 	hfintipptr = snd_sof_dsp_read(sdev, HDA_DSP_BAR, MTL_HFINTIPPTR) & MTL_HFINTIPPTR_PTR_MASK;
@@ -217,6 +232,7 @@ static int mtl_enable_interrupts(struct snd_sof_dev *sdev, bool enable)
 /* pre fw run operations */
 static int mtl_dsp_pre_fw_run(struct snd_sof_dev *sdev)
 {
+	struct sof_intel_hda_dev *hdev = sdev->pdata->hw_pdata;
 	u32 dsphfpwrsts;
 	u32 dsphfdsscs;
 	u32 cpa;
@@ -255,9 +271,11 @@ static int mtl_dsp_pre_fw_run(struct snd_sof_dev *sdev)
 	if (ret < 0)
 		dev_err(sdev->dev, "failed to power up gated DSP domain\n");
 
-	/* make sure SoundWire is not power-gated */
-	snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR, MTL_HFPWRCTL,
-				MTL_HfPWRCTL_WPIOXPG(1), MTL_HfPWRCTL_WPIOXPG(1));
+	/* if SoundWire is used, make sure it is not power-gated */
+	if (hdev->info.handle && hdev->info.link_mask > 0)
+		snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR, MTL_HFPWRCTL,
+					MTL_HfPWRCTL_WPIOXPG(1), MTL_HfPWRCTL_WPIOXPG(1));
+
 	return ret;
 }
 
@@ -649,6 +667,8 @@ int sof_mtl_ops_init(struct snd_sof_dev *sdev)
 
 	/* set DAI ops */
 	hda_set_dai_drv_ops(sdev, &sof_mtl_ops);
+
+	sof_mtl_ops.set_power_state = hda_dsp_set_power_state_ipc4;
 
 	return 0;
 };

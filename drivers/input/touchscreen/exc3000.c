@@ -19,6 +19,7 @@
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/regulator/consumer.h>
 #include <linux/sizes.h>
 #include <linux/timer.h>
 #include <asm/unaligned.h>
@@ -360,6 +361,12 @@ static int exc3000_probe(struct i2c_client *client)
 					      GPIOD_OUT_HIGH);
 	if (IS_ERR(data->reset))
 		return PTR_ERR(data->reset);
+
+	/* For proper reset sequence, enable power while reset asserted */
+	error = devm_regulator_get_enable(&client->dev, "vdd");
+	if (error && error != -ENODEV)
+		return dev_err_probe(&client->dev, error,
+				     "failed to request vdd regulator\n");
 
 	if (data->reset) {
 		msleep(EXC3000_RESET_MS);

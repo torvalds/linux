@@ -25,7 +25,7 @@
 };
 
 &apps_rsc {
-	pmr735a-regulators {
+	regulators-2 {
 		compatible = "qcom,pmr735a-rpmh-regulators";
 		qcom,pmic-id = "e";
 

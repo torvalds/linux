@@ -16,8 +16,13 @@ void serial_test_tp_attach_query(void)
 	for (i = 0; i < num_progs; i++)
 		obj[i] = NULL;
 
-	snprintf(buf, sizeof(buf),
-		 "/sys/kernel/debug/tracing/events/sched/sched_switch/id");
+	if (access("/sys/kernel/tracing/trace", F_OK) == 0) {
+		snprintf(buf, sizeof(buf),
+			 "/sys/kernel/tracing/events/sched/sched_switch/id");
+	} else {
+		snprintf(buf, sizeof(buf),
+			 "/sys/kernel/debug/tracing/events/sched/sched_switch/id");
+	}
 	efd = open(buf, O_RDONLY, 0);
 	if (CHECK(efd < 0, "open", "err %d errno %d\n", efd, errno))
 		return;

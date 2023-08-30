@@ -447,7 +447,7 @@ static const struct hwmon_ops peci_cputemp_ops = {
 	.read = cputemp_read,
 };
 
-static const struct hwmon_channel_info *peci_cputemp_info[] = {
+static const struct hwmon_channel_info * const peci_cputemp_info[] = {
 	HWMON_CHANNEL_INFO(temp,
 			   /* Die temperature */
 			   HWMON_T_LABEL | HWMON_T_INPUT | HWMON_T_MAX |
@@ -537,6 +537,12 @@ static const struct cpu_info cpu_hsx = {
 	.thermal_margin_to_millidegree = &dts_eight_dot_eight_to_millidegree,
 };
 
+static const struct cpu_info cpu_skx = {
+	.reg		= &resolved_cores_reg_hsx,
+	.min_peci_revision = 0x33,
+	.thermal_margin_to_millidegree = &dts_ten_dot_six_to_millidegree,
+};
+
 static const struct cpu_info cpu_icx = {
 	.reg		= &resolved_cores_reg_icx,
 	.min_peci_revision = 0x40,
@@ -558,7 +564,7 @@ static const struct auxiliary_device_id peci_cputemp_ids[] = {
 	},
 	{
 		.name = "peci_cpu.cputemp.skx",
-		.driver_data = (kernel_ulong_t)&cpu_hsx,
+		.driver_data = (kernel_ulong_t)&cpu_skx,
 	},
 	{
 		.name = "peci_cpu.cputemp.icx",

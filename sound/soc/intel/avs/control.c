@@ -21,17 +21,25 @@ static struct avs_dev *avs_get_kcontrol_adev(struct snd_kcontrol *kcontrol)
 	return to_avs_dev(w->dapm->component->dev);
 }
 
-static struct avs_path_module *avs_get_kcontrol_module(struct avs_dev *adev, u32 id)
+static struct avs_path_module *avs_get_volume_module(struct avs_dev *adev, u32 id)
 {
 	struct avs_path *path;
 	struct avs_path_pipeline *ppl;
 	struct avs_path_module *mod;
 
-	list_for_each_entry(path, &adev->path_list, node)
-		list_for_each_entry(ppl, &path->ppl_list, node)
-			list_for_each_entry(mod, &ppl->mod_list, node)
-				if (mod->template->ctl_id && mod->template->ctl_id == id)
+	spin_lock(&adev->path_list_lock);
+	list_for_each_entry(path, &adev->path_list, node) {
+		list_for_each_entry(ppl, &path->ppl_list, node) {
+			list_for_each_entry(mod, &ppl->mod_list, node) {
+				if (guid_equal(&mod->template->cfg_ext->type, &AVS_PEAKVOL_MOD_UUID)
+				    && mod->template->ctl_id == id) {
+					spin_unlock(&adev->path_list_lock);
 					return mod;
+				}
+			}
+		}
+	}
+	spin_unlock(&adev->path_list_lock);
 
 	return NULL;
 }
@@ -49,7 +57,7 @@ int avs_control_volume_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_va
 	/* prevent access to modules while path is being constructed */
 	mutex_lock(&adev->path_mutex);
 
-	active_module = avs_get_kcontrol_module(adev, ctl_data->id);
+	active_module = avs_get_volume_module(adev, ctl_data->id);
 	if (active_module) {
 		ret = avs_ipc_peakvol_get_volume(adev, active_module->module_id,
 						 active_module->instance_id, &dspvols,
@@ -89,7 +97,7 @@ int avs_control_volume_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_va
 		changed = 1;
 	}
 
-	active_module = avs_get_kcontrol_module(adev, ctl_data->id);
+	active_module = avs_get_volume_module(adev, ctl_data->id);
 	if (active_module) {
 		dspvol.channel_id = AVS_ALL_CHANNELS_MASK;
 		dspvol.target_volume = *volume;

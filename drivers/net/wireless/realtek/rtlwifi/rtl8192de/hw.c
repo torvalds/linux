@@ -1047,7 +1047,6 @@ static int _rtl92de_set_media_status(struct ieee80211_hw *hw,
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	u8 bt_msr = rtl_read_byte(rtlpriv, MSR);
 	enum led_ctl_mode ledaction = LED_CTL_NO_LINK;
-	u8 bcnfunc_enable;
 
 	bt_msr &= 0xfc;
 
@@ -1064,31 +1063,26 @@ static int _rtl92de_set_media_status(struct ieee80211_hw *hw,
 			"Set HW_VAR_MEDIA_STATUS: No such media status(%x)\n",
 			type);
 	}
-	bcnfunc_enable = rtl_read_byte(rtlpriv, REG_BCN_CTRL);
 	switch (type) {
 	case NL80211_IFTYPE_UNSPECIFIED:
 		bt_msr |= MSR_NOLINK;
 		ledaction = LED_CTL_LINK;
-		bcnfunc_enable &= 0xF7;
 		rtl_dbg(rtlpriv, COMP_INIT, DBG_TRACE,
 			"Set Network type to NO LINK!\n");
 		break;
 	case NL80211_IFTYPE_ADHOC:
 		bt_msr |= MSR_ADHOC;
-		bcnfunc_enable |= 0x08;
 		rtl_dbg(rtlpriv, COMP_INIT, DBG_TRACE,
 			"Set Network type to Ad Hoc!\n");
 		break;
 	case NL80211_IFTYPE_STATION:
 		bt_msr |= MSR_INFRA;
 		ledaction = LED_CTL_LINK;
-		bcnfunc_enable &= 0xF7;
 		rtl_dbg(rtlpriv, COMP_INIT, DBG_TRACE,
 			"Set Network type to STA!\n");
 		break;
 	case NL80211_IFTYPE_AP:
 		bt_msr |= MSR_AP;
-		bcnfunc_enable |= 0x08;
 		rtl_dbg(rtlpriv, COMP_INIT, DBG_TRACE,
 			"Set Network type to AP!\n");
 		break;

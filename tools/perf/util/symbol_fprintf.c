@@ -30,7 +30,7 @@ size_t __symbol__fprintf_symname_offs(const struct symbol *sym,
 			if (al->addr < sym->end)
 				offset = al->addr - sym->start;
 			else
-				offset = al->addr - al->map->start - sym->start;
+				offset = al->addr - map__start(al->map) - sym->start;
 			length += fprintf(fp, "+0x%lx", offset);
 		}
 		return length;

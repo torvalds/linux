@@ -50,9 +50,27 @@ static int sof_widget_free_unlocked(struct snd_sof_dev *sdev,
 	/* reset route setup status for all routes that contain this widget */
 	sof_reset_route_setup_status(sdev, swidget);
 
+	/* free DAI config and continue to free widget even if it fails */
+	if (WIDGET_IS_DAI(swidget->id)) {
+		struct snd_sof_dai_config_data data;
+		unsigned int flags = SOF_DAI_CONFIG_FLAGS_HW_FREE;
+
+		data.dai_data = DMA_CHAN_INVALID;
+
+		if (tplg_ops && tplg_ops->dai_config) {
+			err = tplg_ops->dai_config(sdev, swidget, flags, &data);
+			if (err < 0)
+				dev_err(sdev->dev, "failed to free config for widget %s\n",
+					swidget->widget->name);
+		}
+	}
+
 	/* continue to disable core even if IPC fails */
-	if (tplg_ops && tplg_ops->widget_free)
-		err = tplg_ops->widget_free(sdev, swidget);
+	if (tplg_ops && tplg_ops->widget_free) {
+		ret = tplg_ops->widget_free(sdev, swidget);
+		if (ret < 0 && !err)
+			err = ret;
+	}
 
 	/*
 	 * disable widget core. continue to route setup status and complete flag
@@ -151,8 +169,12 @@ static int sof_widget_setup_unlocked(struct snd_sof_dev *sdev,
 
 	/* send config for DAI components */
 	if (WIDGET_IS_DAI(swidget->id)) {
-		unsigned int flags = SOF_DAI_CONFIG_FLAGS_NONE;
+		unsigned int flags = SOF_DAI_CONFIG_FLAGS_HW_PARAMS;
 
+		/*
+		 * The config flags saved during BE DAI hw_params will be used for IPC3. IPC4 does
+		 * not use the flags argument.
+		 */
 		if (tplg_ops && tplg_ops->dai_config) {
 			ret = tplg_ops->dai_config(sdev, swidget, flags, NULL);
 			if (ret < 0)
@@ -258,9 +280,11 @@ int sof_route_setup(struct snd_sof_dev *sdev, struct snd_soc_dapm_widget *wsourc
 static int sof_setup_pipeline_connections(struct snd_sof_dev *sdev,
 					  struct snd_soc_dapm_widget_list *list, int dir)
 {
+	const struct sof_ipc_tplg_ops *tplg_ops = sof_ipc_get_ops(sdev, tplg);
 	struct snd_soc_dapm_widget *widget;
+	struct snd_sof_route *sroute;
 	struct snd_soc_dapm_path *p;
-	int ret;
+	int ret = 0;
 	int i;
 
 	/*
@@ -301,6 +325,63 @@ static int sof_setup_pipeline_connections(struct snd_sof_dev *sdev,
 				}
 			}
 		}
+	}
+
+	/*
+	 * The above loop handles connections between widgets that belong to the DAPM widget list.
+	 * This is not sufficient to handle loopback cases between pipelines configured with
+	 * different directions, e.g. a sidetone or an amplifier feedback connected to a speaker
+	 * protection module.
+	 */
+	list_for_each_entry(sroute, &sdev->route_list, list) {
+		bool src_widget_in_dapm_list, sink_widget_in_dapm_list;
+		struct snd_sof_widget *swidget;
+
+		if (sroute->setup)
+			continue;
+
+		src_widget_in_dapm_list = widget_in_list(list, sroute->src_widget->widget);
+		sink_widget_in_dapm_list = widget_in_list(list, sroute->sink_widget->widget);
+
+		/*
+		 * if both source and sink are in the DAPM list, the route must already have been
+		 * set up above. And if neither are in the DAPM list, the route shouldn't be
+		 * handled now.
+		 */
+		if (src_widget_in_dapm_list == sink_widget_in_dapm_list)
+			continue;
+
+		/*
+		 * At this point either the source widget or the sink widget is in the DAPM list
+		 * with a route that might need to be set up. Check the use_count of the widget
+		 * that is not in the DAPM list to confirm if it is in use currently before setting
+		 * up the route.
+		 */
+		if (src_widget_in_dapm_list)
+			swidget = sroute->sink_widget;
+		else
+			swidget = sroute->src_widget;
+
+		mutex_lock(&swidget->setup_mutex);
+		if (!swidget->use_count) {
+			mutex_unlock(&swidget->setup_mutex);
+			continue;
+		}
+
+		if (tplg_ops && tplg_ops->route_setup) {
+			/*
+			 * this route will get freed when either the source widget or the sink
+			 * widget is freed during hw_free
+			 */
+			ret = tplg_ops->route_setup(sdev, sroute);
+			if (!ret)
+				sroute->setup = true;
+		}
+
+		mutex_unlock(&swidget->setup_mutex);
+
+		if (ret < 0)
+			return ret;
 	}
 
 	return 0;
@@ -588,8 +669,8 @@ int sof_widget_list_setup(struct snd_sof_dev *sdev, struct snd_sof_pcm *spcm,
 	ret = sof_walk_widgets_in_order(sdev, spcm, fe_params, platform_params,
 					dir, SOF_WIDGET_SETUP);
 	if (ret < 0) {
-		ret = sof_walk_widgets_in_order(sdev, spcm, fe_params, platform_params,
-						dir, SOF_WIDGET_UNPREPARE);
+		sof_walk_widgets_in_order(sdev, spcm, fe_params, platform_params,
+					  dir, SOF_WIDGET_UNPREPARE);
 		return ret;
 	}
 
@@ -607,7 +688,7 @@ int sof_widget_list_setup(struct snd_sof_dev *sdev, struct snd_sof_pcm *spcm,
 		struct snd_sof_widget *pipe_widget;
 		struct snd_sof_pipeline *spipe;
 
-		if (!swidget)
+		if (!swidget || sdev->dspless_mode_selected)
 			continue;
 
 		spipe = swidget->spipe;
@@ -724,16 +805,22 @@ int sof_pcm_stream_free(struct snd_sof_dev *sdev, struct snd_pcm_substream *subs
 	const struct sof_ipc_pcm_ops *pcm_ops = sof_ipc_get_ops(sdev, pcm);
 	int ret;
 
-	/* Send PCM_FREE IPC to reset pipeline */
-	if (pcm_ops && pcm_ops->hw_free && spcm->prepared[substream->stream]) {
-		ret = pcm_ops->hw_free(sdev->component, substream);
-		if (ret < 0)
-			return ret;
+	if (spcm->prepared[substream->stream]) {
+		/* stop DMA first if needed */
+		if (pcm_ops && pcm_ops->platform_stop_during_hw_free)
+			snd_sof_pcm_platform_trigger(sdev, substream, SNDRV_PCM_TRIGGER_STOP);
+
+		/* Send PCM_FREE IPC to reset pipeline */
+		if (pcm_ops && pcm_ops->hw_free) {
+			ret = pcm_ops->hw_free(sdev->component, substream);
+			if (ret < 0)
+				return ret;
+		}
+
+		spcm->prepared[substream->stream] = false;
 	}
 
-	spcm->prepared[substream->stream] = false;
-
-	/* stop the DMA */
+	/* reset the DMA */
 	ret = snd_sof_pcm_platform_hw_free(sdev, substream);
 	if (ret < 0)
 		return ret;

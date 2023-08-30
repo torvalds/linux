@@ -26,7 +26,7 @@ STRUCT_OPS COMMANDS
 
 |	**bpftool** **struct_ops { show | list }** [*STRUCT_OPS_MAP*]
 |	**bpftool** **struct_ops dump** [*STRUCT_OPS_MAP*]
-|	**bpftool** **struct_ops register** *OBJ*
+|	**bpftool** **struct_ops register** *OBJ* [*LINK_DIR*]
 |	**bpftool** **struct_ops unregister** *STRUCT_OPS_MAP*
 |	**bpftool** **struct_ops help**
 |
@@ -51,10 +51,14 @@ DESCRIPTION
 		  for the given struct_ops.  Otherwise, it dumps all struct_ops
 		  currently existing in the system.
 
-	**bpftool struct_ops register** *OBJ*
+	**bpftool struct_ops register** *OBJ* [*LINK_DIR*]
 		  Register bpf struct_ops from *OBJ*.  All struct_ops under
-		  the ELF section ".struct_ops" will be registered to
-		  its kernel subsystem.
+		  the ELF section ".struct_ops" and ".struct_ops.link" will
+		  be registered to its kernel subsystem.  For each
+		  struct_ops in the ".struct_ops.link" section, a link
+		  will be created.  You can give *LINK_DIR* to provide a
+		  directory path where these links will be pinned with the
+		  same name as their corresponding map name.
 
 	**bpftool struct_ops unregister**  *STRUCT_OPS_MAP*
 		  Unregister the *STRUCT_OPS_MAP* from the kernel subsystem.

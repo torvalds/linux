@@ -661,7 +661,7 @@ err_pm_disable:
 	return ret;
 }
 
-static int rockchip_pdm_remove(struct platform_device *pdev)
+static void rockchip_pdm_remove(struct platform_device *pdev)
 {
 	struct rk_pdm_dev *pdm = dev_get_drvdata(&pdev->dev);
 
@@ -671,8 +671,6 @@ static int rockchip_pdm_remove(struct platform_device *pdev)
 
 	clk_disable_unprepare(pdm->clk);
 	clk_disable_unprepare(pdm->hclk);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -710,7 +708,7 @@ static const struct dev_pm_ops rockchip_pdm_pm_ops = {
 
 static struct platform_driver rockchip_pdm_driver = {
 	.probe  = rockchip_pdm_probe,
-	.remove = rockchip_pdm_remove,
+	.remove_new = rockchip_pdm_remove,
 	.driver = {
 		.name = "rockchip-pdm",
 		.of_match_table = of_match_ptr(rockchip_pdm_match),

@@ -31,7 +31,7 @@ required:
   - compatible
 
 dependencies:
-  interrupts: [ 'reg' ]
+  interrupts: [ reg ]
 
 additionalProperties: false
 

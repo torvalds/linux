@@ -1,0 +1,51 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+# Copyright (C) 2022-2023 Texas Instruments Incorporated - https://www.ti.com/
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mfd/ti,nspire-misc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: TI Nspire MISC hardware block
+
+maintainers:
+  - Andrew Davis <afd@ti.com>
+
+description:
+  System controller node represents a register region containing a set
+  of miscellaneous registers. The registers are not cohesive enough to
+  represent as any specific type of device. Currently there is a reset
+  controller.
+
+properties:
+  compatible:
+    items:
+      - enum:
+          - ti,nspire-misc
+      - const: syscon
+      - const: simple-mfd
+
+  reg:
+    maxItems: 1
+
+  reboot:
+    $ref: /schemas/power/reset/syscon-reboot.yaml#
+
+required:
+  - compatible
+  - reg
+  - reboot
+
+additionalProperties: false
+
+examples:
+  - |
+    misc: misc@900a0000 {
+      compatible = "ti,nspire-misc", "syscon", "simple-mfd";
+      reg = <0x900a0000 0x1000>;
+
+      reboot {
+        compatible = "syscon-reboot";
+        offset = <0x08>;
+        value = <0x02>;
+      };
+    };

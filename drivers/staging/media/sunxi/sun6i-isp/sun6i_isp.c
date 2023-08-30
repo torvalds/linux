@@ -493,7 +493,7 @@ error_resources:
 	return ret;
 }
 
-static int sun6i_isp_remove(struct platform_device *platform_dev)
+static void sun6i_isp_remove(struct platform_device *platform_dev)
 {
 	struct sun6i_isp_device *isp_dev = platform_get_drvdata(platform_dev);
 
@@ -503,8 +503,6 @@ static int sun6i_isp_remove(struct platform_device *platform_dev)
 	sun6i_isp_v4l2_cleanup(isp_dev);
 	sun6i_isp_tables_cleanup(isp_dev);
 	sun6i_isp_resources_cleanup(isp_dev);
-
-	return 0;
 }
 
 /*
@@ -540,7 +538,7 @@ MODULE_DEVICE_TABLE(of, sun6i_isp_of_match);
 
 static struct platform_driver sun6i_isp_platform_driver = {
 	.probe	= sun6i_isp_probe,
-	.remove	= sun6i_isp_remove,
+	.remove_new = sun6i_isp_remove,
 	.driver	= {
 		.name		= SUN6I_ISP_NAME,
 		.of_match_table	= of_match_ptr(sun6i_isp_of_match),

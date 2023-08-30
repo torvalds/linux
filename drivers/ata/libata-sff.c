@@ -2281,7 +2281,7 @@ EXPORT_SYMBOL_GPL(ata_pci_sff_prepare_host);
  */
 int ata_pci_sff_activate_host(struct ata_host *host,
 			      irq_handler_t irq_handler,
-			      struct scsi_host_template *sht)
+			      const struct scsi_host_template *sht)
 {
 	struct device *dev = host->dev;
 	struct pci_dev *pdev = to_pci_dev(dev);
@@ -2378,7 +2378,7 @@ static const struct ata_port_info *ata_sff_find_valid_pi(
 
 static int ata_pci_init_one(struct pci_dev *pdev,
 		const struct ata_port_info * const *ppi,
-		struct scsi_host_template *sht, void *host_priv,
+		const struct scsi_host_template *sht, void *host_priv,
 		int hflags, bool bmdma)
 {
 	struct device *dev = &pdev->dev;
@@ -2452,7 +2452,7 @@ out:
  */
 int ata_pci_sff_init_one(struct pci_dev *pdev,
 		 const struct ata_port_info * const *ppi,
-		 struct scsi_host_template *sht, void *host_priv, int hflag)
+		 const struct scsi_host_template *sht, void *host_priv, int hflag)
 {
 	return ata_pci_init_one(pdev, ppi, sht, host_priv, hflag, 0);
 }
@@ -3175,7 +3175,7 @@ EXPORT_SYMBOL_GPL(ata_pci_bmdma_prepare_host);
  */
 int ata_pci_bmdma_init_one(struct pci_dev *pdev,
 			   const struct ata_port_info * const * ppi,
-			   struct scsi_host_template *sht, void *host_priv,
+			   const struct scsi_host_template *sht, void *host_priv,
 			   int hflags)
 {
 	return ata_pci_init_one(pdev, ppi, sht, host_priv, hflags, 1);

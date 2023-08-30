@@ -530,13 +530,13 @@ unsigned long vgic_mmio_read_active(struct kvm_vcpu *vcpu,
 	u32 intid = VGIC_ADDR_TO_INTID(addr, 1);
 	u32 val;
 
-	mutex_lock(&vcpu->kvm->lock);
+	mutex_lock(&vcpu->kvm->arch.config_lock);
 	vgic_access_active_prepare(vcpu, intid);
 
 	val = __vgic_mmio_read_active(vcpu, addr, len);
 
 	vgic_access_active_finish(vcpu, intid);
-	mutex_unlock(&vcpu->kvm->lock);
+	mutex_unlock(&vcpu->kvm->arch.config_lock);
 
 	return val;
 }
@@ -625,13 +625,13 @@ void vgic_mmio_write_cactive(struct kvm_vcpu *vcpu,
 {
 	u32 intid = VGIC_ADDR_TO_INTID(addr, 1);
 
-	mutex_lock(&vcpu->kvm->lock);
+	mutex_lock(&vcpu->kvm->arch.config_lock);
 	vgic_access_active_prepare(vcpu, intid);
 
 	__vgic_mmio_write_cactive(vcpu, addr, len, val);
 
 	vgic_access_active_finish(vcpu, intid);
-	mutex_unlock(&vcpu->kvm->lock);
+	mutex_unlock(&vcpu->kvm->arch.config_lock);
 }
 
 int vgic_mmio_uaccess_write_cactive(struct kvm_vcpu *vcpu,
@@ -662,13 +662,13 @@ void vgic_mmio_write_sactive(struct kvm_vcpu *vcpu,
 {
 	u32 intid = VGIC_ADDR_TO_INTID(addr, 1);
 
-	mutex_lock(&vcpu->kvm->lock);
+	mutex_lock(&vcpu->kvm->arch.config_lock);
 	vgic_access_active_prepare(vcpu, intid);
 
 	__vgic_mmio_write_sactive(vcpu, addr, len, val);
 
 	vgic_access_active_finish(vcpu, intid);
-	mutex_unlock(&vcpu->kvm->lock);
+	mutex_unlock(&vcpu->kvm->arch.config_lock);
 }
 
 int vgic_mmio_uaccess_write_sactive(struct kvm_vcpu *vcpu,
@@ -1096,7 +1096,6 @@ int vgic_register_dist_iodev(struct kvm *kvm, gpa_t dist_base_address,
 			     enum vgic_type type)
 {
 	struct vgic_io_device *io_device = &kvm->arch.vgic.dist_iodev;
-	int ret = 0;
 	unsigned int len;
 
 	switch (type) {
@@ -1114,10 +1113,6 @@ int vgic_register_dist_iodev(struct kvm *kvm, gpa_t dist_base_address,
 	io_device->iodev_type = IODEV_DIST;
 	io_device->redist_vcpu = NULL;
 
-	mutex_lock(&kvm->slots_lock);
-	ret = kvm_io_bus_register_dev(kvm, KVM_MMIO_BUS, dist_base_address,
-				      len, &io_device->dev);
-	mutex_unlock(&kvm->slots_lock);
-
-	return ret;
+	return kvm_io_bus_register_dev(kvm, KVM_MMIO_BUS, dist_base_address,
+				       len, &io_device->dev);
 }

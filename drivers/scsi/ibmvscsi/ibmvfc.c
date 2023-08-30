@@ -3611,7 +3611,7 @@ static struct attribute *ibmvfc_host_attrs[] = {
 
 ATTRIBUTE_GROUPS(ibmvfc_host);
 
-static struct scsi_host_template driver_template = {
+static const struct scsi_host_template driver_template = {
 	.module = THIS_MODULE,
 	.name = "IBM POWER Virtual FC Adapter",
 	.proc_name = IBMVFC_NAME,

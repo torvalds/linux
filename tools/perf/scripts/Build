@@ -1,2 +1,4 @@
-perf-$(CONFIG_LIBPERL)   += perl/Perf-Trace-Util/
+ifeq ($(CONFIG_LIBTRACEEVENT),y)
+  perf-$(CONFIG_LIBPERL)   += perl/Perf-Trace-Util/
+endif
 perf-$(CONFIG_LIBPYTHON) += python/Perf-Trace-Util/

@@ -161,6 +161,12 @@ Default is to monitor all CPUS.
 -M::
 --disassembler-style=:: Set disassembler style for objdump.
 
+--addr2line=<path>::
+        Path to addr2line binary.
+
+--objdump=<path>::
+        Path to objdump binary.
+
 --prefix=PREFIX::
 --prefix-strip=N::
         Remove first N entries from source file path names in executables
@@ -247,6 +253,10 @@ Default is to monitor all CPUS.
 	is enabled for all the sampling events. The sampled branch type is the same for all events.
 	The various filters must be specified as a comma separated list: --branch-filter any_ret,u,k
 	Note that this feature may not be available on all processors.
+
+--branch-history::
+	Add the addresses of sampled taken branches to the callstack.
+	This allows to examine the path the program took to each sample.
 
 --raw-trace::
 	When displaying traceevent output, do not use print fmt or plugins.

@@ -37,10 +37,6 @@ struct rt715_sdca_priv {
 	int kctl_8ch_orig[8];
 };
 
-struct rt715_sdw_stream_data {
-	struct sdw_stream_runtime *sdw_stream;
-};
-
 struct rt715_sdca_kcontrol_private {
 	unsigned int reg_base;
 	unsigned int count;

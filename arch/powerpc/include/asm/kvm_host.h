@@ -758,7 +758,7 @@ struct kvm_vcpu_arch {
 	u8 prodded;
 	u8 doorbell_request;
 	u8 irq_pending; /* Used by XIVE to signal pending guest irqs */
-	u32 last_inst;
+	unsigned long last_inst;
 
 	struct rcuwait wait;
 	struct rcuwait *waitp;
@@ -818,7 +818,7 @@ struct kvm_vcpu_arch {
 	u64 busy_stolen;
 	u64 busy_preempt;
 
-	u32 emul_inst;
+	u64 emul_inst;
 
 	u32 online;
 

@@ -548,7 +548,7 @@ static void timerlat_thread_analysis(struct timerlat_aa_data *taa_data, int cpu,
 	exp_irq_ts = taa_data->timer_irq_start_time - taa_data->timer_irq_start_delay;
 
 	if (exp_irq_ts < taa_data->prev_irq_timstamp + taa_data->prev_irq_duration)
-		printf("  Previous IRQ interference:	\t	up to %9.2f us",
+		printf("  Previous IRQ interference:	\t\t up to  %9.2f us\n",
 			ns_to_usf(taa_data->prev_irq_duration));
 
 	/*

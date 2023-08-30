@@ -408,6 +408,7 @@ struct crypto_tfm *__crypto_alloc_tfm(struct crypto_alg *alg, u32 type,
 		goto out_err;
 
 	tfm->__crt_alg = alg;
+	refcount_set(&tfm->refcnt, 1);
 
 	err = crypto_init_ops(tfm, type, mask);
 	if (err)
@@ -487,26 +488,43 @@ err:
 }
 EXPORT_SYMBOL_GPL(crypto_alloc_base);
 
-void *crypto_create_tfm_node(struct crypto_alg *alg,
-			const struct crypto_type *frontend,
-			int node)
+static void *crypto_alloc_tfmmem(struct crypto_alg *alg,
+				 const struct crypto_type *frontend, int node,
+				 gfp_t gfp)
 {
-	char *mem;
-	struct crypto_tfm *tfm = NULL;
+	struct crypto_tfm *tfm;
 	unsigned int tfmsize;
 	unsigned int total;
-	int err = -ENOMEM;
+	char *mem;
 
 	tfmsize = frontend->tfmsize;
 	total = tfmsize + sizeof(*tfm) + frontend->extsize(alg);
 
-	mem = kzalloc_node(total, GFP_KERNEL, node);
+	mem = kzalloc_node(total, gfp, node);
 	if (mem == NULL)
-		goto out_err;
+		return ERR_PTR(-ENOMEM);
 
 	tfm = (struct crypto_tfm *)(mem + tfmsize);
 	tfm->__crt_alg = alg;
 	tfm->node = node;
+	refcount_set(&tfm->refcnt, 1);
+
+	return mem;
+}
+
+void *crypto_create_tfm_node(struct crypto_alg *alg,
+			     const struct crypto_type *frontend,
+			     int node)
+{
+	struct crypto_tfm *tfm;
+	char *mem;
+	int err;
+
+	mem = crypto_alloc_tfmmem(alg, frontend, node, GFP_KERNEL);
+	if (IS_ERR(mem))
+		goto out;
+
+	tfm = (struct crypto_tfm *)(mem + frontend->tfmsize);
 
 	err = frontend->init_tfm(tfm);
 	if (err)
@@ -523,12 +541,37 @@ out_free_tfm:
 	if (err == -EAGAIN)
 		crypto_shoot_alg(alg);
 	kfree(mem);
-out_err:
 	mem = ERR_PTR(err);
 out:
 	return mem;
 }
 EXPORT_SYMBOL_GPL(crypto_create_tfm_node);
+
+void *crypto_clone_tfm(const struct crypto_type *frontend,
+		       struct crypto_tfm *otfm)
+{
+	struct crypto_alg *alg = otfm->__crt_alg;
+	struct crypto_tfm *tfm;
+	char *mem;
+
+	mem = ERR_PTR(-ESTALE);
+	if (unlikely(!crypto_mod_get(alg)))
+		goto out;
+
+	mem = crypto_alloc_tfmmem(alg, frontend, otfm->node, GFP_ATOMIC);
+	if (IS_ERR(mem)) {
+		crypto_mod_put(alg);
+		goto out;
+	}
+
+	tfm = (struct crypto_tfm *)(mem + frontend->tfmsize);
+	tfm->crt_flags = otfm->crt_flags;
+	tfm->exit = otfm->exit;
+
+out:
+	return mem;
+}
+EXPORT_SYMBOL_GPL(crypto_clone_tfm);
 
 struct crypto_alg *crypto_find_alg(const char *alg_name,
 				   const struct crypto_type *frontend,
@@ -619,6 +662,8 @@ void crypto_destroy_tfm(void *mem, struct crypto_tfm *tfm)
 	if (IS_ERR_OR_NULL(mem))
 		return;
 
+	if (!refcount_dec_and_test(&tfm->refcnt))
+		return;
 	alg = tfm->__crt_alg;
 
 	if (!tfm->exit && alg->cra_exit)

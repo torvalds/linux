@@ -78,7 +78,7 @@ struct rtw_usb {
 	u8 pipe_interrupt;
 	u8 pipe_in;
 	u8 out_ep[RTW_USB_EP_MAX];
-	u8 qsel_to_ep[TX_DESC_QSEL_MAX];
+	int qsel_to_ep[TX_DESC_QSEL_MAX];
 	u8 usb_txagg_num;
 
 	struct workqueue_struct *txwq, *rxwq;

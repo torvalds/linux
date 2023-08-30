@@ -8,7 +8,11 @@ config SND_EP93XX_SOC
 	  the EP93xx I2S or AC97 interfaces.
 
 config SND_EP93XX_SOC_I2S
-	tristate
+	tristate "I2S controller support for the Cirrus Logic EP93xx series"
+	depends on SND_EP93XX_SOC
+	help
+	  Say Y or M if you want to add support for codecs attached to
+	  the EP93xx I2S interface.
 
 if SND_EP93XX_SOC_I2S
 

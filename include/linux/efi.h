@@ -693,6 +693,7 @@ efi_guid_to_str(efi_guid_t *guid, char *out)
 }
 
 extern void efi_init (void);
+extern void efi_earlycon_reprobe(void);
 #ifdef CONFIG_EFI
 extern void efi_enter_virtual_mode (void);	/* switch EFI to virtual mode, if possible */
 #else
@@ -1336,5 +1337,7 @@ bool efi_config_table_is_usable(const efi_guid_t *guid, unsigned long table)
 		return true;
 	return xen_efi_config_table_is_usable(guid, table);
 }
+
+umode_t efi_attr_is_visible(struct kobject *kobj, struct attribute *attr, int n);
 
 #endif /* _LINUX_EFI_H */

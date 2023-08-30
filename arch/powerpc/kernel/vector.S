@@ -177,9 +177,15 @@ fpone:
 fphalf:
 	.quad	0x3fe0000000000000	/* 0.5 */
 
+#ifdef CONFIG_PPC_KERNEL_PCREL
+#define LDCONST(fr, name)		\
+	pla	r11,name@pcrel;		\
+	lfd	fr,0(r11)
+#else
 #define LDCONST(fr, name)		\
 	addis	r11,r2,name@toc@ha;	\
 	lfd	fr,name@toc@l(r11)
+#endif
 #endif
 	.text
 /*

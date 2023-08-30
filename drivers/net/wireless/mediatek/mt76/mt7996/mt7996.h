@@ -43,6 +43,10 @@
 #define MT7996_MAX_STA_TWT_AGRT		8
 #define MT7996_MAX_QUEUE		(__MT_RXQ_MAX +	__MT_MCUQ_MAX + 3)
 
+/* NOTE: used to map mt76_rates. idx may change if firmware expands table */
+#define MT7996_BASIC_RATES_TBL		11
+#define MT7996_BEACON_RATES_TBL		25
+
 struct mt7996_vif;
 struct mt7996_sta;
 struct mt7996_dfs_pulse;
@@ -112,30 +116,18 @@ struct mt7996_sta {
 	} twt;
 };
 
-struct mt7996_vif_cap {
-	bool ht_ldpc:1;
-	bool vht_ldpc:1;
-	bool he_ldpc:1;
-	bool vht_su_ebfer:1;
-	bool vht_su_ebfee:1;
-	bool vht_mu_ebfer:1;
-	bool vht_mu_ebfee:1;
-	bool he_su_ebfer:1;
-	bool he_su_ebfee:1;
-	bool he_mu_ebfer:1;
-	bool eht_su_ebfer:1;
-	bool eht_su_ebfee:1;
-};
-
 struct mt7996_vif {
 	struct mt76_vif mt76; /* must be first */
 
-	struct mt7996_vif_cap cap;
 	struct mt7996_sta sta;
 	struct mt7996_phy *phy;
 
 	struct ieee80211_tx_queue_params queue_params[IEEE80211_NUM_ACS];
 	struct cfg80211_bitrate_mask bitrate_mask;
+
+	u8 basic_rates_idx;
+	u8 mcast_rates_idx;
+	u8 beacon_rates_idx;
 };
 
 /* per-phy stats.  */
@@ -192,6 +184,15 @@ struct mib_stats {
 	u32 tx_amsdu_cnt;
 };
 
+/* crash-dump */
+struct mt7996_crash_data {
+	guid_t guid;
+	struct timespec64 timestamp;
+
+	u8 *memdump_buf;
+	size_t memdump_buf_len;
+};
+
 struct mt7996_hif {
 	struct list_head list;
 
@@ -238,7 +239,6 @@ struct mt7996_dev {
 	u32 q_wfdma_mask;
 
 	const struct mt76_bus_ops *bus_ops;
-	struct tasklet_struct irq_tasklet;
 	struct mt7996_phy phy;
 
 	/* monitor rx chain configured channel */
@@ -251,9 +251,25 @@ struct mt7996_dev {
 
 	struct work_struct init_work;
 	struct work_struct rc_work;
+	struct work_struct dump_work;
 	struct work_struct reset_work;
 	wait_queue_head_t reset_wait;
-	u32 reset_state;
+	struct {
+		u32 state;
+		u32 wa_reset_count;
+		u32 wm_reset_count;
+		bool hw_full_reset:1;
+		bool hw_init_done:1;
+		bool restart:1;
+	} recovery;
+
+	/* protects coredump data */
+	struct mutex dump_mutex;
+#ifdef CONFIG_DEV_COREDUMP
+	struct {
+		struct mt7996_crash_data *crash_data;
+	} coredump;
+#endif
 
 	struct list_head sta_rc_list;
 	struct list_head sta_poll_list;
@@ -386,9 +402,16 @@ int mt7996_eeprom_get_target_power(struct mt7996_dev *dev,
 				   struct ieee80211_channel *chan);
 s8 mt7996_eeprom_get_power_delta(struct mt7996_dev *dev, int band);
 int mt7996_dma_init(struct mt7996_dev *dev);
+void mt7996_dma_reset(struct mt7996_dev *dev, bool force);
 void mt7996_dma_prefetch(struct mt7996_dev *dev);
 void mt7996_dma_cleanup(struct mt7996_dev *dev);
+void mt7996_init_txpower(struct mt7996_dev *dev,
+			 struct ieee80211_supported_band *sband);
+int mt7996_txbf_init(struct mt7996_dev *dev);
+void mt7996_reset(struct mt7996_dev *dev);
+int mt7996_run(struct ieee80211_hw *hw);
 int mt7996_mcu_init(struct mt7996_dev *dev);
+int mt7996_mcu_init_firmware(struct mt7996_dev *dev);
 int mt7996_mcu_twt_agrt_update(struct mt7996_dev *dev,
 			       struct mt7996_vif *mvif,
 			       struct mt7996_twt_flow *flow,
@@ -432,7 +455,6 @@ int mt7996_mcu_set_pulse_th(struct mt7996_dev *dev,
 int mt7996_mcu_set_radar_th(struct mt7996_dev *dev, int index,
 			    const struct mt7996_dfs_pattern *pattern);
 int mt7996_mcu_set_radio_en(struct mt7996_phy *phy, bool enable);
-void mt7996_mcu_set_pm(void *priv, u8 *mac, struct ieee80211_vif *vif);
 int mt7996_mcu_set_rts_thresh(struct mt7996_phy *phy, u32 val);
 int mt7996_mcu_get_chan_mib_info(struct mt7996_phy *phy, bool chan_switch);
 int mt7996_mcu_rdd_cmd(struct mt7996_dev *dev, int cmd, u8 index,
@@ -445,6 +467,7 @@ int mt7996_mcu_set_rro(struct mt7996_dev *dev, u16 tag, u8 val);
 int mt7996_mcu_wa_cmd(struct mt7996_dev *dev, int cmd, u32 a1, u32 a2, u32 a3);
 int mt7996_mcu_fw_log_2_host(struct mt7996_dev *dev, u8 type, u8 ctrl);
 int mt7996_mcu_fw_dbg_ctrl(struct mt7996_dev *dev, u32 module, u8 level);
+int mt7996_mcu_trigger_assert(struct mt7996_dev *dev);
 void mt7996_mcu_rx_event(struct mt7996_dev *dev, struct sk_buff *skb);
 void mt7996_mcu_exit(struct mt7996_dev *dev);
 
@@ -468,7 +491,7 @@ static inline void mt7996_irq_enable(struct mt7996_dev *dev, u32 mask)
 	else
 		mt76_set_irq_mask(&dev->mt76, 0, 0, mask);
 
-	tasklet_schedule(&dev->irq_tasklet);
+	tasklet_schedule(&dev->mt76.irq_tasklet);
 }
 
 static inline void mt7996_irq_disable(struct mt7996_dev *dev, u32 mask)
@@ -479,6 +502,10 @@ static inline void mt7996_irq_disable(struct mt7996_dev *dev, u32 mask)
 		mt76_set_irq_mask(&dev->mt76, MT_INT_MASK_CSR, mask, 0);
 }
 
+void mt7996_memcpy_fromio(struct mt7996_dev *dev, void *buf, u32 offset,
+			  size_t len);
+
+void mt7996_mac_init(struct mt7996_dev *dev);
 u32 mt7996_mac_wtbl_lmac_addr(struct mt7996_dev *dev, u16 wcid, u8 dw);
 bool mt7996_mac_wtbl_update(struct mt7996_dev *dev, int idx, u32 mask);
 void mt7996_mac_reset_counters(struct mt7996_phy *phy);
@@ -486,9 +513,12 @@ void mt7996_mac_cca_stats_reset(struct mt7996_phy *phy);
 void mt7996_mac_enable_nf(struct mt7996_dev *dev, u8 band);
 void mt7996_mac_enable_rtscts(struct mt7996_dev *dev,
 			      struct ieee80211_vif *vif, bool enable);
+void mt7996_mac_set_fixed_rate_table(struct mt7996_dev *dev,
+				     u8 tbl_idx, u16 rate_idx);
 void mt7996_mac_write_txwi(struct mt7996_dev *dev, __le32 *txwi,
-			   struct sk_buff *skb, struct mt76_wcid *wcid, int pid,
-			   struct ieee80211_key_conf *key, u32 changed);
+			   struct sk_buff *skb, struct mt76_wcid *wcid,
+			   struct ieee80211_key_conf *key, int pid,
+			   enum mt76_txq_id qid, u32 changed);
 void mt7996_mac_set_timing(struct mt7996_phy *phy);
 int mt7996_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 		       struct ieee80211_sta *sta);
@@ -496,6 +526,7 @@ void mt7996_mac_sta_remove(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 			   struct ieee80211_sta *sta);
 void mt7996_mac_work(struct work_struct *work);
 void mt7996_mac_reset_work(struct work_struct *work);
+void mt7996_mac_dump_work(struct work_struct *work);
 void mt7996_mac_sta_rc_work(struct work_struct *work);
 void mt7996_mac_update_stats(struct mt7996_phy *phy);
 void mt7996_mac_twt_teardown_flow(struct mt7996_dev *dev,
@@ -512,7 +543,6 @@ void mt7996_tx_token_put(struct mt7996_dev *dev);
 void mt7996_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
 			 struct sk_buff *skb, u32 *info);
 bool mt7996_rx_check(struct mt76_dev *mdev, void *data, int len);
-void mt7996_sta_ps(struct mt76_dev *mdev, struct ieee80211_sta *sta, bool ps);
 void mt7996_stats_work(struct work_struct *work);
 int mt76_dfs_start_rdd(struct mt7996_dev *dev, bool force);
 int mt7996_dfs_init_radar_detector(struct mt7996_phy *phy);

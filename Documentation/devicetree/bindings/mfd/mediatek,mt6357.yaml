@@ -46,6 +46,7 @@ properties:
   rtc:
     type: object
     $ref: /schemas/rtc/rtc.yaml#
+    unevaluatedProperties: false
     description:
       MT6357 Real Time Clock.
     properties:

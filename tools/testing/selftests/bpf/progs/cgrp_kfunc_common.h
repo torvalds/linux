@@ -10,7 +10,7 @@
 #include <bpf/bpf_tracing.h>
 
 struct __cgrps_kfunc_map_value {
-	struct cgroup __kptr_ref * cgrp;
+	struct cgroup __kptr * cgrp;
 };
 
 struct hash_map {
@@ -21,9 +21,11 @@ struct hash_map {
 } __cgrps_kfunc_map SEC(".maps");
 
 struct cgroup *bpf_cgroup_acquire(struct cgroup *p) __ksym;
-struct cgroup *bpf_cgroup_kptr_get(struct cgroup **pp) __ksym;
 void bpf_cgroup_release(struct cgroup *p) __ksym;
 struct cgroup *bpf_cgroup_ancestor(struct cgroup *cgrp, int level) __ksym;
+struct cgroup *bpf_cgroup_from_id(u64 cgid) __ksym;
+void bpf_rcu_read_lock(void) __ksym;
+void bpf_rcu_read_unlock(void) __ksym;
 
 static inline struct __cgrps_kfunc_map_value *cgrps_kfunc_map_value_lookup(struct cgroup *cgrp)
 {
@@ -60,6 +62,11 @@ static inline int cgrps_kfunc_map_insert(struct cgroup *cgrp)
 	}
 
 	acquired = bpf_cgroup_acquire(cgrp);
+	if (!acquired) {
+		bpf_map_delete_elem(&__cgrps_kfunc_map, &id);
+		return -ENOENT;
+	}
+
 	old = bpf_kptr_xchg(&v->cgrp, acquired);
 	if (old) {
 		bpf_cgroup_release(old);

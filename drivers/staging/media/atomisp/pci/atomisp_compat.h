@@ -196,9 +196,6 @@ void atomisp_css_input_set_two_pixels_per_clock(
     struct atomisp_sub_device *asd,
     bool two_ppc);
 
-void atomisp_css_enable_raw_binning(struct atomisp_sub_device *asd,
-				    bool enable);
-
 void atomisp_css_enable_dz(struct atomisp_sub_device *asd, bool enable);
 
 void atomisp_css_capture_set_mode(struct atomisp_sub_device *asd,
@@ -304,10 +301,6 @@ int atomisp_css_capture_get_viewfinder_frame_info(
 int atomisp_css_copy_get_output_frame_info(
     struct atomisp_sub_device *asd,
     unsigned int stream_index,
-    struct ia_css_frame_info *info);
-
-int atomisp_css_capture_get_output_raw_frame_info(
-    struct atomisp_sub_device *asd,
     struct ia_css_frame_info *info);
 
 int atomisp_css_preview_get_output_frame_info(
@@ -423,9 +416,7 @@ int atomisp_css_get_dis_stat(struct atomisp_sub_device *asd,
 
 int atomisp_css_update_stream(struct atomisp_sub_device *asd);
 
-int atomisp_css_isr_thread(struct atomisp_device *isp,
-			   bool *frame_done_found,
-			   bool *css_pipe_done);
+int atomisp_css_isr_thread(struct atomisp_device *isp);
 
 bool atomisp_css_valid_sof(struct atomisp_device *isp);
 

@@ -16,6 +16,9 @@ obj-$(CONFIG_RUST) += alloc.o bindings.o kernel.o
 always-$(CONFIG_RUST) += exports_alloc_generated.h exports_bindings_generated.h \
     exports_kernel_generated.h
 
+always-$(CONFIG_RUST) += uapi/uapi_generated.rs
+obj-$(CONFIG_RUST) += uapi.o
+
 ifdef CONFIG_RUST_BUILD_ASSERT_ALLOW
 obj-$(CONFIG_RUST) += build_error.o
 else
@@ -113,7 +116,7 @@ rustdoc-alloc: $(src)/alloc/lib.rs rustdoc-core rustdoc-compiler_builtins FORCE
 
 rustdoc-kernel: private rustc_target_flags = --extern alloc \
     --extern build_error --extern macros=$(objtree)/$(obj)/libmacros.so \
-    --extern bindings
+    --extern bindings --extern uapi
 rustdoc-kernel: $(src)/kernel/lib.rs rustdoc-core rustdoc-macros \
     rustdoc-compiler_builtins rustdoc-alloc $(obj)/libmacros.so \
     $(obj)/bindings.o FORCE
@@ -139,6 +142,9 @@ rusttestlib-macros: $(src)/macros/lib.rs rusttest-prepare FORCE
 	$(call if_changed,rustc_test_library)
 
 rusttestlib-bindings: $(src)/bindings/lib.rs rusttest-prepare FORCE
+	$(call if_changed,rustc_test_library)
+
+rusttestlib-uapi: $(src)/uapi/lib.rs rusttest-prepare FORCE
 	$(call if_changed,rustc_test_library)
 
 quiet_cmd_rustdoc_test = RUSTDOC T $<
@@ -223,9 +229,10 @@ rusttest-macros: $(src)/macros/lib.rs rusttest-prepare FORCE
 	$(call if_changed,rustdoc_test)
 
 rusttest-kernel: private rustc_target_flags = --extern alloc \
-    --extern build_error --extern macros --extern bindings
+    --extern build_error --extern macros --extern bindings --extern uapi
 rusttest-kernel: $(src)/kernel/lib.rs rusttest-prepare \
-    rusttestlib-build_error rusttestlib-macros rusttestlib-bindings FORCE
+    rusttestlib-build_error rusttestlib-macros rusttestlib-bindings \
+    rusttestlib-uapi FORCE
 	$(call if_changed,rustc_test)
 	$(call if_changed,rustc_test_library)
 
@@ -262,6 +269,20 @@ BINDGEN_TARGET		:= $(BINDGEN_TARGET_$(SRCARCH))
 # some configurations, with new GCC versions, etc.
 bindgen_extra_c_flags = -w --target=$(BINDGEN_TARGET)
 
+# Auto variable zero-initialization requires an additional special option with
+# clang that is going to be removed sometime in the future (likely in
+# clang-18), so make sure to pass this option only if clang supports it
+# (libclang major version < 16).
+#
+# https://github.com/llvm/llvm-project/issues/44842
+# https://github.com/llvm/llvm-project/blob/llvmorg-16.0.0-rc2/clang/docs/ReleaseNotes.rst#deprecated-compiler-flags
+ifdef CONFIG_INIT_STACK_ALL_ZERO
+libclang_maj_ver=$(shell $(BINDGEN) $(srctree)/scripts/rust_is_available_bindgen_libclang.h 2>&1 | sed -ne 's/.*clang version \([0-9]*\).*/\1/p')
+ifeq ($(shell expr $(libclang_maj_ver) \< 16), 1)
+bindgen_extra_c_flags += -enable-trivial-auto-var-init-zero-knowing-it-will-be-removed-from-clang
+endif
+endif
+
 bindgen_c_flags = $(filter-out $(bindgen_skip_c_flags), $(c_flags)) \
 	$(bindgen_extra_c_flags)
 endif
@@ -283,8 +304,14 @@ quiet_cmd_bindgen = BINDGEN $@
 		$(bindgen_target_cflags) $(bindgen_target_extra)
 
 $(obj)/bindings/bindings_generated.rs: private bindgen_target_flags = \
-    $(shell grep -v '^\#\|^$$' $(srctree)/$(src)/bindgen_parameters)
+    $(shell grep -v '^#\|^$$' $(srctree)/$(src)/bindgen_parameters)
 $(obj)/bindings/bindings_generated.rs: $(src)/bindings/bindings_helper.h \
+    $(src)/bindgen_parameters FORCE
+	$(call if_changed_dep,bindgen)
+
+$(obj)/uapi/uapi_generated.rs: private bindgen_target_flags = \
+    $(shell grep -v '^#\|^$$' $(srctree)/$(src)/bindgen_parameters)
+$(obj)/uapi/uapi_generated.rs: $(src)/uapi/uapi_helper.h \
     $(src)/bindgen_parameters FORCE
 	$(call if_changed_dep,bindgen)
 
@@ -388,10 +415,15 @@ $(obj)/bindings.o: $(src)/bindings/lib.rs \
     $(obj)/bindings/bindings_helpers_generated.rs FORCE
 	$(call if_changed_dep,rustc_library)
 
+$(obj)/uapi.o: $(src)/uapi/lib.rs \
+    $(obj)/compiler_builtins.o \
+    $(obj)/uapi/uapi_generated.rs FORCE
+	$(call if_changed_dep,rustc_library)
+
 $(obj)/kernel.o: private rustc_target_flags = --extern alloc \
-    --extern build_error --extern macros --extern bindings
+    --extern build_error --extern macros --extern bindings --extern uapi
 $(obj)/kernel.o: $(src)/kernel/lib.rs $(obj)/alloc.o $(obj)/build_error.o \
-    $(obj)/libmacros.so $(obj)/bindings.o FORCE
+    $(obj)/libmacros.so $(obj)/bindings.o $(obj)/uapi.o FORCE
 	$(call if_changed_dep,rustc_library)
 
 endif # CONFIG_RUST

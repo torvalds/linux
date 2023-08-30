@@ -235,24 +235,6 @@ bool proc_ns_file(const struct file *file)
 	return file->f_op == &ns_file_operations;
 }
 
-struct file *proc_ns_fget(int fd)
-{
-	struct file *file;
-
-	file = fget(fd);
-	if (!file)
-		return ERR_PTR(-EBADF);
-
-	if (file->f_op != &ns_file_operations)
-		goto out_invalid;
-
-	return file;
-
-out_invalid:
-	fput(file);
-	return ERR_PTR(-EINVAL);
-}
-
 /**
  * ns_match() - Returns true if current namespace matches dev/ino provided.
  * @ns: current namespace

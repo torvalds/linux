@@ -361,7 +361,7 @@ static int hisi_sfc_v3xx_exec_op(struct spi_mem *mem,
 {
 	struct hisi_sfc_v3xx_host *host;
 	struct spi_device *spi = mem->spi;
-	u8 chip_select = spi->chip_select;
+	u8 chip_select = spi_get_chipselect(spi, 0);
 
 	host = spi_controller_get_devdata(spi->master);
 

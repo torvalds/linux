@@ -310,14 +310,14 @@ static void dump_common_audit_data(struct audit_buffer *ab,
 	case LSM_AUDIT_DATA_NET:
 		if (a->u.net->sk) {
 			const struct sock *sk = a->u.net->sk;
-			struct unix_sock *u;
+			const struct unix_sock *u;
 			struct unix_address *addr;
 			int len = 0;
 			char *p = NULL;
 
 			switch (sk->sk_family) {
 			case AF_INET: {
-				struct inet_sock *inet = inet_sk(sk);
+				const struct inet_sock *inet = inet_sk(sk);
 
 				print_ipv4_addr(ab, inet->inet_rcv_saddr,
 						inet->inet_sport,
@@ -329,7 +329,7 @@ static void dump_common_audit_data(struct audit_buffer *ab,
 			}
 #if IS_ENABLED(CONFIG_IPV6)
 			case AF_INET6: {
-				struct inet_sock *inet = inet_sk(sk);
+				const struct inet_sock *inet = inet_sk(sk);
 
 				print_ipv6_addr(ab, &sk->sk_v6_rcv_saddr,
 						inet->inet_sport,

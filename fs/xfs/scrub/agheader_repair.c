@@ -1,7 +1,7 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (C) 2018 Oracle.  All Rights Reserved.
- * Author: Darrick J. Wong <darrick.wong@oracle.com>
+ * Copyright (C) 2018-2023 Oracle.  All Rights Reserved.
+ * Author: Darrick J. Wong <djwong@kernel.org>
  */
 #include "xfs.h"
 #include "xfs_fs.h"
@@ -487,10 +487,11 @@ xrep_agfl_walk_rmap(
 /* Strike out the blocks that are cross-linked according to the rmapbt. */
 STATIC int
 xrep_agfl_check_extent(
-	struct xrep_agfl	*ra,
 	uint64_t		start,
-	uint64_t		len)
+	uint64_t		len,
+	void			*priv)
 {
+	struct xrep_agfl	*ra = priv;
 	xfs_agblock_t		agbno = XFS_FSB_TO_AGBNO(ra->sc->mp, start);
 	xfs_agblock_t		last_agbno = agbno + len - 1;
 	int			error;
@@ -538,7 +539,6 @@ xrep_agfl_collect_blocks(
 	struct xrep_agfl	ra;
 	struct xfs_mount	*mp = sc->mp;
 	struct xfs_btree_cur	*cur;
-	struct xbitmap_range	*br, *n;
 	int			error;
 
 	ra.sc = sc;
@@ -579,11 +579,7 @@ xrep_agfl_collect_blocks(
 
 	/* Strike out the blocks that are cross-linked. */
 	ra.rmap_cur = xfs_rmapbt_init_cursor(mp, sc->tp, agf_bp, sc->sa.pag);
-	for_each_xbitmap_extent(br, n, agfl_extents) {
-		error = xrep_agfl_check_extent(&ra, br->start, br->len);
-		if (error)
-			break;
-	}
+	error = xbitmap_walk(agfl_extents, xrep_agfl_check_extent, &ra);
 	xfs_btree_del_cursor(ra.rmap_cur, error);
 	if (error)
 		goto out_bmp;
@@ -629,21 +625,58 @@ xrep_agfl_update_agf(
 			XFS_AGF_FLFIRST | XFS_AGF_FLLAST | XFS_AGF_FLCOUNT);
 }
 
+struct xrep_agfl_fill {
+	struct xbitmap		used_extents;
+	struct xfs_scrub	*sc;
+	__be32			*agfl_bno;
+	xfs_agblock_t		flcount;
+	unsigned int		fl_off;
+};
+
+/* Fill the AGFL with whatever blocks are in this extent. */
+static int
+xrep_agfl_fill(
+	uint64_t		start,
+	uint64_t		len,
+	void			*priv)
+{
+	struct xrep_agfl_fill	*af = priv;
+	struct xfs_scrub	*sc = af->sc;
+	xfs_fsblock_t		fsbno = start;
+	int			error;
+
+	while (fsbno < start + len && af->fl_off < af->flcount)
+		af->agfl_bno[af->fl_off++] =
+				cpu_to_be32(XFS_FSB_TO_AGBNO(sc->mp, fsbno++));
+
+	trace_xrep_agfl_insert(sc->mp, sc->sa.pag->pag_agno,
+			XFS_FSB_TO_AGBNO(sc->mp, start), len);
+
+	error = xbitmap_set(&af->used_extents, start, fsbno - 1);
+	if (error)
+		return error;
+
+	if (af->fl_off == af->flcount)
+		return -ECANCELED;
+
+	return 0;
+}
+
 /* Write out a totally new AGFL. */
-STATIC void
+STATIC int
 xrep_agfl_init_header(
 	struct xfs_scrub	*sc,
 	struct xfs_buf		*agfl_bp,
 	struct xbitmap		*agfl_extents,
 	xfs_agblock_t		flcount)
 {
+	struct xrep_agfl_fill	af = {
+		.sc		= sc,
+		.flcount	= flcount,
+	};
 	struct xfs_mount	*mp = sc->mp;
-	__be32			*agfl_bno;
-	struct xbitmap_range	*br;
-	struct xbitmap_range	*n;
 	struct xfs_agfl		*agfl;
-	xfs_agblock_t		agbno;
-	unsigned int		fl_off;
+	int			error;
 
 	ASSERT(flcount <= xfs_agfl_size(mp));
 
@@ -662,36 +695,18 @@ xrep_agfl_init_header(
 	 * blocks than fit in the AGFL, they will be freed in a subsequent
 	 * step.
 	 */
-	fl_off = 0;
-	agfl_bno = xfs_buf_to_agfl_bno(agfl_bp);
-	for_each_xbitmap_extent(br, n, agfl_extents) {
-		agbno = XFS_FSB_TO_AGBNO(mp, br->start);
-
-		trace_xrep_agfl_insert(mp, sc->sa.pag->pag_agno, agbno,
-				br->len);
-
-		while (br->len > 0 && fl_off < flcount) {
-			agfl_bno[fl_off] = cpu_to_be32(agbno);
-			fl_off++;
-			agbno++;
-
-			/*
-			 * We've now used br->start by putting it in the AGFL,
-			 * so bump br so that we don't reap the block later.
-			 */
-			br->start++;
-			br->len--;
-		}
-
-		if (br->len)
-			break;
-		list_del(&br->list);
-		kfree(br);
-	}
+	xbitmap_init(&af.used_extents);
+	af.agfl_bno = xfs_buf_to_agfl_bno(agfl_bp),
+	xbitmap_walk(agfl_extents, xrep_agfl_fill, &af);
+	error = xbitmap_disunion(agfl_extents, &af.used_extents);
+	if (error)
+		return error;
 
 	/* Write new AGFL to disk. */
 	xfs_trans_buf_set_type(sc->tp, agfl_bp, XFS_BLFT_AGFL_BUF);
 	xfs_trans_log_buf(sc->tp, agfl_bp, 0, BBTOB(agfl_bp->b_length) - 1);
+	xbitmap_destroy(&af.used_extents);
+	return 0;
 }
 
 /* Repair the AGFL. */
@@ -744,7 +759,9 @@ xrep_agfl(
 	 * buffers until we know that part works.
 	 */
 	xrep_agfl_update_agf(sc, agf_bp, flcount);
-	xrep_agfl_init_header(sc, agfl_bp, &agfl_extents, flcount);
+	error = xrep_agfl_init_header(sc, agfl_bp, &agfl_extents, flcount);
+	if (error)
+		goto err;
 
 	/*
 	 * Ok, the AGFL should be ready to go now.  Roll the transaction to

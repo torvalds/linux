@@ -181,6 +181,7 @@ intel_region_ttm_resource_to_rsgt(struct intel_memory_region *mem,
 /**
  * intel_region_ttm_resource_alloc - Allocate memory resources from a region
  * @mem: The memory region,
+ * @offset: BO offset
  * @size: The requested size in bytes
  * @flags: Allocation flags
  *

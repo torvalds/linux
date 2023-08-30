@@ -50,6 +50,12 @@ struct amdgpu_mux_entry {
 	struct list_head        list;
 };
 
+enum amdgpu_ring_mux_offset_type {
+	AMDGPU_MUX_OFFSET_TYPE_CONTROL,
+	AMDGPU_MUX_OFFSET_TYPE_DE,
+	AMDGPU_MUX_OFFSET_TYPE_CE,
+};
+
 struct amdgpu_ring_mux {
 	struct amdgpu_ring      *real_ring;
 
@@ -72,12 +78,18 @@ struct amdgpu_ring_mux {
  * @sync_seq: the fence seqno related with the saved IB.
  * @start:- start location on the software ring.
  * @end:- end location on the software ring.
+ * @control_offset:- the PRE_RESUME bit position used for resubmission.
+ * @de_offset:- the anchor in write_data for de meta of resubmission.
+ * @ce_offset:- the anchor in write_data for ce meta of resubmission.
  */
 struct amdgpu_mux_chunk {
 	struct list_head        entry;
 	uint32_t                sync_seq;
 	u64                     start;
 	u64                     end;
+	u64                     cntl_offset;
+	u64                     de_offset;
+	u64                     ce_offset;
 };
 
 int amdgpu_ring_mux_init(struct amdgpu_ring_mux *mux, struct amdgpu_ring *ring,
@@ -89,6 +101,8 @@ u64 amdgpu_ring_mux_get_wptr(struct amdgpu_ring_mux *mux, struct amdgpu_ring *ri
 u64 amdgpu_ring_mux_get_rptr(struct amdgpu_ring_mux *mux, struct amdgpu_ring *ring);
 void amdgpu_ring_mux_start_ib(struct amdgpu_ring_mux *mux, struct amdgpu_ring *ring);
 void amdgpu_ring_mux_end_ib(struct amdgpu_ring_mux *mux, struct amdgpu_ring *ring);
+void amdgpu_ring_mux_ib_mark_offset(struct amdgpu_ring_mux *mux, struct amdgpu_ring *ring,
+				    u64 offset, enum amdgpu_ring_mux_offset_type type);
 bool amdgpu_mcbp_handle_trailing_fence_irq(struct amdgpu_ring_mux *mux);
 
 u64 amdgpu_sw_ring_get_rptr_gfx(struct amdgpu_ring *ring);
@@ -97,6 +111,7 @@ void amdgpu_sw_ring_set_wptr_gfx(struct amdgpu_ring *ring);
 void amdgpu_sw_ring_insert_nop(struct amdgpu_ring *ring, uint32_t count);
 void amdgpu_sw_ring_ib_begin(struct amdgpu_ring *ring);
 void amdgpu_sw_ring_ib_end(struct amdgpu_ring *ring);
+void amdgpu_sw_ring_ib_mark_offset(struct amdgpu_ring *ring, enum amdgpu_ring_mux_offset_type type);
 const char *amdgpu_sw_ring_name(int idx);
 unsigned int amdgpu_sw_ring_priority(int idx);
 

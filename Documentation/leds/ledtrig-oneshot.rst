@@ -5,7 +5,7 @@ One-shot LED Trigger
 This is a LED trigger useful for signaling the user of an event where there are
 no clear trap points to put standard led-on and led-off settings.  Using this
 trigger, the application needs only to signal the trigger when an event has
-happened, than the trigger turns the LED on and than keeps it off for a
+happened, then the trigger turns the LED on and then keeps it off for a
 specified amount of time.
 
 This trigger is meant to be usable both for sporadic and dense events.  In the

@@ -73,7 +73,7 @@ void rcar_du_vsp_enable(struct rcar_du_crtc *crtc)
 			.src.y2 = mode->vdisplay << 16,
 			.zpos = 0,
 		},
-		.format = rcar_du_format_info(DRM_FORMAT_ARGB8888),
+		.format = rcar_du_format_info(DRM_FORMAT_XRGB8888),
 		.source = RCAR_DU_PLANE_VSPD1,
 		.colorkey = 0,
 	};

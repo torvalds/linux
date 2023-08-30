@@ -271,6 +271,12 @@ static const struct lpss_device_desc bsw_pwm_dev_desc = {
 	.resume_from_noirq = true,
 };
 
+static const struct lpss_device_desc bsw_pwm2_dev_desc = {
+	.flags = LPSS_SAVE_CTX_ONCE | LPSS_NO_D3_DELAY,
+	.prv_offset = 0x800,
+	.resume_from_noirq = true,
+};
+
 static const struct lpss_device_desc byt_uart_dev_desc = {
 	.flags = LPSS_CLK | LPSS_CLK_GATE | LPSS_CLK_DIVIDER | LPSS_SAVE_CTX,
 	.clk_con_id = "baudclk",
@@ -368,6 +374,7 @@ static const struct acpi_device_id acpi_lpss_device_ids[] = {
 	/* Braswell LPSS devices */
 	{ "80862286", LPSS_ADDR(lpss_dma_desc) },
 	{ "80862288", LPSS_ADDR(bsw_pwm_dev_desc) },
+	{ "80862289", LPSS_ADDR(bsw_pwm2_dev_desc) },
 	{ "8086228A", LPSS_ADDR(bsw_uart_dev_desc) },
 	{ "8086228E", LPSS_ADDR(bsw_spi_dev_desc) },
 	{ "808622C0", LPSS_ADDR(lpss_dma_desc) },

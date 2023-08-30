@@ -31,13 +31,6 @@ static inline void xd_set_err_code(struct rtsx_chip *chip, u8 err_code)
 	xd_card->err_code = err_code;
 }
 
-static inline int xd_check_err_code(struct rtsx_chip *chip, u8 err_code)
-{
-	struct xd_info *xd_card = &chip->xd_card;
-
-	return (xd_card->err_code == err_code);
-}
-
 static int xd_set_init_para(struct rtsx_chip *chip)
 {
 	struct xd_info *xd_card = &chip->xd_card;

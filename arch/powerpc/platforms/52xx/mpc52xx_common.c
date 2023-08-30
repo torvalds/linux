@@ -141,8 +141,8 @@ mpc52xx_map_common_devices(void)
 	 * on a gpt0, so check has-wdt property before mapping.
 	 */
 	for_each_matching_node(np, mpc52xx_gpt_ids) {
-		if (of_get_property(np, "fsl,has-wdt", NULL) ||
-		    of_get_property(np, "has-wdt", NULL)) {
+		if (of_property_read_bool(np, "fsl,has-wdt") ||
+		    of_property_read_bool(np, "has-wdt")) {
 			mpc52xx_wdt = of_iomap(np, 0);
 			of_node_put(np);
 			break;

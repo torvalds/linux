@@ -954,19 +954,32 @@ void
 nlmsvc_grant_reply(struct nlm_cookie *cookie, __be32 status)
 {
 	struct nlm_block	*block;
+	struct file_lock	*fl;
+	int			error;
 
 	dprintk("grant_reply: looking for cookie %x, s=%d \n",
 		*(unsigned int *)(cookie->data), status);
 	if (!(block = nlmsvc_find_block(cookie)))
 		return;
 
-	if (status == nlm_lck_denied_grace_period) {
+	switch (status) {
+	case nlm_lck_denied_grace_period:
 		/* Try again in a couple of seconds */
 		nlmsvc_insert_block(block, 10 * HZ);
-	} else {
+		break;
+	case nlm_lck_denied:
+		/* Client doesn't want it, just unlock it */
+		nlmsvc_unlink_block(block);
+		fl = &block->b_call->a_args.lock.fl;
+		fl->fl_type = F_UNLCK;
+		error = vfs_lock_file(fl->fl_file, F_SETLK, fl, NULL);
+		if (error)
+			pr_warn("lockd: unable to unlock lock rejected by client!\n");
+		break;
+	default:
 		/*
-		 * Lock is now held by client, or has been rejected.
-		 * In both cases, the block should be removed.
+		 * Either it was accepted or the status makes no sense
+		 * just unlink it either way.
 		 */
 		nlmsvc_unlink_block(block);
 	}

@@ -77,55 +77,6 @@ double rel_stddev_stats(double stddev, double avg)
 	return pct;
 }
 
-bool __perf_stat_evsel__is(struct evsel *evsel, enum perf_stat_evsel_id id)
-{
-	struct perf_stat_evsel *ps = evsel->stats;
-
-	return ps->id == id;
-}
-
-#define ID(id, name) [PERF_STAT_EVSEL_ID__##id] = #name
-static const char *id_str[PERF_STAT_EVSEL_ID__MAX] = {
-	ID(NONE,		x),
-	ID(CYCLES_IN_TX,	cpu/cycles-t/),
-	ID(TRANSACTION_START,	cpu/tx-start/),
-	ID(ELISION_START,	cpu/el-start/),
-	ID(CYCLES_IN_TX_CP,	cpu/cycles-ct/),
-	ID(TOPDOWN_TOTAL_SLOTS, topdown-total-slots),
-	ID(TOPDOWN_SLOTS_ISSUED, topdown-slots-issued),
-	ID(TOPDOWN_SLOTS_RETIRED, topdown-slots-retired),
-	ID(TOPDOWN_FETCH_BUBBLES, topdown-fetch-bubbles),
-	ID(TOPDOWN_RECOVERY_BUBBLES, topdown-recovery-bubbles),
-	ID(TOPDOWN_RETIRING, topdown-retiring),
-	ID(TOPDOWN_BAD_SPEC, topdown-bad-spec),
-	ID(TOPDOWN_FE_BOUND, topdown-fe-bound),
-	ID(TOPDOWN_BE_BOUND, topdown-be-bound),
-	ID(TOPDOWN_HEAVY_OPS, topdown-heavy-ops),
-	ID(TOPDOWN_BR_MISPREDICT, topdown-br-mispredict),
-	ID(TOPDOWN_FETCH_LAT, topdown-fetch-lat),
-	ID(TOPDOWN_MEM_BOUND, topdown-mem-bound),
-	ID(SMI_NUM, msr/smi/),
-	ID(APERF, msr/aperf/),
-};
-#undef ID
-
-static void perf_stat_evsel_id_init(struct evsel *evsel)
-{
-	struct perf_stat_evsel *ps = evsel->stats;
-	int i;
-
-	/* ps->id is 0 hence PERF_STAT_EVSEL_ID__NONE by default */
-
-	for (i = 0; i < PERF_STAT_EVSEL_ID__MAX; i++) {
-		if (!strcmp(evsel__name(evsel), id_str[i]) ||
-		    (strstr(evsel__name(evsel), id_str[i]) && evsel->pmu_name
-		     && strstr(evsel__name(evsel), evsel->pmu_name))) {
-			ps->id = i;
-			break;
-		}
-	}
-}
-
 static void evsel__reset_aggr_stats(struct evsel *evsel)
 {
 	struct perf_stat_evsel *ps = evsel->stats;
@@ -185,7 +136,6 @@ static int evsel__alloc_stat_priv(struct evsel *evsel, int nr_aggr)
 		return -ENOMEM;
 	}
 
-	perf_stat_evsel_id_init(evsel);
 	evsel__reset_stat_priv(evsel);
 	return 0;
 }
@@ -696,30 +646,6 @@ void perf_stat_process_percore(struct perf_stat_config *config, struct evlist *e
 
 	evlist__for_each_entry(evlist, evsel)
 		evsel__process_percore(evsel);
-}
-
-static void evsel__update_shadow_stats(struct evsel *evsel)
-{
-	struct perf_stat_evsel *ps = evsel->stats;
-	int i;
-
-	if (ps->aggr == NULL)
-		return;
-
-	for (i = 0; i < ps->nr_aggr; i++) {
-		struct perf_counts_values *aggr_counts = &ps->aggr[i].counts;
-
-		perf_stat__update_shadow_stats(evsel, aggr_counts->val, i, &rt_stat);
-	}
-}
-
-void perf_stat_process_shadow_stats(struct perf_stat_config *config __maybe_unused,
-				    struct evlist *evlist)
-{
-	struct evsel *evsel;
-
-	evlist__for_each_entry(evlist, evsel)
-		evsel__update_shadow_stats(evsel);
 }
 
 int perf_event__process_stat_event(struct perf_session *session,

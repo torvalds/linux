@@ -64,7 +64,7 @@
  */
 
 /********************************************************************************************************/
-/* Audigy2 P16V pointer-offset register set, accessed through the PTR2 and DATA2 registers                     */
+/* Audigy2 P16V pointer-offset register set, accessed through the PTR2 and DATA2 registers              */
 /********************************************************************************************************/
                                                                                                                            
 /* The sample rate of the SPDIF outputs is set by modifying a register in the EMU10K2 PTR register A_SPDIF_SAMPLERATE.

@@ -61,11 +61,11 @@ struct rxe_queue *rxe_queue_init(struct rxe_dev *rxe, int *num_elem,
 
 	/* num_elem == 0 is allowed, but uninteresting */
 	if (*num_elem < 0)
-		goto err1;
+		return NULL;
 
 	q = kzalloc(sizeof(*q), GFP_KERNEL);
 	if (!q)
-		goto err1;
+		return NULL;
 
 	q->rxe = rxe;
 	q->type = type;
@@ -100,7 +100,6 @@ struct rxe_queue *rxe_queue_init(struct rxe_dev *rxe, int *num_elem,
 
 err2:
 	kfree(q);
-err1:
 	return NULL;
 }
 

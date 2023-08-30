@@ -136,7 +136,7 @@ static unsigned int mpiix_qc_issue(struct ata_queued_cmd *qc)
 	return ata_sff_qc_issue(qc);
 }
 
-static struct scsi_host_template mpiix_sht = {
+static const struct scsi_host_template mpiix_sht = {
 	ATA_PIO_SHT(DRV_NAME),
 };
 

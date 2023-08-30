@@ -95,6 +95,7 @@ static const struct of_device_id of_match_clk_mt8192_cam[] = {
 		/* sentinel */
 	}
 };
+MODULE_DEVICE_TABLE(of, of_match_clk_mt8192_cam);
 
 static struct platform_driver clk_mt8192_cam_drv = {
 	.probe = mtk_clk_simple_probe,
@@ -104,5 +105,5 @@ static struct platform_driver clk_mt8192_cam_drv = {
 		.of_match_table = of_match_clk_mt8192_cam,
 	},
 };
-
-builtin_platform_driver(clk_mt8192_cam_drv);
+module_platform_driver(clk_mt8192_cam_drv);
+MODULE_LICENSE("GPL");

@@ -720,7 +720,7 @@ err_remove_notify:
 	return err;
 }
 
-static int intel_hid_remove(struct platform_device *device)
+static void intel_hid_remove(struct platform_device *device)
 {
 	acpi_handle handle = ACPI_HANDLE(&device->dev);
 
@@ -728,12 +728,6 @@ static int intel_hid_remove(struct platform_device *device)
 	acpi_remove_notify_handler(handle, ACPI_DEVICE_NOTIFY, notify_handler);
 	intel_hid_set_enable(&device->dev, false);
 	intel_button_array_enable(&device->dev, false);
-
-	/*
-	 * Even if we failed to shut off the event stream, we can still
-	 * safely detach from the device.
-	 */
-	return 0;
 }
 
 static struct platform_driver intel_hid_pl_driver = {
@@ -743,7 +737,7 @@ static struct platform_driver intel_hid_pl_driver = {
 		.pm = &intel_hid_pl_pm_ops,
 	},
 	.probe = intel_hid_probe,
-	.remove = intel_hid_remove,
+	.remove_new = intel_hid_remove,
 };
 
 /*

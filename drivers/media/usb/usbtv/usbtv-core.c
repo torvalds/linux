@@ -47,7 +47,7 @@
 int usbtv_set_regs(struct usbtv *usbtv, const u16 regs[][2], int size)
 {
 	int ret;
-	int pipe = usb_rcvctrlpipe(usbtv->udev, 0);
+	int pipe = usb_sndctrlpipe(usbtv->udev, 0);
 	int i;
 
 	for (i = 0; i < size; i++) {

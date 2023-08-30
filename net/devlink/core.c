@@ -204,11 +204,6 @@ struct devlink *devlink_alloc_ns(const struct devlink_ops *ops,
 	if (ret < 0)
 		goto err_xa_alloc;
 
-	devlink->netdevice_nb.notifier_call = devlink_port_netdevice_event;
-	ret = register_netdevice_notifier(&devlink->netdevice_nb);
-	if (ret)
-		goto err_register_netdevice_notifier;
-
 	devlink->dev = dev;
 	devlink->ops = ops;
 	xa_init_flags(&devlink->ports, XA_FLAGS_ALLOC);
@@ -233,8 +228,6 @@ struct devlink *devlink_alloc_ns(const struct devlink_ops *ops,
 
 	return devlink;
 
-err_register_netdevice_notifier:
-	xa_erase(&devlinks, devlink->index);
 err_xa_alloc:
 	kfree(devlink);
 	return NULL;
@@ -265,8 +258,6 @@ void devlink_free(struct devlink *devlink)
 	xa_destroy(&devlink->snapshot_ids);
 	xa_destroy(&devlink->params);
 	xa_destroy(&devlink->ports);
-
-	WARN_ON_ONCE(unregister_netdevice_notifier(&devlink->netdevice_nb));
 
 	xa_erase(&devlinks, devlink->index);
 
@@ -303,6 +294,10 @@ static struct pernet_operations devlink_pernet_ops __net_initdata = {
 	.pre_exit = devlink_pernet_pre_exit,
 };
 
+static struct notifier_block devlink_port_netdevice_nb = {
+	.notifier_call = devlink_port_netdevice_event,
+};
+
 static int __init devlink_init(void)
 {
 	int err;
@@ -311,6 +306,9 @@ static int __init devlink_init(void)
 	if (err)
 		goto out;
 	err = register_pernet_subsys(&devlink_pernet_ops);
+	if (err)
+		goto out;
+	err = register_netdevice_notifier(&devlink_port_netdevice_nb);
 
 out:
 	WARN_ON(err);

@@ -463,7 +463,7 @@ void tcp_ca_openreq_child(struct sock *sk, const struct dst_entry *dst)
 }
 EXPORT_SYMBOL_GPL(tcp_ca_openreq_child);
 
-static void smc_check_reset_syn_req(struct tcp_sock *oldtp,
+static void smc_check_reset_syn_req(const struct tcp_sock *oldtp,
 				    struct request_sock *req,
 				    struct tcp_sock *newtp)
 {
@@ -492,7 +492,8 @@ struct sock *tcp_create_openreq_child(const struct sock *sk,
 	const struct inet_request_sock *ireq = inet_rsk(req);
 	struct tcp_request_sock *treq = tcp_rsk(req);
 	struct inet_connection_sock *newicsk;
-	struct tcp_sock *oldtp, *newtp;
+	const struct tcp_sock *oldtp;
+	struct tcp_sock *newtp;
 	u32 seq;
 
 	if (!newsk)

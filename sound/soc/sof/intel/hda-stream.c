@@ -182,6 +182,8 @@ int hda_dsp_stream_spib_config(struct snd_sof_dev *sdev,
 struct hdac_ext_stream *
 hda_dsp_stream_get(struct snd_sof_dev *sdev, int direction, u32 flags)
 {
+	const struct sof_intel_dsp_desc *chip_info =  get_chip_info(sdev->pdata);
+	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
 	struct hdac_bus *bus = sof_to_bus(sdev);
 	struct sof_intel_hda_stream *hda_stream;
 	struct hdac_ext_stream *hext_stream = NULL;
@@ -220,12 +222,15 @@ hda_dsp_stream_get(struct snd_sof_dev *sdev, int direction, u32 flags)
 	/*
 	 * Prevent DMI Link L1 entry for streams that don't support it.
 	 * Workaround to address a known issue with host DMA that results
-	 * in xruns during pause/release in capture scenarios.
+	 * in xruns during pause/release in capture scenarios. This is not needed for the ACE IP.
 	 */
-	if (!(flags & SOF_HDA_STREAM_DMI_L1_COMPATIBLE))
+	if (chip_info->hw_ip_version < SOF_INTEL_ACE_1_0 &&
+	    !(flags & SOF_HDA_STREAM_DMI_L1_COMPATIBLE)) {
 		snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR,
 					HDA_VS_INTEL_EM2,
 					HDA_VS_INTEL_EM2_L1SEN, 0);
+		hda->l1_disabled = true;
+	}
 
 	return hext_stream;
 }
@@ -233,6 +238,8 @@ hda_dsp_stream_get(struct snd_sof_dev *sdev, int direction, u32 flags)
 /* free a stream */
 int hda_dsp_stream_put(struct snd_sof_dev *sdev, int direction, int stream_tag)
 {
+	const struct sof_intel_dsp_desc *chip_info =  get_chip_info(sdev->pdata);
+	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
 	struct hdac_bus *bus = sof_to_bus(sdev);
 	struct sof_intel_hda_stream *hda_stream;
 	struct hdac_ext_stream *hext_stream;
@@ -264,9 +271,11 @@ int hda_dsp_stream_put(struct snd_sof_dev *sdev, int direction, int stream_tag)
 	spin_unlock_irq(&bus->reg_lock);
 
 	/* Enable DMI L1 if permitted */
-	if (dmi_l1_enable)
+	if (chip_info->hw_ip_version < SOF_INTEL_ACE_1_0 && dmi_l1_enable) {
 		snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR, HDA_VS_INTEL_EM2,
 					HDA_VS_INTEL_EM2_L1SEN, HDA_VS_INTEL_EM2_L1SEN);
+		hda->l1_disabled = false;
+	}
 
 	if (!found) {
 		dev_err(sdev->dev, "%s: stream_tag %d not opened!\n",
@@ -328,7 +337,13 @@ int hda_dsp_stream_trigger(struct snd_sof_dev *sdev,
 	/* cmd must be for audio stream */
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
+		if (!sdev->dspless_mode_selected)
+			break;
+		fallthrough;
 	case SNDRV_PCM_TRIGGER_START:
+		if (hstream->running)
+			break;
+
 		snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR, SOF_HDA_INTCTL,
 					1 << hstream->index,
 					1 << hstream->index);
@@ -351,8 +366,11 @@ int hda_dsp_stream_trigger(struct snd_sof_dev *sdev,
 			hstream->running = true;
 
 		break;
-	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
+		if (!sdev->dspless_mode_selected)
+			break;
+		fallthrough;
+	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_STOP:
 		snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR,
 					sd_offset,
@@ -476,9 +494,8 @@ int hda_dsp_stream_hw_params(struct snd_sof_dev *sdev,
 {
 	const struct sof_intel_dsp_desc *chip = get_chip_info(sdev->pdata);
 	struct hdac_bus *bus = sof_to_bus(sdev);
-	struct hdac_stream *hstream = &hext_stream->hstream;
-	int sd_offset = SOF_STREAM_SD_OFFSET(hstream);
-	int ret;
+	struct hdac_stream *hstream;
+	int sd_offset, ret;
 	u32 dma_start = SOF_HDA_SD_CTL_DMA_START;
 	u32 mask;
 	u32 run;
@@ -493,10 +510,14 @@ int hda_dsp_stream_hw_params(struct snd_sof_dev *sdev,
 		return -ENODEV;
 	}
 
-	/* decouple host and link DMA */
-	mask = 0x1 << hstream->index;
-	snd_sof_dsp_update_bits(sdev, HDA_DSP_PP_BAR, SOF_HDA_REG_PP_PPCTL,
-				mask, mask);
+	hstream = &hext_stream->hstream;
+	sd_offset = SOF_STREAM_SD_OFFSET(hstream);
+	mask = BIT(hstream->index);
+
+	/* decouple host and link DMA if the DSP is used */
+	if (!sdev->dspless_mode_selected)
+		snd_sof_dsp_update_bits(sdev, HDA_DSP_PP_BAR, SOF_HDA_REG_PP_PPCTL,
+					mask, mask);
 
 	/* clear stream status */
 	snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR, sd_offset,
@@ -597,11 +618,10 @@ int hda_dsp_stream_hw_params(struct snd_sof_dev *sdev,
 	 *    enable decoupled mode
 	 */
 
-	if (chip->quirks & SOF_INTEL_PROCEN_FMT_QUIRK) {
+	if (!sdev->dspless_mode_selected && (chip->quirks & SOF_INTEL_PROCEN_FMT_QUIRK))
 		/* couple host and link DMA, disable DSP features */
 		snd_sof_dsp_update_bits(sdev, HDA_DSP_PP_BAR, SOF_HDA_REG_PP_PPCTL,
 					mask, 0);
-	}
 
 	/* program stream format */
 	snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR,
@@ -609,11 +629,10 @@ int hda_dsp_stream_hw_params(struct snd_sof_dev *sdev,
 				SOF_HDA_ADSP_REG_SD_FORMAT,
 				0xffff, hstream->format_val);
 
-	if (chip->quirks & SOF_INTEL_PROCEN_FMT_QUIRK) {
+	if (!sdev->dspless_mode_selected && (chip->quirks & SOF_INTEL_PROCEN_FMT_QUIRK))
 		/* decouple host and link DMA, enable DSP features */
 		snd_sof_dsp_update_bits(sdev, HDA_DSP_PP_BAR, SOF_HDA_REG_PP_PPCTL,
 					mask, mask);
-	}
 
 	/* program last valid index */
 	snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR,
@@ -666,20 +685,23 @@ int hda_dsp_stream_hw_free(struct snd_sof_dev *sdev,
 	struct hdac_ext_stream *hext_stream = container_of(hstream,
 							 struct hdac_ext_stream,
 							 hstream);
-	struct hdac_bus *bus = sof_to_bus(sdev);
-	u32 mask = 0x1 << hstream->index;
 	int ret;
 
 	ret = hda_dsp_stream_reset(sdev, hstream);
 	if (ret < 0)
 		return ret;
 
-	spin_lock_irq(&bus->reg_lock);
-	/* couple host and link DMA if link DMA channel is idle */
-	if (!hext_stream->link_locked)
-		snd_sof_dsp_update_bits(sdev, HDA_DSP_PP_BAR,
-					SOF_HDA_REG_PP_PPCTL, mask, 0);
-	spin_unlock_irq(&bus->reg_lock);
+	if (!sdev->dspless_mode_selected) {
+		struct hdac_bus *bus = sof_to_bus(sdev);
+		u32 mask = BIT(hstream->index);
+
+		spin_lock_irq(&bus->reg_lock);
+		/* couple host and link DMA if link DMA channel is idle */
+		if (!hext_stream->link_locked)
+			snd_sof_dsp_update_bits(sdev, HDA_DSP_PP_BAR,
+						SOF_HDA_REG_PP_PPCTL, mask, 0);
+		spin_unlock_irq(&bus->reg_lock);
+	}
 
 	hda_dsp_stream_spib_config(sdev, hext_stream, HDA_DSP_SPIB_DISABLE, 0);
 
@@ -861,12 +883,14 @@ int hda_dsp_stream_init(struct snd_sof_dev *sdev)
 
 		hext_stream = &hda_stream->hext_stream;
 
-		hext_stream->pphc_addr = sdev->bar[HDA_DSP_PP_BAR] +
-			SOF_HDA_PPHC_BASE + SOF_HDA_PPHC_INTERVAL * i;
+		if (sdev->bar[HDA_DSP_PP_BAR]) {
+			hext_stream->pphc_addr = sdev->bar[HDA_DSP_PP_BAR] +
+				SOF_HDA_PPHC_BASE + SOF_HDA_PPHC_INTERVAL * i;
 
-		hext_stream->pplc_addr = sdev->bar[HDA_DSP_PP_BAR] +
-			SOF_HDA_PPLC_BASE + SOF_HDA_PPLC_MULTI * num_total +
-			SOF_HDA_PPLC_INTERVAL * i;
+			hext_stream->pplc_addr = sdev->bar[HDA_DSP_PP_BAR] +
+				SOF_HDA_PPLC_BASE + SOF_HDA_PPLC_MULTI * num_total +
+				SOF_HDA_PPLC_INTERVAL * i;
+		}
 
 		hstream = &hext_stream->hstream;
 
@@ -917,13 +941,14 @@ int hda_dsp_stream_init(struct snd_sof_dev *sdev)
 
 		hext_stream = &hda_stream->hext_stream;
 
-		/* we always have DSP support */
-		hext_stream->pphc_addr = sdev->bar[HDA_DSP_PP_BAR] +
-			SOF_HDA_PPHC_BASE + SOF_HDA_PPHC_INTERVAL * i;
+		if (sdev->bar[HDA_DSP_PP_BAR]) {
+			hext_stream->pphc_addr = sdev->bar[HDA_DSP_PP_BAR] +
+				SOF_HDA_PPHC_BASE + SOF_HDA_PPHC_INTERVAL * i;
 
-		hext_stream->pplc_addr = sdev->bar[HDA_DSP_PP_BAR] +
-			SOF_HDA_PPLC_BASE + SOF_HDA_PPLC_MULTI * num_total +
-			SOF_HDA_PPLC_INTERVAL * i;
+			hext_stream->pplc_addr = sdev->bar[HDA_DSP_PP_BAR] +
+				SOF_HDA_PPLC_BASE + SOF_HDA_PPLC_MULTI * num_total +
+				SOF_HDA_PPLC_INTERVAL * i;
+		}
 
 		hstream = &hext_stream->hstream;
 

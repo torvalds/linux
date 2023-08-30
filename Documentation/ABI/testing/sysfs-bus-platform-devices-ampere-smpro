@@ -234,8 +234,8 @@ Description:
 		For details, see section `5.10 RAS Internal Error Register Definitions,
 		Altra Family Soc BMC Interface Specification`.
 
-What:		/sys/bus/platform/devices/smpro-errmon.*/event_[vrd_warn_fault|vrd_hot|dimm_hot]
-KernelVersion:	6.1
+What:		/sys/bus/platform/devices/smpro-errmon.*/event_[vrd_warn_fault|vrd_hot|dimm_hot|dimm_2x_refresh]
+KernelVersion:	6.1 (event_[vrd_warn_fault|vrd_hot|dimm_hot]), 6.4 (event_dimm_2x_refresh)
 Contact:	Quan Nguyen <quan@os.amperecomputing.com>
 Description:
 		(RO) Contains the detail information in case of VRD/DIMM warning/hot events
@@ -258,8 +258,21 @@ Description:
 		+---------------+---------------------------------------------------------------+---------------------+
 		| DIMM HOT      | /sys/bus/platform/devices/smpro-errmon.*/event_dimm_hot       | DIMM Hot            |
 		+---------------+---------------------------------------------------------------+---------------------+
+		| DIMM 2X       | /sys/bus/platform/devices/smpro-errmon.*/event_dimm_2x_refresh| DIMM 2x refresh rate|
+		| REFRESH RATE  |                                                               | event in high temp  |
+		+---------------+---------------------------------------------------------------+---------------------+
 
-		For more details, see section `5.7 GPI Status Registers,
+		For more details, see section `5.7 GPI Status Registers and 5.9 Memory Error Register Definitions,
+		Altra Family Soc BMC Interface Specification`.
+
+What:		/sys/bus/platform/devices/smpro-errmon.*/event_dimm[0-15]_syndrome
+KernelVersion:	6.4
+Contact:	Quan Nguyen <quan@os.amperecomputing.com>
+Description:
+		(RO) The sysfs returns the 2-byte DIMM failure syndrome data for slot
+		0-15 if it failed to initialize.
+
+		For more details, see section `5.11 Boot Stage Register Definitions,
 		Altra Family Soc BMC Interface Specification`.
 
 What:		/sys/bus/platform/devices/smpro-misc.*/boot_progress

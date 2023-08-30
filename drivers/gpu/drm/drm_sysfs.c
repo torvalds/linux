@@ -112,7 +112,7 @@ int drm_sysfs_init(void)
 {
 	int err;
 
-	drm_class = class_create(THIS_MODULE, "drm");
+	drm_class = class_create("drm");
 	if (IS_ERR(drm_class))
 		return PTR_ERR(drm_class);
 

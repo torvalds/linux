@@ -69,21 +69,6 @@
     "proto esp aead 'rfc4106(gcm(aes))' " \
     "0xe4d8f4b4da1df18a3510b3781496daa82488b713 128 mode tunnel "
 
-#define SYS(fmt, ...)						\
-	({							\
-		char cmd[1024];					\
-		snprintf(cmd, sizeof(cmd), fmt, ##__VA_ARGS__);	\
-		if (!ASSERT_OK(system(cmd), cmd))		\
-			goto fail;				\
-	})
-
-#define SYS_NOFAIL(fmt, ...)					\
-	({							\
-		char cmd[1024];					\
-		snprintf(cmd, sizeof(cmd), fmt, ##__VA_ARGS__);	\
-		system(cmd);					\
-	})
-
 static int attach_tc_prog(struct bpf_tc_hook *hook, int igr_fd, int egr_fd)
 {
 	LIBBPF_OPTS(bpf_tc_opts, opts1, .handle = 1, .priority = 1,
@@ -126,23 +111,23 @@ static void cleanup(void)
 
 static int config_underlay(void)
 {
-	SYS("ip netns add " NS0);
-	SYS("ip netns add " NS1);
-	SYS("ip netns add " NS2);
+	SYS(fail, "ip netns add " NS0);
+	SYS(fail, "ip netns add " NS1);
+	SYS(fail, "ip netns add " NS2);
 
 	/* NS0 <-> NS1 [veth01 <-> veth10] */
-	SYS("ip link add veth01 netns " NS0 " type veth peer name veth10 netns " NS1);
-	SYS("ip -net " NS0 " addr add " IP4_ADDR_VETH01 "/24 dev veth01");
-	SYS("ip -net " NS0 " link set dev veth01 up");
-	SYS("ip -net " NS1 " addr add " IP4_ADDR_VETH10 "/24 dev veth10");
-	SYS("ip -net " NS1 " link set dev veth10 up");
+	SYS(fail, "ip link add veth01 netns " NS0 " type veth peer name veth10 netns " NS1);
+	SYS(fail, "ip -net " NS0 " addr add " IP4_ADDR_VETH01 "/24 dev veth01");
+	SYS(fail, "ip -net " NS0 " link set dev veth01 up");
+	SYS(fail, "ip -net " NS1 " addr add " IP4_ADDR_VETH10 "/24 dev veth10");
+	SYS(fail, "ip -net " NS1 " link set dev veth10 up");
 
 	/* NS0 <-> NS2 [veth02 <-> veth20] */
-	SYS("ip link add veth02 netns " NS0 " type veth peer name veth20 netns " NS2);
-	SYS("ip -net " NS0 " addr add " IP4_ADDR_VETH02 "/24 dev veth02");
-	SYS("ip -net " NS0 " link set dev veth02 up");
-	SYS("ip -net " NS2 " addr add " IP4_ADDR_VETH20 "/24 dev veth20");
-	SYS("ip -net " NS2 " link set dev veth20 up");
+	SYS(fail, "ip link add veth02 netns " NS0 " type veth peer name veth20 netns " NS2);
+	SYS(fail, "ip -net " NS0 " addr add " IP4_ADDR_VETH02 "/24 dev veth02");
+	SYS(fail, "ip -net " NS0 " link set dev veth02 up");
+	SYS(fail, "ip -net " NS2 " addr add " IP4_ADDR_VETH20 "/24 dev veth20");
+	SYS(fail, "ip -net " NS2 " link set dev veth20 up");
 
 	return 0;
 fail:
@@ -153,20 +138,20 @@ static int setup_xfrm_tunnel_ns(const char *ns, const char *ipv4_local,
 				const char *ipv4_remote, int if_id)
 {
 	/* State: local -> remote */
-	SYS("ip -net %s xfrm state add src %s dst %s spi 1 "
+	SYS(fail, "ip -net %s xfrm state add src %s dst %s spi 1 "
 	    ESP_DUMMY_PARAMS "if_id %d", ns, ipv4_local, ipv4_remote, if_id);
 
 	/* State: local <- remote */
-	SYS("ip -net %s xfrm state add src %s dst %s spi 1 "
+	SYS(fail, "ip -net %s xfrm state add src %s dst %s spi 1 "
 	    ESP_DUMMY_PARAMS "if_id %d", ns, ipv4_remote, ipv4_local, if_id);
 
 	/* Policy: local -> remote */
-	SYS("ip -net %s xfrm policy add dir out src 0.0.0.0/0 dst 0.0.0.0/0 "
+	SYS(fail, "ip -net %s xfrm policy add dir out src 0.0.0.0/0 dst 0.0.0.0/0 "
 	    "if_id %d tmpl src %s dst %s proto esp mode tunnel if_id %d", ns,
 	    if_id, ipv4_local, ipv4_remote, if_id);
 
 	/* Policy: local <- remote */
-	SYS("ip -net %s xfrm policy add dir in src 0.0.0.0/0 dst 0.0.0.0/0 "
+	SYS(fail, "ip -net %s xfrm policy add dir in src 0.0.0.0/0 dst 0.0.0.0/0 "
 	    "if_id %d tmpl src %s dst %s proto esp mode tunnel if_id %d", ns,
 	    if_id, ipv4_remote, ipv4_local, if_id);
 
@@ -274,16 +259,16 @@ static int config_overlay(void)
 	if (!ASSERT_OK(setup_xfrmi_external_dev(NS0), "xfrmi"))
 		goto fail;
 
-	SYS("ip -net " NS0 " addr add 192.168.1.100/24 dev ipsec0");
-	SYS("ip -net " NS0 " link set dev ipsec0 up");
+	SYS(fail, "ip -net " NS0 " addr add 192.168.1.100/24 dev ipsec0");
+	SYS(fail, "ip -net " NS0 " link set dev ipsec0 up");
 
-	SYS("ip -net " NS1 " link add ipsec0 type xfrm if_id %d", IF_ID_1);
-	SYS("ip -net " NS1 " addr add 192.168.1.200/24 dev ipsec0");
-	SYS("ip -net " NS1 " link set dev ipsec0 up");
+	SYS(fail, "ip -net " NS1 " link add ipsec0 type xfrm if_id %d", IF_ID_1);
+	SYS(fail, "ip -net " NS1 " addr add 192.168.1.200/24 dev ipsec0");
+	SYS(fail, "ip -net " NS1 " link set dev ipsec0 up");
 
-	SYS("ip -net " NS2 " link add ipsec0 type xfrm if_id %d", IF_ID_2);
-	SYS("ip -net " NS2 " addr add 192.168.1.200/24 dev ipsec0");
-	SYS("ip -net " NS2 " link set dev ipsec0 up");
+	SYS(fail, "ip -net " NS2 " link add ipsec0 type xfrm if_id %d", IF_ID_2);
+	SYS(fail, "ip -net " NS2 " addr add 192.168.1.200/24 dev ipsec0");
+	SYS(fail, "ip -net " NS2 " link set dev ipsec0 up");
 
 	return 0;
 fail:
@@ -294,7 +279,7 @@ static int test_xfrm_ping(struct xfrm_info *skel, u32 if_id)
 {
 	skel->bss->req_if_id = if_id;
 
-	SYS("ping -i 0.01 -c 3 -w 10 -q 192.168.1.200 > /dev/null");
+	SYS(fail, "ping -i 0.01 -c 3 -w 10 -q 192.168.1.200 > /dev/null");
 
 	if (!ASSERT_EQ(skel->bss->resp_if_id, if_id, "if_id"))
 		goto fail;

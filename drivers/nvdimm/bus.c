@@ -1320,7 +1320,7 @@ int __init nvdimm_bus_init(void)
 		goto err_dimm_chrdev;
 	nvdimm_major = rc;
 
-	nd_class = class_create(THIS_MODULE, "nd");
+	nd_class = class_create("nd");
 	if (IS_ERR(nd_class)) {
 		rc = PTR_ERR(nd_class);
 		goto err_class;

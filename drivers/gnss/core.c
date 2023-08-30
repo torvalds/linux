@@ -387,7 +387,7 @@ static int __init gnss_module_init(void)
 		return ret;
 	}
 
-	gnss_class = class_create(THIS_MODULE, "gnss");
+	gnss_class = class_create("gnss");
 	if (IS_ERR(gnss_class)) {
 		ret = PTR_ERR(gnss_class);
 		pr_err("failed to create class: %d\n", ret);

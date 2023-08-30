@@ -33,6 +33,7 @@ properties:
   compatible:
     items:
       - enum:
+          - qcom,pm2250
           - qcom,pm6125
           - qcom,pm6150
           - qcom,pm6150l
@@ -78,6 +79,7 @@ properties:
           - qcom,pmk8350
           - qcom,pmk8550
           - qcom,pmm8155au
+          - qcom,pmm8654au
           - qcom,pmp8074
           - qcom,pmr735a
           - qcom,pmr735b
@@ -115,6 +117,7 @@ patternProperties:
     type: object
     oneOf:
       - $ref: /schemas/iio/adc/qcom,spmi-iadc.yaml#
+      - $ref: /schemas/iio/adc/qcom,spmi-rradc.yaml#
       - $ref: /schemas/iio/adc/qcom,spmi-vadc.yaml#
 
   "^adc-tm@[0-9a-f]+$":
@@ -134,6 +137,14 @@ patternProperties:
   "gpio@[0-9a-f]+$":
     type: object
     $ref: /schemas/pinctrl/qcom,pmic-gpio.yaml#
+
+  "^led-controller@[0-9a-f]+$":
+    type: object
+    $ref: /schemas/leds/qcom,spmi-flash-led.yaml#
+
+  "^nvram@[0-9a-f]+$":
+    type: object
+    $ref: /schemas/nvmem/qcom,spmi-sdam.yaml#
 
   "pon@[0-9a-f]+$":
     type: object
@@ -276,12 +287,12 @@ examples:
             #size-cells = <0>;
             #io-channel-cells = <1>;
 
-            adc-chan@6 {
+            channel@6 {
                 reg = <ADC5_DIE_TEMP>;
                 label = "die_temp";
             };
 
-            adc-chan@4f {
+            channel@4f {
                 reg = <ADC5_AMUX_THM3_100K_PU>;
                 qcom,ratiometric;
                 qcom,hw-settle-time = <200>;

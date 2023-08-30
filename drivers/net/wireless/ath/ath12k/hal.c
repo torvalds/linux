@@ -609,7 +609,7 @@ static int ath12k_hal_srng_create_config_qcn9274(struct ath12k_base *ab)
 		HAL_WBM0_RELEASE_RING_BASE_LSB(ab);
 	s->reg_size[1] = HAL_WBM1_RELEASE_RING_HP - HAL_WBM0_RELEASE_RING_HP;
 
-	/* Some LMAC rings are not accesed from the host:
+	/* Some LMAC rings are not accessed from the host:
 	 * RXDMA_BUG, RXDMA_DST, RXDMA_MONITOR_BUF, RXDMA_MONITOR_STATUS,
 	 * RXDMA_MONITOR_DST, RXDMA_MONITOR_DESC, RXDMA_DIR_BUF_SRC,
 	 * RXDMA_RX_MONITOR_BUF, TX_MONITOR_BUF, TX_MONITOR_DST, SW2RXDMA

@@ -610,9 +610,7 @@
 		reg-shift = <2>;
 		interrupts = <GIC_SPI 112 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&bpmp TEGRA186_CLK_UARTA>;
-		clock-names = "serial";
 		resets = <&bpmp TEGRA186_RESET_UARTA>;
-		reset-names = "serial";
 		status = "disabled";
 	};
 

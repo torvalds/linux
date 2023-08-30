@@ -1067,7 +1067,6 @@ static int atmel_pinctrl_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct pinctrl_pin_desc	*pin_desc;
 	const char **group_names;
-	const struct of_device_id *match;
 	int i, ret;
 	struct atmel_pioctrl *atmel_pioctrl;
 	const struct atmel_pioctrl_data *atmel_pioctrl_data;
@@ -1079,12 +1078,10 @@ static int atmel_pinctrl_probe(struct platform_device *pdev)
 	atmel_pioctrl->node = dev->of_node;
 	platform_set_drvdata(pdev, atmel_pioctrl);
 
-	match = of_match_node(atmel_pctrl_of_match, dev->of_node);
-	if (!match) {
-		dev_err(dev, "unknown compatible string\n");
-		return -ENODEV;
-	}
-	atmel_pioctrl_data = match->data;
+	atmel_pioctrl_data = device_get_match_data(dev);
+	if (!atmel_pioctrl_data)
+		return dev_err_probe(dev, -ENODEV, "Invalid device data\n");
+
 	atmel_pioctrl->nbanks = atmel_pioctrl_data->nbanks;
 	atmel_pioctrl->npins = atmel_pioctrl->nbanks * ATMEL_PIO_NPINS_PER_BANK;
 	/* if last bank has limited number of pins, adjust accordingly */
@@ -1098,11 +1095,9 @@ static int atmel_pinctrl_probe(struct platform_device *pdev)
 	if (IS_ERR(atmel_pioctrl->reg_base))
 		return PTR_ERR(atmel_pioctrl->reg_base);
 
-	atmel_pioctrl->clk = devm_clk_get(dev, NULL);
-	if (IS_ERR(atmel_pioctrl->clk)) {
-		dev_err(dev, "failed to get clock\n");
-		return PTR_ERR(atmel_pioctrl->clk);
-	}
+	atmel_pioctrl->clk = devm_clk_get_enabled(dev, NULL);
+	if (IS_ERR(atmel_pioctrl->clk))
+		return dev_err_probe(dev, PTR_ERR(atmel_pioctrl->clk), "failed to get clock\n");
 
 	atmel_pioctrl->pins = devm_kcalloc(dev,
 					   atmel_pioctrl->npins,
@@ -1149,7 +1144,7 @@ static int atmel_pinctrl_probe(struct platform_device *pdev)
 
 		pin_desc[i].number = i;
 		/* Pin naming convention: P(bank_name)(bank_pin_number). */
-		pin_desc[i].name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "P%c%d",
+		pin_desc[i].name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "P%c%u",
 						  bank + 'A', line);
 
 		group->name = group_names[i] = pin_desc[i].name;
@@ -1202,11 +1197,8 @@ static int atmel_pinctrl_probe(struct platform_device *pdev)
 	atmel_pioctrl->irq_domain = irq_domain_add_linear(dev->of_node,
 			atmel_pioctrl->gpio_chip->ngpio,
 			&irq_domain_simple_ops, NULL);
-	if (!atmel_pioctrl->irq_domain) {
-		dev_err(dev, "can't add the irq domain\n");
-		return -ENODEV;
-	}
-	atmel_pioctrl->irq_domain->name = "atmel gpio";
+	if (!atmel_pioctrl->irq_domain)
+		return dev_err_probe(dev, -ENODEV, "can't add the irq domain\n");
 
 	for (i = 0; i < atmel_pioctrl->npins; i++) {
 		int irq = irq_create_mapping(atmel_pioctrl->irq_domain, i);
@@ -1219,25 +1211,19 @@ static int atmel_pinctrl_probe(struct platform_device *pdev)
 			i, irq);
 	}
 
-	ret = clk_prepare_enable(atmel_pioctrl->clk);
-	if (ret) {
-		dev_err(dev, "failed to prepare and enable clock\n");
-		goto clk_prepare_enable_error;
-	}
-
 	atmel_pioctrl->pinctrl_dev = devm_pinctrl_register(&pdev->dev,
 							   &atmel_pinctrl_desc,
 							   atmel_pioctrl);
 	if (IS_ERR(atmel_pioctrl->pinctrl_dev)) {
 		ret = PTR_ERR(atmel_pioctrl->pinctrl_dev);
 		dev_err(dev, "pinctrl registration failed\n");
-		goto clk_unprep;
+		goto irq_domain_remove_error;
 	}
 
 	ret = gpiochip_add_data(atmel_pioctrl->gpio_chip, atmel_pioctrl);
 	if (ret) {
 		dev_err(dev, "failed to add gpiochip\n");
-		goto clk_unprep;
+		goto irq_domain_remove_error;
 	}
 
 	ret = gpiochip_add_pin_range(atmel_pioctrl->gpio_chip, dev_name(dev),
@@ -1254,10 +1240,7 @@ static int atmel_pinctrl_probe(struct platform_device *pdev)
 gpiochip_add_pin_range_error:
 	gpiochip_remove(atmel_pioctrl->gpio_chip);
 
-clk_unprep:
-	clk_disable_unprepare(atmel_pioctrl->clk);
-
-clk_prepare_enable_error:
+irq_domain_remove_error:
 	irq_domain_remove(atmel_pioctrl->irq_domain);
 
 	return ret;

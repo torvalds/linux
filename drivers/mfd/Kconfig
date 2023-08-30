@@ -266,6 +266,16 @@ config MFD_MADERA_SPI
 	  Support for the Cirrus Logic Madera platform audio SoC
 	  core functionality controlled via SPI.
 
+config MFD_MAX597X
+	tristate "Maxim 597x power switch and monitor"
+	depends on (I2C && OF)
+	select MFD_SIMPLE_MFD_I2C
+	help
+	  This driver controls a Maxim 5970/5978 switch via I2C bus.
+	  The MAX5970/5978 is a smart switch with no output regulation, but
+	  fault protection and voltage and current monitoring capabilities.
+	  Also it supports upto 4 indication leds.
+
 config MFD_CS47L15
 	bool "Cirrus Logic CS47L15"
 	select PINCTRL_CS47L15
@@ -352,9 +362,6 @@ config MFD_DA9055
 	  accessing the device as well as the I2C interface to the chip itself.
 	  Additional drivers must be enabled in order to use the functionality
 	  of the device.
-
-	  This driver can be built as a module. If built as a module it will be
-	  called "da9055"
 
 config MFD_DA9062
 	tristate "Dialog Semiconductor DA9062/61 PMIC Support"
@@ -1307,6 +1314,16 @@ config MFD_SC27XX_PMIC
 
 	  This driver provides common support for accessing the SC27xx PMICs,
 	  and it also adds the irq_chip parts for handling the PMIC chip events.
+
+config RZ_MTU3
+	bool "Renesas RZ/G2L MTU3a core driver"
+	depends on (ARCH_RZG2L && OF) || COMPILE_TEST
+	help
+	  Select this option to enable Renesas RZ/G2L MTU3a core driver for
+	  the Multi-Function Timer Pulse Unit 3 (MTU3a) hardware available
+	  on SoCs from Renesas. The core driver shares the clk and channel
+	  register access for the other child devices like Counter, PWM,
+	  Clock Source, and Clock event.
 
 config ABX500_CORE
 	bool "ST-Ericsson ABX500 Mixed Signal Circuit register functions"

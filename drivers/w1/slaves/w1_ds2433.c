@@ -42,7 +42,7 @@ struct w1_f23_data {
 	u32	validcrc;
 };
 
-/**
+/*
  * Check the file size bounds and adjusts count as needed.
  * This would not be needed if the file size didn't reset to 0 after a write.
  */
@@ -98,7 +98,8 @@ static ssize_t eeprom_read(struct file *filp, struct kobject *kobj,
 	u8 wrbuf[3];
 #endif
 
-	if ((count = w1_f23_fix_count(off, count, W1_EEPROM_SIZE)) == 0)
+	count = w1_f23_fix_count(off, count, W1_EEPROM_SIZE);
+	if (!count)
 		return 0;
 
 	mutex_lock(&sl->master->bus_mutex);
@@ -115,7 +116,7 @@ static ssize_t eeprom_read(struct file *filp, struct kobject *kobj,
 	}
 	memcpy(buf, &data->memory[off], count);
 
-#else 	/* CONFIG_W1_SLAVE_DS2433_CRC */
+#else	/* CONFIG_W1_SLAVE_DS2433_CRC */
 
 	/* read directly from the EEPROM */
 	if (w1_reset_select_slave(sl)) {
@@ -138,16 +139,17 @@ out_up:
 }
 
 /**
- * Writes to the scratchpad and reads it back for verification.
+ * w1_f23_write() - Writes to the scratchpad and reads it back for verification.
+ * @sl:		The slave structure
+ * @addr:	Address for the write
+ * @len:	length must be <= (W1_PAGE_SIZE - (addr & W1_PAGE_MASK))
+ * @data:	The data to write
+ *
  * Then copies the scratchpad to EEPROM.
  * The data must be on one page.
  * The master must be locked.
  *
- * @param sl	The slave structure
- * @param addr	Address for the write
- * @param len   length must be <= (W1_PAGE_SIZE - (addr & W1_PAGE_MASK))
- * @param data	The data to write
- * @return	0=Success -1=failure
+ * Return:	0=Success, -1=failure
  */
 static int w1_f23_write(struct w1_slave *sl, int addr, int len, const u8 *data)
 {
@@ -207,7 +209,8 @@ static ssize_t eeprom_write(struct file *filp, struct kobject *kobj,
 	struct w1_slave *sl = kobj_to_w1_slave(kobj);
 	int addr, len, idx;
 
-	if ((count = w1_f23_fix_count(off, count, W1_EEPROM_SIZE)) == 0)
+	count = w1_f23_fix_count(off, count, W1_EEPROM_SIZE);
+	if (!count)
 		return 0;
 
 #ifdef CONFIG_W1_SLAVE_DS2433_CRC

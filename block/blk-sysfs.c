@@ -9,7 +9,6 @@
 #include <linux/blkdev.h>
 #include <linux/backing-dev.h>
 #include <linux/blktrace_api.h>
-#include <linux/blk-mq.h>
 #include <linux/debugfs.h>
 
 #include "blk.h"
@@ -408,35 +407,12 @@ queue_rq_affinity_store(struct request_queue *q, const char *page, size_t count)
 
 static ssize_t queue_poll_delay_show(struct request_queue *q, char *page)
 {
-	int val;
-
-	if (q->poll_nsec == BLK_MQ_POLL_CLASSIC)
-		val = BLK_MQ_POLL_CLASSIC;
-	else
-		val = q->poll_nsec / 1000;
-
-	return sprintf(page, "%d\n", val);
+	return sprintf(page, "%d\n", -1);
 }
 
 static ssize_t queue_poll_delay_store(struct request_queue *q, const char *page,
 				size_t count)
 {
-	int err, val;
-
-	if (!q->mq_ops || !q->mq_ops->poll)
-		return -EINVAL;
-
-	err = kstrtoint(page, 10, &val);
-	if (err < 0)
-		return err;
-
-	if (val == BLK_MQ_POLL_CLASSIC)
-		q->poll_nsec = BLK_MQ_POLL_CLASSIC;
-	else if (val >= 0)
-		q->poll_nsec = val * 1000;
-	else
-		return -EINVAL;
-
 	return count;
 }
 

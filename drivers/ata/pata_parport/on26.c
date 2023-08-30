@@ -7,17 +7,6 @@
 
 */
 
-/* Changes:
-
-        1.01    GRG 1998.05.06 init_proto, release_proto
-	1.02    GRG 1998.09.23 updates for the -E rev chip
-	1.03    GRG 1998.12.14 fix for slave drives
-	1.04    GRG 1998.12.20 yet another bug fix
-
-*/
-
-#define ON26_VERSION      "1.04"
-
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/delay.h>
@@ -25,8 +14,7 @@
 #include <linux/types.h>
 #include <linux/wait.h>
 #include <asm/io.h>
-
-#include <linux/pata_parport.h>
+#include "pata_parport.h"
 
 /* mode codes:  0  nybble reads, 8-bit writes
                 1  8-bit reads and writes
@@ -44,7 +32,7 @@
    cont = 1 - access the IDE command set 
 */
 
-static int on26_read_regr( PIA *pi, int cont, int regr )
+static int on26_read_regr(struct pi_adapter *pi, int cont, int regr)
 
 {       int     a, b, r;
 
@@ -73,7 +61,7 @@ static int on26_read_regr( PIA *pi, int cont, int regr )
         return -1;
 }       
 
-static void on26_write_regr( PIA *pi, int cont, int regr, int val )
+static void on26_write_regr(struct pi_adapter *pi, int cont, int regr, int val)
 
 {       int  r;
 
@@ -99,7 +87,7 @@ static void on26_write_regr( PIA *pi, int cont, int regr, int val )
 #define  CCP(x)  w0(0xfe);w0(0xaa);w0(0x55);w0(0);w0(0xff);\
 		 w0(0x87);w0(0x78);w0(x);w2(4);w2(5);w2(4);w0(0xff);
 
-static void on26_connect ( PIA *pi )
+static void on26_connect(struct pi_adapter *pi)
 
 {       int	x;
 
@@ -113,7 +101,7 @@ static void on26_connect ( PIA *pi )
 	w0(2); P1; w0(x); P2;
 }
 
-static void on26_disconnect ( PIA *pi )
+static void on26_disconnect(struct pi_adapter *pi)
 
 {       if (pi->mode >= 2) { w3(4); w3(4); w3(4); w3(4); }
 	              else { w0(4); P1; w0(4); P1; }
@@ -124,7 +112,7 @@ static void on26_disconnect ( PIA *pi )
 
 #define	RESET_WAIT  200
 
-static int on26_test_port( PIA *pi)  /* hard reset */
+static int on26_test_port(struct pi_adapter *pi)  /* hard reset */
 
 {       int     i, m, d, x=0, y=0;
 
@@ -167,7 +155,7 @@ static int on26_test_port( PIA *pi)  /* hard reset */
             }
 
 	    if (i == RESET_WAIT) 
-		printk("on26: Device reset failed (%x,%x)\n",x,y);
+		dev_err(&pi->dev, "on26: Device reset failed (%x,%x)\n", x, y);
 
             w0(4); P1; w0(4); P1;
         }
@@ -183,7 +171,7 @@ static int on26_test_port( PIA *pi)  /* hard reset */
 }
 
 
-static void on26_read_block( PIA *pi, char * buf, int count )
+static void on26_read_block(struct pi_adapter *pi, char *buf, int count)
 
 {       int     k, a, b;
 
@@ -232,7 +220,7 @@ static void on26_read_block( PIA *pi, char * buf, int count )
         }
 }
 
-static void on26_write_block( PIA *pi, char * buf, int count )
+static void on26_write_block(struct pi_adapter *pi, char *buf, int count)
 
 {       int	k;
 
@@ -275,16 +263,13 @@ static void on26_write_block( PIA *pi, char * buf, int count )
 
 }
 
-static void on26_log_adapter( PIA *pi, char * scratch, int verbose )
+static void on26_log_adapter(struct pi_adapter *pi)
 
 {       char    *mode_string[5] = {"4-bit","8-bit","EPP-8",
 				   "EPP-16","EPP-32"};
 
-        printk("%s: on26 %s, OnSpec 90c26 at 0x%x, ",
-                pi->device,ON26_VERSION,pi->port);
-        printk("mode %d (%s), delay %d\n",pi->mode,
-		mode_string[pi->mode],pi->delay);
-
+	dev_info(&pi->dev, "OnSpec 90c26 at 0x%x, mode %d (%s), delay %d\n",
+		pi->port, pi->mode, mode_string[pi->mode], pi->delay);
 }
 
 static struct pi_protocol on26 = {
@@ -304,16 +289,5 @@ static struct pi_protocol on26 = {
 	.log_adapter	= on26_log_adapter,
 };
 
-static int __init on26_init(void)
-{
-	return paride_register(&on26);
-}
-
-static void __exit on26_exit(void)
-{
-	paride_unregister(&on26);
-}
-
 MODULE_LICENSE("GPL");
-module_init(on26_init)
-module_exit(on26_exit)
+module_pata_parport_driver(on26);

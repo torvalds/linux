@@ -46,8 +46,6 @@
 	};
 
 	clocks {
-		compatible = "simple-bus";
-
 		divclk4: divclk4 {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
@@ -542,8 +540,7 @@
 };
 
 &pmi8994_spmi_regulators {
-	vdd_gfx: s2@1700 {
-		reg = <0x1700 0x100>;
+	vdd_gfx: s2 {
 		regulator-min-microvolt = <980000>;
 		regulator-max-microvolt = <980000>;
 	};

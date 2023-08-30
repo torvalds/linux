@@ -1976,8 +1976,7 @@ static int twa_slave_configure(struct scsi_device *sdev)
 	return 0;
 } /* End twa_slave_configure() */
 
-/* scsi_host_template initializer */
-static struct scsi_host_template driver_template = {
+static const struct scsi_host_template driver_template = {
 	.module			= THIS_MODULE,
 	.name			= "3ware 9000 Storage Controller",
 	.queuecommand		= twa_scsi_queue,

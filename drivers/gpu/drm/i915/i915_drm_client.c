@@ -130,7 +130,7 @@ void i915_drm_client_fdinfo(struct seq_file *m, struct file *f)
 {
 	struct drm_file *file = f->private_data;
 	struct drm_i915_file_private *file_priv = file->driver_priv;
-	struct drm_i915_private *i915 = file_priv->dev_priv;
+	struct drm_i915_private *i915 = file_priv->i915;
 	struct i915_drm_client *client = file_priv->client;
 	struct pci_dev *pdev = to_pci_dev(i915->drm.dev);
 	unsigned int i;

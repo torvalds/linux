@@ -77,6 +77,29 @@ static void test_rbtree_first_and_remove(void)
 	rbtree__destroy(skel);
 }
 
+static void test_rbtree_api_release_aliasing(void)
+{
+	LIBBPF_OPTS(bpf_test_run_opts, opts,
+		    .data_in = &pkt_v4,
+		    .data_size_in = sizeof(pkt_v4),
+		    .repeat = 1,
+	);
+	struct rbtree *skel;
+	int ret;
+
+	skel = rbtree__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "rbtree__open_and_load"))
+		return;
+
+	ret = bpf_prog_test_run_opts(bpf_program__fd(skel->progs.rbtree_api_release_aliasing), &opts);
+	ASSERT_OK(ret, "rbtree_api_release_aliasing");
+	ASSERT_OK(opts.retval, "rbtree_api_release_aliasing retval");
+	ASSERT_EQ(skel->data->first_data[0], 42, "rbtree_api_release_aliasing first rbtree_remove()");
+	ASSERT_EQ(skel->data->first_data[1], -1, "rbtree_api_release_aliasing second rbtree_remove()");
+
+	rbtree__destroy(skel);
+}
+
 void test_rbtree_success(void)
 {
 	if (test__start_subtest("rbtree_add_nodes"))
@@ -85,6 +108,8 @@ void test_rbtree_success(void)
 		test_rbtree_add_and_remove();
 	if (test__start_subtest("rbtree_first_and_remove"))
 		test_rbtree_first_and_remove();
+	if (test__start_subtest("rbtree_api_release_aliasing"))
+		test_rbtree_api_release_aliasing();
 }
 
 #define BTF_FAIL_TEST(suffix)									\

@@ -128,15 +128,17 @@ static void output_sample_callchain_entry(struct perf_tool *tool,
 	output_json_key_format(out, false, 5, "ip", "\"0x%" PRIx64 "\"", ip);
 
 	if (al && al->sym && al->sym->namelen) {
+		struct dso *dso = al->map ? map__dso(al->map) : NULL;
+
 		fputc(',', out);
 		output_json_key_string(out, false, 5, "symbol", al->sym->name);
 
-		if (al->map && al->map->dso) {
-			const char *dso = al->map->dso->short_name;
+		if (dso) {
+			const char *dso_name = dso->short_name;
 
-			if (dso && strlen(dso) > 0) {
+			if (dso_name && strlen(dso_name) > 0) {
 				fputc(',', out);
-				output_json_key_string(out, false, 5, "dso", dso);
+				output_json_key_string(out, false, 5, "dso", dso_name);
 			}
 		}
 	}

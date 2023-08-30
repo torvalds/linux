@@ -20,6 +20,8 @@
 #include <asm/smp_plat.h>
 #include <asm/smp_scu.h>
 
+#include <trace/events/ipi.h>
+
 #define OWL_CPU1_ADDR	0x50
 #define OWL_CPU1_FLAG	0x5c
 

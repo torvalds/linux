@@ -145,6 +145,7 @@ struct gdma_general_req {
 }; /* HW DATA */
 
 #define GDMA_MESSAGE_V1 1
+#define GDMA_MESSAGE_V2 2
 
 struct gdma_general_resp {
 	struct gdma_resp_hdr hdr;
@@ -353,6 +354,9 @@ struct gdma_context {
 	unsigned int		num_msix_usable;
 	struct gdma_resource	msix_resource;
 	struct gdma_irq_context	*irq_contexts;
+
+	/* L2 MTU */
+	u16 adapter_mtu;
 
 	/* This maps a CQ index to the queue structure. */
 	unsigned int		max_num_cqs;

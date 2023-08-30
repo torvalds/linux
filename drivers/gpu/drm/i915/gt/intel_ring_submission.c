@@ -1052,9 +1052,9 @@ static void gen6_bsd_set_default_submission(struct intel_engine_cs *engine)
 
 static void ring_release(struct intel_engine_cs *engine)
 {
-	struct drm_i915_private *dev_priv = engine->i915;
+	struct drm_i915_private *i915 = engine->i915;
 
-	drm_WARN_ON(&dev_priv->drm, GRAPHICS_VER(dev_priv) > 2 &&
+	drm_WARN_ON(&i915->drm, GRAPHICS_VER(i915) > 2 &&
 		    (ENGINE_READ(engine, RING_MI_MODE) & MODE_IDLE) == 0);
 
 	intel_engine_cleanup_common(engine);

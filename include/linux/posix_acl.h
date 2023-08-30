@@ -106,6 +106,8 @@ struct posix_acl *vfs_get_acl(struct mnt_idmap *idmap,
 			      struct dentry *dentry, const char *acl_name);
 int vfs_remove_acl(struct mnt_idmap *idmap, struct dentry *dentry,
 		   const char *acl_name);
+int posix_acl_listxattr(struct inode *inode, char **buffer,
+			ssize_t *remaining_size);
 #else
 static inline int posix_acl_chmod(struct mnt_idmap *idmap,
 				  struct dentry *dentry, umode_t mode)
@@ -152,6 +154,11 @@ static inline int vfs_remove_acl(struct mnt_idmap *idmap,
 				 struct dentry *dentry, const char *acl_name)
 {
 	return -EOPNOTSUPP;
+}
+static inline int posix_acl_listxattr(struct inode *inode, char **buffer,
+				      ssize_t *remaining_size)
+{
+	return 0;
 }
 #endif /* CONFIG_FS_POSIX_ACL */
 

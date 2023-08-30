@@ -240,8 +240,8 @@ idtoname_parse(struct cache_detail *cd, char *buf, int buflen)
 		goto out;
 
 	/* expiry */
-	ent.h.expiry_time = get_expiry(&buf);
-	if (ent.h.expiry_time == 0)
+	error = get_expiry(&buf, &ent.h.expiry_time);
+	if (error)
 		goto out;
 
 	error = -ENOMEM;
@@ -408,8 +408,8 @@ nametoid_parse(struct cache_detail *cd, char *buf, int buflen)
 	memcpy(ent.name, buf1, sizeof(ent.name));
 
 	/* expiry */
-	ent.h.expiry_time = get_expiry(&buf);
-	if (ent.h.expiry_time == 0)
+	error = get_expiry(&buf, &ent.h.expiry_time);
+	if (error)
 		goto out;
 
 	/* ID */

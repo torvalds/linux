@@ -51,7 +51,7 @@ required:
   - "#size-cells"
 
 allOf:
-  - $ref: "mdio.yaml#"
+  - $ref: mdio.yaml#
 
   - if:
       properties:

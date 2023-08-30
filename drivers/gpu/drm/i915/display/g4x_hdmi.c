@@ -13,6 +13,7 @@
 #include "intel_de.h"
 #include "intel_display_power.h"
 #include "intel_display_types.h"
+#include "intel_dp_aux.h"
 #include "intel_dpio_phy.h"
 #include "intel_fifo_underrun.h"
 #include "intel_hdmi.h"
@@ -273,8 +274,8 @@ static void cpt_enable_hdmi(struct intel_atomic_state *state,
 	 */
 
 	if (pipe_config->pipe_bpp > 24) {
-		intel_de_write(dev_priv, TRANS_CHICKEN1(pipe),
-			       intel_de_read(dev_priv, TRANS_CHICKEN1(pipe)) | TRANS_CHICKEN1_HDMIUNIT_GC_DISABLE);
+		intel_de_rmw(dev_priv, TRANS_CHICKEN1(pipe),
+			     0, TRANS_CHICKEN1_HDMIUNIT_GC_DISABLE);
 
 		temp &= ~SDVO_COLOR_FORMAT_MASK;
 		temp |= SDVO_COLOR_FORMAT_8bpc;
@@ -290,8 +291,8 @@ static void cpt_enable_hdmi(struct intel_atomic_state *state,
 		intel_de_write(dev_priv, intel_hdmi->hdmi_reg, temp);
 		intel_de_posting_read(dev_priv, intel_hdmi->hdmi_reg);
 
-		intel_de_write(dev_priv, TRANS_CHICKEN1(pipe),
-			       intel_de_read(dev_priv, TRANS_CHICKEN1(pipe)) & ~TRANS_CHICKEN1_HDMIUNIT_GC_DISABLE);
+		intel_de_rmw(dev_priv, TRANS_CHICKEN1(pipe),
+			     TRANS_CHICKEN1_HDMIUNIT_GC_DISABLE, 0);
 	}
 
 	drm_WARN_ON(&dev_priv->drm, pipe_config->has_audio &&
@@ -548,9 +549,17 @@ intel_hdmi_hotplug(struct intel_encoder *encoder,
 void g4x_hdmi_init(struct drm_i915_private *dev_priv,
 		   i915_reg_t hdmi_reg, enum port port)
 {
+	const struct intel_bios_encoder_data *devdata;
 	struct intel_digital_port *dig_port;
 	struct intel_encoder *intel_encoder;
 	struct intel_connector *intel_connector;
+
+	devdata = intel_bios_encoder_data_lookup(dev_priv, port);
+
+	/* FIXME bail? */
+	if (!devdata)
+		drm_dbg_kms(&dev_priv->drm, "No VBT child device for HDMI-%c\n",
+			    port_name(port));
 
 	dig_port = kzalloc(sizeof(*dig_port), GFP_KERNEL);
 	if (!dig_port)
@@ -563,6 +572,8 @@ void g4x_hdmi_init(struct drm_i915_private *dev_priv,
 	}
 
 	intel_encoder = &dig_port->base;
+
+	intel_encoder->devdata = devdata;
 
 	mutex_init(&dig_port->hdcp_mutex);
 
@@ -629,6 +640,6 @@ void g4x_hdmi_init(struct drm_i915_private *dev_priv,
 
 	intel_infoframe_init(dig_port);
 
-	dig_port->aux_ch = intel_bios_port_aux_ch(dev_priv, port);
+	dig_port->aux_ch = intel_dp_aux_ch(intel_encoder);
 	intel_hdmi_init_connector(dig_port, intel_connector);
 }

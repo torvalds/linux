@@ -174,7 +174,7 @@ static void __init update_fec_mac_prop(enum mac_oui oui)
 
 		from = np;
 
-		if (of_get_property(np, "local-mac-address", NULL))
+		if (of_property_present(np, "local-mac-address"))
 			continue;
 
 		newmac = kzalloc(sizeof(*newmac) + 6, GFP_KERNEL);

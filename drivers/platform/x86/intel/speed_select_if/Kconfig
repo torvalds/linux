@@ -2,8 +2,12 @@ menu "Intel Speed Select Technology interface support"
 	depends on PCI
 	depends on X86_64 || COMPILE_TEST
 
+config INTEL_SPEED_SELECT_TPMI
+	tristate
+
 config INTEL_SPEED_SELECT_INTERFACE
 	tristate "Intel(R) Speed Select Technology interface drivers"
+	select INTEL_SPEED_SELECT_TPMI if INTEL_TPMI
 	help
 	  This config enables the Intel(R) Speed Select Technology interface
 	  drivers. The Intel(R) speed select technology features are non

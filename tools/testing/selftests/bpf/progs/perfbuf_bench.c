@@ -22,7 +22,6 @@ long dropped __attribute__((aligned(128))) = 0;
 SEC("fentry/" SYS_PREFIX "sys_getpgid")
 int bench_perfbuf(void *ctx)
 {
-	__u64 *sample;
 	int i;
 
 	for (i = 0; i < batch_cnt; i++) {

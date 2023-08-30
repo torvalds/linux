@@ -284,15 +284,13 @@ static void pic32_rtc_enable(struct pic32_rtc_dev *pdata, int en)
 	clk_disable(pdata->clk);
 }
 
-static int pic32_rtc_remove(struct platform_device *pdev)
+static void pic32_rtc_remove(struct platform_device *pdev)
 {
 	struct pic32_rtc_dev *pdata = platform_get_drvdata(pdev);
 
 	pic32_rtc_setaie(&pdev->dev, 0);
 	clk_unprepare(pdata->clk);
 	pdata->clk = NULL;
-
-	return 0;
 }
 
 static int pic32_rtc_probe(struct platform_device *pdev)
@@ -373,7 +371,7 @@ MODULE_DEVICE_TABLE(of, pic32_rtc_dt_ids);
 
 static struct platform_driver pic32_rtc_driver = {
 	.probe		= pic32_rtc_probe,
-	.remove		= pic32_rtc_remove,
+	.remove_new	= pic32_rtc_remove,
 	.driver		= {
 		.name	= "pic32-rtc",
 		.of_match_table	= of_match_ptr(pic32_rtc_dt_ids),

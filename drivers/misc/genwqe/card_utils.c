@@ -210,7 +210,7 @@ u32 genwqe_crc32(u8 *buff, size_t len, u32 init)
 void *__genwqe_alloc_consistent(struct genwqe_dev *cd, size_t size,
 			       dma_addr_t *dma_handle)
 {
-	if (get_order(size) >= MAX_ORDER)
+	if (get_order(size) > MAX_ORDER)
 		return NULL;
 
 	return dma_alloc_coherent(&cd->pci_dev->dev, size, dma_handle,

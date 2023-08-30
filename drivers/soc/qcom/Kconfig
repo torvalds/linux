@@ -72,7 +72,7 @@ config QCOM_LLCC
 
 config QCOM_KRYO_L2_ACCESSORS
 	bool
-	depends on ARCH_QCOM && ARM64 || COMPILE_TEST
+	depends on (ARCH_QCOM || COMPILE_TEST) && ARM64
 
 config QCOM_MDT_LOADER
 	tristate
@@ -274,5 +274,9 @@ config QCOM_ICC_BWMON
 	  Level Cache (memnoc).  Usage of this BWMON allows to remove some of
 	  the fixed bandwidth votes from cpufreq (CPU nodes) thus achieve high
 	  memory throughput even with lower CPU frequencies.
+
+config QCOM_INLINE_CRYPTO_ENGINE
+	tristate
+	select QCOM_SCM
 
 endmenu

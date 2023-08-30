@@ -8,6 +8,7 @@
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/leds/common.h>
 #include <dt-bindings/pwm/pwm.h>
+#include <dt-bindings/regulator/dlg,da9063-regulator.h>
 #include "imx6ull.dtsi"
 
 / {
@@ -84,16 +85,20 @@
 
 		regulators {
 			vdd_soc_in_1v4: buck1 {
+				regulator-allowed-modes = <DA9063_BUCK_MODE_SLEEP>; /* PFM */
 				regulator-always-on;
 				regulator-boot-on;
+				regulator-initial-mode = <DA9063_BUCK_MODE_SLEEP>;
 				regulator-max-microvolt = <1400000>;
 				regulator-min-microvolt = <1400000>;
 				regulator-name = "vdd_soc_in_1v4";
 			};
 
 			vcc_3v3: buck2 {
+				regulator-allowed-modes = <DA9063_BUCK_MODE_SYNC>; /* PWM */
 				regulator-always-on;
 				regulator-boot-on;
+				regulator-initial-mode = <DA9063_BUCK_MODE_SYNC>;
 				regulator-max-microvolt = <3300000>;
 				regulator-min-microvolt = <3300000>;
 				regulator-name = "vcc_3v3";
@@ -106,8 +111,10 @@
 			 * the voltage is set to 1.5V.
 			 */
 			vcc_ddr_1v35: buck3 {
+				regulator-allowed-modes = <DA9063_BUCK_MODE_SYNC>; /* PWM */
 				regulator-always-on;
 				regulator-boot-on;
+				regulator-initial-mode = <DA9063_BUCK_MODE_SYNC>;
 				regulator-max-microvolt = <1500000>;
 				regulator-min-microvolt = <1500000>;
 				regulator-name = "vcc_ddr_1v35";

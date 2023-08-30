@@ -178,6 +178,7 @@ static int aat2870_regulator_probe(struct platform_device *pdev)
 static struct platform_driver aat2870_regulator_driver = {
 	.driver = {
 		.name	= "aat2870-regulator",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 	.probe	= aat2870_regulator_probe,
 };

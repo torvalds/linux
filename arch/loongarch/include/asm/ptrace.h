@@ -154,6 +154,11 @@ static inline long regs_return_value(struct pt_regs *regs)
 	return regs->regs[4];
 }
 
+static inline void regs_set_return_value(struct pt_regs *regs, unsigned long val)
+{
+	regs->regs[4] = val;
+}
+
 #define instruction_pointer(regs) ((regs)->csr_era)
 #define profile_pc(regs) instruction_pointer(regs)
 

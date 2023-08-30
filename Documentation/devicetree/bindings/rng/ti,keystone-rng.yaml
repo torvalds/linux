@@ -25,7 +25,7 @@ properties:
     maxItems: 1
 
   ti,syscon-sa-cfg:
-    $ref: "/schemas/types.yaml#/definitions/phandle"
+    $ref: /schemas/types.yaml#/definitions/phandle
     description: |
       Phandle to syscon node of the SA configuration registers.  These
       registers are shared between HWRNG and crypto drivers.

@@ -48,6 +48,8 @@ int sof_apl_ops_init(struct snd_sof_dev *sdev)
 
 		/* debug */
 		sof_apl_ops.ipc_dump	= hda_ipc_dump;
+
+		sof_apl_ops.set_power_state = hda_dsp_set_power_state_ipc3;
 	}
 
 	if (sdev->pdata->ipc_type == SOF_INTEL_IPC4) {
@@ -73,6 +75,8 @@ int sof_apl_ops_init(struct snd_sof_dev *sdev)
 
 		/* debug */
 		sof_apl_ops.ipc_dump	= hda_ipc4_dump;
+
+		sof_apl_ops.set_power_state = hda_dsp_set_power_state_ipc4;
 	}
 
 	/* set DAI driver ops */

@@ -110,7 +110,7 @@ static void __hyp_attach_page(struct hyp_pool *pool,
 	 * after coalescing, so make sure to mark it HYP_NO_ORDER proactively.
 	 */
 	p->order = HYP_NO_ORDER;
-	for (; (order + 1) < pool->max_order; order++) {
+	for (; (order + 1) <= pool->max_order; order++) {
 		buddy = __find_buddy_avail(pool, p, order);
 		if (!buddy)
 			break;
@@ -203,9 +203,9 @@ void *hyp_alloc_pages(struct hyp_pool *pool, unsigned short order)
 	hyp_spin_lock(&pool->lock);
 
 	/* Look for a high-enough-order page */
-	while (i < pool->max_order && list_empty(&pool->free_area[i]))
+	while (i <= pool->max_order && list_empty(&pool->free_area[i]))
 		i++;
-	if (i >= pool->max_order) {
+	if (i > pool->max_order) {
 		hyp_spin_unlock(&pool->lock);
 		return NULL;
 	}
@@ -228,8 +228,8 @@ int hyp_pool_init(struct hyp_pool *pool, u64 pfn, unsigned int nr_pages,
 	int i;
 
 	hyp_spin_lock_init(&pool->lock);
-	pool->max_order = min(MAX_ORDER, get_order((nr_pages + 1) << PAGE_SHIFT));
-	for (i = 0; i < pool->max_order; i++)
+	pool->max_order = min(MAX_ORDER, get_order(nr_pages << PAGE_SHIFT));
+	for (i = 0; i <= pool->max_order; i++)
 		INIT_LIST_HEAD(&pool->free_area[i]);
 	pool->range_start = phys;
 	pool->range_end = phys + (nr_pages << PAGE_SHIFT);

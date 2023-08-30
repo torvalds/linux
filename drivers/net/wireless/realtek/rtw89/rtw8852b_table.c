@@ -14706,6 +14706,7 @@ const u8 rtw89_8852b_tx_shape[RTW89_BAND_MAX][RTW89_RS_TX_SHAPE_NUM]
 	[1][1][RTW89_UKRAINE] = 0,
 };
 
+static
 const s8 rtw89_8852b_txpwr_lmt_2g[RTW89_2G_BW_NUM][RTW89_NTX_NUM]
 				 [RTW89_RS_LMT_NUM][RTW89_BF_NUM]
 				 [RTW89_REGD_NUM][RTW89_2G_CH_NUM] = {
@@ -16895,6 +16896,7 @@ const s8 rtw89_8852b_txpwr_lmt_2g[RTW89_2G_BW_NUM][RTW89_NTX_NUM]
 	[1][1][2][1][RTW89_UK][13] = 127,
 };
 
+static
 const s8 rtw89_8852b_txpwr_lmt_5g[RTW89_5G_BW_NUM][RTW89_NTX_NUM]
 				 [RTW89_RS_LMT_NUM][RTW89_BF_NUM]
 				 [RTW89_REGD_NUM][RTW89_5G_CH_NUM] = {
@@ -19539,6 +19541,7 @@ const s8 rtw89_8852b_txpwr_lmt_5g[RTW89_5G_BW_NUM][RTW89_NTX_NUM]
 	[2][1][2][1][RTW89_UK][49] = 127,
 };
 
+static
 const s8 rtw89_8852b_txpwr_lmt_ru_2g[RTW89_RU_NUM][RTW89_NTX_NUM]
 				    [RTW89_REGD_NUM][RTW89_2G_CH_NUM] = {
 	[0][0][RTW89_WW][0] = 32,
@@ -20635,6 +20638,7 @@ const s8 rtw89_8852b_txpwr_lmt_ru_2g[RTW89_RU_NUM][RTW89_NTX_NUM]
 	[2][1][RTW89_UK][13] = 127,
 };
 
+static
 const s8 rtw89_8852b_txpwr_lmt_ru_5g[RTW89_RU_NUM][RTW89_NTX_NUM]
 				    [RTW89_REGD_NUM][RTW89_5G_CH_NUM] = {
 	[0][0][RTW89_WW][0] = 24,
@@ -22874,4 +22878,15 @@ const struct rtw89_txpwr_track_cfg rtw89_8852b_trk_cfg = {
 	.delta_swingidx_2g_cck_b_p = _txpwr_track_delta_swingidx_2g_cck_b_p,
 	.delta_swingidx_2g_cck_a_n = _txpwr_track_delta_swingidx_2g_cck_a_n,
 	.delta_swingidx_2g_cck_a_p = _txpwr_track_delta_swingidx_2g_cck_a_p,
+};
+
+const struct rtw89_rfe_parms rtw89_8852b_dflt_parms = {
+	.rule_2ghz = {
+		.lmt = &rtw89_8852b_txpwr_lmt_2g,
+		.lmt_ru = &rtw89_8852b_txpwr_lmt_ru_2g,
+	},
+	.rule_5ghz = {
+		.lmt = &rtw89_8852b_txpwr_lmt_5g,
+		.lmt_ru = &rtw89_8852b_txpwr_lmt_ru_5g,
+	},
 };

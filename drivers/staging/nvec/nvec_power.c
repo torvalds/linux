@@ -416,7 +416,7 @@ static int nvec_power_probe(struct platform_device *pdev)
 	return PTR_ERR_OR_ZERO(*psy);
 }
 
-static int nvec_power_remove(struct platform_device *pdev)
+static void nvec_power_remove(struct platform_device *pdev)
 {
 	struct nvec_power *power = platform_get_drvdata(pdev);
 
@@ -429,13 +429,11 @@ static int nvec_power_remove(struct platform_device *pdev)
 	case BAT:
 		power_supply_unregister(nvec_bat_psy);
 	}
-
-	return 0;
 }
 
 static struct platform_driver nvec_power_driver = {
 	.probe = nvec_power_probe,
-	.remove = nvec_power_remove,
+	.remove_new = nvec_power_remove,
 	.driver = {
 		   .name = "nvec-power",
 	}

@@ -748,6 +748,18 @@ struct iwl_imr_data {
 	__le64 imr_base_addr;
 };
 
+#define IWL_TRANS_CURRENT_PC_NAME_MAX_BYTES      32
+
+/**
+ * struct iwl_pc_data - program counter details
+ * @pc_name: cpu name
+ * @pc_address: cpu program counter
+ */
+struct iwl_pc_data {
+	u8  pc_name[IWL_TRANS_CURRENT_PC_NAME_MAX_BYTES];
+	u32 pc_address;
+};
+
 /**
  * struct iwl_trans_debug - transport debug related data
  *
@@ -775,6 +787,10 @@ struct iwl_imr_data {
  * @periodic_trig_list: periodic triggers list
  * @domains_bitmap: bitmap of active domains other than &IWL_FW_INI_DOMAIN_ALWAYS_ON
  * @ucode_preset: preset based on ucode
+ * @dump_file_name_ext: dump file name extension
+ * @dump_file_name_ext_valid: dump file name extension if valid or not
+ * @num_pc: number of program counter for cpu
+ * @pc_data: details of the program counter
  */
 struct iwl_trans_debug {
 	u8 n_dest_reg;
@@ -813,6 +829,10 @@ struct iwl_trans_debug {
 	bool restart_required;
 	u32 last_tp_resetfw;
 	struct iwl_imr_data imr_data;
+	u8 dump_file_name_ext[IWL_FW_INI_MAX_NAME];
+	bool dump_file_name_ext_valid;
+	u32 num_pc;
+	struct iwl_pc_data *pc_data;
 };
 
 struct iwl_dma_ptr {
@@ -977,7 +997,7 @@ struct iwl_trans_txqs {
  *	0 indicates that frag SKBs (NETIF_F_SG) aren't supported.
  * @hw_rf_id a u32 with the device RF ID
  * @hw_crf_id a u32 with the device CRF ID
- * @hw_cdb_id a u32 with the device CDB ID
+ * @hw_wfpm_id a u32 with the device wfpm ID
  * @hw_id: a u32 with the ID of the device / sub-device.
  *	Set during transport allocation.
  * @hw_id_str: a string with info about HW ID. Set during transport allocation.
@@ -1020,7 +1040,8 @@ struct iwl_trans {
 	u32 hw_rev_step;
 	u32 hw_rf_id;
 	u32 hw_crf_id;
-	u32 hw_cdb_id;
+	u32 hw_cnv_id;
+	u32 hw_wfpm_id;
 	u32 hw_id;
 	char hw_id_str[52];
 	u32 sku_id[3];

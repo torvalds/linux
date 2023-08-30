@@ -117,24 +117,28 @@ static struct spi_statistics __percpu *spi_alloc_pcpu_stats(struct device *dev)
 	return pcpu_stats;
 }
 
-#define spi_pcpu_stats_totalize(ret, in, field)				\
-do {									\
-	int i;								\
-	ret = 0;							\
-	for_each_possible_cpu(i) {					\
-		const struct spi_statistics *pcpu_stats;		\
-		u64 inc;						\
-		unsigned int start;					\
-		pcpu_stats = per_cpu_ptr(in, i);			\
-		do {							\
-			start = u64_stats_fetch_begin(		\
-					&pcpu_stats->syncp);		\
-			inc = u64_stats_read(&pcpu_stats->field);	\
-		} while (u64_stats_fetch_retry(			\
-					&pcpu_stats->syncp, start));	\
-		ret += inc;						\
-	}								\
-} while (0)
+static ssize_t spi_emit_pcpu_stats(struct spi_statistics __percpu *stat,
+				   char *buf, size_t offset)
+{
+	u64 val = 0;
+	int i;
+
+	for_each_possible_cpu(i) {
+		const struct spi_statistics *pcpu_stats;
+		u64_stats_t *field;
+		unsigned int start;
+		u64 inc;
+
+		pcpu_stats = per_cpu_ptr(stat, i);
+		field = (void *)pcpu_stats + offset;
+		do {
+			start = u64_stats_fetch_begin(&pcpu_stats->syncp);
+			inc = u64_stats_read(field);
+		} while (u64_stats_fetch_retry(&pcpu_stats->syncp, start));
+		val += inc;
+	}
+	return sysfs_emit(buf, "%llu\n", val);
+}
 
 #define SPI_STATISTICS_ATTRS(field, file)				\
 static ssize_t spi_controller_##field##_show(struct device *dev,	\
@@ -165,11 +169,8 @@ static struct device_attribute dev_attr_spi_device_##field = {		\
 static ssize_t spi_statistics_##name##_show(struct spi_statistics __percpu *stat, \
 					    char *buf)			\
 {									\
-	ssize_t len;							\
-	u64 val;							\
-	spi_pcpu_stats_totalize(val, stat, field);			\
-	len = sysfs_emit(buf, "%llu\n", val);				\
-	return len;							\
+	return spi_emit_pcpu_stats(stat, buf,				\
+			offsetof(struct spi_statistics, field));	\
 }									\
 SPI_STATISTICS_ATTRS(name, file)
 
@@ -2354,8 +2355,8 @@ of_register_spi_device(struct spi_controller *ctlr, struct device_node *nc)
 	}
 
 	/* Select device driver */
-	rc = of_modalias_node(nc, spi->modalias,
-				sizeof(spi->modalias));
+	rc = of_alias_from_compatible(nc, spi->modalias,
+				      sizeof(spi->modalias));
 	if (rc < 0) {
 		dev_err(&ctlr->dev, "cannot find modalias for %pOF\n", nc);
 		goto err_out;
@@ -2367,8 +2368,8 @@ of_register_spi_device(struct spi_controller *ctlr, struct device_node *nc)
 
 	/* Store a pointer to the node in the device structure */
 	of_node_get(nc);
-	spi->dev.of_node = nc;
-	spi->dev.fwnode = of_fwnode_handle(nc);
+
+	device_set_node(&spi->dev, of_fwnode_handle(nc));
 
 	/* Register the new device */
 	rc = spi_add_device(spi);
@@ -2776,7 +2777,6 @@ static void spi_controller_release(struct device *dev)
 
 static struct class spi_master_class = {
 	.name		= "spi_master",
-	.owner		= THIS_MODULE,
 	.dev_release	= spi_controller_release,
 	.dev_groups	= spi_master_groups,
 };
@@ -2879,7 +2879,6 @@ static const struct attribute_group *spi_slave_groups[] = {
 
 static struct class spi_slave_class = {
 	.name		= "spi_slave",
-	.owner		= THIS_MODULE,
 	.dev_release	= spi_controller_release,
 	.dev_groups	= spi_slave_groups,
 };
@@ -3075,7 +3074,7 @@ static int spi_controller_check_ops(struct spi_controller *ctlr)
 	 * If ->mem_ops or ->mem_ops->exec_op is NULL, we request that at least
 	 * one of the ->transfer_xxx() method be implemented.
 	 */
-	if (!ctlr->mem_ops || (ctlr->mem_ops && !ctlr->mem_ops->exec_op)) {
+	if (!ctlr->mem_ops || !ctlr->mem_ops->exec_op) {
 		if (!ctlr->transfer && !ctlr->transfer_one &&
 		   !ctlr->transfer_one_message) {
 			return -EINVAL;
@@ -3620,6 +3619,55 @@ int spi_split_transfers_maxsize(struct spi_controller *ctlr,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(spi_split_transfers_maxsize);
+
+
+/**
+ * spi_split_transfers_maxwords - split spi transfers into multiple transfers
+ *                                when an individual transfer exceeds a
+ *                                certain number of SPI words
+ * @ctlr:     the @spi_controller for this transfer
+ * @msg:      the @spi_message to transform
+ * @maxwords: the number of words to limit each transfer to
+ * @gfp:      GFP allocation flags
+ *
+ * Return: status of transformation
+ */
+int spi_split_transfers_maxwords(struct spi_controller *ctlr,
+				 struct spi_message *msg,
+				 size_t maxwords,
+				 gfp_t gfp)
+{
+	struct spi_transfer *xfer;
+
+	/*
+	 * Iterate over the transfer_list,
+	 * but note that xfer is advanced to the last transfer inserted
+	 * to avoid checking sizes again unnecessarily (also xfer does
+	 * potentially belong to a different list by the time the
+	 * replacement has happened).
+	 */
+	list_for_each_entry(xfer, &msg->transfers, transfer_list) {
+		size_t maxsize;
+		int ret;
+
+		if (xfer->bits_per_word <= 8)
+			maxsize = maxwords;
+		else if (xfer->bits_per_word <= 16)
+			maxsize = 2 * maxwords;
+		else
+			maxsize = 4 * maxwords;
+
+		if (xfer->len > maxsize) {
+			ret = __spi_split_transfer_maxsize(ctlr, msg, &xfer,
+							   maxsize, gfp);
+			if (ret)
+				return ret;
+		}
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(spi_split_transfers_maxwords);
 
 /*-------------------------------------------------------------------------*/
 
@@ -4456,6 +4504,11 @@ static int of_spi_notify(struct notifier_block *nb, unsigned long action,
 			return NOTIFY_OK;
 		}
 
+		/*
+		 * Clear the flag before adding the device so that fw_devlink
+		 * doesn't skip adding consumers to this device.
+		 */
+		rd->dn->fwnode.flags &= ~FWNODE_FLAG_NOT_DEVICE;
 		spi = of_register_spi_device(ctlr, rd->dn);
 		put_device(&ctlr->dev);
 

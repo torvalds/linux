@@ -26,6 +26,7 @@ properties:
   dvdd-supply:
     description: 3v3 digital regulator
 
+  port: true
   reset-gpios: true
 
   backlight: true
@@ -35,6 +36,7 @@ required:
   - reg
   - avdd-supply
   - dvdd-supply
+  - port
 
 additionalProperties: false
 
@@ -53,5 +55,11 @@ examples:
             dvdd-supply = <&reg_dldo2>;
             reset-gpios = <&pio 3 24 GPIO_ACTIVE_HIGH>; /* LCD-RST: PD24 */
             backlight = <&backlight>;
+
+            port {
+                mipi_in_panel: endpoint {
+                    remote-endpoint = <&mipi_out_panel>;
+                };
+            };
         };
     };

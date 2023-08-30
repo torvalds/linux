@@ -339,7 +339,8 @@ static int tas5720_codec_probe(struct snd_soc_component *component)
 		break;
 	default:
 		dev_err(component->dev, "unexpected private driver data\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto probe_fail;
 	}
 
 	if (device_id != expected_device_id)

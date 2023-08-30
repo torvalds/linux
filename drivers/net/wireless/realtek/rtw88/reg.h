@@ -87,6 +87,7 @@
 #define BIT_LTE_MUX_CTRL_PATH	BIT(26)
 #define REG_HCI_OPT_CTRL	0x0074
 #define BIT_USB_SUS_DIS		BIT(8)
+#define BIT_SDIO_PAD_E5		BIT(18)
 
 #define REG_AFE_CTRL_4		0x0078
 #define BIT_CK320M_AFE_EN	BIT(4)
@@ -185,6 +186,9 @@
 	(((x) & BIT_MASK_TXDMA_VIQ_MAP) << BIT_SHIFT_TXDMA_VIQ_MAP)
 #define REG_TXDMA_PQ_MAP	0x010C
 #define BIT_RXDMA_ARBBW_EN	BIT(0)
+#define BIT_RXSHFT_EN		BIT(1)
+#define BIT_RXDMA_AGG_EN	BIT(2)
+#define BIT_TXDMA_BW_EN		BIT(3)
 #define BIT_SHIFT_TXDMA_BEQ_MAP	8
 #define BIT_MASK_TXDMA_BEQ_MAP	0x3
 #define BIT_TXDMA_BEQ_MAP(x)                                                   \
@@ -283,10 +287,18 @@
 #define REG_H2C_TAIL		0x0248
 #define REG_H2C_READ_ADDR	0x024C
 #define REG_H2C_INFO		0x0254
+#define REG_RXDMA_AGG_PG_TH	0x0280
+#define BIT_RXDMA_AGG_PG_TH	GENMASK(7, 0)
+#define BIT_DMA_AGG_TO_V1	GENMASK(15, 8)
+#define BIT_EN_PRE_CALC		BIT(29)
 #define REG_RXPKT_NUM		0x0284
 #define BIT_RXDMA_REQ		BIT(19)
 #define BIT_RW_RELEASE		BIT(18)
 #define BIT_RXDMA_IDLE		BIT(17)
+#define REG_RXDMA_STATUS	0x0288
+#define REG_RXDMA_DPR		0x028C
+#define REG_RXDMA_MODE		0x0290
+#define BIT_DMA_MODE		BIT(1)
 #define REG_RXPKTNUM		0x02B0
 
 #define REG_INT_MIG		0x0304

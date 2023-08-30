@@ -80,6 +80,17 @@ config PINCTRL_IPQ6018
 	  Qualcomm Technologies Inc. IPQ6018 platform. Select this for
 	  IPQ6018.
 
+config PINCTRL_IPQ9574
+	tristate "Qualcomm Technologies, Inc. IPQ9574 pin controller driver"
+	depends on OF || COMPILE_TEST
+	depends on ARM64 || COMPILE_TEST
+	depends on PINCTRL_MSM
+	help
+	  This is the pinctrl, pinmux, pinconf and gpiolib driver for
+          the Qualcomm Technologies Inc. TLMM block found on the
+          Qualcomm Technologies Inc. IPQ9574 platform. Select this for
+          IPQ9574.
+
 config PINCTRL_MSM8226
 	tristate "Qualcomm 8226 pin controller driver"
 	depends on OF
@@ -416,6 +427,16 @@ config PINCTRL_SDX65
 	 This is the pinctrl, pinmux, pinconf and gpiolib driver for the
 	 Qualcomm Technologies Inc TLMM block found on the Qualcomm
 	 Technologies Inc SDX65 platform.
+
+config PINCTRL_SM7150
+	tristate "Qualcomm Technologies Inc SM7150 pin controller driver"
+	depends on OF
+	depends on ARM64 || COMPILE_TEST
+	depends on PINCTRL_MSM
+	help
+	 This is the pinctrl, pinmux, pinconf and gpiolib driver for the
+	 Qualcomm Technologies Inc TLMM block found on the Qualcomm
+	 Technologies Inc SM7150 platform.
 
 config PINCTRL_SM8150
 	tristate "Qualcomm Technologies Inc SM8150 pin controller driver"

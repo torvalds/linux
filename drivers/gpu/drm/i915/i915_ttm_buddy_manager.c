@@ -139,13 +139,6 @@ static int i915_ttm_buddy_man_alloc(struct ttm_resource_manager *man,
 
 	mutex_unlock(&bman->lock);
 
-	if (place->lpfn - place->fpfn == n_pages)
-		bman_res->base.start = place->fpfn;
-	else if (lpfn <= bman->visible_size)
-		bman_res->base.start = 0;
-	else
-		bman_res->base.start = bman->visible_size;
-
 	*res = &bman_res->base;
 	return 0;
 

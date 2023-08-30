@@ -1,7 +1,7 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (C) 2017 Oracle.  All Rights Reserved.
- * Author: Darrick J. Wong <darrick.wong@oracle.com>
+ * Copyright (C) 2017-2023 Oracle.  All Rights Reserved.
+ * Author: Darrick J. Wong <djwong@kernel.org>
  */
 #include "xfs.h"
 #include "xfs_fs.h"
@@ -24,10 +24,19 @@ int
 xchk_setup_ag_allocbt(
 	struct xfs_scrub	*sc)
 {
+	if (xchk_need_intent_drain(sc))
+		xchk_fsgates_enable(sc, XCHK_FSGATES_DRAIN);
+
 	return xchk_setup_ag_btree(sc, false);
 }
 
 /* Free space btree scrubber. */
+
+struct xchk_alloc {
+	/* Previous free space extent. */
+	struct xfs_alloc_rec_incore	prev;
+};
+
 /*
  * Ensure there's a corresponding cntbt/bnobt record matching this
  * bnobt/cntbt record, respectively.
@@ -75,9 +84,11 @@ xchk_allocbt_xref_other(
 STATIC void
 xchk_allocbt_xref(
 	struct xfs_scrub	*sc,
-	xfs_agblock_t		agbno,
-	xfs_extlen_t		len)
+	const struct xfs_alloc_rec_incore *irec)
 {
+	xfs_agblock_t		agbno = irec->ar_startblock;
+	xfs_extlen_t		len = irec->ar_blockcount;
+
 	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
 		return;
 
@@ -85,25 +96,44 @@ xchk_allocbt_xref(
 	xchk_xref_is_not_inode_chunk(sc, agbno, len);
 	xchk_xref_has_no_owner(sc, agbno, len);
 	xchk_xref_is_not_shared(sc, agbno, len);
+	xchk_xref_is_not_cow_staging(sc, agbno, len);
+}
+
+/* Flag failures for records that could be merged. */
+STATIC void
+xchk_allocbt_mergeable(
+	struct xchk_btree	*bs,
+	struct xchk_alloc	*ca,
+	const struct xfs_alloc_rec_incore *irec)
+{
+	if (bs->sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
+		return;
+
+	if (ca->prev.ar_blockcount > 0 &&
+	    ca->prev.ar_startblock + ca->prev.ar_blockcount == irec->ar_startblock &&
+	    ca->prev.ar_blockcount + irec->ar_blockcount < (uint32_t)~0U)
+		xchk_btree_set_corrupt(bs->sc, bs->cur, 0);
+
+	memcpy(&ca->prev, irec, sizeof(*irec));
 }
 
 /* Scrub a bnobt/cntbt record. */
 STATIC int
 xchk_allocbt_rec(
-	struct xchk_btree	*bs,
-	const union xfs_btree_rec *rec)
+	struct xchk_btree		*bs,
+	const union xfs_btree_rec	*rec)
 {
-	struct xfs_perag	*pag = bs->cur->bc_ag.pag;
-	xfs_agblock_t		bno;
-	xfs_extlen_t		len;
+	struct xfs_alloc_rec_incore	irec;
+	struct xchk_alloc	*ca = bs->private;
 
-	bno = be32_to_cpu(rec->alloc.ar_startblock);
-	len = be32_to_cpu(rec->alloc.ar_blockcount);
-
-	if (!xfs_verify_agbext(pag, bno, len))
+	xfs_alloc_btrec_to_irec(rec, &irec);
+	if (xfs_alloc_check_irec(bs->cur, &irec) != NULL) {
 		xchk_btree_set_corrupt(bs->sc, bs->cur, 0);
+		return 0;
+	}
 
-	xchk_allocbt_xref(bs->sc, bno, len);
+	xchk_allocbt_mergeable(bs, ca, &irec);
+	xchk_allocbt_xref(bs->sc, &irec);
 
 	return 0;
 }
@@ -114,10 +144,11 @@ xchk_allocbt(
 	struct xfs_scrub	*sc,
 	xfs_btnum_t		which)
 {
+	struct xchk_alloc	ca = { };
 	struct xfs_btree_cur	*cur;
 
 	cur = which == XFS_BTNUM_BNO ? sc->sa.bno_cur : sc->sa.cnt_cur;
-	return xchk_btree(sc, cur, xchk_allocbt_rec, &XFS_RMAP_OINFO_AG, NULL);
+	return xchk_btree(sc, cur, xchk_allocbt_rec, &XFS_RMAP_OINFO_AG, &ca);
 }
 
 int
@@ -141,15 +172,15 @@ xchk_xref_is_used_space(
 	xfs_agblock_t		agbno,
 	xfs_extlen_t		len)
 {
-	bool			is_freesp;
+	enum xbtree_recpacking	outcome;
 	int			error;
 
 	if (!sc->sa.bno_cur || xchk_skip_xref(sc->sm))
 		return;
 
-	error = xfs_alloc_has_record(sc->sa.bno_cur, agbno, len, &is_freesp);
+	error = xfs_alloc_has_records(sc->sa.bno_cur, agbno, len, &outcome);
 	if (!xchk_should_check_xref(sc, &error, &sc->sa.bno_cur))
 		return;
-	if (is_freesp)
+	if (outcome != XBTREE_RECPACKING_EMPTY)
 		xchk_btree_xref_set_corrupt(sc, sc->sa.bno_cur, 0);
 }

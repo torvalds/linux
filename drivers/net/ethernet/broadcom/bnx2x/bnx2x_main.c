@@ -29,7 +29,6 @@
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
-#include <linux/aer.h>
 #include <linux/init.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
@@ -298,7 +297,7 @@ const u32 dmae_reg_go_c[] = {
 
 /* Global resources for unloading a previously loaded device */
 #define BNX2X_PREV_WAIT_NEEDED 1
-static DEFINE_SEMAPHORE(bnx2x_prev_sem);
+static DEFINE_SEMAPHORE(bnx2x_prev_sem, 1);
 static LIST_HEAD(bnx2x_prev_list);
 
 /* Forward declaration */
@@ -13037,14 +13036,6 @@ static const struct net_device_ops bnx2x_netdev_ops = {
 	.ndo_features_check	= bnx2x_features_check,
 };
 
-static void bnx2x_disable_pcie_error_reporting(struct bnx2x *bp)
-{
-	if (bp->flags & AER_ENABLED) {
-		pci_disable_pcie_error_reporting(bp->pdev);
-		bp->flags &= ~AER_ENABLED;
-	}
-}
-
 static int bnx2x_init_dev(struct bnx2x *bp, struct pci_dev *pdev,
 			  struct net_device *dev, unsigned long board_type)
 {
@@ -13156,13 +13147,6 @@ static int bnx2x_init_dev(struct bnx2x *bp, struct pci_dev *pdev,
 
 	/* Set PCIe reset type to fundamental for EEH recovery */
 	pdev->needs_freset = 1;
-
-	/* AER (Advanced Error reporting) configuration */
-	rc = pci_enable_pcie_error_reporting(pdev);
-	if (!rc)
-		bp->flags |= AER_ENABLED;
-	else
-		BNX2X_DEV_INFO("Failed To configure PCIe AER [%d]\n", rc);
 
 	/*
 	 * Clean the following indirect addresses for all functions since it
@@ -14020,8 +14004,6 @@ init_one_freemem:
 	bnx2x_free_mem_bp(bp);
 
 init_one_exit:
-	bnx2x_disable_pcie_error_reporting(bp);
-
 	if (bp->regview)
 		iounmap(bp->regview);
 
@@ -14102,7 +14084,6 @@ static void __bnx2x_remove(struct pci_dev *pdev,
 		pci_set_power_state(pdev, PCI_D3hot);
 	}
 
-	bnx2x_disable_pcie_error_reporting(bp);
 	if (remove_netdev) {
 		if (bp->regview)
 			iounmap(bp->regview);
@@ -14313,11 +14294,16 @@ static void bnx2x_io_resume(struct pci_dev *pdev)
 	bp->fw_seq = SHMEM_RD(bp, func_mb[BP_FW_MB_IDX(bp)].drv_mb_header) &
 							DRV_MSG_SEQ_NUMBER_MASK;
 
-	if (netif_running(dev))
-		bnx2x_nic_load(bp, LOAD_NORMAL);
+	if (netif_running(dev)) {
+		if (bnx2x_nic_load(bp, LOAD_NORMAL)) {
+			netdev_err(bp->dev, "Error during driver initialization, try unloading/reloading the driver\n");
+			goto done;
+		}
+	}
 
 	netif_device_attach(dev);
 
+done:
 	rtnl_unlock();
 }
 

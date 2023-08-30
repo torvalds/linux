@@ -908,7 +908,7 @@ static const struct i2c_device_id ltc4162l_i2c_id_table[] = {
 };
 MODULE_DEVICE_TABLE(i2c, ltc4162l_i2c_id_table);
 
-static const struct of_device_id ltc4162l_of_match[] = {
+static const struct of_device_id ltc4162l_of_match[] __maybe_unused = {
 	{ .compatible = "lltc,ltc4162-l", },
 	{ },
 };

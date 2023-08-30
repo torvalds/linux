@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
+// SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)
 /* Do not edit directly, auto-generated from: */
 /*	Documentation/netlink/specs/netdev.yaml */
 /* YNL-GEN kernel source */
@@ -16,7 +16,7 @@ static const struct nla_policy netdev_dev_get_nl_policy[NETDEV_A_DEV_IFINDEX + 1
 };
 
 /* Ops table for netdev */
-static const struct genl_split_ops netdev_nl_ops[2] = {
+static const struct genl_split_ops netdev_nl_ops[] = {
 	{
 		.cmd		= NETDEV_CMD_DEV_GET,
 		.doit		= netdev_nl_dev_get_doit,

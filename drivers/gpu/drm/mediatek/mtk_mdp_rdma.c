@@ -62,6 +62,20 @@
 #define RDMA_CSC_FULL709_TO_RGB			5
 #define RDMA_CSC_BT601_TO_RGB			6
 
+static const u32 formats[] = {
+	DRM_FORMAT_XRGB8888,
+	DRM_FORMAT_ARGB8888,
+	DRM_FORMAT_BGRX8888,
+	DRM_FORMAT_BGRA8888,
+	DRM_FORMAT_ABGR8888,
+	DRM_FORMAT_XBGR8888,
+	DRM_FORMAT_RGB888,
+	DRM_FORMAT_BGR888,
+	DRM_FORMAT_RGB565,
+	DRM_FORMAT_UYVY,
+	DRM_FORMAT_YUYV,
+};
+
 enum rdma_format {
 	RDMA_INPUT_FORMAT_RGB565 = 0,
 	RDMA_INPUT_FORMAT_RGB888 = 1,
@@ -217,6 +231,16 @@ void mtk_mdp_rdma_config(struct device *dev, struct mtk_mdp_rdma_cfg *cfg,
 			   MDP_RDMA_MF_CLIP_SIZE, FLD_MF_CLIP_W);
 	mtk_ddp_write_mask(cmdq_pkt, cfg->height << 16, &priv->cmdq_reg, priv->regs,
 			   MDP_RDMA_MF_CLIP_SIZE, FLD_MF_CLIP_H);
+}
+
+const u32 *mtk_mdp_rdma_get_formats(struct device *dev)
+{
+	return formats;
+}
+
+size_t mtk_mdp_rdma_get_num_formats(struct device *dev)
+{
+	return ARRAY_SIZE(formats);
 }
 
 int mtk_mdp_rdma_clk_enable(struct device *dev)

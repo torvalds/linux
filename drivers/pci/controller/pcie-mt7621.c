@@ -378,8 +378,8 @@ static int mt7621_pcie_init_ports(struct mt7621_pcie *pcie)
 		u32 slot = port->slot;
 
 		if (!mt7621_pcie_port_is_linkup(port)) {
-			dev_err(dev, "pcie%d no card, disable it (RST & CLK)\n",
-				slot);
+			dev_info(dev, "pcie%d no card, disable it (RST & CLK)\n",
+				 slot);
 			mt7621_control_assert(port);
 			port->enabled = false;
 			num_disabled++;

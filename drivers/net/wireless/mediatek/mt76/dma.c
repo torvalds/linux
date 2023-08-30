@@ -402,8 +402,8 @@ mt76_dma_get_buf(struct mt76_dev *dev, struct mt76_queue *q, int idx,
 		*info = le32_to_cpu(desc->info);
 
 	if (mt76_queue_is_wed_rx(q)) {
-		u32 token = FIELD_GET(MT_DMA_CTL_TOKEN,
-				      le32_to_cpu(desc->buf1));
+		u32 buf1 = le32_to_cpu(desc->buf1);
+		u32 token = FIELD_GET(MT_DMA_CTL_TOKEN, buf1);
 		struct mt76_txwi_cache *t = mt76_rx_token_release(dev, token);
 
 		if (!t)
@@ -424,6 +424,8 @@ mt76_dma_get_buf(struct mt76_dev *dev, struct mt76_queue *q, int idx,
 
 			*drop = !!(ctrl & (MT_DMA_CTL_TO_HOST_A |
 					   MT_DMA_CTL_DROP));
+
+			*drop |= !!(buf1 & MT_DMA_CTL_WO_DROP);
 		}
 	} else {
 		buf = e->buf;
@@ -576,7 +578,9 @@ free:
 free_skb:
 	status.skb = tx_info.skb;
 	hw = mt76_tx_status_get_hw(dev, tx_info.skb);
+	spin_lock_bh(&dev->rx_lock);
 	ieee80211_tx_status_ext(hw, &status);
+	spin_unlock_bh(&dev->rx_lock);
 
 	return ret;
 }
@@ -849,7 +853,7 @@ mt76_dma_rx_process(struct mt76_dev *dev, struct mt76_queue *q, int budget)
 		    !(dev->drv->rx_check(dev, data, len)))
 			goto free_frag;
 
-		skb = build_skb(data, q->buf_size);
+		skb = napi_build_skb(data, q->buf_size);
 		if (!skb)
 			goto free_frag;
 

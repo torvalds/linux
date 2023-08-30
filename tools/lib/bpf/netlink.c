@@ -468,8 +468,13 @@ int bpf_xdp_query(int ifindex, int xdp_flags, struct bpf_xdp_query_opts *opts)
 		return 0;
 
 	err = libbpf_netlink_resolve_genl_family_id("netdev", sizeof("netdev"), &id);
-	if (err < 0)
+	if (err < 0) {
+		if (err == -ENOENT) {
+			opts->feature_flags = 0;
+			goto skip_feature_flags;
+		}
 		return libbpf_err(err);
+	}
 
 	memset(&req, 0, sizeof(req));
 	req.nh.nlmsg_len = NLMSG_LENGTH(GENL_HDRLEN);
@@ -489,6 +494,7 @@ int bpf_xdp_query(int ifindex, int xdp_flags, struct bpf_xdp_query_opts *opts)
 
 	opts->feature_flags = md.flags;
 
+skip_feature_flags:
 	return 0;
 }
 

@@ -323,9 +323,9 @@ void hci_uart_set_flow_control(struct hci_uart *hu, bool enable)
 		/* Disable hardware flow control */
 		ktermios = tty->termios;
 		ktermios.c_cflag &= ~CRTSCTS;
-		status = tty_set_termios(tty, &ktermios);
+		tty_set_termios(tty, &ktermios);
 		BT_DBG("Disabling hardware flow control: %s",
-		       status ? "failed" : "success");
+		       (tty->termios.c_cflag & CRTSCTS) ? "failed" : "success");
 
 		/* Clear RTS to prevent the device from sending */
 		/* Most UARTs need OUT2 to enable interrupts */
@@ -357,9 +357,9 @@ void hci_uart_set_flow_control(struct hci_uart *hu, bool enable)
 		/* Re-enable hardware flow control */
 		ktermios = tty->termios;
 		ktermios.c_cflag |= CRTSCTS;
-		status = tty_set_termios(tty, &ktermios);
+		tty_set_termios(tty, &ktermios);
 		BT_DBG("Enabling hardware flow control: %s",
-		       status ? "failed" : "success");
+		       !(tty->termios.c_cflag & CRTSCTS) ? "failed" : "success");
 	}
 }
 

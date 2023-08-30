@@ -25,7 +25,8 @@ void rtmsg_ifinfo_newnet(int type, struct net_device *dev, unsigned int change,
 struct sk_buff *rtmsg_ifinfo_build_skb(int type, struct net_device *dev,
 				       unsigned change, u32 event,
 				       gfp_t flags, int *new_nsid,
-				       int new_ifindex, u32 portid, u32 seq);
+				       int new_ifindex, u32 portid,
+				       const struct nlmsghdr *nlh);
 void rtmsg_ifinfo_send(struct sk_buff *skb, struct net_device *dev,
 		       gfp_t flags, u32 portid, const struct nlmsghdr *nlh);
 
@@ -60,16 +61,6 @@ static inline bool lockdep_rtnl_is_held(void)
  */
 #define rcu_dereference_rtnl(p)					\
 	rcu_dereference_check(p, lockdep_rtnl_is_held())
-
-/**
- * rcu_dereference_bh_rtnl - rcu_dereference_bh with debug checking
- * @p: The pointer to read, prior to dereference
- *
- * Do an rcu_dereference_bh(p), but check caller either holds rcu_read_lock_bh()
- * or RTNL. Note : Please prefer rtnl_dereference() or rcu_dereference_bh()
- */
-#define rcu_dereference_bh_rtnl(p)				\
-	rcu_dereference_bh_check(p, lockdep_rtnl_is_held())
 
 /**
  * rtnl_dereference - fetch RCU pointer when updates are prevented by RTNL

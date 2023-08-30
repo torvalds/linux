@@ -1250,7 +1250,7 @@ static struct platform_driver sprd_platform_driver = {
 	.remove		= sprd_remove,
 	.driver		= {
 		.name	= "sprd_serial",
-		.of_match_table = of_match_ptr(serial_ids),
+		.of_match_table = serial_ids,
 		.pm	= &sprd_pm_ops,
 	},
 };

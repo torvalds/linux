@@ -13,6 +13,7 @@
 
 #include "progs/test_cls_redirect.h"
 #include "test_cls_redirect.skel.h"
+#include "test_cls_redirect_dynptr.skel.h"
 #include "test_cls_redirect_subprogs.skel.h"
 
 #define ENCAP_IP INADDR_LOOPBACK
@@ -446,6 +447,28 @@ cleanup:
 	close_fds((int *)conns, sizeof(conns) / sizeof(conns[0][0]));
 }
 
+static void test_cls_redirect_dynptr(void)
+{
+	struct test_cls_redirect_dynptr *skel;
+	int err;
+
+	skel = test_cls_redirect_dynptr__open();
+	if (!ASSERT_OK_PTR(skel, "skel_open"))
+		return;
+
+	skel->rodata->ENCAPSULATION_IP = htonl(ENCAP_IP);
+	skel->rodata->ENCAPSULATION_PORT = htons(ENCAP_PORT);
+
+	err = test_cls_redirect_dynptr__load(skel);
+	if (!ASSERT_OK(err, "skel_load"))
+		goto cleanup;
+
+	test_cls_redirect_common(skel->progs.cls_redirect);
+
+cleanup:
+	test_cls_redirect_dynptr__destroy(skel);
+}
+
 static void test_cls_redirect_inlined(void)
 {
 	struct test_cls_redirect *skel;
@@ -496,4 +519,6 @@ void test_cls_redirect(void)
 		test_cls_redirect_inlined();
 	if (test__start_subtest("cls_redirect_subprogs"))
 		test_cls_redirect_subprogs();
+	if (test__start_subtest("cls_redirect_dynptr"))
+		test_cls_redirect_dynptr();
 }

@@ -920,7 +920,7 @@ void run_crash_ipi_callback(struct pt_regs *regs)
 }
 
 /* Override the weak function in kernel/panic.c */
-void nmi_panic_self_stop(struct pt_regs *regs)
+void __noreturn nmi_panic_self_stop(struct pt_regs *regs)
 {
 	while (1) {
 		/* If no CPU is preparing crash dump, we simply loop here. */

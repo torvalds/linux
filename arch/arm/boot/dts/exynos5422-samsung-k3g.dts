@@ -19,6 +19,10 @@
 
 	chassis-type = "handset";
 
+	aliases {
+		mmc0 = &mmc_0;
+	};
+
 	memory@20000000 {
 		device_type = "memory";
 		reg = <0x20000000 0x80000000>; /* 2 GiB */
@@ -597,6 +601,7 @@
 /* eMMC flash */
 &mmc_0 {
 	status = "okay";
+	mmc-ddr-1_8v;
 	mmc-hs200-1_8v;
 	cap-mmc-highspeed;
 	non-removable;

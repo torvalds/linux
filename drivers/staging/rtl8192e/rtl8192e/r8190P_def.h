@@ -103,21 +103,10 @@ enum rf_optype {
 
 struct bb_reg_definition {
 	u32 rfintfs;
-	u32 rfintfi;
 	u32 rfintfo;
 	u32 rfintfe;
 	u32 rf3wireOffset;
-	u32 rfLSSI_Select;
-	u32 rfTxGainStage;
-	u32 rfHSSIPara1;
 	u32 rfHSSIPara2;
-	u32 rfSwitchControl;
-	u32 rfAGCControl1;
-	u32 rfAGCControl2;
-	u32 rfRxIQImbalance;
-	u32 rfRxAFE;
-	u32 rfTxIQImbalance;
-	u32 rfTxAFE;
 	u32 rfLSSIReadBack;
 	u32 rfLSSIReadBackPi;
 };

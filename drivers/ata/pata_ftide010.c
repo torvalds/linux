@@ -84,7 +84,7 @@ struct ftide010 {
 #define FTIDE010_CLK_MOD_DEV0_UDMA_EN	BIT(4)
 #define FTIDE010_CLK_MOD_DEV1_UDMA_EN	BIT(5)
 
-static struct scsi_host_template pata_ftide010_sht = {
+static const struct scsi_host_template pata_ftide010_sht = {
 	ATA_BMDMA_SHT(DRV_NAME),
 };
 

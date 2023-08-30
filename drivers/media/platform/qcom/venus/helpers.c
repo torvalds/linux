@@ -988,8 +988,8 @@ static u32 get_framesize_raw_p010(u32 width, u32 height)
 {
 	u32 y_plane, uv_plane, y_stride, uv_stride, y_sclines, uv_sclines;
 
-	y_stride = ALIGN(width * 2, 256);
-	uv_stride = ALIGN(width * 2, 256);
+	y_stride = ALIGN(width * 2, 128);
+	uv_stride = ALIGN(width * 2, 128);
 	y_sclines = ALIGN(height, 32);
 	uv_sclines = ALIGN((height + 1) >> 1, 16);
 	y_plane = y_stride * y_sclines;

@@ -85,6 +85,8 @@ properties:
 
   compatible:
     enum:
+      - apple,avalanche
+      - apple,blizzard
       - apple,icestorm
       - apple,firestorm
       - arm,arm710t
@@ -139,6 +141,7 @@ properties:
       - arm,cortex-a77
       - arm,cortex-a78
       - arm,cortex-a78ae
+      - arm,cortex-a78c
       - arm,cortex-a510
       - arm,cortex-a710
       - arm,cortex-a715
@@ -151,6 +154,7 @@ properties:
       - arm,cortex-r5
       - arm,cortex-r7
       - arm,cortex-x1
+      - arm,cortex-x1c
       - arm,cortex-x2
       - arm,cortex-x3
       - arm,neoverse-e1

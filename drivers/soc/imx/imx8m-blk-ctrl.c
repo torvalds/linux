@@ -38,10 +38,10 @@ struct imx8m_blk_ctrl {
 struct imx8m_blk_ctrl_domain_data {
 	const char *name;
 	const char * const *clk_names;
-	int num_clks;
 	const char * const *path_names;
-	int num_paths;
 	const char *gpc_name;
+	int num_clks;
+	int num_paths;
 	u32 rst_mask;
 	u32 clk_mask;
 
@@ -210,7 +210,7 @@ static int imx8m_blk_ctrl_probe(struct platform_device *pdev)
 	if (!bc->onecell_data.domains)
 		return -ENOMEM;
 
-	bc->bus_power_dev = genpd_dev_pm_attach_by_name(dev, "bus");
+	bc->bus_power_dev = dev_pm_domain_attach_by_name(dev, "bus");
 	if (IS_ERR(bc->bus_power_dev)) {
 		if (PTR_ERR(bc->bus_power_dev) == -ENODEV)
 			return dev_err_probe(dev, -EPROBE_DEFER,
@@ -309,6 +309,10 @@ static int imx8m_blk_ctrl_probe(struct platform_device *pdev)
 	}
 
 	dev_set_drvdata(dev, bc);
+
+	ret = devm_of_platform_populate(dev);
+	if (ret)
+		goto cleanup_provider;
 
 	return 0;
 
@@ -891,3 +895,4 @@ static struct platform_driver imx8m_blk_ctrl_driver = {
 	},
 };
 module_platform_driver(imx8m_blk_ctrl_driver);
+MODULE_LICENSE("GPL");

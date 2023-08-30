@@ -156,6 +156,7 @@
 
 &i2c8 {
 	status = "okay";
+	mctp-controller;
 	temperature-sensor@1f {
 		compatible = "ti,tmp421";
 		reg = <0x1f>;
@@ -164,6 +165,10 @@
 	eeprom@50 {
 		compatible = "st,24c32";
 		reg = <0x50>;
+	};
+	mctp@10 {
+		compatible = "mctp-i2c-controller";
+		reg = <(0x10 | I2C_OWN_SLAVE_ADDRESS)>;
 	};
 };
 
@@ -238,4 +243,52 @@
 &gpio0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_gpiu1_default &pinctrl_gpiu7_default>;
+
+	gpio-line-names =
+	/*A0-A7*/ "","","","","","","","",
+	/*B0-B7*/ "power-bmc-nic","presence-ocp-debug",
+		  "power-bmc-slot1","power-bmc-slot2",
+		  "power-bmc-slot3","power-bmc-slot4","","",
+	/*C0-C7*/ "presence-ocp-nic","","","reset-cause-nic-primary",
+		  "reset-cause-nic-secondary","","","",
+	/*D0-D7*/ "","","","","","","","",
+	/*E0-E7*/ "","","","","","","","",
+	/*F0-F7*/ "slot1-bmc-reset-button","slot2-bmc-reset-button",
+		  "slot3-bmc-reset-button","slot4-bmc-reset-button",
+		  "","","","presence-emmc",
+	/*G0-G7*/ "","","","","","","","",
+	/*H0-H7*/ "","","","",
+		  "presence-mb-slot1","presence-mb-slot2",
+		  "presence-mb-slot3","presence-mb-slot4",
+	/*I0-I7*/ "","","","","","","bb-bmc-button","",
+	/*J0-J7*/ "","","","","","","","",
+	/*K0-K7*/ "","","","","","","","",
+	/*L0-L7*/ "","","","","","","","",
+	/*M0-M7*/ "","power-nic-bmc-enable","","usb-bmc-enable","","reset-cause-usb-hub","","",
+	/*N0-N7*/ "","","","","bmc-ready","","","",
+	/*O0-O7*/ "","","","","","","fan0-bmc-cpld-enable","fan1-bmc-cpld-enable",
+	/*P0-P7*/ "fan2-bmc-cpld-enable","fan3-bmc-cpld-enable",
+		  "reset-cause-pcie-slot1","reset-cause-pcie-slot2",
+		  "reset-cause-pcie-slot3","reset-cause-pcie-slot4","","",
+	/*Q0-Q7*/ "","","","","","","","",
+	/*R0-R7*/ "","","","","","","","",
+	/*S0-S7*/ "","","power-p5v-usb","presence-bmc-tpm","","","","",
+	/*T0-T7*/ "","","","","","","","",
+	/*U0-U7*/ "","","","","","","","GND",
+	/*V0-V7*/ "bmc-slot1-ac-button","bmc-slot2-ac-button",
+		  "bmc-slot3-ac-button","bmc-slot4-ac-button",
+		  "","","","",
+	/*W0-W7*/ "","","","","","","","",
+	/*X0-X7*/ "","","","","","","","",
+	/*Y0-Y7*/ "","","","reset-cause-emmc","","","","",
+	/*Z0-Z7*/ "","","","","","","","";
+};
+
+&gpio1 {
+	gpio-line-names =
+	/*18A0-18A7*/ "","","","","","","","",
+	/*18B0-18B7*/ "","","","","","","","",
+	/*18C0-18C7*/ "","","","","","","","",
+	/*18D0-18D7*/ "","","","","","","","",
+	/*18E0-18E3*/ "","","","","","","","";
 };

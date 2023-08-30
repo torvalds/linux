@@ -575,12 +575,10 @@ static void brcmstb_i2c_set_bsc_reg_defaults(struct brcmstb_i2c_dev *dev)
 static int bcm2711_release_bsc(struct brcmstb_i2c_dev *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev->device);
-	struct resource *iomem;
 	void __iomem *autoi2c;
 
 	/* Map hardware registers */
-	iomem = platform_get_resource_byname(pdev, IORESOURCE_MEM, "auto-i2c");
-	autoi2c = devm_ioremap_resource(&pdev->dev, iomem);
+	autoi2c = devm_platform_ioremap_resource_byname(pdev, "auto-i2c");
 	if (IS_ERR(autoi2c))
 		return PTR_ERR(autoi2c);
 

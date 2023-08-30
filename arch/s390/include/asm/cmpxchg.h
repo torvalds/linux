@@ -14,8 +14,8 @@
 
 void __xchg_called_with_bad_pointer(void);
 
-static __always_inline unsigned long __xchg(unsigned long x,
-					    unsigned long address, int size)
+static __always_inline unsigned long
+__arch_xchg(unsigned long x, unsigned long address, int size)
 {
 	unsigned long old;
 	int shift;
@@ -77,8 +77,8 @@ static __always_inline unsigned long __xchg(unsigned long x,
 	__typeof__(*(ptr)) __ret;					\
 									\
 	__ret = (__typeof__(*(ptr)))					\
-		__xchg((unsigned long)(x), (unsigned long)(ptr),	\
-		       sizeof(*(ptr)));					\
+		__arch_xchg((unsigned long)(x), (unsigned long)(ptr),	\
+			    sizeof(*(ptr)));				\
 	__ret;								\
 })
 

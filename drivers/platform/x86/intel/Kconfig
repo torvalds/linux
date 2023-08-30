@@ -80,6 +80,16 @@ config INTEL_BXTWC_PMIC_TMU
 	  This driver enables the alarm wakeup functionality in the TMU unit of
 	  Whiskey Cove PMIC.
 
+config INTEL_BYTCRC_PWRSRC
+	tristate "Intel Bay Trail Crystal Cove power source driver"
+	depends on INTEL_SOC_PMIC
+	help
+	  This option adds a power source driver for Crystal Cove PMICs
+	  on Intel Bay Trail devices.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called intel_bytcrc_pwrsrc.
+
 config INTEL_CHTDC_TI_PWRBTN
 	tristate "Intel Cherry Trail Dollar Cove TI power button driver"
 	depends on INTEL_SOC_PMIC_CHTDC_TI

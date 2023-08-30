@@ -859,22 +859,6 @@ bool eqNByte(u8 *str1, u8 *str2, u32 num)
 	return true;
 }
 
-/*  */
-/* 	Description: */
-/* 		Translate a character to hex digit. */
-/*  */
-u32 MapCharToHexDigit(char chTmp)
-{
-	if (chTmp >= '0' && chTmp <= '9')
-		return chTmp - '0';
-	else if (chTmp >= 'a' && chTmp <= 'f')
-		return 10 + (chTmp - 'a');
-	else if (chTmp >= 'A' && chTmp <= 'F')
-		return 10 + (chTmp - 'A');
-	else
-		return 0;
-}
-
 bool GetU1ByteIntegerFromStringInDecimal(char *Str, u8 *pInt)
 {
 	u16 i = 0;
@@ -892,45 +876,6 @@ bool GetU1ByteIntegerFromStringInDecimal(char *Str, u8 *pInt)
 
 	return true;
 }
-
-/*  <20121004, Kordan> For example,
- *  ParseQualifiedString(inString, 0, outString, '[', ']') gets "Kordan" from
- *  a string "Hello [Kordan]".
- *  If RightQualifier does not exist, it will hang in the while loop
- */
-bool ParseQualifiedString(
-	char *In, u32 *Start, char *Out, char LeftQualifier, char RightQualifier
-)
-{
-	u32 i = 0, j = 0;
-	char c = In[(*Start)++];
-
-	if (c != LeftQualifier)
-		return false;
-
-	i = (*Start);
-	while ((c = In[(*Start)++]) != RightQualifier)
-		; /*  find ']' */
-	j = (*Start) - 2;
-	strncpy((char *)Out, (const char *)(In+i), j-i+1);
-
-	return true;
-}
-
-bool isAllSpaceOrTab(u8 *data, u8 size)
-{
-	u8 cnt = 0, NumOfSpaceAndTab = 0;
-
-	while (size > cnt) {
-		if (data[cnt] == ' ' || data[cnt] == '\t' || data[cnt] == '\0')
-			++NumOfSpaceAndTab;
-
-		++cnt;
-	}
-
-	return size == NumOfSpaceAndTab;
-}
-
 
 void rtw_hal_check_rxfifo_full(struct adapter *adapter)
 {
@@ -952,60 +897,7 @@ void rtw_hal_check_rxfifo_full(struct adapter *adapter)
 	}
 }
 
-void linked_info_dump(struct adapter *padapter, u8 benable)
-{
-	struct pwrctrl_priv *pwrctrlpriv = adapter_to_pwrctl(padapter);
-
-	if (padapter->bLinkInfoDump == benable)
-		return;
-
-	if (benable) {
-		pwrctrlpriv->org_power_mgnt = pwrctrlpriv->power_mgnt;/* keep org value */
-		rtw_pm_set_lps(padapter, PS_MODE_ACTIVE);
-
-		pwrctrlpriv->ips_org_mode = pwrctrlpriv->ips_mode;/* keep org value */
-		rtw_pm_set_ips(padapter, IPS_NONE);
-	} else {
-		rtw_pm_set_ips(padapter, pwrctrlpriv->ips_org_mode);
-
-		rtw_pm_set_lps(padapter, pwrctrlpriv->ips_org_mode);
-	}
-	padapter->bLinkInfoDump = benable;
-}
-
 #ifdef DBG_RX_SIGNAL_DISPLAY_RAW_DATA
-void rtw_get_raw_rssi_info(void *sel, struct adapter *padapter)
-{
-	u8 isCCKrate, rf_path;
-	struct hal_com_data *pHalData = GET_HAL_DATA(padapter);
-	struct rx_raw_rssi *psample_pkt_rssi = &padapter->recvpriv.raw_rssi_info;
-
-	netdev_dbg(padapter->pnetdev,
-		   "RxRate = %s, PWDBALL = %d(%%), rx_pwr_all = %d(dBm)\n",
-		   HDATA_RATE(psample_pkt_rssi->data_rate),
-		   psample_pkt_rssi->pwdball, psample_pkt_rssi->pwr_all);
-
-	isCCKrate = psample_pkt_rssi->data_rate <= DESC_RATE11M;
-
-	if (isCCKrate)
-		psample_pkt_rssi->mimo_signal_strength[0] = psample_pkt_rssi->pwdball;
-
-	for (rf_path = 0; rf_path < pHalData->NumTotalRFPath; rf_path++) {
-		netdev_dbg(padapter->pnetdev,
-			   "RF_PATH_%d =>signal_strength:%d(%%), signal_quality:%d(%%)\n",
-			   rf_path,
-			   psample_pkt_rssi->mimo_signal_strength[rf_path],
-			   psample_pkt_rssi->mimo_signal_quality[rf_path]);
-
-		if (!isCCKrate) {
-			netdev_dbg(padapter->pnetdev,
-				   "\trx_ofdm_pwr:%d(dBm), rx_ofdm_snr:%d(dB)\n",
-				   psample_pkt_rssi->ofdm_pwr[rf_path],
-				   psample_pkt_rssi->ofdm_snr[rf_path]);
-		}
-	}
-}
-
 void rtw_dump_raw_rssi_info(struct adapter *padapter)
 {
 	u8 isCCKrate, rf_path;

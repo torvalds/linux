@@ -216,6 +216,7 @@ static struct platform_driver regulator_userspace_consumer_driver = {
 	.remove		= regulator_userspace_consumer_remove,
 	.driver		= {
 		.name		= "reg-userspace-consumer",
+		.probe_type	= PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table	= regulator_userspace_consumer_of_match,
 	},
 };

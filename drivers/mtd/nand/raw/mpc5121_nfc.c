@@ -822,7 +822,7 @@ error:
 	return retval;
 }
 
-static int mpc5121_nfc_remove(struct platform_device *op)
+static void mpc5121_nfc_remove(struct platform_device *op)
 {
 	struct device *dev = &op->dev;
 	struct mtd_info *mtd = dev_get_drvdata(dev);
@@ -832,8 +832,6 @@ static int mpc5121_nfc_remove(struct platform_device *op)
 	WARN_ON(ret);
 	nand_cleanup(mtd_to_nand(mtd));
 	mpc5121_nfc_free(dev, mtd);
-
-	return 0;
 }
 
 static const struct of_device_id mpc5121_nfc_match[] = {
@@ -844,7 +842,7 @@ MODULE_DEVICE_TABLE(of, mpc5121_nfc_match);
 
 static struct platform_driver mpc5121_nfc_driver = {
 	.probe		= mpc5121_nfc_probe,
-	.remove		= mpc5121_nfc_remove,
+	.remove_new	= mpc5121_nfc_remove,
 	.driver		= {
 		.name = DRV_NAME,
 		.of_match_table = mpc5121_nfc_match,

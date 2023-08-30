@@ -1178,9 +1178,8 @@ static int tb_xdomain_get_uuid(struct tb_xdomain *xd)
 		if (xd->state_retries-- > 0) {
 			dev_dbg(&xd->dev, "failed to request UUID, retrying\n");
 			return -EAGAIN;
-		} else {
-			dev_dbg(&xd->dev, "failed to read remote UUID\n");
 		}
+		dev_dbg(&xd->dev, "failed to read remote UUID\n");
 		return ret;
 	}
 
@@ -1367,12 +1366,10 @@ static int tb_xdomain_get_properties(struct tb_xdomain *xd)
 			dev_dbg(&xd->dev,
 				"failed to request remote properties, retrying\n");
 			return -EAGAIN;
-		} else {
-			/* Give up now */
-			dev_err(&xd->dev,
-				"failed read XDomain properties from %pUb\n",
-				xd->remote_uuid);
 		}
+		/* Give up now */
+		dev_err(&xd->dev, "failed read XDomain properties from %pUb\n",
+			xd->remote_uuid);
 
 		return ret;
 	}
@@ -2179,13 +2176,12 @@ static struct tb_xdomain *switch_find_xdomain(struct tb_switch *sw,
 				if (xd->remote_uuid &&
 				    uuid_equal(xd->remote_uuid, lookup->uuid))
 					return xd;
-			} else if (lookup->link &&
-				   lookup->link == xd->link &&
-				   lookup->depth == xd->depth) {
-				return xd;
-			} else if (lookup->route &&
-				   lookup->route == xd->route) {
-				return xd;
+			} else {
+				if (lookup->link && lookup->link == xd->link &&
+				    lookup->depth == xd->depth)
+					return xd;
+				if (lookup->route && lookup->route == xd->route)
+					return xd;
 			}
 		} else if (tb_port_has_remote(port)) {
 			xd = switch_find_xdomain(port->remote->sw, lookup);

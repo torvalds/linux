@@ -371,11 +371,11 @@ static struct pci_driver nv_pci_driver = {
 	.remove			= ata_pci_remove_one,
 };
 
-static struct scsi_host_template nv_sht = {
+static const struct scsi_host_template nv_sht = {
 	ATA_BMDMA_SHT(DRV_NAME),
 };
 
-static struct scsi_host_template nv_adma_sht = {
+static const struct scsi_host_template nv_adma_sht = {
 	__ATA_BASE_SHT(DRV_NAME),
 	.can_queue		= NV_ADMA_MAX_CPBS,
 	.sg_tablesize		= NV_ADMA_SGTBL_TOTAL_LEN,
@@ -386,7 +386,7 @@ static struct scsi_host_template nv_adma_sht = {
 	.tag_alloc_policy	= BLK_TAG_ALLOC_RR,
 };
 
-static struct scsi_host_template nv_swncq_sht = {
+static const struct scsi_host_template nv_swncq_sht = {
 	__ATA_BASE_SHT(DRV_NAME),
 	.can_queue		= ATA_MAX_QUEUE - 1,
 	.sg_tablesize		= LIBATA_MAX_PRD,
@@ -520,7 +520,7 @@ static struct ata_port_operations nv_swncq_ops = {
 
 struct nv_pi_priv {
 	irq_handler_t			irq_handler;
-	struct scsi_host_template	*sht;
+	const struct scsi_host_template	*sht;
 };
 
 #define NV_PI_PRIV(_irq_handler, _sht) \

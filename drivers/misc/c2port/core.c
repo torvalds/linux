@@ -977,7 +977,7 @@ static int __init c2port_init(void)
 	printk(KERN_INFO "Silicon Labs C2 port support v. " DRIVER_VERSION
 		" - (C) 2007 Rodolfo Giometti\n");
 
-	c2port_class = class_create(THIS_MODULE, "c2port");
+	c2port_class = class_create("c2port");
 	if (IS_ERR(c2port_class)) {
 		printk(KERN_ERR "c2port: failed to allocate class\n");
 		return PTR_ERR(c2port_class);

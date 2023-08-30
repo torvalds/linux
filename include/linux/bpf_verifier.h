@@ -59,6 +59,14 @@ struct bpf_active_lock {
 	u32 id;
 };
 
+#define ITER_PREFIX "bpf_iter_"
+
+enum bpf_iter_state {
+	BPF_ITER_STATE_INVALID, /* for non-first slot */
+	BPF_ITER_STATE_ACTIVE,
+	BPF_ITER_STATE_DRAINED,
+};
+
 struct bpf_reg_state {
 	/* Ordering of fields matters.  See states_equal() */
 	enum bpf_reg_type type;
@@ -103,6 +111,18 @@ struct bpf_reg_state {
 			bool first_slot;
 		} dynptr;
 
+		/* For bpf_iter stack slots */
+		struct {
+			/* BTF container and BTF type ID describing
+			 * struct bpf_iter_<type> of an iterator state
+			 */
+			struct btf *btf;
+			u32 btf_id;
+			/* packing following two fields to fit iter state into 16 bytes */
+			enum bpf_iter_state state:2;
+			int depth:30;
+		} iter;
+
 		/* Max size from any of the above. */
 		struct {
 			unsigned long raw1;
@@ -141,6 +161,8 @@ struct bpf_reg_state {
 	 * same reference to the socket, to determine proper reference freeing.
 	 * For stack slots that are dynptrs, this is used to track references to
 	 * the dynptr to determine proper reference freeing.
+	 * Similarly to dynptrs, we use ID to track "belonging" of a reference
+	 * to a specific instance of bpf_iter.
 	 */
 	u32 id;
 	/* PTR_TO_SOCKET and PTR_TO_TCP_SOCK could be a ptr returned
@@ -211,9 +233,11 @@ enum bpf_stack_slot_type {
 	 * is stored in bpf_stack_state->spilled_ptr.dynptr.type
 	 */
 	STACK_DYNPTR,
+	STACK_ITER,
 };
 
 #define BPF_REG_SIZE 8	/* size of eBPF register in bytes */
+
 #define BPF_DYNPTR_SIZE		sizeof(struct bpf_dynptr_kern)
 #define BPF_DYNPTR_NR_SLOTS		(BPF_DYNPTR_SIZE / BPF_REG_SIZE)
 
@@ -440,7 +464,12 @@ struct bpf_insn_aux_data {
 		 */
 		struct bpf_loop_inline_state loop_inline_state;
 	};
-	u64 obj_new_size; /* remember the size of type passed to bpf_obj_new to rewrite R1 */
+	union {
+		/* remember the size of type passed to bpf_obj_new to rewrite R1 */
+		u64 obj_new_size;
+		/* remember the offset of node field within type to rewrite */
+		u64 insert_off;
+	};
 	struct btf_struct_meta *kptr_struct_meta;
 	u64 map_key_state; /* constant (32 bit) key tracking for maps */
 	int ctx_field_size; /* the ctx field size for load insn, maybe 0 */
@@ -448,12 +477,17 @@ struct bpf_insn_aux_data {
 	bool sanitize_stack_spill; /* subject to Spectre v4 sanitation */
 	bool zext_dst; /* this insn zero extends dst reg */
 	bool storage_get_func_atomic; /* bpf_*_storage_get() with atomic memory alloc */
+	bool is_iter_next; /* bpf_iter_<type>_next() kfunc call */
 	u8 alu_state; /* used in combination with alu_limit */
 
 	/* below fields are initialized once */
 	unsigned int orig_idx; /* original instruction index */
-	bool prune_point;
 	bool jmp_point;
+	bool prune_point;
+	/* ensure we check state equivalence and save state checkpoint and
+	 * this instruction, regardless of any heuristics
+	 */
+	bool force_checkpoint;
 };
 
 #define MAX_USED_MAPS 64 /* max number of maps accessed by one eBPF program */
@@ -462,39 +496,36 @@ struct bpf_insn_aux_data {
 #define BPF_VERIFIER_TMP_LOG_SIZE	1024
 
 struct bpf_verifier_log {
-	u32 level;
-	char kbuf[BPF_VERIFIER_TMP_LOG_SIZE];
+	/* Logical start and end positions of a "log window" of the verifier log.
+	 * start_pos == 0 means we haven't truncated anything.
+	 * Once truncation starts to happen, start_pos + len_total == end_pos,
+	 * except during log reset situations, in which (end_pos - start_pos)
+	 * might get smaller than len_total (see bpf_vlog_reset()).
+	 * Generally, (end_pos - start_pos) gives number of useful data in
+	 * user log buffer.
+	 */
+	u64 start_pos;
+	u64 end_pos;
 	char __user *ubuf;
-	u32 len_used;
+	u32 level;
 	u32 len_total;
+	u32 len_max;
+	char kbuf[BPF_VERIFIER_TMP_LOG_SIZE];
 };
-
-static inline bool bpf_verifier_log_full(const struct bpf_verifier_log *log)
-{
-	return log->len_used >= log->len_total - 1;
-}
 
 #define BPF_LOG_LEVEL1	1
 #define BPF_LOG_LEVEL2	2
 #define BPF_LOG_STATS	4
+#define BPF_LOG_FIXED	8
 #define BPF_LOG_LEVEL	(BPF_LOG_LEVEL1 | BPF_LOG_LEVEL2)
-#define BPF_LOG_MASK	(BPF_LOG_LEVEL | BPF_LOG_STATS)
+#define BPF_LOG_MASK	(BPF_LOG_LEVEL | BPF_LOG_STATS | BPF_LOG_FIXED)
 #define BPF_LOG_KERNEL	(BPF_LOG_MASK + 1) /* kernel internal flag */
 #define BPF_LOG_MIN_ALIGNMENT 8U
 #define BPF_LOG_ALIGNMENT 40U
 
 static inline bool bpf_verifier_log_needed(const struct bpf_verifier_log *log)
 {
-	return log &&
-		((log->level && log->ubuf && !bpf_verifier_log_full(log)) ||
-		 log->level == BPF_LOG_KERNEL);
-}
-
-static inline bool
-bpf_verifier_log_attr_valid(const struct bpf_verifier_log *log)
-{
-	return log->len_total >= 128 && log->len_total <= UINT_MAX >> 2 &&
-	       log->level && log->ubuf && !(log->level & ~BPF_LOG_MASK);
+	return log && log->level;
 }
 
 #define BPF_MAX_SUBPROGS 256
@@ -537,7 +568,6 @@ struct bpf_verifier_env {
 	bool bypass_spec_v1;
 	bool bypass_spec_v4;
 	bool seen_direct_write;
-	bool rcu_tag_supported;
 	struct bpf_insn_aux_data *insn_aux_data; /* array of per-insn state */
 	const struct bpf_line_info *prev_linfo;
 	struct bpf_verifier_log log;
@@ -575,7 +605,7 @@ struct bpf_verifier_env {
 	u32 scratched_regs;
 	/* Same as scratched_regs but for stack slots */
 	u64 scratched_stack_slots;
-	u32 prev_log_len, prev_insn_print_len;
+	u64 prev_log_pos, prev_insn_print_pos;
 	/* buffer used in reg_type_str() to generate reg_type string */
 	char type_str_buf[TYPE_STR_BUF_LEN];
 };
@@ -586,6 +616,10 @@ __printf(2, 3) void bpf_verifier_log_write(struct bpf_verifier_env *env,
 					   const char *fmt, ...);
 __printf(2, 3) void bpf_log(struct bpf_verifier_log *log,
 			    const char *fmt, ...);
+int bpf_vlog_init(struct bpf_verifier_log *log, u32 log_level,
+		  char __user *log_buf, u32 log_size);
+void bpf_vlog_reset(struct bpf_verifier_log *log, u64 new_pos);
+int bpf_vlog_finalize(struct bpf_verifier_log *log, u32 *log_size_actual);
 
 static inline struct bpf_func_state *cur_func(struct bpf_verifier_env *env)
 {
@@ -616,9 +650,6 @@ int check_func_arg_reg_off(struct bpf_verifier_env *env,
 			   enum bpf_arg_type arg_type);
 int check_mem_reg(struct bpf_verifier_env *env, struct bpf_reg_state *reg,
 		   u32 regno, u32 mem_size);
-struct bpf_call_arg_meta;
-int process_dynptr_func(struct bpf_verifier_env *env, int regno,
-			enum bpf_arg_type arg_type, struct bpf_call_arg_meta *meta);
 
 /* this lives here instead of in bpf.h because it needs to dereference tgt_prog */
 static inline u64 bpf_trampoline_compute_key(const struct bpf_prog *tgt_prog,

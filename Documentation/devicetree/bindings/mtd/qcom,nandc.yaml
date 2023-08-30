@@ -46,7 +46,7 @@ patternProperties:
           - 512
 
 allOf:
-  - $ref: "nand-controller.yaml#"
+  - $ref: nand-controller.yaml#
 
   - if:
       properties:

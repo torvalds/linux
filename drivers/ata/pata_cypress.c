@@ -115,7 +115,7 @@ static void cy82c693_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 	outb(0x50, 0x23);
 }
 
-static struct scsi_host_template cy82c693_sht = {
+static const struct scsi_host_template cy82c693_sht = {
 	ATA_BMDMA_SHT(DRV_NAME),
 };
 

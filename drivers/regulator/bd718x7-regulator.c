@@ -1829,6 +1829,7 @@ MODULE_DEVICE_TABLE(platform, bd718x7_pmic_id);
 static struct platform_driver bd718xx_regulator = {
 	.driver = {
 		.name = "bd718xx-pmic",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 	.probe = bd718xx_probe,
 	.id_table = bd718x7_pmic_id,

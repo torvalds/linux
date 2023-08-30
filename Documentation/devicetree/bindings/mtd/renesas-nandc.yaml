@@ -10,7 +10,7 @@ maintainers:
   - Miquel Raynal <miquel.raynal@bootlin.com>
 
 allOf:
-  - $ref: "nand-controller.yaml"
+  - $ref: nand-controller.yaml
 
 properties:
   compatible:

@@ -243,7 +243,7 @@ static const struct hwmon_channel_info mv3310_hwmon_temp = {
 	.config = mv3310_hwmon_temp_config,
 };
 
-static const struct hwmon_channel_info *mv3310_hwmon_info[] = {
+static const struct hwmon_channel_info * const mv3310_hwmon_info[] = {
 	&mv3310_hwmon_chip,
 	&mv3310_hwmon_temp,
 	NULL,

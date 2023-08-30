@@ -548,10 +548,8 @@ static bool vga_is_firmware_default(struct pci_dev *pdev)
 #if defined(CONFIG_X86) || defined(CONFIG_IA64)
 	u64 base = screen_info.lfb_base;
 	u64 size = screen_info.lfb_size;
+	struct resource *r;
 	u64 limit;
-	resource_size_t start, end;
-	unsigned long flags;
-	int i;
 
 	/* Select the device owning the boot framebuffer if there is one */
 
@@ -561,19 +559,14 @@ static bool vga_is_firmware_default(struct pci_dev *pdev)
 	limit = base + size;
 
 	/* Does firmware framebuffer belong to us? */
-	for (i = 0; i < DEVICE_COUNT_RESOURCE; i++) {
-		flags = pci_resource_flags(pdev, i);
-
-		if ((flags & IORESOURCE_MEM) == 0)
+	pci_dev_for_each_resource(pdev, r) {
+		if (resource_type(r) != IORESOURCE_MEM)
 			continue;
 
-		start = pci_resource_start(pdev, i);
-		end  = pci_resource_end(pdev, i);
-
-		if (!start || !end)
+		if (!r->start || !r->end)
 			continue;
 
-		if (base < start || limit >= end)
+		if (base < r->start || limit >= r->end)
 			continue;
 
 		return true;

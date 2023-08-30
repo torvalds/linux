@@ -51,6 +51,7 @@ $defs:
       Pinctrl node's client devices use subnodes for desired pin configuration.
       Client device subnodes use below standard properties.
     $ref: qcom,tlmm-common.yaml#/$defs/qcom-tlmm-state
+    unevaluatedProperties: false
 
     properties:
       pins:
@@ -70,18 +71,8 @@ $defs:
         enum: [ gpio, gsbi2_i2c, gsbi3, gsbi4, gsbi5_i2c, gsbi5_uart,
                 sdc2, ebi2_lcdc, ps_hold, prim_audio, sec_audio, cdc_mclk, ]
 
-      bias-disable: true
-      bias-pull-down: true
-      bias-pull-up: true
-      drive-strength: true
-      output-high: true
-      output-low: true
-      input-enable: true
-
     required:
       - pins
-
-    additionalProperties: false
 
 examples:
   - |

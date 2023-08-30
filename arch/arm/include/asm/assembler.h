@@ -244,19 +244,6 @@ THUMB(	fpreg	.req	r7	)
 	.endm
 #endif
 
-	.macro	local_bh_disable, ti, tmp
-	ldr	\tmp, [\ti, #TI_PREEMPT]
-	add	\tmp, \tmp, #SOFTIRQ_DISABLE_OFFSET
-	str	\tmp, [\ti, #TI_PREEMPT]
-	.endm
-
-	.macro	local_bh_enable_ti, ti, tmp
-	get_thread_info \ti
-	ldr	\tmp, [\ti, #TI_PREEMPT]
-	sub	\tmp, \tmp, #SOFTIRQ_DISABLE_OFFSET
-	str	\tmp, [\ti, #TI_PREEMPT]
-	.endm
-
 #define USERL(l, x...)				\
 9999:	x;					\
 	.pushsection __ex_table,"a";		\

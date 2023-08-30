@@ -37,6 +37,18 @@ properties:
         items:
           - const: loongson,loongson64v-4core-virtio
 
+      - description: LS1B based boards
+        items:
+          - enum:
+              - loongson,lsgz-1b-dev
+          - const: loongson,ls1b
+
+      - description: LS1C based boards
+        items:
+          - enum:
+              - loongmasses,smartloong-1c
+          - const: loongson,ls1c
+
 additionalProperties: true
 
 ...

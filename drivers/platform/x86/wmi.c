@@ -1369,7 +1369,7 @@ static void acpi_wmi_notify_handler(acpi_handle handle, u32 event,
 		event, 0);
 }
 
-static int acpi_wmi_remove(struct platform_device *device)
+static void acpi_wmi_remove(struct platform_device *device)
 {
 	struct acpi_device *acpi_device = ACPI_COMPANION(&device->dev);
 
@@ -1379,8 +1379,6 @@ static int acpi_wmi_remove(struct platform_device *device)
 				ACPI_ADR_SPACE_EC, &acpi_wmi_ec_space_handler);
 	wmi_free_devices(acpi_device);
 	device_unregister(dev_get_drvdata(&device->dev));
-
-	return 0;
 }
 
 static int acpi_wmi_probe(struct platform_device *device)
@@ -1468,7 +1466,7 @@ static struct platform_driver acpi_wmi_driver = {
 		.acpi_match_table = wmi_device_ids,
 	},
 	.probe = acpi_wmi_probe,
-	.remove = acpi_wmi_remove,
+	.remove_new = acpi_wmi_remove,
 };
 
 static int __init acpi_wmi_init(void)

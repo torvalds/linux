@@ -30,7 +30,6 @@
 #include <linux/vmalloc.h>
 #include <linux/workqueue.h>
 #include <linux/bitops.h>
-#include <linux/aer.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_tcq.h>

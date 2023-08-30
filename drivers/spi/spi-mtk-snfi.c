@@ -1506,7 +1506,7 @@ release_ecc:
 	return ret;
 }
 
-static int mtk_snand_remove(struct platform_device *pdev)
+static void mtk_snand_remove(struct platform_device *pdev)
 {
 	struct spi_controller *ctlr = platform_get_drvdata(pdev);
 	struct mtk_snand *ms = spi_controller_get_devdata(ctlr);
@@ -1515,12 +1515,11 @@ static int mtk_snand_remove(struct platform_device *pdev)
 	mtk_snand_disable_clk(ms);
 	mtk_ecc_release(ms->ecc);
 	kfree(ms->buf);
-	return 0;
 }
 
 static struct platform_driver mtk_snand_driver = {
 	.probe = mtk_snand_probe,
-	.remove = mtk_snand_remove,
+	.remove_new = mtk_snand_remove,
 	.driver = {
 		.name = "mtk-snand",
 		.of_match_table = mtk_snand_ids,

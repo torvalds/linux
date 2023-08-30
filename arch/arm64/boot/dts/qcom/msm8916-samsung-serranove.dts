@@ -272,14 +272,6 @@
 	status = "okay";
 };
 
-&pronto {
-	status = "okay";
-
-	iris {
-		compatible = "qcom,wcn3660b";
-	};
-};
-
 &sdhc_1 {
 	status = "okay";
 
@@ -318,6 +310,14 @@
 
 &usb_hs_phy {
 	extcon = <&muic>;
+};
+
+&wcnss {
+	status = "okay";
+};
+
+&wcnss_iris {
+	compatible = "qcom,wcn3660b";
 };
 
 &smd_rpm_regulators {

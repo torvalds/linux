@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 
-menu "Mobiveil PCIe Core Support"
+menu "Mobiveil-based PCIe controllers"
 	depends on PCI
 
 config PCIE_MOBIVEIL
@@ -10,6 +10,15 @@ config PCIE_MOBIVEIL_HOST
 	bool
 	depends on PCI_MSI
 	select PCIE_MOBIVEIL
+
+config PCIE_LAYERSCAPE_GEN4
+	bool "Freescale Layerscape Gen4 PCIe controller"
+	depends on ARCH_LAYERSCAPE || COMPILE_TEST
+	depends on PCI_MSI
+	select PCIE_MOBIVEIL_HOST
+	help
+	  Say Y here if you want PCIe Gen4 controller support on
+	  Layerscape SoCs.
 
 config PCIE_MOBIVEIL_PLAT
 	bool "Mobiveil AXI PCIe controller"
@@ -22,12 +31,4 @@ config PCIE_MOBIVEIL_PLAT
 	  Soft IP. It has up to 8 outbound and inbound windows
 	  for address translation and it is a PCIe Gen4 IP.
 
-config PCIE_LAYERSCAPE_GEN4
-	bool "Freescale Layerscape PCIe Gen4 controller"
-	depends on ARCH_LAYERSCAPE || COMPILE_TEST
-	depends on PCI_MSI
-	select PCIE_MOBIVEIL_HOST
-	help
-	  Say Y here if you want PCIe Gen4 controller support on
-	  Layerscape SoCs.
 endmenu

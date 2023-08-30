@@ -94,15 +94,6 @@ static struct file_system_type dev_fs_type = {
 	.mount = public_dev_mount,
 };
 
-#ifdef CONFIG_BLOCK
-static inline int is_blockdev(struct device *dev)
-{
-	return dev->class == &block_class;
-}
-#else
-static inline int is_blockdev(struct device *dev) { return 0; }
-#endif
-
 static int devtmpfs_submit_req(struct req *req, const char *tmp)
 {
 	init_completion(&req->done);

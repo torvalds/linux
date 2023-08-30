@@ -389,10 +389,10 @@ int ath11k_dp_rxbufs_replenish(struct ath11k_base *ab, int mac_id,
 			goto fail_free_skb;
 
 		spin_lock_bh(&rx_ring->idr_lock);
-		buf_id = idr_alloc(&rx_ring->bufs_idr, skb, 0,
-				   rx_ring->bufs_max * 3, GFP_ATOMIC);
+		buf_id = idr_alloc(&rx_ring->bufs_idr, skb, 1,
+				   (rx_ring->bufs_max * 3) + 1, GFP_ATOMIC);
 		spin_unlock_bh(&rx_ring->idr_lock);
-		if (buf_id < 0)
+		if (buf_id <= 0)
 			goto fail_dma_unmap;
 
 		desc = ath11k_hal_srng_src_get_next_entry(ab, srng);
@@ -435,7 +435,6 @@ fail_free_skb:
 static int ath11k_dp_rxdma_buf_ring_free(struct ath11k *ar,
 					 struct dp_rxdma_ring *rx_ring)
 {
-	struct ath11k_pdev_dp *dp = &ar->dp;
 	struct sk_buff *skb;
 	int buf_id;
 
@@ -447,28 +446,6 @@ static int ath11k_dp_rxdma_buf_ring_free(struct ath11k *ar,
 		 */
 		dma_unmap_single(ar->ab->dev, ATH11K_SKB_RXCB(skb)->paddr,
 				 skb->len + skb_tailroom(skb), DMA_FROM_DEVICE);
-		dev_kfree_skb_any(skb);
-	}
-
-	idr_destroy(&rx_ring->bufs_idr);
-	spin_unlock_bh(&rx_ring->idr_lock);
-
-	/* if rxdma1_enable is false, mon_status_refill_ring
-	 * isn't setup, so don't clean.
-	 */
-	if (!ar->ab->hw_params.rxdma1_enable)
-		return 0;
-
-	rx_ring = &dp->rx_mon_status_refill_ring[0];
-
-	spin_lock_bh(&rx_ring->idr_lock);
-	idr_for_each_entry(&rx_ring->bufs_idr, skb, buf_id) {
-		idr_remove(&rx_ring->bufs_idr, buf_id);
-		/* XXX: Understand where internal driver does this dma_unmap
-		 * of rxdma_buffer.
-		 */
-		dma_unmap_single(ar->ab->dev, ATH11K_SKB_RXCB(skb)->paddr,
-				 skb->len + skb_tailroom(skb), DMA_BIDIRECTIONAL);
 		dev_kfree_skb_any(skb);
 	}
 
@@ -691,13 +668,18 @@ void ath11k_dp_reo_cmd_list_cleanup(struct ath11k_base *ab)
 	struct ath11k_dp *dp = &ab->dp;
 	struct dp_reo_cmd *cmd, *tmp;
 	struct dp_reo_cache_flush_elem *cmd_cache, *tmp_cache;
+	struct dp_rx_tid *rx_tid;
 
 	spin_lock_bh(&dp->reo_cmd_lock);
 	list_for_each_entry_safe(cmd, tmp, &dp->reo_cmd_list, list) {
 		list_del(&cmd->list);
-		dma_unmap_single(ab->dev, cmd->data.paddr,
-				 cmd->data.size, DMA_BIDIRECTIONAL);
-		kfree(cmd->data.vaddr);
+		rx_tid = &cmd->data;
+		if (rx_tid->vaddr) {
+			dma_unmap_single(ab->dev, rx_tid->paddr,
+					 rx_tid->size, DMA_BIDIRECTIONAL);
+			kfree(rx_tid->vaddr);
+			rx_tid->vaddr = NULL;
+		}
 		kfree(cmd);
 	}
 
@@ -705,9 +687,13 @@ void ath11k_dp_reo_cmd_list_cleanup(struct ath11k_base *ab)
 				 &dp->reo_cmd_cache_flush_list, list) {
 		list_del(&cmd_cache->list);
 		dp->reo_cmd_cache_flush_count--;
-		dma_unmap_single(ab->dev, cmd_cache->data.paddr,
-				 cmd_cache->data.size, DMA_BIDIRECTIONAL);
-		kfree(cmd_cache->data.vaddr);
+		rx_tid = &cmd_cache->data;
+		if (rx_tid->vaddr) {
+			dma_unmap_single(ab->dev, rx_tid->paddr,
+					 rx_tid->size, DMA_BIDIRECTIONAL);
+			kfree(rx_tid->vaddr);
+			rx_tid->vaddr = NULL;
+		}
 		kfree(cmd_cache);
 	}
 	spin_unlock_bh(&dp->reo_cmd_lock);
@@ -721,10 +707,12 @@ static void ath11k_dp_reo_cmd_free(struct ath11k_dp *dp, void *ctx,
 	if (status != HAL_REO_CMD_SUCCESS)
 		ath11k_warn(dp->ab, "failed to flush rx tid hw desc, tid %d status %d\n",
 			    rx_tid->tid, status);
-
-	dma_unmap_single(dp->ab->dev, rx_tid->paddr, rx_tid->size,
-			 DMA_BIDIRECTIONAL);
-	kfree(rx_tid->vaddr);
+	if (rx_tid->vaddr) {
+		dma_unmap_single(dp->ab->dev, rx_tid->paddr, rx_tid->size,
+				 DMA_BIDIRECTIONAL);
+		kfree(rx_tid->vaddr);
+		rx_tid->vaddr = NULL;
+	}
 }
 
 static void ath11k_dp_reo_cache_flush(struct ath11k_base *ab,
@@ -763,6 +751,7 @@ static void ath11k_dp_reo_cache_flush(struct ath11k_base *ab,
 		dma_unmap_single(ab->dev, rx_tid->paddr, rx_tid->size,
 				 DMA_BIDIRECTIONAL);
 		kfree(rx_tid->vaddr);
+		rx_tid->vaddr = NULL;
 	}
 }
 
@@ -815,6 +804,7 @@ free_desc:
 	dma_unmap_single(ab->dev, rx_tid->paddr, rx_tid->size,
 			 DMA_BIDIRECTIONAL);
 	kfree(rx_tid->vaddr);
+	rx_tid->vaddr = NULL;
 }
 
 void ath11k_peer_rx_tid_delete(struct ath11k *ar,
@@ -826,6 +816,8 @@ void ath11k_peer_rx_tid_delete(struct ath11k *ar,
 
 	if (!rx_tid->active)
 		return;
+
+	rx_tid->active = false;
 
 	cmd.flag = HAL_REO_CMD_FLG_NEED_STATUS;
 	cmd.addr_lo = lower_32_bits(rx_tid->paddr);
@@ -841,9 +833,11 @@ void ath11k_peer_rx_tid_delete(struct ath11k *ar,
 		dma_unmap_single(ar->ab->dev, rx_tid->paddr, rx_tid->size,
 				 DMA_BIDIRECTIONAL);
 		kfree(rx_tid->vaddr);
+		rx_tid->vaddr = NULL;
 	}
 
-	rx_tid->active = false;
+	rx_tid->paddr = 0;
+	rx_tid->size = 0;
 }
 
 static int ath11k_dp_rx_link_desc_return(struct ath11k_base *ab,
@@ -990,6 +984,7 @@ static void ath11k_dp_rx_tid_mem_free(struct ath11k_base *ab,
 	dma_unmap_single(ab->dev, rx_tid->paddr, rx_tid->size,
 			 DMA_BIDIRECTIONAL);
 	kfree(rx_tid->vaddr);
+	rx_tid->vaddr = NULL;
 
 	rx_tid->active = false;
 
@@ -1014,7 +1009,8 @@ int ath11k_peer_rx_tid_setup(struct ath11k *ar, const u8 *peer_mac, int vdev_id,
 
 	peer = ath11k_peer_find(ab, vdev_id, peer_mac);
 	if (!peer) {
-		ath11k_warn(ab, "failed to find the peer to set up rx tid\n");
+		ath11k_warn(ab, "failed to find the peer %pM to set up rx tid\n",
+			    peer_mac);
 		spin_unlock_bh(&ab->base_lock);
 		return -ENOENT;
 	}
@@ -1027,7 +1023,8 @@ int ath11k_peer_rx_tid_setup(struct ath11k *ar, const u8 *peer_mac, int vdev_id,
 						    ba_win_sz, ssn, true);
 		spin_unlock_bh(&ab->base_lock);
 		if (ret) {
-			ath11k_warn(ab, "failed to update reo for rx tid %d\n", tid);
+			ath11k_warn(ab, "failed to update reo for peer %pM rx tid %d\n: %d",
+				    peer_mac, tid, ret);
 			return ret;
 		}
 
@@ -1035,8 +1032,8 @@ int ath11k_peer_rx_tid_setup(struct ath11k *ar, const u8 *peer_mac, int vdev_id,
 							     peer_mac, paddr,
 							     tid, 1, ba_win_sz);
 		if (ret)
-			ath11k_warn(ab, "failed to send wmi command to update rx reorder queue, tid :%d (%d)\n",
-				    tid, ret);
+			ath11k_warn(ab, "failed to send wmi rx reorder queue for peer %pM tid %d: %d\n",
+				    peer_mac, tid, ret);
 		return ret;
 	}
 
@@ -1069,6 +1066,8 @@ int ath11k_peer_rx_tid_setup(struct ath11k *ar, const u8 *peer_mac, int vdev_id,
 	ret = dma_mapping_error(ab->dev, paddr);
 	if (ret) {
 		spin_unlock_bh(&ab->base_lock);
+		ath11k_warn(ab, "failed to setup dma map for peer %pM rx tid %d: %d\n",
+			    peer_mac, tid, ret);
 		goto err_mem_free;
 	}
 
@@ -1082,15 +1081,16 @@ int ath11k_peer_rx_tid_setup(struct ath11k *ar, const u8 *peer_mac, int vdev_id,
 	ret = ath11k_wmi_peer_rx_reorder_queue_setup(ar, vdev_id, peer_mac,
 						     paddr, tid, 1, ba_win_sz);
 	if (ret) {
-		ath11k_warn(ar->ab, "failed to setup rx reorder queue, tid :%d (%d)\n",
-			    tid, ret);
+		ath11k_warn(ar->ab, "failed to setup rx reorder queue for peer %pM tid %d: %d\n",
+			    peer_mac, tid, ret);
 		ath11k_dp_rx_tid_mem_free(ab, peer_mac, vdev_id, tid);
 	}
 
 	return ret;
 
 err_mem_free:
-	kfree(vaddr);
+	kfree(rx_tid->vaddr);
+	rx_tid->vaddr = NULL;
 
 	return ret;
 }
@@ -2665,6 +2665,9 @@ try_again:
 				   cookie);
 		mac_id = FIELD_GET(DP_RXDMA_BUF_COOKIE_PDEV_ID, cookie);
 
+		if (unlikely(buf_id == 0))
+			continue;
+
 		ar = ab->pdevs[mac_id].ar;
 		rx_ring = &ar->dp.rx_refill_buf_ring;
 		spin_lock_bh(&rx_ring->idr_lock);
@@ -3029,39 +3032,51 @@ static int ath11k_dp_rx_reap_mon_status_ring(struct ath11k_base *ab, int mac_id,
 
 			spin_lock_bh(&rx_ring->idr_lock);
 			skb = idr_find(&rx_ring->bufs_idr, buf_id);
+			spin_unlock_bh(&rx_ring->idr_lock);
+
 			if (!skb) {
 				ath11k_warn(ab, "rx monitor status with invalid buf_id %d\n",
 					    buf_id);
-				spin_unlock_bh(&rx_ring->idr_lock);
 				pmon->buf_state = DP_MON_STATUS_REPLINISH;
 				goto move_next;
 			}
 
-			idr_remove(&rx_ring->bufs_idr, buf_id);
-			spin_unlock_bh(&rx_ring->idr_lock);
-
 			rxcb = ATH11K_SKB_RXCB(skb);
 
-			dma_unmap_single(ab->dev, rxcb->paddr,
-					 skb->len + skb_tailroom(skb),
-					 DMA_FROM_DEVICE);
+			dma_sync_single_for_cpu(ab->dev, rxcb->paddr,
+						skb->len + skb_tailroom(skb),
+						DMA_FROM_DEVICE);
 
 			tlv = (struct hal_tlv_hdr *)skb->data;
 			if (FIELD_GET(HAL_TLV_HDR_TAG, tlv->tl) !=
 					HAL_RX_STATUS_BUFFER_DONE) {
-				ath11k_warn(ab, "mon status DONE not set %lx\n",
+				ath11k_warn(ab, "mon status DONE not set %lx, buf_id %d\n",
 					    FIELD_GET(HAL_TLV_HDR_TAG,
-						      tlv->tl));
-				dev_kfree_skb_any(skb);
+						      tlv->tl), buf_id);
+				/* If done status is missing, hold onto status
+				 * ring until status is done for this status
+				 * ring buffer.
+				 * Keep HP in mon_status_ring unchanged,
+				 * and break from here.
+				 * Check status for same buffer for next time
+				 */
 				pmon->buf_state = DP_MON_STATUS_NO_DMA;
-				goto move_next;
+				break;
 			}
 
+			spin_lock_bh(&rx_ring->idr_lock);
+			idr_remove(&rx_ring->bufs_idr, buf_id);
+			spin_unlock_bh(&rx_ring->idr_lock);
 			if (ab->hw_params.full_monitor_mode) {
 				ath11k_dp_rx_mon_update_status_buf_state(pmon, tlv);
 				if (paddr == pmon->mon_status_paddr)
 					pmon->buf_state = DP_MON_STATUS_MATCH;
 			}
+
+			dma_unmap_single(ab->dev, rxcb->paddr,
+					 skb->len + skb_tailroom(skb),
+					 DMA_FROM_DEVICE);
+
 			__skb_queue_tail(skb_list, skb);
 		} else {
 			pmon->buf_state = DP_MON_STATUS_REPLINISH;
@@ -3117,8 +3132,11 @@ int ath11k_peer_rx_frag_setup(struct ath11k *ar, const u8 *peer_mac, int vdev_id
 	int i;
 
 	tfm = crypto_alloc_shash("michael_mic", 0, 0);
-	if (IS_ERR(tfm))
+	if (IS_ERR(tfm)) {
+		ath11k_warn(ab, "failed to allocate michael_mic shash: %ld\n",
+			    PTR_ERR(tfm));
 		return PTR_ERR(tfm);
+	}
 
 	spin_lock_bh(&ab->base_lock);
 
@@ -3138,6 +3156,7 @@ int ath11k_peer_rx_frag_setup(struct ath11k *ar, const u8 *peer_mac, int vdev_id
 	}
 
 	peer->tfm_mmic = tfm;
+	peer->dp_setup_done = true;
 	spin_unlock_bh(&ab->base_lock);
 
 	return 0;
@@ -3583,6 +3602,13 @@ static int ath11k_dp_rx_frag_h_mpdu(struct ath11k *ar,
 		ret = -ENOENT;
 		goto out_unlock;
 	}
+	if (!peer->dp_setup_done) {
+		ath11k_warn(ab, "The peer %pM [%d] has uninitialized datapath\n",
+			    peer->addr, peer_id);
+		ret = -ENOENT;
+		goto out_unlock;
+	}
+
 	rx_tid = &peer->rx_tid[tid];
 
 	if ((!skb_queue_empty(&rx_tid->rx_frags) && seqno != rx_tid->cur_sn) ||
@@ -3598,7 +3624,7 @@ static int ath11k_dp_rx_frag_h_mpdu(struct ath11k *ar,
 		goto out_unlock;
 	}
 
-	if (frag_no > __fls(rx_tid->rx_frag_bitmap))
+	if (!rx_tid->rx_frag_bitmap || (frag_no > __fls(rx_tid->rx_frag_bitmap)))
 		__skb_queue_tail(&rx_tid->rx_frags, msdu);
 	else
 		ath11k_dp_rx_h_sort_frags(ar, &rx_tid->rx_frags, msdu);

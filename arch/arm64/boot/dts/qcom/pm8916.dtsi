@@ -41,7 +41,7 @@
 			};
 		};
 
-		pm8916_usbin: extcon@1300 {
+		pm8916_usbin: usb-detect@1300 {
 			compatible = "qcom,pm8941-misc";
 			reg = <0x1300>;
 			interrupts = <0x0 0x13 1 IRQ_TYPE_EDGE_BOTH>;

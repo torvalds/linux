@@ -194,12 +194,10 @@ static int avs_probing_link_init(struct snd_soc_pcm_runtime *rtm)
 		return ret;
 	}
 
-	for (n = 0; n < pcm_count; n++) {
-		ret = snd_soc_add_pcm_runtime(card, &links[n]);
-		if (ret < 0) {
-			dev_err(card->dev, "add links failed: %d\n", ret);
-			return ret;
-		}
+	ret = snd_soc_add_pcm_runtimes(card, links, pcm_count);
+	if (ret < 0) {
+		dev_err(card->dev, "add links failed: %d\n", ret);
+		return ret;
 	}
 
 	ret = avs_create_dapm_routes(card->dev, codec, pcm_count, &routes, &n);

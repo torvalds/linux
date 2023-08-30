@@ -137,6 +137,38 @@ static const struct mtk_dai_etdm_rate mt8195_etdm_rates[] = {
 	{ .rate = 352800, .reg_value = 21, },
 };
 
+static bool mt8195_afe_etdm_is_valid(int id)
+{
+	switch (id) {
+	case MT8195_AFE_IO_ETDM1_IN:
+		fallthrough;
+	case MT8195_AFE_IO_ETDM2_IN:
+		fallthrough;
+	case MT8195_AFE_IO_ETDM1_OUT:
+		fallthrough;
+	case MT8195_AFE_IO_ETDM2_OUT:
+		fallthrough;
+	case MT8195_AFE_IO_DPTX:
+		fallthrough;
+	case MT8195_AFE_IO_ETDM3_OUT:
+		return true;
+	default:
+		return false;
+	}
+}
+
+static bool mt8195_afe_hdmitx_dptx_is_valid(int id)
+{
+	switch (id) {
+	case MT8195_AFE_IO_DPTX:
+		fallthrough;
+	case MT8195_AFE_IO_ETDM3_OUT:
+		return true;
+	default:
+		return false;
+	}
+}
+
 static int get_etdm_fs_timing(unsigned int rate)
 {
 	int i;
@@ -236,8 +268,12 @@ static int is_cowork_mode(struct snd_soc_dai *dai)
 {
 	struct mtk_base_afe *afe = snd_soc_dai_get_drvdata(dai);
 	struct mt8195_afe_private *afe_priv = afe->platform_priv;
-	struct mtk_dai_etdm_priv *etdm_data = afe_priv->dai_priv[dai->id];
+	struct mtk_dai_etdm_priv *etdm_data;
 
+	if (!mt8195_afe_etdm_is_valid(dai->id))
+		return -EINVAL;
+
+	etdm_data = afe_priv->dai_priv[dai->id];
 	return (etdm_data->cowork_slv_count > 0 ||
 		etdm_data->cowork_source_id != COWORK_ETDM_NONE);
 }
@@ -264,8 +300,14 @@ static int get_etdm_cowork_master_id(struct snd_soc_dai *dai)
 {
 	struct mtk_base_afe *afe = snd_soc_dai_get_drvdata(dai);
 	struct mt8195_afe_private *afe_priv = afe->platform_priv;
-	struct mtk_dai_etdm_priv *etdm_data = afe_priv->dai_priv[dai->id];
-	int dai_id = etdm_data->cowork_source_id;
+	struct mtk_dai_etdm_priv *etdm_data;
+	int dai_id;
+
+	if (!mt8195_afe_etdm_is_valid(dai->id))
+		return -EINVAL;
+
+	etdm_data = afe_priv->dai_priv[dai->id];
+	dai_id = etdm_data->cowork_source_id;
 
 	if (dai_id == COWORK_ETDM_NONE)
 		dai_id = dai->id;
@@ -1276,9 +1318,13 @@ static int mt8195_afe_enable_etdm(struct mtk_base_afe *afe, int dai_id)
 	int ret = 0;
 	struct etdm_con_reg etdm_reg;
 	struct mt8195_afe_private *afe_priv = afe->platform_priv;
-	struct mtk_dai_etdm_priv *etdm_data = afe_priv->dai_priv[dai_id];
+	struct mtk_dai_etdm_priv *etdm_data;
 	unsigned long flags;
 
+	if (!mt8195_afe_etdm_is_valid(dai_id))
+		return -EINVAL;
+
+	etdm_data = afe_priv->dai_priv[dai_id];
 	spin_lock_irqsave(&afe_priv->afe_ctrl_lock, flags);
 	etdm_data->en_ref_cnt++;
 	if (etdm_data->en_ref_cnt == 1) {
@@ -1299,9 +1345,13 @@ static int mt8195_afe_disable_etdm(struct mtk_base_afe *afe, int dai_id)
 	int ret = 0;
 	struct etdm_con_reg etdm_reg;
 	struct mt8195_afe_private *afe_priv = afe->platform_priv;
-	struct mtk_dai_etdm_priv *etdm_data = afe_priv->dai_priv[dai_id];
+	struct mtk_dai_etdm_priv *etdm_data;
 	unsigned long flags;
 
+	if (!mt8195_afe_etdm_is_valid(dai_id))
+		return -EINVAL;
+
+	etdm_data = afe_priv->dai_priv[dai_id];
 	spin_lock_irqsave(&afe_priv->afe_ctrl_lock, flags);
 	if (etdm_data->en_ref_cnt > 0) {
 		etdm_data->en_ref_cnt--;
@@ -1357,12 +1407,16 @@ static int etdm_cowork_slv_sel(int id, int slave_mode)
 static int mt8195_etdm_sync_mode_configure(struct mtk_base_afe *afe, int dai_id)
 {
 	struct mt8195_afe_private *afe_priv = afe->platform_priv;
-	struct mtk_dai_etdm_priv *etdm_data = afe_priv->dai_priv[dai_id];
+	struct mtk_dai_etdm_priv *etdm_data;
 	unsigned int reg = 0;
 	unsigned int mask;
 	unsigned int val;
 	int cowork_source_sel;
 
+	if (!mt8195_afe_etdm_is_valid(dai_id))
+		return -EINVAL;
+
+	etdm_data = afe_priv->dai_priv[dai_id];
 	if (etdm_data->cowork_source_id == COWORK_ETDM_NONE)
 		return 0;
 
@@ -1532,8 +1586,10 @@ static int mtk_dai_etdm_startup(struct snd_pcm_substream *substream,
 
 	if (is_cowork_mode(dai)) {
 		mst_dai_id = get_etdm_cowork_master_id(dai);
-		mtk_dai_etdm_enable_mclk(afe, mst_dai_id);
+		if (!mt8195_afe_etdm_is_valid(mst_dai_id))
+			return -EINVAL;
 
+		mtk_dai_etdm_enable_mclk(afe, mst_dai_id);
 		cg_id = mtk_dai_etdm_get_cg_id_by_dai_id(mst_dai_id);
 		if (cg_id >= 0)
 			mt8195_afe_enable_clk(afe, afe_priv->clk[cg_id]);
@@ -1571,6 +1627,9 @@ static void mtk_dai_etdm_shutdown(struct snd_pcm_substream *substream,
 
 	if (is_cowork_mode(dai)) {
 		mst_dai_id = get_etdm_cowork_master_id(dai);
+		if (!mt8195_afe_etdm_is_valid(mst_dai_id))
+			return;
+
 		cg_id = mtk_dai_etdm_get_cg_id_by_dai_id(mst_dai_id);
 		if (cg_id >= 0)
 			mt8195_afe_disable_clk(afe, afe_priv->clk[cg_id]);
@@ -1631,15 +1690,23 @@ static int mtk_dai_etdm_in_configure(struct mtk_base_afe *afe,
 				     int dai_id)
 {
 	struct mt8195_afe_private *afe_priv = afe->platform_priv;
-	struct mtk_dai_etdm_priv *etdm_data = afe_priv->dai_priv[dai_id];
+	struct mtk_dai_etdm_priv *etdm_data;
 	struct etdm_con_reg etdm_reg;
-	bool slave_mode = etdm_data->slave_mode;
-	unsigned int data_mode = etdm_data->data_mode;
-	unsigned int lrck_width = etdm_data->lrck_width;
+	bool slave_mode;
+	unsigned int data_mode;
+	unsigned int lrck_width;
 	unsigned int val = 0;
 	unsigned int mask = 0;
 	int i;
 	int ret;
+
+	if (!mt8195_afe_etdm_is_valid(dai_id))
+		return -EINVAL;
+
+	etdm_data = afe_priv->dai_priv[dai_id];
+	slave_mode = etdm_data->slave_mode;
+	data_mode = etdm_data->data_mode;
+	lrck_width = etdm_data->lrck_width;
 
 	dev_dbg(afe->dev, "%s rate %u channels %u, id %d\n",
 		__func__, rate, channels, dai_id);
@@ -1748,14 +1815,21 @@ static int mtk_dai_etdm_out_configure(struct mtk_base_afe *afe,
 				      int dai_id)
 {
 	struct mt8195_afe_private *afe_priv = afe->platform_priv;
-	struct mtk_dai_etdm_priv *etdm_data = afe_priv->dai_priv[dai_id];
+	struct mtk_dai_etdm_priv *etdm_data;
 	struct etdm_con_reg etdm_reg;
-	bool slave_mode = etdm_data->slave_mode;
-	unsigned int lrck_width = etdm_data->lrck_width;
+	bool slave_mode;
+	unsigned int lrck_width;
 	unsigned int val = 0;
 	unsigned int mask = 0;
 	int ret;
 	int fs = 0;
+
+	if (!mt8195_afe_etdm_is_valid(dai_id))
+		return -EINVAL;
+
+	etdm_data = afe_priv->dai_priv[dai_id];
+	slave_mode = etdm_data->slave_mode;
+	lrck_width = etdm_data->lrck_width;
 
 	dev_dbg(afe->dev, "%s rate %u channels %u, id %d\n",
 		__func__, rate, channels, dai_id);
@@ -1837,7 +1911,7 @@ static int mtk_dai_etdm_out_configure(struct mtk_base_afe *afe,
 static int mtk_dai_etdm_mclk_configure(struct mtk_base_afe *afe, int dai_id)
 {
 	struct mt8195_afe_private *afe_priv = afe->platform_priv;
-	struct mtk_dai_etdm_priv *etdm_data = afe_priv->dai_priv[dai_id];
+	struct mtk_dai_etdm_priv *etdm_data;
 	int clk_id = mtk_dai_etdm_get_clk_id_by_dai_id(dai_id);
 	int clkdiv_id = mtk_dai_etdm_get_clkdiv_id_by_dai_id(dai_id);
 	int apll;
@@ -1850,6 +1924,10 @@ static int mtk_dai_etdm_mclk_configure(struct mtk_base_afe *afe, int dai_id)
 	if (clk_id < 0 || clkdiv_id < 0)
 		return 0;
 
+	if (!mt8195_afe_etdm_is_valid(dai_id))
+		return -EINVAL;
+
+	etdm_data = afe_priv->dai_priv[dai_id];
 	ret = get_etdm_reg(dai_id, &etdm_reg);
 	if (ret < 0)
 		return ret;
@@ -1888,9 +1966,9 @@ static int mtk_dai_etdm_configure(struct mtk_base_afe *afe,
 				  int dai_id)
 {
 	struct mt8195_afe_private *afe_priv = afe->platform_priv;
-	struct mtk_dai_etdm_priv *etdm_data = afe_priv->dai_priv[dai_id];
+	struct mtk_dai_etdm_priv *etdm_data;
 	struct etdm_con_reg etdm_reg;
-	bool slave_mode = etdm_data->slave_mode;
+	bool slave_mode;
 	unsigned int etdm_channels;
 	unsigned int val = 0;
 	unsigned int mask = 0;
@@ -1898,6 +1976,11 @@ static int mtk_dai_etdm_configure(struct mtk_base_afe *afe,
 	unsigned int wlen = get_etdm_wlen(bit_width);
 	int ret;
 
+	if (!mt8195_afe_etdm_is_valid(dai_id))
+		return -EINVAL;
+
+	etdm_data = afe_priv->dai_priv[dai_id];
+	slave_mode = etdm_data->slave_mode;
 	ret = get_etdm_reg(dai_id, &etdm_reg);
 	if (ret < 0)
 		return ret;
@@ -1973,6 +2056,8 @@ static int mtk_dai_etdm_hw_params(struct snd_pcm_substream *substream,
 
 	if (is_cowork_mode(dai)) {
 		mst_dai_id = get_etdm_cowork_master_id(dai);
+		if (!mt8195_afe_etdm_is_valid(mst_dai_id))
+			return -EINVAL;
 
 		ret = mtk_dai_etdm_mclk_configure(afe, mst_dai_id);
 		if (ret)
@@ -2024,6 +2109,9 @@ static int mtk_dai_etdm_trigger(struct snd_pcm_substream *substream, int cmd,
 	case SNDRV_PCM_TRIGGER_RESUME:
 		if (is_cowork_mode(dai)) {
 			mst_dai_id = get_etdm_cowork_master_id(dai);
+			if (!mt8195_afe_etdm_is_valid(mst_dai_id))
+				return -EINVAL;
+
 			mst_etdm_data = afe_priv->dai_priv[mst_dai_id];
 
 			//open master first
@@ -2040,6 +2128,9 @@ static int mtk_dai_etdm_trigger(struct snd_pcm_substream *substream, int cmd,
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 		if (is_cowork_mode(dai)) {
 			mst_dai_id = get_etdm_cowork_master_id(dai);
+			if (!mt8195_afe_etdm_is_valid(mst_dai_id))
+				return -EINVAL;
+
 			mst_etdm_data = afe_priv->dai_priv[mst_dai_id];
 
 			for (i = 0; i < mst_etdm_data->cowork_slv_count; i++) {
@@ -2061,10 +2152,14 @@ static int mtk_dai_etdm_trigger(struct snd_pcm_substream *substream, int cmd,
 static int mtk_dai_etdm_cal_mclk(struct mtk_base_afe *afe, int freq, int dai_id)
 {
 	struct mt8195_afe_private *afe_priv = afe->platform_priv;
-	struct mtk_dai_etdm_priv *etdm_data = afe_priv->dai_priv[dai_id];
+	struct mtk_dai_etdm_priv *etdm_data;
 	int apll;
 	int apll_rate;
 
+	if (!mt8195_afe_etdm_is_valid(dai_id))
+		return -EINVAL;
+
+	etdm_data = afe_priv->dai_priv[dai_id];
 	if (freq == 0) {
 		etdm_data->mclk_freq = freq;
 		return 0;
@@ -2104,6 +2199,9 @@ static int mtk_dai_etdm_set_sysclk(struct snd_soc_dai *dai,
 	else
 		dai_id = dai->id;
 
+	if (!mt8195_afe_etdm_is_valid(dai_id))
+		return -EINVAL;
+
 	etdm_data = afe_priv->dai_priv[dai_id];
 	etdm_data->mclk_dir = dir;
 	return mtk_dai_etdm_cal_mclk(afe, freq, dai_id);
@@ -2115,8 +2213,12 @@ static int mtk_dai_etdm_set_tdm_slot(struct snd_soc_dai *dai,
 {
 	struct mtk_base_afe *afe = snd_soc_dai_get_drvdata(dai);
 	struct mt8195_afe_private *afe_priv = afe->platform_priv;
-	struct mtk_dai_etdm_priv *etdm_data = afe_priv->dai_priv[dai->id];
+	struct mtk_dai_etdm_priv *etdm_data;
 
+	if (!mt8195_afe_etdm_is_valid(dai->id))
+		return -EINVAL;
+
+	etdm_data = afe_priv->dai_priv[dai->id];
 	dev_dbg(dai->dev, "%s id %d slot_width %d\n",
 		__func__, dai->id, slot_width);
 
@@ -2129,8 +2231,12 @@ static int mtk_dai_etdm_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 {
 	struct mtk_base_afe *afe = snd_soc_dai_get_drvdata(dai);
 	struct mt8195_afe_private *afe_priv = afe->platform_priv;
-	struct mtk_dai_etdm_priv *etdm_data = afe_priv->dai_priv[dai->id];
+	struct mtk_dai_etdm_priv *etdm_data;
 
+	if (!mt8195_afe_etdm_is_valid(dai->id))
+		return -EINVAL;
+
+	etdm_data = afe_priv->dai_priv[dai->id];
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_I2S:
 		etdm_data->format = MTK_DAI_ETDM_FORMAT_I2S;
@@ -2248,12 +2354,17 @@ static int mtk_dai_hdmitx_dptx_hw_params(struct snd_pcm_substream *substream,
 {
 	struct mtk_base_afe *afe = snd_soc_dai_get_drvdata(dai);
 	struct mt8195_afe_private *afe_priv = afe->platform_priv;
-	struct mtk_dai_etdm_priv *etdm_data = afe_priv->dai_priv[dai->id];
+	struct mtk_dai_etdm_priv *etdm_data;
 	unsigned int rate = params_rate(params);
 	unsigned int channels = params_channels(params);
 	snd_pcm_format_t format = params_format(params);
 	int width = snd_pcm_format_physical_width(format);
 	int ret = 0;
+
+	if (!mt8195_afe_hdmitx_dptx_is_valid(dai->id))
+		return -EINVAL;
+
+	etdm_data = afe_priv->dai_priv[dai->id];
 
 	/* dptx configure */
 	if (dai->id == MT8195_AFE_IO_DPTX) {
@@ -2331,7 +2442,12 @@ static int mtk_dai_hdmitx_dptx_set_sysclk(struct snd_soc_dai *dai,
 {
 	struct mtk_base_afe *afe = snd_soc_dai_get_drvdata(dai);
 	struct mt8195_afe_private *afe_priv = afe->platform_priv;
-	struct mtk_dai_etdm_priv *etdm_data = afe_priv->dai_priv[dai->id];
+	struct mtk_dai_etdm_priv *etdm_data;
+
+	if (!mt8195_afe_hdmitx_dptx_is_valid(dai->id))
+		return -EINVAL;
+
+	etdm_data = afe_priv->dai_priv[dai->id];
 
 	dev_dbg(dai->dev, "%s id %d freq %u, dir %d\n",
 		__func__, dai->id, freq, dir);
@@ -2370,10 +2486,14 @@ static int mtk_dai_etdm_probe(struct snd_soc_dai *dai)
 {
 	struct mtk_base_afe *afe = snd_soc_dai_get_drvdata(dai);
 	struct mt8195_afe_private *afe_priv = afe->platform_priv;
-	struct mtk_dai_etdm_priv *etdm_data = afe_priv->dai_priv[dai->id];
+	struct mtk_dai_etdm_priv *etdm_data;
 
 	dev_dbg(dai->dev, "%s id %d\n", __func__, dai->id);
 
+	if (!mt8195_afe_etdm_is_valid(dai->id))
+		return -EINVAL;
+
+	etdm_data = afe_priv->dai_priv[dai->id];
 	if (etdm_data->mclk_freq) {
 		dev_dbg(afe->dev, "MCLK always on, rate %d\n",
 			etdm_data->mclk_freq);
@@ -2477,6 +2597,11 @@ static void mt8195_etdm_update_sync_info(struct mtk_base_afe *afe)
 		etdm_data = afe_priv->dai_priv[i];
 		if (etdm_data->cowork_source_id != COWORK_ETDM_NONE) {
 			mst_dai_id = etdm_data->cowork_source_id;
+			if (!mt8195_afe_etdm_is_valid(mst_dai_id)) {
+				dev_err(afe->dev, "%s invalid dai id %d\n",
+					__func__, mst_dai_id);
+				return;
+			}
 			mst_data = afe_priv->dai_priv[mst_dai_id];
 			if (mst_data->cowork_source_id != COWORK_ETDM_NONE)
 				dev_info(afe->dev, "%s [%d] wrong sync source\n"
@@ -2513,6 +2638,12 @@ static void mt8195_dai_etdm_parse_of(struct mtk_base_afe *afe)
 
 	for (i = 0; i < MT8195_AFE_IO_ETDM_NUM; i++) {
 		dai_id = ETDM_TO_DAI_ID(i);
+		if (!mt8195_afe_etdm_is_valid(dai_id)) {
+			dev_err(afe->dev, "%s invalid dai id %d\n",
+				__func__, dai_id);
+			return;
+		}
+
 		etdm_data = afe_priv->dai_priv[dai_id];
 
 		ret = snprintf(prop, sizeof(prop),

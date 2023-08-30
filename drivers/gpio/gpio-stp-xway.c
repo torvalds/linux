@@ -292,7 +292,7 @@ static int xway_stp_probe(struct platform_device *pdev)
 	}
 
 	/* check which edge trigger we should use, default to a falling edge */
-	if (!of_find_property(pdev->dev.of_node, "lantiq,rising", NULL))
+	if (!of_property_read_bool(pdev->dev.of_node, "lantiq,rising"))
 		chip->edge = XWAY_STP_FALLING;
 
 	clk = devm_clk_get(&pdev->dev, NULL);

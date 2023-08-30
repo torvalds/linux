@@ -23,8 +23,8 @@
 0x00000000410fd080,v1,arm/cortex-a57-a72,core
 0x00000000410fd090,v1,arm/cortex-a73,core
 0x00000000410fd0a0,v1,arm/cortex-a75,core
-0x00000000410fd0b0,v1,arm/cortex-a76-n1,core
-0x00000000410fd0c0,v1,arm/cortex-a76-n1,core
+0x00000000410fd0b0,v1,arm/cortex-a76,core
+0x00000000410fd0c0,v1,arm/neoverse-n1,core
 0x00000000410fd0d0,v1,arm/cortex-a77,core
 0x00000000410fd400,v1,arm/neoverse-v1,core
 0x00000000410fd410,v1,arm/cortex-a78,core

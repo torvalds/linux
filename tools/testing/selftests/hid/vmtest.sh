@@ -16,7 +16,6 @@ x86_64)
 	exit 1
 	;;
 esac
-DEFAULT_COMMAND="./hid_bpf"
 SCRIPT_DIR="$(dirname $(realpath $0))"
 OUTPUT_DIR="$SCRIPT_DIR/results"
 KCONFIG_REL_PATHS=("${SCRIPT_DIR}/config" "${SCRIPT_DIR}/config.common" "${SCRIPT_DIR}/config.${ARCH}")
@@ -25,7 +24,10 @@ NUM_COMPILE_JOBS="$(nproc)"
 LOG_FILE_BASE="$(date +"hid_selftests.%Y-%m-%d_%H-%M-%S")"
 LOG_FILE="${LOG_FILE_BASE}.log"
 EXIT_STATUS_FILE="${LOG_FILE_BASE}.exit_status"
-CONTAINER_IMAGE="registry.fedoraproject.org/fedora:36"
+CONTAINER_IMAGE="registry.freedesktop.org/libevdev/hid-tools/fedora/37:2023-02-17.1"
+
+TARGETS="${TARGETS:=$(basename ${SCRIPT_DIR})}"
+DEFAULT_COMMAND="pip3 install hid-tools; make -C tools/testing/selftests TARGETS=${TARGETS} run_tests"
 
 usage()
 {
@@ -33,9 +35,9 @@ usage()
 Usage: $0 [-i] [-s] [-d <output_dir>] -- [<command>]
 
 <command> is the command you would normally run when you are in
-tools/testing/selftests/bpf. e.g:
+the source kernel direcory. e.g:
 
-	$0 -- ./hid_bpf
+	$0 -- ./tools/testing/selftests/hid/hid_bpf
 
 If no command is specified and a debug shell (-s) is not requested,
 "${DEFAULT_COMMAND}" will be run by default.
@@ -43,11 +45,11 @@ If no command is specified and a debug shell (-s) is not requested,
 If you build your kernel using KBUILD_OUTPUT= or O= options, these
 can be passed as environment variables to the script:
 
-  O=<kernel_build_path> $0 -- ./hid_bpf
+  O=<kernel_build_path> $0 -- ./tools/testing/selftests/hid/hid_bpf
 
 or
 
-  KBUILD_OUTPUT=<kernel_build_path> $0 -- ./hid_bpf
+  KBUILD_OUTPUT=<kernel_build_path> $0 -- ./tools/testing/selftests/hid/hid_bpf
 
 Options:
 
@@ -91,10 +93,13 @@ update_selftests()
 
 run_vm()
 {
-	local b2c="$1"
-	local kernel_bzimage="$2"
-	local command="$3"
+	local run_dir="$1"
+	local b2c="$2"
+	local kernel_bzimage="$3"
+	local command="$4"
 	local post_command=""
+
+	cd "${run_dir}"
 
 	if ! which "${QEMU_BINARY}" &> /dev/null; then
 		cat <<EOF
@@ -273,7 +278,7 @@ main()
 	fi
 
 	update_selftests "${kernel_checkout}" "${make_command}"
-	run_vm $b2c "${kernel_bzimage}" "${command}"
+	run_vm "${kernel_checkout}" $b2c "${kernel_bzimage}" "${command}"
 	if [[ "${debug_shell}" != "yes" ]]; then
 		echo "Logs saved in ${OUTPUT_DIR}/${LOG_FILE}"
 	fi

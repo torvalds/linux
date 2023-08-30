@@ -257,11 +257,11 @@ static int rsi_parse(struct cache_detail *cd,
 
 	rsii.h.flags = 0;
 	/* expiry */
-	expiry = get_expiry(&mesg);
-	status = -EINVAL;
-	if (expiry == 0)
+	status = get_expiry(&mesg, &expiry);
+	if (status)
 		goto out;
 
+	status = -EINVAL;
 	/* major/minor */
 	len = qword_get(&mesg, buf, mlen);
 	if (len <= 0)
@@ -483,11 +483,11 @@ static int rsc_parse(struct cache_detail *cd,
 
 	rsci.h.flags = 0;
 	/* expiry */
-	expiry = get_expiry(&mesg);
-	status = -EINVAL;
-	if (expiry == 0)
+	status = get_expiry(&mesg, &expiry);
+	if (status)
 		goto out;
 
+	status = -EINVAL;
 	rscp = rsc_lookup(cd, &rsci);
 	if (!rscp)
 		goto out;

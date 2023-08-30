@@ -596,12 +596,12 @@ static int dln2_spi_prepare_message(struct spi_master *master,
 	struct dln2_spi *dln2 = spi_master_get_devdata(master);
 	struct spi_device *spi = message->spi;
 
-	if (dln2->cs != spi->chip_select) {
-		ret = dln2_spi_cs_set_one(dln2, spi->chip_select);
+	if (dln2->cs != spi_get_chipselect(spi, 0)) {
+		ret = dln2_spi_cs_set_one(dln2, spi_get_chipselect(spi, 0));
 		if (ret < 0)
 			return ret;
 
-		dln2->cs = spi->chip_select;
+		dln2->cs = spi_get_chipselect(spi, 0);
 	}
 
 	return 0;
@@ -781,7 +781,7 @@ exit_free_master:
 	return ret;
 }
 
-static int dln2_spi_remove(struct platform_device *pdev)
+static void dln2_spi_remove(struct platform_device *pdev)
 {
 	struct spi_master *master = platform_get_drvdata(pdev);
 	struct dln2_spi *dln2 = spi_master_get_devdata(master);
@@ -790,8 +790,6 @@ static int dln2_spi_remove(struct platform_device *pdev)
 
 	if (dln2_spi_enable(dln2, false) < 0)
 		dev_err(&pdev->dev, "Failed to disable SPI module\n");
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -873,7 +871,7 @@ static struct platform_driver spi_dln2_driver = {
 		.pm	= &dln2_spi_pm,
 	},
 	.probe		= dln2_spi_probe,
-	.remove		= dln2_spi_remove,
+	.remove_new	= dln2_spi_remove,
 };
 module_platform_driver(spi_dln2_driver);
 

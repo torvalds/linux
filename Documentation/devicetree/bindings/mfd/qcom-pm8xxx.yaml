@@ -49,7 +49,7 @@ patternProperties:
 
   "rtc@[0-9a-f]+$":
     type: object
-    $ref: "../rtc/qcom-pm8xxx-rtc.yaml"
+    $ref: ../rtc/qcom-pm8xxx-rtc.yaml
 
 required:
   - compatible

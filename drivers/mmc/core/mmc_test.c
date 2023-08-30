@@ -3045,7 +3045,7 @@ static LIST_HEAD(mmc_test_file_test);
 
 static int mtf_test_show(struct seq_file *sf, void *data)
 {
-	struct mmc_card *card = (struct mmc_card *)sf->private;
+	struct mmc_card *card = sf->private;
 	struct mmc_test_general_result *gr;
 
 	mutex_lock(&mmc_test_lock);
@@ -3079,8 +3079,8 @@ static int mtf_test_open(struct inode *inode, struct file *file)
 static ssize_t mtf_test_write(struct file *file, const char __user *buf,
 	size_t count, loff_t *pos)
 {
-	struct seq_file *sf = (struct seq_file *)file->private_data;
-	struct mmc_card *card = (struct mmc_card *)sf->private;
+	struct seq_file *sf = file->private_data;
+	struct mmc_card *card = sf->private;
 	struct mmc_test_card *test;
 	long testcase;
 	int ret;

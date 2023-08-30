@@ -7,6 +7,7 @@
  * discipline handling modules (like SLIP).
  */
 
+#include <linux/bits.h>
 #include <linux/types.h>
 #include <linux/termios.h>
 #include <linux/errno.h>
@@ -40,10 +41,10 @@
 /*
  * Internal flag options for termios setting behavior
  */
-#define TERMIOS_FLUSH	1
-#define TERMIOS_WAIT	2
-#define TERMIOS_TERMIO	4
-#define TERMIOS_OLD	8
+#define TERMIOS_FLUSH	BIT(0)
+#define TERMIOS_WAIT	BIT(1)
+#define TERMIOS_TERMIO	BIT(2)
+#define TERMIOS_OLD	BIT(3)
 
 
 /**
@@ -500,21 +501,42 @@ static int set_termios(struct tty_struct *tty, void __user *arg, int opt)
 	tmp_termios.c_ispeed = tty_termios_input_baud_rate(&tmp_termios);
 	tmp_termios.c_ospeed = tty_termios_baud_rate(&tmp_termios);
 
-	ld = tty_ldisc_ref(tty);
+	if (opt & (TERMIOS_FLUSH|TERMIOS_WAIT)) {
+retry_write_wait:
+		retval = wait_event_interruptible(tty->write_wait, !tty_chars_in_buffer(tty));
+		if (retval < 0)
+			return retval;
 
-	if (ld != NULL) {
-		if ((opt & TERMIOS_FLUSH) && ld->ops->flush_buffer)
-			ld->ops->flush_buffer(tty);
-		tty_ldisc_deref(ld);
+		if (tty_write_lock(tty, 0) < 0)
+			goto retry_write_wait;
+
+		/* Racing writer? */
+		if (tty_chars_in_buffer(tty)) {
+			tty_write_unlock(tty);
+			goto retry_write_wait;
+		}
+
+		ld = tty_ldisc_ref(tty);
+		if (ld != NULL) {
+			if ((opt & TERMIOS_FLUSH) && ld->ops->flush_buffer)
+				ld->ops->flush_buffer(tty);
+			tty_ldisc_deref(ld);
+		}
+
+		if ((opt & TERMIOS_WAIT) && tty->ops->wait_until_sent) {
+			tty->ops->wait_until_sent(tty, 0);
+			if (signal_pending(current)) {
+				tty_write_unlock(tty);
+				return -ERESTARTSYS;
+			}
+		}
+
+		tty_set_termios(tty, &tmp_termios);
+
+		tty_write_unlock(tty);
+	} else {
+		tty_set_termios(tty, &tmp_termios);
 	}
-
-	if (opt & TERMIOS_WAIT) {
-		tty_wait_until_sent(tty, 0);
-		if (signal_pending(current))
-			return -ERESTARTSYS;
-	}
-
-	tty_set_termios(tty, &tmp_termios);
 
 	/* FIXME: Arguably if tmp_termios == tty->termios AND the
 	   actual requested termios was not tmp_termios then we may

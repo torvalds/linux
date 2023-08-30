@@ -485,7 +485,7 @@ static int __init debugfs_unaligned(void)
 	struct dentry *d;
 
 	d = debugfs_create_dir("loongarch", NULL);
-	if (!d)
+	if (IS_ERR_OR_NULL(d))
 		return -ENOMEM;
 
 	debugfs_create_u32("unaligned_instructions_user",

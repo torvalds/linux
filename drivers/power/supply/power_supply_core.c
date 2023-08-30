@@ -348,6 +348,10 @@ static int __power_supply_is_system_supplied(struct device *dev, void *data)
 	struct power_supply *psy = dev_get_drvdata(dev);
 	unsigned int *count = data;
 
+	if (!psy->desc->get_property(psy, POWER_SUPPLY_PROP_SCOPE, &ret))
+		if (ret.intval == POWER_SUPPLY_SCOPE_DEVICE)
+			return 0;
+
 	(*count)++;
 	if (psy->desc->type != POWER_SUPPLY_TYPE_BATTERY)
 		if (!psy->desc->get_property(psy, POWER_SUPPLY_PROP_ONLINE,
@@ -366,8 +370,8 @@ int power_supply_is_system_supplied(void)
 				      __power_supply_is_system_supplied);
 
 	/*
-	 * If no power class device was found at all, most probably we are
-	 * running on a desktop system, so assume we are on mains power.
+	 * If no system scope power class device was found at all, most probably we
+	 * are running on a desktop system, so assume we are on mains power.
 	 */
 	if (count == 0)
 		return 1;
@@ -388,7 +392,7 @@ static int __power_supply_get_supplier_property(struct device *dev, void *_data)
 	struct psy_get_supplier_prop_data *data = _data;
 
 	if (__power_supply_is_supplied_by(epsy, data->psy))
-		if (!epsy->desc->get_property(epsy, data->psp, data->val))
+		if (!power_supply_get_property(epsy, data->psp, data->val))
 			return 1; /* Success */
 
 	return 0; /* Continue iterating */
@@ -573,7 +577,7 @@ int power_supply_get_battery_info(struct power_supply *psy,
 	struct power_supply_battery_info *info;
 	struct device_node *battery_np = NULL;
 	struct fwnode_reference_args args;
-	struct fwnode_handle *fwnode;
+	struct fwnode_handle *fwnode = NULL;
 	const char *value;
 	int err, len, index;
 	const __be32 *list;
@@ -585,7 +589,7 @@ int power_supply_get_battery_info(struct power_supply *psy,
 			return -ENODEV;
 
 		fwnode = fwnode_handle_get(of_fwnode_handle(battery_np));
-	} else {
+	} else if (psy->dev.parent) {
 		err = fwnode_property_get_reference_args(
 					dev_fwnode(psy->dev.parent),
 					"monitored-battery", NULL, 0, 0, &args);
@@ -594,6 +598,9 @@ int power_supply_get_battery_info(struct power_supply *psy,
 
 		fwnode = args.fwnode;
 	}
+
+	if (!fwnode)
+		return -ENOENT;
 
 	err = fwnode_property_read_string(fwnode, "compatible", &value);
 	if (err)
@@ -832,6 +839,133 @@ void power_supply_put_battery_info(struct power_supply *psy,
 }
 EXPORT_SYMBOL_GPL(power_supply_put_battery_info);
 
+const enum power_supply_property power_supply_battery_info_properties[] = {
+	POWER_SUPPLY_PROP_TECHNOLOGY,
+	POWER_SUPPLY_PROP_ENERGY_FULL_DESIGN,
+	POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN,
+	POWER_SUPPLY_PROP_VOLTAGE_MIN_DESIGN,
+	POWER_SUPPLY_PROP_VOLTAGE_MAX_DESIGN,
+	POWER_SUPPLY_PROP_PRECHARGE_CURRENT,
+	POWER_SUPPLY_PROP_CHARGE_TERM_CURRENT,
+	POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT_MAX,
+	POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE_MAX,
+	POWER_SUPPLY_PROP_TEMP_AMBIENT_ALERT_MIN,
+	POWER_SUPPLY_PROP_TEMP_AMBIENT_ALERT_MAX,
+	POWER_SUPPLY_PROP_TEMP_ALERT_MIN,
+	POWER_SUPPLY_PROP_TEMP_ALERT_MAX,
+	POWER_SUPPLY_PROP_TEMP_MIN,
+	POWER_SUPPLY_PROP_TEMP_MAX,
+};
+EXPORT_SYMBOL_GPL(power_supply_battery_info_properties);
+
+const size_t power_supply_battery_info_properties_size = ARRAY_SIZE(power_supply_battery_info_properties);
+EXPORT_SYMBOL_GPL(power_supply_battery_info_properties_size);
+
+bool power_supply_battery_info_has_prop(struct power_supply_battery_info *info,
+				        enum power_supply_property psp)
+{
+	if (!info)
+		return false;
+
+	switch (psp) {
+		case POWER_SUPPLY_PROP_TECHNOLOGY:
+			return info->technology != POWER_SUPPLY_TECHNOLOGY_UNKNOWN;
+		case POWER_SUPPLY_PROP_ENERGY_FULL_DESIGN:
+			return info->energy_full_design_uwh >= 0;
+		case POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN:
+			return info->charge_full_design_uah >= 0;
+		case POWER_SUPPLY_PROP_VOLTAGE_MIN_DESIGN:
+			return info->voltage_min_design_uv >= 0;
+		case POWER_SUPPLY_PROP_VOLTAGE_MAX_DESIGN:
+			return info->voltage_max_design_uv >= 0;
+		case POWER_SUPPLY_PROP_PRECHARGE_CURRENT:
+			return info->precharge_current_ua >= 0;
+		case POWER_SUPPLY_PROP_CHARGE_TERM_CURRENT:
+			return info->charge_term_current_ua >= 0;
+		case POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT_MAX:
+			return info->constant_charge_current_max_ua >= 0;
+		case POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE_MAX:
+			return info->constant_charge_voltage_max_uv >= 0;
+		case POWER_SUPPLY_PROP_TEMP_AMBIENT_ALERT_MIN:
+			return info->temp_ambient_alert_min > INT_MIN;
+		case POWER_SUPPLY_PROP_TEMP_AMBIENT_ALERT_MAX:
+			return info->temp_ambient_alert_max < INT_MAX;
+		case POWER_SUPPLY_PROP_TEMP_ALERT_MIN:
+			return info->temp_alert_min > INT_MIN;
+		case POWER_SUPPLY_PROP_TEMP_ALERT_MAX:
+			return info->temp_alert_max < INT_MAX;
+		case POWER_SUPPLY_PROP_TEMP_MIN:
+			return info->temp_min > INT_MIN;
+		case POWER_SUPPLY_PROP_TEMP_MAX:
+			return info->temp_max < INT_MAX;
+		default:
+			return false;
+	}
+}
+EXPORT_SYMBOL_GPL(power_supply_battery_info_has_prop);
+
+int power_supply_battery_info_get_prop(struct power_supply_battery_info *info,
+				       enum power_supply_property psp,
+				       union power_supply_propval *val)
+{
+	if (!info)
+		return -EINVAL;
+
+	if (!power_supply_battery_info_has_prop(info, psp))
+		return -EINVAL;
+
+	switch (psp) {
+		case POWER_SUPPLY_PROP_TECHNOLOGY:
+			val->intval = info->technology;
+			return 0;
+		case POWER_SUPPLY_PROP_ENERGY_FULL_DESIGN:
+			val->intval = info->energy_full_design_uwh;
+			return 0;
+		case POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN:
+			val->intval = info->charge_full_design_uah;
+			return 0;
+		case POWER_SUPPLY_PROP_VOLTAGE_MIN_DESIGN:
+			val->intval = info->voltage_min_design_uv;
+			return 0;
+		case POWER_SUPPLY_PROP_VOLTAGE_MAX_DESIGN:
+			val->intval = info->voltage_max_design_uv;
+			return 0;
+		case POWER_SUPPLY_PROP_PRECHARGE_CURRENT:
+			val->intval = info->precharge_current_ua;
+			return 0;
+		case POWER_SUPPLY_PROP_CHARGE_TERM_CURRENT:
+			val->intval = info->charge_term_current_ua;
+			return 0;
+		case POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT_MAX:
+			val->intval = info->constant_charge_current_max_ua;
+			return 0;
+		case POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE_MAX:
+			val->intval = info->constant_charge_voltage_max_uv;
+			return 0;
+		case POWER_SUPPLY_PROP_TEMP_AMBIENT_ALERT_MIN:
+			val->intval = info->temp_ambient_alert_min;
+			return 0;
+		case POWER_SUPPLY_PROP_TEMP_AMBIENT_ALERT_MAX:
+			val->intval = info->temp_ambient_alert_max;
+			return 0;
+		case POWER_SUPPLY_PROP_TEMP_ALERT_MIN:
+			val->intval = info->temp_alert_min;
+			return 0;
+		case POWER_SUPPLY_PROP_TEMP_ALERT_MAX:
+			val->intval = info->temp_alert_max;
+			return 0;
+		case POWER_SUPPLY_PROP_TEMP_MIN:
+			val->intval = info->temp_min;
+			return 0;
+		case POWER_SUPPLY_PROP_TEMP_MAX:
+			val->intval = info->temp_max;
+			return 0;
+		default:
+			return -EINVAL;
+	}
+}
+EXPORT_SYMBOL_GPL(power_supply_battery_info_get_prop);
+
 /**
  * power_supply_temp2resist_simple() - find the battery internal resistance
  * percent from temperature
@@ -1046,6 +1180,22 @@ bool power_supply_battery_bti_in_range(struct power_supply_battery_info *info,
 }
 EXPORT_SYMBOL_GPL(power_supply_battery_bti_in_range);
 
+static bool psy_has_property(const struct power_supply_desc *psy_desc,
+			     enum power_supply_property psp)
+{
+	bool found = false;
+	int i;
+
+	for (i = 0; i < psy_desc->num_properties; i++) {
+		if (psy_desc->properties[i] == psp) {
+			found = true;
+			break;
+		}
+	}
+
+	return found;
+}
+
 int power_supply_get_property(struct power_supply *psy,
 			    enum power_supply_property psp,
 			    union power_supply_propval *val)
@@ -1056,7 +1206,12 @@ int power_supply_get_property(struct power_supply *psy,
 		return -ENODEV;
 	}
 
-	return psy->desc->get_property(psy, psp, val);
+	if (psy_has_property(psy->desc, psp))
+		return psy->desc->get_property(psy, psp, val);
+	else if (power_supply_battery_info_has_prop(psy->battery_info, psp))
+		return power_supply_battery_info_get_prop(psy->battery_info, psp, val);
+	else
+		return -EINVAL;
 }
 EXPORT_SYMBOL_GPL(power_supply_get_property);
 
@@ -1117,22 +1272,6 @@ void power_supply_unreg_notifier(struct notifier_block *nb)
 }
 EXPORT_SYMBOL_GPL(power_supply_unreg_notifier);
 
-static bool psy_has_property(const struct power_supply_desc *psy_desc,
-			     enum power_supply_property psp)
-{
-	bool found = false;
-	int i;
-
-	for (i = 0; i < psy_desc->num_properties; i++) {
-		if (psy_desc->properties[i] == psp) {
-			found = true;
-			break;
-		}
-	}
-
-	return found;
-}
-
 #ifdef CONFIG_THERMAL
 static int power_supply_read_temp(struct thermal_zone_device *tzd,
 		int *temp)
@@ -1142,7 +1281,7 @@ static int power_supply_read_temp(struct thermal_zone_device *tzd,
 	int ret;
 
 	WARN_ON(tzd == NULL);
-	psy = tzd->devdata;
+	psy = thermal_zone_device_priv(tzd);
 	ret = power_supply_get_property(psy, POWER_SUPPLY_PROP_TEMP, &val);
 	if (ret)
 		return ret;
@@ -1253,6 +1392,17 @@ __power_supply_register(struct device *parent,
 	if (rc) {
 		dev_dbg(dev, "Not all required supplies found, defer probe\n");
 		goto check_supplies_failed;
+	}
+
+	/*
+	 * Expose constant battery info, if it is available. While there are
+	 * some chargers accessing constant battery data, we only want to
+	 * expose battery data to userspace for battery devices.
+	 */
+	if (desc->type == POWER_SUPPLY_TYPE_BATTERY) {
+		rc = power_supply_get_battery_info(psy, &psy->battery_info);
+		if (rc && rc != -ENODEV && rc != -ENOENT)
+			goto check_supplies_failed;
 	}
 
 	spin_lock_init(&psy->changed_lock);
@@ -1462,7 +1612,7 @@ EXPORT_SYMBOL_GPL(power_supply_get_drvdata);
 
 static int __init power_supply_class_init(void)
 {
-	power_supply_class = class_create(THIS_MODULE, "power_supply");
+	power_supply_class = class_create("power_supply");
 
 	if (IS_ERR(power_supply_class))
 		return PTR_ERR(power_supply_class);
@@ -1485,4 +1635,3 @@ MODULE_DESCRIPTION("Universal power supply monitor class");
 MODULE_AUTHOR("Ian Molton <spyro@f2s.com>, "
 	      "Szabolcs Gyurko, "
 	      "Anton Vorontsov <cbou@mail.ru>");
-MODULE_LICENSE("GPL");

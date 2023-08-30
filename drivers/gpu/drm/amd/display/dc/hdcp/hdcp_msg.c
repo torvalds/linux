@@ -27,7 +27,7 @@
 
 #include "dm_services.h"
 #include "dm_helpers.h"
-#include "include/hdcp_types.h"
+#include "include/hdcp_msg_types.h"
 #include "include/signal_types.h"
 #include "core_types.h"
 #include "link.h"

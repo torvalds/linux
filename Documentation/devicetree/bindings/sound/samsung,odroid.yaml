@@ -35,12 +35,14 @@ properties:
 
   cpu:
     type: object
+    additionalProperties: false
     properties:
       sound-dai:
         description: phandles to the I2S controllers
 
   codec:
     type: object
+    additionalProperties: false
     properties:
       sound-dai:
         minItems: 1

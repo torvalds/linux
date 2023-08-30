@@ -49,14 +49,68 @@ static enum ethtool_mm_verify_status ocelot_mm_verify_status(u32 val)
 	}
 }
 
-void ocelot_port_mm_irq(struct ocelot *ocelot, int port)
+void ocelot_port_update_active_preemptible_tcs(struct ocelot *ocelot, int port)
+{
+	struct ocelot_port *ocelot_port = ocelot->ports[port];
+	struct ocelot_mm_state *mm = &ocelot->mm[port];
+	u32 val = 0;
+
+	lockdep_assert_held(&ocelot->fwd_domain_lock);
+
+	/* Only commit preemptible TCs when MAC Merge is active.
+	 * On NXP LS1028A, when using QSGMII, the port hangs if transmitting
+	 * preemptible frames at any other link speed than gigabit, so avoid
+	 * preemption at lower speeds in this PHY mode.
+	 */
+	if ((ocelot_port->phy_mode != PHY_INTERFACE_MODE_QSGMII ||
+	     ocelot_port->speed == SPEED_1000) && mm->tx_active)
+		val = mm->preemptible_tcs;
+
+	/* Cut through switching doesn't work for preemptible priorities,
+	 * so first make sure it is disabled.
+	 */
+	mm->active_preemptible_tcs = val;
+	ocelot->ops->cut_through_fwd(ocelot);
+
+	dev_dbg(ocelot->dev,
+		"port %d %s/%s, MM TX %s, preemptible TCs 0x%x, active 0x%x\n",
+		port, phy_modes(ocelot_port->phy_mode),
+		phy_speed_to_str(ocelot_port->speed),
+		mm->tx_active ? "active" : "inactive", mm->preemptible_tcs,
+		mm->active_preemptible_tcs);
+
+	ocelot_rmw_rix(ocelot, QSYS_PREEMPTION_CFG_P_QUEUES(val),
+		       QSYS_PREEMPTION_CFG_P_QUEUES_M,
+		       QSYS_PREEMPTION_CFG, port);
+}
+
+void ocelot_port_change_fp(struct ocelot *ocelot, int port,
+			   unsigned long preemptible_tcs)
+{
+	struct ocelot_mm_state *mm = &ocelot->mm[port];
+
+	mutex_lock(&ocelot->fwd_domain_lock);
+
+	if (mm->preemptible_tcs == preemptible_tcs)
+		goto out_unlock;
+
+	mm->preemptible_tcs = preemptible_tcs;
+
+	ocelot_port_update_active_preemptible_tcs(ocelot, port);
+
+out_unlock:
+	mutex_unlock(&ocelot->fwd_domain_lock);
+}
+
+static void ocelot_mm_update_port_status(struct ocelot *ocelot, int port)
 {
 	struct ocelot_port *ocelot_port = ocelot->ports[port];
 	struct ocelot_mm_state *mm = &ocelot->mm[port];
 	enum ethtool_mm_verify_status verify_status;
-	u32 val;
+	u32 val, ack = 0;
 
-	mutex_lock(&mm->lock);
+	if (!mm->tx_enabled)
+		return;
 
 	val = ocelot_port_readl(ocelot_port, DEV_MM_STATUS);
 
@@ -73,25 +127,43 @@ void ocelot_port_mm_irq(struct ocelot *ocelot, int port)
 
 		dev_dbg(ocelot->dev, "Port %d TX preemption %s\n",
 			port, mm->tx_active ? "active" : "inactive");
+		ocelot_port_update_active_preemptible_tcs(ocelot, port);
+
+		ack |= DEV_MM_STAT_MM_STATUS_PRMPT_ACTIVE_STICKY;
 	}
 
 	if (val & DEV_MM_STAT_MM_STATUS_UNEXP_RX_PFRM_STICKY) {
 		dev_err(ocelot->dev,
 			"Unexpected P-frame received on port %d while verification was unsuccessful or not yet verified\n",
 			port);
+
+		ack |= DEV_MM_STAT_MM_STATUS_UNEXP_RX_PFRM_STICKY;
 	}
 
 	if (val & DEV_MM_STAT_MM_STATUS_UNEXP_TX_PFRM_STICKY) {
 		dev_err(ocelot->dev,
 			"Unexpected P-frame requested to be transmitted on port %d while verification was unsuccessful or not yet verified, or MM_TX_ENA=0\n",
 			port);
+
+		ack |= DEV_MM_STAT_MM_STATUS_UNEXP_TX_PFRM_STICKY;
 	}
 
-	ocelot_port_writel(ocelot_port, val, DEV_MM_STATUS);
-
-	mutex_unlock(&mm->lock);
+	if (ack)
+		ocelot_port_writel(ocelot_port, ack, DEV_MM_STATUS);
 }
-EXPORT_SYMBOL_GPL(ocelot_port_mm_irq);
+
+void ocelot_mm_irq(struct ocelot *ocelot)
+{
+	int port;
+
+	mutex_lock(&ocelot->fwd_domain_lock);
+
+	for (port = 0; port < ocelot->num_phys_ports; port++)
+		ocelot_mm_update_port_status(ocelot, port);
+
+	mutex_unlock(&ocelot->fwd_domain_lock);
+}
+EXPORT_SYMBOL_GPL(ocelot_mm_irq);
 
 int ocelot_port_set_mm(struct ocelot *ocelot, int port,
 		       struct ethtool_mm_cfg *cfg,
@@ -121,7 +193,7 @@ int ocelot_port_set_mm(struct ocelot *ocelot, int port,
 	if (!cfg->verify_enabled)
 		verify_disable = DEV_MM_CONFIG_VERIF_CONFIG_PRM_VERIFY_DIS;
 
-	mutex_lock(&mm->lock);
+	mutex_lock(&ocelot->fwd_domain_lock);
 
 	ocelot_port_rmwl(ocelot_port, mm_enable,
 			 DEV_MM_CONFIG_ENABLE_CONFIG_MM_TX_ENA |
@@ -140,7 +212,20 @@ int ocelot_port_set_mm(struct ocelot *ocelot, int port,
 		       QSYS_PREEMPTION_CFG,
 		       port);
 
-	mutex_unlock(&mm->lock);
+	/* The switch will emit an IRQ when TX is disabled, to notify that it
+	 * has become inactive. We optimize ocelot_mm_update_port_status() to
+	 * not bother processing MM IRQs at all for ports with TX disabled,
+	 * but we need to ACK this IRQ now, while mm->tx_enabled is still set,
+	 * otherwise we get an IRQ storm.
+	 */
+	if (mm->tx_enabled && !cfg->tx_enabled) {
+		ocelot_mm_update_port_status(ocelot, port);
+		WARN_ON(mm->tx_active);
+	}
+
+	mm->tx_enabled = cfg->tx_enabled;
+
+	mutex_unlock(&ocelot->fwd_domain_lock);
 
 	return 0;
 }
@@ -158,7 +243,7 @@ int ocelot_port_get_mm(struct ocelot *ocelot, int port,
 
 	mm = &ocelot->mm[port];
 
-	mutex_lock(&mm->lock);
+	mutex_lock(&ocelot->fwd_domain_lock);
 
 	val = ocelot_port_readl(ocelot_port, DEV_MM_ENABLE_CONFIG);
 	state->pmac_enabled = !!(val & DEV_MM_CONFIG_ENABLE_CONFIG_MM_RX_ENA);
@@ -174,10 +259,11 @@ int ocelot_port_get_mm(struct ocelot *ocelot, int port,
 	state->tx_min_frag_size = ethtool_mm_frag_size_add_to_min(add_frag_size);
 	state->rx_min_frag_size = ETH_ZLEN;
 
+	ocelot_mm_update_port_status(ocelot, port);
 	state->verify_status = mm->verify_status;
 	state->tx_active = mm->tx_active;
 
-	mutex_unlock(&mm->lock);
+	mutex_unlock(&ocelot->fwd_domain_lock);
 
 	return 0;
 }
@@ -201,7 +287,6 @@ int ocelot_mm_init(struct ocelot *ocelot)
 		u32 val;
 
 		mm = &ocelot->mm[port];
-		mutex_init(&mm->lock);
 		ocelot_port = ocelot->ports[port];
 
 		/* Update initial status variable for the

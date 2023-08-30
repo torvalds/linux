@@ -162,6 +162,14 @@ static u32 __mt7996_reg_addr(struct mt7996_dev *dev, u32 addr)
 	return mt7996_reg_map_l2(dev, addr);
 }
 
+void mt7996_memcpy_fromio(struct mt7996_dev *dev, void *buf, u32 offset,
+			  size_t len)
+{
+	u32 addr = __mt7996_reg_addr(dev, offset);
+
+	memcpy_fromio(buf, dev->mt76.mmio.regs + addr, len);
+}
+
 static u32 mt7996_rr(struct mt76_dev *mdev, u32 offset)
 {
 	struct mt7996_dev *dev = container_of(mdev, struct mt7996_dev, mt76);
@@ -251,7 +259,7 @@ static void mt7996_rx_poll_complete(struct mt76_dev *mdev,
 /* TODO: support 2/4/6/8 MSI-X vectors */
 static void mt7996_irq_tasklet(struct tasklet_struct *t)
 {
-	struct mt7996_dev *dev = from_tasklet(dev, t, irq_tasklet);
+	struct mt7996_dev *dev = from_tasklet(dev, t, mt76.irq_tasklet);
 	u32 i, intr, mask, intr1;
 
 	mt76_wr(dev, MT_INT_MASK_CSR, 0);
@@ -289,10 +297,9 @@ static void mt7996_irq_tasklet(struct tasklet_struct *t)
 		u32 val = mt76_rr(dev, MT_MCU_CMD);
 
 		mt76_wr(dev, MT_MCU_CMD, val);
-		if (val & MT_MCU_CMD_ERROR_MASK) {
-			dev->reset_state = val;
-			ieee80211_queue_work(mt76_hw(dev), &dev->reset_work);
-			wake_up(&dev->reset_wait);
+		if (val & (MT_MCU_CMD_ERROR_MASK | MT_MCU_CMD_WDT_MASK)) {
+			dev->recovery.state = val;
+			mt7996_reset(dev);
 		}
 	}
 }
@@ -308,7 +315,7 @@ irqreturn_t mt7996_irq_handler(int irq, void *dev_instance)
 	if (!test_bit(MT76_STATE_INITIALIZED, &dev->mphy.state))
 		return IRQ_NONE;
 
-	tasklet_schedule(&dev->irq_tasklet);
+	tasklet_schedule(&dev->mt76.irq_tasklet);
 
 	return IRQ_HANDLED;
 }
@@ -320,6 +327,7 @@ struct mt7996_dev *mt7996_mmio_probe(struct device *pdev,
 		/* txwi_size = txd size + txp size */
 		.txwi_size = MT_TXD_SIZE + sizeof(struct mt76_connac_fw_txp),
 		.drv_flags = MT_DRV_TXWI_NO_FREE |
+			     MT_DRV_AMSDU_OFFLOAD |
 			     MT_DRV_HW_MGMT_TXQ,
 		.survey_flags = SURVEY_INFO_TIME_TX |
 				SURVEY_INFO_TIME_RX |
@@ -330,7 +338,6 @@ struct mt7996_dev *mt7996_mmio_probe(struct device *pdev,
 		.rx_skb = mt7996_queue_rx_skb,
 		.rx_check = mt7996_rx_check,
 		.rx_poll_complete = mt7996_rx_poll_complete,
-		.sta_ps = mt7996_sta_ps,
 		.sta_add = mt7996_mac_sta_add,
 		.sta_remove = mt7996_mac_sta_remove,
 		.update_survey = mt7996_update_channel,
@@ -349,7 +356,7 @@ struct mt7996_dev *mt7996_mmio_probe(struct device *pdev,
 	if (ret)
 		goto error;
 
-	tasklet_setup(&dev->irq_tasklet, mt7996_irq_tasklet);
+	tasklet_setup(&mdev->irq_tasklet, mt7996_irq_tasklet);
 
 	mt76_wr(dev, MT_INT_MASK_CSR, 0);
 

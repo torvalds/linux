@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR MIT
 /**************************************************************************
  *
- * Copyright 2009-2014 VMware, Inc., Palo Alto, CA., USA
+ * Copyright 2009-2023 VMware, Inc., Palo Alto, CA., USA
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
@@ -24,19 +24,19 @@
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
  **************************************************************************/
-
-#include <drm/ttm/ttm_placement.h>
+#include "vmwgfx_bo.h"
+#include "vmwgfx_drv.h"
 
 #include "device_include/svga_overlay.h"
 #include "device_include/svga_escape.h"
 
-#include "vmwgfx_drv.h"
+#include <drm/ttm/ttm_placement.h>
 
 #define VMW_MAX_NUM_STREAMS 1
 #define VMW_OVERLAY_CAP_MASK (SVGA_FIFO_CAP_VIDEO | SVGA_FIFO_CAP_ESCAPE)
 
 struct vmw_stream {
-	struct vmw_buffer_object *buf;
+	struct vmw_bo *buf;
 	bool claimed;
 	bool paused;
 	struct drm_vmw_control_stream_arg saved;
@@ -52,12 +52,6 @@ struct vmw_overlay {
 	struct mutex mutex;
 	struct vmw_stream stream[VMW_MAX_NUM_STREAMS];
 };
-
-static inline struct vmw_overlay *vmw_overlay(struct drm_device *dev)
-{
-	struct vmw_private *dev_priv = vmw_priv(dev);
-	return dev_priv ? dev_priv->overlay_priv : NULL;
-}
 
 struct vmw_escape_header {
 	uint32_t cmd;
@@ -92,7 +86,7 @@ static inline void fill_flush(struct vmw_escape_video_flush *cmd,
  * -ERESTARTSYS if interrupted by a signal.
  */
 static int vmw_overlay_send_put(struct vmw_private *dev_priv,
-				struct vmw_buffer_object *buf,
+				struct vmw_bo *buf,
 				struct drm_vmw_control_stream_arg *arg,
 				bool interruptible)
 {
@@ -140,7 +134,7 @@ static int vmw_overlay_send_put(struct vmw_private *dev_priv,
 	for (i = 0; i < num_items; i++)
 		items[i].registerId = i;
 
-	vmw_bo_get_guest_ptr(&buf->base, &ptr);
+	vmw_bo_get_guest_ptr(&buf->tbo, &ptr);
 	ptr.offset += arg->offset;
 
 	items[SVGA_VIDEO_ENABLED].value     = true;
@@ -223,7 +217,7 @@ static int vmw_overlay_send_stop(struct vmw_private *dev_priv,
  * used with GMRs instead of being locked to vram.
  */
 static int vmw_overlay_move_buffer(struct vmw_private *dev_priv,
-				   struct vmw_buffer_object *buf,
+				   struct vmw_bo *buf,
 				   bool pin, bool inter)
 {
 	if (!pin)
@@ -295,7 +289,7 @@ static int vmw_overlay_stop(struct vmw_private *dev_priv,
  * -ERESTARTSYS if interrupted.
  */
 static int vmw_overlay_update_stream(struct vmw_private *dev_priv,
-				     struct vmw_buffer_object *buf,
+				     struct vmw_bo *buf,
 				     struct drm_vmw_control_stream_arg *arg,
 				     bool interruptible)
 {
@@ -433,7 +427,7 @@ int vmw_overlay_ioctl(struct drm_device *dev, void *data,
 	struct vmw_overlay *overlay = dev_priv->overlay_priv;
 	struct drm_vmw_control_stream_arg *arg =
 	    (struct drm_vmw_control_stream_arg *)data;
-	struct vmw_buffer_object *buf;
+	struct vmw_bo *buf;
 	struct vmw_resource *res;
 	int ret;
 
@@ -458,7 +452,7 @@ int vmw_overlay_ioctl(struct drm_device *dev, void *data,
 	ret = vmw_overlay_update_stream(dev_priv, buf, arg, true);
 
 	vmw_bo_unreference(&buf);
-	drm_gem_object_put(&buf->base.base);
+	drm_gem_object_put(&buf->tbo.base);
 
 out_unlock:
 	mutex_unlock(&overlay->mutex);

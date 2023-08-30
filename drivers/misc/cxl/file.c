@@ -678,7 +678,7 @@ int __init cxl_file_init(void)
 
 	pr_devel("CXL device allocated, MAJOR %i\n", MAJOR(cxl_dev));
 
-	cxl_class = class_create(THIS_MODULE, "cxl");
+	cxl_class = class_create("cxl");
 	if (IS_ERR(cxl_class)) {
 		pr_err("Unable to create CXL class\n");
 		rc = PTR_ERR(cxl_class);

@@ -11,6 +11,8 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/bug.h>
+#include <linux/slab.h>
+#include <linux/sys_soc.h>
 
 #include <asm/mipsregs.h>
 #include <asm/mach-ralink/ralink_regs.h>
@@ -48,6 +50,8 @@
 
 /* does the board have sdram or ddram */
 static int dram_type;
+
+static struct ralink_soc_info *soc_info_ptr;
 
 static __init u32
 mt7620_calc_rate(u32 ref_rate, u32 mul, u32 div)
@@ -324,35 +328,76 @@ mt7628_dram_init(struct ralink_soc_info *soc_info)
 	}
 }
 
-void __init prom_soc_init(struct ralink_soc_info *soc_info)
+static unsigned int __init mt7620_get_soc_name0(void)
 {
-	void __iomem *sysc = (void __iomem *) KSEG1ADDR(MT7620_SYSC_BASE);
-	unsigned char *name = NULL;
-	u32 n0;
-	u32 n1;
-	u32 rev;
-	u32 cfg0;
-	u32 pmu0;
-	u32 pmu1;
-	u32 bga;
+	return __raw_readl(MT7620_SYSC_BASE + SYSC_REG_CHIP_NAME0);
+}
 
-	n0 = __raw_readl(sysc + SYSC_REG_CHIP_NAME0);
-	n1 = __raw_readl(sysc + SYSC_REG_CHIP_NAME1);
-	rev = __raw_readl(sysc + SYSC_REG_CHIP_REV);
-	bga = (rev >> CHIP_REV_PKG_SHIFT) & CHIP_REV_PKG_MASK;
+static unsigned int __init mt7620_get_soc_name1(void)
+{
+	return __raw_readl(MT7620_SYSC_BASE + SYSC_REG_CHIP_NAME1);
+}
 
-	if (n0 == MT7620_CHIP_NAME0 && n1 == MT7620_CHIP_NAME1) {
+static bool __init mt7620_soc_valid(void)
+{
+	if (mt7620_get_soc_name0() == MT7620_CHIP_NAME0 &&
+	    mt7620_get_soc_name1() == MT7620_CHIP_NAME1)
+		return true;
+	else
+		return false;
+}
+
+static bool __init mt7628_soc_valid(void)
+{
+	if (mt7620_get_soc_name0() == MT7620_CHIP_NAME0 &&
+	    mt7620_get_soc_name1() == MT7628_CHIP_NAME1)
+		return true;
+	else
+		return false;
+}
+
+static unsigned int __init mt7620_get_rev(void)
+{
+	return __raw_readl(MT7620_SYSC_BASE + SYSC_REG_CHIP_REV);
+}
+
+static unsigned int __init mt7620_get_bga(void)
+{
+	return (mt7620_get_rev() >> CHIP_REV_PKG_SHIFT) & CHIP_REV_PKG_MASK;
+}
+
+static unsigned int __init mt7620_get_efuse(void)
+{
+	return __raw_readl(MT7620_SYSC_BASE + SYSC_REG_EFUSE_CFG);
+}
+
+static unsigned int __init mt7620_get_soc_ver(void)
+{
+	return (mt7620_get_rev() >> CHIP_REV_VER_SHIFT) & CHIP_REV_VER_MASK;
+}
+
+static unsigned int __init mt7620_get_soc_eco(void)
+{
+	return (mt7620_get_rev() & CHIP_REV_ECO_MASK);
+}
+
+static const char __init *mt7620_get_soc_name(struct ralink_soc_info *soc_info)
+{
+	if (mt7620_soc_valid()) {
+		u32 bga = mt7620_get_bga();
+
 		if (bga) {
 			ralink_soc = MT762X_SOC_MT7620A;
-			name = "MT7620A";
 			soc_info->compatible = "ralink,mt7620a-soc";
+			return "MT7620A";
 		} else {
 			ralink_soc = MT762X_SOC_MT7620N;
-			name = "MT7620N";
 			soc_info->compatible = "ralink,mt7620n-soc";
+			return "MT7620N";
 		}
-	} else if (n0 == MT7620_CHIP_NAME0 && n1 == MT7628_CHIP_NAME1) {
-		u32 efuse = __raw_readl(sysc + SYSC_REG_EFUSE_CFG);
+	} else if (mt7628_soc_valid()) {
+		u32 efuse = mt7620_get_efuse();
+		unsigned char *name = NULL;
 
 		if (efuse & EFUSE_MT7688) {
 			ralink_soc = MT762X_SOC_MT7688;
@@ -362,17 +407,63 @@ void __init prom_soc_init(struct ralink_soc_info *soc_info)
 			name = "MT7628AN";
 		}
 		soc_info->compatible = "ralink,mt7628an-soc";
+		return name;
 	} else {
-		panic("mt762x: unknown SoC, n0:%08x n1:%08x\n", n0, n1);
+		panic("mt762x: unknown SoC, n0:%08x n1:%08x\n",
+		      mt7620_get_soc_name0(), mt7620_get_soc_name1());
 	}
+}
+
+static const char __init *mt7620_get_soc_id_name(void)
+{
+	if (ralink_soc == MT762X_SOC_MT7620A)
+		return "mt7620a";
+	else if (ralink_soc == MT762X_SOC_MT7620N)
+		return "mt7620n";
+	else if (ralink_soc == MT762X_SOC_MT7688)
+		return "mt7688";
+	else if (ralink_soc == MT762X_SOC_MT7628AN)
+		return "mt7628n";
+	else
+		return "invalid";
+}
+
+static int __init mt7620_soc_dev_init(void)
+{
+	struct soc_device *soc_dev;
+	struct soc_device_attribute *soc_dev_attr;
+
+	soc_dev_attr = kzalloc(sizeof(*soc_dev_attr), GFP_KERNEL);
+	if (!soc_dev_attr)
+		return -ENOMEM;
+
+	soc_dev_attr->family = "Ralink";
+	soc_dev_attr->soc_id = mt7620_get_soc_id_name();
+
+	soc_dev_attr->data = soc_info_ptr;
+
+	soc_dev = soc_device_register(soc_dev_attr);
+	if (IS_ERR(soc_dev)) {
+		kfree(soc_dev_attr);
+		return PTR_ERR(soc_dev);
+	}
+
+	return 0;
+}
+device_initcall(mt7620_soc_dev_init);
+
+void __init prom_soc_init(struct ralink_soc_info *soc_info)
+{
+	const char *name = mt7620_get_soc_name(soc_info);
+	u32 cfg0;
+	u32 pmu0;
+	u32 pmu1;
 
 	snprintf(soc_info->sys_type, RAMIPS_SYS_TYPE_LEN,
 		"MediaTek %s ver:%u eco:%u",
-		name,
-		(rev >> CHIP_REV_VER_SHIFT) & CHIP_REV_VER_MASK,
-		(rev & CHIP_REV_ECO_MASK));
+		name, mt7620_get_soc_ver(), mt7620_get_soc_eco());
 
-	cfg0 = __raw_readl(sysc + SYSC_REG_SYSTEM_CONFIG0);
+	cfg0 = __raw_readl(MT7620_SYSC_BASE + SYSC_REG_SYSTEM_CONFIG0);
 	if (is_mt76x8()) {
 		dram_type = cfg0 & DRAM_TYPE_MT7628_MASK;
 	} else {
@@ -388,11 +479,13 @@ void __init prom_soc_init(struct ralink_soc_info *soc_info)
 	else
 		mt7620_dram_init(soc_info);
 
-	pmu0 = __raw_readl(sysc + PMU0_CFG);
-	pmu1 = __raw_readl(sysc + PMU1_CFG);
+	pmu0 = __raw_readl(MT7620_SYSC_BASE + PMU0_CFG);
+	pmu1 = __raw_readl(MT7620_SYSC_BASE + PMU1_CFG);
 
 	pr_info("Analog PMU set to %s control\n",
 		(pmu0 & PMU_SW_SET) ? ("sw") : ("hw"));
 	pr_info("Digital PMU set to %s control\n",
 		(pmu1 & DIG_SW_SEL) ? ("sw") : ("hw"));
+
+	soc_info_ptr = soc_info;
 }

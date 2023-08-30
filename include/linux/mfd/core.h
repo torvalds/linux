@@ -68,15 +68,15 @@ struct mfd_cell {
 	int			id;
 	int			level;
 
-	int			(*enable)(struct platform_device *dev);
-	int			(*disable)(struct platform_device *dev);
-
 	int			(*suspend)(struct platform_device *dev);
 	int			(*resume)(struct platform_device *dev);
 
 	/* platform data passed to the sub devices drivers */
 	void			*platform_data;
 	size_t			pdata_size;
+
+	/* Matches ACPI */
+	const struct mfd_cell_acpi_match	*acpi_match;
 
 	/* Software node for the device. */
 	const struct software_node *swnode;
@@ -97,9 +97,6 @@ struct mfd_cell {
 	/* Set to 'true' to use 'of_reg' (above) - allows for of_reg=0 */
 	bool use_of_reg;
 
-	/* Matches ACPI */
-	const struct mfd_cell_acpi_match	*acpi_match;
-
 	/*
 	 * These resources can be specified relative to the parent device.
 	 * For accessing hardware you should use resources from the platform dev
@@ -119,18 +116,9 @@ struct mfd_cell {
 	/* A list of regulator supplies that should be mapped to the MFD
 	 * device rather than the child device when requested
 	 */
-	const char * const	*parent_supplies;
 	int			num_parent_supplies;
+	const char * const	*parent_supplies;
 };
-
-/*
- * Convenience functions for clients using shared cells.  Refcounting
- * happens automatically, with the cell's enable/disable callbacks
- * being called only when a device is first being enabled or no other
- * clients are making use of it.
- */
-extern int mfd_cell_enable(struct platform_device *pdev);
-extern int mfd_cell_disable(struct platform_device *pdev);
 
 /*
  * Given a platform device that's been created by mfd_add_devices(), fetch

@@ -219,7 +219,6 @@ GPIO 值的命令需要等待其信息排到队首才发送命令，再获得其
         ## 	gpio_free_array()
 
                 gpio_free()
-                gpio_set_debounce()
 
 
 
@@ -652,25 +651,6 @@ GPIO 控制器的路径类似 /sys/class/gpio/gpiochip42/ (对于从#42 GPIO
 固定的,例如在扩展卡上的 GPIO会根据所使用的主板或所在堆叠架构中其他的板子而
 有所不同。在这种情况下,你可能需要使用 gpiochip 节点(尽可能地结合电路图)来
 确定给定信号所用的 GPIO 编号。
-
-
-从内核代码中导出
-----------------
-
-内核代码可以明确地管理那些已通过 gpio_request()申请的 GPIO 的导出::
-
-	/* 导出 GPIO 到用户空间 */
-	int gpio_export(unsigned gpio, bool direction_may_change);
-
-	/* gpio_export()的逆操作 */
-	void gpio_unexport();
-
-在一个内核驱动申请一个 GPIO 之后，它可以通过 gpio_export()使其在 sysfs
-接口中可见。该驱动可以控制信号方向是否可修改。这有助于防止用户空间代码无意间
-破坏重要的系统状态。
-
-这个明确的导出有助于(通过使某些实验更容易来)调试，也可以提供一个始终存在的接口，
-与文档配合作为板级支持包的一部分。
 
 
 API参考

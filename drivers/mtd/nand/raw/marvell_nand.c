@@ -2457,6 +2457,12 @@ static int marvell_nfc_setup_interface(struct nand_chip *chip, int chipnr,
 			NDTR1_WAIT_MODE;
 	}
 
+	/*
+	 * Reset nfc->selected_chip so the next command will cause the timing
+	 * registers to be updated in marvell_nfc_select_target().
+	 */
+	nfc->selected_chip = NULL;
+
 	return 0;
 }
 
@@ -2894,10 +2900,6 @@ static int marvell_nfc_init(struct marvell_nfc *nfc)
 		regmap_update_bits(sysctrl_base, GENCONF_CLK_GATING_CTRL,
 				   GENCONF_CLK_GATING_CTRL_ND_GATE,
 				   GENCONF_CLK_GATING_CTRL_ND_GATE);
-
-		regmap_update_bits(sysctrl_base, GENCONF_ND_CLK_CTRL,
-				   GENCONF_ND_CLK_CTRL_EN,
-				   GENCONF_ND_CLK_CTRL_EN);
 	}
 
 	/* Configure the DMA if appropriate */
@@ -3004,7 +3006,7 @@ unprepare_core_clk:
 	return ret;
 }
 
-static int marvell_nfc_remove(struct platform_device *pdev)
+static void marvell_nfc_remove(struct platform_device *pdev)
 {
 	struct marvell_nfc *nfc = platform_get_drvdata(pdev);
 
@@ -3017,8 +3019,6 @@ static int marvell_nfc_remove(struct platform_device *pdev)
 
 	clk_disable_unprepare(nfc->reg_clk);
 	clk_disable_unprepare(nfc->core_clk);
-
-	return 0;
 }
 
 static int __maybe_unused marvell_nfc_suspend(struct device *dev)
@@ -3154,7 +3154,7 @@ static struct platform_driver marvell_nfc_driver = {
 	},
 	.id_table = marvell_nfc_platform_ids,
 	.probe = marvell_nfc_probe,
-	.remove	= marvell_nfc_remove,
+	.remove_new = marvell_nfc_remove,
 };
 module_platform_driver(marvell_nfc_driver);
 

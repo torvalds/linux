@@ -58,55 +58,24 @@ static const struct mtk_gate mm_clks[] = {
 	GATE_MM1(CLK_MM_DISP_26M, "mm_disp_26m_ck", "top_disp", 10),
 };
 
-static int clk_mt8186_mm_probe(struct platform_device *pdev)
-{
-	struct device *dev = &pdev->dev;
-	struct device_node *node = dev->parent->of_node;
-	struct clk_hw_onecell_data *clk_data;
-	int r;
+static const struct mtk_clk_desc mm_desc = {
+	.clks = mm_clks,
+	.num_clks = ARRAY_SIZE(mm_clks),
+};
 
-	clk_data = mtk_alloc_clk_data(CLK_MM_NR_CLK);
-	if (!clk_data)
-		return -ENOMEM;
-
-	r = mtk_clk_register_gates(&pdev->dev, node, mm_clks,
-				   ARRAY_SIZE(mm_clks), clk_data);
-	if (r)
-		goto free_mm_data;
-
-	r = of_clk_add_hw_provider(node, of_clk_hw_onecell_get, clk_data);
-	if (r)
-		goto unregister_gates;
-
-	platform_set_drvdata(pdev, clk_data);
-
-	return r;
-
-unregister_gates:
-	mtk_clk_unregister_gates(mm_clks, ARRAY_SIZE(mm_clks), clk_data);
-free_mm_data:
-	mtk_free_clk_data(clk_data);
-	return r;
-}
-
-static int clk_mt8186_mm_remove(struct platform_device *pdev)
-{
-	struct device *dev = &pdev->dev;
-	struct device_node *node = dev->parent->of_node;
-	struct clk_hw_onecell_data *clk_data = platform_get_drvdata(pdev);
-
-	of_clk_del_provider(node);
-	mtk_clk_unregister_gates(mm_clks, ARRAY_SIZE(mm_clks), clk_data);
-	mtk_free_clk_data(clk_data);
-
-	return 0;
-}
+static const struct platform_device_id clk_mt8186_mm_id_table[] = {
+	{ .name = "clk-mt8186-mm", .driver_data = (kernel_ulong_t)&mm_desc },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(platform, clk_mt8186_mm_id_table);
 
 static struct platform_driver clk_mt8186_mm_drv = {
-	.probe = clk_mt8186_mm_probe,
-	.remove = clk_mt8186_mm_remove,
+	.probe = mtk_clk_pdev_probe,
+	.remove = mtk_clk_pdev_remove,
 	.driver = {
 		.name = "clk-mt8186-mm",
 	},
+	.id_table = clk_mt8186_mm_id_table,
 };
-builtin_platform_driver(clk_mt8186_mm_drv);
+module_platform_driver(clk_mt8186_mm_drv);
+MODULE_LICENSE("GPL");

@@ -339,22 +339,24 @@ static int sdhci_o2_execute_tuning(struct mmc_host *mmc, u32 opcode)
 	reg_val &= ~SDHCI_CLOCK_CARD_EN;
 	sdhci_writew(host, reg_val, SDHCI_CLOCK_CONTROL);
 
-	/* UnLock WP */
-	pci_read_config_byte(chip->pdev, O2_SD_LOCK_WP, &scratch_8);
-	scratch_8 &= 0x7f;
-	pci_write_config_byte(chip->pdev, O2_SD_LOCK_WP, scratch_8);
+	if ((host->timing == MMC_TIMING_MMC_HS200) ||
+		(host->timing == MMC_TIMING_UHS_SDR104)) {
+		/* UnLock WP */
+		pci_read_config_byte(chip->pdev, O2_SD_LOCK_WP, &scratch_8);
+		scratch_8 &= 0x7f;
+		pci_write_config_byte(chip->pdev, O2_SD_LOCK_WP, scratch_8);
 
-	/* Set pcr 0x354[16] to choose dll clock, and set the default phase */
-	pci_read_config_dword(chip->pdev, O2_SD_OUTPUT_CLK_SOURCE_SWITCH, &reg_val);
-	reg_val &= ~(O2_SD_SEL_DLL | O2_SD_PHASE_MASK);
-	reg_val |= (O2_SD_SEL_DLL | O2_SD_FIX_PHASE);
-	pci_write_config_dword(chip->pdev, O2_SD_OUTPUT_CLK_SOURCE_SWITCH, reg_val);
+		/* Set pcr 0x354[16] to choose dll clock, and set the default phase */
+		pci_read_config_dword(chip->pdev, O2_SD_OUTPUT_CLK_SOURCE_SWITCH, &reg_val);
+		reg_val &= ~(O2_SD_SEL_DLL | O2_SD_PHASE_MASK);
+		reg_val |= (O2_SD_SEL_DLL | O2_SD_FIX_PHASE);
+		pci_write_config_dword(chip->pdev, O2_SD_OUTPUT_CLK_SOURCE_SWITCH, reg_val);
 
-	/* Lock WP */
-	pci_read_config_byte(chip->pdev, O2_SD_LOCK_WP, &scratch_8);
-	scratch_8 |= 0x80;
-	pci_write_config_byte(chip->pdev, O2_SD_LOCK_WP, scratch_8);
-
+		/* Lock WP */
+		pci_read_config_byte(chip->pdev, O2_SD_LOCK_WP, &scratch_8);
+		scratch_8 |= 0x80;
+		pci_write_config_byte(chip->pdev, O2_SD_LOCK_WP, scratch_8);
+	}
 	/* Start clk */
 	reg_val = sdhci_readw(host, SDHCI_CLOCK_CONTROL);
 	reg_val |= SDHCI_CLOCK_CARD_EN;

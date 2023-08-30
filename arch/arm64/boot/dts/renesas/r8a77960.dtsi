@@ -70,13 +70,11 @@
 			opp-hz = /bits/ 64 <1600000000>;
 			opp-microvolt = <900000>;
 			clock-latency-ns = <300000>;
-			turbo-mode;
 		};
 		opp-1700000000 {
 			opp-hz = /bits/ 64 <1700000000>;
 			opp-microvolt = <900000>;
 			clock-latency-ns = <300000>;
-			turbo-mode;
 		};
 		opp-1800000000 {
 			opp-hz = /bits/ 64 <1800000000>;

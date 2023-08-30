@@ -625,7 +625,7 @@ err_alloc:
 	return ret;
 }
 
-static int pwm_backlight_remove(struct platform_device *pdev)
+static void pwm_backlight_remove(struct platform_device *pdev)
 {
 	struct backlight_device *bl = platform_get_drvdata(pdev);
 	struct pwm_bl_data *pb = bl_get_data(bl);
@@ -635,8 +635,6 @@ static int pwm_backlight_remove(struct platform_device *pdev)
 
 	if (pb->exit)
 		pb->exit(&pdev->dev);
-
-	return 0;
 }
 
 static void pwm_backlight_shutdown(struct platform_device *pdev)
@@ -690,7 +688,7 @@ static struct platform_driver pwm_backlight_driver = {
 		.of_match_table	= of_match_ptr(pwm_backlight_of_match),
 	},
 	.probe		= pwm_backlight_probe,
-	.remove		= pwm_backlight_remove,
+	.remove_new	= pwm_backlight_remove,
 	.shutdown	= pwm_backlight_shutdown,
 };
 

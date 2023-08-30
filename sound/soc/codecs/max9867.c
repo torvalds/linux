@@ -6,6 +6,7 @@
 // Copyright 2018 Ladislav Michl <ladis@linux-mips.org>
 //
 
+#include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
@@ -16,6 +17,7 @@
 #include "max9867.h"
 
 struct max9867_priv {
+	struct clk *mclk;
 	struct regmap *regmap;
 	const struct snd_pcm_hw_constraint_list *constraints;
 	unsigned int sysclk, pclk;
@@ -577,6 +579,11 @@ static int max9867_set_bias_level(struct snd_soc_component *component,
 	struct max9867_priv *max9867 = snd_soc_component_get_drvdata(component);
 
 	switch (level) {
+	case SND_SOC_BIAS_ON:
+		err = clk_prepare_enable(max9867->mclk);
+		if (err)
+			return err;
+		break;
 	case SND_SOC_BIAS_STANDBY:
 		if (snd_soc_component_get_bias_level(component) == SND_SOC_BIAS_OFF) {
 			err = regcache_sync(max9867->regmap);
@@ -595,6 +602,7 @@ static int max9867_set_bias_level(struct snd_soc_component *component,
 			return err;
 
 		regcache_mark_dirty(max9867->regmap);
+		clk_disable_unprepare(max9867->mclk);
 		break;
 	default:
 		break;
@@ -663,9 +671,16 @@ static int max9867_i2c_probe(struct i2c_client *i2c)
 	dev_info(&i2c->dev, "device revision: %x\n", reg);
 	ret = devm_snd_soc_register_component(&i2c->dev, &max9867_component,
 			max9867_dai, ARRAY_SIZE(max9867_dai));
-	if (ret < 0)
+	if (ret < 0) {
 		dev_err(&i2c->dev, "Failed to register component: %d\n", ret);
-	return ret;
+		return ret;
+	}
+
+	max9867->mclk = devm_clk_get(&i2c->dev, NULL);
+	if (IS_ERR(max9867->mclk))
+		return PTR_ERR(max9867->mclk);
+
+	return 0;
 }
 
 static const struct i2c_device_id max9867_i2c_id[] = {

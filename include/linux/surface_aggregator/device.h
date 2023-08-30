@@ -243,11 +243,7 @@ static inline bool is_ssam_device(struct device *d)
  * Return: Returns the pointer to the &struct ssam_device_driver wrapping the
  * given device driver @d.
  */
-static inline
-struct ssam_device_driver *to_ssam_device_driver(struct device_driver *d)
-{
-	return container_of(d, struct ssam_device_driver, driver);
-}
+#define to_ssam_device_driver(d)	container_of_const(d, struct ssam_device_driver, driver)
 
 const struct ssam_device_id *ssam_device_id_match(const struct ssam_device_id *table,
 						  const struct ssam_device_uid uid);

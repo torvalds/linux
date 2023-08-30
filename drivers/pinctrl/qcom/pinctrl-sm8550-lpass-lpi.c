@@ -102,6 +102,13 @@ static const struct pinctrl_pin_desc sm8550_lpi_pins[] = {
 	PINCTRL_PIN(22, "gpio22"),
 };
 
+static const char * const gpio_groups[] = {
+	"gpio0", "gpio1", "gpio2", "gpio3", "gpio4", "gpio5", "gpio6", "gpio7",
+	"gpio8", "gpio9", "gpio10", "gpio11", "gpio12", "gpio13", "gpio14",
+	"gpio15", "gpio16", "gpio17", "gpio18", "gpio19", "gpio20", "gpio21",
+	"gpio22",
+};
+
 static const char * const dmic1_clk_groups[] = { "gpio6" };
 static const char * const dmic1_data_groups[] = { "gpio7" };
 static const char * const dmic2_clk_groups[] = { "gpio8" };
@@ -168,6 +175,7 @@ static const struct lpi_pingroup sm8550_groups[] = {
 };
 
 static const struct lpi_function sm8550_functions[] = {
+	LPI_FUNCTION(gpio),
 	LPI_FUNCTION(dmic1_clk),
 	LPI_FUNCTION(dmic1_data),
 	LPI_FUNCTION(dmic2_clk),

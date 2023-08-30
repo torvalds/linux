@@ -135,11 +135,9 @@
 		backlight = <&backlight>;
 		no-hpd;
 
-		ports {
-			panel_in: port {
-				panel_in_edp: endpoint {
-					remote-endpoint = <&sn65dsi86_out>;
-				};
+		panel_in: port {
+			panel_in_edp: endpoint {
+				remote-endpoint = <&sn65dsi86_out>;
 			};
 		};
 	};
@@ -319,8 +317,9 @@
 
 &qspi {
 	status = "okay";
-	pinctrl-names = "default";
-	pinctrl-0 = <&qspi_clk &qspi_cs0 &qspi_data01>;
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&qspi_clk>, <&qspi_cs0>, <&qspi_data0>, <&qspi_data1>;
+	pinctrl-1 = <&qspi_sleep>;
 
 	flash@0 {
 		compatible = "jedec,spi-nor";
@@ -995,16 +994,19 @@ ap_ts_i2c: &i2c14 {
 /* PINCTRL - additions to nodes defined in sdm845.dtsi */
 
 &qspi_cs0 {
-	bias-disable;
+	bias-disable;		/* External pullup */
 };
 
 &qspi_clk {
-	bias-disable;
+	bias-disable;		/* Rely on Cr50 internal pulldown */
 };
 
-&qspi_data01 {
-	/* High-Z when no transfers; nice to park the lines */
-	bias-pull-up;
+&qspi_data0 {
+	bias-disable;		/* Rely on Cr50 internal pulldown */
+};
+
+&qspi_data1 {
+	bias-pull-down;
 };
 
 &qup_i2c3_default {
@@ -1155,14 +1157,12 @@ ap_ts_i2c: &i2c14 {
 	bios_flash_wp_r_l: bios-flash-wp-r-l-state {
 		pins = "gpio128";
 		function = "gpio";
-		input-enable;
 		bias-disable;
 	};
 
 	ec_ap_int_l: ec-ap-int-l-state {
 	       pins = "gpio122";
 	       function = "gpio";
-	       input-enable;
 	       bias-pull-up;
 	};
 
@@ -1190,7 +1190,6 @@ ap_ts_i2c: &i2c14 {
 	h1_ap_int_odl: h1-ap-int-odl-state {
 		pins = "gpio129";
 		function = "gpio";
-		input-enable;
 		bias-pull-up;
 	};
 
@@ -1234,6 +1233,22 @@ ap_ts_i2c: &i2c14 {
 		 * remove "output-high" here.
 		 */
 		output-high;
+	};
+
+	qspi_sleep: qspi-sleep-state {
+		pins = "gpio90", "gpio91", "gpio92", "gpio95";
+
+		/*
+		 * When we're not actively transferring we want pins as GPIOs
+		 * with output disabled so that the quad SPI IP block stops
+		 * driving them. We rely on the normal pulls configured in
+		 * the active state and don't redefine them here. Also note
+		 * that we don't need the reverse (output-enable) in the
+		 * normal mode since the "output-enable" only matters for
+		 * GPIO function.
+		 */
+		function = "gpio";
+		output-disable;
 	};
 
 	sdc2_clk: sdc2-clk-state {

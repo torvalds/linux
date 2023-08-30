@@ -10,6 +10,7 @@
 
 .. _it_process_index:
 
+===============================================
 Lavorare con la comunità di sviluppo del kernel
 ===============================================
 

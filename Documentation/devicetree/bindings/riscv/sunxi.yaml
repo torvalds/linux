@@ -64,6 +64,11 @@ properties:
           - const: widora,mangopi-mq-pro
           - const: allwinner,sun20i-d1
 
+      - description: MangoPi MQ-R board
+        items:
+          - const: widora,mangopi-mq-r-f133
+          - const: allwinner,sun20i-d1s
+
 additionalProperties: true
 
 ...

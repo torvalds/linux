@@ -127,10 +127,12 @@
     },
     {
         "BriefDescription": "Free running counter that increments for the Memory Controller",
+        "EventCode": "0xff",
         "EventName": "UNC_M_CLOCKTICKS_FREERUN",
         "PerPkg": "1",
         "PublicDescription": "UNC_M_CLOCKTICKS_FREERUN",
-        "Unit": "iMC"
+        "UMask": "0x10",
+        "Unit": "imc_free_running"
     },
     {
         "BriefDescription": "DRAM Precharge All Commands",

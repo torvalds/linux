@@ -1057,7 +1057,7 @@ static void fl_set_key_pppoe(struct nlattr **tb,
 	 * because ETH_P_PPP_SES was stored in basic.n_proto
 	 * which might get overwritten by ppp_proto
 	 * or might be set to 0, the role of key_val::type
-	 * is simmilar to vlan_key::tpid
+	 * is similar to vlan_key::tpid
 	 */
 	key_val->type = htons(ETH_P_PPP_SES);
 	key_mask->type = cpu_to_be16(~0);
@@ -1152,6 +1152,9 @@ static int fl_set_geneve_opt(const struct nlattr *nla, struct fl_flow_key *key,
 
 	if (option_len > sizeof(struct geneve_opt))
 		data_len = option_len - sizeof(struct geneve_opt);
+
+	if (key->enc_opts.len > FLOW_DIS_TUN_OPTS_MAX - 4)
+		return -ERANGE;
 
 	opt = (struct geneve_opt *)&key->enc_opts.data[key->enc_opts.len];
 	memset(opt, 0xff, option_len);
@@ -2210,10 +2213,10 @@ static int fl_change(struct net *net, struct sk_buff *in_skb,
 		spin_lock(&tp->lock);
 		if (!handle) {
 			handle = 1;
-			err = idr_alloc_u32(&head->handle_idr, fnew, &handle,
+			err = idr_alloc_u32(&head->handle_idr, NULL, &handle,
 					    INT_MAX, GFP_ATOMIC);
 		} else {
-			err = idr_alloc_u32(&head->handle_idr, fnew, &handle,
+			err = idr_alloc_u32(&head->handle_idr, NULL, &handle,
 					    handle, GFP_ATOMIC);
 
 			/* Filter with specified handle was concurrently
@@ -2339,7 +2342,8 @@ errout_hw:
 errout_mask:
 	fl_mask_put(head, fnew->mask);
 errout_idr:
-	idr_remove(&head->handle_idr, fnew->handle);
+	if (!fold)
+		idr_remove(&head->handle_idr, fnew->handle);
 	__fl_put(fnew);
 errout_tb:
 	kfree(tb);
@@ -2378,7 +2382,7 @@ static void fl_walk(struct tcf_proto *tp, struct tcf_walker *arg,
 	rcu_read_lock();
 	idr_for_each_entry_continue_ul(&head->handle_idr, f, tmp, id) {
 		/* don't return filters that are being deleted */
-		if (!refcount_inc_not_zero(&f->refcnt))
+		if (!f || !refcount_inc_not_zero(&f->refcnt))
 			continue;
 		rcu_read_unlock();
 

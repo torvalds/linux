@@ -419,7 +419,7 @@ static int rt3883_pci_probe(struct platform_device *pdev)
 
 	/* find the interrupt controller child node */
 	for_each_child_of_node(np, child) {
-		if (of_get_property(child, "interrupt-controller", NULL)) {
+		if (of_property_read_bool(child, "interrupt-controller")) {
 			rpc->intc_of_node = child;
 			break;
 		}

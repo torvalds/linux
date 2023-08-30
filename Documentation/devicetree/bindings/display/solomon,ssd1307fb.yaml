@@ -14,20 +14,18 @@ properties:
   compatible:
     oneOf:
       # Deprecated compatible strings
-      - items:
-          - enum:
-              - solomon,ssd1305fb-i2c
-              - solomon,ssd1306fb-i2c
-              - solomon,ssd1307fb-i2c
-              - solomon,ssd1309fb-i2c
+      - enum:
+          - solomon,ssd1305fb-i2c
+          - solomon,ssd1306fb-i2c
+          - solomon,ssd1307fb-i2c
+          - solomon,ssd1309fb-i2c
         deprecated: true
-      - items:
-          - enum:
-              - sinowealth,sh1106
-              - solomon,ssd1305
-              - solomon,ssd1306
-              - solomon,ssd1307
-              - solomon,ssd1309
+      - enum:
+          - sinowealth,sh1106
+          - solomon,ssd1305
+          - solomon,ssd1306
+          - solomon,ssd1307
+          - solomon,ssd1309
 
   reg:
     maxItems: 1
@@ -226,7 +224,7 @@ unevaluatedProperties: false
 
 examples:
   - |
-    i2c1 {
+    i2c {
             #address-cells = <1>;
             #size-cells = <0>;
 
@@ -239,7 +237,7 @@ examples:
 
             ssd1306_i2c: oled@3d {
                     compatible = "solomon,ssd1306";
-                    reg = <0x3c>;
+                    reg = <0x3d>;
                     pwms = <&pwm 4 3000>;
                     reset-gpios = <&gpio2 7>;
                     solomon,com-lrremap;

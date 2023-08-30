@@ -214,6 +214,16 @@ static int ethnl_set_mm(struct ethnl_req_info *req_info, struct genl_info *info)
 		return -ERANGE;
 	}
 
+	if (cfg.verify_enabled && !cfg.tx_enabled) {
+		NL_SET_ERR_MSG(extack, "Verification requires TX enabled");
+		return -EINVAL;
+	}
+
+	if (cfg.tx_enabled && !cfg.pmac_enabled) {
+		NL_SET_ERR_MSG(extack, "TX enabled requires pMAC enabled");
+		return -EINVAL;
+	}
+
 	ret = dev->ethtool_ops->set_mm(dev, &cfg, extack);
 	return ret < 0 ? ret : 1;
 }
@@ -249,3 +259,26 @@ bool __ethtool_dev_mm_supported(struct net_device *dev)
 
 	return !ret;
 }
+
+bool ethtool_dev_mm_supported(struct net_device *dev)
+{
+	const struct ethtool_ops *ops = dev->ethtool_ops;
+	bool supported;
+	int ret;
+
+	ASSERT_RTNL();
+
+	if (!ops)
+		return false;
+
+	ret = ethnl_ops_begin(dev);
+	if (ret < 0)
+		return false;
+
+	supported = __ethtool_dev_mm_supported(dev);
+
+	ethnl_ops_complete(dev);
+
+	return supported;
+}
+EXPORT_SYMBOL_GPL(ethtool_dev_mm_supported);

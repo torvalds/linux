@@ -412,7 +412,7 @@ static int hisi_pa_pmu_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	hisi_pmu_init(pa_pmu, name, THIS_MODULE);
+	hisi_pmu_init(pa_pmu, THIS_MODULE);
 	ret = perf_pmu_register(&pa_pmu->pmu, name, -1);
 	if (ret) {
 		dev_err(pa_pmu->dev, "PMU register failed, ret = %d\n", ret);

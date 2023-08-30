@@ -73,7 +73,7 @@
 	};
 
 	panel: panel {
-		compatible = "edt,etm0700g0edh6", "simple-panel";
+		compatible = "edt,etm0700g0edh6";
 		backlight = <&backlight>;
 		enable-gpios = <&gpiod 4 GPIO_ACTIVE_HIGH>;
 		power-supply = <&reg_3v3>;

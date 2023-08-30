@@ -261,6 +261,8 @@ struct dmub_srv_hw_params {
 	bool usb4_cm_version;
 	bool fw_in_system_memory;
 	bool dpia_hpd_int_enable_supported;
+	bool disable_clock_gate;
+	bool disallow_dispclk_dppclk_ds;
 };
 
 /**

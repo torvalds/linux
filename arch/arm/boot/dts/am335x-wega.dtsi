@@ -8,8 +8,34 @@
 	model = "Phytec AM335x phyBOARD-WEGA";
 	compatible = "phytec,am335x-wega", "phytec,am335x-phycore-som", "ti,am33xx";
 
-	sound: sound_iface {
-		compatible = "ti,da830-evm-audio";
+	sound: sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "snd-wega";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,bitclock-master = <&sound_iface_main>;
+		simple-audio-card,frame-master = <&sound_iface_main>;
+		simple-audio-card,mclk-fs = <32>;
+		simple-audio-card,widgets =
+					"Line", "Line In",
+					"Line", "Line Out",
+					"Speaker", "Speaker";
+		simple-audio-card,routing =
+					"Line Out", "LLOUT",
+					"Line Out", "RLOUT",
+					"Speaker", "SPOP",
+					"Speaker", "SPOM",
+					"LINE1L", "Line In",
+					"LINE1R", "Line In";
+
+		simple-audio-card,cpu {
+			sound-dai = <&mcasp0>;
+		};
+
+		sound_iface_main: simple-audio-card,codec {
+			sound-dai = <&tlv320aic3007>;
+			clocks = <&mcasp0_fck>;
+		};
+
 	};
 
 	vcc3v3: fixedregulator1 {
@@ -23,7 +49,7 @@
 
 /* Audio */
 &am33xx_pinmux {
-	mcasp0_pins: pinmux_mcasp0 {
+	mcasp0_pins: pinmux-mcasp0 {
 		pinctrl-single,pins = <
 			AM33XX_PADCONF(AM335X_PIN_MCASP0_AHCLKX, PIN_OUTPUT_PULLDOWN, MUX_MODE0)
 			AM33XX_PADCONF(AM335X_PIN_MCASP0_ACLKX, PIN_INPUT_PULLDOWN, MUX_MODE0)
@@ -36,6 +62,7 @@
 
 &i2c0 {
 	tlv320aic3007: tlv320aic3007@18 {
+		#sound-dai-cells = <0>;
 		compatible = "ti,tlv320aic3007";
 		reg = <0x18>;
 		AVDD-supply = <&vcc3v3>;
@@ -47,6 +74,7 @@
 };
 
 &mcasp0 {
+	#sound-dai-cells = <0>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&mcasp0_pins>;
 	op-mode = <0>; /* DAVINCI_MCASP_IIS_MODE */
@@ -59,23 +87,10 @@
 	status = "okay";
 };
 
-&sound {
-	ti,model = "AM335x-Wega";
-	ti,audio-codec = <&tlv320aic3007>;
-	ti,mcasp-controller = <&mcasp0>;
-	ti,audio-routing =
-		"Line Out",		"LLOUT",
-		"Line Out",		"RLOUT",
-		"LINE1L",		"Line In",
-		"LINE1R",		"Line In";
-	clocks = <&mcasp0_fck>;
-	clock-names = "mclk";
-	status = "okay";
-};
 
 /* CAN Busses */
 &am33xx_pinmux {
-	dcan1_pins: pinmux_dcan1 {
+	dcan1_pins: pinmux-dcan1 {
 		pinctrl-single,pins = <
 			AM33XX_PADCONF(AM335X_PIN_UART0_CTSN, PIN_OUTPUT_PULLUP, MUX_MODE2) /* uart0_ctsn.d_can1_tx */
 			AM33XX_PADCONF(AM335X_PIN_UART0_RTSN, PIN_INPUT_PULLUP, MUX_MODE2) /* uart0_rtsn.d_can1_rx */
@@ -91,7 +106,7 @@
 
 /* Ethernet */
 &am33xx_pinmux {
-	ethernet1_pins: pinmux_ethernet1 {
+	ethernet1_pins: pinmux-ethernet1 {
 		pinctrl-single,pins = <
 			AM33XX_PADCONF(AM335X_PIN_GPMC_A0, PIN_OUTPUT, MUX_MODE1)		/* gpmc_a0.mii2_txen */
 			AM33XX_PADCONF(AM335X_PIN_GPMC_A1, PIN_INPUT_PULLDOWN, MUX_MODE1)	/* gpmc_a1.mii2_rxdv */
@@ -131,7 +146,7 @@
 
 /* MMC */
 &am33xx_pinmux {
-	mmc1_pins: pinmux_mmc1 {
+	mmc1_pins: pinmux-mmc1 {
 		pinctrl-single,pins = <
 			AM33XX_PADCONF(AM335X_PIN_MMC0_DAT3, PIN_INPUT_PULLUP, MUX_MODE0)
 			AM33XX_PADCONF(AM335X_PIN_MMC0_DAT2, PIN_INPUT_PULLUP, MUX_MODE0)
@@ -161,14 +176,14 @@
 
 /* UARTs */
 &am33xx_pinmux {
-	uart0_pins: pinmux_uart0 {
+	uart0_pins: pinmux-uart0 {
 		pinctrl-single,pins = <
 			AM33XX_PADCONF(AM335X_PIN_UART0_RXD, PIN_INPUT_PULLUP, MUX_MODE0)
 			AM33XX_PADCONF(AM335X_PIN_UART0_TXD, PIN_OUTPUT_PULLDOWN, MUX_MODE0)
 		>;
 	};
 
-	uart1_pins: pinmux_uart1_pins {
+	uart1_pins: pinmux-uart1 {
 		pinctrl-single,pins = <
 			AM33XX_PADCONF(AM335X_PIN_UART1_RXD, PIN_INPUT_PULLUP, MUX_MODE0)
 			AM33XX_PADCONF(AM335X_PIN_UART1_TXD, PIN_OUTPUT_PULLDOWN, MUX_MODE0)

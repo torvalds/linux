@@ -19,8 +19,10 @@
 #include "intel_mchbar_regs.h"
 #include "intel_pch_refclk.h"
 #include "intel_pcode.h"
+#include "intel_pps_regs.h"
 #include "intel_snps_phy.h"
 #include "skl_watermark.h"
+#include "skl_watermark_regs.h"
 #include "vlv_sideband.h"
 
 #define for_each_power_domain_well(__dev_priv, __power_well, __domain)	\
@@ -264,9 +266,10 @@ bool intel_display_power_is_enabled(struct drm_i915_private *dev_priv,
 }
 
 static u32
-sanitize_target_dc_state(struct drm_i915_private *dev_priv,
+sanitize_target_dc_state(struct drm_i915_private *i915,
 			 u32 target_dc_state)
 {
+	struct i915_power_domains *power_domains = &i915->display.power.domains;
 	static const u32 states[] = {
 		DC_STATE_EN_UPTO_DC6,
 		DC_STATE_EN_UPTO_DC5,
@@ -279,7 +282,7 @@ sanitize_target_dc_state(struct drm_i915_private *dev_priv,
 		if (target_dc_state != states[i])
 			continue;
 
-		if (dev_priv->display.dmc.allowed_dc_mask & target_dc_state)
+		if (power_domains->allowed_dc_mask & target_dc_state)
 			break;
 
 		target_dc_state = states[i + 1];
@@ -312,7 +315,7 @@ void intel_display_power_set_target_dc_state(struct drm_i915_private *dev_priv,
 
 	state = sanitize_target_dc_state(dev_priv, state);
 
-	if (state == dev_priv->display.dmc.target_dc_state)
+	if (state == power_domains->target_dc_state)
 		goto unlock;
 
 	dc_off_enabled = intel_power_well_is_enabled(dev_priv, power_well);
@@ -323,7 +326,7 @@ void intel_display_power_set_target_dc_state(struct drm_i915_private *dev_priv,
 	if (!dc_off_enabled)
 		intel_power_well_enable(dev_priv, power_well);
 
-	dev_priv->display.dmc.target_dc_state = state;
+	power_domains->target_dc_state = state;
 
 	if (!dc_off_enabled)
 		intel_power_well_disable(dev_priv, power_well);
@@ -696,7 +699,7 @@ out_verify:
 }
 
 /**
- * intel_display_power_put_async - release a power domain reference asynchronously
+ * __intel_display_power_put_async - release a power domain reference asynchronously
  * @i915: i915 device instance
  * @domain: power domain to reference
  * @wakeref: wakeref acquired for the reference that is being released
@@ -992,10 +995,10 @@ int intel_power_domains_init(struct drm_i915_private *dev_priv)
 	dev_priv->params.disable_power_well =
 		sanitize_disable_power_well_option(dev_priv,
 						   dev_priv->params.disable_power_well);
-	dev_priv->display.dmc.allowed_dc_mask =
+	power_domains->allowed_dc_mask =
 		get_allowed_dc_mask(dev_priv, dev_priv->params.enable_dc);
 
-	dev_priv->display.dmc.target_dc_state =
+	power_domains->target_dc_state =
 		sanitize_target_dc_state(dev_priv, DC_STATE_EN_UPTO_DC6);
 
 	mutex_init(&power_domains->lock);
@@ -1181,8 +1184,10 @@ static void assert_can_disable_lcpll(struct drm_i915_private *dev_priv)
 				"CPU PWM2 enabled\n");
 	I915_STATE_WARN(intel_de_read(dev_priv, BLC_PWM_PCH_CTL1) & BLM_PCH_PWM_ENABLE,
 			"PCH PWM1 enabled\n");
-	I915_STATE_WARN(intel_de_read(dev_priv, UTIL_PIN_CTL) & UTIL_PIN_ENABLE,
-			"Utility pin enabled\n");
+	I915_STATE_WARN((intel_de_read(dev_priv, UTIL_PIN_CTL) &
+			 (UTIL_PIN_ENABLE | UTIL_PIN_MODE_MASK)) ==
+			(UTIL_PIN_ENABLE | UTIL_PIN_MODE_PWM),
+			"Utility pin enabled in PWM mode\n");
 	I915_STATE_WARN(intel_de_read(dev_priv, PCH_GTC_CTL) & PCH_GTC_ENABLE,
 			"PCH GTC enabled\n");
 
@@ -1260,9 +1265,7 @@ static void hsw_disable_lcpll(struct drm_i915_private *dev_priv,
 		drm_err(&dev_priv->drm, "D_COMP RCOMP still in progress\n");
 
 	if (allow_power_down) {
-		val = intel_de_read(dev_priv, LCPLL_CTL);
-		val |= LCPLL_POWER_DOWN_ALLOW;
-		intel_de_write(dev_priv, LCPLL_CTL, val);
+		intel_de_rmw(dev_priv, LCPLL_CTL, 0, LCPLL_POWER_DOWN_ALLOW);
 		intel_de_posting_read(dev_priv, LCPLL_CTL);
 	}
 }
@@ -1306,9 +1309,7 @@ static void hsw_restore_lcpll(struct drm_i915_private *dev_priv)
 		drm_err(&dev_priv->drm, "LCPLL not locked yet\n");
 
 	if (val & LCPLL_CD_SOURCE_FCLK) {
-		val = intel_de_read(dev_priv, LCPLL_CTL);
-		val &= ~LCPLL_CD_SOURCE_FCLK;
-		intel_de_write(dev_priv, LCPLL_CTL, val);
+		intel_de_rmw(dev_priv, LCPLL_CTL, LCPLL_CD_SOURCE_FCLK, 0);
 
 		if (wait_for_us((intel_de_read(dev_priv, LCPLL_CTL) &
 				 LCPLL_CD_SOURCE_FCLK_DONE) == 0, 1))
@@ -1347,15 +1348,11 @@ static void hsw_restore_lcpll(struct drm_i915_private *dev_priv)
  */
 static void hsw_enable_pc8(struct drm_i915_private *dev_priv)
 {
-	u32 val;
-
 	drm_dbg_kms(&dev_priv->drm, "Enabling package C8+\n");
 
-	if (HAS_PCH_LPT_LP(dev_priv)) {
-		val = intel_de_read(dev_priv, SOUTH_DSPCLK_GATE_D);
-		val &= ~PCH_LP_PARTITION_LEVEL_DISABLE;
-		intel_de_write(dev_priv, SOUTH_DSPCLK_GATE_D, val);
-	}
+	if (HAS_PCH_LPT_LP(dev_priv))
+		intel_de_rmw(dev_priv, SOUTH_DSPCLK_GATE_D,
+			     PCH_LP_PARTITION_LEVEL_DISABLE, 0);
 
 	lpt_disable_clkout_dp(dev_priv);
 	hsw_disable_lcpll(dev_priv, true, true);
@@ -1363,25 +1360,21 @@ static void hsw_enable_pc8(struct drm_i915_private *dev_priv)
 
 static void hsw_disable_pc8(struct drm_i915_private *dev_priv)
 {
-	u32 val;
-
 	drm_dbg_kms(&dev_priv->drm, "Disabling package C8+\n");
 
 	hsw_restore_lcpll(dev_priv);
 	intel_init_pch_refclk(dev_priv);
 
-	if (HAS_PCH_LPT_LP(dev_priv)) {
-		val = intel_de_read(dev_priv, SOUTH_DSPCLK_GATE_D);
-		val |= PCH_LP_PARTITION_LEVEL_DISABLE;
-		intel_de_write(dev_priv, SOUTH_DSPCLK_GATE_D, val);
-	}
+	if (HAS_PCH_LPT_LP(dev_priv))
+		intel_de_rmw(dev_priv, SOUTH_DSPCLK_GATE_D,
+			     0, PCH_LP_PARTITION_LEVEL_DISABLE);
 }
 
 static void intel_pch_reset_handshake(struct drm_i915_private *dev_priv,
 				      bool enable)
 {
 	i915_reg_t reg;
-	u32 reset_bits, val;
+	u32 reset_bits;
 
 	if (IS_IVYBRIDGE(dev_priv)) {
 		reg = GEN7_MSG_CTL;
@@ -1394,14 +1387,7 @@ static void intel_pch_reset_handshake(struct drm_i915_private *dev_priv,
 	if (DISPLAY_VER(dev_priv) >= 14)
 		reset_bits |= MTL_RESET_PICA_HANDSHAKE_EN;
 
-	val = intel_de_read(dev_priv, reg);
-
-	if (enable)
-		val |= reset_bits;
-	else
-		val &= ~reset_bits;
-
-	intel_de_write(dev_priv, reg, val);
+	intel_de_rmw(dev_priv, reg, reset_bits, enable ? reset_bits : 0);
 }
 
 static void skl_display_core_init(struct drm_i915_private *dev_priv,
@@ -1580,10 +1566,8 @@ static void tgl_bw_buddy_init(struct drm_i915_private *dev_priv)
 		return;
 
 	if (IS_ALDERLAKE_S(dev_priv) ||
-	    IS_DG1_DISPLAY_STEP(dev_priv, STEP_A0, STEP_B0) ||
-	    IS_RKL_DISPLAY_STEP(dev_priv, STEP_A0, STEP_B0) ||
-	    IS_TGL_DISPLAY_STEP(dev_priv, STEP_A0, STEP_C0))
-		/* Wa_1409767108:tgl,dg1,adl-s */
+	    IS_RKL_DISPLAY_STEP(dev_priv, STEP_A0, STEP_B0))
+		/* Wa_1409767108 */
 		table = wa_1409767108_buddy_page_masks;
 	else
 		table = tgl_buddy_page_masks;
@@ -1618,7 +1602,6 @@ static void icl_display_core_init(struct drm_i915_private *dev_priv,
 {
 	struct i915_power_domains *power_domains = &dev_priv->display.power.domains;
 	struct i915_power_well *well;
-	u32 val;
 
 	gen9_set_dc_state(dev_priv, DC_STATE_DISABLE);
 
@@ -1646,6 +1629,10 @@ static void icl_display_core_init(struct drm_i915_private *dev_priv,
 	intel_power_well_enable(dev_priv, well);
 	mutex_unlock(&power_domains->lock);
 
+	if (DISPLAY_VER(dev_priv) == 14)
+		intel_de_rmw(dev_priv, DC_STATE_EN,
+			     HOLD_PHY_PG1_LATCH | HOLD_PHY_CLKREQ_PG1_LATCH, 0);
+
 	/* 4. Enable CDCLK. */
 	intel_cdclk_init_hw(dev_priv);
 
@@ -1670,11 +1657,10 @@ static void icl_display_core_init(struct drm_i915_private *dev_priv,
 		intel_dmc_load_program(dev_priv);
 
 	/* Wa_14011508470:tgl,dg1,rkl,adl-s,adl-p */
-	if (DISPLAY_VER(dev_priv) >= 12) {
-		val = DCPR_CLEAR_MEMSTAT_DIS | DCPR_SEND_RESP_IMM |
-		      DCPR_MASK_LPMODE | DCPR_MASK_MAXLATENCY_MEMUP_CLR;
-		intel_de_rmw(dev_priv, GEN11_CHICKEN_DCPR_2, 0, val);
-	}
+	if (DISPLAY_VER(dev_priv) >= 12)
+		intel_de_rmw(dev_priv, GEN11_CHICKEN_DCPR_2, 0,
+			     DCPR_CLEAR_MEMSTAT_DIS | DCPR_SEND_RESP_IMM |
+			     DCPR_MASK_LPMODE | DCPR_MASK_MAXLATENCY_MEMUP_CLR);
 
 	/* Wa_14011503030:xelpd */
 	if (DISPLAY_VER(dev_priv) >= 13)
@@ -1699,6 +1685,10 @@ static void icl_display_core_uninit(struct drm_i915_private *dev_priv)
 
 	/* 3. Disable CD clock */
 	intel_cdclk_uninit_hw(dev_priv);
+
+	if (DISPLAY_VER(dev_priv) == 14)
+		intel_de_rmw(dev_priv, DC_STATE_EN, 0,
+			     HOLD_PHY_PG1_LATCH | HOLD_PHY_CLKREQ_PG1_LATCH);
 
 	/*
 	 * 4. Disable Power Well 1 (PG1).
@@ -2055,7 +2045,7 @@ void intel_power_domains_suspend(struct drm_i915_private *i915,
 	 * resources as required and also enable deeper system power states
 	 * that would be blocked if the firmware was inactive.
 	 */
-	if (!(i915->display.dmc.allowed_dc_mask & DC_STATE_EN_DC9) &&
+	if (!(power_domains->allowed_dc_mask & DC_STATE_EN_DC9) &&
 	    suspend_mode == I915_DRM_SUSPEND_IDLE &&
 	    intel_dmc_has_payload(i915)) {
 		intel_display_power_flush_work(i915);
@@ -2244,22 +2234,22 @@ void intel_display_power_suspend(struct drm_i915_private *i915)
 
 void intel_display_power_resume(struct drm_i915_private *i915)
 {
+	struct i915_power_domains *power_domains = &i915->display.power.domains;
+
 	if (DISPLAY_VER(i915) >= 11) {
 		bxt_disable_dc9(i915);
 		icl_display_core_init(i915, true);
 		if (intel_dmc_has_payload(i915)) {
-			if (i915->display.dmc.allowed_dc_mask &
-			    DC_STATE_EN_UPTO_DC6)
+			if (power_domains->allowed_dc_mask & DC_STATE_EN_UPTO_DC6)
 				skl_enable_dc6(i915);
-			else if (i915->display.dmc.allowed_dc_mask &
-				 DC_STATE_EN_UPTO_DC5)
+			else if (power_domains->allowed_dc_mask & DC_STATE_EN_UPTO_DC5)
 				gen9_enable_dc5(i915);
 		}
 	} else if (IS_GEMINILAKE(i915) || IS_BROXTON(i915)) {
 		bxt_disable_dc9(i915);
 		bxt_display_core_init(i915, true);
 		if (intel_dmc_has_payload(i915) &&
-		    (i915->display.dmc.allowed_dc_mask & DC_STATE_EN_UPTO_DC5))
+		    (power_domains->allowed_dc_mask & DC_STATE_EN_UPTO_DC5))
 			gen9_enable_dc5(i915);
 	} else if (IS_HASWELL(i915) || IS_BROADWELL(i915)) {
 		hsw_disable_pc8(i915);

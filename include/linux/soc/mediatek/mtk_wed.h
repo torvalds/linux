@@ -6,6 +6,7 @@
 #include <linux/regmap.h>
 #include <linux/pci.h>
 #include <linux/skbuff.h>
+#include <linux/netdevice.h>
 
 #define MTK_WED_TX_QUEUES		2
 #define MTK_WED_RX_QUEUES		2
@@ -179,6 +180,8 @@ struct mtk_wed_ops {
 
 	u32 (*irq_get)(struct mtk_wed_device *dev, u32 mask);
 	void (*irq_set_mask)(struct mtk_wed_device *dev, u32 mask);
+	int (*setup_tc)(struct mtk_wed_device *wed, struct net_device *dev,
+			enum tc_setup_type type, void *type_data);
 };
 
 extern const struct mtk_wed_ops __rcu *mtk_soc_wed_ops;
@@ -237,6 +240,8 @@ mtk_wed_get_rx_capa(struct mtk_wed_device *dev)
 	(_dev)->ops->msg_update(_dev, _id, _msg, _len)
 #define mtk_wed_device_stop(_dev) (_dev)->ops->stop(_dev)
 #define mtk_wed_device_dma_reset(_dev) (_dev)->ops->reset_dma(_dev)
+#define mtk_wed_device_setup_tc(_dev, _netdev, _type, _type_data) \
+	(_dev)->ops->setup_tc(_dev, _netdev, _type, _type_data)
 #else
 static inline bool mtk_wed_device_active(struct mtk_wed_device *dev)
 {
@@ -255,6 +260,7 @@ static inline bool mtk_wed_device_active(struct mtk_wed_device *dev)
 #define mtk_wed_device_update_msg(_dev, _id, _msg, _len) -ENODEV
 #define mtk_wed_device_stop(_dev) do {} while (0)
 #define mtk_wed_device_dma_reset(_dev) do {} while (0)
+#define mtk_wed_device_setup_tc(_dev, _netdev, _type, _type_data) -EOPNOTSUPP
 #endif
 
 #endif

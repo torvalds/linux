@@ -91,7 +91,6 @@ struct snd_soc_dpcm_runtime {
 	struct list_head fe_clients;
 
 	int users;
-	struct snd_pcm_runtime *runtime;
 	struct snd_pcm_hw_params hw_params;
 
 	/* state and update */
@@ -122,6 +121,10 @@ int snd_soc_dpcm_can_be_free_stop(struct snd_soc_pcm_runtime *fe,
 /* can this BE perform a hw_params() */
 int snd_soc_dpcm_can_be_params(struct snd_soc_pcm_runtime *fe,
 		struct snd_soc_pcm_runtime *be, int stream);
+
+/* can this BE perform prepare */
+int snd_soc_dpcm_can_be_prepared(struct snd_soc_pcm_runtime *fe,
+				 struct snd_soc_pcm_runtime *be, int stream);
 
 /* is the current PCM operation for this FE ? */
 int snd_soc_dpcm_fe_can_update(struct snd_soc_pcm_runtime *fe, int stream);

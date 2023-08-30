@@ -12,7 +12,6 @@
 #include <linux/file.h>
 #include <linux/stat.h>
 #include <linux/string.h>
-#include <linux/inet.h>
 #include <linux/pagemap.h>
 #include <linux/sched.h>
 #include <linux/swap.h>
@@ -57,8 +56,6 @@ static void v9fs_issue_read(struct netfs_io_subrequest *subreq)
  */
 static int v9fs_init_request(struct netfs_io_request *rreq, struct file *file)
 {
-	struct inode *inode = file_inode(file);
-	struct v9fs_inode *v9inode = V9FS_I(inode);
 	struct p9_fid *fid = file->private_data;
 
 	BUG_ON(!fid);
@@ -66,11 +63,8 @@ static int v9fs_init_request(struct netfs_io_request *rreq, struct file *file)
 	/* we might need to read from a fid that was opened write-only
 	 * for read-modify-write of page cache, use the writeback fid
 	 * for that */
-	if (rreq->origin == NETFS_READ_FOR_WRITE &&
-			(fid->mode & O_ACCMODE) == O_WRONLY) {
-		fid = v9inode->writeback_fid;
-		BUG_ON(!fid);
-	}
+	WARN_ON(rreq->origin == NETFS_READ_FOR_WRITE &&
+			!(fid->mode & P9_ORDWR));
 
 	p9_fid_get(fid);
 	rreq->netfs_priv = fid;
@@ -120,8 +114,6 @@ const struct netfs_request_ops v9fs_req_ops = {
 
 static bool v9fs_release_folio(struct folio *folio, gfp_t gfp)
 {
-	struct inode *inode = folio_inode(folio);
-
 	if (folio_test_private(folio))
 		return false;
 #ifdef CONFIG_9P_FSCACHE
@@ -130,8 +122,8 @@ static bool v9fs_release_folio(struct folio *folio, gfp_t gfp)
 			return false;
 		folio_wait_fscache(folio);
 	}
+	fscache_note_page_release(v9fs_inode_cookie(V9FS_I(folio_inode(folio))));
 #endif
-	fscache_note_page_release(v9fs_inode_cookie(V9FS_I(inode)));
 	return true;
 }
 
@@ -141,6 +133,7 @@ static void v9fs_invalidate_folio(struct folio *folio, size_t offset,
 	folio_wait_fscache(folio);
 }
 
+#ifdef CONFIG_9P_FSCACHE
 static void v9fs_write_to_cache_done(void *priv, ssize_t transferred_or_error,
 				     bool was_async)
 {
@@ -154,17 +147,19 @@ static void v9fs_write_to_cache_done(void *priv, ssize_t transferred_or_error,
 				   i_size_read(&v9inode->netfs.inode), 0);
 	}
 }
+#endif
 
 static int v9fs_vfs_write_folio_locked(struct folio *folio)
 {
 	struct inode *inode = folio_inode(folio);
-	struct v9fs_inode *v9inode = V9FS_I(inode);
-	struct fscache_cookie *cookie = v9fs_inode_cookie(v9inode);
 	loff_t start = folio_pos(folio);
 	loff_t i_size = i_size_read(inode);
 	struct iov_iter from;
 	size_t len = folio_size(folio);
+	struct p9_fid *writeback_fid;
 	int err;
+	struct v9fs_inode __maybe_unused *v9inode = V9FS_I(inode);
+	struct fscache_cookie __maybe_unused *cookie = v9fs_inode_cookie(v9inode);
 
 	if (start >= i_size)
 		return 0; /* Simultaneous truncation occurred */
@@ -173,25 +168,33 @@ static int v9fs_vfs_write_folio_locked(struct folio *folio)
 
 	iov_iter_xarray(&from, ITER_SOURCE, &folio_mapping(folio)->i_pages, start, len);
 
-	/* We should have writeback_fid always set */
-	BUG_ON(!v9inode->writeback_fid);
+	writeback_fid = v9fs_fid_find_inode(inode, true, INVALID_UID, true);
+	if (!writeback_fid) {
+		WARN_ONCE(1, "folio expected an open fid inode->i_private=%p\n",
+			inode->i_private);
+		return -EINVAL;
+	}
 
 	folio_wait_fscache(folio);
 	folio_start_writeback(folio);
 
-	p9_client_write(v9inode->writeback_fid, start, &from, &err);
+	p9_client_write(writeback_fid, start, &from, &err);
 
+#ifdef CONFIG_9P_FSCACHE
 	if (err == 0 &&
-	    fscache_cookie_enabled(cookie) &&
-	    test_bit(FSCACHE_COOKIE_IS_CACHING, &cookie->flags)) {
+		fscache_cookie_enabled(cookie) &&
+		test_bit(FSCACHE_COOKIE_IS_CACHING, &cookie->flags)) {
 		folio_start_fscache(folio);
 		fscache_write_to_cache(v9fs_inode_cookie(v9inode),
-				       folio_mapping(folio), start, len, i_size,
-				       v9fs_write_to_cache_done, v9inode,
-				       true);
+					folio_mapping(folio), start, len, i_size,
+					v9fs_write_to_cache_done, v9inode,
+					true);
 	}
+#endif
 
 	folio_end_writeback(folio);
+	p9_fid_put(writeback_fid);
+
 	return err;
 }
 
@@ -298,7 +301,6 @@ static int v9fs_write_end(struct file *filp, struct address_space *mapping,
 	loff_t last_pos = pos + copied;
 	struct folio *folio = page_folio(subpage);
 	struct inode *inode = mapping->host;
-	struct v9fs_inode *v9inode = V9FS_I(inode);
 
 	p9_debug(P9_DEBUG_VFS, "filp %p, mapping %p\n", filp, mapping);
 
@@ -318,7 +320,10 @@ static int v9fs_write_end(struct file *filp, struct address_space *mapping,
 	if (last_pos > inode->i_size) {
 		inode_add_bytes(inode, last_pos - inode->i_size);
 		i_size_write(inode, last_pos);
-		fscache_update_cookie(v9fs_inode_cookie(v9inode), NULL, &last_pos);
+#ifdef CONFIG_9P_FSCACHE
+		fscache_update_cookie(v9fs_inode_cookie(V9FS_I(inode)), NULL,
+			&last_pos);
+#endif
 	}
 	folio_mark_dirty(folio);
 out:

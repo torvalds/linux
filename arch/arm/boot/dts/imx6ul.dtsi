@@ -531,10 +531,9 @@
 				clocks = <&clks IMX6UL_CLK_ENET>,
 					 <&clks IMX6UL_CLK_ENET_AHB>,
 					 <&clks IMX6UL_CLK_ENET_PTP>,
-					 <&clks IMX6UL_CLK_ENET2_REF_125M>,
-					 <&clks IMX6UL_CLK_ENET2_REF_125M>;
+					 <&clks IMX6UL_CLK_ENET2_REF_SEL>;
 				clock-names = "ipg", "ahb", "ptp",
-					      "enet_clk_ref", "enet_out";
+					      "enet_clk_ref";
 				fsl,num-tx-queues = <1>;
 				fsl,num-rx-queues = <1>;
 				fsl,stop-mode = <&gpr 0x10 4>;
@@ -879,10 +878,9 @@
 				clocks = <&clks IMX6UL_CLK_ENET>,
 					 <&clks IMX6UL_CLK_ENET_AHB>,
 					 <&clks IMX6UL_CLK_ENET_PTP>,
-					 <&clks IMX6UL_CLK_ENET_REF>,
-					 <&clks IMX6UL_CLK_ENET_REF>;
+					 <&clks IMX6UL_CLK_ENET1_REF_SEL>;
 				clock-names = "ipg", "ahb", "ptp",
-					      "enet_clk_ref", "enet_out";
+					      "enet_clk_ref";
 				fsl,num-tx-queues = <1>;
 				fsl,num-rx-queues = <1>;
 				fsl,stop-mode = <&gpr 0x10 3>;

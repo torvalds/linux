@@ -106,9 +106,11 @@
     },
     {
         "BriefDescription": "Free running counter that increments for the Memory Controller",
+        "EventCode": "0xff",
         "EventName": "UNC_M_CLOCKTICKS_FREERUN",
         "PerPkg": "1",
-        "Unit": "iMC"
+        "UMask": "0x10",
+        "Unit": "imc_free_running"
     },
     {
         "BriefDescription": "DRAM Precharge All Commands",
@@ -538,7 +540,7 @@
         "EventCode": "0x02",
         "EventName": "UNC_M_PRE_COUNT.PGT",
         "PerPkg": "1",
-        "PublicDescription": "DRAM Precharge commands. : Precharge due to page table : Counts the number of DRAM Precharge commands sent on this channel. : Prechages from Page Table",
+        "PublicDescription": "DRAM Precharge commands. : Precharge due to page table : Counts the number of DRAM Precharge commands sent on this channel. : Precharges from Page Table",
         "UMask": "0x10",
         "Unit": "iMC"
     },

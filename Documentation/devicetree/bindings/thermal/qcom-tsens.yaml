@@ -326,7 +326,7 @@ examples:
   - |
     #include <dt-bindings/interrupt-controller/arm-gic.h>
     // Example 1 (new calbiration data: for pre v1 IP):
-    thermal-sensor@900000 {
+    thermal-sensor@4a9000 {
         compatible = "qcom,msm8916-tsens", "qcom,tsens-v0_1";
         reg = <0x4a9000 0x1000>, /* TM */
               <0x4a8000 0x1000>; /* SROT */
@@ -356,7 +356,7 @@ examples:
   - |
     #include <dt-bindings/interrupt-controller/arm-gic.h>
     // Example 1 (legacy: for pre v1 IP):
-    tsens1: thermal-sensor@900000 {
+    tsens1: thermal-sensor@4a9000 {
            compatible = "qcom,msm8916-tsens", "qcom,tsens-v0_1";
            reg = <0x4a9000 0x1000>, /* TM */
                  <0x4a8000 0x1000>; /* SROT */

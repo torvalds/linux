@@ -134,8 +134,12 @@ static int cxl_region_decode_reset(struct cxl_region *cxlr, int count)
 		struct cxl_endpoint_decoder *cxled = p->targets[i];
 		struct cxl_memdev *cxlmd = cxled_to_memdev(cxled);
 		struct cxl_port *iter = cxled_to_port(cxled);
+		struct cxl_dev_state *cxlds = cxlmd->cxlds;
 		struct cxl_ep *ep;
 		int rc = 0;
+
+		if (cxlds->rcd)
+			goto endpoint_reset;
 
 		while (!is_cxl_root(to_cxl_port(iter->dev.parent)))
 			iter = to_cxl_port(iter->dev.parent);
@@ -153,6 +157,7 @@ static int cxl_region_decode_reset(struct cxl_region *cxlr, int count)
 				return rc;
 		}
 
+endpoint_reset:
 		rc = cxled->cxld.reset(&cxled->cxld);
 		if (rc)
 			return rc;
@@ -1199,6 +1204,7 @@ static void cxl_region_teardown_targets(struct cxl_region *cxlr)
 {
 	struct cxl_region_params *p = &cxlr->params;
 	struct cxl_endpoint_decoder *cxled;
+	struct cxl_dev_state *cxlds;
 	struct cxl_memdev *cxlmd;
 	struct cxl_port *iter;
 	struct cxl_ep *ep;
@@ -1214,6 +1220,10 @@ static void cxl_region_teardown_targets(struct cxl_region *cxlr)
 	for (i = 0; i < p->nr_targets; i++) {
 		cxled = p->targets[i];
 		cxlmd = cxled_to_memdev(cxled);
+		cxlds = cxlmd->cxlds;
+
+		if (cxlds->rcd)
+			continue;
 
 		iter = cxled_to_port(cxled);
 		while (!is_cxl_root(to_cxl_port(iter->dev.parent)))
@@ -1229,14 +1239,24 @@ static int cxl_region_setup_targets(struct cxl_region *cxlr)
 {
 	struct cxl_region_params *p = &cxlr->params;
 	struct cxl_endpoint_decoder *cxled;
+	struct cxl_dev_state *cxlds;
+	int i, rc, rch = 0, vh = 0;
 	struct cxl_memdev *cxlmd;
 	struct cxl_port *iter;
 	struct cxl_ep *ep;
-	int i, rc;
 
 	for (i = 0; i < p->nr_targets; i++) {
 		cxled = p->targets[i];
 		cxlmd = cxled_to_memdev(cxled);
+		cxlds = cxlmd->cxlds;
+
+		/* validate that all targets agree on topology */
+		if (!cxlds->rcd) {
+			vh++;
+		} else {
+			rch++;
+			continue;
+		}
 
 		iter = cxled_to_port(cxled);
 		while (!is_cxl_root(to_cxl_port(iter->dev.parent)))
@@ -1254,6 +1274,12 @@ static int cxl_region_setup_targets(struct cxl_region *cxlr)
 				return rc;
 			}
 		}
+	}
+
+	if (rch && vh) {
+		dev_err(&cxlr->dev, "mismatched CXL topologies detected\n");
+		cxl_region_teardown_targets(cxlr);
+		return -ENXIO;
 	}
 
 	return 0;
@@ -1648,6 +1674,7 @@ static int cxl_region_attach(struct cxl_region *cxlr,
 		if (rc)
 			goto err_decrement;
 		p->state = CXL_CONFIG_ACTIVE;
+		set_bit(CXL_REGION_F_INCOHERENT, &cxlr->flags);
 	}
 
 	cxled->cxld.interleave_ways = p->interleave_ways;
@@ -1749,8 +1776,6 @@ static int attach_target(struct cxl_region *cxlr,
 
 	down_read(&cxl_dpa_rwsem);
 	rc = cxl_region_attach(cxlr, cxled, pos);
-	if (rc == 0)
-		set_bit(CXL_REGION_F_INCOHERENT, &cxlr->flags);
 	up_read(&cxl_dpa_rwsem);
 	up_write(&cxl_region_rwsem);
 	return rc;
@@ -2213,6 +2238,130 @@ struct cxl_pmem_region *to_cxl_pmem_region(struct device *dev)
 }
 EXPORT_SYMBOL_NS_GPL(to_cxl_pmem_region, CXL);
 
+struct cxl_poison_context {
+	struct cxl_port *port;
+	enum cxl_decoder_mode mode;
+	u64 offset;
+};
+
+static int cxl_get_poison_unmapped(struct cxl_memdev *cxlmd,
+				   struct cxl_poison_context *ctx)
+{
+	struct cxl_dev_state *cxlds = cxlmd->cxlds;
+	u64 offset, length;
+	int rc = 0;
+
+	/*
+	 * Collect poison for the remaining unmapped resources
+	 * after poison is collected by committed endpoints.
+	 *
+	 * Knowing that PMEM must always follow RAM, get poison
+	 * for unmapped resources based on the last decoder's mode:
+	 *	ram: scan remains of ram range, then any pmem range
+	 *	pmem: scan remains of pmem range
+	 */
+
+	if (ctx->mode == CXL_DECODER_RAM) {
+		offset = ctx->offset;
+		length = resource_size(&cxlds->ram_res) - offset;
+		rc = cxl_mem_get_poison(cxlmd, offset, length, NULL);
+		if (rc == -EFAULT)
+			rc = 0;
+		if (rc)
+			return rc;
+	}
+	if (ctx->mode == CXL_DECODER_PMEM) {
+		offset = ctx->offset;
+		length = resource_size(&cxlds->dpa_res) - offset;
+		if (!length)
+			return 0;
+	} else if (resource_size(&cxlds->pmem_res)) {
+		offset = cxlds->pmem_res.start;
+		length = resource_size(&cxlds->pmem_res);
+	} else {
+		return 0;
+	}
+
+	return cxl_mem_get_poison(cxlmd, offset, length, NULL);
+}
+
+static int poison_by_decoder(struct device *dev, void *arg)
+{
+	struct cxl_poison_context *ctx = arg;
+	struct cxl_endpoint_decoder *cxled;
+	struct cxl_memdev *cxlmd;
+	u64 offset, length;
+	int rc = 0;
+
+	if (!is_endpoint_decoder(dev))
+		return rc;
+
+	cxled = to_cxl_endpoint_decoder(dev);
+	if (!cxled->dpa_res || !resource_size(cxled->dpa_res))
+		return rc;
+
+	/*
+	 * Regions are only created with single mode decoders: pmem or ram.
+	 * Linux does not support mixed mode decoders. This means that
+	 * reading poison per endpoint decoder adheres to the requirement
+	 * that poison reads of pmem and ram must be separated.
+	 * CXL 3.0 Spec 8.2.9.8.4.1
+	 */
+	if (cxled->mode == CXL_DECODER_MIXED) {
+		dev_dbg(dev, "poison list read unsupported in mixed mode\n");
+		return rc;
+	}
+
+	cxlmd = cxled_to_memdev(cxled);
+	if (cxled->skip) {
+		offset = cxled->dpa_res->start - cxled->skip;
+		length = cxled->skip;
+		rc = cxl_mem_get_poison(cxlmd, offset, length, NULL);
+		if (rc == -EFAULT && cxled->mode == CXL_DECODER_RAM)
+			rc = 0;
+		if (rc)
+			return rc;
+	}
+
+	offset = cxled->dpa_res->start;
+	length = cxled->dpa_res->end - offset + 1;
+	rc = cxl_mem_get_poison(cxlmd, offset, length, cxled->cxld.region);
+	if (rc == -EFAULT && cxled->mode == CXL_DECODER_RAM)
+		rc = 0;
+	if (rc)
+		return rc;
+
+	/* Iterate until commit_end is reached */
+	if (cxled->cxld.id == ctx->port->commit_end) {
+		ctx->offset = cxled->dpa_res->end + 1;
+		ctx->mode = cxled->mode;
+		return 1;
+	}
+
+	return 0;
+}
+
+int cxl_get_poison_by_endpoint(struct cxl_port *port)
+{
+	struct cxl_poison_context ctx;
+	int rc = 0;
+
+	rc = down_read_interruptible(&cxl_region_rwsem);
+	if (rc)
+		return rc;
+
+	ctx = (struct cxl_poison_context) {
+		.port = port
+	};
+
+	rc = device_for_each_child(&port->dev, &ctx, poison_by_decoder);
+	if (rc == 1)
+		rc = cxl_get_poison_unmapped(to_cxl_memdev(port->uport), &ctx);
+
+	up_read(&cxl_region_rwsem);
+	return rc;
+}
+
 static struct lock_class_key cxl_pmem_region_key;
 
 static struct cxl_pmem_region *cxl_pmem_region_alloc(struct cxl_region *cxlr)
@@ -2251,7 +2400,7 @@ static struct cxl_pmem_region *cxl_pmem_region_alloc(struct cxl_region *cxlr)
 		 * bridge for one device is the same for all.
 		 */
 		if (i == 0) {
-			cxl_nvb = cxl_find_nvdimm_bridge(&cxlmd->dev);
+			cxl_nvb = cxl_find_nvdimm_bridge(cxlmd);
 			if (!cxl_nvb) {
 				cxlr_pmem = ERR_PTR(-ENODEV);
 				goto out;

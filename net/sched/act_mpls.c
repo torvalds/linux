@@ -69,7 +69,7 @@ TC_INDIRECT_SCOPE int tcf_mpls_act(struct sk_buff *skb,
 		skb_push_rcsum(skb, skb->mac_len);
 		mac_len = skb->mac_len;
 	} else {
-		mac_len = skb_network_header(skb) - skb_mac_header(skb);
+		mac_len = skb_network_offset(skb);
 	}
 
 	ret = READ_ONCE(m->tcf_action);

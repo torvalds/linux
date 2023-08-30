@@ -158,7 +158,7 @@ void efi_call_virt_check_flags(unsigned long flags, const char *call)
  * none of the remaining functions are actually ever called at runtime.
  * So let's just use a single lock to serialize all Runtime Services calls.
  */
-static DEFINE_SEMAPHORE(efi_runtime_lock);
+static DEFINE_SEMAPHORE(efi_runtime_lock, 1);
 
 /*
  * Expose the EFI runtime lock to the UV platform

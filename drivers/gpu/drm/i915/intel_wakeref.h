@@ -105,7 +105,7 @@ __intel_wakeref_get(struct intel_wakeref *wf)
 }
 
 /**
- * intel_wakeref_get_if_in_use: Acquire the wakeref
+ * intel_wakeref_get_if_active: Acquire the wakeref
  * @wf: the wakeref
  *
  * Acquire a hold on the wakeref, but only if the wakeref is already

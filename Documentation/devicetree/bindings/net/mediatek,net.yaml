@@ -21,6 +21,7 @@ properties:
       - mediatek,mt7623-eth
       - mediatek,mt7622-eth
       - mediatek,mt7629-eth
+      - mediatek,mt7981-eth
       - mediatek,mt7986-eth
       - ralink,rt5350-eth
 
@@ -78,6 +79,11 @@ properties:
     description:
       List of phandles to wireless ethernet dispatch nodes.
 
+  mediatek,wed-pcie:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description:
+      Phandle to the mediatek wed-pcie controller.
+
   dma-coherent: true
 
   mdio-bus:
@@ -91,7 +97,7 @@ properties:
     const: 0
 
 allOf:
-  - $ref: "ethernet-controller.yaml#"
+  - $ref: ethernet-controller.yaml#
   - if:
       properties:
         compatible:
@@ -122,6 +128,8 @@ allOf:
             driver current.
 
         mediatek,wed: false
+
+        mediatek,wed-pcie: false
 
   - if:
       properties:
@@ -159,6 +167,8 @@ allOf:
           $ref: /schemas/types.yaml#/definitions/phandle
           description:
             Phandle to the mediatek pcie-mirror controller.
+
+        mediatek,wed-pcie: false
 
   - if:
       properties:
@@ -206,6 +216,44 @@ allOf:
 
         mediatek,wed: false
 
+        mediatek,wed-pcie: false
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: mediatek,mt7981-eth
+    then:
+      properties:
+        interrupts:
+          minItems: 4
+
+        clocks:
+          minItems: 15
+          maxItems: 15
+
+        clock-names:
+          items:
+            - const: fe
+            - const: gp2
+            - const: gp1
+            - const: wocpu0
+            - const: sgmii_ck
+            - const: sgmii_tx250m
+            - const: sgmii_rx250m
+            - const: sgmii_cdr_ref
+            - const: sgmii_cdr_fb
+            - const: sgmii2_tx250m
+            - const: sgmii2_rx250m
+            - const: sgmii2_cdr_ref
+            - const: sgmii2_cdr_fb
+            - const: netsys0
+            - const: netsys1
+
+        mediatek,sgmiisys:
+          minItems: 2
+          maxItems: 2
+
   - if:
       properties:
         compatible:
@@ -241,11 +289,6 @@ allOf:
         mediatek,sgmiisys:
           minItems: 2
           maxItems: 2
-
-        mediatek,wed-pcie:
-          $ref: /schemas/types.yaml#/definitions/phandle
-          description:
-            Phandle to the mediatek wed-pcie controller.
 
 patternProperties:
   "^mac@[0-1]$":

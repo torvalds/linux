@@ -307,8 +307,8 @@ static int array_map_get_next_key(struct bpf_map *map, void *key, void *next_key
 }
 
 /* Called from syscall or from eBPF program */
-static int array_map_update_elem(struct bpf_map *map, void *key, void *value,
-				 u64 map_flags)
+static long array_map_update_elem(struct bpf_map *map, void *key, void *value,
+				  u64 map_flags)
 {
 	struct bpf_array *array = container_of(map, struct bpf_array, map);
 	u32 index = *(u32 *)key;
@@ -386,7 +386,7 @@ int bpf_percpu_array_update(struct bpf_map *map, void *key, void *value,
 }
 
 /* Called from syscall or from eBPF program */
-static int array_map_delete_elem(struct bpf_map *map, void *key)
+static long array_map_delete_elem(struct bpf_map *map, void *key)
 {
 	return -EINVAL;
 }
@@ -686,8 +686,8 @@ static const struct bpf_iter_seq_info iter_seq_info = {
 	.seq_priv_size		= sizeof(struct bpf_iter_seq_array_map_info),
 };
 
-static int bpf_for_each_array_elem(struct bpf_map *map, bpf_callback_t callback_fn,
-				   void *callback_ctx, u64 flags)
+static long bpf_for_each_array_elem(struct bpf_map *map, bpf_callback_t callback_fn,
+				    void *callback_ctx, u64 flags)
 {
 	u32 i, key, num_elems = 0;
 	struct bpf_array *array;
@@ -721,6 +721,28 @@ static int bpf_for_each_array_elem(struct bpf_map *map, bpf_callback_t callback_
 	return num_elems;
 }
 
+static u64 array_map_mem_usage(const struct bpf_map *map)
+{
+	struct bpf_array *array = container_of(map, struct bpf_array, map);
+	bool percpu = map->map_type == BPF_MAP_TYPE_PERCPU_ARRAY;
+	u32 elem_size = array->elem_size;
+	u64 entries = map->max_entries;
+	u64 usage = sizeof(*array);
+
+	if (percpu) {
+		usage += entries * sizeof(void *);
+		usage += entries * elem_size * num_possible_cpus();
+	} else {
+		if (map->map_flags & BPF_F_MMAPABLE) {
+			usage = PAGE_ALIGN(usage);
+			usage += PAGE_ALIGN(entries * elem_size);
+		} else {
+			usage += entries * elem_size;
+		}
+	}
+	return usage;
+}
+
 BTF_ID_LIST_SINGLE(array_map_btf_ids, struct, bpf_array)
 const struct bpf_map_ops array_map_ops = {
 	.map_meta_equal = array_map_meta_equal,
@@ -742,6 +764,7 @@ const struct bpf_map_ops array_map_ops = {
 	.map_update_batch = generic_map_update_batch,
 	.map_set_for_each_callback_args = map_set_for_each_callback_args,
 	.map_for_each_callback = bpf_for_each_array_elem,
+	.map_mem_usage = array_map_mem_usage,
 	.map_btf_id = &array_map_btf_ids[0],
 	.iter_seq_info = &iter_seq_info,
 };
@@ -762,6 +785,7 @@ const struct bpf_map_ops percpu_array_map_ops = {
 	.map_update_batch = generic_map_update_batch,
 	.map_set_for_each_callback_args = map_set_for_each_callback_args,
 	.map_for_each_callback = bpf_for_each_array_elem,
+	.map_mem_usage = array_map_mem_usage,
 	.map_btf_id = &array_map_btf_ids[0],
 	.iter_seq_info = &iter_seq_info,
 };
@@ -847,7 +871,7 @@ int bpf_fd_array_map_update_elem(struct bpf_map *map, struct file *map_file,
 	return 0;
 }
 
-static int fd_array_map_delete_elem(struct bpf_map *map, void *key)
+static long fd_array_map_delete_elem(struct bpf_map *map, void *key)
 {
 	struct bpf_array *array = container_of(map, struct bpf_array, map);
 	void *old_ptr;
@@ -1156,6 +1180,7 @@ const struct bpf_map_ops prog_array_map_ops = {
 	.map_fd_sys_lookup_elem = prog_fd_array_sys_lookup_elem,
 	.map_release_uref = prog_array_map_clear,
 	.map_seq_show_elem = prog_array_map_seq_show_elem,
+	.map_mem_usage = array_map_mem_usage,
 	.map_btf_id = &array_map_btf_ids[0],
 };
 
@@ -1257,6 +1282,7 @@ const struct bpf_map_ops perf_event_array_map_ops = {
 	.map_fd_put_ptr = perf_event_fd_array_put_ptr,
 	.map_release = perf_event_fd_array_release,
 	.map_check_btf = map_check_no_btf,
+	.map_mem_usage = array_map_mem_usage,
 	.map_btf_id = &array_map_btf_ids[0],
 };
 
@@ -1291,6 +1317,7 @@ const struct bpf_map_ops cgroup_array_map_ops = {
 	.map_fd_get_ptr = cgroup_fd_array_get_ptr,
 	.map_fd_put_ptr = cgroup_fd_array_put_ptr,
 	.map_check_btf = map_check_no_btf,
+	.map_mem_usage = array_map_mem_usage,
 	.map_btf_id = &array_map_btf_ids[0],
 };
 #endif
@@ -1379,5 +1406,6 @@ const struct bpf_map_ops array_of_maps_map_ops = {
 	.map_lookup_batch = generic_map_lookup_batch,
 	.map_update_batch = generic_map_update_batch,
 	.map_check_btf = map_check_no_btf,
+	.map_mem_usage = array_map_mem_usage,
 	.map_btf_id = &array_map_btf_ids[0],
 };

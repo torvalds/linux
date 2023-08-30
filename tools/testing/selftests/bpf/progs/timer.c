@@ -46,7 +46,15 @@ struct {
 	__type(value, struct elem);
 } lru SEC(".maps");
 
+struct {
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__uint(max_entries, 1);
+	__type(key, int);
+	__type(value, struct elem);
+} abs_timer SEC(".maps");
+
 __u64 bss_data;
+__u64 abs_data;
 __u64 err;
 __u64 ok;
 __u64 callback_check = 52;
@@ -283,4 +291,41 @@ int BPF_PROG2(test2, int, a, int, b)
 		bpf_timer_init(&val->timer, &hmap_malloc, CLOCK_BOOTTIME);
 
 	return bpf_timer_test();
+}
+
+/* callback for absolute timer */
+static int timer_cb3(void *map, int *key, struct bpf_timer *timer)
+{
+	abs_data += 6;
+
+	if (abs_data < 12) {
+		bpf_timer_start(timer, bpf_ktime_get_boot_ns() + 1000,
+				BPF_F_TIMER_ABS);
+	} else {
+		/* Re-arm timer ~35 seconds in future */
+		bpf_timer_start(timer, bpf_ktime_get_boot_ns() + (1ull << 35),
+				BPF_F_TIMER_ABS);
+	}
+
+	return 0;
+}
+
+SEC("fentry/bpf_fentry_test3")
+int BPF_PROG2(test3, int, a)
+{
+	int key = 0;
+	struct bpf_timer *timer;
+
+	bpf_printk("test3");
+
+	timer = bpf_map_lookup_elem(&abs_timer, &key);
+	if (timer) {
+		if (bpf_timer_init(timer, &abs_timer, CLOCK_BOOTTIME) != 0)
+			err |= 2048;
+		bpf_timer_set_callback(timer, timer_cb3);
+		bpf_timer_start(timer, bpf_ktime_get_boot_ns() + 1000,
+				BPF_F_TIMER_ABS);
+	}
+
+	return 0;
 }

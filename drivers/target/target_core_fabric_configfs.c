@@ -836,17 +836,49 @@ static ssize_t target_fabric_tpg_base_enable_store(struct config_item *item,
 
 	if (se_tpg->enabled == op)
 		return count;
-
-	ret = se_tpg->se_tpg_tfo->fabric_enable_tpg(se_tpg, op);
+	if (op)
+		ret = target_tpg_enable(se_tpg);
+	else
+		ret = target_tpg_disable(se_tpg);
 	if (ret)
 		return ret;
+	return count;
+}
+static ssize_t target_fabric_tpg_base_rtpi_show(struct config_item *item, char *page)
+{
+	struct se_portal_group *se_tpg = to_tpg(item);
 
-	se_tpg->enabled = op;
+	return sysfs_emit(page, "%#x\n", se_tpg->tpg_rtpi);
+}
+
+static ssize_t target_fabric_tpg_base_rtpi_store(struct config_item *item,
+				   const char *page, size_t count)
+{
+	struct se_portal_group *se_tpg = to_tpg(item);
+	u16 val;
+	int ret;
+
+	ret = kstrtou16(page, 0, &val);
+	if (ret < 0)
+		return ret;
+	if (val == 0)
+		return -EINVAL;
+
+	if (se_tpg->enabled) {
+		pr_info("%s_TPG[%hu] - Can not change RTPI on enabled TPG",
+			se_tpg->se_tpg_tfo->fabric_name,
+			se_tpg->se_tpg_tfo->tpg_get_tag(se_tpg));
+		return -EINVAL;
+	}
+
+	se_tpg->tpg_rtpi = val;
+	se_tpg->rtpi_manual = true;
 
 	return count;
 }
 
 CONFIGFS_ATTR(target_fabric_tpg_base_, enable);
+CONFIGFS_ATTR(target_fabric_tpg_base_, rtpi);
 
 static int
 target_fabric_setup_tpg_base_cit(struct target_fabric_configfs *tf)
@@ -863,8 +895,8 @@ target_fabric_setup_tpg_base_cit(struct target_fabric_configfs *tf)
 	if (tf->tf_ops->fabric_enable_tpg)
 		nr_attrs++;
 
-	if (nr_attrs == 0)
-		goto done;
+	/* + 1 for target_fabric_tpg_base_attr_rtpi */
+	nr_attrs++;
 
 	/* + 1 for final NULL in the array */
 	attrs = kcalloc(nr_attrs + 1, sizeof(*attrs), GFP_KERNEL);
@@ -876,9 +908,10 @@ target_fabric_setup_tpg_base_cit(struct target_fabric_configfs *tf)
 			attrs[i] = tf->tf_ops->tfc_tpg_base_attrs[i];
 
 	if (tf->tf_ops->fabric_enable_tpg)
-		attrs[i] = &target_fabric_tpg_base_attr_enable;
+		attrs[i++] = &target_fabric_tpg_base_attr_enable;
 
-done:
+	attrs[i++] = &target_fabric_tpg_base_attr_rtpi;
+
 	cit->ct_item_ops = &target_fabric_tpg_base_item_ops;
 	cit->ct_attrs = attrs;
 	cit->ct_owner = tf->tf_ops->module;

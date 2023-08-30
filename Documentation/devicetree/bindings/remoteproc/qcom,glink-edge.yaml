@@ -15,7 +15,7 @@ description:
 
 properties:
   $nodename:
-    const: "glink-edge"
+    const: glink-edge
 
   apr:
     $ref: /schemas/soc/qcom/qcom,apr.yaml#

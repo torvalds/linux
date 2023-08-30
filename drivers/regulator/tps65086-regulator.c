@@ -235,6 +235,7 @@ MODULE_DEVICE_TABLE(platform, tps65086_regulator_id_table);
 static struct platform_driver tps65086_regulator_driver = {
 	.driver = {
 		.name = "tps65086-regulator",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 	.probe = tps65086_regulator_probe,
 	.id_table = tps65086_regulator_id_table,

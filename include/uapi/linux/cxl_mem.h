@@ -40,19 +40,22 @@
 	___C(SET_ALERT_CONFIG, "Set Alert Configuration"),                \
 	___C(GET_SHUTDOWN_STATE, "Get Shutdown State"),                   \
 	___C(SET_SHUTDOWN_STATE, "Set Shutdown State"),                   \
-	___C(GET_POISON, "Get Poison List"),                              \
-	___C(INJECT_POISON, "Inject Poison"),                             \
-	___C(CLEAR_POISON, "Clear Poison"),                               \
+	___DEPRECATED(GET_POISON, "Get Poison List"),                     \
+	___DEPRECATED(INJECT_POISON, "Inject Poison"),                    \
+	___DEPRECATED(CLEAR_POISON, "Clear Poison"),                      \
 	___C(GET_SCAN_MEDIA_CAPS, "Get Scan Media Capabilities"),         \
-	___C(SCAN_MEDIA, "Scan Media"),                                   \
-	___C(GET_SCAN_MEDIA, "Get Scan Media Results"),                   \
+	___DEPRECATED(SCAN_MEDIA, "Scan Media"),                          \
+	___DEPRECATED(GET_SCAN_MEDIA, "Get Scan Media Results"),          \
 	___C(MAX, "invalid / last command")
 
 #define ___C(a, b) CXL_MEM_COMMAND_ID_##a
+#define ___DEPRECATED(a, b) CXL_MEM_DEPRECATED_ID_##a
 enum { CXL_CMDS };
 
 #undef ___C
+#undef ___DEPRECATED
 #define ___C(a, b) { b }
+#define ___DEPRECATED(a, b) { "Deprecated " b }
 static const struct {
 	const char *name;
 } cxl_command_names[] __attribute__((__unused__)) = { CXL_CMDS };
@@ -68,6 +71,28 @@ static const struct {
  */
 
 #undef ___C
+#undef ___DEPRECATED
+#define ___C(a, b) (0)
+#define ___DEPRECATED(a, b) (1)
+
+static const __u8 cxl_deprecated_commands[]
+	__attribute__((__unused__)) = { CXL_CMDS };
+
+/*
+ * Here's how this actually breaks out:
+ * cxl_deprecated_commands[] = {
+ *	[CXL_MEM_COMMAND_ID_INVALID] = 0,
+ *	[CXL_MEM_COMMAND_ID_IDENTIFY] = 0,
+ *	...
+ *	[CXL_MEM_DEPRECATED_ID_GET_POISON] = 1,
+ *	[CXL_MEM_DEPRECATED_ID_INJECT_POISON] = 1,
+ *	[CXL_MEM_DEPRECATED_ID_CLEAR_POISON] = 1,
+ *	...
+ * };
+ */
+
+#undef ___C
+#undef ___DEPRECATED
 
 /**
  * struct cxl_command_info - Command information returned from a query.

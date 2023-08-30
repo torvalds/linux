@@ -135,7 +135,7 @@ de obligada lectura:
      de Linux y es muy importante para las personas que se mudan a Linux
      tras desarrollar otros sistemas operativos.
 
-  :ref:`Documentation/admin-guide/security-bugs.rst <securitybugs>`
+  :ref:`Documentation/process/security-bugs.rst <securitybugs>`
     Si cree que ha encontrado un problema de seguridad en el kernel de
     Linux, siga los pasos de este documento para ayudar a notificar a los
     desarrolladores del kernel y ayudar a resolver el problema.

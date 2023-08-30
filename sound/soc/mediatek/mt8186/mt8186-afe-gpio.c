@@ -11,7 +11,7 @@
 #include "mt8186-afe-common.h"
 #include "mt8186-afe-gpio.h"
 
-struct pinctrl *aud_pinctrl;
+static struct pinctrl *aud_pinctrl;
 
 enum mt8186_afe_gpio {
 	MT8186_AFE_GPIO_CLK_MOSI_OFF,
@@ -85,7 +85,7 @@ int mt8186_afe_gpio_init(struct device *dev)
 							     aud_gpios[i].name);
 		if (IS_ERR(aud_gpios[i].gpioctrl)) {
 			ret = PTR_ERR(aud_gpios[i].gpioctrl);
-			dev_info(dev, "%s(), pinctrl_lookup_state %s fail, ret %d\n",
+			dev_dbg(dev, "%s(), pinctrl_lookup_state %s fail, ret %d\n",
 				 __func__, aud_gpios[i].name, ret);
 		} else {
 			aud_gpios[i].gpio_prepare = true;
@@ -108,13 +108,13 @@ static int mt8186_afe_gpio_select(struct device *dev,
 	int ret = 0;
 
 	if (type < 0 || type >= MT8186_AFE_GPIO_GPIO_NUM) {
-		dev_err(dev, "%s(), error, invalid gpio type %d\n",
+		dev_dbg(dev, "%s(), error, invalid gpio type %d\n",
 			__func__, type);
 		return -EINVAL;
 	}
 
 	if (!aud_gpios[type].gpio_prepare) {
-		dev_err(dev, "%s(), error, gpio type %d not prepared\n",
+		dev_dbg(dev, "%s(), error, gpio type %d not prepared\n",
 			__func__, type);
 		return -EIO;
 	}
@@ -122,7 +122,7 @@ static int mt8186_afe_gpio_select(struct device *dev,
 	ret = pinctrl_select_state(aud_pinctrl,
 				   aud_gpios[type].gpioctrl);
 	if (ret) {
-		dev_err(dev, "%s(), error, can not set gpio type %d\n",
+		dev_dbg(dev, "%s(), error, can not set gpio type %d\n",
 			__func__, type);
 		return ret;
 	}
@@ -137,25 +137,25 @@ static int mt8186_afe_gpio_adda_dl(struct device *dev, bool enable)
 	if (enable) {
 		ret = mt8186_afe_gpio_select(dev, MT8186_AFE_GPIO_CLK_MOSI_ON);
 		if (ret) {
-			dev_err(dev, "%s(), MOSI CLK ON select fail!\n", __func__);
+			dev_dbg(dev, "%s(), MOSI CLK ON select fail!\n", __func__);
 			return ret;
 		}
 
 		ret = mt8186_afe_gpio_select(dev, MT8186_AFE_GPIO_DAT_MOSI_ON);
 		if (ret) {
-			dev_err(dev, "%s(), MOSI DAT ON select fail!\n", __func__);
+			dev_dbg(dev, "%s(), MOSI DAT ON select fail!\n", __func__);
 			return ret;
 		}
 	} else {
 		ret = mt8186_afe_gpio_select(dev, MT8186_AFE_GPIO_DAT_MOSI_OFF);
 		if (ret) {
-			dev_err(dev, "%s(), MOSI DAT OFF select fail!\n", __func__);
+			dev_dbg(dev, "%s(), MOSI DAT OFF select fail!\n", __func__);
 			return ret;
 		}
 
 		ret = mt8186_afe_gpio_select(dev, MT8186_AFE_GPIO_CLK_MOSI_OFF);
 		if (ret) {
-			dev_err(dev, "%s(), MOSI CLK ON select fail!\n", __func__);
+			dev_dbg(dev, "%s(), MOSI CLK ON select fail!\n", __func__);
 			return ret;
 		}
 	}
@@ -170,25 +170,25 @@ static int mt8186_afe_gpio_adda_ul(struct device *dev, bool enable)
 	if (enable) {
 		ret = mt8186_afe_gpio_select(dev, MT8186_AFE_GPIO_CLK_MISO_ON);
 		if (ret) {
-			dev_err(dev, "%s(), MISO CLK ON select fail!\n", __func__);
+			dev_dbg(dev, "%s(), MISO CLK ON select fail!\n", __func__);
 			return ret;
 		}
 
 		ret = mt8186_afe_gpio_select(dev, MT8186_AFE_GPIO_DAT_MISO_ON);
 		if (ret) {
-			dev_err(dev, "%s(), MISO DAT ON select fail!\n", __func__);
+			dev_dbg(dev, "%s(), MISO DAT ON select fail!\n", __func__);
 			return ret;
 		}
 	} else {
 		ret = mt8186_afe_gpio_select(dev, MT8186_AFE_GPIO_DAT_MISO_OFF);
 		if (ret) {
-			dev_err(dev, "%s(), MISO DAT OFF select fail!\n", __func__);
+			dev_dbg(dev, "%s(), MISO DAT OFF select fail!\n", __func__);
 			return ret;
 		}
 
 		ret = mt8186_afe_gpio_select(dev, MT8186_AFE_GPIO_CLK_MISO_OFF);
 		if (ret) {
-			dev_err(dev, "%s(), MISO CLK OFF select fail!\n", __func__);
+			dev_dbg(dev, "%s(), MISO CLK OFF select fail!\n", __func__);
 			return ret;
 		}
 	}
@@ -230,7 +230,7 @@ int mt8186_afe_gpio_request(struct device *dev, bool enable,
 		sel = enable ? MT8186_AFE_GPIO_PCM_ON : MT8186_AFE_GPIO_PCM_OFF;
 		break;
 	default:
-		dev_err(dev, "%s(), invalid dai %d\n", __func__, dai);
+		dev_dbg(dev, "%s(), invalid dai %d\n", __func__, dai);
 		goto unlock;
 	}
 

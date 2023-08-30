@@ -15,7 +15,8 @@ Hugetlbfs 预留
 概述
 ====
 
-Documentation/mm/hugetlbpage.rst 中描述的巨页通常是预先分配给应用程序使用的。如果VMA指
+Documentation/admin-guide/mm/hugetlbpage.rst
+中描述的巨页通常是预先分配给应用程序使用的 。如果VMA指
 示要使用巨页，这些巨页会在缺页异常时被实例化到任务的地址空间。如果在缺页异常
 时没有巨页存在，任务就会被发送一个SIGBUS，并经常不高兴地死去。在加入巨页支
 持后不久，人们决定，在mmap()时检测巨页的短缺情况会更好。这个想法是，如果

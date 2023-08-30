@@ -283,7 +283,7 @@ err_fb_alloc_failed:
 	return ret;
 }
 
-static int goldfish_fb_remove(struct platform_device *pdev)
+static void goldfish_fb_remove(struct platform_device *pdev)
 {
 	size_t framesize;
 	struct goldfish_fb *fb = platform_get_drvdata(pdev);
@@ -296,7 +296,6 @@ static int goldfish_fb_remove(struct platform_device *pdev)
 						fb->fb.fix.smem_start);
 	iounmap(fb->reg_base);
 	kfree(fb);
-	return 0;
 }
 
 static const struct of_device_id goldfish_fb_of_match[] = {
@@ -315,7 +314,7 @@ MODULE_DEVICE_TABLE(acpi, goldfish_fb_acpi_match);
 
 static struct platform_driver goldfish_fb_driver = {
 	.probe		= goldfish_fb_probe,
-	.remove		= goldfish_fb_remove,
+	.remove_new	= goldfish_fb_remove,
 	.driver = {
 		.name = "goldfish_fb",
 		.of_match_table = goldfish_fb_of_match,

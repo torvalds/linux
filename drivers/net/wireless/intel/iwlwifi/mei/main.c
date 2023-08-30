@@ -31,6 +31,11 @@ MODULE_LICENSE("GPL");
 #define MEI_WLAN_UUID UUID_LE(0x13280904, 0x7792, 0x4fcb, \
 			      0xa1, 0xaa, 0x5e, 0x70, 0xcb, 0xb1, 0xe8, 0x65)
 
+/* After CSME takes ownership, it won't release it for 60 seconds to avoid
+ * frequent ownership transitions.
+ */
+#define MEI_OWNERSHIP_RETAKE_TIMEOUT_MS	msecs_to_jiffies(60000)
+
 /*
  * Since iwlwifi calls iwlmei without any context, hold a pointer to the
  * mei_cl_device structure here.
@@ -156,6 +161,8 @@ struct iwl_mei_filters {
  *	accessed without the mutex.
  * @netdev_work: used to defer registering and unregistering of the netdev to
  *	avoid taking the rtnl lock in the SAP messages handlers.
+ * @ownership_dwork: used to re-ask for NIC ownership after ownership was taken
+ *	by CSME or when a previous ownership request failed.
  * @sap_seq_no: the sequence number for the SAP messages
  * @seq_no: the sequence number for the SAP messages
  * @dbgfs_dir: the debugfs dir entry
@@ -179,6 +186,7 @@ struct iwl_mei {
 	bool pldr_active;
 	spinlock_t data_q_lock;
 	struct work_struct netdev_work;
+	struct delayed_work ownership_dwork;
 
 	atomic_t sap_seq_no;
 	atomic_t seq_no;
@@ -716,7 +724,7 @@ iwl_mei_handle_conn_status(struct mei_cl_device *cldev,
 						     status->link_prot_state);
 	else
 		iwl_mei_cache.ops->rfkill(iwl_mei_cache.priv,
-					  status->link_prot_state);
+					  status->link_prot_state, false);
 }
 
 static void iwl_mei_set_init_conf(struct iwl_mei *mei)
@@ -788,7 +796,7 @@ static void iwl_mei_handle_amt_state(struct mei_cl_device *cldev,
 	if (mei->amt_enabled)
 		iwl_mei_set_init_conf(mei);
 	else if (iwl_mei_cache.ops)
-		iwl_mei_cache.ops->rfkill(iwl_mei_cache.priv, false);
+		iwl_mei_cache.ops->rfkill(iwl_mei_cache.priv, false, false);
 
 	schedule_work(&mei->netdev_work);
 
@@ -829,10 +837,12 @@ static void iwl_mei_handle_csme_taking_ownership(struct mei_cl_device *cldev,
 		 */
 		mei->csme_taking_ownership = true;
 
-		iwl_mei_cache.ops->rfkill(iwl_mei_cache.priv, true);
+		iwl_mei_cache.ops->rfkill(iwl_mei_cache.priv, true, true);
 	} else {
 		iwl_mei_send_sap_msg(cldev,
 				     SAP_MSG_NOTIF_CSME_OWNERSHIP_CONFIRMED);
+		schedule_delayed_work(&mei->ownership_dwork,
+				      MEI_OWNERSHIP_RETAKE_TIMEOUT_MS);
 	}
 }
 
@@ -882,7 +892,7 @@ static void iwl_mei_handle_rx_host_own_req(struct mei_cl_device *cldev,
 
 	/* We can now start the connection, unblock rfkill */
 	if (iwl_mei_cache.ops)
-		iwl_mei_cache.ops->rfkill(iwl_mei_cache.priv, false);
+		iwl_mei_cache.ops->rfkill(iwl_mei_cache.priv, false, false);
 }
 
 static void iwl_mei_handle_pldr_ack(struct mei_cl_device *cldev,
@@ -1447,7 +1457,13 @@ int iwl_mei_get_ownership(void)
 
 	ret = wait_event_timeout(mei->get_ownership_wq,
 				 mei->got_ownership, HZ / 2);
-	return (!ret) ? -ETIMEDOUT : 0;
+	if (!ret) {
+		schedule_delayed_work(&mei->ownership_dwork,
+				      MEI_OWNERSHIP_RETAKE_TIMEOUT_MS);
+		return -ETIMEDOUT;
+	}
+
+	return 0;
 out:
 	mutex_unlock(&iwl_mei_mutex);
 	return ret;
@@ -1738,6 +1754,8 @@ void iwl_mei_device_state(bool up)
 	iwl_mei_send_sap_msg(mei->cldev,
 			     SAP_MSG_NOTIF_CSME_OWNERSHIP_CONFIRMED);
 	mei->csme_taking_ownership = false;
+	schedule_delayed_work(&mei->ownership_dwork,
+			      MEI_OWNERSHIP_RETAKE_TIMEOUT_MS);
 out:
 	mutex_unlock(&iwl_mei_mutex);
 }
@@ -1773,7 +1791,8 @@ int iwl_mei_register(void *priv, const struct iwl_mei_ops *ops)
 		if (iwl_mei_is_connected()) {
 			if (mei->amt_enabled)
 				iwl_mei_send_sap_msg(mei->cldev,
-						     SAP_MSG_NOTIF_WIFIDR_UP);
+						     SAP_MSG_NOTIF_WIFIDR_UP,
+						     false);
 			ops->rfkill(priv, mei->link_prot_state);
 		}
 	}
@@ -1894,6 +1913,11 @@ static void iwl_mei_dbgfs_unregister(struct iwl_mei *mei) {}
 
 #endif /* CONFIG_DEBUG_FS */
 
+static void iwl_mei_ownership_dwork(struct work_struct *wk)
+{
+	iwl_mei_get_ownership();
+}
+
 #define ALLOC_SHARED_MEM_RETRY_MAX_NUM	3
 
 /*
@@ -1923,6 +1947,7 @@ static int iwl_mei_probe(struct mei_cl_device *cldev,
 	init_waitqueue_head(&mei->pldr_wq);
 	spin_lock_init(&mei->data_q_lock);
 	INIT_WORK(&mei->netdev_work, iwl_mei_netdev_work);
+	INIT_DELAYED_WORK(&mei->ownership_dwork, iwl_mei_ownership_dwork);
 
 	mei_cldev_set_drvdata(cldev, mei);
 	mei->cldev = cldev;
@@ -2087,7 +2112,7 @@ static void iwl_mei_remove(struct mei_cl_device *cldev)
 	spin_unlock_bh(&mei->data_q_lock);
 
 	if (iwl_mei_cache.ops)
-		iwl_mei_cache.ops->rfkill(iwl_mei_cache.priv, false);
+		iwl_mei_cache.ops->rfkill(iwl_mei_cache.priv, false, false);
 
 	/*
 	 * mei_cldev_disable will return only after all the MEI Rx is done.
@@ -2105,6 +2130,7 @@ static void iwl_mei_remove(struct mei_cl_device *cldev)
 	cancel_work_sync(&mei->send_csa_msg_wk);
 	cancel_delayed_work_sync(&mei->csa_throttle_end_wk);
 	cancel_work_sync(&mei->netdev_work);
+	cancel_delayed_work_sync(&mei->ownership_dwork);
 
 	/*
 	 * If someone waits for the ownership, let him know that we are going

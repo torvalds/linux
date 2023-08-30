@@ -180,6 +180,8 @@ config POWER10_CPU
 	bool "POWER10"
 	depends on PPC_BOOK3S_64
 	select ARCH_HAS_FAST_MULTIPLIER
+	select PPC_HAVE_PREFIXED_SUPPORT
+	select PPC_HAVE_PCREL_SUPPORT
 
 config E5500_CPU
 	bool "Freescale e5500"
@@ -454,6 +456,36 @@ config PPC_RADIX_MMU_DEFAULT
 
 	  If you're unsure, say Y.
 
+config PPC_KERNEL_PREFIXED
+	depends on PPC_HAVE_PREFIXED_SUPPORT
+	depends on CC_HAS_PREFIXED
+	default n
+	bool "Build Kernel with Prefixed Instructions"
+	help
+	  POWER10 and later CPUs support prefixed instructions, 8 byte
+	  instructions that include large immediate, pc relative addressing,
+	  and various floating point, vector, MMA.
+
+	  This option builds the kernel with prefixed instructions, and
+	  allows a pc relative addressing option to be selected.
+
+	  Kernel support for prefixed instructions in applications and guests
+	  is not affected by this option.
+
+config PPC_KERNEL_PCREL
+	depends on PPC_HAVE_PCREL_SUPPORT
+	depends on PPC_HAVE_PREFIXED_SUPPORT
+	depends on CC_HAS_PCREL
+	default n
+	select PPC_KERNEL_PREFIXED
+	bool "Build Kernel with PC-Relative addressing model"
+	help
+	  POWER10 and later CPUs support pc relative addressing. Recent
+	  compilers have support for an ELF ABI extension for a pc relative
+	  ABI.
+
+	  This option builds the kernel with the pc relative ABI model.
+
 config PPC_KUEP
 	bool "Kernel Userspace Execution Prevention" if !40x
 	default y if !40x
@@ -488,6 +520,12 @@ config PPC_MMU_NOHASH
 	depends on !PPC_BOOK3S
 
 config PPC_HAVE_PMU_SUPPORT
+	bool
+
+config PPC_HAVE_PREFIXED_SUPPORT
+	bool
+
+config PPC_HAVE_PCREL_SUPPORT
 	bool
 
 config PMU_SYSFS

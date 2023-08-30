@@ -63,9 +63,9 @@ static int mmcra_thresh_marked_sample(void)
 			get_mmcra_thd_stop(get_reg_value(intr_regs, "MMCRA"), 4));
 	FAIL_IF(EV_CODE_EXTRACT(event.attr.config, marked) !=
 			get_mmcra_marked(get_reg_value(intr_regs, "MMCRA"), 4));
-	FAIL_IF(EV_CODE_EXTRACT(event.attr.config, sample >> 2) !=
+	FAIL_IF((EV_CODE_EXTRACT(event.attr.config, sample) >> 2) !=
 			get_mmcra_rand_samp_elig(get_reg_value(intr_regs, "MMCRA"), 4));
-	FAIL_IF(EV_CODE_EXTRACT(event.attr.config, sample & 0x3) !=
+	FAIL_IF((EV_CODE_EXTRACT(event.attr.config, sample) & 0x3) !=
 			get_mmcra_sample_mode(get_reg_value(intr_regs, "MMCRA"), 4));
 	FAIL_IF(EV_CODE_EXTRACT(event.attr.config, sm) !=
 			get_mmcra_sm(get_reg_value(intr_regs, "MMCRA"), 4));

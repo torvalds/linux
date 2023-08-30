@@ -10,7 +10,6 @@
 #include <linux/errno.h>
 #include <linux/module.h>
 #include <linux/pci.h>
-#include <linux/aer.h>
 #include <linux/netdevice.h>
 #include <linux/ioport.h>
 #include <linux/iommu.h>

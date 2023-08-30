@@ -92,14 +92,14 @@ static int fch_clk_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int fch_clk_remove(struct platform_device *pdev)
+static void fch_clk_remove(struct platform_device *pdev)
 {
 	int i, clks;
 	struct pci_dev *rdev;
 
 	rdev = pci_get_domain_bus_and_slot(0, 0, PCI_DEVFN(0, 0));
 	if (!rdev)
-		return -ENODEV;
+		return;
 
 	clks = pci_match_id(fch_pci_ids, rdev) ? CLK_MAX_FIXED : ST_MAX_CLKS;
 
@@ -107,7 +107,6 @@ static int fch_clk_remove(struct platform_device *pdev)
 		clk_hw_unregister(hws[i]);
 
 	pci_dev_put(rdev);
-	return 0;
 }
 
 static struct platform_driver fch_clk_driver = {
@@ -116,6 +115,6 @@ static struct platform_driver fch_clk_driver = {
 		.suppress_bind_attrs = true,
 	},
 	.probe = fch_clk_probe,
-	.remove = fch_clk_remove,
+	.remove_new = fch_clk_remove,
 };
 builtin_platform_driver(fch_clk_driver);

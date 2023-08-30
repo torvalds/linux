@@ -539,7 +539,7 @@ static void bpf_jit_plt(void *plt, void *ret, void *target)
 {
 	memcpy(plt, bpf_plt, BPF_PLT_SIZE);
 	*(void **)((char *)plt + (bpf_plt_ret - bpf_plt)) = ret;
-	*(void **)((char *)plt + (bpf_plt_target - bpf_plt)) = target;
+	*(void **)((char *)plt + (bpf_plt_target - bpf_plt)) = target ?: ret;
 }
 
 /*
@@ -2001,6 +2001,11 @@ bool bpf_jit_supports_kfunc_call(void)
 	return true;
 }
 
+bool bpf_jit_supports_far_kfunc_call(void)
+{
+	return true;
+}
+
 int bpf_arch_text_poke(void *ip, enum bpf_text_poke_type t,
 		       void *old_addr, void *new_addr)
 {
@@ -2010,7 +2015,9 @@ int bpf_arch_text_poke(void *ip, enum bpf_text_poke_type t,
 	} __packed insn;
 	char expected_plt[BPF_PLT_SIZE];
 	char current_plt[BPF_PLT_SIZE];
+	char new_plt[BPF_PLT_SIZE];
 	char *plt;
+	char *ret;
 	int err;
 
 	/* Verify the branch to be patched. */
@@ -2032,12 +2039,15 @@ int bpf_arch_text_poke(void *ip, enum bpf_text_poke_type t,
 		err = copy_from_kernel_nofault(current_plt, plt, BPF_PLT_SIZE);
 		if (err < 0)
 			return err;
-		bpf_jit_plt(expected_plt, (char *)ip + 6, old_addr);
+		ret = (char *)ip + 6;
+		bpf_jit_plt(expected_plt, ret, old_addr);
 		if (memcmp(current_plt, expected_plt, BPF_PLT_SIZE))
 			return -EINVAL;
 		/* Adjust the call address. */
+		bpf_jit_plt(new_plt, ret, new_addr);
 		s390_kernel_write(plt + (bpf_plt_target - bpf_plt),
-				  &new_addr, sizeof(void *));
+				  new_plt + (bpf_plt_target - bpf_plt),
+				  sizeof(void *));
 	}
 
 	/* Adjust the mask of the branch. */

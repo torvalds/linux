@@ -48,7 +48,6 @@ static struct snd_soc_dai_driver rembrandt_sof_dai[] = {
 			.rate_min = 8000,
 			.rate_max = 48000,
 		},
-		.probe = &acp_dai_probe,
 	},
 
 	[I2S_BT_INSTANCE] = {
@@ -73,7 +72,6 @@ static struct snd_soc_dai_driver rembrandt_sof_dai[] = {
 			.rate_min = 8000,
 			.rate_max = 48000,
 		},
-		.probe = &acp_dai_probe,
 	},
 
 	[I2S_SP_INSTANCE] = {
@@ -98,7 +96,6 @@ static struct snd_soc_dai_driver rembrandt_sof_dai[] = {
 			.rate_min = 8000,
 			.rate_max = 48000,
 		},
-		.probe = &acp_dai_probe,
 	},
 
 	[PDM_DMIC_INSTANCE] = {
@@ -126,7 +123,6 @@ static struct snd_soc_dai_driver rembrandt_sof_dai[] = {
 			.rate_min = 8000,
 			.rate_max = 96000,
 		},
-		.probe = &acp_dai_probe,
 	},
 };
 

@@ -46,33 +46,17 @@ struct usb3503 {
 	struct device		*dev;
 	struct clk		*clk;
 	u8	port_off_mask;
+	struct gpio_desc	*bypass;
 	struct gpio_desc	*intn;
 	struct gpio_desc 	*reset;
 	struct gpio_desc 	*connect;
 	bool	secondary_ref_clk;
 };
 
-static int usb3503_reset(struct usb3503 *hub, int state)
-{
-	if (!state && hub->connect)
-		gpiod_set_value_cansleep(hub->connect, 0);
-
-	if (hub->reset)
-		gpiod_set_value_cansleep(hub->reset, !state);
-
-	/* Wait T_HUBINIT == 4ms for hub logic to stabilize */
-	if (state)
-		usleep_range(4000, 10000);
-
-	return 0;
-}
-
 static int usb3503_connect(struct usb3503 *hub)
 {
 	struct device *dev = hub->dev;
 	int err;
-
-	usb3503_reset(hub, 1);
 
 	if (hub->regmap) {
 		/* SP_ILOCK: set connect_n, config_n for config */
@@ -126,25 +110,46 @@ static int usb3503_connect(struct usb3503 *hub)
 static int usb3503_switch_mode(struct usb3503 *hub, enum usb3503_mode mode)
 {
 	struct device *dev = hub->dev;
-	int err = 0;
+	int rst, bypass, conn;
 
 	switch (mode) {
 	case USB3503_MODE_HUB:
-		err = usb3503_connect(hub);
+		conn = 1;
+		rst = 0;
+		bypass = 0;
 		break;
-
 	case USB3503_MODE_STANDBY:
-		usb3503_reset(hub, 0);
+		conn = 0;
+		rst = 1;
+		bypass = 1;
 		dev_info(dev, "switched to STANDBY mode\n");
 		break;
-
+	case USB3503_MODE_BYPASS:
+		conn = 0;
+		rst = 0;
+		bypass = 1;
+		break;
 	default:
 		dev_err(dev, "unknown mode is requested\n");
-		err = -EINVAL;
-		break;
+		return -EINVAL;
 	}
 
-	return err;
+	if (!conn && hub->connect)
+		gpiod_set_value_cansleep(hub->connect, 0);
+
+	if (hub->reset)
+		gpiod_set_value_cansleep(hub->reset, rst);
+
+	if (hub->bypass)
+		gpiod_set_value_cansleep(hub->bypass, bypass);
+
+	if (conn) {
+		/* Wait T_HUBINIT == 4ms for hub logic to stabilize */
+		usleep_range(4000, 10000);
+		return usb3503_connect(hub);
+	}
+
+	return 0;
 }
 
 static const struct regmap_config usb3503_regmap_config = {
@@ -252,6 +257,14 @@ static int usb3503_probe(struct usb3503 *hub)
 	}
 	if (hub->connect)
 		gpiod_set_consumer_name(hub->connect, "usb3503 connect");
+
+	hub->bypass = devm_gpiod_get_optional(dev, "bypass", GPIOD_OUT_HIGH);
+	if (IS_ERR(hub->bypass)) {
+		err = PTR_ERR(hub->bypass);
+		goto err_clk;
+	}
+	if (hub->bypass)
+		gpiod_set_consumer_name(hub->bypass, "usb3503 bypass");
 
 	hub->reset = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(hub->reset)) {
@@ -388,6 +401,7 @@ MODULE_DEVICE_TABLE(i2c, usb3503_id);
 static const struct of_device_id usb3503_of_match[] = {
 	{ .compatible = "smsc,usb3503", },
 	{ .compatible = "smsc,usb3503a", },
+	{ .compatible = "smsc,usb3803", },
 	{},
 };
 MODULE_DEVICE_TABLE(of, usb3503_of_match);

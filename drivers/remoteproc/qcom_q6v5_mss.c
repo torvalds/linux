@@ -235,8 +235,8 @@ struct q6v5 {
 	bool has_qaccept_regs;
 	bool has_ext_cntl_regs;
 	bool has_vq6;
-	int mpss_perm;
-	int mba_perm;
+	u64 mpss_perm;
+	u64 mba_perm;
 	const char *hexagon_mdt_image;
 	int version;
 };
@@ -414,7 +414,7 @@ static void q6v5_pds_disable(struct q6v5 *qproc, struct device **pds,
 	}
 }
 
-static int q6v5_xfer_mem_ownership(struct q6v5 *qproc, int *current_perm,
+static int q6v5_xfer_mem_ownership(struct q6v5 *qproc, u64 *current_perm,
 				   bool local, bool remote, phys_addr_t addr,
 				   size_t size)
 {
@@ -967,7 +967,7 @@ static int q6v5_mpss_init_image(struct q6v5 *qproc, const struct firmware *fw,
 	unsigned long dma_attrs = DMA_ATTR_FORCE_CONTIGUOUS;
 	dma_addr_t phys;
 	void *metadata;
-	int mdata_perm;
+	u64 mdata_perm;
 	int xferop_ret;
 	size_t size;
 	void *ptr;
@@ -1562,7 +1562,7 @@ static void qcom_q6v5_dump_segment(struct rproc *rproc,
 
 static int q6v5_start(struct rproc *rproc)
 {
-	struct q6v5 *qproc = (struct q6v5 *)rproc->priv;
+	struct q6v5 *qproc = rproc->priv;
 	int xfermemop_ret;
 	int ret;
 
@@ -1604,7 +1604,7 @@ reclaim_mpss:
 
 static int q6v5_stop(struct rproc *rproc)
 {
-	struct q6v5 *qproc = (struct q6v5 *)rproc->priv;
+	struct q6v5 *qproc = rproc->priv;
 	int ret;
 
 	ret = qcom_q6v5_request_stop(&qproc->q6v5, qproc->sysmon);
@@ -1662,7 +1662,7 @@ static int qcom_q6v5_register_dump_segments(struct rproc *rproc,
 
 static unsigned long q6v5_panic(struct rproc *rproc)
 {
-	struct q6v5 *qproc = (struct q6v5 *)rproc->priv;
+	struct q6v5 *qproc = rproc->priv;
 
 	return qcom_q6v5_panic(&qproc->q6v5);
 }
@@ -1977,7 +1977,7 @@ static int q6v5_probe(struct platform_device *pdev)
 	rproc->auto_boot = false;
 	rproc_coredump_set_elf_info(rproc, ELFCLASS32, EM_NONE);
 
-	qproc = (struct q6v5 *)rproc->priv;
+	qproc = rproc->priv;
 	qproc->dev = &pdev->dev;
 	qproc->rproc = rproc;
 	qproc->hexagon_mdt_image = "modem.mdt";

@@ -29,11 +29,12 @@
 #define SMU13_DRIVER_IF_VERSION_YELLOW_CARP 0x04
 #define SMU13_DRIVER_IF_VERSION_ALDE 0x08
 #define SMU13_DRIVER_IF_VERSION_SMU_V13_0_0_0 0x37
-#define SMU13_DRIVER_IF_VERSION_SMU_V13_0_4 0x07
+#define SMU13_DRIVER_IF_VERSION_SMU_V13_0_4 0x08
 #define SMU13_DRIVER_IF_VERSION_SMU_V13_0_5 0x04
 #define SMU13_DRIVER_IF_VERSION_SMU_V13_0_0_10 0x32
 #define SMU13_DRIVER_IF_VERSION_SMU_V13_0_7 0x37
 #define SMU13_DRIVER_IF_VERSION_SMU_V13_0_10 0x1D
+#define SMU13_DRIVER_IF_VERSION_SMU_V13_0_6 0x0
 
 #define SMU13_MODE1_RESET_WAIT_TIME_IN_MS 500  //500ms
 
@@ -60,6 +61,12 @@
 #define CTF_OFFSET_EDGE			5
 #define CTF_OFFSET_HOTSPOT		5
 #define CTF_OFFSET_MEM			5
+
+extern const int pmfw_decoded_link_speed[5];
+extern const int pmfw_decoded_link_width[7];
+
+#define DECODE_GEN_SPEED(gen_speed_idx)		(pmfw_decoded_link_speed[gen_speed_idx])
+#define DECODE_LANE_WIDTH(lane_width_idx)	(pmfw_decoded_link_width[lane_width_idx])
 
 struct smu_13_0_max_sustainable_clocks {
 	uint32_t display_clock;
@@ -243,6 +250,10 @@ int smu_v13_0_set_power_source(struct smu_context *smu,
 int smu_v13_0_set_single_dpm_table(struct smu_context *smu,
 				   enum smu_clk_type clk_type,
 				   struct smu_13_0_dpm_table *single_dpm_table);
+
+int smu_v13_0_get_dpm_freq_by_index(struct smu_context *smu,
+				    enum smu_clk_type clk_type, uint16_t level,
+				    uint32_t *value);
 
 int smu_v13_0_get_current_pcie_link_width_level(struct smu_context *smu);
 

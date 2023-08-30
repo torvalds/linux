@@ -403,7 +403,7 @@ out:
 static int setup_shmem(struct device *dev, struct scmi_chan_info *cinfo,
 		       struct scmi_optee_channel *channel)
 {
-	if (of_find_property(cinfo->dev->of_node, "shmem", NULL))
+	if (of_property_present(cinfo->dev->of_node, "shmem"))
 		return setup_static_shmem(dev, cinfo, channel);
 	else
 		return setup_dynamic_shmem(dev, channel);

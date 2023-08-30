@@ -136,6 +136,22 @@ Description:	The last executed device administrative command's status/error.
 		Also last configuration error overloaded.
 		Writing to it will clear the status.
 
+What:		/sys/bus/dsa/devices/dsa<m>/iaa_cap
+Date:		Sept 14, 2022
+KernelVersion: 6.0.0
+Contact:	dmaengine@vger.kernel.org
+Description:	IAA (IAX) capability mask. Exported to user space for application
+		consumption. This attribute should only be visible on IAA devices
+		that are version 2 or later.
+
+What:		/sys/bus/dsa/devices/dsa<m>/event_log_size
+Date:		Sept 14, 2022
+KernelVersion: 6.4.0
+Contact:	dmaengine@vger.kernel.org
+Description:	The event log size to be configured. Default is 64 entries and
+		occupies 4k size if the evl entry is 64 bytes. It's visible
+		only on platforms that support the capability.
+
 What:		/sys/bus/dsa/devices/wq<m>.<n>/block_on_fault
 Date:		Oct 27, 2020
 KernelVersion:	5.11.0
@@ -218,6 +234,16 @@ KernelVersion:	5.11.0
 Contact:	dmaengine@vger.kernel.org
 Description:	Indicate whether ATS disable is turned on for the workqueue.
 		0 indicates ATS is on, and 1 indicates ATS is off for the workqueue.
+
+What:		/sys/bus/dsa/devices/wq<m>.<n>/prs_disable
+Date:		Sept 14, 2022
+KernelVersion: 6.4.0
+Contact:	dmaengine@vger.kernel.org
+Description:	Controls whether PRS disable is turned on for the workqueue.
+		0 indicates PRS is on, and 1 indicates PRS is off for the
+		workqueue. This option overrides block_on_fault attribute
+		if set. It's visible only on platforms that support the
+		capability.
 
 What:		/sys/bus/dsa/devices/wq<m>.<n>/occupancy
 Date		May 25, 2021
@@ -302,3 +328,28 @@ Description:	Allows control of the number of batch descriptors that can be
 		1 (1/2 of max value), 2 (1/4 of the max value), and 3 (1/8 of
 		the max value). It's visible only on platforms that support
 		the capability.
+
+What:		/sys/bus/dsa/devices/wq<m>.<n>/dsa<x>\!wq<m>.<n>/file<y>/cr_faults
+Date:		Sept 14, 2022
+KernelVersion:	6.4.0
+Contact:	dmaengine@vger.kernel.org
+Description:	Show the number of Completion Record (CR) faults this application
+		has caused.
+
+What:		/sys/bus/dsa/devices/wq<m>.<n>/dsa<x>\!wq<m>.<n>/file<y>/cr_fault_failures
+Date:		Sept 14, 2022
+KernelVersion:	6.4.0
+Contact:	dmaengine@vger.kernel.org
+Description:	Show the number of Completion Record (CR) faults failures that this
+		application has caused. The failure counter is incremented when the
+		driver cannot fault in the address for the CR. Typically this is caused
+		by a bad address programmed in the submitted descriptor or a malicious
+		submitter is using bad CR address on purpose.
+
+What:		/sys/bus/dsa/devices/wq<m>.<n>/dsa<x>\!wq<m>.<n>/file<y>/pid
+Date:		Sept 14, 2022
+KernelVersion:	6.4.0
+Contact:	dmaengine@vger.kernel.org
+Description:	Show the process id of the application that opened the file. This is
+		helpful information for a monitor daemon that wants to kill the
+		application that opened the file.

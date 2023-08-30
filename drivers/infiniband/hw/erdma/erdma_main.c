@@ -56,7 +56,7 @@ done:
 static int erdma_enum_and_get_netdev(struct erdma_dev *dev)
 {
 	struct net_device *netdev;
-	int ret = -ENODEV;
+	int ret = -EPROBE_DEFER;
 
 	/* Already binded to a net_device, so we skip. */
 	if (dev->netdev)
@@ -211,11 +211,34 @@ static int erdma_device_init(struct erdma_dev *dev, struct pci_dev *pdev)
 	return 0;
 }
 
-static void erdma_device_uninit(struct erdma_dev *dev)
+static void erdma_hw_reset(struct erdma_dev *dev)
 {
 	u32 ctrl = FIELD_PREP(ERDMA_REG_DEV_CTRL_RESET_MASK, 1);
 
 	erdma_reg_write32(dev, ERDMA_REGS_DEV_CTRL_REG, ctrl);
+}
+
+static int erdma_wait_hw_init_done(struct erdma_dev *dev)
+{
+	int i;
+
+	erdma_reg_write32(dev, ERDMA_REGS_DEV_CTRL_REG,
+			  FIELD_PREP(ERDMA_REG_DEV_CTRL_INIT_MASK, 1));
+
+	for (i = 0; i < ERDMA_WAIT_DEV_DONE_CNT; i++) {
+		if (erdma_reg_read32_filed(dev, ERDMA_REGS_DEV_ST_REG,
+					   ERDMA_REG_DEV_ST_INIT_DONE_MASK))
+			break;
+
+		msleep(ERDMA_REG_ACCESS_WAIT_MS);
+	}
+
+	if (i == ERDMA_WAIT_DEV_DONE_CNT) {
+		dev_err(&dev->pdev->dev, "wait init done failed.\n");
+		return -ETIMEDOUT;
+	}
+
+	return 0;
 }
 
 static const struct pci_device_id erdma_pci_tbl[] = {
@@ -293,16 +316,22 @@ static int erdma_probe_dev(struct pci_dev *pdev)
 	if (err)
 		goto err_uninit_aeq;
 
-	err = erdma_ceqs_init(dev);
+	err = erdma_wait_hw_init_done(dev);
 	if (err)
 		goto err_uninit_cmdq;
+
+	err = erdma_ceqs_init(dev);
+	if (err)
+		goto err_reset_hw;
 
 	erdma_finish_cmdq_init(dev);
 
 	return 0;
 
+err_reset_hw:
+	erdma_hw_reset(dev);
+
 err_uninit_cmdq:
-	erdma_device_uninit(dev);
 	erdma_cmdq_destroy(dev);
 
 err_uninit_aeq:
@@ -334,9 +363,7 @@ static void erdma_remove_dev(struct pci_dev *pdev)
 	struct erdma_dev *dev = pci_get_drvdata(pdev);
 
 	erdma_ceqs_uninit(dev);
-
-	erdma_device_uninit(dev);
-
+	erdma_hw_reset(dev);
 	erdma_cmdq_destroy(dev);
 	erdma_aeq_destroy(dev);
 	erdma_comm_irq_uninit(dev);

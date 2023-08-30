@@ -21,6 +21,9 @@ properties:
               - fsl,imx25-fb
               - fsl,imx27-fb
           - const: fsl,imx21-fb
+      - items:
+          - const: fsl,imx25-lcdc
+          - const: fsl,imx21-lcdc
 
   clocks:
     maxItems: 3
@@ -30,6 +33,9 @@ properties:
       - const: ipg
       - const: ahb
       - const: per
+
+  port:
+    $ref: /schemas/graph.yaml#/properties/port
 
   display:
     $ref: /schemas/types.yaml#/definitions/phandle
@@ -59,17 +65,55 @@ properties:
     description:
       LCDC Sharp Configuration Register value.
 
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - fsl,imx1-lcdc
+              - fsl,imx21-lcdc
+    then:
+      properties:
+        display: false
+        fsl,dmacr: false
+        fsl,lpccr: false
+        fsl,lscr1: false
+
+      required:
+        - port
+
+    else:
+      properties:
+        port: false
+
+      required:
+        - display
+
 required:
   - compatible
   - clocks
   - clock-names
-  - display
   - interrupts
   - reg
 
 additionalProperties: false
 
 examples:
+  - |
+    lcdc@53fbc000 {
+        compatible = "fsl,imx25-lcdc", "fsl,imx21-lcdc";
+        reg = <0x53fbc000 0x4000>;
+        interrupts = <39>;
+        clocks = <&clks 103>, <&clks 66>, <&clks 49>;
+        clock-names = "ipg", "ahb", "per";
+
+        port {
+            parallel_out: endpoint {
+              remote-endpoint = <&panel_in>;
+            };
+        };
+    };
   - |
     imxfb: fb@10021000 {
         compatible = "fsl,imx21-fb";

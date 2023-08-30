@@ -1,0 +1,44 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/w1/maxim,ds2482.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Maxim One wire bus master controller
+
+maintainers:
+  - Stefan Wahren <stefan.wahren@chargebyte.com>
+
+description: |
+  I2C to 1-wire bridges
+
+  https://www.analog.com/media/en/technical-documentation/data-sheets/ds2482-100.pdf
+  https://www.analog.com/media/en/technical-documentation/data-sheets/DS2482-800.pdf
+  https://www.analog.com/media/en/technical-documentation/data-sheets/DS2484.pdf
+
+properties:
+  compatible:
+    enum:
+      - maxim,ds2482
+      - maxim,ds2484
+
+  reg:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+
+additionalProperties:
+  type: object
+
+examples:
+  - |
+    i2c {
+      #address-cells = <1>;
+      #size-cells = <0>;
+      onewire@18 {
+        compatible = "maxim,ds2484";
+        reg = <0x18>;
+      };
+    };

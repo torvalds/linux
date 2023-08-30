@@ -2041,7 +2041,7 @@ free:
 	return ret;
 }
 
-static int imx_csi_remove(struct platform_device *pdev)
+static void imx_csi_remove(struct platform_device *pdev)
 {
 	struct v4l2_subdev *sd = platform_get_drvdata(pdev);
 	struct csi_priv *priv = sd_to_dev(sd);
@@ -2052,8 +2052,6 @@ static int imx_csi_remove(struct platform_device *pdev)
 	v4l2_async_nf_cleanup(&priv->notifier);
 	v4l2_async_unregister_subdev(sd);
 	media_entity_cleanup(&sd->entity);
-
-	return 0;
 }
 
 static const struct platform_device_id imx_csi_ids[] = {
@@ -2064,7 +2062,7 @@ MODULE_DEVICE_TABLE(platform, imx_csi_ids);
 
 static struct platform_driver imx_csi_driver = {
 	.probe = imx_csi_probe,
-	.remove = imx_csi_remove,
+	.remove_new = imx_csi_remove,
 	.id_table = imx_csi_ids,
 	.driver = {
 		.name = "imx-ipuv3-csi",

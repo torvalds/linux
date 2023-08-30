@@ -3,6 +3,9 @@
 
 #include <linux/bitops.h>
 
+#define ENETC_MM_VERIFY_SLEEP_US	USEC_PER_MSEC
+#define ENETC_MM_VERIFY_RETRIES		3
+
 /* ENETC device IDs */
 #define ENETC_DEV_ID_PF		0xe100
 #define ENETC_DEV_ID_VF		0xef00
@@ -964,6 +967,10 @@ static inline u32 enetc_usecs_to_cycles(u32 usecs)
 {
 	return (u32)div_u64(usecs * ENETC_CLK, 1000000ULL);
 }
+
+/* Port traffic class frame preemption register */
+#define ENETC_PTCFPR(n)			(0x1910 + (n) * 4) /* n = [0 ..7] */
+#define ENETC_PTCFPR_FPE		BIT(31)
 
 /* port time gating control register */
 #define ENETC_PTGCR			0x11a00

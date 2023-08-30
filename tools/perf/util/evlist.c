@@ -31,6 +31,8 @@
 #include "util/evlist-hybrid.h"
 #include "util/pmu.h"
 #include "util/sample.h"
+#include "util/bpf-filter.h"
+#include "util/util.h"
 #include <signal.h>
 #include <unistd.h>
 #include <sched.h>
@@ -465,7 +467,7 @@ static int evsel__strcmp(struct evsel *pos, char *evsel_name)
 		return 0;
 	if (evsel__is_dummy_event(pos))
 		return 1;
-	return strcmp(pos->name, evsel_name);
+	return !evsel__name_is(pos, evsel_name);
 }
 
 static int evlist__is_enabled(struct evlist *evlist)
@@ -1086,17 +1088,27 @@ int evlist__apply_filters(struct evlist *evlist, struct evsel **err_evsel)
 	int err = 0;
 
 	evlist__for_each_entry(evlist, evsel) {
-		if (evsel->filter == NULL)
-			continue;
-
 		/*
 		 * filters only work for tracepoint event, which doesn't have cpu limit.
 		 * So evlist and evsel should always be same.
 		 */
-		err = perf_evsel__apply_filter(&evsel->core, evsel->filter);
-		if (err) {
-			*err_evsel = evsel;
-			break;
+		if (evsel->filter) {
+			err = perf_evsel__apply_filter(&evsel->core, evsel->filter);
+			if (err) {
+				*err_evsel = evsel;
+				break;
+			}
+		}
+
+		/*
+		 * non-tracepoint events can have BPF filters.
+		 */
+		if (!list_empty(&evsel->bpf_filters)) {
+			err = perf_bpf_filter__prepare(evsel);
+			if (err) {
+				*err_evsel = evsel;
+				break;
+			}
 		}
 	}
 
@@ -1694,7 +1706,7 @@ struct evsel *evlist__find_evsel_by_str(struct evlist *evlist, const char *str)
 	evlist__for_each_entry(evlist, evsel) {
 		if (!evsel->name)
 			continue;
-		if (strcmp(str, evsel->name) == 0)
+		if (evsel__name_is(evsel, str))
 			return evsel;
 	}
 
@@ -1777,7 +1789,7 @@ bool evlist__exclude_kernel(struct evlist *evlist)
  */
 void evlist__force_leader(struct evlist *evlist)
 {
-	if (!evlist->core.nr_groups) {
+	if (evlist__nr_groups(evlist) == 0) {
 		struct evsel *leader = evlist__first(evlist);
 
 		evlist__set_leader(evlist);
@@ -2262,8 +2274,8 @@ int evlist__parse_event_enable_time(struct evlist *evlist, struct record_opts *o
 	if (unset)
 		return 0;
 
-	opts->initial_delay = str_to_delay(str);
-	if (opts->initial_delay)
+	opts->target.initial_delay = str_to_delay(str);
+	if (opts->target.initial_delay)
 		return 0;
 
 	ret = parse_event_enable_times(str, NULL);
@@ -2306,14 +2318,14 @@ int evlist__parse_event_enable_time(struct evlist *evlist, struct record_opts *o
 
 	eet->evlist = evlist;
 	evlist->eet = eet;
-	opts->initial_delay = eet->times[0].start;
+	opts->target.initial_delay = eet->times[0].start;
 
 	return 0;
 
 close_timerfd:
 	close(eet->timerfd);
 free_eet_times:
-	free(eet->times);
+	zfree(&eet->times);
 free_eet:
 	free(eet);
 	return err;
@@ -2395,7 +2407,7 @@ void event_enable_timer__exit(struct event_enable_timer **ep)
 {
 	if (!ep || !*ep)
 		return;
-	free((*ep)->times);
+	zfree(&(*ep)->times);
 	zfree(ep);
 }
 

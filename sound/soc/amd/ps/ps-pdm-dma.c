@@ -361,12 +361,12 @@ static int acp63_pdm_audio_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 	struct pdm_dev_data *adata;
+	struct acp63_dev_data *acp_data;
+	struct device *parent;
 	int status;
 
-	if (!pdev->dev.platform_data) {
-		dev_err(&pdev->dev, "platform_data not retrieved\n");
-		return -ENODEV;
-	}
+	parent = pdev->dev.parent;
+	acp_data = dev_get_drvdata(parent);
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
 		dev_err(&pdev->dev, "IORESOURCE_MEM FAILED\n");
@@ -382,7 +382,7 @@ static int acp63_pdm_audio_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	adata->capture_stream = NULL;
-	adata->acp_lock = pdev->dev.platform_data;
+	adata->acp_lock = &acp_data->acp_lock;
 	dev_set_drvdata(&pdev->dev, adata);
 	status = devm_snd_soc_register_component(&pdev->dev,
 						 &acp63_pdm_component,
@@ -399,10 +399,9 @@ static int acp63_pdm_audio_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int acp63_pdm_audio_remove(struct platform_device *pdev)
+static void acp63_pdm_audio_remove(struct platform_device *pdev)
 {
 	pm_runtime_disable(&pdev->dev);
-	return 0;
 }
 
 static int __maybe_unused acp63_pdm_resume(struct device *dev)
@@ -451,7 +450,7 @@ static const struct dev_pm_ops acp63_pdm_pm_ops = {
 
 static struct platform_driver acp63_pdm_dma_driver = {
 	.probe = acp63_pdm_audio_probe,
-	.remove = acp63_pdm_audio_remove,
+	.remove_new = acp63_pdm_audio_remove,
 	.driver = {
 		.name = "acp_ps_pdm_dma",
 		.pm = &acp63_pdm_pm_ops,

@@ -828,7 +828,7 @@ static struct sg_table * __map_dma_buf(struct dma_buf_attachment *attach,
  *     - dma_buf_attach()
  *     - dma_buf_dynamic_attach()
  *     - dma_buf_detach()
- *     - dma_buf_export(
+ *     - dma_buf_export()
  *     - dma_buf_fd()
  *     - dma_buf_get()
  *     - dma_buf_put()

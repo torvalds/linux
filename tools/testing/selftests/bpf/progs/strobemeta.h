@@ -391,7 +391,6 @@ static __always_inline void *read_map_var(struct strobemeta_cfg *cfg,
 	struct strobe_map_raw map;
 	void *location;
 	uint64_t len;
-	int i;
 
 	descr->tag_len = 0; /* presume no tag is set */
 	descr->cnt = -1; /* presume no value is set */

@@ -54,7 +54,7 @@ static int sys_get_trip_temp(struct thermal_zone_device *tzd, int trip,
 	struct intel_soc_dts_sensor_entry *dts;
 	struct intel_soc_dts_sensors *sensors;
 
-	dts = tzd->devdata;
+	dts = thermal_zone_device_priv(tzd);
 	sensors = dts->sensors;
 	mutex_lock(&sensors->dts_update_lock);
 	status = iosf_mbi_read(BT_MBI_UNIT_PMC, MBI_REG_READ,
@@ -168,7 +168,7 @@ err_restore_ptps:
 static int sys_set_trip_temp(struct thermal_zone_device *tzd, int trip,
 			     int temp)
 {
-	struct intel_soc_dts_sensor_entry *dts = tzd->devdata;
+	struct intel_soc_dts_sensor_entry *dts = thermal_zone_device_priv(tzd);
 	struct intel_soc_dts_sensors *sensors = dts->sensors;
 	int status;
 
@@ -176,7 +176,7 @@ static int sys_set_trip_temp(struct thermal_zone_device *tzd, int trip,
 		return -EINVAL;
 
 	mutex_lock(&sensors->dts_update_lock);
-	status = update_trip_temp(tzd->devdata, trip, temp,
+	status = update_trip_temp(dts, trip, temp,
 				  dts->trip_types[trip]);
 	mutex_unlock(&sensors->dts_update_lock);
 
@@ -186,9 +186,7 @@ static int sys_set_trip_temp(struct thermal_zone_device *tzd, int trip,
 static int sys_get_trip_type(struct thermal_zone_device *tzd,
 			     int trip, enum thermal_trip_type *type)
 {
-	struct intel_soc_dts_sensor_entry *dts;
-
-	dts = tzd->devdata;
+	struct intel_soc_dts_sensor_entry *dts = thermal_zone_device_priv(tzd);
 
 	*type = dts->trip_types[trip];
 
@@ -200,11 +198,10 @@ static int sys_get_curr_temp(struct thermal_zone_device *tzd,
 {
 	int status;
 	u32 out;
-	struct intel_soc_dts_sensor_entry *dts;
+	struct intel_soc_dts_sensor_entry *dts = thermal_zone_device_priv(tzd);
 	struct intel_soc_dts_sensors *sensors;
 	unsigned long raw;
 
-	dts = tzd->devdata;
 	sensors = dts->sensors;
 	status = iosf_mbi_read(BT_MBI_UNIT_PMC, MBI_REG_READ,
 			       SOC_DTS_OFFSET_TEMP, &out);
@@ -401,7 +398,7 @@ struct intel_soc_dts_sensors *intel_soc_dts_iosf_init(
 	spin_lock_init(&sensors->intr_notify_lock);
 	mutex_init(&sensors->dts_update_lock);
 	sensors->intr_type = intr_type;
-	sensors->tj_max = tj_max;
+	sensors->tj_max = tj_max * 1000;
 	if (intr_type == INTEL_SOC_DTS_INTERRUPT_NONE)
 		notification = false;
 	else

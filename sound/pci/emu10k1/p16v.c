@@ -149,42 +149,19 @@ static const struct snd_pcm_hardware snd_p16v_capture_hw = {
 	.fifo_size =		0,
 };
 
-static void snd_p16v_pcm_free_substream(struct snd_pcm_runtime *runtime)
-{
-	struct snd_emu10k1_pcm *epcm = runtime->private_data;
-
-	kfree(epcm);
-}
-
 /* open_playback callback */
 static int snd_p16v_pcm_open_playback_channel(struct snd_pcm_substream *substream, int channel_id)
 {
-	struct snd_emu10k1 *emu = snd_pcm_substream_chip(substream);
-        struct snd_emu10k1_voice *channel = &(emu->p16v_voices[channel_id]);
-	struct snd_emu10k1_pcm *epcm;
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	int err;
 
-	epcm = kzalloc(sizeof(*epcm), GFP_KERNEL);
-	/* dev_dbg(emu->card->dev, "epcm kcalloc: %p\n", epcm); */
-
-	if (epcm == NULL)
-		return -ENOMEM;
-	epcm->emu = emu;
-	epcm->substream = substream;
 	/*
 	dev_dbg(emu->card->dev, "epcm device=%d, channel_id=%d\n",
 		   substream->pcm->device, channel_id);
 	*/
-	runtime->private_data = epcm;
-	runtime->private_free = snd_p16v_pcm_free_substream;
   
 	runtime->hw = snd_p16v_playback_hw;
 
-        channel->emu = emu;
-        channel->number = channel_id;
-
-        channel->use=1;
 #if 0 /* debug */
 	dev_dbg(emu->card->dev,
 		   "p16v: open channel_id=%d, channel=%p, use=0x%x\n",
@@ -193,7 +170,6 @@ static int snd_p16v_pcm_open_playback_channel(struct snd_pcm_substream *substrea
 	       channel_id, chip, channel);
 #endif /* debug */
 	/* channel->interrupt = snd_p16v_pcm_channel_interrupt; */
-	channel->epcm = epcm;
 	err = snd_pcm_hw_constraint_integer(runtime, SNDRV_PCM_HW_PARAM_PERIODS);
 	if (err < 0)
                 return err;
@@ -205,44 +181,20 @@ static int snd_p16v_pcm_open_playback_channel(struct snd_pcm_substream *substrea
 
 	return 0;
 }
+
 /* open_capture callback */
 static int snd_p16v_pcm_open_capture_channel(struct snd_pcm_substream *substream, int channel_id)
 {
-	struct snd_emu10k1 *emu = snd_pcm_substream_chip(substream);
-	struct snd_emu10k1_voice *channel = &(emu->p16v_capture_voice);
-	struct snd_emu10k1_pcm *epcm;
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	int err;
 
-	epcm = kzalloc(sizeof(*epcm), GFP_KERNEL);
-	/* dev_dbg(emu->card->dev, "epcm kcalloc: %p\n", epcm); */
-
-	if (epcm == NULL)
-		return -ENOMEM;
-	epcm->emu = emu;
-	epcm->substream = substream;
 	/*
 	dev_dbg(emu->card->dev, "epcm device=%d, channel_id=%d\n",
 		   substream->pcm->device, channel_id);
 	*/
-	runtime->private_data = epcm;
-	runtime->private_free = snd_p16v_pcm_free_substream;
   
 	runtime->hw = snd_p16v_capture_hw;
 
-	channel->emu = emu;
-	channel->number = channel_id;
-
-	channel->use=1;
-#if 0 /* debug */
-	dev_dbg(emu->card->dev,
-		   "p16v: open channel_id=%d, channel=%p, use=0x%x\n",
-		   channel_id, channel, channel->use);
-	dev_dbg(emu->card->dev, "open:channel_id=%d, chip=%p, channel=%p\n",
-	       channel_id, chip, channel);
-#endif /* debug */
-	/* channel->interrupt = snd_p16v_pcm_channel_interrupt; */
-	channel->epcm = epcm;
 	err = snd_pcm_hw_constraint_integer(runtime, SNDRV_PCM_HW_PARAM_PERIODS);
 	if (err < 0)
 		return err;
@@ -254,22 +206,12 @@ static int snd_p16v_pcm_open_capture_channel(struct snd_pcm_substream *substream
 /* close callback */
 static int snd_p16v_pcm_close_playback(struct snd_pcm_substream *substream)
 {
-	struct snd_emu10k1 *emu = snd_pcm_substream_chip(substream);
-	//struct snd_pcm_runtime *runtime = substream->runtime;
-	//struct snd_emu10k1_pcm *epcm = runtime->private_data;
-	emu->p16v_voices[substream->pcm->device - emu->p16v_device_offset].use = 0;
-	/* FIXME: maybe zero others */
 	return 0;
 }
 
 /* close callback */
 static int snd_p16v_pcm_close_capture(struct snd_pcm_substream *substream)
 {
-	struct snd_emu10k1 *emu = snd_pcm_substream_chip(substream);
-	//struct snd_pcm_runtime *runtime = substream->runtime;
-	//struct snd_emu10k1_pcm *epcm = runtime->private_data;
-	emu->p16v_capture_voice.use = 0;
-	/* FIXME: maybe zero others */
 	return 0;
 }
 
@@ -312,19 +254,24 @@ static int snd_p16v_pcm_prepare_playback(struct snd_pcm_substream *substream)
 		   emu->p16v_buffer->bytes);
 #endif /* debug */
 	tmp = snd_emu10k1_ptr_read(emu, A_SPDIF_SAMPLERATE, channel);
+	tmp &= ~(A_SPDIF_RATE_MASK | A_EHC_SRC48_MASK);
         switch (runtime->rate) {
 	case 44100:
-	  snd_emu10k1_ptr_write(emu, A_SPDIF_SAMPLERATE, channel, (tmp & ~0xe0e0) | 0x8080);
+	  snd_emu10k1_ptr_write(emu, A_SPDIF_SAMPLERATE, channel,
+				tmp | A_SPDIF_44100 | A_EHC_SRC48_44);
 	  break;
 	case 96000:
-	  snd_emu10k1_ptr_write(emu, A_SPDIF_SAMPLERATE, channel, (tmp & ~0xe0e0) | 0x4040);
+	  snd_emu10k1_ptr_write(emu, A_SPDIF_SAMPLERATE, channel,
+				tmp | A_SPDIF_96000 | A_EHC_SRC48_96);
 	  break;
 	case 192000:
-	  snd_emu10k1_ptr_write(emu, A_SPDIF_SAMPLERATE, channel, (tmp & ~0xe0e0) | 0x2020);
+	  snd_emu10k1_ptr_write(emu, A_SPDIF_SAMPLERATE, channel,
+				tmp | A_SPDIF_192000 | A_EHC_SRC48_192);
 	  break;
 	case 48000:
 	default:
-	  snd_emu10k1_ptr_write(emu, A_SPDIF_SAMPLERATE, channel, (tmp & ~0xe0e0) | 0x0000);
+	  snd_emu10k1_ptr_write(emu, A_SPDIF_SAMPLERATE, channel,
+				tmp | A_SPDIF_48000 | A_EHC_SRC48_BYPASS);
 	  break;
 	}
 	/* FIXME: Check emu->buffer.size before actually writing to it. */
@@ -340,8 +287,8 @@ static int snd_p16v_pcm_prepare_playback(struct snd_pcm_substream *substream)
 	//snd_emu10k1_ptr20_write(emu, PLAYBACK_PERIOD_SIZE, channel, frames_to_bytes(runtime, runtime->period_size)<<16); // buffer size in bytes
 	snd_emu10k1_ptr20_write(emu, PLAYBACK_PERIOD_SIZE, channel, 0); // buffer size in bytes
 	snd_emu10k1_ptr20_write(emu, PLAYBACK_POINTER, channel, 0);
-	snd_emu10k1_ptr20_write(emu, 0x07, channel, 0x0);
-	snd_emu10k1_ptr20_write(emu, 0x08, channel, 0);
+	snd_emu10k1_ptr20_write(emu, PLAYBACK_FIFO_END_ADDRESS, channel, 0);
+	snd_emu10k1_ptr20_write(emu, PLAYBACK_FIFO_POINTER, channel, 0);
 
 	return 0;
 }
@@ -352,7 +299,6 @@ static int snd_p16v_pcm_prepare_capture(struct snd_pcm_substream *substream)
 	struct snd_emu10k1 *emu = snd_pcm_substream_chip(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	int channel = substream->pcm->device - emu->p16v_device_offset;
-	u32 tmp;
 
 	/*
 	dev_dbg(emu->card->dev, "prepare capture:channel_number=%d, rate=%d, "
@@ -362,24 +308,23 @@ static int snd_p16v_pcm_prepare_capture(struct snd_pcm_substream *substream)
 	       runtime->buffer_size, runtime->period_size,
 	       frames_to_bytes(runtime, 1));
 	*/
-	tmp = snd_emu10k1_ptr_read(emu, A_SPDIF_SAMPLERATE, channel);
         switch (runtime->rate) {
 	case 44100:
-	  snd_emu10k1_ptr_write(emu, A_SPDIF_SAMPLERATE, channel, (tmp & ~0x0e00) | 0x0800);
+	  snd_emu10k1_ptr_write(emu, A_I2S_CAPTURE_RATE, channel, A_I2S_CAPTURE_44100);
 	  break;
 	case 96000:
-	  snd_emu10k1_ptr_write(emu, A_SPDIF_SAMPLERATE, channel, (tmp & ~0x0e00) | 0x0400);
+	  snd_emu10k1_ptr_write(emu, A_I2S_CAPTURE_RATE, channel, A_I2S_CAPTURE_96000);
 	  break;
 	case 192000:
-	  snd_emu10k1_ptr_write(emu, A_SPDIF_SAMPLERATE, channel, (tmp & ~0x0e00) | 0x0200);
+	  snd_emu10k1_ptr_write(emu, A_I2S_CAPTURE_RATE, channel, A_I2S_CAPTURE_192000);
 	  break;
 	case 48000:
 	default:
-	  snd_emu10k1_ptr_write(emu, A_SPDIF_SAMPLERATE, channel, (tmp & ~0x0e00) | 0x0000);
+	  snd_emu10k1_ptr_write(emu, A_I2S_CAPTURE_RATE, channel, A_I2S_CAPTURE_48000);
 	  break;
 	}
 	/* FIXME: Check emu->buffer.size before actually writing to it. */
-	snd_emu10k1_ptr20_write(emu, 0x13, channel, 0);
+	snd_emu10k1_ptr20_write(emu, CAPTURE_FIFO_POINTER, channel, 0);
 	snd_emu10k1_ptr20_write(emu, CAPTURE_DMA_ADDR, channel, runtime->dma_addr);
 	snd_emu10k1_ptr20_write(emu, CAPTURE_BUFFER_SIZE, channel, frames_to_bytes(runtime, runtime->buffer_size) << 16); // buffer size in bytes
 	snd_emu10k1_ptr20_write(emu, CAPTURE_POINTER, channel, 0);
@@ -411,13 +356,48 @@ static void snd_p16v_intr_disable(struct snd_emu10k1 *emu, unsigned int intrenb)
 	spin_unlock_irqrestore(&emu->emu_lock, flags);
 }
 
+static void snd_p16v_interrupt(struct snd_emu10k1 *emu)
+{
+	unsigned int status;
+
+	while ((status = inl(emu->port + IPR2)) != 0) {
+		u32 mask = INTE2_PLAYBACK_CH_0_LOOP;  /* Full Loop */
+
+		/* dev_dbg(emu->card->dev, "p16v status=0x%x\n", status); */
+		if (status & mask) {
+			struct snd_pcm_substream *substream =
+					emu->pcm_p16v->streams[SNDRV_PCM_STREAM_PLAYBACK].substream;
+			struct snd_pcm_runtime *runtime = substream->runtime;
+
+			if (runtime && runtime->private_data) {
+				snd_pcm_period_elapsed(substream);
+			} else {
+				dev_err(emu->card->dev,
+					"p16v: status: 0x%08x, mask=0x%08x\n",
+					status, mask);
+			}
+		}
+		if (status & 0x110000) {
+			struct snd_pcm_substream *substream =
+					emu->pcm_p16v->streams[SNDRV_PCM_STREAM_CAPTURE].substream;
+			struct snd_pcm_runtime *runtime = substream->runtime;
+
+			/* dev_info(emu->card->dev, "capture int found\n"); */
+			if (runtime && runtime->private_data) {
+				/* dev_info(emu->card->dev, "capture period_elapsed\n"); */
+				snd_pcm_period_elapsed(substream);
+			}
+		}
+		outl(status, emu->port + IPR2); /* ack all */
+	}
+}
+
 /* trigger_playback callback */
 static int snd_p16v_pcm_trigger_playback(struct snd_pcm_substream *substream,
 				    int cmd)
 {
 	struct snd_emu10k1 *emu = snd_pcm_substream_chip(substream);
 	struct snd_pcm_runtime *runtime;
-	struct snd_emu10k1_pcm *epcm;
 	int channel;
 	int result = 0;
         struct snd_pcm_substream *s;
@@ -439,10 +419,9 @@ static int snd_p16v_pcm_trigger_playback(struct snd_pcm_substream *substream,
 		    s->stream != SNDRV_PCM_STREAM_PLAYBACK)
 			continue;
 		runtime = s->runtime;
-		epcm = runtime->private_data;
 		channel = substream->pcm->device-emu->p16v_device_offset;
 		/* dev_dbg(emu->card->dev, "p16v channel=%d\n", channel); */
-		epcm->running = running;
+		runtime->private_data = (void *)(ptrdiff_t)running;
 		basic |= (0x1<<channel);
 		inte |= (INTE2_PLAYBACK_CH_0_LOOP<<channel);
                 snd_pcm_trigger_done(s, substream);
@@ -471,7 +450,6 @@ static int snd_p16v_pcm_trigger_capture(struct snd_pcm_substream *substream,
 {
 	struct snd_emu10k1 *emu = snd_pcm_substream_chip(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	struct snd_emu10k1_pcm *epcm = runtime->private_data;
 	int channel = 0;
 	int result = 0;
 	u32 inte = INTE2_CAPTURE_CH_0_LOOP | INTE2_CAPTURE_CH_0_HALF_LOOP;
@@ -480,13 +458,13 @@ static int snd_p16v_pcm_trigger_capture(struct snd_pcm_substream *substream,
 	case SNDRV_PCM_TRIGGER_START:
 		snd_p16v_intr_enable(emu, inte);
 		snd_emu10k1_ptr20_write(emu, BASIC_INTERRUPT, 0, snd_emu10k1_ptr20_read(emu, BASIC_INTERRUPT, 0)|(0x100<<channel));
-		epcm->running = 1;
+		runtime->private_data = (void *)1;
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
 		snd_emu10k1_ptr20_write(emu, BASIC_INTERRUPT, 0, snd_emu10k1_ptr20_read(emu, BASIC_INTERRUPT, 0) & ~(0x100<<channel));
 		snd_p16v_intr_disable(emu, inte);
 		//snd_emu10k1_ptr20_write(emu, EXTENDED_INT_MASK, 0, snd_emu10k1_ptr20_read(emu, EXTENDED_INT_MASK, 0) & ~(0x110000<<channel));
-		epcm->running = 0;
+		runtime->private_data = NULL;
 		break;
 	default:
 		result = -EINVAL;
@@ -501,10 +479,10 @@ snd_p16v_pcm_pointer_playback(struct snd_pcm_substream *substream)
 {
 	struct snd_emu10k1 *emu = snd_pcm_substream_chip(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	struct snd_emu10k1_pcm *epcm = runtime->private_data;
 	snd_pcm_uframes_t ptr, ptr1, ptr2,ptr3,ptr4 = 0;
 	int channel = substream->pcm->device - emu->p16v_device_offset;
-	if (!epcm->running)
+
+	if (!runtime->private_data)
 		return 0;
 
 	ptr3 = snd_emu10k1_ptr20_read(emu, PLAYBACK_LIST_PTR, channel);
@@ -526,11 +504,10 @@ snd_p16v_pcm_pointer_capture(struct snd_pcm_substream *substream)
 {
 	struct snd_emu10k1 *emu = snd_pcm_substream_chip(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	struct snd_emu10k1_pcm *epcm = runtime->private_data;
 	snd_pcm_uframes_t ptr, ptr1, ptr2 = 0;
 	int channel = 0;
 
-	if (!epcm->running)
+	if (!runtime->private_data)
 		return 0;
 
 	ptr1 = snd_emu10k1_ptr20_read(emu, CAPTURE_POINTER, channel);
@@ -591,6 +568,7 @@ int snd_p16v_pcm(struct snd_emu10k1 *emu, int device)
 	pcm->dev_subclass = SNDRV_PCM_SUBCLASS_GENERIC_MIX;
 	strcpy(pcm->name, "p16v");
 	emu->pcm_p16v = pcm;
+	emu->p16v_interrupt = snd_p16v_interrupt;
 
 	for(substream = pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream; 
 	    substream; 

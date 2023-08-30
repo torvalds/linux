@@ -2,8 +2,8 @@
 # Copyright 2019 Bootlin
 %YAML 1.2
 ---
-$id: "http://devicetree.org/schemas/display/xylon,logicvc-display.yaml#"
-$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+$id: http://devicetree.org/schemas/display/xylon,logicvc-display.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
 
 title: Xylon LogiCVC display controller
 
@@ -89,25 +89,25 @@ properties:
     description: Display output colorspace (C_DISPLAY_COLOR_SPACE).
 
   xylon,display-depth:
-    $ref: "/schemas/types.yaml#/definitions/uint32"
+    $ref: /schemas/types.yaml#/definitions/uint32
     description: Display output depth (C_PIXEL_DATA_WIDTH).
 
   xylon,row-stride:
-    $ref: "/schemas/types.yaml#/definitions/uint32"
+    $ref: /schemas/types.yaml#/definitions/uint32
     description: Fixed number of pixels in a framebuffer row (C_ROW_STRIDE).
 
   xylon,dithering:
-    $ref: "/schemas/types.yaml#/definitions/flag"
+    $ref: /schemas/types.yaml#/definitions/flag
     description: Dithering module is enabled (C_XCOLOR)
 
   xylon,background-layer:
-    $ref: "/schemas/types.yaml#/definitions/flag"
+    $ref: /schemas/types.yaml#/definitions/flag
     description: |
       The last layer is used to display a black background (C_USE_BACKGROUND).
       The layer must still be registered.
 
   xylon,layers-configurable:
-    $ref: "/schemas/types.yaml#/definitions/flag"
+    $ref: /schemas/types.yaml#/definitions/flag
     description: |
       Configuration of layers' size, position and offset is enabled
       (C_USE_SIZE_POSITION).
@@ -131,7 +131,7 @@ properties:
             maxItems: 1
 
           xylon,layer-depth:
-            $ref: "/schemas/types.yaml#/definitions/uint32"
+            $ref: /schemas/types.yaml#/definitions/uint32
             description: Layer depth (C_LAYER_X_DATA_WIDTH).
 
           xylon,layer-colorspace:
@@ -151,19 +151,19 @@ properties:
             description: Alpha mode for the layer (C_LAYER_X_ALPHA_MODE).
 
           xylon,layer-base-offset:
-            $ref: "/schemas/types.yaml#/definitions/uint32"
+            $ref: /schemas/types.yaml#/definitions/uint32
             description: |
               Offset in number of lines (C_LAYER_X_OFFSET) starting from the
               video RAM base (C_VMEM_BASEADDR), only for version 3.
 
           xylon,layer-buffer-offset:
-            $ref: "/schemas/types.yaml#/definitions/uint32"
+            $ref: /schemas/types.yaml#/definitions/uint32
             description: |
               Offset in number of lines (C_BUFFER_*_OFFSET) starting from the
               layer base offset for the second buffer used in double-buffering.
 
           xylon,layer-primary:
-            $ref: "/schemas/types.yaml#/definitions/flag"
+            $ref: /schemas/types.yaml#/definitions/flag
             description: |
               Layer should be registered as a primary plane (exactly one is
               required).

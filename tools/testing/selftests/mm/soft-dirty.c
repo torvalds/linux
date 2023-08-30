@@ -80,6 +80,9 @@ static void test_hugepage(int pagemap_fd, int pagesize)
 	int i, ret;
 	size_t hpage_len = read_pmd_pagesize();
 
+	if (!hpage_len)
+		ksft_exit_fail_msg("Reading PMD pagesize failed");
+
 	map = memalign(hpage_len, hpage_len);
 	if (!map)
 		ksft_exit_fail_msg("memalign failed\n");

@@ -17,6 +17,8 @@ if NET_9P
 
 config NET_9P_FD
 	default NET_9P
+	imply INET
+	imply UNIX
 	tristate "9P FD Transport"
 	help
 	  This builds support for transports over TCP, Unix sockets and

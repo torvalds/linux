@@ -160,7 +160,7 @@ static void devm_tegra_tsensor_hw_disable(void *data)
 
 static int tegra_tsensor_get_temp(struct thermal_zone_device *tz, int *temp)
 {
-	const struct tegra_tsensor_channel *tsc = tz->devdata;
+	const struct tegra_tsensor_channel *tsc = thermal_zone_device_priv(tz);
 	const struct tegra_tsensor *ts = tsc->ts;
 	int err, c1, c2, c3, c4, counter;
 	u32 val;
@@ -218,7 +218,7 @@ static int tegra_tsensor_temp_to_counter(const struct tegra_tsensor *ts, int tem
 
 static int tegra_tsensor_set_trips(struct thermal_zone_device *tz, int low, int high)
 {
-	const struct tegra_tsensor_channel *tsc = tz->devdata;
+	const struct tegra_tsensor_channel *tsc = thermal_zone_device_priv(tz);
 	const struct tegra_tsensor *ts = tsc->ts;
 	u32 val;
 
@@ -359,9 +359,6 @@ static int tegra_tsensor_enable_hw_channel(const struct tegra_tsensor *ts,
 
 	tegra_tsensor_get_hw_channel_trips(tzd, &hot_trip, &crit_trip);
 
-	/* prevent potential racing with tegra_tsensor_set_trips() */
-	mutex_lock(&tzd->lock);
-
 	dev_info_once(ts->dev, "ch%u: PMC emergency shutdown trip set to %dC\n",
 		      id, DIV_ROUND_CLOSEST(crit_trip, 1000));
 
@@ -403,8 +400,6 @@ static int tegra_tsensor_enable_hw_channel(const struct tegra_tsensor *ts,
 	val |= FIELD_PREP(TSENSOR_SENSOR0_CONFIG0_INTR_HW_FREQ_DIV_EN, 1);
 	val |= FIELD_PREP(TSENSOR_SENSOR0_CONFIG0_INTR_THERMAL_RST_EN, 1);
 	writel_relaxed(val, tsc->regs + TSENSOR_SENSOR0_CONFIG0);
-
-	mutex_unlock(&tzd->lock);
 
 	err = thermal_zone_device_enable(tzd);
 	if (err) {
@@ -528,7 +523,7 @@ static int tegra_tsensor_register_channel(struct tegra_tsensor *ts,
 		return 0;
 	}
 
-	if (devm_thermal_add_hwmon_sysfs(tsc->tzd))
+	if (devm_thermal_add_hwmon_sysfs(ts->dev, tsc->tzd))
 		dev_warn(ts->dev, "failed to add hwmon sysfs attributes\n");
 
 	return 0;
@@ -585,18 +580,26 @@ static int tegra_tsensor_probe(struct platform_device *pdev)
 			return err;
 	}
 
+	/*
+	 * Enable the channels before setting the interrupt so
+	 * set_trips() can not be called while we are setting up the
+	 * register TSENSOR_SENSOR0_CONFIG1. With this we close a
+	 * potential race window where we are setting up the TH2 and
+	 * the temperature hits TH1 resulting to an update of the
+	 * TSENSOR_SENSOR0_CONFIG1 register in the ISR.
+	 */
+	for (i = 0; i < ARRAY_SIZE(ts->ch); i++) {
+		err = tegra_tsensor_enable_hw_channel(ts, i);
+		if (err)
+			return err;
+	}
+
 	err = devm_request_threaded_irq(&pdev->dev, irq, NULL,
 					tegra_tsensor_isr, IRQF_ONESHOT,
 					"tegra_tsensor", ts);
 	if (err)
 		return dev_err_probe(&pdev->dev, err,
 				     "failed to request interrupt\n");
-
-	for (i = 0; i < ARRAY_SIZE(ts->ch); i++) {
-		err = tegra_tsensor_enable_hw_channel(ts, i);
-		if (err)
-			return err;
-	}
 
 	return 0;
 }

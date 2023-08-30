@@ -23,8 +23,8 @@ static struct bpf_sock_tuple *get_tuple(void *data, __u64 nh_off,
 					bool *ipv4)
 {
 	struct bpf_sock_tuple *result;
+	__u64 ihl_len = 0;
 	__u8 proto = 0;
-	__u64 ihl_len;
 
 	if (eth_proto == bpf_htons(ETH_P_IP)) {
 		struct iphdr *iph = (struct iphdr *)(data + nh_off);
@@ -110,7 +110,6 @@ int err_modify_sk_pointer(struct __sk_buff *skb)
 {
 	struct bpf_sock_tuple tuple = {};
 	struct bpf_sock *sk;
-	__u32 family;
 
 	sk = bpf_sk_lookup_tcp(skb, &tuple, sizeof(tuple), BPF_F_CURRENT_NETNS, 0);
 	if (sk) {
@@ -125,7 +124,6 @@ int err_modify_sk_or_null_pointer(struct __sk_buff *skb)
 {
 	struct bpf_sock_tuple tuple = {};
 	struct bpf_sock *sk;
-	__u32 family;
 
 	sk = bpf_sk_lookup_tcp(skb, &tuple, sizeof(tuple), BPF_F_CURRENT_NETNS, 0);
 	sk += 1;

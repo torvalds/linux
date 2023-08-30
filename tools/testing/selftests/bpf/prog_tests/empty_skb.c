@@ -4,11 +4,6 @@
 #include <net/if.h>
 #include "empty_skb.skel.h"
 
-#define SYS(cmd) ({ \
-	if (!ASSERT_OK(system(cmd), (cmd))) \
-		goto out; \
-})
-
 void test_empty_skb(void)
 {
 	LIBBPF_OPTS(bpf_test_run_opts, tattr);
@@ -93,18 +88,18 @@ void test_empty_skb(void)
 		},
 	};
 
-	SYS("ip netns add empty_skb");
+	SYS(out, "ip netns add empty_skb");
 	tok = open_netns("empty_skb");
-	SYS("ip link add veth0 type veth peer veth1");
-	SYS("ip link set dev veth0 up");
-	SYS("ip link set dev veth1 up");
-	SYS("ip addr add 10.0.0.1/8 dev veth0");
-	SYS("ip addr add 10.0.0.2/8 dev veth1");
+	SYS(out, "ip link add veth0 type veth peer veth1");
+	SYS(out, "ip link set dev veth0 up");
+	SYS(out, "ip link set dev veth1 up");
+	SYS(out, "ip addr add 10.0.0.1/8 dev veth0");
+	SYS(out, "ip addr add 10.0.0.2/8 dev veth1");
 	veth_ifindex = if_nametoindex("veth0");
 
-	SYS("ip link add ipip0 type ipip local 10.0.0.1 remote 10.0.0.2");
-	SYS("ip link set ipip0 up");
-	SYS("ip addr add 192.168.1.1/16 dev ipip0");
+	SYS(out, "ip link add ipip0 type ipip local 10.0.0.1 remote 10.0.0.2");
+	SYS(out, "ip link set ipip0 up");
+	SYS(out, "ip addr add 192.168.1.1/16 dev ipip0");
 	ipip_ifindex = if_nametoindex("ipip0");
 
 	bpf_obj = empty_skb__open_and_load();
@@ -142,5 +137,5 @@ out:
 		empty_skb__destroy(bpf_obj);
 	if (tok)
 		close_netns(tok);
-	system("ip netns del empty_skb");
+	SYS_NOFAIL("ip netns del empty_skb");
 }

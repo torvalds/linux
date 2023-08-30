@@ -656,6 +656,7 @@ static int gaudi_set_fixed_properties(struct hl_device *hdev)
 	prop->cfg_size = CFG_SIZE;
 	prop->max_asid = MAX_ASID;
 	prop->num_of_events = GAUDI_EVENT_SIZE;
+	prop->max_num_of_engines = GAUDI_ENGINE_ID_SIZE;
 	prop->tpc_enabled_mask = TPC_ENABLED_MASK;
 
 	set_default_power_values(hdev);
@@ -679,6 +680,10 @@ static int gaudi_set_fixed_properties(struct hl_device *hdev)
 			(num_sync_stream_queues * HL_RSVD_MONS);
 
 	prop->first_available_user_interrupt = USHRT_MAX;
+	prop->tpc_interrupt_id = USHRT_MAX;
+
+	/* single msi */
+	prop->eq_interrupt_id = 0;
 
 	for (i = 0 ; i < HL_MAX_DCORES ; i++)
 		prop->first_available_cq[i] = USHRT_MAX;
@@ -867,13 +872,18 @@ pci_init:
 	rc = hl_fw_read_preboot_status(hdev);
 	if (rc) {
 		if (hdev->reset_on_preboot_fail)
+			/* we are already on failure flow, so don't check if hw_fini fails. */
 			hdev->asic_funcs->hw_fini(hdev, true, false);
 		goto pci_fini;
 	}
 
 	if (gaudi_get_hw_state(hdev) == HL_DEVICE_HW_STATE_DIRTY) {
 		dev_dbg(hdev->dev, "H/W state is dirty, must reset before initializing\n");
-		hdev->asic_funcs->hw_fini(hdev, true, false);
+		rc = hdev->asic_funcs->hw_fini(hdev, true, false);
+		if (rc) {
+			dev_err(hdev->dev, "failed to reset HW in dirty state (%d)\n", rc);
+			goto pci_fini;
+		}
 	}
 
 	return 0;
@@ -2010,38 +2020,6 @@ static int gaudi_enable_msi_single(struct hl_device *hdev)
 	return rc;
 }
 
-static int gaudi_enable_msi_multi(struct hl_device *hdev)
-{
-	int cq_cnt = hdev->asic_prop.completion_queues_count;
-	int rc, i, irq_cnt_init, irq;
-
-	for (i = 0, irq_cnt_init = 0 ; i < cq_cnt ; i++, irq_cnt_init++) {
-		irq = gaudi_pci_irq_vector(hdev, i, false);
-		rc = request_irq(irq, hl_irq_handler_cq, 0, gaudi_irq_name[i],
-				&hdev->completion_queue[i]);
-		if (rc) {
-			dev_err(hdev->dev, "Failed to request IRQ %d", irq);
-			goto free_irqs;
-		}
-	}
-
-	irq = gaudi_pci_irq_vector(hdev, GAUDI_EVENT_QUEUE_MSI_IDX, true);
-	rc = request_irq(irq, hl_irq_handler_eq, 0, gaudi_irq_name[cq_cnt],
-				&hdev->event_queue);
-	if (rc) {
-		dev_err(hdev->dev, "Failed to request IRQ %d", irq);
-		goto free_irqs;
-	}
-
-	return 0;
-
-free_irqs:
-	for (i = 0 ; i < irq_cnt_init ; i++)
-		free_irq(gaudi_pci_irq_vector(hdev, i, false),
-				&hdev->completion_queue[i]);
-	return rc;
-}
-
 static int gaudi_enable_msi(struct hl_device *hdev)
 {
 	struct gaudi_device *gaudi = hdev->asic_specific;
@@ -2056,14 +2034,7 @@ static int gaudi_enable_msi(struct hl_device *hdev)
 		return rc;
 	}
 
-	if (rc < NUMBER_OF_INTERRUPTS) {
-		gaudi->multi_msi_mode = false;
-		rc = gaudi_enable_msi_single(hdev);
-	} else {
-		gaudi->multi_msi_mode = true;
-		rc = gaudi_enable_msi_multi(hdev);
-	}
-
+	rc = gaudi_enable_msi_single(hdev);
 	if (rc)
 		goto free_pci_irq_vectors;
 
@@ -2079,47 +2050,23 @@ free_pci_irq_vectors:
 static void gaudi_sync_irqs(struct hl_device *hdev)
 {
 	struct gaudi_device *gaudi = hdev->asic_specific;
-	int i, cq_cnt = hdev->asic_prop.completion_queues_count;
 
 	if (!(gaudi->hw_cap_initialized & HW_CAP_MSI))
 		return;
 
 	/* Wait for all pending IRQs to be finished */
-	if (gaudi->multi_msi_mode) {
-		for (i = 0 ; i < cq_cnt ; i++)
-			synchronize_irq(gaudi_pci_irq_vector(hdev, i, false));
-
-		synchronize_irq(gaudi_pci_irq_vector(hdev,
-						GAUDI_EVENT_QUEUE_MSI_IDX,
-						true));
-	} else {
-		synchronize_irq(gaudi_pci_irq_vector(hdev, 0, false));
-	}
+	synchronize_irq(gaudi_pci_irq_vector(hdev, 0, false));
 }
 
 static void gaudi_disable_msi(struct hl_device *hdev)
 {
 	struct gaudi_device *gaudi = hdev->asic_specific;
-	int i, irq, cq_cnt = hdev->asic_prop.completion_queues_count;
 
 	if (!(gaudi->hw_cap_initialized & HW_CAP_MSI))
 		return;
 
 	gaudi_sync_irqs(hdev);
-
-	if (gaudi->multi_msi_mode) {
-		irq = gaudi_pci_irq_vector(hdev, GAUDI_EVENT_QUEUE_MSI_IDX,
-						true);
-		free_irq(irq, &hdev->event_queue);
-
-		for (i = 0 ; i < cq_cnt ; i++) {
-			irq = gaudi_pci_irq_vector(hdev, i, false);
-			free_irq(irq, &hdev->completion_queue[i]);
-		}
-	} else {
-		free_irq(gaudi_pci_irq_vector(hdev, 0, false), hdev);
-	}
-
+	free_irq(gaudi_pci_irq_vector(hdev, 0, false), hdev);
 	pci_free_irq_vectors(hdev->pdev);
 
 	gaudi->hw_cap_initialized &= ~HW_CAP_MSI;
@@ -3718,7 +3665,7 @@ static int gaudi_mmu_init(struct hl_device *hdev)
 		if (rc) {
 			dev_err(hdev->dev,
 				"failed to set hop0 addr for asid %d\n", i);
-			goto err;
+			return rc;
 		}
 	}
 
@@ -3729,7 +3676,9 @@ static int gaudi_mmu_init(struct hl_device *hdev)
 	/* mem cache invalidation */
 	WREG32(mmSTLB_MEM_CACHE_INVALIDATION, 1);
 
-	hl_mmu_invalidate_cache(hdev, true, 0);
+	rc = hl_mmu_invalidate_cache(hdev, true, 0);
+	if (rc)
+		return rc;
 
 	WREG32(mmMMU_UP_MMU_ENABLE, 1);
 	WREG32(mmMMU_UP_SPI_MASK, 0xF);
@@ -3745,9 +3694,6 @@ static int gaudi_mmu_init(struct hl_device *hdev)
 	gaudi->hw_cap_initialized |= HW_CAP_MMU;
 
 	return 0;
-
-err:
-	return rc;
 }
 
 static int gaudi_load_firmware_to_device(struct hl_device *hdev)
@@ -3915,11 +3861,7 @@ static int gaudi_init_cpu_queues(struct hl_device *hdev, u32 cpu_timeout)
 
 	WREG32(mmCPU_IF_PF_PQ_PI, 0);
 
-	if (gaudi->multi_msi_mode)
-		WREG32(mmCPU_IF_QUEUE_INIT, PQ_INIT_STATUS_READY_FOR_CP);
-	else
-		WREG32(mmCPU_IF_QUEUE_INIT,
-			PQ_INIT_STATUS_READY_FOR_CP_SINGLE_MSI);
+	WREG32(mmCPU_IF_QUEUE_INIT, PQ_INIT_STATUS_READY_FOR_CP_SINGLE_MSI);
 
 	irq_handler_offset = prop->gic_interrupts_enable ?
 			mmGIC_DISTRIBUTOR__5_GICD_SETSPI_NSR :
@@ -4068,7 +4010,7 @@ disable_queues:
 	return rc;
 }
 
-static void gaudi_hw_fini(struct hl_device *hdev, bool hard_reset, bool fw_reset)
+static int gaudi_hw_fini(struct hl_device *hdev, bool hard_reset, bool fw_reset)
 {
 	struct cpu_dyn_regs *dyn_regs =
 			&hdev->fw_loader.dynamic_loader.comm_desc.cpu_dyn_regs;
@@ -4078,7 +4020,7 @@ static void gaudi_hw_fini(struct hl_device *hdev, bool hard_reset, bool fw_reset
 
 	if (!hard_reset) {
 		dev_err(hdev->dev, "GAUDI doesn't support soft-reset\n");
-		return;
+		return 0;
 	}
 
 	if (hdev->pldm) {
@@ -4199,10 +4141,10 @@ skip_reset:
 	msleep(reset_timeout_ms);
 
 	status = RREG32(mmPSOC_GLOBAL_CONF_BTM_FSM);
-	if (status & PSOC_GLOBAL_CONF_BTM_FSM_STATE_MASK)
-		dev_err(hdev->dev,
-			"Timeout while waiting for device to reset 0x%x\n",
-			status);
+	if (status & PSOC_GLOBAL_CONF_BTM_FSM_STATE_MASK) {
+		dev_err(hdev->dev, "Timeout while waiting for device to reset 0x%x\n", status);
+		return -ETIMEDOUT;
+	}
 
 	if (gaudi) {
 		gaudi->hw_cap_initialized &= ~(HW_CAP_CPU | HW_CAP_CPU_Q | HW_CAP_HBM |
@@ -4215,6 +4157,7 @@ skip_reset:
 
 		hdev->device_cpu_is_halted = false;
 	}
+	return 0;
 }
 
 static int gaudi_suspend(struct hl_device *hdev)
@@ -5595,7 +5538,6 @@ static void gaudi_add_end_of_cb_packets(struct hl_device *hdev, void *kernel_add
 				u32 len, u32 original_len, u64 cq_addr, u32 cq_val,
 				u32 msi_vec, bool eb)
 {
-	struct gaudi_device *gaudi = hdev->asic_specific;
 	struct packet_msg_prot *cq_pkt;
 	struct packet_nop *cq_padding;
 	u64 msi_addr;
@@ -5625,12 +5567,7 @@ static void gaudi_add_end_of_cb_packets(struct hl_device *hdev, void *kernel_add
 	tmp |= FIELD_PREP(GAUDI_PKT_CTL_MB_MASK, 1);
 	cq_pkt->ctl = cpu_to_le32(tmp);
 	cq_pkt->value = cpu_to_le32(1);
-
-	if (gaudi->multi_msi_mode)
-		msi_addr = mmPCIE_MSI_INTR_0 + msi_vec * 4;
-	else
-		msi_addr = mmPCIE_CORE_MSI_REQ;
-
+	msi_addr = hdev->pdev ? mmPCIE_CORE_MSI_REQ : mmPCIE_MSI_INTR_0 + msi_vec * 4;
 	cq_pkt->addr = cpu_to_le64(CFG_BASE + msi_addr);
 }
 
@@ -7297,7 +7234,7 @@ static void gaudi_handle_qman_err(struct hl_device *hdev, u16 event_type, u64 *e
 }
 
 static void gaudi_print_irq_info(struct hl_device *hdev, u16 event_type,
-					bool razwi, u64 *event_mask)
+					bool check_razwi, u64 *event_mask)
 {
 	bool is_read = false, is_write = false;
 	u16 engine_id[2], num_of_razwi_eng = 0;
@@ -7316,7 +7253,7 @@ static void gaudi_print_irq_info(struct hl_device *hdev, u16 event_type,
 	dev_err_ratelimited(hdev->dev, "Received H/W interrupt %d [\"%s\"]\n",
 		event_type, desc);
 
-	if (razwi) {
+	if (check_razwi) {
 		gaudi_print_and_get_razwi_info(hdev, &engine_id[0], &engine_id[1], &is_read,
 						&is_write);
 		gaudi_print_and_get_mmu_error_info(hdev, &razwi_addr, event_mask);
@@ -7333,8 +7270,9 @@ static void gaudi_print_irq_info(struct hl_device *hdev, u16 event_type,
 				num_of_razwi_eng = 1;
 		}
 
-		hl_handle_razwi(hdev, razwi_addr, engine_id, num_of_razwi_eng, razwi_flags,
-				event_mask);
+		if (razwi_flags)
+			hl_handle_razwi(hdev, razwi_addr, engine_id, num_of_razwi_eng,
+					razwi_flags, event_mask);
 	}
 }
 
@@ -7633,6 +7571,7 @@ static void gaudi_print_clk_change_info(struct hl_device *hdev, u16 event_type, 
 static void gaudi_handle_eqe(struct hl_device *hdev, struct hl_eq_entry *eq_entry)
 {
 	struct gaudi_device *gaudi = hdev->asic_specific;
+	struct hl_info_fw_err_info fw_err_info;
 	u64 data = le64_to_cpu(eq_entry->data[0]), event_mask = 0;
 	u32 ctl = le32_to_cpu(eq_entry->hdr.ctl);
 	u32 fw_fatal_err_flag = 0, flags = 0;
@@ -7911,7 +7850,10 @@ static void gaudi_handle_eqe(struct hl_device *hdev, struct hl_eq_entry *eq_entr
 	case GAUDI_EVENT_FW_ALIVE_S:
 		gaudi_print_irq_info(hdev, event_type, false, &event_mask);
 		gaudi_print_fw_alive_info(hdev, &eq_entry->fw_alive);
-		event_mask |= HL_NOTIFIER_EVENT_GENERAL_HW_ERR;
+		fw_err_info.err_type = HL_INFO_FW_REPORTED_ERR;
+		fw_err_info.event_id = event_type;
+		fw_err_info.event_mask = &event_mask;
+		hl_handle_fw_err(hdev, &fw_err_info);
 		goto reset_device;
 
 	default:
@@ -7942,6 +7884,10 @@ reset_device:
 	}
 
 	if (reset_required) {
+		/* escalate general hw errors to critical/fatal error */
+		if (event_mask & HL_NOTIFIER_EVENT_GENERAL_HW_ERR)
+			hl_handle_critical_hw_err(hdev, event_type, &event_mask);
+
 		hl_device_cond_reset(hdev, flags, event_mask);
 	} else {
 		hl_fw_unmask_irq(hdev, event_type);
@@ -8403,19 +8349,26 @@ static int gaudi_internal_cb_pool_init(struct hl_device *hdev,
 	}
 
 	mutex_lock(&hdev->mmu_lock);
+
 	rc = hl_mmu_map_contiguous(ctx, hdev->internal_cb_va_base,
 			hdev->internal_cb_pool_dma_addr,
 			HOST_SPACE_INTERNAL_CB_SZ);
-
-	hl_mmu_invalidate_cache(hdev, false, MMU_OP_USERPTR);
-	mutex_unlock(&hdev->mmu_lock);
-
 	if (rc)
 		goto unreserve_internal_cb_pool;
 
+	rc = hl_mmu_invalidate_cache(hdev, false, MMU_OP_USERPTR);
+	if (rc)
+		goto unmap_internal_cb_pool;
+
+	mutex_unlock(&hdev->mmu_lock);
+
 	return 0;
 
+unmap_internal_cb_pool:
+	hl_mmu_unmap_contiguous(ctx, hdev->internal_cb_va_base,
+			HOST_SPACE_INTERNAL_CB_SZ);
 unreserve_internal_cb_pool:
+	mutex_unlock(&hdev->mmu_lock);
 	hl_unreserve_va_block(hdev, ctx, hdev->internal_cb_va_base,
 			HOST_SPACE_INTERNAL_CB_SZ);
 destroy_internal_cb_pool:

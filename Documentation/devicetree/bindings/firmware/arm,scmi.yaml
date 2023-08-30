@@ -56,17 +56,38 @@ properties:
     description:
       Specifies the mailboxes used to communicate with SCMI compliant
       firmware.
-    items:
-      - const: tx
-      - const: rx
+    oneOf:
+      - items:
+          - const: tx
+          - const: rx
+        minItems: 1
+      - items:
+          - const: tx
+          - const: tx_reply
+          - const: rx
+        minItems: 2
 
   mboxes:
     description:
       List of phandle and mailbox channel specifiers. It should contain
-      exactly one or two mailboxes, one for transmitting messages("tx")
-      and another optional for receiving the notifications("rx") if supported.
+      exactly one, two or three mailboxes; the first one or two for transmitting
+      messages ("tx") and another optional ("rx") for receiving notifications
+      and delayed responses, if supported by the platform.
+      The number of mailboxes needed for transmitting messages depends on the
+      type of channels exposed by the specific underlying mailbox controller;
+      one single channel descriptor is enough if such channel is bidirectional,
+      while two channel descriptors are needed to represent the SCMI ("tx")
+      channel if the underlying mailbox channels are of unidirectional type.
+      The effective combination in numbers of mboxes and shmem descriptors let
+      the SCMI subsystem determine unambiguosly which type of SCMI channels are
+      made available by the underlying mailbox controller and how to use them.
+       1 mbox / 1 shmem => SCMI TX over 1 mailbox bidirectional channel
+       2 mbox / 2 shmem => SCMI TX and RX over 2 mailbox bidirectional channels
+       2 mbox / 1 shmem => SCMI TX over 2 mailbox unidirectional channels
+       3 mbox / 2 shmem => SCMI TX and RX over 3 mailbox unidirectional channels
+      Any other combination of mboxes and shmem is invalid.
     minItems: 1
-    maxItems: 2
+    maxItems: 3
 
   shmem:
     description:
@@ -228,13 +249,20 @@ $defs:
         maxItems: 1
 
       mbox-names:
-        items:
-          - const: tx
-          - const: rx
+        oneOf:
+          - items:
+              - const: tx
+              - const: rx
+            minItems: 1
+          - items:
+              - const: tx
+              - const: tx_reply
+              - const: rx
+            minItems: 2
 
       mboxes:
         minItems: 1
-        maxItems: 2
+        maxItems: 3
 
       shmem:
         minItems: 1

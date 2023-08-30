@@ -487,7 +487,6 @@ snic_process_icmnd_cmpl_status(struct snic *snic,
 			       struct scsi_cmnd *sc)
 {
 	u8 scsi_stat = icmnd_cmpl->scsi_status;
-	u64 xfer_len = 0;
 	int ret = 0;
 
 	/* Mark the IO as complete */
@@ -496,15 +495,11 @@ snic_process_icmnd_cmpl_status(struct snic *snic,
 	if (likely(cmpl_stat == SNIC_STAT_IO_SUCCESS)) {
 		sc->result = (DID_OK << 16) | scsi_stat;
 
-		xfer_len = scsi_bufflen(sc);
-
 		/* Update SCSI Cmd with resid value */
 		scsi_set_resid(sc, le32_to_cpu(icmnd_cmpl->resid));
 
-		if (icmnd_cmpl->flags & SNIC_ICMND_CMPL_UNDR_RUN) {
-			xfer_len -= le32_to_cpu(icmnd_cmpl->resid);
+		if (icmnd_cmpl->flags & SNIC_ICMND_CMPL_UNDR_RUN)
 			atomic64_inc(&snic->s_stats.misc.io_under_run);
-		}
 
 		if (icmnd_cmpl->scsi_status == SAM_STAT_TASK_SET_FULL)
 			atomic64_inc(&snic->s_stats.misc.qfull);

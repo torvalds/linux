@@ -158,7 +158,7 @@ static int wpcm_fiu_normal_exec(struct spi_mem *mem, const struct spi_mem_op *op
 	if (op->data.dir == SPI_MEM_DATA_OUT)
 		wpcm_fiu_set_data(fiu, op->data.buf.out, op->data.nbytes);
 
-	ret = wpcm_fiu_do_uma(fiu, mem->spi->chip_select, op->addr.nbytes == 3,
+	ret = wpcm_fiu_do_uma(fiu, spi_get_chipselect(mem->spi, 0), op->addr.nbytes == 3,
 			      op->data.dir == SPI_MEM_DATA_OUT, op->data.nbytes);
 
 	if (op->data.dir == SPI_MEM_DATA_IN)
@@ -196,7 +196,7 @@ static bool wpcm_fiu_4ba_match(const struct spi_mem_op *op)
 static int wpcm_fiu_4ba_exec(struct spi_mem *mem, const struct spi_mem_op *op)
 {
 	struct wpcm_fiu_spi *fiu = spi_controller_get_devdata(mem->spi->controller);
-	int cs = mem->spi->chip_select;
+	int cs = spi_get_chipselect(mem->spi, 0);
 
 	wpcm_fiu_ects_assert(fiu, cs);
 
@@ -241,7 +241,7 @@ static bool wpcm_fiu_rdid_match(const struct spi_mem_op *op)
 static int wpcm_fiu_rdid_exec(struct spi_mem *mem, const struct spi_mem_op *op)
 {
 	struct wpcm_fiu_spi *fiu = spi_controller_get_devdata(mem->spi->controller);
-	int cs = mem->spi->chip_select;
+	int cs = spi_get_chipselect(mem->spi, 0);
 
 	/* First transfer */
 	wpcm_fiu_set_opcode(fiu, op->cmd.opcode);
@@ -278,7 +278,7 @@ static bool wpcm_fiu_dummy_match(const struct spi_mem_op *op)
 static int wpcm_fiu_dummy_exec(struct spi_mem *mem, const struct spi_mem_op *op)
 {
 	struct wpcm_fiu_spi *fiu = spi_controller_get_devdata(mem->spi->controller);
-	int cs = mem->spi->chip_select;
+	int cs = spi_get_chipselect(mem->spi, 0);
 
 	wpcm_fiu_ects_assert(fiu, cs);
 
@@ -376,7 +376,7 @@ static int wpcm_fiu_adjust_op_size(struct spi_mem *mem, struct spi_mem_op *op)
 static int wpcm_fiu_dirmap_create(struct spi_mem_dirmap_desc *desc)
 {
 	struct wpcm_fiu_spi *fiu = spi_controller_get_devdata(desc->mem->spi->controller);
-	int cs = desc->mem->spi->chip_select;
+	int cs = spi_get_chipselect(desc->mem->spi, 0);
 
 	if (desc->info.op_tmpl.data.dir != SPI_MEM_DATA_IN)
 		return -ENOTSUPP;
@@ -400,7 +400,7 @@ static int wpcm_fiu_dirmap_create(struct spi_mem_dirmap_desc *desc)
 static ssize_t wpcm_fiu_direct_read(struct spi_mem_dirmap_desc *desc, u64 offs, size_t len, void *buf)
 {
 	struct wpcm_fiu_spi *fiu = spi_controller_get_devdata(desc->mem->spi->controller);
-	int cs = desc->mem->spi->chip_select;
+	int cs = spi_get_chipselect(desc->mem->spi, 0);
 
 	if (offs >= MAX_MEMORY_SIZE_PER_CS)
 		return -ENOTSUPP;

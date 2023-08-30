@@ -566,9 +566,12 @@ config I2C_DESIGNWARE_PLATFORM
 
 config I2C_DESIGNWARE_AMDPSP
 	bool "AMD PSP I2C semaphore support"
-	depends on X86_MSR
 	depends on ACPI
+	depends on CRYPTO_DEV_SP_PSP
+	depends on PCI
 	depends on I2C_DESIGNWARE_PLATFORM
+	depends on (I2C_DESIGNWARE_PLATFORM=y && CRYPTO_DEV_CCP_DD=y) || \
+		   (I2C_DESIGNWARE_PLATFORM=m && CRYPTO_DEV_CCP_DD)
 	help
 	  This driver enables managed host access to the selected I2C bus shared
 	  between AMD CPU and AMD PSP.
@@ -804,7 +807,7 @@ config I2C_MESON
 
 config I2C_MICROCHIP_CORE
 	tristate "Microchip FPGA I2C controller"
-	depends on SOC_MICROCHIP_POLARFIRE || COMPILE_TEST
+	depends on ARCH_MICROCHIP_POLARFIRE || COMPILE_TEST
 	depends on OF
 	help
 	  If you say yes to this option, support will be included for the

@@ -162,9 +162,6 @@ struct rt_hi_throughput {
 	u8				IOTPeer;
 	u32 iot_action;
 	u8 iot_ra_func;
-
-	u8	bWAIotBroadcom;
-	u8	WAIotTH;
 } __packed;
 
 struct bss_ht {

@@ -36,7 +36,7 @@
 
 		/* CHECKME: ethernet set-up taken from Gateworks Cambria */
 		ethernet@c800a000 {
-			status = "ok";
+			status = "okay";
 			queue-rx = <&qmgr 4>;
 			queue-txready = <&qmgr 21>;
 			phy-mode = "rgmii";
@@ -57,7 +57,7 @@
 		};
 
 		ethernet@c800c000 {
-			status = "ok";
+			status = "okay";
 			queue-rx = <&qmgr 2>;
 			queue-txready = <&qmgr 19>;
 			phy-mode = "rgmii";

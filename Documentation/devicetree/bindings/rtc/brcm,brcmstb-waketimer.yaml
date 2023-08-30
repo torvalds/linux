@@ -15,7 +15,7 @@ description:
   optionally generate RTC alarm interrupts.
 
 allOf:
-  - $ref: "rtc.yaml#"
+  - $ref: rtc.yaml#
 
 properties:
   compatible:

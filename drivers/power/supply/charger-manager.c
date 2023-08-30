@@ -1331,7 +1331,7 @@ static struct charger_desc *of_cm_parse_desc(struct device *dev)
 	of_property_read_string(np, "cm-thermal-zone", &desc->thermal_zone);
 
 	of_property_read_u32(np, "cm-battery-cold", &desc->temp_min);
-	if (of_get_property(np, "cm-battery-cold-in-minus", NULL))
+	if (of_property_read_bool(np, "cm-battery-cold-in-minus"))
 		desc->temp_min *= -1;
 	of_property_read_u32(np, "cm-battery-hot", &desc->temp_max);
 	of_property_read_u32(np, "cm-battery-temp-diff", &desc->temp_diff);

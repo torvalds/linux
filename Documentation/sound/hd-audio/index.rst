@@ -9,3 +9,4 @@ HD-Audio
    controls
    dp-mst
    realtek-pc-beep
+   intel-multi-link

@@ -271,9 +271,9 @@ static int nvm_authenticate(struct tb_switch *sw, bool auth_only)
 		}
 		sw->nvm->authenticating = true;
 		return usb4_switch_nvm_authenticate(sw);
-	} else if (auth_only) {
-		return -EOPNOTSUPP;
 	}
+	if (auth_only)
+		return -EOPNOTSUPP;
 
 	sw->nvm->authenticating = true;
 	if (!tb_route(sw)) {
@@ -2968,8 +2968,6 @@ int tb_switch_add(struct tb_switch *sw)
 			dev_warn(&sw->dev, "reading DROM failed: %d\n", ret);
 		tb_sw_dbg(sw, "uid: %#llx\n", sw->uid);
 
-		tb_check_quirks(sw);
-
 		ret = tb_switch_set_uuid(sw);
 		if (ret) {
 			dev_err(&sw->dev, "failed to set UUID\n");
@@ -2987,6 +2985,8 @@ int tb_switch_add(struct tb_switch *sw)
 				return ret;
 			}
 		}
+
+		tb_check_quirks(sw);
 
 		tb_switch_default_link_ports(sw);
 

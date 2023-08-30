@@ -23,7 +23,6 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/mutex.h>
-#include <linux/aer.h>
 #include <linux/bsg-lib.h>
 #include <linux/vmalloc.h>
 

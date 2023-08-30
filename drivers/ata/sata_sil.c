@@ -156,7 +156,7 @@ static struct pci_driver sil_pci_driver = {
 #endif
 };
 
-static struct scsi_host_template sil_sht = {
+static const struct scsi_host_template sil_sht = {
 	ATA_BASE_SHT(DRV_NAME),
 	/** These controllers support Large Block Transfer which allows
 	    transfer chunks up to 2GB and which cross 64KB boundaries,

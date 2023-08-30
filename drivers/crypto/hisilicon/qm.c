@@ -2,7 +2,6 @@
 /* Copyright (c) 2019 HiSilicon Limited. */
 #include <asm/page.h>
 #include <linux/acpi.h>
-#include <linux/aer.h>
 #include <linux/bitmap.h>
 #include <linux/dma-mapping.h>
 #include <linux/idr.h>
@@ -3691,7 +3690,7 @@ static ssize_t qm_get_qos_value(struct hisi_qm *qm, const char *buf,
 			       unsigned long *val,
 			       unsigned int *fun_index)
 {
-	struct bus_type *bus_type = qm->pdev->dev.bus;
+	const struct bus_type *bus_type = qm->pdev->dev.bus;
 	char tbuf_bdf[QM_DBG_READ_LEN] = {0};
 	char val_buf[QM_DBG_READ_LEN] = {0};
 	struct pci_dev *pdev;

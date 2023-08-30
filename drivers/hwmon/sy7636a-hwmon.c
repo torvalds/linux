@@ -52,7 +52,7 @@ static const struct hwmon_ops sy7636a_hwmon_ops = {
 	.read = sy7636a_read,
 };
 
-static const struct hwmon_channel_info *sy7636a_info[] = {
+static const struct hwmon_channel_info * const sy7636a_info[] = {
 	HWMON_CHANNEL_INFO(chip, HWMON_C_REGISTER_TZ),
 	HWMON_CHANNEL_INFO(temp, HWMON_T_INPUT),
 	NULL

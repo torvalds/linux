@@ -564,7 +564,6 @@ int amdgpu_vm_pt_create(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 		return r;
 	}
 
-	(*vmbo)->shadow->parent = amdgpu_bo_ref(bo);
 	amdgpu_bo_add_to_shadow_list(*vmbo);
 
 	return 0;
@@ -673,6 +672,7 @@ void amdgpu_vm_pt_free_work(struct work_struct *work)
  * @adev: amdgpu device structure
  * @vm: amdgpu vm structure
  * @start: optional cursor where to start freeing PDs/PTs
+ * @unlocked: vm resv unlock status
  *
  * Free the page directory or page table level and all sub levels.
  */

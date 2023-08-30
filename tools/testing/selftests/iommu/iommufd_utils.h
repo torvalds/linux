@@ -38,7 +38,7 @@ static unsigned long BUFFER_SIZE;
 				&test_cmd));                                  \
 	})
 
-static int _test_cmd_mock_domain(int fd, unsigned int ioas_id, __u32 *device_id,
+static int _test_cmd_mock_domain(int fd, unsigned int ioas_id, __u32 *stdev_id,
 				 __u32 *hwpt_id)
 {
 	struct iommu_test_cmd cmd = {
@@ -52,19 +52,19 @@ static int _test_cmd_mock_domain(int fd, unsigned int ioas_id, __u32 *device_id,
 	ret = ioctl(fd, IOMMU_TEST_CMD, &cmd);
 	if (ret)
 		return ret;
-	if (device_id)
-		*device_id = cmd.mock_domain.out_device_id;
+	if (stdev_id)
+		*stdev_id = cmd.mock_domain.out_stdev_id;
 	assert(cmd.id != 0);
 	if (hwpt_id)
 		*hwpt_id = cmd.mock_domain.out_hwpt_id;
 	return 0;
 }
-#define test_cmd_mock_domain(ioas_id, device_id, hwpt_id)                \
-	ASSERT_EQ(0, _test_cmd_mock_domain(self->fd, ioas_id, device_id, \
-					   hwpt_id))
-#define test_err_mock_domain(_errno, ioas_id, device_id, hwpt_id)     \
+#define test_cmd_mock_domain(ioas_id, stdev_id, hwpt_id) \
+	ASSERT_EQ(0,                                     \
+		  _test_cmd_mock_domain(self->fd, ioas_id, stdev_id, hwpt_id))
+#define test_err_mock_domain(_errno, ioas_id, stdev_id, hwpt_id)      \
 	EXPECT_ERRNO(_errno, _test_cmd_mock_domain(self->fd, ioas_id, \
-						   device_id, hwpt_id))
+						   stdev_id, hwpt_id))
 
 static int _test_cmd_create_access(int fd, unsigned int ioas_id,
 				   __u32 *access_id, unsigned int flags)

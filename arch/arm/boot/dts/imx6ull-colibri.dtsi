@@ -33,15 +33,9 @@
 		self-powered;
 		type = "micro";
 
-		ports {
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			port@0 {
-				reg = <0>;
-				usb_dr_connector: endpoint {
-					remote-endpoint = <&usb1_drd_sw>;
-				};
+		port {
+			usb_dr_connector: endpoint {
+				remote-endpoint = <&usb1_drd_sw>;
 			};
 		};
 	};

@@ -472,10 +472,12 @@ enum tsq_flags {
 	TCPF_MTU_REDUCED_DEFERRED	= (1UL << TCP_MTU_REDUCED_DEFERRED),
 };
 
-static inline struct tcp_sock *tcp_sk(const struct sock *sk)
-{
-	return (struct tcp_sock *)sk;
-}
+#define tcp_sk(ptr) container_of_const(ptr, struct tcp_sock, inet_conn.icsk_inet.sk)
+
+/* Variant of tcp_sk() upgrading a const sock to a read/write tcp socket.
+ * Used in context of (lockless) tcp listeners.
+ */
+#define tcp_sk_rw(ptr) container_of(ptr, struct tcp_sock, inet_conn.icsk_inet.sk)
 
 struct tcp_timewait_sock {
 	struct inet_timewait_sock tw_sk;

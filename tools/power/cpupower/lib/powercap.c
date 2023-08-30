@@ -40,25 +40,34 @@ static int sysfs_get_enabled(char *path, int *mode)
 {
 	int fd;
 	char yes_no;
+	int ret = 0;
 
 	*mode = 0;
 
 	fd = open(path, O_RDONLY);
-	if (fd == -1)
-		return -1;
+	if (fd == -1) {
+		ret = -1;
+		goto out;
+	}
 
 	if (read(fd, &yes_no, 1) != 1) {
-		close(fd);
-		return -1;
+		ret = -1;
+		goto out_close;
 	}
 
 	if (yes_no == '1') {
 		*mode = 1;
-		return 0;
+		goto out_close;
 	} else if (yes_no == '0') {
-		return 0;
+		goto out_close;
+	} else {
+		ret = -1;
+		goto out_close;
 	}
-	return -1;
+out_close:
+	close(fd);
+out:
+	return ret;
 }
 
 int powercap_get_enabled(int *mode)

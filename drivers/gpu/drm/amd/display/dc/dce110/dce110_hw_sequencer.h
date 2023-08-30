@@ -71,8 +71,6 @@ void dce110_optimize_bandwidth(
 		struct dc *dc,
 		struct dc_state *context);
 
-void dc_link_dp_receiver_power_ctrl(struct dc_link *link, bool on);
-
 void dce110_edp_power_control(
 		struct dc_link *link,
 		bool power_up);

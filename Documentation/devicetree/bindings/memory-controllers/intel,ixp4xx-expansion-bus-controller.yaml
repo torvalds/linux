@@ -57,6 +57,7 @@ patternProperties:
       subnodes.
     type: object
     $ref: /schemas/memory-controllers/intel,ixp4xx-expansion-peripheral-props.yaml#
+    additionalProperties: true
 
 required:
   - compatible

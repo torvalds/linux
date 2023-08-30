@@ -2743,6 +2743,7 @@ const struct rtw_chip_info rtw8723d_hw_spec = {
 	.ptct_efuse_size = 96 + 1,
 	.txff_size = 32768,
 	.rxff_size = 16384,
+	.rsvd_drv_pg_num = 8,
 	.txgi_factor = 1,
 	.is_pwr_by_rate_dec = true,
 	.max_power_index = 0x3f,

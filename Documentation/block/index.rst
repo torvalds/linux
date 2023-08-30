@@ -18,7 +18,6 @@ Block
    kyber-iosched
    null_blk
    pr
-   request
    stat
    switching-sched
    writeback_cache_control

@@ -674,4 +674,3 @@ module_exit(sh_tmu_exit);
 
 MODULE_AUTHOR("Magnus Damm");
 MODULE_DESCRIPTION("SuperH TMU Timer Driver");
-MODULE_LICENSE("GPL v2");

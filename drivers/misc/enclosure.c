@@ -451,7 +451,6 @@ ATTRIBUTE_GROUPS(enclosure_class);
 
 static struct class enclosure_class = {
 	.name			= "enclosure",
-	.owner			= THIS_MODULE,
 	.dev_release		= enclosure_release,
 	.dev_groups		= enclosure_class_groups,
 };

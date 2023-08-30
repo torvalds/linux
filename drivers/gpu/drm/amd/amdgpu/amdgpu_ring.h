@@ -27,6 +27,7 @@
 #include <drm/amdgpu_drm.h>
 #include <drm/gpu_scheduler.h>
 #include <drm/drm_print.h>
+#include <drm/drm_suballoc.h>
 
 struct amdgpu_device;
 struct amdgpu_ring;
@@ -92,7 +93,7 @@ enum amdgpu_ib_pool_type {
 };
 
 struct amdgpu_ib {
-	struct amdgpu_sa_bo		*sa_bo;
+	struct drm_suballoc		*sa_bo;
 	uint32_t			length_dw;
 	uint64_t			gpu_addr;
 	uint32_t			*ptr;
@@ -164,7 +165,6 @@ struct amdgpu_ring_funcs {
 	bool			support_64bit_ptrs;
 	bool			no_user_fence;
 	bool			secure_submission_supported;
-	unsigned		vmhub;
 	unsigned		extra_dw;
 
 	/* ring read/write ptr handling */
@@ -227,6 +227,9 @@ struct amdgpu_ring_funcs {
 	int (*preempt_ib)(struct amdgpu_ring *ring);
 	void (*emit_mem_sync)(struct amdgpu_ring *ring);
 	void (*emit_wave_limit)(struct amdgpu_ring *ring, bool enable);
+	void (*patch_cntl)(struct amdgpu_ring *ring, unsigned offset);
+	void (*patch_ce)(struct amdgpu_ring *ring, unsigned offset);
+	void (*patch_de)(struct amdgpu_ring *ring, unsigned offset);
 };
 
 struct amdgpu_ring {
@@ -249,6 +252,7 @@ struct amdgpu_ring {
 	uint64_t		ptr_mask;
 	uint32_t		buf_mask;
 	u32			idx;
+	u32			xcc_id;
 	u32			me;
 	u32			pipe;
 	u32			queue;
@@ -274,6 +278,7 @@ struct amdgpu_ring {
 	unsigned		cond_exe_offs;
 	u64			cond_exe_gpu_addr;
 	volatile u32		*cond_exe_cpu_addr;
+	unsigned		vm_hub;
 	unsigned		vm_inv_eng;
 	struct dma_fence	*vmid_wait;
 	bool			has_compute_vm_bug;
@@ -316,10 +321,16 @@ struct amdgpu_ring {
 #define amdgpu_ring_init_cond_exec(r) (r)->funcs->init_cond_exec((r))
 #define amdgpu_ring_patch_cond_exec(r,o) (r)->funcs->patch_cond_exec((r),(o))
 #define amdgpu_ring_preempt_ib(r) (r)->funcs->preempt_ib(r)
+#define amdgpu_ring_patch_cntl(r, o) ((r)->funcs->patch_cntl((r), (o)))
+#define amdgpu_ring_patch_ce(r, o) ((r)->funcs->patch_ce((r), (o)))
+#define amdgpu_ring_patch_de(r, o) ((r)->funcs->patch_de((r), (o)))
 
 int amdgpu_ring_alloc(struct amdgpu_ring *ring, unsigned ndw);
 void amdgpu_ring_ib_begin(struct amdgpu_ring *ring);
 void amdgpu_ring_ib_end(struct amdgpu_ring *ring);
+void amdgpu_ring_ib_on_emit_cntl(struct amdgpu_ring *ring);
+void amdgpu_ring_ib_on_emit_ce(struct amdgpu_ring *ring);
+void amdgpu_ring_ib_on_emit_de(struct amdgpu_ring *ring);
 
 void amdgpu_ring_insert_nop(struct amdgpu_ring *ring, uint32_t count);
 void amdgpu_ring_generic_pad_ib(struct amdgpu_ring *ring, struct amdgpu_ib *ib);

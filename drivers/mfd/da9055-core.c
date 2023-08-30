@@ -398,5 +398,4 @@ void da9055_device_exit(struct da9055 *da9055)
 }
 
 MODULE_DESCRIPTION("Core support for the DA9055 PMIC");
-MODULE_LICENSE("GPL");
 MODULE_AUTHOR("David Dajun Chen <dchen@diasemi.com>");

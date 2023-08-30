@@ -341,7 +341,7 @@ static struct acpi_device *tb_acpi_find_companion(struct device *dev)
 	 */
 	if (tb_is_switch(dev))
 		return tb_acpi_switch_find_companion(tb_to_switch(dev));
-	else if (tb_is_usb4_port_device(dev))
+	if (tb_is_usb4_port_device(dev))
 		return acpi_find_child_by_adr(ACPI_COMPANION(dev->parent),
 					      tb_to_usb4_port_device(dev)->port->port);
 	return NULL;

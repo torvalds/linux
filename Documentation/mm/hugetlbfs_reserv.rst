@@ -5,10 +5,10 @@ Hugetlbfs Reservation
 Overview
 ========
 
-Huge pages as described at Documentation/mm/hugetlbpage.rst are typically
-preallocated for application use.  These huge pages are instantiated in a
-task's address space at page fault time if the VMA indicates huge pages are
-to be used.  If no huge page exists at page fault time, the task is sent
+Huge pages as described at Documentation/admin-guide/mm/hugetlbpage.rst are
+typically preallocated for application use.  These huge pages are instantiated
+in a task's address space at page fault time if the VMA indicates huge pages
+are to be used.  If no huge page exists at page fault time, the task is sent
 a SIGBUS and often dies an unhappy death.  Shortly after huge page support
 was added, it was determined that it would be better to detect a shortage
 of huge pages at mmap() time.  The idea is that if there were not enough
