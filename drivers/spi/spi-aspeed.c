@@ -1448,12 +1448,20 @@ end:
 static int aspeed_spi_remove(struct platform_device *pdev)
 {
 	struct aspeed_spi_controller *ast_ctrl = platform_get_drvdata(pdev);
+	struct device *dev = &pdev->dev;
 	uint32_t val;
 
 	/* disable write capability for all CEs */
 	val = readl(ast_ctrl->regs + OFFSET_CE_TYPE_SETTING);
 	writel(val & ~(GENMASK(ast_ctrl->num_cs, 0) << 16),
 	       ast_ctrl->regs + OFFSET_CE_TYPE_SETTING);
+
+	if (ast_ctrl->op_buf) {
+		dma_free_coherent(dev,
+				  FMC_SPI_DMA_BUF_LEN,
+				  ast_ctrl->op_buf,
+				  ast_ctrl->dma_addr_phy);
+	}
 
 	return 0;
 }
