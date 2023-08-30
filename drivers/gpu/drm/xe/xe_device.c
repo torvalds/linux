@@ -427,11 +427,11 @@ int xe_device_probe(struct xe_device *xe)
 
 	err = xe_display_init(xe);
 	if (err)
-		goto err_fini_display;
+		goto err_irq_shutdown;
 
 	err = drm_dev_register(&xe->drm, 0);
 	if (err)
-		goto err_irq_shutdown;
+		goto err_fini_display;
 
 	xe_display_register(xe);
 
