@@ -76,7 +76,7 @@ struct xe_force_wake {
 	/** @gt: back pointers to GT */
 	struct xe_gt *gt;
 	/** @lock: protects everything force wake struct */
-	struct mutex lock;
+	spinlock_t lock;
 	/** @awake_domains: mask of all domains awake */
 	enum xe_force_wake_domains awake_domains;
 	/** @domains: force wake domains */

@@ -42,7 +42,7 @@ void xe_force_wake_init_gt(struct xe_gt *gt, struct xe_force_wake *fw)
 	struct xe_device *xe = gt_to_xe(gt);
 
 	fw->gt = gt;
-	mutex_init(&fw->lock);
+	spin_lock_init(&fw->lock);
 
 	/* Assuming gen11+ so assert this assumption is correct */
 	xe_gt_assert(gt, GRAPHICS_VER(gt_to_xe(gt)) >= 11);
@@ -116,7 +116,7 @@ static int domain_wake_wait(struct xe_gt *gt,
 {
 	return xe_mmio_wait32(gt, domain->reg_ack, domain->val, domain->val,
 			      XE_FORCE_WAKE_ACK_TIMEOUT_MS * USEC_PER_MSEC,
-			      NULL, false);
+			      NULL, true);
 }
 
 static void domain_sleep(struct xe_gt *gt, struct xe_force_wake_domain *domain)
@@ -129,7 +129,7 @@ static int domain_sleep_wait(struct xe_gt *gt,
 {
 	return xe_mmio_wait32(gt, domain->reg_ack, domain->val, 0,
 			      XE_FORCE_WAKE_ACK_TIMEOUT_MS * USEC_PER_MSEC,
-			      NULL, false);
+			      NULL, true);
 }
 
 #define for_each_fw_domain_masked(domain__, mask__, fw__, tmp__) \
@@ -147,7 +147,7 @@ int xe_force_wake_get(struct xe_force_wake *fw,
 	enum xe_force_wake_domains tmp, woken = 0;
 	int ret, ret2 = 0;
 
-	mutex_lock(&fw->lock);
+	spin_lock(&fw->lock);
 	for_each_fw_domain_masked(domain, domains, fw, tmp) {
 		if (!domain->ref++) {
 			woken |= BIT(domain->id);
@@ -162,7 +162,7 @@ int xe_force_wake_get(struct xe_force_wake *fw,
 				   domain->id, ret);
 	}
 	fw->awake_domains |= woken;
-	mutex_unlock(&fw->lock);
+	spin_unlock(&fw->lock);
 
 	return ret2;
 }
@@ -176,7 +176,7 @@ int xe_force_wake_put(struct xe_force_wake *fw,
 	enum xe_force_wake_domains tmp, sleep = 0;
 	int ret, ret2 = 0;
 
-	mutex_lock(&fw->lock);
+	spin_lock(&fw->lock);
 	for_each_fw_domain_masked(domain, domains, fw, tmp) {
 		if (!--domain->ref) {
 			sleep |= BIT(domain->id);
@@ -191,7 +191,7 @@ int xe_force_wake_put(struct xe_force_wake *fw,
 				   domain->id, ret);
 	}
 	fw->awake_domains &= ~sleep;
-	mutex_unlock(&fw->lock);
+	spin_unlock(&fw->lock);
 
 	return ret2;
 }
