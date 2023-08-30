@@ -8,7 +8,7 @@
  */
 
 #include <linux/clk-provider.h>
-#include <linux/of_device.h>
+#include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
 #include "a1-peripherals.h"
 #include "clk-dualdiv.h"

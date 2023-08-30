@@ -4,8 +4,8 @@
 #define pr_fmt(fmt) "clk-aspeed: " fmt
 
 #include <linux/mfd/syscon.h>
+#include <linux/of.h>
 #include <linux/of_address.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
