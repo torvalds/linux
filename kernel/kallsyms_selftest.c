@@ -341,6 +341,7 @@ static int test_kallsyms_basic_function(void)
 		ret = lookup_symbol_name(addr, namebuf);
 		if (unlikely(ret)) {
 			namebuf[0] = 0;
+			pr_info("%d: lookup_symbol_name(%lx) failed\n", i, addr);
 			goto failed;
 		}
 
@@ -367,8 +368,11 @@ static int test_kallsyms_basic_function(void)
 			if (stat->addr != stat2->addr ||
 			    stat->real_cnt != stat2->real_cnt ||
 			    memcmp(stat->addrs, stat2->addrs,
-				   stat->save_cnt * sizeof(stat->addrs[0])))
+				   stat->save_cnt * sizeof(stat->addrs[0]))) {
+				pr_info("%s: mismatch between kallsyms_on_each_symbol() and kallsyms_on_each_match_symbol()\n",
+					namebuf);
 				goto failed;
+			}
 
 			/*
 			 * The average of random increments is 128, that is, one of
@@ -379,15 +383,23 @@ static int test_kallsyms_basic_function(void)
 		}
 
 		/* Need to be found at least once */
-		if (!stat->real_cnt)
+		if (!stat->real_cnt) {
+			pr_info("%s: Never found\n", namebuf);
 			goto failed;
+		}
 
 		/*
 		 * kallsyms_lookup_name() returns the address of the first
 		 * symbol found and cannot be NULL.
 		 */
-		if (!lookup_addr || lookup_addr != stat->addrs[0])
+		if (!lookup_addr) {
+			pr_info("%s: NULL lookup_addr?!\n", namebuf);
 			goto failed;
+		}
+		if (lookup_addr != stat->addrs[0]) {
+			pr_info("%s: lookup_addr != stat->addrs[0]\n", namebuf);
+			goto failed;
+		}
 
 		/*
 		 * If the addresses of all matching symbols are recorded, the
@@ -399,8 +411,10 @@ static int test_kallsyms_basic_function(void)
 					break;
 			}
 
-			if (j == stat->save_cnt)
+			if (j == stat->save_cnt) {
+				pr_info("%s: j == save_cnt?!\n", namebuf);
 				goto failed;
+			}
 		}
 	}
 
