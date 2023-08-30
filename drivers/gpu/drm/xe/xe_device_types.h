@@ -15,6 +15,7 @@
 #include "xe_devcoredump_types.h"
 #include "xe_gt_types.h"
 #include "xe_platform_types.h"
+#include "xe_pmu.h"
 #include "xe_step_types.h"
 
 struct xe_ggtt;
@@ -341,6 +342,9 @@ struct xe_device {
 	 * the runtime_suspend or runtime_resume callbacks.
 	 */
 	struct task_struct *pm_callback_task;
+
+	/** @pmu: performance monitoring unit */
+	struct xe_pmu pmu;
 
 	/* For pcode */
 	struct mutex sb_lock;

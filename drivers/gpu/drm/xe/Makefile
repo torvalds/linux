@@ -124,6 +124,8 @@ xe-y += xe_bb.o \
 obj-$(CONFIG_DRM_XE) += xe.o
 obj-$(CONFIG_DRM_XE_KUNIT_TEST) += tests/
 
+xe-$(CONFIG_PERF_EVENTS) += xe_pmu.o
+
 # header test
 hdrtest_find_args := -not -path xe_rtp_helpers.h
 

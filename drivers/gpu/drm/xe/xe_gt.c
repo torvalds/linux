@@ -652,6 +652,8 @@ int xe_gt_suspend(struct xe_gt *gt)
 	if (err)
 		goto err_msg;
 
+	xe_pmu_suspend(gt);
+
 	err = xe_uc_suspend(&gt->uc);
 	if (err)
 		goto err_force_wake;

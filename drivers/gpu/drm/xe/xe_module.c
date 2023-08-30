@@ -12,6 +12,7 @@
 #include "xe_hw_fence.h"
 #include "xe_module.h"
 #include "xe_pci.h"
+#include "xe_pmu.h"
 #include "xe_sched_job.h"
 
 bool force_execlist = false;
@@ -44,6 +45,10 @@ static const struct init_funcs init_funcs[] = {
 	{
 		.init = xe_sched_job_module_init,
 		.exit = xe_sched_job_module_exit,
+	},
+	{
+		.init = xe_pmu_init,
+		.exit = xe_pmu_exit,
 	},
 	{
 		.init = xe_register_pci_driver,

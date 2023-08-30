@@ -26,6 +26,20 @@
 #define IIR(offset)				XE_REG(offset + 0x8)
 #define IER(offset)				XE_REG(offset + 0xc)
 
+/*
+ * Interrupt statistic for PMU. Increments the counter only if the
+ * interrupt originated from the GPU so interrupts from a device which
+ * shares the interrupt line are not accounted.
+ */
+static __always_inline void xe_pmu_irq_stats(struct xe_device *xe)
+{
+	/*
+	 * A clever compiler translates that into INC. A not so clever one
+	 * should at least prevent store tearing.
+	 */
+	WRITE_ONCE(xe->pmu.irq_count, xe->pmu.irq_count + 1);
+}
+
 static void assert_iir_is_zero(struct xe_gt *mmio, struct xe_reg reg)
 {
 	u32 val = xe_mmio_read32(mmio, reg);
@@ -332,6 +346,8 @@ static irqreturn_t xelp_irq_handler(int irq, void *arg)
 
 	xelp_intr_enable(xe, false);
 
+	xe_pmu_irq_stats(xe);
+
 	return IRQ_HANDLED;
 }
 
@@ -424,6 +440,8 @@ static irqreturn_t dg1_irq_handler(int irq, void *arg)
 	}
 
 	dg1_intr_enable(xe, false);
+
+	xe_pmu_irq_stats(xe);
 
 	return IRQ_HANDLED;
 }
