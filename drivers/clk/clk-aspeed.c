@@ -701,6 +701,7 @@ static void __init aspeed_cc_init(struct device_node *np)
 				  GFP_KERNEL);
 	if (!aspeed_clk_data)
 		return;
+	aspeed_clk_data->num = ASPEED_NUM_CLKS;
 
 	/*
 	 * This way all clocks fetched before the platform device probes,
@@ -732,8 +733,6 @@ static void __init aspeed_cc_init(struct device_node *np)
 		aspeed_ast2500_cc(map);
 	else
 		pr_err("unknown platform, failed to add clocks\n");
-
-	aspeed_clk_data->num = ASPEED_NUM_CLKS;
 	ret = of_clk_add_hw_provider(np, of_clk_hw_onecell_get, aspeed_clk_data);
 	if (ret)
 		pr_err("failed to add DT provider: %d\n", ret);
