@@ -1126,7 +1126,7 @@ static bool need_sync(struct gfs2_quota_data *qd)
 	den = gt->gt_quota_scale_den;
 	spin_unlock(&gt->gt_spin);
 
-	if (value < 0)
+	if (value <= 0)
 		return false;
 	else if ((s64)be64_to_cpu(qd->qd_qb.qb_value) >=
 		 (s64)be64_to_cpu(qd->qd_qb.qb_limit))
