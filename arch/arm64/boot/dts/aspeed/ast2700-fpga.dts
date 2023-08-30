@@ -31,6 +31,16 @@
 		#size-cells = <2>;
 		ranges;
 
+		atf: trusted-firmware-a@430000000 {
+			reg = <0x4 0x30000000 0x0 0x80000>;
+			no-map;
+		};
+
+		optee_core: optee_core@430080000 {
+			reg = <0x4 0x30080000 0x0 0x1000000>;
+			no-map;
+		};
+
 		bmc_dev_memory: bmc_dev_memory {
 			size = <0x0 0x00100000>;
 			alignment = <0x0 0x00100000>;
