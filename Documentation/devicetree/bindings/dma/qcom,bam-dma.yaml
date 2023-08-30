@@ -48,7 +48,7 @@ properties:
   qcom,controlled-remotely:
     type: boolean
     description:
-      Indicates that the bam is controlled by remote proccessor i.e. execution
+      Indicates that the bam is controlled by remote processor i.e. execution
       environment.
 
   qcom,ee:

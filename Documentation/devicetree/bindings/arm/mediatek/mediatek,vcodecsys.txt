@@ -15,7 +15,7 @@ The available clocks are defined in dt-bindings/clock/mt*-clk.h.
 
 The vcodecsys controller also uses the common power domain from
 Documentation/devicetree/bindings/soc/mediatek/scpsys.txt
-The available power doamins are defined in dt-bindings/power/mt*-power.h.
+The available power domains are defined in dt-bindings/power/mt*-power.h.
 
 Example:
 

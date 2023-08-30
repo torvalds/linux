@@ -197,13 +197,13 @@ properties:
           - maxim,max1237
             # Temperature Sensor, I2C interface
           - maxim,max1619
-            # 10-bit 10 kOhm linear programable voltage divider
+            # 10-bit 10 kOhm linear programmable voltage divider
           - maxim,max5481
-            # 10-bit 50 kOhm linear programable voltage divider
+            # 10-bit 50 kOhm linear programmable voltage divider
           - maxim,max5482
-            # 10-bit 10 kOhm linear programable variable resistor
+            # 10-bit 10 kOhm linear programmable variable resistor
           - maxim,max5483
-            # 10-bit 50 kOhm linear programable variable resistor
+            # 10-bit 50 kOhm linear programmable variable resistor
           - maxim,max5484
             # PECI-to-I2C translator for PECI-to-SMBus/I2C protocol conversion
           - maxim,max6621
@@ -295,8 +295,6 @@ properties:
           - miramems,da311
             # Temperature sensor with integrated fan control
           - national,lm63
-            # I2C TEMP SENSOR
-          - national,lm75
             # Serial Interface ACPI-Compatible Microprocessor System Hardware Monitor
           - national,lm80
             # Serial Interface ACPI-Compatible Microprocessor System Hardware Monitor

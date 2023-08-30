@@ -58,7 +58,7 @@ $defs:
   pd-node:
     type: object
     description:
-      PM domain node representing a PM domain.  This node hould be named by
+      PM domain node representing a PM domain.  This node should be named by
       the real power area name, and thus its name should be unique.
 
     properties:

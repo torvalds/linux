@@ -13,16 +13,15 @@
  */
 
 &electric_1 {
-
 	motor-1 {
 		controller {
-			power_bus = < 0x1 0x2 >;
+			power_bus = <0x1 0x2>;
 		};
 	};
 };
 
 &spin_ctrl_1 {
-		controller {
-			power_bus_emergency = < 0x101 0x102 >;
-		};
+	controller {
+		power_bus_emergency = <0x101 0x102>;
+	};
 };

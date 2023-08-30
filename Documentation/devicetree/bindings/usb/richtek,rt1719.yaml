@@ -10,7 +10,7 @@ maintainers:
   - ChiYuan Huang <cy_huang@richtek.com>
 
 description: |
-  The RT1719 is a sink-only USB Type-C contoller that complies with the latest
+  The RT1719 is a sink-only USB Type-C controller that complies with the latest
   USB Type-C and PD standards. It does the USB Type-C detection including attach
   and orientation. It integrates the physical layer of the USB BMC power
   delivery protocol to allow up to 100W of power. The BMC PD block enables full
