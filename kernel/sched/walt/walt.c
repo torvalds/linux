@@ -3659,6 +3659,11 @@ int pipeline_nr;
 static DEFINE_RAW_SPINLOCK(heavy_lock);
 static struct walt_task_struct *heavy_wts[WALT_NR_CPUS];
 
+static inline int pipeline_demand(struct walt_task_struct *wts)
+{
+	return wts->coloc_demand;
+}
+
 int add_pipeline(struct walt_task_struct *wts)
 {
 	int i, pos = -1, ret = -ENOSPC;
@@ -3846,7 +3851,8 @@ void find_heaviest_topapp(u64 window_start)
 			if (!heavy_wts[i]) {
 				heavy_wts[i] = to_be_placed_wts;
 				break;
-			} else if (to_be_placed_wts->demand_scaled >= heavy_wts[i]->demand_scaled) {
+			} else if (pipeline_demand(to_be_placed_wts) >=
+					pipeline_demand(heavy_wts[i])) {
 				struct walt_task_struct *tmp;
 
 				tmp = heavy_wts[i];
@@ -3927,7 +3933,7 @@ static inline void swap_pipeline_with_prime_locked(struct walt_task_struct *prim
 						   struct walt_task_struct *other_wts)
 {
 	if (prime_wts && other_wts) {
-		if (prime_wts->coloc_demand < other_wts->coloc_demand) {
+		if (pipeline_demand(prime_wts) < pipeline_demand(other_wts)) {
 			int cpu;
 
 			cpu = other_wts->pipeline_cpu;
@@ -3973,11 +3979,9 @@ static inline void find_prime_and_max_tasks(struct walt_task_struct **wts_list,
 		if (is_max_possible_cluster_cpu(wts->pipeline_cpu)) {
 			if (prime_wts)
 				*prime_wts = wts;
-		} else {
-			if (other_wts && wts->coloc_demand > max_demand) {
-				max_demand = wts->coloc_demand;
-				*other_wts = wts;
-			}
+		} else if (other_wts && pipeline_demand(wts) > max_demand) {
+			max_demand = pipeline_demand(wts);
+			*other_wts = wts;
 		}
 	}
 }
@@ -4114,11 +4118,9 @@ void rearrange_pipeline_preferred_cpus(u64 window_start)
 			if (is_max_possible_cluster_cpu(wts->pipeline_cpu)) {
 				/* assumes just one prime */
 				prime_wts = wts;
-			} else {
-				if (wts->coloc_demand > max_demand) {
-					max_demand = wts->coloc_demand;
-					other_wts = wts;
-				}
+			} else if (pipeline_demand(wts) > max_demand) {
+				max_demand = pipeline_demand(wts);
+				other_wts = wts;
 			}
 		}
 	}
