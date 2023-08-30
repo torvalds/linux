@@ -357,3 +357,7 @@
 	status = "okay";
 	memory-region = <&video_engine_memory>;
 };
+
+&rsss {
+	status = "okay";
+};

@@ -124,6 +124,18 @@
 		#size-cells = <2>;
 		ranges;
 
+		rsss: crypto@12080000 {
+			compatible = "aspeed,ast2700-rsss";
+			reg = <0x0 0x12080000 0 0x1000>;
+			clocks = <&cpu_clk AST2700_CPU_CLK_GATE_RSACLK>;
+			interrupts = <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH>;
+			resets = <&cpu_clk ASPEED_RESET_RSA>,
+				 <&cpu_clk ASPEED_RESET_SHA3>,
+				 <&cpu_clk ASPEED_RESET_SM3>,
+				 <&cpu_clk ASPEED_RESET_SM4>;
+			status = "disabled";
+		};
+
 		emmc_controller: sdc@12090000 {
 			compatible = "aspeed,ast2600-sd-controller";
 			reg = <0 0x12090000 0 0x100>;
