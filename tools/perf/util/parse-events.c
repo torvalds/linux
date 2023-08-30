@@ -13,7 +13,7 @@
 #include <subcmd/parse-options.h>
 #include "parse-events.h"
 #include "string2.h"
-#include "strlist.h"
+#include "strbuf.h"
 #include "debug.h"
 #include <api/fs/tracing_path.h>
 #include <perf/cpumap.h>
@@ -1303,19 +1303,6 @@ int parse_events_add_pmu(struct parse_events_state *parse_state,
 
 	pmu = parse_state->fake_pmu ?: perf_pmus__find(name);
 
-	if (verbose > 1 && !(pmu && pmu->selectable)) {
-		fprintf(stderr, "Attempting to add event pmu '%s' with '",
-			name);
-		if (head_config) {
-			struct parse_events_term *term;
-
-			list_for_each_entry(term, head_config, list) {
-				fprintf(stderr, "%s,", term->config);
-			}
-		}
-		fprintf(stderr, "' that may result in non-fatal errors\n");
-	}
-
 	if (!pmu) {
 		char *err_str;
 
@@ -1324,6 +1311,21 @@ int parse_events_add_pmu(struct parse_events_state *parse_state,
 				name) >= 0)
 			parse_events_error__handle(err, loc->first_column, err_str, NULL);
 		return -EINVAL;
+	}
+
+	if (verbose > 1) {
+		struct strbuf sb;
+
+		strbuf_init(&sb, /*hint=*/ 0);
+		if (pmu->selectable && !head_config) {
+			strbuf_addf(&sb, "%s//", name);
+		} else {
+			strbuf_addf(&sb, "%s/", name);
+			parse_events_term__to_strbuf(head_config, &sb);
+			strbuf_addch(&sb, '/');
+		}
+		fprintf(stderr, "Attempt to add: %s\n", sb.buf);
+		strbuf_release(&sb);
 	}
 	if (head_config)
 		fix_raw(head_config, pmu);
@@ -1349,16 +1351,12 @@ int parse_events_add_pmu(struct parse_events_state *parse_state,
 		return -EINVAL;
 
 	if (verbose > 1) {
-		fprintf(stderr, "After aliases, add event pmu '%s' with '",
-			name);
-		if (head_config) {
-			struct parse_events_term *term;
+		struct strbuf sb;
 
-			list_for_each_entry(term, head_config, list) {
-				fprintf(stderr, "%s,", term->config);
-			}
-		}
-		fprintf(stderr, "' that may result in non-fatal errors\n");
+		strbuf_init(&sb, /*hint=*/ 0);
+		parse_events_term__to_strbuf(head_config, &sb);
+		fprintf(stderr, "..after resolving event: %s/%s/\n", name, sb.buf);
+		strbuf_release(&sb);
 	}
 
 	/*
@@ -1460,7 +1458,12 @@ int parse_events_multi_pmu_add(struct parse_events_state *parse_state,
 		parse_events_copy_term_list(head, &orig_head);
 		if (!parse_events_add_pmu(parse_state, list, pmu->name,
 					  orig_head, auto_merge_stats, loc)) {
-			pr_debug("%s -> %s/%s/\n", str, pmu->name, str);
+			struct strbuf sb;
+
+			strbuf_init(&sb, /*hint=*/ 0);
+			parse_events_term__to_strbuf(orig_head, &sb);
+			pr_debug("%s -> %s/%s/\n", str, pmu->name, sb.buf);
+			strbuf_release(&sb);
 			ok++;
 		}
 		parse_events_terms__delete(orig_head);
@@ -1469,7 +1472,12 @@ int parse_events_multi_pmu_add(struct parse_events_state *parse_state,
 	if (parse_state->fake_pmu) {
 		if (!parse_events_add_pmu(parse_state, list, str, head,
 					  /*auto_merge_stats=*/true, loc)) {
-			pr_debug("%s -> %s/%s/\n", str, "fake_pmu", str);
+			struct strbuf sb;
+
+			strbuf_init(&sb, /*hint=*/ 0);
+			parse_events_term__to_strbuf(head, &sb);
+			pr_debug("%s -> %s/%s/\n", str, "fake_pmu", sb.buf);
+			strbuf_release(&sb);
 			ok++;
 		}
 	}
@@ -2085,7 +2093,7 @@ void parse_events_error__handle(struct parse_events_error *err, int idx,
 		break;
 	default:
 		pr_debug("Multiple errors dropping message: %s (%s)\n",
-			err->str, err->help);
+			err->str, err->help ?: "<no help>");
 		free(err->str);
 		err->str = str;
 		free(err->help);
@@ -2500,6 +2508,47 @@ void parse_events_terms__delete(struct list_head *terms)
 		return;
 	parse_events_terms__purge(terms);
 	free(terms);
+}
+
+int parse_events_term__to_strbuf(struct list_head *term_list, struct strbuf *sb)
+{
+	struct parse_events_term *term;
+	bool first = true;
+
+	if (!term_list)
+		return 0;
+
+	list_for_each_entry(term, term_list, list) {
+		int ret;
+
+		if (!first) {
+			ret = strbuf_addch(sb, ',');
+			if (ret < 0)
+				return ret;
+		}
+		first = false;
+
+		if (term->type_val == PARSE_EVENTS__TERM_TYPE_NUM)
+			if (term->type_term == PARSE_EVENTS__TERM_TYPE_USER && term->val.num == 1)
+				ret = strbuf_addf(sb, "%s", term->config);
+			else
+				ret = strbuf_addf(sb, "%s=%#"PRIx64, term->config, term->val.num);
+		else if (term->type_val == PARSE_EVENTS__TERM_TYPE_STR) {
+			if (term->config) {
+				ret = strbuf_addf(sb, "%s=", term->config);
+				if (ret < 0)
+					return ret;
+			} else if (term->type_term < __PARSE_EVENTS__TERM_TYPE_NR) {
+				ret = strbuf_addf(sb, "%s=", config_term_names[term->type_term]);
+				if (ret < 0)
+					return ret;
+			}
+			ret = strbuf_addf(sb, "%s", term->val.str);
+		}
+		if (ret < 0)
+			return ret;
+	}
+	return 0;
 }
 
 void parse_events_evlist_error(struct parse_events_state *parse_state,

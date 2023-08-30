@@ -18,6 +18,7 @@ struct parse_events_error;
 
 struct option;
 struct perf_pmu;
+struct strbuf;
 
 const char *event_type(int type);
 
@@ -152,6 +153,7 @@ int parse_events_term__clone(struct parse_events_term **new,
 void parse_events_term__delete(struct parse_events_term *term);
 void parse_events_terms__delete(struct list_head *terms);
 void parse_events_terms__purge(struct list_head *terms);
+int parse_events_term__to_strbuf(struct list_head *term_list, struct strbuf *sb);
 int parse_events__modifier_event(struct list_head *list, char *str, bool add);
 int parse_events__modifier_group(struct list_head *list, char *event_mod);
 int parse_events_name(struct list_head *list, const char *name);

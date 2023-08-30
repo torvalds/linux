@@ -507,12 +507,11 @@ static int perf_pmu__new_alias(struct perf_pmu *pmu, const char *name,
 				const char *desc, const char *val, FILE *val_fd,
 				const struct pmu_event *pe)
 {
-	struct parse_events_term *term;
 	struct perf_pmu_alias *alias;
 	int ret;
-	char newval[256];
 	const char *long_desc = NULL, *topic = NULL, *unit = NULL, *pmu_name = NULL;
 	bool deprecated = false, perpkg = false;
+	struct strbuf sb;
 
 	if (perf_pmu__find_alias(pmu, name, /*load=*/ false)) {
 		/* Alias was already created/loaded. */
@@ -582,20 +581,10 @@ static int perf_pmu__new_alias(struct perf_pmu *pmu, const char *name,
 	 *
 	 * Rebuild string to make alias->str member comparable.
 	 */
-	ret = 0;
-	list_for_each_entry(term, &alias->terms, list) {
-		if (ret)
-			ret += scnprintf(newval + ret, sizeof(newval) - ret,
-					 ",");
-		if (term->type_val == PARSE_EVENTS__TERM_TYPE_NUM)
-			ret += scnprintf(newval + ret, sizeof(newval) - ret,
-					 "%s=%#x", term->config, term->val.num);
-		else if (term->type_val == PARSE_EVENTS__TERM_TYPE_STR)
-			ret += scnprintf(newval + ret, sizeof(newval) - ret,
-					 "%s=%s", term->config, term->val.str);
-	}
 	zfree(&alias->str);
-	alias->str = strdup(newval);
+	strbuf_init(&sb, /*hint=*/ 0);
+	parse_events_term__to_strbuf(&alias->terms, &sb);
+	alias->str = strbuf_detach(&sb, /*sz=*/ NULL);
 	if (!pe)
 		pmu->sysfs_aliases++;
 	else
