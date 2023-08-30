@@ -323,19 +323,19 @@ int gfs2_withdraw(struct gfs2_sbd *sdp)
 	struct lm_lockstruct *ls = &sdp->sd_lockstruct;
 	const struct lm_lockops *lm = ls->ls_ops;
 
-	if (sdp->sd_args.ar_errors == GFS2_ERRORS_WITHDRAW &&
-	    test_and_set_bit(SDF_WITHDRAWN, &sdp->sd_flags)) {
-		if (!test_bit(SDF_WITHDRAW_IN_PROG, &sdp->sd_flags))
-			return -1;
-
-		wait_on_bit(&sdp->sd_flags, SDF_WITHDRAW_IN_PROG,
-			    TASK_UNINTERRUPTIBLE);
-		return -1;
-	}
-
-	set_bit(SDF_WITHDRAW_IN_PROG, &sdp->sd_flags);
-
 	if (sdp->sd_args.ar_errors == GFS2_ERRORS_WITHDRAW) {
+		unsigned long old = READ_ONCE(sdp->sd_flags), new;
+
+		do {
+			if (old & BIT(SDF_WITHDRAWN)) {
+				wait_on_bit(&sdp->sd_flags,
+					    SDF_WITHDRAW_IN_PROG,
+					    TASK_UNINTERRUPTIBLE);
+				return -1;
+			}
+			new = old | BIT(SDF_WITHDRAWN) | BIT(SDF_WITHDRAW_IN_PROG);
+		} while (unlikely(!try_cmpxchg(&sdp->sd_flags, &old, new)));
+
 		fs_err(sdp, "about to withdraw this file system\n");
 		BUG_ON(sdp->sd_args.ar_debug);
 
