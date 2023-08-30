@@ -2886,7 +2886,6 @@ static void ti_sci_setup_ops(struct ti_sci_info *info)
 const struct ti_sci_handle *ti_sci_get_handle(struct device *dev)
 {
 	struct device_node *ti_sci_np;
-	struct list_head *p;
 	struct ti_sci_handle *handle = NULL;
 	struct ti_sci_info *info;
 
@@ -2901,8 +2900,7 @@ const struct ti_sci_handle *ti_sci_get_handle(struct device *dev)
 	}
 
 	mutex_lock(&ti_sci_list_mutex);
-	list_for_each(p, &ti_sci_list) {
-		info = list_entry(p, struct ti_sci_info, node);
+	list_for_each_entry(info, &ti_sci_list, node) {
 		if (ti_sci_np == info->dev->of_node) {
 			handle = &info->handle;
 			info->users++;
@@ -3012,7 +3010,6 @@ const struct ti_sci_handle *ti_sci_get_by_phandle(struct device_node *np,
 	struct ti_sci_handle *handle = NULL;
 	struct device_node *ti_sci_np;
 	struct ti_sci_info *info;
-	struct list_head *p;
 
 	if (!np) {
 		pr_err("I need a device pointer\n");
@@ -3024,8 +3021,7 @@ const struct ti_sci_handle *ti_sci_get_by_phandle(struct device_node *np,
 		return ERR_PTR(-ENODEV);
 
 	mutex_lock(&ti_sci_list_mutex);
-	list_for_each(p, &ti_sci_list) {
-		info = list_entry(p, struct ti_sci_info, node);
+	list_for_each_entry(info, &ti_sci_list, node) {
 		if (ti_sci_np == info->dev->of_node) {
 			handle = &info->handle;
 			info->users++;
