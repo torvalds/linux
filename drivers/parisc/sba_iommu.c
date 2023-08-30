@@ -46,8 +46,6 @@
 #include <linux/module.h>
 
 #include <asm/ropes.h>
-#include <asm/mckinley.h>	/* for proc_mckinley_root */
-#include <asm/runway.h>		/* for proc_runway_root */
 #include <asm/page.h>		/* for PAGE0 */
 #include <asm/pdc.h>		/* for PDC_MODEL_* */
 #include <asm/pdcpat.h>		/* for is_pdc_pat() */
@@ -122,7 +120,7 @@ MODULE_PARM_DESC(sba_reserve_agpgart, "Reserve half of IO pdir as AGPGART");
 #endif
 
 static struct proc_dir_entry *proc_runway_root __ro_after_init;
-struct proc_dir_entry *proc_mckinley_root __ro_after_init;
+static struct proc_dir_entry *proc_mckinley_root __ro_after_init;
 
 /************************************
 ** SBA register read and write support
@@ -1899,9 +1897,7 @@ static int __init sba_driver_callback(struct parisc_device *dev)
 	int i;
 	char *version;
 	void __iomem *sba_addr = ioremap(dev->hpa.start, SBA_FUNC_SIZE);
-#ifdef CONFIG_PROC_FS
-	struct proc_dir_entry *root;
-#endif
+	struct proc_dir_entry *root __maybe_unused;
 
 	sba_dump_ranges(sba_addr);
 
@@ -1967,7 +1963,6 @@ static int __init sba_driver_callback(struct parisc_device *dev)
 
 	hppa_dma_ops = &sba_ops;
 
-#ifdef CONFIG_PROC_FS
 	switch (dev->id.hversion) {
 	case PLUTO_MCKINLEY_PORT:
 		if (!proc_mckinley_root)
@@ -1985,7 +1980,6 @@ static int __init sba_driver_callback(struct parisc_device *dev)
 
 	proc_create_single("sba_iommu", 0, root, sba_proc_info);
 	proc_create_single("sba_iommu-bitmap", 0, root, sba_proc_bitmap_info);
-#endif
 	return 0;
 }
 
