@@ -1209,7 +1209,9 @@ static void do_thaw_all_callback(struct super_block *sb)
 	bool born = super_lock_excl(sb);
 
 	if (born && sb->s_root) {
-		emergency_thaw_bdev(sb);
+		if (IS_ENABLED(CONFIG_BLOCK))
+			while (sb->s_bdev && !thaw_bdev(sb->s_bdev))
+				pr_warn("Emergency Thaw on %pg\n", sb->s_bdev);
 		thaw_super_locked(sb, FREEZE_HOLDER_USERSPACE);
 	} else {
 		super_unlock_excl(sb);

@@ -300,11 +300,6 @@ void scsi_device_unbusy(struct scsi_device *sdev, struct scsi_cmnd *cmd)
 	cmd->budget_token = -1;
 }
 
-static void scsi_kick_queue(struct request_queue *q)
-{
-	blk_mq_run_hw_queues(q, false);
-}
-
 /*
  * Kick the queue of SCSI device @sdev if @sdev != current_sdev. Called with
  * interrupts disabled.
@@ -340,7 +335,8 @@ static void scsi_single_lun_run(struct scsi_device *current_sdev)
 	 * but in most cases, we will be first. Ideally, each LU on the
 	 * target would get some limited time or requests on the target.
 	 */
-	scsi_kick_queue(current_sdev->request_queue);
+	blk_mq_run_hw_queues(current_sdev->request_queue,
+			     shost->queuecommand_may_block);
 
 	spin_lock_irqsave(shost->host_lock, flags);
 	if (!starget->starget_sdev_user)
@@ -427,7 +423,7 @@ static void scsi_starved_list_run(struct Scsi_Host *shost)
 			continue;
 		spin_unlock_irqrestore(shost->host_lock, flags);
 
-		scsi_kick_queue(slq);
+		blk_mq_run_hw_queues(slq, false);
 		blk_put_queue(slq);
 
 		spin_lock_irqsave(shost->host_lock, flags);
@@ -452,8 +448,8 @@ static void scsi_run_queue(struct request_queue *q)
 	if (!list_empty(&sdev->host->starved_list))
 		scsi_starved_list_run(sdev->host);
 
+	/* Note: blk_mq_kick_requeue_list() runs the queue asynchronously. */
 	blk_mq_kick_requeue_list(q);
-	blk_mq_run_hw_queues(q, false);
 }
 
 void scsi_requeue_run_queue(struct work_struct *work)

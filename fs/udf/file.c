@@ -65,7 +65,7 @@ static vm_fault_t udf_page_mkwrite(struct vm_fault *vmf)
 	err = __block_write_begin(page, 0, end, udf_get_block);
 	if (err) {
 		unlock_page(page);
-		ret = block_page_mkwrite_return(err);
+		ret = vmf_fs_error(err);
 		goto out_unlock;
 	}
 
