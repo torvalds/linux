@@ -120,7 +120,7 @@
 		#gpio-cells = <2>;
 		#clock-cells = <1>;
 		clock-output-names = "rk805-clkout1", "rk805-clkout2";
-		rk805,system-power-controoler;
+		rockchip,system-power-controller;
 
 		vcc1-supply = <&vcc5v0_sys>;
 		vcc2-supply = <&vcc5v0_sys>;
