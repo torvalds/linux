@@ -127,9 +127,9 @@ struct iwl_mvm_time_event_data {
 
 /**
  * enum iwl_power_scheme
- * @IWL_POWER_LEVEL_CAM - Continuously Active Mode
- * @IWL_POWER_LEVEL_BPS - Balanced Power Save (default)
- * @IWL_POWER_LEVEL_LP  - Low Power
+ * @IWL_POWER_SCHEME_CAM: Continuously Active Mode
+ * @IWL_POWER_SCHEME_BPS: Balanced Power Save (default)
+ * @IWL_POWER_SCHEME_LP: Low Power
  */
 enum iwl_power_scheme {
 	IWL_POWER_SCHEME_CAM = 1,
@@ -302,7 +302,11 @@ struct iwl_probe_resp_data {
  * @queue_params: QoS params for this MAC
  * @mgmt_queue: queue number for unbufferable management frames
  * @igtk: the current IGTK programmed into the firmware
+ * @active: indicates the link is active in FW (for sanity checking)
+ * @cab_queue: content-after-beacon (multicast) queue
  * @listen_lmac: indicates this link is allocated to the listen LMAC
+ * @mcast_sta: multicast station
+ * @phy_ctxt: phy context allocated to this link, if any
  */
 struct iwl_mvm_vif_link_info {
 	u8 bssid[ETH_ALEN];
@@ -342,6 +346,7 @@ struct iwl_mvm_vif_link_info {
 
 /**
  * struct iwl_mvm_vif - data per Virtual Interface, it is a MAC context
+ * @mvm: pointer back to the mvm struct
  * @id: between 0 and 3
  * @color: to solve races upon MAC addition and removal
  * @associated: indicates that we're currently associated, used only for
@@ -364,6 +369,13 @@ struct iwl_mvm_vif_link_info {
  * @csa_failed: CSA failed to schedule time event, report an error later
  * @csa_bcn_pending: indicates that we are waiting for a beacon on a new channel
  * @features: hw features active for this vif
+ * @ap_beacon_time: AP beacon time for synchronisation (on older FW)
+ * @bcn_prot: beacon protection data (keys; FIXME: needs to be per link)
+ * @bf_data: beacon filtering data
+ * @deflink: default link data for use in non-MLO
+ * @link: link data for each link in MLO
+ * @esr_active: indicates eSR mode is active
+ * @pm_enabled: indicates powersave is enabled
  */
 struct iwl_mvm_vif {
 	struct iwl_mvm *mvm;
@@ -689,15 +701,17 @@ __aligned(roundup_pow_of_two(sizeof(struct _iwl_mvm_reorder_buf_entry)))
  * struct iwl_mvm_baid_data - BA session data
  * @sta_mask: current station mask for the BAID
  * @tid: tid of the session
- * @baid baid of the session
+ * @baid: baid of the session
  * @timeout: the timeout set in the addba request
  * @entries_per_queue: # of buffers per queue, this actually gets
  *	aligned up to avoid cache line sharing between queues
  * @last_rx: last rx jiffies, updated only if timeout passed from last update
  * @session_timer: timer to check if BA session expired, runs at 2 * timeout
+ * @rcu_ptr: BA data RCU protected access
+ * @rcu_head: RCU head for freeing this data
  * @mvm: mvm pointer, needed for timer context
  * @reorder_buf: reorder buffer, allocated per queue
- * @reorder_buf_data: data
+ * @entries: data
  */
 struct iwl_mvm_baid_data {
 	struct rcu_head rcu_head;
