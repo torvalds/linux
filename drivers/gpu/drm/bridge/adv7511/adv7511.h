@@ -342,6 +342,7 @@ struct adv7511_chip_info {
 	unsigned int reg_cec_offset;
 	bool has_dsi;
 	bool link_config;
+	bool hpd_override_enable;
 };
 
 struct adv7511 {
