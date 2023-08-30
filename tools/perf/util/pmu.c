@@ -532,6 +532,7 @@ static int perf_pmu__new_alias(struct perf_pmu *pmu, const char *name,
 	if (!alias)
 		return -ENOMEM;
 
+	alias->str = NULL;
 	INIT_LIST_HEAD(&alias->terms);
 	alias->scale = 1.0;
 	alias->unit[0] = '\0';
@@ -593,6 +594,7 @@ static int perf_pmu__new_alias(struct perf_pmu *pmu, const char *name,
 			ret += scnprintf(newval + ret, sizeof(newval) - ret,
 					 "%s=%s", term->config, term->val.str);
 	}
+	zfree(&alias->str);
 	alias->str = strdup(newval);
 	if (!pe)
 		pmu->sysfs_aliases++;
