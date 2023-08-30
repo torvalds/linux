@@ -705,8 +705,8 @@ static int ad74413r_get_input_current_scale(struct ad74413r_state *st,
 	return IIO_VAL_FRACTIONAL;
 }
 
-static int ad74413_get_input_current_offset(struct ad74413r_state *st,
-					    unsigned int channel, int *val)
+static int ad74413r_get_input_current_offset(struct ad74413r_state *st,
+					     unsigned int channel, int *val)
 {
 	unsigned int range;
 	int voltage_range;
@@ -991,7 +991,7 @@ static int ad74413r_read_raw(struct iio_dev *indio_dev,
 			return ad74413r_get_input_voltage_offset(st,
 				chan->channel, val);
 		case IIO_CURRENT:
-			return ad74413_get_input_current_offset(st,
+			return ad74413r_get_input_current_offset(st,
 				chan->channel, val);
 		default:
 			return -EINVAL;
