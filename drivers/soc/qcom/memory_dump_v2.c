@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2014-2017, 2019-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/slab.h>
@@ -19,6 +20,7 @@
 #include <linux/module.h>
 #include <linux/of_reserved_mem.h>
 #include <linux/qcom_scm.h>
+#include <linux/syscore_ops.h>
 
 #define MSM_DUMP_TABLE_VERSION		MSM_DUMP_MAKE_VERSION(2, 0)
 
@@ -114,6 +116,7 @@ struct msm_memory_dump {
 #define SPRS_INITIALIZED BIT(1)
 
 static struct msm_memory_dump memdump;
+static size_t total_size;
 
 /**
  * reset_sprs_dump_table - reset the sprs dump table
@@ -944,6 +947,18 @@ static int init_memdump_imem_area(size_t size)
 	return 0;
 }
 
+#ifdef CONFIG_HIBERNATION
+static void memory_dump_syscore_resume(void)
+{
+	if (init_memdump_imem_area(total_size))
+		pr_err("memdump failed to restore\n");
+}
+
+static struct syscore_ops memory_dump_syscore_ops = {
+	.resume = memory_dump_syscore_resume,
+};
+#endif
+
 static int init_memory_dump(void *dump_vaddr, phys_addr_t phys_addr)
 {
 	struct msm_dump_table *table;
@@ -965,6 +980,10 @@ static int init_memory_dump(void *dump_vaddr, phys_addr_t phys_addr)
 		return ret;
 	}
 	pr_info("MSM Memory Dump apps data table set up\n");
+
+#ifdef CONFIG_HIBERNATION
+	register_syscore_ops(&memory_dump_syscore_ops);
+#endif
 
 	return 0;
 }
@@ -1058,7 +1077,6 @@ static int mem_dump_alloc(struct platform_device *pdev)
 	struct msm_dump_data *dump_data;
 	struct msm_dump_entry dump_entry;
 	struct md_region md_entry;
-	size_t total_size;
 	u32 size, id = 0;
 	int ret, no_of_nodes;
 	dma_addr_t dma_handle;
