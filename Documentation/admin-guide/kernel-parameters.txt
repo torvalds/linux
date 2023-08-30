@@ -696,13 +696,24 @@
 			kernel/dma/contiguous.c
 
 	cma_pernuma=nn[MG]
-			[ARM64,KNL,CMA]
+			[KNL,CMA]
 			Sets the size of kernel per-numa memory area for
 			contiguous memory allocations. A value of 0 disables
 			per-numa CMA altogether. And If this option is not
 			specified, the default value is 0.
 			With per-numa CMA enabled, DMA users on node nid will
 			first try to allocate buffer from the pernuma area
+			which is located in node nid, if the allocation fails,
+			they will fallback to the global default memory area.
+
+	numa_cma=<node>:nn[MG][,<node>:nn[MG]]
+			[KNL,CMA]
+			Sets the size of kernel numa memory area for
+			contiguous memory allocations. It will reserve CMA
+			area for the specified node.
+
+			With numa CMA enabled, DMA users on node nid will
+			first try to allocate buffer from the numa area
 			which is located in node nid, if the allocation fails,
 			they will fallback to the global default memory area.
 
