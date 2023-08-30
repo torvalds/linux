@@ -1664,6 +1664,7 @@ int fuse_file_write_iter_backing(struct fuse_bpf_args *fa,
 void *fuse_file_write_iter_finalize(struct fuse_bpf_args *fa,
 		struct kiocb *iocb, struct iov_iter *from);
 
+int fuse_file_flock_backing(struct file *file, int cmd, struct file_lock *fl);
 ssize_t fuse_backing_mmap(struct file *file, struct vm_area_struct *vma);
 
 int fuse_file_fallocate_initialize(struct fuse_bpf_args *fa,
