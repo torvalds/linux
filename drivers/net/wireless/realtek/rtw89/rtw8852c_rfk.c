@@ -2893,18 +2893,37 @@ static void _tssi_set_sys(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy,
 			  enum rtw89_rf_path path)
 {
 	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
+	enum rtw89_bandwidth bw = chan->band_width;
 	enum rtw89_band band = chan->band_type;
+	u32 clk = 0x0;
 
 	rtw89_rfk_parser(rtwdev, &rtw8852c_tssi_sys_defs_tbl);
 
-	if (path == RF_PATH_A)
+	switch (bw) {
+	case RTW89_CHANNEL_WIDTH_80:
+		clk = 0x1;
+		break;
+	case RTW89_CHANNEL_WIDTH_80_80:
+	case RTW89_CHANNEL_WIDTH_160:
+		clk = 0x2;
+		break;
+	default:
+		break;
+	}
+
+	if (path == RF_PATH_A) {
+		rtw89_phy_write32_mask(rtwdev, R_P0_TSSI_ADC_CLK,
+				       B_P0_TSSI_ADC_CLK, clk);
 		rtw89_rfk_parser_by_cond(rtwdev, band == RTW89_BAND_2G,
 					 &rtw8852c_tssi_sys_defs_2g_a_tbl,
 					 &rtw8852c_tssi_sys_defs_5g_a_tbl);
-	else
+	} else {
+		rtw89_phy_write32_mask(rtwdev, R_P1_TSSI_ADC_CLK,
+				       B_P1_TSSI_ADC_CLK, clk);
 		rtw89_rfk_parser_by_cond(rtwdev, band == RTW89_BAND_2G,
 					 &rtw8852c_tssi_sys_defs_2g_b_tbl,
 					 &rtw8852c_tssi_sys_defs_5g_b_tbl);
+	}
 }
 
 static void _tssi_ini_txpwr_ctrl_bb(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy,
