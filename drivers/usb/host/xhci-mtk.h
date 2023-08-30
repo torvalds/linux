@@ -58,7 +58,6 @@ struct mu3h_sch_bw_info {
  * @num_esit: number of @esit in a period
  * @num_budget_microframes: number of continuous uframes
  *		(@repeat==1) scheduled within the interval
- * @bw_cost_per_microframe: bandwidth cost per microframe
  * @hentry: hash table entry
  * @endpoint: linked into bandwidth domain which it belongs to
  * @tt_endpoint: linked into mu3h_sch_tt's list which it belongs to
@@ -83,12 +82,12 @@ struct mu3h_sch_bw_info {
  *		times; 1: distribute the (bMaxBurst+1)*(Mult+1) packets
  *		according to @pkts and @repeat. normal mode is used by
  *		default
+ * @bw_budget_table: table to record bandwidth budget per microframe
  */
 struct mu3h_sch_ep_info {
 	u32 esit;
 	u32 num_esit;
 	u32 num_budget_microframes;
-	u32 bw_cost_per_microframe;
 	struct list_head endpoint;
 	struct hlist_node hentry;
 	struct list_head tt_endpoint;
@@ -108,6 +107,7 @@ struct mu3h_sch_ep_info {
 	u32 pkts;
 	u32 cs_count;
 	u32 burst_mode;
+	u32 bw_budget_table[];
 };
 
 #define MU3C_U3_PORT_MAX 4
