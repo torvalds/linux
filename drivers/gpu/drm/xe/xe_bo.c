@@ -1795,17 +1795,6 @@ int xe_gem_create_ioctl(struct drm_device *dev, void *data,
 	if (XE_IOCTL_DBG(xe, args->size & ~PAGE_MASK))
 		return -EINVAL;
 
-	if (args->vm_id) {
-		vm = xe_vm_lookup(xef, args->vm_id);
-		if (XE_IOCTL_DBG(xe, !vm))
-			return -ENOENT;
-		err = xe_vm_lock(vm, &ww, 0, true);
-		if (err) {
-			xe_vm_put(vm);
-			return err;
-		}
-	}
-
 	if (args->flags & XE_GEM_CREATE_FLAG_DEFER_BACKING)
 		bo_flags |= XE_BO_DEFER_BACKING;
 
@@ -1819,6 +1808,17 @@ int xe_gem_create_ioctl(struct drm_device *dev, void *data,
 			return -EINVAL;
 
 		bo_flags |= XE_BO_NEEDS_CPU_ACCESS;
+	}
+
+	if (args->vm_id) {
+		vm = xe_vm_lookup(xef, args->vm_id);
+		if (XE_IOCTL_DBG(xe, !vm))
+			return -ENOENT;
+		err = xe_vm_lock(vm, &ww, 0, true);
+		if (err) {
+			xe_vm_put(vm);
+			return err;
+		}
 	}
 
 	bo = xe_bo_create(xe, NULL, vm, args->size, ttm_bo_type_device,
