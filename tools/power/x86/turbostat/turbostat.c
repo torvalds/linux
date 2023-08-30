@@ -4878,92 +4878,6 @@ void rapl_probe_amd(void)
 		fprintf(outf, "RAPL: %.0f sec. Joule Counter Range, at %.0f Watts\n", rapl_joule_counter_range, tdp);
 }
 
-/*
- * probe_rapl()
- *
- * sets rapl_power_units, rapl_energy_units, rapl_time_units
- */
-void probe_rapl(void)
-{
-	if (!platform->rapl_msrs)
-		return;
-
-	if (genuine_intel)
-		rapl_probe_intel();
-	if (authentic_amd || hygon_genuine)
-		rapl_probe_amd();
-}
-
-void probe_thermal(void)
-{
-	if (!access("/sys/devices/system/cpu/cpu0/thermal_throttle/core_throttle_count", R_OK))
-		BIC_PRESENT(BIC_CORE_THROT_CNT);
-	else
-		BIC_NOT_PRESENT(BIC_CORE_THROT_CNT);
-}
-
-int print_thermal(struct thread_data *t, struct core_data *c, struct pkg_data *p)
-{
-	unsigned long long msr;
-	unsigned int dts, dts2;
-	int cpu;
-
-	UNUSED(c);
-	UNUSED(p);
-
-	if (!(do_dts || do_ptm))
-		return 0;
-
-	cpu = t->cpu_id;
-
-	/* DTS is per-core, no need to print for each thread */
-	if (!(t->flags & CPU_IS_FIRST_THREAD_IN_CORE))
-		return 0;
-
-	if (cpu_migrate(cpu)) {
-		fprintf(outf, "print_thermal: Could not migrate to CPU %d\n", cpu);
-		return -1;
-	}
-
-	if (do_ptm && (t->flags & CPU_IS_FIRST_CORE_IN_PACKAGE)) {
-		if (get_msr(cpu, MSR_IA32_PACKAGE_THERM_STATUS, &msr))
-			return 0;
-
-		dts = (msr >> 16) & 0x7F;
-		fprintf(outf, "cpu%d: MSR_IA32_PACKAGE_THERM_STATUS: 0x%08llx (%d C)\n", cpu, msr, tj_max - dts);
-
-		if (get_msr(cpu, MSR_IA32_PACKAGE_THERM_INTERRUPT, &msr))
-			return 0;
-
-		dts = (msr >> 16) & 0x7F;
-		dts2 = (msr >> 8) & 0x7F;
-		fprintf(outf, "cpu%d: MSR_IA32_PACKAGE_THERM_INTERRUPT: 0x%08llx (%d C, %d C)\n",
-			cpu, msr, tj_max - dts, tj_max - dts2);
-	}
-
-	if (do_dts && debug) {
-		unsigned int resolution;
-
-		if (get_msr(cpu, MSR_IA32_THERM_STATUS, &msr))
-			return 0;
-
-		dts = (msr >> 16) & 0x7F;
-		resolution = (msr >> 27) & 0xF;
-		fprintf(outf, "cpu%d: MSR_IA32_THERM_STATUS: 0x%08llx (%d C +/- %d)\n",
-			cpu, msr, tj_max - dts, resolution);
-
-		if (get_msr(cpu, MSR_IA32_THERM_INTERRUPT, &msr))
-			return 0;
-
-		dts = (msr >> 16) & 0x7F;
-		dts2 = (msr >> 8) & 0x7F;
-		fprintf(outf, "cpu%d: MSR_IA32_THERM_INTERRUPT: 0x%08llx (%d C, %d C)\n",
-			cpu, msr, tj_max - dts, tj_max - dts2);
-	}
-
-	return 0;
-}
-
 void print_power_limit_msr(int cpu, unsigned long long msr, char *label)
 {
 	fprintf(outf, "cpu%d: %s: %sabled (%0.3f Watts, %f sec, clamp %sabled)\n",
@@ -5095,29 +5009,20 @@ int print_rapl(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 	return 0;
 }
 
-int get_cpu_type(struct thread_data *t, struct core_data *c, struct pkg_data *p)
+/*
+ * probe_rapl()
+ *
+ * sets rapl_power_units, rapl_energy_units, rapl_time_units
+ */
+void probe_rapl(void)
 {
-	unsigned int eax, ebx, ecx, edx;
+	if (!platform->rapl_msrs)
+		return;
 
-	UNUSED(c);
-	UNUSED(p);
-
-	if (!genuine_intel)
-		return 0;
-
-	if (cpu_migrate(t->cpu_id)) {
-		fprintf(outf, "Could not migrate to CPU %d\n", t->cpu_id);
-		return -1;
-	}
-
-	if (max_level < 0x1a)
-		return 0;
-
-	__cpuid(0x1a, eax, ebx, ecx, edx);
-	eax = (eax >> 24) & 0xFF;
-	if (eax == 0x20)
-		t->is_atom = true;
-	return 0;
+	if (genuine_intel)
+		rapl_probe_intel();
+	if (authentic_amd || hygon_genuine)
+		rapl_probe_amd();
 }
 
 /*
@@ -5197,6 +5102,101 @@ guess:
 	tj_max = TJMAX_DEFAULT;
 	fprintf(outf, "cpu%d: Guessing tjMax %d C, Please use -T to specify\n", cpu, tj_max);
 
+	return 0;
+}
+
+int print_thermal(struct thread_data *t, struct core_data *c, struct pkg_data *p)
+{
+	unsigned long long msr;
+	unsigned int dts, dts2;
+	int cpu;
+
+	UNUSED(c);
+	UNUSED(p);
+
+	if (!(do_dts || do_ptm))
+		return 0;
+
+	cpu = t->cpu_id;
+
+	/* DTS is per-core, no need to print for each thread */
+	if (!(t->flags & CPU_IS_FIRST_THREAD_IN_CORE))
+		return 0;
+
+	if (cpu_migrate(cpu)) {
+		fprintf(outf, "print_thermal: Could not migrate to CPU %d\n", cpu);
+		return -1;
+	}
+
+	if (do_ptm && (t->flags & CPU_IS_FIRST_CORE_IN_PACKAGE)) {
+		if (get_msr(cpu, MSR_IA32_PACKAGE_THERM_STATUS, &msr))
+			return 0;
+
+		dts = (msr >> 16) & 0x7F;
+		fprintf(outf, "cpu%d: MSR_IA32_PACKAGE_THERM_STATUS: 0x%08llx (%d C)\n", cpu, msr, tj_max - dts);
+
+		if (get_msr(cpu, MSR_IA32_PACKAGE_THERM_INTERRUPT, &msr))
+			return 0;
+
+		dts = (msr >> 16) & 0x7F;
+		dts2 = (msr >> 8) & 0x7F;
+		fprintf(outf, "cpu%d: MSR_IA32_PACKAGE_THERM_INTERRUPT: 0x%08llx (%d C, %d C)\n",
+			cpu, msr, tj_max - dts, tj_max - dts2);
+	}
+
+	if (do_dts && debug) {
+		unsigned int resolution;
+
+		if (get_msr(cpu, MSR_IA32_THERM_STATUS, &msr))
+			return 0;
+
+		dts = (msr >> 16) & 0x7F;
+		resolution = (msr >> 27) & 0xF;
+		fprintf(outf, "cpu%d: MSR_IA32_THERM_STATUS: 0x%08llx (%d C +/- %d)\n",
+			cpu, msr, tj_max - dts, resolution);
+
+		if (get_msr(cpu, MSR_IA32_THERM_INTERRUPT, &msr))
+			return 0;
+
+		dts = (msr >> 16) & 0x7F;
+		dts2 = (msr >> 8) & 0x7F;
+		fprintf(outf, "cpu%d: MSR_IA32_THERM_INTERRUPT: 0x%08llx (%d C, %d C)\n",
+			cpu, msr, tj_max - dts, tj_max - dts2);
+	}
+
+	return 0;
+}
+
+void probe_thermal(void)
+{
+	if (!access("/sys/devices/system/cpu/cpu0/thermal_throttle/core_throttle_count", R_OK))
+		BIC_PRESENT(BIC_CORE_THROT_CNT);
+	else
+		BIC_NOT_PRESENT(BIC_CORE_THROT_CNT);
+}
+
+int get_cpu_type(struct thread_data *t, struct core_data *c, struct pkg_data *p)
+{
+	unsigned int eax, ebx, ecx, edx;
+
+	UNUSED(c);
+	UNUSED(p);
+
+	if (!genuine_intel)
+		return 0;
+
+	if (cpu_migrate(t->cpu_id)) {
+		fprintf(outf, "Could not migrate to CPU %d\n", t->cpu_id);
+		return -1;
+	}
+
+	if (max_level < 0x1a)
+		return 0;
+
+	__cpuid(0x1a, eax, ebx, ecx, edx);
+	eax = (eax >> 24) & 0xFF;
+	if (eax == 0x20)
+		t->is_atom = true;
 	return 0;
 }
 
