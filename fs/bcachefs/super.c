@@ -421,6 +421,10 @@ static int __bch2_fs_read_write(struct bch_fs *c, bool early)
 		return ret;
 	}
 
+	ret = bch2_journal_reclaim_start(&c->journal);
+	if (ret)
+		goto err;
+
 	if (!early) {
 		ret = bch2_fs_read_write_late(c);
 		if (ret)
