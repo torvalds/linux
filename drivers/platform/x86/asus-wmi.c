@@ -726,19 +726,18 @@ static ssize_t egpu_enable_store(struct device *dev,
 		return -EINVAL;
 
 	err = asus_wmi_get_devstate_simple(asus, ASUS_WMI_DEVID_EGPU_CONNECTED);
-	if (err < 0)
-		return err;
-	if (err < 1) {
-		err = -ENODEV;
-		pr_warn("Failed to set egpu disable: %d\n", err);
+	if (err < 0) {
+		pr_warn("Failed to get egpu connection status: %d\n", err);
 		return err;
 	}
 
 	if (asus->gpu_mux_mode_available) {
 		result = asus_wmi_get_devstate_simple(asus, ASUS_WMI_DEVID_GPU_MUX);
-		if (result < 0)
+		if (result < 0) {
 			/* An error here may signal greater failure of GPU handling */
+			pr_warn("Failed to get gpu mux status: %d\n", result);
 			return result;
+		}
 		if (!result && enable) {
 			err = -ENODEV;
 			pr_warn("Can not enable eGPU when the MUX is in dGPU mode: %d\n", err);
@@ -748,12 +747,12 @@ static ssize_t egpu_enable_store(struct device *dev,
 
 	err = asus_wmi_set_devstate(ASUS_WMI_DEVID_EGPU, enable, &result);
 	if (err) {
-		pr_warn("Failed to set egpu disable: %d\n", err);
+		pr_warn("Failed to set egpu state: %d\n", err);
 		return err;
 	}
 
 	if (result > 1) {
-		pr_warn("Failed to set egpu disable (retval): 0x%x\n", result);
+		pr_warn("Failed to set egpu state (retval): 0x%x\n", result);
 		return -EIO;
 	}
 
