@@ -1975,6 +1975,11 @@ static void rtw8852c_set_tx_shape(struct rtw89_dev *rtwdev,
 	rtw89_phy_tssi_ctrl_set_bandedge_cfg(rtwdev,
 					     (enum rtw89_mac_idx)phy_idx,
 					     tx_shape_ofdm);
+
+	rtw89_phy_write32_set(rtwdev, R_P0_DAC_COMP_POST_DPD_EN,
+			      B_P0_DAC_COMP_POST_DPD_EN);
+	rtw89_phy_write32_set(rtwdev, R_P1_DAC_COMP_POST_DPD_EN,
+			      B_P1_DAC_COMP_POST_DPD_EN);
 }
 
 static void rtw8852c_set_txpwr(struct rtw89_dev *rtwdev,

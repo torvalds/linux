@@ -56452,9 +56452,12 @@ const struct rtw89_txpwr_track_cfg rtw89_8852c_trk_cfg = {
 
 const struct rtw89_phy_tssi_dbw_table rtw89_8852c_tssi_dbw_table = {
 	.data[RTW89_TSSI_BANDEDGE_FLAT] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-	.data[RTW89_TSSI_BANDEDGE_LOW] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-	.data[RTW89_TSSI_BANDEDGE_MID] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-	.data[RTW89_TSSI_BANDEDGE_HIGH] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+	.data[RTW89_TSSI_BANDEDGE_LOW] = {0x1d, 0x1d, 0x1d, 0x2f, 0xf, 0xf, 0x2f, 0x38,
+					  0x28, 0x18, 0x8, 0x8, 0x18, 0x28, 0x38},
+	.data[RTW89_TSSI_BANDEDGE_MID] = {0x24, 0x24, 0x24, 0x3b, 0x13, 0x13, 0x3b, 0x46,
+					  0x32, 0x1e, 0xa, 0xa, 0x1e, 0x32, 0x46},
+	.data[RTW89_TSSI_BANDEDGE_HIGH] = {0x2a, 0x2a, 0x2a, 0x46, 0x17, 0x17, 0x46, 0x53,
+					   0x3b, 0x24, 0xc, 0xc, 0x24, 0x3b, 0x53},
 };
 
 const struct rtw89_rfe_parms rtw89_8852c_dflt_parms = {
