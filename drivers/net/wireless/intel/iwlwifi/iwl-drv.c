@@ -1795,6 +1795,22 @@ struct iwl_drv *iwl_drv_start(struct iwl_trans *trans)
 #endif
 
 	drv->trans->dbg.domains_bitmap = IWL_TRANS_FW_DBG_DOMAIN(drv->trans);
+	if (iwlwifi_mod_params.enable_ini != ENABLE_INI) {
+		/* We have a non-default value in the module parameter,
+		 * take its value
+		 */
+		drv->trans->dbg.domains_bitmap &= 0xffff;
+		if (iwlwifi_mod_params.enable_ini != IWL_FW_INI_PRESET_DISABLE) {
+			if (iwlwifi_mod_params.enable_ini > ENABLE_INI) {
+				IWL_ERR(trans,
+					"invalid enable_ini module parameter value: max = %d, using 0 instead\n",
+					ENABLE_INI);
+				iwlwifi_mod_params.enable_ini = 0;
+			}
+			drv->trans->dbg.domains_bitmap =
+				BIT(IWL_FW_DBG_DOMAIN_POS + iwlwifi_mod_params.enable_ini);
+		}
+	}
 
 	ret = iwl_request_firmware(drv, true);
 	if (ret) {
@@ -1842,8 +1858,6 @@ void iwl_drv_stop(struct iwl_drv *drv)
 
 	kfree(drv);
 }
-
-#define ENABLE_INI	(IWL_DBG_TLV_MAX_PRESET + 1)
 
 /* shared module parameters */
 struct iwl_mod_params iwlwifi_mod_params = {
@@ -1964,38 +1978,7 @@ module_param_named(uapsd_disable, iwlwifi_mod_params.uapsd_disable, uint, 0644);
 MODULE_PARM_DESC(uapsd_disable,
 		 "disable U-APSD functionality bitmap 1: BSS 2: P2P Client (default: 3)");
 
-static int enable_ini_set(const char *arg, const struct kernel_param *kp)
-{
-	int ret = 0;
-	bool res;
-	__u32 new_enable_ini;
-
-	/* in case the argument type is a number */
-	ret = kstrtou32(arg, 0, &new_enable_ini);
-	if (!ret) {
-		if (new_enable_ini > ENABLE_INI) {
-			pr_err("enable_ini cannot be %d, in range 0-16\n", new_enable_ini);
-			return -EINVAL;
-		}
-		goto out;
-	}
-
-	/* in case the argument type is boolean */
-	ret = kstrtobool(arg, &res);
-	if (ret)
-		return ret;
-	new_enable_ini = (res ? ENABLE_INI : 0);
-
-out:
-	iwlwifi_mod_params.enable_ini = new_enable_ini;
-	return 0;
-}
-
-static const struct kernel_param_ops enable_ini_ops = {
-	.set = enable_ini_set
-};
-
-module_param_cb(enable_ini, &enable_ini_ops, &iwlwifi_mod_params.enable_ini, 0644);
+module_param_named(enable_ini, iwlwifi_mod_params.enable_ini, uint, 0444);
 MODULE_PARM_DESC(enable_ini,
 		 "0:disable, 1-15:FW_DBG_PRESET Values, 16:enabled without preset value defined,"
 		 "Debug INI TLV FW debug infrastructure (default: 16)");
