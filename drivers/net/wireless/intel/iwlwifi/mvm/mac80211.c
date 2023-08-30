@@ -4953,7 +4953,7 @@ static int __iwl_mvm_assign_vif_chanctx(struct iwl_mvm *mvm,
 
 		if (!fw_has_capa(&mvm->fw->ucode_capa,
 				 IWL_UCODE_TLV_CAPA_CHANNEL_SWITCH_CMD)) {
-			u32 duration = 3 * vif->bss_conf.beacon_int;
+			u32 duration = 5 * vif->bss_conf.beacon_int;
 
 			/* Protect the session to make sure we hear the first
 			 * beacon on the new channel.
