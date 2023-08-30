@@ -187,6 +187,8 @@ static __s32 dlfilter__resolve_address(void *ctx, __u64 address, struct perf_dlf
 
 	if (has_priv(d_al_p))
 		d_al_p->priv = memdup(&al, sizeof(al));
+	else /* Avoid leak for v0 API */
+		addr_location__exit(&al);
 
 	return 0;
 }
