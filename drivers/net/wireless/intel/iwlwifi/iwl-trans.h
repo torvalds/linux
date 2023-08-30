@@ -109,6 +109,7 @@ static inline u32 iwl_rx_packet_payload_len(const struct iwl_rx_packet *pkt)
  * @CMD_ASYNC: Return right away and don't wait for the response
  * @CMD_WANT_SKB: Not valid with CMD_ASYNC. The caller needs the buffer of
  *	the response. The caller needs to call iwl_free_resp when done.
+ * @CMD_SEND_IN_RFKILL: Send the command even if the NIC is in RF-kill.
  * @CMD_WANT_ASYNC_CALLBACK: the op_mode's async callback function must be
  *	called after this command completes. Valid only with CMD_ASYNC.
  * @CMD_SEND_IN_D3: Allow the command to be sent in D3 mode, relevant to
@@ -738,6 +739,7 @@ struct iwl_dram_data {
 };
 
 /**
+ * struct iwl_dram_regions - DRAM regions container structure
  * @drams: array of several DRAM areas that contains the pnvm and power
  *	reduction table payloads.
  * @n_regions: number of DRAM regions that were allocated
@@ -866,8 +868,7 @@ struct iwl_trans_debug {
 	u64 unsupported_region_msk;
 	struct iwl_ucode_tlv *active_regions[IWL_FW_INI_MAX_REGION_ID];
 	struct list_head debug_info_tlv_list;
-	struct iwl_dbg_tlv_time_point_data
-		time_point[IWL_FW_INI_TIME_POINT_NUM];
+	struct iwl_dbg_tlv_time_point_data time_point[IWL_FW_INI_TIME_POINT_NUM];
 	struct list_head periodic_trig_list;
 
 	u32 domains_bitmap;
@@ -920,7 +921,6 @@ struct iwl_pcie_first_tb_buf {
 
 /**
  * struct iwl_txq - Tx Queue for DMA
- * @q: generic Rx/Tx queue descriptor
  * @tfds: transmit frame descriptors (DMA memory)
  * @first_tb_bufs: start of command headers, including scratch buffers, for
  *	the writeback -- this is DMA memory and an array holding one buffer
@@ -1064,11 +1064,10 @@ struct iwl_trans_txqs {
  *	starting the firmware, used for tracing
  * @rx_mpdu_cmd_hdr_size: used for tracing, amount of data before the
  *	start of the 802.11 header in the @rx_mpdu_cmd
- * @dflt_pwr_limit: default power limit fetched from the platform (ACPI)
  * @system_pm_mode: the system-wide power management mode in use.
  *	This mode is set dynamically, depending on the WoWLAN values
  *	configured from the userspace at runtime.
- * @iwl_trans_txqs: transport tx queues data.
+ * @txqs: transport tx queues data.
  * @mbx_addr_0_step: step address data 0
  * @mbx_addr_1_step: step address data 1
  * @pcie_link_speed: current PCIe link speed (%PCI_EXP_LNKSTA_CLS_*),
