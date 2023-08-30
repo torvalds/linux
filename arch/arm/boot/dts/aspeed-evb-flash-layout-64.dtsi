@@ -7,22 +7,27 @@ partitions {
 	compatible = "fixed-partitions";
 	#address-cells = <1>;
 	#size-cells = <1>;
+
 	u-boot@0 {
-		reg = <0x0 0xe0000>; // 896KB
+		reg = <0x0 0x140000>; // 1280KB
 		label = "u-boot";
 	};
-	u-boot-env@e0000 {
-		reg = <0xe0000 0x20000>; // 128KB
+
+	u-boot-env@140000 {
+		reg = <0x140000 0x20000>; // 128KB
 		label = "u-boot-env";
 	};
-	kernel@100000 {
-		reg = <0x100000 0x900000>; // 9MB
+
+	kernel@160000 {
+		reg = <0x160000 0x800000>; // 8MB
 		label = "kernel";
 	};
-	rofs@a00000 {
-		reg = <0xa00000 0x2400000>; // 36MB
+
+	rofs@960000 {
+		reg = <0x960000 0x24a0000>; // 36.625MB
 		label = "rofs";
 	};
+
 	rwfs@2e00000 {
 		reg = <0x2e00000 0x1200000>; // 18MB
 		label = "rwfs";
