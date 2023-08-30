@@ -5023,6 +5023,11 @@ void probe_rapl(void)
 		rapl_probe_intel();
 	if (authentic_amd || hygon_genuine)
 		rapl_probe_amd();
+
+	if (quiet)
+		return;
+
+	for_all_cpus(print_rapl, ODD_COUNTERS);
 }
 
 /*
@@ -5173,6 +5178,13 @@ void probe_thermal(void)
 		BIC_PRESENT(BIC_CORE_THROT_CNT);
 	else
 		BIC_NOT_PRESENT(BIC_CORE_THROT_CNT);
+
+	for_all_cpus(set_temperature_target, ODD_COUNTERS);
+
+	if (quiet)
+		return;
+
+	for_all_cpus(print_thermal, ODD_COUNTERS);
 }
 
 int get_cpu_type(struct thread_data *t, struct core_data *c, struct pkg_data *p)
@@ -5380,6 +5392,7 @@ void probe_cstates(void)
 	decode_c6_demotion_policy_msr();
 	print_dev_latency();
 	dump_sysfs_cstate_config();
+	print_irtl();
 }
 
 void probe_lpi(void)
@@ -5413,6 +5426,10 @@ void probe_pstates(void)
 	dump_turbo_ratio_info();
 	dump_sysfs_pstate_config();
 	decode_misc_pwr_mgmt_msr();
+
+	for_all_cpus(print_hwp, ODD_COUNTERS);
+	for_all_cpus(print_epb, ODD_COUNTERS);
+	for_all_cpus(print_perf_limit, ODD_COUNTERS);
 }
 
 void process_cpuid()
@@ -5897,28 +5914,8 @@ void turbostat_init()
 	process_cpuid();
 	linux_perf_init();
 
-	if (!quiet)
-		for_all_cpus(print_hwp, ODD_COUNTERS);
-
-	if (!quiet)
-		for_all_cpus(print_epb, ODD_COUNTERS);
-
-	if (!quiet)
-		for_all_cpus(print_perf_limit, ODD_COUNTERS);
-
-	if (!quiet)
-		for_all_cpus(print_rapl, ODD_COUNTERS);
-
-	for_all_cpus(set_temperature_target, ODD_COUNTERS);
-
 	for_all_cpus(get_cpu_type, ODD_COUNTERS);
 	for_all_cpus(get_cpu_type, EVEN_COUNTERS);
-
-	if (!quiet)
-		for_all_cpus(print_thermal, ODD_COUNTERS);
-
-	if (!quiet)
-		print_irtl();
 
 	if (DO_BIC(BIC_IPC))
 		(void)get_instr_count_fd(base_cpu);
