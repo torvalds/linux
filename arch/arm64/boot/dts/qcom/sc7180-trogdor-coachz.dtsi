@@ -119,10 +119,11 @@ ap_ts_pen_1v8: &i2c4 {
 };
 
 &pm6150_adc {
-	skin-temp-thermistor@4e {
+	channel@4e {
 		reg = <ADC5_AMUX_THM2_100K_PU>;
 		qcom,ratiometric;
 		qcom,hw-settle-time = <200>;
+		label = "skin_therm";
 	};
 };
 

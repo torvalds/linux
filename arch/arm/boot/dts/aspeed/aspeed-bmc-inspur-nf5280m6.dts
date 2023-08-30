@@ -215,7 +215,7 @@
 		label = "outlet";
 	};
 
-	pca9548@70 {
+	i2c-mux@70 {
 		compatible = "nxp,pca9548";
 		reg = <0x70>;
 	};
@@ -224,17 +224,17 @@
 &i2c3 {
 	status = "okay";
 
-	pca9548@70 {
+	i2c-mux@70 {
 		compatible = "nxp,pca9548";
 		reg = <0x70>;
 	};
 
-	pca9548@71 {
+	i2c-mux@71 {
 		compatible = "nxp,pca9548";
 		reg = <0x71>;
 	};
 
-	pca9548@72 {
+	i2c-mux@72 {
 		compatible = "nxp,pca9548";
 		reg = <0x72>;
 	};
@@ -248,7 +248,7 @@
 &i2c5 {
 	status = "okay";
 
-	pca9548@70 {
+	i2c-mux@70 {
 		compatible = "nxp,pca9548";
 		reg = <0x70>;
 	};
@@ -257,7 +257,7 @@
 &i2c6 {
 	status = "okay";
 
-	pca9548@70 {
+	i2c-mux@70 {
 		compatible = "nxp,pca9548";
 		reg = <0x70>;
 	};

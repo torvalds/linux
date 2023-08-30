@@ -38,27 +38,19 @@
 		};
 	};
 
-	regulators {
-		compatible = "simple-bus";
-		#address-cells = <1>;
-		#size-cells = <0>;
+	reg_backlight: regulator-backlight {
+		compatible = "regulator-fixed";
+		regulator-name = "lcd-supply";
+		gpio = <&gpio2 5 0>;
+		startup-delay-us = <5000>;
+	};
 
-		reg_backlight: regulator@0 {
-			compatible = "regulator-fixed";
-			reg = <0>;
-			regulator-name = "lcd-supply";
-			gpio = <&gpio2 5 0>;
-			startup-delay-us = <5000>;
-		};
-
-		reg_3p2v: regulator@1 {
-			compatible = "regulator-fixed";
-			reg = <1>;
-			regulator-name = "3P2V";
-			regulator-min-microvolt = <3200000>;
-			regulator-max-microvolt = <3200000>;
-			regulator-always-on;
-		};
+	reg_3p2v: regulator-3p2v {
+		compatible = "regulator-fixed";
+		regulator-name = "3P2V";
+		regulator-min-microvolt = <3200000>;
+		regulator-max-microvolt = <3200000>;
+		regulator-always-on;
 	};
 
 	sound {
@@ -169,6 +161,7 @@
 	codec: sgtl5000@a {
 		compatible = "fsl,sgtl5000";
 		reg = <0x0a>;
+		#sound-dai-cells = <0>;
 		clocks = <&clks IMX5_CLK_SSI_EXT1_GATE>;
 		VDDA-supply = <&reg_3p2v>;
 		VDDIO-supply = <&reg_3p2v>;

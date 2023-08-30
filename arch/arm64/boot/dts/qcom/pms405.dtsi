@@ -81,45 +81,52 @@
 			#size-cells = <0>;
 			#io-channel-cells = <1>;
 
-			ref_gnd@0 {
+			channel@0 {
 				reg = <ADC5_REF_GND>;
 				qcom,pre-scaling = <1 1>;
+				label = "ref_gnd";
 			};
 
-			vref_1p25@1 {
+			channel@1 {
 				reg = <ADC5_1P25VREF>;
 				qcom,pre-scaling = <1 1>;
+				label = "vref_1p25";
 			};
 
-			pon_1: vph_pwr@131 {
+			channel@131 {
 				reg = <ADC5_VPH_PWR>;
 				qcom,pre-scaling = <1 3>;
+				label = "vph_pwr";
 			};
 
-			die_temp@6 {
+			channel@6 {
 				reg = <ADC5_DIE_TEMP>;
 				qcom,pre-scaling = <1 1>;
+				label = "die_temp";
 			};
 
-			pa_therm1: thermistor1@77 {
+			channel@77 {
 				reg = <ADC5_AMUX_THM1_100K_PU>;
 				qcom,ratiometric;
 				qcom,hw-settle-time = <200>;
 				qcom,pre-scaling = <1 1>;
+				label = "pa_therm1";
 			};
 
-			pa_therm3: thermistor3@79 {
+			channel@79 {
 				reg = <ADC5_AMUX_THM3_100K_PU>;
 				qcom,ratiometric;
 				qcom,hw-settle-time = <200>;
 				qcom,pre-scaling = <1 1>;
+				label = "pa_therm3";
 			};
 
-			xo_therm: xo_temp@76 {
+			channel@76 {
 				reg = <ADC5_XO_THERM_100K_PU>;
 				qcom,ratiometric;
 				qcom,hw-settle-time = <200>;
 				qcom,pre-scaling = <1 1>;
+				label = "xo_therm";
 			};
 		};
 

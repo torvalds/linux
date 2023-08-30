@@ -11,6 +11,7 @@
 #include <dt-bindings/regulator/qcom,rpmh-regulator.h>
 #include <dt-bindings/pinctrl/qcom,pmic-gpio.h>
 #include "sc7180.dtsi"
+#include "sc7180-firmware-tfa.dtsi"
 #include "pm6150.dtsi"
 #include "pm6150l.dtsi"
 

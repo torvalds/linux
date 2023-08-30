@@ -221,7 +221,7 @@
 				"Headphone", "Headphones",
 				"Speaker", "Internal Speakers";
 		audio-aux-devs = <&tdmout_b>, <&tdmin_b>, <&speaker_amp>;
-		audio-routing =	"TDMOUT_B IN 0", "FRDDR_A OUT 1",
+		audio-routing = "TDMOUT_B IN 0", "FRDDR_A OUT 1",
 				"TDM_B Playback", "TDMOUT_B OUT",
 				"TDMIN_B IN 1", "TDM_B Capture",
 				"TDMIN_B IN 4", "TDM_B Loopback",

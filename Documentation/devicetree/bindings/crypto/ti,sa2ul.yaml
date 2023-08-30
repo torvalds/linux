@@ -66,9 +66,21 @@ patternProperties:
 required:
   - compatible
   - reg
-  - power-domains
   - dmas
   - dma-names
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: ti,am62-sa3ul
+    then:
+      properties:
+        power-domains: false
+    else:
+      required:
+        - power-domains
 
 additionalProperties: false
 

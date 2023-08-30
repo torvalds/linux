@@ -380,7 +380,6 @@
 		interrupts = <GIC_SPI 36 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&tegra_car TEGRA124_CLK_UARTA>;
 		resets = <&tegra_car 6>;
-		reset-names = "serial";
 		dmas = <&apbdma 8>, <&apbdma 8>;
 		dma-names = "rx", "tx";
 		status = "disabled";
@@ -393,7 +392,6 @@
 		interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&tegra_car TEGRA124_CLK_UARTB>;
 		resets = <&tegra_car 7>;
-		reset-names = "serial";
 		dmas = <&apbdma 9>, <&apbdma 9>;
 		dma-names = "rx", "tx";
 		status = "disabled";
@@ -406,7 +404,6 @@
 		interrupts = <GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&tegra_car TEGRA124_CLK_UARTC>;
 		resets = <&tegra_car 55>;
-		reset-names = "serial";
 		dmas = <&apbdma 10>, <&apbdma 10>;
 		dma-names = "rx", "tx";
 		status = "disabled";
@@ -419,7 +416,6 @@
 		interrupts = <GIC_SPI 90 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&tegra_car TEGRA124_CLK_UARTD>;
 		resets = <&tegra_car 65>;
-		reset-names = "serial";
 		dmas = <&apbdma 19>, <&apbdma 19>;
 		dma-names = "rx", "tx";
 		status = "disabled";

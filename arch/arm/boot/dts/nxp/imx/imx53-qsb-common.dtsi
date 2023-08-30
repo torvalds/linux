@@ -16,6 +16,13 @@
 		      <0xb0000000 0x20000000>;
 	};
 
+	backlight_parallel: backlight-parallel {
+		compatible = "pwm-backlight";
+		pwms = <&pwm2 0 5000000 0>;
+		brightness-levels = <0 4 8 16 32 64 128 255>;
+		default-brightness-level = <7>;
+	};
+
 	display0: disp0 {
 		compatible = "fsl,imx-parallel-display";
 		pinctrl-names = "default";
@@ -80,6 +87,10 @@
 
 	panel {
 		compatible = "sii,43wvf1g";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_display_power>;
+		backlight = <&backlight_parallel>;
+		enable-gpios = <&gpio3 24 GPIO_ACTIVE_HIGH>;
 
 		port {
 			panel_in: endpoint {
@@ -88,29 +99,21 @@
 		};
 	};
 
-	regulators {
-		compatible = "simple-bus";
-		#address-cells = <1>;
-		#size-cells = <0>;
+	reg_3p2v: regulator-3p2v {
+		compatible = "regulator-fixed";
+		regulator-name = "3P2V";
+		regulator-min-microvolt = <3200000>;
+		regulator-max-microvolt = <3200000>;
+		regulator-always-on;
+	};
 
-		reg_3p2v: regulator@0 {
-			compatible = "regulator-fixed";
-			reg = <0>;
-			regulator-name = "3P2V";
-			regulator-min-microvolt = <3200000>;
-			regulator-max-microvolt = <3200000>;
-			regulator-always-on;
-		};
-
-		reg_usb_vbus: regulator@1 {
-			compatible = "regulator-fixed";
-			reg = <1>;
-			regulator-name = "usb_vbus";
-			regulator-min-microvolt = <5000000>;
-			regulator-max-microvolt = <5000000>;
-			gpio = <&gpio7 8 0>;
-			enable-active-high;
-		};
+	reg_usb_vbus: regulator-usb-vbus {
+		compatible = "regulator-fixed";
+		regulator-name = "usb_vbus";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		gpio = <&gpio7 8 0>;
+		enable-active-high;
 	};
 
 	sound {
@@ -199,6 +202,12 @@
 		pinctrl_codec: codecgrp {
 			fsl,pins = <
 				MX53_PAD_GPIO_0__CCM_SSI_EXT1_CLK	0x1c4
+			>;
+		};
+
+		pinctrl_display_power: displaypowergrp {
+			fsl,pins = <
+				MX53_PAD_EIM_D24__GPIO3_24		0x1e4
 			>;
 		};
 
@@ -292,6 +301,12 @@
 			>;
 		};
 
+		pinctrl_pwm2: pwm2grp {
+			fsl,pins = <
+				MX53_PAD_GPIO_1__PWM2_PWMO		0x5
+			>;
+		};
+
 		pinctrl_vga_sync: vgasync-grp {
 			fsl,pins = <
 				/* VGA_HSYNC, VSYNC with max drive strength */
@@ -364,6 +379,12 @@
 	pinctrl-0 = <&pinctrl_fec>;
 	phy-mode = "rmii";
 	phy-reset-gpios = <&gpio7 6 GPIO_ACTIVE_LOW>;
+	status = "okay";
+};
+
+&pwm2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pwm2>;
 	status = "okay";
 };
 

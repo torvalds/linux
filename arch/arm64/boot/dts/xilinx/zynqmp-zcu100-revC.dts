@@ -180,8 +180,8 @@
 	pinctrl-names = "default", "gpio";
 	pinctrl-0 = <&pinctrl_i2c1_default>;
 	pinctrl-1 = <&pinctrl_i2c1_gpio>;
-	scl-gpios = <&gpio 4 GPIO_ACTIVE_HIGH>;
-	sda-gpios = <&gpio 5 GPIO_ACTIVE_HIGH>;
+	scl-gpios = <&gpio 4 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+	sda-gpios = <&gpio 5 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 	clock-frequency = <100000>;
 	i2c-mux@75 { /* u11 */
 		compatible = "nxp,pca9548";

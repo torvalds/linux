@@ -603,7 +603,7 @@
 
 			resets = <&gcc GCC_USB30_BCR>;
 
-			usb_dwc3: dwc3@a600000 {
+			usb_dwc3: usb@a600000 {
 				compatible = "snps,dwc3";
 				reg = <0x0a600000 0xcd00>;
 				interrupts = <GIC_SPI 133 IRQ_TYPE_LEVEL_HIGH>;

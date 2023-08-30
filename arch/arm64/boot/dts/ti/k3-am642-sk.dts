@@ -5,12 +5,13 @@
 
 /dts-v1/;
 
-#include <dt-bindings/mux/ti-serdes.h>
 #include <dt-bindings/phy/phy.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/net/ti-dp83867.h>
 #include <dt-bindings/leds/common.h>
 #include "k3-am642.dtsi"
+
+#include "k3-serdes.h"
 
 / {
 	compatible = "ti,am642-sk", "ti,am642";
@@ -512,11 +513,8 @@
 	};
 };
 
-&tscadc0 {
-	status = "disabled";
-};
-
 &ospi0 {
+	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&ospi0_pins_default>;
 

@@ -677,12 +677,6 @@
 	clock-frequency = <100000>;
 };
 
-&cpu0_opp_table {
-	opp_slow-500000000 {
-		opp-shared;
-	};
-};
-
 &ipu2 {
 	status = "okay";
 	memory-region = <&ipu2_memory_region>;
