@@ -333,6 +333,10 @@ enum adv7511_type {
 
 #define ADV7511_MAX_ADDRS 3
 
+struct adv7511_chip_info {
+	enum adv7511_type type;
+};
+
 struct adv7511 {
 	struct i2c_client *i2c_main;
 	struct i2c_client *i2c_edid;
@@ -377,7 +381,7 @@ struct adv7511 {
 	u8 num_dsi_lanes;
 	bool use_timing_gen;
 
-	enum adv7511_type type;
+	const struct adv7511_chip_info *info;
 	struct platform_device *audio_pdev;
 
 	struct cec_adapter *cec_adap;
