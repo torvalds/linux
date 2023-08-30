@@ -49,7 +49,7 @@ config CRYPTO_DEV_ASPEED_HACE_CRYPTO
 
 config CRYPTO_DEV_ASPEED_ACRY
 	bool "Enable Aspeed ACRY RSA Engine"
-	depends on CRYPTO_DEV_ASPEED
+	depends on CRYPTO_DEV_ASPEED && MACH_ASPEED_G6
 	select CRYPTO_ENGINE
 	select CRYPTO_RSA
 	help
@@ -57,3 +57,20 @@ config CRYPTO_DEV_ASPEED_ACRY
 	  RSA driver.
 	  Supports 256 bits to 4096 bits RSA encryption/decryption
 	  and signature/verification.
+
+config CRYPTO_DEV_ASPEED_RSSS
+	bool "Enable Aspeed RSSS Engine"
+	depends on CRYPTO_DEV_ASPEED && MACH_ASPEED_G7
+	select CRYPTO_ENGINE
+	select CRYPTO_RSA
+	select CRYPTO_SHA3
+	select CRYPTO_SM3
+	select CRYPTO_SM4
+	help
+	  Select here to enable Aspeed RSSS Engine driver.
+	  Supports RSA 512 to 4096 bits encryption/decryption and
+	  signature/verification, SHA3-224/256/384/512 and XOF of
+	  SHAKE 128/256, SM3 Hash crypto, SM4 ECB/CBC/CFB/OFB/CTR
+	  cryptographic algorithms.
+	  It's a new hardware design from ast2700 for simply SRAM
+	  layout.
