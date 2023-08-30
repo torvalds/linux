@@ -5,6 +5,7 @@
  * Copyright (C) 2016-2018 Linaro Ltd.
  * Copyright (C) 2014 Sony Mobile Communications AB
  * Copyright (c) 2012-2013, 2020-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
@@ -107,14 +108,14 @@ static irqreturn_t q6v5_wdog_interrupt(int irq, void *data)
 	}
 
 	msg = qcom_smem_get(QCOM_SMEM_HOST_ANY, q6v5->crash_reason, &len);
-	if (!IS_ERR(msg) && len > 0 && msg[0])
+	if (!IS_ERR(msg) && len > 0 && msg[0]) {
 		dev_err(q6v5->dev, "watchdog received: %s\n", msg);
-	else
+		trace_rproc_qcom_event(dev_name(q6v5->dev), "q6v5_wdog", msg);
+	} else {
 		dev_err(q6v5->dev, "watchdog without message\n");
+	}
 
 	q6v5->running = false;
-
-	trace_rproc_qcom_event(dev_name(q6v5->dev), "q6v5_wdog", msg);
 	dev_err(q6v5->dev, "rproc recovery state: %s\n",
 		q6v5->rproc->recovery_disabled ?
 		"disabled and lead to device crash" :
@@ -144,13 +145,14 @@ static irqreturn_t q6v5_fatal_interrupt(int irq, void *data)
 	}
 
 	msg = qcom_smem_get(QCOM_SMEM_HOST_ANY, q6v5->crash_reason, &len);
-	if (!IS_ERR(msg) && len > 0 && msg[0])
+	if (!IS_ERR(msg) && len > 0 && msg[0]) {
 		dev_err(q6v5->dev, "fatal error received: %s\n", msg);
-	else
+		trace_rproc_qcom_event(dev_name(q6v5->dev), "q6v5_fatal", msg);
+	} else {
 		dev_err(q6v5->dev, "fatal error without message\n");
+	}
 
 	q6v5->running = false;
-	trace_rproc_qcom_event(dev_name(q6v5->dev), "q6v5_fatal", msg);
 	dev_err(q6v5->dev, "rproc recovery state: %s\n",
 		q6v5->rproc->recovery_disabled ? "disabled and lead to device crash" :
 		"enabled and kick reovery process");
