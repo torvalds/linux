@@ -345,11 +345,7 @@ static void wave5_vpu_dec_finish_decode(struct vpu_instance *inst)
 						      ((stride / 2) * (height / 2)));
 			}
 
-			if (inst->timestamp) {
-				dst_buf->vb2_buf.timestamp = inst->timestamp;
-			} else {
-				dst_buf->vb2_buf.timestamp = inst->timestamp_cnt++ * inst->codec_info->dec_info.initial_info.ns_per_frame;
-			}
+			dst_buf->vb2_buf.timestamp = inst->timestamp_cnt++ * inst->codec_info->dec_info.initial_info.ns_per_frame;
 
 			dst_buf->field = V4L2_FIELD_NONE;
 			v4l2_m2m_buf_done(dst_buf, VB2_BUF_STATE_DONE);
@@ -897,6 +893,7 @@ static int wave5_vpu_dec_queue_setup(struct vb2_queue *q, unsigned int *num_buff
 		//if (*num_buffers > inst->min_dst_buf_count &&
 		//    *num_buffers < WAVE5_MAX_FBS)
 		//	inst->dst_buf_count = *num_buffers;
+		inst->dst_buf_count += 2;
 
 		*num_buffers = inst->dst_buf_count;
 		non_linear_num = inst->dst_buf_count;
