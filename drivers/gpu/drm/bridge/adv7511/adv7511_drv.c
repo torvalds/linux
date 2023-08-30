@@ -1035,7 +1035,7 @@ static bool adv7511_cec_register_volatile(struct device *dev, unsigned int reg)
 	struct i2c_client *i2c = to_i2c_client(dev);
 	struct adv7511 *adv7511 = i2c_get_clientdata(i2c);
 
-	reg -= adv7511->reg_cec_offset;
+	reg -= adv7511->info->reg_cec_offset;
 
 	switch (reg) {
 	case ADV7511_REG_CEC_RX1_FRAME_HDR:
@@ -1086,12 +1086,10 @@ static int adv7511_init_cec_regmap(struct adv7511 *adv)
 		goto err;
 	}
 
-	if (adv->info->type == ADV7533 || adv->info->type == ADV7535) {
+	if (adv->info->reg_cec_offset == ADV7533_REG_CEC_OFFSET) {
 		ret = adv7533_patch_cec_registers(adv);
 		if (ret)
 			goto err;
-
-		adv->reg_cec_offset = ADV7533_REG_CEC_OFFSET;
 	}
 
 	return 0;
@@ -1368,6 +1366,7 @@ static const struct adv7511_chip_info adv7533_chip_info = {
 	.max_lane_freq_khz = 800000,
 	.supply_names = adv7533_supply_names,
 	.num_supplies = ARRAY_SIZE(adv7533_supply_names),
+	.reg_cec_offset = ADV7533_REG_CEC_OFFSET,
 };
 
 static const struct adv7511_chip_info adv7535_chip_info = {
@@ -1376,6 +1375,7 @@ static const struct adv7511_chip_info adv7535_chip_info = {
 	.max_lane_freq_khz = 891000,
 	.supply_names = adv7533_supply_names,
 	.num_supplies = ARRAY_SIZE(adv7533_supply_names),
+	.reg_cec_offset = ADV7533_REG_CEC_OFFSET,
 };
 
 static const struct i2c_device_id adv7511_i2c_ids[] = {

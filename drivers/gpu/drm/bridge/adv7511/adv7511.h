@@ -339,6 +339,7 @@ struct adv7511_chip_info {
 	unsigned int max_lane_freq_khz;
 	const char * const *supply_names;
 	unsigned int num_supplies;
+	unsigned int reg_cec_offset;
 };
 
 struct adv7511 {
@@ -349,7 +350,6 @@ struct adv7511 {
 
 	struct regmap *regmap;
 	struct regmap *regmap_cec;
-	unsigned int reg_cec_offset;
 	enum drm_connector_status status;
 	bool powered;
 
