@@ -1507,7 +1507,7 @@ static void iwl_mvm_decode_he_phy_data(struct iwl_mvm *mvm,
 #define IWL_RX_RU_DATA_A1			2
 #define IWL_RX_RU_DATA_A2			2
 #define IWL_RX_RU_DATA_B1			2
-#define IWL_RX_RU_DATA_B2			3
+#define IWL_RX_RU_DATA_B2			4
 #define IWL_RX_RU_DATA_C1			3
 #define IWL_RX_RU_DATA_C2			3
 #define IWL_RX_RU_DATA_D1			4
