@@ -427,6 +427,13 @@ double expr__get_literal(const char *literal, const struct expr_scanner_ctx *ctx
 		result = cpu__max_present_cpu().cpu;
 		goto out;
 	}
+	if (!strcmp("#num_cpus_online", literal)) {
+		struct perf_cpu_map *online = cpu_map__online();
+
+		if (online)
+			result = perf_cpu_map__nr(online);
+		goto out;
+	}
 
 	if (!strcasecmp("#system_tsc_freq", literal)) {
 		result = arch_get_tsc_freq();
