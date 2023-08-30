@@ -44,9 +44,11 @@ DECLARE_CRC8_TABLE(i3c_crc8_table);
 
 #define DEVICE_ADDR			0x4
 #define DEV_ADDR_DYNAMIC_ADDR_VALID	BIT(31)
-#define DEV_ADDR_DYNAMIC(x)		(((x) << 16) & GENMASK(22, 16))
+#define DEV_ADDR_DYNAMIC_MASK		GENMASK(22, 16)
+#define DEV_ADDR_DYNAMIC(x)		(((x) << 16) & DEV_ADDR_DYNAMIC_MASK)
 #define DEV_ADDR_STATIC_ADDR_VALID	BIT(15)
-#define DEV_ADDR_STATIC(x)		(((x) << 0) & GENMASK(6, 0))
+#define DEV_ADDR_STATIC_MASK		GENMASK(6, 0)
+#define DEV_ADDR_STATIC(x)		(((x) << 0) & DEV_ADDR_STATIC_MASK)
 
 #define HW_CAPABILITY			0x8
 #define COMMAND_QUEUE_PORT		0xc
@@ -2576,13 +2578,15 @@ static void aspeed_i3c_master_recycle_ibi_slot(struct i3c_dev_desc *dev,
 	i3c_generic_ibi_recycle_slot(data->ibi_pool, slot);
 }
 
-static uint8_t *pec_append(struct i3c_device_info *dev, uint8_t *ptr, uint8_t len)
+static uint8_t *pec_append(struct aspeed_i3c_master *master, uint8_t *ptr, uint8_t len)
 {
 	uint8_t *xfer_buf;
 	uint8_t pec_v;
 	uint8_t addr_rnw;
 
-	addr_rnw = dev->dyn_addr << 1 | 0x1;
+	addr_rnw = FIELD_GET(DEV_ADDR_DYNAMIC_MASK,
+			     readl(master->regs + DEVICE_ADDR));
+	addr_rnw = addr_rnw << 1 | 0x1;
 	xfer_buf = kmalloc(len + 1, GFP_KERNEL);
 	memcpy(xfer_buf, ptr, len);
 
@@ -2649,7 +2653,7 @@ static int aspeed_i3c_master_send_sir(struct i3c_master_controller *m,
 	writel(reg, master->regs + DEVICE_CTRL);
 
 	if (!master->ibi_wo_pec) {
-		data = pec_append(&m->this->info, data, payload_len);
+		data = pec_append(master, data, payload_len);
 		payload_len += 1;
 	}
 
@@ -2716,7 +2720,7 @@ static int aspeed_i3c_master_put_read_data(struct i3c_master_controller *m,
 		writel(reg, master->regs + DEVICE_CTRL);
 
 		if (!master->ibi_wo_pec) {
-			buf = pec_append(&m->this->info, buf, ibi_len);
+			buf = pec_append(master, buf, ibi_len);
 			ibi_len += 1;
 		}
 		aspeed_i3c_master_wr_tx_fifo(master, buf, ibi_len);
