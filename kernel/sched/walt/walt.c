@@ -3925,6 +3925,14 @@ void find_heaviest_topapp(u64 window_start)
 	}
 
 	last_rearrange_ns = window_start;
+
+	if (trace_sched_pipeline_tasks_enabled()) {
+		for (i = 0; i < WALT_NR_CPUS; i++) {
+			if (heavy_wts[i] != NULL)
+				trace_sched_pipeline_tasks(AUTO_PIPELINE, i, heavy_wts[i]);
+		}
+	}
+
 	raw_spin_unlock(&heavy_lock);
 	raw_spin_unlock_irqrestore(&grp->lock, flags);
 }
@@ -3939,6 +3947,7 @@ static inline void swap_pipeline_with_prime_locked(struct walt_task_struct *prim
 			cpu = other_wts->pipeline_cpu;
 			other_wts->pipeline_cpu = prime_wts->pipeline_cpu;
 			prime_wts->pipeline_cpu = cpu;
+			trace_sched_pipeline_swapped(other_wts, prime_wts);
 		}
 	} else if (!prime_wts && other_wts) {
 		/* if prime preferred died promote gold to prime, assumes 1 prime */
@@ -4151,6 +4160,13 @@ void rearrange_pipeline_preferred_cpus(u64 window_start)
 
 	/* swap prime for nr_piprline >= 3 */
 	swap_pipeline_with_prime_locked(prime_wts, other_wts);
+
+	if (trace_sched_pipeline_tasks_enabled()) {
+		for (i = 0; i < WALT_NR_CPUS; i++) {
+			if (pipeline_wts[i] != NULL)
+				trace_sched_pipeline_tasks(MANUAL_PIPELINE, i, pipeline_wts[i]);
+		}
+	}
 
 release_lock:
 	raw_spin_unlock_irqrestore(&pipeline_lock, flags);
