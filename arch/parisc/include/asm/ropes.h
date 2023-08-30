@@ -29,7 +29,7 @@
 struct ioc {
 	void __iomem	*ioc_hpa;	/* I/O MMU base address */
 	char		*res_map;	/* resource map, bit == pdir entry */
-	u64		*pdir_base;	/* physical base address */
+	__le64		*pdir_base;	/* physical base address */
 	unsigned long	ibase;		/* pdir IOV Space base - shared w/lba_pci */
 	unsigned long	imask;		/* pdir IOV Space mask - shared w/lba_pci */
 #ifdef ZX1_SUPPORT
@@ -113,7 +113,7 @@ static inline int IS_PLUTO(struct parisc_device *d) {
 
 #define SBA_PDIR_VALID_BIT	0x8000000000000000ULL
 
-#define SBA_AGPGART_COOKIE	0x0000badbadc0ffeeULL
+#define SBA_AGPGART_COOKIE	(__force __le64) 0x0000badbadc0ffeeULL
 
 #define SBA_FUNC_ID	0x0000	/* function id */
 #define SBA_FCLASS	0x0008	/* function class, bist, header, rev... */
