@@ -1678,13 +1678,14 @@ static int smu_disable_dpms(struct smu_context *smu)
 	}
 
 	/*
-	 * For SMU 13.0.4/11, PMFW will handle the features disablement properly
+	 * For SMU 13.0.4/11 and 14.0.0, PMFW will handle the features disablement properly
 	 * for gpu reset and S0i3 cases. Driver involvement is unnecessary.
 	 */
 	if (amdgpu_in_reset(adev) || adev->in_s0ix) {
 		switch (amdgpu_ip_version(adev, MP1_HWIP, 0)) {
 		case IP_VERSION(13, 0, 4):
 		case IP_VERSION(13, 0, 11):
+		case IP_VERSION(14, 0, 0):
 			return 0;
 		default:
 			break;
