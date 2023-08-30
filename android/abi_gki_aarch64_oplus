@@ -163,6 +163,7 @@
   __traceiter_sched_waking
   __traceiter_task_rename
   __traceiter_android_vh_test_clear_look_around_ref
+  __traceiter_android_vh_tune_swappiness
   __tracepoint_android_rvh_post_init_entity_util_avg
   __tracepoint_android_rvh_rtmutex_force_update
   __tracepoint_android_vh_account_process_tick_gran
@@ -226,6 +227,7 @@
   __tracepoint_android_vh_sync_txn_recvd
   __tracepoint_android_vh_task_blocks_on_rtmutex
   __tracepoint_android_vh_test_clear_look_around_ref
+  __tracepoint_android_vh_tune_swappiness
   __tracepoint_block_bio_queue
   __tracepoint_block_getrq
   __tracepoint_block_rq_complete
