@@ -29,6 +29,7 @@ struct xe_pat_ops;
 #define GRAPHICS_VERx100(xe) ((xe)->info.graphics_verx100)
 #define MEDIA_VERx100(xe) ((xe)->info.media_verx100)
 #define IS_DGFX(xe) ((xe)->info.is_dgfx)
+#define HAS_HECI_GSCFI(xe) ((xe)->info.has_heci_gscfi)
 
 #define XE_VRAM_FLAGS_NEED64K		BIT(0)
 
@@ -249,6 +250,8 @@ struct xe_device {
 		u8 bypass_mtcfg:1;
 		/** @supports_mmio_ext: supports MMIO extension/s */
 		u8 supports_mmio_ext:1;
+		/** @has_heci_gscfi: device has heci gscfi */
+		u8 has_heci_gscfi:1;
 	} info;
 
 	/** @irq: device interrupt state */
