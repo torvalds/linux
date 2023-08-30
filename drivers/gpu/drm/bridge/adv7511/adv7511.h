@@ -340,6 +340,7 @@ struct adv7511_chip_info {
 	const char * const *supply_names;
 	unsigned int num_supplies;
 	unsigned int reg_cec_offset;
+	bool has_dsi;
 };
 
 struct adv7511 {
