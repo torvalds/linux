@@ -30,12 +30,21 @@
 #define XHCI_MTK_MAX_ESIT	(1 << 6)
 #define XHCI_MTK_BW_INDEX(x)	((x) & (XHCI_MTK_MAX_ESIT - 1))
 
+#define UFRAMES_PER_FRAME	8
+#define XHCI_MTK_FRAMES_CNT	(XHCI_MTK_MAX_ESIT / UFRAMES_PER_FRAME)
+
 /**
- * @fs_bus_bw: array to keep track of bandwidth already used for FS
+ * @fs_bus_bw_out: save bandwidth used by FS/LS OUT eps in each uframes
+ * @fs_bus_bw_in: save bandwidth used by FS/LS IN eps in each uframes
+ * @ls_bus_bw: save bandwidth used by LS eps in each uframes
+ * @fs_frame_bw: save bandwidth used by FS/LS eps in each FS frames
  * @ep_list: Endpoints using this TT
  */
 struct mu3h_sch_tt {
-	u32 fs_bus_bw[XHCI_MTK_MAX_ESIT];
+	u16 fs_bus_bw_out[XHCI_MTK_MAX_ESIT];
+	u16 fs_bus_bw_in[XHCI_MTK_MAX_ESIT];
+	u8 ls_bus_bw[XHCI_MTK_MAX_ESIT];
+	u16 fs_frame_bw[XHCI_MTK_FRAMES_CNT];
 	struct list_head ep_list;
 };
 
