@@ -3278,7 +3278,8 @@ int insert_vm_struct(struct mm_struct *mm, struct vm_area_struct *vma)
 	}
 
 	if (vma_link(mm, vma)) {
-		vm_unacct_memory(charged);
+		if (vma->vm_flags & VM_ACCOUNT)
+			vm_unacct_memory(charged);
 		return -ENOMEM;
 	}
 
