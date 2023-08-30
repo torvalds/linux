@@ -67,8 +67,12 @@ static void map_hw_resources(struct dml2_context *dml2,
 		in_out_display_cfg->hw.DPPPerSurface[i] = mode_support_info->DPPPerSurface[i];
 		in_out_display_cfg->hw.DSCEnabled[i] = mode_support_info->DSCEnabled[i];
 		in_out_display_cfg->hw.NumberOfDSCSlices[i] = mode_support_info->NumberOfDSCSlices[i];
-		in_out_display_cfg->hw.DLGRefClkFreqMHz = 50;
-
+		in_out_display_cfg->hw.DLGRefClkFreqMHz = 24;
+		if (dml2->v20.dml_core_ctx.project != dml_project_dcn35 &&
+			dml2->v20.dml_core_ctx.project != dml_project_dcn351) {
+			/*dGPU default as 50Mhz*/
+			in_out_display_cfg->hw.DLGRefClkFreqMHz = 50;
+		}
 		for (j = 0; j < mode_support_info->DPPPerSurface[i]; j++) {
 			dml2->v20.scratch.dml_to_dc_pipe_mapping.dml_pipe_idx_to_stream_id[num_pipes] = dml2->v20.scratch.dml_to_dc_pipe_mapping.disp_cfg_to_stream_id[i];
 			dml2->v20.scratch.dml_to_dc_pipe_mapping.dml_pipe_idx_to_stream_id_valid[num_pipes] = true;

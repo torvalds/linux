@@ -733,8 +733,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 	.support_eDP1_5 = true,
 	.enable_hpo_pg_support = false,
 	.enable_legacy_fast_update = true,
-	.disable_stutter = true,
-	.enable_single_display_2to1_odm_policy = true,
+	.enable_single_display_2to1_odm_policy = false,
 	.disable_idle_power_optimizations = true,
 	.dmcub_emulation = false,
 	.disable_boot_optimizations = false,
@@ -1835,6 +1834,7 @@ static bool dcn35_resource_construct(
 
 	/* Use pipe context based otg sync logic */
 	dc->config.use_pipe_ctx_sync_logic = true;
+	dc->config.use_default_clock_table = true;
 	/* read VBIOS LTTPR caps */
 	{
 		if (ctx->dc_bios->funcs->get_lttpr_caps) {
@@ -2065,11 +2065,10 @@ static bool dcn35_resource_construct(
 
 	dc->cap_funcs = cap_funcs;
 
-
 	dc->dcn_ip->max_num_dpp = pool->base.pipe_count;
 
 	dc->dml2_options.dcn_pipe_count = pool->base.pipe_count;
-	dc->dml2_options.use_native_pstate_optimization = false;
+	dc->dml2_options.use_native_pstate_optimization = true;
 	dc->dml2_options.use_native_soc_bb_construction = true;
 	if (dc->config.EnableMinDispClkODM)
 		dc->dml2_options.minimize_dispclk_using_odm = true;
