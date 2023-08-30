@@ -2890,7 +2890,7 @@ static size_t __vb2_perform_fileio(struct vb2_queue *q, char __user *data, size_
 		if (copy_timestamp)
 			b->timestamp = ktime_get_ns();
 		ret = vb2_core_qbuf(q, index, NULL, NULL);
-		dprintk(q, 5, "vb2_dbuf result: %d\n", ret);
+		dprintk(q, 5, "vb2_qbuf result: %d\n", ret);
 		if (ret)
 			return ret;
 
