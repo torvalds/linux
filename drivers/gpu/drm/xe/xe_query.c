@@ -127,7 +127,6 @@ static int query_memory_usage(struct xe_device *xe,
 	usage->regions[0].mem_class = XE_MEM_REGION_CLASS_SYSMEM;
 	usage->regions[0].instance = 0;
 	usage->regions[0].min_page_size = PAGE_SIZE;
-	usage->regions[0].max_page_size = PAGE_SIZE;
 	usage->regions[0].total_size = man->size << PAGE_SHIFT;
 	if (perfmon_capable())
 		usage->regions[0].used = ttm_resource_manager_usage(man);
@@ -143,8 +142,6 @@ static int query_memory_usage(struct xe_device *xe,
 			usage->regions[usage->num_regions].min_page_size =
 				xe->info.vram_flags & XE_VRAM_FLAGS_NEED64K ?
 				SZ_64K : PAGE_SIZE;
-			usage->regions[usage->num_regions].max_page_size =
-				SZ_1G;
 			usage->regions[usage->num_regions].total_size =
 				man->size;
 

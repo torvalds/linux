@@ -175,10 +175,6 @@ struct drm_xe_query_mem_region {
 	 */
 	__u32 min_page_size;
 	/**
-	 * @max_page_size: Max page-size in bytes for this region.
-	 */
-	__u32 max_page_size;
-	/**
 	 * @total_size: The usable size in bytes for this region.
 	 */
 	__u64 total_size;
