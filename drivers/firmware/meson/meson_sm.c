@@ -67,7 +67,7 @@ static u32 meson_sm_get_cmd(const struct meson_sm_chip *chip,
 	return cmd->smc_id;
 }
 
-static u32 __meson_sm_call(u32 cmd, u32 arg0, u32 arg1, u32 arg2,
+static s32 __meson_sm_call(u32 cmd, u32 arg0, u32 arg1, u32 arg2,
 			   u32 arg3, u32 arg4)
 {
 	struct arm_smccc_res res;
@@ -102,9 +102,10 @@ static void __iomem *meson_sm_map_shmem(u32 cmd_shmem, unsigned int size)
  * Return:	0 on success, a negative value on error
  */
 int meson_sm_call(struct meson_sm_firmware *fw, unsigned int cmd_index,
-		  u32 *ret, u32 arg0, u32 arg1, u32 arg2, u32 arg3, u32 arg4)
+		  s32 *ret, u32 arg0, u32 arg1, u32 arg2, u32 arg3, u32 arg4)
 {
-	u32 cmd, lret;
+	u32 cmd;
+	s32 lret;
 
 	if (!fw->chip)
 		return -ENOENT;
@@ -143,7 +144,7 @@ int meson_sm_call_read(struct meson_sm_firmware *fw, void *buffer,
 		       unsigned int bsize, unsigned int cmd_index, u32 arg0,
 		       u32 arg1, u32 arg2, u32 arg3, u32 arg4)
 {
-	u32 size;
+	s32 size;
 	int ret;
 
 	if (!fw->chip)
@@ -158,11 +159,16 @@ int meson_sm_call_read(struct meson_sm_firmware *fw, void *buffer,
 	if (meson_sm_call(fw, cmd_index, &size, arg0, arg1, arg2, arg3, arg4) < 0)
 		return -EINVAL;
 
-	if (size > bsize)
+	if (size < 0 || size > bsize)
 		return -EINVAL;
 
 	ret = size;
 
+	/* In some cases (for example GET_CHIP_ID command),
+	 * SMC doesn't return the number of bytes read, even
+	 * though the bytes were actually read into sm_shmem_out.
+	 * So this check is needed.
+	 */
 	if (!size)
 		size = bsize;
 
@@ -192,7 +198,7 @@ int meson_sm_call_write(struct meson_sm_firmware *fw, void *buffer,
 			unsigned int size, unsigned int cmd_index, u32 arg0,
 			u32 arg1, u32 arg2, u32 arg3, u32 arg4)
 {
-	u32 written;
+	s32 written;
 
 	if (!fw->chip)
 		return -ENOENT;
@@ -208,7 +214,7 @@ int meson_sm_call_write(struct meson_sm_firmware *fw, void *buffer,
 	if (meson_sm_call(fw, cmd_index, &written, arg0, arg1, arg2, arg3, arg4) < 0)
 		return -EINVAL;
 
-	if (!written)
+	if (written <= 0 || written > size)
 		return -EINVAL;
 
 	return written;
