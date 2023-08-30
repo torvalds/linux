@@ -55,6 +55,7 @@
  * cancelled as soon as busyness is detected.
  */
 
+#include "gem/i915_gem_object_frontbuffer.h"
 #include "i915_drv.h"
 #include "intel_display_trace.h"
 #include "intel_display_types.h"
