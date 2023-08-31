@@ -416,6 +416,7 @@ int tb_switch_tmu_disable(struct tb_switch *sw)
 		 * mode.
 		 */
 		ret = tb_switch_tmu_rate_write(sw, TB_SWITCH_TMU_RATE_OFF);
+		if (ret)
 			return ret;
 
 		tb_port_tmu_time_sync_disable(up);
