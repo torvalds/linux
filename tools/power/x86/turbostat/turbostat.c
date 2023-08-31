@@ -5374,6 +5374,26 @@ void probe_cstates(void)
 	dump_sysfs_cstate_config();
 }
 
+void probe_lpi(void)
+{
+	if (!access("/sys/devices/system/cpu/cpuidle/low_power_idle_cpu_residency_us", R_OK))
+		BIC_PRESENT(BIC_CPU_LPI);
+	else
+		BIC_NOT_PRESENT(BIC_CPU_LPI);
+
+	if (!access(sys_lpi_file_sysfs, R_OK)) {
+		sys_lpi_file = sys_lpi_file_sysfs;
+		BIC_PRESENT(BIC_SYS_LPI);
+	} else if (!access(sys_lpi_file_debugfs, R_OK)) {
+		sys_lpi_file = sys_lpi_file_debugfs;
+		BIC_PRESENT(BIC_SYS_LPI);
+	} else {
+		sys_lpi_file_sysfs = NULL;
+		BIC_NOT_PRESENT(BIC_SYS_LPI);
+	}
+
+}
+
 void probe_pstates(void)
 {
 	probe_bclk();
@@ -5570,6 +5590,8 @@ void process_cpuid()
 
 	probe_cstates();
 
+	probe_lpi();
+
 	probe_intel_uncore_frequency();
 
 	probe_graphics();
@@ -5579,26 +5601,10 @@ void process_cpuid()
 	if (platform->has_nhm_msrs)
 		BIC_PRESENT(BIC_SMI);
 
-	if (!access("/sys/devices/system/cpu/cpuidle/low_power_idle_cpu_residency_us", R_OK))
-		BIC_PRESENT(BIC_CPU_LPI);
-	else
-		BIC_NOT_PRESENT(BIC_CPU_LPI);
-
 	if (!access("/sys/devices/system/cpu/cpu0/thermal_throttle/core_throttle_count", R_OK))
 		BIC_PRESENT(BIC_CORE_THROT_CNT);
 	else
 		BIC_NOT_PRESENT(BIC_CORE_THROT_CNT);
-
-	if (!access(sys_lpi_file_sysfs, R_OK)) {
-		sys_lpi_file = sys_lpi_file_sysfs;
-		BIC_PRESENT(BIC_SYS_LPI);
-	} else if (!access(sys_lpi_file_debugfs, R_OK)) {
-		sys_lpi_file = sys_lpi_file_debugfs;
-		BIC_PRESENT(BIC_SYS_LPI);
-	} else {
-		sys_lpi_file_sysfs = NULL;
-		BIC_NOT_PRESENT(BIC_SYS_LPI);
-	}
 
 	if (!quiet)
 		decode_misc_feature_control();
