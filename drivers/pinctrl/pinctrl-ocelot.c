@@ -11,9 +11,7 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/mfd/ocelot.h>
-#include <linux/of_device.h>
-#include <linux/of_irq.h>
-#include <linux/of_platform.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/reset.h>
