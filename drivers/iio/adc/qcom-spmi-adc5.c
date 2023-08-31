@@ -1332,6 +1332,7 @@ static int adc5_probe(struct platform_device *pdev)
 			return ret;
 	}
 
+	platform_set_drvdata(pdev, adc);
 	if (of_device_is_compatible(dev->of_node, "qcom,spmi-adc7-sw-calib")) {
 		ret = adc7_calib(adc);
 		if (ret)
