@@ -36,7 +36,6 @@
 
 	flash@18000000 {
 		compatible = "mtd-rom";
-		probe-type = "map_rom";
 		reg = <0x18000000 0x00800000>;
 		bank-width = <4>;
 		device-width = <1>;
