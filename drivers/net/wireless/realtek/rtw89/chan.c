@@ -1222,6 +1222,159 @@ bottom:
 	return rtw89_mcc_fill_start_tsf(rtwdev);
 }
 
+static int __mcc_fw_add_role(struct rtw89_dev *rtwdev, struct rtw89_mcc_role *role)
+{
+	struct rtw89_mcc_info *mcc = &rtwdev->mcc;
+	struct rtw89_mcc_config *config = &mcc->config;
+	struct rtw89_mcc_pattern *pattern = &config->pattern;
+	struct rtw89_mcc_courtesy *courtesy = &pattern->courtesy;
+	struct rtw89_mcc_policy *policy = &role->policy;
+	struct rtw89_fw_mcc_add_req req = {};
+	const struct rtw89_chan *chan;
+	int ret;
+
+	chan = rtw89_chan_get(rtwdev, role->rtwvif->sub_entity_idx);
+	req.central_ch_seg0 = chan->channel;
+	req.primary_ch = chan->primary_channel;
+	req.bandwidth = chan->band_width;
+	req.ch_band_type = chan->band_type;
+
+	req.macid = role->rtwvif->mac_id;
+	req.group = mcc->group;
+	req.c2h_rpt = policy->c2h_rpt;
+	req.tx_null_early = policy->tx_null_early;
+	req.dis_tx_null = policy->dis_tx_null;
+	req.in_curr_ch = policy->in_curr_ch;
+	req.sw_retry_count = policy->sw_retry_count;
+	req.dis_sw_retry = policy->dis_sw_retry;
+	req.duration = role->duration;
+	req.btc_in_2g = false;
+
+	if (courtesy->enable && courtesy->macid_src == req.macid) {
+		req.courtesy_target = courtesy->macid_tgt;
+		req.courtesy_num = courtesy->slot_num;
+		req.courtesy_en = true;
+	}
+
+	ret = rtw89_fw_h2c_add_mcc(rtwdev, &req);
+	if (ret) {
+		rtw89_debug(rtwdev, RTW89_DBG_CHAN,
+			    "MCC h2c failed to add wifi role: %d\n", ret);
+		return ret;
+	}
+
+	ret = rtw89_fw_h2c_mcc_macid_bitmap(rtwdev, mcc->group,
+					    role->rtwvif->mac_id,
+					    role->macid_bitmap);
+	if (ret) {
+		rtw89_debug(rtwdev, RTW89_DBG_CHAN,
+			    "MCC h2c failed to set macid bitmap: %d\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+
+static int __mcc_fw_add_bt_role(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_mcc_info *mcc = &rtwdev->mcc;
+	struct rtw89_mcc_bt_role *bt_role = &mcc->bt_role;
+	struct rtw89_fw_mcc_add_req req = {};
+	int ret;
+
+	req.group = mcc->group;
+	req.duration = bt_role->duration;
+	req.btc_in_2g = true;
+
+	ret = rtw89_fw_h2c_add_mcc(rtwdev, &req);
+	if (ret) {
+		rtw89_debug(rtwdev, RTW89_DBG_CHAN,
+			    "MCC h2c failed to add bt role: %d\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+
+static int __mcc_fw_start(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_mcc_info *mcc = &rtwdev->mcc;
+	struct rtw89_mcc_role *ref = &mcc->role_ref;
+	struct rtw89_mcc_role *aux = &mcc->role_aux;
+	struct rtw89_mcc_config *config = &mcc->config;
+	struct rtw89_mcc_pattern *pattern = &config->pattern;
+	struct rtw89_mcc_sync *sync = &config->sync;
+	struct rtw89_fw_mcc_start_req req = {};
+	int ret;
+
+	req.group = mcc->group;
+
+	switch (pattern->plan) {
+	case RTW89_MCC_PLAN_TAIL_BT:
+		ret = __mcc_fw_add_role(rtwdev, ref);
+		if (ret)
+			return ret;
+		ret = __mcc_fw_add_role(rtwdev, aux);
+		if (ret)
+			return ret;
+		ret = __mcc_fw_add_bt_role(rtwdev);
+		if (ret)
+			return ret;
+
+		req.btc_in_group = true;
+		break;
+	case RTW89_MCC_PLAN_MID_BT:
+		ret = __mcc_fw_add_role(rtwdev, ref);
+		if (ret)
+			return ret;
+		ret = __mcc_fw_add_bt_role(rtwdev);
+		if (ret)
+			return ret;
+		ret = __mcc_fw_add_role(rtwdev, aux);
+		if (ret)
+			return ret;
+
+		req.btc_in_group = true;
+		break;
+	case RTW89_MCC_PLAN_NO_BT:
+		ret = __mcc_fw_add_role(rtwdev, ref);
+		if (ret)
+			return ret;
+		ret = __mcc_fw_add_role(rtwdev, aux);
+		if (ret)
+			return ret;
+
+		req.btc_in_group = false;
+		break;
+	default:
+		rtw89_warn(rtwdev, "MCC unknown plan: %d\n", pattern->plan);
+		return -EFAULT;
+	}
+
+	if (sync->enable) {
+		ret = rtw89_fw_h2c_mcc_sync(rtwdev, req.group, sync->macid_src,
+					    sync->macid_tgt, sync->offset);
+		if (ret) {
+			rtw89_debug(rtwdev, RTW89_DBG_CHAN,
+				    "MCC h2c failed to trigger sync: %d\n", ret);
+			return ret;
+		}
+	}
+
+	req.macid = ref->rtwvif->mac_id;
+	req.tsf_high = config->start_tsf >> 32;
+	req.tsf_low = config->start_tsf;
+
+	ret = rtw89_fw_h2c_start_mcc(rtwdev, &req);
+	if (ret) {
+		rtw89_debug(rtwdev, RTW89_DBG_CHAN,
+			    "MCC h2c failed to trigger start: %d\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+
 static int rtw89_mcc_start(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_mcc_info *mcc = &rtwdev->mcc;
@@ -1253,13 +1406,33 @@ static int rtw89_mcc_start(struct rtw89_dev *rtwdev)
 	if (ret)
 		return ret;
 
+	ret = __mcc_fw_start(rtwdev);
+	if (ret)
+		return ret;
+
 	rtw89_chanctx_notify(rtwdev, RTW89_CHANCTX_STATE_MCC_START);
 	return 0;
 }
 
 static void rtw89_mcc_stop(struct rtw89_dev *rtwdev)
 {
+	struct rtw89_mcc_info *mcc = &rtwdev->mcc;
+	struct rtw89_mcc_role *ref = &mcc->role_ref;
+	int ret;
+
 	rtw89_debug(rtwdev, RTW89_DBG_CHAN, "MCC stop\n");
+
+	ret = rtw89_fw_h2c_stop_mcc(rtwdev, mcc->group,
+				    ref->rtwvif->mac_id, true);
+	if (ret)
+		rtw89_debug(rtwdev, RTW89_DBG_CHAN,
+			    "MCC h2c failed to trigger stop: %d\n", ret);
+
+	ret = rtw89_fw_h2c_del_mcc_group(rtwdev, mcc->group, true);
+	if (ret)
+		rtw89_debug(rtwdev, RTW89_DBG_CHAN,
+			    "MCC h2c failed to delete group: %d\n", ret);
+
 	rtw89_chanctx_notify(rtwdev, RTW89_CHANCTX_STATE_MCC_STOP);
 }
 
