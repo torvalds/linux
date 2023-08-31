@@ -4415,8 +4415,16 @@ struct rtw89_mcc_pattern {
 	struct rtw89_mcc_courtesy courtesy;
 };
 
+struct rtw89_mcc_sync {
+	bool enable;
+	u16 offset; /* TU */
+	u8 macid_src;
+	u8 macid_tgt;
+};
+
 struct rtw89_mcc_config {
 	struct rtw89_mcc_pattern pattern;
+	struct rtw89_mcc_sync sync;
 	u64 start_tsf;
 	u16 mcc_interval; /* TU */
 	u16 beacon_offset; /* TU */
@@ -4430,6 +4438,7 @@ enum rtw89_mcc_mode {
 struct rtw89_mcc_info {
 	struct rtw89_wait_info wait;
 
+	u8 group;
 	enum rtw89_mcc_mode mode;
 	struct rtw89_mcc_role role_ref; /* reference role */
 	struct rtw89_mcc_role role_aux; /* auxiliary role */

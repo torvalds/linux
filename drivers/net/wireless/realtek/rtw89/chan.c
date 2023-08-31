@@ -324,6 +324,39 @@ static u32 rtw89_mcc_get_tbtt_ofst(struct rtw89_dev *rtwdev,
 	return remainder;
 }
 
+static u16 rtw89_mcc_get_bcn_ofst(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_mcc_info *mcc = &rtwdev->mcc;
+	struct rtw89_mcc_role *ref = &mcc->role_ref;
+	struct rtw89_mcc_role *aux = &mcc->role_aux;
+	struct rtw89_mac_mcc_tsf_rpt rpt = {};
+	struct rtw89_fw_mcc_tsf_req req = {};
+	u32 bcn_intvl_ref_us = ieee80211_tu_to_usec(ref->beacon_interval);
+	u32 tbtt_ofst_ref, tbtt_ofst_aux;
+	u64 tsf_ref, tsf_aux;
+	int ret;
+
+	req.group = mcc->group;
+	req.macid_x = ref->rtwvif->mac_id;
+	req.macid_y = aux->rtwvif->mac_id;
+	ret = rtw89_fw_h2c_mcc_req_tsf(rtwdev, &req, &rpt);
+	if (ret) {
+		rtw89_debug(rtwdev, RTW89_DBG_CHAN,
+			    "MCC h2c failed to request tsf: %d\n", ret);
+		return RTW89_MCC_DFLT_BCN_OFST_TIME;
+	}
+
+	tsf_ref = (u64)rpt.tsf_x_high << 32 | rpt.tsf_x_low;
+	tsf_aux = (u64)rpt.tsf_y_high << 32 | rpt.tsf_y_low;
+	tbtt_ofst_ref = rtw89_mcc_get_tbtt_ofst(rtwdev, ref, tsf_ref);
+	tbtt_ofst_aux = rtw89_mcc_get_tbtt_ofst(rtwdev, aux, tsf_aux);
+
+	while (tbtt_ofst_ref < tbtt_ofst_aux)
+		tbtt_ofst_ref += bcn_intvl_ref_us;
+
+	return (tbtt_ofst_ref - tbtt_ofst_aux) / 1024;
+}
+
 static
 void rtw89_mcc_role_fw_macid_bitmap_set_bit(struct rtw89_mcc_role *mcc_role,
 					    unsigned int bit)
@@ -611,6 +644,112 @@ static void rtw89_mcc_set_default_pattern(struct rtw89_dev *rtwdev)
 	rtw89_mcc_assign_pattern(rtwdev, &tmp);
 }
 
+static void rtw89_mcc_set_duration_go_sta(struct rtw89_dev *rtwdev,
+					  struct rtw89_mcc_role *role_go,
+					  struct rtw89_mcc_role *role_sta)
+{
+	struct rtw89_mcc_info *mcc = &rtwdev->mcc;
+	struct rtw89_mcc_config *config = &mcc->config;
+	u16 mcc_intvl = config->mcc_interval;
+	u16 dur_go, dur_sta;
+
+	dur_go = clamp_t(u16, role_go->duration, RTW89_MCC_MIN_GO_DURATION,
+			 mcc_intvl - RTW89_MCC_MIN_STA_DURATION);
+	if (role_go->limit.enable)
+		dur_go = min(dur_go, role_go->limit.max_dur);
+	dur_sta = mcc_intvl - dur_go;
+
+	rtw89_debug(rtwdev, RTW89_DBG_CHAN,
+		    "MCC set dur: (go, sta) {%d, %d} -> {%d, %d}\n",
+		    role_go->duration, role_sta->duration, dur_go, dur_sta);
+
+	role_go->duration = dur_go;
+	role_sta->duration = dur_sta;
+}
+
+static void rtw89_mcc_set_duration_gc_sta(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_mcc_info *mcc = &rtwdev->mcc;
+	struct rtw89_mcc_role *ref = &mcc->role_ref;
+	struct rtw89_mcc_role *aux = &mcc->role_aux;
+	struct rtw89_mcc_config *config = &mcc->config;
+	u16 mcc_intvl = config->mcc_interval;
+	u16 dur_ref, dur_aux;
+
+	if (ref->duration < RTW89_MCC_MIN_STA_DURATION) {
+		dur_ref = RTW89_MCC_MIN_STA_DURATION;
+		dur_aux = mcc_intvl - dur_ref;
+	} else if (aux->duration < RTW89_MCC_MIN_STA_DURATION) {
+		dur_aux = RTW89_MCC_MIN_STA_DURATION;
+		dur_ref = mcc_intvl - dur_aux;
+	} else {
+		dur_ref = ref->duration;
+		dur_aux = mcc_intvl - dur_ref;
+	}
+
+	if (ref->limit.enable) {
+		dur_ref = min(dur_ref, ref->limit.max_dur);
+		dur_aux = mcc_intvl - dur_ref;
+	} else if (aux->limit.enable) {
+		dur_aux = min(dur_aux, aux->limit.max_dur);
+		dur_ref = mcc_intvl - dur_aux;
+	}
+
+	rtw89_debug(rtwdev, RTW89_DBG_CHAN,
+		    "MCC set dur: (ref, aux) {%d ~ %d} -> {%d ~ %d}\n",
+		    ref->duration, aux->duration, dur_ref, dur_aux);
+
+	ref->duration = dur_ref;
+	aux->duration = dur_aux;
+}
+
+static void rtw89_mcc_sync_tbtt(struct rtw89_dev *rtwdev,
+				struct rtw89_mcc_role *tgt,
+				struct rtw89_mcc_role *src,
+				bool ref_is_src)
+{
+	struct rtw89_mcc_info *mcc = &rtwdev->mcc;
+	struct rtw89_mcc_config *config = &mcc->config;
+	u16 beacon_offset_us = ieee80211_tu_to_usec(config->beacon_offset);
+	u32 bcn_intvl_src_us = ieee80211_tu_to_usec(src->beacon_interval);
+	u32 cur_tbtt_ofst_src;
+	u32 tsf_ofst_tgt;
+	u32 remainder;
+	u64 tbtt_tgt;
+	u64 tsf_src;
+	int ret;
+
+	ret = rtw89_mac_port_get_tsf(rtwdev, src->rtwvif, &tsf_src);
+	if (ret) {
+		rtw89_warn(rtwdev, "MCC failed to get port tsf: %d\n", ret);
+		return;
+	}
+
+	cur_tbtt_ofst_src = rtw89_mcc_get_tbtt_ofst(rtwdev, src, tsf_src);
+
+	if (ref_is_src)
+		tbtt_tgt = tsf_src - cur_tbtt_ofst_src + beacon_offset_us;
+	else
+		tbtt_tgt = tsf_src - cur_tbtt_ofst_src +
+			   (bcn_intvl_src_us - beacon_offset_us);
+
+	div_u64_rem(tbtt_tgt, bcn_intvl_src_us, &remainder);
+	tsf_ofst_tgt = bcn_intvl_src_us - remainder;
+
+	config->sync.macid_tgt = tgt->rtwvif->mac_id;
+	config->sync.macid_src = src->rtwvif->mac_id;
+	config->sync.offset = tsf_ofst_tgt / 1024;
+	config->sync.enable = true;
+
+	rtw89_debug(rtwdev, RTW89_DBG_CHAN,
+		    "MCC sync tbtt: tgt %d, src %d, offset %d\n",
+		    config->sync.macid_tgt, config->sync.macid_src,
+		    config->sync.offset);
+
+	rtw89_mac_port_tsf_sync(rtwdev, tgt->rtwvif, src->rtwvif,
+				config->sync.offset);
+}
+
 static int rtw89_mcc_fill_start_tsf(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_mcc_info *mcc = &rtwdev->mcc;
@@ -648,9 +787,35 @@ static int rtw89_mcc_fill_start_tsf(struct rtw89_dev *rtwdev)
 static int rtw89_mcc_fill_config(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_mcc_info *mcc = &rtwdev->mcc;
+	struct rtw89_mcc_role *ref = &mcc->role_ref;
+	struct rtw89_mcc_role *aux = &mcc->role_aux;
 	struct rtw89_mcc_config *config = &mcc->config;
 
 	memset(config, 0, sizeof(*config));
+
+	switch (mcc->mode) {
+	case RTW89_MCC_MODE_GO_STA:
+		config->beacon_offset = RTW89_MCC_DFLT_BCN_OFST_TIME;
+		if (ref->is_go) {
+			rtw89_mcc_sync_tbtt(rtwdev, ref, aux, false);
+			config->mcc_interval = ref->beacon_interval;
+			rtw89_mcc_set_duration_go_sta(rtwdev, ref, aux);
+		} else {
+			rtw89_mcc_sync_tbtt(rtwdev, aux, ref, true);
+			config->mcc_interval = aux->beacon_interval;
+			rtw89_mcc_set_duration_go_sta(rtwdev, aux, ref);
+		}
+		break;
+	case RTW89_MCC_MODE_GC_STA:
+		config->beacon_offset = rtw89_mcc_get_bcn_ofst(rtwdev);
+		config->mcc_interval = ref->beacon_interval;
+		rtw89_mcc_set_duration_gc_sta(rtwdev);
+		break;
+	default:
+		rtw89_warn(rtwdev, "MCC unknown mode: %d\n", mcc->mode);
+		return -EFAULT;
+	}
+
 	rtw89_mcc_set_default_pattern(rtwdev);
 	return rtw89_mcc_fill_start_tsf(rtwdev);
 }
@@ -679,6 +844,8 @@ static int rtw89_mcc_start(struct rtw89_dev *rtwdev)
 		mcc->mode = RTW89_MCC_MODE_GC_STA;
 
 	rtw89_debug(rtwdev, RTW89_DBG_CHAN, "MCC sel mode: %d\n", mcc->mode);
+
+	mcc->group = RTW89_MCC_DFLT_GROUP;
 
 	ret = rtw89_mcc_fill_config(rtwdev);
 	if (ret)
