@@ -1510,8 +1510,8 @@ int parse_events_multi_pmu_add(struct parse_events_state *parse_state,
 
 	if (parse_events_term__num(&term,
 				   PARSE_EVENTS__TERM_TYPE_USER,
-				   config, 1, false, NULL,
-					NULL) < 0) {
+				   config, /*num=*/1, /*novalue=*/true,
+				   loc, /*loc_val=*/NULL) < 0) {
 		zfree(&config);
 		goto out_err;
 	}
@@ -2482,7 +2482,7 @@ int parse_events_term__num(struct parse_events_term **term,
 		.err_val   = loc_val  ? loc_val->first_column  : 0,
 	};
 
-	return new_term(term, &temp, NULL, num);
+	return new_term(term, &temp, /*str=*/NULL, num);
 }
 
 int parse_events_term__str(struct parse_events_term **term,
@@ -2501,7 +2501,7 @@ int parse_events_term__str(struct parse_events_term **term,
 		.err_val   = loc_val  ? loc_val->first_column  : 0,
 	};
 
-	return new_term(term, &temp, str, 0);
+	return new_term(term, &temp, str, /*num=*/0);
 }
 
 int parse_events_term__term(struct parse_events_term **term,
@@ -2518,26 +2518,21 @@ int parse_events_term__clone(struct parse_events_term **new,
 			     struct parse_events_term *term)
 {
 	char *str;
-	struct parse_events_term temp = {
-		.type_val  = term->type_val,
-		.type_term = term->type_term,
-		.config    = NULL,
-		.err_term  = term->err_term,
-		.err_val   = term->err_val,
-	};
+	struct parse_events_term temp = *term;
 
+	temp.used = false;
 	if (term->config) {
 		temp.config = strdup(term->config);
 		if (!temp.config)
 			return -ENOMEM;
 	}
 	if (term->type_val == PARSE_EVENTS__TERM_TYPE_NUM)
-		return new_term(new, &temp, NULL, term->val.num);
+		return new_term(new, &temp, /*str=*/NULL, term->val.num);
 
 	str = strdup(term->val.str);
 	if (!str)
 		return -ENOMEM;
-	return new_term(new, &temp, str, 0);
+	return new_term(new, &temp, str, /*num=*/0);
 }
 
 void parse_events_term__delete(struct parse_events_term *term)
@@ -2611,20 +2606,22 @@ int parse_events_term__to_strbuf(struct list_head *term_list, struct strbuf *sb)
 		first = false;
 
 		if (term->type_val == PARSE_EVENTS__TERM_TYPE_NUM)
-			if (term->type_term == PARSE_EVENTS__TERM_TYPE_USER && term->val.num == 1)
+			if (term->no_value) {
+				assert(term->type_term == PARSE_EVENTS__TERM_TYPE_USER);
 				ret = strbuf_addf(sb, "%s", term->config);
-			else
+			} else
 				ret = strbuf_addf(sb, "%s=%#"PRIx64, term->config, term->val.num);
 		else if (term->type_val == PARSE_EVENTS__TERM_TYPE_STR) {
 			if (term->config) {
 				ret = strbuf_addf(sb, "%s=", term->config);
 				if (ret < 0)
 					return ret;
-			} else if (term->type_term < __PARSE_EVENTS__TERM_TYPE_NR) {
+			} else if ((unsigned int)term->type_term < __PARSE_EVENTS__TERM_TYPE_NR) {
 				ret = strbuf_addf(sb, "%s=", config_term_name(term->type_term));
 				if (ret < 0)
 					return ret;
 			}
+			assert(!term->no_value);
 			ret = strbuf_addf(sb, "%s", term->val.str);
 		}
 		if (ret < 0)

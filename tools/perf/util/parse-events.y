@@ -712,7 +712,7 @@ name_or_raw '=' PE_VALUE
 {
 	struct parse_events_term *term;
 	int err = parse_events_term__num(&term, PARSE_EVENTS__TERM_TYPE_USER,
-					 $1, $3, false, &@1, &@3);
+					 $1, $3, /*novalue=*/false, &@1, &@3);
 
 	if (err) {
 		free($1);
@@ -739,7 +739,7 @@ PE_LEGACY_CACHE
 {
 	struct parse_events_term *term;
 	int err = parse_events_term__num(&term, PARSE_EVENTS__TERM_TYPE_LEGACY_CACHE,
-					 $1, 1, true, &@1, NULL);
+					 $1, /*num=*/1, /*novalue=*/true, &@1, /*loc_val=*/NULL);
 
 	if (err) {
 		free($1);
@@ -752,7 +752,7 @@ PE_NAME
 {
 	struct parse_events_term *term;
 	int err = parse_events_term__num(&term, PARSE_EVENTS__TERM_TYPE_USER,
-					 $1, 1, true, &@1, NULL);
+					 $1, /*num=*/1, /*novalue=*/true, &@1, /*loc_val=*/NULL);
 
 	if (err) {
 		free($1);
@@ -765,7 +765,8 @@ PE_TERM_HW
 {
 	struct parse_events_term *term;
 	int err = parse_events_term__num(&term, PARSE_EVENTS__TERM_TYPE_HARDWARE,
-					 $1.str, $1.num & 255, false, &@1, NULL);
+					 $1.str, $1.num & 255, /*novalue=*/false,
+					 &@1, /*loc_val=*/NULL);
 
 	if (err) {
 		free($1.str);

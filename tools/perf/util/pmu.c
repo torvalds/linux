@@ -1396,7 +1396,7 @@ static struct perf_pmu_alias *pmu_find_alias(struct perf_pmu *pmu,
 		return NULL;
 
 	if (term->type_val == PARSE_EVENTS__TERM_TYPE_NUM) {
-		if (term->val.num != 1)
+		if (!term->no_value)
 			return NULL;
 		if (pmu_find_format(&pmu->format, term->config))
 			return NULL;
