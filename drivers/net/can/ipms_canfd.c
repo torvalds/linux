@@ -558,8 +558,6 @@ static netdev_tx_t canfd_driver_start_xmit(struct sk_buff *skb, struct net_devic
 	if (can_dropped_invalid_skb(ndev, skb))
 		return NETDEV_TX_OK;
 
-	netif_stop_queue(ndev);
-
 	switch (priv->tx_mode) {
 	case XMIT_FULL:
 		return NETDEV_TX_BUSY;

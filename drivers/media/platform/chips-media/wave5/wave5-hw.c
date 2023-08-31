@@ -729,7 +729,6 @@ int wave5_vpu_dec_register_framebuffer(struct vpu_instance *inst, struct frame_b
 	struct vpu_buf vb_buf;
 	u32 color_format = 0;
 	u32 pixel_order = 1;
-	u32 scale_en = 0;
 	u32 bwb_flag = (map_type == LINEAR_FRAME_MAP) ? 1 : 0;
 
 	cbcr_interleave = inst->cbcr_interleave;
@@ -831,15 +830,7 @@ int wave5_vpu_dec_register_framebuffer(struct vpu_instance *inst, struct frame_b
 				p_dec_info->vb_fbc_c_tbl[i] = vb_buf;
 			}
 		}
-
-		if ((init_info->pic_width - init_info->pic_crop_rect.right != inst->display_fmt.width) ||
-			init_info->pic_height - init_info->pic_crop_rect.bottom != inst->display_fmt.height) {
-			pic_size = (inst->display_fmt.width << 16) | (inst->display_fmt.height);
-			scale_en = 1;
-		} else {
-			pic_size = (init_info->pic_width << 16) | (init_info->pic_height);
-			scale_en = 0;
-		}
+		pic_size = (init_info->pic_width << 16) | (init_info->pic_height);
 
 		// allocate task_buffer
 		vb_buf.size = (p_dec_info->vlc_buf_size * VLC_BUF_NUM) +
@@ -855,14 +846,7 @@ int wave5_vpu_dec_register_framebuffer(struct vpu_instance *inst, struct frame_b
 			      p_dec_info->vb_task.daddr);
 		vpu_write_reg(inst->dev, W5_CMD_SET_FB_TASK_BUF_SIZE, vb_buf.size);
 	} else {
-		if ((init_info->pic_width - init_info->pic_crop_rect.right != inst->display_fmt.width) ||
-			init_info->pic_height - init_info->pic_crop_rect.bottom != inst->display_fmt.height) {
-			pic_size = (inst->display_fmt.width << 16) | (inst->display_fmt.height);
-			scale_en = 1;
-		} else {
-			pic_size = (init_info->pic_width << 16) | (init_info->pic_height);
-			scale_en = 0;
-		}
+		pic_size = (init_info->pic_width << 16) | (init_info->pic_height);
 	}
 	dev_dbg(inst->dev->dev, "set pic_size 0x%x\n", pic_size);
 	endian = wave5_vdi_convert_endian(inst->dev, fb_arr[0].endian);
@@ -872,15 +856,13 @@ int wave5_vpu_dec_register_framebuffer(struct vpu_instance *inst, struct frame_b
 	color_format = 0;
 
 	reg_val =
-		(scale_en << 29) |
 		(bwb_flag << 28) |
 		(pixel_order << 23) | /* PIXEL ORDER in 128bit. first pixel in low address */
 		(yuv_format << 20) |
 		(color_format << 19) |
 		(nv21 << 17) |
 		(cbcr_interleave << 16) |
-		(scale_en ? inst->display_fmt.width : fb_arr[0].stride);
-		//inst->display_fmt.width;
+		(fb_arr[0].stride);
 	dev_dbg(inst->dev->dev, "set W5_COMMON_PIC_INFO 0x%x\n",reg_val);
 	vpu_write_reg(inst->dev, W5_COMMON_PIC_INFO, reg_val);
 

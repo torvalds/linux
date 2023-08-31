@@ -495,6 +495,17 @@ static int pwmdac_config(struct sf_pwmdac_dev *dev)
 	return 0;
 }
 
+static int sf_pwmdac_startup(struct snd_pcm_substream *substream,
+			     struct snd_soc_dai *cpu_dai)
+{
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct snd_soc_dai_link *dai_link = rtd->dai_link;
+
+	dai_link->stop_dma_first = 1;
+
+	return 0;
+}
+
 static int sf_pwmdac_prepare(struct snd_pcm_substream *substream,
 			  struct snd_soc_dai *dai)
 {
@@ -565,10 +576,6 @@ static int sf_pwmdac_hw_params(struct snd_pcm_substream *substream,
 	int ret = 0;
 	unsigned long mclk_dac_value;
 	struct sf_pwmdac_dev *dev = dev_get_drvdata(dai->dev);
-	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
-	struct snd_soc_dai_link *dai_link = rtd->dai_link;
-
-	dai_link->stop_dma_first = 1;
 
 	dev->play_dma_data.addr = dev->mapbase + PWMDAC_WDATA;
 
@@ -829,40 +836,15 @@ static int pwmdac_probe(struct snd_soc_component *component)
 }
 
 static const struct snd_soc_dai_ops sf_pwmdac_dai_ops = {
-	.hw_params  = sf_pwmdac_hw_params,
-	.prepare	= sf_pwmdac_prepare,
-	.trigger	= sf_pwmdac_trigger,
+	.startup = sf_pwmdac_startup,
+	.hw_params = sf_pwmdac_hw_params,
+	.prepare = sf_pwmdac_prepare,
+	.trigger = sf_pwmdac_trigger,
 };
 
-static int pwmdac_component_trigger(struct snd_soc_component *component,
-			      struct snd_pcm_substream *substream, int cmd)
-{
-	int ret = 0;
-	struct dma_chan *chan = snd_dmaengine_pcm_get_chan(substream);
-
-	switch (cmd) {
-	case SNDRV_PCM_TRIGGER_START:
-	case SNDRV_PCM_TRIGGER_RESUME:
-	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-		break;
-
-	case SNDRV_PCM_TRIGGER_STOP:
-	case SNDRV_PCM_TRIGGER_SUSPEND:
-	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
-		axi_dma_cyclic_stop(chan);
-		break;
-
-	default:
-		ret = -EINVAL;
-		break;
-	}
-	return ret;
-}
-
 static const struct snd_soc_component_driver sf_pwmdac_component = {
-	.name		= "starfive-pwmdac",
-	.probe		= pwmdac_probe,
-	.trigger	= pwmdac_component_trigger,
+	.name = "starfive-pwmdac",
+	.probe = pwmdac_probe,
 };
 
 static struct snd_soc_dai_driver pwmdac_dai = {
