@@ -515,6 +515,8 @@ start_thread_common(struct pt_regs *regs, unsigned long new_ip,
 		load_gs_index(__USER_DS);
 	}
 
+	reset_thread_features();
+
 	loadsegment(fs, 0);
 	loadsegment(es, _ds);
 	loadsegment(ds, _ds);
@@ -894,6 +896,12 @@ long do_arch_prctl_64(struct task_struct *task, int option, unsigned long arg2)
 		else
 			return put_user(LAM_U57_BITS, (unsigned long __user *)arg2);
 #endif
+	case ARCH_SHSTK_ENABLE:
+	case ARCH_SHSTK_DISABLE:
+	case ARCH_SHSTK_LOCK:
+	case ARCH_SHSTK_UNLOCK:
+	case ARCH_SHSTK_STATUS:
+		return shstk_prctl(task, option, arg2);
 	default:
 		ret = -EINVAL;
 		break;
