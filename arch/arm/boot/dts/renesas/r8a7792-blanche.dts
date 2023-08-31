@@ -182,6 +182,35 @@
 };
 
 &lbsc {
+	flash@0 {
+		compatible = "cfi-flash";
+		reg = <0x00000000 0x04000000>;
+		pinctrl-0 = <&flash_pins>;
+		pinctrl-names = "default";
+		bank-width = <2>;
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			partition@0 {
+				label = "uboot";
+				reg = <0x00000000 0x00040000>;
+				read-only;
+			};
+			partition@40000 {
+				label = "uboot-env";
+				reg = <0x00040000 0x00040000>;
+				read-only;
+			};
+			partition@80000 {
+				label = "flash";
+				reg = <0x00080000 0x03f80000>;
+			};
+		};
+	};
+
 	ethernet@18000000 {
 		compatible = "smsc,lan89218", "smsc,lan9115";
 		reg = <0x18000000 0x100>;
@@ -238,6 +267,11 @@
 	du1_pins: du1 {
 		groups = "du1_rgb666", "du1_sync", "du1_disp";
 		function = "du1";
+	};
+
+	flash_pins: flash {
+		groups = "lbsc_cs0";
+		function = "lbsc";
 	};
 
 	keyboard_pins: keyboard {
