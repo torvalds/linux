@@ -324,8 +324,10 @@ int mt7996_mcu_wa_cmd(struct mt7996_dev *dev, int cmd, u32 a1, u32 a2, u32 a3)
 static void
 mt7996_mcu_csa_finish(void *priv, u8 *mac, struct ieee80211_vif *vif)
 {
-	if (vif->bss_conf.csa_active)
-		ieee80211_csa_finish(vif);
+	if (!vif->bss_conf.csa_active || vif->type == NL80211_IFTYPE_STATION)
+		return;
+
+	ieee80211_csa_finish(vif);
 }
 
 static void
@@ -399,7 +401,7 @@ out:
 static void
 mt7996_mcu_cca_finish(void *priv, u8 *mac, struct ieee80211_vif *vif)
 {
-	if (!vif->bss_conf.color_change_active)
+	if (!vif->bss_conf.color_change_active || vif->type == NL80211_IFTYPE_STATION)
 		return;
 
 	ieee80211_color_change_finish(vif);
