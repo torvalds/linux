@@ -38,7 +38,14 @@ static int r8a7779_boot_secondary(unsigned int cpu, struct task_struct *idle)
 
 static void __init r8a7779_smp_prepare_cpus(unsigned int max_cpus)
 {
-	void __iomem *base = ioremap(HPBREG_BASE, 0x1000);
+	void __iomem *base;
+
+	if (!request_mem_region(0, SZ_4K, "Boot Area")) {
+		pr_err("Failed to request boot area\n");
+		return;
+	}
+
+	base = ioremap(HPBREG_BASE, 0x1000);
 
 	/* Map the reset vector (in headsmp-scu.S, headsmp.S) */
 	writel(__pa(shmobile_boot_vector), base + AVECR);
