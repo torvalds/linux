@@ -116,7 +116,7 @@ static int tool(yyscan_t scanner, enum perf_tool_event event)
 	return PE_VALUE_SYM_TOOL;
 }
 
-static int term(yyscan_t scanner, int type)
+static int term(yyscan_t scanner, enum parse_events__term_type type)
 {
 	YYSTYPE *yylval = parse_events_get_lval(scanner);
 

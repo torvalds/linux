@@ -48,12 +48,12 @@ int parse_events_terms(struct list_head *terms, const char *str, FILE *input);
 int parse_filter(const struct option *opt, const char *str, int unset);
 int exclude_perf(const struct option *opt, const char *arg, int unset);
 
-enum {
+enum parse_events__term_val_type {
 	PARSE_EVENTS__TERM_TYPE_NUM,
 	PARSE_EVENTS__TERM_TYPE_STR,
 };
 
-enum {
+enum parse_events__term_type {
 	PARSE_EVENTS__TERM_TYPE_USER,
 	PARSE_EVENTS__TERM_TYPE_CONFIG,
 	PARSE_EVENTS__TERM_TYPE_CONFIG1,
@@ -80,27 +80,54 @@ enum {
 	PARSE_EVENTS__TERM_TYPE_RAW,
 	PARSE_EVENTS__TERM_TYPE_LEGACY_CACHE,
 	PARSE_EVENTS__TERM_TYPE_HARDWARE,
-	__PARSE_EVENTS__TERM_TYPE_NR,
+#define	__PARSE_EVENTS__TERM_TYPE_NR (PARSE_EVENTS__TERM_TYPE_HARDWARE + 1)
 };
 
 struct parse_events_term {
+	/** @list: The term list the term is a part of. */
+	struct list_head list;
+	/**
+	 * @config: The left-hand side of a term assignment, so the term
+	 * "event=8" would have the config be "event"
+	 */
 	const char *config;
+	/**
+	 * @val: The right-hand side of a term assignment that can either be a
+	 * string or a number depending on type_val.
+	 */
 	union {
 		char *str;
 		u64  num;
 	} val;
-	int type_val;
-	int type_term;
-	struct list_head list;
-	bool used;
-	bool no_value;
-
-	/* error string indexes for within parsed string */
+	/** @type_val: The union variable in val to be used for the term. */
+	enum parse_events__term_val_type type_val;
+	/**
+	 * @type_term: A predefined term type or PARSE_EVENTS__TERM_TYPE_USER
+	 * when not inbuilt.
+	 */
+	enum parse_events__term_type type_term;
+	/**
+	 * @err_term: The column index of the term from parsing, used during
+	 * error output.
+	 */
 	int err_term;
+	/**
+	 * @err_val: The column index of the val from parsing, used during error
+	 * output.
+	 */
 	int err_val;
-
-	/* Coming from implicit alias */
+	/** @used: Was the term used during parameterized-eval. */
+	bool used;
+	/**
+	 * @weak: A term from the sysfs or json encoding of an event that
+	 * shouldn't override terms coming from the command line.
+	 */
 	bool weak;
+	/**
+	 * @no_value: Is there no value. TODO: this should really be part of
+	 * type_val.
+	 */
+	bool no_value;
 };
 
 struct parse_events_error {
@@ -139,14 +166,17 @@ bool parse_events__filter_pmu(const struct parse_events_state *parse_state,
 void parse_events__shrink_config_terms(void);
 int parse_events__is_hardcoded_term(struct parse_events_term *term);
 int parse_events_term__num(struct parse_events_term **term,
-			   int type_term, const char *config, u64 num,
+			   enum parse_events__term_type type_term,
+			   const char *config, u64 num,
 			   bool novalue,
 			   void *loc_term, void *loc_val);
 int parse_events_term__str(struct parse_events_term **term,
-			   int type_term, char *config, char *str,
+			   enum parse_events__term_type type_term,
+			   char *config, char *str,
 			   void *loc_term, void *loc_val);
 int parse_events_term__term(struct parse_events_term **term,
-			    int term_lhs, int term_rhs,
+			    enum parse_events__term_type term_lhs,
+			    enum parse_events__term_type term_rhs,
 			    void *loc_term, void *loc_val);
 int parse_events_term__clone(struct parse_events_term **new,
 			     struct parse_events_term *term);

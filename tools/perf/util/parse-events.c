@@ -153,7 +153,7 @@ const char *event_type(int type)
 	return "unknown";
 }
 
-static char *get_config_str(struct list_head *head_terms, int type_term)
+static char *get_config_str(struct list_head *head_terms, enum parse_events__term_type type_term)
 {
 	struct parse_events_term *term;
 
@@ -722,7 +722,7 @@ int parse_events_add_breakpoint(struct parse_events_state *parse_state,
 
 static int check_type_val(struct parse_events_term *term,
 			  struct parse_events_error *err,
-			  int type)
+			  enum parse_events__term_val_type type)
 {
 	if (type == term->type_val)
 		return 0;
@@ -737,42 +737,49 @@ static int check_type_val(struct parse_events_term *term,
 	return -EINVAL;
 }
 
-/*
- * Update according to parse-events.l
- */
-static const char *config_term_names[__PARSE_EVENTS__TERM_TYPE_NR] = {
-	[PARSE_EVENTS__TERM_TYPE_USER]			= "<sysfs term>",
-	[PARSE_EVENTS__TERM_TYPE_CONFIG]		= "config",
-	[PARSE_EVENTS__TERM_TYPE_CONFIG1]		= "config1",
-	[PARSE_EVENTS__TERM_TYPE_CONFIG2]		= "config2",
-	[PARSE_EVENTS__TERM_TYPE_CONFIG3]		= "config3",
-	[PARSE_EVENTS__TERM_TYPE_NAME]			= "name",
-	[PARSE_EVENTS__TERM_TYPE_SAMPLE_PERIOD]		= "period",
-	[PARSE_EVENTS__TERM_TYPE_SAMPLE_FREQ]		= "freq",
-	[PARSE_EVENTS__TERM_TYPE_BRANCH_SAMPLE_TYPE]	= "branch_type",
-	[PARSE_EVENTS__TERM_TYPE_TIME]			= "time",
-	[PARSE_EVENTS__TERM_TYPE_CALLGRAPH]		= "call-graph",
-	[PARSE_EVENTS__TERM_TYPE_STACKSIZE]		= "stack-size",
-	[PARSE_EVENTS__TERM_TYPE_NOINHERIT]		= "no-inherit",
-	[PARSE_EVENTS__TERM_TYPE_INHERIT]		= "inherit",
-	[PARSE_EVENTS__TERM_TYPE_MAX_STACK]		= "max-stack",
-	[PARSE_EVENTS__TERM_TYPE_MAX_EVENTS]		= "nr",
-	[PARSE_EVENTS__TERM_TYPE_OVERWRITE]		= "overwrite",
-	[PARSE_EVENTS__TERM_TYPE_NOOVERWRITE]		= "no-overwrite",
-	[PARSE_EVENTS__TERM_TYPE_DRV_CFG]		= "driver-config",
-	[PARSE_EVENTS__TERM_TYPE_PERCORE]		= "percore",
-	[PARSE_EVENTS__TERM_TYPE_AUX_OUTPUT]		= "aux-output",
-	[PARSE_EVENTS__TERM_TYPE_AUX_SAMPLE_SIZE]	= "aux-sample-size",
-	[PARSE_EVENTS__TERM_TYPE_METRIC_ID]		= "metric-id",
-	[PARSE_EVENTS__TERM_TYPE_RAW]                   = "raw",
-	[PARSE_EVENTS__TERM_TYPE_LEGACY_CACHE]          = "legacy-cache",
-	[PARSE_EVENTS__TERM_TYPE_HARDWARE]              = "hardware",
-};
-
 static bool config_term_shrinked;
 
+static const char *config_term_name(enum parse_events__term_type term_type)
+{
+	/*
+	 * Update according to parse-events.l
+	 */
+	static const char *config_term_names[__PARSE_EVENTS__TERM_TYPE_NR] = {
+		[PARSE_EVENTS__TERM_TYPE_USER]			= "<sysfs term>",
+		[PARSE_EVENTS__TERM_TYPE_CONFIG]		= "config",
+		[PARSE_EVENTS__TERM_TYPE_CONFIG1]		= "config1",
+		[PARSE_EVENTS__TERM_TYPE_CONFIG2]		= "config2",
+		[PARSE_EVENTS__TERM_TYPE_CONFIG3]		= "config3",
+		[PARSE_EVENTS__TERM_TYPE_NAME]			= "name",
+		[PARSE_EVENTS__TERM_TYPE_SAMPLE_PERIOD]		= "period",
+		[PARSE_EVENTS__TERM_TYPE_SAMPLE_FREQ]		= "freq",
+		[PARSE_EVENTS__TERM_TYPE_BRANCH_SAMPLE_TYPE]	= "branch_type",
+		[PARSE_EVENTS__TERM_TYPE_TIME]			= "time",
+		[PARSE_EVENTS__TERM_TYPE_CALLGRAPH]		= "call-graph",
+		[PARSE_EVENTS__TERM_TYPE_STACKSIZE]		= "stack-size",
+		[PARSE_EVENTS__TERM_TYPE_NOINHERIT]		= "no-inherit",
+		[PARSE_EVENTS__TERM_TYPE_INHERIT]		= "inherit",
+		[PARSE_EVENTS__TERM_TYPE_MAX_STACK]		= "max-stack",
+		[PARSE_EVENTS__TERM_TYPE_MAX_EVENTS]		= "nr",
+		[PARSE_EVENTS__TERM_TYPE_OVERWRITE]		= "overwrite",
+		[PARSE_EVENTS__TERM_TYPE_NOOVERWRITE]		= "no-overwrite",
+		[PARSE_EVENTS__TERM_TYPE_DRV_CFG]		= "driver-config",
+		[PARSE_EVENTS__TERM_TYPE_PERCORE]		= "percore",
+		[PARSE_EVENTS__TERM_TYPE_AUX_OUTPUT]		= "aux-output",
+		[PARSE_EVENTS__TERM_TYPE_AUX_SAMPLE_SIZE]	= "aux-sample-size",
+		[PARSE_EVENTS__TERM_TYPE_METRIC_ID]		= "metric-id",
+		[PARSE_EVENTS__TERM_TYPE_RAW]                   = "raw",
+		[PARSE_EVENTS__TERM_TYPE_LEGACY_CACHE]          = "legacy-cache",
+		[PARSE_EVENTS__TERM_TYPE_HARDWARE]              = "hardware",
+	};
+	if ((unsigned int)term_type >= __PARSE_EVENTS__TERM_TYPE_NR)
+		return "unknown term";
+
+	return config_term_names[term_type];
+}
+
 static bool
-config_term_avail(int term_type, struct parse_events_error *err)
+config_term_avail(enum parse_events__term_type term_type, struct parse_events_error *err)
 {
 	char *err_str;
 
@@ -794,13 +801,31 @@ config_term_avail(int term_type, struct parse_events_error *err)
 	case PARSE_EVENTS__TERM_TYPE_SAMPLE_PERIOD:
 	case PARSE_EVENTS__TERM_TYPE_PERCORE:
 		return true;
+	case PARSE_EVENTS__TERM_TYPE_USER:
+	case PARSE_EVENTS__TERM_TYPE_SAMPLE_FREQ:
+	case PARSE_EVENTS__TERM_TYPE_BRANCH_SAMPLE_TYPE:
+	case PARSE_EVENTS__TERM_TYPE_TIME:
+	case PARSE_EVENTS__TERM_TYPE_CALLGRAPH:
+	case PARSE_EVENTS__TERM_TYPE_STACKSIZE:
+	case PARSE_EVENTS__TERM_TYPE_NOINHERIT:
+	case PARSE_EVENTS__TERM_TYPE_INHERIT:
+	case PARSE_EVENTS__TERM_TYPE_MAX_STACK:
+	case PARSE_EVENTS__TERM_TYPE_MAX_EVENTS:
+	case PARSE_EVENTS__TERM_TYPE_NOOVERWRITE:
+	case PARSE_EVENTS__TERM_TYPE_OVERWRITE:
+	case PARSE_EVENTS__TERM_TYPE_DRV_CFG:
+	case PARSE_EVENTS__TERM_TYPE_AUX_OUTPUT:
+	case PARSE_EVENTS__TERM_TYPE_AUX_SAMPLE_SIZE:
+	case PARSE_EVENTS__TERM_TYPE_RAW:
+	case PARSE_EVENTS__TERM_TYPE_LEGACY_CACHE:
+	case PARSE_EVENTS__TERM_TYPE_HARDWARE:
 	default:
 		if (!err)
 			return false;
 
 		/* term_type is validated so indexing is safe */
 		if (asprintf(&err_str, "'%s' is not usable in 'perf stat'",
-				config_term_names[term_type]) >= 0)
+			     config_term_name(term_type)) >= 0)
 			parse_events_error__handle(err, -1, err_str, NULL);
 		return false;
 	}
@@ -918,10 +943,14 @@ do {									   \
 			return -EINVAL;
 		}
 		break;
+	case PARSE_EVENTS__TERM_TYPE_DRV_CFG:
+	case PARSE_EVENTS__TERM_TYPE_USER:
+	case PARSE_EVENTS__TERM_TYPE_LEGACY_CACHE:
+	case PARSE_EVENTS__TERM_TYPE_HARDWARE:
 	default:
 		parse_events_error__handle(err, term->err_term,
-				strdup("unknown term"),
-				parse_events_formats_error_string(NULL));
+					strdup(config_term_name(term->type_term)),
+					parse_events_formats_error_string(NULL));
 		return -EINVAL;
 	}
 
@@ -1007,10 +1036,26 @@ static int config_term_tracepoint(struct perf_event_attr *attr,
 	case PARSE_EVENTS__TERM_TYPE_AUX_OUTPUT:
 	case PARSE_EVENTS__TERM_TYPE_AUX_SAMPLE_SIZE:
 		return config_term_common(attr, term, err);
+	case PARSE_EVENTS__TERM_TYPE_USER:
+	case PARSE_EVENTS__TERM_TYPE_CONFIG:
+	case PARSE_EVENTS__TERM_TYPE_CONFIG1:
+	case PARSE_EVENTS__TERM_TYPE_CONFIG2:
+	case PARSE_EVENTS__TERM_TYPE_CONFIG3:
+	case PARSE_EVENTS__TERM_TYPE_NAME:
+	case PARSE_EVENTS__TERM_TYPE_SAMPLE_PERIOD:
+	case PARSE_EVENTS__TERM_TYPE_SAMPLE_FREQ:
+	case PARSE_EVENTS__TERM_TYPE_BRANCH_SAMPLE_TYPE:
+	case PARSE_EVENTS__TERM_TYPE_TIME:
+	case PARSE_EVENTS__TERM_TYPE_DRV_CFG:
+	case PARSE_EVENTS__TERM_TYPE_PERCORE:
+	case PARSE_EVENTS__TERM_TYPE_METRIC_ID:
+	case PARSE_EVENTS__TERM_TYPE_RAW:
+	case PARSE_EVENTS__TERM_TYPE_LEGACY_CACHE:
+	case PARSE_EVENTS__TERM_TYPE_HARDWARE:
 	default:
 		if (err) {
 			parse_events_error__handle(err, term->err_term,
-				strdup("unknown term"),
+						   strdup(config_term_name(term->type_term)),
 				strdup("valid terms: call-graph,stack-size\n"));
 		}
 		return -EINVAL;
@@ -1128,6 +1173,16 @@ do {								\
 			ADD_CONFIG_TERM_VAL(AUX_SAMPLE_SIZE, aux_sample_size,
 					    term->val.num, term->weak);
 			break;
+		case PARSE_EVENTS__TERM_TYPE_USER:
+		case PARSE_EVENTS__TERM_TYPE_CONFIG:
+		case PARSE_EVENTS__TERM_TYPE_CONFIG1:
+		case PARSE_EVENTS__TERM_TYPE_CONFIG2:
+		case PARSE_EVENTS__TERM_TYPE_CONFIG3:
+		case PARSE_EVENTS__TERM_TYPE_NAME:
+		case PARSE_EVENTS__TERM_TYPE_METRIC_ID:
+		case PARSE_EVENTS__TERM_TYPE_RAW:
+		case PARSE_EVENTS__TERM_TYPE_LEGACY_CACHE:
+		case PARSE_EVENTS__TERM_TYPE_HARDWARE:
 		default:
 			break;
 		}
@@ -1157,6 +1212,30 @@ static int get_config_chgs(struct perf_pmu *pmu, struct list_head *head_config,
 		case PARSE_EVENTS__TERM_TYPE_CONFIG:
 			bits = ~(u64)0;
 			break;
+		case PARSE_EVENTS__TERM_TYPE_CONFIG1:
+		case PARSE_EVENTS__TERM_TYPE_CONFIG2:
+		case PARSE_EVENTS__TERM_TYPE_CONFIG3:
+		case PARSE_EVENTS__TERM_TYPE_NAME:
+		case PARSE_EVENTS__TERM_TYPE_SAMPLE_PERIOD:
+		case PARSE_EVENTS__TERM_TYPE_SAMPLE_FREQ:
+		case PARSE_EVENTS__TERM_TYPE_BRANCH_SAMPLE_TYPE:
+		case PARSE_EVENTS__TERM_TYPE_TIME:
+		case PARSE_EVENTS__TERM_TYPE_CALLGRAPH:
+		case PARSE_EVENTS__TERM_TYPE_STACKSIZE:
+		case PARSE_EVENTS__TERM_TYPE_NOINHERIT:
+		case PARSE_EVENTS__TERM_TYPE_INHERIT:
+		case PARSE_EVENTS__TERM_TYPE_MAX_STACK:
+		case PARSE_EVENTS__TERM_TYPE_MAX_EVENTS:
+		case PARSE_EVENTS__TERM_TYPE_NOOVERWRITE:
+		case PARSE_EVENTS__TERM_TYPE_OVERWRITE:
+		case PARSE_EVENTS__TERM_TYPE_DRV_CFG:
+		case PARSE_EVENTS__TERM_TYPE_PERCORE:
+		case PARSE_EVENTS__TERM_TYPE_AUX_OUTPUT:
+		case PARSE_EVENTS__TERM_TYPE_AUX_SAMPLE_SIZE:
+		case PARSE_EVENTS__TERM_TYPE_METRIC_ID:
+		case PARSE_EVENTS__TERM_TYPE_RAW:
+		case PARSE_EVENTS__TERM_TYPE_LEGACY_CACHE:
+		case PARSE_EVENTS__TERM_TYPE_HARDWARE:
 		default:
 			break;
 		}
@@ -2386,7 +2465,8 @@ static int new_term(struct parse_events_term **_term,
 }
 
 int parse_events_term__num(struct parse_events_term **term,
-			   int type_term, const char *config, u64 num,
+			   enum parse_events__term_type type_term,
+			   const char *config, u64 num,
 			   bool no_value,
 			   void *loc_term_, void *loc_val_)
 {
@@ -2396,7 +2476,7 @@ int parse_events_term__num(struct parse_events_term **term,
 	struct parse_events_term temp = {
 		.type_val  = PARSE_EVENTS__TERM_TYPE_NUM,
 		.type_term = type_term,
-		.config    = config ? : strdup(config_term_names[type_term]),
+		.config    = config ? : strdup(config_term_name(type_term)),
 		.no_value  = no_value,
 		.err_term  = loc_term ? loc_term->first_column : 0,
 		.err_val   = loc_val  ? loc_val->first_column  : 0,
@@ -2406,7 +2486,8 @@ int parse_events_term__num(struct parse_events_term **term,
 }
 
 int parse_events_term__str(struct parse_events_term **term,
-			   int type_term, char *config, char *str,
+			   enum parse_events__term_type type_term,
+			   char *config, char *str,
 			   void *loc_term_, void *loc_val_)
 {
 	YYLTYPE *loc_term = loc_term_;
@@ -2424,11 +2505,12 @@ int parse_events_term__str(struct parse_events_term **term,
 }
 
 int parse_events_term__term(struct parse_events_term **term,
-			    int term_lhs, int term_rhs,
+			    enum parse_events__term_type term_lhs,
+			    enum parse_events__term_type term_rhs,
 			    void *loc_term, void *loc_val)
 {
 	return parse_events_term__str(term, term_lhs, NULL,
-				      strdup(config_term_names[term_rhs]),
+				      strdup(config_term_name(term_rhs)),
 				      loc_term, loc_val);
 }
 
@@ -2539,7 +2621,7 @@ int parse_events_term__to_strbuf(struct list_head *term_list, struct strbuf *sb)
 				if (ret < 0)
 					return ret;
 			} else if (term->type_term < __PARSE_EVENTS__TERM_TYPE_NR) {
-				ret = strbuf_addf(sb, "%s=", config_term_names[term->type_term]);
+				ret = strbuf_addf(sb, "%s=", config_term_name(term->type_term));
 				if (ret < 0)
 					return ret;
 			}
@@ -2567,7 +2649,7 @@ static void config_terms_list(char *buf, size_t buf_sz)
 
 	buf[0] = '\0';
 	for (i = 0; i < __PARSE_EVENTS__TERM_TYPE_NR; i++) {
-		const char *name = config_term_names[i];
+		const char *name = config_term_name(i);
 
 		if (!config_term_avail(i, NULL))
 			continue;

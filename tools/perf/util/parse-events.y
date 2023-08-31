@@ -777,7 +777,8 @@ PE_TERM_HW
 PE_TERM '=' name_or_legacy
 {
 	struct parse_events_term *term;
-	int err = parse_events_term__str(&term, (int)$1, NULL, $3, &@1, &@3);
+	int err = parse_events_term__str(&term, (enum parse_events__term_type)$1,
+					/*config=*/NULL, $3, &@1, &@3);
 
 	if (err) {
 		free($3);
@@ -789,7 +790,8 @@ PE_TERM '=' name_or_legacy
 PE_TERM '=' PE_TERM_HW
 {
 	struct parse_events_term *term;
-	int err = parse_events_term__str(&term, (int)$1, NULL, $3.str, &@1, &@3);
+	int err = parse_events_term__str(&term, (enum parse_events__term_type)$1,
+					 /*config=*/NULL, $3.str, &@1, &@3);
 
 	if (err) {
 		free($3.str);
@@ -801,7 +803,10 @@ PE_TERM '=' PE_TERM_HW
 PE_TERM '=' PE_TERM
 {
 	struct parse_events_term *term;
-	int err = parse_events_term__term(&term, (int)$1, (int)$3, &@1, &@3);
+	int err = parse_events_term__term(&term,
+					  (enum parse_events__term_type)$1,
+					  (enum parse_events__term_type)$3,
+					  &@1, &@3);
 
 	if (err)
 		PE_ABORT(err);
@@ -812,7 +817,8 @@ PE_TERM '=' PE_TERM
 PE_TERM '=' PE_VALUE
 {
 	struct parse_events_term *term;
-	int err = parse_events_term__num(&term, (int)$1, NULL, $3, false, &@1, &@3);
+	int err = parse_events_term__num(&term, (enum parse_events__term_type)$1,
+					 /*config=*/NULL, $3, /*novalue=*/false, &@1, &@3);
 
 	if (err)
 		PE_ABORT(err);
@@ -823,7 +829,9 @@ PE_TERM '=' PE_VALUE
 PE_TERM
 {
 	struct parse_events_term *term;
-	int err = parse_events_term__num(&term, (int)$1, NULL, 1, true, &@1, NULL);
+	int err = parse_events_term__num(&term, (enum parse_events__term_type)$1,
+					/*config=*/NULL, /*num=*/1, /*novalue=*/true,
+					&@1, /*loc_val=*/NULL);
 
 	if (err)
 		PE_ABORT(err);
