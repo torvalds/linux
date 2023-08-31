@@ -419,6 +419,7 @@ struct ast_vhub {
 
 	/* Upstream bus speed captured at bus reset */
 	unsigned int			speed;
+	u8				current_config;
 
 	/* Standard USB Descriptors of the vhub. */
 	struct usb_device_descriptor	vhub_dev_desc;

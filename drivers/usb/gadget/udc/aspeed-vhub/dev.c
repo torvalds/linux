@@ -122,9 +122,8 @@ static int ast_vhub_dev_feature(struct ast_vhub_dev *d,
 			       d->vhub->regs + AST_VHUB_CTRL);
 
 		return std_req_complete;
-	}
 
-	if (wValue == USB_DEVICE_TEST_MODE) {
+	} else if (wValue == USB_DEVICE_TEST_MODE) {
 		val = readl(d->vhub->regs + AST_VHUB_CTRL);
 		val &= ~GENMASK(10, 8);
 		val |= VHUB_CTRL_SET_TEST_MODE((wIndex >> 8) & 0x7);
