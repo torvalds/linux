@@ -290,7 +290,7 @@ static snd_pcm_uframes_t dmaengine_pcm_pointer(
 static int dmaengine_copy(struct snd_soc_component *component,
 			  struct snd_pcm_substream *substream,
 			  int channel, unsigned long hwoff,
-			  struct iov_iter *buf, unsigned long bytes)
+			  struct iov_iter *iter, unsigned long bytes)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct dmaengine_pcm *pcm = soc_component_to_pcm(component);
@@ -302,7 +302,7 @@ static int dmaengine_copy(struct snd_soc_component *component,
 			channel * (runtime->dma_bytes / runtime->channels);
 
 	if (is_playback)
-		if (copy_from_iter(dma_ptr, bytes, buf) != bytes)
+		if (copy_from_iter(dma_ptr, bytes, iter) != bytes)
 			return -EFAULT;
 
 	if (process) {
@@ -312,7 +312,7 @@ static int dmaengine_copy(struct snd_soc_component *component,
 	}
 
 	if (!is_playback)
-		if (copy_to_iter(dma_ptr, bytes, buf) != bytes)
+		if (copy_to_iter(dma_ptr, bytes, iter) != bytes)
 			return -EFAULT;
 
 	return 0;
