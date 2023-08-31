@@ -766,9 +766,9 @@ static void apparmor_bprm_committed_creds(struct linux_binprm *bprm)
 
 static void apparmor_current_getsecid_subj(u32 *secid)
 {
-	struct aa_label *label = aa_get_current_label();
+	struct aa_label *label = __begin_current_label_crit_section();
 	*secid = label->secid;
-	aa_put_label(label);
+	__end_current_label_crit_section(label);
 }
 
 static void apparmor_task_getsecid_obj(struct task_struct *p, u32 *secid)
