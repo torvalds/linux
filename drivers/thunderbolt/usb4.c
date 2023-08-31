@@ -1946,35 +1946,6 @@ int usb4_usb3_port_max_link_rate(struct tb_port *port)
 	return usb4_usb3_port_max_bandwidth(port, ret);
 }
 
-/**
- * usb4_usb3_port_actual_link_rate() - Established USB3 link rate
- * @port: USB3 adapter port
- *
- * Return actual established link rate of a USB3 adapter in Mb/s. If the
- * link is not up returns %0 and negative errno in case of failure.
- */
-int usb4_usb3_port_actual_link_rate(struct tb_port *port)
-{
-	int ret, lr;
-	u32 val;
-
-	if (!tb_port_is_usb3_down(port) && !tb_port_is_usb3_up(port))
-		return -EINVAL;
-
-	ret = tb_port_read(port, &val, TB_CFG_PORT,
-			   port->cap_adap + ADP_USB3_CS_4, 1);
-	if (ret)
-		return ret;
-
-	if (!(val & ADP_USB3_CS_4_ULV))
-		return 0;
-
-	lr = val & ADP_USB3_CS_4_ALR_MASK;
-	ret = lr == ADP_USB3_CS_4_ALR_20G ? 20000 : 10000;
-
-	return usb4_usb3_port_max_bandwidth(port, ret);
-}
-
 static int usb4_usb3_port_cm_request(struct tb_port *port, bool request)
 {
 	int ret;

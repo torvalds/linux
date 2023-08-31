@@ -484,9 +484,6 @@ struct tb_regs_port_header {
 #define ADP_USB3_CS_3				0x03
 #define ADP_USB3_CS_3_SCALE_MASK		GENMASK(5, 0)
 #define ADP_USB3_CS_4				0x04
-#define ADP_USB3_CS_4_ALR_MASK			GENMASK(6, 0)
-#define ADP_USB3_CS_4_ALR_20G			0x1
-#define ADP_USB3_CS_4_ULV			BIT(7)
 #define ADP_USB3_CS_4_MSLR_MASK			GENMASK(18, 12)
 #define ADP_USB3_CS_4_MSLR_SHIFT		12
 #define ADP_USB3_CS_4_MSLR_20G			0x1
