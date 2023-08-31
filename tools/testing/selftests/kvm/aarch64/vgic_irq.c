@@ -7,7 +7,6 @@
  * host to inject a specific intid via a GUEST_SYNC call, and then checks that
  * it received it.
  */
-
 #include <asm/kvm.h>
 #include <asm/kvm_para.h>
 #include <sys/eventfd.h>
@@ -781,7 +780,7 @@ static void test_vgic(uint32_t nr_irqs, bool level_sensitive, bool eoi_split)
 			run_guest_cmd(vcpu, gic_fd, &inject_args, &args);
 			break;
 		case UCALL_ABORT:
-			REPORT_GUEST_ASSERT_2(uc, "values: %#lx, %#lx");
+			REPORT_GUEST_ASSERT(uc);
 			break;
 		case UCALL_DONE:
 			goto done;
