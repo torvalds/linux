@@ -286,6 +286,7 @@ struct platform_features {
 	bool has_msr_misc_feature_control;	/* MSR_MISC_FEATURE_CONTROL */
 	bool has_msr_misc_pwr_mgmt;	/* MSR_MISC_PWR_MGMT */
 	bool has_nhm_msrs;	/* MSR_PLATFORM_INFO, MSR_IA32_TEMPERATURE_TARGET, MSR_SMI_COUNT, MSR_PKG_CST_CONFIG_CONTROL, TRL MSRs */
+	bool has_config_tdp;	/* MSR_CONFIG_TDP_NOMINAL/LEVEL_1/LEVEL_2/CONTROL, MSR_TURBO_ACTIVATION_RATIO */
 	int bclk_freq;		/* CPU base clock */
 	int cst_limit;		/* MSR_PKG_CST_CONFIG_CONTROL */
 	int trl_msrs;		/* MSR_TURBO_RATIO_LIMIT/LIMIT1/LIMIT2/SECONDARY, Atom TRL MSRs */
@@ -388,6 +389,7 @@ static const struct platform_features ivb_features = {
 	.has_msr_misc_feature_control = 1,
 	.has_msr_misc_pwr_mgmt = 1,
 	.has_nhm_msrs = 1,
+	.has_config_tdp = 1,
 	.bclk_freq = BCLK_100MHZ,
 	.cst_limit = CST_LIMIT_SNB,
 	.trl_msrs = TRL_BASE,
@@ -406,6 +408,7 @@ static const struct platform_features hsw_features = {
 	.has_msr_misc_feature_control = 1,
 	.has_msr_misc_pwr_mgmt = 1,
 	.has_nhm_msrs = 1,
+	.has_config_tdp = 1,
 	.bclk_freq = BCLK_100MHZ,
 	.cst_limit = CST_LIMIT_HSW,
 	.trl_msrs = TRL_BASE,
@@ -415,6 +418,7 @@ static const struct platform_features hsx_features = {
 	.has_msr_misc_feature_control = 1,
 	.has_msr_misc_pwr_mgmt = 1,
 	.has_nhm_msrs = 1,
+	.has_config_tdp = 1,
 	.bclk_freq = BCLK_100MHZ,
 	.cst_limit = CST_LIMIT_HSW,
 	.trl_msrs = TRL_BASE | TRL_LIMIT1 | TRL_LIMIT2,
@@ -424,6 +428,7 @@ static const struct platform_features hswl_features = {
 	.has_msr_misc_feature_control = 1,
 	.has_msr_misc_pwr_mgmt = 1,
 	.has_nhm_msrs = 1,
+	.has_config_tdp = 1,
 	.bclk_freq = BCLK_100MHZ,
 	.cst_limit = CST_LIMIT_HSW,
 	.trl_msrs = TRL_BASE,
@@ -433,6 +438,7 @@ static const struct platform_features hswg_features = {
 	.has_msr_misc_feature_control = 1,
 	.has_msr_misc_pwr_mgmt = 1,
 	.has_nhm_msrs = 1,
+	.has_config_tdp = 1,
 	.bclk_freq = BCLK_100MHZ,
 	.cst_limit = CST_LIMIT_HSW,
 	.trl_msrs = TRL_BASE,
@@ -442,6 +448,7 @@ static const struct platform_features bdw_features = {
 	.has_msr_misc_feature_control = 1,
 	.has_msr_misc_pwr_mgmt = 1,
 	.has_nhm_msrs = 1,
+	.has_config_tdp = 1,
 	.bclk_freq = BCLK_100MHZ,
 	.cst_limit = CST_LIMIT_HSW,
 	.trl_msrs = TRL_BASE,
@@ -451,6 +458,7 @@ static const struct platform_features bdwg_features = {
 	.has_msr_misc_feature_control = 1,
 	.has_msr_misc_pwr_mgmt = 1,
 	.has_nhm_msrs = 1,
+	.has_config_tdp = 1,
 	.bclk_freq = BCLK_100MHZ,
 	.cst_limit = CST_LIMIT_HSW,
 	.trl_msrs = TRL_BASE,
@@ -460,6 +468,7 @@ static const struct platform_features bdx_features = {
 	.has_msr_misc_feature_control = 1,
 	.has_msr_misc_pwr_mgmt = 1,
 	.has_nhm_msrs = 1,
+	.has_config_tdp = 1,
 	.bclk_freq = BCLK_100MHZ,
 	.cst_limit = CST_LIMIT_HSW,
 	.trl_msrs = TRL_BASE,
@@ -469,6 +478,7 @@ static const struct platform_features skl_features = {
 	.has_msr_misc_feature_control = 1,
 	.has_msr_misc_pwr_mgmt = 1,
 	.has_nhm_msrs = 1,
+	.has_config_tdp = 1,
 	.bclk_freq = BCLK_100MHZ,
 	.cst_limit = CST_LIMIT_HSW,
 	.trl_msrs = TRL_BASE,
@@ -478,6 +488,7 @@ static const struct platform_features cnl_features = {
 	.has_msr_misc_feature_control = 1,
 	.has_msr_misc_pwr_mgmt = 1,
 	.has_nhm_msrs = 1,
+	.has_config_tdp = 1,
 	.bclk_freq = BCLK_100MHZ,
 	.cst_limit = CST_LIMIT_HSW,
 	.trl_msrs = TRL_BASE,
@@ -487,6 +498,7 @@ static const struct platform_features skx_features = {
 	.has_msr_misc_feature_control = 1,
 	.has_msr_misc_pwr_mgmt = 1,
 	.has_nhm_msrs = 1,
+	.has_config_tdp = 1,
 	.bclk_freq = BCLK_100MHZ,
 	.cst_limit = CST_LIMIT_SKX,
 	.trl_msrs = TRL_BASE | TRL_CORECOUNT,
@@ -496,6 +508,7 @@ static const struct platform_features icx_features = {
 	.has_msr_misc_feature_control = 1,
 	.has_msr_misc_pwr_mgmt = 1,
 	.has_nhm_msrs = 1,
+	.has_config_tdp = 1,
 	.bclk_freq = BCLK_100MHZ,
 	.cst_limit = CST_LIMIT_ICX,
 	.trl_msrs = TRL_BASE | TRL_CORECOUNT,
@@ -505,6 +518,7 @@ static const struct platform_features spr_features = {
 	.has_msr_misc_feature_control = 1,
 	.has_msr_misc_pwr_mgmt = 1,
 	.has_nhm_msrs = 1,
+	.has_config_tdp = 1,
 	.bclk_freq = BCLK_100MHZ,
 	.cst_limit = CST_LIMIT_SKX,
 	.trl_msrs = TRL_BASE | TRL_CORECOUNT,
@@ -575,6 +589,7 @@ static const struct platform_features tmtd_features = {
 static const struct platform_features knl_features = {
 	.has_msr_misc_pwr_mgmt = 1,
 	.has_nhm_msrs = 1,
+	.has_config_tdp = 1,
 	.bclk_freq = BCLK_100MHZ,
 	.cst_limit = CST_LIMIT_KNL,
 	.trl_msrs = TRL_KNL,
@@ -4251,35 +4266,6 @@ int is_jvl(unsigned int family, unsigned int model)
 	return 0;
 }
 
-int has_config_tdp(unsigned int family, unsigned int model)
-{
-	if (!genuine_intel)
-		return 0;
-
-	if (family != 6)
-		return 0;
-
-	switch (model) {
-	case INTEL_FAM6_IVYBRIDGE:	/* IVB */
-	case INTEL_FAM6_HASWELL:	/* HSW */
-	case INTEL_FAM6_HASWELL_X:	/* HSX */
-	case INTEL_FAM6_HASWELL_L:	/* HSW */
-	case INTEL_FAM6_HASWELL_G:	/* HSW */
-	case INTEL_FAM6_BROADWELL:	/* BDW */
-	case INTEL_FAM6_BROADWELL_G:	/* BDW */
-	case INTEL_FAM6_BROADWELL_X:	/* BDX */
-	case INTEL_FAM6_SKYLAKE_L:	/* SKL */
-	case INTEL_FAM6_CANNONLAKE_L:	/* CNL */
-	case INTEL_FAM6_SKYLAKE_X:	/* SKX */
-	case INTEL_FAM6_ICELAKE_X:	/* ICX */
-	case INTEL_FAM6_SAPPHIRERAPIDS_X:	/* SPR */
-	case INTEL_FAM6_XEON_PHI_KNL:	/* Knights Landing */
-		return 1;
-	default:
-		return 0;
-	}
-}
-
 /*
  * tcc_offset_bits:
  * 0: Tcc Offset not supported (Default)
@@ -4320,7 +4306,7 @@ static void remove_underbar(char *s)
 	*to = 0;
 }
 
-static void dump_turbo_ratio_info(unsigned int family, unsigned int model)
+static void dump_turbo_ratio_info(void)
 {
 	if (!has_turbo)
 		return;
@@ -4344,17 +4330,17 @@ static void dump_turbo_ratio_info(unsigned int family, unsigned int model)
 	if (platform->trl_msrs & TRL_KNL)
 		dump_knl_turbo_ratio_limits();
 
-	if (has_config_tdp(family, model))
+	if (platform->has_config_tdp)
 		dump_config_tdp();
 }
 
-static void dump_cstate_pstate_config_info(unsigned int family, unsigned int model)
+static void dump_cstate_pstate_config_info(void)
 {
 	if (!platform->has_nhm_msrs)
 		return;
 
 	dump_platform_info();
-	dump_turbo_ratio_info(family, model);
+	dump_turbo_ratio_info();
 	dump_cst_cfg();
 }
 
@@ -6000,7 +5986,7 @@ void process_cpuid()
 	check_tcc_offset(model);
 
 	if (!quiet)
-		dump_cstate_pstate_config_info(family, model);
+		dump_cstate_pstate_config_info();
 	intel_uncore_frequency_probe();
 
 	if (!quiet)
