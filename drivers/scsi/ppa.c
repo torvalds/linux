@@ -307,9 +307,9 @@ static int ppa_out(ppa_struct *dev, char *buffer, int len)
 	case PPA_EPP_8:
 		epp_reset(ppb);
 		w_ctr(ppb, 0x4);
-		if (dev->mode == PPA_EPP_32 && !(((long) buffer | len) & 0x01))
+		if (dev->mode == PPA_EPP_32 && !(((long) buffer | len) & 0x03))
 			outsl(ppb + 4, buffer, len >> 2);
-		else if (dev->mode == PPA_EPP_16 && !(((long) buffer | len) & 0x03))
+		else if (dev->mode == PPA_EPP_16 && !(((long) buffer | len) & 0x01))
 			outsw(ppb + 4, buffer, len >> 1);
 		else
 			outsb(ppb + 4, buffer, len);
