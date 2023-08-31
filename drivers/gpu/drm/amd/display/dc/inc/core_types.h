@@ -563,6 +563,17 @@ struct dc_state {
 	struct {
 		unsigned int stutter_period_us;
 	} perf_params;
+
+	struct {
+		/* used to temporarily backup plane states of a stream during
+		 * dc update. The reason is that plane states are overwritten
+		 * with surface updates in dc update. Once they are overwritten
+		 * current state is no longer valid. We want to temporarily
+		 * store current value in plane states so we can still recover
+		 * a valid current state during dc update.
+		 */
+		struct dc_plane_state plane_states[MAX_SURFACE_NUM];
+	} scratch;
 };
 
 struct replay_context {

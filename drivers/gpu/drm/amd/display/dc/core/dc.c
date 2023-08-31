@@ -2965,6 +2965,34 @@ static void copy_stream_update_to_stream(struct dc *dc,
 	}
 }
 
+static void backup_plane_states_for_stream(
+		struct dc_plane_state plane_states[MAX_SURFACE_NUM],
+		struct dc_stream_state *stream)
+{
+	int i;
+	struct dc_stream_status *status = dc_stream_get_status(stream);
+
+	if (!status)
+		return;
+
+	for (i = 0; i < status->plane_count; i++)
+		plane_states[i] = *status->plane_states[i];
+}
+
+static void restore_plane_states_for_stream(
+		struct dc_plane_state plane_states[MAX_SURFACE_NUM],
+		struct dc_stream_state *stream)
+{
+	int i;
+	struct dc_stream_status *status = dc_stream_get_status(stream);
+
+	if (!status)
+		return;
+
+	for (i = 0; i < status->plane_count; i++)
+		*status->plane_states[i] = plane_states[i];
+}
+
 static bool update_planes_and_stream_state(struct dc *dc,
 		struct dc_surface_update *srf_updates, int surface_count,
 		struct dc_stream_state *stream,
@@ -2988,7 +3016,7 @@ static bool update_planes_and_stream_state(struct dc *dc,
 	}
 
 	context = dc->current_state;
-
+	backup_plane_states_for_stream(dc->current_state->scratch.plane_states, stream);
 	update_type = dc_check_update_surfaces_for_stream(
 			dc, srf_updates, surface_count, stream_update, stream_status);
 
@@ -3095,6 +3123,7 @@ static bool update_planes_and_stream_state(struct dc *dc,
 
 	*new_context = context;
 	*new_update_type = update_type;
+	backup_plane_states_for_stream(context->scratch.plane_states, stream);
 
 	return true;
 
@@ -3986,6 +4015,107 @@ static bool could_mpcc_tree_change_for_active_pipes(struct dc *dc,
 	return force_minimal_pipe_splitting;
 }
 
+struct pipe_split_policy_backup {
+	bool dynamic_odm_policy;
+	bool subvp_policy;
+	enum pipe_split_policy mpc_policy;
+};
+
+static void release_minimal_transition_state(struct dc *dc,
+		struct dc_state *context, struct pipe_split_policy_backup *policy)
+{
+	dc_release_state(context);
+	/* restore previous pipe split and odm policy */
+	if (!dc->config.is_vmin_only_asic)
+		dc->debug.pipe_split_policy = policy->mpc_policy;
+	dc->debug.enable_single_display_2to1_odm_policy = policy->dynamic_odm_policy;
+	dc->debug.force_disable_subvp = policy->subvp_policy;
+}
+
+static struct dc_state *create_minimal_transition_state(struct dc *dc,
+		struct dc_state *base_context, struct pipe_split_policy_backup *policy)
+{
+	struct dc_state *minimal_transition_context = dc_create_state(dc);
+	unsigned int i, j;
+
+	if (!dc->config.is_vmin_only_asic) {
+		policy->mpc_policy = dc->debug.pipe_split_policy;
+		dc->debug.pipe_split_policy = MPC_SPLIT_AVOID;
+	}
+	policy->dynamic_odm_policy = dc->debug.enable_single_display_2to1_odm_policy;
+	dc->debug.enable_single_display_2to1_odm_policy = false;
+	policy->subvp_policy = dc->debug.force_disable_subvp;
+	dc->debug.force_disable_subvp = true;
+
+	dc_resource_state_copy_construct(base_context, minimal_transition_context);
+
+	/* commit minimal state */
+	if (dc->res_pool->funcs->validate_bandwidth(dc, minimal_transition_context, false)) {
+		for (i = 0; i < minimal_transition_context->stream_count; i++) {
+			struct dc_stream_status *stream_status = &minimal_transition_context->stream_status[i];
+
+			for (j = 0; j < stream_status->plane_count; j++) {
+				struct dc_plane_state *plane_state = stream_status->plane_states[j];
+
+				/* force vsync flip when reconfiguring pipes to prevent underflow
+				 * and corruption
+				 */
+				plane_state->flip_immediate = false;
+			}
+		}
+	} else {
+		/* this should never happen */
+		release_minimal_transition_state(dc, minimal_transition_context, policy);
+		BREAK_TO_DEBUGGER();
+		minimal_transition_context = NULL;
+	}
+	return minimal_transition_context;
+}
+
+static bool commit_minimal_transition_state_for_windowed_mpo_odm(struct dc *dc,
+		struct dc_state *context,
+		struct dc_stream_state *stream)
+{
+	bool success = false;
+	struct dc_state *minimal_transition_context;
+	struct pipe_split_policy_backup policy;
+
+	/* commit based on new context */
+	minimal_transition_context = create_minimal_transition_state(dc,
+			context, &policy);
+	if (minimal_transition_context) {
+		if (dc->hwss.is_pipe_topology_transition_seamless(
+					dc, dc->current_state, minimal_transition_context) &&
+			dc->hwss.is_pipe_topology_transition_seamless(
+					dc, minimal_transition_context, context)) {
+			DC_LOG_DC("%s base = new state\n", __func__);
+			success = dc_commit_state_no_check(dc, minimal_transition_context) == DC_OK;
+		}
+		release_minimal_transition_state(dc, minimal_transition_context, &policy);
+	}
+
+	if (!success) {
+		/* commit based on current context */
+		restore_plane_states_for_stream(dc->current_state->scratch.plane_states, stream);
+		minimal_transition_context = create_minimal_transition_state(dc,
+				dc->current_state, &policy);
+		if (minimal_transition_context) {
+			if (dc->hwss.is_pipe_topology_transition_seamless(
+					dc, dc->current_state, minimal_transition_context) &&
+				dc->hwss.is_pipe_topology_transition_seamless(
+						dc, minimal_transition_context, context)) {
+				DC_LOG_DC("%s base = current state\n", __func__);
+				success = dc_commit_state_no_check(dc, minimal_transition_context) == DC_OK;
+			}
+			release_minimal_transition_state(dc, minimal_transition_context, &policy);
+		}
+		restore_plane_states_for_stream(context->scratch.plane_states, stream);
+	}
+
+	ASSERT(success);
+	return success;
+}
+
 /**
  * commit_minimal_transition_state - Create a transition pipe split state
  *
@@ -4007,22 +4137,13 @@ static bool could_mpcc_tree_change_for_active_pipes(struct dc *dc,
 static bool commit_minimal_transition_state(struct dc *dc,
 		struct dc_state *transition_base_context)
 {
-	struct dc_state *transition_context = dc_create_state(dc);
-	enum pipe_split_policy tmp_mpc_policy = 0;
-	bool temp_dynamic_odm_policy = 0;
-	bool temp_subvp_policy = 0;
+	struct dc_state *transition_context;
+	struct pipe_split_policy_backup policy;
 	enum dc_status ret = DC_ERROR_UNEXPECTED;
 	unsigned int i, j;
 	unsigned int pipe_in_use = 0;
 	bool subvp_in_use = false;
 	bool odm_in_use = false;
-
-	if (!transition_context)
-		return false;
-	/* Setup:
-	 * Store the current ODM and MPC config in some temp variables to be
-	 * restored after we commit the transition state.
-	 */
 
 	/* check current pipes in use*/
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
@@ -4064,10 +4185,8 @@ static bool commit_minimal_transition_state(struct dc *dc,
 	 * Reduce the scenarios to use dc_commit_state_no_check in the stage of flip. Especially
 	 * enter/exit MPO when DCN still have enough resources.
 	 */
-	if (pipe_in_use != dc->res_pool->pipe_count && !subvp_in_use && !odm_in_use) {
-		dc_release_state(transition_context);
+	if (pipe_in_use != dc->res_pool->pipe_count && !subvp_in_use && !odm_in_use)
 		return true;
-	}
 
 	DC_LOG_DC("%s base = %s state, reason = %s\n", __func__,
 			dc->current_state == transition_base_context ? "current" : "new",
@@ -4076,48 +4195,12 @@ static bool commit_minimal_transition_state(struct dc *dc,
 			dc->debug.pipe_split_policy != MPC_SPLIT_AVOID ? "MPC in Use" :
 			"Unknown");
 
-	if (!dc->config.is_vmin_only_asic) {
-		tmp_mpc_policy = dc->debug.pipe_split_policy;
-		dc->debug.pipe_split_policy = MPC_SPLIT_AVOID;
-	}
-
-	temp_dynamic_odm_policy = dc->debug.enable_single_display_2to1_odm_policy;
-	dc->debug.enable_single_display_2to1_odm_policy = false;
-
-	temp_subvp_policy = dc->debug.force_disable_subvp;
-	dc->debug.force_disable_subvp = true;
-
-	dc_resource_state_copy_construct(transition_base_context, transition_context);
-
-	/* commit minimal state */
-	if (dc->res_pool->funcs->validate_bandwidth(dc, transition_context, false)) {
-		for (i = 0; i < transition_context->stream_count; i++) {
-			struct dc_stream_status *stream_status = &transition_context->stream_status[i];
-
-			for (j = 0; j < stream_status->plane_count; j++) {
-				struct dc_plane_state *plane_state = stream_status->plane_states[j];
-
-				/* force vsync flip when reconfiguring pipes to prevent underflow
-				 * and corruption
-				 */
-				plane_state->flip_immediate = false;
-			}
-		}
-
+	transition_context = create_minimal_transition_state(dc,
+			transition_base_context, &policy);
+	if (transition_context) {
 		ret = dc_commit_state_no_check(dc, transition_context);
+		release_minimal_transition_state(dc, transition_context, &policy);
 	}
-
-	/* always release as dc_commit_state_no_check retains in good case */
-	dc_release_state(transition_context);
-
-	/* TearDown:
-	 * Restore original configuration for ODM and MPO.
-	 */
-	if (!dc->config.is_vmin_only_asic)
-		dc->debug.pipe_split_policy = tmp_mpc_policy;
-
-	dc->debug.enable_single_display_2to1_odm_policy = temp_dynamic_odm_policy;
-	dc->debug.force_disable_subvp = temp_subvp_policy;
 
 	if (ret != DC_OK) {
 		/* this should never happen */
@@ -4290,6 +4373,51 @@ static bool fast_update_only(struct dc *dc,
 			&& !full_update_required(dc, srf_updates, surface_count, stream_update, stream);
 }
 
+static bool should_commit_minimal_transition_for_windowed_mpo_odm(struct dc *dc,
+		struct dc_stream_state *stream,
+		struct dc_state *context)
+{
+	struct pipe_ctx *cur_pipe, *new_pipe;
+	bool cur_is_odm_in_use, new_is_odm_in_use;
+	struct dc_stream_status *cur_stream_status = stream_get_status(dc->current_state, stream);
+	struct dc_stream_status *new_stream_status = stream_get_status(context, stream);
+
+	if (!dc->debug.enable_single_display_2to1_odm_policy ||
+			!dc->config.enable_windowed_mpo_odm)
+		/* skip the check if windowed MPO ODM or dynamic ODM is turned
+		 * off.
+		 */
+		return false;
+
+	if (context == dc->current_state)
+		/* skip the check for fast update */
+		return false;
+
+	if (new_stream_status->plane_count != cur_stream_status->plane_count)
+		/* plane count changed, not a plane scaling update so not the
+		 * case we are looking for
+		 */
+		return false;
+
+	cur_pipe = resource_get_otg_master_for_stream(&dc->current_state->res_ctx, stream);
+	new_pipe = resource_get_otg_master_for_stream(&context->res_ctx, stream);
+	cur_is_odm_in_use = resource_get_odm_slice_count(cur_pipe) > 1;
+	new_is_odm_in_use = resource_get_odm_slice_count(new_pipe) > 1;
+	if (cur_is_odm_in_use == new_is_odm_in_use)
+		/* ODM state isn't changed, not the case we are looking for */
+		return false;
+
+	if (dc->hwss.is_pipe_topology_transition_seamless &&
+			dc->hwss.is_pipe_topology_transition_seamless(
+					dc, dc->current_state, context))
+		/* transition can be achieved without the need for committing
+		 * minimal transition state first
+		 */
+		return false;
+
+	return true;
+}
+
 bool dc_update_planes_and_stream(struct dc *dc,
 		struct dc_surface_update *srf_updates, int surface_count,
 		struct dc_stream_state *stream,
@@ -4362,6 +4490,19 @@ bool dc_update_planes_and_stream(struct dc *dc,
 		update_type = UPDATE_TYPE_FULL;
 	}
 
+	/* when windowed MPO ODM is supported, we need to handle a special case
+	 * where we can transition between ODM combine and MPC combine due to
+	 * plane scaling update. This transition will require us to commit
+	 * minimal transition state. The condition to trigger this update can't
+	 * be predicted by could_mpcc_tree_change_for_active_pipes because we
+	 * can only determine it after DML validation. Therefore we can't rely
+	 * on the existing commit minimal transition state sequence. Instead
+	 * we have to add additional handling here to handle this transition
+	 * with its own special sequence.
+	 */
+	if (should_commit_minimal_transition_for_windowed_mpo_odm(dc, stream, context))
+		commit_minimal_transition_state_for_windowed_mpo_odm(dc,
+				context, stream);
 	update_seamless_boot_flags(dc, context, surface_count, stream);
 	if (is_fast_update_only && !dc->debug.enable_legacy_fast_update) {
 		commit_planes_for_stream_fast(dc,
@@ -4376,7 +4517,6 @@ bool dc_update_planes_and_stream(struct dc *dc,
 				dc->hwss.is_pipe_topology_transition_seamless &&
 				!dc->hwss.is_pipe_topology_transition_seamless(
 						dc, dc->current_state, context)) {
-
 			DC_LOG_ERROR("performing non-seamless pipe topology transition with surface only update!\n");
 			BREAK_TO_DEBUGGER();
 		}
