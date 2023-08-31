@@ -518,7 +518,9 @@ static void rkisp_dvfs(struct rkisp_device *dev)
 	do_div(data_rate, 1000 * 1000);
 	/* increase margin: 25% * num */
 	data_rate += (data_rate >> 2) * num;
-
+	/* one frame two-run, data double */
+	if (hw->is_multi_overflow && num > 1)
+		data_rate *= 2;
 	/* compare with isp clock adjustment table */
 	for (i = 0; i < hw->num_clk_rate_tbl; i++)
 		if (data_rate <= hw->clk_rate_tbl[i].clk_rate)
