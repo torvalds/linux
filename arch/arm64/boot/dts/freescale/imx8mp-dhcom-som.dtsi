@@ -414,6 +414,7 @@
 		interrupts-extended = <&gpio5 5 IRQ_TYPE_LEVEL_LOW>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_rtc>;
+		wakeup-source;
 	};
 
 	eeprom1: eeprom@53 {	/* EEPROM with FEC MAC address */
@@ -470,6 +471,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart1>;
 	status = "okay";
+	wakeup-source;
 };
 
 &uart2 {
