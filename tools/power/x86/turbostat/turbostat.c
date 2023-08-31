@@ -4865,11 +4865,11 @@ void rapl_probe_amd(void)
 }
 
 /*
- * rapl_probe()
+ * probe_rapl()
  *
  * sets rapl_power_units, rapl_energy_units, rapl_time_units
  */
-void rapl_probe(void)
+void probe_rapl(void)
 {
 	if (!platform->rapl_msrs)
 		return;
@@ -5558,10 +5558,10 @@ void process_cpuid()
 
 	probe_intel_uncore_frequency();
 
+	probe_rapl();
+
 	if (platform->has_nhm_msrs)
 		BIC_PRESENT(BIC_SMI);
-
-	rapl_probe();
 
 	if (!access("/sys/class/drm/card0/power/rc6_residency_ms", R_OK))
 		BIC_PRESENT(BIC_GFX_rc6);
