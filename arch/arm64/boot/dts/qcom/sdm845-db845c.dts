@@ -490,7 +490,6 @@
 };
 
 &mdss {
-	memory-region = <&cont_splash_mem>;
 	status = "okay";
 };
 
