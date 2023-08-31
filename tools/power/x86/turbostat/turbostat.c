@@ -767,9 +767,6 @@ static const struct platform_features knl_features = {
 static const struct platform_features default_features = {
 };
 
-static const struct platform_features amd_features = {
-};
-
 static const struct platform_features amd_features_with_rapl = {
 	.rapl_msrs = RAPL_AMD_F17H,
 	.has_per_core_rapl = 1,
@@ -849,9 +846,9 @@ void probe_platform_features(unsigned int family, unsigned int model)
 {
 	int i;
 
-	if (authentic_amd || hygon_genuine) {
-		platform = &amd_features;
+	platform = &default_features;
 
+	if (authentic_amd || hygon_genuine) {
 		if (max_extended_level >= 0x80000007) {
 			unsigned int eax, ebx, ecx, edx;
 
@@ -862,8 +859,6 @@ void probe_platform_features(unsigned int family, unsigned int model)
 		}
 		return;
 	}
-
-	platform = &default_features;
 
 	if (!genuine_intel || family != 6)
 		return;
