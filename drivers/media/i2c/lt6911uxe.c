@@ -1395,15 +1395,14 @@ static long lt6911uxe_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		break;
 	case RKMODULE_SET_CSI_DPHY_PARAM:
 		dphy_param = (struct rkmodule_csi_dphy_param *)arg;
-		if (dphy_param->vendor == rk3588_dcphy_param.vendor)
+		if (dphy_param->vendor == PHY_VENDOR_SAMSUNG)
 			rk3588_dcphy_param = *dphy_param;
 		dev_dbg(&lt6911uxe->i2c_client->dev,
 			"sensor set dphy param\n");
 		break;
 	case RKMODULE_GET_CSI_DPHY_PARAM:
 		dphy_param = (struct rkmodule_csi_dphy_param *)arg;
-		if (dphy_param->vendor == rk3588_dcphy_param.vendor)
-			*dphy_param = rk3588_dcphy_param;
+		*dphy_param = rk3588_dcphy_param;
 		dev_dbg(&lt6911uxe->i2c_client->dev,
 			"sensor get dphy param\n");
 		break;
