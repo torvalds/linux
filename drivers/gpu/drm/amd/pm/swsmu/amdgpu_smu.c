@@ -215,12 +215,32 @@ static int smu_set_gfx_imu_enable(struct smu_context *smu)
 	return smu_set_gfx_power_up_by_imu(smu);
 }
 
+static bool is_vcn_enabled(struct amdgpu_device *adev)
+{
+	int i;
+
+	for (i = 0; i < adev->num_ip_blocks; i++) {
+		if ((adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_VCN ||
+			adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_JPEG) &&
+			!adev->ip_blocks[i].status.valid)
+			return false;
+	}
+
+	return true;
+}
+
 static int smu_dpm_set_vcn_enable(struct smu_context *smu,
 				  bool enable)
 {
 	struct smu_power_context *smu_power = &smu->smu_power;
 	struct smu_power_gate *power_gate = &smu_power->power_gate;
 	int ret = 0;
+
+	/*
+	 * don't poweron vcn/jpeg when they are skipped.
+	 */
+	if (!is_vcn_enabled(smu->adev))
+		return 0;
 
 	if (!smu->ppt_funcs->dpm_set_vcn_enable)
 		return 0;
@@ -241,6 +261,9 @@ static int smu_dpm_set_jpeg_enable(struct smu_context *smu,
 	struct smu_power_context *smu_power = &smu->smu_power;
 	struct smu_power_gate *power_gate = &smu_power->power_gate;
 	int ret = 0;
+
+	if (!is_vcn_enabled(smu->adev))
+		return 0;
 
 	if (!smu->ppt_funcs->dpm_set_jpeg_enable)
 		return 0;
