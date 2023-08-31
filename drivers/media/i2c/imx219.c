@@ -762,9 +762,6 @@ static int imx219_set_pad_format(struct v4l2_subdev *sd,
 	format = v4l2_subdev_get_pad_format(sd, sd_state, 0);
 	crop = v4l2_subdev_get_pad_crop(sd, sd_state, 0);
 
-	if (imx219->mode == mode && format->code == fmt->format.code)
-		return 0;
-
 	*format = fmt->format;
 	*crop = mode->crop;
 
