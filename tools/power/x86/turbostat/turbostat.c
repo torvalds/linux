@@ -4378,7 +4378,7 @@ static void dump_sysfs_file(char *path)
 	fprintf(outf, "%s: %s", strrchr(path, '/') + 1, cpuidle_buf);
 }
 
-static void intel_uncore_frequency_probe(void)
+static void probe_intel_uncore_frequency(void)
 {
 	int i, j;
 	char path[128];
@@ -5556,12 +5556,12 @@ void process_cpuid()
 
 	probe_cstates();
 
+	probe_intel_uncore_frequency();
+
 	if (platform->has_nhm_msrs)
 		BIC_PRESENT(BIC_SMI);
 
 	rapl_probe();
-
-	intel_uncore_frequency_probe();
 
 	if (!access("/sys/class/drm/card0/power/rc6_residency_ms", R_OK))
 		BIC_PRESENT(BIC_GFX_rc6);
