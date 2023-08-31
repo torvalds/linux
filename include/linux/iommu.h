@@ -228,6 +228,10 @@ struct iommu_iotlb_gather {
 /**
  * struct iommu_ops - iommu ops and capabilities
  * @capable: check capability
+ * @hw_info: report iommu hardware information. The data buffer returned by this
+ *           op is allocated in the iommu driver and freed by the caller after
+ *           use. The information type is one of enum iommu_hw_info_type defined
+ *           in include/uapi/linux/iommufd.h.
  * @domain_alloc: allocate iommu domain
  * @probe_device: Add device to iommu driver handling
  * @release_device: Remove device from iommu driver handling
@@ -257,6 +261,7 @@ struct iommu_iotlb_gather {
  */
 struct iommu_ops {
 	bool (*capable)(struct device *dev, enum iommu_cap);
+	void *(*hw_info)(struct device *dev, u32 *length, u32 *type);
 
 	/* Domain allocation and freeing by the iommu driver */
 	struct iommu_domain *(*domain_alloc)(unsigned iommu_domain_type);
@@ -448,17 +453,6 @@ static inline void iommu_iotlb_gather_init(struct iommu_iotlb_gather *gather)
 		.start	= ULONG_MAX,
 		.freelist = LIST_HEAD_INIT(gather->freelist),
 	};
-}
-
-static inline const struct iommu_ops *dev_iommu_ops(struct device *dev)
-{
-	/*
-	 * Assume that valid ops must be installed if iommu_probe_device()
-	 * has succeeded. The device ops are essentially for internal use
-	 * within the IOMMU subsystem itself, so we should be able to trust
-	 * ourselves not to misuse the helper.
-	 */
-	return dev->iommu->iommu_dev->ops;
 }
 
 extern int bus_iommu_probe(const struct bus_type *bus);
