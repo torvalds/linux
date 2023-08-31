@@ -29,11 +29,6 @@
 		reg = <0x08000000 0x08000000>;
 	};
 
-	lbsc {
-		#address-cells = <1>;
-		#size-cells = <1>;
-	};
-
 	leds {
 		status = "okay";
 		compatible = "gpio-leds";
