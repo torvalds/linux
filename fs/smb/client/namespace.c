@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- *   Contains the CIFS DFS referral mounting routines used for handling
- *   traversal via DFS junction point
+ *   Contains mounting routines used for handling traversal via SMB junctions.
  *
  *   Copyright (c) 2007 Igor Mammedov
  *   Copyright (C) International Business Machines  Corp., 2008
  *   Author(s): Igor Mammedov (niallain@gmail.com)
  *		Steve French (sfrench@us.ibm.com)
+ *   Copyright (c) 2023 Paulo Alcantara <palcantara@suse.de>
  */
 
 #include <linux/dcache.h>
@@ -19,32 +19,31 @@
 #include "cifsglob.h"
 #include "cifsproto.h"
 #include "cifsfs.h"
-#include "dns_resolve.h"
 #include "cifs_debug.h"
-#include "dfs.h"
 #include "fs_context.h"
 
-static LIST_HEAD(cifs_dfs_automount_list);
+static LIST_HEAD(cifs_automount_list);
 
-static void cifs_dfs_expire_automounts(struct work_struct *work);
-static DECLARE_DELAYED_WORK(cifs_dfs_automount_task,
-			    cifs_dfs_expire_automounts);
-static int cifs_dfs_mountpoint_expiry_timeout = 500 * HZ;
+static void cifs_expire_automounts(struct work_struct *work);
+static DECLARE_DELAYED_WORK(cifs_automount_task,
+			    cifs_expire_automounts);
+static int cifs_mountpoint_expiry_timeout = 500 * HZ;
 
-static void cifs_dfs_expire_automounts(struct work_struct *work)
+static void cifs_expire_automounts(struct work_struct *work)
 {
-	struct list_head *list = &cifs_dfs_automount_list;
+	struct list_head *list = &cifs_automount_list;
 
 	mark_mounts_for_expiry(list);
 	if (!list_empty(list))
-		schedule_delayed_work(&cifs_dfs_automount_task,
-				      cifs_dfs_mountpoint_expiry_timeout);
+		schedule_delayed_work(&cifs_automount_task,
+				      cifs_mountpoint_expiry_timeout);
 }
 
-void cifs_dfs_release_automount_timer(void)
+void cifs_release_automount_timer(void)
 {
-	BUG_ON(!list_empty(&cifs_dfs_automount_list));
-	cancel_delayed_work_sync(&cifs_dfs_automount_task);
+	if (WARN_ON(!list_empty(&cifs_automount_list)))
+		return;
+	cancel_delayed_work_sync(&cifs_automount_task);
 }
 
 /**
@@ -118,26 +117,53 @@ cifs_build_devname(char *nodename, const char *prepath)
 	return dev;
 }
 
-static int set_dest_addr(struct smb3_fs_context *ctx)
+/* Return full path out of a dentry set for automount */
+static char *automount_fullpath(struct dentry *dentry, void *page)
 {
-	struct sockaddr *addr = (struct sockaddr *)&ctx->dstaddr;
-	int rc;
+	struct cifs_sb_info *cifs_sb = CIFS_SB(dentry->d_sb);
+	struct cifs_tcon *tcon = cifs_sb_master_tcon(cifs_sb);
+	size_t len;
+	char *s;
 
-	rc = dns_resolve_server_name_to_ip(ctx->source, addr, NULL);
-	if (!rc)
-		cifs_set_port(addr, ctx->port);
-	return rc;
+	spin_lock(&tcon->tc_lock);
+	if (!tcon->origin_fullpath) {
+		spin_unlock(&tcon->tc_lock);
+		return build_path_from_dentry_optional_prefix(dentry,
+							      page,
+							      true);
+	}
+	spin_unlock(&tcon->tc_lock);
+
+	s = dentry_path_raw(dentry, page, PATH_MAX);
+	if (IS_ERR(s))
+		return s;
+	/* for root, we want "" */
+	if (!s[1])
+		s++;
+
+	spin_lock(&tcon->tc_lock);
+	len = strlen(tcon->origin_fullpath);
+	if (s < (char *)page + len) {
+		spin_unlock(&tcon->tc_lock);
+		return ERR_PTR(-ENAMETOOLONG);
+	}
+
+	s -= len;
+	memcpy(s, tcon->origin_fullpath, len);
+	spin_unlock(&tcon->tc_lock);
+	convert_delimiter(s, '/');
+
+	return s;
 }
 
 /*
  * Create a vfsmount that we can automount
  */
-static struct vfsmount *cifs_dfs_do_automount(struct path *path)
+static struct vfsmount *cifs_do_automount(struct path *path)
 {
 	int rc;
 	struct dentry *mntpt = path->dentry;
 	struct fs_context *fc;
-	struct cifs_sb_info *cifs_sb;
 	void *page = NULL;
 	struct smb3_fs_context *ctx, *cur_ctx;
 	struct smb3_fs_context tmp;
@@ -147,17 +173,7 @@ static struct vfsmount *cifs_dfs_do_automount(struct path *path)
 	if (IS_ROOT(mntpt))
 		return ERR_PTR(-ESTALE);
 
-	/*
-	 * The MSDFS spec states that paths in DFS referral requests and
-	 * responses must be prefixed by a single '\' character instead of
-	 * the double backslashes usually used in the UNC. This function
-	 * gives us the latter, so we must adjust the result.
-	 */
-	cifs_sb = CIFS_SB(mntpt->d_sb);
-	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_DFS)
-		return ERR_PTR(-EREMOTE);
-
-	cur_ctx = cifs_sb->ctx;
+	cur_ctx = CIFS_SB(mntpt->d_sb)->ctx;
 
 	fc = fs_context_for_submount(path->mnt->mnt_sb->s_type, mntpt);
 	if (IS_ERR(fc))
@@ -166,7 +182,7 @@ static struct vfsmount *cifs_dfs_do_automount(struct path *path)
 	ctx = smb3_fc2context(fc);
 
 	page = alloc_dentry_path();
-	full_path = dfs_get_automount_devname(mntpt, page);
+	full_path = automount_fullpath(mntpt, page);
 	if (IS_ERR(full_path)) {
 		mnt = ERR_CAST(full_path);
 		goto out;
@@ -196,15 +212,10 @@ static struct vfsmount *cifs_dfs_do_automount(struct path *path)
 		ctx->source = NULL;
 		goto out;
 	}
-	cifs_dbg(FYI, "%s: ctx: source=%s UNC=%s prepath=%s dstaddr=%pISpc\n",
-		 __func__, ctx->source, ctx->UNC, ctx->prepath, &ctx->dstaddr);
+	cifs_dbg(FYI, "%s: ctx: source=%s UNC=%s prepath=%s\n",
+		 __func__, ctx->source, ctx->UNC, ctx->prepath);
 
-	rc = set_dest_addr(ctx);
-	if (!rc)
-		mnt = fc_mount(fc);
-	else
-		mnt = ERR_PTR(rc);
-
+	mnt = fc_mount(fc);
 out:
 	put_fs_context(fc);
 	free_dentry_path(page);
@@ -214,25 +225,25 @@ out:
 /*
  * Attempt to automount the referral
  */
-struct vfsmount *cifs_dfs_d_automount(struct path *path)
+struct vfsmount *cifs_d_automount(struct path *path)
 {
 	struct vfsmount *newmnt;
 
 	cifs_dbg(FYI, "%s: %pd\n", __func__, path->dentry);
 
-	newmnt = cifs_dfs_do_automount(path);
+	newmnt = cifs_do_automount(path);
 	if (IS_ERR(newmnt)) {
 		cifs_dbg(FYI, "leaving %s [automount failed]\n" , __func__);
 		return newmnt;
 	}
 
 	mntget(newmnt); /* prevent immediate expiration */
-	mnt_set_expiry(newmnt, &cifs_dfs_automount_list);
-	schedule_delayed_work(&cifs_dfs_automount_task,
-			      cifs_dfs_mountpoint_expiry_timeout);
+	mnt_set_expiry(newmnt, &cifs_automount_list);
+	schedule_delayed_work(&cifs_automount_task,
+			      cifs_mountpoint_expiry_timeout);
 	cifs_dbg(FYI, "leaving %s [ok]\n" , __func__);
 	return newmnt;
 }
 
-const struct inode_operations cifs_dfs_referral_inode_operations = {
+const struct inode_operations cifs_namespace_inode_operations = {
 };

@@ -3,6 +3,7 @@ config JFS_FS
 	tristate "JFS filesystem support"
 	select BUFFER_HEAD
 	select NLS
+	select NLS_UCS2_UTILS
 	select CRC32
 	select LEGACY_DIRECT_IO
 	help

@@ -323,12 +323,12 @@ cifs_chan_update_iface(struct cifs_ses *ses, struct TCP_Server_Info *server)
 	ses->chans[chan_index].iface = iface;
 
 	/* No iface is found. if secondary chan, drop connection */
-	if (!iface && CIFS_SERVER_IS_CHAN(server))
+	if (!iface && SERVER_IS_CHAN(server))
 		ses->chans[chan_index].server = NULL;
 
 	spin_unlock(&ses->chan_lock);
 
-	if (!iface && CIFS_SERVER_IS_CHAN(server))
+	if (!iface && SERVER_IS_CHAN(server))
 		cifs_put_tcp_session(server, false);
 
 	return rc;
@@ -360,11 +360,11 @@ cifs_ses_add_channel(struct cifs_sb_info *cifs_sb, struct cifs_ses *ses,
 {
 	struct TCP_Server_Info *chan_server;
 	struct cifs_chan *chan;
-	struct smb3_fs_context ctx = {NULL};
+	struct smb3_fs_context *ctx;
 	static const char unc_fmt[] = "\\%s\\foo";
-	char unc[sizeof(unc_fmt)+SERVER_NAME_LEN_WITH_NULL] = {0};
 	struct sockaddr_in *ipv4 = (struct sockaddr_in *)&iface->sockaddr;
 	struct sockaddr_in6 *ipv6 = (struct sockaddr_in6 *)&iface->sockaddr;
+	size_t len;
 	int rc;
 	unsigned int xid = get_xid();
 
@@ -388,54 +388,64 @@ cifs_ses_add_channel(struct cifs_sb_info *cifs_sb, struct cifs_ses *ses,
 	 * the session and server without caring about memory
 	 * management.
 	 */
+	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	if (!ctx) {
+		rc = -ENOMEM;
+		goto out_free_xid;
+	}
 
 	/* Always make new connection for now (TODO?) */
-	ctx.nosharesock = true;
+	ctx->nosharesock = true;
 
 	/* Auth */
-	ctx.domainauto = ses->domainAuto;
-	ctx.domainname = ses->domainName;
+	ctx->domainauto = ses->domainAuto;
+	ctx->domainname = ses->domainName;
 
 	/* no hostname for extra channels */
-	ctx.server_hostname = "";
+	ctx->server_hostname = "";
 
-	ctx.username = ses->user_name;
-	ctx.password = ses->password;
-	ctx.sectype = ses->sectype;
-	ctx.sign = ses->sign;
+	ctx->username = ses->user_name;
+	ctx->password = ses->password;
+	ctx->sectype = ses->sectype;
+	ctx->sign = ses->sign;
 
 	/* UNC and paths */
 	/* XXX: Use ses->server->hostname? */
-	sprintf(unc, unc_fmt, ses->ip_addr);
-	ctx.UNC = unc;
-	ctx.prepath = "";
+	len = sizeof(unc_fmt) + SERVER_NAME_LEN_WITH_NULL;
+	ctx->UNC = kzalloc(len, GFP_KERNEL);
+	if (!ctx->UNC) {
+		rc = -ENOMEM;
+		goto out_free_ctx;
+	}
+	scnprintf(ctx->UNC, len, unc_fmt, ses->ip_addr);
+	ctx->prepath = "";
 
 	/* Reuse same version as master connection */
-	ctx.vals = ses->server->vals;
-	ctx.ops = ses->server->ops;
+	ctx->vals = ses->server->vals;
+	ctx->ops = ses->server->ops;
 
-	ctx.noblocksnd = ses->server->noblocksnd;
-	ctx.noautotune = ses->server->noautotune;
-	ctx.sockopt_tcp_nodelay = ses->server->tcp_nodelay;
-	ctx.echo_interval = ses->server->echo_interval / HZ;
-	ctx.max_credits = ses->server->max_credits;
+	ctx->noblocksnd = ses->server->noblocksnd;
+	ctx->noautotune = ses->server->noautotune;
+	ctx->sockopt_tcp_nodelay = ses->server->tcp_nodelay;
+	ctx->echo_interval = ses->server->echo_interval / HZ;
+	ctx->max_credits = ses->server->max_credits;
 
 	/*
 	 * This will be used for encoding/decoding user/domain/pw
 	 * during sess setup auth.
 	 */
-	ctx.local_nls = cifs_sb->local_nls;
+	ctx->local_nls = cifs_sb->local_nls;
 
 	/* Use RDMA if possible */
-	ctx.rdma = iface->rdma_capable;
-	memcpy(&ctx.dstaddr, &iface->sockaddr, sizeof(struct sockaddr_storage));
+	ctx->rdma = iface->rdma_capable;
+	memcpy(&ctx->dstaddr, &iface->sockaddr, sizeof(ctx->dstaddr));
 
 	/* reuse master con client guid */
-	memcpy(&ctx.client_guid, ses->server->client_guid,
-	       SMB2_CLIENT_GUID_SIZE);
-	ctx.use_client_guid = true;
+	memcpy(&ctx->client_guid, ses->server->client_guid,
+	       sizeof(ctx->client_guid));
+	ctx->use_client_guid = true;
 
-	chan_server = cifs_get_tcp_session(&ctx, ses->server);
+	chan_server = cifs_get_tcp_session(ctx, ses->server);
 
 	spin_lock(&ses->chan_lock);
 	chan = &ses->chans[ses->chan_count];
@@ -497,6 +507,10 @@ out:
 		cifs_put_tcp_session(chan->server, 0);
 	}
 
+	kfree(ctx->UNC);
+out_free_ctx:
+	kfree(ctx);
+out_free_xid:
 	free_xid(xid);
 	return rc;
 }
