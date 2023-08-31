@@ -296,7 +296,7 @@ static int dmaengine_copy(struct snd_soc_component *component,
 	struct dmaengine_pcm *pcm = soc_component_to_pcm(component);
 	int (*process)(struct snd_pcm_substream *substream,
 		       int channel, unsigned long hwoff,
-		       struct iov_iter *buf, unsigned long bytes) = pcm->config->process;
+		       unsigned long bytes) = pcm->config->process;
 	bool is_playback = substream->stream == SNDRV_PCM_STREAM_PLAYBACK;
 	void *dma_ptr = runtime->dma_area + hwoff +
 			channel * (runtime->dma_bytes / runtime->channels);
@@ -306,7 +306,7 @@ static int dmaengine_copy(struct snd_soc_component *component,
 			return -EFAULT;
 
 	if (process) {
-		int ret = process(substream, channel, hwoff, buf, bytes);
+		int ret = process(substream, channel, hwoff, bytes);
 		if (ret < 0)
 			return ret;
 	}
