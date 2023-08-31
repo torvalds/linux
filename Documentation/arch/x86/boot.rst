@@ -1105,7 +1105,7 @@ The kernel command line should not be located below the real-mode
 code, nor should it be located in high memory.
 
 
-Sample Boot Configuartion
+Sample Boot Configuration
 =========================
 
 As a sample configuration, assume the following layout of the real

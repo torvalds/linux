@@ -9,7 +9,7 @@ Description:
                 Controller (UMC).
 
                 The umc bus presents each of the individual
-                capabilties as a device.
+                capabilities as a device.
 
 What:           /sys/bus/umc/devices/.../capability_id
 Date:           July 2008

@@ -10,6 +10,8 @@ The xconfig ('qconf'), menuconfig ('mconf'), and nconfig ('nconf')
 programs also have embedded help text.  Be sure to check that for
 navigation, search, and other general help text.
 
+The gconfig ('gconf') program has limited help text.
+
 General
 -------
 

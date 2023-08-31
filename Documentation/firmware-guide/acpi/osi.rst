@@ -55,7 +55,7 @@ quirk, a bug, or a bug-fix.
 
 However this was discovered to be abused by other BIOS vendors to change
 completely unrelated code on completely unrelated systems.  This prompted
-an evaluation of all of it's uses. This uncovered that they aren't needed
+an evaluation of all of its uses. This uncovered that they aren't needed
 for any of the original reasons. As such, the kernel will not respond to
 any custom Linux-* strings by default.
 

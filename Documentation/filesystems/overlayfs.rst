@@ -195,7 +195,7 @@ handle it in two different ways:
 
 1. return EXDEV error: this error is returned by rename(2) when trying to
    move a file or directory across filesystem boundaries.  Hence
-   applications are usually prepared to hande this error (mv(1) for example
+   applications are usually prepared to handle this error (mv(1) for example
    recursively copies the directory tree).  This is the default behavior.
 
 2. If the "redirect_dir" feature is enabled, then the directory will be
@@ -235,7 +235,7 @@ Mount options:
     Redirects are not created and not followed.
 - "redirect_dir=off":
     If "redirect_always_follow" is enabled in the kernel/module config,
-    this "off" traslates to "follow", otherwise it translates to "nofollow".
+    this "off" translates to "follow", otherwise it translates to "nofollow".
 
 When the NFS export feature is enabled, every copied up directory is
 indexed by the file handle of the lower inode and a file handle of the

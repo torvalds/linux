@@ -29,7 +29,7 @@ All documents are cataloged with the following fields: the document's
 
    The documents on each section of this document are ordered by its
    published date, from the newest to the oldest. The maintainer(s) should
-   periodically retire resources as they become obsolte or outdated; with
+   periodically retire resources as they become obsolete or outdated; with
    the exception of foundational books.
 
 Docs at the Linux Kernel tree
@@ -117,6 +117,15 @@ Published books
       :Pages: 440
       :ISBN: 978-0672329463
       :Notes: Foundational book
+
+    * Title: **Practical Linux System Administration: A Guide to Installation, Configuration, and Management, 1st Edition**
+
+      :Author: Kenneth Hess
+      :Publisher: O'Reilly Media
+      :Date: May, 2023
+      :Pages: 246
+      :ISBN: 978-1098109035
+      :Notes: System administration
 
 .. _ldd3_published:
 

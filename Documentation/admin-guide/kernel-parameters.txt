@@ -418,20 +418,20 @@
 	arm64.nobti	[ARM64] Unconditionally disable Branch Target
 			Identification support
 
-	arm64.nopauth	[ARM64] Unconditionally disable Pointer Authentication
-			support
+	arm64.nomops	[ARM64] Unconditionally disable Memory Copy and Memory
+			Set instructions support
 
 	arm64.nomte	[ARM64] Unconditionally disable Memory Tagging Extension
 			support
 
-	arm64.nosve	[ARM64] Unconditionally disable Scalable Vector
-			Extension support
+	arm64.nopauth	[ARM64] Unconditionally disable Pointer Authentication
+			support
 
 	arm64.nosme	[ARM64] Unconditionally disable Scalable Matrix
 			Extension support
 
-	arm64.nomops	[ARM64] Unconditionally disable Memory Copy and Memory
-			Set instructions support
+	arm64.nosve	[ARM64] Unconditionally disable Scalable Vector
+			Extension support
 
 	ataflop=	[HW,M68k]
 
@@ -2655,7 +2655,7 @@
 
 	kvm-intel.flexpriority=
 			[KVM,Intel] Control KVM's use of FlexPriority feature
-			(TPR shadow). Default is 1 (enabled). Disalbe by KVM if
+			(TPR shadow). Default is 1 (enabled). Disable by KVM if
 			hardware lacks support for it.
 
 	kvm-intel.nested=
@@ -3140,7 +3140,7 @@
 			[KNL,SH] Allow user to override the default size for
 			per-device physically contiguous DMA buffers.
 
-	memhp_default_state=online/offline
+	memhp_default_state=online/offline/online_kernel/online_movable
 			[KNL] Set the initial state for the memory hotplug
 			onlining policy. If not specified, the default value is
 			set according to the
@@ -4073,20 +4073,6 @@
 			timeout < 0: reboot immediately
 			Format: <timeout>
 
-	panic_print=	Bitmask for printing system info when panic happens.
-			User can chose combination of the following bits:
-			bit 0: print all tasks info
-			bit 1: print system memory info
-			bit 2: print timer info
-			bit 3: print locks info if CONFIG_LOCKDEP is on
-			bit 4: print ftrace buffer
-			bit 5: print all printk messages in buffer
-			bit 6: print all CPUs backtrace (if available in the arch)
-			*Be aware* that this option may print a _lot_ of lines,
-			so there are risks of losing older messages in the log.
-			Use this option carefully, maybe worth to setup a
-			bigger log buffer with "log_buf_len" along with this.
-
 	panic_on_taint=	Bitmask for conditionally calling panic() in add_taint()
 			Format: <hex>[,nousertaint]
 			Hexadecimal bitmask representing the set of TAINT flags
@@ -4102,6 +4088,20 @@
 
 	panic_on_warn=1	panic() instead of WARN().  Useful to cause kdump
 			on a WARN().
+
+	panic_print=	Bitmask for printing system info when panic happens.
+			User can chose combination of the following bits:
+			bit 0: print all tasks info
+			bit 1: print system memory info
+			bit 2: print timer info
+			bit 3: print locks info if CONFIG_LOCKDEP is on
+			bit 4: print ftrace buffer
+			bit 5: print all printk messages in buffer
+			bit 6: print all CPUs backtrace (if available in the arch)
+			*Be aware* that this option may print a _lot_ of lines,
+			so there are risks of losing older messages in the log.
+			Use this option carefully, maybe worth to setup a
+			bigger log buffer with "log_buf_len" along with this.
 
 	parkbd.port=	[HW] Parallel port number the keyboard adapter is
 			connected to, default is 0.
@@ -4222,7 +4222,7 @@
 			mode 0, bit 1 is for mode 1, and so on.  Mode 0 only
 			allowed by default.
 
-	pause_on_oops=
+	pause_on_oops=<int>
 			Halt all CPUs after the first oops has been printed for
 			the specified number of seconds.  This is to be used if
 			your oopses keep scrolling off the screen.

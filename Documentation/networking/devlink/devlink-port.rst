@@ -376,9 +376,9 @@ API allows to configure following rate object's parameters:
   Allows for usage of Weighted Fair Queuing arbitration scheme among
   siblings. This arbitration scheme can be used simultaneously with the
   strict priority. As a node is configured with a higher rate it gets more
-  BW relative to it's siblings. Values are relative like a percentage
+  BW relative to its siblings. Values are relative like a percentage
   points, they basically tell how much BW should node take relative to
-  it's siblings.
+  its siblings.
 
 ``parent``
   Parent node name. Parent node rate limits are considered as additional limits
@@ -398,7 +398,7 @@ Arbitration flow from the high level:
 #. If group of nodes have the same priority perform WFQ arbitration on
    that subgroup. Use ``tx_weight`` as a parameter for this arbitration.
 
-#. Select the winner node, and continue arbitration flow among it's children,
+#. Select the winner node, and continue arbitration flow among its children,
    until leaf node is reached, and the winner is established.
 
 #. If all the nodes from the highest priority sub-group are satisfied, or
