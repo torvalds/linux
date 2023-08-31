@@ -4894,6 +4894,14 @@ void probe_rapl(void)
 		rapl_probe_amd();
 }
 
+void probe_thermal(void)
+{
+	if (!access("/sys/devices/system/cpu/cpu0/thermal_throttle/core_throttle_count", R_OK))
+		BIC_PRESENT(BIC_CORE_THROT_CNT);
+	else
+		BIC_NOT_PRESENT(BIC_CORE_THROT_CNT);
+}
+
 int print_thermal(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 {
 	unsigned long long msr;
@@ -5598,13 +5606,10 @@ void process_cpuid()
 
 	probe_rapl();
 
+	probe_thermal();
+
 	if (platform->has_nhm_msrs)
 		BIC_PRESENT(BIC_SMI);
-
-	if (!access("/sys/devices/system/cpu/cpu0/thermal_throttle/core_throttle_count", R_OK))
-		BIC_PRESENT(BIC_CORE_THROT_CNT);
-	else
-		BIC_NOT_PRESENT(BIC_CORE_THROT_CNT);
 
 	if (!quiet)
 		decode_misc_feature_control();
