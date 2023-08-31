@@ -499,7 +499,7 @@ static const struct of_device_id of_palmas_match_tbl[] = {
 		.compatible = "ti,tps65917",
 		.data = &tps65917_data,
 	},
-	{ },
+	{ }
 };
 MODULE_DEVICE_TABLE(of, of_palmas_match_tbl);
 
