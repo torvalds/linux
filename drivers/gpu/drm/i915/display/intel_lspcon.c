@@ -144,9 +144,9 @@ static enum drm_lspcon_mode lspcon_get_current_mode(struct intel_lspcon *lspcon)
 	struct intel_dp *intel_dp = lspcon_to_intel_dp(lspcon);
 	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
 	enum drm_lspcon_mode current_mode;
-	struct i2c_adapter *adapter = &intel_dp->aux.ddc;
+	struct i2c_adapter *ddc = &intel_dp->aux.ddc;
 
-	if (drm_lspcon_get_mode(intel_dp->aux.drm_dev, adapter, &current_mode)) {
+	if (drm_lspcon_get_mode(intel_dp->aux.drm_dev, ddc, &current_mode)) {
 		drm_dbg_kms(&i915->drm, "Error reading LSPCON mode\n");
 		return DRM_LSPCON_MODE_INVALID;
 	}
@@ -185,9 +185,9 @@ static int lspcon_change_mode(struct intel_lspcon *lspcon,
 	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
 	int err;
 	enum drm_lspcon_mode current_mode;
-	struct i2c_adapter *adapter = &intel_dp->aux.ddc;
+	struct i2c_adapter *ddc = &intel_dp->aux.ddc;
 
-	err = drm_lspcon_get_mode(intel_dp->aux.drm_dev, adapter, &current_mode);
+	err = drm_lspcon_get_mode(intel_dp->aux.drm_dev, ddc, &current_mode);
 	if (err) {
 		drm_err(&i915->drm, "Error reading LSPCON mode\n");
 		return err;
@@ -198,7 +198,7 @@ static int lspcon_change_mode(struct intel_lspcon *lspcon,
 		return 0;
 	}
 
-	err = drm_lspcon_set_mode(intel_dp->aux.drm_dev, adapter, mode);
+	err = drm_lspcon_set_mode(intel_dp->aux.drm_dev, ddc, mode);
 	if (err < 0) {
 		drm_err(&i915->drm, "LSPCON mode change failed\n");
 		return err;
@@ -233,7 +233,7 @@ static bool lspcon_probe(struct intel_lspcon *lspcon)
 	enum drm_dp_dual_mode_type adaptor_type;
 	struct intel_dp *intel_dp = lspcon_to_intel_dp(lspcon);
 	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
-	struct i2c_adapter *adapter = &intel_dp->aux.ddc;
+	struct i2c_adapter *ddc = &intel_dp->aux.ddc;
 	enum drm_lspcon_mode expected_mode;
 
 	expected_mode = lspcon_wake_native_aux_ch(lspcon) ?
@@ -244,7 +244,7 @@ static bool lspcon_probe(struct intel_lspcon *lspcon)
 		if (retry)
 			usleep_range(500, 1000);
 
-		adaptor_type = drm_dp_dual_mode_detect(intel_dp->aux.drm_dev, adapter);
+		adaptor_type = drm_dp_dual_mode_detect(intel_dp->aux.drm_dev, ddc);
 		if (adaptor_type == DRM_DP_DUAL_MODE_LSPCON)
 			break;
 	}

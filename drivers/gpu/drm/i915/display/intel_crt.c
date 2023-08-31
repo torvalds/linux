@@ -612,18 +612,18 @@ static bool intel_crt_detect_hotplug(struct drm_connector *connector)
 }
 
 static const struct drm_edid *intel_crt_get_edid(struct drm_connector *connector,
-						 struct i2c_adapter *i2c)
+						 struct i2c_adapter *ddc)
 {
 	const struct drm_edid *drm_edid;
 
-	drm_edid = drm_edid_read_ddc(connector, i2c);
+	drm_edid = drm_edid_read_ddc(connector, ddc);
 
-	if (!drm_edid && !intel_gmbus_is_forced_bit(i2c)) {
+	if (!drm_edid && !intel_gmbus_is_forced_bit(ddc)) {
 		drm_dbg_kms(connector->dev,
 			    "CRT GMBUS EDID read failed, retry using GPIO bit-banging\n");
-		intel_gmbus_force_bit(i2c, true);
-		drm_edid = drm_edid_read_ddc(connector, i2c);
-		intel_gmbus_force_bit(i2c, false);
+		intel_gmbus_force_bit(ddc, true);
+		drm_edid = drm_edid_read_ddc(connector, ddc);
+		intel_gmbus_force_bit(ddc, false);
 	}
 
 	return drm_edid;
@@ -631,12 +631,12 @@ static const struct drm_edid *intel_crt_get_edid(struct drm_connector *connector
 
 /* local version of intel_ddc_get_modes() to use intel_crt_get_edid() */
 static int intel_crt_ddc_get_modes(struct drm_connector *connector,
-				struct i2c_adapter *adapter)
+				   struct i2c_adapter *ddc)
 {
 	const struct drm_edid *drm_edid;
 	int ret;
 
-	drm_edid = intel_crt_get_edid(connector, adapter);
+	drm_edid = intel_crt_get_edid(connector, ddc);
 	if (!drm_edid)
 		return 0;
 
@@ -652,11 +652,11 @@ static bool intel_crt_detect_ddc(struct drm_connector *connector)
 	struct intel_crt *crt = intel_attached_crt(to_intel_connector(connector));
 	struct drm_i915_private *dev_priv = to_i915(crt->base.base.dev);
 	const struct drm_edid *drm_edid;
-	struct i2c_adapter *i2c;
+	struct i2c_adapter *ddc;
 	bool ret = false;
 
-	i2c = intel_gmbus_get_adapter(dev_priv, dev_priv->display.vbt.crt_ddc_pin);
-	drm_edid = intel_crt_get_edid(connector, i2c);
+	ddc = intel_gmbus_get_adapter(dev_priv, dev_priv->display.vbt.crt_ddc_pin);
+	drm_edid = intel_crt_get_edid(connector, ddc);
 
 	if (drm_edid) {
 		/*
@@ -916,20 +916,20 @@ static int intel_crt_get_modes(struct drm_connector *connector)
 	struct intel_crt *crt = intel_attached_crt(to_intel_connector(connector));
 	struct intel_encoder *intel_encoder = &crt->base;
 	intel_wakeref_t wakeref;
-	struct i2c_adapter *i2c;
+	struct i2c_adapter *ddc;
 	int ret;
 
 	wakeref = intel_display_power_get(dev_priv,
 					  intel_encoder->power_domain);
 
-	i2c = intel_gmbus_get_adapter(dev_priv, dev_priv->display.vbt.crt_ddc_pin);
-	ret = intel_crt_ddc_get_modes(connector, i2c);
+	ddc = intel_gmbus_get_adapter(dev_priv, dev_priv->display.vbt.crt_ddc_pin);
+	ret = intel_crt_ddc_get_modes(connector, ddc);
 	if (ret || !IS_G4X(dev_priv))
 		goto out;
 
 	/* Try to probe digital port for output in DVI-I -> VGA mode. */
-	i2c = intel_gmbus_get_adapter(dev_priv, GMBUS_PIN_DPB);
-	ret = intel_crt_ddc_get_modes(connector, i2c);
+	ddc = intel_gmbus_get_adapter(dev_priv, GMBUS_PIN_DPB);
+	ret = intel_crt_ddc_get_modes(connector, ddc);
 
 out:
 	intel_display_power_put(dev_priv, intel_encoder->power_domain, wakeref);
