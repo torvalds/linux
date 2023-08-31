@@ -3016,6 +3016,9 @@ static void dump_platform_info(void)
 	unsigned long long msr;
 	unsigned int ratio;
 
+	if (!platform->has_nhm_msrs)
+		return;
+
 	get_msr(base_cpu, MSR_PLATFORM_INFO, &msr);
 
 	fprintf(outf, "cpu%d: MSR_PLATFORM_INFO: 0x%08llx\n", base_cpu, msr);
@@ -4313,6 +4316,9 @@ static void dump_turbo_ratio_info(void)
 	if (!has_turbo)
 		return;
 
+	if (!platform->has_nhm_msrs)
+		return;
+
 	if (platform->trl_msrs & TRL_LIMIT2)
 		dump_turbo_ratio_limit2();
 
@@ -4334,15 +4340,6 @@ static void dump_turbo_ratio_info(void)
 
 	if (platform->has_config_tdp)
 		dump_config_tdp();
-}
-
-static void dump_cstate_pstate_config_info(void)
-{
-	if (!platform->has_nhm_msrs)
-		return;
-
-	dump_platform_info();
-	dump_turbo_ratio_info();
 }
 
 static int read_sysfs_int(char *path)
@@ -5363,6 +5360,19 @@ void probe_cstates(void)
 	dump_sysfs_cstate_config();
 }
 
+void probe_pstates(void)
+{
+	probe_bclk();
+
+	if (quiet)
+		return;
+
+	dump_platform_info();
+	dump_turbo_ratio_info();
+	dump_sysfs_pstate_config();
+	decode_misc_pwr_mgmt_msr();
+}
+
 void process_cpuid()
 {
 	unsigned int eax, ebx, ecx, edx;
@@ -5542,23 +5552,16 @@ void process_cpuid()
 	BIC_PRESENT(BIC_IRQ);
 	BIC_PRESENT(BIC_TSC_MHz);
 
+	probe_pstates();
+
 	probe_cstates();
 
 	if (platform->has_nhm_msrs)
 		BIC_PRESENT(BIC_SMI);
-	probe_bclk();
-
-	if (!quiet)
-		decode_misc_pwr_mgmt_msr();
 
 	rapl_probe();
 
-	if (!quiet)
-		dump_cstate_pstate_config_info();
 	intel_uncore_frequency_probe();
-
-	if (!quiet)
-		dump_sysfs_pstate_config();
 
 	if (!access("/sys/class/drm/card0/power/rc6_residency_ms", R_OK))
 		BIC_PRESENT(BIC_GFX_rc6);
