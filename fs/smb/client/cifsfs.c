@@ -117,6 +117,10 @@ module_param(cifs_max_pending, uint, 0444);
 MODULE_PARM_DESC(cifs_max_pending, "Simultaneous requests to server for "
 				   "CIFS/SMB1 dialect (N/A for SMB3) "
 				   "Default: 32767 Range: 2 to 32767.");
+unsigned int dir_cache_timeout = 30;
+module_param(dir_cache_timeout, uint, 0644);
+MODULE_PARM_DESC(dir_cache_timeout, "Number of seconds to cache directory contents for which we have a lease. Default: 30 "
+				 "Range: 1 to 65000 seconds, 0 to disable caching dir contents");
 #ifdef CONFIG_CIFS_STATS2
 unsigned int slow_rsp_threshold = 1;
 module_param(slow_rsp_threshold, uint, 0644);
@@ -1677,6 +1681,12 @@ init_cifs(void)
 		cifs_max_pending = CIFS_MAX_REQ;
 		cifs_dbg(FYI, "cifs_max_pending set to max of %u\n",
 			 CIFS_MAX_REQ);
+	}
+
+	/* Limit max to about 18 hours, and setting to zero disables directory entry caching */
+	if (dir_cache_timeout > 65000) {
+		dir_cache_timeout = 65000;
+		cifs_dbg(VFS, "dir_cache_timeout set to max of 65000 seconds\n");
 	}
 
 	cifsiod_wq = alloc_workqueue("cifsiod", WQ_FREEZABLE|WQ_MEM_RECLAIM, 0);
