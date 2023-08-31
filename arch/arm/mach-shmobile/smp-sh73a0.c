@@ -44,10 +44,16 @@ static int sh73a0_boot_secondary(unsigned int cpu, struct task_struct *idle)
 
 static void __init sh73a0_smp_prepare_cpus(unsigned int max_cpus)
 {
-	void __iomem *ap = ioremap(AP_BASE, PAGE_SIZE);
-	void __iomem *sysc = ioremap(SYSC_BASE, PAGE_SIZE);
+	void __iomem *ap, *sysc;
+
+	if (!request_mem_region(0, SZ_4K, "Boot Area")) {
+		pr_err("Failed to request boot area\n");
+		return;
+	}
 
 	/* Map the reset vector (in headsmp.S) */
+	ap = ioremap(AP_BASE, PAGE_SIZE);
+	sysc = ioremap(SYSC_BASE, PAGE_SIZE);
 	writel(0, ap + APARMBAREA);      /* 4k */
 	writel(__pa(shmobile_boot_vector), sysc + SBAR);
 	iounmap(sysc);
