@@ -146,7 +146,7 @@ static int si521xx_regmap_i2c_read(void *context, unsigned int reg,
 static const struct regmap_config si521xx_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
-	.cache_type = REGCACHE_NONE,
+	.cache_type = REGCACHE_FLAT,
 	.max_register = SI521XX_REG_DA,
 	.rd_table = &si521xx_readable_table,
 	.wr_table = &si521xx_writeable_table,
