@@ -1,0 +1,37 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2023 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+/dts-v1/;
+
+#include "rk3568-evb1-ddr4-v10.dtsi"
+
+/ {
+	model = "Rockchip RK3568 EVB8 LP4 V10 Board";
+	compatible = "rockchip,rk3568-evb8-lp4-v10", "rockchip,rk3568";
+};
+
+&i2c0 {
+	status = "okay";
+	/delete-node/ tcs4525@1c;
+
+	vdd_cpu: rk8600@40 {
+		compatible = "rockchip,rk8600";
+		reg = <0x40>;
+		vin-supply = <&vcc5v0_sys>;
+		regulator-compatible = "rk860x-reg";
+		regulator-name = "vdd_cpu";
+		regulator-min-microvolt = <712500>;
+		regulator-max-microvolt = <1390000>;
+		regulator-init-microvolt = <900000>;
+		regulator-ramp-delay = <2300>;
+		rockchip,suspend-voltage-selector = <1>;
+		regulator-boot-on;
+		regulator-always-on;
+		regulator-state-mem {
+			regulator-off-in-suspend;
+		};
+	};
+};

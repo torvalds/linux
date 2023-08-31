@@ -1,0 +1,20 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2023 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+#include "rk3568-evb8-lp4-v10.dtsi"
+#include "rk3568-android.dtsi"
+
+&bt_sco {
+	status = "okay";
+};
+
+&bt_sound {
+	status = "okay";
+};
+
+&i2s3_2ch {
+	status = "okay";
+};
