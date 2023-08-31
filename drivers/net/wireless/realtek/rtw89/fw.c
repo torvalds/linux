@@ -4520,7 +4520,7 @@ int rtw89_fw_h2c_mcc_req_tsf(struct rtw89_dev *rtwdev,
 }
 
 #define H2C_MCC_MACID_BITMAP_DSC_LEN 4
-int rtw89_fw_h2c_mcc_macid_bitamp(struct rtw89_dev *rtwdev, u8 group, u8 macid,
+int rtw89_fw_h2c_mcc_macid_bitmap(struct rtw89_dev *rtwdev, u8 group, u8 macid,
 				  u8 *bitmap)
 {
 	struct rtw89_wait_info *wait = &rtwdev->mcc.wait;
