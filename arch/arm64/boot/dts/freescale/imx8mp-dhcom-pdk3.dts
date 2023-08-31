@@ -184,10 +184,10 @@
 			};
 
 			power-sensor@40 {
-			    compatible = "ti,ina238";
-			    reg = <0x40>;
-			    shunt-resistor = <20000>;	/* 0.02 R */
-			    ti,shunt-gain = <1>;	/* Drop cca. 40mV */
+				compatible = "ti,ina238";
+				reg = <0x40>;
+				shunt-resistor = <20000>;	/* 0.02 R */
+				ti,shunt-gain = <1>;	/* Drop cca. 40mV */
 			};
 
 			eeprom_board: eeprom@54 {
