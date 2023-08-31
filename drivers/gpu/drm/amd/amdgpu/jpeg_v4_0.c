@@ -468,6 +468,9 @@ static int jpeg_v4_0_start_sriov(struct amdgpu_device *adev)
 	table_loc = (uint32_t *)table->cpu_addr;
 	memcpy((void *)table_loc, &header, size);
 
+	/* Perform HDP flush before writing to MMSCH registers */
+	amdgpu_device_flush_hdp(adev, NULL);
+
 	/* message MMSCH (in VCN[0]) to initialize this client
 	 * 1, write to mmsch_vf_ctx_addr_lo/hi register with GPU mc addr
 	 * of memory descriptor location
