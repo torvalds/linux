@@ -837,7 +837,7 @@
 		espi0: espi@14c05000 {
 			compatible = "aspeed,ast2700-espi";
 			reg = <0 0x14c05000 0 0x1000>;
-			interrupts-extended = <&intc0 10>;
+			interrupts-extended = <&intc0 10>, <&intc0 16>;
 			clocks = <&io_clk AST2700_IO_CLK_GATE_ESPI0CLK>;
 			resets = <&io_clk ASPEED_RESET_ESPI0>;
 			pinctrl-names = "default";
@@ -848,7 +848,7 @@
 		espi1: espi@14c06000 {
 			compatible = "aspeed,ast2700-espi";
 			reg = <0 0x14c06000 0 0x1000>;
-			interrupts-extended = <&intc1 10>;
+			interrupts-extended = <&intc1 10>, <&intc1 16>;
 			clocks = <&io_clk AST2700_IO_CLK_GATE_ESPI1CLK>;
 			resets = <&io_clk ASPEED_RESET_ESPI1>;
 			pinctrl-names = "default";
