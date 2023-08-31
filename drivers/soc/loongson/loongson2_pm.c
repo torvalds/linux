@@ -197,7 +197,6 @@ static int loongson2_pm_probe(struct platform_device *pdev)
 
 static const struct of_device_id loongson2_pm_match[] = {
 	{ .compatible = "loongson,ls2k0500-pmc", },
-	{ .compatible = "loongson,ls2k1000-pmc", },
 	{},
 };
 
