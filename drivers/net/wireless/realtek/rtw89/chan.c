@@ -3,8 +3,10 @@
  */
 
 #include "chan.h"
+#include "coex.h"
 #include "debug.h"
 #include "fw.h"
+#include "mac.h"
 #include "ps.h"
 #include "util.h"
 
@@ -263,14 +265,425 @@ static void rtw89_chanctx_notify(struct rtw89_dev *rtwdev,
 	}
 }
 
+/* This function centrally manages how MCC roles are sorted and iterated.
+ * And, it guarantees that ordered_idx is less than NUM_OF_RTW89_MCC_ROLES.
+ * So, if data needs to pass an array for ordered_idx, the array can declare
+ * with NUM_OF_RTW89_MCC_ROLES. Besides, the entire iteration will stop
+ * immediately as long as iterator returns a non-zero value.
+ */
+static
+int rtw89_iterate_mcc_roles(struct rtw89_dev *rtwdev,
+			    int (*iterator)(struct rtw89_dev *rtwdev,
+					    struct rtw89_mcc_role *mcc_role,
+					    unsigned int ordered_idx,
+					    void *data),
+			    void *data)
+{
+	struct rtw89_mcc_info *mcc = &rtwdev->mcc;
+	struct rtw89_mcc_role * const roles[] = {
+		&mcc->role_ref,
+		&mcc->role_aux,
+	};
+	unsigned int idx;
+	int ret;
+
+	BUILD_BUG_ON(ARRAY_SIZE(roles) != NUM_OF_RTW89_MCC_ROLES);
+
+	for (idx = 0; idx < NUM_OF_RTW89_MCC_ROLES; idx++) {
+		ret = iterator(rtwdev, roles[idx], idx, data);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+/* For now, IEEE80211_HW_TIMING_BEACON_ONLY can make things simple to ensure
+ * correctness of MCC calculation logic below. We have noticed that once driver
+ * declares WIPHY_FLAG_SUPPORTS_MLO, the use of IEEE80211_HW_TIMING_BEACON_ONLY
+ * will be restricted. We will make an alternative in driver when it is ready
+ * for MLO.
+ */
+static u32 rtw89_mcc_get_tbtt_ofst(struct rtw89_dev *rtwdev,
+				   struct rtw89_mcc_role *role, u64 tsf)
+{
+	struct rtw89_vif *rtwvif = role->rtwvif;
+	struct ieee80211_vif *vif = rtwvif_to_vif(rtwvif);
+	u32 bcn_intvl_us = ieee80211_tu_to_usec(role->beacon_interval);
+	u64 sync_tsf = vif->bss_conf.sync_tsf;
+	u32 remainder;
+
+	if (tsf < sync_tsf) {
+		rtw89_debug(rtwdev, RTW89_DBG_CHAN,
+			    "MCC get tbtt ofst: tsf might not update yet\n");
+		sync_tsf = 0;
+	}
+
+	div_u64_rem(tsf - sync_tsf, bcn_intvl_us, &remainder);
+
+	return remainder;
+}
+
+static
+void rtw89_mcc_role_fw_macid_bitmap_set_bit(struct rtw89_mcc_role *mcc_role,
+					    unsigned int bit)
+{
+	unsigned int idx = bit / 8;
+	unsigned int pos = bit % 8;
+
+	if (idx >= ARRAY_SIZE(mcc_role->macid_bitmap))
+		return;
+
+	mcc_role->macid_bitmap[idx] |= BIT(pos);
+}
+
+static void rtw89_mcc_role_macid_sta_iter(void *data, struct ieee80211_sta *sta)
+{
+	struct rtw89_sta *rtwsta = (struct rtw89_sta *)sta->drv_priv;
+	struct rtw89_vif *rtwvif = rtwsta->rtwvif;
+	struct rtw89_mcc_role *mcc_role = data;
+	struct rtw89_vif *target = mcc_role->rtwvif;
+
+	if (rtwvif != target)
+		return;
+
+	rtw89_mcc_role_fw_macid_bitmap_set_bit(mcc_role, rtwsta->mac_id);
+}
+
+static void rtw89_mcc_fill_role_macid_bitmap(struct rtw89_dev *rtwdev,
+					     struct rtw89_mcc_role *mcc_role)
+{
+	struct rtw89_vif *rtwvif = mcc_role->rtwvif;
+
+	rtw89_mcc_role_fw_macid_bitmap_set_bit(mcc_role, rtwvif->mac_id);
+	ieee80211_iterate_stations_atomic(rtwdev->hw,
+					  rtw89_mcc_role_macid_sta_iter,
+					  mcc_role);
+}
+
+static void rtw89_mcc_fill_role_policy(struct rtw89_dev *rtwdev,
+				       struct rtw89_mcc_role *mcc_role)
+{
+	struct rtw89_mcc_policy *policy = &mcc_role->policy;
+
+	policy->c2h_rpt = RTW89_FW_MCC_C2H_RPT_ALL;
+	policy->tx_null_early = RTW89_MCC_DFLT_TX_NULL_EARLY;
+	policy->in_curr_ch = false;
+	policy->dis_sw_retry = true;
+	policy->sw_retry_count = false;
+
+	if (mcc_role->is_go)
+		policy->dis_tx_null = true;
+	else
+		policy->dis_tx_null = false;
+}
+
+static void rtw89_mcc_fill_role_limit(struct rtw89_dev *rtwdev,
+				      struct rtw89_mcc_role *mcc_role)
+{
+	struct ieee80211_vif *vif = rtwvif_to_vif(mcc_role->rtwvif);
+	struct ieee80211_p2p_noa_desc *noa_desc;
+	u32 bcn_intvl_us = ieee80211_tu_to_usec(mcc_role->beacon_interval);
+	u32 max_toa_us, max_tob_us, max_dur_us;
+	u32 start_time, interval, duration;
+	u64 tsf, tsf_lmt;
+	int ret;
+	int i;
+
+	if (!mcc_role->is_go && !mcc_role->is_gc)
+		return;
+
+	/* find the first periodic NoA */
+	for (i = 0; i < RTW89_P2P_MAX_NOA_NUM; i++) {
+		noa_desc = &vif->bss_conf.p2p_noa_attr.desc[i];
+		if (noa_desc->count == 255)
+			goto fill;
+	}
+
+	return;
+
+fill:
+	start_time = le32_to_cpu(noa_desc->start_time);
+	interval = le32_to_cpu(noa_desc->interval);
+	duration = le32_to_cpu(noa_desc->duration);
+
+	if (interval != bcn_intvl_us) {
+		rtw89_debug(rtwdev, RTW89_DBG_CHAN,
+			    "MCC role limit: mismatch interval: %d vs. %d\n",
+			    interval, bcn_intvl_us);
+		return;
+	}
+
+	ret = rtw89_mac_port_get_tsf(rtwdev, mcc_role->rtwvif, &tsf);
+	if (ret) {
+		rtw89_warn(rtwdev, "MCC failed to get port tsf: %d\n", ret);
+		return;
+	}
+
+	tsf_lmt = (tsf & GENMASK_ULL(63, 32)) | start_time;
+	max_toa_us = rtw89_mcc_get_tbtt_ofst(rtwdev, mcc_role, tsf_lmt);
+	max_dur_us = interval - duration;
+	max_tob_us = max_dur_us - max_toa_us;
+
+	if (!max_toa_us || !max_tob_us) {
+		rtw89_debug(rtwdev, RTW89_DBG_CHAN,
+			    "MCC role limit: hit boundary\n");
+		return;
+	}
+
+	if (max_dur_us < max_toa_us) {
+		rtw89_debug(rtwdev, RTW89_DBG_CHAN,
+			    "MCC role limit: insufficient duration\n");
+		return;
+	}
+
+	mcc_role->limit.max_toa = max_toa_us / 1024;
+	mcc_role->limit.max_tob = max_tob_us / 1024;
+	mcc_role->limit.max_dur = max_dur_us / 1024;
+	mcc_role->limit.enable = true;
+
+	rtw89_debug(rtwdev, RTW89_DBG_CHAN,
+		    "MCC role limit: max_toa %d, max_tob %d, max_dur %d\n",
+		    mcc_role->limit.max_toa, mcc_role->limit.max_tob,
+		    mcc_role->limit.max_dur);
+}
+
+static int rtw89_mcc_fill_role(struct rtw89_dev *rtwdev,
+			       struct rtw89_vif *rtwvif,
+			       struct rtw89_mcc_role *role)
+{
+	struct ieee80211_vif *vif = rtwvif_to_vif(rtwvif);
+	const struct rtw89_chan *chan;
+
+	memset(role, 0, sizeof(*role));
+	role->rtwvif = rtwvif;
+	role->beacon_interval = vif->bss_conf.beacon_int;
+
+	if (!role->beacon_interval) {
+		rtw89_warn(rtwdev,
+			   "cannot handle MCC role without beacon interval\n");
+		return -EINVAL;
+	}
+
+	role->duration = role->beacon_interval / 2;
+
+	chan = rtw89_chan_get(rtwdev, rtwvif->sub_entity_idx);
+	role->is_2ghz = chan->band_type == RTW89_BAND_2G;
+	role->is_go = rtwvif->wifi_role == RTW89_WIFI_ROLE_P2P_GO;
+	role->is_gc = rtwvif->wifi_role == RTW89_WIFI_ROLE_P2P_CLIENT;
+
+	rtw89_mcc_fill_role_macid_bitmap(rtwdev, role);
+	rtw89_mcc_fill_role_policy(rtwdev, role);
+	rtw89_mcc_fill_role_limit(rtwdev, role);
+
+	rtw89_debug(rtwdev, RTW89_DBG_CHAN,
+		    "MCC role: bcn_intvl %d, is_2ghz %d, is_go %d, is_gc %d\n",
+		    role->beacon_interval, role->is_2ghz, role->is_go, role->is_gc);
+	return 0;
+}
+
+static void rtw89_mcc_fill_bt_role(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_mcc_info *mcc = &rtwdev->mcc;
+	struct rtw89_mcc_bt_role *bt_role = &mcc->bt_role;
+
+	memset(bt_role, 0, sizeof(*bt_role));
+	bt_role->duration = rtw89_coex_query_bt_req_len(rtwdev, RTW89_PHY_0);
+
+	rtw89_debug(rtwdev, RTW89_DBG_CHAN, "MCC bt role: dur %d\n",
+		    bt_role->duration);
+}
+
+struct rtw89_mcc_fill_role_selector {
+	struct rtw89_vif *bind_vif[NUM_OF_RTW89_SUB_ENTITY];
+};
+
+static_assert((u8)NUM_OF_RTW89_SUB_ENTITY >= NUM_OF_RTW89_MCC_ROLES);
+
+static int rtw89_mcc_fill_role_iterator(struct rtw89_dev *rtwdev,
+					struct rtw89_mcc_role *mcc_role,
+					unsigned int ordered_idx,
+					void *data)
+{
+	struct rtw89_mcc_fill_role_selector *sel = data;
+	struct rtw89_vif *role_vif = sel->bind_vif[ordered_idx];
+	int ret;
+
+	if (!role_vif) {
+		rtw89_warn(rtwdev, "cannot handle MCC without role[%d]\n",
+			   ordered_idx);
+		return -EINVAL;
+	}
+
+	rtw89_debug(rtwdev, RTW89_DBG_CHAN,
+		    "MCC fill role[%d] with vif <macid %d>\n",
+		    ordered_idx, role_vif->mac_id);
+
+	ret = rtw89_mcc_fill_role(rtwdev, role_vif, mcc_role);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static int rtw89_mcc_fill_all_roles(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_mcc_fill_role_selector sel = {};
+	struct rtw89_vif *rtwvif;
+	int ret;
+
+	rtw89_for_each_rtwvif(rtwdev, rtwvif) {
+		if (sel.bind_vif[rtwvif->sub_entity_idx]) {
+			rtw89_warn(rtwdev,
+				   "MCC skip extra vif <macid %d> on chanctx[%d]\n",
+				   rtwvif->mac_id, rtwvif->sub_entity_idx);
+			continue;
+		}
+
+		sel.bind_vif[rtwvif->sub_entity_idx] = rtwvif;
+	}
+
+	ret = rtw89_iterate_mcc_roles(rtwdev, rtw89_mcc_fill_role_iterator, &sel);
+	if (ret)
+		return ret;
+
+	rtw89_mcc_fill_bt_role(rtwdev);
+	return 0;
+}
+
+static void rtw89_mcc_assign_pattern(struct rtw89_dev *rtwdev,
+				     const struct rtw89_mcc_pattern *new)
+{
+	struct rtw89_mcc_info *mcc = &rtwdev->mcc;
+	struct rtw89_mcc_role *ref = &mcc->role_ref;
+	struct rtw89_mcc_role *aux = &mcc->role_aux;
+	struct rtw89_mcc_config *config = &mcc->config;
+	struct rtw89_mcc_pattern *pattern = &config->pattern;
+
+	rtw89_debug(rtwdev, RTW89_DBG_CHAN,
+		    "MCC assign pattern: ref {%d | %d}, aux {%d | %d}\n",
+		    new->tob_ref, new->toa_ref, new->tob_aux, new->toa_aux);
+
+	*pattern = *new;
+	memset(&pattern->courtesy, 0, sizeof(pattern->courtesy));
+
+	if (pattern->tob_aux <= 0 || pattern->toa_aux <= 0) {
+		pattern->courtesy.macid_tgt = aux->rtwvif->mac_id;
+		pattern->courtesy.macid_src = ref->rtwvif->mac_id;
+		pattern->courtesy.slot_num = RTW89_MCC_DFLT_COURTESY_SLOT;
+		pattern->courtesy.enable = true;
+	} else if (pattern->tob_ref <= 0 || pattern->toa_ref <= 0) {
+		pattern->courtesy.macid_tgt = ref->rtwvif->mac_id;
+		pattern->courtesy.macid_src = aux->rtwvif->mac_id;
+		pattern->courtesy.slot_num = RTW89_MCC_DFLT_COURTESY_SLOT;
+		pattern->courtesy.enable = true;
+	}
+
+	rtw89_debug(rtwdev, RTW89_DBG_CHAN,
+		    "MCC pattern flags: plan %d, courtesy_en %d\n",
+		    pattern->plan, pattern->courtesy.enable);
+
+	if (!pattern->courtesy.enable)
+		return;
+
+	rtw89_debug(rtwdev, RTW89_DBG_CHAN,
+		    "MCC pattern courtesy: tgt %d, src %d, slot %d\n",
+		    pattern->courtesy.macid_tgt, pattern->courtesy.macid_src,
+		    pattern->courtesy.slot_num);
+}
+
+static void rtw89_mcc_set_default_pattern(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_mcc_info *mcc = &rtwdev->mcc;
+	struct rtw89_mcc_role *ref = &mcc->role_ref;
+	struct rtw89_mcc_role *aux = &mcc->role_aux;
+	struct rtw89_mcc_pattern tmp = {};
+
+	rtw89_debug(rtwdev, RTW89_DBG_CHAN,
+		    "MCC use default pattern unexpectedly\n");
+
+	tmp.plan = RTW89_MCC_PLAN_NO_BT;
+	tmp.tob_ref = ref->duration / 2;
+	tmp.toa_ref = ref->duration - tmp.tob_ref;
+	tmp.tob_aux = aux->duration / 2;
+	tmp.toa_aux = aux->duration - tmp.tob_aux;
+
+	rtw89_mcc_assign_pattern(rtwdev, &tmp);
+}
+
+static int rtw89_mcc_fill_start_tsf(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_mcc_info *mcc = &rtwdev->mcc;
+	struct rtw89_mcc_role *ref = &mcc->role_ref;
+	struct rtw89_mcc_config *config = &mcc->config;
+	u32 bcn_intvl_ref_us = ieee80211_tu_to_usec(ref->beacon_interval);
+	u32 tob_ref_us = ieee80211_tu_to_usec(config->pattern.tob_ref);
+	struct rtw89_vif *rtwvif = ref->rtwvif;
+	u64 tsf, start_tsf;
+	u32 cur_tbtt_ofst;
+	u64 min_time;
+	int ret;
+
+	ret = rtw89_mac_port_get_tsf(rtwdev, rtwvif, &tsf);
+	if (ret) {
+		rtw89_warn(rtwdev, "MCC failed to get port tsf: %d\n", ret);
+		return ret;
+	}
+
+	min_time = tsf;
+	if (ref->is_go)
+		min_time += ieee80211_tu_to_usec(RTW89_MCC_SHORT_TRIGGER_TIME);
+	else
+		min_time += ieee80211_tu_to_usec(RTW89_MCC_LONG_TRIGGER_TIME);
+
+	cur_tbtt_ofst = rtw89_mcc_get_tbtt_ofst(rtwdev, ref, tsf);
+	start_tsf = tsf - cur_tbtt_ofst + bcn_intvl_ref_us - tob_ref_us;
+	while (start_tsf < min_time)
+		start_tsf += bcn_intvl_ref_us;
+
+	config->start_tsf = start_tsf;
+	return 0;
+}
+
+static int rtw89_mcc_fill_config(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_mcc_info *mcc = &rtwdev->mcc;
+	struct rtw89_mcc_config *config = &mcc->config;
+
+	memset(config, 0, sizeof(*config));
+	rtw89_mcc_set_default_pattern(rtwdev);
+	return rtw89_mcc_fill_start_tsf(rtwdev);
+}
+
 static int rtw89_mcc_start(struct rtw89_dev *rtwdev)
 {
+	struct rtw89_mcc_info *mcc = &rtwdev->mcc;
+	struct rtw89_mcc_role *ref = &mcc->role_ref;
+	struct rtw89_mcc_role *aux = &mcc->role_aux;
+	int ret;
+
 	if (rtwdev->scanning)
 		rtw89_hw_scan_abort(rtwdev, rtwdev->scan_info.scanning_vif);
 
 	rtw89_leave_lps(rtwdev);
 
 	rtw89_debug(rtwdev, RTW89_DBG_CHAN, "MCC start\n");
+
+	ret = rtw89_mcc_fill_all_roles(rtwdev);
+	if (ret)
+		return ret;
+
+	if (ref->is_go || aux->is_go)
+		mcc->mode = RTW89_MCC_MODE_GO_STA;
+	else
+		mcc->mode = RTW89_MCC_MODE_GC_STA;
+
+	rtw89_debug(rtwdev, RTW89_DBG_CHAN, "MCC sel mode: %d\n", mcc->mode);
+
+	ret = rtw89_mcc_fill_config(rtwdev);
+	if (ret)
+		return ret;
+
 	rtw89_chanctx_notify(rtwdev, RTW89_CHANCTX_STATE_MCC_START);
 	return 0;
 }
