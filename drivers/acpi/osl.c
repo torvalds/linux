@@ -149,7 +149,7 @@ void acpi_os_printf(const char *fmt, ...)
 }
 EXPORT_SYMBOL(acpi_os_printf);
 
-void acpi_os_vprintf(const char *fmt, va_list args)
+void __printf(1, 0) acpi_os_vprintf(const char *fmt, va_list args)
 {
 	static char buffer[512];
 
