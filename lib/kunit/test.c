@@ -614,12 +614,14 @@ int kunit_run_tests(struct kunit_suite *suite)
 						      param_desc,
 						      test.status_comment);
 
+				kunit_update_stats(&param_stats, test.status);
+
 				/* Get next param. */
 				param_desc[0] = '\0';
 				test.param_value = test_case->generate_params(test.param_value, param_desc);
 				test.param_index++;
-
-				kunit_update_stats(&param_stats, test.status);
+				test.status = KUNIT_SUCCESS;
+				test.status_comment[0] = '\0';
 			}
 		}
 
