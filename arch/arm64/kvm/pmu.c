@@ -236,3 +236,21 @@ bool kvm_set_pmuserenr(u64 val)
 	ctxt_sys_reg(hctxt, PMUSERENR_EL0) = val;
 	return true;
 }
+
+/*
+ * If we interrupted the guest to update the host PMU context, make
+ * sure we re-apply the guest EL0 state.
+ */
+void kvm_vcpu_pmu_resync_el0(void)
+{
+	struct kvm_vcpu *vcpu;
+
+	if (!has_vhe() || !in_interrupt())
+		return;
+
+	vcpu = kvm_get_running_vcpu();
+	if (!vcpu)
+		return;
+
+	kvm_make_request(KVM_REQ_RESYNC_PMU_EL0, vcpu);
+}
