@@ -4424,6 +4424,20 @@ static void probe_intel_uncore_frequency(void)
 	}
 }
 
+static void probe_graphics(void)
+{
+	if (!access("/sys/class/drm/card0/power/rc6_residency_ms", R_OK))
+		BIC_PRESENT(BIC_GFX_rc6);
+
+	if (!access("/sys/class/drm/card0/gt_cur_freq_mhz", R_OK) ||
+	    !access("/sys/class/graphics/fb0/device/drm/card0/gt_cur_freq_mhz", R_OK))
+		BIC_PRESENT(BIC_GFXMHz);
+
+	if (!access("/sys/class/drm/card0/gt_act_freq_mhz", R_OK) ||
+	    !access("/sys/class/graphics/fb0/device/drm/card0/gt_act_freq_mhz", R_OK))
+		BIC_PRESENT(BIC_GFXACTMHz);
+}
+
 static void dump_sysfs_cstate_config(void)
 {
 	char path[64];
@@ -5558,21 +5572,12 @@ void process_cpuid()
 
 	probe_intel_uncore_frequency();
 
+	probe_graphics();
+
 	probe_rapl();
 
 	if (platform->has_nhm_msrs)
 		BIC_PRESENT(BIC_SMI);
-
-	if (!access("/sys/class/drm/card0/power/rc6_residency_ms", R_OK))
-		BIC_PRESENT(BIC_GFX_rc6);
-
-	if (!access("/sys/class/drm/card0/gt_cur_freq_mhz", R_OK) ||
-	    !access("/sys/class/graphics/fb0/device/drm/card0/gt_cur_freq_mhz", R_OK))
-		BIC_PRESENT(BIC_GFXMHz);
-
-	if (!access("/sys/class/drm/card0/gt_act_freq_mhz", R_OK) ||
-	    !access("/sys/class/graphics/fb0/device/drm/card0/gt_act_freq_mhz", R_OK))
-		BIC_PRESENT(BIC_GFXACTMHz);
 
 	if (!access("/sys/devices/system/cpu/cpuidle/low_power_idle_cpu_residency_us", R_OK))
 		BIC_PRESENT(BIC_CPU_LPI);
