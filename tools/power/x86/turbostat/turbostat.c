@@ -252,7 +252,6 @@ unsigned int tj_max_override;
 double rapl_power_units, rapl_time_units;
 double rapl_dram_energy_units, rapl_energy_units;
 double rapl_joule_counter_range;
-unsigned int dis_cstate_prewake;
 unsigned int crystal_hz;
 unsigned long long tsc_hz;
 int base_cpu;
@@ -287,6 +286,7 @@ struct platform_features {
 	bool has_msr_atom_pkg_c6_residency;	/* MSR_ATOM_PKG_C6_RESIDENCY */
 	bool has_msr_knl_core_c6_residency;	/* MSR_KNL_CORE_C6_RESIDENCY */
 	bool has_ext_cst_msrs;	/* MSR_PKG_WEIGHTED_CORE_C0_RES/MSR_PKG_ANY_CORE_C0_RES/MSR_PKG_ANY_GFXE_C0_RES/MSR_PKG_BOTH_CORE_GFXE_C0_RES */
+	bool has_cst_prewake_bit;	/* Cstate prewake bit in MSR_IA32_POWER_CTL */
 	int trl_msrs;		/* MSR_TURBO_RATIO_LIMIT/LIMIT1/LIMIT2/SECONDARY, Atom TRL MSRs */
 	int plr_msrs;		/* MSR_CORE/GFX/RING_PERF_LIMIT_REASONS */
 	int rapl_msrs;		/* RAPL PKG/DRAM/CORE/GFX MSRs, AMD RAPL MSRs */
@@ -635,6 +635,7 @@ static const struct platform_features icx_features = {
 	.supported_cstates = CC1 | CC6 | PC2 | PC6,
 	.cst_limit = CST_LIMIT_ICX,
 	.has_irtl_msrs = 1,
+	.has_cst_prewake_bit = 1,
 	.trl_msrs = TRL_BASE | TRL_CORECOUNT,
 	.rapl_msrs = RAPL_PKG_ALL | RAPL_DRAM_ALL,
 	.has_fixed_rapl_unit = 1,
@@ -649,6 +650,7 @@ static const struct platform_features spr_features = {
 	.supported_cstates = CC1 | CC6 | PC2 | PC6,
 	.cst_limit = CST_LIMIT_SKX,
 	.has_irtl_msrs = 1,
+	.has_cst_prewake_bit = 1,
 	.trl_msrs = TRL_BASE | TRL_CORECOUNT,
 	.rapl_msrs = RAPL_PKG_ALL | RAPL_DRAM_ALL,
 };
@@ -3014,8 +3016,6 @@ void probe_cst_limit(void)
 	pkg_cstate_limit = pkg_cstate_limits[msr & 0xF];
 }
 
-void prewake_cstate_probe(unsigned int family, unsigned int model);
-
 static void dump_platform_info(void)
 {
 	unsigned long long msr;
@@ -3036,7 +3036,7 @@ static void dump_platform_info(void)
 		base_cpu, msr, msr & 0x2 ? "EN" : "DIS");
 
 	/* C-state Pre-wake Disable (CSTATE_PREWAKE_DISABLE) */
-	if (dis_cstate_prewake)
+	if (platform->has_cst_prewake_bit)
 		fprintf(outf, "C-state Pre-wake: %sabled\n", msr & 0x40000000 ? "DIS" : "EN");
 
 	return;
@@ -4289,38 +4289,6 @@ void probe_bclk(void)
 		tsc_tweak = base_hz / tsc_hz;
 }
 
-int is_icx(unsigned int family, unsigned int model)
-{
-
-	if (!genuine_intel)
-		return 0;
-
-	if (family != 6)
-		return 0;
-
-	switch (model) {
-	case INTEL_FAM6_ICELAKE_X:
-		return 1;
-	}
-	return 0;
-}
-
-int is_spr(unsigned int family, unsigned int model)
-{
-
-	if (!genuine_intel)
-		return 0;
-
-	if (family != 6)
-		return 0;
-
-	switch (model) {
-	case INTEL_FAM6_SAPPHIRERAPIDS_X:
-		return 1;
-	}
-	return 0;
-}
-
 static void remove_underbar(char *s)
 {
 	char *to = s;
@@ -4908,12 +4876,6 @@ void rapl_probe(void)
 		rapl_probe_intel();
 	if (authentic_amd || hygon_genuine)
 		rapl_probe_amd();
-}
-
-void prewake_cstate_probe(unsigned int family, unsigned int model)
-{
-	if (is_icx(family, model) || is_spr(family, model))
-		dis_cstate_prewake = 1;
 }
 
 int print_thermal(struct thread_data *t, struct core_data *c, struct pkg_data *p)
@@ -5638,7 +5600,6 @@ void process_cpuid()
 		decode_c6_demotion_policy_msr();
 
 	rapl_probe();
-	prewake_cstate_probe(family, model);
 
 	if (!quiet)
 		dump_cstate_pstate_config_info();
