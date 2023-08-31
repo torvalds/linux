@@ -4403,6 +4403,8 @@ enum rtw89_mcc_plan {
 	RTW89_MCC_PLAN_TAIL_BT,
 	RTW89_MCC_PLAN_MID_BT,
 	RTW89_MCC_PLAN_NO_BT,
+
+	NUM_OF_RTW89_MCC_PLAN,
 };
 
 struct rtw89_mcc_pattern {
