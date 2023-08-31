@@ -40,6 +40,7 @@
 #include <linux/of_fdt.h>
 #include <linux/libfdt.h>
 #include <linux/memremap.h>
+#include <linux/memory.h>
 
 #include <asm/pgalloc.h>
 #include <asm/page.h>
@@ -493,6 +494,130 @@ static int __init dt_scan_mmu_pid_width(unsigned long node,
 	return 1;
 }
 
+/*
+ * Outside hotplug the kernel uses this value to map the kernel direct map
+ * with radix. To be compatible with older kernels, let's keep this value
+ * as 16M which is also SECTION_SIZE with SPARSEMEM. We can ideally map
+ * things with 1GB size in the case where we don't support hotplug.
+ */
+#ifndef CONFIG_MEMORY_HOTPLUG
+#define DEFAULT_MEMORY_BLOCK_SIZE	SZ_16M
+#else
+#define DEFAULT_MEMORY_BLOCK_SIZE	MIN_MEMORY_BLOCK_SIZE
+#endif
+
+static void update_memory_block_size(unsigned long *block_size, unsigned long mem_size)
+{
+	unsigned long min_memory_block_size = DEFAULT_MEMORY_BLOCK_SIZE;
+
+	for (; *block_size > min_memory_block_size; *block_size >>= 2) {
+		if ((mem_size & *block_size) == 0)
+			break;
+	}
+}
+
+static int __init probe_memory_block_size(unsigned long node, const char *uname, int
+					  depth, void *data)
+{
+	const char *type;
+	unsigned long *block_size = (unsigned long *)data;
+	const __be32 *reg, *endp;
+	int l;
+
+	if (depth != 1)
+		return 0;
+	/*
+	 * If we have dynamic-reconfiguration-memory node, use the
+	 * lmb value.
+	 */
+	if (strcmp(uname, "ibm,dynamic-reconfiguration-memory") == 0) {
+
+		const __be32 *prop;
+
+		prop = of_get_flat_dt_prop(node, "ibm,lmb-size", &l);
+
+		if (!prop || l < dt_root_size_cells * sizeof(__be32))
+			/*
+			 * Nothing in the device tree
+			 */
+			*block_size = DEFAULT_MEMORY_BLOCK_SIZE;
+		else
+			*block_size = of_read_number(prop, dt_root_size_cells);
+		/*
+		 * We have found the final value. Don't probe further.
+		 */
+		return 1;
+	}
+	/*
+	 * Find all the device tree nodes of memory type and make sure
+	 * the area can be mapped using the memory block size value
+	 * we end up using. We start with 1G value and keep reducing
+	 * it such that we can map the entire area using memory_block_size.
+	 * This will be used on powernv and older pseries that don't
+	 * have ibm,lmb-size node.
+	 * For ex: with P5 we can end up with
+	 * memory@0 -> 128MB
+	 * memory@128M -> 64M
+	 * This will end up using 64MB  memory block size value.
+	 */
+	type = of_get_flat_dt_prop(node, "device_type", NULL);
+	if (type == NULL || strcmp(type, "memory") != 0)
+		return 0;
+
+	reg = of_get_flat_dt_prop(node, "linux,usable-memory", &l);
+	if (!reg)
+		reg = of_get_flat_dt_prop(node, "reg", &l);
+	if (!reg)
+		return 0;
+
+	endp = reg + (l / sizeof(__be32));
+	while ((endp - reg) >= (dt_root_addr_cells + dt_root_size_cells)) {
+		const char *compatible;
+		u64 size;
+
+		dt_mem_next_cell(dt_root_addr_cells, &reg);
+		size = dt_mem_next_cell(dt_root_size_cells, &reg);
+
+		if (size) {
+			update_memory_block_size(block_size, size);
+			continue;
+		}
+		/*
+		 * ibm,coherent-device-memory with linux,usable-memory = 0
+		 * Force 256MiB block size. Work around for GPUs on P9 PowerNV
+		 * linux,usable-memory == 0 implies driver managed memory and
+		 * we can't use large memory block size due to hotplug/unplug
+		 * limitations.
+		 */
+		compatible = of_get_flat_dt_prop(node, "compatible", NULL);
+		if (compatible && !strcmp(compatible, "ibm,coherent-device-memory")) {
+			if (*block_size > SZ_256M)
+				*block_size = SZ_256M;
+			/*
+			 * We keep 256M as the upper limit with GPU present.
+			 */
+			return 0;
+		}
+	}
+	/* continue looking for other memory device types */
+	return 0;
+}
+
+/*
+ * start with 1G memory block size. Early init will
+ * fix this with correct value.
+ */
+unsigned long memory_block_size __ro_after_init = 1UL << 30;
+static void __init early_init_memory_block_size(void)
+{
+	/*
+	 * We need to do memory_block_size probe early so that
+	 * radix__early_init_mmu() can use this as limit for
+	 * mapping page size.
+	 */
+	of_scan_flat_dt(probe_memory_block_size, &memory_block_size);
+}
+
 void __init mmu_early_init_devtree(void)
 {
 	bool hvmode = !!(mfmsr() & MSR_HV);
@@ -525,6 +650,8 @@ void __init mmu_early_init_devtree(void)
 	 */
 	if (!hvmode)
 		early_check_vec5();
+
+	early_init_memory_block_size();
 
 	if (early_radix_enabled()) {
 		radix__early_init_devtree();

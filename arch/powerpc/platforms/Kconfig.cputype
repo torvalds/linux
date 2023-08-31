@@ -276,6 +276,13 @@ config TARGET_CPU
 	default "e500mc" if E500MC_CPU
 	default "powerpc" if POWERPC_CPU
 
+config TUNE_CPU
+	string
+	depends on POWERPC64_CPU
+	default "-mtune=power10" if $(cc-option,-mtune=power10)
+	default "-mtune=power9"  if $(cc-option,-mtune=power9)
+	default "-mtune=power8"  if $(cc-option,-mtune=power8)
+
 config PPC_BOOK3S
 	def_bool y
 	depends on PPC_BOOK3S_32 || PPC_BOOK3S_64

@@ -10,8 +10,6 @@
 #include <linux/phy.h>
 #include <linux/dma-mapping.h>
 
-#include <asm/fs_pd.h>
-
 #ifdef CONFIG_CPM1
 #include <asm/cpm1.h>
 #endif

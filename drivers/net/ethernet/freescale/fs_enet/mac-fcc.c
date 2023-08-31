@@ -37,7 +37,6 @@
 #include <linux/pgtable.h>
 
 #include <asm/immap_cpm2.h>
-#include <asm/mpc8260.h>
 #include <asm/cpm2.h>
 
 #include <asm/irq.h>

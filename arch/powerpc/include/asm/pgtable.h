@@ -72,9 +72,9 @@ static inline pgprot_t pte_pgprot(pte_t pte)
 }
 
 #ifndef pmd_page_vaddr
-static inline unsigned long pmd_page_vaddr(pmd_t pmd)
+static inline const void *pmd_page_vaddr(pmd_t pmd)
 {
-	return ((unsigned long)__va(pmd_val(pmd) & ~PMD_MASKED_BITS));
+	return __va(pmd_val(pmd) & ~PMD_MASKED_BITS);
 }
 #define pmd_page_vaddr pmd_page_vaddr
 #endif
