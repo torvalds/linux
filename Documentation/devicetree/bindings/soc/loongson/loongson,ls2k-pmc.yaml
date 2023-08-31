@@ -37,6 +37,18 @@ properties:
       addition, the PM need according to it to indicate that current
       SoC whether support Suspend To RAM.
 
+  syscon-poweroff:
+    $ref: /schemas/power/reset/syscon-poweroff.yaml#
+    type: object
+    description:
+      Node for power off method
+
+  syscon-reboot:
+    $ref: /schemas/power/reset/syscon-reboot.yaml#
+    type: object
+    description:
+      Node for reboot method
+
 required:
   - compatible
   - reg
@@ -54,4 +66,18 @@ examples:
         interrupt-parent = <&liointc1>;
         interrupts = <11 IRQ_TYPE_LEVEL_LOW>;
         loongson,suspend-address = <0x0 0x1c000500>;
+
+        syscon-reboot {
+            compatible = "syscon-reboot";
+            offset = <0x30>;
+            mask = <0x1>;
+        };
+
+        syscon-poweroff {
+            compatible = "syscon-poweroff";
+            regmap = <&pmc>;
+            offset = <0x14>;
+            mask = <0x3c00>;
+            value = <0x3c00>;
+        };
     };
