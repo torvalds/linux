@@ -691,12 +691,12 @@ static int imx219_init_cfg(struct v4l2_subdev *sd,
 	struct v4l2_mbus_framefmt *format;
 	struct v4l2_rect *crop;
 
-	/* Initialize try_fmt */
+	/* Initialize the format. */
 	format = v4l2_subdev_get_pad_format(sd, state, 0);
 	imx219_update_pad_format(imx219, &supported_modes[0], format,
 				 MEDIA_BUS_FMT_SRGGB10_1X10);
 
-	/* Initialize crop rectangle. */
+	/* Initialize the crop rectangle. */
 	crop = v4l2_subdev_get_pad_crop(sd, state, 0);
 	crop->top = IMX219_PIXEL_ARRAY_TOP;
 	crop->left = IMX219_PIXEL_ARRAY_LEFT;
