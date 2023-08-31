@@ -1295,6 +1295,7 @@ enum {
 	UNI_BSS_INFO_RLM = 2,
 	UNI_BSS_INFO_BSS_COLOR = 4,
 	UNI_BSS_INFO_HE_BASIC = 5,
+	UNI_BSS_INFO_11V_MBSSID = 6,
 	UNI_BSS_INFO_BCN_CONTENT = 7,
 	UNI_BSS_INFO_BCN_CSA = 8,
 	UNI_BSS_INFO_BCN_BCC = 9,
@@ -1564,6 +1565,15 @@ struct bss_info_uni_he {
 	u8 su_disable;
 	__le16 max_nss_mcs[CMD_HE_MCS_BW_NUM];
 	u8 rsv[2];
+} __packed;
+
+struct bss_info_uni_mbssid {
+	__le16 tag;
+	__le16 len;
+	u8 max_indicator;
+	u8 mbss_idx;
+	u8 tx_bss_omac_idx;
+	u8 rsv;
 } __packed;
 
 struct mt76_connac_gtk_rekey_tlv {
