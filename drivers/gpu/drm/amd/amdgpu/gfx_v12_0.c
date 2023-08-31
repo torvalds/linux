@@ -915,6 +915,7 @@ gfx_v12_0_rlc_backdoor_autoload_copy_gfx_ucode(struct amdgpu_device *adev)
 	uint32_t fw_size;
 	const struct gfx_firmware_header_v2_0 *cpv2_hdr;
 	const struct rlc_firmware_header_v2_0 *rlc_hdr;
+	const struct rlc_firmware_header_v2_1 *rlcv21_hdr;
 	const struct rlc_firmware_header_v2_2 *rlcv22_hdr;
 	uint16_t version_major, version_minor;
 
@@ -986,6 +987,21 @@ gfx_v12_0_rlc_backdoor_autoload_copy_gfx_ucode(struct amdgpu_device *adev)
 	version_major = le16_to_cpu(rlc_hdr->header.header_version_major);
 	version_minor = le16_to_cpu(rlc_hdr->header.header_version_minor);
 	if (version_major == 2) {
+		if (version_minor >= 1) {
+			rlcv21_hdr = (const struct rlc_firmware_header_v2_1 *)adev->gfx.rlc_fw->data;
+
+			fw_data = (const __le32 *)(adev->gfx.rlc_fw->data +
+					le32_to_cpu(rlcv21_hdr->save_restore_list_gpm_offset_bytes));
+			fw_size = le32_to_cpu(rlcv21_hdr->save_restore_list_gpm_size_bytes);
+			gfx_v12_0_rlc_backdoor_autoload_copy_ucode(adev, SOC24_FIRMWARE_ID_RLCG_SCRATCH,
+						   fw_data, fw_size);
+
+			fw_data = (const __le32 *)(adev->gfx.rlc_fw->data +
+					le32_to_cpu(rlcv21_hdr->save_restore_list_srm_offset_bytes));
+			fw_size = le32_to_cpu(rlcv21_hdr->save_restore_list_srm_size_bytes);
+			gfx_v12_0_rlc_backdoor_autoload_copy_ucode(adev, SOC24_FIRMWARE_ID_RLC_SRM_ARAM,
+						   fw_data, fw_size);
+		}
 		if (version_minor >= 2) {
 			rlcv22_hdr = (const struct rlc_firmware_header_v2_2 *)adev->gfx.rlc_fw->data;
 
