@@ -2548,9 +2548,8 @@ static int aspeed_video_init(struct aspeed_video *video)
 	struct device *dev = video->dev;
 	unsigned int mask_size = (video->version >= 7) ? 64 : 32;
 
-	if (dev->of_node)
-		video->id = of_alias_get_id(dev->of_node, "video");
-	else
+	video->id = of_alias_get_id(dev->of_node, "video");
+	if (video->id < 0)
 		video->id = 0;
 
 	if (video->version >= 6) {
