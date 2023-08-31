@@ -2087,19 +2087,26 @@ static void rga_cmd_to_rga2_cmd(struct rga_scheduler_t *scheduler,
 				req->alpha_config.bg_pixel_alpha_en =
 					rga_is_alpha_format(req->dst.format);
 
-			if (req_rga->fg_global_alpha < 0xff) {
-				req->alpha_config.fg_global_alpha_en = true;
-				req->alpha_config.fg_global_alpha_value = req_rga->fg_global_alpha;
-			} else if (!req->alpha_config.fg_pixel_alpha_en) {
-				req->alpha_config.fg_global_alpha_en = true;
-				req->alpha_config.fg_global_alpha_value = 0xff;
-			}
+			if (req_rga->feature.global_alpha_en) {
+				if (req_rga->fg_global_alpha < 0xff) {
+					req->alpha_config.fg_global_alpha_en = true;
+					req->alpha_config.fg_global_alpha_value =
+						req_rga->fg_global_alpha;
+				} else if (!req->alpha_config.fg_pixel_alpha_en) {
+					req->alpha_config.fg_global_alpha_en = true;
+					req->alpha_config.fg_global_alpha_value = 0xff;
+				}
 
-			if (req_rga->bg_global_alpha < 0xff) {
-				req->alpha_config.bg_global_alpha_en = true;
-				req->alpha_config.bg_global_alpha_value = req_rga->bg_global_alpha;
-			} else if (!req->alpha_config.bg_pixel_alpha_en) {
-				req->alpha_config.bg_global_alpha_en = true;
+				if (req_rga->bg_global_alpha < 0xff) {
+					req->alpha_config.bg_global_alpha_en = true;
+					req->alpha_config.bg_global_alpha_value =
+						req_rga->bg_global_alpha;
+				} else if (!req->alpha_config.bg_pixel_alpha_en) {
+					req->alpha_config.bg_global_alpha_en = true;
+					req->alpha_config.bg_global_alpha_value = 0xff;
+				}
+			} else {
+				req->alpha_config.bg_global_alpha_value = 0xff;
 				req->alpha_config.bg_global_alpha_value = 0xff;
 			}
 
