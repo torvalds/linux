@@ -513,7 +513,7 @@ static int palmas_i2c_probe(struct i2c_client *i2c)
 	palmas->dev = &i2c->dev;
 	palmas->irq = i2c->irq;
 
-	driver_data = device_get_match_data(&i2c->dev);
+	driver_data = i2c_get_match_data(i2c);
 	palmas->features = driver_data->features;
 
 	for (i = 0; i < PALMAS_NUM_CLIENTS; i++) {
@@ -699,10 +699,10 @@ static const struct of_device_id of_palmas_match_tbl[] = {
 MODULE_DEVICE_TABLE(of, of_palmas_match_tbl);
 
 static const struct i2c_device_id palmas_i2c_id[] = {
-	{ "palmas", },
-	{ "twl6035", },
-	{ "twl6037", },
-	{ "tps65913", },
+	{ "palmas", (kernel_ulong_t)&palmas_data },
+	{ "twl6035", (kernel_ulong_t)&palmas_data },
+	{ "twl6037", (kernel_ulong_t)&palmas_data },
+	{ "tps65913", (kernel_ulong_t)&palmas_data },
 	{ /* end */ }
 };
 MODULE_DEVICE_TABLE(i2c, palmas_i2c_id);
