@@ -23,7 +23,7 @@
 
 	memory@400000000 {
 		device_type = "memory";
-		reg = <0x4 0x00000000 0x0 0x0c000000>;
+		reg = <0x4 0x00000000 0x0 0x40000000>;
 	};
 
 	reserved-memory {
