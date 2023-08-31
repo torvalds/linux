@@ -703,6 +703,12 @@ static void ast2700_espi_perif_reset(struct ast2700_espi *espi)
 		writel((perif->mmbi.taddr >> 32), espi->regs + ESPI_CH0_MCYC0_TADDRH);
 		writel((perif->mmbi.taddr & 0xffffffff), espi->regs + ESPI_CH0_MCYC0_TADDRL);
 
+		writel((0x1 << (perif->mmbi.inst_num * 2)) - 1, espi->regs + ESPI_MMBI_INT_EN);
+
+		reg = FIELD_PREP(ESPI_MMBI_CTRL_INST_NUM, perif->mmbi.inst_num)
+		    | ESPI_MMBI_CTRL_EN;
+		writel(reg, espi->regs + ESPI_MMBI_CTRL);
+
 		reg = readl(espi->regs + ESPI_CH0_MCYC0_MASKL) | ESPI_CH0_MCYC0_MASKL_EN;
 		writel(reg, espi->regs + ESPI_CH0_MCYC0_MASKL);
 

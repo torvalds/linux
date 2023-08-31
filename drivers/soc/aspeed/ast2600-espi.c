@@ -686,15 +686,15 @@ static void ast2600_espi_perif_reset(struct ast2600_espi *espi)
 		writel(perif->mmbi.saddr, espi->regs + ESPI_PERIF_MMBI_SADDR);
 		writel(perif->mmbi.taddr, espi->regs + ESPI_PERIF_MMBI_TADDR);
 
-		reg = readl(espi->regs + ESPI_CTRL2) & ~(ESPI_CTRL2_MMBI_RD_DIS | ESPI_CTRL2_MMBI_WR_DIS);
-		writel(reg, espi->regs + ESPI_CTRL2);
-
 		writel(0xffffffff, espi->regs + ESPI_MMBI_INT_EN);
 
 		reg = FIELD_PREP(ESPI_MMBI_CTRL_INST_SZ, perif->mmbi.inst_size)
 			| FIELD_PREP(ESPI_MMBI_CTRL_TOTAL_SZ, perif->mmbi.inst_size)
 			| ESPI_MMBI_CTRL_EN;
 		writel(reg, espi->regs + ESPI_MMBI_CTRL);
+
+		reg = readl(espi->regs + ESPI_CTRL2) & ~(ESPI_CTRL2_MMBI_RD_DIS | ESPI_CTRL2_MMBI_WR_DIS);
+		writel(reg, espi->regs + ESPI_CTRL2);
 	}
 
 	if (perif->mcyc.enable) {
