@@ -148,7 +148,7 @@ static void default_print_event(void *ps, const char *pmu_name, const char *topi
 		char *desc_with_unit = NULL;
 		int desc_len = -1;
 
-		if (pmu_name && strcmp(pmu_name, "cpu")) {
+		if (pmu_name && strcmp(pmu_name, "default_core")) {
 			desc_len = strlen(desc);
 			desc_len = asprintf(&desc_with_unit,
 					    desc[desc_len - 1] != '.'
