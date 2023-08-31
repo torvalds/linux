@@ -3794,7 +3794,7 @@ static inline void pipeline_reset_boost(void)
 
 cpumask_t last_available_big_cpus = CPU_MASK_NONE;
 int have_heavy_list;
-void find_heaviest_topapp(u64 window_start)
+bool find_heaviest_topapp(u64 window_start)
 {
 	struct walt_related_thread_group *grp;
 	struct walt_task_struct *wts;
@@ -3805,10 +3805,10 @@ void find_heaviest_topapp(u64 window_start)
 	int sched_heavy_nr = sysctl_sched_heavy_nr;
 
 	if (num_sched_clusters < 2)
-		return;
+		return false;
 
 	if (last_rearrange_ns && (window_start < (last_rearrange_ns + 100 * MSEC_TO_NSEC)))
-		return;
+		return false;
 
 	/* lazy enabling disabling until 100mS for colocation or heavy_nr change */
 	grp = lookup_related_thread_group(DEFAULT_CGROUP_COLOC_ID);
@@ -3827,7 +3827,7 @@ void find_heaviest_topapp(u64 window_start)
 
 			pipeline_set_boost(false, AUTO_PIPELINE);
 		}
-		return;
+		return false;
 	}
 
 	raw_spin_lock_irqsave(&grp->lock, flags);
@@ -3935,6 +3935,7 @@ void find_heaviest_topapp(u64 window_start)
 
 	raw_spin_unlock(&heavy_lock);
 	raw_spin_unlock_irqrestore(&grp->lock, flags);
+	return true;
 }
 
 static inline void swap_pipeline_with_prime_locked(struct walt_task_struct *prime_wts,
@@ -3957,11 +3958,11 @@ static inline void swap_pipeline_with_prime_locked(struct walt_task_struct *prim
 }
 
 #define WINDOW_HYSTERESIS 4
-static inline bool delay_rearrange(u64 window_start, int pipeline_type)
+static inline bool delay_rearrange(u64 window_start, int pipeline_type, bool force)
 {
 	static u64 last_rearrange_ns[MAX_PIPELINE_TYPES];
 
-	if (last_rearrange_ns[pipeline_type] &&
+	if (!force && last_rearrange_ns[pipeline_type] &&
 			(window_start < (last_rearrange_ns[pipeline_type] +
 			(sched_ravg_window*WINDOW_HYSTERESIS))))
 		return true;
@@ -4008,7 +4009,7 @@ static inline bool is_prime_worthy(struct walt_task_struct *wts)
 	return !task_fits_max(p, cpumask_last(&sched_cluster[1]->cpus));
 }
 
-void rearrange_heavy(u64 window_start)
+void rearrange_heavy(u64 window_start, bool force)
 {
 	struct walt_related_thread_group *grp;
 	struct walt_task_struct *prime_wts = NULL;
@@ -4049,7 +4050,7 @@ void rearrange_heavy(u64 window_start)
 	if (!grp->skip_min)
 		return;
 
-	if (delay_rearrange(window_start, AUTO_PIPELINE))
+	if (delay_rearrange(window_start, AUTO_PIPELINE, force))
 		return;
 
 	raw_spin_lock_irqsave(&heavy_lock, flags);
@@ -4086,7 +4087,7 @@ void rearrange_pipeline_preferred_cpus(u64 window_start)
 		goto out;
 	if (!grp->skip_min)
 		goto out;
-	if (delay_rearrange(window_start, MANUAL_PIPELINE))
+	if (delay_rearrange(window_start, MANUAL_PIPELINE, false))
 		goto out;
 
 	raw_spin_lock_irqsave(&pipeline_lock, flags);
@@ -4405,6 +4406,7 @@ static void walt_irq_work(struct irq_work *irq_work)
 	int cpu;
 	bool is_migration = false, is_asym_migration = false, is_shared_rail_migration = false;
 	u32 wakeup_ctr_sum = 0;
+	bool found_topapp = false;
 
 	if (irq_work == &walt_migration_irq_work)
 		is_migration = true;
@@ -4457,8 +4459,9 @@ static void walt_irq_work(struct irq_work *irq_work)
 
 	if (!is_migration) {
 		wrq = &per_cpu(walt_rq, cpu_of(this_rq()));
-		find_heaviest_topapp(wrq->window_start);
-		rearrange_heavy(wrq->window_start);
+		found_topapp = find_heaviest_topapp(wrq->window_start);
+		/* found_topapp should force rearrangement */
+		rearrange_heavy(wrq->window_start, found_topapp);
 		rearrange_pipeline_preferred_cpus(wrq->window_start);
 		pipeline_reset_boost();
 		core_ctl_check(wrq->window_start, wakeup_ctr_sum);
