@@ -296,6 +296,7 @@ struct platform_features {
 	int rapl_quirk_tdp;	/* Hardcoded TDP value when cannot be retrieved from hardware */
 	int tcc_offset_bits;	/* TCC Offset bits in MSR_IA32_TEMPERATURE_TARGET */
 	bool enable_tsc_tweak;	/* Use CPU Base freq instead of TSC freq for aperf/mperf counter */
+	bool need_perf_multiplier;	/* mperf/aperf multiplier */
 };
 
 struct platform_data {
@@ -758,6 +759,7 @@ static const struct platform_features knl_features = {
 	.trl_msrs = TRL_KNL,
 	.rapl_msrs = RAPL_PKG_ALL | RAPL_DRAM_ALL,
 	.has_fixed_rapl_unit = 1,
+	.need_perf_multiplier = 1,
 };
 
 static const struct platform_features default_features = {
@@ -5107,28 +5109,6 @@ int print_rapl(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 	return 0;
 }
 
-int is_knl(unsigned int family, unsigned int model)
-{
-	if (!genuine_intel)
-		return 0;
-
-	if (family != 6)
-		return 0;
-
-	switch (model) {
-	case INTEL_FAM6_XEON_PHI_KNL:	/* KNL */
-		return 1;
-	}
-	return 0;
-}
-
-unsigned int get_aperf_mperf_multiplier(unsigned int family, unsigned int model)
-{
-	if (is_knl(family, model))
-		return 1024;
-	return 1;
-}
-
 int get_cpu_type(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 {
 	unsigned int eax, ebx, ecx, edx;
@@ -5630,7 +5610,7 @@ void process_cpuid()
 	}
 
 	if (has_aperf)
-		aperf_mperf_multiplier = get_aperf_mperf_multiplier(family, model);
+		aperf_mperf_multiplier = platform->need_perf_multiplier ? 1024 : 1;
 
 	BIC_PRESENT(BIC_IRQ);
 	BIC_PRESENT(BIC_TSC_MHz);
