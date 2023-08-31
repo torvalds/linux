@@ -12,7 +12,6 @@
 #include <linux/stat.h>
 #include <linux/interrupt.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/hte.h>
 #include <linux/uaccess.h>
