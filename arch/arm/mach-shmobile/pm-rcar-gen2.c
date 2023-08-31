@@ -52,6 +52,11 @@ void __init rcar_gen2_pm_init(void)
 	struct resource res;
 	int error;
 
+	if (!request_mem_region(0, SZ_256K, "Boot Area")) {
+		pr_err("Failed to request boot area\n");
+		return;
+	}
+
 	for_each_of_cpu_node(np) {
 		if (of_device_is_compatible(np, "arm,cortex-a15"))
 			has_a15 = true;
