@@ -333,6 +333,13 @@
 			status = "disabled";
 		};
 
+		usb2ahp: usb2ahp {
+			compatible = "aspeed,ast2600-usb2ahp";
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_usb2ahp_default>;
+			status = "disabled";
+		};
+
 		udc: usb@1e6a2000 {
 			compatible = "aspeed,ast2600-udc";
 			reg = <0x1e6a2000 0x300>;

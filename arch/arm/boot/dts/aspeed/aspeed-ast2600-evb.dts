@@ -437,11 +437,37 @@
 	status = "okay";
 };
 
+#if 0
+&ehci0 {
+	status = "okay";
+};
+#endif
+
 &ehci1 {
 	status = "okay";
 };
 
 &uhci {
+	status = "okay";
+};
+
+&vhub {
+	status = "okay";
+	pinctrl-names = "default";
+#if 0
+	pinctrl-0 = <&pinctrl_usb2adp_default>;
+#endif
+};
+
+#if 0
+&udc {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usb2bd_default>;
+};
+#endif
+
+&uphyb {
 	status = "okay";
 };
 
@@ -489,11 +515,6 @@
 	vmmc-supply = <&vcc_sdhci1>;
 	vqmmc-supply = <&vccq_sdhci1>;
 	clk-phase-uhs-sdr50 = <0 130>, <0 130>;
-};
-
-&vhub {
-	status = "okay";
-	pinctrl-names = "default";
 };
 
 &video {
