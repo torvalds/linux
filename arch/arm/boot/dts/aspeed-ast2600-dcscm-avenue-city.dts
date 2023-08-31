@@ -254,38 +254,38 @@
 			#size-cells = <1>;
 
 			u-boot@0 {
-				reg = <0x0 0xe0000>; // 896KB
+				reg = <0x0 0x140000>; // 1280KB
 				label = "u-boot";
 			};
 
-			pfm@e0000 {
-				reg = <0xe0000 0x20000>; // 128KB
-				label = "pfm";
-			};
-
-			u-boot-env@100000 {
-				reg = <0x100000 0x20000>; // 128KB
+			u-boot-env@140000 {
+				reg = <0x140000 0x20000>; // 128KB
 				label = "u-boot-env";
 			};
 
-			sofs@120000 {
-				reg = <0x120000 0x200000>; // 2048KB
-				label = "sofs";
-			};
-
-			rwfs@320000 {
-				reg = <0x320000 0x1200000>; // 18432KB
-				label = "rwfs";
-			};
-
-			kernel@1520000 {
-				reg = <0x1520000 0x900000>; // 9216KB
+			kernel@160000 {
+				reg = <0x160000 0x800000>; // 8MB
 				label = "kernel";
 			};
 
-			rofs@1e20000 {
-				reg = <0x1e20000 0x2400000>; // 36864KB
+			rofs@960000 {
+				reg = <0x960000 0x24a0000>; // 36.625MB
 				label = "rofs";
+			};
+
+			rwfs@2e00000 {
+				reg = <0x2e00000 0x1200000>; // 18MB
+				label = "rwfs";
+			};
+
+			pfm@4000000 {
+				reg = <0x4000000 0x20000>; // 128KB
+				label = "pfm";
+			};
+
+			reserved-1@4020000 {
+				reg = <0x4020000 0x200000>; // 128KB
+				label = "reserved-1";
 			};
 
 			rc-image@4220000 {
@@ -318,9 +318,9 @@
 				label = "afm-rc";
 			};
 
-			reserved@c320000 {
+			reserved-2@c320000 {
 				reg = <0xc320000 0x3ce0000>; // 62336KB
-				label = "reserved";
+				label = "reserved-2";
 			};
 		};
 	};
