@@ -481,23 +481,6 @@ static const struct palmas_driver_data tps65917_data = {
 	.irq_chip = &tps65917_irq_chip,
 };
 
-static const struct of_device_id of_palmas_match_tbl[] = {
-	{
-		.compatible = "ti,palmas",
-		.data = &palmas_data,
-	},
-	{
-		.compatible = "ti,tps659038",
-		.data = &tps659038_data,
-	},
-	{
-		.compatible = "ti,tps65917",
-		.data = &tps65917_data,
-	},
-	{ }
-};
-MODULE_DEVICE_TABLE(of, of_palmas_match_tbl);
-
 static int palmas_i2c_probe(struct i2c_client *i2c)
 {
 	struct palmas *palmas;
@@ -706,6 +689,14 @@ static void palmas_i2c_remove(struct i2c_client *i2c)
 		palmas_dev = NULL;
 	}
 }
+
+static const struct of_device_id of_palmas_match_tbl[] = {
+	{ .compatible = "ti,palmas", .data = &palmas_data },
+	{ .compatible = "ti,tps659038", .data = &tps659038_data },
+	{ .compatible = "ti,tps65917", .data = &tps65917_data },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, of_palmas_match_tbl);
 
 static const struct i2c_device_id palmas_i2c_id[] = {
 	{ "palmas", },
