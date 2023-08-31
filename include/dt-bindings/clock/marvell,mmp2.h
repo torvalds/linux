@@ -91,5 +91,4 @@
 #define MMP3_CLK_SDH4			126
 #define MMP2_CLK_AUDIO			127
 
-#define MMP2_NR_CLKS			200
 #endif

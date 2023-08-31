@@ -139,7 +139,7 @@ int ccu_mux_helper_determine_rate(struct ccu_common *common,
 			goto out;
 		}
 
-		if ((req->rate - tmp_rate) < (req->rate - best_rate)) {
+		if (ccu_is_better_rate(common, req->rate, tmp_rate, best_rate)) {
 			best_rate = tmp_rate;
 			best_parent_rate = parent_rate;
 			best_parent = parent;
@@ -242,6 +242,17 @@ static int ccu_mux_set_parent(struct clk_hw *hw, u8 index)
 	return ccu_mux_helper_set_parent(&cm->common, &cm->mux, index);
 }
 
+static int ccu_mux_determine_rate(struct clk_hw *hw,
+				  struct clk_rate_request *req)
+{
+	struct ccu_mux *cm = hw_to_ccu_mux(hw);
+
+	if (cm->common.features & CCU_FEATURE_CLOSEST_RATE)
+		return clk_mux_determine_rate_flags(hw, req, CLK_MUX_ROUND_CLOSEST);
+
+	return clk_mux_determine_rate_flags(hw, req, 0);
+}
+
 static unsigned long ccu_mux_recalc_rate(struct clk_hw *hw,
 					 unsigned long parent_rate)
 {
@@ -259,7 +270,7 @@ const struct clk_ops ccu_mux_ops = {
 	.get_parent	= ccu_mux_get_parent,
 	.set_parent	= ccu_mux_set_parent,
 
-	.determine_rate	= __clk_mux_determine_rate,
+	.determine_rate	= ccu_mux_determine_rate,
 	.recalc_rate	= ccu_mux_recalc_rate,
 };
 EXPORT_SYMBOL_NS_GPL(ccu_mux_ops, SUNXI_CCU);
