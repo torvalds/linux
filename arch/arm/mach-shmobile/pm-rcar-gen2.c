@@ -46,15 +46,11 @@ void __init rcar_gen2_pm_init(void)
 {
 	void __iomem *p;
 	u32 bar;
-	static int once;
 	struct device_node *np;
 	bool has_a7 = false;
 	bool has_a15 = false;
 	struct resource res;
 	int error;
-
-	if (once++)
-		return;
 
 	for_each_of_cpu_node(np) {
 		if (of_device_is_compatible(np, "arm,cortex-a15"))
