@@ -295,6 +295,8 @@ struct mt7915_dev {
 	bool muru_debug;
 	bool ibf;
 
+	u8 monitor_mask;
+
 	struct dentry *debugfs_dir;
 	struct rchan *relay_fwlog;
 
