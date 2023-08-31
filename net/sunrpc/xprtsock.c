@@ -2237,9 +2237,13 @@ static void xs_tcp_set_socket_timeouts(struct rpc_xprt *xprt,
 		struct socket *sock)
 {
 	struct sock_xprt *transport = container_of(xprt, struct sock_xprt, xprt);
+	struct net *net = sock_net(sock->sk);
+	unsigned long connect_timeout;
+	unsigned long syn_retries;
 	unsigned int keepidle;
 	unsigned int keepcnt;
 	unsigned int timeo;
+	unsigned long t;
 
 	spin_lock(&xprt->transport_lock);
 	keepidle = DIV_ROUND_UP(xprt->timeout->to_initval, HZ);
@@ -2257,6 +2261,35 @@ static void xs_tcp_set_socket_timeouts(struct rpc_xprt *xprt,
 
 	/* TCP user timeout (see RFC5482) */
 	tcp_sock_set_user_timeout(sock->sk, timeo);
+
+	/* Connect timeout */
+	connect_timeout = max_t(unsigned long,
+				DIV_ROUND_UP(xprt->connect_timeout, HZ), 1);
+	syn_retries = max_t(unsigned long,
+			    READ_ONCE(net->ipv4.sysctl_tcp_syn_retries), 1);
+	for (t = 0; t <= syn_retries && (1UL << t) < connect_timeout; t++)
+		;
+	if (t <= syn_retries)
+		tcp_sock_set_syncnt(sock->sk, t - 1);
+}
+
+static void xs_tcp_do_set_connect_timeout(struct rpc_xprt *xprt,
+					  unsigned long connect_timeout)
+{
+	struct sock_xprt *transport =
+		container_of(xprt, struct sock_xprt, xprt);
+	struct rpc_timeout to;
+	unsigned long initval;
+
+	memcpy(&to, xprt->timeout, sizeof(to));
+	/* Arbitrary lower limit */
+	initval = max_t(unsigned long, connect_timeout, XS_TCP_INIT_REEST_TO);
+	to.to_initval = initval;
+	to.to_maxval = initval;
+	to.to_retries = 0;
+	memcpy(&transport->tcp_timeout, &to, sizeof(transport->tcp_timeout));
+	xprt->timeout = &transport->tcp_timeout;
+	xprt->connect_timeout = connect_timeout;
 }
 
 static void xs_tcp_set_connect_timeout(struct rpc_xprt *xprt,
@@ -2264,25 +2297,12 @@ static void xs_tcp_set_connect_timeout(struct rpc_xprt *xprt,
 		unsigned long reconnect_timeout)
 {
 	struct sock_xprt *transport = container_of(xprt, struct sock_xprt, xprt);
-	struct rpc_timeout to;
-	unsigned long initval;
 
 	spin_lock(&xprt->transport_lock);
 	if (reconnect_timeout < xprt->max_reconnect_timeout)
 		xprt->max_reconnect_timeout = reconnect_timeout;
-	if (connect_timeout < xprt->connect_timeout) {
-		memcpy(&to, xprt->timeout, sizeof(to));
-		initval = DIV_ROUND_UP(connect_timeout, to.to_retries + 1);
-		/* Arbitrary lower limit */
-		if (initval <  XS_TCP_INIT_REEST_TO << 1)
-			initval = XS_TCP_INIT_REEST_TO << 1;
-		to.to_initval = initval;
-		to.to_maxval = initval;
-		memcpy(&transport->tcp_timeout, &to,
-				sizeof(transport->tcp_timeout));
-		xprt->timeout = &transport->tcp_timeout;
-		xprt->connect_timeout = connect_timeout;
-	}
+	if (connect_timeout < xprt->connect_timeout)
+		xs_tcp_do_set_connect_timeout(xprt, connect_timeout);
 	set_bit(XPRT_SOCK_UPD_TIMEOUT, &transport->sock_state);
 	spin_unlock(&xprt->transport_lock);
 }
@@ -3335,8 +3355,13 @@ static struct rpc_xprt *xs_setup_tcp(struct xprt_create *args)
 	xprt->timeout = &xs_tcp_default_timeout;
 
 	xprt->max_reconnect_timeout = xprt->timeout->to_maxval;
+	if (args->reconnect_timeout)
+		xprt->max_reconnect_timeout = args->reconnect_timeout;
+
 	xprt->connect_timeout = xprt->timeout->to_initval *
 		(xprt->timeout->to_retries + 1);
+	if (args->connect_timeout)
+		xs_tcp_do_set_connect_timeout(xprt, args->connect_timeout);
 
 	INIT_WORK(&transport->recv_worker, xs_stream_data_receive_workfn);
 	INIT_WORK(&transport->error_worker, xs_error_handle);

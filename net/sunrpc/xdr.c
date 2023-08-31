@@ -1338,6 +1338,14 @@ static unsigned int xdr_set_tail_base(struct xdr_stream *xdr,
 	return xdr_set_iov(xdr, buf->tail, base, len);
 }
 
+static void xdr_stream_unmap_current_page(struct xdr_stream *xdr)
+{
+	if (xdr->page_kaddr) {
+		kunmap_local(xdr->page_kaddr);
+		xdr->page_kaddr = NULL;
+	}
+}
+
 static unsigned int xdr_set_page_base(struct xdr_stream *xdr,
 				      unsigned int base, unsigned int len)
 {
@@ -1355,12 +1363,18 @@ static unsigned int xdr_set_page_base(struct xdr_stream *xdr,
 	if (len > maxlen)
 		len = maxlen;
 
+	xdr_stream_unmap_current_page(xdr);
 	xdr_stream_page_set_pos(xdr, base);
 	base += xdr->buf->page_base;
 
 	pgnr = base >> PAGE_SHIFT;
 	xdr->page_ptr = &xdr->buf->pages[pgnr];
-	kaddr = page_address(*xdr->page_ptr);
+
+	if (PageHighMem(*xdr->page_ptr)) {
+		xdr->page_kaddr = kmap_local_page(*xdr->page_ptr);
+		kaddr = xdr->page_kaddr;
+	} else
+		kaddr = page_address(*xdr->page_ptr);
 
 	pgoff = base & ~PAGE_MASK;
 	xdr->p = (__be32*)(kaddr + pgoff);
@@ -1414,6 +1428,7 @@ void xdr_init_decode(struct xdr_stream *xdr, struct xdr_buf *buf, __be32 *p,
 		     struct rpc_rqst *rqst)
 {
 	xdr->buf = buf;
+	xdr->page_kaddr = NULL;
 	xdr_reset_scratch_buffer(xdr);
 	xdr->nwords = XDR_QUADLEN(buf->len);
 	if (xdr_set_iov(xdr, buf->head, 0, buf->len) == 0 &&
@@ -1445,6 +1460,16 @@ void xdr_init_decode_pages(struct xdr_stream *xdr, struct xdr_buf *buf,
 	xdr_init_decode(xdr, buf, NULL, NULL);
 }
 EXPORT_SYMBOL_GPL(xdr_init_decode_pages);
+
+/**
+ * xdr_finish_decode - Clean up the xdr_stream after decoding data.
+ * @xdr: pointer to xdr_stream struct
+ */
+void xdr_finish_decode(struct xdr_stream *xdr)
+{
+	xdr_stream_unmap_current_page(xdr);
+}
+EXPORT_SYMBOL(xdr_finish_decode);
 
 static __be32 * __xdr_inline_decode(struct xdr_stream *xdr, size_t nbytes)
 {

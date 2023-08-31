@@ -1394,6 +1394,8 @@ svc_process_common(struct svc_rqst *rqstp)
 	rc = process.dispatch(rqstp);
 	if (procp->pc_release)
 		procp->pc_release(rqstp);
+	xdr_finish_decode(xdr);
+
 	if (!rc)
 		goto dropit;
 	if (rqstp->rq_auth_stat != rpc_auth_ok)
