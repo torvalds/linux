@@ -380,6 +380,16 @@ struct rga_full_csc {
 	struct rga_csc_coe coe_v;
 };
 
+struct rga_csc_range {
+	uint16_t max;
+	uint16_t min;
+};
+
+struct rga_csc_clip {
+	struct rga_csc_range y;
+	struct rga_csc_range uv;
+};
+
 struct rga_mosaic_info {
 	uint8_t enable;
 	uint8_t mode;
@@ -680,9 +690,12 @@ struct rga_req {
 
 	struct {
 		uint32_t global_alpha_en:1;
+		uint32_t full_csc_clip_en:1;
 	} feature;
 
-	uint8_t reservr[51];
+	struct rga_csc_clip full_csc_clip;
+
+	uint8_t reservr[43];
 };
 
 struct rga_alpha_config {
