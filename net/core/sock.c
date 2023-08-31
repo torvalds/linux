@@ -890,7 +890,7 @@ static int sock_timestamping_bind_phc(struct sock *sk, int phc_index)
 	if (!match)
 		return -EINVAL;
 
-	sk->sk_bind_phc = phc_index;
+	WRITE_ONCE(sk->sk_bind_phc, phc_index);
 
 	return 0;
 }
@@ -1706,7 +1706,7 @@ int sk_getsockopt(struct sock *sk, int level, int optname,
 	case SO_TIMESTAMPING_OLD:
 		lv = sizeof(v.timestamping);
 		v.timestamping.flags = READ_ONCE(sk->sk_tsflags);
-		v.timestamping.bind_phc = sk->sk_bind_phc;
+		v.timestamping.bind_phc = READ_ONCE(sk->sk_bind_phc);
 		break;
 
 	case SO_RCVTIMEO_OLD:
