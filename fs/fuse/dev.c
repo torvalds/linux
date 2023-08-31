@@ -2251,43 +2251,50 @@ static int fuse_device_clone(struct fuse_conn *fc, struct file *new)
 	return 0;
 }
 
-static long fuse_dev_ioctl(struct file *file, unsigned int cmd,
-			   unsigned long arg)
+static long fuse_dev_ioctl_clone(struct file *file, __u32 __user *argp)
 {
 	int res;
 	int oldfd;
 	struct fuse_dev *fud = NULL;
 	struct fd f;
 
+	if (get_user(oldfd, argp))
+		return -EFAULT;
+
+	f = fdget(oldfd);
+	if (!f.file)
+		return -EINVAL;
+
+	/*
+	 * Check against file->f_op because CUSE
+	 * uses the same ioctl handler.
+	 */
+	if (f.file->f_op == file->f_op)
+		fud = fuse_get_dev(f.file);
+
+	res = -EINVAL;
+	if (fud) {
+		mutex_lock(&fuse_mutex);
+		res = fuse_device_clone(fud->fc, file);
+		mutex_unlock(&fuse_mutex);
+	}
+
+	fdput(f);
+	return res;
+}
+
+static long fuse_dev_ioctl(struct file *file, unsigned int cmd,
+			   unsigned long arg)
+{
+	void __user *argp = (void __user *)arg;
+
 	switch (cmd) {
 	case FUSE_DEV_IOC_CLONE:
-		if (get_user(oldfd, (__u32 __user *)arg))
-			return -EFAULT;
+		return fuse_dev_ioctl_clone(file, argp);
 
-		f = fdget(oldfd);
-		if (!f.file)
-			return -EINVAL;
-
-		/*
-		 * Check against file->f_op because CUSE
-		 * uses the same ioctl handler.
-		 */
-		if (f.file->f_op == file->f_op)
-			fud = fuse_get_dev(f.file);
-
-		res = -EINVAL;
-		if (fud) {
-			mutex_lock(&fuse_mutex);
-			res = fuse_device_clone(fud->fc, file);
-			mutex_unlock(&fuse_mutex);
-		}
-		fdput(f);
-		break;
 	default:
-		res = -ENOTTY;
-		break;
+		return -ENOTTY;
 	}
-	return res;
 }
 
 const struct file_operations fuse_dev_operations = {
