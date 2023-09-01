@@ -328,7 +328,7 @@ static int sch_gpio_probe(struct platform_device *pdev)
 	void __iomem *regs;
 	int ret;
 
-	sch = devm_kzalloc(&pdev->dev, sizeof(*sch), GFP_KERNEL);
+	sch = devm_kzalloc(dev, sizeof(*sch), GFP_KERNEL);
 	if (!sch)
 		return -ENOMEM;
 
@@ -344,8 +344,8 @@ static int sch_gpio_probe(struct platform_device *pdev)
 
 	spin_lock_init(&sch->lock);
 	sch->chip = sch_gpio_chip;
-	sch->chip.label = dev_name(&pdev->dev);
-	sch->chip.parent = &pdev->dev;
+	sch->chip.label = dev_name(dev);
+	sch->chip.parent = dev;
 
 	switch (pdev->id) {
 	case PCI_DEVICE_ID_INTEL_SCH_LPC:
@@ -399,9 +399,9 @@ static int sch_gpio_probe(struct platform_device *pdev)
 
 	ret = sch_gpio_install_gpe_handler(sch);
 	if (ret)
-		dev_warn(&pdev->dev, "Can't setup GPE, no IRQ support\n");
+		dev_warn(dev, "Can't setup GPE, no IRQ support\n");
 
-	return devm_gpiochip_add_data(&pdev->dev, &sch->chip, sch);
+	return devm_gpiochip_add_data(dev, &sch->chip, sch);
 }
 
 static struct platform_driver sch_gpio_driver = {
