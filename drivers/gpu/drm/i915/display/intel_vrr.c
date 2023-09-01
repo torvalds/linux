@@ -42,6 +42,15 @@ bool intel_vrr_is_capable(struct intel_connector *connector)
 		info->monitor_range.max_vfreq - info->monitor_range.min_vfreq > 10;
 }
 
+bool intel_vrr_is_in_range(struct intel_connector *connector, int vrefresh)
+{
+	const struct drm_display_info *info = &connector->base.display_info;
+
+	return intel_vrr_is_capable(connector) &&
+		vrefresh >= info->monitor_range.min_vfreq &&
+		vrefresh <= info->monitor_range.max_vfreq;
+}
+
 void
 intel_vrr_check_modeset(struct intel_atomic_state *state)
 {
