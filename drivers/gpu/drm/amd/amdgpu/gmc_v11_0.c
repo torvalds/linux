@@ -271,7 +271,7 @@ static void gmc_v11_0_flush_vm_hub(struct amdgpu_device *adev, uint32_t vmid,
 	if (i < adev->usec_timeout)
 		return;
 
-	DRM_ERROR("Timeout waiting for VM flush ACK!\n");
+	dev_err(adev->dev, "Timeout waiting for VM flush ACK!\n");
 }
 
 /**

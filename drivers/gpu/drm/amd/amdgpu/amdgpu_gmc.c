@@ -582,6 +582,54 @@ int amdgpu_gmc_allocate_vm_inv_eng(struct amdgpu_device *adev)
 	return 0;
 }
 
+void amdgpu_gmc_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid,
+			      uint32_t vmhub, uint32_t flush_type)
+{
+	struct amdgpu_ring *ring = adev->mman.buffer_funcs_ring;
+	struct amdgpu_vmhub *hub = &adev->vmhub[vmhub];
+	struct dma_fence *fence;
+	struct amdgpu_job *job;
+	int r;
+
+	if (!hub->sdma_invalidation_workaround || vmid ||
+	    !adev->mman.buffer_funcs_enabled ||
+	    !adev->ib_pool_ready || amdgpu_in_reset(adev) ||
+	    !ring->sched.ready) {
+		adev->gmc.gmc_funcs->flush_gpu_tlb(adev, vmid, vmhub,
+						   flush_type);
+		return;
+	}
+
+	/* The SDMA on Navi 1x has a bug which can theoretically result in memory
+	 * corruption if an invalidation happens at the same time as an VA
+	 * translation. Avoid this by doing the invalidation from the SDMA
+	 * itself at least for GART.
+	 */
+	mutex_lock(&adev->mman.gtt_window_lock);
+	r = amdgpu_job_alloc_with_ib(ring->adev, &adev->mman.high_pr,
+				     AMDGPU_FENCE_OWNER_UNDEFINED,
+				     16 * 4, AMDGPU_IB_POOL_IMMEDIATE,
+				     &job);
+	if (r)
+		goto error_alloc;
+
+	job->vm_pd_addr = amdgpu_gmc_pd_addr(adev->gart.bo);
+	job->vm_needs_flush = true;
+	job->ibs->ptr[job->ibs->length_dw++] = ring->funcs->nop;
+	amdgpu_ring_pad_ib(ring, &job->ibs[0]);
+	fence = amdgpu_job_submit(job);
+	mutex_unlock(&adev->mman.gtt_window_lock);
+
+	dma_fence_wait(fence, false);
+	dma_fence_put(fence);
+
+	return;
+
+error_alloc:
+	mutex_unlock(&adev->mman.gtt_window_lock);
+	dev_err(adev->dev, "Error flushing GPU TLB using the SDMA (%d)!\n", r);
+}
+
 /**
  * amdgpu_gmc_tmz_set -- check and set if a device supports TMZ
  * @adev: amdgpu_device pointer

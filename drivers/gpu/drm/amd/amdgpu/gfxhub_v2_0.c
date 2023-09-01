@@ -471,6 +471,9 @@ static void gfxhub_v2_0_init(struct amdgpu_device *adev)
 		GCVM_CONTEXT1_CNTL__WRITE_PROTECTION_FAULT_ENABLE_INTERRUPT_MASK |
 		GCVM_CONTEXT1_CNTL__EXECUTE_PROTECTION_FAULT_ENABLE_INTERRUPT_MASK;
 
+	/* TODO: This is only needed on some Navi 1x revisions */
+	hub->sdma_invalidation_workaround = true;
+
 	hub->vmhub_funcs = &gfxhub_v2_0_vmhub_funcs;
 }
 

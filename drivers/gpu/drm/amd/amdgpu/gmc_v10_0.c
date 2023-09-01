@@ -231,87 +231,6 @@ static bool gmc_v10_0_get_atc_vmid_pasid_mapping_info(
  * by the amdgpu vm/hsa code.
  */
 
-static void gmc_v10_0_flush_vm_hub(struct amdgpu_device *adev, uint32_t vmid,
-				   unsigned int vmhub, uint32_t flush_type)
-{
-	bool use_semaphore = gmc_v10_0_use_invalidate_semaphore(adev, vmhub);
-	struct amdgpu_vmhub *hub = &adev->vmhub[vmhub];
-	u32 inv_req = hub->vmhub_funcs->get_invalidate_req(vmid, flush_type);
-	u32 tmp;
-	/* Use register 17 for GART */
-	const unsigned int eng = 17;
-	unsigned int i;
-	unsigned char hub_ip = 0;
-
-	hub_ip = (vmhub == AMDGPU_GFXHUB(0)) ?
-		   GC_HWIP : MMHUB_HWIP;
-
-	spin_lock(&adev->gmc.invalidate_lock);
-	/*
-	 * It may lose gpuvm invalidate acknowldege state across power-gating
-	 * off cycle, add semaphore acquire before invalidation and semaphore
-	 * release after invalidation to avoid entering power gated state
-	 * to WA the Issue
-	 */
-
-	/* TODO: It needs to continue working on debugging with semaphore for GFXHUB as well. */
-	if (use_semaphore) {
-		for (i = 0; i < adev->usec_timeout; i++) {
-			/* a read return value of 1 means semaphore acuqire */
-			tmp = RREG32_RLC_NO_KIQ(hub->vm_inv_eng0_sem +
-					 hub->eng_distance * eng, hub_ip);
-
-			if (tmp & 0x1)
-				break;
-			udelay(1);
-		}
-
-		if (i >= adev->usec_timeout)
-			DRM_ERROR("Timeout waiting for sem acquire in VM flush!\n");
-	}
-
-	WREG32_RLC_NO_KIQ(hub->vm_inv_eng0_req +
-			  hub->eng_distance * eng,
-			  inv_req, hub_ip);
-
-	/*
-	 * Issue a dummy read to wait for the ACK register to be cleared
-	 * to avoid a false ACK due to the new fast GRBM interface.
-	 */
-	if ((vmhub == AMDGPU_GFXHUB(0)) &&
-	    (amdgpu_ip_version(adev, GC_HWIP, 0) < IP_VERSION(10, 3, 0)))
-		RREG32_RLC_NO_KIQ(hub->vm_inv_eng0_req +
-				  hub->eng_distance * eng, hub_ip);
-
-	/* Wait for ACK with a delay.*/
-	for (i = 0; i < adev->usec_timeout; i++) {
-		tmp = RREG32_RLC_NO_KIQ(hub->vm_inv_eng0_ack +
-				  hub->eng_distance * eng, hub_ip);
-
-		tmp &= 1 << vmid;
-		if (tmp)
-			break;
-
-		udelay(1);
-	}
-
-	/* TODO: It needs to continue working on debugging with semaphore for GFXHUB as well. */
-	if (use_semaphore)
-		/*
-		 * add semaphore release after invalidation,
-		 * write with 0 means semaphore release
-		 */
-		WREG32_RLC_NO_KIQ(hub->vm_inv_eng0_sem +
-				  hub->eng_distance * eng, 0, hub_ip);
-
-	spin_unlock(&adev->gmc.invalidate_lock);
-
-	if (i < adev->usec_timeout)
-		return;
-
-	DRM_ERROR("Timeout waiting for VM flush hub: %d!\n", vmhub);
-}
-
 /**
  * gmc_v10_0_flush_gpu_tlb - gart tlb flush callback
  *
@@ -325,11 +244,19 @@ static void gmc_v10_0_flush_vm_hub(struct amdgpu_device *adev, uint32_t vmid,
 static void gmc_v10_0_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid,
 					uint32_t vmhub, uint32_t flush_type)
 {
-	struct amdgpu_ring *ring = adev->mman.buffer_funcs_ring;
-	struct dma_fence *fence;
-	struct amdgpu_job *job;
+	bool use_semaphore = gmc_v10_0_use_invalidate_semaphore(adev, vmhub);
+	struct amdgpu_vmhub *hub = &adev->vmhub[vmhub];
+	u32 inv_req = hub->vmhub_funcs->get_invalidate_req(vmid, flush_type);
+	/* Use register 17 for GART */
+	const unsigned int eng = 17;
+	unsigned char hub_ip = 0;
+	u32 sem, req, ack;
+	unsigned int i;
+	u32 tmp;
 
-	int r;
+	sem = hub->vm_inv_eng0_sem + hub->eng_distance * eng;
+	req = hub->vm_inv_eng0_req + hub->eng_distance * eng;
+	ack = hub->vm_inv_eng0_ack + hub->eng_distance * eng;
 
 	/* flush hdp cache */
 	adev->hdp.funcs->flush_hdp(adev, NULL);
@@ -340,66 +267,65 @@ static void gmc_v10_0_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid,
 	if (adev->gfx.kiq[0].ring.sched.ready && !adev->enable_mes &&
 	    (amdgpu_sriov_runtime(adev) || !amdgpu_sriov_vf(adev)) &&
 	    down_read_trylock(&adev->reset_domain->sem)) {
-		struct amdgpu_vmhub *hub = &adev->vmhub[vmhub];
-		const unsigned int eng = 17;
-		u32 inv_req = hub->vmhub_funcs->get_invalidate_req(vmid, flush_type);
-		u32 req = hub->vm_inv_eng0_req + hub->eng_distance * eng;
-		u32 ack = hub->vm_inv_eng0_ack + hub->eng_distance * eng;
-
 		amdgpu_virt_kiq_reg_write_reg_wait(adev, req, ack, inv_req,
 				1 << vmid);
-
 		up_read(&adev->reset_domain->sem);
 		return;
 	}
 
-	mutex_lock(&adev->mman.gtt_window_lock);
+	hub_ip = (vmhub == AMDGPU_GFXHUB(0)) ? GC_HWIP : MMHUB_HWIP;
 
-	if (vmhub == AMDGPU_MMHUB0(0)) {
-		gmc_v10_0_flush_vm_hub(adev, vmid, AMDGPU_MMHUB0(0), 0);
-		mutex_unlock(&adev->mman.gtt_window_lock);
-		return;
-	}
-
-	BUG_ON(vmhub != AMDGPU_GFXHUB(0));
-
-	if (!adev->mman.buffer_funcs_enabled ||
-	    !adev->ib_pool_ready ||
-	    amdgpu_in_reset(adev) ||
-	    ring->sched.ready == false) {
-		gmc_v10_0_flush_vm_hub(adev, vmid, AMDGPU_GFXHUB(0), 0);
-		mutex_unlock(&adev->mman.gtt_window_lock);
-		return;
-	}
-
-	/* The SDMA on Navi has a bug which can theoretically result in memory
-	 * corruption if an invalidation happens at the same time as an VA
-	 * translation. Avoid this by doing the invalidation from the SDMA
-	 * itself.
+	spin_lock(&adev->gmc.invalidate_lock);
+	/*
+	 * It may lose gpuvm invalidate acknowldege state across power-gating
+	 * off cycle, add semaphore acquire before invalidation and semaphore
+	 * release after invalidation to avoid entering power gated state
+	 * to WA the Issue
 	 */
-	r = amdgpu_job_alloc_with_ib(ring->adev, &adev->mman.high_pr,
-				     AMDGPU_FENCE_OWNER_UNDEFINED,
-				     16 * 4, AMDGPU_IB_POOL_IMMEDIATE,
-				     &job);
-	if (r)
-		goto error_alloc;
 
-	job->vm_pd_addr = amdgpu_gmc_pd_addr(adev->gart.bo);
-	job->vm_needs_flush = true;
-	job->ibs->ptr[job->ibs->length_dw++] = ring->funcs->nop;
-	amdgpu_ring_pad_ib(ring, &job->ibs[0]);
-	fence = amdgpu_job_submit(job);
+	/* TODO: It needs to continue working on debugging with semaphore for GFXHUB as well. */
+	if (use_semaphore) {
+		for (i = 0; i < adev->usec_timeout; i++) {
+			/* a read return value of 1 means semaphore acuqire */
+			tmp = RREG32_RLC_NO_KIQ(sem, hub_ip);
+			if (tmp & 0x1)
+				break;
+			udelay(1);
+		}
 
-	mutex_unlock(&adev->mman.gtt_window_lock);
+		if (i >= adev->usec_timeout)
+			DRM_ERROR("Timeout waiting for sem acquire in VM flush!\n");
+	}
 
-	dma_fence_wait(fence, false);
-	dma_fence_put(fence);
+	WREG32_RLC_NO_KIQ(req, inv_req, hub_ip);
 
-	return;
+	/*
+	 * Issue a dummy read to wait for the ACK register to be cleared
+	 * to avoid a false ACK due to the new fast GRBM interface.
+	 */
+	if ((vmhub == AMDGPU_GFXHUB(0)) &&
+	    (amdgpu_ip_version(adev, GC_HWIP, 0) < IP_VERSION(10, 3, 0)))
+		RREG32_RLC_NO_KIQ(req, hub_ip);
 
-error_alloc:
-	mutex_unlock(&adev->mman.gtt_window_lock);
-	DRM_ERROR("Error flushing GPU TLB using the SDMA (%d)!\n", r);
+	/* Wait for ACK with a delay.*/
+	for (i = 0; i < adev->usec_timeout; i++) {
+		tmp = RREG32_RLC_NO_KIQ(ack, hub_ip);
+		tmp &= 1 << vmid;
+		if (tmp)
+			break;
+
+		udelay(1);
+	}
+
+	/* TODO: It needs to continue working on debugging with semaphore for GFXHUB as well. */
+	if (use_semaphore)
+		WREG32_RLC_NO_KIQ(sem, 0, hub_ip);
+
+	spin_unlock(&adev->gmc.invalidate_lock);
+
+	if (i >= adev->usec_timeout)
+		dev_err(adev->dev, "Timeout waiting for VM flush hub: %d!\n",
+			vmhub);
 }
 
 /**

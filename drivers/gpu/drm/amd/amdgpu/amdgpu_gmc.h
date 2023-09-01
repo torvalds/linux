@@ -117,6 +117,8 @@ struct amdgpu_vmhub {
 
 	uint32_t	vm_contexts_disable;
 
+	bool		sdma_invalidation_workaround;
+
 	const struct amdgpu_vmhub_funcs *vmhub_funcs;
 };
 
@@ -335,7 +337,6 @@ struct amdgpu_gmc {
 	u64 noretry_flags;
 };
 
-#define amdgpu_gmc_flush_gpu_tlb(adev, vmid, vmhub, type) ((adev)->gmc.gmc_funcs->flush_gpu_tlb((adev), (vmid), (vmhub), (type)))
 #define amdgpu_gmc_flush_gpu_tlb_pasid(adev, pasid, type, allhub, inst) \
 	((adev)->gmc.gmc_funcs->flush_gpu_tlb_pasid \
 	((adev), (pasid), (type), (allhub), (inst)))
@@ -401,6 +402,8 @@ int amdgpu_gmc_ras_sw_init(struct amdgpu_device *adev);
 int amdgpu_gmc_ras_late_init(struct amdgpu_device *adev);
 void amdgpu_gmc_ras_fini(struct amdgpu_device *adev);
 int amdgpu_gmc_allocate_vm_inv_eng(struct amdgpu_device *adev);
+void amdgpu_gmc_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid,
+			      uint32_t vmhub, uint32_t flush_type);
 
 extern void amdgpu_gmc_tmz_set(struct amdgpu_device *adev);
 extern void amdgpu_gmc_noretry_set(struct amdgpu_device *adev);
