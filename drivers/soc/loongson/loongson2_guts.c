@@ -70,7 +70,7 @@ static const struct loongson2_soc_die_attr *loongson2_soc_die_match(
 		if (matches->svr == (svr & matches->mask))
 			return matches;
 		matches++;
-	};
+	}
 
 	return NULL;
 }
