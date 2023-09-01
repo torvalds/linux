@@ -2607,7 +2607,7 @@ int parse_events_term__to_strbuf(struct list_head *term_list, struct strbuf *sb)
 
 		if (term->type_val == PARSE_EVENTS__TERM_TYPE_NUM)
 			if (term->no_value) {
-				assert(term->type_term == PARSE_EVENTS__TERM_TYPE_USER);
+				assert(term->val.num == 1);
 				ret = strbuf_addf(sb, "%s", term->config);
 			} else
 				ret = strbuf_addf(sb, "%s=%#"PRIx64, term->config, term->val.num);

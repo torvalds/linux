@@ -124,8 +124,8 @@ struct parse_events_term {
 	 */
 	bool weak;
 	/**
-	 * @no_value: Is there no value. TODO: this should really be part of
-	 * type_val.
+	 * @no_value: Is there no value. If a numeric term has no value then the
+	 * value is assumed to be 1. An event name also has no value.
 	 */
 	bool no_value;
 };

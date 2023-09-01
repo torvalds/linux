@@ -2170,7 +2170,7 @@ static const struct evlist_test test__events[] = {
 
 static const struct evlist_test test__events_pmu[] = {
 	{
-		.name  = "cpu/config=10,config1,config2=3,period=1000/u",
+		.name  = "cpu/config=10,config1=1,config2=3,period=1000/u",
 		.valid = test__pmu_cpu_valid,
 		.check = test__checkevent_pmu,
 		/* 0 */
