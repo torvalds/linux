@@ -174,6 +174,7 @@ static void sti_cleanup(struct drm_device *ddev)
 	drm_atomic_helper_shutdown(ddev);
 	drm_mode_config_cleanup(ddev);
 	component_unbind_all(ddev->dev, ddev);
+	dev_set_drvdata(ddev->dev, NULL);
 	kfree(private);
 	ddev->dev_private = NULL;
 }
@@ -253,6 +254,11 @@ static void sti_platform_remove(struct platform_device *pdev)
 	component_master_del(&pdev->dev, &sti_ops);
 }
 
+static void sti_platform_shutdown(struct platform_device *pdev)
+{
+	drm_atomic_helper_shutdown(platform_get_drvdata(pdev));
+}
+
 static const struct of_device_id sti_dt_ids[] = {
 	{ .compatible = "st,sti-display-subsystem", },
 	{ /* end node */ },
@@ -262,6 +268,7 @@ MODULE_DEVICE_TABLE(of, sti_dt_ids);
 static struct platform_driver sti_platform_driver = {
 	.probe = sti_platform_probe,
 	.remove_new = sti_platform_remove,
+	.shutdown = sti_platform_shutdown,
 	.driver = {
 		.name = DRIVER_NAME,
 		.of_match_table = sti_dt_ids,
