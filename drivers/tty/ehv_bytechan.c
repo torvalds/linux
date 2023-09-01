@@ -466,8 +466,8 @@ static irqreturn_t ehv_bc_tty_tx_isr(int irq, void *data)
  * ehv_bc_tty_write_room() will never lie, so the tty layer will never send us
  * too much data.
  */
-static int ehv_bc_tty_write(struct tty_struct *ttys, const unsigned char *s,
-			    int count)
+static ssize_t ehv_bc_tty_write(struct tty_struct *ttys, const u8 *s,
+				size_t count)
 {
 	struct ehv_bc_data *bc = ttys->driver_data;
 	unsigned long flags;

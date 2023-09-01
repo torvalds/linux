@@ -108,11 +108,6 @@ struct ems_pci_card {
 
 #define EMS_PCI_BASE_SIZE  4096 /* size of controller area */
 
-#ifndef PCI_VENDOR_ID_ASIX
-#define PCI_VENDOR_ID_ASIX 0x125b
-#define PCI_DEVICE_ID_ASIX_9110 0x9110
-#define PCI_SUBVENDOR_ID_ASIX 0xa000
-#endif
 #define PCI_SUBDEVICE_ID_EMS 0x4010
 
 static const struct pci_device_id ems_pci_tbl[] = {
@@ -123,7 +118,7 @@ static const struct pci_device_id ems_pci_tbl[] = {
 	/* CPC-104P v2 */
 	{PCI_VENDOR_ID_PLX, PCI_DEVICE_ID_PLX_9030, PCI_VENDOR_ID_PLX, 0x4002},
 	/* CPC-PCIe v3 */
-	{PCI_VENDOR_ID_ASIX, PCI_DEVICE_ID_ASIX_9110, PCI_SUBVENDOR_ID_ASIX, PCI_SUBDEVICE_ID_EMS},
+	{PCI_VENDOR_ID_ASIX, PCI_DEVICE_ID_ASIX_AX99100_LB, 0xa000, PCI_SUBDEVICE_ID_EMS},
 	{0,}
 };
 MODULE_DEVICE_TABLE(pci, ems_pci_tbl);

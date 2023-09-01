@@ -26,17 +26,17 @@
 #include <linux/device.h>
 #include <linux/memblock.h>
 #include <linux/dma-mapping.h>
-#include <linux/fs_uart_pd.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/gpio/consumer.h>
 #include <linux/clk.h>
 
+#include <sysdev/fsl_soc.h>
+
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/delay.h>
-#include <asm/fs_pd.h>
 #include <asm/udbg.h>
 
 #include <linux/serial_core.h>
@@ -48,13 +48,16 @@
 /**************************************************************/
 
 static int  cpm_uart_tx_pump(struct uart_port *port);
-static void cpm_uart_init_smc(struct uart_cpm_port *pinfo);
-static void cpm_uart_init_scc(struct uart_cpm_port *pinfo);
 static void cpm_uart_initbd(struct uart_cpm_port *pinfo);
 
 /**************************************************************/
 
 #define HW_BUF_SPD_THRESHOLD    2400
+
+static void cpm_line_cr_cmd(struct uart_cpm_port *port, int cmd)
+{
+	cpm_command(port->command, cmd);
+}
 
 /*
  * Check, if transmit buffers are processed
@@ -605,7 +608,7 @@ static void cpm_uart_set_termios(struct uart_port *port,
 	if (pinfo->clk)
 		clk_set_rate(pinfo->clk, baud);
 	else
-		cpm_set_brg(pinfo->brg - 1, baud);
+		cpm_setbrg(pinfo->brg - 1, baud);
 	spin_unlock_irqrestore(&port->lock, flags);
 }
 
@@ -771,7 +774,8 @@ static void cpm_uart_init_scc(struct uart_cpm_port *pinfo)
 	 * parameter ram.
 	 */
 
-	cpm_set_scc_fcr(sup);
+	out_8(&sup->scc_genscc.scc_rfcr, CPMFCR_GBL | CPMFCR_EB);
+	out_8(&sup->scc_genscc.scc_tfcr, CPMFCR_GBL | CPMFCR_EB);
 
 	out_be16(&sup->scc_genscc.scc_mrblr, pinfo->rx_fifosize);
 	out_be16(&sup->scc_maxidl, 0x10);
@@ -842,7 +846,8 @@ static void cpm_uart_init_smc(struct uart_cpm_port *pinfo)
 	/* Set up the uart parameters in the
 	 * parameter ram.
 	 */
-	cpm_set_smc_fcr(up);
+	out_8(&up->smc_rfcr, CPMFCR_GBL | CPMFCR_EB);
+	out_8(&up->smc_tfcr, CPMFCR_GBL | CPMFCR_EB);
 
 	/* Using idle character time requires some additional tuning.  */
 	out_be16(&up->smc_mrblr, pinfo->rx_fifosize);
@@ -861,6 +866,78 @@ static void cpm_uart_init_smc(struct uart_cpm_port *pinfo)
 	out_8(&sp->smc_smce, 0xff);
 
 	setbits16(&sp->smc_smcmr, SMCMR_REN | SMCMR_TEN);
+}
+
+/*
+ * Allocate DP-Ram and memory buffers. We need to allocate a transmit and
+ * receive buffer descriptors from dual port ram, and a character
+ * buffer area from host mem. If we are allocating for the console we need
+ * to do it from bootmem
+ */
+static int cpm_uart_allocbuf(struct uart_cpm_port *pinfo, unsigned int is_con)
+{
+	int dpmemsz, memsz;
+	u8 __iomem *dp_mem;
+	unsigned long dp_offset;
+	u8 *mem_addr;
+	dma_addr_t dma_addr = 0;
+
+	pr_debug("CPM uart[%d]:allocbuf\n", pinfo->port.line);
+
+	dpmemsz = sizeof(cbd_t) * (pinfo->rx_nrfifos + pinfo->tx_nrfifos);
+	dp_offset = cpm_muram_alloc(dpmemsz, 8);
+	if (IS_ERR_VALUE(dp_offset)) {
+		pr_err("%s: could not allocate buffer descriptors\n", __func__);
+		return -ENOMEM;
+	}
+
+	dp_mem = cpm_muram_addr(dp_offset);
+
+	memsz = L1_CACHE_ALIGN(pinfo->rx_nrfifos * pinfo->rx_fifosize) +
+	    L1_CACHE_ALIGN(pinfo->tx_nrfifos * pinfo->tx_fifosize);
+	if (IS_ENABLED(CONFIG_CPM1) && is_con) {
+		/* was hostalloc but changed cause it blows away the */
+		/* large tlb mapping when pinning the kernel area    */
+		mem_addr = (u8 __force *)cpm_muram_addr(cpm_muram_alloc(memsz, 8));
+		dma_addr = cpm_muram_dma((void __iomem *)mem_addr);
+	} else if (is_con) {
+		mem_addr = kzalloc(memsz, GFP_NOWAIT);
+		dma_addr = virt_to_bus(mem_addr);
+	} else {
+		mem_addr = dma_alloc_coherent(pinfo->port.dev, memsz, &dma_addr,
+					      GFP_KERNEL);
+	}
+
+	if (!mem_addr) {
+		cpm_muram_free(dp_offset);
+		pr_err("%s: could not allocate coherent memory\n", __func__);
+		return -ENOMEM;
+	}
+
+	pinfo->dp_addr = dp_offset;
+	pinfo->mem_addr = mem_addr;
+	pinfo->dma_addr = dma_addr;
+	pinfo->mem_size = memsz;
+
+	pinfo->rx_buf = mem_addr;
+	pinfo->tx_buf = pinfo->rx_buf + L1_CACHE_ALIGN(pinfo->rx_nrfifos
+						       * pinfo->rx_fifosize);
+
+	pinfo->rx_bd_base = (cbd_t __iomem *)dp_mem;
+	pinfo->tx_bd_base = pinfo->rx_bd_base + pinfo->rx_nrfifos;
+
+	return 0;
+}
+
+static void cpm_uart_freebuf(struct uart_cpm_port *pinfo)
+{
+	dma_free_coherent(pinfo->port.dev, L1_CACHE_ALIGN(pinfo->rx_nrfifos *
+							  pinfo->rx_fifosize) +
+			  L1_CACHE_ALIGN(pinfo->tx_nrfifos *
+					 pinfo->tx_fifosize), (void __force *)pinfo->mem_addr,
+			  pinfo->dma_addr);
+
+	cpm_muram_free(pinfo->dp_addr);
 }
 
 /*
@@ -1128,7 +1205,55 @@ static const struct uart_ops cpm_uart_pops = {
 #endif
 };
 
-struct uart_cpm_port cpm_uart_ports[UART_NR];
+static struct uart_cpm_port cpm_uart_ports[UART_NR];
+
+static void __iomem *cpm_uart_map_pram(struct uart_cpm_port *port,
+				       struct device_node *np)
+{
+	void __iomem *pram;
+	unsigned long offset;
+	struct resource res;
+	resource_size_t len;
+
+	/* Don't remap parameter RAM if it has already been initialized
+	 * during console setup.
+	 */
+	if (IS_SMC(port) && port->smcup)
+		return port->smcup;
+	else if (!IS_SMC(port) && port->sccup)
+		return port->sccup;
+
+	if (of_address_to_resource(np, 1, &res))
+		return NULL;
+
+	len = resource_size(&res);
+	pram = ioremap(res.start, len);
+	if (!pram)
+		return NULL;
+
+	if (!IS_ENABLED(CONFIG_CPM2) || !IS_SMC(port))
+		return pram;
+
+	if (len != 2) {
+		pr_warn("cpm_uart[%d]: device tree references "
+			"SMC pram, using boot loader/wrapper pram mapping. "
+			"Please fix your device tree to reference the pram "
+			"base register instead.\n",
+			port->port.line);
+		return pram;
+	}
+
+	offset = cpm_muram_alloc(64, 64);
+	out_be16(pram, offset);
+	iounmap(pram);
+	return cpm_muram_addr(offset);
+}
+
+static void cpm_uart_unmap_pram(struct uart_cpm_port *port, void __iomem *pram)
+{
+	if (!IS_ENABLED(CONFIG_CPM2) || !IS_SMC(port))
+		iounmap(pram);
+}
 
 static int cpm_uart_init_port(struct device_node *np,
                               struct uart_cpm_port *pinfo)
@@ -1255,19 +1380,14 @@ static void cpm_uart_console_write(struct console *co, const char *s,
 {
 	struct uart_cpm_port *pinfo = &cpm_uart_ports[co->index];
 	unsigned long flags;
-	int nolock = oops_in_progress;
 
-	if (unlikely(nolock)) {
+	if (unlikely(oops_in_progress)) {
 		local_irq_save(flags);
-	} else {
-		spin_lock_irqsave(&pinfo->port.lock, flags);
-	}
-
-	cpm_uart_early_write(pinfo, s, count, true);
-
-	if (unlikely(nolock)) {
+		cpm_uart_early_write(pinfo, s, count, true);
 		local_irq_restore(flags);
 	} else {
+		spin_lock_irqsave(&pinfo->port.lock, flags);
+		cpm_uart_early_write(pinfo, s, count, true);
 		spin_unlock_irqrestore(&pinfo->port.lock, flags);
 	}
 }
@@ -1319,7 +1439,8 @@ static int __init cpm_uart_console_setup(struct console *co, char *options)
 	if (options) {
 		uart_parse_options(options, &baud, &parity, &bits, &flow);
 	} else {
-		if ((baud = uart_baudrate()) == -1)
+		baud = get_baudrate();
+		if (baud == -1)
 			baud = 9600;
 	}
 

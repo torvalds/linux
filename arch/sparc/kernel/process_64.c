@@ -295,7 +295,7 @@ void arch_trigger_cpumask_backtrace(const cpumask_t *mask, int exclude_cpu)
 
 #ifdef CONFIG_MAGIC_SYSRQ
 
-static void sysrq_handle_globreg(int key)
+static void sysrq_handle_globreg(u8 key)
 {
 	trigger_all_cpu_backtrace();
 }
@@ -370,7 +370,7 @@ static void pmu_snapshot_all_cpus(void)
 	spin_unlock_irqrestore(&global_cpu_snapshot_lock, flags);
 }
 
-static void sysrq_handle_globpmu(int key)
+static void sysrq_handle_globpmu(u8 key)
 {
 	pmu_snapshot_all_cpus();
 }

@@ -539,8 +539,9 @@ static void zs_receive_chars(struct zs_port *zport)
 	struct uart_port *uport = &zport->port;
 	struct zs_scc *scc = zport->scc;
 	struct uart_icount *icount;
-	unsigned int avail, status, ch, flag;
+	unsigned int avail, status;
 	int count;
+	u8 ch, flag;
 
 	for (count = 16; count; count--) {
 		spin_lock(&scc->zlock);

@@ -437,7 +437,7 @@ static unsigned int check_modem_status(struct uart_omap_port *up)
 
 static void serial_omap_rlsi(struct uart_omap_port *up, unsigned int lsr)
 {
-	unsigned int flag;
+	u8 flag;
 
 	/*
 	 * Read one data character out to avoid stalling the receiver according
@@ -493,8 +493,7 @@ static void serial_omap_rlsi(struct uart_omap_port *up, unsigned int lsr)
 
 static void serial_omap_rdi(struct uart_omap_port *up, unsigned int lsr)
 {
-	unsigned char ch = 0;
-	unsigned int flag;
+	u8 ch;
 
 	if (!(lsr & UART_LSR_DR))
 		return;
@@ -507,13 +506,12 @@ static void serial_omap_rdi(struct uart_omap_port *up, unsigned int lsr)
 		return;
 	}
 
-	flag = TTY_NORMAL;
 	up->port.icount.rx++;
 
 	if (uart_handle_sysrq_char(&up->port, ch))
 		return;
 
-	uart_insert_char(&up->port, lsr, UART_LSR_OE, ch, flag);
+	uart_insert_char(&up->port, lsr, UART_LSR_OE, ch, TTY_NORMAL);
 }
 
 /**
@@ -1568,8 +1566,7 @@ static int serial_omap_probe(struct platform_device *pdev)
 	if (!up)
 		return -ENOMEM;
 
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = devm_ioremap_resource(&pdev->dev, mem);
+	base = devm_platform_get_and_ioremap_resource(pdev, 0, &mem);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 

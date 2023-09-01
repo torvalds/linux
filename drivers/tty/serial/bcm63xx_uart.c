@@ -832,14 +832,10 @@ static int bcm_uart_probe(struct platform_device *pdev)
 		return -EBUSY;
 	memset(port, 0, sizeof(*port));
 
-	res_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res_mem)
-		return -ENODEV;
-
-	port->mapbase = res_mem->start;
-	port->membase = devm_ioremap_resource(&pdev->dev, res_mem);
+	port->membase = devm_platform_get_and_ioremap_resource(pdev, 0, &res_mem);
 	if (IS_ERR(port->membase))
 		return PTR_ERR(port->membase);
+	port->mapbase = res_mem->start;
 
 	ret = platform_get_irq(pdev, 0);
 	if (ret < 0)
