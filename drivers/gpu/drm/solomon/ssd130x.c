@@ -1245,6 +1245,7 @@ EXPORT_SYMBOL_GPL(ssd130x_probe);
 void ssd130x_remove(struct ssd130x_device *ssd130x)
 {
 	drm_dev_unplug(&ssd130x->drm);
+	drm_atomic_helper_shutdown(&ssd130x->drm);
 }
 EXPORT_SYMBOL_GPL(ssd130x_remove);
 
