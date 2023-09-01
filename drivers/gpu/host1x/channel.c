@@ -81,6 +81,25 @@ void host1x_channel_stop(struct host1x_channel *channel)
 }
 EXPORT_SYMBOL(host1x_channel_stop);
 
+/**
+ * host1x_channel_stop_all() - disable CDMA on allocated channels
+ * @host: host1x instance
+ *
+ * Stop CDMA on allocated channels
+ */
+void host1x_channel_stop_all(struct host1x *host)
+{
+	struct host1x_channel_list *chlist = &host->channel_list;
+	int bit;
+
+	mutex_lock(&chlist->lock);
+
+	for_each_set_bit(bit, chlist->allocated_channels, host->info->nb_channels)
+		host1x_channel_stop(&chlist->channels[bit]);
+
+	mutex_unlock(&chlist->lock);
+}
+
 static void release_channel(struct kref *kref)
 {
 	struct host1x_channel *channel =

@@ -40,5 +40,6 @@ int host1x_channel_list_init(struct host1x_channel_list *chlist,
 void host1x_channel_list_free(struct host1x_channel_list *chlist);
 struct host1x_channel *host1x_channel_get_index(struct host1x *host,
 						unsigned int index);
+void host1x_channel_stop_all(struct host1x *host);
 
 #endif
