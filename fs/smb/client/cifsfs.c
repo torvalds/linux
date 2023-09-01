@@ -699,6 +699,8 @@ cifs_show_options(struct seq_file *s, struct dentry *root)
 		seq_printf(s, ",snapshot=%llu", tcon->snapshot_time);
 	if (tcon->handle_timeout)
 		seq_printf(s, ",handletimeout=%u", tcon->handle_timeout);
+	if (tcon->max_cached_dirs != MAX_CACHED_FIDS)
+		seq_printf(s, ",max_cached_dirs=%u", tcon->max_cached_dirs);
 
 	/*
 	 * Display file and directory attribute timeout in seconds.

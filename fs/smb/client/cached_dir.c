@@ -18,7 +18,8 @@ static void smb2_close_cached_fid(struct kref *ref);
 
 static struct cached_fid *find_or_create_cached_dir(struct cached_fids *cfids,
 						    const char *path,
-						    bool lookup_only)
+						    bool lookup_only,
+						    __u32 max_cached_dirs)
 {
 	struct cached_fid *cfid;
 
@@ -43,7 +44,7 @@ static struct cached_fid *find_or_create_cached_dir(struct cached_fids *cfids,
 		spin_unlock(&cfids->cfid_list_lock);
 		return NULL;
 	}
-	if (cfids->num_entries >= MAX_CACHED_FIDS) {
+	if (cfids->num_entries >= max_cached_dirs) {
 		spin_unlock(&cfids->cfid_list_lock);
 		return NULL;
 	}
@@ -162,7 +163,7 @@ int open_cached_dir(unsigned int xid, struct cifs_tcon *tcon,
 	if (!utf16_path)
 		return -ENOMEM;
 
-	cfid = find_or_create_cached_dir(cfids, path, lookup_only);
+	cfid = find_or_create_cached_dir(cfids, path, lookup_only, tcon->max_cached_dirs);
 	if (cfid == NULL) {
 		kfree(utf16_path);
 		return -ENOENT;
