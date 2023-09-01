@@ -732,12 +732,17 @@ static void notrace *unit_alloc(struct bpf_mem_cache *c)
 		}
 	}
 	local_dec(&c->active);
-	local_irq_restore(flags);
 
 	WARN_ON(cnt < 0);
 
 	if (cnt < c->low_watermark)
 		irq_work_raise(c);
+	/* Enable IRQ after the enqueue of irq work completes, so irq work
+	 * will run after IRQ is enabled and free_llist may be refilled by
+	 * irq work before other task preempts current task.
+	 */
+	local_irq_restore(flags);
+
 	return llnode;
 }
 
