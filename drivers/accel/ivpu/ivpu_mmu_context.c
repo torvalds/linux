@@ -490,13 +490,13 @@ int ivpu_mmu_user_context_init(struct ivpu_device *vdev, struct ivpu_mmu_context
 
 	ret = ivpu_mmu_context_init(vdev, ctx, ctx_id);
 	if (ret) {
-		ivpu_err(vdev, "Failed to initialize context: %d\n", ret);
+		ivpu_err(vdev, "Failed to initialize context %u: %d\n", ctx_id, ret);
 		return ret;
 	}
 
 	ret = ivpu_mmu_set_pgtable(vdev, ctx_id, &ctx->pgtable);
 	if (ret) {
-		ivpu_err(vdev, "Failed to set page table: %d\n", ret);
+		ivpu_err(vdev, "Failed to set page table for context %u: %d\n", ctx_id, ret);
 		goto err_context_fini;
 	}
 
