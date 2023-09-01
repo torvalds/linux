@@ -11,6 +11,7 @@
 #include "remoteproc_internal.h"
 #include <linux/soc/qcom/qmi.h>
 #include <linux/remoteproc/qcom_rproc.h>
+#include <linux/soc/qcom/qcom_aoss.h>
 
 static const char * const subdevice_state_string[] = {
 	[QCOM_SSR_BEFORE_POWERUP]	= "before_powerup",
@@ -64,6 +65,8 @@ typedef void (*rproc_dumpfn_t)(struct rproc *rproc, struct rproc_dump_segment *s
 
 void qcom_minidump(struct rproc *rproc, struct device *md_dev,
 			unsigned int minidump_id, rproc_dumpfn_t dumpfn, bool both_dumps);
+
+int qcom_rproc_toggle_load_state(struct qmp *qmp, const char *name, bool enable);
 
 void qcom_add_glink_subdev(struct rproc *rproc, struct qcom_rproc_glink *glink,
 			   const char *ssr_name);

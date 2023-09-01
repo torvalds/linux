@@ -43,7 +43,6 @@
 #define XO_FREQ		19200000
 #define PIL_TZ_AVG_BW	UINT_MAX
 #define PIL_TZ_PEAK_BW	UINT_MAX
-#define QMP_MSG_LEN	64
 
 #define ADSP_DECRYPT_SHUTDOWN_DELAY_MS	100
 
@@ -239,16 +238,6 @@ static void adsp_minidump(struct rproc *rproc)
 
 exit:
 	trace_rproc_qcom_event(dev_name(adsp->dev), "adsp_minidump", "exit");
-}
-
-static int adsp_toggle_load_state(struct qmp *qmp, const char *name, bool enable)
-{
-	char buf[QMP_MSG_LEN] = {};
-
-	snprintf(buf, sizeof(buf),
-		 "{class: image, res: load_state, name: %s, val: %s}",
-		 name, enable ? "on" : "off");
-	return qmp_send(qmp, buf, sizeof(buf));
 }
 
 static int adsp_pds_enable(struct qcom_adsp *adsp, struct device **pds,
@@ -686,7 +675,7 @@ static int adsp_start(struct rproc *rproc)
 		goto disable_active_pds;
 
 	if (adsp->qmp) {
-		ret = adsp_toggle_load_state(adsp->qmp, adsp->qmp_name, true);
+		ret = qcom_rproc_toggle_load_state(adsp->qmp, adsp->qmp_name, true);
 		if (ret)
 			goto disable_proxy_pds;
 	}
@@ -785,7 +774,7 @@ disable_xo_clk:
 	clk_disable_unprepare(adsp->xo);
 disable_load_state:
 	if (adsp->qmp)
-		adsp_toggle_load_state(adsp->qmp, adsp->qmp_name, false);
+		qcom_rproc_toggle_load_state(adsp->qmp, adsp->qmp_name, false);
 disable_proxy_pds:
 	adsp_pds_disable(adsp, adsp->proxy_pds, adsp->proxy_pd_count);
 disable_active_pds:
@@ -843,7 +832,7 @@ static int adsp_stop(struct rproc *rproc)
 	scm_pas_disable_bw();
 	adsp_pds_disable(adsp, adsp->active_pds, adsp->active_pd_count);
 	if (adsp->qmp)
-		adsp_toggle_load_state(adsp->qmp, adsp->qmp_name, false);
+		qcom_rproc_toggle_load_state(adsp->qmp, adsp->qmp_name, false);
 	handover = qcom_q6v5_unprepare(&adsp->q6v5);
 	if (handover)
 		qcom_pas_handover(&adsp->q6v5);
@@ -904,7 +893,7 @@ begin_attach:
 	if (ret < 0)
 		goto disable_active_pds;
 
-	ret = adsp_toggle_load_state(adsp->qmp, adsp->qmp_name, true);
+	ret = qcom_rproc_toggle_load_state(adsp->qmp, adsp->qmp_name, true);
 	if (ret)
 		goto disable_proxy_pds;
 
@@ -953,7 +942,7 @@ disable_aggre2_clk:
 disable_xo_clk:
 	clk_disable_unprepare(adsp->xo);
 disable_load_state:
-	adsp_toggle_load_state(adsp->qmp, adsp->qmp_name, false);
+	qcom_rproc_toggle_load_state(adsp->qmp, adsp->qmp_name, false);
 disable_proxy_pds:
 	adsp_pds_disable(adsp, adsp->proxy_pds, adsp->proxy_pd_count);
 disable_active_pds:
