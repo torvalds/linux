@@ -8,3 +8,6 @@ qcom_hwspinlock.ko
 smem.ko
 socinfo.ko
 qcom-ipcc.ko
+clk-dummy.ko
+clk-qcom.ko
+gdsc-regulator.ko
