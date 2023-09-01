@@ -250,7 +250,7 @@ CO-RE Relocations
 From object file point of view CO-RE mechanism is implemented as a set
 of CO-RE specific relocation records. These relocation records are not
 related to ELF relocations and are encoded in .BTF.ext section.
-See :ref:`Documentation/bpf/btf <BTF_Ext_Section>` for more
+See :ref:`Documentation/bpf/btf.rst <BTF_Ext_Section>` for more
 information on .BTF.ext structure.
 
 CO-RE relocations are applied to BPF instructions to update immediate
