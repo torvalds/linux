@@ -1808,6 +1808,12 @@ static void empty_xfer_list(struct qaic_device *qdev, struct dma_bridge_chan *db
 		bo->queued = false;
 		list_del(&bo->xfer_list);
 		spin_unlock_irqrestore(&dbc->xfer_lock, flags);
+		bo->nr_slice_xfer_done = 0;
+		bo->req_id = 0;
+		bo->perf_stats.req_received_ts = 0;
+		bo->perf_stats.req_submit_ts = 0;
+		bo->perf_stats.req_processed_ts = 0;
+		bo->perf_stats.queue_level_before = 0;
 		dma_sync_sgtable_for_cpu(&qdev->pdev->dev, bo->sgt, bo->dir);
 		complete_all(&bo->xfer_done);
 		drm_gem_object_put(&bo->base);
@@ -1876,16 +1882,8 @@ void release_dbc(struct qaic_device *qdev, u32 dbc_id)
 		qaic_unprepare_bo(qdev, bo);
 		bo->sliced = false;
 		INIT_LIST_HEAD(&bo->slices);
-		bo->nr_slice_xfer_done = 0;
-		bo->queued = false;
-		bo->req_id = 0;
 		init_completion(&bo->xfer_done);
-		complete_all(&bo->xfer_done);
 		list_del(&bo->bo_list);
-		bo->perf_stats.req_received_ts = 0;
-		bo->perf_stats.req_submit_ts = 0;
-		bo->perf_stats.req_processed_ts = 0;
-		bo->perf_stats.queue_level_before = 0;
 	}
 
 	dbc->in_use = false;
