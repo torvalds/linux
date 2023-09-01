@@ -991,7 +991,7 @@ static const struct wm8580_driver_data wm8581_data = {
 static const struct of_device_id wm8580_of_match[] = {
 	{ .compatible = "wlf,wm8580", .data = &wm8580_data },
 	{ .compatible = "wlf,wm8581", .data = &wm8581_data },
-	{ },
+	{ }
 };
 MODULE_DEVICE_TABLE(of, wm8580_of_match);
 
