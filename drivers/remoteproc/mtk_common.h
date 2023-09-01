@@ -106,6 +106,9 @@ struct mtk_scp_of_cluster {
 	size_t l1tcm_size;
 	phys_addr_t l1tcm_phys;
 	struct list_head mtk_scp_list;
+	/* Prevent concurrent operations of this structure and L2TCM power control. */
+	struct mutex cluster_lock;
+	u32 l2tcm_refcnt;
 };
 
 struct mtk_scp {
