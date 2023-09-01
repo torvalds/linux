@@ -472,15 +472,31 @@ static void intel_crtc_vblank_evade_scanlines(struct intel_atomic_state *state,
 					      struct intel_crtc *crtc,
 					      int *min, int *max, int *vblank_start)
 {
+	const struct intel_crtc_state *old_crtc_state =
+		intel_atomic_get_old_crtc_state(state, crtc);
 	const struct intel_crtc_state *new_crtc_state =
 		intel_atomic_get_new_crtc_state(state, crtc);
-	const struct drm_display_mode *adjusted_mode = &new_crtc_state->hw.adjusted_mode;
+	const struct intel_crtc_state *crtc_state;
+	const struct drm_display_mode *adjusted_mode;
 
-	if (new_crtc_state->vrr.enable) {
-		if (intel_vrr_is_push_sent(new_crtc_state))
-			*vblank_start = intel_vrr_vmin_vblank_start(new_crtc_state);
+	/*
+	 * During fastsets/etc. the transcoder is still
+	 * running with the old timings at this point.
+	 *
+	 * TODO: maybe just use the active timings here?
+	 */
+	if (intel_crtc_needs_modeset(new_crtc_state))
+		crtc_state = new_crtc_state;
+	else
+		crtc_state = old_crtc_state;
+
+	adjusted_mode = &crtc_state->hw.adjusted_mode;
+
+	if (crtc->mode_flags & I915_MODE_FLAG_VRR) {
+		if (intel_vrr_is_push_sent(crtc_state))
+			*vblank_start = intel_vrr_vmin_vblank_start(crtc_state);
 		else
-			*vblank_start = intel_vrr_vmax_vblank_start(new_crtc_state);
+			*vblank_start = intel_vrr_vmax_vblank_start(crtc_state);
 	} else {
 		*vblank_start = intel_mode_vblank_start(adjusted_mode);
 	}
@@ -709,15 +725,6 @@ void intel_pipe_update_end(struct intel_atomic_state *state,
 	 * vblank start instead of vmax vblank start.
 	 */
 	intel_vrr_send_push(new_crtc_state);
-
-	/*
-	 * Seamless M/N update may need to update frame timings.
-	 *
-	 * FIXME Should be synchronized with the start of vblank somehow...
-	 */
-	if (new_crtc_state->seamless_m_n && intel_crtc_needs_fastset(new_crtc_state))
-		intel_crtc_update_active_timings(new_crtc_state,
-						 new_crtc_state->vrr.enable);
 
 	local_irq_enable();
 
