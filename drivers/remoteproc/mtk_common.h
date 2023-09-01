@@ -105,6 +105,7 @@ struct mtk_scp_of_cluster {
 	void __iomem *l1tcm_base;
 	size_t l1tcm_size;
 	phys_addr_t l1tcm_phys;
+	struct list_head mtk_scp_list;
 };
 
 struct mtk_scp {
@@ -132,6 +133,7 @@ struct mtk_scp {
 
 	struct rproc_subdev *rpmsg_subdev;
 
+	struct list_head elem;
 	struct mtk_scp_of_cluster *cluster;
 };
 
