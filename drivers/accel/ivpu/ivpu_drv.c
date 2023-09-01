@@ -518,78 +518,54 @@ static int ivpu_dev_init(struct ivpu_device *vdev)
 	lockdep_set_class(&vdev->submitted_jobs_xa.xa_lock, &submitted_jobs_xa_lock_class_key);
 
 	ret = ivpu_pci_init(vdev);
-	if (ret) {
-		ivpu_err(vdev, "Failed to initialize PCI device: %d\n", ret);
+	if (ret)
 		goto err_xa_destroy;
-	}
 
 	ret = ivpu_irq_init(vdev);
-	if (ret) {
-		ivpu_err(vdev, "Failed to initialize IRQs: %d\n", ret);
+	if (ret)
 		goto err_xa_destroy;
-	}
 
 	/* Init basic HW info based on buttress registers which are accessible before power up */
 	ret = ivpu_hw_info_init(vdev);
-	if (ret) {
-		ivpu_err(vdev, "Failed to initialize HW info: %d\n", ret);
+	if (ret)
 		goto err_xa_destroy;
-	}
 
 	/* Power up early so the rest of init code can access VPU registers */
 	ret = ivpu_hw_power_up(vdev);
-	if (ret) {
-		ivpu_err(vdev, "Failed to power up HW: %d\n", ret);
+	if (ret)
 		goto err_xa_destroy;
-	}
 
 	ret = ivpu_mmu_global_context_init(vdev);
-	if (ret) {
-		ivpu_err(vdev, "Failed to initialize global MMU context: %d\n", ret);
+	if (ret)
 		goto err_power_down;
-	}
 
 	ret = ivpu_mmu_init(vdev);
-	if (ret) {
-		ivpu_err(vdev, "Failed to initialize MMU device: %d\n", ret);
+	if (ret)
 		goto err_mmu_gctx_fini;
-	}
 
 	ret = ivpu_fw_init(vdev);
-	if (ret) {
-		ivpu_err(vdev, "Failed to initialize firmware: %d\n", ret);
+	if (ret)
 		goto err_mmu_gctx_fini;
-	}
 
 	ret = ivpu_ipc_init(vdev);
-	if (ret) {
-		ivpu_err(vdev, "Failed to initialize IPC: %d\n", ret);
+	if (ret)
 		goto err_fw_fini;
-	}
 
 	ret = ivpu_pm_init(vdev);
-	if (ret) {
-		ivpu_err(vdev, "Failed to initialize PM: %d\n", ret);
+	if (ret)
 		goto err_ipc_fini;
-	}
 
 	ret = ivpu_job_done_thread_init(vdev);
-	if (ret) {
-		ivpu_err(vdev, "Failed to initialize job done thread: %d\n", ret);
+	if (ret)
 		goto err_ipc_fini;
-	}
 
 	ret = ivpu_fw_load(vdev);
-	if (ret) {
-		ivpu_err(vdev, "Failed to load firmware: %d\n", ret);
+	if (ret)
 		goto err_job_done_thread_fini;
-	}
 
 	ret = ivpu_boot(vdev);
-	if (ret) {
-		ivpu_err(vdev, "Failed to boot: %d\n", ret);
+	if (ret)
 		goto err_job_done_thread_fini;
-	}
 
 	ivpu_pm_enable(vdev);
 
@@ -651,10 +627,8 @@ static int ivpu_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	pci_set_drvdata(pdev, vdev);
 
 	ret = ivpu_dev_init(vdev);
-	if (ret) {
-		dev_err(&pdev->dev, "Failed to initialize VPU device: %d\n", ret);
+	if (ret)
 		return ret;
-	}
 
 	ret = drm_dev_register(&vdev->drm, 0);
 	if (ret) {

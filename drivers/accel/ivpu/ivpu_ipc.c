@@ -426,15 +426,20 @@ int ivpu_ipc_irq_handler(struct ivpu_device *vdev)
 int ivpu_ipc_init(struct ivpu_device *vdev)
 {
 	struct ivpu_ipc_info *ipc = vdev->ipc;
-	int ret = -ENOMEM;
+	int ret;
 
 	ipc->mem_tx = ivpu_bo_alloc_internal(vdev, 0, SZ_16K, DRM_IVPU_BO_WC);
-	if (!ipc->mem_tx)
-		return ret;
+	if (!ipc->mem_tx) {
+		ivpu_err(vdev, "Failed to allocate mem_tx\n");
+		return -ENOMEM;
+	}
 
 	ipc->mem_rx = ivpu_bo_alloc_internal(vdev, 0, SZ_16K, DRM_IVPU_BO_WC);
-	if (!ipc->mem_rx)
+	if (!ipc->mem_rx) {
+		ivpu_err(vdev, "Failed to allocate mem_rx\n");
+		ret = -ENOMEM;
 		goto err_free_tx;
+	}
 
 	ipc->mm_tx = devm_gen_pool_create(vdev->drm.dev, __ffs(IVPU_IPC_ALIGNMENT),
 					  -1, "TX_IPC_JSM");
