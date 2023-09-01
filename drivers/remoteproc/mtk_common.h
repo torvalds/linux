@@ -100,17 +100,20 @@ struct mtk_scp_of_data {
 	size_t ipi_buf_offset;
 };
 
+struct mtk_scp_of_cluster {
+	void __iomem *reg_base;
+	void __iomem *l1tcm_base;
+	size_t l1tcm_size;
+	phys_addr_t l1tcm_phys;
+};
+
 struct mtk_scp {
 	struct device *dev;
 	struct rproc *rproc;
 	struct clk *clk;
-	void __iomem *reg_base;
 	void __iomem *sram_base;
 	size_t sram_size;
 	phys_addr_t sram_phys;
-	void __iomem *l1tcm_base;
-	size_t l1tcm_size;
-	phys_addr_t l1tcm_phys;
 
 	const struct mtk_scp_of_data *data;
 
@@ -128,6 +131,8 @@ struct mtk_scp {
 	size_t dram_size;
 
 	struct rproc_subdev *rpmsg_subdev;
+
+	struct mtk_scp_of_cluster *cluster;
 };
 
 /**
