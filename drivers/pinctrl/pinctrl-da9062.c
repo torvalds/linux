@@ -17,6 +17,7 @@
 #include <linux/property.h>
 #include <linux/regmap.h>
 
+#include <linux/gpio/consumer.h>
 #include <linux/gpio/driver.h>
 
 #include <linux/mfd/da9062/core.h>
