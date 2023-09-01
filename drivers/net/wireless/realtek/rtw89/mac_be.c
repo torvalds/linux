@@ -51,9 +51,12 @@ static void rtw89_mac_disable_cpu_be(struct rtw89_dev *rtwdev)
 	rtw89_write32(rtwdev, R_BE_UDM2, 0);
 }
 
-static void set_cpu_en(struct rtw89_dev *rtwdev)
+static void set_cpu_en(struct rtw89_dev *rtwdev, bool include_bb)
 {
 	u32 set = B_BE_WLANCPU_FWDL_EN;
+
+	if (include_bb)
+		set |= B_BE_BBMCU0_FWDL_EN;
 
 	rtw89_write32_set(rtwdev, R_BE_WCPU_FW_CTRL, set);
 }
@@ -109,9 +112,10 @@ static int wcpu_on(struct rtw89_dev *rtwdev, u8 boot_reason, bool dlfw)
 }
 
 static int rtw89_mac_fwdl_enable_wcpu_be(struct rtw89_dev *rtwdev,
-					 u8 boot_reason, bool dlfw)
+					 u8 boot_reason, bool dlfw,
+					 bool include_bb)
 {
-	set_cpu_en(rtwdev);
+	set_cpu_en(rtwdev, include_bb);
 
 	return wcpu_on(rtwdev, boot_reason, dlfw);
 }

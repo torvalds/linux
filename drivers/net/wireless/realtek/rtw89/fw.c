@@ -872,7 +872,8 @@ static void rtw89_fw_dl_fail_dump(struct rtw89_dev *rtwdev)
 	rtw89_fw_prog_cnt_dump(rtwdev);
 }
 
-int rtw89_fw_download(struct rtw89_dev *rtwdev, enum rtw89_fw_type type)
+int rtw89_fw_download(struct rtw89_dev *rtwdev, enum rtw89_fw_type type,
+		      bool include_bb)
 {
 	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
 	struct rtw89_fw_info *fw_info = &rtwdev->fw;
@@ -881,7 +882,7 @@ int rtw89_fw_download(struct rtw89_dev *rtwdev, enum rtw89_fw_type type)
 	int ret;
 
 	mac->disable_cpu(rtwdev);
-	ret = mac->fwdl_enable_wcpu(rtwdev, 0, true);
+	ret = mac->fwdl_enable_wcpu(rtwdev, 0, true, include_bb);
 	if (ret)
 		return ret;
 

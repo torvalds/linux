@@ -2816,6 +2816,7 @@ const struct rtw89_chip_info rtw8852c_chip_info = {
 	.fw_basename		= RTW8852C_FW_BASENAME,
 	.fw_format_max		= RTW8852C_FW_FORMAT_MAX,
 	.try_ce_fw		= false,
+	.bbmcu_nr		= 0,
 	.needed_fw_elms		= 0,
 	.fifo_size		= 458752,
 	.small_fifo_size	= false,

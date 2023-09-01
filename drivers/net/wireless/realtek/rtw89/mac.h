@@ -860,7 +860,8 @@ struct rtw89_mac_gen_def {
 	u32 rx_fltr;
 
 	void (*disable_cpu)(struct rtw89_dev *rtwdev);
-	int (*fwdl_enable_wcpu)(struct rtw89_dev *rtwdev, u8 boot_reason, bool dlfw);
+	int (*fwdl_enable_wcpu)(struct rtw89_dev *rtwdev, u8 boot_reason,
+				bool dlfw, bool include_bb);
 	u8 (*fwdl_get_status)(struct rtw89_dev *rtwdev, enum rtw89_fwdl_check_type type);
 	int (*fwdl_check_path_ready)(struct rtw89_dev *rtwdev, bool h2c_or_fwdl);
 };
@@ -962,7 +963,7 @@ rtw89_write32_port_set(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
 }
 
 void rtw89_mac_pwr_off(struct rtw89_dev *rtwdev);
-int rtw89_mac_partial_init(struct rtw89_dev *rtwdev);
+int rtw89_mac_partial_init(struct rtw89_dev *rtwdev, bool include_bb);
 int rtw89_mac_init(struct rtw89_dev *rtwdev);
 int rtw89_mac_check_mac_en(struct rtw89_dev *rtwdev, u8 band,
 			   enum rtw89_mac_hwmod_sel sel);

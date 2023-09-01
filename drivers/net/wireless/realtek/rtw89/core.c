@@ -3788,7 +3788,7 @@ static int rtw89_chip_efuse_info_setup(struct rtw89_dev *rtwdev)
 {
 	int ret;
 
-	ret = rtw89_mac_partial_init(rtwdev);
+	ret = rtw89_mac_partial_init(rtwdev, false);
 	if (ret)
 		return ret;
 
