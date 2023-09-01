@@ -561,10 +561,6 @@ static int ivpu_dev_init(struct ivpu_device *vdev)
 	if (ret)
 		goto err_ipc_fini;
 
-	ret = ivpu_fw_load(vdev);
-	if (ret)
-		goto err_job_done_thread_fini;
-
 	ret = ivpu_boot(vdev);
 	if (ret)
 		goto err_job_done_thread_fini;
