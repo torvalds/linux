@@ -5684,6 +5684,17 @@ int rtw89_mac_ptk_drop_by_band_and_wait(struct rtw89_dev *rtwdev,
 	return ret;
 }
 
+int rtw89_fwdl_check_path_ready_ax(struct rtw89_dev *rtwdev,
+				   bool h2c_or_fwdl)
+{
+	u8 check = h2c_or_fwdl ? B_AX_H2C_PATH_RDY : B_AX_FWDL_PATH_RDY;
+	u8 val;
+
+	return read_poll_timeout_atomic(rtw89_read8, val, val & check,
+					1, FWDL_WAIT_CNT, false,
+					rtwdev, R_AX_WCPU_FW_CTRL);
+}
+
 const struct rtw89_mac_gen_def rtw89_mac_gen_ax = {
 	.band1_offset = RTW89_MAC_AX_BAND_REG_OFFSET,
 	.filter_model_addr = R_AX_FILTER_MODEL_ADDR,

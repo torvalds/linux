@@ -3618,6 +3618,8 @@ struct rtw89_fw_h2c_rf_get_mccch {
 #define RTW89_FW_BACKTRACE_MAX_SIZE 512 /* 8 * 64 (entries) */
 #define RTW89_FW_BACKTRACE_KEY 0xBACEBACE
 
+#define FWDL_WAIT_CNT 400000
+
 int rtw89_fw_check_rdy(struct rtw89_dev *rtwdev);
 int rtw89_fw_recognize(struct rtw89_dev *rtwdev);
 int rtw89_fw_recognize_elements(struct rtw89_dev *rtwdev);

@@ -54,7 +54,6 @@ static u8 _fw_get_rdy(struct rtw89_dev *rtwdev)
 	return FIELD_GET(B_AX_WCPU_FWDL_STS_MASK, val);
 }
 
-#define FWDL_WAIT_CNT 400000
 int rtw89_fw_check_rdy(struct rtw89_dev *rtwdev)
 {
 	u8 val;
@@ -768,7 +767,6 @@ fail:
 
 static int rtw89_fw_download_hdr(struct rtw89_dev *rtwdev, const u8 *fw, u32 len)
 {
-	u8 val;
 	int ret;
 
 	ret = __rtw89_fw_download_hdr(rtwdev, fw, len);
@@ -777,9 +775,7 @@ static int rtw89_fw_download_hdr(struct rtw89_dev *rtwdev, const u8 *fw, u32 len
 		return ret;
 	}
 
-	ret = read_poll_timeout_atomic(rtw89_read8, val, val & B_AX_FWDL_PATH_RDY,
-				       1, FWDL_WAIT_CNT, false,
-				       rtwdev, R_AX_WCPU_FW_CTRL);
+	ret = rtw89_fwdl_check_path_ready_ax(rtwdev, false);
 	if (ret) {
 		rtw89_err(rtwdev, "[ERR]FWDL path ready\n");
 		return ret;
@@ -892,7 +888,6 @@ int rtw89_fw_download(struct rtw89_dev *rtwdev, enum rtw89_fw_type type)
 	struct rtw89_fw_info *fw_info = &rtwdev->fw;
 	struct rtw89_fw_suit *fw_suit = rtw89_fw_suit_get(rtwdev, type);
 	struct rtw89_fw_bin_info info;
-	u8 val;
 	int ret;
 
 	rtw89_mac_disable_cpu(rtwdev);
@@ -906,9 +901,7 @@ int rtw89_fw_download(struct rtw89_dev *rtwdev, enum rtw89_fw_type type)
 		goto fwdl_err;
 	}
 
-	ret = read_poll_timeout_atomic(rtw89_read8, val, val & B_AX_H2C_PATH_RDY,
-				       1, FWDL_WAIT_CNT, false,
-				       rtwdev, R_AX_WCPU_FW_CTRL);
+	ret = rtw89_fwdl_check_path_ready_ax(rtwdev, true);
 	if (ret) {
 		rtw89_err(rtwdev, "[ERR]H2C path ready\n");
 		goto fwdl_err;
