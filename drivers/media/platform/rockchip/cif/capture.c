@@ -8586,7 +8586,11 @@ static void rkcif_buf_done_prepare(struct rkcif_stream *stream,
 
 	if (active_buf) {
 		vb_done = &active_buf->vb;
-		vb_done->vb2_buf.timestamp = stream->readout.fs_timestamp;
+		if (cif_dev->chip_id < CHIP_RK3588_CIF &&
+		    cif_dev->active_sensor->mbus.type == V4L2_MBUS_BT656)
+			vb_done->vb2_buf.timestamp = stream->readout.fe_timestamp;
+		else
+			vb_done->vb2_buf.timestamp = stream->readout.fs_timestamp;
 		vb_done->sequence = stream->frame_idx - 1;
 		active_buf->fe_timestamp = ktime_get_ns();
 		if (stream->is_line_wake_up) {
@@ -8907,6 +8911,10 @@ static void rkcif_update_stream(struct rkcif_device *cif_dev,
 		if (ret && cif_dev->chip_id < CHIP_RK3588_CIF)
 			return;
 	}
+	if (cif_dev->chip_id < CHIP_RK3588_CIF &&
+	    cif_dev->active_sensor->mbus.type == V4L2_MBUS_BT656 &&
+	    stream->id != 0)
+		stream->frame_idx++;
 	if (!stream->is_line_wake_up && stream->dma_en & RKCIF_DMAEN_BY_VICAP)
 		rkcif_buf_done_prepare(stream, active_buf, mipi_id, 0);
 
