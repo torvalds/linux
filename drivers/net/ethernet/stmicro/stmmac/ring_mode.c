@@ -37,10 +37,10 @@ static int jumbo_frm(void *p, struct sk_buff *skb, int csum)
 
 	if (nopaged_len > BUF_SIZE_8KiB) {
 
-		des2 = dma_map_single(priv->device, skb->data, bmax,
+		des2 = dma_map_single(GET_MEM_PDEV_DEV, skb->data, bmax,
 				      DMA_TO_DEVICE);
 		desc->des2 = cpu_to_le32(des2);
-		if (dma_mapping_error(priv->device, des2))
+		if (dma_mapping_error(GET_MEM_PDEV_DEV, des2))
 			return -1;
 
 		tx_q->tx_skbuff_dma[entry].buf = des2;
@@ -58,10 +58,10 @@ static int jumbo_frm(void *p, struct sk_buff *skb, int csum)
 		else
 			desc = tx_q->dma_tx + entry;
 
-		des2 = dma_map_single(priv->device, skb->data + bmax, len,
+		des2 = dma_map_single(GET_MEM_PDEV_DEV, skb->data + bmax, len,
 				      DMA_TO_DEVICE);
 		desc->des2 = cpu_to_le32(des2);
-		if (dma_mapping_error(priv->device, des2))
+		if (dma_mapping_error(GET_MEM_PDEV_DEV, des2))
 			return -1;
 		tx_q->tx_skbuff_dma[entry].buf = des2;
 		tx_q->tx_skbuff_dma[entry].len = len;
@@ -72,10 +72,10 @@ static int jumbo_frm(void *p, struct sk_buff *skb, int csum)
 				STMMAC_RING_MODE, 1, !skb_is_nonlinear(skb),
 				skb->len);
 	} else {
-		des2 = dma_map_single(priv->device, skb->data,
+		des2 = dma_map_single(GET_MEM_PDEV_DEV, skb->data,
 				      nopaged_len, DMA_TO_DEVICE);
 		desc->des2 = cpu_to_le32(des2);
-		if (dma_mapping_error(priv->device, des2))
+		if (dma_mapping_error(GET_MEM_PDEV_DEV, des2))
 			return -1;
 		tx_q->tx_skbuff_dma[entry].buf = des2;
 		tx_q->tx_skbuff_dma[entry].len = nopaged_len;
