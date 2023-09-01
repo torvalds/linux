@@ -1018,7 +1018,7 @@ AMD PMC DRIVER
 M:	Shyam Sundar S K <Shyam-sundar.S-k@amd.com>
 L:	platform-driver-x86@vger.kernel.org
 S:	Maintained
-F:	drivers/platform/x86/amd/pmc.c
+F:	drivers/platform/x86/amd/pmc/
 
 AMD PMF DRIVER
 M:	Shyam Sundar S K <Shyam-sundar.S-k@amd.com>
@@ -9522,6 +9522,12 @@ S:	Obsolete
 W:	http://w1.fi/hostap-driver.html
 F:	drivers/net/wireless/intersil/hostap/
 
+HP BIOSCFG DRIVER
+M:	Jorge Lopez <jorge.lopez2@hp.com>
+L:	platform-driver-x86@vger.kernel.org
+S:	Maintained
+F:	drivers/platform/x86/hp/hp-bioscfg/
+
 HP COMPAQ TC1100 TABLET WMI EXTRAS DRIVER
 L:	platform-driver-x86@vger.kernel.org
 S:	Orphan
@@ -10802,6 +10808,7 @@ INTEL TPMI DRIVER
 M:	Srinivas Pandruvada <srinivas.pandruvada@linux.intel.com>
 L:	platform-driver-x86@vger.kernel.org
 S:	Maintained
+F:	Documentation/ABI/testing/debugfs-tpmi
 F:	drivers/platform/x86/intel/tpmi.c
 F:	include/linux/intel_tpmi.h
 
@@ -19496,6 +19503,32 @@ F:	drivers/media/mmc/siano/
 F:	drivers/media/usb/siano/
 F:	drivers/media/usb/siano/
 
+SIEMENS IPC LED DRIVERS
+M:	Gerd Haeussler <gerd.haeussler.ext@siemens.com>
+M:	Xing Tong Wu <xingtong.wu@siemens.com>
+M:	Tobias Schaffner <tobias.schaffner@siemens.com>
+L:	linux-leds@vger.kernel.org
+S:	Maintained
+F:	drivers/leds/simple/
+
+SIEMENS IPC PLATFORM DRIVERS
+M:	Gerd Haeussler <gerd.haeussler.ext@siemens.com>
+M:	Xing Tong Wu <xingtong.wu@siemens.com>
+M:	Tobias Schaffner <tobias.schaffner@siemens.com>
+L:	platform-driver-x86@vger.kernel.org
+S:	Maintained
+F:	drivers/platform/x86/siemens/
+F:	include/linux/platform_data/x86/simatic-ipc-base.h
+F:	include/linux/platform_data/x86/simatic-ipc.h
+
+SIEMENS IPC WATCHDOG DRIVERS
+M:	Gerd Haeussler <gerd.haeussler.ext@siemens.com>
+M:	Xing Tong Wu <xingtong.wu@siemens.com>
+M:	Tobias Schaffner <tobias.schaffner@siemens.com>
+L:	linux-watchdog@vger.kernel.org
+S:	Maintained
+F:	drivers/watchdog/simatic-ipc-wdt.c
+
 SIFIVE DRIVERS
 M:	Palmer Dabbelt <palmer@dabbelt.com>
 M:	Paul Walmsley <paul.walmsley@sifive.com>
@@ -23112,8 +23145,10 @@ S:	Orphan
 F:	drivers/net/wireless/legacy/wl3501*
 
 WMI BINARY MOF DRIVER
-L:	platform-drivers-x86@vger.kernel.org
-S:	Orphan
+M:	Armin Wolf <W_Armin@gmx.de>
+R:	Thomas Weißschuh <linux@weissschuh.net>
+L:	platform-driver-x86@vger.kernel.org
+S:	Maintained
 F:	Documentation/ABI/stable/sysfs-platform-wmi-bmof
 F:	Documentation/wmi/devices/wmi-bmof.rst
 F:	drivers/platform/x86/wmi-bmof.c

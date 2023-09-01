@@ -1680,9 +1680,10 @@ config NIC7018_WDT
 
 config SIEMENS_SIMATIC_IPC_WDT
 	tristate "Siemens Simatic IPC Watchdog"
-	depends on SIEMENS_SIMATIC_IPC
+	depends on SIEMENS_SIMATIC_IPC && PCI
+	default y
 	select WATCHDOG_CORE
-	select P2SB
+	select P2SB if X86
 	help
 	  This driver adds support for several watchdogs found in Industrial
 	  PCs from Siemens.

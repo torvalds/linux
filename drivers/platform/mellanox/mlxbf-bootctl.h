@@ -81,6 +81,28 @@
  */
 #define MLXBF_BOOTCTL_FW_RESET  0x8200000D
 
+/*
+ * SMC function IDs to set, get and lock the manufacturing information
+ * stored within the eeprom.
+ */
+#define MLXBF_BOOTCTL_SET_MFG_INFO    0x8200000E
+#define MLXBF_BOOTCTL_GET_MFG_INFO    0x8200000F
+#define MLXBF_BOOTCTL_LOCK_MFG_INFO   0x82000011
+
+/*
+ * SMC function IDs to set and get the large ICM carveout size
+ * stored in the eeprom.
+ */
+#define MLNX_HANDLE_SET_ICM_INFO    0x82000012
+#define MLNX_HANDLE_GET_ICM_INFO    0x82000013
+
+#define MAX_ICM_BUFFER_SIZE 10
+
+/*
+ * SMC function ID to set the ARM boot state to up
+ */
+#define MLNX_HANDLE_OS_UP    0x82000014
+
 /* SMC function IDs for SiP Service queries */
 #define MLXBF_BOOTCTL_SIP_SVC_CALL_COUNT	0x8200ff00
 #define MLXBF_BOOTCTL_SIP_SVC_UID		0x8200ff01
@@ -105,5 +127,10 @@
 
 /* Additional value to disable the MLXBF_BOOTCTL_SET_SECOND_RESET_ACTION. */
 #define MLXBF_BOOTCTL_NONE	0x7fffffff /* Don't change next boot action */
+
+#define MLXBF_LARGE_ICMC_MAX_STRING_SIZE 16
+#define MLXBF_LARGE_ICMC_SIZE_MIN        0x80
+#define MLXBF_LARGE_ICMC_SIZE_MAX        0x100000
+#define MLXBF_LARGE_ICMC_GRANULARITY     MLXBF_LARGE_ICMC_SIZE_MIN
 
 #endif /* __MLXBF_BOOTCTL_H__ */
