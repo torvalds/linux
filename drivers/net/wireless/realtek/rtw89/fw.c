@@ -823,10 +823,27 @@ fail:
 	return ret;
 }
 
-static int rtw89_fw_download_main(struct rtw89_dev *rtwdev, const u8 *fw,
+static enum rtw89_fwdl_check_type
+rtw89_fw_get_fwdl_chk_type_from_suit(struct rtw89_dev *rtwdev,
+				     const struct rtw89_fw_suit *fw_suit)
+{
+	switch (fw_suit->type) {
+	case RTW89_FW_BBMCU0:
+		return RTW89_FWDL_CHECK_BB0_FWDL_DONE;
+	case RTW89_FW_BBMCU1:
+		return RTW89_FWDL_CHECK_BB1_FWDL_DONE;
+	default:
+		return RTW89_FWDL_CHECK_WCPU_FWDL_DONE;
+	}
+}
+
+static int rtw89_fw_download_main(struct rtw89_dev *rtwdev,
+				  const struct rtw89_fw_suit *fw_suit,
 				  struct rtw89_fw_bin_info *info)
 {
 	struct rtw89_fw_hdr_section_info *section_info = info->section_info;
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+	enum rtw89_fwdl_check_type chk_type;
 	u8 section_num = info->section_num;
 	int ret;
 
@@ -837,6 +854,16 @@ static int rtw89_fw_download_main(struct rtw89_dev *rtwdev, const u8 *fw,
 		section_info++;
 	}
 
+	if (chip->chip_gen == RTW89_CHIP_AX)
+		return 0;
+
+	chk_type = rtw89_fw_get_fwdl_chk_type_from_suit(rtwdev, fw_suit);
+	ret = rtw89_fw_check_rdy(rtwdev, chk_type);
+	if (ret) {
+		rtw89_warn(rtwdev, "failed to download firmware type %u\n",
+			   fw_suit->type);
+		return ret;
+	}
 
 	return 0;
 }
@@ -872,43 +899,62 @@ static void rtw89_fw_dl_fail_dump(struct rtw89_dev *rtwdev)
 	rtw89_fw_prog_cnt_dump(rtwdev);
 }
 
+static int rtw89_fw_download_suit(struct rtw89_dev *rtwdev,
+				  struct rtw89_fw_suit *fw_suit)
+{
+	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
+	struct rtw89_fw_bin_info info;
+	int ret;
+
+	ret = rtw89_fw_hdr_parser(rtwdev, fw_suit, &info);
+	if (ret) {
+		rtw89_err(rtwdev, "parse fw header fail\n");
+		return ret;
+	}
+
+	ret = mac->fwdl_check_path_ready(rtwdev, true);
+	if (ret) {
+		rtw89_err(rtwdev, "[ERR]H2C path ready\n");
+		return ret;
+	}
+
+	ret = rtw89_fw_download_hdr(rtwdev, fw_suit->data, info.hdr_len -
+							   info.dynamic_hdr_len);
+	if (ret)
+		return ret;
+
+	ret = rtw89_fw_download_main(rtwdev, fw_suit, &info);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
 int rtw89_fw_download(struct rtw89_dev *rtwdev, enum rtw89_fw_type type,
 		      bool include_bb)
 {
 	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
 	struct rtw89_fw_info *fw_info = &rtwdev->fw;
 	struct rtw89_fw_suit *fw_suit = rtw89_fw_suit_get(rtwdev, type);
-	struct rtw89_fw_bin_info info;
+	u8 bbmcu_nr = rtwdev->chip->bbmcu_nr;
 	int ret;
+	int i;
 
 	mac->disable_cpu(rtwdev);
 	ret = mac->fwdl_enable_wcpu(rtwdev, 0, true, include_bb);
 	if (ret)
 		return ret;
 
-	ret = rtw89_fw_hdr_parser(rtwdev, fw_suit, &info);
-	if (ret) {
-		rtw89_err(rtwdev, "parse fw header fail\n");
+	ret = rtw89_fw_download_suit(rtwdev, fw_suit);
+	if (ret)
 		goto fwdl_err;
-	}
 
-	ret = mac->fwdl_check_path_ready(rtwdev, true);
-	if (ret) {
-		rtw89_err(rtwdev, "[ERR]H2C path ready\n");
-		goto fwdl_err;
-	}
+	for (i = 0; i < bbmcu_nr && include_bb; i++) {
+		fw_suit = rtw89_fw_suit_get(rtwdev, RTW89_FW_BBMCU0 + i);
 
-	ret = rtw89_fw_download_hdr(rtwdev, fw_suit->data, info.hdr_len -
-							   info.dynamic_hdr_len);
-	if (ret) {
-		ret = -EBUSY;
-		goto fwdl_err;
-	}
-
-	ret = rtw89_fw_download_main(rtwdev, fw_suit->data, &info);
-	if (ret) {
-		ret = -EBUSY;
-		goto fwdl_err;
+		ret = rtw89_fw_download_suit(rtwdev, fw_suit);
+		if (ret)
+			goto fwdl_err;
 	}
 
 	fw_info->h2c_seq = 0;
