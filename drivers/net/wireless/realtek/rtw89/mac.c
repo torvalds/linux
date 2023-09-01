@@ -3607,6 +3607,12 @@ int rtw89_mac_partial_init(struct rtw89_dev *rtwdev, bool include_bb)
 
 	rtw89_mac_ctrl_hci_dma_trx(rtwdev, true);
 
+	if (include_bb) {
+		rtw89_chip_bb_preinit(rtwdev, RTW89_PHY_0);
+		if (rtwdev->dbcc_en)
+			rtw89_chip_bb_preinit(rtwdev, RTW89_PHY_1);
+	}
+
 	ret = rtw89_mac_dmac_pre_init(rtwdev);
 	if (ret)
 		return ret;
