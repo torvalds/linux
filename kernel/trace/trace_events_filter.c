@@ -1744,17 +1744,23 @@ static int parse_pred(const char *str, void *data,
 
 		/* Copy the cpulist between { and } */
 		tmp = kmalloc((i - maskstart) + 1, GFP_KERNEL);
-		strscpy(tmp, str + maskstart, (i - maskstart) + 1);
-
-		pred->mask = kzalloc(cpumask_size(), GFP_KERNEL);
-		if (!pred->mask)
+		if (!tmp)
 			goto err_mem;
+
+		strscpy(tmp, str + maskstart, (i - maskstart) + 1);
+		pred->mask = kzalloc(cpumask_size(), GFP_KERNEL);
+		if (!pred->mask) {
+			kfree(tmp);
+			goto err_mem;
+		}
 
 		/* Now parse it */
 		if (cpulist_parse(tmp, pred->mask)) {
+			kfree(tmp);
 			parse_error(pe, FILT_ERR_INVALID_CPULIST, pos + i);
 			goto err_free;
 		}
+		kfree(tmp);
 
 		/* Move along */
 		i++;
