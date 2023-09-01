@@ -916,13 +916,15 @@ static bool planes_disabling(const struct intel_crtc_state *old_crtc_state,
 static bool vrr_enabling(const struct intel_crtc_state *old_crtc_state,
 			 const struct intel_crtc_state *new_crtc_state)
 {
-	return is_enabling(vrr.enable, old_crtc_state, new_crtc_state);
+	return is_enabling(vrr.enable, old_crtc_state, new_crtc_state) ||
+		(new_crtc_state->vrr.enable && new_crtc_state->update_m_n);
 }
 
 static bool vrr_disabling(const struct intel_crtc_state *old_crtc_state,
 			  const struct intel_crtc_state *new_crtc_state)
 {
-	return is_disabling(vrr.enable, old_crtc_state, new_crtc_state);
+	return is_disabling(vrr.enable, old_crtc_state, new_crtc_state) ||
+		(old_crtc_state->vrr.enable && new_crtc_state->update_m_n);
 }
 
 #undef is_disabling
