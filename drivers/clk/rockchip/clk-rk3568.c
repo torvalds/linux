@@ -1618,6 +1618,16 @@ static void rk3568_dump_cru(void)
 	}
 }
 
+static int protect_clocks[] = {
+	ACLK_VO,
+	HCLK_VO,
+	ACLK_VOP,
+	HCLK_VOP,
+	DCLK_VOP0,
+	DCLK_VOP1,
+	DCLK_VOP2,
+};
+
 static void __init rk3568_pmu_clk_init(struct device_node *np)
 {
 	struct rockchip_clk_provider *ctx;
@@ -1695,6 +1705,8 @@ static void __init rk3568_clk_init(struct device_node *np)
 
 	if (!rk_dump_cru)
 		rk_dump_cru = rk3568_dump_cru;
+
+	rockchip_clk_protect(ctx, protect_clocks, ARRAY_SIZE(protect_clocks));
 }
 
 CLK_OF_DECLARE(rk3568_cru, "rockchip,rk3568-cru", rk3568_clk_init);
