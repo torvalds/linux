@@ -405,6 +405,9 @@ int tb_switch_clx_disable(struct tb_switch *sw)
 	if (!clx)
 		return 0;
 
+	if (sw->is_unplugged)
+		return clx;
+
 	up = tb_upstream_port(sw);
 	down = tb_switch_downstream_port(sw);
 
