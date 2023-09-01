@@ -510,7 +510,7 @@ static void intel_crtc_vblank_evade_scanlines(struct intel_atomic_state *state,
 	 * M/N is double buffered on the transcoder's undelayed vblank,
 	 * so with seamless M/N we must evade both vblanks.
 	 */
-	if (new_crtc_state->seamless_m_n && intel_crtc_needs_fastset(new_crtc_state))
+	if (new_crtc_state->update_m_n)
 		*min -= adjusted_mode->crtc_vblank_start - adjusted_mode->crtc_vdisplay;
 }
 
