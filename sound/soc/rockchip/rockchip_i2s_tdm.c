@@ -1939,7 +1939,34 @@ static int rockchip_i2s_tdm_loopback_put(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+static const char * const rpaths_text[] = {
+	"From SDI0", "From SDI1", "From SDI2", "From SDI3" };
+
+static const char * const tpaths_text[] = {
+	"From PATH0", "From PATH1", "From PATH2", "From PATH3" };
+
+/* TXCR */
+static SOC_ENUM_SINGLE_DECL(tpath3_enum, I2S_TXCR, 29, tpaths_text);
+static SOC_ENUM_SINGLE_DECL(tpath2_enum, I2S_TXCR, 27, tpaths_text);
+static SOC_ENUM_SINGLE_DECL(tpath1_enum, I2S_TXCR, 25, tpaths_text);
+static SOC_ENUM_SINGLE_DECL(tpath0_enum, I2S_TXCR, 23, tpaths_text);
+
+/* RXCR */
+static SOC_ENUM_SINGLE_DECL(rpath3_enum, I2S_RXCR, 23, rpaths_text);
+static SOC_ENUM_SINGLE_DECL(rpath2_enum, I2S_RXCR, 21, rpaths_text);
+static SOC_ENUM_SINGLE_DECL(rpath1_enum, I2S_RXCR, 19, rpaths_text);
+static SOC_ENUM_SINGLE_DECL(rpath0_enum, I2S_RXCR, 17, rpaths_text);
+
 static const struct snd_kcontrol_new rockchip_i2s_tdm_snd_controls[] = {
+	SOC_ENUM("Receive PATH3 Source Select", rpath3_enum),
+	SOC_ENUM("Receive PATH2 Source Select", rpath2_enum),
+	SOC_ENUM("Receive PATH1 Source Select", rpath1_enum),
+	SOC_ENUM("Receive PATH0 Source Select", rpath0_enum),
+	SOC_ENUM("Transmit SDO3 Source Select", tpath3_enum),
+	SOC_ENUM("Transmit SDO2 Source Select", tpath2_enum),
+	SOC_ENUM("Transmit SDO1 Source Select", tpath1_enum),
+	SOC_ENUM("Transmit SDO0 Source Select", tpath0_enum),
+
 	SOC_ENUM_EXT("I2STDM Digital Loopback Mode", loopback_mode,
 		     rockchip_i2s_tdm_loopback_get,
 		     rockchip_i2s_tdm_loopback_put),
