@@ -53,6 +53,11 @@ mt76_alloc_txwi(struct mt76_dev *dev)
 
 	addr = dma_map_single(dev->dma_dev, txwi, dev->drv->txwi_size,
 			      DMA_TO_DEVICE);
+	if (unlikely(dma_mapping_error(dev->dma_dev, addr))) {
+		kfree(txwi);
+		return NULL;
+	}
+
 	t = (struct mt76_txwi_cache *)(txwi + dev->drv->txwi_size);
 	t->dma_addr = addr;
 
