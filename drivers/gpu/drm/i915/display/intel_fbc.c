@@ -1307,11 +1307,9 @@ static void __intel_fbc_post_update(struct intel_fbc *fbc)
 	lockdep_assert_held(&fbc->lock);
 
 	fbc->flip_pending = false;
+	fbc->busy_bits = 0;
 
-	if (!fbc->busy_bits)
-		intel_fbc_activate(fbc);
-	else
-		intel_fbc_deactivate(fbc, "frontbuffer write");
+	intel_fbc_activate(fbc);
 }
 
 void intel_fbc_post_update(struct intel_atomic_state *state,
