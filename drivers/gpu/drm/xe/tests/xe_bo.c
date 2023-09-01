@@ -181,7 +181,8 @@ static int evict_test_run_gt(struct xe_device *xe, struct xe_gt *gt, struct kuni
 		XE_BO_CREATE_VRAM_IF_DGFX(gt_to_tile(gt));
 	struct xe_vm *vm = xe_migrate_get_vm(xe_device_get_root_tile(xe)->migrate);
 	struct ww_acquire_ctx ww;
-	int err, i;
+	struct xe_gt *__gt;
+	int err, i, id;
 
 	kunit_info(test, "Testing device %s gt id %u vram id %u\n",
 		   dev_name(xe->drm.dev), gt->info.id, gt_to_tile(gt)->id);
@@ -218,7 +219,8 @@ static int evict_test_run_gt(struct xe_device *xe, struct xe_gt *gt, struct kuni
 			goto cleanup_all;
 		}
 
-		xe_gt_sanitize(gt);
+		for_each_gt(__gt, xe, id)
+			xe_gt_sanitize(__gt);
 		err = xe_bo_restore_kernel(xe);
 		/*
 		 * Snapshotting the CTB and copying back a potentially old
@@ -231,8 +233,10 @@ static int evict_test_run_gt(struct xe_device *xe, struct xe_gt *gt, struct kuni
 		 * however seems quite fragile not to also restart the GT. Try
 		 * to do that here by triggering a GT reset.
 		 */
-		xe_gt_reset_async(gt);
-		flush_work(&gt->reset.worker);
+		for_each_gt(__gt, xe, id) {
+			xe_gt_reset_async(__gt);
+			flush_work(&__gt->reset.worker);
+		}
 		if (err) {
 			KUNIT_FAIL(test, "restore kernel err=%pe\n",
 				   ERR_PTR(err));
