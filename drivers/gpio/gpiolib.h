@@ -122,8 +122,6 @@ struct gpio_array {
 	unsigned long		invert_mask[];
 };
 
-struct gpio_desc *gpiochip_get_desc(struct gpio_chip *gc, unsigned int hwnum);
-
 #define for_each_gpio_desc(gc, desc)					\
 	for (unsigned int __i = 0;					\
 	     __i < gc->ngpio && (desc = gpiochip_get_desc(gc, __i));	\
