@@ -348,8 +348,8 @@ void dcn35_update_bw_bounding_box_fpu(struct dc *dc,
 			dc->debug.dram_clock_change_latency_ns / 1000.0;
 	}
 	/*temp till dml2 fully work without dml1*/
-		dml_init_instance(&dc->dml, &dcn3_5_soc, &dcn3_5_ip,
-				  DML_PROJECT_DCN31);
+	dml_init_instance(&dc->dml, &dcn3_5_soc, &dcn3_5_ip,
+				DML_PROJECT_DCN31);
 }
 
 static bool is_dual_plane(enum surface_pixel_format format)
