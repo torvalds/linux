@@ -120,7 +120,7 @@ static int term(yyscan_t scanner, enum parse_events__term_type type)
 {
 	YYSTYPE *yylval = parse_events_get_lval(scanner);
 
-	yylval->num = type;
+	yylval->term_type = type;
 	return PE_TERM;
 }
 
