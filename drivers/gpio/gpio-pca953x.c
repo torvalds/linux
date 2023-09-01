@@ -1182,9 +1182,9 @@ static int pca953x_probe(struct i2c_client *client)
 }
 
 #ifdef CONFIG_PM_SLEEP
-static int pca953x_regcache_sync(struct device *dev)
+static int pca953x_regcache_sync(struct pca953x_chip *chip)
 {
-	struct pca953x_chip *chip = dev_get_drvdata(dev);
+	struct device *dev = &chip->client->dev;
 	int ret;
 	u8 regaddr;
 
@@ -1231,13 +1231,37 @@ static int pca953x_regcache_sync(struct device *dev)
 	return 0;
 }
 
+static int pca953x_restore_context(struct pca953x_chip *chip)
+{
+	int ret;
+
+	mutex_lock(&chip->i2c_lock);
+
+	regcache_cache_only(chip->regmap, false);
+	regcache_mark_dirty(chip->regmap);
+	ret = pca953x_regcache_sync(chip);
+	if (ret) {
+		mutex_unlock(&chip->i2c_lock);
+		return ret;
+	}
+
+	ret = regcache_sync(chip->regmap);
+	mutex_unlock(&chip->i2c_lock);
+	return ret;
+}
+
+static void pca953x_save_context(struct pca953x_chip *chip)
+{
+	mutex_lock(&chip->i2c_lock);
+	regcache_cache_only(chip->regmap, true);
+	mutex_unlock(&chip->i2c_lock);
+}
+
 static int pca953x_suspend(struct device *dev)
 {
 	struct pca953x_chip *chip = dev_get_drvdata(dev);
 
-	mutex_lock(&chip->i2c_lock);
-	regcache_cache_only(chip->regmap, true);
-	mutex_unlock(&chip->i2c_lock);
+	pca953x_save_context(chip);
 
 	if (atomic_read(&chip->wakeup_path))
 		device_set_wakeup_path(dev);
@@ -1260,17 +1284,7 @@ static int pca953x_resume(struct device *dev)
 		}
 	}
 
-	mutex_lock(&chip->i2c_lock);
-	regcache_cache_only(chip->regmap, false);
-	regcache_mark_dirty(chip->regmap);
-	ret = pca953x_regcache_sync(dev);
-	if (ret) {
-		mutex_unlock(&chip->i2c_lock);
-		return ret;
-	}
-
-	ret = regcache_sync(chip->regmap);
-	mutex_unlock(&chip->i2c_lock);
+	ret = pca953x_restore_context(chip);
 	if (ret) {
 		dev_err(dev, "Failed to restore register map: %d\n", ret);
 		return ret;
