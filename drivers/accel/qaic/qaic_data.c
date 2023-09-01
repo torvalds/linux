@@ -854,9 +854,9 @@ static int qaic_prepare_bo(struct qaic_device *qdev, struct qaic_bo *bo,
 		ret = qaic_prepare_import_bo(bo, hdr);
 	else
 		ret = qaic_prepare_export_bo(qdev, bo, hdr);
-
-	if (ret == 0)
-		bo->dir = hdr->dir;
+	bo->dir = hdr->dir;
+	bo->dbc = &qdev->dbc[hdr->dbc_id];
+	bo->nr_slice = hdr->count;
 
 	return ret;
 }
@@ -880,6 +880,8 @@ static void qaic_unprepare_bo(struct qaic_device *qdev, struct qaic_bo *bo)
 		qaic_unprepare_export_bo(qdev, bo);
 
 	bo->dir = 0;
+	bo->dbc = NULL;
+	bo->nr_slice = 0;
 }
 
 static void qaic_free_slices_bo(struct qaic_bo *bo)
@@ -904,14 +906,13 @@ static int qaic_attach_slicing_bo(struct qaic_device *qdev, struct qaic_bo *bo,
 		}
 	}
 
-	if (bo->total_slice_nents > qdev->dbc[hdr->dbc_id].nelem) {
+	if (bo->total_slice_nents > bo->dbc->nelem) {
 		qaic_free_slices_bo(bo);
 		return -ENOSPC;
 	}
 
 	bo->sliced = true;
-	bo->nr_slice = hdr->count;
-	list_add_tail(&bo->bo_list, &qdev->dbc[hdr->dbc_id].bo_lists);
+	list_add_tail(&bo->bo_list, &bo->dbc->bo_lists);
 
 	return 0;
 }
@@ -1014,7 +1015,6 @@ int qaic_attach_slice_bo_ioctl(struct drm_device *dev, void *data, struct drm_fi
 	if (args->hdr.dir == DMA_TO_DEVICE)
 		dma_sync_sgtable_for_cpu(&qdev->pdev->dev, bo->sgt, args->hdr.dir);
 
-	bo->dbc = dbc;
 	srcu_read_unlock(&dbc->ch_lock, rcu_id);
 	drm_gem_object_put(obj);
 	srcu_read_unlock(&qdev->dev_lock, qdev_rcu_id);
@@ -1870,14 +1870,12 @@ void release_dbc(struct qaic_device *qdev, u32 dbc_id)
 	dbc->usr = NULL;
 
 	list_for_each_entry_safe(bo, bo_temp, &dbc->bo_lists, bo_list) {
+		qaic_unprepare_bo(qdev, bo);
 		list_for_each_entry_safe(slice, slice_temp, &bo->slices, slice)
 			kref_put(&slice->ref_count, free_slice);
 		bo->sliced = false;
 		INIT_LIST_HEAD(&bo->slices);
 		bo->total_slice_nents = 0;
-		bo->dir = 0;
-		bo->dbc = NULL;
-		bo->nr_slice = 0;
 		bo->nr_slice_xfer_done = 0;
 		bo->queued = false;
 		bo->req_id = 0;
