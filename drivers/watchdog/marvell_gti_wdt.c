@@ -308,7 +308,7 @@ static int gti_wdt_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
-		return dev_err_probe(&pdev->dev, irq, "IRQ resource not found\n");
+		return irq;
 
 	err = devm_request_irq(dev, irq, gti_wdt_interrupt, 0,
 			       pdev->name, &priv->wdev);
