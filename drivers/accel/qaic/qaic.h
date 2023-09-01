@@ -27,6 +27,9 @@
 #define QAIC_DBC_OFF(i)		((i) * QAIC_DBC_SIZE + QAIC_DBC_BASE)
 
 #define to_qaic_bo(obj) container_of(obj, struct qaic_bo, base)
+#define to_qaic_drm_device(dev) container_of(dev, struct qaic_drm_device, drm)
+#define to_drm(qddev) (&(qddev)->drm)
+#define to_accel_kdev(qddev) (to_drm(qddev)->accel->kdev) /* Return Linux device of accel node */
 
 extern bool datapath_polling;
 
@@ -137,6 +140,8 @@ struct qaic_device {
 };
 
 struct qaic_drm_device {
+	/* The drm device struct of this drm device */
+	struct drm_device	drm;
 	/* Pointer to the root device struct driven by this driver */
 	struct qaic_device	*qdev;
 	/*
@@ -146,8 +151,6 @@ struct qaic_drm_device {
 	 * device is the actual physical device
 	 */
 	s32			partition_id;
-	/* Pointer to the drm device struct of this drm device */
-	struct drm_device	*ddev;
 	/* Head in list of users who have opened this drm device */
 	struct list_head	users;
 	/* Synchronizes access to users list */

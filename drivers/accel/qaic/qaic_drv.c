@@ -22,6 +22,7 @@
 #include <drm/drm_file.h>
 #include <drm/drm_gem.h>
 #include <drm/drm_ioctl.h>
+#include <drm/drm_managed.h>
 #include <uapi/drm/qaic_accel.h>
 
 #include "mhi_controller.h"
@@ -55,7 +56,7 @@ static void free_usr(struct kref *kref)
 
 static int qaic_open(struct drm_device *dev, struct drm_file *file)
 {
-	struct qaic_drm_device *qddev = dev->dev_private;
+	struct qaic_drm_device *qddev = to_qaic_drm_device(dev);
 	struct qaic_device *qdev = qddev->qdev;
 	struct qaic_user *usr;
 	int rcu_id;
@@ -170,64 +171,39 @@ static const struct drm_driver qaic_accel_driver = {
 
 static int qaic_create_drm_device(struct qaic_device *qdev, s32 partition_id)
 {
-	struct qaic_drm_device *qddev;
-	struct drm_device *ddev;
-	struct device *pdev;
+	struct qaic_drm_device *qddev = qdev->qddev;
+	struct drm_device *drm = to_drm(qddev);
 	int ret;
 
 	/* Hold off implementing partitions until the uapi is determined */
 	if (partition_id != QAIC_NO_PARTITION)
 		return -EINVAL;
 
-	pdev = &qdev->pdev->dev;
-
-	qddev = kzalloc(sizeof(*qddev), GFP_KERNEL);
-	if (!qddev)
-		return -ENOMEM;
-
-	ddev = drm_dev_alloc(&qaic_accel_driver, pdev);
-	if (IS_ERR(ddev)) {
-		ret = PTR_ERR(ddev);
-		goto ddev_fail;
-	}
-
-	ddev->dev_private = qddev;
-	qddev->ddev = ddev;
-
-	qddev->qdev = qdev;
 	qddev->partition_id = partition_id;
-	INIT_LIST_HEAD(&qddev->users);
-	mutex_init(&qddev->users_mutex);
 
-	qdev->qddev = qddev;
+	/*
+	 * drm_dev_unregister() sets the driver data to NULL and
+	 * drm_dev_register() does not update the driver data. During a SOC
+	 * reset drm dev is unregistered and registered again leaving the
+	 * driver data to NULL.
+	 */
+	dev_set_drvdata(to_accel_kdev(qddev), drm->accel);
+	ret = drm_dev_register(drm, 0);
+	if (ret)
+		pci_dbg(qdev->pdev, "drm_dev_register failed %d\n", ret);
 
-	ret = drm_dev_register(ddev, 0);
-	if (ret) {
-		pci_dbg(qdev->pdev, "%s: drm_dev_register failed %d\n", __func__, ret);
-		goto drm_reg_fail;
-	}
-
-	return 0;
-
-drm_reg_fail:
-	mutex_destroy(&qddev->users_mutex);
-	qdev->qddev = NULL;
-	drm_dev_put(ddev);
-ddev_fail:
-	kfree(qddev);
 	return ret;
 }
 
 static void qaic_destroy_drm_device(struct qaic_device *qdev, s32 partition_id)
 {
-	struct qaic_drm_device *qddev;
+	struct qaic_drm_device *qddev = qdev->qddev;
+	struct drm_device *drm = to_drm(qddev);
 	struct qaic_user *usr;
 
-	qddev = qdev->qddev;
-	qdev->qddev = NULL;
-	if (!qddev)
-		return;
-
+	drm_dev_get(drm);
+	drm_dev_unregister(drm);
+	qddev->partition_id = 0;
 	/*
 	 * Existing users get unresolvable errors till they close FDs.
 	 * Need to sync carefully with users calling close(). The
@@ -254,13 +230,7 @@ static void qaic_destroy_drm_device(struct qaic_device *qdev, s32 partition_id)
 		mutex_lock(&qddev->users_mutex);
 	}
 	mutex_unlock(&qddev->users_mutex);
-
-	if (qddev->ddev) {
-		drm_dev_unregister(qddev->ddev);
-		drm_dev_put(qddev->ddev);
-	}
-
-	kfree(qddev);
+	drm_dev_put(drm);
 }
 
 static int qaic_mhi_probe(struct mhi_device *mhi_dev, const struct mhi_device_id *id)
@@ -344,8 +314,20 @@ void qaic_dev_reset_clean_local_state(struct qaic_device *qdev, bool exit_reset)
 		qdev->in_reset = false;
 }
 
+static void cleanup_qdev(struct qaic_device *qdev)
+{
+	int i;
+
+	for (i = 0; i < qdev->num_dbc; ++i)
+		cleanup_srcu_struct(&qdev->dbc[i].ch_lock);
+	cleanup_srcu_struct(&qdev->dev_lock);
+	pci_set_drvdata(qdev->pdev, NULL);
+	destroy_workqueue(qdev->cntl_wq);
+}
+
 static struct qaic_device *create_qdev(struct pci_dev *pdev, const struct pci_device_id *id)
 {
+	struct qaic_drm_device *qddev;
 	struct qaic_device *qdev;
 	int i;
 
@@ -381,18 +363,18 @@ static struct qaic_device *create_qdev(struct pci_dev *pdev, const struct pci_de
 		INIT_LIST_HEAD(&qdev->dbc[i].bo_lists);
 	}
 
+	qddev = devm_drm_dev_alloc(&pdev->dev, &qaic_accel_driver, struct qaic_drm_device, drm);
+	if (IS_ERR(qddev)) {
+		cleanup_qdev(qdev);
+		return NULL;
+	}
+
+	drmm_mutex_init(to_drm(qddev), &qddev->users_mutex);
+	INIT_LIST_HEAD(&qddev->users);
+	qddev->qdev = qdev;
+	qdev->qddev = qddev;
+
 	return qdev;
-}
-
-static void cleanup_qdev(struct qaic_device *qdev)
-{
-	int i;
-
-	for (i = 0; i < qdev->num_dbc; ++i)
-		cleanup_srcu_struct(&qdev->dbc[i].ch_lock);
-	cleanup_srcu_struct(&qdev->dev_lock);
-	pci_set_drvdata(qdev->pdev, NULL);
-	destroy_workqueue(qdev->cntl_wq);
 }
 
 static int init_pci(struct qaic_device *qdev, struct pci_dev *pdev)
