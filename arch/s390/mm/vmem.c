@@ -290,13 +290,8 @@ out:
 
 static void try_free_pmd_table(pud_t *pud, unsigned long start)
 {
-	const unsigned long end = start + PUD_SIZE;
 	pmd_t *pmd;
 	int i;
-
-	/* Don't mess with any tables not fully in 1:1 mapping & vmemmap area */
-	if (end > VMALLOC_START)
-		return;
 
 	pmd = pmd_offset(pud, start);
 	for (i = 0; i < PTRS_PER_PMD; i++, pmd++)
@@ -362,13 +357,8 @@ out:
 
 static void try_free_pud_table(p4d_t *p4d, unsigned long start)
 {
-	const unsigned long end = start + P4D_SIZE;
 	pud_t *pud;
 	int i;
-
-	/* Don't mess with any tables not fully in 1:1 mapping & vmemmap area */
-	if (end > VMALLOC_START)
-		return;
 
 	pud = pud_offset(p4d, start);
 	for (i = 0; i < PTRS_PER_PUD; i++, pud++) {
@@ -412,13 +402,8 @@ out:
 
 static void try_free_p4d_table(pgd_t *pgd, unsigned long start)
 {
-	const unsigned long end = start + PGDIR_SIZE;
 	p4d_t *p4d;
 	int i;
-
-	/* Don't mess with any tables not fully in 1:1 mapping & vmemmap area */
-	if (end > VMALLOC_START)
-		return;
 
 	p4d = p4d_offset(pgd, start);
 	for (i = 0; i < PTRS_PER_P4D; i++, p4d++) {
@@ -438,6 +423,9 @@ static int modify_pagetable(unsigned long start, unsigned long end, bool add,
 	p4d_t *p4d;
 
 	if (WARN_ON_ONCE(!PAGE_ALIGNED(start | end)))
+		return -EINVAL;
+	/* Don't mess with any tables not fully in 1:1 mapping & vmemmap area */
+	if (WARN_ON_ONCE(end > VMALLOC_START))
 		return -EINVAL;
 	for (addr = start; addr < end; addr = next) {
 		next = pgd_addr_end(addr, end);
