@@ -23,7 +23,6 @@
  */
 
 #include "dcn35_optc.h"
-#include "dcn35_optc.h"
 
 #include "dcn30/dcn30_optc.h"
 #include "dcn31/dcn31_optc.h"
