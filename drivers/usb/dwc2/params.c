@@ -7,8 +7,13 @@
 #include <linux/module.h>
 #include <linux/of_device.h>
 #include <linux/usb/of.h>
+#include <linux/pci_ids.h>
+#include <linux/pci.h>
 
 #include "core.h"
+
+#define PCI_PRODUCT_ID_HAPS_HSOTG	0xabc0
+#define PCI_DEVICE_ID_LOONGSON_DWC2	0x7a04
 
 static void dwc2_set_bcm_params(struct dwc2_hsotg *hsotg)
 {
@@ -53,6 +58,14 @@ static void dwc2_set_jz4775_params(struct dwc2_hsotg *hsotg)
 	p->phy_utmi_width = 16;
 	p->activate_ingenic_overcurrent_detection =
 		!device_property_read_bool(hsotg->dev, "disable-over-current");
+}
+
+static void dwc2_set_loongson_params(struct dwc2_hsotg *hsotg)
+{
+	struct dwc2_core_params *p = &hsotg->params;
+
+	p->phy_utmi_width = 8;
+	p->power_down = DWC2_POWER_DOWN_PARAM_PARTIAL;
 }
 
 static void dwc2_set_x1600_params(struct dwc2_hsotg *hsotg)
@@ -301,6 +314,23 @@ const struct acpi_device_id dwc2_acpi_match[] = {
 	{ },
 };
 MODULE_DEVICE_TABLE(acpi, dwc2_acpi_match);
+
+const struct pci_device_id dwc2_pci_ids[] = {
+	{
+		PCI_DEVICE(PCI_VENDOR_ID_SYNOPSYS, PCI_PRODUCT_ID_HAPS_HSOTG),
+	},
+	{
+		PCI_DEVICE(PCI_VENDOR_ID_STMICRO,
+			   PCI_DEVICE_ID_STMICRO_USB_OTG),
+	},
+	{
+		PCI_DEVICE(PCI_VENDOR_ID_LOONGSON, PCI_DEVICE_ID_LOONGSON_DWC2),
+		.driver_data = (unsigned long)dwc2_set_loongson_params,
+	},
+	{ /* end: all zeroes */ }
+};
+MODULE_DEVICE_TABLE(pci, dwc2_pci_ids);
+EXPORT_SYMBOL_GPL(dwc2_pci_ids);
 
 static void dwc2_set_param_otg_cap(struct dwc2_hsotg *hsotg)
 {
@@ -948,12 +978,19 @@ int dwc2_init_params(struct dwc2_hsotg *hsotg)
 	if (match && match->data) {
 		set_params = match->data;
 		set_params(hsotg);
-	} else {
+	} else if (!match) {
 		const struct acpi_device_id *amatch;
+		const struct pci_device_id *pmatch = NULL;
 
 		amatch = acpi_match_device(dwc2_acpi_match, hsotg->dev);
 		if (amatch && amatch->driver_data) {
 			set_params = (set_params_cb)amatch->driver_data;
+			set_params(hsotg);
+		} else if (!amatch)
+			pmatch = pci_match_id(dwc2_pci_ids, to_pci_dev(hsotg->dev->parent));
+
+		if (pmatch && pmatch->driver_data) {
+			set_params = (set_params_cb)pmatch->driver_data;
 			set_params(hsotg);
 		}
 	}

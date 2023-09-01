@@ -1,11 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- * XHCI HCD glue for Cavium Octeon III SOCs.
+ * DWC3 glue for Cavium Octeon III SOCs.
  *
  * Copyright (C) 2010-2017 Cavium Networks
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
+ * Copyright (C) 2023 RACOM s.r.o.
  */
 
 #include <linux/bitfield.h>
@@ -24,9 +22,9 @@
 /* BIST fast-clear mode select. A BIST run with this bit set
  * clears all entries in USBH RAMs to 0x0.
  */
-# define USBDRD_UCTL_CTL_CLEAR_BIST		BIT(63)
+# define USBDRD_UCTL_CTL_CLEAR_BIST		BIT_ULL(63)
 /* 1 = Start BIST and cleared by hardware */
-# define USBDRD_UCTL_CTL_START_BIST		BIT(62)
+# define USBDRD_UCTL_CTL_START_BIST		BIT_ULL(62)
 /* Reference clock select for SuperSpeed and HighSpeed PLLs:
  *	0x0 = Both PLLs use DLMC_REF_CLK0 for reference clock
  *	0x1 = Both PLLs use DLMC_REF_CLK1 for reference clock
@@ -35,32 +33,32 @@
  *	0x3 = SuperSpeed PLL uses DLMC_REF_CLK1 for reference clock &
  *	      HighSpeed PLL uses PLL_REF_CLK for reference clck
  */
-# define USBDRD_UCTL_CTL_REF_CLK_SEL		GENMASK(61, 60)
+# define USBDRD_UCTL_CTL_REF_CLK_SEL		GENMASK_ULL(61, 60)
 /* 1 = Spread-spectrum clock enable, 0 = SS clock disable */
-# define USBDRD_UCTL_CTL_SSC_EN			BIT(59)
+# define USBDRD_UCTL_CTL_SSC_EN			BIT_ULL(59)
 /* Spread-spectrum clock modulation range:
  *	0x0 = -4980 ppm downspread
  *	0x1 = -4492 ppm downspread
  *	0x2 = -4003 ppm downspread
  *	0x3 - 0x7 = Reserved
  */
-# define USBDRD_UCTL_CTL_SSC_RANGE		GENMASK(58, 56)
+# define USBDRD_UCTL_CTL_SSC_RANGE		GENMASK_ULL(58, 56)
 /* Enable non-standard oscillator frequencies:
  *	[55:53] = modules -1
  *	[52:47] = 2's complement push amount, 0 = Feature disabled
  */
-# define USBDRD_UCTL_CTL_SSC_REF_CLK_SEL	GENMASK(55, 47)
+# define USBDRD_UCTL_CTL_SSC_REF_CLK_SEL	GENMASK_ULL(55, 47)
 /* Reference clock multiplier for non-standard frequencies:
  *	0x19 = 100MHz on DLMC_REF_CLK* if REF_CLK_SEL = 0x0 or 0x1
  *	0x28 = 125MHz on DLMC_REF_CLK* if REF_CLK_SEL = 0x0 or 0x1
  *	0x32 =  50MHz on DLMC_REF_CLK* if REF_CLK_SEL = 0x0 or 0x1
  *	Other Values = Reserved
  */
-# define USBDRD_UCTL_CTL_MPLL_MULTIPLIER	GENMASK(46, 40)
+# define USBDRD_UCTL_CTL_MPLL_MULTIPLIER	GENMASK_ULL(46, 40)
 /* Enable reference clock to prescaler for SuperSpeed functionality.
  * Should always be set to "1"
  */
-# define USBDRD_UCTL_CTL_REF_SSP_EN		BIT(39)
+# define USBDRD_UCTL_CTL_REF_SSP_EN		BIT_ULL(39)
 /* Divide the reference clock by 2 before entering the
  * REF_CLK_FSEL divider:
  *	If REF_CLK_SEL = 0x0 or 0x1, then only 0x0 is legal
@@ -68,21 +66,21 @@
  *		0x1 = DLMC_REF_CLK* is 125MHz
  *		0x0 = DLMC_REF_CLK* is another supported frequency
  */
-# define USBDRD_UCTL_CTL_REF_CLK_DIV2		BIT(38)
+# define USBDRD_UCTL_CTL_REF_CLK_DIV2		BIT_ULL(38)
 /* Select reference clock freqnuency for both PLL blocks:
  *	0x27 = REF_CLK_SEL is 0x0 or 0x1
  *	0x07 = REF_CLK_SEL is 0x2 or 0x3
  */
-# define USBDRD_UCTL_CTL_REF_CLK_FSEL		GENMASK(37, 32)
+# define USBDRD_UCTL_CTL_REF_CLK_FSEL		GENMASK_ULL(37, 32)
 /* Controller clock enable. */
-# define USBDRD_UCTL_CTL_H_CLK_EN		BIT(30)
+# define USBDRD_UCTL_CTL_H_CLK_EN		BIT_ULL(30)
 /* Select bypass input to controller clock divider:
  *	0x0 = Use divided coprocessor clock from H_CLKDIV
  *	0x1 = Use clock from GPIO pins
  */
-# define USBDRD_UCTL_CTL_H_CLK_BYP_SEL		BIT(29)
+# define USBDRD_UCTL_CTL_H_CLK_BYP_SEL		BIT_ULL(29)
 /* Reset controller clock divider. */
-# define USBDRD_UCTL_CTL_H_CLKDIV_RST		BIT(28)
+# define USBDRD_UCTL_CTL_H_CLKDIV_RST		BIT_ULL(28)
 /* Clock divider select:
  *	0x0 = divide by 1
  *	0x1 = divide by 2
@@ -93,29 +91,29 @@
  *	0x6 = divide by 24
  *	0x7 = divide by 32
  */
-# define USBDRD_UCTL_CTL_H_CLKDIV_SEL		GENMASK(26, 24)
+# define USBDRD_UCTL_CTL_H_CLKDIV_SEL		GENMASK_ULL(26, 24)
 /* USB3 port permanently attached: 0x0 = No, 0x1 = Yes */
-# define USBDRD_UCTL_CTL_USB3_PORT_PERM_ATTACH	BIT(21)
+# define USBDRD_UCTL_CTL_USB3_PORT_PERM_ATTACH	BIT_ULL(21)
 /* USB2 port permanently attached: 0x0 = No, 0x1 = Yes */
-# define USBDRD_UCTL_CTL_USB2_PORT_PERM_ATTACH	BIT(20)
+# define USBDRD_UCTL_CTL_USB2_PORT_PERM_ATTACH	BIT_ULL(20)
 /* Disable SuperSpeed PHY: 0x0 = No, 0x1 = Yes */
-# define USBDRD_UCTL_CTL_USB3_PORT_DISABLE	BIT(18)
+# define USBDRD_UCTL_CTL_USB3_PORT_DISABLE	BIT_ULL(18)
 /* Disable HighSpeed PHY: 0x0 = No, 0x1 = Yes */
-# define USBDRD_UCTL_CTL_USB2_PORT_DISABLE	BIT(16)
+# define USBDRD_UCTL_CTL_USB2_PORT_DISABLE	BIT_ULL(16)
 /* Enable PHY SuperSpeed block power: 0x0 = No, 0x1 = Yes */
-# define USBDRD_UCTL_CTL_SS_POWER_EN		BIT(14)
+# define USBDRD_UCTL_CTL_SS_POWER_EN		BIT_ULL(14)
 /* Enable PHY HighSpeed block power: 0x0 = No, 0x1 = Yes */
-# define USBDRD_UCTL_CTL_HS_POWER_EN		BIT(12)
+# define USBDRD_UCTL_CTL_HS_POWER_EN		BIT_ULL(12)
 /* Enable USB UCTL interface clock: 0xx = No, 0x1 = Yes */
-# define USBDRD_UCTL_CTL_CSCLK_EN		BIT(4)
+# define USBDRD_UCTL_CTL_CSCLK_EN		BIT_ULL(4)
 /* Controller mode: 0x0 = Host, 0x1 = Device */
-# define USBDRD_UCTL_CTL_DRD_MODE		BIT(3)
+# define USBDRD_UCTL_CTL_DRD_MODE		BIT_ULL(3)
 /* PHY reset */
-# define USBDRD_UCTL_CTL_UPHY_RST		BIT(2)
+# define USBDRD_UCTL_CTL_UPHY_RST		BIT_ULL(2)
 /* Software reset UAHC */
-# define USBDRD_UCTL_CTL_UAHC_RST		BIT(1)
+# define USBDRD_UCTL_CTL_UAHC_RST		BIT_ULL(1)
 /* Software resets UCTL */
-# define USBDRD_UCTL_CTL_UCTL_RST		BIT(0)
+# define USBDRD_UCTL_CTL_UCTL_RST		BIT_ULL(0)
 
 #define USBDRD_UCTL_BIST_STATUS			0x08
 #define USBDRD_UCTL_SPARE0			0x10
@@ -130,64 +128,69 @@
  */
 #define USBDRD_UCTL_HOST_CFG			0xe0
 /* Indicates minimum value of all received BELT values */
-# define USBDRD_UCTL_HOST_CFG_HOST_CURRENT_BELT	GENMASK(59, 48)
+# define USBDRD_UCTL_HOST_CFG_HOST_CURRENT_BELT	GENMASK_ULL(59, 48)
 /* HS jitter adjustment */
-# define USBDRD_UCTL_HOST_CFG_FLA		GENMASK(37, 32)
+# define USBDRD_UCTL_HOST_CFG_FLA		GENMASK_ULL(37, 32)
 /* Bus-master enable: 0x0 = Disabled (stall DMAs), 0x1 = enabled */
-# define USBDRD_UCTL_HOST_CFG_BME		BIT(28)
+# define USBDRD_UCTL_HOST_CFG_BME		BIT_ULL(28)
 /* Overcurrent protection enable: 0x0 = unavailable, 0x1 = available */
-# define USBDRD_UCTL_HOST_OCI_EN		BIT(27)
+# define USBDRD_UCTL_HOST_OCI_EN		BIT_ULL(27)
 /* Overcurrent sene selection:
  *	0x0 = Overcurrent indication from off-chip is active-low
  *	0x1 = Overcurrent indication from off-chip is active-high
  */
-# define USBDRD_UCTL_HOST_OCI_ACTIVE_HIGH_EN	BIT(26)
+# define USBDRD_UCTL_HOST_OCI_ACTIVE_HIGH_EN	BIT_ULL(26)
 /* Port power control enable: 0x0 = unavailable, 0x1 = available */
-# define USBDRD_UCTL_HOST_PPC_EN		BIT(25)
+# define USBDRD_UCTL_HOST_PPC_EN		BIT_ULL(25)
 /* Port power control sense selection:
  *	0x0 = Port power to off-chip is active-low
  *	0x1 = Port power to off-chip is active-high
  */
-# define USBDRD_UCTL_HOST_PPC_ACTIVE_HIGH_EN	BIT(24)
+# define USBDRD_UCTL_HOST_PPC_ACTIVE_HIGH_EN	BIT_ULL(24)
 
 /*
  * UCTL Shim Features Register
  */
 #define USBDRD_UCTL_SHIM_CFG			0xe8
 /* Out-of-bound UAHC register access: 0 = read, 1 = write */
-# define USBDRD_UCTL_SHIM_CFG_XS_NCB_OOB_WRN	BIT(63)
+# define USBDRD_UCTL_SHIM_CFG_XS_NCB_OOB_WRN	BIT_ULL(63)
 /* SRCID error log for out-of-bound UAHC register access:
  *	[59:58] = chipID
  *	[57] = Request source: 0 = core, 1 = NCB-device
  *	[56:51] = Core/NCB-device number, [56] always 0 for NCB devices
  *	[50:48] = SubID
  */
-# define USBDRD_UCTL_SHIM_CFG_XS_NCB_OOB_OSRC	GENMASK(59, 48)
+# define USBDRD_UCTL_SHIM_CFG_XS_NCB_OOB_OSRC	GENMASK_ULL(59, 48)
 /* Error log for bad UAHC DMA access: 0 = Read log, 1 = Write log */
-# define USBDRD_UCTL_SHIM_CFG_XM_BAD_DMA_WRN	BIT(47)
+# define USBDRD_UCTL_SHIM_CFG_XM_BAD_DMA_WRN	BIT_ULL(47)
 /* Encoded error type for bad UAHC DMA */
-# define USBDRD_UCTL_SHIM_CFG_XM_BAD_DMA_TYPE	GENMASK(43, 40)
+# define USBDRD_UCTL_SHIM_CFG_XM_BAD_DMA_TYPE	GENMASK_ULL(43, 40)
 /* Select the IOI read command used by DMA accesses */
-# define USBDRD_UCTL_SHIM_CFG_DMA_READ_CMD	BIT(12)
+# define USBDRD_UCTL_SHIM_CFG_DMA_READ_CMD	BIT_ULL(12)
 /* Select endian format for DMA accesses to the L2C:
  *	0x0 = Little endian
  *	0x1 = Big endian
  *	0x2 = Reserved
  *	0x3 = Reserved
  */
-# define USBDRD_UCTL_SHIM_CFG_DMA_ENDIAN_MODE	GENMASK(9, 8)
+# define USBDRD_UCTL_SHIM_CFG_DMA_ENDIAN_MODE	GENMASK_ULL(9, 8)
 /* Select endian format for IOI CSR access to UAHC:
  *	0x0 = Little endian
  *	0x1 = Big endian
  *	0x2 = Reserved
  *	0x3 = Reserved
  */
-# define USBDRD_UCTL_SHIM_CFG_CSR_ENDIAN_MODE	GENMASK(1, 0)
+# define USBDRD_UCTL_SHIM_CFG_CSR_ENDIAN_MODE	GENMASK_ULL(1, 0)
 
 #define USBDRD_UCTL_ECC				0xf0
 #define USBDRD_UCTL_SPARE1			0xf8
 
-static DEFINE_MUTEX(dwc3_octeon_clocks_mutex);
+struct dwc3_octeon {
+	struct device *dev;
+	void __iomem *base;
+};
+
+#define DWC3_GPIO_POWER_NONE	(-1)
 
 #ifdef CONFIG_CAVIUM_OCTEON_SOC
 #include <asm/octeon/octeon.h>
@@ -233,6 +236,11 @@ static inline uint64_t dwc3_octeon_readq(void __iomem *addr)
 static inline void dwc3_octeon_writeq(void __iomem *base, uint64_t val) { }
 
 static inline void dwc3_octeon_config_gpio(int index, int gpio) { }
+
+static uint64_t octeon_get_io_clock_rate(void)
+{
+	return 150000000;
+}
 #endif
 
 static int dwc3_octeon_get_divider(void)
@@ -243,115 +251,22 @@ static int dwc3_octeon_get_divider(void)
 	while (div < ARRAY_SIZE(clk_div)) {
 		uint64_t rate = octeon_get_io_clock_rate() / clk_div[div];
 		if (rate <= 300000000 && rate >= 150000000)
-			break;
+			return div;
 		div++;
 	}
 
-	return div;
+	return -EINVAL;
 }
 
-static int dwc3_octeon_config_power(struct device *dev, void __iomem *base)
+static int dwc3_octeon_setup(struct dwc3_octeon *octeon,
+			     int ref_clk_sel, int ref_clk_fsel, int mpll_mul,
+			     int power_gpio, int power_active_low)
 {
-	uint32_t gpio_pwr[3];
-	int gpio, len, power_active_low;
-	struct device_node *node = dev->of_node;
 	u64 val;
-	void __iomem *uctl_host_cfg_reg = base + USBDRD_UCTL_HOST_CFG;
-
-	if (of_find_property(node, "power", &len) != NULL) {
-		if (len == 12) {
-			of_property_read_u32_array(node, "power", gpio_pwr, 3);
-			power_active_low = gpio_pwr[2] & 0x01;
-			gpio = gpio_pwr[1];
-		} else if (len == 8) {
-			of_property_read_u32_array(node, "power", gpio_pwr, 2);
-			power_active_low = 0;
-			gpio = gpio_pwr[1];
-		} else {
-			dev_err(dev, "invalid power configuration\n");
-			return -EINVAL;
-		}
-		dwc3_octeon_config_gpio(((u64)base >> 24) & 1, gpio);
-
-		/* Enable XHCI power control and set if active high or low. */
-		val = dwc3_octeon_readq(uctl_host_cfg_reg);
-		val |= USBDRD_UCTL_HOST_PPC_EN;
-		if (power_active_low)
-			val &= ~USBDRD_UCTL_HOST_PPC_ACTIVE_HIGH_EN;
-		else
-			val |= USBDRD_UCTL_HOST_PPC_ACTIVE_HIGH_EN;
-		dwc3_octeon_writeq(uctl_host_cfg_reg, val);
-	} else {
-		/* Disable XHCI power control and set if active high. */
-		val = dwc3_octeon_readq(uctl_host_cfg_reg);
-		val &= ~USBDRD_UCTL_HOST_PPC_EN;
-		val &= ~USBDRD_UCTL_HOST_PPC_ACTIVE_HIGH_EN;
-		dwc3_octeon_writeq(uctl_host_cfg_reg, val);
-		dev_info(dev, "power control disabled\n");
-	}
-	return 0;
-}
-
-static int dwc3_octeon_clocks_start(struct device *dev, void __iomem *base)
-{
-	int i, div, mpll_mul, ref_clk_fsel, ref_clk_sel = 2;
-	u32 clock_rate;
-	u64 val;
-	void __iomem *uctl_ctl_reg = base + USBDRD_UCTL_CTL;
-
-	if (dev->of_node) {
-		const char *ss_clock_type;
-		const char *hs_clock_type;
-
-		i = of_property_read_u32(dev->of_node,
-					 "refclk-frequency", &clock_rate);
-		if (i) {
-			dev_err(dev, "No UCTL \"refclk-frequency\"\n");
-			return -EINVAL;
-		}
-		i = of_property_read_string(dev->of_node,
-					    "refclk-type-ss", &ss_clock_type);
-		if (i) {
-			dev_err(dev, "No UCTL \"refclk-type-ss\"\n");
-			return -EINVAL;
-		}
-		i = of_property_read_string(dev->of_node,
-					    "refclk-type-hs", &hs_clock_type);
-		if (i) {
-			dev_err(dev, "No UCTL \"refclk-type-hs\"\n");
-			return -EINVAL;
-		}
-		if (strcmp("dlmc_ref_clk0", ss_clock_type) == 0) {
-			if (strcmp(hs_clock_type, "dlmc_ref_clk0") == 0)
-				ref_clk_sel = 0;
-			else if (strcmp(hs_clock_type, "pll_ref_clk") == 0)
-				ref_clk_sel = 2;
-			else
-				dev_warn(dev, "Invalid HS clock type %s, using pll_ref_clk instead\n",
-					 hs_clock_type);
-		} else if (strcmp(ss_clock_type, "dlmc_ref_clk1") == 0) {
-			if (strcmp(hs_clock_type, "dlmc_ref_clk1") == 0)
-				ref_clk_sel = 1;
-			else if (strcmp(hs_clock_type, "pll_ref_clk") == 0)
-				ref_clk_sel = 3;
-			else {
-				dev_warn(dev, "Invalid HS clock type %s, using pll_ref_clk instead\n",
-					 hs_clock_type);
-				ref_clk_sel = 3;
-			}
-		} else
-			dev_warn(dev, "Invalid SS clock type %s, using dlmc_ref_clk0 instead\n",
-				 ss_clock_type);
-
-		if ((ref_clk_sel == 0 || ref_clk_sel == 1) &&
-		    (clock_rate != 100000000))
-			dev_warn(dev, "Invalid UCTL clock rate of %u, using 100000000 instead\n",
-				 clock_rate);
-
-	} else {
-		dev_err(dev, "No USB UCTL device node\n");
-		return -EINVAL;
-	}
+	int div;
+	struct device *dev = octeon->dev;
+	void __iomem *uctl_ctl_reg = octeon->base + USBDRD_UCTL_CTL;
+	void __iomem *uctl_host_cfg_reg = octeon->base + USBDRD_UCTL_HOST_CFG;
 
 	/*
 	 * Step 1: Wait for all voltages to be stable...that surely
@@ -374,6 +289,10 @@ static int dwc3_octeon_clocks_start(struct device *dev, void __iomem *base)
 
 	/* Step 4b: Select controller clock frequency. */
 	div = dwc3_octeon_get_divider();
+	if (div < 0) {
+		dev_err(dev, "clock divider invalid\n");
+		return div;
+	}
 	val = dwc3_octeon_readq(uctl_ctl_reg);
 	val &= ~USBDRD_UCTL_CTL_H_CLKDIV_SEL;
 	val |= FIELD_PREP(USBDRD_UCTL_CTL_H_CLKDIV_SEL, div);
@@ -382,8 +301,8 @@ static int dwc3_octeon_clocks_start(struct device *dev, void __iomem *base)
 	val = dwc3_octeon_readq(uctl_ctl_reg);
 	if ((div != FIELD_GET(USBDRD_UCTL_CTL_H_CLKDIV_SEL, val)) ||
 	    (!(FIELD_GET(USBDRD_UCTL_CTL_H_CLK_EN, val)))) {
-		dev_err(dev, "dwc3 controller clock init failure.\n");
-			return -EINVAL;
+		dev_err(dev, "clock init failure (UCTL_CTL=%016llx)\n", val);
+		return -EINVAL;
 	}
 
 	/* Step 4c: Deassert the controller clock divider reset. */
@@ -396,24 +315,6 @@ static int dwc3_octeon_clocks_start(struct device *dev, void __iomem *base)
 	val &= ~USBDRD_UCTL_CTL_REF_CLK_SEL;
 	val |= FIELD_PREP(USBDRD_UCTL_CTL_REF_CLK_SEL, ref_clk_sel);
 
-	ref_clk_fsel = 0x07;
-	switch (clock_rate) {
-	default:
-		dev_warn(dev, "Invalid ref_clk %u, using 100000000 instead\n",
-			 clock_rate);
-		fallthrough;
-	case 100000000:
-		mpll_mul = 0x19;
-		if (ref_clk_sel < 2)
-			ref_clk_fsel = 0x27;
-		break;
-	case 50000000:
-		mpll_mul = 0x32;
-		break;
-	case 125000000:
-		mpll_mul = 0x28;
-		break;
-	}
 	val &= ~USBDRD_UCTL_CTL_REF_CLK_FSEL;
 	val |= FIELD_PREP(USBDRD_UCTL_CTL_REF_CLK_FSEL, ref_clk_fsel);
 
@@ -444,9 +345,22 @@ static int dwc3_octeon_clocks_start(struct device *dev, void __iomem *base)
 	/* Step 8b: Wait 10 controller-clock cycles. */
 	udelay(10);
 
-	/* Steo 8c: Setup power-power control. */
-	if (dwc3_octeon_config_power(dev, base))
-		return -EINVAL;
+	/* Step 8c: Setup power control. */
+	val = dwc3_octeon_readq(uctl_host_cfg_reg);
+	val |= USBDRD_UCTL_HOST_PPC_EN;
+	if (power_gpio == DWC3_GPIO_POWER_NONE) {
+		val &= ~USBDRD_UCTL_HOST_PPC_EN;
+	} else {
+		val |= USBDRD_UCTL_HOST_PPC_EN;
+		dwc3_octeon_config_gpio(((__force uintptr_t)octeon->base >> 24) & 1,
+					power_gpio);
+		dev_dbg(dev, "power control is using gpio%d\n", power_gpio);
+	}
+	if (power_active_low)
+		val &= ~USBDRD_UCTL_HOST_PPC_ACTIVE_HIGH_EN;
+	else
+		val |= USBDRD_UCTL_HOST_PPC_ACTIVE_HIGH_EN;
+	dwc3_octeon_writeq(uctl_host_cfg_reg, val);
 
 	/* Step 8d: Deassert UAHC reset signal. */
 	val = dwc3_octeon_readq(uctl_ctl_reg);
@@ -469,10 +383,10 @@ static int dwc3_octeon_clocks_start(struct device *dev, void __iomem *base)
 	return 0;
 }
 
-static void __init dwc3_octeon_set_endian_mode(void __iomem *base)
+static void dwc3_octeon_set_endian_mode(struct dwc3_octeon *octeon)
 {
 	u64 val;
-	void __iomem *uctl_shim_cfg_reg = base + USBDRD_UCTL_SHIM_CFG;
+	void __iomem *uctl_shim_cfg_reg = octeon->base + USBDRD_UCTL_SHIM_CFG;
 
 	val = dwc3_octeon_readq(uctl_shim_cfg_reg);
 	val &= ~USBDRD_UCTL_SHIM_CFG_DMA_ENDIAN_MODE;
@@ -484,68 +398,146 @@ static void __init dwc3_octeon_set_endian_mode(void __iomem *base)
 	dwc3_octeon_writeq(uctl_shim_cfg_reg, val);
 }
 
-static void __init dwc3_octeon_phy_reset(void __iomem *base)
+static void dwc3_octeon_phy_reset(struct dwc3_octeon *octeon)
 {
 	u64 val;
-	void __iomem *uctl_ctl_reg = base + USBDRD_UCTL_CTL;
+	void __iomem *uctl_ctl_reg = octeon->base + USBDRD_UCTL_CTL;
 
 	val = dwc3_octeon_readq(uctl_ctl_reg);
 	val &= ~USBDRD_UCTL_CTL_UPHY_RST;
 	dwc3_octeon_writeq(uctl_ctl_reg, val);
 }
 
-static int __init dwc3_octeon_device_init(void)
+static int dwc3_octeon_probe(struct platform_device *pdev)
 {
-	const char compat_node_name[] = "cavium,octeon-7130-usb-uctl";
-	struct platform_device *pdev;
-	struct device_node *node;
-	struct resource *res;
-	void __iomem *base;
+	struct device *dev = &pdev->dev;
+	struct device_node *node = dev->of_node;
+	struct dwc3_octeon *octeon;
+	const char *hs_clock_type, *ss_clock_type;
+	int ref_clk_sel, ref_clk_fsel, mpll_mul;
+	int power_active_low, power_gpio;
+	int err, len;
+	u32 clock_rate;
 
-	/*
-	 * There should only be three universal controllers, "uctl"
-	 * in the device tree. Two USB and a SATA, which we ignore.
-	 */
-	node = NULL;
-	do {
-		node = of_find_node_by_name(node, "uctl");
-		if (!node)
-			return -ENODEV;
+	if (of_property_read_u32(node, "refclk-frequency", &clock_rate)) {
+		dev_err(dev, "No UCTL \"refclk-frequency\"\n");
+		return -EINVAL;
+	}
+	if (of_property_read_string(node, "refclk-type-ss", &ss_clock_type)) {
+		dev_err(dev, "No UCTL \"refclk-type-ss\"\n");
+		return -EINVAL;
+	}
+	if (of_property_read_string(node, "refclk-type-hs", &hs_clock_type)) {
+		dev_err(dev, "No UCTL \"refclk-type-hs\"\n");
+		return -EINVAL;
+	}
 
-		if (of_device_is_compatible(node, compat_node_name)) {
-			pdev = of_find_device_by_node(node);
-			if (!pdev)
-				return -ENODEV;
-
-			/*
-			 * The code below maps in the registers necessary for
-			 * setting up the clocks and reseting PHYs. We must
-			 * release the resources so the dwc3 subsystem doesn't
-			 * know the difference.
-			 */
-			base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
-			if (IS_ERR(base)) {
-				put_device(&pdev->dev);
-				return PTR_ERR(base);
-			}
-
-			mutex_lock(&dwc3_octeon_clocks_mutex);
-			if (dwc3_octeon_clocks_start(&pdev->dev, base) == 0)
-				dev_info(&pdev->dev, "clocks initialized.\n");
-			dwc3_octeon_set_endian_mode(base);
-			dwc3_octeon_phy_reset(base);
-			mutex_unlock(&dwc3_octeon_clocks_mutex);
-			devm_iounmap(&pdev->dev, base);
-			devm_release_mem_region(&pdev->dev, res->start,
-						resource_size(res));
-			put_device(&pdev->dev);
+	ref_clk_sel = 2;
+	if (strcmp("dlmc_ref_clk0", ss_clock_type) == 0) {
+		if (strcmp(hs_clock_type, "dlmc_ref_clk0") == 0)
+			ref_clk_sel = 0;
+		else if (strcmp(hs_clock_type, "pll_ref_clk"))
+			dev_warn(dev, "Invalid HS clock type %s, using pll_ref_clk instead\n",
+				 hs_clock_type);
+	} else if (strcmp(ss_clock_type, "dlmc_ref_clk1") == 0) {
+		if (strcmp(hs_clock_type, "dlmc_ref_clk1") == 0) {
+			ref_clk_sel = 1;
+		} else {
+			ref_clk_sel = 3;
+			if (strcmp(hs_clock_type, "pll_ref_clk"))
+				dev_warn(dev, "Invalid HS clock type %s, using pll_ref_clk instead\n",
+					 hs_clock_type);
 		}
-	} while (node != NULL);
+	} else {
+		dev_warn(dev, "Invalid SS clock type %s, using dlmc_ref_clk0 instead\n",
+			 ss_clock_type);
+	}
 
-	return 0;
+	ref_clk_fsel = 0x07;
+	switch (clock_rate) {
+	default:
+		dev_warn(dev, "Invalid ref_clk %u, using 100000000 instead\n",
+			 clock_rate);
+		fallthrough;
+	case 100000000:
+		mpll_mul = 0x19;
+		if (ref_clk_sel < 2)
+			ref_clk_fsel = 0x27;
+		break;
+	case 50000000:
+		mpll_mul = 0x32;
+		break;
+	case 125000000:
+		mpll_mul = 0x28;
+		break;
+	}
+
+	power_gpio = DWC3_GPIO_POWER_NONE;
+	power_active_low = 0;
+	if (of_find_property(node, "power", &len)) {
+		u32 gpio_pwr[3];
+
+		switch (len) {
+		case 8:
+			of_property_read_u32_array(node, "power", gpio_pwr, 2);
+			break;
+		case 12:
+			of_property_read_u32_array(node, "power", gpio_pwr, 3);
+			power_active_low = gpio_pwr[2] & 0x01;
+			break;
+		default:
+			dev_err(dev, "invalid power configuration\n");
+			return -EINVAL;
+		}
+		power_gpio = gpio_pwr[1];
+	}
+
+	octeon = devm_kzalloc(dev, sizeof(*octeon), GFP_KERNEL);
+	if (!octeon)
+		return -ENOMEM;
+
+	octeon->dev = dev;
+	octeon->base = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(octeon->base))
+		return PTR_ERR(octeon->base);
+
+	err = dwc3_octeon_setup(octeon, ref_clk_sel, ref_clk_fsel, mpll_mul,
+				power_gpio, power_active_low);
+	if (err)
+		return err;
+
+	dwc3_octeon_set_endian_mode(octeon);
+	dwc3_octeon_phy_reset(octeon);
+
+	platform_set_drvdata(pdev, octeon);
+
+	return of_platform_populate(node, NULL, NULL, dev);
 }
-device_initcall(dwc3_octeon_device_init);
 
-MODULE_AUTHOR("David Daney <david.daney@cavium.com>");
+static void dwc3_octeon_remove(struct platform_device *pdev)
+{
+	struct dwc3_octeon *octeon = platform_get_drvdata(pdev);
+
+	of_platform_depopulate(octeon->dev);
+}
+
+static const struct of_device_id dwc3_octeon_of_match[] = {
+	{ .compatible = "cavium,octeon-7130-usb-uctl" },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, dwc3_octeon_of_match);
+
+static struct platform_driver dwc3_octeon_driver = {
+	.probe		= dwc3_octeon_probe,
+	.remove_new	= dwc3_octeon_remove,
+	.driver		= {
+		.name	= "dwc3-octeon",
+		.of_match_table = dwc3_octeon_of_match,
+	},
+};
+module_platform_driver(dwc3_octeon_driver);
+
+MODULE_ALIAS("platform:dwc3-octeon");
+MODULE_AUTHOR("Ladislav Michl <ladis@linux-mips.org>");
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("USB driver for OCTEON III SoC");
+MODULE_DESCRIPTION("DesignWare USB3 OCTEON III Glue Layer");

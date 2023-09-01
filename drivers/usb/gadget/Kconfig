@@ -208,6 +208,9 @@ config USB_F_UVC
 config USB_F_MIDI
 	tristate
 
+config USB_F_MIDI2
+	tristate
+
 config USB_F_HID
 	tristate
 
@@ -435,6 +438,21 @@ config USB_CONFIGFS_F_MIDI
 	  a sound "card" in the ALSA sound system. Other MIDI
 	  connections can then be made on the gadget system, using
 	  ALSA's aconnect utility etc.
+
+config USB_CONFIGFS_F_MIDI2
+	bool "MIDI 2.0 function"
+	depends on USB_CONFIGFS
+	depends on SND
+	select USB_LIBCOMPOSITE
+	select SND_UMP
+	select SND_UMP_LEGACY_RAWMIDI
+	select USB_F_MIDI2
+	help
+	  The MIDI 2.0 function driver provides the generic emulated
+	  USB MIDI 2.0 interface, looped back to ALSA UMP rawmidi
+	  device on the gadget host. It supports UMP 1.1 spec and
+	  responds UMP Stream messages for UMP Endpoint and Function
+	  Block information / configuration.
 
 config USB_CONFIGFS_F_HID
 	bool "HID function"
