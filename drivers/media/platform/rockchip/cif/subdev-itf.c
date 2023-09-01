@@ -627,36 +627,39 @@ static int sditf_start_stream(struct sditf_priv *priv)
 	struct rkcif_device *cif_dev = priv->cif_dev;
 	struct v4l2_subdev_format fmt;
 	unsigned int mode = RKCIF_STREAM_MODE_TOISP;
+	int ret = 0;
 
 	sditf_check_capture_mode(cif_dev);
 	sditf_get_set_fmt(&priv->sd, NULL, &fmt);
 	if (priv->mode.rdbk_mode == RKISP_VICAP_ONLINE) {
 		if (priv->toisp_inf.link_mode == TOISP0) {
-			sditf_channel_enable(priv, 0);
+			ret = sditf_channel_enable(priv, 0);
 		} else if (priv->toisp_inf.link_mode == TOISP1) {
-			sditf_channel_enable(priv, 1);
+			ret = sditf_channel_enable(priv, 1);
 		} else if (priv->toisp_inf.link_mode == TOISP_UNITE) {
-			sditf_channel_enable(priv, 0);
-			sditf_channel_enable(priv, 1);
+			ret = sditf_channel_enable(priv, 0);
+			ret |= sditf_channel_enable(priv, 1);
 		}
 		mode = RKCIF_STREAM_MODE_TOISP;
 	} else if (priv->mode.rdbk_mode == RKISP_VICAP_RDBK_AUTO) {
 		mode = RKCIF_STREAM_MODE_TOISP_RDBK;
 	}
+	if (ret)
+		return ret;
 
 	if (priv->hdr_cfg.hdr_mode == NO_HDR ||
 	    priv->hdr_cfg.hdr_mode == HDR_COMPR) {
-		rkcif_do_start_stream(&cif_dev->stream[0], mode);
+		ret = rkcif_do_start_stream(&cif_dev->stream[0], mode);
 	} else if (priv->hdr_cfg.hdr_mode == HDR_X2) {
-		rkcif_do_start_stream(&cif_dev->stream[0], mode);
-		rkcif_do_start_stream(&cif_dev->stream[1], mode);
+		ret = rkcif_do_start_stream(&cif_dev->stream[0], mode);
+		ret |= rkcif_do_start_stream(&cif_dev->stream[1], mode);
 	} else if (priv->hdr_cfg.hdr_mode == HDR_X3) {
-		rkcif_do_start_stream(&cif_dev->stream[0], mode);
-		rkcif_do_start_stream(&cif_dev->stream[1], mode);
-		rkcif_do_start_stream(&cif_dev->stream[2], mode);
+		ret = rkcif_do_start_stream(&cif_dev->stream[0], mode);
+		ret |= rkcif_do_start_stream(&cif_dev->stream[1], mode);
+		ret |= rkcif_do_start_stream(&cif_dev->stream[2], mode);
 	}
 	INIT_LIST_HEAD(&priv->buf_free_list);
-	return 0;
+	return ret;
 }
 
 static int sditf_stop_stream(struct sditf_priv *priv)
@@ -718,6 +721,8 @@ static int sditf_s_stream(struct v4l2_subdev *sd, int on)
 		}
 
 	}
+	if (on && ret)
+		atomic_dec(&priv->stream_cnt);
 	return ret;
 }
 
@@ -745,6 +750,7 @@ static int sditf_s_power(struct v4l2_subdev *sd, int on)
 		} else {
 			v4l2_pipeline_pm_put(&node->vdev.entity);
 			pm_runtime_put_sync(cif_dev->dev);
+			priv->mode.rdbk_mode = RKISP_VICAP_RDBK_AIQ;
 		}
 		v4l2_info(&node->vdev, "s_power %d, entity use_count %d\n",
 			  on, node->vdev.entity.use_count);

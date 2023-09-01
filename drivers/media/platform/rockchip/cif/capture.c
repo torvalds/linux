@@ -5079,10 +5079,12 @@ void rkcif_do_stop_stream(struct rkcif_stream *stream,
 			dev->wait_line = 0;
 			stream->is_line_wake_up = false;
 		}
-		tasklet_disable(&stream->vb_done_tasklet);
+		if (can_reset && hw_dev->dummy_buf.vaddr)
+			rkcif_destroy_dummy_buf(stream);
 	}
-	if (can_reset && hw_dev->dummy_buf.vaddr)
-		rkcif_destroy_dummy_buf(stream);
+	if (mode == RKCIF_STREAM_MODE_CAPTURE)
+		tasklet_disable(&stream->vb_done_tasklet);
+
 	stream->cur_stream_mode &= ~mode;
 	INIT_LIST_HEAD(&stream->vb_done_list);
 	v4l2_info(&dev->v4l2_dev, "stream[%d] stopping finished, dma_en 0x%x\n", stream->id, stream->dma_en);
@@ -6213,8 +6215,10 @@ int rkcif_do_start_stream(struct rkcif_stream *stream, unsigned int mode)
 	}
 	mutex_unlock(&hw_dev->dev_lock);
 
-	if (stream->cur_stream_mode == RKCIF_STREAM_MODE_NONE) {
+	if (mode == RKCIF_STREAM_MODE_CAPTURE)
 		tasklet_enable(&stream->vb_done_tasklet);
+
+	if (stream->cur_stream_mode == RKCIF_STREAM_MODE_NONE) {
 		ret = dev->pipe.open(&dev->pipe, &node->vdev.entity, true);
 		if (ret < 0) {
 			v4l2_err(v4l2_dev, "open cif pipeline failed %d\n",
@@ -6232,7 +6236,7 @@ int rkcif_do_start_stream(struct rkcif_stream *stream, unsigned int mode)
 		    rkmodule_stream_seq == RKMODULE_START_STREAM_FRONT) {
 			ret = dev->pipe.set_stream(&dev->pipe, true);
 			if (ret < 0)
-				goto runtime_put;
+				goto destroy_buf;
 		}
 	}
 	if (dev->chip_id >= CHIP_RK1808_CIF) {
@@ -6248,7 +6252,7 @@ int rkcif_do_start_stream(struct rkcif_stream *stream, unsigned int mode)
 	}
 
 	if (ret < 0)
-		goto runtime_put;
+		goto destroy_buf;
 
 	if (stream->cur_stream_mode == RKCIF_STREAM_MODE_NONE) {
 		ret = media_pipeline_start(&node->vdev.entity, &dev->pipe.pipe);
@@ -6294,15 +6298,19 @@ stop_stream:
 	rkcif_stream_stop(stream);
 pipe_stream_off:
 	dev->pipe.set_stream(&dev->pipe, false);
-runtime_put:
-	pm_runtime_put_sync(dev->dev);
+
 destroy_buf:
-	if (stream->next_buf)
-		vb2_buffer_done(&stream->next_buf->vb.vb2_buf,
-				VB2_BUF_STATE_QUEUED);
+	if (mode == RKCIF_STREAM_MODE_CAPTURE)
+		tasklet_disable(&stream->vb_done_tasklet);
 	if (stream->curr_buf)
-		vb2_buffer_done(&stream->curr_buf->vb.vb2_buf,
-				VB2_BUF_STATE_QUEUED);
+		list_add_tail(&stream->curr_buf->queue, &stream->buf_head);
+	if (stream->next_buf &&
+	    stream->next_buf != stream->curr_buf)
+		list_add_tail(&stream->next_buf->queue, &stream->buf_head);
+
+	stream->curr_buf = NULL;
+	stream->next_buf = NULL;
+	atomic_set(&stream->buf_cnt, 0);
 	while (!list_empty(&stream->buf_head)) {
 		struct rkcif_buffer *buf;
 
