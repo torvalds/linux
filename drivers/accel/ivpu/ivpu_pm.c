@@ -286,6 +286,7 @@ int ivpu_pm_init(struct ivpu_device *vdev)
 {
 	struct device *dev = vdev->drm.dev;
 	struct ivpu_pm_info *pm = vdev->pm;
+	int delay;
 
 	pm->vdev = vdev;
 	pm->suspend_reschedule_counter = PM_RESCHEDULE_LIMIT;
@@ -293,14 +294,15 @@ int ivpu_pm_init(struct ivpu_device *vdev)
 	atomic_set(&pm->in_reset, 0);
 	INIT_WORK(&pm->recovery_work, ivpu_pm_recovery_work);
 
-	pm_runtime_use_autosuspend(dev);
-
 	if (ivpu_disable_recovery)
-		pm_runtime_set_autosuspend_delay(dev, -1);
-	else if (ivpu_is_silicon(vdev))
-		pm_runtime_set_autosuspend_delay(dev, 100);
+		delay = -1;
 	else
-		pm_runtime_set_autosuspend_delay(dev, 60000);
+		delay = vdev->timeout.autosuspend;
+
+	pm_runtime_use_autosuspend(dev);
+	pm_runtime_set_autosuspend_delay(dev, delay);
+
+	ivpu_dbg(vdev, PM, "Autosuspend delay = %d\n", delay);
 
 	return 0;
 }
