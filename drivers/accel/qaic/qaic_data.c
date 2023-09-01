@@ -154,6 +154,7 @@ static void free_slice(struct kref *kref)
 {
 	struct bo_slice *slice = container_of(kref, struct bo_slice, ref_count);
 
+	slice->bo->total_slice_nents -= slice->nents;
 	list_del(&slice->slice);
 	drm_gem_object_put(&slice->bo->base);
 	sg_free_table(slice->sgt);
@@ -890,6 +891,9 @@ static void qaic_free_slices_bo(struct qaic_bo *bo)
 
 	list_for_each_entry_safe(slice, temp, &bo->slices, slice)
 		kref_put(&slice->ref_count, free_slice);
+	if (WARN_ON_ONCE(bo->total_slice_nents != 0))
+		bo->total_slice_nents = 0;
+	bo->nr_slice = 0;
 }
 
 static int qaic_attach_slicing_bo(struct qaic_device *qdev, struct qaic_bo *bo,
@@ -1851,7 +1855,6 @@ void wakeup_dbc(struct qaic_device *qdev, u32 dbc_id)
 
 void release_dbc(struct qaic_device *qdev, u32 dbc_id)
 {
-	struct bo_slice *slice, *slice_temp;
 	struct qaic_bo *bo, *bo_temp;
 	struct dma_bridge_chan *dbc;
 
@@ -1869,12 +1872,10 @@ void release_dbc(struct qaic_device *qdev, u32 dbc_id)
 	dbc->usr = NULL;
 
 	list_for_each_entry_safe(bo, bo_temp, &dbc->bo_lists, bo_list) {
+		qaic_free_slices_bo(bo);
 		qaic_unprepare_bo(qdev, bo);
-		list_for_each_entry_safe(slice, slice_temp, &bo->slices, slice)
-			kref_put(&slice->ref_count, free_slice);
 		bo->sliced = false;
 		INIT_LIST_HEAD(&bo->slices);
-		bo->total_slice_nents = 0;
 		bo->nr_slice_xfer_done = 0;
 		bo->queued = false;
 		bo->req_id = 0;
