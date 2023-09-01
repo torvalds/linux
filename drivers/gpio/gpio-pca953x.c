@@ -211,7 +211,6 @@ struct pca953x_chip {
 
 	struct i2c_client *client;
 	struct gpio_chip gpio_chip;
-	const char *const *names;
 	unsigned long driver_data;
 	struct regulator *regulator;
 
@@ -712,7 +711,6 @@ static void pca953x_setup_gpio(struct pca953x_chip *chip, int gpios)
 	gc->label = dev_name(&chip->client->dev);
 	gc->parent = &chip->client->dev;
 	gc->owner = THIS_MODULE;
-	gc->names = chip->names;
 }
 
 #ifdef CONFIG_GPIO_PCA953X_IRQ
@@ -998,7 +996,7 @@ static int pca953x_irq_setup(struct pca953x_chip *chip,
 }
 #endif
 
-static int device_pca95xx_init(struct pca953x_chip *chip, u32 invert)
+static int device_pca95xx_init(struct pca953x_chip *chip)
 {
 	DECLARE_BITMAP(val, MAX_LINE);
 	u8 regaddr;
@@ -1016,24 +1014,21 @@ static int device_pca95xx_init(struct pca953x_chip *chip, u32 invert)
 	if (ret)
 		goto out;
 
-	/* set platform specific polarity inversion */
-	if (invert)
-		bitmap_fill(val, MAX_LINE);
-	else
-		bitmap_zero(val, MAX_LINE);
+	/* clear polarity inversion */
+	bitmap_zero(val, MAX_LINE);
 
 	ret = pca953x_write_regs(chip, chip->regs->invert, val);
 out:
 	return ret;
 }
 
-static int device_pca957x_init(struct pca953x_chip *chip, u32 invert)
+static int device_pca957x_init(struct pca953x_chip *chip)
 {
 	DECLARE_BITMAP(val, MAX_LINE);
 	unsigned int i;
 	int ret;
 
-	ret = device_pca95xx_init(chip, invert);
+	ret = device_pca95xx_init(chip);
 	if (ret)
 		goto out;
 
@@ -1054,9 +1049,8 @@ static int pca953x_probe(struct i2c_client *client)
 {
 	struct pca953x_platform_data *pdata;
 	struct pca953x_chip *chip;
-	int irq_base = 0;
+	int irq_base;
 	int ret;
-	u32 invert = 0;
 	struct regulator *reg;
 	const struct regmap_config *regmap_config;
 
@@ -1068,8 +1062,6 @@ static int pca953x_probe(struct i2c_client *client)
 	if (pdata) {
 		irq_base = pdata->irq_base;
 		chip->gpio_start = pdata->gpio_base;
-		invert = pdata->invert;
-		chip->names = pdata->names;
 	} else {
 		struct gpio_desc *reset_gpio;
 
@@ -1158,10 +1150,10 @@ static int pca953x_probe(struct i2c_client *client)
 	 */
 	if (PCA_CHIP_TYPE(chip->driver_data) == PCA957X_TYPE) {
 		chip->regs = &pca957x_regs;
-		ret = device_pca957x_init(chip, invert);
+		ret = device_pca957x_init(chip);
 	} else {
 		chip->regs = &pca953x_regs;
-		ret = device_pca95xx_init(chip, invert);
+		ret = device_pca95xx_init(chip);
 	}
 	if (ret)
 		goto err_exit;
@@ -1174,13 +1166,6 @@ static int pca953x_probe(struct i2c_client *client)
 	if (ret)
 		goto err_exit;
 
-	if (pdata && pdata->setup) {
-		ret = pdata->setup(client, chip->gpio_chip.base,
-				   chip->gpio_chip.ngpio, pdata->context);
-		if (ret < 0)
-			dev_warn(&client->dev, "setup failed, %d\n", ret);
-	}
-
 	return 0;
 
 err_exit:
@@ -1190,13 +1175,7 @@ err_exit:
 
 static void pca953x_remove(struct i2c_client *client)
 {
-	struct pca953x_platform_data *pdata = dev_get_platdata(&client->dev);
 	struct pca953x_chip *chip = i2c_get_clientdata(client);
-
-	if (pdata && pdata->teardown) {
-		pdata->teardown(client, chip->gpio_chip.base,
-				chip->gpio_chip.ngpio, pdata->context);
-	}
 
 	regulator_disable(chip->regulator);
 }
