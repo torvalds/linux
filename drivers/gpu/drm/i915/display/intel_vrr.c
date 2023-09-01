@@ -117,10 +117,10 @@ intel_vrr_compute_config(struct intel_crtc_state *crtc_state,
 	const struct drm_display_info *info = &connector->base.display_info;
 	int vmin, vmax;
 
-	if (!intel_vrr_is_capable(connector))
+	if (adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE)
 		return;
 
-	if (adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE)
+	if (!intel_vrr_is_in_range(connector, drm_mode_vrefresh(adjusted_mode)))
 		return;
 
 	vmin = DIV_ROUND_UP(adjusted_mode->crtc_clock * 1000,
