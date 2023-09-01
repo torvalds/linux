@@ -230,10 +230,8 @@ static int fsl_edma3_irq_init(struct platform_device *pdev, struct fsl_edma_engi
 
 		/* request channel irq */
 		fsl_chan->txirq = platform_get_irq(pdev, i);
-		if (fsl_chan->txirq < 0) {
-			dev_err(&pdev->dev, "Can't get chan %d's irq.\n", i);
+		if (fsl_chan->txirq < 0)
 			return  -EINVAL;
-		}
 
 		ret = devm_request_irq(&pdev->dev, fsl_chan->txirq,
 			fsl_edma3_tx_handler, IRQF_SHARED,
