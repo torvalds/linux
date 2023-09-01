@@ -31,7 +31,6 @@
 #include "clk_mgr.h"
 #include "reg_helper.h"
 #include "abm.h"
-#include "clk_mgr.h"
 #include "hubp.h"
 #include "dchubbub.h"
 #include "timing_generator.h"
