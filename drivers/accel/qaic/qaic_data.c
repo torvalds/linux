@@ -635,6 +635,18 @@ static const struct drm_gem_object_funcs qaic_gem_funcs = {
 	.vm_ops = &drm_vm_ops,
 };
 
+static void qaic_init_bo(struct qaic_bo *bo, bool reinit)
+{
+	if (reinit) {
+		bo->sliced = false;
+		reinit_completion(&bo->xfer_done);
+	} else {
+		init_completion(&bo->xfer_done);
+	}
+	complete_all(&bo->xfer_done);
+	INIT_LIST_HEAD(&bo->slices);
+}
+
 static struct qaic_bo *qaic_alloc_init_bo(void)
 {
 	struct qaic_bo *bo;
@@ -643,9 +655,7 @@ static struct qaic_bo *qaic_alloc_init_bo(void)
 	if (!bo)
 		return ERR_PTR(-ENOMEM);
 
-	INIT_LIST_HEAD(&bo->slices);
-	init_completion(&bo->xfer_done);
-	complete_all(&bo->xfer_done);
+	qaic_init_bo(bo, false);
 
 	return bo;
 }
@@ -1880,9 +1890,7 @@ void release_dbc(struct qaic_device *qdev, u32 dbc_id)
 	list_for_each_entry_safe(bo, bo_temp, &dbc->bo_lists, bo_list) {
 		qaic_free_slices_bo(bo);
 		qaic_unprepare_bo(qdev, bo);
-		bo->sliced = false;
-		INIT_LIST_HEAD(&bo->slices);
-		init_completion(&bo->xfer_done);
+		qaic_init_bo(bo, true);
 		list_del(&bo->bo_list);
 	}
 
