@@ -1482,7 +1482,7 @@ int parse_events_add_pmu(struct parse_events_state *parse_state,
 }
 
 int parse_events_multi_pmu_add(struct parse_events_state *parse_state,
-			       char *str, struct list_head *head,
+			       const char *event_name, struct list_head *head,
 			       struct list_head **listp, void *loc_)
 {
 	struct parse_events_term *term;
@@ -1502,7 +1502,8 @@ int parse_events_multi_pmu_add(struct parse_events_state *parse_state,
 
 		INIT_LIST_HEAD(head);
 	}
-	config = strdup(str);
+
+	config = strdup(event_name);
 	if (!config)
 		goto out_err;
 
@@ -1528,7 +1529,7 @@ int parse_events_multi_pmu_add(struct parse_events_state *parse_state,
 		if (parse_events__filter_pmu(parse_state, pmu))
 			continue;
 
-		if (!perf_pmu__have_event(pmu, str))
+		if (!perf_pmu__have_event(pmu, event_name))
 			continue;
 
 		auto_merge_stats = perf_pmu__auto_merge_stats(pmu);
@@ -1539,7 +1540,7 @@ int parse_events_multi_pmu_add(struct parse_events_state *parse_state,
 
 			strbuf_init(&sb, /*hint=*/ 0);
 			parse_events_term__to_strbuf(orig_head, &sb);
-			pr_debug("%s -> %s/%s/\n", str, pmu->name, sb.buf);
+			pr_debug("%s -> %s/%s/\n", event_name, pmu->name, sb.buf);
 			strbuf_release(&sb);
 			ok++;
 		}
@@ -1547,13 +1548,13 @@ int parse_events_multi_pmu_add(struct parse_events_state *parse_state,
 	}
 
 	if (parse_state->fake_pmu) {
-		if (!parse_events_add_pmu(parse_state, list, str, head,
+		if (!parse_events_add_pmu(parse_state, list, event_name, head,
 					  /*auto_merge_stats=*/true, loc)) {
 			struct strbuf sb;
 
 			strbuf_init(&sb, /*hint=*/ 0);
 			parse_events_term__to_strbuf(head, &sb);
-			pr_debug("%s -> %s/%s/\n", str, "fake_pmu", sb.buf);
+			pr_debug("%s -> %s/%s/\n", event_name, "fake_pmu", sb.buf);
 			strbuf_release(&sb);
 			ok++;
 		}
