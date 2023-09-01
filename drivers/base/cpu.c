@@ -19,6 +19,7 @@
 #include <linux/cpufeature.h>
 #include <linux/tick.h>
 #include <linux/pm_qos.h>
+#include <linux/delay.h>
 #include <linux/sched/isolation.h>
 
 #include "base.h"
@@ -50,12 +51,30 @@ static int cpu_subsys_online(struct device *dev)
 	int cpuid = dev->id;
 	int from_nid, to_nid;
 	int ret;
+	int retries = 0;
 
 	from_nid = cpu_to_node(cpuid);
 	if (from_nid == NUMA_NO_NODE)
 		return -ENODEV;
 
+retry:
 	ret = cpu_device_up(dev);
+
+	/*
+	 * If -EBUSY is returned, it is likely that hotplug is temporarily
+	 * disabled when cpu_hotplug_disable() was called. This condition is
+	 * transient. So we retry after waiting for an exponentially
+	 * increasing delay up to a total of at least 620ms as some PCI
+	 * device initialization can take quite a while.
+	 */
+	if (ret == -EBUSY) {
+		retries++;
+		if (retries > 5)
+			return ret;
+		msleep(10 * (1 << retries));
+		goto retry;
+	}
+
 	/*
 	 * When hot adding memory to memoryless node and enabling a cpu
 	 * on the node, node number of the cpu may internally change.

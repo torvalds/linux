@@ -2306,12 +2306,12 @@ static void device_platform_notify(struct device *dev)
 
 static void device_platform_notify_remove(struct device *dev)
 {
-	acpi_device_notify_remove(dev);
+	if (platform_notify_remove)
+		platform_notify_remove(dev);
 
 	software_node_notify_remove(dev);
 
-	if (platform_notify_remove)
-		platform_notify_remove(dev);
+	acpi_device_notify_remove(dev);
 }
 
 /**
@@ -3528,18 +3528,17 @@ int device_add(struct device *dev)
 	 * the name, and force the use of dev_name()
 	 */
 	if (dev->init_name) {
-		dev_set_name(dev, "%s", dev->init_name);
+		error = dev_set_name(dev, "%s", dev->init_name);
 		dev->init_name = NULL;
 	}
 
+	if (dev_name(dev))
+		error = 0;
 	/* subsystems can specify simple device enumeration */
-	if (!dev_name(dev) && dev->bus && dev->bus->dev_name)
-		dev_set_name(dev, "%s%u", dev->bus->dev_name, dev->id);
-
-	if (!dev_name(dev)) {
-		error = -EINVAL;
+	else if (dev->bus && dev->bus->dev_name)
+		error = dev_set_name(dev, "%s%u", dev->bus->dev_name, dev->id);
+	if (error)
 		goto name_error;
-	}
 
 	pr_debug("device: '%s': %s\n", dev_name(dev), __func__);
 
@@ -3814,6 +3813,17 @@ void device_del(struct device *dev)
 	driver_deferred_probe_del(dev);
 	device_platform_notify_remove(dev);
 	device_links_purge(dev);
+
+	/*
+	 * If a device does not have a driver attached, we need to clean
+	 * up any managed resources. We do this in device_release(), but
+	 * it's never called (and we leak the device) if a managed
+	 * resource holds a reference to the device. So release all
+	 * managed resources here, like we do in driver_detach(). We
+	 * still need to do so again in device_release() in case someone
+	 * adds a new resource after this point, though.
+	 */
+	devres_release_all(dev);
 
 	bus_notify(dev, BUS_NOTIFY_REMOVED_DEVICE);
 	kobject_uevent(&dev->kobj, KOBJ_REMOVE);
