@@ -239,7 +239,7 @@ struct irdma_qv_info {
 
 struct irdma_qvlist_info {
 	u32 num_vectors;
-	struct irdma_qv_info qv_info[1];
+	struct irdma_qv_info qv_info[];
 };
 
 struct irdma_gen_ops {
@@ -309,7 +309,9 @@ struct irdma_pci_f {
 	spinlock_t arp_lock; /*protect ARP table access*/
 	spinlock_t rsrc_lock; /* protect HW resource array access */
 	spinlock_t qptable_lock; /*protect QP table access*/
+	spinlock_t cqtable_lock; /*protect CQ table access*/
 	struct irdma_qp **qp_table;
+	struct irdma_cq **cq_table;
 	spinlock_t qh_list_lock; /* protect mc_qht_list */
 	struct mc_table_list mc_qht_list;
 	struct irdma_msix_vector *iw_msixtbl;
@@ -500,6 +502,8 @@ int irdma_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask,
 		    struct ib_udata *udata);
 int irdma_modify_qp_roce(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 			 int attr_mask, struct ib_udata *udata);
+void irdma_cq_add_ref(struct ib_cq *ibcq);
+void irdma_cq_rem_ref(struct ib_cq *ibcq);
 void irdma_cq_wq_destroy(struct irdma_pci_f *rf, struct irdma_sc_cq *cq);
 
 void irdma_cleanup_pending_cqp_op(struct irdma_pci_f *rf);
@@ -529,7 +533,7 @@ void irdma_gen_ae(struct irdma_pci_f *rf, struct irdma_sc_qp *qp,
 void irdma_copy_ip_ntohl(u32 *dst, __be32 *src);
 void irdma_copy_ip_htonl(__be32 *dst, u32 *src);
 u16 irdma_get_vlan_ipv4(u32 *addr);
-struct net_device *irdma_netdev_vlan_ipv6(u32 *addr, u16 *vlan_id, u8 *mac);
+void irdma_get_vlan_mac_ipv6(u32 *addr, u16 *vlan_id, u8 *mac);
 struct ib_mr *irdma_reg_phys_mr(struct ib_pd *ib_pd, u64 addr, u64 size,
 				int acc, u64 *iova_start);
 int irdma_upload_qp_context(struct irdma_qp *iwqp, bool freeze, bool raw);

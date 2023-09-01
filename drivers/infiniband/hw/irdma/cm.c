@@ -1555,22 +1555,56 @@ static int irdma_del_multiple_qhash(struct irdma_device *iwdev,
 	return ret;
 }
 
+static u8 irdma_iw_get_vlan_prio(u32 *loc_addr, u8 prio, bool ipv4)
+{
+	struct net_device *ndev = NULL;
+
+	rcu_read_lock();
+	if (ipv4) {
+		ndev = ip_dev_find(&init_net, htonl(loc_addr[0]));
+	} else if (IS_ENABLED(CONFIG_IPV6)) {
+		struct net_device *ip_dev;
+		struct in6_addr laddr6;
+
+		irdma_copy_ip_htonl(laddr6.in6_u.u6_addr32, loc_addr);
+
+		for_each_netdev_rcu (&init_net, ip_dev) {
+			if (ipv6_chk_addr(&init_net, &laddr6, ip_dev, 1)) {
+				ndev = ip_dev;
+				break;
+			}
+		}
+	}
+
+	if (!ndev)
+		goto done;
+	if (is_vlan_dev(ndev))
+		prio = (vlan_dev_get_egress_qos_mask(ndev, prio) & VLAN_PRIO_MASK)
+			>> VLAN_PRIO_SHIFT;
+	if (ipv4)
+		dev_put(ndev);
+
+done:
+	rcu_read_unlock();
+
+	return prio;
+}
+
 /**
- * irdma_netdev_vlan_ipv6 - Gets the netdev and mac
+ * irdma_get_vlan_mac_ipv6 - Gets the vlan and mac
  * @addr: local IPv6 address
  * @vlan_id: vlan id for the given IPv6 address
  * @mac: mac address for the given IPv6 address
  *
- * Returns the net_device of the IPv6 address and also sets the
- * vlan id and mac for that address.
+ * Returns the vlan id and mac for an IPv6 address.
  */
-struct net_device *irdma_netdev_vlan_ipv6(u32 *addr, u16 *vlan_id, u8 *mac)
+void irdma_get_vlan_mac_ipv6(u32 *addr, u16 *vlan_id, u8 *mac)
 {
 	struct net_device *ip_dev = NULL;
 	struct in6_addr laddr6;
 
 	if (!IS_ENABLED(CONFIG_IPV6))
-		return NULL;
+		return;
 
 	irdma_copy_ip_htonl(laddr6.in6_u.u6_addr32, addr);
 	if (vlan_id)
@@ -1589,8 +1623,6 @@ struct net_device *irdma_netdev_vlan_ipv6(u32 *addr, u16 *vlan_id, u8 *mac)
 		}
 	}
 	rcu_read_unlock();
-
-	return ip_dev;
 }
 
 /**
@@ -1667,6 +1699,12 @@ static int irdma_add_mqh_6(struct irdma_device *iwdev,
 					    ifp->addr.in6_u.u6_addr32);
 			memcpy(cm_info->loc_addr, child_listen_node->loc_addr,
 			       sizeof(cm_info->loc_addr));
+			if (!iwdev->vsi.dscp_mode)
+				cm_info->user_pri =
+				irdma_iw_get_vlan_prio(child_listen_node->loc_addr,
+						       cm_info->user_pri,
+						       false);
+
 			ret = irdma_manage_qhash(iwdev, cm_info,
 						 IRDMA_QHASH_TYPE_TCP_SYN,
 						 IRDMA_QHASH_MANAGE_TYPE_ADD,
@@ -1751,6 +1789,11 @@ static int irdma_add_mqh_4(struct irdma_device *iwdev,
 				ntohl(ifa->ifa_address);
 			memcpy(cm_info->loc_addr, child_listen_node->loc_addr,
 			       sizeof(cm_info->loc_addr));
+			if (!iwdev->vsi.dscp_mode)
+				cm_info->user_pri =
+				irdma_iw_get_vlan_prio(child_listen_node->loc_addr,
+						       cm_info->user_pri,
+						       true);
 			ret = irdma_manage_qhash(iwdev, cm_info,
 						 IRDMA_QHASH_TYPE_TCP_SYN,
 						 IRDMA_QHASH_MANAGE_TYPE_ADD,
@@ -2219,6 +2262,10 @@ irdma_make_cm_node(struct irdma_cm_core *cm_core, struct irdma_device *iwdev,
 		} else {
 			cm_node->tos = max(listener->tos, cm_info->tos);
 			cm_node->user_pri = rt_tos2priority(cm_node->tos);
+			cm_node->user_pri =
+				irdma_iw_get_vlan_prio(cm_info->loc_addr,
+						       cm_node->user_pri,
+						       cm_info->ipv4);
 		}
 		ibdev_dbg(&iwdev->ibdev,
 			  "DCB: listener: TOS:[%d] UP:[%d]\n", cm_node->tos,
@@ -3577,7 +3624,6 @@ void irdma_free_lsmm_rsrc(struct irdma_qp *iwqp)
 				  iwqp->ietf_mem.size, iwqp->ietf_mem.va,
 				  iwqp->ietf_mem.pa);
 		iwqp->ietf_mem.va = NULL;
-		iwqp->ietf_mem.va = NULL;
 	}
 }
 
@@ -3617,8 +3663,8 @@ int irdma_accept(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 		cm_node->vlan_id = irdma_get_vlan_ipv4(cm_node->loc_addr);
 	} else {
 		cm_node->ipv4 = false;
-		irdma_netdev_vlan_ipv6(cm_node->loc_addr, &cm_node->vlan_id,
-				       NULL);
+		irdma_get_vlan_mac_ipv6(cm_node->loc_addr, &cm_node->vlan_id,
+					NULL);
 	}
 	ibdev_dbg(&iwdev->ibdev, "CM: Accept vlan_id=%d\n",
 		  cm_node->vlan_id);
@@ -3826,17 +3872,21 @@ int irdma_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 				    raddr6->sin6_addr.in6_u.u6_addr32);
 		cm_info.loc_port = ntohs(laddr6->sin6_port);
 		cm_info.rem_port = ntohs(raddr6->sin6_port);
-		irdma_netdev_vlan_ipv6(cm_info.loc_addr, &cm_info.vlan_id,
-				       NULL);
+		irdma_get_vlan_mac_ipv6(cm_info.loc_addr, &cm_info.vlan_id,
+					NULL);
 	}
 	cm_info.cm_id = cm_id;
 	cm_info.qh_qpid = iwdev->vsi.ilq->qp_id;
 	cm_info.tos = cm_id->tos;
-	if (iwdev->vsi.dscp_mode)
+	if (iwdev->vsi.dscp_mode) {
 		cm_info.user_pri =
 			iwqp->sc_qp.vsi->dscp_map[irdma_tos2dscp(cm_info.tos)];
-	else
+	} else {
 		cm_info.user_pri = rt_tos2priority(cm_id->tos);
+		cm_info.user_pri = irdma_iw_get_vlan_prio(cm_info.loc_addr,
+							  cm_info.user_pri,
+							  cm_info.ipv4);
+	}
 
 	if (iwqp->sc_qp.dev->ws_add(iwqp->sc_qp.vsi, cm_info.user_pri))
 		return -ENOMEM;
@@ -3952,8 +4002,8 @@ int irdma_create_listen(struct iw_cm_id *cm_id, int backlog)
 				    laddr6->sin6_addr.in6_u.u6_addr32);
 		cm_info.loc_port = ntohs(laddr6->sin6_port);
 		if (ipv6_addr_type(&laddr6->sin6_addr) != IPV6_ADDR_ANY) {
-			irdma_netdev_vlan_ipv6(cm_info.loc_addr,
-					       &cm_info.vlan_id, NULL);
+			irdma_get_vlan_mac_ipv6(cm_info.loc_addr,
+						&cm_info.vlan_id, NULL);
 		} else {
 			cm_info.vlan_id = 0xFFFF;
 			wildcard = true;
@@ -3980,7 +4030,7 @@ int irdma_create_listen(struct iw_cm_id *cm_id, int backlog)
 	cm_listen_node->tos = cm_id->tos;
 	if (iwdev->vsi.dscp_mode)
 		cm_listen_node->user_pri =
-			iwdev->vsi.dscp_map[irdma_tos2dscp(cm_id->tos)];
+		iwdev->vsi.dscp_map[irdma_tos2dscp(cm_id->tos)];
 	else
 		cm_listen_node->user_pri = rt_tos2priority(cm_id->tos);
 	cm_info.user_pri = cm_listen_node->user_pri;
@@ -3990,6 +4040,12 @@ int irdma_create_listen(struct iw_cm_id *cm_id, int backlog)
 			if (err)
 				goto error;
 		} else {
+			if (!iwdev->vsi.dscp_mode)
+				cm_listen_node->user_pri =
+				irdma_iw_get_vlan_prio(cm_info.loc_addr,
+						       cm_info.user_pri,
+						       cm_info.ipv4);
+			cm_info.user_pri = cm_listen_node->user_pri;
 			err = irdma_manage_qhash(iwdev, &cm_info,
 						 IRDMA_QHASH_TYPE_TCP_SYN,
 						 IRDMA_QHASH_MANAGE_TYPE_ADD,

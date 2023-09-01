@@ -115,27 +115,6 @@ struct iw_cm_id *iw_create_cm_id(struct ib_device *device,
 void iw_destroy_cm_id(struct iw_cm_id *cm_id);
 
 /**
- * iw_cm_bind_qp - Unbind the specified IW CM identifier and QP
- *
- * @cm_id: The IW CM idenfier to unbind from the QP.
- * @qp: The QP
- *
- * This is called by the provider when destroying the QP to ensure
- * that any references held by the IWCM are released. It may also
- * be called by the IWCM when destroying a CM_ID to that any
- * references held by the provider are released.
- */
-void iw_cm_unbind_qp(struct iw_cm_id *cm_id, struct ib_qp *qp);
-
-/**
- * iw_cm_get_qp - Return the ib_qp associated with a QPN
- *
- * @ib_device: The IB device
- * @qpn: The queue pair number
- */
-struct ib_qp *iw_cm_get_qp(struct ib_device *device, int qpn);
-
-/**
  * iw_cm_listen - Listen for incoming connection requests on the
  * specified IW CM id.
  *

@@ -219,7 +219,6 @@ static void irdma_process_aeq(struct irdma_pci_f *rf)
 	struct irdma_aeqe_info *info = &aeinfo;
 	int ret;
 	struct irdma_qp *iwqp = NULL;
-	struct irdma_sc_cq *cq = NULL;
 	struct irdma_cq *iwcq = NULL;
 	struct irdma_sc_qp *qp = NULL;
 	struct irdma_qp_host_ctx_info *ctx_info = NULL;
@@ -336,10 +335,18 @@ static void irdma_process_aeq(struct irdma_pci_f *rf)
 			ibdev_err(&iwdev->ibdev,
 				  "Processing an iWARP related AE for CQ misc = 0x%04X\n",
 				  info->ae_id);
-			cq = (struct irdma_sc_cq *)(unsigned long)
-			     info->compl_ctx;
 
-			iwcq = cq->back_cq;
+			spin_lock_irqsave(&rf->cqtable_lock, flags);
+			iwcq = rf->cq_table[info->qp_cq_id];
+			if (!iwcq) {
+				spin_unlock_irqrestore(&rf->cqtable_lock,
+						       flags);
+				ibdev_dbg(to_ibdev(dev),
+					  "cq_id %d is already freed\n", info->qp_cq_id);
+				continue;
+			}
+			irdma_cq_add_ref(&iwcq->ibcq);
+			spin_unlock_irqrestore(&rf->cqtable_lock, flags);
 
 			if (iwcq->ibcq.event_handler) {
 				struct ib_event ibevent;
@@ -350,6 +357,7 @@ static void irdma_process_aeq(struct irdma_pci_f *rf)
 				iwcq->ibcq.event_handler(&ibevent,
 							 iwcq->ibcq.cq_context);
 			}
+			irdma_cq_rem_ref(&iwcq->ibcq);
 			break;
 		case IRDMA_AE_RESET_NOT_SENT:
 		case IRDMA_AE_LLP_DOUBT_REACHABILITY:
@@ -563,12 +571,11 @@ static void irdma_destroy_irq(struct irdma_pci_f *rf,
 /**
  * irdma_destroy_cqp  - destroy control qp
  * @rf: RDMA PCI function
- * @free_hwcqp: 1 if hw cqp should be freed
  *
  * Issue destroy cqp request and
  * free the resources associated with the cqp
  */
-static void irdma_destroy_cqp(struct irdma_pci_f *rf, bool free_hwcqp)
+static void irdma_destroy_cqp(struct irdma_pci_f *rf)
 {
 	struct irdma_sc_dev *dev = &rf->sc_dev;
 	struct irdma_cqp *cqp = &rf->cqp;
@@ -576,8 +583,8 @@ static void irdma_destroy_cqp(struct irdma_pci_f *rf, bool free_hwcqp)
 
 	if (rf->cqp_cmpl_wq)
 		destroy_workqueue(rf->cqp_cmpl_wq);
-	if (free_hwcqp)
-		status = irdma_sc_cqp_destroy(dev->cqp);
+
+	status = irdma_sc_cqp_destroy(dev->cqp);
 	if (status)
 		ibdev_dbg(to_ibdev(dev), "ERR: Destroy CQP failed %d\n", status);
 
@@ -921,8 +928,8 @@ static int irdma_create_cqp(struct irdma_pci_f *rf)
 
 	cqp->scratch_array = kcalloc(sqsize, sizeof(*cqp->scratch_array), GFP_KERNEL);
 	if (!cqp->scratch_array) {
-		kfree(cqp->cqp_requests);
-		return -ENOMEM;
+		status = -ENOMEM;
+		goto err_scratch;
 	}
 
 	dev->cqp = &cqp->sc_cqp;
@@ -932,15 +939,14 @@ static int irdma_create_cqp(struct irdma_pci_f *rf)
 	cqp->sq.va = dma_alloc_coherent(dev->hw->device, cqp->sq.size,
 					&cqp->sq.pa, GFP_KERNEL);
 	if (!cqp->sq.va) {
-		kfree(cqp->scratch_array);
-		kfree(cqp->cqp_requests);
-		return -ENOMEM;
+		status = -ENOMEM;
+		goto err_sq;
 	}
 
 	status = irdma_obj_aligned_mem(rf, &mem, sizeof(struct irdma_cqp_ctx),
 				       IRDMA_HOST_CTX_ALIGNMENT_M);
 	if (status)
-		goto exit;
+		goto err_ctx;
 
 	dev->cqp->host_ctx_pa = mem.pa;
 	dev->cqp->host_ctx = mem.va;
@@ -966,7 +972,7 @@ static int irdma_create_cqp(struct irdma_pci_f *rf)
 	status = irdma_sc_cqp_init(dev->cqp, &cqp_init_info);
 	if (status) {
 		ibdev_dbg(to_ibdev(dev), "ERR: cqp init status %d\n", status);
-		goto exit;
+		goto err_ctx;
 	}
 
 	spin_lock_init(&cqp->req_lock);
@@ -977,7 +983,7 @@ static int irdma_create_cqp(struct irdma_pci_f *rf)
 		ibdev_dbg(to_ibdev(dev),
 			  "ERR: cqp create failed - status %d maj_err %d min_err %d\n",
 			  status, maj_err, min_err);
-		goto exit;
+		goto err_ctx;
 	}
 
 	INIT_LIST_HEAD(&cqp->cqp_avail_reqs);
@@ -991,8 +997,16 @@ static int irdma_create_cqp(struct irdma_pci_f *rf)
 	init_waitqueue_head(&cqp->remove_wq);
 	return 0;
 
-exit:
-	irdma_destroy_cqp(rf, false);
+err_ctx:
+	dma_free_coherent(dev->hw->device, cqp->sq.size,
+			  cqp->sq.va, cqp->sq.pa);
+	cqp->sq.va = NULL;
+err_sq:
+	kfree(cqp->scratch_array);
+	cqp->scratch_array = NULL;
+err_scratch:
+	kfree(cqp->cqp_requests);
+	cqp->cqp_requests = NULL;
 
 	return status;
 }
@@ -1549,7 +1563,7 @@ static void irdma_del_init_mem(struct irdma_pci_f *rf)
 
 	kfree(dev->hmc_info->sd_table.sd_entry);
 	dev->hmc_info->sd_table.sd_entry = NULL;
-	kfree(rf->mem_rsrc);
+	vfree(rf->mem_rsrc);
 	rf->mem_rsrc = NULL;
 	dma_free_coherent(rf->hw.device, rf->obj_mem.size, rf->obj_mem.va,
 			  rf->obj_mem.pa);
@@ -1747,7 +1761,7 @@ void irdma_ctrl_deinit_hw(struct irdma_pci_f *rf)
 				      rf->reset, rf->rdma_ver);
 		fallthrough;
 	case CQP_CREATED:
-		irdma_destroy_cqp(rf, true);
+		irdma_destroy_cqp(rf);
 		fallthrough;
 	case INITIAL_STATE:
 		irdma_del_init_mem(rf);
@@ -1945,10 +1959,12 @@ static void irdma_set_hw_rsrc(struct irdma_pci_f *rf)
 	rf->allocated_arps = &rf->allocated_mcgs[BITS_TO_LONGS(rf->max_mcg)];
 	rf->qp_table = (struct irdma_qp **)
 		(&rf->allocated_arps[BITS_TO_LONGS(rf->arp_table_size)]);
+	rf->cq_table = (struct irdma_cq **)(&rf->qp_table[rf->max_qp]);
 
 	spin_lock_init(&rf->rsrc_lock);
 	spin_lock_init(&rf->arp_lock);
 	spin_lock_init(&rf->qptable_lock);
+	spin_lock_init(&rf->cqtable_lock);
 	spin_lock_init(&rf->qh_list_lock);
 }
 
@@ -1969,6 +1985,7 @@ static u32 irdma_calc_mem_rsrc_size(struct irdma_pci_f *rf)
 	rsrc_size += sizeof(unsigned long) * BITS_TO_LONGS(rf->max_ah);
 	rsrc_size += sizeof(unsigned long) * BITS_TO_LONGS(rf->max_mcg);
 	rsrc_size += sizeof(struct irdma_qp **) * rf->max_qp;
+	rsrc_size += sizeof(struct irdma_cq **) * rf->max_cq;
 
 	return rsrc_size;
 }
@@ -2002,10 +2019,10 @@ u32 irdma_initialize_hw_rsrc(struct irdma_pci_f *rf)
 	rf->max_mcg = rf->max_qp;
 
 	rsrc_size = irdma_calc_mem_rsrc_size(rf);
-	rf->mem_rsrc = kzalloc(rsrc_size, GFP_KERNEL);
+	rf->mem_rsrc = vzalloc(rsrc_size);
 	if (!rf->mem_rsrc) {
 		ret = -ENOMEM;
-		goto mem_rsrc_kzalloc_fail;
+		goto mem_rsrc_vzalloc_fail;
 	}
 
 	rf->arp_table = (struct irdma_arp_entry *)rf->mem_rsrc;
@@ -2033,7 +2050,7 @@ u32 irdma_initialize_hw_rsrc(struct irdma_pci_f *rf)
 
 	return 0;
 
-mem_rsrc_kzalloc_fail:
+mem_rsrc_vzalloc_fail:
 	bitmap_free(rf->allocated_ws_nodes);
 	rf->allocated_ws_nodes = NULL;
 
