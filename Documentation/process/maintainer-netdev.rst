@@ -98,7 +98,7 @@ If you aren't subscribed to netdev and/or are simply unsure if
 repository link above for any new networking-related commits.  You may
 also check the following website for the current status:
 
-  https://patchwork.hopto.org/net-next.html
+  https://netdev.bots.linux.dev/net-next.html
 
 The ``net`` tree continues to collect fixes for the vX.Y content, and is
 fed back to Linus at regular (~weekly) intervals.  Meaning that the
@@ -185,7 +185,7 @@ must match the MAINTAINERS entry) and a handful of senior reviewers.
 
 Bot records its activity here:
 
-  https://patchwork.hopto.org/pw-bot.html
+  https://netdev.bots.linux.dev/pw-bot.html
 
 Review timelines
 ~~~~~~~~~~~~~~~~
