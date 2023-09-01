@@ -720,7 +720,7 @@ release_reset:
 static const struct dev_pm_ops host1x_pm_ops = {
 	SET_RUNTIME_PM_OPS(host1x_runtime_suspend, host1x_runtime_resume,
 			   NULL)
-	/* TODO: add system suspend-resume once driver will be ready for that */
+	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend, pm_runtime_force_resume)
 };
 
 static struct platform_driver tegra_host1x_driver = {
