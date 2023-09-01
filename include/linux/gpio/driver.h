@@ -529,8 +529,7 @@ struct gpio_chip {
 #endif /* CONFIG_OF_GPIO */
 };
 
-extern const char *gpiochip_is_requested(struct gpio_chip *gc,
-			unsigned int offset);
+const char *gpiochip_is_requested(struct gpio_chip *gc, unsigned int offset);
 
 /**
  * for_each_requested_gpio_in_range - iterates over requested GPIOs in a given range
@@ -549,9 +548,9 @@ extern const char *gpiochip_is_requested(struct gpio_chip *gc,
 	for_each_requested_gpio_in_range(chip, i, 0, chip->ngpio, label)
 
 /* add/remove chips */
-extern int gpiochip_add_data_with_key(struct gpio_chip *gc, void *data,
-				      struct lock_class_key *lock_key,
-				      struct lock_class_key *request_key);
+int gpiochip_add_data_with_key(struct gpio_chip *gc, void *data,
+			       struct lock_class_key *lock_key,
+			       struct lock_class_key *request_key);
 
 /**
  * gpiochip_add_data() - register a gpio_chip
@@ -599,13 +598,13 @@ static inline int gpiochip_add(struct gpio_chip *gc)
 {
 	return gpiochip_add_data(gc, NULL);
 }
-extern void gpiochip_remove(struct gpio_chip *gc);
-extern int devm_gpiochip_add_data_with_key(struct device *dev, struct gpio_chip *gc, void *data,
-					   struct lock_class_key *lock_key,
-					   struct lock_class_key *request_key);
+void gpiochip_remove(struct gpio_chip *gc);
+int devm_gpiochip_add_data_with_key(struct device *dev, struct gpio_chip *gc,
+				    void *data, struct lock_class_key *lock_key,
+				    struct lock_class_key *request_key);
 
-extern struct gpio_chip *gpiochip_find(void *data,
-			      int (*match)(struct gpio_chip *gc, void *data));
+struct gpio_chip *gpiochip_find(void *data,
+				int (*match)(struct gpio_chip *gc, void *data));
 
 bool gpiochip_line_is_irq(struct gpio_chip *gc, unsigned int offset);
 int gpiochip_reqres_irq(struct gpio_chip *gc, unsigned int offset);
