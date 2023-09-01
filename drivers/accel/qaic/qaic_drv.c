@@ -591,22 +591,22 @@ static int __init qaic_init(void)
 {
 	int ret;
 
-	ret = mhi_driver_register(&qaic_mhi_driver);
-	if (ret) {
-		pr_debug("qaic: mhi_driver_register failed %d\n", ret);
-		return ret;
-	}
-
 	ret = pci_register_driver(&qaic_pci_driver);
 	if (ret) {
 		pr_debug("qaic: pci_register_driver failed %d\n", ret);
-		goto free_mhi;
+		return ret;
+	}
+
+	ret = mhi_driver_register(&qaic_mhi_driver);
+	if (ret) {
+		pr_debug("qaic: mhi_driver_register failed %d\n", ret);
+		goto free_pci;
 	}
 
 	return 0;
 
-free_mhi:
-	mhi_driver_unregister(&qaic_mhi_driver);
+free_pci:
+	pci_unregister_driver(&qaic_pci_driver);
 	return ret;
 }
 
@@ -628,8 +628,8 @@ static void __exit qaic_exit(void)
 	 * reinitializing the link_up state after the cleanup is done.
 	 */
 	link_up = true;
-	pci_unregister_driver(&qaic_pci_driver);
 	mhi_driver_unregister(&qaic_mhi_driver);
+	pci_unregister_driver(&qaic_pci_driver);
 }
 
 module_init(qaic_init);
