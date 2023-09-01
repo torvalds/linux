@@ -635,7 +635,7 @@
 			clocks = <&clkgen JH7110_DMA1P_CLK_AXI>,
 				 <&clkgen JH7110_DMA1P_CLK_AHB>,
 				 <&clkgen JH7110_NOC_BUS_CLK_STG_AXI>;
-			clock-names = "core-clk", "cfgr-clk", "stg_clk";
+			clock-names = "core-clk", "cfgr-clk", "noc-clk";
 			resets = <&rstgen RSTN_U0_DW_DMA1P_AXI>,
 				 <&rstgen RSTN_U0_DW_DMA1P_AHB>,
 				 <&rstgen RSTN_U0_NOC_BUS_STG_AXI_N>;
