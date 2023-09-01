@@ -1165,7 +1165,7 @@ KUNIT_ARRAY_PARAM(fb_build_fourcc_list, fb_build_fourcc_list_cases, fb_build_fou
 static void drm_test_fb_build_fourcc_list(struct kunit *test)
 {
 	const struct fb_build_fourcc_list_case *params = test->param_value;
-	u32 fourccs_out[TEST_BUF_SIZE];
+	u32 fourccs_out[TEST_BUF_SIZE] = {0};
 	size_t nfourccs_out;
 	struct drm_device *drm;
 	struct device *dev;
