@@ -242,12 +242,12 @@ struct qaic_attach_slice_entry {
  * @dbc_id: In. Associate the sliced BO with this DBC.
  * @handle: In. GEM handle of the BO to slice.
  * @dir: In. Direction of data flow. 1 = DMA_TO_DEVICE, 2 = DMA_FROM_DEVICE
- * @size: In. Total length of the BO.
- *	  If BO is imported (DMABUF/PRIME) then this size
- *	  should not exceed the size of DMABUF provided.
- *	  If BO is allocated using DRM_IOCTL_QAIC_CREATE_BO
- *	  then this size should be exactly same as the size
- *	  provided during DRM_IOCTL_QAIC_CREATE_BO.
+ * @size: In. Total length of BO being used. This should not exceed base
+ *	  size of BO (struct drm_gem_object.base)
+ *	  For BOs being allocated using DRM_IOCTL_QAIC_CREATE_BO, size of
+ *	  BO requested is PAGE_SIZE aligned then allocated hence allocated
+ *	  BO size maybe bigger. This size should not exceed the new
+ *	  PAGE_SIZE aligned BO size.
  * @dev_addr: In. Device address this slice pushes to or pulls from.
  * @db_addr: In. Address of the doorbell to ring.
  * @db_data: In. Data to write to the doorbell.

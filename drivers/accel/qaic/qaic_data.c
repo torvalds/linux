@@ -579,7 +579,7 @@ static void qaic_gem_print_info(struct drm_printer *p, unsigned int indent,
 {
 	struct qaic_bo *bo = to_qaic_bo(obj);
 
-	drm_printf_indent(p, indent, "user requested size=%llu\n", bo->size);
+	drm_printf_indent(p, indent, "BO DMA direction %d\n", bo->dir);
 }
 
 static const struct vm_operations_struct drm_vm_ops = {
@@ -694,8 +694,6 @@ int qaic_create_bo_ioctl(struct drm_device *dev, void *data, struct drm_file *fi
 	ret = create_sgt(qdev, &bo->sgt, size);
 	if (ret)
 		goto free_bo;
-
-	bo->size = args->size;
 
 	ret = drm_gem_handle_create(file_priv, obj, &args->handle);
 	if (ret)
@@ -828,7 +826,6 @@ static int qaic_prepare_import_bo(struct qaic_bo *bo, struct qaic_attach_slice_h
 	}
 
 	bo->sgt = sgt;
-	bo->size = hdr->size;
 
 	return 0;
 }
@@ -838,7 +835,7 @@ static int qaic_prepare_export_bo(struct qaic_device *qdev, struct qaic_bo *bo,
 {
 	int ret;
 
-	if (bo->size != hdr->size)
+	if (bo->base.size < hdr->size)
 		return -EINVAL;
 
 	ret = dma_map_sgtable(&qdev->pdev->dev, bo->sgt, hdr->dir, 0);
@@ -868,7 +865,6 @@ static void qaic_unprepare_import_bo(struct qaic_bo *bo)
 {
 	dma_buf_unmap_attachment(bo->base.import_attach, bo->sgt, bo->dir);
 	bo->sgt = NULL;
-	bo->size = 0;
 }
 
 static void qaic_unprepare_export_bo(struct qaic_device *qdev, struct qaic_bo *bo)
@@ -1190,7 +1186,7 @@ static int send_bo_list_to_device(struct qaic_device *qdev, struct drm_file *fil
 			goto failed_to_send_bo;
 		}
 
-		if (is_partial && pexec[i].resize > bo->size) {
+		if (is_partial && pexec[i].resize > bo->base.size) {
 			ret = -EINVAL;
 			goto failed_to_send_bo;
 		}

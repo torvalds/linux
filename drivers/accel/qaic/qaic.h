@@ -161,8 +161,6 @@ struct qaic_bo {
 	struct drm_gem_object	base;
 	/* Scatter/gather table for allocate/imported BO */
 	struct sg_table		*sgt;
-	/* BO size requested by user. GEM object might be bigger in size. */
-	u64			size;
 	/* Head in list of slices of this BO */
 	struct list_head	slices;
 	/* Total nents, for all slices of this BO */
