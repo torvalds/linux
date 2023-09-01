@@ -3,6 +3,8 @@
 #ifndef __ASM_CSKY_TRAPS_H
 #define __ASM_CSKY_TRAPS_H
 
+#include <linux/linkage.h>
+
 #define VEC_RESET	0
 #define VEC_ALIGN	1
 #define VEC_ACCESS	2
