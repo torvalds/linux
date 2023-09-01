@@ -113,7 +113,7 @@ static void free_list_evsel(struct list_head* list_evsel)
 	u64 num;
 	enum parse_events__term_type term_type;
 	struct list_head *list_evsel;
-	struct list_head *list_terms;
+	struct parse_events_terms *list_terms;
 	struct parse_events_term *term;
 	struct tracepoint_name {
 		char *sys;
@@ -644,26 +644,26 @@ start_terms: event_config
 event_config:
 event_config ',' event_term
 {
-	struct list_head *head = $1;
+	struct parse_events_terms *head = $1;
 	struct parse_events_term *term = $3;
 
 	if (!head) {
 		parse_events_term__delete(term);
 		YYABORT;
 	}
-	list_add_tail(&term->list, head);
+	list_add_tail(&term->list, &head->terms);
 	$$ = $1;
 }
 |
 event_term
 {
-	struct list_head *head = malloc(sizeof(*head));
+	struct parse_events_terms *head = malloc(sizeof(*head));
 	struct parse_events_term *term = $1;
 
 	if (!head)
 		YYNOMEM;
-	INIT_LIST_HEAD(head);
-	list_add_tail(&term->list, head);
+	parse_events_terms__init(head);
+	list_add_tail(&term->list, &head->terms);
 	$$ = head;
 }
 

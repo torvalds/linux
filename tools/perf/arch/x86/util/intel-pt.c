@@ -64,28 +64,23 @@ static int intel_pt_parse_terms_with_default(struct perf_pmu *pmu,
 					     const char *str,
 					     u64 *config)
 {
-	struct list_head *terms;
+	struct parse_events_terms terms;
 	struct perf_event_attr attr = { .size = 0, };
 	int err;
 
-	terms = malloc(sizeof(struct list_head));
-	if (!terms)
-		return -ENOMEM;
-
-	INIT_LIST_HEAD(terms);
-
-	err = parse_events_terms(terms, str, /*input=*/ NULL);
+	parse_events_terms__init(&terms);
+	err = parse_events_terms(&terms, str, /*input=*/ NULL);
 	if (err)
 		goto out_free;
 
 	attr.config = *config;
-	err = perf_pmu__config_terms(pmu, &attr, terms, /*zero=*/true, /*err=*/NULL);
+	err = perf_pmu__config_terms(pmu, &attr, &terms, /*zero=*/true, /*err=*/NULL);
 	if (err)
 		goto out_free;
 
 	*config = attr.config;
 out_free:
-	parse_events_terms__delete(terms);
+	parse_events_terms__exit(&terms);
 	return err;
 }
 

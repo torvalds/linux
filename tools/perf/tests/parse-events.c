@@ -771,12 +771,12 @@ static int test__checkevent_pmu_events_mix(struct evlist *evlist)
 	return TEST_OK;
 }
 
-static int test__checkterms_simple(struct list_head *terms)
+static int test__checkterms_simple(struct parse_events_terms *terms)
 {
 	struct parse_events_term *term;
 
 	/* config=10 */
-	term = list_entry(terms->next, struct parse_events_term, list);
+	term = list_entry(terms->terms.next, struct parse_events_term, list);
 	TEST_ASSERT_VAL("wrong type term",
 			term->type_term == PARSE_EVENTS__TERM_TYPE_CONFIG);
 	TEST_ASSERT_VAL("wrong type val",
@@ -2363,7 +2363,7 @@ static const struct evlist_test test__events_pmu[] = {
 
 struct terms_test {
 	const char *str;
-	int (*check)(struct list_head *terms);
+	int (*check)(struct parse_events_terms *terms);
 };
 
 static const struct terms_test test__terms[] = {
@@ -2467,11 +2467,11 @@ static int test__events2(struct test_suite *test __maybe_unused, int subtest __m
 
 static int test_term(const struct terms_test *t)
 {
-	struct list_head terms;
+	struct parse_events_terms terms;
 	int ret;
 
-	INIT_LIST_HEAD(&terms);
 
+	parse_events_terms__init(&terms);
 	ret = parse_events_terms(&terms, t->str, /*input=*/ NULL);
 	if (ret) {
 		pr_debug("failed to parse terms '%s', err %d\n",
@@ -2480,7 +2480,7 @@ static int test_term(const struct terms_test *t)
 	}
 
 	ret = t->check(&terms);
-	parse_events_terms__purge(&terms);
+	parse_events_terms__exit(&terms);
 
 	return ret;
 }
