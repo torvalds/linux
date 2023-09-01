@@ -926,6 +926,7 @@ static irqreturn_t pca953x_irq_handler(int irq, void *devid)
 static int pca953x_irq_setup(struct pca953x_chip *chip, int irq_base)
 {
 	struct i2c_client *client = chip->client;
+	struct device *dev = &client->dev;
 	DECLARE_BITMAP(reg_direction, MAX_LINE);
 	DECLARE_BITMAP(irq_stat, MAX_LINE);
 	struct gpio_irq_chip *girq;
@@ -974,11 +975,8 @@ static int pca953x_irq_setup(struct pca953x_chip *chip, int irq_base)
 					NULL, pca953x_irq_handler,
 					IRQF_ONESHOT | IRQF_SHARED,
 					dev_name(&client->dev), chip);
-	if (ret) {
-		dev_err(&client->dev, "failed to request irq %d\n",
-			client->irq);
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(dev, client->irq, "failed to request irq\n");
 
 	return 0;
 }
