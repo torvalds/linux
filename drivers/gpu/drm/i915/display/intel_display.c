@@ -5557,7 +5557,9 @@ static void intel_crtc_check_fastset(const struct intel_crtc_state *old_crtc_sta
 	else
 		new_crtc_state->uapi.mode_changed = false;
 
-	if (intel_crtc_needs_modeset(new_crtc_state))
+	if (intel_crtc_needs_modeset(new_crtc_state) ||
+	    intel_compare_link_m_n(&old_crtc_state->dp_m_n,
+				   &new_crtc_state->dp_m_n))
 		new_crtc_state->update_m_n = false;
 
 	if (!intel_crtc_needs_modeset(new_crtc_state))
