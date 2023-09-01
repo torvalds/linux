@@ -3452,7 +3452,7 @@ static void rtw89_disable_fw_watchdog(struct rtw89_dev *rtwdev)
 	rtw89_mac_mem_write(rtwdev, R_AX_WDT_STATUS, val32, RTW89_MAC_MEM_CPU_LOCAL);
 }
 
-void rtw89_mac_disable_cpu(struct rtw89_dev *rtwdev)
+static void rtw89_mac_disable_cpu_ax(struct rtw89_dev *rtwdev)
 {
 	clear_bit(RTW89_FLAG_FW_RDY, rtwdev->flags);
 
@@ -3467,7 +3467,7 @@ void rtw89_mac_disable_cpu(struct rtw89_dev *rtwdev)
 	rtw89_write32_set(rtwdev, R_AX_PLATFORM_ENABLE, B_AX_PLATFORM_EN);
 }
 
-int rtw89_mac_enable_cpu(struct rtw89_dev *rtwdev, u8 boot_reason, bool dlfw)
+static int rtw89_mac_enable_cpu_ax(struct rtw89_dev *rtwdev, u8 boot_reason, bool dlfw)
 {
 	u32 val;
 	int ret;
@@ -5684,6 +5684,14 @@ int rtw89_mac_ptk_drop_by_band_and_wait(struct rtw89_dev *rtwdev,
 	return ret;
 }
 
+static u8 rtw89_fw_get_rdy_ax(struct rtw89_dev *rtwdev)
+{
+	u8 val = rtw89_read8(rtwdev, R_AX_WCPU_FW_CTRL);
+
+	return FIELD_GET(B_AX_WCPU_FWDL_STS_MASK, val);
+}
+
+static
 int rtw89_fwdl_check_path_ready_ax(struct rtw89_dev *rtwdev,
 				   bool h2c_or_fwdl)
 {
@@ -5701,5 +5709,10 @@ const struct rtw89_mac_gen_def rtw89_mac_gen_ax = {
 	.indir_access_addr = R_AX_INDIR_ACCESS_ENTRY,
 	.mem_base_addrs = rtw89_mac_mem_base_addrs_ax,
 	.rx_fltr = R_AX_RX_FLTR_OPT,
+
+	.disable_cpu = rtw89_mac_disable_cpu_ax,
+	.fwdl_enable_wcpu = rtw89_mac_enable_cpu_ax,
+	.fwdl_get_status = rtw89_fw_get_rdy_ax,
+	.fwdl_check_path_ready = rtw89_fwdl_check_path_ready_ax,
 };
 EXPORT_SYMBOL(rtw89_mac_gen_ax);

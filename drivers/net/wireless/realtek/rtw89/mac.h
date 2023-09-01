@@ -858,6 +858,11 @@ struct rtw89_mac_gen_def {
 	u32 indir_access_addr;
 	const u32 *mem_base_addrs;
 	u32 rx_fltr;
+
+	void (*disable_cpu)(struct rtw89_dev *rtwdev);
+	int (*fwdl_enable_wcpu)(struct rtw89_dev *rtwdev, u8 boot_reason, bool dlfw);
+	u8 (*fwdl_get_status)(struct rtw89_dev *rtwdev);
+	int (*fwdl_check_path_ready)(struct rtw89_dev *rtwdev, bool h2c_or_fwdl);
 };
 
 extern const struct rtw89_mac_gen_def rtw89_mac_gen_ax;
@@ -975,8 +980,6 @@ void rtw89_mac_set_he_obss_narrow_bw_ru(struct rtw89_dev *rtwdev,
 					struct ieee80211_vif *vif);
 void rtw89_mac_stop_ap(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif);
 int rtw89_mac_remove_vif(struct rtw89_dev *rtwdev, struct rtw89_vif *vif);
-void rtw89_mac_disable_cpu(struct rtw89_dev *rtwdev);
-int rtw89_mac_enable_cpu(struct rtw89_dev *rtwdev, u8 boot_reason, bool dlfw);
 int rtw89_mac_enable_bb_rf(struct rtw89_dev *rtwdev);
 int rtw89_mac_disable_bb_rf(struct rtw89_dev *rtwdev);
 
@@ -1207,7 +1210,5 @@ int rtw89_mac_resize_ple_rx_quota(struct rtw89_dev *rtwdev, bool wow);
 int rtw89_mac_ptk_drop_by_band_and_wait(struct rtw89_dev *rtwdev,
 					enum rtw89_mac_idx band);
 void rtw89_mac_hw_mgnt_sec(struct rtw89_dev *rtwdev, bool wow);
-int rtw89_fwdl_check_path_ready_ax(struct rtw89_dev *rtwdev,
-				   bool h2c_or_fwdl);
 
 #endif
