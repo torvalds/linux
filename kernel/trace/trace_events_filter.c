@@ -1782,13 +1782,17 @@ static int parse_pred(const char *str, void *data,
 				FILTER_PRED_FN_CPUMASK;
 		} else if (field->filter_type == FILTER_CPU) {
 			if (single) {
-				pred->op = pred->op == OP_BAND ? OP_EQ : pred->op;
+				if (pred->op == OP_BAND)
+					pred->op = OP_EQ;
+
 				pred->fn_num = FILTER_PRED_FN_CPU;
 			} else {
 				pred->fn_num = FILTER_PRED_FN_CPU_CPUMASK;
 			}
 		} else if (single) {
-			pred->op = pred->op == OP_BAND ? OP_EQ : pred->op;
+			if (pred->op == OP_BAND)
+				pred->op = OP_EQ;
+
 			pred->fn_num = select_comparison_fn(pred->op, field->size, false);
 			if (pred->op == OP_NE)
 				pred->not = 1;
