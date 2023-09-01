@@ -28,12 +28,13 @@
 #define IVPU_HW_37XX	37
 #define IVPU_HW_40XX	40
 
-#define IVPU_GLOBAL_CONTEXT_MMU_SSID 0
-/* SSID 1 is used by the VPU to represent invalid context */
-#define IVPU_USER_CONTEXT_MIN_SSID   2
-#define IVPU_USER_CONTEXT_MAX_SSID   (IVPU_USER_CONTEXT_MIN_SSID + 63)
+#define IVPU_GLOBAL_CONTEXT_MMU_SSID   0
+/* SSID 1 is used by the VPU to represent reserved context */
+#define IVPU_RESERVED_CONTEXT_MMU_SSID 1
+#define IVPU_USER_CONTEXT_MIN_SSID     2
+#define IVPU_USER_CONTEXT_MAX_SSID     (IVPU_USER_CONTEXT_MIN_SSID + 63)
 
-#define IVPU_NUM_ENGINES	     2
+#define IVPU_NUM_ENGINES 2
 
 #define IVPU_PLATFORM_SILICON 0
 #define IVPU_PLATFORM_SIMICS  2
@@ -104,6 +105,7 @@ struct ivpu_device {
 	struct ivpu_pm_info *pm;
 
 	struct ivpu_mmu_context gctx;
+	struct ivpu_mmu_context rctx;
 	struct xarray context_xa;
 	struct xa_limit context_xa_limit;
 

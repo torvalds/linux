@@ -543,9 +543,13 @@ static int ivpu_dev_init(struct ivpu_device *vdev)
 	if (ret)
 		goto err_mmu_gctx_fini;
 
-	ret = ivpu_fw_init(vdev);
+	ret = ivpu_mmu_reserved_context_init(vdev);
 	if (ret)
 		goto err_mmu_gctx_fini;
+
+	ret = ivpu_fw_init(vdev);
+	if (ret)
+		goto err_mmu_rctx_fini;
 
 	ret = ivpu_ipc_init(vdev);
 	if (ret)
@@ -575,6 +579,8 @@ err_ipc_fini:
 	ivpu_ipc_fini(vdev);
 err_fw_fini:
 	ivpu_fw_fini(vdev);
+err_mmu_rctx_fini:
+	ivpu_mmu_reserved_context_fini(vdev);
 err_mmu_gctx_fini:
 	ivpu_mmu_global_context_fini(vdev);
 err_power_down:
@@ -598,6 +604,7 @@ static void ivpu_dev_fini(struct ivpu_device *vdev)
 
 	ivpu_ipc_fini(vdev);
 	ivpu_fw_fini(vdev);
+	ivpu_mmu_reserved_context_fini(vdev);
 	ivpu_mmu_global_context_fini(vdev);
 
 	drm_WARN_ON(&vdev->drm, !xa_empty(&vdev->submitted_jobs_xa));

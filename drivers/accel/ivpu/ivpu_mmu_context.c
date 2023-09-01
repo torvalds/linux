@@ -469,6 +469,16 @@ void ivpu_mmu_global_context_fini(struct ivpu_device *vdev)
 	return ivpu_mmu_context_fini(vdev, &vdev->gctx);
 }
 
+int ivpu_mmu_reserved_context_init(struct ivpu_device *vdev)
+{
+	return ivpu_mmu_user_context_init(vdev, &vdev->rctx, IVPU_RESERVED_CONTEXT_MMU_SSID);
+}
+
+void ivpu_mmu_reserved_context_fini(struct ivpu_device *vdev)
+{
+	return ivpu_mmu_user_context_fini(vdev, &vdev->rctx);
+}
+
 void ivpu_mmu_user_context_mark_invalid(struct ivpu_device *vdev, u32 ssid)
 {
 	struct ivpu_file_priv *file_priv;
