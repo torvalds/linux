@@ -46,7 +46,6 @@
 /* TODO: remove this include once we ported over remaining clk mgr functions*/
 #include "dcn30/dcn30_clk_mgr.h"
 #include "dcn31/dcn31_clk_mgr.h"
-#include "dcn35_clk_mgr.h"
 
 #include "dc_dmub_srv.h"
 #include "link.h"
