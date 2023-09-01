@@ -3505,7 +3505,7 @@ static int rtw89_mac_enable_cpu_ax(struct rtw89_dev *rtwdev, u8 boot_reason, boo
 	if (!dlfw) {
 		mdelay(5);
 
-		ret = rtw89_fw_check_rdy(rtwdev);
+		ret = rtw89_fw_check_rdy(rtwdev, RTW89_FWDL_CHECK_FREERTOS_DONE);
 		if (ret)
 			return ret;
 	}
@@ -5684,7 +5684,7 @@ int rtw89_mac_ptk_drop_by_band_and_wait(struct rtw89_dev *rtwdev,
 	return ret;
 }
 
-static u8 rtw89_fw_get_rdy_ax(struct rtw89_dev *rtwdev)
+static u8 rtw89_fw_get_rdy_ax(struct rtw89_dev *rtwdev, enum rtw89_fwdl_check_type type)
 {
 	u8 val = rtw89_read8(rtwdev, R_AX_WCPU_FW_CTRL);
 

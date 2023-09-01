@@ -3620,7 +3620,7 @@ struct rtw89_fw_h2c_rf_get_mccch {
 
 #define FWDL_WAIT_CNT 400000
 
-int rtw89_fw_check_rdy(struct rtw89_dev *rtwdev);
+int rtw89_fw_check_rdy(struct rtw89_dev *rtwdev, enum rtw89_fwdl_check_type type);
 int rtw89_fw_recognize(struct rtw89_dev *rtwdev);
 int rtw89_fw_recognize_elements(struct rtw89_dev *rtwdev);
 const struct firmware *

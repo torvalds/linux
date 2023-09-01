@@ -3610,6 +3610,14 @@ struct rtw89_mac_info {
 	struct rtw89_wait_info fw_ofld_wait;
 };
 
+enum rtw89_fwdl_check_type {
+	RTW89_FWDL_CHECK_FREERTOS_DONE,
+	RTW89_FWDL_CHECK_WCPU_FWDL_DONE,
+	RTW89_FWDL_CHECK_DCPU_FWDL_DONE,
+	RTW89_FWDL_CHECK_BB0_FWDL_DONE,
+	RTW89_FWDL_CHECK_BB1_FWDL_DONE,
+};
+
 enum rtw89_fw_type {
 	RTW89_FW_NORMAL = 1,
 	RTW89_FW_WOWLAN = 3,

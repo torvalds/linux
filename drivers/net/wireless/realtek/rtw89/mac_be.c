@@ -100,7 +100,7 @@ static int wcpu_on(struct rtw89_dev *rtwdev, u8 boot_reason, bool dlfw)
 	rtw89_write32_set(rtwdev, R_BE_PLATFORM_ENABLE, B_BE_WCPU_EN);
 
 	if (!dlfw) {
-		ret = rtw89_fw_check_rdy(rtwdev);
+		ret = rtw89_fw_check_rdy(rtwdev, RTW89_FWDL_CHECK_FREERTOS_DONE);
 		if (ret)
 			return ret;
 	}
@@ -129,12 +129,33 @@ static const u8 fwdl_status_map[] = {
 	[9] = RTW89_FWDL_RSVD0,
 };
 
-static u8 fwdl_get_status_be(struct rtw89_dev *rtwdev)
+static u8 fwdl_get_status_be(struct rtw89_dev *rtwdev, enum rtw89_fwdl_check_type type)
 {
+	bool check_pass = false;
 	u32 val32;
 	u8 st;
 
 	val32 = rtw89_read32(rtwdev, R_BE_WCPU_FW_CTRL);
+
+	switch (type) {
+	case RTW89_FWDL_CHECK_WCPU_FWDL_DONE:
+		check_pass = !(val32 & B_BE_WLANCPU_FWDL_EN);
+		break;
+	case RTW89_FWDL_CHECK_DCPU_FWDL_DONE:
+		check_pass = !(val32 & B_BE_DATACPU_FWDL_EN);
+		break;
+	case RTW89_FWDL_CHECK_BB0_FWDL_DONE:
+		check_pass = !(val32 & B_BE_BBMCU0_FWDL_EN);
+		break;
+	case RTW89_FWDL_CHECK_BB1_FWDL_DONE:
+		check_pass = !(val32 & B_BE_BBMCU1_FWDL_EN);
+		break;
+	default:
+		break;
+	}
+
+	if (check_pass)
+		return RTW89_FWDL_WCPU_FW_INIT_RDY;
 
 	st = u32_get_bits(val32, B_BE_WCPU_FWDL_STATUS_MASK);
 	if (st < ARRAY_SIZE(fwdl_status_map))

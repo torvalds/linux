@@ -47,7 +47,7 @@ struct sk_buff *rtw89_fw_h2c_alloc_skb_no_hdr(struct rtw89_dev *rtwdev, u32 len)
 	return rtw89_fw_h2c_alloc_skb(rtwdev, len, false);
 }
 
-int rtw89_fw_check_rdy(struct rtw89_dev *rtwdev)
+int rtw89_fw_check_rdy(struct rtw89_dev *rtwdev, enum rtw89_fwdl_check_type type)
 {
 	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
 	u8 val;
@@ -55,7 +55,7 @@ int rtw89_fw_check_rdy(struct rtw89_dev *rtwdev)
 
 	ret = read_poll_timeout_atomic(mac->fwdl_get_status, val,
 				       val == RTW89_FWDL_WCPU_FW_INIT_RDY,
-				       1, FWDL_WAIT_CNT, false, rtwdev);
+				       1, FWDL_WAIT_CNT, false, rtwdev, type);
 	if (ret) {
 		switch (val) {
 		case RTW89_FWDL_CHECKSUM_FAIL:
@@ -837,13 +837,6 @@ static int rtw89_fw_download_main(struct rtw89_dev *rtwdev, const u8 *fw,
 		section_info++;
 	}
 
-	mdelay(5);
-
-	ret = rtw89_fw_check_rdy(rtwdev);
-	if (ret) {
-		rtw89_warn(rtwdev, "download firmware fail\n");
-		return ret;
-	}
 
 	return 0;
 }
@@ -923,6 +916,14 @@ int rtw89_fw_download(struct rtw89_dev *rtwdev, enum rtw89_fw_type type)
 	fw_info->c2h_counter = 0;
 	rtwdev->mac.rpwm_seq_num = RPWM_SEQ_NUM_MAX;
 	rtwdev->mac.cpwm_seq_num = CPWM_SEQ_NUM_MAX;
+
+	mdelay(5);
+
+	ret = rtw89_fw_check_rdy(rtwdev, RTW89_FWDL_CHECK_FREERTOS_DONE);
+	if (ret) {
+		rtw89_warn(rtwdev, "download firmware fail\n");
+		return ret;
+	}
 
 	return ret;
 
