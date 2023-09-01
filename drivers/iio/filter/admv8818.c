@@ -78,6 +78,7 @@ enum {
 enum {
 	ADMV8818_AUTO_MODE,
 	ADMV8818_MANUAL_MODE,
+	ADMV8818_BYPASS_MODE,
 };
 
 struct admv8818_state {
@@ -114,7 +115,8 @@ static const struct regmap_config admv8818_regmap_config = {
 
 static const char * const admv8818_modes[] = {
 	[0] = "auto",
-	[1] = "manual"
+	[1] = "manual",
+	[2] = "bypass"
 };
 
 static int __admv8818_hpf_select(struct admv8818_state *st, u64 freq)
@@ -394,6 +396,36 @@ static int admv8818_reg_access(struct iio_dev *indio_dev,
 		return regmap_write(st->regmap, reg, write_val);
 }
 
+static int admv8818_filter_bypass(struct admv8818_state *st)
+{
+	int ret;
+
+	mutex_lock(&st->lock);
+
+	ret = regmap_update_bits(st->regmap, ADMV8818_REG_WR0_SW,
+				 ADMV8818_SW_IN_SET_WR0_MSK |
+				 ADMV8818_SW_IN_WR0_MSK |
+				 ADMV8818_SW_OUT_SET_WR0_MSK |
+				 ADMV8818_SW_OUT_WR0_MSK,
+				 FIELD_PREP(ADMV8818_SW_IN_SET_WR0_MSK, 1) |
+				 FIELD_PREP(ADMV8818_SW_IN_WR0_MSK, 0) |
+				 FIELD_PREP(ADMV8818_SW_OUT_SET_WR0_MSK, 1) |
+				 FIELD_PREP(ADMV8818_SW_OUT_WR0_MSK, 0));
+	if (ret)
+		goto exit;
+
+	ret = regmap_update_bits(st->regmap, ADMV8818_REG_WR0_FILTER,
+				 ADMV8818_HPF_WR0_MSK |
+				 ADMV8818_LPF_WR0_MSK,
+				 FIELD_PREP(ADMV8818_HPF_WR0_MSK, 0) |
+				 FIELD_PREP(ADMV8818_LPF_WR0_MSK, 0));
+
+exit:
+	mutex_unlock(&st->lock);
+
+	return ret;
+}
+
 static int admv8818_get_mode(struct iio_dev *indio_dev,
 			     const struct iio_chan_spec *chan)
 {
@@ -411,14 +443,22 @@ static int admv8818_set_mode(struct iio_dev *indio_dev,
 
 	if (!st->clkin) {
 		if (mode == ADMV8818_MANUAL_MODE)
-			return 0;
+			goto set_mode;
+
+		if (mode == ADMV8818_BYPASS_MODE) {
+			ret = admv8818_filter_bypass(st);
+			if (ret)
+				return ret;
+
+			goto set_mode;
+		}
 
 		return -EINVAL;
 	}
 
 	switch (mode) {
 	case ADMV8818_AUTO_MODE:
-		if (!st->filter_mode)
+		if (st->filter_mode == ADMV8818_AUTO_MODE)
 			return 0;
 
 		ret = clk_prepare_enable(st->clkin);
@@ -434,20 +474,27 @@ static int admv8818_set_mode(struct iio_dev *indio_dev,
 
 		break;
 	case ADMV8818_MANUAL_MODE:
-		if (st->filter_mode)
-			return 0;
+	case ADMV8818_BYPASS_MODE:
+		if (st->filter_mode == ADMV8818_AUTO_MODE) {
+			clk_disable_unprepare(st->clkin);
 
-		clk_disable_unprepare(st->clkin);
+			ret = clk_notifier_unregister(st->clkin, &st->nb);
+			if (ret)
+				return ret;
+		}
 
-		ret = clk_notifier_unregister(st->clkin, &st->nb);
-		if (ret)
-			return ret;
+		if (mode == ADMV8818_BYPASS_MODE) {
+			ret = admv8818_filter_bypass(st);
+			if (ret)
+				return ret;
+		}
 
 		break;
 	default:
 		return -EINVAL;
 	}
 
+set_mode:
 	st->filter_mode = mode;
 
 	return ret;

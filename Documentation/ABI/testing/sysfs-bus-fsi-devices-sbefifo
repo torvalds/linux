@@ -7,4 +7,4 @@ Description:
 		by the driver. A value of 1 indicates that a timeout has
 		occurred and no transfers have completed since the timeout. A
 		value of 0 indicates that no timeout has occurred, or if one
-		has, more recent transfers have completed successful.
+		has, more recent transfers have completed successfully.
