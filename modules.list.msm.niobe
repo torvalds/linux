@@ -1,2 +1,9 @@
 # SPDX-License-Identifier: GPL-2.0-only
 # Copyright (c) 2023, Qualcomm Innovation Center, Inc. All rights reserved.
+qcom-scm.ko
+mem_buf.ko
+mem_buf_dev.ko
+msm_dma_iommu_mapping.ko
+qcom_dma_heaps.ko
+qcom_iommu_util.ko
+arm_smmu.ko
