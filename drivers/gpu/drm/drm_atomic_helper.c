@@ -3339,6 +3339,9 @@ void drm_atomic_helper_shutdown(struct drm_device *dev)
 	struct drm_modeset_acquire_ctx ctx;
 	int ret;
 
+	if (dev == NULL)
+		return;
+
 	DRM_MODESET_LOCK_ALL_BEGIN(dev, ctx, 0, ret);
 
 	ret = drm_atomic_helper_disable_all(dev, &ctx);
