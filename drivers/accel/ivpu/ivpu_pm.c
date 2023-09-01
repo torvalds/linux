@@ -282,7 +282,7 @@ void ivpu_pm_reset_done_cb(struct pci_dev *pdev)
 	pm_runtime_put_autosuspend(vdev->drm.dev);
 }
 
-int ivpu_pm_init(struct ivpu_device *vdev)
+void ivpu_pm_init(struct ivpu_device *vdev)
 {
 	struct device *dev = vdev->drm.dev;
 	struct ivpu_pm_info *pm = vdev->pm;
@@ -303,8 +303,6 @@ int ivpu_pm_init(struct ivpu_device *vdev)
 	pm_runtime_set_autosuspend_delay(dev, delay);
 
 	ivpu_dbg(vdev, PM, "Autosuspend delay = %d\n", delay);
-
-	return 0;
 }
 
 void ivpu_pm_cancel_recovery(struct ivpu_device *vdev)
