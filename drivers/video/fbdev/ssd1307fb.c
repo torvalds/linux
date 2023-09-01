@@ -52,8 +52,8 @@ struct ssd1307fb_deviceinfo {
 	u32 default_vcomh;
 	u32 default_dclk_div;
 	u32 default_dclk_frq;
-	int need_pwm;
-	int need_chargepump;
+	bool need_pwm;
+	bool need_chargepump;
 };
 
 struct ssd1307fb_par {
