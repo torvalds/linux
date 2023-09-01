@@ -183,7 +183,7 @@ static int aspeed_hace_probe(struct platform_device *pdev)
 	tasklet_init(&crypto_engine->done_task, aspeed_hace_crypto_done_task,
 		     (unsigned long)hace_dev);
 
-#ifdef CONFIG_MACH_ASPEED_G7
+#ifdef CONFIG_64BIT
 	rc = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
 	if (rc) {
 		dev_warn(&pdev->dev, "No suitable DMA available\n");

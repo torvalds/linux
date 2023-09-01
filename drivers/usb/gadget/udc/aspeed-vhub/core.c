@@ -371,7 +371,7 @@ static int ast_vhub_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-#ifdef CONFIG_MACH_ASPEED_G7
+#ifdef CONFIG_64BIT
 	rc = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
 	if (rc) {
 		dev_warn(&pdev->dev, "No suitable DMA available\n");
