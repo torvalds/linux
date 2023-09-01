@@ -2,7 +2,7 @@ menu "CPU errata selection"
 
 config ERRATA_ANDES
 	bool "Andes AX45MP errata"
-	depends on RISCV_ALTERNATIVE
+	depends on RISCV_ALTERNATIVE && RISCV_SBI
 	help
 	  All Andes errata Kconfig depend on this Kconfig. Disabling
 	  this Kconfig will disable all Andes errata. Please say "Y"
