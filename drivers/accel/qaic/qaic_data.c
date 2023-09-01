@@ -911,9 +911,6 @@ static int qaic_attach_slicing_bo(struct qaic_device *qdev, struct qaic_bo *bo,
 		return -ENOSPC;
 	}
 
-	bo->sliced = true;
-	list_add_tail(&bo->bo_list, &bo->dbc->bo_lists);
-
 	return 0;
 }
 
@@ -1015,6 +1012,8 @@ int qaic_attach_slice_bo_ioctl(struct drm_device *dev, void *data, struct drm_fi
 	if (args->hdr.dir == DMA_TO_DEVICE)
 		dma_sync_sgtable_for_cpu(&qdev->pdev->dev, bo->sgt, args->hdr.dir);
 
+	bo->sliced = true;
+	list_add_tail(&bo->bo_list, &bo->dbc->bo_lists);
 	srcu_read_unlock(&dbc->ch_lock, rcu_id);
 	drm_gem_object_put(obj);
 	srcu_read_unlock(&qdev->dev_lock, qdev_rcu_id);
