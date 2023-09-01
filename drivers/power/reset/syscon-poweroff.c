@@ -37,8 +37,11 @@ static int syscon_poweroff_probe(struct platform_device *pdev)
 
 	map = syscon_regmap_lookup_by_phandle(dev->of_node, "regmap");
 	if (IS_ERR(map)) {
-		dev_err(dev, "unable to get syscon");
-		return PTR_ERR(map);
+		map = syscon_node_to_regmap(dev->parent->of_node);
+		if (IS_ERR(map)) {
+			dev_err(dev, "unable to get syscon");
+			return PTR_ERR(map);
+		}
 	}
 
 	if (of_property_read_u32(dev->of_node, "offset", &offset)) {
