@@ -988,20 +988,18 @@ static int device_pca95xx_init(struct pca953x_chip *chip)
 	ret = regcache_sync_region(chip->regmap, regaddr,
 				   regaddr + NBANK(chip) - 1);
 	if (ret)
-		goto out;
+		return ret;
 
 	regaddr = chip->recalc_addr(chip, chip->regs->direction, 0);
 	ret = regcache_sync_region(chip->regmap, regaddr,
 				   regaddr + NBANK(chip) - 1);
 	if (ret)
-		goto out;
+		return ret;
 
 	/* clear polarity inversion */
 	bitmap_zero(val, MAX_LINE);
 
-	ret = pca953x_write_regs(chip, chip->regs->invert, val);
-out:
-	return ret;
+	return pca953x_write_regs(chip, chip->regs->invert, val);
 }
 
 static int device_pca957x_init(struct pca953x_chip *chip)
@@ -1012,19 +1010,13 @@ static int device_pca957x_init(struct pca953x_chip *chip)
 
 	ret = device_pca95xx_init(chip);
 	if (ret)
-		goto out;
+		return ret;
 
 	/* To enable register 6, 7 to control pull up and pull down */
 	for (i = 0; i < NBANK(chip); i++)
 		bitmap_set_value8(val, 0x02, i * BANK_SZ);
 
-	ret = pca953x_write_regs(chip, PCA957X_BKEN, val);
-	if (ret)
-		goto out;
-
-	return 0;
-out:
-	return ret;
+	return pca953x_write_regs(chip, PCA957X_BKEN, val);
 }
 
 static void pca953x_disable_regulator(void *reg)
@@ -1262,12 +1254,10 @@ static int pca953x_resume(struct device *dev)
 	}
 
 	ret = pca953x_restore_context(chip);
-	if (ret) {
+	if (ret)
 		dev_err(dev, "Failed to restore register map: %d\n", ret);
-		return ret;
-	}
 
-	return 0;
+	return ret;
 }
 
 static DEFINE_SIMPLE_DEV_PM_OPS(pca953x_pm_ops, pca953x_suspend, pca953x_resume);
