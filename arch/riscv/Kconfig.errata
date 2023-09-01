@@ -12,7 +12,7 @@ config ERRATA_ANDES
 
 config ERRATA_ANDES_CMO
 	bool "Apply Andes cache management errata"
-	depends on ERRATA_ANDES && MMU && ARCH_R9A07G043
+	depends on ERRATA_ANDES && ARCH_R9A07G043
 	select RISCV_DMA_NONCOHERENT
 	default y
 	help
