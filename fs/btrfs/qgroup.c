@@ -266,27 +266,26 @@ static int del_qgroup_rb(struct btrfs_fs_info *fs_info, u64 qgroupid)
 /*
  * Add relation specified by two qgroups.
  *
- * Must be called with qgroup_lock held.
+ * Must be called with qgroup_lock held, the ownership of @prealloc is
+ * transferred to this function and caller should not touch it anymore.
  *
  * Return: 0        on success
  *         -ENOENT  if one of the qgroups is NULL
  *         <0       other errors
  */
-static int __add_relation_rb(struct btrfs_qgroup *member, struct btrfs_qgroup *parent)
+static int __add_relation_rb(struct btrfs_qgroup_list *prealloc,
+			     struct btrfs_qgroup *member,
+			     struct btrfs_qgroup *parent)
 {
-	struct btrfs_qgroup_list *list;
-
-	if (!member || !parent)
+	if (!member || !parent) {
+		kfree(prealloc);
 		return -ENOENT;
+	}
 
-	list = kzalloc(sizeof(*list), GFP_ATOMIC);
-	if (!list)
-		return -ENOMEM;
-
-	list->group = parent;
-	list->member = member;
-	list_add_tail(&list->next_group, &member->groups);
-	list_add_tail(&list->next_member, &parent->members);
+	prealloc->group = parent;
+	prealloc->member = member;
+	list_add_tail(&prealloc->next_group, &member->groups);
+	list_add_tail(&prealloc->next_member, &parent->members);
 
 	return 0;
 }
@@ -300,7 +299,9 @@ static int __add_relation_rb(struct btrfs_qgroup *member, struct btrfs_qgroup *p
  *         -ENOENT  if one of the ids does not exist
  *         <0       other errors
  */
-static int add_relation_rb(struct btrfs_fs_info *fs_info, u64 memberid, u64 parentid)
+static int add_relation_rb(struct btrfs_fs_info *fs_info,
+			   struct btrfs_qgroup_list *prealloc,
+			   u64 memberid, u64 parentid)
 {
 	struct btrfs_qgroup *member;
 	struct btrfs_qgroup *parent;
@@ -308,7 +309,7 @@ static int add_relation_rb(struct btrfs_fs_info *fs_info, u64 memberid, u64 pare
 	member = find_qgroup_rb(fs_info, memberid);
 	parent = find_qgroup_rb(fs_info, parentid);
 
-	return __add_relation_rb(member, parent);
+	return __add_relation_rb(prealloc, member, parent);
 }
 
 /* Must be called with qgroup_lock held */
@@ -504,6 +505,8 @@ next1:
 	if (ret)
 		goto out;
 	while (1) {
+		struct btrfs_qgroup_list *list = NULL;
+
 		slot = path->slots[0];
 		l = path->nodes[0];
 		btrfs_item_key_to_cpu(l, &found_key, slot);
@@ -517,8 +520,14 @@ next1:
 			goto next2;
 		}
 
-		ret = add_relation_rb(fs_info, found_key.objectid,
+		list = kzalloc(sizeof(*list), GFP_KERNEL);
+		if (!list) {
+			ret = -ENOMEM;
+			goto out;
+		}
+		ret = add_relation_rb(fs_info, list, found_key.objectid,
 				      found_key.offset);
+		list = NULL;
 		if (ret == -ENOENT) {
 			btrfs_warn(fs_info,
 				"orphan qgroup relation 0x%llx->0x%llx",
@@ -1486,6 +1495,7 @@ int btrfs_add_qgroup_relation(struct btrfs_trans_handle *trans, u64 src,
 	struct btrfs_qgroup *parent;
 	struct btrfs_qgroup *member;
 	struct btrfs_qgroup_list *list;
+	struct btrfs_qgroup_list *prealloc = NULL;
 	int ret = 0;
 
 	/* Check the level of src and dst first */
@@ -1512,6 +1522,11 @@ int btrfs_add_qgroup_relation(struct btrfs_trans_handle *trans, u64 src,
 		}
 	}
 
+	prealloc = kzalloc(sizeof(*list), GFP_NOFS);
+	if (!prealloc) {
+		ret = -ENOMEM;
+		goto out;
+	}
 	ret = add_qgroup_relation_item(trans, src, dst);
 	if (ret)
 		goto out;
@@ -1523,7 +1538,8 @@ int btrfs_add_qgroup_relation(struct btrfs_trans_handle *trans, u64 src,
 	}
 
 	spin_lock(&fs_info->qgroup_lock);
-	ret = __add_relation_rb(member, parent);
+	ret = __add_relation_rb(prealloc, member, parent);
+	prealloc = NULL;
 	if (ret < 0) {
 		spin_unlock(&fs_info->qgroup_lock);
 		goto out;
@@ -1531,6 +1547,7 @@ int btrfs_add_qgroup_relation(struct btrfs_trans_handle *trans, u64 src,
 	ret = quick_update_accounting(fs_info, src, dst, 1);
 	spin_unlock(&fs_info->qgroup_lock);
 out:
+	kfree(prealloc);
 	mutex_unlock(&fs_info->qgroup_ioctl_lock);
 	return ret;
 }
@@ -2887,6 +2904,7 @@ int btrfs_qgroup_inherit(struct btrfs_trans_handle *trans, u64 srcid,
 	struct btrfs_qgroup *srcgroup;
 	struct btrfs_qgroup *dstgroup;
 	struct btrfs_qgroup *prealloc;
+	struct btrfs_qgroup_list **qlist_prealloc = NULL;
 	bool need_rescan = false;
 	u32 level_size = 0;
 	u64 nums;
@@ -2967,8 +2985,23 @@ int btrfs_qgroup_inherit(struct btrfs_trans_handle *trans, u64 srcid,
 				goto out;
 		}
 		ret = 0;
-	}
 
+		qlist_prealloc = kcalloc(inherit->num_qgroups,
+					 sizeof(struct btrfs_qgroup_list *),
+					 GFP_NOFS);
+		if (!qlist_prealloc) {
+			ret = -ENOMEM;
+			goto out;
+		}
+		for (int i = 0; i < inherit->num_qgroups; i++) {
+			qlist_prealloc[i] = kzalloc(sizeof(struct btrfs_qgroup_list),
+						    GFP_NOFS);
+			if (!qlist_prealloc[i]) {
+				ret = -ENOMEM;
+				goto out;
+			}
+		}
+	}
 
 	spin_lock(&fs_info->qgroup_lock);
 
@@ -3020,7 +3053,9 @@ int btrfs_qgroup_inherit(struct btrfs_trans_handle *trans, u64 srcid,
 	i_qgroups = (u64 *)(inherit + 1);
 	for (i = 0; i < inherit->num_qgroups; ++i) {
 		if (*i_qgroups) {
-			ret = add_relation_rb(fs_info, objectid, *i_qgroups);
+			ret = add_relation_rb(fs_info, qlist_prealloc[i], objectid,
+					      *i_qgroups);
+			qlist_prealloc[i] = NULL;
 			if (ret)
 				goto unlock;
 		}
@@ -3084,6 +3119,11 @@ out:
 		mutex_unlock(&fs_info->qgroup_ioctl_lock);
 	if (need_rescan)
 		qgroup_mark_inconsistent(fs_info);
+	if (qlist_prealloc) {
+		for (int i = 0; i < inherit->num_qgroups; i++)
+			kfree(qlist_prealloc[i]);
+		kfree(qlist_prealloc);
+	}
 	kfree(prealloc);
 	return ret;
 }
