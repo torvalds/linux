@@ -19,6 +19,7 @@
 #include <media/v4l2-fwnode.h>
 
 #include "vip.h"
+#include "video.h"
 
 static inline struct tegra_vip *host1x_client_to_vip(struct host1x_client *client)
 {

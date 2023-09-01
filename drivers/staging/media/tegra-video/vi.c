@@ -40,7 +40,7 @@
  * @subdev: V4L2 subdev
  */
 struct tegra_vi_graph_entity {
-	struct v4l2_async_subdev asd;
+	struct v4l2_async_connection asd;
 	struct media_entity *entity;
 	struct v4l2_subdev *subdev;
 };
@@ -58,7 +58,7 @@ to_tegra_channel_buffer(struct vb2_v4l2_buffer *vb)
 }
 
 static inline struct tegra_vi_graph_entity *
-to_tegra_vi_graph_entity(struct v4l2_async_subdev *asd)
+to_tegra_vi_graph_entity(struct v4l2_async_connection *asd)
 {
 	return container_of(asd, struct tegra_vi_graph_entity, asd);
 }
@@ -1181,7 +1181,7 @@ static int tegra_channel_init(struct tegra_vi_channel *chan)
 	}
 
 	if (!IS_ENABLED(CONFIG_VIDEO_TEGRA_TPG))
-		v4l2_async_nf_init(&chan->notifier);
+		v4l2_async_nf_init(&chan->notifier, &vid->v4l2_dev);
 
 	return 0;
 
@@ -1462,9 +1462,9 @@ tegra_vi_graph_find_entity(struct tegra_vi_channel *chan,
 			   const struct fwnode_handle *fwnode)
 {
 	struct tegra_vi_graph_entity *entity;
-	struct v4l2_async_subdev *asd;
+	struct v4l2_async_connection *asd;
 
-	list_for_each_entry(asd, &chan->notifier.asd_list, asd_list) {
+	list_for_each_entry(asd, &chan->notifier.done_list, asc_entry) {
 		entity = to_tegra_vi_graph_entity(asd);
 		if (entity->asd.match.fwnode == fwnode)
 			return entity;
@@ -1578,7 +1578,7 @@ create_link:
 static int tegra_vi_graph_notify_complete(struct v4l2_async_notifier *notifier)
 {
 	struct tegra_vi_graph_entity *entity;
-	struct v4l2_async_subdev *asd;
+	struct v4l2_async_connection *asd;
 	struct v4l2_subdev *subdev;
 	struct tegra_vi_channel *chan;
 	struct tegra_vi *vi;
@@ -1608,7 +1608,7 @@ static int tegra_vi_graph_notify_complete(struct v4l2_async_notifier *notifier)
 	}
 
 	/* create links between the entities */
-	list_for_each_entry(asd, &chan->notifier.asd_list, asd_list) {
+	list_for_each_entry(asd, &chan->notifier.done_list, asc_entry) {
 		entity = to_tegra_vi_graph_entity(asd);
 		ret = tegra_vi_graph_build(chan, entity);
 		if (ret < 0)
@@ -1651,7 +1651,7 @@ unregister_video:
 
 static int tegra_vi_graph_notify_bound(struct v4l2_async_notifier *notifier,
 				       struct v4l2_subdev *subdev,
-				       struct v4l2_async_subdev *asd)
+				       struct v4l2_async_connection *asd)
 {
 	struct tegra_vi_graph_entity *entity;
 	struct tegra_vi *vi;
@@ -1748,7 +1748,6 @@ cleanup:
 
 static int tegra_vi_graph_init(struct tegra_vi *vi)
 {
-	struct tegra_video_device *vid = dev_get_drvdata(vi->client.host);
 	struct tegra_vi_channel *chan;
 	struct fwnode_handle *fwnode = dev_fwnode(vi->dev);
 	int ret;
@@ -1775,11 +1774,11 @@ static int tegra_vi_graph_init(struct tegra_vi *vi)
 
 		ret = tegra_vi_graph_parse_one(chan, remote);
 		fwnode_handle_put(remote);
-		if (ret < 0 || list_empty(&chan->notifier.asd_list))
+		if (ret < 0 || list_empty(&chan->notifier.waiting_list))
 			continue;
 
 		chan->notifier.ops = &tegra_vi_async_ops;
-		ret = v4l2_async_nf_register(&vid->v4l2_dev, &chan->notifier);
+		ret = v4l2_async_nf_register(&chan->notifier);
 		if (ret < 0) {
 			dev_err(vi->dev,
 				"failed to register channel %d notifier: %d\n",
