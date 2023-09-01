@@ -624,6 +624,7 @@ static void qaic_free_object(struct drm_gem_object *obj)
 		qaic_free_sgt(bo->sgt);
 	}
 
+	mutex_destroy(&bo->lock);
 	drm_gem_object_release(obj);
 	kfree(bo);
 }
@@ -641,6 +642,7 @@ static void qaic_init_bo(struct qaic_bo *bo, bool reinit)
 		bo->sliced = false;
 		reinit_completion(&bo->xfer_done);
 	} else {
+		mutex_init(&bo->lock);
 		init_completion(&bo->xfer_done);
 	}
 	complete_all(&bo->xfer_done);
@@ -1002,10 +1004,13 @@ int qaic_attach_slice_bo_ioctl(struct drm_device *dev, void *data, struct drm_fi
 	}
 
 	bo = to_qaic_bo(obj);
+	ret = mutex_lock_interruptible(&bo->lock);
+	if (ret)
+		goto put_bo;
 
 	if (bo->sliced) {
 		ret = -EINVAL;
-		goto put_bo;
+		goto unlock_bo;
 	}
 
 	dbc = &qdev->dbc[args->hdr.dbc_id];
@@ -1029,7 +1034,7 @@ int qaic_attach_slice_bo_ioctl(struct drm_device *dev, void *data, struct drm_fi
 	bo->sliced = true;
 	list_add_tail(&bo->bo_list, &bo->dbc->bo_lists);
 	srcu_read_unlock(&dbc->ch_lock, rcu_id);
-	drm_gem_object_put(obj);
+	mutex_unlock(&bo->lock);
 	srcu_read_unlock(&qdev->dev_lock, qdev_rcu_id);
 	srcu_read_unlock(&usr->qddev_lock, usr_rcu_id);
 
@@ -1039,6 +1044,8 @@ unprepare_bo:
 	qaic_unprepare_bo(qdev, bo);
 unlock_ch_srcu:
 	srcu_read_unlock(&dbc->ch_lock, rcu_id);
+unlock_bo:
+	mutex_unlock(&bo->lock);
 put_bo:
 	drm_gem_object_put(obj);
 free_slice_ent:
@@ -1193,15 +1200,18 @@ static int send_bo_list_to_device(struct qaic_device *qdev, struct drm_file *fil
 		}
 
 		bo = to_qaic_bo(obj);
+		ret = mutex_lock_interruptible(&bo->lock);
+		if (ret)
+			goto failed_to_send_bo;
 
 		if (!bo->sliced) {
 			ret = -EINVAL;
-			goto failed_to_send_bo;
+			goto unlock_bo;
 		}
 
 		if (is_partial && pexec[i].resize > bo->base.size) {
 			ret = -EINVAL;
-			goto failed_to_send_bo;
+			goto unlock_bo;
 		}
 
 		spin_lock_irqsave(&dbc->xfer_lock, flags);
@@ -1210,7 +1220,7 @@ static int send_bo_list_to_device(struct qaic_device *qdev, struct drm_file *fil
 		if (queued) {
 			spin_unlock_irqrestore(&dbc->xfer_lock, flags);
 			ret = -EINVAL;
-			goto failed_to_send_bo;
+			goto unlock_bo;
 		}
 
 		bo->req_id = dbc->next_req_id++;
@@ -1241,17 +1251,20 @@ static int send_bo_list_to_device(struct qaic_device *qdev, struct drm_file *fil
 			if (ret) {
 				bo->queued = false;
 				spin_unlock_irqrestore(&dbc->xfer_lock, flags);
-				goto failed_to_send_bo;
+				goto unlock_bo;
 			}
 		}
 		reinit_completion(&bo->xfer_done);
 		list_add_tail(&bo->xfer_list, &dbc->xfer_list);
 		spin_unlock_irqrestore(&dbc->xfer_lock, flags);
 		dma_sync_sgtable_for_device(&qdev->pdev->dev, bo->sgt, bo->dir);
+		mutex_unlock(&bo->lock);
 	}
 
 	return 0;
 
+unlock_bo:
+	mutex_unlock(&bo->lock);
 failed_to_send_bo:
 	if (likely(obj))
 		drm_gem_object_put(obj);
@@ -1807,6 +1820,91 @@ unlock_usr_srcu:
 	return ret;
 }
 
+static void detach_slice_bo(struct qaic_device *qdev, struct qaic_bo *bo)
+{
+	qaic_free_slices_bo(bo);
+	qaic_unprepare_bo(qdev, bo);
+	qaic_init_bo(bo, true);
+	list_del(&bo->bo_list);
+	drm_gem_object_put(&bo->base);
+}
+
+int qaic_detach_slice_bo_ioctl(struct drm_device *dev, void *data, struct drm_file *file_priv)
+{
+	struct qaic_detach_slice *args = data;
+	int rcu_id, usr_rcu_id, qdev_rcu_id;
+	struct dma_bridge_chan *dbc;
+	struct drm_gem_object *obj;
+	struct qaic_device *qdev;
+	struct qaic_user *usr;
+	unsigned long flags;
+	struct qaic_bo *bo;
+	int ret;
+
+	if (args->pad != 0)
+		return -EINVAL;
+
+	usr = file_priv->driver_priv;
+	usr_rcu_id = srcu_read_lock(&usr->qddev_lock);
+	if (!usr->qddev) {
+		ret = -ENODEV;
+		goto unlock_usr_srcu;
+	}
+
+	qdev = usr->qddev->qdev;
+	qdev_rcu_id = srcu_read_lock(&qdev->dev_lock);
+	if (qdev->in_reset) {
+		ret = -ENODEV;
+		goto unlock_dev_srcu;
+	}
+
+	obj = drm_gem_object_lookup(file_priv, args->handle);
+	if (!obj) {
+		ret = -ENOENT;
+		goto unlock_dev_srcu;
+	}
+
+	bo = to_qaic_bo(obj);
+	ret = mutex_lock_interruptible(&bo->lock);
+	if (ret)
+		goto put_bo;
+
+	if (!bo->sliced) {
+		ret = -EINVAL;
+		goto unlock_bo;
+	}
+
+	dbc = bo->dbc;
+	rcu_id = srcu_read_lock(&dbc->ch_lock);
+	if (dbc->usr != usr) {
+		ret = -EINVAL;
+		goto unlock_ch_srcu;
+	}
+
+	/* Check if BO is committed to H/W for DMA */
+	spin_lock_irqsave(&dbc->xfer_lock, flags);
+	if (bo->queued) {
+		spin_unlock_irqrestore(&dbc->xfer_lock, flags);
+		ret = -EBUSY;
+		goto unlock_ch_srcu;
+	}
+	spin_unlock_irqrestore(&dbc->xfer_lock, flags);
+
+	detach_slice_bo(qdev, bo);
+
+unlock_ch_srcu:
+	srcu_read_unlock(&dbc->ch_lock, rcu_id);
+unlock_bo:
+	mutex_unlock(&bo->lock);
+put_bo:
+	drm_gem_object_put(obj);
+unlock_dev_srcu:
+	srcu_read_unlock(&qdev->dev_lock, qdev_rcu_id);
+unlock_usr_srcu:
+	srcu_read_unlock(&usr->qddev_lock, usr_rcu_id);
+	return ret;
+}
+
 static void empty_xfer_list(struct qaic_device *qdev, struct dma_bridge_chan *dbc)
 {
 	unsigned long flags;
@@ -1888,10 +1986,11 @@ void release_dbc(struct qaic_device *qdev, u32 dbc_id)
 	dbc->usr = NULL;
 
 	list_for_each_entry_safe(bo, bo_temp, &dbc->bo_lists, bo_list) {
-		qaic_free_slices_bo(bo);
-		qaic_unprepare_bo(qdev, bo);
-		qaic_init_bo(bo, true);
-		list_del(&bo->bo_list);
+		drm_gem_object_get(&bo->base);
+		mutex_lock(&bo->lock);
+		detach_slice_bo(qdev, bo);
+		mutex_unlock(&bo->lock);
+		drm_gem_object_put(&bo->base);
 	}
 
 	dbc->in_use = false;

@@ -222,7 +222,8 @@ struct qaic_bo {
 		 */
 		u32		queue_level_before;
 	} perf_stats;
-
+	/* Synchronizes BO operations */
+	struct mutex		lock;
 };
 
 struct bo_slice {
@@ -278,6 +279,7 @@ int qaic_execute_bo_ioctl(struct drm_device *dev, void *data, struct drm_file *f
 int qaic_partial_execute_bo_ioctl(struct drm_device *dev, void *data, struct drm_file *file_priv);
 int qaic_wait_bo_ioctl(struct drm_device *dev, void *data, struct drm_file *file_priv);
 int qaic_perf_stats_bo_ioctl(struct drm_device *dev, void *data, struct drm_file *file_priv);
+int qaic_detach_slice_bo_ioctl(struct drm_device *dev, void *data, struct drm_file *file_priv);
 void irq_polling_work(struct work_struct *work);
 
 #endif /* _QAIC_H_ */

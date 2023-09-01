@@ -151,6 +151,7 @@ static const struct drm_ioctl_desc qaic_drm_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(QAIC_PARTIAL_EXECUTE_BO, qaic_partial_execute_bo_ioctl, 0),
 	DRM_IOCTL_DEF_DRV(QAIC_WAIT_BO, qaic_wait_bo_ioctl, 0),
 	DRM_IOCTL_DEF_DRV(QAIC_PERF_STATS_BO, qaic_perf_stats_bo_ioctl, 0),
+	DRM_IOCTL_DEF_DRV(QAIC_DETACH_SLICE_BO, qaic_detach_slice_bo_ioctl, 0),
 };
 
 static const struct drm_driver qaic_accel_driver = {
