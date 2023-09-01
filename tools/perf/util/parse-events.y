@@ -274,22 +274,17 @@ event_pmu:
 PE_NAME opt_pmu_config
 {
 	struct parse_events_state *parse_state = _parse_state;
-	struct list_head *list = NULL, *orig_terms = NULL, *terms= NULL;
+	/* List of created evsels. */
+	struct list_head *list = NULL;
 	char *pattern = NULL;
 
 #define CLEANUP						\
 	do {						\
 		parse_events_terms__delete($2);		\
-		parse_events_terms__delete(orig_terms);	\
 		free(list);				\
 		free($1);				\
 		free(pattern);				\
 	} while(0)
-
-	if (parse_events_copy_term_list($2, &orig_terms)) {
-		CLEANUP;
-		YYNOMEM;
-	}
 
 	list = alloc_list();
 	if (!list) {
@@ -320,16 +315,11 @@ PE_NAME opt_pmu_config
 			    !perf_pmu__match(pattern, pmu->alias_name, $1)) {
 				bool auto_merge_stats = perf_pmu__auto_merge_stats(pmu);
 
-				if (parse_events_copy_term_list(orig_terms, &terms)) {
-					CLEANUP;
-					YYNOMEM;
-				}
-				if (!parse_events_add_pmu(parse_state, list, pmu->name, terms,
+				if (!parse_events_add_pmu(parse_state, list, pmu->name, $2,
 							  auto_merge_stats, &@1)) {
 					ok++;
 					parse_state->wild_card_pmus = true;
 				}
-				parse_events_terms__delete(terms);
 			}
 		}
 
@@ -337,7 +327,6 @@ PE_NAME opt_pmu_config
 			/* Failure to add, assume $1 is an event name. */
 			zfree(&list);
 			ok = !parse_events_multi_pmu_add(parse_state, $1, $2, &list, &@1);
-			$2 = NULL;
 		}
 		if (!ok) {
 			struct parse_events_error *error = parse_state->error;
