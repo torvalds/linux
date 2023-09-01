@@ -155,22 +155,22 @@ void dcn35_init_hw(struct dc *dc)
 		res_pool->ref_clocks.xtalin_clock_inKhz =
 				dc->ctx->dc_bios->fw_info.pll_info.crystal_frequency;
 
-			if (res_pool->dccg && res_pool->hubbub) {
+		if (res_pool->dccg && res_pool->hubbub) {
 
-				(res_pool->dccg->funcs->get_dccg_ref_freq)(res_pool->dccg,
-						dc->ctx->dc_bios->fw_info.pll_info.crystal_frequency,
-						&res_pool->ref_clocks.dccg_ref_clock_inKhz);
+			(res_pool->dccg->funcs->get_dccg_ref_freq)(res_pool->dccg,
+				dc->ctx->dc_bios->fw_info.pll_info.crystal_frequency,
+				&res_pool->ref_clocks.dccg_ref_clock_inKhz);
 
-				(res_pool->hubbub->funcs->get_dchub_ref_freq)(res_pool->hubbub,
-						res_pool->ref_clocks.dccg_ref_clock_inKhz,
-						&res_pool->ref_clocks.dchub_ref_clock_inKhz);
-			} else {
-				// Not all ASICs have DCCG sw component
-				res_pool->ref_clocks.dccg_ref_clock_inKhz =
-						res_pool->ref_clocks.xtalin_clock_inKhz;
-				res_pool->ref_clocks.dchub_ref_clock_inKhz =
-						res_pool->ref_clocks.xtalin_clock_inKhz;
-			}
+			(res_pool->hubbub->funcs->get_dchub_ref_freq)(res_pool->hubbub,
+				res_pool->ref_clocks.dccg_ref_clock_inKhz,
+				&res_pool->ref_clocks.dchub_ref_clock_inKhz);
+		} else {
+			// Not all ASICs have DCCG sw component
+			res_pool->ref_clocks.dccg_ref_clock_inKhz =
+				res_pool->ref_clocks.xtalin_clock_inKhz;
+			res_pool->ref_clocks.dchub_ref_clock_inKhz =
+				res_pool->ref_clocks.xtalin_clock_inKhz;
+		}
 	} else
 		ASSERT_CRITICAL(false);
 
