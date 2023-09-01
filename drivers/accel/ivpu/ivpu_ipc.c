@@ -449,7 +449,7 @@ int ivpu_ipc_init(struct ivpu_device *vdev)
 		goto err_free_rx;
 	}
 
-	ret = gen_pool_add(ipc->mm_tx, ipc->mem_tx->vpu_addr, ipc->mem_tx->base.size, -1);
+	ret = gen_pool_add(ipc->mm_tx, ipc->mem_tx->vpu_addr, ivpu_bo_size(ipc->mem_tx), -1);
 	if (ret) {
 		ivpu_err(vdev, "gen_pool_add failed, ret %d\n", ret);
 		goto err_free_rx;
@@ -505,8 +505,8 @@ void ivpu_ipc_reset(struct ivpu_device *vdev)
 
 	mutex_lock(&ipc->lock);
 
-	memset(ipc->mem_tx->kvaddr, 0, ipc->mem_tx->base.size);
-	memset(ipc->mem_rx->kvaddr, 0, ipc->mem_rx->base.size);
+	memset(ivpu_bo_vaddr(ipc->mem_tx), 0, ivpu_bo_size(ipc->mem_tx));
+	memset(ivpu_bo_vaddr(ipc->mem_rx), 0, ivpu_bo_size(ipc->mem_rx));
 	wmb(); /* Flush WC buffers for TX and RX rings */
 
 	mutex_unlock(&ipc->lock);
