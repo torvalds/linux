@@ -470,7 +470,7 @@ static int run_test(test_func_t test_func, int bitmaps, u32 sectorsize,
 	}
 	cache->bitmap_low_thresh = 0;
 	cache->bitmap_high_thresh = (u32)-1;
-	cache->needs_free_space = 1;
+	set_bit(BLOCK_GROUP_FLAG_NEEDS_FREE_SPACE, &cache->runtime_flags);
 	cache->fs_info = root->fs_info;
 
 	btrfs_init_dummy_trans(&trans, root->fs_info);

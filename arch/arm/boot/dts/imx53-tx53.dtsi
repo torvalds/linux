@@ -94,7 +94,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_stk5led>;
 
-		user {
+		led-user {
 			label = "Heartbeat";
 			gpios = <&gpio2 20 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "heartbeat";
