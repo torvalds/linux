@@ -553,7 +553,7 @@ s32 btf_find_by_name_kind(const struct btf *btf, const char *name, u8 kind)
 	return -ENOENT;
 }
 
-static s32 bpf_find_btf_id(const char *name, u32 kind, struct btf **btf_p)
+s32 bpf_find_btf_id(const char *name, u32 kind, struct btf **btf_p)
 {
 	struct btf *btf;
 	s32 ret;
