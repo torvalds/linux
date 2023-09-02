@@ -86,6 +86,7 @@ def define_blair():
         "drivers/nvmem/nvmem_qfprom.ko",
         "drivers/perf/qcom_llcc_pmu.ko",
         "drivers/phy/qualcomm/phy-qcom-ufs.ko",
+        "drivers/phy/qualcomm/phy-qcom-ufs-qmp-v3.ko",
         "drivers/phy/qualcomm/phy-qcom-ufs-qmp-v4.ko",
         "drivers/phy/qualcomm/phy-qcom-ufs-qmp-v4-blair.ko",
         "drivers/phy/qualcomm/phy-qcom-ufs-qmp-v4-kalama.ko",
