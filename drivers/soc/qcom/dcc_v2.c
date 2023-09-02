@@ -2015,18 +2015,26 @@ static int dcc_probe(struct platform_device *pdev)
 	if (ret)
 		return -EINVAL;
 
-	if (dcc_readl(drvdata, DCC_HW_INFO) & 0x300) {
-		drvdata->mem_map_ver = DCC_MEM_MAP_VER3;
-		drvdata->nr_link_list = dcc_readl(drvdata, DCC_LL_NUM_INFO);
-		if (drvdata->nr_link_list == 0)
-			return  -EINVAL;
-	} else if ((dcc_readl(drvdata, DCC_HW_INFO) & 0x3F) == 0x3F) {
-		drvdata->mem_map_ver = DCC_MEM_MAP_VER2;
+	ret = of_property_read_u32(pdev->dev.of_node, "dcc-mem-map-ver",
+					&drvdata->mem_map_ver);
+	if (ret) {
+		if (BVAL(dcc_readl(drvdata, DCC_HW_INFO), 9))
+			drvdata->mem_map_ver = DCC_MEM_MAP_VER3;
+		else if ((dcc_readl(drvdata, DCC_HW_INFO) & 0x3F) == 0x3F)
+			drvdata->mem_map_ver = DCC_MEM_MAP_VER2;
+		else
+			drvdata->mem_map_ver = DCC_MEM_MAP_VER1;
+	}
+
+	if (drvdata->mem_map_ver < DCC_MEM_MAP_VER1
+			|| drvdata->mem_map_ver > DCC_MEM_MAP_VER3)
+		return  -EINVAL;
+
+	if (drvdata->mem_map_ver) {
 		drvdata->nr_link_list = dcc_readl(drvdata, DCC_LL_NUM_INFO);
 		if (drvdata->nr_link_list == 0)
 			return  -EINVAL;
 	} else {
-		drvdata->mem_map_ver = DCC_MEM_MAP_VER1;
 		drvdata->nr_link_list = DCC_MAX_LINK_LIST;
 	}
 
