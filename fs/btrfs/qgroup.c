@@ -2423,13 +2423,11 @@ out:
  * Walk all of the roots that points to the bytenr and adjust their refcnts.
  */
 static int qgroup_update_refcnt(struct btrfs_fs_info *fs_info,
-				struct ulist *roots, struct ulist *tmp,
-				struct ulist *qgroups, u64 seq, int update_old)
+				struct ulist *roots, struct ulist *qgroups,
+				u64 seq, int update_old)
 {
 	struct ulist_node *unode;
 	struct ulist_iterator uiter;
-	struct ulist_node *tmp_unode;
-	struct ulist_iterator tmp_uiter;
 	struct btrfs_qgroup *qg;
 	int ret = 0;
 
@@ -2437,40 +2435,35 @@ static int qgroup_update_refcnt(struct btrfs_fs_info *fs_info,
 		return 0;
 	ULIST_ITER_INIT(&uiter);
 	while ((unode = ulist_next(roots, &uiter))) {
+		LIST_HEAD(tmp);
+
 		qg = find_qgroup_rb(fs_info, unode->val);
 		if (!qg)
 			continue;
 
-		ulist_reinit(tmp);
 		ret = ulist_add(qgroups, qg->qgroupid, qgroup_to_aux(qg),
 				GFP_ATOMIC);
 		if (ret < 0)
 			return ret;
-		ret = ulist_add(tmp, qg->qgroupid, qgroup_to_aux(qg), GFP_ATOMIC);
-		if (ret < 0)
-			return ret;
-		ULIST_ITER_INIT(&tmp_uiter);
-		while ((tmp_unode = ulist_next(tmp, &tmp_uiter))) {
+		qgroup_iterator_add(&tmp, qg);
+		list_for_each_entry(qg, &tmp, iterator) {
 			struct btrfs_qgroup_list *glist;
 
-			qg = unode_aux_to_qgroup(tmp_unode);
 			if (update_old)
 				btrfs_qgroup_update_old_refcnt(qg, seq, 1);
 			else
 				btrfs_qgroup_update_new_refcnt(qg, seq, 1);
+
 			list_for_each_entry(glist, &qg->groups, next_group) {
 				ret = ulist_add(qgroups, glist->group->qgroupid,
 						qgroup_to_aux(glist->group),
 						GFP_ATOMIC);
 				if (ret < 0)
 					return ret;
-				ret = ulist_add(tmp, glist->group->qgroupid,
-						qgroup_to_aux(glist->group),
-						GFP_ATOMIC);
-				if (ret < 0)
-					return ret;
+				qgroup_iterator_add(&tmp, glist->group);
 			}
 		}
+		qgroup_iterator_clean(&tmp);
 	}
 	return 0;
 }
@@ -2635,7 +2628,6 @@ int btrfs_qgroup_account_extent(struct btrfs_trans_handle *trans, u64 bytenr,
 {
 	struct btrfs_fs_info *fs_info = trans->fs_info;
 	struct ulist *qgroups = NULL;
-	struct ulist *tmp = NULL;
 	u64 seq;
 	u64 nr_new_roots = 0;
 	u64 nr_old_roots = 0;
@@ -2674,12 +2666,6 @@ int btrfs_qgroup_account_extent(struct btrfs_trans_handle *trans, u64 bytenr,
 		ret = -ENOMEM;
 		goto out_free;
 	}
-	tmp = ulist_alloc(GFP_NOFS);
-	if (!tmp) {
-		ret = -ENOMEM;
-		goto out_free;
-	}
-
 	mutex_lock(&fs_info->qgroup_rescan_lock);
 	if (fs_info->qgroup_flags & BTRFS_QGROUP_STATUS_FLAG_RESCAN) {
 		if (fs_info->qgroup_rescan_progress.objectid <= bytenr) {
@@ -2694,14 +2680,12 @@ int btrfs_qgroup_account_extent(struct btrfs_trans_handle *trans, u64 bytenr,
 	seq = fs_info->qgroup_seq;
 
 	/* Update old refcnts using old_roots */
-	ret = qgroup_update_refcnt(fs_info, old_roots, tmp, qgroups, seq,
-				   UPDATE_OLD);
+	ret = qgroup_update_refcnt(fs_info, old_roots, qgroups, seq, UPDATE_OLD);
 	if (ret < 0)
 		goto out;
 
 	/* Update new refcnts using new_roots */
-	ret = qgroup_update_refcnt(fs_info, new_roots, tmp, qgroups, seq,
-				   UPDATE_NEW);
+	ret = qgroup_update_refcnt(fs_info, new_roots, qgroups, seq, UPDATE_NEW);
 	if (ret < 0)
 		goto out;
 
@@ -2715,7 +2699,6 @@ int btrfs_qgroup_account_extent(struct btrfs_trans_handle *trans, u64 bytenr,
 out:
 	spin_unlock(&fs_info->qgroup_lock);
 out_free:
-	ulist_free(tmp);
 	ulist_free(qgroups);
 	ulist_free(old_roots);
 	ulist_free(new_roots);
