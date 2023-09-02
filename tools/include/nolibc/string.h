@@ -84,6 +84,7 @@ void *memcpy(void *dst, const void *src, size_t len)
 }
 #endif /* #ifndef NOLIBC_ARCH_HAS_MEMCPY */
 
+#ifndef NOLIBC_ARCH_HAS_MEMSET
 /* might be ignored by the compiler without -ffreestanding, then found as
  * missing.
  */
@@ -99,6 +100,7 @@ void *memset(void *dst, int b, size_t len)
 	}
 	return dst;
 }
+#endif /* #ifndef NOLIBC_ARCH_HAS_MEMSET */
 
 static __attribute__((unused))
 char *strchr(const char *s, int c)

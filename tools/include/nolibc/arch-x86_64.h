@@ -179,6 +179,9 @@ void *memmove(void *dst, const void *src, size_t len);
 #define NOLIBC_ARCH_HAS_MEMCPY
 void *memcpy(void *dst, const void *src, size_t len);
 
+#define NOLIBC_ARCH_HAS_MEMSET
+void *memset(void *dst, int c, size_t len);
+
 __asm__ (
 ".section .text.nolibc_memmove_memcpy\n"
 ".weak memmove\n"
@@ -199,6 +202,16 @@ __asm__ (
 	"std\n\t"
 	"rep movsb\n\t"
 	"cld\n\t"
+	"retq\n"
+
+".section .text.nolibc_memset\n"
+".weak memset\n"
+"memset:\n"
+	"xchgl %eax, %esi\n\t"
+	"movq  %rdx, %rcx\n\t"
+	"pushq %rdi\n\t"
+	"rep stosb\n\t"
+	"popq  %rax\n\t"
 	"retq\n"
 );
 
