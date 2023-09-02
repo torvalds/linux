@@ -1139,14 +1139,14 @@ static const struct bq2515x_info bq25155 = {
 static const struct i2c_device_id bq2515x_i2c_ids[] = {
 	{ "bq25150", (kernel_ulong_t)&bq25150 },
 	{ "bq25155", (kernel_ulong_t)&bq25155 },
-	{},
+	{}
 };
 MODULE_DEVICE_TABLE(i2c, bq2515x_i2c_ids);
 
 static const struct of_device_id bq2515x_of_match[] = {
 	{ .compatible = "ti,bq25150", .data = &bq25150 },
 	{ .compatible = "ti,bq25155", .data = &bq25155 },
-	{ },
+	{}
 };
 MODULE_DEVICE_TABLE(of, bq2515x_of_match);
 
