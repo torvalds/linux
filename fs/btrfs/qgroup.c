@@ -3204,9 +3204,7 @@ void btrfs_qgroup_free_refroot(struct btrfs_fs_info *fs_info,
 			       enum btrfs_qgroup_rsv_type type)
 {
 	struct btrfs_qgroup *qgroup;
-	struct ulist_node *unode;
-	struct ulist_iterator uiter;
-	int ret = 0;
+	LIST_HEAD(qgroup_list);
 
 	if (!is_fstree(ref_root))
 		return;
@@ -3234,30 +3232,17 @@ void btrfs_qgroup_free_refroot(struct btrfs_fs_info *fs_info,
 		 */
 		num_bytes = qgroup->rsv.values[type];
 
-	ulist_reinit(fs_info->qgroup_ulist);
-	ret = ulist_add(fs_info->qgroup_ulist, qgroup->qgroupid,
-			qgroup_to_aux(qgroup), GFP_ATOMIC);
-	if (ret < 0)
-		goto out;
-	ULIST_ITER_INIT(&uiter);
-	while ((unode = ulist_next(fs_info->qgroup_ulist, &uiter))) {
-		struct btrfs_qgroup *qg;
+	qgroup_iterator_add(&qgroup_list, qgroup);
+	list_for_each_entry(qgroup, &qgroup_list, iterator) {
 		struct btrfs_qgroup_list *glist;
 
-		qg = unode_aux_to_qgroup(unode);
-
-		qgroup_rsv_release(fs_info, qg, num_bytes, type);
-
-		list_for_each_entry(glist, &qg->groups, next_group) {
-			ret = ulist_add(fs_info->qgroup_ulist,
-					glist->group->qgroupid,
-					qgroup_to_aux(glist->group), GFP_ATOMIC);
-			if (ret < 0)
-				goto out;
+		qgroup_rsv_release(fs_info, qgroup, num_bytes, type);
+		list_for_each_entry(glist, &qgroup->groups, next_group) {
+			qgroup_iterator_add(&qgroup_list, glist->group);
 		}
 	}
-
 out:
+	qgroup_iterator_clean(&qgroup_list);
 	spin_unlock(&fs_info->qgroup_lock);
 }
 
