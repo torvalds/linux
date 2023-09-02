@@ -150,7 +150,7 @@ int inet_diag_msg_attrs_fill(struct sock *sk, struct sk_buff *skb,
 	}
 #endif
 
-	if (net_admin && nla_put_u32(skb, INET_DIAG_MARK, sk->sk_mark))
+	if (net_admin && nla_put_u32(skb, INET_DIAG_MARK, READ_ONCE(sk->sk_mark)))
 		goto errout;
 
 	if (ext & (1 << (INET_DIAG_CLASS_ID - 1)) ||
@@ -799,7 +799,7 @@ int inet_diag_bc_sk(const struct nlattr *bc, struct sock *sk)
 	entry.ifindex = sk->sk_bound_dev_if;
 	entry.userlocks = sk_fullsock(sk) ? sk->sk_userlocks : 0;
 	if (sk_fullsock(sk))
-		entry.mark = sk->sk_mark;
+		entry.mark = READ_ONCE(sk->sk_mark);
 	else if (sk->sk_state == TCP_NEW_SYN_RECV)
 		entry.mark = inet_rsk(inet_reqsk(sk))->ir_mark;
 	else if (sk->sk_state == TCP_TIME_WAIT)

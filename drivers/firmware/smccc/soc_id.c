@@ -34,7 +34,6 @@ static struct soc_device_attribute *soc_dev_attr;
 
 static int __init smccc_soc_init(void)
 {
-	struct arm_smccc_res res;
 	int soc_id_rev, soc_id_version;
 	static char soc_id_str[20], soc_id_rev_str[12];
 	static char soc_id_jep106_id_str[12];
@@ -55,23 +54,14 @@ static int __init smccc_soc_init(void)
 		return 0;
 	}
 
-	if ((int)res.a0 < 0) {
-		pr_info("ARCH_FEATURES(ARCH_SOC_ID) returned error: %lx\n",
-			res.a0);
+	if (soc_id_version < 0) {
+		pr_err("Invalid SoC Version: %x\n", soc_id_version);
 		return -EINVAL;
 	}
 
-	arm_smccc_1_1_invoke(ARM_SMCCC_ARCH_SOC_ID, 0, &res);
-	if ((int)res.a0 < 0) {
-		pr_err("ARCH_SOC_ID(0) returned error: %lx\n", res.a0);
-		return -EINVAL;
-	}
-
-	soc_id_version = res.a0;
-
-	arm_smccc_1_1_invoke(ARM_SMCCC_ARCH_SOC_ID, 1, &res);
-	if ((int)res.a0 < 0) {
-		pr_err("ARCH_SOC_ID(1) returned error: %lx\n", res.a0);
+	soc_id_rev = arm_smccc_get_soc_id_revision();
+	if (soc_id_rev < 0) {
+		pr_err("Invalid SoC Revision: %x\n", soc_id_rev);
 		return -EINVAL;
 	}
 
