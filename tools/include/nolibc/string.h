@@ -39,16 +39,6 @@ void *_nolibc_memcpy_up(void *dst, const void *src, size_t len)
 	return dst;
 }
 
-static __attribute__((unused))
-void *_nolibc_memcpy_down(void *dst, const void *src, size_t len)
-{
-	while (len) {
-		len--;
-		((char *)dst)[len] = ((const char *)src)[len];
-	}
-	return dst;
-}
-
 #ifndef NOLIBC_ARCH_HAS_MEMMOVE
 /* might be ignored by the compiler without -ffreestanding, then found as
  * missing.
