@@ -229,6 +229,24 @@ struct btrfs_qgroup {
 	 * finished.
 	 */
 	struct list_head iterator;
+
+	/*
+	 * For nested iterator usage.
+	 *
+	 * Here we support at most one level of nested iterator calls like:
+	 *
+	 *	LIST_HEAD(all_qgroups);
+	 *	{
+	 *		LIST_HEAD(local_qgroups);
+	 *		qgroup_iterator_add(local_qgroups, qg);
+	 *		qgroup_iterator_nested_add(all_qgroups, qg);
+	 *		do_some_work(local_qgroups);
+	 *		qgroup_iterator_clean(local_qgroups);
+	 *	}
+	 *	do_some_work(all_qgroups);
+	 *	qgroup_iterator_nested_clean(all_qgroups);
+	 */
+	struct list_head nested_iterator;
 	struct rb_node node;	  /* tree of qgroups */
 
 	/*
