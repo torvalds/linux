@@ -176,7 +176,7 @@
 #define IVDR_CK_ON	4		/* iVDR Clock ON */
 #endif
 
-#define HL_FPGA_IRQ_BASE	200
+#define HL_FPGA_IRQ_BASE	(200 + 16)
 #define HL_NR_IRL		15
 
 #define IRQ_AX88796		(HL_FPGA_IRQ_BASE + 0)

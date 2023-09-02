@@ -769,6 +769,14 @@ struct drm_bridge {
 	 */
 	bool interlace_allowed;
 	/**
+	 * @pre_enable_prev_first: The bridge requires that the prev
+	 * bridge @pre_enable function is called before its @pre_enable,
+	 * and conversely for post_disable. This is most frequently a
+	 * requirement for DSI devices which need the host to be initialised
+	 * before the peripheral.
+	 */
+	bool pre_enable_prev_first;
+	/**
 	 * @ddc: Associated I2C adapter for DDC access, if any.
 	 */
 	struct i2c_adapter *ddc;

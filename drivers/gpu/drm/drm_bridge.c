@@ -691,6 +691,25 @@ void drm_atomic_bridge_chain_disable(struct drm_bridge *bridge,
 }
 EXPORT_SYMBOL(drm_atomic_bridge_chain_disable);
 
+static void drm_atomic_bridge_call_post_disable(struct drm_bridge *bridge,
+						struct drm_atomic_state *old_state)
+{
+	if (old_state && bridge->funcs->atomic_post_disable) {
+		struct drm_bridge_state *old_bridge_state;
+
+		old_bridge_state =
+			drm_atomic_get_old_bridge_state(old_state,
+							bridge);
+		if (WARN_ON(!old_bridge_state))
+			return;
+
+		bridge->funcs->atomic_post_disable(bridge,
+						   old_bridge_state);
+	} else if (bridge->funcs->post_disable) {
+		bridge->funcs->post_disable(bridge);
+	}
+}
+
 /**
  * drm_atomic_bridge_chain_post_disable - cleans up after disabling all bridges
  *					  in the encoder chain
@@ -702,35 +721,85 @@ EXPORT_SYMBOL(drm_atomic_bridge_chain_disable);
  * starting from the first bridge to the last. These are called after completing
  * &drm_encoder_helper_funcs.atomic_disable
  *
+ * If a bridge sets @pre_enable_prev_first, then the @post_disable for that
+ * bridge will be called before the previous one to reverse the @pre_enable
+ * calling direction.
+ *
  * Note: the bridge passed should be the one closest to the encoder
  */
 void drm_atomic_bridge_chain_post_disable(struct drm_bridge *bridge,
 					  struct drm_atomic_state *old_state)
 {
 	struct drm_encoder *encoder;
+	struct drm_bridge *next, *limit;
 
 	if (!bridge)
 		return;
 
 	encoder = bridge->encoder;
+
 	list_for_each_entry_from(bridge, &encoder->bridge_chain, chain_node) {
-		if (bridge->funcs->atomic_post_disable) {
-			struct drm_bridge_state *old_bridge_state;
+		limit = NULL;
 
-			old_bridge_state =
-				drm_atomic_get_old_bridge_state(old_state,
-								bridge);
-			if (WARN_ON(!old_bridge_state))
-				return;
+		if (!list_is_last(&bridge->chain_node, &encoder->bridge_chain)) {
+			next = list_next_entry(bridge, chain_node);
 
-			bridge->funcs->atomic_post_disable(bridge,
-							   old_bridge_state);
-		} else if (bridge->funcs->post_disable) {
-			bridge->funcs->post_disable(bridge);
+			if (next->pre_enable_prev_first) {
+				/* next bridge had requested that prev
+				 * was enabled first, so disabled last
+				 */
+				limit = next;
+
+				/* Find the next bridge that has NOT requested
+				 * prev to be enabled first / disabled last
+				 */
+				list_for_each_entry_from(next, &encoder->bridge_chain,
+							 chain_node) {
+					if (next->pre_enable_prev_first) {
+						next = list_prev_entry(next, chain_node);
+						limit = next;
+						break;
+					}
+				}
+
+				/* Call these bridges in reverse order */
+				list_for_each_entry_from_reverse(next, &encoder->bridge_chain,
+								 chain_node) {
+					if (next == bridge)
+						break;
+
+					drm_atomic_bridge_call_post_disable(next,
+									    old_state);
+				}
+			}
 		}
+
+		drm_atomic_bridge_call_post_disable(bridge, old_state);
+
+		if (limit)
+			/* Jump all bridges that we have already post_disabled */
+			bridge = limit;
 	}
 }
 EXPORT_SYMBOL(drm_atomic_bridge_chain_post_disable);
+
+static void drm_atomic_bridge_call_pre_enable(struct drm_bridge *bridge,
+					      struct drm_atomic_state *old_state)
+{
+	if (old_state && bridge->funcs->atomic_pre_enable) {
+		struct drm_bridge_state *old_bridge_state;
+
+		old_bridge_state =
+			drm_atomic_get_old_bridge_state(old_state,
+							bridge);
+		if (WARN_ON(!old_bridge_state))
+			return;
+
+		bridge->funcs->atomic_pre_enable(bridge, old_bridge_state);
+	} else if (bridge->funcs->pre_enable) {
+		bridge->funcs->pre_enable(bridge);
+	}
+}
 
 /**
  * drm_atomic_bridge_chain_pre_enable - prepares for enabling all bridges in
@@ -743,32 +812,60 @@ EXPORT_SYMBOL(drm_atomic_bridge_chain_post_disable);
  * starting from the last bridge to the first. These are called before calling
  * &drm_encoder_helper_funcs.atomic_enable
  *
+ * If a bridge sets @pre_enable_prev_first, then the pre_enable for the
+ * prev bridge will be called before pre_enable of this bridge.
+ *
  * Note: the bridge passed should be the one closest to the encoder
  */
 void drm_atomic_bridge_chain_pre_enable(struct drm_bridge *bridge,
 					struct drm_atomic_state *old_state)
 {
 	struct drm_encoder *encoder;
-	struct drm_bridge *iter;
+	struct drm_bridge *iter, *next, *limit;
 
 	if (!bridge)
 		return;
 
 	encoder = bridge->encoder;
+
 	list_for_each_entry_reverse(iter, &encoder->bridge_chain, chain_node) {
-		if (iter->funcs->atomic_pre_enable) {
-			struct drm_bridge_state *old_bridge_state;
+		if (iter->pre_enable_prev_first) {
+			next = iter;
+			limit = bridge;
+			list_for_each_entry_from_reverse(next,
+							 &encoder->bridge_chain,
+							 chain_node) {
+				if (next == bridge)
+					break;
 
-			old_bridge_state =
-				drm_atomic_get_old_bridge_state(old_state,
-								iter);
-			if (WARN_ON(!old_bridge_state))
-				return;
+				if (!next->pre_enable_prev_first) {
+					/* Found first bridge that does NOT
+					 * request prev to be enabled first
+					 */
+					limit = list_prev_entry(next, chain_node);
+					break;
+				}
+			}
 
-			iter->funcs->atomic_pre_enable(iter, old_bridge_state);
-		} else if (iter->funcs->pre_enable) {
-			iter->funcs->pre_enable(iter);
+			list_for_each_entry_from(next, &encoder->bridge_chain, chain_node) {
+				/* Call requested prev bridge pre_enable
+				 * in order.
+				 */
+				if (next == iter)
+					/* At the first bridge to request prev
+					 * bridges called first.
+					 */
+					break;
+
+				drm_atomic_bridge_call_pre_enable(next, old_state);
+			}
 		}
+
+		drm_atomic_bridge_call_pre_enable(iter, old_state);
+
+		if (iter->pre_enable_prev_first)
+			/* Jump all bridges that we have already pre_enabled */
+			iter = limit;
 
 		if (iter == bridge)
 			break;

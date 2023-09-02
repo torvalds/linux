@@ -22,6 +22,18 @@ struct mtk_vcodec_dev;
 typedef int (*core_decode_cb_t)(struct vdec_lat_buf *lat_buf);
 
 /**
+ * enum core_ctx_status - Context decode status for core hardwre.
+ * @CONTEXT_LIST_EMPTY: No buffer queued on core hardware(must always be 0)
+ * @CONTEXT_LIST_QUEUED: Buffer queued to core work list
+ * @CONTEXT_LIST_DEC_DONE: context decode done
+ */
+enum core_ctx_status {
+	CONTEXT_LIST_EMPTY = 0,
+	CONTEXT_LIST_QUEUED,
+	CONTEXT_LIST_DEC_DONE,
+};
+
+/**
  * struct vdec_msg_queue_ctx - represents a queue for buffers ready to be processed
  * @ready_to_use: ready used queue used to signalize when get a job queue
  * @ready_queue: list of ready lat buffer queues
@@ -77,7 +89,7 @@ struct vdec_lat_buf {
  * @lat_list_cnt: used to record each instance lat list count
  * @core_list_cnt: used to record each instance core list count
  * @core_dec_done: core work queue decode done event
- * @core_work_cnt: the number of core work in work queue
+ * @status: current context decode status for core hardware
  */
 struct vdec_msg_queue {
 	struct vdec_lat_buf lat_buf[NUM_BUFFER_COUNT];
@@ -93,7 +105,7 @@ struct vdec_msg_queue {
 	atomic_t lat_list_cnt;
 	atomic_t core_list_cnt;
 	wait_queue_head_t core_dec_done;
-	int core_work_cnt;
+	int status;
 };
 
 /**

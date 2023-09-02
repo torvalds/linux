@@ -127,8 +127,7 @@ static int st_add_path(struct path_selector *ps, struct dm_path *path,
 	 * 			The valid range: 0-<ST_MAX_RELATIVE_THROUGHPUT>
 	 *			If not given, minimum value '1' is used.
 	 *			If '0' is given, the path isn't selected while
-	 * 			other paths having a positive value are
-	 * 			available.
+	 *			other paths having a positive value are	available.
 	 */
 	if (argc > 2) {
 		*error = "service-time ps: incorrect number of arguments";

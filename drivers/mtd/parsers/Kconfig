@@ -22,7 +22,7 @@ config MTD_BCM63XX_PARTS
 
 config MTD_BRCM_U_BOOT
 	tristate "Broadcom's U-Boot partition parser"
-	depends on ARCH_BCM4908 || COMPILE_TEST
+	depends on ARCH_BCMBCA || COMPILE_TEST
 	help
 	  Broadcom uses a custom way of storing U-Boot environment variables.
 	  They are placed inside U-Boot partition itself at unspecified offset.
