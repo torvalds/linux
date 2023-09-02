@@ -3673,21 +3673,9 @@ static int cgroup_extra_stat_show(struct seq_file *seq, int ssid)
 	css_put(css);
 	return ret;
 }
-#endif
 
-static int cpu_stat_show(struct seq_file *seq, void *v)
-{
-	int ret = 0;
-
-	cgroup_base_stat_cputime_show(seq);
-#ifdef CONFIG_CGROUP_SCHED
-	ret = cgroup_extra_stat_show(seq, cpu_cgrp_id);
-#endif
-	return ret;
-}
-
-static int __maybe_unused cgroup_local_stat_show(struct seq_file *seq,
-						 struct cgroup *cgrp, int ssid)
+static int cgroup_local_stat_show(struct seq_file *seq,
+				  struct cgroup *cgrp, int ssid)
 {
 	struct cgroup_subsys *ss = cgroup_subsys[ssid];
 	struct cgroup_subsys_state *css;
@@ -3702,6 +3690,18 @@ static int __maybe_unused cgroup_local_stat_show(struct seq_file *seq,
 
 	ret = ss->css_local_stat_show(seq, css);
 	css_put(css);
+	return ret;
+}
+#endif
+
+static int cpu_stat_show(struct seq_file *seq, void *v)
+{
+	int ret = 0;
+
+	cgroup_base_stat_cputime_show(seq);
+#ifdef CONFIG_CGROUP_SCHED
+	ret = cgroup_extra_stat_show(seq, cpu_cgrp_id);
+#endif
 	return ret;
 }
 
