@@ -479,10 +479,6 @@ DEFINE_HIST_FIELD_FN(u8);
 #define for_each_hist_key_field(i, hist_data)	\
 	for ((i) = (hist_data)->n_vals; (i) < (hist_data)->n_fields; (i)++)
 
-#define HIST_STACKTRACE_DEPTH	16
-#define HIST_STACKTRACE_SIZE	(HIST_STACKTRACE_DEPTH * sizeof(unsigned long))
-#define HIST_STACKTRACE_SKIP	5
-
 #define HITCOUNT_IDX		0
 #define HIST_KEY_SIZE_MAX	(MAX_FILTER_STR_VAL + HIST_STACKTRACE_SIZE)
 
@@ -3841,6 +3837,9 @@ static int check_synth_field(struct synth_event *event,
 	 */
 	if (strstr(hist_field->type, "char[") && field->is_string
 	    && field->is_dynamic)
+		return 0;
+
+	if (strstr(hist_field->type, "long[") && field->is_stack)
 		return 0;
 
 	if (strcmp(field->type, hist_field->type) != 0) {

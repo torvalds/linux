@@ -1026,3 +1026,10 @@ void dc_send_update_cursor_info_to_dmu(
 		dc_send_cmd_to_dmu(pCtx->stream->ctx->dmub_srv, &cmd);
 	}
 }
+
+bool dc_dmub_check_min_version(struct dmub_srv *srv)
+{
+	if (!srv->hw_funcs.is_psrsu_supported)
+		return true;
+	return srv->hw_funcs.is_psrsu_supported(srv);
+}
