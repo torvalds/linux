@@ -1375,14 +1375,12 @@ static void qgroup_iterator_clean(struct list_head *head)
  *
  * Caller should hold fs_info->qgroup_lock.
  */
-static int __qgroup_excl_accounting(struct btrfs_fs_info *fs_info,
-				    struct ulist *tmp, u64 ref_root,
+static int __qgroup_excl_accounting(struct btrfs_fs_info *fs_info, u64 ref_root,
 				    struct btrfs_qgroup *src, int sign)
 {
 	struct btrfs_qgroup *qgroup;
-	struct btrfs_qgroup_list *glist;
-	struct ulist_node *unode;
-	struct ulist_iterator uiter;
+	struct btrfs_qgroup *cur;
+	LIST_HEAD(qgroup_list);
 	u64 num_bytes = src->excl;
 	int ret = 0;
 
@@ -1390,53 +1388,30 @@ static int __qgroup_excl_accounting(struct btrfs_fs_info *fs_info,
 	if (!qgroup)
 		goto out;
 
-	qgroup->rfer += sign * num_bytes;
-	qgroup->rfer_cmpr += sign * num_bytes;
+	qgroup_iterator_add(&qgroup_list, qgroup);
+	list_for_each_entry(cur, &qgroup_list, iterator) {
+		struct btrfs_qgroup_list *glist;
 
-	WARN_ON(sign < 0 && qgroup->excl < num_bytes);
-	qgroup->excl += sign * num_bytes;
-	qgroup->excl_cmpr += sign * num_bytes;
-
-	if (sign > 0)
-		qgroup_rsv_add_by_qgroup(fs_info, qgroup, src);
-	else
-		qgroup_rsv_release_by_qgroup(fs_info, qgroup, src);
-
-	qgroup_dirty(fs_info, qgroup);
-
-	/* Get all of the parent groups that contain this qgroup */
-	list_for_each_entry(glist, &qgroup->groups, next_group) {
-		ret = ulist_add(tmp, glist->group->qgroupid,
-				qgroup_to_aux(glist->group), GFP_ATOMIC);
-		if (ret < 0)
-			goto out;
-	}
-
-	/* Iterate all of the parents and adjust their reference counts */
-	ULIST_ITER_INIT(&uiter);
-	while ((unode = ulist_next(tmp, &uiter))) {
-		qgroup = unode_aux_to_qgroup(unode);
 		qgroup->rfer += sign * num_bytes;
 		qgroup->rfer_cmpr += sign * num_bytes;
+
 		WARN_ON(sign < 0 && qgroup->excl < num_bytes);
 		qgroup->excl += sign * num_bytes;
+		qgroup->excl_cmpr += sign * num_bytes;
+
 		if (sign > 0)
 			qgroup_rsv_add_by_qgroup(fs_info, qgroup, src);
 		else
 			qgroup_rsv_release_by_qgroup(fs_info, qgroup, src);
-		qgroup->excl_cmpr += sign * num_bytes;
 		qgroup_dirty(fs_info, qgroup);
 
-		/* Add any parents of the parents */
-		list_for_each_entry(glist, &qgroup->groups, next_group) {
-			ret = ulist_add(tmp, glist->group->qgroupid,
-					qgroup_to_aux(glist->group), GFP_ATOMIC);
-			if (ret < 0)
-				goto out;
-		}
+		/* Append parent qgroups to @qgroup_list. */
+		list_for_each_entry(glist, &qgroup->groups, next_group)
+			qgroup_iterator_add(&qgroup_list, glist->group);
 	}
 	ret = 0;
 out:
+	qgroup_iterator_clean(&qgroup_list);
 	return ret;
 }
 
@@ -1453,8 +1428,7 @@ out:
  * Return < 0 for other error.
  */
 static int quick_update_accounting(struct btrfs_fs_info *fs_info,
-				   struct ulist *tmp, u64 src, u64 dst,
-				   int sign)
+				   u64 src, u64 dst, int sign)
 {
 	struct btrfs_qgroup *qgroup;
 	int ret = 1;
@@ -1465,8 +1439,7 @@ static int quick_update_accounting(struct btrfs_fs_info *fs_info,
 		goto out;
 	if (qgroup->excl == qgroup->rfer) {
 		ret = 0;
-		err = __qgroup_excl_accounting(fs_info, tmp, dst,
-					       qgroup, sign);
+		err = __qgroup_excl_accounting(fs_info, dst, qgroup, sign);
 		if (err < 0) {
 			ret = err;
 			goto out;
@@ -1485,20 +1458,11 @@ int btrfs_add_qgroup_relation(struct btrfs_trans_handle *trans, u64 src,
 	struct btrfs_qgroup *parent;
 	struct btrfs_qgroup *member;
 	struct btrfs_qgroup_list *list;
-	struct ulist *tmp;
-	unsigned int nofs_flag;
 	int ret = 0;
 
 	/* Check the level of src and dst first */
 	if (btrfs_qgroup_level(src) >= btrfs_qgroup_level(dst))
 		return -EINVAL;
-
-	/* We hold a transaction handle open, must do a NOFS allocation. */
-	nofs_flag = memalloc_nofs_save();
-	tmp = ulist_alloc(GFP_KERNEL);
-	memalloc_nofs_restore(nofs_flag);
-	if (!tmp)
-		return -ENOMEM;
 
 	mutex_lock(&fs_info->qgroup_ioctl_lock);
 	if (!fs_info->quota_root) {
@@ -1536,11 +1500,10 @@ int btrfs_add_qgroup_relation(struct btrfs_trans_handle *trans, u64 src,
 		spin_unlock(&fs_info->qgroup_lock);
 		goto out;
 	}
-	ret = quick_update_accounting(fs_info, tmp, src, dst, 1);
+	ret = quick_update_accounting(fs_info, src, dst, 1);
 	spin_unlock(&fs_info->qgroup_lock);
 out:
 	mutex_unlock(&fs_info->qgroup_ioctl_lock);
-	ulist_free(tmp);
 	return ret;
 }
 
@@ -1551,18 +1514,9 @@ static int __del_qgroup_relation(struct btrfs_trans_handle *trans, u64 src,
 	struct btrfs_qgroup *parent;
 	struct btrfs_qgroup *member;
 	struct btrfs_qgroup_list *list;
-	struct ulist *tmp;
 	bool found = false;
-	unsigned int nofs_flag;
 	int ret = 0;
 	int ret2;
-
-	/* We hold a transaction handle open, must do a NOFS allocation. */
-	nofs_flag = memalloc_nofs_save();
-	tmp = ulist_alloc(GFP_KERNEL);
-	memalloc_nofs_restore(nofs_flag);
-	if (!tmp)
-		return -ENOMEM;
 
 	if (!fs_info->quota_root) {
 		ret = -ENOTCONN;
@@ -1601,11 +1555,10 @@ delete_item:
 	if (found) {
 		spin_lock(&fs_info->qgroup_lock);
 		del_relation_rb(fs_info, src, dst);
-		ret = quick_update_accounting(fs_info, tmp, src, dst, -1);
+		ret = quick_update_accounting(fs_info, src, dst, -1);
 		spin_unlock(&fs_info->qgroup_lock);
 	}
 out:
-	ulist_free(tmp);
 	return ret;
 }
 
