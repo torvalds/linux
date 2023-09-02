@@ -1634,6 +1634,8 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 		}
 		break;
 	}
+	if (init_data.flags.gpu_vm_support)
+		init_data.flags.gpu_vm_support = amdgpu_sg_display_supported(adev);
 
 	if (init_data.flags.gpu_vm_support)
 		adev->mode_info.gpu_vm_support = true;
