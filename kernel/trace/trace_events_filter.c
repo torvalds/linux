@@ -1360,7 +1360,7 @@ int filter_assign_type(const char *type)
 			return FILTER_DYN_STRING;
 		if (strstr(type, "cpumask_t"))
 			return FILTER_CPUMASK;
-		}
+	}
 
 	if (strstr(type, "__rel_loc") && strstr(type, "char"))
 		return FILTER_RDYN_STRING;
@@ -1731,7 +1731,9 @@ static int parse_pred(const char *str, void *data,
 		maskstart = i;
 
 		/* Walk the cpulist until closing } */
-		for (; str[i] && str[i] != '}'; i++);
+		for (; str[i] && str[i] != '}'; i++)
+			;
+
 		if (str[i] != '}') {
 			parse_error(pe, FILT_ERR_MISSING_BRACE_CLOSE, pos + i);
 			goto err_free;
@@ -1744,17 +1746,23 @@ static int parse_pred(const char *str, void *data,
 
 		/* Copy the cpulist between { and } */
 		tmp = kmalloc((i - maskstart) + 1, GFP_KERNEL);
-		strscpy(tmp, str + maskstart, (i - maskstart) + 1);
-
-		pred->mask = kzalloc(cpumask_size(), GFP_KERNEL);
-		if (!pred->mask)
+		if (!tmp)
 			goto err_mem;
+
+		strscpy(tmp, str + maskstart, (i - maskstart) + 1);
+		pred->mask = kzalloc(cpumask_size(), GFP_KERNEL);
+		if (!pred->mask) {
+			kfree(tmp);
+			goto err_mem;
+		}
 
 		/* Now parse it */
 		if (cpulist_parse(tmp, pred->mask)) {
+			kfree(tmp);
 			parse_error(pe, FILT_ERR_INVALID_CPULIST, pos + i);
 			goto err_free;
 		}
+		kfree(tmp);
 
 		/* Move along */
 		i++;
@@ -1767,6 +1775,7 @@ static int parse_pred(const char *str, void *data,
 		if (single) {
 			pred->val = cpumask_first(pred->mask);
 			kfree(pred->mask);
+			pred->mask = NULL;
 		}
 
 		if (field->filter_type == FILTER_CPUMASK) {
@@ -1775,13 +1784,17 @@ static int parse_pred(const char *str, void *data,
 				FILTER_PRED_FN_CPUMASK;
 		} else if (field->filter_type == FILTER_CPU) {
 			if (single) {
-				pred->op = pred->op == OP_BAND ? OP_EQ : pred->op;
+				if (pred->op == OP_BAND)
+					pred->op = OP_EQ;
+
 				pred->fn_num = FILTER_PRED_FN_CPU;
 			} else {
 				pred->fn_num = FILTER_PRED_FN_CPU_CPUMASK;
 			}
 		} else if (single) {
-			pred->op = pred->op == OP_BAND ? OP_EQ : pred->op;
+			if (pred->op == OP_BAND)
+				pred->op = OP_EQ;
+
 			pred->fn_num = select_comparison_fn(pred->op, field->size, false);
 			if (pred->op == OP_NE)
 				pred->not = 1;
