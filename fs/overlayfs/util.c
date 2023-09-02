@@ -285,7 +285,7 @@ struct inode *ovl_i_path_real(struct inode *inode, struct path *path)
 		path->mnt = ovl_upper_mnt(OVL_FS(inode->i_sb));
 	}
 
-	return  path->dentry ? d_inode(path->dentry) : NULL;
+	return path->dentry ? d_inode_rcu(path->dentry) : NULL;
 }
 
 struct inode *ovl_inode_upper(struct inode *inode)

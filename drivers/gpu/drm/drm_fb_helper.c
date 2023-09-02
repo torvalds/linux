@@ -2634,10 +2634,6 @@ void drm_fbdev_generic_setup(struct drm_device *dev,
 		preferred_bpp = 32;
 	fb_helper->preferred_bpp = preferred_bpp;
 
-	ret = drm_fbdev_client_hotplug(&fb_helper->client);
-	if (ret)
-		drm_dbg_kms(dev, "client hotplug ret=%d\n", ret);
-
 	drm_client_register(&fb_helper->client);
 }
 EXPORT_SYMBOL(drm_fbdev_generic_setup);
