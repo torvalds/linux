@@ -1136,7 +1136,7 @@ static const struct i2c_device_id bq24257_i2c_ids[] = {
 	{ "bq24250", (kernel_ulong_t)&bq24250_info },
 	{ "bq24251", (kernel_ulong_t)&bq24251_info },
 	{ "bq24257", (kernel_ulong_t)&bq24257_info },
-	{},
+	{}
 };
 MODULE_DEVICE_TABLE(i2c, bq24257_i2c_ids);
 
@@ -1144,7 +1144,7 @@ static const struct of_device_id bq24257_of_match[] __maybe_unused = {
 	{ .compatible = "ti,bq24250", &bq24250_info },
 	{ .compatible = "ti,bq24251", &bq24251_info },
 	{ .compatible = "ti,bq24257", &bq24257_info },
-	{ },
+	{}
 };
 MODULE_DEVICE_TABLE(of, bq24257_of_match);
 
@@ -1153,7 +1153,7 @@ static const struct acpi_device_id bq24257_acpi_match[] = {
 	{ "BQ242500", (kernel_ulong_t)&bq24250_info },
 	{ "BQ242510", (kernel_ulong_t)&bq24251_info },
 	{ "BQ242570", (kernel_ulong_t)&bq24257_info },
-	{},
+	{}
 };
 MODULE_DEVICE_TABLE(acpi, bq24257_acpi_match);
 #endif
