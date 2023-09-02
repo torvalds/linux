@@ -976,16 +976,13 @@ static int ads1015_set_conv_mode(struct ads1015_data *data, int mode)
 
 static int ads1015_probe(struct i2c_client *client)
 {
-	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	const struct ads1015_chip_data *chip;
 	struct iio_dev *indio_dev;
 	struct ads1015_data *data;
 	int ret;
 	int i;
 
-	chip = device_get_match_data(&client->dev);
-	if (!chip)
-		chip = (const struct ads1015_chip_data *)id->driver_data;
+	chip = i2c_get_match_data(client);
 	if (!chip)
 		return dev_err_probe(&client->dev, -EINVAL, "Unknown chip\n");
 
