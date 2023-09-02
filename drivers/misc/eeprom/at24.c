@@ -509,32 +509,6 @@ static int at24_write(void *priv, unsigned int off, void *val, size_t count)
 	return 0;
 }
 
-static const struct at24_chip_data *at24_get_chip_data(struct device *dev)
-{
-	struct device_node *of_node = dev->of_node;
-	const struct at24_chip_data *cdata;
-	const struct i2c_device_id *id;
-
-	id = i2c_match_id(at24_ids, to_i2c_client(dev));
-
-	/*
-	 * The I2C core allows OF nodes compatibles to match against the
-	 * I2C device ID table as a fallback, so check not only if an OF
-	 * node is present but also if it matches an OF device ID entry.
-	 */
-	if (of_node && of_match_device(at24_of_match, dev))
-		cdata = of_device_get_match_data(dev);
-	else if (id)
-		cdata = (void *)id->driver_data;
-	else
-		cdata = acpi_device_get_match_data(dev);
-
-	if (!cdata)
-		return ERR_PTR(-ENODEV);
-
-	return cdata;
-}
-
 static int at24_make_dummy_client(struct at24_data *at24, unsigned int index,
 				  struct i2c_client *base_client,
 				  struct regmap_config *regmap_config)
@@ -601,9 +575,9 @@ static int at24_probe(struct i2c_client *client)
 	i2c_fn_block = i2c_check_functionality(client->adapter,
 					       I2C_FUNC_SMBUS_WRITE_I2C_BLOCK);
 
-	cdata = at24_get_chip_data(dev);
-	if (IS_ERR(cdata))
-		return PTR_ERR(cdata);
+	cdata = i2c_get_match_data(client);
+	if (!cdata)
+		return -ENODEV;
 
 	err = device_property_read_u32(dev, "pagesize", &page_size);
 	if (err)
