@@ -230,6 +230,12 @@ enum ufs_hs_gear_tag {
 	UFS_HS_G5		/* HS Gear 5 */
 };
 
+enum ufs_lanes {
+	UFS_LANE_DONT_CHANGE,	/* Don't change Lane */
+	UFS_LANE_1,		/* Lane 1 (default for reset) */
+	UFS_LANE_2,		/* Lane 2 */
+};
+
 enum ufs_unipro_ver {
 	UFS_UNIPRO_VER_RESERVED = 0,
 	UFS_UNIPRO_VER_1_40 = 1, /* UniPro version 1.40 */

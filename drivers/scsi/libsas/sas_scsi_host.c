@@ -142,7 +142,6 @@ static struct sas_task *sas_create_task(struct scsi_cmnd *cmd,
 	task->dev = dev;
 	task->task_proto = task->dev->tproto; /* BUG_ON(!SSP) */
 
-	task->ssp_task.retry_count = 1;
 	int_to_scsilun(cmd->device->lun, &lun);
 	memcpy(task->ssp_task.LUN, &lun.scsi_lun, 8);
 	task->ssp_task.task_attr = TASK_ATTR_SIMPLE;
@@ -279,7 +278,7 @@ static enum task_disposition sas_scsi_find_task(struct sas_task *task)
 	unsigned long flags;
 	int i, res;
 	struct sas_internal *si =
-		to_sas_internal(task->dev->port->ha->core.shost->transportt);
+		to_sas_internal(task->dev->port->ha->shost->transportt);
 
 	for (i = 0; i < 5; i++) {
 		pr_notice("%s: aborting task 0x%p\n", __func__, task);
@@ -327,7 +326,7 @@ static int sas_recover_lu(struct domain_device *dev, struct scsi_cmnd *cmd)
 	int res = TMF_RESP_FUNC_FAILED;
 	struct scsi_lun lun;
 	struct sas_internal *i =
-		to_sas_internal(dev->port->ha->core.shost->transportt);
+		to_sas_internal(dev->port->ha->shost->transportt);
 
 	int_to_scsilun(cmd->device->lun, &lun);
 
@@ -355,7 +354,7 @@ static int sas_recover_I_T(struct domain_device *dev)
 {
 	int res = TMF_RESP_FUNC_FAILED;
 	struct sas_internal *i =
-		to_sas_internal(dev->port->ha->core.shost->transportt);
+		to_sas_internal(dev->port->ha->shost->transportt);
 
 	pr_notice("I_T nexus reset for dev %016llx\n",
 		  SAS_ADDR(dev->sas_addr));
@@ -410,7 +409,7 @@ static void sas_wait_eh(struct domain_device *dev)
 	spin_unlock_irq(&ha->lock);
 
 	/* make sure SCSI EH is complete */
-	if (scsi_host_in_recovery(ha->core.shost)) {
+	if (scsi_host_in_recovery(ha->shost)) {
 		msleep(10);
 		goto retry;
 	}
@@ -440,7 +439,7 @@ static int sas_queue_reset(struct domain_device *dev, int reset_type,
 			set_bit(SAS_DEV_EH_PENDING, &dev->state);
 			set_bit(reset_type, &dev->state);
 			int_to_scsilun(lun, &dev->ssp_dev.reset_lun);
-			scsi_schedule_eh(ha->core.shost);
+			scsi_schedule_eh(ha->shost);
 		}
 		spin_unlock_irq(&ha->lock);
 
@@ -925,7 +924,7 @@ static int sas_execute_internal_abort(struct domain_device *device,
 				      unsigned int qid, void *data)
 {
 	struct sas_ha_struct *ha = device->port->ha;
-	struct sas_internal *i = to_sas_internal(ha->core.shost->transportt);
+	struct sas_internal *i = to_sas_internal(ha->shost->transportt);
 	struct sas_task *task = NULL;
 	int res, retry;
 
@@ -1015,7 +1014,7 @@ int sas_execute_tmf(struct domain_device *device, void *parameter,
 {
 	struct sas_task *task;
 	struct sas_internal *i =
-		to_sas_internal(device->port->ha->core.shost->transportt);
+		to_sas_internal(device->port->ha->shost->transportt);
 	int res, retry;
 
 	for (retry = 0; retry < TASK_RETRY; retry++) {

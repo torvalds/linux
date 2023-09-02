@@ -8,6 +8,7 @@
 #ifndef SCSI_BSG_UFS_H
 #define SCSI_BSG_UFS_H
 
+#include <asm/byteorder.h>
 #include <linux/types.h>
 /*
  * This file intended to be included by both kernel and user space
@@ -40,11 +41,56 @@ enum ufs_rpmb_op_type {
  * @dword_0: UPIU header DW-0
  * @dword_1: UPIU header DW-1
  * @dword_2: UPIU header DW-2
+ *
+ * @transaction_code: Type of request or response. See also enum
+ *	upiu_request_transaction and enum upiu_response_transaction.
+ * @flags: UPIU flags. The meaning of individual flags depends on the
+ *	transaction code.
+ * @lun: Logical unit number.
+ * @task_tag: Task tag.
+ * @iid: Initiator ID.
+ * @command_set_type: 0 for SCSI command set; 1 for UFS specific.
+ * @tm_function: Task management function in case of a task management request
+ *	UPIU.
+ * @query_function: Query function in case of a query request UPIU.
+ * @response: 0 for success; 1 for failure.
+ * @status: SCSI status if this is the header of a response to a SCSI command.
+ * @ehs_length: EHS length in units of 32 bytes.
+ * @device_information:
+ * @data_segment_length: data segment length.
  */
 struct utp_upiu_header {
-	__be32 dword_0;
-	__be32 dword_1;
-	__be32 dword_2;
+	union {
+		struct {
+			__be32 dword_0;
+			__be32 dword_1;
+			__be32 dword_2;
+		};
+		struct {
+			__u8 transaction_code;
+			__u8 flags;
+			__u8 lun;
+			__u8 task_tag;
+#if defined(__BIG_ENDIAN)
+			__u8 iid: 4;
+			__u8 command_set_type: 4;
+#elif defined(__LITTLE_ENDIAN)
+			__u8 command_set_type: 4;
+			__u8 iid: 4;
+#else
+#error
+#endif
+			union {
+				__u8 tm_function;
+				__u8 query_function;
+			};
+			__u8 response;
+			__u8 status;
+			__u8 ehs_length;
+			__u8 device_information;
+			__be16 data_segment_length;
+		};
+	};
 };
 
 /**

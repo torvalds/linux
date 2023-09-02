@@ -50,9 +50,6 @@ struct sock;
 #define TA_LOGIN_TIMEOUT		15
 #define TA_LOGIN_TIMEOUT_MAX		30
 #define TA_LOGIN_TIMEOUT_MIN		5
-#define TA_NETIF_TIMEOUT		2
-#define TA_NETIF_TIMEOUT_MAX		15
-#define TA_NETIF_TIMEOUT_MIN		2
 #define TA_GENERATE_NODE_ACLS		0
 #define TA_DEFAULT_CMDSN_DEPTH		64
 #define TA_DEFAULT_CMDSN_DEPTH_MAX	512
@@ -773,7 +770,6 @@ to_iscsi_nacl(struct se_node_acl *se_nacl)
 struct iscsi_tpg_attrib {
 	u32			authentication;
 	u32			login_timeout;
-	u32			netif_timeout;
 	u32			generate_node_acls;
 	u32			cache_dynamic_acls;
 	u32			default_cmdsn_depth;

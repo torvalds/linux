@@ -107,11 +107,7 @@ static char *PPA_MODE_STRING[] =
     "PS/2",
     "EPP 8 bit",
     "EPP 16 bit",
-#ifdef CONFIG_SCSI_IZIP_EPP16
-    "EPP 16 bit",
-#else
     "EPP 32 bit",
-#endif
     "Unknown"};
 
 /* other options */
