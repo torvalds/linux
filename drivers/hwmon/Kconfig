@@ -839,6 +839,16 @@ config SENSORS_JC42
 	  This driver can also be built as a module. If so, the module
 	  will be called jc42.
 
+config SENSORS_POWERZ
+	tristate "ChargerLAB POWER-Z USB-C tester"
+	depends on USB
+	help
+	  If you say yes here you get support for ChargerLAB POWER-Z series of
+	  USB-C charging testers.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called powerz.
+
 config SENSORS_POWR1220
 	tristate "Lattice POWR1220 Power Monitoring"
 	depends on I2C
