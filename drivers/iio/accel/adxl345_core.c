@@ -45,21 +45,6 @@
 
 #define ADXL345_DEVID			0xE5
 
-/*
- * In full-resolution mode, scale factor is maintained at ~4 mg/LSB
- * in all g ranges.
- *
- * At +/- 16g with 13-bit resolution, scale is computed as:
- * (16 + 16) * 9.81 / (2^13 - 1) = 0.0383
- */
-static const int adxl345_uscale = 38300;
-
-/*
- * The Datasheet lists a resolution of Resolution is ~49 mg per LSB. That's
- * ~480mm/s**2 per LSB.
- */
-static const int adxl375_uscale = 480000;
-
 struct adxl345_data {
 	const struct adxl345_chip_info *info;
 	struct regmap *regmap;
@@ -110,15 +95,7 @@ static int adxl345_read_raw(struct iio_dev *indio_dev,
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_SCALE:
 		*val = 0;
-		switch (data->info->type) {
-		case ADXL345:
-			*val2 = adxl345_uscale;
-			break;
-		case ADXL375:
-			*val2 = adxl375_uscale;
-			break;
-		}
-
+		*val2 = data->info->uscale;
 		return IIO_VAL_INT_PLUS_MICRO;
 	case IIO_CHAN_INFO_CALIBBIAS:
 		ret = regmap_read(data->regmap,

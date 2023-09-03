@@ -38,12 +38,12 @@ static int adxl345_spi_probe(struct spi_device *spi)
 
 static const struct adxl345_chip_info adxl345_spi_info = {
 	.name = "adxl345",
-	.type = ADXL345,
+	.uscale = ADXL345_USCALE,
 };
 
 static const struct adxl345_chip_info adxl375_spi_info = {
 	.name = "adxl375",
-	.type = ADXL375,
+	.uscale = ADXL375_USCALE,
 };
 
 static const struct spi_device_id adxl345_spi_id[] = {

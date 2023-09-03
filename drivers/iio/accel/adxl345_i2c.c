@@ -32,12 +32,12 @@ static int adxl345_i2c_probe(struct i2c_client *client)
 
 static const struct adxl345_chip_info adxl345_i2c_info = {
 	.name = "adxl345",
-	.type = ADXL345,
+	.uscale = ADXL345_USCALE,
 };
 
 static const struct adxl345_chip_info adxl375_i2c_info = {
 	.name = "adxl375",
-	.type = ADXL375,
+	.uscale = ADXL375_USCALE,
 };
 
 static const struct i2c_device_id adxl345_i2c_id[] = {
