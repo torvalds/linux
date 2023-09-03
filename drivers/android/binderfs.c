@@ -93,7 +93,7 @@ bool is_binderfs_device(const struct inode *inode)
 /**
  * binderfs_binder_device_create - allocate inode from super block of a
  *                                 binderfs mount
- * @ref_inode: inode from wich the super block will be taken
+ * @ref_inode: inode from which the super block will be taken
  * @userp:     buffer to copy information about new device for userspace to
  * @req:       struct binderfs_device as copied from userspace
  *
