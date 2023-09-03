@@ -596,6 +596,11 @@ enum dmub_ips_disable_type {
 	DMUB_IPS_DISABLE_IPS2_Z10 = 3,
 };
 
+#define DMUB_IPS1_ALLOW_MASK 0x00000001
+#define DMUB_IPS2_ALLOW_MASK 0x00000002
+#define DMUB_IPS1_COMMIT_MASK 0x00000004
+#define DMUB_IPS2_COMMIT_MASK 0x00000008
+
 /**
  * union dmub_fw_boot_options - Boot option definitions for SCRATCH14
  */
@@ -2786,6 +2791,10 @@ enum dmub_cmd_replay_type {
 	 * Set coasting vtotal.
 	 */
 	DMUB_CMD__REPLAY_SET_COASTING_VTOTAL	= 3,
+	/**
+	 * Set power opt and coasting vtotal.
+	 */
+	DMUB_CMD__REPLAY_SET_POWER_OPT_AND_COASTING_VTOTAL	= 4,
 };
 
 /**
@@ -2990,6 +2999,24 @@ struct dmub_rb_cmd_replay_set_coasting_vtotal {
 	 * Command header.
 	 */
 	struct dmub_cmd_header header;
+	/**
+	 * Definition of a DMUB_CMD__REPLAY_SET_COASTING_VTOTAL command.
+	 */
+	struct dmub_cmd_replay_set_coasting_vtotal_data replay_set_coasting_vtotal_data;
+};
+
+/**
+ * Definition of a DMUB_CMD__REPLAY_SET_POWER_OPT_AND_COASTING_VTOTAL command.
+ */
+struct dmub_rb_cmd_replay_set_power_opt_and_coasting_vtotal {
+	/**
+	 * Command header.
+	 */
+	struct dmub_cmd_header header;
+	/**
+	 * Definition of a DMUB_CMD__SET_REPLAY_POWER_OPT command.
+	 */
+	struct dmub_cmd_replay_set_power_opt_data replay_set_power_opt_data;
 	/**
 	 * Definition of a DMUB_CMD__REPLAY_SET_COASTING_VTOTAL command.
 	 */
@@ -4138,6 +4165,10 @@ union dmub_rb_cmd {
 	 * Definition of a DMUB_CMD__REPLAY_SET_COASTING_VTOTAL command.
 	 */
 	struct dmub_rb_cmd_replay_set_coasting_vtotal replay_set_coasting_vtotal;
+	/**
+	 * Definition of a DMUB_CMD__REPLAY_SET_POWER_OPT_AND_COASTING_VTOTAL command.
+	 */
+	struct dmub_rb_cmd_replay_set_power_opt_and_coasting_vtotal replay_set_power_opt_and_coasting_vtotal;
 };
 
 /**
