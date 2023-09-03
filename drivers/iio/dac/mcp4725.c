@@ -32,7 +32,7 @@
 
 struct mcp4725_chip_info {
 	const struct iio_chan_spec *chan_spec;
-	unsigned int chip_id;
+	u8 dac_reg_offset;
 	bool use_ext_ref_voltage;
 };
 
@@ -463,7 +463,7 @@ static int mcp4725_probe(struct i2c_client *client)
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
 	/* read current DAC value and settings */
-	err = i2c_master_recv(client, inbuf, info->chip_id == MCP4725 ? 3 : 4);
+	err = i2c_master_recv(client, inbuf, info->dac_reg_offset);
 
 	if (err < 0) {
 		dev_err(&client->dev, "failed to read DAC value");
@@ -515,13 +515,13 @@ static void mcp4725_remove(struct i2c_client *client)
 
 static const struct mcp4725_chip_info mcp4725 = {
 	.chan_spec = &mcp472x_channel[MCP4725],
-	.chip_id = MCP4725,
+	.dac_reg_offset = 3,
 	.use_ext_ref_voltage = true,
 };
 
 static const struct mcp4725_chip_info mcp4726 = {
 	.chan_spec = &mcp472x_channel[MCP4726],
-	.chip_id = MCP4726,
+	.dac_reg_offset = 4,
 };
 
 static const struct i2c_device_id mcp4725_id[] = {
