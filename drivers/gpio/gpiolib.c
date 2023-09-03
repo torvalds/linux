@@ -2700,7 +2700,6 @@ int gpiod_set_transitory(struct gpio_desc *desc, bool transitory)
 						      PIN_CONFIG_PERSIST_STATE,
 						      !transitory);
 }
-EXPORT_SYMBOL_GPL(gpiod_set_transitory);
 
 /**
  * gpiod_is_active_low - test whether a GPIO is active-low or not

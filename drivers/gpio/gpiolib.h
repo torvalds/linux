@@ -144,6 +144,8 @@ int gpiod_set_array_value_complex(bool raw, bool can_sleep,
 				  struct gpio_array *array_info,
 				  unsigned long *value_bitmap);
 
+int gpiod_set_transitory(struct gpio_desc *desc, bool transitory);
+
 extern spinlock_t gpio_lock;
 extern struct list_head gpio_devices;
 
