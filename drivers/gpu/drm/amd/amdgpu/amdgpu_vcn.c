@@ -1089,7 +1089,7 @@ static ssize_t amdgpu_debugfs_vcn_fwlog_read(struct file *f, char __user *buf,
 
 	if (write_pos > read_pos) {
 		available = write_pos - read_pos;
-		read_num[0] = min(size, (size_t)available);
+		read_num[0] = min_t(size_t, size, available);
 	} else {
 		read_num[0] = AMDGPU_VCNFW_LOG_SIZE - read_pos;
 		available = read_num[0] + write_pos - plog->header_size;
