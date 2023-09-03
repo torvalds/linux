@@ -161,6 +161,11 @@ int dp_panel_read_sink_caps(struct dp_panel *dp_panel,
 		}
 	}
 
+	rc = drm_dp_read_downstream_info(panel->aux, dp_panel->dpcd,
+					 dp_panel->downstream_ports);
+	if (rc)
+		return rc;
+
 	kfree(dp_panel->edid);
 	dp_panel->edid = NULL;
 
