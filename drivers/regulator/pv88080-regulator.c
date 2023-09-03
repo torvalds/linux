@@ -5,6 +5,7 @@
 
 #include <linux/err.h>
 #include <linux/i2c.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/init.h>
@@ -196,15 +197,13 @@ static const struct pv88080_compatible_regmap pv88080_ba_regs = {
 	.hvbuck_vsel_mask		  = PV88080_VHVBUCK_MASK,
 };
 
-#ifdef CONFIG_OF
 static const struct of_device_id pv88080_dt_ids[] = {
 	{ .compatible = "pvs,pv88080",    .data = (void *)TYPE_PV88080_AA },
 	{ .compatible = "pvs,pv88080-aa", .data = (void *)TYPE_PV88080_AA },
 	{ .compatible = "pvs,pv88080-ba", .data = (void *)TYPE_PV88080_BA },
-	{},
+	{}
 };
 MODULE_DEVICE_TABLE(of, pv88080_dt_ids);
-#endif
 
 static unsigned int pv88080_buck_get_mode(struct regulator_dev *rdev)
 {
@@ -550,7 +549,7 @@ static const struct i2c_device_id pv88080_i2c_id[] = {
 	{ "pv88080",    TYPE_PV88080_AA },
 	{ "pv88080-aa", TYPE_PV88080_AA },
 	{ "pv88080-ba", TYPE_PV88080_BA },
-	{},
+	{}
 };
 MODULE_DEVICE_TABLE(i2c, pv88080_i2c_id);
 
@@ -558,7 +557,7 @@ static struct i2c_driver pv88080_regulator_driver = {
 	.driver = {
 		.name = "pv88080",
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
-		.of_match_table = of_match_ptr(pv88080_dt_ids),
+		.of_match_table = pv88080_dt_ids,
 	},
 	.probe = pv88080_i2c_probe,
 	.id_table = pv88080_i2c_id,
