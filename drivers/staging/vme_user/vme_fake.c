@@ -1007,9 +1007,6 @@ static void fake_free_consistent(struct device *parent, size_t size,
 				 void *vaddr, dma_addr_t dma)
 {
 	kfree(vaddr);
-/*
-	dma_free_coherent(parent, size, vaddr, dma);
-*/
 }
 
 /*
