@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2015-2016, 2018, 2021 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _LINUX_MSM_DMA_IOMMU_MAPPING_H
@@ -66,7 +67,9 @@ static inline int msm_dma_map_sgtable(struct device *dev, struct sg_table *sgt,
 	int nents;
 
 	nents = msm_dma_map_sg_attrs(dev, sgt->sgl, sgt->orig_nents, dir, dma_buf, attrs);
-	if (nents <= 0)
+	if (nents < 0)
+		return nents;
+	else if (unlikely(nents == 0))
 		return -EINVAL;
 
 	sgt->nents = nents;
