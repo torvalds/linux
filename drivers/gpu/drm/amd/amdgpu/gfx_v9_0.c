@@ -6454,7 +6454,7 @@ static int gfx_v9_0_ras_error_inject(struct amdgpu_device *adev,
 	return ret;
 }
 
-static const char *vml2_mems[] = {
+static const char * const vml2_mems[] = {
 	"UTC_VML2_BANK_CACHE_0_BIGK_MEM0",
 	"UTC_VML2_BANK_CACHE_0_BIGK_MEM1",
 	"UTC_VML2_BANK_CACHE_0_4K_MEM0",
@@ -6473,7 +6473,7 @@ static const char *vml2_mems[] = {
 	"UTC_VML2_BANK_CACHE_3_4K_MEM1",
 };
 
-static const char *vml2_walker_mems[] = {
+static const char * const vml2_walker_mems[] = {
 	"UTC_VML2_CACHE_PDE0_MEM0",
 	"UTC_VML2_CACHE_PDE0_MEM1",
 	"UTC_VML2_CACHE_PDE1_MEM0",
@@ -6483,7 +6483,7 @@ static const char *vml2_walker_mems[] = {
 	"UTC_VML2_RDIF_LOG_FIFO",
 };
 
-static const char *atc_l2_cache_2m_mems[] = {
+static const char * const atc_l2_cache_2m_mems[] = {
 	"UTC_ATCL2_CACHE_2M_BANK0_WAY0_MEM",
 	"UTC_ATCL2_CACHE_2M_BANK0_WAY1_MEM",
 	"UTC_ATCL2_CACHE_2M_BANK1_WAY0_MEM",
