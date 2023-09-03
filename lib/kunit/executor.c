@@ -65,7 +65,7 @@ struct kunit_glob_filter {
 };
 
 /* Split "suite_glob.test_glob" into two. Assumes filter_glob is not empty. */
-static void kunit_parse_glob_filter(struct kunit_glob_filter *parsed,
+static int kunit_parse_glob_filter(struct kunit_glob_filter *parsed,
 				    const char *filter_glob)
 {
 	const int len = strlen(filter_glob);
@@ -73,16 +73,28 @@ static void kunit_parse_glob_filter(struct kunit_glob_filter *parsed,
 
 	if (!period) {
 		parsed->suite_glob = kzalloc(len + 1, GFP_KERNEL);
+		if (!parsed->suite_glob)
+			return -ENOMEM;
+
 		parsed->test_glob = NULL;
 		strcpy(parsed->suite_glob, filter_glob);
-		return;
+		return 0;
 	}
 
 	parsed->suite_glob = kzalloc(period - filter_glob + 1, GFP_KERNEL);
+	if (!parsed->suite_glob)
+		return -ENOMEM;
+
 	parsed->test_glob = kzalloc(len - (period - filter_glob) + 1, GFP_KERNEL);
+	if (!parsed->test_glob) {
+		kfree(parsed->suite_glob);
+		return -ENOMEM;
+	}
 
 	strncpy(parsed->suite_glob, filter_glob, period - filter_glob);
 	strncpy(parsed->test_glob, period + 1, len - (period - filter_glob));
+
+	return 0;
 }
 
 /* Create a copy of suite with only tests that match test_glob. */
@@ -152,8 +164,11 @@ kunit_filter_suites(const struct kunit_suite_set *suite_set,
 	}
 	copy_start = copy;
 
-	if (filter_glob)
-		kunit_parse_glob_filter(&parsed_glob, filter_glob);
+	if (filter_glob) {
+		*err = kunit_parse_glob_filter(&parsed_glob, filter_glob);
+		if (*err)
+			goto free_copy;
+	}
 
 	/* Parse attribute filters */
 	if (filters) {
