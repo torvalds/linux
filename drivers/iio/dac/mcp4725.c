@@ -33,6 +33,7 @@
 struct mcp4725_chip_info {
 	const struct iio_chan_spec *chan_spec;
 	unsigned int chip_id;
+	bool use_ext_ref_voltage;
 };
 
 struct mcp4725_data {
@@ -416,7 +417,7 @@ static int mcp4725_probe(struct i2c_client *client)
 		pdata = &pdata_dt;
 	}
 
-	if (info->chip_id == MCP4725 && pdata->use_vref) {
+	if (info->use_ext_ref_voltage && pdata->use_vref) {
 		dev_err(&client->dev,
 			"external reference is unavailable on MCP4725");
 		return -EINVAL;
@@ -472,10 +473,10 @@ static int mcp4725_probe(struct i2c_client *client)
 	data->powerdown = pd > 0;
 	data->powerdown_mode = pd ? pd - 1 : 2; /* largest resistor to gnd */
 	data->dac_value = (inbuf[1] << 4) | (inbuf[2] >> 4);
-	if (info->chip_id == MCP4726)
+	if (!info->use_ext_ref_voltage)
 		ref = (inbuf[3] >> 3) & 0x3;
 
-	if (info->chip_id == MCP4726 && ref != data->ref_mode) {
+	if (!info->use_ext_ref_voltage && ref != data->ref_mode) {
 		dev_info(&client->dev,
 			"voltage reference mode differs (conf: %u, eeprom: %u), setting %u",
 			data->ref_mode, ref, data->ref_mode);
@@ -515,6 +516,7 @@ static void mcp4725_remove(struct i2c_client *client)
 static const struct mcp4725_chip_info mcp4725 = {
 	.chan_spec = &mcp472x_channel[MCP4725],
 	.chip_id = MCP4725,
+	.use_ext_ref_voltage = true,
 };
 
 static const struct mcp4725_chip_info mcp4726 = {
