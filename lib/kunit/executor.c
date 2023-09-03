@@ -166,7 +166,7 @@ kunit_filter_suites(const struct kunit_suite_set *suite_set,
 		for (j = 0; j < filter_count; j++)
 			parsed_filters[j] = kunit_next_attr_filter(&filters, err);
 		if (*err)
-			goto err;
+			goto free_parsed_filters;
 	}
 
 	for (i = 0; &suite_set->start[i] != suite_set->end; i++) {
@@ -178,7 +178,7 @@ kunit_filter_suites(const struct kunit_suite_set *suite_set,
 					parsed_glob.test_glob);
 			if (IS_ERR(filtered_suite)) {
 				*err = PTR_ERR(filtered_suite);
-				goto err;
+				goto free_parsed_filters;
 			}
 		}
 		if (filter_count > 0 && parsed_filters != NULL) {
@@ -195,10 +195,11 @@ kunit_filter_suites(const struct kunit_suite_set *suite_set,
 				filtered_suite = new_filtered_suite;
 
 				if (*err)
-					goto err;
+					goto free_parsed_filters;
+
 				if (IS_ERR(filtered_suite)) {
 					*err = PTR_ERR(filtered_suite);
-					goto err;
+					goto free_parsed_filters;
 				}
 				if (!filtered_suite)
 					break;
@@ -213,17 +214,19 @@ kunit_filter_suites(const struct kunit_suite_set *suite_set,
 	filtered.start = copy_start;
 	filtered.end = copy;
 
-err:
-	if (*err)
-		kfree(copy);
+free_parsed_filters:
+	if (filter_count)
+		kfree(parsed_filters);
 
+free_parsed_glob:
 	if (filter_glob) {
 		kfree(parsed_glob.suite_glob);
 		kfree(parsed_glob.test_glob);
 	}
 
-	if (filter_count)
-		kfree(parsed_filters);
+free_copy:
+	if (*err)
+		kfree(copy);
 
 	return filtered;
 }
