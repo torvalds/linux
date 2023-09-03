@@ -13,6 +13,11 @@ enum adxl345_device_type {
 	ADXL375 = 2,
 };
 
+struct adxl345_chip_info {
+	const char *name;
+	unsigned int type;
+};
+
 int adxl345_core_probe(struct device *dev, struct regmap *regmap);
 
 #endif /* _ADXL345_H_ */
