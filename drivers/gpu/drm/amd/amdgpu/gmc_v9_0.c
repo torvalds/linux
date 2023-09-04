@@ -814,36 +814,17 @@ static void gmc_v9_0_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid,
 					uint32_t vmhub, uint32_t flush_type)
 {
 	bool use_semaphore = gmc_v9_0_use_invalidate_semaphore(adev, vmhub);
-	u32 j, inv_req, inv_req2, tmp, sem, req, ack;
+	u32 j, inv_req, tmp, sem, req, ack;
 	const unsigned int eng = 17;
 	struct amdgpu_vmhub *hub;
 
 	BUG_ON(vmhub >= AMDGPU_MAX_VMHUBS);
 
 	hub = &adev->vmhub[vmhub];
+	inv_req = gmc_v9_0_get_invalidate_req(vmid, flush_type);
 	sem = hub->vm_inv_eng0_sem + hub->eng_distance * eng;
 	req = hub->vm_inv_eng0_req + hub->eng_distance * eng;
 	ack = hub->vm_inv_eng0_ack + hub->eng_distance * eng;
-
-	if (adev->gmc.xgmi.num_physical_nodes &&
-	    amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(9, 4, 0)) {
-		/* Vega20+XGMI caches PTEs in TC and TLB. Add a
-		 * heavy-weight TLB flush (type 2), which flushes
-		 * both. Due to a race condition with concurrent
-		 * memory accesses using the same TLB cache line, we
-		 * still need a second TLB flush after this.
-		 */
-		inv_req = gmc_v9_0_get_invalidate_req(vmid, 2);
-		inv_req2 = gmc_v9_0_get_invalidate_req(vmid, flush_type);
-	} else if (flush_type == 2 &&
-		   amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(9, 4, 3) &&
-		   adev->rev_id == 0) {
-		inv_req = gmc_v9_0_get_invalidate_req(vmid, 0);
-		inv_req2 = gmc_v9_0_get_invalidate_req(vmid, flush_type);
-	} else {
-		inv_req = gmc_v9_0_get_invalidate_req(vmid, flush_type);
-		inv_req2 = 0;
-	}
 
 	/* This is necessary for a HW workaround under SRIOV as well
 	 * as GFXOFF under bare metal
@@ -855,10 +836,6 @@ static void gmc_v9_0_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid,
 
 		amdgpu_virt_kiq_reg_write_reg_wait(adev, req, ack, inv_req,
 						   1 << vmid);
-		if (inv_req2)
-			amdgpu_virt_kiq_reg_write_reg_wait(adev, req, ack,
-							   inv_req2, 1 << vmid);
-
 		return;
 	}
 
@@ -888,34 +865,29 @@ static void gmc_v9_0_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid,
 			DRM_ERROR("Timeout waiting for sem acquire in VM flush!\n");
 	}
 
-	do {
+	if (vmhub >= AMDGPU_MMHUB0(0))
+		WREG32_SOC15_IP_NO_KIQ(MMHUB, req, inv_req);
+	else
+		WREG32_SOC15_IP_NO_KIQ(GC, req, inv_req);
+
+	/*
+	 * Issue a dummy read to wait for the ACK register to
+	 * be cleared to avoid a false ACK due to the new fast
+	 * GRBM interface.
+	 */
+	if ((vmhub == AMDGPU_GFXHUB(0)) &&
+	    (adev->ip_versions[GC_HWIP][0] < IP_VERSION(9, 4, 2)))
+		RREG32_NO_KIQ(req);
+
+	for (j = 0; j < adev->usec_timeout; j++) {
 		if (vmhub >= AMDGPU_MMHUB0(0))
-			WREG32_SOC15_IP_NO_KIQ(MMHUB, req, inv_req);
+			tmp = RREG32_SOC15_IP_NO_KIQ(MMHUB, ack);
 		else
-			WREG32_SOC15_IP_NO_KIQ(GC, req, inv_req);
-
-		/*
-		 * Issue a dummy read to wait for the ACK register to
-		 * be cleared to avoid a false ACK due to the new fast
-		 * GRBM interface.
-		 */
-		if ((vmhub == AMDGPU_GFXHUB(0)) &&
-		    (amdgpu_ip_version(adev, GC_HWIP, 0) < IP_VERSION(9, 4, 2)))
-			RREG32_SOC15_IP_NO_KIQ(GC, req);
-
-		for (j = 0; j < adev->usec_timeout; j++) {
-			if (vmhub >= AMDGPU_MMHUB0(0))
-				tmp = RREG32_SOC15_IP_NO_KIQ(MMHUB, ack);
-			else
-				tmp = RREG32_SOC15_IP_NO_KIQ(GC, ack);
-			if (tmp & (1 << vmid))
-				break;
-			udelay(1);
-		}
-
-		inv_req = inv_req2;
-		inv_req2 = 0;
-	} while (inv_req);
+			tmp = RREG32_SOC15_IP_NO_KIQ(GC, ack);
+		if (tmp & (1 << vmid))
+			break;
+		udelay(1);
+	}
 
 	/* TODO: It needs to continue working on debugging with semaphore for GFXHUB as well. */
 	if (use_semaphore) {

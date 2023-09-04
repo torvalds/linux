@@ -604,6 +604,14 @@ void amdgpu_gmc_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid,
 		if (!down_read_trylock(&adev->reset_domain->sem))
 			return;
 
+		if (adev->gmc.flush_tlb_needs_extra_type_2)
+			adev->gmc.gmc_funcs->flush_gpu_tlb(adev, vmid,
+							   vmhub, 2);
+
+		if (adev->gmc.flush_tlb_needs_extra_type_0 && flush_type == 2)
+			adev->gmc.gmc_funcs->flush_gpu_tlb(adev, vmid,
+							   vmhub, 0);
+
 		adev->gmc.gmc_funcs->flush_gpu_tlb(adev, vmid, vmhub,
 						   flush_type);
 		up_read(&adev->reset_domain->sem);
@@ -654,6 +662,17 @@ int amdgpu_gmc_flush_gpu_tlb_pasid(struct amdgpu_device *adev, uint16_t pasid,
 
 	if (!adev->gmc.flush_pasid_uses_kiq || !ring->sched.ready ||
 	    !down_read_trylock(&adev->reset_domain->sem)) {
+
+		if (adev->gmc.flush_tlb_needs_extra_type_2)
+			adev->gmc.gmc_funcs->flush_gpu_tlb_pasid(adev, pasid,
+								 2, all_hub,
+								 inst);
+
+		if (adev->gmc.flush_tlb_needs_extra_type_0 && flush_type == 2)
+			adev->gmc.gmc_funcs->flush_gpu_tlb_pasid(adev, pasid,
+								 0, all_hub,
+								 inst);
+
 		adev->gmc.gmc_funcs->flush_gpu_tlb_pasid(adev, pasid,
 							 flush_type, all_hub,
 							 inst);
