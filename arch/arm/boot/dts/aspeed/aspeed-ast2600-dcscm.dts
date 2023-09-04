@@ -375,11 +375,13 @@
 };
 
 &i3c1 {
+	initial-role = "target";
+	pid = <0x000007ec 0x05031000>;
+	dcr = /bits/ 8 <0xcc>;
 	status = "okay";
-	secondary;
 
-	/delete-property/ jdec-spd;
-	/delete-node/ i3cmux@0f,4cc31020000;
+	/delete-property/ bus-context;
+	/delete-node/ i3cmux@f,4cc31020000;
 	/delete-node/ spd@50,4cc51180000;
 	/delete-node/ spd@51,4cc51181000;
 };
