@@ -366,11 +366,14 @@ static int virtio_vdpa_find_vqs(struct virtio_device *vdev, unsigned int nvqs,
 	struct irq_affinity default_affd = { 0 };
 	struct cpumask *masks;
 	struct vdpa_callback cb;
+	bool has_affinity = desc && ops->set_vq_affinity;
 	int i, err, queue_idx = 0;
 
-	masks = create_affinity_masks(nvqs, desc ? desc : &default_affd);
-	if (!masks)
-		return -ENOMEM;
+	if (has_affinity) {
+		masks = create_affinity_masks(nvqs, desc ? desc : &default_affd);
+		if (!masks)
+			return -ENOMEM;
+	}
 
 	for (i = 0; i < nvqs; ++i) {
 		if (!names[i]) {
@@ -386,20 +389,22 @@ static int virtio_vdpa_find_vqs(struct virtio_device *vdev, unsigned int nvqs,
 			goto err_setup_vq;
 		}
 
-		if (ops->set_vq_affinity)
+		if (has_affinity)
 			ops->set_vq_affinity(vdpa, i, &masks[i]);
 	}
 
 	cb.callback = virtio_vdpa_config_cb;
 	cb.private = vd_dev;
 	ops->set_config_cb(vdpa, &cb);
-	kfree(masks);
+	if (has_affinity)
+		kfree(masks);
 
 	return 0;
 
 err_setup_vq:
 	virtio_vdpa_del_vqs(vdev);
-	kfree(masks);
+	if (has_affinity)
+		kfree(masks);
 	return err;
 }
 
