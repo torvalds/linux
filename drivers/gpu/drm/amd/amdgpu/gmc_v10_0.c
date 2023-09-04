@@ -51,8 +51,6 @@
 #include "athub_v2_0.h"
 #include "athub_v2_1.h"
 
-#include "amdgpu_reset.h"
-
 static int gmc_v10_0_ecc_interrupt_state(struct amdgpu_device *adev,
 					 struct amdgpu_irq_src *src,
 					 unsigned int type,
@@ -265,11 +263,9 @@ static void gmc_v10_0_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid,
 	 * Directly use kiq to do the vm invalidation instead
 	 */
 	if (adev->gfx.kiq[0].ring.sched.ready && !adev->enable_mes &&
-	    (amdgpu_sriov_runtime(adev) || !amdgpu_sriov_vf(adev)) &&
-	    down_read_trylock(&adev->reset_domain->sem)) {
+	    (amdgpu_sriov_runtime(adev) || !amdgpu_sriov_vf(adev))) {
 		amdgpu_virt_kiq_reg_write_reg_wait(adev, req, ack, inv_req,
 				1 << vmid);
-		up_read(&adev->reset_domain->sem);
 		return;
 	}
 

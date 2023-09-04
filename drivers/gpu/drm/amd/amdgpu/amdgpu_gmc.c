@@ -596,8 +596,17 @@ void amdgpu_gmc_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid,
 	    !adev->mman.buffer_funcs_enabled ||
 	    !adev->ib_pool_ready || amdgpu_in_reset(adev) ||
 	    !ring->sched.ready) {
+
+		/*
+		 * A GPU reset should flush all TLBs anyway, so no need to do
+		 * this while one is ongoing.
+		 */
+		if (!down_read_trylock(&adev->reset_domain->sem))
+			return;
+
 		adev->gmc.gmc_funcs->flush_gpu_tlb(adev, vmid, vmhub,
 						   flush_type);
+		up_read(&adev->reset_domain->sem);
 		return;
 	}
 

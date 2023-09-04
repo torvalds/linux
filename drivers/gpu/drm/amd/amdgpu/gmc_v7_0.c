@@ -33,7 +33,6 @@
 #include "amdgpu_ucode.h"
 #include "amdgpu_amdkfd.h"
 #include "amdgpu_gem.h"
-#include "amdgpu_reset.h"
 
 #include "bif/bif_4_1_d.h"
 #include "bif/bif_4_1_sh_mask.h"
@@ -430,9 +429,6 @@ static void gmc_v7_0_flush_gpu_tlb_pasid(struct amdgpu_device *adev,
 	u32 mask = 0x0;
 	int vmid;
 
-	if (!down_read_trylock(&adev->reset_domain->sem))
-		return;
-
 	for (vmid = 1; vmid < 16; vmid++) {
 		u32 tmp = RREG32(mmATC_VMID0_PASID_MAPPING + vmid);
 
@@ -443,7 +439,6 @@ static void gmc_v7_0_flush_gpu_tlb_pasid(struct amdgpu_device *adev,
 
 	WREG32(mmVM_INVALIDATE_REQUEST, mask);
 	RREG32(mmVM_INVALIDATE_RESPONSE);
-	up_read(&adev->reset_domain->sem);
 }
 
 /*
