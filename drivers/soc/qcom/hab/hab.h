@@ -104,6 +104,8 @@ enum hab_payload_type {
 	((settings)->vmid_mmid_list[_vmid_].mmid[_mmid_])
 #define HABCFG_GET_BE(_local_cfg_, _vmid_, _mmid_) \
 	((settings)->vmid_mmid_list[_vmid_].is_listener[_mmid_])
+#define HABCFG_GET_KERNEL(_local_cfg_, _vmid_, _mmid_) \
+	((settings)->vmid_mmid_list[_vmid_].kernel_only[_mmid_])
 
 struct hab_header {
 	uint32_t id_type;
@@ -204,6 +206,7 @@ struct physical_channel {
 	struct list_head vchannels;
 	int vcnt;
 	rwlock_t vchans_lock;
+	int kernel_only;
 };
 /* this payload has to be used together with type */
 struct hab_open_send_data {
@@ -300,6 +303,7 @@ struct vmid_mmid_desc {
 	int vmid; /* remote vmid  */
 	int mmid[HABCFG_MMID_AREA_MAX+1]; /* selected or not */
 	int is_listener[HABCFG_MMID_AREA_MAX+1]; /* yes or no */
+	int kernel_only[HABCFG_MMID_AREA_MAX+1]; /* yes or no */
 };
 
 struct local_vmid {

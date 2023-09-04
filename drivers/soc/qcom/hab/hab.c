@@ -713,6 +713,11 @@ int hab_vchan_open(struct uhab_context *ctx,
 				hab_pchan_find_domid(dev,
 					HABCFG_VMID_DONT_CARE);
 			if (pchan) {
+				if (pchan->kernel_only && !ctx->kernel) {
+					pr_err("pchan only serves the kernel: mmid %d\n", mmid);
+					return -EPERM;
+				}
+
 				if (pchan->is_be)
 					vchan = backend_listen(ctx, mmid,
 							timeout);
@@ -810,7 +815,7 @@ int hab_vchan_close(struct uhab_context *ctx, int32_t vcid)
  * vmid (self)
  */
 static int hab_initialize_pchan_entry(struct hab_device *mmid_device,
-				int vmid_local, int vmid_remote, int is_be)
+				int vmid_local, int vmid_remote, int is_be, int kernel_only)
 {
 	char pchan_name[MAX_VMID_NAME_SIZE];
 	struct physical_channel *pchan = NULL;
@@ -836,10 +841,11 @@ static int hab_initialize_pchan_entry(struct hab_device *mmid_device,
 		/* local/remote id setting should be kept in lower level */
 		pchan->vmid_local = vmid_local;
 		pchan->vmid_remote = vmid_remote;
-		pr_debug("pchan %s mmid %s local %d remote %d role %d\n",
+		pchan->kernel_only = kernel_only;
+		pr_debug("pchan %s mmid %s local %d remote %d role %d, kernel only %d\n",
 				pchan_name, mmid_device->name,
 				pchan->vmid_local, pchan->vmid_remote,
-				pchan->dom_id);
+				pchan->dom_id, pchan->kernel_only);
 	}
 
 	return ret;
@@ -860,7 +866,8 @@ static int hab_generate_pchan_group(struct local_vmid *settings,
 				find_hab_device(k),
 				settings->self,
 				HABCFG_GET_VMID(settings, i),
-				HABCFG_GET_BE(settings, i, j));
+				HABCFG_GET_BE(settings, i, j),
+				HABCFG_GET_KERNEL(settings, i, j));
 	}
 
 	return ret;
