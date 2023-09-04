@@ -78,6 +78,7 @@ struct aspeed_spi_data {
 	u32	timing;
 	u32	hclk_mask;
 	u32	hdiv_max;
+	u32	min_decoding_sz;
 
 	u32 (*segment_start)(struct aspeed_spi *aspi, u32 reg);
 	u32 (*segment_end)(struct aspeed_spi *aspi, u32 reg);
@@ -95,6 +96,7 @@ struct aspeed_spi {
 	void __iomem		*ahb_base;
 	u32			 ahb_base_phy;
 	u32			 ahb_window_size;
+	u32			num_cs;
 	struct device		*dev;
 
 	struct clk		*clk;
@@ -408,35 +410,6 @@ static void aspeed_spi_get_windows(struct aspeed_spi *aspi,
 	}
 }
 
-/*
- * On the AST2600, some CE windows are closed by default at reset but
- * U-Boot should open all.
- */
-static int aspeed_spi_chip_set_default_window(struct aspeed_spi_chip *chip)
-{
-	struct aspeed_spi *aspi = chip->aspi;
-	struct aspeed_spi_window windows[ASPEED_SPI_MAX_NUM_CS] = { 0 };
-	struct aspeed_spi_window *win = &windows[chip->cs];
-
-	/* No segment registers for the AST2400 SPI controller */
-	if (aspi->data == &ast2400_spi_data) {
-		win->offset = 0;
-		win->size = aspi->ahb_window_size;
-	} else {
-		aspeed_spi_get_windows(aspi, windows);
-	}
-
-	chip->ahb_base = aspi->ahb_base + win->offset;
-	chip->ahb_window_size = win->size;
-
-	dev_dbg(aspi->dev, "CE%d default window [ 0x%.8x - 0x%.8x ] %dMB",
-		chip->cs, aspi->ahb_base_phy + win->offset,
-		aspi->ahb_base_phy + win->offset + win->size - 1,
-		win->size >> 20);
-
-	return chip->ahb_window_size ? 0 : -1;
-}
-
 static int aspeed_spi_set_window(struct aspeed_spi *aspi,
 				 const struct aspeed_spi_window *win)
 {
@@ -471,15 +444,62 @@ static int aspeed_spi_set_window(struct aspeed_spi *aspi,
 	return 0;
 }
 
+static const struct aspeed_spi_data ast2500_spi_data;
+static const struct aspeed_spi_data ast2600_spi_data;
+static const struct aspeed_spi_data ast2600_fmc_data;
+
+/*
+ * Usually, the decoding address is not configured at the u-boot stage.
+ * Or, the existing decoding address configuration is wrong.
+ * Thus, force to assign a default decoding address during driver probe.
+ */
+static void aspeed_spi_chip_set_default_window(struct aspeed_spi *aspi)
+{
+	u32 cs;
+	struct aspeed_spi_window win;
+
+	/* No segment registers for the AST2400 SPI controller */
+	if (aspi->data == &ast2400_spi_data) {
+		aspi->chips[0].ahb_base = aspi->ahb_base;
+		aspi->chips[0].ahb_window_size = aspi->ahb_window_size;
+		return;
+	}
+
+	for (cs = 0; cs < aspi->num_cs; cs++) {
+		if (cs == 0)
+			aspi->chips[cs].ahb_base = aspi->ahb_base;
+		else
+			aspi->chips[cs].ahb_base =
+				aspi->chips[cs - 1].ahb_base +
+				aspi->chips[cs - 1].ahb_window_size;
+
+		aspi->chips[cs].ahb_window_size = aspi->data->min_decoding_sz;
+
+		dev_dbg(aspi->dev, "CE%d default window [ 0x%.8x - 0x%.8x ]",
+			cs, aspi->ahb_base_phy + aspi->data->min_decoding_sz * cs,
+			aspi->ahb_base_phy + aspi->data->min_decoding_sz * cs - 1);
+	}
+
+	/* Close unused CS */
+	for (cs = aspi->num_cs; cs < aspi->data->max_cs; cs++) {
+		aspi->chips[cs].ahb_base = aspi->ahb_base;
+		aspi->chips[cs].ahb_window_size = 0;
+	}
+
+	for (cs = 0; cs < aspi->num_cs; cs++) {
+		win.cs = cs;
+		win.size = aspi->chips[cs].ahb_window_size;
+		win.offset = aspi->chips[cs].ahb_window_size * cs;
+		aspeed_spi_set_window(aspi, &win);
+	}
+}
+
 /*
  * Yet to be done when possible :
  * - Align mappings on flash size (we don't have the info)
  * - ioremap each window, not strictly necessary since the overall window
  *   is correct.
  */
-static const struct aspeed_spi_data ast2500_spi_data;
-static const struct aspeed_spi_data ast2600_spi_data;
-static const struct aspeed_spi_data ast2600_fmc_data;
 
 static int aspeed_spi_chip_adjust_window(struct aspeed_spi_chip *chip,
 					 u32 local_offset, u32 size)
@@ -685,11 +705,6 @@ static int aspeed_spi_setup(struct spi_device *spi)
 	if (data->hastype)
 		aspeed_spi_chip_set_type(aspi, cs, CONFIG_TYPE_SPI);
 
-	if (aspeed_spi_chip_set_default_window(chip) < 0) {
-		dev_warn(aspi->dev, "CE%d window invalid", cs);
-		return -EINVAL;
-	}
-
 	aspeed_spi_chip_enable(aspi, cs, true);
 
 	chip->ctl_val[ASPEED_SPI_BASE] = CTRL_CE_STOP_ACTIVE | CTRL_IO_MODE_USER;
@@ -776,8 +791,12 @@ static int aspeed_spi_probe(struct platform_device *pdev)
 	ctlr->mem_ops = &aspeed_spi_mem_ops;
 	ctlr->setup = aspeed_spi_setup;
 	ctlr->cleanup = aspeed_spi_cleanup;
-	ctlr->num_chipselect = data->max_cs;
+	ctlr->num_chipselect = of_get_available_child_count(dev->of_node);
 	ctlr->dev.of_node = dev->of_node;
+
+	aspi->num_cs = ctlr->num_chipselect;
+
+	aspeed_spi_chip_set_default_window(aspi);
 
 	ret = devm_spi_register_controller(dev, ctlr);
 	if (ret) {
@@ -1115,6 +1134,7 @@ static const struct aspeed_spi_data ast2400_fmc_data = {
 	.timing	       = CE0_TIMING_COMPENSATION_REG,
 	.hclk_mask     = 0xfffff0ff,
 	.hdiv_max      = 1,
+	.min_decoding_sz = 0x800000,
 	.calibrate     = aspeed_spi_calibrate,
 	.segment_start = aspeed_spi_segment_start,
 	.segment_end   = aspeed_spi_segment_end,
@@ -1141,6 +1161,7 @@ static const struct aspeed_spi_data ast2500_fmc_data = {
 	.timing	       = CE0_TIMING_COMPENSATION_REG,
 	.hclk_mask     = 0xffffd0ff,
 	.hdiv_max      = 1,
+	.min_decoding_sz = 0x800000,
 	.calibrate     = aspeed_spi_calibrate,
 	.segment_start = aspeed_spi_segment_start,
 	.segment_end   = aspeed_spi_segment_end,
@@ -1155,6 +1176,7 @@ static const struct aspeed_spi_data ast2500_spi_data = {
 	.timing	       = CE0_TIMING_COMPENSATION_REG,
 	.hclk_mask     = 0xffffd0ff,
 	.hdiv_max      = 1,
+	.min_decoding_sz = 0x800000,
 	.calibrate     = aspeed_spi_calibrate,
 	.segment_start = aspeed_spi_segment_start,
 	.segment_end   = aspeed_spi_segment_end,
@@ -1170,6 +1192,7 @@ static const struct aspeed_spi_data ast2600_fmc_data = {
 	.timing	       = CE0_TIMING_COMPENSATION_REG,
 	.hclk_mask     = 0xf0fff0ff,
 	.hdiv_max      = 2,
+	.min_decoding_sz = 0x200000,
 	.calibrate     = aspeed_spi_ast2600_calibrate,
 	.segment_start = aspeed_spi_segment_ast2600_start,
 	.segment_end   = aspeed_spi_segment_ast2600_end,
@@ -1185,6 +1208,7 @@ static const struct aspeed_spi_data ast2600_spi_data = {
 	.timing	       = CE0_TIMING_COMPENSATION_REG,
 	.hclk_mask     = 0xf0fff0ff,
 	.hdiv_max      = 2,
+	.min_decoding_sz = 0x200000,
 	.calibrate     = aspeed_spi_ast2600_calibrate,
 	.segment_start = aspeed_spi_segment_ast2600_start,
 	.segment_end   = aspeed_spi_segment_ast2600_end,
