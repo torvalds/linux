@@ -263,7 +263,7 @@ static int test__expr(struct test_suite *t __maybe_unused, int subtest __maybe_u
 
 	expr__ctx_free(ctx);
 
-	return 0;
+	return ret;
 }
 
 DEFINE_SUITE("Simple expression parser", expr);
