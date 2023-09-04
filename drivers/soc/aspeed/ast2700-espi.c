@@ -9,6 +9,7 @@
 #include <linux/module.h>
 #include <linux/bitfield.h>
 #include <linux/of_device.h>
+#include <linux/of_address.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/miscdevice.h>
@@ -705,7 +706,7 @@ static void ast2700_espi_perif_reset(struct ast2700_espi *espi)
 
 		writel((0x1 << (perif->mmbi.inst_num * 2)) - 1, espi->regs + ESPI_MMBI_INT_EN);
 
-		reg = FIELD_PREP(ESPI_MMBI_CTRL_INST_NUM, perif->mmbi.inst_num)
+		reg = FIELD_PREP(ESPI_MMBI_CTRL_INST_NUM, perif->mmbi.inst_num - 1)
 		    | ESPI_MMBI_CTRL_EN;
 		writel(reg, espi->regs + ESPI_MMBI_CTRL);
 
@@ -760,6 +761,8 @@ static int ast2700_espi_perif_probe(struct ast2700_espi *espi)
 	struct ast2700_espi_perif_mmbi *mmbi;
 	struct ast2700_espi_perif *perif;
 	struct platform_device *pdev;
+	struct device_node *np;
+	struct resource res;
 	struct device *dev;
 	int i, rc;
 
@@ -787,7 +790,7 @@ static int ast2700_espi_perif_probe(struct ast2700_espi *espi)
 
 		rc = of_property_read_u64(dev->of_node, "perif-mmbi-src-addr", &perif->mmbi.saddr);
 		if (rc || !IS_ALIGNED(perif->mmbi.saddr, PERIF_MMBI_ALIGN)) {
-			dev_err(dev, "cannot get 64KB-aligned MMBI host address\n");
+			dev_err(dev, "cannot get 64MB-aligned MMBI host address\n");
 			return -ENODEV;
 		}
 
@@ -797,15 +800,30 @@ static int ast2700_espi_perif_probe(struct ast2700_espi *espi)
 			return -EINVAL;
 		}
 
-		perif->mmbi.size = PERIF_MMBI_ALIGN;
-		perif->mmbi.virt = dmam_alloc_coherent(dev, perif->mmbi.size,
-						       &perif->mmbi.taddr, GFP_KERNEL);
+		np = of_parse_phandle(dev->of_node, "perif-mmbi-tgt-memory", 0);
+		if (!np || of_address_to_resource(np, 0, &res)) {
+			dev_err(dev, "cannot get MMBI memory region\n");
+			return -ENODEV;
+		}
+
+		of_node_put(np);
+
+		perif->mmbi.taddr = res.start;
+		perif->mmbi.size = resource_size(&res);
+		perif->mmbi.inst_size = perif->mmbi.size / perif->mmbi.inst_num;
+		if (!IS_ALIGNED(perif->mmbi.taddr, PERIF_MMBI_ALIGN) ||
+		    !IS_ALIGNED(perif->mmbi.size, PERIF_MMBI_ALIGN)) {
+			dev_err(dev, "cannot get 64MB-aligned MMBI address/size\n");
+			return -EINVAL;
+		}
+
+		perif->mmbi.virt = devm_ioremap_resource(dev, &res);
 		if (!perif->mmbi.virt) {
-			dev_err(dev, "cannot allocate MMBI\n");
+			dev_err(dev, "cannot map MMBI memory region\n");
 			return -ENOMEM;
 		}
 
-		perif->mmbi.inst_size = perif->mmbi.size / perif->mmbi.inst_num;
+		memset_io(perif->mmbi.virt, 0, perif->mmbi.size);
 
 		for (i = 0; i < perif->mmbi.inst_num; ++i) {
 			mmbi = &perif->mmbi.inst[i];
@@ -953,8 +971,7 @@ static int ast2700_espi_perif_remove(struct ast2700_espi *espi)
 			misc_deregister(&mmbi->h2b_mdev);
 		}
 
-		dmam_free_coherent(dev, perif->mmbi.size, perif->mmbi.virt,
-				   perif->mmbi.taddr);
+		devm_iounmap(dev, perif->mmbi.virt);
 	}
 
 	if (perif->mcyc.enable)
