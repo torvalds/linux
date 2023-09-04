@@ -252,6 +252,14 @@ int main(int argc, char **argv)
 	if (geteuid() != 0)
 		return ksft_exit_skip("Not running as root. Skipping...\n");
 
+	if (!check_resctrlfs_support())
+		return ksft_exit_skip("resctrl FS does not exist. Enable X86_CPU_RESCTRL config option.\n");
+
+	if (umount_resctrlfs())
+		return ksft_exit_skip("resctrl FS unmount failed.\n");
+
+	filter_dmesg();
+
 	if (has_ben) {
 		if (argc - ben_ind >= BENCHMARK_ARGS)
 			ksft_exit_fail_msg("Too long benchmark command.\n");
@@ -276,14 +284,6 @@ int main(int argc, char **argv)
 		strcpy(benchmark_cmd[4], "false");
 		benchmark_cmd[5] = NULL;
 	}
-
-	if (!check_resctrlfs_support())
-		return ksft_exit_skip("resctrl FS does not exist. Enable X86_CPU_RESCTRL config option.\n");
-
-	if (umount_resctrlfs())
-		return ksft_exit_skip("resctrl FS unmount failed.\n");
-
-	filter_dmesg();
 
 	ksft_set_plan(tests ? : 4);
 
