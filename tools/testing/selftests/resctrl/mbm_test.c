@@ -109,13 +109,12 @@ void mbm_test_cleanup(void)
 	remove(RESULT_FILE_NAME);
 }
 
-int mbm_bw_change(size_t span, int cpu_no, char **benchmark_cmd)
+int mbm_bw_change(int cpu_no, char **benchmark_cmd)
 {
 	struct resctrl_val_param param = {
 		.resctrl_val	= MBM_STR,
 		.ctrlgrp	= "c1",
 		.mongrp		= "m1",
-		.span		= span,
 		.cpu_no		= cpu_no,
 		.filename	= RESULT_FILE_NAME,
 		.bw_report	= "reads",
@@ -129,7 +128,7 @@ int mbm_bw_change(size_t span, int cpu_no, char **benchmark_cmd)
 	if (ret)
 		goto out;
 
-	ret = check_results(span);
+	ret = check_results(DEFAULT_SPAN);
 
 out:
 	mbm_test_cleanup();
