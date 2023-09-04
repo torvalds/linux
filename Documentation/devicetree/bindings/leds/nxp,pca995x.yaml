@@ -1,25 +1,29 @@
 # SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
 %YAML 1.2
 ---
-$id: http://devicetree.org/schemas/leds/rohm,bd2606mvv.yaml#
+$id: http://devicetree.org/schemas/leds/nxp,pca995x.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: ROHM BD2606MVV LED controller
+title: NXP PCA995x LED controllers
 
 maintainers:
-  - Andreas Kemnade <andreas@kemnade.info>
+  - Isai Gaspar <isaiezequiel.gaspar@nxp.com>
+  - Marek Vasut <marex@denx.de>
 
 description:
-  The BD2606 MVV is a programmable LED controller connected via I2C that can
-  drive 6 separate lines. Each of them can be individually switched on and off,
-  but the brightness setting is shared between pairs of them.
+  The NXP PCA9952/PCA9955B are programmable LED controllers connected via I2C
+  that can drive 16 separate lines. Each of them can be individually switched
+  on and off, and brightness can be controlled via individual PWM.
 
-  Datasheet is available at
-  https://fscdn.rohm.com/en/products/databook/datasheet/ic/power/led_driver/bd2606mvv_1-e.pdf
+  Datasheets are available at
+  https://www.nxp.com/docs/en/data-sheet/PCA9952_PCA9955.pdf
+  https://www.nxp.com/docs/en/data-sheet/PCA9955B.pdf
 
 properties:
   compatible:
-    const: rohm,bd2606mvv
+    enum:
+      - nxp,pca9952
+      - nxp,pca9955b
 
   reg:
     maxItems: 1
@@ -30,12 +34,8 @@ properties:
   "#size-cells":
     const: 0
 
-  enable-gpios:
-    maxItems: 1
-    description: GPIO pin to enable/disable the device.
-
 patternProperties:
-  "^led@[0-5]$":
+  "^led@[0-9a-f]+$":
     type: object
     $ref: common.yaml#
     unevaluatedProperties: false
@@ -43,7 +43,7 @@ patternProperties:
     properties:
       reg:
         minimum: 0
-        maximum: 5
+        maximum: 15
 
     required:
       - reg
@@ -58,9 +58,9 @@ examples:
         #address-cells = <1>;
         #size-cells = <0>;
 
-        led-controller@66 {
-            compatible = "rohm,bd2606mvv";
-            reg = <0x66>;
+        led-controller@1 {
+            compatible = "nxp,pca9955b";
+            reg = <0x01>;
             #address-cells = <1>;
             #size-cells = <0>;
 

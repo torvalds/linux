@@ -18,8 +18,6 @@ description: |
 
   The device has two LED outputs referred as GRNLED and AMBLED in data-sheet.
 
-select: false
-
 properties:
   compatible:
     const: rohm,bd71828-leds
