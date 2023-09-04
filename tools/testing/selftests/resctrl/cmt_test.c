@@ -27,7 +27,7 @@ static int cmt_setup(struct resctrl_val_param *p)
 	return 0;
 }
 
-static int check_results(struct resctrl_val_param *param, int no_of_bits)
+static int check_results(struct resctrl_val_param *param, size_t span, int no_of_bits)
 {
 	char *token_array[8], temp[512];
 	unsigned long sum_llc_occu_resc = 0;
@@ -58,7 +58,7 @@ static int check_results(struct resctrl_val_param *param, int no_of_bits)
 	}
 	fclose(fp);
 
-	return show_cache_info(sum_llc_occu_resc, no_of_bits, param->span,
+	return show_cache_info(sum_llc_occu_resc, no_of_bits, span,
 			       MAX_DIFF, MAX_DIFF_PERCENT, runs - 1,
 			       true, true);
 }
@@ -74,6 +74,7 @@ int cmt_resctrl_val(int cpu_no, int n, char **benchmark_cmd)
 	unsigned long long_mask;
 	char cbm_mask[256];
 	int count_of_bits;
+	size_t span;
 	int ret;
 
 	ret = get_cbm_mask("L3", cbm_mask);
@@ -102,13 +103,13 @@ int cmt_resctrl_val(int cpu_no, int n, char **benchmark_cmd)
 		.cpu_no		= cpu_no,
 		.filename	= RESULT_FILE_NAME,
 		.mask		= ~(long_mask << n) & long_mask,
-		.span		= cache_size * n / count_of_bits,
 		.num_of_runs	= 0,
 		.setup		= cmt_setup,
 	};
 
+	span = cache_size * n / count_of_bits;
 	if (strcmp(benchmark_cmd[0], "fill_buf") == 0)
-		sprintf(benchmark_cmd[1], "%zu", param.span);
+		sprintf(benchmark_cmd[1], "%zu", span);
 
 	remove(RESULT_FILE_NAME);
 
@@ -116,7 +117,7 @@ int cmt_resctrl_val(int cpu_no, int n, char **benchmark_cmd)
 	if (ret)
 		goto out;
 
-	ret = check_results(&param, n);
+	ret = check_results(&param, span, n);
 
 out:
 	cmt_test_cleanup();

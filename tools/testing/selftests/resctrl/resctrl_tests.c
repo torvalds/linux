@@ -70,7 +70,7 @@ void tests_cleanup(void)
 	cat_test_cleanup();
 }
 
-static void run_mbm_test(char **benchmark_cmd, size_t span, int cpu_no)
+static void run_mbm_test(char **benchmark_cmd, int cpu_no)
 {
 	int res;
 
@@ -89,7 +89,7 @@ static void run_mbm_test(char **benchmark_cmd, size_t span, int cpu_no)
 		goto umount;
 	}
 
-	res = mbm_bw_change(span, cpu_no, benchmark_cmd);
+	res = mbm_bw_change(cpu_no, benchmark_cmd);
 	ksft_test_result(!res, "MBM: bw change\n");
 	if ((get_vendor() == ARCH_INTEL) && res)
 		ksft_print_msg("Intel MBM may be inaccurate when Sub-NUMA Clustering is enabled. Check BIOS configuration.\n");
@@ -182,7 +182,6 @@ int main(int argc, char **argv)
 	int c, cpu_no = 1, argc_new = argc, i, no_of_bits = 0;
 	char *benchmark_cmd[BENCHMARK_ARGS];
 	int ben_ind, ben_count, tests = 0;
-	size_t span = 250 * MB;
 	bool cat_test = true;
 
 	for (i = 0; i < argc; i++) {
@@ -276,7 +275,7 @@ int main(int argc, char **argv)
 			benchmark_cmd[i] = benchmark_cmd_area[i];
 
 		strcpy(benchmark_cmd[0], "fill_buf");
-		sprintf(benchmark_cmd[1], "%zu", span);
+		sprintf(benchmark_cmd[1], "%u", DEFAULT_SPAN);
 		strcpy(benchmark_cmd[2], "1");
 		strcpy(benchmark_cmd[3], "0");
 		strcpy(benchmark_cmd[4], "false");
@@ -294,7 +293,7 @@ int main(int argc, char **argv)
 	ksft_set_plan(tests ? : 4);
 
 	if (mbm_test)
-		run_mbm_test(benchmark_cmd, span, cpu_no);
+		run_mbm_test(benchmark_cmd, cpu_no);
 
 	if (mba_test)
 		run_mba_test(benchmark_cmd, cpu_no);
