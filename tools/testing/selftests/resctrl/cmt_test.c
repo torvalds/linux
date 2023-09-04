@@ -68,14 +68,17 @@ void cmt_test_cleanup(void)
 	remove(RESULT_FILE_NAME);
 }
 
-int cmt_resctrl_val(int cpu_no, int n, char **benchmark_cmd)
+int cmt_resctrl_val(int cpu_no, int n, const char * const *benchmark_cmd)
 {
+	const char * const *cmd = benchmark_cmd;
+	const char *new_cmd[BENCHMARK_ARGS];
 	unsigned long cache_size = 0;
 	unsigned long long_mask;
+	char *span_str = NULL;
 	char cbm_mask[256];
 	int count_of_bits;
 	size_t span;
-	int ret;
+	int ret, i;
 
 	ret = get_cbm_mask("L3", cbm_mask);
 	if (ret)
@@ -108,12 +111,23 @@ int cmt_resctrl_val(int cpu_no, int n, char **benchmark_cmd)
 	};
 
 	span = cache_size * n / count_of_bits;
-	if (strcmp(benchmark_cmd[0], "fill_buf") == 0)
-		sprintf(benchmark_cmd[1], "%zu", span);
+
+	if (strcmp(cmd[0], "fill_buf") == 0) {
+		/* Duplicate the command to be able to replace span in it */
+		for (i = 0; benchmark_cmd[i]; i++)
+			new_cmd[i] = benchmark_cmd[i];
+		new_cmd[i] = NULL;
+
+		ret = asprintf(&span_str, "%zu", span);
+		if (ret < 0)
+			return -1;
+		new_cmd[1] = span_str;
+		cmd = new_cmd;
+	}
 
 	remove(RESULT_FILE_NAME);
 
-	ret = resctrl_val(benchmark_cmd, &param);
+	ret = resctrl_val(cmd, &param);
 	if (ret)
 		goto out;
 
@@ -121,6 +135,7 @@ int cmt_resctrl_val(int cpu_no, int n, char **benchmark_cmd)
 
 out:
 	cmt_test_cleanup();
+	free(span_str);
 
 	return ret;
 }
