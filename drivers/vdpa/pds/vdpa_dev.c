@@ -126,11 +126,9 @@ static void pds_vdpa_release_irq(struct pds_vdpa_device *pdsv, int qid)
 static void pds_vdpa_set_vq_ready(struct vdpa_device *vdpa_dev, u16 qid, bool ready)
 {
 	struct pds_vdpa_device *pdsv = vdpa_to_pdsv(vdpa_dev);
-	struct pci_dev *pdev = pdsv->vdpa_aux->padev->vf_pdev;
 	struct device *dev = &pdsv->vdpa_dev.dev;
 	u64 driver_features;
 	u16 invert_idx = 0;
-	int irq;
 	int err;
 
 	dev_dbg(dev, "%s: qid %d ready %d => %d\n",
@@ -143,19 +141,6 @@ static void pds_vdpa_set_vq_ready(struct vdpa_device *vdpa_dev, u16 qid, bool re
 		invert_idx = PDS_VDPA_PACKED_INVERT_IDX;
 
 	if (ready) {
-		irq = pci_irq_vector(pdev, qid);
-		snprintf(pdsv->vqs[qid].irq_name, sizeof(pdsv->vqs[qid].irq_name),
-			 "vdpa-%s-%d", dev_name(dev), qid);
-
-		err = request_irq(irq, pds_vdpa_isr, 0,
-				  pdsv->vqs[qid].irq_name, &pdsv->vqs[qid]);
-		if (err) {
-			dev_err(dev, "%s: no irq for qid %d: %pe\n",
-				__func__, qid, ERR_PTR(err));
-			return;
-		}
-		pdsv->vqs[qid].irq = irq;
-
 		/* Pass vq setup info to DSC using adminq to gather up and
 		 * send all info at once so FW can do its full set up in
 		 * one easy operation
@@ -164,7 +149,6 @@ static void pds_vdpa_set_vq_ready(struct vdpa_device *vdpa_dev, u16 qid, bool re
 		if (err) {
 			dev_err(dev, "Failed to init vq %d: %pe\n",
 				qid, ERR_PTR(err));
-			pds_vdpa_release_irq(pdsv, qid);
 			ready = false;
 		}
 	} else {
@@ -172,7 +156,6 @@ static void pds_vdpa_set_vq_ready(struct vdpa_device *vdpa_dev, u16 qid, bool re
 		if (err)
 			dev_err(dev, "%s: reset_vq failed qid %d: %pe\n",
 				__func__, qid, ERR_PTR(err));
-		pds_vdpa_release_irq(pdsv, qid);
 	}
 
 	pdsv->vqs[qid].ready = ready;
@@ -318,6 +301,7 @@ static int pds_vdpa_set_driver_features(struct vdpa_device *vdpa_dev, u64 featur
 	struct device *dev = &pdsv->vdpa_dev.dev;
 	u64 driver_features;
 	u64 nego_features;
+	u64 hw_features;
 	u64 missing;
 
 	if (!(features & BIT_ULL(VIRTIO_F_ACCESS_PLATFORM)) && features) {
@@ -325,20 +309,25 @@ static int pds_vdpa_set_driver_features(struct vdpa_device *vdpa_dev, u64 featur
 		return -EOPNOTSUPP;
 	}
 
-	pdsv->req_features = features;
-
 	/* Check for valid feature bits */
-	nego_features = features & le64_to_cpu(pdsv->vdpa_aux->ident.hw_features);
-	missing = pdsv->req_features & ~nego_features;
+	nego_features = features & pdsv->supported_features;
+	missing = features & ~nego_features;
 	if (missing) {
 		dev_err(dev, "Can't support all requested features in %#llx, missing %#llx features\n",
-			pdsv->req_features, missing);
+			features, missing);
 		return -EOPNOTSUPP;
 	}
+
+	pdsv->negotiated_features = nego_features;
 
 	driver_features = pds_vdpa_get_driver_features(vdpa_dev);
 	dev_dbg(dev, "%s: %#llx => %#llx\n",
 		__func__, driver_features, nego_features);
+
+	/* if we're faking the F_MAC, strip it before writing to device */
+	hw_features = le64_to_cpu(pdsv->vdpa_aux->ident.hw_features);
+	if (!(hw_features & BIT_ULL(VIRTIO_NET_F_MAC)))
+		nego_features &= ~BIT_ULL(VIRTIO_NET_F_MAC);
 
 	if (driver_features == nego_features)
 		return 0;
@@ -352,7 +341,7 @@ static u64 pds_vdpa_get_driver_features(struct vdpa_device *vdpa_dev)
 {
 	struct pds_vdpa_device *pdsv = vdpa_to_pdsv(vdpa_dev);
 
-	return vp_modern_get_driver_features(&pdsv->vdpa_aux->vd_mdev);
+	return pdsv->negotiated_features;
 }
 
 static void pds_vdpa_set_config_cb(struct vdpa_device *vdpa_dev,
@@ -389,6 +378,72 @@ static u8 pds_vdpa_get_status(struct vdpa_device *vdpa_dev)
 	return vp_modern_get_status(&pdsv->vdpa_aux->vd_mdev);
 }
 
+static int pds_vdpa_request_irqs(struct pds_vdpa_device *pdsv)
+{
+	struct pci_dev *pdev = pdsv->vdpa_aux->padev->vf_pdev;
+	struct pds_vdpa_aux *vdpa_aux = pdsv->vdpa_aux;
+	struct device *dev = &pdsv->vdpa_dev.dev;
+	int max_vq, nintrs, qid, err;
+
+	max_vq = vdpa_aux->vdpa_mdev.max_supported_vqs;
+
+	nintrs = pci_alloc_irq_vectors(pdev, max_vq, max_vq, PCI_IRQ_MSIX);
+	if (nintrs < 0) {
+		dev_err(dev, "Couldn't get %d msix vectors: %pe\n",
+			max_vq, ERR_PTR(nintrs));
+		return nintrs;
+	}
+
+	for (qid = 0; qid < pdsv->num_vqs; ++qid) {
+		int irq = pci_irq_vector(pdev, qid);
+
+		snprintf(pdsv->vqs[qid].irq_name, sizeof(pdsv->vqs[qid].irq_name),
+			 "vdpa-%s-%d", dev_name(dev), qid);
+
+		err = request_irq(irq, pds_vdpa_isr, 0,
+				  pdsv->vqs[qid].irq_name,
+				  &pdsv->vqs[qid]);
+		if (err) {
+			dev_err(dev, "%s: no irq for qid %d: %pe\n",
+				__func__, qid, ERR_PTR(err));
+			goto err_release;
+		}
+
+		pdsv->vqs[qid].irq = irq;
+	}
+
+	vdpa_aux->nintrs = nintrs;
+
+	return 0;
+
+err_release:
+	while (qid--)
+		pds_vdpa_release_irq(pdsv, qid);
+
+	pci_free_irq_vectors(pdev);
+
+	vdpa_aux->nintrs = 0;
+
+	return err;
+}
+
+static void pds_vdpa_release_irqs(struct pds_vdpa_device *pdsv)
+{
+	struct pci_dev *pdev = pdsv->vdpa_aux->padev->vf_pdev;
+	struct pds_vdpa_aux *vdpa_aux = pdsv->vdpa_aux;
+	int qid;
+
+	if (!vdpa_aux->nintrs)
+		return;
+
+	for (qid = 0; qid < pdsv->num_vqs; qid++)
+		pds_vdpa_release_irq(pdsv, qid);
+
+	pci_free_irq_vectors(pdev);
+
+	vdpa_aux->nintrs = 0;
+}
+
 static void pds_vdpa_set_status(struct vdpa_device *vdpa_dev, u8 status)
 {
 	struct pds_vdpa_device *pdsv = vdpa_to_pdsv(vdpa_dev);
@@ -398,6 +453,11 @@ static void pds_vdpa_set_status(struct vdpa_device *vdpa_dev, u8 status)
 
 	old_status = pds_vdpa_get_status(vdpa_dev);
 	dev_dbg(dev, "%s: old %#x new %#x\n", __func__, old_status, status);
+
+	if (status & ~old_status & VIRTIO_CONFIG_S_DRIVER_OK) {
+		if (pds_vdpa_request_irqs(pdsv))
+			status = old_status | VIRTIO_CONFIG_S_FAILED;
+	}
 
 	pds_vdpa_cmd_set_status(pdsv, status);
 
@@ -409,6 +469,8 @@ static void pds_vdpa_set_status(struct vdpa_device *vdpa_dev, u8 status)
 			pdsv->vqs[i].avail_idx = 0;
 			pdsv->vqs[i].used_idx = 0;
 		}
+
+		pds_vdpa_cmd_set_mac(pdsv, pdsv->mac);
 	}
 
 	if (status & ~old_status & VIRTIO_CONFIG_S_FEATURES_OK) {
@@ -418,6 +480,20 @@ static void pds_vdpa_set_status(struct vdpa_device *vdpa_dev, u8 status)
 							i, &pdsv->vqs[i].notify_pa);
 		}
 	}
+
+	if (old_status & ~status & VIRTIO_CONFIG_S_DRIVER_OK)
+		pds_vdpa_release_irqs(pdsv);
+}
+
+static void pds_vdpa_init_vqs_entry(struct pds_vdpa_device *pdsv, int qid,
+				    void __iomem *notify)
+{
+	memset(&pdsv->vqs[qid], 0, sizeof(pdsv->vqs[0]));
+	pdsv->vqs[qid].qid = qid;
+	pdsv->vqs[qid].pdsv = pdsv;
+	pdsv->vqs[qid].ready = false;
+	pdsv->vqs[qid].irq = VIRTIO_MSI_NO_VECTOR;
+	pdsv->vqs[qid].notify = notify;
 }
 
 static int pds_vdpa_reset(struct vdpa_device *vdpa_dev)
@@ -441,13 +517,16 @@ static int pds_vdpa_reset(struct vdpa_device *vdpa_dev)
 			if (err)
 				dev_err(dev, "%s: reset_vq failed qid %d: %pe\n",
 					__func__, i, ERR_PTR(err));
-			pds_vdpa_release_irq(pdsv, i);
-			memset(&pdsv->vqs[i], 0, sizeof(pdsv->vqs[0]));
-			pdsv->vqs[i].ready = false;
 		}
 	}
 
 	pds_vdpa_set_status(vdpa_dev, 0);
+
+	if (status & VIRTIO_CONFIG_S_DRIVER_OK) {
+		/* Reset the vq info */
+		for (i = 0; i < pdsv->num_vqs && !err; i++)
+			pds_vdpa_init_vqs_entry(pdsv, i, pdsv->vqs[i].notify);
+	}
 
 	return 0;
 }
@@ -532,7 +611,6 @@ static int pds_vdpa_dev_add(struct vdpa_mgmt_dev *mdev, const char *name,
 	struct device *dma_dev;
 	struct pci_dev *pdev;
 	struct device *dev;
-	u8 mac[ETH_ALEN];
 	int err;
 	int i;
 
@@ -563,7 +641,7 @@ static int pds_vdpa_dev_add(struct vdpa_mgmt_dev *mdev, const char *name,
 
 	if (add_config->mask & BIT_ULL(VDPA_ATTR_DEV_FEATURES)) {
 		u64 unsupp_features =
-			add_config->device_features & ~mgmt->supported_features;
+			add_config->device_features & ~pdsv->supported_features;
 
 		if (unsupp_features) {
 			dev_err(dev, "Unsupported features: %#llx\n", unsupp_features);
@@ -614,29 +692,30 @@ static int pds_vdpa_dev_add(struct vdpa_mgmt_dev *mdev, const char *name,
 	}
 
 	/* Set a mac, either from the user config if provided
-	 * or set a random mac if default is 00:..:00
+	 * or use the device's mac if not 00:..:00
+	 * or set a random mac
 	 */
 	if (add_config->mask & BIT_ULL(VDPA_ATTR_DEV_NET_CFG_MACADDR)) {
-		ether_addr_copy(mac, add_config->net.mac);
-		pds_vdpa_cmd_set_mac(pdsv, mac);
+		ether_addr_copy(pdsv->mac, add_config->net.mac);
 	} else {
 		struct virtio_net_config __iomem *vc;
 
 		vc = pdsv->vdpa_aux->vd_mdev.device;
-		memcpy_fromio(mac, vc->mac, sizeof(mac));
-		if (is_zero_ether_addr(mac)) {
-			eth_random_addr(mac);
-			dev_info(dev, "setting random mac %pM\n", mac);
-			pds_vdpa_cmd_set_mac(pdsv, mac);
+		memcpy_fromio(pdsv->mac, vc->mac, sizeof(pdsv->mac));
+		if (is_zero_ether_addr(pdsv->mac) &&
+		    (pdsv->supported_features & BIT_ULL(VIRTIO_NET_F_MAC))) {
+			eth_random_addr(pdsv->mac);
+			dev_info(dev, "setting random mac %pM\n", pdsv->mac);
 		}
 	}
+	pds_vdpa_cmd_set_mac(pdsv, pdsv->mac);
 
 	for (i = 0; i < pdsv->num_vqs; i++) {
-		pdsv->vqs[i].qid = i;
-		pdsv->vqs[i].pdsv = pdsv;
-		pdsv->vqs[i].irq = VIRTIO_MSI_NO_VECTOR;
-		pdsv->vqs[i].notify = vp_modern_map_vq_notify(&pdsv->vdpa_aux->vd_mdev,
-							      i, &pdsv->vqs[i].notify_pa);
+		void __iomem *notify;
+
+		notify = vp_modern_map_vq_notify(&pdsv->vdpa_aux->vd_mdev,
+						 i, &pdsv->vqs[i].notify_pa);
+		pds_vdpa_init_vqs_entry(pdsv, i, notify);
 	}
 
 	pdsv->vdpa_dev.mdev = &vdpa_aux->vdpa_mdev;
@@ -746,24 +825,19 @@ int pds_vdpa_get_mgmt_info(struct pds_vdpa_aux *vdpa_aux)
 
 	max_vqs = min_t(u16, dev_intrs, max_vqs);
 	mgmt->max_supported_vqs = min_t(u16, PDS_VDPA_MAX_QUEUES, max_vqs);
-	vdpa_aux->nintrs = mgmt->max_supported_vqs;
+	vdpa_aux->nintrs = 0;
 
 	mgmt->ops = &pds_vdpa_mgmt_dev_ops;
 	mgmt->id_table = pds_vdpa_id_table;
 	mgmt->device = dev;
 	mgmt->supported_features = le64_to_cpu(vdpa_aux->ident.hw_features);
+
+	/* advertise F_MAC even if the device doesn't */
+	mgmt->supported_features |= BIT_ULL(VIRTIO_NET_F_MAC);
+
 	mgmt->config_attr_mask = BIT_ULL(VDPA_ATTR_DEV_NET_CFG_MACADDR);
 	mgmt->config_attr_mask |= BIT_ULL(VDPA_ATTR_DEV_NET_CFG_MAX_VQP);
 	mgmt->config_attr_mask |= BIT_ULL(VDPA_ATTR_DEV_FEATURES);
-
-	err = pci_alloc_irq_vectors(pdev, vdpa_aux->nintrs, vdpa_aux->nintrs,
-				    PCI_IRQ_MSIX);
-	if (err < 0) {
-		dev_err(dev, "Couldn't get %d msix vectors: %pe\n",
-			vdpa_aux->nintrs, ERR_PTR(err));
-		return err;
-	}
-	vdpa_aux->nintrs = err;
 
 	return 0;
 }

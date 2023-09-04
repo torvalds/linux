@@ -25,6 +25,8 @@
 #include <linux/fs.h>
 #include <linux/vmalloc.h>
 #include <linux/miscdevice.h>
+#include <linux/blk_types.h>
+#include <linux/bio.h>
 #include <asm/unaligned.h>
 #include <scsi/scsi_common.h>
 #include <scsi/scsi_proto.h>
@@ -75,6 +77,9 @@ struct vhost_scsi_cmd {
 	u32 tvc_prot_sgl_count;
 	/* Saved unpacked SCSI LUN for vhost_scsi_target_queue_cmd() */
 	u32 tvc_lun;
+	u32 copied_iov:1;
+	const void *saved_iter_addr;
+	struct iov_iter saved_iter;
 	/* Pointer to the SGL formatted memory from virtio-scsi */
 	struct scatterlist *tvc_sgl;
 	struct scatterlist *tvc_prot_sgl;
@@ -328,8 +333,13 @@ static void vhost_scsi_release_cmd_res(struct se_cmd *se_cmd)
 	int i;
 
 	if (tv_cmd->tvc_sgl_count) {
-		for (i = 0; i < tv_cmd->tvc_sgl_count; i++)
-			put_page(sg_page(&tv_cmd->tvc_sgl[i]));
+		for (i = 0; i < tv_cmd->tvc_sgl_count; i++) {
+			if (tv_cmd->copied_iov)
+				__free_page(sg_page(&tv_cmd->tvc_sgl[i]));
+			else
+				put_page(sg_page(&tv_cmd->tvc_sgl[i]));
+		}
+		kfree(tv_cmd->saved_iter_addr);
 	}
 	if (tv_cmd->tvc_prot_sgl_count) {
 		for (i = 0; i < tv_cmd->tvc_prot_sgl_count; i++)
@@ -504,6 +514,28 @@ static void vhost_scsi_evt_work(struct vhost_work *work)
 	mutex_unlock(&vq->mutex);
 }
 
+static int vhost_scsi_copy_sgl_to_iov(struct vhost_scsi_cmd *cmd)
+{
+	struct iov_iter *iter = &cmd->saved_iter;
+	struct scatterlist *sg = cmd->tvc_sgl;
+	struct page *page;
+	size_t len;
+	int i;
+
+	for (i = 0; i < cmd->tvc_sgl_count; i++) {
+		page = sg_page(&sg[i]);
+		len = sg[i].length;
+
+		if (copy_page_to_iter(page, 0, len, iter) != len) {
+			pr_err("Could not copy data while handling misaligned cmd. Error %zu\n",
+			       len);
+			return -1;
+		}
+	}
+
+	return 0;
+}
+
 /* Fill in status and signal that we are done processing this command
  *
  * This is scheduled in the vhost work queue so we are called with the owner
@@ -527,15 +559,20 @@ static void vhost_scsi_complete_cmd_work(struct vhost_work *work)
 
 		pr_debug("%s tv_cmd %p resid %u status %#02x\n", __func__,
 			cmd, se_cmd->residual_count, se_cmd->scsi_status);
-
 		memset(&v_rsp, 0, sizeof(v_rsp));
-		v_rsp.resid = cpu_to_vhost32(cmd->tvc_vq, se_cmd->residual_count);
-		/* TODO is status_qualifier field needed? */
-		v_rsp.status = se_cmd->scsi_status;
-		v_rsp.sense_len = cpu_to_vhost32(cmd->tvc_vq,
-						 se_cmd->scsi_sense_length);
-		memcpy(v_rsp.sense, cmd->tvc_sense_buf,
-		       se_cmd->scsi_sense_length);
+
+		if (cmd->saved_iter_addr && vhost_scsi_copy_sgl_to_iov(cmd)) {
+			v_rsp.response = VIRTIO_SCSI_S_BAD_TARGET;
+		} else {
+			v_rsp.resid = cpu_to_vhost32(cmd->tvc_vq,
+						     se_cmd->residual_count);
+			/* TODO is status_qualifier field needed? */
+			v_rsp.status = se_cmd->scsi_status;
+			v_rsp.sense_len = cpu_to_vhost32(cmd->tvc_vq,
+							 se_cmd->scsi_sense_length);
+			memcpy(v_rsp.sense, cmd->tvc_sense_buf,
+			       se_cmd->scsi_sense_length);
+		}
 
 		iov_iter_init(&iov_iter, ITER_DEST, cmd->tvc_resp_iov,
 			      cmd->tvc_in_iovs, sizeof(v_rsp));
@@ -613,12 +650,12 @@ static int
 vhost_scsi_map_to_sgl(struct vhost_scsi_cmd *cmd,
 		      struct iov_iter *iter,
 		      struct scatterlist *sgl,
-		      bool write)
+		      bool is_prot)
 {
 	struct page **pages = cmd->tvc_upages;
 	struct scatterlist *sg = sgl;
-	ssize_t bytes;
-	size_t offset;
+	ssize_t bytes, mapped_bytes;
+	size_t offset, mapped_offset;
 	unsigned int npages = 0;
 
 	bytes = iov_iter_get_pages2(iter, pages, LONG_MAX,
@@ -627,13 +664,53 @@ vhost_scsi_map_to_sgl(struct vhost_scsi_cmd *cmd,
 	if (bytes <= 0)
 		return bytes < 0 ? bytes : -EFAULT;
 
+	mapped_bytes = bytes;
+	mapped_offset = offset;
+
 	while (bytes) {
 		unsigned n = min_t(unsigned, PAGE_SIZE - offset, bytes);
+		/*
+		 * The block layer requires bios/requests to be a multiple of
+		 * 512 bytes, but Windows can send us vecs that are misaligned.
+		 * This can result in bios and later requests with misaligned
+		 * sizes if we have to break up a cmd/scatterlist into multiple
+		 * bios.
+		 *
+		 * We currently only break up a command into multiple bios if
+		 * we hit the vec/seg limit, so check if our sgl_count is
+		 * greater than the max and if a vec in the cmd has a
+		 * misaligned offset/size.
+		 */
+		if (!is_prot &&
+		    (offset & (SECTOR_SIZE - 1) || n & (SECTOR_SIZE - 1)) &&
+		    cmd->tvc_sgl_count > BIO_MAX_VECS) {
+			WARN_ONCE(true,
+				  "vhost-scsi detected misaligned IO. Performance may be degraded.");
+			goto revert_iter_get_pages;
+		}
+
 		sg_set_page(sg++, pages[npages++], n, offset);
 		bytes -= n;
 		offset = 0;
 	}
+
 	return npages;
+
+revert_iter_get_pages:
+	iov_iter_revert(iter, mapped_bytes);
+
+	npages = 0;
+	while (mapped_bytes) {
+		unsigned int n = min_t(unsigned int, PAGE_SIZE - mapped_offset,
+				       mapped_bytes);
+
+		put_page(pages[npages++]);
+
+		mapped_bytes -= n;
+		mapped_offset = 0;
+	}
+
+	return -EINVAL;
 }
 
 static int
@@ -657,25 +734,80 @@ vhost_scsi_calc_sgls(struct iov_iter *iter, size_t bytes, int max_sgls)
 }
 
 static int
-vhost_scsi_iov_to_sgl(struct vhost_scsi_cmd *cmd, bool write,
-		      struct iov_iter *iter,
-		      struct scatterlist *sg, int sg_count)
+vhost_scsi_copy_iov_to_sgl(struct vhost_scsi_cmd *cmd, struct iov_iter *iter,
+			   struct scatterlist *sg, int sg_count)
+{
+	size_t len = iov_iter_count(iter);
+	unsigned int nbytes = 0;
+	struct page *page;
+	int i;
+
+	if (cmd->tvc_data_direction == DMA_FROM_DEVICE) {
+		cmd->saved_iter_addr = dup_iter(&cmd->saved_iter, iter,
+						GFP_KERNEL);
+		if (!cmd->saved_iter_addr)
+			return -ENOMEM;
+	}
+
+	for (i = 0; i < sg_count; i++) {
+		page = alloc_page(GFP_KERNEL);
+		if (!page) {
+			i--;
+			goto err;
+		}
+
+		nbytes = min_t(unsigned int, PAGE_SIZE, len);
+		sg_set_page(&sg[i], page, nbytes, 0);
+
+		if (cmd->tvc_data_direction == DMA_TO_DEVICE &&
+		    copy_page_from_iter(page, 0, nbytes, iter) != nbytes)
+			goto err;
+
+		len -= nbytes;
+	}
+
+	cmd->copied_iov = 1;
+	return 0;
+
+err:
+	pr_err("Could not read %u bytes while handling misaligned cmd\n",
+	       nbytes);
+
+	for (; i >= 0; i--)
+		__free_page(sg_page(&sg[i]));
+	kfree(cmd->saved_iter_addr);
+	return -ENOMEM;
+}
+
+static int
+vhost_scsi_map_iov_to_sgl(struct vhost_scsi_cmd *cmd, struct iov_iter *iter,
+			  struct scatterlist *sg, int sg_count, bool is_prot)
 {
 	struct scatterlist *p = sg;
+	size_t revert_bytes;
 	int ret;
 
 	while (iov_iter_count(iter)) {
-		ret = vhost_scsi_map_to_sgl(cmd, iter, sg, write);
+		ret = vhost_scsi_map_to_sgl(cmd, iter, sg, is_prot);
 		if (ret < 0) {
+			revert_bytes = 0;
+
 			while (p < sg) {
-				struct page *page = sg_page(p++);
-				if (page)
+				struct page *page = sg_page(p);
+
+				if (page) {
 					put_page(page);
+					revert_bytes += p->length;
+				}
+				p++;
 			}
+
+			iov_iter_revert(iter, revert_bytes);
 			return ret;
 		}
 		sg += ret;
 	}
+
 	return 0;
 }
 
@@ -685,7 +817,6 @@ vhost_scsi_mapal(struct vhost_scsi_cmd *cmd,
 		 size_t data_bytes, struct iov_iter *data_iter)
 {
 	int sgl_count, ret;
-	bool write = (cmd->tvc_data_direction == DMA_FROM_DEVICE);
 
 	if (prot_bytes) {
 		sgl_count = vhost_scsi_calc_sgls(prot_iter, prot_bytes,
@@ -698,9 +829,9 @@ vhost_scsi_mapal(struct vhost_scsi_cmd *cmd,
 		pr_debug("%s prot_sg %p prot_sgl_count %u\n", __func__,
 			 cmd->tvc_prot_sgl, cmd->tvc_prot_sgl_count);
 
-		ret = vhost_scsi_iov_to_sgl(cmd, write, prot_iter,
-					    cmd->tvc_prot_sgl,
-					    cmd->tvc_prot_sgl_count);
+		ret = vhost_scsi_map_iov_to_sgl(cmd, prot_iter,
+						cmd->tvc_prot_sgl,
+						cmd->tvc_prot_sgl_count, true);
 		if (ret < 0) {
 			cmd->tvc_prot_sgl_count = 0;
 			return ret;
@@ -716,8 +847,14 @@ vhost_scsi_mapal(struct vhost_scsi_cmd *cmd,
 	pr_debug("%s data_sg %p data_sgl_count %u\n", __func__,
 		  cmd->tvc_sgl, cmd->tvc_sgl_count);
 
-	ret = vhost_scsi_iov_to_sgl(cmd, write, data_iter,
-				    cmd->tvc_sgl, cmd->tvc_sgl_count);
+	ret = vhost_scsi_map_iov_to_sgl(cmd, data_iter, cmd->tvc_sgl,
+					cmd->tvc_sgl_count, false);
+	if (ret == -EINVAL) {
+		sg_init_table(cmd->tvc_sgl, cmd->tvc_sgl_count);
+		ret = vhost_scsi_copy_iov_to_sgl(cmd, data_iter, cmd->tvc_sgl,
+						 cmd->tvc_sgl_count);
+	}
+
 	if (ret < 0) {
 		cmd->tvc_sgl_count = 0;
 		return ret;

@@ -1965,7 +1965,14 @@ int kfd_topology_add_device(struct kfd_node *gpu)
 	const char *asic_name = amdgpu_asic_name[gpu->adev->asic_type];
 
 	gpu_id = kfd_generate_gpu_id(gpu);
-	pr_debug("Adding new GPU (ID: 0x%x) to topology\n", gpu_id);
+	if (gpu->xcp && !gpu->xcp->ddev) {
+		dev_warn(gpu->adev->dev,
+		"Won't add GPU (ID: 0x%x) to topology since it has no drm node assigned.",
+		gpu_id);
+		return 0;
+	} else {
+		pr_debug("Adding new GPU (ID: 0x%x) to topology\n", gpu_id);
+	}
 
 	/* Check to see if this gpu device exists in the topology_device_list.
 	 * If so, assign the gpu to that device,

@@ -6,12 +6,12 @@
  *
  * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
  */
+#include <linux/export.h>
 #include <asm/asm.h>
 #include <asm/asmmacro.h>
 #include <asm/asm-extable.h>
 #include <asm/asm-offsets.h>
 #include <asm/errno.h>
-#include <asm/export.h>
 #include <asm/fpregdef.h>
 #include <asm/loongarch.h>
 #include <asm/regdef.h>

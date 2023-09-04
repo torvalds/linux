@@ -81,9 +81,10 @@
 #define EPSILON 1
 
 #define smnPCIE_ESM_CTRL 0x193D0
-#define smnPCIE_LC_LINK_WIDTH_CNTL 0x1ab40288
+#define smnPCIE_LC_LINK_WIDTH_CNTL 0x1a340288
 #define PCIE_LC_LINK_WIDTH_CNTL__LC_LINK_WIDTH_RD_MASK 0x00000070L
 #define PCIE_LC_LINK_WIDTH_CNTL__LC_LINK_WIDTH_RD__SHIFT 0x4
+#define MAX_LINK_WIDTH 6
 
 static const struct cmn2asic_msg_mapping smu_v13_0_6_message_map[SMU_MSG_MAX_COUNT] = {
 	MSG_MAP(TestMessage,			     PPSMC_MSG_TestMessage,			0),
@@ -708,16 +709,19 @@ static int smu_v13_0_6_get_smu_metrics_data(struct smu_context *smu,
 		*value = SMUQ10_TO_UINT(metrics->SocketPower) << 8;
 		break;
 	case METRICS_TEMPERATURE_HOTSPOT:
-		*value = SMUQ10_TO_UINT(metrics->MaxSocketTemperature);
+		*value = SMUQ10_TO_UINT(metrics->MaxSocketTemperature) *
+			 SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
 		break;
 	case METRICS_TEMPERATURE_MEM:
-		*value = SMUQ10_TO_UINT(metrics->MaxHbmTemperature);
+		*value = SMUQ10_TO_UINT(metrics->MaxHbmTemperature) *
+			 SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
 		break;
 	/* This is the max of all VRs and not just SOC VR.
 	 * No need to define another data type for the same.
 	 */
 	case METRICS_TEMPERATURE_VRSOC:
-		*value = SMUQ10_TO_UINT(metrics->MaxVrTemperature);
+		*value = SMUQ10_TO_UINT(metrics->MaxVrTemperature) *
+			 SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
 		break;
 	default:
 		*value = UINT_MAX;
@@ -1966,6 +1970,7 @@ static ssize_t smu_v13_0_6_get_gpu_metrics(struct smu_context *smu, void **table
 	struct amdgpu_device *adev = smu->adev;
 	int ret = 0, inst0, xcc0;
 	MetricsTable_t *metrics;
+	u16 link_width_level;
 
 	inst0 = adev->sdma.instance[0].aid_id;
 	xcc0 = GET_INST(GC, 0);
@@ -2016,8 +2021,12 @@ static ssize_t smu_v13_0_6_get_gpu_metrics(struct smu_context *smu, void **table
 	gpu_metrics->throttle_status = 0;
 
 	if (!(adev->flags & AMD_IS_APU)) {
+		link_width_level = smu_v13_0_6_get_current_pcie_link_width_level(smu);
+		if (link_width_level > MAX_LINK_WIDTH)
+			link_width_level = 0;
+
 		gpu_metrics->pcie_link_width =
-			smu_v13_0_6_get_current_pcie_link_width_level(smu);
+			DECODE_LANE_WIDTH(link_width_level);
 		gpu_metrics->pcie_link_speed =
 			smu_v13_0_6_get_current_pcie_link_speed(smu);
 	}
