@@ -9,6 +9,7 @@
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/notifier.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/spinlock.h>
@@ -91,11 +92,19 @@ enum sprd_eic_type {
 
 struct sprd_eic {
 	struct gpio_chip chip;
+	struct notifier_block irq_nb;
 	void __iomem *base[SPRD_EIC_MAX_BANK];
 	enum sprd_eic_type type;
 	spinlock_t lock;
 	int irq;
 };
+
+static ATOMIC_NOTIFIER_HEAD(sprd_eic_irq_notifier);
+
+static struct sprd_eic *to_sprd_eic(struct notifier_block *nb)
+{
+	return container_of(nb, struct sprd_eic, irq_nb);
+}
 
 struct sprd_eic_variant_data {
 	enum sprd_eic_type type;
@@ -494,13 +503,6 @@ retry:
 	sprd_eic_irq_unmask(data);
 }
 
-static int sprd_eic_match_chip_by_type(struct gpio_chip *chip, void *data)
-{
-	enum sprd_eic_type type = *(enum sprd_eic_type *)data;
-
-	return !strcmp(chip->label, sprd_eic_label_name[type]);
-}
-
 static void sprd_eic_handle_one_type(struct gpio_chip *chip)
 {
 	struct sprd_eic *sprd_eic = gpiochip_get_data(chip);
@@ -546,25 +548,27 @@ static void sprd_eic_handle_one_type(struct gpio_chip *chip)
 static void sprd_eic_irq_handler(struct irq_desc *desc)
 {
 	struct irq_chip *ic = irq_desc_get_chip(desc);
-	struct gpio_chip *chip;
-	enum sprd_eic_type type;
 
 	chained_irq_enter(ic, desc);
 
 	/*
 	 * Since the digital-chip EIC 4 sub-modules (debounce, latch, async
-	 * and sync) share one same interrupt line, we should iterate each
-	 * EIC module to check if there are EIC interrupts were triggered.
+	 * and sync) share one same interrupt line, we should notify all of
+	 * them to let them check if there are EIC interrupts were triggered.
 	 */
-	for (type = SPRD_EIC_DEBOUNCE; type < SPRD_EIC_MAX; type++) {
-		chip = gpiochip_find(&type, sprd_eic_match_chip_by_type);
-		if (!chip)
-			continue;
-
-		sprd_eic_handle_one_type(chip);
-	}
+	atomic_notifier_call_chain(&sprd_eic_irq_notifier, 0, NULL);
 
 	chained_irq_exit(ic, desc);
+}
+
+static int sprd_eic_irq_notify(struct notifier_block *nb, unsigned long action,
+			       void *data)
+{
+	struct sprd_eic *sprd_eic = to_sprd_eic(nb);
+
+	sprd_eic_handle_one_type(&sprd_eic->chip);
+
+	return NOTIFY_OK;
 }
 
 static const struct irq_chip sprd_eic_irq = {
@@ -653,7 +657,9 @@ static int sprd_eic_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	return 0;
+	sprd_eic->irq_nb.notifier_call = sprd_eic_irq_notify;
+	return atomic_notifier_chain_register(&sprd_eic_irq_notifier,
+					      &sprd_eic->irq_nb);
 }
 
 static const struct of_device_id sprd_eic_of_match[] = {
