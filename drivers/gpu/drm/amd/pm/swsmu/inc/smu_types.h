@@ -248,7 +248,11 @@
 	__SMU_DUMMY_MAP(RequestI2cTransaction), \
 	__SMU_DUMMY_MAP(GetMetricsTable), \
 	__SMU_DUMMY_MAP(DALNotPresent), \
-	__SMU_DUMMY_MAP(ClearMcaOnRead),
+	__SMU_DUMMY_MAP(ClearMcaOnRead),	\
+	__SMU_DUMMY_MAP(QueryValidMcaCount),	\
+	__SMU_DUMMY_MAP(QueryValidMcaCeCount),	\
+	__SMU_DUMMY_MAP(McaBankDumpDW),		\
+	__SMU_DUMMY_MAP(McaBankCeDumpDW),
 
 #undef __SMU_DUMMY_MAP
 #define __SMU_DUMMY_MAP(type)	SMU_MSG_##type
