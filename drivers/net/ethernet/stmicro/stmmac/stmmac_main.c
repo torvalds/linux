@@ -117,6 +117,11 @@ module_param(eee_timer, int, 0644);
 MODULE_PARM_DESC(eee_timer, "LPI tx expiration time in msec");
 #define STMMAC_LPI_T(x) (jiffies + usecs_to_jiffies(x))
 
+#define DWC_ETH_QOS_MICREL_PHY_CTL 0x1f
+#define DWC_ETH_QOS_MICREL_INTR_LEVEL 0x4000
+#define PHY_ID_KSZ9031		0x00221620
+#define MICREL_PHY_ID PHY_ID_KSZ9031
+
 /* By default the driver will use the ring mode to manage tx and rx descriptors,
  * but allow user to force to use the chain instead of the ring
  */
@@ -1134,7 +1139,7 @@ static int stmmac_init_phy(struct net_device *dev)
 	struct stmmac_priv *priv = netdev_priv(dev);
 	struct fwnode_handle *phy_fwnode;
 	struct fwnode_handle *fwnode;
-	int ret;
+	int ret = 0;
 
 	if (!phylink_expects_phy(priv->phylink))
 		return 0;
@@ -1153,35 +1158,27 @@ static int stmmac_init_phy(struct net_device *dev)
 	 */
 	if (!phy_fwnode || IS_ERR(phy_fwnode)) {
 		int addr = priv->plat->phy_addr;
-		struct phy_device *phydev;
 
-		if (addr < 0) {
-			netdev_err(priv->dev, "no phy found\n");
-			return -ENODEV;
-		}
-
-		phydev = mdiobus_get_phy(priv->mii, addr);
-		if (!phydev) {
+		priv->phydev = mdiobus_get_phy(priv->mii, addr);
+		if (!priv->phydev) {
 			netdev_err(priv->dev, "no phy at addr %d\n", addr);
 			return -ENODEV;
 		}
+		ret = phylink_connect_phy(priv->phylink, priv->phydev);
 		if (phy_intr_en) {
-			phydev->irq = PHY_MAC_INTERRUPT;
-			phydev->interrupts =  PHY_INTERRUPT_ENABLED;
+			priv->phydev->irq = PHY_MAC_INTERRUPT;
+			priv->phydev->interrupts =  PHY_INTERRUPT_ENABLED;
 
-			if (phydev->drv && phydev->drv->config_intr &&
-			    !phydev->drv->config_intr(phydev)) {
-				pr_debug(" qcom-ethqos: %s config_phy_intr successful\n",
+			if (priv->phydev->drv &&
+			    priv->phydev->drv->config_intr &&
+			    !priv->phydev->drv->config_intr(priv->phydev)) {
+				pr_err(" qcom-ethqos: %s config_phy_intr successful aftre connect\n",
 					 __func__);
 		}
 	} else {
-		pr_err("stmmac phy polling mode\n");
-		phydev->irq = PHY_POLL;
+			pr_info("stmmac phy polling mode\n");
+			priv->phydev->irq = PHY_POLL;
 	}
-		ret = phylink_connect_phy(priv->phylink, phydev);
-	} else {
-		fwnode_handle_put(phy_fwnode);
-		ret = phylink_fwnode_phy_connect(priv->phylink, fwnode, 0);
 	}
 
 	if (!priv->plat->pmt) {
@@ -1518,12 +1515,12 @@ static void stmmac_free_tx_buffer(struct stmmac_priv *priv,
 	if (tx_q->tx_skbuff_dma[i].buf &&
 	    tx_q->tx_skbuff_dma[i].buf_type != STMMAC_TXBUF_T_XDP_TX) {
 		if (tx_q->tx_skbuff_dma[i].map_as_page)
-			dma_unmap_page(priv->device,
+			dma_unmap_page(GET_MEM_PDEV_DEV,
 				       tx_q->tx_skbuff_dma[i].buf,
 				       tx_q->tx_skbuff_dma[i].len,
 				       DMA_TO_DEVICE);
 		else
-			dma_unmap_single(priv->device,
+			dma_unmap_single(GET_MEM_PDEV_DEV,
 					 tx_q->tx_skbuff_dma[i].buf,
 					 tx_q->tx_skbuff_dma[i].len,
 					 DMA_TO_DEVICE);
@@ -1927,11 +1924,11 @@ static void __free_dma_rx_desc_resources(struct stmmac_priv *priv,
 
 	/* Free DMA regions of consistent memory previously allocated */
 	if (!priv->extend_desc)
-		dma_free_coherent(priv->device, dma_conf->dma_rx_size *
+		dma_free_coherent(GET_MEM_PDEV_DEV, dma_conf->dma_rx_size *
 				  sizeof(struct dma_desc),
 				  rx_q->dma_rx, rx_q->dma_rx_phy);
 	else
-		dma_free_coherent(priv->device, dma_conf->dma_rx_size *
+		dma_free_coherent(GET_MEM_PDEV_DEV, dma_conf->dma_rx_size *
 				  sizeof(struct dma_extended_desc),
 				  rx_q->dma_erx, rx_q->dma_rx_phy);
 
@@ -1984,7 +1981,7 @@ static void __free_dma_tx_desc_resources(struct stmmac_priv *priv,
 
 	size *= dma_conf->dma_tx_size;
 
-	dma_free_coherent(priv->device, size, addr, tx_q->dma_tx_phy);
+	dma_free_coherent(GET_MEM_PDEV_DEV, size, addr, tx_q->dma_tx_phy);
 
 	kfree(tx_q->tx_skbuff_dma);
 	kfree(tx_q->tx_skbuff);
@@ -2030,8 +2027,8 @@ static int __alloc_dma_rx_desc_resources(struct stmmac_priv *priv,
 	pp_params.pool_size = dma_conf->dma_rx_size;
 	num_pages = DIV_ROUND_UP(dma_conf->dma_buf_sz, PAGE_SIZE);
 	pp_params.order = ilog2(num_pages);
-	pp_params.nid = dev_to_node(priv->device);
-	pp_params.dev = priv->device;
+	pp_params.nid = dev_to_node(GET_MEM_PDEV_DEV);
+	pp_params.dev = GET_MEM_PDEV_DEV;
 	pp_params.dma_dir = xdp_prog ? DMA_BIDIRECTIONAL : DMA_FROM_DEVICE;
 	pp_params.offset = stmmac_rx_offset(priv);
 	pp_params.max_len = STMMAC_MAX_RX_BUF_SIZE(num_pages);
@@ -2050,7 +2047,7 @@ static int __alloc_dma_rx_desc_resources(struct stmmac_priv *priv,
 		return -ENOMEM;
 
 	if (priv->extend_desc) {
-		rx_q->dma_erx = dma_alloc_coherent(priv->device,
+		rx_q->dma_erx = dma_alloc_coherent(GET_MEM_PDEV_DEV,
 						   dma_conf->dma_rx_size *
 						   sizeof(struct dma_extended_desc),
 						   &rx_q->dma_rx_phy,
@@ -2059,7 +2056,7 @@ static int __alloc_dma_rx_desc_resources(struct stmmac_priv *priv,
 			return -ENOMEM;
 
 	} else {
-		rx_q->dma_rx = dma_alloc_coherent(priv->device,
+		rx_q->dma_rx = dma_alloc_coherent(GET_MEM_PDEV_DEV,
 						  dma_conf->dma_rx_size *
 						  sizeof(struct dma_desc),
 						  &rx_q->dma_rx_phy,
@@ -2149,7 +2146,7 @@ static int __alloc_dma_tx_desc_resources(struct stmmac_priv *priv,
 
 	size *= dma_conf->dma_tx_size;
 
-	addr = dma_alloc_coherent(priv->device, size,
+	addr = dma_alloc_coherent(GET_MEM_PDEV_DEV, size,
 				  &tx_q->dma_tx_phy, GFP_KERNEL);
 	if (!addr)
 		return -ENOMEM;
@@ -2613,12 +2610,12 @@ static int stmmac_tx_clean(struct stmmac_priv *priv, int budget, u32 queue)
 		if (likely(tx_q->tx_skbuff_dma[entry].buf &&
 			   tx_q->tx_skbuff_dma[entry].buf_type != STMMAC_TXBUF_T_XDP_TX)) {
 			if (tx_q->tx_skbuff_dma[entry].map_as_page)
-				dma_unmap_page(priv->device,
+				dma_unmap_page(GET_MEM_PDEV_DEV,
 					       tx_q->tx_skbuff_dma[entry].buf,
 					       tx_q->tx_skbuff_dma[entry].len,
 					       DMA_TO_DEVICE);
 			else
-				dma_unmap_single(priv->device,
+				dma_unmap_single(GET_MEM_PDEV_DEV,
 						 tx_q->tx_skbuff_dma[entry].buf,
 						 tx_q->tx_skbuff_dma[entry].len,
 						 DMA_TO_DEVICE);
@@ -4179,9 +4176,9 @@ static netdev_tx_t stmmac_tso_xmit(struct sk_buff *skb, struct net_device *dev)
 		stmmac_set_desc_vlan(priv, first, STMMAC_VLAN_INSERT);
 
 	/* first descriptor: fill Headers on Buf1 */
-	des = dma_map_single(priv->device, skb->data, skb_headlen(skb),
+	des = dma_map_single(GET_MEM_PDEV_DEV, skb->data, skb_headlen(skb),
 			     DMA_TO_DEVICE);
-	if (dma_mapping_error(priv->device, des))
+	if (dma_mapping_error(GET_MEM_PDEV_DEV, des))
 		goto dma_map_err;
 
 	tx_q->tx_skbuff_dma[first_entry].buf = des;
@@ -4211,10 +4208,10 @@ static netdev_tx_t stmmac_tso_xmit(struct sk_buff *skb, struct net_device *dev)
 	for (i = 0; i < nfrags; i++) {
 		const skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
 
-		des = skb_frag_dma_map(priv->device, frag, 0,
+		des = skb_frag_dma_map(GET_MEM_PDEV_DEV, frag, 0,
 				       skb_frag_size(frag),
 				       DMA_TO_DEVICE);
-		if (dma_mapping_error(priv->device, des))
+		if (dma_mapping_error(GET_MEM_PDEV_DEV, des))
 			goto dma_map_err;
 
 		stmmac_tso_allocator(priv, des, skb_frag_size(frag),
@@ -4425,9 +4422,9 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 		else
 			desc = tx_q->dma_tx + entry;
 
-		des = skb_frag_dma_map(priv->device, frag, 0, len,
+		des = skb_frag_dma_map(GET_MEM_PDEV_DEV, frag, 0, len,
 				       DMA_TO_DEVICE);
-		if (dma_mapping_error(priv->device, des))
+		if (dma_mapping_error(GET_MEM_PDEV_DEV, des))
 			goto dma_map_err; /* should reuse desc w/o issues */
 
 		tx_q->tx_skbuff_dma[entry].buf = des;
@@ -4519,9 +4516,9 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (likely(!is_jumbo)) {
 		bool last_segment = (nfrags == 0);
 
-		des = dma_map_single(priv->device, skb->data,
+		des = dma_map_single(GET_MEM_PDEV_DEV, skb->data,
 				     nopaged_len, DMA_TO_DEVICE);
-		if (dma_mapping_error(priv->device, des))
+		if (dma_mapping_error(GET_MEM_PDEV_DEV, des))
 			goto dma_map_err;
 
 		tx_q->tx_skbuff_dma[first_entry].buf = des;
