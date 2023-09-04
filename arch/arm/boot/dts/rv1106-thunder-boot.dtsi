@@ -98,3 +98,8 @@
 &rkisp_vir0 {
 	memory-region-thunderboot = <&rkisp_thunderboot>;
 };
+
+&rkvenc {
+	assigned-clocks = <&cru CLK_CORE_VEPU>;
+	assigned-clock-rates = <410000000>;
+};
