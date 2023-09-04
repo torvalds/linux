@@ -142,6 +142,7 @@ reg_error:
 	ethqos_disable_regulators(ethqos);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(ethqos_init_reqgulators);
 
 void ethqos_disable_regulators(struct qcom_ethqos *ethqos)
 {
@@ -165,6 +166,7 @@ void ethqos_disable_regulators(struct qcom_ethqos *ethqos)
 		ethqos->gdsc_emac = NULL;
 	}
 }
+EXPORT_SYMBOL_GPL(ethqos_disable_regulators);
 
 void ethqos_free_gpios(struct qcom_ethqos *ethqos)
 {
@@ -172,6 +174,7 @@ void ethqos_free_gpios(struct qcom_ethqos *ethqos)
 		gpio_free(ethqos->gpio_phy_intr_redirect);
 	ethqos->gpio_phy_intr_redirect = -1;
 }
+EXPORT_SYMBOL_GPL(ethqos_free_gpios);
 
 int ethqos_init_pinctrl(struct device *dev)
 {
@@ -224,6 +227,7 @@ int ethqos_init_pinctrl(struct device *dev)
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(ethqos_init_pinctrl);
 
 int ethqos_init_gpio(struct qcom_ethqos *ethqos)
 {
@@ -253,3 +257,6 @@ gpio_error:
 	ethqos_free_gpios(ethqos);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(ethqos_init_gpio);
+
+MODULE_LICENSE("GPL");
