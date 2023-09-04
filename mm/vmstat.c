@@ -559,8 +559,10 @@ static inline void mod_zone_state(struct zone *zone,
 {
 	struct per_cpu_zonestat __percpu *pcp = zone->per_cpu_zonestats;
 	s8 __percpu *p = pcp->vm_stat_diff + item;
-	long o, n, t, z;
+	long n, t, z;
+	s8 o;
 
+	o = this_cpu_read(*p);
 	do {
 		z = 0;  /* overflow to zone counters */
 
@@ -576,8 +578,7 @@ static inline void mod_zone_state(struct zone *zone,
 		 */
 		t = this_cpu_read(pcp->stat_threshold);
 
-		o = this_cpu_read(*p);
-		n = delta + o;
+		n = delta + (long)o;
 
 		if (abs(n) > t) {
 			int os = overstep_mode * (t >> 1) ;
@@ -586,7 +587,7 @@ static inline void mod_zone_state(struct zone *zone,
 			z = n + os;
 			n = -os;
 		}
-	} while (this_cpu_cmpxchg(*p, o, n) != o);
+	} while (!this_cpu_try_cmpxchg(*p, &o, n));
 
 	if (z)
 		zone_page_state_add(z, zone, item);
@@ -616,7 +617,8 @@ static inline void mod_node_state(struct pglist_data *pgdat,
 {
 	struct per_cpu_nodestat __percpu *pcp = pgdat->per_cpu_nodestats;
 	s8 __percpu *p = pcp->vm_node_stat_diff + item;
-	long o, n, t, z;
+	long n, t, z;
+	s8 o;
 
 	if (vmstat_item_in_bytes(item)) {
 		/*
@@ -629,6 +631,7 @@ static inline void mod_node_state(struct pglist_data *pgdat,
 		delta >>= PAGE_SHIFT;
 	}
 
+	o = this_cpu_read(*p);
 	do {
 		z = 0;  /* overflow to node counters */
 
@@ -644,8 +647,7 @@ static inline void mod_node_state(struct pglist_data *pgdat,
 		 */
 		t = this_cpu_read(pcp->stat_threshold);
 
-		o = this_cpu_read(*p);
-		n = delta + o;
+		n = delta + (long)o;
 
 		if (abs(n) > t) {
 			int os = overstep_mode * (t >> 1) ;
@@ -654,7 +656,7 @@ static inline void mod_node_state(struct pglist_data *pgdat,
 			z = n + os;
 			n = -os;
 		}
-	} while (this_cpu_cmpxchg(*p, o, n) != o);
+	} while (!this_cpu_try_cmpxchg(*p, &o, n));
 
 	if (z)
 		node_page_state_add(z, pgdat, item);
