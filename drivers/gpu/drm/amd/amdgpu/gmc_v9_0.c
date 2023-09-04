@@ -956,89 +956,30 @@ static int gmc_v9_0_flush_gpu_tlb_pasid(struct amdgpu_device *adev,
 					uint16_t pasid, uint32_t flush_type,
 					bool all_hub, uint32_t inst)
 {
-	int vmid, i;
-	signed long r;
-	uint32_t seq;
-	uint16_t queried_pasid;
-	bool ret;
-	u32 usec_timeout = amdgpu_sriov_vf(adev) ? SRIOV_USEC_TIMEOUT : adev->usec_timeout;
-	struct amdgpu_ring *ring = &adev->gfx.kiq[inst].ring;
-	struct amdgpu_kiq *kiq = &adev->gfx.kiq[inst];
-
-	if (amdgpu_in_reset(adev))
-		return -EIO;
-
-	if (ring->sched.ready && down_read_trylock(&adev->reset_domain->sem)) {
-		/* Vega20+XGMI caches PTEs in TC and TLB. Add a
-		 * heavy-weight TLB flush (type 2), which flushes
-		 * both. Due to a race condition with concurrent
-		 * memory accesses using the same TLB cache line, we
-		 * still need a second TLB flush after this.
-		 */
-		bool vega20_xgmi_wa = (adev->gmc.xgmi.num_physical_nodes &&
-				       amdgpu_ip_version(adev, GC_HWIP, 0) ==
-					       IP_VERSION(9, 4, 0));
-		/* 2 dwords flush + 8 dwords fence */
-		unsigned int ndw = kiq->pmf->invalidate_tlbs_size + 8;
-
-		if (vega20_xgmi_wa)
-			ndw += kiq->pmf->invalidate_tlbs_size;
-
-		spin_lock(&adev->gfx.kiq[inst].ring_lock);
-		/* 2 dwords flush + 8 dwords fence */
-		amdgpu_ring_alloc(ring, ndw);
-		if (vega20_xgmi_wa)
-			kiq->pmf->kiq_invalidate_tlbs(ring,
-						      pasid, 2, all_hub);
-
-		if (flush_type == 2 &&
-		    amdgpu_ip_version(adev, GC_HWIP, 0) ==
-			    IP_VERSION(9, 4, 3) &&
-		    adev->rev_id == 0)
-			kiq->pmf->kiq_invalidate_tlbs(ring,
-						pasid, 0, all_hub);
-
-		kiq->pmf->kiq_invalidate_tlbs(ring,
-					pasid, flush_type, all_hub);
-		r = amdgpu_fence_emit_polling(ring, &seq, MAX_KIQ_REG_WAIT);
-		if (r) {
-			amdgpu_ring_undo(ring);
-			spin_unlock(&adev->gfx.kiq[inst].ring_lock);
-			up_read(&adev->reset_domain->sem);
-			return -ETIME;
-		}
-
-		amdgpu_ring_commit(ring);
-		spin_unlock(&adev->gfx.kiq[inst].ring_lock);
-		r = amdgpu_fence_wait_polling(ring, seq, usec_timeout);
-		if (r < 1) {
-			dev_err(adev->dev, "wait for kiq fence error: %ld.\n", r);
-			up_read(&adev->reset_domain->sem);
-			return -ETIME;
-		}
-		up_read(&adev->reset_domain->sem);
-		return 0;
-	}
+	uint16_t queried;
+	int i, vmid;
 
 	for (vmid = 1; vmid < 16; vmid++) {
+		bool valid;
 
-		ret = gmc_v9_0_get_atc_vmid_pasid_mapping_info(adev, vmid,
-				&queried_pasid);
-		if (ret && queried_pasid == pasid) {
-			if (all_hub) {
-				for_each_set_bit(i, adev->vmhubs_mask, AMDGPU_MAX_VMHUBS)
-					gmc_v9_0_flush_gpu_tlb(adev, vmid,
-							i, flush_type);
-			} else {
-				gmc_v9_0_flush_gpu_tlb(adev, vmid,
-						AMDGPU_GFXHUB(0), flush_type);
-			}
-			break;
+		valid = gmc_v9_0_get_atc_vmid_pasid_mapping_info(adev, vmid,
+								 &queried);
+		if (!valid || queried != pasid)
+			continue;
+
+		if (all_hub) {
+			for_each_set_bit(i, adev->vmhubs_mask,
+					 AMDGPU_MAX_VMHUBS)
+				gmc_v9_0_flush_gpu_tlb(adev, vmid, i,
+						       flush_type);
+		} else {
+			gmc_v9_0_flush_gpu_tlb(adev, vmid,
+					       AMDGPU_GFXHUB(0),
+					       flush_type);
 		}
 	}
 
 	return 0;
-
 }
 
 static uint64_t gmc_v9_0_emit_flush_gpu_tlb(struct amdgpu_ring *ring,
@@ -2361,6 +2302,24 @@ static int gmc_v9_0_hw_init(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	bool value;
 	int i, r;
+
+	adev->gmc.flush_pasid_uses_kiq = true;
+
+	/* Vega20+XGMI caches PTEs in TC and TLB. Add a heavy-weight TLB flush
+	 * (type 2), which flushes both. Due to a race condition with
+	 * concurrent memory accesses using the same TLB cache line, we still
+	 * need a second TLB flush after this.
+	 */
+	adev->gmc.flush_tlb_needs_extra_type_2 =
+		amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(9, 4, 0) &&
+		adev->gmc.xgmi.num_physical_nodes;
+	/*
+	 * TODO: This workaround is badly documented and had a buggy
+	 * implementation. We should probably verify what we do here.
+	 */
+	adev->gmc.flush_tlb_needs_extra_type_0 =
+		amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(9, 4, 3) &&
+		adev->rev_id == 0;
 
 	/* The sequence of these two function calls matters.*/
 	gmc_v9_0_init_golden_registers(adev);
