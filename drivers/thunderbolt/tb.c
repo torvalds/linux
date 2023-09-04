@@ -255,13 +255,13 @@ static int tb_enable_clx(struct tb_switch *sw)
 	 * this in the future to cover the whole topology if it turns
 	 * out to be beneficial.
 	 */
-	while (sw && sw->config.depth > 1)
+	while (sw && tb_switch_depth(sw) > 1)
 		sw = tb_switch_parent(sw);
 
 	if (!sw)
 		return 0;
 
-	if (sw->config.depth != 1)
+	if (tb_switch_depth(sw) != 1)
 		return 0;
 
 	/*

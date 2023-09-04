@@ -866,6 +866,15 @@ static inline struct tb_port *tb_switch_downstream_port(struct tb_switch *sw)
 	return tb_port_at(tb_route(sw), tb_switch_parent(sw));
 }
 
+/**
+ * tb_switch_depth() - Returns depth of the connected router
+ * @sw: Router
+ */
+static inline int tb_switch_depth(const struct tb_switch *sw)
+{
+	return sw->config.depth;
+}
+
 static inline bool tb_switch_is_light_ridge(const struct tb_switch *sw)
 {
 	return sw->config.vendor_id == PCI_VENDOR_ID_INTEL &&
