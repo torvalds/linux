@@ -130,9 +130,9 @@ struct amdgpu_gmc_funcs {
 	void (*flush_gpu_tlb)(struct amdgpu_device *adev, uint32_t vmid,
 				uint32_t vmhub, uint32_t flush_type);
 	/* flush the vm tlb via pasid */
-	int (*flush_gpu_tlb_pasid)(struct amdgpu_device *adev, uint16_t pasid,
-					uint32_t flush_type, bool all_hub,
-					uint32_t inst);
+	void (*flush_gpu_tlb_pasid)(struct amdgpu_device *adev, uint16_t pasid,
+				    uint32_t flush_type, bool all_hub,
+				    uint32_t inst);
 	/* flush the vm tlb via ring */
 	uint64_t (*emit_flush_gpu_tlb)(struct amdgpu_ring *ring, unsigned vmid,
 				       uint64_t pd_addr);

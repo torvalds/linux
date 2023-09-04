@@ -339,9 +339,9 @@ static void gmc_v10_0_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid,
  *
  * Flush the TLB for the requested pasid.
  */
-static int gmc_v10_0_flush_gpu_tlb_pasid(struct amdgpu_device *adev,
-					uint16_t pasid, uint32_t flush_type,
-					bool all_hub, uint32_t inst)
+static void gmc_v10_0_flush_gpu_tlb_pasid(struct amdgpu_device *adev,
+					  uint16_t pasid, uint32_t flush_type,
+					  bool all_hub, uint32_t inst)
 {
 	uint16_t queried;
 	int vmid, i;
@@ -364,7 +364,6 @@ static int gmc_v10_0_flush_gpu_tlb_pasid(struct amdgpu_device *adev,
 						flush_type);
 		}
 	}
-	return 0;
 }
 
 static uint64_t gmc_v10_0_emit_flush_gpu_tlb(struct amdgpu_ring *ring,

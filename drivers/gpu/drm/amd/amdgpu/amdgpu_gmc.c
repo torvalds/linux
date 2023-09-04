@@ -645,9 +645,10 @@ int amdgpu_gmc_flush_gpu_tlb_pasid(struct amdgpu_device *adev, uint16_t pasid,
 
 	if (!adev->gmc.flush_pasid_uses_kiq || !ring->sched.ready ||
 	    !down_read_trylock(&adev->reset_domain->sem)) {
-		return adev->gmc.gmc_funcs->flush_gpu_tlb_pasid(adev, pasid,
-								flush_type,
-								all_hub, inst);
+		adev->gmc.gmc_funcs->flush_gpu_tlb_pasid(adev, pasid,
+							 flush_type, all_hub,
+							 inst);
+		return 0;
 	}
 
 	/* 2 dwords flush + 8 dwords fence */

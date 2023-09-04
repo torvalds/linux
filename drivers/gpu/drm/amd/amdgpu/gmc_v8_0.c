@@ -613,15 +613,15 @@ static int gmc_v8_0_mc_init(struct amdgpu_device *adev)
  *
  * Flush the TLB for the requested pasid.
  */
-static int gmc_v8_0_flush_gpu_tlb_pasid(struct amdgpu_device *adev,
-					uint16_t pasid, uint32_t flush_type,
-					bool all_hub, uint32_t inst)
+static void gmc_v8_0_flush_gpu_tlb_pasid(struct amdgpu_device *adev,
+					 uint16_t pasid, uint32_t flush_type,
+					 bool all_hub, uint32_t inst)
 {
 	u32 mask = 0x0;
 	int vmid;
 
 	if (!down_read_trylock(&adev->reset_domain->sem))
-		return 0;
+		return;
 
 	for (vmid = 1; vmid < 16; vmid++) {
 		u32 tmp = RREG32(mmATC_VMID0_PASID_MAPPING + vmid);
@@ -634,7 +634,6 @@ static int gmc_v8_0_flush_gpu_tlb_pasid(struct amdgpu_device *adev,
 	WREG32(mmVM_INVALIDATE_REQUEST, mask);
 	RREG32(mmVM_INVALIDATE_RESPONSE);
 	up_read(&adev->reset_domain->sem);
-	return 0;
 }
 
 /*
