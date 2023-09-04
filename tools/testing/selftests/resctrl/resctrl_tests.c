@@ -169,27 +169,34 @@ umount:
 
 int main(int argc, char **argv)
 {
-	bool has_ben = false, mbm_test = true, mba_test = true, cmt_test = true;
-	int c, cpu_no = 1, argc_new = argc, i, no_of_bits = 0;
-	const char *benchmark_cmd[BENCHMARK_ARGS];
-	int ben_ind, tests = 0;
+	bool mbm_test = true, mba_test = true, cmt_test = true;
+	const char *benchmark_cmd[BENCHMARK_ARGS] = {};
+	int c, cpu_no = 1, i, no_of_bits = 0;
 	char *span_str = NULL;
 	bool cat_test = true;
+	int tests = 0;
 	int ret;
 
-	for (i = 0; i < argc; i++) {
-		if (strcmp(argv[i], "-b") == 0) {
-			ben_ind = i + 1;
-			argc_new = ben_ind - 1;
-			has_ben = true;
-			break;
-		}
-	}
-
-	while ((c = getopt(argc_new, argv, "ht:b:n:p:")) != -1) {
+	while ((c = getopt(argc, argv, "ht:b:n:p:")) != -1) {
 		char *token;
 
 		switch (c) {
+		case 'b':
+			/*
+			 * First move optind back to the (first) optarg and
+			 * then build the benchmark command using the
+			 * remaining arguments.
+			 */
+			optind--;
+			if (argc - optind >= BENCHMARK_ARGS)
+				ksft_exit_fail_msg("Too long benchmark command");
+
+			/* Extract benchmark command from command line. */
+			for (i = 0; i < argc - optind; i++)
+				benchmark_cmd[i] = argv[i + optind];
+			benchmark_cmd[i] = NULL;
+
+			goto last_arg;
 		case 't':
 			token = strtok(optarg, ",");
 
@@ -238,6 +245,7 @@ int main(int argc, char **argv)
 			return -1;
 		}
 	}
+last_arg:
 
 	ksft_print_header();
 
@@ -257,15 +265,7 @@ int main(int argc, char **argv)
 
 	filter_dmesg();
 
-	if (has_ben) {
-		if (argc - ben_ind >= BENCHMARK_ARGS)
-			ksft_exit_fail_msg("Too long benchmark command.\n");
-
-		/* Extract benchmark command from command line. */
-		for (i = 0; i < argc - ben_ind; i++)
-			benchmark_cmd[i] = argv[i + ben_ind];
-		benchmark_cmd[i] = NULL;
-	} else {
+	if (!benchmark_cmd[0]) {
 		/* If no benchmark is given by "-b" argument, use fill_buf. */
 		benchmark_cmd[0] = "fill_buf";
 		ret = asprintf(&span_str, "%u", DEFAULT_SPAN);
