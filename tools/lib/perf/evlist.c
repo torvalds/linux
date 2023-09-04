@@ -738,3 +738,12 @@ int perf_evlist__nr_groups(struct perf_evlist *evlist)
 	}
 	return nr_groups;
 }
+
+void perf_evlist__go_system_wide(struct perf_evlist *evlist, struct perf_evsel *evsel)
+{
+	if (!evsel->system_wide) {
+		evsel->system_wide = true;
+		if (evlist->needs_map_propagation)
+			__perf_evlist__propagate_maps(evlist, evsel);
+	}
+}
