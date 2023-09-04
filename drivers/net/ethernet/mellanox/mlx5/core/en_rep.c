@@ -701,7 +701,7 @@ mlx5e_rep_get_stats(struct net_device *dev, struct rtnl_link_stats64 *stats)
 
 	/* update HW stats in background for next time */
 	mlx5e_queue_update_stats(priv);
-	memcpy(stats, &priv->stats.vf_vport, sizeof(*stats));
+	mlx5e_stats_copy_rep_stats(stats, &priv->stats.rep_stats);
 }
 
 static int mlx5e_rep_change_mtu(struct net_device *netdev, int new_mtu)
