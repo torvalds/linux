@@ -906,10 +906,30 @@ static int record__config_off_cpu(struct record *rec)
 	return off_cpu_prepare(rec->evlist, &rec->opts.target, &rec->opts);
 }
 
+static bool record__tracking_system_wide(struct record *rec)
+{
+	struct evlist *evlist = rec->evlist;
+	struct evsel *evsel;
+
+	/*
+	 * If non-dummy evsel exists, system_wide sideband is need to
+	 * help parse sample information.
+	 * For example, PERF_EVENT_MMAP event to help parse symbol,
+	 * and PERF_EVENT_COMM event to help parse task executable name.
+	 */
+	evlist__for_each_entry(evlist, evsel) {
+		if (!evsel__is_dummy_event(evsel))
+			return true;
+	}
+
+	return false;
+}
+
 static int record__config_tracking_events(struct record *rec)
 {
 	struct record_opts *opts = &rec->opts;
 	struct evlist *evlist = rec->evlist;
+	bool system_wide = false;
 	struct evsel *evsel;
 
 	/*
@@ -919,7 +939,15 @@ static int record__config_tracking_events(struct record *rec)
 	 */
 	if (opts->target.initial_delay || target__has_cpu(&opts->target) ||
 	    perf_pmus__num_core_pmus() > 1) {
-		evsel = evlist__findnew_tracking_event(evlist, false);
+
+		/*
+		 * User space tasks can migrate between CPUs, so when tracing
+		 * selected CPUs, sideband for all CPUs is still needed.
+		 */
+		if (!!opts->target.cpu_list && record__tracking_system_wide(rec))
+			system_wide = true;
+
+		evsel = evlist__findnew_tracking_event(evlist, system_wide);
 		if (!evsel)
 			return -ENOMEM;
 
