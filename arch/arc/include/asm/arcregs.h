@@ -23,7 +23,7 @@
 #define ARC_REG_ICCM_BUILD	0x78	/* ICCM size (common) */
 #define ARC_REG_XY_MEM_BCR	0x79
 #define ARC_REG_MAC_BCR		0x7a
-#define ARC_REG_MUL_BCR		0x7b
+#define ARC_REG_MPY_BCR		0x7b
 #define ARC_REG_SWAP_BCR	0x7c
 #define ARC_REG_NORM_BCR	0x7d
 #define ARC_REG_MIXMAX_BCR	0x7e
@@ -177,11 +177,64 @@ struct bcr_isa_arcv2 {
 #endif
 };
 
-struct bcr_uarch_build_arcv2 {
+struct bcr_uarch_build {
 #ifdef CONFIG_CPU_BIG_ENDIAN
 	unsigned int pad:8, prod:8, maj:8, min:8;
 #else
 	unsigned int min:8, maj:8, prod:8, pad:8;
+#endif
+};
+
+struct bcr_mmu_3 {
+#ifdef CONFIG_CPU_BIG_ENDIAN
+	unsigned int ver:8, ways:4, sets:4, res:3, sasid:1, pg_sz:4,
+		     u_itlb:4, u_dtlb:4;
+#else
+	unsigned int u_dtlb:4, u_itlb:4, pg_sz:4, sasid:1, res:3, sets:4,
+		     ways:4, ver:8;
+#endif
+};
+
+struct bcr_mmu_4 {
+#ifdef CONFIG_CPU_BIG_ENDIAN
+	unsigned int ver:8, sasid:1, sz1:4, sz0:4, res:2, pae:1,
+		     n_ways:2, n_entry:2, n_super:2, u_itlb:3, u_dtlb:3;
+#else
+	/*           DTLB      ITLB      JES        JE         JA      */
+	unsigned int u_dtlb:3, u_itlb:3, n_super:2, n_entry:2, n_ways:2,
+		     pae:1, res:2, sz0:4, sz1:4, sasid:1, ver:8;
+#endif
+};
+
+struct bcr_cache {
+#ifdef CONFIG_CPU_BIG_ENDIAN
+	unsigned int pad:12, line_len:4, sz:4, config:4, ver:8;
+#else
+	unsigned int ver:8, config:4, sz:4, line_len:4, pad:12;
+#endif
+};
+
+struct bcr_slc_cfg {
+#ifdef CONFIG_CPU_BIG_ENDIAN
+	unsigned int pad:24, way:2, lsz:2, sz:4;
+#else
+	unsigned int sz:4, lsz:2, way:2, pad:24;
+#endif
+};
+
+struct bcr_clust_cfg {
+#ifdef CONFIG_CPU_BIG_ENDIAN
+	unsigned int pad:7, c:1, num_entries:8, num_cores:8, ver:8;
+#else
+	unsigned int ver:8, num_cores:8, num_entries:8, c:1, pad:7;
+#endif
+};
+
+struct bcr_volatile {
+#ifdef CONFIG_CPU_BIG_ENDIAN
+	unsigned int start:4, limit:4, pad:22, order:1, disable:1;
+#else
+	unsigned int disable:1, order:1, pad:22, limit:4, start:4;
 #endif
 };
 
@@ -301,48 +354,6 @@ struct bcr_generic {
 	unsigned int ver:8, info:24;
 #endif
 };
-
-/*
- *******************************************************************
- * Generic structures to hold build configuration used at runtime
- */
-
-struct cpuinfo_arc_mmu {
-	unsigned int ver:4, pg_sz_k:8, s_pg_sz_m:8, pad:10, sasid:1, pae:1;
-	unsigned int sets:12, ways:4, u_dtlb:8, u_itlb:8;
-};
-
-struct cpuinfo_arc_cache {
-	unsigned int sz_k:14, line_len:8, assoc:4, alias:1, vipt:1, pad:4;
-};
-
-struct cpuinfo_arc_bpu {
-	unsigned int ver, full, num_cache, num_pred, ret_stk;
-};
-
-struct cpuinfo_arc_ccm {
-	unsigned int base_addr, sz;
-};
-
-struct cpuinfo_arc {
-	struct cpuinfo_arc_cache icache, dcache, slc;
-	struct cpuinfo_arc_mmu mmu;
-	struct cpuinfo_arc_bpu bpu;
-	struct bcr_identity core;
-	struct bcr_isa_arcv2 isa;
-	const char *release, *name;
-	unsigned int vec_base;
-	struct cpuinfo_arc_ccm iccm, dccm;
-	struct {
-		unsigned int swap:1, norm:1, minmax:1, barrel:1, crc:1, swape:1, pad1:2,
-			     fpu_sp:1, fpu_dp:1, dual:1, dual_enb:1, pad2:4,
-			     ap_num:4, ap_full:1, smart:1, rtt:1, pad3:1,
-			     timer0:1, timer1:1, rtc:1, gfrc:1, pad4:4;
-	} extn;
-	struct bcr_mpy extn_mpy;
-};
-
-extern struct cpuinfo_arc cpuinfo_arc700[];
 
 static inline int is_isa_arcv2(void)
 {
