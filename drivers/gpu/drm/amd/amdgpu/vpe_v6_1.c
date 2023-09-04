@@ -254,13 +254,15 @@ static int vpe_v6_1_process_trap_irq(struct amdgpu_device *adev,
 	return 0;
 }
 
-static void vpe_v6_1_set_regs(struct amdgpu_vpe *vpe)
+static int vpe_v6_1_set_regs(struct amdgpu_vpe *vpe)
 {
 	vpe->regs.queue0_rb_rptr_lo = regVPEC_QUEUE0_RB_RPTR;
 	vpe->regs.queue0_rb_rptr_hi = regVPEC_QUEUE0_RB_RPTR_HI;
 	vpe->regs.queue0_rb_wptr_lo = regVPEC_QUEUE0_RB_WPTR;
 	vpe->regs.queue0_rb_wptr_hi = regVPEC_QUEUE0_RB_WPTR_HI;
 	vpe->regs.queue0_preempt = regVPEC_QUEUE0_PREEMPT;
+
+	return 0;
 }
 
 static const struct vpe_funcs vpe_v6_1_funcs = {

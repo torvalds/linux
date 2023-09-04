@@ -31,7 +31,7 @@ struct amdgpu_vpe;
 
 struct vpe_funcs {
 	uint32_t (*get_reg_offset)(struct amdgpu_vpe *vpe, uint32_t inst, uint32_t offset);
-	void (*set_regs)(struct amdgpu_vpe *vpe);
+	int (*set_regs)(struct amdgpu_vpe *vpe);
 	int (*irq_init)(struct amdgpu_vpe *vpe);
 	int (*init_microcode)(struct amdgpu_vpe *vpe);
 	int (*load_microcode)(struct amdgpu_vpe *vpe);
