@@ -160,9 +160,6 @@ static int psp_v13_0_wait_for_bootloader(struct psp_context *psp)
 	struct amdgpu_device *adev = psp->adev;
 	int retry_loop, ret;
 
-	if (adev->ip_versions[MP0_HWIP][0] == IP_VERSION(13, 0, 6))
-		psp_v13_0_wait_for_vmbx_ready(psp);
-
 	/* Wait for bootloader to signify that it is ready having bit 31 of
 	 * C2PMSG_35 set to 1. All other bits are expected to be cleared.
 	 * If there is an error in processing command, bits[7:0] will be set.
@@ -178,6 +175,19 @@ static int psp_v13_0_wait_for_bootloader(struct psp_context *psp)
 	}
 
 	return ret;
+}
+
+static int psp_v13_0_wait_for_bootloader_steady_state(struct psp_context *psp)
+{
+	struct amdgpu_device *adev = psp->adev;
+
+	if (adev->ip_versions[MP0_HWIP][0] == IP_VERSION(13, 0, 6)) {
+		psp_v13_0_wait_for_vmbx_ready(psp);
+
+		return psp_v13_0_wait_for_bootloader(psp);
+	}
+
+	return 0;
 }
 
 static int psp_v13_0_bootloader_load_component(struct psp_context  	*psp,
@@ -737,7 +747,7 @@ static int psp_v13_0_fatal_error_recovery_quirk(struct psp_context *psp)
 
 static const struct psp_funcs psp_v13_0_funcs = {
 	.init_microcode = psp_v13_0_init_microcode,
-	.wait_for_bootloader = psp_v13_0_wait_for_bootloader,
+	.wait_for_bootloader = psp_v13_0_wait_for_bootloader_steady_state,
 	.bootloader_load_kdb = psp_v13_0_bootloader_load_kdb,
 	.bootloader_load_spl = psp_v13_0_bootloader_load_spl,
 	.bootloader_load_sysdrv = psp_v13_0_bootloader_load_sysdrv,
