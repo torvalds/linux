@@ -92,7 +92,7 @@ static int lp87565_probe(struct i2c_client *client)
 
 	of_id = of_match_device(of_lp87565_match_table, &client->dev);
 	if (of_id)
-		lp87565->dev_type = (enum lp87565_device_type)of_id->data;
+		lp87565->dev_type = (uintptr_t)of_id->data;
 
 	i2c_set_clientdata(client, lp87565);
 
