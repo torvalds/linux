@@ -105,7 +105,7 @@ static bool fail_nth_next(struct __test_metadata *_metadata,
 
 	/*
 	 * This is just an arbitrary limit based on the current kernel
-	 * situation. Changes in the kernel can dramtically change the number of
+	 * situation. Changes in the kernel can dramatically change the number of
 	 * required fault injection sites, so if this hits it doesn't
 	 * necessarily mean a test failure, just that the limit has to be made
 	 * bigger.
