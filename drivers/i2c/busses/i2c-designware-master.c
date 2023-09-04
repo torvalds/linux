@@ -17,6 +17,7 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/module.h>
+#include <linux/pinctrl/consumer.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 #include <linux/reset.h>
@@ -916,6 +917,17 @@ static int i2c_dw_init_recovery_info(struct dw_i2c_dev *dev)
 	if (IS_ERR(gpio))
 		return PTR_ERR(gpio);
 	rinfo->sda_gpiod = gpio;
+
+	rinfo->pinctrl = devm_pinctrl_get(dev->dev);
+	if (IS_ERR(rinfo->pinctrl)) {
+		if (PTR_ERR(rinfo->pinctrl) == -EPROBE_DEFER)
+			return PTR_ERR(rinfo->pinctrl);
+
+		rinfo->pinctrl = NULL;
+		dev_err(dev->dev, "getting pinctrl info failed: bus recovery might not work\n");
+	} else if (!rinfo->pinctrl) {
+		dev_dbg(dev->dev, "pinctrl is disabled, bus recovery might not work\n");
+	}
 
 	rinfo->recover_bus = i2c_generic_scl_recovery;
 	rinfo->prepare_recovery = i2c_dw_prepare_recovery;
