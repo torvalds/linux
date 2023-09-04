@@ -5,8 +5,8 @@ partitions {
 	#address-cells = <1>;
 	#size-cells = <1>;
 
-	bmcu_ram@0 {
-		label = "boot mcu ram";	// 384KB
+	bmcu-fw@0 {
+		label = "bmcu-fw";	// 384KB
 		reg = <0x0 0x60000>;
 	};
 
