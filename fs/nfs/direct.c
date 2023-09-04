@@ -93,12 +93,10 @@ nfs_direct_handle_truncated(struct nfs_direct_req *dreq,
 		dreq->max_count = dreq_len;
 		if (dreq->count > dreq_len)
 			dreq->count = dreq_len;
-
-		if (test_bit(NFS_IOHDR_ERROR, &hdr->flags))
-			dreq->error = hdr->error;
-		else /* Clear outstanding error if this is EOF */
-			dreq->error = 0;
 	}
+
+	if (test_bit(NFS_IOHDR_ERROR, &hdr->flags) && !dreq->error)
+		dreq->error = hdr->error;
 }
 
 static void
@@ -118,6 +116,18 @@ nfs_direct_count_bytes(struct nfs_direct_req *dreq,
 
 	if (dreq->count < dreq_len)
 		dreq->count = dreq_len;
+}
+
+static void nfs_direct_truncate_request(struct nfs_direct_req *dreq,
+					struct nfs_page *req)
+{
+	loff_t offs = req_offset(req);
+	size_t req_start = (size_t)(offs - dreq->io_start);
+
+	if (req_start < dreq->max_count)
+		dreq->max_count = req_start;
+	if (req_start < dreq->count)
+		dreq->count = req_start;
 }
 
 /**
@@ -537,10 +547,6 @@ static void nfs_direct_write_reschedule(struct nfs_direct_req *dreq)
 
 	nfs_direct_join_group(&reqs, dreq->inode);
 
-	dreq->count = 0;
-	dreq->max_count = 0;
-	list_for_each_entry(req, &reqs, wb_list)
-		dreq->max_count += req->wb_bytes;
 	nfs_clear_pnfs_ds_commit_verifiers(&dreq->ds_cinfo);
 	get_dreq(dreq);
 
@@ -574,10 +580,14 @@ static void nfs_direct_write_reschedule(struct nfs_direct_req *dreq)
 		req = nfs_list_entry(reqs.next);
 		nfs_list_remove_request(req);
 		nfs_unlock_and_release_request(req);
-		if (desc.pg_error == -EAGAIN)
+		if (desc.pg_error == -EAGAIN) {
 			nfs_mark_request_commit(req, NULL, &cinfo, 0);
-		else
+		} else {
+			spin_lock(&dreq->lock);
+			nfs_direct_truncate_request(dreq, req);
+			spin_unlock(&dreq->lock);
 			nfs_release_request(req);
+		}
 	}
 
 	if (put_dreq(dreq))
@@ -597,8 +607,6 @@ static void nfs_direct_commit_complete(struct nfs_commit_data *data)
 	if (status < 0) {
 		/* Errors in commit are fatal */
 		dreq->error = status;
-		dreq->max_count = 0;
-		dreq->count = 0;
 		dreq->flags = NFS_ODIRECT_DONE;
 	} else {
 		status = dreq->error;
@@ -609,7 +617,12 @@ static void nfs_direct_commit_complete(struct nfs_commit_data *data)
 	while (!list_empty(&data->pages)) {
 		req = nfs_list_entry(data->pages.next);
 		nfs_list_remove_request(req);
-		if (status >= 0 && !nfs_write_match_verf(verf, req)) {
+		if (status < 0) {
+			spin_lock(&dreq->lock);
+			nfs_direct_truncate_request(dreq, req);
+			spin_unlock(&dreq->lock);
+			nfs_release_request(req);
+		} else if (!nfs_write_match_verf(verf, req)) {
 			dreq->flags = NFS_ODIRECT_RESCHED_WRITES;
 			/*
 			 * Despite the reboot, the write was successful,
@@ -617,7 +630,7 @@ static void nfs_direct_commit_complete(struct nfs_commit_data *data)
 			 */
 			req->wb_nio = 0;
 			nfs_mark_request_commit(req, NULL, &cinfo, 0);
-		} else /* Error or match */
+		} else
 			nfs_release_request(req);
 		nfs_unlock_and_release_request(req);
 	}
@@ -670,6 +683,7 @@ static void nfs_direct_write_clear_reqs(struct nfs_direct_req *dreq)
 	while (!list_empty(&reqs)) {
 		req = nfs_list_entry(reqs.next);
 		nfs_list_remove_request(req);
+		nfs_direct_truncate_request(dreq, req);
 		nfs_release_request(req);
 		nfs_unlock_and_release_request(req);
 	}
@@ -719,7 +733,8 @@ static void nfs_direct_write_completion(struct nfs_pgio_header *hdr)
 	}
 
 	nfs_direct_count_bytes(dreq, hdr);
-	if (test_bit(NFS_IOHDR_UNSTABLE_WRITES, &hdr->flags)) {
+	if (test_bit(NFS_IOHDR_UNSTABLE_WRITES, &hdr->flags) &&
+	    !test_bit(NFS_IOHDR_ERROR, &hdr->flags)) {
 		if (!dreq->flags)
 			dreq->flags = NFS_ODIRECT_DO_COMMIT;
 		flags = dreq->flags;
