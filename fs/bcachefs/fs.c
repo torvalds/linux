@@ -798,7 +798,7 @@ static int bch2_setattr(struct mnt_idmap *idmap,
 		return ret;
 
 	return iattr->ia_valid & ATTR_SIZE
-		? bch2_truncate(idmap, inode, iattr)
+		? bchfs_truncate(idmap, inode, iattr)
 		: bch2_setattr_nonsize(idmap, inode, iattr);
 }
 

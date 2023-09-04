@@ -9,4 +9,7 @@ int bch2_fpunch_at(struct btree_trans *, struct btree_iter *,
 		   subvol_inum, u64, s64 *);
 int bch2_fpunch(struct bch_fs *c, subvol_inum, u64, u64, s64 *);
 
+int bch2_truncate(struct bch_fs *, subvol_inum, u64, u64 *);
+int bch2_fcollapse_finsert(struct bch_fs *, subvol_inum, u64, u64, bool, s64 *);
+
 #endif /* _BCACHEFS_IO_MISC_H */
