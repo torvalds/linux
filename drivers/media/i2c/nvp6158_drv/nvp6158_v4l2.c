@@ -924,6 +924,17 @@ static int nvp6158_set_fmt(struct v4l2_subdev *sd,
 	return ret;
 }
 
+static int nvp6158_g_frame_interval(struct v4l2_subdev *sd,
+				    struct v4l2_subdev_frame_interval *fi)
+{
+	struct nvp6158 *nvp6158 = to_nvp6158(sd);
+	const struct nvp6158_framesize *size = nvp6158->frame_size;
+
+	fi->interval = size->max_fps;
+
+	return 0;
+}
+
 static void nvp6158_get_module_inf(struct nvp6158 *nvp6158,
 				   struct rkmodule_inf *inf)
 {
@@ -1174,6 +1185,7 @@ static const struct dev_pm_ops nvp6158_pm_ops = {
 static const struct v4l2_subdev_video_ops nvp6158_video_ops = {
 	.s_stream = nvp6158_stream,
 	.querystd = nvp6158_querystd,
+	.g_frame_interval = nvp6158_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops nvp6158_subdev_pad_ops = {
