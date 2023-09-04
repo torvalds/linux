@@ -53,29 +53,6 @@ enum thermal_notify_event {
 	THERMAL_EVENT_KEEP_ALIVE, /* Request for user space handler to respond */
 };
 
-struct thermal_zone_device_ops {
-	int (*bind) (struct thermal_zone_device *,
-		     struct thermal_cooling_device *);
-	int (*unbind) (struct thermal_zone_device *,
-		       struct thermal_cooling_device *);
-	int (*get_temp) (struct thermal_zone_device *, int *);
-	int (*set_trips) (struct thermal_zone_device *, int, int);
-	int (*change_mode) (struct thermal_zone_device *,
-		enum thermal_device_mode);
-	int (*get_trip_type) (struct thermal_zone_device *, int,
-		enum thermal_trip_type *);
-	int (*get_trip_temp) (struct thermal_zone_device *, int, int *);
-	int (*set_trip_temp) (struct thermal_zone_device *, int, int);
-	int (*get_trip_hyst) (struct thermal_zone_device *, int, int *);
-	int (*set_trip_hyst) (struct thermal_zone_device *, int, int);
-	int (*get_crit_temp) (struct thermal_zone_device *, int *);
-	int (*set_emul_temp) (struct thermal_zone_device *, int);
-	int (*get_trend) (struct thermal_zone_device *, int,
-			  enum thermal_trend *);
-	void (*hot)(struct thermal_zone_device *);
-	void (*critical)(struct thermal_zone_device *);
-};
-
 /**
  * struct thermal_trip - representation of a point in temperature domain
  * @temperature: temperature value in miliCelsius
@@ -88,6 +65,25 @@ struct thermal_trip {
 	int hysteresis;
 	enum thermal_trip_type type;
 	void *priv;
+};
+
+struct thermal_zone_device_ops {
+	int (*bind) (struct thermal_zone_device *,
+		     struct thermal_cooling_device *);
+	int (*unbind) (struct thermal_zone_device *,
+		       struct thermal_cooling_device *);
+	int (*get_temp) (struct thermal_zone_device *, int *);
+	int (*set_trips) (struct thermal_zone_device *, int, int);
+	int (*change_mode) (struct thermal_zone_device *,
+		enum thermal_device_mode);
+	int (*set_trip_temp) (struct thermal_zone_device *, int, int);
+	int (*set_trip_hyst) (struct thermal_zone_device *, int, int);
+	int (*get_crit_temp) (struct thermal_zone_device *, int *);
+	int (*set_emul_temp) (struct thermal_zone_device *, int);
+	int (*get_trend) (struct thermal_zone_device *, struct thermal_trip *,
+			  enum thermal_trend *);
+	void (*hot)(struct thermal_zone_device *);
+	void (*critical)(struct thermal_zone_device *);
 };
 
 struct thermal_cooling_device_ops {
