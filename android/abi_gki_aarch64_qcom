@@ -94,6 +94,8 @@
   bit_wait_timeout
   __blk_alloc_disk
   blkdev_get_by_dev
+  blk_crypto_keyslot_index
+  blk_crypto_register
   blk_execute_rq
   blk_execute_rq_nowait
   __blk_mq_alloc_disk
