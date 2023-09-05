@@ -491,7 +491,7 @@ static void aspeed_spi_chip_set_default_window(struct aspeed_spi *aspi)
 	for (cs = 0; cs < aspi->num_cs; cs++) {
 		win.cs = cs;
 		win.size = aspi->chips[cs].ahb_window_size;
-		win.offset = aspi->chips[cs].ahb_window_size * cs;
+		win.offset = aspi->data->min_decoding_sz * cs;
 		aspeed_spi_set_window(aspi, &win);
 	}
 }
