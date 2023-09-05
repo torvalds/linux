@@ -423,109 +423,109 @@ static void intel_dsc_pps_configure(const struct intel_crtc_state *crtc_state)
 	int vdsc_instances_per_pipe = intel_dsc_get_vdsc_per_pipe(crtc_state);
 
 	/* PPS 0 */
-	pps_val = DSC_VER_MAJ | vdsc_cfg->dsc_version_minor <<
-		DSC_VER_MIN_SHIFT |
-		vdsc_cfg->bits_per_component << DSC_BPC_SHIFT |
-		vdsc_cfg->line_buf_depth << DSC_LINE_BUF_DEPTH_SHIFT;
+	pps_val = DSC_PPS0_VER_MAJ | vdsc_cfg->dsc_version_minor <<
+		DSC_PPS0_VER_MIN_SHIFT |
+		vdsc_cfg->bits_per_component << DSC_PPS0_BPC_SHIFT |
+		vdsc_cfg->line_buf_depth << DSC_PPS0_LINE_BUF_DEPTH_SHIFT;
 	if (vdsc_cfg->dsc_version_minor == 2) {
-		pps_val |= DSC_ALT_ICH_SEL;
+		pps_val |= DSC_PPS0_ALT_ICH_SEL;
 		if (vdsc_cfg->native_420)
-			pps_val |= DSC_NATIVE_420_ENABLE;
+			pps_val |= DSC_PPS0_NATIVE_420_ENABLE;
 		if (vdsc_cfg->native_422)
-			pps_val |= DSC_NATIVE_422_ENABLE;
+			pps_val |= DSC_PPS0_NATIVE_422_ENABLE;
 	}
 	if (vdsc_cfg->block_pred_enable)
-		pps_val |= DSC_BLOCK_PREDICTION;
+		pps_val |= DSC_PPS0_BLOCK_PREDICTION;
 	if (vdsc_cfg->convert_rgb)
-		pps_val |= DSC_COLOR_SPACE_CONVERSION;
+		pps_val |= DSC_PPS0_COLOR_SPACE_CONVERSION;
 	if (vdsc_cfg->simple_422)
-		pps_val |= DSC_422_ENABLE;
+		pps_val |= DSC_PPS0_422_ENABLE;
 	if (vdsc_cfg->vbr_enable)
-		pps_val |= DSC_VBR_ENABLE;
+		pps_val |= DSC_PPS0_VBR_ENABLE;
 	drm_dbg_kms(&dev_priv->drm, "PPS0 = 0x%08x\n", pps_val);
 	intel_dsc_pps_write(crtc_state, 0, pps_val);
 
 	/* PPS 1 */
-	pps_val = DSC_BPP(vdsc_cfg->bits_per_pixel);
+	pps_val = DSC_PPS1_BPP(vdsc_cfg->bits_per_pixel);
 	drm_dbg_kms(&dev_priv->drm, "PPS1 = 0x%08x\n", pps_val);
 	intel_dsc_pps_write(crtc_state, 1, pps_val);
 
 	/* PPS 2 */
-	pps_val = DSC_PIC_HEIGHT(vdsc_cfg->pic_height) |
-		DSC_PIC_WIDTH(vdsc_cfg->pic_width / num_vdsc_instances);
+	pps_val = DSC_PPS2_PIC_HEIGHT(vdsc_cfg->pic_height) |
+		DSC_PPS2_PIC_WIDTH(vdsc_cfg->pic_width / num_vdsc_instances);
 	drm_dbg_kms(&dev_priv->drm, "PPS2 = 0x%08x\n", pps_val);
 	intel_dsc_pps_write(crtc_state, 2, pps_val);
 
 	/* PPS 3 */
-	pps_val = DSC_SLICE_HEIGHT(vdsc_cfg->slice_height) |
-		DSC_SLICE_WIDTH(vdsc_cfg->slice_width);
+	pps_val = DSC_PPS3_SLICE_HEIGHT(vdsc_cfg->slice_height) |
+		DSC_PPS3_SLICE_WIDTH(vdsc_cfg->slice_width);
 	drm_dbg_kms(&dev_priv->drm, "PPS3 = 0x%08x\n", pps_val);
 	intel_dsc_pps_write(crtc_state, 3, pps_val);
 
 	/* PPS 4 */
-	pps_val = DSC_INITIAL_XMIT_DELAY(vdsc_cfg->initial_xmit_delay) |
-		DSC_INITIAL_DEC_DELAY(vdsc_cfg->initial_dec_delay);
+	pps_val = DSC_PPS4_INITIAL_XMIT_DELAY(vdsc_cfg->initial_xmit_delay) |
+		DSC_PPS4_INITIAL_DEC_DELAY(vdsc_cfg->initial_dec_delay);
 	drm_dbg_kms(&dev_priv->drm, "PPS4 = 0x%08x\n", pps_val);
 	intel_dsc_pps_write(crtc_state, 4, pps_val);
 
 	/* PPS 5 */
-	pps_val = DSC_SCALE_INC_INT(vdsc_cfg->scale_increment_interval) |
-		DSC_SCALE_DEC_INT(vdsc_cfg->scale_decrement_interval);
+	pps_val = DSC_PPS5_SCALE_INC_INT(vdsc_cfg->scale_increment_interval) |
+		DSC_PPS5_SCALE_DEC_INT(vdsc_cfg->scale_decrement_interval);
 	drm_dbg_kms(&dev_priv->drm, "PPS5 = 0x%08x\n", pps_val);
 	intel_dsc_pps_write(crtc_state, 5, pps_val);
 
 	/* PPS 6 */
-	pps_val = DSC_INITIAL_SCALE_VALUE(vdsc_cfg->initial_scale_value) |
-		DSC_FIRST_LINE_BPG_OFFSET(vdsc_cfg->first_line_bpg_offset) |
-		DSC_FLATNESS_MIN_QP(vdsc_cfg->flatness_min_qp) |
-		DSC_FLATNESS_MAX_QP(vdsc_cfg->flatness_max_qp);
+	pps_val = DSC_PPS6_INITIAL_SCALE_VALUE(vdsc_cfg->initial_scale_value) |
+		DSC_PPS6_FIRST_LINE_BPG_OFFSET(vdsc_cfg->first_line_bpg_offset) |
+		DSC_PPS6_FLATNESS_MIN_QP(vdsc_cfg->flatness_min_qp) |
+		DSC_PPS6_FLATNESS_MAX_QP(vdsc_cfg->flatness_max_qp);
 	drm_dbg_kms(&dev_priv->drm, "PPS6 = 0x%08x\n", pps_val);
 	intel_dsc_pps_write(crtc_state, 6, pps_val);
 
 	/* PPS 7 */
-	pps_val = DSC_SLICE_BPG_OFFSET(vdsc_cfg->slice_bpg_offset) |
-		DSC_NFL_BPG_OFFSET(vdsc_cfg->nfl_bpg_offset);
+	pps_val = DSC_PPS7_SLICE_BPG_OFFSET(vdsc_cfg->slice_bpg_offset) |
+		DSC_PPS7_NFL_BPG_OFFSET(vdsc_cfg->nfl_bpg_offset);
 	drm_dbg_kms(&dev_priv->drm, "PPS7 = 0x%08x\n", pps_val);
 	intel_dsc_pps_write(crtc_state, 7, pps_val);
 
 	/* PPS 8 */
-	pps_val = DSC_FINAL_OFFSET(vdsc_cfg->final_offset) |
-		DSC_INITIAL_OFFSET(vdsc_cfg->initial_offset);
+	pps_val = DSC_PPS8_FINAL_OFFSET(vdsc_cfg->final_offset) |
+		DSC_PPS8_INITIAL_OFFSET(vdsc_cfg->initial_offset);
 	drm_dbg_kms(&dev_priv->drm, "PPS8 = 0x%08x\n", pps_val);
 	intel_dsc_pps_write(crtc_state, 8, pps_val);
 
 	/* PPS 9 */
-	pps_val = DSC_RC_MODEL_SIZE(vdsc_cfg->rc_model_size) |
-		DSC_RC_EDGE_FACTOR(DSC_RC_EDGE_FACTOR_CONST);
+	pps_val = DSC_PPS9_RC_MODEL_SIZE(vdsc_cfg->rc_model_size) |
+		DSC_PPS9_RC_EDGE_FACTOR(DSC_RC_EDGE_FACTOR_CONST);
 	drm_dbg_kms(&dev_priv->drm, "PPS9 = 0x%08x\n", pps_val);
 	intel_dsc_pps_write(crtc_state, 9, pps_val);
 
 	/* PPS 10 */
-	pps_val = DSC_RC_QUANT_INC_LIMIT0(vdsc_cfg->rc_quant_incr_limit0) |
-		DSC_RC_QUANT_INC_LIMIT1(vdsc_cfg->rc_quant_incr_limit1) |
-		DSC_RC_TARGET_OFF_HIGH(DSC_RC_TGT_OFFSET_HI_CONST) |
-		DSC_RC_TARGET_OFF_LOW(DSC_RC_TGT_OFFSET_LO_CONST);
+	pps_val = DSC_PPS10_RC_QUANT_INC_LIMIT0(vdsc_cfg->rc_quant_incr_limit0) |
+		DSC_PPS10_RC_QUANT_INC_LIMIT1(vdsc_cfg->rc_quant_incr_limit1) |
+		DSC_PPS10_RC_TARGET_OFF_HIGH(DSC_RC_TGT_OFFSET_HI_CONST) |
+		DSC_PPS10_RC_TARGET_OFF_LOW(DSC_RC_TGT_OFFSET_LO_CONST);
 	drm_dbg_kms(&dev_priv->drm, "PPS10 = 0x%08x\n", pps_val);
 	intel_dsc_pps_write(crtc_state, 10, pps_val);
 
 	/* PPS 16 */
-	pps_val = DSC_SLICE_CHUNK_SIZE(vdsc_cfg->slice_chunk_size) |
-		DSC_SLICE_PER_LINE((vdsc_cfg->pic_width / num_vdsc_instances) /
-				   vdsc_cfg->slice_width) |
-		DSC_SLICE_ROW_PER_FRAME(vdsc_cfg->pic_height /
-					vdsc_cfg->slice_height);
+	pps_val = DSC_PPS16_SLICE_CHUNK_SIZE(vdsc_cfg->slice_chunk_size) |
+		DSC_PPS16_SLICE_PER_LINE((vdsc_cfg->pic_width / num_vdsc_instances) /
+					 vdsc_cfg->slice_width) |
+		DSC_PPS16_SLICE_ROW_PER_FRAME(vdsc_cfg->pic_height /
+					      vdsc_cfg->slice_height);
 	drm_dbg_kms(&dev_priv->drm, "PPS16 = 0x%08x\n", pps_val);
 	intel_dsc_pps_write(crtc_state, 16, pps_val);
 
 	if (DISPLAY_VER(dev_priv) >= 14) {
 		/* PPS 17 */
-		pps_val = DSC_SL_BPG_OFFSET(vdsc_cfg->second_line_bpg_offset);
+		pps_val = DSC_PPS17_SL_BPG_OFFSET(vdsc_cfg->second_line_bpg_offset);
 		drm_dbg_kms(&dev_priv->drm, "PPS17 = 0x%08x\n", pps_val);
 		intel_dsc_pps_write(crtc_state, 17, pps_val);
 
 		/* PPS 18 */
-		pps_val = DSC_NSL_BPG_OFFSET(vdsc_cfg->nsl_bpg_offset) |
-			DSC_SL_OFFSET_ADJ(vdsc_cfg->second_line_offset_adj);
+		pps_val = DSC_PPS18_NSL_BPG_OFFSET(vdsc_cfg->nsl_bpg_offset) |
+			DSC_PPS18_SL_OFFSET_ADJ(vdsc_cfg->second_line_offset_adj);
 		drm_dbg_kms(&dev_priv->drm, "PPS18 = 0x%08x\n", pps_val);
 		intel_dsc_pps_write(crtc_state, 18, pps_val);
 	}
@@ -857,15 +857,15 @@ static void intel_dsc_get_pps_config(struct intel_crtc_state *crtc_state)
 	/* PPS 0 */
 	pps_temp = intel_dsc_pps_read_and_verify(crtc_state, 0);
 
-	vdsc_cfg->bits_per_component = (pps_temp & DSC_BPC_MASK) >> DSC_BPC_SHIFT;
+	vdsc_cfg->bits_per_component = (pps_temp & DSC_PPS0_BPC_MASK) >> DSC_PPS0_BPC_SHIFT;
 	vdsc_cfg->line_buf_depth =
-		(pps_temp & DSC_LINE_BUF_DEPTH_MASK) >> DSC_LINE_BUF_DEPTH_SHIFT;
-	vdsc_cfg->block_pred_enable = pps_temp & DSC_BLOCK_PREDICTION;
-	vdsc_cfg->convert_rgb = pps_temp & DSC_COLOR_SPACE_CONVERSION;
-	vdsc_cfg->simple_422 = pps_temp & DSC_422_ENABLE;
-	vdsc_cfg->native_422 = pps_temp & DSC_NATIVE_422_ENABLE;
-	vdsc_cfg->native_420 = pps_temp & DSC_NATIVE_420_ENABLE;
-	vdsc_cfg->vbr_enable = pps_temp & DSC_VBR_ENABLE;
+		(pps_temp & DSC_PPS0_LINE_BUF_DEPTH_MASK) >> DSC_PPS0_LINE_BUF_DEPTH_SHIFT;
+	vdsc_cfg->block_pred_enable = pps_temp & DSC_PPS0_BLOCK_PREDICTION;
+	vdsc_cfg->convert_rgb = pps_temp & DSC_PPS0_COLOR_SPACE_CONVERSION;
+	vdsc_cfg->simple_422 = pps_temp & DSC_PPS0_422_ENABLE;
+	vdsc_cfg->native_422 = pps_temp & DSC_PPS0_NATIVE_422_ENABLE;
+	vdsc_cfg->native_420 = pps_temp & DSC_PPS0_NATIVE_420_ENABLE;
+	vdsc_cfg->vbr_enable = pps_temp & DSC_PPS0_VBR_ENABLE;
 
 	/* PPS 1 */
 	pps_temp = intel_dsc_pps_read_and_verify(crtc_state, 1);
@@ -880,74 +880,74 @@ static void intel_dsc_get_pps_config(struct intel_crtc_state *crtc_state)
 	/* PPS 2 */
 	pps_temp = intel_dsc_pps_read_and_verify(crtc_state, 2);
 
-	vdsc_cfg->pic_width = REG_FIELD_GET(DSC_PIC_WIDTH_MASK, pps_temp) / num_vdsc_instances;
-	vdsc_cfg->pic_height = REG_FIELD_GET(DSC_PIC_HEIGHT_MASK, pps_temp);
+	vdsc_cfg->pic_width = REG_FIELD_GET(DSC_PPS2_PIC_WIDTH_MASK, pps_temp) / num_vdsc_instances;
+	vdsc_cfg->pic_height = REG_FIELD_GET(DSC_PPS2_PIC_HEIGHT_MASK, pps_temp);
 
 	/* PPS 3 */
 	pps_temp = intel_dsc_pps_read_and_verify(crtc_state, 3);
 
-	vdsc_cfg->slice_width = REG_FIELD_GET(DSC_SLICE_WIDTH_MASK, pps_temp);
-	vdsc_cfg->slice_height = REG_FIELD_GET(DSC_SLICE_HEIGHT_MASK, pps_temp);
+	vdsc_cfg->slice_width = REG_FIELD_GET(DSC_PPS3_SLICE_WIDTH_MASK, pps_temp);
+	vdsc_cfg->slice_height = REG_FIELD_GET(DSC_PPS3_SLICE_HEIGHT_MASK, pps_temp);
 
 	/* PPS 4 */
 	pps_temp = intel_dsc_pps_read_and_verify(crtc_state, 4);
 
-	vdsc_cfg->initial_dec_delay = REG_FIELD_GET(DSC_INITIAL_DEC_DELAY_MASK, pps_temp);
-	vdsc_cfg->initial_xmit_delay = REG_FIELD_GET(DSC_INITIAL_XMIT_DELAY_MASK, pps_temp);
+	vdsc_cfg->initial_dec_delay = REG_FIELD_GET(DSC_PPS4_INITIAL_DEC_DELAY_MASK, pps_temp);
+	vdsc_cfg->initial_xmit_delay = REG_FIELD_GET(DSC_PPS4_INITIAL_XMIT_DELAY_MASK, pps_temp);
 
 	/* PPS 5 */
 	pps_temp = intel_dsc_pps_read_and_verify(crtc_state, 5);
 
-	vdsc_cfg->scale_decrement_interval = REG_FIELD_GET(DSC_SCALE_DEC_INT_MASK, pps_temp);
-	vdsc_cfg->scale_increment_interval = REG_FIELD_GET(DSC_SCALE_INC_INT_MASK, pps_temp);
+	vdsc_cfg->scale_decrement_interval = REG_FIELD_GET(DSC_PPS5_SCALE_DEC_INT_MASK, pps_temp);
+	vdsc_cfg->scale_increment_interval = REG_FIELD_GET(DSC_PPS5_SCALE_INC_INT_MASK, pps_temp);
 
 	/* PPS 6 */
 	pps_temp = intel_dsc_pps_read_and_verify(crtc_state, 6);
 
-	vdsc_cfg->initial_scale_value = REG_FIELD_GET(DSC_INITIAL_SCALE_VALUE_MASK, pps_temp);
-	vdsc_cfg->first_line_bpg_offset = REG_FIELD_GET(DSC_FIRST_LINE_BPG_OFFSET_MASK, pps_temp);
-	vdsc_cfg->flatness_min_qp = REG_FIELD_GET(DSC_FLATNESS_MIN_QP_MASK, pps_temp);
-	vdsc_cfg->flatness_max_qp = REG_FIELD_GET(DSC_FLATNESS_MAX_QP_MASK, pps_temp);
+	vdsc_cfg->initial_scale_value = REG_FIELD_GET(DSC_PPS6_INITIAL_SCALE_VALUE_MASK, pps_temp);
+	vdsc_cfg->first_line_bpg_offset = REG_FIELD_GET(DSC_PPS6_FIRST_LINE_BPG_OFFSET_MASK, pps_temp);
+	vdsc_cfg->flatness_min_qp = REG_FIELD_GET(DSC_PPS6_FLATNESS_MIN_QP_MASK, pps_temp);
+	vdsc_cfg->flatness_max_qp = REG_FIELD_GET(DSC_PPS6_FLATNESS_MAX_QP_MASK, pps_temp);
 
 	/* PPS 7 */
 	pps_temp = intel_dsc_pps_read_and_verify(crtc_state, 7);
 
-	vdsc_cfg->nfl_bpg_offset = REG_FIELD_GET(DSC_NFL_BPG_OFFSET_MASK, pps_temp);
-	vdsc_cfg->slice_bpg_offset = REG_FIELD_GET(DSC_SLICE_BPG_OFFSET_MASK, pps_temp);
+	vdsc_cfg->nfl_bpg_offset = REG_FIELD_GET(DSC_PPS7_NFL_BPG_OFFSET_MASK, pps_temp);
+	vdsc_cfg->slice_bpg_offset = REG_FIELD_GET(DSC_PPS7_SLICE_BPG_OFFSET_MASK, pps_temp);
 
 	/* PPS 8 */
 	pps_temp = intel_dsc_pps_read_and_verify(crtc_state, 8);
 
-	vdsc_cfg->initial_offset = REG_FIELD_GET(DSC_INITIAL_OFFSET_MASK, pps_temp);
-	vdsc_cfg->final_offset = REG_FIELD_GET(DSC_FINAL_OFFSET_MASK, pps_temp);
+	vdsc_cfg->initial_offset = REG_FIELD_GET(DSC_PPS8_INITIAL_OFFSET_MASK, pps_temp);
+	vdsc_cfg->final_offset = REG_FIELD_GET(DSC_PPS8_FINAL_OFFSET_MASK, pps_temp);
 
 	/* PPS 9 */
 	pps_temp = intel_dsc_pps_read_and_verify(crtc_state, 9);
 
-	vdsc_cfg->rc_model_size = REG_FIELD_GET(DSC_RC_MODEL_SIZE_MASK, pps_temp);
+	vdsc_cfg->rc_model_size = REG_FIELD_GET(DSC_PPS9_RC_MODEL_SIZE_MASK, pps_temp);
 
 	/* PPS 10 */
 	pps_temp = intel_dsc_pps_read_and_verify(crtc_state, 10);
 
-	vdsc_cfg->rc_quant_incr_limit0 = REG_FIELD_GET(DSC_RC_QUANT_INC_LIMIT0_MASK, pps_temp);
-	vdsc_cfg->rc_quant_incr_limit1 = REG_FIELD_GET(DSC_RC_QUANT_INC_LIMIT1_MASK, pps_temp);
+	vdsc_cfg->rc_quant_incr_limit0 = REG_FIELD_GET(DSC_PPS10_RC_QUANT_INC_LIMIT0_MASK, pps_temp);
+	vdsc_cfg->rc_quant_incr_limit1 = REG_FIELD_GET(DSC_PPS10_RC_QUANT_INC_LIMIT1_MASK, pps_temp);
 
 	/* PPS 16 */
 	pps_temp = intel_dsc_pps_read_and_verify(crtc_state, 16);
 
-	vdsc_cfg->slice_chunk_size = REG_FIELD_GET(DSC_SLICE_CHUNK_SIZE_MASK, pps_temp);
+	vdsc_cfg->slice_chunk_size = REG_FIELD_GET(DSC_PPS16_SLICE_CHUNK_SIZE_MASK, pps_temp);
 
 	if (DISPLAY_VER(i915) >= 14) {
 		/* PPS 17 */
 		pps_temp = intel_dsc_pps_read_and_verify(crtc_state, 17);
 
-		vdsc_cfg->second_line_bpg_offset = REG_FIELD_GET(DSC_SL_BPG_OFFSET_MASK, pps_temp);
+		vdsc_cfg->second_line_bpg_offset = REG_FIELD_GET(DSC_PPS17_SL_BPG_OFFSET_MASK, pps_temp);
 
 		/* PPS 18 */
 		pps_temp = intel_dsc_pps_read_and_verify(crtc_state, 18);
 
-		vdsc_cfg->nsl_bpg_offset = REG_FIELD_GET(DSC_NSL_BPG_OFFSET_MASK, pps_temp);
-		vdsc_cfg->second_line_offset_adj = REG_FIELD_GET(DSC_SL_OFFSET_ADJ_MASK, pps_temp);
+		vdsc_cfg->nsl_bpg_offset = REG_FIELD_GET(DSC_PPS18_NSL_BPG_OFFSET_MASK, pps_temp);
+		vdsc_cfg->second_line_offset_adj = REG_FIELD_GET(DSC_PPS18_SL_OFFSET_ADJ_MASK, pps_temp);
 	}
 }
 
