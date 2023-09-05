@@ -114,7 +114,7 @@ static int riscv_timer_starting_cpu(unsigned int cpu)
 		ce->features |= CLOCK_EVT_FEAT_C3STOP;
 	if (static_branch_likely(&riscv_sstc_available))
 		ce->rating = 450;
-	clockevents_config_and_register(ce, riscv_timebase, 100, 0x7fffffff);
+	clockevents_config_and_register(ce, riscv_timebase, 100, ULONG_MAX);
 
 	enable_percpu_irq(riscv_clock_event_irq,
 			  irq_get_trigger_type(riscv_clock_event_irq));
