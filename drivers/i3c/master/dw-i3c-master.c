@@ -370,6 +370,7 @@ static void dw_i3c_master_disable(struct dw_i3c_master *master)
 
 	if (master->base.target) {
 		master->platform_ops->toggle_scl_in(master, 8);
+		master->platform_ops->gen_internal_stop(master);
 		if (readl(master->regs + DEVICE_CTRL) & DEV_CTRL_ENABLE) {
 			dev_warn(&master->base.dev,
 				 "Failed to disable controller");
