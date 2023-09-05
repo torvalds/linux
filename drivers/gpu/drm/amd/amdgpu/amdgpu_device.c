@@ -1359,6 +1359,27 @@ bool amdgpu_device_need_post(struct amdgpu_device *adev)
 }
 
 /*
+ * Check whether seamless boot is supported.
+ *
+ * So far we only support seamless boot on select ASICs.
+ * If everything goes well, we may consider expanding
+ * seamless boot to other ASICs.
+ */
+bool amdgpu_device_seamless_boot_supported(struct amdgpu_device *adev)
+{
+	switch (adev->ip_versions[DCE_HWIP][0]) {
+	case IP_VERSION(3, 0, 1):
+		if (!adev->mman.keep_stolen_vga_memory)
+			return true;
+		break;
+	default:
+		break;
+	}
+
+	return false;
+}
+
+/*
  * Intel hosts such as Raptor Lake and Sapphire Rapids don't support dynamic
  * speed switching. Until we have confirmation from Intel that a specific host
  * supports it, it's safer that we keep it disabled for all.
