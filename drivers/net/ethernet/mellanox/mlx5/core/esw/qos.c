@@ -770,12 +770,24 @@ int mlx5_esw_qos_modify_vport_rate(struct mlx5_eswitch *esw, u16 vport_num, u32 
 {
 	u32 ctx[MLX5_ST_SZ_DW(scheduling_context)] = {};
 	struct mlx5_vport *vport;
+	u32 link_speed_max;
 	u32 bitmask;
 	int err;
 
 	vport = mlx5_eswitch_get_vport(esw, vport_num);
 	if (IS_ERR(vport))
 		return PTR_ERR(vport);
+
+	if (rate_mbps) {
+		err = mlx5_esw_qos_max_link_speed_get(esw->dev, &link_speed_max, false, NULL);
+		if (err)
+			return err;
+
+		err = mlx5_esw_qos_link_speed_verify(esw->dev, "Police",
+						     link_speed_max, rate_mbps, NULL);
+		if (err)
+			return err;
+	}
 
 	mutex_lock(&esw->state_lock);
 	if (!vport->qos.enabled) {
