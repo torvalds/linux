@@ -735,6 +735,9 @@ static void ath12k_core_pre_reconfigure_recovery(struct ath12k_base *ab)
 	ab->stats.fw_crash_counter++;
 	spin_unlock_bh(&ab->base_lock);
 
+	if (ab->is_reset)
+		set_bit(ATH12K_FLAG_CRASH_FLUSH, &ab->dev_flags);
+
 	for (i = 0; i < ab->num_radios; i++) {
 		pdev = &ab->pdevs[i];
 		ar = pdev->ar;
