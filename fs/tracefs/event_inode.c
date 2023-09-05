@@ -491,6 +491,9 @@ struct dentry *eventfs_create_events_dir(const char *name,
 	struct tracefs_inode *ti;
 	struct inode *inode;
 
+	if (security_locked_down(LOCKDOWN_TRACEFS))
+		return NULL;
+
 	if (IS_ERR(dentry))
 		return dentry;
 
@@ -538,6 +541,9 @@ struct eventfs_file *eventfs_add_subsystem_dir(const char *name,
 	struct eventfs_inode *ei_parent;
 	struct eventfs_file *ef;
 
+	if (security_locked_down(LOCKDOWN_TRACEFS))
+		return NULL;
+
 	if (!parent)
 		return ERR_PTR(-EINVAL);
 
@@ -568,6 +574,9 @@ struct eventfs_file *eventfs_add_dir(const char *name,
 				     struct eventfs_file *ef_parent)
 {
 	struct eventfs_file *ef;
+
+	if (security_locked_down(LOCKDOWN_TRACEFS))
+		return NULL;
 
 	if (!ef_parent)
 		return ERR_PTR(-EINVAL);
@@ -605,6 +614,9 @@ int eventfs_add_events_file(const char *name, umode_t mode,
 	struct tracefs_inode *ti;
 	struct eventfs_inode *ei;
 	struct eventfs_file *ef;
+
+	if (security_locked_down(LOCKDOWN_TRACEFS))
+		return -ENODEV;
 
 	if (!parent)
 		return -EINVAL;
@@ -653,6 +665,9 @@ int eventfs_add_file(const char *name, umode_t mode,
 		     const struct file_operations *fop)
 {
 	struct eventfs_file *ef;
+
+	if (security_locked_down(LOCKDOWN_TRACEFS))
+		return -ENODEV;
 
 	if (!ef_parent)
 		return -EINVAL;
