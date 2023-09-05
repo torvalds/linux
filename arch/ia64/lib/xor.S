@@ -5,8 +5,8 @@
  * Optimized RAID-5 checksumming functions for IA-64.
  */
 
+#include <linux/export.h>
 #include <asm/asmmacro.h>
-#include <asm/export.h>
 
 GLOBAL_ENTRY(xor_ia64_2)
 	.prologue
