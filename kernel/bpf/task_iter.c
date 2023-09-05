@@ -75,15 +75,8 @@ static struct task_struct *task_group_seq_get_next(struct bpf_iter_seq_task_comm
 		return NULL;
 
 retry:
-	if (!pid_alive(task)) {
-		put_task_struct(task);
-		return NULL;
-	}
-
 	next_task = next_thread(task);
 	put_task_struct(task);
-	if (!next_task)
-		return NULL;
 
 	saved_tid = *tid;
 	*tid = __task_pid_nr_ns(next_task, PIDTYPE_PID, common->ns);
