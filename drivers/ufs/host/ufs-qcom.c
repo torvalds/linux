@@ -93,8 +93,7 @@ static const struct __ufs_qcom_bw_table {
 static struct ufs_qcom_host *ufs_qcom_hosts[MAX_UFS_QCOM_HOSTS];
 
 static void ufs_qcom_get_default_testbus_cfg(struct ufs_qcom_host *host);
-static int ufs_qcom_set_dme_vs_core_clk_ctrl_clear_div(struct ufs_hba *hba,
-						       u32 clk_cycles);
+static int ufs_qcom_set_core_clk_ctrl(struct ufs_hba *hba, bool is_scale_up);
 
 static struct ufs_qcom_host *rcdev_to_ufs_host(struct reset_controller_dev *rcd)
 {
@@ -685,14 +684,11 @@ static int ufs_qcom_link_startup_notify(struct ufs_hba *hba,
 			return -EINVAL;
 		}
 
-		if (ufs_qcom_cap_qunipro(host))
-			/*
-			 * set unipro core clock cycles to 150 & clear clock
-			 * divider
-			 */
-			err = ufs_qcom_set_dme_vs_core_clk_ctrl_clear_div(hba,
-									  150);
-
+		if (ufs_qcom_cap_qunipro(host)) {
+			err = ufs_qcom_set_core_clk_ctrl(hba, true);
+			if (err)
+				dev_err(hba->dev, "cfg core clk ctrl failed\n");
+		}
 		/*
 		 * Some UFS devices (and may be host) have issues if LCC is
 		 * enabled. So we are setting PA_Local_TX_LCC_Enable to 0
@@ -1296,12 +1292,25 @@ static void ufs_qcom_exit(struct ufs_hba *hba)
 	phy_exit(host->generic_phy);
 }
 
-static int ufs_qcom_set_dme_vs_core_clk_ctrl_clear_div(struct ufs_hba *hba,
-						       u32 clk_cycles)
+static int ufs_qcom_set_core_clk_ctrl(struct ufs_hba *hba, bool is_scale_up)
 {
 	struct ufs_qcom_host *host = ufshcd_get_variant(hba);
-	int err;
+	struct list_head *head = &hba->clk_list_head;
+	struct ufs_clk_info *clki;
+	u32 cycles_in_1us;
 	u32 core_clk_ctrl_reg;
+	int err;
+
+	list_for_each_entry(clki, head, list) {
+		if (!IS_ERR_OR_NULL(clki->clk) &&
+			!strcmp(clki->name, "core_clk_unipro")) {
+			if (is_scale_up)
+				cycles_in_1us = ceil(clki->max_freq, (1000 * 1000));
+			else
+				cycles_in_1us = ceil(clk_get_rate(clki->clk), (1000 * 1000));
+			break;
+		}
+	}
 
 	err = ufshcd_dme_get(hba,
 			    UIC_ARG_MIB(DME_VS_CORE_CLK_CTRL),
@@ -1311,15 +1320,15 @@ static int ufs_qcom_set_dme_vs_core_clk_ctrl_clear_div(struct ufs_hba *hba,
 
 	/* Bit mask is different for UFS host controller V4.0.0 onwards */
 	if (host->hw_ver.major >= 4) {
-		if (!FIELD_FIT(CLK_1US_CYCLES_MASK_V4, clk_cycles))
+		if (!FIELD_FIT(CLK_1US_CYCLES_MASK_V4, cycles_in_1us))
 			return -ERANGE;
 		core_clk_ctrl_reg &= ~CLK_1US_CYCLES_MASK_V4;
-		core_clk_ctrl_reg |= FIELD_PREP(CLK_1US_CYCLES_MASK_V4, clk_cycles);
+		core_clk_ctrl_reg |= FIELD_PREP(CLK_1US_CYCLES_MASK_V4, cycles_in_1us);
 	} else {
-		if (!FIELD_FIT(CLK_1US_CYCLES_MASK, clk_cycles))
+		if (!FIELD_FIT(CLK_1US_CYCLES_MASK, cycles_in_1us))
 			return -ERANGE;
 		core_clk_ctrl_reg &= ~CLK_1US_CYCLES_MASK;
-		core_clk_ctrl_reg |= FIELD_PREP(CLK_1US_CYCLES_MASK, clk_cycles);
+		core_clk_ctrl_reg |= FIELD_PREP(CLK_1US_CYCLES_MASK, cycles_in_1us);
 	}
 
 	/* Clear CORE_CLK_DIV_EN */
@@ -1343,8 +1352,8 @@ static int ufs_qcom_clk_scale_up_post_change(struct ufs_hba *hba)
 	if (!ufs_qcom_cap_qunipro(host))
 		return 0;
 
-	/* set unipro core clock cycles to 150 and clear clock divider */
-	return ufs_qcom_set_dme_vs_core_clk_ctrl_clear_div(hba, 150);
+	/* set unipro core clock attributes and clear clock divider */
+	return ufs_qcom_set_core_clk_ctrl(hba, true);
 }
 
 static int ufs_qcom_clk_scale_down_pre_change(struct ufs_hba *hba)
@@ -1379,8 +1388,8 @@ static int ufs_qcom_clk_scale_down_post_change(struct ufs_hba *hba)
 	if (!ufs_qcom_cap_qunipro(host))
 		return 0;
 
-	/* set unipro core clock cycles to 75 and clear clock divider */
-	return ufs_qcom_set_dme_vs_core_clk_ctrl_clear_div(hba, 75);
+	/* set unipro core clock attributes and clear clock divider */
+	return ufs_qcom_set_core_clk_ctrl(hba, false);
 }
 
 static int ufs_qcom_clk_scale_notify(struct ufs_hba *hba,
