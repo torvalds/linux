@@ -423,10 +423,10 @@ static void intel_dsc_pps_configure(const struct intel_crtc_state *crtc_state)
 	int vdsc_instances_per_pipe = intel_dsc_get_vdsc_per_pipe(crtc_state);
 
 	/* PPS 0 */
-	pps_val = DSC_PPS0_VER_MAJ | vdsc_cfg->dsc_version_minor <<
-		DSC_PPS0_VER_MIN_SHIFT |
-		vdsc_cfg->bits_per_component << DSC_PPS0_BPC_SHIFT |
-		vdsc_cfg->line_buf_depth << DSC_PPS0_LINE_BUF_DEPTH_SHIFT;
+	pps_val = DSC_PPS0_VER_MAJOR(1) |
+		DSC_PPS0_VER_MINOR(vdsc_cfg->dsc_version_minor) |
+		DSC_PPS0_BPC(vdsc_cfg->bits_per_component) |
+		DSC_PPS0_LINE_BUF_DEPTH(vdsc_cfg->line_buf_depth);
 	if (vdsc_cfg->dsc_version_minor == 2) {
 		pps_val |= DSC_PPS0_ALT_ICH_SEL;
 		if (vdsc_cfg->native_420)
@@ -857,9 +857,8 @@ static void intel_dsc_get_pps_config(struct intel_crtc_state *crtc_state)
 	/* PPS 0 */
 	pps_temp = intel_dsc_pps_read_and_verify(crtc_state, 0);
 
-	vdsc_cfg->bits_per_component = (pps_temp & DSC_PPS0_BPC_MASK) >> DSC_PPS0_BPC_SHIFT;
-	vdsc_cfg->line_buf_depth =
-		(pps_temp & DSC_PPS0_LINE_BUF_DEPTH_MASK) >> DSC_PPS0_LINE_BUF_DEPTH_SHIFT;
+	vdsc_cfg->bits_per_component = REG_FIELD_GET(DSC_PPS0_BPC_MASK, pps_temp);
+	vdsc_cfg->line_buf_depth = REG_FIELD_GET(DSC_PPS0_LINE_BUF_DEPTH_MASK, pps_temp);
 	vdsc_cfg->block_pred_enable = pps_temp & DSC_PPS0_BLOCK_PREDICTION;
 	vdsc_cfg->convert_rgb = pps_temp & DSC_PPS0_COLOR_SPACE_CONVERSION;
 	vdsc_cfg->simple_422 = pps_temp & DSC_PPS0_422_ENABLE;
@@ -870,7 +869,7 @@ static void intel_dsc_get_pps_config(struct intel_crtc_state *crtc_state)
 	/* PPS 1 */
 	pps_temp = intel_dsc_pps_read_and_verify(crtc_state, 1);
 
-	vdsc_cfg->bits_per_pixel = pps_temp;
+	vdsc_cfg->bits_per_pixel = REG_FIELD_GET(DSC_PPS1_BPP_MASK, pps_temp);
 
 	if (vdsc_cfg->native_420)
 		vdsc_cfg->bits_per_pixel >>= 1;
