@@ -1092,28 +1092,6 @@ void gpiochip_remove(struct gpio_chip *gc)
 }
 EXPORT_SYMBOL_GPL(gpiochip_remove);
 
-/*
- * FIXME: This will be removed soon.
- *
- * This function is depracated, don't use.
- */
-struct gpio_chip *gpiochip_find(void *data,
-				int (*match)(struct gpio_chip *gc,
-					     void *data))
-{
-	struct gpio_device *gdev;
-	struct gpio_chip *gc = NULL;
-
-	gdev = gpio_device_find(data, match);
-	if (gdev) {
-		gc = gdev->chip;
-		gpio_device_put(gdev);
-	}
-
-	return gc;
-}
-EXPORT_SYMBOL_GPL(gpiochip_find);
-
 /**
  * gpio_device_find() - find a specific GPIO device
  * @data: data to pass to match function
