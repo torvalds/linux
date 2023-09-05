@@ -31,6 +31,8 @@
 #define JH7110_AON_NGPIO		4
 #define JH7110_AON_GC_BASE		64
 
+#define JH7110_AON_REGS_NUM		37
+
 /* registers */
 #define JH7110_AON_DOEN			0x0
 #define JH7110_AON_DOUT			0x4
@@ -145,6 +147,7 @@ static const struct jh7110_pinctrl_soc_info jh7110_aon_pinctrl_info = {
 	.gpi_mask	= GENMASK(3, 0),
 	.gpioin_reg_base	   = JH7110_AON_GPIOIN,
 	.irq_reg		   = &jh7110_aon_irq_reg,
+	.nsaved_regs		   = JH7110_AON_REGS_NUM,
 	.jh7110_set_one_pin_mux  = jh7110_aon_set_one_pin_mux,
 	.jh7110_get_padcfg_base  = jh7110_aon_get_padcfg_base,
 	.jh7110_gpio_irq_handler = jh7110_aon_irq_handler,
@@ -165,6 +168,7 @@ static struct platform_driver jh7110_aon_pinctrl_driver = {
 	.driver = {
 		.name = "starfive-jh7110-aon-pinctrl",
 		.of_match_table = jh7110_aon_pinctrl_of_match,
+		.pm = pm_sleep_ptr(&jh7110_pinctrl_pm_ops),
 	},
 };
 module_platform_driver(jh7110_aon_pinctrl_driver);
