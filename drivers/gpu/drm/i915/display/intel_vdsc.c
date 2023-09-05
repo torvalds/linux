@@ -422,7 +422,7 @@ static void intel_dsc_pps_configure(const struct intel_crtc_state *crtc_state)
 	int num_vdsc_instances = intel_dsc_get_num_vdsc_instances(crtc_state);
 	int vdsc_instances_per_pipe = intel_dsc_get_vdsc_per_pipe(crtc_state);
 
-	/* Populate PICTURE_PARAMETER_SET_0 registers */
+	/* PPS 0 */
 	pps_val = DSC_VER_MAJ | vdsc_cfg->dsc_version_minor <<
 		DSC_VER_MIN_SHIFT |
 		vdsc_cfg->bits_per_component << DSC_BPC_SHIFT |
@@ -445,36 +445,36 @@ static void intel_dsc_pps_configure(const struct intel_crtc_state *crtc_state)
 	drm_dbg_kms(&dev_priv->drm, "PPS0 = 0x%08x\n", pps_val);
 	intel_dsc_pps_write(crtc_state, 0, pps_val);
 
-	/* Populate PICTURE_PARAMETER_SET_1 registers */
+	/* PPS 1 */
 	pps_val = DSC_BPP(vdsc_cfg->bits_per_pixel);
 	drm_dbg_kms(&dev_priv->drm, "PPS1 = 0x%08x\n", pps_val);
 	intel_dsc_pps_write(crtc_state, 1, pps_val);
 
-	/* Populate PICTURE_PARAMETER_SET_2 registers */
+	/* PPS 2 */
 	pps_val = DSC_PIC_HEIGHT(vdsc_cfg->pic_height) |
 		DSC_PIC_WIDTH(vdsc_cfg->pic_width / num_vdsc_instances);
 	drm_dbg_kms(&dev_priv->drm, "PPS2 = 0x%08x\n", pps_val);
 	intel_dsc_pps_write(crtc_state, 2, pps_val);
 
-	/* Populate PICTURE_PARAMETER_SET_3 registers */
+	/* PPS 3 */
 	pps_val = DSC_SLICE_HEIGHT(vdsc_cfg->slice_height) |
 		DSC_SLICE_WIDTH(vdsc_cfg->slice_width);
 	drm_dbg_kms(&dev_priv->drm, "PPS3 = 0x%08x\n", pps_val);
 	intel_dsc_pps_write(crtc_state, 3, pps_val);
 
-	/* Populate PICTURE_PARAMETER_SET_4 registers */
+	/* PPS 4 */
 	pps_val = DSC_INITIAL_XMIT_DELAY(vdsc_cfg->initial_xmit_delay) |
 		DSC_INITIAL_DEC_DELAY(vdsc_cfg->initial_dec_delay);
 	drm_dbg_kms(&dev_priv->drm, "PPS4 = 0x%08x\n", pps_val);
 	intel_dsc_pps_write(crtc_state, 4, pps_val);
 
-	/* Populate PICTURE_PARAMETER_SET_5 registers */
+	/* PPS 5 */
 	pps_val = DSC_SCALE_INC_INT(vdsc_cfg->scale_increment_interval) |
 		DSC_SCALE_DEC_INT(vdsc_cfg->scale_decrement_interval);
 	drm_dbg_kms(&dev_priv->drm, "PPS5 = 0x%08x\n", pps_val);
 	intel_dsc_pps_write(crtc_state, 5, pps_val);
 
-	/* Populate PICTURE_PARAMETER_SET_6 registers */
+	/* PPS 6 */
 	pps_val = DSC_INITIAL_SCALE_VALUE(vdsc_cfg->initial_scale_value) |
 		DSC_FIRST_LINE_BPG_OFFSET(vdsc_cfg->first_line_bpg_offset) |
 		DSC_FLATNESS_MIN_QP(vdsc_cfg->flatness_min_qp) |
@@ -482,25 +482,25 @@ static void intel_dsc_pps_configure(const struct intel_crtc_state *crtc_state)
 	drm_dbg_kms(&dev_priv->drm, "PPS6 = 0x%08x\n", pps_val);
 	intel_dsc_pps_write(crtc_state, 6, pps_val);
 
-	/* Populate PICTURE_PARAMETER_SET_7 registers */
+	/* PPS 7 */
 	pps_val = DSC_SLICE_BPG_OFFSET(vdsc_cfg->slice_bpg_offset) |
 		DSC_NFL_BPG_OFFSET(vdsc_cfg->nfl_bpg_offset);
 	drm_dbg_kms(&dev_priv->drm, "PPS7 = 0x%08x\n", pps_val);
 	intel_dsc_pps_write(crtc_state, 7, pps_val);
 
-	/* Populate PICTURE_PARAMETER_SET_8 registers */
+	/* PPS 8 */
 	pps_val = DSC_FINAL_OFFSET(vdsc_cfg->final_offset) |
 		DSC_INITIAL_OFFSET(vdsc_cfg->initial_offset);
 	drm_dbg_kms(&dev_priv->drm, "PPS8 = 0x%08x\n", pps_val);
 	intel_dsc_pps_write(crtc_state, 8, pps_val);
 
-	/* Populate PICTURE_PARAMETER_SET_9 registers */
+	/* PPS 9 */
 	pps_val = DSC_RC_MODEL_SIZE(vdsc_cfg->rc_model_size) |
 		DSC_RC_EDGE_FACTOR(DSC_RC_EDGE_FACTOR_CONST);
 	drm_dbg_kms(&dev_priv->drm, "PPS9 = 0x%08x\n", pps_val);
 	intel_dsc_pps_write(crtc_state, 9, pps_val);
 
-	/* Populate PICTURE_PARAMETER_SET_10 registers */
+	/* PPS 10 */
 	pps_val = DSC_RC_QUANT_INC_LIMIT0(vdsc_cfg->rc_quant_incr_limit0) |
 		DSC_RC_QUANT_INC_LIMIT1(vdsc_cfg->rc_quant_incr_limit1) |
 		DSC_RC_TARGET_OFF_HIGH(DSC_RC_TGT_OFFSET_HI_CONST) |
@@ -508,7 +508,7 @@ static void intel_dsc_pps_configure(const struct intel_crtc_state *crtc_state)
 	drm_dbg_kms(&dev_priv->drm, "PPS10 = 0x%08x\n", pps_val);
 	intel_dsc_pps_write(crtc_state, 10, pps_val);
 
-	/* Populate Picture parameter set 16 */
+	/* PPS 16 */
 	pps_val = DSC_SLICE_CHUNK_SIZE(vdsc_cfg->slice_chunk_size) |
 		DSC_SLICE_PER_LINE((vdsc_cfg->pic_width / num_vdsc_instances) /
 				   vdsc_cfg->slice_width) |
@@ -518,12 +518,12 @@ static void intel_dsc_pps_configure(const struct intel_crtc_state *crtc_state)
 	intel_dsc_pps_write(crtc_state, 16, pps_val);
 
 	if (DISPLAY_VER(dev_priv) >= 14) {
-		/* Populate PICTURE_PARAMETER_SET_17 registers */
+		/* PPS 17 */
 		pps_val = DSC_SL_BPG_OFFSET(vdsc_cfg->second_line_bpg_offset);
 		drm_dbg_kms(&dev_priv->drm, "PPS17 = 0x%08x\n", pps_val);
 		intel_dsc_pps_write(crtc_state, 17, pps_val);
 
-		/* Populate PICTURE_PARAMETER_SET_18 registers */
+		/* PPS 18 */
 		pps_val = DSC_NSL_BPG_OFFSET(vdsc_cfg->nsl_bpg_offset) |
 			DSC_SL_OFFSET_ADJ(vdsc_cfg->second_line_offset_adj);
 		drm_dbg_kms(&dev_priv->drm, "PPS18 = 0x%08x\n", pps_val);
@@ -854,7 +854,7 @@ static void intel_dsc_get_pps_config(struct intel_crtc_state *crtc_state)
 	int num_vdsc_instances = intel_dsc_get_num_vdsc_instances(crtc_state);
 	u32 pps_temp;
 
-	/* PPS_0 */
+	/* PPS 0 */
 	pps_temp = intel_dsc_pps_read_and_verify(crtc_state, 0);
 
 	vdsc_cfg->bits_per_component = (pps_temp & DSC_BPC_MASK) >> DSC_BPC_SHIFT;
@@ -867,7 +867,7 @@ static void intel_dsc_get_pps_config(struct intel_crtc_state *crtc_state)
 	vdsc_cfg->native_420 = pps_temp & DSC_NATIVE_420_ENABLE;
 	vdsc_cfg->vbr_enable = pps_temp & DSC_VBR_ENABLE;
 
-	/* PPS_1 */
+	/* PPS 1 */
 	pps_temp = intel_dsc_pps_read_and_verify(crtc_state, 1);
 
 	vdsc_cfg->bits_per_pixel = pps_temp;
@@ -877,31 +877,31 @@ static void intel_dsc_get_pps_config(struct intel_crtc_state *crtc_state)
 
 	crtc_state->dsc.compressed_bpp = vdsc_cfg->bits_per_pixel >> 4;
 
-	/* PPS_2 */
+	/* PPS 2 */
 	pps_temp = intel_dsc_pps_read_and_verify(crtc_state, 2);
 
 	vdsc_cfg->pic_width = REG_FIELD_GET(DSC_PIC_WIDTH_MASK, pps_temp) / num_vdsc_instances;
 	vdsc_cfg->pic_height = REG_FIELD_GET(DSC_PIC_HEIGHT_MASK, pps_temp);
 
-	/* PPS_3 */
+	/* PPS 3 */
 	pps_temp = intel_dsc_pps_read_and_verify(crtc_state, 3);
 
 	vdsc_cfg->slice_width = REG_FIELD_GET(DSC_SLICE_WIDTH_MASK, pps_temp);
 	vdsc_cfg->slice_height = REG_FIELD_GET(DSC_SLICE_HEIGHT_MASK, pps_temp);
 
-	/* PPS_4 */
+	/* PPS 4 */
 	pps_temp = intel_dsc_pps_read_and_verify(crtc_state, 4);
 
 	vdsc_cfg->initial_dec_delay = REG_FIELD_GET(DSC_INITIAL_DEC_DELAY_MASK, pps_temp);
 	vdsc_cfg->initial_xmit_delay = REG_FIELD_GET(DSC_INITIAL_XMIT_DELAY_MASK, pps_temp);
 
-	/* PPS_5 */
+	/* PPS 5 */
 	pps_temp = intel_dsc_pps_read_and_verify(crtc_state, 5);
 
 	vdsc_cfg->scale_decrement_interval = REG_FIELD_GET(DSC_SCALE_DEC_INT_MASK, pps_temp);
 	vdsc_cfg->scale_increment_interval = REG_FIELD_GET(DSC_SCALE_INC_INT_MASK, pps_temp);
 
-	/* PPS_6 */
+	/* PPS 6 */
 	pps_temp = intel_dsc_pps_read_and_verify(crtc_state, 6);
 
 	vdsc_cfg->initial_scale_value = REG_FIELD_GET(DSC_INITIAL_SCALE_VALUE_MASK, pps_temp);
@@ -909,41 +909,41 @@ static void intel_dsc_get_pps_config(struct intel_crtc_state *crtc_state)
 	vdsc_cfg->flatness_min_qp = REG_FIELD_GET(DSC_FLATNESS_MIN_QP_MASK, pps_temp);
 	vdsc_cfg->flatness_max_qp = REG_FIELD_GET(DSC_FLATNESS_MAX_QP_MASK, pps_temp);
 
-	/* PPS_7 */
+	/* PPS 7 */
 	pps_temp = intel_dsc_pps_read_and_verify(crtc_state, 7);
 
 	vdsc_cfg->nfl_bpg_offset = REG_FIELD_GET(DSC_NFL_BPG_OFFSET_MASK, pps_temp);
 	vdsc_cfg->slice_bpg_offset = REG_FIELD_GET(DSC_SLICE_BPG_OFFSET_MASK, pps_temp);
 
-	/* PPS_8 */
+	/* PPS 8 */
 	pps_temp = intel_dsc_pps_read_and_verify(crtc_state, 8);
 
 	vdsc_cfg->initial_offset = REG_FIELD_GET(DSC_INITIAL_OFFSET_MASK, pps_temp);
 	vdsc_cfg->final_offset = REG_FIELD_GET(DSC_FINAL_OFFSET_MASK, pps_temp);
 
-	/* PPS_9 */
+	/* PPS 9 */
 	pps_temp = intel_dsc_pps_read_and_verify(crtc_state, 9);
 
 	vdsc_cfg->rc_model_size = REG_FIELD_GET(DSC_RC_MODEL_SIZE_MASK, pps_temp);
 
-	/* PPS_10 */
+	/* PPS 10 */
 	pps_temp = intel_dsc_pps_read_and_verify(crtc_state, 10);
 
 	vdsc_cfg->rc_quant_incr_limit0 = REG_FIELD_GET(DSC_RC_QUANT_INC_LIMIT0_MASK, pps_temp);
 	vdsc_cfg->rc_quant_incr_limit1 = REG_FIELD_GET(DSC_RC_QUANT_INC_LIMIT1_MASK, pps_temp);
 
-	/* PPS_16 */
+	/* PPS 16 */
 	pps_temp = intel_dsc_pps_read_and_verify(crtc_state, 16);
 
 	vdsc_cfg->slice_chunk_size = REG_FIELD_GET(DSC_SLICE_CHUNK_SIZE_MASK, pps_temp);
 
 	if (DISPLAY_VER(i915) >= 14) {
-		/* PPS_17 */
+		/* PPS 17 */
 		pps_temp = intel_dsc_pps_read_and_verify(crtc_state, 17);
 
 		vdsc_cfg->second_line_bpg_offset = REG_FIELD_GET(DSC_SL_BPG_OFFSET_MASK, pps_temp);
 
-		/* PPS_18 */
+		/* PPS 18 */
 		pps_temp = intel_dsc_pps_read_and_verify(crtc_state, 18);
 
 		vdsc_cfg->nsl_bpg_offset = REG_FIELD_GET(DSC_NSL_BPG_OFFSET_MASK, pps_temp);

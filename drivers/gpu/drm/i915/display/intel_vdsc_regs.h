@@ -72,7 +72,7 @@
 #define  ICL_DSC0_PPS(pipe, pps)		_MMIO(_ICL_DSC0_PPS_0(pipe) + ((pps) * 4))
 #define  ICL_DSC1_PPS(pipe, pps)		_MMIO(_ICL_DSC1_PPS_0(pipe) + ((pps) * 4))
 
-/* PPS0 */
+/* PPS 0 */
 #define  DSC_NATIVE_422_ENABLE		BIT(23)
 #define  DSC_NATIVE_420_ENABLE		BIT(22)
 #define  DSC_ALT_ICH_SEL		(1 << 20)
@@ -87,22 +87,22 @@
 #define  DSC_VER_MIN_SHIFT		4
 #define  DSC_VER_MAJ			(0x1 << 0)
 
-/* PPS1 */
+/* PPS 1 */
 #define  DSC_BPP(bpp)				((bpp) << 0)
 
-/* PPS2 */
+/* PPS 2 */
 #define  DSC_PIC_WIDTH_MASK		REG_GENMASK(31, 16)
 #define  DSC_PIC_HEIGHT_MASK		REG_GENMASK(15, 0)
 #define  DSC_PIC_WIDTH(pic_width)	REG_FIELD_PREP(DSC_PIC_WIDTH_MASK, pic_width)
 #define  DSC_PIC_HEIGHT(pic_height)	REG_FIELD_PREP(DSC_PIC_HEIGHT_MASK, pic_height)
 
-/* PPS3 */
+/* PPS 3 */
 #define  DSC_SLICE_WIDTH_MASK			REG_GENMASK(31, 16)
 #define  DSC_SLICE_HEIGHT_MASK			REG_GENMASK(15, 0)
 #define  DSC_SLICE_WIDTH(slice_width)		REG_FIELD_PREP(DSC_SLICE_WIDTH_MASK, slice_width)
 #define  DSC_SLICE_HEIGHT(slice_height)		REG_FIELD_PREP(DSC_SLICE_HEIGHT_MASK, slice_height)
 
-/* PPS4 */
+/* PPS 4 */
 #define  DSC_INITIAL_DEC_DELAY_MASK		REG_GENMASK(31, 16)
 #define  DSC_INITIAL_XMIT_DELAY_MASK		REG_GENMASK(9, 0)
 #define  DSC_INITIAL_DEC_DELAY(dec_delay)       REG_FIELD_PREP(DSC_INITIAL_DEC_DELAY_MASK, \
@@ -110,13 +110,13 @@
 #define  DSC_INITIAL_XMIT_DELAY(xmit_delay)     REG_FIELD_PREP(DSC_INITIAL_XMIT_DELAY_MASK, \
 							       xmit_delay)
 
-/* PPS5 */
+/* PPS 5 */
 #define  DSC_SCALE_DEC_INT_MASK			REG_GENMASK(27, 16)
 #define  DSC_SCALE_INC_INT_MASK			REG_GENMASK(15, 0)
 #define  DSC_SCALE_DEC_INT(scale_dec)		REG_FIELD_PREP(DSC_SCALE_DEC_INT_MASK, scale_dec)
 #define  DSC_SCALE_INC_INT(scale_inc)		REG_FIELD_PREP(DSC_SCALE_INC_INT_MASK, scale_inc)
 
-/* PPS6 */
+/* PPS 6 */
 #define  DSC_FLATNESS_MAX_QP_MASK		REG_GENMASK(28, 24)
 #define  DSC_FLATNESS_MIN_QP_MASK		REG_GENMASK(20, 16)
 #define  DSC_FIRST_LINE_BPG_OFFSET_MASK		REG_GENMASK(12, 8)
@@ -128,13 +128,13 @@
 #define  DSC_INITIAL_SCALE_VALUE(value)		REG_FIELD_PREP(DSC_INITIAL_SCALE_VALUE_MASK, \
 							       value)
 
-/* PPS7 */
+/* PPS 7 */
 #define  DSC_NFL_BPG_OFFSET_MASK		REG_GENMASK(31, 16)
 #define  DSC_SLICE_BPG_OFFSET_MASK		REG_GENMASK(15, 0)
 #define  DSC_NFL_BPG_OFFSET(bpg_offset)		REG_FIELD_PREP(DSC_NFL_BPG_OFFSET_MASK, bpg_offset)
 #define  DSC_SLICE_BPG_OFFSET(bpg_offset)	REG_FIELD_PREP(DSC_SLICE_BPG_OFFSET_MASK, \
 							       bpg_offset)
-/* PPS8 */
+/* PPS 8 */
 #define  DSC_INITIAL_OFFSET_MASK		REG_GENMASK(31, 16)
 #define  DSC_FINAL_OFFSET_MASK			REG_GENMASK(15, 0)
 #define  DSC_INITIAL_OFFSET(initial_offset)	REG_FIELD_PREP(DSC_INITIAL_OFFSET_MASK, \
@@ -142,7 +142,7 @@
 #define  DSC_FINAL_OFFSET(final_offset)		REG_FIELD_PREP(DSC_FINAL_OFFSET_MASK, \
 							       final_offset)
 
-/* PPS9 */
+/* PPS 9 */
 #define  DSC_RC_EDGE_FACTOR_MASK		REG_GENMASK(19, 16)
 #define  DSC_RC_MODEL_SIZE_MASK			REG_GENMASK(15, 0)
 #define  DSC_RC_EDGE_FACTOR(rc_edge_fact)	REG_FIELD_PREP(DSC_RC_EDGE_FACTOR_MASK, \
@@ -150,7 +150,7 @@
 #define  DSC_RC_MODEL_SIZE(rc_model_size)	REG_FIELD_PREP(DSC_RC_MODEL_SIZE_MASK, \
 							       rc_model_size)
 
-/* PPS10 */
+/* PPS 10 */
 #define  DSC_RC_TGT_OFF_LOW_MASK			REG_GENMASK(23, 20)
 #define  DSC_RC_TGT_OFF_HIGH_MASK			REG_GENMASK(19, 16)
 #define  DSC_RC_QUANT_INC_LIMIT1_MASK			REG_GENMASK(12, 8)
@@ -162,7 +162,7 @@
 #define  DSC_RC_QUANT_INC_LIMIT1(lim)		REG_FIELD_PREP(DSC_RC_QUANT_INC_LIMIT1_MASK, lim)
 #define  DSC_RC_QUANT_INC_LIMIT0(lim)		REG_FIELD_PREP(DSC_RC_QUANT_INC_LIMIT0_MASK, lim)
 
-/* PPS16 */
+/* PPS 16 */
 #define  DSC_SLICE_ROW_PR_FRME_MASK			REG_GENMASK(31, 20)
 #define  DSC_SLICE_PER_LINE_MASK			REG_GENMASK(18, 16)
 #define  DSC_SLICE_CHUNK_SIZE_MASK			REG_GENMASK(15, 0)
@@ -173,12 +173,11 @@
 #define  DSC_SLICE_CHUNK_SIZE(slice_chunk_size)		REG_FIELD_PREP(DSC_SLICE_CHUNK_SIZE_MASK, \
 								       slice_chunk_size)
 
-/* MTL Display Stream Compression registers */
-/* PPS17 */
+/* PPS 17 (MTL+) */
 #define DSC_SL_BPG_OFFSET_MASK			REG_GENMASK(31, 27)
 #define DSC_SL_BPG_OFFSET(offset)		REG_FIELD_PREP(DSC_SL_BPG_OFFSET_MASK, offset)
 
-/* PPS18 */
+/* PPS 18 (MTL+) */
 #define DSC_NSL_BPG_OFFSET_MASK			REG_GENMASK(31, 16)
 #define DSC_SL_OFFSET_ADJ_MASK			REG_GENMASK(15, 0)
 #define DSC_NSL_BPG_OFFSET(offset)		REG_FIELD_PREP(DSC_NSL_BPG_OFFSET_MASK, offset)
