@@ -14,6 +14,7 @@
  */
 
 #include <linux/platform_device.h>
+#include <linux/sched/clock.h>
 
 #include "v3d_drv.h"
 #include "v3d_regs.h"
@@ -101,6 +102,11 @@ v3d_irq(int irq, void *arg)
 	if (intsts & V3D_INT_FLDONE) {
 		struct v3d_fence *fence =
 			to_v3d_fence(v3d->bin_job->base.irq_fence);
+		struct v3d_file_priv *file = v3d->bin_job->base.file->driver_priv;
+
+		file->enabled_ns[V3D_BIN] += local_clock() - file->start_ns[V3D_BIN];
+		file->jobs_sent[V3D_BIN]++;
+		file->start_ns[V3D_BIN] = 0;
 
 		trace_v3d_bcl_irq(&v3d->drm, fence->seqno);
 		dma_fence_signal(&fence->base);
@@ -110,6 +116,11 @@ v3d_irq(int irq, void *arg)
 	if (intsts & V3D_INT_FRDONE) {
 		struct v3d_fence *fence =
 			to_v3d_fence(v3d->render_job->base.irq_fence);
+		struct v3d_file_priv *file = v3d->render_job->base.file->driver_priv;
+
+		file->enabled_ns[V3D_RENDER] += local_clock() - file->start_ns[V3D_RENDER];
+		file->jobs_sent[V3D_RENDER]++;
+		file->start_ns[V3D_RENDER] = 0;
 
 		trace_v3d_rcl_irq(&v3d->drm, fence->seqno);
 		dma_fence_signal(&fence->base);
@@ -119,6 +130,11 @@ v3d_irq(int irq, void *arg)
 	if (intsts & V3D_INT_CSDDONE(v3d->ver)) {
 		struct v3d_fence *fence =
 			to_v3d_fence(v3d->csd_job->base.irq_fence);
+		struct v3d_file_priv *file = v3d->csd_job->base.file->driver_priv;
+
+		file->enabled_ns[V3D_CSD] += local_clock() - file->start_ns[V3D_CSD];
+		file->jobs_sent[V3D_CSD]++;
+		file->start_ns[V3D_CSD] = 0;
 
 		trace_v3d_csd_irq(&v3d->drm, fence->seqno);
 		dma_fence_signal(&fence->base);
@@ -155,6 +171,11 @@ v3d_hub_irq(int irq, void *arg)
 	if (intsts & V3D_HUB_INT_TFUC) {
 		struct v3d_fence *fence =
 			to_v3d_fence(v3d->tfu_job->base.irq_fence);
+		struct v3d_file_priv *file = v3d->tfu_job->base.file->driver_priv;
+
+		file->enabled_ns[V3D_TFU] += local_clock() - file->start_ns[V3D_TFU];
+		file->jobs_sent[V3D_TFU]++;
+		file->start_ns[V3D_TFU] = 0;
 
 		trace_v3d_tfu_irq(&v3d->drm, fence->seqno);
 		dma_fence_signal(&fence->base);

@@ -21,6 +21,18 @@ struct reset_control;
 
 #define V3D_MAX_QUEUES (V3D_CACHE_CLEAN + 1)
 
+static inline char *v3d_queue_to_string(enum v3d_queue queue)
+{
+	switch (queue) {
+	case V3D_BIN: return "bin";
+	case V3D_RENDER: return "render";
+	case V3D_TFU: return "tfu";
+	case V3D_CSD: return "csd";
+	case V3D_CACHE_CLEAN: return "cache_clean";
+	}
+	return "UNKNOWN";
+}
+
 struct v3d_queue_state {
 	struct drm_gpu_scheduler sched;
 
@@ -167,6 +179,12 @@ struct v3d_file_priv {
 	} perfmon;
 
 	struct drm_sched_entity sched_entity[V3D_MAX_QUEUES];
+
+	u64 start_ns[V3D_MAX_QUEUES];
+
+	u64 enabled_ns[V3D_MAX_QUEUES];
+
+	u64 jobs_sent[V3D_MAX_QUEUES];
 };
 
 struct v3d_bo {
@@ -237,6 +255,11 @@ struct v3d_job {
 	 * NULL otherwise.
 	 */
 	struct v3d_perfmon *perfmon;
+
+	/* File descriptor of the process that submitted the job that could be used
+	 * for collecting stats by process of GPU usage.
+	 */
+	struct drm_file *file;
 
 	/* Callback for the freeing of the job on refcount going to 0. */
 	void (*free)(struct kref *ref);
