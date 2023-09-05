@@ -221,9 +221,37 @@ struct team {
 		atomic_t count_pending;
 		struct delayed_work dw;
 	} mcast_rejoin;
-	struct lock_class_key team_lock_key;
 	long mode_priv[TEAM_MODE_PRIV_LONGS];
 };
+
+static inline void __team_lock(struct team *team)
+{
+	mutex_lock(&team->lock);
+}
+
+static inline int team_trylock(struct team *team)
+{
+	return mutex_trylock(&team->lock);
+}
+
+#ifdef CONFIG_LOCKDEP
+static inline void team_lock(struct team *team)
+{
+	ASSERT_RTNL();
+	mutex_lock_nested(&team->lock, team->dev->nested_level);
+}
+
+#else
+static inline void team_lock(struct team *team)
+{
+	__team_lock(team);
+}
+#endif
+
+static inline void team_unlock(struct team *team)
+{
+	mutex_unlock(&team->lock);
+}
 
 static inline int team_dev_queue_xmit(struct team *team, struct team_port *port,
 				      struct sk_buff *skb)
