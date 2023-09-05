@@ -25,7 +25,9 @@
 #include <linux/pm_runtime.h>
 #include <linux/badblocks.h>
 #include <linux/part_stat.h>
+#ifndef __GENKSYMS__
 #include <linux/blktrace_api.h>
+#endif
 
 #include "blk-throttle.h"
 #include "blk.h"
