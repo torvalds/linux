@@ -839,6 +839,23 @@ PE_TERM
 
 	$$ = term;
 }
+|
+PE_DRV_CFG_TERM
+{
+	struct parse_events_term *term;
+	char *config = strdup($1);
+	int err;
+
+	if (!config)
+		YYNOMEM;
+	err = parse_events_term__str(&term, PARSE_EVENTS__TERM_TYPE_DRV_CFG, config, $1, &@1, NULL);
+	if (err) {
+		free($1);
+		free(config);
+		PE_ABORT(err);
+	}
+	$$ = term;
+}
 
 sep_dc: ':' |
 
