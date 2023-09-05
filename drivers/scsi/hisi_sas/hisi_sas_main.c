@@ -787,7 +787,7 @@ static int hisi_sas_init_device(struct domain_device *device)
 		 * However we don't need to issue a hard reset here for these
 		 * reasons:
 		 * a. When probing the device, libsas/libata already issues a
-		 * hard reset in sas_probe_sata() -> ata_sas_async_probe().
+		 * hard reset in sas_probe_sata() -> ata_port_probe().
 		 * Note that in hisi_sas_debug_I_T_nexus_reset() we take care
 		 * to issue a hard reset by checking the dev status (== INIT).
 		 * b. When resetting the controller, this is simply unnecessary.

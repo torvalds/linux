@@ -135,11 +135,11 @@ static ssize_t ata_scsi_park_store(struct device *device,
 	struct scsi_device *sdev = to_scsi_device(device);
 	struct ata_port *ap;
 	struct ata_device *dev;
-	long int input;
+	int input;
 	unsigned long flags;
 	int rc;
 
-	rc = kstrtol(buf, 10, &input);
+	rc = kstrtoint(buf, 10, &input);
 	if (rc)
 		return rc;
 	if (input < -2)
@@ -710,47 +710,6 @@ static void ata_qc_set_pc_nbytes(struct ata_queued_cmd *qc)
 }
 
 /**
- *	ata_dump_status - user friendly display of error info
- *	@ap: the port in question
- *	@tf: ptr to filled out taskfile
- *
- *	Decode and dump the ATA error/status registers for the user so
- *	that they have some idea what really happened at the non
- *	make-believe layer.
- *
- *	LOCKING:
- *	inherited from caller
- */
-static void ata_dump_status(struct ata_port *ap, struct ata_taskfile *tf)
-{
-	u8 stat = tf->status, err = tf->error;
-
-	if (stat & ATA_BUSY) {
-		ata_port_warn(ap, "status=0x%02x {Busy} ", stat);
-	} else {
-		ata_port_warn(ap, "status=0x%02x { %s%s%s%s%s%s%s} ", stat,
-			      stat & ATA_DRDY ? "DriveReady " : "",
-			      stat & ATA_DF ? "DeviceFault " : "",
-			      stat & ATA_DSC ? "SeekComplete " : "",
-			      stat & ATA_DRQ ? "DataRequest " : "",
-			      stat & ATA_CORR ? "CorrectedError " : "",
-			      stat & ATA_SENSE ? "Sense " : "",
-			      stat & ATA_ERR ? "Error " : "");
-		if (err)
-			ata_port_warn(ap, "error=0x%02x {%s%s%s%s%s%s", err,
-				      err & ATA_ABORTED ?
-				      "DriveStatusError " : "",
-				      err & ATA_ICRC ?
-				      (err & ATA_ABORTED ?
-				       "BadCRC " : "Sector ") : "",
-				      err & ATA_UNC ? "UncorrectableError " : "",
-				      err & ATA_IDNF ? "SectorIdNotFound " : "",
-				      err & ATA_TRK0NF ? "TrackZeroNotFound " : "",
-				      err & ATA_AMNF ? "AddrMarkNotFound " : "");
-	}
-}
-
-/**
  *	ata_to_sense_error - convert ATA error to SCSI error
  *	@id: ATA device number
  *	@drv_stat: value contained in ATA status register
@@ -758,7 +717,6 @@ static void ata_dump_status(struct ata_port *ap, struct ata_taskfile *tf)
  *	@sk: the sense key we'll fill out
  *	@asc: the additional sense code we'll fill out
  *	@ascq: the additional sense code qualifier we'll fill out
- *	@verbose: be verbose
  *
  *	Converts an ATA error into a SCSI error.  Fill out pointers to
  *	SK, ASC, and ASCQ bytes for later use in fixed or descriptor
@@ -768,7 +726,7 @@ static void ata_dump_status(struct ata_port *ap, struct ata_taskfile *tf)
  *	spin_lock_irqsave(host lock)
  */
 static void ata_to_sense_error(unsigned id, u8 drv_stat, u8 drv_err, u8 *sk,
-			       u8 *asc, u8 *ascq, int verbose)
+			       u8 *asc, u8 *ascq)
 {
 	int i;
 
@@ -847,7 +805,7 @@ static void ata_to_sense_error(unsigned id, u8 drv_stat, u8 drv_err, u8 *sk,
 				*sk = sense_table[i][1];
 				*asc = sense_table[i][2];
 				*ascq = sense_table[i][3];
-				goto translate_done;
+				return;
 			}
 		}
 	}
@@ -862,7 +820,7 @@ static void ata_to_sense_error(unsigned id, u8 drv_stat, u8 drv_err, u8 *sk,
 			*sk = stat_table[i][1];
 			*asc = stat_table[i][2];
 			*ascq = stat_table[i][3];
-			goto translate_done;
+			return;
 		}
 	}
 
@@ -873,12 +831,6 @@ static void ata_to_sense_error(unsigned id, u8 drv_stat, u8 drv_err, u8 *sk,
 	*sk = ABORTED_COMMAND;
 	*asc = 0x00;
 	*ascq = 0x00;
-
- translate_done:
-	if (verbose)
-		pr_err("ata%u: translated ATA stat/err 0x%02x/%02x to SCSI SK/ASC/ASCQ 0x%x/%02x/%02x\n",
-		       id, drv_stat, drv_err, *sk, *asc, *ascq);
-	return;
 }
 
 /*
@@ -904,7 +856,6 @@ static void ata_gen_passthru_sense(struct ata_queued_cmd *qc)
 	struct ata_taskfile *tf = &qc->result_tf;
 	unsigned char *sb = cmd->sense_buffer;
 	unsigned char *desc = sb + 8;
-	int verbose = qc->ap->ops->error_handler == NULL;
 	u8 sense_key, asc, ascq;
 
 	memset(sb, 0, SCSI_SENSE_BUFFERSIZE);
@@ -916,7 +867,7 @@ static void ata_gen_passthru_sense(struct ata_queued_cmd *qc)
 	if (qc->err_mask ||
 	    tf->status & (ATA_BUSY | ATA_DF | ATA_ERR | ATA_DRQ)) {
 		ata_to_sense_error(qc->ap->print_id, tf->status, tf->error,
-				   &sense_key, &asc, &ascq, verbose);
+				   &sense_key, &asc, &ascq);
 		ata_scsi_set_sense(qc->dev, cmd, sense_key, asc, ascq);
 	} else {
 		/*
@@ -999,7 +950,6 @@ static void ata_gen_ata_sense(struct ata_queued_cmd *qc)
 	struct scsi_cmnd *cmd = qc->scsicmd;
 	struct ata_taskfile *tf = &qc->result_tf;
 	unsigned char *sb = cmd->sense_buffer;
-	int verbose = qc->ap->ops->error_handler == NULL;
 	u64 block;
 	u8 sense_key, asc, ascq;
 
@@ -1017,7 +967,7 @@ static void ata_gen_ata_sense(struct ata_queued_cmd *qc)
 	if (qc->err_mask ||
 	    tf->status & (ATA_BUSY | ATA_DF | ATA_ERR | ATA_DRQ)) {
 		ata_to_sense_error(qc->ap->print_id, tf->status, tf->error,
-				   &sense_key, &asc, &ascq, verbose);
+				   &sense_key, &asc, &ascq);
 		ata_scsi_set_sense(dev, cmd, sense_key, asc, ascq);
 	} else {
 		/* Could not decode error */
@@ -1185,9 +1135,6 @@ void ata_scsi_slave_destroy(struct scsi_device *sdev)
 	struct ata_port *ap = ata_shost_to_port(sdev->host);
 	unsigned long flags;
 	struct ata_device *dev;
-
-	if (!ap->ops->error_handler)
-		return;
 
 	spin_lock_irqsave(ap->lock, flags);
 	dev = __ata_scsi_find_dev(ap, sdev);
@@ -1675,7 +1622,6 @@ static void ata_qc_done(struct ata_queued_cmd *qc)
 
 static void ata_scsi_qc_complete(struct ata_queued_cmd *qc)
 {
-	struct ata_port *ap = qc->ap;
 	struct scsi_cmnd *cmd = qc->scsicmd;
 	u8 *cdb = cmd->cmnd;
 	int need_sense = (qc->err_mask != 0) &&
@@ -1698,9 +1644,6 @@ static void ata_scsi_qc_complete(struct ata_queued_cmd *qc)
 	else
 		/* Keep the SCSI ML and status byte, clear host byte. */
 		cmd->result &= 0x0000ffff;
-
-	if (need_sense && !ap->ops->error_handler)
-		ata_dump_status(ap, &qc->result_tf);
 
 	ata_qc_done(qc);
 }
@@ -2608,71 +2551,6 @@ static unsigned int ata_scsiop_report_luns(struct ata_scsi_args *args, u8 *rbuf)
 	return 0;
 }
 
-static void atapi_sense_complete(struct ata_queued_cmd *qc)
-{
-	if (qc->err_mask && ((qc->err_mask & AC_ERR_DEV) == 0)) {
-		/* FIXME: not quite right; we don't want the
-		 * translation of taskfile registers into
-		 * a sense descriptors, since that's only
-		 * correct for ATA, not ATAPI
-		 */
-		ata_gen_passthru_sense(qc);
-	}
-
-	ata_qc_done(qc);
-}
-
-/* is it pointless to prefer PIO for "safety reasons"? */
-static inline int ata_pio_use_silly(struct ata_port *ap)
-{
-	return (ap->flags & ATA_FLAG_PIO_DMA);
-}
-
-static void atapi_request_sense(struct ata_queued_cmd *qc)
-{
-	struct ata_port *ap = qc->ap;
-	struct scsi_cmnd *cmd = qc->scsicmd;
-
-	memset(cmd->sense_buffer, 0, SCSI_SENSE_BUFFERSIZE);
-
-#ifdef CONFIG_ATA_SFF
-	if (ap->ops->sff_tf_read)
-		ap->ops->sff_tf_read(ap, &qc->tf);
-#endif
-
-	/* fill these in, for the case where they are -not- overwritten */
-	cmd->sense_buffer[0] = 0x70;
-	cmd->sense_buffer[2] = qc->tf.error >> 4;
-
-	ata_qc_reinit(qc);
-
-	/* setup sg table and init transfer direction */
-	sg_init_one(&qc->sgent, cmd->sense_buffer, SCSI_SENSE_BUFFERSIZE);
-	ata_sg_init(qc, &qc->sgent, 1);
-	qc->dma_dir = DMA_FROM_DEVICE;
-
-	memset(&qc->cdb, 0, qc->dev->cdb_len);
-	qc->cdb[0] = REQUEST_SENSE;
-	qc->cdb[4] = SCSI_SENSE_BUFFERSIZE;
-
-	qc->tf.flags |= ATA_TFLAG_ISADDR | ATA_TFLAG_DEVICE;
-	qc->tf.command = ATA_CMD_PACKET;
-
-	if (ata_pio_use_silly(ap)) {
-		qc->tf.protocol = ATAPI_PROT_DMA;
-		qc->tf.feature |= ATAPI_PKT_DMA;
-	} else {
-		qc->tf.protocol = ATAPI_PROT_PIO;
-		qc->tf.lbam = SCSI_SENSE_BUFFERSIZE;
-		qc->tf.lbah = 0;
-	}
-	qc->nbytes = SCSI_SENSE_BUFFERSIZE;
-
-	qc->complete_fn = atapi_sense_complete;
-
-	ata_qc_issue(qc);
-}
-
 /*
  * ATAPI devices typically report zero for their SCSI version, and sometimes
  * deviate from the spec WRT response data format.  If SCSI version is
@@ -2698,9 +2576,8 @@ static void atapi_qc_complete(struct ata_queued_cmd *qc)
 	struct scsi_cmnd *cmd = qc->scsicmd;
 	unsigned int err_mask = qc->err_mask;
 
-	/* handle completion from new EH */
-	if (unlikely(qc->ap->ops->error_handler &&
-		     (err_mask || qc->flags & ATA_QCFLAG_SENSE_VALID))) {
+	/* handle completion from EH */
+	if (unlikely(err_mask || qc->flags & ATA_QCFLAG_SENSE_VALID)) {
 
 		if (!(qc->flags & ATA_QCFLAG_SENSE_VALID)) {
 			/* FIXME: not quite right; we don't want the
@@ -2732,23 +2609,10 @@ static void atapi_qc_complete(struct ata_queued_cmd *qc)
 		return;
 	}
 
-	/* successful completion or old EH failure path */
-	if (unlikely(err_mask & AC_ERR_DEV)) {
-		cmd->result = SAM_STAT_CHECK_CONDITION;
-		atapi_request_sense(qc);
-		return;
-	} else if (unlikely(err_mask)) {
-		/* FIXME: not quite right; we don't want the
-		 * translation of taskfile registers into
-		 * a sense descriptors, since that's only
-		 * correct for ATA, not ATAPI
-		 */
-		ata_gen_passthru_sense(qc);
-	} else {
-		if (cmd->cmnd[0] == INQUIRY && (cmd->cmnd[1] & 0x03) == 0)
-			atapi_fixup_inquiry(cmd);
-		cmd->result = SAM_STAT_GOOD;
-	}
+	/* successful completion path */
+	if (cmd->cmnd[0] == INQUIRY && (cmd->cmnd[1] & 0x03) == 0)
+		atapi_fixup_inquiry(cmd);
+	cmd->result = SAM_STAT_GOOD;
 
 	ata_qc_done(qc);
 }
@@ -4796,9 +4660,6 @@ int ata_scsi_user_scan(struct Scsi_Host *shost, unsigned int channel,
 	struct ata_port *ap = ata_shost_to_port(shost);
 	unsigned long flags;
 	int devno, rc = 0;
-
-	if (!ap->ops->error_handler)
-		return -EOPNOTSUPP;
 
 	if (lun != SCAN_WILD_CARD && lun)
 		return -EINVAL;
