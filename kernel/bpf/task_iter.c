@@ -37,7 +37,7 @@ static struct task_struct *task_group_seq_get_next(struct bpf_iter_seq_task_comm
 {
 	struct task_struct *task;
 	struct pid *pid;
-	u32 saved_tid;
+	u32 next_tid;
 
 	if (!*tid) {
 		/* The first time, the iterator calls this function. */
@@ -70,21 +70,18 @@ static struct task_struct *task_group_seq_get_next(struct bpf_iter_seq_task_comm
 retry:
 	task = next_thread(task);
 
-	saved_tid = *tid;
-	*tid = __task_pid_nr_ns(task, PIDTYPE_PID, common->ns);
-	if (!*tid || *tid == common->pid) {
+	next_tid = __task_pid_nr_ns(task, PIDTYPE_PID, common->ns);
+	if (!next_tid || next_tid == common->pid) {
 		/* Run out of tasks of a process.  The tasks of a
 		 * thread_group are linked as circular linked list.
 		 */
-		*tid = saved_tid;
 		return NULL;
 	}
-
-	common->pid_visiting = *tid;
 
 	if (skip_if_dup_files && task->files == task->group_leader->files)
 		goto retry;
 
+	*tid = common->pid_visiting = next_tid;
 	get_task_struct(task);
 	return task;
 }
