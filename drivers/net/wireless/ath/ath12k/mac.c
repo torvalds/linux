@@ -6039,13 +6039,28 @@ ath12k_mac_update_vif_chan(struct ath12k *ar,
 		if (WARN_ON(!arvif->is_started))
 			continue;
 
-		if (WARN_ON(!arvif->is_up))
-			continue;
+		/* Firmware expect vdev_restart only if vdev is up.
+		 * If vdev is down then it expect vdev_stop->vdev_start.
+		 */
+		if (arvif->is_up) {
+			ret = ath12k_mac_vdev_restart(arvif, &vifs[i].new_ctx->def);
+			if (ret) {
+				ath12k_warn(ab, "failed to restart vdev %d: %d\n",
+					    arvif->vdev_id, ret);
+				continue;
+			}
+		} else {
+			ret = ath12k_mac_vdev_stop(arvif);
+			if (ret) {
+				ath12k_warn(ab, "failed to stop vdev %d: %d\n",
+					    arvif->vdev_id, ret);
+				continue;
+			}
 
-		ret = ath12k_mac_vdev_restart(arvif, &vifs[i].new_ctx->def);
-		if (ret) {
-			ath12k_warn(ab, "failed to restart vdev %d: %d\n",
-				    arvif->vdev_id, ret);
+			ret = ath12k_mac_vdev_start(arvif, &vifs[i].new_ctx->def);
+			if (ret)
+				ath12k_warn(ab, "failed to start vdev %d: %d\n",
+					    arvif->vdev_id, ret);
 			continue;
 		}
 
