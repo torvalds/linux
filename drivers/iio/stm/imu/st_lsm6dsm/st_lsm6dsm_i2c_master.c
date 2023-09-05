@@ -222,7 +222,7 @@ static int akm09912_initialization(struct lsm6dsm_sensor_data *sdata);
 
 
 #ifdef CONFIG_ST_LSM6DSM_IIO_EXT0_LPS22HB
-static int lps22hb_initialization(struct lsm6dsm_sensor_data *sdata);
+static int lps22hx_initialization(struct lsm6dsm_sensor_data *sdata);
 
 #define ST_LSM6DSM_EXT0_ADDR			0x5d
 #define ST_LSM6DSM_EXT0_ADDR2			0x5c
@@ -254,8 +254,44 @@ static int lps22hb_initialization(struct lsm6dsm_sensor_data *sdata);
 #define ST_LSM6DSM_EXT0_BDU_ADDR		0x10
 #define ST_LSM6DSM_EXT0_BDU_MASK		0x02
 #define ST_LSM6DSM_EXT0_STD			0
-#define ST_LSM6DSM_EXT0_BOOT_FUNCTION		(&lps22hb_initialization)
+#define ST_LSM6DSM_EXT0_BOOT_FUNCTION		(&lps22hx_initialization)
 #endif /* CONFIG_ST_LSM6DSM_IIO_EXT0_LPS22HB */
+
+#ifdef CONFIG_ST_LSM6DSM_IIO_EXT0_LPS22HH
+static int lps22hx_initialization(struct lsm6dsm_sensor_data *sdata);
+
+#define ST_LSM6DSM_EXT0_ADDR			0x5d
+#define ST_LSM6DSM_EXT0_ADDR2			0x5c
+#define ST_LSM6DSM_EXT0_WAI_ADDR		0x0f
+#define ST_LSM6DSM_EXT0_WAI_VALUE		0xb3
+#define ST_LSM6DSM_EXT0_RESET_ADDR		0x11
+#define ST_LSM6DSM_EXT0_RESET_MASK		0x04
+#define ST_LSM6DSM_EXT0_FULLSCALE_ADDR		0x00
+#define ST_LSM6DSM_EXT0_FULLSCALE_MASK		0x00
+#define ST_LSM6DSM_EXT0_FULLSCALE_VALUE		0x00
+#define ST_LSM6DSM_EXT0_ODR_ADDR		0x10
+#define ST_LSM6DSM_EXT0_ODR_MASK		0x70
+#define ST_LSM6DSM_EXT0_ODR0_HZ			1
+#define ST_LSM6DSM_EXT0_ODR0_VALUE		0x01
+#define ST_LSM6DSM_EXT0_ODR1_HZ			10
+#define ST_LSM6DSM_EXT0_ODR1_VALUE		0x02
+#define ST_LSM6DSM_EXT0_ODR2_HZ			25
+#define ST_LSM6DSM_EXT0_ODR2_VALUE		0x03
+#define ST_LSM6DSM_EXT0_ODR3_HZ			50
+#define ST_LSM6DSM_EXT0_ODR3_VALUE		0x04
+#define ST_LSM6DSM_EXT0_PW_ADDR			ST_LSM6DSM_EXT0_ODR_ADDR
+#define ST_LSM6DSM_EXT0_PW_MASK			ST_LSM6DSM_EXT0_ODR_MASK
+#define ST_LSM6DSM_EXT0_PW_OFF			0x00
+#define ST_LSM6DSM_EXT0_PW_ON			ST_LSM6DSM_EXT0_ODR0_VALUE
+#define ST_LSM6DSM_EXT0_GAIN_VALUE		244
+#define ST_LSM6DSM_EXT0_OUT_P_L_ADDR		0x28
+#define ST_LSM6DSM_EXT0_OUT_T_L_ADDR		0x2b
+#define ST_LSM6DSM_EXT0_READ_DATA_LEN		5
+#define ST_LSM6DSM_EXT0_BDU_ADDR		0x10
+#define ST_LSM6DSM_EXT0_BDU_MASK		0x02
+#define ST_LSM6DSM_EXT0_STD			0
+#define ST_LSM6DSM_EXT0_BOOT_FUNCTION		(&lps22hx_initialization)
+#endif /* CONFIG_ST_LSM6DSM_IIO_EXT0_LPS22HH */
 
 #ifdef CONFIG_ST_LSM6DSM_IIO_EXT0_LIS2MDL
 static int lis2mdl_initialization(struct lsm6dsm_sensor_data *sdata);
@@ -310,7 +346,8 @@ static int lis2mdl_initialization(struct lsm6dsm_sensor_data *sdata);
     defined(CONFIG_ST_LSM6DSM_IIO_EXT0_AKM09912) || \
     defined(CONFIG_ST_LSM6DSM_IIO_EXT0_AKM09916) || \
     defined(CONFIG_ST_LSM6DSM_IIO_EXT0_AKM09911) || \
-    defined(CONFIG_ST_LSM6DSM_IIO_EXT0_LPS22HB)
+    defined(CONFIG_ST_LSM6DSM_IIO_EXT0_LPS22HB) || \
+    defined(CONFIG_ST_LSM6DSM_IIO_EXT0_LPS22HH)
 #define ST_LSM6DSM_EXT0_HAS_FULLSCALE		1
 #endif
 
@@ -338,7 +375,8 @@ struct st_lsm6dsm_i2c_master_odr_table {
 static int st_lsm6dsm_i2c_master_read_raw(struct iio_dev *indio_dev,
 		struct iio_chan_spec const *ch, int *val, int *val2, long mask);
 
-#ifdef CONFIG_ST_LSM6DSM_IIO_EXT0_LPS22HB
+#if defined(CONFIG_ST_LSM6DSM_IIO_EXT0_LPS22HB) || \
+    defined(CONFIG_ST_LSM6DSM_IIO_EXT0_LPS22HH)
 static const struct iio_chan_spec st_lsm6dsm_ext0_ch[] = {
 	ST_LSM6DSM_LSM_CHANNELS(IIO_PRESSURE, 0, 0, IIO_NO_MOD, IIO_LE,
 				24, 24, ST_LSM6DSM_EXT0_OUT_P_L_ADDR, 'u'),
@@ -347,7 +385,7 @@ static const struct iio_chan_spec st_lsm6dsm_ext0_ch[] = {
 	ST_LSM6DSM_FLUSH_CHANNEL(IIO_PRESSURE),
 	IIO_CHAN_SOFT_TIMESTAMP(2)
 };
-#else /* CONFIG_ST_LSM6DSM_IIO_EXT0_LPS22HB */
+#else /* CONFIG_ST_LSM6DSM_IIO_EXT0_LPS22Hx */
 static const struct iio_chan_spec st_lsm6dsm_ext0_ch[] = {
 	ST_LSM6DSM_LSM_CHANNELS(IIO_MAGN, 1, 0, IIO_MOD_X, IIO_LE,
 				16, 16, ST_LSM6DSM_EXT0_OUT_X_L_ADDR, 's'),
@@ -358,7 +396,7 @@ static const struct iio_chan_spec st_lsm6dsm_ext0_ch[] = {
 	ST_LSM6DSM_FLUSH_CHANNEL(IIO_MAGN),
 	IIO_CHAN_SOFT_TIMESTAMP(3)
 };
-#endif /* CONFIG_ST_LSM6DSM_IIO_EXT0_LPS22HB */
+#endif /* CONFIG_ST_LSM6DSM_IIO_EXT0_LPS22Hx */
 
 static int st_lsm6dsm_i2c_master_set_odr(struct lsm6dsm_sensor_data *sdata,
 						unsigned int odr, bool force);
@@ -806,8 +844,9 @@ static int akm09912_initialization(struct lsm6dsm_sensor_data *sdata)
 }
 #endif /* CONFIG_ST_LSM6DSM_IIO_EXT0_AKM09912 */
 
-#ifdef CONFIG_ST_LSM6DSM_IIO_EXT0_LPS22HB
-static int lps22hb_initialization(struct lsm6dsm_sensor_data *sdata)
+#if defined(CONFIG_ST_LSM6DSM_IIO_EXT0_LPS22HB) || \
+    defined(CONFIG_ST_LSM6DSM_IIO_EXT0_LPS22HH)
+static int lps22hx_initialization(struct lsm6dsm_sensor_data *sdata)
 {
 
 	return st_lsm6dsm_i2c_master_write_data_with_mask(
@@ -815,7 +854,7 @@ static int lps22hb_initialization(struct lsm6dsm_sensor_data *sdata)
 				ST_LSM6DSM_EXT0_BDU_ADDR,
 				ST_LSM6DSM_EXT0_BDU_MASK, ST_LSM6DSM_EN_BIT);
 }
-#endif /* CONFIG_ST_LSM6DSM_IIO_EXT0_LPS22HB */
+#endif /* CONFIG_ST_LSM6DSM_IIO_EXT0_LPS22Hx */
 
 #ifdef CONFIG_ST_LSM6DSM_IIO_EXT0_LIS2MDL
 static int lis2mdl_initialization(struct lsm6dsm_sensor_data *sdata)
