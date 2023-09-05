@@ -381,7 +381,7 @@ static int vmemmap_remap_free(unsigned long start, unsigned long end,
 static int alloc_vmemmap_page_list(unsigned long start, unsigned long end,
 				   struct list_head *list)
 {
-	gfp_t gfp_mask = GFP_KERNEL | __GFP_RETRY_MAYFAIL | __GFP_THISNODE;
+	gfp_t gfp_mask = GFP_KERNEL | __GFP_RETRY_MAYFAIL;
 	unsigned long nr_pages = (end - start) >> PAGE_SHIFT;
 	int nid = page_to_nid((struct page *)start);
 	struct page *page, *next;
