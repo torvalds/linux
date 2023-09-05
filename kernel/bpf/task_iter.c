@@ -82,7 +82,7 @@ retry:
 
 	common->pid_visiting = *tid;
 
-	if (skip_if_dup_files && task->files == task->group_leader->files) {
+	if (skip_if_dup_files && next_task->files == next_task->group_leader->files) {
 		task = next_task;
 		goto retry;
 	}
