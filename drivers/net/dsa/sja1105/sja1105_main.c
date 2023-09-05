@@ -2122,11 +2122,21 @@ static void sja1105_bridge_leave(struct dsa_switch *ds, int port,
 }
 
 #define BYTES_PER_KBIT (1000LL / 8)
+/* Port 0 (the uC port) does not have CBS shapers */
+#define SJA1110_FIXED_CBS(port, prio) ((((port) - 1) * SJA1105_NUM_TC) + (prio))
 
 static int sja1105_find_cbs_shaper(struct sja1105_private *priv,
 				   int port, int prio)
 {
 	int i;
+
+	if (priv->info->fixed_cbs_mapping) {
+		i = SJA1110_FIXED_CBS(port, prio);
+		if (i >= 0 && i < priv->info->num_cbs_shapers)
+			return i;
+
+		return -1;
+	}
 
 	for (i = 0; i < priv->info->num_cbs_shapers; i++)
 		if (priv->cbs[i].port == port && priv->cbs[i].prio == prio)
@@ -2138,6 +2148,9 @@ static int sja1105_find_cbs_shaper(struct sja1105_private *priv,
 static int sja1105_find_unused_cbs_shaper(struct sja1105_private *priv)
 {
 	int i;
+
+	if (priv->info->fixed_cbs_mapping)
+		return -1;
 
 	for (i = 0; i < priv->info->num_cbs_shapers; i++)
 		if (!priv->cbs[i].idle_slope && !priv->cbs[i].send_slope)
