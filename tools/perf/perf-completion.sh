@@ -164,7 +164,7 @@ __perf_main ()
 		$prev_skip_opts == @(record|stat|top) ]]; then
 
 		local cur1=${COMP_WORDS[COMP_CWORD]}
-		local raw_evts=$($cmd list --raw-dump)
+		local raw_evts=$($cmd list --raw-dump hw sw cache tracepoint pmu sdt)
 		local arr s tmp result cpu_evts
 
 		# aarch64 doesn't have /sys/bus/event_source/devices/cpu/events
