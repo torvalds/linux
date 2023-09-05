@@ -2525,7 +2525,7 @@ static void ath12k_mac_op_bss_info_changed(struct ieee80211_hw *hw,
 
 	if (changed & BSS_CHANGED_BEACON) {
 		param_id = WMI_PDEV_PARAM_BEACON_TX_MODE;
-		param_value = WMI_BEACON_STAGGERED_MODE;
+		param_value = WMI_BEACON_BURST_MODE;
 		ret = ath12k_wmi_pdev_set_param(ar, param_id,
 						param_value, ar->pdev->pdev_id);
 		if (ret)
@@ -2533,7 +2533,7 @@ static void ath12k_mac_op_bss_info_changed(struct ieee80211_hw *hw,
 				    arvif->vdev_id);
 		else
 			ath12k_dbg(ar->ab, ATH12K_DBG_MAC,
-				   "Set staggered beacon mode for VDEV: %d\n",
+				   "Set burst beacon mode for VDEV: %d\n",
 				   arvif->vdev_id);
 
 		ret = ath12k_mac_setup_bcn_tmpl(arvif);
