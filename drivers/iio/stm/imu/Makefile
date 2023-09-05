@@ -14,3 +14,4 @@ obj-y += st_lsm6ds3/
 obj-y += st_lsm6ds3h/
 obj-y += st_lsm6dsm/
 obj-y += st_lsm6dsvx/
+obj-y += st_lsm6dso16is/
