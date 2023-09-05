@@ -123,8 +123,6 @@ static void __init map_ram(void)
 
 void __init paging_init(void)
 {
-	extern void tlb_init(void);
-
 	int i;
 
 	printk(KERN_INFO "Setting up paging and PTEs.\n");
