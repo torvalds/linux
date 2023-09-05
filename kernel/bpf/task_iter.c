@@ -35,7 +35,7 @@ static struct task_struct *task_group_seq_get_next(struct bpf_iter_seq_task_comm
 						   u32 *tid,
 						   bool skip_if_dup_files)
 {
-	struct task_struct *task, *next_task;
+	struct task_struct *task;
 	struct pid *pid;
 	u32 saved_tid;
 
@@ -68,10 +68,10 @@ static struct task_struct *task_group_seq_get_next(struct bpf_iter_seq_task_comm
 		return NULL;
 
 retry:
-	next_task = next_thread(task);
+	task = next_thread(task);
 
 	saved_tid = *tid;
-	*tid = __task_pid_nr_ns(next_task, PIDTYPE_PID, common->ns);
+	*tid = __task_pid_nr_ns(task, PIDTYPE_PID, common->ns);
 	if (!*tid || *tid == common->pid) {
 		/* Run out of tasks of a process.  The tasks of a
 		 * thread_group are linked as circular linked list.
@@ -82,13 +82,11 @@ retry:
 
 	common->pid_visiting = *tid;
 
-	if (skip_if_dup_files && next_task->files == next_task->group_leader->files) {
-		task = next_task;
+	if (skip_if_dup_files && task->files == task->group_leader->files)
 		goto retry;
-	}
 
-	get_task_struct(next_task);
-	return next_task;
+	get_task_struct(task);
+	return task;
 }
 
 static struct task_struct *task_seq_get_next(struct bpf_iter_seq_task_common *common,
