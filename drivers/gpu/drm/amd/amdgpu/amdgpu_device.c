@@ -1367,11 +1367,25 @@ bool amdgpu_device_need_post(struct amdgpu_device *adev)
  */
 bool amdgpu_device_seamless_boot_supported(struct amdgpu_device *adev)
 {
+	switch (amdgpu_seamless) {
+	case -1:
+		break;
+	case 1:
+		return true;
+	case 0:
+		return false;
+	default:
+		DRM_ERROR("Invalid value for amdgpu.seamless: %d\n",
+			  amdgpu_seamless);
+		return false;
+	}
+
+	if (adev->mman.keep_stolen_vga_memory)
+		return false;
+
 	switch (adev->ip_versions[DCE_HWIP][0]) {
 	case IP_VERSION(3, 0, 1):
-		if (!adev->mman.keep_stolen_vga_memory)
-			return true;
-		break;
+		return true;
 	default:
 		break;
 	}
