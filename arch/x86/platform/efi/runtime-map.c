@@ -93,7 +93,7 @@ static void map_release(struct kobject *kobj)
 	kfree(entry);
 }
 
-static struct kobj_type __refdata map_ktype = {
+static const struct kobj_type __refconst map_ktype = {
 	.sysfs_ops	= &map_attr_ops,
 	.default_groups	= def_groups,
 	.release	= map_release,

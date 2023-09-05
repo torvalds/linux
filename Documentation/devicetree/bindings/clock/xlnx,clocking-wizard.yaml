@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Xilinx clocking wizard
 
 maintainers:
-  - Shubhrajyoti Datta <shubhrajyoti.datta@xilinx.com>
+  - Shubhrajyoti Datta <shubhrajyoti.datta@amd.com>
 
 description:
   The clocking wizard is a soft ip clocking block of Xilinx versal. It

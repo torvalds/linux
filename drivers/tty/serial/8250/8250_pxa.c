@@ -60,7 +60,7 @@ static const struct of_device_id serial_pxa_dt_ids[] = {
 MODULE_DEVICE_TABLE(of, serial_pxa_dt_ids);
 
 /* Uart divisor latch write */
-static void serial_pxa_dl_write(struct uart_8250_port *up, int value)
+static void serial_pxa_dl_write(struct uart_8250_port *up, u32 value)
 {
 	unsigned int dll;
 

@@ -715,11 +715,13 @@ void mce_amd_feature_init(struct cpuinfo_x86 *c)
 
 bool amd_mce_is_memory_error(struct mce *m)
 {
+	enum smca_bank_types bank_type;
 	/* ErrCodeExt[20:16] */
 	u8 xec = (m->status >> 16) & 0x1f;
 
+	bank_type = smca_get_bank_type(m->extcpu, m->bank);
 	if (mce_flags.smca)
-		return smca_get_bank_type(m->extcpu, m->bank) == SMCA_UMC && xec == 0x0;
+		return (bank_type == SMCA_UMC || bank_type == SMCA_UMC_V2) && xec == 0x0;
 
 	return m->bank == 4 && xec == 0x8;
 }
@@ -1050,7 +1052,7 @@ static const char *get_name(unsigned int cpu, unsigned int bank, struct threshol
 	if (bank_type >= N_SMCA_BANK_TYPES)
 		return NULL;
 
-	if (b && bank_type == SMCA_UMC) {
+	if (b && (bank_type == SMCA_UMC || bank_type == SMCA_UMC_V2)) {
 		if (b->block < ARRAY_SIZE(smca_umc_block_names))
 			return smca_umc_block_names[b->block];
 		return NULL;
@@ -1259,10 +1261,10 @@ static void __threshold_remove_blocks(struct threshold_bank *b)
 	struct threshold_block *pos = NULL;
 	struct threshold_block *tmp = NULL;
 
-	kobject_del(b->kobj);
+	kobject_put(b->kobj);
 
 	list_for_each_entry_safe(pos, tmp, &b->blocks->miscj, miscj)
-		kobject_del(&pos->kobj);
+		kobject_put(b->kobj);
 }
 
 static void threshold_remove_bank(struct threshold_bank *bank)

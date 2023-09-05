@@ -597,10 +597,6 @@ static int acpi_idle_play_dead(struct cpuidle_device *dev, int index)
 			io_idle(cx->address);
 		} else
 			return -ENODEV;
-
-#if defined(CONFIG_X86) && defined(CONFIG_HOTPLUG_CPU)
-		cond_wakeup_cpu0();
-#endif
 	}
 
 	/* Never reached */

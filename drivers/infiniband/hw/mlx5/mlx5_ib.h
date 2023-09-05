@@ -25,6 +25,7 @@
 #include <rdma/mlx5_user_ioctl_verbs.h>
 
 #include "srq.h"
+#include "qp.h"
 
 #define mlx5_ib_dbg(_dev, format, arg...)                                      \
 	dev_dbg(&(_dev)->ib_dev.dev, "%s:%d:(pid %d): " format, __func__,      \

@@ -33,6 +33,7 @@
 #define ICE_TC_FLWR_FIELD_L2TPV3_SESSID		BIT(26)
 #define ICE_TC_FLWR_FIELD_VLAN_PRIO		BIT(27)
 #define ICE_TC_FLWR_FIELD_CVLAN_PRIO		BIT(28)
+#define ICE_TC_FLWR_FIELD_VLAN_TPID		BIT(29)
 
 #define ICE_TC_FLOWER_MASK_32   0xFFFFFFFF
 
@@ -203,6 +204,7 @@ static inline int ice_chnl_dmac_fltr_cnt(struct ice_pf *pf)
 	return pf->num_dmac_chnl_fltrs;
 }
 
+struct ice_vsi *ice_locate_vsi_using_queue(struct ice_vsi *vsi, int queue);
 int
 ice_add_cls_flower(struct net_device *netdev, struct ice_vsi *vsi,
 		   struct flow_cls_offload *cls_flower);

@@ -70,8 +70,18 @@ int snd_seq_kernel_client_ctl(int client, unsigned int cmd, void *arg);
 typedef int (*snd_seq_dump_func_t)(void *ptr, void *buf, int count);
 int snd_seq_expand_var_event(const struct snd_seq_event *event, int count, char *buf,
 			     int in_kernel, int size_aligned);
+int snd_seq_expand_var_event_at(const struct snd_seq_event *event, int count,
+				char *buf, int offset);
 int snd_seq_dump_var_event(const struct snd_seq_event *event,
 			   snd_seq_dump_func_t func, void *private_data);
+
+/* size of the event packet; it can be greater than snd_seq_event size */
+static inline size_t snd_seq_event_packet_size(struct snd_seq_event *ev)
+{
+	if (snd_seq_ev_is_ump(ev))
+		return sizeof(struct snd_seq_ump_event);
+	return sizeof(struct snd_seq_event);
+}
 
 /* interface for OSS emulation */
 int snd_seq_set_queue_tempo(int client, struct snd_seq_queue_tempo *tempo);

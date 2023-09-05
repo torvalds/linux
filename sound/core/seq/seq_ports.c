@@ -69,11 +69,15 @@ struct snd_seq_client_port *snd_seq_port_query_nearest(struct snd_seq_client *cl
 {
 	int num;
 	struct snd_seq_client_port *port, *found;
+	bool check_inactive = (pinfo->capability & SNDRV_SEQ_PORT_CAP_INACTIVE);
 
 	num = pinfo->addr.port;
 	found = NULL;
 	read_lock(&client->ports_lock);
 	list_for_each_entry(port, &client->ports_list_head, list) {
+		if ((port->capability & SNDRV_SEQ_PORT_CAP_INACTIVE) &&
+		    !check_inactive)
+			continue; /* skip inactive ports */
 		if (port->addr.port < num)
 			continue;
 		if (port->addr.port == num) {
@@ -107,33 +111,34 @@ static void port_subs_info_init(struct snd_seq_port_subs_info *grp)
 }
 
 
-/* create a port, port number is returned (-1 on failure);
+/* create a port, port number or a negative error code is returned
  * the caller needs to unref the port via snd_seq_port_unlock() appropriately
  */
-struct snd_seq_client_port *snd_seq_create_port(struct snd_seq_client *client,
-						int port)
+int snd_seq_create_port(struct snd_seq_client *client, int port,
+			struct snd_seq_client_port **port_ret)
 {
 	struct snd_seq_client_port *new_port, *p;
-	int num = -1;
+	int num;
 	
+	*port_ret = NULL;
+
 	/* sanity check */
 	if (snd_BUG_ON(!client))
-		return NULL;
+		return -EINVAL;
 
 	if (client->num_ports >= SNDRV_SEQ_MAX_PORTS) {
 		pr_warn("ALSA: seq: too many ports for client %d\n", client->number);
-		return NULL;
+		return -EINVAL;
 	}
 
 	/* create a new port */
 	new_port = kzalloc(sizeof(*new_port), GFP_KERNEL);
 	if (!new_port)
-		return NULL;	/* failure, out of memory */
+		return -ENOMEM;	/* failure, out of memory */
 	/* init port data */
 	new_port->addr.client = client->number;
 	new_port->addr.port = -1;
 	new_port->owner = THIS_MODULE;
-	sprintf(new_port->name, "port-%d", num);
 	snd_use_lock_init(&new_port->use_lock);
 	port_subs_info_init(&new_port->c_src);
 	port_subs_info_init(&new_port->c_dest);
@@ -143,6 +148,11 @@ struct snd_seq_client_port *snd_seq_create_port(struct snd_seq_client *client,
 	mutex_lock(&client->ports_mutex);
 	write_lock_irq(&client->ports_lock);
 	list_for_each_entry(p, &client->ports_list_head, list) {
+		if (p->addr.port == port) {
+			kfree(new_port);
+			num = -EBUSY;
+			goto unlock;
+		}
 		if (p->addr.port > num)
 			break;
 		if (port < 0) /* auto-probe mode */
@@ -153,10 +163,12 @@ struct snd_seq_client_port *snd_seq_create_port(struct snd_seq_client *client,
 	client->num_ports++;
 	new_port->addr.port = num;	/* store the port number in the port */
 	sprintf(new_port->name, "port-%d", num);
+	*port_ret = new_port;
+ unlock:
 	write_unlock_irq(&client->ports_lock);
 	mutex_unlock(&client->ports_mutex);
 
-	return new_port;
+	return num;
 }
 
 /* */
@@ -345,6 +357,20 @@ int snd_seq_set_port_info(struct snd_seq_client_port * port,
 	port->time_real = (info->flags & SNDRV_SEQ_PORT_FLG_TIME_REAL) ? 1 : 0;
 	port->time_queue = info->time_queue;
 
+	/* UMP direction and group */
+	port->direction = info->direction;
+	port->ump_group = info->ump_group;
+	if (port->ump_group > SNDRV_UMP_MAX_GROUPS)
+		port->ump_group = 0;
+
+	/* fill default port direction */
+	if (!port->direction) {
+		if (info->capability & SNDRV_SEQ_PORT_CAP_READ)
+			port->direction |= SNDRV_SEQ_PORT_DIR_INPUT;
+		if (info->capability & SNDRV_SEQ_PORT_CAP_WRITE)
+			port->direction |= SNDRV_SEQ_PORT_DIR_OUTPUT;
+	}
+
 	return 0;
 }
 
@@ -381,6 +407,10 @@ int snd_seq_get_port_info(struct snd_seq_client_port * port,
 			info->flags |= SNDRV_SEQ_PORT_FLG_TIME_REAL;
 		info->time_queue = port->time_queue;
 	}
+
+	/* UMP direction and group */
+	info->direction = port->direction;
+	info->ump_group = port->ump_group;
 
 	return 0;
 }

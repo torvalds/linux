@@ -14,7 +14,7 @@ static int test__python_use(struct test_suite *test __maybe_unused, int subtest 
 	char *cmd;
 	int ret;
 
-	if (asprintf(&cmd, "echo \"import sys ; sys.path.append('%s'); import perf\" | %s %s",
+	if (asprintf(&cmd, "echo \"import sys ; sys.path.insert(0, '%s'); import perf\" | %s %s",
 		     PYTHONPATH, PYTHON, verbose > 0 ? "" : "2> /dev/null") < 0)
 		return -1;
 

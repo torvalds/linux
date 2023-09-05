@@ -28,7 +28,6 @@ ENTRY(__hibernate_cpu_resume)
 
 	REG_L	a0, hibernate_cpu_context
 
-	suspend_restore_csrs
 	suspend_restore_regs
 
 	/* Return zero value. */
@@ -50,7 +49,7 @@ ENTRY(hibernate_restore_image)
 	REG_L	s4, restore_pblist
 	REG_L	a1, relocated_restore_code
 
-	jalr	a1
+	jr	a1
 END(hibernate_restore_image)
 
 /*
@@ -73,5 +72,5 @@ ENTRY(hibernate_core_restore_code)
 	REG_L	s4, HIBERN_PBE_NEXT(s4)
 	bnez	s4, .Lcopy
 
-	jalr	s2
+	jr	s2
 END(hibernate_core_restore_code)

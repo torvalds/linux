@@ -602,7 +602,7 @@ static struct i2c_driver is31fl319x_driver = {
 		.name           = "leds-is31fl319x",
 		.of_match_table = of_is31fl319x_match,
 	},
-	.probe_new = is31fl319x_probe,
+	.probe = is31fl319x_probe,
 	.id_table = is31fl319x_id,
 };
 

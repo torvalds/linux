@@ -42,13 +42,13 @@ static int test__thread_maps_share(struct test_suite *test __maybe_unused, int s
 	TEST_ASSERT_VAL("failed to create threads",
 			leader && t1 && t2 && t3 && other);
 
-	maps = leader->maps;
+	maps = thread__maps(leader);
 	TEST_ASSERT_EQUAL("wrong refcnt", refcount_read(maps__refcnt(maps)), 4);
 
 	/* test the maps pointer is shared */
-	TEST_ASSERT_VAL("maps don't match", RC_CHK_ACCESS(maps) == RC_CHK_ACCESS(t1->maps));
-	TEST_ASSERT_VAL("maps don't match", RC_CHK_ACCESS(maps) == RC_CHK_ACCESS(t2->maps));
-	TEST_ASSERT_VAL("maps don't match", RC_CHK_ACCESS(maps) == RC_CHK_ACCESS(t3->maps));
+	TEST_ASSERT_VAL("maps don't match", RC_CHK_ACCESS(maps) == RC_CHK_ACCESS(thread__maps(t1)));
+	TEST_ASSERT_VAL("maps don't match", RC_CHK_ACCESS(maps) == RC_CHK_ACCESS(thread__maps(t2)));
+	TEST_ASSERT_VAL("maps don't match", RC_CHK_ACCESS(maps) == RC_CHK_ACCESS(thread__maps(t3)));
 
 	/*
 	 * Verify the other leader was created by previous call.
@@ -70,10 +70,11 @@ static int test__thread_maps_share(struct test_suite *test __maybe_unused, int s
 	machine__remove_thread(machine, other);
 	machine__remove_thread(machine, other_leader);
 
-	other_maps = other->maps;
+	other_maps = thread__maps(other);
 	TEST_ASSERT_EQUAL("wrong refcnt", refcount_read(maps__refcnt(other_maps)), 2);
 
-	TEST_ASSERT_VAL("maps don't match", RC_CHK_ACCESS(other_maps) == RC_CHK_ACCESS(other_leader->maps));
+	TEST_ASSERT_VAL("maps don't match", RC_CHK_ACCESS(other_maps) ==
+					    RC_CHK_ACCESS(thread__maps(other_leader)));
 
 	/* release thread group */
 	thread__put(t3);

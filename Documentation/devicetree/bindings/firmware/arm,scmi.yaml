@@ -34,6 +34,10 @@ properties:
       - description: SCMI compliant firmware with ARM SMC/HVC transport
         items:
           - const: arm,scmi-smc
+      - description: SCMI compliant firmware with ARM SMC/HVC transport
+                     with shmem address(4KB-page, offset) as parameters
+        items:
+          - const: arm,scmi-smc-param
       - description: SCMI compliant firmware with SCMI Virtio transport.
                      The virtio transport only supports a single device.
         items:
@@ -214,7 +218,7 @@ properties:
         patternProperties:
           '^regulator@[0-9a-f]+$':
             type: object
-            $ref: "../regulator/regulator.yaml#"
+            $ref: /schemas/regulator/regulator.yaml#
             unevaluatedProperties: false
 
             properties:
@@ -299,7 +303,9 @@ else:
     properties:
       compatible:
         contains:
-          const: arm,scmi-smc
+          enum:
+            - arm,scmi-smc
+            - arm,scmi-smc-param
   then:
     required:
       - arm,smc-id

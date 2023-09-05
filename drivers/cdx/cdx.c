@@ -62,6 +62,8 @@
 #include <linux/mm.h>
 #include <linux/xarray.h>
 #include <linux/cdx/cdx_bus.h>
+#include <linux/iommu.h>
+#include <linux/dma-map-ops.h>
 #include "cdx.h"
 
 /* Default DMA mask for devices on a CDX bus */
@@ -257,6 +259,7 @@ static void cdx_shutdown(struct device *dev)
 
 static int cdx_dma_configure(struct device *dev)
 {
+	struct cdx_driver *cdx_drv = to_cdx_driver(dev->driver);
 	struct cdx_device *cdx_dev = to_cdx_device(dev);
 	u32 input_id = cdx_dev->req_id;
 	int ret;
@@ -267,7 +270,21 @@ static int cdx_dma_configure(struct device *dev)
 		return ret;
 	}
 
+	if (!ret && !cdx_drv->driver_managed_dma) {
+		ret = iommu_device_use_default_domain(dev);
+		if (ret)
+			arch_teardown_dma_ops(dev);
+	}
+
 	return 0;
+}
+
+static void cdx_dma_cleanup(struct device *dev)
+{
+	struct cdx_driver *cdx_drv = to_cdx_driver(dev->driver);
+
+	if (!cdx_drv->driver_managed_dma)
+		iommu_device_unuse_default_domain(dev);
 }
 
 /* show configuration fields */
@@ -405,6 +422,7 @@ struct bus_type cdx_bus_type = {
 	.remove		= cdx_remove,
 	.shutdown	= cdx_shutdown,
 	.dma_configure	= cdx_dma_configure,
+	.dma_cleanup	= cdx_dma_cleanup,
 	.bus_groups	= cdx_bus_groups,
 	.dev_groups	= cdx_dev_groups,
 };

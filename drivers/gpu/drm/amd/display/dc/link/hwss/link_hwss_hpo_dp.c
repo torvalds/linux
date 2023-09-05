@@ -28,24 +28,6 @@
 #include "dccg.h"
 #include "clk_mgr.h"
 
-static enum phyd32clk_clock_source get_phyd32clk_src(struct dc_link *link)
-{
-	switch (link->link_enc->transmitter) {
-	case TRANSMITTER_UNIPHY_A:
-		return PHYD32CLKA;
-	case TRANSMITTER_UNIPHY_B:
-		return PHYD32CLKB;
-	case TRANSMITTER_UNIPHY_C:
-		return PHYD32CLKC;
-	case TRANSMITTER_UNIPHY_D:
-		return PHYD32CLKD;
-	case TRANSMITTER_UNIPHY_E:
-		return PHYD32CLKE;
-	default:
-		return PHYD32CLKA;
-	}
-}
-
 static void set_hpo_dp_throttled_vcp_size(struct pipe_ctx *pipe_ctx,
 		struct fixed31_32 throttled_vcp_size)
 {
@@ -120,81 +102,26 @@ static void setup_hpo_dp_stream_attribute(struct pipe_ctx *pipe_ctx)
 			DPCD_SOURCE_SEQ_AFTER_DP_STREAM_ATTR);
 }
 
-static void enable_hpo_dp_fpga_link_output(struct dc_link *link,
-		const struct link_resource *link_res,
-		enum signal_type signal,
-		enum clock_source_id clock_source,
-		const struct dc_link_settings *link_settings)
-{
-	const struct dc *dc = link->dc;
-	enum phyd32clk_clock_source phyd32clk = get_phyd32clk_src(link);
-	int phyd32clk_freq_khz = link_settings->link_rate == LINK_RATE_UHBR10 ? 312500 :
-			link_settings->link_rate == LINK_RATE_UHBR13_5 ? 412875 :
-			link_settings->link_rate == LINK_RATE_UHBR20 ? 625000 : 0;
-
-	dm_set_phyd32clk(dc->ctx, phyd32clk_freq_khz);
-	dc->res_pool->dccg->funcs->set_physymclk(
-			dc->res_pool->dccg,
-			link->link_enc_hw_inst,
-			PHYSYMCLK_FORCE_SRC_PHYD32CLK,
-			true);
-	dc->res_pool->dccg->funcs->enable_symclk32_le(
-			dc->res_pool->dccg,
-			link_res->hpo_dp_link_enc->inst,
-			phyd32clk);
-	link_res->hpo_dp_link_enc->funcs->link_enable(
-			link_res->hpo_dp_link_enc,
-			link_settings->lane_count);
-
-}
-
 static void enable_hpo_dp_link_output(struct dc_link *link,
 		const struct link_resource *link_res,
 		enum signal_type signal,
 		enum clock_source_id clock_source,
 		const struct dc_link_settings *link_settings)
 {
-	if (IS_FPGA_MAXIMUS_DC(link->dc->ctx->dce_environment))
-		enable_hpo_dp_fpga_link_output(link, link_res, signal,
-				clock_source, link_settings);
-	else
-		link_res->hpo_dp_link_enc->funcs->enable_link_phy(
-				link_res->hpo_dp_link_enc,
-				link_settings,
-				link->link_enc->transmitter,
-				link->link_enc->hpd_source);
-}
-
-
-static void disable_hpo_dp_fpga_link_output(struct dc_link *link,
-		const struct link_resource *link_res,
-		enum signal_type signal)
-{
-	const struct dc *dc = link->dc;
-
-	link_res->hpo_dp_link_enc->funcs->link_disable(link_res->hpo_dp_link_enc);
-	dc->res_pool->dccg->funcs->disable_symclk32_le(
-			dc->res_pool->dccg,
-			link_res->hpo_dp_link_enc->inst);
-	dc->res_pool->dccg->funcs->set_physymclk(
-			dc->res_pool->dccg,
-			link->link_enc_hw_inst,
-			PHYSYMCLK_FORCE_SRC_SYMCLK,
-			false);
-	dm_set_phyd32clk(dc->ctx, 0);
+	link_res->hpo_dp_link_enc->funcs->enable_link_phy(
+			link_res->hpo_dp_link_enc,
+			link_settings,
+			link->link_enc->transmitter,
+			link->link_enc->hpd_source);
 }
 
 static void disable_hpo_dp_link_output(struct dc_link *link,
 		const struct link_resource *link_res,
 		enum signal_type signal)
 {
-	if (IS_FPGA_MAXIMUS_DC(link->dc->ctx->dce_environment)) {
-		disable_hpo_dp_fpga_link_output(link, link_res, signal);
-	} else {
 		link_res->hpo_dp_link_enc->funcs->link_disable(link_res->hpo_dp_link_enc);
 		link_res->hpo_dp_link_enc->funcs->disable_link_phy(
 				link_res->hpo_dp_link_enc, signal);
-	}
 }
 
 static void set_hpo_dp_link_test_pattern(struct dc_link *link,

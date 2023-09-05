@@ -171,6 +171,92 @@ static int test__cpu_map_merge(struct test_suite *test __maybe_unused, int subte
 	return 0;
 }
 
-DEFINE_SUITE("Synthesize cpu map", cpu_map_synthesize);
-DEFINE_SUITE("Print cpu map", cpu_map_print);
-DEFINE_SUITE("Merge cpu map", cpu_map_merge);
+static int __test__cpu_map_intersect(const char *lhs, const char *rhs, int nr, const char *expected)
+{
+	struct perf_cpu_map *a = perf_cpu_map__new(lhs);
+	struct perf_cpu_map *b = perf_cpu_map__new(rhs);
+	struct perf_cpu_map *c = perf_cpu_map__intersect(a, b);
+	char buf[100];
+
+	TEST_ASSERT_EQUAL("failed to intersect map: bad nr", perf_cpu_map__nr(c), nr);
+	cpu_map__snprint(c, buf, sizeof(buf));
+	TEST_ASSERT_VAL("failed to intersect map: bad result", !strcmp(buf, expected));
+	perf_cpu_map__put(a);
+	perf_cpu_map__put(b);
+	perf_cpu_map__put(c);
+	return 0;
+}
+
+static int test__cpu_map_intersect(struct test_suite *test __maybe_unused,
+				   int subtest __maybe_unused)
+{
+	int ret;
+
+	ret = __test__cpu_map_intersect("4,2,1", "4,5,7", 1, "4");
+	if (ret)
+		return ret;
+	ret = __test__cpu_map_intersect("1-8", "6-9", 3, "6-8");
+	if (ret)
+		return ret;
+	ret = __test__cpu_map_intersect("1-8,12-20", "6-9,15", 4, "6-8,15");
+	if (ret)
+		return ret;
+	ret = __test__cpu_map_intersect("4,2,1", "1", 1, "1");
+	if (ret)
+		return ret;
+	ret = __test__cpu_map_intersect("1", "4,2,1", 1, "1");
+	if (ret)
+		return ret;
+	ret = __test__cpu_map_intersect("1", "1", 1, "1");
+	return ret;
+}
+
+static int test__cpu_map_equal(struct test_suite *test __maybe_unused, int subtest __maybe_unused)
+{
+	struct perf_cpu_map *any = perf_cpu_map__dummy_new();
+	struct perf_cpu_map *one = perf_cpu_map__new("1");
+	struct perf_cpu_map *two = perf_cpu_map__new("2");
+	struct perf_cpu_map *empty = perf_cpu_map__intersect(one, two);
+	struct perf_cpu_map *pair = perf_cpu_map__new("1-2");
+	struct perf_cpu_map *tmp;
+	struct perf_cpu_map *maps[] = {empty, any, one, two, pair};
+
+	for (size_t i = 0; i < ARRAY_SIZE(maps); i++) {
+		/* Maps equal themself. */
+		TEST_ASSERT_VAL("equal", perf_cpu_map__equal(maps[i], maps[i]));
+		for (size_t j = 0; j < ARRAY_SIZE(maps); j++) {
+			/* Maps dont't equal each other. */
+			if (i == j)
+				continue;
+			TEST_ASSERT_VAL("not equal", !perf_cpu_map__equal(maps[i], maps[j]));
+		}
+	}
+
+	/* Maps equal made maps. */
+	tmp = perf_cpu_map__merge(perf_cpu_map__get(one), two);
+	TEST_ASSERT_VAL("pair", perf_cpu_map__equal(pair, tmp));
+	perf_cpu_map__put(tmp);
+
+	tmp = perf_cpu_map__intersect(pair, one);
+	TEST_ASSERT_VAL("one", perf_cpu_map__equal(one, tmp));
+	perf_cpu_map__put(tmp);
+
+	for (size_t i = 0; i < ARRAY_SIZE(maps); i++)
+		perf_cpu_map__put(maps[i]);
+
+	return TEST_OK;
+}
+
+static struct test_case tests__cpu_map[] = {
+	TEST_CASE("Synthesize cpu map", cpu_map_synthesize),
+	TEST_CASE("Print cpu map", cpu_map_print),
+	TEST_CASE("Merge cpu map", cpu_map_merge),
+	TEST_CASE("Intersect cpu map", cpu_map_intersect),
+	TEST_CASE("Equal cpu map", cpu_map_equal),
+	{	.name = NULL, }
+};
+
+struct test_suite suite__cpu_map = {
+	.desc = "CPU map",
+	.test_cases = tests__cpu_map,
+};

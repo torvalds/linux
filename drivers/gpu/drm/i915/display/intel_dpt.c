@@ -43,24 +43,24 @@ static void gen8_set_pte(void __iomem *addr, gen8_pte_t pte)
 static void dpt_insert_page(struct i915_address_space *vm,
 			    dma_addr_t addr,
 			    u64 offset,
-			    enum i915_cache_level level,
+			    unsigned int pat_index,
 			    u32 flags)
 {
 	struct i915_dpt *dpt = i915_vm_to_dpt(vm);
 	gen8_pte_t __iomem *base = dpt->iomem;
 
 	gen8_set_pte(base + offset / I915_GTT_PAGE_SIZE,
-		     vm->pte_encode(addr, level, flags));
+		     vm->pte_encode(addr, pat_index, flags));
 }
 
 static void dpt_insert_entries(struct i915_address_space *vm,
 			       struct i915_vma_resource *vma_res,
-			       enum i915_cache_level level,
+			       unsigned int pat_index,
 			       u32 flags)
 {
 	struct i915_dpt *dpt = i915_vm_to_dpt(vm);
 	gen8_pte_t __iomem *base = dpt->iomem;
-	const gen8_pte_t pte_encode = vm->pte_encode(0, level, flags);
+	const gen8_pte_t pte_encode = vm->pte_encode(0, pat_index, flags);
 	struct sgt_iter sgt_iter;
 	dma_addr_t addr;
 	int i;
@@ -83,7 +83,7 @@ static void dpt_clear_range(struct i915_address_space *vm,
 static void dpt_bind_vma(struct i915_address_space *vm,
 			 struct i915_vm_pt_stash *stash,
 			 struct i915_vma_resource *vma_res,
-			 enum i915_cache_level cache_level,
+			 unsigned int pat_index,
 			 u32 flags)
 {
 	u32 pte_flags;
@@ -98,7 +98,7 @@ static void dpt_bind_vma(struct i915_address_space *vm,
 	if (vma_res->bi.lmem)
 		pte_flags |= PTE_LM;
 
-	vm->insert_entries(vm, vma_res, cache_level, pte_flags);
+	vm->insert_entries(vm, vma_res, pat_index, pte_flags);
 
 	vma_res->page_sizes_gtt = I915_GTT_PAGE_SIZE;
 
@@ -165,6 +165,8 @@ struct i915_vma *intel_dpt_pin(struct i915_address_space *vm)
 
 		i915_vma_get(vma);
 	}
+
+	dpt->obj->mm.dirty = true;
 
 	atomic_dec(&i915->gpu_error.pending_fb_pin);
 	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
@@ -261,7 +263,7 @@ intel_dpt_create(struct intel_framebuffer *fb)
 		dpt_obj = i915_gem_object_create_stolen(i915, size);
 	if (IS_ERR(dpt_obj) && !HAS_LMEM(i915)) {
 		drm_dbg_kms(&i915->drm, "Allocating dpt from smem\n");
-		dpt_obj = i915_gem_object_create_internal(i915, size);
+		dpt_obj = i915_gem_object_create_shmem(i915, size);
 	}
 	if (IS_ERR(dpt_obj))
 		return ERR_CAST(dpt_obj);
@@ -300,7 +302,7 @@ intel_dpt_create(struct intel_framebuffer *fb)
 	vm->vma_ops.bind_vma    = dpt_bind_vma;
 	vm->vma_ops.unbind_vma  = dpt_unbind_vma;
 
-	vm->pte_encode = gen8_ggtt_pte_encode;
+	vm->pte_encode = vm->gt->ggtt->vm.pte_encode;
 
 	dpt->obj = dpt_obj;
 	dpt->obj->is_dpt = true;

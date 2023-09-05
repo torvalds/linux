@@ -27,6 +27,7 @@
 #include <linux/idr.h>
 
 #include <media/media-device.h>
+#include <media/v4l2-async.h>
 #include <media/v4l2-subdev.h>
 
 /* ISP2400*/
@@ -124,17 +125,23 @@
 struct atomisp_input_subdev {
 	unsigned int type;
 	enum atomisp_camera_port port;
+	u32 code; /* MEDIA_BUS_FMT_* */
+	bool binning_support;
+	bool crop_support;
 	struct v4l2_subdev *camera;
+	/* Sensor rects for sensors which support crop */
+	struct v4l2_rect native_rect;
+	struct v4l2_rect active_rect;
+	/* Sensor pad_cfg for which == V4L2_SUBDEV_FORMAT_TRY calls */
+	struct v4l2_subdev_pad_config pad_cfg;
+
 	struct v4l2_subdev *motor;
-	struct v4l2_frmsizeenum frame_size;
 
 	/*
 	 * To show this resource is used by
 	 * which stream, in ISP multiple stream mode
 	 */
 	struct atomisp_sub_device *asd;
-
-	int sensor_index;
 };
 
 enum atomisp_dfs_mode {
@@ -168,10 +175,6 @@ struct atomisp_regs {
 	u32 csi_access_viol;
 };
 
-#define ATOMISP_DEVICE_STREAMING_DISABLED	0
-#define ATOMISP_DEVICE_STREAMING_ENABLED	1
-#define ATOMISP_DEVICE_STREAMING_STOPPING	2
-
 /*
  * ci device struct
  */
@@ -180,6 +183,7 @@ struct atomisp_device {
 	struct v4l2_device v4l2_dev;
 	struct media_device media_dev;
 	struct atomisp_sub_device asd;
+	struct v4l2_async_notifier notifier;
 	struct atomisp_platform_data *pdata;
 	void *mmu_l1_base;
 	void __iomem *base;
@@ -196,6 +200,12 @@ struct atomisp_device {
 	 * structures and css API calls. */
 	struct mutex mutex;
 
+	/*
+	 * Number of lanes used by each sensor per port.
+	 * Note this is indexed by mipi_port_id not atomisp_camera_port.
+	 */
+	int sensor_lanes[N_MIPI_PORT_ID];
+	struct v4l2_subdev *sensor_subdevs[ATOMISP_CAMERA_NR_PORTS];
 	unsigned int input_cnt;
 	struct atomisp_input_subdev inputs[ATOM_ISP_MAX_INPUTS];
 	struct v4l2_subdev *flash;
@@ -204,16 +214,11 @@ struct atomisp_device {
 	struct atomisp_regs saved_regs;
 	struct atomisp_css_env css_env;
 
-	/* isp timeout status flag */
-	bool isp_timeout;
 	bool isp_fatal_error;
 	struct work_struct assert_recovery_work;
 
 	spinlock_t lock; /* Protects asd.streaming */
 
-	bool need_gfx_throttle;
-
-	unsigned int mipi_frame_size;
 	const struct atomisp_dfs_config *dfs;
 	unsigned int hpll_freq;
 	unsigned int running_freq;

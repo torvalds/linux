@@ -498,7 +498,7 @@ static int user_event_enabler_write(struct user_event_mm *mm,
 		return -EBUSY;
 
 	ret = pin_user_pages_remote(mm->mm, uaddr, 1, FOLL_WRITE | FOLL_NOFAULT,
-				    &page, NULL, NULL);
+				    &page, NULL);
 
 	if (unlikely(ret <= 0)) {
 		if (!fixup_fault)
@@ -1317,6 +1317,9 @@ static int user_field_set_string(struct ftrace_event_field *field,
 	pos += snprintf(buf + pos, LEN_OR_ZERO, " ");
 	pos += snprintf(buf + pos, LEN_OR_ZERO, "%s", field->name);
 
+	if (str_has_prefix(field->type, "struct "))
+		pos += snprintf(buf + pos, LEN_OR_ZERO, " %d", field->size);
+
 	if (colon)
 		pos += snprintf(buf + pos, LEN_OR_ZERO, ";");
 
@@ -2096,7 +2099,8 @@ static ssize_t user_events_write_core(struct file *file, struct iov_iter *i)
 
 		if (unlikely(faulted))
 			return -EFAULT;
-	}
+	} else
+		return -EBADF;
 
 	return ret;
 }

@@ -51,11 +51,6 @@
 #define mod_64(x, y) ((x) % (y))
 #endif
 
-#define PRId64 "d"
-#define PRIx64 "llx"
-#define PRIu64 "u"
-#define PRIo64 "o"
-
 /* 14 is the version for Xeon and Pentium 8.4.8*/
 #define APIC_VERSION			0x14UL
 #define LAPIC_MMIO_LENGTH		(1 << 12)
@@ -642,16 +637,22 @@ bool __kvm_apic_update_irr(u32 *pir, void *regs, int *max_irr)
 	*max_irr = -1;
 
 	for (i = vec = 0; i <= 7; i++, vec += 32) {
+		u32 *p_irr = (u32 *)(regs + APIC_IRR + i * 0x10);
+
+		irr_val = *p_irr;
 		pir_val = READ_ONCE(pir[i]);
-		irr_val = *((u32 *)(regs + APIC_IRR + i * 0x10));
+
 		if (pir_val) {
+			pir_val = xchg(&pir[i], 0);
+
 			prev_irr_val = irr_val;
-			irr_val |= xchg(&pir[i], 0);
-			*((u32 *)(regs + APIC_IRR + i * 0x10)) = irr_val;
-			if (prev_irr_val != irr_val) {
-				max_updated_irr =
-					__fls(irr_val ^ prev_irr_val) + vec;
-			}
+			do {
+				irr_val = prev_irr_val | pir_val;
+			} while (prev_irr_val != irr_val &&
+				 !try_cmpxchg(p_irr, &prev_irr_val, irr_val));
+
+			if (prev_irr_val != irr_val)
+				max_updated_irr = __fls(irr_val ^ prev_irr_val) + vec;
 		}
 		if (irr_val)
 			*max_irr = __fls(irr_val) + vec;
@@ -665,8 +666,11 @@ EXPORT_SYMBOL_GPL(__kvm_apic_update_irr);
 bool kvm_apic_update_irr(struct kvm_vcpu *vcpu, u32 *pir, int *max_irr)
 {
 	struct kvm_lapic *apic = vcpu->arch.apic;
+	bool irr_updated = __kvm_apic_update_irr(pir, apic->regs, max_irr);
 
-	return __kvm_apic_update_irr(pir, apic->regs, max_irr);
+	if (unlikely(!apic->apicv_active && irr_updated))
+		apic->irr_pending = true;
+	return irr_updated;
 }
 EXPORT_SYMBOL_GPL(kvm_apic_update_irr);
 

@@ -2370,7 +2370,7 @@ static const struct regmap_config rt5668_regmap = {
 	.max_register = RT5668_I2C_MODE,
 	.volatile_reg = rt5668_volatile_register,
 	.readable_reg = rt5668_readable_register,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.reg_defaults = rt5668_reg,
 	.num_reg_defaults = ARRAY_SIZE(rt5668_reg),
 	.use_single_read = true,
@@ -2618,7 +2618,7 @@ static struct i2c_driver rt5668_i2c_driver = {
 		.of_match_table = of_match_ptr(rt5668_of_match),
 		.acpi_match_table = ACPI_PTR(rt5668_acpi_match),
 	},
-	.probe_new = rt5668_i2c_probe,
+	.probe = rt5668_i2c_probe,
 	.shutdown = rt5668_i2c_shutdown,
 	.id_table = rt5668_i2c_id,
 };

@@ -233,7 +233,7 @@ static const struct nla_policy nl802154_policy[NL802154_ATTR_MAX+1] = {
 		NLA_POLICY_RANGE(NLA_U8, NL802154_SCAN_DONE_REASON_FINISHED,
 				 NL802154_SCAN_DONE_REASON_ABORTED),
 	[NL802154_ATTR_BEACON_INTERVAL] =
-		NLA_POLICY_MAX(NLA_U8, IEEE802154_MAX_SCAN_DURATION),
+		NLA_POLICY_MAX(NLA_U8, IEEE802154_ACTIVE_SCAN_DURATION),
 
 #ifdef CONFIG_IEEE802154_NL802154_EXPERIMENTAL
 	[NL802154_ATTR_SEC_ENABLED] = { .type = NLA_U8, },
@@ -1417,6 +1417,11 @@ static int nl802154_trigger_scan(struct sk_buff *skb, struct genl_info *info)
 		return -EINVAL;
 	}
 
+	if (wpan_phy->flags & WPAN_PHY_FLAG_DATAGRAMS_ONLY) {
+		NL_SET_ERR_MSG(info->extack, "PHY only supports datagrams");
+		return -EOPNOTSUPP;
+	}
+
 	request = kzalloc(sizeof(*request), GFP_KERNEL);
 	if (!request)
 		return -ENOMEM;
@@ -1426,6 +1431,7 @@ static int nl802154_trigger_scan(struct sk_buff *skb, struct genl_info *info)
 
 	type = nla_get_u8(info->attrs[NL802154_ATTR_SCAN_TYPE]);
 	switch (type) {
+	case NL802154_SCAN_ACTIVE:
 	case NL802154_SCAN_PASSIVE:
 		request->type = type;
 		break;
@@ -1581,6 +1587,11 @@ nl802154_send_beacons(struct sk_buff *skb, struct genl_info *info)
 	if (wpan_dev->pan_id == cpu_to_le16(IEEE802154_PANID_BROADCAST)) {
 		NL_SET_ERR_MSG(info->extack, "Device is not part of any PAN");
 		return -EPERM;
+	}
+
+	if (wpan_phy->flags & WPAN_PHY_FLAG_DATAGRAMS_ONLY) {
+		NL_SET_ERR_MSG(info->extack, "PHY only supports datagrams");
+		return -EOPNOTSUPP;
 	}
 
 	request = kzalloc(sizeof(*request), GFP_KERNEL);

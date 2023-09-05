@@ -1515,7 +1515,7 @@ static struct i2c_driver ov5647_driver = {
 		.name	= "ov5647",
 		.pm	= &ov5647_pm_ops,
 	},
-	.probe_new	= ov5647_probe,
+	.probe		= ov5647_probe,
 	.remove		= ov5647_remove,
 	.id_table	= ov5647_id,
 };

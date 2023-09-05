@@ -520,7 +520,7 @@ static struct i2c_driver si544_driver = {
 		.name = "si544",
 		.of_match_table = clk_si544_of_match,
 	},
-	.probe_new	= si544_probe,
+	.probe		= si544_probe,
 	.id_table	= si544_id,
 };
 module_i2c_driver(si544_driver);

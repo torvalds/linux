@@ -955,7 +955,7 @@ static struct i2c_driver sii9234_driver = {
 		.name	= "sii9234",
 		.of_match_table = sii9234_dt_match,
 	},
-	.probe_new = sii9234_probe,
+	.probe = sii9234_probe,
 	.remove = sii9234_remove,
 	.id_table = sii9234_id,
 };

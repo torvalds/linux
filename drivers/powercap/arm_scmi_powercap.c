@@ -70,10 +70,26 @@ static int scmi_powercap_get_power_uw(struct powercap_zone *pz,
 	return 0;
 }
 
+static int scmi_powercap_zone_enable_set(struct powercap_zone *pz, bool mode)
+{
+	struct scmi_powercap_zone *spz = to_scmi_powercap_zone(pz);
+
+	return powercap_ops->cap_enable_set(spz->ph, spz->info->id, mode);
+}
+
+static int scmi_powercap_zone_enable_get(struct powercap_zone *pz, bool *mode)
+{
+	struct scmi_powercap_zone *spz = to_scmi_powercap_zone(pz);
+
+	return powercap_ops->cap_enable_get(spz->ph, spz->info->id, mode);
+}
+
 static const struct powercap_zone_ops zone_ops = {
 	.get_max_power_range_uw = scmi_powercap_get_max_power_range_uw,
 	.get_power_uw = scmi_powercap_get_power_uw,
 	.release = scmi_powercap_zone_release,
+	.set_enable = scmi_powercap_zone_enable_set,
+	.get_enable = scmi_powercap_zone_enable_get,
 };
 
 static void scmi_powercap_normalize_cap(const struct scmi_powercap_zone *spz,

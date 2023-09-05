@@ -99,7 +99,7 @@ static inline void arch_send_wakeup_ipi_mask(const struct cpumask *mask)
 
 extern int __cpu_disable(void);
 
-extern void __cpu_die(unsigned int cpu);
+static inline void __cpu_die(unsigned int cpu) { }
 extern void __noreturn cpu_die(void);
 extern void __noreturn cpu_die_early(void);
 

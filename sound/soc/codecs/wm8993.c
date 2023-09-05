@@ -1741,7 +1741,7 @@ static struct i2c_driver wm8993_i2c_driver = {
 	.driver = {
 		.name = "wm8993",
 	},
-	.probe_new = wm8993_i2c_probe,
+	.probe =    wm8993_i2c_probe,
 	.remove =   wm8993_i2c_remove,
 	.id_table = wm8993_i2c_id,
 };

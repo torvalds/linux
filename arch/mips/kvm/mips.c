@@ -649,7 +649,7 @@ static int kvm_mips_copy_reg_indices(struct kvm_vcpu *vcpu, u64 __user *indices)
 static int kvm_mips_get_reg(struct kvm_vcpu *vcpu,
 			    const struct kvm_one_reg *reg)
 {
-	struct mips_coproc *cop0 = vcpu->arch.cop0;
+	struct mips_coproc *cop0 = &vcpu->arch.cop0;
 	struct mips_fpu_struct *fpu = &vcpu->arch.fpu;
 	int ret;
 	s64 v;
@@ -761,7 +761,7 @@ static int kvm_mips_get_reg(struct kvm_vcpu *vcpu,
 static int kvm_mips_set_reg(struct kvm_vcpu *vcpu,
 			    const struct kvm_one_reg *reg)
 {
-	struct mips_coproc *cop0 = vcpu->arch.cop0;
+	struct mips_coproc *cop0 = &vcpu->arch.cop0;
 	struct mips_fpu_struct *fpu = &vcpu->arch.fpu;
 	s64 v;
 	s64 vs[2];
@@ -1086,7 +1086,7 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 int kvm_cpu_has_pending_timer(struct kvm_vcpu *vcpu)
 {
 	return kvm_mips_pending_timer(vcpu) ||
-		kvm_read_c0_guest_cause(vcpu->arch.cop0) & C_TI;
+		kvm_read_c0_guest_cause(&vcpu->arch.cop0) & C_TI;
 }
 
 int kvm_arch_vcpu_dump_regs(struct kvm_vcpu *vcpu)
@@ -1110,7 +1110,7 @@ int kvm_arch_vcpu_dump_regs(struct kvm_vcpu *vcpu)
 	kvm_debug("\thi: 0x%08lx\n", vcpu->arch.hi);
 	kvm_debug("\tlo: 0x%08lx\n", vcpu->arch.lo);
 
-	cop0 = vcpu->arch.cop0;
+	cop0 = &vcpu->arch.cop0;
 	kvm_debug("\tStatus: 0x%08x, Cause: 0x%08x\n",
 		  kvm_read_c0_guest_status(cop0),
 		  kvm_read_c0_guest_cause(cop0));
@@ -1232,7 +1232,7 @@ static int __kvm_mips_handle_exit(struct kvm_vcpu *vcpu)
 
 	case EXCCODE_TLBS:
 		kvm_debug("TLB ST fault:  cause %#x, status %#x, PC: %p, BadVaddr: %#lx\n",
-			  cause, kvm_read_c0_guest_status(vcpu->arch.cop0), opc,
+			  cause, kvm_read_c0_guest_status(&vcpu->arch.cop0), opc,
 			  badvaddr);
 
 		++vcpu->stat.tlbmiss_st_exits;
@@ -1304,7 +1304,7 @@ static int __kvm_mips_handle_exit(struct kvm_vcpu *vcpu)
 		kvm_get_badinstr(opc, vcpu, &inst);
 		kvm_err("Exception Code: %d, not yet handled, @ PC: %p, inst: 0x%08x  BadVaddr: %#lx Status: %#x\n",
 			exccode, opc, inst, badvaddr,
-			kvm_read_c0_guest_status(vcpu->arch.cop0));
+			kvm_read_c0_guest_status(&vcpu->arch.cop0));
 		kvm_arch_vcpu_dump_regs(vcpu);
 		run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
 		ret = RESUME_HOST;
@@ -1377,7 +1377,7 @@ int noinstr kvm_mips_handle_exit(struct kvm_vcpu *vcpu)
 /* Enable FPU for guest and restore context */
 void kvm_own_fpu(struct kvm_vcpu *vcpu)
 {
-	struct mips_coproc *cop0 = vcpu->arch.cop0;
+	struct mips_coproc *cop0 = &vcpu->arch.cop0;
 	unsigned int sr, cfg5;
 
 	preempt_disable();
@@ -1421,7 +1421,7 @@ void kvm_own_fpu(struct kvm_vcpu *vcpu)
 /* Enable MSA for guest and restore context */
 void kvm_own_msa(struct kvm_vcpu *vcpu)
 {
-	struct mips_coproc *cop0 = vcpu->arch.cop0;
+	struct mips_coproc *cop0 = &vcpu->arch.cop0;
 	unsigned int sr, cfg5;
 
 	preempt_disable();

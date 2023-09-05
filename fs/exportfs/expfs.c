@@ -315,7 +315,7 @@ static int get_name(const struct path *path, char *name, struct dentry *child)
 		goto out;
 
 	error = -EINVAL;
-	if (!file->f_op->iterate && !file->f_op->iterate_shared)
+	if (!file->f_op->iterate_shared)
 		goto out_close;
 
 	buffer.sequence = 0;
@@ -381,10 +381,26 @@ static int export_encode_fh(struct inode *inode, struct fid *fid,
 	return type;
 }
 
+/**
+ * exportfs_encode_inode_fh - encode a file handle from inode
+ * @inode:   the object to encode
+ * @fid:     where to store the file handle fragment
+ * @max_len: maximum length to store there
+ * @flags:   properties of the requested file handle
+ *
+ * Returns an enum fid_type or a negative errno.
+ */
 int exportfs_encode_inode_fh(struct inode *inode, struct fid *fid,
-			     int *max_len, struct inode *parent)
+			     int *max_len, struct inode *parent, int flags)
 {
 	const struct export_operations *nop = inode->i_sb->s_export_op;
+
+	/*
+	 * If a decodeable file handle was requested, we need to make sure that
+	 * filesystem can decode file handles.
+	 */
+	if (nop && !(flags & EXPORT_FH_FID) && !nop->fh_to_dentry)
+		return -EOPNOTSUPP;
 
 	if (nop && nop->encode_fh)
 		return nop->encode_fh(inode, fid->raw, max_len, parent);
@@ -393,14 +409,23 @@ int exportfs_encode_inode_fh(struct inode *inode, struct fid *fid,
 }
 EXPORT_SYMBOL_GPL(exportfs_encode_inode_fh);
 
+/**
+ * exportfs_encode_fh - encode a file handle from dentry
+ * @dentry:  the object to encode
+ * @fid:     where to store the file handle fragment
+ * @max_len: maximum length to store there
+ * @flags:   properties of the requested file handle
+ *
+ * Returns an enum fid_type or a negative errno.
+ */
 int exportfs_encode_fh(struct dentry *dentry, struct fid *fid, int *max_len,
-		int connectable)
+		       int flags)
 {
 	int error;
 	struct dentry *p = NULL;
 	struct inode *inode = dentry->d_inode, *parent = NULL;
 
-	if (connectable && !S_ISDIR(inode->i_mode)) {
+	if ((flags & EXPORT_FH_CONNECTABLE) && !S_ISDIR(inode->i_mode)) {
 		p = dget_parent(dentry);
 		/*
 		 * note that while p might've ceased to be our parent already,
@@ -409,7 +434,7 @@ int exportfs_encode_fh(struct dentry *dentry, struct fid *fid, int *max_len,
 		parent = p->d_inode;
 	}
 
-	error = exportfs_encode_inode_fh(inode, fid, max_len, parent);
+	error = exportfs_encode_inode_fh(inode, fid, max_len, parent, flags);
 	dput(p);
 
 	return error;

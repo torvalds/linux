@@ -1256,8 +1256,6 @@ static const struct devlink_ops ice_devlink_ops = {
 			  BIT(DEVLINK_RELOAD_ACTION_FW_ACTIVATE),
 	.reload_down = ice_devlink_reload_down,
 	.reload_up = ice_devlink_reload_up,
-	.port_split = ice_devlink_port_split,
-	.port_unsplit = ice_devlink_port_unsplit,
 	.eswitch_mode_get = ice_eswitch_mode_get,
 	.eswitch_mode_set = ice_eswitch_mode_set,
 	.info_get = ice_devlink_info_get,
@@ -1512,6 +1510,11 @@ ice_devlink_set_port_split_options(struct ice_pf *pf,
 	ice_active_port_option = active_idx;
 }
 
+static const struct devlink_port_ops ice_devlink_port_ops = {
+	.port_split = ice_devlink_port_split,
+	.port_unsplit = ice_devlink_port_unsplit,
+};
+
 /**
  * ice_devlink_create_pf_port - Create a devlink port for this PF
  * @pf: the PF to create a devlink port for
@@ -1551,7 +1554,8 @@ int ice_devlink_create_pf_port(struct ice_pf *pf)
 	devlink_port_attrs_set(devlink_port, &attrs);
 	devlink = priv_to_devlink(pf);
 
-	err = devlink_port_register(devlink, devlink_port, vsi->idx);
+	err = devlink_port_register_with_ops(devlink, devlink_port, vsi->idx,
+					     &ice_devlink_port_ops);
 	if (err) {
 		dev_err(dev, "Failed to create devlink port for PF %d, error %d\n",
 			pf->hw.pf_id, err);

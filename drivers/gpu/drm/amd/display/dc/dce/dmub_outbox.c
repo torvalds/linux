@@ -48,7 +48,5 @@ void dmub_enable_outbox_notification(struct dc_dmub_srv *dmub_srv)
 		sizeof(cmd.outbox1_enable.header);
 	cmd.outbox1_enable.enable = true;
 
-	dc_dmub_srv_cmd_queue(dmub_srv, &cmd);
-	dc_dmub_srv_cmd_execute(dmub_srv);
-	dc_dmub_srv_wait_idle(dmub_srv);
+	dm_execute_dmub_cmd(dmub_srv->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
 }

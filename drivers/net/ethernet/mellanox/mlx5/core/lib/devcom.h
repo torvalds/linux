@@ -6,7 +6,7 @@
 
 #include <linux/mlx5/driver.h>
 
-#define MLX5_DEVCOM_PORTS_SUPPORTED 2
+#define MLX5_DEVCOM_PORTS_SUPPORTED 4
 
 enum mlx5_devcom_components {
 	MLX5_DEVCOM_ESW_OFFLOADS,
@@ -30,20 +30,33 @@ void mlx5_devcom_unregister_component(struct mlx5_devcom *devcom,
 
 int mlx5_devcom_send_event(struct mlx5_devcom *devcom,
 			   enum mlx5_devcom_components id,
-			   int event,
+			   int event, int rollback_event,
 			   void *event_data);
 
-void mlx5_devcom_set_paired(struct mlx5_devcom *devcom,
-			    enum mlx5_devcom_components id,
-			    bool paired);
-bool mlx5_devcom_is_paired(struct mlx5_devcom *devcom,
-			   enum mlx5_devcom_components id);
+void mlx5_devcom_comp_set_ready(struct mlx5_devcom *devcom,
+				enum mlx5_devcom_components id,
+				bool ready);
+bool mlx5_devcom_comp_is_ready(struct mlx5_devcom *devcom,
+			       enum mlx5_devcom_components id);
 
-void *mlx5_devcom_get_peer_data(struct mlx5_devcom *devcom,
-				enum mlx5_devcom_components id);
-void *mlx5_devcom_get_peer_data_rcu(struct mlx5_devcom *devcom, enum mlx5_devcom_components id);
-void mlx5_devcom_release_peer_data(struct mlx5_devcom *devcom,
+bool mlx5_devcom_for_each_peer_begin(struct mlx5_devcom *devcom,
+				     enum mlx5_devcom_components id);
+void mlx5_devcom_for_each_peer_end(struct mlx5_devcom *devcom,
 				   enum mlx5_devcom_components id);
+void *mlx5_devcom_get_next_peer_data(struct mlx5_devcom *devcom,
+				     enum mlx5_devcom_components id, int *i);
+
+#define mlx5_devcom_for_each_peer_entry(devcom, id, data, i)			\
+	for (i = 0, data = mlx5_devcom_get_next_peer_data(devcom, id, &i);	\
+	     data;								\
+	     data = mlx5_devcom_get_next_peer_data(devcom, id, &i))
+
+void *mlx5_devcom_get_next_peer_data_rcu(struct mlx5_devcom *devcom,
+					 enum mlx5_devcom_components id, int *i);
+
+#define mlx5_devcom_for_each_peer_entry_rcu(devcom, id, data, i)		\
+	for (i = 0, data = mlx5_devcom_get_next_peer_data_rcu(devcom, id, &i);	\
+	     data;								\
+	     data = mlx5_devcom_get_next_peer_data_rcu(devcom, id, &i))
 
 #endif
-

@@ -3109,6 +3109,12 @@ static void __ceph_put_cap_refs(struct ceph_inode_info *ci, int had,
 	}
 	if (had & CEPH_CAP_FILE_WR) {
 		if (--ci->i_wr_ref == 0) {
+			/*
+			 * The Fb caps will always be took and released
+			 * together with the Fw caps.
+			 */
+			WARN_ON_ONCE(ci->i_wb_ref);
+
 			last++;
 			check_flushsnaps = true;
 			if (ci->i_wrbuffer_ref_head == 0 &&
@@ -3559,6 +3565,15 @@ static void handle_cap_grant(struct inode *inode,
 		wake = true;
 	}
 	BUG_ON(cap->issued & ~cap->implemented);
+
+	/* don't let check_caps skip sending a response to MDS for revoke msgs */
+	if (le32_to_cpu(grant->op) == CEPH_CAP_OP_REVOKE) {
+		cap->mds_wanted = 0;
+		if (cap == ci->i_auth_cap)
+			check_caps = 1; /* check auth cap only */
+		else
+			check_caps = 2; /* check all caps */
+	}
 
 	if (extra_info->inline_version > 0 &&
 	    extra_info->inline_version >= ci->i_inline_version) {
@@ -4086,6 +4101,7 @@ void ceph_handle_caps(struct ceph_mds_session *session,
 	struct cap_extra_info extra_info = {};
 	bool queue_trunc;
 	bool close_sessions = false;
+	bool do_cap_release = false;
 
 	dout("handle_caps from mds%d\n", session->s_mds);
 
@@ -4192,17 +4208,14 @@ void ceph_handle_caps(struct ceph_mds_session *session,
 	if (!inode) {
 		dout(" i don't have ino %llx\n", vino.ino);
 
-		if (op == CEPH_CAP_OP_IMPORT) {
-			cap = ceph_get_cap(mdsc, NULL);
-			cap->cap_ino = vino.ino;
-			cap->queue_release = 1;
-			cap->cap_id = le64_to_cpu(h->cap_id);
-			cap->mseq = mseq;
-			cap->seq = seq;
-			cap->issue_seq = seq;
-			spin_lock(&session->s_cap_lock);
-			__ceph_queue_cap_release(session, cap);
-			spin_unlock(&session->s_cap_lock);
+		switch (op) {
+		case CEPH_CAP_OP_IMPORT:
+		case CEPH_CAP_OP_REVOKE:
+		case CEPH_CAP_OP_GRANT:
+			do_cap_release = true;
+			break;
+		default:
+			break;
 		}
 		goto flush_cap_releases;
 	}
@@ -4252,6 +4265,14 @@ void ceph_handle_caps(struct ceph_mds_session *session,
 		     inode, ceph_ino(inode), ceph_snap(inode),
 		     session->s_mds);
 		spin_unlock(&ci->i_ceph_lock);
+		switch (op) {
+		case CEPH_CAP_OP_REVOKE:
+		case CEPH_CAP_OP_GRANT:
+			do_cap_release = true;
+			break;
+		default:
+			break;
+		}
 		goto flush_cap_releases;
 	}
 
@@ -4302,6 +4323,18 @@ flush_cap_releases:
 	 * along for the mds (who clearly thinks we still have this
 	 * cap).
 	 */
+	if (do_cap_release) {
+		cap = ceph_get_cap(mdsc, NULL);
+		cap->cap_ino = vino.ino;
+		cap->queue_release = 1;
+		cap->cap_id = le64_to_cpu(h->cap_id);
+		cap->mseq = mseq;
+		cap->seq = seq;
+		cap->issue_seq = seq;
+		spin_lock(&session->s_cap_lock);
+		__ceph_queue_cap_release(session, cap);
+		spin_unlock(&session->s_cap_lock);
+	}
 	ceph_flush_cap_releases(mdsc, session);
 	goto done;
 

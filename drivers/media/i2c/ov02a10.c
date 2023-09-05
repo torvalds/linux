@@ -1002,8 +1002,8 @@ static struct i2c_driver ov02a10_i2c_driver = {
 		.pm = &ov02a10_pm_ops,
 		.of_match_table = ov02a10_of_match,
 	},
-	.probe_new	= &ov02a10_probe,
-	.remove		= &ov02a10_remove,
+	.probe		= ov02a10_probe,
+	.remove		= ov02a10_remove,
 };
 module_i2c_driver(ov02a10_i2c_driver);
 

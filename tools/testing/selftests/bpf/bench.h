@@ -27,6 +27,7 @@ struct env {
 	bool quiet;
 	int consumer_cnt;
 	int producer_cnt;
+	int nr_cpus;
 	struct cpu_set prod_cpus;
 	struct cpu_set cons_cpus;
 };

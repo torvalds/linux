@@ -214,7 +214,6 @@ static int hidma_chan_init(struct hidma_dev *dmadev, u32 dma_sig)
 
 	spin_lock_init(&mchan->lock);
 	list_add_tail(&mchan->chan.device_node, &ddev->channels);
-	dmadev->ddev.chancnt++;
 	return 0;
 }
 

@@ -34,8 +34,9 @@ static int iommu_sva_alloc_pasid(struct mm_struct *mm, ioasid_t min, ioasid_t ma
 	}
 
 	ret = ida_alloc_range(&iommu_global_pasid_ida, min, max, GFP_KERNEL);
-	if (ret < min)
+	if (ret < 0)
 		goto out;
+
 	mm->pasid = ret;
 	ret = 0;
 out:
@@ -175,7 +176,7 @@ iommu_sva_handle_iopf(struct iommu_fault *fault, void *data)
 
 	mmap_read_lock(mm);
 
-	vma = find_extend_vma(mm, prm->addr);
+	vma = vma_lookup(mm, prm->addr);
 	if (!vma)
 		/* Unmapped area */
 		goto out_put_mm;

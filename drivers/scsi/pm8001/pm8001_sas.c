@@ -167,6 +167,17 @@ int pm8001_phy_control(struct asd_sas_phy *sas_phy, enum phy_func func,
 	pm8001_ha = sas_phy->ha->lldd_ha;
 	phy = &pm8001_ha->phy[phy_id];
 	pm8001_ha->phy[phy_id].enable_completion = &completion;
+
+	if (PM8001_CHIP_DISP->fatal_errors(pm8001_ha)) {
+		/*
+		 * If the controller is in fatal error state,
+		 * we will not get a response from the controller
+		 */
+		pm8001_dbg(pm8001_ha, FAIL,
+			   "Phy control failed due to fatal errors\n");
+		return -EFAULT;
+	}
+
 	switch (func) {
 	case PHY_FUNC_SET_LINK_RATE:
 		rates = funcdata;
@@ -908,6 +919,17 @@ int pm8001_lu_reset(struct domain_device *dev, u8 *lun)
 	struct pm8001_device *pm8001_dev = dev->lldd_dev;
 	struct pm8001_hba_info *pm8001_ha = pm8001_find_ha_by_dev(dev);
 	DECLARE_COMPLETION_ONSTACK(completion_setstate);
+
+	if (PM8001_CHIP_DISP->fatal_errors(pm8001_ha)) {
+		/*
+		 * If the controller is in fatal error state,
+		 * we will not get a response from the controller
+		 */
+		pm8001_dbg(pm8001_ha, FAIL,
+			   "LUN reset failed due to fatal errors\n");
+		return rc;
+	}
+
 	if (dev_is_sata(dev)) {
 		struct sas_phy *phy = sas_get_local_phy(dev);
 		sas_execute_internal_abort_dev(dev, 0, NULL);

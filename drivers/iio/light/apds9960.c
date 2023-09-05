@@ -1131,7 +1131,7 @@ static struct i2c_driver apds9960_driver = {
 		.pm	= &apds9960_pm_ops,
 		.acpi_match_table = apds9960_acpi_match,
 	},
-	.probe_new	= apds9960_probe,
+	.probe		= apds9960_probe,
 	.remove		= apds9960_remove,
 	.id_table	= apds9960_id,
 };

@@ -274,13 +274,6 @@ static enum ap_sm_wait ap_sm_write(struct ap_queue *aq)
 
 	/* Start the next request on the queue. */
 	ap_msg = list_entry(aq->requestq.next, struct ap_message, list);
-#ifdef CONFIG_ZCRYPT_DEBUG
-	if (ap_msg->fi.action == AP_FI_ACTION_NQAP_QID_INVAL) {
-		AP_DBF_WARN("%s fi cmd 0x%04x: forcing invalid qid 0xFF00\n",
-			    __func__, ap_msg->fi.cmd);
-		qid = 0xFF00;
-	}
-#endif
 	status = __ap_send(qid, ap_msg->psmid,
 			   ap_msg->msg, ap_msg->len,
 			   ap_msg->flags & AP_MSG_FLAG_SPECIAL);

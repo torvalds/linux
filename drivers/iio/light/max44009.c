@@ -544,7 +544,7 @@ static struct i2c_driver max44009_driver = {
 		.name = MAX44009_DRV_NAME,
 		.of_match_table = max44009_of_match,
 	},
-	.probe_new = max44009_probe,
+	.probe = max44009_probe,
 	.id_table = max44009_id,
 };
 module_i2c_driver(max44009_driver);

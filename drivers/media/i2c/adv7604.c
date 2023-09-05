@@ -3689,7 +3689,7 @@ static struct i2c_driver adv76xx_driver = {
 		.name = "adv7604",
 		.of_match_table = of_match_ptr(adv76xx_of_id),
 	},
-	.probe_new = adv76xx_probe,
+	.probe = adv76xx_probe,
 	.remove = adv76xx_remove,
 	.id_table = adv76xx_i2c_id,
 };

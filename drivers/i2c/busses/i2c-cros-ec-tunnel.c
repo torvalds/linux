@@ -283,13 +283,11 @@ static int ec_i2c_probe(struct platform_device *pdev)
 	return err;
 }
 
-static int ec_i2c_remove(struct platform_device *dev)
+static void ec_i2c_remove(struct platform_device *dev)
 {
 	struct ec_i2c_device *bus = platform_get_drvdata(dev);
 
 	i2c_del_adapter(&bus->adap);
-
-	return 0;
 }
 
 static const struct of_device_id cros_ec_i2c_of_match[] __maybe_unused = {
@@ -306,7 +304,7 @@ MODULE_DEVICE_TABLE(acpi, cros_ec_i2c_tunnel_acpi_id);
 
 static struct platform_driver ec_i2c_tunnel_driver = {
 	.probe = ec_i2c_probe,
-	.remove = ec_i2c_remove,
+	.remove_new = ec_i2c_remove,
 	.driver = {
 		.name = "cros-ec-i2c-tunnel",
 		.acpi_match_table = ACPI_PTR(cros_ec_i2c_tunnel_acpi_id),

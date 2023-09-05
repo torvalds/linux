@@ -306,7 +306,7 @@ static struct i2c_driver ad7418_driver = {
 		.name	= "ad7418",
 		.of_match_table = ad7418_dt_ids,
 	},
-	.probe_new	= ad7418_probe,
+	.probe		= ad7418_probe,
 	.id_table	= ad7418_id,
 };
 

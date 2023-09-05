@@ -8,8 +8,10 @@
 #include <drm/i915_drm.h>
 
 #include "display/intel_display.h"
+#include "display/intel_display_irq.h"
 #include "i915_drv.h"
 #include "i915_irq.h"
+#include "i915_reg.h"
 #include "intel_breadcrumbs.h"
 #include "intel_gt.h"
 #include "intel_gt_clock_utils.h"
@@ -71,13 +73,14 @@ static void set(struct intel_uncore *uncore, i915_reg_t reg, u32 val)
 static void rps_timer(struct timer_list *t)
 {
 	struct intel_rps *rps = from_timer(rps, t, timer);
+	struct intel_gt *gt = rps_to_gt(rps);
 	struct intel_engine_cs *engine;
 	ktime_t dt, last, timestamp;
 	enum intel_engine_id id;
 	s64 max_busy[3] = {};
 
 	timestamp = 0;
-	for_each_engine(engine, rps_to_gt(rps), id) {
+	for_each_engine(engine, gt, id) {
 		s64 busy;
 		int i;
 
@@ -121,7 +124,7 @@ static void rps_timer(struct timer_list *t)
 
 			busy += div_u64(max_busy[i], 1 << i);
 		}
-		GT_TRACE(rps_to_gt(rps),
+		GT_TRACE(gt,
 			 "busy:%lld [%d%%], max:[%lld, %lld, %lld], interval:%d\n",
 			 busy, (int)div64_u64(100 * busy, dt),
 			 max_busy[0], max_busy[1], max_busy[2],
@@ -131,12 +134,12 @@ static void rps_timer(struct timer_list *t)
 		    rps->cur_freq < rps->max_freq_softlimit) {
 			rps->pm_iir |= GEN6_PM_RP_UP_THRESHOLD;
 			rps->pm_interval = 1;
-			schedule_work(&rps->work);
+			queue_work(gt->i915->unordered_wq, &rps->work);
 		} else if (100 * busy < rps->power.down_threshold * dt &&
 			   rps->cur_freq > rps->min_freq_softlimit) {
 			rps->pm_iir |= GEN6_PM_RP_DOWN_THRESHOLD;
 			rps->pm_interval = 1;
-			schedule_work(&rps->work);
+			queue_work(gt->i915->unordered_wq, &rps->work);
 		} else {
 			rps->last_adj = 0;
 		}
@@ -971,7 +974,7 @@ static int rps_set_boost_freq(struct intel_rps *rps, u32 val)
 	}
 	mutex_unlock(&rps->lock);
 	if (boost)
-		schedule_work(&rps->work);
+		queue_work(rps_to_gt(rps)->i915->unordered_wq, &rps->work);
 
 	return 0;
 }
@@ -1023,7 +1026,8 @@ void intel_rps_boost(struct i915_request *rq)
 			if (!atomic_fetch_inc(&slpc->num_waiters)) {
 				GT_TRACE(rps_to_gt(rps), "boost fence:%llx:%llx\n",
 					 rq->fence.context, rq->fence.seqno);
-				schedule_work(&slpc->boost_work);
+				queue_work(rps_to_gt(rps)->i915->unordered_wq,
+					   &slpc->boost_work);
 			}
 
 			return;
@@ -1039,7 +1043,7 @@ void intel_rps_boost(struct i915_request *rq)
 			 rq->fence.context, rq->fence.seqno);
 
 		if (READ_ONCE(rps->cur_freq) < rps->boost_freq)
-			schedule_work(&rps->work);
+			queue_work(rps_to_gt(rps)->i915->unordered_wq, &rps->work);
 
 		WRITE_ONCE(rps->boosts, rps->boosts + 1); /* debug only */
 	}
@@ -1898,7 +1902,7 @@ void gen11_rps_irq_handler(struct intel_rps *rps, u32 pm_iir)
 	gen6_gt_pm_mask_irq(gt, events);
 
 	rps->pm_iir |= events;
-	schedule_work(&rps->work);
+	queue_work(gt->i915->unordered_wq, &rps->work);
 }
 
 void gen6_rps_irq_handler(struct intel_rps *rps, u32 pm_iir)
@@ -1915,7 +1919,7 @@ void gen6_rps_irq_handler(struct intel_rps *rps, u32 pm_iir)
 		gen6_gt_pm_mask_irq(gt, events);
 		rps->pm_iir |= events;
 
-		schedule_work(&rps->work);
+		queue_work(gt->i915->unordered_wq, &rps->work);
 		spin_unlock(gt->irq_lock);
 	}
 

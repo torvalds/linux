@@ -207,9 +207,9 @@ The MSI test client serves to test and debug the MSI library which
 allows for passing MSI interrupts across NTB memory windows. The
 test client is interacted with through the debugfs filesystem:
 
-* *debugfs*/ntb\_tool/*hw*/
+* *debugfs*/ntb\_msi\_test/*hw*/
 	A directory in debugfs will be created for each
-	NTB device probed by the tool.  This directory is shortened to *hw*
+	NTB device probed by the msi test.  This directory is shortened to *hw*
 	below.
 * *hw*/port
 	This file describes the local port number

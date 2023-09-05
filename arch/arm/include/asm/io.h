@@ -23,7 +23,7 @@
 #include <linux/string.h>
 #include <linux/types.h>
 #include <asm/byteorder.h>
-#include <asm/memory.h>
+#include <asm/page.h>
 #include <asm-generic/pci_iomap.h>
 
 /*

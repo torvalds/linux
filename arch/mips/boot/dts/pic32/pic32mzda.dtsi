@@ -75,7 +75,7 @@
 		microchip,external-irqs = <3 8 13 18 23>;
 	};
 
-	pic32_pinctrl: pinctrl@1f801400{
+	pic32_pinctrl: pinctrl@1f801400 {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "microchip,pic32mzda-pinctrl";

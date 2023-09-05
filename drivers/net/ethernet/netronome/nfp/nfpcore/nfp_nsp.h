@@ -196,6 +196,9 @@ enum nfp_ethtool_link_mode_list {
  *			subports)
  * @ports.is_split:	is interface part of a split port
  * @ports.fec_modes_supported:	bitmap of FEC modes supported
+ *
+ * @ports.link_modes_supp:	bitmap of link modes supported
+ * @ports.link_modes_ad:	bitmap of link modes advertised
  */
 struct nfp_eth_table {
 	unsigned int count;
@@ -235,6 +238,9 @@ struct nfp_eth_table {
 		bool is_split;
 
 		unsigned int fec_modes_supported;
+
+		u64 link_modes_supp[2];
+		u64 link_modes_ad[2];
 	} ports[];
 };
 
@@ -313,7 +319,6 @@ struct nfp_eth_media_buf {
 };
 
 int nfp_nsp_read_media(struct nfp_nsp *state, void *buf, unsigned int size);
-int nfp_eth_read_media(struct nfp_cpp *cpp, struct nfp_eth_media_buf *ethm);
 
 #define NFP_NSP_VERSION_BUFSZ	1024 /* reasonable size, not in the ABI */
 

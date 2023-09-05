@@ -274,7 +274,8 @@ union MESAPI__ADD_QUEUE {
 			uint32_t is_kfd_process		: 1;
 			uint32_t trap_en		: 1;
 			uint32_t is_aql_queue		: 1;
-			uint32_t reserved		: 20;
+			uint32_t skip_process_ctx_clear : 1;
+			uint32_t reserved		: 19;
 		};
 		struct MES_API_STATUS		api_status;
 		uint64_t                        tma_addr;
@@ -523,6 +524,7 @@ enum MESAPI_MISC_OPCODE {
 	MESAPI_MISC__QUERY_STATUS,
 	MESAPI_MISC__READ_REG,
 	MESAPI_MISC__WAIT_REG_MEM,
+	MESAPI_MISC__SET_SHADER_DEBUGGER,
 	MESAPI_MISC__MAX,
 };
 
@@ -561,6 +563,21 @@ struct QUERY_STATUS {
 	uint32_t context_id;
 };
 
+struct SET_SHADER_DEBUGGER {
+	uint64_t process_context_addr;
+	union {
+		struct {
+			uint32_t single_memop : 1;  /* SQ_DEBUG.single_memop */
+			uint32_t single_alu_op : 1; /* SQ_DEBUG.single_alu_op */
+			uint32_t reserved : 30;
+		};
+		uint32_t u32all;
+	} flags;
+	uint32_t spi_gdbg_per_vmid_cntl;
+	uint32_t tcp_watch_cntl[4]; /* TCP_WATCHx_CNTL */
+	uint32_t trap_en;
+};
+
 union MESAPI__MISC {
 	struct {
 		union MES_API_HEADER	header;
@@ -573,6 +590,9 @@ union MESAPI__MISC {
 			struct		QUERY_STATUS query_status;
 			struct		READ_REG read_reg;
 			struct          WAIT_REG_MEM wait_reg_mem;
+			struct		SET_SHADER_DEBUGGER set_shader_debugger;
+			enum MES_AMD_PRIORITY_LEVEL queue_sch_level;
+
 			uint32_t	data[MISC_DATA_MAX_SIZE_IN_DWORDS];
 		};
 	};

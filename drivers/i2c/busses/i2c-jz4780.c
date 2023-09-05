@@ -845,18 +845,17 @@ err:
 	return ret;
 }
 
-static int jz4780_i2c_remove(struct platform_device *pdev)
+static void jz4780_i2c_remove(struct platform_device *pdev)
 {
 	struct jz4780_i2c *i2c = platform_get_drvdata(pdev);
 
 	clk_disable_unprepare(i2c->clk);
 	i2c_del_adapter(&i2c->adap);
-	return 0;
 }
 
 static struct platform_driver jz4780_i2c_driver = {
 	.probe		= jz4780_i2c_probe,
-	.remove		= jz4780_i2c_remove,
+	.remove_new	= jz4780_i2c_remove,
 	.driver		= {
 		.name	= "jz4780-i2c",
 		.of_match_table = jz4780_i2c_of_matches,

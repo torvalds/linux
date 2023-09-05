@@ -523,10 +523,6 @@ void mark_rodata_ro(void)
 void *parisc_vmalloc_start __ro_after_init;
 EXPORT_SYMBOL(parisc_vmalloc_start);
 
-#ifdef CONFIG_PA11
-unsigned long pcxl_dma_start __ro_after_init;
-#endif
-
 void __init mem_init(void)
 {
 	/* Do sanity checks on IPC (compat) structures */
@@ -626,12 +622,10 @@ static void __init pagetable_init(void)
 
 	for (range = 0; range < npmem_ranges; range++) {
 		unsigned long start_paddr;
-		unsigned long end_paddr;
 		unsigned long size;
 
 		start_paddr = pmem_ranges[range].start_pfn << PAGE_SHIFT;
 		size = pmem_ranges[range].pages << PAGE_SHIFT;
-		end_paddr = start_paddr + size;
 
 		map_pages((unsigned long)__va(start_paddr), start_paddr,
 			  size, PAGE_KERNEL, 0);
@@ -671,6 +665,39 @@ static void __init gateway_init(void)
 		  PAGE_SIZE, PAGE_GATEWAY, 1);
 }
 
+static void __init fixmap_init(void)
+{
+	unsigned long addr = FIXMAP_START;
+	unsigned long end = FIXMAP_START + FIXMAP_SIZE;
+	pgd_t *pgd = pgd_offset_k(addr);
+	p4d_t *p4d = p4d_offset(pgd, addr);
+	pud_t *pud = pud_offset(p4d, addr);
+	pmd_t *pmd;
+
+	BUILD_BUG_ON(FIXMAP_SIZE > PMD_SIZE);
+
+#if CONFIG_PGTABLE_LEVELS == 3
+	if (pud_none(*pud)) {
+		pmd = memblock_alloc(PAGE_SIZE << PMD_TABLE_ORDER,
+				     PAGE_SIZE << PMD_TABLE_ORDER);
+		if (!pmd)
+			panic("fixmap: pmd allocation failed.\n");
+		pud_populate(NULL, pud, pmd);
+	}
+#endif
+
+	pmd = pmd_offset(pud, addr);
+	do {
+		pte_t *pte = memblock_alloc(PAGE_SIZE, PAGE_SIZE);
+		if (!pte)
+			panic("fixmap: pte allocation failed.\n");
+
+		pmd_populate_kernel(&init_mm, pmd, pte);
+
+		addr += PAGE_SIZE;
+	} while (addr < end);
+}
+
 static void __init parisc_bootmem_free(void)
 {
 	unsigned long max_zone_pfn[MAX_NR_ZONES] = { 0, };
@@ -685,6 +712,7 @@ void __init paging_init(void)
 	setup_bootmem();
 	pagetable_init();
 	gateway_init();
+	fixmap_init();
 	flush_cache_all_local(); /* start with known state */
 	flush_tlb_all_local(NULL);
 

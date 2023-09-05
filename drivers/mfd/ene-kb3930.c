@@ -196,7 +196,7 @@ static const struct of_device_id kb3930_dt_ids[] = {
 MODULE_DEVICE_TABLE(of, kb3930_dt_ids);
 
 static struct i2c_driver kb3930_driver = {
-	.probe_new = kb3930_probe,
+	.probe = kb3930_probe,
 	.remove = kb3930_remove,
 	.driver = {
 		.name = "ene-kb3930",

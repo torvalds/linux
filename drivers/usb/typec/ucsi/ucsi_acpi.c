@@ -212,7 +212,7 @@ static int ucsi_acpi_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int ucsi_acpi_remove(struct platform_device *pdev)
+static void ucsi_acpi_remove(struct platform_device *pdev)
 {
 	struct ucsi_acpi *ua = platform_get_drvdata(pdev);
 
@@ -221,8 +221,6 @@ static int ucsi_acpi_remove(struct platform_device *pdev)
 
 	acpi_remove_notify_handler(ACPI_HANDLE(&pdev->dev), ACPI_DEVICE_NOTIFY,
 				   ucsi_acpi_notify);
-
-	return 0;
 }
 
 static int ucsi_acpi_resume(struct device *dev)
@@ -247,7 +245,7 @@ static struct platform_driver ucsi_acpi_platform_driver = {
 		.acpi_match_table = ACPI_PTR(ucsi_acpi_match),
 	},
 	.probe = ucsi_acpi_probe,
-	.remove = ucsi_acpi_remove,
+	.remove_new = ucsi_acpi_remove,
 };
 
 module_platform_driver(ucsi_acpi_platform_driver);

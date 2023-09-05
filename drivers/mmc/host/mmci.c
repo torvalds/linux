@@ -37,6 +37,7 @@
 #include <linux/pinctrl/consumer.h>
 #include <linux/reset.h>
 #include <linux/gpio/consumer.h>
+#include <linux/workqueue.h>
 
 #include <asm/div64.h>
 #include <asm/io.h>
@@ -270,6 +271,7 @@ static struct variant_data variant_stm32_sdmmc = {
 	.datactrl_any_blocksz	= true,
 	.datactrl_mask_sdio	= MCI_DPSM_ST_SDIOEN,
 	.stm32_idmabsize_mask	= GENMASK(12, 5),
+	.stm32_idmabsize_align	= BIT(5),
 	.busy_timeout		= true,
 	.busy_detect		= true,
 	.busy_detect_flag	= MCI_STM32_BUSYD0,
@@ -296,6 +298,35 @@ static struct variant_data variant_stm32_sdmmcv2 = {
 	.datactrl_any_blocksz	= true,
 	.datactrl_mask_sdio	= MCI_DPSM_ST_SDIOEN,
 	.stm32_idmabsize_mask	= GENMASK(16, 5),
+	.stm32_idmabsize_align	= BIT(5),
+	.dma_lli		= true,
+	.busy_timeout		= true,
+	.busy_detect		= true,
+	.busy_detect_flag	= MCI_STM32_BUSYD0,
+	.busy_detect_mask	= MCI_STM32_BUSYD0ENDMASK,
+	.init			= sdmmc_variant_init,
+};
+
+static struct variant_data variant_stm32_sdmmcv3 = {
+	.fifosize		= 256 * 4,
+	.fifohalfsize		= 128 * 4,
+	.f_max			= 267000000,
+	.stm32_clkdiv		= true,
+	.cmdreg_cpsm_enable	= MCI_CPSM_STM32_ENABLE,
+	.cmdreg_lrsp_crc	= MCI_CPSM_STM32_LRSP_CRC,
+	.cmdreg_srsp_crc	= MCI_CPSM_STM32_SRSP_CRC,
+	.cmdreg_srsp		= MCI_CPSM_STM32_SRSP,
+	.cmdreg_stop		= MCI_CPSM_STM32_CMDSTOP,
+	.data_cmd_enable	= MCI_CPSM_STM32_CMDTRANS,
+	.irq_pio_mask		= MCI_IRQ_PIO_STM32_MASK,
+	.datactrl_first		= true,
+	.datacnt_useless	= true,
+	.datalength_bits	= 25,
+	.datactrl_blocksz	= 14,
+	.datactrl_any_blocksz	= true,
+	.datactrl_mask_sdio	= MCI_DPSM_ST_SDIOEN,
+	.stm32_idmabsize_mask	= GENMASK(16, 6),
+	.stm32_idmabsize_align	= BIT(6),
 	.dma_lli		= true,
 	.busy_timeout		= true,
 	.busy_detect		= true,
@@ -654,9 +685,51 @@ static u32 ux500v2_get_dctrl_cfg(struct mmci_host *host)
 	return MCI_DPSM_ENABLE | (host->data->blksz << 16);
 }
 
-static bool ux500_busy_complete(struct mmci_host *host, u32 status, u32 err_msk)
+static void ux500_busy_clear_mask_done(struct mmci_host *host)
 {
 	void __iomem *base = host->base;
+
+	writel(host->variant->busy_detect_mask, base + MMCICLEAR);
+	writel(readl(base + MMCIMASK0) &
+	       ~host->variant->busy_detect_mask, base + MMCIMASK0);
+	host->busy_state = MMCI_BUSY_DONE;
+	host->busy_status = 0;
+}
+
+/*
+ * ux500_busy_complete() - this will wait until the busy status
+ * goes off, saving any status that occur in the meantime into
+ * host->busy_status until we know the card is not busy any more.
+ * The function returns true when the busy detection is ended
+ * and we should continue processing the command.
+ *
+ * The Ux500 typically fires two IRQs over a busy cycle like this:
+ *
+ *  DAT0 busy          +-----------------+
+ *                     |                 |
+ *  DAT0 not busy  ----+                 +--------
+ *
+ *                     ^                 ^
+ *                     |                 |
+ *                    IRQ1              IRQ2
+ */
+static bool ux500_busy_complete(struct mmci_host *host, struct mmc_command *cmd,
+				u32 status, u32 err_msk)
+{
+	void __iomem *base = host->base;
+	int retries = 10;
+
+	if (status & err_msk) {
+		/* Stop any ongoing busy detection if an error occurs */
+		ux500_busy_clear_mask_done(host);
+		goto out_ret_state;
+	}
+
+	/*
+	 * The state transitions are encoded in a state machine crossing
+	 * the edges in this switch statement.
+	 */
+	switch (host->busy_state) {
 
 	/*
 	 * Before unmasking for the busy end IRQ, confirm that the
@@ -667,19 +740,33 @@ static bool ux500_busy_complete(struct mmci_host *host, u32 status, u32 err_msk)
 	 * Note that, the card may need a couple of clock cycles before
 	 * it starts signaling busy on DAT0, hence re-read the
 	 * MMCISTATUS register here, to allow the busy bit to be set.
-	 * Potentially we may even need to poll the register for a
-	 * while, to allow it to be set, but tests indicates that it
-	 * isn't needed.
 	 */
-	if (!host->busy_status && !(status & err_msk) &&
-	    (readl(base + MMCISTATUS) & host->variant->busy_detect_flag)) {
-		writel(readl(base + MMCIMASK0) |
-		       host->variant->busy_detect_mask,
-		       base + MMCIMASK0);
-
+	case MMCI_BUSY_DONE:
+		/*
+		 * Save the first status register read to be sure to catch
+		 * all bits that may be lost will retrying. If the command
+		 * is still busy this will result in assigning 0 to
+		 * host->busy_status, which is what it should be in IDLE.
+		 */
 		host->busy_status = status & (MCI_CMDSENT | MCI_CMDRESPEND);
-		return false;
-	}
+		while (retries) {
+			status = readl(base + MMCISTATUS);
+			/* Keep accumulating status bits */
+			host->busy_status |= status & (MCI_CMDSENT | MCI_CMDRESPEND);
+			if (status & host->variant->busy_detect_flag) {
+				writel(readl(base + MMCIMASK0) |
+				       host->variant->busy_detect_mask,
+				       base + MMCIMASK0);
+				host->busy_state = MMCI_BUSY_WAITING_FOR_START_IRQ;
+				schedule_delayed_work(&host->ux500_busy_timeout_work,
+				      msecs_to_jiffies(cmd->busy_timeout));
+				goto out_ret_state;
+			}
+			retries--;
+		}
+		dev_dbg(mmc_dev(host->mmc), "no busy signalling in time\n");
+		ux500_busy_clear_mask_done(host);
+		break;
 
 	/*
 	 * If there is a command in-progress that has been successfully
@@ -692,27 +779,39 @@ static bool ux500_busy_complete(struct mmci_host *host, u32 status, u32 err_msk)
 	 * both the start and the end interrupts needs to be cleared,
 	 * one after the other. So, clear the busy start IRQ here.
 	 */
-	if (host->busy_status &&
-	    (status & host->variant->busy_detect_flag)) {
-		writel(host->variant->busy_detect_mask, base + MMCICLEAR);
-		return false;
+	case MMCI_BUSY_WAITING_FOR_START_IRQ:
+		if (status & host->variant->busy_detect_flag) {
+			host->busy_status |= status & (MCI_CMDSENT | MCI_CMDRESPEND);
+			writel(host->variant->busy_detect_mask, base + MMCICLEAR);
+			host->busy_state = MMCI_BUSY_WAITING_FOR_END_IRQ;
+		} else {
+			dev_dbg(mmc_dev(host->mmc),
+				"lost busy status when waiting for busy start IRQ\n");
+			cancel_delayed_work(&host->ux500_busy_timeout_work);
+			ux500_busy_clear_mask_done(host);
+		}
+		break;
+
+	case MMCI_BUSY_WAITING_FOR_END_IRQ:
+		if (!(status & host->variant->busy_detect_flag)) {
+			host->busy_status |= status & (MCI_CMDSENT | MCI_CMDRESPEND);
+			writel(host->variant->busy_detect_mask, base + MMCICLEAR);
+			cancel_delayed_work(&host->ux500_busy_timeout_work);
+			ux500_busy_clear_mask_done(host);
+		} else {
+			dev_dbg(mmc_dev(host->mmc),
+				"busy status still asserted when handling busy end IRQ - will keep waiting\n");
+		}
+		break;
+
+	default:
+		dev_dbg(mmc_dev(host->mmc), "fell through on state %d\n",
+			host->busy_state);
+		break;
 	}
 
-	/*
-	 * If there is a command in-progress that has been successfully
-	 * sent and the busy bit isn't set, it means we have received
-	 * the busy end IRQ. Clear and mask the IRQ, then continue to
-	 * process the command.
-	 */
-	if (host->busy_status) {
-		writel(host->variant->busy_detect_mask, base + MMCICLEAR);
-
-		writel(readl(base + MMCIMASK0) &
-		       ~host->variant->busy_detect_mask, base + MMCIMASK0);
-		host->busy_status = 0;
-	}
-
-	return true;
+out_ret_state:
+	return (host->busy_state == MMCI_BUSY_DONE);
 }
 
 /*
@@ -1214,6 +1313,7 @@ static void
 mmci_start_command(struct mmci_host *host, struct mmc_command *cmd, u32 c)
 {
 	void __iomem *base = host->base;
+	bool busy_resp = cmd->flags & MMC_RSP_BUSY;
 	unsigned long long clks;
 
 	dev_dbg(mmc_dev(host->mmc), "op %02x arg %08x flags %08x\n",
@@ -1238,10 +1338,14 @@ mmci_start_command(struct mmci_host *host, struct mmc_command *cmd, u32 c)
 			c |= host->variant->cmdreg_srsp;
 	}
 
-	if (host->variant->busy_timeout && cmd->flags & MMC_RSP_BUSY) {
-		if (!cmd->busy_timeout)
-			cmd->busy_timeout = 10 * MSEC_PER_SEC;
+	host->busy_status = 0;
+	host->busy_state = MMCI_BUSY_DONE;
 
+	/* Assign a default timeout if the core does not provide one */
+	if (busy_resp && !cmd->busy_timeout)
+		cmd->busy_timeout = 10 * MSEC_PER_SEC;
+
+	if (busy_resp && host->variant->busy_timeout) {
 		if (cmd->busy_timeout > host->mmc->max_busy_timeout)
 			clks = (unsigned long long)host->mmc->max_busy_timeout * host->cclk;
 		else
@@ -1382,7 +1486,7 @@ mmci_cmd_irq(struct mmci_host *host, struct mmc_command *cmd,
 
 	/* Handle busy detection on DAT0 if the variant supports it. */
 	if (busy_resp && host->variant->busy_detect)
-		if (!host->ops->busy_complete(host, status, err_msk))
+		if (!host->ops->busy_complete(host, cmd, status, err_msk))
 			return;
 
 	host->cmd = NULL;
@@ -1427,6 +1531,34 @@ mmci_cmd_irq(struct mmci_host *host, struct mmc_command *cmd,
 		   !(cmd->data->flags & MMC_DATA_READ)) {
 		mmci_start_data(host, cmd->data);
 	}
+}
+
+/*
+ * This busy timeout worker is used to "kick" the command IRQ if a
+ * busy detect IRQ fails to appear in reasonable time. Only used on
+ * variants with busy detection IRQ delivery.
+ */
+static void ux500_busy_timeout_work(struct work_struct *work)
+{
+	struct mmci_host *host = container_of(work, struct mmci_host,
+					ux500_busy_timeout_work.work);
+	unsigned long flags;
+	u32 status;
+
+	spin_lock_irqsave(&host->lock, flags);
+
+	if (host->cmd) {
+		dev_dbg(mmc_dev(host->mmc), "timeout waiting for busy IRQ\n");
+
+		/* If we are still busy let's tag on a cmd-timeout error. */
+		status = readl(host->base + MMCISTATUS);
+		if (status & host->variant->busy_detect_flag)
+			status |= MCI_CMDTIMEOUT;
+
+		mmci_cmd_irq(host, host->cmd, status);
+	}
+
+	spin_unlock_irqrestore(&host->lock, flags);
 }
 
 static int mmci_get_rx_fifocnt(struct mmci_host *host, u32 status, int remain)
@@ -2243,6 +2375,10 @@ static int mmci_probe(struct amba_device *dev,
 			goto clk_disable;
 	}
 
+	if (host->variant->busy_detect)
+		INIT_DELAYED_WORK(&host->ux500_busy_timeout_work,
+				  ux500_busy_timeout_work);
+
 	writel(MCI_IRQENABLE | variant->start_err, host->base + MMCIMASK0);
 
 	amba_set_drvdata(dev, mmc);
@@ -2441,6 +2577,11 @@ static const struct amba_id mmci_ids[] = {
 		.mask	= 0xf0ffffff,
 		.data	= &variant_stm32_sdmmcv2,
 	},
+	{
+		.id     = 0x00353180,
+		.mask	= 0xf0ffffff,
+		.data	= &variant_stm32_sdmmcv3,
+	},
 	/* Qualcomm variants */
 	{
 		.id     = 0x00051180,
@@ -2456,6 +2597,7 @@ static struct amba_driver mmci_driver = {
 	.drv		= {
 		.name	= DRIVER_NAME,
 		.pm	= &mmci_dev_pm_ops,
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 	.probe		= mmci_probe,
 	.remove		= mmci_remove,

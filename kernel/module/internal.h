@@ -32,6 +32,18 @@
 /* Maximum number of characters written by module_flags() */
 #define MODULE_FLAGS_BUF_SIZE (TAINT_FLAGS_COUNT + 4)
 
+struct kernel_symbol {
+#ifdef CONFIG_HAVE_ARCH_PREL32_RELOCATIONS
+	int value_offset;
+	int name_offset;
+	int namespace_offset;
+#else
+	unsigned long value;
+	const char *name;
+	const char *namespace;
+#endif
+};
+
 extern struct mutex module_mutex;
 extern struct list_head modules;
 

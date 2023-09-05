@@ -642,6 +642,7 @@ enum mac_ax_err_info {
 	MAC_AX_ERR_L0_PROMOTE_TO_L1 = 0x0010,
 
 	/* L1 */
+	MAC_AX_ERR_L1_PREERR_DMAC = 0x999,
 	MAC_AX_ERR_L1_ERR_DMAC = 0x1000,
 	MAC_AX_ERR_L1_RESET_DISABLE_DMAC_DONE = 0x1001,
 	MAC_AX_ERR_L1_RESET_RECOVERY_DONE = 0x1002,
@@ -780,6 +781,7 @@ enum mac_ax_err_info {
 	MAC_AX_ERR_L1_RCVY_EN = 0x0002,
 	MAC_AX_ERR_L1_RCVY_STOP_REQ = 0x0003,
 	MAC_AX_ERR_L1_RCVY_START_REQ = 0x0004,
+	MAC_AX_ERR_L1_RESET_START_DMAC = 0x000A,
 	MAC_AX_ERR_L0_CFG_NOTIFY = 0x0010,
 	MAC_AX_ERR_L0_CFG_DIS_NOTIFY = 0x0011,
 	MAC_AX_ERR_L0_CFG_HANDSHAKE = 0x0012,
@@ -819,6 +821,7 @@ struct rtw89_mac_size_set {
 	const struct rtw89_ple_quota ple_qt58;
 	const struct rtw89_ple_quota ple_qt_52a_wow;
 	const struct rtw89_ple_quota ple_qt_52b_wow;
+	const struct rtw89_ple_quota ple_qt_51b_wow;
 };
 
 extern const struct rtw89_mac_size_set rtw89_mac_size;
@@ -1115,6 +1118,8 @@ enum rtw89_mac_xtal_si_offset {
 	XTAL_SI_PWR_CUT = 0x10,
 #define XTAL_SI_SMALL_PWR_CUT	BIT(0)
 #define XTAL_SI_BIG_PWR_CUT	BIT(1)
+	XTAL_SI_XTAL_DRV = 0x15,
+#define XTAL_SI_DRV_LATCH	BIT(4)
 	XTAL_SI_XTAL_XMD_2 = 0x24,
 #define XTAL_SI_LDO_LPS		GENMASK(6, 4)
 	XTAL_SI_XTAL_XMD_4 = 0x26,

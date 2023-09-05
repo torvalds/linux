@@ -643,6 +643,39 @@ static void guc_init_golden_context(struct intel_guc *guc)
 	GEM_BUG_ON(guc->ads_golden_ctxt_size != total_size);
 }
 
+static u32 guc_get_capture_engine_mask(struct iosys_map *info_map, u32 capture_class)
+{
+	u32 mask;
+
+	switch (capture_class) {
+	case GUC_CAPTURE_LIST_CLASS_RENDER_COMPUTE:
+		mask = info_map_read(info_map, engine_enabled_masks[GUC_RENDER_CLASS]);
+		mask |= info_map_read(info_map, engine_enabled_masks[GUC_COMPUTE_CLASS]);
+		break;
+
+	case GUC_CAPTURE_LIST_CLASS_VIDEO:
+		mask = info_map_read(info_map, engine_enabled_masks[GUC_VIDEO_CLASS]);
+		break;
+
+	case GUC_CAPTURE_LIST_CLASS_VIDEOENHANCE:
+		mask = info_map_read(info_map, engine_enabled_masks[GUC_VIDEOENHANCE_CLASS]);
+		break;
+
+	case GUC_CAPTURE_LIST_CLASS_BLITTER:
+		mask = info_map_read(info_map, engine_enabled_masks[GUC_BLITTER_CLASS]);
+		break;
+
+	case GUC_CAPTURE_LIST_CLASS_GSC_OTHER:
+		mask = info_map_read(info_map, engine_enabled_masks[GUC_GSC_OTHER_CLASS]);
+		break;
+
+	default:
+		mask = 0;
+	}
+
+	return mask;
+}
+
 static int
 guc_capture_prep_lists(struct intel_guc *guc)
 {
@@ -678,9 +711,10 @@ guc_capture_prep_lists(struct intel_guc *guc)
 
 	for (i = 0; i < GUC_CAPTURE_LIST_INDEX_MAX; i++) {
 		for (j = 0; j < GUC_MAX_ENGINE_CLASSES; j++) {
+			u32 engine_mask = guc_get_capture_engine_mask(&info_map, j);
 
 			/* null list if we dont have said engine or list */
-			if (!info_map_read(&info_map, engine_enabled_masks[j])) {
+			if (!engine_mask) {
 				if (ads_is_mapped) {
 					ads_blob_write(guc, ads.capture_class[i][j], null_ggtt);
 					ads_blob_write(guc, ads.capture_instance[i][j], null_ggtt);

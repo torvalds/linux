@@ -554,6 +554,7 @@ extern void (*_dma_cache_inv)(unsigned long start, unsigned long size);
  * access
  */
 #define xlate_dev_mem_ptr(p)	__va(p)
+#define unxlate_dev_mem_ptr(p, v) do { } while (0)
 
 void __ioread64_copy(void *to, const void __iomem *from, size_t count);
 

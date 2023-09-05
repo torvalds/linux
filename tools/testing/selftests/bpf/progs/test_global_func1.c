@@ -10,6 +10,8 @@
 static __attribute__ ((noinline))
 int f0(int var, struct __sk_buff *skb)
 {
+	asm volatile ("");
+
 	return skb->len;
 }
 

@@ -6,16 +6,16 @@
  * High level machine check handler. Handles pages reported by the
  * hardware as being corrupted usually due to a multi-bit ECC memory or cache
  * failure.
- * 
+ *
  * In addition there is a "soft offline" entry point that allows stop using
  * not-yet-corrupted-by-suspicious pages without killing anything.
  *
  * Handles page cache pages in various states.	The tricky part
- * here is that we can access any page asynchronously in respect to 
- * other VM users, because memory failures could happen anytime and 
- * anywhere. This could violate some of their assumptions. This is why 
- * this code has to be extremely careful. Generally it tries to use 
- * normal locking rules, as in get the standard locks, even if that means 
+ * here is that we can access any page asynchronously in respect to
+ * other VM users, because memory failures could happen anytime and
+ * anywhere. This could violate some of their assumptions. This is why
+ * this code has to be extremely careful. Generally it tries to use
+ * normal locking rules, as in get the standard locks, even if that means
  * the error handling takes potentially a long time.
  *
  * It can be very tempting to add handling for obscure cases here.
@@ -25,12 +25,12 @@
  *   https://git.kernel.org/cgit/utils/cpu/mce/mce-test.git/
  * - The case actually shows up as a frequent (top 10) page state in
  *   tools/mm/page-types when running a real workload.
- * 
+ *
  * There are several operations here with exponential complexity because
- * of unsuitable VM data structures. For example the operation to map back 
- * from RMAP chains to processes has to walk the complete process list and 
+ * of unsuitable VM data structures. For example the operation to map back
+ * from RMAP chains to processes has to walk the complete process list and
  * has non linear complexity with the number. But since memory corruptions
- * are rare we hope to get away with this. This avoids impacting the core 
+ * are rare we hope to get away with this. This avoids impacting the core
  * VM.
  */
 
@@ -123,7 +123,6 @@ const struct attribute_group memory_failure_attr_group = {
 	.attrs = memory_failure_attr,
 };
 
-#ifdef CONFIG_SYSCTL
 static struct ctl_table memory_failure_table[] = {
 	{
 		.procname	= "memory_failure_early_kill",
@@ -145,14 +144,6 @@ static struct ctl_table memory_failure_table[] = {
 	},
 	{ }
 };
-
-static int __init memory_failure_sysctl_init(void)
-{
-	register_sysctl_init("vm", memory_failure_table);
-	return 0;
-}
-late_initcall(memory_failure_sysctl_init);
-#endif /* CONFIG_SYSCTL */
 
 /*
  * Return values:
@@ -395,6 +386,7 @@ static unsigned long dev_pagemap_mapping_shift(struct vm_area_struct *vma,
 	pud_t *pud;
 	pmd_t *pmd;
 	pte_t *pte;
+	pte_t ptent;
 
 	VM_BUG_ON_VMA(address == -EFAULT, vma);
 	pgd = pgd_offset(vma->vm_mm, address);
@@ -414,7 +406,10 @@ static unsigned long dev_pagemap_mapping_shift(struct vm_area_struct *vma,
 	if (pmd_devmap(*pmd))
 		return PMD_SHIFT;
 	pte = pte_offset_map(pmd, address);
-	if (pte_present(*pte) && pte_devmap(*pte))
+	if (!pte)
+		return 0;
+	ptent = ptep_get(pte);
+	if (pte_present(ptent) && pte_devmap(ptent))
 		ret = PAGE_SHIFT;
 	pte_unmap(pte);
 	return ret;
@@ -800,13 +795,13 @@ static int hwpoison_pte_range(pmd_t *pmdp, unsigned long addr,
 		goto out;
 	}
 
-	if (pmd_trans_unstable(pmdp))
-		goto out;
-
 	mapped_pte = ptep = pte_offset_map_lock(walk->vma->vm_mm, pmdp,
 						addr, &ptl);
+	if (!ptep)
+		goto out;
+
 	for (; addr != end; ptep++, addr += PAGE_SIZE) {
-		ret = check_hwpoisoned_entry(*ptep, addr, PAGE_SHIFT,
+		ret = check_hwpoisoned_entry(ptep_get(ptep), addr, PAGE_SHIFT,
 					     hwp->pfn, &hwp->tk);
 		if (ret == 1)
 			break;
@@ -836,6 +831,7 @@ static int hwpoison_hugetlb_range(pte_t *ptep, unsigned long hmask,
 static const struct mm_walk_ops hwp_walk_ops = {
 	.pmd_entry = hwpoison_pte_range,
 	.hugetlb_entry = hwpoison_hugetlb_range,
+	.walk_lock = PGWALK_RDLOCK,
 };
 
 /*
@@ -2441,6 +2437,8 @@ static int __init memory_failure_init(void)
 		INIT_WORK(&mf_cpu->work, memory_failure_work_func);
 	}
 
+	register_sysctl_init("vm", memory_failure_table);
+
 	return 0;
 }
 core_initcall(memory_failure_init);
@@ -2469,7 +2467,7 @@ int unpoison_memory(unsigned long pfn)
 {
 	struct folio *folio;
 	struct page *p;
-	int ret = -EBUSY;
+	int ret = -EBUSY, ghp;
 	unsigned long count = 1;
 	bool huge = false;
 	static DEFINE_RATELIMIT_STATE(unpoison_rs, DEFAULT_RATELIMIT_INTERVAL,
@@ -2490,7 +2488,7 @@ int unpoison_memory(unsigned long pfn)
 		goto unlock_mutex;
 	}
 
-	if (!folio_test_hwpoison(folio)) {
+	if (!PageHWPoison(p)) {
 		unpoison_pr_info("Unpoison: Page was already unpoisoned %#lx\n",
 				 pfn, &unpoison_rs);
 		goto unlock_mutex;
@@ -2502,6 +2500,13 @@ int unpoison_memory(unsigned long pfn)
 		goto unlock_mutex;
 	}
 
+	if (folio_test_slab(folio) || PageTable(&folio->page) || folio_test_reserved(folio))
+		goto unlock_mutex;
+
+	/*
+	 * Note that folio->_mapcount is overloaded in SLAB, so the simple test
+	 * in folio_mapped() has to be done after folio_test_slab() is checked.
+	 */
 	if (folio_mapped(folio)) {
 		unpoison_pr_info("Unpoison: Someone maps the hwpoison page %#lx\n",
 				 pfn, &unpoison_rs);
@@ -2514,32 +2519,28 @@ int unpoison_memory(unsigned long pfn)
 		goto unlock_mutex;
 	}
 
-	if (folio_test_slab(folio) || PageTable(&folio->page) || folio_test_reserved(folio))
-		goto unlock_mutex;
-
-	ret = get_hwpoison_page(p, MF_UNPOISON);
-	if (!ret) {
+	ghp = get_hwpoison_page(p, MF_UNPOISON);
+	if (!ghp) {
 		if (PageHuge(p)) {
 			huge = true;
 			count = folio_free_raw_hwp(folio, false);
-			if (count == 0) {
-				ret = -EBUSY;
+			if (count == 0)
 				goto unlock_mutex;
-			}
 		}
 		ret = folio_test_clear_hwpoison(folio) ? 0 : -EBUSY;
-	} else if (ret < 0) {
-		if (ret == -EHWPOISON) {
+	} else if (ghp < 0) {
+		if (ghp == -EHWPOISON) {
 			ret = put_page_back_buddy(p) ? 0 : -EBUSY;
-		} else
+		} else {
+			ret = ghp;
 			unpoison_pr_info("Unpoison: failed to grab page %#lx\n",
 					 pfn, &unpoison_rs);
+		}
 	} else {
 		if (PageHuge(p)) {
 			huge = true;
 			count = folio_free_raw_hwp(folio, false);
 			if (count == 0) {
-				ret = -EBUSY;
 				folio_put(folio);
 				goto unlock_mutex;
 			}
@@ -2740,10 +2741,13 @@ retry:
 	if (ret > 0) {
 		ret = soft_offline_in_use_page(page);
 	} else if (ret == 0) {
-		if (!page_handle_poison(page, true, false) && try_again) {
-			try_again = false;
-			flags &= ~MF_COUNT_INCREASED;
-			goto retry;
+		if (!page_handle_poison(page, true, false)) {
+			if (try_again) {
+				try_again = false;
+				flags &= ~MF_COUNT_INCREASED;
+				goto retry;
+			}
+			ret = -EBUSY;
 		}
 	}
 

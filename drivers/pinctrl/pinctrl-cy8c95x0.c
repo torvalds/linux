@@ -1442,7 +1442,7 @@ static struct i2c_driver cy8c95x0_driver = {
 		.of_match_table = cy8c95x0_dt_ids,
 		.acpi_match_table = cy8c95x0_acpi_ids,
 	},
-	.probe_new	= cy8c95x0_probe,
+	.probe		= cy8c95x0_probe,
 	.remove		= cy8c95x0_remove,
 	.id_table	= cy8c95x0_id,
 	.detect		= cy8c95x0_detect,

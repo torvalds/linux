@@ -116,7 +116,7 @@ void intel_engine_add_retire(struct intel_engine_cs *engine,
 	GEM_BUG_ON(intel_engine_is_virtual(engine));
 
 	if (add_retire(engine, tl))
-		schedule_work(&engine->retire_work);
+		queue_work(engine->i915->unordered_wq, &engine->retire_work);
 }
 
 void intel_engine_init_retire(struct intel_engine_cs *engine)
@@ -207,8 +207,8 @@ static void retire_work_handler(struct work_struct *work)
 	struct intel_gt *gt =
 		container_of(work, typeof(*gt), requests.retire_work.work);
 
-	schedule_delayed_work(&gt->requests.retire_work,
-			      round_jiffies_up_relative(HZ));
+	queue_delayed_work(gt->i915->unordered_wq, &gt->requests.retire_work,
+			   round_jiffies_up_relative(HZ));
 	intel_gt_retire_requests(gt);
 }
 
@@ -224,8 +224,8 @@ void intel_gt_park_requests(struct intel_gt *gt)
 
 void intel_gt_unpark_requests(struct intel_gt *gt)
 {
-	schedule_delayed_work(&gt->requests.retire_work,
-			      round_jiffies_up_relative(HZ));
+	queue_delayed_work(gt->i915->unordered_wq, &gt->requests.retire_work,
+			   round_jiffies_up_relative(HZ));
 }
 
 void intel_gt_fini_requests(struct intel_gt *gt)

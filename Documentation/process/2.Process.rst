@@ -434,9 +434,10 @@ There are a few hints which can help with linux-kernel survival:
   questions.  Some developers can get impatient with people who clearly
   have not done their homework.
 
-- Avoid top-posting (the practice of putting your answer above the quoted
-  text you are responding to).  It makes your response harder to read and
-  makes a poor impression.
+- Use interleaved ("inline") replies, which makes your response easier to
+  read. (i.e. avoid top-posting -- the practice of putting your answer above
+  the quoted text you are responding to.) For more details, see
+  :ref:`Documentation/process/submitting-patches.rst <interleaved_replies>`.
 
 - Ask on the correct mailing list.  Linux-kernel may be the general meeting
   point, but it is not the best place to find developers from all

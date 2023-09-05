@@ -293,7 +293,7 @@
 			};
 
 			channel@8 {
-				gw,mode = <1>;
+				gw,mode = <3>;
 				reg = <0x08>;
 				label = "vdd_bat";
 			};
@@ -565,6 +565,10 @@
 	assigned-clock-parents = <&clk IMX8MM_SYS_PLL2_50M>,
 				 <&clk IMX8MM_SYS_PLL2_250M>;
 	status = "okay";
+};
+
+&disp_blk_ctrl {
+	status = "disabled";
 };
 
 &pgc_mipi {

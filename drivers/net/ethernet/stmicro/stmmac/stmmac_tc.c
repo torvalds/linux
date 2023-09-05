@@ -966,8 +966,11 @@ static int tc_setup_taprio(struct stmmac_priv *priv,
 		return -EOPNOTSUPP;
 	}
 
-	if (!qopt->enable)
+	if (qopt->cmd == TAPRIO_CMD_DESTROY)
 		goto disable;
+	else if (qopt->cmd != TAPRIO_CMD_REPLACE)
+		return -EOPNOTSUPP;
+
 	if (qopt->num_entries >= dep)
 		return -EINVAL;
 	if (!qopt->cycle_time)
@@ -988,7 +991,7 @@ static int tc_setup_taprio(struct stmmac_priv *priv,
 
 	mutex_lock(&priv->plat->est->lock);
 	priv->plat->est->gcl_size = size;
-	priv->plat->est->enable = qopt->enable;
+	priv->plat->est->enable = qopt->cmd == TAPRIO_CMD_REPLACE;
 	mutex_unlock(&priv->plat->est->lock);
 
 	for (i = 0; i < size; i++) {

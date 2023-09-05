@@ -1,0 +1,3 @@
+cat <<EOF
+	return raw_cmpxchg${order}(&v->counter, old, new);
+EOF

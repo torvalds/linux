@@ -466,7 +466,7 @@ static int vce_v4_0_sw_init(void *handle)
 		enum amdgpu_ring_priority_level hw_prio = amdgpu_vce_get_ring_prio(i);
 
 		ring = &adev->vce.ring[i];
-		ring->vm_hub = AMDGPU_MMHUB_0;
+		ring->vm_hub = AMDGPU_MMHUB0(0);
 		sprintf(ring->name, "vce%d", i);
 		if (amdgpu_sriov_vf(adev)) {
 			/* DOORBELL only works under SRIOV */

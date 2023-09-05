@@ -272,7 +272,7 @@ static struct i2c_driver cht_wc_driver = {
 		.pm     = pm_sleep_ptr(&cht_wc_pm_ops),
 		.acpi_match_table = cht_wc_acpi_ids,
 	},
-	.probe_new = cht_wc_probe,
+	.probe = cht_wc_probe,
 	.shutdown = cht_wc_shutdown,
 	.id_table = cht_wc_i2c_id,
 };

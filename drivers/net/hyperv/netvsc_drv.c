@@ -1747,7 +1747,9 @@ static u32 netvsc_get_rxfh_key_size(struct net_device *dev)
 
 static u32 netvsc_rss_indir_size(struct net_device *dev)
 {
-	return ITAB_NUM;
+	struct net_device_context *ndc = netdev_priv(dev);
+
+	return ndc->rx_table_sz;
 }
 
 static int netvsc_get_rxfh(struct net_device *dev, u32 *indir, u8 *key,
@@ -1766,7 +1768,7 @@ static int netvsc_get_rxfh(struct net_device *dev, u32 *indir, u8 *key,
 
 	rndis_dev = ndev->extension;
 	if (indir) {
-		for (i = 0; i < ITAB_NUM; i++)
+		for (i = 0; i < ndc->rx_table_sz; i++)
 			indir[i] = ndc->rx_table[i];
 	}
 
@@ -1792,11 +1794,11 @@ static int netvsc_set_rxfh(struct net_device *dev, const u32 *indir,
 
 	rndis_dev = ndev->extension;
 	if (indir) {
-		for (i = 0; i < ITAB_NUM; i++)
+		for (i = 0; i < ndc->rx_table_sz; i++)
 			if (indir[i] >= ndev->num_chn)
 				return -EINVAL;
 
-		for (i = 0; i < ITAB_NUM; i++)
+		for (i = 0; i < ndc->rx_table_sz; i++)
 			ndc->rx_table[i] = indir[i];
 	}
 

@@ -27,7 +27,7 @@
 
 /*
  * struct arm64_image_header - arm64 kernel image header
- * See Documentation/arm64/booting.rst for details
+ * See Documentation/arch/arm64/booting.rst for details
  *
  * @code0:		Executable code, or
  *   @mz_header		  alternatively used for part of MZ header

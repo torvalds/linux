@@ -53,7 +53,6 @@ bond_test_enslave_type_change()
 	# restore ARPHRD_ETHER type by enslaving such device
 	ip link set dev "$devbond2" master "$devbond0"
 	check_err $? "could not enslave $devbond2 to $devbond0"
-	ip link set dev "$devbond1" nomaster
 
 	bond_check_flags "$devbond0"
 

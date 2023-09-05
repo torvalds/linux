@@ -25,7 +25,7 @@
 
 /* hpb map & entries macro */
 #define HPB_RGN_SIZE_UNIT			512
-#define HPB_ENTRY_BLOCK_SIZE			4096
+#define HPB_ENTRY_BLOCK_SIZE			SZ_4K
 #define HPB_ENTRY_SIZE				0x8
 #define PINNED_NOT_SET				U32_MAX
 

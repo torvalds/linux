@@ -1537,7 +1537,7 @@ err_exit_phy:
 }
 EXPORT_SYMBOL(iproc_pcie_setup);
 
-int iproc_pcie_remove(struct iproc_pcie *pcie)
+void iproc_pcie_remove(struct iproc_pcie *pcie)
 {
 	struct pci_host_bridge *host = pci_host_bridge_from_priv(pcie);
 
@@ -1548,8 +1548,6 @@ int iproc_pcie_remove(struct iproc_pcie *pcie)
 
 	phy_power_off(pcie->phy);
 	phy_exit(pcie->phy);
-
-	return 0;
 }
 EXPORT_SYMBOL(iproc_pcie_remove);
 

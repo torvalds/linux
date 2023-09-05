@@ -36,6 +36,7 @@
 #include "gt/intel_gt_regs.h"
 
 #include "i915_drv.h"
+#include "i915_reg.h"
 #include "intel_clock_gating.h"
 #include "intel_mchbar_regs.h"
 #include "vlv_sideband.h"
@@ -520,12 +521,12 @@ static void bdw_init_clock_gating(struct drm_i915_private *i915)
 	intel_uncore_rmw(&i915->uncore, GAM_ECOCHK, 0, HSW_ECOCHK_ARB_PRIO_SOL);
 
 	/* WaPsrDPAMaskVBlankInSRD:bdw */
-	intel_uncore_rmw(&i915->uncore, CHICKEN_PAR1_1, 0, DPA_MASK_VBLANK_SRD);
+	intel_uncore_rmw(&i915->uncore, CHICKEN_PAR1_1, 0, HSW_MASK_VBL_TO_PIPE_IN_SRD);
 
 	for_each_pipe(i915, pipe) {
 		/* WaPsrDPRSUnmaskVBlankInSRD:bdw */
 		intel_uncore_rmw(&i915->uncore, CHICKEN_PIPESL_1(pipe),
-				 0, BDW_DPRS_MASK_VBLANK_SRD);
+				 0, BDW_UNMASK_VBL_TO_REGS_IN_SRD);
 	}
 
 	/* WaVSRefCountFullforceMissDisable:bdw */

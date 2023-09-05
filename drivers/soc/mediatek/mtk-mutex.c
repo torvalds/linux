@@ -1051,7 +1051,6 @@ static struct platform_driver mtk_mutex_driver = {
 	.probe		= mtk_mutex_probe,
 	.driver		= {
 		.name	= "mediatek-mutex",
-		.owner	= THIS_MODULE,
 		.of_match_table = mutex_driver_dt_match,
 	},
 };

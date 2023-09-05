@@ -15,7 +15,7 @@
 
 #include "kasan.h"
 
-void *kasan_find_first_bad_addr(void *addr, size_t size)
+const void *kasan_find_first_bad_addr(const void *addr, size_t size)
 {
 	/*
 	 * Hardware Tag-Based KASAN only calls this function for normal memory

@@ -410,9 +410,6 @@ static int ufs_mtk_wait_link_state(struct ufs_hba *hba, u32 state,
 		usleep_range(100, 200);
 	} while (ktime_before(time_checked, timeout));
 
-	if (val == state)
-		return 0;
-
 	return -ETIMEDOUT;
 }
 
@@ -901,6 +898,8 @@ static int ufs_mtk_init(struct ufs_hba *hba)
 	hba->caps |= UFSHCD_CAP_CLK_SCALING;
 
 	hba->quirks |= UFSHCI_QUIRK_SKIP_MANUAL_WB_FLUSH_CTRL;
+	hba->quirks |= UFSHCD_QUIRK_MCQ_BROKEN_INTR;
+	hba->quirks |= UFSHCD_QUIRK_MCQ_BROKEN_RTC;
 	hba->vps->wb_flush_threshold = UFS_WB_BUF_REMAIN_PERCENT(80);
 
 	if (host->caps & UFS_MTK_CAP_DISABLE_AH8)
@@ -1650,7 +1649,6 @@ static const struct dev_pm_ops ufs_mtk_pm_ops = {
 static struct platform_driver ufs_mtk_pltform = {
 	.probe      = ufs_mtk_probe,
 	.remove     = ufs_mtk_remove,
-	.shutdown   = ufshcd_pltfrm_shutdown,
 	.driver = {
 		.name   = "ufshcd-mtk",
 		.pm     = &ufs_mtk_pm_ops,

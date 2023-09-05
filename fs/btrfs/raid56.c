@@ -71,7 +71,7 @@ static void rmw_rbio_work_locked(struct work_struct *work);
 static void index_rbio_pages(struct btrfs_raid_bio *rbio);
 static int alloc_rbio_pages(struct btrfs_raid_bio *rbio);
 
-static int finish_parity_scrub(struct btrfs_raid_bio *rbio, int need_check);
+static int finish_parity_scrub(struct btrfs_raid_bio *rbio);
 static void scrub_rbio_work_locked(struct work_struct *work);
 
 static void free_raid_bio_pointers(struct btrfs_raid_bio *rbio)
@@ -1079,7 +1079,7 @@ static int rbio_add_io_sector(struct btrfs_raid_bio *rbio,
 
 	/* see if we can add this page onto our existing bio */
 	if (last) {
-		u64 last_end = last->bi_iter.bi_sector << 9;
+		u64 last_end = last->bi_iter.bi_sector << SECTOR_SHIFT;
 		last_end += last->bi_iter.bi_size;
 
 		/*
@@ -1099,7 +1099,7 @@ static int rbio_add_io_sector(struct btrfs_raid_bio *rbio,
 	bio = bio_alloc(stripe->dev->bdev,
 			max(BTRFS_STRIPE_LEN >> PAGE_SHIFT, 1),
 			op, GFP_NOFS);
-	bio->bi_iter.bi_sector = disk_start >> 9;
+	bio->bi_iter.bi_sector = disk_start >> SECTOR_SHIFT;
 	bio->bi_private = rbio;
 
 	__bio_add_page(bio, sector->page, sectorsize, sector->pgoff);
@@ -2404,7 +2404,7 @@ static int alloc_rbio_essential_pages(struct btrfs_raid_bio *rbio)
 	return 0;
 }
 
-static int finish_parity_scrub(struct btrfs_raid_bio *rbio, int need_check)
+static int finish_parity_scrub(struct btrfs_raid_bio *rbio)
 {
 	struct btrfs_io_context *bioc = rbio->bioc;
 	const u32 sectorsize = bioc->fs_info->sectorsize;
@@ -2444,9 +2444,6 @@ static int finish_parity_scrub(struct btrfs_raid_bio *rbio, int need_check)
 	 * it.
 	 */
 	clear_bit(RBIO_CACHE_READY_BIT, &rbio->flags);
-
-	if (!need_check)
-		goto writeback;
 
 	p_sector.page = alloc_page(GFP_NOFS);
 	if (!p_sector.page)
@@ -2516,7 +2513,6 @@ static int finish_parity_scrub(struct btrfs_raid_bio *rbio, int need_check)
 		q_sector.page = NULL;
 	}
 
-writeback:
 	/*
 	 * time to start writing.  Make bios for everything from the
 	 * higher layers (the bio_list in our rbio) and our p/q.  Ignore
@@ -2699,7 +2695,6 @@ static int scrub_assemble_read_bios(struct btrfs_raid_bio *rbio)
 
 static void scrub_rbio(struct btrfs_raid_bio *rbio)
 {
-	bool need_check = false;
 	int sector_nr;
 	int ret;
 
@@ -2722,7 +2717,7 @@ static void scrub_rbio(struct btrfs_raid_bio *rbio)
 	 * We have every sector properly prepared. Can finish the scrub
 	 * and writeback the good content.
 	 */
-	ret = finish_parity_scrub(rbio, need_check);
+	ret = finish_parity_scrub(rbio);
 	wait_event(rbio->io_wait, atomic_read(&rbio->stripes_pending) == 0);
 	for (sector_nr = 0; sector_nr < rbio->stripe_nsectors; sector_nr++) {
 		int found_errors;
@@ -2746,4 +2741,49 @@ void raid56_parity_submit_scrub_rbio(struct btrfs_raid_bio *rbio)
 {
 	if (!lock_stripe_add(rbio))
 		start_async_work(rbio, scrub_rbio_work_locked);
+}
+
+/*
+ * This is for scrub call sites where we already have correct data contents.
+ * This allows us to avoid reading data stripes again.
+ *
+ * Unfortunately here we have to do page copy, other than reusing the pages.
+ * This is due to the fact rbio has its own page management for its cache.
+ */
+void raid56_parity_cache_data_pages(struct btrfs_raid_bio *rbio,
+				    struct page **data_pages, u64 data_logical)
+{
+	const u64 offset_in_full_stripe = data_logical -
+					  rbio->bioc->full_stripe_logical;
+	const int page_index = offset_in_full_stripe >> PAGE_SHIFT;
+	const u32 sectorsize = rbio->bioc->fs_info->sectorsize;
+	const u32 sectors_per_page = PAGE_SIZE / sectorsize;
+	int ret;
+
+	/*
+	 * If we hit ENOMEM temporarily, but later at
+	 * raid56_parity_submit_scrub_rbio() time it succeeded, we just do
+	 * the extra read, not a big deal.
+	 *
+	 * If we hit ENOMEM later at raid56_parity_submit_scrub_rbio() time,
+	 * the bio would got proper error number set.
+	 */
+	ret = alloc_rbio_data_pages(rbio);
+	if (ret < 0)
+		return;
+
+	/* data_logical must be at stripe boundary and inside the full stripe. */
+	ASSERT(IS_ALIGNED(offset_in_full_stripe, BTRFS_STRIPE_LEN));
+	ASSERT(offset_in_full_stripe < (rbio->nr_data << BTRFS_STRIPE_LEN_SHIFT));
+
+	for (int page_nr = 0; page_nr < (BTRFS_STRIPE_LEN >> PAGE_SHIFT); page_nr++) {
+		struct page *dst = rbio->stripe_pages[page_nr + page_index];
+		struct page *src = data_pages[page_nr];
+
+		memcpy_page(dst, 0, src, 0, PAGE_SIZE);
+		for (int sector_nr = sectors_per_page * page_index;
+		     sector_nr < sectors_per_page * (page_index + 1);
+		     sector_nr++)
+			rbio->stripe_sectors[sector_nr].uptodate = true;
+	}
 }

@@ -152,7 +152,6 @@ void opp_debug_create_one(struct dev_pm_opp *opp, struct opp_table *opp_table)
 	debugfs_create_bool("dynamic", S_IRUGO, d, &opp->dynamic);
 	debugfs_create_bool("turbo", S_IRUGO, d, &opp->turbo);
 	debugfs_create_bool("suspend", S_IRUGO, d, &opp->suspend);
-	debugfs_create_u32("performance_state", S_IRUGO, d, &opp->pstate);
 	debugfs_create_u32("level", S_IRUGO, d, &opp->level);
 	debugfs_create_ulong("clock_latency_ns", S_IRUGO, d,
 			     &opp->clock_latency_ns);

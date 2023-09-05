@@ -329,7 +329,7 @@ static int kempld_i2c_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int kempld_i2c_remove(struct platform_device *pdev)
+static void kempld_i2c_remove(struct platform_device *pdev)
 {
 	struct kempld_i2c_data *i2c = platform_get_drvdata(pdev);
 	struct kempld_device_data *pld = i2c->pld;
@@ -348,8 +348,6 @@ static int kempld_i2c_remove(struct platform_device *pdev)
 	kempld_release_mutex(pld);
 
 	i2c_del_adapter(&i2c->adap);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM
@@ -389,7 +387,7 @@ static struct platform_driver kempld_i2c_driver = {
 		.name = "kempld-i2c",
 	},
 	.probe		= kempld_i2c_probe,
-	.remove		= kempld_i2c_remove,
+	.remove_new	= kempld_i2c_remove,
 	.suspend	= kempld_i2c_suspend,
 	.resume		= kempld_i2c_resume,
 };

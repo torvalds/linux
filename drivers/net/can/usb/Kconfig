@@ -38,6 +38,18 @@ config CAN_ETAS_ES58X
 	  To compile this driver as a module, choose M here: the module
 	  will be called etas_es58x.
 
+config CAN_F81604
+        tristate "Fintek F81604 USB to 2CAN interface"
+        help
+          This driver supports the Fintek F81604 USB to 2CAN interface.
+          The device can support CAN2.0A/B protocol and also support
+          2 output pins to control external terminator (optional).
+
+          To compile this driver as a module, choose M here: the module will
+          be called f81604.
+
+          (see also https://www.fintek.com.tw).
+
 config CAN_GS_USB
 	tristate "Geschwister Schneider UG and candleLight compatible interfaces"
 	help

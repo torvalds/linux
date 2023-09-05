@@ -420,10 +420,9 @@ static int nvme_pci_init_request(struct blk_mq_tag_set *set,
 		struct request *req, unsigned int hctx_idx,
 		unsigned int numa_node)
 {
-	struct nvme_dev *dev = to_nvme_dev(set->driver_data);
 	struct nvme_iod *iod = blk_mq_rq_to_pdu(req);
 
-	nvme_req(req)->ctrl = &dev->ctrl;
+	nvme_req(req)->ctrl = set->driver_data;
 	nvme_req(req)->cmd = &iod->cmd;
 	return 0;
 }
@@ -968,7 +967,7 @@ static __always_inline void nvme_pci_unmap_rq(struct request *req)
 	        struct nvme_iod *iod = blk_mq_rq_to_pdu(req);
 
 		dma_unmap_page(dev->dev, iod->meta_dma,
-			       rq_integrity_vec(req)->bv_len, rq_data_dir(req));
+			       rq_integrity_vec(req)->bv_len, rq_dma_dir(req));
 	}
 
 	if (blk_rq_nr_phys_segments(req))
@@ -1299,9 +1298,7 @@ static enum blk_eh_timer_return nvme_timeout(struct request *req)
 	 */
 	if (nvme_should_reset(dev, csts)) {
 		nvme_warn_reset(dev, csts);
-		nvme_dev_disable(dev, false);
-		nvme_reset_ctrl(&dev->ctrl);
-		return BLK_EH_DONE;
+		goto disable;
 	}
 
 	/*
@@ -1352,10 +1349,7 @@ static enum blk_eh_timer_return nvme_timeout(struct request *req)
 			 "I/O %d QID %d timeout, reset controller\n",
 			 req->tag, nvmeq->qid);
 		nvme_req(req)->flags |= NVME_REQ_CANCELLED;
-		nvme_dev_disable(dev, false);
-		nvme_reset_ctrl(&dev->ctrl);
-
-		return BLK_EH_DONE;
+		goto disable;
 	}
 
 	if (atomic_dec_return(&dev->ctrl.abort_limit) < 0) {
@@ -1392,6 +1386,15 @@ static enum blk_eh_timer_return nvme_timeout(struct request *req)
 	 * as the device then is in a faulty state.
 	 */
 	return BLK_EH_RESET_TIMER;
+
+disable:
+	if (!nvme_change_ctrl_state(&dev->ctrl, NVME_CTRL_RESETTING))
+		return BLK_EH_DONE;
+
+	nvme_dev_disable(dev, false);
+	if (nvme_try_sched_reset(&dev->ctrl))
+		nvme_unquiesce_io_queues(&dev->ctrl);
+	return BLK_EH_DONE;
 }
 
 static void nvme_free_queue(struct nvme_queue *nvmeq)
@@ -2691,7 +2694,8 @@ static void nvme_reset_work(struct work_struct *work)
 	if (dev->ctrl.state != NVME_CTRL_RESETTING) {
 		dev_warn(dev->ctrl.device, "ctrl state %d is not RESETTING\n",
 			 dev->ctrl.state);
-		return;
+		result = -ENODEV;
+		goto out;
 	}
 
 	/*
@@ -2778,7 +2782,9 @@ static void nvme_reset_work(struct work_struct *work)
 		 result);
 	nvme_change_ctrl_state(&dev->ctrl, NVME_CTRL_DELETING);
 	nvme_dev_disable(dev, true);
+	nvme_sync_queues(&dev->ctrl);
 	nvme_mark_namespaces_dead(&dev->ctrl);
+	nvme_unquiesce_io_queues(&dev->ctrl);
 	nvme_change_ctrl_state(&dev->ctrl, NVME_CTRL_DEAD);
 }
 
@@ -3276,6 +3282,10 @@ static pci_ers_result_t nvme_error_detected(struct pci_dev *pdev,
 	case pci_channel_io_frozen:
 		dev_warn(dev->ctrl.device,
 			"frozen state error detected, reset controller\n");
+		if (!nvme_change_ctrl_state(&dev->ctrl, NVME_CTRL_RESETTING)) {
+			nvme_dev_disable(dev, true);
+			return PCI_ERS_RESULT_DISCONNECT;
+		}
 		nvme_dev_disable(dev, false);
 		return PCI_ERS_RESULT_NEED_RESET;
 	case pci_channel_io_perm_failure:
@@ -3292,7 +3302,8 @@ static pci_ers_result_t nvme_slot_reset(struct pci_dev *pdev)
 
 	dev_info(dev->ctrl.device, "restart after slot reset\n");
 	pci_restore_state(pdev);
-	nvme_reset_ctrl(&dev->ctrl);
+	if (!nvme_try_sched_reset(&dev->ctrl))
+		nvme_unquiesce_io_queues(&dev->ctrl);
 	return PCI_ERS_RESULT_RECOVERED;
 }
 
@@ -3391,9 +3402,12 @@ static const struct pci_device_id nvme_id_table[] = {
 	{ PCI_DEVICE(0x1d97, 0x2263),   /* SPCC */
 		.driver_data = NVME_QUIRK_DISABLE_WRITE_ZEROES, },
 	{ PCI_DEVICE(0x144d, 0xa80b),   /* Samsung PM9B1 256G and 512G */
-		.driver_data = NVME_QUIRK_DISABLE_WRITE_ZEROES, },
+		.driver_data = NVME_QUIRK_DISABLE_WRITE_ZEROES |
+				NVME_QUIRK_BOGUS_NID, },
 	{ PCI_DEVICE(0x144d, 0xa809),   /* Samsung MZALQ256HBJD 256G */
 		.driver_data = NVME_QUIRK_DISABLE_WRITE_ZEROES, },
+	{ PCI_DEVICE(0x144d, 0xa802),   /* Samsung SM953 */
+		.driver_data = NVME_QUIRK_BOGUS_NID, },
 	{ PCI_DEVICE(0x1cc4, 0x6303),   /* UMIS RPJTJ512MGE1QDY 512G */
 		.driver_data = NVME_QUIRK_DISABLE_WRITE_ZEROES, },
 	{ PCI_DEVICE(0x1cc4, 0x6302),   /* UMIS RPJTJ256MGE1QDY 256G */

@@ -284,14 +284,14 @@ void hl_secure_block(struct hl_device *hdev,
  * @instance_offset: offset between instances
  * @pb_blocks: blocks array
  * @blocks_array_size: blocks array size
- * @regs_array: register array
- * @regs_array_size: register array size
+ * @user_regs_array: unsecured register array
+ * @user_regs_array_size: unsecured register array size
  * @mask: enabled instances mask: 1- enabled, 0- disabled
  */
 int hl_init_pb_with_mask(struct hl_device *hdev, u32 num_dcores,
 		u32 dcore_offset, u32 num_instances, u32 instance_offset,
 		const u32 pb_blocks[], u32 blocks_array_size,
-		const u32 *regs_array, u32 regs_array_size, u64 mask)
+		const u32 *user_regs_array, u32 user_regs_array_size, u64 mask)
 {
 	int i, j;
 	struct hl_block_glbl_sec *glbl_sec;
@@ -303,8 +303,8 @@ int hl_init_pb_with_mask(struct hl_device *hdev, u32 num_dcores,
 		return -ENOMEM;
 
 	hl_secure_block(hdev, glbl_sec, blocks_array_size);
-	hl_unsecure_registers(hdev, regs_array, regs_array_size, 0, pb_blocks,
-			glbl_sec, blocks_array_size);
+	hl_unsecure_registers(hdev, user_regs_array, user_regs_array_size, 0,
+			pb_blocks, glbl_sec, blocks_array_size);
 
 	/* Fill all blocks with the same configuration */
 	for (i = 0 ; i < num_dcores ; i++) {
@@ -336,19 +336,19 @@ int hl_init_pb_with_mask(struct hl_device *hdev, u32 num_dcores,
  * @instance_offset: offset between instances
  * @pb_blocks: blocks array
  * @blocks_array_size: blocks array size
- * @regs_array: register array
- * @regs_array_size: register array size
+ * @user_regs_array: unsecured register array
+ * @user_regs_array_size: unsecured register array size
  *
  */
 int hl_init_pb(struct hl_device *hdev, u32 num_dcores, u32 dcore_offset,
 		u32 num_instances, u32 instance_offset,
 		const u32 pb_blocks[], u32 blocks_array_size,
-		const u32 *regs_array, u32 regs_array_size)
+		const u32 *user_regs_array, u32 user_regs_array_size)
 {
 	return hl_init_pb_with_mask(hdev, num_dcores, dcore_offset,
 			num_instances, instance_offset, pb_blocks,
-			blocks_array_size, regs_array, regs_array_size,
-			ULLONG_MAX);
+			blocks_array_size, user_regs_array,
+			user_regs_array_size, ULLONG_MAX);
 }
 
 /**
@@ -364,15 +364,15 @@ int hl_init_pb(struct hl_device *hdev, u32 num_dcores, u32 dcore_offset,
  * @instance_offset: offset between instances
  * @pb_blocks: blocks array
  * @blocks_array_size: blocks array size
- * @regs_range_array: register range array
- * @regs_range_array_size: register range array size
+ * @user_regs_range_array: unsecured register range array
+ * @user_regs_range_array_size: unsecured register range array size
  * @mask: enabled instances mask: 1- enabled, 0- disabled
  */
 int hl_init_pb_ranges_with_mask(struct hl_device *hdev, u32 num_dcores,
 		u32 dcore_offset, u32 num_instances, u32 instance_offset,
 		const u32 pb_blocks[], u32 blocks_array_size,
-		const struct range *regs_range_array, u32 regs_range_array_size,
-		u64 mask)
+		const struct range *user_regs_range_array,
+		u32 user_regs_range_array_size, u64 mask)
 {
 	int i, j, rc = 0;
 	struct hl_block_glbl_sec *glbl_sec;
@@ -384,8 +384,8 @@ int hl_init_pb_ranges_with_mask(struct hl_device *hdev, u32 num_dcores,
 		return -ENOMEM;
 
 	hl_secure_block(hdev, glbl_sec, blocks_array_size);
-	rc = hl_unsecure_registers_range(hdev, regs_range_array,
-			regs_range_array_size, 0, pb_blocks, glbl_sec,
+	rc = hl_unsecure_registers_range(hdev, user_regs_range_array,
+			user_regs_range_array_size, 0, pb_blocks, glbl_sec,
 			blocks_array_size);
 	if (rc)
 		goto free_glbl_sec;
@@ -422,19 +422,20 @@ free_glbl_sec:
  * @instance_offset: offset between instances
  * @pb_blocks: blocks array
  * @blocks_array_size: blocks array size
- * @regs_range_array: register range array
- * @regs_range_array_size: register range array size
+ * @user_regs_range_array: unsecured register range array
+ * @user_regs_range_array_size: unsecured register range array size
  *
  */
 int hl_init_pb_ranges(struct hl_device *hdev, u32 num_dcores,
 		u32 dcore_offset, u32 num_instances, u32 instance_offset,
 		const u32 pb_blocks[], u32 blocks_array_size,
-		const struct range *regs_range_array, u32 regs_range_array_size)
+		const struct range *user_regs_range_array,
+		u32 user_regs_range_array_size)
 {
 	return hl_init_pb_ranges_with_mask(hdev, num_dcores, dcore_offset,
 			num_instances, instance_offset, pb_blocks,
-			blocks_array_size, regs_range_array,
-			regs_range_array_size, ULLONG_MAX);
+			blocks_array_size, user_regs_range_array,
+			user_regs_range_array_size, ULLONG_MAX);
 }
 
 /**
@@ -447,14 +448,14 @@ int hl_init_pb_ranges(struct hl_device *hdev, u32 num_dcores,
  * @instance_offset: offset between instances
  * @pb_blocks: blocks array
  * @blocks_array_size: blocks array size
- * @regs_array: register array
- * @regs_array_size: register array size
+ * @user_regs_array: unsecured register array
+ * @user_regs_array_size: unsecured register array size
  *
  */
 int hl_init_pb_single_dcore(struct hl_device *hdev, u32 dcore_offset,
 		u32 num_instances, u32 instance_offset,
 		const u32 pb_blocks[], u32 blocks_array_size,
-		const u32 *regs_array, u32 regs_array_size)
+		const u32 *user_regs_array, u32 user_regs_array_size)
 {
 	int i, rc = 0;
 	struct hl_block_glbl_sec *glbl_sec;
@@ -466,8 +467,8 @@ int hl_init_pb_single_dcore(struct hl_device *hdev, u32 dcore_offset,
 		return -ENOMEM;
 
 	hl_secure_block(hdev, glbl_sec, blocks_array_size);
-	rc = hl_unsecure_registers(hdev, regs_array, regs_array_size, 0,
-			pb_blocks, glbl_sec, blocks_array_size);
+	rc = hl_unsecure_registers(hdev, user_regs_array, user_regs_array_size,
+			0, pb_blocks, glbl_sec, blocks_array_size);
 	if (rc)
 		goto free_glbl_sec;
 
@@ -495,8 +496,8 @@ free_glbl_sec:
  * @instance_offset: offset between instances
  * @pb_blocks: blocks array
  * @blocks_array_size: blocks array size
- * @regs_range_array: register range array
- * @regs_range_array_size: register range array size
+ * @user_regs_range_array: unsecured register range array
+ * @user_regs_range_array_size: unsecured register range array size
  *
  */
 int hl_init_pb_ranges_single_dcore(struct hl_device *hdev, u32 dcore_offset,

@@ -578,7 +578,6 @@
 		*(.text.unlikely .text.unlikely.*)			\
 		*(.text.unknown .text.unknown.*)			\
 		NOINSTR_TEXT						\
-		*(.text..refcount)					\
 		*(.ref.text)						\
 		*(.text.asan.* .text.tsan.*)				\
 	MEM_KEEP(init.text*)						\
@@ -688,7 +687,7 @@
 /* init and exit section handling */
 #define INIT_DATA							\
 	KEEP(*(SORT(___kentry+*)))					\
-	*(.init.data init.data.*)					\
+	*(.init.data .init.data.*)					\
 	MEM_DISCARD(init.data*)						\
 	KERNEL_CTORS()							\
 	MCOUNT_REC()							\
@@ -1016,6 +1015,7 @@
 	PATCHABLE_DISCARDS						\
 	*(.discard)							\
 	*(.discard.*)							\
+	*(.export_symbol)						\
 	*(.modinfo)							\
 	/* ld.bfd warns about .gnu.version* even when not emitted */	\
 	*(.gnu.version*)						\

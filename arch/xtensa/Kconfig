@@ -16,7 +16,6 @@ config XTENSA
 	select ARCH_USE_MEMTEST
 	select ARCH_USE_QUEUED_RWLOCKS
 	select ARCH_USE_QUEUED_SPINLOCKS
-	select ARCH_WANT_FRAME_POINTERS
 	select ARCH_WANT_IPC_PARSE_VERSION
 	select BUILDTIME_TABLE_SORT
 	select CLONE_BACKWARDS
@@ -35,6 +34,7 @@ config XTENSA
 	select HAVE_ARCH_KCSAN
 	select HAVE_ARCH_SECCOMP_FILTER
 	select HAVE_ARCH_TRACEHOOK
+	select HAVE_ASM_MODVERSIONS
 	select HAVE_CONTEXT_TRACKING_USER
 	select HAVE_DEBUG_KMEMLEAK
 	select HAVE_DMA_CONTIGUOUS
@@ -49,6 +49,7 @@ config XTENSA
 	select HAVE_SYSCALL_TRACEPOINTS
 	select HAVE_VIRT_CPU_ACCOUNTING_GEN
 	select IRQ_DOMAIN
+	select LOCK_MM_AND_FIND_VMA
 	select MODULES_USE_ELF_RELA
 	select PERF_USE_VMALLOC
 	select TRACE_IRQFLAGS_SUPPORT
@@ -202,6 +203,18 @@ config XTENSA_UNALIGNED_USER
 	  Per default, unaligned memory accesses are disabled in user space.
 
 	  Say Y here to enable unaligned memory access in user space.
+
+config XTENSA_LOAD_STORE
+	bool "Load/store exception handler for memory only readable with l32"
+	help
+	  The Xtensa architecture only allows reading memory attached to its
+	  instruction bus with l32r and l32i instructions, all other
+	  instructions raise an exception with the LoadStoreErrorCause code.
+	  This makes it hard to use some configurations, e.g. store string
+	  literals in FLASH memory attached to the instruction bus.
+
+	  Say Y here to enable exception handler that allows transparent
+	  byte and 2-byte access to memory attached to instruction bus.
 
 config HAVE_SMP
 	bool "System Supports SMP (MX)"

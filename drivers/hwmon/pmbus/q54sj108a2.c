@@ -412,7 +412,7 @@ static struct i2c_driver q54sj108a2_driver = {
 		.name = "q54sj108a2",
 		.of_match_table = q54sj108a2_of_match,
 	},
-	.probe_new = q54sj108a2_probe,
+	.probe = q54sj108a2_probe,
 	.id_table = q54sj108a2_id,
 };
 

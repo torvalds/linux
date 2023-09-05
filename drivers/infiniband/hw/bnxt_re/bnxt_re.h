@@ -39,6 +39,7 @@
 
 #ifndef __BNXT_RE_H__
 #define __BNXT_RE_H__
+#include <rdma/uverbs_ioctl.h>
 #include "hw_counters.h"
 #define ROCE_DRV_MODULE_NAME		"bnxt_re"
 
@@ -179,10 +180,14 @@ struct bnxt_re_dev {
 #define BNXT_RE_ROCEV2_IPV4_PACKET	2
 #define BNXT_RE_ROCEV2_IPV6_PACKET	3
 
+#define BNXT_RE_CHECK_RC(x) ((x) && ((x) != -ETIMEDOUT))
+
 static inline struct device *rdev_to_dev(struct bnxt_re_dev *rdev)
 {
 	if (rdev)
 		return  &rdev->ibdev.dev;
 	return NULL;
 }
+
+extern const struct uapi_definition bnxt_re_uapi_defs[];
 #endif

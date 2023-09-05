@@ -1,0 +1,242 @@
+[
+    {
+        "BriefDescription": "Core cycles where the core was running in a manner where Turbo may be clipped to the Non-AVX turbo schedule.",
+        "EventCode": "0x28",
+        "EventName": "CORE_POWER.LVL0_TURBO_LICENSE",
+        "PublicDescription": "Counts Core cycles where the core was running with power-delivery for baseline license level 0.  This includes non-AVX codes, SSE, AVX 128-bit, and low-current AVX 256-bit codes.",
+        "SampleAfterValue": "200003",
+        "UMask": "0x7"
+    },
+    {
+        "BriefDescription": "Core cycles where the core was running in a manner where Turbo may be clipped to the AVX2 turbo schedule.",
+        "EventCode": "0x28",
+        "EventName": "CORE_POWER.LVL1_TURBO_LICENSE",
+        "PublicDescription": "Counts Core cycles where the core was running with power-delivery for license level 1.  This includes high current AVX 256-bit instructions as well as low current AVX 512-bit instructions.",
+        "SampleAfterValue": "200003",
+        "UMask": "0x18"
+    },
+    {
+        "BriefDescription": "Core cycles where the core was running in a manner where Turbo may be clipped to the AVX512 turbo schedule.",
+        "EventCode": "0x28",
+        "EventName": "CORE_POWER.LVL2_TURBO_LICENSE",
+        "PublicDescription": "Core cycles where the core was running with power-delivery for license level 2 (introduced in Skylake Server microarchtecture).  This includes high current AVX 512-bit instructions.",
+        "SampleAfterValue": "200003",
+        "UMask": "0x20"
+    },
+    {
+        "BriefDescription": "Counts demand instruction fetches and L1 instruction cache prefetches that have any type of response.",
+        "EventCode": "0xB7, 0xBB",
+        "EventName": "OCR.DEMAND_CODE_RD.ANY_RESPONSE",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x10004",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts demand instruction fetches and L1 instruction cache prefetches that DRAM supplied the request.",
+        "EventCode": "0xB7, 0xBB",
+        "EventName": "OCR.DEMAND_CODE_RD.DRAM",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x184000004",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts demand instruction fetches and L1 instruction cache prefetches that DRAM supplied the request.",
+        "EventCode": "0xB7, 0xBB",
+        "EventName": "OCR.DEMAND_CODE_RD.LOCAL_DRAM",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x184000004",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts demand data reads that have any type of response.",
+        "EventCode": "0xB7, 0xBB",
+        "EventName": "OCR.DEMAND_DATA_RD.ANY_RESPONSE",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x10001",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts demand data reads that DRAM supplied the request.",
+        "EventCode": "0xB7, 0xBB",
+        "EventName": "OCR.DEMAND_DATA_RD.DRAM",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x184000001",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts demand data reads that DRAM supplied the request.",
+        "EventCode": "0xB7, 0xBB",
+        "EventName": "OCR.DEMAND_DATA_RD.LOCAL_DRAM",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x184000001",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts demand reads for ownership (RFO) requests and software prefetches for exclusive ownership (PREFETCHW) that have any type of response.",
+        "EventCode": "0xB7, 0xBB",
+        "EventName": "OCR.DEMAND_RFO.ANY_RESPONSE",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x10002",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts demand reads for ownership (RFO) requests and software prefetches for exclusive ownership (PREFETCHW) that DRAM supplied the request.",
+        "EventCode": "0xB7, 0xBB",
+        "EventName": "OCR.DEMAND_RFO.DRAM",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x184000002",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts demand reads for ownership (RFO) requests and software prefetches for exclusive ownership (PREFETCHW) that DRAM supplied the request.",
+        "EventCode": "0xB7, 0xBB",
+        "EventName": "OCR.DEMAND_RFO.LOCAL_DRAM",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x184000002",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts L1 data cache prefetch requests and software prefetches (except PREFETCHW) that have any type of response.",
+        "EventCode": "0xB7, 0xBB",
+        "EventName": "OCR.HWPF_L1D_AND_SWPF.ANY_RESPONSE",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x10400",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts L1 data cache prefetch requests and software prefetches (except PREFETCHW) that DRAM supplied the request.",
+        "EventCode": "0xB7, 0xBB",
+        "EventName": "OCR.HWPF_L1D_AND_SWPF.DRAM",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x184000400",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts L1 data cache prefetch requests and software prefetches (except PREFETCHW) that DRAM supplied the request.",
+        "EventCode": "0xB7, 0xBB",
+        "EventName": "OCR.HWPF_L1D_AND_SWPF.LOCAL_DRAM",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x184000400",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts hardware prefetch data reads (which bring data to L2)  that have any type of response.",
+        "EventCode": "0xB7, 0xBB",
+        "EventName": "OCR.HWPF_L2_DATA_RD.ANY_RESPONSE",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x10010",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts hardware prefetch data reads (which bring data to L2)  that DRAM supplied the request.",
+        "EventCode": "0xB7, 0xBB",
+        "EventName": "OCR.HWPF_L2_DATA_RD.DRAM",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x184000010",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts hardware prefetch data reads (which bring data to L2)  that DRAM supplied the request.",
+        "EventCode": "0xB7, 0xBB",
+        "EventName": "OCR.HWPF_L2_DATA_RD.LOCAL_DRAM",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x184000010",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts hardware prefetch RFOs (which bring data to L2) that have any type of response.",
+        "EventCode": "0xB7, 0xBB",
+        "EventName": "OCR.HWPF_L2_RFO.ANY_RESPONSE",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x10020",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts hardware prefetch RFOs (which bring data to L2) that DRAM supplied the request.",
+        "EventCode": "0xB7, 0xBB",
+        "EventName": "OCR.HWPF_L2_RFO.DRAM",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x184000020",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts hardware prefetch RFOs (which bring data to L2) that DRAM supplied the request.",
+        "EventCode": "0xB7, 0xBB",
+        "EventName": "OCR.HWPF_L2_RFO.LOCAL_DRAM",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x184000020",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts miscellaneous requests, such as I/O and un-cacheable accesses that have any type of response.",
+        "EventCode": "0xB7, 0xBB",
+        "EventName": "OCR.OTHER.ANY_RESPONSE",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x18000",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts miscellaneous requests, such as I/O and un-cacheable accesses that DRAM supplied the request.",
+        "EventCode": "0xB7, 0xBB",
+        "EventName": "OCR.OTHER.DRAM",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x184008000",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts miscellaneous requests, such as I/O and un-cacheable accesses that DRAM supplied the request.",
+        "EventCode": "0xB7, 0xBB",
+        "EventName": "OCR.OTHER.LOCAL_DRAM",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x184008000",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts streaming stores that have any type of response.",
+        "EventCode": "0xB7, 0xBB",
+        "EventName": "OCR.STREAMING_WR.ANY_RESPONSE",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x10800",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts streaming stores that DRAM supplied the request.",
+        "EventCode": "0xB7, 0xBB",
+        "EventName": "OCR.STREAMING_WR.DRAM",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x184000800",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts streaming stores that DRAM supplied the request.",
+        "EventCode": "0xB7, 0xBB",
+        "EventName": "OCR.STREAMING_WR.LOCAL_DRAM",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x184000800",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1"
+    }
+]

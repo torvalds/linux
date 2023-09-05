@@ -74,6 +74,8 @@ properties:
         const: intel,keembay-ssi
       - description: Intel Thunder Bay SPI Controller
         const: intel,thunderbay-ssi
+      - description: Intel Mount Evans Integrated Management Complex SPI Controller
+        const: intel,mountevans-imc-ssi
       - description: AMD Pensando Elba SoC SPI Controller
         const: amd,pensando-elba-spi
       - description: Baikal-T1 SPI Controller

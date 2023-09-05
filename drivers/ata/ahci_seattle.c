@@ -187,7 +187,7 @@ MODULE_DEVICE_TABLE(acpi, ahci_acpi_match);
 
 static struct platform_driver ahci_seattle_driver = {
 	.probe = ahci_seattle_probe,
-	.remove = ata_platform_remove_one,
+	.remove_new = ata_platform_remove_one,
 	.driver = {
 		.name = DRV_NAME,
 		.acpi_match_table = ahci_acpi_match,

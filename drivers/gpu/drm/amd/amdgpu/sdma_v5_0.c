@@ -819,8 +819,6 @@ static int sdma_v5_0_gfx_resume(struct amdgpu_device *adev)
 		/* enable DMA IBs */
 		WREG32_SOC15_IP(GC, sdma_v5_0_get_reg_offset(adev, i, mmSDMA0_GFX_IB_CNTL), ib_cntl);
 
-		ring->sched.ready = true;
-
 		if (amdgpu_sriov_vf(adev)) { /* bare-metal sequence doesn't need below to lines */
 			sdma_v5_0_ctx_switch_enable(adev, true);
 			sdma_v5_0_enable(adev, true);
@@ -1389,7 +1387,7 @@ static int sdma_v5_0_sw_init(void *handle)
 			(adev->doorbell_index.sdma_engine[0] << 1) //get DWORD offset
 			: (adev->doorbell_index.sdma_engine[1] << 1); // get DWORD offset
 
-		ring->vm_hub = AMDGPU_GFXHUB_0;
+		ring->vm_hub = AMDGPU_GFXHUB(0);
 		sprintf(ring->name, "sdma%d", i);
 		r = amdgpu_ring_init(adev, ring, 1024, &adev->sdma.trap_irq,
 				     (i == 0) ? AMDGPU_SDMA_IRQ_INSTANCE0 :

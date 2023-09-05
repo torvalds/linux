@@ -12,7 +12,7 @@
 
 #include <asm/cacheflush.h>
 #include <asm/cp15.h>
-#include <asm/memory.h>
+#include <asm/page.h>
 #include <asm/smp_plat.h>
 #include <asm/smp_scu.h>
 

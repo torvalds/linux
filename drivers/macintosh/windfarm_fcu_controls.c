@@ -589,7 +589,7 @@ static struct i2c_driver wf_fcu_driver = {
 		.name	= "wf_fcu",
 		.of_match_table = wf_fcu_of_id,
 	},
-	.probe_new	= wf_fcu_probe,
+	.probe		= wf_fcu_probe,
 	.remove		= wf_fcu_remove,
 	.id_table	= wf_fcu_id,
 };

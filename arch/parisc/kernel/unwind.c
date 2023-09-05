@@ -24,12 +24,13 @@
 #include <asm/unwind.h>
 #include <asm/switch_to.h>
 #include <asm/sections.h>
+#include <asm/ftrace.h>
 
 /* #define DEBUG 1 */
 #ifdef DEBUG
 #define dbg(x...) pr_debug(x)
 #else
-#define dbg(x...)
+#define dbg(x...) do { } while (0)
 #endif
 
 #define KERNEL_START (KERNEL_BINARY_TEXT_START)
@@ -179,7 +180,7 @@ void unwind_table_remove(struct unwind_table *table)
 /* Called from setup_arch to import the kernel unwind info */
 int __init unwind_init(void)
 {
-	long start, stop;
+	long start __maybe_unused, stop __maybe_unused;
 	register unsigned long gp __asm__ ("r27");
 
 	start = (long)&__start___unwind[0];
@@ -220,7 +221,6 @@ static int unwind_special(struct unwind_frame_info *info, unsigned long pc, int 
 	 * Note: We could use dereference_kernel_function_descriptor()
 	 * instead but we want to keep it simple here.
 	 */
-	extern void * const handle_interruption;
 	extern void * const ret_from_kernel_thread;
 	extern void * const syscall_exit;
 	extern void * const intr_return;
@@ -228,8 +228,10 @@ static int unwind_special(struct unwind_frame_info *info, unsigned long pc, int 
 #ifdef CONFIG_IRQSTACKS
 	extern void * const _call_on_stack;
 #endif /* CONFIG_IRQSTACKS */
+	void *ptr;
 
-	if (pc_is_kernel_fn(pc, handle_interruption)) {
+	ptr = dereference_kernel_function_descriptor(&handle_interruption);
+	if (pc_is_kernel_fn(pc, ptr)) {
 		struct pt_regs *regs = (struct pt_regs *)(info->sp - frame_size - PT_SZ_ALGN);
 		dbg("Unwinding through handle_interruption()\n");
 		info->prev_sp = regs->gr[30];

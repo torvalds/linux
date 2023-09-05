@@ -15,6 +15,7 @@
 #include "mcdi.h"
 #include "mcdi_pcol.h"
 #include "mcdi_pcol_mae.h"
+#include "tc_encap_actions.h"
 
 int efx_mae_allocate_mport(struct efx_nic *efx, u32 *id, u32 *label)
 {
@@ -482,12 +483,14 @@ int efx_mae_match_check_caps(struct efx_nic *efx,
 	rc;								       \
 })
 /* Checks that the fields needed for encap-rule matches are supported by the
- * MAE.  All the fields are exact-match.
+ * MAE.  All the fields are exact-match, except possibly ENC_IP_TOS.
  */
 int efx_mae_check_encap_match_caps(struct efx_nic *efx, bool ipv6,
+				   u8 ip_tos_mask, __be16 udp_sport_mask,
 				   struct netlink_ext_ack *extack)
 {
 	u8 *supported_fields = efx->tc->caps->outer_rule_fields;
+	enum mask_type typ;
 	int rc;
 
 	if (CHECK(ENC_ETHER_TYPE))
@@ -504,6 +507,22 @@ int efx_mae_check_encap_match_caps(struct efx_nic *efx, bool ipv6,
 	if (CHECK(ENC_L4_DPORT) ||
 	    CHECK(ENC_IP_PROTO))
 		return rc;
+	typ = classify_mask((const u8 *)&udp_sport_mask, sizeof(udp_sport_mask));
+	rc = efx_mae_match_check_cap_typ(supported_fields[MAE_FIELD_ENC_L4_SPORT],
+					 typ);
+	if (rc) {
+		NL_SET_ERR_MSG_FMT_MOD(extack, "No support for %s mask in field %s",
+				       mask_type_name(typ), "enc_src_port");
+		return rc;
+	}
+	typ = classify_mask(&ip_tos_mask, sizeof(ip_tos_mask));
+	rc = efx_mae_match_check_cap_typ(supported_fields[MAE_FIELD_ENC_IP_TOS],
+					 typ);
+	if (rc) {
+		NL_SET_ERR_MSG_FMT_MOD(extack, "No support for %s mask in field %s",
+				       mask_type_name(typ), "enc_ip_tos");
+		return rc;
+	}
 	return 0;
 }
 #undef CHECK
@@ -590,6 +609,87 @@ static int efx_mae_encap_type_to_mae_type(enum efx_encap_type type)
 	default:
 		return -EOPNOTSUPP;
 	}
+}
+
+int efx_mae_allocate_encap_md(struct efx_nic *efx,
+			      struct efx_tc_encap_action *encap)
+{
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_MAE_ENCAP_HEADER_ALLOC_IN_LEN(EFX_TC_MAX_ENCAP_HDR));
+	MCDI_DECLARE_BUF(outbuf, MC_CMD_MAE_ENCAP_HEADER_ALLOC_OUT_LEN);
+	size_t inlen, outlen;
+	int rc;
+
+	rc = efx_mae_encap_type_to_mae_type(encap->type);
+	if (rc < 0)
+		return rc;
+	MCDI_SET_DWORD(inbuf, MAE_ENCAP_HEADER_ALLOC_IN_ENCAP_TYPE, rc);
+	inlen = MC_CMD_MAE_ENCAP_HEADER_ALLOC_IN_LEN(encap->encap_hdr_len);
+	if (WARN_ON(inlen > sizeof(inbuf))) /* can't happen */
+		return -EINVAL;
+	memcpy(MCDI_PTR(inbuf, MAE_ENCAP_HEADER_ALLOC_IN_HDR_DATA),
+	       encap->encap_hdr,
+	       encap->encap_hdr_len);
+	rc = efx_mcdi_rpc(efx, MC_CMD_MAE_ENCAP_HEADER_ALLOC, inbuf,
+			  inlen, outbuf, sizeof(outbuf), &outlen);
+	if (rc)
+		return rc;
+	if (outlen < sizeof(outbuf))
+		return -EIO;
+	encap->fw_id = MCDI_DWORD(outbuf, MAE_ENCAP_HEADER_ALLOC_OUT_ENCAP_HEADER_ID);
+	return 0;
+}
+
+int efx_mae_update_encap_md(struct efx_nic *efx,
+			    struct efx_tc_encap_action *encap)
+{
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_MAE_ENCAP_HEADER_UPDATE_IN_LEN(EFX_TC_MAX_ENCAP_HDR));
+	size_t inlen;
+	int rc;
+
+	rc = efx_mae_encap_type_to_mae_type(encap->type);
+	if (rc < 0)
+		return rc;
+	MCDI_SET_DWORD(inbuf, MAE_ENCAP_HEADER_UPDATE_IN_ENCAP_TYPE, rc);
+	MCDI_SET_DWORD(inbuf, MAE_ENCAP_HEADER_UPDATE_IN_EH_ID,
+		       encap->fw_id);
+	inlen = MC_CMD_MAE_ENCAP_HEADER_UPDATE_IN_LEN(encap->encap_hdr_len);
+	if (WARN_ON(inlen > sizeof(inbuf))) /* can't happen */
+		return -EINVAL;
+	memcpy(MCDI_PTR(inbuf, MAE_ENCAP_HEADER_UPDATE_IN_HDR_DATA),
+	       encap->encap_hdr,
+	       encap->encap_hdr_len);
+
+	BUILD_BUG_ON(MC_CMD_MAE_ENCAP_HEADER_UPDATE_OUT_LEN != 0);
+	return efx_mcdi_rpc(efx, MC_CMD_MAE_ENCAP_HEADER_UPDATE, inbuf,
+			    inlen, NULL, 0, NULL);
+}
+
+int efx_mae_free_encap_md(struct efx_nic *efx,
+			  struct efx_tc_encap_action *encap)
+{
+	MCDI_DECLARE_BUF(outbuf, MC_CMD_MAE_ENCAP_HEADER_FREE_OUT_LEN(1));
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_MAE_ENCAP_HEADER_FREE_IN_LEN(1));
+	size_t outlen;
+	int rc;
+
+	MCDI_SET_DWORD(inbuf, MAE_ENCAP_HEADER_FREE_IN_EH_ID, encap->fw_id);
+	rc = efx_mcdi_rpc(efx, MC_CMD_MAE_ENCAP_HEADER_FREE, inbuf,
+			  sizeof(inbuf), outbuf, sizeof(outbuf), &outlen);
+	if (rc)
+		return rc;
+	if (outlen < sizeof(outbuf))
+		return -EIO;
+	/* FW freed a different ID than we asked for, should also never happen.
+	 * Warn because it means we've now got a different idea to the FW of
+	 * what encap_mds exist, which could cause mayhem later.
+	 */
+	if (WARN_ON(MCDI_DWORD(outbuf, MAE_ENCAP_HEADER_FREE_OUT_FREED_EH_ID) != encap->fw_id))
+		return -EIO;
+	/* We're probably about to free @encap, but let's just make sure its
+	 * fw_id is blatted so that it won't look valid if it leaks out.
+	 */
+	encap->fw_id = MC_CMD_MAE_ENCAP_HEADER_ALLOC_OUT_ENCAP_HEADER_ID_NULL;
+	return 0;
 }
 
 int efx_mae_lookup_mport(struct efx_nic *efx, u32 vf_idx, u32 *id)
@@ -815,8 +915,12 @@ int efx_mae_alloc_action_set(struct efx_nic *efx, struct efx_tc_action_set *act)
 		MCDI_SET_WORD_BE(inbuf, MAE_ACTION_SET_ALLOC_IN_VLAN1_PROTO_BE,
 				 act->vlan_proto[1]);
 	}
-	MCDI_SET_DWORD(inbuf, MAE_ACTION_SET_ALLOC_IN_ENCAP_HEADER_ID,
-		       MC_CMD_MAE_ENCAP_HEADER_ALLOC_OUT_ENCAP_HEADER_ID_NULL);
+	if (act->encap_md)
+		MCDI_SET_DWORD(inbuf, MAE_ACTION_SET_ALLOC_IN_ENCAP_HEADER_ID,
+			       act->encap_md->fw_id);
+	else
+		MCDI_SET_DWORD(inbuf, MAE_ACTION_SET_ALLOC_IN_ENCAP_HEADER_ID,
+			       MC_CMD_MAE_ENCAP_HEADER_ALLOC_OUT_ENCAP_HEADER_ID_NULL);
 	if (act->deliver)
 		MCDI_SET_DWORD(inbuf, MAE_ACTION_SET_ALLOC_IN_DELIVER,
 			       act->dest_mport);
@@ -1001,8 +1105,16 @@ int efx_mae_register_encap_match(struct efx_nic *efx,
 				encap->udp_dport);
 	MCDI_STRUCT_SET_WORD_BE(match_crit, MAE_ENC_FIELD_PAIRS_ENC_L4_DPORT_BE_MASK,
 				~(__be16)0);
+	MCDI_STRUCT_SET_WORD_BE(match_crit, MAE_ENC_FIELD_PAIRS_ENC_L4_DPORT_BE,
+				encap->udp_sport);
+	MCDI_STRUCT_SET_WORD_BE(match_crit, MAE_ENC_FIELD_PAIRS_ENC_L4_DPORT_BE_MASK,
+				encap->udp_sport_mask);
 	MCDI_STRUCT_SET_BYTE(match_crit, MAE_ENC_FIELD_PAIRS_ENC_IP_PROTO, IPPROTO_UDP);
 	MCDI_STRUCT_SET_BYTE(match_crit, MAE_ENC_FIELD_PAIRS_ENC_IP_PROTO_MASK, ~0);
+	MCDI_STRUCT_SET_BYTE(match_crit, MAE_ENC_FIELD_PAIRS_ENC_IP_TOS,
+			     encap->ip_tos);
+	MCDI_STRUCT_SET_BYTE(match_crit, MAE_ENC_FIELD_PAIRS_ENC_IP_TOS_MASK,
+			     encap->ip_tos_mask);
 	rc = efx_mcdi_rpc(efx, MC_CMD_MAE_OUTER_RULE_INSERT, inbuf,
 			  sizeof(inbuf), outbuf, sizeof(outbuf), &outlen);
 	if (rc)
@@ -1201,6 +1313,29 @@ int efx_mae_insert_rule(struct efx_nic *efx, const struct efx_tc_match *match,
 		return -EIO;
 	*id = MCDI_DWORD(outbuf, MAE_ACTION_RULE_INSERT_OUT_AR_ID);
 	return 0;
+}
+
+int efx_mae_update_rule(struct efx_nic *efx, u32 acts_id, u32 id)
+{
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_MAE_ACTION_RULE_UPDATE_IN_LEN);
+	MCDI_DECLARE_STRUCT_PTR(response);
+
+	BUILD_BUG_ON(MC_CMD_MAE_ACTION_RULE_UPDATE_OUT_LEN);
+	response = _MCDI_DWORD(inbuf, MAE_ACTION_RULE_UPDATE_IN_RESPONSE);
+
+	MCDI_SET_DWORD(inbuf, MAE_ACTION_RULE_UPDATE_IN_AR_ID, id);
+	if (efx_mae_asl_id(acts_id)) {
+		MCDI_STRUCT_SET_DWORD(response, MAE_ACTION_RULE_RESPONSE_ASL_ID, acts_id);
+		MCDI_STRUCT_SET_DWORD(response, MAE_ACTION_RULE_RESPONSE_AS_ID,
+				      MC_CMD_MAE_ACTION_SET_ALLOC_OUT_ACTION_SET_ID_NULL);
+	} else {
+		/* We only had one AS, so we didn't wrap it in an ASL */
+		MCDI_STRUCT_SET_DWORD(response, MAE_ACTION_RULE_RESPONSE_ASL_ID,
+				      MC_CMD_MAE_ACTION_SET_LIST_ALLOC_OUT_ACTION_SET_LIST_ID_NULL);
+		MCDI_STRUCT_SET_DWORD(response, MAE_ACTION_RULE_RESPONSE_AS_ID, acts_id);
+	}
+	return efx_mcdi_rpc(efx, MC_CMD_MAE_ACTION_RULE_UPDATE, inbuf, sizeof(inbuf),
+			    NULL, 0, NULL);
 }
 
 int efx_mae_delete_rule(struct efx_nic *efx, u32 id)

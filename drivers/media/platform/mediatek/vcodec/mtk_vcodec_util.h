@@ -35,15 +35,35 @@ struct mtk_vcodec_dev;
 	pr_err("[MTK_VCODEC][ERROR][%d]: " fmt "\n",		\
 	       ((struct mtk_vcodec_ctx *)(h)->ctx)->id, ##args)
 
+#if defined(CONFIG_DEBUG_FS)
+extern int mtk_v4l2_dbg_level;
+extern int mtk_vcodec_dbg;
 
+#define mtk_v4l2_debug(level, fmt, args...)				\
+	do {								\
+		if (mtk_v4l2_dbg_level >= (level))			\
+			pr_debug("[MTK_V4L2] %s, %d: " fmt "\n",        \
+				 __func__, __LINE__, ##args);	        \
+	} while (0)
+
+#define mtk_vcodec_debug(h, fmt, args...)				                      \
+	do {								                      \
+		if (mtk_vcodec_dbg)					                      \
+			dev_dbg(&(((struct mtk_vcodec_ctx *)(h)->ctx)->dev->plat_dev->dev),   \
+				"[MTK_VCODEC][%d]: %s, %d " fmt "\n",                         \
+				((struct mtk_vcodec_ctx *)(h)->ctx)->id,                      \
+				__func__, __LINE__, ##args);                                  \
+	} while (0)
+#else
 #define mtk_v4l2_debug(level, fmt, args...) pr_debug(fmt, ##args)
-
-#define mtk_v4l2_debug_enter()  mtk_v4l2_debug(3, "+")
-#define mtk_v4l2_debug_leave()  mtk_v4l2_debug(3, "-")
 
 #define mtk_vcodec_debug(h, fmt, args...)			\
 	pr_debug("[MTK_VCODEC][%d]: " fmt "\n",			\
 		((struct mtk_vcodec_ctx *)(h)->ctx)->id, ##args)
+#endif
+
+#define mtk_v4l2_debug_enter()  mtk_v4l2_debug(3, "+")
+#define mtk_v4l2_debug_leave()  mtk_v4l2_debug(3, "-")
 
 #define mtk_vcodec_debug_enter(h)  mtk_vcodec_debug(h, "+")
 #define mtk_vcodec_debug_leave(h)  mtk_vcodec_debug(h, "-")

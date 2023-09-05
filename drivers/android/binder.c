@@ -66,6 +66,7 @@
 #include <linux/syscalls.h>
 #include <linux/task_work.h>
 #include <linux/sizes.h>
+#include <linux/ktime.h>
 
 #include <uapi/linux/android/binder.h>
 
@@ -2918,6 +2919,7 @@ static void binder_transaction(struct binder_proc *proc,
 	binder_size_t last_fixup_min_off = 0;
 	struct binder_context *context = proc->context;
 	int t_debug_id = atomic_inc_return(&binder_last_id);
+	ktime_t t_start_time = ktime_get();
 	char *secctx = NULL;
 	u32 secctx_sz = 0;
 	struct list_head sgc_head;
@@ -3159,6 +3161,7 @@ static void binder_transaction(struct binder_proc *proc,
 	binder_stats_created(BINDER_STAT_TRANSACTION_COMPLETE);
 
 	t->debug_id = t_debug_id;
+	t->start_time = t_start_time;
 
 	if (reply)
 		binder_debug(BINDER_DEBUG_TRANSACTION,
@@ -3183,6 +3186,8 @@ static void binder_transaction(struct binder_proc *proc,
 		t->from = thread;
 	else
 		t->from = NULL;
+	t->from_pid = proc->pid;
+	t->from_tid = thread->pid;
 	t->sender_euid = task_euid(proc->tsk);
 	t->to_proc = target_proc;
 	t->to_thread = target_thread;
@@ -5944,17 +5949,19 @@ static void print_binder_transaction_ilocked(struct seq_file *m,
 {
 	struct binder_proc *to_proc;
 	struct binder_buffer *buffer = t->buffer;
+	ktime_t current_time = ktime_get();
 
 	spin_lock(&t->lock);
 	to_proc = t->to_proc;
 	seq_printf(m,
-		   "%s %d: %pK from %d:%d to %d:%d code %x flags %x pri %ld r%d",
+		   "%s %d: %pK from %d:%d to %d:%d code %x flags %x pri %ld r%d elapsed %lldms",
 		   prefix, t->debug_id, t,
-		   t->from ? t->from->proc->pid : 0,
-		   t->from ? t->from->pid : 0,
+		   t->from_pid,
+		   t->from_tid,
 		   to_proc ? to_proc->pid : 0,
 		   t->to_thread ? t->to_thread->pid : 0,
-		   t->code, t->flags, t->priority, t->need_reply);
+		   t->code, t->flags, t->priority, t->need_reply,
+		   ktime_ms_delta(current_time, t->start_time));
 	spin_unlock(&t->lock);
 
 	if (proc != to_proc) {
@@ -6610,6 +6617,7 @@ err_init_binder_device_failed:
 
 err_alloc_device_names_failed:
 	debugfs_remove_recursive(binder_debugfs_dir_entry_root);
+	binder_alloc_shrinker_exit();
 
 	return ret;
 }

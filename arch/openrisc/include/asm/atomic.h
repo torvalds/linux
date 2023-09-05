@@ -130,7 +130,4 @@ static inline int arch_atomic_fetch_add_unless(atomic_t *v, int a, int u)
 
 #include <asm/cmpxchg.h>
 
-#define arch_atomic_xchg(ptr, v)		(arch_xchg(&(ptr)->counter, (v)))
-#define arch_atomic_cmpxchg(v, old, new)	(arch_cmpxchg(&((v)->counter), (old), (new)))
-
 #endif /* __ASM_OPENRISC_ATOMIC_H */

@@ -55,7 +55,7 @@
 #define SOF_IPC4_GAIN_ALL_CHANNELS_MASK 0xffffffff
 #define SOF_IPC4_VOL_ZERO_DB	0x7fffffff
 
-#define ALH_MAX_NUMBER_OF_GTW   16
+#define SOF_IPC4_DMA_DEVICE_MAX_COUNT 16
 
 #define SOF_IPC4_INVALID_NODE_ID	0xffffffff
 
@@ -220,18 +220,64 @@ struct sof_ipc4_gtw_attributes {
 	uint32_t rsvd : 30;
 };
 
-/** struct sof_ipc4_alh_multi_gtw_cfg: ALH gateway cfg data
- * @count: Number of streams (valid items in mapping array)
- * @alh_id: ALH stream id of a single ALH stream aggregated
- * @channel_mask: Channel mask
- * @mapping: ALH streams
+/**
+ * struct sof_ipc4_dma_device_stream_ch_map: abstract representation of
+ * channel mapping to DMAs
+ * @device: representation of hardware device address or FIFO
+ * @channel_mask: channels handled by @device. Channels are expected to be
+ * contiguous
  */
-struct sof_ipc4_alh_multi_gtw_cfg {
-	uint32_t count;
-	struct {
-		uint32_t alh_id;
-		uint32_t channel_mask;
-	} mapping[ALH_MAX_NUMBER_OF_GTW];
+struct sof_ipc4_dma_device_stream_ch_map {
+	uint32_t device;
+	uint32_t channel_mask;
+};
+
+/**
+ * struct sof_ipc4_dma_stream_ch_map: DMA configuration data
+ * @device_count: Number valid items in mapping array
+ * @mapping: device address and channel mask
+ */
+struct sof_ipc4_dma_stream_ch_map {
+	uint32_t device_count;
+	struct sof_ipc4_dma_device_stream_ch_map mapping[SOF_IPC4_DMA_DEVICE_MAX_COUNT];
+} __packed;
+
+#define SOF_IPC4_DMA_METHOD_HDA   1
+#define SOF_IPC4_DMA_METHOD_GPDMA 2 /* defined for consistency but not used */
+
+/**
+ * struct sof_ipc4_dma_config: DMA configuration
+ * @dma_method: HDAudio or GPDMA
+ * @pre_allocated_by_host: 1 if host driver allocates DMA channels, 0 otherwise
+ * @dma_channel_id: for HDaudio defined as @stream_id - 1
+ * @stream_id: HDaudio stream tag
+ * @dma_stream_channel_map: array of device/channel mappings
+ * @dma_priv_config_size: currently not used
+ * @dma_priv_config: currently not used
+ */
+struct sof_ipc4_dma_config {
+	uint8_t dma_method;
+	uint8_t pre_allocated_by_host;
+	uint16_t rsvd;
+	uint32_t dma_channel_id;
+	uint32_t stream_id;
+	struct sof_ipc4_dma_stream_ch_map dma_stream_channel_map;
+	uint32_t dma_priv_config_size;
+	uint8_t dma_priv_config[];
+} __packed;
+
+#define SOF_IPC4_GTW_DMA_CONFIG_ID 0x1000
+
+/**
+ * struct sof_ipc4_dma_config: DMA configuration
+ * @type: set to SOF_IPC4_GTW_DMA_CONFIG_ID
+ * @length: sizeof(struct sof_ipc4_dma_config) + dma_config.dma_priv_config_size
+ * @dma_config: actual DMA configuration
+ */
+struct sof_ipc4_dma_config_tlv {
+	uint32_t type;
+	uint32_t length;
+	struct sof_ipc4_dma_config dma_config;
 } __packed;
 
 /** struct sof_ipc4_alh_configuration_blob: ALH blob
@@ -240,7 +286,7 @@ struct sof_ipc4_alh_multi_gtw_cfg {
  */
 struct sof_ipc4_alh_configuration_blob {
 	struct sof_ipc4_gtw_attributes gw_attr;
-	struct sof_ipc4_alh_multi_gtw_cfg alh_cfg;
+	struct sof_ipc4_dma_stream_ch_map alh_cfg;
 };
 
 /**
@@ -254,6 +300,7 @@ struct sof_ipc4_alh_configuration_blob {
  * @gtw_attr: Gateway attributes for copier blob
  * @dai_type: DAI type
  * @dai_index: DAI index
+ * @dma_config_tlv: DMA configuration
  */
 struct sof_ipc4_copier {
 	struct sof_ipc4_copier_data data;
@@ -266,6 +313,7 @@ struct sof_ipc4_copier {
 	struct sof_ipc4_gtw_attributes *gtw_attr;
 	u32 dai_type;
 	int dai_index;
+	struct sof_ipc4_dma_config_tlv dma_config_tlv;
 };
 
 /**

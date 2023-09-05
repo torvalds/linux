@@ -845,11 +845,6 @@ void __init pnv_pci_init(void)
 	pcie_ports_disabled = true;
 #endif
 
-	/* Look for IODA IO-Hubs. */
-	for_each_compatible_node(np, NULL, "ibm,ioda-hub") {
-		pnv_pci_init_ioda_hub(np);
-	}
-
 	/* Look for ioda2 built-in PHB3's */
 	for_each_compatible_node(np, NULL, "ibm,ioda2-phb")
 		pnv_pci_init_ioda2_phb(np);

@@ -24,6 +24,7 @@
  *     David Airlie
  */
 
+#include <linux/fb.h>
 #include <linux/pci.h>
 #include <linux/pm_runtime.h>
 #include <linux/vga_switcheroo.h>
@@ -190,14 +191,10 @@ static void radeon_fbdev_fb_destroy(struct fb_info *info)
 
 static const struct fb_ops radeon_fbdev_fb_ops = {
 	.owner = THIS_MODULE,
-	DRM_FB_HELPER_DEFAULT_OPS,
 	.fb_open = radeon_fbdev_fb_open,
 	.fb_release = radeon_fbdev_fb_release,
-	.fb_read = drm_fb_helper_cfb_read,
-	.fb_write = drm_fb_helper_cfb_write,
-	.fb_fillrect = drm_fb_helper_cfb_fillrect,
-	.fb_copyarea = drm_fb_helper_cfb_copyarea,
-	.fb_imageblit = drm_fb_helper_cfb_imageblit,
+	FB_DEFAULT_IO_OPS,
+	DRM_FB_HELPER_DEFAULT_OPS,
 	.fb_destroy = radeon_fbdev_fb_destroy,
 };
 
@@ -385,10 +382,6 @@ void radeon_fbdev_setup(struct radeon_device *rdev)
 		drm_err(rdev->ddev, "Failed to register client: %d\n", ret);
 		goto err_drm_client_init;
 	}
-
-	ret = radeon_fbdev_client_hotplug(&fb_helper->client);
-	if (ret)
-		drm_dbg_kms(rdev->ddev, "client hotplug ret=%d\n", ret);
 
 	drm_client_register(&fb_helper->client);
 

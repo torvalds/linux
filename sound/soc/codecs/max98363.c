@@ -15,11 +15,6 @@
 #include "max98363.h"
 
 static struct reg_default max98363_reg[] = {
-	{MAX98363_R2001_INTR_RAW, 0x0},
-	{MAX98363_R2003_INTR_STATE, 0x0},
-	{MAX98363_R2005_INTR_FALG, 0x0},
-	{MAX98363_R2007_INTR_EN, 0x0},
-	{MAX98363_R2009_INTR_CLR, 0x0},
 	{MAX98363_R2021_ERR_MON_CTRL, 0x0},
 	{MAX98363_R2022_SPK_MON_THRESH, 0x0},
 	{MAX98363_R2023_SPK_MON_DURATION, 0x0},
@@ -28,7 +23,6 @@ static struct reg_default max98363_reg[] = {
 	{MAX98363_R2040_AMP_VOL, 0x0},
 	{MAX98363_R2041_AMP_GAIN, 0x5},
 	{MAX98363_R2042_DSP_CFG, 0x0},
-	{MAX98363_R21FF_REV_ID, 0x0},
 };
 
 static bool max98363_readable_register(struct device *dev, unsigned int reg)
@@ -191,10 +185,10 @@ static int max98363_io_init(struct sdw_slave *slave)
 	pm_runtime_get_noresume(dev);
 
 	ret = regmap_read(max98363->regmap, MAX98363_R21FF_REV_ID, &reg);
-	if (!ret) {
+	if (!ret)
 		dev_info(dev, "Revision ID: %X\n", reg);
-		return ret;
-	}
+	else
+		goto out;
 
 	if (max98363->first_hw_init) {
 		regcache_cache_bypass(max98363->regmap, false);
@@ -204,10 +198,11 @@ static int max98363_io_init(struct sdw_slave *slave)
 	max98363->first_hw_init = true;
 	max98363->hw_init = true;
 
+out:
 	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
 
-	return 0;
+	return ret;
 }
 
 #define MAX98363_RATES SNDRV_PCM_RATE_8000_192000

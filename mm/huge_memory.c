@@ -583,7 +583,7 @@ void prep_transhuge_page(struct page *page)
 
 	VM_BUG_ON_FOLIO(folio_order(folio) < 2, folio);
 	INIT_LIST_HEAD(&folio->_deferred_list);
-	set_compound_page_dtor(page, TRANSHUGE_PAGE_DTOR);
+	folio_set_compound_dtor(folio, TRANSHUGE_PAGE_DTOR);
 }
 
 static inline bool is_transparent_hugepage(struct page *page)
@@ -1344,7 +1344,7 @@ vm_fault_t do_huge_pmd_wp_page(struct vm_fault *vmf)
 	/*
 	 * See do_wp_page(): we can only reuse the folio exclusively if
 	 * there are no additional references. Note that we always drain
-	 * the LRU pagevecs immediately after adding a THP.
+	 * the LRU cache immediately after adding a THP.
 	 */
 	if (folio_ref_count(folio) >
 			1 + folio_test_swapcache(folio) * folio_nr_pages(folio))
@@ -1467,8 +1467,7 @@ struct page *follow_trans_huge_pmd(struct vm_area_struct *vma,
 	if ((flags & FOLL_DUMP) && is_huge_zero_pmd(*pmd))
 		return ERR_PTR(-EFAULT);
 
-	/* Full NUMA hinting faults to serialise migration in fault paths */
-	if (pmd_protnone(*pmd) && !gup_can_follow_protnone(flags))
+	if (pmd_protnone(*pmd) && !gup_can_follow_protnone(vma, flags))
 		return NULL;
 
 	if (!pmd_write(*pmd) && gup_must_unshare(vma, flags, page))
@@ -1613,7 +1612,7 @@ bool madvise_free_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
 	 * If other processes are mapping this folio, we couldn't discard
 	 * the folio unless they all do MADV_FREE so let's skip the folio.
 	 */
-	if (folio_mapcount(folio) != 1)
+	if (folio_estimated_sharers(folio) != 1)
 		goto out;
 
 	if (!folio_trylock(folio))
@@ -1760,9 +1759,10 @@ bool move_huge_pmd(struct vm_area_struct *vma, unsigned long old_addr,
 
 	/*
 	 * The destination pmd shouldn't be established, free_pgtables()
-	 * should have release it.
+	 * should have released it; but move_page_tables() might have already
+	 * inserted a page table, if racing against shmem/file collapse.
 	 */
-	if (WARN_ON(!pmd_none(*new_pmd))) {
+	if (!pmd_none(*new_pmd)) {
 		VM_BUG_ON(pmd_trans_huge(*new_pmd));
 		return false;
 	}
@@ -2036,6 +2036,8 @@ static void __split_huge_zero_page_pmd(struct vm_area_struct *vma,
 	struct mm_struct *mm = vma->vm_mm;
 	pgtable_t pgtable;
 	pmd_t _pmd, old_pmd;
+	unsigned long addr;
+	pte_t *pte;
 	int i;
 
 	/*
@@ -2051,17 +2053,20 @@ static void __split_huge_zero_page_pmd(struct vm_area_struct *vma,
 	pgtable = pgtable_trans_huge_withdraw(mm, pmd);
 	pmd_populate(mm, &_pmd, pgtable);
 
-	for (i = 0; i < HPAGE_PMD_NR; i++, haddr += PAGE_SIZE) {
-		pte_t *pte, entry;
-		entry = pfn_pte(my_zero_pfn(haddr), vma->vm_page_prot);
+	pte = pte_offset_map(&_pmd, haddr);
+	VM_BUG_ON(!pte);
+	for (i = 0, addr = haddr; i < HPAGE_PMD_NR; i++, addr += PAGE_SIZE) {
+		pte_t entry;
+
+		entry = pfn_pte(my_zero_pfn(addr), vma->vm_page_prot);
 		entry = pte_mkspecial(entry);
 		if (pmd_uffd_wp(old_pmd))
 			entry = pte_mkuffd_wp(entry);
-		pte = pte_offset_map(&_pmd, haddr);
-		VM_BUG_ON(!pte_none(*pte));
-		set_pte_at(mm, haddr, pte, entry);
-		pte_unmap(pte);
+		VM_BUG_ON(!pte_none(ptep_get(pte)));
+		set_pte_at(mm, addr, pte, entry);
+		pte++;
 	}
+	pte_unmap(pte - 1);
 	smp_wmb(); /* make pte visible before pmd */
 	pmd_populate(mm, pmd, pgtable);
 }
@@ -2076,6 +2081,7 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
 	bool young, write, soft_dirty, pmd_migration = false, uffd_wp = false;
 	bool anon_exclusive = false, dirty = false;
 	unsigned long addr;
+	pte_t *pte;
 	int i;
 
 	VM_BUG_ON(haddr & ~HPAGE_PMD_MASK);
@@ -2204,8 +2210,10 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
 	pgtable = pgtable_trans_huge_withdraw(mm, pmd);
 	pmd_populate(mm, &_pmd, pgtable);
 
+	pte = pte_offset_map(&_pmd, haddr);
+	VM_BUG_ON(!pte);
 	for (i = 0, addr = haddr; i < HPAGE_PMD_NR; i++, addr += PAGE_SIZE) {
-		pte_t entry, *pte;
+		pte_t entry;
 		/*
 		 * Note that NUMA hinting access restrictions are not
 		 * transferred to avoid any possibility of altering
@@ -2248,11 +2256,11 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
 				entry = pte_mkuffd_wp(entry);
 			page_add_anon_rmap(page + i, vma, addr, false);
 		}
-		pte = pte_offset_map(&_pmd, addr);
-		BUG_ON(!pte_none(*pte));
+		VM_BUG_ON(!pte_none(ptep_get(pte)));
 		set_pte_at(mm, addr, pte, entry);
-		pte_unmap(pte);
+		pte++;
 	}
+	pte_unmap(pte - 1);
 
 	if (!pmd_migration)
 		page_remove_rmap(page, vma, true);
@@ -2792,12 +2800,19 @@ void free_transhuge_page(struct page *page)
 	struct deferred_split *ds_queue = get_deferred_split_queue(folio);
 	unsigned long flags;
 
-	spin_lock_irqsave(&ds_queue->split_queue_lock, flags);
-	if (!list_empty(&folio->_deferred_list)) {
-		ds_queue->split_queue_len--;
-		list_del(&folio->_deferred_list);
+	/*
+	 * At this point, there is no one trying to add the folio to
+	 * deferred_list. If folio is not in deferred_list, it's safe
+	 * to check without acquiring the split_queue_lock.
+	 */
+	if (data_race(!list_empty(&folio->_deferred_list))) {
+		spin_lock_irqsave(&ds_queue->split_queue_lock, flags);
+		if (!list_empty(&folio->_deferred_list)) {
+			ds_queue->split_queue_len--;
+			list_del(&folio->_deferred_list);
+		}
+		spin_unlock_irqrestore(&ds_queue->split_queue_lock, flags);
 	}
-	spin_unlock_irqrestore(&ds_queue->split_queue_lock, flags);
 	free_compound_page(page);
 }
 

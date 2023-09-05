@@ -503,7 +503,7 @@ static void xr_dtr_rts(struct usb_serial_port *port, int on)
 		xr_tiocmset_port(port, 0, TIOCM_DTR | TIOCM_RTS);
 }
 
-static void xr_break_ctl(struct tty_struct *tty, int break_state)
+static int xr_break_ctl(struct tty_struct *tty, int break_state)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct xr_data *data = usb_get_serial_port_data(port);
@@ -517,7 +517,7 @@ static void xr_break_ctl(struct tty_struct *tty, int break_state)
 
 	dev_dbg(&port->dev, "Turning break %s\n", state == 0 ? "off" : "on");
 
-	xr_set_reg_uart(port, type->tx_break, state);
+	return xr_set_reg_uart(port, type->tx_break, state);
 }
 
 /* Tx and Rx clock mask values obtained from section 3.3.4 of datasheet */

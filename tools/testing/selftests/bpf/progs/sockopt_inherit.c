@@ -9,6 +9,8 @@ char _license[] SEC("license") = "GPL";
 #define CUSTOM_INHERIT2			1
 #define CUSTOM_LISTENER			2
 
+__u32 page_size = 0;
+
 struct sockopt_inherit {
 	__u8 val;
 };
@@ -55,7 +57,7 @@ int _getsockopt(struct bpf_sockopt *ctx)
 	__u8 *optval = ctx->optval;
 
 	if (ctx->level != SOL_CUSTOM)
-		return 1; /* only interested in SOL_CUSTOM */
+		goto out; /* only interested in SOL_CUSTOM */
 
 	if (optval + 1 > optval_end)
 		return 0; /* EPERM, bounds check */
@@ -70,6 +72,12 @@ int _getsockopt(struct bpf_sockopt *ctx)
 	ctx->optlen = 1;
 
 	return 1;
+
+out:
+	/* optval larger than PAGE_SIZE use kernel's buffer. */
+	if (ctx->optlen > page_size)
+		ctx->optlen = 0;
+	return 1;
 }
 
 SEC("cgroup/setsockopt")
@@ -80,7 +88,7 @@ int _setsockopt(struct bpf_sockopt *ctx)
 	__u8 *optval = ctx->optval;
 
 	if (ctx->level != SOL_CUSTOM)
-		return 1; /* only interested in SOL_CUSTOM */
+		goto out; /* only interested in SOL_CUSTOM */
 
 	if (optval + 1 > optval_end)
 		return 0; /* EPERM, bounds check */
@@ -92,5 +100,11 @@ int _setsockopt(struct bpf_sockopt *ctx)
 	storage->val = optval[0];
 	ctx->optlen = -1;
 
+	return 1;
+
+out:
+	/* optval larger than PAGE_SIZE use kernel's buffer. */
+	if (ctx->optlen > page_size)
+		ctx->optlen = 0;
 	return 1;
 }

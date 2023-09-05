@@ -312,6 +312,7 @@ static int mlock_pte_range(pmd_t *pmd, unsigned long addr,
 	struct vm_area_struct *vma = walk->vma;
 	spinlock_t *ptl;
 	pte_t *start_pte, *pte;
+	pte_t ptent;
 	struct folio *folio;
 
 	ptl = pmd_trans_huge_lock(pmd, vma);
@@ -329,10 +330,15 @@ static int mlock_pte_range(pmd_t *pmd, unsigned long addr,
 	}
 
 	start_pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
+	if (!start_pte) {
+		walk->action = ACTION_AGAIN;
+		return 0;
+	}
 	for (pte = start_pte; addr != end; pte++, addr += PAGE_SIZE) {
-		if (!pte_present(*pte))
+		ptent = ptep_get(pte);
+		if (!pte_present(ptent))
 			continue;
-		folio = vm_normal_folio(vma, addr, *pte);
+		folio = vm_normal_folio(vma, addr, ptent);
 		if (!folio || folio_is_zone_device(folio))
 			continue;
 		if (folio_test_large(folio))
@@ -365,6 +371,7 @@ static void mlock_vma_pages_range(struct vm_area_struct *vma,
 {
 	static const struct mm_walk_ops mlock_walk_ops = {
 		.pmd_entry = mlock_pte_range,
+		.walk_lock = PGWALK_WRLOCK_VERIFY,
 	};
 
 	/*
@@ -471,7 +478,6 @@ static int apply_vma_lock_flags(unsigned long start, size_t len,
 {
 	unsigned long nstart, end, tmp;
 	struct vm_area_struct *vma, *prev;
-	int error;
 	VMA_ITERATOR(vmi, current->mm, start);
 
 	VM_BUG_ON(offset_in_page(start));
@@ -492,6 +498,7 @@ static int apply_vma_lock_flags(unsigned long start, size_t len,
 	nstart = start;
 	tmp = vma->vm_start;
 	for_each_vma_range(vmi, vma, end) {
+		int error;
 		vm_flags_t newflags;
 
 		if (vma->vm_start != tmp)
@@ -505,14 +512,15 @@ static int apply_vma_lock_flags(unsigned long start, size_t len,
 			tmp = end;
 		error = mlock_fixup(&vmi, vma, &prev, nstart, tmp, newflags);
 		if (error)
-			break;
+			return error;
+		tmp = vma_iter_end(&vmi);
 		nstart = tmp;
 	}
 
-	if (vma_iter_end(&vmi) < end)
+	if (tmp < end)
 		return -ENOMEM;
 
-	return error;
+	return 0;
 }
 
 /*

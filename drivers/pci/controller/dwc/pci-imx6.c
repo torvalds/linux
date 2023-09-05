@@ -80,6 +80,7 @@ struct imx6_pcie {
 	struct clk		*pcie;
 	struct clk		*pcie_aux;
 	struct regmap		*iomuxc_gpr;
+	u16			msi_ctrl;
 	u32			controller_id;
 	struct reset_control	*pciephy_reset;
 	struct reset_control	*apps_reset;
@@ -1178,6 +1179,26 @@ pm_turnoff_sleep:
 	usleep_range(1000, 10000);
 }
 
+static void imx6_pcie_msi_save_restore(struct imx6_pcie *imx6_pcie, bool save)
+{
+	u8 offset;
+	u16 val;
+	struct dw_pcie *pci = imx6_pcie->pci;
+
+	if (pci_msi_enabled()) {
+		offset = dw_pcie_find_capability(pci, PCI_CAP_ID_MSI);
+		if (save) {
+			val = dw_pcie_readw_dbi(pci, offset + PCI_MSI_FLAGS);
+			imx6_pcie->msi_ctrl = val;
+		} else {
+			dw_pcie_dbi_ro_wr_en(pci);
+			val = imx6_pcie->msi_ctrl;
+			dw_pcie_writew_dbi(pci, offset + PCI_MSI_FLAGS, val);
+			dw_pcie_dbi_ro_wr_dis(pci);
+		}
+	}
+}
+
 static int imx6_pcie_suspend_noirq(struct device *dev)
 {
 	struct imx6_pcie *imx6_pcie = dev_get_drvdata(dev);
@@ -1186,6 +1207,7 @@ static int imx6_pcie_suspend_noirq(struct device *dev)
 	if (!(imx6_pcie->drvdata->flags & IMX6_PCIE_FLAG_SUPPORTS_SUSPEND))
 		return 0;
 
+	imx6_pcie_msi_save_restore(imx6_pcie, true);
 	imx6_pcie_pm_turnoff(imx6_pcie);
 	imx6_pcie_stop_link(imx6_pcie->pci);
 	imx6_pcie_host_exit(pp);
@@ -1205,6 +1227,7 @@ static int imx6_pcie_resume_noirq(struct device *dev)
 	ret = imx6_pcie_host_init(pp);
 	if (ret)
 		return ret;
+	imx6_pcie_msi_save_restore(imx6_pcie, false);
 	dw_pcie_setup_rc(pp);
 
 	if (imx6_pcie->link_is_up)

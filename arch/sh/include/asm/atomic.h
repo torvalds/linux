@@ -30,9 +30,6 @@
 #include <asm/atomic-irq.h>
 #endif
 
-#define arch_atomic_xchg(v, new)	(arch_xchg(&((v)->counter), new))
-#define arch_atomic_cmpxchg(v, o, n)	(arch_cmpxchg(&((v)->counter), (o), (n)))
-
 #endif /* CONFIG_CPU_J2 */
 
 #endif /* __ASM_SH_ATOMIC_H */

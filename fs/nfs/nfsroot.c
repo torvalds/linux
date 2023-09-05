@@ -164,7 +164,7 @@ __setup("nfsroot=", nfs_root_setup);
 static int __init root_nfs_copy(char *dest, const char *src,
 				     const size_t destlen)
 {
-	if (strlcpy(dest, src, destlen) > destlen)
+	if (strscpy(dest, src, destlen) == -E2BIG)
 		return -1;
 	return 0;
 }

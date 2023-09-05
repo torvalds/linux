@@ -27,7 +27,7 @@ const struct file_operations bfs_file_operations = {
 	.read_iter	= generic_file_read_iter,
 	.write_iter	= generic_file_write_iter,
 	.mmap		= generic_file_mmap,
-	.splice_read	= generic_file_splice_read,
+	.splice_read	= filemap_splice_read,
 };
 
 static int bfs_move_block(unsigned long from, unsigned long to,

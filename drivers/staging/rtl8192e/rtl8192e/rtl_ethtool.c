@@ -27,8 +27,8 @@ static u32 _rtl92e_ethtool_get_link(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
-	return ((priv->rtllib->state == RTLLIB_LINKED) ||
-		(priv->rtllib->state == RTLLIB_LINKED_SCANNING));
+	return ((priv->rtllib->link_state == MAC80211_LINKED) ||
+		(priv->rtllib->link_state == MAC80211_LINKED_SCANNING));
 }
 
 const struct ethtool_ops rtl819x_ethtool_ops = {

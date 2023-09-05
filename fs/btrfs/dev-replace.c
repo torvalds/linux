@@ -41,7 +41,7 @@
  *   All new writes will be written to both target and source devices, so even
  *   if replace gets canceled, sources device still contains up-to-date data.
  *
- *   Location:		handle_ops_on_dev_replace() from __btrfs_map_block()
+ *   Location:		handle_ops_on_dev_replace() from btrfs_map_block()
  *   Start:		btrfs_dev_replace_start()
  *   End:		btrfs_dev_replace_finishing()
  *   Content:		Latest data/metadata
@@ -257,8 +257,8 @@ static int btrfs_init_dev_replace_tgtdev(struct btrfs_fs_info *fs_info,
 		return -EINVAL;
 	}
 
-	bdev = blkdev_get_by_path(device_path, FMODE_WRITE | FMODE_EXCL,
-				  fs_info->bdev_holder);
+	bdev = blkdev_get_by_path(device_path, BLK_OPEN_WRITE,
+				  fs_info->bdev_holder, NULL);
 	if (IS_ERR(bdev)) {
 		btrfs_err(fs_info, "target device %s is invalid!", device_path);
 		return PTR_ERR(bdev);
@@ -315,7 +315,7 @@ static int btrfs_init_dev_replace_tgtdev(struct btrfs_fs_info *fs_info,
 	device->bdev = bdev;
 	set_bit(BTRFS_DEV_STATE_IN_FS_METADATA, &device->dev_state);
 	set_bit(BTRFS_DEV_STATE_REPLACE_TGT, &device->dev_state);
-	device->mode = FMODE_EXCL;
+	device->holder = fs_info->bdev_holder;
 	device->dev_stats_valid = 1;
 	set_blocksize(device->bdev, BTRFS_BDEV_BLOCKSIZE);
 	device->fs_devices = fs_devices;
@@ -334,7 +334,7 @@ static int btrfs_init_dev_replace_tgtdev(struct btrfs_fs_info *fs_info,
 	return 0;
 
 error:
-	blkdev_put(bdev, FMODE_EXCL);
+	blkdev_put(bdev, fs_info->bdev_holder);
 	return ret;
 }
 
@@ -795,8 +795,8 @@ static int btrfs_set_target_alloc_state(struct btrfs_device *srcdev,
 	while (!find_first_extent_bit(&srcdev->alloc_state, start,
 				      &found_start, &found_end,
 				      CHUNK_ALLOCATED, &cached_state)) {
-		ret = set_extent_bits(&tgtdev->alloc_state, found_start,
-				      found_end, CHUNK_ALLOCATED);
+		ret = set_extent_bit(&tgtdev->alloc_state, found_start,
+				     found_end, CHUNK_ALLOCATED, NULL);
 		if (ret)
 			break;
 		start = found_end + 1;

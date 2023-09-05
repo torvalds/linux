@@ -27,6 +27,7 @@
 #include "i915_irq.h"
 #include "intel_display_types.h"
 #include "intel_hotplug.h"
+#include "intel_hotplug_irq.h"
 
 /**
  * DOC: Hotplug
@@ -210,8 +211,9 @@ intel_hpd_irq_storm_switch_to_polling(struct drm_i915_private *dev_priv)
 
 	/* Enable polling and queue hotplug re-enabling. */
 	if (hpd_disabled) {
-		drm_kms_helper_poll_enable(&dev_priv->drm);
-		mod_delayed_work(system_wq, &dev_priv->display.hotplug.reenable_work,
+		drm_kms_helper_poll_reschedule(&dev_priv->drm);
+		mod_delayed_work(dev_priv->unordered_wq,
+				 &dev_priv->display.hotplug.reenable_work,
 				 msecs_to_jiffies(HPD_STORM_REENABLE_DELAY));
 	}
 }
@@ -338,7 +340,8 @@ static void i915_digport_work_func(struct work_struct *work)
 		spin_lock_irq(&dev_priv->irq_lock);
 		dev_priv->display.hotplug.event_bits |= old_bits;
 		spin_unlock_irq(&dev_priv->irq_lock);
-		queue_delayed_work(system_wq, &dev_priv->display.hotplug.hotplug_work, 0);
+		queue_delayed_work(dev_priv->unordered_wq,
+				   &dev_priv->display.hotplug.hotplug_work, 0);
 	}
 }
 
@@ -445,7 +448,8 @@ static void i915_hotplug_work_func(struct work_struct *work)
 		dev_priv->display.hotplug.retry_bits |= retry;
 		spin_unlock_irq(&dev_priv->irq_lock);
 
-		mod_delayed_work(system_wq, &dev_priv->display.hotplug.hotplug_work,
+		mod_delayed_work(dev_priv->unordered_wq,
+				 &dev_priv->display.hotplug.hotplug_work,
 				 msecs_to_jiffies(HPD_RETRY_DELAY));
 	}
 }
@@ -576,7 +580,8 @@ void intel_hpd_irq_handler(struct drm_i915_private *dev_priv,
 	if (queue_dig)
 		queue_work(dev_priv->display.hotplug.dp_wq, &dev_priv->display.hotplug.dig_port_work);
 	if (queue_hp)
-		queue_delayed_work(system_wq, &dev_priv->display.hotplug.hotplug_work, 0);
+		queue_delayed_work(dev_priv->unordered_wq,
+				   &dev_priv->display.hotplug.hotplug_work, 0);
 }
 
 /**
@@ -644,7 +649,7 @@ static void i915_hpd_poll_init_work(struct work_struct *work)
 	drm_connector_list_iter_end(&conn_iter);
 
 	if (enabled)
-		drm_kms_helper_poll_enable(&dev_priv->drm);
+		drm_kms_helper_poll_reschedule(&dev_priv->drm);
 
 	mutex_unlock(&dev_priv->drm.mode_config.mutex);
 
@@ -686,7 +691,8 @@ void intel_hpd_poll_enable(struct drm_i915_private *dev_priv)
 	 * As well, there's no issue if we race here since we always reschedule
 	 * this worker anyway
 	 */
-	schedule_work(&dev_priv->display.hotplug.poll_init_work);
+	queue_work(dev_priv->unordered_wq,
+		   &dev_priv->display.hotplug.poll_init_work);
 }
 
 /**
@@ -714,7 +720,8 @@ void intel_hpd_poll_disable(struct drm_i915_private *dev_priv)
 		return;
 
 	WRITE_ONCE(dev_priv->display.hotplug.poll_enabled, false);
-	schedule_work(&dev_priv->display.hotplug.poll_init_work);
+	queue_work(dev_priv->unordered_wq,
+		   &dev_priv->display.hotplug.poll_init_work);
 }
 
 void intel_hpd_init_early(struct drm_i915_private *i915)

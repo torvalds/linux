@@ -196,7 +196,7 @@ static struct i2c_driver ktz8866_driver = {
 		.name = "ktz8866",
 		.of_match_table = ktz8866_match_table,
 	},
-	.probe_new = ktz8866_probe,
+	.probe = ktz8866_probe,
 	.remove = ktz8866_remove,
 	.id_table = ktz8866_ids,
 };

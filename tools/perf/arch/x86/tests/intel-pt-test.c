@@ -22,7 +22,7 @@
  * @new_ctx: expected new packet context
  * @ctx_unchanged: the packet context must not change
  */
-static struct test_data {
+static const struct test_data {
 	int len;
 	u8 bytes[INTEL_PT_PKT_MAX_SZ];
 	enum intel_pt_pkt_ctx ctx;
@@ -186,7 +186,7 @@ static struct test_data {
 	{0, {0}, 0, {0, 0, 0}, 0, 0 },
 };
 
-static int dump_packet(struct intel_pt_pkt *packet, u8 *bytes, int len)
+static int dump_packet(const struct intel_pt_pkt *packet, const u8 *bytes, int len)
 {
 	char desc[INTEL_PT_PKT_DESC_MAX];
 	int ret, i;
@@ -206,14 +206,14 @@ static int dump_packet(struct intel_pt_pkt *packet, u8 *bytes, int len)
 	return TEST_OK;
 }
 
-static void decoding_failed(struct test_data *d)
+static void decoding_failed(const struct test_data *d)
 {
 	pr_debug("Decoding failed!\n");
 	pr_debug("Decoding:  ");
 	dump_packet(&d->packet, d->bytes, d->len);
 }
 
-static int fail(struct test_data *d, struct intel_pt_pkt *packet, int len,
+static int fail(const struct test_data *d, struct intel_pt_pkt *packet, int len,
 		enum intel_pt_pkt_ctx new_ctx)
 {
 	decoding_failed(d);
@@ -242,7 +242,7 @@ static int fail(struct test_data *d, struct intel_pt_pkt *packet, int len,
 	return TEST_FAIL;
 }
 
-static int test_ctx_unchanged(struct test_data *d, struct intel_pt_pkt *packet,
+static int test_ctx_unchanged(const struct test_data *d, struct intel_pt_pkt *packet,
 			      enum intel_pt_pkt_ctx ctx)
 {
 	enum intel_pt_pkt_ctx old_ctx = ctx;
@@ -258,7 +258,7 @@ static int test_ctx_unchanged(struct test_data *d, struct intel_pt_pkt *packet,
 	return TEST_OK;
 }
 
-static int test_one(struct test_data *d)
+static int test_one(const struct test_data *d)
 {
 	struct intel_pt_pkt packet;
 	enum intel_pt_pkt_ctx ctx = d->ctx;
@@ -307,7 +307,7 @@ static int test_one(struct test_data *d)
  */
 int test__intel_pt_pkt_decoder(struct test_suite *test __maybe_unused, int subtest __maybe_unused)
 {
-	struct test_data *d = data;
+	const struct test_data *d = data;
 	int ret;
 
 	for (d = data; d->len; d++) {

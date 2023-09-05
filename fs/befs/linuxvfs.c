@@ -374,7 +374,7 @@ static struct inode *befs_iget(struct super_block *sb, unsigned long ino)
 	if (S_ISLNK(inode->i_mode) && !(befs_ino->i_flags & BEFS_LONG_SYMLINK)){
 		inode->i_size = 0;
 		inode->i_blocks = befs_sb->block_size / VFS_BLOCK_SIZE;
-		strlcpy(befs_ino->i_data.symlink, raw_inode->data.symlink,
+		strscpy(befs_ino->i_data.symlink, raw_inode->data.symlink,
 			BEFS_SYMLINK_LEN);
 	} else {
 		int num_blks;

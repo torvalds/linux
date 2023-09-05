@@ -11,6 +11,8 @@
 #include <linux/signal.h>
 #include <linux/ratelimit.h>
 #include <linux/uaccess.h>
+#include <linux/sysctl.h>
+#include <asm/unaligned.h>
 #include <asm/hardirq.h>
 #include <asm/traps.h>
 
@@ -336,7 +338,7 @@ static int emulate_std(struct pt_regs *regs, int frreg, int flop)
 	: "r19", "r20", "r21", "r22", "r1" );
 #else
     {
-	unsigned long valh=(val>>32),vall=(val&0xffffffffl);
+	unsigned long valh = (val >> 32), vall = (val & 0xffffffffl);
 	__asm__ __volatile__ (
 "	mtsp	%4, %%sr1\n"
 "	zdep	%2, 29, 2, %%r19\n"
@@ -472,7 +474,7 @@ void handle_unaligned(struct pt_regs *regs)
 	case OPCODE_LDWA_I:
 	case OPCODE_LDW_S:
 	case OPCODE_LDWA_S:
-		ret = emulate_ldw(regs, R3(regs->iir),0);
+		ret = emulate_ldw(regs, R3(regs->iir), 0);
 		break;
 
 	case OPCODE_STH:
@@ -481,7 +483,7 @@ void handle_unaligned(struct pt_regs *regs)
 
 	case OPCODE_STW:
 	case OPCODE_STWA:
-		ret = emulate_stw(regs, R2(regs->iir),0);
+		ret = emulate_stw(regs, R2(regs->iir), 0);
 		break;
 
 #ifdef CONFIG_64BIT
@@ -489,12 +491,12 @@ void handle_unaligned(struct pt_regs *regs)
 	case OPCODE_LDDA_I:
 	case OPCODE_LDD_S:
 	case OPCODE_LDDA_S:
-		ret = emulate_ldd(regs, R3(regs->iir),0);
+		ret = emulate_ldd(regs, R3(regs->iir), 0);
 		break;
 
 	case OPCODE_STD:
 	case OPCODE_STDA:
-		ret = emulate_std(regs, R2(regs->iir),0);
+		ret = emulate_std(regs, R2(regs->iir), 0);
 		break;
 #endif
 
@@ -502,24 +504,24 @@ void handle_unaligned(struct pt_regs *regs)
 	case OPCODE_FLDWS:
 	case OPCODE_FLDWXR:
 	case OPCODE_FLDWSR:
-		ret = emulate_ldw(regs,FR3(regs->iir),1);
+		ret = emulate_ldw(regs, FR3(regs->iir), 1);
 		break;
 
 	case OPCODE_FLDDX:
 	case OPCODE_FLDDS:
-		ret = emulate_ldd(regs,R3(regs->iir),1);
+		ret = emulate_ldd(regs, R3(regs->iir), 1);
 		break;
 
 	case OPCODE_FSTWX:
 	case OPCODE_FSTWS:
 	case OPCODE_FSTWXR:
 	case OPCODE_FSTWSR:
-		ret = emulate_stw(regs,FR3(regs->iir),1);
+		ret = emulate_stw(regs, FR3(regs->iir), 1);
 		break;
 
 	case OPCODE_FSTDX:
 	case OPCODE_FSTDS:
-		ret = emulate_std(regs,R3(regs->iir),1);
+		ret = emulate_std(regs, R3(regs->iir), 1);
 		break;
 
 	case OPCODE_LDCD_I:

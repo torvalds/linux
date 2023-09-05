@@ -429,16 +429,17 @@ static int break_ksm_pmd_entry(pmd_t *pmd, unsigned long addr, unsigned long nex
 	struct page *page = NULL;
 	spinlock_t *ptl;
 	pte_t *pte;
+	pte_t ptent;
 	int ret;
 
-	if (pmd_leaf(*pmd) || !pmd_present(*pmd))
-		return 0;
-
 	pte = pte_offset_map_lock(walk->mm, pmd, addr, &ptl);
-	if (pte_present(*pte)) {
-		page = vm_normal_page(walk->vma, addr, *pte);
-	} else if (!pte_none(*pte)) {
-		swp_entry_t entry = pte_to_swp_entry(*pte);
+	if (!pte)
+		return 0;
+	ptent = ptep_get(pte);
+	if (pte_present(ptent)) {
+		page = vm_normal_page(walk->vma, addr, ptent);
+	} else if (!pte_none(ptent)) {
+		swp_entry_t entry = pte_to_swp_entry(ptent);
 
 		/*
 		 * As KSM pages remain KSM pages until freed, no need to wait
@@ -454,6 +455,12 @@ static int break_ksm_pmd_entry(pmd_t *pmd, unsigned long addr, unsigned long nex
 
 static const struct mm_walk_ops break_ksm_ops = {
 	.pmd_entry = break_ksm_pmd_entry,
+	.walk_lock = PGWALK_RDLOCK,
+};
+
+static const struct mm_walk_ops break_ksm_lock_vma_ops = {
+	.pmd_entry = break_ksm_pmd_entry,
+	.walk_lock = PGWALK_WRLOCK,
 };
 
 /*
@@ -469,16 +476,17 @@ static const struct mm_walk_ops break_ksm_ops = {
  * of the process that owns 'vma'.  We also do not want to enforce
  * protection keys here anyway.
  */
-static int break_ksm(struct vm_area_struct *vma, unsigned long addr)
+static int break_ksm(struct vm_area_struct *vma, unsigned long addr, bool lock_vma)
 {
 	vm_fault_t ret = 0;
+	const struct mm_walk_ops *ops = lock_vma ?
+				&break_ksm_lock_vma_ops : &break_ksm_ops;
 
 	do {
 		int ksm_page;
 
 		cond_resched();
-		ksm_page = walk_page_range_vma(vma, addr, addr + 1,
-					       &break_ksm_ops, NULL);
+		ksm_page = walk_page_range_vma(vma, addr, addr + 1, ops, NULL);
 		if (WARN_ON_ONCE(ksm_page < 0))
 			return ksm_page;
 		if (!ksm_page)
@@ -564,7 +572,7 @@ static void break_cow(struct ksm_rmap_item *rmap_item)
 	mmap_read_lock(mm);
 	vma = find_mergeable_vma(mm, addr);
 	if (vma)
-		break_ksm(vma, addr);
+		break_ksm(vma, addr, false);
 	mmap_read_unlock(mm);
 }
 
@@ -870,7 +878,7 @@ static void remove_trailing_rmap_items(struct ksm_rmap_item **rmap_list)
  * in cmp_and_merge_page on one of the rmap_items we would be removing.
  */
 static int unmerge_ksm_pages(struct vm_area_struct *vma,
-			     unsigned long start, unsigned long end)
+			     unsigned long start, unsigned long end, bool lock_vma)
 {
 	unsigned long addr;
 	int err = 0;
@@ -881,7 +889,7 @@ static int unmerge_ksm_pages(struct vm_area_struct *vma,
 		if (signal_pending(current))
 			err = -ERESTARTSYS;
 		else
-			err = break_ksm(vma, addr);
+			err = break_ksm(vma, addr, lock_vma);
 	}
 	return err;
 }
@@ -931,7 +939,7 @@ static int remove_stable_node(struct ksm_stable_node *stable_node)
 		 * The stable node did not yet appear stale to get_ksm_page(),
 		 * since that allows for an unmapped ksm page to be recognized
 		 * right up until it is freed; but the node is safe to remove.
-		 * This page might be in a pagevec waiting to be freed,
+		 * This page might be in an LRU cache waiting to be freed,
 		 * or it might be PageSwapCache (perhaps under writeback),
 		 * or it might have been removed from swapcache a moment ago.
 		 */
@@ -1028,7 +1036,7 @@ static int unmerge_and_remove_all_rmap_items(void)
 			if (!(vma->vm_flags & VM_MERGEABLE) || !vma->anon_vma)
 				continue;
 			err = unmerge_ksm_pages(vma,
-						vma->vm_start, vma->vm_end);
+						vma->vm_start, vma->vm_end, false);
 			if (err)
 				goto error;
 		}
@@ -1086,6 +1094,7 @@ static int write_protect_page(struct vm_area_struct *vma, struct page *page,
 	int err = -EFAULT;
 	struct mmu_notifier_range range;
 	bool anon_exclusive;
+	pte_t entry;
 
 	pvmw.address = page_address_in_vma(page, vma);
 	if (pvmw.address == -EFAULT)
@@ -1103,10 +1112,9 @@ static int write_protect_page(struct vm_area_struct *vma, struct page *page,
 		goto out_unlock;
 
 	anon_exclusive = PageAnonExclusive(page);
-	if (pte_write(*pvmw.pte) || pte_dirty(*pvmw.pte) ||
+	entry = ptep_get(pvmw.pte);
+	if (pte_write(entry) || pte_dirty(entry) ||
 	    anon_exclusive || mm_tlb_flush_pending(mm)) {
-		pte_t entry;
-
 		swapped = PageSwapCache(page);
 		flush_cache_page(vma, pvmw.address, page_to_pfn(page));
 		/*
@@ -1148,7 +1156,7 @@ static int write_protect_page(struct vm_area_struct *vma, struct page *page,
 
 		set_pte_at_notify(mm, pvmw.address, pvmw.pte, entry);
 	}
-	*orig_pte = *pvmw.pte;
+	*orig_pte = entry;
 	err = 0;
 
 out_unlock:
@@ -1194,8 +1202,7 @@ static int replace_page(struct vm_area_struct *vma, struct page *page,
 	 * without holding anon_vma lock for write.  So when looking for a
 	 * genuine pmde (in which to find pte), test present and !THP together.
 	 */
-	pmde = *pmd;
-	barrier();
+	pmde = pmdp_get_lockless(pmd);
 	if (!pmd_present(pmde) || pmd_trans_huge(pmde))
 		goto out;
 
@@ -1204,7 +1211,9 @@ static int replace_page(struct vm_area_struct *vma, struct page *page,
 	mmu_notifier_invalidate_range_start(&range);
 
 	ptep = pte_offset_map_lock(mm, pmd, addr, &ptl);
-	if (!pte_same(*ptep, orig_pte)) {
+	if (!ptep)
+		goto out_mn;
+	if (!pte_same(ptep_get(ptep), orig_pte)) {
 		pte_unmap_unlock(ptep, ptl);
 		goto out_mn;
 	}
@@ -1231,7 +1240,7 @@ static int replace_page(struct vm_area_struct *vma, struct page *page,
 		dec_mm_counter(mm, MM_ANONPAGES);
 	}
 
-	flush_cache_page(vma, addr, pte_pfn(*ptep));
+	flush_cache_page(vma, addr, pte_pfn(ptep_get(ptep)));
 	/*
 	 * No need to notify as we are replacing a read only page with another
 	 * read only page with the same content.
@@ -2301,8 +2310,8 @@ static struct ksm_rmap_item *scan_get_next_rmap_item(struct page **page)
 		trace_ksm_start_scan(ksm_scan.seqnr, ksm_rmap_items);
 
 		/*
-		 * A number of pages can hang around indefinitely on per-cpu
-		 * pagevecs, raised page count preventing write_protect_page
+		 * A number of pages can hang around indefinitely in per-cpu
+		 * LRU cache, raised page count preventing write_protect_page
 		 * from merging them.  Though it doesn't really matter much,
 		 * it is puzzling to see some stuck in pages_volatile until
 		 * other activity jostles them out, and they also prevented
@@ -2528,7 +2537,7 @@ static int __ksm_del_vma(struct vm_area_struct *vma)
 		return 0;
 
 	if (vma->anon_vma) {
-		err = unmerge_ksm_pages(vma, vma->vm_start, vma->vm_end);
+		err = unmerge_ksm_pages(vma, vma->vm_start, vma->vm_end, true);
 		if (err)
 			return err;
 	}
@@ -2666,7 +2675,7 @@ int ksm_madvise(struct vm_area_struct *vma, unsigned long start,
 			return 0;		/* just ignore the advice */
 
 		if (vma->anon_vma) {
-			err = unmerge_ksm_pages(vma, start, end);
+			err = unmerge_ksm_pages(vma, start, end, true);
 			if (err)
 				return err;
 		}
@@ -2782,6 +2791,8 @@ struct page *ksm_might_need_to_copy(struct page *page,
 			anon_vma->root == vma->anon_vma->root) {
 		return page;		/* still no need to copy it */
 	}
+	if (PageHWPoison(page))
+		return ERR_PTR(-EHWPOISON);
 	if (!PageUptodate(page))
 		return page;		/* let do_swap_page report the error */
 

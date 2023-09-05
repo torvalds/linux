@@ -75,7 +75,8 @@ mlx5_core-$(CONFIG_MLX5_ESWITCH)   += esw/acl/helper.o \
 				      esw/acl/egress_lgcy.o esw/acl/egress_ofld.o \
 				      esw/acl/ingress_lgcy.o esw/acl/ingress_ofld.o
 
-mlx5_core-$(CONFIG_MLX5_BRIDGE)    += esw/bridge.o esw/bridge_mcast.o en/rep/bridge.o
+mlx5_core-$(CONFIG_MLX5_BRIDGE)    += esw/bridge.o esw/bridge_mcast.o esw/bridge_debugfs.o \
+				      en/rep/bridge.o
 
 mlx5_core-$(CONFIG_THERMAL)        += thermal.o
 mlx5_core-$(CONFIG_MLX5_MPFS)      += lib/mpfs.o

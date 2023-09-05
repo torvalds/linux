@@ -9,6 +9,7 @@
 #include <linux/buffer_head.h>
 #include <linux/fs.h>
 #include <linux/kernel.h>
+#include <linux/nls.h>
 
 #include "debug.h"
 #include "ntfs.h"
@@ -173,12 +174,12 @@ int ntfs_fix_post_read(struct NTFS_RECORD_HEADER *rhdr, size_t bytes,
 
 	fo = le16_to_cpu(rhdr->fix_off);
 	fn = simple ? ((bytes >> SECTOR_SHIFT) + 1) :
-			    le16_to_cpu(rhdr->fix_num);
+		      le16_to_cpu(rhdr->fix_num);
 
 	/* Check errors. */
 	if ((fo & 1) || fo + fn * sizeof(short) > SECTOR_SIZE || !fn-- ||
 	    fn * SECTOR_SIZE > bytes) {
-		return -EINVAL; /* Native chkntfs returns ok! */
+		return -E_NTFS_CORRUPT;
 	}
 
 	/* Get fixup pointer. */
@@ -1661,7 +1662,8 @@ int ntfs_vbo_to_lbo(struct ntfs_sb_info *sbi, const struct runs_tree *run,
 	return 0;
 }
 
-struct ntfs_inode *ntfs_new_inode(struct ntfs_sb_info *sbi, CLST rno, bool dir)
+struct ntfs_inode *ntfs_new_inode(struct ntfs_sb_info *sbi, CLST rno,
+				  enum RECORD_FLAG flag)
 {
 	int err = 0;
 	struct super_block *sb = sbi->sb;
@@ -1673,8 +1675,7 @@ struct ntfs_inode *ntfs_new_inode(struct ntfs_sb_info *sbi, CLST rno, bool dir)
 
 	ni = ntfs_i(inode);
 
-	err = mi_format_new(&ni->mi, sbi, rno, dir ? RECORD_FLAG_DIR : 0,
-			    false);
+	err = mi_format_new(&ni->mi, sbi, rno, flag, false);
 	if (err)
 		goto out;
 
@@ -1937,7 +1938,7 @@ int ntfs_security_init(struct ntfs_sb_info *sbi)
 			break;
 
 		sii_e = (struct NTFS_DE_SII *)ne;
-		if (le16_to_cpu(ne->view.data_size) < SIZEOF_SECURITY_HDR)
+		if (le16_to_cpu(ne->view.data_size) < sizeof(sii_e->sec_hdr))
 			continue;
 
 		next_id = le32_to_cpu(sii_e->sec_id) + 1;
@@ -1998,18 +1999,18 @@ int ntfs_get_security_by_id(struct ntfs_sb_info *sbi, __le32 security_id,
 		goto out;
 
 	t32 = le32_to_cpu(sii_e->sec_hdr.size);
-	if (t32 < SIZEOF_SECURITY_HDR) {
+	if (t32 < sizeof(struct SECURITY_HDR)) {
 		err = -EINVAL;
 		goto out;
 	}
 
-	if (t32 > SIZEOF_SECURITY_HDR + 0x10000) {
+	if (t32 > sizeof(struct SECURITY_HDR) + 0x10000) {
 		/* Looks like too big security. 0x10000 - is arbitrary big number. */
 		err = -EFBIG;
 		goto out;
 	}
 
-	*size = t32 - SIZEOF_SECURITY_HDR;
+	*size = t32 - sizeof(struct SECURITY_HDR);
 
 	p = kmalloc(*size, GFP_NOFS);
 	if (!p) {
@@ -2023,14 +2024,14 @@ int ntfs_get_security_by_id(struct ntfs_sb_info *sbi, __le32 security_id,
 	if (err)
 		goto out;
 
-	if (memcmp(&d_security, &sii_e->sec_hdr, SIZEOF_SECURITY_HDR)) {
+	if (memcmp(&d_security, &sii_e->sec_hdr, sizeof(d_security))) {
 		err = -EINVAL;
 		goto out;
 	}
 
 	err = ntfs_read_run_nb(sbi, &ni->file.run,
 			       le64_to_cpu(sii_e->sec_hdr.off) +
-				       SIZEOF_SECURITY_HDR,
+				       sizeof(struct SECURITY_HDR),
 			       p, *size, NULL);
 	if (err)
 		goto out;
@@ -2069,7 +2070,7 @@ int ntfs_insert_security(struct ntfs_sb_info *sbi,
 	struct NTFS_DE_SDH sdh_e;
 	struct NTFS_DE_SII sii_e;
 	struct SECURITY_HDR *d_security;
-	u32 new_sec_size = size_sd + SIZEOF_SECURITY_HDR;
+	u32 new_sec_size = size_sd + sizeof(struct SECURITY_HDR);
 	u32 aligned_sec_size = ALIGN(new_sec_size, 16);
 	struct SECURITY_KEY hash_key;
 	struct ntfs_fnd *fnd_sdh = NULL;
@@ -2207,14 +2208,14 @@ int ntfs_insert_security(struct ntfs_sb_info *sbi,
 	/* Fill SII entry. */
 	sii_e.de.view.data_off =
 		cpu_to_le16(offsetof(struct NTFS_DE_SII, sec_hdr));
-	sii_e.de.view.data_size = cpu_to_le16(SIZEOF_SECURITY_HDR);
+	sii_e.de.view.data_size = cpu_to_le16(sizeof(struct SECURITY_HDR));
 	sii_e.de.view.res = 0;
-	sii_e.de.size = cpu_to_le16(SIZEOF_SII_DIRENTRY);
+	sii_e.de.size = cpu_to_le16(sizeof(struct NTFS_DE_SII));
 	sii_e.de.key_size = cpu_to_le16(sizeof(d_security->key.sec_id));
 	sii_e.de.flags = 0;
 	sii_e.de.res = 0;
 	sii_e.sec_id = d_security->key.sec_id;
-	memcpy(&sii_e.sec_hdr, d_security, SIZEOF_SECURITY_HDR);
+	memcpy(&sii_e.sec_hdr, d_security, sizeof(struct SECURITY_HDR));
 
 	err = indx_insert_entry(indx_sii, ni, &sii_e.de, NULL, NULL, 0);
 	if (err)
@@ -2223,7 +2224,7 @@ int ntfs_insert_security(struct ntfs_sb_info *sbi,
 	/* Fill SDH entry. */
 	sdh_e.de.view.data_off =
 		cpu_to_le16(offsetof(struct NTFS_DE_SDH, sec_hdr));
-	sdh_e.de.view.data_size = cpu_to_le16(SIZEOF_SECURITY_HDR);
+	sdh_e.de.view.data_size = cpu_to_le16(sizeof(struct SECURITY_HDR));
 	sdh_e.de.view.res = 0;
 	sdh_e.de.size = cpu_to_le16(SIZEOF_SDH_DIRENTRY);
 	sdh_e.de.key_size = cpu_to_le16(sizeof(sdh_e.key));
@@ -2231,7 +2232,7 @@ int ntfs_insert_security(struct ntfs_sb_info *sbi,
 	sdh_e.de.res = 0;
 	sdh_e.key.hash = d_security->key.hash;
 	sdh_e.key.sec_id = d_security->key.sec_id;
-	memcpy(&sdh_e.sec_hdr, d_security, SIZEOF_SECURITY_HDR);
+	memcpy(&sdh_e.sec_hdr, d_security, sizeof(struct SECURITY_HDR));
 	sdh_e.magic[0] = cpu_to_le16('I');
 	sdh_e.magic[1] = cpu_to_le16('I');
 
@@ -2522,7 +2523,8 @@ out:
 /*
  * run_deallocate - Deallocate clusters.
  */
-int run_deallocate(struct ntfs_sb_info *sbi, struct runs_tree *run, bool trim)
+int run_deallocate(struct ntfs_sb_info *sbi, const struct runs_tree *run,
+		   bool trim)
 {
 	CLST lcn, len;
 	size_t idx = 0;
@@ -2578,13 +2580,13 @@ static inline bool name_has_forbidden_chars(const struct le_str *fname)
 	return false;
 }
 
-static inline bool is_reserved_name(struct ntfs_sb_info *sbi,
+static inline bool is_reserved_name(const struct ntfs_sb_info *sbi,
 				    const struct le_str *fname)
 {
 	int port_digit;
 	const __le16 *name = fname->name;
 	int len = fname->len;
-	u16 *upcase = sbi->upcase;
+	const u16 *upcase = sbi->upcase;
 
 	/* check for 3 chars reserved names (device names) */
 	/* name by itself or with any extension is forbidden */
@@ -2617,4 +2619,61 @@ bool valid_windows_name(struct ntfs_sb_info *sbi, const struct le_str *fname)
 {
 	return !name_has_forbidden_chars(fname) &&
 	       !is_reserved_name(sbi, fname);
+}
+
+/*
+ * ntfs_set_label - updates current ntfs label.
+ */
+int ntfs_set_label(struct ntfs_sb_info *sbi, u8 *label, int len)
+{
+	int err;
+	struct ATTRIB *attr;
+	struct ntfs_inode *ni = sbi->volume.ni;
+	const u8 max_ulen = 0x80; /* TODO: use attrdef to get maximum length */
+	/* Allocate PATH_MAX bytes. */
+	struct cpu_str *uni = __getname();
+
+	if (!uni)
+		return -ENOMEM;
+
+	err = ntfs_nls_to_utf16(sbi, label, len, uni, (PATH_MAX - 2) / 2,
+				UTF16_LITTLE_ENDIAN);
+	if (err < 0)
+		goto out;
+
+	if (uni->len > max_ulen) {
+		ntfs_warn(sbi->sb, "new label is too long");
+		err = -EFBIG;
+		goto out;
+	}
+
+	ni_lock(ni);
+
+	/* Ignore any errors. */
+	ni_remove_attr(ni, ATTR_LABEL, NULL, 0, false, NULL);
+
+	err = ni_insert_resident(ni, uni->len * sizeof(u16), ATTR_LABEL, NULL,
+				 0, &attr, NULL, NULL);
+	if (err < 0)
+		goto unlock_out;
+
+	/* write new label in on-disk struct. */
+	memcpy(resident_data(attr), uni->name, uni->len * sizeof(u16));
+
+	/* update cached value of current label. */
+	if (len >= ARRAY_SIZE(sbi->volume.label))
+		len = ARRAY_SIZE(sbi->volume.label) - 1;
+	memcpy(sbi->volume.label, label, len);
+	sbi->volume.label[len] = 0;
+	mark_inode_dirty_sync(&ni->vfs_inode);
+
+unlock_out:
+	ni_unlock(ni);
+
+	if (!err)
+		err = _ni_write_inode(&ni->vfs_inode, 0);
+
+out:
+	__putname(uni);
+	return err;
 }

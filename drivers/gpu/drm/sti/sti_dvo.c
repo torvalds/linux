@@ -8,7 +8,7 @@
 #include <linux/component.h>
 #include <linux/debugfs.h>
 #include <linux/module.h>
-#include <linux/of_gpio.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 
 #include <drm/drm_atomic_helper.h>

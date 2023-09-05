@@ -325,7 +325,7 @@ static struct i2c_driver rx8581_driver = {
 		.name	= "rtc-rx8581",
 		.of_match_table = of_match_ptr(rx8581_of_match),
 	},
-	.probe_new	= rx8581_probe,
+	.probe		= rx8581_probe,
 	.id_table	= rx8581_id,
 };
 

@@ -542,7 +542,7 @@ static struct i2c_driver cm32181_driver = {
 		.of_match_table = cm32181_of_match,
 		.pm = pm_sleep_ptr(&cm32181_pm_ops),
 	},
-	.probe_new	= cm32181_probe,
+	.probe		= cm32181_probe,
 };
 
 module_i2c_driver(cm32181_driver);

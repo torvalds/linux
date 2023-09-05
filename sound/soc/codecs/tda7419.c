@@ -629,7 +629,7 @@ static struct i2c_driver tda7419_driver = {
 		.name   = "tda7419",
 		.of_match_table = tda7419_of_match,
 	},
-	.probe_new      = tda7419_probe,
+	.probe          = tda7419_probe,
 	.id_table       = tda7419_i2c_id,
 };
 

@@ -1134,7 +1134,7 @@ static int rk817_charger_probe(struct platform_device *pdev)
 					    &bat_info);
 	if (ret) {
 		return dev_err_probe(dev, ret,
-				     "Unable to get battery info: %d\n", ret);
+				     "Unable to get battery info\n");
 	}
 
 	if ((bat_info->charge_full_design_uah <= 0) ||

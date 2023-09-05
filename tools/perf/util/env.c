@@ -10,6 +10,7 @@
 #include <sys/utsname.h>
 #include <stdlib.h>
 #include <string.h>
+#include "pmus.h"
 #include "strbuf.h"
 
 struct perf_env perf_env;
@@ -323,7 +324,7 @@ int perf_env__read_pmu_mappings(struct perf_env *env)
 	u32 pmu_num = 0;
 	struct strbuf sb;
 
-	while ((pmu = perf_pmu__scan(pmu))) {
+	while ((pmu = perf_pmus__scan(pmu))) {
 		if (!pmu->name)
 			continue;
 		pmu_num++;
@@ -337,7 +338,7 @@ int perf_env__read_pmu_mappings(struct perf_env *env)
 	if (strbuf_init(&sb, 128 * pmu_num) < 0)
 		return -ENOMEM;
 
-	while ((pmu = perf_pmu__scan(pmu))) {
+	while ((pmu = perf_pmus__scan(pmu))) {
 		if (!pmu->name)
 			continue;
 		if (strbuf_addf(&sb, "%u:%s", pmu->type, pmu->name) < 0)

@@ -21,59 +21,6 @@
 
 static struct ralink_soc_info *soc_info_ptr;
 
-void __init ralink_clk_init(void)
-{
-	unsigned long cpu_rate, sys_rate;
-	u32 syscfg0;
-	u32 clksel;
-	u32 ddr2;
-
-	syscfg0 = rt_sysc_r32(RT3883_SYSC_REG_SYSCFG0);
-	clksel = ((syscfg0 >> RT3883_SYSCFG0_CPUCLK_SHIFT) &
-		RT3883_SYSCFG0_CPUCLK_MASK);
-	ddr2 = syscfg0 & RT3883_SYSCFG0_DRAM_TYPE_DDR2;
-
-	switch (clksel) {
-	case RT3883_SYSCFG0_CPUCLK_250:
-		cpu_rate = 250000000;
-		sys_rate = (ddr2) ? 125000000 : 83000000;
-		break;
-	case RT3883_SYSCFG0_CPUCLK_384:
-		cpu_rate = 384000000;
-		sys_rate = (ddr2) ? 128000000 : 96000000;
-		break;
-	case RT3883_SYSCFG0_CPUCLK_480:
-		cpu_rate = 480000000;
-		sys_rate = (ddr2) ? 160000000 : 120000000;
-		break;
-	case RT3883_SYSCFG0_CPUCLK_500:
-		cpu_rate = 500000000;
-		sys_rate = (ddr2) ? 166000000 : 125000000;
-		break;
-	}
-
-	ralink_clk_add("cpu", cpu_rate);
-	ralink_clk_add("10000100.timer", sys_rate);
-	ralink_clk_add("10000120.watchdog", sys_rate);
-	ralink_clk_add("10000500.uart", 40000000);
-	ralink_clk_add("10000900.i2c", 40000000);
-	ralink_clk_add("10000a00.i2s", 40000000);
-	ralink_clk_add("10000b00.spi", sys_rate);
-	ralink_clk_add("10000b40.spi", sys_rate);
-	ralink_clk_add("10000c00.uartlite", 40000000);
-	ralink_clk_add("10100000.ethernet", sys_rate);
-	ralink_clk_add("10180000.wmac", 40000000);
-}
-
-void __init ralink_of_remap(void)
-{
-	rt_sysc_membase = plat_of_remap_node("ralink,rt3883-sysc");
-	rt_memc_membase = plat_of_remap_node("ralink,rt3883-memc");
-
-	if (!rt_sysc_membase || !rt_memc_membase)
-		panic("Failed to remap core resources");
-}
-
 static unsigned int __init rt3883_get_soc_name0(void)
 {
 	return __raw_readl(RT3883_SYSC_BASE + RT3883_SYSC_REG_CHIPID0_3);

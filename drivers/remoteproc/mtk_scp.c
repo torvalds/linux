@@ -913,7 +913,7 @@ release_dev_mem:
 	return ret;
 }
 
-static int scp_remove(struct platform_device *pdev)
+static void scp_remove(struct platform_device *pdev)
 {
 	struct mtk_scp *scp = platform_get_drvdata(pdev);
 	int i;
@@ -925,8 +925,6 @@ static int scp_remove(struct platform_device *pdev)
 	for (i = 0; i < SCP_IPI_MAX; i++)
 		mutex_destroy(&scp->ipi_desc[i].lock);
 	mutex_destroy(&scp->send_lock);
-
-	return 0;
 }
 
 static const struct mtk_scp_of_data mt8183_of_data = {
@@ -1003,7 +1001,7 @@ MODULE_DEVICE_TABLE(of, mtk_scp_of_match);
 
 static struct platform_driver mtk_scp_driver = {
 	.probe = scp_probe,
-	.remove = scp_remove,
+	.remove_new = scp_remove,
 	.driver = {
 		.name = "mtk-scp",
 		.of_match_table = mtk_scp_of_match,

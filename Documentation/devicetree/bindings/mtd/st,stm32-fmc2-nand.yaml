@@ -37,12 +37,15 @@ properties:
 patternProperties:
   "^nand@[a-f0-9]$":
     type: object
+    $ref: raw-nand-chip.yaml
     properties:
       nand-ecc-step-size:
         const: 512
 
       nand-ecc-strength:
         enum: [1, 4, 8]
+
+    unevaluatedProperties: false
 
 allOf:
   - $ref: nand-controller.yaml#

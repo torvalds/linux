@@ -1093,11 +1093,9 @@ static void dcn21_dmcu_construct(
 
 	dce_dmcu_construct(dmcu_dce, ctx, regs, dmcu_shift, dmcu_mask);
 
-	if (!IS_FPGA_MAXIMUS_DC(ctx->dce_environment)) {
-		psp_version = dm_read_reg(ctx, mmMP0_SMN_C2PMSG_58);
-		dmcu_dce->base.auto_load_dmcu = ((psp_version & 0x00FF00FF) > 0x00110029);
-		dmcu_dce->base.psp_version = psp_version;
-	}
+	psp_version = dm_read_reg(ctx, mmMP0_SMN_C2PMSG_58);
+	dmcu_dce->base.auto_load_dmcu = ((psp_version & 0x00FF00FF) > 0x00110029);
+	dmcu_dce->base.psp_version = psp_version;
 }
 
 struct dmcu *dce_dmcu_create(

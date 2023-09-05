@@ -192,7 +192,7 @@ struct xusb_udc {
 	bool dma_enabled;
 	struct clk *clk;
 
-	unsigned int (*read_fn)(void __iomem *);
+	unsigned int (*read_fn)(void __iomem *reg);
 	void (*write_fn)(void __iomem *, u32, u32);
 };
 
@@ -2178,14 +2178,12 @@ fail:
  *
  * Return: 0 always
  */
-static int xudc_remove(struct platform_device *pdev)
+static void xudc_remove(struct platform_device *pdev)
 {
 	struct xusb_udc *udc = platform_get_drvdata(pdev);
 
 	usb_del_gadget_udc(&udc->gadget);
 	clk_disable_unprepare(udc->clk);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -2257,7 +2255,7 @@ static struct platform_driver xudc_driver = {
 		.pm	= &xudc_pm_ops,
 	},
 	.probe = xudc_probe,
-	.remove = xudc_remove,
+	.remove_new = xudc_remove,
 };
 
 module_platform_driver(xudc_driver);

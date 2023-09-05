@@ -712,11 +712,6 @@ MUX_ENUM_CTRL_DECL_234(t234_asrc15_tx, 0x68);
 MUX_ENUM_CTRL_DECL_234(t234_asrc16_tx, 0x69);
 MUX_ENUM_CTRL_DECL_234(t234_asrc17_tx, 0x6a);
 
-/*
- * The number of entries in, and order of, this array is closely tied to the
- * calculation of tegra210_ahub_codec.num_dapm_widgets near the end of
- * tegra210_ahub_probe()
- */
 static const struct snd_soc_dapm_widget tegra210_ahub_widgets[] = {
 	WIDGETS("ADMAIF1", t210_admaif1_tx),
 	WIDGETS("ADMAIF2", t210_admaif2_tx),
@@ -1092,11 +1087,6 @@ static const struct snd_soc_dapm_widget tegra234_ahub_widgets[] = {
 	{ name " XBAR-Capture",		NULL,	name " XBAR-TX" },      \
 	{ name " Capture",		NULL,	name " XBAR-Capture" },
 
-/*
- * The number of entries in, and order of, this array is closely tied to the
- * calculation of tegra210_ahub_codec.num_dapm_routes near the end of
- * tegra210_ahub_probe()
- */
 static const struct snd_soc_dapm_route tegra210_ahub_routes[] = {
 	TEGRA_FE_ROUTES("ADMAIF1")
 	TEGRA_FE_ROUTES("ADMAIF2")

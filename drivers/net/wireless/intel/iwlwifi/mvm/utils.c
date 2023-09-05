@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2012-2014, 2018-2022 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2023 Intel Corporation
  * Copyright (C) 2013-2014 Intel Mobile Communications GmbH
  * Copyright (C) 2015-2017 Intel Deutschland GmbH
  */
@@ -312,6 +312,10 @@ void iwl_mvm_update_smps(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			smps_mode = IEEE80211_SMPS_DYNAMIC;
 	}
 
+	/* SMPS is disabled in eSR */
+	if (mvmvif->esr_active)
+		smps_mode = IEEE80211_SMPS_OFF;
+
 	ieee80211_request_smps(vif, link_id, smps_mode);
 }
 
@@ -413,16 +417,20 @@ static void iwl_mvm_diversity_iter(void *_data, u8 *mac,
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_mvm_diversity_iter_data *data = _data;
-	int i;
+	int i, link_id;
 
-	if (mvmvif->deflink.phy_ctxt != data->ctxt)
-		return;
+	for_each_mvm_vif_valid_link(mvmvif, link_id) {
+		struct iwl_mvm_vif_link_info *link_info = mvmvif->link[link_id];
 
-	for (i = 0; i < NUM_IWL_MVM_SMPS_REQ; i++) {
-		if (mvmvif->deflink.smps_requests[i] == IEEE80211_SMPS_STATIC ||
-		    mvmvif->deflink.smps_requests[i] == IEEE80211_SMPS_DYNAMIC) {
-			data->result = false;
-			break;
+		if (link_info->phy_ctxt != data->ctxt)
+			continue;
+
+		for (i = 0; i < NUM_IWL_MVM_SMPS_REQ; i++) {
+			if (link_info->smps_requests[i] == IEEE80211_SMPS_STATIC ||
+			    link_info->smps_requests[i] == IEEE80211_SMPS_DYNAMIC) {
+				data->result = false;
+				break;
+			}
 		}
 	}
 }

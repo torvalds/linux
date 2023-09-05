@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
  *    driver for Microchip PQI-based storage controllers
- *    Copyright (c) 2019-2022 Microchip Technology Inc. and its subsidiaries
+ *    Copyright (c) 2019-2023 Microchip Technology Inc. and its subsidiaries
  *    Copyright (c) 2016-2018 Microsemi Corporation
  *    Copyright (c) 2016 PMC-Sierra, Inc.
  *
@@ -982,12 +982,12 @@ struct report_phys_lun_16byte_wwid {
 
 struct report_phys_lun_8byte_wwid_list {
 	struct report_lun_header header;
-	struct report_phys_lun_8byte_wwid lun_entries[1];
+	struct report_phys_lun_8byte_wwid lun_entries[];
 };
 
 struct report_phys_lun_16byte_wwid_list {
 	struct report_lun_header header;
-	struct report_phys_lun_16byte_wwid lun_entries[1];
+	struct report_phys_lun_16byte_wwid lun_entries[];
 };
 
 struct raid_map_disk_data {
@@ -1108,6 +1108,7 @@ struct pqi_scsi_dev {
 	u8	volume_offline : 1;
 	u8	rescan : 1;
 	u8	ignore_device : 1;
+	u8	erase_in_progress : 1;
 	bool	aio_enabled;		/* only valid for physical disks */
 	bool	in_remove;
 	bool	device_offline;
@@ -1147,7 +1148,7 @@ struct pqi_scsi_dev {
 
 	struct pqi_stream_data stream_data[NUM_STREAMS_PER_LUN];
 	atomic_t scsi_cmds_outstanding[PQI_MAX_LUNS_PER_DEVICE];
-	atomic_t raid_bypass_cnt;
+	unsigned int raid_bypass_cnt;
 };
 
 /* VPD inquiry pages */
@@ -1357,6 +1358,7 @@ struct pqi_ctrl_info {
 	u32		max_write_raid_5_6;
 	u32		max_write_raid_1_10_2drive;
 	u32		max_write_raid_1_10_3drive;
+	int		numa_node;
 
 	struct list_head scsi_device_list;
 	spinlock_t	scsi_device_list_lock;

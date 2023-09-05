@@ -2782,9 +2782,9 @@ static bool xgbe_phy_valid_speed_baset_mode(struct xgbe_prv_data *pdata,
 
 	switch (speed) {
 	case SPEED_10:
-		/* Supported in ver >= 30H */
+		/* Supported in ver 21H and ver >= 30H */
 		ver = XGMAC_GET_BITS(pdata->hw_feat.version, MAC_VR, SNPSVER);
-		return (ver >= 0x30) ? true : false;
+		return (ver == 0x21 || ver >= 0x30);
 	case SPEED_100:
 	case SPEED_1000:
 		return true;
@@ -2806,9 +2806,10 @@ static bool xgbe_phy_valid_speed_sfp_mode(struct xgbe_prv_data *pdata,
 
 	switch (speed) {
 	case SPEED_10:
-		/* Supported in ver >= 30H */
+		/* Supported in ver 21H and ver >= 30H */
 		ver = XGMAC_GET_BITS(pdata->hw_feat.version, MAC_VR, SNPSVER);
-		return (ver >= 0x30) && (phy_data->sfp_speed == XGBE_SFP_SPEED_100_1000);
+		return ((ver == 0x21 || ver >= 0x30) &&
+			(phy_data->sfp_speed == XGBE_SFP_SPEED_100_1000));
 	case SPEED_100:
 		return (phy_data->sfp_speed == XGBE_SFP_SPEED_100_1000);
 	case SPEED_1000:
@@ -3158,9 +3159,9 @@ static bool xgbe_phy_port_mode_mismatch(struct xgbe_prv_data *pdata)
 	struct xgbe_phy_data *phy_data = pdata->phy_data;
 	unsigned int ver;
 
-	/* 10 Mbps speed is not supported in ver < 30H */
+	/* 10 Mbps speed is supported in ver 21H and ver >= 30H */
 	ver = XGMAC_GET_BITS(pdata->hw_feat.version, MAC_VR, SNPSVER);
-	if (ver < 0x30 && (phy_data->port_speeds & XGBE_PHY_PORT_SPEED_10))
+	if ((ver < 0x30 && ver != 0x21) && (phy_data->port_speeds & XGBE_PHY_PORT_SPEED_10))
 		return true;
 
 	switch (phy_data->port_mode) {

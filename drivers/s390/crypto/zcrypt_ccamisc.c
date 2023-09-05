@@ -689,7 +689,7 @@ int cca_sec2protkey(u16 cardnr, u16 domain,
 		goto out;
 	}
 
-	/* copy the tanslated protected key */
+	/* copy the translated protected key */
 	switch (prepparm->lv3.ckb.len) {
 	case 16 + 32:
 		/* AES 128 protected key */

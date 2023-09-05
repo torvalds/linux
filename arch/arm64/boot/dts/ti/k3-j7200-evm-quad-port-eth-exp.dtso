@@ -92,7 +92,7 @@
 };
 
 &main_pmx0 {
-	mdio0_pins_default: mdio0-pins-default {
+	mdio0_pins_default: mdio0-default-pins {
 		pinctrl-single,pins = <
 			J721E_IOPAD(0x00a8, PIN_OUTPUT, 5) /* (W19) UART8_TXD.MDIO0_MDC */
 			J721E_IOPAD(0x00a4, PIN_INPUT, 5) /* (W14) UART8_RXD.MDIO0_MDIO */

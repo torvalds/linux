@@ -74,6 +74,7 @@ if major >= 3:
             "__percpu",
             "__rcu",
             "__user",
+            "__force",
 
             # include/linux/compiler_attributes.h:
             "__alias",

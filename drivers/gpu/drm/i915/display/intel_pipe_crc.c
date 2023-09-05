@@ -293,6 +293,7 @@ intel_crtc_crc_setup_workarounds(struct intel_crtc *crtc, bool enable)
 	}
 
 	state->acquire_ctx = &ctx;
+	to_intel_atomic_state(state)->internal = true;
 
 retry:
 	pipe_config = intel_atomic_get_crtc_state(state, crtc);

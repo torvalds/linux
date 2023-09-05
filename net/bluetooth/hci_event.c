@@ -1564,7 +1564,7 @@ static u8 hci_cc_le_set_privacy_mode(struct hci_dev *hdev, void *data,
 
 	params = hci_conn_params_lookup(hdev, &cp->bdaddr, cp->bdaddr_type);
 	if (params)
-		params->privacy_mode = cp->mode;
+		WRITE_ONCE(params->privacy_mode, cp->mode);
 
 	hci_dev_unlock(hdev);
 
@@ -2784,6 +2784,9 @@ static void hci_cs_disconnect(struct hci_dev *hdev, u8 status)
 			hci_enable_advertising(hdev);
 		}
 
+		/* Inform sockets conn is gone before we delete it */
+		hci_disconn_cfm(conn, HCI_ERROR_UNSPECIFIED);
+
 		goto done;
 	}
 
@@ -2804,8 +2807,8 @@ static void hci_cs_disconnect(struct hci_dev *hdev, u8 status)
 
 		case HCI_AUTO_CONN_DIRECT:
 		case HCI_AUTO_CONN_ALWAYS:
-			list_del_init(&params->action);
-			list_add(&params->action, &hdev->pend_le_conns);
+			hci_pend_le_list_del_init(params);
+			hci_pend_le_list_add(params, &hdev->pend_le_conns);
 			break;
 
 		default:
@@ -3423,8 +3426,8 @@ static void hci_disconn_complete_evt(struct hci_dev *hdev, void *data,
 
 		case HCI_AUTO_CONN_DIRECT:
 		case HCI_AUTO_CONN_ALWAYS:
-			list_del_init(&params->action);
-			list_add(&params->action, &hdev->pend_le_conns);
+			hci_pend_le_list_del_init(params);
+			hci_pend_le_list_add(params, &hdev->pend_le_conns);
 			hci_update_passive_scan(hdev);
 			break;
 
@@ -3812,7 +3815,8 @@ static u8 hci_cc_le_set_cig_params(struct hci_dev *hdev, void *data,
 	bt_dev_dbg(hdev, "status 0x%2.2x", rp->status);
 
 	cp = hci_sent_cmd_data(hdev, HCI_OP_LE_SET_CIG_PARAMS);
-	if (!cp || rp->num_handles != cp->num_cis || rp->cig_id != cp->cig_id) {
+	if (!rp->status && (!cp || rp->num_handles != cp->num_cis ||
+			    rp->cig_id != cp->cig_id)) {
 		bt_dev_err(hdev, "unexpected Set CIG Parameters response data");
 		status = HCI_ERROR_UNSPECIFIED;
 	}
@@ -5961,7 +5965,7 @@ static void le_conn_complete_evt(struct hci_dev *hdev, u8 status,
 	params = hci_pend_le_action_lookup(&hdev->pend_le_conns, &conn->dst,
 					   conn->dst_type);
 	if (params) {
-		list_del_init(&params->action);
+		hci_pend_le_list_del_init(params);
 		if (params->conn) {
 			hci_conn_drop(params->conn);
 			hci_conn_put(params->conn);
@@ -6316,23 +6320,18 @@ static void process_adv_report(struct hci_dev *hdev, u8 type, bdaddr_t *bdaddr,
 		return;
 	}
 
-	/* When receiving non-connectable or scannable undirected
-	 * advertising reports, this means that the remote device is
-	 * not connectable and then clearly indicate this in the
-	 * device found event.
-	 *
-	 * When receiving a scan response, then there is no way to
+	/* When receiving a scan response, then there is no way to
 	 * know if the remote device is connectable or not. However
 	 * since scan responses are merged with a previously seen
 	 * advertising report, the flags field from that report
 	 * will be used.
 	 *
-	 * In the really unlikely case that a controller get confused
-	 * and just sends a scan response event, then it is marked as
-	 * not connectable as well.
+	 * In the unlikely case that a controller just sends a scan
+	 * response event that doesn't match the pending report, then
+	 * it is marked as a standalone SCAN_RSP.
 	 */
 	if (type == LE_ADV_SCAN_RSP)
-		flags = MGMT_DEV_FOUND_NOT_CONNECTABLE;
+		flags = MGMT_DEV_FOUND_SCAN_RSP;
 
 	/* If there's nothing pending either store the data from this
 	 * event or send an immediate device found event if the data
@@ -6790,6 +6789,7 @@ static void hci_le_cis_estabilished_evt(struct hci_dev *hdev, void *data,
 {
 	struct hci_evt_le_cis_established *ev = data;
 	struct hci_conn *conn;
+	struct bt_iso_qos *qos;
 	u16 handle = __le16_to_cpu(ev->handle);
 
 	bt_dev_dbg(hdev, "status 0x%2.2x", ev->status);
@@ -6811,21 +6811,39 @@ static void hci_le_cis_estabilished_evt(struct hci_dev *hdev, void *data,
 		goto unlock;
 	}
 
-	if (conn->role == HCI_ROLE_SLAVE) {
-		__le32 interval;
+	qos = &conn->iso_qos;
 
-		memset(&interval, 0, sizeof(interval));
+	/* Convert ISO Interval (1.25 ms slots) to SDU Interval (us) */
+	qos->ucast.in.interval = le16_to_cpu(ev->interval) * 1250;
+	qos->ucast.out.interval = qos->ucast.in.interval;
 
-		memcpy(&interval, ev->c_latency, sizeof(ev->c_latency));
-		conn->iso_qos.ucast.in.interval = le32_to_cpu(interval);
-		memcpy(&interval, ev->p_latency, sizeof(ev->p_latency));
-		conn->iso_qos.ucast.out.interval = le32_to_cpu(interval);
-		conn->iso_qos.ucast.in.latency = le16_to_cpu(ev->interval);
-		conn->iso_qos.ucast.out.latency = le16_to_cpu(ev->interval);
-		conn->iso_qos.ucast.in.sdu = le16_to_cpu(ev->c_mtu);
-		conn->iso_qos.ucast.out.sdu = le16_to_cpu(ev->p_mtu);
-		conn->iso_qos.ucast.in.phy = ev->c_phy;
-		conn->iso_qos.ucast.out.phy = ev->p_phy;
+	switch (conn->role) {
+	case HCI_ROLE_SLAVE:
+		/* Convert Transport Latency (us) to Latency (msec) */
+		qos->ucast.in.latency =
+			DIV_ROUND_CLOSEST(get_unaligned_le24(ev->c_latency),
+					  1000);
+		qos->ucast.out.latency =
+			DIV_ROUND_CLOSEST(get_unaligned_le24(ev->p_latency),
+					  1000);
+		qos->ucast.in.sdu = le16_to_cpu(ev->c_mtu);
+		qos->ucast.out.sdu = le16_to_cpu(ev->p_mtu);
+		qos->ucast.in.phy = ev->c_phy;
+		qos->ucast.out.phy = ev->p_phy;
+		break;
+	case HCI_ROLE_MASTER:
+		/* Convert Transport Latency (us) to Latency (msec) */
+		qos->ucast.out.latency =
+			DIV_ROUND_CLOSEST(get_unaligned_le24(ev->c_latency),
+					  1000);
+		qos->ucast.in.latency =
+			DIV_ROUND_CLOSEST(get_unaligned_le24(ev->p_latency),
+					  1000);
+		qos->ucast.out.sdu = le16_to_cpu(ev->c_mtu);
+		qos->ucast.in.sdu = le16_to_cpu(ev->p_mtu);
+		qos->ucast.out.phy = ev->c_phy;
+		qos->ucast.in.phy = ev->p_phy;
+		break;
 	}
 
 	if (!ev->status) {

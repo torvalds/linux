@@ -568,7 +568,7 @@ static struct i2c_driver lm25066_driver = {
 		   .name = "lm25066",
 		   .of_match_table = of_match_ptr(lm25066_of_match),
 	},
-	.probe_new = lm25066_probe,
+	.probe = lm25066_probe,
 	.id_table = lm25066_id,
 };
 

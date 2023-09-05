@@ -199,6 +199,7 @@ struct mlx5_esw_bridge {
 	int refcnt;
 	struct list_head list;
 	struct mlx5_esw_bridge_offloads *br_offloads;
+	struct dentry *debugfs_dir;
 
 	struct list_head fdb_list;
 	struct rhashtable fdb_ht;
@@ -240,5 +241,10 @@ void mlx5_esw_bridge_port_mdb_detach(struct net_device *dev, struct mlx5_esw_bri
 void mlx5_esw_bridge_port_mdb_vlan_flush(struct mlx5_esw_bridge_port *port,
 					 struct mlx5_esw_bridge_vlan *vlan);
 void mlx5_esw_bridge_mdb_flush(struct mlx5_esw_bridge *bridge);
+
+void mlx5_esw_bridge_debugfs_offloads_init(struct mlx5_esw_bridge_offloads *br_offloads);
+void mlx5_esw_bridge_debugfs_offloads_cleanup(struct mlx5_esw_bridge_offloads *br_offloads);
+void mlx5_esw_bridge_debugfs_init(struct net_device *br_netdev, struct mlx5_esw_bridge *bridge);
+void mlx5_esw_bridge_debugfs_cleanup(struct mlx5_esw_bridge *bridge);
 
 #endif /* _MLX5_ESW_BRIDGE_PRIVATE_ */

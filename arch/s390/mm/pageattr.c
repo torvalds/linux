@@ -4,6 +4,7 @@
  * Author(s): Jan Glauber <jang@linux.vnet.ibm.com>
  */
 #include <linux/hugetlb.h>
+#include <linux/proc_fs.h>
 #include <linux/vmalloc.h>
 #include <linux/mm.h>
 #include <asm/cacheflush.h>

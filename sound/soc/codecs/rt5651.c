@@ -2172,7 +2172,7 @@ static const struct regmap_config rt5651_regmap = {
 	.volatile_reg = rt5651_volatile_register,
 	.readable_reg = rt5651_readable_register,
 
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.reg_defaults = rt5651_reg,
 	.num_reg_defaults = ARRAY_SIZE(rt5651_reg),
 	.ranges = rt5651_ranges,
@@ -2279,7 +2279,7 @@ static struct i2c_driver rt5651_i2c_driver = {
 		.acpi_match_table = ACPI_PTR(rt5651_acpi_match),
 		.of_match_table = of_match_ptr(rt5651_of_match),
 	},
-	.probe_new = rt5651_i2c_probe,
+	.probe = rt5651_i2c_probe,
 	.id_table = rt5651_i2c_id,
 };
 module_i2c_driver(rt5651_i2c_driver);

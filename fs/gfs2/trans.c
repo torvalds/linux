@@ -230,10 +230,11 @@ void gfs2_trans_add_meta(struct gfs2_glock *gl, struct buffer_head *bh)
 {
 
 	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
+	struct super_block *sb = sdp->sd_vfs;
 	struct gfs2_bufdata *bd;
 	struct gfs2_meta_header *mh;
 	struct gfs2_trans *tr = current->journal_info;
-	enum gfs2_freeze_state state = atomic_read(&sdp->sd_freeze_state);
+	bool withdraw = false;
 
 	lock_buffer(bh);
 	if (buffer_pinned(bh)) {
@@ -267,13 +268,15 @@ void gfs2_trans_add_meta(struct gfs2_glock *gl, struct buffer_head *bh)
 		       (unsigned long long)bd->bd_bh->b_blocknr);
 		BUG();
 	}
-	if (unlikely(state == SFS_FROZEN)) {
-		fs_info(sdp, "GFS2:adding buf while frozen\n");
-		gfs2_assert_withdraw(sdp, 0);
-	}
 	if (unlikely(gfs2_withdrawn(sdp))) {
 		fs_info(sdp, "GFS2:adding buf while withdrawn! 0x%llx\n",
 			(unsigned long long)bd->bd_bh->b_blocknr);
+		goto out_unlock;
+	}
+	if (unlikely(sb->s_writers.frozen == SB_FREEZE_COMPLETE)) {
+		fs_info(sdp, "GFS2:adding buf while frozen\n");
+		withdraw = true;
+		goto out_unlock;
 	}
 	gfs2_pin(sdp, bd->bd_bh);
 	mh->__pad0 = cpu_to_be64(0);
@@ -282,6 +285,8 @@ void gfs2_trans_add_meta(struct gfs2_glock *gl, struct buffer_head *bh)
 	tr->tr_num_buf_new++;
 out_unlock:
 	gfs2_log_unlock(sdp);
+	if (withdraw)
+		gfs2_assert_withdraw(sdp, 0);
 out:
 	unlock_buffer(bh);
 }

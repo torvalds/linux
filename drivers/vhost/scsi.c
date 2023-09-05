@@ -25,6 +25,8 @@
 #include <linux/fs.h>
 #include <linux/vmalloc.h>
 #include <linux/miscdevice.h>
+#include <linux/blk_types.h>
+#include <linux/bio.h>
 #include <asm/unaligned.h>
 #include <scsi/scsi_common.h>
 #include <scsi/scsi_proto.h>
@@ -75,6 +77,9 @@ struct vhost_scsi_cmd {
 	u32 tvc_prot_sgl_count;
 	/* Saved unpacked SCSI LUN for vhost_scsi_target_queue_cmd() */
 	u32 tvc_lun;
+	u32 copied_iov:1;
+	const void *saved_iter_addr;
+	struct iov_iter saved_iter;
 	/* Pointer to the SGL formatted memory from virtio-scsi */
 	struct scatterlist *tvc_sgl;
 	struct scatterlist *tvc_prot_sgl;
@@ -167,6 +172,7 @@ MODULE_PARM_DESC(max_io_vqs, "Set the max number of IO virtqueues a vhost scsi d
 
 struct vhost_scsi_virtqueue {
 	struct vhost_virtqueue vq;
+	struct vhost_scsi *vs;
 	/*
 	 * Reference counting for inflight reqs, used for flush operation. At
 	 * each time, one reference tracks new commands submitted, while we
@@ -181,6 +187,9 @@ struct vhost_scsi_virtqueue {
 	struct vhost_scsi_cmd *scsi_cmds;
 	struct sbitmap scsi_tags;
 	int max_cmds;
+
+	struct vhost_work completion_work;
+	struct llist_head completion_list;
 };
 
 struct vhost_scsi {
@@ -190,11 +199,7 @@ struct vhost_scsi {
 
 	struct vhost_dev dev;
 	struct vhost_scsi_virtqueue *vqs;
-	unsigned long *compl_bitmap;
 	struct vhost_scsi_inflight **old_inflight;
-
-	struct vhost_work vs_completion_work; /* cmd completion work item */
-	struct llist_head vs_completion_list; /* cmd completion queue */
 
 	struct vhost_work vs_event_work; /* evt injection work item */
 	struct llist_head vs_event_list; /* evt injection queue */
@@ -328,8 +333,13 @@ static void vhost_scsi_release_cmd_res(struct se_cmd *se_cmd)
 	int i;
 
 	if (tv_cmd->tvc_sgl_count) {
-		for (i = 0; i < tv_cmd->tvc_sgl_count; i++)
-			put_page(sg_page(&tv_cmd->tvc_sgl[i]));
+		for (i = 0; i < tv_cmd->tvc_sgl_count; i++) {
+			if (tv_cmd->copied_iov)
+				__free_page(sg_page(&tv_cmd->tvc_sgl[i]));
+			else
+				put_page(sg_page(&tv_cmd->tvc_sgl[i]));
+		}
+		kfree(tv_cmd->saved_iter_addr);
 	}
 	if (tv_cmd->tvc_prot_sgl_count) {
 		for (i = 0; i < tv_cmd->tvc_prot_sgl_count; i++)
@@ -353,15 +363,17 @@ static void vhost_scsi_release_cmd(struct se_cmd *se_cmd)
 	if (se_cmd->se_cmd_flags & SCF_SCSI_TMR_CDB) {
 		struct vhost_scsi_tmf *tmf = container_of(se_cmd,
 					struct vhost_scsi_tmf, se_cmd);
+		struct vhost_virtqueue *vq = &tmf->svq->vq;
 
-		vhost_work_queue(&tmf->vhost->dev, &tmf->vwork);
+		vhost_vq_work_queue(vq, &tmf->vwork);
 	} else {
 		struct vhost_scsi_cmd *cmd = container_of(se_cmd,
 					struct vhost_scsi_cmd, tvc_se_cmd);
-		struct vhost_scsi *vs = cmd->tvc_vhost;
+		struct vhost_scsi_virtqueue *svq =  container_of(cmd->tvc_vq,
+					struct vhost_scsi_virtqueue, vq);
 
-		llist_add(&cmd->tvc_completion_list, &vs->vs_completion_list);
-		vhost_work_queue(&vs->dev, &vs->vs_completion_work);
+		llist_add(&cmd->tvc_completion_list, &svq->completion_list);
+		vhost_vq_work_queue(&svq->vq, &svq->completion_work);
 	}
 }
 
@@ -502,6 +514,28 @@ static void vhost_scsi_evt_work(struct vhost_work *work)
 	mutex_unlock(&vq->mutex);
 }
 
+static int vhost_scsi_copy_sgl_to_iov(struct vhost_scsi_cmd *cmd)
+{
+	struct iov_iter *iter = &cmd->saved_iter;
+	struct scatterlist *sg = cmd->tvc_sgl;
+	struct page *page;
+	size_t len;
+	int i;
+
+	for (i = 0; i < cmd->tvc_sgl_count; i++) {
+		page = sg_page(&sg[i]);
+		len = sg[i].length;
+
+		if (copy_page_to_iter(page, 0, len, iter) != len) {
+			pr_err("Could not copy data while handling misaligned cmd. Error %zu\n",
+			       len);
+			return -1;
+		}
+	}
+
+	return 0;
+}
+
 /* Fill in status and signal that we are done processing this command
  *
  * This is scheduled in the vhost work queue so we are called with the owner
@@ -509,51 +543,52 @@ static void vhost_scsi_evt_work(struct vhost_work *work)
  */
 static void vhost_scsi_complete_cmd_work(struct vhost_work *work)
 {
-	struct vhost_scsi *vs = container_of(work, struct vhost_scsi,
-					vs_completion_work);
+	struct vhost_scsi_virtqueue *svq = container_of(work,
+				struct vhost_scsi_virtqueue, completion_work);
 	struct virtio_scsi_cmd_resp v_rsp;
 	struct vhost_scsi_cmd *cmd, *t;
 	struct llist_node *llnode;
 	struct se_cmd *se_cmd;
 	struct iov_iter iov_iter;
-	int ret, vq;
+	bool signal = false;
+	int ret;
 
-	bitmap_zero(vs->compl_bitmap, vs->dev.nvqs);
-	llnode = llist_del_all(&vs->vs_completion_list);
+	llnode = llist_del_all(&svq->completion_list);
 	llist_for_each_entry_safe(cmd, t, llnode, tvc_completion_list) {
 		se_cmd = &cmd->tvc_se_cmd;
 
 		pr_debug("%s tv_cmd %p resid %u status %#02x\n", __func__,
 			cmd, se_cmd->residual_count, se_cmd->scsi_status);
-
 		memset(&v_rsp, 0, sizeof(v_rsp));
-		v_rsp.resid = cpu_to_vhost32(cmd->tvc_vq, se_cmd->residual_count);
-		/* TODO is status_qualifier field needed? */
-		v_rsp.status = se_cmd->scsi_status;
-		v_rsp.sense_len = cpu_to_vhost32(cmd->tvc_vq,
-						 se_cmd->scsi_sense_length);
-		memcpy(v_rsp.sense, cmd->tvc_sense_buf,
-		       se_cmd->scsi_sense_length);
+
+		if (cmd->saved_iter_addr && vhost_scsi_copy_sgl_to_iov(cmd)) {
+			v_rsp.response = VIRTIO_SCSI_S_BAD_TARGET;
+		} else {
+			v_rsp.resid = cpu_to_vhost32(cmd->tvc_vq,
+						     se_cmd->residual_count);
+			/* TODO is status_qualifier field needed? */
+			v_rsp.status = se_cmd->scsi_status;
+			v_rsp.sense_len = cpu_to_vhost32(cmd->tvc_vq,
+							 se_cmd->scsi_sense_length);
+			memcpy(v_rsp.sense, cmd->tvc_sense_buf,
+			       se_cmd->scsi_sense_length);
+		}
 
 		iov_iter_init(&iov_iter, ITER_DEST, cmd->tvc_resp_iov,
 			      cmd->tvc_in_iovs, sizeof(v_rsp));
 		ret = copy_to_iter(&v_rsp, sizeof(v_rsp), &iov_iter);
 		if (likely(ret == sizeof(v_rsp))) {
-			struct vhost_scsi_virtqueue *q;
+			signal = true;
+
 			vhost_add_used(cmd->tvc_vq, cmd->tvc_vq_desc, 0);
-			q = container_of(cmd->tvc_vq, struct vhost_scsi_virtqueue, vq);
-			vq = q - vs->vqs;
-			__set_bit(vq, vs->compl_bitmap);
 		} else
 			pr_err("Faulted on virtio_scsi_cmd_resp\n");
 
 		vhost_scsi_release_cmd_res(se_cmd);
 	}
 
-	vq = -1;
-	while ((vq = find_next_bit(vs->compl_bitmap, vs->dev.nvqs, vq + 1))
-		< vs->dev.nvqs)
-		vhost_signal(&vs->dev, &vs->vqs[vq].vq);
+	if (signal)
+		vhost_signal(&svq->vs->dev, &svq->vq);
 }
 
 static struct vhost_scsi_cmd *
@@ -615,12 +650,12 @@ static int
 vhost_scsi_map_to_sgl(struct vhost_scsi_cmd *cmd,
 		      struct iov_iter *iter,
 		      struct scatterlist *sgl,
-		      bool write)
+		      bool is_prot)
 {
 	struct page **pages = cmd->tvc_upages;
 	struct scatterlist *sg = sgl;
-	ssize_t bytes;
-	size_t offset;
+	ssize_t bytes, mapped_bytes;
+	size_t offset, mapped_offset;
 	unsigned int npages = 0;
 
 	bytes = iov_iter_get_pages2(iter, pages, LONG_MAX,
@@ -629,13 +664,53 @@ vhost_scsi_map_to_sgl(struct vhost_scsi_cmd *cmd,
 	if (bytes <= 0)
 		return bytes < 0 ? bytes : -EFAULT;
 
+	mapped_bytes = bytes;
+	mapped_offset = offset;
+
 	while (bytes) {
 		unsigned n = min_t(unsigned, PAGE_SIZE - offset, bytes);
+		/*
+		 * The block layer requires bios/requests to be a multiple of
+		 * 512 bytes, but Windows can send us vecs that are misaligned.
+		 * This can result in bios and later requests with misaligned
+		 * sizes if we have to break up a cmd/scatterlist into multiple
+		 * bios.
+		 *
+		 * We currently only break up a command into multiple bios if
+		 * we hit the vec/seg limit, so check if our sgl_count is
+		 * greater than the max and if a vec in the cmd has a
+		 * misaligned offset/size.
+		 */
+		if (!is_prot &&
+		    (offset & (SECTOR_SIZE - 1) || n & (SECTOR_SIZE - 1)) &&
+		    cmd->tvc_sgl_count > BIO_MAX_VECS) {
+			WARN_ONCE(true,
+				  "vhost-scsi detected misaligned IO. Performance may be degraded.");
+			goto revert_iter_get_pages;
+		}
+
 		sg_set_page(sg++, pages[npages++], n, offset);
 		bytes -= n;
 		offset = 0;
 	}
+
 	return npages;
+
+revert_iter_get_pages:
+	iov_iter_revert(iter, mapped_bytes);
+
+	npages = 0;
+	while (mapped_bytes) {
+		unsigned int n = min_t(unsigned int, PAGE_SIZE - mapped_offset,
+				       mapped_bytes);
+
+		put_page(pages[npages++]);
+
+		mapped_bytes -= n;
+		mapped_offset = 0;
+	}
+
+	return -EINVAL;
 }
 
 static int
@@ -659,25 +734,80 @@ vhost_scsi_calc_sgls(struct iov_iter *iter, size_t bytes, int max_sgls)
 }
 
 static int
-vhost_scsi_iov_to_sgl(struct vhost_scsi_cmd *cmd, bool write,
-		      struct iov_iter *iter,
-		      struct scatterlist *sg, int sg_count)
+vhost_scsi_copy_iov_to_sgl(struct vhost_scsi_cmd *cmd, struct iov_iter *iter,
+			   struct scatterlist *sg, int sg_count)
+{
+	size_t len = iov_iter_count(iter);
+	unsigned int nbytes = 0;
+	struct page *page;
+	int i;
+
+	if (cmd->tvc_data_direction == DMA_FROM_DEVICE) {
+		cmd->saved_iter_addr = dup_iter(&cmd->saved_iter, iter,
+						GFP_KERNEL);
+		if (!cmd->saved_iter_addr)
+			return -ENOMEM;
+	}
+
+	for (i = 0; i < sg_count; i++) {
+		page = alloc_page(GFP_KERNEL);
+		if (!page) {
+			i--;
+			goto err;
+		}
+
+		nbytes = min_t(unsigned int, PAGE_SIZE, len);
+		sg_set_page(&sg[i], page, nbytes, 0);
+
+		if (cmd->tvc_data_direction == DMA_TO_DEVICE &&
+		    copy_page_from_iter(page, 0, nbytes, iter) != nbytes)
+			goto err;
+
+		len -= nbytes;
+	}
+
+	cmd->copied_iov = 1;
+	return 0;
+
+err:
+	pr_err("Could not read %u bytes while handling misaligned cmd\n",
+	       nbytes);
+
+	for (; i >= 0; i--)
+		__free_page(sg_page(&sg[i]));
+	kfree(cmd->saved_iter_addr);
+	return -ENOMEM;
+}
+
+static int
+vhost_scsi_map_iov_to_sgl(struct vhost_scsi_cmd *cmd, struct iov_iter *iter,
+			  struct scatterlist *sg, int sg_count, bool is_prot)
 {
 	struct scatterlist *p = sg;
+	size_t revert_bytes;
 	int ret;
 
 	while (iov_iter_count(iter)) {
-		ret = vhost_scsi_map_to_sgl(cmd, iter, sg, write);
+		ret = vhost_scsi_map_to_sgl(cmd, iter, sg, is_prot);
 		if (ret < 0) {
+			revert_bytes = 0;
+
 			while (p < sg) {
-				struct page *page = sg_page(p++);
-				if (page)
+				struct page *page = sg_page(p);
+
+				if (page) {
 					put_page(page);
+					revert_bytes += p->length;
+				}
+				p++;
 			}
+
+			iov_iter_revert(iter, revert_bytes);
 			return ret;
 		}
 		sg += ret;
 	}
+
 	return 0;
 }
 
@@ -687,7 +817,6 @@ vhost_scsi_mapal(struct vhost_scsi_cmd *cmd,
 		 size_t data_bytes, struct iov_iter *data_iter)
 {
 	int sgl_count, ret;
-	bool write = (cmd->tvc_data_direction == DMA_FROM_DEVICE);
 
 	if (prot_bytes) {
 		sgl_count = vhost_scsi_calc_sgls(prot_iter, prot_bytes,
@@ -700,9 +829,9 @@ vhost_scsi_mapal(struct vhost_scsi_cmd *cmd,
 		pr_debug("%s prot_sg %p prot_sgl_count %u\n", __func__,
 			 cmd->tvc_prot_sgl, cmd->tvc_prot_sgl_count);
 
-		ret = vhost_scsi_iov_to_sgl(cmd, write, prot_iter,
-					    cmd->tvc_prot_sgl,
-					    cmd->tvc_prot_sgl_count);
+		ret = vhost_scsi_map_iov_to_sgl(cmd, prot_iter,
+						cmd->tvc_prot_sgl,
+						cmd->tvc_prot_sgl_count, true);
 		if (ret < 0) {
 			cmd->tvc_prot_sgl_count = 0;
 			return ret;
@@ -718,8 +847,14 @@ vhost_scsi_mapal(struct vhost_scsi_cmd *cmd,
 	pr_debug("%s data_sg %p data_sgl_count %u\n", __func__,
 		  cmd->tvc_sgl, cmd->tvc_sgl_count);
 
-	ret = vhost_scsi_iov_to_sgl(cmd, write, data_iter,
-				    cmd->tvc_sgl, cmd->tvc_sgl_count);
+	ret = vhost_scsi_map_iov_to_sgl(cmd, data_iter, cmd->tvc_sgl,
+					cmd->tvc_sgl_count, false);
+	if (ret == -EINVAL) {
+		sg_init_table(cmd->tvc_sgl, cmd->tvc_sgl_count);
+		ret = vhost_scsi_copy_iov_to_sgl(cmd, data_iter, cmd->tvc_sgl,
+						 cmd->tvc_sgl_count);
+	}
+
 	if (ret < 0) {
 		cmd->tvc_sgl_count = 0;
 		return ret;
@@ -1135,12 +1270,27 @@ static void vhost_scsi_tmf_resp_work(struct vhost_work *work)
 {
 	struct vhost_scsi_tmf *tmf = container_of(work, struct vhost_scsi_tmf,
 						  vwork);
-	int resp_code;
+	struct vhost_virtqueue *ctl_vq, *vq;
+	int resp_code, i;
 
-	if (tmf->scsi_resp == TMR_FUNCTION_COMPLETE)
+	if (tmf->scsi_resp == TMR_FUNCTION_COMPLETE) {
+		/*
+		 * Flush IO vqs that don't share a worker with the ctl to make
+		 * sure they have sent their responses before us.
+		 */
+		ctl_vq = &tmf->vhost->vqs[VHOST_SCSI_VQ_CTL].vq;
+		for (i = VHOST_SCSI_VQ_IO; i < tmf->vhost->dev.nvqs; i++) {
+			vq = &tmf->vhost->vqs[i].vq;
+
+			if (vhost_vq_is_setup(vq) &&
+			    vq->worker != ctl_vq->worker)
+				vhost_vq_flush(vq);
+		}
+
 		resp_code = VIRTIO_SCSI_S_FUNCTION_SUCCEEDED;
-	else
+	} else {
 		resp_code = VIRTIO_SCSI_S_FUNCTION_REJECTED;
+	}
 
 	vhost_scsi_send_tmf_resp(tmf->vhost, &tmf->svq->vq, tmf->in_iovs,
 				 tmf->vq_desc, &tmf->resp_iov, resp_code);
@@ -1335,11 +1485,9 @@ static void vhost_scsi_ctl_handle_kick(struct vhost_work *work)
 }
 
 static void
-vhost_scsi_send_evt(struct vhost_scsi *vs,
-		   struct vhost_scsi_tpg *tpg,
-		   struct se_lun *lun,
-		   u32 event,
-		   u32 reason)
+vhost_scsi_send_evt(struct vhost_scsi *vs, struct vhost_virtqueue *vq,
+		    struct vhost_scsi_tpg *tpg, struct se_lun *lun,
+		    u32 event, u32 reason)
 {
 	struct vhost_scsi_evt *evt;
 
@@ -1361,7 +1509,7 @@ vhost_scsi_send_evt(struct vhost_scsi *vs,
 	}
 
 	llist_add(&evt->list, &vs->vs_event_list);
-	vhost_work_queue(&vs->dev, &vs->vs_event_work);
+	vhost_vq_work_queue(vq, &vs->vs_event_work);
 }
 
 static void vhost_scsi_evt_handle_kick(struct vhost_work *work)
@@ -1375,7 +1523,8 @@ static void vhost_scsi_evt_handle_kick(struct vhost_work *work)
 		goto out;
 
 	if (vs->vs_events_missed)
-		vhost_scsi_send_evt(vs, NULL, NULL, VIRTIO_SCSI_T_NO_EVENT, 0);
+		vhost_scsi_send_evt(vs, vq, NULL, NULL, VIRTIO_SCSI_T_NO_EVENT,
+				    0);
 out:
 	mutex_unlock(&vq->mutex);
 }
@@ -1770,6 +1919,7 @@ static int vhost_scsi_set_features(struct vhost_scsi *vs, u64 features)
 
 static int vhost_scsi_open(struct inode *inode, struct file *f)
 {
+	struct vhost_scsi_virtqueue *svq;
 	struct vhost_scsi *vs;
 	struct vhost_virtqueue **vqs;
 	int r = -ENOMEM, i, nvqs = vhost_scsi_max_io_vqs;
@@ -1788,10 +1938,6 @@ static int vhost_scsi_open(struct inode *inode, struct file *f)
 	}
 	nvqs += VHOST_SCSI_VQ_IO;
 
-	vs->compl_bitmap = bitmap_alloc(nvqs, GFP_KERNEL);
-	if (!vs->compl_bitmap)
-		goto err_compl_bitmap;
-
 	vs->old_inflight = kmalloc_array(nvqs, sizeof(*vs->old_inflight),
 					 GFP_KERNEL | __GFP_ZERO);
 	if (!vs->old_inflight)
@@ -1806,7 +1952,6 @@ static int vhost_scsi_open(struct inode *inode, struct file *f)
 	if (!vqs)
 		goto err_local_vqs;
 
-	vhost_work_init(&vs->vs_completion_work, vhost_scsi_complete_cmd_work);
 	vhost_work_init(&vs->vs_event_work, vhost_scsi_evt_work);
 
 	vs->vs_events_nr = 0;
@@ -1817,8 +1962,14 @@ static int vhost_scsi_open(struct inode *inode, struct file *f)
 	vs->vqs[VHOST_SCSI_VQ_CTL].vq.handle_kick = vhost_scsi_ctl_handle_kick;
 	vs->vqs[VHOST_SCSI_VQ_EVT].vq.handle_kick = vhost_scsi_evt_handle_kick;
 	for (i = VHOST_SCSI_VQ_IO; i < nvqs; i++) {
-		vqs[i] = &vs->vqs[i].vq;
-		vs->vqs[i].vq.handle_kick = vhost_scsi_handle_kick;
+		svq = &vs->vqs[i];
+
+		vqs[i] = &svq->vq;
+		svq->vs = vs;
+		init_llist_head(&svq->completion_list);
+		vhost_work_init(&svq->completion_work,
+				vhost_scsi_complete_cmd_work);
+		svq->vq.handle_kick = vhost_scsi_handle_kick;
 	}
 	vhost_dev_init(&vs->dev, vqs, nvqs, UIO_MAXIOV,
 		       VHOST_SCSI_WEIGHT, 0, true, NULL);
@@ -1833,8 +1984,6 @@ err_local_vqs:
 err_vqs:
 	kfree(vs->old_inflight);
 err_inflight:
-	bitmap_free(vs->compl_bitmap);
-err_compl_bitmap:
 	kvfree(vs);
 err_vs:
 	return r;
@@ -1854,7 +2003,6 @@ static int vhost_scsi_release(struct inode *inode, struct file *f)
 	kfree(vs->dev.vqs);
 	kfree(vs->vqs);
 	kfree(vs->old_inflight);
-	bitmap_free(vs->compl_bitmap);
 	kvfree(vs);
 	return 0;
 }
@@ -1916,6 +2064,14 @@ vhost_scsi_ioctl(struct file *f,
 		if (copy_from_user(&features, featurep, sizeof features))
 			return -EFAULT;
 		return vhost_scsi_set_features(vs, features);
+	case VHOST_NEW_WORKER:
+	case VHOST_FREE_WORKER:
+	case VHOST_ATTACH_VRING_WORKER:
+	case VHOST_GET_VRING_WORKER:
+		mutex_lock(&vs->dev.mutex);
+		r = vhost_worker_ioctl(&vs->dev, ioctl, argp);
+		mutex_unlock(&vs->dev.mutex);
+		return r;
 	default:
 		mutex_lock(&vs->dev.mutex);
 		r = vhost_dev_ioctl(&vs->dev, ioctl, argp);
@@ -1995,7 +2151,7 @@ vhost_scsi_do_plug(struct vhost_scsi_tpg *tpg,
 		goto unlock;
 
 	if (vhost_has_feature(vq, VIRTIO_SCSI_F_HOTPLUG))
-		vhost_scsi_send_evt(vs, tpg, lun,
+		vhost_scsi_send_evt(vs, vq, tpg, lun,
 				   VIRTIO_SCSI_T_TRANSPORT_RESET, reason);
 unlock:
 	mutex_unlock(&vq->mutex);

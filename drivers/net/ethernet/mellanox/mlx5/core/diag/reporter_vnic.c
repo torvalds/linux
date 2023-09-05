@@ -2,6 +2,7 @@
 /* Copyright (c) 2023, NVIDIA CORPORATION & AFFILIATES. */
 
 #include "reporter_vnic.h"
+#include "en_stats.h"
 #include "devlink.h"
 
 #define VNIC_ENV_GET64(vnic_env_stats, c) \
@@ -36,45 +37,72 @@ int mlx5_reporter_vnic_diagnose_counters(struct mlx5_core_dev *dev,
 	if (err)
 		return err;
 
-	err = devlink_fmsg_u64_pair_put(fmsg, "total_error_queues",
-					VNIC_ENV_GET64(&vnic, total_error_queues));
-	if (err)
-		return err;
+	if (MLX5_CAP_GEN(dev, vnic_env_queue_counters)) {
+		err = devlink_fmsg_u32_pair_put(fmsg, "total_error_queues",
+						VNIC_ENV_GET(&vnic, total_error_queues));
+		if (err)
+			return err;
 
-	err = devlink_fmsg_u64_pair_put(fmsg, "send_queue_priority_update_flow",
-					VNIC_ENV_GET64(&vnic, send_queue_priority_update_flow));
-	if (err)
-		return err;
+		err = devlink_fmsg_u32_pair_put(fmsg, "send_queue_priority_update_flow",
+						VNIC_ENV_GET(&vnic,
+							     send_queue_priority_update_flow));
+		if (err)
+			return err;
+	}
 
-	err = devlink_fmsg_u64_pair_put(fmsg, "comp_eq_overrun",
-					VNIC_ENV_GET64(&vnic, comp_eq_overrun));
-	if (err)
-		return err;
+	if (MLX5_CAP_GEN(dev, eq_overrun_count)) {
+		err = devlink_fmsg_u32_pair_put(fmsg, "comp_eq_overrun",
+						VNIC_ENV_GET(&vnic, comp_eq_overrun));
+		if (err)
+			return err;
 
-	err = devlink_fmsg_u64_pair_put(fmsg, "async_eq_overrun",
-					VNIC_ENV_GET64(&vnic, async_eq_overrun));
-	if (err)
-		return err;
+		err = devlink_fmsg_u32_pair_put(fmsg, "async_eq_overrun",
+						VNIC_ENV_GET(&vnic, async_eq_overrun));
+		if (err)
+			return err;
+	}
 
-	err = devlink_fmsg_u64_pair_put(fmsg, "cq_overrun",
-					VNIC_ENV_GET64(&vnic, cq_overrun));
-	if (err)
-		return err;
+	if (MLX5_CAP_GEN(dev, vnic_env_cq_overrun)) {
+		err = devlink_fmsg_u32_pair_put(fmsg, "cq_overrun",
+						VNIC_ENV_GET(&vnic, cq_overrun));
+		if (err)
+			return err;
+	}
 
-	err = devlink_fmsg_u64_pair_put(fmsg, "invalid_command",
-					VNIC_ENV_GET64(&vnic, invalid_command));
-	if (err)
-		return err;
+	if (MLX5_CAP_GEN(dev, invalid_command_count)) {
+		err = devlink_fmsg_u32_pair_put(fmsg, "invalid_command",
+						VNIC_ENV_GET(&vnic, invalid_command));
+		if (err)
+			return err;
+	}
 
-	err = devlink_fmsg_u64_pair_put(fmsg, "quota_exceeded_command",
-					VNIC_ENV_GET64(&vnic, quota_exceeded_command));
-	if (err)
-		return err;
+	if (MLX5_CAP_GEN(dev, quota_exceeded_count)) {
+		err = devlink_fmsg_u32_pair_put(fmsg, "quota_exceeded_command",
+						VNIC_ENV_GET(&vnic, quota_exceeded_command));
+		if (err)
+			return err;
+	}
 
-	err = devlink_fmsg_u64_pair_put(fmsg, "nic_receive_steering_discard",
-					VNIC_ENV_GET64(&vnic, nic_receive_steering_discard));
-	if (err)
-		return err;
+	if (MLX5_CAP_GEN(dev, nic_receive_steering_discard)) {
+		err = devlink_fmsg_u64_pair_put(fmsg, "nic_receive_steering_discard",
+						VNIC_ENV_GET64(&vnic,
+							       nic_receive_steering_discard));
+		if (err)
+			return err;
+	}
+
+	if (MLX5_CAP_GEN(dev, vnic_env_cnt_steering_fail)) {
+		err = devlink_fmsg_u64_pair_put(fmsg, "generated_pkt_steering_fail",
+						VNIC_ENV_GET64(&vnic,
+							       generated_pkt_steering_fail));
+		if (err)
+			return err;
+
+		err = devlink_fmsg_u64_pair_put(fmsg, "handled_pkt_steering_fail",
+						VNIC_ENV_GET64(&vnic, handled_pkt_steering_fail));
+		if (err)
+			return err;
+	}
 
 	err = devlink_fmsg_obj_nest_end(fmsg);
 	if (err)

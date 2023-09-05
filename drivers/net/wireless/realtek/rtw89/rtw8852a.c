@@ -463,6 +463,12 @@ static const struct rtw89_imr_info rtw8852a_imr_info = {
 	.tmac_imr_set		= B_AX_TMAC_IMR_SET,
 };
 
+static const struct rtw89_xtal_info rtw8852a_xtal_info = {
+	.xcap_reg		= R_AX_XTAL_ON_CTRL0,
+	.sc_xo_mask		= B_AX_XTAL_SC_XO_MASK,
+	.sc_xi_mask		= B_AX_XTAL_SC_XI_MASK,
+};
+
 static const struct rtw89_rrsr_cfgs rtw8852a_rrsr_cfgs = {
 	.ref_rate = {R_AX_TRXPTCL_RRSR_CTL_0, B_AX_WMAC_RESP_REF_RATE_SEL, 0},
 	.rsc = {R_AX_TRXPTCL_RRSR_CTL_0, B_AX_WMAC_RESP_RSC_MASK, 2},
@@ -1332,7 +1338,6 @@ static void rtw8852a_rfk_scan(struct rtw89_dev *rtwdev, bool start)
 static void rtw8852a_rfk_track(struct rtw89_dev *rtwdev)
 {
 	rtw8852a_dpk_track(rtwdev);
-	rtw8852a_iqk_track(rtwdev);
 	rtw8852a_tssi_track(rtwdev);
 }
 
@@ -2026,6 +2031,7 @@ static const struct rtw89_chip_ops rtw8852a_chip_ops = {
 	.read_efuse		= rtw8852a_read_efuse,
 	.read_phycap		= rtw8852a_read_phycap,
 	.fem_setup		= rtw8852a_fem_setup,
+	.rfe_gpio		= NULL,
 	.rfk_init		= rtw8852a_rfk_init,
 	.rfk_channel		= rtw8852a_rfk_channel,
 	.rfk_band_changed	= rtw8852a_rfk_band_changed,
@@ -2043,6 +2049,7 @@ static const struct rtw89_chip_ops rtw8852a_chip_ops = {
 	.set_txpwr_ul_tb_offset	= rtw8852a_set_txpwr_ul_tb_offset,
 	.pwr_on_func		= NULL,
 	.pwr_off_func		= NULL,
+	.query_rxdesc		= rtw89_core_query_rxdesc,
 	.fill_txdesc		= rtw89_core_fill_txdesc,
 	.fill_txdesc_fwcmd	= rtw89_core_fill_txdesc,
 	.cfg_ctrl_path		= rtw89_mac_cfg_ctrl_path,
@@ -2069,6 +2076,7 @@ const struct rtw89_chip_info rtw8852a_chip_info = {
 	.fw_format_max		= RTW8852A_FW_FORMAT_MAX,
 	.try_ce_fw		= false,
 	.fifo_size		= 458752,
+	.small_fifo_size	= false,
 	.dle_scc_rsvd_size	= 0,
 	.max_amsdu_limit	= 3500,
 	.dis_2g_40m_ul_ofdma	= true,
@@ -2085,6 +2093,7 @@ const struct rtw89_chip_info rtw8852a_chip_info = {
 	.rf_table		= {&rtw89_8852a_phy_radioa_table,
 				   &rtw89_8852a_phy_radiob_table,},
 	.nctl_table		= &rtw89_8852a_phy_nctl_table,
+	.nctl_post_table	= NULL,
 	.byr_table		= &rtw89_8852a_byr_table,
 	.dflt_parms		= &rtw89_8852a_dflt_parms,
 	.rfe_parms_conf		= NULL,
@@ -2097,6 +2106,7 @@ const struct rtw89_chip_info rtw8852a_chip_info = {
 	.support_bands		= BIT(NL80211_BAND_2GHZ) |
 				  BIT(NL80211_BAND_5GHZ),
 	.support_bw160		= false,
+	.support_unii4		= false,
 	.support_ul_tb_ctrl     = false,
 	.hw_sec_hdr		= false,
 	.rf_path_num		= 2,
@@ -2107,7 +2117,7 @@ const struct rtw89_chip_info rtw8852a_chip_info = {
 	.scam_num		= 128,
 	.bacam_num		= 2,
 	.bacam_dynamic_num	= 4,
-	.bacam_v1		= false,
+	.bacam_ver		= RTW89_BACAM_V0,
 	.sec_ctrl_efuse_size	= 4,
 	.physical_efuse_size	= 1216,
 	.logical_efuse_size	= 1536,
@@ -2159,6 +2169,7 @@ const struct rtw89_chip_info rtw8852a_chip_info = {
 #ifdef CONFIG_PM
 	.wowlan_stub		= &rtw_wowlan_stub_8852a,
 #endif
+	.xtal_info		= &rtw8852a_xtal_info,
 };
 EXPORT_SYMBOL(rtw8852a_chip_info);
 

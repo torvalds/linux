@@ -2709,7 +2709,7 @@ static struct i2c_driver wm5100_i2c_driver = {
 		.name = "wm5100",
 		.pm = &wm5100_pm,
 	},
-	.probe_new = wm5100_i2c_probe,
+	.probe =    wm5100_i2c_probe,
 	.remove =   wm5100_i2c_remove,
 	.id_table = wm5100_i2c_id,
 };

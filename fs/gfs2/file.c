@@ -630,6 +630,9 @@ int gfs2_open_common(struct inode *inode, struct file *file)
 		ret = generic_file_open(inode, file);
 		if (ret)
 			return ret;
+
+		if (!gfs2_is_jdata(GFS2_I(inode)))
+			file->f_mode |= FMODE_CAN_ODIRECT;
 	}
 
 	fp = kzalloc(sizeof(struct gfs2_file), GFP_NOFS);
@@ -1030,8 +1033,8 @@ static ssize_t gfs2_file_buffered_write(struct kiocb *iocb,
 	}
 
 	gfs2_holder_init(ip->i_gl, LM_ST_EXCLUSIVE, 0, gh);
-retry:
 	if (should_fault_in_pages(from, iocb, &prev_count, &window_size)) {
+retry:
 		window_size -= fault_in_iov_iter_readable(from, window_size);
 		if (!window_size) {
 			ret = -EFAULT;
@@ -1052,15 +1055,11 @@ retry:
 			goto out_unlock;
 	}
 
-	current->backing_dev_info = inode_to_bdi(inode);
 	pagefault_disable();
 	ret = iomap_file_buffered_write(iocb, from, &gfs2_iomap_ops);
 	pagefault_enable();
-	current->backing_dev_info = NULL;
-	if (ret > 0) {
-		iocb->ki_pos += ret;
+	if (ret > 0)
 		written += ret;
-	}
 
 	if (inode == sdp->sd_rindex)
 		gfs2_glock_dq_uninit(statfs_gh);
@@ -1579,7 +1578,7 @@ const struct file_operations gfs2_file_fops = {
 	.fsync		= gfs2_fsync,
 	.lock		= gfs2_lock,
 	.flock		= gfs2_flock,
-	.splice_read	= generic_file_splice_read,
+	.splice_read	= copy_splice_read,
 	.splice_write	= gfs2_file_splice_write,
 	.setlease	= simple_nosetlease,
 	.fallocate	= gfs2_fallocate,
@@ -1610,7 +1609,7 @@ const struct file_operations gfs2_file_fops_nolock = {
 	.open		= gfs2_open,
 	.release	= gfs2_release,
 	.fsync		= gfs2_fsync,
-	.splice_read	= generic_file_splice_read,
+	.splice_read	= copy_splice_read,
 	.splice_write	= gfs2_file_splice_write,
 	.setlease	= generic_setlease,
 	.fallocate	= gfs2_fallocate,

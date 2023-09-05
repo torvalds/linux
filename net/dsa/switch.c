@@ -673,8 +673,8 @@ static bool dsa_port_host_vlan_match(struct dsa_port *dp,
 	return false;
 }
 
-static struct dsa_vlan *dsa_vlan_find(struct list_head *vlan_list,
-				      const struct switchdev_obj_port_vlan *vlan)
+struct dsa_vlan *dsa_vlan_find(struct list_head *vlan_list,
+			       const struct switchdev_obj_port_vlan *vlan)
 {
 	struct dsa_vlan *v;
 

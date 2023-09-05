@@ -4011,6 +4011,114 @@ void htt_print_phy_stats_tlv(const void *tag_buf,
 	stats_req->buf_len = len;
 }
 
+static inline void
+htt_print_phy_reset_counters_tlv(const void *tag_buf,
+				 u16 tag_len,
+				 struct debug_htt_stats_req *stats_req)
+{
+	const struct htt_phy_reset_counters_tlv *htt_stats_buf = tag_buf;
+	u8 *buf = stats_req->buf;
+	u32 len = stats_req->buf_len;
+	u32 buf_len = ATH11K_HTT_STATS_BUF_SIZE;
+
+	if (tag_len < sizeof(*htt_stats_buf))
+		return;
+
+	len += scnprintf(buf + len, buf_len - len, "HTT_PHY_RESET_COUNTERS_TLV:\n");
+
+	len += scnprintf(buf + len, buf_len - len, "pdev_id = %u\n",
+			 htt_stats_buf->pdev_id);
+	len += scnprintf(buf + len, buf_len - len, "cf_active_low_fail_cnt = %u\n",
+			 htt_stats_buf->cf_active_low_fail_cnt);
+	len += scnprintf(buf + len, buf_len - len, "cf_active_low_pass_cnt = %u\n",
+			 htt_stats_buf->cf_active_low_pass_cnt);
+	len += scnprintf(buf + len, buf_len - len, "phy_off_through_vreg_cnt = %u\n",
+			 htt_stats_buf->phy_off_through_vreg_cnt);
+	len += scnprintf(buf + len, buf_len - len, "force_calibration_cnt = %u\n",
+			 htt_stats_buf->force_calibration_cnt);
+	len += scnprintf(buf + len, buf_len - len, "rf_mode_switch_phy_off_cnt = %u\n",
+			 htt_stats_buf->rf_mode_switch_phy_off_cnt);
+
+	stats_req->buf_len = len;
+}
+
+static inline void
+htt_print_phy_reset_stats_tlv(const void *tag_buf,
+			      u16 tag_len,
+			      struct debug_htt_stats_req *stats_req)
+{
+	const struct htt_phy_reset_stats_tlv *htt_stats_buf = tag_buf;
+	u8 *buf = stats_req->buf;
+	u32 len = stats_req->buf_len;
+	u32 buf_len = ATH11K_HTT_STATS_BUF_SIZE;
+
+	if (tag_len < sizeof(*htt_stats_buf))
+		return;
+
+	len += scnprintf(buf + len, buf_len - len, "HTT_PHY_RESET_STATS_TLV:\n");
+
+	len += scnprintf(buf + len, buf_len - len, "pdev_id = %u\n",
+			 htt_stats_buf->pdev_id);
+	len += scnprintf(buf + len, buf_len - len, "chan_mhz = %u\n",
+			 htt_stats_buf->chan_mhz);
+	len += scnprintf(buf + len, buf_len - len, "chan_band_center_freq1 = %u\n",
+			 htt_stats_buf->chan_band_center_freq1);
+	len += scnprintf(buf + len, buf_len - len, "chan_band_center_freq2 = %u\n",
+			 htt_stats_buf->chan_band_center_freq2);
+	len += scnprintf(buf + len, buf_len - len, "chan_phy_mode = %u\n",
+			 htt_stats_buf->chan_phy_mode);
+	len += scnprintf(buf + len, buf_len - len, "chan_flags = 0x%0x\n",
+			 htt_stats_buf->chan_flags);
+	len += scnprintf(buf + len, buf_len - len, "chan_num = %u\n",
+			 htt_stats_buf->chan_num);
+	len += scnprintf(buf + len, buf_len - len, "reset_cause = 0x%0x\n",
+			 htt_stats_buf->reset_cause);
+	len += scnprintf(buf + len, buf_len - len, "prev_reset_cause = 0x%0x\n",
+			 htt_stats_buf->prev_reset_cause);
+	len += scnprintf(buf + len, buf_len - len, "phy_warm_reset_src = 0x%0x\n",
+			 htt_stats_buf->phy_warm_reset_src);
+	len += scnprintf(buf + len, buf_len - len, "rx_gain_tbl_mode = %d\n",
+			 htt_stats_buf->rx_gain_tbl_mode);
+	len += scnprintf(buf + len, buf_len - len, "xbar_val = 0x%0x\n",
+			 htt_stats_buf->xbar_val);
+	len += scnprintf(buf + len, buf_len - len, "force_calibration = %u\n",
+			 htt_stats_buf->force_calibration);
+	len += scnprintf(buf + len, buf_len - len, "phyrf_mode = %u\n",
+			 htt_stats_buf->phyrf_mode);
+	len += scnprintf(buf + len, buf_len - len, "phy_homechan = %u\n",
+			 htt_stats_buf->phy_homechan);
+	len += scnprintf(buf + len, buf_len - len, "phy_tx_ch_mask = 0x%0x\n",
+			 htt_stats_buf->phy_tx_ch_mask);
+	len += scnprintf(buf + len, buf_len - len, "phy_rx_ch_mask = 0x%0x\n",
+			 htt_stats_buf->phy_rx_ch_mask);
+	len += scnprintf(buf + len, buf_len - len, "phybb_ini_mask = 0x%0x\n",
+			 htt_stats_buf->phybb_ini_mask);
+	len += scnprintf(buf + len, buf_len - len, "phyrf_ini_mask = 0x%0x\n",
+			 htt_stats_buf->phyrf_ini_mask);
+	len += scnprintf(buf + len, buf_len - len, "phy_dfs_en_mask = 0x%0x\n",
+			 htt_stats_buf->phy_dfs_en_mask);
+	len += scnprintf(buf + len, buf_len - len, "phy_sscan_en_mask = 0x%0x\n",
+			 htt_stats_buf->phy_sscan_en_mask);
+	len += scnprintf(buf + len, buf_len - len, "phy_synth_sel_mask = 0x%0x\n",
+			 htt_stats_buf->phy_synth_sel_mask);
+	len += scnprintf(buf + len, buf_len - len, "phy_adfs_freq = %u\n",
+			 htt_stats_buf->phy_adfs_freq);
+	len += scnprintf(buf + len, buf_len - len, "cck_fir_settings = 0x%0x\n",
+			 htt_stats_buf->cck_fir_settings);
+	len += scnprintf(buf + len, buf_len - len, "phy_dyn_pri_chan = %u\n",
+			 htt_stats_buf->phy_dyn_pri_chan);
+	len += scnprintf(buf + len, buf_len - len, "cca_thresh = 0x%0x\n",
+			 htt_stats_buf->cca_thresh);
+	len += scnprintf(buf + len, buf_len - len, "dyn_cca_status = %u\n",
+			 htt_stats_buf->dyn_cca_status);
+	len += scnprintf(buf + len, buf_len - len, "rxdesense_thresh_hw = 0x%x\n",
+			 htt_stats_buf->rxdesense_thresh_hw);
+	len += scnprintf(buf + len, buf_len - len, "rxdesense_thresh_sw = 0x%x\n",
+			 htt_stats_buf->rxdesense_thresh_sw);
+
+	stats_req->buf_len = len;
+}
+
 static inline
 void htt_print_peer_ctrl_path_txrx_stats_tlv(const void *tag_buf,
 					     struct debug_htt_stats_req *stats_req)
@@ -4424,6 +4532,12 @@ static int ath11k_dbg_htt_ext_stats_parse(struct ath11k_base *ab,
 		break;
 	case HTT_STATS_PHY_STATS_TAG:
 		htt_print_phy_stats_tlv(tag_buf, stats_req);
+		break;
+	case HTT_STATS_PHY_RESET_COUNTERS_TAG:
+		htt_print_phy_reset_counters_tlv(tag_buf, len, stats_req);
+		break;
+	case HTT_STATS_PHY_RESET_STATS_TAG:
+		htt_print_phy_reset_stats_tlv(tag_buf, len, stats_req);
 		break;
 	case HTT_STATS_PEER_CTRL_PATH_TXRX_STATS_TAG:
 		htt_print_peer_ctrl_path_txrx_stats_tlv(tag_buf, stats_req);

@@ -1414,6 +1414,8 @@ int tpmi_sst_init(void)
 	ret = isst_if_cdev_register(ISST_IF_DEV_TPMI, &cb);
 	if (ret)
 		kfree(isst_common.sst_inst);
+	else
+		++isst_core_usage_count;
 init_done:
 	mutex_unlock(&isst_tpmi_dev_lock);
 	return ret;

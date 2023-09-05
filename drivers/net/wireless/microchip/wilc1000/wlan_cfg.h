@@ -30,7 +30,7 @@ struct wilc_cfg_str {
 struct wilc_cfg_str_vals {
 	u8 mac_address[7];
 	u8 firmware_version[129];
-	u8 assoc_rsp[256];
+	u8 assoc_rsp[WILC_MAX_ASSOC_RESP_FRAME_SIZE];
 };
 
 struct wilc_cfg {

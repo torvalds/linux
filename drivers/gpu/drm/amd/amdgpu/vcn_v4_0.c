@@ -153,7 +153,7 @@ static int vcn_v4_0_sw_init(void *handle)
 			ring->doorbell_index = (adev->doorbell_index.vcn.vcn_ring0_1 << 1) + i * (adev->vcn.num_enc_rings + 1) + 1;
 		else
 			ring->doorbell_index = (adev->doorbell_index.vcn.vcn_ring0_1 << 1) + 2 + 8 * i;
-		ring->vm_hub = AMDGPU_MMHUB_0;
+		ring->vm_hub = AMDGPU_MMHUB0(0);
 		sprintf(ring->name, "vcn_unified_%d", i);
 
 		r = amdgpu_ring_init(adev, ring, 512, &adev->vcn.inst[i].irq, 0,
@@ -1243,7 +1243,7 @@ static int vcn_v4_0_start_sriov(struct amdgpu_device *adev)
 
 	header.version = MMSCH_VERSION;
 	header.total_size = sizeof(struct mmsch_v4_0_init_header) >> 2;
-	for (i = 0; i < AMDGPU_MAX_VCN_INSTANCES; i++) {
+	for (i = 0; i < MMSCH_V4_0_VCN_INSTANCES; i++) {
 		header.inst[i].init_status = 0;
 		header.inst[i].table_offset = 0;
 		header.inst[i].table_size = 0;
@@ -1424,8 +1424,10 @@ static int vcn_v4_0_start_sriov(struct amdgpu_device *adev)
  */
 static void vcn_v4_0_stop_dpg_mode(struct amdgpu_device *adev, int inst_idx)
 {
+	struct dpg_pause_state state = {.fw_based = VCN_DPG_STATE__UNPAUSE};
 	uint32_t tmp;
 
+	vcn_v4_0_pause_dpg_mode(adev, inst_idx, &state);
 	/* Wait for power status to be 1 */
 	SOC15_WAIT_ON_RREG(VCN, inst_idx, regUVD_POWER_STATUS, 1,
 		UVD_POWER_STATUS__UVD_POWER_STATUS_MASK);

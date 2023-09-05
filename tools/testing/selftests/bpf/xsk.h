@@ -134,6 +134,11 @@ static inline void xsk_ring_prod__submit(struct xsk_ring_prod *prod, __u32 nb)
 	__atomic_store_n(prod->producer, *prod->producer + nb, __ATOMIC_RELEASE);
 }
 
+static inline void xsk_ring_prod__cancel(struct xsk_ring_prod *prod, __u32 nb)
+{
+	prod->cached_prod -= nb;
+}
+
 static inline __u32 xsk_ring_cons__peek(struct xsk_ring_cons *cons, __u32 nb, __u32 *idx)
 {
 	__u32 entries = xsk_cons_nb_avail(cons, nb);

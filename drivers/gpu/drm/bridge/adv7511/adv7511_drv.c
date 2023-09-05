@@ -1393,7 +1393,7 @@ static struct i2c_driver adv7511_driver = {
 		.of_match_table = adv7511_of_ids,
 	},
 	.id_table = adv7511_i2c_ids,
-	.probe_new = adv7511_probe,
+	.probe = adv7511_probe,
 	.remove = adv7511_remove,
 };
 

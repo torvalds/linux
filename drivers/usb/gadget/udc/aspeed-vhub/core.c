@@ -253,14 +253,14 @@ void ast_vhub_init_hw(struct ast_vhub *vhub)
 	       vhub->regs + AST_VHUB_IER);
 }
 
-static int ast_vhub_remove(struct platform_device *pdev)
+static void ast_vhub_remove(struct platform_device *pdev)
 {
 	struct ast_vhub *vhub = platform_get_drvdata(pdev);
 	unsigned long flags;
 	int i;
 
 	if (!vhub || !vhub->regs)
-		return 0;
+		return;
 
 	/* Remove devices */
 	for (i = 0; i < vhub->max_ports; i++)
@@ -289,8 +289,6 @@ static int ast_vhub_remove(struct platform_device *pdev)
 				  vhub->ep0_bufs,
 				  vhub->ep0_bufs_dma);
 	vhub->ep0_bufs = NULL;
-
-	return 0;
 }
 
 static int ast_vhub_probe(struct platform_device *pdev)
@@ -431,7 +429,7 @@ MODULE_DEVICE_TABLE(of, ast_vhub_dt_ids);
 
 static struct platform_driver ast_vhub_driver = {
 	.probe		= ast_vhub_probe,
-	.remove		= ast_vhub_remove,
+	.remove_new	= ast_vhub_remove,
 	.driver		= {
 		.name	= KBUILD_MODNAME,
 		.of_match_table	= ast_vhub_dt_ids,

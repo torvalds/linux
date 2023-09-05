@@ -42,8 +42,9 @@ static inline bool i915_ttm_is_ghost_object(struct ttm_buffer_object *bo)
 /**
  * i915_ttm_to_gem - Convert a struct ttm_buffer_object to an embedding
  * struct drm_i915_gem_object.
+ * @bo: Pointer to the ttm buffer object
  *
- * Return: Pointer to the embedding struct ttm_buffer_object.
+ * Return: Pointer to the embedding struct drm_i915_gem_object.
  */
 static inline struct drm_i915_gem_object *
 i915_ttm_to_gem(struct ttm_buffer_object *bo)

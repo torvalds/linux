@@ -119,10 +119,41 @@ static int imx8m_clk_composite_divider_set_rate(struct clk_hw *hw,
 	return ret;
 }
 
+static int imx8m_divider_determine_rate(struct clk_hw *hw,
+				      struct clk_rate_request *req)
+{
+	struct clk_divider *divider = to_clk_divider(hw);
+	int prediv_value;
+	int div_value;
+
+	/* if read only, just return current value */
+	if (divider->flags & CLK_DIVIDER_READ_ONLY) {
+		u32 val;
+
+		val = readl(divider->reg);
+		prediv_value = val >> divider->shift;
+		prediv_value &= clk_div_mask(divider->width);
+		prediv_value++;
+
+		div_value = val >> PCG_DIV_SHIFT;
+		div_value &= clk_div_mask(PCG_DIV_WIDTH);
+		div_value++;
+
+		return divider_ro_determine_rate(hw, req, divider->table,
+						 PCG_PREDIV_WIDTH + PCG_DIV_WIDTH,
+						 divider->flags, prediv_value * div_value);
+	}
+
+	return divider_determine_rate(hw, req, divider->table,
+				      PCG_PREDIV_WIDTH + PCG_DIV_WIDTH,
+				      divider->flags);
+}
+
 static const struct clk_ops imx8m_clk_composite_divider_ops = {
 	.recalc_rate = imx8m_clk_composite_divider_recalc_rate,
 	.round_rate = imx8m_clk_composite_divider_round_rate,
 	.set_rate = imx8m_clk_composite_divider_set_rate,
+	.determine_rate = imx8m_divider_determine_rate,
 };
 
 static u8 imx8m_clk_composite_mux_get_parent(struct clk_hw *hw)

@@ -293,7 +293,7 @@ static const struct hwmon_ops power_supply_hwmon_ops = {
 	.read_string	= power_supply_hwmon_read_string,
 };
 
-static const struct hwmon_channel_info *power_supply_hwmon_info[] = {
+static const struct hwmon_channel_info * const power_supply_hwmon_info[] = {
 	HWMON_CHANNEL_INFO(temp,
 			   HWMON_T_LABEL     |
 			   HWMON_T_INPUT     |

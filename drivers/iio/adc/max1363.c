@@ -1718,7 +1718,7 @@ static struct i2c_driver max1363_driver = {
 		.name = "max1363",
 		.of_match_table = max1363_of_match,
 	},
-	.probe_new = max1363_probe,
+	.probe = max1363_probe,
 	.id_table = max1363_id,
 };
 module_i2c_driver(max1363_driver);

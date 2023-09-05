@@ -2,6 +2,7 @@
 
 //! String representations.
 
+use alloc::alloc::AllocError;
 use alloc::vec::Vec;
 use core::fmt::{self, Write};
 use core::ops::{self, Deref, Index};
@@ -198,6 +199,12 @@ impl CStr {
     #[inline]
     pub unsafe fn as_str_unchecked(&self) -> &str {
         unsafe { core::str::from_utf8_unchecked(self.as_bytes()) }
+    }
+
+    /// Convert this [`CStr`] into a [`CString`] by allocating memory and
+    /// copying over the string data.
+    pub fn to_cstring(&self) -> Result<CString, AllocError> {
+        CString::try_from(self)
     }
 }
 
@@ -581,6 +588,21 @@ impl Deref for CString {
         // SAFETY: The type invariants guarantee that the string is `NUL`-terminated and that no
         // other `NUL` bytes exist.
         unsafe { CStr::from_bytes_with_nul_unchecked(self.buf.as_slice()) }
+    }
+}
+
+impl<'a> TryFrom<&'a CStr> for CString {
+    type Error = AllocError;
+
+    fn try_from(cstr: &'a CStr) -> Result<CString, AllocError> {
+        let mut buf = Vec::new();
+
+        buf.try_extend_from_slice(cstr.as_bytes_with_nul())
+            .map_err(|_| AllocError)?;
+
+        // INVARIANT: The `CStr` and `CString` types have the same invariants for
+        // the string data, and we copied it over without changes.
+        Ok(CString { buf })
     }
 }
 

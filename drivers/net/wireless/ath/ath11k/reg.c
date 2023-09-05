@@ -123,7 +123,7 @@ int ath11k_reg_update_chan_list(struct ath11k *ar, bool wait)
 			ar->state_11d = ATH11K_11D_IDLE;
 		}
 		ath11k_dbg(ar->ab, ATH11K_DBG_REG,
-			   "reg 11d scan wait left time %d\n", left);
+			   "11d scan wait left time %d\n", left);
 	}
 
 	if (wait &&
@@ -136,7 +136,7 @@ int ath11k_reg_update_chan_list(struct ath11k *ar, bool wait)
 				   "failed to receive hw scan complete: timed out\n");
 
 		ath11k_dbg(ar->ab, ATH11K_DBG_REG,
-			   "reg hw scan wait left time %d\n", left);
+			   "hw scan wait left time %d\n", left);
 	}
 
 	if (ar->state == ATH11K_STATE_RESTARTING)

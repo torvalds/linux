@@ -5,7 +5,10 @@
 
 #ifndef _NOLIBC_ARCH_S390_H
 #define _NOLIBC_ARCH_S390_H
+#include <asm/signal.h>
 #include <asm/unistd.h>
+
+#include "compiler.h"
 
 /* The struct returned by the stat() syscall, equivalent to stat64(). The
  * syscall returns 116 bytes and stops in the middle of __unused.
@@ -163,7 +166,7 @@ char **environ __attribute__((weak));
 const unsigned long *_auxv __attribute__((weak));
 
 /* startup code */
-void __attribute__((weak,noreturn,optimize("omit-frame-pointer"))) _start(void)
+void __attribute__((weak,noreturn,optimize("omit-frame-pointer"))) __no_stack_protector _start(void)
 {
 	__asm__ volatile (
 		"lg	%r2,0(%r15)\n"		/* argument count */
@@ -223,4 +226,12 @@ void *sys_mmap(void *addr, size_t length, int prot, int flags, int fd,
 	return (void *)my_syscall1(__NR_mmap, &args);
 }
 #define sys_mmap sys_mmap
-#endif // _NOLIBC_ARCH_S390_H
+
+static __attribute__((unused))
+pid_t sys_fork(void)
+{
+	return my_syscall5(__NR_clone, 0, SIGCHLD, 0, 0, 0);
+}
+#define sys_fork sys_fork
+
+#endif /* _NOLIBC_ARCH_S390_H */

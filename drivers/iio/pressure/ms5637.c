@@ -238,7 +238,7 @@ static const struct of_device_id ms5637_of_match[] = {
 MODULE_DEVICE_TABLE(of, ms5637_of_match);
 
 static struct i2c_driver ms5637_driver = {
-	.probe_new = ms5637_probe,
+	.probe = ms5637_probe,
 	.id_table = ms5637_id,
 	.driver = {
 		   .name = "ms5637",

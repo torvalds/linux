@@ -1435,7 +1435,7 @@ static struct i2c_driver ov5675_i2c_driver = {
 		.acpi_match_table = ACPI_PTR(ov5675_acpi_ids),
 		.of_match_table = ov5675_of_match,
 	},
-	.probe_new = ov5675_probe,
+	.probe = ov5675_probe,
 	.remove = ov5675_remove,
 	.flags = I2C_DRV_ACPI_WAIVE_D0_PROBE,
 };

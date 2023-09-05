@@ -4472,6 +4472,8 @@ static void rt5665_remove(struct snd_soc_component *component)
 	struct rt5665_priv *rt5665 = snd_soc_component_get_drvdata(component);
 
 	regmap_write(rt5665->regmap, RT5665_RESET, 0);
+
+	regulator_bulk_disable(ARRAY_SIZE(rt5665->supplies), rt5665->supplies);
 }
 
 #ifdef CONFIG_PM
@@ -4626,7 +4628,7 @@ static const struct regmap_config rt5665_regmap = {
 	.max_register = 0x0400,
 	.volatile_reg = rt5665_volatile_register,
 	.readable_reg = rt5665_readable_register,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.reg_defaults = rt5665_reg,
 	.num_reg_defaults = ARRAY_SIZE(rt5665_reg),
 	.use_single_read = true,
@@ -4968,7 +4970,7 @@ static struct i2c_driver rt5665_i2c_driver = {
 		.of_match_table = of_match_ptr(rt5665_of_match),
 		.acpi_match_table = ACPI_PTR(rt5665_acpi_match),
 	},
-	.probe_new = rt5665_i2c_probe,
+	.probe = rt5665_i2c_probe,
 	.shutdown = rt5665_i2c_shutdown,
 	.id_table = rt5665_i2c_id,
 };

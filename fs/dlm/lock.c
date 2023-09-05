@@ -1407,6 +1407,7 @@ static int add_to_waiters(struct dlm_lkb *lkb, int mstype, int to_nodeid)
 {
 	struct dlm_ls *ls = lkb->lkb_resource->res_ls;
 	int error = 0;
+	int wc;
 
 	mutex_lock(&ls->ls_waiters_mutex);
 
@@ -1428,20 +1429,17 @@ static int add_to_waiters(struct dlm_lkb *lkb, int mstype, int to_nodeid)
 			error = -EBUSY;
 			goto out;
 		}
-		lkb->lkb_wait_count++;
+		wc = atomic_inc_return(&lkb->lkb_wait_count);
 		hold_lkb(lkb);
 
 		log_debug(ls, "addwait %x cur %d overlap %d count %d f %x",
-			  lkb->lkb_id, lkb->lkb_wait_type, mstype,
-			  lkb->lkb_wait_count, dlm_iflags_val(lkb));
+			  lkb->lkb_id, lkb->lkb_wait_type, mstype, wc,
+			  dlm_iflags_val(lkb));
 		goto out;
 	}
 
-	DLM_ASSERT(!lkb->lkb_wait_count,
-		   dlm_print_lkb(lkb);
-		   printk("wait_count %d\n", lkb->lkb_wait_count););
-
-	lkb->lkb_wait_count++;
+	wc = atomic_fetch_inc(&lkb->lkb_wait_count);
+	DLM_ASSERT(!wc, dlm_print_lkb(lkb); printk("wait_count %d\n", wc););
 	lkb->lkb_wait_type = mstype;
 	lkb->lkb_wait_nodeid = to_nodeid; /* for debugging */
 	hold_lkb(lkb);
@@ -1504,7 +1502,7 @@ static int _remove_from_waiters(struct dlm_lkb *lkb, int mstype,
 		log_debug(ls, "remwait %x convert_reply zap overlap_cancel",
 			  lkb->lkb_id);
 		lkb->lkb_wait_type = 0;
-		lkb->lkb_wait_count--;
+		atomic_dec(&lkb->lkb_wait_count);
 		unhold_lkb(lkb);
 		goto out_del;
 	}
@@ -1531,16 +1529,15 @@ static int _remove_from_waiters(struct dlm_lkb *lkb, int mstype,
 	if (overlap_done && lkb->lkb_wait_type) {
 		log_error(ls, "remwait error %x reply %d wait_type %d overlap",
 			  lkb->lkb_id, mstype, lkb->lkb_wait_type);
-		lkb->lkb_wait_count--;
+		atomic_dec(&lkb->lkb_wait_count);
 		unhold_lkb(lkb);
 		lkb->lkb_wait_type = 0;
 	}
 
-	DLM_ASSERT(lkb->lkb_wait_count, dlm_print_lkb(lkb););
+	DLM_ASSERT(atomic_read(&lkb->lkb_wait_count), dlm_print_lkb(lkb););
 
 	clear_bit(DLM_IFL_RESEND_BIT, &lkb->lkb_iflags);
-	lkb->lkb_wait_count--;
-	if (!lkb->lkb_wait_count)
+	if (atomic_dec_and_test(&lkb->lkb_wait_count))
 		list_del_init(&lkb->lkb_wait_reply);
 	unhold_lkb(lkb);
 	return 0;
@@ -2669,7 +2666,7 @@ static int validate_lock_args(struct dlm_ls *ls, struct dlm_lkb *lkb,
 			goto out;
 
 		/* lock not allowed if there's any op in progress */
-		if (lkb->lkb_wait_type || lkb->lkb_wait_count)
+		if (lkb->lkb_wait_type || atomic_read(&lkb->lkb_wait_count))
 			goto out;
 
 		if (is_overlap(lkb))
@@ -2731,7 +2728,7 @@ static int validate_unlock_args(struct dlm_lkb *lkb, struct dlm_args *args)
 
 	/* normal unlock not allowed if there's any op in progress */
 	if (!(args->flags & (DLM_LKF_CANCEL | DLM_LKF_FORCEUNLOCK)) &&
-	    (lkb->lkb_wait_type || lkb->lkb_wait_count))
+	    (lkb->lkb_wait_type || atomic_read(&lkb->lkb_wait_count)))
 		goto out;
 
 	/* an lkb may be waiting for an rsb lookup to complete where the
@@ -4616,7 +4613,7 @@ static void _receive_message(struct dlm_ls *ls, struct dlm_message *ms,
 {
 	int error = 0, noent = 0;
 
-	if (!dlm_is_member(ls, le32_to_cpu(ms->m_header.h_nodeid))) {
+	if (WARN_ON_ONCE(!dlm_is_member(ls, le32_to_cpu(ms->m_header.h_nodeid)))) {
 		log_limit(ls, "receive %d from non-member %d %x %x %d",
 			  le32_to_cpu(ms->m_type),
 			  le32_to_cpu(ms->m_header.h_nodeid),
@@ -4754,7 +4751,7 @@ static void dlm_receive_message(struct dlm_ls *ls, struct dlm_message *ms,
 		/* If we were a member of this lockspace, left, and rejoined,
 		   other nodes may still be sending us messages from the
 		   lockspace generation before we left. */
-		if (!ls->ls_generation) {
+		if (WARN_ON_ONCE(!ls->ls_generation)) {
 			log_limit(ls, "receive %d from %d ignore old gen",
 				  le32_to_cpu(ms->m_type), nodeid);
 			return;
@@ -5066,10 +5063,9 @@ int dlm_recover_waiters_post(struct dlm_ls *ls)
 		/* drop all wait_count references we still
 		 * hold a reference for this iteration.
 		 */
-		while (lkb->lkb_wait_count) {
-			lkb->lkb_wait_count--;
+		while (!atomic_dec_and_test(&lkb->lkb_wait_count))
 			unhold_lkb(lkb);
-		}
+
 		mutex_lock(&ls->ls_waiters_mutex);
 		list_del_init(&lkb->lkb_wait_reply);
 		mutex_unlock(&ls->ls_waiters_mutex);

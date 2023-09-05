@@ -58,9 +58,9 @@ static int test__task_exit(struct test_suite *test __maybe_unused, int subtest _
 
 	signal(SIGCHLD, sig_handler);
 
-	evlist = evlist__new_default();
+	evlist = evlist__new_dummy();
 	if (evlist == NULL) {
-		pr_debug("evlist__new_default\n");
+		pr_debug("evlist__new_dummy\n");
 		return -1;
 	}
 

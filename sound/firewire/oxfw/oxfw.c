@@ -32,7 +32,7 @@
 
 MODULE_DESCRIPTION("Oxford Semiconductor FW970/971 driver");
 MODULE_AUTHOR("Clemens Ladisch <clemens@ladisch.de>");
-MODULE_LICENSE("GPL v2");
+MODULE_LICENSE("GPL");
 MODULE_ALIAS("snd-firewire-speakers");
 MODULE_ALIAS("snd-scs1x");
 
@@ -44,7 +44,7 @@ struct compat_info {
 
 static bool detect_loud_models(struct fw_unit *unit)
 {
-	const char *const models[] = {
+	static const char *const models[] = {
 		"Onyxi",
 		"Onyx-i",
 		"Onyx 1640i",

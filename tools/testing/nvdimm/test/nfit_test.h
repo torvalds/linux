@@ -207,7 +207,36 @@ typedef struct nfit_test_resource *(*nfit_test_lookup_fn)(resource_size_t);
 typedef union acpi_object *(*nfit_test_evaluate_dsm_fn)(acpi_handle handle,
 		 const guid_t *guid, u64 rev, u64 func,
 		 union acpi_object *argv4);
+void __iomem *__wrap_devm_ioremap(struct device *dev,
+		resource_size_t offset, unsigned long size);
+void *__wrap_devm_memremap(struct device *dev, resource_size_t offset,
+		size_t size, unsigned long flags);
+void *__wrap_devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap);
+pfn_t __wrap_phys_to_pfn_t(phys_addr_t addr, unsigned long flags);
+void *__wrap_memremap(resource_size_t offset, size_t size,
+		unsigned long flags);
+void __wrap_devm_memunmap(struct device *dev, void *addr);
+void __iomem *__wrap_ioremap(resource_size_t offset, unsigned long size);
+void __iomem *__wrap_ioremap_wc(resource_size_t offset, unsigned long size);
 void __wrap_iounmap(volatile void __iomem *addr);
+void __wrap_memunmap(void *addr);
+struct resource *__wrap___request_region(struct resource *parent,
+		resource_size_t start, resource_size_t n, const char *name,
+		int flags);
+int __wrap_insert_resource(struct resource *parent, struct resource *res);
+int __wrap_remove_resource(struct resource *res);
+struct resource *__wrap___devm_request_region(struct device *dev,
+		struct resource *parent, resource_size_t start,
+		resource_size_t n, const char *name);
+void __wrap___release_region(struct resource *parent, resource_size_t start,
+		resource_size_t n);
+void __wrap___devm_release_region(struct device *dev, struct resource *parent,
+		resource_size_t start, resource_size_t n);
+acpi_status __wrap_acpi_evaluate_object(acpi_handle handle, acpi_string path,
+		struct acpi_object_list *p, struct acpi_buffer *buf);
+union acpi_object * __wrap_acpi_evaluate_dsm(acpi_handle handle, const guid_t *guid,
+		u64 rev, u64 func, union acpi_object *argv4);
+
 void nfit_test_setup(nfit_test_lookup_fn lookup,
 		nfit_test_evaluate_dsm_fn evaluate);
 void nfit_test_teardown(void);

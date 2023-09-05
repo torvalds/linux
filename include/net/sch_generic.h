@@ -1190,20 +1190,6 @@ static inline int qdisc_drop_all(struct sk_buff *skb, struct Qdisc *sch,
 	return NET_XMIT_DROP;
 }
 
-/* Length to Time (L2T) lookup in a qdisc_rate_table, to determine how
-   long it will take to send a packet given its size.
- */
-static inline u32 qdisc_l2t(struct qdisc_rate_table* rtab, unsigned int pktlen)
-{
-	int slot = pktlen + rtab->rate.cell_align + rtab->rate.overhead;
-	if (slot < 0)
-		slot = 0;
-	slot >>= rtab->rate.cell_log;
-	if (slot > 255)
-		return rtab->data[255]*(slot >> 8) + rtab->data[slot & 0xFF];
-	return rtab->data[slot];
-}
-
 struct psched_ratecfg {
 	u64	rate_bytes_ps; /* bytes per second */
 	u32	mult;

@@ -158,6 +158,9 @@ config DWMAC_SOCFPGA
 	default ARCH_INTEL_SOCFPGA
 	depends on OF && (ARCH_INTEL_SOCFPGA || COMPILE_TEST)
 	select MFD_SYSCON
+	select MDIO_REGMAP
+	select REGMAP_MMIO
+	select PCS_LYNX
 	help
 	  Support for ethernet controller on Altera SOCFPGA
 

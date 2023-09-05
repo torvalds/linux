@@ -47,7 +47,7 @@
 #include <linux/ctype.h>
 #include <net/dst.h>
 
-#include <asm/io.h>
+#include <linux/io.h>
 #include <linux/uaccess.h>
 #include <asm/ebcdic.h>
 

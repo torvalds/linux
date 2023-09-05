@@ -69,7 +69,7 @@ sof_ipc4_add_pipeline_to_trigger_list(struct snd_sof_dev *sdev, int state,
 	struct snd_sof_widget *pipe_widget = spipe->pipe_widget;
 	struct sof_ipc4_pipeline *pipeline = pipe_widget->private;
 
-	if (pipeline->skip_during_fe_trigger)
+	if (pipeline->skip_during_fe_trigger && state != SOF_IPC4_PIPE_RESET)
 		return;
 
 	switch (state) {
@@ -108,7 +108,7 @@ sof_ipc4_update_pipeline_state(struct snd_sof_dev *sdev, int state, int cmd,
 	struct sof_ipc4_pipeline *pipeline = pipe_widget->private;
 	int i;
 
-	if (pipeline->skip_during_fe_trigger)
+	if (pipeline->skip_during_fe_trigger && state != SOF_IPC4_PIPE_RESET)
 		return;
 
 	/* set state for pipeline if it was just triggered */
@@ -708,6 +708,9 @@ static int sof_ipc4_pcm_hw_params(struct snd_soc_component *component,
 	struct snd_sof_pcm *spcm;
 
 	spcm = snd_sof_find_spcm_dai(component, rtd);
+	if (!spcm)
+		return -EINVAL;
+
 	time_info = spcm->stream[substream->stream].private;
 	/* delay calculation is not supported by current fw_reg ABI */
 	if (!time_info)

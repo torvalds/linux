@@ -119,7 +119,7 @@ static struct i2c_driver lp87565_driver = {
 		.name	= "lp87565",
 		.of_match_table = of_lp87565_match_table,
 	},
-	.probe_new = lp87565_probe,
+	.probe = lp87565_probe,
 	.shutdown = lp87565_shutdown,
 	.id_table = lp87565_id_table,
 };

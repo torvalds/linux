@@ -441,13 +441,23 @@ do {					\
 	pr_warn_ratelimited(fmt);	\
 } while (0)
 
-void vmread_error(unsigned long field, bool fault)
+noinline void vmread_error(unsigned long field)
 {
-	if (fault)
-		kvm_spurious_fault();
-	else
-		vmx_insn_failed("vmread failed: field=%lx\n", field);
+	vmx_insn_failed("vmread failed: field=%lx\n", field);
 }
+
+#ifndef CONFIG_CC_HAS_ASM_GOTO_OUTPUT
+noinstr void vmread_error_trampoline2(unsigned long field, bool fault)
+{
+	if (fault) {
+		kvm_spurious_fault();
+	} else {
+		instrumentation_begin();
+		vmread_error(field);
+		instrumentation_end();
+	}
+}
+#endif
 
 noinline void vmwrite_error(unsigned long field, unsigned long value)
 {
@@ -1503,6 +1513,11 @@ void vmx_set_rflags(struct kvm_vcpu *vcpu, unsigned long rflags)
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	unsigned long old_rflags;
 
+	/*
+	 * Unlike CR0 and CR4, RFLAGS handling requires checking if the vCPU
+	 * is an unrestricted guest in order to mark L2 as needing emulation
+	 * if L1 runs L2 as a restricted guest.
+	 */
 	if (is_unrestricted_guest(vcpu)) {
 		kvm_register_mark_available(vcpu, VCPU_EXREG_RFLAGS);
 		vmx->rflags = rflags;
@@ -2287,19 +2302,16 @@ static int vmx_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 			return 1;
 		goto find_uret_msr;
 	case MSR_IA32_CR_PAT:
-		if (!kvm_pat_valid(data))
-			return 1;
+		ret = kvm_set_msr_common(vcpu, msr_info);
+		if (ret)
+			break;
 
 		if (is_guest_mode(vcpu) &&
 		    get_vmcs12(vcpu)->vm_exit_controls & VM_EXIT_SAVE_IA32_PAT)
 			get_vmcs12(vcpu)->guest_ia32_pat = data;
 
-		if (vmcs_config.vmentry_ctrl & VM_ENTRY_LOAD_IA32_PAT) {
+		if (vmcs_config.vmentry_ctrl & VM_ENTRY_LOAD_IA32_PAT)
 			vmcs_write64(GUEST_IA32_PAT, data);
-			vcpu->arch.pat = data;
-			break;
-		}
-		ret = kvm_set_msr_common(vcpu, msr_info);
 		break;
 	case MSR_IA32_MCG_EXT_CTL:
 		if ((!msr_info->host_initiated &&
@@ -3040,6 +3052,15 @@ static void enter_rmode(struct kvm_vcpu *vcpu)
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	struct kvm_vmx *kvm_vmx = to_kvm_vmx(vcpu->kvm);
 
+	/*
+	 * KVM should never use VM86 to virtualize Real Mode when L2 is active,
+	 * as using VM86 is unnecessary if unrestricted guest is enabled, and
+	 * if unrestricted guest is disabled, VM-Enter (from L1) with CR0.PG=0
+	 * should VM-Fail and KVM should reject userspace attempts to stuff
+	 * CR0.PG=0 when L2 is active.
+	 */
+	WARN_ON_ONCE(is_guest_mode(vcpu));
+
 	vmx_get_segment(vcpu, &vmx->rmode.segs[VCPU_SREG_TR], VCPU_SREG_TR);
 	vmx_get_segment(vcpu, &vmx->rmode.segs[VCPU_SREG_ES], VCPU_SREG_ES);
 	vmx_get_segment(vcpu, &vmx->rmode.segs[VCPU_SREG_DS], VCPU_SREG_DS);
@@ -3229,6 +3250,17 @@ void ept_save_pdptrs(struct kvm_vcpu *vcpu)
 #define CR3_EXITING_BITS (CPU_BASED_CR3_LOAD_EXITING | \
 			  CPU_BASED_CR3_STORE_EXITING)
 
+static bool vmx_is_valid_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
+{
+	if (is_guest_mode(vcpu))
+		return nested_guest_cr0_valid(vcpu, cr0);
+
+	if (to_vmx(vcpu)->nested.vmxon)
+		return nested_host_cr0_valid(vcpu, cr0);
+
+	return true;
+}
+
 void vmx_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
@@ -3238,7 +3270,7 @@ void vmx_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
 	old_cr0_pg = kvm_read_cr0_bits(vcpu, X86_CR0_PG);
 
 	hw_cr0 = (cr0 & ~KVM_VM_CR0_ALWAYS_OFF);
-	if (is_unrestricted_guest(vcpu))
+	if (enable_unrestricted_guest)
 		hw_cr0 |= KVM_VM_CR0_ALWAYS_ON_UNRESTRICTED_GUEST;
 	else {
 		hw_cr0 |= KVM_VM_CR0_ALWAYS_ON;
@@ -3266,7 +3298,7 @@ void vmx_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
 	}
 #endif
 
-	if (enable_ept && !is_unrestricted_guest(vcpu)) {
+	if (enable_ept && !enable_unrestricted_guest) {
 		/*
 		 * Ensure KVM has an up-to-date snapshot of the guest's CR3.  If
 		 * the below code _enables_ CR3 exiting, vmx_cache_reg() will
@@ -3387,24 +3419,24 @@ static bool vmx_is_valid_cr4(struct kvm_vcpu *vcpu, unsigned long cr4)
 
 void vmx_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4)
 {
-	unsigned long old_cr4 = vcpu->arch.cr4;
+	unsigned long old_cr4 = kvm_read_cr4(vcpu);
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
+	unsigned long hw_cr4;
+
 	/*
 	 * Pass through host's Machine Check Enable value to hw_cr4, which
 	 * is in force while we are in guest mode.  Do not let guests control
 	 * this bit, even if host CR4.MCE == 0.
 	 */
-	unsigned long hw_cr4;
-
 	hw_cr4 = (cr4_read_shadow() & X86_CR4_MCE) | (cr4 & ~X86_CR4_MCE);
-	if (is_unrestricted_guest(vcpu))
+	if (enable_unrestricted_guest)
 		hw_cr4 |= KVM_VM_CR4_ALWAYS_ON_UNRESTRICTED_GUEST;
 	else if (vmx->rmode.vm86_active)
 		hw_cr4 |= KVM_RMODE_VM_CR4_ALWAYS_ON;
 	else
 		hw_cr4 |= KVM_PMODE_VM_CR4_ALWAYS_ON;
 
-	if (!boot_cpu_has(X86_FEATURE_UMIP) && vmx_umip_emulated()) {
+	if (vmx_umip_emulated()) {
 		if (cr4 & X86_CR4_UMIP) {
 			secondary_exec_controls_setbit(vmx, SECONDARY_EXEC_DESC);
 			hw_cr4 &= ~X86_CR4_UMIP;
@@ -3417,7 +3449,7 @@ void vmx_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4)
 	vcpu->arch.cr4 = cr4;
 	kvm_register_mark_available(vcpu, VCPU_EXREG_CR4);
 
-	if (!is_unrestricted_guest(vcpu)) {
+	if (!enable_unrestricted_guest) {
 		if (enable_ept) {
 			if (!is_paging(vcpu)) {
 				hw_cr4 &= ~X86_CR4_PAE;
@@ -4654,7 +4686,8 @@ static int vmx_alloc_ipiv_pid_table(struct kvm *kvm)
 	if (kvm_vmx->pid_table)
 		return 0;
 
-	pages = alloc_pages(GFP_KERNEL | __GFP_ZERO, vmx_get_pid_table_order(kvm));
+	pages = alloc_pages(GFP_KERNEL_ACCOUNT | __GFP_ZERO,
+			    vmx_get_pid_table_order(kvm));
 	if (!pages)
 		return -ENOMEM;
 
@@ -5367,18 +5400,11 @@ static int handle_set_cr0(struct kvm_vcpu *vcpu, unsigned long val)
 		val = (val & ~vmcs12->cr0_guest_host_mask) |
 			(vmcs12->guest_cr0 & vmcs12->cr0_guest_host_mask);
 
-		if (!nested_guest_cr0_valid(vcpu, val))
-			return 1;
-
 		if (kvm_set_cr0(vcpu, val))
 			return 1;
 		vmcs_writel(CR0_READ_SHADOW, orig_val);
 		return 0;
 	} else {
-		if (to_vmx(vcpu)->nested.vmxon &&
-		    !nested_host_cr0_valid(vcpu, val))
-			return 1;
-
 		return kvm_set_cr0(vcpu, val);
 	}
 }
@@ -5402,7 +5428,13 @@ static int handle_set_cr4(struct kvm_vcpu *vcpu, unsigned long val)
 
 static int handle_desc(struct kvm_vcpu *vcpu)
 {
-	WARN_ON(!(vcpu->arch.cr4 & X86_CR4_UMIP));
+	/*
+	 * UMIP emulation relies on intercepting writes to CR4.UMIP, i.e. this
+	 * and other code needs to be updated if UMIP can be guest owned.
+	 */
+	BUILD_BUG_ON(KVM_POSSIBLE_CR4_GUEST_BITS & X86_CR4_UMIP);
+
+	WARN_ON_ONCE(!kvm_is_cr4_bit_set(vcpu, X86_CR4_UMIP));
 	return kvm_emulate_instruction(vcpu, 0);
 }
 
@@ -6708,7 +6740,12 @@ void vmx_set_virtual_apic_mode(struct kvm_vcpu *vcpu)
 
 static void vmx_set_apic_access_page_addr(struct kvm_vcpu *vcpu)
 {
-	struct page *page;
+	const gfn_t gfn = APIC_DEFAULT_PHYS_BASE >> PAGE_SHIFT;
+	struct kvm *kvm = vcpu->kvm;
+	struct kvm_memslots *slots = kvm_memslots(kvm);
+	struct kvm_memory_slot *slot;
+	unsigned long mmu_seq;
+	kvm_pfn_t pfn;
 
 	/* Defer reload until vmcs01 is the current VMCS. */
 	if (is_guest_mode(vcpu)) {
@@ -6720,18 +6757,53 @@ static void vmx_set_apic_access_page_addr(struct kvm_vcpu *vcpu)
 	    SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES))
 		return;
 
-	page = gfn_to_page(vcpu->kvm, APIC_DEFAULT_PHYS_BASE >> PAGE_SHIFT);
-	if (is_error_page(page))
+	/*
+	 * Grab the memslot so that the hva lookup for the mmu_notifier retry
+	 * is guaranteed to use the same memslot as the pfn lookup, i.e. rely
+	 * on the pfn lookup's validation of the memslot to ensure a valid hva
+	 * is used for the retry check.
+	 */
+	slot = id_to_memslot(slots, APIC_ACCESS_PAGE_PRIVATE_MEMSLOT);
+	if (!slot || slot->flags & KVM_MEMSLOT_INVALID)
 		return;
 
-	vmcs_write64(APIC_ACCESS_ADDR, page_to_phys(page));
+	/*
+	 * Ensure that the mmu_notifier sequence count is read before KVM
+	 * retrieves the pfn from the primary MMU.  Note, the memslot is
+	 * protected by SRCU, not the mmu_notifier.  Pairs with the smp_wmb()
+	 * in kvm_mmu_invalidate_end().
+	 */
+	mmu_seq = kvm->mmu_invalidate_seq;
+	smp_rmb();
+
+	/*
+	 * No need to retry if the memslot does not exist or is invalid.  KVM
+	 * controls the APIC-access page memslot, and only deletes the memslot
+	 * if APICv is permanently inhibited, i.e. the memslot won't reappear.
+	 */
+	pfn = gfn_to_pfn_memslot(slot, gfn);
+	if (is_error_noslot_pfn(pfn))
+		return;
+
+	read_lock(&vcpu->kvm->mmu_lock);
+	if (mmu_invalidate_retry_hva(kvm, mmu_seq,
+				     gfn_to_hva_memslot(slot, gfn))) {
+		kvm_make_request(KVM_REQ_APIC_PAGE_RELOAD, vcpu);
+		read_unlock(&vcpu->kvm->mmu_lock);
+		goto out;
+	}
+
+	vmcs_write64(APIC_ACCESS_ADDR, pfn_to_hpa(pfn));
+	read_unlock(&vcpu->kvm->mmu_lock);
+
 	vmx_flush_tlb_current(vcpu);
 
+out:
 	/*
 	 * Do not pin apic access page in memory, the MMU notifier
 	 * will call us again if it is migrated or swapped out.
 	 */
-	put_page(page);
+	kvm_release_pfn_clean(pfn);
 }
 
 static void vmx_hwapic_isr_update(int max_isr)
@@ -8160,6 +8232,7 @@ static struct kvm_x86_ops vmx_x86_ops __initdata = {
 	.set_segment = vmx_set_segment,
 	.get_cpl = vmx_get_cpl,
 	.get_cs_db_l_bits = vmx_get_cs_db_l_bits,
+	.is_valid_cr0 = vmx_is_valid_cr0,
 	.set_cr0 = vmx_set_cr0,
 	.is_valid_cr4 = vmx_is_valid_cr4,
 	.set_cr4 = vmx_set_cr4,

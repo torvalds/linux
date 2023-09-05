@@ -2293,8 +2293,6 @@ xfs_attr3_leaf_unbalance(
 
 	trace_xfs_attr_leaf_unbalance(state->args);
 
-	drop_leaf = drop_blk->bp->b_addr;
-	save_leaf = save_blk->bp->b_addr;
 	xfs_attr3_leaf_hdr_from_disk(state->args->geo, &drophdr, drop_leaf);
 	xfs_attr3_leaf_hdr_from_disk(state->args->geo, &savehdr, save_leaf);
 	entry = xfs_attr3_leaf_entryp(drop_leaf);

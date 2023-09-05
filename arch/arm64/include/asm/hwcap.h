@@ -137,6 +137,7 @@
 #define KERNEL_HWCAP_SME_BI32I32	__khwcap2_feature(SME_BI32I32)
 #define KERNEL_HWCAP_SME_B16B16		__khwcap2_feature(SME_B16B16)
 #define KERNEL_HWCAP_SME_F16F16		__khwcap2_feature(SME_F16F16)
+#define KERNEL_HWCAP_MOPS		__khwcap2_feature(MOPS)
 
 /*
  * This yields a mask that user programs can use to figure out what

@@ -166,8 +166,8 @@ static int uacce_fops_open(struct inode *inode, struct file *filep)
 
 	init_waitqueue_head(&q->wait);
 	filep->private_data = q;
-	uacce->inode = inode;
 	q->state = UACCE_Q_INIT;
+	q->mapping = filep->f_mapping;
 	mutex_init(&q->mutex);
 	list_add(&q->list, &uacce->queues);
 	mutex_unlock(&uacce->mutex);
@@ -200,12 +200,15 @@ static int uacce_fops_release(struct inode *inode, struct file *filep)
 static void uacce_vma_close(struct vm_area_struct *vma)
 {
 	struct uacce_queue *q = vma->vm_private_data;
-	struct uacce_qfile_region *qfr = NULL;
 
-	if (vma->vm_pgoff < UACCE_MAX_REGION)
-		qfr = q->qfrs[vma->vm_pgoff];
+	if (vma->vm_pgoff < UACCE_MAX_REGION) {
+		struct uacce_qfile_region *qfr = q->qfrs[vma->vm_pgoff];
 
-	kfree(qfr);
+		mutex_lock(&q->mutex);
+		q->qfrs[vma->vm_pgoff] = NULL;
+		mutex_unlock(&q->mutex);
+		kfree(qfr);
+	}
 }
 
 static const struct vm_operations_struct uacce_vm_ops = {
@@ -574,12 +577,6 @@ void uacce_remove(struct uacce_device *uacce)
 
 	if (!uacce)
 		return;
-	/*
-	 * unmap remaining mapping from user space, preventing user still
-	 * access the mmaped area while parent device is already removed
-	 */
-	if (uacce->inode)
-		unmap_mapping_range(uacce->inode->i_mapping, 0, 0, 1);
 
 	/*
 	 * uacce_fops_open() may be running concurrently, even after we remove
@@ -597,6 +594,12 @@ void uacce_remove(struct uacce_device *uacce)
 		uacce_put_queue(q);
 		mutex_unlock(&q->mutex);
 		uacce_unbind_queue(q);
+
+		/*
+		 * unmap remaining mapping from user space, preventing user still
+		 * access the mmaped area while parent device is already removed
+		 */
+		unmap_mapping_range(q->mapping, 0, 0, 1);
 	}
 
 	/* disable sva now since no opened queues */

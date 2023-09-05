@@ -22,28 +22,6 @@ struct dpu_hw_wb_cfg {
 };
 
 /**
- * enum CDP preload ahead address size
- */
-enum {
-	DPU_WB_CDP_PRELOAD_AHEAD_32,
-	DPU_WB_CDP_PRELOAD_AHEAD_64
-};
-
-/**
- * struct dpu_hw_wb_qos_cfg : Writeback pipe QoS configuration
- * @danger_lut: LUT for generate danger level based on fill level
- * @safe_lut: LUT for generate safe level based on fill level
- * @creq_lut: LUT for generate creq level based on fill level
- * @danger_safe_en: enable danger safe generation
- */
-struct dpu_hw_wb_qos_cfg {
-	u32 danger_lut;
-	u32 safe_lut;
-	u64 creq_lut;
-	bool danger_safe_en;
-};
-
-/**
  *
  * struct dpu_hw_wb_ops : Interface to the wb hw driver functions
  *  Assumption is these functions will be called after clocks are enabled
@@ -64,27 +42,25 @@ struct dpu_hw_wb_ops {
 			struct dpu_hw_wb_cfg *wb);
 
 	void (*setup_qos_lut)(struct dpu_hw_wb *ctx,
-			struct dpu_hw_wb_qos_cfg *cfg);
+			struct dpu_hw_qos_cfg *cfg);
 
 	void (*setup_cdp)(struct dpu_hw_wb *ctx,
-			struct dpu_hw_cdp_cfg *cfg);
+			  const struct dpu_format *fmt,
+			  bool enable);
 
 	void (*bind_pingpong_blk)(struct dpu_hw_wb *ctx,
-			bool enable, const enum dpu_pingpong pp);
+				  const enum dpu_pingpong pp);
 };
 
 /**
  * struct dpu_hw_wb : WB driver object
  * @hw: block hardware details
- * @mdp: pointer to associated mdp portion of the catalog
  * @idx: hardware index number within type
  * @wb_hw_caps: hardware capabilities
  * @ops: function pointers
- * @hw_mdp: MDP top level hardware block
  */
 struct dpu_hw_wb {
 	struct dpu_hw_blk_reg_map hw;
-	const struct dpu_mdp_cfg *mdp;
 
 	/* wb path */
 	int idx;
@@ -92,19 +68,16 @@ struct dpu_hw_wb {
 
 	/* ops */
 	struct dpu_hw_wb_ops ops;
-
-	struct dpu_hw_mdp *hw_mdp;
 };
 
 /**
- * dpu_hw_wb_init(): Initializes and return writeback hw driver object.
- * @idx:  wb_path index for which driver object is required
+ * dpu_hw_wb_init() - Initializes the writeback hw driver object.
+ * @cfg:  wb_path catalog entry for which driver object is required
  * @addr: mapped register io address of MDP
- * @m :   pointer to mdss catalog data
+ * Return: Error code or allocated dpu_hw_wb context
  */
-struct dpu_hw_wb *dpu_hw_wb_init(enum dpu_wb idx,
-		void __iomem *addr,
-		const struct dpu_mdss_cfg *m);
+struct dpu_hw_wb *dpu_hw_wb_init(const struct dpu_wb_cfg *cfg,
+		void __iomem *addr);
 
 /**
  * dpu_hw_wb_destroy(): Destroy writeback hw driver object.

@@ -1998,10 +1998,8 @@ static int cas_rx_process_pkt(struct cas *cp, struct cas_rx_comp *rxc,
 		skb->truesize += hlen - swivel;
 		skb->len      += hlen - swivel;
 
-		__skb_frag_set_page(frag, page->buffer);
+		skb_frag_fill_page_desc(frag, page->buffer, off, hlen - swivel);
 		__skb_frag_ref(frag);
-		skb_frag_off_set(frag, off);
-		skb_frag_size_set(frag, hlen - swivel);
 
 		/* any more data? */
 		if ((words[0] & RX_COMP1_SPLIT_PKT) && ((dlen -= hlen) > 0)) {
@@ -2024,10 +2022,8 @@ static int cas_rx_process_pkt(struct cas *cp, struct cas_rx_comp *rxc,
 			skb->len      += hlen;
 			frag++;
 
-			__skb_frag_set_page(frag, page->buffer);
+			skb_frag_fill_page_desc(frag, page->buffer, 0, hlen);
 			__skb_frag_ref(frag);
-			skb_frag_off_set(frag, 0);
-			skb_frag_size_set(frag, hlen);
 			RX_USED_ADD(page, hlen + cp->crc_size);
 		}
 

@@ -93,12 +93,8 @@ static struct tcp_md5sig_key *tcp_v6_md5_do_lookup(const struct sock *sk,
  * This avoids a dereference and allow compiler optimizations.
  * It is a specialized version of inet6_sk_generic().
  */
-static struct ipv6_pinfo *tcp_inet6_sk(const struct sock *sk)
-{
-	unsigned int offset = sizeof(struct tcp6_sock) - sizeof(struct ipv6_pinfo);
-
-	return (struct ipv6_pinfo *)(((u8 *)sk) + offset);
-}
+#define tcp_inet6_sk(sk) (&container_of_const(tcp_sk(sk), \
+					      struct tcp6_sock, tcp)->inet6)
 
 static void inet6_sk_rx_dst_set(struct sock *sk, const struct sk_buff *skb)
 {
@@ -533,7 +529,7 @@ static int tcp_v6_send_synack(const struct sock *sk, struct dst_entry *dst,
 			      struct sk_buff *syn_skb)
 {
 	struct inet_request_sock *ireq = inet_rsk(req);
-	struct ipv6_pinfo *np = tcp_inet6_sk(sk);
+	const struct ipv6_pinfo *np = tcp_inet6_sk(sk);
 	struct ipv6_txoptions *opt;
 	struct flowi6 *fl6 = &fl->u.ip6;
 	struct sk_buff *skb;
@@ -568,8 +564,8 @@ static int tcp_v6_send_synack(const struct sock *sk, struct dst_entry *dst,
 		opt = ireq->ipv6_opt;
 		if (!opt)
 			opt = rcu_dereference(np->opt);
-		err = ip6_xmit(sk, skb, fl6, skb->mark ? : sk->sk_mark, opt,
-			       tclass, sk->sk_priority);
+		err = ip6_xmit(sk, skb, fl6, skb->mark ? : READ_ONCE(sk->sk_mark),
+			       opt, tclass, sk->sk_priority);
 		rcu_read_unlock();
 		err = net_xmit_eval(err);
 	}
@@ -943,7 +939,7 @@ static void tcp_v6_send_response(const struct sock *sk, struct sk_buff *skb, u32
 		if (sk->sk_state == TCP_TIME_WAIT)
 			mark = inet_twsk(sk)->tw_mark;
 		else
-			mark = sk->sk_mark;
+			mark = READ_ONCE(sk->sk_mark);
 		skb_set_delivery_time(buff, tcp_transmit_time(sk), true);
 	}
 	if (txhash) {
@@ -1130,10 +1126,11 @@ static void tcp_v6_reqsk_send_ack(const struct sock *sk, struct sk_buff *skb,
 			tcp_rsk(req)->rcv_nxt,
 			req->rsk_rcv_wnd >> inet_rsk(req)->rcv_wscale,
 			tcp_time_stamp_raw() + tcp_rsk(req)->ts_off,
-			req->ts_recent, sk->sk_bound_dev_if,
+			READ_ONCE(req->ts_recent), sk->sk_bound_dev_if,
 			tcp_v6_md5_do_lookup(sk, &ipv6_hdr(skb)->saddr, l3index),
-			ipv6_get_dsfield(ipv6_hdr(skb)), 0, sk->sk_priority,
-			tcp_rsk(req)->txhash);
+			ipv6_get_dsfield(ipv6_hdr(skb)), 0,
+			READ_ONCE(sk->sk_priority),
+			READ_ONCE(tcp_rsk(req)->txhash));
 }
 
 
@@ -2154,7 +2151,7 @@ struct proto tcpv6_prot = {
 	.keepalive		= tcp_set_keepalive,
 	.recvmsg		= tcp_recvmsg,
 	.sendmsg		= tcp_sendmsg,
-	.sendpage		= tcp_sendpage,
+	.splice_eof		= tcp_splice_eof,
 	.backlog_rcv		= tcp_v6_do_rcv,
 	.release_cb		= tcp_release_cb,
 	.hash			= inet6_hash,

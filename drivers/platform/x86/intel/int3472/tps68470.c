@@ -250,7 +250,7 @@ static struct i2c_driver int3472_tps68470 = {
 		.name = "int3472-tps68470",
 		.acpi_match_table = int3472_device_id,
 	},
-	.probe_new = skl_int3472_tps68470_probe,
+	.probe = skl_int3472_tps68470_probe,
 	.remove = skl_int3472_tps68470_remove,
 };
 module_i2c_driver(int3472_tps68470);

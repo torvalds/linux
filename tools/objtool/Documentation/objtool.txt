@@ -244,6 +244,11 @@ To achieve the validation, objtool enforces the following rules:
 Objtool warnings
 ----------------
 
+NOTE: When requesting help with an objtool warning, please recreate with
+OBJTOOL_VERBOSE=1 (e.g., "make OBJTOOL_VERBOSE=1") and send the full
+output, including any disassembly or backtrace below the warning, to the
+objtool maintainers.
+
 For asm files, if you're getting an error which doesn't make sense,
 first make sure that the affected code follows the above rules.
 
@@ -298,6 +303,11 @@ the objtool maintainers.
    If it's not actually in a callable function (e.g. kernel entry code),
    change ENDPROC to END.
 
+3. file.o: warning: objtool: foo+0x48c: bar() is missing a __noreturn annotation
+
+   The call from foo() to bar() doesn't return, but bar() is missing the
+   __noreturn annotation.  NOTE: In addition to annotating the function
+   with __noreturn, please also add it to tools/objtool/noreturns.h.
 
 4. file.o: warning: objtool: func(): can't find starting instruction
    or

@@ -25,6 +25,10 @@ struct riscv_hwprobe {
 #define RISCV_HWPROBE_KEY_IMA_EXT_0	4
 #define		RISCV_HWPROBE_IMA_FD		(1 << 0)
 #define		RISCV_HWPROBE_IMA_C		(1 << 1)
+#define		RISCV_HWPROBE_IMA_V		(1 << 2)
+#define		RISCV_HWPROBE_EXT_ZBA		(1 << 3)
+#define		RISCV_HWPROBE_EXT_ZBB		(1 << 4)
+#define		RISCV_HWPROBE_EXT_ZBS		(1 << 5)
 #define RISCV_HWPROBE_KEY_CPUPERF_0	5
 #define		RISCV_HWPROBE_MISALIGNED_UNKNOWN	(0 << 0)
 #define		RISCV_HWPROBE_MISALIGNED_EMULATED	(1 << 0)

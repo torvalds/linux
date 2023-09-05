@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2012-2014, 2018-2019, 2021 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2019, 2021-2023 Intel Corporation
  * Copyright (C) 2013-2014 Intel Mobile Communications GmbH
  * Copyright (C) 2015-2017 Intel Deutschland GmbH
  */
@@ -237,8 +237,8 @@ static bool iwl_mvm_power_allow_uapsd(struct iwl_mvm *mvm,
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 
-	if (!memcmp(mvmvif->uapsd_misbehaving_bssid, vif->bss_conf.bssid,
-		    ETH_ALEN))
+	if (ether_addr_equal(mvmvif->uapsd_misbehaving_ap_addr,
+			     vif->cfg.ap_addr))
 		return false;
 
 	/*
@@ -327,12 +327,11 @@ static void iwl_mvm_power_config_skip_dtim(struct iwl_mvm *mvm,
 
 		if (WARN_ON(!dtimper_tu))
 			return;
-		/* configure skip over dtim up to 306TU - 314 msec */
-		skip = max_t(u8, 1, 306 / dtimper_tu);
+		/* configure skip over dtim up to 900 TU DTIM interval */
+		skip = max_t(u8, 1, 900 / dtimper_tu);
 	}
 
-	/* the firmware really expects "look at every X DTIMs", so add 1 */
-	cmd->skip_dtim_periods = 1 + skip;
+	cmd->skip_dtim_periods = skip;
 	cmd->flags |= cpu_to_le16(POWER_FLAGS_SKIP_OVER_DTIM_MSK);
 }
 
@@ -502,9 +501,9 @@ void iwl_mvm_power_vif_assoc(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 
-	if (memcmp(vif->bss_conf.bssid, mvmvif->uapsd_misbehaving_bssid,
-		   ETH_ALEN))
-		eth_zero_addr(mvmvif->uapsd_misbehaving_bssid);
+	if (!ether_addr_equal(mvmvif->uapsd_misbehaving_ap_addr,
+			      vif->cfg.ap_addr))
+		eth_zero_addr(mvmvif->uapsd_misbehaving_ap_addr);
 }
 
 static void iwl_mvm_power_uapsd_misbehav_ap_iterator(void *_data, u8 *mac,
@@ -512,14 +511,23 @@ static void iwl_mvm_power_uapsd_misbehav_ap_iterator(void *_data, u8 *mac,
 {
 	u8 *ap_sta_id = _data;
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct ieee80211_bss_conf *link_conf;
+	unsigned int link_id;
 
-	/* The ap_sta_id is not expected to change during current association
-	 * so no explicit protection is needed
-	 */
-	if (mvmvif->deflink.ap_sta_id == *ap_sta_id)
-		memcpy(mvmvif->uapsd_misbehaving_bssid,
-		       vif->bss_conf.bssid,
-		       ETH_ALEN);
+	rcu_read_lock();
+	for_each_vif_active_link(vif, link_conf, link_id) {
+		struct iwl_mvm_vif_link_info *link_info = mvmvif->link[link_id];
+
+		/* The ap_sta_id is not expected to change during current
+		 * association so no explicit protection is needed
+		 */
+		if (link_info->ap_sta_id == *ap_sta_id) {
+			ether_addr_copy(mvmvif->uapsd_misbehaving_ap_addr,
+					vif->cfg.ap_addr);
+			break;
+		}
+	}
+	rcu_read_unlock();
 }
 
 void iwl_mvm_power_uapsd_misbehaving_ap_notif(struct iwl_mvm *mvm,
@@ -647,30 +655,32 @@ static void iwl_mvm_power_set_pm(struct iwl_mvm *mvm,
 		return;
 
 	/* enable PM on bss if bss stand alone */
-	if (vifs->bss_active && !vifs->p2p_active && !vifs->ap_active) {
+	if (bss_mvmvif && vifs->bss_active && !vifs->p2p_active &&
+	    !vifs->ap_active) {
 		bss_mvmvif->pm_enabled = true;
 		return;
 	}
 
 	/* enable PM on p2p if p2p stand alone */
-	if (vifs->p2p_active && !vifs->bss_active && !vifs->ap_active) {
+	if (p2p_mvmvif && vifs->p2p_active && !vifs->bss_active &&
+	    !vifs->ap_active) {
 		p2p_mvmvif->pm_enabled = true;
 		return;
 	}
 
-	if (vifs->bss_active && vifs->p2p_active)
+	if (p2p_mvmvif && bss_mvmvif && vifs->bss_active && vifs->p2p_active)
 		client_same_channel =
 			iwl_mvm_have_links_same_channel(bss_mvmvif, p2p_mvmvif);
 
-	if (vifs->bss_active && vifs->ap_active)
+	if (bss_mvmvif && ap_mvmvif && vifs->bss_active && vifs->ap_active)
 		ap_same_channel =
 			iwl_mvm_have_links_same_channel(bss_mvmvif, ap_mvmvif);
 
 	/* clients are not stand alone: enable PM if DCM */
 	if (!(client_same_channel || ap_same_channel)) {
-		if (vifs->bss_active)
+		if (bss_mvmvif && vifs->bss_active)
 			bss_mvmvif->pm_enabled = true;
-		if (vifs->p2p_active)
+		if (p2p_mvmvif && vifs->p2p_active)
 			p2p_mvmvif->pm_enabled = true;
 		return;
 	}

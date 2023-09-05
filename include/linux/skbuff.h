@@ -330,6 +330,7 @@ struct tc_skb_ext {
 	u8 post_ct_snat:1;
 	u8 post_ct_dnat:1;
 	u8 act_miss:1; /* Set if act_miss_cookie is used */
+	u8 l2_miss:1; /* Set by bridge upon FDB or MDB miss */
 };
 #endif
 
@@ -1383,7 +1384,7 @@ static inline int skb_pad(struct sk_buff *skb, int pad)
 #define dev_kfree_skb(a)	consume_skb(a)
 
 int skb_append_pagefrags(struct sk_buff *skb, struct page *page,
-			 int offset, size_t size);
+			 int offset, size_t size, size_t max_frags);
 
 struct skb_seq_state {
 	__u32		lower_offset;
@@ -2421,20 +2422,22 @@ static inline unsigned int skb_pagelen(const struct sk_buff *skb)
 	return skb_headlen(skb) + __skb_pagelen(skb);
 }
 
+static inline void skb_frag_fill_page_desc(skb_frag_t *frag,
+					   struct page *page,
+					   int off, int size)
+{
+	frag->bv_page = page;
+	frag->bv_offset = off;
+	skb_frag_size_set(frag, size);
+}
+
 static inline void __skb_fill_page_desc_noacc(struct skb_shared_info *shinfo,
 					      int i, struct page *page,
 					      int off, int size)
 {
 	skb_frag_t *frag = &shinfo->frags[i];
 
-	/*
-	 * Propagate page pfmemalloc to the skb if we can. The problem is
-	 * that not all callers have unique ownership of the page but rely
-	 * on page_is_pfmemalloc doing the right thing(tm).
-	 */
-	frag->bv_page		  = page;
-	frag->bv_offset		  = off;
-	skb_frag_size_set(frag, size);
+	skb_frag_fill_page_desc(frag, page, off, size);
 }
 
 /**
@@ -2466,6 +2469,11 @@ static inline void __skb_fill_page_desc(struct sk_buff *skb, int i,
 					struct page *page, int off, int size)
 {
 	__skb_fill_page_desc_noacc(skb_shinfo(skb), i, page, off, size);
+
+	/* Propagate page pfmemalloc to the skb if we can. The problem is
+	 * that not all callers have unique ownership of the page but rely
+	 * on page_is_pfmemalloc doing the right thing(tm).
+	 */
 	page = compound_head(page);
 	if (page_is_pfmemalloc(page))
 		skb->pfmemalloc	= true;
@@ -3494,32 +3502,6 @@ static inline void skb_frag_page_copy(skb_frag_t *fragto,
 	fragto->bv_page = fragfrom->bv_page;
 }
 
-/**
- * __skb_frag_set_page - sets the page contained in a paged fragment
- * @frag: the paged fragment
- * @page: the page to set
- *
- * Sets the fragment @frag to contain @page.
- */
-static inline void __skb_frag_set_page(skb_frag_t *frag, struct page *page)
-{
-	frag->bv_page = page;
-}
-
-/**
- * skb_frag_set_page - sets the page contained in a paged fragment of an skb
- * @skb: the buffer
- * @f: the fragment offset
- * @page: the page to set
- *
- * Sets the @f'th fragment of @skb to contain @page.
- */
-static inline void skb_frag_set_page(struct sk_buff *skb, int f,
-				     struct page *page)
-{
-	__skb_frag_set_page(&skb_shinfo(skb)->frags[f], page);
-}
-
 bool skb_page_frag_refill(unsigned int sz, struct page_frag *pfrag, gfp_t prio);
 
 /**
@@ -3992,8 +3974,6 @@ int skb_zerocopy(struct sk_buff *to, struct sk_buff *from,
 void skb_split(struct sk_buff *skb, struct sk_buff *skb1, const u32 len);
 int skb_shift(struct sk_buff *tgt, struct sk_buff *skb, int shiftlen);
 void skb_scrub_packet(struct sk_buff *skb, bool xnet);
-bool skb_gso_validate_network_len(const struct sk_buff *skb, unsigned int mtu);
-bool skb_gso_validate_mac_len(const struct sk_buff *skb, unsigned int len);
 struct sk_buff *skb_segment(struct sk_buff *skb, netdev_features_t features);
 struct sk_buff *skb_segment_list(struct sk_buff *skb, netdev_features_t features,
 				 unsigned int offset);
@@ -4043,7 +4023,7 @@ __skb_header_pointer(const struct sk_buff *skb, int offset, int len,
 	if (likely(hlen - offset >= len))
 		return (void *)data + offset;
 
-	if (!skb || unlikely(skb_copy_bits(skb, offset, buffer, len) < 0))
+	if (!skb || !buffer || unlikely(skb_copy_bits(skb, offset, buffer, len) < 0))
 		return NULL;
 
 	return buffer;
@@ -4859,75 +4839,6 @@ static inline struct sec_path *skb_sec_path(const struct sk_buff *skb)
 #endif
 }
 
-/* Keeps track of mac header offset relative to skb->head.
- * It is useful for TSO of Tunneling protocol. e.g. GRE.
- * For non-tunnel skb it points to skb_mac_header() and for
- * tunnel skb it points to outer mac header.
- * Keeps track of level of encapsulation of network headers.
- */
-struct skb_gso_cb {
-	union {
-		int	mac_offset;
-		int	data_offset;
-	};
-	int	encap_level;
-	__wsum	csum;
-	__u16	csum_start;
-};
-#define SKB_GSO_CB_OFFSET	32
-#define SKB_GSO_CB(skb) ((struct skb_gso_cb *)((skb)->cb + SKB_GSO_CB_OFFSET))
-
-static inline int skb_tnl_header_len(const struct sk_buff *inner_skb)
-{
-	return (skb_mac_header(inner_skb) - inner_skb->head) -
-		SKB_GSO_CB(inner_skb)->mac_offset;
-}
-
-static inline int gso_pskb_expand_head(struct sk_buff *skb, int extra)
-{
-	int new_headroom, headroom;
-	int ret;
-
-	headroom = skb_headroom(skb);
-	ret = pskb_expand_head(skb, extra, 0, GFP_ATOMIC);
-	if (ret)
-		return ret;
-
-	new_headroom = skb_headroom(skb);
-	SKB_GSO_CB(skb)->mac_offset += (new_headroom - headroom);
-	return 0;
-}
-
-static inline void gso_reset_checksum(struct sk_buff *skb, __wsum res)
-{
-	/* Do not update partial checksums if remote checksum is enabled. */
-	if (skb->remcsum_offload)
-		return;
-
-	SKB_GSO_CB(skb)->csum = res;
-	SKB_GSO_CB(skb)->csum_start = skb_checksum_start(skb) - skb->head;
-}
-
-/* Compute the checksum for a gso segment. First compute the checksum value
- * from the start of transport header to SKB_GSO_CB(skb)->csum_start, and
- * then add in skb->csum (checksum from csum_start to end of packet).
- * skb->csum and csum_start are then updated to reflect the checksum of the
- * resultant packet starting from the transport header-- the resultant checksum
- * is in the res argument (i.e. normally zero or ~ of checksum of a pseudo
- * header.
- */
-static inline __sum16 gso_make_checksum(struct sk_buff *skb, __wsum res)
-{
-	unsigned char *csum_start = skb_transport_header(skb);
-	int plen = (skb->head + SKB_GSO_CB(skb)->csum_start) - csum_start;
-	__wsum partial = SKB_GSO_CB(skb)->csum;
-
-	SKB_GSO_CB(skb)->csum = res;
-	SKB_GSO_CB(skb)->csum_start = csum_start - skb->head;
-
-	return csum_fold(csum_partial(csum_start, plen, partial));
-}
-
 static inline bool skb_is_gso(const struct sk_buff *skb)
 {
 	return skb_shinfo(skb)->gso_size;
@@ -5125,6 +5036,9 @@ static inline void skb_mark_for_recycle(struct sk_buff *skb)
 	skb->pp_recycle = 1;
 #endif
 }
+
+ssize_t skb_splice_from_iter(struct sk_buff *skb, struct iov_iter *iter,
+			     ssize_t maxsize, gfp_t gfp);
 
 #endif	/* __KERNEL__ */
 #endif	/* _LINUX_SKBUFF_H */

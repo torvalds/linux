@@ -537,7 +537,7 @@ union iwl_ppag_table_cmd {
 struct iwl_sar_offset_mapping_cmd {
 	u8 offset_map[MCC_TO_SAR_OFFSET_TABLE_ROW_SIZE]
 		[MCC_TO_SAR_OFFSET_TABLE_COL_SIZE];
-	u16 reserved;
+	__le16 reserved;
 } __packed; /*SAR_OFFSET_MAPPING_TABLE_CMD_API_S*/
 
 /**

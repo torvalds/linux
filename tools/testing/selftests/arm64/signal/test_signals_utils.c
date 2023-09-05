@@ -249,7 +249,8 @@ static void default_handler(int signum, siginfo_t *si, void *uc)
 			fprintf(stderr, "-- Timeout !\n");
 		} else {
 			fprintf(stderr,
-				"-- RX UNEXPECTED SIGNAL: %d\n", signum);
+				"-- RX UNEXPECTED SIGNAL: %d code %d address %p\n",
+				signum, si->si_code, si->si_addr);
 		}
 		default_result(current, 1);
 	}

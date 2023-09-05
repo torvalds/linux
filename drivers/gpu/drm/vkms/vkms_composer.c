@@ -4,6 +4,7 @@
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_blend.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_vblank.h>
@@ -53,10 +54,30 @@ static void pre_mul_alpha_blend(struct vkms_frame_info *frame_info,
 	}
 }
 
-static bool check_y_limit(struct vkms_frame_info *frame_info, int y)
+static int get_y_pos(struct vkms_frame_info *frame_info, int y)
 {
-	if (y >= frame_info->dst.y1 && y < frame_info->dst.y2)
-		return true;
+	if (frame_info->rotation & DRM_MODE_REFLECT_Y)
+		return drm_rect_height(&frame_info->rotated) - y - 1;
+
+	switch (frame_info->rotation & DRM_MODE_ROTATE_MASK) {
+	case DRM_MODE_ROTATE_90:
+		return frame_info->rotated.x2 - y - 1;
+	case DRM_MODE_ROTATE_270:
+		return y + frame_info->rotated.x1;
+	default:
+		return y;
+	}
+}
+
+static bool check_limit(struct vkms_frame_info *frame_info, int pos)
+{
+	if (drm_rotation_90_or_270(frame_info->rotation)) {
+		if (pos >= 0 && pos < drm_rect_width(&frame_info->rotated))
+			return true;
+	} else {
+		if (pos >= frame_info->rotated.y1 && pos < frame_info->rotated.y2)
+			return true;
+	}
 
 	return false;
 }
@@ -86,6 +107,7 @@ static void blend(struct vkms_writeback_job *wb,
 {
 	struct vkms_plane_state **plane = crtc_state->active_planes;
 	u32 n_active_planes = crtc_state->num_active_planes;
+	int y_pos;
 
 	const struct pixel_argb_u16 background_color = { .a = 0xffff };
 
@@ -96,10 +118,12 @@ static void blend(struct vkms_writeback_job *wb,
 
 		/* The active planes are composed associatively in z-order. */
 		for (size_t i = 0; i < n_active_planes; i++) {
-			if (!check_y_limit(plane[i]->frame_info, y))
+			y_pos = get_y_pos(plane[i]->frame_info, y);
+
+			if (!check_limit(plane[i]->frame_info, y_pos))
 				continue;
 
-			plane[i]->plane_read(stage_buffer, plane[i]->frame_info, y);
+			vkms_compose_row(stage_buffer, plane[i], y_pos);
 			pre_mul_alpha_blend(plane[i]->frame_info, stage_buffer,
 					    output_buffer);
 		}
@@ -107,7 +131,7 @@ static void blend(struct vkms_writeback_job *wb,
 		*crc32 = crc32_le(*crc32, (void *)output_buffer->pixels, row_size);
 
 		if (wb)
-			wb->wb_write(&wb->wb_frame_info, output_buffer, y);
+			wb->wb_write(&wb->wb_frame_info, output_buffer, y_pos);
 	}
 }
 
@@ -118,7 +142,7 @@ static int check_format_funcs(struct vkms_crtc_state *crtc_state,
 	u32 n_active_planes = crtc_state->num_active_planes;
 
 	for (size_t i = 0; i < n_active_planes; i++)
-		if (!planes[i]->plane_read)
+		if (!planes[i]->pixel_read)
 			return -1;
 
 	if (active_wb && !active_wb->wb_write)

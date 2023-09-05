@@ -20,5 +20,6 @@
 #define PCM_CHANNELS   10	/* Top surround channel. */
 
 int q6dsp_map_channels(u8 ch_map[PCM_MAX_NUM_CHANNEL], int ch);
+int q6dsp_get_channel_allocation(int channels);
 
 #endif /* __Q6DSP_COMMON_H__ */

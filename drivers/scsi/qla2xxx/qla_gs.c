@@ -3776,8 +3776,8 @@ int qla24xx_async_gpnft(scsi_qla_host_t *vha, u8 fc4_type, srb_t *sp)
 		sp->u.iocb_cmd.u.ctarg.req_size = GPN_FT_REQ_SIZE;
 
 		rspsz = sizeof(struct ct_sns_gpnft_rsp) +
-			((vha->hw->max_fibre_devices - 1) *
-			    sizeof(struct ct_sns_gpn_ft_data));
+			vha->hw->max_fibre_devices *
+			    sizeof(struct ct_sns_gpn_ft_data);
 
 		sp->u.iocb_cmd.u.ctarg.rsp = dma_alloc_coherent(&vha->hw->pdev->dev,
 								rspsz,

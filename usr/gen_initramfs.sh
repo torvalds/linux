@@ -23,6 +23,7 @@ $0 [-o <file>] [-l <dep_list>] [-u <uid>] [-g <gid>] {-d | <cpio_source>} ...
 	-g <gid>       Group ID to map to group ID 0 (root).
 		       <gid> is only meaningful if <cpio_source> is a
 		       directory.  "squash" forces all files to gid 0.
+	-d <date>      Use date for all file mtime values
 	<cpio_source>  File list or directory for cpio archive.
 		       If <cpio_source> is a .cpio file it will be used
 		       as direct input to initramfs.
@@ -190,6 +191,7 @@ prog=$0
 root_uid=0
 root_gid=0
 dep_list=
+timestamp=
 cpio_list=$(mktemp ${TMPDIR:-/tmp}/cpiolist.XXXXXX)
 output="/dev/stdout"
 
@@ -218,6 +220,13 @@ while [ $# -gt 0 ]; do
 			[ "$root_gid" = "-1" ] && root_gid=$(id -g || echo 0)
 			shift
 			;;
+		"-d")	# date for file mtimes
+			timestamp="$(date -d"$1" +%s || :)"
+			if test -n "$timestamp"; then
+				timestamp="-t $timestamp"
+			fi
+			shift
+			;;
 		"-h")
 			usage
 			exit 0
@@ -237,11 +246,4 @@ done
 
 # If output_file is set we will generate cpio archive
 # we are careful to delete tmp files
-timestamp=
-if test -n "$KBUILD_BUILD_TIMESTAMP"; then
-	timestamp="$(date -d"$KBUILD_BUILD_TIMESTAMP" +%s || :)"
-	if test -n "$timestamp"; then
-		timestamp="-t $timestamp"
-	fi
-fi
 usr/gen_init_cpio $timestamp $cpio_list > $output

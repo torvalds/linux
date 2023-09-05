@@ -1,0 +1,33 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ */
+
+/dts-v1/;
+
+#include "sdx75.dtsi"
+
+/ {
+	model = "Qualcomm Technologies, Inc. SDX75 IDP";
+	compatible = "qcom,sdx75-idp", "qcom,sdx75";
+
+	aliases {
+		serial0 = &uart1;
+	};
+};
+
+&chosen {
+	stdout-path = "serial0:115200n8";
+};
+
+&qupv3_id_0 {
+	status = "okay";
+};
+
+&tlmm {
+	gpio-reserved-ranges = <110 6>;
+};
+
+&uart1 {
+	status = "okay";
+};

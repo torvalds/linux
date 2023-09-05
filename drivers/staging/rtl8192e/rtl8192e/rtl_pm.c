@@ -9,7 +9,6 @@
 #include "r8190P_rtl8256.h"
 #include "rtl_pm.h"
 
-
 int rtl92e_suspend(struct device *dev_d)
 {
 	struct net_device *dev = dev_get_drvdata(dev_d);
@@ -61,7 +60,6 @@ int rtl92e_resume(struct device *dev_d)
 	u32 val;
 
 	netdev_info(dev, "================>r8192E resume call.\n");
-
 
 	pci_read_config_dword(pdev, 0x40, &val);
 	if ((val & 0x0000ff00) != 0)

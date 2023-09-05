@@ -1,0 +1,111 @@
+// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
+/*
+ * Copyright (C) 2017 Luxul Inc.
+ */
+
+/dts-v1/;
+
+#include "bcm4708.dtsi"
+#include "bcm5301x-nand-cs0-bch8.dtsi"
+
+/ {
+	compatible = "luxul,abr-4500-v1", "brcm,bcm47094", "brcm,bcm4708";
+	model = "Luxul ABR-4500 V1";
+
+	chosen {
+		bootargs = "earlycon";
+	};
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0x00000000 0x08000000>,
+		      <0x88000000 0x18000000>;
+	};
+
+	nvram@1eff0000 {
+		compatible = "brcm,nvram";
+		reg = <0x1eff0000 0x10000>;
+
+		et0macaddr: et0macaddr {
+			#nvmem-cell-cells = <1>;
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		led-status {
+			label = "bcm53xx:green:status";
+			gpios = <&chipcommon 20 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "timer";
+		};
+
+		led-usb3 {
+			label = "bcm53xx:green:usb3";
+			gpios = <&chipcommon 19 GPIO_ACTIVE_LOW>;
+			trigger-sources = <&ohci_port1>, <&ehci_port1>,
+				<&xhci_port1>;
+			linux,default-trigger = "usbport";
+		};
+
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		button-restart {
+			label = "Reset";
+			linux,code = <KEY_RESTART>;
+			gpios = <&chipcommon 17 GPIO_ACTIVE_LOW>;
+		};
+	};
+};
+
+&usb3 {
+	vcc-gpio = <&chipcommon 18 GPIO_ACTIVE_HIGH>;
+};
+
+&gmac0 {
+	nvmem-cells = <&et0macaddr 0>;
+	nvmem-cell-names = "mac-address";
+};
+
+&spi_nor {
+	status = "okay";
+};
+
+&usb3_phy {
+	status = "okay";
+};
+
+&srab {
+	status = "okay";
+
+	ports {
+		port@0 {
+			label = "wan";
+			nvmem-cells = <&et0macaddr 1>;
+			nvmem-cell-names = "mac-address";
+		};
+
+		port@1 {
+			label = "lan4";
+		};
+
+		port@2 {
+			label = "lan3";
+		};
+
+		port@3 {
+			label = "lan2";
+		};
+
+		port@4 {
+			label = "lan1";
+		};
+
+		port@5 {
+			label = "cpu";
+		};
+	};
+};

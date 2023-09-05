@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/clock/imx8mp-audiomix.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: NXP i.MX8MP AudioMIX Block Control Binding
+title: NXP i.MX8MP AudioMIX Block Control
 
 maintainers:
   - Marek Vasut <marex@denx.de>

@@ -25,6 +25,7 @@
 #endif
 
 #include <net/ip.h>
+#include <net/gso.h>
 #include <net/icmp.h>
 #include <net/route.h>
 

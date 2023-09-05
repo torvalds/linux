@@ -286,6 +286,7 @@ static inline void iounmap(volatile void __iomem *addr) { }
  * access
  */
 #define xlate_dev_mem_ptr(p)	__va(p)
+#define unxlate_dev_mem_ptr(p, v) do { } while (0)
 
 #define ARCH_HAS_VALID_PHYS_ADDR_RANGE
 int valid_phys_addr_range(phys_addr_t addr, size_t size);

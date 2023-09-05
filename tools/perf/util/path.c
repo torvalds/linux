@@ -1,16 +1,4 @@
 // SPDX-License-Identifier: GPL-2.0
-/*
- * I'm tired of doing "vsnprintf()" etc just to open a
- * file, so here's a "return static buffer with printf"
- * interface for paths.
- *
- * It's obviously not thread-safe. Sue me. But it's quite
- * useful for doing things like
- *
- *   f = open(mkpath("%s/%s.perf", base, name), O_RDONLY);
- *
- * which is what it's designed for.
- */
 #include "path.h"
 #include "cache.h"
 #include <linux/kernel.h>
@@ -21,18 +9,6 @@
 #include <sys/stat.h>
 #include <dirent.h>
 #include <unistd.h>
-
-static char bad_path[] = "/bad-path/";
-/*
- * One hack:
- */
-static char *get_pathname(void)
-{
-	static char pathname_array[4][PATH_MAX];
-	static int idx;
-
-	return pathname_array[3 & ++idx];
-}
 
 static char *cleanup_path(char *path)
 {
@@ -45,18 +21,17 @@ static char *cleanup_path(char *path)
 	return path;
 }
 
-char *mkpath(const char *fmt, ...)
+char *mkpath(char *path_buf, size_t sz, const char *fmt, ...)
 {
 	va_list args;
 	unsigned len;
-	char *pathname = get_pathname();
 
 	va_start(args, fmt);
-	len = vsnprintf(pathname, PATH_MAX, fmt, args);
+	len = vsnprintf(path_buf, sz, fmt, args);
 	va_end(args);
-	if (len >= PATH_MAX)
-		return bad_path;
-	return cleanup_path(pathname);
+	if (len >= sz)
+		strncpy(path_buf, "/bad-path/", sz);
+	return cleanup_path(path_buf);
 }
 
 int path__join(char *bf, size_t size, const char *path1, const char *path2)

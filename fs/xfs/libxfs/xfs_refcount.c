@@ -1152,7 +1152,8 @@ xfs_refcount_adjust_extents(
 						cur->bc_ag.pag->pag_agno,
 						tmp.rc_startblock);
 				error = xfs_free_extent_later(cur->bc_tp, fsbno,
-						  tmp.rc_blockcount, NULL);
+						  tmp.rc_blockcount, NULL,
+						  XFS_AG_RESV_NONE);
 				if (error)
 					goto out_error;
 			}
@@ -1213,7 +1214,8 @@ xfs_refcount_adjust_extents(
 					cur->bc_ag.pag->pag_agno,
 					ext.rc_startblock);
 			error = xfs_free_extent_later(cur->bc_tp, fsbno,
-					ext.rc_blockcount, NULL);
+					ext.rc_blockcount, NULL,
+					XFS_AG_RESV_NONE);
 			if (error)
 				goto out_error;
 		}
@@ -1919,8 +1921,13 @@ xfs_refcount_recover_cow_leftovers(
 	struct xfs_buf			*agbp;
 	struct xfs_refcount_recovery	*rr, *n;
 	struct list_head		debris;
-	union xfs_btree_irec		low;
-	union xfs_btree_irec		high;
+	union xfs_btree_irec		low = {
+		.rc.rc_domain		= XFS_REFC_DOMAIN_COW,
+	};
+	union xfs_btree_irec		high = {
+		.rc.rc_domain		= XFS_REFC_DOMAIN_COW,
+		.rc.rc_startblock	= -1U,
+	};
 	xfs_fsblock_t			fsb;
 	int				error;
 
@@ -1951,10 +1958,6 @@ xfs_refcount_recover_cow_leftovers(
 	cur = xfs_refcountbt_init_cursor(mp, tp, agbp, pag);
 
 	/* Find all the leftover CoW staging extents. */
-	memset(&low, 0, sizeof(low));
-	memset(&high, 0, sizeof(high));
-	low.rc.rc_domain = high.rc.rc_domain = XFS_REFC_DOMAIN_COW;
-	high.rc.rc_startblock = -1U;
 	error = xfs_btree_query_range(cur, &low, &high,
 			xfs_refcount_recover_extent, &debris);
 	xfs_btree_del_cursor(cur, error);
@@ -1981,7 +1984,8 @@ xfs_refcount_recover_cow_leftovers(
 
 		/* Free the block. */
 		error = xfs_free_extent_later(tp, fsb,
-				rr->rr_rrec.rc_blockcount, NULL);
+				rr->rr_rrec.rc_blockcount, NULL,
+				XFS_AG_RESV_NONE);
 		if (error)
 			goto out_trans;
 

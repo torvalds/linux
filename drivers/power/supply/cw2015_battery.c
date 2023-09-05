@@ -747,7 +747,7 @@ static struct i2c_driver cw_bat_driver = {
 		.of_match_table = cw2015_of_match,
 		.pm = &cw_bat_pm_ops,
 	},
-	.probe_new = cw_bat_probe,
+	.probe = cw_bat_probe,
 	.id_table = cw_bat_id_table,
 };
 

@@ -497,11 +497,6 @@ struct cxgb4_uld_info {
 #endif
 };
 
-static inline bool cxgb4_is_ktls_skb(struct sk_buff *skb)
-{
-	return skb->sk && tls_is_sk_tx_device_offloaded(skb->sk);
-}
-
 void cxgb4_uld_enable(struct adapter *adap);
 void cxgb4_register_uld(enum cxgb4_uld type, const struct cxgb4_uld_info *p);
 int cxgb4_unregister_uld(enum cxgb4_uld type);

@@ -1318,7 +1318,7 @@ struct gb_svc *gb_svc_create(struct gb_host_device *hd)
 	if (!svc)
 		return NULL;
 
-	svc->wq = alloc_workqueue("%s:svc", WQ_UNBOUND, 1, dev_name(&hd->dev));
+	svc->wq = alloc_ordered_workqueue("%s:svc", 0, dev_name(&hd->dev));
 	if (!svc->wq) {
 		kfree(svc);
 		return NULL;

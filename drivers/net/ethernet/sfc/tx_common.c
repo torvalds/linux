@@ -12,6 +12,7 @@
 #include "efx.h"
 #include "nic_common.h"
 #include "tx_common.h"
+#include <net/gso.h>
 
 static unsigned int efx_tx_cb_page_count(struct efx_tx_queue *tx_queue)
 {

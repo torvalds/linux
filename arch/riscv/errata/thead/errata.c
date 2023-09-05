@@ -45,8 +45,11 @@ static bool errata_probe_cmo(unsigned int stage,
 	if (stage == RISCV_ALTERNATIVES_EARLY_BOOT)
 		return false;
 
-	riscv_cbom_block_size = L1_CACHE_BYTES;
-	riscv_noncoherent_supported();
+	if (stage == RISCV_ALTERNATIVES_BOOT) {
+		riscv_cbom_block_size = L1_CACHE_BYTES;
+		riscv_noncoherent_supported();
+	}
+
 	return true;
 }
 

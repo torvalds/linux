@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/clock/brcm,bcm63268-timer-clocks.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Broadcom BCM63268 Timer Clock and Reset Device Tree Bindings
+title: Broadcom BCM63268 Timer Clock and Reset
 
 maintainers:
   - Álvaro Fernández Rojas <noltari@gmail.com>

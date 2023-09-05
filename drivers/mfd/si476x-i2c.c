@@ -866,7 +866,7 @@ static struct i2c_driver si476x_core_driver = {
 	.driver		= {
 		.name	= "si476x-core",
 	},
-	.probe_new	= si476x_core_probe,
+	.probe		= si476x_core_probe,
 	.remove         = si476x_core_remove,
 	.id_table       = si476x_id,
 };

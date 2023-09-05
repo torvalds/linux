@@ -102,7 +102,7 @@ static struct i2c_driver wm831x_i2c_driver = {
 		.of_match_table = of_match_ptr(wm831x_of_match),
 		.suppress_bind_attrs = true,
 	},
-	.probe_new = wm831x_i2c_probe,
+	.probe = wm831x_i2c_probe,
 	.id_table = wm831x_i2c_id,
 };
 

@@ -14,6 +14,7 @@
 #include "../../../util/debug.h"
 #include "../../../util/evlist.h"
 #include "../../../util/pmu.h"
+#include "../../../util/pmus.h"
 #include "cs-etm.h"
 #include "arm-spe.h"
 #include "hisi-ptt.h"
@@ -40,7 +41,7 @@ static struct perf_pmu **find_all_arm_spe_pmus(int *nr_spes, int *err)
 			return NULL;
 		}
 
-		arm_spe_pmus[*nr_spes] = perf_pmu__find(arm_spe_pmu_name);
+		arm_spe_pmus[*nr_spes] = perf_pmus__find(arm_spe_pmu_name);
 		if (arm_spe_pmus[*nr_spes]) {
 			pr_debug2("%s %d: arm_spe_pmu %d type %d name %s\n",
 				 __func__, __LINE__, *nr_spes,
@@ -87,7 +88,7 @@ static struct perf_pmu **find_all_hisi_ptt_pmus(int *nr_ptts, int *err)
 	rewinddir(dir);
 	while ((dent = readdir(dir))) {
 		if (strstr(dent->d_name, HISI_PTT_PMU_NAME) && idx < *nr_ptts) {
-			hisi_ptt_pmus[idx] = perf_pmu__find(dent->d_name);
+			hisi_ptt_pmus[idx] = perf_pmus__find(dent->d_name);
 			if (hisi_ptt_pmus[idx])
 				idx++;
 		}
@@ -131,7 +132,7 @@ struct auxtrace_record
 	if (!evlist)
 		return NULL;
 
-	cs_etm_pmu = perf_pmu__find(CORESIGHT_ETM_PMU_NAME);
+	cs_etm_pmu = perf_pmus__find(CORESIGHT_ETM_PMU_NAME);
 	arm_spe_pmus = find_all_arm_spe_pmus(&nr_spes, err);
 	hisi_ptt_pmus = find_all_hisi_ptt_pmus(&nr_ptts, err);
 

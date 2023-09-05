@@ -138,7 +138,7 @@ void kfd_doorbell_fini(struct kfd_dev *kfd)
 		iounmap(kfd->doorbell_kernel_ptr);
 }
 
-int kfd_doorbell_mmap(struct kfd_dev *dev, struct kfd_process *process,
+int kfd_doorbell_mmap(struct kfd_node *dev, struct kfd_process *process,
 		      struct vm_area_struct *vma)
 {
 	phys_addr_t address;
@@ -148,7 +148,7 @@ int kfd_doorbell_mmap(struct kfd_dev *dev, struct kfd_process *process,
 	 * For simplicitly we only allow mapping of the entire doorbell
 	 * allocation of a single device & process.
 	 */
-	if (vma->vm_end - vma->vm_start != kfd_doorbell_process_slice(dev))
+	if (vma->vm_end - vma->vm_start != kfd_doorbell_process_slice(dev->kfd))
 		return -EINVAL;
 
 	pdd = kfd_get_process_device_data(dev, process);
@@ -170,13 +170,13 @@ int kfd_doorbell_mmap(struct kfd_dev *dev, struct kfd_process *process,
 		 "     vm_flags            == 0x%04lX\n"
 		 "     size                == 0x%04lX\n",
 		 (unsigned long long) vma->vm_start, address, vma->vm_flags,
-		 kfd_doorbell_process_slice(dev));
+		 kfd_doorbell_process_slice(dev->kfd));
 
 
 	return io_remap_pfn_range(vma,
 				vma->vm_start,
 				address >> PAGE_SHIFT,
-				kfd_doorbell_process_slice(dev),
+				kfd_doorbell_process_slice(dev->kfd),
 				vma->vm_page_prot);
 }
 
@@ -278,14 +278,14 @@ uint64_t kfd_get_number_elems(struct kfd_dev *kfd)
 phys_addr_t kfd_get_process_doorbells(struct kfd_process_device *pdd)
 {
 	if (!pdd->doorbell_index) {
-		int r = kfd_alloc_process_doorbells(pdd->dev,
+		int r = kfd_alloc_process_doorbells(pdd->dev->kfd,
 						    &pdd->doorbell_index);
 		if (r < 0)
 			return 0;
 	}
 
-	return pdd->dev->doorbell_base +
-		pdd->doorbell_index * kfd_doorbell_process_slice(pdd->dev);
+	return pdd->dev->kfd->doorbell_base +
+		pdd->doorbell_index * kfd_doorbell_process_slice(pdd->dev->kfd);
 }
 
 int kfd_alloc_process_doorbells(struct kfd_dev *kfd, unsigned int *doorbell_index)

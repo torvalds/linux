@@ -1240,7 +1240,7 @@ static struct i2c_driver menelaus_i2c_driver = {
 	.driver = {
 		.name		= DRIVER_NAME,
 	},
-	.probe_new	= menelaus_probe,
+	.probe		= menelaus_probe,
 	.remove		= menelaus_remove,
 	.id_table	= menelaus_id,
 };

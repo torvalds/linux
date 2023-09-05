@@ -1145,7 +1145,6 @@ static int btrfs_write_check(struct kiocb *iocb, struct iov_iter *from,
 	    !(BTRFS_I(inode)->flags & (BTRFS_INODE_NODATACOW | BTRFS_INODE_PREALLOC)))
 		return -EAGAIN;
 
-	current->backing_dev_info = inode_to_bdi(inode);
 	ret = file_remove_privs(file);
 	if (ret)
 		return ret;
@@ -1165,10 +1164,8 @@ static int btrfs_write_check(struct kiocb *iocb, struct iov_iter *from,
 		loff_t end_pos = round_up(pos + count, fs_info->sectorsize);
 
 		ret = btrfs_cont_expand(BTRFS_I(inode), oldsize, end_pos);
-		if (ret) {
-			current->backing_dev_info = NULL;
+		if (ret)
 			return ret;
-		}
 	}
 
 	return 0;
@@ -1651,7 +1648,6 @@ ssize_t btrfs_do_write_iter(struct kiocb *iocb, struct iov_iter *from,
 	struct file *file = iocb->ki_filp;
 	struct btrfs_inode *inode = BTRFS_I(file_inode(file));
 	ssize_t num_written, num_sync;
-	const bool sync = iocb_is_dsync(iocb);
 
 	/*
 	 * If the fs flips readonly due to some impossible error, although we
@@ -1663,9 +1659,6 @@ ssize_t btrfs_do_write_iter(struct kiocb *iocb, struct iov_iter *from,
 
 	if (encoded && (iocb->ki_flags & IOCB_NOWAIT))
 		return -EOPNOTSUPP;
-
-	if (sync)
-		atomic_inc(&inode->sync_writers);
 
 	if (encoded) {
 		num_written = btrfs_encoded_write(iocb, from, encoded);
@@ -1686,10 +1679,6 @@ ssize_t btrfs_do_write_iter(struct kiocb *iocb, struct iov_iter *from,
 			num_written = num_sync;
 	}
 
-	if (sync)
-		atomic_dec(&inode->sync_writers);
-
-	current->backing_dev_info = NULL;
 	return num_written;
 }
 
@@ -1733,9 +1722,7 @@ static int start_ordered_ops(struct inode *inode, loff_t start, loff_t end)
 	 * several segments of stripe length (currently 64K).
 	 */
 	blk_start_plug(&plug);
-	atomic_inc(&BTRFS_I(inode)->sync_writers);
 	ret = btrfs_fdatawrite_range(inode, start, end);
-	atomic_dec(&BTRFS_I(inode)->sync_writers);
 	blk_finish_plug(&plug);
 
 	return ret;
@@ -3709,7 +3696,8 @@ static int btrfs_file_open(struct inode *inode, struct file *filp)
 {
 	int ret;
 
-	filp->f_mode |= FMODE_NOWAIT | FMODE_BUF_RASYNC | FMODE_BUF_WASYNC;
+	filp->f_mode |= FMODE_NOWAIT | FMODE_BUF_RASYNC | FMODE_BUF_WASYNC |
+		        FMODE_CAN_ODIRECT;
 
 	ret = fsverity_file_open(inode, filp);
 	if (ret)
@@ -3825,7 +3813,7 @@ static ssize_t btrfs_file_read_iter(struct kiocb *iocb, struct iov_iter *to)
 const struct file_operations btrfs_file_operations = {
 	.llseek		= btrfs_file_llseek,
 	.read_iter      = btrfs_file_read_iter,
-	.splice_read	= generic_file_splice_read,
+	.splice_read	= filemap_splice_read,
 	.write_iter	= btrfs_file_write_iter,
 	.splice_write	= iter_file_splice_write,
 	.mmap		= btrfs_file_mmap,

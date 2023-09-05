@@ -730,7 +730,7 @@ static struct i2c_driver cm36651_driver = {
 		.name	= "cm36651",
 		.of_match_table = cm36651_of_match,
 	},
-	.probe_new	= cm36651_probe,
+	.probe		= cm36651_probe,
 	.remove		= cm36651_remove,
 	.id_table	= cm36651_id,
 };

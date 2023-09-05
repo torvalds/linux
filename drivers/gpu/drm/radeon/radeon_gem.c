@@ -877,7 +877,7 @@ int radeon_mode_dumb_create(struct drm_file *file_priv,
 #if defined(CONFIG_DEBUG_FS)
 static int radeon_debugfs_gem_info_show(struct seq_file *m, void *unused)
 {
-	struct radeon_device *rdev = (struct radeon_device *)m->private;
+	struct radeon_device *rdev = m->private;
 	struct radeon_bo *rbo;
 	unsigned i = 0;
 

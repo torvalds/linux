@@ -79,14 +79,14 @@ static inline struct dpu_hw_dspp *to_dpu_hw_dspp(struct dpu_hw_blk *hw)
 }
 
 /**
- * dpu_hw_dspp_init - initializes the dspp hw driver object.
- * should be called once before accessing every dspp.
- * @idx:  DSPP index for which driver object is required
+ * dpu_hw_dspp_init() - Initializes the DSPP hw driver object.
+ * should be called once before accessing every DSPP.
+ * @cfg:  DSPP catalog entry for which driver object is required
  * @addr: Mapped register io address of MDP
- * @Return: pointer to structure or ERR_PTR
+ * Return: pointer to structure or ERR_PTR
  */
-struct dpu_hw_dspp *dpu_hw_dspp_init(enum dpu_dspp idx,
-	void __iomem *addr, const struct dpu_mdss_cfg *m);
+struct dpu_hw_dspp *dpu_hw_dspp_init(const struct dpu_dspp_cfg *cfg,
+	void __iomem *addr);
 
 /**
  * dpu_hw_dspp_destroy(): Destroys DSPP driver context

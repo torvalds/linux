@@ -915,7 +915,7 @@ static const struct of_device_id ltc4162l_of_match[] __maybe_unused = {
 MODULE_DEVICE_TABLE(of, ltc4162l_of_match);
 
 static struct i2c_driver ltc4162l_driver = {
-	.probe_new	= ltc4162l_probe,
+	.probe		= ltc4162l_probe,
 	.alert		= ltc4162l_alert,
 	.id_table	= ltc4162l_i2c_id_table,
 	.driver = {

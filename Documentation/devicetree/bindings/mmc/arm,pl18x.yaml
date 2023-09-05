@@ -53,10 +53,11 @@ properties:
         items:
           - const: arm,pl18x
           - const: arm,primecell
-      - description: Entry for STMicroelectronics variant of PL18x.
-          This dedicated compatible is used by bootloaders.
+      - description: Entries for STMicroelectronics variant of PL18x.
         items:
-          - const: st,stm32-sdmmc2
+          - enum:
+              - st,stm32-sdmmc2
+              - st,stm32mp25-sdmmc2
           - const: arm,pl18x
           - const: arm,primecell
 

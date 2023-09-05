@@ -591,7 +591,7 @@ struct xfs_attr_shortform {
 		uint8_t valuelen;	/* actual length of value (no NULL) */
 		uint8_t flags;	/* flags bits (see xfs_attr_leaf.h) */
 		uint8_t nameval[];	/* name & value bytes concatenated */
-	} list[1];			/* variable sized array */
+	} list[];			/* variable sized array */
 };
 
 typedef struct xfs_attr_leaf_map {	/* RLE map of free bytes */
@@ -620,19 +620,29 @@ typedef struct xfs_attr_leaf_entry {	/* sorted on key, not name */
 typedef struct xfs_attr_leaf_name_local {
 	__be16	valuelen;		/* number of bytes in value */
 	__u8	namelen;		/* length of name bytes */
-	__u8	nameval[1];		/* name/value bytes */
+	/*
+	 * In Linux 6.5 this flex array was converted from nameval[1] to
+	 * nameval[].  Be very careful here about extra padding at the end;
+	 * see xfs_attr_leaf_entsize_local() for details.
+	 */
+	__u8	nameval[];		/* name/value bytes */
 } xfs_attr_leaf_name_local_t;
 
 typedef struct xfs_attr_leaf_name_remote {
 	__be32	valueblk;		/* block number of value bytes */
 	__be32	valuelen;		/* number of bytes in value */
 	__u8	namelen;		/* length of name bytes */
-	__u8	name[1];		/* name bytes */
+	/*
+	 * In Linux 6.5 this flex array was converted from name[1] to name[].
+	 * Be very careful here about extra padding at the end; see
+	 * xfs_attr_leaf_entsize_remote() for details.
+	 */
+	__u8	name[];			/* name bytes */
 } xfs_attr_leaf_name_remote_t;
 
 typedef struct xfs_attr_leafblock {
 	xfs_attr_leaf_hdr_t	hdr;	/* constant-structure header block */
-	xfs_attr_leaf_entry_t	entries[1];	/* sorted on key, not name */
+	xfs_attr_leaf_entry_t	entries[];	/* sorted on key, not name */
 	/*
 	 * The rest of the block contains the following structures after the
 	 * leaf entries, growing from the bottom up. The variables are never
@@ -664,7 +674,7 @@ struct xfs_attr3_leaf_hdr {
 
 struct xfs_attr3_leafblock {
 	struct xfs_attr3_leaf_hdr	hdr;
-	struct xfs_attr_leaf_entry	entries[1];
+	struct xfs_attr_leaf_entry	entries[];
 
 	/*
 	 * The rest of the block contains the following structures after the
@@ -747,14 +757,61 @@ xfs_attr3_leaf_name_local(xfs_attr_leafblock_t *leafp, int idx)
  */
 static inline int xfs_attr_leaf_entsize_remote(int nlen)
 {
-	return round_up(sizeof(struct xfs_attr_leaf_name_remote) - 1 +
-			nlen, XFS_ATTR_LEAF_NAME_ALIGN);
+	/*
+	 * Prior to Linux 6.5, struct xfs_attr_leaf_name_remote ended with
+	 * name[1], which was used as a flexarray.  The layout of this struct
+	 * is 9 bytes of fixed-length fields followed by a __u8 flex array at
+	 * offset 9.
+	 *
+	 * On most architectures, struct xfs_attr_leaf_name_remote had two
+	 * bytes of implicit padding at the end of the struct to make the
+	 * struct length 12.  After converting name[1] to name[], there are
+	 * three implicit padding bytes and the struct size remains 12.
+	 * However, there are compiler configurations that do not add implicit
+	 * padding at all (m68k) and have been broken for years.
+	 *
+	 * This entsize computation historically added (the xattr name length)
+	 * to (the padded struct length - 1) and rounded that sum up to the
+	 * nearest multiple of 4 (NAME_ALIGN).  IOWs, round_up(11 + nlen, 4).
+	 * This is encoded in the ondisk format, so we cannot change this.
+	 *
+	 * Compute the entsize from offsetof of the flexarray and manually
+	 * adding bytes for the implicit padding.
+	 */
+	const size_t remotesize =
+			offsetof(struct xfs_attr_leaf_name_remote, name) + 2;
+
+	return round_up(remotesize + nlen, XFS_ATTR_LEAF_NAME_ALIGN);
 }
 
 static inline int xfs_attr_leaf_entsize_local(int nlen, int vlen)
 {
-	return round_up(sizeof(struct xfs_attr_leaf_name_local) - 1 +
-			nlen + vlen, XFS_ATTR_LEAF_NAME_ALIGN);
+	/*
+	 * Prior to Linux 6.5, struct xfs_attr_leaf_name_local ended with
+	 * nameval[1], which was used as a flexarray.  The layout of this
+	 * struct is 3 bytes of fixed-length fields followed by a __u8 flex
+	 * array at offset 3.
+	 *
+	 * struct xfs_attr_leaf_name_local had zero bytes of implicit padding
+	 * at the end of the struct to make the struct length 4.  On most
+	 * architectures, after converting nameval[1] to nameval[], there is
+	 * one implicit padding byte and the struct size remains 4.  However,
+	 * there are compiler configurations that do not add implicit padding
+	 * at all (m68k) and would break.
+	 *
+	 * This entsize computation historically added (the xattr name and
+	 * value length) to (the padded struct length - 1) and rounded that sum
+	 * up to the nearest multiple of 4 (NAME_ALIGN).  IOWs, the formula is
+	 * round_up(3 + nlen + vlen, 4).  This is encoded in the ondisk format,
+	 * so we cannot change this.
+	 *
+	 * Compute the entsize from offsetof of the flexarray and manually
+	 * adding bytes for the implicit padding.
+	 */
+	const size_t localsize =
+			offsetof(struct xfs_attr_leaf_name_local, nameval);
+
+	return round_up(localsize + nlen + vlen, XFS_ATTR_LEAF_NAME_ALIGN);
 }
 
 static inline int xfs_attr_leaf_entsize_local_max(int bsize)

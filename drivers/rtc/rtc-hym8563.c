@@ -576,7 +576,7 @@ static struct i2c_driver hym8563_driver = {
 		.pm	= &hym8563_pm_ops,
 		.of_match_table	= hym8563_dt_idtable,
 	},
-	.probe_new	= hym8563_probe,
+	.probe		= hym8563_probe,
 	.id_table	= hym8563_id,
 };
 

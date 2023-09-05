@@ -1561,7 +1561,7 @@ rpm_disable:
 	return ret;
 }
 
-static int i2c_imx_remove(struct platform_device *pdev)
+static void i2c_imx_remove(struct platform_device *pdev)
 {
 	struct imx_i2c_struct *i2c_imx = platform_get_drvdata(pdev);
 	int irq, ret;
@@ -1592,8 +1592,6 @@ static int i2c_imx_remove(struct platform_device *pdev)
 
 	pm_runtime_put_noidle(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
-
-	return 0;
 }
 
 static int __maybe_unused i2c_imx_runtime_suspend(struct device *dev)
@@ -1624,7 +1622,7 @@ static const struct dev_pm_ops i2c_imx_pm_ops = {
 
 static struct platform_driver i2c_imx_driver = {
 	.probe = i2c_imx_probe,
-	.remove = i2c_imx_remove,
+	.remove_new = i2c_imx_remove,
 	.driver = {
 		.name = DRIVER_NAME,
 		.pm = &i2c_imx_pm_ops,

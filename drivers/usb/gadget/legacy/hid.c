@@ -237,7 +237,7 @@ static int hidg_plat_driver_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int hidg_plat_driver_remove(struct platform_device *pdev)
+static void hidg_plat_driver_remove(struct platform_device *pdev)
 {
 	struct hidg_func_node *e, *n;
 
@@ -245,8 +245,6 @@ static int hidg_plat_driver_remove(struct platform_device *pdev)
 		list_del(&e->node);
 		kfree(e);
 	}
-
-	return 0;
 }
 
 
@@ -263,7 +261,7 @@ static struct usb_composite_driver hidg_driver = {
 };
 
 static struct platform_driver hidg_plat_driver = {
-	.remove		= hidg_plat_driver_remove,
+	.remove_new	= hidg_plat_driver_remove,
 	.driver		= {
 		.name	= "hidg",
 	},

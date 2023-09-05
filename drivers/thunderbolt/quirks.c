@@ -10,6 +10,7 @@
 static void quirk_force_power_link(struct tb_switch *sw)
 {
 	sw->quirks |= QUIRK_FORCE_POWER_LINK_CONTROLLER;
+	tb_sw_dbg(sw, "forcing power to link controller\n");
 }
 
 static void quirk_dp_credit_allocation(struct tb_switch *sw)
@@ -74,6 +75,14 @@ static const struct tb_quirk tb_quirks[] = {
 		  quirk_usb3_maximum_bandwidth },
 	{ 0x8087, PCI_DEVICE_ID_INTEL_MTL_P_NHI1, 0x0000, 0x0000,
 		  quirk_usb3_maximum_bandwidth },
+	{ 0x8087, PCI_DEVICE_ID_INTEL_BARLOW_RIDGE_HOST_80G_NHI, 0x0000, 0x0000,
+		  quirk_usb3_maximum_bandwidth },
+	{ 0x8087, PCI_DEVICE_ID_INTEL_BARLOW_RIDGE_HOST_40G_NHI, 0x0000, 0x0000,
+		  quirk_usb3_maximum_bandwidth },
+	{ 0x8087, PCI_DEVICE_ID_INTEL_BARLOW_RIDGE_HUB_80G_BRIDGE, 0x0000, 0x0000,
+		  quirk_usb3_maximum_bandwidth },
+	{ 0x8087, PCI_DEVICE_ID_INTEL_BARLOW_RIDGE_HUB_40G_BRIDGE, 0x0000, 0x0000,
+		  quirk_usb3_maximum_bandwidth },
 	/*
 	 * CLx is not supported on AMD USB4 Yellow Carp and Pink Sardine platforms.
 	 */
@@ -105,6 +114,7 @@ void tb_check_quirks(struct tb_switch *sw)
 		if (q->device && q->device != sw->device)
 			continue;
 
+		tb_sw_dbg(sw, "running %ps\n", q->hook);
 		q->hook(sw);
 	}
 }

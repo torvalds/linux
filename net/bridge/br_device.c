@@ -39,6 +39,7 @@ netdev_tx_t br_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 	u16 vid = 0;
 
 	memset(skb->cb, 0, sizeof(struct br_input_skb_cb));
+	br_tc_skb_miss_set(skb, false);
 
 	rcu_read_lock();
 	nf_ops = rcu_dereference(nf_br_ops);

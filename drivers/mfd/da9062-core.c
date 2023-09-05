@@ -726,7 +726,7 @@ static struct i2c_driver da9062_i2c_driver = {
 		.name = "da9062",
 		.of_match_table = da9062_dt_ids,
 	},
-	.probe_new = da9062_i2c_probe,
+	.probe = da9062_i2c_probe,
 	.remove   = da9062_i2c_remove,
 	.id_table = da9062_i2c_id,
 };

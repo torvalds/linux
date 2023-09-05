@@ -20,8 +20,8 @@
 #include "reset.h"
 
 enum {
-	DT_SLEEP_CLK,
 	DT_XO,
+	DT_SLEEP_CLK,
 	DT_PCIE_2LANE_PHY_PIPE_CLK,
 	DT_PCIE_2LANE_PHY_PIPE_CLK_X1,
 	DT_USB_PCIE_WRAPPER_PIPE_CLK,
@@ -366,7 +366,7 @@ static struct clk_rcg2 gcc_adss_pwm_clk_src = {
 };
 
 static const struct freq_tbl ftbl_gcc_apss_axi_clk_src[] = {
-	F(480000000, P_GPLL4_OUT_MAIN, 2.5, 0, 0),
+	F(480000000, P_GPLL4_OUT_AUX, 2.5, 0, 0),
 	F(533333333, P_GPLL0_OUT_MAIN, 1.5, 0, 0),
 	{ }
 };
@@ -963,7 +963,7 @@ static struct clk_rcg2 gcc_sdcc1_apps_clk_src = {
 		.name = "gcc_sdcc1_apps_clk_src",
 		.parent_data = gcc_parent_data_9,
 		.num_parents = ARRAY_SIZE(gcc_parent_data_9),
-		.ops = &clk_rcg2_ops,
+		.ops = &clk_rcg2_floor_ops,
 	},
 };
 

@@ -77,7 +77,7 @@ static struct i2c_driver sky81452_driver = {
 		.name = "sky81452",
 		.of_match_table = of_match_ptr(sky81452_of_match),
 	},
-	.probe_new = sky81452_probe,
+	.probe = sky81452_probe,
 	.id_table = sky81452_ids,
 };
 

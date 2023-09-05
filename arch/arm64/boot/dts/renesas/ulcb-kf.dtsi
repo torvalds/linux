@@ -10,6 +10,7 @@
 	aliases {
 		serial1 = &hscif0;
 		serial2 = &scif1;
+		serial3 = &hscif1;
 		mmc2 = &sdhi3;
 	};
 
@@ -108,6 +109,14 @@
 
 &hscif0 {
 	pinctrl-0 = <&hscif0_pins>;
+	pinctrl-names = "default";
+	uart-has-rtscts;
+
+	status = "okay";
+};
+
+&hscif1 {
+	pinctrl-0 = <&hscif1_pins>;
 	pinctrl-names = "default";
 	uart-has-rtscts;
 
@@ -366,8 +375,13 @@
 		function = "hscif0";
 	};
 
+	hscif1_pins: hscif1 {
+		groups = "hscif1_data_a", "hscif1_ctrl_a";
+		function = "hscif1";
+	};
+
 	scif1_pins: scif1 {
-		groups = "scif1_data_b", "scif1_ctrl";
+		groups = "scif1_data_b";
 		function = "scif1";
 	};
 
@@ -397,7 +411,6 @@
 &scif1 {
 	pinctrl-0 = <&scif1_pins>;
 	pinctrl-names = "default";
-	uart-has-rtscts;
 
 	status = "okay";
 };

@@ -1,8 +1,8 @@
 .. SPDX-License-Identifier: GPL-2.0
 
-======================================
-README file for the dc395x SCSI driver
-======================================
+==================
+dc395x SCSI driver
+==================
 
 Status
 ------
@@ -11,13 +11,10 @@ be safe to use. Testing with hard disks has not been done to any
 great degree and caution should be exercised if you want to attempt
 to use this driver with hard disks.
 
-This is a 2.5 only driver. For a 2.4 driver please see the original
-driver (which this driver started from) at
-http://www.garloff.de/kurt/linux/dc395/
-
-Problems, questions and patches should be submitted to the mailing
-list. Details on the list, including archives, are available at
-http://lists.twibble.org/mailman/listinfo/dc395x/
+This driver is evolved from `the original 2.4 driver
+<https://web.archive.org/web/20140129181343/http://www.garloff.de/kurt/linux/dc395/>`_.
+Problems, questions and patches should be submitted to the `Linux SCSI
+mailing list <linux-scsi@vger.kernel.org>`_.
 
 Parameters
 ----------

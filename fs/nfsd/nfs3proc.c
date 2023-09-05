@@ -151,8 +151,6 @@ nfsd3_proc_read(struct svc_rqst *rqstp)
 {
 	struct nfsd3_readargs *argp = rqstp->rq_argp;
 	struct nfsd3_readres *resp = rqstp->rq_resp;
-	unsigned int len;
-	int v;
 
 	dprintk("nfsd: READ(3) %s %lu bytes at %Lu\n",
 				SVCFH_fmt(&argp->fh),
@@ -166,17 +164,7 @@ nfsd3_proc_read(struct svc_rqst *rqstp)
 	if (argp->offset + argp->count > (u64)OFFSET_MAX)
 		argp->count = (u64)OFFSET_MAX - argp->offset;
 
-	v = 0;
-	len = argp->count;
 	resp->pages = rqstp->rq_next_page;
-	while (len > 0) {
-		struct page *page = *(rqstp->rq_next_page++);
-
-		rqstp->rq_vec[v].iov_base = page_address(page);
-		rqstp->rq_vec[v].iov_len = min_t(unsigned int, len, PAGE_SIZE);
-		len -= rqstp->rq_vec[v].iov_len;
-		v++;
-	}
 
 	/* Obtain buffer pointer for payload.
 	 * 1 (status) + 22 (post_op_attr) + 1 (count) + 1 (eof)
@@ -187,7 +175,7 @@ nfsd3_proc_read(struct svc_rqst *rqstp)
 
 	fh_copy(&resp->fh, &argp->fh);
 	resp->status = nfsd_read(rqstp, &resp->fh, argp->offset,
-				 rqstp->rq_vec, v, &resp->count, &resp->eof);
+				 &resp->count, &resp->eof);
 	return rpc_success;
 }
 

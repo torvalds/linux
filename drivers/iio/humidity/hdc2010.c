@@ -338,7 +338,7 @@ static struct i2c_driver hdc2010_driver = {
 		.name	= "hdc2010",
 		.of_match_table = hdc2010_dt_ids,
 	},
-	.probe_new = hdc2010_probe,
+	.probe = hdc2010_probe,
 	.remove = hdc2010_remove,
 	.id_table = hdc2010_id,
 };

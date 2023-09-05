@@ -2,7 +2,7 @@
 /*
  * EHT handling
  *
- * Copyright(c) 2021-2022 Intel Corporation
+ * Copyright(c) 2021-2023 Intel Corporation
  */
 
 #include "ieee80211_i.h"
@@ -25,8 +25,7 @@ ieee80211_eht_cap_ie_to_sta_eht_cap(struct ieee80211_sub_if_data *sdata,
 	memset(eht_cap, 0, sizeof(*eht_cap));
 
 	if (!eht_cap_ie_elem ||
-	    !ieee80211_get_eht_iftype_cap(sband,
-					 ieee80211_vif_type_p2p(&sdata->vif)))
+	    !ieee80211_get_eht_iftype_cap_vif(sband, &sdata->vif))
 		return;
 
 	mcs_nss_size = ieee80211_eht_mcs_nss_size(he_cap_ie_elem,

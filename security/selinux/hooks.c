@@ -357,7 +357,7 @@ enum {
 };
 
 #define A(s, has_arg) {#s, sizeof(#s) - 1, Opt_##s, has_arg}
-static struct {
+static const struct {
 	const char *name;
 	int len;
 	int opt;
@@ -605,6 +605,13 @@ static int selinux_set_mnt_opts(struct super_block *sb,
 	u32 defcontext_sid = 0;
 	int rc = 0;
 
+	/*
+	 * Specifying internal flags without providing a place to
+	 * place the results is not allowed
+	 */
+	if (kern_flags && !set_kern_flags)
+		return -EINVAL;
+
 	mutex_lock(&sbsec->lock);
 
 	if (!selinux_initialized()) {
@@ -612,17 +619,15 @@ static int selinux_set_mnt_opts(struct super_block *sb,
 			/* Defer initialization until selinux_complete_init,
 			   after the initial policy is loaded and the security
 			   server is ready to handle calls. */
+			if (kern_flags & SECURITY_LSM_NATIVE_LABELS) {
+				sbsec->flags |= SE_SBNATIVE;
+				*set_kern_flags |= SECURITY_LSM_NATIVE_LABELS;
+			}
 			goto out;
 		}
 		rc = -EINVAL;
 		pr_warn("SELinux: Unable to set superblock options "
 			"before the security server is initialized\n");
-		goto out;
-	}
-	if (kern_flags && !set_kern_flags) {
-		/* Specifying internal flags without providing a place to
-		 * place the results is not allowed */
-		rc = -EINVAL;
 		goto out;
 	}
 
@@ -757,7 +762,17 @@ static int selinux_set_mnt_opts(struct super_block *sb,
 	 * sets the label used on all file below the mountpoint, and will set
 	 * the superblock context if not already set.
 	 */
-	if (kern_flags & SECURITY_LSM_NATIVE_LABELS && !context_sid) {
+	if (sbsec->flags & SE_SBNATIVE) {
+		/*
+		 * This means we are initializing a superblock that has been
+		 * mounted before the SELinux was initialized and the
+		 * filesystem requested native labeling. We had already
+		 * returned SECURITY_LSM_NATIVE_LABELS in *set_kern_flags
+		 * in the original mount attempt, so now we just need to set
+		 * the SECURITY_FS_USE_NATIVE behavior.
+		 */
+		sbsec->behavior = SECURITY_FS_USE_NATIVE;
+	} else if (kern_flags & SECURITY_LSM_NATIVE_LABELS && !context_sid) {
 		sbsec->behavior = SECURITY_FS_USE_NATIVE;
 		*set_kern_flags |= SECURITY_LSM_NATIVE_LABELS;
 	}
@@ -869,30 +884,36 @@ static int selinux_sb_clone_mnt_opts(const struct super_block *oldsb,
 	int set_rootcontext =	(oldsbsec->flags & ROOTCONTEXT_MNT);
 
 	/*
-	 * if the parent was able to be mounted it clearly had no special lsm
-	 * mount options.  thus we can safely deal with this superblock later
-	 */
-	if (!selinux_initialized())
-		return 0;
-
-	/*
 	 * Specifying internal flags without providing a place to
 	 * place the results is not allowed.
 	 */
 	if (kern_flags && !set_kern_flags)
 		return -EINVAL;
 
+	mutex_lock(&newsbsec->lock);
+
+	/*
+	 * if the parent was able to be mounted it clearly had no special lsm
+	 * mount options.  thus we can safely deal with this superblock later
+	 */
+	if (!selinux_initialized()) {
+		if (kern_flags & SECURITY_LSM_NATIVE_LABELS) {
+			newsbsec->flags |= SE_SBNATIVE;
+			*set_kern_flags |= SECURITY_LSM_NATIVE_LABELS;
+		}
+		goto out;
+	}
+
 	/* how can we clone if the old one wasn't set up?? */
 	BUG_ON(!(oldsbsec->flags & SE_SBINITIALIZED));
 
 	/* if fs is reusing a sb, make sure that the contexts match */
 	if (newsbsec->flags & SE_SBINITIALIZED) {
+		mutex_unlock(&newsbsec->lock);
 		if ((kern_flags & SECURITY_LSM_NATIVE_LABELS) && !set_context)
 			*set_kern_flags |= SECURITY_LSM_NATIVE_LABELS;
 		return selinux_cmp_sb_context(oldsb, newsb);
 	}
-
-	mutex_lock(&newsbsec->lock);
 
 	newsbsec->flags = oldsbsec->flags;
 
@@ -937,7 +958,7 @@ out:
 }
 
 /*
- * NOTE: the caller is resposible for freeing the memory even if on error.
+ * NOTE: the caller is responsible for freeing the memory even if on error.
  */
 static int selinux_add_opt(int token, const char *s, void **mnt_opts)
 {
@@ -1394,8 +1415,11 @@ static int inode_doinit_with_dentry(struct inode *inode, struct dentry *opt_dent
 	spin_unlock(&isec->lock);
 
 	switch (sbsec->behavior) {
+	/*
+	 * In case of SECURITY_FS_USE_NATIVE we need to re-fetch the labels
+	 * via xattr when called from delayed_superblock_init().
+	 */
 	case SECURITY_FS_USE_NATIVE:
-		break;
 	case SECURITY_FS_USE_XATTR:
 		if (!(inode->i_opflags & IOP_XATTR)) {
 			sid = sbsec->def_sid;
@@ -5379,6 +5403,21 @@ static void selinux_sctp_sk_clone(struct sctp_association *asoc, struct sock *sk
 	selinux_netlbl_sctp_sk_clone(sk, newsk);
 }
 
+static int selinux_mptcp_add_subflow(struct sock *sk, struct sock *ssk)
+{
+	struct sk_security_struct *ssksec = ssk->sk_security;
+	struct sk_security_struct *sksec = sk->sk_security;
+
+	ssksec->sclass = sksec->sclass;
+	ssksec->sid = sksec->sid;
+
+	/* replace the existing subflow label deleting the existing one
+	 * and re-recreating a new label using the updated context
+	 */
+	selinux_netlbl_sk_security_free(ssksec);
+	return selinux_netlbl_socket_post_create(ssk, ssk->sk_family);
+}
+
 static int selinux_inet_conn_request(const struct sock *sk, struct sk_buff *skb,
 				     struct request_sock *req)
 {
@@ -7074,6 +7113,7 @@ static struct security_hook_list selinux_hooks[] __ro_after_init = {
 	LSM_HOOK_INIT(sctp_sk_clone, selinux_sctp_sk_clone),
 	LSM_HOOK_INIT(sctp_bind_connect, selinux_sctp_bind_connect),
 	LSM_HOOK_INIT(sctp_assoc_established, selinux_sctp_assoc_established),
+	LSM_HOOK_INIT(mptcp_add_subflow, selinux_mptcp_add_subflow),
 	LSM_HOOK_INIT(inet_conn_request, selinux_inet_conn_request),
 	LSM_HOOK_INIT(inet_csk_clone, selinux_inet_csk_clone),
 	LSM_HOOK_INIT(inet_conn_established, selinux_inet_conn_established),

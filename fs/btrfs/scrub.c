@@ -177,7 +177,6 @@ struct scrub_ctx {
 	struct btrfs_fs_info	*fs_info;
 	int			first_free;
 	int			cur_stripe;
-	struct list_head	csum_list;
 	atomic_t		cancel_req;
 	int			readonly;
 	int			sectors_per_bio;
@@ -309,17 +308,6 @@ static void scrub_blocked_if_needed(struct btrfs_fs_info *fs_info)
 	scrub_pause_off(fs_info);
 }
 
-static void scrub_free_csums(struct scrub_ctx *sctx)
-{
-	while (!list_empty(&sctx->csum_list)) {
-		struct btrfs_ordered_sum *sum;
-		sum = list_first_entry(&sctx->csum_list,
-				       struct btrfs_ordered_sum, list);
-		list_del(&sum->list);
-		kfree(sum);
-	}
-}
-
 static noinline_for_stack void scrub_free_ctx(struct scrub_ctx *sctx)
 {
 	int i;
@@ -330,7 +318,6 @@ static noinline_for_stack void scrub_free_ctx(struct scrub_ctx *sctx)
 	for (i = 0; i < SCRUB_STRIPES_PER_SCTX; i++)
 		release_scrub_stripe(&sctx->stripes[i]);
 
-	scrub_free_csums(sctx);
 	kfree(sctx);
 }
 
@@ -352,7 +339,6 @@ static noinline_for_stack struct scrub_ctx *scrub_setup_ctx(
 	refcount_set(&sctx->refs, 1);
 	sctx->is_dev_replace = is_dev_replace;
 	sctx->fs_info = fs_info;
-	INIT_LIST_HEAD(&sctx->csum_list);
 	for (i = 0; i < SCRUB_STRIPES_PER_SCTX; i++) {
 		int ret;
 
@@ -479,11 +465,8 @@ static void scrub_print_common_warning(const char *errstr, struct btrfs_device *
 	struct extent_buffer *eb;
 	struct btrfs_extent_item *ei;
 	struct scrub_warning swarn;
-	unsigned long ptr = 0;
 	u64 flags = 0;
-	u64 ref_root;
 	u32 item_size;
-	u8 ref_level = 0;
 	int ret;
 
 	/* Super block error, no need to search extent tree. */
@@ -513,19 +496,28 @@ static void scrub_print_common_warning(const char *errstr, struct btrfs_device *
 	item_size = btrfs_item_size(eb, path->slots[0]);
 
 	if (flags & BTRFS_EXTENT_FLAG_TREE_BLOCK) {
-		do {
+		unsigned long ptr = 0;
+		u8 ref_level;
+		u64 ref_root;
+
+		while (true) {
 			ret = tree_backref_for_extent(&ptr, eb, &found_key, ei,
 						      item_size, &ref_root,
 						      &ref_level);
+			if (ret < 0) {
+				btrfs_warn(fs_info,
+				"failed to resolve tree backref for logical %llu: %d",
+						  swarn.logical, ret);
+				break;
+			}
+			if (ret > 0)
+				break;
 			btrfs_warn_in_rcu(fs_info,
 "%s at logical %llu on dev %s, physical %llu: metadata %s (level %d) in tree %llu",
-				errstr, swarn.logical,
-				btrfs_dev_name(dev),
-				swarn.physical,
-				ref_level ? "node" : "leaf",
-				ret < 0 ? -1 : ref_level,
-				ret < 0 ? -1 : ref_root);
-		} while (ret != 1);
+				errstr, swarn.logical, btrfs_dev_name(dev),
+				swarn.physical, (ref_level ? "node" : "leaf"),
+				ref_level, ref_root);
+		}
 		btrfs_release_path(path);
 	} else {
 		struct btrfs_backref_walk_ctx ctx = { 0 };
@@ -544,48 +536,6 @@ static void scrub_print_common_warning(const char *errstr, struct btrfs_device *
 
 out:
 	btrfs_free_path(path);
-}
-
-static inline int scrub_nr_raid_mirrors(struct btrfs_io_context *bioc)
-{
-	if (bioc->map_type & BTRFS_BLOCK_GROUP_RAID5)
-		return 2;
-	else if (bioc->map_type & BTRFS_BLOCK_GROUP_RAID6)
-		return 3;
-	else
-		return (int)bioc->num_stripes;
-}
-
-static inline void scrub_stripe_index_and_offset(u64 logical, u64 map_type,
-						 u64 full_stripe_logical,
-						 int nstripes, int mirror,
-						 int *stripe_index,
-						 u64 *stripe_offset)
-{
-	int i;
-
-	if (map_type & BTRFS_BLOCK_GROUP_RAID56_MASK) {
-		const int nr_data_stripes = (map_type & BTRFS_BLOCK_GROUP_RAID5) ?
-					    nstripes - 1 : nstripes - 2;
-
-		/* RAID5/6 */
-		for (i = 0; i < nr_data_stripes; i++) {
-			const u64 data_stripe_start = full_stripe_logical +
-						(i * BTRFS_STRIPE_LEN);
-
-			if (logical >= data_stripe_start &&
-			    logical < data_stripe_start + BTRFS_STRIPE_LEN)
-				break;
-		}
-
-		*stripe_index = i;
-		*stripe_offset = (logical - full_stripe_logical) &
-				 BTRFS_STRIPE_LEN_MASK;
-	} else {
-		/* The other RAID type */
-		*stripe_index = mirror;
-		*stripe_offset = 0;
-	}
 }
 
 static int fill_writer_pointer_gap(struct scrub_ctx *sctx, u64 physical)
@@ -655,7 +605,8 @@ static void scrub_verify_one_metadata(struct scrub_stripe *stripe, int sector_nr
 			      btrfs_stack_header_bytenr(header), logical);
 		return;
 	}
-	if (memcmp(header->fsid, fs_info->fs_devices->fsid, BTRFS_FSID_SIZE) != 0) {
+	if (memcmp(header->fsid, fs_info->fs_devices->metadata_uuid,
+		   BTRFS_FSID_SIZE) != 0) {
 		bitmap_set(&stripe->meta_error_bitmap, sector_nr, sectors_per_tree);
 		bitmap_set(&stripe->error_bitmap, sector_nr, sectors_per_tree);
 		btrfs_warn_rl(fs_info,
@@ -924,8 +875,9 @@ static void scrub_stripe_report_errors(struct scrub_ctx *sctx,
 
 		/* For scrub, our mirror_num should always start at 1. */
 		ASSERT(stripe->mirror_num >= 1);
-		ret = btrfs_map_sblock(fs_info, BTRFS_MAP_GET_READ_MIRRORS,
-				       stripe->logical, &mapped_len, &bioc);
+		ret = btrfs_map_block(fs_info, BTRFS_MAP_GET_READ_MIRRORS,
+				      stripe->logical, &mapped_len, &bioc,
+				      NULL, NULL, 1);
 		/*
 		 * If we failed, dev will be NULL, and later detailed reports
 		 * will just be skipped.
@@ -1957,8 +1909,8 @@ static int scrub_raid56_parity_stripe(struct scrub_ctx *sctx,
 	bio->bi_end_io = raid56_scrub_wait_endio;
 
 	btrfs_bio_counter_inc_blocked(fs_info);
-	ret = btrfs_map_sblock(fs_info, BTRFS_MAP_WRITE, full_stripe_start,
-			       &length, &bioc);
+	ret = btrfs_map_block(fs_info, BTRFS_MAP_WRITE, full_stripe_start,
+			      &length, &bioc, NULL, NULL, 1);
 	if (ret < 0) {
 		btrfs_put_bioc(bioc);
 		btrfs_bio_counter_dec(fs_info);
@@ -1971,6 +1923,13 @@ static int scrub_raid56_parity_stripe(struct scrub_ctx *sctx,
 		ret = -ENOMEM;
 		btrfs_bio_counter_dec(fs_info);
 		goto out;
+	}
+	/* Use the recovered stripes as cache to avoid read them from disk again. */
+	for (int i = 0; i < data_stripes; i++) {
+		stripe = &sctx->raid56_data_stripes[i];
+
+		raid56_parity_cache_data_pages(rbio, stripe->pages,
+				full_stripe_start + (i << BTRFS_STRIPE_LEN_SHIFT));
 	}
 	raid56_parity_submit_scrub_rbio(rbio);
 	wait_for_completion_io(&io_done);
@@ -2740,17 +2699,12 @@ static void scrub_workers_put(struct btrfs_fs_info *fs_info)
 	if (refcount_dec_and_mutex_lock(&fs_info->scrub_workers_refcnt,
 					&fs_info->scrub_lock)) {
 		struct workqueue_struct *scrub_workers = fs_info->scrub_workers;
-		struct workqueue_struct *scrub_wr_comp =
-						fs_info->scrub_wr_completion_workers;
 
 		fs_info->scrub_workers = NULL;
-		fs_info->scrub_wr_completion_workers = NULL;
 		mutex_unlock(&fs_info->scrub_lock);
 
 		if (scrub_workers)
 			destroy_workqueue(scrub_workers);
-		if (scrub_wr_comp)
-			destroy_workqueue(scrub_wr_comp);
 	}
 }
 
@@ -2761,7 +2715,6 @@ static noinline_for_stack int scrub_workers_get(struct btrfs_fs_info *fs_info,
 						int is_dev_replace)
 {
 	struct workqueue_struct *scrub_workers = NULL;
-	struct workqueue_struct *scrub_wr_comp = NULL;
 	unsigned int flags = WQ_FREEZABLE | WQ_UNBOUND;
 	int max_active = fs_info->thread_pool_size;
 	int ret = -ENOMEM;
@@ -2769,21 +2722,17 @@ static noinline_for_stack int scrub_workers_get(struct btrfs_fs_info *fs_info,
 	if (refcount_inc_not_zero(&fs_info->scrub_workers_refcnt))
 		return 0;
 
-	scrub_workers = alloc_workqueue("btrfs-scrub", flags,
-					is_dev_replace ? 1 : max_active);
+	if (is_dev_replace)
+		scrub_workers = alloc_ordered_workqueue("btrfs-scrub", flags);
+	else
+		scrub_workers = alloc_workqueue("btrfs-scrub", flags, max_active);
 	if (!scrub_workers)
-		goto fail_scrub_workers;
-
-	scrub_wr_comp = alloc_workqueue("btrfs-scrubwrc", flags, max_active);
-	if (!scrub_wr_comp)
-		goto fail_scrub_wr_completion_workers;
+		return -ENOMEM;
 
 	mutex_lock(&fs_info->scrub_lock);
 	if (refcount_read(&fs_info->scrub_workers_refcnt) == 0) {
-		ASSERT(fs_info->scrub_workers == NULL &&
-		       fs_info->scrub_wr_completion_workers == NULL);
+		ASSERT(fs_info->scrub_workers == NULL);
 		fs_info->scrub_workers = scrub_workers;
-		fs_info->scrub_wr_completion_workers = scrub_wr_comp;
 		refcount_set(&fs_info->scrub_workers_refcnt, 1);
 		mutex_unlock(&fs_info->scrub_lock);
 		return 0;
@@ -2794,10 +2743,7 @@ static noinline_for_stack int scrub_workers_get(struct btrfs_fs_info *fs_info,
 
 	ret = 0;
 
-	destroy_workqueue(scrub_wr_comp);
-fail_scrub_wr_completion_workers:
 	destroy_workqueue(scrub_workers);
-fail_scrub_workers:
 	return ret;
 }
 

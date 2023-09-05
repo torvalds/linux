@@ -935,7 +935,6 @@ struct mlx5dr_domain_info {
 };
 
 struct mlx5dr_domain {
-	struct mlx5dr_domain *peer_dmn;
 	struct mlx5_core_dev *mdev;
 	u32 pdn;
 	struct mlx5_uars_page *uar;
@@ -956,6 +955,7 @@ struct mlx5dr_domain {
 	struct list_head dbg_tbl_list;
 	struct mlx5dr_dbg_dump_info dump_info;
 	struct xarray definers_xa;
+	struct xarray peer_dmn_xa;
 	/* memory management statistics */
 	u32 num_buddies[DR_ICM_TYPE_MAX];
 };

@@ -88,7 +88,13 @@ static const char *const counter_count_mode_str[] = {
 	[COUNTER_COUNT_MODE_NORMAL] = "normal",
 	[COUNTER_COUNT_MODE_RANGE_LIMIT] = "range limit",
 	[COUNTER_COUNT_MODE_NON_RECYCLE] = "non-recycle",
-	[COUNTER_COUNT_MODE_MODULO_N] = "modulo-n"
+	[COUNTER_COUNT_MODE_MODULO_N] = "modulo-n",
+	[COUNTER_COUNT_MODE_INTERRUPT_ON_TERMINAL_COUNT] = "interrupt on terminal count",
+	[COUNTER_COUNT_MODE_HARDWARE_RETRIGGERABLE_ONESHOT] = "hardware retriggerable one-shot",
+	[COUNTER_COUNT_MODE_RATE_GENERATOR] = "rate generator",
+	[COUNTER_COUNT_MODE_SQUARE_WAVE_MODE] = "square wave mode",
+	[COUNTER_COUNT_MODE_SOFTWARE_TRIGGERED_STROBE] = "software triggered strobe",
+	[COUNTER_COUNT_MODE_HARDWARE_TRIGGERED_STROBE] = "hardware triggered strobe",
 };
 
 static const char *const counter_signal_polarity_str[] = {

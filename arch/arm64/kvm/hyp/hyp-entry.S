@@ -154,6 +154,12 @@ SYM_CODE_END(\label)
 	esb
 	stp	x0, x1, [sp, #-16]!
 662:
+	/*
+	 * spectre vectors __bp_harden_hyp_vecs generate br instructions at runtime
+	 * that jump at offset 8 at __kvm_hyp_vector.
+	 * As hyp .text is guarded section, it needs bti j.
+	 */
+	bti j
 	b	\target
 
 check_preamble_length 661b, 662b
@@ -165,6 +171,8 @@ check_preamble_length 661b, 662b
 	nop
 	stp	x0, x1, [sp, #-16]!
 662:
+	/* Check valid_vect */
+	bti j
 	b	\target
 
 check_preamble_length 661b, 662b

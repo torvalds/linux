@@ -728,7 +728,7 @@ static struct i2c_driver tc358775_driver = {
 		.of_match_table = tc358775_of_ids,
 	},
 	.id_table = tc358775_i2c_ids,
-	.probe_new = tc_probe,
+	.probe = tc_probe,
 	.remove	= tc_remove,
 };
 module_i2c_driver(tc358775_driver);

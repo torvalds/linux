@@ -2485,7 +2485,7 @@ static struct i2c_driver wm2200_i2c_driver = {
 		.name = "wm2200",
 		.pm = &wm2200_pm,
 	},
-	.probe_new = wm2200_i2c_probe,
+	.probe =    wm2200_i2c_probe,
 	.remove =   wm2200_i2c_remove,
 	.id_table = wm2200_i2c_id,
 };

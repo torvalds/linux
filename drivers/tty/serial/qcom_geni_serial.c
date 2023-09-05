@@ -1053,6 +1053,11 @@ static int setup_fifos(struct qcom_geni_serial_port *port)
 		(port->tx_fifo_depth * port->tx_fifo_width) / BITS_PER_BYTE;
 
 	if (port->rx_buf && (old_rx_fifo_depth != port->rx_fifo_depth) && port->rx_fifo_depth) {
+		/*
+		 * Use krealloc rather than krealloc_array because rx_buf is
+		 * accessed as 1 byte entries as well as 4 byte entries so it's
+		 * not necessarily an array.
+		 */
 		port->rx_buf = devm_krealloc(uport->dev, port->rx_buf,
 					     port->rx_fifo_depth * sizeof(u32),
 					     GFP_KERNEL);
@@ -1675,13 +1680,6 @@ static int qcom_geni_serial_probe(struct platform_device *pdev)
 	ret = uart_add_one_port(drv, uport);
 	if (ret)
 		return ret;
-
-	/*
-	 * Set pm_runtime status as ACTIVE so that wakeup_irq gets
-	 * enabled/disabled from dev_pm_arm_wake_irq during system
-	 * suspend/resume respectively.
-	 */
-	pm_runtime_set_active(&pdev->dev);
 
 	if (port->wakeup_irq > 0) {
 		device_init_wakeup(&pdev->dev, true);

@@ -61,13 +61,6 @@ EXPORT_SYMBOL(__stack_chk_guard);
 unsigned long boot_option_idle_override = IDLE_NO_OVERRIDE;
 EXPORT_SYMBOL(boot_option_idle_override);
 
-#ifdef CONFIG_HOTPLUG_CPU
-void __noreturn arch_cpu_idle_dead(void)
-{
-	play_dead();
-}
-#endif
-
 asmlinkage void ret_from_fork(void);
 asmlinkage void ret_from_kernel_thread(void);
 
@@ -117,8 +110,14 @@ int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
 	 */
 	preempt_disable();
 
-	if (is_fpu_owner())
-		save_fp(current);
+	if (is_fpu_owner()) {
+		if (is_lasx_enabled())
+			save_lasx(current);
+		else if (is_lsx_enabled())
+			save_lsx(current);
+		else
+			save_fp(current);
+	}
 
 	preempt_enable();
 
@@ -285,7 +284,7 @@ unsigned long stack_top(void)
 
 	/* Space for the VDSO & data page */
 	top -= PAGE_ALIGN(current->thread.vdso->size);
-	top -= PAGE_SIZE;
+	top -= VVAR_SIZE;
 
 	/* Space to randomize the VDSO base */
 	if (current->flags & PF_RANDOMIZE)

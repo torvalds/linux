@@ -164,21 +164,6 @@
 	vdda-supply = <&vreg_l2a_1p25>;
 };
 
-&dsi0 {
-	vdda-supply = <&vreg_l2a_1p25>;
-	vcca-supply = <&vreg_l22a_3p0>;
-	status = "okay";
-};
-
-&dsi0_out {
-	data-lanes = <0 1 2 3>;
-};
-
-&dsi0_phy {
-	vcca-supply = <&vreg_l28a_0p925>;
-	status = "okay";
-};
-
 &hsusb_phy1 {
 	vdd-supply = <&vreg_l28a_0p925>;
 	vdda-pll-supply = <&vreg_l12a_1p8>;
@@ -198,6 +183,21 @@
 };
 
 &mdss {
+	status = "okay";
+};
+
+&mdss_dsi0 {
+	vdda-supply = <&vreg_l2a_1p25>;
+	vcca-supply = <&vreg_l22a_3p0>;
+	status = "okay";
+};
+
+&mdss_dsi0_out {
+	data-lanes = <0 1 2 3>;
+};
+
+&mdss_dsi0_phy {
+	vcca-supply = <&vreg_l28a_0p925>;
 	status = "okay";
 };
 

@@ -249,7 +249,7 @@ static struct i2c_driver hih6130_driver = {
 		.name = "hih6130",
 		.of_match_table = of_match_ptr(hih6130_of_match),
 	},
-	.probe_new   = hih6130_probe,
+	.probe       = hih6130_probe,
 	.id_table    = hih6130_id,
 };
 

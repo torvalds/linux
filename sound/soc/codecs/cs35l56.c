@@ -5,7 +5,6 @@
 // Copyright (C) 2023 Cirrus Logic, Inc. and
 //                    Cirrus Logic International Semiconductor Ltd.
 
-#include <linux/acpi.h>
 #include <linux/completion.h>
 #include <linux/debugfs.h>
 #include <linux/delay.h>
@@ -822,25 +821,23 @@ static void cs35l56_system_reset(struct cs35l56_private *cs35l56)
 	regcache_cache_only(cs35l56->regmap, false);
 }
 
-static void cs35l56_dsp_work(struct work_struct *work)
+static void cs35l56_secure_patch(struct cs35l56_private *cs35l56)
 {
-	struct cs35l56_private *cs35l56 = container_of(work,
-						       struct cs35l56_private,
-						       dsp_work);
+	int ret;
+
+	/* Use wm_adsp to load and apply the firmware patch and coefficient files */
+	ret = wm_adsp_power_up(&cs35l56->dsp);
+	if (ret)
+		dev_dbg(cs35l56->dev, "%s: wm_adsp_power_up ret %d\n", __func__, ret);
+	else
+		cs35l56_mbox_send(cs35l56, CS35L56_MBOX_CMD_AUDIO_REINIT);
+}
+
+static void cs35l56_patch(struct cs35l56_private *cs35l56)
+{
 	unsigned int reg;
 	unsigned int val;
-	int ret = 0;
-
-	if (!cs35l56->init_done)
-		return;
-
-	cs35l56->dsp.part = devm_kasprintf(cs35l56->dev, GFP_KERNEL, "cs35l56%s-%02x",
-					   cs35l56->secured ? "s" : "", cs35l56->rev);
-
-	if (!cs35l56->dsp.part)
-		return;
-
-	pm_runtime_get_sync(cs35l56->dev);
+	int ret;
 
 	/*
 	 * Disable SoundWire interrupts to prevent race with IRQ work.
@@ -907,15 +904,38 @@ static void cs35l56_dsp_work(struct work_struct *work)
 err_unlock:
 	mutex_unlock(&cs35l56->irq_lock);
 err:
-	pm_runtime_mark_last_busy(cs35l56->dev);
-	pm_runtime_put_autosuspend(cs35l56->dev);
-
 	/* Re-enable SoundWire interrupts */
 	if (cs35l56->sdw_peripheral) {
 		cs35l56->sdw_irq_no_unmask = false;
 		sdw_write_no_pm(cs35l56->sdw_peripheral, CS35L56_SDW_GEN_INT_MASK_1,
 				CS35L56_SDW_INT_MASK_CODEC_IRQ);
 	}
+}
+
+static void cs35l56_dsp_work(struct work_struct *work)
+{
+	struct cs35l56_private *cs35l56 = container_of(work,
+						       struct cs35l56_private,
+						       dsp_work);
+
+	if (!cs35l56->init_done)
+		return;
+
+	pm_runtime_get_sync(cs35l56->dev);
+
+	/*
+	 * When the device is running in secure mode the firmware files can
+	 * only contain insecure tunings and therefore we do not need to
+	 * shutdown the firmware to apply them and can use the lower cost
+	 * reinit sequence instead.
+	 */
+	if (cs35l56->secured)
+		cs35l56_secure_patch(cs35l56);
+	else
+		cs35l56_patch(cs35l56);
+
+	pm_runtime_mark_last_busy(cs35l56->dev);
+	pm_runtime_put_autosuspend(cs35l56->dev);
 }
 
 static int cs35l56_component_probe(struct snd_soc_component *component)
@@ -1333,26 +1353,22 @@ static int cs35l56_dsp_init(struct cs35l56_private *cs35l56)
 	return 0;
 }
 
-static int cs35l56_acpi_get_name(struct cs35l56_private *cs35l56)
+static int cs35l56_get_firmware_uid(struct cs35l56_private *cs35l56)
 {
-	acpi_handle handle = ACPI_HANDLE(cs35l56->dev);
-	const char *sub;
+	struct device *dev = cs35l56->dev;
+	const char *prop;
+	int ret;
 
-	/* If there is no ACPI_HANDLE, there is no ACPI for this system, return 0 */
-	if (!handle)
+	ret = device_property_read_string(dev, "cirrus,firmware-uid", &prop);
+	/* If bad sw node property, return 0 and fallback to legacy firmware path */
+	if (ret < 0)
 		return 0;
 
-	sub = acpi_get_subsystem_id(handle);
-	if (IS_ERR(sub)) {
-		/* If bad ACPI, return 0 and fallback to legacy firmware path, otherwise fail */
-		if (PTR_ERR(sub) == -ENODATA)
-			return 0;
-		else
-			return PTR_ERR(sub);
-	}
+	cs35l56->dsp.system_name = devm_kstrdup(dev, prop, GFP_KERNEL);
+	if (cs35l56->dsp.system_name == NULL)
+		return -ENOMEM;
 
-	cs35l56->dsp.system_name = sub;
-	dev_dbg(cs35l56->dev, "Subsystem ID: %s\n", cs35l56->dsp.system_name);
+	dev_dbg(dev, "Firmware UID: %s\n", cs35l56->dsp.system_name);
 
 	return 0;
 }
@@ -1396,7 +1412,7 @@ int cs35l56_common_probe(struct cs35l56_private *cs35l56)
 		gpiod_set_value_cansleep(cs35l56->reset_gpio, 1);
 	}
 
-	ret = cs35l56_acpi_get_name(cs35l56);
+	ret = cs35l56_get_firmware_uid(cs35l56);
 	if (ret != 0)
 		goto err;
 
@@ -1505,6 +1521,12 @@ int cs35l56_init(struct cs35l56_private *cs35l56)
 	dev_info(cs35l56->dev, "Cirrus Logic CS35L56%s Rev %02X OTP%d\n",
 		 cs35l56->secured ? "s" : "", cs35l56->rev, otpid);
 
+	/* Populate the DSP information with the revision and security state */
+	cs35l56->dsp.part = devm_kasprintf(cs35l56->dev, GFP_KERNEL, "cs35l56%s-%02x",
+					   cs35l56->secured ? "s" : "", cs35l56->rev);
+	if (!cs35l56->dsp.part)
+		return -ENOMEM;
+
 	/* Wake source and *_BLOCKED interrupts default to unmasked, so mask them */
 	regmap_write(cs35l56->regmap, CS35L56_IRQ1_MASK_20, 0xffffffff);
 	regmap_update_bits(cs35l56->regmap, CS35L56_IRQ1_MASK_1,
@@ -1576,8 +1598,6 @@ void cs35l56_remove(struct cs35l56_private *cs35l56)
 	pm_runtime_disable(cs35l56->dev);
 
 	regcache_cache_only(cs35l56->regmap, true);
-
-	kfree(cs35l56->dsp.system_name);
 
 	gpiod_set_value_cansleep(cs35l56->reset_gpio, 0);
 	regulator_bulk_disable(ARRAY_SIZE(cs35l56->supplies), cs35l56->supplies);

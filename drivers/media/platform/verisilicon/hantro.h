@@ -38,6 +38,7 @@ struct hantro_postproc_ops;
 #define HANTRO_H264_DECODER	BIT(18)
 #define HANTRO_HEVC_DECODER	BIT(19)
 #define HANTRO_VP9_DECODER	BIT(20)
+#define HANTRO_AV1_DECODER	BIT(21)
 #define HANTRO_DECODERS		0xffff0000
 
 /**
@@ -111,6 +112,7 @@ struct hantro_variant {
  * @HANTRO_MODE_VP8_DEC: VP8 decoder.
  * @HANTRO_MODE_HEVC_DEC: HEVC decoder.
  * @HANTRO_MODE_VP9_DEC: VP9 decoder.
+ * @HANTRO_MODE_AV1_DEC: AV1 decoder
  */
 enum hantro_codec_mode {
 	HANTRO_MODE_NONE = -1,
@@ -120,6 +122,7 @@ enum hantro_codec_mode {
 	HANTRO_MODE_VP8_DEC,
 	HANTRO_MODE_HEVC_DEC,
 	HANTRO_MODE_VP9_DEC,
+	HANTRO_MODE_AV1_DEC,
 };
 
 /*
@@ -228,6 +231,8 @@ struct hantro_dev {
  * @ctrl_handler:	Control handler used to register controls.
  * @jpeg_quality:	User-specified JPEG compression quality.
  * @bit_depth:		Bit depth of current frame
+ * @need_postproc:	Set to true if the bitstream features require to
+ *			use the post-processor.
  *
  * @codec_ops:		Set of operations related to codec mode.
  * @postproc:		Post-processing context.
@@ -237,6 +242,7 @@ struct hantro_dev {
  * @vp8_dec:		VP8-decoding context.
  * @hevc_dec:		HEVC-decoding context.
  * @vp9_dec:		VP9-decoding context.
+ * @av1_dec:		AV1-decoding context.
  */
 struct hantro_ctx {
 	struct hantro_dev *dev;
@@ -257,6 +263,7 @@ struct hantro_ctx {
 
 	const struct hantro_codec_ops *codec_ops;
 	struct hantro_postproc_ctx postproc;
+	bool need_postproc;
 
 	/* Specific for particular codec modes. */
 	union {
@@ -265,6 +272,7 @@ struct hantro_ctx {
 		struct hantro_vp8_dec_hw_ctx vp8_dec;
 		struct hantro_hevc_dec_hw_ctx hevc_dec;
 		struct hantro_vp9_dec_hw_ctx vp9_dec;
+		struct hantro_av1_dec_hw_ctx av1_dec;
 	};
 };
 
@@ -362,26 +370,26 @@ extern int hantro_debug;
 	pr_err("%s:%d: " fmt, __func__, __LINE__, ##args)
 
 /* Structure access helpers. */
-static inline struct hantro_ctx *fh_to_ctx(struct v4l2_fh *fh)
+static __always_inline struct hantro_ctx *fh_to_ctx(struct v4l2_fh *fh)
 {
 	return container_of(fh, struct hantro_ctx, fh);
 }
 
 /* Register accessors. */
-static inline void vepu_write_relaxed(struct hantro_dev *vpu,
-				      u32 val, u32 reg)
+static __always_inline void vepu_write_relaxed(struct hantro_dev *vpu,
+					       u32 val, u32 reg)
 {
 	vpu_debug(6, "0x%04x = 0x%08x\n", reg / 4, val);
 	writel_relaxed(val, vpu->enc_base + reg);
 }
 
-static inline void vepu_write(struct hantro_dev *vpu, u32 val, u32 reg)
+static __always_inline void vepu_write(struct hantro_dev *vpu, u32 val, u32 reg)
 {
 	vpu_debug(6, "0x%04x = 0x%08x\n", reg / 4, val);
 	writel(val, vpu->enc_base + reg);
 }
 
-static inline u32 vepu_read(struct hantro_dev *vpu, u32 reg)
+static __always_inline u32 vepu_read(struct hantro_dev *vpu, u32 reg)
 {
 	u32 val = readl(vpu->enc_base + reg);
 
@@ -389,27 +397,27 @@ static inline u32 vepu_read(struct hantro_dev *vpu, u32 reg)
 	return val;
 }
 
-static inline void vdpu_write_relaxed(struct hantro_dev *vpu,
-				      u32 val, u32 reg)
+static __always_inline void vdpu_write_relaxed(struct hantro_dev *vpu,
+					       u32 val, u32 reg)
 {
 	vpu_debug(6, "0x%04x = 0x%08x\n", reg / 4, val);
 	writel_relaxed(val, vpu->dec_base + reg);
 }
 
-static inline void vdpu_write(struct hantro_dev *vpu, u32 val, u32 reg)
+static __always_inline void vdpu_write(struct hantro_dev *vpu, u32 val, u32 reg)
 {
 	vpu_debug(6, "0x%04x = 0x%08x\n", reg / 4, val);
 	writel(val, vpu->dec_base + reg);
 }
 
-static inline void hantro_write_addr(struct hantro_dev *vpu,
-				     unsigned long offset,
-				     dma_addr_t addr)
+static __always_inline void hantro_write_addr(struct hantro_dev *vpu,
+					      unsigned long offset,
+					      dma_addr_t addr)
 {
 	vdpu_write(vpu, addr & 0xffffffff, offset);
 }
 
-static inline u32 vdpu_read(struct hantro_dev *vpu, u32 reg)
+static __always_inline u32 vdpu_read(struct hantro_dev *vpu, u32 reg)
 {
 	u32 val = readl(vpu->dec_base + reg);
 
@@ -417,9 +425,9 @@ static inline u32 vdpu_read(struct hantro_dev *vpu, u32 reg)
 	return val;
 }
 
-static inline u32 vdpu_read_mask(struct hantro_dev *vpu,
-				 const struct hantro_reg *reg,
-				 u32 val)
+static __always_inline u32 vdpu_read_mask(struct hantro_dev *vpu,
+					  const struct hantro_reg *reg,
+					  u32 val)
 {
 	u32 v;
 
@@ -429,18 +437,18 @@ static inline u32 vdpu_read_mask(struct hantro_dev *vpu,
 	return v;
 }
 
-static inline void hantro_reg_write(struct hantro_dev *vpu,
-				    const struct hantro_reg *reg,
-				    u32 val)
-{
-	vdpu_write_relaxed(vpu, vdpu_read_mask(vpu, reg, val), reg->base);
-}
-
-static inline void hantro_reg_write_s(struct hantro_dev *vpu,
-				      const struct hantro_reg *reg,
-				      u32 val)
+static __always_inline void hantro_reg_write(struct hantro_dev *vpu,
+					     const struct hantro_reg *reg,
+					     u32 val)
 {
 	vdpu_write(vpu, vdpu_read_mask(vpu, reg, val), reg->base);
+}
+
+static __always_inline void hantro_reg_write_relaxed(struct hantro_dev *vpu,
+						     const struct hantro_reg *reg,
+						     u32 val)
+{
+	vdpu_write_relaxed(vpu, vdpu_read_mask(vpu, reg, val), reg->base);
 }
 
 void *hantro_get_ctrl(struct hantro_ctx *ctx, u32 id);

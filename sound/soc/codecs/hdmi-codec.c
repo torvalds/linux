@@ -495,31 +495,43 @@ static int hdmi_codec_fill_codec_params(struct snd_soc_dai *dai,
 					struct hdmi_codec_params *hp)
 {
 	struct hdmi_codec_priv *hcp = snd_soc_dai_get_drvdata(dai);
-	int idx;
+	int idx = HDMI_CODEC_CHMAP_IDX_UNKNOWN;
+	u8 ca_id = 0;
+	bool pcm_audio = !(hcp->iec_status[0] & IEC958_AES0_NONAUDIO);
 
-	/* Select a channel allocation that matches with ELD and pcm channels */
-	idx = hdmi_codec_get_ch_alloc_table_idx(hcp, channels);
-	if (idx < 0) {
-		dev_err(dai->dev, "Not able to map channels to speakers (%d)\n",
-			idx);
-		hcp->chmap_idx = HDMI_CODEC_CHMAP_IDX_UNKNOWN;
-		return idx;
+	if (pcm_audio) {
+		/* Select a channel allocation that matches with ELD and pcm channels */
+		idx = hdmi_codec_get_ch_alloc_table_idx(hcp, channels);
+
+		if (idx < 0) {
+			dev_err(dai->dev, "Not able to map channels to speakers (%d)\n",
+				idx);
+			hcp->chmap_idx = HDMI_CODEC_CHMAP_IDX_UNKNOWN;
+			return idx;
+		}
+
+		ca_id = hdmi_codec_channel_alloc[idx].ca_id;
 	}
 
 	memset(hp, 0, sizeof(*hp));
 
 	hdmi_audio_infoframe_init(&hp->cea);
-	hp->cea.channels = channels;
+
+	if (pcm_audio)
+		hp->cea.channels = channels;
+	else
+		hp->cea.channels = 0;
+
 	hp->cea.coding_type = HDMI_AUDIO_CODING_TYPE_STREAM;
 	hp->cea.sample_size = HDMI_AUDIO_SAMPLE_SIZE_STREAM;
 	hp->cea.sample_frequency = HDMI_AUDIO_SAMPLE_FREQUENCY_STREAM;
-	hp->cea.channel_allocation = hdmi_codec_channel_alloc[idx].ca_id;
+	hp->cea.channel_allocation = ca_id;
 
 	hp->sample_width = sample_width;
 	hp->sample_rate = sample_rate;
 	hp->channels = channels;
 
-	hcp->chmap_idx = hdmi_codec_channel_alloc[idx].ca_id;
+	hcp->chmap_idx = idx;
 
 	return 0;
 }

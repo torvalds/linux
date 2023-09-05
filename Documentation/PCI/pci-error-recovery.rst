@@ -364,7 +364,7 @@ Note, however, not all failures are truly "permanent". Some are
 caused by over-heating, some by a poorly seated card. Many
 PCI error events are caused by software bugs, e.g. DMA's to
 wild addresses or bogus split transactions due to programming
-errors. See the discussion in powerpc/eeh-pci-error-recovery.txt
+errors. See the discussion in Documentation/powerpc/eeh-pci-error-recovery.rst
 for additional detail on real-life experience of the causes of
 software errors.
 

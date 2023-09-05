@@ -1353,7 +1353,8 @@ static int hi846_set_ctrl(struct v4l2_ctrl *ctrl)
 					 exposure_max);
 	}
 
-	if (!pm_runtime_get_if_in_use(&client->dev))
+	ret = pm_runtime_get_if_in_use(&client->dev);
+	if (!ret || ret == -EAGAIN)
 		return 0;
 
 	switch (ctrl->id) {
@@ -2189,7 +2190,7 @@ static struct i2c_driver hi846_i2c_driver = {
 		.pm = &hi846_pm_ops,
 		.of_match_table = hi846_of_match,
 	},
-	.probe_new = hi846_probe,
+	.probe = hi846_probe,
 	.remove = hi846_remove,
 };
 

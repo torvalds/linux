@@ -2309,7 +2309,7 @@ clk_free:
 	return ret;
 }
 
-static int stm32f7_i2c_remove(struct platform_device *pdev)
+static void stm32f7_i2c_remove(struct platform_device *pdev)
 {
 	struct stm32f7_i2c_dev *i2c_dev = platform_get_drvdata(pdev);
 
@@ -2341,8 +2341,6 @@ static int stm32f7_i2c_remove(struct platform_device *pdev)
 	stm32f7_i2c_write_fm_plus_bits(i2c_dev, false);
 
 	clk_disable_unprepare(i2c_dev->clk);
-
-	return 0;
 }
 
 static int __maybe_unused stm32f7_i2c_runtime_suspend(struct device *dev)
@@ -2486,7 +2484,7 @@ static struct platform_driver stm32f7_i2c_driver = {
 		.pm = &stm32f7_i2c_pm_ops,
 	},
 	.probe = stm32f7_i2c_probe,
-	.remove = stm32f7_i2c_remove,
+	.remove_new = stm32f7_i2c_remove,
 };
 
 module_platform_driver(stm32f7_i2c_driver);

@@ -55,7 +55,7 @@ static void mtl_ipc_dsp_done(struct snd_sof_dev *sdev)
 }
 
 /* Check if an IPC IRQ occurred */
-static bool mtl_dsp_check_ipc_irq(struct snd_sof_dev *sdev)
+bool mtl_dsp_check_ipc_irq(struct snd_sof_dev *sdev)
 {
 	u32 irq_status;
 	u32 hfintipptr;
@@ -118,7 +118,7 @@ static int mtl_ipc_send_msg(struct snd_sof_dev *sdev, struct snd_sof_ipc_msg *ms
 	return 0;
 }
 
-static void mtl_enable_ipc_interrupts(struct snd_sof_dev *sdev)
+void mtl_enable_ipc_interrupts(struct snd_sof_dev *sdev)
 {
 	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
 	const struct sof_intel_dsp_desc *chip = hda->desc;
@@ -132,7 +132,7 @@ static void mtl_enable_ipc_interrupts(struct snd_sof_dev *sdev)
 				MTL_DSP_REG_HFIPCXCTL_BUSY | MTL_DSP_REG_HFIPCXCTL_DONE);
 }
 
-static void mtl_disable_ipc_interrupts(struct snd_sof_dev *sdev)
+void mtl_disable_ipc_interrupts(struct snd_sof_dev *sdev)
 {
 	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
 	const struct sof_intel_dsp_desc *chip = hda->desc;
@@ -173,7 +173,7 @@ static void mtl_enable_sdw_irq(struct snd_sof_dev *sdev, bool enable)
 			enable ? "enable" : "disable");
 }
 
-static int mtl_enable_interrupts(struct snd_sof_dev *sdev, bool enable)
+int mtl_enable_interrupts(struct snd_sof_dev *sdev, bool enable)
 {
 	u32 hfintipptr;
 	u32 irqinten;
@@ -361,11 +361,17 @@ static int mtl_dsp_core_power_up(struct snd_sof_dev *sdev, int core)
 	ret = snd_sof_dsp_read_poll_timeout(sdev, HDA_DSP_BAR, MTL_DSP2CXCTL_PRIMARY_CORE, dspcxctl,
 					    (dspcxctl & cpa) == cpa, HDA_DSP_REG_POLL_INTERVAL_US,
 					    HDA_DSP_RESET_TIMEOUT_US);
-	if (ret < 0)
+	if (ret < 0) {
 		dev_err(sdev->dev, "%s: timeout on MTL_DSP2CXCTL_PRIMARY_CORE read\n",
 			__func__);
+		return ret;
+	}
 
-	return ret;
+	/* set primary core mask and refcount to 1 */
+	sdev->enabled_cores_mask = BIT(SOF_DSP_PRIMARY_CORE);
+	sdev->dsp_core_ref_count[SOF_DSP_PRIMARY_CORE] = 1;
+
+	return 0;
 }
 
 static int mtl_dsp_core_power_down(struct snd_sof_dev *sdev, int core)
@@ -388,13 +394,18 @@ static int mtl_dsp_core_power_down(struct snd_sof_dev *sdev, int core)
 					    !(dspcxctl & MTL_DSP2CXCTL_PRIMARY_CORE_CPA_MASK),
 					    HDA_DSP_REG_POLL_INTERVAL_US,
 					    HDA_DSP_PD_TIMEOUT * USEC_PER_MSEC);
-	if (ret < 0)
+	if (ret < 0) {
 		dev_err(sdev->dev, "failed to power down primary core\n");
+		return ret;
+	}
 
-	return ret;
+	sdev->enabled_cores_mask = 0;
+	sdev->dsp_core_ref_count[SOF_DSP_PRIMARY_CORE] = 0;
+
+	return 0;
 }
 
-static int mtl_power_down_dsp(struct snd_sof_dev *sdev)
+int mtl_power_down_dsp(struct snd_sof_dev *sdev)
 {
 	u32 dsphfdsscs, cpa;
 	int ret;
@@ -421,7 +432,7 @@ static int mtl_power_down_dsp(struct snd_sof_dev *sdev)
 					     HDA_DSP_RESET_TIMEOUT_US);
 }
 
-static int mtl_dsp_cl_init(struct snd_sof_dev *sdev, int stream_tag, bool imr_boot)
+int mtl_dsp_cl_init(struct snd_sof_dev *sdev, int stream_tag, bool imr_boot)
 {
 	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
 	const struct sof_intel_dsp_desc *chip = hda->desc;
@@ -613,6 +624,36 @@ static u64 mtl_dsp_get_stream_hda_link_position(struct snd_sof_dev *sdev,
 	return ((u64)llp_u << 32) | llp_l;
 }
 
+static int mtl_dsp_core_get(struct snd_sof_dev *sdev, int core)
+{
+	const struct sof_ipc_pm_ops *pm_ops = sdev->ipc->ops->pm;
+
+	if (core == SOF_DSP_PRIMARY_CORE)
+		return mtl_dsp_core_power_up(sdev, SOF_DSP_PRIMARY_CORE);
+
+	if (pm_ops->set_core_state)
+		return pm_ops->set_core_state(sdev, core, true);
+
+	return 0;
+}
+
+static int mtl_dsp_core_put(struct snd_sof_dev *sdev, int core)
+{
+	const struct sof_ipc_pm_ops *pm_ops = sdev->ipc->ops->pm;
+	int ret;
+
+	if (pm_ops->set_core_state) {
+		ret = pm_ops->set_core_state(sdev, core, false);
+		if (ret < 0)
+			return ret;
+	}
+
+	if (core == SOF_DSP_PRIMARY_CORE)
+		return mtl_dsp_core_power_down(sdev, SOF_DSP_PRIMARY_CORE);
+
+	return 0;
+}
+
 /* Meteorlake ops */
 struct snd_sof_dsp_ops sof_mtl_ops;
 EXPORT_SYMBOL_NS(sof_mtl_ops, SND_SOC_SOF_INTEL_HDA_COMMON);
@@ -649,7 +690,8 @@ int sof_mtl_ops_init(struct snd_sof_dev *sdev)
 	sof_mtl_ops.parse_platform_ext_manifest = NULL;
 
 	/* dsp core get/put */
-	/* TODO: add core_get and core_put */
+	sof_mtl_ops.core_get = mtl_dsp_core_get;
+	sof_mtl_ops.core_put = mtl_dsp_core_put;
 
 	sof_mtl_ops.get_stream_position = mtl_dsp_get_stream_hda_link_position;
 

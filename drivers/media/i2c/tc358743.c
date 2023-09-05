@@ -2206,7 +2206,7 @@ static struct i2c_driver tc358743_driver = {
 		.name = "tc358743",
 		.of_match_table = of_match_ptr(tc358743_of_match),
 	},
-	.probe_new = tc358743_probe,
+	.probe = tc358743_probe,
 	.remove = tc358743_remove,
 	.id_table = tc358743_id,
 };

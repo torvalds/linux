@@ -424,14 +424,12 @@ static u8 HT_PickMCSRate(struct rtllib_device *ieee, u8 *pOperateMCS)
 	}
 
 	switch (ieee->mode) {
-	case IEEE_A:
-	case IEEE_B:
-	case IEEE_G:
+	case WIRELESS_MODE_B:
+	case WIRELESS_MODE_G:
 		for (i = 0; i <= 15; i++)
 			pOperateMCS[i] = 0;
 		break;
-	case IEEE_N_24G:
-	case IEEE_N_5G:
+	case WIRELESS_MODE_N_24G:
 		pOperateMCS[0] &= RATE_ADPT_1SS_MASK;
 		pOperateMCS[1] &= RATE_ADPT_2SS_MASK;
 		pOperateMCS[3] &= RATE_ADPT_MCS32_MASK;
@@ -835,11 +833,11 @@ static void HTSetConnectBwModeCallback(struct rtllib_device *ieee)
 			ieee->set_chan(ieee->dev,
 				       ieee->current_network.channel);
 
-		ieee->SetBWModeHandler(ieee->dev, HT_CHANNEL_WIDTH_20_40,
+		ieee->set_bw_mode_handler(ieee->dev, HT_CHANNEL_WIDTH_20_40,
 				       ht_info->CurSTAExtChnlOffset);
 	} else {
 		ieee->set_chan(ieee->dev, ieee->current_network.channel);
-		ieee->SetBWModeHandler(ieee->dev, HT_CHANNEL_WIDTH_20,
+		ieee->set_bw_mode_handler(ieee->dev, HT_CHANNEL_WIDTH_20,
 				       HT_EXTCHNL_OFFSET_NO_EXT);
 	}
 

@@ -729,7 +729,7 @@ static struct i2c_driver e4000_driver = {
 		.name	= "e4000",
 		.suppress_bind_attrs = true,
 	},
-	.probe_new	= e4000_probe,
+	.probe		= e4000_probe,
 	.remove		= e4000_remove,
 	.id_table	= e4000_id_table,
 };

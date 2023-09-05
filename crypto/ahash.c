@@ -31,12 +31,6 @@ struct ahash_request_priv {
 	void *ubuf[] CRYPTO_MINALIGN_ATTR;
 };
 
-static inline struct ahash_alg *crypto_ahash_alg(struct crypto_ahash *hash)
-{
-	return container_of(crypto_hash_alg_common(hash), struct ahash_alg,
-			    halg);
-}
-
 static int hash_walk_next(struct crypto_hash_walk *walk)
 {
 	unsigned int alignmask = walk->alignmask;
@@ -432,6 +426,8 @@ static int crypto_ahash_init_tfm(struct crypto_tfm *tfm)
 
 	hash->setkey = ahash_nosetkey;
 
+	crypto_ahash_set_statesize(hash, alg->halg.statesize);
+
 	if (tfm->__crt_alg->cra_type != &crypto_ahash_type)
 		return crypto_init_shash_ops_async(tfm);
 
@@ -573,6 +569,7 @@ struct crypto_ahash *crypto_clone_ahash(struct crypto_ahash *hash)
 	nhash->import = hash->import;
 	nhash->setkey = hash->setkey;
 	nhash->reqsize = hash->reqsize;
+	nhash->statesize = hash->statesize;
 
 	if (tfm->__crt_alg->cra_type != &crypto_ahash_type)
 		return crypto_clone_shash_ops_async(nhash, hash);

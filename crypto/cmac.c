@@ -198,13 +198,14 @@ static int crypto_cmac_digest_final(struct shash_desc *pdesc, u8 *out)
 	return 0;
 }
 
-static int cmac_init_tfm(struct crypto_tfm *tfm)
+static int cmac_init_tfm(struct crypto_shash *tfm)
 {
+	struct shash_instance *inst = shash_alg_instance(tfm);
+	struct cmac_tfm_ctx *ctx = crypto_shash_ctx(tfm);
+	struct crypto_cipher_spawn *spawn;
 	struct crypto_cipher *cipher;
-	struct crypto_instance *inst = (void *)tfm->__crt_alg;
-	struct crypto_cipher_spawn *spawn = crypto_instance_ctx(inst);
-	struct cmac_tfm_ctx *ctx = crypto_tfm_ctx(tfm);
 
+	spawn = shash_instance_ctx(inst);
 	cipher = crypto_spawn_cipher(spawn);
 	if (IS_ERR(cipher))
 		return PTR_ERR(cipher);
@@ -212,11 +213,26 @@ static int cmac_init_tfm(struct crypto_tfm *tfm)
 	ctx->child = cipher;
 
 	return 0;
-};
+}
 
-static void cmac_exit_tfm(struct crypto_tfm *tfm)
+static int cmac_clone_tfm(struct crypto_shash *tfm, struct crypto_shash *otfm)
 {
-	struct cmac_tfm_ctx *ctx = crypto_tfm_ctx(tfm);
+	struct cmac_tfm_ctx *octx = crypto_shash_ctx(otfm);
+	struct cmac_tfm_ctx *ctx = crypto_shash_ctx(tfm);
+	struct crypto_cipher *cipher;
+
+	cipher = crypto_clone_cipher(octx->child);
+	if (IS_ERR(cipher))
+		return PTR_ERR(cipher);
+
+	ctx->child = cipher;
+
+	return 0;
+}
+
+static void cmac_exit_tfm(struct crypto_shash *tfm)
+{
+	struct cmac_tfm_ctx *ctx = crypto_shash_ctx(tfm);
 	crypto_free_cipher(ctx->child);
 }
 
@@ -274,13 +290,13 @@ static int cmac_create(struct crypto_template *tmpl, struct rtattr **tb)
 		   ~(crypto_tfm_ctx_alignment() - 1))
 		+ alg->cra_blocksize * 2;
 
-	inst->alg.base.cra_init = cmac_init_tfm;
-	inst->alg.base.cra_exit = cmac_exit_tfm;
-
 	inst->alg.init = crypto_cmac_digest_init;
 	inst->alg.update = crypto_cmac_digest_update;
 	inst->alg.final = crypto_cmac_digest_final;
 	inst->alg.setkey = crypto_cmac_digest_setkey;
+	inst->alg.init_tfm = cmac_init_tfm;
+	inst->alg.clone_tfm = cmac_clone_tfm;
+	inst->alg.exit_tfm = cmac_exit_tfm;
 
 	inst->free = shash_free_singlespawn_instance;
 

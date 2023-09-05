@@ -106,7 +106,6 @@ static int qat_get_inter_state_size(enum icp_qat_hw_auth_algo qat_hash_alg)
 	default:
 		return -EFAULT;
 	}
-	return -EFAULT;
 }
 
 static int qat_alg_do_precomputes(struct icp_qat_hw_auth_algo_blk *hash,

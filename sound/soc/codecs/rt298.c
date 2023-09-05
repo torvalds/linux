@@ -1311,7 +1311,7 @@ static struct i2c_driver rt298_i2c_driver = {
 		   .name = "rt298",
 		   .acpi_match_table = ACPI_PTR(rt298_acpi_match),
 		   },
-	.probe_new = rt298_i2c_probe,
+	.probe = rt298_i2c_probe,
 	.remove = rt298_i2c_remove,
 	.id_table = rt298_i2c_id,
 };

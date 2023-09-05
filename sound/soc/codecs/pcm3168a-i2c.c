@@ -44,7 +44,7 @@ static const struct of_device_id pcm3168a_of_match[] = {
 MODULE_DEVICE_TABLE(of, pcm3168a_of_match);
 
 static struct i2c_driver pcm3168a_i2c_driver = {
-	.probe_new	= pcm3168a_i2c_probe,
+	.probe		= pcm3168a_i2c_probe,
 	.remove		= pcm3168a_i2c_remove,
 	.id_table	= pcm3168a_i2c_id,
 	.driver		= {

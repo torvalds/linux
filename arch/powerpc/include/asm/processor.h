@@ -264,6 +264,7 @@ struct thread_struct {
 	unsigned long   mmcr3;
 	unsigned long   sier2;
 	unsigned long   sier3;
+	unsigned long	hashkeyr;
 
 #endif
 };
@@ -392,7 +393,6 @@ int validate_sp_size(unsigned long sp, struct task_struct *p,
  */
 #define ARCH_HAS_PREFETCH
 #define ARCH_HAS_PREFETCHW
-#define ARCH_HAS_SPINLOCK_PREFETCH
 
 static inline void prefetch(const void *x)
 {
@@ -409,8 +409,6 @@ static inline void prefetchw(const void *x)
 
 	__asm__ __volatile__ ("dcbtst 0,%0" : : "r" (x));
 }
-
-#define spin_lock_prefetch(x)	prefetchw(x)
 
 /* asm stubs */
 extern unsigned long isa300_idle_stop_noloss(unsigned long psscr_val);

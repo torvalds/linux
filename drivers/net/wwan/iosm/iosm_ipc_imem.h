@@ -103,6 +103,8 @@ struct ipc_chnl_cfg;
 #define FULLY_FUNCTIONAL 0
 #define IOSM_DEVLINK_INIT 1
 
+#define IPC_MEM_AUTO_SUSPEND_DELAY_MS 5000
+
 /* List of the supported UL/DL pipes. */
 enum ipc_mem_pipes {
 	IPC_MEM_PIPE_0 = 0,
@@ -138,17 +140,6 @@ enum ipc_channel_state {
 	IMEM_CHANNEL_RESERVED,
 	IMEM_CHANNEL_ACTIVE,
 	IMEM_CHANNEL_CLOSING,
-};
-
-/* Time Unit */
-enum ipc_time_unit {
-	IPC_SEC = 0,
-	IPC_MILLI_SEC = 1,
-	IPC_MICRO_SEC = 2,
-	IPC_NANO_SEC = 3,
-	IPC_PICO_SEC = 4,
-	IPC_FEMTO_SEC = 5,
-	IPC_ATTO_SEC = 6,
 };
 
 /**
@@ -204,7 +195,6 @@ enum ipc_hp_identifier {
  * @pipe_nr:			Pipe identification number
  * @irq:			Interrupt vector
  * @dir:			Direction of data stream in pipe
- * @td_tag:			Unique tag of the buffer queued
  * @buf_size:			Buffer size (in bytes) for preallocated
  *				buffers (for DL pipes)
  * @nr_of_queued_entries:	Aueued number of entries
@@ -224,7 +214,6 @@ struct ipc_pipe {
 	u32 pipe_nr;
 	u32 irq;
 	enum ipc_mem_pipe_dir dir;
-	u32 td_tag;
 	u32 buf_size;
 	u16 nr_of_queued_entries;
 	u8 is_open:1;

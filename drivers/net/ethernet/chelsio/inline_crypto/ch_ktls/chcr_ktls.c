@@ -1946,7 +1946,7 @@ static int chcr_ktls_xmit(struct sk_buff *skb, struct net_device *dev)
 	tls_ctx = tls_get_ctx(skb->sk);
 	tls_netdev = rcu_dereference_bh(tls_ctx->netdev);
 	/* Don't quit on NULL: if tls_device_down is running in parallel,
-	 * netdev might become NULL, even if tls_is_sk_tx_device_offloaded was
+	 * netdev might become NULL, even if tls_is_skb_tx_device_offloaded was
 	 * true. Rather continue processing this packet.
 	 */
 	if (unlikely(tls_netdev && tls_netdev != dev))

@@ -518,6 +518,7 @@ static struct platform_driver exynos_bus_platdrv = {
 };
 module_platform_driver(exynos_bus_platdrv);
 
+MODULE_SOFTDEP("pre: exynos_ppmu");
 MODULE_DESCRIPTION("Generic Exynos Bus frequency driver");
 MODULE_AUTHOR("Chanwoo Choi <cw00.choi@samsung.com>");
 MODULE_LICENSE("GPL v2");

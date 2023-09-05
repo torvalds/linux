@@ -950,7 +950,7 @@ static struct i2c_driver tps6598x_i2c_driver = {
 		.pm = &tps6598x_pm_ops,
 		.of_match_table = tps6598x_of_match,
 	},
-	.probe_new = tps6598x_probe,
+	.probe = tps6598x_probe,
 	.remove = tps6598x_remove,
 	.id_table = tps6598x_id,
 };

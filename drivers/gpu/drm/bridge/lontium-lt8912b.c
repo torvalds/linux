@@ -773,7 +773,7 @@ static struct i2c_driver lt8912_i2c_driver = {
 		.name = "lt8912",
 		.of_match_table = lt8912_dt_match,
 	},
-	.probe_new = lt8912_probe,
+	.probe = lt8912_probe,
 	.remove = lt8912_remove,
 	.id_table = lt8912_id,
 };

@@ -554,7 +554,7 @@ static struct i2c_driver zopt2201_driver = {
 	.driver = {
 		.name   = ZOPT2201_DRV_NAME,
 	},
-	.probe_new = zopt2201_probe,
+	.probe = zopt2201_probe,
 	.id_table = zopt2201_id,
 };
 

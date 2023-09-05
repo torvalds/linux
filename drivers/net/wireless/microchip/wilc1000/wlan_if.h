@@ -10,6 +10,8 @@
 #include <linux/netdevice.h>
 #include "fw.h"
 
+#define WILC_MAX_ASSOC_RESP_FRAME_SIZE 512
+
 /********************************************
  *
  *      Wlan Configuration ID

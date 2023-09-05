@@ -62,7 +62,7 @@ Description:
 What:		/sys/class/net/<iface>/qmi/pass_through
 Date:		January 2021
 KernelVersion:	5.12
-Contact:	Subash Abhinov Kasiviswanathan <subashab@codeaurora.org>
+Contact:	Subash Abhinov Kasiviswanathan <quic_subashab@quicinc.com>
 Description:
 		Boolean.  Default: 'N'
 

@@ -26,7 +26,7 @@
 #include <asm/cp15.h>
 #include <asm/mach-types.h>
 #include <asm/memblock.h>
-#include <asm/memory.h>
+#include <asm/page.h>
 #include <asm/prom.h>
 #include <asm/sections.h>
 #include <asm/setup.h>

@@ -107,7 +107,7 @@ enum amba_vendor {
 
 extern struct bus_type amba_bustype;
 
-#define to_amba_device(d)	container_of(d, struct amba_device, dev)
+#define to_amba_device(d)	container_of_const(d, struct amba_device, dev)
 
 #define amba_get_drvdata(d)	dev_get_drvdata(&d->dev)
 #define amba_set_drvdata(d,p)	dev_set_drvdata(&d->dev, p)

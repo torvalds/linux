@@ -1436,14 +1436,25 @@ static int ethtool_get_wol(struct net_device *dev, char __user *useraddr)
 
 static int ethtool_set_wol(struct net_device *dev, char __user *useraddr)
 {
-	struct ethtool_wolinfo wol;
+	struct ethtool_wolinfo wol, cur_wol;
 	int ret;
 
-	if (!dev->ethtool_ops->set_wol)
+	if (!dev->ethtool_ops->get_wol || !dev->ethtool_ops->set_wol)
 		return -EOPNOTSUPP;
+
+	memset(&cur_wol, 0, sizeof(struct ethtool_wolinfo));
+	cur_wol.cmd = ETHTOOL_GWOL;
+	dev->ethtool_ops->get_wol(dev, &cur_wol);
 
 	if (copy_from_user(&wol, useraddr, sizeof(wol)))
 		return -EFAULT;
+
+	if (wol.wolopts & ~cur_wol.supported)
+		return -EINVAL;
+
+	if (wol.wolopts == cur_wol.wolopts &&
+	    !memcmp(wol.sopass, cur_wol.sopass, sizeof(wol.sopass)))
+		return 0;
 
 	ret = dev->ethtool_ops->set_wol(dev, &wol);
 	if (ret)

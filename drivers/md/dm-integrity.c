@@ -34,11 +34,11 @@
 #define DEFAULT_BUFFER_SECTORS		128
 #define DEFAULT_JOURNAL_WATERMARK	50
 #define DEFAULT_SYNC_MSEC		10000
-#define DEFAULT_MAX_JOURNAL_SECTORS	131072
+#define DEFAULT_MAX_JOURNAL_SECTORS	(IS_ENABLED(CONFIG_64BIT) ? 131072 : 8192)
 #define MIN_LOG2_INTERLEAVE_SECTORS	3
 #define MAX_LOG2_INTERLEAVE_SECTORS	31
 #define METADATA_WORKQUEUE_MAX_ACTIVE	16
-#define RECALC_SECTORS			32768
+#define RECALC_SECTORS			(IS_ENABLED(CONFIG_64BIT) ? 32768 : 2048)
 #define RECALC_WRITE_SUPER		16
 #define BITMAP_BLOCK_SIZE		4096	/* don't change it */
 #define BITMAP_FLUSH_INTERVAL		(10 * HZ)
@@ -251,8 +251,6 @@ struct dm_integrity_c {
 
 	struct workqueue_struct *recalc_wq;
 	struct work_struct recalc_work;
-	u8 *recalc_buffer;
-	u8 *recalc_tags;
 
 	struct bio_list flush_bio_list;
 
@@ -342,24 +340,9 @@ static struct kmem_cache *journal_io_cache;
 #define JOURNAL_IO_MEMPOOL	32
 
 #ifdef DEBUG_PRINT
-#define DEBUG_print(x, ...)	printk(KERN_DEBUG x, ##__VA_ARGS__)
-static void __DEBUG_bytes(__u8 *bytes, size_t len, const char *msg, ...)
-{
-	va_list args;
-
-	va_start(args, msg);
-	vprintk(msg, args);
-	va_end(args);
-	if (len)
-		pr_cont(":");
-	while (len) {
-		pr_cont(" %02x", *bytes);
-		bytes++;
-		len--;
-	}
-	pr_cont("\n");
-}
-#define DEBUG_bytes(bytes, len, msg, ...)	__DEBUG_bytes(bytes, len, KERN_DEBUG msg, ##__VA_ARGS__)
+#define DEBUG_print(x, ...)			printk(KERN_DEBUG x, ##__VA_ARGS__)
+#define DEBUG_bytes(bytes, len, msg, ...)	printk(KERN_DEBUG msg "%s%*ph\n", ##__VA_ARGS__, \
+						       len ? ": " : "", len, bytes)
 #else
 #define DEBUG_print(x, ...)			do { } while (0)
 #define DEBUG_bytes(bytes, len, msg, ...)	do { } while (0)
@@ -2661,6 +2644,9 @@ static void recalc_write_super(struct dm_integrity_c *ic)
 static void integrity_recalc(struct work_struct *w)
 {
 	struct dm_integrity_c *ic = container_of(w, struct dm_integrity_c, recalc_work);
+	size_t recalc_tags_size;
+	u8 *recalc_buffer = NULL;
+	u8 *recalc_tags = NULL;
 	struct dm_integrity_range range;
 	struct dm_io_request io_req;
 	struct dm_io_region io_loc;
@@ -2672,6 +2658,27 @@ static void integrity_recalc(struct work_struct *w)
 	unsigned int i;
 	int r;
 	unsigned int super_counter = 0;
+	unsigned recalc_sectors = RECALC_SECTORS;
+
+retry:
+	recalc_buffer = __vmalloc(recalc_sectors << SECTOR_SHIFT, GFP_NOIO);
+	if (!recalc_buffer) {
+oom:
+		recalc_sectors >>= 1;
+		if (recalc_sectors >= 1U << ic->sb->log2_sectors_per_block)
+			goto retry;
+		DMCRIT("out of memory for recalculate buffer - recalculation disabled");
+		goto free_ret;
+	}
+	recalc_tags_size = (recalc_sectors >> ic->sb->log2_sectors_per_block) * ic->tag_size;
+	if (crypto_shash_digestsize(ic->internal_hash) > ic->tag_size)
+		recalc_tags_size += crypto_shash_digestsize(ic->internal_hash) - ic->tag_size;
+	recalc_tags = kvmalloc(recalc_tags_size, GFP_NOIO);
+	if (!recalc_tags) {
+		vfree(recalc_buffer);
+		recalc_buffer = NULL;
+		goto oom;
+	}
 
 	DEBUG_print("start recalculation... (position %llx)\n", le64_to_cpu(ic->sb->recalc_sector));
 
@@ -2693,7 +2700,7 @@ next_chunk:
 	}
 
 	get_area_and_offset(ic, range.logical_sector, &area, &offset);
-	range.n_sectors = min((sector_t)RECALC_SECTORS, ic->provided_data_sectors - range.logical_sector);
+	range.n_sectors = min((sector_t)recalc_sectors, ic->provided_data_sectors - range.logical_sector);
 	if (!ic->meta_dev)
 		range.n_sectors = min(range.n_sectors, ((sector_t)1U << ic->sb->log2_interleave_sectors) - (unsigned int)offset);
 
@@ -2735,7 +2742,7 @@ next_chunk:
 
 	io_req.bi_opf = REQ_OP_READ;
 	io_req.mem.type = DM_IO_VMA;
-	io_req.mem.ptr.addr = ic->recalc_buffer;
+	io_req.mem.ptr.addr = recalc_buffer;
 	io_req.notify.fn = NULL;
 	io_req.client = ic->io;
 	io_loc.bdev = ic->dev->bdev;
@@ -2748,15 +2755,15 @@ next_chunk:
 		goto err;
 	}
 
-	t = ic->recalc_tags;
+	t = recalc_tags;
 	for (i = 0; i < n_sectors; i += ic->sectors_per_block) {
-		integrity_sector_checksum(ic, logical_sector + i, ic->recalc_buffer + (i << SECTOR_SHIFT), t);
+		integrity_sector_checksum(ic, logical_sector + i, recalc_buffer + (i << SECTOR_SHIFT), t);
 		t += ic->tag_size;
 	}
 
 	metadata_block = get_metadata_sector_and_offset(ic, area, offset, &metadata_offset);
 
-	r = dm_integrity_rw_tag(ic, ic->recalc_tags, &metadata_block, &metadata_offset, t - ic->recalc_tags, TAG_WRITE);
+	r = dm_integrity_rw_tag(ic, recalc_tags, &metadata_block, &metadata_offset, t - recalc_tags, TAG_WRITE);
 	if (unlikely(r)) {
 		dm_integrity_io_error(ic, "writing tags", r);
 		goto err;
@@ -2784,12 +2791,16 @@ advance_and_next:
 
 err:
 	remove_range(ic, &range);
-	return;
+	goto free_ret;
 
 unlock_ret:
 	spin_unlock_irq(&ic->endio_wait.lock);
 
 	recalc_write_super(ic);
+
+free_ret:
+	vfree(recalc_buffer);
+	kvfree(recalc_tags);
 }
 
 static void bitmap_block_work(struct work_struct *w)
@@ -4268,10 +4279,10 @@ static int dm_integrity_ctr(struct dm_target *ti, unsigned int argc, char **argv
 	}
 
 	/*
-	 * If this workqueue were percpu, it would cause bio reordering
+	 * If this workqueue weren't ordered, it would cause bio reordering
 	 * and reduced performance.
 	 */
-	ic->wait_wq = alloc_workqueue("dm-integrity-wait", WQ_MEM_RECLAIM | WQ_UNBOUND, 1);
+	ic->wait_wq = alloc_ordered_workqueue("dm-integrity-wait", WQ_MEM_RECLAIM);
 	if (!ic->wait_wq) {
 		ti->error = "Cannot allocate workqueue";
 		r = -ENOMEM;
@@ -4454,8 +4465,6 @@ try_smaller_buffer:
 	}
 
 	if (ic->internal_hash) {
-		size_t recalc_tags_size;
-
 		ic->recalc_wq = alloc_workqueue("dm-integrity-recalc", WQ_MEM_RECLAIM, 1);
 		if (!ic->recalc_wq) {
 			ti->error = "Cannot allocate workqueue";
@@ -4463,21 +4472,6 @@ try_smaller_buffer:
 			goto bad;
 		}
 		INIT_WORK(&ic->recalc_work, integrity_recalc);
-		ic->recalc_buffer = vmalloc(RECALC_SECTORS << SECTOR_SHIFT);
-		if (!ic->recalc_buffer) {
-			ti->error = "Cannot allocate buffer for recalculating";
-			r = -ENOMEM;
-			goto bad;
-		}
-		recalc_tags_size = (RECALC_SECTORS >> ic->sb->log2_sectors_per_block) * ic->tag_size;
-		if (crypto_shash_digestsize(ic->internal_hash) > ic->tag_size)
-			recalc_tags_size += crypto_shash_digestsize(ic->internal_hash) - ic->tag_size;
-		ic->recalc_tags = kvmalloc(recalc_tags_size, GFP_KERNEL);
-		if (!ic->recalc_tags) {
-			ti->error = "Cannot allocate tags for recalculating";
-			r = -ENOMEM;
-			goto bad;
-		}
 	} else {
 		if (ic->sb->flags & cpu_to_le32(SB_FLAG_RECALCULATING)) {
 			ti->error = "Recalculate can only be specified with internal_hash";
@@ -4621,8 +4615,6 @@ static void dm_integrity_dtr(struct dm_target *ti)
 		destroy_workqueue(ic->writer_wq);
 	if (ic->recalc_wq)
 		destroy_workqueue(ic->recalc_wq);
-	vfree(ic->recalc_buffer);
-	kvfree(ic->recalc_tags);
 	kvfree(ic->bbs);
 	if (ic->bufio)
 		dm_bufio_client_destroy(ic->bufio);

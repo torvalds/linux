@@ -50,6 +50,9 @@ properties:
       - const: gcc_gpu_gpll0_clk_src
       - const: gcc_gpu_gpll0_div_clk_src
 
+  power-domains:
+    maxItems: 1
+
   '#clock-cells':
     const: 1
 

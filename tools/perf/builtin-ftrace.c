@@ -650,6 +650,8 @@ static int __cmd_ftrace(struct perf_ftrace *ftrace)
 				break;
 			if (fwrite(buf, n, 1, stdout) != 1)
 				break;
+			/* flush output since stdout is in full buffering mode due to pager */
+			fflush(stdout);
 		}
 	}
 

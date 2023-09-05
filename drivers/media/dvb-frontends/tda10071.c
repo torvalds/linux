@@ -1240,7 +1240,7 @@ static struct i2c_driver tda10071_driver = {
 		.name	= "tda10071",
 		.suppress_bind_attrs = true,
 	},
-	.probe_new	= tda10071_probe,
+	.probe		= tda10071_probe,
 	.remove		= tda10071_remove,
 	.id_table	= tda10071_id_table,
 };

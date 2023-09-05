@@ -840,7 +840,7 @@ static struct i2c_driver sm5502_muic_i2c_driver = {
 		.pm	= &sm5502_muic_pm_ops,
 		.of_match_table = sm5502_dt_match,
 	},
-	.probe_new = sm5022_muic_i2c_probe,
+	.probe = sm5022_muic_i2c_probe,
 	.id_table = sm5502_i2c_id,
 };
 

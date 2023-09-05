@@ -147,7 +147,7 @@ fail_create_hcd:
 	return ret;
 }
 
-static int ehci_hcd_sh_remove(struct platform_device *pdev)
+static void ehci_hcd_sh_remove(struct platform_device *pdev)
 {
 	struct ehci_sh_priv *priv = platform_get_drvdata(pdev);
 	struct usb_hcd *hcd = priv->hcd;
@@ -157,8 +157,6 @@ static int ehci_hcd_sh_remove(struct platform_device *pdev)
 
 	clk_disable(priv->fclk);
 	clk_disable(priv->iclk);
-
-	return 0;
 }
 
 static void ehci_hcd_sh_shutdown(struct platform_device *pdev)
@@ -172,7 +170,7 @@ static void ehci_hcd_sh_shutdown(struct platform_device *pdev)
 
 static struct platform_driver ehci_hcd_sh_driver = {
 	.probe		= ehci_hcd_sh_probe,
-	.remove		= ehci_hcd_sh_remove,
+	.remove_new	= ehci_hcd_sh_remove,
 	.shutdown	= ehci_hcd_sh_shutdown,
 	.driver		= {
 		.name	= "sh_ehci",

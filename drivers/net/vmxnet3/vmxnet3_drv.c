@@ -686,9 +686,7 @@ vmxnet3_append_frag(struct sk_buff *skb, struct Vmxnet3_RxCompDesc *rcd,
 
 	BUG_ON(skb_shinfo(skb)->nr_frags >= MAX_SKB_FRAGS);
 
-	__skb_frag_set_page(frag, rbi->page);
-	skb_frag_off_set(frag, 0);
-	skb_frag_size_set(frag, rcd->len);
+	skb_frag_fill_page_desc(frag, rbi->page, 0, rcd->len);
 	skb->data_len += rcd->len;
 	skb->truesize += PAGE_SIZE;
 	skb_shinfo(skb)->nr_frags++;

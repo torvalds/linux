@@ -169,7 +169,7 @@ static void assert_dp_port(struct intel_dp *intel_dp, bool state)
 	struct drm_i915_private *dev_priv = to_i915(dig_port->base.base.dev);
 	bool cur_state = intel_de_read(dev_priv, intel_dp->output_reg) & DP_PORT_EN;
 
-	I915_STATE_WARN(cur_state != state,
+	I915_STATE_WARN(dev_priv, cur_state != state,
 			"[ENCODER:%d:%s] state assertion failure (expected %s, current %s)\n",
 			dig_port->base.base.base.id, dig_port->base.base.name,
 			str_on_off(state), str_on_off(cur_state));
@@ -180,7 +180,7 @@ static void assert_edp_pll(struct drm_i915_private *dev_priv, bool state)
 {
 	bool cur_state = intel_de_read(dev_priv, DP_A) & DP_PLL_ENABLE;
 
-	I915_STATE_WARN(cur_state != state,
+	I915_STATE_WARN(dev_priv, cur_state != state,
 			"eDP PLL state assertion failure (expected %s, current %s)\n",
 			str_on_off(state), str_on_off(cur_state));
 }

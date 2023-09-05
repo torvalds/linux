@@ -41,3 +41,4 @@
 0x00000000460f0010,v1,fujitsu/a64fx,core
 0x00000000480fd010,v1,hisilicon/hip08,core
 0x00000000500f0000,v1,ampere/emag,core
+0x00000000c00fac30,v1,ampere/ampereone,core

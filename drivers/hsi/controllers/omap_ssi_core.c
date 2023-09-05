@@ -17,6 +17,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/dmaengine.h>
 #include <linux/delay.h>
+#include <linux/hsi/ssi_protocol.h>
 #include <linux/seq_file.h>
 #include <linux/scatterlist.h>
 #include <linux/interrupt.h>

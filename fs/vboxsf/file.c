@@ -217,7 +217,7 @@ const struct file_operations vboxsf_reg_fops = {
 	.open = vboxsf_file_open,
 	.release = vboxsf_file_release,
 	.fsync = noop_fsync,
-	.splice_read = generic_file_splice_read,
+	.splice_read = filemap_splice_read,
 };
 
 const struct inode_operations vboxsf_reg_iops = {

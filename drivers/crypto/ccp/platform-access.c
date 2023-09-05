@@ -67,6 +67,11 @@ int psp_send_platform_access_msg(enum psp_platform_access_msg msg,
 		return -ENODEV;
 
 	pa_dev = psp->platform_access_data;
+
+	if (!pa_dev->vdata->cmdresp_reg || !pa_dev->vdata->cmdbuff_addr_lo_reg ||
+	    !pa_dev->vdata->cmdbuff_addr_hi_reg)
+		return -ENODEV;
+
 	cmd = psp->io_regs + pa_dev->vdata->cmdresp_reg;
 	lo = psp->io_regs + pa_dev->vdata->cmdbuff_addr_lo_reg;
 	hi = psp->io_regs + pa_dev->vdata->cmdbuff_addr_hi_reg;

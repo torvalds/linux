@@ -118,9 +118,6 @@ extern void *__memcpy(void *__to, __const__ void *__from, size_t __n);
 extern void *memmove(void *__dest, __const__ void *__src, size_t __n);
 extern void *__memmove(void *__dest, __const__ void *__src, size_t __n);
 
-/* Don't build bcopy at all ...  */
-#define __HAVE_ARCH_BCOPY
-
 #if defined(CONFIG_KASAN) && !defined(__SANITIZE_ADDRESS__)
 
 /*

@@ -42,17 +42,16 @@ properties:
 patternProperties:
   "^nand@[a-f0-9]$":
     type: object
+    $ref: raw-nand-chip.yaml
     properties:
       reg:
         minimum: 0
         maximum: 1
 
-      nand-ecc-mode: true
-
       nand-ecc-algo:
         const: hw
 
-    additionalProperties: false
+    unevaluatedProperties: false
 
 required:
   - compatible

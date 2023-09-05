@@ -129,6 +129,21 @@ struct rpc_rqst {
 #define rq_svec			rq_snd_buf.head
 #define rq_slen			rq_snd_buf.len
 
+/* RPC transport layer security policies */
+enum xprtsec_policies {
+	RPC_XPRTSEC_NONE = 0,
+	RPC_XPRTSEC_TLS_ANON,
+	RPC_XPRTSEC_TLS_X509,
+};
+
+struct xprtsec_parms {
+	enum xprtsec_policies	policy;
+
+	/* authentication material */
+	key_serial_t		cert_serial;
+	key_serial_t		privkey_serial;
+};
+
 struct rpc_xprt_ops {
 	void		(*set_buffer_size)(struct rpc_xprt *xprt, size_t sndsize, size_t rcvsize);
 	int		(*reserve_xprt)(struct rpc_xprt *xprt, struct rpc_task *task);
@@ -185,6 +200,7 @@ enum xprt_transports {
 	XPRT_TRANSPORT_RDMA	= 256,
 	XPRT_TRANSPORT_BC_RDMA	= XPRT_TRANSPORT_RDMA | XPRT_TRANSPORT_BC,
 	XPRT_TRANSPORT_LOCAL	= 257,
+	XPRT_TRANSPORT_TCP_TLS	= 258,
 };
 
 struct rpc_sysfs_xprt;
@@ -229,6 +245,7 @@ struct rpc_xprt {
 	 */
 	unsigned long		bind_timeout,
 				reestablish_timeout;
+	struct xprtsec_parms	xprtsec;
 	unsigned int		connect_cookie;	/* A cookie that gets bumped
 						   every time the transport
 						   is reconnected */
@@ -333,6 +350,7 @@ struct xprt_create {
 	struct svc_xprt		*bc_xprt;	/* NFSv4.1 backchannel */
 	struct rpc_xprt_switch	*bc_xps;
 	unsigned int		flags;
+	struct xprtsec_parms	xprtsec;
 };
 
 struct xprt_class {

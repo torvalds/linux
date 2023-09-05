@@ -101,7 +101,7 @@ static struct i2c_driver mcp230xx_driver = {
 		.name	= "mcp230xx",
 		.of_match_table = mcp23s08_i2c_of_match,
 	},
-	.probe_new	= mcp230xx_probe,
+	.probe		= mcp230xx_probe,
 	.id_table	= mcp230xx_id,
 };
 

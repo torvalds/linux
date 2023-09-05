@@ -496,13 +496,13 @@ int drm_gem_create_mmap_offset(struct drm_gem_object *obj)
 EXPORT_SYMBOL(drm_gem_create_mmap_offset);
 
 /*
- * Move pages to appropriate lru and release the pagevec, decrementing the
- * ref count of those pages.
+ * Move folios to appropriate lru and release the folios, decrementing the
+ * ref count of those folios.
  */
-static void drm_gem_check_release_pagevec(struct pagevec *pvec)
+static void drm_gem_check_release_batch(struct folio_batch *fbatch)
 {
-	check_move_unevictable_pages(pvec);
-	__pagevec_release(pvec);
+	check_move_unevictable_folios(fbatch);
+	__folio_batch_release(fbatch);
 	cond_resched();
 }
 
@@ -534,10 +534,10 @@ static void drm_gem_check_release_pagevec(struct pagevec *pvec)
 struct page **drm_gem_get_pages(struct drm_gem_object *obj)
 {
 	struct address_space *mapping;
-	struct page *p, **pages;
-	struct pagevec pvec;
-	int i, npages;
-
+	struct page **pages;
+	struct folio *folio;
+	struct folio_batch fbatch;
+	int i, j, npages;
 
 	if (WARN_ON(!obj->filp))
 		return ERR_PTR(-EINVAL);
@@ -559,11 +559,14 @@ struct page **drm_gem_get_pages(struct drm_gem_object *obj)
 
 	mapping_set_unevictable(mapping);
 
-	for (i = 0; i < npages; i++) {
-		p = shmem_read_mapping_page(mapping, i);
-		if (IS_ERR(p))
+	i = 0;
+	while (i < npages) {
+		folio = shmem_read_folio_gfp(mapping, i,
+				mapping_gfp_mask(mapping));
+		if (IS_ERR(folio))
 			goto fail;
-		pages[i] = p;
+		for (j = 0; j < folio_nr_pages(folio); j++, i++)
+			pages[i] = folio_file_page(folio, i);
 
 		/* Make sure shmem keeps __GFP_DMA32 allocated pages in the
 		 * correct region during swapin. Note that this requires
@@ -571,23 +574,26 @@ struct page **drm_gem_get_pages(struct drm_gem_object *obj)
 		 * so shmem can relocate pages during swapin if required.
 		 */
 		BUG_ON(mapping_gfp_constraint(mapping, __GFP_DMA32) &&
-				(page_to_pfn(p) >= 0x00100000UL));
+				(folio_pfn(folio) >= 0x00100000UL));
 	}
 
 	return pages;
 
 fail:
 	mapping_clear_unevictable(mapping);
-	pagevec_init(&pvec);
-	while (i--) {
-		if (!pagevec_add(&pvec, pages[i]))
-			drm_gem_check_release_pagevec(&pvec);
+	folio_batch_init(&fbatch);
+	j = 0;
+	while (j < i) {
+		struct folio *f = page_folio(pages[j]);
+		if (!folio_batch_add(&fbatch, f))
+			drm_gem_check_release_batch(&fbatch);
+		j += folio_nr_pages(f);
 	}
-	if (pagevec_count(&pvec))
-		drm_gem_check_release_pagevec(&pvec);
+	if (fbatch.nr)
+		drm_gem_check_release_batch(&fbatch);
 
 	kvfree(pages);
-	return ERR_CAST(p);
+	return ERR_CAST(folio);
 }
 EXPORT_SYMBOL(drm_gem_get_pages);
 
@@ -603,7 +609,7 @@ void drm_gem_put_pages(struct drm_gem_object *obj, struct page **pages,
 {
 	int i, npages;
 	struct address_space *mapping;
-	struct pagevec pvec;
+	struct folio_batch fbatch;
 
 	mapping = file_inode(obj->filp)->i_mapping;
 	mapping_clear_unevictable(mapping);
@@ -616,23 +622,27 @@ void drm_gem_put_pages(struct drm_gem_object *obj, struct page **pages,
 
 	npages = obj->size >> PAGE_SHIFT;
 
-	pagevec_init(&pvec);
+	folio_batch_init(&fbatch);
 	for (i = 0; i < npages; i++) {
+		struct folio *folio;
+
 		if (!pages[i])
 			continue;
+		folio = page_folio(pages[i]);
 
 		if (dirty)
-			set_page_dirty(pages[i]);
+			folio_mark_dirty(folio);
 
 		if (accessed)
-			mark_page_accessed(pages[i]);
+			folio_mark_accessed(folio);
 
 		/* Undo the reference we took when populating the table */
-		if (!pagevec_add(&pvec, pages[i]))
-			drm_gem_check_release_pagevec(&pvec);
+		if (!folio_batch_add(&fbatch, folio))
+			drm_gem_check_release_batch(&fbatch);
+		i += folio_nr_pages(folio) - 1;
 	}
-	if (pagevec_count(&pvec))
-		drm_gem_check_release_pagevec(&pvec);
+	if (folio_batch_count(&fbatch))
+		drm_gem_check_release_batch(&fbatch);
 
 	kvfree(pages);
 }

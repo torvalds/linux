@@ -5,7 +5,6 @@
 
 menuconfig PCCARD
 	tristate "PCCard (PCMCIA/CardBus) support"
-	depends on !UML
 	help
 	  Say Y here if you want to attach PCMCIA- or PC-cards to your Linux
 	  computer.  These are credit-card size devices such as network cards,
@@ -113,7 +112,7 @@ config YENTA_TOSHIBA
 
 config PD6729
 	tristate "Cirrus PD6729 compatible bridge support"
-	depends on PCMCIA && PCI
+	depends on PCMCIA && PCI && HAS_IOPORT
 	select PCCARD_NONSTATIC
 	help
 	  This provides support for the Cirrus PD6729 PCI-to-PCMCIA bridge
@@ -121,7 +120,7 @@ config PD6729
 
 config I82092
 	tristate "i82092 compatible bridge support"
-	depends on PCMCIA && PCI
+	depends on PCMCIA && PCI && HAS_IOPORT
 	select PCCARD_NONSTATIC
 	help
 	  This provides support for the Intel I82092AA PCI-to-PCMCIA bridge device,

@@ -235,7 +235,7 @@ static struct i2c_driver adc081c_driver = {
 		.of_match_table = adc081c_of_match,
 		.acpi_match_table = adc081c_acpi_match,
 	},
-	.probe_new = adc081c_probe,
+	.probe = adc081c_probe,
 	.id_table = adc081c_id,
 };
 module_i2c_driver(adc081c_driver);

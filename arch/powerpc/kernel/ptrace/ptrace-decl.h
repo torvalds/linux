@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include <linux/regset.h>
+
 /*
  * Set of msr bits that gdb can change on behalf of a process.
  */
@@ -55,6 +57,10 @@ enum powerpc_regset {
 	REGSET_TAR,		/* TAR register */
 	REGSET_EBB,		/* EBB registers */
 	REGSET_PMR,		/* Performance Monitor Registers */
+	REGSET_DEXCR,		/* DEXCR registers */
+#ifdef CONFIG_CHECKPOINT_RESTORE
+	REGSET_HASHKEYR,	/* HASHKEYR register */
+#endif
 #endif
 #ifdef CONFIG_PPC_MEM_KEYS
 	REGSET_PKEY,		/* AMR register */

@@ -427,7 +427,7 @@ static struct i2c_driver max31730_driver = {
 		.of_match_table = of_match_ptr(max31730_of_match),
 		.pm	= pm_sleep_ptr(&max31730_pm_ops),
 	},
-	.probe_new	= max31730_probe,
+	.probe		= max31730_probe,
 	.id_table	= max31730_ids,
 	.detect		= max31730_detect,
 	.address_list	= normal_i2c,

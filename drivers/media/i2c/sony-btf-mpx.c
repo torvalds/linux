@@ -375,7 +375,7 @@ static struct i2c_driver sony_btf_mpx_driver = {
 	.driver = {
 		.name	= "sony-btf-mpx",
 	},
-	.probe_new = sony_btf_mpx_probe,
+	.probe = sony_btf_mpx_probe,
 	.remove = sony_btf_mpx_remove,
 	.id_table = sony_btf_mpx_id,
 };

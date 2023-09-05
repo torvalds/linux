@@ -1839,6 +1839,41 @@ static bool __init intel_idle_verify_cstate(unsigned int mwait_hint)
 	return true;
 }
 
+static void state_update_enter_method(struct cpuidle_state *state, int cstate)
+{
+	if (state->flags & CPUIDLE_FLAG_INIT_XSTATE) {
+		/*
+		 * Combining with XSTATE with IBRS or IRQ_ENABLE flags
+		 * is not currently supported but this driver.
+		 */
+		WARN_ON_ONCE(state->flags & CPUIDLE_FLAG_IBRS);
+		WARN_ON_ONCE(state->flags & CPUIDLE_FLAG_IRQ_ENABLE);
+		state->enter = intel_idle_xstate;
+		return;
+	}
+
+	if (cpu_feature_enabled(X86_FEATURE_KERNEL_IBRS) &&
+			   state->flags & CPUIDLE_FLAG_IBRS) {
+		/*
+		 * IBRS mitigation requires that C-states are entered
+		 * with interrupts disabled.
+		 */
+		WARN_ON_ONCE(state->flags & CPUIDLE_FLAG_IRQ_ENABLE);
+		state->enter = intel_idle_ibrs;
+		return;
+	}
+
+	if (state->flags & CPUIDLE_FLAG_IRQ_ENABLE) {
+		state->enter = intel_idle_irq;
+		return;
+	}
+
+	if (force_irq_on) {
+		pr_info("forced intel_idle_irq for state %d\n", cstate);
+		state->enter = intel_idle_irq;
+	}
+}
+
 static void __init intel_idle_init_cstates_icpu(struct cpuidle_driver *drv)
 {
 	int cstate;
@@ -1894,28 +1929,8 @@ static void __init intel_idle_init_cstates_icpu(struct cpuidle_driver *drv)
 		drv->states[drv->state_count] = cpuidle_state_table[cstate];
 		state = &drv->states[drv->state_count];
 
-		if (state->flags & CPUIDLE_FLAG_INIT_XSTATE) {
-			/*
-			 * Combining with XSTATE with IBRS or IRQ_ENABLE flags
-			 * is not currently supported but this driver.
-			 */
-			WARN_ON_ONCE(state->flags & CPUIDLE_FLAG_IBRS);
-			WARN_ON_ONCE(state->flags & CPUIDLE_FLAG_IRQ_ENABLE);
-			state->enter = intel_idle_xstate;
-		} else if (cpu_feature_enabled(X86_FEATURE_KERNEL_IBRS) &&
-			   state->flags & CPUIDLE_FLAG_IBRS) {
-			/*
-			 * IBRS mitigation requires that C-states are entered
-			 * with interrupts disabled.
-			 */
-			WARN_ON_ONCE(state->flags & CPUIDLE_FLAG_IRQ_ENABLE);
-			state->enter = intel_idle_ibrs;
-		} else if (state->flags & CPUIDLE_FLAG_IRQ_ENABLE) {
-			state->enter = intel_idle_irq;
-		} else if (force_irq_on) {
-			pr_info("forced intel_idle_irq for state %d\n", cstate);
-			state->enter = intel_idle_irq;
-		}
+		state_update_enter_method(state, cstate);
+
 
 		if ((disabled_states_mask & BIT(drv->state_count)) ||
 		    ((icpu->use_acpi || force_use_acpi) &&

@@ -404,8 +404,8 @@ static int ov5693_read_reg(struct ov5693_device *ov5693, u32 addr, u32 *value)
 	ret = i2c_transfer(client->adapter, msg, 2);
 	if (ret < 0)
 		return dev_err_probe(&client->dev, ret,
-				     "Failed to read register 0x%04x: %d\n",
-				     addr & OV5693_REG_ADDR_MASK, ret);
+				     "Failed to read register 0x%04x\n",
+				     addr & OV5693_REG_ADDR_MASK);
 
 	*value = 0;
 	for (i = 0; i < len; ++i) {
@@ -1554,7 +1554,7 @@ static struct i2c_driver ov5693_driver = {
 		.of_match_table = ov5693_of_match,
 		.pm = &ov5693_pm_ops,
 	},
-	.probe_new = ov5693_probe,
+	.probe = ov5693_probe,
 	.remove = ov5693_remove,
 };
 module_i2c_driver(ov5693_driver);

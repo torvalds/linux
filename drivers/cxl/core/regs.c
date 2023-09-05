@@ -6,6 +6,7 @@
 #include <linux/pci.h>
 #include <cxlmem.h>
 #include <cxlpci.h>
+#include <pmu.h>
 
 #include "core.h"
 
@@ -199,11 +200,13 @@ void __iomem *devm_cxl_iomap_block(struct device *dev, resource_size_t addr,
 	return ret_val;
 }
 
-int cxl_map_component_regs(struct device *dev, struct cxl_component_regs *regs,
-			   struct cxl_register_map *map, unsigned long map_mask)
+int cxl_map_component_regs(const struct cxl_register_map *map,
+			   struct cxl_component_regs *regs,
+			   unsigned long map_mask)
 {
+	struct device *dev = map->dev;
 	struct mapinfo {
-		struct cxl_reg_map *rmap;
+		const struct cxl_reg_map *rmap;
 		void __iomem **addr;
 	} mapinfo[] = {
 		{ &map->component_map.hdm_decoder, &regs->hdm_decoder },
@@ -231,13 +234,13 @@ int cxl_map_component_regs(struct device *dev, struct cxl_component_regs *regs,
 }
 EXPORT_SYMBOL_NS_GPL(cxl_map_component_regs, CXL);
 
-int cxl_map_device_regs(struct device *dev,
-			struct cxl_device_regs *regs,
-			struct cxl_register_map *map)
+int cxl_map_device_regs(const struct cxl_register_map *map,
+			struct cxl_device_regs *regs)
 {
+	struct device *dev = map->dev;
 	resource_size_t phys_addr = map->resource;
 	struct mapinfo {
-		struct cxl_reg_map *rmap;
+		const struct cxl_reg_map *rmap;
 		void __iomem **addr;
 	} mapinfo[] = {
 		{ &map->device_map.status, &regs->status, },
@@ -286,23 +289,30 @@ static bool cxl_decode_regblock(struct pci_dev *pdev, u32 reg_lo, u32 reg_hi,
 }
 
 /**
- * cxl_find_regblock() - Locate register blocks by type
+ * cxl_find_regblock_instance() - Locate a register block by type / index
  * @pdev: The CXL PCI device to enumerate.
  * @type: Register Block Indicator id
  * @map: Enumeration output, clobbered on error
+ * @index: Index into which particular instance of a regblock wanted in the
+ *	   order found in register locator DVSEC.
  *
  * Return: 0 if register block enumerated, negative error code otherwise
  *
  * A CXL DVSEC may point to one or more register blocks, search for them
- * by @type.
+ * by @type and @index.
  */
-int cxl_find_regblock(struct pci_dev *pdev, enum cxl_regloc_type type,
-		      struct cxl_register_map *map)
+int cxl_find_regblock_instance(struct pci_dev *pdev, enum cxl_regloc_type type,
+			       struct cxl_register_map *map, int index)
 {
 	u32 regloc_size, regblocks;
+	int instance = 0;
 	int regloc, i;
 
-	map->resource = CXL_RESOURCE_NONE;
+	*map = (struct cxl_register_map) {
+		.dev = &pdev->dev,
+		.resource = CXL_RESOURCE_NONE,
+	};
+
 	regloc = pci_find_dvsec_capability(pdev, PCI_DVSEC_VENDOR_ID_CXL,
 					   CXL_DVSEC_REG_LOCATOR);
 	if (!regloc)
@@ -323,20 +333,148 @@ int cxl_find_regblock(struct pci_dev *pdev, enum cxl_regloc_type type,
 		if (!cxl_decode_regblock(pdev, reg_lo, reg_hi, map))
 			continue;
 
-		if (map->reg_type == type)
-			return 0;
+		if (map->reg_type == type) {
+			if (index == instance)
+				return 0;
+			instance++;
+		}
 	}
 
 	map->resource = CXL_RESOURCE_NONE;
 	return -ENODEV;
 }
+EXPORT_SYMBOL_NS_GPL(cxl_find_regblock_instance, CXL);
+
+/**
+ * cxl_find_regblock() - Locate register blocks by type
+ * @pdev: The CXL PCI device to enumerate.
+ * @type: Register Block Indicator id
+ * @map: Enumeration output, clobbered on error
+ *
+ * Return: 0 if register block enumerated, negative error code otherwise
+ *
+ * A CXL DVSEC may point to one or more register blocks, search for them
+ * by @type.
+ */
+int cxl_find_regblock(struct pci_dev *pdev, enum cxl_regloc_type type,
+		      struct cxl_register_map *map)
+{
+	return cxl_find_regblock_instance(pdev, type, map, 0);
+}
 EXPORT_SYMBOL_NS_GPL(cxl_find_regblock, CXL);
 
-resource_size_t cxl_rcrb_to_component(struct device *dev,
-				      resource_size_t rcrb,
-				      enum cxl_rcrb which)
+/**
+ * cxl_count_regblock() - Count instances of a given regblock type.
+ * @pdev: The CXL PCI device to enumerate.
+ * @type: Register Block Indicator id
+ *
+ * Some regblocks may be repeated. Count how many instances.
+ *
+ * Return: count of matching regblocks.
+ */
+int cxl_count_regblock(struct pci_dev *pdev, enum cxl_regloc_type type)
+{
+	struct cxl_register_map map;
+	int rc, count = 0;
+
+	while (1) {
+		rc = cxl_find_regblock_instance(pdev, type, &map, count);
+		if (rc)
+			return count;
+		count++;
+	}
+}
+EXPORT_SYMBOL_NS_GPL(cxl_count_regblock, CXL);
+
+int cxl_map_pmu_regs(struct pci_dev *pdev, struct cxl_pmu_regs *regs,
+		     struct cxl_register_map *map)
+{
+	struct device *dev = &pdev->dev;
+	resource_size_t phys_addr;
+
+	phys_addr = map->resource;
+	regs->pmu = devm_cxl_iomap_block(dev, phys_addr, CXL_PMU_REGMAP_SIZE);
+	if (!regs->pmu)
+		return -ENOMEM;
+
+	return 0;
+}
+EXPORT_SYMBOL_NS_GPL(cxl_map_pmu_regs, CXL);
+
+static int cxl_map_regblock(struct cxl_register_map *map)
+{
+	struct device *dev = map->dev;
+
+	map->base = ioremap(map->resource, map->max_size);
+	if (!map->base) {
+		dev_err(dev, "failed to map registers\n");
+		return -ENOMEM;
+	}
+
+	dev_dbg(dev, "Mapped CXL Memory Device resource %pa\n", &map->resource);
+	return 0;
+}
+
+static void cxl_unmap_regblock(struct cxl_register_map *map)
+{
+	iounmap(map->base);
+	map->base = NULL;
+}
+
+static int cxl_probe_regs(struct cxl_register_map *map)
+{
+	struct cxl_component_reg_map *comp_map;
+	struct cxl_device_reg_map *dev_map;
+	struct device *dev = map->dev;
+	void __iomem *base = map->base;
+
+	switch (map->reg_type) {
+	case CXL_REGLOC_RBI_COMPONENT:
+		comp_map = &map->component_map;
+		cxl_probe_component_regs(dev, base, comp_map);
+		dev_dbg(dev, "Set up component registers\n");
+		break;
+	case CXL_REGLOC_RBI_MEMDEV:
+		dev_map = &map->device_map;
+		cxl_probe_device_regs(dev, base, dev_map);
+		if (!dev_map->status.valid || !dev_map->mbox.valid ||
+		    !dev_map->memdev.valid) {
+			dev_err(dev, "registers not found: %s%s%s\n",
+				!dev_map->status.valid ? "status " : "",
+				!dev_map->mbox.valid ? "mbox " : "",
+				!dev_map->memdev.valid ? "memdev " : "");
+			return -ENXIO;
+		}
+
+		dev_dbg(dev, "Probing device registers...\n");
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
+int cxl_setup_regs(struct cxl_register_map *map)
+{
+	int rc;
+
+	rc = cxl_map_regblock(map);
+	if (rc)
+		return rc;
+
+	rc = cxl_probe_regs(map);
+	cxl_unmap_regblock(map);
+
+	return rc;
+}
+EXPORT_SYMBOL_NS_GPL(cxl_setup_regs, CXL);
+
+resource_size_t __rcrb_to_component(struct device *dev, struct cxl_rcrb_info *ri,
+				    enum cxl_rcrb which)
 {
 	resource_size_t component_reg_phys;
+	resource_size_t rcrb = ri->base;
 	void __iomem *addr;
 	u32 bar0, bar1;
 	u16 cmd;
@@ -395,4 +533,12 @@ resource_size_t cxl_rcrb_to_component(struct device *dev,
 
 	return component_reg_phys;
 }
-EXPORT_SYMBOL_NS_GPL(cxl_rcrb_to_component, CXL);
+
+resource_size_t cxl_rcd_component_reg_phys(struct device *dev,
+					   struct cxl_dport *dport)
+{
+	if (!dport->rch)
+		return CXL_RESOURCE_NONE;
+	return __rcrb_to_component(dev, &dport->rcrb, CXL_RCRB_UPSTREAM);
+}
+EXPORT_SYMBOL_NS_GPL(cxl_rcd_component_reg_phys, CXL);

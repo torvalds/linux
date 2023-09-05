@@ -26,7 +26,6 @@ void dlm_callback_set_last_ptr(struct dlm_callback **from,
 			       struct dlm_callback *to);
 
 void dlm_release_callback(struct kref *ref);
-void dlm_purge_lkb_callbacks(struct dlm_lkb *lkb);
 void dlm_callback_work(struct work_struct *work);
 int dlm_callback_start(struct dlm_ls *ls);
 void dlm_callback_stop(struct dlm_ls *ls);

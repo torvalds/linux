@@ -51,6 +51,10 @@
 	};
 };
 
+&pmi8998_charger {
+	monitored-battery = <&battery>;
+};
+
 &sound {
 	model = "OnePlus 6";
 	audio-routing =	"RX_BIAS", "MCLK",

@@ -86,7 +86,7 @@ struct acpi_table_slic {
 struct acpi_table_slit {
 	struct acpi_table_header header;	/* Common ACPI table header */
 	u64 locality_count;
-	u8 entry[1];		/* Real size = localities^2 */
+	u8 entry[];				/* Real size = localities^2 */
 };
 
 /*******************************************************************************

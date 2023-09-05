@@ -618,15 +618,13 @@ static int synquacer_i2c_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int synquacer_i2c_remove(struct platform_device *pdev)
+static void synquacer_i2c_remove(struct platform_device *pdev)
 {
 	struct synquacer_i2c *i2c = platform_get_drvdata(pdev);
 
 	i2c_del_adapter(&i2c->adapter);
 	if (!IS_ERR(i2c->pclk))
 		clk_disable_unprepare(i2c->pclk);
-
-	return 0;
 };
 
 static const struct of_device_id synquacer_i2c_dt_ids[] __maybe_unused = {
@@ -645,7 +643,7 @@ MODULE_DEVICE_TABLE(acpi, synquacer_i2c_acpi_ids);
 
 static struct platform_driver synquacer_i2c_driver = {
 	.probe	= synquacer_i2c_probe,
-	.remove	= synquacer_i2c_remove,
+	.remove_new = synquacer_i2c_remove,
 	.driver	= {
 		.name = "synquacer_i2c",
 		.of_match_table = of_match_ptr(synquacer_i2c_dt_ids),

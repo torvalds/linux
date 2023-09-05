@@ -46,7 +46,7 @@ static inline void __fprobe_handler(unsigned long ip, unsigned long parent_ip,
 	}
 
 	if (fp->entry_handler)
-		ret = fp->entry_handler(fp, ip, ftrace_get_regs(fregs), entry_data);
+		ret = fp->entry_handler(fp, ip, parent_ip, ftrace_get_regs(fregs), entry_data);
 
 	/* If entry_handler returns !0, nmissed is not counted. */
 	if (rh) {
@@ -100,19 +100,27 @@ static void fprobe_kprobe_handler(unsigned long ip, unsigned long parent_ip,
 		return;
 	}
 
+	/*
+	 * This user handler is shared with other kprobes and is not expected to be
+	 * called recursively. So if any other kprobe handler is running, this will
+	 * exit as kprobe does. See the section 'Share the callbacks with kprobes'
+	 * in Documentation/trace/fprobe.rst for more information.
+	 */
 	if (unlikely(kprobe_running())) {
 		fp->nmissed++;
-		return;
+		goto recursion_unlock;
 	}
 
 	kprobe_busy_begin();
 	__fprobe_handler(ip, parent_ip, ops, fregs);
 	kprobe_busy_end();
+
+recursion_unlock:
 	ftrace_test_recursion_unlock(bit);
 }
 
 static void fprobe_exit_handler(struct rethook_node *rh, void *data,
-				struct pt_regs *regs)
+				unsigned long ret_ip, struct pt_regs *regs)
 {
 	struct fprobe *fp = (struct fprobe *)data;
 	struct fprobe_rethook_node *fpr;
@@ -133,7 +141,7 @@ static void fprobe_exit_handler(struct rethook_node *rh, void *data,
 		return;
 	}
 
-	fp->exit_handler(fp, fpr->entry_ip, regs,
+	fp->exit_handler(fp, fpr->entry_ip, ret_ip, regs,
 			 fp->entry_data_size ? (void *)fpr->data : NULL);
 	ftrace_test_recursion_unlock(bit);
 }
@@ -348,6 +356,14 @@ int register_fprobe_syms(struct fprobe *fp, const char **syms, int num)
 }
 EXPORT_SYMBOL_GPL(register_fprobe_syms);
 
+bool fprobe_is_registered(struct fprobe *fp)
+{
+	if (!fp || (fp->ops.saved_func != fprobe_handler &&
+		    fp->ops.saved_func != fprobe_kprobe_handler))
+		return false;
+	return true;
+}
+
 /**
  * unregister_fprobe() - Unregister fprobe from ftrace
  * @fp: A fprobe data structure to be unregistered.
@@ -360,22 +376,18 @@ int unregister_fprobe(struct fprobe *fp)
 {
 	int ret;
 
-	if (!fp || (fp->ops.saved_func != fprobe_handler &&
-		    fp->ops.saved_func != fprobe_kprobe_handler))
+	if (!fprobe_is_registered(fp))
 		return -EINVAL;
 
-	/*
-	 * rethook_free() starts disabling the rethook, but the rethook handlers
-	 * may be running on other processors at this point. To make sure that all
-	 * current running handlers are finished, call unregister_ftrace_function()
-	 * after this.
-	 */
 	if (fp->rethook)
-		rethook_free(fp->rethook);
+		rethook_stop(fp->rethook);
 
 	ret = unregister_ftrace_function(&fp->ops);
 	if (ret < 0)
 		return ret;
+
+	if (fp->rethook)
+		rethook_free(fp->rethook);
 
 	ftrace_free_filter(&fp->ops);
 

@@ -150,15 +150,15 @@ err_plat_populate:
 	return r;
 }
 
-static int clk_mt2701_aud_remove(struct platform_device *pdev)
+static void clk_mt2701_aud_remove(struct platform_device *pdev)
 {
 	of_platform_depopulate(&pdev->dev);
-	return mtk_clk_simple_remove(pdev);
+	mtk_clk_simple_remove(pdev);
 }
 
 static struct platform_driver clk_mt2701_aud_drv = {
 	.probe = clk_mt2701_aud_probe,
-	.remove = clk_mt2701_aud_remove,
+	.remove_new = clk_mt2701_aud_remove,
 	.driver = {
 		.name = "clk-mt2701-aud",
 		.of_match_table = of_match_clk_mt2701_aud,

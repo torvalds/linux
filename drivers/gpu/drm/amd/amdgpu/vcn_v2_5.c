@@ -188,9 +188,9 @@ static int vcn_v2_5_sw_init(void *handle)
 				(amdgpu_sriov_vf(adev) ? 2*j : 8*j);
 
 		if (adev->ip_versions[UVD_HWIP][0] == IP_VERSION(2, 5, 0))
-			ring->vm_hub = AMDGPU_MMHUB_1;
+			ring->vm_hub = AMDGPU_MMHUB1(0);
 		else
-			ring->vm_hub = AMDGPU_MMHUB_0;
+			ring->vm_hub = AMDGPU_MMHUB0(0);
 
 		sprintf(ring->name, "vcn_dec_%d", j);
 		r = amdgpu_ring_init(adev, ring, 512, &adev->vcn.inst[j].irq,
@@ -208,9 +208,9 @@ static int vcn_v2_5_sw_init(void *handle)
 					(amdgpu_sriov_vf(adev) ? (1 + i + 2*j) : (2 + i + 8*j));
 
 			if (adev->ip_versions[UVD_HWIP][0] == IP_VERSION(2, 5, 0))
-				ring->vm_hub = AMDGPU_MMHUB_1;
+				ring->vm_hub = AMDGPU_MMHUB1(0);
 			else
-				ring->vm_hub = AMDGPU_MMHUB_0;
+				ring->vm_hub = AMDGPU_MMHUB0(0);
 
 			sprintf(ring->name, "vcn_enc_%d.%d", j, i);
 			r = amdgpu_ring_init(adev, ring, 512,

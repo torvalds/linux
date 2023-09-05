@@ -27,6 +27,7 @@
 #include <poll.h>
 #include <limits.h>
 #include <err.h>
+#include <linux/list.h>
 #include <linux/time64.h>
 
 #define DATASIZE 100
@@ -35,8 +36,11 @@ static bool use_pipes = false;
 static unsigned int nr_loops = 100;
 static bool thread_mode = false;
 static unsigned int num_groups = 10;
+static struct list_head sender_contexts = LIST_HEAD_INIT(sender_contexts);
+static struct list_head receiver_contexts = LIST_HEAD_INIT(receiver_contexts);
 
 struct sender_context {
+	struct list_head list;
 	unsigned int num_fds;
 	int ready_out;
 	int wakefd;
@@ -44,6 +48,7 @@ struct sender_context {
 };
 
 struct receiver_context {
+	struct list_head list;
 	unsigned int num_packets;
 	int in_fds[2];
 	int ready_out;
@@ -170,6 +175,7 @@ static pthread_t create_worker(void *ctx, void *(*func)(void *))
 	if (ret != 0)
 		err(EXIT_FAILURE, "pthread_create failed");
 
+	pthread_attr_destroy(&attr);
 	return childid;
 }
 
@@ -201,6 +207,7 @@ static unsigned int group(pthread_t *pth,
 	if (!snd_ctx)
 		err(EXIT_FAILURE, "malloc()");
 
+	list_add(&snd_ctx->list, &sender_contexts);
 	for (i = 0; i < num_fds; i++) {
 		int fds[2];
 		struct receiver_context *ctx = malloc(sizeof(*ctx));
@@ -208,6 +215,7 @@ static unsigned int group(pthread_t *pth,
 		if (!ctx)
 			err(EXIT_FAILURE, "malloc()");
 
+		list_add(&ctx->list, &receiver_contexts);
 
 		/* Create the pipe between client and server */
 		fdpair(fds);
@@ -266,6 +274,7 @@ int bench_sched_messaging(int argc, const char **argv)
 	int readyfds[2], wakefds[2];
 	char dummy;
 	pthread_t *pth_tab;
+	struct sender_context *pos, *n;
 
 	argc = parse_options(argc, argv, options,
 			     bench_sched_message_usage, 0);
@@ -324,6 +333,13 @@ int bench_sched_messaging(int argc, const char **argv)
 	}
 
 	free(pth_tab);
-
+	list_for_each_entry_safe(pos, n, &sender_contexts, list) {
+		list_del_init(&pos->list);
+		free(pos);
+	}
+	list_for_each_entry_safe(pos, n, &receiver_contexts, list) {
+		list_del_init(&pos->list);
+		free(pos);
+	}
 	return 0;
 }

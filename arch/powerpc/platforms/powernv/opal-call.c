@@ -167,8 +167,6 @@ OPAL_CALL(opal_pci_map_pe_mmio_window,		OPAL_PCI_MAP_PE_MMIO_WINDOW);
 OPAL_CALL(opal_pci_set_phb_table_memory,	OPAL_PCI_SET_PHB_TABLE_MEMORY);
 OPAL_CALL(opal_pci_set_pe,			OPAL_PCI_SET_PE);
 OPAL_CALL(opal_pci_set_peltv,			OPAL_PCI_SET_PELTV);
-OPAL_CALL(opal_pci_set_mve,			OPAL_PCI_SET_MVE);
-OPAL_CALL(opal_pci_set_mve_enable,		OPAL_PCI_SET_MVE_ENABLE);
 OPAL_CALL(opal_pci_get_xive_reissue,		OPAL_PCI_GET_XIVE_REISSUE);
 OPAL_CALL(opal_pci_set_xive_reissue,		OPAL_PCI_SET_XIVE_REISSUE);
 OPAL_CALL(opal_pci_set_xive_pe,			OPAL_PCI_SET_XIVE_PE);

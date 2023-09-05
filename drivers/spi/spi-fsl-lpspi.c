@@ -303,6 +303,12 @@ static int fsl_lpspi_set_bitrate(struct fsl_lpspi_data *fsl_lpspi)
 
 	perclk_rate = clk_get_rate(fsl_lpspi->clk_per);
 
+	if (!config.speed_hz) {
+		dev_err(fsl_lpspi->dev,
+			"error: the transmission speed provided is 0!\n");
+		return -EINVAL;
+	}
+
 	if (config.speed_hz > perclk_rate / 2) {
 		dev_err(fsl_lpspi->dev,
 		      "per-clk should be at least two times of transfer speed");
@@ -911,7 +917,7 @@ static int fsl_lpspi_probe(struct platform_device *pdev)
 	if (ret == -EPROBE_DEFER)
 		goto out_pm_get;
 	if (ret < 0)
-		dev_err(&pdev->dev, "dma setup error %d, use pio\n", ret);
+		dev_warn(&pdev->dev, "dma setup error %d, use pio\n", ret);
 	else
 		/*
 		 * disable LPSPI module IRQ when enable DMA mode successfully,

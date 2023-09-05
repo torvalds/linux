@@ -359,7 +359,7 @@ static const struct hwmon_channel_info ds3232_hwmon_temp = {
 	.config = ds3232_hwmon_temp_config,
 };
 
-static const struct hwmon_channel_info *ds3232_hwmon_info[] = {
+static const struct hwmon_channel_info * const ds3232_hwmon_info[] = {
 	&ds3232_hwmon_chip,
 	&ds3232_hwmon_temp,
 	NULL
@@ -603,7 +603,7 @@ static struct i2c_driver ds3232_driver = {
 		.of_match_table = of_match_ptr(ds3232_of_match),
 		.pm	= &ds3232_pm_ops,
 	},
-	.probe_new = ds3232_i2c_probe,
+	.probe = ds3232_i2c_probe,
 	.id_table = ds3232_id,
 };
 

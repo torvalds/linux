@@ -3,7 +3,6 @@
  * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
  */
 #include <asm/asm.h>
-#include <asm/export.h>
 #include <asm/loongarch.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
@@ -184,11 +183,18 @@ tlb_huge_update_load:
 	ertn
 
 nopage_tlb_load:
-	dbar		0
+	dbar		0x700
 	csrrd		ra, EXCEPTION_KS2
 	la_abs		t0, tlb_do_page_fault_0
 	jr		t0
 SYM_FUNC_END(handle_tlb_load)
+
+SYM_FUNC_START(handle_tlb_load_ptw)
+	csrwr		t0, LOONGARCH_CSR_KS0
+	csrwr		t1, LOONGARCH_CSR_KS1
+	la_abs		t0, tlb_do_page_fault_0
+	jr		t0
+SYM_FUNC_END(handle_tlb_load_ptw)
 
 SYM_FUNC_START(handle_tlb_store)
 	csrwr		t0, EXCEPTION_KS0
@@ -333,11 +339,18 @@ tlb_huge_update_store:
 	ertn
 
 nopage_tlb_store:
-	dbar		0
+	dbar		0x700
 	csrrd		ra, EXCEPTION_KS2
 	la_abs		t0, tlb_do_page_fault_1
 	jr		t0
 SYM_FUNC_END(handle_tlb_store)
+
+SYM_FUNC_START(handle_tlb_store_ptw)
+	csrwr		t0, LOONGARCH_CSR_KS0
+	csrwr		t1, LOONGARCH_CSR_KS1
+	la_abs		t0, tlb_do_page_fault_1
+	jr		t0
+SYM_FUNC_END(handle_tlb_store_ptw)
 
 SYM_FUNC_START(handle_tlb_modify)
 	csrwr		t0, EXCEPTION_KS0
@@ -480,11 +493,18 @@ tlb_huge_update_modify:
 	ertn
 
 nopage_tlb_modify:
-	dbar		0
+	dbar		0x700
 	csrrd		ra, EXCEPTION_KS2
 	la_abs		t0, tlb_do_page_fault_1
 	jr		t0
 SYM_FUNC_END(handle_tlb_modify)
+
+SYM_FUNC_START(handle_tlb_modify_ptw)
+	csrwr		t0, LOONGARCH_CSR_KS0
+	csrwr		t1, LOONGARCH_CSR_KS1
+	la_abs		t0, tlb_do_page_fault_1
+	jr		t0
+SYM_FUNC_END(handle_tlb_modify_ptw)
 
 SYM_FUNC_START(handle_tlb_refill)
 	csrwr		t0, LOONGARCH_CSR_TLBRSAVE

@@ -3221,6 +3221,8 @@ static int __ovs_nla_copy_actions(struct net *net, const struct nlattr *attr,
 
 			switch (act_hash->hash_alg) {
 			case OVS_HASH_ALG_L4:
+				fallthrough;
+			case OVS_HASH_ALG_SYM_L4:
 				break;
 			default:
 				return  -EINVAL;

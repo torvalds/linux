@@ -85,7 +85,7 @@ $defs:
                 qdss_tracectl_a, dac_calib13, qdss_traceclk_a, dac_calib14,
                 dac_calib15, hdmi_rcv, dac_calib16, hdmi_cec, pwr_modem,
                 dac_calib17, hdmi_ddc, pwr_nav, dac_calib18, pwr_crypto,
-                dac_calib19, hdmi_hot, dac_calib20, dac_calib21, pci_e0,
+                dac_calib19, hdmi_hot, dac_calib20, dac_calib21, pci_e0, pcie_clkreq,
                 dac_calib22, dac_calib23, dac_calib24, tsif1_sync, dac_calib25,
                 sd_write, tsif1_error, blsp_spi2, blsp_uart2, blsp_uim2,
                 qdss_cti, blsp_i2c2, blsp_spi3, blsp_uart3, blsp_uim3, blsp_i2c3,

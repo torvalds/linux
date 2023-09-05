@@ -696,7 +696,7 @@ static int nvmem_validate_keepouts(struct nvmem_device *nvmem)
 	return 0;
 }
 
-static int nvmem_add_cells_from_of(struct nvmem_device *nvmem)
+static int nvmem_add_cells_from_dt(struct nvmem_device *nvmem, struct device_node *np)
 {
 	struct nvmem_layout *layout = nvmem->layout;
 	struct device *dev = &nvmem->dev;
@@ -704,7 +704,7 @@ static int nvmem_add_cells_from_of(struct nvmem_device *nvmem)
 	const __be32 *addr;
 	int len, ret;
 
-	for_each_child_of_node(dev->of_node, child) {
+	for_each_child_of_node(np, child) {
 		struct nvmem_cell_info info = {0};
 
 		addr = of_get_property(child, "reg", &len);
@@ -740,6 +740,28 @@ static int nvmem_add_cells_from_of(struct nvmem_device *nvmem)
 	}
 
 	return 0;
+}
+
+static int nvmem_add_cells_from_legacy_of(struct nvmem_device *nvmem)
+{
+	return nvmem_add_cells_from_dt(nvmem, nvmem->dev.of_node);
+}
+
+static int nvmem_add_cells_from_fixed_layout(struct nvmem_device *nvmem)
+{
+	struct device_node *layout_np;
+	int err = 0;
+
+	layout_np = of_nvmem_layout_get_container(nvmem);
+	if (!layout_np)
+		return 0;
+
+	if (of_device_is_compatible(layout_np, "fixed-layout"))
+		err = nvmem_add_cells_from_dt(nvmem, layout_np);
+
+	of_node_put(layout_np);
+
+	return err;
 }
 
 int __nvmem_layout_register(struct nvmem_layout *layout, struct module *owner)
@@ -972,13 +994,17 @@ struct nvmem_device *nvmem_register(const struct nvmem_config *config)
 	if (rval)
 		goto err_remove_cells;
 
-	rval = nvmem_add_cells_from_of(nvmem);
+	rval = nvmem_add_cells_from_legacy_of(nvmem);
 	if (rval)
 		goto err_remove_cells;
 
 	dev_dbg(&nvmem->dev, "Registering nvmem device %s\n", config->name);
 
 	rval = device_add(&nvmem->dev);
+	if (rval)
+		goto err_remove_cells;
+
+	rval = nvmem_add_cells_from_fixed_layout(nvmem);
 	if (rval)
 		goto err_remove_cells;
 

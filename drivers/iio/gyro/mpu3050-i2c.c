@@ -108,7 +108,7 @@ static const struct of_device_id mpu3050_i2c_of_match[] = {
 MODULE_DEVICE_TABLE(of, mpu3050_i2c_of_match);
 
 static struct i2c_driver mpu3050_i2c_driver = {
-	.probe_new = mpu3050_i2c_probe,
+	.probe = mpu3050_i2c_probe,
 	.remove = mpu3050_i2c_remove,
 	.id_table = mpu3050_i2c_id,
 	.driver = {

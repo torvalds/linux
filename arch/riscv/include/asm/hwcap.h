@@ -22,6 +22,7 @@
 #define RISCV_ISA_EXT_m		('m' - 'a')
 #define RISCV_ISA_EXT_s		('s' - 'a')
 #define RISCV_ISA_EXT_u		('u' - 'a')
+#define RISCV_ISA_EXT_v		('v' - 'a')
 
 /*
  * These macros represent the logical IDs of each multi-letter RISC-V ISA
@@ -46,6 +47,12 @@
 #define RISCV_ISA_EXT_ZICBOZ		34
 #define RISCV_ISA_EXT_SMAIA		35
 #define RISCV_ISA_EXT_SSAIA		36
+#define RISCV_ISA_EXT_ZBA		37
+#define RISCV_ISA_EXT_ZBS		38
+#define RISCV_ISA_EXT_ZICNTR		39
+#define RISCV_ISA_EXT_ZICSR		40
+#define RISCV_ISA_EXT_ZIFENCEI		41
+#define RISCV_ISA_EXT_ZIHPM		42
 
 #define RISCV_ISA_EXT_MAX		64
 #define RISCV_ISA_EXT_NAME_LEN_MAX	32
@@ -59,6 +66,8 @@
 #ifndef __ASSEMBLY__
 
 #include <linux/jump_label.h>
+
+unsigned long riscv_get_elf_hwcap(void);
 
 struct riscv_isa_ext_data {
 	/* Name of the extension displayed to userspace via /proc/cpuinfo */

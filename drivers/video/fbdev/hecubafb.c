@@ -102,7 +102,7 @@ static void apollo_send_command(struct hecubafb_par *par, unsigned char data)
 static void hecubafb_dpy_update(struct hecubafb_par *par)
 {
 	int i;
-	unsigned char *buf = (unsigned char __force *)par->info->screen_base;
+	unsigned char *buf = par->info->screen_buffer;
 
 	apollo_send_command(par, APOLLO_START_NEW_IMG);
 
@@ -163,8 +163,8 @@ static ssize_t hecubafb_write(struct fb_info *info, const char __user *buf,
 	int err = 0;
 	unsigned long total_size;
 
-	if (info->state != FBINFO_STATE_RUNNING)
-		return -EPERM;
+	if (!info->screen_buffer)
+		return -ENODEV;
 
 	total_size = info->fix.smem_len;
 
@@ -183,7 +183,7 @@ static ssize_t hecubafb_write(struct fb_info *info, const char __user *buf,
 		count = total_size - p;
 	}
 
-	dst = (void __force *) (info->screen_base + p);
+	dst = info->screen_buffer + p;
 
 	if (copy_from_user(dst, buf, count))
 		err = -EFAULT;
@@ -239,7 +239,7 @@ static int hecubafb_probe(struct platform_device *dev)
 	if (!info)
 		goto err_fballoc;
 
-	info->screen_base = (char __force __iomem *)videomemory;
+	info->screen_buffer = videomemory;
 	info->fbops = &hecubafb_ops;
 
 	info->var = hecubafb_var;
@@ -287,7 +287,7 @@ static void hecubafb_remove(struct platform_device *dev)
 		struct hecubafb_par *par = info->par;
 		fb_deferred_io_cleanup(info);
 		unregister_framebuffer(info);
-		vfree((void __force *)info->screen_base);
+		vfree(info->screen_buffer);
 		if (par->board->remove)
 			par->board->remove(par);
 		module_put(par->board->owner);

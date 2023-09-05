@@ -9,7 +9,7 @@
 
 MODULE_DESCRIPTION("Digidesign Digi 002/003 family Driver");
 MODULE_AUTHOR("Takashi Sakamoto <o-takashi@sakamocchi.jp>");
-MODULE_LICENSE("GPL v2");
+MODULE_LICENSE("GPL");
 
 #define VENDOR_DIGIDESIGN	0x00a07e
 #define MODEL_CONSOLE		0x000001

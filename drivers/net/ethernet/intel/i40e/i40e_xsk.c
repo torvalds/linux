@@ -582,7 +582,7 @@ static void i40e_clean_xdp_tx_buffer(struct i40e_ring *tx_ring,
  * @vsi: Current VSI
  * @tx_ring: XDP Tx ring
  *
- * Returns true if cleanup/tranmission is done.
+ * Returns true if cleanup/transmission is done.
  **/
 bool i40e_clean_xdp_tx_irq(struct i40e_vsi *vsi, struct i40e_ring *tx_ring)
 {

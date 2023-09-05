@@ -140,9 +140,18 @@ struct iwl_missed_vap_notif {
  *
  * @id_and_color: ID and color of the MAC
  */
-struct iwl_channel_switch_start_notif {
+struct iwl_channel_switch_start_notif_v1 {
 	__le32 id_and_color;
 } __packed; /* CHANNEL_SWITCH_START_NTFY_API_S_VER_1 */
+
+/**
+ * struct iwl_channel_switch_start_notif - Channel switch start notification
+ *
+ * @link_id: FW link id
+ */
+struct iwl_channel_switch_start_notif {
+	__le32 link_id;
+} __packed; /* CHANNEL_SWITCH_START_NTFY_API_S_VER_3 */
 
 #define CS_ERR_COUNT_ERROR BIT(0)
 #define CS_ERR_LONG_DELAY_AFTER_CS BIT(1)
@@ -150,30 +159,41 @@ struct iwl_channel_switch_start_notif {
 #define CS_ERR_TX_BLOCK_TIMER_EXPIRED BIT(3)
 
 /**
- * struct iwl_channel_switch_error_notif - Channel switch error notification
+ * struct iwl_channel_switch_error_notif_v1 - Channel switch error notification
  *
  * @mac_id: the mac for which the ucode sends the notification for
  * @csa_err_mask: mask of channel switch error that can occur
  */
-struct iwl_channel_switch_error_notif {
+struct iwl_channel_switch_error_notif_v1 {
 	__le32 mac_id;
 	__le32 csa_err_mask;
 } __packed; /* CHANNEL_SWITCH_ERROR_NTFY_API_S_VER_1 */
 
 /**
+ * struct iwl_channel_switch_error_notif - Channel switch error notification
+ *
+ * @link_id: FW link id
+ * @csa_err_mask: mask of channel switch error that can occur
+ */
+struct iwl_channel_switch_error_notif {
+	__le32 link_id;
+	__le32 csa_err_mask;
+} __packed; /* CHANNEL_SWITCH_ERROR_NTFY_API_S_VER_2 */
+
+/**
  * struct iwl_cancel_channel_switch_cmd - Cancel Channel Switch command
  *
- * @mac_id: the mac that should cancel the channel switch
+ * @id: the id of the link or mac that should cancel the channel switch
  */
 struct iwl_cancel_channel_switch_cmd {
-	__le32 mac_id;
+	__le32 id;
 } __packed; /* MAC_CANCEL_CHANNEL_SWITCH_S_VER_1 */
 
 /**
  * struct iwl_chan_switch_te_cmd - Channel Switch Time Event command
  *
  * @mac_id: MAC ID for channel switch
- * @action: action to perform, one of FW_CTXT_ACTION_*
+ * @action: action to perform, see &enum iwl_ctxt_action
  * @tsf: beacon tsf
  * @cs_count: channel switch count from CSA/eCSA IE
  * @cs_delayed_bcn_count: if set to N (!= 0) GO/AP can delay N beacon intervals
@@ -211,17 +231,30 @@ struct iwl_mac_low_latency_cmd {
  * struct iwl_mac_client_data - configuration data for client MAC context
  *
  * @is_assoc: 1 for associated state, 0 otherwise
+ * @esr_transition_timeout: the timeout required by the AP for the
+ *	eSR transition.
+ *	Available only from version 2 of the command.
+ *	This values comes from the EMLSR transition delay in the EML
+ *	Capabilities subfield.
+ * @medium_sync_delay: the value as it appeasr in P802.11be_D2.2 Figure 9-1002j.
  * @assoc_id: unique ID assigned by the AP during association
+ * @reserved1: alignment
  * @data_policy: see &enum iwl_mac_data_policy
+ * @reserved2: alignment
  * @ctwin: client traffic window in TU (period after TBTT when GO is present).
  *	0 indicates that there is no CT window.
  */
 struct iwl_mac_client_data {
-	__le32 is_assoc;
-	__le32 assoc_id;
-	__le32 data_policy;
+	u8 is_assoc;
+	u8 esr_transition_timeout;
+	__le16 medium_sync_delay;
+
+	__le16 assoc_id;
+	__le16 reserved1;
+	__le16 data_policy;
+	__le16 reserved2;
 	__le32 ctwin;
-} __packed; /* MAC_CONTEXT_CONFIG_CLIENT_DATA_API_S_VER_1 */
+} __packed; /* MAC_CONTEXT_CONFIG_CLIENT_DATA_API_S_VER_2 */
 
 /**
  * struct iwl_mac_p2p_dev_data  - configuration data for P2P device MAC context
@@ -263,7 +296,7 @@ enum iwl_mac_config_filter_flags {
  * ( MAC_CONTEXT_CONFIG_CMD = 0x8 )
  *
  * @id_and_color: ID and color of the MAC
- * @action: action to perform, one of FW_CTXT_ACTION_*
+ * @action: action to perform, see &enum iwl_ctxt_action
  * @mac_type: one of &enum iwl_mac_types
  * @local_mld_addr: mld address
  * @reserved_for_local_mld_addr: reserved
@@ -292,12 +325,12 @@ struct iwl_mac_config_cmd {
 	__le16 he_ap_support;
 	__le32 eht_support;
 	__le32 nic_not_ack_enabled;
-	/* MAC_CONTEXT_CONFIG_SPECIFIC_DATA_API_U_VER_1 */
+	/* MAC_CONTEXT_CONFIG_SPECIFIC_DATA_API_U_VER_2 */
 	union {
 		struct iwl_mac_client_data client;
 		struct iwl_mac_p2p_dev_data p2p_dev;
 	};
-} __packed; /* MAC_CONTEXT_CONFIG_CMD_API_S_VER_1 */
+} __packed; /* MAC_CONTEXT_CONFIG_CMD_API_S_VER_2 */
 
 /**
  * enum iwl_link_ctx_modify_flags - indicate to the fw what fields are being
@@ -390,7 +423,7 @@ enum iwl_link_ctx_flags {
  *	in MLD API
  * ( LINK_CONFIG_CMD =0x9 )
  *
- * @action: action to perform, one of FW_CTXT_ACTION_*
+ * @action: action to perform, see &enum iwl_ctxt_action
  * @link_id: the id of the link that this cmd configures
  * @mac_id: interface ID. Relevant only if action is FW_CTXT_ACTION_ADD
  * @phy_id: PHY index. Can be changed only if the link was inactive
@@ -430,6 +463,7 @@ enum iwl_link_ctx_flags {
  * @reserved_for_ref_bssid_addr: reserved
  * @bssid_index: index of the associated VAP
  * @bss_color: 11ax AP ID that is used in the HE SIG-A to mark inter BSS frame
+ * @spec_link_id: link_id as the AP knows it
  * @reserved: alignment
  * @ibss_bssid_addr: bssid for ibss
  * @reserved_for_ibss_bssid_addr: reserved
@@ -469,7 +503,8 @@ struct iwl_link_config_cmd {
 	__le16 reserved_for_ref_bssid_addr;
 	u8 bssid_index;
 	u8 bss_color;
-	u8 reserved[2];
+	u8 spec_link_id;
+	u8 reserved;
 	u8 ibss_bssid_addr[6];
 	__le16 reserved_for_ibss_bssid_addr;
 	__le32 reserved1[8];

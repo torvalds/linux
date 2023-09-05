@@ -6,7 +6,6 @@
 // Author: Jiaxin Yu <jiaxin.yu@mediatek.com>
 
 #include "mt8186-afe-common.h"
-#include <linux/pm_runtime.h>
 
 enum {
 	MTK_AFE_RATE_8K = 0,

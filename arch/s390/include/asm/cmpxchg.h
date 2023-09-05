@@ -190,38 +190,18 @@ static __always_inline unsigned long __cmpxchg(unsigned long address,
 #define arch_cmpxchg_local	arch_cmpxchg
 #define arch_cmpxchg64_local	arch_cmpxchg
 
-#define system_has_cmpxchg_double()	1
+#define system_has_cmpxchg128()		1
 
-static __always_inline int __cmpxchg_double(unsigned long p1, unsigned long p2,
-					    unsigned long o1, unsigned long o2,
-					    unsigned long n1, unsigned long n2)
+static __always_inline u128 arch_cmpxchg128(volatile u128 *ptr, u128 old, u128 new)
 {
-	union register_pair old = { .even = o1, .odd = o2, };
-	union register_pair new = { .even = n1, .odd = n2, };
-	int cc;
-
 	asm volatile(
 		"	cdsg	%[old],%[new],%[ptr]\n"
-		"	ipm	%[cc]\n"
-		"	srl	%[cc],28\n"
-		: [cc] "=&d" (cc), [old] "+&d" (old.pair)
-		: [new] "d" (new.pair),
-		  [ptr] "QS" (*(unsigned long *)p1), "Q" (*(unsigned long *)p2)
+		: [old] "+d" (old), [ptr] "+QS" (*ptr)
+		: [new] "d" (new)
 		: "memory", "cc");
-	return !cc;
+	return old;
 }
 
-#define arch_cmpxchg_double(p1, p2, o1, o2, n1, n2)			\
-({									\
-	typeof(p1) __p1 = (p1);						\
-	typeof(p2) __p2 = (p2);						\
-									\
-	BUILD_BUG_ON(sizeof(*(p1)) != sizeof(long));			\
-	BUILD_BUG_ON(sizeof(*(p2)) != sizeof(long));			\
-	VM_BUG_ON((unsigned long)((__p1) + 1) != (unsigned long)(__p2));\
-	__cmpxchg_double((unsigned long)__p1, (unsigned long)__p2,	\
-			 (unsigned long)(o1), (unsigned long)(o2),	\
-			 (unsigned long)(n1), (unsigned long)(n2));	\
-})
+#define arch_cmpxchg128		arch_cmpxchg128
 
 #endif /* __ASM_CMPXCHG_H */

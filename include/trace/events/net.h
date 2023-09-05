@@ -51,7 +51,8 @@ TRACE_EVENT(net_dev_start_xmit,
 		__entry->network_offset = skb_network_offset(skb);
 		__entry->transport_offset_valid =
 			skb_transport_header_was_set(skb);
-		__entry->transport_offset = skb_transport_offset(skb);
+		__entry->transport_offset = skb_transport_header_was_set(skb) ?
+			skb_transport_offset(skb) : 0;
 		__entry->tx_flags = skb_shinfo(skb)->tx_flags;
 		__entry->gso_size = skb_shinfo(skb)->gso_size;
 		__entry->gso_segs = skb_shinfo(skb)->gso_segs;

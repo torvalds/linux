@@ -33,17 +33,17 @@ struct eventfd_ctx {
 	/*
 	 * Every time that a write(2) is performed on an eventfd, the
 	 * value of the __u64 being written is added to "count" and a
-	 * wakeup is performed on "wqh". A read(2) will return the "count"
-	 * value to userspace, and will reset "count" to zero. The kernel
-	 * side eventfd_signal() also, adds to the "count" counter and
-	 * issue a wakeup.
+	 * wakeup is performed on "wqh". If EFD_SEMAPHORE flag was not
+	 * specified, a read(2) will return the "count" value to userspace,
+	 * and will reset "count" to zero. The kernel side eventfd_signal()
+	 * also, adds to the "count" counter and issue a wakeup.
 	 */
 	__u64 count;
 	unsigned int flags;
 	int id;
 };
 
-__u64 eventfd_signal_mask(struct eventfd_ctx *ctx, __u64 n, unsigned mask)
+__u64 eventfd_signal_mask(struct eventfd_ctx *ctx, __u64 n, __poll_t mask)
 {
 	unsigned long flags;
 
@@ -301,6 +301,8 @@ static void eventfd_show_fdinfo(struct seq_file *m, struct file *f)
 		   (unsigned long long)ctx->count);
 	spin_unlock_irq(&ctx->wqh.lock);
 	seq_printf(m, "eventfd-id: %d\n", ctx->id);
+	seq_printf(m, "eventfd-semaphore: %d\n",
+		   !!(ctx->flags & EFD_SEMAPHORE));
 }
 #endif
 

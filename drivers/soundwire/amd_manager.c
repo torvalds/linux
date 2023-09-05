@@ -910,9 +910,9 @@ static int amd_sdw_manager_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	amd_manager->acp_mmio = devm_ioremap(dev, res->start, resource_size(res));
-	if (IS_ERR(amd_manager->mmio)) {
+	if (!amd_manager->acp_mmio) {
 		dev_err(dev, "mmio not found\n");
-		return PTR_ERR(amd_manager->mmio);
+		return -ENOMEM;
 	}
 	amd_manager->instance = pdata->instance;
 	amd_manager->mmio = amd_manager->acp_mmio +
@@ -972,15 +972,18 @@ static int amd_sdw_manager_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int amd_sdw_manager_remove(struct platform_device *pdev)
+static void amd_sdw_manager_remove(struct platform_device *pdev)
 {
 	struct amd_sdw_manager *amd_manager = dev_get_drvdata(&pdev->dev);
+	int ret;
 
 	pm_runtime_disable(&pdev->dev);
 	cancel_work_sync(&amd_manager->probe_work);
 	amd_disable_sdw_interrupts(amd_manager);
 	sdw_bus_master_delete(&amd_manager->bus);
-	return amd_disable_sdw_manager(amd_manager);
+	ret = amd_disable_sdw_manager(amd_manager);
+	if (ret)
+		dev_err(&pdev->dev, "Failed to disable device (%pe)\n", ERR_PTR(ret));
 }
 
 static int amd_sdw_clock_stop(struct amd_sdw_manager *amd_manager)
@@ -1194,7 +1197,7 @@ static const struct dev_pm_ops amd_pm = {
 
 static struct platform_driver amd_sdw_driver = {
 	.probe	= &amd_sdw_manager_probe,
-	.remove = &amd_sdw_manager_remove,
+	.remove_new = &amd_sdw_manager_remove,
 	.driver = {
 		.name	= "amd_sdw_manager",
 		.pm = &amd_pm,

@@ -11,6 +11,7 @@
 #include <linux/acpi.h>
 #include <linux/arm-smccc.h>
 #include <linux/delay.h>
+#include <linux/iopoll.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 
@@ -45,9 +46,38 @@ static const char * const mlxbf_bootctl_lifecycle_states[] = {
 	[3] = "RMA",
 };
 
+/* Log header format. */
+#define MLXBF_RSH_LOG_TYPE_MASK		GENMASK_ULL(59, 56)
+#define MLXBF_RSH_LOG_LEN_MASK		GENMASK_ULL(54, 48)
+#define MLXBF_RSH_LOG_LEVEL_MASK	GENMASK_ULL(7, 0)
+
+/* Log module ID and type (only MSG type in Linux driver for now). */
+#define MLXBF_RSH_LOG_TYPE_MSG		0x04ULL
+
+/* Log ctl/data register offset. */
+#define MLXBF_RSH_SCRATCH_BUF_CTL_OFF	0
+#define MLXBF_RSH_SCRATCH_BUF_DATA_OFF	0x10
+
+/* Log message levels. */
+enum {
+	MLXBF_RSH_LOG_INFO,
+	MLXBF_RSH_LOG_WARN,
+	MLXBF_RSH_LOG_ERR,
+	MLXBF_RSH_LOG_ASSERT
+};
+
 /* Mapped pointer for RSH_BOOT_FIFO_DATA and RSH_BOOT_FIFO_COUNT register. */
 static void __iomem *mlxbf_rsh_boot_data;
 static void __iomem *mlxbf_rsh_boot_cnt;
+
+/* Mapped pointer for rsh log semaphore/ctrl/data register. */
+static void __iomem *mlxbf_rsh_semaphore;
+static void __iomem *mlxbf_rsh_scratch_buf_ctl;
+static void __iomem *mlxbf_rsh_scratch_buf_data;
+
+/* Rsh log levels. */
+static const char * const mlxbf_rsh_log_level[] = {
+	"INFO", "WARN", "ERR", "ASSERT"};
 
 /* ARM SMC call which is atomic and no need for lock. */
 static int mlxbf_bootctl_smc(unsigned int smc_op, int smc_arg)
@@ -266,12 +296,108 @@ static ssize_t fw_reset_store(struct device *dev,
 	return count;
 }
 
+/* Size(8-byte words) of the log buffer. */
+#define RSH_SCRATCH_BUF_CTL_IDX_MASK	0x7f
+
+/* 100ms timeout */
+#define RSH_SCRATCH_BUF_POLL_TIMEOUT	100000
+
+static int mlxbf_rsh_log_sem_lock(void)
+{
+	unsigned long reg;
+
+	return readq_poll_timeout(mlxbf_rsh_semaphore, reg, !reg, 0,
+				  RSH_SCRATCH_BUF_POLL_TIMEOUT);
+}
+
+static void mlxbf_rsh_log_sem_unlock(void)
+{
+	writeq(0, mlxbf_rsh_semaphore);
+}
+
+static ssize_t rsh_log_store(struct device *dev,
+			     struct device_attribute *attr,
+			     const char *buf, size_t count)
+{
+	int rc, idx, num, len, level = MLXBF_RSH_LOG_INFO;
+	size_t size = count;
+	u64 data;
+
+	if (!size)
+		return -EINVAL;
+
+	if (!mlxbf_rsh_semaphore || !mlxbf_rsh_scratch_buf_ctl)
+		return -EOPNOTSUPP;
+
+	/* Ignore line break at the end. */
+	if (buf[size - 1] == '\n')
+		size--;
+
+	/* Check the message prefix. */
+	for (idx = 0; idx < ARRAY_SIZE(mlxbf_rsh_log_level); idx++) {
+		len = strlen(mlxbf_rsh_log_level[idx]);
+		if (len + 1 < size &&
+		    !strncmp(buf, mlxbf_rsh_log_level[idx], len)) {
+			buf += len;
+			size -= len;
+			level = idx;
+			break;
+		}
+	}
+
+	/* Ignore leading spaces. */
+	while (size > 0 && buf[0] == ' ') {
+		size--;
+		buf++;
+	}
+
+	/* Take the semaphore. */
+	rc = mlxbf_rsh_log_sem_lock();
+	if (rc)
+		return rc;
+
+	/* Calculate how many words are available. */
+	idx = readq(mlxbf_rsh_scratch_buf_ctl);
+	num = min((int)DIV_ROUND_UP(size, sizeof(u64)),
+		  RSH_SCRATCH_BUF_CTL_IDX_MASK - idx - 1);
+	if (num <= 0)
+		goto done;
+
+	/* Write Header. */
+	data = FIELD_PREP(MLXBF_RSH_LOG_TYPE_MASK, MLXBF_RSH_LOG_TYPE_MSG);
+	data |= FIELD_PREP(MLXBF_RSH_LOG_LEN_MASK, num);
+	data |= FIELD_PREP(MLXBF_RSH_LOG_LEVEL_MASK, level);
+	writeq(data, mlxbf_rsh_scratch_buf_data);
+
+	/* Write message. */
+	for (idx = 0; idx < num && size > 0; idx++) {
+		if (size < sizeof(u64)) {
+			data = 0;
+			memcpy(&data, buf, size);
+			size = 0;
+		} else {
+			memcpy(&data, buf, sizeof(u64));
+			size -= sizeof(u64);
+			buf += sizeof(u64);
+		}
+		writeq(data, mlxbf_rsh_scratch_buf_data);
+	}
+
+done:
+	/* Release the semaphore. */
+	mlxbf_rsh_log_sem_unlock();
+
+	/* Ignore the rest if no more space. */
+	return count;
+}
+
 static DEVICE_ATTR_RW(post_reset_wdog);
 static DEVICE_ATTR_RW(reset_action);
 static DEVICE_ATTR_RW(second_reset_action);
 static DEVICE_ATTR_RO(lifecycle_state);
 static DEVICE_ATTR_RO(secure_boot_fuse_state);
 static DEVICE_ATTR_WO(fw_reset);
+static DEVICE_ATTR_WO(rsh_log);
 
 static struct attribute *mlxbf_bootctl_attrs[] = {
 	&dev_attr_post_reset_wdog.attr,
@@ -280,6 +406,7 @@ static struct attribute *mlxbf_bootctl_attrs[] = {
 	&dev_attr_lifecycle_state.attr,
 	&dev_attr_secure_boot_fuse_state.attr,
 	&dev_attr_fw_reset.attr,
+	&dev_attr_rsh_log.attr,
 	NULL
 };
 
@@ -345,18 +472,31 @@ static bool mlxbf_bootctl_guid_match(const guid_t *guid,
 static int mlxbf_bootctl_probe(struct platform_device *pdev)
 {
 	struct arm_smccc_res res = { 0 };
+	void __iomem *reg;
 	guid_t guid;
 	int ret;
 
-	/* Get the resource of the bootfifo data register. */
+	/* Map the resource of the bootfifo data register. */
 	mlxbf_rsh_boot_data = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(mlxbf_rsh_boot_data))
 		return PTR_ERR(mlxbf_rsh_boot_data);
 
-	/* Get the resource of the bootfifo counter register. */
+	/* Map the resource of the bootfifo counter register. */
 	mlxbf_rsh_boot_cnt = devm_platform_ioremap_resource(pdev, 1);
 	if (IS_ERR(mlxbf_rsh_boot_cnt))
 		return PTR_ERR(mlxbf_rsh_boot_cnt);
+
+	/* Map the resource of the rshim semaphore register. */
+	mlxbf_rsh_semaphore = devm_platform_ioremap_resource(pdev, 2);
+	if (IS_ERR(mlxbf_rsh_semaphore))
+		return PTR_ERR(mlxbf_rsh_semaphore);
+
+	/* Map the resource of the scratch buffer (log) registers. */
+	reg = devm_platform_ioremap_resource(pdev, 3);
+	if (IS_ERR(reg))
+		return PTR_ERR(reg);
+	mlxbf_rsh_scratch_buf_ctl = reg + MLXBF_RSH_SCRATCH_BUF_CTL_OFF;
+	mlxbf_rsh_scratch_buf_data = reg + MLXBF_RSH_SCRATCH_BUF_DATA_OFF;
 
 	/* Ensure we have the UUID we expect for this service. */
 	arm_smccc_smc(MLXBF_BOOTCTL_SIP_SVC_UID, 0, 0, 0, 0, 0, 0, 0, &res);

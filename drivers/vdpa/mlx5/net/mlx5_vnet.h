@@ -26,6 +26,20 @@ static inline u16 key2vid(u64 key)
 	return (u16)(key >> 48) & 0xfff;
 }
 
+#define MLX5_VDPA_IRQ_NAME_LEN 32
+
+struct mlx5_vdpa_irq_pool_entry {
+	struct msi_map map;
+	bool used;
+	char name[MLX5_VDPA_IRQ_NAME_LEN];
+	void *dev_id;
+};
+
+struct mlx5_vdpa_irq_pool {
+	int num_ent;
+	struct mlx5_vdpa_irq_pool_entry *entries;
+};
+
 struct mlx5_vdpa_net {
 	struct mlx5_vdpa_dev mvdev;
 	struct mlx5_vdpa_net_resources res;
@@ -49,6 +63,7 @@ struct mlx5_vdpa_net {
 	struct vdpa_callback config_cb;
 	struct mlx5_vdpa_wq_ent cvq_ent;
 	struct hlist_head macvlan_hash[MLX5V_MACVLAN_SIZE];
+	struct mlx5_vdpa_irq_pool irqp;
 	struct dentry *debugfs;
 };
 

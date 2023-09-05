@@ -396,7 +396,7 @@ static struct i2c_driver lm3646_i2c_driver = {
 	.driver = {
 		   .name = LM3646_NAME,
 		   },
-	.probe_new = lm3646_probe,
+	.probe = lm3646_probe,
 	.remove = lm3646_remove,
 	.id_table = lm3646_id_table,
 };

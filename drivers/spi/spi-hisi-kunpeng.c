@@ -169,7 +169,7 @@ static int hisi_spi_debugfs_init(struct hisi_spi *hs)
 	master = container_of(hs->dev, struct spi_controller, dev);
 	snprintf(name, 32, "hisi_spi%d", master->bus_num);
 	hs->debugfs = debugfs_create_dir(name, NULL);
-	if (!hs->debugfs)
+	if (IS_ERR(hs->debugfs))
 		return -ENOMEM;
 
 	hs->regset.regs = hisi_spi_regs;

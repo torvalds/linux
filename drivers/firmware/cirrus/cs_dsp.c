@@ -2059,10 +2059,10 @@ static int cs_dsp_load_coeff(struct cs_dsp *dsp, const struct firmware *firmware
 		goto out_fw;
 	}
 
-	cs_dsp_dbg(dsp, "%s: v%d.%d.%d\n", file,
-		   (le32_to_cpu(hdr->ver) >> 16) & 0xff,
-		   (le32_to_cpu(hdr->ver) >>  8) & 0xff,
-		   le32_to_cpu(hdr->ver) & 0xff);
+	cs_dsp_info(dsp, "%s: v%d.%d.%d\n", file,
+		    (le32_to_cpu(hdr->ver) >> 16) & 0xff,
+		    (le32_to_cpu(hdr->ver) >>  8) & 0xff,
+		    le32_to_cpu(hdr->ver) & 0xff);
 
 	pos = le32_to_cpu(hdr->len);
 

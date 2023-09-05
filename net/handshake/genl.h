@@ -9,7 +9,7 @@
 #include <net/netlink.h>
 #include <net/genetlink.h>
 
-#include <linux/handshake.h>
+#include <uapi/linux/handshake.h>
 
 int handshake_nl_accept_doit(struct sk_buff *skb, struct genl_info *info);
 int handshake_nl_done_doit(struct sk_buff *skb, struct genl_info *info);

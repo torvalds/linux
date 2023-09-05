@@ -7,6 +7,8 @@
 #ifndef _NOLIBC_ARCH_MIPS_H
 #define _NOLIBC_ARCH_MIPS_H
 
+#include "compiler.h"
+
 /* The struct returned by the stat() syscall. 88 bytes are returned by the
  * syscall.
  */
@@ -180,45 +182,49 @@ char **environ __attribute__((weak));
 const unsigned long *_auxv __attribute__((weak));
 
 /* startup code, note that it's called __start on MIPS */
-void __attribute__((weak,noreturn,optimize("omit-frame-pointer"))) __start(void)
+void __attribute__((weak,noreturn,optimize("omit-frame-pointer"))) __no_stack_protector __start(void)
 {
 	__asm__ volatile (
-		//".set nomips16\n"
+		/*".set nomips16\n"*/
 		".set push\n"
 		".set    noreorder\n"
 		".option pic0\n"
-		//".ent __start\n"
-		//"__start:\n"
-		"lw $a0,($sp)\n"        // argc was in the stack
-		"addiu  $a1, $sp, 4\n"  // argv = sp + 4
-		"sll $a2, $a0, 2\n"     // a2 = argc * 4
-		"add   $a2, $a2, $a1\n" // envp = argv + 4*argc ...
-		"addiu $a2, $a2, 4\n"   //        ... + 4
-		"lui $a3, %hi(environ)\n"     // load environ into a3 (hi)
-		"addiu $a3, %lo(environ)\n"   // load environ into a3 (lo)
-		"sw $a2,($a3)\n"              // store envp(a2) into environ
+#ifdef _NOLIBC_STACKPROTECTOR
+		"jal __stack_chk_init\n" /* initialize stack protector                         */
+		"nop\n"                  /* delayed slot                                       */
+#endif
+		/*".ent __start\n"*/
+		/*"__start:\n"*/
+		"lw $a0,($sp)\n"        /* argc was in the stack                               */
+		"addiu  $a1, $sp, 4\n"  /* argv = sp + 4                                       */
+		"sll $a2, $a0, 2\n"     /* a2 = argc * 4                                       */
+		"add   $a2, $a2, $a1\n" /* envp = argv + 4*argc ...                            */
+		"addiu $a2, $a2, 4\n"   /*        ... + 4                                      */
+		"lui $a3, %hi(environ)\n"     /* load environ into a3 (hi)                     */
+		"addiu $a3, %lo(environ)\n"   /* load environ into a3 (lo)                     */
+		"sw $a2,($a3)\n"              /* store envp(a2) into environ                   */
 
-		"move $t0, $a2\n"             // iterate t0 over envp, look for NULL
-		"0:"                          // do {
-		"lw $a3, ($t0)\n"             //   a3=*(t0);
-		"bne $a3, $0, 0b\n"           // } while (a3);
-		"addiu $t0, $t0, 4\n"         // delayed slot: t0+=4;
-		"lui $a3, %hi(_auxv)\n"       // load _auxv into a3 (hi)
-		"addiu $a3, %lo(_auxv)\n"     // load _auxv into a3 (lo)
-		"sw $t0, ($a3)\n"             // store t0 into _auxv
+		"move $t0, $a2\n"             /* iterate t0 over envp, look for NULL           */
+		"0:"                          /* do {                                          */
+		"lw $a3, ($t0)\n"             /*   a3=*(t0);                                   */
+		"bne $a3, $0, 0b\n"           /* } while (a3);                                 */
+		"addiu $t0, $t0, 4\n"         /* delayed slot: t0+=4;                          */
+		"lui $a3, %hi(_auxv)\n"       /* load _auxv into a3 (hi)                       */
+		"addiu $a3, %lo(_auxv)\n"     /* load _auxv into a3 (lo)                       */
+		"sw $t0, ($a3)\n"             /* store t0 into _auxv                           */
 
 		"li $t0, -8\n"
-		"and $sp, $sp, $t0\n"   // sp must be 8-byte aligned
-		"addiu $sp,$sp,-16\n"   // the callee expects to save a0..a3 there!
-		"jal main\n"            // main() returns the status code, we'll exit with it.
-		"nop\n"                 // delayed slot
-		"move $a0, $v0\n"       // retrieve 32-bit exit code from v0
-		"li $v0, 4001\n"        // NR_exit == 4001
+		"and $sp, $sp, $t0\n"   /* sp must be 8-byte aligned                           */
+		"addiu $sp,$sp,-16\n"   /* the callee expects to save a0..a3 there!            */
+		"jal main\n"            /* main() returns the status code, we'll exit with it. */
+		"nop\n"                 /* delayed slot                                        */
+		"move $a0, $v0\n"       /* retrieve 32-bit exit code from v0                   */
+		"li $v0, 4001\n"        /* NR_exit == 4001                                     */
 		"syscall\n"
-		//".end __start\n"
+		/*".end __start\n"*/
 		".set pop\n"
 	);
 	__builtin_unreachable();
 }
 
-#endif // _NOLIBC_ARCH_MIPS_H
+#endif /* _NOLIBC_ARCH_MIPS_H */

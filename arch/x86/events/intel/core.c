@@ -2461,7 +2461,7 @@ static void intel_pmu_disable_fixed(struct perf_event *event)
 
 	intel_clear_masks(event, idx);
 
-	mask = 0xfULL << ((idx - INTEL_PMC_IDX_FIXED) * 4);
+	mask = intel_fixed_bits_by_idx(idx - INTEL_PMC_IDX_FIXED, INTEL_FIXED_BITS_MASK);
 	cpuc->fixed_ctrl_val &= ~mask;
 }
 
@@ -2760,25 +2760,25 @@ static void intel_pmu_enable_fixed(struct perf_event *event)
 	 * if requested:
 	 */
 	if (!event->attr.precise_ip)
-		bits |= 0x8;
+		bits |= INTEL_FIXED_0_ENABLE_PMI;
 	if (hwc->config & ARCH_PERFMON_EVENTSEL_USR)
-		bits |= 0x2;
+		bits |= INTEL_FIXED_0_USER;
 	if (hwc->config & ARCH_PERFMON_EVENTSEL_OS)
-		bits |= 0x1;
+		bits |= INTEL_FIXED_0_KERNEL;
 
 	/*
 	 * ANY bit is supported in v3 and up
 	 */
 	if (x86_pmu.version > 2 && hwc->config & ARCH_PERFMON_EVENTSEL_ANY)
-		bits |= 0x4;
+		bits |= INTEL_FIXED_0_ANYTHREAD;
 
 	idx -= INTEL_PMC_IDX_FIXED;
-	bits <<= (idx * 4);
-	mask = 0xfULL << (idx * 4);
+	bits = intel_fixed_bits_by_idx(idx, bits);
+	mask = intel_fixed_bits_by_idx(idx, INTEL_FIXED_BITS_MASK);
 
 	if (x86_pmu.intel_cap.pebs_baseline && event->attr.precise_ip) {
-		bits |= ICL_FIXED_0_ADAPTIVE << (idx * 4);
-		mask |= ICL_FIXED_0_ADAPTIVE << (idx * 4);
+		bits |= intel_fixed_bits_by_idx(idx, ICL_FIXED_0_ADAPTIVE);
+		mask |= intel_fixed_bits_by_idx(idx, ICL_FIXED_0_ADAPTIVE);
 	}
 
 	cpuc->fixed_ctrl_val &= ~mask;
@@ -3992,6 +3992,13 @@ static int intel_pmu_hw_config(struct perf_event *event)
 	    is_mem_loads_event(event)) {
 		struct perf_event *leader = event->group_leader;
 		struct perf_event *sibling = NULL;
+
+		/*
+		 * When this memload event is also the first event (no group
+		 * exists yet), then there is no aux event before it.
+		 */
+		if (leader == event)
+			return -ENODATA;
 
 		if (!is_mem_loads_aux_event(leader)) {
 			for_each_sibling_event(sibling, leader) {

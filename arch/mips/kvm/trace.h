@@ -322,11 +322,11 @@ TRACE_EVENT_FN(kvm_guest_mode_change,
 	    ),
 
 	    TP_fast_assign(
-			__entry->epc = kvm_read_c0_guest_epc(vcpu->arch.cop0);
+			__entry->epc = kvm_read_c0_guest_epc(&vcpu->arch.cop0);
 			__entry->pc = vcpu->arch.pc;
-			__entry->badvaddr = kvm_read_c0_guest_badvaddr(vcpu->arch.cop0);
-			__entry->status = kvm_read_c0_guest_status(vcpu->arch.cop0);
-			__entry->cause = kvm_read_c0_guest_cause(vcpu->arch.cop0);
+			__entry->badvaddr = kvm_read_c0_guest_badvaddr(&vcpu->arch.cop0);
+			__entry->status = kvm_read_c0_guest_status(&vcpu->arch.cop0);
+			__entry->cause = kvm_read_c0_guest_cause(&vcpu->arch.cop0);
 	    ),
 
 	    TP_printk("EPC: 0x%08lx PC: 0x%08lx Status: 0x%08x Cause: 0x%08x BadVAddr: 0x%08lx",

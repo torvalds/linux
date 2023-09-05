@@ -2007,11 +2007,16 @@ void intel_mpllb_state_verify(struct intel_atomic_state *state,
 	if (!new_crtc_state->hw.active)
 		return;
 
+	/* intel_get_crtc_new_encoder() only works for modeset/fastset commits */
+	if (!intel_crtc_needs_modeset(new_crtc_state) &&
+	    !intel_crtc_needs_fastset(new_crtc_state))
+		return;
+
 	encoder = intel_get_crtc_new_encoder(state, new_crtc_state);
 	intel_mpllb_readout_hw_state(encoder, &mpllb_hw_state);
 
 #define MPLLB_CHECK(__name)						\
-	I915_STATE_WARN(mpllb_sw_state->__name != mpllb_hw_state.__name,	\
+	I915_STATE_WARN(i915, mpllb_sw_state->__name != mpllb_hw_state.__name, \
 			"[CRTC:%d:%s] mismatch in MPLLB: %s (expected 0x%08x, found 0x%08x)", \
 			crtc->base.base.id, crtc->base.name,		\
 			__stringify(__name),				\

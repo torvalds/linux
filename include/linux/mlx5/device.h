@@ -716,6 +716,7 @@ enum sync_rst_state_type {
 	MLX5_SYNC_RST_STATE_RESET_REQUEST	= 0x0,
 	MLX5_SYNC_RST_STATE_RESET_NOW		= 0x1,
 	MLX5_SYNC_RST_STATE_RESET_ABORT		= 0x2,
+	MLX5_SYNC_RST_STATE_RESET_UNLOAD	= 0x3,
 };
 
 struct mlx5_eqe_sync_fw_update {

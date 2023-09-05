@@ -156,7 +156,6 @@ struct pktcdvd_device
 {
 	struct block_device	*bdev;		/* dev attached */
 	dev_t			pkt_dev;	/* our dev */
-	char			name[20];
 	struct packet_settings	settings;
 	struct packet_stats	stats;
 	int			refcnt;		/* Open count */

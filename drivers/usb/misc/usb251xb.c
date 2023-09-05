@@ -416,14 +416,13 @@ static int usb251xb_get_ofdata(struct usb251xb *hub,
 		return dev_err_probe(dev, PTR_ERR(hub->gpio_reset),
 				     "unable to request GPIO reset pin\n");
 
-	if (of_property_read_u16_array(np, "vendor-id", &hub->vendor_id, 1))
+	if (of_property_read_u16(np, "vendor-id", &hub->vendor_id))
 		hub->vendor_id = USB251XB_DEF_VENDOR_ID;
 
-	if (of_property_read_u16_array(np, "product-id",
-				       &hub->product_id, 1))
+	if (of_property_read_u16(np, "product-id", &hub->product_id))
 		hub->product_id = data->product_id;
 
-	if (of_property_read_u16_array(np, "device-id", &hub->device_id, 1))
+	if (of_property_read_u16(np, "device-id", &hub->device_id))
 		hub->device_id = USB251XB_DEF_DEVICE_ID;
 
 	hub->conf_data1 = USB251XB_DEF_CONFIG_DATA_1;
@@ -532,7 +531,7 @@ static int usb251xb_get_ofdata(struct usb251xb *hub,
 	if (!of_property_read_u32(np, "power-on-time-ms", &property_u32))
 		hub->power_on_time = min_t(u8, property_u32 / 2, 255);
 
-	if (of_property_read_u16_array(np, "language-id", &hub->lang_id, 1))
+	if (of_property_read_u16(np, "language-id", &hub->lang_id))
 		hub->lang_id = USB251XB_DEF_LANGUAGE_ID;
 
 	if (of_property_read_u8(np, "boost-up", &hub->boost_up))
@@ -746,7 +745,7 @@ static struct i2c_driver usb251xb_i2c_driver = {
 		.of_match_table = usb251xb_of_match,
 		.pm = &usb251xb_pm_ops,
 	},
-	.probe_new = usb251xb_i2c_probe,
+	.probe = usb251xb_i2c_probe,
 	.id_table = usb251xb_id,
 };
 

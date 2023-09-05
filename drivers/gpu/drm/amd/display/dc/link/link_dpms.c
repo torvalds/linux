@@ -765,7 +765,7 @@ static bool dp_set_dsc_on_rx(struct pipe_ctx *pipe_ctx, bool enable)
 	struct dc_stream_state *stream = pipe_ctx->stream;
 	bool result = false;
 
-	if (dc_is_virtual_signal(stream->signal) || IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment))
+	if (dc_is_virtual_signal(stream->signal))
 		result = true;
 	else
 		result = dm_helpers_dp_write_dsc_enable(dc->ctx, stream, enable);
@@ -778,7 +778,6 @@ static bool dp_set_dsc_on_rx(struct pipe_ctx *pipe_ctx, bool enable)
 void link_set_dsc_on_stream(struct pipe_ctx *pipe_ctx, bool enable)
 {
 	struct display_stream_compressor *dsc = pipe_ctx->stream_res.dsc;
-	struct dc *dc = pipe_ctx->stream->ctx->dc;
 	struct dc_stream_state *stream = pipe_ctx->stream;
 	struct pipe_ctx *odm_pipe;
 	int opp_cnt = 1;
@@ -816,8 +815,7 @@ void link_set_dsc_on_stream(struct pipe_ctx *pipe_ctx, bool enable)
 		optc_dsc_mode = dsc_optc_cfg.is_pixel_format_444 ? OPTC_DSC_ENABLED_444 : OPTC_DSC_ENABLED_NATIVE_SUBSAMPLED;
 
 		/* Enable DSC in encoder */
-		if (dc_is_dp_signal(stream->signal) && !IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment)
-				&& !dp_is_128b_132b_signal(pipe_ctx)) {
+		if (dc_is_dp_signal(stream->signal) && !dp_is_128b_132b_signal(pipe_ctx)) {
 			DC_LOG_DSC("Setting stream encoder DSC config for engine %d:", (int)pipe_ctx->stream_res.stream_enc->id);
 			dsc_optc_config_log(dsc, &dsc_optc_cfg);
 			pipe_ctx->stream_res.stream_enc->funcs->dp_set_dsc_config(pipe_ctx->stream_res.stream_enc,
@@ -849,7 +847,7 @@ void link_set_dsc_on_stream(struct pipe_ctx *pipe_ctx, bool enable)
 										false,
 										NULL,
 										true);
-			else if (!IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment)) {
+			else {
 				pipe_ctx->stream_res.stream_enc->funcs->dp_set_dsc_config(
 						pipe_ctx->stream_res.stream_enc,
 						OPTC_DSC_DISABLED, 0, 0);
@@ -2209,9 +2207,8 @@ static enum dc_status enable_link(
 	 * link settings. Need to call disable first before enabling at
 	 * new link settings.
 	 */
-	if (link->link_status.link_active) {
+	if (link->link_status.link_active && !stream->skip_edp_power_down)
 		disable_link(link, &pipe_ctx->link_res, pipe_ctx->stream->signal);
-	}
 
 	switch (pipe_ctx->stream->signal) {
 	case SIGNAL_TYPE_DISPLAY_PORT:
@@ -2271,8 +2268,7 @@ void link_set_dpms_off(struct pipe_ctx *pipe_ctx)
 		}
 	}
 
-	if (!IS_DIAG_DC(dc->ctx->dce_environment) &&
-			dc_is_virtual_signal(pipe_ctx->stream->signal))
+	if (dc_is_virtual_signal(pipe_ctx->stream->signal))
 		return;
 
 	if (!pipe_ctx->stream->sink->edid_caps.panel_patch.skip_avmute) {
@@ -2330,7 +2326,9 @@ void link_set_dpms_off(struct pipe_ctx *pipe_ctx)
 		dc->hwss.disable_stream(pipe_ctx);
 	} else {
 		dc->hwss.disable_stream(pipe_ctx);
-		disable_link(pipe_ctx->stream->link, &pipe_ctx->link_res, pipe_ctx->stream->signal);
+		if (!pipe_ctx->stream->skip_edp_power_down) {
+			disable_link(pipe_ctx->stream->link, &pipe_ctx->link_res, pipe_ctx->stream->signal);
+		}
 	}
 
 	if (pipe_ctx->stream->timing.flags.DSC) {
@@ -2358,6 +2356,8 @@ void link_set_dpms_on(
 	enum otg_out_mux_dest otg_out_dest = OUT_MUX_DIO;
 	struct vpg *vpg = pipe_ctx->stream_res.stream_enc->vpg;
 	const struct link_hwss *link_hwss = get_link_hwss(link, &pipe_ctx->link_res);
+	bool apply_edp_fast_boot_optimization =
+		pipe_ctx->stream->apply_edp_fast_boot_optimization;
 
 	ASSERT(is_master_pipe_for_link(link, pipe_ctx));
 
@@ -2375,8 +2375,7 @@ void link_set_dpms_on(
 		}
 	}
 
-	if (!IS_DIAG_DC(dc->ctx->dce_environment) &&
-			dc_is_virtual_signal(pipe_ctx->stream->signal))
+	if (dc_is_virtual_signal(pipe_ctx->stream->signal))
 		return;
 
 	link_enc = link_enc_cfg_get_link_enc(link);
@@ -2402,138 +2401,126 @@ void link_set_dpms_on(
 
 	link_hwss->setup_stream_attribute(pipe_ctx);
 
-	if (!IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment)) {
-		bool apply_edp_fast_boot_optimization =
-			pipe_ctx->stream->apply_edp_fast_boot_optimization;
+	pipe_ctx->stream->apply_edp_fast_boot_optimization = false;
 
-		pipe_ctx->stream->apply_edp_fast_boot_optimization = false;
+	// Enable VPG before building infoframe
+	if (vpg && vpg->funcs->vpg_poweron)
+		vpg->funcs->vpg_poweron(vpg);
 
-		// Enable VPG before building infoframe
-		if (vpg && vpg->funcs->vpg_poweron)
-			vpg->funcs->vpg_poweron(vpg);
+	resource_build_info_frame(pipe_ctx);
+	dc->hwss.update_info_frame(pipe_ctx);
 
-		resource_build_info_frame(pipe_ctx);
-		dc->hwss.update_info_frame(pipe_ctx);
+	if (dc_is_dp_signal(pipe_ctx->stream->signal))
+		dp_trace_source_sequence(link, DPCD_SOURCE_SEQ_AFTER_UPDATE_INFO_FRAME);
 
-		if (dc_is_dp_signal(pipe_ctx->stream->signal))
-			dp_trace_source_sequence(link, DPCD_SOURCE_SEQ_AFTER_UPDATE_INFO_FRAME);
+	/* Do not touch link on seamless boot optimization. */
+	if (pipe_ctx->stream->apply_seamless_boot_optimization) {
+		pipe_ctx->stream->dpms_off = false;
 
-		/* Do not touch link on seamless boot optimization. */
-		if (pipe_ctx->stream->apply_seamless_boot_optimization) {
-			pipe_ctx->stream->dpms_off = false;
-
-			/* Still enable stream features & audio on seamless boot for DP external displays */
-			if (pipe_ctx->stream->signal == SIGNAL_TYPE_DISPLAY_PORT) {
-				enable_stream_features(pipe_ctx);
-				dc->hwss.enable_audio_stream(pipe_ctx);
-			}
-
-			update_psp_stream_config(pipe_ctx, false);
-			return;
-		}
-
-		/* eDP lit up by bios already, no need to enable again. */
-		if (pipe_ctx->stream->signal == SIGNAL_TYPE_EDP &&
-					apply_edp_fast_boot_optimization &&
-					!pipe_ctx->stream->timing.flags.DSC &&
-					!pipe_ctx->next_odm_pipe) {
-			pipe_ctx->stream->dpms_off = false;
-			update_psp_stream_config(pipe_ctx, false);
-			return;
-		}
-
-		if (pipe_ctx->stream->dpms_off)
-			return;
-
-		/* Have to setup DSC before DIG FE and BE are connected (which happens before the
-		 * link training). This is to make sure the bandwidth sent to DIG BE won't be
-		 * bigger than what the link and/or DIG BE can handle. VBID[6]/CompressedStream_flag
-		 * will be automatically set at a later time when the video is enabled
-		 * (DP_VID_STREAM_EN = 1).
-		 */
-		if (pipe_ctx->stream->timing.flags.DSC) {
-			if (dc_is_dp_signal(pipe_ctx->stream->signal) ||
-				dc_is_virtual_signal(pipe_ctx->stream->signal))
-			link_set_dsc_enable(pipe_ctx, true);
-
-		}
-
-		status = enable_link(state, pipe_ctx);
-
-		if (status != DC_OK) {
-			DC_LOG_WARNING("enabling link %u failed: %d\n",
-			pipe_ctx->stream->link->link_index,
-			status);
-
-			/* Abort stream enable *unless* the failure was due to
-			 * DP link training - some DP monitors will recover and
-			 * show the stream anyway. But MST displays can't proceed
-			 * without link training.
-			 */
-			if (status != DC_FAIL_DP_LINK_TRAINING ||
-					pipe_ctx->stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST) {
-				if (false == stream->link->link_status.link_active)
-					disable_link(stream->link, &pipe_ctx->link_res,
-							pipe_ctx->stream->signal);
-				BREAK_TO_DEBUGGER();
-				return;
-			}
-		}
-
-		/* turn off otg test pattern if enable */
-		if (pipe_ctx->stream_res.tg->funcs->set_test_pattern)
-			pipe_ctx->stream_res.tg->funcs->set_test_pattern(pipe_ctx->stream_res.tg,
-					CONTROLLER_DP_TEST_PATTERN_VIDEOMODE,
-					COLOR_DEPTH_UNDEFINED);
-
-		/* This second call is needed to reconfigure the DIG
-		 * as a workaround for the incorrect value being applied
-		 * from transmitter control.
-		 */
-		if (!(dc_is_virtual_signal(pipe_ctx->stream->signal) ||
-				dp_is_128b_132b_signal(pipe_ctx))) {
-				if (link_enc)
-					link_enc->funcs->setup(
-						link_enc,
-						pipe_ctx->stream->signal);
-			}
-
-		dc->hwss.enable_stream(pipe_ctx);
-
-		/* Set DPS PPS SDP (AKA "info frames") */
-		if (pipe_ctx->stream->timing.flags.DSC) {
-			if (dc_is_dp_signal(pipe_ctx->stream->signal) ||
-					dc_is_virtual_signal(pipe_ctx->stream->signal)) {
-				dp_set_dsc_on_rx(pipe_ctx, true);
-				link_set_dsc_pps_packet(pipe_ctx, true, true);
-			}
-		}
-
-		if (pipe_ctx->stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST)
-			allocate_mst_payload(pipe_ctx);
-		else if (pipe_ctx->stream->signal == SIGNAL_TYPE_DISPLAY_PORT &&
-				dp_is_128b_132b_signal(pipe_ctx))
-			update_sst_payload(pipe_ctx, true);
-
-		dc->hwss.unblank_stream(pipe_ctx,
-			&pipe_ctx->stream->link->cur_link_settings);
-
-		if (stream->sink_patches.delay_ignore_msa > 0)
-			msleep(stream->sink_patches.delay_ignore_msa);
-
-		if (dc_is_dp_signal(pipe_ctx->stream->signal))
+		/* Still enable stream features & audio on seamless boot for DP external displays */
+		if (pipe_ctx->stream->signal == SIGNAL_TYPE_DISPLAY_PORT) {
 			enable_stream_features(pipe_ctx);
+			dc->hwss.enable_audio_stream(pipe_ctx);
+		}
+
 		update_psp_stream_config(pipe_ctx, false);
-
-		dc->hwss.enable_audio_stream(pipe_ctx);
-
-	} else { // if (IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment))
-		if (dp_is_128b_132b_signal(pipe_ctx))
-			dp_fpga_hpo_enable_link_and_stream(state, pipe_ctx);
-		if (dc_is_dp_signal(pipe_ctx->stream->signal) ||
-				dc_is_virtual_signal(pipe_ctx->stream->signal))
-			link_set_dsc_enable(pipe_ctx, true);
+		return;
 	}
+
+	/* eDP lit up by bios already, no need to enable again. */
+	if (pipe_ctx->stream->signal == SIGNAL_TYPE_EDP &&
+				apply_edp_fast_boot_optimization &&
+				!pipe_ctx->stream->timing.flags.DSC &&
+				!pipe_ctx->next_odm_pipe) {
+		pipe_ctx->stream->dpms_off = false;
+		update_psp_stream_config(pipe_ctx, false);
+		return;
+	}
+
+	if (pipe_ctx->stream->dpms_off)
+		return;
+
+	/* Have to setup DSC before DIG FE and BE are connected (which happens before the
+	 * link training). This is to make sure the bandwidth sent to DIG BE won't be
+	 * bigger than what the link and/or DIG BE can handle. VBID[6]/CompressedStream_flag
+	 * will be automatically set at a later time when the video is enabled
+	 * (DP_VID_STREAM_EN = 1).
+	 */
+	if (pipe_ctx->stream->timing.flags.DSC) {
+		if (dc_is_dp_signal(pipe_ctx->stream->signal) ||
+			dc_is_virtual_signal(pipe_ctx->stream->signal))
+		link_set_dsc_enable(pipe_ctx, true);
+
+	}
+
+	status = enable_link(state, pipe_ctx);
+
+	if (status != DC_OK) {
+		DC_LOG_WARNING("enabling link %u failed: %d\n",
+		pipe_ctx->stream->link->link_index,
+		status);
+
+		/* Abort stream enable *unless* the failure was due to
+		 * DP link training - some DP monitors will recover and
+		 * show the stream anyway. But MST displays can't proceed
+		 * without link training.
+		 */
+		if (status != DC_FAIL_DP_LINK_TRAINING ||
+				pipe_ctx->stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST) {
+			if (false == stream->link->link_status.link_active)
+				disable_link(stream->link, &pipe_ctx->link_res,
+						pipe_ctx->stream->signal);
+			BREAK_TO_DEBUGGER();
+			return;
+		}
+	}
+
+	/* turn off otg test pattern if enable */
+	if (pipe_ctx->stream_res.tg->funcs->set_test_pattern)
+		pipe_ctx->stream_res.tg->funcs->set_test_pattern(pipe_ctx->stream_res.tg,
+				CONTROLLER_DP_TEST_PATTERN_VIDEOMODE,
+				COLOR_DEPTH_UNDEFINED);
+
+	/* This second call is needed to reconfigure the DIG
+	 * as a workaround for the incorrect value being applied
+	 * from transmitter control.
+	 */
+	if (!(dc_is_virtual_signal(pipe_ctx->stream->signal) ||
+			dp_is_128b_132b_signal(pipe_ctx))) {
+			if (link_enc)
+				link_enc->funcs->setup(
+					link_enc,
+					pipe_ctx->stream->signal);
+		}
+
+	dc->hwss.enable_stream(pipe_ctx);
+
+	/* Set DPS PPS SDP (AKA "info frames") */
+	if (pipe_ctx->stream->timing.flags.DSC) {
+		if (dc_is_dp_signal(pipe_ctx->stream->signal) ||
+				dc_is_virtual_signal(pipe_ctx->stream->signal)) {
+			dp_set_dsc_on_rx(pipe_ctx, true);
+			link_set_dsc_pps_packet(pipe_ctx, true, true);
+		}
+	}
+
+	if (pipe_ctx->stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST)
+		allocate_mst_payload(pipe_ctx);
+	else if (pipe_ctx->stream->signal == SIGNAL_TYPE_DISPLAY_PORT &&
+			dp_is_128b_132b_signal(pipe_ctx))
+		update_sst_payload(pipe_ctx, true);
+
+	dc->hwss.unblank_stream(pipe_ctx,
+		&pipe_ctx->stream->link->cur_link_settings);
+
+	if (stream->sink_patches.delay_ignore_msa > 0)
+		msleep(stream->sink_patches.delay_ignore_msa);
+
+	if (dc_is_dp_signal(pipe_ctx->stream->signal))
+		enable_stream_features(pipe_ctx);
+	update_psp_stream_config(pipe_ctx, false);
+
+	dc->hwss.enable_audio_stream(pipe_ctx);
 
 	if (dc_is_hdmi_signal(pipe_ctx->stream->signal)) {
 		set_avmute(pipe_ctx, false);

@@ -43,7 +43,11 @@ static void rtw_ops_wake_tx_queue(struct ieee80211_hw *hw,
 		list_add_tail(&rtwtxq->list, &rtwdev->txqs);
 	spin_unlock_bh(&rtwdev->txq_lock);
 
-	queue_work(rtwdev->tx_wq, &rtwdev->tx_work);
+	/* ensure to dequeue EAPOL (4/4) at the right time */
+	if (txq->ac == IEEE80211_AC_VO)
+		__rtw_tx_work(rtwdev);
+	else
+		queue_work(rtwdev->tx_wq, &rtwdev->tx_work);
 }
 
 static int rtw_ops_start(struct ieee80211_hw *hw)
@@ -164,8 +168,10 @@ static int rtw_ops_add_interface(struct ieee80211_hw *hw,
 	mutex_lock(&rtwdev->mutex);
 
 	port = find_first_zero_bit(rtwdev->hw_port, RTW_PORT_NUM);
-	if (port >= RTW_PORT_NUM)
+	if (port >= RTW_PORT_NUM) {
+		mutex_unlock(&rtwdev->mutex);
 		return -EINVAL;
+	}
 	set_bit(port, rtwdev->hw_port);
 
 	rtwvif->port = port;
@@ -376,6 +382,7 @@ static void rtw_ops_bss_info_changed(struct ieee80211_hw *hw,
 
 			rtw_fw_download_rsvd_page(rtwdev);
 			rtw_send_rsvd_page_h2c(rtwdev);
+			rtw_fw_default_port(rtwdev, rtwvif);
 			rtw_coex_media_status_notify(rtwdev, vif->cfg.assoc);
 			if (rtw_bf_support)
 				rtw_bf_assoc(rtwdev, vif, conf);
@@ -447,6 +454,7 @@ static int rtw_ops_start_ap(struct ieee80211_hw *hw,
 	const struct rtw_chip_info *chip = rtwdev->chip;
 
 	mutex_lock(&rtwdev->mutex);
+	rtw_write32_set(rtwdev, REG_TCR, BIT_TCR_UPDATE_HGQMD);
 	rtwdev->ap_active = true;
 	rtw_store_op_chan(rtwdev, true);
 	chip->ops->phy_calibration(rtwdev);
@@ -462,6 +470,7 @@ static void rtw_ops_stop_ap(struct ieee80211_hw *hw,
 	struct rtw_dev *rtwdev = hw->priv;
 
 	mutex_lock(&rtwdev->mutex);
+	rtw_write32_clr(rtwdev, REG_TCR, BIT_TCR_UPDATE_HGQMD);
 	rtwdev->ap_active = false;
 	if (!rtw_core_check_sta_active(rtwdev))
 		rtw_clear_op_chan(rtwdev);

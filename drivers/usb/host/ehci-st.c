@@ -252,7 +252,7 @@ err_put_hcd:
 	return err;
 }
 
-static int st_ehci_platform_remove(struct platform_device *dev)
+static void st_ehci_platform_remove(struct platform_device *dev)
 {
 	struct usb_hcd *hcd = platform_get_drvdata(dev);
 	struct usb_ehci_pdata *pdata = dev_get_platdata(&dev->dev);
@@ -271,8 +271,6 @@ static int st_ehci_platform_remove(struct platform_device *dev)
 
 	if (pdata == &ehci_platform_defaults)
 		dev->dev.platform_data = NULL;
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -328,7 +326,7 @@ MODULE_DEVICE_TABLE(of, st_ehci_ids);
 
 static struct platform_driver ehci_platform_driver = {
 	.probe		= st_ehci_platform_probe,
-	.remove		= st_ehci_platform_remove,
+	.remove_new	= st_ehci_platform_remove,
 	.shutdown	= usb_hcd_platform_shutdown,
 	.driver		= {
 		.name	= "st-ehci",

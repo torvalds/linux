@@ -711,7 +711,7 @@ static struct net_device *fcoe_if_to_netdev(const char *buffer)
 	char ifname[IFNAMSIZ + 2];
 
 	if (buffer) {
-		strlcpy(ifname, buffer, IFNAMSIZ);
+		strscpy(ifname, buffer, IFNAMSIZ);
 		cp = ifname + strlen(ifname);
 		while (--cp >= ifname && *cp == '\n')
 			*cp = '\0';

@@ -24,9 +24,6 @@
 
 #undef PARISC_IRQ_CR16_COUNTS
 
-extern irqreturn_t timer_interrupt(int, void *);
-extern irqreturn_t ipi_interrupt(int, void *);
-
 #define EIEM_MASK(irq)       (1UL<<(CPU_IRQ_MAX - irq))
 
 /* Bits in EIEM correlate with cpu_irq_action[].
@@ -489,7 +486,7 @@ void do_softirq_own_stack(void)
 #endif /* CONFIG_IRQSTACKS */
 
 /* ONLY called from entry.S:intr_extint() */
-void do_cpu_irq_mask(struct pt_regs *regs)
+asmlinkage void do_cpu_irq_mask(struct pt_regs *regs)
 {
 	struct pt_regs *old_regs;
 	unsigned long eirr_val;

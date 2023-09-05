@@ -241,7 +241,7 @@ static struct i2c_driver fschmd_driver = {
 	.driver = {
 		.name	= "fschmd",
 	},
-	.probe_new	= fschmd_probe,
+	.probe		= fschmd_probe,
 	.remove		= fschmd_remove,
 	.id_table	= fschmd_id,
 	.detect		= fschmd_detect,

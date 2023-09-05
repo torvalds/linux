@@ -335,14 +335,12 @@ static int usb3503_platform_probe(struct platform_device *pdev)
 	return usb3503_probe(hub);
 }
 
-static int usb3503_platform_remove(struct platform_device *pdev)
+static void usb3503_platform_remove(struct platform_device *pdev)
 {
 	struct usb3503 *hub;
 
 	hub = platform_get_drvdata(pdev);
 	clk_disable_unprepare(hub->clk);
-
-	return 0;
 }
 
 static int __maybe_unused usb3503_suspend(struct usb3503 *hub)
@@ -413,7 +411,7 @@ static struct i2c_driver usb3503_i2c_driver = {
 		.pm = pm_ptr(&usb3503_i2c_pm_ops),
 		.of_match_table = of_match_ptr(usb3503_of_match),
 	},
-	.probe_new	= usb3503_i2c_probe,
+	.probe		= usb3503_i2c_probe,
 	.remove		= usb3503_i2c_remove,
 	.id_table	= usb3503_id,
 };
@@ -425,7 +423,7 @@ static struct platform_driver usb3503_platform_driver = {
 		.pm = pm_ptr(&usb3503_platform_pm_ops),
 	},
 	.probe		= usb3503_platform_probe,
-	.remove		= usb3503_platform_remove,
+	.remove_new	= usb3503_platform_remove,
 };
 
 static int __init usb3503_init(void)

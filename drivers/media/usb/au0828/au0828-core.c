@@ -250,7 +250,7 @@ static void au0828_media_graph_notify(struct media_entity *new,
 
 create_link:
 	if (decoder && mixer) {
-		ret = media_get_pad_index(decoder, false,
+		ret = media_get_pad_index(decoder, MEDIA_PAD_FL_SOURCE,
 					  PAD_SIGNAL_AUDIO);
 		if (ret >= 0)
 			ret = media_create_pad_link(decoder, ret,

@@ -1077,7 +1077,7 @@ static int sof_connect_dai_widget(struct snd_soc_component *scomp,
 	list_for_each_entry(rtd, &card->rtd_list, list) {
 		/* does stream match DAI link ? */
 		if (!rtd->dai_link->stream_name ||
-		    strcmp(w->sname, rtd->dai_link->stream_name))
+		    !strstr(rtd->dai_link->stream_name, w->sname))
 			continue;
 
 		for_each_rtd_cpu_dais(rtd, i, cpu_dai) {

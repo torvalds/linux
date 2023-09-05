@@ -21,6 +21,9 @@
  * @valid:		Mark the data valid/invalid
  * @package_id:	Package id for this instance
  * @die_id:		Die id for this instance
+ * @domain_id:		Power domain id for this instance
+ * @cluster_id:		cluster id in a domain
+ * @instance_id:	Unique instance id to append to directory name
  * @name:		Sysfs entry name for this instance
  * @uncore_attr_group:	Attribute group storage
  * @max_freq_khz_dev_attr: Storage for device attribute max_freq_khz
@@ -28,6 +31,9 @@
  * @initial_max_freq_khz_dev_attr: Storage for device attribute initial_max_freq_khz
  * @initial_min_freq_khz_dev_attr: Storage for device attribute initial_min_freq_khz
  * @current_freq_khz_dev_attr: Storage for device attribute current_freq_khz
+ * @domain_id_dev_attr: Storage for device attribute domain_id
+ * @fabric_cluster_id_dev_attr: Storage for device attribute fabric_cluster_id
+ * @package_id_dev_attr: Storage for device attribute package_id
  * @uncore_attrs:	Attribute storage for group creation
  *
  * This structure is used to encapsulate all data related to uncore sysfs
@@ -41,6 +47,9 @@ struct uncore_data {
 	bool valid;
 	int package_id;
 	int die_id;
+	int domain_id;
+	int cluster_id;
+	int instance_id;
 	char name[32];
 
 	struct attribute_group uncore_attr_group;
@@ -49,8 +58,13 @@ struct uncore_data {
 	struct device_attribute initial_max_freq_khz_dev_attr;
 	struct device_attribute initial_min_freq_khz_dev_attr;
 	struct device_attribute current_freq_khz_dev_attr;
-	struct attribute *uncore_attrs[6];
+	struct device_attribute domain_id_dev_attr;
+	struct device_attribute fabric_cluster_id_dev_attr;
+	struct device_attribute package_id_dev_attr;
+	struct attribute *uncore_attrs[9];
 };
+
+#define UNCORE_DOMAIN_ID_INVALID	-1
 
 int uncore_freq_common_init(int (*read_control_freq)(struct uncore_data *data, unsigned int *min, unsigned int *max),
 			     int (*write_control_freq)(struct uncore_data *data, unsigned int input, unsigned int min_max),

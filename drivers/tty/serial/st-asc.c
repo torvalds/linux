@@ -754,7 +754,7 @@ static struct asc_port *asc_of_get_asc_port(struct platform_device *pdev)
 
 	asc_ports[id].hw_flow_control = of_property_read_bool(np,
 							"uart-has-rtscts");
-	asc_ports[id].force_m1 =  of_property_read_bool(np, "st,force_m1");
+	asc_ports[id].force_m1 =  of_property_read_bool(np, "st,force-m1");
 	asc_ports[id].port.line = id;
 	asc_ports[id].rts = NULL;
 
@@ -796,7 +796,9 @@ static int asc_serial_remove(struct platform_device *pdev)
 {
 	struct uart_port *port = platform_get_drvdata(pdev);
 
-	return uart_remove_one_port(&asc_uart_driver, port);
+	uart_remove_one_port(&asc_uart_driver, port);
+
+	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP

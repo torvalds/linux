@@ -10,13 +10,13 @@
 #include <linux/of_net.h>
 #include <linux/phy.h>
 #include <linux/regmap.h>
+#include <linux/mdio/mdio-regmap.h>
+#include <linux/pcs-lynx.h>
 #include <linux/reset.h>
 #include <linux/stmmac.h>
 
 #include "stmmac.h"
 #include "stmmac_platform.h"
-
-#include "altr_tse_pcs.h"
 
 #define SYSMGR_EMACGRP_CTRL_PHYSEL_ENUM_GMII_MII 0x0
 #define SYSMGR_EMACGRP_CTRL_PHYSEL_ENUM_RGMII 0x1
@@ -37,6 +37,10 @@
 #define EMAC_SPLITTER_CTRL_SPEED_100		0x3
 #define EMAC_SPLITTER_CTRL_SPEED_1000		0x0
 
+#define SGMII_ADAPTER_CTRL_REG		0x00
+#define SGMII_ADAPTER_ENABLE		0x0000
+#define SGMII_ADAPTER_DISABLE		0x0001
+
 struct socfpga_dwmac;
 struct socfpga_dwmac_ops {
 	int (*set_phy_mode)(struct socfpga_dwmac *dwmac_priv);
@@ -50,16 +54,18 @@ struct socfpga_dwmac {
 	struct reset_control *stmmac_rst;
 	struct reset_control *stmmac_ocp_rst;
 	void __iomem *splitter_base;
+	void __iomem *tse_pcs_base;
+	void __iomem *sgmii_adapter_base;
 	bool f2h_ptp_ref_clk;
-	struct tse_pcs pcs;
 	const struct socfpga_dwmac_ops *ops;
+	struct mdio_device *pcs_mdiodev;
 };
 
 static void socfpga_dwmac_fix_mac_speed(void *priv, unsigned int speed)
 {
 	struct socfpga_dwmac *dwmac = (struct socfpga_dwmac *)priv;
 	void __iomem *splitter_base = dwmac->splitter_base;
-	void __iomem *sgmii_adapter_base = dwmac->pcs.sgmii_adapter_base;
+	void __iomem *sgmii_adapter_base = dwmac->sgmii_adapter_base;
 	struct device *dev = dwmac->dev;
 	struct net_device *ndev = dev_get_drvdata(dev);
 	struct phy_device *phy_dev = ndev->phydev;
@@ -89,11 +95,9 @@ static void socfpga_dwmac_fix_mac_speed(void *priv, unsigned int speed)
 		writel(val, splitter_base + EMAC_SPLITTER_CTRL_REG);
 	}
 
-	if (phy_dev && sgmii_adapter_base) {
+	if (phy_dev && sgmii_adapter_base)
 		writew(SGMII_ADAPTER_ENABLE,
 		       sgmii_adapter_base + SGMII_ADAPTER_CTRL_REG);
-		tse_pcs_fix_mac_speed(&dwmac->pcs, phy_dev, speed);
-	}
 }
 
 static int socfpga_dwmac_parse_data(struct socfpga_dwmac *dwmac, struct device *dev)
@@ -183,11 +187,11 @@ static int socfpga_dwmac_parse_data(struct socfpga_dwmac *dwmac, struct device *
 				goto err_node_put;
 			}
 
-			dwmac->pcs.sgmii_adapter_base =
+			dwmac->sgmii_adapter_base =
 			    devm_ioremap_resource(dev, &res_sgmii_adapter);
 
-			if (IS_ERR(dwmac->pcs.sgmii_adapter_base)) {
-				ret = PTR_ERR(dwmac->pcs.sgmii_adapter_base);
+			if (IS_ERR(dwmac->sgmii_adapter_base)) {
+				ret = PTR_ERR(dwmac->sgmii_adapter_base);
 				goto err_node_put;
 			}
 		}
@@ -205,11 +209,11 @@ static int socfpga_dwmac_parse_data(struct socfpga_dwmac *dwmac, struct device *
 				goto err_node_put;
 			}
 
-			dwmac->pcs.tse_pcs_base =
+			dwmac->tse_pcs_base =
 			    devm_ioremap_resource(dev, &res_tse_pcs);
 
-			if (IS_ERR(dwmac->pcs.tse_pcs_base)) {
-				ret = PTR_ERR(dwmac->pcs.tse_pcs_base);
+			if (IS_ERR(dwmac->tse_pcs_base)) {
+				ret = PTR_ERR(dwmac->tse_pcs_base);
 				goto err_node_put;
 			}
 		}
@@ -233,6 +237,13 @@ static int socfpga_get_plat_phymode(struct socfpga_dwmac *dwmac)
 	struct stmmac_priv *priv = netdev_priv(ndev);
 
 	return priv->plat->interface;
+}
+
+static void socfpga_sgmii_config(struct socfpga_dwmac *dwmac, bool enable)
+{
+	u16 val = enable ? SGMII_ADAPTER_ENABLE : SGMII_ADAPTER_DISABLE;
+
+	writew(val, dwmac->sgmii_adapter_base + SGMII_ADAPTER_CTRL_REG);
 }
 
 static int socfpga_set_phy_mode_common(int phymode, u32 *val)
@@ -310,12 +321,8 @@ static int socfpga_gen5_set_phy_mode(struct socfpga_dwmac *dwmac)
 	 */
 	reset_control_deassert(dwmac->stmmac_ocp_rst);
 	reset_control_deassert(dwmac->stmmac_rst);
-	if (phymode == PHY_INTERFACE_MODE_SGMII) {
-		if (tse_pcs_init(dwmac->pcs.tse_pcs_base, &dwmac->pcs) != 0) {
-			dev_err(dwmac->dev, "Unable to initialize TSE PCS");
-			return -EINVAL;
-		}
-	}
+	if (phymode == PHY_INTERFACE_MODE_SGMII)
+		socfpga_sgmii_config(dwmac, true);
 
 	return 0;
 }
@@ -367,12 +374,8 @@ static int socfpga_gen10_set_phy_mode(struct socfpga_dwmac *dwmac)
 	 */
 	reset_control_deassert(dwmac->stmmac_ocp_rst);
 	reset_control_deassert(dwmac->stmmac_rst);
-	if (phymode == PHY_INTERFACE_MODE_SGMII) {
-		if (tse_pcs_init(dwmac->pcs.tse_pcs_base, &dwmac->pcs) != 0) {
-			dev_err(dwmac->dev, "Unable to initialize TSE PCS");
-			return -EINVAL;
-		}
-	}
+	if (phymode == PHY_INTERFACE_MODE_SGMII)
+		socfpga_sgmii_config(dwmac, true);
 	return 0;
 }
 
@@ -443,6 +446,48 @@ static int socfpga_dwmac_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_dvr_remove;
 
+	/* Create a regmap for the PCS so that it can be used by the PCS driver,
+	 * if we have such a PCS
+	 */
+	if (dwmac->tse_pcs_base) {
+		struct regmap_config pcs_regmap_cfg;
+		struct mdio_regmap_config mrc;
+		struct regmap *pcs_regmap;
+		struct mii_bus *pcs_bus;
+
+		memset(&pcs_regmap_cfg, 0, sizeof(pcs_regmap_cfg));
+		memset(&mrc, 0, sizeof(mrc));
+
+		pcs_regmap_cfg.reg_bits = 16;
+		pcs_regmap_cfg.val_bits = 16;
+		pcs_regmap_cfg.reg_shift = REGMAP_UPSHIFT(1);
+
+		pcs_regmap = devm_regmap_init_mmio(&pdev->dev, dwmac->tse_pcs_base,
+						   &pcs_regmap_cfg);
+		if (IS_ERR(pcs_regmap)) {
+			ret = PTR_ERR(pcs_regmap);
+			goto err_dvr_remove;
+		}
+
+		mrc.regmap = pcs_regmap;
+		mrc.parent = &pdev->dev;
+		mrc.valid_addr = 0x0;
+		mrc.autoscan = false;
+
+		snprintf(mrc.name, MII_BUS_ID_SIZE, "%s-pcs-mii", ndev->name);
+		pcs_bus = devm_mdio_regmap_register(&pdev->dev, &mrc);
+		if (IS_ERR(pcs_bus)) {
+			ret = PTR_ERR(pcs_bus);
+			goto err_dvr_remove;
+		}
+
+		stpriv->hw->lynx_pcs = lynx_pcs_create_mdiodev(pcs_bus, 0);
+		if (IS_ERR(stpriv->hw->lynx_pcs)) {
+			ret = PTR_ERR(stpriv->hw->lynx_pcs);
+			goto err_dvr_remove;
+		}
+	}
+
 	return 0;
 
 err_dvr_remove:
@@ -451,6 +496,17 @@ err_remove_config_dt:
 	stmmac_remove_config_dt(pdev, plat_dat);
 
 	return ret;
+}
+
+static void socfpga_dwmac_remove(struct platform_device *pdev)
+{
+	struct net_device *ndev = platform_get_drvdata(pdev);
+	struct stmmac_priv *priv = netdev_priv(ndev);
+	struct phylink_pcs *pcs = priv->hw->lynx_pcs;
+
+	stmmac_pltfr_remove(pdev);
+
+	lynx_pcs_destroy(pcs);
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -524,7 +580,7 @@ MODULE_DEVICE_TABLE(of, socfpga_dwmac_match);
 
 static struct platform_driver socfpga_dwmac_driver = {
 	.probe  = socfpga_dwmac_probe,
-	.remove = stmmac_pltfr_remove,
+	.remove_new = socfpga_dwmac_remove,
 	.driver = {
 		.name           = "socfpga-dwmac",
 		.pm		= &socfpga_dwmac_pm_ops,

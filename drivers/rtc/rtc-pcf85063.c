@@ -681,7 +681,7 @@ static struct i2c_driver pcf85063_driver = {
 		.name	= "rtc-pcf85063",
 		.of_match_table = of_match_ptr(pcf85063_of_match),
 	},
-	.probe_new	= pcf85063_probe,
+	.probe		= pcf85063_probe,
 	.id_table	= pcf85063_ids,
 };
 

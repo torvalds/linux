@@ -52,8 +52,7 @@ properties:
               - vendor,soc4-ip
               - vendor,soc3-ip
               - vendor,soc2-ip
-          - enum:
-              - vendor,soc1-ip
+          - const: vendor,soc1-ip
         # additionalItems being false is implied
         # minItems/maxItems equal to 2 is implied
       - items:
@@ -85,6 +84,9 @@ properties:
       discouraged.
 
   clock-names:
+    # For single-entry lists in clocks, resets etc., the xxx-names often do not
+    # bring any value, especially if they copy the IP block name.  In such case
+    # just skip the xxx-names.
     items:
       - const: bus
 

@@ -93,22 +93,9 @@ static long change_pte_range(struct mmu_gather *tlb,
 	bool uffd_wp_resolve = cp_flags & MM_CP_UFFD_WP_RESOLVE;
 
 	tlb_change_page_size(tlb, PAGE_SIZE);
-
-	/*
-	 * Can be called with only the mmap_lock for reading by
-	 * prot_numa so we must check the pmd isn't constantly
-	 * changing from under us from pmd_none to pmd_trans_huge
-	 * and/or the other way around.
-	 */
-	if (pmd_trans_unstable(pmd))
-		return 0;
-
-	/*
-	 * The pmd points to a regular pte so the pmd can't change
-	 * from under us even if the mmap_lock is only hold for
-	 * reading.
-	 */
 	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
+	if (!pte)
+		return -EAGAIN;
 
 	/* Get target node for single threaded private VMAs */
 	if (prot_numa && !(vma->vm_flags & VM_SHARED) &&
@@ -118,7 +105,7 @@ static long change_pte_range(struct mmu_gather *tlb,
 	flush_tlb_batched_pending(vma->vm_mm);
 	arch_enter_lazy_mmu_mode();
 	do {
-		oldpte = *pte;
+		oldpte = ptep_get(pte);
 		if (pte_present(oldpte)) {
 			pte_t ptent;
 
@@ -302,31 +289,6 @@ static long change_pte_range(struct mmu_gather *tlb,
 }
 
 /*
- * Used when setting automatic NUMA hinting protection where it is
- * critical that a numa hinting PMD is not confused with a bad PMD.
- */
-static inline int pmd_none_or_clear_bad_unless_trans_huge(pmd_t *pmd)
-{
-	pmd_t pmdval = pmdp_get_lockless(pmd);
-
-	/* See pmd_none_or_trans_huge_or_clear_bad for info on barrier */
-#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-	barrier();
-#endif
-
-	if (pmd_none(pmdval))
-		return 1;
-	if (pmd_trans_huge(pmdval))
-		return 0;
-	if (unlikely(pmd_bad(pmdval))) {
-		pmd_clear_bad(pmd);
-		return 1;
-	}
-
-	return 0;
-}
-
-/*
  * Return true if we want to split THPs into PTE mappings in change
  * protection procedure, false otherwise.
  */
@@ -403,7 +365,8 @@ static inline long change_pmd_range(struct mmu_gather *tlb,
 	pmd = pmd_offset(pud, addr);
 	do {
 		long ret;
-
+		pmd_t _pmd;
+again:
 		next = pmd_addr_end(addr, end);
 
 		ret = change_pmd_prepare(vma, pmd, cp_flags);
@@ -411,16 +374,8 @@ static inline long change_pmd_range(struct mmu_gather *tlb,
 			pages = ret;
 			break;
 		}
-		/*
-		 * Automatic NUMA balancing walks the tables with mmap_lock
-		 * held for read. It's possible a parallel update to occur
-		 * between pmd_trans_huge() and a pmd_none_or_clear_bad()
-		 * check leading to a false positive and clearing.
-		 * Hence, it's necessary to atomically read the PMD value
-		 * for all the checks.
-		 */
-		if (!is_swap_pmd(*pmd) && !pmd_devmap(*pmd) &&
-		     pmd_none_or_clear_bad_unless_trans_huge(pmd))
+
+		if (pmd_none(*pmd))
 			goto next;
 
 		/* invoke the mmu notifier if the pmd is populated */
@@ -431,7 +386,8 @@ static inline long change_pmd_range(struct mmu_gather *tlb,
 			mmu_notifier_invalidate_range_start(&range);
 		}
 
-		if (is_swap_pmd(*pmd) || pmd_trans_huge(*pmd) || pmd_devmap(*pmd)) {
+		_pmd = pmdp_get_lockless(pmd);
+		if (is_swap_pmd(_pmd) || pmd_trans_huge(_pmd) || pmd_devmap(_pmd)) {
 			if ((next - addr != HPAGE_PMD_SIZE) ||
 			    pgtable_split_needed(vma, cp_flags)) {
 				__split_huge_pmd(vma, pmd, addr, false, NULL);
@@ -446,15 +402,10 @@ static inline long change_pmd_range(struct mmu_gather *tlb,
 					break;
 				}
 			} else {
-				/*
-				 * change_huge_pmd() does not defer TLB flushes,
-				 * so no need to propagate the tlb argument.
-				 */
-				int nr_ptes = change_huge_pmd(tlb, vma, pmd,
+				ret = change_huge_pmd(tlb, vma, pmd,
 						addr, newprot, cp_flags);
-
-				if (nr_ptes) {
-					if (nr_ptes == HPAGE_PMD_NR) {
+				if (ret) {
+					if (ret == HPAGE_PMD_NR) {
 						pages += HPAGE_PMD_NR;
 						nr_huge_updates++;
 					}
@@ -465,8 +416,12 @@ static inline long change_pmd_range(struct mmu_gather *tlb,
 			}
 			/* fall through, the trans huge pmd just split */
 		}
-		pages += change_pte_range(tlb, vma, pmd, addr, next,
-					  newprot, cp_flags);
+
+		ret = change_pte_range(tlb, vma, pmd, addr, next, newprot,
+				       cp_flags);
+		if (ret < 0)
+			goto again;
+		pages += ret;
 next:
 		cond_resched();
 	} while (pmd++, addr = next, addr != end);
@@ -589,7 +544,8 @@ long change_protection(struct mmu_gather *tlb,
 static int prot_none_pte_entry(pte_t *pte, unsigned long addr,
 			       unsigned long next, struct mm_walk *walk)
 {
-	return pfn_modify_allowed(pte_pfn(*pte), *(pgprot_t *)(walk->private)) ?
+	return pfn_modify_allowed(pte_pfn(ptep_get(pte)),
+				  *(pgprot_t *)(walk->private)) ?
 		0 : -EACCES;
 }
 
@@ -597,7 +553,8 @@ static int prot_none_hugetlb_entry(pte_t *pte, unsigned long hmask,
 				   unsigned long addr, unsigned long next,
 				   struct mm_walk *walk)
 {
-	return pfn_modify_allowed(pte_pfn(*pte), *(pgprot_t *)(walk->private)) ?
+	return pfn_modify_allowed(pte_pfn(ptep_get(pte)),
+				  *(pgprot_t *)(walk->private)) ?
 		0 : -EACCES;
 }
 
@@ -611,6 +568,7 @@ static const struct mm_walk_ops prot_none_walk_ops = {
 	.pte_entry		= prot_none_pte_entry,
 	.hugetlb_entry		= prot_none_hugetlb_entry,
 	.test_walk		= prot_none_test,
+	.walk_lock		= PGWALK_WRLOCK,
 };
 
 int

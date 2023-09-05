@@ -57,6 +57,8 @@ extern int __cpu_logical_map[NR_CPUS];
 /* Mask of CPUs which are currently definitely operating coherently */
 extern cpumask_t cpu_coherent_mask;
 
+extern unsigned int smp_max_threads __initdata;
+
 extern asmlinkage void smp_bootstrap(void);
 
 extern void calculate_cpu_foreign_map(void);

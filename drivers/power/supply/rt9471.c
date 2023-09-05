@@ -919,7 +919,7 @@ static struct i2c_driver rt9471_driver = {
 		.name = "rt9471",
 		.of_match_table = rt9471_of_device_id,
 	},
-	.probe_new = rt9471_probe,
+	.probe = rt9471_probe,
 	.shutdown = rt9471_shutdown,
 };
 module_i2c_driver(rt9471_driver);

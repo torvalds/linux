@@ -736,7 +736,7 @@ static struct i2c_driver adp5061_driver = {
 	.driver = {
 		.name = KBUILD_MODNAME,
 	},
-	.probe_new = adp5061_probe,
+	.probe = adp5061_probe,
 	.id_table = adp5061_id,
 };
 module_i2c_driver(adp5061_driver);

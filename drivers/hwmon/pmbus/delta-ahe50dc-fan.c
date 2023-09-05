@@ -119,7 +119,7 @@ static struct i2c_driver ahe50dc_fan_driver = {
 		   .name = "ahe50dc_fan",
 		   .of_match_table = of_match_ptr(ahe50dc_fan_of_match),
 	},
-	.probe_new = ahe50dc_fan_probe,
+	.probe = ahe50dc_fan_probe,
 	.id_table = ahe50dc_fan_id,
 };
 module_i2c_driver(ahe50dc_fan_driver);

@@ -4,6 +4,8 @@
  * Author: Rob Clark <robdclark@gmail.com>
  */
 
+#include <linux/fb.h>
+
 #include <drm/drm_drv.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_helper.h>
@@ -22,6 +24,10 @@ module_param(fbdev, bool, 0600);
 /*
  * fbdev funcs, to implement legacy fbdev interface on top of drm driver
  */
+
+FB_GEN_DEFAULT_DEFERRED_SYS_OPS(msm_fbdev,
+				drm_fb_helper_damage_range,
+				drm_fb_helper_damage_area)
 
 static int msm_fbdev_mmap(struct fb_info *info, struct vm_area_struct *vma)
 {
@@ -52,16 +58,9 @@ static void msm_fbdev_fb_destroy(struct fb_info *info)
 
 static const struct fb_ops msm_fb_ops = {
 	.owner = THIS_MODULE,
+	__FB_DEFAULT_DEFERRED_OPS_RDWR(msm_fbdev),
 	DRM_FB_HELPER_DEFAULT_OPS,
-
-	/* Note: to properly handle manual update displays, we wrap the
-	 * basic fbdev ops which write to the framebuffer
-	 */
-	.fb_read = drm_fb_helper_sys_read,
-	.fb_write = drm_fb_helper_sys_write,
-	.fb_fillrect = drm_fb_helper_sys_fillrect,
-	.fb_copyarea = drm_fb_helper_sys_copyarea,
-	.fb_imageblit = drm_fb_helper_sys_imageblit,
+	__FB_DEFAULT_DEFERRED_OPS_DRAW(msm_fbdev),
 	.fb_mmap = msm_fbdev_mmap,
 	.fb_destroy = msm_fbdev_fb_destroy,
 };
@@ -121,9 +120,9 @@ static int msm_fbdev_create(struct drm_fb_helper *helper,
 
 	drm_fb_helper_fill_info(fbi, helper, sizes);
 
-	fbi->screen_base = msm_gem_get_vaddr(bo);
-	if (IS_ERR(fbi->screen_base)) {
-		ret = PTR_ERR(fbi->screen_base);
+	fbi->screen_buffer = msm_gem_get_vaddr(bo);
+	if (IS_ERR(fbi->screen_buffer)) {
+		ret = PTR_ERR(fbi->screen_buffer);
 		goto fail;
 	}
 	fbi->screen_size = bo->size;
@@ -140,8 +139,28 @@ fail:
 	return ret;
 }
 
+static int msm_fbdev_fb_dirty(struct drm_fb_helper *helper,
+			      struct drm_clip_rect *clip)
+{
+	struct drm_device *dev = helper->dev;
+	int ret;
+
+	/* Call damage handlers only if necessary */
+	if (!(clip->x1 < clip->x2 && clip->y1 < clip->y2))
+		return 0;
+
+	if (helper->fb->funcs->dirty) {
+		ret = helper->fb->funcs->dirty(helper->fb, NULL, 0, 0, clip, 1);
+		if (drm_WARN_ONCE(dev, ret, "Dirty helper failed: ret=%d\n", ret))
+			return ret;
+	}
+
+	return 0;
+}
+
 static const struct drm_fb_helper_funcs msm_fb_helper_funcs = {
 	.fb_probe = msm_fbdev_create,
+	.fb_dirty = msm_fbdev_fb_dirty,
 };
 
 /*
@@ -226,10 +245,6 @@ void msm_fbdev_setup(struct drm_device *dev)
 		drm_err(dev, "Failed to register client: %d\n", ret);
 		goto err_drm_fb_helper_unprepare;
 	}
-
-	ret = msm_fbdev_client_hotplug(&helper->client);
-	if (ret)
-		drm_dbg_kms(dev, "client hotplug ret=%d\n", ret);
 
 	drm_client_register(&helper->client);
 

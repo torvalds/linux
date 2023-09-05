@@ -1106,7 +1106,7 @@ static struct dsa_port *dsa_port_touch(struct dsa_switch *ds, int index)
 	mutex_init(&dp->vlans_lock);
 	INIT_LIST_HEAD(&dp->fdbs);
 	INIT_LIST_HEAD(&dp->mdbs);
-	INIT_LIST_HEAD(&dp->vlans);
+	INIT_LIST_HEAD(&dp->vlans); /* also initializes &dp->user_vlans */
 	INIT_LIST_HEAD(&dp->list);
 	list_add_tail(&dp->list, &dst->ports);
 

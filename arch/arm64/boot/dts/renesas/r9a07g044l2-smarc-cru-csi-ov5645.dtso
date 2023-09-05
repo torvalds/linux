@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Device Tree overlay for the RZ/G2L SMARC EVK with OV5645 camera
+ * Device Tree overlay for the RZ/{G2L, V2L} SMARC EVK with OV5645 camera
  * connected to CSI and CRU enabled.
  *
  * Copyright (C) 2023 Renesas Electronics Corp.

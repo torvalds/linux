@@ -88,10 +88,11 @@ static void pool_free_work(struct work_struct *wrk)
 {
 	struct intel_gt_buffer_pool *pool =
 		container_of(wrk, typeof(*pool), work.work);
+	struct intel_gt *gt = container_of(pool, struct intel_gt, buffer_pool);
 
 	if (pool_free_older_than(pool, HZ))
-		schedule_delayed_work(&pool->work,
-				      round_jiffies_up_relative(HZ));
+		queue_delayed_work(gt->i915->unordered_wq, &pool->work,
+				   round_jiffies_up_relative(HZ));
 }
 
 static void pool_retire(struct i915_active *ref)
@@ -99,6 +100,7 @@ static void pool_retire(struct i915_active *ref)
 	struct intel_gt_buffer_pool_node *node =
 		container_of(ref, typeof(*node), active);
 	struct intel_gt_buffer_pool *pool = node->pool;
+	struct intel_gt *gt = container_of(pool, struct intel_gt, buffer_pool);
 	struct list_head *list = bucket_for_size(pool, node->obj->base.size);
 	unsigned long flags;
 
@@ -116,8 +118,8 @@ static void pool_retire(struct i915_active *ref)
 	WRITE_ONCE(node->age, jiffies ?: 1); /* 0 reserved for active nodes */
 	spin_unlock_irqrestore(&pool->lock, flags);
 
-	schedule_delayed_work(&pool->work,
-			      round_jiffies_up_relative(HZ));
+	queue_delayed_work(gt->i915->unordered_wq, &pool->work,
+			   round_jiffies_up_relative(HZ));
 }
 
 void intel_gt_buffer_pool_mark_used(struct intel_gt_buffer_pool_node *node)

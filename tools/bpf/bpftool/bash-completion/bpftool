@@ -278,7 +278,7 @@ _bpftool()
             _bpftool_get_prog_tags
             return 0
             ;;
-        dev)
+        dev|offload_dev|xdpmeta_dev)
             _sysfs_get_netdevs
             return 0
             ;;
@@ -508,7 +508,8 @@ _bpftool()
                             ;;
                         *)
                             COMPREPLY=( $( compgen -W "map" -- "$cur" ) )
-                            _bpftool_once_attr 'type dev pinmaps autoattach'
+                            _bpftool_once_attr 'type pinmaps autoattach'
+                            _bpftool_one_of_list 'offload_dev xdpmeta_dev'
                             return 0
                             ;;
                     esac
@@ -733,7 +734,7 @@ _bpftool()
                             esac
                             ;;
                         *)
-                            _bpftool_once_attr 'type key value entries name flags dev'
+                            _bpftool_once_attr 'type key value entries name flags offload_dev'
                             if _bpftool_search_list 'array_of_maps' 'hash_of_maps'; then
                                 _bpftool_once_attr 'inner_map'
                             fi

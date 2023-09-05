@@ -763,7 +763,7 @@ free_rproc:
 	return ret;
 }
 
-static int adsp_remove(struct platform_device *pdev)
+static void adsp_remove(struct platform_device *pdev)
 {
 	struct qcom_adsp *adsp = platform_get_drvdata(pdev);
 
@@ -775,8 +775,6 @@ static int adsp_remove(struct platform_device *pdev)
 	qcom_remove_ssr_subdev(adsp->rproc, &adsp->ssr_subdev);
 	qcom_rproc_pds_detach(adsp, adsp->proxy_pds, adsp->proxy_pd_count);
 	rproc_free(adsp->rproc);
-
-	return 0;
 }
 
 static const struct adsp_pil_data adsp_resource_init = {
@@ -859,7 +857,7 @@ MODULE_DEVICE_TABLE(of, adsp_of_match);
 
 static struct platform_driver adsp_pil_driver = {
 	.probe = adsp_probe,
-	.remove = adsp_remove,
+	.remove_new = adsp_remove,
 	.driver = {
 		.name = "qcom_q6v5_adsp",
 		.of_match_table = adsp_of_match,

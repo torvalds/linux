@@ -5,6 +5,14 @@
  * Copyright 2019 Google LLC
  */
 
+/*
+ * This file implements verification of fs-verity builtin signatures.  Please
+ * take great care before using this feature.  It is not the only way to do
+ * signatures with fs-verity, and the alternatives (such as userspace signature
+ * verification, and IMA appraisal) can be much better.  For details about the
+ * limitations of this feature, see Documentation/filesystems/fsverity.rst.
+ */
+
 #include "fsverity_private.h"
 
 #include <linux/cred.h>

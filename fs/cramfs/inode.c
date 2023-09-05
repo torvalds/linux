@@ -473,7 +473,7 @@ static unsigned int cramfs_physmem_mmap_capabilities(struct file *file)
 static const struct file_operations cramfs_physmem_fops = {
 	.llseek			= generic_file_llseek,
 	.read_iter		= generic_file_read_iter,
-	.splice_read		= generic_file_splice_read,
+	.splice_read		= filemap_splice_read,
 	.mmap			= cramfs_physmem_mmap,
 #ifndef CONFIG_MMU
 	.get_unmapped_area	= cramfs_physmem_get_unmapped_area,

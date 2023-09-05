@@ -10,6 +10,8 @@
 #ifndef _KEYS_ASYMMETRIC_PARSER_H
 #define _KEYS_ASYMMETRIC_PARSER_H
 
+struct key_preparsed_payload;
+
 /*
  * Key data parser.  Called during key instantiation.
  */

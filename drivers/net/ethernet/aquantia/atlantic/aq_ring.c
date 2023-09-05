@@ -532,10 +532,10 @@ static bool aq_add_rx_fragment(struct device *dev,
 					      buff_->rxdata.pg_off,
 					      buff_->len,
 					      DMA_FROM_DEVICE);
-		skb_frag_off_set(frag, buff_->rxdata.pg_off);
-		skb_frag_size_set(frag, buff_->len);
 		sinfo->xdp_frags_size += buff_->len;
-		__skb_frag_set_page(frag, buff_->rxdata.page);
+		skb_frag_fill_page_desc(frag, buff_->rxdata.page,
+					buff_->rxdata.pg_off,
+					buff_->len);
 
 		buff_->is_cleaned = 1;
 

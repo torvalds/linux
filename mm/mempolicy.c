@@ -384,8 +384,10 @@ void mpol_rebind_mm(struct mm_struct *mm, nodemask_t *new)
 	VMA_ITERATOR(vmi, mm, 0);
 
 	mmap_write_lock(mm);
-	for_each_vma(vmi, vma)
+	for_each_vma(vmi, vma) {
+		vma_start_write(vma);
 		mpol_rebind_policy(vma->vm_policy, new);
+	}
 	mmap_write_unlock(mm);
 }
 
@@ -508,20 +510,23 @@ static int queue_folios_pte_range(pmd_t *pmd, unsigned long addr,
 	unsigned long flags = qp->flags;
 	bool has_unmovable = false;
 	pte_t *pte, *mapped_pte;
+	pte_t ptent;
 	spinlock_t *ptl;
 
 	ptl = pmd_trans_huge_lock(pmd, vma);
 	if (ptl)
 		return queue_folios_pmd(pmd, ptl, addr, end, walk);
 
-	if (pmd_trans_unstable(pmd))
-		return 0;
-
 	mapped_pte = pte = pte_offset_map_lock(walk->mm, pmd, addr, &ptl);
+	if (!pte) {
+		walk->action = ACTION_AGAIN;
+		return 0;
+	}
 	for (; addr != end; pte++, addr += PAGE_SIZE) {
-		if (!pte_present(*pte))
+		ptent = ptep_get(pte);
+		if (!pte_present(ptent))
 			continue;
-		folio = vm_normal_folio(vma, addr, *pte);
+		folio = vm_normal_folio(vma, addr, ptent);
 		if (!folio || folio_is_zone_device(folio))
 			continue;
 		/*
@@ -713,6 +718,14 @@ static const struct mm_walk_ops queue_pages_walk_ops = {
 	.hugetlb_entry		= queue_folios_hugetlb,
 	.pmd_entry		= queue_folios_pte_range,
 	.test_walk		= queue_pages_test_walk,
+	.walk_lock		= PGWALK_RDLOCK,
+};
+
+static const struct mm_walk_ops queue_pages_lock_vma_walk_ops = {
+	.hugetlb_entry		= queue_folios_hugetlb,
+	.pmd_entry		= queue_folios_pte_range,
+	.test_walk		= queue_pages_test_walk,
+	.walk_lock		= PGWALK_WRLOCK,
 };
 
 /*
@@ -733,7 +746,7 @@ static const struct mm_walk_ops queue_pages_walk_ops = {
 static int
 queue_pages_range(struct mm_struct *mm, unsigned long start, unsigned long end,
 		nodemask_t *nodes, unsigned long flags,
-		struct list_head *pagelist)
+		struct list_head *pagelist, bool lock_vma)
 {
 	int err;
 	struct queue_pages qp = {
@@ -744,8 +757,10 @@ queue_pages_range(struct mm_struct *mm, unsigned long start, unsigned long end,
 		.end = end,
 		.first = NULL,
 	};
+	const struct mm_walk_ops *ops = lock_vma ?
+			&queue_pages_lock_vma_walk_ops : &queue_pages_walk_ops;
 
-	err = walk_page_range(mm, start, end, &queue_pages_walk_ops, &qp);
+	err = walk_page_range(mm, start, end, ops, &qp);
 
 	if (!qp.first)
 		/* whole range in hole */
@@ -764,6 +779,8 @@ static int vma_replace_policy(struct vm_area_struct *vma,
 	int err;
 	struct mempolicy *old;
 	struct mempolicy *new;
+
+	vma_assert_write_locked(vma);
 
 	pr_debug("vma %lx-%lx/%lx vm_ops %p vm_file %p set_policy %p\n",
 		 vma->vm_start, vma->vm_end, vma->vm_pgoff,
@@ -1071,7 +1088,7 @@ static int migrate_to_node(struct mm_struct *mm, int source, int dest,
 	vma = find_vma(mm, 0);
 	VM_BUG_ON(!(flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL)));
 	queue_pages_range(mm, vma->vm_start, mm->task_size, &nmask,
-			flags | MPOL_MF_DISCONTIG_OK, &pagelist);
+			flags | MPOL_MF_DISCONTIG_OK, &pagelist, false);
 
 	if (!list_empty(&pagelist)) {
 		err = migrate_pages(&pagelist, alloc_migration_target, NULL,
@@ -1195,24 +1212,22 @@ int do_migrate_pages(struct mm_struct *mm, const nodemask_t *from,
  * list of pages handed to migrate_pages()--which is how we get here--
  * is in virtual address order.
  */
-static struct page *new_page(struct page *page, unsigned long start)
+static struct folio *new_folio(struct folio *src, unsigned long start)
 {
-	struct folio *dst, *src = page_folio(page);
 	struct vm_area_struct *vma;
 	unsigned long address;
 	VMA_ITERATOR(vmi, current->mm, start);
 	gfp_t gfp = GFP_HIGHUSER_MOVABLE | __GFP_RETRY_MAYFAIL;
 
 	for_each_vma(vmi, vma) {
-		address = page_address_in_vma(page, vma);
+		address = page_address_in_vma(&src->page, vma);
 		if (address != -EFAULT)
 			break;
 	}
 
 	if (folio_test_hugetlb(src)) {
-		dst = alloc_hugetlb_folio_vma(folio_hstate(src),
+		return alloc_hugetlb_folio_vma(folio_hstate(src),
 				vma, address);
-		return &dst->page;
 	}
 
 	if (folio_test_large(src))
@@ -1221,9 +1236,8 @@ static struct page *new_page(struct page *page, unsigned long start)
 	/*
 	 * if !vma, vma_alloc_folio() will use task or system default policy
 	 */
-	dst = vma_alloc_folio(gfp, folio_order(src), vma, address,
+	return vma_alloc_folio(gfp, folio_order(src), vma, address,
 			folio_test_large(src));
-	return &dst->page;
 }
 #else
 
@@ -1239,7 +1253,7 @@ int do_migrate_pages(struct mm_struct *mm, const nodemask_t *from,
 	return -ENOSYS;
 }
 
-static struct page *new_page(struct page *page, unsigned long start)
+static struct folio *new_folio(struct folio *src, unsigned long start)
 {
 	return NULL;
 }
@@ -1313,8 +1327,12 @@ static long do_mbind(unsigned long start, unsigned long len,
 	if (err)
 		goto mpol_out;
 
+	/*
+	 * Lock the VMAs before scanning for pages to migrate, to ensure we don't
+	 * miss a concurrently inserted page.
+	 */
 	ret = queue_pages_range(mm, start, end, nmask,
-			  flags | MPOL_MF_INVERT, &pagelist);
+			  flags | MPOL_MF_INVERT, &pagelist, true);
 
 	if (ret < 0) {
 		err = ret;
@@ -1334,7 +1352,7 @@ static long do_mbind(unsigned long start, unsigned long len,
 
 		if (!list_empty(&pagelist)) {
 			WARN_ON_ONCE(flags & MPOL_MF_LAZY);
-			nr_failed = migrate_pages(&pagelist, new_page, NULL,
+			nr_failed = migrate_pages(&pagelist, new_folio, NULL,
 				start, MIGRATE_SYNC, MR_MEMPOLICY_MBIND, NULL);
 			if (nr_failed)
 				putback_movable_pages(&pagelist);
@@ -1538,6 +1556,7 @@ SYSCALL_DEFINE4(set_mempolicy_home_node, unsigned long, start, unsigned long, le
 			break;
 		}
 
+		vma_start_write(vma);
 		new->home_node = home_node;
 		err = mbind_range(&vmi, vma, &prev, start, end, new);
 		mpol_put(new);

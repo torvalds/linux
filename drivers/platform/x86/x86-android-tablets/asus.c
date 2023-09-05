@@ -24,7 +24,7 @@ static struct gpiod_lookup_table int3496_gpo2_pin22_gpios = {
 	},
 };
 
-static struct x86_gpio_button asus_me176c_tf103c_lid = {
+static const struct x86_gpio_button asus_me176c_tf103c_lid __initconst = {
 	.button = {
 		.code = SW_LID,
 		.active_low = true,
@@ -175,10 +175,10 @@ const struct x86_dev_info asus_me176c_info __initconst = {
 	.serdev_info = asus_me176c_serdevs,
 	.serdev_count = ARRAY_SIZE(asus_me176c_serdevs),
 	.gpio_button = &asus_me176c_tf103c_lid,
+	.gpio_button_count = 1,
 	.gpiod_lookup_tables = asus_me176c_gpios,
 	.bat_swnode = &generic_lipo_hv_4v35_battery_node,
 	.modules = bq24190_modules,
-	.invalid_aei_gpiochip = "INT33FC:02",
 };
 
 /* Asus TF103C tablets have an Android factory img with everything hardcoded */
@@ -318,8 +318,8 @@ const struct x86_dev_info asus_tf103c_info __initconst = {
 	.pdev_info = int3496_pdevs,
 	.pdev_count = 1,
 	.gpio_button = &asus_me176c_tf103c_lid,
+	.gpio_button_count = 1,
 	.gpiod_lookup_tables = asus_tf103c_gpios,
 	.bat_swnode = &asus_tf103c_battery_node,
 	.modules = bq24190_modules,
-	.invalid_aei_gpiochip = "INT33FC:02",
 };

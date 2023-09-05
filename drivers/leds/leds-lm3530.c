@@ -484,7 +484,7 @@ static const struct i2c_device_id lm3530_id[] = {
 MODULE_DEVICE_TABLE(i2c, lm3530_id);
 
 static struct i2c_driver lm3530_i2c_driver = {
-	.probe_new = lm3530_probe,
+	.probe = lm3530_probe,
 	.remove = lm3530_remove,
 	.id_table = lm3530_id,
 	.driver = {

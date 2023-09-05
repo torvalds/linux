@@ -250,7 +250,7 @@ identify_qemu_args () {
 		echo -machine virt,gic-version=host -cpu host
 		;;
 	qemu-system-ppc64)
-		echo -enable-kvm -M pseries -nodefaults
+		echo -M pseries -nodefaults
 		echo -device spapr-vscsi
 		if test -n "$TORTURE_QEMU_INTERACTIVE" -a -n "$TORTURE_QEMU_MAC"
 		then

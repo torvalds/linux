@@ -376,12 +376,11 @@ static enum fw_upload_err rsu_update_init(struct m10bmc_sec *sec)
 	u32 doorbell_reg, progress, status;
 	int ret, err;
 
-	ret = regmap_update_bits(sec->m10bmc->regmap,
-				 csr_map->base + csr_map->doorbell,
-				 DRBL_RSU_REQUEST | DRBL_HOST_STATUS,
-				 DRBL_RSU_REQUEST |
-				 FIELD_PREP(DRBL_HOST_STATUS,
-					    HOST_STATUS_IDLE));
+	ret = m10bmc_sys_update_bits(sec->m10bmc, csr_map->doorbell,
+				     DRBL_RSU_REQUEST | DRBL_HOST_STATUS,
+				     DRBL_RSU_REQUEST |
+				     FIELD_PREP(DRBL_HOST_STATUS,
+						HOST_STATUS_IDLE));
 	if (ret)
 		return FW_UPLOAD_ERR_RW_ERROR;
 
@@ -450,11 +449,10 @@ static enum fw_upload_err rsu_send_data(struct m10bmc_sec *sec)
 	u32 doorbell_reg, status;
 	int ret;
 
-	ret = regmap_update_bits(sec->m10bmc->regmap,
-				 csr_map->base + csr_map->doorbell,
-				 DRBL_HOST_STATUS,
-				 FIELD_PREP(DRBL_HOST_STATUS,
-					    HOST_STATUS_WRITE_DONE));
+	ret = m10bmc_sys_update_bits(sec->m10bmc, csr_map->doorbell,
+				     DRBL_HOST_STATUS,
+				     FIELD_PREP(DRBL_HOST_STATUS,
+						HOST_STATUS_WRITE_DONE));
 	if (ret)
 		return FW_UPLOAD_ERR_RW_ERROR;
 
@@ -517,11 +515,10 @@ static enum fw_upload_err rsu_cancel(struct m10bmc_sec *sec)
 	if (rsu_prog(doorbell) != RSU_PROG_READY)
 		return FW_UPLOAD_ERR_BUSY;
 
-	ret = regmap_update_bits(sec->m10bmc->regmap,
-				 csr_map->base + csr_map->doorbell,
-				 DRBL_HOST_STATUS,
-				 FIELD_PREP(DRBL_HOST_STATUS,
-					    HOST_STATUS_ABORT_RSU));
+	ret = m10bmc_sys_update_bits(sec->m10bmc, csr_map->doorbell,
+				     DRBL_HOST_STATUS,
+				     FIELD_PREP(DRBL_HOST_STATUS,
+						HOST_STATUS_ABORT_RSU));
 	if (ret)
 		return FW_UPLOAD_ERR_RW_ERROR;
 
@@ -547,20 +544,27 @@ static enum fw_upload_err m10bmc_sec_prepare(struct fw_upload *fwl,
 	if (ret != FW_UPLOAD_ERR_NONE)
 		goto unlock_flash;
 
+	m10bmc_fw_state_set(sec->m10bmc, M10BMC_FW_STATE_SEC_UPDATE_PREPARE);
+
 	ret = rsu_update_init(sec);
 	if (ret != FW_UPLOAD_ERR_NONE)
-		goto unlock_flash;
+		goto fw_state_exit;
 
 	ret = rsu_prog_ready(sec);
 	if (ret != FW_UPLOAD_ERR_NONE)
-		goto unlock_flash;
+		goto fw_state_exit;
 
 	if (sec->cancel_request) {
 		ret = rsu_cancel(sec);
-		goto unlock_flash;
+		goto fw_state_exit;
 	}
 
+	m10bmc_fw_state_set(sec->m10bmc, M10BMC_FW_STATE_SEC_UPDATE_WRITE);
+
 	return FW_UPLOAD_ERR_NONE;
+
+fw_state_exit:
+	m10bmc_fw_state_set(sec->m10bmc, M10BMC_FW_STATE_NORMAL);
 
 unlock_flash:
 	if (sec->m10bmc->flash_bulk_ops)
@@ -610,6 +614,8 @@ static enum fw_upload_err m10bmc_sec_poll_complete(struct fw_upload *fwl)
 	if (sec->cancel_request)
 		return rsu_cancel(sec);
 
+	m10bmc_fw_state_set(sec->m10bmc, M10BMC_FW_STATE_SEC_UPDATE_PROGRAM);
+
 	result = rsu_send_data(sec);
 	if (result != FW_UPLOAD_ERR_NONE)
 		return result;
@@ -652,6 +658,8 @@ static void m10bmc_sec_cleanup(struct fw_upload *fwl)
 	struct m10bmc_sec *sec = fwl->dd_handle;
 
 	(void)rsu_cancel(sec);
+
+	m10bmc_fw_state_set(sec->m10bmc, M10BMC_FW_STATE_NORMAL);
 
 	if (sec->m10bmc->flash_bulk_ops)
 		sec->m10bmc->flash_bulk_ops->unlock_write(sec->m10bmc);
@@ -764,3 +772,4 @@ module_platform_driver(intel_m10bmc_sec_driver);
 MODULE_AUTHOR("Intel Corporation");
 MODULE_DESCRIPTION("Intel MAX10 BMC Secure Update");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(INTEL_M10_BMC_CORE);

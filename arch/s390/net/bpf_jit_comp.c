@@ -523,12 +523,12 @@ extern const char bpf_plt_end[];
 #define BPF_PLT_SIZE 32
 asm(
 	".pushsection .rodata\n"
-	"	.align 8\n"
+	"	.balign 8\n"
 	"bpf_plt:\n"
 	"	lgrl %r0,bpf_plt_ret\n"
 	"	lgrl %r1,bpf_plt_target\n"
 	"	br %r1\n"
-	"	.align 8\n"
+	"	.balign 8\n"
 	"bpf_plt_ret: .quad 0\n"
 	"bpf_plt_target: .quad 0\n"
 	"bpf_plt_end:\n"

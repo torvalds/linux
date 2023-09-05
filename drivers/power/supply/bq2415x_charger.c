@@ -1780,7 +1780,7 @@ static struct i2c_driver bq2415x_driver = {
 		.of_match_table = of_match_ptr(bq2415x_of_match_table),
 		.acpi_match_table = ACPI_PTR(bq2415x_i2c_acpi_match),
 	},
-	.probe_new = bq2415x_probe,
+	.probe = bq2415x_probe,
 	.remove = bq2415x_remove,
 	.id_table = bq2415x_i2c_id_table,
 };

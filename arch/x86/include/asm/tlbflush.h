@@ -14,6 +14,8 @@
 #include <asm/processor-flags.h>
 #include <asm/pgtable.h>
 
+DECLARE_PER_CPU(u64, tlbstate_untag_mask);
+
 void __flush_tlb_all(void);
 
 #define TLB_FLUSH_ALL	-1UL
@@ -53,15 +55,6 @@ static inline void cr4_clear_bits(unsigned long mask)
 	cr4_clear_bits_irqsoff(mask);
 	local_irq_restore(flags);
 }
-
-#ifdef CONFIG_ADDRESS_MASKING
-DECLARE_PER_CPU(u64, tlbstate_untag_mask);
-
-static inline u64 current_untag_mask(void)
-{
-	return this_cpu_read(tlbstate_untag_mask);
-}
-#endif
 
 #ifndef MODULE
 /*

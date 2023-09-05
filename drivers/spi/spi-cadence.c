@@ -102,6 +102,7 @@
  * @regs:		Virtual address of the SPI controller registers
  * @ref_clk:		Pointer to the peripheral clock
  * @pclk:		Pointer to the APB clock
+ * @clk_rate:		Reference clock frequency, taken from @ref_clk
  * @speed_hz:		Current SPI bus clock speed in Hz
  * @txbuf:		Pointer	to the TX buffer
  * @rxbuf:		Pointer to the RX buffer
@@ -316,12 +317,6 @@ static void cdns_spi_process_fifo(struct cdns_spi *xspi, int ntx, int nrx)
 	xspi->rx_bytes -= nrx;
 
 	while (ntx || nrx) {
-		/* When xspi in busy condition, bytes may send failed,
-		 * then spi control did't work thoroughly, add one byte delay
-		 */
-		if (cdns_spi_read(xspi, CDNS_SPI_ISR) & CDNS_SPI_IXR_TXFULL)
-			udelay(10);
-
 		if (ntx) {
 			if (xspi->txbuf)
 				cdns_spi_write(xspi, CDNS_SPI_TXD, *xspi->txbuf++);
@@ -391,6 +386,11 @@ static irqreturn_t cdns_spi_irq(int irq, void *dev_id)
 		if (xspi->tx_bytes) {
 			cdns_spi_process_fifo(xspi, trans_cnt, trans_cnt);
 		} else {
+			/* Fixed delay due to controller limitation with
+			 * RX_NEMPTY incorrect status
+			 * Xilinx AR:65885 contains more details
+			 */
+			udelay(10);
 			cdns_spi_process_fifo(xspi, 0, trans_cnt);
 			cdns_spi_write(xspi, CDNS_SPI_IDR,
 				       CDNS_SPI_IXR_DEFAULT);
@@ -438,11 +438,17 @@ static int cdns_transfer_one(struct spi_controller *ctlr,
 		cdns_spi_setup_transfer(spi, transfer);
 	} else {
 		/* Set TX empty threshold to half of FIFO depth
-		 * only if TX bytes are more than half FIFO depth.
+		 * only if TX bytes are more than FIFO depth.
 		 */
 		if (xspi->tx_bytes > xspi->tx_fifo_depth)
 			cdns_spi_write(xspi, CDNS_SPI_THLD, xspi->tx_fifo_depth >> 1);
 	}
+
+	/* When xspi in busy condition, bytes may send failed,
+	 * then spi control didn't work thoroughly, add one byte delay
+	 */
+	if (cdns_spi_read(xspi, CDNS_SPI_ISR) & CDNS_SPI_IXR_TXFULL)
+		udelay(10);
 
 	cdns_spi_process_fifo(xspi, xspi->tx_fifo_depth, 0);
 	spi_transfer_delay_exec(transfer);

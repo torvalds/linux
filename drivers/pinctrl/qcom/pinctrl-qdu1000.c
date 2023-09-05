@@ -7,24 +7,17 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
-#include <linux/pinctrl/pinctrl.h>
 
 #include "pinctrl-msm.h"
 
-#define FUNCTION(fname)			                \
-	[msm_mux_##fname] = {		                \
-		.name = #fname,				\
-		.groups = fname##_groups,               \
-		.ngroups = ARRAY_SIZE(fname##_groups),	\
-	}
-
 #define REG_BASE 0x100000
 #define REG_SIZE 0x1000
+
 #define PINGROUP(id, f1, f2, f3, f4, f5, f6, f7, f8, f9)	\
 	{					        \
-		.name = "gpio" #id,			\
-		.pins = gpio##id##_pins,		\
-		.npins = (unsigned int)ARRAY_SIZE(gpio##id##_pins),	\
+		.grp = PINCTRL_PINGROUP("gpio" #id, 	\
+			gpio##id##_pins, 		\
+			ARRAY_SIZE(gpio##id##_pins)),	\
 		.funcs = (int[]){			\
 			msm_mux_gpio, /* gpio mode */	\
 			msm_mux_##f1,			\
@@ -61,9 +54,9 @@
 
 #define SDC_QDSD_PINGROUP(pg_name, ctl, pull, drv)	\
 	{					        \
-		.name = #pg_name,			\
-		.pins = pg_name##_pins,			\
-		.npins = (unsigned int)ARRAY_SIZE(pg_name##_pins),	\
+		.grp = PINCTRL_PINGROUP(#pg_name, 	\
+			pg_name##_pins, 		\
+			ARRAY_SIZE(pg_name##_pins)),	\
 		.ctl_reg = REG_BASE + ctl,				\
 		.io_reg = 0,				\
 		.intr_cfg_reg = 0,			\
@@ -86,9 +79,9 @@
 
 #define UFS_RESET(pg_name, offset)				\
 	{					        \
-		.name = #pg_name,			\
-		.pins = pg_name##_pins,			\
-		.npins = (unsigned int)ARRAY_SIZE(pg_name##_pins),	\
+		.grp = PINCTRL_PINGROUP(#pg_name, 	\
+			pg_name##_pins, 		\
+			ARRAY_SIZE(pg_name##_pins)),	\
 		.ctl_reg = offset,			\
 		.io_reg = offset + 0x4,			\
 		.intr_cfg_reg = 0,			\
@@ -910,117 +903,117 @@ static const char * const vsense_trigger_groups[] = {
 	"gpio135",
 };
 
-static const struct msm_function qdu1000_functions[] = {
-	FUNCTION(gpio),
-	FUNCTION(cmo_pri),
-	FUNCTION(si5518_int),
-	FUNCTION(atest_char),
-	FUNCTION(atest_usb),
-	FUNCTION(char_exec),
-	FUNCTION(cmu_rng),
-	FUNCTION(dbg_out_clk),
-	FUNCTION(ddr_bist),
-	FUNCTION(ddr_pxi0),
-	FUNCTION(ddr_pxi1),
-	FUNCTION(ddr_pxi2),
-	FUNCTION(ddr_pxi3),
-	FUNCTION(ddr_pxi4),
-	FUNCTION(ddr_pxi5),
-	FUNCTION(ddr_pxi6),
-	FUNCTION(ddr_pxi7),
-	FUNCTION(eth012_int_n),
-	FUNCTION(eth345_int_n),
-	FUNCTION(eth6_int_n),
-	FUNCTION(gcc_gp1),
-	FUNCTION(gcc_gp2),
-	FUNCTION(gcc_gp3),
-	FUNCTION(gps_pps_in),
-	FUNCTION(hardsync_pps_in),
-	FUNCTION(intr_c),
-	FUNCTION(jitter_bist_ref),
-	FUNCTION(pcie_clkreqn),
-	FUNCTION(phase_flag),
-	FUNCTION(pll_bist),
-	FUNCTION(pll_clk),
-	FUNCTION(prng_rosc),
-	FUNCTION(qdss_cti),
-	FUNCTION(qdss_gpio),
-	FUNCTION(qlink0_enable),
-	FUNCTION(qlink0_request),
-	FUNCTION(qlink0_wmss),
-	FUNCTION(qlink1_enable),
-	FUNCTION(qlink1_request),
-	FUNCTION(qlink1_wmss),
-	FUNCTION(qlink2_enable),
-	FUNCTION(qlink2_request),
-	FUNCTION(qlink2_wmss),
-	FUNCTION(qlink3_enable),
-	FUNCTION(qlink3_request),
-	FUNCTION(qlink3_wmss),
-	FUNCTION(qlink4_enable),
-	FUNCTION(qlink4_request),
-	FUNCTION(qlink4_wmss),
-	FUNCTION(qlink5_enable),
-	FUNCTION(qlink5_request),
-	FUNCTION(qlink5_wmss),
-	FUNCTION(qlink6_enable),
-	FUNCTION(qlink6_request),
-	FUNCTION(qlink6_wmss),
-	FUNCTION(qlink7_enable),
-	FUNCTION(qlink7_request),
-	FUNCTION(qlink7_wmss),
-	FUNCTION(qspi0),
-	FUNCTION(qspi1),
-	FUNCTION(qspi2),
-	FUNCTION(qspi3),
-	FUNCTION(qspi_clk),
-	FUNCTION(qspi_cs),
-	FUNCTION(qup00),
-	FUNCTION(qup01),
-	FUNCTION(qup02),
-	FUNCTION(qup03),
-	FUNCTION(qup04),
-	FUNCTION(qup05),
-	FUNCTION(qup06),
-	FUNCTION(qup07),
-	FUNCTION(qup08),
-	FUNCTION(qup10),
-	FUNCTION(qup11),
-	FUNCTION(qup12),
-	FUNCTION(qup13),
-	FUNCTION(qup14),
-	FUNCTION(qup15),
-	FUNCTION(qup16),
-	FUNCTION(qup17),
-	FUNCTION(qup20),
-	FUNCTION(qup21),
-	FUNCTION(qup22),
-	FUNCTION(smb_alert),
-	FUNCTION(smb_clk),
-	FUNCTION(smb_dat),
-	FUNCTION(tb_trig),
-	FUNCTION(tgu_ch0),
-	FUNCTION(tgu_ch1),
-	FUNCTION(tgu_ch2),
-	FUNCTION(tgu_ch3),
-	FUNCTION(tgu_ch4),
-	FUNCTION(tgu_ch5),
-	FUNCTION(tgu_ch6),
-	FUNCTION(tgu_ch7),
-	FUNCTION(tmess_prng0),
-	FUNCTION(tmess_prng1),
-	FUNCTION(tmess_prng2),
-	FUNCTION(tmess_prng3),
-	FUNCTION(tod_pps_in),
-	FUNCTION(tsense_pwm1),
-	FUNCTION(tsense_pwm2),
-	FUNCTION(usb2phy_ac),
-	FUNCTION(usb_con_det),
-	FUNCTION(usb_dfp_en),
-	FUNCTION(usb_phy),
-	FUNCTION(vfr_0),
-	FUNCTION(vfr_1),
-	FUNCTION(vsense_trigger),
+static const struct pinfunction qdu1000_functions[] = {
+	MSM_PIN_FUNCTION(gpio),
+	MSM_PIN_FUNCTION(cmo_pri),
+	MSM_PIN_FUNCTION(si5518_int),
+	MSM_PIN_FUNCTION(atest_char),
+	MSM_PIN_FUNCTION(atest_usb),
+	MSM_PIN_FUNCTION(char_exec),
+	MSM_PIN_FUNCTION(cmu_rng),
+	MSM_PIN_FUNCTION(dbg_out_clk),
+	MSM_PIN_FUNCTION(ddr_bist),
+	MSM_PIN_FUNCTION(ddr_pxi0),
+	MSM_PIN_FUNCTION(ddr_pxi1),
+	MSM_PIN_FUNCTION(ddr_pxi2),
+	MSM_PIN_FUNCTION(ddr_pxi3),
+	MSM_PIN_FUNCTION(ddr_pxi4),
+	MSM_PIN_FUNCTION(ddr_pxi5),
+	MSM_PIN_FUNCTION(ddr_pxi6),
+	MSM_PIN_FUNCTION(ddr_pxi7),
+	MSM_PIN_FUNCTION(eth012_int_n),
+	MSM_PIN_FUNCTION(eth345_int_n),
+	MSM_PIN_FUNCTION(eth6_int_n),
+	MSM_PIN_FUNCTION(gcc_gp1),
+	MSM_PIN_FUNCTION(gcc_gp2),
+	MSM_PIN_FUNCTION(gcc_gp3),
+	MSM_PIN_FUNCTION(gps_pps_in),
+	MSM_PIN_FUNCTION(hardsync_pps_in),
+	MSM_PIN_FUNCTION(intr_c),
+	MSM_PIN_FUNCTION(jitter_bist_ref),
+	MSM_PIN_FUNCTION(pcie_clkreqn),
+	MSM_PIN_FUNCTION(phase_flag),
+	MSM_PIN_FUNCTION(pll_bist),
+	MSM_PIN_FUNCTION(pll_clk),
+	MSM_PIN_FUNCTION(prng_rosc),
+	MSM_PIN_FUNCTION(qdss_cti),
+	MSM_PIN_FUNCTION(qdss_gpio),
+	MSM_PIN_FUNCTION(qlink0_enable),
+	MSM_PIN_FUNCTION(qlink0_request),
+	MSM_PIN_FUNCTION(qlink0_wmss),
+	MSM_PIN_FUNCTION(qlink1_enable),
+	MSM_PIN_FUNCTION(qlink1_request),
+	MSM_PIN_FUNCTION(qlink1_wmss),
+	MSM_PIN_FUNCTION(qlink2_enable),
+	MSM_PIN_FUNCTION(qlink2_request),
+	MSM_PIN_FUNCTION(qlink2_wmss),
+	MSM_PIN_FUNCTION(qlink3_enable),
+	MSM_PIN_FUNCTION(qlink3_request),
+	MSM_PIN_FUNCTION(qlink3_wmss),
+	MSM_PIN_FUNCTION(qlink4_enable),
+	MSM_PIN_FUNCTION(qlink4_request),
+	MSM_PIN_FUNCTION(qlink4_wmss),
+	MSM_PIN_FUNCTION(qlink5_enable),
+	MSM_PIN_FUNCTION(qlink5_request),
+	MSM_PIN_FUNCTION(qlink5_wmss),
+	MSM_PIN_FUNCTION(qlink6_enable),
+	MSM_PIN_FUNCTION(qlink6_request),
+	MSM_PIN_FUNCTION(qlink6_wmss),
+	MSM_PIN_FUNCTION(qlink7_enable),
+	MSM_PIN_FUNCTION(qlink7_request),
+	MSM_PIN_FUNCTION(qlink7_wmss),
+	MSM_PIN_FUNCTION(qspi0),
+	MSM_PIN_FUNCTION(qspi1),
+	MSM_PIN_FUNCTION(qspi2),
+	MSM_PIN_FUNCTION(qspi3),
+	MSM_PIN_FUNCTION(qspi_clk),
+	MSM_PIN_FUNCTION(qspi_cs),
+	MSM_PIN_FUNCTION(qup00),
+	MSM_PIN_FUNCTION(qup01),
+	MSM_PIN_FUNCTION(qup02),
+	MSM_PIN_FUNCTION(qup03),
+	MSM_PIN_FUNCTION(qup04),
+	MSM_PIN_FUNCTION(qup05),
+	MSM_PIN_FUNCTION(qup06),
+	MSM_PIN_FUNCTION(qup07),
+	MSM_PIN_FUNCTION(qup08),
+	MSM_PIN_FUNCTION(qup10),
+	MSM_PIN_FUNCTION(qup11),
+	MSM_PIN_FUNCTION(qup12),
+	MSM_PIN_FUNCTION(qup13),
+	MSM_PIN_FUNCTION(qup14),
+	MSM_PIN_FUNCTION(qup15),
+	MSM_PIN_FUNCTION(qup16),
+	MSM_PIN_FUNCTION(qup17),
+	MSM_PIN_FUNCTION(qup20),
+	MSM_PIN_FUNCTION(qup21),
+	MSM_PIN_FUNCTION(qup22),
+	MSM_PIN_FUNCTION(smb_alert),
+	MSM_PIN_FUNCTION(smb_clk),
+	MSM_PIN_FUNCTION(smb_dat),
+	MSM_PIN_FUNCTION(tb_trig),
+	MSM_PIN_FUNCTION(tgu_ch0),
+	MSM_PIN_FUNCTION(tgu_ch1),
+	MSM_PIN_FUNCTION(tgu_ch2),
+	MSM_PIN_FUNCTION(tgu_ch3),
+	MSM_PIN_FUNCTION(tgu_ch4),
+	MSM_PIN_FUNCTION(tgu_ch5),
+	MSM_PIN_FUNCTION(tgu_ch6),
+	MSM_PIN_FUNCTION(tgu_ch7),
+	MSM_PIN_FUNCTION(tmess_prng0),
+	MSM_PIN_FUNCTION(tmess_prng1),
+	MSM_PIN_FUNCTION(tmess_prng2),
+	MSM_PIN_FUNCTION(tmess_prng3),
+	MSM_PIN_FUNCTION(tod_pps_in),
+	MSM_PIN_FUNCTION(tsense_pwm1),
+	MSM_PIN_FUNCTION(tsense_pwm2),
+	MSM_PIN_FUNCTION(usb2phy_ac),
+	MSM_PIN_FUNCTION(usb_con_det),
+	MSM_PIN_FUNCTION(usb_dfp_en),
+	MSM_PIN_FUNCTION(usb_phy),
+	MSM_PIN_FUNCTION(vfr_0),
+	MSM_PIN_FUNCTION(vfr_1),
+	MSM_PIN_FUNCTION(vsense_trigger),
 };
 
 /*

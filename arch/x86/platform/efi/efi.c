@@ -96,6 +96,9 @@ static const unsigned long * const efi_tables[] = {
 #ifdef CONFIG_EFI_COCO_SECRET
 	&efi.coco_secret,
 #endif
+#ifdef CONFIG_UNACCEPTED_MEMORY
+	&efi.unaccepted,
+#endif
 };
 
 u64 efi_setup;		/* efi setup_data physical address */

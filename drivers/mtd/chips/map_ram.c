@@ -1,6 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Common code to handle map devices which are simple RAM
- * (C) 2000 Red Hat. GPL'd.
+ * (C) 2000 Red Hat.
  */
 
 #include <linux/module.h>

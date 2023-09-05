@@ -150,7 +150,7 @@ TODOList:
 .. toctree::
    :maxdepth: 2
 
-   arm64/index
+   arch/arm64/index
 
 TODOList:
 

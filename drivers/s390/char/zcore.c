@@ -51,6 +51,7 @@ static struct dentry *zcore_dir;
 static struct dentry *zcore_reipl_file;
 static struct dentry *zcore_hsa_file;
 static struct ipl_parameter_block *zcore_ipl_block;
+static unsigned long os_info_flags;
 
 static DEFINE_MUTEX(hsa_buf_mutex);
 static char hsa_buf[PAGE_SIZE] __aligned(PAGE_SIZE);
@@ -139,7 +140,13 @@ static ssize_t zcore_reipl_write(struct file *filp, const char __user *buf,
 {
 	if (zcore_ipl_block) {
 		diag308(DIAG308_SET, zcore_ipl_block);
-		diag308(DIAG308_LOAD_CLEAR, NULL);
+		if (os_info_flags & OS_INFO_FLAG_REIPL_CLEAR)
+			diag308(DIAG308_LOAD_CLEAR, NULL);
+		/* Use special diag308 subcode for CCW normal ipl */
+		if (zcore_ipl_block->pb0_hdr.pbt == IPL_PBT_CCW)
+			diag308(DIAG308_LOAD_NORMAL_DUMP, NULL);
+		else
+			diag308(DIAG308_LOAD_NORMAL, NULL);
 	}
 	return count;
 }
@@ -212,7 +219,10 @@ static int __init check_sdias(void)
  */
 static int __init zcore_reipl_init(void)
 {
+	struct os_info_entry *entry;
 	struct ipib_info ipib_info;
+	unsigned long os_info_addr;
+	struct os_info *os_info;
 	int rc;
 
 	rc = memcpy_hsa_kernel(&ipib_info, __LC_DUMP_REIPL, sizeof(ipib_info));
@@ -234,6 +244,35 @@ static int __init zcore_reipl_init(void)
 		free_page((unsigned long) zcore_ipl_block);
 		zcore_ipl_block = NULL;
 	}
+	/*
+	 * Read the bit-flags field from os_info flags entry.
+	 * Return zero even for os_info read or entry checksum errors in order
+	 * to continue dump processing, considering that os_info could be
+	 * corrupted on the panicked system.
+	 */
+	os_info = (void *)__get_free_page(GFP_KERNEL);
+	if (!os_info)
+		return -ENOMEM;
+	rc = memcpy_hsa_kernel(&os_info_addr, __LC_OS_INFO, sizeof(os_info_addr));
+	if (rc)
+		goto out;
+	if (os_info_addr < sclp.hsa_size)
+		rc = memcpy_hsa_kernel(os_info, os_info_addr, PAGE_SIZE);
+	else
+		rc = memcpy_real(os_info, os_info_addr, PAGE_SIZE);
+	if (rc || os_info_csum(os_info) != os_info->csum)
+		goto out;
+	entry = &os_info->entry[OS_INFO_FLAGS_ENTRY];
+	if (entry->addr && entry->size) {
+		if (entry->addr < sclp.hsa_size)
+			rc = memcpy_hsa_kernel(&os_info_flags, entry->addr, sizeof(os_info_flags));
+		else
+			rc = memcpy_real(&os_info_flags, entry->addr, sizeof(os_info_flags));
+		if (rc || (__force u32)csum_partial(&os_info_flags, entry->size, 0) != entry->csum)
+			os_info_flags = 0;
+	}
+out:
+	free_page((unsigned long)os_info);
 	return 0;
 }
 

@@ -204,6 +204,8 @@ void dmub_dcn31_setup_windows(struct dmub_srv *dmub,
 void dmub_dcn31_setup_mailbox(struct dmub_srv *dmub,
 			      const struct dmub_region *inbox1);
 
+uint32_t dmub_dcn31_get_inbox1_wptr(struct dmub_srv *dmub);
+
 uint32_t dmub_dcn31_get_inbox1_rptr(struct dmub_srv *dmub);
 
 void dmub_dcn31_set_inbox1_wptr(struct dmub_srv *dmub, uint32_t wptr_offset);
@@ -218,6 +220,8 @@ void dmub_dcn31_set_outbox1_rptr(struct dmub_srv *dmub, uint32_t rptr_offset);
 bool dmub_dcn31_is_hw_init(struct dmub_srv *dmub);
 
 bool dmub_dcn31_is_supported(struct dmub_srv *dmub);
+
+bool dmub_dcn31_is_psrsu_supported(struct dmub_srv *dmub);
 
 void dmub_dcn31_set_gpint(struct dmub_srv *dmub,
 			  union dmub_gpint_data_register reg);

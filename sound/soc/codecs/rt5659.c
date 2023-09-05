@@ -4141,13 +4141,9 @@ static int rt5659_i2c_probe(struct i2c_client *i2c)
 	regmap_write(rt5659->regmap, RT5659_RESET, 0);
 
 	/* Check if MCLK provided */
-	rt5659->mclk = devm_clk_get(&i2c->dev, "mclk");
-	if (IS_ERR(rt5659->mclk)) {
-		if (PTR_ERR(rt5659->mclk) != -ENOENT)
-			return PTR_ERR(rt5659->mclk);
-		/* Otherwise mark the mclk pointer to NULL */
-		rt5659->mclk = NULL;
-	}
+	rt5659->mclk = devm_clk_get_optional(&i2c->dev, "mclk");
+	if (IS_ERR(rt5659->mclk))
+		return PTR_ERR(rt5659->mclk);
 
 	rt5659_calibrate(rt5659);
 
@@ -4340,7 +4336,7 @@ static struct i2c_driver rt5659_i2c_driver = {
 		.of_match_table = of_match_ptr(rt5659_of_match),
 		.acpi_match_table = ACPI_PTR(rt5659_acpi_match),
 	},
-	.probe_new = rt5659_i2c_probe,
+	.probe = rt5659_i2c_probe,
 	.shutdown = rt5659_i2c_shutdown,
 	.id_table = rt5659_i2c_id,
 };

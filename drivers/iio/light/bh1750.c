@@ -320,7 +320,7 @@ static struct i2c_driver bh1750_driver = {
 		.of_match_table = bh1750_of_match,
 		.pm = pm_sleep_ptr(&bh1750_pm_ops),
 	},
-	.probe_new = bh1750_probe,
+	.probe = bh1750_probe,
 	.remove = bh1750_remove,
 	.id_table = bh1750_id,
 

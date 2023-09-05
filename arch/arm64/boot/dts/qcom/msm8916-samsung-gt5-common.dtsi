@@ -9,7 +9,9 @@
 
 / {
 	aliases {
-		serial0 = &blsp1_uart2;
+		mmc0 = &sdhc_1; /* eMMC */
+		mmc1 = &sdhc_2; /* SD card */
+		serial0 = &blsp_uart2;
 	};
 
 	chosen {
@@ -34,13 +36,13 @@
 
 		volume-up-button {
 			label = "Volume Up";
-			gpios = <&msmgpio 107 GPIO_ACTIVE_LOW>;
+			gpios = <&tlmm 107 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_VOLUMEUP>;
 		};
 
 		home-button {
 			label = "Home";
-			gpios = <&msmgpio 109 GPIO_ACTIVE_LOW>;
+			gpios = <&tlmm 109 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_HOMEPAGE>;
 		};
 	};
@@ -55,7 +57,7 @@
 
 		hall-sensor-switch {
 			label = "Hall Effect Sensor";
-			gpios = <&msmgpio 52 GPIO_ACTIVE_LOW>;
+			gpios = <&tlmm 52 GPIO_ACTIVE_LOW>;
 			linux,input-type = <EV_SW>;
 			linux,code = <SW_LID>;
 			linux,can-disable;
@@ -74,7 +76,7 @@
 		maxim,over-heat-temp = <600>;
 		maxim,over-volt = <4400>;
 
-		interrupt-parent = <&msmgpio>;
+		interrupt-parent = <&tlmm>;
 		interrupts = <121 IRQ_TYPE_EDGE_FALLING>;
 
 		pinctrl-0 = <&fuelgauge_int_default>;
@@ -97,7 +99,7 @@
 		vdd-supply = <&pm8916_l17>;
 		vddio-supply = <&pm8916_l5>;
 
-		interrupt-parent = <&msmgpio>;
+		interrupt-parent = <&tlmm>;
 		interrupts = <115 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "INT1";
 
@@ -111,7 +113,7 @@
 	};
 };
 
-&blsp1_uart2 {
+&blsp_uart2 {
 	status = "okay";
 };
 
@@ -120,25 +122,28 @@
 	status = "okay";
 };
 
+&pm8916_rpm_regulators {
+	pm8916_l17: l17 {
+		regulator-min-microvolt = <2850000>;
+		regulator-max-microvolt = <2850000>;
+	};
+};
+
 /* FIXME: Replace with MAX77849 MUIC when driver is available */
 &pm8916_usbin {
 	status = "okay";
 };
 
 &sdhc_1 {
-	pinctrl-0 = <&sdc1_clk_on &sdc1_cmd_on &sdc1_data_on>;
-	pinctrl-1 = <&sdc1_clk_off &sdc1_cmd_off &sdc1_data_off>;
-	pinctrl-names = "default", "sleep";
-
 	status = "okay";
 };
 
 &sdhc_2 {
-	pinctrl-0 = <&sdc2_clk_on &sdc2_cmd_on &sdc2_data_on &sdc2_cd_on>;
-	pinctrl-1 = <&sdc2_clk_off &sdc2_cmd_off &sdc2_data_off &sdc2_cd_off>;
+	pinctrl-0 = <&sdc2_default &sdc2_cd_default>;
+	pinctrl-1 = <&sdc2_sleep &sdc2_cd_default>;
 	pinctrl-names = "default", "sleep";
 
-	cd-gpios = <&msmgpio 38 GPIO_ACTIVE_LOW>;
+	cd-gpios = <&tlmm 38 GPIO_ACTIVE_LOW>;
 
 	status = "okay";
 };
@@ -162,110 +167,7 @@
 	compatible = "qcom,wcn3660b";
 };
 
-&smd_rpm_regulators {
-	vdd_l1_l2_l3-supply = <&pm8916_s3>;
-	vdd_l4_l5_l6-supply = <&pm8916_s4>;
-	vdd_l7-supply = <&pm8916_s4>;
-
-	s3 {
-		regulator-min-microvolt = <1200000>;
-		regulator-max-microvolt = <1300000>;
-	};
-
-	s4 {
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <2100000>;
-	};
-
-	l1 {
-		regulator-min-microvolt = <1225000>;
-		regulator-max-microvolt = <1225000>;
-	};
-
-	l2 {
-		regulator-min-microvolt = <1200000>;
-		regulator-max-microvolt = <1200000>;
-	};
-
-	l4 {
-		regulator-min-microvolt = <2050000>;
-		regulator-max-microvolt = <2050000>;
-	};
-
-	l5 {
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <1800000>;
-	};
-
-	l6 {
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <1800000>;
-	};
-
-	l7 {
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <1800000>;
-	};
-
-	l8 {
-		regulator-min-microvolt = <2850000>;
-		regulator-max-microvolt = <2900000>;
-	};
-
-	l9 {
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-	};
-
-	l10 {
-		regulator-min-microvolt = <2700000>;
-		regulator-max-microvolt = <2800000>;
-	};
-
-	l11 {
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <2950000>;
-		regulator-system-load = <200000>;
-		regulator-allow-set-load;
-	};
-
-	l12 {
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <2950000>;
-	};
-
-	l13 {
-		regulator-min-microvolt = <3075000>;
-		regulator-max-microvolt = <3075000>;
-	};
-
-	l14 {
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <3300000>;
-	};
-
-	l15 {
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <3300000>;
-	};
-
-	l16 {
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <3300000>;
-	};
-
-	l17 {
-		regulator-min-microvolt = <2850000>;
-		regulator-max-microvolt = <2850000>;
-	};
-
-	l18 {
-		regulator-min-microvolt = <2700000>;
-		regulator-max-microvolt = <2700000>;
-	};
-};
-
-&msmgpio {
+&tlmm {
 	accel_int_default: accel-int-default-state {
 		pins = "gpio115";
 		function = "gpio";
@@ -289,6 +191,13 @@
 
 	gpio_hall_sensor_default: gpio-hall-sensor-default-state {
 		pins = "gpio52";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+	};
+
+	sdc2_cd_default: sdc2-cd-default-state {
+		pins = "gpio38";
 		function = "gpio";
 		drive-strength = <2>;
 		bias-disable;

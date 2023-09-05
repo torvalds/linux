@@ -190,11 +190,14 @@ struct tb_regs_switch_header {
 	u32 thunderbolt_version:8;
 } __packed;
 
-/* USB4 version 1.0 */
-#define USB4_VERSION_1_0			0x20
+/* Used with the router thunderbolt_version */
+#define USB4_VERSION_MAJOR_MASK			GENMASK(7, 5)
 
 #define ROUTER_CS_1				0x01
 #define ROUTER_CS_4				0x04
+/* Used with the router cmuv field */
+#define ROUTER_CS_4_CMUV_V1			0x10
+#define ROUTER_CS_4_CMUV_V2			0x20
 #define ROUTER_CS_5				0x05
 #define ROUTER_CS_5_SLP				BIT(0)
 #define ROUTER_CS_5_WOP				BIT(1)
@@ -249,11 +252,13 @@ enum usb4_switch_op {
 #define TMU_RTR_CS_3_LOCAL_TIME_NS_MASK		GENMASK(15, 0)
 #define TMU_RTR_CS_3_TS_PACKET_INTERVAL_MASK	GENMASK(31, 16)
 #define TMU_RTR_CS_3_TS_PACKET_INTERVAL_SHIFT	16
-#define TMU_RTR_CS_15				0xf
+#define TMU_RTR_CS_15				0x0f
 #define TMU_RTR_CS_15_FREQ_AVG_MASK		GENMASK(5, 0)
 #define TMU_RTR_CS_15_DELAY_AVG_MASK		GENMASK(11, 6)
 #define TMU_RTR_CS_15_OFFSET_AVG_MASK		GENMASK(17, 12)
 #define TMU_RTR_CS_15_ERROR_AVG_MASK		GENMASK(23, 18)
+#define TMU_RTR_CS_18				0x12
+#define TMU_RTR_CS_18_DELTA_AVG_CONST_MASK	GENMASK(23, 16)
 #define TMU_RTR_CS_22				0x16
 #define TMU_RTR_CS_24				0x18
 #define TMU_RTR_CS_25				0x19
@@ -319,6 +324,14 @@ struct tb_regs_port_header {
 #define TMU_ADP_CS_3_UDM			BIT(29)
 #define TMU_ADP_CS_6				0x06
 #define TMU_ADP_CS_6_DTS			BIT(1)
+#define TMU_ADP_CS_8				0x08
+#define TMU_ADP_CS_8_REPL_TIMEOUT_MASK		GENMASK(14, 0)
+#define TMU_ADP_CS_8_EUDM			BIT(15)
+#define TMU_ADP_CS_8_REPL_THRESHOLD_MASK	GENMASK(25, 16)
+#define TMU_ADP_CS_9				0x09
+#define TMU_ADP_CS_9_REPL_N_MASK		GENMASK(7, 0)
+#define TMU_ADP_CS_9_DIRSWITCH_N_MASK		GENMASK(15, 8)
+#define TMU_ADP_CS_9_ADP_TS_INTERVAL_MASK	GENMASK(31, 16)
 
 /* Lane adapter registers */
 #define LANE_ADP_CS_0				0x00
@@ -346,6 +359,7 @@ struct tb_regs_port_header {
 #define LANE_ADP_CS_1_CURRENT_SPEED_SHIFT	16
 #define LANE_ADP_CS_1_CURRENT_SPEED_GEN2	0x8
 #define LANE_ADP_CS_1_CURRENT_SPEED_GEN3	0x4
+#define LANE_ADP_CS_1_CURRENT_SPEED_GEN4	0x2
 #define LANE_ADP_CS_1_CURRENT_WIDTH_MASK	GENMASK(25, 20)
 #define LANE_ADP_CS_1_CURRENT_WIDTH_SHIFT	20
 #define LANE_ADP_CS_1_PMS			BIT(30)
@@ -436,6 +450,9 @@ struct tb_regs_port_header {
 #define DP_COMMON_CAP_1_LANE			0x0
 #define DP_COMMON_CAP_2_LANES			0x1
 #define DP_COMMON_CAP_4_LANES			0x2
+#define DP_COMMON_CAP_UHBR10			BIT(17)
+#define DP_COMMON_CAP_UHBR20			BIT(18)
+#define DP_COMMON_CAP_UHBR13_5			BIT(19)
 #define DP_COMMON_CAP_LTTPR_NS			BIT(27)
 #define DP_COMMON_CAP_BW_MODE			BIT(28)
 #define DP_COMMON_CAP_DPRX_DONE			BIT(31)
@@ -447,6 +464,8 @@ struct tb_regs_port_header {
 /* PCIe adapter registers */
 #define ADP_PCIE_CS_0				0x00
 #define ADP_PCIE_CS_0_PE			BIT(31)
+#define ADP_PCIE_CS_1				0x01
+#define ADP_PCIE_CS_1_EE			BIT(0)
 
 /* USB adapter registers */
 #define ADP_USB3_CS_0				0x00

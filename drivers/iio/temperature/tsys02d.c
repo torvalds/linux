@@ -174,7 +174,7 @@ static const struct i2c_device_id tsys02d_id[] = {
 MODULE_DEVICE_TABLE(i2c, tsys02d_id);
 
 static struct i2c_driver tsys02d_driver = {
-	.probe_new = tsys02d_probe,
+	.probe = tsys02d_probe,
 	.id_table = tsys02d_id,
 	.driver = {
 		   .name = "tsys02d",

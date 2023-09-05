@@ -182,9 +182,7 @@ static struct irq_domain *__irq_domain_create(struct fwnode_handle *fwnode,
 			return NULL;
 		}
 
-		strreplace(name, '/', ':');
-
-		domain->name = name;
+		domain->name = strreplace(name, '/', ':');
 		domain->fwnode = fwnode;
 		domain->flags |= IRQ_DOMAIN_NAME_ALLOCATED;
 	}
@@ -1915,6 +1913,8 @@ static void irq_domain_check_hierarchy(struct irq_domain *domain)
 #endif	/* CONFIG_IRQ_DOMAIN_HIERARCHY */
 
 #ifdef CONFIG_GENERIC_IRQ_DEBUGFS
+#include "internals.h"
+
 static struct dentry *domain_dir;
 
 static void

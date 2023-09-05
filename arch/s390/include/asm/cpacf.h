@@ -2,7 +2,7 @@
 /*
  * CP Assist for Cryptographic Functions (CPACF)
  *
- * Copyright IBM Corp. 2003, 2017
+ * Copyright IBM Corp. 2003, 2023
  * Author(s): Thomas Spatzier
  *	      Jan Glauber
  *	      Harald Freudenberger (freude@de.ibm.com)
@@ -132,6 +132,11 @@
 #define CPACF_PCKMO_ENC_AES_128_KEY	0x12
 #define CPACF_PCKMO_ENC_AES_192_KEY	0x13
 #define CPACF_PCKMO_ENC_AES_256_KEY	0x14
+#define CPACF_PCKMO_ENC_ECC_P256_KEY	0x20
+#define CPACF_PCKMO_ENC_ECC_P384_KEY	0x21
+#define CPACF_PCKMO_ENC_ECC_P521_KEY	0x22
+#define CPACF_PCKMO_ENC_ECC_ED25519_KEY	0x28
+#define CPACF_PCKMO_ENC_ECC_ED448_KEY	0x29
 
 /*
  * Function codes for the PRNO (PERFORM RANDOM NUMBER OPERATION)

@@ -16,10 +16,33 @@ static struct kobject *uncore_root_kobj;
 /* uncore instance count */
 static int uncore_instance_count;
 
+static DEFINE_IDA(intel_uncore_ida);
+
 /* callbacks for actual HW read/write */
 static int (*uncore_read)(struct uncore_data *data, unsigned int *min, unsigned int *max);
 static int (*uncore_write)(struct uncore_data *data, unsigned int input, unsigned int min_max);
 static int (*uncore_read_freq)(struct uncore_data *data, unsigned int *freq);
+
+static ssize_t show_domain_id(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct uncore_data *data = container_of(attr, struct uncore_data, domain_id_dev_attr);
+
+	return sprintf(buf, "%u\n", data->domain_id);
+}
+
+static ssize_t show_fabric_cluster_id(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct uncore_data *data = container_of(attr, struct uncore_data, fabric_cluster_id_dev_attr);
+
+	return sprintf(buf, "%u\n", data->cluster_id);
+}
+
+static ssize_t show_package_id(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct uncore_data *data = container_of(attr, struct uncore_data, package_id_dev_attr);
+
+	return sprintf(buf, "%u\n", data->package_id);
+}
 
 static ssize_t show_min_max_freq_khz(struct uncore_data *data,
 				      char *buf, int min_max)
@@ -161,6 +184,15 @@ static int create_attr_group(struct uncore_data *data, char *name)
 	init_attribute_ro(initial_max_freq_khz);
 	init_attribute_root_ro(current_freq_khz);
 
+	if (data->domain_id != UNCORE_DOMAIN_ID_INVALID) {
+		init_attribute_root_ro(domain_id);
+		data->uncore_attrs[index++] = &data->domain_id_dev_attr.attr;
+		init_attribute_root_ro(fabric_cluster_id);
+		data->uncore_attrs[index++] = &data->fabric_cluster_id_dev_attr.attr;
+		init_attribute_root_ro(package_id);
+		data->uncore_attrs[index++] = &data->package_id_dev_attr.attr;
+	}
+
 	data->uncore_attrs[index++] = &data->max_freq_khz_dev_attr.attr;
 	data->uncore_attrs[index++] = &data->min_freq_khz_dev_attr.attr;
 	data->uncore_attrs[index++] = &data->initial_min_freq_khz_dev_attr.attr;
@@ -191,12 +223,24 @@ int uncore_freq_add_entry(struct uncore_data *data, int cpu)
 		goto uncore_unlock;
 	}
 
-	sprintf(data->name, "package_%02d_die_%02d", data->package_id, data->die_id);
+	if (data->domain_id != UNCORE_DOMAIN_ID_INVALID) {
+		ret = ida_alloc(&intel_uncore_ida, GFP_KERNEL);
+		if (ret < 0)
+			goto uncore_unlock;
+
+		data->instance_id = ret;
+		sprintf(data->name, "uncore%02d", ret);
+	} else {
+		sprintf(data->name, "package_%02d_die_%02d", data->package_id, data->die_id);
+	}
 
 	uncore_read(data, &data->initial_min_freq_khz, &data->initial_max_freq_khz);
 
 	ret = create_attr_group(data, data->name);
-	if (!ret) {
+	if (ret) {
+		if (data->domain_id != UNCORE_DOMAIN_ID_INVALID)
+			ida_free(&intel_uncore_ida, data->instance_id);
+	} else {
 		data->control_cpu = cpu;
 		data->valid = true;
 	}
@@ -214,6 +258,9 @@ void uncore_freq_remove_die_entry(struct uncore_data *data)
 	delete_attr_group(data, data->name);
 	data->control_cpu = -1;
 	data->valid = false;
+	if (data->domain_id != UNCORE_DOMAIN_ID_INVALID)
+		ida_free(&intel_uncore_ida, data->instance_id);
+
 	mutex_unlock(&uncore_lock);
 }
 EXPORT_SYMBOL_NS_GPL(uncore_freq_remove_die_entry, INTEL_UNCORE_FREQUENCY);

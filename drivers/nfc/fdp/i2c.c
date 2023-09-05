@@ -359,7 +359,7 @@ static struct i2c_driver fdp_nci_i2c_driver = {
 		   .name = FDP_I2C_DRIVER_NAME,
 		   .acpi_match_table = fdp_nci_i2c_acpi_match,
 		  },
-	.probe_new = fdp_nci_i2c_probe,
+	.probe = fdp_nci_i2c_probe,
 	.remove = fdp_nci_i2c_remove,
 };
 module_i2c_driver(fdp_nci_i2c_driver);

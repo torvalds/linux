@@ -592,6 +592,20 @@ ipv4_ping_novrf()
 	done
 
 	#
+	# out, but don't use gateway if peer is not on link
+	#
+	a=${NSB_IP}
+	log_start
+	run_cmd ping -c 1 -w 1 -r ${a}
+	log_test_addr ${a} $? 0 "ping out (don't route), peer on link"
+
+	a=${NSB_LO_IP}
+	log_start
+	show_hint "Fails since peer is not on link"
+	run_cmd ping -c 1 -w 1 -r ${a}
+	log_test_addr ${a} $? 1 "ping out (don't route), peer not on link"
+
+	#
 	# in
 	#
 	for a in ${NSA_IP} ${NSA_LO_IP}
@@ -1105,6 +1119,59 @@ test_ipv4_md5_vrf__global_server__bind_ifindex0()
 	set_sysctl net.ipv4.tcp_l3mdev_accept="$old_tcp_l3mdev_accept"
 }
 
+ipv4_tcp_dontroute()
+{
+	local syncookies=$1
+	local nsa_syncookies
+	local nsb_syncookies
+	local a
+
+	#
+	# Link local connection tests (SO_DONTROUTE).
+	# Connections should succeed only when the remote IP address is
+	# on link (doesn't need to be routed through a gateway).
+	#
+
+	nsa_syncookies=$(ip netns exec "${NSA}" sysctl -n net.ipv4.tcp_syncookies)
+	nsb_syncookies=$(ip netns exec "${NSB}" sysctl -n net.ipv4.tcp_syncookies)
+	ip netns exec "${NSA}" sysctl -wq net.ipv4.tcp_syncookies=${syncookies}
+	ip netns exec "${NSB}" sysctl -wq net.ipv4.tcp_syncookies=${syncookies}
+
+	# Test with eth1 address (on link).
+
+	a=${NSB_IP}
+	log_start
+	do_run_cmd nettest -B -N "${NSA}" -O "${NSB}" -r ${a} --client-dontroute
+	log_test_addr ${a} $? 0 "SO_DONTROUTE client, syncookies=${syncookies}"
+
+	a=${NSB_IP}
+	log_start
+	do_run_cmd nettest -B -N "${NSA}" -O "${NSB}" -r ${a} --server-dontroute
+	log_test_addr ${a} $? 0 "SO_DONTROUTE server, syncookies=${syncookies}"
+
+	# Test with loopback address (routed).
+	#
+	# The client would use the eth1 address as source IP by default.
+	# Therefore, we need to use the -c option here, to force the use of the
+	# routed (loopback) address as source IP (so that the server will try
+	# to respond to a routed address and not a link local one).
+
+	a=${NSB_LO_IP}
+	log_start
+	show_hint "Should fail 'Network is unreachable' since server is not on link"
+	do_run_cmd nettest -B -N "${NSA}" -O "${NSB}" -c "${NSA_LO_IP}" -r ${a} --client-dontroute
+	log_test_addr ${a} $? 1 "SO_DONTROUTE client, syncookies=${syncookies}"
+
+	a=${NSB_LO_IP}
+	log_start
+	show_hint "Should timeout since server cannot respond (client is not on link)"
+	do_run_cmd nettest -B -N "${NSA}" -O "${NSB}" -c "${NSA_LO_IP}" -r ${a} --server-dontroute
+	log_test_addr ${a} $? 2 "SO_DONTROUTE server, syncookies=${syncookies}"
+
+	ip netns exec "${NSB}" sysctl -wq net.ipv4.tcp_syncookies=${nsb_syncookies}
+	ip netns exec "${NSA}" sysctl -wq net.ipv4.tcp_syncookies=${nsa_syncookies}
+}
+
 ipv4_tcp_novrf()
 {
 	local a
@@ -1224,6 +1291,9 @@ ipv4_tcp_novrf()
 	log_test_addr ${a} $? 1 "No server, device client, local conn"
 
 	[ "$fips_enabled" = "1" ] || ipv4_tcp_md5_novrf
+
+	ipv4_tcp_dontroute 0
+	ipv4_tcp_dontroute 2
 }
 
 ipv4_tcp_vrf()
@@ -1594,6 +1664,23 @@ ipv4_udp_novrf()
 	log_start
 	run_cmd nettest -D -d ${NSA_DEV} -r ${a}
 	log_test_addr ${a} $? 2 "No server, device client, local conn"
+
+	#
+	# Link local connection tests (SO_DONTROUTE).
+	# Connections should succeed only when the remote IP address is
+	# on link (doesn't need to be routed through a gateway).
+	#
+
+	a=${NSB_IP}
+	log_start
+	do_run_cmd nettest -B -D -N "${NSA}" -O "${NSB}" -r ${a} --client-dontroute
+	log_test_addr ${a} $? 0 "SO_DONTROUTE client"
+
+	a=${NSB_LO_IP}
+	log_start
+	show_hint "Should fail 'Network is unreachable' since server is not on link"
+	do_run_cmd nettest -B -D -N "${NSA}" -O "${NSB}" -r ${a} --client-dontroute
+	log_test_addr ${a} $? 1 "SO_DONTROUTE client"
 }
 
 ipv4_udp_vrf()

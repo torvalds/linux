@@ -375,7 +375,7 @@ static struct i2c_driver cs4349_i2c_driver = {
 		.pm = &cs4349_runtime_pm,
 	},
 	.id_table	= cs4349_i2c_id,
-	.probe_new	= cs4349_i2c_probe,
+	.probe		= cs4349_i2c_probe,
 	.remove		= cs4349_i2c_remove,
 };
 

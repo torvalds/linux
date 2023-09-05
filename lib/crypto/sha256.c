@@ -11,12 +11,11 @@
  * Copyright (c) 2014 Red Hat Inc.
  */
 
-#include <linux/bitops.h>
-#include <linux/export.h>
+#include <asm/unaligned.h>
+#include <crypto/sha256_base.h>
+#include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/string.h>
-#include <crypto/sha2.h>
-#include <asm/unaligned.h>
 
 static const u32 SHA256_K[] = {
 	0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5,
@@ -119,80 +118,40 @@ static void sha256_transform(u32 *state, const u8 *input, u32 *W)
 	state[4] += e; state[5] += f; state[6] += g; state[7] += h;
 }
 
-void sha256_update(struct sha256_state *sctx, const u8 *data, unsigned int len)
+static void sha256_transform_blocks(struct sha256_state *sctx,
+				    const u8 *input, int blocks)
 {
-	unsigned int partial, done;
-	const u8 *src;
 	u32 W[64];
 
-	partial = sctx->count & 0x3f;
-	sctx->count += len;
-	done = 0;
-	src = data;
+	do {
+		sha256_transform(sctx->state, input, W);
+		input += SHA256_BLOCK_SIZE;
+	} while (--blocks);
 
-	if ((partial + len) > 63) {
-		if (partial) {
-			done = -partial;
-			memcpy(sctx->buf + partial, data, done + 64);
-			src = sctx->buf;
-		}
+	memzero_explicit(W, sizeof(W));
+}
 
-		do {
-			sha256_transform(sctx->state, src, W);
-			done += 64;
-			src = data + done;
-		} while (done + 63 < len);
-
-		memzero_explicit(W, sizeof(W));
-
-		partial = 0;
-	}
-	memcpy(sctx->buf + partial, src, len - done);
+void sha256_update(struct sha256_state *sctx, const u8 *data, unsigned int len)
+{
+	lib_sha256_base_do_update(sctx, data, len, sha256_transform_blocks);
 }
 EXPORT_SYMBOL(sha256_update);
 
-void sha224_update(struct sha256_state *sctx, const u8 *data, unsigned int len)
+static void __sha256_final(struct sha256_state *sctx, u8 *out, int digest_size)
 {
-	sha256_update(sctx, data, len);
-}
-EXPORT_SYMBOL(sha224_update);
-
-static void __sha256_final(struct sha256_state *sctx, u8 *out, int digest_words)
-{
-	__be32 *dst = (__be32 *)out;
-	__be64 bits;
-	unsigned int index, pad_len;
-	int i;
-	static const u8 padding[64] = { 0x80, };
-
-	/* Save number of bits */
-	bits = cpu_to_be64(sctx->count << 3);
-
-	/* Pad out to 56 mod 64. */
-	index = sctx->count & 0x3f;
-	pad_len = (index < 56) ? (56 - index) : ((64+56) - index);
-	sha256_update(sctx, padding, pad_len);
-
-	/* Append length (before padding) */
-	sha256_update(sctx, (const u8 *)&bits, sizeof(bits));
-
-	/* Store state in digest */
-	for (i = 0; i < digest_words; i++)
-		put_unaligned_be32(sctx->state[i], &dst[i]);
-
-	/* Zeroize sensitive information. */
-	memzero_explicit(sctx, sizeof(*sctx));
+	lib_sha256_base_do_finalize(sctx, sha256_transform_blocks);
+	lib_sha256_base_finish(sctx, out, digest_size);
 }
 
 void sha256_final(struct sha256_state *sctx, u8 *out)
 {
-	__sha256_final(sctx, out, 8);
+	__sha256_final(sctx, out, 32);
 }
 EXPORT_SYMBOL(sha256_final);
 
 void sha224_final(struct sha256_state *sctx, u8 *out)
 {
-	__sha256_final(sctx, out, 7);
+	__sha256_final(sctx, out, 28);
 }
 EXPORT_SYMBOL(sha224_final);
 

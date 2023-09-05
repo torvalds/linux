@@ -15,7 +15,7 @@
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 
-		gpio = <&msmgpio 97 GPIO_ACTIVE_HIGH>;
+		gpio = <&tlmm 97 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 
 		pinctrl-names = "default";
@@ -36,7 +36,7 @@
 		compatible = "melfas,mms345l";
 
 		reg = <0x48>;
-		interrupt-parent = <&msmgpio>;
+		interrupt-parent = <&tlmm>;
 		interrupts = <13 IRQ_TYPE_EDGE_FALLING>;
 
 		touchscreen-size-x = <720>;
@@ -71,7 +71,7 @@
 	compatible = "qcom,wcn3660b";
 };
 
-&msmgpio {
+&tlmm {
 	tkey_en_default: tkey-en-default-state {
 		pins = "gpio97";
 		function = "gpio";

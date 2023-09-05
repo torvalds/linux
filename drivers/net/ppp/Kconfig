@@ -129,6 +129,40 @@ config PPPOE
 	  which contains instruction on how to use this driver (under
 	  the heading "Kernel mode PPPoE").
 
+choice
+	prompt "Number of PPPoE hash bits"
+	default PPPOE_HASH_BITS_4
+	depends on PPPOE
+	help
+		Select the number of bits used for hashing PPPoE interfaces.
+
+		Larger sizes reduces the risk of hash collisions at the cost
+		of slightly increased memory usage.
+
+		This hash table is on a per outer ethernet interface.
+
+config PPPOE_HASH_BITS_1
+	bool "1 bit (2 buckets)"
+
+config PPPOE_HASH_BITS_2
+	bool "2 bits (4 buckets)"
+
+config PPPOE_HASH_BITS_4
+	bool "4 bits (16 buckets)"
+
+config PPPOE_HASH_BITS_8
+	bool "8 bits (256 buckets)"
+
+endchoice
+
+config PPPOE_HASH_BITS
+	int
+	default 1 if PPPOE_HASH_BITS_1
+	default 2 if PPPOE_HASH_BITS_2
+	default 4 if PPPOE_HASH_BITS_4
+	default 8 if PPPOE_HASH_BITS_8
+	default 4
+
 config PPTP
 	tristate "PPP over IPv4 (PPTP)"
 	depends on PPP && NET_IPGRE_DEMUX

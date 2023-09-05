@@ -75,6 +75,10 @@ static inline bool arch_syscall_match_sym_name(const char *sym,
 	return !strcasecmp(sym, name);
 }
 
+void prepare_ftrace_return(unsigned long *parent, unsigned long self,
+			   unsigned long frame_pointer,
+			   unsigned long stack_pointer);
+
 #endif /* ifndef __ASSEMBLY__ */
 
 #endif /* _ASM_ARM_FTRACE */

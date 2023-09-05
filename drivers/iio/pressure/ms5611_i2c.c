@@ -125,7 +125,7 @@ static struct i2c_driver ms5611_driver = {
 		.of_match_table = ms5611_i2c_matches,
 	},
 	.id_table = ms5611_id,
-	.probe_new = ms5611_i2c_probe,
+	.probe = ms5611_i2c_probe,
 };
 module_i2c_driver(ms5611_driver);
 

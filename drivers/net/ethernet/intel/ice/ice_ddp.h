@@ -185,7 +185,7 @@ struct ice_buf_hdr {
 
 #define ICE_MAX_ENTRIES_IN_BUF(hd_sz, ent_sz)                                 \
 	((ICE_PKG_BUF_SIZE -                                                  \
-	  struct_size((struct ice_buf_hdr *)0, section_entry, 1) - (hd_sz)) / \
+	  struct_size_t(struct ice_buf_hdr,  section_entry, 1) - (hd_sz)) / \
 	 (ent_sz))
 
 /* ice package section IDs */
@@ -297,7 +297,7 @@ struct ice_label_section {
 };
 
 #define ICE_MAX_LABELS_IN_BUF                                             \
-	ICE_MAX_ENTRIES_IN_BUF(struct_size((struct ice_label_section *)0, \
+	ICE_MAX_ENTRIES_IN_BUF(struct_size_t(struct ice_label_section,  \
 					   label, 1) -                    \
 				       sizeof(struct ice_label),          \
 			       sizeof(struct ice_label))
@@ -352,7 +352,7 @@ struct ice_boost_tcam_section {
 };
 
 #define ICE_MAX_BST_TCAMS_IN_BUF                                               \
-	ICE_MAX_ENTRIES_IN_BUF(struct_size((struct ice_boost_tcam_section *)0, \
+	ICE_MAX_ENTRIES_IN_BUF(struct_size_t(struct ice_boost_tcam_section,  \
 					   tcam, 1) -                          \
 				       sizeof(struct ice_boost_tcam_entry),    \
 			       sizeof(struct ice_boost_tcam_entry))
@@ -372,8 +372,7 @@ struct ice_marker_ptype_tcam_section {
 };
 
 #define ICE_MAX_MARKER_PTYPE_TCAMS_IN_BUF                                    \
-	ICE_MAX_ENTRIES_IN_BUF(                                              \
-		struct_size((struct ice_marker_ptype_tcam_section *)0, tcam, \
+	ICE_MAX_ENTRIES_IN_BUF(struct_size_t(struct ice_marker_ptype_tcam_section,  tcam, \
 			    1) -                                             \
 			sizeof(struct ice_marker_ptype_tcam_entry),          \
 		sizeof(struct ice_marker_ptype_tcam_entry))

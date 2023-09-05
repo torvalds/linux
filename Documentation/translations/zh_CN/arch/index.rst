@@ -9,7 +9,7 @@
    :maxdepth: 2
 
    ../mips/index
-   ../arm64/index
+   arm64/index
    ../riscv/index
    openrisc/index
    parisc/index

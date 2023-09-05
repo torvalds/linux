@@ -89,7 +89,7 @@ static inline void tpm_tis_iowrite32(u32 b, void __iomem *iobase, u32 addr)
 	tpm_tis_flush(iobase);
 }
 
-static int interrupts = -1;
+static int interrupts;
 module_param(interrupts, int, 0444);
 MODULE_PARM_DESC(interrupts, "Enable interrupts");
 
@@ -116,6 +116,22 @@ static int tpm_tis_disable_irq(const struct dmi_system_id *d)
 static const struct dmi_system_id tpm_tis_dmi_table[] = {
 	{
 		.callback = tpm_tis_disable_irq,
+		.ident = "Framework Laptop (12th Gen Intel Core)",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Framework"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Laptop (12th Gen Intel Core)"),
+		},
+	},
+	{
+		.callback = tpm_tis_disable_irq,
+		.ident = "Framework Laptop (13th Gen Intel Core)",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Framework"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Laptop (13th Gen Intel Core)"),
+		},
+	},
+	{
+		.callback = tpm_tis_disable_irq,
 		.ident = "ThinkPad T490s",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
@@ -140,9 +156,34 @@ static const struct dmi_system_id tpm_tis_dmi_table[] = {
 	},
 	{
 		.callback = tpm_tis_disable_irq,
+		.ident = "ThinkPad L590",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad L590"),
+		},
+	},
+	{
+		.callback = tpm_tis_disable_irq,
+		.ident = "ThinkStation P620",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkStation P620"),
+		},
+	},
+	{
+		.callback = tpm_tis_disable_irq,
+		.ident = "TUXEDO InfinityBook S 15/17 Gen7",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "TUXEDO"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "TUXEDO InfinityBook S 15/17 Gen7"),
+		},
+	},
+	{
+		.callback = tpm_tis_disable_irq,
 		.ident = "UPX-TGL",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "AAEON"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "UPX-TGL01"),
 		},
 	},
 	{}

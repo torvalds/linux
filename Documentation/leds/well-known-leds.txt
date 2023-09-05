@@ -58,6 +58,7 @@ LEDs on notebook body, indicating that sound input / output is muted.
 
 * System notification
 
+Good: "rgb:status"
 Legacy: "status-led:{red,green,blue}" (Motorola Droid 4)
 Legacy: "lp5523:{r,g,b}" (Nokia N900)
 
@@ -65,7 +66,7 @@ Phones usually have multi-color status LED.
 
 * Power management
 
-Good: "platform:*:charging" (allwinner sun50i)
+Good: "platform:*:charging" (allwinner sun50i, leds-cht-wcove)
 
 * Screen
 

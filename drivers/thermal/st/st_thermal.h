@@ -94,7 +94,7 @@ struct st_thermal_sensor {
 
 extern int st_thermal_register(struct platform_device *pdev,
 			       const struct of_device_id *st_thermal_of_match);
-extern int st_thermal_unregister(struct platform_device *pdev);
+extern void st_thermal_unregister(struct platform_device *pdev);
 extern const struct dev_pm_ops st_thermal_pm_ops;
 
 #endif /* __STI_RESET_SYSCFG_H */

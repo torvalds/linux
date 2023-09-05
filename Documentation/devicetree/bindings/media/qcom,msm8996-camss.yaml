@@ -221,7 +221,7 @@ examples:
     #include <dt-bindings/clock/qcom,gcc-msm8996.h>
     #include <dt-bindings/clock/qcom,mmcc-msm8996.h>
 
-    camss: camss@a00000 {
+    camss: camss@a34000 {
       compatible = "qcom,msm8996-camss";
 
       clocks = <&mmcc CAMSS_TOP_AHB_CLK>,

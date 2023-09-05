@@ -400,8 +400,8 @@ static int imx_lcdc_probe(struct platform_device *pdev)
 
 	lcdc = devm_drm_dev_alloc(dev, &imx_lcdc_drm_driver,
 				  struct imx_lcdc, drm);
-	if (!lcdc)
-		return -ENOMEM;
+	if (IS_ERR(lcdc))
+		return PTR_ERR(lcdc);
 
 	drm = &lcdc->drm;
 

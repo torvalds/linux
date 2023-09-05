@@ -32,7 +32,11 @@ do {							\
 	(b)->data = (tmp).data;				\
 } while (0)
 
+#ifdef CONFIG_MMU
 bool fixup_exception(struct pt_regs *regs);
+#else
+static inline bool fixup_exception(struct pt_regs *regs) { return false; }
+#endif
 
 #if defined(CONFIG_BPF_JIT) && defined(CONFIG_ARCH_RV64I)
 bool ex_handler_bpf(const struct exception_table_entry *ex, struct pt_regs *regs);

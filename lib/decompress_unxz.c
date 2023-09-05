@@ -102,6 +102,8 @@
  */
 #ifdef STATIC
 #	define XZ_PREBOOT
+#else
+#include <linux/decompress/unxz.h>
 #endif
 #ifdef __KERNEL__
 #	include <linux/decompress/mm.h>

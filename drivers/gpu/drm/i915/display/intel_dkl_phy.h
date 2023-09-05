@@ -12,6 +12,7 @@
 
 struct drm_i915_private;
 
+void intel_dkl_phy_init(struct drm_i915_private *i915);
 u32
 intel_dkl_phy_read(struct drm_i915_private *i915, struct intel_dkl_phy_reg reg);
 void

@@ -130,7 +130,4 @@ ATOMIC_OP(xor, ^)
 #define arch_atomic_read(v)			READ_ONCE((v)->counter)
 #define arch_atomic_set(v, i)			WRITE_ONCE(((v)->counter), (i))
 
-#define arch_atomic_xchg(ptr, v)		(arch_xchg(&(ptr)->counter, (u32)(v)))
-#define arch_atomic_cmpxchg(v, old, new)	(arch_cmpxchg(&((v)->counter), (u32)(old), (u32)(new)))
-
 #endif /* __ASM_GENERIC_ATOMIC_H */

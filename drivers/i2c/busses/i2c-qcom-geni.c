@@ -936,14 +936,13 @@ err_dma:
 	return ret;
 }
 
-static int geni_i2c_remove(struct platform_device *pdev)
+static void geni_i2c_remove(struct platform_device *pdev)
 {
 	struct geni_i2c_dev *gi2c = platform_get_drvdata(pdev);
 
 	i2c_del_adapter(&gi2c->adap);
 	release_gpi_dma(gi2c);
 	pm_runtime_disable(gi2c->se.dev);
-	return 0;
 }
 
 static void geni_i2c_shutdown(struct platform_device *pdev)
@@ -1041,7 +1040,7 @@ MODULE_DEVICE_TABLE(of, geni_i2c_dt_match);
 
 static struct platform_driver geni_i2c_driver = {
 	.probe  = geni_i2c_probe,
-	.remove = geni_i2c_remove,
+	.remove_new = geni_i2c_remove,
 	.shutdown = geni_i2c_shutdown,
 	.driver = {
 		.name = "geni_i2c",

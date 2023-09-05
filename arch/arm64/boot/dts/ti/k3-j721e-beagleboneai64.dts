@@ -20,6 +20,7 @@
 	model = "BeagleBoard.org BeagleBone AI-64";
 
 	aliases {
+		serial0 = &wkup_uart0;
 		serial2 = &main_uart0;
 		mmc0 = &main_sdhci0;
 		mmc1 = &main_sdhci1;
@@ -304,7 +305,7 @@
 };
 
 &main_pmx0 {
-	led_pins_default: led-pins-default {
+	led_pins_default: led-default-pins {
 		pinctrl-single,pins = <
 			J721E_IOPAD(0x184, PIN_INPUT, 7) /* (T23) RGMII5_RD0.GPIO0_96 */
 			J721E_IOPAD(0x180, PIN_INPUT, 7) /* (R23) RGMII5_RD1.GPIO0_95 */
@@ -314,7 +315,7 @@
 		>;
 	};
 
-	main_mmc1_pins_default: main-mmc1-pins-default {
+	main_mmc1_pins_default: main-mmc1-default-pins {
 		pinctrl-single,pins = <
 			J721E_IOPAD(0x254, PIN_INPUT, 0) /* (R29) MMC1_CMD */
 			J721E_IOPAD(0x250, PIN_INPUT, 0) /* (P25) MMC1_CLK */
@@ -327,64 +328,64 @@
 		>;
 	};
 
-	main_uart0_pins_default: main-uart0-pins-default {
+	main_uart0_pins_default: main-uart0-default-pins {
 		pinctrl-single,pins = <
 			J721E_IOPAD(0x1e8, PIN_INPUT, 0) /* (AB2) UART0_RXD */
 			J721E_IOPAD(0x1ec, PIN_OUTPUT, 0) /* (AB3) UART0_TXD */
 		>;
 	};
 
-	sd_pwr_en_pins_default: sd-pwr-en-pins-default {
+	sd_pwr_en_pins_default: sd-pwr-en-default-pins {
 		pinctrl-single,pins = <
 			J721E_IOPAD(0x14c, PIN_INPUT, 7) /* (AA29) PRG0_PRU1_GPO19.GPIO0_82 */
 		>;
 	};
 
-	vdd_sd_dv_alt_pins_default: vdd-sd-dv-alt-pins-default {
+	vdd_sd_dv_alt_pins_default: vdd-sd-dv-alt-default-pins {
 		pinctrl-single,pins = <
 			J721E_IOPAD(0x1d8, PIN_INPUT, 7) /* (W4) SPI1_CS1.GPIO0_117 */
 		>;
 	};
 
-	main_usbss0_pins_default: main-usbss0-pins-default {
+	main_usbss0_pins_default: main-usbss0-default-pins {
 		pinctrl-single,pins = <
 			J721E_IOPAD(0x210, PIN_INPUT, 7) /* (W3) MCAN1_RX.GPIO1_3 - USBC_DIR */
 		>;
 	};
 
-	main_usbss1_pins_default: main-usbss1-pins-default {
+	main_usbss1_pins_default: main-usbss1-default-pins {
 		pinctrl-single,pins = <
 			J721E_IOPAD(0x290, INPUT_DISABLE, 1) /* (U6) USB0_DRVVBUS.USB1_DRVVBUS */
 		>;
 	};
 
-	dp0_3v3_en_pins_default:dp0-3v3-en-pins-default {
+	dp0_3v3_en_pins_default:dp0-3v3-en-default-pins {
 		pinctrl-single,pins = <
 			J721E_IOPAD(0xc8, PIN_INPUT, 7) /* (AE26) PRG0_PRU0_GPO6.GPIO0_49 */
 		>;
 	};
 
-	dp0_pins_default: dp0-pins-default {
+	dp0_pins_default: dp0-default-pins {
 		pinctrl-single,pins = <
 			J721E_IOPAD(0x1c4, PIN_INPUT, 5) /* (Y4) SPI0_CS1.DP0_HPD */
 		>;
 	};
 
-	main_i2c0_pins_default: main-i2c0-pins-default {
+	main_i2c0_pins_default: main-i2c0-default-pins {
 		pinctrl-single,pins = <
 			J721E_IOPAD(0x220, PIN_INPUT_PULLUP, 0) /* (AC5) I2C0_SCL */
 			J721E_IOPAD(0x224, PIN_INPUT_PULLUP, 0) /* (AA5) I2C0_SDA */
 		>;
 	};
 
-	main_i2c1_pins_default: main-i2c1-pins-default {
+	main_i2c1_pins_default: main-i2c1-default-pins {
 		pinctrl-single,pins = <
 			J721E_IOPAD(0x228, PIN_INPUT_PULLUP, 0) /* (Y6) I2C1_SCL */
 			J721E_IOPAD(0x22c, PIN_INPUT_PULLUP, 0) /* (AA6) I2C1_SDA */
 		>;
 	};
 
-	main_i2c2_pins_default: main-i2c2-pins-default {
+	main_i2c2_pins_default: main-i2c2-default-pins {
 		pinctrl-single,pins = <
 			J721E_IOPAD(0x208, PIN_INPUT_PULLUP, 4) /* (W5) MCAN0_RX.I2C2_SCL */
 			J721E_IOPAD(0x20c, PIN_INPUT_PULLUP, 4) /* (W6) MCAN0_TX.I2C2_SDA */
@@ -393,14 +394,14 @@
 		>;
 	};
 
-	main_i2c3_pins_default: main-i2c3-pins-default {
+	main_i2c3_pins_default: main-i2c3-default-pins {
 		pinctrl-single,pins = <
 			J721E_IOPAD(0x270, PIN_INPUT_PULLUP, 4) /* (T26) MMC2_CLK.I2C3_SCL */
 			J721E_IOPAD(0x274, PIN_INPUT_PULLUP, 4) /* (T25) MMC2_CMD.I2C3_SDA */
 		>;
 	};
 
-	main_i2c4_pins_default: main-i2c4-pins-default {
+	main_i2c4_pins_default: main-i2c4-default-pins {
 		pinctrl-single,pins = <
 			J721E_IOPAD(0x1e0, PIN_INPUT_PULLUP, 2) /* (Y5) SPI1_D0.I2C4_SCL */
 			J721E_IOPAD(0x1dc, PIN_INPUT_PULLUP, 2) /* (Y1) SPI1_CLK.I2C4_SDA */
@@ -409,14 +410,14 @@
 		>;
 	};
 
-	main_i2c5_pins_default: main-i2c5-pins-default {
+	main_i2c5_pins_default: main-i2c5-default-pins {
 		pinctrl-single,pins = <
 			J721E_IOPAD(0x150, PIN_INPUT_PULLUP, 2) /* (Y26) PRG0_MDIO0_MDIO.I2C5_SCL */
 			J721E_IOPAD(0x154, PIN_INPUT_PULLUP, 2) /* (AA27) PRG0_MDIO0_MDC.I2C5_SDA */
 		>;
 	};
 
-	main_i2c6_pins_default: main-i2c6-pins-default {
+	main_i2c6_pins_default: main-i2c6-default-pins {
 		pinctrl-single,pins = <
 			J721E_IOPAD(0x1d0, PIN_INPUT_PULLUP, 2) /* (AA3) SPI0_D1.I2C6_SCL */
 			J721E_IOPAD(0x1e4, PIN_INPUT_PULLUP, 2) /* (Y2) SPI1_D1.I2C6_SDA */
@@ -425,21 +426,21 @@
 		>;
 	};
 
-	csi0_gpio_pins_default: csi0-gpio-pins-default {
+	csi0_gpio_pins_default: csi0-gpio-default-pins {
 		pinctrl-single,pins = <
 			J721E_IOPAD(0x19c, PIN_INPUT_PULLDOWN, 7) /* (W27) RGMII6_TD0.GPIO0_102 */
 			J721E_IOPAD(0x1a0, PIN_INPUT_PULLDOWN, 7) /* (W29) RGMII6_TXC.GPIO0_103 */
 		>;
 	};
 
-	csi1_gpio_pins_default: csi1-gpio-pins-default {
+	csi1_gpio_pins_default: csi1-gpio-default-pins {
 		pinctrl-single,pins = <
 			J721E_IOPAD(0x198, PIN_INPUT_PULLDOWN, 7) /* (V25) RGMII6_TD1.GPIO0_101 */
 			J721E_IOPAD(0x1b0, PIN_INPUT_PULLDOWN, 7) /* (W24) RGMII6_RD1.GPIO0_107 */
 		>;
 	};
 
-	pcie1_rst_pins_default: pcie1-rst-pins-default {
+	pcie1_rst_pins_default: pcie1-rst-default-pins {
 		pinctrl-single,pins = <
 			J721E_IOPAD(0x5c, PIN_INPUT, 7) /* (AG23) PRG1_PRU1_GPO1.GPIO0_22 */
 		>;
@@ -447,13 +448,13 @@
 };
 
 &wkup_pmx0 {
-	eeprom_wp_pins_default: eeprom-wp-pins-default {
+	eeprom_wp_pins_default: eeprom-wp-default-pins {
 		pinctrl-single,pins = <
 			J721E_WKUP_IOPAD(0xc4, PIN_OUTPUT_PULLUP, 7) /* (G24) WKUP_GPIO0_5 */
 		>;
 	};
 
-	mcu_adc0_pins_default: mcu-adc0-pins-default {
+	mcu_adc0_pins_default: mcu-adc0-default-pins {
 		pinctrl-single,pins = <
 			J721E_WKUP_IOPAD(0x130, PIN_INPUT, 0) /* (K25) MCU_ADC0_AIN0 */
 			J721E_WKUP_IOPAD(0x134, PIN_INPUT, 0) /* (K26) MCU_ADC0_AIN1 */
@@ -465,13 +466,13 @@
 		>;
 	};
 
-	mcu_adc1_pins_default: mcu-adc1-pins-default {
+	mcu_adc1_pins_default: mcu-adc1-default-pins {
 		pinctrl-single,pins = <
 			J721E_WKUP_IOPAD(0x150, PIN_INPUT, 0) /* (N23) MCU_ADC1_AIN0 */
 		>;
 	};
 
-	mikro_bus_pins_default: mikro-bus-pins-default {
+	mikro_bus_pins_default: mikro-bus-default-pins {
 		pinctrl-single,pins = <
 			J721E_WKUP_IOPAD(0x108, PIN_INPUT, 7) /* SDAPULLEN (E26) PMIC_POWER_EN0.WKUP_GPIO0_66 */
 			J721E_WKUP_IOPAD(0xd4, PIN_INPUT, 7) /* SDA (G26) WKUP_GPIO0_9.MCU_I2C1_SDA */
@@ -494,7 +495,7 @@
 		>;
 	};
 
-	mcu_cpsw_pins_default: mcu-cpsw-pins-default {
+	mcu_cpsw_pins_default: mcu-cpsw-default-pins {
 		pinctrl-single,pins = <
 			J721E_WKUP_IOPAD(0x84, PIN_INPUT, 0) /* (B24) MCU_RGMII1_RD0 */
 			J721E_WKUP_IOPAD(0x80, PIN_INPUT, 0) /* (A24) MCU_RGMII1_RD1 */
@@ -511,27 +512,34 @@
 		>;
 	};
 
-	mcu_mdio_pins_default: mcu-mdio1-pins-default {
+	mcu_mdio_pins_default: mcu-mdio1-default-pins {
 		pinctrl-single,pins = <
 			J721E_WKUP_IOPAD(0x8c, PIN_OUTPUT, 0) /* (F23) MCU_MDIO0_MDC */
 			J721E_WKUP_IOPAD(0x88, PIN_INPUT, 0) /* (E23) MCU_MDIO0_MDIO */
 		>;
 	};
 
-	sw_pwr_pins_default: sw-pwr-pins-default {
+	sw_pwr_pins_default: sw-pwr-default-pins {
 		pinctrl-single,pins = <
 			J721E_WKUP_IOPAD(0xc0, PIN_INPUT, 7) /* (G25) WKUP_GPIO0_4 */
 		>;
 	};
 
-	wkup_i2c0_pins_default: wkup-i2c0-pins-default {
+	wkup_i2c0_pins_default: wkup-i2c0-default-pins {
 		pinctrl-single,pins = <
 			J721E_WKUP_IOPAD(0xf8, PIN_INPUT_PULLUP, 0) /* (J25) WKUP_I2C0_SCL */
 			J721E_WKUP_IOPAD(0xfc, PIN_INPUT_PULLUP, 0) /* (H24) WKUP_I2C0_SDA */
 		>;
 	};
 
-	mcu_usbss1_pins_default: mcu-usbss1-pins-default {
+	wkup_uart0_pins_default: wkup-uart0-default-pins {
+		pinctrl-single,pins = <
+			J721E_WKUP_IOPAD(0xa0, PIN_INPUT, 0) /* (J29) WKUP_UART0_RXD */
+			J721E_WKUP_IOPAD(0xa4, PIN_OUTPUT, 0) /* (J28) WKUP_UART0_TXD */
+		>;
+	};
+
+	mcu_usbss1_pins_default: mcu-usbss1-default-pins {
 		pinctrl-single,pins = <
 			J721E_WKUP_IOPAD(0x3c, PIN_OUTPUT_PULLUP, 5) /* (A23) MCU_OSPI1_LBCLKO.WKUP_GPIO0_30 */
 		>;
@@ -541,6 +549,8 @@
 &wkup_uart0 {
 	/* Wakeup UART is used by TIFS firmware. */
 	status = "reserved";
+	pinctrl-names = "default";
+	pinctrl-0 = <&wkup_uart0_pins_default>;
 };
 
 &main_uart0 {
@@ -593,7 +603,7 @@
 &main_i2c1 {
 	status = "okay";
 	pinctrl-names = "default";
-	pinctrl-0 = <&main_i2c1_pins_default &csi1_gpio_pins_default>;
+	pinctrl-0 = <&main_i2c1_pins_default>;
 	clock-frequency = <400000>;
 };
 
@@ -623,7 +633,7 @@
 &main_i2c5 {
 	status = "okay";
 	pinctrl-names = "default";
-	pinctrl-0 = <&main_i2c5_pins_default &csi0_gpio_pins_default>;
+	pinctrl-0 = <&main_i2c5_pins_default>;
 	clock-frequency = <400000>;
 };
 
@@ -639,12 +649,14 @@
 &wkup_i2c0 {
 	status = "okay";
 	pinctrl-names = "default";
-	pinctrl-0 = <&wkup_i2c0_pins_default &eeprom_wp_pins_default>;
+	pinctrl-0 = <&wkup_i2c0_pins_default>;
 	clock-frequency = <400000>;
 
 	eeprom@50 {
 		compatible = "atmel,24c04";
 		reg = <0x50>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&eeprom_wp_pins_default>;
 	};
 };
 
@@ -680,12 +692,18 @@
 
 &wkup_gpio0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&mcu_adc0_pins_default &mcu_adc1_pins_default &mikro_bus_pins_default>;
+	pinctrl-0 = <&mcu_adc0_pins_default>, <&mcu_adc1_pins_default>,
+		    <&mikro_bus_pins_default>;
 };
 
 &wkup_gpio1 {
 	/* Unused */
 	status = "disabled";
+};
+
+&main_gpio0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&csi1_gpio_pins_default>, <&csi0_gpio_pins_default>;
 };
 
 &usb_serdes_mux {
@@ -759,7 +777,7 @@
 
 &usbss1 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&main_usbss1_pins_default &mcu_usbss1_pins_default>;
+	pinctrl-0 = <&main_usbss1_pins_default>, <&mcu_usbss1_pins_default>;
 	ti,vbus-divider;
 };
 
@@ -872,12 +890,8 @@
 	};
 };
 
-&pcie0_rc {
-	/* Unused */
-	status = "disabled";
-};
-
 &pcie1_rc {
+	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&pcie1_rst_pins_default>;
 	phys = <&serdes1_pcie_link>;
@@ -887,55 +901,12 @@
 	reset-gpios = <&main_gpio0 22 GPIO_ACTIVE_HIGH>;
 };
 
-&pcie2_rc {
-	/* Unused */
-	status = "disabled";
-};
-
-&pcie0_ep {
-	status = "disabled";
-	phys = <&serdes0_pcie_link>;
-	phy-names = "pcie-phy";
-	num-lanes = <1>;
-};
-
-&pcie1_ep {
-	status = "disabled";
-	phys = <&serdes1_pcie_link>;
-	phy-names = "pcie-phy";
-	num-lanes = <2>;
-};
-
-&pcie2_ep {
-	/* Unused */
-	status = "disabled";
-};
-
-&pcie3_rc {
-	/* Unused */
-	status = "disabled";
-};
-
-&pcie3_ep {
-	/* Unused */
-	status = "disabled";
-};
-
-&icssg0_mdio {
-	/* Unused */
-	status = "disabled";
-};
-
-&icssg1_mdio {
-	/* Unused */
-	status = "disabled";
-};
-
 &ufs_wrapper {
 	status = "disabled";
 };
 
 &mailbox0_cluster0 {
+	status = "okay";
 	interrupts = <436>;
 
 	mbox_mcu_r5fss0_core0: mbox-mcu-r5fss0-core0 {
@@ -950,6 +921,7 @@
 };
 
 &mailbox0_cluster1 {
+	status = "okay";
 	interrupts = <432>;
 
 	mbox_main_r5fss0_core0: mbox-main-r5fss0-core0 {
@@ -964,6 +936,7 @@
 };
 
 &mailbox0_cluster2 {
+	status = "okay";
 	interrupts = <428>;
 
 	mbox_main_r5fss1_core0: mbox-main-r5fss1-core0 {
@@ -978,6 +951,7 @@
 };
 
 &mailbox0_cluster3 {
+	status = "okay";
 	interrupts = <424>;
 
 	mbox_c66_0: mbox-c66-0 {
@@ -992,6 +966,7 @@
 };
 
 &mailbox0_cluster4 {
+	status = "okay";
 	interrupts = <420>;
 
 	mbox_c71_0: mbox-c71-0 {
@@ -1001,55 +976,55 @@
 };
 
 &mcu_r5fss0_core0 {
-	mboxes = <&mailbox0_cluster0 &mbox_mcu_r5fss0_core0>;
+	mboxes = <&mailbox0_cluster0>, <&mbox_mcu_r5fss0_core0>;
 	memory-region = <&mcu_r5fss0_core0_dma_memory_region>,
 			<&mcu_r5fss0_core0_memory_region>;
 };
 
 &mcu_r5fss0_core1 {
-	mboxes = <&mailbox0_cluster0 &mbox_mcu_r5fss0_core1>;
+	mboxes = <&mailbox0_cluster0>, <&mbox_mcu_r5fss0_core1>;
 	memory-region = <&mcu_r5fss0_core1_dma_memory_region>,
 			<&mcu_r5fss0_core1_memory_region>;
 };
 
 &main_r5fss0_core0 {
-	mboxes = <&mailbox0_cluster1 &mbox_main_r5fss0_core0>;
+	mboxes = <&mailbox0_cluster1>, <&mbox_main_r5fss0_core0>;
 	memory-region = <&main_r5fss0_core0_dma_memory_region>,
 			<&main_r5fss0_core0_memory_region>;
 };
 
 &main_r5fss0_core1 {
-	mboxes = <&mailbox0_cluster1 &mbox_main_r5fss0_core1>;
+	mboxes = <&mailbox0_cluster1>, <&mbox_main_r5fss0_core1>;
 	memory-region = <&main_r5fss0_core1_dma_memory_region>,
 			<&main_r5fss0_core1_memory_region>;
 };
 
 &main_r5fss1_core0 {
-	mboxes = <&mailbox0_cluster2 &mbox_main_r5fss1_core0>;
+	mboxes = <&mailbox0_cluster2>, <&mbox_main_r5fss1_core0>;
 	memory-region = <&main_r5fss1_core0_dma_memory_region>,
 			<&main_r5fss1_core0_memory_region>;
 };
 
 &main_r5fss1_core1 {
-	mboxes = <&mailbox0_cluster2 &mbox_main_r5fss1_core1>;
+	mboxes = <&mailbox0_cluster2>, <&mbox_main_r5fss1_core1>;
 	memory-region = <&main_r5fss1_core1_dma_memory_region>,
 			<&main_r5fss1_core1_memory_region>;
 };
 
 &c66_0 {
-	mboxes = <&mailbox0_cluster3 &mbox_c66_0>;
+	mboxes = <&mailbox0_cluster3>, <&mbox_c66_0>;
 	memory-region = <&c66_0_dma_memory_region>,
 			<&c66_0_memory_region>;
 };
 
 &c66_1 {
-	mboxes = <&mailbox0_cluster3 &mbox_c66_1>;
+	mboxes = <&mailbox0_cluster3>, <&mbox_c66_1>;
 	memory-region = <&c66_1_dma_memory_region>,
 			<&c66_1_memory_region>;
 };
 
 &c71_0 {
-	mboxes = <&mailbox0_cluster4 &mbox_c71_0>;
+	mboxes = <&mailbox0_cluster4>, <&mbox_c71_0>;
 	memory-region = <&c71_0_dma_memory_region>,
 			<&c71_0_memory_region>;
 };

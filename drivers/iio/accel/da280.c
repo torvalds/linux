@@ -184,7 +184,7 @@ static struct i2c_driver da280_driver = {
 		.acpi_match_table = ACPI_PTR(da280_acpi_match),
 		.pm = pm_sleep_ptr(&da280_pm_ops),
 	},
-	.probe_new	= da280_probe,
+	.probe		= da280_probe,
 	.id_table	= da280_i2c_id,
 };
 

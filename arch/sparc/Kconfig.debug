@@ -14,3 +14,17 @@ config FRAME_POINTER
 	bool
 	depends on MCOUNT
 	default y
+
+config HAVE_HARDLOCKUP_DETECTOR_SPARC64
+	bool
+	depends on HAVE_NMI
+	select HARDLOCKUP_DETECTOR_SPARC64
+	help
+	  Sparc64 hardlockup detector is the last one developed before adding
+	  the common infrastructure for handling hardlockup detectors. It is
+	  always built. It does _not_ use the common command line parameters
+	  and sysctl interface, except for /proc/sys/kernel/nmi_watchdog.
+
+config HARDLOCKUP_DETECTOR_SPARC64
+	bool
+	depends on HAVE_HARDLOCKUP_DETECTOR_SPARC64

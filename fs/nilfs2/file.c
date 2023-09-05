@@ -140,7 +140,7 @@ const struct file_operations nilfs_file_operations = {
 	.open		= generic_file_open,
 	/* .release	= nilfs_release_file, */
 	.fsync		= nilfs_sync_file,
-	.splice_read	= generic_file_splice_read,
+	.splice_read	= filemap_splice_read,
 	.splice_write   = iter_file_splice_write,
 };
 

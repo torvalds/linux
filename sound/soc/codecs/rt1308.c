@@ -773,7 +773,7 @@ static const struct regmap_config rt1308_regmap = {
 	.max_register = RT1308_MAX_REG,
 	.volatile_reg = rt1308_volatile_register,
 	.readable_reg = rt1308_readable_register,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.reg_defaults = rt1308_reg,
 	.num_reg_defaults = ARRAY_SIZE(rt1308_reg),
 	.use_single_read = true,
@@ -862,7 +862,7 @@ static struct i2c_driver rt1308_i2c_driver = {
 		.of_match_table = of_match_ptr(rt1308_of_match),
 		.acpi_match_table = ACPI_PTR(rt1308_acpi_match),
 	},
-	.probe_new = rt1308_i2c_probe,
+	.probe = rt1308_i2c_probe,
 	.shutdown = rt1308_i2c_shutdown,
 	.id_table = rt1308_i2c_id,
 };

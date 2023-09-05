@@ -124,7 +124,7 @@ int mi_read(struct mft_inode *mi, bool is_mft)
 	struct rw_semaphore *rw_lock = NULL;
 
 	if (is_mounted(sbi)) {
-		if (!is_mft) {
+		if (!is_mft && mft_ni) {
 			rw_lock = &mft_ni->file.run_lock;
 			down_read(rw_lock);
 		}
@@ -148,7 +148,7 @@ int mi_read(struct mft_inode *mi, bool is_mft)
 		ni_lock(mft_ni);
 		down_write(rw_lock);
 	}
-	err = attr_load_runs_vcn(mft_ni, ATTR_DATA, NULL, 0, &mft_ni->file.run,
+	err = attr_load_runs_vcn(mft_ni, ATTR_DATA, NULL, 0, run,
 				 vbo >> sbi->cluster_bits);
 	if (rw_lock) {
 		up_write(rw_lock);
@@ -180,6 +180,12 @@ ok:
 	return 0;
 
 out:
+	if (err == -E_NTFS_CORRUPT) {
+		ntfs_err(sbi->sb, "mft corrupted");
+		ntfs_set_state(sbi, NTFS_DIRTY_ERROR);
+		err = -EINVAL;
+	}
+
 	return err;
 }
 
@@ -296,7 +302,7 @@ struct ATTRIB *mi_enum_attr(struct mft_inode *mi, struct ATTRIB *attr)
  */
 struct ATTRIB *mi_find_attr(struct mft_inode *mi, struct ATTRIB *attr,
 			    enum ATTR_TYPE type, const __le16 *name,
-			    size_t name_len, const __le16 *id)
+			    u8 name_len, const __le16 *id)
 {
 	u32 type_in = le32_to_cpu(type);
 	u32 atype;
@@ -382,6 +388,8 @@ int mi_format_new(struct mft_inode *mi, struct ntfs_sb_info *sbi, CLST rno,
 
 	rec->seq = cpu_to_le16(seq);
 	rec->flags = RECORD_FLAG_IN_USE | flags;
+	if (MFTRECORD_FIXUP_OFFSET == MFTRECORD_FIXUP_OFFSET_3)
+		rec->mft_record = cpu_to_le32(rno);
 
 	mi->dirty = true;
 

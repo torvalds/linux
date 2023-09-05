@@ -286,8 +286,9 @@ static char *pbook_type[] = {
 int __init find_via_pmu(void)
 {
 #ifdef CONFIG_PPC_PMAC
+	int err;
 	u64 taddr;
-	const u32 *reg;
+	struct resource res;
 
 	if (pmu_state != uninitialized)
 		return 1;
@@ -295,16 +296,12 @@ int __init find_via_pmu(void)
 	if (vias == NULL)
 		return 0;
 
-	reg = of_get_property(vias, "reg", NULL);
-	if (reg == NULL) {
-		printk(KERN_ERR "via-pmu: No \"reg\" property !\n");
+	err = of_address_to_resource(vias, 0, &res);
+	if (err) {
+		printk(KERN_ERR "via-pmu: Error getting \"reg\" property !\n");
 		goto fail;
 	}
-	taddr = of_translate_address(vias, reg);
-	if (taddr == OF_BAD_ADDR) {
-		printk(KERN_ERR "via-pmu: Can't translate address !\n");
-		goto fail;
-	}
+	taddr = res.start;
 
 	pmu_has_adb = 1;
 
@@ -324,7 +321,6 @@ int __init find_via_pmu(void)
 		 || of_device_is_compatible(vias->parent, "K2-Keylargo")) {
 		struct device_node *gpiop;
 		struct device_node *adbp;
-		u64 gaddr = OF_BAD_ADDR;
 
 		pmu_kind = PMU_KEYLARGO_BASED;
 		adbp = of_find_node_by_type(NULL, "adb");
@@ -338,11 +334,8 @@ int __init find_via_pmu(void)
 		
 		gpiop = of_find_node_by_name(NULL, "gpio");
 		if (gpiop) {
-			reg = of_get_property(gpiop, "reg", NULL);
-			if (reg)
-				gaddr = of_translate_address(gpiop, reg);
-			if (gaddr != OF_BAD_ADDR)
-				gpio_reg = ioremap(gaddr, 0x10);
+			if (!of_address_to_resource(gpiop, 0, &res))
+				gpio_reg = ioremap(res.start, 0x10);
 			of_node_put(gpiop);
 		}
 		if (gpio_reg == NULL) {

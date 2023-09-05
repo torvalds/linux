@@ -351,6 +351,7 @@ struct pt_regs___arm64 {
  * https://github.com/riscv-non-isa/riscv-elf-psabi-doc/blob/master/riscv-cc.adoc#risc-v-calling-conventions
  */
 
+/* riscv provides struct user_regs_struct instead of struct pt_regs to userspace */
 #define __PT_REGS_CAST(x) ((const struct user_regs_struct *)(x))
 #define __PT_PARM1_REG a0
 #define __PT_PARM2_REG a1
@@ -383,7 +384,7 @@ struct pt_regs___arm64 {
  * https://raw.githubusercontent.com/wiki/foss-for-synopsys-dwc-arc-processors/toolchain/files/ARCv2_ABI.pdf
  */
 
-/* arc provides struct user_pt_regs instead of struct pt_regs to userspace */
+/* arc provides struct user_regs_struct instead of struct pt_regs to userspace */
 #define __PT_REGS_CAST(x) ((const struct user_regs_struct *)(x))
 #define __PT_PARM1_REG scratch.r0
 #define __PT_PARM2_REG scratch.r1

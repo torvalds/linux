@@ -250,7 +250,7 @@ static struct i2c_driver ds1682_driver = {
 		.name = "ds1682",
 		.of_match_table = ds1682_of_match,
 	},
-	.probe_new = ds1682_probe,
+	.probe = ds1682_probe,
 	.remove = ds1682_remove,
 	.id_table = ds1682_id,
 };

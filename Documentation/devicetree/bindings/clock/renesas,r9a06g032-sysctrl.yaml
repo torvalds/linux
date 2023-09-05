@@ -48,7 +48,7 @@ properties:
 patternProperties:
   "^dma-router@[a-f0-9]+$":
     type: object
-    $ref: "../dma/renesas,rzn1-dmamux.yaml#"
+    $ref: /schemas/dma/renesas,rzn1-dmamux.yaml#
 
 required:
   - compatible

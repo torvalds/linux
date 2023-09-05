@@ -34,7 +34,7 @@ arch/powerpc/kernel/head_64.o
 arch/powerpc/kernel/head_8xx.o
 arch/powerpc/kernel/head_85xx.o
 arch/powerpc/kernel/head_book3s_32.o
-arch/powerpc/kernel/entry_64.o
+arch/powerpc/kernel/prom_entry_64.o
 arch/powerpc/kernel/fpu.o
 arch/powerpc/kernel/vector.o
 arch/powerpc/kernel/prom_init.o

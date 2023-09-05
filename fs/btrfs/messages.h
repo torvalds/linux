@@ -4,13 +4,22 @@
 #define BTRFS_MESSAGES_H
 
 #include <linux/types.h>
+#include <linux/printk.h>
+#include <linux/bug.h>
 
 struct btrfs_fs_info;
+
+/*
+ * We want to be able to override this in btrfs-progs.
+ */
+#ifdef __KERNEL__
 
 static inline __printf(2, 3) __cold
 void btrfs_no_printk(const struct btrfs_fs_info *fs_info, const char *fmt, ...)
 {
 }
+
+#endif
 
 #ifdef CONFIG_PRINTK
 
@@ -160,7 +169,11 @@ do {								\
 } while (0)
 
 #ifdef CONFIG_BTRFS_ASSERT
-void __cold __noreturn btrfs_assertfail(const char *expr, const char *file, int line);
+
+#define btrfs_assertfail(expr, file, line)	({				\
+	pr_err("assertion failed: %s, in %s:%d\n", (expr), (file), (line));	\
+	BUG();								\
+})
 
 #define ASSERT(expr)						\
 	(likely(expr) ? (void)0 : btrfs_assertfail(#expr, __FILE__, __LINE__))

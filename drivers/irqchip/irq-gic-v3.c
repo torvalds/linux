@@ -40,6 +40,7 @@
 #define FLAGS_WORKAROUND_GICR_WAKER_MSM8996	(1ULL << 0)
 #define FLAGS_WORKAROUND_CAVIUM_ERRATUM_38539	(1ULL << 1)
 #define FLAGS_WORKAROUND_MTK_GICR_SAVE		(1ULL << 2)
+#define FLAGS_WORKAROUND_ASR_ERRATUM_8601001	(1ULL << 3)
 
 #define GIC_IRQ_TYPE_PARTITION	(GIC_IRQ_TYPE_LPI + 1)
 
@@ -67,6 +68,8 @@ struct gic_chip_data {
 #define T241_CHIPS_MAX		4
 static void __iomem *t241_dist_base_alias[T241_CHIPS_MAX] __read_mostly;
 static DEFINE_STATIC_KEY_FALSE(gic_nvidia_t241_erratum);
+
+static DEFINE_STATIC_KEY_FALSE(gic_arm64_2941627_erratum);
 
 static struct gic_chip_data gic_data __read_mostly;
 static DEFINE_STATIC_KEY_TRUE(supports_deactivate_key);
@@ -591,10 +594,39 @@ static void gic_irq_nmi_teardown(struct irq_data *d)
 	gic_irq_set_prio(d, GICD_INT_DEF_PRI);
 }
 
+static bool gic_arm64_erratum_2941627_needed(struct irq_data *d)
+{
+	enum gic_intid_range range;
+
+	if (!static_branch_unlikely(&gic_arm64_2941627_erratum))
+		return false;
+
+	range = get_intid_range(d);
+
+	/*
+	 * The workaround is needed if the IRQ is an SPI and
+	 * the target cpu is different from the one we are
+	 * executing on.
+	 */
+	return (range == SPI_RANGE || range == ESPI_RANGE) &&
+		!cpumask_test_cpu(raw_smp_processor_id(),
+				  irq_data_get_effective_affinity_mask(d));
+}
+
 static void gic_eoi_irq(struct irq_data *d)
 {
 	write_gicreg(gic_irq(d), ICC_EOIR1_EL1);
 	isb();
+
+	if (gic_arm64_erratum_2941627_needed(d)) {
+		/*
+		 * Make sure the GIC stream deactivate packet
+		 * issued by ICC_EOIR1_EL1 has completed before
+		 * deactivating through GICD_IACTIVER.
+		 */
+		dsb(sy);
+		gic_poke_irq(d, GICD_ICACTIVER);
+	}
 }
 
 static void gic_eoimode1_eoi_irq(struct irq_data *d)
@@ -605,7 +637,11 @@ static void gic_eoimode1_eoi_irq(struct irq_data *d)
 	 */
 	if (gic_irq(d) >= 8192 || irqd_is_forwarded_to_vcpu(d))
 		return;
-	gic_write_dir(gic_irq(d));
+
+	if (!gic_arm64_erratum_2941627_needed(d))
+		gic_write_dir(gic_irq(d));
+	else
+		gic_poke_irq(d, GICD_ICACTIVER);
 }
 
 static int gic_set_type(struct irq_data *d, unsigned int type)
@@ -656,9 +692,15 @@ static int gic_irq_set_vcpu_affinity(struct irq_data *d, void *vcpu)
 	return 0;
 }
 
-static u64 gic_mpidr_to_affinity(unsigned long mpidr)
+static u64 gic_cpu_to_affinity(int cpu)
 {
+	u64 mpidr = cpu_logical_map(cpu);
 	u64 aff;
+
+	/* ASR8601 needs to have its affinities shifted down... */
+	if (unlikely(gic_data.flags & FLAGS_WORKAROUND_ASR_ERRATUM_8601001))
+		mpidr = (MPIDR_AFFINITY_LEVEL(mpidr, 1)	|
+			 (MPIDR_AFFINITY_LEVEL(mpidr, 2) << 8));
 
 	aff = ((u64)MPIDR_AFFINITY_LEVEL(mpidr, 3) << 32 |
 	       MPIDR_AFFINITY_LEVEL(mpidr, 2) << 16 |
@@ -914,7 +956,7 @@ static void __init gic_dist_init(void)
 	 * Set all global interrupts to the boot CPU only. ARE must be
 	 * enabled.
 	 */
-	affinity = gic_mpidr_to_affinity(cpu_logical_map(smp_processor_id()));
+	affinity = gic_cpu_to_affinity(smp_processor_id());
 	for (i = 32; i < GIC_LINE_NR; i++)
 		gic_write_irouter(affinity, base + GICD_IROUTER + i * 8);
 
@@ -963,7 +1005,7 @@ static int gic_iterate_rdists(int (*fn)(struct redist_region *, void __iomem *))
 
 static int __gic_populate_rdist(struct redist_region *region, void __iomem *ptr)
 {
-	unsigned long mpidr = cpu_logical_map(smp_processor_id());
+	unsigned long mpidr;
 	u64 typer;
 	u32 aff;
 
@@ -971,6 +1013,8 @@ static int __gic_populate_rdist(struct redist_region *region, void __iomem *ptr)
 	 * Convert affinity to a 32bit value that can be matched to
 	 * GICR_TYPER bits [63:32].
 	 */
+	mpidr = gic_cpu_to_affinity(smp_processor_id());
+
 	aff = (MPIDR_AFFINITY_LEVEL(mpidr, 3) << 24 |
 	       MPIDR_AFFINITY_LEVEL(mpidr, 2) << 16 |
 	       MPIDR_AFFINITY_LEVEL(mpidr, 1) << 8 |
@@ -1084,7 +1128,7 @@ static inline bool gic_dist_security_disabled(void)
 static void gic_cpu_sys_reg_init(void)
 {
 	int i, cpu = smp_processor_id();
-	u64 mpidr = cpu_logical_map(cpu);
+	u64 mpidr = gic_cpu_to_affinity(cpu);
 	u64 need_rss = MPIDR_RS(mpidr);
 	bool group0;
 	u32 pribits;
@@ -1183,11 +1227,11 @@ static void gic_cpu_sys_reg_init(void)
 	for_each_online_cpu(i) {
 		bool have_rss = per_cpu(has_rss, i) && per_cpu(has_rss, cpu);
 
-		need_rss |= MPIDR_RS(cpu_logical_map(i));
+		need_rss |= MPIDR_RS(gic_cpu_to_affinity(i));
 		if (need_rss && (!have_rss))
 			pr_crit("CPU%d (%lx) can't SGI CPU%d (%lx), no RSS\n",
 				cpu, (unsigned long)mpidr,
-				i, (unsigned long)cpu_logical_map(i));
+				i, (unsigned long)gic_cpu_to_affinity(i));
 	}
 
 	/**
@@ -1263,8 +1307,10 @@ static u16 gic_compute_target_list(int *base_cpu, const struct cpumask *mask,
 				   unsigned long cluster_id)
 {
 	int next_cpu, cpu = *base_cpu;
-	unsigned long mpidr = cpu_logical_map(cpu);
+	unsigned long mpidr;
 	u16 tlist = 0;
+
+	mpidr = gic_cpu_to_affinity(cpu);
 
 	while (cpu < nr_cpu_ids) {
 		tlist |= 1 << (mpidr & 0xf);
@@ -1274,7 +1320,7 @@ static u16 gic_compute_target_list(int *base_cpu, const struct cpumask *mask,
 			goto out;
 		cpu = next_cpu;
 
-		mpidr = cpu_logical_map(cpu);
+		mpidr = gic_cpu_to_affinity(cpu);
 
 		if (cluster_id != MPIDR_TO_SGI_CLUSTER_ID(mpidr)) {
 			cpu--;
@@ -1319,7 +1365,7 @@ static void gic_ipi_send_mask(struct irq_data *d, const struct cpumask *mask)
 	dsb(ishst);
 
 	for_each_cpu(cpu, mask) {
-		u64 cluster_id = MPIDR_TO_SGI_CLUSTER_ID(cpu_logical_map(cpu));
+		u64 cluster_id = MPIDR_TO_SGI_CLUSTER_ID(gic_cpu_to_affinity(cpu));
 		u16 tlist;
 
 		tlist = gic_compute_target_list(&cpu, mask, cluster_id);
@@ -1377,7 +1423,7 @@ static int gic_set_affinity(struct irq_data *d, const struct cpumask *mask_val,
 
 	offset = convert_offset_index(d, GICD_IROUTER, &index);
 	reg = gic_dist_base(d) + offset + (index * 8);
-	val = gic_mpidr_to_affinity(cpu_logical_map(cpu));
+	val = gic_cpu_to_affinity(cpu);
 
 	gic_write_irouter(val, reg);
 
@@ -1796,11 +1842,31 @@ static bool gic_enable_quirk_nvidia_t241(void *data)
 	return true;
 }
 
+static bool gic_enable_quirk_asr8601(void *data)
+{
+	struct gic_chip_data *d = data;
+
+	d->flags |= FLAGS_WORKAROUND_ASR_ERRATUM_8601001;
+
+	return true;
+}
+
+static bool gic_enable_quirk_arm64_2941627(void *data)
+{
+	static_branch_enable(&gic_arm64_2941627_erratum);
+	return true;
+}
+
 static const struct gic_quirk gic_quirks[] = {
 	{
 		.desc	= "GICv3: Qualcomm MSM8996 broken firmware",
 		.compatible = "qcom,msm8996-gic-v3",
 		.init	= gic_enable_quirk_msm8996,
+	},
+	{
+		.desc	= "GICv3: ASR erratum 8601001",
+		.compatible = "asr,asr8601-gic-v3",
+		.init	= gic_enable_quirk_asr8601,
 	},
 	{
 		.desc	= "GICv3: Mediatek Chromebook GICR save problem",
@@ -1837,6 +1903,25 @@ static const struct gic_quirk gic_quirks[] = {
 		.iidr	= 0x0402043b,
 		.mask	= 0xffffffff,
 		.init	= gic_enable_quirk_nvidia_t241,
+	},
+	{
+		/*
+		 * GIC-700: 2941627 workaround - IP variant [0,1]
+		 *
+		 */
+		.desc	= "GICv3: ARM64 erratum 2941627",
+		.iidr	= 0x0400043b,
+		.mask	= 0xff0e0fff,
+		.init	= gic_enable_quirk_arm64_2941627,
+	},
+	{
+		/*
+		 * GIC-700: 2941627 workaround - IP variant [2]
+		 */
+		.desc	= "GICv3: ARM64 erratum 2941627",
+		.iidr	= 0x0402043b,
+		.mask	= 0xff0f0fff,
+		.init	= gic_enable_quirk_arm64_2941627,
 	},
 	{
 	}

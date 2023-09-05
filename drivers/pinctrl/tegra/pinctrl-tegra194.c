@@ -1189,12 +1189,9 @@ enum tegra_mux_dt {
 };
 
 /* Make list of each function name */
-#define TEGRA_PIN_FUNCTION(lid)			\
-	{					\
-		.name = #lid,			\
-	}
+#define TEGRA_PIN_FUNCTION(lid) #lid
 
-static struct tegra_function tegra194_functions[] = {
+static const char * const tegra194_functions[] = {
 	TEGRA_PIN_FUNCTION(rsvd0),
 	TEGRA_PIN_FUNCTION(rsvd1),
 	TEGRA_PIN_FUNCTION(rsvd2),

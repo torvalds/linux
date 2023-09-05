@@ -49,7 +49,7 @@ static struct i2c_driver ssm2602_i2c_driver = {
 		.name = "ssm2602",
 		.of_match_table = ssm2602_of_match,
 	},
-	.probe_new = ssm2602_i2c_probe,
+	.probe = ssm2602_i2c_probe,
 	.id_table = ssm2602_i2c_id,
 };
 module_i2c_driver(ssm2602_i2c_driver);

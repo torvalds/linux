@@ -291,7 +291,7 @@ void smp_muxed_ipi_set_message(int cpu, int msg)
 	 * Order previous accesses before accesses in the IPI handler.
 	 */
 	smp_mb();
-	message[msg] = 1;
+	WRITE_ONCE(message[msg], 1);
 }
 
 void smp_muxed_ipi_message_pass(int cpu, int msg)
@@ -350,7 +350,7 @@ irqreturn_t smp_ipi_demux_relaxed(void)
 		if (all & IPI_MESSAGE(PPC_MSG_NMI_IPI))
 			nmi_ipi_action(0, NULL);
 #endif
-	} while (info->messages);
+	} while (READ_ONCE(info->messages));
 
 	return IRQ_HANDLED;
 }
@@ -417,9 +417,9 @@ noinstr static void nmi_ipi_lock_start(unsigned long *flags)
 {
 	raw_local_irq_save(*flags);
 	hard_irq_disable();
-	while (arch_atomic_cmpxchg(&__nmi_ipi_lock, 0, 1) == 1) {
+	while (raw_atomic_cmpxchg(&__nmi_ipi_lock, 0, 1) == 1) {
 		raw_local_irq_restore(*flags);
-		spin_until_cond(arch_atomic_read(&__nmi_ipi_lock) == 0);
+		spin_until_cond(raw_atomic_read(&__nmi_ipi_lock) == 0);
 		raw_local_irq_save(*flags);
 		hard_irq_disable();
 	}
@@ -427,15 +427,15 @@ noinstr static void nmi_ipi_lock_start(unsigned long *flags)
 
 noinstr static void nmi_ipi_lock(void)
 {
-	while (arch_atomic_cmpxchg(&__nmi_ipi_lock, 0, 1) == 1)
-		spin_until_cond(arch_atomic_read(&__nmi_ipi_lock) == 0);
+	while (raw_atomic_cmpxchg(&__nmi_ipi_lock, 0, 1) == 1)
+		spin_until_cond(raw_atomic_read(&__nmi_ipi_lock) == 0);
 }
 
 noinstr static void nmi_ipi_unlock(void)
 {
 	smp_mb();
-	WARN_ON(arch_atomic_read(&__nmi_ipi_lock) != 1);
-	arch_atomic_set(&__nmi_ipi_lock, 0);
+	WARN_ON(raw_atomic_read(&__nmi_ipi_lock) != 1);
+	raw_atomic_set(&__nmi_ipi_lock, 0);
 }
 
 noinstr static void nmi_ipi_unlock_end(unsigned long *flags)
@@ -1605,6 +1605,7 @@ static void add_cpu_to_masks(int cpu)
 }
 
 /* Activate a secondary processor. */
+__no_stack_protector
 void start_secondary(void *unused)
 {
 	unsigned int cpu = raw_smp_processor_id();

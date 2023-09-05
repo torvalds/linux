@@ -235,7 +235,6 @@ noinline int test__dwarf_unwind(struct test_suite *test __maybe_unused,
 	thread__put(thread);
 
  out:
-	machine__delete_threads(machine);
 	machine__delete(machine);
 	return err;
 }

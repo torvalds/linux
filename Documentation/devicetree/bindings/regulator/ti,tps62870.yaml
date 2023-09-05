@@ -1,0 +1,52 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/regulator/ti,tps62870.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: TI TPS62870/TPS62871/TPS62872/TPS62873 voltage regulator
+
+maintainers:
+  - Mårten Lindahl <marten.lindahl@axis.com>
+
+allOf:
+  - $ref: regulator.yaml#
+
+properties:
+  compatible:
+    enum:
+      - ti,tps62870
+      - ti,tps62871
+      - ti,tps62872
+      - ti,tps62873
+
+  reg:
+    maxItems: 1
+
+  regulator-initial-mode:
+    enum: [ 1, 2 ]
+    description: 1 - Forced PWM mode, 2 - Low power mode
+
+required:
+  - compatible
+  - reg
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    i2c {
+      #address-cells = <1>;
+      #size-cells = <0>;
+
+      regulator@41 {
+        compatible = "ti,tps62873";
+        reg = <0x41>;
+        regulator-name = "+0.75V";
+        regulator-min-microvolt = <400000>;
+        regulator-max-microvolt = <1675000>;
+        regulator-initial-mode = <1>;
+      };
+    };
+
+...

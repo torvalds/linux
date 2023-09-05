@@ -205,7 +205,7 @@ static struct i2c_driver ltc4151_driver = {
 		.name	= "ltc4151",
 		.of_match_table = of_match_ptr(ltc4151_match),
 	},
-	.probe_new	= ltc4151_probe,
+	.probe		= ltc4151_probe,
 	.id_table	= ltc4151_id,
 };
 

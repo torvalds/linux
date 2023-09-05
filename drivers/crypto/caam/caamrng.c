@@ -172,6 +172,50 @@ static void caam_cleanup(struct hwrng *rng)
 	kfifo_free(&ctx->fifo);
 }
 
+#ifdef CONFIG_CRYPTO_DEV_FSL_CAAM_RNG_TEST
+static inline void test_len(struct hwrng *rng, size_t len, bool wait)
+{
+	u8 *buf;
+	int read_len;
+	struct caam_rng_ctx *ctx = to_caam_rng_ctx(rng);
+	struct device *dev = ctx->ctrldev;
+
+	buf = kcalloc(CAAM_RNG_MAX_FIFO_STORE_SIZE, sizeof(u8), GFP_KERNEL);
+
+	while (len > 0) {
+		read_len = rng->read(rng, buf, len, wait);
+
+		if (read_len < 0 || (read_len == 0 && wait)) {
+			dev_err(dev, "RNG Read FAILED received %d bytes\n",
+				read_len);
+			kfree(buf);
+			return;
+		}
+
+		print_hex_dump_debug("random bytes@: ",
+			DUMP_PREFIX_ADDRESS, 16, 4,
+			buf, read_len, 1);
+
+		len = len - read_len;
+	}
+
+	kfree(buf);
+}
+
+static inline void test_mode_once(struct hwrng *rng, bool wait)
+{
+	test_len(rng, 32, wait);
+	test_len(rng, 64, wait);
+	test_len(rng, 128, wait);
+}
+
+static void self_test(struct hwrng *rng)
+{
+	pr_info("Executing RNG SELF-TEST with wait\n");
+	test_mode_once(rng, true);
+}
+#endif
+
 static int caam_init(struct hwrng *rng)
 {
 	struct caam_rng_ctx *ctx = to_caam_rng_ctx(rng);
@@ -257,6 +301,10 @@ int caam_rng_init(struct device *ctrldev)
 		caam_rng_exit(ctrldev);
 		return ret;
 	}
+
+#ifdef CONFIG_CRYPTO_DEV_FSL_CAAM_RNG_TEST
+	self_test(&ctx->rng);
+#endif
 
 	devres_close_group(ctrldev, caam_rng_init);
 	return 0;

@@ -31,6 +31,8 @@ struct adf_cfg_device_data {
 
 int adf_cfg_dev_add(struct adf_accel_dev *accel_dev);
 void adf_cfg_dev_remove(struct adf_accel_dev *accel_dev);
+void adf_cfg_dev_dbgfs_add(struct adf_accel_dev *accel_dev);
+void adf_cfg_dev_dbgfs_rm(struct adf_accel_dev *accel_dev);
 int adf_cfg_section_add(struct adf_accel_dev *accel_dev, const char *name);
 void adf_cfg_del_all(struct adf_accel_dev *accel_dev);
 int adf_cfg_add_key_value_param(struct adf_accel_dev *accel_dev,

@@ -1133,18 +1133,18 @@ struct mpi3mr_ioc {
 	u32 chain_buf_count;
 	struct dma_pool *chain_buf_pool;
 	struct chain_element *chain_sgl_list;
-	void *chain_bitmap;
+	unsigned long *chain_bitmap;
 	spinlock_t chain_buf_lock;
 
 	struct mpi3mr_drv_cmd bsg_cmds;
 	struct mpi3mr_drv_cmd host_tm_cmds;
 	struct mpi3mr_drv_cmd dev_rmhs_cmds[MPI3MR_NUM_DEVRMCMD];
 	struct mpi3mr_drv_cmd evtack_cmds[MPI3MR_NUM_EVTACKCMD];
-	void *devrem_bitmap;
+	unsigned long *devrem_bitmap;
 	u16 dev_handle_bitmap_bits;
-	void *removepend_bitmap;
+	unsigned long *removepend_bitmap;
 	struct list_head delayed_rmhs_list;
-	void *evtack_cmds_bitmap;
+	unsigned long *evtack_cmds_bitmap;
 	struct list_head delayed_evtack_cmds_list;
 
 	u32 ts_update_counter;

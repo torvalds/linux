@@ -242,8 +242,7 @@ extern void xdr_init_encode(struct xdr_stream *xdr, struct xdr_buf *buf,
 extern void xdr_init_encode_pages(struct xdr_stream *xdr, struct xdr_buf *buf,
 			   struct page **pages, struct rpc_rqst *rqst);
 extern __be32 *xdr_reserve_space(struct xdr_stream *xdr, size_t nbytes);
-extern int xdr_reserve_space_vec(struct xdr_stream *xdr, struct kvec *vec,
-		size_t nbytes);
+extern int xdr_reserve_space_vec(struct xdr_stream *xdr, size_t nbytes);
 extern void __xdr_commit_encode(struct xdr_stream *xdr);
 extern void xdr_truncate_encode(struct xdr_stream *xdr, size_t len);
 extern void xdr_truncate_decode(struct xdr_stream *xdr, size_t len);

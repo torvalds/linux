@@ -57,7 +57,7 @@ static struct i2c_driver wm8731_i2c_driver = {
 		.name = "wm8731",
 		.of_match_table = wm8731_of_match,
 	},
-	.probe_new = wm8731_i2c_probe,
+	.probe = wm8731_i2c_probe,
 	.id_table = wm8731_i2c_id,
 };
 

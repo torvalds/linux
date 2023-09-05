@@ -490,7 +490,7 @@ static struct i2c_driver isl12026_driver = {
 		.name	= "rtc-isl12026",
 		.of_match_table = isl12026_dt_match,
 	},
-	.probe_new	= isl12026_probe_new,
+	.probe		= isl12026_probe_new,
 	.remove		= isl12026_remove,
 };
 

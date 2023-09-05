@@ -1093,6 +1093,10 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 		case 0x074: map_key_clear(KEY_BRIGHTNESS_MAX);		break;
 		case 0x075: map_key_clear(KEY_BRIGHTNESS_AUTO);		break;
 
+		case 0x076: map_key_clear(KEY_CAMERA_ACCESS_ENABLE);	break;
+		case 0x077: map_key_clear(KEY_CAMERA_ACCESS_DISABLE);	break;
+		case 0x078: map_key_clear(KEY_CAMERA_ACCESS_TOGGLE);	break;
+
 		case 0x079: map_key_clear(KEY_KBDILLUMUP);	break;
 		case 0x07a: map_key_clear(KEY_KBDILLUMDOWN);	break;
 		case 0x07c: map_key_clear(KEY_KBDILLUMTOGGLE);	break;
@@ -1139,9 +1143,6 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 		case 0x0cd: map_key_clear(KEY_PLAYPAUSE);	break;
 		case 0x0cf: map_key_clear(KEY_VOICECOMMAND);	break;
 
-		case 0x0d5: map_key_clear(KEY_CAMERA_ACCESS_ENABLE);		break;
-		case 0x0d6: map_key_clear(KEY_CAMERA_ACCESS_DISABLE);		break;
-		case 0x0d7: map_key_clear(KEY_CAMERA_ACCESS_TOGGLE);		break;
 		case 0x0d8: map_key_clear(KEY_DICTATE);		break;
 		case 0x0d9: map_key_clear(KEY_EMOJI_PICKER);	break;
 

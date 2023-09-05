@@ -499,7 +499,7 @@ static struct i2c_driver s35390a_driver = {
 		.name	= "rtc-s35390a",
 		.of_match_table = of_match_ptr(s35390a_of_match),
 	},
-	.probe_new	= s35390a_probe,
+	.probe		= s35390a_probe,
 	.id_table	= s35390a_id,
 };
 

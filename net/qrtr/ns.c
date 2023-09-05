@@ -783,7 +783,7 @@ int qrtr_ns_init(void)
 		goto err_sock;
 	}
 
-	qrtr_ns.workqueue = alloc_workqueue("qrtr_ns_handler", WQ_UNBOUND, 1);
+	qrtr_ns.workqueue = alloc_ordered_workqueue("qrtr_ns_handler", 0);
 	if (!qrtr_ns.workqueue) {
 		ret = -ENOMEM;
 		goto err_sock;

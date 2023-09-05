@@ -368,43 +368,6 @@
 	status = "okay";
 };
 
-&dsi0 {
-	vdda-supply = <&vreg_l26a_1p2>;
-	status = "okay";
-
-	panel: panel@0 {
-		/* The compatible is assigned in device DTs. */
-		reg = <0>;
-
-		backlight = <&pmi8998_wled>;
-		vddio-supply = <&vreg_l14a_1p8>;
-		vsp-supply = <&lab>;
-		vsn-supply = <&ibb>;
-		panel-reset-gpios = <&tlmm 6 GPIO_ACTIVE_HIGH>;
-		touch-reset-gpios = <&tlmm 99 GPIO_ACTIVE_HIGH>;
-
-		pinctrl-0 = <&sde_dsi_active &sde_te_active_sleep>;
-		pinctrl-1 = <&sde_dsi_sleep &sde_te_active_sleep>;
-		pinctrl-names = "default", "sleep";
-
-		port {
-			panel_in: endpoint {
-				remote-endpoint = <&dsi0_out>;
-			};
-		};
-	};
-};
-
-&dsi0_out {
-	remote-endpoint = <&panel_in>;
-	data-lanes = <0 1 2 3>;
-};
-
-&dsi0_phy {
-	vdds-supply = <&vreg_l1a_0p9>;
-	status = "okay";
-};
-
 &gcc {
 	protected-clocks = <GCC_QSPI_CORE_CLK>,
 			<GCC_QSPI_CORE_CLK_SRC>,
@@ -512,6 +475,43 @@
 };
 
 &mdss {
+	status = "okay";
+};
+
+&mdss_dsi0 {
+	vdda-supply = <&vreg_l26a_1p2>;
+	status = "okay";
+
+	panel: panel@0 {
+		/* The compatible is assigned in device DTs. */
+		reg = <0>;
+
+		backlight = <&pmi8998_wled>;
+		vddio-supply = <&vreg_l14a_1p8>;
+		vsp-supply = <&lab>;
+		vsn-supply = <&ibb>;
+		panel-reset-gpios = <&tlmm 6 GPIO_ACTIVE_HIGH>;
+		touch-reset-gpios = <&tlmm 99 GPIO_ACTIVE_HIGH>;
+
+		pinctrl-0 = <&sde_dsi_active &sde_te_active_sleep>;
+		pinctrl-1 = <&sde_dsi_sleep &sde_te_active_sleep>;
+		pinctrl-names = "default", "sleep";
+
+		port {
+			panel_in: endpoint {
+				remote-endpoint = <&mdss_dsi0_out>;
+			};
+		};
+	};
+};
+
+&mdss_dsi0_out {
+	remote-endpoint = <&panel_in>;
+	data-lanes = <0 1 2 3>;
+};
+
+&mdss_dsi0_phy {
+	vdds-supply = <&vreg_l1a_0p9>;
 	status = "okay";
 };
 

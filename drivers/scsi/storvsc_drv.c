@@ -318,6 +318,7 @@ enum storvsc_request_type {
 #define SRB_STATUS_INVALID_REQUEST	0x06
 #define SRB_STATUS_DATA_OVERRUN		0x12
 #define SRB_STATUS_INVALID_LUN		0x20
+#define SRB_STATUS_INTERNAL_ERROR	0x30
 
 #define SRB_STATUS(status) \
 	(status & ~(SRB_STATUS_AUTOSENSE_VALID | SRB_STATUS_QUEUE_FROZEN))
@@ -365,6 +366,7 @@ static void storvsc_on_channel_callback(void *context);
 #define STORVSC_FC_MAX_LUNS_PER_TARGET			255
 #define STORVSC_FC_MAX_TARGETS				128
 #define STORVSC_FC_MAX_CHANNELS				8
+#define STORVSC_FC_MAX_XFER_SIZE			((u32)(512 * 1024))
 
 #define STORVSC_IDE_MAX_LUNS_PER_TARGET			64
 #define STORVSC_IDE_MAX_TARGETS				1
@@ -978,6 +980,7 @@ static void storvsc_handle_error(struct vmscsi_request *vm_srb,
 	case SRB_STATUS_ERROR:
 	case SRB_STATUS_ABORTED:
 	case SRB_STATUS_INVALID_REQUEST:
+	case SRB_STATUS_INTERNAL_ERROR:
 		if (vm_srb->srb_status & SRB_STATUS_AUTOSENSE_VALID) {
 			/* Check for capacity change */
 			if ((asc == 0x2a) && (ascq == 0x9)) {
@@ -1671,10 +1674,6 @@ static int storvsc_host_reset_handler(struct scsi_cmnd *scmnd)
  */
 static enum scsi_timeout_action storvsc_eh_timed_out(struct scsi_cmnd *scmnd)
 {
-#if IS_ENABLED(CONFIG_SCSI_FC_ATTRS)
-	if (scmnd->device->host->transportt == fc_transport_template)
-		return fc_eh_timed_out(scmnd);
-#endif
 	return SCSI_EH_RESET_TIMER;
 }
 
@@ -2004,6 +2003,9 @@ static int storvsc_probe(struct hv_device *device,
 	 * protecting it from any weird value.
 	 */
 	max_xfer_bytes = round_down(stor_device->max_transfer_bytes, HV_HYP_PAGE_SIZE);
+	if (is_fc)
+		max_xfer_bytes = min(max_xfer_bytes, STORVSC_FC_MAX_XFER_SIZE);
+
 	/* max_hw_sectors_kb */
 	host->max_sectors = max_xfer_bytes >> 9;
 	/*

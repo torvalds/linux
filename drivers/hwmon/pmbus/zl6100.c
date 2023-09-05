@@ -461,7 +461,7 @@ static struct i2c_driver zl6100_driver = {
 	.driver = {
 		   .name = "zl6100",
 		   },
-	.probe_new = zl6100_probe,
+	.probe = zl6100_probe,
 	.id_table = zl6100_id,
 };
 

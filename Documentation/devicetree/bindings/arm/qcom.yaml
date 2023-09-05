@@ -40,6 +40,7 @@ description: |
         msm8939
         msm8953
         msm8956
+        msm8960
         msm8974
         msm8976
         msm8992
@@ -69,6 +70,7 @@ description: |
         sdm845
         sdx55
         sdx65
+        sdx75
         sm4250
         sm6115
         sm6115p
@@ -85,9 +87,15 @@ description: |
   The 'board' element must be one of the following strings:
 
         adp
+        ap-al02-c2
+        ap-al02-c6
         ap-al02-c7
+        ap-al02-c8
+        ap-al02-c9
         ap-mi01.2
+        ap-mi01.3
         ap-mi01.6
+        ap-mi01.9
         cdp
         cp01-c1
         dragonboard
@@ -191,6 +199,7 @@ properties:
       - items:
           - enum:
               - qcom,msm8960-cdp
+              - samsung,expressatt
           - const: qcom,msm8960
 
       - items:
@@ -333,7 +342,9 @@ properties:
       - items:
           - enum:
               - qcom,ipq5332-ap-mi01.2
+              - qcom,ipq5332-ap-mi01.3
               - qcom,ipq5332-ap-mi01.6
+              - qcom,ipq5332-ap-mi01.9
           - const: qcom,ipq5332
 
       - items:
@@ -351,7 +362,11 @@ properties:
 
       - items:
           - enum:
+              - qcom,ipq9574-ap-al02-c2
+              - qcom,ipq9574-ap-al02-c6
               - qcom,ipq9574-ap-al02-c7
+              - qcom,ipq9574-ap-al02-c8
+              - qcom,ipq9574-ap-al02-c9
           - const: qcom,ipq9574
 
       - description: Sierra Wireless MangOH Green with WP8548 Module
@@ -380,9 +395,9 @@ properties:
               - qcom,qru1000-idp
           - const: qcom,qru1000
 
-      - description: Qualcomm Technologies, Inc. SC7180 IDP
-        items:
+      - items:
           - enum:
+              - acer,aspire1
               - qcom,sc7180-idp
           - const: qcom,sc7180
 
@@ -821,6 +836,11 @@ properties:
 
       - items:
           - enum:
+              - qcom,sdx75-idp
+          - const: qcom,sdx75
+
+      - items:
+          - enum:
               - qcom,ipq6018-cp01
               - qcom,ipq6018-cp01-c1
           - const: qcom,ipq6018
@@ -881,6 +901,11 @@ properties:
               - qcom,qrb4210-rb2
           - const: qcom,qrb4210
           - const: qcom,sm4250
+
+      - items:
+          - enum:
+              - fxtec,pro1x
+          - const: qcom,sm6115
 
       - items:
           - enum:
@@ -1042,6 +1067,7 @@ allOf:
               - qcom,sdm845
               - qcom,sdx55
               - qcom,sdx65
+              - qcom,sdx75
               - qcom,sm4250
               - qcom,sm6115
               - qcom,sm6125

@@ -615,7 +615,7 @@ static struct i2c_driver lp8727_driver = {
 		   .name = "lp8727",
 		   .of_match_table = of_match_ptr(lp8727_dt_ids),
 		   },
-	.probe_new = lp8727_probe,
+	.probe = lp8727_probe,
 	.remove = lp8727_remove,
 	.id_table = lp8727_ids,
 };

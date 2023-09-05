@@ -27,13 +27,8 @@
 
 					partition@0 {
 						label = "bl2";
-						reg = <0x0 0x20000>;
+						reg = <0x0 0x40000>;
 						read-only;
-					};
-
-					partition@20000 {
-						label = "reserved";
-						reg = <0x20000 0x20000>;
 					};
 
 					partition@40000 {

@@ -14,7 +14,7 @@
 #include <asm/asm-offsets.h>
 #include <asm/hwcap.h>
 #include <asm/pgtable-hwdef.h>
-#include <asm/memory.h>
+#include <asm/page.h>
 
 #include "proc-macros.S"
 

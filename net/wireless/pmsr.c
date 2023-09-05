@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (C) 2018 - 2021 Intel Corporation
+ * Copyright (C) 2018 - 2021, 2023 Intel Corporation
  */
 #include <net/cfg80211.h>
 #include "core.h"
@@ -623,9 +623,11 @@ void cfg80211_pmsr_free_wk(struct work_struct *work)
 	struct wireless_dev *wdev = container_of(work, struct wireless_dev,
 						 pmsr_free_wk);
 
+	wiphy_lock(wdev->wiphy);
 	wdev_lock(wdev);
 	cfg80211_pmsr_process_abort(wdev);
 	wdev_unlock(wdev);
+	wiphy_unlock(wdev->wiphy);
 }
 
 void cfg80211_pmsr_wdev_down(struct wireless_dev *wdev)

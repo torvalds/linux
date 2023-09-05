@@ -33,3 +33,7 @@ rm -f rust/target.json
 rm -f scripts/bin2c
 
 rm -f .scmversion
+
+rm -rf include/ksym
+
+find . -name '*.usyms' | xargs rm -f

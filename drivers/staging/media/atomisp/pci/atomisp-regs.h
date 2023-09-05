@@ -112,7 +112,6 @@
 
 /* MRFLD CSI lane configuration related */
 #define MRFLD_PORT_CONFIG_NUM  8
-#define MRFLD_PORT_NUM         3
 #define MRFLD_PORT1_ENABLE_SHIFT       0
 #define MRFLD_PORT2_ENABLE_SHIFT       1
 #define MRFLD_PORT3_ENABLE_SHIFT       2

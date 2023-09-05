@@ -17,6 +17,7 @@
 #include <linux/gpio/consumer.h>
 #include <linux/kernel.h>
 #include <linux/of.h>
+#include <linux/pm_runtime.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/device.h>
@@ -30,6 +31,8 @@
 
 #include <linux/irq.h>
 #include <linux/uaccess.h>
+
+#include "serial_base.h"
 
 /*
  * This is used to lock changes in serial line configuration.
@@ -134,9 +137,30 @@ static void __uart_start(struct tty_struct *tty)
 {
 	struct uart_state *state = tty->driver_data;
 	struct uart_port *port = state->uart_port;
+	struct serial_port_device *port_dev;
+	int err;
 
-	if (port && !(port->flags & UPF_DEAD) && !uart_tx_stopped(port))
+	if (!port || port->flags & UPF_DEAD || uart_tx_stopped(port))
+		return;
+
+	port_dev = port->port_dev;
+
+	/* Increment the runtime PM usage count for the active check below */
+	err = pm_runtime_get(&port_dev->dev);
+	if (err < 0) {
+		pm_runtime_put_noidle(&port_dev->dev);
+		return;
+	}
+
+	/*
+	 * Start TX if enabled, and kick runtime PM. If the device is not
+	 * enabled, serial_port_runtime_resume() calls start_tx() again
+	 * after enabling the device.
+	 */
+	if (pm_runtime_active(&port_dev->dev))
 		port->ops->start_tx(port);
+	pm_runtime_mark_last_busy(&port_dev->dev);
+	pm_runtime_put_autosuspend(&port_dev->dev);
 }
 
 static void uart_start(struct tty_struct *tty)
@@ -2333,8 +2357,11 @@ int uart_suspend_port(struct uart_driver *drv, struct uart_port *uport)
 	 * able to Re-start_rx later.
 	 */
 	if (!console_suspend_enabled && uart_console(uport)) {
-		if (uport->ops->start_rx)
+		if (uport->ops->start_rx) {
+			spin_lock_irq(&uport->lock);
 			uport->ops->stop_rx(uport);
+			spin_unlock_irq(&uport->lock);
+		}
 		goto unlock;
 	}
 
@@ -2427,8 +2454,11 @@ int uart_resume_port(struct uart_driver *drv, struct uart_port *uport)
 		if (console_suspend_enabled)
 			uart_change_pm(state, UART_PM_STATE_ON);
 		uport->ops->set_termios(uport, &termios, NULL);
-		if (!console_suspend_enabled && uport->ops->start_rx)
+		if (!console_suspend_enabled && uport->ops->start_rx) {
+			spin_lock_irq(&uport->lock);
 			uport->ops->start_rx(uport);
+			spin_unlock_irq(&uport->lock);
+		}
 		if (console_suspend_enabled)
 			console_start(uport->cons);
 	}
@@ -3042,7 +3072,7 @@ static const struct attribute_group tty_dev_attr_group = {
 };
 
 /**
- * uart_add_one_port - attach a driver-defined port structure
+ * serial_core_add_one_port - attach a driver-defined port structure
  * @drv: pointer to the uart low level driver structure for this port
  * @uport: uart port structure to use for this port.
  *
@@ -3051,8 +3081,9 @@ static const struct attribute_group tty_dev_attr_group = {
  * This allows the driver @drv to register its own uart_port structure with the
  * core driver. The main purpose is to allow the low level uart drivers to
  * expand uart_port, rather than having yet more levels of structures.
+ * Caller must hold port_mutex.
  */
-int uart_add_one_port(struct uart_driver *drv, struct uart_port *uport)
+static int serial_core_add_one_port(struct uart_driver *drv, struct uart_port *uport)
 {
 	struct uart_state *state;
 	struct tty_port *port;
@@ -3066,7 +3097,6 @@ int uart_add_one_port(struct uart_driver *drv, struct uart_port *uport)
 	state = drv->state + uport->line;
 	port = &state->port;
 
-	mutex_lock(&port_mutex);
 	mutex_lock(&port->mutex);
 	if (state->uart_port) {
 		ret = -EINVAL;
@@ -3131,21 +3161,14 @@ int uart_add_one_port(struct uart_driver *drv, struct uart_port *uport)
 		       uport->line);
 	}
 
-	/*
-	 * Ensure UPF_DEAD is not set.
-	 */
-	uport->flags &= ~UPF_DEAD;
-
  out:
 	mutex_unlock(&port->mutex);
-	mutex_unlock(&port_mutex);
 
 	return ret;
 }
-EXPORT_SYMBOL(uart_add_one_port);
 
 /**
- * uart_remove_one_port - detach a driver defined port structure
+ * serial_core_remove_one_port - detach a driver defined port structure
  * @drv: pointer to the uart low level driver structure for this port
  * @uport: uart port structure for this port
  *
@@ -3153,21 +3176,16 @@ EXPORT_SYMBOL(uart_add_one_port);
  *
  * This unhooks (and hangs up) the specified port structure from the core
  * driver. No further calls will be made to the low-level code for this port.
+ * Caller must hold port_mutex.
  */
-int uart_remove_one_port(struct uart_driver *drv, struct uart_port *uport)
+static void serial_core_remove_one_port(struct uart_driver *drv,
+					struct uart_port *uport)
 {
 	struct uart_state *state = drv->state + uport->line;
 	struct tty_port *port = &state->port;
 	struct uart_port *uart_port;
 	struct tty_struct *tty;
-	int ret = 0;
 
-	mutex_lock(&port_mutex);
-
-	/*
-	 * Mark the port "dead" - this prevents any opens from
-	 * succeeding while we shut down the port.
-	 */
 	mutex_lock(&port->mutex);
 	uart_port = uart_port_check(state);
 	if (uart_port != uport)
@@ -3176,10 +3194,8 @@ int uart_remove_one_port(struct uart_driver *drv, struct uart_port *uport)
 
 	if (!uart_port) {
 		mutex_unlock(&port->mutex);
-		ret = -EINVAL;
-		goto out;
+		return;
 	}
-	uport->flags |= UPF_DEAD;
 	mutex_unlock(&port->mutex);
 
 	/*
@@ -3211,18 +3227,14 @@ int uart_remove_one_port(struct uart_driver *drv, struct uart_port *uport)
 	 * Indicate that there isn't a port here anymore.
 	 */
 	uport->type = PORT_UNKNOWN;
+	uport->port_dev = NULL;
 
 	mutex_lock(&port->mutex);
 	WARN_ON(atomic_dec_return(&state->refcount) < 0);
 	wait_event(state->remove_wait, !atomic_read(&state->refcount));
 	state->uart_port = NULL;
 	mutex_unlock(&port->mutex);
-out:
-	mutex_unlock(&port_mutex);
-
-	return ret;
 }
-EXPORT_SYMBOL(uart_remove_one_port);
 
 /**
  * uart_match_port - are the two ports equivalent?
@@ -3256,6 +3268,144 @@ bool uart_match_port(const struct uart_port *port1,
 	return false;
 }
 EXPORT_SYMBOL(uart_match_port);
+
+static struct serial_ctrl_device *
+serial_core_get_ctrl_dev(struct serial_port_device *port_dev)
+{
+	struct device *dev = &port_dev->dev;
+
+	return to_serial_base_ctrl_device(dev->parent);
+}
+
+/*
+ * Find a registered serial core controller device if one exists. Returns
+ * the first device matching the ctrl_id. Caller must hold port_mutex.
+ */
+static struct serial_ctrl_device *serial_core_ctrl_find(struct uart_driver *drv,
+							struct device *phys_dev,
+							int ctrl_id)
+{
+	struct uart_state *state;
+	int i;
+
+	lockdep_assert_held(&port_mutex);
+
+	for (i = 0; i < drv->nr; i++) {
+		state = drv->state + i;
+		if (!state->uart_port || !state->uart_port->port_dev)
+			continue;
+
+		if (state->uart_port->dev == phys_dev &&
+		    state->uart_port->ctrl_id == ctrl_id)
+			return serial_core_get_ctrl_dev(state->uart_port->port_dev);
+	}
+
+	return NULL;
+}
+
+static struct serial_ctrl_device *serial_core_ctrl_device_add(struct uart_port *port)
+{
+	return serial_base_ctrl_add(port, port->dev);
+}
+
+static int serial_core_port_device_add(struct serial_ctrl_device *ctrl_dev,
+				       struct uart_port *port)
+{
+	struct serial_port_device *port_dev;
+
+	port_dev = serial_base_port_add(port, ctrl_dev);
+	if (IS_ERR(port_dev))
+		return PTR_ERR(port_dev);
+
+	port->port_dev = port_dev;
+
+	return 0;
+}
+
+/*
+ * Initialize a serial core port device, and a controller device if needed.
+ */
+int serial_core_register_port(struct uart_driver *drv, struct uart_port *port)
+{
+	struct serial_ctrl_device *ctrl_dev, *new_ctrl_dev = NULL;
+	int ret;
+
+	mutex_lock(&port_mutex);
+
+	/*
+	 * Prevent serial_port_runtime_resume() from trying to use the port
+	 * until serial_core_add_one_port() has completed
+	 */
+	port->flags |= UPF_DEAD;
+
+	/* Inititalize a serial core controller device if needed */
+	ctrl_dev = serial_core_ctrl_find(drv, port->dev, port->ctrl_id);
+	if (!ctrl_dev) {
+		new_ctrl_dev = serial_core_ctrl_device_add(port);
+		if (IS_ERR(new_ctrl_dev)) {
+			ret = PTR_ERR(new_ctrl_dev);
+			goto err_unlock;
+		}
+		ctrl_dev = new_ctrl_dev;
+	}
+
+	/*
+	 * Initialize a serial core port device. Tag the port dead to prevent
+	 * serial_port_runtime_resume() trying to do anything until port has
+	 * been registered. It gets cleared by serial_core_add_one_port().
+	 */
+	ret = serial_core_port_device_add(ctrl_dev, port);
+	if (ret)
+		goto err_unregister_ctrl_dev;
+
+	ret = serial_core_add_one_port(drv, port);
+	if (ret)
+		goto err_unregister_port_dev;
+
+	port->flags &= ~UPF_DEAD;
+
+	mutex_unlock(&port_mutex);
+
+	return 0;
+
+err_unregister_port_dev:
+	serial_base_port_device_remove(port->port_dev);
+
+err_unregister_ctrl_dev:
+	serial_base_ctrl_device_remove(new_ctrl_dev);
+
+err_unlock:
+	mutex_unlock(&port_mutex);
+
+	return ret;
+}
+
+/*
+ * Removes a serial core port device, and the related serial core controller
+ * device if the last instance.
+ */
+void serial_core_unregister_port(struct uart_driver *drv, struct uart_port *port)
+{
+	struct device *phys_dev = port->dev;
+	struct serial_port_device *port_dev = port->port_dev;
+	struct serial_ctrl_device *ctrl_dev = serial_core_get_ctrl_dev(port_dev);
+	int ctrl_id = port->ctrl_id;
+
+	mutex_lock(&port_mutex);
+
+	port->flags |= UPF_DEAD;
+
+	serial_core_remove_one_port(drv, port);
+
+	/* Note that struct uart_port *port is no longer valid at this point */
+	serial_base_port_device_remove(port_dev);
+
+	/* Drop the serial core controller device if no ports are using it */
+	if (!serial_core_ctrl_find(drv, phys_dev, ctrl_id))
+		serial_base_ctrl_device_remove(ctrl_dev);
+
+	mutex_unlock(&port_mutex);
+}
 
 /**
  * uart_handle_dcd_change - handle a change of carrier detect state

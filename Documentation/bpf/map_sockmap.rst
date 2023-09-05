@@ -240,11 +240,11 @@ offsets into ``msg``, respectively.
 If a program of type ``BPF_PROG_TYPE_SK_MSG`` is run on a ``msg`` it can only
 parse data that the (``data``, ``data_end``) pointers have already consumed.
 For ``sendmsg()`` hooks this is likely the first scatterlist element. But for
-calls relying on the ``sendpage`` handler (e.g., ``sendfile()``) this will be
-the range (**0**, **0**) because the data is shared with user space and by
-default the objective is to avoid allowing user space to modify data while (or
-after) BPF verdict is being decided. This helper can be used to pull in data
-and to set the start and end pointers to given values. Data will be copied if
+calls relying on MSG_SPLICE_PAGES (e.g., ``sendfile()``) this will be the
+range (**0**, **0**) because the data is shared with user space and by default
+the objective is to avoid allowing user space to modify data while (or after)
+BPF verdict is being decided. This helper can be used to pull in data and to
+set the start and end pointers to given values. Data will be copied if
 necessary (i.e., if data was not linear and if start and end pointers do not
 point to the same chunk).
 

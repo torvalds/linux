@@ -1072,7 +1072,7 @@ static int kprobe_ftrace_enabled;
 static int __arm_kprobe_ftrace(struct kprobe *p, struct ftrace_ops *ops,
 			       int *cnt)
 {
-	int ret = 0;
+	int ret;
 
 	lockdep_assert_held(&kprobe_mutex);
 
@@ -1110,7 +1110,7 @@ static int arm_kprobe_ftrace(struct kprobe *p)
 static int __disarm_kprobe_ftrace(struct kprobe *p, struct ftrace_ops *ops,
 				  int *cnt)
 {
-	int ret = 0;
+	int ret;
 
 	lockdep_assert_held(&kprobe_mutex);
 
@@ -1545,6 +1545,17 @@ static int check_ftrace_location(struct kprobe *p)
 	return 0;
 }
 
+static bool is_cfi_preamble_symbol(unsigned long addr)
+{
+	char symbuf[KSYM_NAME_LEN];
+
+	if (lookup_symbol_name(addr, symbuf))
+		return false;
+
+	return str_has_prefix("__cfi_", symbuf) ||
+		str_has_prefix("__pfx_", symbuf);
+}
+
 static int check_kprobe_address_safe(struct kprobe *p,
 				     struct module **probed_mod)
 {
@@ -1563,7 +1574,8 @@ static int check_kprobe_address_safe(struct kprobe *p,
 	    within_kprobe_blacklist((unsigned long) p->addr) ||
 	    jump_label_text_reserved(p->addr, p->addr) ||
 	    static_call_text_reserved(p->addr, p->addr) ||
-	    find_bug((unsigned long)p->addr)) {
+	    find_bug((unsigned long)p->addr) ||
+	    is_cfi_preamble_symbol((unsigned long)p->addr)) {
 		ret = -EINVAL;
 		goto out;
 	}
@@ -2007,9 +2019,9 @@ void __weak arch_kretprobe_fixup_return(struct pt_regs *regs,
 unsigned long __kretprobe_trampoline_handler(struct pt_regs *regs,
 					     void *frame_pointer)
 {
-	kprobe_opcode_t *correct_ret_addr = NULL;
 	struct kretprobe_instance *ri = NULL;
 	struct llist_node *first, *node = NULL;
+	kprobe_opcode_t *correct_ret_addr;
 	struct kretprobe *rp;
 
 	/* Find correct address and all nodes for this frame. */
@@ -2127,6 +2139,7 @@ static int pre_handler_kretprobe(struct kprobe *p, struct pt_regs *regs)
 NOKPROBE_SYMBOL(pre_handler_kretprobe);
 
 static void kretprobe_rethook_handler(struct rethook_node *rh, void *data,
+				      unsigned long ret_addr,
 				      struct pt_regs *regs)
 {
 	struct kretprobe *rp = (struct kretprobe *)data;
@@ -2692,7 +2705,7 @@ void kprobe_free_init_mem(void)
 
 static int __init init_kprobes(void)
 {
-	int i, err = 0;
+	int i, err;
 
 	/* FIXME allocate the probe table, currently defined statically */
 	/* initialize all list heads */

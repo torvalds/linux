@@ -1185,7 +1185,7 @@ static int iommu_alloc_root_entry(struct intel_iommu *iommu)
 {
 	struct root_entry *root;
 
-	root = (struct root_entry *)alloc_pgtable_page(iommu->node, GFP_ATOMIC);
+	root = alloc_pgtable_page(iommu->node, GFP_ATOMIC);
 	if (!root) {
 		pr_err("Allocating root entry for %s failed\n",
 			iommu->name);
@@ -1312,15 +1312,7 @@ static void __iommu_flush_iotlb(struct intel_iommu *iommu, u16 did,
 			iommu->name, type);
 		return;
 	}
-	/* Note: set drain read/write */
-#if 0
-	/*
-	 * This is probably to be super secure.. Looks like we can
-	 * ignore it without any impact.
-	 */
-	if (cap_read_drain(iommu->cap))
-		val |= DMA_TLB_READ_DRAIN;
-#endif
+
 	if (cap_write_drain(iommu->cap))
 		val |= DMA_TLB_WRITE_DRAIN;
 
@@ -1897,8 +1889,6 @@ static int domain_context_mapping_one(struct dmar_domain *domain,
 	struct context_entry *context;
 	int ret;
 
-	WARN_ON(did == 0);
-
 	if (hw_pass_through && domain_type_is_si(domain))
 		translation = CONTEXT_TT_PASS_THROUGH;
 
@@ -1943,8 +1933,6 @@ static int domain_context_mapping_one(struct dmar_domain *domain,
 
 	if (sm_supported(iommu)) {
 		unsigned long pds;
-
-		WARN_ON(!table);
 
 		/* Setup the PASID DIR pointer: */
 		pds = context_get_sm_pds(table);
@@ -2967,10 +2955,15 @@ static int init_iommu_hw(void)
 {
 	struct dmar_drhd_unit *drhd;
 	struct intel_iommu *iommu = NULL;
+	int ret;
 
-	for_each_active_iommu(iommu, drhd)
-		if (iommu->qi)
-			dmar_reenable_qi(iommu);
+	for_each_active_iommu(iommu, drhd) {
+		if (iommu->qi) {
+			ret = dmar_reenable_qi(iommu);
+			if (ret)
+				return ret;
+		}
+	}
 
 	for_each_iommu(iommu, drhd) {
 		if (drhd->ignored) {
@@ -4064,7 +4057,6 @@ static struct iommu_domain *intel_iommu_domain_alloc(unsigned type)
 	case IOMMU_DOMAIN_BLOCKED:
 		return &blocking_domain;
 	case IOMMU_DOMAIN_DMA:
-	case IOMMU_DOMAIN_DMA_FQ:
 	case IOMMU_DOMAIN_UNMANAGED:
 		dmar_domain = alloc_domain(type);
 		if (!dmar_domain) {
@@ -4369,6 +4361,7 @@ static bool intel_iommu_capable(struct device *dev, enum iommu_cap cap)
 
 	switch (cap) {
 	case IOMMU_CAP_CACHE_COHERENCY:
+	case IOMMU_CAP_DEFERRED_FLUSH:
 		return true;
 	case IOMMU_CAP_PRE_BOOT_PROTECTION:
 		return dmar_platform_optin();

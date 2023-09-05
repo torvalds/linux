@@ -1008,7 +1008,7 @@ static struct i2c_driver isl29501_driver = {
 		.name	= "isl29501",
 	},
 	.id_table	= isl29501_id,
-	.probe_new	= isl29501_probe,
+	.probe		= isl29501_probe,
 };
 module_i2c_driver(isl29501_driver);
 

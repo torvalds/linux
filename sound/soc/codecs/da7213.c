@@ -2069,7 +2069,7 @@ static struct i2c_driver da7213_i2c_driver = {
 		.acpi_match_table = ACPI_PTR(da7213_acpi_match),
 		.pm = &da7213_pm,
 	},
-	.probe_new	= da7213_i2c_probe,
+	.probe		= da7213_i2c_probe,
 	.remove		= da7213_i2c_remove,
 	.id_table	= da7213_i2c_id,
 };

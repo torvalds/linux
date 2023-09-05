@@ -13,6 +13,7 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <net/dst.h>
+#include <net/gso.h>
 #include <net/icmp.h>
 #include <net/inet_ecn.h>
 #include <net/xfrm.h>

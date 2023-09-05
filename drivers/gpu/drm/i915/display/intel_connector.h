@@ -9,7 +9,7 @@
 #include <linux/types.h>
 
 struct drm_connector;
-struct edid;
+struct drm_edid;
 struct i2c_adapter;
 struct intel_connector;
 struct intel_encoder;
@@ -25,7 +25,7 @@ void intel_connector_attach_encoder(struct intel_connector *connector,
 bool intel_connector_get_hw_state(struct intel_connector *connector);
 enum pipe intel_connector_get_pipe(struct intel_connector *connector);
 int intel_connector_update_modes(struct drm_connector *connector,
-				 struct edid *edid);
+				 const struct drm_edid *drm_edid);
 int intel_ddc_get_modes(struct drm_connector *c, struct i2c_adapter *adapter);
 void intel_attach_force_audio_property(struct drm_connector *connector);
 void intel_attach_broadcast_rgb_property(struct drm_connector *connector);

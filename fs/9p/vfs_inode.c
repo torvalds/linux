@@ -163,7 +163,6 @@ int v9fs_uflags2omode(int uflags, int extended)
 {
 	int ret;
 
-	ret = 0;
 	switch (uflags&3) {
 	default:
 	case O_RDONLY:
@@ -603,7 +602,6 @@ v9fs_create(struct v9fs_session_info *v9ses, struct inode *dir,
 
 	p9_debug(P9_DEBUG_VFS, "name %pd\n", dentry);
 
-	err = 0;
 	name = dentry->d_name.name;
 	dfid = v9fs_parent_fid(dentry);
 	if (IS_ERR(dfid)) {
@@ -815,8 +813,6 @@ v9fs_vfs_atomic_open(struct inode *dir, struct dentry *dentry,
 	if (!(flags & O_CREAT) || d_really_is_positive(dentry))
 		return finish_no_open(file, res);
 
-	err = 0;
-
 	v9ses = v9fs_inode2v9ses(dir);
 	perm = unixmode2p9mode(v9ses, mode);
 	p9_omode = v9fs_uflags2omode(flags, v9fs_proto_dotu(v9ses));
@@ -912,7 +908,6 @@ v9fs_vfs_rename(struct mnt_idmap *idmap, struct inode *old_dir,
 		return -EINVAL;
 
 	p9_debug(P9_DEBUG_VFS, "\n");
-	retval = 0;
 	old_inode = d_inode(old_dentry);
 	new_inode = d_inode(new_dentry);
 	v9ses = v9fs_inode2v9ses(old_inode);
@@ -1066,7 +1061,6 @@ static int v9fs_vfs_setattr(struct mnt_idmap *idmap,
 	if (retval)
 		return retval;
 
-	retval = -EPERM;
 	v9ses = v9fs_dentry2v9ses(dentry);
 	if (iattr->ia_valid & ATTR_FILE) {
 		fid = iattr->ia_file->private_data;

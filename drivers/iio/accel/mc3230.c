@@ -190,7 +190,7 @@ static struct i2c_driver mc3230_driver = {
 		.name = "mc3230",
 		.pm = pm_sleep_ptr(&mc3230_pm_ops),
 	},
-	.probe_new	= mc3230_probe,
+	.probe		= mc3230_probe,
 	.remove		= mc3230_remove,
 	.id_table	= mc3230_i2c_id,
 };

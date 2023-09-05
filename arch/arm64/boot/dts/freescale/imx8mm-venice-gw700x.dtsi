@@ -149,7 +149,7 @@
 			};
 
 			channel@8 {
-				gw,mode = <1>;
+				gw,mode = <3>;
 				reg = <0x08>;
 				label = "vdd_bat";
 			};
@@ -234,8 +234,6 @@
 		};
 
 		fan-controller@0 {
-			#address-cells = <1>;
-			#size-cells = <0>;
 			compatible = "gw,gsc-fan";
 			reg = <0x0a>;
 		};

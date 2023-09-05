@@ -22,8 +22,8 @@
 #include <linux/mutex.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
+#include <linux/io.h>
 #include <asm/ebcdic.h>
-#include <asm/io.h>
 #include <asm/appldata.h>
 #include <asm/monwriter.h>
 
