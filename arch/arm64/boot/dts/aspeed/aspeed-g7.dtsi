@@ -672,7 +672,7 @@
 			reg = <0x0 0x14000000 0x0 0xc4>, <0x1 0x00000000 0x0 0x80000000>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			compatible = "aspeed,ast2600-fmc";
+			compatible = "aspeed,ast2700-fmc";
 			status = "disabled";
 			clocks = <&io_clk AST2700_IO_CLK_AHB>;
 			num-cs = <3>;
@@ -706,7 +706,7 @@
 			reg = <0x0 0x14010000 0x0 0xc4>, <0x1 0x80000000 0x0 0x80000000>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			compatible = "aspeed,ast2600-spi";
+			compatible = "aspeed,ast2700-spi";
 			clocks = <&io_clk AST2700_IO_CLK_AHB>;
 			status = "disabled";
 			num-cs = <2>;
@@ -732,7 +732,7 @@
 			reg = <0x0 0x14020000 0x0 0xc4>, <0x2 0x00000000 0x0 0x80000000>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			compatible = "aspeed,ast2600-spi";
+			compatible = "aspeed,ast2700-spi";
 			clocks = <&io_clk AST2700_IO_CLK_AHB>;
 			status = "disabled";
 			num-cs = <3>;
