@@ -38,6 +38,10 @@ struct v3d_queue_state {
 
 	u64 fence_context;
 	u64 emit_seqno;
+
+	u64 start_ns;
+	u64 enabled_ns;
+	u64 jobs_sent;
 };
 
 /* Performance monitor object. The perform lifetime is controlled by userspace
@@ -441,3 +445,7 @@ int v3d_perfmon_destroy_ioctl(struct drm_device *dev, void *data,
 			      struct drm_file *file_priv);
 int v3d_perfmon_get_values_ioctl(struct drm_device *dev, void *data,
 				 struct drm_file *file_priv);
+
+/* v3d_sysfs.c */
+int v3d_sysfs_init(struct device *dev);
+void v3d_sysfs_destroy(struct device *dev);

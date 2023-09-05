@@ -1014,8 +1014,12 @@ v3d_gem_init(struct drm_device *dev)
 	u32 pt_size = 4096 * 1024;
 	int ret, i;
 
-	for (i = 0; i < V3D_MAX_QUEUES; i++)
+	for (i = 0; i < V3D_MAX_QUEUES; i++) {
 		v3d->queue[i].fence_context = dma_fence_context_alloc(1);
+		v3d->queue[i].start_ns = 0;
+		v3d->queue[i].enabled_ns = 0;
+		v3d->queue[i].jobs_sent = 0;
+	}
 
 	spin_lock_init(&v3d->mm_lock);
 	spin_lock_init(&v3d->job_lock);
