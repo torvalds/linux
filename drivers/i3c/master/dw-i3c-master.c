@@ -126,7 +126,9 @@
 #define RESET_CTRL_SOFT			BIT(0)
 
 #define SLV_EVENT_CTRL			0x38
-#define SLV_EVENT_CTRL_SIR_EN		BIT(0)
+#define   SLV_EVENT_CTRL_MWL_UPD	BIT(7)
+#define   SLV_EVENT_CTRL_MRL_UPD	BIT(6)
+#define   SLV_EVENT_CTRL_SIR_EN		BIT(0)
 
 #define INTR_STATUS			0x3c
 #define INTR_STATUS_EN			0x40
@@ -165,7 +167,8 @@
 #define INTR_TARGET_MASK		(INTR_READ_REQ_RECV_STAT |	\
 					INTR_RESP_READY_STAT |		\
 					INTR_IBI_UPDATED_STAT  |	\
-					INTR_TRANSFER_ERR_STAT)
+					INTR_TRANSFER_ERR_STAT |	\
+					INTR_CCC_UPDATED_STAT)
 
 #define QUEUE_STATUS_LEVEL		0x4c
 #define QUEUE_STATUS_IBI_STATUS_CNT(x)	(((x) & GENMASK(28, 24)) >> 24)
@@ -177,6 +180,13 @@
 #define DATA_BUFFER_STATUS_LEVEL_TX(x)	((x) & GENMASK(7, 0))
 
 #define PRESENT_STATE			0x54
+#define   CM_TFR_ST_STS			GENMASK(21, 16)
+#define     CM_TFR_ST_STS_HALT		0x13
+#define   CM_TFR_STS			GENMASK(13, 8)
+#define     CM_TFR_STS_MASTER_SERV_IBI	0xe
+#define     CM_TFR_STS_MASTER_HALT	0xf
+#define     CM_TFR_STS_SLAVE_HALT	0x6
+
 #define CCC_DEVICE_STATUS		0x58
 #define DEVICE_ADDR_TABLE_POINTER	0x5c
 #define DEVICE_ADDR_TABLE_DEPTH(x)	(((x) & GENMASK(31, 16)) >> 16)
@@ -409,6 +419,30 @@ static void dw_i3c_master_enable(struct dw_i3c_master *master)
 		master->platform_ops->gen_internal_stop(master);
 		master->platform_ops->exit_sw_mode(master);
 	}
+}
+
+static int dw_i3c_master_resume(struct dw_i3c_master *master)
+{
+	u32 status;
+	u32 halt_state = CM_TFR_STS_MASTER_HALT;
+	int ret;
+
+	if (master->base.target)
+		halt_state = CM_TFR_STS_SLAVE_HALT;
+
+	writel(readl(master->regs + DEVICE_CTRL) | DEV_CTRL_RESUME,
+	       master->regs + DEVICE_CTRL);
+
+	ret = readl_poll_timeout_atomic(master->regs + PRESENT_STATE, status,
+					FIELD_GET(CM_TFR_STS, status) != halt_state,
+					10, 1000000);
+
+	if (ret)
+		dev_err(&master->base.dev,
+			"Exit halt status failed: %d %#x %#x\n", ret,
+			readl(master->regs + PRESENT_STATE),
+			readl(master->regs + QUEUE_STATUS_LEVEL));
+	return ret;
 }
 
 static int dw_i3c_master_get_addr_pos(struct dw_i3c_master *master, u8 addr)
@@ -1669,6 +1703,29 @@ static void dw_i3c_master_irq_handle_ibis(struct dw_i3c_master *master)
 	}
 }
 
+static void dw_i3c_target_handle_ccc_update(struct dw_i3c_master *master)
+{
+	u32 event = readl(master->regs + SLV_EVENT_CTRL);
+	u32 reg = readl(master->regs + SLV_MAX_LEN);
+	u32 present_state = readl(master->regs + PRESENT_STATE);
+
+	if (event & SLV_EVENT_CTRL_MRL_UPD)
+		master->base.this->info.max_read_len = SLV_MAX_RD_LEN(reg);
+
+	if (event & SLV_EVENT_CTRL_MWL_UPD) {
+		master->base.this->info.max_write_len = SLV_MAX_WR_LEN(reg);
+		master->target_rx.max_len =
+			master->base.this->info.max_write_len;
+	}
+	writel(event, master->regs + SLV_EVENT_CTRL);
+
+	/* The I3C engine would get into halt-state if it receives SETMRL/MWL CCCs */
+	if (FIELD_GET(CM_TFR_STS, present_state) == CM_TFR_STS_SLAVE_HALT)
+		dw_i3c_master_resume(master);
+
+	writel(INTR_CCC_UPDATED_STAT, master->regs + INTR_STATUS);
+}
+
 static void dw_i3c_target_handle_response_ready(struct dw_i3c_master *master)
 {
 	struct i3c_dev_desc *desc = master->base.this;
@@ -1705,6 +1762,9 @@ static irqreturn_t dw_i3c_master_irq_handler(int irq, void *dev_id)
 	}
 
 	if (master->base.target) {
+		if (status & INTR_CCC_UPDATED_STAT)
+			dw_i3c_target_handle_ccc_update(master);
+
 		if (status & INTR_IBI_UPDATED_STAT) {
 			writel(INTR_IBI_UPDATED_STAT, master->regs + INTR_STATUS);
 			complete(&master->ibi.target.comp);
