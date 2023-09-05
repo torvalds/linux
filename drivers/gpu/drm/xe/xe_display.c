@@ -319,9 +319,18 @@ static void intel_suspend_encoders(struct xe_device *xe)
 	drm_modeset_unlock_all(dev);
 }
 
+static bool suspend_to_idle(void)
+{
+#if IS_ENABLED(CONFIG_ACPI_SLEEP)
+	if (acpi_target_system_state() < ACPI_STATE_S3)
+		return true;
+#endif
+	return false;
+}
+
 void xe_display_pm_suspend(struct xe_device *xe)
 {
-	bool s2idle = acpi_target_system_state() < ACPI_STATE_S3;
+	bool s2idle = suspend_to_idle();
 	if (!xe->info.enable_display)
 		return;
 
@@ -350,7 +359,7 @@ void xe_display_pm_suspend(struct xe_device *xe)
 
 void xe_display_pm_suspend_late(struct xe_device *xe)
 {
-	bool s2idle = acpi_target_system_state() < ACPI_STATE_S3;
+	bool s2idle = suspend_to_idle();
 	if (!xe->info.enable_display)
 		return;
 
