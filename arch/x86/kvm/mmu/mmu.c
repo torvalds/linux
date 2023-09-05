@@ -3425,8 +3425,8 @@ static int fast_page_fault(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault)
 {
 	struct kvm_mmu_page *sp;
 	int ret = RET_PF_INVALID;
-	u64 spte = 0ull;
-	u64 *sptep = NULL;
+	u64 spte;
+	u64 *sptep;
 	uint retry_count = 0;
 
 	if (!page_fault_can_be_fast(fault))
@@ -3441,6 +3441,14 @@ static int fast_page_fault(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault)
 			sptep = kvm_tdp_mmu_fast_pf_get_last_sptep(vcpu, fault->addr, &spte);
 		else
 			sptep = fast_pf_get_last_sptep(vcpu, fault->addr, &spte);
+
+		/*
+		 * It's entirely possible for the mapping to have been zapped
+		 * by a different task, but the root page should always be
+		 * available as the vCPU holds a reference to its root(s).
+		 */
+		if (WARN_ON_ONCE(!sptep))
+			spte = REMOVED_SPTE;
 
 		if (!is_shadow_present_pte(spte))
 			break;
