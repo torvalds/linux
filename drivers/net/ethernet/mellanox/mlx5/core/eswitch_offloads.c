@@ -3216,26 +3216,47 @@ esw_vport_destroy_offloads_acl_tables(struct mlx5_eswitch *esw,
 	esw_acl_ingress_ofld_cleanup(esw, vport);
 }
 
-static int esw_create_uplink_offloads_acl_tables(struct mlx5_eswitch *esw)
+static int esw_create_offloads_acl_tables(struct mlx5_eswitch *esw)
 {
-	struct mlx5_vport *vport;
+	struct mlx5_vport *uplink, *manager;
+	int ret;
 
-	vport = mlx5_eswitch_get_vport(esw, MLX5_VPORT_UPLINK);
-	if (IS_ERR(vport))
-		return PTR_ERR(vport);
+	uplink = mlx5_eswitch_get_vport(esw, MLX5_VPORT_UPLINK);
+	if (IS_ERR(uplink))
+		return PTR_ERR(uplink);
 
-	return esw_vport_create_offloads_acl_tables(esw, vport);
+	ret = esw_vport_create_offloads_acl_tables(esw, uplink);
+	if (ret)
+		return ret;
+
+	manager = mlx5_eswitch_get_vport(esw, esw->manager_vport);
+	if (IS_ERR(manager)) {
+		ret = PTR_ERR(manager);
+		goto err_manager;
+	}
+
+	ret = esw_vport_create_offloads_acl_tables(esw, manager);
+	if (ret)
+		goto err_manager;
+
+	return 0;
+
+err_manager:
+	esw_vport_destroy_offloads_acl_tables(esw, uplink);
+	return ret;
 }
 
-static void esw_destroy_uplink_offloads_acl_tables(struct mlx5_eswitch *esw)
+static void esw_destroy_offloads_acl_tables(struct mlx5_eswitch *esw)
 {
 	struct mlx5_vport *vport;
 
-	vport = mlx5_eswitch_get_vport(esw, MLX5_VPORT_UPLINK);
-	if (IS_ERR(vport))
-		return;
+	vport = mlx5_eswitch_get_vport(esw, esw->manager_vport);
+	if (!IS_ERR(vport))
+		esw_vport_destroy_offloads_acl_tables(esw, vport);
 
-	esw_vport_destroy_offloads_acl_tables(esw, vport);
+	vport = mlx5_eswitch_get_vport(esw, MLX5_VPORT_UPLINK);
+	if (!IS_ERR(vport))
+		esw_vport_destroy_offloads_acl_tables(esw, vport);
 }
 
 int mlx5_eswitch_reload_reps(struct mlx5_eswitch *esw)
@@ -3280,7 +3301,7 @@ static int esw_offloads_steering_init(struct mlx5_eswitch *esw)
 	}
 	esw->fdb_table.offloads.indir = indir;
 
-	err = esw_create_uplink_offloads_acl_tables(esw);
+	err = esw_create_offloads_acl_tables(esw);
 	if (err)
 		goto create_acl_err;
 
@@ -3321,7 +3342,7 @@ create_fdb_err:
 create_restore_err:
 	esw_destroy_offloads_table(esw);
 create_offloads_err:
-	esw_destroy_uplink_offloads_acl_tables(esw);
+	esw_destroy_offloads_acl_tables(esw);
 create_acl_err:
 	mlx5_esw_indir_table_destroy(esw->fdb_table.offloads.indir);
 create_indir_err:
@@ -3337,7 +3358,7 @@ static void esw_offloads_steering_cleanup(struct mlx5_eswitch *esw)
 	esw_destroy_offloads_fdb_tables(esw);
 	esw_destroy_restore_table(esw);
 	esw_destroy_offloads_table(esw);
-	esw_destroy_uplink_offloads_acl_tables(esw);
+	esw_destroy_offloads_acl_tables(esw);
 	mlx5_esw_indir_table_destroy(esw->fdb_table.offloads.indir);
 	mutex_destroy(&esw->fdb_table.offloads.vports.lock);
 }
