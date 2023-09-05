@@ -372,7 +372,7 @@ int intel_dsc_get_num_vdsc_instances(const struct intel_crtc_state *crtc_state)
 }
 
 static void intel_dsc_get_pps_reg(const struct intel_crtc_state *crtc_state, int pps,
-				  i915_reg_t *dsc_reg, int vdsc_per_pipe)
+				  i915_reg_t *dsc_reg, int dsc_reg_num)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
@@ -381,16 +381,12 @@ static void intel_dsc_get_pps_reg(const struct intel_crtc_state *crtc_state, int
 
 	pipe_dsc = is_pipe_dsc(crtc, cpu_transcoder);
 
-	switch (vdsc_per_pipe) {
-	case 2:
+	if (dsc_reg_num >= 3)
+		MISSING_CASE(dsc_reg_num);
+	if (dsc_reg_num >= 2)
 		dsc_reg[1] = pipe_dsc ? ICL_DSC1_PPS(pipe, pps) : DSCC_PPS(pps);
-		fallthrough;
-	case 1:
+	if (dsc_reg_num >= 1)
 		dsc_reg[0] = pipe_dsc ? ICL_DSC0_PPS(pipe, pps) : DSCA_PPS(pps);
-		break;
-	default:
-		MISSING_CASE(vdsc_per_pipe);
-	}
 }
 
 static void intel_dsc_write_pps_reg(const struct intel_crtc_state *crtc_state,
@@ -399,13 +395,16 @@ static void intel_dsc_write_pps_reg(const struct intel_crtc_state *crtc_state,
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
 	i915_reg_t dsc_reg[2];
-	int i, vdsc_per_pipe = intel_dsc_get_vdsc_per_pipe(crtc_state);
+	int i, vdsc_per_pipe, dsc_reg_num;
 
-	drm_WARN_ON_ONCE(&i915->drm, ARRAY_SIZE(dsc_reg) < vdsc_per_pipe);
+	vdsc_per_pipe = intel_dsc_get_vdsc_per_pipe(crtc_state);
+	dsc_reg_num = min_t(int, ARRAY_SIZE(dsc_reg), vdsc_per_pipe);
 
-	intel_dsc_get_pps_reg(crtc_state, pps, dsc_reg, vdsc_per_pipe);
+	drm_WARN_ON_ONCE(&i915->drm, dsc_reg_num < vdsc_per_pipe);
 
-	for (i = 0; i < min_t(int, ARRAY_SIZE(dsc_reg), vdsc_per_pipe); i++)
+	intel_dsc_get_pps_reg(crtc_state, pps, dsc_reg, dsc_reg_num);
+
+	for (i = 0; i < dsc_reg_num; i++)
 		intel_de_write(i915, dsc_reg[i], pps_val);
 }
 
@@ -815,16 +814,19 @@ static bool intel_dsc_read_pps_reg(struct intel_crtc_state *crtc_state,
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
-	const int vdsc_per_pipe = intel_dsc_get_vdsc_per_pipe(crtc_state);
 	i915_reg_t dsc_reg[2];
-	int i;
+	int i, vdsc_per_pipe, dsc_reg_num;
+
+	vdsc_per_pipe = intel_dsc_get_vdsc_per_pipe(crtc_state);
+	dsc_reg_num = min_t(int, ARRAY_SIZE(dsc_reg), vdsc_per_pipe);
+
+	drm_WARN_ON_ONCE(&i915->drm, dsc_reg_num < vdsc_per_pipe);
+
+	intel_dsc_get_pps_reg(crtc_state, pps, dsc_reg, dsc_reg_num);
 
 	*pps_val = 0;
-	drm_WARN_ON_ONCE(&i915->drm, ARRAY_SIZE(dsc_reg) < vdsc_per_pipe);
 
-	intel_dsc_get_pps_reg(crtc_state, pps, dsc_reg, vdsc_per_pipe);
-
-	for (i = 0; i < min_t(int, ARRAY_SIZE(dsc_reg), vdsc_per_pipe); i++) {
+	for (i = 0; i < dsc_reg_num; i++) {
 		u32 pps_temp;
 
 		pps_temp = intel_de_read(i915, dsc_reg[i]);
