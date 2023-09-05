@@ -3,7 +3,7 @@
 
 /dts-v1/;
 
-#include "aspeed-ast2600-evb.dts"
+#include "aspeed-ast2600-evb-tee.dts"
 
 / {
 	model = "AST2600 PCIe EHCI to USB vHub EVB";
