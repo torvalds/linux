@@ -340,7 +340,9 @@ static int ast_vhub_epn_queue(struct usb_ep* u_ep, struct usb_request *u_req,
 	struct ast_vhub *vhub = ep->vhub;
 	unsigned long flags;
 	bool empty;
-	int rc;
+	int rc = 0;
+
+	spin_lock_irqsave(&vhub->lock, flags);
 
 	/* Paranoid checks */
 	if (!u_req || !u_req->complete || !u_req->buf) {
@@ -349,14 +351,16 @@ static int ast_vhub_epn_queue(struct usb_ep* u_ep, struct usb_request *u_req,
 			dev_warn(&vhub->pdev->dev, "complete=%p internal=%d\n",
 				 u_req->complete, req->internal);
 		}
-		return -EINVAL;
+		rc = -EINVAL;
+		goto out;
 	}
 
 	/* Endpoint enabled ? */
 	if (!ep->epn.enabled || !u_ep->desc || !ep->dev || !ep->d_idx ||
 	    !ep->dev->enabled) {
 		EPDBG(ep, "Enqueuing request on wrong or disabled EP\n");
-		return -ESHUTDOWN;
+		rc = -ESHUTDOWN;
+		goto out;
 	}
 
 	/* Map request for DMA if possible. For now, the rule for DMA is
@@ -383,7 +387,7 @@ static int ast_vhub_epn_queue(struct usb_ep* u_ep, struct usb_request *u_req,
 		if (rc) {
 			dev_warn(&vhub->pdev->dev,
 				 "Request mapping failure %d\n", rc);
-			return rc;
+			goto out;
 		}
 	} else
 		u_req->dma = 0;
@@ -405,9 +409,8 @@ static int ast_vhub_epn_queue(struct usb_ep* u_ep, struct usb_request *u_req,
 	req->act_count = 0;
 	req->active = false;
 	req->last_desc = -1;
-	spin_lock_irqsave(&vhub->lock, flags);
-	empty = list_empty(&ep->queue);
 
+	empty = list_empty(&ep->queue);
 	/* Add request to list and kick processing if empty */
 	list_add_tail(&req->queue, &ep->queue);
 	if (empty) {
@@ -416,9 +419,10 @@ static int ast_vhub_epn_queue(struct usb_ep* u_ep, struct usb_request *u_req,
 		else
 			ast_vhub_epn_kick(ep, req);
 	}
+out:
 	spin_unlock_irqrestore(&vhub->lock, flags);
 
-	return 0;
+	return rc;
 }
 
 static void ast_vhub_stop_active_req(struct ast_vhub_ep *ep,
