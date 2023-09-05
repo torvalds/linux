@@ -5909,6 +5909,21 @@ out:
 	nlmsg_free(msg);
 }
 
+static int nl80211_validate_ap_phy_operation(struct cfg80211_ap_settings *params)
+{
+	struct ieee80211_channel *channel = params->chandef.chan;
+
+	if ((params->he_cap ||  params->he_oper) &&
+	    (channel->flags & IEEE80211_CHAN_NO_HE))
+		return -EOPNOTSUPP;
+
+	if ((params->eht_cap || params->eht_oper) &&
+	    (channel->flags & IEEE80211_CHAN_NO_EHT))
+		return -EOPNOTSUPP;
+
+	return 0;
+}
+
 static int nl80211_start_ap(struct sk_buff *skb, struct genl_info *info)
 {
 	struct cfg80211_registered_device *rdev = info->user_ptr[0];
@@ -6175,6 +6190,10 @@ static int nl80211_start_ap(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	err = nl80211_calculate_ap_params(params);
+	if (err)
+		goto out_unlock;
+
+	err = nl80211_validate_ap_phy_operation(params);
 	if (err)
 		goto out_unlock;
 
