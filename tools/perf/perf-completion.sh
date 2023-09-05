@@ -198,6 +198,10 @@ __perf_main ()
 		else
 			__perfcomp_colon "$evts" "$cur1"
 		fi
+	elif [[ $prev == @("--pfm-events") &&
+		$prev_skip_opts == @(record|stat|top) ]]; then
+	        local evts=$($cmd list --raw-dump pfm)
+		__perfcomp "$evts" "$cur"
 	else
 		# List subcommands for perf commands
 		if [[ $prev_skip_opts == @(kvm|kmem|mem|lock|sched|
