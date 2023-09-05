@@ -1292,6 +1292,77 @@ static void ufs_qcom_exit(struct ufs_hba *hba)
 	phy_exit(host->generic_phy);
 }
 
+/**
+ * ufs_qcom_set_clk_40ns_cycles - Configure 40ns clk cycles
+ *
+ * @hba: host controller instance
+ * @cycles_in_1us: No of cycles in 1us to be configured
+ *
+ * Returns error if dme get/set configuration for 40ns fails
+ * and returns zero on success.
+ */
+static int ufs_qcom_set_clk_40ns_cycles(struct ufs_hba *hba,
+					u32 cycles_in_1us)
+{
+	struct ufs_qcom_host *host = ufshcd_get_variant(hba);
+	u32 cycles_in_40ns;
+	u32 reg;
+	int err;
+
+	/*
+	 * UFS host controller V4.0.0 onwards needs to program
+	 * PA_VS_CORE_CLK_40NS_CYCLES attribute per programmed
+	 * frequency of unipro core clk of UFS host controller.
+	 */
+	if (host->hw_ver.major < 4)
+		return 0;
+
+	/*
+	 * Generic formulae for cycles_in_40ns = (freq_unipro/25) is not
+	 * applicable for all frequencies. For ex: ceil(37.5 MHz/25) will
+	 * be 2 and ceil(403 MHZ/25) will be 17 whereas Hardware
+	 * specification expect to be 16. Hence use exact hardware spec
+	 * mandated value for cycles_in_40ns instead of calculating using
+	 * generic formulae.
+	 */
+	switch (cycles_in_1us) {
+	case UNIPRO_CORE_CLK_FREQ_403_MHZ:
+		cycles_in_40ns = 16;
+		break;
+	case UNIPRO_CORE_CLK_FREQ_300_MHZ:
+		cycles_in_40ns = 12;
+		break;
+	case UNIPRO_CORE_CLK_FREQ_201_5_MHZ:
+		cycles_in_40ns = 8;
+		break;
+	case UNIPRO_CORE_CLK_FREQ_150_MHZ:
+		cycles_in_40ns = 6;
+		break;
+	case UNIPRO_CORE_CLK_FREQ_100_MHZ:
+		cycles_in_40ns = 4;
+		break;
+	case  UNIPRO_CORE_CLK_FREQ_75_MHZ:
+		cycles_in_40ns = 3;
+		break;
+	case UNIPRO_CORE_CLK_FREQ_37_5_MHZ:
+		cycles_in_40ns = 2;
+		break;
+	default:
+		dev_err(hba->dev, "UNIPRO clk freq %u MHz not supported\n",
+				cycles_in_1us);
+		return -EINVAL;
+	}
+
+	err = ufshcd_dme_get(hba, UIC_ARG_MIB(PA_VS_CORE_CLK_40NS_CYCLES), &reg);
+	if (err)
+		return err;
+
+	reg &= ~PA_VS_CORE_CLK_40NS_CYCLES_MASK;
+	reg |= cycles_in_40ns;
+
+	return ufshcd_dme_set(hba, UIC_ARG_MIB(PA_VS_CORE_CLK_40NS_CYCLES), reg);
+}
+
 static int ufs_qcom_set_core_clk_ctrl(struct ufs_hba *hba, bool is_scale_up)
 {
 	struct ufs_qcom_host *host = ufshcd_get_variant(hba);
@@ -1334,9 +1405,14 @@ static int ufs_qcom_set_core_clk_ctrl(struct ufs_hba *hba, bool is_scale_up)
 	/* Clear CORE_CLK_DIV_EN */
 	core_clk_ctrl_reg &= ~DME_VS_CORE_CLK_CTRL_CORE_CLK_DIV_EN_BIT;
 
-	return ufshcd_dme_set(hba,
+	err = ufshcd_dme_set(hba,
 			    UIC_ARG_MIB(DME_VS_CORE_CLK_CTRL),
 			    core_clk_ctrl_reg);
+	if (err)
+		return err;
+
+	/* Configure unipro core clk 40ns attribute */
+	return ufs_qcom_set_clk_40ns_cycles(hba, cycles_in_1us);
 }
 
 static int ufs_qcom_clk_scale_up_pre_change(struct ufs_hba *hba)
