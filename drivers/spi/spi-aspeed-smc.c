@@ -64,7 +64,7 @@ struct aspeed_spi_chip {
 	u32			 cs;
 	void __iomem		*ctl;
 	void __iomem		*ahb_base;
-	u32			 ahb_window_size;
+	size_t			 ahb_window_size;
 	u32			 ctl_val[ASPEED_SPI_MAX];
 	u32			 clk_freq;
 };
@@ -78,11 +78,11 @@ struct aspeed_spi_data {
 	u32	timing;
 	u32	hclk_mask;
 	u32	hdiv_max;
-	u32	min_decoding_sz;
+	size_t	min_decoding_sz;
 
-	u32 (*segment_start)(struct aspeed_spi *aspi, u32 reg);
-	u32 (*segment_end)(struct aspeed_spi *aspi, u32 reg);
-	u32 (*segment_reg)(struct aspeed_spi *aspi, u32 start, u32 end);
+	u64 (*segment_start)(struct aspeed_spi *aspi, u32 reg);
+	u64 (*segment_end)(struct aspeed_spi *aspi, u32 reg);
+	u32 (*segment_reg)(struct aspeed_spi *aspi, u64 start, u64 end);
 	int (*calibrate)(struct aspeed_spi_chip *chip, u32 hdiv,
 			 const u8 *golden_buf, u8 *test_buf);
 };
@@ -94,9 +94,9 @@ struct aspeed_spi {
 
 	void __iomem		*regs;
 	void __iomem		*ahb_base;
-	u32			 ahb_base_phy;
-	u32			 ahb_window_size;
-	u32			num_cs;
+	phys_addr_t		 ahb_base_phy;
+	size_t			 ahb_window_size;
+	u32			 num_cs;
 	struct device		*dev;
 
 	struct clk		*clk;
@@ -388,8 +388,8 @@ static const char *aspeed_spi_get_name(struct spi_mem *mem)
 
 struct aspeed_spi_window {
 	u32 cs;
-	u32 offset;
-	u32 size;
+	off_t offset;
+	size_t size;
 };
 
 static void aspeed_spi_get_windows(struct aspeed_spi *aspi,
@@ -405,16 +405,16 @@ static void aspeed_spi_get_windows(struct aspeed_spi *aspi,
 		windows[cs].size = data->segment_end(aspi, reg_val) -
 			data->segment_start(aspi, reg_val);
 		windows[cs].offset = data->segment_start(aspi, reg_val) - aspi->ahb_base_phy;
-		dev_vdbg(aspi->dev, "CE%d offset=0x%.8x size=0x%x\n", cs,
-			 windows[cs].offset, windows[cs].size);
+		dev_vdbg(aspi->dev, "CE%d offset=0x%.9llx size=0x%zx\n", cs,
+			 (u64)windows[cs].offset, windows[cs].size);
 	}
 }
 
 static int aspeed_spi_set_window(struct aspeed_spi *aspi,
 				 const struct aspeed_spi_window *win)
 {
-	u32 start = aspi->ahb_base_phy + win->offset;
-	u32 end = start + win->size;
+	phys_addr_t start = aspi->ahb_base_phy + win->offset;
+	phys_addr_t end = start + win->size;
 	void __iomem *seg_reg = aspi->regs + CE0_SEGMENT_ADDR_REG + win->cs * 4;
 	u32 seg_val_backup = readl(seg_reg);
 	u32 seg_val = aspi->data->segment_reg(aspi, start, end);
@@ -429,15 +429,15 @@ static int aspeed_spi_set_window(struct aspeed_spi *aspi,
 	 * loose access to the chip.
 	 */
 	if (seg_val != readl(seg_reg)) {
-		dev_err(aspi->dev, "CE%d invalid window [ 0x%.8x - 0x%.8x ] %dMB",
-			win->cs, start, end - 1, win->size >> 20);
+		dev_err(aspi->dev, "CE%d invalid window [ 0x%.9llx - 0x%.9llx ] %zdMB",
+			win->cs, (u64)start, (u64)end - 1, win->size >> 20);
 		writel(seg_val_backup, seg_reg);
 		return -EIO;
 	}
 
 	if (win->size)
-		dev_dbg(aspi->dev, "CE%d new window [ 0x%.8x - 0x%.8x ] %dMB",
-			win->cs, start, end - 1,  win->size >> 20);
+		dev_dbg(aspi->dev, "CE%d new window [ 0x%.9llx - 0x%.9llx ] %zdMB",
+			win->cs, (u64)start, (u64)end - 1,  win->size >> 20);
 	else
 		dev_dbg(aspi->dev, "CE%d window closed", win->cs);
 
@@ -475,9 +475,11 @@ static void aspeed_spi_chip_set_default_window(struct aspeed_spi *aspi)
 
 		aspi->chips[cs].ahb_window_size = aspi->data->min_decoding_sz;
 
-		dev_dbg(aspi->dev, "CE%d default window [ 0x%.8x - 0x%.8x ]",
-			cs, aspi->ahb_base_phy + aspi->data->min_decoding_sz * cs,
-			aspi->ahb_base_phy + aspi->data->min_decoding_sz * cs - 1);
+		dev_dbg(aspi->dev, "CE%d default window [ 0x%.9llx - 0x%.9llx ]",
+			cs, (u64)(aspi->ahb_base_phy +
+				  aspi->data->min_decoding_sz * cs),
+			(u64)(aspi->ahb_base_phy +
+			      aspi->data->min_decoding_sz * (cs + 1) - 1));
 	}
 
 	/* Close unused CS */
@@ -502,7 +504,7 @@ static void aspeed_spi_chip_set_default_window(struct aspeed_spi *aspi)
  */
 
 static int aspeed_spi_chip_adjust_window(struct aspeed_spi_chip *chip,
-					 u32 local_offset, u32 size)
+					 off_t local_offset, size_t size)
 {
 	struct aspeed_spi *aspi = chip->aspi;
 	struct aspeed_spi_window windows[ASPEED_SPI_MAX_NUM_CS] = { 0 };
@@ -519,7 +521,7 @@ static int aspeed_spi_chip_adjust_window(struct aspeed_spi_chip *chip,
 	 */
 	if (aspi->data == &ast2500_spi_data && chip->cs == 0 && size == SZ_128M) {
 		size = 120 << 20;
-		dev_info(aspi->dev, "CE%d window resized to %dMB (AST2500 HW quirk)",
+		dev_info(aspi->dev, "CE%d window resized to %zdMB (AST2500 HW quirk)",
 			 chip->cs, size >> 20);
 	}
 
@@ -530,7 +532,7 @@ static int aspeed_spi_chip_adjust_window(struct aspeed_spi_chip *chip,
 	if ((aspi->data == &ast2600_spi_data || aspi->data == &ast2600_fmc_data) &&
 	    size < SZ_2M) {
 		size = SZ_2M;
-		dev_info(aspi->dev, "CE%d window resized to %dMB (AST2600 Decoding)",
+		dev_info(aspi->dev, "CE%d window resized to %zdMB (AST2600 Decoding)",
 			 chip->cs, size >> 20);
 	}
 
@@ -542,7 +544,7 @@ static int aspeed_spi_chip_adjust_window(struct aspeed_spi_chip *chip,
 
 	if (win->offset + win->size > aspi->ahb_window_size) {
 		win->size = aspi->ahb_window_size - win->offset;
-		dev_warn(aspi->dev, "CE%d window resized to %dMB", chip->cs, win->size >> 20);
+		dev_warn(aspi->dev, "CE%d window resized to %zdMB", chip->cs, win->size >> 20);
 	}
 
 	ret = aspeed_spi_set_window(aspi, win);
@@ -599,7 +601,7 @@ static int aspeed_spi_dirmap_create(struct spi_mem_dirmap_desc *desc)
 	aspeed_spi_chip_adjust_window(chip, desc->info.offset, desc->info.length);
 
 	if (desc->info.length > chip->ahb_window_size)
-		dev_warn(aspi->dev, "CE%d window (%dMB) too small for mapping",
+		dev_warn(aspi->dev, "CE%d window (%zdMB) too small for mapping",
 			 chip->cs, chip->ahb_window_size >> 20);
 
 	/* Define the default IO read settings */
@@ -827,19 +829,20 @@ static void aspeed_spi_remove(struct platform_device *pdev)
  * The address range is encoded with absolute addresses in the overall
  * mapping window.
  */
-static u32 aspeed_spi_segment_start(struct aspeed_spi *aspi, u32 reg)
+static u64 aspeed_spi_segment_start(struct aspeed_spi *aspi, u32 reg)
 {
 	return ((reg >> 16) & 0xFF) << 23;
 }
 
-static u32 aspeed_spi_segment_end(struct aspeed_spi *aspi, u32 reg)
+static u64 aspeed_spi_segment_end(struct aspeed_spi *aspi, u32 reg)
 {
 	return ((reg >> 24) & 0xFF) << 23;
 }
 
-static u32 aspeed_spi_segment_reg(struct aspeed_spi *aspi, u32 start, u32 end)
+static u32 aspeed_spi_segment_reg(struct aspeed_spi *aspi, u64 start, u64 end)
 {
-	return (((start >> 23) & 0xFF) << 16) | (((end >> 23) & 0xFF) << 24);
+	return (u32)((((start >> 23) & 0xFF) << 16) |
+		     (((end >> 23) & 0xFF) << 24));
 }
 
 /*
@@ -849,18 +852,18 @@ static u32 aspeed_spi_segment_reg(struct aspeed_spi *aspi, u32 start, u32 end)
 
 #define AST2600_SEG_ADDR_MASK 0x0ff00000
 
-static u32 aspeed_spi_segment_ast2600_start(struct aspeed_spi *aspi,
+static u64 aspeed_spi_segment_ast2600_start(struct aspeed_spi *aspi,
 					    u32 reg)
 {
-	u32 start_offset = (reg << 16) & AST2600_SEG_ADDR_MASK;
+	u64 start_offset = (reg << 16) & AST2600_SEG_ADDR_MASK;
 
 	return aspi->ahb_base_phy + start_offset;
 }
 
-static u32 aspeed_spi_segment_ast2600_end(struct aspeed_spi *aspi,
+static u64 aspeed_spi_segment_ast2600_end(struct aspeed_spi *aspi,
 					  u32 reg)
 {
-	u32 end_offset = reg & AST2600_SEG_ADDR_MASK;
+	u64 end_offset = reg & AST2600_SEG_ADDR_MASK;
 
 	/* segment is disabled */
 	if (!end_offset)
@@ -870,14 +873,14 @@ static u32 aspeed_spi_segment_ast2600_end(struct aspeed_spi *aspi,
 }
 
 static u32 aspeed_spi_segment_ast2600_reg(struct aspeed_spi *aspi,
-					  u32 start, u32 end)
+					  u64 start, u64 end)
 {
 	/* disable zero size segments */
 	if (start == end)
 		return 0;
 
-	return ((start & AST2600_SEG_ADDR_MASK) >> 16) |
-		((end - 1) & AST2600_SEG_ADDR_MASK);
+	return (u32)((start & AST2600_SEG_ADDR_MASK) >> 16) |
+		     ((end - 1) & AST2600_SEG_ADDR_MASK);
 }
 
 /*
