@@ -1417,12 +1417,6 @@ static int ufs_qcom_set_core_clk_ctrl(struct ufs_hba *hba, bool is_scale_up)
 
 static int ufs_qcom_clk_scale_up_pre_change(struct ufs_hba *hba)
 {
-	/* nothing to do as of now */
-	return 0;
-}
-
-static int ufs_qcom_clk_scale_up_post_change(struct ufs_hba *hba)
-{
 	struct ufs_qcom_host *host = ufshcd_get_variant(hba);
 
 	if (!ufs_qcom_cap_qunipro(host))
@@ -1430,6 +1424,11 @@ static int ufs_qcom_clk_scale_up_post_change(struct ufs_hba *hba)
 
 	/* set unipro core clock attributes and clear clock divider */
 	return ufs_qcom_set_core_clk_ctrl(hba, true);
+}
+
+static int ufs_qcom_clk_scale_up_post_change(struct ufs_hba *hba)
+{
+	return 0;
 }
 
 static int ufs_qcom_clk_scale_down_pre_change(struct ufs_hba *hba)
