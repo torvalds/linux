@@ -1,3 +1,5 @@
+load("@//build/kernel/kleaf:hermetic_tools.bzl", "hermetic_genrule")
+
 cc_library(
     name = "libfdt",
     copts = [
@@ -22,14 +24,14 @@ copts = [
    "-Wno-unused-parameter",
 ]
 
-genrule(
+hermetic_genrule(
     name = "lexer",
     srcs = ["dtc-lexer.l"],
     outs = ["dtc-lexer.lex.c"],
-    cmd = "lex -o$@ $(location dtc-lexer.l)"
+    cmd = "flex -o$@ $(location dtc-lexer.l)"
 )
 
-genrule(
+hermetic_genrule(
     name = "parser",
     srcs = ["dtc-parser.y"],
     outs = ["dtc-parser.tab.c", "dtc-parser.tab.h"],
