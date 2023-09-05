@@ -168,9 +168,11 @@ static void ast2600_i3c_gen_internal_stop(struct dw_i3c_master *dw)
 	struct ast2600_i3c *i3c = to_ast2600_i3c(dw);
 
 	regmap_write_bits(i3c->global_regs, AST2600_I3CG_REG1(i3c->global_idx),
-			  SCL_IN_SW_MODE_VAL, SCL_IN_SW_MODE_VAL);
+			  SCL_IN_SW_MODE_VAL, 0);
 	regmap_write_bits(i3c->global_regs, AST2600_I3CG_REG1(i3c->global_idx),
 			  SDA_IN_SW_MODE_VAL, 0);
+	regmap_write_bits(i3c->global_regs, AST2600_I3CG_REG1(i3c->global_idx),
+			  SCL_IN_SW_MODE_VAL, SCL_IN_SW_MODE_VAL);
 	regmap_write_bits(i3c->global_regs, AST2600_I3CG_REG1(i3c->global_idx),
 			  SDA_IN_SW_MODE_VAL, SDA_IN_SW_MODE_VAL);
 }
