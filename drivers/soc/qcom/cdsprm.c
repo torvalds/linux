@@ -1051,11 +1051,16 @@ static int cdsprm_rpmsg_callback(struct rpmsg_device *dev, void *data,
 	struct cdsprm_request *req;
 	unsigned long flags;
 
-	if (!data || (len < sizeof(*msg)) ||
-	    ((len > sizeof(*msg) && msg_v2->size != len))) {
+	if (!data || (len < sizeof(*msg))) {
 		dev_err(&dev->dev,
 			"Invalid message in rpmsg callback, length: %d, expected: >= %lu\n",
 			len, sizeof(*msg));
+		return -EINVAL;
+	} else if ((msg->feature_id >= SYSMON_CDSP_DCVS_CLIENTS_RX_STATUS) &&
+		((msg_v2->size != len) || (len < sizeof(*msg_v2)))) {
+		dev_err(&dev->dev,
+			"Invalid message in rpmsg callback, length: %d, expected: >= %lu\n",
+			len, sizeof(*msg_v2));
 		return -EINVAL;
 	}
 
