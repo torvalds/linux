@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: GPL-2.0
 # Objects to go into the VDSO.
 
+KCOV_INSTRUMENT := n
+
 # Include the generic Makefile to check the built vdso.
 include $(srctree)/lib/vdso/Makefile
 
