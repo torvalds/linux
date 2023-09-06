@@ -4,14 +4,14 @@
 $id: http://devicetree.org/schemas/input/azoteq,iqs7222.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Azoteq IQS7222A/B/C Capacitive Touch Controller
+title: Azoteq IQS7222A/B/C/D Capacitive Touch Controller
 
 maintainers:
   - Jeff LaBundy <jeff@labundy.com>
 
 description: |
-  The Azoteq IQS7222A, IQS7222B and IQS7222C are multichannel capacitive touch
-  controllers that feature additional sensing capabilities.
+  The Azoteq IQS7222A, IQS7222B, IQS7222C and IQS7222D are multichannel
+  capacitive touch controllers that feature additional sensing capabilities.
 
   Link to datasheets: https://www.azoteq.com/
 
@@ -21,6 +21,7 @@ properties:
       - azoteq,iqs7222a
       - azoteq,iqs7222b
       - azoteq,iqs7222c
+      - azoteq,iqs7222d
 
   reg:
     maxItems: 1
@@ -173,6 +174,152 @@ properties:
     maximum: 3000
     description: Specifies the report rate (in ms) during ultra-low-power mode.
 
+  touchscreen-size-x: true
+  touchscreen-size-y: true
+  touchscreen-inverted-x: true
+  touchscreen-inverted-y: true
+  touchscreen-swapped-x-y: true
+
+  trackpad:
+    type: object
+    description: Represents all channels associated with the trackpad.
+
+    properties:
+      azoteq,channel-select:
+        $ref: /schemas/types.yaml#/definitions/uint32-array
+        minItems: 1
+        maxItems: 12
+        items:
+          minimum: 0
+          maximum: 13
+        description:
+          Specifies the order of the channels that participate in the trackpad.
+          Specify 255 to omit a given channel for the purpose of mapping a non-
+          rectangular trackpad.
+
+      azoteq,num-rows:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        minimum: 1
+        maximum: 12
+        description: Specifies the number of rows that comprise the trackpad.
+
+      azoteq,num-cols:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        minimum: 1
+        maximum: 12
+        description: Specifies the number of columns that comprise the trackpad.
+
+      azoteq,top-speed:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        multipleOf: 4
+        minimum: 0
+        maximum: 1020
+        description:
+          Specifies the speed (in coordinates traveled per conversion) after
+          which coordinate filtering is no longer applied.
+
+      azoteq,bottom-speed:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        minimum: 0
+        maximum: 255
+        description:
+          Specifies the speed (in coordinates traveled per conversion) after
+          which coordinate filtering is linearly reduced.
+
+      azoteq,use-prox:
+        type: boolean
+        description:
+          Directs the trackpad to respond to the proximity states of the
+          selected channels instead of their corresponding touch states.
+          Note the trackpad cannot report granular coordinates during a
+          state of proximity.
+
+    patternProperties:
+      "^azoteq,lower-cal-(x|y)$":
+        $ref: /schemas/types.yaml#/definitions/uint32
+        minimum: 0
+        maximum: 255
+        description: Specifies the trackpad's lower starting points.
+
+      "^azoteq,upper-cal-(x|y)$":
+        $ref: /schemas/types.yaml#/definitions/uint32
+        minimum: 0
+        maximum: 255
+        description: Specifies the trackpad's upper starting points.
+
+      "^event-(press|tap|(swipe|flick)-(x|y)-(pos|neg))$":
+        type: object
+        $ref: input.yaml#
+        description:
+          Represents a press or gesture event reported by the trackpad. Specify
+          'linux,code' under the press event to report absolute coordinates.
+
+        properties:
+          linux,code: true
+
+          azoteq,gesture-angle-tighten:
+            type: boolean
+            description:
+              Limits the tangent of the gesture angle to 0.5 (axial gestures
+              only). If specified in one direction, the effect is applied in
+              either direction.
+
+          azoteq,gesture-max-ms:
+            multipleOf: 16
+            minimum: 0
+            maximum: 4080
+            description:
+              Specifies the length of time (in ms) within which a tap, swipe
+              or flick gesture must be completed in order to be acknowledged
+              by the device. The number specified for any one swipe or flick
+              gesture applies to all other swipe or flick gestures.
+
+          azoteq,gesture-min-ms:
+            multipleOf: 16
+            minimum: 0
+            maximum: 4080
+            description:
+              Specifies the length of time (in ms) for which a tap gesture must
+              be held in order to be acknowledged by the device.
+
+          azoteq,gesture-dist:
+            $ref: /schemas/types.yaml#/definitions/uint32
+            minimum: 0
+            maximum: 65535
+            description:
+              Specifies the distance (in coordinates) across which a swipe or
+              flick gesture must travel in order to be acknowledged by the
+              device. The number specified for any one swipe or flick gesture
+              applies to all remaining swipe or flick gestures.
+
+              For tap gestures, this property specifies the distance from the
+              original point of contact across which the contact is permitted
+              to travel before the gesture is rejected by the device.
+
+          azoteq,gpio-select:
+            $ref: /schemas/types.yaml#/definitions/uint32-array
+            minItems: 1
+            maxItems: 3
+            items:
+              minimum: 0
+              maximum: 2
+            description: |
+              Specifies one or more GPIO mapped to the event as follows:
+              0: GPIO0
+              1: GPIO3
+              2: GPIO4
+
+              Note that although multiple events can be mapped to a single
+              GPIO, they must all be of the same type (proximity, touch or
+              trackpad gesture).
+
+        additionalProperties: false
+
+    required:
+      - azoteq,channel-select
+
+    additionalProperties: false
+
 patternProperties:
   "^cycle-[0-9]$":
     type: object
@@ -287,6 +434,10 @@ patternProperties:
         description:
           Activates the reference channel in response to proximity events
           instead of touch events.
+
+      azoteq,counts-filt-enable:
+        type: boolean
+        description: Applies counts filtering to the channel.
 
       azoteq,ati-band:
         $ref: /schemas/types.yaml#/definitions/uint32
@@ -432,12 +583,12 @@ patternProperties:
             description: |
               Specifies one or more GPIO mapped to the event as follows:
               0: GPIO0
-              1: GPIO3 (IQS7222C only)
-              2: GPIO4 (IQS7222C only)
+              1: GPIO3
+              2: GPIO4
 
               Note that although multiple events can be mapped to a single
               GPIO, they must all be of the same type (proximity, touch or
-              slider gesture).
+              slider/trackpad gesture).
 
           azoteq,thresh:
             $ref: /schemas/types.yaml#/definitions/uint32
@@ -521,16 +672,16 @@ patternProperties:
         minimum: 0
         maximum: 65535
         description:
-          Specifies the speed of movement after which coordinate filtering is
-          no longer applied.
+          Specifies the speed (in coordinates traveled per conversion) after
+          which coordinate filtering is no longer applied.
 
       azoteq,bottom-speed:
         $ref: /schemas/types.yaml#/definitions/uint32
         minimum: 0
         maximum: 255
         description:
-          Specifies the speed of movement after which coordinate filtering is
-          linearly reduced.
+          Specifies the speed (in coordinates traveled per conversion) after
+          which coordinate filtering is linearly reduced.
 
       azoteq,bottom-beta:
         $ref: /schemas/types.yaml#/definitions/uint32
@@ -595,10 +746,10 @@ patternProperties:
             minimum: 0
             maximum: 4080
             description:
-              Specifies the distance across which a swipe or flick gesture must
-              travel in order to be acknowledged by the device. The number spec-
-              ified for any one swipe or flick gesture applies to all remaining
-              swipe or flick gestures.
+              Specifies the distance (in coordinates) across which a swipe or
+              flick gesture must travel in order to be acknowledged by the
+              device. The number specified for any one swipe or flick gesture
+              applies to all remaining swipe or flick gestures.
 
           azoteq,gpio-select:
             $ref: /schemas/types.yaml#/definitions/uint32-array
@@ -610,8 +761,8 @@ patternProperties:
             description: |
               Specifies one or more GPIO mapped to the event as follows:
               0: GPIO0
-              1: GPIO3 (IQS7222C only)
-              2: GPIO4 (IQS7222C only)
+              1: GPIO3
+              2: GPIO4
 
               Note that although multiple events can be mapped to a single
               GPIO, they must all be of the same type (proximity, touch or
@@ -629,8 +780,8 @@ patternProperties:
     description: |
       Represents a GPIO mapped to one or more events as follows:
       gpio-0: GPIO0
-      gpio-1: GPIO3 (IQS7222C only)
-      gpio-2: GPIO4 (IQS7222C only)
+      gpio-1: GPIO3
+      gpio-2: GPIO4
 
     allOf:
       - $ref: ../pinctrl/pincfg-node.yaml#
@@ -641,11 +792,53 @@ patternProperties:
     additionalProperties: false
 
 allOf:
+  - $ref: touchscreen/touchscreen.yaml#
+
   - if:
       properties:
         compatible:
           contains:
-            const: azoteq,iqs7222b
+            enum:
+              - azoteq,iqs7222a
+              - azoteq,iqs7222b
+              - azoteq,iqs7222c
+
+    then:
+      properties:
+        touchscreen-size-x: false
+        touchscreen-size-y: false
+        touchscreen-inverted-x: false
+        touchscreen-inverted-y: false
+        touchscreen-swapped-x-y: false
+
+        trackpad: false
+
+      patternProperties:
+        "^channel-([0-9]|1[0-9])$":
+          properties:
+            azoteq,counts-filt-enable: false
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - azoteq,iqs7222b
+              - azoteq,iqs7222c
+
+    then:
+      patternProperties:
+        "^channel-([0-9]|1[0-9])$":
+          properties:
+            azoteq,ulp-allow: false
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - azoteq,iqs7222b
+              - azoteq,iqs7222d
 
     then:
       patternProperties:
@@ -657,12 +850,21 @@ allOf:
           properties:
             azoteq,ref-select: false
 
+        "^slider-[0-1]$": false
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: azoteq,iqs7222b
+
+    then:
+      patternProperties:
+        "^channel-([0-9]|1[0-9])$":
           patternProperties:
             "^event-(prox|touch)$":
               properties:
                 azoteq,gpio-select: false
-
-        "^slider-[0-1]$": false
 
         "^gpio-[0-2]$": false
 
@@ -704,10 +906,6 @@ allOf:
 
     else:
       patternProperties:
-        "^channel-([0-9]|1[0-9])$":
-          properties:
-            azoteq,ulp-allow: false
-
         "^slider-[0-1]$":
           patternProperties:
             "^event-(press|tap|(swipe|flick)-(pos|neg))$":
