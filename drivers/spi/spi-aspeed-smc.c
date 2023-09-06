@@ -504,7 +504,7 @@ static void aspeed_spi_chip_set_default_window(struct aspeed_spi *aspi)
  */
 
 static int aspeed_spi_chip_adjust_window(struct aspeed_spi_chip *chip,
-					 off_t local_offset, size_t size)
+					 size_t size)
 {
 	struct aspeed_spi *aspi = chip->aspi;
 	struct aspeed_spi_window windows[ASPEED_SPI_MAX_NUM_CS] = { 0 };
@@ -539,7 +539,6 @@ static int aspeed_spi_chip_adjust_window(struct aspeed_spi_chip *chip,
 	aspeed_spi_get_windows(aspi, windows);
 
 	/* Adjust this chip window */
-	win->offset += local_offset;
 	win->size = size;
 
 	if (win->offset + win->size > aspi->ahb_window_size) {
@@ -598,7 +597,7 @@ static int aspeed_spi_dirmap_create(struct spi_mem_dirmap_desc *desc)
 	if (op->data.dir != SPI_MEM_DATA_IN)
 		return -EOPNOTSUPP;
 
-	aspeed_spi_chip_adjust_window(chip, desc->info.offset, desc->info.length);
+	aspeed_spi_chip_adjust_window(chip, desc->info.length);
 
 	if (desc->info.length > chip->ahb_window_size)
 		dev_warn(aspi->dev, "CE%d window (%zdMB) too small for mapping",
