@@ -114,11 +114,20 @@ static int emit_nop_job(struct xe_gt *gt, struct xe_exec_queue *q)
 	return 0;
 }
 
+/*
+ * Convert back from encoded value to type-safe, only to be used when reg.mcr
+ * is true
+ */
+static struct xe_reg_mcr to_xe_reg_mcr(const struct xe_reg reg)
+{
+	return (const struct xe_reg_mcr){.__reg.raw = reg.raw };
+}
+
 static int emit_wa_job(struct xe_gt *gt, struct xe_exec_queue *q)
 {
 	struct xe_reg_sr *sr = &q->hwe->reg_lrc;
 	struct xe_reg_sr_entry *entry;
-	unsigned long reg;
+	unsigned long idx;
 	struct xe_sched_job *job;
 	struct xe_bb *bb;
 	struct dma_fence *fence;
@@ -129,18 +138,36 @@ static int emit_wa_job(struct xe_gt *gt, struct xe_exec_queue *q)
 	if (IS_ERR(bb))
 		return PTR_ERR(bb);
 
-	xa_for_each(&sr->xa, reg, entry)
+	xa_for_each(&sr->xa, idx, entry)
 		++count;
 
 	if (count) {
 		xe_gt_dbg(gt, "LRC WA %s save-restore batch\n", sr->name);
 
 		bb->cs[bb->len++] = MI_LOAD_REGISTER_IMM(count);
-		xa_for_each(&sr->xa, reg, entry) {
-			bb->cs[bb->len++] = reg;
-			bb->cs[bb->len++] = entry->set_bits;
-			xe_gt_dbg(gt, "REG[0x%lx] = 0x%08x", reg,
-				  entry->set_bits);
+
+		xa_for_each(&sr->xa, idx, entry) {
+			struct xe_reg reg = entry->reg;
+			struct xe_reg_mcr reg_mcr = to_xe_reg_mcr(reg);
+			u32 val;
+
+			/*
+			 * Skip reading the register if it's not really needed
+			 */
+			if (reg.masked)
+				val = entry->clr_bits << 16;
+			else if (entry->clr_bits + 1)
+				val = (reg.mcr ?
+				       xe_gt_mcr_unicast_read_any(gt, reg_mcr) :
+				       xe_mmio_read32(gt, reg)) & (~entry->clr_bits);
+			else
+				val = 0;
+
+			val |= entry->set_bits;
+
+			bb->cs[bb->len++] = reg.addr;
+			bb->cs[bb->len++] = val;
+			xe_gt_dbg(gt, "REG[0x%x] = 0x%08x", reg.addr, val);
 		}
 	}
 
