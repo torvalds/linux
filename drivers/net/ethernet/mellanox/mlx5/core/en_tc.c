@@ -5007,22 +5007,6 @@ int mlx5e_tc_delete_matchall(struct mlx5e_priv *priv,
 	return apply_police_params(priv, 0, extack);
 }
 
-void mlx5e_tc_stats_matchall(struct mlx5e_priv *priv,
-			     struct tc_cls_matchall_offload *ma)
-{
-	struct mlx5e_rep_priv *rpriv = priv->ppriv;
-	struct rtnl_link_stats64 cur_stats;
-	u64 dbytes;
-	u64 dpkts;
-
-	mlx5e_stats_copy_rep_stats(&cur_stats, &priv->stats.rep_stats);
-	dpkts = cur_stats.rx_packets - rpriv->prev_vf_vport_stats.rx_packets;
-	dbytes = cur_stats.rx_bytes - rpriv->prev_vf_vport_stats.rx_bytes;
-	rpriv->prev_vf_vport_stats = cur_stats;
-	flow_stats_update(&ma->stats, dbytes, dpkts, 0, jiffies,
-			  FLOW_ACTION_HW_STATS_DELAYED);
-}
-
 static void mlx5e_tc_hairpin_update_dead_peer(struct mlx5e_priv *priv,
 					      struct mlx5e_priv *peer_priv)
 {
