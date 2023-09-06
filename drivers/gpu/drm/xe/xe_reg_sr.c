@@ -147,7 +147,6 @@ static struct xe_reg_mcr to_xe_reg_mcr(const struct xe_reg reg)
 
 static void apply_one_mmio(struct xe_gt *gt, struct xe_reg_sr_entry *entry)
 {
-	struct xe_device *xe = gt_to_xe(gt);
 	struct xe_reg reg = entry->reg;
 	struct xe_reg_mcr reg_mcr = to_xe_reg_mcr(reg);
 	u32 val;
@@ -176,7 +175,7 @@ static void apply_one_mmio(struct xe_gt *gt, struct xe_reg_sr_entry *entry)
 	 */
 	val |= entry->set_bits;
 
-	drm_dbg(&xe->drm, "REG[0x%x] = 0x%08x", reg.addr, val);
+	xe_gt_dbg(gt, "REG[0x%x] = 0x%08x", reg.addr, val);
 
 	if (entry->reg.mcr)
 		xe_gt_mcr_multicast_write(gt, reg_mcr, val);
@@ -186,7 +185,6 @@ static void apply_one_mmio(struct xe_gt *gt, struct xe_reg_sr_entry *entry)
 
 void xe_reg_sr_apply_mmio(struct xe_reg_sr *sr, struct xe_gt *gt)
 {
-	struct xe_device *xe = gt_to_xe(gt);
 	struct xe_reg_sr_entry *entry;
 	unsigned long reg;
 	int err;
@@ -194,7 +192,7 @@ void xe_reg_sr_apply_mmio(struct xe_reg_sr *sr, struct xe_gt *gt)
 	if (xa_empty(&sr->xa))
 		return;
 
-	drm_dbg(&xe->drm, "Applying %s save-restore MMIOs\n", sr->name);
+	xe_gt_dbg(gt, "Applying %s save-restore MMIOs\n", sr->name);
 
 	err = xe_force_wake_get(&gt->mmio.fw, XE_FORCEWAKE_ALL);
 	if (err)
@@ -209,7 +207,7 @@ void xe_reg_sr_apply_mmio(struct xe_reg_sr *sr, struct xe_gt *gt)
 	return;
 
 err_force_wake:
-	drm_err(&xe->drm, "Failed to apply, err=%d\n", err);
+	xe_gt_err(gt, "Failed to apply, err=%d\n", err);
 }
 
 void xe_reg_sr_apply_whitelist(struct xe_hw_engine *hwe)
