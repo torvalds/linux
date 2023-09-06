@@ -83,6 +83,7 @@ struct qcom_dmesg_dumper {
 	struct wakeup_source *wakeup_source;
 	struct notifier_block gh_panic_nb;
 	struct md_region md_entry;
+	bool is_static;
 };
 
 #if IS_ENABLED(CONFIG_QCOM_VM_ALIVE_LOG_ENCRYPT)

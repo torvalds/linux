@@ -58,7 +58,6 @@ static struct device_node *qcom_ddump_svm_of_parse(struct qcom_dmesg_dumper *qdd
 {
 	const char *compat = "qcom,ddump-gunyah-gen";
 	struct device_node *np = NULL;
-	struct device_node *shm_np;
 	u32 label;
 	int ret;
 
@@ -73,59 +72,64 @@ static struct device_node *qcom_ddump_svm_of_parse(struct qcom_dmesg_dumper *qdd
 
 		of_node_put(np);
 	}
-	if (!np)
-		return NULL;
 
-	shm_np = of_parse_phandle(np, "memory-region", 0);
-	of_node_put(np);
-
-	return shm_np;
+	return np;
 }
 
 static int qcom_ddump_map_memory(struct qcom_dmesg_dumper *qdd)
 {
 	struct device *dev = qdd->dev;
+	struct device_node *shm_np;
 	struct device_node *np;
 	u32 size = 0;
 	int ret;
 
-	if (qdd->primary_vm) {
-		ret = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(64));
-		if (ret) {
-			dev_err(dev, "%s: dma_set_mask_and_coherent failed\n", __func__);
-			return ret;
-		}
-
-		ret = of_reserved_mem_device_init_by_idx(dev, dev->of_node, 0);
-		if (ret) {
-			dev_err(dev, "%s: Failed to initialize CMA mem, ret %d\n", __func__, ret);
-			return ret;
-		}
-
-		ret = of_property_read_u32(qdd->dev->of_node, "shared-buffer-size", &size);
-		if (ret) {
-			dev_err(dev, "%s: Failed to get shared memory size, ret %d\n",
-					__func__, ret);
-			return -EINVAL;
-		}
-
-		qdd->size = size;
-	} else {
+	np = dev->of_node;
+	if (!qdd->primary_vm) {
 		np = qcom_ddump_svm_of_parse(qdd);
 		if (!np) {
 			dev_err(dev, "Unable to parse shared mem node\n");
 			return -EINVAL;
 		}
-
-		ret = of_address_to_resource(np, 0, &qdd->res);
-		of_node_put(np);
-		if (ret) {
-			dev_err(dev, "of_address_to_resource failed!\n");
-			return -EINVAL;
-		}
-		qdd->size = resource_size(&qdd->res);
 	}
 
+	shm_np = of_parse_phandle(np, "memory-region", 0);
+	if (!shm_np)
+		return -EINVAL;
+
+	ret = of_address_to_resource(shm_np, 0, &qdd->res);
+	of_node_put(shm_np);
+	if (!qdd->primary_vm)
+		of_node_put(np);
+
+	if (!ret) {
+		qdd->is_static = true;
+		qdd->size = resource_size(&qdd->res);
+		return ret;
+	}
+
+	ret = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(64));
+	if (ret) {
+		dev_err(dev, "%s: dma_set_mask_and_coherent failed\n", __func__);
+		return ret;
+	}
+
+	ret = of_reserved_mem_device_init_by_idx(dev, dev->of_node, 0);
+	if (ret) {
+		dev_err(dev, "%s: Failed to initialize CMA mem, ret %d\n",
+			__func__, ret);
+		return ret;
+	}
+
+	ret = of_property_read_u32(qdd->dev->of_node, "shared-buffer-size", &size);
+	if (ret) {
+		dev_err(dev, "%s: Failed to get shared memory size, ret %d\n",
+					__func__, ret);
+		return ret;
+	}
+
+	qdd->size = size;
+	qdd->is_static = false;
 	return 0;
 }
 
@@ -236,14 +240,16 @@ static int qcom_ddump_rm_cb(struct notifier_block *nb, unsigned long cmd,
 		return NOTIFY_DONE;
 
 	if (vm_status_payload->vm_status == GH_RM_VM_STATUS_READY) {
-		qdd->base = dma_alloc_coherent(qdd->dev, qdd->size, &dma_handle, GFP_KERNEL);
-		if (!qdd->base) {
-			dev_err(qdd->dev, "Failed to alloc memory\n");
-			return NOTIFY_DONE;
+		if (!qdd->is_static) {
+			qdd->base = dma_alloc_coherent(qdd->dev, qdd->size,
+							&dma_handle, GFP_KERNEL);
+			if (!qdd->base)
+				return NOTIFY_DONE;
+
+			qdd->res.start = dma_to_phys(qdd->dev, dma_handle);
+			qdd->res.end = qdd->res.start + qdd->size - 1;
 		}
 
-		qdd->res.start = dma_to_phys(qdd->dev, dma_handle);
-		qdd->res.end = qdd->res.start + qdd->size - 1;
 		strscpy(qdd->md_entry.name, "VM_LOG", sizeof(qdd->md_entry.name));
 		qdd->md_entry.virt_addr = (uintptr_t)qdd->base;
 		qdd->md_entry.phys_addr = qdd->res.start;
@@ -269,8 +275,9 @@ static int qcom_ddump_rm_cb(struct notifier_block *nb, unsigned long cmd,
 	return NOTIFY_DONE;
 
 free_mem:
-	dma_free_coherent(qdd->dev, qdd->size, qdd->base,
-			phys_to_dma(qdd->dev, qdd->res.start));
+	if (!qdd->is_static)
+		dma_free_coherent(qdd->dev, qdd->size, qdd->base,
+				phys_to_dma(qdd->dev, qdd->res.start));
 
 	return NOTIFY_DONE;
 }
@@ -381,10 +388,19 @@ static int qcom_ddump_alive_log_probe(struct qcom_dmesg_dumper *qdd)
 	}
 
 	if (qdd->primary_vm) {
-		res = devm_request_mem_region(dev, qdd->res.start, qdd->size, dev_name(dev));
-		if (!res) {
-			dev_err(dev, "request mem region fail\n");
-			return -ENXIO;
+		if (qdd->is_static) {
+			res = devm_request_mem_region(dev, qdd->res.start,
+					qdd->size, dev_name(dev));
+			if (!res) {
+				dev_err(dev, "request mem region fail\n");
+				return -ENXIO;
+			}
+
+			qdd->base = devm_ioremap_wc(dev, qdd->res.start, qdd->size);
+			if (!qdd->base) {
+				dev_err(dev, "ioremap fail\n");
+				return -ENOMEM;
+			}
 		}
 
 		init_completion(&qdd->ddump_completion);
@@ -547,8 +563,9 @@ static int qcom_ddump_remove(struct platform_device *pdev)
 		if (ret)
 			return ret;
 
-		dma_free_coherent(qdd->dev, qdd->size, qdd->base,
-			phys_to_dma(qdd->dev, qdd->res.start));
+		if (!qdd->is_static)
+			dma_free_coherent(qdd->dev, qdd->size, qdd->base,
+				phys_to_dma(qdd->dev, qdd->res.start));
 	} else {
 		ret = kmsg_dump_unregister(&qdd->dump);
 		if (ret)
