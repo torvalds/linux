@@ -191,6 +191,33 @@
 	status = "okay";
 };
 
+&gpio1 {
+	gpio-line-names = "", "", "X_PMIC_WDOG_B", "",
+		"PMIC_SD_VSEL", "", "", "", "", "",
+		"", "", "USB1_OTG_PWR", "", "", "X_nETHPHY_INT";
+};
+
+&gpio2 {
+	gpio-line-names = "", "", "", "",
+		"", "", "", "", "", "",
+		"", "", "X_SD2_CD_B", "", "", "",
+		"", "", "", "SD2_RESET_B";
+};
+
+&gpio3 {
+	gpio-line-names = "", "", "", "",
+		"", "", "", "", "", "",
+		"", "", "", "", "", "",
+		"", "", "", "", "nCAN1_EN", "nCAN2_EN";
+};
+
+&gpio4 {
+	gpio-line-names = "", "", "", "",
+		"", "", "", "", "", "",
+		"", "", "", "", "", "",
+		"", "", "X_PMIC_IRQ_B", "", "nENET0_INT_PWDN";
+};
+
 &iomuxc {
 	pinctrl_eqos: eqosgrp {
 		fsl,pins = <
