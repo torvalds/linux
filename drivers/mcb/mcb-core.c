@@ -288,7 +288,7 @@ struct mcb_bus *mcb_alloc_bus(struct device *carrier)
 	bus->dev.parent = carrier;
 	bus->dev.bus = &mcb_bus_type;
 	bus->dev.type = &mcb_carrier_device_type;
-	bus->dev.release = &mcb_free_bus;
+	bus->dev.release = mcb_free_bus;
 
 	dev_set_name(&bus->dev, "mcb:%d", bus_nr);
 	rc = device_add(&bus->dev);
