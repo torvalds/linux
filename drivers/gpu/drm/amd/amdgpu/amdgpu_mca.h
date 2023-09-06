@@ -112,4 +112,6 @@ int amdgpu_mca_smu_get_error_count(struct amdgpu_device *adev, enum amdgpu_ras_b
 int amdgpu_mca_smu_get_mca_entry(struct amdgpu_device *adev, enum amdgpu_mca_error_type type,
 				 int idx, struct mca_bank_entry *entry);
 
+void amdgpu_mca_smu_debugfs_init(struct amdgpu_device *adev, struct dentry *root);
+
 #endif
