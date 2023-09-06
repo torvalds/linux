@@ -112,6 +112,14 @@ const struct raid6_recov_calls *const raid6_recov_algos[] = {
 #if defined(CONFIG_KERNEL_MODE_NEON)
 	&raid6_recov_neon,
 #endif
+#ifdef CONFIG_LOONGARCH
+#ifdef CONFIG_CPU_HAS_LASX
+	&raid6_recov_lasx,
+#endif
+#ifdef CONFIG_CPU_HAS_LSX
+	&raid6_recov_lsx,
+#endif
+#endif
 	&raid6_recov_intx1,
 	NULL
 };

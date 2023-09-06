@@ -125,6 +125,8 @@ extern const struct raid6_recov_calls raid6_recov_avx2;
 extern const struct raid6_recov_calls raid6_recov_avx512;
 extern const struct raid6_recov_calls raid6_recov_s390xc;
 extern const struct raid6_recov_calls raid6_recov_neon;
+extern const struct raid6_recov_calls raid6_recov_lsx;
+extern const struct raid6_recov_calls raid6_recov_lasx;
 
 extern const struct raid6_calls raid6_neonx1;
 extern const struct raid6_calls raid6_neonx2;

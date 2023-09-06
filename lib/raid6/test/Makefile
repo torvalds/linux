@@ -65,7 +65,7 @@ else ifeq ($(HAS_ALTIVEC),yes)
         OBJS += altivec1.o altivec2.o altivec4.o altivec8.o \
                 vpermxor1.o vpermxor2.o vpermxor4.o vpermxor8.o
 else ifeq ($(ARCH),loongarch64)
-        OBJS += loongarch_simd.o
+        OBJS += loongarch_simd.o recov_loongarch_simd.o
 endif
 
 .c.o:
