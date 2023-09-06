@@ -123,6 +123,24 @@ test_aggr_addr()
 	fi
 }
 
+test_aggr_cgroup()
+{
+	echo "Testing perf lock contention --lock-cgroup"
+
+	if ! perf lock con -b true > /dev/null 2>&1 ; then
+		echo "[Skip] No BPF support"
+		return
+	fi
+
+	# the perf lock contention output goes to the stderr
+	perf lock con -a -b -g -E 1 -q -- perf bench sched messaging > /dev/null 2> ${result}
+	if [ "$(cat "${result}" | wc -l)" != "1" ]; then
+		echo "[Fail] BPF result count is not 1:" "$(cat "${result}" | wc -l)"
+		err=1
+		exit
+	fi
+}
+
 test_type_filter()
 {
 	echo "Testing perf lock contention --type-filter (w/ spinlock)"
@@ -232,6 +250,31 @@ test_aggr_task_stack_filter()
 		exit
 	fi
 }
+test_cgroup_filter()
+{
+	echo "Testing perf lock contention --cgroup-filter"
+
+	if ! perf lock con -b true > /dev/null 2>&1 ; then
+		echo "[Skip] No BPF support"
+		return
+	fi
+
+	perf lock con -a -b -g -E 1 -F wait_total -q -- perf bench sched messaging > /dev/null 2> ${result}
+	if [ "$(cat "${result}" | wc -l)" != "1" ]; then
+		echo "[Fail] BPF result should have a cgroup result:" "$(cat "${result}")"
+		err=1
+		exit
+	fi
+
+	cgroup=$(cat "${result}" | awk '{ print $3 }')
+	perf lock con -a -b -g -E 1 -G "${cgroup}" -q -- perf bench sched messaging > /dev/null 2> ${result}
+	if [ "$(cat "${result}" | wc -l)" != "1" ]; then
+		echo "[Fail] BPF result should have a result with cgroup filter:" "$(cat "${cgroup}")"
+		err=1
+		exit
+	fi
+}
+
 
 test_csv_output()
 {
@@ -275,10 +318,12 @@ test_bpf
 test_record_concurrent
 test_aggr_task
 test_aggr_addr
+test_aggr_cgroup
 test_type_filter
 test_lock_filter
 test_stack_filter
 test_aggr_task_stack_filter
+test_cgroup_filter
 test_csv_output
 
 exit ${err}
