@@ -386,60 +386,56 @@ static const char *aspeed_spi_get_name(struct spi_mem *mem)
 			      spi_get_chipselect(mem->spi, 0));
 }
 
-struct aspeed_spi_window {
-	u32 cs;
-	off_t offset;
-	size_t size;
-};
-
-static void aspeed_spi_get_windows(struct aspeed_spi *aspi,
-				   struct aspeed_spi_window windows[ASPEED_SPI_MAX_NUM_CS])
+static int aspeed_spi_set_window(struct aspeed_spi *aspi)
 {
-	const struct aspeed_spi_data *data = aspi->data;
-	u32 reg_val;
+	off_t offset = 0;
+	phys_addr_t start;
+	phys_addr_t end;
+	void __iomem *seg_reg_base = aspi->regs + CE0_SEGMENT_ADDR_REG;
+	void __iomem *seg_reg;
+	u32 seg_val_backup;
+	u32 seg_val;
 	u32 cs;
+	size_t win_sz;
 
 	for (cs = 0; cs < aspi->data->max_cs; cs++) {
-		reg_val = readl(aspi->regs + CE0_SEGMENT_ADDR_REG + cs * 4);
-		windows[cs].cs = cs;
-		windows[cs].size = data->segment_end(aspi, reg_val) -
-			data->segment_start(aspi, reg_val);
-		windows[cs].offset = data->segment_start(aspi, reg_val) - aspi->ahb_base_phy;
-		dev_vdbg(aspi->dev, "CE%d offset=0x%.9llx size=0x%zx\n", cs,
-			 (u64)windows[cs].offset, windows[cs].size);
+		seg_reg = seg_reg_base + cs * 4;
+		seg_val_backup = readl(seg_reg);
+
+		start = aspi->ahb_base_phy + offset;
+		win_sz = aspi->chips[cs].ahb_window_size;
+		end = start + win_sz;
+
+		seg_val = aspi->data->segment_reg(aspi, start, end);
+
+		if (seg_val == seg_val_backup) {
+			aspi->chips[cs].ahb_base = aspi->ahb_base + offset;
+			offset += win_sz;
+			continue;
+		}
+
+		writel(seg_val, seg_reg);
+
+		/*
+		 * Restore initial value if something goes wrong else we could
+		 * loose access to the chip.
+		 */
+		if (seg_val != readl(seg_reg)) {
+			dev_err(aspi->dev, "CE%d invalid window [ 0x%.9llx - 0x%.9llx ] %zdMB",
+				cs, (u64)start, (u64)end - 1, win_sz >> 20);
+			writel(seg_val_backup, seg_reg);
+			return -EIO;
+		}
+
+		if (win_sz != 0)
+			dev_dbg(aspi->dev, "CE%d new window [ 0x%.9llx - 0x%.9llx ] %zdMB",
+				cs, (u64)start, (u64)end - 1,  win_sz >> 20);
+		else
+			dev_dbg(aspi->dev, "CE%d window closed", cs);
+
+		aspi->chips[cs].ahb_base = aspi->ahb_base + offset;
+		offset += win_sz;
 	}
-}
-
-static int aspeed_spi_set_window(struct aspeed_spi *aspi,
-				 const struct aspeed_spi_window *win)
-{
-	phys_addr_t start = aspi->ahb_base_phy + win->offset;
-	phys_addr_t end = start + win->size;
-	void __iomem *seg_reg = aspi->regs + CE0_SEGMENT_ADDR_REG + win->cs * 4;
-	u32 seg_val_backup = readl(seg_reg);
-	u32 seg_val = aspi->data->segment_reg(aspi, start, end);
-
-	if (seg_val == seg_val_backup)
-		return 0;
-
-	writel(seg_val, seg_reg);
-
-	/*
-	 * Restore initial value if something goes wrong else we could
-	 * loose access to the chip.
-	 */
-	if (seg_val != readl(seg_reg)) {
-		dev_err(aspi->dev, "CE%d invalid window [ 0x%.9llx - 0x%.9llx ] %zdMB",
-			win->cs, (u64)start, (u64)end - 1, win->size >> 20);
-		writel(seg_val_backup, seg_reg);
-		return -EIO;
-	}
-
-	if (win->size)
-		dev_dbg(aspi->dev, "CE%d new window [ 0x%.9llx - 0x%.9llx ] %zdMB",
-			win->cs, (u64)start, (u64)end - 1,  win->size >> 20);
-	else
-		dev_dbg(aspi->dev, "CE%d window closed", win->cs);
 
 	return 0;
 }
@@ -456,7 +452,6 @@ static const struct aspeed_spi_data ast2600_fmc_data;
 static void aspeed_spi_chip_set_default_window(struct aspeed_spi *aspi)
 {
 	u32 cs;
-	struct aspeed_spi_window win;
 
 	/* No segment registers for the AST2400 SPI controller */
 	if (aspi->data == &ast2400_spi_data) {
@@ -488,12 +483,7 @@ static void aspeed_spi_chip_set_default_window(struct aspeed_spi *aspi)
 		aspi->chips[cs].ahb_window_size = 0;
 	}
 
-	for (cs = 0; cs < aspi->num_cs; cs++) {
-		win.cs = cs;
-		win.size = aspi->chips[cs].ahb_window_size;
-		win.offset = aspi->data->min_decoding_sz * cs;
-		aspeed_spi_set_window(aspi, &win);
-	}
+	aspeed_spi_set_window(aspi);
 }
 
 /*
@@ -507,9 +497,9 @@ static int aspeed_spi_chip_adjust_window(struct aspeed_spi_chip *chip,
 					 size_t size)
 {
 	struct aspeed_spi *aspi = chip->aspi;
-	struct aspeed_spi_window windows[ASPEED_SPI_MAX_NUM_CS] = { 0 };
-	struct aspeed_spi_window *win = &windows[chip->cs];
 	int ret;
+	u32 cs;
+	size_t total_window_size;
 
 	/* No segment registers for the AST2400 SPI controller */
 	if (aspi->data == &ast2400_spi_data)
@@ -536,40 +526,24 @@ static int aspeed_spi_chip_adjust_window(struct aspeed_spi_chip *chip,
 			 chip->cs, size >> 20);
 	}
 
-	aspeed_spi_get_windows(aspi, windows);
-
 	/* Adjust this chip window */
-	win->size = size;
+	aspi->chips[chip->cs].ahb_window_size = size;
 
-	if (win->offset + win->size > aspi->ahb_window_size) {
-		win->size = aspi->ahb_window_size - win->offset;
-		dev_warn(aspi->dev, "CE%d window resized to %zdMB", chip->cs, win->size >> 20);
+	total_window_size = 0;
+	for (cs = 0; cs < aspi->data->max_cs; cs++)
+		total_window_size += aspi->chips[cs].ahb_window_size;
+
+	if (total_window_size > aspi->ahb_window_size) {
+		aspi->chips[chip->cs].ahb_window_size -= (total_window_size -
+							  aspi->ahb_window_size);
+		dev_warn(aspi->dev, "CE%d window resized to %zdMB",
+			 chip->cs, aspi->chips[chip->cs].ahb_window_size >> 20);
 	}
 
-	ret = aspeed_spi_set_window(aspi, win);
+	ret = aspeed_spi_set_window(aspi);
 	if (ret)
 		return ret;
 
-	/* Update chip mapping info */
-	chip->ahb_base = aspi->ahb_base + win->offset;
-	chip->ahb_window_size = win->size;
-
-	/*
-	 * Also adjust next chip window to make sure that it does not
-	 * overlap with the current window.
-	 */
-	if (chip->cs < aspi->data->max_cs - 1) {
-		struct aspeed_spi_window *next = &windows[chip->cs + 1];
-
-		/* Change offset and size to keep the same end address */
-		if ((next->offset + next->size) > (win->offset + win->size))
-			next->size = (next->offset + next->size) - (win->offset + win->size);
-		else
-			next->size = 0;
-		next->offset = win->offset + win->size;
-
-		aspeed_spi_set_window(aspi, next);
-	}
 	return 0;
 }
 
