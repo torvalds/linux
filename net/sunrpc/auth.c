@@ -769,9 +769,14 @@ int rpcauth_wrap_req(struct rpc_task *task, struct xdr_stream *xdr)
  * @task: controlling RPC task
  * @xdr: xdr_stream containing RPC Reply header
  *
- * On success, @xdr is updated to point past the verifier and
- * zero is returned. Otherwise, @xdr is in an undefined state
- * and a negative errno is returned.
+ * Return values:
+ *   %0: Verifier is valid. @xdr now points past the verifier.
+ *   %-EIO: Verifier is corrupted or message ended early.
+ *   %-EACCES: Verifier is intact but not valid.
+ *   %-EPROTONOSUPPORT: Server does not support the requested auth type.
+ *
+ * When a negative errno is returned, @xdr is left in an undefined
+ * state.
  */
 int
 rpcauth_checkverf(struct rpc_task *task, struct xdr_stream *xdr)
