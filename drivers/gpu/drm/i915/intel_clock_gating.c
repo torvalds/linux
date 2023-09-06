@@ -375,8 +375,6 @@ static void gen12lp_init_clock_gating(struct drm_i915_private *i915)
 
 static void adlp_init_clock_gating(struct drm_i915_private *i915)
 {
-	gen12lp_init_clock_gating(i915);
-
 	/* Wa_22011091694:adlp */
 	intel_de_rmw(i915, GEN9_CLKGATE_DIS_5, 0, DPCE_GATING_DIS);
 
