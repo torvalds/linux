@@ -7,6 +7,7 @@
 #define _LOONGARCH_SETUP_H
 
 #include <linux/types.h>
+#include <asm/sections.h>
 #include <uapi/asm/setup.h>
 
 #define VECSIZE 0x200
@@ -36,5 +37,10 @@ extern long __rela_dyn_end;
 extern void * __init relocate_kernel(void);
 
 #endif
+
+static inline unsigned long kaslr_offset(void)
+{
+	return (unsigned long)&_text - VMLINUX_LOAD_ADDRESS;
+}
 
 #endif /* __SETUP_H */
