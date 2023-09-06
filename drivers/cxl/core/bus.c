@@ -182,6 +182,7 @@ static void cxl_decoder_release(struct device *dev)
 
 	ida_free(&port->decoder_ida, cxld->id);
 	kfree(cxld);
+	put_device(&port->dev);
 }
 
 static const struct device_type cxl_decoder_switch_type = {
@@ -480,6 +481,9 @@ cxl_decoder_alloc(struct cxl_port *port, int nr_targets, resource_size_t base,
 	rc = ida_alloc(&port->decoder_ida, GFP_KERNEL);
 	if (rc < 0)
 		goto err;
+
+	/* need parent to stick around to release the id */
+	get_device(&port->dev);
 
 	*cxld = (struct cxl_decoder) {
 		.id = rc,

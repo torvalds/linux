@@ -79,6 +79,11 @@ void mxc_jpeg_enable_irq(void __iomem *reg, int slot)
 	writel(0xFFFFFFFF, reg + MXC_SLOT_OFFSET(slot, SLOT_IRQ_EN));
 }
 
+void mxc_jpeg_disable_irq(void __iomem *reg, int slot)
+{
+	writel(0x0, reg + MXC_SLOT_OFFSET(slot, SLOT_IRQ_EN));
+}
+
 void mxc_jpeg_sw_reset(void __iomem *reg)
 {
 	/*

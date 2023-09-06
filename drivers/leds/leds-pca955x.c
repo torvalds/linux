@@ -289,16 +289,11 @@ static enum led_brightness pca955x_led_get(struct led_classdev *led_cdev)
 
 	switch (pca955x_ledstate(ls, pca955x_led->led_num % 4)) {
 	case PCA955X_LS_LED_ON:
+	case PCA955X_LS_BLINK0:
 		ret = LED_FULL;
 		break;
 	case PCA955X_LS_LED_OFF:
 		ret = LED_OFF;
-		break;
-	case PCA955X_LS_BLINK0:
-		ret = pca955x_read_pwm(pca955x, 0, &pwm);
-		if (ret)
-			return ret;
-		ret = 256 - pwm;
 		break;
 	case PCA955X_LS_BLINK1:
 		ret = pca955x_read_pwm(pca955x, 1, &pwm);
@@ -332,7 +327,7 @@ static int pca955x_led_set(struct led_classdev *led_cdev,
 			clear_bit(pca955x_led->led_num, &pca955x->active_blink);
 			ls = pca955x_ledsel(ls, bit, PCA955X_LS_LED_OFF);
 		} else {
-			ret = pca955x_write_pwm(pca955x, 0, 256 - value);
+			/* No variable brightness for blinking LEDs */
 			goto out;
 		}
 	} else {
@@ -430,6 +425,14 @@ static int pca955x_led_blink(struct led_classdev *led_cdev,
 
 			ls = pca955x_ledsel(ls, bit, PCA955X_LS_BLINK0);
 			ret = pca955x_write_ls(pca955x, reg, ls);
+			if (ret)
+				goto out;
+
+			/*
+			 * Force 50% duty cycle to maintain the specified
+			 * blink rate.
+			 */
+			ret = pca955x_write_pwm(pca955x, 0, 128);
 			if (ret)
 				goto out;
 		}
@@ -682,13 +685,15 @@ static int pca955x_probe(struct i2c_client *client)
 	init_data.devicename = "pca955x";
 
 	nls = pca955x_num_led_regs(chip->bits);
-	for (i = 0; i < nls; ++i) {
-		err = pca955x_read_ls(pca955x, i, &ls1[i]);
-		if (err)
-			return err;
+	/* use auto-increment feature to read all the led selectors at once */
+	err = i2c_smbus_read_i2c_block_data(client,
+					    0x10 | (pca955x_num_input_regs(chip->bits) + 4), nls,
+					    ls1);
+	if (err < 0)
+		return err;
 
+	for (i = 0; i < nls; ++i)
 		ls2[i] = ls1[i];
-	}
 
 	for (i = 0; i < chip->bits; i++) {
 		pca955x_led = &pca955x->leds[i];

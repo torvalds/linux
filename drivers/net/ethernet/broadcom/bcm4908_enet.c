@@ -561,8 +561,6 @@ static int bcm4908_enet_start_xmit(struct sk_buff *skb, struct net_device *netde
 
 	if (++ring->write_idx == ring->length - 1)
 		ring->write_idx = 0;
-	enet->netdev->stats.tx_bytes += skb->len;
-	enet->netdev->stats.tx_packets++;
 
 	return NETDEV_TX_OK;
 }
@@ -646,12 +644,16 @@ static int bcm4908_enet_poll_tx(struct napi_struct *napi, int weight)
 
 		dma_unmap_single(dev, slot->dma_addr, slot->len, DMA_TO_DEVICE);
 		dev_kfree_skb(slot->skb);
-		bytes += slot->len;
-		if (++tx_ring->read_idx == tx_ring->length)
-			tx_ring->read_idx = 0;
 
 		handled++;
+		bytes += slot->len;
+
+		if (++tx_ring->read_idx == tx_ring->length)
+			tx_ring->read_idx = 0;
 	}
+
+	enet->netdev->stats.tx_packets += handled;
+	enet->netdev->stats.tx_bytes += bytes;
 
 	if (handled < weight) {
 		napi_complete_done(napi, handled);

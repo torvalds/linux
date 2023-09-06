@@ -4,6 +4,8 @@
  */
 
 #include <crypto/internal/blake2s.h>
+#include <linux/kernel.h>
+#include <linux/random.h>
 #include <linux/string.h>
 
 /*
@@ -15,7 +17,6 @@
  * #include <stdio.h>
  *
  * #include <openssl/evp.h>
- * #include <openssl/hmac.h>
  *
  * #define BLAKE2S_TESTVEC_COUNT	256
  *
@@ -57,16 +58,6 @@
  *		print_vec(hash, outlen);
  *	}
  *	printf("};\n\n");
- *
- *	printf("static const u8 blake2s_hmac_testvecs[][BLAKE2S_HASH_SIZE] __initconst = {\n");
- *
- *	HMAC(EVP_blake2s256(), key, sizeof(key), buf, sizeof(buf), hash, NULL);
- *	print_vec(hash, BLAKE2S_OUTBYTES);
- *
- *	HMAC(EVP_blake2s256(), buf, sizeof(buf), key, sizeof(key), hash, NULL);
- *	print_vec(hash, BLAKE2S_OUTBYTES);
- *
- *	printf("};\n");
  *
  *	return 0;
  *}
@@ -554,15 +545,6 @@ static const u8 blake2s_testvecs[][BLAKE2S_HASH_SIZE] __initconst = {
     0xd6, 0x98, 0x6b, 0x07, 0x10, 0x65, 0x52, 0x65, },
 };
 
-static const u8 blake2s_hmac_testvecs[][BLAKE2S_HASH_SIZE] __initconst = {
-  { 0xce, 0xe1, 0x57, 0x69, 0x82, 0xdc, 0xbf, 0x43, 0xad, 0x56, 0x4c, 0x70,
-    0xed, 0x68, 0x16, 0x96, 0xcf, 0xa4, 0x73, 0xe8, 0xe8, 0xfc, 0x32, 0x79,
-    0x08, 0x0a, 0x75, 0x82, 0xda, 0x3f, 0x05, 0x11, },
-  { 0x77, 0x2f, 0x0c, 0x71, 0x41, 0xf4, 0x4b, 0x2b, 0xb3, 0xc6, 0xb6, 0xf9,
-    0x60, 0xde, 0xe4, 0x52, 0x38, 0x66, 0xe8, 0xbf, 0x9b, 0x96, 0xc4, 0x9f,
-    0x60, 0xd9, 0x24, 0x37, 0x99, 0xd6, 0xec, 0x31, },
-};
-
 bool __init blake2s_selftest(void)
 {
 	u8 key[BLAKE2S_KEY_SIZE];
@@ -607,15 +589,43 @@ bool __init blake2s_selftest(void)
 		}
 	}
 
-	if (success) {
-		blake2s256_hmac(hash, buf, key, sizeof(buf), sizeof(key));
-		success &= !memcmp(hash, blake2s_hmac_testvecs[0], BLAKE2S_HASH_SIZE);
+	for (i = 0; i < 32; ++i) {
+		enum { TEST_ALIGNMENT = 16 };
+		u8 unaligned_block[BLAKE2S_BLOCK_SIZE + TEST_ALIGNMENT - 1]
+					__aligned(TEST_ALIGNMENT);
+		u8 blocks[BLAKE2S_BLOCK_SIZE * 2];
+		struct blake2s_state state1, state2;
 
-		blake2s256_hmac(hash, key, buf, sizeof(key), sizeof(buf));
-		success &= !memcmp(hash, blake2s_hmac_testvecs[1], BLAKE2S_HASH_SIZE);
+		get_random_bytes(blocks, sizeof(blocks));
+		get_random_bytes(&state, sizeof(state));
 
-		if (!success)
-			pr_err("blake2s256_hmac self-test: FAIL\n");
+#if defined(CONFIG_CRYPTO_LIB_BLAKE2S_GENERIC) && \
+    defined(CONFIG_CRYPTO_ARCH_HAVE_LIB_BLAKE2S)
+		memcpy(&state1, &state, sizeof(state1));
+		memcpy(&state2, &state, sizeof(state2));
+		blake2s_compress(&state1, blocks, 2, BLAKE2S_BLOCK_SIZE);
+		blake2s_compress_generic(&state2, blocks, 2, BLAKE2S_BLOCK_SIZE);
+		if (memcmp(&state1, &state2, sizeof(state1))) {
+			pr_err("blake2s random compress self-test %d: FAIL\n",
+			       i + 1);
+			success = false;
+		}
+#endif
+
+		memcpy(&state1, &state, sizeof(state1));
+		blake2s_compress(&state1, blocks, 1, BLAKE2S_BLOCK_SIZE);
+		for (l = 1; l < TEST_ALIGNMENT; ++l) {
+			memcpy(unaligned_block + l, blocks,
+			       BLAKE2S_BLOCK_SIZE);
+			memcpy(&state2, &state, sizeof(state2));
+			blake2s_compress(&state2, unaligned_block + l, 1,
+					 BLAKE2S_BLOCK_SIZE);
+			if (memcmp(&state1, &state2, sizeof(state1))) {
+				pr_err("blake2s random compress align %d self-test %d: FAIL\n",
+				       l, i + 1);
+				success = false;
+			}
+		}
 	}
 
 	return success;

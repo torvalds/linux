@@ -612,9 +612,15 @@ static int mdp5_crtc_setup_pipeline(struct drm_crtc *crtc,
 		if (ret)
 			return ret;
 
-		mdp5_mixer_release(new_crtc_state->state, old_mixer);
+		ret = mdp5_mixer_release(new_crtc_state->state, old_mixer);
+		if (ret)
+			return ret;
+
 		if (old_r_mixer) {
-			mdp5_mixer_release(new_crtc_state->state, old_r_mixer);
+			ret = mdp5_mixer_release(new_crtc_state->state, old_r_mixer);
+			if (ret)
+				return ret;
+
 			if (!need_right_mixer)
 				pipeline->r_mixer = NULL;
 		}
@@ -690,6 +696,8 @@ static int mdp5_crtc_atomic_check(struct drm_crtc *crtc,
 {
 	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state,
 									  crtc);
+	struct mdp5_crtc_state *mdp5_cstate = to_mdp5_crtc_state(crtc_state);
+	struct mdp5_interface *intf = mdp5_cstate->pipeline.intf;
 	struct mdp5_kms *mdp5_kms = get_kms(crtc);
 	struct drm_plane *plane;
 	struct drm_device *dev = crtc->dev;
@@ -706,11 +714,17 @@ static int mdp5_crtc_atomic_check(struct drm_crtc *crtc,
 	DBG("%s: check", crtc->name);
 
 	drm_atomic_crtc_state_for_each_plane_state(plane, pstate, crtc_state) {
+		struct mdp5_plane_state *mdp5_pstate =
+				to_mdp5_plane_state(pstate);
+
 		if (!pstate->visible)
 			continue;
 
 		pstates[cnt].plane = plane;
 		pstates[cnt].state = to_mdp5_plane_state(pstate);
+
+		mdp5_pstate->needs_dirtyfb =
+			intf->mode == MDP5_INTF_DSI_MODE_COMMAND;
 
 		/*
 		 * if any plane on this crtc uses 2 hwpipes, then we need
@@ -983,8 +997,10 @@ static int mdp5_crtc_cursor_set(struct drm_crtc *crtc,
 
 	ret = msm_gem_get_and_pin_iova(cursor_bo, kms->aspace,
 			&mdp5_crtc->cursor.iova);
-	if (ret)
+	if (ret) {
+		drm_gem_object_put(cursor_bo);
 		return -EINVAL;
+	}
 
 	pm_runtime_get_sync(&pdev->dev);
 

@@ -13,6 +13,7 @@
 #include <linux/slab.h>
 #include <linux/soundwire/sdw_registers.h>
 #include <linux/soundwire/sdw.h>
+#include <linux/soundwire/sdw_type.h>
 #include <sound/soc.h>
 #include "bus.h"
 
@@ -401,20 +402,26 @@ static int sdw_do_port_prep(struct sdw_slave_runtime *s_rt,
 			    struct sdw_prepare_ch prep_ch,
 			    enum sdw_port_prep_ops cmd)
 {
-	const struct sdw_slave_ops *ops = s_rt->slave->ops;
-	int ret;
+	int ret = 0;
+	struct sdw_slave *slave = s_rt->slave;
 
-	if (ops->port_prep) {
-		ret = ops->port_prep(s_rt->slave, &prep_ch, cmd);
-		if (ret < 0) {
-			dev_err(&s_rt->slave->dev,
-				"Slave Port Prep cmd %d failed: %d\n",
-				cmd, ret);
-			return ret;
+	mutex_lock(&slave->sdw_dev_lock);
+
+	if (slave->probed) {
+		struct device *dev = &slave->dev;
+		struct sdw_driver *drv = drv_to_sdw_driver(dev->driver);
+
+		if (drv->ops && drv->ops->port_prep) {
+			ret = drv->ops->port_prep(slave, &prep_ch, cmd);
+			if (ret < 0)
+				dev_err(dev, "Slave Port Prep cmd %d failed: %d\n",
+					cmd, ret);
 		}
 	}
 
-	return 0;
+	mutex_unlock(&slave->sdw_dev_lock);
+
+	return ret;
 }
 
 static int sdw_prep_deprep_slave_ports(struct sdw_bus *bus,
@@ -578,7 +585,7 @@ static int sdw_notify_config(struct sdw_master_runtime *m_rt)
 	struct sdw_slave_runtime *s_rt;
 	struct sdw_bus *bus = m_rt->bus;
 	struct sdw_slave *slave;
-	int ret = 0;
+	int ret;
 
 	if (bus->ops->set_bus_conf) {
 		ret = bus->ops->set_bus_conf(bus, &bus->params);
@@ -589,17 +596,27 @@ static int sdw_notify_config(struct sdw_master_runtime *m_rt)
 	list_for_each_entry(s_rt, &m_rt->slave_rt_list, m_rt_node) {
 		slave = s_rt->slave;
 
-		if (slave->ops->bus_config) {
-			ret = slave->ops->bus_config(slave, &bus->params);
-			if (ret < 0) {
-				dev_err(bus->dev, "Notify Slave: %d failed\n",
-					slave->dev_num);
-				return ret;
+		mutex_lock(&slave->sdw_dev_lock);
+
+		if (slave->probed) {
+			struct device *dev = &slave->dev;
+			struct sdw_driver *drv = drv_to_sdw_driver(dev->driver);
+
+			if (drv->ops && drv->ops->bus_config) {
+				ret = drv->ops->bus_config(slave, &bus->params);
+				if (ret < 0) {
+					dev_err(dev, "Notify Slave: %d failed\n",
+						slave->dev_num);
+					mutex_unlock(&slave->sdw_dev_lock);
+					return ret;
+				}
 			}
 		}
+
+		mutex_unlock(&slave->sdw_dev_lock);
 	}
 
-	return ret;
+	return 0;
 }
 
 /**

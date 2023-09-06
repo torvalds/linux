@@ -24,13 +24,13 @@
 #include <linux/spinlock.h>
 
 #ifdef CONFIG_NET_9P_DEBUG
-unsigned int p9_debug_level = 0;	/* feature-rific global debug level  */
+unsigned int p9_debug_level;	/* feature-rific global debug level  */
 EXPORT_SYMBOL(p9_debug_level);
 module_param_named(debug, p9_debug_level, uint, 0);
 MODULE_PARM_DESC(debug, "9P debugging level");
 
 void _p9_debug(enum p9_debug_flags level, const char *func,
-		const char *fmt, ...)
+	       const char *fmt, ...)
 {
 	struct va_format vaf;
 	va_list args;
@@ -53,10 +53,7 @@ void _p9_debug(enum p9_debug_flags level, const char *func,
 EXPORT_SYMBOL(_p9_debug);
 #endif
 
-/*
- * Dynamic Transport Registration Routines
- *
- */
+/* Dynamic Transport Registration Routines */
 
 static DEFINE_SPINLOCK(v9fs_trans_lock);
 static LIST_HEAD(v9fs_trans_list);

@@ -46,14 +46,12 @@ static int __init davinci_vc_probe(struct platform_device *pdev)
 	}
 	clk_enable(davinci_vc->clk);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-
-	fifo_base = (dma_addr_t)res->start;
-	davinci_vc->base = devm_ioremap_resource(&pdev->dev, res);
+	davinci_vc->base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(davinci_vc->base)) {
 		ret = PTR_ERR(davinci_vc->base);
 		goto fail;
 	}
+	fifo_base = (dma_addr_t)res->start;
 
 	davinci_vc->regmap = devm_regmap_init_mmio(&pdev->dev,
 						   davinci_vc->base,

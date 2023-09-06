@@ -759,6 +759,7 @@ struct mlx5_core_dev {
 	enum mlx5_device_state	state;
 	/* sync interface state */
 	struct mutex		intf_state_mutex;
+	struct lock_class_key	lock_key;
 	unsigned long		intf_state;
 	struct mlx5_priv	priv;
 	struct mlx5_profile	profile;
@@ -965,7 +966,7 @@ void mlx5_cmd_allowed_opcode(struct mlx5_core_dev *dev, u16 opcode);
 struct mlx5_async_ctx {
 	struct mlx5_core_dev *dev;
 	atomic_t num_inflight;
-	struct wait_queue_head wait;
+	struct completion inflight_done;
 };
 
 struct mlx5_async_work;

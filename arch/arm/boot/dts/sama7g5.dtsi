@@ -553,7 +553,6 @@
 			#interrupt-cells = <3>;
 			#address-cells = <0>;
 			interrupt-controller;
-			interrupt-parent;
 			reg = <0xe8c11000 0x1000>,
 				<0xe8c12000 0x2000>;
 		};

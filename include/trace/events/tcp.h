@@ -279,7 +279,7 @@ TRACE_EVENT(tcp_probe,
 		__entry->data_len = skb->len - __tcp_hdrlen(th);
 		__entry->snd_nxt = tp->snd_nxt;
 		__entry->snd_una = tp->snd_una;
-		__entry->snd_cwnd = tp->snd_cwnd;
+		__entry->snd_cwnd = tcp_snd_cwnd(tp);
 		__entry->snd_wnd = tp->snd_wnd;
 		__entry->rcv_wnd = tp->rcv_wnd;
 		__entry->ssthresh = tcp_current_ssthresh(sk);

@@ -100,7 +100,7 @@ static int pvpanic_mmio_probe(struct platform_device *pdev)
 	pi->base = base;
 	pi->capability = PVPANIC_PANICKED | PVPANIC_CRASH_LOADED;
 
-	/* initlize capability by RDPT */
+	/* initialize capability by RDPT */
 	pi->capability &= ioread8(base);
 	pi->events = pi->capability;
 

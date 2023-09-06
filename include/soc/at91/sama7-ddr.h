@@ -11,8 +11,6 @@
 #ifndef __SAMA7_DDR_H__
 #define __SAMA7_DDR_H__
 
-#ifdef CONFIG_SOC_SAMA7
-
 /* DDR3PHY */
 #define DDR3PHY_PIR				(0x04)		/* DDR3PHY PHY Initialization Register	*/
 #define	DDR3PHY_PIR_DLLBYP		(1 << 17)	/* DLL Bypass */
@@ -28,7 +26,10 @@
 #define	DDR3PHY_PGSR				(0x0C)		/* DDR3PHY PHY General Status Register */
 #define		DDR3PHY_PGSR_IDONE		(1 << 0)	/* Initialization Done */
 
-#define DDR3PHY_ACIOCR				(0x24)		/*  DDR3PHY AC I/O Configuration Register */
+#define	DDR3PHY_ACDLLCR				(0x14)		/* DDR3PHY AC DLL Control Register */
+#define		DDR3PHY_ACDLLCR_DLLSRST		(1 << 30)	/* DLL Soft Reset */
+
+#define DDR3PHY_ACIOCR				(0x24)		/* DDR3PHY AC I/O Configuration Register */
 #define		DDR3PHY_ACIOCR_CSPDD_CS0	(1 << 18)	/* CS#[0] Power Down Driver */
 #define		DDR3PHY_ACIOCR_CKPDD_CK0	(1 << 8)	/* CK[0] Power Down Driver */
 #define		DDR3PHY_ACIORC_ACPDD		(1 << 3)	/* AC Power Down Driver */
@@ -40,6 +41,14 @@
 #define		DDR3PHY_DSGCR_ODTPDD_ODT0	(1 << 20)	/* ODT[0] Power Down Driver */
 
 #define DDR3PHY_ZQ0SR0				(0x188)		/* ZQ status register 0 */
+#define DDR3PHY_ZQ0SR0_PDO_OFF			(0)		/* Pull-down output impedance select offset */
+#define DDR3PHY_ZQ0SR0_PUO_OFF			(5)		/* Pull-up output impedance select offset */
+#define DDR3PHY_ZQ0SR0_PDODT_OFF		(10)		/* Pull-down on-die termination impedance select offset */
+#define DDR3PHY_ZQ0SRO_PUODT_OFF		(15)		/* Pull-up on-die termination impedance select offset */
+
+#define	DDR3PHY_DX0DLLCR			(0x1CC)		/* DDR3PHY DATX8 DLL Control Register */
+#define	DDR3PHY_DX1DLLCR			(0x20C)		/* DDR3PHY DATX8 DLL Control Register */
+#define		DDR3PHY_DXDLLCR_DLLDIS		(1 << 31)	/* DLL Disable */
 
 /* UDDRC */
 #define UDDRC_STAT				(0x04)		/* UDDRC Operating Mode Status Register */
@@ -74,7 +83,5 @@
 #define UDDRC_PCTRL_2				(0x5F0)		/* UDDRC Port 2 Control Register */
 #define UDDRC_PCTRL_3				(0x6A0)		/* UDDRC Port 3 Control Register */
 #define UDDRC_PCTRL_4				(0x750)		/* UDDRC Port 4 Control Register */
-
-#endif /* CONFIG_SOC_SAMA7 */
 
 #endif /* __SAMA7_DDR_H__ */

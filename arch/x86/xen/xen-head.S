@@ -69,8 +69,9 @@ SYM_CODE_END(asm_cpu_bringup_and_idle)
 SYM_CODE_START(hypercall_page)
 	.rept (PAGE_SIZE / 32)
 		UNWIND_HINT_FUNC
-		.skip 31, 0x90
-		RET
+		ANNOTATE_UNRET_SAFE
+		ret
+		.skip 31, 0xcc
 	.endr
 
 #define HYPERCALL(n) \

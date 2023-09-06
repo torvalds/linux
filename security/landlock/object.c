@@ -17,9 +17,9 @@
 
 #include "object.h"
 
-struct landlock_object *landlock_create_object(
-		const struct landlock_object_underops *const underops,
-		void *const underobj)
+struct landlock_object *
+landlock_create_object(const struct landlock_object_underops *const underops,
+		       void *const underobj)
 {
 	struct landlock_object *new_object;
 

@@ -282,7 +282,6 @@ void __init ixp4xx_timer_setup(resource_size_t timerbase,
 	}
 	ixp4xx_timer_register(base, timer_irq, timer_freq);
 }
-EXPORT_SYMBOL_GPL(ixp4xx_timer_setup);
 
 #ifdef CONFIG_OF
 static __init int ixp4xx_of_timer_init(struct device_node *np)

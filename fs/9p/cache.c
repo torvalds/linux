@@ -19,8 +19,8 @@
 #define CACHETAG_LEN  11
 
 struct fscache_netfs v9fs_cache_netfs = {
-	.name 		= "9p",
-	.version 	= 0,
+	.name		= "9p",
+	.version	= 0,
 };
 
 /*

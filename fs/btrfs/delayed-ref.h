@@ -271,7 +271,7 @@ static inline void btrfs_init_generic_ref(struct btrfs_ref *generic_ref,
 }
 
 static inline void btrfs_init_tree_ref(struct btrfs_ref *generic_ref,
-				int level, u64 root)
+				int level, u64 root, u64 mod_root, bool skip_qgroup)
 {
 	/* If @real_root not set, use @root as fallback */
 	if (!generic_ref->real_root)
@@ -282,7 +282,8 @@ static inline void btrfs_init_tree_ref(struct btrfs_ref *generic_ref,
 }
 
 static inline void btrfs_init_data_ref(struct btrfs_ref *generic_ref,
-				u64 ref_root, u64 ino, u64 offset)
+				u64 ref_root, u64 ino, u64 offset, u64 mod_root,
+				bool skip_qgroup)
 {
 	/* If @real_root not set, use @root as fallback */
 	if (!generic_ref->real_root)

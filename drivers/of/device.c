@@ -81,8 +81,11 @@ of_dma_set_restricted_buffer(struct device *dev, struct device_node *np)
 		 * restricted-dma-pool region is allowed.
 		 */
 		if (of_device_is_compatible(node, "restricted-dma-pool") &&
-		    of_device_is_available(node))
+		    of_device_is_available(node)) {
+			of_node_put(node);
 			break;
+		}
+		of_node_put(node);
 	}
 
 	/*

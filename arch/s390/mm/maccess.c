@@ -123,7 +123,7 @@ static unsigned long __no_sanitize_address _memcpy_real(unsigned long dest,
 /*
  * Copy memory in real mode (kernel to kernel)
  */
-int memcpy_real(void *dest, void *src, size_t count)
+int memcpy_real(void *dest, unsigned long src, size_t count)
 {
 	unsigned long _dest  = (unsigned long)dest;
 	unsigned long _src   = (unsigned long)src;
@@ -175,7 +175,7 @@ void memcpy_absolute(void *dest, void *src, size_t count)
 /*
  * Copy memory from kernel (real) to user (virtual)
  */
-int copy_to_user_real(void __user *dest, void *src, unsigned long count)
+int copy_to_user_real(void __user *dest, unsigned long src, unsigned long count)
 {
 	int offs = 0, size, rc;
 	char *buf;

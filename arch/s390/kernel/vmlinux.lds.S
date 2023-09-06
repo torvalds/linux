@@ -132,6 +132,7 @@ SECTIONS
 	/*
 	 * Table with the patch locations to undo expolines
 	*/
+	. = ALIGN(4);
 	.nospec_call_table : {
 		__nospec_call_start = . ;
 		*(.s390_indirect*)
@@ -212,6 +213,7 @@ SECTIONS
 		QUAD(__dynsym_start)				/* dynsym_start */
 		QUAD(__rela_dyn_start)				/* rela_dyn_start */
 		QUAD(__rela_dyn_end)				/* rela_dyn_end */
+		QUAD(_eamode31 - _samode31)			/* amode31_size */
 	} :NONE
 
 	/* Debugging sections.	*/

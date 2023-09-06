@@ -87,8 +87,7 @@ END_BTB_FLUSH_SECTION
 	stw	r10, 8(r1)
 	li	r10, \trapno
 	stw	r10,_TRAP(r1)
-	SAVE_4GPRS(3, r1)
-	SAVE_2GPRS(7, r1)
+	SAVE_GPRS(3, 8, r1)
 	SAVE_NVGPRS(r1)
 	stw	r2,GPR2(r1)
 	stw	r12,_NIP(r1)

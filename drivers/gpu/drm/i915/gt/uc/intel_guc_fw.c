@@ -159,6 +159,6 @@ int intel_guc_fw_upload(struct intel_guc *guc)
 	return 0;
 
 out:
-	intel_uc_fw_change_status(&guc->fw, INTEL_UC_FIRMWARE_FAIL);
+	intel_uc_fw_change_status(&guc->fw, INTEL_UC_FIRMWARE_LOAD_FAIL);
 	return ret;
 }

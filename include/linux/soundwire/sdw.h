@@ -646,9 +646,6 @@ struct sdw_slave_ops {
  * @dev_num: Current Device Number, values can be 0 or dev_num_sticky
  * @dev_num_sticky: one-time static Device Number assigned by Bus
  * @probed: boolean tracking driver state
- * @probe_complete: completion utility to control potential races
- * on startup between driver probe/initialization and SoundWire
- * Slave state changes/implementation-defined interrupts
  * @enumeration_complete: completion utility to control potential races
  * on startup between device enumeration and read/write access to the
  * Slave device
@@ -663,6 +660,7 @@ struct sdw_slave_ops {
  * for a Slave happens for the first time after enumeration
  * @is_mockup_device: status flag used to squelch errors in the command/control
  * protocol for SoundWire mockup devices
+ * @sdw_dev_lock: mutex used to protect callbacks/remove races
  */
 struct sdw_slave {
 	struct sdw_slave_id id;
@@ -680,12 +678,12 @@ struct sdw_slave {
 	u16 dev_num;
 	u16 dev_num_sticky;
 	bool probed;
-	struct completion probe_complete;
 	struct completion enumeration_complete;
 	struct completion initialization_complete;
 	u32 unattach_request;
 	bool first_interrupt_done;
 	bool is_mockup_device;
+	struct mutex sdw_dev_lock; /* protect callbacks/remove races */
 };
 
 #define dev_to_sdw_dev(_dev) container_of(_dev, struct sdw_slave, dev)

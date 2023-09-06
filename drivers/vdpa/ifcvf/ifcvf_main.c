@@ -505,7 +505,6 @@ static int ifcvf_vdpa_dev_add(struct vdpa_mgmt_dev *mdev, const char *name)
 	}
 
 	ifcvf_mgmt_dev->adapter = adapter;
-	pci_set_drvdata(pdev, ifcvf_mgmt_dev);
 
 	vf = &adapter->vf;
 	vf->dev_type = get_dev_type(pdev);
@@ -619,6 +618,8 @@ static int ifcvf_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 			  "Failed to initialize the management interfaces\n");
 		goto err;
 	}
+
+	pci_set_drvdata(pdev, ifcvf_mgmt_dev);
 
 	return 0;
 

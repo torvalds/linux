@@ -2819,7 +2819,7 @@ qla24xx_els_logo_iocb(srb_t *sp, struct els_entry_24xx *els_iocb)
 	sp->vha->qla_stats.control_requests++;
 }
 
-static void
+void
 qla2x00_els_dcmd2_iocb_timeout(void *data)
 {
 	srb_t *sp = data;
@@ -2882,6 +2882,9 @@ static void qla2x00_els_dcmd2_sp_done(srb_t *sp, int res)
 	    sp->name, res, sp->handle, fcport->d_id.b24, fcport->port_name);
 
 	fcport->flags &= ~(FCF_ASYNC_SENT|FCF_ASYNC_ACTIVE);
+	/* For edif, set logout on delete to ensure any residual key from FW is flushed.*/
+	fcport->logout_on_delete = 1;
+	fcport->chip_reset = vha->hw->base_qpair->chip_reset;
 
 	if (sp->flags & SRB_WAKEUP_ON_COMP)
 		complete(&lio->u.els_plogi.comp);
@@ -3065,8 +3068,7 @@ qla24xx_els_dcmd2_iocb(scsi_qla_host_t *vha, int els_opcode,
 	elsio->u.els_plogi.els_cmd = els_opcode;
 	elsio->u.els_plogi.els_plogi_pyld->opcode = els_opcode;
 
-	if (els_opcode == ELS_DCMD_PLOGI && vha->hw->flags.edif_enabled &&
-	    vha->e_dbell.db_flags & EDB_ACTIVE) {
+	if (els_opcode == ELS_DCMD_PLOGI && DBELL_ACTIVE(vha)) {
 		struct fc_els_flogi *p = ptr;
 
 		p->fl_csp.sp_features |= cpu_to_be16(FC_SP_FT_SEC);

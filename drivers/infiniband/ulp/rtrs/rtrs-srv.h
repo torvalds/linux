@@ -37,7 +37,7 @@ struct rtrs_srv_stats_rdma_stats {
 struct rtrs_srv_stats {
 	struct kobject				kobj_stats;
 	struct rtrs_srv_stats_rdma_stats	rdma_stats;
-	struct rtrs_srv_sess			*sess;
+	struct rtrs_srv_path			*srv_path;
 };
 
 struct rtrs_srv_con {
@@ -71,8 +71,8 @@ struct rtrs_srv_mr {
 	struct rtrs_iu	*iu;		/* send buffer for new rkey msg */
 };
 
-struct rtrs_srv_sess {
-	struct rtrs_sess	s;
+struct rtrs_srv_path {
+	struct rtrs_path	s;
 	struct rtrs_srv	*srv;
 	struct work_struct	close_work;
 	enum rtrs_srv_state	state;
@@ -125,7 +125,7 @@ struct rtrs_srv_ib_ctx {
 
 extern struct class *rtrs_dev_class;
 
-void close_sess(struct rtrs_srv_sess *sess);
+void close_path(struct rtrs_srv_path *srv_path);
 
 static inline void rtrs_srv_update_rdma_stats(struct rtrs_srv_stats *s,
 					      size_t size, int d)
@@ -143,7 +143,7 @@ ssize_t rtrs_srv_reset_all_help(struct rtrs_srv_stats *stats,
 				 char *page, size_t len);
 
 /* functions which are implemented in rtrs-srv-sysfs.c */
-int rtrs_srv_create_sess_files(struct rtrs_srv_sess *sess);
-void rtrs_srv_destroy_sess_files(struct rtrs_srv_sess *sess);
+int rtrs_srv_create_path_files(struct rtrs_srv_path *srv_path);
+void rtrs_srv_destroy_path_files(struct rtrs_srv_path *srv_path);
 
 #endif /* RTRS_SRV_H */

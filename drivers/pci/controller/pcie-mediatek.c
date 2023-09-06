@@ -1008,6 +1008,7 @@ static int mtk_pcie_subsys_powerup(struct mtk_pcie *pcie)
 					   "mediatek,generic-pciecfg");
 	if (cfg_node) {
 		pcie->cfg = syscon_node_to_regmap(cfg_node);
+		of_node_put(cfg_node);
 		if (IS_ERR(pcie->cfg))
 			return PTR_ERR(pcie->cfg);
 	}

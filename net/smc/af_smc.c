@@ -1283,9 +1283,9 @@ static int smc_connect(struct socket *sock, struct sockaddr *addr,
 	if (rc && rc != -EINPROGRESS)
 		goto out;
 
-	sock_hold(&smc->sk); /* sock put in passive closing */
 	if (smc->use_fallback)
 		goto out;
+	sock_hold(&smc->sk); /* sock put in passive closing */
 	if (flags & O_NONBLOCK) {
 		if (queue_work(smc_hs_wq, &smc->connect_work))
 			smc->connect_nonblock = 1;
@@ -1490,7 +1490,6 @@ static void smc_listen_out_connected(struct smc_sock *new_smc)
 {
 	struct sock *newsmcsk = &new_smc->sk;
 
-	sk_refcnt_debug_inc(newsmcsk);
 	if (newsmcsk->sk_state == SMC_INIT)
 		newsmcsk->sk_state = SMC_ACTIVE;
 
@@ -2745,14 +2744,14 @@ static int __init smc_init(void)
 
 	rc = register_pernet_subsys(&smc_net_stat_ops);
 	if (rc)
-		return rc;
+		goto out_pernet_subsys;
 
 	smc_ism_init();
 	smc_clc_init();
 
 	rc = smc_nl_init();
 	if (rc)
-		goto out_pernet_subsys;
+		goto out_pernet_subsys_stat;
 
 	rc = smc_pnet_init();
 	if (rc)
@@ -2830,6 +2829,8 @@ out_pnet:
 	smc_pnet_exit();
 out_nl:
 	smc_nl_exit();
+out_pernet_subsys_stat:
+	unregister_pernet_subsys(&smc_net_stat_ops);
 out_pernet_subsys:
 	unregister_pernet_subsys(&smc_net_ops);
 

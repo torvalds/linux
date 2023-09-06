@@ -54,8 +54,12 @@ static irqreturn_t powerbutton_irq(int irq, void *_button)
 static int cpcap_power_button_probe(struct platform_device *pdev)
 {
 	struct cpcap_power_button *button;
-	int irq = platform_get_irq(pdev, 0);
+	int irq;
 	int err;
+
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0)
+		return irq;
 
 	button = devm_kmalloc(&pdev->dev, sizeof(*button), GFP_KERNEL);
 	if (!button)

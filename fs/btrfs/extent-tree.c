@@ -1266,7 +1266,7 @@ static int btrfs_issue_discard(struct block_device *bdev, u64 start, u64 len,
 	return ret;
 }
 
-static int do_discard_extent(struct btrfs_bio_stripe *stripe, u64 *bytes)
+static int do_discard_extent(struct btrfs_io_stripe *stripe, u64 *bytes)
 {
 	struct btrfs_device *dev = stripe->dev;
 	struct btrfs_fs_info *fs_info = dev->fs_info;
@@ -1313,22 +1313,21 @@ int btrfs_discard_extent(struct btrfs_fs_info *fs_info, u64 bytenr,
 	u64 discarded_bytes = 0;
 	u64 end = bytenr + num_bytes;
 	u64 cur = bytenr;
-	struct btrfs_bio *bbio = NULL;
-
+	struct btrfs_io_context *bioc = NULL;
 
 	/*
-	 * Avoid races with device replace and make sure our bbio has devices
+	 * Avoid races with device replace and make sure our bioc has devices
 	 * associated to its stripes that don't go away while we are discarding.
 	 */
 	btrfs_bio_counter_inc_blocked(fs_info);
 	while (cur < end) {
-		struct btrfs_bio_stripe *stripe;
+		struct btrfs_io_stripe *stripe;
 		int i;
 
 		num_bytes = end - cur;
 		/* Tell the block device(s) that the sectors can be discarded */
 		ret = btrfs_map_block(fs_info, BTRFS_MAP_DISCARD, cur,
-				      &num_bytes, &bbio, 0);
+				      &num_bytes, &bioc, 0);
 		/*
 		 * Error can be -ENOMEM, -ENOENT (no such chunk mapping) or
 		 * -EOPNOTSUPP. For any such error, @num_bytes is not updated,
@@ -1337,8 +1336,8 @@ int btrfs_discard_extent(struct btrfs_fs_info *fs_info, u64 bytenr,
 		if (ret < 0)
 			goto out;
 
-		stripe = bbio->stripes;
-		for (i = 0; i < bbio->num_stripes; i++, stripe++) {
+		stripe = bioc->stripes;
+		for (i = 0; i < bioc->num_stripes; i++, stripe++) {
 			u64 bytes;
 			struct btrfs_device *device = stripe->dev;
 
@@ -1361,7 +1360,7 @@ int btrfs_discard_extent(struct btrfs_fs_info *fs_info, u64 bytenr,
 				 * And since there are two loops, explicitly
 				 * go to out to avoid confusion.
 				 */
-				btrfs_put_bbio(bbio);
+				btrfs_put_bioc(bioc);
 				goto out;
 			}
 
@@ -1372,7 +1371,7 @@ int btrfs_discard_extent(struct btrfs_fs_info *fs_info, u64 bytenr,
 			 */
 			ret = 0;
 		}
-		btrfs_put_bbio(bbio);
+		btrfs_put_bioc(bioc);
 		cur += num_bytes;
 	}
 out:
@@ -2440,7 +2439,8 @@ static int __btrfs_mod_ref(struct btrfs_trans_handle *trans,
 					       num_bytes, parent);
 			generic_ref.real_root = root->root_key.objectid;
 			btrfs_init_data_ref(&generic_ref, ref_root, key.objectid,
-					    key.offset);
+					    key.offset, root->root_key.objectid,
+					    for_reloc);
 			generic_ref.skip_qgroup = for_reloc;
 			if (inc)
 				ret = btrfs_inc_extent_ref(trans, &generic_ref);
@@ -2454,7 +2454,8 @@ static int __btrfs_mod_ref(struct btrfs_trans_handle *trans,
 			btrfs_init_generic_ref(&generic_ref, action, bytenr,
 					       num_bytes, parent);
 			generic_ref.real_root = root->root_key.objectid;
-			btrfs_init_tree_ref(&generic_ref, level - 1, ref_root);
+			btrfs_init_tree_ref(&generic_ref, level - 1, ref_root,
+					    root->root_key.objectid, for_reloc);
 			generic_ref.skip_qgroup = for_reloc;
 			if (inc)
 				ret = btrfs_inc_extent_ref(trans, &generic_ref);
@@ -2571,17 +2572,10 @@ int btrfs_pin_extent_for_log_replay(struct btrfs_trans_handle *trans,
 		return -EINVAL;
 
 	/*
-	 * pull in the free space cache (if any) so that our pin
-	 * removes the free space from the cache.  We have load_only set
-	 * to one because the slow code to read in the free extents does check
-	 * the pinned extents.
+	 * Fully cache the free space first so that our pin removes the free space
+	 * from the cache.
 	 */
-	btrfs_cache_block_group(cache, 1);
-	/*
-	 * Make sure we wait until the cache is completely built in case it is
-	 * missing or is invalid and therefore needs to be rebuilt.
-	 */
-	ret = btrfs_wait_block_group_cache_done(cache);
+	ret = btrfs_cache_block_group(cache, true);
 	if (ret)
 		goto out;
 
@@ -2604,12 +2598,7 @@ static int __exclude_logged_extent(struct btrfs_fs_info *fs_info,
 	if (!block_group)
 		return -EINVAL;
 
-	btrfs_cache_block_group(block_group, 1);
-	/*
-	 * Make sure we wait until the cache is completely built in case it is
-	 * missing or is invalid and therefore needs to be rebuilt.
-	 */
-	ret = btrfs_wait_block_group_cache_done(block_group);
+	ret = btrfs_cache_block_group(block_group, true);
 	if (ret)
 		goto out;
 
@@ -3278,20 +3267,20 @@ out_delayed_unlock:
 }
 
 void btrfs_free_tree_block(struct btrfs_trans_handle *trans,
-			   struct btrfs_root *root,
+			   u64 root_id,
 			   struct extent_buffer *buf,
 			   u64 parent, int last_ref)
 {
-	struct btrfs_fs_info *fs_info = root->fs_info;
+	struct btrfs_fs_info *fs_info = trans->fs_info;
 	struct btrfs_ref generic_ref = { 0 };
 	int ret;
 
 	btrfs_init_generic_ref(&generic_ref, BTRFS_DROP_DELAYED_REF,
 			       buf->start, buf->len, parent);
 	btrfs_init_tree_ref(&generic_ref, btrfs_header_level(buf),
-			    root->root_key.objectid);
+			    root_id, 0, false);
 
-	if (root->root_key.objectid != BTRFS_TREE_LOG_OBJECTID) {
+	if (root_id != BTRFS_TREE_LOG_OBJECTID) {
 		btrfs_ref_tree_mod(fs_info, &generic_ref);
 		ret = btrfs_add_delayed_tree_ref(trans, &generic_ref, NULL);
 		BUG_ON(ret); /* -ENOMEM */
@@ -3301,7 +3290,7 @@ void btrfs_free_tree_block(struct btrfs_trans_handle *trans,
 		struct btrfs_block_group *cache;
 		bool must_pin = false;
 
-		if (root->root_key.objectid != BTRFS_TREE_LOG_OBJECTID) {
+		if (root_id != BTRFS_TREE_LOG_OBJECTID) {
 			ret = check_ref_cleanup(trans, buf->start);
 			if (!ret) {
 				btrfs_redirty_list_add(trans->transaction, buf);
@@ -3318,21 +3307,22 @@ void btrfs_free_tree_block(struct btrfs_trans_handle *trans,
 		}
 
 		/*
-		 * If this is a leaf and there are tree mod log users, we may
-		 * have recorded mod log operations that point to this leaf.
-		 * So we must make sure no one reuses this leaf's extent before
-		 * mod log operations are applied to a node, otherwise after
-		 * rewinding a node using the mod log operations we get an
-		 * inconsistent btree, as the leaf's extent may now be used as
-		 * a node or leaf for another different btree.
+		 * If there are tree mod log users we may have recorded mod log
+		 * operations for this node.  If we re-allocate this node we
+		 * could replay operations on this node that happened when it
+		 * existed in a completely different root.  For example if it
+		 * was part of root A, then was reallocated to root B, and we
+		 * are doing a btrfs_old_search_slot(root b), we could replay
+		 * operations that happened when the block was part of root A,
+		 * giving us an inconsistent view of the btree.
+		 *
 		 * We are safe from races here because at this point no other
 		 * node or root points to this extent buffer, so if after this
-		 * check a new tree mod log user joins, it will not be able to
-		 * find a node pointing to this leaf and record operations that
-		 * point to this leaf.
+		 * check a new tree mod log user joins we will not have an
+		 * existing log of operations on this node that we have to
+		 * contend with.
 		 */
-		if (btrfs_header_level(buf) == 0 &&
-		    test_bit(BTRFS_FS_TREE_MOD_LOG_USERS, &fs_info->flags))
+		if (test_bit(BTRFS_FS_TREE_MOD_LOG_USERS, &fs_info->flags))
 			must_pin = true;
 
 		if (must_pin || btrfs_is_zoned(fs_info)) {
@@ -3803,7 +3793,7 @@ static int do_allocation_zoned(struct btrfs_block_group *block_group,
 	       block_group->start == fs_info->data_reloc_bg ||
 	       fs_info->data_reloc_bg == 0);
 
-	if (block_group->ro) {
+	if (block_group->ro || block_group->zoned_data_reloc_ongoing) {
 		ret = 1;
 		goto out;
 	}
@@ -3864,8 +3854,24 @@ static int do_allocation_zoned(struct btrfs_block_group *block_group,
 out:
 	if (ret && ffe_ctl->for_treelog)
 		fs_info->treelog_bg = 0;
-	if (ret && ffe_ctl->for_data_reloc)
+	if (ret && ffe_ctl->for_data_reloc &&
+	    fs_info->data_reloc_bg == block_group->start) {
+		/*
+		 * Do not allow further allocations from this block group.
+		 * Compared to increasing the ->ro, setting the
+		 * ->zoned_data_reloc_ongoing flag still allows nocow
+		 *  writers to come in. See btrfs_inc_nocow_writers().
+		 *
+		 * We need to disable an allocation to avoid an allocation of
+		 * regular (non-relocation data) extent. With mix of relocation
+		 * extents and regular extents, we can dispatch WRITE commands
+		 * (for relocation extents) and ZONE APPEND commands (for
+		 * regular extents) at the same time to the same zone, which
+		 * easily break the write pointer.
+		 */
+		block_group->zoned_data_reloc_ongoing = 1;
 		fs_info->data_reloc_bg = 0;
+	}
 	spin_unlock(&fs_info->relocation_bg_lock);
 	spin_unlock(&fs_info->treelog_bg_lock);
 	spin_unlock(&block_group->lock);
@@ -4307,7 +4313,7 @@ have_block_group:
 		ffe_ctl.cached = btrfs_block_group_done(block_group);
 		if (unlikely(!ffe_ctl.cached)) {
 			ffe_ctl.have_caching_bg = true;
-			ret = btrfs_cache_block_group(block_group, 0);
+			ret = btrfs_cache_block_group(block_group, false);
 
 			/*
 			 * If we get ENOMEM here or something else we want to
@@ -4705,7 +4711,8 @@ int btrfs_alloc_reserved_file_extent(struct btrfs_trans_handle *trans,
 
 	btrfs_init_generic_ref(&generic_ref, BTRFS_ADD_DELAYED_EXTENT,
 			       ins->objectid, ins->offset, 0);
-	btrfs_init_data_ref(&generic_ref, root->root_key.objectid, owner, offset);
+	btrfs_init_data_ref(&generic_ref, root->root_key.objectid, owner,
+			    offset, 0, false);
 	btrfs_ref_tree_mod(root->fs_info, &generic_ref);
 
 	return btrfs_add_delayed_data_ref(trans, &generic_ref, ram_bytes);
@@ -4763,6 +4770,7 @@ btrfs_init_new_buffer(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 {
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct extent_buffer *buf;
+	u64 lockdep_owner = owner;
 
 	buf = btrfs_find_create_tree_block(fs_info, bytenr, owner, level);
 	if (IS_ERR(buf))
@@ -4782,11 +4790,29 @@ btrfs_init_new_buffer(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 	}
 
 	/*
+	 * The reloc trees are just snapshots, so we need them to appear to be
+	 * just like any other fs tree WRT lockdep.
+	 *
+	 * The exception however is in replace_path() in relocation, where we
+	 * hold the lock on the original fs root and then search for the reloc
+	 * root.  At that point we need to make sure any reloc root buffers are
+	 * set to the BTRFS_TREE_RELOC_OBJECTID lockdep class in order to make
+	 * lockdep happy.
+	 */
+	if (lockdep_owner == BTRFS_TREE_RELOC_OBJECTID &&
+	    !test_bit(BTRFS_ROOT_RESET_LOCKDEP_CLASS, &root->state))
+		lockdep_owner = BTRFS_FS_TREE_OBJECTID;
+
+	/* btrfs_clean_tree_block() accesses generation field. */
+	btrfs_set_header_generation(buf, trans->transid);
+
+	/*
 	 * This needs to stay, because we could allocate a freed block from an
 	 * old tree into a new tree, so we need to make sure this new block is
 	 * set to the appropriate level and owner.
 	 */
-	btrfs_set_buffer_lockdep_class(owner, buf, level);
+	btrfs_set_buffer_lockdep_class(lockdep_owner, buf, level);
+
 	__btrfs_tree_lock(buf, nest);
 	btrfs_clean_tree_block(buf);
 	clear_bit(EXTENT_BUFFER_STALE, &buf->bflags);
@@ -4898,7 +4924,8 @@ struct extent_buffer *btrfs_alloc_tree_block(struct btrfs_trans_handle *trans,
 		btrfs_init_generic_ref(&generic_ref, BTRFS_ADD_DELAYED_EXTENT,
 				       ins.objectid, ins.offset, parent);
 		generic_ref.real_root = root->root_key.objectid;
-		btrfs_init_tree_ref(&generic_ref, level, root_objectid);
+		btrfs_init_tree_ref(&generic_ref, level, root_objectid,
+				    root->root_key.objectid, false);
 		btrfs_ref_tree_mod(fs_info, &generic_ref);
 		ret = btrfs_add_delayed_tree_ref(trans, &generic_ref, extent_op);
 		if (ret)
@@ -5315,7 +5342,8 @@ skip:
 
 		btrfs_init_generic_ref(&ref, BTRFS_DROP_DELAYED_REF, bytenr,
 				       fs_info->nodesize, parent);
-		btrfs_init_tree_ref(&ref, level - 1, root->root_key.objectid);
+		btrfs_init_tree_ref(&ref, level - 1, root->root_key.objectid,
+				    0, false);
 		ret = btrfs_free_extent(trans, &ref);
 		if (ret)
 			goto out_unlock;
@@ -5436,7 +5464,8 @@ static noinline int walk_up_proc(struct btrfs_trans_handle *trans,
 			goto owner_mismatch;
 	}
 
-	btrfs_free_tree_block(trans, root, eb, parent, wc->refs[level] == 1);
+	btrfs_free_tree_block(trans, btrfs_root_id(root), eb, parent,
+			      wc->refs[level] == 1);
 out:
 	wc->refs[level] = 0;
 	wc->flags[level] = 0;
@@ -6045,13 +6074,7 @@ int btrfs_trim_fs(struct btrfs_fs_info *fs_info, struct fstrim_range *range)
 
 		if (end - start >= range->minlen) {
 			if (!btrfs_block_group_done(cache)) {
-				ret = btrfs_cache_block_group(cache, 0);
-				if (ret) {
-					bg_failed++;
-					bg_ret = ret;
-					continue;
-				}
-				ret = btrfs_wait_block_group_cache_done(cache);
+				ret = btrfs_cache_block_group(cache, true);
 				if (ret) {
 					bg_failed++;
 					bg_ret = ret;

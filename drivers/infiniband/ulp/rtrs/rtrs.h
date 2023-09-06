@@ -53,13 +53,13 @@ struct rtrs_clt_ops {
 };
 
 struct rtrs_clt *rtrs_clt_open(struct rtrs_clt_ops *ops,
-				 const char *sessname,
+				 const char *pathname,
 				 const struct rtrs_addr *paths,
 				 size_t path_cnt, u16 port,
 				 size_t pdu_sz, u8 reconnect_delay_sec,
 				 s16 max_reconnect_attempts, u32 nr_poll_queues);
 
-void rtrs_clt_close(struct rtrs_clt *sess);
+void rtrs_clt_close(struct rtrs_clt *clt_path);
 
 enum wait_type {
 	RTRS_PERMIT_NOWAIT = 0,
@@ -175,7 +175,8 @@ bool rtrs_srv_resp_rdma(struct rtrs_srv_op *id, int errno);
 
 void rtrs_srv_set_sess_priv(struct rtrs_srv *sess, void *priv);
 
-int rtrs_srv_get_sess_name(struct rtrs_srv *sess, char *sessname, size_t len);
+int rtrs_srv_get_path_name(struct rtrs_srv *sess, char *pathname,
+			   size_t len);
 
 int rtrs_srv_get_queue_depth(struct rtrs_srv *sess);
 

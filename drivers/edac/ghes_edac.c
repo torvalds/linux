@@ -101,9 +101,14 @@ static void dimm_setup_label(struct dimm_info *dimm, u16 handle)
 
 	dmi_memdev_name(handle, &bank, &device);
 
-	/* both strings must be non-zero */
-	if (bank && *bank && device && *device)
-		snprintf(dimm->label, sizeof(dimm->label), "%s %s", bank, device);
+	/*
+	 * Set to a NULL string when both bank and device are zero. In this case,
+	 * the label assigned by default will be preserved.
+	 */
+	snprintf(dimm->label, sizeof(dimm->label), "%s%s%s",
+		 (bank && *bank) ? bank : "",
+		 (bank && *bank && device && *device) ? " " : "",
+		 (device && *device) ? device : "");
 }
 
 static void assign_dmi_dimm_info(struct dimm_info *dimm, struct memdev_dmi_entry *entry)

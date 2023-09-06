@@ -146,7 +146,7 @@ static const struct wakeup_source_info ws_info[] = {
 
 static const struct of_device_id sama5d2_ws_ids[] = {
 	{ .compatible = "atmel,sama5d2-gem",		.data = &ws_info[0] },
-	{ .compatible = "atmel,at91rm9200-rtc",		.data = &ws_info[1] },
+	{ .compatible = "atmel,sama5d2-rtc",		.data = &ws_info[1] },
 	{ .compatible = "atmel,sama5d3-udc",		.data = &ws_info[2] },
 	{ .compatible = "atmel,at91rm9200-ohci",	.data = &ws_info[2] },
 	{ .compatible = "usb-ohci",			.data = &ws_info[2] },
@@ -157,24 +157,24 @@ static const struct of_device_id sama5d2_ws_ids[] = {
 };
 
 static const struct of_device_id sam9x60_ws_ids[] = {
-	{ .compatible = "atmel,at91sam9x5-rtc",		.data = &ws_info[1] },
+	{ .compatible = "microchip,sam9x60-rtc",	.data = &ws_info[1] },
 	{ .compatible = "atmel,at91rm9200-ohci",	.data = &ws_info[2] },
 	{ .compatible = "usb-ohci",			.data = &ws_info[2] },
 	{ .compatible = "atmel,at91sam9g45-ehci",	.data = &ws_info[2] },
 	{ .compatible = "usb-ehci",			.data = &ws_info[2] },
-	{ .compatible = "atmel,at91sam9260-rtt",	.data = &ws_info[4] },
+	{ .compatible = "microchip,sam9x60-rtt",	.data = &ws_info[4] },
 	{ .compatible = "cdns,sam9x60-macb",		.data = &ws_info[5] },
 	{ /* sentinel */ }
 };
 
 static const struct of_device_id sama7g5_ws_ids[] = {
-	{ .compatible = "atmel,at91sam9x5-rtc",		.data = &ws_info[1] },
+	{ .compatible = "microchip,sama7g5-rtc",	.data = &ws_info[1] },
 	{ .compatible = "microchip,sama7g5-ohci",	.data = &ws_info[2] },
 	{ .compatible = "usb-ohci",			.data = &ws_info[2] },
 	{ .compatible = "atmel,at91sam9g45-ehci",	.data = &ws_info[2] },
 	{ .compatible = "usb-ehci",			.data = &ws_info[2] },
 	{ .compatible = "microchip,sama7g5-sdhci",	.data = &ws_info[3] },
-	{ .compatible = "atmel,at91sam9260-rtt",	.data = &ws_info[4] },
+	{ .compatible = "microchip,sama7g5-rtt",	.data = &ws_info[4] },
 	{ /* sentinel */ }
 };
 
@@ -350,9 +350,41 @@ extern u32 at91_pm_suspend_in_sram_sz;
 
 static int at91_suspend_finish(unsigned long val)
 {
+	unsigned char modified_gray_code[] = {
+		0x00, 0x01, 0x02, 0x03, 0x06, 0x07, 0x04, 0x05, 0x0c, 0x0d,
+		0x0e, 0x0f, 0x0a, 0x0b, 0x08, 0x09, 0x18, 0x19, 0x1a, 0x1b,
+		0x1e, 0x1f, 0x1c, 0x1d, 0x14, 0x15, 0x16, 0x17, 0x12, 0x13,
+		0x10, 0x11,
+	};
+	unsigned int tmp, index;
 	int i;
 
 	if (soc_pm.data.mode == AT91_PM_BACKUP && soc_pm.data.ramc_phy) {
+		/*
+		 * Bootloader will perform DDR recalibration and will try to
+		 * restore the ZQ0SR0 with the value saved here. But the
+		 * calibration is buggy and restoring some values from ZQ0SR0
+		 * is forbidden and risky thus we need to provide processed
+		 * values for these (modified gray code values).
+		 */
+		tmp = readl(soc_pm.data.ramc_phy + DDR3PHY_ZQ0SR0);
+
+		/* Store pull-down output impedance select. */
+		index = (tmp >> DDR3PHY_ZQ0SR0_PDO_OFF) & 0x1f;
+		soc_pm.bu->ddr_phy_calibration[0] = modified_gray_code[index];
+
+		/* Store pull-up output impedance select. */
+		index = (tmp >> DDR3PHY_ZQ0SR0_PUO_OFF) & 0x1f;
+		soc_pm.bu->ddr_phy_calibration[0] |= modified_gray_code[index];
+
+		/* Store pull-down on-die termination impedance select. */
+		index = (tmp >> DDR3PHY_ZQ0SR0_PDODT_OFF) & 0x1f;
+		soc_pm.bu->ddr_phy_calibration[0] |= modified_gray_code[index];
+
+		/* Store pull-up on-die termination impedance select. */
+		index = (tmp >> DDR3PHY_ZQ0SRO_PUODT_OFF) & 0x1f;
+		soc_pm.bu->ddr_phy_calibration[0] |= modified_gray_code[index];
+
 		/*
 		 * The 1st 8 words of memory might get corrupted in the process
 		 * of DDR PHY recalibration; it is saved here in securam and it
@@ -841,10 +873,6 @@ static int __init at91_pm_backup_init(void)
 		of_scan_flat_dt(at91_pm_backup_scan_memcs, &located);
 		if (!located)
 			goto securam_fail;
-
-		/* DDR3PHY_ZQ0SR0 */
-		soc_pm.bu->ddr_phy_calibration[0] = readl(soc_pm.data.ramc_phy +
-							  0x188);
 	}
 
 	return 0;

@@ -460,7 +460,7 @@ void rsnd_parse_connect_common(struct rsnd_dai *rdai, char *name,
 		struct device_node *playback,
 		struct device_node *capture);
 int rsnd_node_count(struct rsnd_priv *priv, struct device_node *node, char *name);
-int rsnd_node_fixed_index(struct device_node *node, char *name, int idx);
+int rsnd_node_fixed_index(struct device *dev, struct device_node *node, char *name, int idx);
 
 int rsnd_channel_normalization(int chan);
 #define rsnd_runtime_channel_original(io) \

@@ -1147,7 +1147,8 @@ int replace_file_extents(struct btrfs_trans_handle *trans,
 				       num_bytes, parent);
 		ref.real_root = root->root_key.objectid;
 		btrfs_init_data_ref(&ref, btrfs_header_owner(leaf),
-				    key.objectid, key.offset);
+				    key.objectid, key.offset,
+				    root->root_key.objectid, false);
 		ret = btrfs_inc_extent_ref(trans, &ref);
 		if (ret) {
 			btrfs_abort_transaction(trans, ret);
@@ -1158,7 +1159,8 @@ int replace_file_extents(struct btrfs_trans_handle *trans,
 				       num_bytes, parent);
 		ref.real_root = root->root_key.objectid;
 		btrfs_init_data_ref(&ref, btrfs_header_owner(leaf),
-				    key.objectid, key.offset);
+				    key.objectid, key.offset,
+				    root->root_key.objectid, false);
 		ret = btrfs_free_extent(trans, &ref);
 		if (ret) {
 			btrfs_abort_transaction(trans, ret);
@@ -1324,7 +1326,9 @@ again:
 		btrfs_release_path(path);
 
 		path->lowest_level = level;
+		set_bit(BTRFS_ROOT_RESET_LOCKDEP_CLASS, &src->state);
 		ret = btrfs_search_slot(trans, src, &key, path, 0, 1);
+		clear_bit(BTRFS_ROOT_RESET_LOCKDEP_CLASS, &src->state);
 		path->lowest_level = 0;
 		if (ret) {
 			if (ret > 0)
@@ -1368,7 +1372,8 @@ again:
 		btrfs_init_generic_ref(&ref, BTRFS_ADD_DELAYED_REF, old_bytenr,
 				       blocksize, path->nodes[level]->start);
 		ref.skip_qgroup = true;
-		btrfs_init_tree_ref(&ref, level - 1, src->root_key.objectid);
+		btrfs_init_tree_ref(&ref, level - 1, src->root_key.objectid,
+				    0, true);
 		ret = btrfs_inc_extent_ref(trans, &ref);
 		if (ret) {
 			btrfs_abort_transaction(trans, ret);
@@ -1377,7 +1382,8 @@ again:
 		btrfs_init_generic_ref(&ref, BTRFS_ADD_DELAYED_REF, new_bytenr,
 				       blocksize, 0);
 		ref.skip_qgroup = true;
-		btrfs_init_tree_ref(&ref, level - 1, dest->root_key.objectid);
+		btrfs_init_tree_ref(&ref, level - 1, dest->root_key.objectid, 0,
+				    true);
 		ret = btrfs_inc_extent_ref(trans, &ref);
 		if (ret) {
 			btrfs_abort_transaction(trans, ret);
@@ -1386,7 +1392,8 @@ again:
 
 		btrfs_init_generic_ref(&ref, BTRFS_DROP_DELAYED_REF, new_bytenr,
 				       blocksize, path->nodes[level]->start);
-		btrfs_init_tree_ref(&ref, level - 1, src->root_key.objectid);
+		btrfs_init_tree_ref(&ref, level - 1, src->root_key.objectid,
+				    0, true);
 		ref.skip_qgroup = true;
 		ret = btrfs_free_extent(trans, &ref);
 		if (ret) {
@@ -1396,7 +1403,8 @@ again:
 
 		btrfs_init_generic_ref(&ref, BTRFS_DROP_DELAYED_REF, old_bytenr,
 				       blocksize, 0);
-		btrfs_init_tree_ref(&ref, level - 1, dest->root_key.objectid);
+		btrfs_init_tree_ref(&ref, level - 1, dest->root_key.objectid,
+				    0, true);
 		ref.skip_qgroup = true;
 		ret = btrfs_free_extent(trans, &ref);
 		if (ret) {
@@ -2475,7 +2483,8 @@ static int do_relocation(struct btrfs_trans_handle *trans,
 					       upper->eb->start);
 			ref.real_root = root->root_key.objectid;
 			btrfs_init_tree_ref(&ref, node->level,
-					    btrfs_header_owner(upper->eb));
+					    btrfs_header_owner(upper->eb),
+					    root->root_key.objectid, false);
 			ret = btrfs_inc_extent_ref(trans, &ref);
 			if (!ret)
 				ret = btrfs_drop_subtree(trans, root, eb,
@@ -2691,8 +2700,12 @@ static int relocate_tree_block(struct btrfs_trans_handle *trans,
 			list_add_tail(&node->list, &rc->backref_cache.changed);
 		} else {
 			path->lowest_level = node->level;
+			if (root == root->fs_info->chunk_root)
+				btrfs_reserve_chunk_metadata(trans, false);
 			ret = btrfs_search_slot(trans, root, key, path, 0, 1);
 			btrfs_release_path(path);
+			if (root == root->fs_info->chunk_root)
+				btrfs_trans_release_chunk_metadata(trans);
 			if (ret > 0)
 				ret = 0;
 		}
@@ -3565,7 +3578,12 @@ int prepare_to_relocate(struct reloc_control *rc)
 		 */
 		return PTR_ERR(trans);
 	}
-	return btrfs_commit_transaction(trans);
+
+	ret = btrfs_commit_transaction(trans);
+	if (ret)
+		unset_reloc_control(rc);
+
+	return ret;
 }
 
 static noinline_for_stack int relocate_block_group(struct reloc_control *rc)

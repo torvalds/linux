@@ -3174,6 +3174,7 @@ static int active_scan(struct hci_request *req, unsigned long opt)
 	if (err < 0)
 		own_addr_type = ADDR_LE_DEV_PUBLIC;
 
+	hci_dev_lock(hdev);
 	if (hci_is_adv_monitoring(hdev)) {
 		/* Duplicate filter should be disabled when some advertisement
 		 * monitor is activated, otherwise AdvMon can only receive one
@@ -3190,6 +3191,7 @@ static int active_scan(struct hci_request *req, unsigned long opt)
 		 */
 		filter_dup = LE_SCAN_FILTER_DUP_DISABLE;
 	}
+	hci_dev_unlock(hdev);
 
 	hci_req_start_scan(req, LE_SCAN_ACTIVE, interval,
 			   hdev->le_scan_window_discovery, own_addr_type,

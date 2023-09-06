@@ -3,8 +3,8 @@
  *  Copyright (C) 2012 John Crispin <john@phrozen.org>
  */
 
-#ifndef _RT288X_PINMUX_H__
-#define _RT288X_PINMUX_H__
+#ifndef _PINCTRL_RALINK_H__
+#define _PINCTRL_RALINK_H__
 
 #define FUNC(name, value, pin_first, pin_count) \
 	{ name, value, pin_first, pin_count }
@@ -19,9 +19,9 @@
 	  .func = _func, .gpio = _gpio, \
 	  .func_count = ARRAY_SIZE(_func) }
 
-struct rt2880_pmx_group;
+struct ralink_pmx_group;
 
-struct rt2880_pmx_func {
+struct ralink_pmx_func {
 	const char *name;
 	const char value;
 
@@ -35,7 +35,7 @@ struct rt2880_pmx_func {
 	int enabled;
 };
 
-struct rt2880_pmx_group {
+struct ralink_pmx_group {
 	const char *name;
 	int enabled;
 
@@ -43,11 +43,11 @@ struct rt2880_pmx_group {
 	const char mask;
 	const char gpio;
 
-	struct rt2880_pmx_func *func;
+	struct ralink_pmx_func *func;
 	int func_count;
 };
 
-int rt2880_pinmux_init(struct platform_device *pdev,
-		       struct rt2880_pmx_group *data);
+int ralink_pinmux_init(struct platform_device *pdev,
+		       struct ralink_pmx_group *data);
 
 #endif

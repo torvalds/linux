@@ -1606,6 +1606,11 @@ void
 lpfc_sli4_offline_eratt(struct lpfc_hba *phba)
 {
 	spin_lock_irq(&phba->hbalock);
+	if (phba->link_state == LPFC_HBA_ERROR &&
+	    phba->hba_flag & HBA_PCI_ERR) {
+		spin_unlock_irq(&phba->hbalock);
+		return;
+	}
 	phba->link_state = LPFC_HBA_ERROR;
 	spin_unlock_irq(&phba->hbalock);
 
@@ -1945,7 +1950,6 @@ lpfc_handle_eratt_s4(struct lpfc_hba *phba)
 	if (pci_channel_offline(phba->pcidev)) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"3166 pci channel is offline\n");
-		lpfc_sli4_offline_eratt(phba);
 		return;
 	}
 
@@ -3643,6 +3647,7 @@ lpfc_offline_prep(struct lpfc_hba *phba, int mbx_action)
 	struct lpfc_vport **vports;
 	struct Scsi_Host *shost;
 	int i;
+	int offline = 0;
 
 	if (vport->fc_flag & FC_OFFLINE_MODE)
 		return;
@@ -3650,6 +3655,8 @@ lpfc_offline_prep(struct lpfc_hba *phba, int mbx_action)
 	lpfc_block_mgmt_io(phba, mbx_action);
 
 	lpfc_linkdown(phba);
+
+	offline =  pci_channel_offline(phba->pcidev);
 
 	/* Issue an unreg_login to all nodes on all vports */
 	vports = lpfc_create_vport_work_array(phba);
@@ -3673,7 +3680,14 @@ lpfc_offline_prep(struct lpfc_hba *phba, int mbx_action)
 				ndlp->nlp_flag &= ~NLP_NPR_ADISC;
 				spin_unlock_irq(&ndlp->lock);
 
-				lpfc_unreg_rpi(vports[i], ndlp);
+				if (offline) {
+					spin_lock_irq(&ndlp->lock);
+					ndlp->nlp_flag &= ~(NLP_UNREG_INP |
+							    NLP_RPI_REGISTERED);
+					spin_unlock_irq(&ndlp->lock);
+				} else {
+					lpfc_unreg_rpi(vports[i], ndlp);
+				}
 				/*
 				 * Whenever an SLI4 port goes offline, free the
 				 * RPI. Get a new RPI when the adapter port
@@ -4653,7 +4667,7 @@ lpfc_create_port(struct lpfc_hba *phba, int instance, struct device *dev)
 	rc = lpfc_vmid_res_alloc(phba, vport);
 
 	if (rc)
-		goto out;
+		goto out_put_shost;
 
 	/* Initialize all internally managed lists. */
 	INIT_LIST_HEAD(&vport->fc_nodes);
@@ -4671,16 +4685,17 @@ lpfc_create_port(struct lpfc_hba *phba, int instance, struct device *dev)
 
 	error = scsi_add_host_with_dma(shost, dev, &phba->pcidev->dev);
 	if (error)
-		goto out_put_shost;
+		goto out_free_vmid;
 
 	spin_lock_irq(&phba->port_list_lock);
 	list_add_tail(&vport->listentry, &phba->port_list);
 	spin_unlock_irq(&phba->port_list_lock);
 	return vport;
 
-out_put_shost:
+out_free_vmid:
 	kfree(vport->vmid);
 	bitmap_free(vport->vmid_priority_range);
+out_put_shost:
 	scsi_host_put(shost);
 out:
 	return NULL;
@@ -5413,38 +5428,12 @@ lpfc_async_link_speed_to_read_top(struct lpfc_hba *phba, uint8_t speed_code)
 void
 lpfc_cgn_dump_rxmonitor(struct lpfc_hba *phba)
 {
-	struct rxtable_entry *entry;
-	int cnt = 0, head, tail, last, start;
-
-	head = atomic_read(&phba->rxtable_idx_head);
-	tail = atomic_read(&phba->rxtable_idx_tail);
-	if (!phba->rxtable || head == tail) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_CGN_MGMT,
-				"4411 Rxtable is empty\n");
-		return;
-	}
-	last = tail;
-	start = head;
-
-	/* Display the last LPFC_MAX_RXMONITOR_DUMP entries from the rxtable */
-	while (start != last) {
-		if (start)
-			start--;
-		else
-			start = LPFC_MAX_RXMONITOR_ENTRY - 1;
-		entry = &phba->rxtable[start];
+	if (!phba->rx_monitor) {
 		lpfc_printf_log(phba, KERN_INFO, LOG_CGN_MGMT,
-				"4410 %02d: MBPI %lld Xmit %lld Cmpl %lld "
-				"Lat %lld ASz %lld Info %02d BWUtil %d "
-				"Int %d slot %d\n",
-				cnt, entry->max_bytes_per_interval,
-				entry->total_bytes, entry->rcv_bytes,
-				entry->avg_io_latency, entry->avg_io_size,
-				entry->cmf_info, entry->timer_utilization,
-				entry->timer_interval, start);
-		cnt++;
-		if (cnt >= LPFC_MAX_RXMONITOR_DUMP)
-			return;
+				"4411 Rx Monitor Info is empty.\n");
+	} else {
+		lpfc_rx_monitor_report(phba, phba->rx_monitor, NULL, 0,
+				       LPFC_MAX_RXMONITOR_DUMP);
 	}
 }
 
@@ -5795,21 +5784,8 @@ lpfc_cgn_save_evt_cnt(struct lpfc_hba *phba)
 
 	/* Use the frequency found in the last rcv'ed FPIN */
 	value = phba->cgn_fpin_frequency;
-	if (phba->cgn_reg_fpin & LPFC_CGN_FPIN_WARN)
-		cp->cgn_warn_freq = cpu_to_le16(value);
-	if (phba->cgn_reg_fpin & LPFC_CGN_FPIN_ALARM)
-		cp->cgn_alarm_freq = cpu_to_le16(value);
-
-	/* Frequency (in ms) Signal Warning/Signal Congestion Notifications
-	 * are received by the HBA
-	 */
-	value = phba->cgn_sig_freq;
-
-	if (phba->cgn_reg_signal == EDC_CG_SIG_WARN_ONLY ||
-	    phba->cgn_reg_signal == EDC_CG_SIG_WARN_ALARM)
-		cp->cgn_warn_freq = cpu_to_le16(value);
-	if (phba->cgn_reg_signal == EDC_CG_SIG_WARN_ALARM)
-		cp->cgn_alarm_freq = cpu_to_le16(value);
+	cp->cgn_warn_freq = cpu_to_le16(value);
+	cp->cgn_alarm_freq = cpu_to_le16(value);
 
 	lvalue = lpfc_cgn_calc_crc32(cp, LPFC_CGN_INFO_SZ,
 				     LPFC_CGN_CRC32_SEED);
@@ -5864,11 +5840,10 @@ lpfc_cmf_timer(struct hrtimer *timer)
 {
 	struct lpfc_hba *phba = container_of(timer, struct lpfc_hba,
 					     cmf_timer);
-	struct rxtable_entry *entry;
+	struct rx_info_entry entry;
 	uint32_t io_cnt;
-	uint32_t head, tail;
 	uint32_t busy, max_read;
-	uint64_t total, rcv, lat, mbpi;
+	uint64_t total, rcv, lat, mbpi, extra, cnt;
 	int timer_interval = LPFC_CMF_INTERVAL;
 	uint32_t ms;
 	struct lpfc_cgn_stat *cgs;
@@ -5935,12 +5910,27 @@ lpfc_cmf_timer(struct hrtimer *timer)
 	    phba->hba_flag & HBA_SETUP) {
 		mbpi = phba->cmf_last_sync_bw;
 		phba->cmf_last_sync_bw = 0;
-		lpfc_issue_cmf_sync_wqe(phba, LPFC_CMF_INTERVAL, total);
+		extra = 0;
+
+		/* Calculate any extra bytes needed to account for the
+		 * timer accuracy. If we are less than LPFC_CMF_INTERVAL
+		 * calculate the adjustment needed for total to reflect
+		 * a full LPFC_CMF_INTERVAL.
+		 */
+		if (ms && ms < LPFC_CMF_INTERVAL) {
+			cnt = div_u64(total, ms); /* bytes per ms */
+			cnt *= LPFC_CMF_INTERVAL; /* what total should be */
+			if (cnt > mbpi)
+				cnt = mbpi;
+			extra = cnt - total;
+		}
+		lpfc_issue_cmf_sync_wqe(phba, LPFC_CMF_INTERVAL, total + extra);
 	} else {
 		/* For Monitor mode or link down we want mbpi
 		 * to be the full link speed
 		 */
 		mbpi = phba->cmf_link_byte_count;
+		extra = 0;
 	}
 	phba->cmf_timer_cnt++;
 
@@ -5966,39 +5956,30 @@ lpfc_cmf_timer(struct hrtimer *timer)
 	}
 
 	/* Save rxmonitor information for debug */
-	if (phba->rxtable) {
-		head = atomic_xchg(&phba->rxtable_idx_head,
-				   LPFC_RXMONITOR_TABLE_IN_USE);
-		entry = &phba->rxtable[head];
-		entry->total_bytes = total;
-		entry->rcv_bytes = rcv;
-		entry->cmf_busy = busy;
-		entry->cmf_info = phba->cmf_active_info;
+	if (phba->rx_monitor) {
+		entry.total_bytes = total;
+		entry.cmf_bytes = total + extra;
+		entry.rcv_bytes = rcv;
+		entry.cmf_busy = busy;
+		entry.cmf_info = phba->cmf_active_info;
 		if (io_cnt) {
-			entry->avg_io_latency = div_u64(lat, io_cnt);
-			entry->avg_io_size = div_u64(rcv, io_cnt);
+			entry.avg_io_latency = div_u64(lat, io_cnt);
+			entry.avg_io_size = div_u64(rcv, io_cnt);
 		} else {
-			entry->avg_io_latency = 0;
-			entry->avg_io_size = 0;
+			entry.avg_io_latency = 0;
+			entry.avg_io_size = 0;
 		}
-		entry->max_read_cnt = max_read;
-		entry->io_cnt = io_cnt;
-		entry->max_bytes_per_interval = mbpi;
+		entry.max_read_cnt = max_read;
+		entry.io_cnt = io_cnt;
+		entry.max_bytes_per_interval = mbpi;
 		if (phba->cmf_active_mode == LPFC_CFG_MANAGED)
-			entry->timer_utilization = phba->cmf_last_ts;
+			entry.timer_utilization = phba->cmf_last_ts;
 		else
-			entry->timer_utilization = ms;
-		entry->timer_interval = ms;
+			entry.timer_utilization = ms;
+		entry.timer_interval = ms;
 		phba->cmf_last_ts = 0;
 
-		/* Increment rxtable index */
-		head = (head + 1) % LPFC_MAX_RXMONITOR_ENTRY;
-		tail = atomic_read(&phba->rxtable_idx_tail);
-		if (head == tail) {
-			tail = (tail + 1) % LPFC_MAX_RXMONITOR_ENTRY;
-			atomic_set(&phba->rxtable_idx_tail, tail);
-		}
-		atomic_set(&phba->rxtable_idx_head, head);
+		lpfc_rx_monitor_record(phba->rx_monitor, &entry);
 	}
 
 	if (phba->cmf_active_mode == LPFC_CFG_MONITOR) {
@@ -6493,9 +6474,6 @@ lpfc_sli4_async_sli_evt(struct lpfc_hba *phba, struct lpfc_acqe_sli *acqe_sli)
 		/* Alarm overrides warning, so check that first */
 		if (cgn_signal->alarm_cnt) {
 			if (phba->cgn_reg_signal == EDC_CG_SIG_WARN_ALARM) {
-				/* Keep track of alarm cnt for cgn_info */
-				atomic_add(cgn_signal->alarm_cnt,
-					   &phba->cgn_fabric_alarm_cnt);
 				/* Keep track of alarm cnt for CMF_SYNC_WQE */
 				atomic_add(cgn_signal->alarm_cnt,
 					   &phba->cgn_sync_alarm_cnt);
@@ -6504,8 +6482,6 @@ lpfc_sli4_async_sli_evt(struct lpfc_hba *phba, struct lpfc_acqe_sli *acqe_sli)
 			/* signal action needs to be taken */
 			if (phba->cgn_reg_signal == EDC_CG_SIG_WARN_ONLY ||
 			    phba->cgn_reg_signal == EDC_CG_SIG_WARN_ALARM) {
-				/* Keep track of warning cnt for cgn_info */
-				atomic_add(cnt, &phba->cgn_fabric_warn_cnt);
 				/* Keep track of warning cnt for CMF_SYNC_WQE */
 				atomic_add(cnt, &phba->cgn_sync_warn_cnt);
 			}
@@ -7898,7 +7874,7 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 	/* Allocate device driver memory */
 	rc = lpfc_mem_alloc(phba, SGL_ALIGN_SZ);
 	if (rc)
-		return -ENOMEM;
+		goto out_destroy_workqueue;
 
 	/* IF Type 2 ports get initialized now. */
 	if (bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) >=
@@ -8314,6 +8290,9 @@ out_free_bsmbx:
 	lpfc_destroy_bootstrap_mbox(phba);
 out_free_mem:
 	lpfc_mem_free(phba);
+out_destroy_workqueue:
+	destroy_workqueue(phba->wq);
+	phba->wq = NULL;
 	return rc;
 }
 
@@ -14088,6 +14067,10 @@ lpfc_pci_resume_one_s3(struct device *dev_d)
 		return error;
 	}
 
+	/* Init cpu_map array */
+	lpfc_cpu_map_array_init(phba);
+	/* Init hba_eq_hdl array */
+	lpfc_hba_eq_hdl_array_init(phba);
 	/* Configure and enable interrupt */
 	intr_mode = lpfc_sli_enable_intr(phba, phba->intr_mode);
 	if (intr_mode == LPFC_INTR_ERROR) {
@@ -15041,14 +15024,17 @@ lpfc_io_error_detected_s4(struct pci_dev *pdev, pci_channel_state_t state)
 		lpfc_sli4_prep_dev_for_recover(phba);
 		return PCI_ERS_RESULT_CAN_RECOVER;
 	case pci_channel_io_frozen:
+		phba->hba_flag |= HBA_PCI_ERR;
 		/* Fatal error, prepare for slot reset */
 		lpfc_sli4_prep_dev_for_reset(phba);
 		return PCI_ERS_RESULT_NEED_RESET;
 	case pci_channel_io_perm_failure:
+		phba->hba_flag |= HBA_PCI_ERR;
 		/* Permanent failure, prepare for device down */
 		lpfc_sli4_prep_dev_for_perm_failure(phba);
 		return PCI_ERS_RESULT_DISCONNECT;
 	default:
+		phba->hba_flag |= HBA_PCI_ERR;
 		/* Unknown state, prepare and request slot reset */
 		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"2825 Unknown PCI error state: x%x\n", state);
@@ -15092,6 +15078,7 @@ lpfc_io_slot_reset_s4(struct pci_dev *pdev)
 
 	pci_restore_state(pdev);
 
+	phba->hba_flag &= ~HBA_PCI_ERR;
 	/*
 	 * As the new kernel behavior of pci_restore_state() API call clears
 	 * device saved_state flag, need to save the restored state again.
@@ -15116,6 +15103,7 @@ lpfc_io_slot_reset_s4(struct pci_dev *pdev)
 		return PCI_ERS_RESULT_DISCONNECT;
 	} else
 		phba->intr_mode = intr_mode;
+	lpfc_cpu_affinity_check(phba, phba->cfg_irq_chann);
 
 	/* Log the current active interrupt mode */
 	lpfc_log_intr_mode(phba, phba->intr_mode);
@@ -15316,6 +15304,10 @@ lpfc_io_error_detected(struct pci_dev *pdev, pci_channel_state_t state)
 	struct Scsi_Host *shost = pci_get_drvdata(pdev);
 	struct lpfc_hba *phba = ((struct lpfc_vport *)shost->hostdata)->phba;
 	pci_ers_result_t rc = PCI_ERS_RESULT_DISCONNECT;
+
+	if (phba->link_state == LPFC_HBA_ERROR &&
+	    phba->hba_flag & HBA_IOQ_FLUSH)
+		return PCI_ERS_RESULT_NEED_RESET;
 
 	switch (phba->pci_dev_grp) {
 	case LPFC_PCI_DEV_LP:
@@ -15564,34 +15556,7 @@ void lpfc_dmp_dbg(struct lpfc_hba *phba)
 	unsigned int temp_idx;
 	int i;
 	int j = 0;
-	unsigned long rem_nsec, iflags;
-	bool log_verbose = false;
-	struct lpfc_vport *port_iterator;
-
-	/* Don't dump messages if we explicitly set log_verbose for the
-	 * physical port or any vport.
-	 */
-	if (phba->cfg_log_verbose)
-		return;
-
-	spin_lock_irqsave(&phba->port_list_lock, iflags);
-	list_for_each_entry(port_iterator, &phba->port_list, listentry) {
-		if (port_iterator->load_flag & FC_UNLOADING)
-			continue;
-		if (scsi_host_get(lpfc_shost_from_vport(port_iterator))) {
-			if (port_iterator->cfg_log_verbose)
-				log_verbose = true;
-
-			scsi_host_put(lpfc_shost_from_vport(port_iterator));
-
-			if (log_verbose) {
-				spin_unlock_irqrestore(&phba->port_list_lock,
-						       iflags);
-				return;
-			}
-		}
-	}
-	spin_unlock_irqrestore(&phba->port_list_lock, iflags);
+	unsigned long rem_nsec;
 
 	if (atomic_cmpxchg(&phba->dbg_log_dmping, 0, 1) != 0)
 		return;

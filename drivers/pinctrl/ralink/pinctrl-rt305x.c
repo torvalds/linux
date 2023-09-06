@@ -5,7 +5,7 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/of.h>
-#include "pinmux.h"
+#include "pinctrl-ralink.h"
 
 #define RT305X_GPIO_MODE_UART0_SHIFT	2
 #define RT305X_GPIO_MODE_UART0_MASK	0x7
@@ -31,9 +31,9 @@
 #define RT3352_GPIO_MODE_LNA		18
 #define RT3352_GPIO_MODE_PA		20
 
-static struct rt2880_pmx_func i2c_func[] =  { FUNC("i2c", 0, 1, 2) };
-static struct rt2880_pmx_func spi_func[] = { FUNC("spi", 0, 3, 4) };
-static struct rt2880_pmx_func uartf_func[] = {
+static struct ralink_pmx_func i2c_func[] =  { FUNC("i2c", 0, 1, 2) };
+static struct ralink_pmx_func spi_func[] = { FUNC("spi", 0, 3, 4) };
+static struct ralink_pmx_func uartf_func[] = {
 	FUNC("uartf", RT305X_GPIO_MODE_UARTF, 7, 8),
 	FUNC("pcm uartf", RT305X_GPIO_MODE_PCM_UARTF, 7, 8),
 	FUNC("pcm i2s", RT305X_GPIO_MODE_PCM_I2S, 7, 8),
@@ -42,28 +42,28 @@ static struct rt2880_pmx_func uartf_func[] = {
 	FUNC("gpio uartf", RT305X_GPIO_MODE_GPIO_UARTF, 7, 4),
 	FUNC("gpio i2s", RT305X_GPIO_MODE_GPIO_I2S, 7, 4),
 };
-static struct rt2880_pmx_func uartlite_func[] = { FUNC("uartlite", 0, 15, 2) };
-static struct rt2880_pmx_func jtag_func[] = { FUNC("jtag", 0, 17, 5) };
-static struct rt2880_pmx_func mdio_func[] = { FUNC("mdio", 0, 22, 2) };
-static struct rt2880_pmx_func rt5350_led_func[] = { FUNC("led", 0, 22, 5) };
-static struct rt2880_pmx_func rt5350_cs1_func[] = {
+static struct ralink_pmx_func uartlite_func[] = { FUNC("uartlite", 0, 15, 2) };
+static struct ralink_pmx_func jtag_func[] = { FUNC("jtag", 0, 17, 5) };
+static struct ralink_pmx_func mdio_func[] = { FUNC("mdio", 0, 22, 2) };
+static struct ralink_pmx_func rt5350_led_func[] = { FUNC("led", 0, 22, 5) };
+static struct ralink_pmx_func rt5350_cs1_func[] = {
 	FUNC("spi_cs1", 0, 27, 1),
 	FUNC("wdg_cs1", 1, 27, 1),
 };
-static struct rt2880_pmx_func sdram_func[] = { FUNC("sdram", 0, 24, 16) };
-static struct rt2880_pmx_func rt3352_rgmii_func[] = {
+static struct ralink_pmx_func sdram_func[] = { FUNC("sdram", 0, 24, 16) };
+static struct ralink_pmx_func rt3352_rgmii_func[] = {
 	FUNC("rgmii", 0, 24, 12)
 };
-static struct rt2880_pmx_func rgmii_func[] = { FUNC("rgmii", 0, 40, 12) };
-static struct rt2880_pmx_func rt3352_lna_func[] = { FUNC("lna", 0, 36, 2) };
-static struct rt2880_pmx_func rt3352_pa_func[] = { FUNC("pa", 0, 38, 2) };
-static struct rt2880_pmx_func rt3352_led_func[] = { FUNC("led", 0, 40, 5) };
-static struct rt2880_pmx_func rt3352_cs1_func[] = {
+static struct ralink_pmx_func rgmii_func[] = { FUNC("rgmii", 0, 40, 12) };
+static struct ralink_pmx_func rt3352_lna_func[] = { FUNC("lna", 0, 36, 2) };
+static struct ralink_pmx_func rt3352_pa_func[] = { FUNC("pa", 0, 38, 2) };
+static struct ralink_pmx_func rt3352_led_func[] = { FUNC("led", 0, 40, 5) };
+static struct ralink_pmx_func rt3352_cs1_func[] = {
 	FUNC("spi_cs1", 0, 45, 1),
 	FUNC("wdg_cs1", 1, 45, 1),
 };
 
-static struct rt2880_pmx_group rt3050_pinmux_data[] = {
+static struct ralink_pmx_group rt3050_pinmux_data[] = {
 	GRP("i2c", i2c_func, 1, RT305X_GPIO_MODE_I2C),
 	GRP("spi", spi_func, 1, RT305X_GPIO_MODE_SPI),
 	GRP("uartf", uartf_func, RT305X_GPIO_MODE_UART0_MASK,
@@ -76,7 +76,7 @@ static struct rt2880_pmx_group rt3050_pinmux_data[] = {
 	{ 0 }
 };
 
-static struct rt2880_pmx_group rt3352_pinmux_data[] = {
+static struct ralink_pmx_group rt3352_pinmux_data[] = {
 	GRP("i2c", i2c_func, 1, RT305X_GPIO_MODE_I2C),
 	GRP("spi", spi_func, 1, RT305X_GPIO_MODE_SPI),
 	GRP("uartf", uartf_func, RT305X_GPIO_MODE_UART0_MASK,
@@ -92,7 +92,7 @@ static struct rt2880_pmx_group rt3352_pinmux_data[] = {
 	{ 0 }
 };
 
-static struct rt2880_pmx_group rt5350_pinmux_data[] = {
+static struct ralink_pmx_group rt5350_pinmux_data[] = {
 	GRP("i2c", i2c_func, 1, RT305X_GPIO_MODE_I2C),
 	GRP("spi", spi_func, 1, RT305X_GPIO_MODE_SPI),
 	GRP("uartf", uartf_func, RT305X_GPIO_MODE_UART0_MASK,
@@ -107,11 +107,11 @@ static struct rt2880_pmx_group rt5350_pinmux_data[] = {
 static int rt305x_pinmux_probe(struct platform_device *pdev)
 {
 	if (soc_is_rt5350())
-		return rt2880_pinmux_init(pdev, rt5350_pinmux_data);
+		return ralink_pinmux_init(pdev, rt5350_pinmux_data);
 	else if (soc_is_rt305x() || soc_is_rt3350())
-		return rt2880_pinmux_init(pdev, rt3050_pinmux_data);
+		return ralink_pinmux_init(pdev, rt3050_pinmux_data);
 	else if (soc_is_rt3352())
-		return rt2880_pinmux_init(pdev, rt3352_pinmux_data);
+		return ralink_pinmux_init(pdev, rt3352_pinmux_data);
 	else
 		return -EINVAL;
 }

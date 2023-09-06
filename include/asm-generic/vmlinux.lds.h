@@ -337,6 +337,7 @@
 #define DATA_DATA							\
 	*(.xiptext)							\
 	*(DATA_MAIN)							\
+	*(.data..decrypted)						\
 	*(.ref.data)							\
 	*(.data..shared_aligned) /* percpu related */			\
 	MEM_KEEP(init.data*)						\
@@ -549,10 +550,9 @@
  */
 #ifdef CONFIG_CFI_CLANG
 #define TEXT_CFI_JT							\
-		. = ALIGN(PMD_SIZE);					\
+		ALIGN_FUNCTION();					\
 		__cfi_jt_start = .;					\
 		*(.text..L.cfi.jumptable .text..L.cfi.jumptable.*)	\
-		. = ALIGN(PMD_SIZE);					\
 		__cfi_jt_end = .;
 #else
 #define TEXT_CFI_JT
@@ -970,7 +970,6 @@
 #ifdef CONFIG_AMD_MEM_ENCRYPT
 #define PERCPU_DECRYPTED_SECTION					\
 	. = ALIGN(PAGE_SIZE);						\
-	*(.data..decrypted)						\
 	*(.data..percpu..decrypted)					\
 	. = ALIGN(PAGE_SIZE);
 #else

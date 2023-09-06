@@ -259,6 +259,7 @@ static void *bpf_test_init(const union bpf_attr *kattr, u32 size,
 	if (user_size > size)
 		return ERR_PTR(-EMSGSIZE);
 
+	size = SKB_DATA_ALIGN(size);
 	data = kzalloc(size + headroom + tailroom, GFP_USER);
 	if (!data)
 		return ERR_PTR(-ENOMEM);
@@ -468,6 +469,9 @@ static inline bool range_is_zero(void *buf, size_t from, size_t to)
 static int convert___skb_to_skb(struct sk_buff *skb, struct __sk_buff *__skb)
 {
 	struct qdisc_skb_cb *cb = (struct qdisc_skb_cb *)skb->cb;
+
+	if (!skb->len)
+		return -EINVAL;
 
 	if (!__skb)
 		return 0;

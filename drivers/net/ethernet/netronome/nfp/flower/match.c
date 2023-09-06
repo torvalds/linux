@@ -602,6 +602,14 @@ int nfp_flower_compile_flow_match(struct nfp_app *app,
 		msk += sizeof(struct nfp_flower_ipv6);
 	}
 
+	if (NFP_FLOWER_LAYER2_QINQ & key_ls->key_layer_two) {
+		nfp_flower_compile_vlan((struct nfp_flower_vlan *)ext,
+					(struct nfp_flower_vlan *)msk,
+					rule);
+		ext += sizeof(struct nfp_flower_vlan);
+		msk += sizeof(struct nfp_flower_vlan);
+	}
+
 	if (key_ls->key_layer_two & NFP_FLOWER_LAYER2_GRE) {
 		if (key_ls->key_layer_two & NFP_FLOWER_LAYER2_TUN_IPV6) {
 			struct nfp_flower_ipv6_gre_tun *gre_match;
@@ -635,14 +643,6 @@ int nfp_flower_compile_flow_match(struct nfp_app *app,
 			nfp_flow->nfp_tun_ipv4_addr = dst;
 			nfp_tunnel_add_ipv4_off(app, dst);
 		}
-	}
-
-	if (NFP_FLOWER_LAYER2_QINQ & key_ls->key_layer_two) {
-		nfp_flower_compile_vlan((struct nfp_flower_vlan *)ext,
-					(struct nfp_flower_vlan *)msk,
-					rule);
-		ext += sizeof(struct nfp_flower_vlan);
-		msk += sizeof(struct nfp_flower_vlan);
 	}
 
 	if (key_ls->key_layer & NFP_FLOWER_LAYER_VXLAN ||

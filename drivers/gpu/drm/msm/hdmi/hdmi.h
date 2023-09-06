@@ -114,6 +114,13 @@ struct hdmi_platform_config {
 	struct hdmi_gpio_data gpios[HDMI_MAX_NUM_GPIO];
 };
 
+struct hdmi_bridge {
+	struct drm_bridge base;
+	struct hdmi *hdmi;
+	struct work_struct hpd_work;
+};
+#define to_hdmi_bridge(x) container_of(x, struct hdmi_bridge, base)
+
 void msm_hdmi_set_mode(struct hdmi *hdmi, bool power_on);
 
 static inline void hdmi_write(struct hdmi *hdmi, u32 reg, u32 data)
@@ -230,13 +237,11 @@ void msm_hdmi_audio_set_sample_rate(struct hdmi *hdmi, int rate);
 struct drm_bridge *msm_hdmi_bridge_init(struct hdmi *hdmi);
 void msm_hdmi_bridge_destroy(struct drm_bridge *bridge);
 
-/*
- * hdmi connector:
- */
-
-void msm_hdmi_connector_irq(struct drm_connector *connector);
-struct drm_connector *msm_hdmi_connector_init(struct hdmi *hdmi);
-int msm_hdmi_hpd_enable(struct drm_connector *connector);
+void msm_hdmi_hpd_irq(struct drm_bridge *bridge);
+enum drm_connector_status msm_hdmi_bridge_detect(
+		struct drm_bridge *bridge);
+int msm_hdmi_hpd_enable(struct drm_bridge *bridge);
+void msm_hdmi_hpd_disable(struct hdmi_bridge *hdmi_bridge);
 
 /*
  * i2c adapter for ddc:

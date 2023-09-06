@@ -71,7 +71,7 @@ struct pipe_inode_info {
 	unsigned int files;
 	unsigned int r_counter;
 	unsigned int w_counter;
-	unsigned int poll_usage;
+	bool poll_usage;
 	struct page *tmp_page;
 	struct fasync_struct *fasync_readers;
 	struct fasync_struct *fasync_writers;
@@ -227,6 +227,15 @@ static inline bool pipe_buf_try_steal(struct pipe_inode_info *pipe,
 	if (!buf->ops->try_steal)
 		return false;
 	return buf->ops->try_steal(pipe, buf);
+}
+
+static inline void pipe_discard_from(struct pipe_inode_info *pipe,
+		unsigned int old_head)
+{
+	unsigned int mask = pipe->ring_size - 1;
+
+	while (pipe->head > old_head)
+		pipe_buf_release(pipe, &pipe->bufs[--pipe->head & mask]);
 }
 
 /* Differs from PIPE_BUF in that PIPE_SIZE is the length of the actual

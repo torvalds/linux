@@ -622,11 +622,6 @@ static void ipi_complete(unsigned int cpu)
 /*
  * Main handler for inter-processor interrupts
  */
-asmlinkage void __exception_irq_entry do_IPI(int ipinr, struct pt_regs *regs)
-{
-	handle_IPI(ipinr, regs);
-}
-
 static void do_handle_IPI(int ipinr)
 {
 	unsigned int cpu = smp_processor_id();

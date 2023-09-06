@@ -44,6 +44,7 @@ struct occ {
 	struct device *sbefifo;
 	char name[32];
 	int idx;
+	bool platform_hwmon;
 	u8 sequence_number;
 	void *buffer;
 	void *client_buffer;
@@ -598,7 +599,7 @@ int fsi_occ_submit(struct device *dev, const void *request, size_t req_len,
 }
 EXPORT_SYMBOL_GPL(fsi_occ_submit);
 
-static int occ_unregister_child(struct device *dev, void *data)
+static int occ_unregister_platform_child(struct device *dev, void *data)
 {
 	struct platform_device *hwmon_dev = to_platform_device(dev);
 
@@ -607,12 +608,25 @@ static int occ_unregister_child(struct device *dev, void *data)
 	return 0;
 }
 
+static int occ_unregister_of_child(struct device *dev, void *data)
+{
+	struct platform_device *hwmon_dev = to_platform_device(dev);
+
+	of_device_unregister(hwmon_dev);
+	if (dev->of_node)
+		of_node_clear_flag(dev->of_node, OF_POPULATED);
+
+	return 0;
+}
+
 static int occ_probe(struct platform_device *pdev)
 {
 	int rc;
 	u32 reg;
+	char child_name[32];
 	struct occ *occ;
-	struct platform_device *hwmon_dev;
+	struct platform_device *hwmon_dev = NULL;
+	struct device_node *hwmon_node;
 	struct device *dev = &pdev->dev;
 	struct platform_device_info hwmon_dev_info = {
 		.parent = dev,
@@ -671,10 +685,20 @@ static int occ_probe(struct platform_device *pdev)
 		return rc;
 	}
 
-	hwmon_dev_info.id = occ->idx;
-	hwmon_dev = platform_device_register_full(&hwmon_dev_info);
-	if (IS_ERR(hwmon_dev))
-		dev_warn(dev, "failed to create hwmon device\n");
+	hwmon_node = of_get_child_by_name(dev->of_node, hwmon_dev_info.name);
+	if (hwmon_node) {
+		snprintf(child_name, sizeof(child_name), "%s.%d", hwmon_dev_info.name, occ->idx);
+		hwmon_dev = of_platform_device_create(hwmon_node, child_name, dev);
+		of_node_put(hwmon_node);
+	}
+
+	if (!hwmon_dev) {
+		occ->platform_hwmon = true;
+		hwmon_dev_info.id = occ->idx;
+		hwmon_dev = platform_device_register_full(&hwmon_dev_info);
+		if (IS_ERR(hwmon_dev))
+			dev_warn(dev, "failed to create hwmon device\n");
+	}
 
 	return 0;
 }
@@ -690,7 +714,10 @@ static int occ_remove(struct platform_device *pdev)
 	occ->buffer = NULL;
 	mutex_unlock(&occ->occ_lock);
 
-	device_for_each_child(&pdev->dev, NULL, occ_unregister_child);
+	if (occ->platform_hwmon)
+		device_for_each_child(&pdev->dev, NULL, occ_unregister_platform_child);
+	else
+		device_for_each_child(&pdev->dev, NULL, occ_unregister_of_child);
 
 	ida_simple_remove(&occ_ida, occ->idx);
 

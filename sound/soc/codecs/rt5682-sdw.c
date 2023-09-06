@@ -719,8 +719,11 @@ static int rt5682_sdw_remove(struct sdw_slave *slave)
 {
 	struct rt5682_priv *rt5682 = dev_get_drvdata(&slave->dev);
 
-	if (rt5682 && rt5682->hw_init)
+	if (rt5682->hw_init)
 		cancel_delayed_work_sync(&rt5682->jack_detect_work);
+
+	if (rt5682->first_hw_init)
+		pm_runtime_disable(&slave->dev);
 
 	return 0;
 }

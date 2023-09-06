@@ -506,11 +506,11 @@ void bpf_local_storage_map_free(struct bpf_local_storage_map *smap,
 				struct bpf_local_storage_elem, map_node))) {
 			if (busy_counter) {
 				migrate_disable();
-				__this_cpu_inc(*busy_counter);
+				this_cpu_inc(*busy_counter);
 			}
 			bpf_selem_unlink(selem);
 			if (busy_counter) {
-				__this_cpu_dec(*busy_counter);
+				this_cpu_dec(*busy_counter);
 				migrate_enable();
 			}
 			cond_resched_rcu();

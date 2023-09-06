@@ -106,6 +106,7 @@ static const struct iio_info si7020_info = {
 static int si7020_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
+	struct i2c_adapter *root;
 	struct iio_dev *indio_dev;
 	struct i2c_client **data;
 	int ret;
@@ -115,12 +116,23 @@ static int si7020_probe(struct i2c_client *client,
 				     I2C_FUNC_SMBUS_READ_WORD_DATA))
 		return -EOPNOTSUPP;
 
+	root = i2c_lock_select_bus(client->adapter);
+	if (IS_ERR(root))
+		return PTR_ERR(root);
+
 	/* Reset device, loads default settings. */
-	ret = i2c_smbus_write_byte(client, SI7020CMD_RESET);
-	if (ret < 0)
+	ret = __i2c_smbus_xfer(root, client->addr, client->flags,
+			       I2C_SMBUS_WRITE, SI7020CMD_RESET,
+			       I2C_SMBUS_BYTE, NULL);
+	if (ret < 0) {
+		i2c_unlock_deselect_bus(client->adapter);
 		return ret;
+	}
+
 	/* Wait the maximum power-up time after software reset. */
 	msleep(15);
+
+	i2c_unlock_deselect_bus(client->adapter);
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)

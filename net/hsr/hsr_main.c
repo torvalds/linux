@@ -75,7 +75,7 @@ static int hsr_netdev_notify(struct notifier_block *nb, unsigned long event,
 		master = hsr_port_get_hsr(hsr, HSR_PT_MASTER);
 
 		if (port->type == HSR_PT_SLAVE_A) {
-			ether_addr_copy(master->dev->dev_addr, dev->dev_addr);
+			eth_hw_addr_set(master->dev, dev->dev_addr);
 			call_netdevice_notifiers(NETDEV_CHANGEADDR,
 						 master->dev);
 		}

@@ -480,7 +480,7 @@ void bpf_gen__record_attach_target(struct bpf_gen *gen, const char *attach_name,
 	gen->attach_kind = kind;
 	ret = snprintf(gen->attach_target, sizeof(gen->attach_target), "%s%s",
 		       prefix, attach_name);
-	if (ret == sizeof(gen->attach_target))
+	if (ret >= sizeof(gen->attach_target))
 		gen->error = -ENOSPC;
 }
 

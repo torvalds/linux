@@ -123,6 +123,7 @@ static int mt76_led_init(struct mt76_dev *dev)
 		if (!of_property_read_u32(np, "led-sources", &led_pin))
 			dev->led_pin = led_pin;
 		dev->led_al = of_property_read_bool(np, "led-active-low");
+		of_node_put(np);
 	}
 
 	return led_classdev_register(dev->dev, &dev->led_cdev);
@@ -1100,7 +1101,7 @@ mt76_sta_add(struct mt76_dev *dev, struct ieee80211_vif *vif,
 			continue;
 
 		mtxq = (struct mt76_txq *)sta->txq[i]->drv_priv;
-		mtxq->wcid = wcid;
+		mtxq->wcid = wcid->idx;
 	}
 
 	ewma_signal_init(&wcid->rssi);

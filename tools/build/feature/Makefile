@@ -56,6 +56,7 @@ FILES=                                          \
          test-lzma.bin                          \
          test-bpf.bin                           \
          test-libbpf.bin                        \
+         test-libbpf-btf__load_from_kernel_by_id.bin	\
          test-get_cpuid.bin                     \
          test-sdt.bin                           \
          test-cxx.bin                           \
@@ -281,6 +282,9 @@ $(OUTPUT)test-bpf.bin:
 	$(BUILD)
 
 $(OUTPUT)test-libbpf.bin:
+	$(BUILD) -lbpf
+
+$(OUTPUT)test-libbpf-btf__load_from_kernel_by_id.bin:
 	$(BUILD) -lbpf
 
 $(OUTPUT)test-sdt.bin:

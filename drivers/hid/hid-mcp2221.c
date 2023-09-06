@@ -385,6 +385,9 @@ static int mcp_smbus_write(struct mcp2221 *mcp, u16 addr,
 		data_len = 7;
 		break;
 	default:
+		if (len > I2C_SMBUS_BLOCK_MAX)
+			return -EINVAL;
+
 		memcpy(&mcp->txbuf[5], buf, len);
 		data_len = len + 5;
 	}

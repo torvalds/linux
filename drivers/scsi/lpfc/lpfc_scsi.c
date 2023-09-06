@@ -493,8 +493,8 @@ void
 lpfc_sli4_io_xri_aborted(struct lpfc_hba *phba,
 			 struct sli4_wcqe_xri_aborted *axri, int idx)
 {
-	uint16_t xri = bf_get(lpfc_wcqe_xa_xri, axri);
-	uint16_t rxid = bf_get(lpfc_wcqe_xa_remote_xid, axri);
+	u16 xri = 0;
+	u16 rxid = 0;
 	struct lpfc_io_buf *psb, *next_psb;
 	struct lpfc_sli4_hdw_queue *qp;
 	unsigned long iflag = 0;
@@ -504,15 +504,22 @@ lpfc_sli4_io_xri_aborted(struct lpfc_hba *phba,
 	int rrq_empty = 0;
 	struct lpfc_sli_ring *pring = phba->sli4_hba.els_wq->pring;
 	struct scsi_cmnd *cmd;
+	int offline = 0;
 
 	if (!(phba->cfg_enable_fc4_type & LPFC_ENABLE_FCP))
 		return;
-
+	offline = pci_channel_offline(phba->pcidev);
+	if (!offline) {
+		xri = bf_get(lpfc_wcqe_xa_xri, axri);
+		rxid = bf_get(lpfc_wcqe_xa_remote_xid, axri);
+	}
 	qp = &phba->sli4_hba.hdwq[idx];
 	spin_lock_irqsave(&phba->hbalock, iflag);
 	spin_lock(&qp->abts_io_buf_list_lock);
 	list_for_each_entry_safe(psb, next_psb,
 		&qp->lpfc_abts_io_buf_list, list) {
+		if (offline)
+			xri = psb->cur_iocbq.sli4_xritag;
 		if (psb->cur_iocbq.sli4_xritag == xri) {
 			list_del_init(&psb->list);
 			psb->flags &= ~LPFC_SBUF_XBUSY;
@@ -521,8 +528,15 @@ lpfc_sli4_io_xri_aborted(struct lpfc_hba *phba,
 				qp->abts_nvme_io_bufs--;
 				spin_unlock(&qp->abts_io_buf_list_lock);
 				spin_unlock_irqrestore(&phba->hbalock, iflag);
-				lpfc_sli4_nvme_xri_aborted(phba, axri, psb);
-				return;
+				if (!offline) {
+					lpfc_sli4_nvme_xri_aborted(phba, axri,
+								   psb);
+					return;
+				}
+				lpfc_sli4_nvme_pci_offline_aborted(phba, psb);
+				spin_lock_irqsave(&phba->hbalock, iflag);
+				spin_lock(&qp->abts_io_buf_list_lock);
+				continue;
 			}
 			qp->abts_scsi_io_bufs--;
 			spin_unlock(&qp->abts_io_buf_list_lock);
@@ -534,13 +548,13 @@ lpfc_sli4_io_xri_aborted(struct lpfc_hba *phba,
 
 			rrq_empty = list_empty(&phba->active_rrq_list);
 			spin_unlock_irqrestore(&phba->hbalock, iflag);
-			if (ndlp) {
+			if (ndlp && !offline) {
 				lpfc_set_rrq_active(phba, ndlp,
 					psb->cur_iocbq.sli4_lxritag, rxid, 1);
 				lpfc_sli4_abts_err_handler(phba, ndlp, axri);
 			}
 
-			if (phba->cfg_fcp_wait_abts_rsp) {
+			if (phba->cfg_fcp_wait_abts_rsp || offline) {
 				spin_lock_irqsave(&psb->buf_lock, iflag);
 				cmd = psb->pCmd;
 				psb->pCmd = NULL;
@@ -567,25 +581,30 @@ lpfc_sli4_io_xri_aborted(struct lpfc_hba *phba,
 			lpfc_release_scsi_buf_s4(phba, psb);
 			if (rrq_empty)
 				lpfc_worker_wake_up(phba);
-			return;
+			if (!offline)
+				return;
+			spin_lock_irqsave(&phba->hbalock, iflag);
+			spin_lock(&qp->abts_io_buf_list_lock);
+			continue;
 		}
 	}
 	spin_unlock(&qp->abts_io_buf_list_lock);
-	for (i = 1; i <= phba->sli.last_iotag; i++) {
-		iocbq = phba->sli.iocbq_lookup[i];
+	if (!offline) {
+		for (i = 1; i <= phba->sli.last_iotag; i++) {
+			iocbq = phba->sli.iocbq_lookup[i];
 
-		if (!(iocbq->iocb_flag & LPFC_IO_FCP) ||
-		    (iocbq->iocb_flag & LPFC_IO_LIBDFC))
-			continue;
-		if (iocbq->sli4_xritag != xri)
-			continue;
-		psb = container_of(iocbq, struct lpfc_io_buf, cur_iocbq);
-		psb->flags &= ~LPFC_SBUF_XBUSY;
-		spin_unlock_irqrestore(&phba->hbalock, iflag);
-		if (!list_empty(&pring->txq))
-			lpfc_worker_wake_up(phba);
-		return;
-
+			if (!(iocbq->iocb_flag & LPFC_IO_FCP) ||
+			    (iocbq->iocb_flag & LPFC_IO_LIBDFC))
+				continue;
+			if (iocbq->sli4_xritag != xri)
+				continue;
+			psb = container_of(iocbq, struct lpfc_io_buf, cur_iocbq);
+			psb->flags &= ~LPFC_SBUF_XBUSY;
+			spin_unlock_irqrestore(&phba->hbalock, iflag);
+			if (!list_empty(&pring->txq))
+				lpfc_worker_wake_up(phba);
+			return;
+		}
 	}
 	spin_unlock_irqrestore(&phba->hbalock, iflag);
 }
@@ -3917,7 +3936,7 @@ lpfc_update_cmf_cmpl(struct lpfc_hba *phba,
 		else
 			time = div_u64(time + 500, 1000); /* round it */
 
-		cgs = this_cpu_ptr(phba->cmf_stat);
+		cgs = per_cpu_ptr(phba->cmf_stat, raw_smp_processor_id());
 		atomic64_add(size, &cgs->rcv_bytes);
 		atomic64_add(time, &cgs->rx_latency);
 		atomic_inc(&cgs->rx_io_cnt);
@@ -3960,7 +3979,7 @@ lpfc_update_cmf_cmd(struct lpfc_hba *phba, uint32_t size)
 			atomic_set(&phba->rx_max_read_cnt, size);
 	}
 
-	cgs = this_cpu_ptr(phba->cmf_stat);
+	cgs = per_cpu_ptr(phba->cmf_stat, raw_smp_processor_id());
 	atomic64_add(size, &cgs->total_bytes);
 	return 0;
 }
@@ -4374,7 +4393,7 @@ lpfc_fcp_io_cmd_wqe_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pwqeIn,
 		    lpfc_cmd->result == IOERR_NO_RESOURCES ||
 		    lpfc_cmd->result == IOERR_ABORT_REQUESTED ||
 		    lpfc_cmd->result == IOERR_SLER_CMD_RCV_FAILURE) {
-			cmd->result = DID_REQUEUE << 16;
+			cmd->result = DID_TRANSPORT_DISRUPTED << 16;
 			break;
 		}
 		if ((lpfc_cmd->result == IOERR_RX_DMA_FAILED ||
@@ -4661,7 +4680,7 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 			    lpfc_cmd->result == IOERR_NO_RESOURCES ||
 			    lpfc_cmd->result == IOERR_ABORT_REQUESTED ||
 			    lpfc_cmd->result == IOERR_SLER_CMD_RCV_FAILURE) {
-				cmd->result = DID_REQUEUE << 16;
+				cmd->result = DID_TRANSPORT_DISRUPTED << 16;
 				break;
 			}
 			if ((lpfc_cmd->result == IOERR_RX_DMA_FAILED ||
@@ -5732,7 +5751,6 @@ lpfc_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *cmnd)
 		}
 	}
 
-	atomic_inc(&ndlp->cmd_pending);
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
 	if (unlikely(phba->hdwqstat_on & LPFC_CHECK_SCSI_IO))
 		this_cpu_inc(phba->sli4_hba.c_stat->xmt_io);
@@ -5885,25 +5903,25 @@ lpfc_abort_handler(struct scsi_cmnd *cmnd)
 	if (!lpfc_cmd)
 		return ret;
 
-	spin_lock_irqsave(&phba->hbalock, flags);
+	/* Guard against IO completion being called at same time */
+	spin_lock_irqsave(&lpfc_cmd->buf_lock, flags);
+
+	spin_lock(&phba->hbalock);
 	/* driver queued commands are in process of being flushed */
 	if (phba->hba_flag & HBA_IOQ_FLUSH) {
 		lpfc_printf_vlog(vport, KERN_WARNING, LOG_FCP,
 			"3168 SCSI Layer abort requested I/O has been "
 			"flushed by LLD.\n");
 		ret = FAILED;
-		goto out_unlock;
+		goto out_unlock_hba;
 	}
-
-	/* Guard against IO completion being called at same time */
-	spin_lock(&lpfc_cmd->buf_lock);
 
 	if (!lpfc_cmd->pCmd) {
 		lpfc_printf_vlog(vport, KERN_WARNING, LOG_FCP,
 			 "2873 SCSI Layer I/O Abort Request IO CMPL Status "
 			 "x%x ID %d LUN %llu\n",
 			 SUCCESS, cmnd->device->id, cmnd->device->lun);
-		goto out_unlock_buf;
+		goto out_unlock_hba;
 	}
 
 	iocb = &lpfc_cmd->cur_iocbq;
@@ -5911,7 +5929,7 @@ lpfc_abort_handler(struct scsi_cmnd *cmnd)
 		pring_s4 = phba->sli4_hba.hdwq[iocb->hba_wqidx].io_wq->pring;
 		if (!pring_s4) {
 			ret = FAILED;
-			goto out_unlock_buf;
+			goto out_unlock_hba;
 		}
 		spin_lock(&pring_s4->ring_lock);
 	}
@@ -5944,8 +5962,8 @@ lpfc_abort_handler(struct scsi_cmnd *cmnd)
 			 "3389 SCSI Layer I/O Abort Request is pending\n");
 		if (phba->sli_rev == LPFC_SLI_REV4)
 			spin_unlock(&pring_s4->ring_lock);
-		spin_unlock(&lpfc_cmd->buf_lock);
-		spin_unlock_irqrestore(&phba->hbalock, flags);
+		spin_unlock(&phba->hbalock);
+		spin_unlock_irqrestore(&lpfc_cmd->buf_lock, flags);
 		goto wait_for_cmpl;
 	}
 
@@ -5966,15 +5984,13 @@ lpfc_abort_handler(struct scsi_cmnd *cmnd)
 	if (ret_val != IOCB_SUCCESS) {
 		/* Indicate the IO is not being aborted by the driver. */
 		lpfc_cmd->waitq = NULL;
-		spin_unlock(&lpfc_cmd->buf_lock);
-		spin_unlock_irqrestore(&phba->hbalock, flags);
 		ret = FAILED;
-		goto out;
+		goto out_unlock_hba;
 	}
 
 	/* no longer need the lock after this point */
-	spin_unlock(&lpfc_cmd->buf_lock);
-	spin_unlock_irqrestore(&phba->hbalock, flags);
+	spin_unlock(&phba->hbalock);
+	spin_unlock_irqrestore(&lpfc_cmd->buf_lock, flags);
 
 	if (phba->cfg_poll & DISABLE_FCP_RING_INT)
 		lpfc_sli_handle_fast_ring_event(phba,
@@ -6009,10 +6025,9 @@ wait_for_cmpl:
 out_unlock_ring:
 	if (phba->sli_rev == LPFC_SLI_REV4)
 		spin_unlock(&pring_s4->ring_lock);
-out_unlock_buf:
-	spin_unlock(&lpfc_cmd->buf_lock);
-out_unlock:
-	spin_unlock_irqrestore(&phba->hbalock, flags);
+out_unlock_hba:
+	spin_unlock(&phba->hbalock);
+	spin_unlock_irqrestore(&lpfc_cmd->buf_lock, flags);
 out:
 	lpfc_printf_vlog(vport, KERN_WARNING, LOG_FCP,
 			 "0749 SCSI Layer I/O Abort Request Status x%x ID %d "

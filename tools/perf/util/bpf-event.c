@@ -21,7 +21,8 @@
 #include "record.h"
 #include "util/synthetic-events.h"
 
-struct btf * __weak btf__load_from_kernel_by_id(__u32 id)
+#ifndef HAVE_LIBBPF_BTF__LOAD_FROM_KERNEL_BY_ID
+struct btf *btf__load_from_kernel_by_id(__u32 id)
 {
        struct btf *btf;
 #pragma GCC diagnostic push
@@ -31,6 +32,7 @@ struct btf * __weak btf__load_from_kernel_by_id(__u32 id)
 
        return err ? ERR_PTR(err) : btf;
 }
+#endif
 
 #define ptr_to_u64(ptr)    ((__u64)(unsigned long)(ptr))
 

@@ -218,7 +218,7 @@ fc_port_t *fcport)
 		    "%s edif not enabled\n", __func__);
 		goto done;
 	}
-	if (vha->e_dbell.db_flags != EDB_ACTIVE) {
+	if (DBELL_INACTIVE(vha)) {
 		ql_dbg(ql_dbg_edif, vha, 0x09102,
 		    "%s doorbell not enabled\n", __func__);
 		goto done;
@@ -482,15 +482,17 @@ qla_edif_app_start(scsi_qla_host_t *vha, struct bsg_job *bsg_job)
 	ql_dbg(ql_dbg_edif, vha, 0x911d, "%s app_vid=%x app_start_flags %x\n",
 	     __func__, appstart.app_info.app_vid, appstart.app_start_flags);
 
-	if (vha->e_dbell.db_flags != EDB_ACTIVE) {
+	if (DBELL_INACTIVE(vha)) {
 		/* mark doorbell as active since an app is now present */
-		vha->e_dbell.db_flags = EDB_ACTIVE;
+		vha->e_dbell.db_flags |= EDB_ACTIVE;
 	} else {
-		ql_dbg(ql_dbg_edif, vha, 0x911e, "%s doorbell already active\n",
-		     __func__);
+		goto out;
 	}
 
 	if (N2N_TOPO(vha->hw)) {
+		list_for_each_entry_safe(fcport, tf, &vha->vp_fcports, list)
+			fcport->n2n_link_reset_cnt = 0;
+
 		if (vha->hw->flags.n2n_fw_acc_sec)
 			set_bit(N2N_LINK_RESET, &vha->dpc_flags);
 		else
@@ -517,19 +519,32 @@ qla_edif_app_start(scsi_qla_host_t *vha, struct bsg_job *bsg_job)
 			if (atomic_read(&vha->loop_state) == LOOP_DOWN)
 				break;
 
-			fcport->edif.app_started = 1;
 			fcport->login_retry = vha->hw->login_retry_count;
 
-			/* no activity */
 			fcport->edif.app_stop = 0;
+			fcport->edif.app_sess_online = 0;
+			fcport->edif.app_started = 1;
+
+			if (fcport->scan_state != QLA_FCPORT_FOUND)
+				continue;
+
+			if (fcport->port_type == FCT_UNKNOWN &&
+			    !fcport->fc4_features)
+				rval = qla24xx_async_gffid(vha, fcport, true);
+
+			if (!rval && !(fcport->fc4_features & FC4_FF_TARGET ||
+			    fcport->port_type & (FCT_TARGET|FCT_NVME_TARGET)))
+				continue;
+
+			rval = 0;
 
 			ql_dbg(ql_dbg_edif, vha, 0x911e,
 			       "%s wwpn %8phC calling qla_edif_reset_auth_wait\n",
 			       __func__, fcport->port_name);
-			fcport->edif.app_sess_online = 0;
 			qlt_schedule_sess_for_deletion(fcport);
 			qla_edif_sa_ctl_init(vha, fcport);
 		}
+		set_bit(RELOGIN_NEEDED, &vha->dpc_flags);
 	}
 
 	if (vha->pur_cinfo.enode_flags != ENODE_ACTIVE) {
@@ -540,6 +555,7 @@ qla_edif_app_start(scsi_qla_host_t *vha, struct bsg_job *bsg_job)
 		     __func__);
 	}
 
+out:
 	appreply.host_support_edif = vha->hw->flags.edif_enabled;
 	appreply.edif_enode_active = vha->pur_cinfo.enode_flags;
 	appreply.edif_edb_active = vha->e_dbell.db_flags;
@@ -883,6 +899,20 @@ qla_edif_app_getfcinfo(scsi_qla_host_t *vha, struct bsg_job *bsg_job)
 
 			app_reply->ports[pcnt].rekey_count =
 				fcport->edif.rekey_cnt;
+
+			if (fcport->scan_state != QLA_FCPORT_FOUND)
+				continue;
+
+			if (fcport->port_type == FCT_UNKNOWN && !fcport->fc4_features)
+				rval = qla24xx_async_gffid(vha, fcport, true);
+
+			if (!rval &&
+			    !(fcport->fc4_features & FC4_FF_TARGET ||
+			      fcport->port_type &
+			      (FCT_TARGET | FCT_NVME_TARGET)))
+				continue;
+
+			rval = 0;
 
 			app_reply->ports[pcnt].remote_type =
 				VND_CMD_RTYPE_UNKNOWN;
@@ -1248,6 +1278,8 @@ qla24xx_check_sadb_avail_slot(struct bsg_job *bsg_job, fc_port_t *fcport,
 
 #define QLA_SA_UPDATE_FLAGS_RX_KEY      0x0
 #define QLA_SA_UPDATE_FLAGS_TX_KEY      0x2
+#define EDIF_MSLEEP_INTERVAL 100
+#define EDIF_RETRY_COUNT  50
 
 int
 qla24xx_sadb_update(struct bsg_job *bsg_job)
@@ -1260,7 +1292,7 @@ qla24xx_sadb_update(struct bsg_job *bsg_job)
 	struct edif_list_entry *edif_entry = NULL;
 	int			found = 0;
 	int			rval = 0;
-	int result = 0;
+	int result = 0, cnt;
 	struct qla_sa_update_frame sa_frame;
 	struct srb_iocb *iocb_cmd;
 	port_id_t portid;
@@ -1280,7 +1312,7 @@ qla24xx_sadb_update(struct bsg_job *bsg_job)
 		goto done;
 	}
 
-	if (vha->e_dbell.db_flags != EDB_ACTIVE) {
+	if (DBELL_INACTIVE(vha)) {
 		ql_log(ql_log_warn, vha, 0x70a1, "App not started\n");
 		rval = -EIO;
 		SET_DID_STATUS(bsg_reply->result, DID_ERROR);
@@ -1501,11 +1533,23 @@ force_rx_delete:
 	sp->done = qla2x00_bsg_job_done;
 	iocb_cmd = &sp->u.iocb_cmd;
 	iocb_cmd->u.sa_update.sa_frame  = sa_frame;
-
+	cnt = 0;
+retry:
 	rval = qla2x00_start_sp(sp);
-	if (rval != QLA_SUCCESS) {
+	switch (rval) {
+	case QLA_SUCCESS:
+		break;
+	case EAGAIN:
+		msleep(EDIF_MSLEEP_INTERVAL);
+		cnt++;
+		if (cnt < EDIF_RETRY_COUNT)
+			goto retry;
+
+		fallthrough;
+	default:
 		ql_log(ql_dbg_edif, vha, 0x70e3,
-		    "qla2x00_start_sp failed=%d.\n", rval);
+		       "%s qla2x00_start_sp failed=%d.\n",
+		       __func__, rval);
 
 		qla2x00_rel_sp(sp);
 		rval = -EIO;
@@ -1684,41 +1728,25 @@ static struct enode *
 qla_enode_find(scsi_qla_host_t *vha, uint32_t ntype, uint32_t p1, uint32_t p2)
 {
 	struct enode		*node_rtn = NULL;
-	struct enode		*list_node = NULL;
+	struct enode		*list_node, *q;
 	unsigned long		flags;
-	struct list_head	*pos, *q;
 	uint32_t		sid;
-	uint32_t		rw_flag;
 	struct purexevent	*purex;
 
 	/* secure the list from moving under us */
 	spin_lock_irqsave(&vha->pur_cinfo.pur_lock, flags);
 
-	list_for_each_safe(pos, q, &vha->pur_cinfo.head) {
-		list_node = list_entry(pos, struct enode, list);
+	list_for_each_entry_safe(list_node, q, &vha->pur_cinfo.head, list) {
 
 		/* node type determines what p1 and p2 are */
 		purex = &list_node->u.purexinfo;
 		sid = p1;
-		rw_flag = p2;
 
 		if (purex->pur_info.pur_sid.b24 == sid) {
-			if (purex->pur_info.pur_pend == 1 &&
-			    rw_flag == PUR_GET) {
-				/*
-				 * if the receive is in progress
-				 * and its a read/get then can't
-				 * transfer yet
-				 */
-				ql_dbg(ql_dbg_edif, vha, 0x9106,
-				    "%s purex xfer in progress for sid=%x\n",
-				    __func__, sid);
-			} else {
-				/* found it and its complete */
-				node_rtn = list_node;
-				list_del(pos);
-				break;
-			}
+			/* found it and its complete */
+			node_rtn = list_node;
+			list_del(&list_node->list);
+			break;
 		}
 	}
 
@@ -1803,7 +1831,7 @@ qla_els_reject_iocb(scsi_qla_host_t *vha, struct qla_qpair *qp,
 void
 qla_edb_init(scsi_qla_host_t *vha)
 {
-	if (vha->e_dbell.db_flags == EDB_ACTIVE) {
+	if (DBELL_ACTIVE(vha)) {
 		/* list already init'd - error */
 		ql_dbg(ql_dbg_edif, vha, 0x09102,
 		    "edif db already initialized, cannot reinit\n");
@@ -1846,7 +1874,7 @@ static void qla_edb_clear(scsi_qla_host_t *vha, port_id_t portid)
 	port_id_t sid;
 	LIST_HEAD(edb_list);
 
-	if (vha->e_dbell.db_flags != EDB_ACTIVE) {
+	if (DBELL_INACTIVE(vha)) {
 		/* doorbell list not enabled */
 		ql_dbg(ql_dbg_edif, vha, 0x09102,
 		       "%s doorbell not enabled\n", __func__);
@@ -1898,7 +1926,7 @@ qla_edb_stop(scsi_qla_host_t *vha)
 	unsigned long flags;
 	struct edb_node *node, *q;
 
-	if (vha->e_dbell.db_flags != EDB_ACTIVE) {
+	if (DBELL_INACTIVE(vha)) {
 		/* doorbell list not enabled */
 		ql_dbg(ql_dbg_edif, vha, 0x09102,
 		    "%s doorbell not enabled\n", __func__);
@@ -1949,7 +1977,7 @@ qla_edb_node_add(scsi_qla_host_t *vha, struct edb_node *ptr)
 {
 	unsigned long		flags;
 
-	if (vha->e_dbell.db_flags != EDB_ACTIVE) {
+	if (DBELL_INACTIVE(vha)) {
 		/* doorbell list not enabled */
 		ql_dbg(ql_dbg_edif, vha, 0x09102,
 		    "%s doorbell not enabled\n", __func__);
@@ -1980,7 +2008,7 @@ qla_edb_eventcreate(scsi_qla_host_t *vha, uint32_t dbtype,
 		return;
 	}
 
-	if (vha->e_dbell.db_flags != EDB_ACTIVE) {
+	if (DBELL_INACTIVE(vha)) {
 		if (fcport)
 			fcport->edif.auth_state = dbtype;
 		/* doorbell list not enabled */
@@ -2075,7 +2103,7 @@ qla_edif_timer(scsi_qla_host_t *vha)
 	struct qla_hw_data *ha = vha->hw;
 
 	if (!vha->vp_idx && N2N_TOPO(ha) && ha->flags.n2n_fw_acc_sec) {
-		if (vha->e_dbell.db_flags != EDB_ACTIVE &&
+		if (DBELL_INACTIVE(vha) &&
 		    ha->edif_post_stop_cnt_down) {
 			ha->edif_post_stop_cnt_down--;
 
@@ -2113,7 +2141,7 @@ edif_doorbell_show(struct device *dev, struct device_attribute *attr,
 	sz = 256;
 
 	/* stop new threads from waiting if we're not init'd */
-	if (vha->e_dbell.db_flags != EDB_ACTIVE) {
+	if (DBELL_INACTIVE(vha)) {
 		ql_dbg(ql_dbg_edif + ql_dbg_verbose, vha, 0x09122,
 		    "%s error - edif db not enabled\n", __func__);
 		return 0;
@@ -2177,6 +2205,7 @@ edif_doorbell_show(struct device *dev, struct device_attribute *attr,
 
 static void qla_noop_sp_done(srb_t *sp, int res)
 {
+	sp->fcport->flags &= ~(FCF_ASYNC_SENT | FCF_ASYNC_ACTIVE);
 	/* ref: INIT */
 	kref_put(&sp->cmd_kref, qla2x00_sp_release);
 }
@@ -2201,7 +2230,8 @@ qla24xx_issue_sa_replace_iocb(scsi_qla_host_t *vha, struct qla_work_evt *e)
 	if (!sa_ctl) {
 		ql_dbg(ql_dbg_edif, vha, 0x70e6,
 		    "sa_ctl allocation failed\n");
-		return -ENOMEM;
+		rval =  -ENOMEM;
+		goto done;
 	}
 
 	fcport = sa_ctl->fcport;
@@ -2211,7 +2241,8 @@ qla24xx_issue_sa_replace_iocb(scsi_qla_host_t *vha, struct qla_work_evt *e)
 	if (!sp) {
 		ql_dbg(ql_dbg_edif, vha, 0x70e6,
 		 "SRB allocation failed\n");
-		return -ENOMEM;
+		rval = -ENOMEM;
+		goto done;
 	}
 
 	fcport->flags |= FCF_ASYNC_SENT;
@@ -2240,9 +2271,16 @@ qla24xx_issue_sa_replace_iocb(scsi_qla_host_t *vha, struct qla_work_evt *e)
 
 	rval = qla2x00_start_sp(sp);
 
-	if (rval != QLA_SUCCESS)
-		rval = QLA_FUNCTION_FAILED;
+	if (rval != QLA_SUCCESS) {
+		goto done_free_sp;
+	}
 
+	return rval;
+done_free_sp:
+	kref_put(&sp->cmd_kref, qla2x00_sp_release);
+	fcport->flags &= ~FCF_ASYNC_SENT;
+done:
+	fcport->flags &= ~FCF_ASYNC_ACTIVE;
 	return rval;
 }
 
@@ -2428,7 +2466,6 @@ void qla24xx_auth_els(scsi_qla_host_t *vha, void **pkt, struct rsp_que **rsp)
 
 	purex = &ptr->u.purexinfo;
 	purex->pur_info.pur_sid = a.did;
-	purex->pur_info.pur_pend = 0;
 	purex->pur_info.pur_bytes_rcvd = totlen;
 	purex->pur_info.pur_rx_xchg_address = le32_to_cpu(p->rx_xchg_addr);
 	purex->pur_info.pur_nphdl = le16_to_cpu(p->nport_handle);
@@ -2460,14 +2497,29 @@ void qla24xx_auth_els(scsi_qla_host_t *vha, void **pkt, struct rsp_que **rsp)
 
 	fcport = qla2x00_find_fcport_by_pid(host, &purex->pur_info.pur_sid);
 
-	if (host->e_dbell.db_flags != EDB_ACTIVE ||
-	    (fcport && EDIF_SESSION_DOWN(fcport))) {
+	if (DBELL_INACTIVE(vha)) {
 		ql_dbg(ql_dbg_edif, host, 0x0910c, "%s e_dbell.db_flags =%x %06x\n",
 		    __func__, host->e_dbell.db_flags,
 		    fcport ? fcport->d_id.b24 : 0);
 
 		qla_els_reject_iocb(host, (*rsp)->qpair, &a);
 		qla_enode_free(host, ptr);
+		return;
+	}
+
+	if (fcport && EDIF_SESSION_DOWN(fcport)) {
+		ql_dbg(ql_dbg_edif, host, 0x13b6,
+		    "%s terminate exchange. Send logo to 0x%x\n",
+		    __func__, a.did.b24);
+
+		a.tx_byte_count = a.tx_len = 0;
+		a.tx_addr = 0;
+		a.control_flags = EPD_RX_XCHG;  /* EPD_RX_XCHG = terminate cmd */
+		qla_els_reject_iocb(host, (*rsp)->qpair, &a);
+		qla_enode_free(host, ptr);
+		/* send logo to let remote port knows to tear down session */
+		fcport->send_els_logo = 1;
+		qlt_schedule_sess_for_deletion(fcport);
 		return;
 	}
 
@@ -3180,18 +3232,14 @@ static uint16_t qla_edif_sadb_get_sa_index(fc_port_t *fcport,
 /* release any sadb entries -- only done at teardown */
 void qla_edif_sadb_release(struct qla_hw_data *ha)
 {
-	struct list_head *pos;
-	struct list_head *tmp;
-	struct edif_sa_index_entry *entry;
+	struct edif_sa_index_entry *entry, *tmp;
 
-	list_for_each_safe(pos, tmp, &ha->sadb_rx_index_list) {
-		entry = list_entry(pos, struct edif_sa_index_entry, next);
+	list_for_each_entry_safe(entry, tmp, &ha->sadb_rx_index_list, next) {
 		list_del(&entry->next);
 		kfree(entry);
 	}
 
-	list_for_each_safe(pos, tmp, &ha->sadb_tx_index_list) {
-		entry = list_entry(pos, struct edif_sa_index_entry, next);
+	list_for_each_entry_safe(entry, tmp, &ha->sadb_tx_index_list, next) {
 		list_del(&entry->next);
 		kfree(entry);
 	}
@@ -3367,7 +3415,7 @@ int qla_edif_process_els(scsi_qla_host_t *vha, struct bsg_job *bsg_job)
 	fc_port_t *fcport = NULL;
 	struct qla_hw_data *ha = vha->hw;
 	srb_t *sp;
-	int rval =  (DID_ERROR << 16);
+	int rval =  (DID_ERROR << 16), cnt;
 	port_id_t d_id;
 	struct qla_bsg_auth_els_request *p =
 	    (struct qla_bsg_auth_els_request *)bsg_job->request;
@@ -3389,7 +3437,7 @@ int qla_edif_process_els(scsi_qla_host_t *vha, struct bsg_job *bsg_job)
 	if (qla_bsg_check(vha, bsg_job, fcport))
 		return 0;
 
-	if (fcport->loop_id == FC_NO_LOOP_ID) {
+	if (EDIF_SESS_DELETE(fcport)) {
 		ql_dbg(ql_dbg_edif, vha, 0x910d,
 		    "%s ELS code %x, no loop id.\n", __func__,
 		    bsg_request->rqst_data.r_els.els_code);
@@ -3458,17 +3506,26 @@ int qla_edif_process_els(scsi_qla_host_t *vha, struct bsg_job *bsg_job)
 	sp->free = qla2x00_bsg_sp_free;
 	sp->done = qla2x00_bsg_job_done;
 
+	cnt = 0;
+retry:
 	rval = qla2x00_start_sp(sp);
-
-	ql_dbg(ql_dbg_edif, vha, 0x700a,
-	    "%s %s %8phN xchg %x ctlflag %x hdl %x reqlen %xh bsg ptr %p\n",
-	    __func__, sc_to_str(p->e.sub_cmd), fcport->port_name,
-	    p->e.extra_rx_xchg_address, p->e.extra_control_flags,
-	    sp->handle, sp->remap.req.len, bsg_job);
-
-	if (rval != QLA_SUCCESS) {
+	switch (rval) {
+	case QLA_SUCCESS:
+		ql_dbg(ql_dbg_edif, vha, 0x700a,
+		       "%s %s %8phN xchg %x ctlflag %x hdl %x reqlen %xh bsg ptr %p\n",
+		       __func__, sc_to_str(p->e.sub_cmd), fcport->port_name,
+		       p->e.extra_rx_xchg_address, p->e.extra_control_flags,
+		       sp->handle, sp->remap.req.len, bsg_job);
+		break;
+	case EAGAIN:
+		msleep(EDIF_MSLEEP_INTERVAL);
+		cnt++;
+		if (cnt < EDIF_RETRY_COUNT)
+			goto retry;
+		fallthrough;
+	default:
 		ql_log(ql_log_warn, vha, 0x700e,
-		    "qla2x00_start_sp failed = %d\n", rval);
+		    "%s qla2x00_start_sp failed = %d\n", __func__, rval);
 		SET_DID_STATUS(bsg_reply->result, DID_IMM_RETRY);
 		rval = -EIO;
 		goto done_free_remap_rsp;
@@ -3490,7 +3547,7 @@ done:
 
 void qla_edif_sess_down(struct scsi_qla_host *vha, struct fc_port *sess)
 {
-	if (sess->edif.app_sess_online && vha->e_dbell.db_flags & EDB_ACTIVE) {
+	if (sess->edif.app_sess_online && DBELL_ACTIVE(vha)) {
 		ql_dbg(ql_dbg_disc, vha, 0xf09c,
 			"%s: sess %8phN send port_offline event\n",
 			__func__, sess->port_name);

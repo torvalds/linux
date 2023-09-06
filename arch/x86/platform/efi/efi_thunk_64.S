@@ -22,6 +22,7 @@
 #include <linux/linkage.h>
 #include <asm/page_types.h>
 #include <asm/segment.h>
+#include <asm/nospec-branch.h>
 
 	.text
 	.code64
@@ -63,7 +64,9 @@ SYM_CODE_START(__efi64_thunk)
 1:	movq	24(%rsp), %rsp
 	pop	%rbx
 	pop	%rbp
-	RET
+	ANNOTATE_UNRET_SAFE
+	ret
+	int3
 
 	.code32
 2:	pushl	$__KERNEL_CS

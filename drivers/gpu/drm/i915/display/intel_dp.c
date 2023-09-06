@@ -45,6 +45,7 @@
 #include "i915_drv.h"
 #include "intel_atomic.h"
 #include "intel_audio.h"
+#include "intel_backlight.h"
 #include "intel_connector.h"
 #include "intel_ddi.h"
 #include "intel_de.h"
@@ -3495,6 +3496,8 @@ intel_dp_handle_hdmi_link_status_change(struct intel_dp *intel_dp)
 			return;
 
 		drm_dp_pcon_hdmi_frl_link_error_count(&intel_dp->aux, &intel_dp->attached_connector->base);
+
+		intel_dp->frl.is_trained = false;
 
 		/* Restart FRL training or fall back to TMDS mode */
 		intel_dp_check_frl_training(intel_dp);

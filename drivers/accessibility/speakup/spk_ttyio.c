@@ -88,7 +88,7 @@ static int spk_ttyio_receive_buf2(struct tty_struct *tty,
 	}
 
 	if (!ldisc_data->buf_free)
-		/* ttyio_in will tty_schedule_flip */
+		/* ttyio_in will tty_flip_buffer_push */
 		return 0;
 
 	/* Make sure the consumer has read buf before we have seen
@@ -312,7 +312,7 @@ static unsigned char ttyio_in(struct spk_synth *in_synth, int timeout)
 	mb();
 	ldisc_data->buf_free = true;
 	/* Let TTY push more characters */
-	tty_schedule_flip(tty->port);
+	tty_flip_buffer_push(tty->port);
 
 	return rv;
 }

@@ -875,7 +875,7 @@ static int vcodec_domains_get(struct venus_core *core)
 	}
 
 skip_pmdomains:
-	if (!core->has_opp_table)
+	if (!core->res->opp_pmdomain)
 		return 0;
 
 	/* Attach the power domain for setting performance state */
@@ -1007,6 +1007,10 @@ static int core_get_v4(struct venus_core *core)
 	if (ret)
 		return ret;
 
+	ret = vcodec_domains_get(core);
+	if (ret)
+		return ret;
+
 	if (core->res->opp_pmdomain) {
 		ret = devm_pm_opp_of_add_table(dev);
 		if (!ret) {
@@ -1016,10 +1020,6 @@ static int core_get_v4(struct venus_core *core)
 			return ret;
 		}
 	}
-
-	ret = vcodec_domains_get(core);
-	if (ret)
-		return ret;
 
 	return 0;
 }

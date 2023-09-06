@@ -201,11 +201,16 @@ static inline bool xskq_cons_read_desc(struct xsk_queue *q,
 	return false;
 }
 
-static inline u32 xskq_cons_read_desc_batch(struct xsk_queue *q,
-					    struct xdp_desc *descs,
-					    struct xsk_buff_pool *pool, u32 max)
+static inline void xskq_cons_release_n(struct xsk_queue *q, u32 cnt)
+{
+	q->cached_cons += cnt;
+}
+
+static inline u32 xskq_cons_read_desc_batch(struct xsk_queue *q, struct xsk_buff_pool *pool,
+					    u32 max)
 {
 	u32 cached_cons = q->cached_cons, nb_entries = 0;
+	struct xdp_desc *descs = pool->tx_descs;
 
 	while (cached_cons != q->cached_prod && nb_entries < max) {
 		struct xdp_rxtx_ring *ring = (struct xdp_rxtx_ring *)q->ring;
@@ -222,6 +227,8 @@ static inline u32 xskq_cons_read_desc_batch(struct xsk_queue *q,
 		cached_cons++;
 	}
 
+	/* Release valid plus any invalid entries */
+	xskq_cons_release_n(q, cached_cons - q->cached_cons);
 	return nb_entries;
 }
 
@@ -278,14 +285,6 @@ static inline bool xskq_cons_peek_desc(struct xsk_queue *q,
 	return xskq_cons_read_desc(q, desc, pool);
 }
 
-static inline u32 xskq_cons_peek_desc_batch(struct xsk_queue *q, struct xdp_desc *descs,
-					    struct xsk_buff_pool *pool, u32 max)
-{
-	u32 entries = xskq_cons_nb_entries(q, max);
-
-	return xskq_cons_read_desc_batch(q, descs, pool, entries);
-}
-
 /* To improve performance in the xskq_cons_release functions, only update local state here.
  * Reflect this to global state when we get new entries from the ring in
  * xskq_cons_get_entries() and whenever Rx or Tx processing are completed in the NAPI loop.
@@ -293,11 +292,6 @@ static inline u32 xskq_cons_peek_desc_batch(struct xsk_queue *q, struct xdp_desc
 static inline void xskq_cons_release(struct xsk_queue *q)
 {
 	q->cached_cons++;
-}
-
-static inline void xskq_cons_release_n(struct xsk_queue *q, u32 cnt)
-{
-	q->cached_cons += cnt;
 }
 
 static inline bool xskq_cons_is_full(struct xsk_queue *q)
@@ -361,21 +355,17 @@ static inline int xskq_prod_reserve_addr(struct xsk_queue *q, u64 addr)
 	return 0;
 }
 
-static inline u32 xskq_prod_reserve_addr_batch(struct xsk_queue *q, struct xdp_desc *descs,
-					       u32 max)
+static inline void xskq_prod_write_addr_batch(struct xsk_queue *q, struct xdp_desc *descs,
+					      u32 nb_entries)
 {
 	struct xdp_umem_ring *ring = (struct xdp_umem_ring *)q->ring;
-	u32 nb_entries, i, cached_prod;
-
-	nb_entries = xskq_prod_nb_free(q, max);
+	u32 i, cached_prod;
 
 	/* A, matches D */
 	cached_prod = q->cached_prod;
 	for (i = 0; i < nb_entries; i++)
 		ring->desc[cached_prod++ & q->ring_mask] = descs[i].addr;
 	q->cached_prod = cached_prod;
-
-	return nb_entries;
 }
 
 static inline int xskq_prod_reserve_desc(struct xsk_queue *q,

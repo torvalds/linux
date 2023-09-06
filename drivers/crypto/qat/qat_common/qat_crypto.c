@@ -136,13 +136,6 @@ int qat_crypto_dev_config(struct adf_accel_dev *accel_dev)
 	if (ret)
 		goto err;
 
-	/* Temporarily set the number of crypto instances to zero to avoid
-	 * registering the crypto algorithms.
-	 * This will be removed when the algorithms will support the
-	 * CRYPTO_TFM_REQ_MAY_BACKLOG flag
-	 */
-	instances = 0;
-
 	for (i = 0; i < instances; i++) {
 		val = i;
 		snprintf(key, sizeof(key), ADF_CY "%d" ADF_RING_ASYM_BANK_NUM, i);
@@ -328,6 +321,9 @@ static int qat_crypto_create_instances(struct adf_accel_dev *accel_dev)
 				      &inst->pke_rx);
 		if (ret)
 			goto err;
+
+		INIT_LIST_HEAD(&inst->backlog.list);
+		spin_lock_init(&inst->backlog.lock);
 	}
 	return 0;
 err:

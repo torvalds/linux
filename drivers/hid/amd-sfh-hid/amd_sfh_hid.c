@@ -98,11 +98,15 @@ static int amdtp_wait_for_response(struct hid_device *hid)
 
 void amdtp_hid_wakeup(struct hid_device *hid)
 {
-	struct amdtp_hid_data *hid_data = hid->driver_data;
-	struct amdtp_cl_data *cli_data = hid_data->cli_data;
+	struct amdtp_hid_data *hid_data;
+	struct amdtp_cl_data *cli_data;
 
-	cli_data->request_done[cli_data->cur_hid_dev] = true;
-	wake_up_interruptible(&hid_data->hid_wait);
+	if (hid) {
+		hid_data = hid->driver_data;
+		cli_data = hid_data->cli_data;
+		cli_data->request_done[cli_data->cur_hid_dev] = true;
+		wake_up_interruptible(&hid_data->hid_wait);
+	}
 }
 
 static struct hid_ll_driver amdtp_hid_ll_driver = {
@@ -139,10 +143,10 @@ int amdtp_hid_probe(u32 cur_hid_dev, struct amdtp_cl_data *cli_data)
 
 	hid->driver_data = hid_data;
 	cli_data->hid_sensor_hubs[cur_hid_dev] = hid;
-	hid->bus = BUS_AMD_AMDTP;
+	hid->bus = BUS_AMD_SFH;
 	hid->vendor = AMD_SFH_HID_VENDOR;
 	hid->product = AMD_SFH_HID_PRODUCT;
-	snprintf(hid->name, sizeof(hid->name), "%s %04X:%04X", "hid-amdtp",
+	snprintf(hid->name, sizeof(hid->name), "%s %04X:%04X", "hid-amdsfh",
 		 hid->vendor, hid->product);
 
 	rc = hid_add_device(hid);

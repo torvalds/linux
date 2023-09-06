@@ -497,7 +497,7 @@ static void tnode_free(struct key_vector *tn)
 		tn = container_of(head, struct tnode, rcu)->kv;
 	}
 
-	if (tnode_free_size >= sysctl_fib_sync_mem) {
+	if (tnode_free_size >= READ_ONCE(sysctl_fib_sync_mem)) {
 		tnode_free_size = 0;
 		synchronize_rcu();
 	}
@@ -1037,6 +1037,7 @@ fib_find_matching_alias(struct net *net, const struct fib_rt_info *fri)
 
 void fib_alias_hw_flags_set(struct net *net, const struct fib_rt_info *fri)
 {
+	u8 fib_notify_on_flag_change;
 	struct fib_alias *fa_match;
 	struct sk_buff *skb;
 	int err;
@@ -1058,14 +1059,16 @@ void fib_alias_hw_flags_set(struct net *net, const struct fib_rt_info *fri)
 	WRITE_ONCE(fa_match->offload, fri->offload);
 	WRITE_ONCE(fa_match->trap, fri->trap);
 
+	fib_notify_on_flag_change = READ_ONCE(net->ipv4.sysctl_fib_notify_on_flag_change);
+
 	/* 2 means send notifications only if offload_failed was changed. */
-	if (net->ipv4.sysctl_fib_notify_on_flag_change == 2 &&
+	if (fib_notify_on_flag_change == 2 &&
 	    READ_ONCE(fa_match->offload_failed) == fri->offload_failed)
 		goto out;
 
 	WRITE_ONCE(fa_match->offload_failed, fri->offload_failed);
 
-	if (!net->ipv4.sysctl_fib_notify_on_flag_change)
+	if (!fib_notify_on_flag_change)
 		goto out;
 
 	skb = nlmsg_new(fib_nlmsg_size(fa_match->fa_info), GFP_ATOMIC);

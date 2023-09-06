@@ -1224,6 +1224,7 @@ static struct sk_buff *__mptcp_do_alloc_tx_skb(struct sock *sk, gfp_t gfp)
 		if (likely(__mptcp_add_ext(skb, gfp))) {
 			skb_reserve(skb, MAX_TCP_HEADER);
 			skb->reserved_tailroom = skb->end - skb->tail;
+			INIT_LIST_HEAD(&skb->tcp_tsorted_anchor);
 			return skb;
 		}
 		__kfree_skb(skb);
@@ -1233,31 +1234,24 @@ static struct sk_buff *__mptcp_do_alloc_tx_skb(struct sock *sk, gfp_t gfp)
 	return NULL;
 }
 
-static bool __mptcp_alloc_tx_skb(struct sock *sk, struct sock *ssk, gfp_t gfp)
+static struct sk_buff *__mptcp_alloc_tx_skb(struct sock *sk, struct sock *ssk, gfp_t gfp)
 {
 	struct sk_buff *skb;
 
-	if (ssk->sk_tx_skb_cache) {
-		skb = ssk->sk_tx_skb_cache;
-		if (unlikely(!skb_ext_find(skb, SKB_EXT_MPTCP) &&
-			     !__mptcp_add_ext(skb, gfp)))
-			return false;
-		return true;
-	}
-
 	skb = __mptcp_do_alloc_tx_skb(sk, gfp);
 	if (!skb)
-		return false;
+		return NULL;
 
 	if (likely(sk_wmem_schedule(ssk, skb->truesize))) {
-		ssk->sk_tx_skb_cache = skb;
-		return true;
+		tcp_skb_entail(ssk, skb);
+		return skb;
 	}
+	tcp_skb_tsorted_anchor_cleanup(skb);
 	kfree_skb(skb);
-	return false;
+	return NULL;
 }
 
-static bool mptcp_alloc_tx_skb(struct sock *sk, struct sock *ssk, bool data_lock_held)
+static struct sk_buff *mptcp_alloc_tx_skb(struct sock *sk, struct sock *ssk, bool data_lock_held)
 {
 	gfp_t gfp = data_lock_held ? GFP_ATOMIC : sk->sk_allocation;
 
@@ -1287,23 +1281,29 @@ static int mptcp_sendmsg_frag(struct sock *sk, struct sock *ssk,
 			      struct mptcp_sendmsg_info *info)
 {
 	u64 data_seq = dfrag->data_seq + info->sent;
+	int offset = dfrag->offset + info->sent;
 	struct mptcp_sock *msk = mptcp_sk(sk);
 	bool zero_window_probe = false;
 	struct mptcp_ext *mpext = NULL;
-	struct sk_buff *skb, *tail;
-	bool must_collapse = false;
-	int size_bias = 0;
-	int avail_size;
-	size_t ret = 0;
+	bool can_coalesce = false;
+	bool reuse_skb = true;
+	struct sk_buff *skb;
+	size_t copy;
+	int i;
 
 	pr_debug("msk=%p ssk=%p sending dfrag at seq=%llu len=%u already sent=%u",
 		 msk, ssk, dfrag->data_seq, dfrag->data_len, info->sent);
 
+	if (WARN_ON_ONCE(info->sent > info->limit ||
+			 info->limit > dfrag->data_len))
+		return 0;
+
 	/* compute send limit */
 	info->mss_now = tcp_send_mss(ssk, &info->size_goal, info->flags);
-	avail_size = info->size_goal;
+	copy = info->size_goal;
+
 	skb = tcp_write_queue_tail(ssk);
-	if (skb) {
+	if (skb && copy > skb->len) {
 		/* Limit the write to the size available in the
 		 * current skb, if any, so that we create at most a new skb.
 		 * Explicitly tells TCP internals to avoid collapsing on later
@@ -1316,62 +1316,80 @@ static int mptcp_sendmsg_frag(struct sock *sk, struct sock *ssk,
 			goto alloc_skb;
 		}
 
-		must_collapse = (info->size_goal > skb->len) &&
-				(skb_shinfo(skb)->nr_frags < sysctl_max_skb_frags);
-		if (must_collapse) {
-			size_bias = skb->len;
-			avail_size = info->size_goal - skb->len;
+		i = skb_shinfo(skb)->nr_frags;
+		can_coalesce = skb_can_coalesce(skb, i, dfrag->page, offset);
+		if (!can_coalesce && i >= READ_ONCE(sysctl_max_skb_frags)) {
+			tcp_mark_push(tcp_sk(ssk), skb);
+			goto alloc_skb;
 		}
-	}
 
+		copy -= skb->len;
+	} else {
 alloc_skb:
-	if (!must_collapse &&
-	    !mptcp_alloc_tx_skb(sk, ssk, info->data_lock_held))
-		return 0;
+		skb = mptcp_alloc_tx_skb(sk, ssk, info->data_lock_held);
+		if (!skb)
+			return -ENOMEM;
+
+		i = skb_shinfo(skb)->nr_frags;
+		reuse_skb = false;
+		mpext = skb_ext_find(skb, SKB_EXT_MPTCP);
+	}
 
 	/* Zero window and all data acked? Probe. */
-	avail_size = mptcp_check_allowed_size(msk, data_seq, avail_size);
-	if (avail_size == 0) {
+	copy = mptcp_check_allowed_size(msk, data_seq, copy);
+	if (copy == 0) {
 		u64 snd_una = READ_ONCE(msk->snd_una);
 
-		if (skb || snd_una != msk->snd_nxt)
+		if (snd_una != msk->snd_nxt) {
+			tcp_remove_empty_skb(ssk, tcp_write_queue_tail(ssk));
 			return 0;
+		}
+
 		zero_window_probe = true;
 		data_seq = snd_una - 1;
-		avail_size = 1;
+		copy = 1;
+
+		/* all mptcp-level data is acked, no skbs should be present into the
+		 * ssk write queue
+		 */
+		WARN_ON_ONCE(reuse_skb);
 	}
 
-	if (WARN_ON_ONCE(info->sent > info->limit ||
-			 info->limit > dfrag->data_len))
-		return 0;
-
-	ret = info->limit - info->sent;
-	tail = tcp_build_frag(ssk, avail_size + size_bias, info->flags,
-			      dfrag->page, dfrag->offset + info->sent, &ret);
-	if (!tail) {
-		tcp_remove_empty_skb(sk, tcp_write_queue_tail(ssk));
+	copy = min_t(size_t, copy, info->limit - info->sent);
+	if (!sk_wmem_schedule(ssk, copy)) {
+		tcp_remove_empty_skb(ssk, tcp_write_queue_tail(ssk));
 		return -ENOMEM;
 	}
 
-	/* if the tail skb is still the cached one, collapsing really happened.
-	 */
-	if (skb == tail) {
-		TCP_SKB_CB(tail)->tcp_flags &= ~TCPHDR_PSH;
-		mpext->data_len += ret;
-		WARN_ON_ONCE(zero_window_probe);
-		goto out;
+	if (can_coalesce) {
+		skb_frag_size_add(&skb_shinfo(skb)->frags[i - 1], copy);
+	} else {
+		get_page(dfrag->page);
+		skb_fill_page_desc(skb, i, dfrag->page, offset, copy);
 	}
 
-	mpext = skb_ext_find(tail, SKB_EXT_MPTCP);
-	if (WARN_ON_ONCE(!mpext)) {
-		/* should never reach here, stream corrupted */
-		return -EINVAL;
+	skb->len += copy;
+	skb->data_len += copy;
+	skb->truesize += copy;
+	sk_wmem_queued_add(ssk, copy);
+	sk_mem_charge(ssk, copy);
+	skb->ip_summed = CHECKSUM_PARTIAL;
+	WRITE_ONCE(tcp_sk(ssk)->write_seq, tcp_sk(ssk)->write_seq + copy);
+	TCP_SKB_CB(skb)->end_seq += copy;
+	tcp_skb_pcount_set(skb, 0);
+
+	/* on skb reuse we just need to update the DSS len */
+	if (reuse_skb) {
+		TCP_SKB_CB(skb)->tcp_flags &= ~TCPHDR_PSH;
+		mpext->data_len += copy;
+		WARN_ON_ONCE(zero_window_probe);
+		goto out;
 	}
 
 	memset(mpext, 0, sizeof(*mpext));
 	mpext->data_seq = data_seq;
 	mpext->subflow_seq = mptcp_subflow_ctx(ssk)->rel_write_seq;
-	mpext->data_len = ret;
+	mpext->data_len = copy;
 	mpext->use_map = 1;
 	mpext->dsn64 = 1;
 
@@ -1380,18 +1398,18 @@ alloc_skb:
 		 mpext->dsn64);
 
 	if (zero_window_probe) {
-		mptcp_subflow_ctx(ssk)->rel_write_seq += ret;
+		mptcp_subflow_ctx(ssk)->rel_write_seq += copy;
 		mpext->frozen = 1;
 		if (READ_ONCE(msk->csum_enabled))
-			mptcp_update_data_checksum(tail, ret);
+			mptcp_update_data_checksum(skb, copy);
 		tcp_push_pending_frames(ssk);
 		return 0;
 	}
 out:
 	if (READ_ONCE(msk->csum_enabled))
-		mptcp_update_data_checksum(tail, ret);
-	mptcp_subflow_ctx(ssk)->rel_write_seq += ret;
-	return ret;
+		mptcp_update_data_checksum(skb, copy);
+	mptcp_subflow_ctx(ssk)->rel_write_seq += copy;
+	return copy;
 }
 
 #define MPTCP_SEND_BURST_SIZE		((1 << 16) - \
@@ -1881,7 +1899,7 @@ static void mptcp_rcv_space_adjust(struct mptcp_sock *msk, int copied)
 	if (msk->rcvq_space.copied <= msk->rcvq_space.space)
 		goto new_measure;
 
-	if (sock_net(sk)->ipv4.sysctl_tcp_moderate_rcvbuf &&
+	if (READ_ONCE(sock_net(sk)->ipv4.sysctl_tcp_moderate_rcvbuf) &&
 	    !(sk->sk_userlocks & SOCK_RCVBUF_LOCK)) {
 		int rcvmem, rcvbuf;
 		u64 rcvwin, grow;
@@ -1899,7 +1917,7 @@ static void mptcp_rcv_space_adjust(struct mptcp_sock *msk, int copied)
 
 		do_div(rcvwin, advmss);
 		rcvbuf = min_t(u64, rcvwin * rcvmem,
-			       sock_net(sk)->ipv4.sysctl_tcp_rmem[2]);
+			       READ_ONCE(sock_net(sk)->ipv4.sysctl_tcp_rmem[2]));
 
 		if (rcvbuf > sk->sk_rcvbuf) {
 			u32 window_clamp;
@@ -2532,8 +2550,8 @@ static int mptcp_init_sock(struct sock *sk)
 	icsk->icsk_ca_ops = NULL;
 
 	sk_sockets_allocated_inc(sk);
-	sk->sk_rcvbuf = sock_net(sk)->ipv4.sysctl_tcp_rmem[1];
-	sk->sk_sndbuf = sock_net(sk)->ipv4.sysctl_tcp_wmem[1];
+	sk->sk_rcvbuf = READ_ONCE(sock_net(sk)->ipv4.sysctl_tcp_rmem[1]);
+	sk->sk_sndbuf = READ_ONCE(sock_net(sk)->ipv4.sysctl_tcp_wmem[1]);
 
 	return 0;
 }

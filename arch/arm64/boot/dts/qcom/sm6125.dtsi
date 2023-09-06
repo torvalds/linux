@@ -336,23 +336,43 @@
 			interrupt-controller;
 			#interrupt-cells = <2>;
 
-			sdc2_state_off: sdc2-off {
+			sdc2_off_state: sdc2-off-state {
 				clk {
 					pins = "sdc2_clk";
-					bias-disable;
 					drive-strength = <2>;
+					bias-disable;
 				};
 
 				cmd {
 					pins = "sdc2_cmd";
-					bias-pull-up;
 					drive-strength = <2>;
+					bias-pull-up;
 				};
 
 				data {
 					pins = "sdc2_data";
-					bias-pull-up;
 					drive-strength = <2>;
+					bias-pull-up;
+				};
+			};
+
+			sdc2_on_state: sdc2-on-state {
+				clk {
+					pins = "sdc2_clk";
+					drive-strength = <16>;
+					bias-disable;
+				};
+
+				cmd {
+					pins = "sdc2_cmd";
+					drive-strength = <10>;
+					bias-pull-up;
+				};
+
+				data {
+					pins = "sdc2_data";
+					drive-strength = <10>;
+					bias-pull-up;
 				};
 			};
 		};
@@ -417,8 +437,8 @@
 				<&xo_board>;
 			clock-names = "iface", "core", "xo";
 
-			pinctrl-0 = <&sdc2_state_on>;
-			pinctrl-1 = <&sdc2_state_off>;
+			pinctrl-0 = <&sdc2_on_state>;
+			pinctrl-1 = <&sdc2_off_state>;
 			pinctrl-names = "default", "sleep";
 
 			bus-width = <4>;

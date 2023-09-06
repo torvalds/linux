@@ -22,6 +22,8 @@
 #include <linux/ctype.h>
 #include <linux/once_lite.h>
 
+#include "pid_list.h"
+
 #ifdef CONFIG_FTRACE_SYSCALLS
 #include <asm/unistd.h>		/* For NR_SYSCALLS	     */
 #include <asm/syscall.h>	/* some archs define it here */
@@ -80,6 +82,9 @@ enum trace_type {
 
 #undef __dynamic_array
 #define __dynamic_array(type, item)	type	item[];
+
+#undef __rel_dynamic_array
+#define __rel_dynamic_array(type, item)	type	item[];
 
 #undef F_STRUCT
 #define F_STRUCT(args...)		args
@@ -191,10 +196,14 @@ struct trace_options {
 	struct trace_option_dentry	*topts;
 };
 
-struct trace_pid_list {
-	int				pid_max;
-	unsigned long			*pids;
-};
+struct trace_pid_list *trace_pid_list_alloc(void);
+void trace_pid_list_free(struct trace_pid_list *pid_list);
+bool trace_pid_list_is_set(struct trace_pid_list *pid_list, unsigned int pid);
+int trace_pid_list_set(struct trace_pid_list *pid_list, unsigned int pid);
+int trace_pid_list_clear(struct trace_pid_list *pid_list, unsigned int pid);
+int trace_pid_list_first(struct trace_pid_list *pid_list, unsigned int *pid);
+int trace_pid_list_next(struct trace_pid_list *pid_list, unsigned int pid,
+			unsigned int *next);
 
 enum {
 	TRACE_PIDS		= BIT(0),

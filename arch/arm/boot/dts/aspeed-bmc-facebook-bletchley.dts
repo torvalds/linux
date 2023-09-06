@@ -7,6 +7,7 @@
 #include <dt-bindings/usb/pd.h>
 #include <dt-bindings/leds/leds-pca955x.h>
 #include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/i2c/i2c.h>
 
 / {
 	model = "Facebook Bletchley BMC";
@@ -59,7 +60,7 @@
 		compatible = "gpio-leds";
 		sys_log_id {
 			default-state = "off";
-			gpios = <&front_leds 0 GPIO_ACTIVE_HIGH>;
+			gpios = <&front_leds 0 GPIO_ACTIVE_LOW>;
 		};
 	};
 
@@ -190,6 +191,95 @@
 			gpios = <&sled6_leds 1 GPIO_ACTIVE_LOW>;
 		};
 	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		presence-sled1 {
+			label = "presence-sled1";
+			gpios = <&gpio0 ASPEED_GPIO(H, 2) GPIO_ACTIVE_LOW>;
+			linux,code = <ASPEED_GPIO(H, 2)>;
+		};
+		presence-sled2 {
+			label = "presence-sled2";
+			gpios = <&gpio0 ASPEED_GPIO(H, 3) GPIO_ACTIVE_LOW>;
+			linux,code = <ASPEED_GPIO(H, 3)>;
+		};
+		presence-sled3 {
+			label = "presence-sled3";
+			gpios = <&gpio0 ASPEED_GPIO(H, 4) GPIO_ACTIVE_LOW>;
+			linux,code = <ASPEED_GPIO(H, 4)>;
+		};
+		presence-sled4 {
+			label = "presence-sled4";
+			gpios = <&gpio0 ASPEED_GPIO(H, 5) GPIO_ACTIVE_LOW>;
+			linux,code = <ASPEED_GPIO(H, 5)>;
+		};
+		presence-sled5 {
+			label = "presence-sled5";
+			gpios = <&gpio0 ASPEED_GPIO(H, 6) GPIO_ACTIVE_LOW>;
+			linux,code = <ASPEED_GPIO(H, 6)>;
+		};
+		presence-sled6 {
+			label = "presence-sled6";
+			gpios = <&gpio0 ASPEED_GPIO(H, 7) GPIO_ACTIVE_LOW>;
+			linux,code = <ASPEED_GPIO(H, 7)>;
+		};
+	};
+
+	vbus_sled1: vbus_sled1 {
+		compatible = "regulator-fixed";
+		regulator-name = "vbus_sled1";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		gpio = <&sled1_ioexp 1 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
+	vbus_sled2: vbus_sled2 {
+		compatible = "regulator-fixed";
+		regulator-name = "vbus_sled2";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		gpio = <&sled2_ioexp 1 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
+	vbus_sled3: vbus_sled3 {
+		compatible = "regulator-fixed";
+		regulator-name = "vbus_sled3";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		gpio = <&sled3_ioexp 1 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
+	vbus_sled4: vbus_sled4 {
+		compatible = "regulator-fixed";
+		regulator-name = "vbus_sled4";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		gpio = <&sled4_ioexp 1 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
+	vbus_sled5: vbus_sled5 {
+		compatible = "regulator-fixed";
+		regulator-name = "vbus_sled5";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		gpio = <&sled5_ioexp 1 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
+	vbus_sled6: vbus_sled6 {
+		compatible = "regulator-fixed";
+		regulator-name = "vbus_sled6";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		gpio = <&sled6_ioexp 1 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
 };
 
 &mac2 {
@@ -301,17 +391,17 @@
 		compatible = "fcs,fusb302";
 		reg = <0x22>;
 
+		interrupt-parent = <&gpio0>;
+		interrupts = <ASPEED_GPIO(B, 0) IRQ_TYPE_LEVEL_LOW>;
+		vbus-supply = <&vbus_sled1>;
+
 		connector {
 			compatible = "usb-c-connector";
 			label = "USB-C";
-			power-role = "dual";
-			try-power-role = "sink";
-			data-role = "dual";
-			source-pdos = <PDO_FIXED(5000, 3000, PDO_FIXED_USB_COMM)>;
-			sink-pdos = <PDO_FIXED(5000, 3000, PDO_FIXED_USB_COMM)
-					PDO_VAR(3000, 12000, 3000)
-					PDO_PPS_APDO(3000, 11000, 3000)>;
-			op-sink-microwatt = <10000000>;
+			power-role = "source";
+			data-role = "host";
+			pd-disable;
+			typec-power-opmode = "default";
 		};
 	};
 
@@ -387,17 +477,17 @@
 		compatible = "fcs,fusb302";
 		reg = <0x22>;
 
+		interrupt-parent = <&gpio0>;
+		interrupts = <ASPEED_GPIO(B, 1) IRQ_TYPE_LEVEL_LOW>;
+		vbus-supply = <&vbus_sled2>;
+
 		connector {
 			compatible = "usb-c-connector";
 			label = "USB-C";
-			power-role = "dual";
-			try-power-role = "sink";
-			data-role = "dual";
-			source-pdos = <PDO_FIXED(5000, 3000, PDO_FIXED_USB_COMM)>;
-			sink-pdos = <PDO_FIXED(5000, 3000, PDO_FIXED_USB_COMM)
-					PDO_VAR(3000, 12000, 3000)
-					PDO_PPS_APDO(3000, 11000, 3000)>;
-			op-sink-microwatt = <10000000>;
+			power-role = "source";
+			data-role = "host";
+			pd-disable;
+			typec-power-opmode = "default";
 		};
 	};
 
@@ -473,17 +563,17 @@
 		compatible = "fcs,fusb302";
 		reg = <0x22>;
 
+		interrupt-parent = <&gpio0>;
+		interrupts = <ASPEED_GPIO(B, 7) IRQ_TYPE_LEVEL_LOW>;
+		vbus-supply = <&vbus_sled3>;
+
 		connector {
 			compatible = "usb-c-connector";
 			label = "USB-C";
-			power-role = "dual";
-			try-power-role = "sink";
-			data-role = "dual";
-			source-pdos = <PDO_FIXED(5000, 3000, PDO_FIXED_USB_COMM)>;
-			sink-pdos = <PDO_FIXED(5000, 3000, PDO_FIXED_USB_COMM)
-					PDO_VAR(3000, 12000, 3000)
-					PDO_PPS_APDO(3000, 11000, 3000)>;
-			op-sink-microwatt = <10000000>;
+			power-role = "source";
+			data-role = "host";
+			pd-disable;
+			typec-power-opmode = "default";
 		};
 	};
 
@@ -559,17 +649,17 @@
 		compatible = "fcs,fusb302";
 		reg = <0x22>;
 
+		interrupt-parent = <&gpio0>;
+		interrupts = <ASPEED_GPIO(S, 7) IRQ_TYPE_LEVEL_LOW>;
+		vbus-supply = <&vbus_sled4>;
+
 		connector {
 			compatible = "usb-c-connector";
 			label = "USB-C";
-			power-role = "dual";
-			try-power-role = "sink";
-			data-role = "dual";
-			source-pdos = <PDO_FIXED(5000, 3000, PDO_FIXED_USB_COMM)>;
-			sink-pdos = <PDO_FIXED(5000, 3000, PDO_FIXED_USB_COMM)
-					PDO_VAR(3000, 12000, 3000)
-					PDO_PPS_APDO(3000, 11000, 3000)>;
-			op-sink-microwatt = <10000000>;
+			power-role = "source";
+			data-role = "host";
+			pd-disable;
+			typec-power-opmode = "default";
 		};
 	};
 
@@ -645,17 +735,17 @@
 		compatible = "fcs,fusb302";
 		reg = <0x22>;
 
+		interrupt-parent = <&gpio0>;
+		interrupts = <ASPEED_GPIO(Y, 3) IRQ_TYPE_LEVEL_LOW>;
+		vbus-supply = <&vbus_sled5>;
+
 		connector {
 			compatible = "usb-c-connector";
 			label = "USB-C";
-			power-role = "dual";
-			try-power-role = "sink";
-			data-role = "dual";
-			source-pdos = <PDO_FIXED(5000, 3000, PDO_FIXED_USB_COMM)>;
-			sink-pdos = <PDO_FIXED(5000, 3000, PDO_FIXED_USB_COMM)
-					PDO_VAR(3000, 12000, 3000)
-					PDO_PPS_APDO(3000, 11000, 3000)>;
-			op-sink-microwatt = <10000000>;
+			power-role = "source";
+			data-role = "host";
+			pd-disable;
+			typec-power-opmode = "default";
 		};
 	};
 
@@ -731,17 +821,17 @@
 		compatible = "fcs,fusb302";
 		reg = <0x22>;
 
+		interrupt-parent = <&gpio0>;
+		interrupts = <ASPEED_GPIO(I, 7) IRQ_TYPE_LEVEL_LOW>;
+		vbus-supply = <&vbus_sled6>;
+
 		connector {
 			compatible = "usb-c-connector";
 			label = "USB-C";
-			power-role = "dual";
-			try-power-role = "sink";
-			data-role = "dual";
-			source-pdos = <PDO_FIXED(5000, 3000, PDO_FIXED_USB_COMM)>;
-			sink-pdos = <PDO_FIXED(5000, 3000, PDO_FIXED_USB_COMM)
-					PDO_VAR(3000, 12000, 3000)
-					PDO_PPS_APDO(3000, 11000, 3000)>;
-			op-sink-microwatt = <10000000>;
+			power-role = "source";
+			data-role = "host";
+			pd-disable;
+			typec-power-opmode = "default";
 		};
 	};
 
@@ -790,11 +880,6 @@
 	tmp421@4f {
 		compatible = "ti,tmp421";
 		reg = <0x4f>;
-	};
-
-	hdc1080@40 {
-		compatible = "ti,hdc1080";
-		reg = <0x40>;
 	};
 
 	front_leds: pca9552@67 {
@@ -857,9 +942,19 @@
 	multi-master;
 	aspeed,hw-timeout-ms = <1000>;
 	status = "okay";
+
+	//USB Debug Connector
+	ipmb13@10 {
+		compatible = "ipmb-dev";
+		reg = <(0x10 | I2C_OWN_SLAVE_ADDRESS)>;
+		i2c-protocol;
+	};
 };
 
 &gpio0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_gpiov2_unbiased_default>;
+
 	gpio-line-names =
 	/*A0-A7*/	"","","","","","","","",
 	/*B0-B7*/	"FUSB302_SLED1_INT_N","FUSB302_SLED2_INT_N",
@@ -949,4 +1044,11 @@
 
 &ehci0 {
 	status = "okay";
+};
+
+&pinctrl {
+	pinctrl_gpiov2_unbiased_default: gpiov2 {
+		pins = "AD14";
+		bias-disable;
+	};
 };
