@@ -655,7 +655,7 @@ static struct erdma_mtt *erdma_create_scatter_mtt(struct erdma_dev *dev,
 
 	mtt = kzalloc(sizeof(*mtt), GFP_KERNEL);
 	if (!mtt)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	mtt->size = ALIGN(size, PAGE_SIZE);
 	mtt->buf = vzalloc(mtt->size);
