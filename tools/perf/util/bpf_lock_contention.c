@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
+#include "util/cgroup.h"
 #include "util/debug.h"
 #include "util/evlist.h"
 #include "util/machine.h"
@@ -151,6 +152,10 @@ int lock_contention_prepare(struct lock_contention *con)
 	skel->bss->needs_callstack = con->save_callstack;
 	skel->bss->lock_owner = con->owner;
 
+	if (con->use_cgroup) {
+		read_all_cgroups(&con->cgroups);
+	}
+
 	bpf_program__set_autoload(skel->progs.collect_lock_syms, false);
 
 	lock_contention_bpf__attach(skel);
@@ -220,6 +225,17 @@ static const char *lock_contention_get_name(struct lock_contention *con,
 		}
 
 		return "";
+	}
+
+	if (con->use_cgroup) {
+		u64 cgrp_id = key->lock_addr;
+		struct cgroup *cgrp = __cgroup__find(&con->cgroups, cgrp_id);
+
+		if (cgrp)
+			return cgrp->name;
+
+		snprintf(name_buf, sizeof(name_buf), "cgroup:%lu", cgrp_id);
+		return name_buf;
 	}
 
 	/* LOCK_AGGR_CALLER: skip lock internal functions */
@@ -364,11 +380,19 @@ next:
 	return err;
 }
 
-int lock_contention_finish(void)
+int lock_contention_finish(struct lock_contention *con)
 {
 	if (skel) {
 		skel->bss->enabled = 0;
 		lock_contention_bpf__destroy(skel);
+	}
+
+	while (!RB_EMPTY_ROOT(&con->cgroups)) {
+		struct rb_node *node = rb_first(&con->cgroups);
+		struct cgroup *cgrp = rb_entry(node, struct cgroup, node);
+
+		rb_erase(node, &con->cgroups);
+		cgroup__put(cgrp);
 	}
 
 	return 0;

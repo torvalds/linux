@@ -2040,6 +2040,7 @@ static int __cmd_contention(int argc, const char **argv)
 		.filters = &filters,
 		.save_callstack = needs_callstack(),
 		.owner = show_lock_owner,
+		.cgroups = RB_ROOT,
 	};
 
 	lockhash_table = calloc(LOCKHASH_SIZE, sizeof(*lockhash_table));
@@ -2158,7 +2159,7 @@ static int __cmd_contention(int argc, const char **argv)
 out_delete:
 	lock_filter_finish();
 	evlist__delete(con.evlist);
-	lock_contention_finish();
+	lock_contention_finish(&con);
 	perf_session__delete(session);
 	zfree(&lockhash_table);
 	return err;
