@@ -199,6 +199,19 @@
 	status = "okay";
 };
 
+&gpio1 {
+	gpio-line-names = "", "", "X_PMIC_WDOG_B", "",
+		"", "", "", "", "", "",
+		"", "", "", "", "", "X_nETHPHY_INT";
+};
+
+&gpio4 {
+	gpio-line-names = "", "", "", "",
+		"", "", "", "", "", "",
+		"", "", "", "", "", "",
+		"", "", "X_PMIC_IRQ_B";
+};
+
 &iomuxc {
 	pinctrl_fec: fecgrp {
 		fsl,pins = <
