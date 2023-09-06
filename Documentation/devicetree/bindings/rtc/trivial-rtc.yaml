@@ -45,6 +45,8 @@ properties:
       - isil,isl1208
       # Intersil ISL1218 Low Power RTC with Battery Backed SRAM
       - isil,isl1218
+      # SPI-BUS INTERFACE REAL TIME CLOCK MODULE
+      - maxim,mcp795
       # Real Time Clock Module with I2C-Bus
       - microcrystal,rv3029
       # Real Time Clock
