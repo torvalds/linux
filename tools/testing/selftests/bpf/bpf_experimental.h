@@ -131,4 +131,35 @@ extern int bpf_rbtree_add_impl(struct bpf_rb_root *root, struct bpf_rb_node *nod
  */
 extern struct bpf_rb_node *bpf_rbtree_first(struct bpf_rb_root *root) __ksym;
 
+/* Description
+ *	Allocates a percpu object of the type represented by 'local_type_id' in
+ *	program BTF. User may use the bpf_core_type_id_local macro to pass the
+ *	type ID of a struct in program BTF.
+ *
+ *	The 'local_type_id' parameter must be a known constant.
+ *	The 'meta' parameter is rewritten by the verifier, no need for BPF
+ *	program to set it.
+ * Returns
+ *	A pointer to a percpu object of the type corresponding to the passed in
+ *	'local_type_id', or NULL on failure.
+ */
+extern void *bpf_percpu_obj_new_impl(__u64 local_type_id, void *meta) __ksym;
+
+/* Convenience macro to wrap over bpf_percpu_obj_new_impl */
+#define bpf_percpu_obj_new(type) ((type __percpu_kptr *)bpf_percpu_obj_new_impl(bpf_core_type_id_local(type), NULL))
+
+/* Description
+ *	Free an allocated percpu object. All fields of the object that require
+ *	destruction will be destructed before the storage is freed.
+ *
+ *	The 'meta' parameter is rewritten by the verifier, no need for BPF
+ *	program to set it.
+ * Returns
+ *	Void.
+ */
+extern void bpf_percpu_obj_drop_impl(void *kptr, void *meta) __ksym;
+
+/* Convenience macro to wrap over bpf_obj_drop_impl */
+#define bpf_percpu_obj_drop(kptr) bpf_percpu_obj_drop_impl(kptr, NULL)
+
 #endif
