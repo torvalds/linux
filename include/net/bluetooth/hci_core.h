@@ -539,7 +539,6 @@ struct hci_dev {
 	struct work_struct	tx_work;
 
 	struct delayed_work	le_scan_disable;
-	struct delayed_work	le_scan_restart;
 
 	struct sk_buff_head	rx_q;
 	struct sk_buff_head	raw_q;
