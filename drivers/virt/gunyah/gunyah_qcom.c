@@ -14,6 +14,16 @@
 #define QCOM_SCM_RM_MANAGED_VMID	0x3A
 #define QCOM_SCM_MAX_MANAGED_VMID	0x3F
 
+static void qcom_scm_gh_pin_pages(phys_addr_t phys_addr, size_t size)
+{
+	struct page *page = pfn_to_page(__phys_to_pfn(phys_addr));
+
+	while (size) {
+		get_page(page++);
+		size -= PAGE_SIZE;
+	}
+}
+
 static int qcom_scm_gh_rm_pre_mem_share(void *rm, struct gh_rm_mem_parcel *mem_parcel)
 {
 	struct qcom_scm_vmperm *new_perms;
@@ -72,9 +82,14 @@ static int qcom_scm_gh_rm_pre_mem_share(void *rm, struct gh_rm_mem_parcel *mem_p
 				&src_cpy, new_perms, 1);
 		WARN_ON_ONCE(rb_ret);
 		if (rb_ret)
-			get_page(pfn_to_page(
-			__phys_to_pfn(le64_to_cpu(
-			mem_parcel->mem_entries[i].phys_addr))));
+			/*
+			 * We have failed to assign pages back to the host.
+			 * Keep the pages pinned forever as they shouldn't be
+			 * accessed by host.
+			 */
+			qcom_scm_gh_pin_pages(
+				le64_to_cpu(mem_parcel->mem_entries[i].phys_addr),
+				le64_to_cpu(mem_parcel->mem_entries[i].size));
 	}
 
 out:
@@ -107,8 +122,14 @@ static int qcom_scm_gh_rm_post_mem_reclaim(void *rm, struct gh_rm_mem_parcel *me
 						&src_cpy, &new_perms, 1);
 		WARN_ON_ONCE(ret);
 		if (ret)
-			get_page(pfn_to_page(
-			__phys_to_pfn(le64_to_cpu(mem_parcel->mem_entries[i].phys_addr))));
+			/*
+			 * We have failed to assign pages back to the host.
+			 * Keep the pages pinned forever as they shouldn't be
+			 * accessed by host.
+			 */
+			qcom_scm_gh_pin_pages(
+				le64_to_cpu(mem_parcel->mem_entries[i].phys_addr),
+				le64_to_cpu(mem_parcel->mem_entries[i].size));
 	}
 
 	return ret;
