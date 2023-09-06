@@ -54,5 +54,6 @@
 };
 
 &mailbox {
+	rockchip,txpoll-period-ms = <1>;
 	status = "okay";
 };
