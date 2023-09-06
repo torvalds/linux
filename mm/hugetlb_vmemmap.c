@@ -320,8 +320,7 @@ static int vmemmap_remap_free(unsigned long start, unsigned long end,
 		.vmemmap_pages	= &vmemmap_pages,
 	};
 	int nid = page_to_nid((struct page *)start);
-	gfp_t gfp_mask = GFP_KERNEL | __GFP_THISNODE | __GFP_NORETRY |
-			__GFP_NOWARN;
+	gfp_t gfp_mask = GFP_KERNEL | __GFP_NORETRY | __GFP_NOWARN;
 
 	/*
 	 * Allocate a new head vmemmap page to avoid breaking a contiguous
