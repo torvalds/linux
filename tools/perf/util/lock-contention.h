@@ -9,9 +9,11 @@ struct lock_filter {
 	int			nr_types;
 	int			nr_addrs;
 	int			nr_syms;
+	int			nr_cgrps;
 	unsigned int		*types;
 	unsigned long		*addrs;
 	char			**syms;
+	u64			*cgrps;
 };
 
 struct lock_stat {

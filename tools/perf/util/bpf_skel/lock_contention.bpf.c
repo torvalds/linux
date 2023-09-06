@@ -92,6 +92,13 @@ struct {
 	__uint(max_entries, 1);
 } addr_filter SEC(".maps");
 
+struct {
+	__uint(type, BPF_MAP_TYPE_HASH);
+	__uint(key_size, sizeof(__u64));
+	__uint(value_size, sizeof(__u8));
+	__uint(max_entries, 1);
+} cgroup_filter SEC(".maps");
+
 struct rw_semaphore___old {
 	struct task_struct *owner;
 } __attribute__((preserve_access_index));
@@ -114,6 +121,7 @@ int has_cpu;
 int has_task;
 int has_type;
 int has_addr;
+int has_cgroup;
 int needs_callstack;
 int stack_skip;
 int lock_owner;
@@ -190,6 +198,15 @@ static inline int can_record(u64 *ctx)
 		__u64 addr = ctx[0];
 
 		ok = bpf_map_lookup_elem(&addr_filter, &addr);
+		if (!ok)
+			return 0;
+	}
+
+	if (has_cgroup) {
+		__u8 *ok;
+		__u64 cgrp = get_current_cgroup_id();
+
+		ok = bpf_map_lookup_elem(&cgroup_filter, &cgrp);
 		if (!ok)
 			return 0;
 	}

@@ -10,6 +10,7 @@
 #include "util/thread.h"
 #include "util/header.h"
 #include "util/target.h"
+#include "util/cgroup.h"
 #include "util/callchain.h"
 #include "util/lock-contention.h"
 #include "util/bpf_skel/lock_data.h"
@@ -1631,6 +1632,9 @@ static void lock_filter_finish(void)
 
 	zfree(&filters.syms);
 	filters.nr_syms = 0;
+
+	zfree(&filters.cgrps);
+	filters.nr_cgrps = 0;
 }
 
 static void sort_contention_result(void)
@@ -2488,6 +2492,56 @@ static int parse_output(const struct option *opt __maybe_unused, const char *str
 	return 0;
 }
 
+static bool add_lock_cgroup(char *name)
+{
+	u64 *tmp;
+	struct cgroup *cgrp;
+
+	cgrp = cgroup__new(name, /*do_open=*/false);
+	if (cgrp == NULL) {
+		pr_err("Failed to create cgroup: %s\n", name);
+		return false;
+	}
+
+	if (read_cgroup_id(cgrp) < 0) {
+		pr_err("Failed to read cgroup id for %s\n", name);
+		cgroup__put(cgrp);
+		return false;
+	}
+
+	tmp = realloc(filters.cgrps, (filters.nr_cgrps + 1) * sizeof(*filters.cgrps));
+	if (tmp == NULL) {
+		pr_err("Memory allocation failure\n");
+		return false;
+	}
+
+	tmp[filters.nr_cgrps++] = cgrp->id;
+	filters.cgrps = tmp;
+	cgroup__put(cgrp);
+	return true;
+}
+
+static int parse_cgroup_filter(const struct option *opt __maybe_unused, const char *str,
+			       int unset __maybe_unused)
+{
+	char *s, *tmp, *tok;
+	int ret = 0;
+
+	s = strdup(str);
+	if (s == NULL)
+		return -1;
+
+	for (tok = strtok_r(s, ", ", &tmp); tok; tok = strtok_r(NULL, ", ", &tmp)) {
+		if (!add_lock_cgroup(tok)) {
+			ret = -1;
+			break;
+		}
+	}
+
+	free(s);
+	return ret;
+}
+
 int cmd_lock(int argc, const char **argv)
 {
 	const struct option lock_options[] = {
@@ -2562,6 +2616,8 @@ int cmd_lock(int argc, const char **argv)
 	OPT_STRING_NOEMPTY('x', "field-separator", &symbol_conf.field_sep, "separator",
 		   "print result in CSV format with custom separator"),
 	OPT_BOOLEAN(0, "lock-cgroup", &show_lock_cgroups, "show lock stats by cgroup"),
+	OPT_CALLBACK('G', "cgroup-filter", NULL, "CGROUPS",
+		     "Filter specific cgroups", parse_cgroup_filter),
 	OPT_PARENT(lock_options)
 	};
 

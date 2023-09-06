@@ -211,6 +211,10 @@ CONTENTION OPTIONS
 --lock-cgroup::
 	Show lock contention stat by cgroup.  Requires --use-bpf.
 
+-G::
+--cgroup-filter=<value>::
+	Show lock contention only in the given cgroups (comma separated list).
+
 
 SEE ALSO
 --------

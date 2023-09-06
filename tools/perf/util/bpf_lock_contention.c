@@ -21,7 +21,7 @@ static struct lock_contention_bpf *skel;
 int lock_contention_prepare(struct lock_contention *con)
 {
 	int i, fd;
-	int ncpus = 1, ntasks = 1, ntypes = 1, naddrs = 1;
+	int ncpus = 1, ntasks = 1, ntypes = 1, naddrs = 1, ncgrps = 1;
 	struct evlist *evlist = con->evlist;
 	struct target *target = con->target;
 
@@ -51,6 +51,8 @@ int lock_contention_prepare(struct lock_contention *con)
 		ntasks = perf_thread_map__nr(evlist->core.threads);
 	if (con->filters->nr_types)
 		ntypes = con->filters->nr_types;
+	if (con->filters->nr_cgrps)
+		ncgrps = con->filters->nr_cgrps;
 
 	/* resolve lock name filters to addr */
 	if (con->filters->nr_syms) {
@@ -85,6 +87,7 @@ int lock_contention_prepare(struct lock_contention *con)
 	bpf_map__set_max_entries(skel->maps.task_filter, ntasks);
 	bpf_map__set_max_entries(skel->maps.type_filter, ntypes);
 	bpf_map__set_max_entries(skel->maps.addr_filter, naddrs);
+	bpf_map__set_max_entries(skel->maps.cgroup_filter, ncgrps);
 
 	if (lock_contention_bpf__load(skel) < 0) {
 		pr_err("Failed to load lock-contention BPF skeleton\n");
@@ -144,6 +147,16 @@ int lock_contention_prepare(struct lock_contention *con)
 
 		for (i = 0; i < con->filters->nr_addrs; i++)
 			bpf_map_update_elem(fd, &con->filters->addrs[i], &val, BPF_ANY);
+	}
+
+	if (con->filters->nr_cgrps) {
+		u8 val = 1;
+
+		skel->bss->has_cgroup = 1;
+		fd = bpf_map__fd(skel->maps.cgroup_filter);
+
+		for (i = 0; i < con->filters->nr_cgrps; i++)
+			bpf_map_update_elem(fd, &con->filters->cgrps[i], &val, BPF_ANY);
 	}
 
 	/* these don't work well if in the rodata section */
