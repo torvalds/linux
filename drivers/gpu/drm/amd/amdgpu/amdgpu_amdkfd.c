@@ -164,7 +164,7 @@ void amdgpu_amdkfd_device_init(struct amdgpu_device *adev)
 		 */
 		bitmap_complement(gpu_resources.cp_queue_bitmap,
 				  adev->gfx.mec_bitmap[0].queue_bitmap,
-				  KGD_MAX_QUEUES);
+				  AMDGPU_MAX_QUEUES);
 
 		/* According to linux/bitmap.h we shouldn't use bitmap_clear if
 		 * nbits is not compile time constant
@@ -172,7 +172,7 @@ void amdgpu_amdkfd_device_init(struct amdgpu_device *adev)
 		last_valid_bit = 1 /* only first MEC can have compute queues */
 				* adev->gfx.mec.num_pipe_per_mec
 				* adev->gfx.mec.num_queue_per_pipe;
-		for (i = last_valid_bit; i < KGD_MAX_QUEUES; ++i)
+		for (i = last_valid_bit; i < AMDGPU_MAX_QUEUES; ++i)
 			clear_bit(i, gpu_resources.cp_queue_bitmap);
 
 		amdgpu_doorbell_get_kfd_info(adev,

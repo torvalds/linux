@@ -123,7 +123,7 @@ struct kgd2kfd_shared_resources {
 	uint32_t num_queue_per_pipe;
 
 	/* Bit n == 1 means Queue n is available for KFD */
-	DECLARE_BITMAP(cp_queue_bitmap, KGD_MAX_QUEUES);
+	DECLARE_BITMAP(cp_queue_bitmap, AMDGPU_MAX_QUEUES);
 
 	/* SDMA doorbell assignments (SOC15 and later chips only). Only
 	 * specific doorbells are routed to each SDMA engine. Others

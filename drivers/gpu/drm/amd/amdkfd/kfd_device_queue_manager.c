@@ -92,7 +92,7 @@ static bool is_pipe_enabled(struct device_queue_manager *dqm, int mec, int pipe)
 unsigned int get_cp_queues_num(struct device_queue_manager *dqm)
 {
 	return bitmap_weight(dqm->dev->kfd->shared_resources.cp_queue_bitmap,
-				KGD_MAX_QUEUES);
+				AMDGPU_MAX_QUEUES);
 }
 
 unsigned int get_queues_per_pipe(struct device_queue_manager *dqm)
@@ -1576,7 +1576,7 @@ static int set_sched_resources(struct device_queue_manager *dqm)
 	res.vmid_mask = dqm->dev->compute_vmid_bitmap;
 
 	res.queue_mask = 0;
-	for (i = 0; i < KGD_MAX_QUEUES; ++i) {
+	for (i = 0; i < AMDGPU_MAX_QUEUES; ++i) {
 		mec = (i / dqm->dev->kfd->shared_resources.num_queue_per_pipe)
 			/ dqm->dev->kfd->shared_resources.num_pipe_per_mec;
 
