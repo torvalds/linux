@@ -290,6 +290,15 @@ struct btrfs_fs_devices {
 	 * - Following shall be true at all times:
 	 *   - metadata_uuid == btrfs_header::fsid
 	 *   - metadata_uuid == btrfs_dev_item::fsid
+	 *
+	 * - Relations between fsid and metadata_uuid in sb and fs_devices:
+	 *   - Normal:
+	 *       fs_devices->fsid == fs_devices->metadata_uuid == sb->fsid
+	 *       sb->metadata_uuid == 0
+	 *
+	 *   - When the BTRFS_FEATURE_INCOMPAT_METADATA_UUID flag is set:
+	 *       fs_devices->fsid == sb->fsid
+	 *       fs_devices->metadata_uuid == sb->metadata_uuid
 	 */
 	u8 metadata_uuid[BTRFS_FSID_SIZE];
 
