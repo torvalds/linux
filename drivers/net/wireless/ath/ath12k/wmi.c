@@ -152,6 +152,8 @@ static const struct ath12k_wmi_tlv_policy ath12k_wmi_tlv_policies[] = {
 		.min_len = sizeof(struct wmi_service_available_event) },
 	[WMI_TAG_PEER_ASSOC_CONF_EVENT] = {
 		.min_len = sizeof(struct wmi_peer_assoc_conf_event) },
+	[WMI_TAG_RFKILL_EVENT] = {
+		.min_len = sizeof(struct wmi_rfkill_state_change_event) },
 	[WMI_TAG_PDEV_CTL_FAILSAFE_CHECK_EVENT] = {
 		.min_len = sizeof(struct wmi_pdev_ctl_failsafe_chk_event) },
 	[WMI_TAG_HOST_SWFDA_EVENT] = {
@@ -6604,6 +6606,40 @@ static void ath12k_probe_resp_tx_status_event(struct ath12k_base *ab,
 	kfree(tb);
 }
 
+static void ath12k_rfkill_state_change_event(struct ath12k_base *ab,
+					     struct sk_buff *skb)
+{
+	const struct wmi_rfkill_state_change_event *ev;
+	const void **tb;
+	int ret;
+
+	tb = ath12k_wmi_tlv_parse_alloc(ab, skb->data, skb->len, GFP_ATOMIC);
+	if (IS_ERR(tb)) {
+		ret = PTR_ERR(tb);
+		ath12k_warn(ab, "failed to parse tlv: %d\n", ret);
+		return;
+	}
+
+	ev = tb[WMI_TAG_RFKILL_EVENT];
+	if (!ev) {
+		kfree(tb);
+		return;
+	}
+
+	ath12k_dbg(ab, ATH12K_DBG_MAC,
+		   "wmi tlv rfkill state change gpio %d type %d radio_state %d\n",
+		   le32_to_cpu(ev->gpio_pin_num),
+		   le32_to_cpu(ev->int_type),
+		   le32_to_cpu(ev->radio_state));
+
+	spin_lock_bh(&ab->base_lock);
+	ab->rfkill_radio_on = (ev->radio_state == cpu_to_le32(WMI_RFKILL_RADIO_STATE_ON));
+	spin_unlock_bh(&ab->base_lock);
+
+	queue_work(ab->workqueue, &ab->rfkill_work);
+	kfree(tb);
+}
+
 static void ath12k_wmi_op_rx(struct ath12k_base *ab, struct sk_buff *skb)
 {
 	struct wmi_cmd_hdr *cmd_hdr;
@@ -6695,6 +6731,9 @@ static void ath12k_wmi_op_rx(struct ath12k_base *ab, struct sk_buff *skb)
 		break;
 	case WMI_OFFLOAD_PROB_RESP_TX_STATUS_EVENTID:
 		ath12k_probe_resp_tx_status_event(ab, skb);
+		break;
+	case WMI_RFKILL_STATE_CHANGE_EVENTID:
+		ath12k_rfkill_state_change_event(ab, skb);
 		break;
 	/* add Unsupported events here */
 	case WMI_TBTTOFFSET_EXT_UPDATE_EVENTID:

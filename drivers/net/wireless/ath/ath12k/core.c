@@ -19,6 +19,27 @@ unsigned int ath12k_debug_mask;
 module_param_named(debug_mask, ath12k_debug_mask, uint, 0644);
 MODULE_PARM_DESC(debug_mask, "Debugging mask");
 
+static int ath12k_core_rfkill_config(struct ath12k_base *ab)
+{
+	struct ath12k *ar;
+	int ret = 0, i;
+
+	if (!(ab->target_caps.sys_cap_info & WMI_SYS_CAP_INFO_RFKILL))
+		return 0;
+
+	for (i = 0; i < ab->num_radios; i++) {
+		ar = ab->pdevs[i].ar;
+
+		ret = ath12k_mac_rfkill_config(ar);
+		if (ret && ret != -EOPNOTSUPP) {
+			ath12k_warn(ab, "failed to configure rfkill: %d", ret);
+			return ret;
+		}
+	}
+
+	return ret;
+}
+
 int ath12k_core_suspend(struct ath12k_base *ab)
 {
 	int ret;
@@ -603,6 +624,13 @@ int ath12k_core_qmi_firmware_ready(struct ath12k_base *ab)
 		goto err_core_stop;
 	}
 	ath12k_hif_irq_enable(ab);
+
+	ret = ath12k_core_rfkill_config(ab);
+	if (ret && ret != -EOPNOTSUPP) {
+		ath12k_err(ab, "failed to config rfkill: %d\n", ret);
+		goto err_core_stop;
+	}
+
 	mutex_unlock(&ab->core_lock);
 
 	return 0;
@@ -655,6 +683,27 @@ err_hal_srng_deinit:
 	return ret;
 }
 
+static void ath12k_rfkill_work(struct work_struct *work)
+{
+	struct ath12k_base *ab = container_of(work, struct ath12k_base, rfkill_work);
+	struct ath12k *ar;
+	bool rfkill_radio_on;
+	int i;
+
+	spin_lock_bh(&ab->base_lock);
+	rfkill_radio_on = ab->rfkill_radio_on;
+	spin_unlock_bh(&ab->base_lock);
+
+	for (i = 0; i < ab->num_radios; i++) {
+		ar = ab->pdevs[i].ar;
+		if (!ar)
+			continue;
+
+		ath12k_mac_rfkill_enable_radio(ar, rfkill_radio_on);
+		wiphy_rfkill_set_hw_state(ar->hw->wiphy, !rfkill_radio_on);
+	}
+}
+
 void ath12k_core_halt(struct ath12k *ar)
 {
 	struct ath12k_base *ab = ar->ab;
@@ -668,6 +717,7 @@ void ath12k_core_halt(struct ath12k *ar)
 	ath12k_mac_peer_cleanup_all(ar);
 	cancel_delayed_work_sync(&ar->scan.timeout);
 	cancel_work_sync(&ar->regd_update_work);
+	cancel_work_sync(&ab->rfkill_work);
 
 	rcu_assign_pointer(ab->pdevs_active[ar->pdev_idx], NULL);
 	synchronize_rcu();
@@ -921,6 +971,8 @@ struct ath12k_base *ath12k_core_alloc(struct device *dev, size_t priv_size,
 	init_waitqueue_head(&ab->wmi_ab.tx_credits_wq);
 	INIT_WORK(&ab->restart_work, ath12k_core_restart);
 	INIT_WORK(&ab->reset_work, ath12k_core_reset);
+	INIT_WORK(&ab->rfkill_work, ath12k_rfkill_work);
+
 	timer_setup(&ab->rx_replenish_retry, ath12k_ce_rx_replenish_retry, 0);
 	init_completion(&ab->htc_suspend);
 
