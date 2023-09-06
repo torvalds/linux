@@ -843,9 +843,7 @@ CG_FUNCS(nop);
  */
 void intel_clock_gating_hooks_init(struct drm_i915_private *i915)
 {
-	if (IS_METEORLAKE(i915))
-		i915->clock_gating_funcs = &nop_clock_gating_funcs;
-	else if (IS_PONTEVECCHIO(i915))
+	if (IS_PONTEVECCHIO(i915))
 		i915->clock_gating_funcs = &pvc_clock_gating_funcs;
 	else if (IS_DG2(i915))
 		i915->clock_gating_funcs = &dg2_clock_gating_funcs;
@@ -853,7 +851,7 @@ void intel_clock_gating_hooks_init(struct drm_i915_private *i915)
 		i915->clock_gating_funcs = &xehpsdv_clock_gating_funcs;
 	else if (IS_ALDERLAKE_P(i915))
 		i915->clock_gating_funcs = &adlp_clock_gating_funcs;
-	else if (GRAPHICS_VER(i915) == 12)
+	else if (DISPLAY_VER(i915) == 12)
 		i915->clock_gating_funcs = &gen12lp_clock_gating_funcs;
 	else if (GRAPHICS_VER(i915) == 11)
 		i915->clock_gating_funcs = &icl_clock_gating_funcs;
@@ -893,8 +891,6 @@ void intel_clock_gating_hooks_init(struct drm_i915_private *i915)
 		i915->clock_gating_funcs = &i85x_clock_gating_funcs;
 	else if (GRAPHICS_VER(i915) == 2)
 		i915->clock_gating_funcs = &i830_clock_gating_funcs;
-	else {
-		MISSING_CASE(INTEL_DEVID(i915));
+	else
 		i915->clock_gating_funcs = &nop_clock_gating_funcs;
-	}
 }
