@@ -7892,8 +7892,9 @@ void __meminit kswapd_run(int nid)
 		pgdat->kswapd = kthread_run(kswapd, pgdat, "kswapd%d", nid);
 		if (IS_ERR(pgdat->kswapd)) {
 			/* failure at boot is fatal */
+			pr_err("Failed to start kswapd on node %d，ret=%ld\n",
+				   nid, PTR_ERR(pgdat->kswapd));
 			BUG_ON(system_state < SYSTEM_RUNNING);
-			pr_err("Failed to start kswapd on node %d\n", nid);
 			pgdat->kswapd = NULL;
 		}
 	}
