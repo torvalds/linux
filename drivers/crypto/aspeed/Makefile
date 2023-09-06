@@ -7,7 +7,7 @@ aspeed_crypto-objs := aspeed-hace.o	\
 		      $(hace-crypto-y)
 
 aspeed_acry-$(CONFIG_CRYPTO_DEV_ASPEED_ACRY) += aspeed-acry.o
-aspeed_rsss-$(CONFIG_CRYPTO_DEV_ASPEED_RSSS) += aspeed-rsss.o
-
 obj-$(CONFIG_CRYPTO_DEV_ASPEED) += $(aspeed_acry-y)
-obj-$(CONFIG_CRYPTO_DEV_ASPEED) += $(aspeed_rsss-y)
+
+obj-$(CONFIG_CRYPTO_DEV_ASPEED_RSSS) += aspeed_rsss.o
+aspeed_rsss-objs := aspeed-rsss.o aspeed-rsss-rsa.o

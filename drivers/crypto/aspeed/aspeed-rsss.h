@@ -5,8 +5,12 @@
 
 #include <crypto/scatterwalk.h>
 #include <crypto/internal/akcipher.h>
+#include <crypto/internal/hash.h>
 #include <crypto/internal/rsa.h>
 #include <crypto/engine.h>
+#include <crypto/akcipher.h>
+#include <crypto/hash.h>
+#include <crypto/sha3.h>
 
 #ifdef CONFIG_CRYPTO_DEV_ASPEED_DEBUG
 #define RSSS_DBG(d, fmt, ...)	\
@@ -26,7 +30,7 @@
 #define ASPEED_RSSS_CTRL		0xc08	/* RSSS generic control */
 #define ASPEED_RSA_TRIGGER		0xe00	/* RSA Engine Control: trigger */
 #define ASPEED_RSA_KEY_INFO		0xe08	/* RSA Exp/Mod Key Length (Bits) */
-#define ASPEED_RSA_ENG_STATUS		0xe0c	/* RSA Engine Status */
+#define ASPEED_RSA_ENG_STS		0xe0c	/* RSA Engine Status */
 
 /* RSSS interrupt status */
 #define SM4_INT_DONE			BIT(3)
@@ -66,9 +70,42 @@
 
 #define CRYPTO_FLAGS_BUSY		BIT(1)
 
+/* SHA3 command */
+#define SHA3_CMD_TRIG			BIT(31)
+#define SHA3_CMD_MODE_224		(0x0 << 28)
+#define SHA3_CMD_MODE_256		(0x1 << 28)
+#define SHA3_CMD_MODE_384		(0x2 << 28)
+#define SHA3_CMD_MODE_512		(0x3 << 28)
+#define SHA3_CMD_MODE_S128		(0x4 << 28)
+#define SHA3_CMD_MODE_S256		(0x5 << 28)
+#define SHA3_CMD_HW_PAD			BIT(27)
+#define SHA3_CMD_ACC_FINAL		BIT(26)
+#define SHA3_CMD_ACC			BIT(25)
+#define SHA3_CMD_SG_MODE		BIT(24)
+#define SHA3_CMD_IN_RST			BIT(21)
+#define SHA3_CMD_OUT_RST		BIT(20)
+#define SHA3_CMD_OUT_LEN(x)		((x) & 0x1ffff)
+
+#define SHA3_FLAGS_SHA224		BIT(0)
+#define SHA3_FLAGS_SHA256		BIT(1)
+#define SHA3_FLAGS_SHA384		BIT(2)
+#define SHA3_FLAGS_SHA512		BIT(3)
+#define SHA3_FLAGS_FINUP		BIT(0xa)
+#define SHA3_FLAGS_MASK			(0xff)
+
+#define SG_LAST_LIST			BIT(31)
+
+#define SHA_OP_UPDATE			1
+#define SHA_OP_FINAL			2
+
 struct aspeed_rsss_dev;
 
 typedef int (*aspeed_rsss_fn_t)(struct aspeed_rsss_dev *);
+
+struct aspeed_sg_list {
+	__le32 len;
+	__le32 phy_addr;
+};
 
 struct aspeed_engine_rsa {
 	struct tasklet_struct		done_task;
@@ -106,6 +143,21 @@ struct aspeed_rsss_dev {
 	struct aspeed_engine_sha3	sha3_engine;
 };
 
+enum aspeed_algo_type {
+	ASPEED_ALGO_TYPE_AKCIPHER,
+	ASPEED_ALGO_TYPE_AHASH,
+};
+
+struct aspeed_rsss_alg {
+	struct aspeed_rsss_dev		*rsss_dev;
+	enum aspeed_algo_type		type;
+	union {
+		struct akcipher_alg	akcipher;
+		struct ahash_alg	ahash;
+	} alg;
+};
+
+/* RSA related */
 struct aspeed_rsa_ctx {
 	struct crypto_engine_ctx	enginectx;
 	struct aspeed_rsss_dev		*rsss_dev;
@@ -124,11 +176,6 @@ struct aspeed_rsa_ctx {
 	struct crypto_akcipher          *fallback_tfm;
 };
 
-struct aspeed_rsss_rsa_alg {
-	struct aspeed_rsss_dev		*rsss_dev;
-	struct akcipher_alg		akcipher;
-};
-
 enum aspeed_rsa_key_mode {
 	ASPEED_RSA_EXP_MODE = 0,
 	ASPEED_RSA_MOD_MODE,
@@ -140,5 +187,10 @@ enum aspeed_rsa_key_mode {
 
 #define ast_rsss_read(rsss, offset)		\
 	readl((rsss)->regs + (offset))
+
+int aspeed_rsss_rsa_init(struct aspeed_rsss_dev *rsss_dev);
+void aspeed_rsss_rsa_exit(struct aspeed_rsss_dev *rsss_dev);
+
+extern struct aspeed_rsss_alg aspeed_rsss_algs_rsa;
 
 #endif /* __ASPEED_RSSS_H__ */
