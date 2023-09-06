@@ -1045,6 +1045,7 @@ hns3_dbg_dev_specs(struct hnae3_handle *h, char *buf, int len, int *pos)
 	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(h->pdev);
 	struct hnae3_dev_specs *dev_specs = &ae_dev->dev_specs;
 	struct hnae3_knic_private_info *kinfo = &h->kinfo;
+	struct net_device *dev = kinfo->netdev;
 
 	*pos += scnprintf(buf + *pos, len - *pos, "dev_spec:\n");
 	*pos += scnprintf(buf + *pos, len - *pos, "MAC entry num: %u\n",
@@ -1087,6 +1088,9 @@ hns3_dbg_dev_specs(struct hnae3_handle *h, char *buf, int len, int *pos)
 			  dev_specs->mc_mac_size);
 	*pos += scnprintf(buf + *pos, len - *pos, "MAC statistics number: %u\n",
 			  dev_specs->mac_stats_num);
+	*pos += scnprintf(buf + *pos, len - *pos,
+			  "TX timeout threshold: %d seconds\n",
+			  dev->watchdog_timeo / HZ);
 }
 
 static int hns3_dbg_dev_info(struct hnae3_handle *h, char *buf, int len)
