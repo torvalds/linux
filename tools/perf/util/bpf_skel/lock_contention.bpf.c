@@ -118,6 +118,9 @@ int needs_callstack;
 int stack_skip;
 int lock_owner;
 
+int use_cgroup_v2;
+int perf_subsys_id = -1;
+
 /* determine the key of lock stat */
 int aggr_mode;
 
@@ -129,6 +132,29 @@ int data_fail;
 
 int task_map_full;
 int data_map_full;
+
+static inline __u64 get_current_cgroup_id(void)
+{
+	struct task_struct *task;
+	struct cgroup *cgrp;
+
+	if (use_cgroup_v2)
+		return bpf_get_current_cgroup_id();
+
+	task = bpf_get_current_task_btf();
+
+	if (perf_subsys_id == -1) {
+#if __has_builtin(__builtin_preserve_enum_value)
+		perf_subsys_id = bpf_core_enum_value(enum cgroup_subsys_id,
+						     perf_event_cgrp_id);
+#else
+		perf_subsys_id = perf_event_cgrp_id;
+#endif
+	}
+
+	cgrp = BPF_CORE_READ(task, cgroups, subsys[perf_subsys_id], cgroup);
+	return BPF_CORE_READ(cgrp, kn, id);
+}
 
 static inline int can_record(u64 *ctx)
 {
@@ -364,9 +390,12 @@ int contention_end(u64 *ctx)
 			key.stack_id = pelem->stack_id;
 		break;
 	case LOCK_AGGR_ADDR:
-		key.lock_addr = pelem->lock;
+		key.lock_addr_or_cgroup = pelem->lock;
 		if (needs_callstack)
 			key.stack_id = pelem->stack_id;
+		break;
+	case LOCK_AGGR_CGROUP:
+		key.lock_addr_or_cgroup = get_current_cgroup_id();
 		break;
 	default:
 		/* should not happen */

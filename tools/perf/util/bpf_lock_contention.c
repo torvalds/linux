@@ -152,7 +152,10 @@ int lock_contention_prepare(struct lock_contention *con)
 	skel->bss->needs_callstack = con->save_callstack;
 	skel->bss->lock_owner = con->owner;
 
-	if (con->use_cgroup) {
+	if (con->aggr_mode == LOCK_AGGR_CGROUP) {
+		if (cgroup_is_v2("perf_event"))
+			skel->bss->use_cgroup_v2 = 1;
+
 		read_all_cgroups(&con->cgroups);
 	}
 
@@ -214,12 +217,12 @@ static const char *lock_contention_get_name(struct lock_contention *con,
 			return "siglock";
 
 		/* global locks with symbols */
-		sym = machine__find_kernel_symbol(machine, key->lock_addr, &kmap);
+		sym = machine__find_kernel_symbol(machine, key->lock_addr_or_cgroup, &kmap);
 		if (sym)
 			return sym->name;
 
 		/* try semi-global locks collected separately */
-		if (!bpf_map_lookup_elem(lock_fd, &key->lock_addr, &flags)) {
+		if (!bpf_map_lookup_elem(lock_fd, &key->lock_addr_or_cgroup, &flags)) {
 			if (flags == LOCK_CLASS_RQLOCK)
 				return "rq_lock";
 		}
@@ -227,8 +230,8 @@ static const char *lock_contention_get_name(struct lock_contention *con,
 		return "";
 	}
 
-	if (con->use_cgroup) {
-		u64 cgrp_id = key->lock_addr;
+	if (con->aggr_mode == LOCK_AGGR_CGROUP) {
+		u64 cgrp_id = key->lock_addr_or_cgroup;
 		struct cgroup *cgrp = __cgroup__find(&con->cgroups, cgrp_id);
 
 		if (cgrp)
@@ -329,7 +332,8 @@ int lock_contention_read(struct lock_contention *con)
 			ls_key = key.pid;
 			break;
 		case LOCK_AGGR_ADDR:
-			ls_key = key.lock_addr;
+		case LOCK_AGGR_CGROUP:
+			ls_key = key.lock_addr_or_cgroup;
 			break;
 		default:
 			goto next;

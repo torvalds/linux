@@ -144,7 +144,6 @@ struct lock_contention {
 	int owner;
 	int nr_filtered;
 	bool save_callstack;
-	bool use_cgroup;
 };
 
 #ifdef HAVE_BPF_SKEL
