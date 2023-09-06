@@ -1472,7 +1472,7 @@ static void gfx_v12_0_constants_init(struct amdgpu_device *adev)
 }
 
 static void gfx_v12_0_enable_gui_idle_interrupt(struct amdgpu_device *adev,
-					       bool enable)
+						bool enable)
 {
 	u32 tmp;
 
@@ -3594,10 +3594,196 @@ static int gfx_v12_0_set_powergating_state(void *handle,
 	return 0;
 }
 
+static void gfx_v12_0_update_coarse_grain_clock_gating(struct amdgpu_device *adev,
+						       bool enable)
+{
+	uint32_t def, data;
+
+	if (!(adev->cg_flags &
+	      (AMD_CG_SUPPORT_GFX_CGCG |
+	      AMD_CG_SUPPORT_GFX_CGLS |
+	      AMD_CG_SUPPORT_GFX_3D_CGCG |
+	      AMD_CG_SUPPORT_GFX_3D_CGLS)))
+		return;
+
+	if (enable) {
+		def = data = RREG32_SOC15(GC, 0, regRLC_CGTT_MGCG_OVERRIDE);
+
+		/* unset CGCG override */
+		if (adev->cg_flags & AMD_CG_SUPPORT_GFX_CGCG)
+			data &= ~RLC_CGTT_MGCG_OVERRIDE__GFXIP_CGCG_OVERRIDE_MASK;
+		if (adev->cg_flags & AMD_CG_SUPPORT_GFX_CGLS)
+			data &= ~RLC_CGTT_MGCG_OVERRIDE__GFXIP_CGLS_OVERRIDE_MASK;
+		if (adev->cg_flags & AMD_CG_SUPPORT_GFX_3D_CGCG ||
+		    adev->cg_flags & AMD_CG_SUPPORT_GFX_3D_CGLS)
+			data &= ~RLC_CGTT_MGCG_OVERRIDE__GFXIP_GFX3D_CG_OVERRIDE_MASK;
+
+		/* update CGCG override bits */
+		if (def != data)
+			WREG32_SOC15(GC, 0, regRLC_CGTT_MGCG_OVERRIDE, data);
+
+		/* enable cgcg FSM(0x0000363F) */
+		def = data = RREG32_SOC15(GC, 0, regRLC_CGCG_CGLS_CTRL);
+
+		if (adev->cg_flags & AMD_CG_SUPPORT_GFX_CGCG) {
+			data &= ~RLC_CGCG_CGLS_CTRL__CGCG_GFX_IDLE_THRESHOLD_MASK;
+			data |= (0x36 << RLC_CGCG_CGLS_CTRL__CGCG_GFX_IDLE_THRESHOLD__SHIFT) |
+				 RLC_CGCG_CGLS_CTRL__CGCG_EN_MASK;
+		}
+
+		if (adev->cg_flags & AMD_CG_SUPPORT_GFX_CGLS) {
+			data &= ~RLC_CGCG_CGLS_CTRL__CGLS_REP_COMPANSAT_DELAY_MASK;
+			data |= (0x000F << RLC_CGCG_CGLS_CTRL__CGLS_REP_COMPANSAT_DELAY__SHIFT) |
+				 RLC_CGCG_CGLS_CTRL__CGLS_EN_MASK;
+		}
+
+		if (def != data)
+			WREG32_SOC15(GC, 0, regRLC_CGCG_CGLS_CTRL, data);
+
+		/* Program RLC_CGCG_CGLS_CTRL_3D */
+		def = data = RREG32_SOC15(GC, 0, regRLC_CGCG_CGLS_CTRL_3D);
+
+		if (adev->cg_flags & AMD_CG_SUPPORT_GFX_3D_CGCG) {
+			data &= ~RLC_CGCG_CGLS_CTRL_3D__CGCG_GFX_IDLE_THRESHOLD_MASK;
+			data |= (0x36 << RLC_CGCG_CGLS_CTRL_3D__CGCG_GFX_IDLE_THRESHOLD__SHIFT) |
+				 RLC_CGCG_CGLS_CTRL_3D__CGCG_EN_MASK;
+		}
+
+		if (adev->cg_flags & AMD_CG_SUPPORT_GFX_3D_CGLS) {
+			data &= ~RLC_CGCG_CGLS_CTRL_3D__CGLS_REP_COMPANSAT_DELAY_MASK;
+			data |= (0xf << RLC_CGCG_CGLS_CTRL_3D__CGLS_REP_COMPANSAT_DELAY__SHIFT) |
+				 RLC_CGCG_CGLS_CTRL_3D__CGLS_EN_MASK;
+		}
+
+		if (def != data)
+			WREG32_SOC15(GC, 0, regRLC_CGCG_CGLS_CTRL_3D, data);
+
+		/* set IDLE_POLL_COUNT(0x00900100) */
+		def = data = RREG32_SOC15(GC, 0, regCP_RB_WPTR_POLL_CNTL);
+
+		data &= ~(CP_RB_WPTR_POLL_CNTL__POLL_FREQUENCY_MASK | CP_RB_WPTR_POLL_CNTL__IDLE_POLL_COUNT_MASK);
+		data |= (0x0100 << CP_RB_WPTR_POLL_CNTL__POLL_FREQUENCY__SHIFT) |
+			(0x0090 << CP_RB_WPTR_POLL_CNTL__IDLE_POLL_COUNT__SHIFT);
+
+		if (def != data)
+			WREG32_SOC15(GC, 0, regCP_RB_WPTR_POLL_CNTL, data);
+
+		data = RREG32_SOC15(GC, 0, regCP_INT_CNTL);
+		data = REG_SET_FIELD(data, CP_INT_CNTL, CNTX_BUSY_INT_ENABLE, 1);
+		data = REG_SET_FIELD(data, CP_INT_CNTL, CNTX_EMPTY_INT_ENABLE, 1);
+		data = REG_SET_FIELD(data, CP_INT_CNTL, CMP_BUSY_INT_ENABLE, 1);
+		data = REG_SET_FIELD(data, CP_INT_CNTL, GFX_IDLE_INT_ENABLE, 1);
+		WREG32_SOC15(GC, 0, regCP_INT_CNTL, data);
+
+		data = RREG32_SOC15(GC, 0, regSDMA0_RLC_CGCG_CTRL);
+		data = REG_SET_FIELD(data, SDMA0_RLC_CGCG_CTRL, CGCG_INT_ENABLE, 1);
+		WREG32_SOC15(GC, 0, regSDMA0_RLC_CGCG_CTRL, data);
+
+		/* Some ASICs only have one SDMA instance, not need to configure SDMA1 */
+		if (adev->sdma.num_instances > 1) {
+			data = RREG32_SOC15(GC, 0, regSDMA1_RLC_CGCG_CTRL);
+			data = REG_SET_FIELD(data, SDMA1_RLC_CGCG_CTRL, CGCG_INT_ENABLE, 1);
+			WREG32_SOC15(GC, 0, regSDMA1_RLC_CGCG_CTRL, data);
+		}
+	} else {
+		/* Program RLC_CGCG_CGLS_CTRL */
+		def = data = RREG32_SOC15(GC, 0, regRLC_CGCG_CGLS_CTRL);
+
+		if (adev->cg_flags & AMD_CG_SUPPORT_GFX_CGCG)
+			data &= ~RLC_CGCG_CGLS_CTRL__CGCG_EN_MASK;
+
+		if (adev->cg_flags & AMD_CG_SUPPORT_GFX_CGLS)
+			data &= ~RLC_CGCG_CGLS_CTRL__CGLS_EN_MASK;
+
+		if (def != data)
+			WREG32_SOC15(GC, 0, regRLC_CGCG_CGLS_CTRL, data);
+
+		/* Program RLC_CGCG_CGLS_CTRL_3D */
+		def = data = RREG32_SOC15(GC, 0, regRLC_CGCG_CGLS_CTRL_3D);
+
+		if (adev->cg_flags & AMD_CG_SUPPORT_GFX_3D_CGCG)
+			data &= ~RLC_CGCG_CGLS_CTRL_3D__CGCG_EN_MASK;
+		if (adev->cg_flags & AMD_CG_SUPPORT_GFX_3D_CGLS)
+			data &= ~RLC_CGCG_CGLS_CTRL_3D__CGLS_EN_MASK;
+
+		if (def != data)
+			WREG32_SOC15(GC, 0, regRLC_CGCG_CGLS_CTRL_3D, data);
+
+		data = RREG32_SOC15(GC, 0, regSDMA0_RLC_CGCG_CTRL);
+		data &= ~SDMA0_RLC_CGCG_CTRL__CGCG_INT_ENABLE_MASK;
+		WREG32_SOC15(GC, 0, regSDMA0_RLC_CGCG_CTRL, data);
+
+		/* Some ASICs only have one SDMA instance, not need to configure SDMA1 */
+		if (adev->sdma.num_instances > 1) {
+			data = RREG32_SOC15(GC, 0, regSDMA1_RLC_CGCG_CTRL);
+			data &= ~SDMA1_RLC_CGCG_CTRL__CGCG_INT_ENABLE_MASK;
+			WREG32_SOC15(GC, 0, regSDMA1_RLC_CGCG_CTRL, data);
+		}
+	}
+}
+
+static void gfx_v12_0_update_medium_grain_clock_gating(struct amdgpu_device *adev,
+						       bool enable)
+{
+	/* TODO */
+}
+
+static void gfx_v12_0_update_repeater_fgcg(struct amdgpu_device *adev,
+					   bool enable)
+{
+	/* TODO */
+}
+
+static void gfx_v12_0_update_sram_fgcg(struct amdgpu_device *adev,
+				       bool enable)
+{
+	/* TODO */
+}
+
+static int gfx_v12_0_update_gfx_clock_gating(struct amdgpu_device *adev,
+					    bool enable)
+{
+	amdgpu_gfx_rlc_enter_safe_mode(adev, 0);
+
+	gfx_v12_0_update_coarse_grain_clock_gating(adev, enable);
+
+	gfx_v12_0_update_medium_grain_clock_gating(adev, enable);
+
+	gfx_v12_0_update_repeater_fgcg(adev, enable);
+
+	gfx_v12_0_update_sram_fgcg(adev, enable);
+
+	gfx_v12_0_update_perf_clk(adev, enable);
+
+	if (adev->cg_flags &
+	    (AMD_CG_SUPPORT_GFX_MGCG |
+	     AMD_CG_SUPPORT_GFX_CGLS |
+	     AMD_CG_SUPPORT_GFX_CGCG |
+	     AMD_CG_SUPPORT_GFX_3D_CGCG |
+	     AMD_CG_SUPPORT_GFX_3D_CGLS))
+		gfx_v12_0_enable_gui_idle_interrupt(adev, enable);
+
+	amdgpu_gfx_rlc_exit_safe_mode(adev, 0);
+
+	return 0;
+}
+
 static int gfx_v12_0_set_clockgating_state(void *handle,
 					   enum amd_clockgating_state state)
 {
-	/* TODO */
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	if (amdgpu_sriov_vf(adev))
+		return 0;
+
+	switch (adev->ip_versions[GC_HWIP][0]) {
+	case IP_VERSION(12, 0, 1):
+		gfx_v12_0_update_gfx_clock_gating(adev,
+						  state == AMD_CG_STATE_GATE);
+		break;
+	default:
+		break;
+	}
 
 	return 0;
 }
