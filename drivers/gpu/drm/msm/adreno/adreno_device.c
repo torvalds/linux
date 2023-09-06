@@ -22,9 +22,9 @@ module_param_named(allow_vram_carveout, allow_vram_carveout, bool, 0600);
 
 static const struct adreno_info gpulist[] = {
 	{
-		.rev   = ADRENO_REV(2, 0, 0, 0),
+		.chip_ids = ADRENO_CHIP_IDS(0x02000000),
+		.family = ADRENO_2XX_GEN1,
 		.revn  = 200,
-		.name  = "A200",
 		.fw = {
 			[ADRENO_FW_PM4] = "yamato_pm4.fw",
 			[ADRENO_FW_PFP] = "yamato_pfp.fw",
@@ -33,9 +33,9 @@ static const struct adreno_info gpulist[] = {
 		.inactive_period = DRM_MSM_INACTIVE_PERIOD,
 		.init  = a2xx_gpu_init,
 	}, { /* a200 on i.mx51 has only 128kib gmem */
-		.rev   = ADRENO_REV(2, 0, 0, 1),
+		.chip_ids = ADRENO_CHIP_IDS(0x02000001),
+		.family = ADRENO_2XX_GEN1,
 		.revn  = 201,
-		.name  = "A200",
 		.fw = {
 			[ADRENO_FW_PM4] = "yamato_pm4.fw",
 			[ADRENO_FW_PFP] = "yamato_pfp.fw",
@@ -44,9 +44,9 @@ static const struct adreno_info gpulist[] = {
 		.inactive_period = DRM_MSM_INACTIVE_PERIOD,
 		.init  = a2xx_gpu_init,
 	}, {
-		.rev   = ADRENO_REV(2, 2, 0, ANY_ID),
+		.chip_ids = ADRENO_CHIP_IDS(0x02020000),
+		.family = ADRENO_2XX_GEN2,
 		.revn  = 220,
-		.name  = "A220",
 		.fw = {
 			[ADRENO_FW_PM4] = "leia_pm4_470.fw",
 			[ADRENO_FW_PFP] = "leia_pfp_470.fw",
@@ -55,9 +55,12 @@ static const struct adreno_info gpulist[] = {
 		.inactive_period = DRM_MSM_INACTIVE_PERIOD,
 		.init  = a2xx_gpu_init,
 	}, {
-		.rev   = ADRENO_REV(3, 0, 5, ANY_ID),
+		.chip_ids = ADRENO_CHIP_IDS(
+			0x03000512,
+			0x03000520
+		),
+		.family = ADRENO_3XX,
 		.revn  = 305,
-		.name  = "A305",
 		.fw = {
 			[ADRENO_FW_PM4] = "a300_pm4.fw",
 			[ADRENO_FW_PFP] = "a300_pfp.fw",
@@ -66,9 +69,9 @@ static const struct adreno_info gpulist[] = {
 		.inactive_period = DRM_MSM_INACTIVE_PERIOD,
 		.init  = a3xx_gpu_init,
 	}, {
-		.rev   = ADRENO_REV(3, 0, 6, 0),
+		.chip_ids = ADRENO_CHIP_IDS(0x03000600),
+		.family = ADRENO_3XX,
 		.revn  = 307,        /* because a305c is revn==306 */
-		.name  = "A306",
 		.fw = {
 			[ADRENO_FW_PM4] = "a300_pm4.fw",
 			[ADRENO_FW_PFP] = "a300_pfp.fw",
@@ -77,9 +80,13 @@ static const struct adreno_info gpulist[] = {
 		.inactive_period = DRM_MSM_INACTIVE_PERIOD,
 		.init  = a3xx_gpu_init,
 	}, {
-		.rev   = ADRENO_REV(3, 2, ANY_ID, ANY_ID),
+		.chip_ids = ADRENO_CHIP_IDS(
+			0x03020000,
+			0x03020001,
+			0x03020002
+		),
+		.family = ADRENO_3XX,
 		.revn  = 320,
-		.name  = "A320",
 		.fw = {
 			[ADRENO_FW_PM4] = "a300_pm4.fw",
 			[ADRENO_FW_PFP] = "a300_pfp.fw",
@@ -88,9 +95,13 @@ static const struct adreno_info gpulist[] = {
 		.inactive_period = DRM_MSM_INACTIVE_PERIOD,
 		.init  = a3xx_gpu_init,
 	}, {
-		.rev   = ADRENO_REV(3, 3, 0, ANY_ID),
+		.chip_ids = ADRENO_CHIP_IDS(
+			0x03030000,
+			0x03030001,
+			0x03030002
+		),
+		.family = ADRENO_3XX,
 		.revn  = 330,
-		.name  = "A330",
 		.fw = {
 			[ADRENO_FW_PM4] = "a330_pm4.fw",
 			[ADRENO_FW_PFP] = "a330_pfp.fw",
@@ -99,9 +110,9 @@ static const struct adreno_info gpulist[] = {
 		.inactive_period = DRM_MSM_INACTIVE_PERIOD,
 		.init  = a3xx_gpu_init,
 	}, {
-		.rev   = ADRENO_REV(4, 0, 5, ANY_ID),
+		.chip_ids = ADRENO_CHIP_IDS(0x04000500),
+		.family = ADRENO_4XX,
 		.revn  = 405,
-		.name  = "A405",
 		.fw = {
 			[ADRENO_FW_PM4] = "a420_pm4.fw",
 			[ADRENO_FW_PFP] = "a420_pfp.fw",
@@ -110,9 +121,9 @@ static const struct adreno_info gpulist[] = {
 		.inactive_period = DRM_MSM_INACTIVE_PERIOD,
 		.init  = a4xx_gpu_init,
 	}, {
-		.rev   = ADRENO_REV(4, 2, 0, ANY_ID),
+		.chip_ids = ADRENO_CHIP_IDS(0x04020000),
+		.family = ADRENO_4XX,
 		.revn  = 420,
-		.name  = "A420",
 		.fw = {
 			[ADRENO_FW_PM4] = "a420_pm4.fw",
 			[ADRENO_FW_PFP] = "a420_pfp.fw",
@@ -121,9 +132,9 @@ static const struct adreno_info gpulist[] = {
 		.inactive_period = DRM_MSM_INACTIVE_PERIOD,
 		.init  = a4xx_gpu_init,
 	}, {
-		.rev   = ADRENO_REV(4, 3, 0, ANY_ID),
+		.chip_ids = ADRENO_CHIP_IDS(0x04030002),
+		.family = ADRENO_4XX,
 		.revn  = 430,
-		.name  = "A430",
 		.fw = {
 			[ADRENO_FW_PM4] = "a420_pm4.fw",
 			[ADRENO_FW_PFP] = "a420_pfp.fw",
@@ -132,9 +143,9 @@ static const struct adreno_info gpulist[] = {
 		.inactive_period = DRM_MSM_INACTIVE_PERIOD,
 		.init  = a4xx_gpu_init,
 	}, {
-		.rev   = ADRENO_REV(5, 0, 6, ANY_ID),
+		.chip_ids = ADRENO_CHIP_IDS(0x05000600),
+		.family = ADRENO_5XX,
 		.revn = 506,
-		.name = "A506",
 		.fw = {
 			[ADRENO_FW_PM4] = "a530_pm4.fw",
 			[ADRENO_FW_PFP] = "a530_pfp.fw",
@@ -150,9 +161,9 @@ static const struct adreno_info gpulist[] = {
 		.init = a5xx_gpu_init,
 		.zapfw = "a506_zap.mdt",
 	}, {
-		.rev   = ADRENO_REV(5, 0, 8, ANY_ID),
+		.chip_ids = ADRENO_CHIP_IDS(0x05000800),
+		.family = ADRENO_5XX,
 		.revn = 508,
-		.name = "A508",
 		.fw = {
 			[ADRENO_FW_PM4] = "a530_pm4.fw",
 			[ADRENO_FW_PFP] = "a530_pfp.fw",
@@ -167,9 +178,9 @@ static const struct adreno_info gpulist[] = {
 		.init = a5xx_gpu_init,
 		.zapfw = "a508_zap.mdt",
 	}, {
-		.rev   = ADRENO_REV(5, 0, 9, ANY_ID),
+		.chip_ids = ADRENO_CHIP_IDS(0x05000900),
+		.family = ADRENO_5XX,
 		.revn = 509,
-		.name = "A509",
 		.fw = {
 			[ADRENO_FW_PM4] = "a530_pm4.fw",
 			[ADRENO_FW_PFP] = "a530_pfp.fw",
@@ -185,9 +196,9 @@ static const struct adreno_info gpulist[] = {
 		/* Adreno 509 uses the same ZAP as 512 */
 		.zapfw = "a512_zap.mdt",
 	}, {
-		.rev   = ADRENO_REV(5, 1, 0, ANY_ID),
+		.chip_ids = ADRENO_CHIP_IDS(0x05010000),
+		.family = ADRENO_5XX,
 		.revn = 510,
-		.name = "A510",
 		.fw = {
 			[ADRENO_FW_PM4] = "a530_pm4.fw",
 			[ADRENO_FW_PFP] = "a530_pfp.fw",
@@ -200,9 +211,9 @@ static const struct adreno_info gpulist[] = {
 		.inactive_period = 250,
 		.init = a5xx_gpu_init,
 	}, {
-		.rev   = ADRENO_REV(5, 1, 2, ANY_ID),
+		.chip_ids = ADRENO_CHIP_IDS(0x05010200),
+		.family = ADRENO_5XX,
 		.revn = 512,
-		.name = "A512",
 		.fw = {
 			[ADRENO_FW_PM4] = "a530_pm4.fw",
 			[ADRENO_FW_PFP] = "a530_pfp.fw",
@@ -217,9 +228,12 @@ static const struct adreno_info gpulist[] = {
 		.init = a5xx_gpu_init,
 		.zapfw = "a512_zap.mdt",
 	}, {
-		.rev = ADRENO_REV(5, 3, 0, 2),
+		.chip_ids = ADRENO_CHIP_IDS(
+			0x05030002,
+			0x05030004
+		),
+		.family = ADRENO_5XX,
 		.revn = 530,
-		.name = "A530",
 		.fw = {
 			[ADRENO_FW_PM4] = "a530_pm4.fw",
 			[ADRENO_FW_PFP] = "a530_pfp.fw",
@@ -236,9 +250,9 @@ static const struct adreno_info gpulist[] = {
 		.init = a5xx_gpu_init,
 		.zapfw = "a530_zap.mdt",
 	}, {
-		.rev = ADRENO_REV(5, 4, 0, ANY_ID),
+		.chip_ids = ADRENO_CHIP_IDS(0x05040001),
+		.family = ADRENO_5XX,
 		.revn = 540,
-		.name = "A540",
 		.fw = {
 			[ADRENO_FW_PM4] = "a530_pm4.fw",
 			[ADRENO_FW_PFP] = "a530_pfp.fw",
@@ -254,9 +268,9 @@ static const struct adreno_info gpulist[] = {
 		.init = a5xx_gpu_init,
 		.zapfw = "a540_zap.mdt",
 	}, {
-		.rev = ADRENO_REV(6, 1, 0, ANY_ID),
+		.chip_ids = ADRENO_CHIP_IDS(0x06010000),
+		.family = ADRENO_6XX_GEN1,
 		.revn = 610,
-		.name = "A610",
 		.fw = {
 			[ADRENO_FW_SQE] = "a630_sqe.fw",
 		},
@@ -265,21 +279,42 @@ static const struct adreno_info gpulist[] = {
 		.init = a6xx_gpu_init,
 		.zapfw = "a610_zap.mdt",
 		.hwcg = a612_hwcg,
+		/*
+		 * There are (at least) three SoCs implementing A610: SM6125
+		 * (trinket), SM6115 (bengal) and SM6225 (khaje). Trinket does
+		 * not have speedbinning, as only a single SKU exists and we
+		 * don't support khaje upstream yet.  Hence, this matching
+		 * table is only valid for bengal.
+		 */
+		.speedbins = ADRENO_SPEEDBINS(
+			{ 0,   0 },
+			{ 206, 1 },
+			{ 200, 2 },
+			{ 157, 3 },
+			{ 127, 4 },
+		),
 	}, {
-		.rev = ADRENO_REV(6, 1, 8, ANY_ID),
+		.chip_ids = ADRENO_CHIP_IDS(0x06010800),
+		.family = ADRENO_6XX_GEN1,
 		.revn = 618,
-		.name = "A618",
 		.fw = {
 			[ADRENO_FW_SQE] = "a630_sqe.fw",
 			[ADRENO_FW_GMU] = "a630_gmu.bin",
 		},
 		.gmem = SZ_512K,
 		.inactive_period = DRM_MSM_INACTIVE_PERIOD,
+		.quirks = ADRENO_QUIRK_HAS_CACHED_COHERENT,
 		.init = a6xx_gpu_init,
+		.speedbins = ADRENO_SPEEDBINS(
+			{ 0,   0 },
+			{ 169, 1 },
+			{ 174, 2 },
+		),
 	}, {
-		.rev = ADRENO_REV(6, 1, 9, ANY_ID),
+		.machine = "qcom,sm4350",
+		.chip_ids = ADRENO_CHIP_IDS(0x06010900),
+		.family = ADRENO_6XX_GEN1,
 		.revn = 619,
-		.name = "A619",
 		.fw = {
 			[ADRENO_FW_SQE] = "a630_sqe.fw",
 			[ADRENO_FW_GMU] = "a619_gmu.bin",
@@ -289,92 +324,168 @@ static const struct adreno_info gpulist[] = {
 		.init = a6xx_gpu_init,
 		.zapfw = "a615_zap.mdt",
 		.hwcg = a615_hwcg,
+		.speedbins = ADRENO_SPEEDBINS(
+			{ 0,   0 },
+			{ 138, 1 },
+			{ 92,  2 },
+		),
 	}, {
-		.rev = ADRENO_REV(6, 3, 0, ANY_ID),
+		.machine = "qcom,sm6375",
+		.chip_ids = ADRENO_CHIP_IDS(0x06010900),
+		.family = ADRENO_6XX_GEN1,
+		.revn = 619,
+		.fw = {
+			[ADRENO_FW_SQE] = "a630_sqe.fw",
+			[ADRENO_FW_GMU] = "a619_gmu.bin",
+		},
+		.gmem = SZ_512K,
+		.inactive_period = DRM_MSM_INACTIVE_PERIOD,
+		.init = a6xx_gpu_init,
+		.zapfw = "a615_zap.mdt",
+		.hwcg = a615_hwcg,
+		.speedbins = ADRENO_SPEEDBINS(
+			{ 0,   0 },
+			{ 190, 1 },
+			{ 177, 2 },
+		),
+	}, {
+		.chip_ids = ADRENO_CHIP_IDS(0x06010900),
+		.family = ADRENO_6XX_GEN1,
+		.revn = 619,
+		.fw = {
+			[ADRENO_FW_SQE] = "a630_sqe.fw",
+			[ADRENO_FW_GMU] = "a619_gmu.bin",
+		},
+		.gmem = SZ_512K,
+		.inactive_period = DRM_MSM_INACTIVE_PERIOD,
+		.quirks = ADRENO_QUIRK_HAS_CACHED_COHERENT,
+		.init = a6xx_gpu_init,
+		.zapfw = "a615_zap.mdt",
+		.hwcg = a615_hwcg,
+		.speedbins = ADRENO_SPEEDBINS(
+			{ 0,   0 },
+			{ 120, 4 },
+			{ 138, 3 },
+			{ 169, 2 },
+			{ 180, 1 },
+		),
+	}, {
+		.chip_ids = ADRENO_CHIP_IDS(
+			0x06030001,
+			0x06030002
+		),
+		.family = ADRENO_6XX_GEN1,
 		.revn = 630,
-		.name = "A630",
 		.fw = {
 			[ADRENO_FW_SQE] = "a630_sqe.fw",
 			[ADRENO_FW_GMU] = "a630_gmu.bin",
 		},
 		.gmem = SZ_1M,
 		.inactive_period = DRM_MSM_INACTIVE_PERIOD,
+		.quirks = ADRENO_QUIRK_HAS_CACHED_COHERENT,
 		.init = a6xx_gpu_init,
 		.zapfw = "a630_zap.mdt",
 		.hwcg = a630_hwcg,
 	}, {
-		.rev = ADRENO_REV(6, 4, 0, ANY_ID),
+		.chip_ids = ADRENO_CHIP_IDS(0x06040001),
+		.family = ADRENO_6XX_GEN2,
 		.revn = 640,
-		.name = "A640",
 		.fw = {
 			[ADRENO_FW_SQE] = "a630_sqe.fw",
 			[ADRENO_FW_GMU] = "a640_gmu.bin",
 		},
 		.gmem = SZ_1M,
 		.inactive_period = DRM_MSM_INACTIVE_PERIOD,
+		.quirks = ADRENO_QUIRK_HAS_CACHED_COHERENT,
 		.init = a6xx_gpu_init,
 		.zapfw = "a640_zap.mdt",
 		.hwcg = a640_hwcg,
+		.speedbins = ADRENO_SPEEDBINS(
+			{ 0, 0 },
+			{ 1, 1 },
+		),
 	}, {
-		.rev = ADRENO_REV(6, 5, 0, ANY_ID),
+		.chip_ids = ADRENO_CHIP_IDS(0x06050002),
+		.family = ADRENO_6XX_GEN3,
 		.revn = 650,
-		.name = "A650",
 		.fw = {
 			[ADRENO_FW_SQE] = "a650_sqe.fw",
 			[ADRENO_FW_GMU] = "a650_gmu.bin",
 		},
 		.gmem = SZ_1M + SZ_128K,
 		.inactive_period = DRM_MSM_INACTIVE_PERIOD,
+		.quirks = ADRENO_QUIRK_HAS_CACHED_COHERENT |
+			ADRENO_QUIRK_HAS_HW_APRIV,
 		.init = a6xx_gpu_init,
 		.zapfw = "a650_zap.mdt",
 		.hwcg = a650_hwcg,
 		.address_space_size = SZ_16G,
+		.speedbins = ADRENO_SPEEDBINS(
+			{ 0, 0 },
+			{ 1, 1 },
+			{ 2, 3 }, /* Yep, 2 and 3 are swapped! :/ */
+			{ 3, 2 },
+		),
 	}, {
-		.rev = ADRENO_REV(6, 6, 0, ANY_ID),
+		.chip_ids = ADRENO_CHIP_IDS(0x06060001),
+		.family = ADRENO_6XX_GEN4,
 		.revn = 660,
-		.name = "A660",
 		.fw = {
 			[ADRENO_FW_SQE] = "a660_sqe.fw",
 			[ADRENO_FW_GMU] = "a660_gmu.bin",
 		},
 		.gmem = SZ_1M + SZ_512K,
 		.inactive_period = DRM_MSM_INACTIVE_PERIOD,
+		.quirks = ADRENO_QUIRK_HAS_CACHED_COHERENT |
+			ADRENO_QUIRK_HAS_HW_APRIV,
 		.init = a6xx_gpu_init,
 		.zapfw = "a660_zap.mdt",
 		.hwcg = a660_hwcg,
 		.address_space_size = SZ_16G,
 	}, {
-		.rev = ADRENO_REV(6, 3, 5, ANY_ID),
+		.chip_ids = ADRENO_CHIP_IDS(0x06030500),
+		.family = ADRENO_6XX_GEN4,
 		.fw = {
 			[ADRENO_FW_SQE] = "a660_sqe.fw",
 			[ADRENO_FW_GMU] = "a660_gmu.bin",
 		},
 		.gmem = SZ_512K,
 		.inactive_period = DRM_MSM_INACTIVE_PERIOD,
+		.quirks = ADRENO_QUIRK_HAS_CACHED_COHERENT |
+			ADRENO_QUIRK_HAS_HW_APRIV,
 		.init = a6xx_gpu_init,
 		.hwcg = a660_hwcg,
 		.address_space_size = SZ_16G,
+		.speedbins = ADRENO_SPEEDBINS(
+			{ 0,   0 },
+			{ 117, 0 },
+			{ 190, 1 },
+		),
 	}, {
-		.rev = ADRENO_REV(6, 8, 0, ANY_ID),
+		.chip_ids = ADRENO_CHIP_IDS(0x06080000),
+		.family = ADRENO_6XX_GEN2,
 		.revn = 680,
-		.name = "A680",
 		.fw = {
 			[ADRENO_FW_SQE] = "a630_sqe.fw",
 			[ADRENO_FW_GMU] = "a640_gmu.bin",
 		},
 		.gmem = SZ_2M,
 		.inactive_period = DRM_MSM_INACTIVE_PERIOD,
+		.quirks = ADRENO_QUIRK_HAS_CACHED_COHERENT,
 		.init = a6xx_gpu_init,
 		.zapfw = "a640_zap.mdt",
 		.hwcg = a640_hwcg,
 	}, {
-		.rev = ADRENO_REV(6, 9, 0, ANY_ID),
+		.chip_ids = ADRENO_CHIP_IDS(0x06090000),
+		.family = ADRENO_6XX_GEN4,
 		.fw = {
 			[ADRENO_FW_SQE] = "a660_sqe.fw",
-			[ADRENO_FW_GMU] = "a690_gmu.bin",
+			[ADRENO_FW_GMU] = "a660_gmu.bin",
 		},
 		.gmem = SZ_4M,
 		.inactive_period = DRM_MSM_INACTIVE_PERIOD,
+		.quirks = ADRENO_QUIRK_HAS_CACHED_COHERENT |
+			ADRENO_QUIRK_HAS_HW_APRIV,
 		.init = a6xx_gpu_init,
 		.zapfw = "a690_zap.mdt",
 		.hwcg = a690_hwcg,
@@ -395,34 +506,31 @@ MODULE_FIRMWARE("qcom/a530_zap.mdt");
 MODULE_FIRMWARE("qcom/a530_zap.b00");
 MODULE_FIRMWARE("qcom/a530_zap.b01");
 MODULE_FIRMWARE("qcom/a530_zap.b02");
+MODULE_FIRMWARE("qcom/a540_gpmu.fw2");
 MODULE_FIRMWARE("qcom/a619_gmu.bin");
 MODULE_FIRMWARE("qcom/a630_sqe.fw");
 MODULE_FIRMWARE("qcom/a630_gmu.bin");
 MODULE_FIRMWARE("qcom/a630_zap.mbn");
+MODULE_FIRMWARE("qcom/a640_gmu.bin");
+MODULE_FIRMWARE("qcom/a650_gmu.bin");
+MODULE_FIRMWARE("qcom/a650_sqe.fw");
+MODULE_FIRMWARE("qcom/a660_gmu.bin");
+MODULE_FIRMWARE("qcom/a660_sqe.fw");
+MODULE_FIRMWARE("qcom/leia_pfp_470.fw");
+MODULE_FIRMWARE("qcom/leia_pm4_470.fw");
+MODULE_FIRMWARE("qcom/yamato_pfp.fw");
+MODULE_FIRMWARE("qcom/yamato_pm4.fw");
 
-static inline bool _rev_match(uint8_t entry, uint8_t id)
+static const struct adreno_info *adreno_info(uint32_t chip_id)
 {
-	return (entry == ANY_ID) || (entry == id);
-}
-
-bool adreno_cmp_rev(struct adreno_rev rev1, struct adreno_rev rev2)
-{
-
-	return _rev_match(rev1.core, rev2.core) &&
-		_rev_match(rev1.major, rev2.major) &&
-		_rev_match(rev1.minor, rev2.minor) &&
-		_rev_match(rev1.patchid, rev2.patchid);
-}
-
-const struct adreno_info *adreno_info(struct adreno_rev rev)
-{
-	int i;
-
 	/* identify gpu: */
-	for (i = 0; i < ARRAY_SIZE(gpulist); i++) {
+	for (int i = 0; i < ARRAY_SIZE(gpulist); i++) {
 		const struct adreno_info *info = &gpulist[i];
-		if (adreno_cmp_rev(info->rev, rev))
-			return info;
+		if (info->machine && !of_machine_is_compatible(info->machine))
+			continue;
+		for (int j = 0; info->chip_ids[j]; j++)
+			if (info->chip_ids[j] == chip_id)
+				return info;
 	}
 
 	return NULL;
@@ -502,12 +610,11 @@ err_disable_rpm:
 	return NULL;
 }
 
-static int find_chipid(struct device *dev, struct adreno_rev *rev)
+static int find_chipid(struct device *dev, uint32_t *chipid)
 {
 	struct device_node *node = dev->of_node;
 	const char *compat;
 	int ret;
-	u32 chipid;
 
 	/* first search the compat strings for qcom,adreno-XYZ.W: */
 	ret = of_property_read_string_index(node, "compatible", 0, &compat);
@@ -516,32 +623,34 @@ static int find_chipid(struct device *dev, struct adreno_rev *rev)
 
 		if (sscanf(compat, "qcom,adreno-%u.%u", &r, &patch) == 2 ||
 		    sscanf(compat, "amd,imageon-%u.%u", &r, &patch) == 2) {
-			rev->core = r / 100;
+			uint32_t core, major, minor;
+
+			core = r / 100;
 			r %= 100;
-			rev->major = r / 10;
+			major = r / 10;
 			r %= 10;
-			rev->minor = r;
-			rev->patchid = patch;
+			minor = r;
+
+			*chipid = (core << 24) |
+				(major << 16) |
+				(minor << 8) |
+				patch;
 
 			return 0;
 		}
+
+		if (sscanf(compat, "qcom,adreno-%08x", chipid) == 1)
+			return 0;
 	}
 
 	/* and if that fails, fall back to legacy "qcom,chipid" property: */
-	ret = of_property_read_u32(node, "qcom,chipid", &chipid);
+	ret = of_property_read_u32(node, "qcom,chipid", chipid);
 	if (ret) {
 		DRM_DEV_ERROR(dev, "could not parse qcom,chipid: %d\n", ret);
 		return ret;
 	}
 
-	rev->core = (chipid >> 24) & 0xff;
-	rev->major = (chipid >> 16) & 0xff;
-	rev->minor = (chipid >> 8) & 0xff;
-	rev->patchid = (chipid & 0xff);
-
 	dev_warn(dev, "Using legacy qcom,chipid binding!\n");
-	dev_warn(dev, "Use compatible qcom,adreno-%u%u%u.%u instead.\n",
-		rev->core, rev->major, rev->minor, rev->patchid);
 
 	return 0;
 }
@@ -555,26 +664,27 @@ static int adreno_bind(struct device *dev, struct device *master, void *data)
 	struct msm_gpu *gpu;
 	int ret;
 
-	ret = find_chipid(dev, &config.rev);
+	ret = find_chipid(dev, &config.chip_id);
 	if (ret)
 		return ret;
 
 	dev->platform_data = &config;
 	priv->gpu_pdev = to_platform_device(dev);
 
-	info = adreno_info(config.rev);
-
+	info = adreno_info(config.chip_id);
 	if (!info) {
-		dev_warn(drm->dev, "Unknown GPU revision: %u.%u.%u.%u\n",
-			config.rev.core, config.rev.major,
-			config.rev.minor, config.rev.patchid);
+		dev_warn(drm->dev, "Unknown GPU revision: %"ADRENO_CHIPID_FMT"\n",
+			ADRENO_CHIPID_ARGS(config.chip_id));
 		return -ENXIO;
 	}
 
-	DBG("Found GPU: %u.%u.%u.%u", config.rev.core, config.rev.major,
-		config.rev.minor, config.rev.patchid);
+	config.info = info;
 
-	priv->is_a2xx = config.rev.core == 2;
+	DBG("Found GPU: %"ADRENO_CHIPID_FMT, ADRENO_CHIPID_ARGS(config.chip_id));
+
+	priv->is_a2xx = info->family < ADRENO_3XX;
+	priv->has_cached_coherent =
+		!!(info->quirks & ADRENO_QUIRK_HAS_CACHED_COHERENT);
 
 	gpu = info->init(drm);
 	if (IS_ERR(gpu)) {
@@ -585,10 +695,6 @@ static int adreno_bind(struct device *dev, struct device *master, void *data)
 	ret = dev_pm_opp_of_find_icc_paths(dev, NULL);
 	if (ret)
 		return ret;
-
-	if (config.rev.core >= 6)
-		if (!adreno_has_gmu_wrapper(to_adreno_gpu(gpu)))
-			priv->has_cached_coherent = true;
 
 	return 0;
 }

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Machine driver for AMD Vangogh platform using NAU8821 & CS35L41
- * codecs.
+ * Machine driver for AMD Vangogh platform using either
+ * NAU8821 & CS35L41 or NAU8821 & MAX98388 codecs.
  *
  * Copyright 2021 Advanced Micro Devices, Inc.
  */
@@ -22,7 +22,6 @@
 
 #define DRV_NAME			"acp5x_mach"
 #define DUAL_CHANNEL			2
-#define VG_JUPITER			1
 #define ACP5X_NAU8821_BCLK		3072000
 #define ACP5X_NAU8821_FREQ_OUT		12288000
 #define ACP5X_NAU8821_COMP_NAME 	"i2c-NVTN2020:00"
@@ -30,8 +29,10 @@
 #define ACP5X_CS35L41_COMP_LNAME	"spi-VLV1776:00"
 #define ACP5X_CS35L41_COMP_RNAME	"spi-VLV1776:01"
 #define ACP5X_CS35L41_DAI_NAME		"cs35l41-pcm"
+#define ACP5X_MAX98388_COMP_LNAME	"i2c-ADS8388:00"
+#define ACP5X_MAX98388_COMP_RNAME	"i2c-ADS8388:01"
+#define ACP5X_MAX98388_DAI_NAME		"max98388-aif1"
 
-static unsigned long acp5x_machine_id;
 static struct snd_soc_jack vg_headset;
 
 SND_SOC_DAILINK_DEF(platform,  DAILINK_COMP_ARRAY(COMP_PLATFORM("acp5x_i2s_dma.0")));
@@ -169,6 +170,9 @@ static int acp5x_nau8821_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_dai *dai = snd_soc_card_get_codec_dai(card, ACP5X_NAU8821_DAI_NAME);
 	int ret, bclk;
 
+	if (!dai)
+		return -EINVAL;
+
 	ret = snd_soc_dai_set_sysclk(dai, NAU8821_CLK_FLL_BLK, 0, SND_SOC_CLOCK_IN);
 	if (ret < 0)
 		dev_err(card->dev, "can't set FS clock %d\n", ret);
@@ -242,7 +246,6 @@ static int acp5x_cs35l41_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	return 0;
-
 }
 
 static const struct snd_soc_ops acp5x_cs35l41_play_ops = {
@@ -292,8 +295,6 @@ static struct snd_soc_dai_link acp5x_8821_35l41_dai[] = {
 	},
 };
 
-
-
 static const struct snd_soc_dapm_widget acp5x_8821_35l41_widgets[] = {
 	SND_SOC_DAPM_HP("Headphone", NULL),
 	SND_SOC_DAPM_MIC("Headset Mic", NULL),
@@ -331,16 +332,110 @@ static struct snd_soc_card acp5x_8821_35l41_card = {
 	.num_controls = ARRAY_SIZE(acp5x_8821_controls),
 };
 
-static int acp5x_vg_quirk_cb(const struct dmi_system_id *id)
+static int acp5x_max98388_startup(struct snd_pcm_substream *substream)
 {
-	acp5x_machine_id = VG_JUPITER;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct acp5x_platform_info *machine = snd_soc_card_get_drvdata(rtd->card);
+	struct snd_pcm_runtime *runtime = substream->runtime;
 
-	return 1;
+	machine->play_i2s_instance = I2S_HS_INSTANCE;
+
+	runtime->hw.channels_max = DUAL_CHANNEL;
+	snd_pcm_hw_constraint_list(runtime, 0, SNDRV_PCM_HW_PARAM_CHANNELS,
+				   &constraints_channels);
+	snd_pcm_hw_constraint_list(runtime, 0, SNDRV_PCM_HW_PARAM_RATE,
+				   &constraints_rates);
+	return 0;
 }
+
+static const struct snd_soc_ops acp5x_max98388_play_ops = {
+	.startup = acp5x_max98388_startup,
+};
+
+static struct snd_soc_codec_conf acp5x_max98388_conf[] = {
+	{
+		.dlc = COMP_CODEC_CONF(ACP5X_MAX98388_COMP_LNAME),
+		.name_prefix = "Left",
+	},
+	{
+		.dlc = COMP_CODEC_CONF(ACP5X_MAX98388_COMP_RNAME),
+		.name_prefix = "Right",
+	},
+};
+
+SND_SOC_DAILINK_DEF(max98388, DAILINK_COMP_ARRAY(COMP_CODEC(ACP5X_MAX98388_COMP_LNAME,
+							    ACP5X_MAX98388_DAI_NAME),
+						 COMP_CODEC(ACP5X_MAX98388_COMP_RNAME,
+							    ACP5X_MAX98388_DAI_NAME)));
+
+static struct snd_soc_dai_link acp5x_8821_98388_dai[] = {
+	{
+		.name = "acp5x-8821-play",
+		.stream_name = "Playback/Capture",
+		.dai_fmt = SND_SOC_DAIFMT_I2S |
+			   SND_SOC_DAIFMT_NB_NF |
+			   SND_SOC_DAIFMT_CBC_CFC,
+		.dpcm_playback = 1,
+		.dpcm_capture = 1,
+		.ops = &acp5x_8821_ops,
+		.init = acp5x_8821_init,
+		SND_SOC_DAILINK_REG(acp5x_i2s, nau8821, platform),
+	},
+	{
+		.name = "acp5x-max98388-play",
+		.stream_name = "MAX98388 Playback",
+		.dai_fmt = SND_SOC_DAIFMT_I2S |
+			   SND_SOC_DAIFMT_NB_NF |
+			   SND_SOC_DAIFMT_CBC_CFC,
+		.dpcm_playback = 1,
+		.playback_only = 1,
+		.ops = &acp5x_max98388_play_ops,
+		SND_SOC_DAILINK_REG(acp5x_bt, max98388, platform),
+	},
+};
+
+static const struct snd_soc_dapm_widget acp5x_8821_98388_widgets[] = {
+	SND_SOC_DAPM_HP("Headphone", NULL),
+	SND_SOC_DAPM_MIC("Headset Mic", NULL),
+	SND_SOC_DAPM_MIC("Int Mic", NULL),
+	SND_SOC_DAPM_SUPPLY("Platform Clock", SND_SOC_NOPM, 0, 0,
+			    platform_clock_control,
+			    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
+	SND_SOC_DAPM_SPK("SPK", NULL),
+};
+
+static const struct snd_soc_dapm_route acp5x_8821_98388_route[] = {
+	{ "Headphone", NULL, "HPOL" },
+	{ "Headphone", NULL, "HPOR" },
+	{ "MICL", NULL, "Headset Mic" },
+	{ "MICR", NULL, "Headset Mic" },
+	{ "DMIC", NULL, "Int Mic" },
+
+	{ "Headphone", NULL, "Platform Clock" },
+	{ "Headset Mic", NULL, "Platform Clock" },
+	{ "Int Mic", NULL, "Platform Clock" },
+
+	{ "SPK", NULL, "Left BE_OUT" },
+	{ "SPK", NULL, "Right BE_OUT" },
+};
+
+static struct snd_soc_card acp5x_8821_98388_card = {
+	.name = "acp5x-max98388",
+	.owner = THIS_MODULE,
+	.dai_link = acp5x_8821_98388_dai,
+	.num_links = ARRAY_SIZE(acp5x_8821_98388_dai),
+	.dapm_widgets = acp5x_8821_98388_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(acp5x_8821_98388_widgets),
+	.dapm_routes = acp5x_8821_98388_route,
+	.num_dapm_routes = ARRAY_SIZE(acp5x_8821_98388_route),
+	.codec_conf = acp5x_max98388_conf,
+	.num_configs = ARRAY_SIZE(acp5x_max98388_conf),
+	.controls = acp5x_8821_controls,
+	.num_controls = ARRAY_SIZE(acp5x_8821_controls),
+};
 
 static const struct dmi_system_id acp5x_vg_quirk_table[] = {
 	{
-		.callback = acp5x_vg_quirk_cb,
 		.matches = {
 			DMI_EXACT_MATCH(DMI_BOARD_VENDOR, "Valve"),
 			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "Jupiter"),
@@ -351,23 +446,31 @@ static const struct dmi_system_id acp5x_vg_quirk_table[] = {
 
 static int acp5x_probe(struct platform_device *pdev)
 {
+	const struct dmi_system_id *dmi_id;
 	struct acp5x_platform_info *machine;
 	struct device *dev = &pdev->dev;
 	struct snd_soc_card *card;
 	int ret;
 
+	card = (struct snd_soc_card *)device_get_match_data(dev);
+	if (!card) {
+		/*
+		 * This is normally the result of directly probing the driver
+		 * in pci-acp5x through platform_device_register_full(), which
+		 * is necessary for the CS35L41 variant, as it doesn't support
+		 * ACPI probing and relies on DMI quirks.
+		 */
+		dmi_id = dmi_first_match(acp5x_vg_quirk_table);
+		if (!dmi_id)
+			return -ENODEV;
+
+		card = &acp5x_8821_35l41_card;
+	}
+
 	machine = devm_kzalloc(dev, sizeof(*machine), GFP_KERNEL);
 	if (!machine)
 		return -ENOMEM;
 
-	dmi_check_system(acp5x_vg_quirk_table);
-	switch (acp5x_machine_id) {
-	case VG_JUPITER:
-		card = &acp5x_8821_35l41_card;
-		break;
-	default:
-		return -ENODEV;
-	}
 	card->dev = dev;
 	platform_set_drvdata(pdev, card);
 	snd_soc_card_set_drvdata(card, machine);
@@ -379,10 +482,17 @@ static int acp5x_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct acpi_device_id acp5x_acpi_match[] = {
+	{ "AMDI8821", (kernel_ulong_t)&acp5x_8821_98388_card },
+	{},
+};
+MODULE_DEVICE_TABLE(acpi, acp5x_acpi_match);
+
 static struct platform_driver acp5x_mach_driver = {
 	.driver = {
-		.name = "acp5x_mach",
+		.name = DRV_NAME,
 		.pm = &snd_soc_pm_ops,
+		.acpi_match_table = acp5x_acpi_match,
 	},
 	.probe = acp5x_probe,
 };
@@ -390,6 +500,6 @@ static struct platform_driver acp5x_mach_driver = {
 module_platform_driver(acp5x_mach_driver);
 
 MODULE_AUTHOR("Vijendar.Mukunda@amd.com");
-MODULE_DESCRIPTION("NAU8821 & CS35L41 audio support");
+MODULE_DESCRIPTION("NAU8821/CS35L41 & NAU8821/MAX98388 audio support");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("platform:" DRV_NAME);

@@ -1232,6 +1232,15 @@ ping_test()
 	log_test "ping$3"
 }
 
+ping_test_fails()
+{
+	RET=0
+
+	ping_do $1 $2
+	check_fail $?
+	log_test "ping fails$3"
+}
+
 ping6_do()
 {
 	local if_name=$1
@@ -1252,6 +1261,15 @@ ping6_test()
 	ping6_do $1 $2
 	check_err $?
 	log_test "ping6$3"
+}
+
+ping6_test_fails()
+{
+	RET=0
+
+	ping6_do $1 $2
+	check_fail $?
+	log_test "ping6 fails$3"
 }
 
 learning_test()

@@ -320,18 +320,21 @@ static int alg_setkey_by_key_serial(struct alg_sock *ask, sockptr_t optval,
 
 	if (IS_ERR(ret)) {
 		up_read(&key->sem);
+		key_put(key);
 		return PTR_ERR(ret);
 	}
 
 	key_data = sock_kmalloc(&ask->sk, key_datalen, GFP_KERNEL);
 	if (!key_data) {
 		up_read(&key->sem);
+		key_put(key);
 		return -ENOMEM;
 	}
 
 	memcpy(key_data, ret, key_datalen);
 
 	up_read(&key->sem);
+	key_put(key);
 
 	err = type->setkey(ask->private, key_data, key_datalen);
 
@@ -1192,6 +1195,7 @@ struct af_alg_async_req *af_alg_alloc_areq(struct sock *sk,
 
 	areq->areqlen = areqlen;
 	areq->sk = sk;
+	areq->first_rsgl.sgl.sgt.sgl = areq->first_rsgl.sgl.sgl;
 	areq->last_rsgl = NULL;
 	INIT_LIST_HEAD(&areq->rsgl_list);
 	areq->tsgl = NULL;

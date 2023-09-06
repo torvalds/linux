@@ -9482,7 +9482,7 @@ void sctp_copy_sock(struct sock *newsk, struct sock *sk,
 	atomic_set(&newinet->inet_id, get_random_u16());
 
 	newinet->uc_ttl = inet->uc_ttl;
-	newinet->mc_loop = 1;
+	inet_set_bit(MC_LOOP, newsk);
 	newinet->mc_ttl = 1;
 	newinet->mc_index = 0;
 	newinet->mc_list = NULL;
@@ -9732,6 +9732,7 @@ struct proto sctpv6_prot = {
 	.unhash		= sctp_unhash,
 	.no_autobind	= true,
 	.obj_size	= sizeof(struct sctp6_sock),
+	.ipv6_pinfo_offset = offsetof(struct sctp6_sock, inet6),
 	.useroffset	= offsetof(struct sctp6_sock, sctp.subscribe),
 	.usersize	= offsetof(struct sctp6_sock, sctp.initmsg) -
 				offsetof(struct sctp6_sock, sctp.subscribe) +

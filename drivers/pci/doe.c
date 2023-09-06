@@ -293,8 +293,8 @@ static int pci_doe_recv_resp(struct pci_doe_mb *doe_mb, struct pci_doe_task *tas
 static void signal_task_complete(struct pci_doe_task *task, int rv)
 {
 	task->rv = rv;
-	task->complete(task);
 	destroy_work_on_stack(&task->work);
+	task->complete(task);
 }
 
 static void signal_task_abort(struct pci_doe_task *task, int rv)

@@ -13,6 +13,9 @@ description:
   Supports the Elan eKTH6915 touchscreen controller.
   This touchscreen controller uses the i2c-hid protocol with a reset GPIO.
 
+allOf:
+  - $ref: /schemas/input/touchscreen/touchscreen.yaml#
+
 properties:
   compatible:
     items:
@@ -23,6 +26,8 @@ properties:
 
   interrupts:
     maxItems: 1
+
+  panel: true
 
   reset-gpios:
     description: Reset GPIO; not all touchscreens using eKTH6915 hook this up.

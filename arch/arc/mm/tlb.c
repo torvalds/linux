@@ -18,7 +18,9 @@
 /* A copy of the ASID from the PID reg is kept in asid_cache */
 DEFINE_PER_CPU(unsigned int, asid_cache) = MM_CTXT_FIRST_CYCLE;
 
-static int __read_mostly pae_exists;
+static struct cpuinfo_arc_mmu {
+	unsigned int ver, pg_sz_k, s_pg_sz_m, pae, sets, ways;
+} mmuinfo;
 
 /*
  * Utility Routine to erase a J-TLB entry
@@ -131,7 +133,7 @@ static void tlb_entry_insert(unsigned int pd0, phys_addr_t pd1)
 
 noinline void local_flush_tlb_all(void)
 {
-	struct cpuinfo_arc_mmu *mmu = &cpuinfo_arc700[smp_processor_id()].mmu;
+	struct cpuinfo_arc_mmu *mmu = &mmuinfo;
 	unsigned long flags;
 	unsigned int entry;
 	int num_tlb = mmu->sets * mmu->ways;
@@ -389,7 +391,7 @@ void flush_tlb_kernel_range(unsigned long start, unsigned long end)
 /*
  * Routine to create a TLB entry
  */
-void create_tlb(struct vm_area_struct *vma, unsigned long vaddr, pte_t *ptep)
+static void create_tlb(struct vm_area_struct *vma, unsigned long vaddr, pte_t *ptep)
 {
 	unsigned long flags;
 	unsigned int asid_or_sasid, rwx;
@@ -467,8 +469,8 @@ void create_tlb(struct vm_area_struct *vma, unsigned long vaddr, pte_t *ptep)
  * Note that flush (when done) involves both WBACK - so physical page is
  * in sync as well as INV - so any non-congruent aliases don't remain
  */
-void update_mmu_cache(struct vm_area_struct *vma, unsigned long vaddr_unaligned,
-		      pte_t *ptep)
+void update_mmu_cache_range(struct vm_fault *vmf, struct vm_area_struct *vma,
+		unsigned long vaddr_unaligned, pte_t *ptep, unsigned int nr)
 {
 	unsigned long vaddr = vaddr_unaligned & PAGE_MASK;
 	phys_addr_t paddr = pte_val(*ptep) & PAGE_MASK_PHYS;
@@ -491,15 +493,19 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long vaddr_unaligned,
 	 */
 	if ((vma->vm_flags & VM_EXEC) ||
 	     addr_not_cache_congruent(paddr, vaddr)) {
-
-		int dirty = !test_and_set_bit(PG_dc_clean, &page->flags);
+		struct folio *folio = page_folio(page);
+		int dirty = !test_and_set_bit(PG_dc_clean, &folio->flags);
 		if (dirty) {
+			unsigned long offset = offset_in_folio(folio, paddr);
+			nr = folio_nr_pages(folio);
+			paddr -= offset;
+			vaddr -= offset;
 			/* wback + inv dcache lines (K-mapping) */
-			__flush_dcache_page(paddr, paddr);
+			__flush_dcache_pages(paddr, paddr, nr);
 
 			/* invalidate any existing icache lines (U-mapping) */
 			if (vma->vm_flags & VM_EXEC)
-				__inv_icache_page(paddr, vaddr);
+				__inv_icache_pages(paddr, vaddr, nr);
 		}
 	}
 }
@@ -531,7 +537,7 @@ void update_mmu_cache_pmd(struct vm_area_struct *vma, unsigned long addr,
 				 pmd_t *pmd)
 {
 	pte_t pte = __pte(pmd_val(*pmd));
-	update_mmu_cache(vma, addr, &pte);
+	update_mmu_cache_range(NULL, vma, addr, &pte, HPAGE_PMD_NR);
 }
 
 void local_flush_pmd_tlb_range(struct vm_area_struct *vma, unsigned long start,
@@ -560,88 +566,63 @@ void local_flush_pmd_tlb_range(struct vm_area_struct *vma, unsigned long start,
  * the cpuinfo structure for later use.
  * No Validation is done here, simply read/convert the BCRs
  */
-void read_decode_mmu_bcr(void)
+int arc_mmu_mumbojumbo(int c, char *buf, int len)
 {
-	struct cpuinfo_arc_mmu *mmu = &cpuinfo_arc700[smp_processor_id()].mmu;
-	unsigned int tmp;
-	struct bcr_mmu_3 {
-#ifdef CONFIG_CPU_BIG_ENDIAN
-	unsigned int ver:8, ways:4, sets:4, res:3, sasid:1, pg_sz:4,
-		     u_itlb:4, u_dtlb:4;
-#else
-	unsigned int u_dtlb:4, u_itlb:4, pg_sz:4, sasid:1, res:3, sets:4,
-		     ways:4, ver:8;
-#endif
-	} *mmu3;
+	struct cpuinfo_arc_mmu *mmu = &mmuinfo;
+	unsigned int bcr, u_dtlb, u_itlb, sasid;
+	struct bcr_mmu_3 *mmu3;
+	struct bcr_mmu_4 *mmu4;
+	char super_pg[64] = "";
+	int n = 0;
 
-	struct bcr_mmu_4 {
-#ifdef CONFIG_CPU_BIG_ENDIAN
-	unsigned int ver:8, sasid:1, sz1:4, sz0:4, res:2, pae:1,
-		     n_ways:2, n_entry:2, n_super:2, u_itlb:3, u_dtlb:3;
-#else
-	/*           DTLB      ITLB      JES        JE         JA      */
-	unsigned int u_dtlb:3, u_itlb:3, n_super:2, n_entry:2, n_ways:2,
-		     pae:1, res:2, sz0:4, sz1:4, sasid:1, ver:8;
-#endif
-	} *mmu4;
-
-	tmp = read_aux_reg(ARC_REG_MMU_BCR);
-	mmu->ver = (tmp >> 24);
+	bcr = read_aux_reg(ARC_REG_MMU_BCR);
+	mmu->ver = (bcr >> 24);
 
 	if (is_isa_arcompact() && mmu->ver == 3) {
-		mmu3 = (struct bcr_mmu_3 *)&tmp;
+		mmu3 = (struct bcr_mmu_3 *)&bcr;
 		mmu->pg_sz_k = 1 << (mmu3->pg_sz - 1);
 		mmu->sets = 1 << mmu3->sets;
 		mmu->ways = 1 << mmu3->ways;
-		mmu->u_dtlb = mmu3->u_dtlb;
-		mmu->u_itlb = mmu3->u_itlb;
-		mmu->sasid = mmu3->sasid;
+		u_dtlb = mmu3->u_dtlb;
+		u_itlb = mmu3->u_itlb;
+		sasid = mmu3->sasid;
 	} else {
-		mmu4 = (struct bcr_mmu_4 *)&tmp;
+		mmu4 = (struct bcr_mmu_4 *)&bcr;
 		mmu->pg_sz_k = 1 << (mmu4->sz0 - 1);
 		mmu->s_pg_sz_m = 1 << (mmu4->sz1 - 11);
 		mmu->sets = 64 << mmu4->n_entry;
 		mmu->ways = mmu4->n_ways * 2;
-		mmu->u_dtlb = mmu4->u_dtlb * 4;
-		mmu->u_itlb = mmu4->u_itlb * 4;
-		mmu->sasid = mmu4->sasid;
-		pae_exists = mmu->pae = mmu4->pae;
+		u_dtlb = mmu4->u_dtlb * 4;
+		u_itlb = mmu4->u_itlb * 4;
+		sasid = mmu4->sasid;
+		mmu->pae = mmu4->pae;
 	}
-}
 
-char *arc_mmu_mumbojumbo(int cpu_id, char *buf, int len)
-{
-	int n = 0;
-	struct cpuinfo_arc_mmu *p_mmu = &cpuinfo_arc700[cpu_id].mmu;
-	char super_pg[64] = "";
-
-	if (p_mmu->s_pg_sz_m)
-		scnprintf(super_pg, 64, "%dM Super Page %s",
-			  p_mmu->s_pg_sz_m,
-			  IS_USED_CFG(CONFIG_TRANSPARENT_HUGEPAGE));
+	if (mmu->s_pg_sz_m)
+		scnprintf(super_pg, 64, "/%dM%s",
+			  mmu->s_pg_sz_m,
+			  IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE) ? " (THP enabled)":"");
 
 	n += scnprintf(buf + n, len - n,
-		      "MMU [v%x]\t: %dk PAGE, %s, swalk %d lvl, JTLB %d (%dx%d), uDTLB %d, uITLB %d%s%s\n",
-		       p_mmu->ver, p_mmu->pg_sz_k, super_pg,  CONFIG_PGTABLE_LEVELS,
-		       p_mmu->sets * p_mmu->ways, p_mmu->sets, p_mmu->ways,
-		       p_mmu->u_dtlb, p_mmu->u_itlb,
-		       IS_AVAIL2(p_mmu->pae, ", PAE40 ", CONFIG_ARC_HAS_PAE40));
+		      "MMU [v%x]\t: %dk%s, swalk %d lvl, JTLB %dx%d, uDTLB %d, uITLB %d%s%s%s\n",
+		       mmu->ver, mmu->pg_sz_k, super_pg, CONFIG_PGTABLE_LEVELS,
+		       mmu->sets, mmu->ways,
+		       u_dtlb, u_itlb,
+		       IS_AVAIL1(sasid, ", SASID"),
+		       IS_AVAIL2(mmu->pae, ", PAE40 ", CONFIG_ARC_HAS_PAE40));
 
-	return buf;
+	return n;
 }
 
 int pae40_exist_but_not_enab(void)
 {
-	return pae_exists && !is_pae40_enabled();
+	return mmuinfo.pae && !is_pae40_enabled();
 }
 
 void arc_mmu_init(void)
 {
-	struct cpuinfo_arc_mmu *mmu = &cpuinfo_arc700[smp_processor_id()].mmu;
-	char str[256];
+	struct cpuinfo_arc_mmu *mmu = &mmuinfo;
 	int compat = 0;
-
-	pr_info("%s", arc_mmu_mumbojumbo(0, str, sizeof(str)));
 
 	/*
 	 * Can't be done in processor.h due to header include dependencies
@@ -719,7 +700,7 @@ volatile int dup_pd_silent; /* Be silent abt it or complain (default) */
 void do_tlb_overlap_fault(unsigned long cause, unsigned long address,
 			  struct pt_regs *regs)
 {
-	struct cpuinfo_arc_mmu *mmu = &cpuinfo_arc700[smp_processor_id()].mmu;
+	struct cpuinfo_arc_mmu *mmu = &mmuinfo;
 	unsigned long flags;
 	int set, n_ways = mmu->ways;
 

@@ -11,7 +11,7 @@ maintainers:
 
 description:
   The Canaan Kendryte K210 SoC Fully Programmable IO Array (FPIOA)
-  controller allows assiging any of 256 possible functions to any of
+  controller allows assigning any of 256 possible functions to any of
   48 IO pins of the SoC. Pin function configuration is performed on
   a per-pin basis.
 

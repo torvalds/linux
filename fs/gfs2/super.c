@@ -546,20 +546,10 @@ void gfs2_make_fs_ro(struct gfs2_sbd *sdp)
 {
 	int log_write_allowed = test_bit(SDF_JOURNAL_LIVE, &sdp->sd_flags);
 
-	if (!test_bit(SDF_DEACTIVATING, &sdp->sd_flags))
+	if (!test_bit(SDF_KILL, &sdp->sd_flags))
 		gfs2_flush_delete_work(sdp);
 
-	if (!log_write_allowed && current == sdp->sd_quotad_process)
-		fs_warn(sdp, "The quotad daemon is withdrawing.\n");
-	else if (sdp->sd_quotad_process)
-		kthread_stop(sdp->sd_quotad_process);
-	sdp->sd_quotad_process = NULL;
-
-	if (!log_write_allowed && current == sdp->sd_logd_process)
-		fs_warn(sdp, "The logd daemon is withdrawing.\n");
-	else if (sdp->sd_logd_process)
-		kthread_stop(sdp->sd_logd_process);
-	sdp->sd_logd_process = NULL;
+	gfs2_destroy_threads(sdp);
 
 	if (log_write_allowed) {
 		gfs2_quota_sync(sdp->sd_vfs, 0);
@@ -580,15 +570,8 @@ void gfs2_make_fs_ro(struct gfs2_sbd *sdp)
 				   gfs2_log_is_empty(sdp),
 				   HZ * 5);
 		gfs2_assert_warn(sdp, gfs2_log_is_empty(sdp));
-	} else {
-		wait_event_timeout(sdp->sd_log_waitq,
-				   gfs2_log_is_empty(sdp),
-				   HZ * 5);
 	}
 	gfs2_quota_cleanup(sdp);
-
-	if (!log_write_allowed)
-		sdp->sd_vfs->s_flags |= SB_RDONLY;
 }
 
 /**
@@ -621,6 +604,10 @@ restart:
 
 	if (!sb_rdonly(sb)) {
 		gfs2_make_fs_ro(sdp);
+	}
+	if (gfs2_withdrawn(sdp)) {
+		gfs2_destroy_threads(sdp);
+		gfs2_quota_cleanup(sdp);
 	}
 	WARN_ON(gfs2_withdrawing(sdp));
 
@@ -1133,6 +1120,9 @@ static int gfs2_show_options(struct seq_file *s, struct dentry *root)
 			break;
 		case GFS2_QUOTA_ON:
 			state = "on";
+			break;
+		case GFS2_QUOTA_QUIET:
+			state = "quiet";
 			break;
 		default:
 			state = "unknown";

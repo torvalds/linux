@@ -37,16 +37,16 @@
  */
 struct thread_info {
 	unsigned long flags;		/* low level flags */
+	unsigned long ksp;		/* kernel mode stack top in __switch_to */
 	int preempt_count;		/* 0 => preemptable, <0 => BUG */
-	struct task_struct *task;	/* main task structure */
-	__u32 cpu;			/* current CPU */
+	int cpu;			/* current CPU */
 	unsigned long thr_ptr;		/* TLS ptr */
+	struct task_struct *task;	/* main task structure */
 };
 
 /*
- * macros/functions for gaining access to the thread information structure
- *
- * preempt_count needs to be 1 initially, until the scheduler is functional.
+ * initilaize thread_info for any @tsk
+ *  - this is not related to init_task per se
  */
 #define INIT_THREAD_INFO(tsk)			\
 {						\

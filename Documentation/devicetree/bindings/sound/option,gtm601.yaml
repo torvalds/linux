@@ -1,0 +1,42 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/sound/option,gtm601.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: GTM601 UMTS modem audio interface CODEC
+
+maintainers:
+  - kernel@puri.sm
+
+description: >
+  This device has no configuration interface. The sample rate and channels are
+  based on the compatible string
+
+properties:
+  compatible:
+    oneOf:
+      - description: Broadmobi BM818 (48Khz stereo)
+        items:
+          - const: broadmobi,bm818
+          - const: option,gtm601
+      - description: GTM601 (8kHz mono)
+        const: option,gtm601
+
+  '#sound-dai-cells':
+    const: 0
+
+required:
+  - compatible
+
+allOf:
+  - $ref: dai-common.yaml#
+
+additionalProperties: false
+
+examples:
+  - |
+    codec {
+        compatible = "option,gtm601";
+        #sound-dai-cells = <0>;
+    };

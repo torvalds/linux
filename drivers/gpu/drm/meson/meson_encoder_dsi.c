@@ -7,7 +7,6 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
 #include <linux/of_graph.h>
 
 #include <drm/drm_atomic_helper.h>

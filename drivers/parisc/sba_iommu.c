@@ -121,7 +121,7 @@ module_param(sba_reserve_agpgart, int, 0444);
 MODULE_PARM_DESC(sba_reserve_agpgart, "Reserve half of IO pdir as AGPGART");
 #endif
 
-struct proc_dir_entry *proc_runway_root __ro_after_init;
+static struct proc_dir_entry *proc_runway_root __ro_after_init;
 struct proc_dir_entry *proc_mckinley_root __ro_after_init;
 
 /************************************
@@ -1994,10 +1994,11 @@ static int __init sba_driver_callback(struct parisc_device *dev)
 ** This is the only routine which is NOT static.
 ** Must be called exactly once before pci_init().
 */
-void __init sba_init(void)
+static int __init sba_init(void)
 {
-	register_parisc_driver(&sba_driver);
+	return register_parisc_driver(&sba_driver);
 }
+arch_initcall(sba_init);
 
 
 /**

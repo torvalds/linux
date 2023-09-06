@@ -91,7 +91,7 @@ BEGIN_FTR_SECTION;						\
 	b	1f;						\
 END_FTR_SECTION(0, 1);						\
 	LOAD_REG_ADDR(r12, hcall_tracepoint_refcount) ;		\
-	std	r12,32(r1);					\
+	ld	r12,0(r12);					\
 	cmpdi	r12,0;						\
 	bne-	LABEL;						\
 1:

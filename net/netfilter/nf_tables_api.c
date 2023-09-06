@@ -3675,6 +3675,9 @@ int nft_chain_validate(const struct nft_ctx *ctx, const struct nft_chain *chain)
 		return -EMLINK;
 
 	list_for_each_entry(rule, &chain->rules, list) {
+		if (fatal_signal_pending(current))
+			return -EINTR;
+
 		if (!nft_is_active_next(ctx->net, rule))
 			continue;
 
@@ -10484,6 +10487,9 @@ static int nf_tables_check_loops(const struct nft_ctx *ctx,
 
 	if (ctx->chain == chain)
 		return -ELOOP;
+
+	if (fatal_signal_pending(current))
+		return -EINTR;
 
 	list_for_each_entry(rule, &chain->rules, list) {
 		nft_rule_for_each_expr(expr, last, rule) {

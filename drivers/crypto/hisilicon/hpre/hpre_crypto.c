@@ -1392,9 +1392,9 @@ static int hpre_ecdh_set_secret(struct crypto_kpp *tfm, const void *buf,
 				unsigned int len)
 {
 	struct hpre_ctx *ctx = kpp_tfm_ctx(tfm);
+	unsigned int sz, sz_shift, curve_sz;
 	struct device *dev = ctx->dev;
 	char key[HPRE_ECC_MAX_KSZ];
-	unsigned int sz, sz_shift;
 	struct ecdh params;
 	int ret;
 
@@ -1406,7 +1406,13 @@ static int hpre_ecdh_set_secret(struct crypto_kpp *tfm, const void *buf,
 	/* Use stdrng to generate private key */
 	if (!params.key || !params.key_size) {
 		params.key = key;
-		params.key_size = hpre_ecdh_get_curvesz(ctx->curve_id);
+		curve_sz = hpre_ecdh_get_curvesz(ctx->curve_id);
+		if (!curve_sz) {
+			dev_err(dev, "Invalid curve size!\n");
+			return -EINVAL;
+		}
+
+		params.key_size = curve_sz - 1;
 		ret = ecdh_gen_privkey(ctx, &params);
 		if (ret)
 			return ret;

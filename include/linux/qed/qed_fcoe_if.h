@@ -67,9 +67,6 @@ struct qed_fcoe_cb_ops {
 	 u32 (*get_login_failures)(void *cookie);
 };
 
-void qed_fcoe_set_pf_params(struct qed_dev *cdev,
-			    struct qed_fcoe_pf_params *params);
-
 /**
  * struct qed_fcoe_ops - qed FCoE operations.
  * @common:		common operations pointer

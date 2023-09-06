@@ -294,8 +294,14 @@ static struct sk_buff *i40e_construct_skb_zc(struct i40e_ring *rx_ring,
 {
 	unsigned int totalsize = xdp->data_end - xdp->data_meta;
 	unsigned int metasize = xdp->data - xdp->data_meta;
+	struct skb_shared_info *sinfo = NULL;
 	struct sk_buff *skb;
+	u32 nr_frags = 0;
 
+	if (unlikely(xdp_buff_has_frags(xdp))) {
+		sinfo = xdp_get_shared_info_from_buff(xdp);
+		nr_frags = sinfo->nr_frags;
+	}
 	net_prefetch(xdp->data_meta);
 
 	/* allocate a skb to store the frags */
@@ -312,6 +318,28 @@ static struct sk_buff *i40e_construct_skb_zc(struct i40e_ring *rx_ring,
 		__skb_pull(skb, metasize);
 	}
 
+	if (likely(!xdp_buff_has_frags(xdp)))
+		goto out;
+
+	for (int i = 0; i < nr_frags; i++) {
+		struct skb_shared_info *skinfo = skb_shinfo(skb);
+		skb_frag_t *frag = &sinfo->frags[i];
+		struct page *page;
+		void *addr;
+
+		page = dev_alloc_page();
+		if (!page) {
+			dev_kfree_skb(skb);
+			return NULL;
+		}
+		addr = page_to_virt(page);
+
+		memcpy(addr, skb_frag_page(frag), skb_frag_size(frag));
+
+		__skb_fill_page_desc_noacc(skinfo, skinfo->nr_frags++,
+					   addr, 0, skb_frag_size(frag));
+	}
+
 out:
 	xsk_buff_free(xdp);
 	return skb;
@@ -322,14 +350,13 @@ static void i40e_handle_xdp_result_zc(struct i40e_ring *rx_ring,
 				      union i40e_rx_desc *rx_desc,
 				      unsigned int *rx_packets,
 				      unsigned int *rx_bytes,
-				      unsigned int size,
 				      unsigned int xdp_res,
 				      bool *failure)
 {
 	struct sk_buff *skb;
 
 	*rx_packets = 1;
-	*rx_bytes = size;
+	*rx_bytes = xdp_get_buff_len(xdp_buff);
 
 	if (likely(xdp_res == I40E_XDP_REDIR) || xdp_res == I40E_XDP_TX)
 		return;
@@ -363,7 +390,6 @@ static void i40e_handle_xdp_result_zc(struct i40e_ring *rx_ring,
 			return;
 		}
 
-		*rx_bytes = skb->len;
 		i40e_process_skb_fields(rx_ring, rx_desc, skb);
 		napi_gro_receive(&rx_ring->q_vector->napi, skb);
 		return;
@@ -372,6 +398,31 @@ static void i40e_handle_xdp_result_zc(struct i40e_ring *rx_ring,
 	/* Should never get here, as all valid cases have been handled already.
 	 */
 	WARN_ON_ONCE(1);
+}
+
+static int
+i40e_add_xsk_frag(struct i40e_ring *rx_ring, struct xdp_buff *first,
+		  struct xdp_buff *xdp, const unsigned int size)
+{
+	struct skb_shared_info *sinfo = xdp_get_shared_info_from_buff(first);
+
+	if (!xdp_buff_has_frags(first)) {
+		sinfo->nr_frags = 0;
+		sinfo->xdp_frags_size = 0;
+		xdp_buff_set_frags_flag(first);
+	}
+
+	if (unlikely(sinfo->nr_frags == MAX_SKB_FRAGS)) {
+		xsk_buff_free(first);
+		return -ENOMEM;
+	}
+
+	__skb_fill_page_desc_noacc(sinfo, sinfo->nr_frags++,
+				   virt_to_page(xdp->data_hard_start), 0, size);
+	sinfo->xdp_frags_size += size;
+	xsk_buff_add_frag(xdp);
+
+	return 0;
 }
 
 /**
@@ -384,12 +435,17 @@ static void i40e_handle_xdp_result_zc(struct i40e_ring *rx_ring,
 int i40e_clean_rx_irq_zc(struct i40e_ring *rx_ring, int budget)
 {
 	unsigned int total_rx_bytes = 0, total_rx_packets = 0;
+	u16 next_to_process = rx_ring->next_to_process;
 	u16 next_to_clean = rx_ring->next_to_clean;
 	u16 count_mask = rx_ring->count - 1;
 	unsigned int xdp_res, xdp_xmit = 0;
+	struct xdp_buff *first = NULL;
 	struct bpf_prog *xdp_prog;
 	bool failure = false;
 	u16 cleaned_count;
+
+	if (next_to_process != next_to_clean)
+		first = *i40e_rx_bi(rx_ring, next_to_clean);
 
 	/* NB! xdp_prog will always be !NULL, due to the fact that
 	 * this path is enabled by setting an XDP program.
@@ -404,7 +460,7 @@ int i40e_clean_rx_irq_zc(struct i40e_ring *rx_ring, int budget)
 		unsigned int size;
 		u64 qword;
 
-		rx_desc = I40E_RX_DESC(rx_ring, next_to_clean);
+		rx_desc = I40E_RX_DESC(rx_ring, next_to_process);
 		qword = le64_to_cpu(rx_desc->wb.qword1.status_error_len);
 
 		/* This memory barrier is needed to keep us from reading
@@ -417,9 +473,9 @@ int i40e_clean_rx_irq_zc(struct i40e_ring *rx_ring, int budget)
 			i40e_clean_programming_status(rx_ring,
 						      rx_desc->raw.qword[0],
 						      qword);
-			bi = *i40e_rx_bi(rx_ring, next_to_clean);
+			bi = *i40e_rx_bi(rx_ring, next_to_process);
 			xsk_buff_free(bi);
-			next_to_clean = (next_to_clean + 1) & count_mask;
+			next_to_process = (next_to_process + 1) & count_mask;
 			continue;
 		}
 
@@ -428,22 +484,35 @@ int i40e_clean_rx_irq_zc(struct i40e_ring *rx_ring, int budget)
 		if (!size)
 			break;
 
-		bi = *i40e_rx_bi(rx_ring, next_to_clean);
+		bi = *i40e_rx_bi(rx_ring, next_to_process);
 		xsk_buff_set_size(bi, size);
 		xsk_buff_dma_sync_for_cpu(bi, rx_ring->xsk_pool);
 
-		xdp_res = i40e_run_xdp_zc(rx_ring, bi, xdp_prog);
-		i40e_handle_xdp_result_zc(rx_ring, bi, rx_desc, &rx_packets,
-					  &rx_bytes, size, xdp_res, &failure);
+		if (!first)
+			first = bi;
+		else if (i40e_add_xsk_frag(rx_ring, first, bi, size))
+			break;
+
+		next_to_process = (next_to_process + 1) & count_mask;
+
+		if (i40e_is_non_eop(rx_ring, rx_desc))
+			continue;
+
+		xdp_res = i40e_run_xdp_zc(rx_ring, first, xdp_prog);
+		i40e_handle_xdp_result_zc(rx_ring, first, rx_desc, &rx_packets,
+					  &rx_bytes, xdp_res, &failure);
+		first->flags = 0;
+		next_to_clean = next_to_process;
 		if (failure)
 			break;
 		total_rx_packets += rx_packets;
 		total_rx_bytes += rx_bytes;
 		xdp_xmit |= xdp_res & (I40E_XDP_TX | I40E_XDP_REDIR);
-		next_to_clean = (next_to_clean + 1) & count_mask;
+		first = NULL;
 	}
 
 	rx_ring->next_to_clean = next_to_clean;
+	rx_ring->next_to_process = next_to_process;
 	cleaned_count = (next_to_clean - rx_ring->next_to_use - 1) & count_mask;
 
 	if (cleaned_count >= I40E_RX_BUFFER_WRITE)
@@ -466,6 +535,7 @@ int i40e_clean_rx_irq_zc(struct i40e_ring *rx_ring, int budget)
 static void i40e_xmit_pkt(struct i40e_ring *xdp_ring, struct xdp_desc *desc,
 			  unsigned int *total_bytes)
 {
+	u32 cmd = I40E_TX_DESC_CMD_ICRC | xsk_is_eop_desc(desc);
 	struct i40e_tx_desc *tx_desc;
 	dma_addr_t dma;
 
@@ -474,8 +544,7 @@ static void i40e_xmit_pkt(struct i40e_ring *xdp_ring, struct xdp_desc *desc,
 
 	tx_desc = I40E_TX_DESC(xdp_ring, xdp_ring->next_to_use++);
 	tx_desc->buffer_addr = cpu_to_le64(dma);
-	tx_desc->cmd_type_offset_bsz = build_ctob(I40E_TX_DESC_CMD_ICRC | I40E_TX_DESC_CMD_EOP,
-						  0, desc->len, 0);
+	tx_desc->cmd_type_offset_bsz = build_ctob(cmd, 0, desc->len, 0);
 
 	*total_bytes += desc->len;
 }
@@ -489,14 +558,14 @@ static void i40e_xmit_pkt_batch(struct i40e_ring *xdp_ring, struct xdp_desc *des
 	u32 i;
 
 	loop_unrolled_for(i = 0; i < PKTS_PER_BATCH; i++) {
+		u32 cmd = I40E_TX_DESC_CMD_ICRC | xsk_is_eop_desc(&desc[i]);
+
 		dma = xsk_buff_raw_get_dma(xdp_ring->xsk_pool, desc[i].addr);
 		xsk_buff_raw_dma_sync_for_device(xdp_ring->xsk_pool, dma, desc[i].len);
 
 		tx_desc = I40E_TX_DESC(xdp_ring, ntu++);
 		tx_desc->buffer_addr = cpu_to_le64(dma);
-		tx_desc->cmd_type_offset_bsz = build_ctob(I40E_TX_DESC_CMD_ICRC |
-							  I40E_TX_DESC_CMD_EOP,
-							  0, desc[i].len, 0);
+		tx_desc->cmd_type_offset_bsz = build_ctob(cmd, 0, desc[i].len, 0);
 
 		*total_bytes += desc[i].len;
 	}

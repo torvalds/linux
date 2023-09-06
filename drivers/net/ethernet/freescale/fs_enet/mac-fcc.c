@@ -32,13 +32,11 @@
 #include <linux/platform_device.h>
 #include <linux/phy.h>
 #include <linux/of_address.h>
-#include <linux/of_device.h>
 #include <linux/of_irq.h>
 #include <linux/gfp.h>
 #include <linux/pgtable.h>
 
 #include <asm/immap_cpm2.h>
-#include <asm/mpc8260.h>
 #include <asm/cpm2.h>
 
 #include <asm/irq.h>
@@ -106,7 +104,7 @@ static int do_pd_setup(struct fs_enet_private *fep)
 		goto out_ep;
 
 	fep->fcc.mem = (void __iomem *)cpm2_immr;
-	fpi->dpram_offset = cpm_dpalloc(128, 32);
+	fpi->dpram_offset = cpm_muram_alloc(128, 32);
 	if (IS_ERR_VALUE(fpi->dpram_offset)) {
 		ret = fpi->dpram_offset;
 		goto out_fcccp;
@@ -548,7 +546,7 @@ static void tx_restart(struct net_device *dev)
 	}
 	/* Now update the TBPTR and dirty flag to the current buffer */
 	W32(ep, fen_genfcc.fcc_tbptr,
-		(uint) (((void *)recheck_bd - fep->ring_base) +
+		(uint)(((void __iomem *)recheck_bd - fep->ring_base) +
 		fep->ring_mem_addr));
 	fep->dirty_tx = recheck_bd;
 

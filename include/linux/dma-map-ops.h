@@ -169,12 +169,6 @@ static inline void dma_free_contiguous(struct device *dev, struct page *page,
 }
 #endif /* CONFIG_DMA_CMA*/
 
-#ifdef CONFIG_DMA_PERNUMA_CMA
-void dma_pernuma_cma_reserve(void);
-#else
-static inline void dma_pernuma_cma_reserve(void) { }
-#endif /* CONFIG_DMA_PERNUMA_CMA */
-
 #ifdef CONFIG_DMA_DECLARE_COHERENT
 int dma_declare_coherent_memory(struct device *dev, phys_addr_t phys_addr,
 		dma_addr_t device_addr, size_t size);
@@ -342,6 +336,12 @@ void *arch_dma_alloc(struct device *dev, size_t size, dma_addr_t *dma_handle,
 		gfp_t gfp, unsigned long attrs);
 void arch_dma_free(struct device *dev, size_t size, void *cpu_addr,
 		dma_addr_t dma_addr, unsigned long attrs);
+
+#ifdef CONFIG_ARCH_HAS_DMA_SET_MASK
+void arch_dma_set_mask(struct device *dev, u64 mask);
+#else
+#define arch_dma_set_mask(dev, mask)	do { } while (0)
+#endif
 
 #ifdef CONFIG_MMU
 /*

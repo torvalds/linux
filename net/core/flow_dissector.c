@@ -40,7 +40,7 @@
 static void dissector_set_key(struct flow_dissector *flow_dissector,
 			      enum flow_dissector_key_id key_id)
 {
-	flow_dissector->used_keys |= (1 << key_id);
+	flow_dissector->used_keys |= (1ULL << key_id);
 }
 
 void skb_flow_dissector_init(struct flow_dissector *flow_dissector,
@@ -203,6 +203,50 @@ static void __skb_flow_dissect_icmp(const struct sk_buff *skb,
 					     target_container);
 
 	skb_flow_get_icmp_tci(skb, key_icmp, data, thoff, hlen);
+}
+
+static void __skb_flow_dissect_ah(const struct sk_buff *skb,
+				  struct flow_dissector *flow_dissector,
+				  void *target_container, const void *data,
+				  int nhoff, int hlen)
+{
+	struct flow_dissector_key_ipsec *key_ah;
+	struct ip_auth_hdr _hdr, *hdr;
+
+	if (!dissector_uses_key(flow_dissector, FLOW_DISSECTOR_KEY_IPSEC))
+		return;
+
+	hdr = __skb_header_pointer(skb, nhoff, sizeof(_hdr), data, hlen, &_hdr);
+	if (!hdr)
+		return;
+
+	key_ah = skb_flow_dissector_target(flow_dissector,
+					   FLOW_DISSECTOR_KEY_IPSEC,
+					   target_container);
+
+	key_ah->spi = hdr->spi;
+}
+
+static void __skb_flow_dissect_esp(const struct sk_buff *skb,
+				   struct flow_dissector *flow_dissector,
+				   void *target_container, const void *data,
+				   int nhoff, int hlen)
+{
+	struct flow_dissector_key_ipsec *key_esp;
+	struct ip_esp_hdr _hdr, *hdr;
+
+	if (!dissector_uses_key(flow_dissector, FLOW_DISSECTOR_KEY_IPSEC))
+		return;
+
+	hdr = __skb_header_pointer(skb, nhoff, sizeof(_hdr), data, hlen, &_hdr);
+	if (!hdr)
+		return;
+
+	key_esp = skb_flow_dissector_target(flow_dissector,
+					    FLOW_DISSECTOR_KEY_IPSEC,
+					    target_container);
+
+	key_esp->spi = hdr->spi;
 }
 
 static void __skb_flow_dissect_l2tpv3(const struct sk_buff *skb,
@@ -1571,7 +1615,14 @@ ip_proto_again:
 		__skb_flow_dissect_l2tpv3(skb, flow_dissector, target_container,
 					  data, nhoff, hlen);
 		break;
-
+	case IPPROTO_ESP:
+		__skb_flow_dissect_esp(skb, flow_dissector, target_container,
+				       data, nhoff, hlen);
+		break;
+	case IPPROTO_AH:
+		__skb_flow_dissect_ah(skb, flow_dissector, target_container,
+				      data, nhoff, hlen);
+		break;
 	default:
 		break;
 	}

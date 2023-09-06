@@ -15,8 +15,7 @@
 #include <linux/kthread.h>
 #include <linux/rtnetlink.h>
 #include <linux/sched.h>
-#include <linux/of_address.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/io.h>
 #include <linux/bitops.h>
 
@@ -2397,7 +2396,8 @@ static int ahash_hmac_setkey(struct crypto_ahash *ahash, const u8 *key,
 		memset(ctx->ipad + ctx->authkeylen, 0,
 		       blocksize - ctx->authkeylen);
 		ctx->authkeylen = 0;
-		memcpy(ctx->opad, ctx->ipad, blocksize);
+		unsafe_memcpy(ctx->opad, ctx->ipad, blocksize,
+			      "fortified memcpy causes -Wrestrict warning");
 
 		for (index = 0; index < blocksize; index++) {
 			ctx->ipad[index] ^= HMAC_IPAD_VALUE;

@@ -358,8 +358,6 @@ int rsnd_adg_ssi_clk_try_start(struct rsnd_mod *ssi_mod, unsigned int rate)
 		ckr = 0x80000000; /* BRGB output = 48kHz */
 
 	rsnd_mod_bset(adg_mod, BRGCKR, 0x80770000, adg->ckr | ckr);
-	rsnd_mod_write(adg_mod, BRRA,  adg->brga);
-	rsnd_mod_write(adg_mod, BRRB,  adg->brgb);
 
 	dev_dbg(dev, "CLKOUT is based on BRG%c (= %dHz)\n",
 		(ckr) ? 'B' : 'A',
@@ -372,8 +370,15 @@ int rsnd_adg_ssi_clk_try_start(struct rsnd_mod *ssi_mod, unsigned int rate)
 void rsnd_adg_clk_control(struct rsnd_priv *priv, int enable)
 {
 	struct rsnd_adg *adg = rsnd_priv_to_adg(priv);
+	struct rsnd_mod *adg_mod = rsnd_mod_get(adg);
 	struct clk *clk;
 	int i;
+
+	if (enable) {
+		rsnd_mod_bset(adg_mod, BRGCKR, 0x80770000, adg->ckr);
+		rsnd_mod_write(adg_mod, BRRA,  adg->brga);
+		rsnd_mod_write(adg_mod, BRRB,  adg->brgb);
+	}
 
 	for_each_rsnd_clkin(clk, adg, i) {
 		if (enable) {
@@ -485,12 +490,12 @@ static int rsnd_adg_get_clkout(struct rsnd_priv *priv)
 	struct device_node *np = dev->of_node;
 	struct property *prop;
 	u32 ckr, brgx, brga, brgb;
-	u32 rate, div;
 	u32 req_rate[ADG_HZ_SIZE] = {};
 	uint32_t count = 0;
 	unsigned long req_Hz[ADG_HZ_SIZE];
 	int clkout_size;
 	int i, req_size;
+	int approximate = 0;
 	const char *parent_clk_name = NULL;
 	const char * const *clkout_name;
 	int brg_table[] = {
@@ -501,8 +506,8 @@ static int rsnd_adg_get_clkout(struct rsnd_priv *priv)
 	};
 
 	ckr = 0;
-	brga = 2; /* default 1/6 */
-	brgb = 2; /* default 1/6 */
+	brga = 0xff; /* default */
+	brgb = 0xff; /* default */
 
 	/*
 	 * ADG supports BRRA/BRRB output only
@@ -537,17 +542,41 @@ static int rsnd_adg_get_clkout(struct rsnd_priv *priv)
 	 *	rsnd_adg_ssi_clk_try_start()
 	 *	rsnd_ssi_master_clk_start()
 	 */
+
+	/*
+	 * [APPROXIMATE]
+	 *
+	 * clk_i (internal clock) can't create accurate rate, it will be approximate rate.
+	 *
+	 * <Note>
+	 *
+	 * clk_i needs x2 of required maximum rate.
+	 * see
+	 *	- Minimum division of BRRA/BRRB
+	 *	- rsnd_ssi_clk_query()
+	 *
+	 * Sample Settings for TDM 8ch, 32bit width
+	 *
+	 *	8(ch) x 32(bit) x 44100(Hz) x 2<Note> = 22579200
+	 *	8(ch) x 32(bit) x 48000(Hz) x 2<Note> = 24576000
+	 *
+	 *	clock-frequency = <22579200 24576000>;
+	 */
 	for_each_rsnd_clkin(clk, adg, i) {
+		u32 rate, div;
+
 		rate = clk_get_rate(clk);
 
 		if (0 == rate) /* not used */
 			continue;
 
 		/* BRGA */
-		if (!adg->brg_rate[ADG_HZ_441] && (0 == rate % 44100)) {
-			div = 6;
-			if (req_Hz[ADG_HZ_441])
-				div = rate / req_Hz[ADG_HZ_441];
+
+		if (i == CLKI)
+			/* see [APPROXIMATE] */
+			rate = (clk_get_rate(clk) / req_Hz[ADG_HZ_441]) * req_Hz[ADG_HZ_441];
+		if (!adg->brg_rate[ADG_HZ_441] && req_Hz[ADG_HZ_441] && (0 == rate % 44100)) {
+			div = rate / req_Hz[ADG_HZ_441];
 			brgx = rsnd_adg_calculate_brgx(div);
 			if (BRRx_MASK(brgx) == brgx) {
 				brga = brgx;
@@ -555,14 +584,18 @@ static int rsnd_adg_get_clkout(struct rsnd_priv *priv)
 				ckr |= brg_table[i] << 20;
 				if (req_Hz[ADG_HZ_441])
 					parent_clk_name = __clk_get_name(clk);
+				if (i == CLKI)
+					approximate = 1;
 			}
 		}
 
 		/* BRGB */
-		if (!adg->brg_rate[ADG_HZ_48] && (0 == rate % 48000)) {
-			div = 6;
-			if (req_Hz[ADG_HZ_48])
-				div = rate / req_Hz[ADG_HZ_48];
+
+		if (i == CLKI)
+			/* see [APPROXIMATE] */
+			rate = (clk_get_rate(clk) / req_Hz[ADG_HZ_48]) * req_Hz[ADG_HZ_48];
+		if (!adg->brg_rate[ADG_HZ_48] && req_Hz[ADG_HZ_48] && (0 == rate % 48000)) {
+			div = rate / req_Hz[ADG_HZ_48];
 			brgx = rsnd_adg_calculate_brgx(div);
 			if (BRRx_MASK(brgx) == brgx) {
 				brgb = brgx;
@@ -570,9 +603,18 @@ static int rsnd_adg_get_clkout(struct rsnd_priv *priv)
 				ckr |= brg_table[i] << 16;
 				if (req_Hz[ADG_HZ_48])
 					parent_clk_name = __clk_get_name(clk);
+				if (i == CLKI)
+					approximate = 1;
 			}
 		}
 	}
+
+	if (!(adg->brg_rate[ADG_HZ_48]  && req_Hz[ADG_HZ_48]) &&
+	    !(adg->brg_rate[ADG_HZ_441] && req_Hz[ADG_HZ_441]))
+		goto rsnd_adg_get_clkout_end;
+
+	if (approximate)
+		dev_info(dev, "It uses CLK_I as approximate rate");
 
 	clkout_name = clkout_name_gen2;
 	clkout_size = ARRAY_SIZE(clkout_name_gen2);

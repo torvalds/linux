@@ -394,8 +394,6 @@ void neigh_for_each(struct neigh_table *tbl,
 void __neigh_for_each_release(struct neigh_table *tbl,
 			      int (*cb)(struct neighbour *));
 int neigh_xmit(int fam, struct net_device *, const void *, struct sk_buff *);
-void pneigh_for_each(struct neigh_table *tbl,
-		     void (*cb)(struct pneigh_entry *));
 
 struct neigh_seq_state {
 	struct seq_net_private p;

@@ -13,6 +13,7 @@ test_dev_cgroup
 /test_progs
 /test_progs-no_alu32
 /test_progs-bpf_gcc
+/test_progs-cpuv4
 test_verifier_log
 feature
 test_sock
@@ -36,12 +37,14 @@ test_cpp
 *.lskel.h
 /no_alu32
 /bpf_gcc
+/cpuv4
 /host-tools
 /tools
 /runqslower
 /bench
 /veristat
 /sign-file
+/uprobe_multi
 *.ko
 *.tmp
 xskxceiver

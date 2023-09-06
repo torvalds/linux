@@ -19,6 +19,7 @@
 #include <linux/of_mdio.h>
 #include <linux/of_net.h>
 #include <linux/of_device.h>
+#include <linux/of_platform.h>
 #include <linux/phylink.h>
 #include <linux/phy/phy.h>
 #include <linux/platform_device.h>

@@ -257,11 +257,19 @@ EXPORT_SYMBOL(tcp_select_initial_window);
 static u16 tcp_select_window(struct sock *sk)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
-	u32 old_win = tp->rcv_wnd;
-	u32 cur_win = tcp_receive_window(tp);
-	u32 new_win = __tcp_select_window(sk);
 	struct net *net = sock_net(sk);
+	u32 old_win = tp->rcv_wnd;
+	u32 cur_win, new_win;
 
+	/* Make the window 0 if we failed to queue the data because we
+	 * are out of memory. The window is temporary, so we don't store
+	 * it on the socket.
+	 */
+	if (unlikely(inet_csk(sk)->icsk_ack.pending & ICSK_ACK_NOMEM))
+		return 0;
+
+	cur_win = tcp_receive_window(tp);
+	new_win = __tcp_select_window(sk);
 	if (new_win < cur_win) {
 		/* Danger Will Robinson!
 		 * Don't update rcv_wup/rcv_wnd here or else
@@ -1293,14 +1301,21 @@ static int __tcp_transmit_skb(struct sock *sk, struct sk_buff *skb,
 	}
 	tcp_header_size = tcp_options_size + sizeof(struct tcphdr);
 
-	/* if no packet is in qdisc/device queue, then allow XPS to select
-	 * another queue. We can be called from tcp_tsq_handler()
-	 * which holds one reference to sk.
-	 *
-	 * TODO: Ideally, in-flight pure ACK packets should not matter here.
-	 * One way to get this would be to set skb->truesize = 2 on them.
+	/* We set skb->ooo_okay to one if this packet can select
+	 * a different TX queue than prior packets of this flow,
+	 * to avoid self inflicted reorders.
+	 * The 'other' queue decision is based on current cpu number
+	 * if XPS is enabled, or sk->sk_txhash otherwise.
+	 * We can switch to another (and better) queue if:
+	 * 1) No packet with payload is in qdisc/device queues.
+	 *    Delays in TX completion can defeat the test
+	 *    even if packets were already sent.
+	 * 2) Or rtx queue is empty.
+	 *    This mitigates above case if ACK packets for
+	 *    all prior packets were already processed.
 	 */
-	skb->ooo_okay = sk_wmem_alloc_get(sk) < SKB_TRUESIZE(1);
+	skb->ooo_okay = sk_wmem_alloc_get(sk) < SKB_TRUESIZE(1) ||
+			tcp_rtx_queue_empty(sk);
 
 	/* If we had to use memory reserve to allocate this skb,
 	 * this might cause drops if packet is looped back :
@@ -3740,11 +3755,6 @@ static void tcp_connect_init(struct sock *sk)
 	tp->tcp_header_len = sizeof(struct tcphdr);
 	if (READ_ONCE(sock_net(sk)->ipv4.sysctl_tcp_timestamps))
 		tp->tcp_header_len += TCPOLEN_TSTAMP_ALIGNED;
-
-#ifdef CONFIG_TCP_MD5SIG
-	if (tp->af_specific->md5_lookup(sk, sk))
-		tp->tcp_header_len += TCPOLEN_MD5SIG_ALIGNED;
-#endif
 
 	/* If user gave his TCP_MAXSEG, record it to clamp */
 	if (tp->rx_opt.user_mss)

@@ -19,7 +19,6 @@
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_platform.h>
 #include <linux/property.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
@@ -956,7 +955,7 @@ static int vc5_probe(struct i2c_client *client)
 
 	i2c_set_clientdata(client, vc5);
 	vc5->client = client;
-	vc5->chip_info = device_get_match_data(&client->dev);
+	vc5->chip_info = i2c_get_match_data(client);
 
 	vc5->pin_xin = devm_clk_get(&client->dev, "xin");
 	if (PTR_ERR(vc5->pin_xin) == -EPROBE_DEFER)

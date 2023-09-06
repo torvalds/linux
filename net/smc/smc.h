@@ -21,7 +21,10 @@
 
 #define SMC_V1		1		/* SMC version V1 */
 #define SMC_V2		2		/* SMC version V2 */
-#define SMC_RELEASE	0
+
+#define SMC_RELEASE_0 0
+#define SMC_RELEASE_1 1
+#define SMC_RELEASE	SMC_RELEASE_1 /* the latest release version */
 
 #define SMCPROTO_SMC		0	/* SMC protocol, IPv4 */
 #define SMCPROTO_SMC6		1	/* SMC protocol, IPv6 */

@@ -460,7 +460,6 @@ static int ma35d1_clocks_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct device_node *clk_node = pdev->dev.of_node;
-	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	void __iomem *clk_base;
 	static struct clk_hw **hws;
 	static struct clk_hw_onecell_data *ma35d1_hw_data;
@@ -476,7 +475,7 @@ static int ma35d1_clocks_probe(struct platform_device *pdev)
 	ma35d1_hw_data->num = CLK_MAX_IDX;
 	hws = ma35d1_hw_data->hws;
 
-	clk_base = devm_ioremap_resource(dev, res);
+	clk_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(clk_base))
 		return PTR_ERR(clk_base);
 

@@ -226,7 +226,7 @@ static int __init hv_vtl_early_init(void)
 			  "Please add 'noxsave' to the kernel command line.\n");
 
 	real_mode_header = &hv_vtl_real_mode_header;
-	apic->wakeup_secondary_cpu_64 = hv_vtl_wakeup_secondary_cpu;
+	apic_update_callback(wakeup_secondary_cpu_64, hv_vtl_wakeup_secondary_cpu);
 
 	return 0;
 }

@@ -131,7 +131,10 @@ obj-$(CONFIG_INTEL_SCU_IPC_UTIL)	+= intel_scu_ipcutil.o
 obj-$(CONFIG_X86_INTEL_LPSS)		+= pmc_atom.o
 
 # Siemens Simatic Industrial PCs
-obj-$(CONFIG_SIEMENS_SIMATIC_IPC)	+= simatic-ipc.o
+obj-$(CONFIG_SIEMENS_SIMATIC_IPC)	+= siemens/
 
 # Winmate
 obj-$(CONFIG_WINMATE_FM07_KEYS)		+= winmate-fm07-keys.o
+
+# SEL
+obj-$(CONFIG_SEL3350_PLATFORM)		+= sel3350-platform.o

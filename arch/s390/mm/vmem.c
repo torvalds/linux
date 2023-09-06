@@ -36,7 +36,7 @@ static void vmem_free_pages(unsigned long addr, int order)
 {
 	/* We don't expect boot memory to be removed ever. */
 	if (!slab_is_available() ||
-	    WARN_ON_ONCE(PageReserved(virt_to_page(addr))))
+	    WARN_ON_ONCE(PageReserved(virt_to_page((void *)addr))))
 		return;
 	free_pages(addr, order);
 }
@@ -531,7 +531,7 @@ struct range arch_get_mappable_range(void)
 	struct range mhp_range;
 
 	mhp_range.start = 0;
-	mhp_range.end =  VMEM_MAX_PHYS - 1;
+	mhp_range.end = max_mappable - 1;
 	return mhp_range;
 }
 

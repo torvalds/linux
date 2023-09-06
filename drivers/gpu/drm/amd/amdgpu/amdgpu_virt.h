@@ -355,9 +355,10 @@ void amdgpu_virt_update_sriov_video_codec(struct amdgpu_device *adev,
 			struct amdgpu_video_codec_info *decode, uint32_t decode_array_size);
 void amdgpu_sriov_wreg(struct amdgpu_device *adev,
 		       u32 offset, u32 value,
-		       u32 acc_flags, u32 hwip);
+		       u32 acc_flags, u32 hwip, u32 xcc_id);
 u32 amdgpu_sriov_rreg(struct amdgpu_device *adev,
-		      u32 offset, u32 acc_flags, u32 hwip);
+		      u32 offset, u32 acc_flags, u32 hwip, u32 xcc_id);
 bool amdgpu_virt_fw_load_skip_check(struct amdgpu_device *adev,
 			uint32_t ucode_id);
+void amdgpu_virt_post_reset(struct amdgpu_device *adev);
 #endif

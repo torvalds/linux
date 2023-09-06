@@ -923,7 +923,7 @@ static struct cpuidle_state adl_l_cstates[] __initdata = {
 		.enter = NULL }
 };
 
-static struct cpuidle_state adl_n_cstates[] __initdata = {
+static struct cpuidle_state gmt_cstates[] __initdata = {
 	{
 		.name = "C1",
 		.desc = "MWAIT 0x00",
@@ -1349,8 +1349,8 @@ static const struct idle_cpu idle_cpu_adl_l __initconst = {
 	.state_table = adl_l_cstates,
 };
 
-static const struct idle_cpu idle_cpu_adl_n __initconst = {
-	.state_table = adl_n_cstates,
+static const struct idle_cpu idle_cpu_gmt __initconst = {
+	.state_table = gmt_cstates,
 };
 
 static const struct idle_cpu idle_cpu_spr __initconst = {
@@ -1423,7 +1423,7 @@ static const struct x86_cpu_id intel_idle_ids[] __initconst = {
 	X86_MATCH_INTEL_FAM6_MODEL(ICELAKE_D,		&idle_cpu_icx),
 	X86_MATCH_INTEL_FAM6_MODEL(ALDERLAKE,		&idle_cpu_adl),
 	X86_MATCH_INTEL_FAM6_MODEL(ALDERLAKE_L,		&idle_cpu_adl_l),
-	X86_MATCH_INTEL_FAM6_MODEL(ALDERLAKE_N,		&idle_cpu_adl_n),
+	X86_MATCH_INTEL_FAM6_MODEL(ATOM_GRACEMONT,	&idle_cpu_gmt),
 	X86_MATCH_INTEL_FAM6_MODEL(SAPPHIRERAPIDS_X,	&idle_cpu_spr),
 	X86_MATCH_INTEL_FAM6_MODEL(EMERALDRAPIDS_X,	&idle_cpu_spr),
 	X86_MATCH_INTEL_FAM6_MODEL(XEON_PHI_KNL,	&idle_cpu_knl),
@@ -1898,7 +1898,7 @@ static void __init intel_idle_init_cstates_icpu(struct cpuidle_driver *drv)
 		break;
 	case INTEL_FAM6_ALDERLAKE:
 	case INTEL_FAM6_ALDERLAKE_L:
-	case INTEL_FAM6_ALDERLAKE_N:
+	case INTEL_FAM6_ATOM_GRACEMONT:
 		adl_idle_state_table_update();
 		break;
 	}

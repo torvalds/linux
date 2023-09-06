@@ -819,8 +819,7 @@ static ssize_t i915_displayport_test_active_write(struct file *file,
 	if (IS_ERR(input_buffer))
 		return PTR_ERR(input_buffer);
 
-	drm_dbg(&to_i915(dev)->drm,
-		"Copied %d bytes from user\n", (unsigned int)len);
+	drm_dbg(dev, "Copied %d bytes from user\n", (unsigned int)len);
 
 	drm_connector_list_iter_begin(dev, &conn_iter);
 	drm_for_each_connector_iter(connector, &conn_iter) {
@@ -839,8 +838,7 @@ static ssize_t i915_displayport_test_active_write(struct file *file,
 			status = kstrtoint(input_buffer, 10, &val);
 			if (status < 0)
 				break;
-			drm_dbg(&to_i915(dev)->drm,
-				"Got %d for test active\n", val);
+			drm_dbg(dev, "Got %d for test active\n", val);
 			/* To prevent erroneous activation of the compliance
 			 * testing code, only accept an actual value of 1 here
 			 */

@@ -218,10 +218,8 @@ static int dln2_i2c_probe(struct platform_device *pdev)
 
 	/* initialize the i2c interface */
 	ret = dln2_i2c_enable(dln2, true);
-	if (ret < 0) {
-		dev_err(dev, "failed to initialize adapter: %d\n", ret);
-		return ret;
-	}
+	if (ret < 0)
+		return dev_err_probe(dev, ret, "failed to initialize adapter\n");
 
 	/* and finally attach to i2c layer */
 	ret = i2c_add_adapter(&dln2->adapter);

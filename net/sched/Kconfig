@@ -347,8 +347,7 @@ config NET_SCH_FQ_PIE
 config NET_SCH_INGRESS
 	tristate "Ingress/classifier-action Qdisc"
 	depends on NET_CLS_ACT
-	select NET_INGRESS
-	select NET_EGRESS
+	select NET_XGRESS
 	help
 	  Say Y here if you want to use classifiers for incoming and/or outgoing
 	  packets. This qdisc doesn't do anything else besides running classifiers,
@@ -679,6 +678,7 @@ config NET_EMATCH_IPT
 config NET_CLS_ACT
 	bool "Actions"
 	select NET_CLS
+	select NET_XGRESS
 	help
 	  Say Y here if you want to use traffic control actions. Actions
 	  get attached to classifiers and are invoked after a successful

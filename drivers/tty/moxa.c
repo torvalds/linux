@@ -487,7 +487,7 @@ module_param(ttymajor, int, 0);
  */
 static int moxa_open(struct tty_struct *, struct file *);
 static void moxa_close(struct tty_struct *, struct file *);
-static int moxa_write(struct tty_struct *, const unsigned char *, int);
+static ssize_t moxa_write(struct tty_struct *, const u8 *, size_t);
 static unsigned int moxa_write_room(struct tty_struct *);
 static void moxa_flush_buffer(struct tty_struct *);
 static unsigned int moxa_chars_in_buffer(struct tty_struct *);
@@ -1499,8 +1499,7 @@ static void moxa_close(struct tty_struct *tty, struct file *filp)
 	tty_port_close(&ch->port, tty, filp);
 }
 
-static int moxa_write(struct tty_struct *tty,
-		      const unsigned char *buf, int count)
+static ssize_t moxa_write(struct tty_struct *tty, const u8 *buf, size_t count)
 {
 	struct moxa_port *ch = tty->driver_data;
 	unsigned long flags;
@@ -2164,8 +2163,7 @@ static int MoxaPortLineStatus(struct moxa_port *port)
 	return val;
 }
 
-static int MoxaPortWriteData(struct tty_struct *tty,
-		const unsigned char *buffer, int len)
+static int MoxaPortWriteData(struct tty_struct *tty, const u8 *buffer, int len)
 {
 	struct moxa_port *port = tty->driver_data;
 	void __iomem *baseAddr, *ofsAddr, *ofs;

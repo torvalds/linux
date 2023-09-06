@@ -105,6 +105,11 @@ struct netem_sched_data {
 		u32 rho;
 	} delay_cor, loss_cor, dup_cor, reorder_cor, corrupt_cor;
 
+	struct prng  {
+		u64 seed;
+		struct rnd_state prng_state;
+	} prng;
+
 	struct disttable *delay_dist;
 
 	enum  {
@@ -179,15 +184,16 @@ static void init_crandom(struct crndstate *state, unsigned long rho)
  * Next number depends on last value.
  * rho is scaled to avoid floating point.
  */
-static u32 get_crandom(struct crndstate *state)
+static u32 get_crandom(struct crndstate *state, struct prng *p)
 {
 	u64 value, rho;
 	unsigned long answer;
+	struct rnd_state *s = &p->prng_state;
 
 	if (!state || state->rho == 0)	/* no correlation */
-		return get_random_u32();
+		return prandom_u32_state(s);
 
-	value = get_random_u32();
+	value = prandom_u32_state(s);
 	rho = (u64)state->rho + 1;
 	answer = (value * ((1ull<<32) - rho) + state->last * rho) >> 32;
 	state->last = answer;
@@ -201,7 +207,7 @@ static u32 get_crandom(struct crndstate *state)
 static bool loss_4state(struct netem_sched_data *q)
 {
 	struct clgstate *clg = &q->clg;
-	u32 rnd = get_random_u32();
+	u32 rnd = prandom_u32_state(&q->prng.prng_state);
 
 	/*
 	 * Makes a comparison between rnd and the transition
@@ -266,18 +272,19 @@ static bool loss_4state(struct netem_sched_data *q)
 static bool loss_gilb_ell(struct netem_sched_data *q)
 {
 	struct clgstate *clg = &q->clg;
+	struct rnd_state *s = &q->prng.prng_state;
 
 	switch (clg->state) {
 	case GOOD_STATE:
-		if (get_random_u32() < clg->a1)
+		if (prandom_u32_state(s) < clg->a1)
 			clg->state = BAD_STATE;
-		if (get_random_u32() < clg->a4)
+		if (prandom_u32_state(s) < clg->a4)
 			return true;
 		break;
 	case BAD_STATE:
-		if (get_random_u32() < clg->a2)
+		if (prandom_u32_state(s) < clg->a2)
 			clg->state = GOOD_STATE;
-		if (get_random_u32() > clg->a3)
+		if (prandom_u32_state(s) > clg->a3)
 			return true;
 	}
 
@@ -289,7 +296,7 @@ static bool loss_event(struct netem_sched_data *q)
 	switch (q->loss_model) {
 	case CLG_RANDOM:
 		/* Random packet drop 0 => none, ~0 => all */
-		return q->loss && q->loss >= get_crandom(&q->loss_cor);
+		return q->loss && q->loss >= get_crandom(&q->loss_cor, &q->prng);
 
 	case CLG_4_STATES:
 		/* 4state loss model algorithm (used also for GI model)
@@ -318,6 +325,7 @@ static bool loss_event(struct netem_sched_data *q)
  */
 static s64 tabledist(s64 mu, s32 sigma,
 		     struct crndstate *state,
+		     struct prng *prng,
 		     const struct disttable *dist)
 {
 	s64 x;
@@ -327,7 +335,7 @@ static s64 tabledist(s64 mu, s32 sigma,
 	if (sigma == 0)
 		return mu;
 
-	rnd = get_crandom(state);
+	rnd = get_crandom(state, prng);
 
 	/* default uniform distribution */
 	if (dist == NULL)
@@ -449,7 +457,7 @@ static int netem_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 	skb->prev = NULL;
 
 	/* Random duplication */
-	if (q->duplicate && q->duplicate >= get_crandom(&q->dup_cor))
+	if (q->duplicate && q->duplicate >= get_crandom(&q->dup_cor, &q->prng))
 		++count;
 
 	/* Drop packet? */
@@ -492,7 +500,7 @@ static int netem_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 	 * If packet is going to be hardware checksummed, then
 	 * do it now in software before we mangle it.
 	 */
-	if (q->corrupt && q->corrupt >= get_crandom(&q->corrupt_cor)) {
+	if (q->corrupt && q->corrupt >= get_crandom(&q->corrupt_cor, &q->prng)) {
 		if (skb_is_gso(skb)) {
 			skb = netem_segment(skb, sch, to_free);
 			if (!skb)
@@ -530,12 +538,12 @@ static int netem_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 	cb = netem_skb_cb(skb);
 	if (q->gap == 0 ||		/* not doing reordering */
 	    q->counter < q->gap - 1 ||	/* inside last reordering gap */
-	    q->reorder < get_crandom(&q->reorder_cor)) {
+	    q->reorder < get_crandom(&q->reorder_cor, &q->prng)) {
 		u64 now;
 		s64 delay;
 
 		delay = tabledist(q->latency, q->jitter,
-				  &q->delay_cor, q->delay_dist);
+				  &q->delay_cor, &q->prng, q->delay_dist);
 
 		now = ktime_get_ns();
 
@@ -639,7 +647,7 @@ static void get_slot_next(struct netem_sched_data *q, u64 now)
 	else
 		next_delay = tabledist(q->slot_config.dist_delay,
 				       (s32)(q->slot_config.dist_jitter),
-				       NULL, q->slot_dist);
+				       NULL, &q->prng, q->slot_dist);
 
 	q->slot.slot_next = now + next_delay;
 	q->slot.packets_left = q->slot_config.max_packets;
@@ -922,6 +930,7 @@ static const struct nla_policy netem_policy[TCA_NETEM_MAX + 1] = {
 	[TCA_NETEM_LATENCY64]	= { .type = NLA_S64 },
 	[TCA_NETEM_JITTER64]	= { .type = NLA_S64 },
 	[TCA_NETEM_SLOT]	= { .len = sizeof(struct tc_netem_slot) },
+	[TCA_NETEM_PRNG_SEED]	= { .type = NLA_U64 },
 };
 
 static int parse_attr(struct nlattr *tb[], int maxtype, struct nlattr *nla,
@@ -1039,6 +1048,12 @@ static int netem_change(struct Qdisc *sch, struct nlattr *opt,
 
 	/* capping jitter to the range acceptable by tabledist() */
 	q->jitter = min_t(s64, abs(q->jitter), INT_MAX);
+
+	if (tb[TCA_NETEM_PRNG_SEED])
+		q->prng.seed = nla_get_u64(tb[TCA_NETEM_PRNG_SEED]);
+	else
+		q->prng.seed = get_random_u64();
+	prandom_seed_state(&q->prng.prng_state, q->prng.seed);
 
 unlock:
 	sch_tree_unlock(sch);
@@ -1202,6 +1217,10 @@ static int netem_dump(struct Qdisc *sch, struct sk_buff *skb)
 		if (nla_put(skb, TCA_NETEM_SLOT, sizeof(slot), &slot))
 			goto nla_put_failure;
 	}
+
+	if (nla_put_u64_64bit(skb, TCA_NETEM_PRNG_SEED, q->prng.seed,
+			      TCA_NETEM_PAD))
+		goto nla_put_failure;
 
 	return nla_nest_end(skb, nla);
 

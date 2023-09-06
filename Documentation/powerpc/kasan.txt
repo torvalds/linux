@@ -40,7 +40,7 @@ checks can be delayed until after the MMU is set is up, and we can just not
 instrument any code that runs with translations off after booting. This is the
 current approach.
 
-To avoid this limitiation, the KASAN shadow would have to be placed inside the
+To avoid this limitation, the KASAN shadow would have to be placed inside the
 linear mapping, using the same high-bits trick we use for the rest of the linear
 mapping. This is tricky:
 

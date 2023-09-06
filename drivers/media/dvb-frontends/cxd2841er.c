@@ -22,7 +22,7 @@
 #include <linux/dynamic_debug.h>
 #include <linux/kernel.h>
 
-#include <media/dvb_math.h>
+#include <linux/int_log.h>
 #include <media/dvb_frontend.h>
 #include "cxd2841er.h"
 #include "cxd2841er_priv.h"

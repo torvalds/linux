@@ -505,7 +505,7 @@ config PWM_ROCKCHIP
 
 config PWM_RZ_MTU3
 	tristate "Renesas RZ/G2L MTU3a PWM Timer support"
-	depends on RZ_MTU3 || COMPILE_TEST
+	depends on RZ_MTU3
 	depends on HAS_IOMEM
 	help
 	  This driver exposes the MTU3a PWM Timer controller found in Renesas

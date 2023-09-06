@@ -1445,7 +1445,7 @@ int ext4_fname_setup_ci_filename(struct inode *dir, const struct qstr *iname,
 	struct dx_hash_info *hinfo = &name->hinfo;
 	int len;
 
-	if (!IS_CASEFOLDED(dir) || !dir->i_sb->s_encoding ||
+	if (!IS_CASEFOLDED(dir) ||
 	    (IS_ENCRYPTED(dir) && !fscrypt_has_encryption_key(dir))) {
 		cf_name->name = NULL;
 		return 0;
@@ -1496,7 +1496,7 @@ static bool ext4_match(struct inode *parent,
 #endif
 
 #if IS_ENABLED(CONFIG_UNICODE)
-	if (parent->i_sb->s_encoding && IS_CASEFOLDED(parent) &&
+	if (IS_CASEFOLDED(parent) &&
 	    (!IS_ENCRYPTED(parent) || fscrypt_has_encryption_key(parent))) {
 		if (fname->cf_name.name) {
 			struct qstr cf = {.name = fname->cf_name.name,
@@ -2393,7 +2393,7 @@ static int ext4_add_entry(handle_t *handle, struct dentry *dentry,
 
 #if IS_ENABLED(CONFIG_UNICODE)
 	if (sb_has_strict_encoding(sb) && IS_CASEFOLDED(dir) &&
-	    sb->s_encoding && utf8_validate(sb->s_encoding, &dentry->d_name))
+	    utf8_validate(sb->s_encoding, &dentry->d_name))
 		return -EINVAL;
 #endif
 
@@ -2799,6 +2799,7 @@ static int ext4_add_nondir(handle_t *handle,
 		return err;
 	}
 	drop_nlink(inode);
+	ext4_mark_inode_dirty(handle, inode);
 	ext4_orphan_add(handle, inode);
 	unlock_new_inode(inode);
 	return err;
@@ -3142,7 +3143,7 @@ static int ext4_rmdir(struct inode *dir, struct dentry *dentry)
 	struct ext4_dir_entry_2 *de;
 	handle_t *handle = NULL;
 
-	if (unlikely(ext4_forced_shutdown(EXT4_SB(dir->i_sb))))
+	if (unlikely(ext4_forced_shutdown(dir->i_sb)))
 		return -EIO;
 
 	/* Initialize quotas before so that eventual writes go in
@@ -3302,7 +3303,7 @@ static int ext4_unlink(struct inode *dir, struct dentry *dentry)
 {
 	int retval;
 
-	if (unlikely(ext4_forced_shutdown(EXT4_SB(dir->i_sb))))
+	if (unlikely(ext4_forced_shutdown(dir->i_sb)))
 		return -EIO;
 
 	trace_ext4_unlink_enter(dir, dentry);
@@ -3370,7 +3371,7 @@ static int ext4_symlink(struct mnt_idmap *idmap, struct inode *dir,
 	struct fscrypt_str disk_link;
 	int retries = 0;
 
-	if (unlikely(ext4_forced_shutdown(EXT4_SB(dir->i_sb))))
+	if (unlikely(ext4_forced_shutdown(dir->i_sb)))
 		return -EIO;
 
 	err = fscrypt_prepare_symlink(dir, symname, len, dir->i_sb->s_blocksize,
@@ -3437,6 +3438,7 @@ retry:
 
 err_drop_inode:
 	clear_nlink(inode);
+	ext4_mark_inode_dirty(handle, inode);
 	ext4_orphan_add(handle, inode);
 	unlock_new_inode(inode);
 	if (handle)
@@ -4021,6 +4023,7 @@ end_rename:
 			ext4_resetent(handle, &old,
 				      old.inode->i_ino, old_file_type);
 			drop_nlink(whiteout);
+			ext4_mark_inode_dirty(handle, whiteout);
 			ext4_orphan_add(handle, whiteout);
 		}
 		unlock_new_inode(whiteout);
@@ -4187,7 +4190,7 @@ static int ext4_rename2(struct mnt_idmap *idmap,
 {
 	int err;
 
-	if (unlikely(ext4_forced_shutdown(EXT4_SB(old_dir->i_sb))))
+	if (unlikely(ext4_forced_shutdown(old_dir->i_sb)))
 		return -EIO;
 
 	if (flags & ~(RENAME_NOREPLACE | RENAME_EXCHANGE | RENAME_WHITEOUT))

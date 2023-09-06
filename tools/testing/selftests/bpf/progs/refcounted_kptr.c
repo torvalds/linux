@@ -8,6 +8,9 @@
 #include "bpf_misc.h"
 #include "bpf_experimental.h"
 
+extern void bpf_rcu_read_lock(void) __ksym;
+extern void bpf_rcu_read_unlock(void) __ksym;
+
 struct node_data {
 	long key;
 	long list_data;
@@ -24,7 +27,7 @@ struct {
 	__uint(type, BPF_MAP_TYPE_ARRAY);
 	__type(key, int);
 	__type(value, struct map_value);
-	__uint(max_entries, 1);
+	__uint(max_entries, 2);
 } stashed_nodes SEC(".maps");
 
 struct node_acquire {
@@ -41,6 +44,9 @@ private(A) struct bpf_list_head head __contains(node_data, l);
 
 private(B) struct bpf_spin_lock alock;
 private(B) struct bpf_rb_root aroot __contains(node_acquire, node);
+
+private(C) struct bpf_spin_lock block;
+private(C) struct bpf_rb_root broot __contains(node_data, r);
 
 static bool less(struct bpf_rb_node *node_a, const struct bpf_rb_node *node_b)
 {
@@ -402,6 +408,163 @@ long rbtree_refcounted_node_ref_escapes_owning_input(void *ctx)
 
 	bpf_obj_drop(m);
 
+	return 0;
+}
+
+static long __stash_map_empty_xchg(struct node_data *n, int idx)
+{
+	struct map_value *mapval = bpf_map_lookup_elem(&stashed_nodes, &idx);
+
+	if (!mapval) {
+		bpf_obj_drop(n);
+		return 1;
+	}
+	n = bpf_kptr_xchg(&mapval->node, n);
+	if (n) {
+		bpf_obj_drop(n);
+		return 2;
+	}
+	return 0;
+}
+
+SEC("tc")
+long rbtree_wrong_owner_remove_fail_a1(void *ctx)
+{
+	struct node_data *n, *m;
+
+	n = bpf_obj_new(typeof(*n));
+	if (!n)
+		return 1;
+	m = bpf_refcount_acquire(n);
+
+	if (__stash_map_empty_xchg(n, 0)) {
+		bpf_obj_drop(m);
+		return 2;
+	}
+
+	if (__stash_map_empty_xchg(m, 1))
+		return 3;
+
+	return 0;
+}
+
+SEC("tc")
+long rbtree_wrong_owner_remove_fail_b(void *ctx)
+{
+	struct map_value *mapval;
+	struct node_data *n;
+	int idx = 0;
+
+	mapval = bpf_map_lookup_elem(&stashed_nodes, &idx);
+	if (!mapval)
+		return 1;
+
+	n = bpf_kptr_xchg(&mapval->node, NULL);
+	if (!n)
+		return 2;
+
+	bpf_spin_lock(&block);
+
+	bpf_rbtree_add(&broot, &n->r, less);
+
+	bpf_spin_unlock(&block);
+	return 0;
+}
+
+SEC("tc")
+long rbtree_wrong_owner_remove_fail_a2(void *ctx)
+{
+	struct map_value *mapval;
+	struct bpf_rb_node *res;
+	struct node_data *m;
+	int idx = 1;
+
+	mapval = bpf_map_lookup_elem(&stashed_nodes, &idx);
+	if (!mapval)
+		return 1;
+
+	m = bpf_kptr_xchg(&mapval->node, NULL);
+	if (!m)
+		return 2;
+	bpf_spin_lock(&lock);
+
+	/* make m non-owning ref */
+	bpf_list_push_back(&head, &m->l);
+	res = bpf_rbtree_remove(&root, &m->r);
+
+	bpf_spin_unlock(&lock);
+	if (res) {
+		bpf_obj_drop(container_of(res, struct node_data, r));
+		return 3;
+	}
+	return 0;
+}
+
+SEC("?fentry.s/bpf_testmod_test_read")
+__success
+int BPF_PROG(rbtree_sleepable_rcu,
+	     struct file *file, struct kobject *kobj,
+	     struct bin_attribute *bin_attr, char *buf, loff_t off, size_t len)
+{
+	struct bpf_rb_node *rb;
+	struct node_data *n, *m = NULL;
+
+	n = bpf_obj_new(typeof(*n));
+	if (!n)
+		return 0;
+
+	bpf_rcu_read_lock();
+	bpf_spin_lock(&lock);
+	bpf_rbtree_add(&root, &n->r, less);
+	rb = bpf_rbtree_first(&root);
+	if (!rb)
+		goto err_out;
+
+	rb = bpf_rbtree_remove(&root, rb);
+	if (!rb)
+		goto err_out;
+
+	m = container_of(rb, struct node_data, r);
+
+err_out:
+	bpf_spin_unlock(&lock);
+	bpf_rcu_read_unlock();
+	if (m)
+		bpf_obj_drop(m);
+	return 0;
+}
+
+SEC("?fentry.s/bpf_testmod_test_read")
+__success
+int BPF_PROG(rbtree_sleepable_rcu_no_explicit_rcu_lock,
+	     struct file *file, struct kobject *kobj,
+	     struct bin_attribute *bin_attr, char *buf, loff_t off, size_t len)
+{
+	struct bpf_rb_node *rb;
+	struct node_data *n, *m = NULL;
+
+	n = bpf_obj_new(typeof(*n));
+	if (!n)
+		return 0;
+
+	/* No explicit bpf_rcu_read_lock */
+	bpf_spin_lock(&lock);
+	bpf_rbtree_add(&root, &n->r, less);
+	rb = bpf_rbtree_first(&root);
+	if (!rb)
+		goto err_out;
+
+	rb = bpf_rbtree_remove(&root, rb);
+	if (!rb)
+		goto err_out;
+
+	m = container_of(rb, struct node_data, r);
+
+err_out:
+	bpf_spin_unlock(&lock);
+	/* No explicit bpf_rcu_read_unlock */
+	if (m)
+		bpf_obj_drop(m);
 	return 0;
 }
 

@@ -45,7 +45,6 @@
 
 #define NLMDBG_FACILITY		NLMDBG_SVC
 #define LOCKD_BUFSIZE		(1024 + NLMSVC_XDRSIZE)
-#define ALLOWED_SIGS		(sigmask(SIGKILL))
 
 static struct svc_program	nlmsvc_program;
 
@@ -56,6 +55,12 @@ static DEFINE_MUTEX(nlmsvc_mutex);
 static unsigned int		nlmsvc_users;
 static struct svc_serv		*nlmsvc_serv;
 unsigned long			nlmsvc_timeout;
+
+static void nlmsvc_request_retry(struct timer_list *tl)
+{
+	svc_wake_up(nlmsvc_serv);
+}
+DEFINE_TIMER(nlmsvc_retry, nlmsvc_request_retry);
 
 unsigned int lockd_net_id;
 
@@ -111,35 +116,18 @@ static void set_grace_period(struct net *net)
 	schedule_delayed_work(&ln->grace_period_end, grace_period);
 }
 
-static void restart_grace(void)
-{
-	if (nlmsvc_ops) {
-		struct net *net = &init_net;
-		struct lockd_net *ln = net_generic(net, lockd_net_id);
-
-		cancel_delayed_work_sync(&ln->grace_period_end);
-		locks_end_grace(&ln->lockd_manager);
-		nlmsvc_invalidate_all();
-		set_grace_period(net);
-	}
-}
-
 /*
  * This is the lockd kernel thread
  */
 static int
 lockd(void *vrqstp)
 {
-	int		err = 0;
 	struct svc_rqst *rqstp = vrqstp;
 	struct net *net = &init_net;
 	struct lockd_net *ln = net_generic(net, lockd_net_id);
 
 	/* try_to_freeze() is called from svc_recv() */
 	set_freezable();
-
-	/* Allow SIGKILL to tell lockd to drop all of its locks */
-	allow_signal(SIGKILL);
 
 	dprintk("NFS locking service started (ver " LOCKD_VERSION ").\n");
 
@@ -148,33 +136,12 @@ lockd(void *vrqstp)
 	 * NFS mount or NFS daemon has gone away.
 	 */
 	while (!kthread_should_stop()) {
-		long timeout = MAX_SCHEDULE_TIMEOUT;
-		RPC_IFDEBUG(char buf[RPC_MAX_ADDRBUFLEN]);
-
 		/* update sv_maxconn if it has changed */
 		rqstp->rq_server->sv_maxconn = nlm_max_connections;
 
-		if (signalled()) {
-			flush_signals(current);
-			restart_grace();
-			continue;
-		}
-
-		timeout = nlmsvc_retry_blocked();
-
-		/*
-		 * Find a socket with data available and call its
-		 * recvfrom routine.
-		 */
-		err = svc_recv(rqstp, timeout);
-		if (err == -EAGAIN || err == -EINTR)
-			continue;
-		dprintk("lockd: request from %s\n",
-				svc_print_addr(rqstp, buf, sizeof(buf)));
-
-		svc_process(rqstp);
+		nlmsvc_retry_blocked();
+		svc_recv(rqstp);
 	}
-	flush_signals(current);
 	if (nlmsvc_ops)
 		nlmsvc_invalidate_all();
 	nlm_shutdown_hosts();
@@ -407,6 +374,7 @@ static void lockd_put(void)
 #endif
 
 	svc_set_num_threads(nlmsvc_serv, NULL, 0);
+	timer_delete_sync(&nlmsvc_retry);
 	nlmsvc_serv = NULL;
 	dprintk("lockd_down: service destroyed\n");
 }
@@ -538,7 +506,7 @@ static inline int is_callback(u32 proc)
 }
 
 
-static int lockd_authenticate(struct svc_rqst *rqstp)
+static enum svc_auth_status lockd_authenticate(struct svc_rqst *rqstp)
 {
 	rqstp->rq_client = NULL;
 	switch (rqstp->rq_authop->flavour) {

@@ -35,9 +35,6 @@
   *  - Arnaldo Carvalho de Melo <acme@conectiva.com.br>
   */
 
-#define ARCH_HAS_IOREMAP_WC
-#define ARCH_HAS_IOREMAP_WT
-
 #include <linux/string.h>
 #include <linux/compiler.h>
 #include <linux/cc_platform.h>
@@ -211,8 +208,6 @@ void memset_io(volatile void __iomem *, int, size_t);
 #define memcpy_fromio memcpy_fromio
 #define memcpy_toio memcpy_toio
 #define memset_io memset_io
-
-#include <asm-generic/iomap.h>
 
 /*
  * ISA space is 'always mapped' on a typical x86 system, no need to

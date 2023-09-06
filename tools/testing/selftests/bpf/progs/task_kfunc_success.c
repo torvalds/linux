@@ -18,6 +18,13 @@ int err, pid;
  */
 
 struct task_struct *bpf_task_acquire(struct task_struct *p) __ksym __weak;
+
+struct task_struct *bpf_task_acquire___one(struct task_struct *task) __ksym __weak;
+/* The two-param bpf_task_acquire doesn't exist */
+struct task_struct *bpf_task_acquire___two(struct task_struct *p, void *ctx) __ksym __weak;
+/* Incorrect type for first param */
+struct task_struct *bpf_task_acquire___three(void *ctx) __ksym __weak;
+
 void invalid_kfunc(void) __ksym __weak;
 void bpf_testmod_test_mod_kfunc(int i) __ksym __weak;
 
@@ -51,6 +58,50 @@ static int test_acquire_release(struct task_struct *task)
 		bpf_task_release(acquired);
 	else
 		err = 6;
+
+	return 0;
+}
+
+SEC("tp_btf/task_newtask")
+int BPF_PROG(test_task_kfunc_flavor_relo, struct task_struct *task, u64 clone_flags)
+{
+	struct task_struct *acquired = NULL;
+	int fake_ctx = 42;
+
+	if (bpf_ksym_exists(bpf_task_acquire___one)) {
+		acquired = bpf_task_acquire___one(task);
+	} else if (bpf_ksym_exists(bpf_task_acquire___two)) {
+		/* Here, bpf_object__resolve_ksym_func_btf_id's find_ksym_btf_id
+		 * call will find vmlinux's bpf_task_acquire, but subsequent
+		 * bpf_core_types_are_compat will fail
+		 */
+		acquired = bpf_task_acquire___two(task, &fake_ctx);
+		err = 3;
+		return 0;
+	} else if (bpf_ksym_exists(bpf_task_acquire___three)) {
+		/* bpf_core_types_are_compat will fail similarly to above case */
+		acquired = bpf_task_acquire___three(&fake_ctx);
+		err = 4;
+		return 0;
+	}
+
+	if (acquired)
+		bpf_task_release(acquired);
+	else
+		err = 5;
+	return 0;
+}
+
+SEC("tp_btf/task_newtask")
+int BPF_PROG(test_task_kfunc_flavor_relo_not_found, struct task_struct *task, u64 clone_flags)
+{
+	/* Neither symbol should successfully resolve.
+	 * Success or failure of one ___flavor should not affect others
+	 */
+	if (bpf_ksym_exists(bpf_task_acquire___two))
+		err = 1;
+	else if (bpf_ksym_exists(bpf_task_acquire___three))
+		err = 2;
 
 	return 0;
 }

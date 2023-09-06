@@ -18,7 +18,7 @@
 #include <linux/mfd/rave-sp.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
+#include <linux/of_platform.h>
 #include <linux/sched.h>
 #include <linux/serdev.h>
 #include <asm/unaligned.h>

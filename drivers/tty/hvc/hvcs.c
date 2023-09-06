@@ -1257,15 +1257,14 @@ static void hvcs_hangup(struct tty_struct * tty)
  * tty_hangup will allow hvcs_write time to complete execution before it
  * terminates our device.
  */
-static int hvcs_write(struct tty_struct *tty,
-		const unsigned char *buf, int count)
+static ssize_t hvcs_write(struct tty_struct *tty, const u8 *buf, size_t count)
 {
 	struct hvcs_struct *hvcsd = tty->driver_data;
 	unsigned int unit_address;
 	const unsigned char *charbuf;
 	unsigned long flags;
-	int total_sent = 0;
-	int tosend = 0;
+	size_t total_sent = 0;
+	size_t tosend = 0;
 	int result = 0;
 
 	/*
@@ -1300,7 +1299,8 @@ static int hvcs_write(struct tty_struct *tty,
 	unit_address = hvcsd->vdev->unit_address;
 
 	while (count > 0) {
-		tosend = min(count, (HVCS_BUFF_LEN - hvcsd->chars_in_buffer));
+		tosend = min_t(size_t, count,
+			       (HVCS_BUFF_LEN - hvcsd->chars_in_buffer));
 		/*
 		 * No more space, this probably means that the last call to
 		 * hvcs_write() didn't succeed and the buffer was filled up.

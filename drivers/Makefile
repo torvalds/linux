@@ -45,6 +45,7 @@ obj-$(CONFIG_DMADEVICES)	+= dma/
 
 # SOC specific infrastructure drivers.
 obj-y				+= soc/
+obj-$(CONFIG_PM_GENERIC_DOMAINS)	+= genpd/
 
 obj-y				+= virtio/
 obj-$(CONFIG_VDPA)		+= vdpa/
@@ -195,3 +196,5 @@ obj-$(CONFIG_PECI)		+= peci/
 obj-$(CONFIG_HTE)		+= hte/
 obj-$(CONFIG_DRM_ACCEL)		+= accel/
 obj-$(CONFIG_CDX_BUS)		+= cdx/
+
+obj-$(CONFIG_S390)		+= s390/

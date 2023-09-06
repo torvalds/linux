@@ -33,7 +33,7 @@
  * key 0 controlling userspace addresses on radix
  * Key 3 on hash
  */
-#define MMU_FTR_BOOK3S_KUAP		ASM_CONST(0x00000200)
+#define MMU_FTR_KUAP		ASM_CONST(0x00000200)
 
 /*
  * Supports KUEP feature
@@ -144,11 +144,6 @@
 
 typedef pte_t *pgtable_t;
 
-#ifdef CONFIG_PPC_E500
-#include <asm/percpu.h>
-DECLARE_PER_CPU(int, next_tlbcam_idx);
-#endif
-
 enum {
 	MMU_FTRS_POSSIBLE =
 #if defined(CONFIG_PPC_BOOK3S_604)
@@ -188,7 +183,7 @@ enum {
 #endif /* CONFIG_PPC_RADIX_MMU */
 #endif
 #ifdef CONFIG_PPC_KUAP
-	MMU_FTR_BOOK3S_KUAP |
+	MMU_FTR_KUAP |
 #endif /* CONFIG_PPC_KUAP */
 #ifdef CONFIG_PPC_MEM_KEYS
 	MMU_FTR_PKEY |

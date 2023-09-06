@@ -167,6 +167,8 @@ Asking the maintainer for status updates on your
 patch is a good way to ensure your patch is ignored or pushed to the
 bottom of the priority list.
 
+.. _Changes requested:
+
 Changes requested
 ~~~~~~~~~~~~~~~~~
 
@@ -358,6 +360,10 @@ to recall all the context.
 Make sure you address all the feedback in your new posting. Do not post a new
 version of the code if the discussion about the previous version is still
 ongoing, unless directly instructed by a reviewer.
+
+The new version of patches should be posted as a separate thread,
+not as a reply to the previous posting. Change log should include a link
+to the previous posting (see :ref:`Changes requested`).
 
 Testing
 -------

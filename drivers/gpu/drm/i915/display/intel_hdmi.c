@@ -2880,20 +2880,11 @@ static u8 g4x_port_to_ddc_pin(struct drm_i915_private *dev_priv,
 	return ddc_pin;
 }
 
-static u8 intel_hdmi_ddc_pin(struct intel_encoder *encoder)
+static u8 intel_hdmi_default_ddc_pin(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	enum port port = encoder->port;
 	u8 ddc_pin;
-
-	ddc_pin = intel_bios_hdmi_ddc_pin(encoder->devdata);
-	if (ddc_pin) {
-		drm_dbg_kms(&dev_priv->drm,
-			    "[ENCODER:%d:%s] Using DDC pin 0x%x (VBT)\n",
-			    encoder->base.base.id, encoder->base.name,
-			    ddc_pin);
-		return ddc_pin;
-	}
 
 	if (IS_ALDERLAKE_S(dev_priv))
 		ddc_pin = adls_port_to_ddc_pin(dev_priv, port);
@@ -2903,7 +2894,8 @@ static u8 intel_hdmi_ddc_pin(struct intel_encoder *encoder)
 		ddc_pin = rkl_port_to_ddc_pin(dev_priv, port);
 	else if (DISPLAY_VER(dev_priv) == 9 && HAS_PCH_TGP(dev_priv))
 		ddc_pin = gen9bc_tgp_port_to_ddc_pin(dev_priv, port);
-	else if (IS_JSL_EHL(dev_priv) && HAS_PCH_TGP(dev_priv))
+	else if ((IS_JASPERLAKE(dev_priv) || IS_ELKHARTLAKE(dev_priv)) &&
+		 HAS_PCH_TGP(dev_priv))
 		ddc_pin = mcc_port_to_ddc_pin(dev_priv, port);
 	else if (INTEL_PCH_TYPE(dev_priv) >= PCH_ICP)
 		ddc_pin = icl_port_to_ddc_pin(dev_priv, port);
@@ -2916,10 +2908,62 @@ static u8 intel_hdmi_ddc_pin(struct intel_encoder *encoder)
 	else
 		ddc_pin = g4x_port_to_ddc_pin(dev_priv, port);
 
-	drm_dbg_kms(&dev_priv->drm,
-		    "[ENCODER:%d:%s] Using DDC pin 0x%x (platform default)\n",
+	return ddc_pin;
+}
+
+static struct intel_encoder *
+get_encoder_by_ddc_pin(struct intel_encoder *encoder, u8 ddc_pin)
+{
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+	struct intel_encoder *other;
+
+	for_each_intel_encoder(&i915->drm, other) {
+		if (other == encoder)
+			continue;
+
+		if (!intel_encoder_is_dig_port(other))
+			continue;
+
+		if (enc_to_dig_port(other)->hdmi.ddc_bus == ddc_pin)
+			return other;
+	}
+
+	return NULL;
+}
+
+static u8 intel_hdmi_ddc_pin(struct intel_encoder *encoder)
+{
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+	struct intel_encoder *other;
+	const char *source;
+	u8 ddc_pin;
+
+	ddc_pin = intel_bios_hdmi_ddc_pin(encoder->devdata);
+	source = "VBT";
+
+	if (!ddc_pin) {
+		ddc_pin = intel_hdmi_default_ddc_pin(encoder);
+		source = "platform default";
+	}
+
+	if (!intel_gmbus_is_valid_pin(i915, ddc_pin)) {
+		drm_dbg_kms(&i915->drm, "[ENCODER:%d:%s] Invalid DDC pin %d\n",
+			    encoder->base.base.id, encoder->base.name, ddc_pin);
+		return 0;
+	}
+
+	other = get_encoder_by_ddc_pin(encoder, ddc_pin);
+	if (other) {
+		drm_dbg_kms(&i915->drm, "[ENCODER:%d:%s] DDC pin %d already claimed by [ENCODER:%d:%s]\n",
+			    encoder->base.base.id, encoder->base.name, ddc_pin,
+			    other->base.base.id, other->base.name);
+		return 0;
+	}
+
+	drm_dbg_kms(&i915->drm,
+		    "[ENCODER:%d:%s] Using DDC pin 0x%x (%s)\n",
 		    encoder->base.base.id, encoder->base.name,
-		    ddc_pin);
+		    ddc_pin, source);
 
 	return ddc_pin;
 }
@@ -2990,6 +3034,9 @@ void intel_hdmi_init_connector(struct intel_digital_port *dig_port,
 		return;
 
 	intel_hdmi->ddc_bus = intel_hdmi_ddc_pin(intel_encoder);
+	if (!intel_hdmi->ddc_bus)
+		return;
+
 	ddc = intel_gmbus_get_adapter(dev_priv, intel_hdmi->ddc_bus);
 
 	drm_connector_init_with_ddc(dev, connector,

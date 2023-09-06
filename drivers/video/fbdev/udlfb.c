@@ -39,7 +39,7 @@ static const struct fb_fix_screeninfo dlfb_fix = {
 	.accel =        FB_ACCEL_NONE,
 };
 
-static const u32 udlfb_info_flags = FBINFO_DEFAULT | FBINFO_READS_FAST |
+static const u32 udlfb_info_flags = FBINFO_READS_FAST |
 		FBINFO_VIRTFB |
 		FBINFO_HWACCEL_IMAGEBLIT | FBINFO_HWACCEL_FILLRECT |
 		FBINFO_HWACCEL_COPYAREA | FBINFO_MISC_ALWAYS_SETPAR;

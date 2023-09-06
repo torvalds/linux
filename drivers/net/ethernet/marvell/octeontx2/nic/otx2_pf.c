@@ -16,6 +16,7 @@
 #include <linux/bpf.h>
 #include <linux/bpf_trace.h>
 #include <linux/bitfield.h>
+#include <net/page_pool/types.h>
 
 #include "otx2_reg.h"
 #include "otx2_common.h"
@@ -2027,7 +2028,7 @@ u16 otx2_select_queue(struct net_device *netdev, struct sk_buff *skb,
 #endif
 	int txq;
 
-	qos_enabled = (netdev->real_num_tx_queues > pf->hw.tx_queues) ? true : false;
+	qos_enabled = netdev->real_num_tx_queues > pf->hw.tx_queues;
 	if (unlikely(qos_enabled)) {
 		/* This smp_load_acquire() pairs with smp_store_release() in
 		 * otx2_qos_root_add() called from htb offload root creation

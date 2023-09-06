@@ -11,6 +11,8 @@
 #include <asm/cacheflush.h>
 
 static bool noncoherent_supported __ro_after_init;
+int dma_cache_alignment __ro_after_init = ARCH_DMA_MINALIGN;
+EXPORT_SYMBOL_GPL(dma_cache_alignment);
 
 void arch_sync_dma_for_device(phys_addr_t paddr, size_t size,
 			      enum dma_data_direction dir)
@@ -77,4 +79,10 @@ void riscv_noncoherent_supported(void)
 	WARN(!riscv_cbom_block_size,
 	     "Non-coherent DMA support enabled without a block size\n");
 	noncoherent_supported = true;
+}
+
+void __init riscv_set_dma_cache_alignment(void)
+{
+	if (!noncoherent_supported)
+		dma_cache_alignment = 1;
 }

@@ -205,7 +205,7 @@ static struct platform_driver gpio_ir_recv_driver = {
 	.remove_new = gpio_ir_recv_remove,
 	.driver = {
 		.name   = KBUILD_MODNAME,
-		.of_match_table = of_match_ptr(gpio_ir_recv_of_match),
+		.of_match_table = gpio_ir_recv_of_match,
 #ifdef CONFIG_PM
 		.pm	= &gpio_ir_recv_pm_ops,
 #endif

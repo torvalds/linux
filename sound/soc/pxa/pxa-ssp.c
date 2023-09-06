@@ -591,7 +591,7 @@ static int pxa_ssp_hw_params(struct snd_pcm_substream *substream,
 
 		if (ret < 0) {
 			const struct pxa_ssp_clock_mode *m;
-			int ssacd, acds;
+			int ssacd;
 
 			for (m = pxa_ssp_clock_modes; m->rate; m++) {
 				if (m->rate == rate)
@@ -600,12 +600,6 @@ static int pxa_ssp_hw_params(struct snd_pcm_substream *substream,
 
 			if (!m->rate)
 				return -EINVAL;
-
-			acds = m->acds;
-
-			/* The values in the table are for 16 bits */
-			if (width == 32)
-				acds--;
 
 			ret = pxa_ssp_set_pll(priv, bclk);
 			if (ret < 0)
@@ -819,6 +813,8 @@ static int pxa_ssp_remove(struct snd_soc_dai *dai)
 #define PXA_SSP_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S32_LE)
 
 static const struct snd_soc_dai_ops pxa_ssp_dai_ops = {
+	.probe		= pxa_ssp_probe,
+	.remove		= pxa_ssp_remove,
 	.startup	= pxa_ssp_startup,
 	.shutdown	= pxa_ssp_shutdown,
 	.trigger	= pxa_ssp_trigger,
@@ -830,8 +826,6 @@ static const struct snd_soc_dai_ops pxa_ssp_dai_ops = {
 };
 
 static struct snd_soc_dai_driver pxa_ssp_dai = {
-		.probe = pxa_ssp_probe,
-		.remove = pxa_ssp_remove,
 		.playback = {
 			.channels_min = 1,
 			.channels_max = 8,

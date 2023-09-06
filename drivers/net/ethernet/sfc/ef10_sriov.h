@@ -35,9 +35,7 @@ static inline bool efx_ef10_sriov_wanted(struct efx_nic *efx)
 
 int efx_ef10_sriov_configure(struct efx_nic *efx, int num_vfs);
 int efx_ef10_sriov_init(struct efx_nic *efx);
-static inline void efx_ef10_sriov_reset(struct efx_nic *efx) {}
 void efx_ef10_sriov_fini(struct efx_nic *efx);
-static inline void efx_ef10_sriov_flr(struct efx_nic *efx, unsigned vf_i) {}
 
 int efx_ef10_sriov_set_vf_mac(struct efx_nic *efx, int vf, const u8 *mac);
 

@@ -281,6 +281,13 @@ config SPI_COLDFIRE_QSPI
 	  This enables support for the Coldfire QSPI controller in master
 	  mode.
 
+config SPI_CS42L43
+	tristate "Cirrus Logic CS42L43 SPI controller"
+	depends on MFD_CS42L43 && PINCTRL_CS42L43
+	help
+	  This enables support for the SPI controller inside the Cirrus Logic
+	  CS42L43 audio codec.
+
 config SPI_DAVINCI
 	tristate "Texas Instruments DaVinci/DA8x/OMAP-L/AM1x SoC SPI controller"
 	depends on ARCH_DAVINCI || ARCH_KEYSTONE || COMPILE_TEST
@@ -515,6 +522,32 @@ config SPI_LM70_LLP
 	  This driver supports the NS LM70 LLP Evaluation Board,
 	  which interfaces to an LM70 temperature sensor using
 	  a parallel port.
+
+config SPI_LOONGSON_CORE
+	tristate
+	depends on LOONGARCH || COMPILE_TEST
+
+config SPI_LOONGSON_PCI
+	tristate "Loongson SPI Controller PCI Driver Support"
+	select SPI_LOONGSON_CORE
+	depends on PCI && (LOONGARCH || COMPILE_TEST)
+	help
+	  This bus driver supports the Loongson SPI hardware controller in
+	  the Loongson platforms and supports to use PCI framework to
+	  register SPI device resources.
+	  Say Y or M here if you want to use the SPI controller on
+	  Loongson platform.
+
+config SPI_LOONGSON_PLATFORM
+	tristate "Loongson SPI Controller Platform Driver Support"
+	select SPI_LOONGSON_CORE
+	depends on OF && (LOONGARCH || COMPILE_TEST)
+	help
+	  This bus driver supports the Loongson SPI hardware controller in
+	  the Loongson platforms and supports to use DTS framework to
+	  register SPI device resources.
+	  Say Y or M here if you want to use the SPI controller on
+	  Loongson platform.
 
 config SPI_LP8841_RTC
 	tristate "ICP DAS LP-8841 SPI Controller for RTC"

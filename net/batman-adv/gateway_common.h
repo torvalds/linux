@@ -9,9 +9,6 @@
 
 #include "main.h"
 
-#include <linux/netdevice.h>
-#include <linux/types.h>
-
 /**
  * enum batadv_bandwidth_units - bandwidth unit types
  */
@@ -27,12 +24,8 @@ enum batadv_bandwidth_units {
 #define BATADV_GW_MODE_CLIENT_NAME	"client"
 #define BATADV_GW_MODE_SERVER_NAME	"server"
 
-ssize_t batadv_gw_bandwidth_set(struct net_device *net_dev, char *buff,
-				size_t count);
 void batadv_gw_tvlv_container_update(struct batadv_priv *bat_priv);
 void batadv_gw_init(struct batadv_priv *bat_priv);
 void batadv_gw_free(struct batadv_priv *bat_priv);
-bool batadv_parse_throughput(struct net_device *net_dev, char *buff,
-			     const char *description, u32 *throughput);
 
 #endif /* _NET_BATMAN_ADV_GATEWAY_COMMON_H_ */

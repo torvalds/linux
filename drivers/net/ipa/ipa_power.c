@@ -324,15 +324,12 @@ void ipa_power_retention(struct ipa *ipa, bool enable)
 {
 	static const char fmt[] = "{ class: bcm, res: ipa_pc, val: %c }";
 	struct ipa_power *power = ipa->power;
-	char buf[36];	/* Exactly enough for fmt[]; size a multiple of 4 */
 	int ret;
 
 	if (!power->qmp)
 		return;		/* Not needed on this platform */
 
-	(void)snprintf(buf, sizeof(buf), fmt, enable ? '1' : '0');
-
-	ret = qmp_send(power->qmp, buf, sizeof(buf));
+	ret = qmp_send(power->qmp, fmt, enable ? '1' : '0');
 	if (ret)
 		dev_err(power->dev, "error %d sending QMP %sable request\n",
 			ret, enable ? "en" : "dis");

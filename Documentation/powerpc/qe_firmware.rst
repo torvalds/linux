@@ -232,11 +232,11 @@ For example, to match the 8323, revision 1.0::
 'extended_modes' is a bitfield that defines special functionality which has an
 impact on the device drivers.  Each bit has its own impact and has special
 instructions for the driver associated with it.  This field is stored in
-the QE library and available to any driver that calles qe_get_firmware_info().
+the QE library and available to any driver that calls qe_get_firmware_info().
 
 'vtraps' is an array of 8 words that contain virtual trap values for each
 virtual traps.  As with 'extended_modes', this field is stored in the QE
-library and available to any driver that calles qe_get_firmware_info().
+library and available to any driver that calls qe_get_firmware_info().
 
 'microcode' (type: struct qe_microcode):
 	For each RISC processor there is one 'microcode' structure.  The first

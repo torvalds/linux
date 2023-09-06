@@ -272,8 +272,6 @@ static int rpl_input(struct sk_buff *skb)
 	dst = dst_cache_get(&rlwt->cache);
 	preempt_enable();
 
-	skb_dst_drop(skb);
-
 	if (!dst) {
 		ip6_route_input(skb);
 		dst = skb_dst(skb);
@@ -284,6 +282,7 @@ static int rpl_input(struct sk_buff *skb)
 			preempt_enable();
 		}
 	} else {
+		skb_dst_drop(skb);
 		skb_dst_set(skb, dst);
 	}
 

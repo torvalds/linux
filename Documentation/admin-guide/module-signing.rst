@@ -266,7 +266,7 @@ for which it has a public key.   Otherwise, it will also load modules that are
 unsigned.   Any module for which the kernel has a key, but which proves to have
 a signature mismatch will not be permitted to load.
 
-Any module that has an unparseable signature will be rejected.
+Any module that has an unparsable signature will be rejected.
 
 
 =========================================

@@ -56,7 +56,9 @@ int main(int argc, char *argv[])
 	uint8_t v;
 	uint8_t exptbl[256], invtbl[256];
 
+	printf("#ifdef __KERNEL__\n");
 	printf("#include <linux/export.h>\n");
+	printf("#endif\n");
 	printf("#include <linux/raid/pq.h>\n");
 
 	/* Compute multiplication table */

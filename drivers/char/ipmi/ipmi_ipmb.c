@@ -572,7 +572,7 @@ static struct i2c_driver ipmi_ipmb_driver = {
 		.name = DEVICE_NAME,
 		.of_match_table = of_ipmi_ipmb_match,
 	},
-	.probe_new	= ipmi_ipmb_probe,
+	.probe		= ipmi_ipmb_probe,
 	.remove		= ipmi_ipmb_remove,
 	.id_table	= ipmi_ipmb_id,
 };

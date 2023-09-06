@@ -3,7 +3,6 @@
  * Copyright (c) 2022 Paulo Alcantara <palcantara@suse.de>
  */
 
-#include <linux/namei.h>
 #include "cifsproto.h"
 #include "cifs_debug.h"
 #include "dns_resolve.h"
@@ -96,51 +95,134 @@ static int add_root_smb_session(struct cifs_mount_ctx *mnt_ctx)
 	return 0;
 }
 
-static int get_dfs_conn(struct cifs_mount_ctx *mnt_ctx, const char *ref_path, const char *full_path,
-			const struct dfs_cache_tgt_iterator *tit)
+static inline int parse_dfs_target(struct smb3_fs_context *ctx,
+				   struct dfs_ref_walk *rw,
+				   struct dfs_info3_param *tgt)
+{
+	int rc;
+	const char *fpath = ref_walk_fpath(rw) + 1;
+
+	rc = ref_walk_get_tgt(rw, tgt);
+	if (!rc)
+		rc = dfs_parse_target_referral(fpath, tgt, ctx);
+	return rc;
+}
+
+static int set_ref_paths(struct cifs_mount_ctx *mnt_ctx,
+			 struct dfs_info3_param *tgt,
+			 struct dfs_ref_walk *rw)
 {
 	struct smb3_fs_context *ctx = mnt_ctx->fs_ctx;
-	struct dfs_info3_param ref = {};
-	bool is_refsrv;
-	int rc, rc2;
+	struct cifs_sb_info *cifs_sb = mnt_ctx->cifs_sb;
+	char *ref_path, *full_path;
+	int rc;
 
-	rc = dfs_cache_get_tgt_referral(ref_path + 1, tit, &ref);
-	if (rc)
+	full_path = smb3_fs_context_fullpath(ctx, CIFS_DIR_SEP(cifs_sb));
+	if (IS_ERR(full_path))
+		return PTR_ERR(full_path);
+
+	if (!tgt || (tgt->server_type == DFS_TYPE_LINK &&
+		     DFS_INTERLINK(tgt->flags)))
+		ref_path = dfs_get_path(cifs_sb, ctx->UNC);
+	else
+		ref_path = dfs_get_path(cifs_sb, full_path);
+	if (IS_ERR(ref_path)) {
+		rc = PTR_ERR(ref_path);
+		kfree(full_path);
 		return rc;
-
-	rc = dfs_parse_target_referral(full_path + 1, &ref, ctx);
-	if (rc)
-		goto out;
-
-	cifs_mount_put_conns(mnt_ctx);
-	rc = get_session(mnt_ctx, ref_path);
-	if (rc)
-		goto out;
-
-	is_refsrv = !!(ref.flags & DFSREF_REFERRAL_SERVER);
-
-	rc = -EREMOTE;
-	if (ref.flags & DFSREF_STORAGE_SERVER) {
-		rc = cifs_mount_get_tcon(mnt_ctx);
-		if (rc)
-			goto out;
-
-		/* some servers may not advertise referral capability under ref.flags */
-		is_refsrv |= is_tcon_dfs(mnt_ctx->tcon);
-
-		rc = cifs_is_path_remote(mnt_ctx);
 	}
+	ref_walk_path(rw) = ref_path;
+	ref_walk_fpath(rw) = full_path;
+	return 0;
+}
 
-	dfs_cache_noreq_update_tgthint(ref_path + 1, tit);
+static int __dfs_referral_walk(struct cifs_mount_ctx *mnt_ctx,
+			       struct dfs_ref_walk *rw)
+{
+	struct smb3_fs_context *ctx = mnt_ctx->fs_ctx;
+	struct dfs_info3_param tgt = {};
+	bool is_refsrv;
+	int rc = -ENOENT;
 
-	if (rc == -EREMOTE && is_refsrv) {
-		rc2 = add_root_smb_session(mnt_ctx);
-		if (rc2)
-			rc = rc2;
-	}
+again:
+	do {
+		if (ref_walk_empty(rw)) {
+			rc = dfs_get_referral(mnt_ctx, ref_walk_path(rw) + 1,
+					      NULL, ref_walk_tl(rw));
+			if (rc) {
+				rc = cifs_mount_get_tcon(mnt_ctx);
+				if (!rc)
+					rc = cifs_is_path_remote(mnt_ctx);
+				continue;
+			}
+			if (!ref_walk_num_tgts(rw)) {
+				rc = -ENOENT;
+				continue;
+			}
+		}
+
+		while (ref_walk_next_tgt(rw)) {
+			rc = parse_dfs_target(ctx, rw, &tgt);
+			if (rc)
+				continue;
+
+			cifs_mount_put_conns(mnt_ctx);
+			rc = get_session(mnt_ctx, ref_walk_path(rw));
+			if (rc)
+				continue;
+
+			is_refsrv = tgt.server_type == DFS_TYPE_ROOT ||
+				DFS_INTERLINK(tgt.flags);
+			ref_walk_set_tgt_hint(rw);
+
+			if (tgt.flags & DFSREF_STORAGE_SERVER) {
+				rc = cifs_mount_get_tcon(mnt_ctx);
+				if (!rc)
+					rc = cifs_is_path_remote(mnt_ctx);
+				if (!rc)
+					break;
+				if (rc != -EREMOTE)
+					continue;
+			}
+
+			if (is_refsrv) {
+				rc = add_root_smb_session(mnt_ctx);
+				if (rc)
+					goto out;
+			}
+
+			rc = ref_walk_advance(rw);
+			if (!rc) {
+				rc = set_ref_paths(mnt_ctx, &tgt, rw);
+				if (!rc) {
+					rc = -EREMOTE;
+					goto again;
+				}
+			}
+			if (rc != -ELOOP)
+				goto out;
+		}
+	} while (rc && ref_walk_descend(rw));
 
 out:
-	free_dfs_info_param(&ref);
+	free_dfs_info_param(&tgt);
+	return rc;
+}
+
+static int dfs_referral_walk(struct cifs_mount_ctx *mnt_ctx)
+{
+	struct dfs_ref_walk *rw;
+	int rc;
+
+	rw = ref_walk_alloc();
+	if (IS_ERR(rw))
+		return PTR_ERR(rw);
+
+	ref_walk_init(rw);
+	rc = set_ref_paths(mnt_ctx, NULL, rw);
+	if (!rc)
+		rc = __dfs_referral_walk(mnt_ctx, rw);
+	ref_walk_free(rw);
 	return rc;
 }
 
@@ -148,105 +230,48 @@ static int __dfs_mount_share(struct cifs_mount_ctx *mnt_ctx)
 {
 	struct cifs_sb_info *cifs_sb = mnt_ctx->cifs_sb;
 	struct smb3_fs_context *ctx = mnt_ctx->fs_ctx;
-	char *ref_path = NULL, *full_path = NULL;
-	struct dfs_cache_tgt_iterator *tit;
 	struct cifs_tcon *tcon;
-	char *origin_fullpath = NULL;
-	char sep = CIFS_DIR_SEP(cifs_sb);
-	int num_links = 0;
+	char *origin_fullpath;
 	int rc;
 
-	ref_path = dfs_get_path(cifs_sb, ctx->UNC);
-	if (IS_ERR(ref_path))
-		return PTR_ERR(ref_path);
+	origin_fullpath = dfs_get_path(cifs_sb, ctx->source);
+	if (IS_ERR(origin_fullpath))
+		return PTR_ERR(origin_fullpath);
 
-	full_path = smb3_fs_context_fullpath(ctx, sep);
-	if (IS_ERR(full_path)) {
-		rc = PTR_ERR(full_path);
-		full_path = NULL;
+	rc = dfs_referral_walk(mnt_ctx);
+	if (rc)
 		goto out;
+
+	tcon = mnt_ctx->tcon;
+	spin_lock(&tcon->tc_lock);
+	if (!tcon->origin_fullpath) {
+		tcon->origin_fullpath = origin_fullpath;
+		origin_fullpath = NULL;
 	}
+	spin_unlock(&tcon->tc_lock);
 
-	origin_fullpath = kstrdup(full_path, GFP_KERNEL);
-	if (!origin_fullpath) {
-		rc = -ENOMEM;
-		goto out;
-	}
-
-	do {
-		struct dfs_cache_tgt_list tl = DFS_CACHE_TGT_LIST_INIT(tl);
-
-		rc = dfs_get_referral(mnt_ctx, ref_path + 1, NULL, &tl);
-		if (rc) {
-			rc = cifs_mount_get_tcon(mnt_ctx);
-			if (!rc)
-				rc = cifs_is_path_remote(mnt_ctx);
-			break;
-		}
-
-		tit = dfs_cache_get_tgt_iterator(&tl);
-		if (!tit) {
-			cifs_dbg(VFS, "%s: dfs referral (%s) with no targets\n", __func__,
-				 ref_path + 1);
-			rc = -ENOENT;
-			dfs_cache_free_tgts(&tl);
-			break;
-		}
-
-		do {
-			rc = get_dfs_conn(mnt_ctx, ref_path, full_path, tit);
-			if (!rc)
-				break;
-			if (rc == -EREMOTE) {
-				if (++num_links > MAX_NESTED_LINKS) {
-					rc = -ELOOP;
-					break;
-				}
-				kfree(ref_path);
-				kfree(full_path);
-				ref_path = full_path = NULL;
-
-				full_path = smb3_fs_context_fullpath(ctx, sep);
-				if (IS_ERR(full_path)) {
-					rc = PTR_ERR(full_path);
-					full_path = NULL;
-				} else {
-					ref_path = dfs_get_path(cifs_sb, full_path);
-					if (IS_ERR(ref_path)) {
-						rc = PTR_ERR(ref_path);
-						ref_path = NULL;
-					}
-				}
-				break;
-			}
-		} while ((tit = dfs_cache_get_next_tgt(&tl, tit)));
-		dfs_cache_free_tgts(&tl);
-	} while (rc == -EREMOTE);
-
-	if (!rc) {
-		tcon = mnt_ctx->tcon;
-
-		spin_lock(&tcon->tc_lock);
-		if (!tcon->origin_fullpath) {
-			tcon->origin_fullpath = origin_fullpath;
-			origin_fullpath = NULL;
-		}
-		spin_unlock(&tcon->tc_lock);
-
-		if (list_empty(&tcon->dfs_ses_list)) {
-			list_replace_init(&mnt_ctx->dfs_ses_list,
-					  &tcon->dfs_ses_list);
-			queue_delayed_work(dfscache_wq, &tcon->dfs_cache_work,
-					   dfs_cache_get_ttl() * HZ);
-		} else {
-			dfs_put_root_smb_sessions(&mnt_ctx->dfs_ses_list);
-		}
+	if (list_empty(&tcon->dfs_ses_list)) {
+		list_replace_init(&mnt_ctx->dfs_ses_list, &tcon->dfs_ses_list);
+		queue_delayed_work(dfscache_wq, &tcon->dfs_cache_work,
+				   dfs_cache_get_ttl() * HZ);
+	} else {
+		dfs_put_root_smb_sessions(&mnt_ctx->dfs_ses_list);
 	}
 
 out:
 	kfree(origin_fullpath);
-	kfree(ref_path);
-	kfree(full_path);
+	return rc;
+}
+
+/* Resolve UNC hostname in @ctx->source and set ip addr in @ctx->dstaddr */
+static int update_fs_context_dstaddr(struct smb3_fs_context *ctx)
+{
+	struct sockaddr *addr = (struct sockaddr *)&ctx->dstaddr;
+	int rc;
+
+	rc = dns_resolve_server_name_to_ip(ctx->source, addr, NULL);
+	if (!rc)
+		cifs_set_port(addr, ctx->port);
 	return rc;
 }
 
@@ -255,6 +280,10 @@ int dfs_mount_share(struct cifs_mount_ctx *mnt_ctx, bool *isdfs)
 	struct smb3_fs_context *ctx = mnt_ctx->fs_ctx;
 	bool nodfs = ctx->nodfs;
 	int rc;
+
+	rc = update_fs_context_dstaddr(ctx);
+	if (rc)
+		return rc;
 
 	*isdfs = false;
 	rc = get_session(mnt_ctx, NULL);
@@ -426,7 +455,7 @@ static int __tree_connect_dfs_target(const unsigned int xid, struct cifs_tcon *t
 	/* Try to tree connect to all dfs targets */
 	for (; tit; tit = dfs_cache_get_next_tgt(tl, tit)) {
 		const char *target = dfs_cache_get_tgt_name(tit);
-		struct dfs_cache_tgt_list ntl = DFS_CACHE_TGT_LIST_INIT(ntl);
+		DFS_CACHE_TGT_LIST(ntl);
 
 		kfree(share);
 		kfree(prefix);
@@ -520,7 +549,7 @@ int cifs_tree_connect(const unsigned int xid, struct cifs_tcon *tcon, const stru
 	int rc;
 	struct TCP_Server_Info *server = tcon->ses->server;
 	const struct smb_version_operations *ops = server->ops;
-	struct dfs_cache_tgt_list tl = DFS_CACHE_TGT_LIST_INIT(tl);
+	DFS_CACHE_TGT_LIST(tl);
 	struct cifs_sb_info *cifs_sb = NULL;
 	struct super_block *sb = NULL;
 	struct dfs_info3_param ref = {0};

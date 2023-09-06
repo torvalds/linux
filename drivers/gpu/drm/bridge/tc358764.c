@@ -42,10 +42,10 @@
 
 /* Video path registers */
 #define VP_CTRL			0x0450 /* Video Path Control */
-#define VP_CTRL_MSF(v)		FLD_VAL(v, 0, 0) /* Magic square in RGB666 */
-#define VP_CTRL_VTGEN(v)	FLD_VAL(v, 4, 4) /* Use chip clock for timing */
-#define VP_CTRL_EVTMODE(v)	FLD_VAL(v, 5, 5) /* Event mode */
-#define VP_CTRL_RGB888(v)	FLD_VAL(v, 8, 8) /* RGB888 mode */
+#define VP_CTRL_MSF		BIT(0) /* Magic square in RGB666 */
+#define VP_CTRL_VTGEN		BIT(4) /* Use chip clock for timing */
+#define VP_CTRL_EVTMODE		BIT(5) /* Event mode */
+#define VP_CTRL_RGB888		BIT(8) /* RGB888 mode */
 #define VP_CTRL_VSDELAY(v)	FLD_VAL(v, 31, 20) /* VSYNC delay */
 #define VP_CTRL_HSPOL		BIT(17) /* Polarity of HSYNC signal */
 #define VP_CTRL_DEPOL		BIT(18) /* Polarity of DE signal */
@@ -176,7 +176,7 @@ static void tc358764_read(struct tc358764 *ctx, u16 addr, u32 *val)
 	if (ret >= 0)
 		le32_to_cpus(val);
 
-	dev_dbg(ctx->dev, "read: %d, addr: %d\n", addr, *val);
+	dev_dbg(ctx->dev, "read: addr=0x%04x data=0x%08x\n", addr, *val);
 }
 
 static void tc358764_write(struct tc358764 *ctx, u16 addr, u32 val)
@@ -233,8 +233,8 @@ static int tc358764_init(struct tc358764 *ctx)
 	tc358764_write(ctx, DSI_STARTDSI, DSI_RX_START);
 
 	/* configure video path */
-	tc358764_write(ctx, VP_CTRL, VP_CTRL_VSDELAY(15) | VP_CTRL_RGB888(1) |
-		       VP_CTRL_EVTMODE(1) | VP_CTRL_HSPOL | VP_CTRL_VSPOL);
+	tc358764_write(ctx, VP_CTRL, VP_CTRL_VSDELAY(15) | VP_CTRL_RGB888 |
+		       VP_CTRL_EVTMODE | VP_CTRL_HSPOL | VP_CTRL_VSPOL);
 
 	/* reset PHY */
 	tc358764_write(ctx, LV_PHY0, LV_PHY0_RST(1) |

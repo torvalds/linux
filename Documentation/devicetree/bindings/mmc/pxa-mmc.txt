@@ -9,7 +9,7 @@ Required properties:
 Optional properties:
 - marvell,detect-delay-ms: sets the detection delay timeout in ms.
 
-In addition to the properties described in this docuent, the details
+In addition to the properties described in this document, the details
 described in mmc.txt are supported.
 
 Examples:

@@ -385,7 +385,6 @@ static int cg3_probe(struct platform_device *op)
 	if (!par->regs)
 		goto out_release_fb;
 
-	info->flags = FBINFO_DEFAULT;
 	info->fbops = &cg3_ops;
 	info->screen_base = of_ioremap(&op->resource[0], CG3_RAM_OFFSET,
 				       info->fix.smem_len, "cg3 ram");

@@ -27,9 +27,11 @@
 #include <linux/of.h>
 #include <linux/netdevice.h>
 #include <linux/phy.h>
+#include <linux/phylib_stubs.h>
 #include <linux/phy_led_triggers.h>
 #include <linux/pse-pd/pse.h>
 #include <linux/property.h>
+#include <linux/rtnetlink.h>
 #include <linux/sfp.h>
 #include <linux/skbuff.h>
 #include <linux/slab.h>
@@ -1487,8 +1489,6 @@ int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
 
 		if (phydev->sfp_bus_attached)
 			dev->sfp_bus = phydev->sfp_bus;
-		else if (dev->sfp_bus)
-			phydev->is_on_sfp_module = true;
 	}
 
 	/* Some Ethernet drivers try to connect to a PHY device before
@@ -3020,6 +3020,61 @@ static int phy_led_blink_set(struct led_classdev *led_cdev,
 	return err;
 }
 
+static __maybe_unused struct device *
+phy_led_hw_control_get_device(struct led_classdev *led_cdev)
+{
+	struct phy_led *phyled = to_phy_led(led_cdev);
+	struct phy_device *phydev = phyled->phydev;
+
+	if (phydev->attached_dev)
+		return &phydev->attached_dev->dev;
+	return NULL;
+}
+
+static int __maybe_unused
+phy_led_hw_control_get(struct led_classdev *led_cdev,
+		       unsigned long *rules)
+{
+	struct phy_led *phyled = to_phy_led(led_cdev);
+	struct phy_device *phydev = phyled->phydev;
+	int err;
+
+	mutex_lock(&phydev->lock);
+	err = phydev->drv->led_hw_control_get(phydev, phyled->index, rules);
+	mutex_unlock(&phydev->lock);
+
+	return err;
+}
+
+static int __maybe_unused
+phy_led_hw_control_set(struct led_classdev *led_cdev,
+		       unsigned long rules)
+{
+	struct phy_led *phyled = to_phy_led(led_cdev);
+	struct phy_device *phydev = phyled->phydev;
+	int err;
+
+	mutex_lock(&phydev->lock);
+	err = phydev->drv->led_hw_control_set(phydev, phyled->index, rules);
+	mutex_unlock(&phydev->lock);
+
+	return err;
+}
+
+static __maybe_unused int phy_led_hw_is_supported(struct led_classdev *led_cdev,
+						  unsigned long rules)
+{
+	struct phy_led *phyled = to_phy_led(led_cdev);
+	struct phy_device *phydev = phyled->phydev;
+	int err;
+
+	mutex_lock(&phydev->lock);
+	err = phydev->drv->led_hw_is_supported(phydev, phyled->index, rules);
+	mutex_unlock(&phydev->lock);
+
+	return err;
+}
+
 static void phy_leds_unregister(struct phy_device *phydev)
 {
 	struct phy_led *phyled;
@@ -3057,6 +3112,19 @@ static int of_phy_led(struct phy_device *phydev,
 		cdev->brightness_set_blocking = phy_led_set_brightness;
 	if (phydev->drv->led_blink_set)
 		cdev->blink_set = phy_led_blink_set;
+
+#ifdef CONFIG_LEDS_TRIGGERS
+	if (phydev->drv->led_hw_is_supported &&
+	    phydev->drv->led_hw_control_set &&
+	    phydev->drv->led_hw_control_get) {
+		cdev->hw_control_is_supported = phy_led_hw_is_supported;
+		cdev->hw_control_set = phy_led_hw_control_set;
+		cdev->hw_control_get = phy_led_hw_control_get;
+		cdev->hw_control_trigger = "netdev";
+	}
+
+	cdev->hw_control_get_device = phy_led_hw_control_get_device;
+#endif
 	cdev->max_brightness = 1;
 	init_data.devicename = dev_name(&phydev->mdio.dev);
 	init_data.fwnode = of_fwnode_handle(led);
@@ -3438,11 +3506,29 @@ static const struct ethtool_phy_ops phy_ethtool_phy_ops = {
 	.start_cable_test_tdr	= phy_start_cable_test_tdr,
 };
 
+static const struct phylib_stubs __phylib_stubs = {
+	.hwtstamp_get = __phy_hwtstamp_get,
+	.hwtstamp_set = __phy_hwtstamp_set,
+};
+
+static void phylib_register_stubs(void)
+{
+	phylib_stubs = &__phylib_stubs;
+}
+
+static void phylib_unregister_stubs(void)
+{
+	phylib_stubs = NULL;
+}
+
 static int __init phy_init(void)
 {
 	int rc;
 
+	rtnl_lock();
 	ethtool_set_ethtool_phy_ops(&phy_ethtool_phy_ops);
+	phylib_register_stubs();
+	rtnl_unlock();
 
 	rc = mdio_bus_init();
 	if (rc)
@@ -3465,7 +3551,10 @@ err_c45:
 err_mdio_bus:
 	mdio_bus_exit();
 err_ethtool_phy_ops:
+	rtnl_lock();
+	phylib_unregister_stubs();
 	ethtool_set_ethtool_phy_ops(NULL);
+	rtnl_unlock();
 
 	return rc;
 }
@@ -3475,7 +3564,10 @@ static void __exit phy_exit(void)
 	phy_driver_unregister(&genphy_c45_driver);
 	phy_driver_unregister(&genphy_driver);
 	mdio_bus_exit();
+	rtnl_lock();
+	phylib_unregister_stubs();
 	ethtool_set_ethtool_phy_ops(NULL);
+	rtnl_unlock();
 }
 
 subsys_initcall(phy_init);

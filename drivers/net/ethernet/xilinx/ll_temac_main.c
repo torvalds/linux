@@ -35,12 +35,10 @@
 #include <linux/netdevice.h>
 #include <linux/if_ether.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/of_irq.h>
 #include <linux/of_mdio.h>
 #include <linux/of_net.h>
-#include <linux/of_platform.h>
-#include <linux/of_address.h>
+#include <linux/platform_device.h>
 #include <linux/skbuff.h>
 #include <linux/spinlock.h>
 #include <linux/tcp.h>      /* needed for sizeof(tcphdr) */

@@ -62,6 +62,8 @@
 #define APMU_EPD	0x104
 #define MPMU_UART_PLL	0x14
 
+#define NR_CLKS		200
+
 struct pxa168_clk_unit {
 	struct mmp_clk_unit unit;
 	void __iomem *mpmu_base;
@@ -321,7 +323,7 @@ static void __init pxa168_clk_init(struct device_node *np)
 		return;
 	}
 
-	mmp_clk_init(np, &pxa_unit->unit, PXA168_NR_CLKS);
+	mmp_clk_init(np, &pxa_unit->unit, NR_CLKS);
 
 	pxa168_pll_init(pxa_unit);
 

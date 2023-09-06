@@ -116,9 +116,6 @@ struct vmci_transport {
 	spinlock_t lock; /* protects sk. */
 };
 
-int vmci_transport_register(void);
-void vmci_transport_unregister(void);
-
 int vmci_transport_send_wrote_bh(struct sockaddr_vm *dst,
 				 struct sockaddr_vm *src);
 int vmci_transport_send_read_bh(struct sockaddr_vm *dst,

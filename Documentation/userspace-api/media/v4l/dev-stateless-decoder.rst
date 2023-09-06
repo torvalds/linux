@@ -180,7 +180,7 @@ Initialization
       ``memory``
           follows standard semantics.
 
-    * **Return fields:**
+    * **Returned fields:**
 
       ``count``
           actual number of buffers allocated.
@@ -208,7 +208,7 @@ Initialization
           follows standard semantics. ``V4L2_MEMORY_USERPTR`` is not supported
           for ``CAPTURE`` buffers.
 
-    * **Return fields:**
+    * **Returned fields:**
 
       ``count``
           adjusted to allocated number of buffers, in case the codec requires

@@ -1539,8 +1539,7 @@ static int tg3_mdio_init(struct tg3 *tp)
 		return -ENOMEM;
 
 	tp->mdio_bus->name     = "tg3 mdio bus";
-	snprintf(tp->mdio_bus->id, MII_BUS_ID_SIZE, "%x",
-		 (tp->pdev->bus->number << 8) | tp->pdev->devfn);
+	snprintf(tp->mdio_bus->id, MII_BUS_ID_SIZE, "%x", pci_dev_id(tp->pdev));
 	tp->mdio_bus->priv     = tp;
 	tp->mdio_bus->parent   = &tp->pdev->dev;
 	tp->mdio_bus->read     = &tg3_mdio_read;
@@ -17795,10 +17794,7 @@ static int tg3_init_one(struct pci_dev *pdev,
 		tnapi->tx_pending = TG3_DEF_TX_RING_PENDING;
 
 		tnapi->int_mbox = intmbx;
-		if (i <= 4)
-			intmbx += 0x8;
-		else
-			intmbx += 0x4;
+		intmbx += 0x8;
 
 		tnapi->consmbox = rcvmbx;
 		tnapi->prodmbox = sndmbx;

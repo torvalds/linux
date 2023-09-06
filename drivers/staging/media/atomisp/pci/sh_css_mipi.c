@@ -351,15 +351,6 @@ allocate_mipi_frames(struct ia_css_pipe *pipe,
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE,
 			    "allocate_mipi_frames(%p) enter:\n", pipe);
 
-	assert(pipe);
-	assert(pipe->stream);
-	if ((!pipe) || (!pipe->stream)) {
-		ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE,
-				    "allocate_mipi_frames(%p) exit: pipe or stream is null.\n",
-				    pipe);
-		return -EINVAL;
-	}
-
 	if (IS_ISP2401 && pipe->stream->config.online) {
 		ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE,
 				    "allocate_mipi_frames(%p) exit: no buffers needed for 2401 pipe mode.\n",
@@ -556,13 +547,6 @@ send_mipi_frames(struct ia_css_pipe *pipe)
 	unsigned int port;
 
 	IA_CSS_ENTER_PRIVATE("pipe=%p", pipe);
-
-	assert(pipe);
-	assert(pipe->stream);
-	if (!pipe || !pipe->stream) {
-		IA_CSS_ERROR("pipe or stream is null");
-		return -EINVAL;
-	}
 
 	/* multi stream video needs mipi buffers */
 	/* nothing to be done in other cases. */

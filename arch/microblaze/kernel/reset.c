@@ -9,7 +9,6 @@
 
 #include <linux/init.h>
 #include <linux/delay.h>
-#include <linux/of_platform.h>
 #include <linux/reboot.h>
 
 void machine_shutdown(void)

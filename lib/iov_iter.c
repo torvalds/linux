@@ -1557,6 +1557,7 @@ int import_ubuf(int rw, void __user *buf, size_t len, struct iov_iter *i)
 	iov_iter_ubuf(i, rw, buf, len);
 	return 0;
 }
+EXPORT_SYMBOL_GPL(import_ubuf);
 
 /**
  * iov_iter_restore() - Restore a &struct iov_iter to the same state as when

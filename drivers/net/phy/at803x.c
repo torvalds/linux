@@ -272,6 +272,13 @@
 #define QCA808X_CDT_STATUS_STAT_OPEN		2
 #define QCA808X_CDT_STATUS_STAT_SHORT		3
 
+/* QCA808X 1G chip type */
+#define QCA808X_PHY_MMD7_CHIP_TYPE		0x901d
+#define QCA808X_PHY_CHIP_TYPE_1G		BIT(0)
+
+#define QCA8081_PHY_SERDES_MMD1_FIFO_CTRL	0x9072
+#define QCA8081_PHY_FIFO_RSTN			BIT(11)
+
 MODULE_DESCRIPTION("Qualcomm Atheros AR803x and QCA808X PHY driver");
 MODULE_AUTHOR("Matus Ujhelyi");
 MODULE_LICENSE("GPL");
@@ -901,15 +908,6 @@ static int at803x_get_features(struct phy_device *phydev)
 	err = genphy_read_abilities(phydev);
 	if (err)
 		return err;
-
-	if (phydev->drv->phy_id == QCA8081_PHY_ID) {
-		err = phy_read_mmd(phydev, MDIO_MMD_PMAPMD, MDIO_PMA_NG_EXTABLE);
-		if (err < 0)
-			return err;
-
-		linkmode_mod_bit(ETHTOOL_LINK_MODE_2500baseT_Full_BIT, phydev->supported,
-				err & MDIO_PMA_NG_EXTABLE_2_5GBT);
-	}
 
 	if (phydev->drv->phy_id != ATH8031_PHY_ID)
 		return 0;
@@ -1739,24 +1737,30 @@ static int qca808x_phy_fast_retrain_config(struct phy_device *phydev)
 	return 0;
 }
 
-static int qca808x_phy_ms_random_seed_set(struct phy_device *phydev)
-{
-	u16 seed_value = get_random_u32_below(QCA808X_MASTER_SLAVE_SEED_RANGE);
-
-	return at803x_debug_reg_mask(phydev, QCA808X_PHY_DEBUG_LOCAL_SEED,
-			QCA808X_MASTER_SLAVE_SEED_CFG,
-			FIELD_PREP(QCA808X_MASTER_SLAVE_SEED_CFG, seed_value));
-}
-
 static int qca808x_phy_ms_seed_enable(struct phy_device *phydev, bool enable)
 {
-	u16 seed_enable = 0;
+	u16 seed_value;
 
-	if (enable)
-		seed_enable = QCA808X_MASTER_SLAVE_SEED_ENABLE;
+	if (!enable)
+		return at803x_debug_reg_mask(phydev, QCA808X_PHY_DEBUG_LOCAL_SEED,
+				QCA808X_MASTER_SLAVE_SEED_ENABLE, 0);
 
+	seed_value = get_random_u32_below(QCA808X_MASTER_SLAVE_SEED_RANGE);
 	return at803x_debug_reg_mask(phydev, QCA808X_PHY_DEBUG_LOCAL_SEED,
-			QCA808X_MASTER_SLAVE_SEED_ENABLE, seed_enable);
+			QCA808X_MASTER_SLAVE_SEED_CFG | QCA808X_MASTER_SLAVE_SEED_ENABLE,
+			FIELD_PREP(QCA808X_MASTER_SLAVE_SEED_CFG, seed_value) |
+			QCA808X_MASTER_SLAVE_SEED_ENABLE);
+}
+
+static bool qca808x_is_prefer_master(struct phy_device *phydev)
+{
+	return (phydev->master_slave_get == MASTER_SLAVE_CFG_MASTER_FORCE) ||
+		(phydev->master_slave_get == MASTER_SLAVE_CFG_MASTER_PREFERRED);
+}
+
+static bool qca808x_has_fast_retrain_or_slave_seed(struct phy_device *phydev)
+{
+	return linkmode_test_bit(ETHTOOL_LINK_MODE_2500baseT_Full_BIT, phydev->supported);
 }
 
 static int qca808x_config_init(struct phy_device *phydev)
@@ -1775,20 +1779,25 @@ static int qca808x_config_init(struct phy_device *phydev)
 	if (ret)
 		return ret;
 
-	/* Config the fast retrain for the link 2500M */
-	ret = qca808x_phy_fast_retrain_config(phydev);
-	if (ret)
-		return ret;
+	if (qca808x_has_fast_retrain_or_slave_seed(phydev)) {
+		/* Config the fast retrain for the link 2500M */
+		ret = qca808x_phy_fast_retrain_config(phydev);
+		if (ret)
+			return ret;
 
-	/* Configure lower ramdom seed to make phy linked as slave mode */
-	ret = qca808x_phy_ms_random_seed_set(phydev);
-	if (ret)
-		return ret;
+		ret = genphy_read_master_slave(phydev);
+		if (ret < 0)
+			return ret;
 
-	/* Enable seed */
-	ret = qca808x_phy_ms_seed_enable(phydev, true);
-	if (ret)
-		return ret;
+		if (!qca808x_is_prefer_master(phydev)) {
+			/* Enable seed and configure lower ramdom seed to make phy
+			 * linked as slave mode.
+			 */
+			ret = qca808x_phy_ms_seed_enable(phydev, true);
+			if (ret)
+				return ret;
+		}
+	}
 
 	/* Configure adc threshold as 100mv for the link 10M */
 	return at803x_debug_reg_mask(phydev, QCA808X_PHY_DEBUG_ADC_THRESHOLD,
@@ -1821,17 +1830,21 @@ static int qca808x_read_status(struct phy_device *phydev)
 			phydev->interface = PHY_INTERFACE_MODE_SGMII;
 	} else {
 		/* generate seed as a lower random value to make PHY linked as SLAVE easily,
-		 * except for master/slave configuration fault detected.
+		 * except for master/slave configuration fault detected or the master mode
+		 * preferred.
+		 *
 		 * the reason for not putting this code into the function link_change_notify is
 		 * the corner case where the link partner is also the qca8081 PHY and the seed
 		 * value is configured as the same value, the link can't be up and no link change
 		 * occurs.
 		 */
-		if (phydev->master_slave_state == MASTER_SLAVE_STATE_ERR) {
-			qca808x_phy_ms_seed_enable(phydev, false);
-		} else {
-			qca808x_phy_ms_random_seed_set(phydev);
-			qca808x_phy_ms_seed_enable(phydev, true);
+		if (qca808x_has_fast_retrain_or_slave_seed(phydev)) {
+			if (phydev->master_slave_state == MASTER_SLAVE_STATE_ERR ||
+					qca808x_is_prefer_master(phydev)) {
+				qca808x_phy_ms_seed_enable(phydev, false);
+			} else {
+				qca808x_phy_ms_seed_enable(phydev, true);
+			}
 		}
 	}
 
@@ -1846,7 +1859,10 @@ static int qca808x_soft_reset(struct phy_device *phydev)
 	if (ret < 0)
 		return ret;
 
-	return qca808x_phy_ms_seed_enable(phydev, true);
+	if (qca808x_has_fast_retrain_or_slave_seed(phydev))
+		ret = qca808x_phy_ms_seed_enable(phydev, true);
+
+	return ret;
 }
 
 static bool qca808x_cdt_fault_length_valid(int cdt_code)
@@ -1994,6 +2010,44 @@ static int qca808x_cable_test_get_status(struct phy_device *phydev, bool *finish
 	*finished = true;
 
 	return 0;
+}
+
+static int qca808x_get_features(struct phy_device *phydev)
+{
+	int ret;
+
+	ret = genphy_c45_pma_read_abilities(phydev);
+	if (ret)
+		return ret;
+
+	/* The autoneg ability is not existed in bit3 of MMD7.1,
+	 * but it is supported by qca808x PHY, so we add it here
+	 * manually.
+	 */
+	linkmode_set_bit(ETHTOOL_LINK_MODE_Autoneg_BIT, phydev->supported);
+
+	/* As for the qca8081 1G version chip, the 2500baseT ability is also
+	 * existed in the bit0 of MMD1.21, we need to remove it manually if
+	 * it is the qca8081 1G chip according to the bit0 of MMD7.0x901d.
+	 */
+	ret = phy_read_mmd(phydev, MDIO_MMD_AN, QCA808X_PHY_MMD7_CHIP_TYPE);
+	if (ret < 0)
+		return ret;
+
+	if (QCA808X_PHY_CHIP_TYPE_1G & ret)
+		linkmode_clear_bit(ETHTOOL_LINK_MODE_2500baseT_Full_BIT, phydev->supported);
+
+	return 0;
+}
+
+static void qca808x_link_change_notify(struct phy_device *phydev)
+{
+	/* Assert interface sgmii fifo on link down, deassert it on link up,
+	 * the interface device address is always phy address added by 1.
+	 */
+	mdiobus_c45_modify_changed(phydev->mdio.bus, phydev->mdio.addr + 1,
+			MDIO_MMD_PMAPMD, QCA8081_PHY_SERDES_MMD1_FIFO_CTRL,
+			QCA8081_PHY_FIFO_RSTN, phydev->link ? QCA8081_PHY_FIFO_RSTN : 0);
 }
 
 static struct phy_driver at803x_driver[] = {
@@ -2163,7 +2217,7 @@ static struct phy_driver at803x_driver[] = {
 	.set_tunable		= at803x_set_tunable,
 	.set_wol		= at803x_set_wol,
 	.get_wol		= at803x_get_wol,
-	.get_features		= at803x_get_features,
+	.get_features		= qca808x_get_features,
 	.config_aneg		= at803x_config_aneg,
 	.suspend		= genphy_suspend,
 	.resume			= genphy_resume,
@@ -2172,6 +2226,7 @@ static struct phy_driver at803x_driver[] = {
 	.soft_reset		= qca808x_soft_reset,
 	.cable_test_start	= qca808x_cable_test_start,
 	.cable_test_get_status	= qca808x_cable_test_get_status,
+	.link_change_notify	= qca808x_link_change_notify,
 }, };
 
 module_phy_driver(at803x_driver);

@@ -1034,11 +1034,9 @@ drop_no_count:
 	return 0;
 }
 
-void icmpv6_flow_init(struct sock *sk, struct flowi6 *fl6,
-		      u8 type,
+void icmpv6_flow_init(const struct sock *sk, struct flowi6 *fl6, u8 type,
 		      const struct in6_addr *saddr,
-		      const struct in6_addr *daddr,
-		      int oif)
+		      const struct in6_addr *daddr, int oif)
 {
 	memset(fl6, 0, sizeof(*fl6));
 	fl6->saddr = *saddr;
@@ -1228,5 +1226,10 @@ struct ctl_table * __net_init ipv6_icmp_sysctl_init(struct net *net)
 		table[5].data = &net->ipv6.sysctl.icmpv6_error_anycast_as_unicast;
 	}
 	return table;
+}
+
+size_t ipv6_icmp_sysctl_table_size(void)
+{
+	return ARRAY_SIZE(ipv6_icmp_table_template);
 }
 #endif

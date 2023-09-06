@@ -201,6 +201,21 @@ int br_handle_egress_vlan_tunnel(struct sk_buff *skb,
 	if (err)
 		return err;
 
+	if (BR_INPUT_SKB_CB(skb)->backup_nhid) {
+		tunnel_dst = __ip_tun_set_dst(0, 0, 0, 0, 0, TUNNEL_KEY,
+					      tunnel_id, 0);
+		if (!tunnel_dst)
+			return -ENOMEM;
+
+		tunnel_dst->u.tun_info.mode |= IP_TUNNEL_INFO_TX |
+					       IP_TUNNEL_INFO_BRIDGE;
+		tunnel_dst->u.tun_info.key.nhid =
+			BR_INPUT_SKB_CB(skb)->backup_nhid;
+		skb_dst_set(skb, &tunnel_dst->dst);
+
+		return 0;
+	}
+
 	tunnel_dst = rcu_dereference(vlan->tinfo.tunnel_dst);
 	if (tunnel_dst && dst_hold_safe(&tunnel_dst->dst))
 		skb_dst_set(skb, &tunnel_dst->dst);

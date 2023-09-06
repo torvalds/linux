@@ -1117,6 +1117,11 @@ struct edp_psr_info {
 	uint8_t force_psrsu_cap;
 };
 
+struct replay_info {
+	uint8_t pixel_deviation_per_line;
+	uint8_t max_deviation_line;
+};
+
 struct dprx_states {
 	bool cable_id_written;
 };
@@ -1236,6 +1241,8 @@ struct dpcd_caps {
 	uint8_t edp_rev;
 	union edp_alpm_caps alpm_caps;
 	struct edp_psr_info psr_info;
+
+	struct replay_info pr_info;
 };
 
 union dpcd_sink_ext_caps {
@@ -1272,6 +1279,28 @@ union dpcd_psr_configuration {
 		unsigned char IRQ_HPD_WITH_CRC_ERROR    : 1;
 		unsigned char ENABLE_PSR2               : 1;
 		unsigned char EARLY_TRANSPORT_ENABLE    : 1;
+	} bits;
+	unsigned char raw;
+};
+
+union replay_enable_and_configuration {
+	struct {
+		unsigned char FREESYNC_PANEL_REPLAY_MODE              :1;
+		unsigned char TIMING_DESYNC_ERROR_VERIFICATION        :1;
+		unsigned char STATE_TRANSITION_ERROR_DETECTION        :1;
+		unsigned char RESERVED0                               :1;
+		unsigned char RESERVED1                               :4;
+	} bits;
+	unsigned char raw;
+};
+
+union dpcd_replay_configuration {
+	struct {
+		unsigned char STATE_TRANSITION_ERROR_STATUS    : 1;
+		unsigned char DESYNC_ERROR_STATUS              : 1;
+		unsigned char SINK_DEVICE_REPLAY_STATUS        : 3;
+		unsigned char SINK_FRAME_LOCKED                : 2;
+		unsigned char RESERVED                         : 1;
 	} bits;
 	unsigned char raw;
 };

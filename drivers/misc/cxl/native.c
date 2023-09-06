@@ -269,11 +269,6 @@ static void attach_spa(struct cxl_afu *afu)
 	cxl_p1n_write(afu, CXL_PSL_SPAP_An, spap);
 }
 
-static inline void detach_spa(struct cxl_afu *afu)
-{
-	cxl_p1n_write(afu, CXL_PSL_SPAP_An, 0);
-}
-
 void cxl_release_spa(struct cxl_afu *afu)
 {
 	if (afu->native->spa) {

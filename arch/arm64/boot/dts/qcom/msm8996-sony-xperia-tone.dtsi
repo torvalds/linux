@@ -71,7 +71,7 @@
 
 	usb3_id: usb3-id {
 		compatible = "linux,extcon-usb-gpio";
-		id-gpio = <&tlmm 25 GPIO_ACTIVE_LOW>;
+		id-gpios = <&tlmm 25 GPIO_ACTIVE_LOW>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&usb_detect>;
 	};

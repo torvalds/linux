@@ -19,7 +19,6 @@ struct gb_pwm_chip {
 	u8			pwm_max;	/* max pwm number */
 
 	struct pwm_chip		chip;
-	struct pwm_chip		*pwm;
 };
 
 static inline struct gb_pwm_chip *pwm_chip_to_gb_pwm_chip(struct pwm_chip *chip)

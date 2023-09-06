@@ -328,16 +328,4 @@ struct extcon_specific_cable_nb {
        struct extcon_dev *edev;
        unsigned long previous_value;
 };
-
-static inline int extcon_register_interest(struct extcon_specific_cable_nb *obj,
-				const char *extcon_name, const char *cable_name,
-				struct notifier_block *nb)
-{
-	return -EINVAL;
-}
-
-static inline int extcon_unregister_interest(struct extcon_specific_cable_nb *obj)
-{
-	return -EINVAL;
-}
 #endif /* __LINUX_EXTCON_H__ */

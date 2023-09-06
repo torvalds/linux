@@ -272,7 +272,7 @@ static void __init probe_page_size_mask(void)
 static const struct x86_cpu_id invlpg_miss_ids[] = {
 	INTEL_MATCH(INTEL_FAM6_ALDERLAKE   ),
 	INTEL_MATCH(INTEL_FAM6_ALDERLAKE_L ),
-	INTEL_MATCH(INTEL_FAM6_ALDERLAKE_N ),
+	INTEL_MATCH(INTEL_FAM6_ATOM_GRACEMONT ),
 	INTEL_MATCH(INTEL_FAM6_RAPTORLAKE  ),
 	INTEL_MATCH(INTEL_FAM6_RAPTORLAKE_P),
 	INTEL_MATCH(INTEL_FAM6_RAPTORLAKE_S),
@@ -306,15 +306,6 @@ static void setup_pcid(void)
 		 * start_secondary().
 		 */
 		cr4_set_bits(X86_CR4_PCIDE);
-
-		/*
-		 * INVPCID's single-context modes (2/3) only work if we set
-		 * X86_CR4_PCIDE, *and* we INVPCID support.  It's unusable
-		 * on systems that have X86_CR4_PCIDE clear, or that have
-		 * no INVPCID support at all.
-		 */
-		if (boot_cpu_has(X86_FEATURE_INVPCID))
-			setup_force_cpu_cap(X86_FEATURE_INVPCID_SINGLE);
 	} else {
 		/*
 		 * flush_tlb_all(), as currently implemented, won't work if

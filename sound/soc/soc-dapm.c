@@ -916,6 +916,8 @@ static int dapm_create_or_share_kcontrol(struct snd_soc_dapm_widget *w,
 				return -EINVAL;
 			}
 		}
+		if (w->no_wname_in_kcontrol_name)
+			wname_in_long_name = false;
 
 		if (wname_in_long_name && kcname_in_long_name) {
 			/*

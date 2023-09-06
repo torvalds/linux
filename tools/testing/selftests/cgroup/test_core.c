@@ -683,7 +683,7 @@ cleanup:
  */
 static int test_cgcore_lesser_euid_open(const char *root)
 {
-	const uid_t test_euid = 65534;	/* usually nobody, any !root is fine */
+	const uid_t test_euid = TEST_UID;
 	int ret = KSFT_FAIL;
 	char *cg_test_a = NULL, *cg_test_b = NULL;
 	char *cg_test_a_procs = NULL, *cg_test_b_procs = NULL;

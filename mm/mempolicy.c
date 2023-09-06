@@ -2195,9 +2195,9 @@ struct folio *vma_alloc_folio(gfp_t gfp, int order, struct vm_area_struct *vma,
 		mpol_cond_put(pol);
 		gfp |= __GFP_COMP;
 		page = alloc_page_interleave(gfp, order, nid);
-		if (page && order > 1)
-			prep_transhuge_page(page);
 		folio = (struct folio *)page;
+		if (folio && order > 1)
+			folio_prep_large_rmappable(folio);
 		goto out;
 	}
 
@@ -2208,9 +2208,9 @@ struct folio *vma_alloc_folio(gfp_t gfp, int order, struct vm_area_struct *vma,
 		gfp |= __GFP_COMP;
 		page = alloc_pages_preferred_many(gfp, order, node, pol);
 		mpol_cond_put(pol);
-		if (page && order > 1)
-			prep_transhuge_page(page);
 		folio = (struct folio *)page;
+		if (folio && order > 1)
+			folio_prep_large_rmappable(folio);
 		goto out;
 	}
 
@@ -2306,10 +2306,11 @@ EXPORT_SYMBOL(alloc_pages);
 struct folio *folio_alloc(gfp_t gfp, unsigned order)
 {
 	struct page *page = alloc_pages(gfp | __GFP_COMP, order);
+	struct folio *folio = (struct folio *)page;
 
-	if (page && order > 1)
-		prep_transhuge_page(page);
-	return (struct folio *)page;
+	if (folio && order > 1)
+		folio_prep_large_rmappable(folio);
+	return folio;
 }
 EXPORT_SYMBOL(folio_alloc);
 

@@ -225,12 +225,15 @@ static int bbclk_ev(struct snd_soc_dapm_widget *w,
 }
 
 static const struct snd_kcontrol_new controls[] = {
+	SOC_DAPM_PIN_SWITCH("Headphone"),
+	SOC_DAPM_PIN_SWITCH("Headset Mic"),
 	SOC_DAPM_PIN_SWITCH("WM1250 Input"),
 	SOC_DAPM_PIN_SWITCH("WM1250 Output"),
 };
 
 static const struct snd_soc_dapm_widget widgets[] = {
 	SND_SOC_DAPM_HP("Headphone", NULL),
+	SND_SOC_DAPM_HP("Headset Mic", NULL),
 
 	SND_SOC_DAPM_MIC("AMIC", NULL),
 	SND_SOC_DAPM_MIC("DMIC", NULL),
@@ -255,6 +258,16 @@ static const struct snd_soc_dapm_route audio_paths[] = {
 };
 
 static struct snd_soc_jack littlemill_headset;
+static struct snd_soc_jack_pin littlemill_headset_pins[] = {
+	{
+		.pin = "Headphone",
+		.mask = SND_JACK_HEADPHONE,
+	},
+	{
+		.pin = "Headset Mic",
+		.mask = SND_JACK_MICROPHONE,
+	},
+};
 
 static int littlemill_late_probe(struct snd_soc_card *card)
 {
@@ -281,12 +294,14 @@ static int littlemill_late_probe(struct snd_soc_card *card)
 	if (ret < 0)
 		return ret;
 
-	ret = snd_soc_card_jack_new(card, "Headset",
-				    SND_JACK_HEADSET | SND_JACK_MECHANICAL |
-				    SND_JACK_BTN_0 | SND_JACK_BTN_1 |
-				    SND_JACK_BTN_2 | SND_JACK_BTN_3 |
-				    SND_JACK_BTN_4 | SND_JACK_BTN_5,
-				    &littlemill_headset);
+	ret = snd_soc_card_jack_new_pins(card, "Headset",
+					 SND_JACK_HEADSET | SND_JACK_MECHANICAL |
+					 SND_JACK_BTN_0 | SND_JACK_BTN_1 |
+					 SND_JACK_BTN_2 | SND_JACK_BTN_3 |
+					 SND_JACK_BTN_4 | SND_JACK_BTN_5,
+					 &littlemill_headset,
+					 littlemill_headset_pins,
+					 ARRAY_SIZE(littlemill_headset_pins));
 	if (ret)
 		return ret;
 

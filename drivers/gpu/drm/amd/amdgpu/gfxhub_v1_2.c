@@ -140,7 +140,7 @@ gfxhub_v1_2_xcc_init_system_aperture_regs(struct amdgpu_device *adev,
 				min(adev->gmc.fb_start, adev->gmc.agp_start) >> 18);
 
 			if (adev->apu_flags & AMD_APU_IS_RAVEN2)
-				/*
+			       /*
 				* Raven2 has a HW issue that it is unable to use the
 				* vram which is out of MC_VM_SYSTEM_APERTURE_HIGH_ADDR.
 				* So here is the workaround that increase system
@@ -315,7 +315,7 @@ static void gfxhub_v1_2_xcc_setup_vmid_config(struct amdgpu_device *adev,
 					      uint32_t xcc_mask)
 {
 	struct amdgpu_vmhub *hub;
-	unsigned num_level, block_size;
+	unsigned int num_level, block_size;
 	uint32_t tmp;
 	int i, j;
 
@@ -402,22 +402,6 @@ static void gfxhub_v1_2_xcc_program_invalidation(struct amdgpu_device *adev,
 static int gfxhub_v1_2_xcc_gart_enable(struct amdgpu_device *adev,
 				       uint32_t xcc_mask)
 {
-	int i;
-
-	/*
-	 * MC_VM_FB_LOCATION_BASE/TOP is NULL for VF, because they are
-	 * VF copy registers so vbios post doesn't program them, for
-	 * SRIOV driver need to program them
-	 */
-	if (amdgpu_sriov_vf(adev)) {
-		for_each_inst(i, xcc_mask) {
-			WREG32_SOC15_RLC(GC, GET_INST(GC, i), regMC_VM_FB_LOCATION_BASE,
-				     adev->gmc.vram_start >> 24);
-			WREG32_SOC15_RLC(GC, GET_INST(GC, i), regMC_VM_FB_LOCATION_TOP,
-				     adev->gmc.vram_end >> 24);
-		}
-	}
-
 	/* GART Enable. */
 	gfxhub_v1_2_xcc_init_gart_aperture_regs(adev, xcc_mask);
 	gfxhub_v1_2_xcc_init_system_aperture_regs(adev, xcc_mask);

@@ -50,6 +50,8 @@ MODULE_FIRMWARE("amdgpu/psp_13_0_11_toc.bin");
 MODULE_FIRMWARE("amdgpu/psp_13_0_11_ta.bin");
 MODULE_FIRMWARE("amdgpu/psp_13_0_6_sos.bin");
 MODULE_FIRMWARE("amdgpu/psp_13_0_6_ta.bin");
+MODULE_FIRMWARE("amdgpu/psp_14_0_0_toc.bin");
+MODULE_FIRMWARE("amdgpu/psp_14_0_0_ta.bin");
 
 /* For large FW files the time to complete can be very long */
 #define USBC_PD_POLLING_LIMIT_S 240
@@ -94,6 +96,7 @@ static int psp_v13_0_init_microcode(struct psp_context *psp)
 	case IP_VERSION(13, 0, 5):
 	case IP_VERSION(13, 0, 8):
 	case IP_VERSION(13, 0, 11):
+	case IP_VERSION(14, 0, 0):
 		err = psp_init_toc_microcode(psp, ucode_prefix);
 		if (err)
 			return err;
@@ -688,6 +691,27 @@ static int psp_v13_0_vbflash_status(struct psp_context *psp)
 	return RREG32_SOC15(MP0, 0, regMP0_SMN_C2PMSG_115);
 }
 
+static int psp_v13_0_fatal_error_recovery_quirk(struct psp_context *psp)
+{
+	struct amdgpu_device *adev = psp->adev;
+
+	if (adev->ip_versions[MP0_HWIP][0] == IP_VERSION(13, 0, 10)) {
+		uint32_t  reg_data;
+		/* MP1 fatal error: trigger PSP dram read to unhalt PSP
+		 * during MP1 triggered sync flood.
+		 */
+		reg_data = RREG32_SOC15(MP0, 0, regMP0_SMN_C2PMSG_67);
+		WREG32_SOC15(MP0, 0, regMP0_SMN_C2PMSG_67, reg_data + 0x10);
+
+		/* delay 1000ms for the mode1 reset for fatal error
+		 * to be recovered back.
+		 */
+		msleep(1000);
+	}
+
+	return 0;
+}
+
 static const struct psp_funcs psp_v13_0_funcs = {
 	.init_microcode = psp_v13_0_init_microcode,
 	.bootloader_load_kdb = psp_v13_0_bootloader_load_kdb,
@@ -707,7 +731,8 @@ static const struct psp_funcs psp_v13_0_funcs = {
 	.load_usbc_pd_fw = psp_v13_0_load_usbc_pd_fw,
 	.read_usbc_pd_fw = psp_v13_0_read_usbc_pd_fw,
 	.update_spirom = psp_v13_0_update_spirom,
-	.vbflash_stat = psp_v13_0_vbflash_status
+	.vbflash_stat = psp_v13_0_vbflash_status,
+	.fatal_error_recovery_quirk = psp_v13_0_fatal_error_recovery_quirk,
 };
 
 void psp_v13_0_set_psp_funcs(struct psp_context *psp)

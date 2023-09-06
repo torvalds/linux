@@ -133,7 +133,7 @@ EXPORT_SYMBOL_GPL(ip_local_out);
 static inline int ip_select_ttl(const struct inet_sock *inet,
 				const struct dst_entry *dst)
 {
-	int ttl = inet->uc_ttl;
+	int ttl = READ_ONCE(inet->uc_ttl);
 
 	if (ttl < 0)
 		ttl = ip4_dst_hoplimit(dst);
@@ -216,7 +216,7 @@ static int ip_finish_output2(struct net *net, struct sock *sk, struct sk_buff *s
 	if (lwtunnel_xmit_redirect(dst->lwtstate)) {
 		int res = lwtunnel_xmit(skb);
 
-		if (res < 0 || res == LWTUNNEL_XMIT_DONE)
+		if (res != LWTUNNEL_XMIT_CONTINUE)
 			return res;
 	}
 
@@ -236,7 +236,7 @@ static int ip_finish_output2(struct net *net, struct sock *sk, struct sk_buff *s
 	net_dbg_ratelimited("%s: No header cache and no neighbour!\n",
 			    __func__);
 	kfree_skb_reason(skb, SKB_DROP_REASON_NEIGH_CREATEFAIL);
-	return -EINVAL;
+	return PTR_ERR(neigh);
 }
 
 static int ip_finish_output_gso(struct net *net, struct sock *sk,
@@ -1039,7 +1039,7 @@ static int __ip_append_data(struct sock *sk,
 			}
 		}
 	} else if ((flags & MSG_SPLICE_PAGES) && length) {
-		if (inet->hdrincl)
+		if (inet_test_bit(HDRINCL, sk))
 			return -EPERM;
 		if (rt->dst.dev->features & NETIF_F_SG &&
 		    getfrag == ip_generic_getfrag)
@@ -1467,7 +1467,8 @@ struct sk_buff *__ip_make_skb(struct sock *sk,
 		 * so icmphdr does not in skb linear region and can not get icmp_type
 		 * by icmp_hdr(skb)->type.
 		 */
-		if (sk->sk_type == SOCK_RAW && !inet_sk(sk)->hdrincl)
+		if (sk->sk_type == SOCK_RAW &&
+		    !inet_test_bit(HDRINCL, sk))
 			icmp_type = fl4->fl4_icmp_type;
 		else
 			icmp_type = icmp_hdr(skb)->type;

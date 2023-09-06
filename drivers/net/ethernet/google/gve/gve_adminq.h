@@ -109,6 +109,14 @@ struct gve_device_option_dqo_rda {
 
 static_assert(sizeof(struct gve_device_option_dqo_rda) == 8);
 
+struct gve_device_option_dqo_qpl {
+	__be32 supported_features_mask;
+	__be16 tx_pages_per_qpl;
+	__be16 rx_pages_per_qpl;
+};
+
+static_assert(sizeof(struct gve_device_option_dqo_qpl) == 8);
+
 struct gve_device_option_jumbo_frames {
 	__be32 supported_features_mask;
 	__be16 max_mtu;
@@ -130,6 +138,7 @@ enum gve_dev_opt_id {
 	GVE_DEV_OPT_ID_GQI_RDA = 0x2,
 	GVE_DEV_OPT_ID_GQI_QPL = 0x3,
 	GVE_DEV_OPT_ID_DQO_RDA = 0x4,
+	GVE_DEV_OPT_ID_DQO_QPL = 0x7,
 	GVE_DEV_OPT_ID_JUMBO_FRAMES = 0x8,
 };
 
@@ -139,6 +148,7 @@ enum gve_dev_opt_req_feat_mask {
 	GVE_DEV_OPT_REQ_FEAT_MASK_GQI_QPL = 0x0,
 	GVE_DEV_OPT_REQ_FEAT_MASK_DQO_RDA = 0x0,
 	GVE_DEV_OPT_REQ_FEAT_MASK_JUMBO_FRAMES = 0x0,
+	GVE_DEV_OPT_REQ_FEAT_MASK_DQO_QPL = 0x0,
 };
 
 enum gve_sup_feature_mask {

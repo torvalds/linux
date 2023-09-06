@@ -11,7 +11,7 @@ mt7915_init_tx_queues(struct mt7915_phy *phy, int idx, int n_desc, int ring_base
 	struct mt7915_dev *dev = phy->dev;
 
 	if (mtk_wed_device_active(&phy->dev->mt76.mmio.wed)) {
-		if (is_mt7986(&dev->mt76))
+		if (is_mt798x(&dev->mt76))
 			ring_base += MT_TXQ_ID(0) * MT_RING_SIZE;
 		else
 			ring_base = MT_WED_TX_RING_BASE;
@@ -250,11 +250,89 @@ static void mt7915_dma_disable(struct mt7915_dev *dev, bool rst)
 	}
 }
 
-static int mt7915_dma_enable(struct mt7915_dev *dev)
+int mt7915_dma_start(struct mt7915_dev *dev, bool reset, bool wed_reset)
 {
 	struct mt76_dev *mdev = &dev->mt76;
 	u32 hif1_ofs = 0;
 	u32 irq_mask;
+
+	if (dev->hif2)
+		hif1_ofs = MT_WFDMA0_PCIE1(0) - MT_WFDMA0(0);
+
+	/* enable wpdma tx/rx */
+	if (!reset) {
+		mt76_set(dev, MT_WFDMA0_GLO_CFG,
+			MT_WFDMA0_GLO_CFG_TX_DMA_EN |
+			MT_WFDMA0_GLO_CFG_RX_DMA_EN |
+			MT_WFDMA0_GLO_CFG_OMIT_TX_INFO |
+			MT_WFDMA0_GLO_CFG_OMIT_RX_INFO_PFET2);
+
+		if (is_mt7915(mdev))
+			mt76_set(dev, MT_WFDMA1_GLO_CFG,
+				MT_WFDMA1_GLO_CFG_TX_DMA_EN |
+				MT_WFDMA1_GLO_CFG_RX_DMA_EN |
+				MT_WFDMA1_GLO_CFG_OMIT_TX_INFO |
+				MT_WFDMA1_GLO_CFG_OMIT_RX_INFO);
+
+		if (dev->hif2) {
+			mt76_set(dev, MT_WFDMA0_GLO_CFG + hif1_ofs,
+				MT_WFDMA0_GLO_CFG_TX_DMA_EN |
+				MT_WFDMA0_GLO_CFG_RX_DMA_EN |
+				MT_WFDMA0_GLO_CFG_OMIT_TX_INFO |
+				MT_WFDMA0_GLO_CFG_OMIT_RX_INFO_PFET2);
+
+			if (is_mt7915(mdev))
+				mt76_set(dev, MT_WFDMA1_GLO_CFG + hif1_ofs,
+					MT_WFDMA1_GLO_CFG_TX_DMA_EN |
+					MT_WFDMA1_GLO_CFG_RX_DMA_EN |
+					MT_WFDMA1_GLO_CFG_OMIT_TX_INFO |
+					MT_WFDMA1_GLO_CFG_OMIT_RX_INFO);
+
+			mt76_set(dev, MT_WFDMA_HOST_CONFIG,
+				MT_WFDMA_HOST_CONFIG_PDMA_BAND);
+		}
+	}
+
+	/* enable interrupts for TX/RX rings */
+	irq_mask = MT_INT_RX_DONE_MCU |
+		   MT_INT_TX_DONE_MCU |
+		   MT_INT_MCU_CMD;
+
+	if (!dev->phy.mt76->band_idx)
+		irq_mask |= MT_INT_BAND0_RX_DONE;
+
+	if (dev->dbdc_support || dev->phy.mt76->band_idx)
+		irq_mask |= MT_INT_BAND1_RX_DONE;
+
+	if (mtk_wed_device_active(&dev->mt76.mmio.wed) && wed_reset) {
+		u32 wed_irq_mask = irq_mask;
+		int ret;
+
+		wed_irq_mask |= MT_INT_TX_DONE_BAND0 | MT_INT_TX_DONE_BAND1;
+		if (!is_mt798x(&dev->mt76))
+			mt76_wr(dev, MT_INT_WED_MASK_CSR, wed_irq_mask);
+		else
+			mt76_wr(dev, MT_INT_MASK_CSR, wed_irq_mask);
+
+		ret = mt7915_mcu_wed_enable_rx_stats(dev);
+		if (ret)
+			return ret;
+
+		mtk_wed_device_start(&dev->mt76.mmio.wed, wed_irq_mask);
+	}
+
+	irq_mask = reset ? MT_INT_MCU_CMD : irq_mask;
+
+	mt7915_irq_enable(dev, irq_mask);
+	mt7915_irq_disable(dev, 0);
+
+	return 0;
+}
+
+static int mt7915_dma_enable(struct mt7915_dev *dev, bool reset)
+{
+	struct mt76_dev *mdev = &dev->mt76;
+	u32 hif1_ofs = 0;
 
 	if (dev->hif2)
 		hif1_ofs = MT_WFDMA0_PCIE1(0) - MT_WFDMA0(0);
@@ -322,69 +400,7 @@ static int mt7915_dma_enable(struct mt7915_dev *dev)
 	mt76_poll(dev, MT_WFDMA_EXT_CSR_HIF_MISC,
 		  MT_WFDMA_EXT_CSR_HIF_MISC_BUSY, 0, 1000);
 
-	/* set WFDMA Tx/Rx */
-	mt76_set(dev, MT_WFDMA0_GLO_CFG,
-		 MT_WFDMA0_GLO_CFG_TX_DMA_EN |
-		 MT_WFDMA0_GLO_CFG_RX_DMA_EN |
-		 MT_WFDMA0_GLO_CFG_OMIT_TX_INFO |
-		 MT_WFDMA0_GLO_CFG_OMIT_RX_INFO_PFET2);
-
-	if (is_mt7915(mdev))
-		mt76_set(dev, MT_WFDMA1_GLO_CFG,
-			 MT_WFDMA1_GLO_CFG_TX_DMA_EN |
-			 MT_WFDMA1_GLO_CFG_RX_DMA_EN |
-			 MT_WFDMA1_GLO_CFG_OMIT_TX_INFO |
-			 MT_WFDMA1_GLO_CFG_OMIT_RX_INFO);
-
-	if (dev->hif2) {
-		mt76_set(dev, MT_WFDMA0_GLO_CFG + hif1_ofs,
-			 MT_WFDMA0_GLO_CFG_TX_DMA_EN |
-			 MT_WFDMA0_GLO_CFG_RX_DMA_EN |
-			 MT_WFDMA0_GLO_CFG_OMIT_TX_INFO |
-			 MT_WFDMA0_GLO_CFG_OMIT_RX_INFO_PFET2);
-
-		if (is_mt7915(mdev))
-			mt76_set(dev, MT_WFDMA1_GLO_CFG + hif1_ofs,
-				 MT_WFDMA1_GLO_CFG_TX_DMA_EN |
-				 MT_WFDMA1_GLO_CFG_RX_DMA_EN |
-				 MT_WFDMA1_GLO_CFG_OMIT_TX_INFO |
-				 MT_WFDMA1_GLO_CFG_OMIT_RX_INFO);
-
-		mt76_set(dev, MT_WFDMA_HOST_CONFIG,
-			 MT_WFDMA_HOST_CONFIG_PDMA_BAND);
-	}
-
-	/* enable interrupts for TX/RX rings */
-	irq_mask = MT_INT_RX_DONE_MCU |
-		   MT_INT_TX_DONE_MCU |
-		   MT_INT_MCU_CMD;
-
-	if (!dev->phy.mt76->band_idx)
-		irq_mask |= MT_INT_BAND0_RX_DONE;
-
-	if (dev->dbdc_support || dev->phy.mt76->band_idx)
-		irq_mask |= MT_INT_BAND1_RX_DONE;
-
-	if (mtk_wed_device_active(&dev->mt76.mmio.wed)) {
-		u32 wed_irq_mask = irq_mask;
-		int ret;
-
-		wed_irq_mask |= MT_INT_TX_DONE_BAND0 | MT_INT_TX_DONE_BAND1;
-		if (!is_mt7986(&dev->mt76))
-			mt76_wr(dev, MT_INT_WED_MASK_CSR, wed_irq_mask);
-		else
-			mt76_wr(dev, MT_INT_MASK_CSR, wed_irq_mask);
-
-		ret = mt7915_mcu_wed_enable_rx_stats(dev);
-		if (ret)
-			return ret;
-
-		mtk_wed_device_start(&dev->mt76.mmio.wed, wed_irq_mask);
-	}
-
-	mt7915_irq_enable(dev, irq_mask);
-
-	return 0;
+	return mt7915_dma_start(dev, reset, true);
 }
 
 int mt7915_dma_init(struct mt7915_dev *dev, struct mt7915_phy *phy2)
@@ -404,7 +420,7 @@ int mt7915_dma_init(struct mt7915_dev *dev, struct mt7915_phy *phy2)
 	mt7915_dma_disable(dev, true);
 
 	if (mtk_wed_device_active(&mdev->mmio.wed)) {
-		if (!is_mt7986(mdev)) {
+		if (!is_mt798x(mdev)) {
 			u8 wed_control_rx1 = is_mt7915(mdev) ? 1 : 2;
 
 			mt76_set(dev, MT_WFDMA_HOST_CONFIG,
@@ -560,7 +576,7 @@ int mt7915_dma_init(struct mt7915_dev *dev, struct mt7915_phy *phy2)
 			  mt7915_poll_tx);
 	napi_enable(&dev->mt76.tx_napi);
 
-	mt7915_dma_enable(dev);
+	mt7915_dma_enable(dev, false);
 
 	return 0;
 }
@@ -642,7 +658,7 @@ int mt7915_dma_reset(struct mt7915_dev *dev, bool force)
 		mt76_rmw(dev, MT_WFDMA0_EXT0_CFG, MT_WFDMA0_EXT0_RXWB_KEEP,
 			 MT_WFDMA0_EXT0_RXWB_KEEP);
 
-	mt7915_dma_enable(dev);
+	mt7915_dma_enable(dev, !force);
 
 	return 0;
 }

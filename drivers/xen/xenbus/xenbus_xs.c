@@ -840,8 +840,8 @@ void xs_suspend(void)
 {
 	xs_suspend_enter();
 
-	down_write(&xs_watch_rwsem);
 	mutex_lock(&xs_response_mutex);
+	down_write(&xs_watch_rwsem);
 }
 
 void xs_resume(void)
@@ -866,8 +866,8 @@ void xs_resume(void)
 
 void xs_suspend_cancel(void)
 {
-	mutex_unlock(&xs_response_mutex);
 	up_write(&xs_watch_rwsem);
+	mutex_unlock(&xs_response_mutex);
 
 	xs_suspend_exit();
 }

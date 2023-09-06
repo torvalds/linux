@@ -202,7 +202,9 @@ typedef struct {
 #define RTAS_USER_REGION_SIZE (64 * 1024)
 
 /* RTAS return status codes */
+#define RTAS_HARDWARE_ERROR	-1    /* Hardware Error */
 #define RTAS_BUSY		-2    /* RTAS Busy */
+#define RTAS_INVALID_PARAMETER	-3    /* Invalid indicator/domain/sensor etc. */
 #define RTAS_EXTENDED_DELAY_MIN	9900
 #define RTAS_EXTENDED_DELAY_MAX	9905
 
@@ -425,6 +427,7 @@ extern int rtas_set_indicator(int indicator, int index, int new_value);
 extern int rtas_set_indicator_fast(int indicator, int index, int new_value);
 extern void rtas_progress(char *s, unsigned short hex);
 int rtas_ibm_suspend_me(int *fw_status);
+int rtas_error_rc(int rtas_rc);
 
 struct rtc_time;
 extern time64_t rtas_get_boot_time(void);

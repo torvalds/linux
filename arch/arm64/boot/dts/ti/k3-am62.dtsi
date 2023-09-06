@@ -102,6 +102,14 @@
 		};
 	};
 
+	dss_vp1_clk: clock-divider-oldi {
+		compatible = "fixed-factor-clock";
+		clocks = <&k3_clks 186 0>;
+		#clock-cells = <0>;
+		clock-div = <7>;
+		clock-mult = <1>;
+	};
+
 	#include "k3-am62-thermal.dtsi"
 };
 

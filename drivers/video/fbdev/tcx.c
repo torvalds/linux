@@ -439,7 +439,6 @@ static int tcx_probe(struct platform_device *op)
 		par->mmap_map[i].poff = op->resource[j].start;
 	}
 
-	info->flags = FBINFO_DEFAULT;
 	info->fbops = &tcx_ops;
 
 	/* Initialize brooktree DAC. */

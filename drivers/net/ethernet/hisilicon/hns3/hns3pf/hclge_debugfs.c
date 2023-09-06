@@ -7,6 +7,7 @@
 #include "hclge_debugfs.h"
 #include "hclge_err.h"
 #include "hclge_main.h"
+#include "hclge_regs.h"
 #include "hclge_tm.h"
 #include "hnae3.h"
 

@@ -696,7 +696,7 @@ static struct vxlan_vni_node *vxlan_vni_alloc(struct vxlan_dev *vxlan,
 {
 	struct vxlan_vni_node *vninode;
 
-	vninode = kzalloc(sizeof(*vninode), GFP_ATOMIC);
+	vninode = kzalloc(sizeof(*vninode), GFP_KERNEL);
 	if (!vninode)
 		return NULL;
 	vninode->stats = netdev_alloc_pcpu_stats(struct vxlan_vni_stats_pcpu);

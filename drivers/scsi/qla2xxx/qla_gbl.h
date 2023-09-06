@@ -48,8 +48,6 @@ extern int qla24xx_els_dcmd2_iocb(scsi_qla_host_t *, int, fc_port_t *, bool);
 extern void qla2x00_els_dcmd2_free(scsi_qla_host_t *vha,
 				   struct els_plogi *els_plogi);
 
-extern void qla2x00_update_fcports(scsi_qla_host_t *);
-
 extern int qla2x00_abort_isp(scsi_qla_host_t *);
 extern void qla2x00_abort_isp_cleanup(scsi_qla_host_t *);
 extern void qla2x00_quiesce_io(scsi_qla_host_t *);
@@ -143,6 +141,7 @@ void qla_edif_sess_down(struct scsi_qla_host *vha, struct fc_port *sess);
 void qla_edif_clear_appdata(struct scsi_qla_host *vha,
 			    struct fc_port *fcport);
 const char *sc_to_str(uint16_t cmd);
+void qla_adjust_iocb_limit(scsi_qla_host_t *vha);
 
 /*
  * Global Data in qla_os.c source file.
@@ -205,8 +204,6 @@ extern int qla2x00_post_async_logout_work(struct scsi_qla_host *, fc_port_t *,
     uint16_t *);
 extern int qla2x00_post_async_adisc_work(struct scsi_qla_host *, fc_port_t *,
     uint16_t *);
-extern int qla2x00_post_async_adisc_done_work(struct scsi_qla_host *,
-    fc_port_t *, uint16_t *);
 extern int qla2x00_set_exlogins_buffer(struct scsi_qla_host *);
 extern void qla2x00_free_exlogin_buffer(struct qla_hw_data *);
 extern int qla2x00_set_exchoffld_buffer(struct scsi_qla_host *);
@@ -216,7 +213,6 @@ extern int qla81xx_restart_mpi_firmware(scsi_qla_host_t *);
 
 extern struct scsi_qla_host *qla2x00_create_host(const struct scsi_host_template *,
 	struct qla_hw_data *);
-extern void qla2x00_free_host(struct scsi_qla_host *);
 extern void qla2x00_relogin(struct scsi_qla_host *);
 extern void qla2x00_do_work(struct scsi_qla_host *);
 extern void qla2x00_free_fcports(struct scsi_qla_host *);
@@ -238,13 +234,10 @@ extern int __qla83xx_clear_drv_presence(scsi_qla_host_t *vha);
 
 extern int qla2x00_post_uevent_work(struct scsi_qla_host *, u32);
 extern void qla2x00_disable_board_on_pci_error(struct work_struct *);
-extern void qla_eeh_work(struct work_struct *);
 extern void qla2x00_sp_compl(srb_t *sp, int);
 extern void qla2xxx_qpair_sp_free_dma(srb_t *sp);
 extern void qla2xxx_qpair_sp_compl(srb_t *sp, int);
 extern void qla24xx_sched_upd_fcport(fc_port_t *);
-void qla2x00_handle_login_done_event(struct scsi_qla_host *, fc_port_t *,
-	uint16_t *);
 int qla24xx_post_gnl_work(struct scsi_qla_host *, fc_port_t *);
 int qla24xx_post_relogin_work(struct scsi_qla_host *vha);
 void qla2x00_wait_for_sess_deletion(scsi_qla_host_t *);
@@ -728,7 +721,6 @@ int qla24xx_post_gpsc_work(struct scsi_qla_host *, fc_port_t *);
 int qla24xx_async_gpsc(scsi_qla_host_t *, fc_port_t *);
 void qla24xx_handle_gpsc_event(scsi_qla_host_t *, struct event_arg *);
 int qla2x00_mgmt_svr_login(scsi_qla_host_t *);
-void qla24xx_handle_gffid_event(scsi_qla_host_t *vha, struct event_arg *ea);
 int qla24xx_async_gffid(scsi_qla_host_t *vha, fc_port_t *fcport, bool);
 int qla24xx_async_gpnft(scsi_qla_host_t *, u8, srb_t *);
 void qla24xx_async_gpnft_done(scsi_qla_host_t *, srb_t *);
@@ -851,7 +843,6 @@ extern void qla2x00_start_iocbs(struct scsi_qla_host *, struct req_que *);
 
 /* Interrupt related */
 extern irqreturn_t qla82xx_intr_handler(int, void *);
-extern irqreturn_t qla82xx_msi_handler(int, void *);
 extern irqreturn_t qla82xx_msix_default(int, void *);
 extern irqreturn_t qla82xx_msix_rsp_q(int, void *);
 extern void qla82xx_enable_intrs(struct qla_hw_data *);

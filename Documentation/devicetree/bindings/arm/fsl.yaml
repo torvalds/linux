@@ -909,6 +909,7 @@ properties:
               - fsl,imx8mm-evk            # i.MX8MM EVK Board
               - fsl,imx8mm-evkb           # i.MX8MM EVKB Board
               - gateworks,imx8mm-gw7904
+              - gateworks,imx8mm-gw7905-0x # i.MX8MM Gateworks Board
               - gw,imx8mm-gw71xx-0x       # i.MX8MM Gateworks Development Kit
               - gw,imx8mm-gw72xx-0x       # i.MX8MM Gateworks Development Kit
               - gw,imx8mm-gw73xx-0x       # i.MX8MM Gateworks Development Kit
@@ -1031,10 +1032,11 @@ properties:
               - beacon,imx8mp-beacon-kit  # i.MX8MP Beacon Development Kit
               - dmo,imx8mp-data-modul-edm-sbc # i.MX8MP eDM SBC
               - fsl,imx8mp-evk            # i.MX8MP EVK Board
+              - gateworks,imx8mp-gw71xx-2x # i.MX8MP Gateworks Board
+              - gateworks,imx8mp-gw72xx-2x # i.MX8MP Gateworks Board
+              - gateworks,imx8mp-gw73xx-2x # i.MX8MP Gateworks Board
               - gateworks,imx8mp-gw74xx   # i.MX8MP Gateworks Board
               - gateworks,imx8mp-gw7905-2x # i.MX8MP Gateworks Board
-              - polyhex,imx8mp-debix      # Polyhex Debix boards
-              - polyhex,imx8mp-debix-model-a # Polyhex Debix Model A Board
               - toradex,verdin-imx8mp     # Verdin iMX8M Plus Modules
               - toradex,verdin-imx8mp-nonwifi  # Verdin iMX8M Plus Modules without Wi-Fi / BT
               - toradex,verdin-imx8mp-wifi  # Verdin iMX8M Plus Wi-Fi / BT Modules
@@ -1066,6 +1068,20 @@ properties:
         items:
           - const: phytec,imx8mp-phyboard-pollux-rdk # phyBOARD-Pollux RDK
           - const: phytec,imx8mp-phycore-som         # phyCORE-i.MX8MP SoM
+          - const: fsl,imx8mp
+
+      - description: Polyhex DEBIX i.MX8MP based SBCs
+        items:
+          - enum:
+              - polyhex,imx8mp-debix-model-a        # Polyhex Debix Model A Board
+          - const: polyhex,imx8mp-debix             # Polyhex i.MX8MP Debix SBCs
+          - const: fsl,imx8mp
+
+      - description: Polyhex DEBIX i.MX8MP SOM A based boards
+        items:
+          - enum:
+              - polyhex,imx8mp-debix-som-a-bmb-08   # Polyhex Debix SOM A on SOM A I/O board
+          - const: polyhex,imx8mp-debix-som-a       # Polyhex Debix SOM A
           - const: fsl,imx8mp
 
       - description: Toradex Boards with Verdin iMX8M Plus Modules
@@ -1220,11 +1236,30 @@ properties:
           - const: fsl,imxrt1170
 
       - description:
+          TQMa93xxLA and TQMa93xxCA are two series of feature compatible SOM
+          using NXP i.MX93 SOC in 11x11 mm package.
+          TQMa93xxLA is designed to be soldered on different carrier boards.
+          TQMa93xxCA is a compatible variant using board to board connectors.
+          All SOM and CPU variants use the same device tree hence only one
+          compatible is needed. Bootloader disables all features not present
+          in the assembled SOC.
+          MBa93xxCA mainboard can be used as starterkit for the SOM
+          soldered on an adapter board or for the connector variant
+          MBa93xxLA mainboard is a single board computer using the solderable
+          SOM variant
+        items:
+          - enum:
+              - tq,imx93-tqma9352-mba93xxca # TQ-Systems GmbH i.MX93 TQMa93xxCA/LA SOM on MBa93xxCA
+              - tq,imx93-tqma9352-mba93xxla # TQ-Systems GmbH i.MX93 TQMa93xxLA SOM on MBa93xxLA SBC
+          - const: tq,imx93-tqma9352        # TQ-Systems GmbH i.MX93 TQMa93xxCA/LA SOM
+          - const: fsl,imx93
+
+      - description:
           Freescale Vybrid Platform Device Tree Bindings
 
-          For the Vybrid SoC familiy all variants with DDR controller are supported,
+          For the Vybrid SoC family all variants with DDR controller are supported,
           which is the VF5xx and VF6xx series. Out of historical reasons, in most
-          places the kernel uses vf610 to refer to the whole familiy.
+          places the kernel uses vf610 to refer to the whole family.
           The compatible string "fsl,vf610m4" is used for the secondary Cortex-M4
           core support.
         items:
@@ -1287,6 +1322,16 @@ properties:
               - fsl,ls1021a-qds
               - fsl,ls1021a-tsn
               - fsl,ls1021a-twr
+          - const: fsl,ls1021a
+
+      - description:
+          TQ-Systems TQMLS102xA is a series of socketable SOM featuring
+          LS102x system-on-chip variants. MBLS102xA mainboard can be used as
+          starterkit.
+        items:
+          - enum:
+              - tq,ls1021a-tqmls1021a-mbls102xa
+          - const: tq,ls1021a-tqmls1021a
           - const: fsl,ls1021a
 
       - description: LS1028A based Boards

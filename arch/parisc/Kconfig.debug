@@ -13,7 +13,7 @@ config LIGHTWEIGHT_SPINLOCK_CHECK
 
 config TLB_PTLOCK
 	bool "Use page table locks in TLB fault handler"
-	depends on SMP
+	depends on DEBUG_KERNEL && SMP
 	default n
 	help
 	  Select this option to enable page table locking in the TLB

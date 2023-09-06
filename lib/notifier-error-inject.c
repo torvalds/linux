@@ -83,9 +83,6 @@ static int __init err_inject_init(void)
 	notifier_err_inject_dir =
 		debugfs_create_dir("notifier-error-inject", NULL);
 
-	if (!notifier_err_inject_dir)
-		return -ENOMEM;
-
 	return 0;
 }
 

@@ -44,10 +44,27 @@
 		#size-cells = <1>;
 		ranges = <0x0 0x0 0x43000000 0x20000>;
 
+		chipid@14 {
+			compatible = "ti,am654-chipid";
+			reg = <0x00000014 0x4>;
+		};
+
 		serdes_ln_ctrl: mux-controller {
 			compatible = "mmio-mux";
 			#mux-control-cells = <1>;
 			mux-reg-masks = <0x4080 0x3>; /* SERDES0 lane0 select */
+		};
+
+		phy_gmii_sel: phy@4044 {
+			compatible = "ti,am654-phy-gmii-sel";
+			reg = <0x4044 0x8>;
+			#phy-cells = <1>;
+		};
+
+		epwm_tbclk: clock-controller@4140 {
+			compatible = "ti,am64-epwm-tbclk";
+			reg = <0x4130 0x4>;
+			#clock-cells = <1>;
 		};
 	};
 
@@ -201,31 +218,6 @@
 		#pinctrl-cells = <1>;
 		pinctrl-single,register-width = <32>;
 		pinctrl-single,function-mask = <0xffffffff>;
-	};
-
-	main_conf: syscon@43000000 {
-		compatible = "syscon", "simple-mfd";
-		reg = <0x00 0x43000000 0x00 0x20000>;
-		#address-cells = <1>;
-		#size-cells = <1>;
-		ranges = <0x00 0x00 0x43000000 0x20000>;
-
-		chipid@14 {
-			compatible = "ti,am654-chipid";
-			reg = <0x00000014 0x4>;
-		};
-
-		phy_gmii_sel: phy@4044 {
-			compatible = "ti,am654-phy-gmii-sel";
-			reg = <0x4044 0x8>;
-			#phy-cells = <1>;
-		};
-
-		epwm_tbclk: clock@4140 {
-			compatible = "ti,am64-epwm-tbclk", "syscon";
-			reg = <0x4130 0x4>;
-			#clock-cells = <1>;
-		};
 	};
 
 	main_timer0: timer@2400000 {
@@ -733,7 +725,7 @@
 		pinctrl-single,function-mask = <0x000107ff>;
 	};
 
-	usbss0: cdns-usb@f900000{
+	usbss0: cdns-usb@f900000 {
 		compatible = "ti,am64-usb";
 		reg = <0x00 0xf900000 0x00 0x100>;
 		power-domains = <&k3_pds 161 TI_SCI_PD_EXCLUSIVE>;
@@ -744,7 +736,7 @@
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges;
-		usb0: usb@f400000{
+		usb0: usb@f400000 {
 			compatible = "cdns,usb3";
 			reg = <0x00 0xf400000 0x00 0x10000>,
 			      <0x00 0xf410000 0x00 0x10000>,
@@ -773,6 +765,7 @@
 		assigned-clock-parents = <&k3_clks 0 3>;
 		assigned-clock-rates = <60000000>;
 		clock-names = "fck";
+		status = "disabled";
 
 		adc {
 			#io-channel-cells = <1>;
@@ -802,6 +795,7 @@
 			assigned-clock-parents = <&k3_clks 75 7>;
 			assigned-clock-rates = <166666666>;
 			power-domains = <&k3_pds 75 TI_SCI_PD_EXCLUSIVE>;
+			status = "disabled";
 		};
 	};
 

@@ -10,7 +10,7 @@ or if there is a problem with the translation.
 
 Maintainer: Will Deacon <will.deacon@arm.com>
 Chinese maintainer: Fu Wei <wefu@redhat.com>
-Traditional Chinese maintainer: Hu Haowen <src.res@email.cn>
+Traditional Chinese maintainer: Hu Haowen <src.res.211@gmail.com>
 ---------------------------------------------------------------------
 Documentation/arch/arm64/tagged-pointers.rst 的中文翻譯
 
@@ -22,7 +22,7 @@ Documentation/arch/arm64/tagged-pointers.rst 的中文翻譯
 中文版維護者： 傅煒  Fu Wei <wefu@redhat.com>
 中文版翻譯者： 傅煒  Fu Wei <wefu@redhat.com>
 中文版校譯者： 傅煒  Fu Wei <wefu@redhat.com>
-繁體中文版校譯者： 胡皓文  Hu Haowen <src.res@email.cn>
+繁體中文版校譯者： 胡皓文  Hu Haowen <src.res.211@gmail.com>
 
 以下爲正文
 ---------------------------------------------------------------------

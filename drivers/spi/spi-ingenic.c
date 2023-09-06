@@ -12,7 +12,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/iopoll.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/spi/spi.h>
@@ -392,7 +392,7 @@ static int spi_ingenic_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	ctlr = devm_spi_alloc_master(dev, sizeof(*priv));
+	ctlr = devm_spi_alloc_host(dev, sizeof(*priv));
 	if (!ctlr) {
 		dev_err(dev, "Unable to allocate SPI controller.\n");
 		return -ENOMEM;

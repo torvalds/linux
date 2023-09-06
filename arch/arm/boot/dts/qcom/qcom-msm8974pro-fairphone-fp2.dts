@@ -414,7 +414,7 @@
 
 	wcnss_pin_a: wcnss-pin-active-state {
 		wlan-pins {
-			pins =  "gpio36", "gpio37", "gpio38", "gpio39", "gpio40";
+			pins = "gpio36", "gpio37", "gpio38", "gpio39", "gpio40";
 			function = "wlan";
 
 			drive-strength = <6>;

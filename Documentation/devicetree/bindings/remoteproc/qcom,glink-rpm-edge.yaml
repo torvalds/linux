@@ -84,7 +84,7 @@ examples:
   - |
     #include <dt-bindings/interrupt-controller/arm-gic.h>
 
-    rpm-glink {
+    glink-edge {
         compatible = "qcom,glink-rpm";
         interrupts = <GIC_SPI 168 IRQ_TYPE_EDGE_RISING>;
         mboxes = <&apcs_glb 0>;

@@ -65,7 +65,7 @@ static int meson_cipher_do_fallback(struct skcipher_request *areq)
 	struct skcipher_alg *alg = crypto_skcipher_alg(tfm);
 	struct meson_alg_template *algt;
 
-	algt = container_of(alg, struct meson_alg_template, alg.skcipher);
+	algt = container_of(alg, struct meson_alg_template, alg.skcipher.base);
 	algt->stat_fb++;
 #endif
 	skcipher_request_set_tfm(&rctx->fallback_req, op->fallback_tfm);
@@ -101,7 +101,7 @@ static int meson_cipher(struct skcipher_request *areq)
 	void *backup_iv = NULL, *bkeyiv;
 	u32 v;
 
-	algt = container_of(alg, struct meson_alg_template, alg.skcipher);
+	algt = container_of(alg, struct meson_alg_template, alg.skcipher.base);
 
 	dev_dbg(mc->dev, "%s %s %u %x IV(%u) key=%u flow=%d\n", __func__,
 		crypto_tfm_alg_name(areq->base.tfm),
@@ -258,8 +258,7 @@ theend:
 	return err;
 }
 
-static int meson_handle_cipher_request(struct crypto_engine *engine,
-				       void *areq)
+int meson_handle_cipher_request(struct crypto_engine *engine, void *areq)
 {
 	int err;
 	struct skcipher_request *breq = container_of(areq, struct skcipher_request, base);
@@ -318,7 +317,7 @@ int meson_cipher_init(struct crypto_tfm *tfm)
 
 	memset(op, 0, sizeof(struct meson_cipher_tfm_ctx));
 
-	algt = container_of(alg, struct meson_alg_template, alg.skcipher);
+	algt = container_of(alg, struct meson_alg_template, alg.skcipher.base);
 	op->mc = algt->mc;
 
 	op->fallback_tfm = crypto_alloc_skcipher(name, 0, CRYPTO_ALG_NEED_FALLBACK);
@@ -330,10 +329,6 @@ int meson_cipher_init(struct crypto_tfm *tfm)
 
 	sktfm->reqsize = sizeof(struct meson_cipher_req_ctx) +
 			 crypto_skcipher_reqsize(op->fallback_tfm);
-
-	op->enginectx.op.do_one_request = meson_handle_cipher_request;
-	op->enginectx.op.prepare_request = NULL;
-	op->enginectx.op.unprepare_request = NULL;
 
 	return 0;
 }

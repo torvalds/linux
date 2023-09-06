@@ -140,9 +140,7 @@ bool hugepage_vma_check(struct vm_area_struct *vma, unsigned long vm_flags,
 unsigned long thp_get_unmapped_area(struct file *filp, unsigned long addr,
 		unsigned long len, unsigned long pgoff, unsigned long flags);
 
-void prep_transhuge_page(struct page *page);
-void free_transhuge_page(struct page *page);
-
+void folio_prep_large_rmappable(struct folio *folio);
 bool can_split_folio(struct folio *folio, int *pextra_pins);
 int split_huge_page_to_list(struct page *page, struct list_head *list);
 static inline int split_huge_page(struct page *page)
@@ -282,7 +280,7 @@ static inline bool hugepage_vma_check(struct vm_area_struct *vma,
 	return false;
 }
 
-static inline void prep_transhuge_page(struct page *page) {}
+static inline void folio_prep_large_rmappable(struct folio *folio) {}
 
 #define transparent_hugepage_flags 0UL
 

@@ -58,6 +58,9 @@ the subdevice exposes, drivers return the ENOSPC error code and adjust the
 value of the ``num_routes`` field. Application should then reserve enough memory
 for all the route entries and call ``VIDIOC_SUBDEV_G_ROUTING`` again.
 
+On a successful ``VIDIOC_SUBDEV_G_ROUTING`` call the driver updates the
+``num_routes`` field to reflect the actual number of routes returned.
+
 .. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
 
 .. c:type:: v4l2_subdev_routing
@@ -138,9 +141,7 @@ ENOSPC
 
 EINVAL
    The sink or source pad identifiers reference a non-existing pad, or reference
-   pads of different types (ie. the sink_pad identifiers refers to a source pad)
-   or the sink or source stream identifiers reference a non-existing stream on
-   the sink or source pad.
+   pads of different types (ie. the sink_pad identifiers refers to a source pad).
 
 E2BIG
    The application provided ``num_routes`` for ``VIDIOC_SUBDEV_S_ROUTING`` is

@@ -3207,6 +3207,7 @@ static int proc_pid_ksm_stat(struct seq_file *m, struct pid_namespace *ns,
 	mm = get_task_mm(task);
 	if (mm) {
 		seq_printf(m, "ksm_rmap_items %lu\n", mm->ksm_rmap_items);
+		seq_printf(m, "ksm_zero_pages %lu\n", mm->ksm_zero_pages);
 		seq_printf(m, "ksm_merging_pages %lu\n", mm->ksm_merging_pages);
 		seq_printf(m, "ksm_process_profit %ld\n", ksm_process_profit(mm));
 		mmput(mm);
@@ -3814,11 +3815,10 @@ static struct task_struct *first_tid(struct pid *pid, int tid, loff_t f_pos,
 	/* If we haven't found our starting place yet start
 	 * with the leader and walk nr threads forward.
 	 */
-	pos = task = task->group_leader;
-	do {
+	for_each_thread(task, pos) {
 		if (!nr--)
 			goto found;
-	} while_each_thread(task, pos);
+	};
 fail:
 	pos = NULL;
 	goto out;

@@ -23,6 +23,18 @@
 		clock-frequency = <25000000>;
 	};
 
+	pse_t1l1: ethernet-pse-1 {
+		compatible = "podl-pse-regulator";
+		pse-supply = <&reg_t1l1>;
+		#pse-cells = <0>;
+	};
+
+	pse_t1l2: ethernet-pse-2 {
+		compatible = "podl-pse-regulator";
+		pse-supply = <&reg_t1l2>;
+		#pse-cells = <0>;
+	};
+
 	mdio0: mdio {
 		compatible = "virtual,mdio-gpio";
 		#address-cells = <1>;
@@ -30,6 +42,24 @@
 		gpios = <&gpioc 1 GPIO_ACTIVE_HIGH
 			 &gpioa 2 GPIO_ACTIVE_HIGH>;
 
+	};
+
+	reg_t1l1: regulator-pse-t1l1 {
+		compatible = "regulator-fixed";
+		regulator-name = "pse-t1l1";
+		regulator-min-microvolt = <12000000>;
+		regulator-max-microvolt = <12000000>;
+		gpio = <&gpiog 13 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
+	reg_t1l2: regulator-pse-t1l2 {
+		compatible = "regulator-fixed";
+		regulator-name = "pse-t1l2";
+		regulator-min-microvolt = <12000000>;
+		regulator-max-microvolt = <12000000>;
+		gpio = <&gpiog 14 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
 	};
 
 	wifi_pwrseq: wifi-pwrseq {
@@ -92,6 +122,7 @@
 		reset-gpios = <&gpiog 12 GPIO_ACTIVE_LOW>;
 		reset-assert-us = <10>;
 		reset-deassert-us = <35>;
+		pses = <&pse_t1l1>;
 	};
 
 	/* TI DP83TD510E */
@@ -102,6 +133,7 @@
 		reset-gpios = <&gpiog 11 GPIO_ACTIVE_LOW>;
 		reset-assert-us = <10>;
 		reset-deassert-us = <35>;
+		pses = <&pse_t1l2>;
 	};
 
 	/* Micrel KSZ9031 */

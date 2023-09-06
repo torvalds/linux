@@ -7,10 +7,11 @@
 
 #include "gt/intel_gt.h"
 #include "gt/intel_gt_print.h"
-#include "intel_gsc_uc.h"
 #include "intel_gsc_fw.h"
-#include "i915_drv.h"
 #include "intel_gsc_proxy.h"
+#include "intel_gsc_uc.h"
+#include "i915_drv.h"
+#include "i915_reg.h"
 
 static void gsc_work(struct work_struct *work)
 {
@@ -61,8 +62,18 @@ static void gsc_work(struct work_struct *work)
 		}
 
 		ret = intel_gsc_proxy_request_handler(gsc);
-		if (ret)
+		if (ret) {
+			if (actions & GSC_ACTION_FW_LOAD) {
+				/*
+				 * A proxy failure right after firmware load means the proxy-init
+				 * step has failed so mark GSC as not usable after this
+				 */
+				drm_err(&gt->i915->drm,
+					"GSC proxy handler failed to init\n");
+				intel_uc_fw_change_status(&gsc->fw, INTEL_UC_FIRMWARE_LOAD_FAIL);
+			}
 			goto out_put;
+		}
 
 		/* mark the GSC FW init as done the first time we run this */
 		if (actions & GSC_ACTION_FW_LOAD) {
@@ -71,12 +82,13 @@ static void gsc_work(struct work_struct *work)
 			 * complete the request handling cleanly, so we need to check the
 			 * status register to check if the proxy init was actually successful
 			 */
-			if (intel_gsc_uc_fw_proxy_init_done(gsc)) {
+			if (intel_gsc_uc_fw_proxy_init_done(gsc, false)) {
 				drm_dbg(&gt->i915->drm, "GSC Proxy initialized\n");
 				intel_uc_fw_change_status(&gsc->fw, INTEL_UC_FIRMWARE_RUNNING);
 			} else {
 				drm_err(&gt->i915->drm,
 					"GSC status reports proxy init not complete\n");
+				intel_uc_fw_change_status(&gsc->fw, INTEL_UC_FIRMWARE_LOAD_FAIL);
 			}
 		}
 	}
@@ -98,7 +110,7 @@ static bool gsc_engine_supported(struct intel_gt *gt)
 	GEM_BUG_ON(!gt_is_root(gt) && !gt->info.engine_mask);
 
 	if (gt_is_root(gt))
-		mask = RUNTIME_INFO(gt->i915)->platform_engine_mask;
+		mask = INTEL_INFO(gt->i915)->platform_engine_mask;
 	else
 		mask = gt->info.engine_mask;
 
@@ -133,26 +145,85 @@ void intel_gsc_uc_init_early(struct intel_gsc_uc *gsc)
 	}
 }
 
+static int gsc_allocate_and_map_vma(struct intel_gsc_uc *gsc, u32 size)
+{
+	struct intel_gt *gt = gsc_uc_to_gt(gsc);
+	struct drm_i915_gem_object *obj;
+	struct i915_vma *vma;
+	void __iomem *vaddr;
+	int ret = 0;
+
+	/*
+	 * The GSC FW doesn't immediately suspend after becoming idle, so there
+	 * is a chance that it could still be awake after we successfully
+	 * return from the  pci suspend function, even if there are no pending
+	 * operations.
+	 * The FW might therefore try to access memory for its suspend operation
+	 * after the kernel has completed the HW suspend flow; this can cause
+	 * issues if the FW is mapped in normal RAM memory, as some of the
+	 * involved HW units might've already lost power.
+	 * The driver must therefore avoid this situation and the recommended
+	 * way to do so is to use stolen memory for the GSC memory allocation,
+	 * because stolen memory takes a different path in HW and it is
+	 * guaranteed to always work as long as the GPU itself is awake (which
+	 * it must be if the GSC is awake).
+	 */
+	obj = i915_gem_object_create_stolen(gt->i915, size);
+	if (IS_ERR(obj))
+		return PTR_ERR(obj);
+
+	vma = i915_gem_object_ggtt_pin(obj, NULL, 0, 0, 0);
+	if (IS_ERR(vma)) {
+		ret = PTR_ERR(vma);
+		goto err;
+	}
+
+	vaddr = i915_vma_pin_iomap(vma);
+	i915_vma_unpin(vma);
+	if (IS_ERR(vaddr)) {
+		ret = PTR_ERR(vaddr);
+		goto err;
+	}
+
+	i915_vma_make_unshrinkable(vma);
+
+	gsc->local = vma;
+	gsc->local_vaddr = vaddr;
+
+	return 0;
+
+err:
+	i915_gem_object_put(obj);
+	return ret;
+}
+
+static void gsc_unmap_and_free_vma(struct intel_gsc_uc *gsc)
+{
+	struct i915_vma *vma = fetch_and_zero(&gsc->local);
+
+	if (!vma)
+		return;
+
+	gsc->local_vaddr = NULL;
+	i915_vma_unpin_iomap(vma);
+	i915_gem_object_put(vma->obj);
+}
+
 int intel_gsc_uc_init(struct intel_gsc_uc *gsc)
 {
 	static struct lock_class_key gsc_lock;
 	struct intel_gt *gt = gsc_uc_to_gt(gsc);
 	struct intel_engine_cs *engine = gt->engine[GSC0];
 	struct intel_context *ce;
-	struct i915_vma *vma;
 	int err;
 
 	err = intel_uc_fw_init(&gsc->fw);
 	if (err)
 		goto out;
 
-	vma = intel_guc_allocate_vma(&gt->uc.guc, SZ_8M);
-	if (IS_ERR(vma)) {
-		err = PTR_ERR(vma);
+	err = gsc_allocate_and_map_vma(gsc, SZ_4M);
+	if (err)
 		goto out_fw;
-	}
-
-	gsc->local = vma;
 
 	ce = intel_engine_create_pinned_context(engine, engine->gt->vm, SZ_4K,
 						I915_GEM_HWS_GSC_ADDR,
@@ -173,7 +244,7 @@ int intel_gsc_uc_init(struct intel_gsc_uc *gsc)
 	return 0;
 
 out_vma:
-	i915_vma_unpin_and_release(&gsc->local, 0);
+	gsc_unmap_and_free_vma(gsc);
 out_fw:
 	intel_uc_fw_fini(&gsc->fw);
 out:
@@ -197,7 +268,7 @@ void intel_gsc_uc_fini(struct intel_gsc_uc *gsc)
 	if (gsc->ce)
 		intel_engine_destroy_pinned_context(fetch_and_zero(&gsc->ce));
 
-	i915_vma_unpin_and_release(&gsc->local, 0);
+	gsc_unmap_and_free_vma(gsc);
 
 	intel_uc_fw_fini(&gsc->fw);
 }
@@ -244,4 +315,46 @@ void intel_gsc_uc_load_start(struct intel_gsc_uc *gsc)
 	spin_unlock_irq(gt->irq_lock);
 
 	queue_work(gsc->wq, &gsc->work);
+}
+
+void intel_gsc_uc_load_status(struct intel_gsc_uc *gsc, struct drm_printer *p)
+{
+	struct intel_gt *gt = gsc_uc_to_gt(gsc);
+	struct intel_uncore *uncore = gt->uncore;
+	intel_wakeref_t wakeref;
+
+	if (!intel_gsc_uc_is_supported(gsc)) {
+		drm_printf(p, "GSC not supported\n");
+		return;
+	}
+
+	if (!intel_gsc_uc_is_wanted(gsc)) {
+		drm_printf(p, "GSC disabled\n");
+		return;
+	}
+
+	drm_printf(p, "GSC firmware: %s\n", gsc->fw.file_selected.path);
+	if (gsc->fw.file_selected.path != gsc->fw.file_wanted.path)
+		drm_printf(p, "GSC firmware wanted: %s\n", gsc->fw.file_wanted.path);
+	drm_printf(p, "\tstatus: %s\n", intel_uc_fw_status_repr(gsc->fw.status));
+
+	drm_printf(p, "Release: %u.%u.%u.%u\n",
+		   gsc->release.major, gsc->release.minor,
+		   gsc->release.patch, gsc->release.build);
+
+	drm_printf(p, "Compatibility Version: %u.%u [min expected %u.%u]\n",
+		   gsc->fw.file_selected.ver.major, gsc->fw.file_selected.ver.minor,
+		   gsc->fw.file_wanted.ver.major, gsc->fw.file_wanted.ver.minor);
+
+	drm_printf(p, "SVN: %u\n", gsc->security_version);
+
+	with_intel_runtime_pm(uncore->rpm, wakeref) {
+		u32 i;
+
+		for (i = 1; i <= 6; i++) {
+			u32 status = intel_uncore_read(uncore,
+						       HECI_FWSTS(MTL_GSC_HECI1_BASE, i));
+			drm_printf(p, "HECI1 FWSTST%u = 0x%08x\n", i, status);
+		}
+	}
 }

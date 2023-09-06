@@ -9,7 +9,7 @@ works:
 
 - userspace app like Xfbdev mmaps framebuffer
 - deferred IO and driver sets up fault and page_mkwrite handlers
-- userspace app tries to write to mmaped vaddress
+- userspace app tries to write to mmapped vaddress
 - we get pagefault and reach fault handler
 - fault handler finds and returns physical page
 - we get page_mkwrite where we add this page to a list

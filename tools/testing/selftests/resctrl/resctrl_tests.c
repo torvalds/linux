@@ -70,60 +70,81 @@ void tests_cleanup(void)
 	cat_test_cleanup();
 }
 
-static void run_mbm_test(bool has_ben, char **benchmark_cmd, int span,
+static void run_mbm_test(char **benchmark_cmd, size_t span,
 			 int cpu_no, char *bw_report)
 {
 	int res;
 
 	ksft_print_msg("Starting MBM BW change ...\n");
 
-	if (!validate_resctrl_feature_request(MBM_STR) || (get_vendor() != ARCH_INTEL)) {
-		ksft_test_result_skip("Hardware does not support MBM or MBM is disabled\n");
+	res = mount_resctrlfs();
+	if (res) {
+		ksft_exit_fail_msg("Failed to mount resctrl FS\n");
 		return;
 	}
 
-	if (!has_ben)
-		sprintf(benchmark_cmd[5], "%s", MBA_STR);
+	if (!validate_resctrl_feature_request(MBM_STR) || (get_vendor() != ARCH_INTEL)) {
+		ksft_test_result_skip("Hardware does not support MBM or MBM is disabled\n");
+		goto umount;
+	}
+
 	res = mbm_bw_change(span, cpu_no, bw_report, benchmark_cmd);
 	ksft_test_result(!res, "MBM: bw change\n");
 	if ((get_vendor() == ARCH_INTEL) && res)
 		ksft_print_msg("Intel MBM may be inaccurate when Sub-NUMA Clustering is enabled. Check BIOS configuration.\n");
+
+umount:
+	umount_resctrlfs();
 }
 
-static void run_mba_test(bool has_ben, char **benchmark_cmd, int span,
-			 int cpu_no, char *bw_report)
+static void run_mba_test(char **benchmark_cmd, int cpu_no, char *bw_report)
 {
 	int res;
 
 	ksft_print_msg("Starting MBA Schemata change ...\n");
 
-	if (!validate_resctrl_feature_request(MBA_STR) || (get_vendor() != ARCH_INTEL)) {
-		ksft_test_result_skip("Hardware does not support MBA or MBA is disabled\n");
+	res = mount_resctrlfs();
+	if (res) {
+		ksft_exit_fail_msg("Failed to mount resctrl FS\n");
 		return;
 	}
 
-	if (!has_ben)
-		sprintf(benchmark_cmd[1], "%d", span);
+	if (!validate_resctrl_feature_request(MBA_STR) || (get_vendor() != ARCH_INTEL)) {
+		ksft_test_result_skip("Hardware does not support MBA or MBA is disabled\n");
+		goto umount;
+	}
+
 	res = mba_schemata_change(cpu_no, bw_report, benchmark_cmd);
 	ksft_test_result(!res, "MBA: schemata change\n");
+
+umount:
+	umount_resctrlfs();
 }
 
-static void run_cmt_test(bool has_ben, char **benchmark_cmd, int cpu_no)
+static void run_cmt_test(char **benchmark_cmd, int cpu_no)
 {
 	int res;
 
 	ksft_print_msg("Starting CMT test ...\n");
-	if (!validate_resctrl_feature_request(CMT_STR)) {
-		ksft_test_result_skip("Hardware does not support CMT or CMT is disabled\n");
+
+	res = mount_resctrlfs();
+	if (res) {
+		ksft_exit_fail_msg("Failed to mount resctrl FS\n");
 		return;
 	}
 
-	if (!has_ben)
-		sprintf(benchmark_cmd[5], "%s", CMT_STR);
+	if (!validate_resctrl_feature_request(CMT_STR)) {
+		ksft_test_result_skip("Hardware does not support CMT or CMT is disabled\n");
+		goto umount;
+	}
+
 	res = cmt_resctrl_val(cpu_no, 5, benchmark_cmd);
 	ksft_test_result(!res, "CMT: test\n");
 	if ((get_vendor() == ARCH_INTEL) && res)
 		ksft_print_msg("Intel CMT may be inaccurate when Sub-NUMA Clustering is enabled. Check BIOS configuration.\n");
+
+umount:
+	umount_resctrlfs();
 }
 
 static void run_cat_test(int cpu_no, int no_of_bits)
@@ -132,22 +153,32 @@ static void run_cat_test(int cpu_no, int no_of_bits)
 
 	ksft_print_msg("Starting CAT test ...\n");
 
+	res = mount_resctrlfs();
+	if (res) {
+		ksft_exit_fail_msg("Failed to mount resctrl FS\n");
+		return;
+	}
+
 	if (!validate_resctrl_feature_request(CAT_STR)) {
 		ksft_test_result_skip("Hardware does not support CAT or CAT is disabled\n");
-		return;
+		goto umount;
 	}
 
 	res = cat_perf_miss_val(cpu_no, no_of_bits, "L3");
 	ksft_test_result(!res, "CAT: test\n");
+
+umount:
+	umount_resctrlfs();
 }
 
 int main(int argc, char **argv)
 {
 	bool has_ben = false, mbm_test = true, mba_test = true, cmt_test = true;
-	int c, cpu_no = 1, span = 250, argc_new = argc, i, no_of_bits = 0;
 	char *benchmark_cmd[BENCHMARK_ARGS], bw_report[64], bm_type[64];
 	char benchmark_cmd_area[BENCHMARK_ARGS][BENCHMARK_ARG_SIZE];
+	int c, cpu_no = 1, argc_new = argc, i, no_of_bits = 0;
 	int ben_ind, ben_count, tests = 0;
+	size_t span = 250 * MB;
 	bool cat_test = true;
 
 	for (i = 0; i < argc; i++) {
@@ -232,16 +263,15 @@ int main(int argc, char **argv)
 		benchmark_cmd[ben_count] = NULL;
 	} else {
 		/* If no benchmark is given by "-b" argument, use fill_buf. */
-		for (i = 0; i < 6; i++)
+		for (i = 0; i < 5; i++)
 			benchmark_cmd[i] = benchmark_cmd_area[i];
 
 		strcpy(benchmark_cmd[0], "fill_buf");
-		sprintf(benchmark_cmd[1], "%d", span);
+		sprintf(benchmark_cmd[1], "%zu", span);
 		strcpy(benchmark_cmd[2], "1");
-		strcpy(benchmark_cmd[3], "1");
-		strcpy(benchmark_cmd[4], "0");
-		strcpy(benchmark_cmd[5], "");
-		benchmark_cmd[6] = NULL;
+		strcpy(benchmark_cmd[3], "0");
+		strcpy(benchmark_cmd[4], "false");
+		benchmark_cmd[5] = NULL;
 	}
 
 	sprintf(bw_report, "reads");
@@ -250,23 +280,24 @@ int main(int argc, char **argv)
 	if (!check_resctrlfs_support())
 		return ksft_exit_skip("resctrl FS does not exist. Enable X86_CPU_RESCTRL config option.\n");
 
+	if (umount_resctrlfs())
+		return ksft_exit_skip("resctrl FS unmount failed.\n");
+
 	filter_dmesg();
 
 	ksft_set_plan(tests ? : 4);
 
 	if (mbm_test)
-		run_mbm_test(has_ben, benchmark_cmd, span, cpu_no, bw_report);
+		run_mbm_test(benchmark_cmd, span, cpu_no, bw_report);
 
 	if (mba_test)
-		run_mba_test(has_ben, benchmark_cmd, span, cpu_no, bw_report);
+		run_mba_test(benchmark_cmd, cpu_no, bw_report);
 
 	if (cmt_test)
-		run_cmt_test(has_ben, benchmark_cmd, cpu_no);
+		run_cmt_test(benchmark_cmd, cpu_no);
 
 	if (cat_test)
 		run_cat_test(cpu_no, no_of_bits);
-
-	umount_resctrlfs();
 
 	ksft_finished();
 }

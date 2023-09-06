@@ -322,7 +322,7 @@ static struct platform_driver mdp_driver = {
 	.driver = {
 		.name	= MDP_MODULE_NAME,
 		.pm	= &mdp_pm_ops,
-		.of_match_table = of_match_ptr(mdp_of_ids),
+		.of_match_table = mdp_of_ids,
 	},
 };
 

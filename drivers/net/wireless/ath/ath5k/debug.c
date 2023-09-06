@@ -982,8 +982,6 @@ ath5k_debug_init_device(struct ath5k_hw *ah)
 	ah->debug.level = ath5k_debug;
 
 	phydir = debugfs_create_dir("ath5k", ah->hw->wiphy->debugfsdir);
-	if (!phydir)
-		return;
 
 	debugfs_create_file("debug", 0600, phydir, ah, &fops_debug);
 	debugfs_create_file("registers", 0400, phydir, ah, &registers_fops);

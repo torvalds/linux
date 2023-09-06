@@ -1507,7 +1507,7 @@ static const struct regmap_config wm8753_regmap = {
 	.max_register = WM8753_ADCTL2,
 	.volatile_reg = wm8753_volatile,
 
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.reg_defaults = wm8753_reg_defaults,
 	.num_reg_defaults = ARRAY_SIZE(wm8753_reg_defaults),
 };

@@ -1,0 +1,23 @@
+// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
+/*
+ * Author: Arınç ÜNAL <arinc.unal@arinc9.com>
+ */
+
+/dts-v1/;
+
+#include "bcm47094-asus-rt-ac3100.dtsi"
+
+/ {
+	compatible = "asus,rt-ac3100", "brcm,bcm47094", "brcm,bcm4708";
+	model = "ASUS RT-AC3100";
+
+	nvram@1c080000 {
+		et0macaddr: et0macaddr {
+		};
+	};
+};
+
+&gmac0 {
+	nvmem-cells = <&et0macaddr>;
+	nvmem-cell-names = "mac-address";
+};

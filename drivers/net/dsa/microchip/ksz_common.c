@@ -18,8 +18,8 @@
 #include <linux/if_vlan.h>
 #include <linux/irq.h>
 #include <linux/irqdomain.h>
+#include <linux/of.h>
 #include <linux/of_mdio.h>
-#include <linux/of_device.h>
 #include <linux/of_net.h>
 #include <linux/micrel_phy.h>
 #include <net/dsa.h>
@@ -1618,8 +1618,6 @@ static void ksz_phylink_get_caps(struct dsa_switch *ds, int port,
 				 struct phylink_config *config)
 {
 	struct ksz_device *dev = ds->priv;
-
-	config->legacy_pre_march2020 = false;
 
 	if (dev->info->supports_mii[port])
 		__set_bit(PHY_INTERFACE_MODE_MII, config->supported_interfaces);

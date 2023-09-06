@@ -8,12 +8,12 @@
 .. toctree::
    :maxdepth: 2
 
-   ../mips/index
+   mips/index
    arm64/index
    ../riscv/index
    openrisc/index
    parisc/index
-   ../loongarch/index
+   loongarch/index
 
 TODOList:
 

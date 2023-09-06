@@ -66,7 +66,7 @@ extern void paging_init(void);
 
 static inline unsigned long pmd_pfn(pmd_t pmd)
 {
-	return pmd_val(pmd) >> _PFN_SHIFT;
+	return pmd_val(pmd) >> PFN_PTE_SHIFT;
 }
 
 #ifndef CONFIG_MIPS_HUGE_TLB_SUPPORT
@@ -104,9 +104,6 @@ do {									\
 		local_irq_restore(__flags);				\
 	}								\
 } while(0)
-
-static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
-			      pte_t *ptep, pte_t pteval);
 
 #if defined(CONFIG_PHYS_ADDR_T_64BIT) && defined(CONFIG_CPU_MIPS32)
 
@@ -157,7 +154,7 @@ static inline void pte_clear(struct mm_struct *mm, unsigned long addr, pte_t *pt
 			null.pte_low = null.pte_high = _PAGE_GLOBAL;
 	}
 
-	set_pte_at(mm, addr, ptep, null);
+	set_pte(ptep, null);
 	htw_start();
 }
 #else
@@ -196,28 +193,41 @@ static inline void pte_clear(struct mm_struct *mm, unsigned long addr, pte_t *pt
 #if !defined(CONFIG_CPU_R3K_TLB)
 	/* Preserve global status for the pair */
 	if (pte_val(*ptep_buddy(ptep)) & _PAGE_GLOBAL)
-		set_pte_at(mm, addr, ptep, __pte(_PAGE_GLOBAL));
+		set_pte(ptep, __pte(_PAGE_GLOBAL));
 	else
 #endif
-		set_pte_at(mm, addr, ptep, __pte(0));
+		set_pte(ptep, __pte(0));
 	htw_start();
 }
 #endif
 
-static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
-			      pte_t *ptep, pte_t pteval)
+static inline void set_ptes(struct mm_struct *mm, unsigned long addr,
+		pte_t *ptep, pte_t pte, unsigned int nr)
 {
+	unsigned int i;
+	bool do_sync = false;
 
-	if (!pte_present(pteval))
-		goto cache_sync_done;
+	for (i = 0; i < nr; i++) {
+		if (!pte_present(pte))
+			continue;
+		if (pte_present(ptep[i]) &&
+		    (pte_pfn(ptep[i]) == pte_pfn(pte)))
+			continue;
+		do_sync = true;
+	}
 
-	if (pte_present(*ptep) && (pte_pfn(*ptep) == pte_pfn(pteval)))
-		goto cache_sync_done;
+	if (do_sync)
+		__update_cache(addr, pte);
 
-	__update_cache(addr, pteval);
-cache_sync_done:
-	set_pte(ptep, pteval);
+	for (;;) {
+		set_pte(ptep, pte);
+		if (--nr == 0)
+			break;
+		ptep++;
+		pte = __pte(pte_val(pte) + (1UL << PFN_PTE_SHIFT));
+	}
 }
+#define set_ptes set_ptes
 
 /*
  * (pmds are folded into puds so this doesn't get actually called,
@@ -309,7 +319,7 @@ static inline pte_t pte_mkold(pte_t pte)
 	return pte;
 }
 
-static inline pte_t pte_mkwrite(pte_t pte)
+static inline pte_t pte_mkwrite_novma(pte_t pte)
 {
 	pte.pte_low |= _PAGE_WRITE;
 	if (pte.pte_low & _PAGE_MODIFIED) {
@@ -364,7 +374,7 @@ static inline pte_t pte_mkold(pte_t pte)
 	return pte;
 }
 
-static inline pte_t pte_mkwrite(pte_t pte)
+static inline pte_t pte_mkwrite_novma(pte_t pte)
 {
 	pte_val(pte) |= _PAGE_WRITE;
 	if (pte_val(pte) & _PAGE_MODIFIED)
@@ -486,7 +496,7 @@ static inline int ptep_set_access_flags(struct vm_area_struct *vma,
 					pte_t entry, int dirty)
 {
 	if (!pte_same(*ptep, entry))
-		set_pte_at(vma->vm_mm, address, ptep, entry);
+		set_pte(ptep, entry);
 	/*
 	 * update_mmu_cache will unconditionally execute, handling both
 	 * the case that the PTE changed and the spurious fault case.
@@ -568,12 +578,21 @@ static inline pte_t pte_swp_clear_exclusive(pte_t pte)
 extern void __update_tlb(struct vm_area_struct *vma, unsigned long address,
 	pte_t pte);
 
-static inline void update_mmu_cache(struct vm_area_struct *vma,
-	unsigned long address, pte_t *ptep)
+static inline void update_mmu_cache_range(struct vm_fault *vmf,
+		struct vm_area_struct *vma, unsigned long address,
+		pte_t *ptep, unsigned int nr)
 {
-	pte_t pte = *ptep;
-	__update_tlb(vma, address, pte);
+	for (;;) {
+		pte_t pte = *ptep;
+		__update_tlb(vma, address, pte);
+		if (--nr == 0)
+			break;
+		ptep++;
+		address += PAGE_SIZE;
+	}
 }
+#define update_mmu_cache(vma, address, ptep) \
+	update_mmu_cache_range(NULL, vma, address, ptep, 1)
 
 #define	__HAVE_ARCH_UPDATE_MMU_TLB
 #define update_mmu_tlb	update_mmu_cache
@@ -627,7 +646,7 @@ static inline pmd_t pmd_wrprotect(pmd_t pmd)
 	return pmd;
 }
 
-static inline pmd_t pmd_mkwrite(pmd_t pmd)
+static inline pmd_t pmd_mkwrite_novma(pmd_t pmd)
 {
 	pmd_val(pmd) |= _PAGE_WRITE;
 	if (pmd_val(pmd) & _PAGE_MODIFIED)

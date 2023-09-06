@@ -6,6 +6,7 @@
 #include "gem/i915_gem_internal.h"
 
 #include "gt/intel_context.h"
+#include "gt/intel_gt.h"
 #include "gt/uc/intel_gsc_fw.h"
 #include "gt/uc/intel_gsc_uc_heci_cmd_submit.h"
 
@@ -197,7 +198,7 @@ bool intel_pxp_gsccs_is_ready_for_sessions(struct intel_pxp *pxp)
 	 * are out of order) will suffice.
 	 */
 	if (intel_huc_is_authenticated(&pxp->ctrl_gt->uc.huc, INTEL_HUC_AUTH_BY_GSC) &&
-	    intel_gsc_uc_fw_proxy_init_done(&pxp->ctrl_gt->uc.gsc))
+	    intel_gsc_uc_fw_proxy_init_done(&pxp->ctrl_gt->uc.gsc, true))
 		return true;
 
 	return false;
@@ -336,7 +337,7 @@ gsccs_create_buffer(struct intel_gt *gt,
 	}
 
 	/* return a virtual pointer */
-	*map = i915_gem_object_pin_map_unlocked(obj, i915_coherent_map_type(i915, obj, true));
+	*map = i915_gem_object_pin_map_unlocked(obj, intel_gt_coherent_map_type(gt, obj, true));
 	if (IS_ERR(*map)) {
 		drm_err(&i915->drm, "Failed to map gsccs backend %s.\n", bufname);
 		err = PTR_ERR(*map);

@@ -43,7 +43,7 @@ static int rsi_usb_card_write(struct rsi_hw *adapter,
 			      u16 len,
 			      u8 endpoint)
 {
-	struct rsi_91x_usbdev *dev = (struct rsi_91x_usbdev *)adapter->rsi_dev;
+	struct rsi_91x_usbdev *dev = adapter->rsi_dev;
 	int status;
 	u8 *seg = dev->tx_buffer;
 	int transfer;
@@ -91,7 +91,7 @@ static int rsi_write_multiple(struct rsi_hw *adapter,
 	if (endpoint == 0)
 		return -EINVAL;
 
-	dev = (struct rsi_91x_usbdev *)adapter->rsi_dev;
+	dev = adapter->rsi_dev;
 	if (dev->write_fail)
 		return -ENETDOWN;
 
@@ -109,7 +109,7 @@ static int rsi_write_multiple(struct rsi_hw *adapter,
 static int rsi_find_bulk_in_and_out_endpoints(struct usb_interface *interface,
 					      struct rsi_hw *adapter)
 {
-	struct rsi_91x_usbdev *dev = (struct rsi_91x_usbdev *)adapter->rsi_dev;
+	struct rsi_91x_usbdev *dev = adapter->rsi_dev;
 	struct usb_host_interface *iface_desc;
 	struct usb_endpoint_descriptor *endpoint;
 	__le16 buffer_size;
@@ -306,7 +306,7 @@ out:
 
 static void rsi_rx_urb_kill(struct rsi_hw *adapter, u8 ep_num)
 {
-	struct rsi_91x_usbdev *dev = (struct rsi_91x_usbdev *)adapter->rsi_dev;
+	struct rsi_91x_usbdev *dev = adapter->rsi_dev;
 	struct rx_usb_ctrl_block *rx_cb = &dev->rx_cb[ep_num - 1];
 	struct urb *urb = rx_cb->rx_urb;
 
@@ -323,7 +323,7 @@ static void rsi_rx_urb_kill(struct rsi_hw *adapter, u8 ep_num)
  */
 static int rsi_rx_urb_submit(struct rsi_hw *adapter, u8 ep_num, gfp_t mem_flags)
 {
-	struct rsi_91x_usbdev *dev = (struct rsi_91x_usbdev *)adapter->rsi_dev;
+	struct rsi_91x_usbdev *dev = adapter->rsi_dev;
 	struct rx_usb_ctrl_block *rx_cb = &dev->rx_cb[ep_num - 1];
 	struct urb *urb = rx_cb->rx_urb;
 	int status;
@@ -362,7 +362,7 @@ static int rsi_rx_urb_submit(struct rsi_hw *adapter, u8 ep_num, gfp_t mem_flags)
 static int rsi_usb_read_register_multiple(struct rsi_hw *adapter, u32 addr,
 					  u8 *data, u16 count)
 {
-	struct rsi_91x_usbdev *dev = (struct rsi_91x_usbdev *)adapter->rsi_dev;
+	struct rsi_91x_usbdev *dev = adapter->rsi_dev;
 	u8 *buf;
 	u16 transfer;
 	int status;
@@ -412,7 +412,7 @@ static int rsi_usb_read_register_multiple(struct rsi_hw *adapter, u32 addr,
 static int rsi_usb_write_register_multiple(struct rsi_hw *adapter, u32 addr,
 					   u8 *data, u16 count)
 {
-	struct rsi_91x_usbdev *dev = (struct rsi_91x_usbdev *)adapter->rsi_dev;
+	struct rsi_91x_usbdev *dev = adapter->rsi_dev;
 	u8 *buf;
 	u16 transfer;
 	int status = 0;
@@ -559,7 +559,7 @@ static struct rsi_host_intf_ops usb_host_intf_ops = {
  */
 static void rsi_deinit_usb_interface(struct rsi_hw *adapter)
 {
-	struct rsi_91x_usbdev *dev = (struct rsi_91x_usbdev *)adapter->rsi_dev;
+	struct rsi_91x_usbdev *dev = adapter->rsi_dev;
 
 	rsi_kill_thread(&dev->rx_thread);
 
@@ -572,7 +572,7 @@ static void rsi_deinit_usb_interface(struct rsi_hw *adapter)
 
 static int rsi_usb_init_rx(struct rsi_hw *adapter)
 {
-	struct rsi_91x_usbdev *dev = (struct rsi_91x_usbdev *)adapter->rsi_dev;
+	struct rsi_91x_usbdev *dev = adapter->rsi_dev;
 	struct rx_usb_ctrl_block *rx_cb;
 	u8 idx, num_rx_cb;
 
@@ -822,7 +822,7 @@ static int rsi_probe(struct usb_interface *pfunction,
 		goto err1;
 	}
 
-	dev = (struct rsi_91x_usbdev *)adapter->rsi_dev;
+	dev = adapter->rsi_dev;
 
 	status = rsi_usb_reg_read(dev->usbdev, FW_STATUS_REG, &fw_status, 2);
 	if (status < 0)

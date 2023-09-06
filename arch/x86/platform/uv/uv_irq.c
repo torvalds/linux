@@ -58,7 +58,7 @@ uv_set_irq_affinity(struct irq_data *data, const struct cpumask *mask,
 	ret = parent->chip->irq_set_affinity(parent, mask, force);
 	if (ret >= 0) {
 		uv_program_mmr(cfg, data->chip_data);
-		send_cleanup_vector(cfg);
+		vector_schedule_cleanup(cfg);
 	}
 
 	return ret;

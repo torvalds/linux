@@ -1089,7 +1089,7 @@ static int wakeup_cpu_via_vmgexit(int apic_id, unsigned long start_ip)
 	return ret;
 }
 
-void snp_set_wakeup_secondary_cpu(void)
+void __init snp_set_wakeup_secondary_cpu(void)
 {
 	if (!cc_platform_has(CC_ATTR_GUEST_SEV_SNP))
 		return;
@@ -1099,7 +1099,7 @@ void snp_set_wakeup_secondary_cpu(void)
 	 * required method to start APs under SNP. If the hypervisor does
 	 * not support AP creation, then no APs will be started.
 	 */
-	apic->wakeup_secondary_cpu = wakeup_cpu_via_vmgexit;
+	apic_update_callback(wakeup_secondary_cpu, wakeup_cpu_via_vmgexit);
 }
 
 int __init sev_es_setup_ap_jump_table(struct real_mode_header *rmh)

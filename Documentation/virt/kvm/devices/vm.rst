@@ -92,7 +92,7 @@ Allows user space to retrieve or request to change cpu related information for a
 KVM does not enforce or limit the cpu model data in any form. Take the information
 retrieved by means of KVM_S390_VM_CPU_MACHINE as hint for reasonable configuration
 setups. Instruction interceptions triggered by additionally set facility bits that
-are not handled by KVM need to by imlemented in the VM driver code.
+are not handled by KVM need to by implemented in the VM driver code.
 
 :Parameters: address of buffer to store/set the processor related cpu
 	     data of type struct kvm_s390_vm_cpu_processor*.

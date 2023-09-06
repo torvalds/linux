@@ -120,6 +120,15 @@ static bool wm8960_volatile(struct device *dev, unsigned int reg)
 	}
 }
 
+#define WM8960_NUM_SUPPLIES 5
+static const char *wm8960_supply_names[WM8960_NUM_SUPPLIES] = {
+	"DCVDD",
+	"DBVDD",
+	"AVDD",
+	"SPKVDD1",
+	"SPKVDD2",
+};
+
 struct wm8960_priv {
 	struct clk *mclk;
 	struct regmap *regmap;
@@ -137,6 +146,7 @@ struct wm8960_priv {
 	bool is_stream_in_use[2];
 	struct wm8960_data pdata;
 	ktime_t dsch_start;
+	struct regulator_bulk_data supplies[WM8960_NUM_SUPPLIES];
 };
 
 #define wm8960_reset(c)	regmap_write(c, WM8960_RESET, 0)
@@ -155,6 +165,7 @@ static const char *wm8960_adc_data_output_sel[] = {
 	"Left Data = Right ADC; Right Data = Left ADC",
 };
 static const char *wm8960_dmonomix[] = {"Stereo", "Mono"};
+static const char *wm8960_dacslope[] = {"Normal", "Sloping"};
 
 static const struct soc_enum wm8960_enum[] = {
 	SOC_ENUM_SINGLE(WM8960_DACCTL1, 5, 4, wm8960_polarity),
@@ -165,6 +176,7 @@ static const struct soc_enum wm8960_enum[] = {
 	SOC_ENUM_SINGLE(WM8960_ALC3, 8, 2, wm8960_alcmode),
 	SOC_ENUM_SINGLE(WM8960_ADDCTL1, 2, 4, wm8960_adc_data_output_sel),
 	SOC_ENUM_SINGLE(WM8960_ADDCTL1, 4, 2, wm8960_dmonomix),
+	SOC_ENUM_SINGLE(WM8960_DACCTL2, 1, 2, wm8960_dacslope),
 };
 
 static const int deemph_settings[] = { 0, 32000, 44100, 48000 };
@@ -307,6 +319,7 @@ SOC_SINGLE_TLV("Right Output Mixer RINPUT3 Volume",
 
 SOC_ENUM("ADC Data Output Select", wm8960_enum[6]),
 SOC_ENUM("DAC Mono Mix", wm8960_enum[7]),
+SOC_ENUM("DAC Filter Characteristics", wm8960_enum[8]),
 };
 
 static const struct snd_kcontrol_new wm8960_lin_boost[] = {
@@ -1387,7 +1400,7 @@ static const struct regmap_config wm8960_regmap = {
 
 	.reg_defaults = wm8960_reg_defaults,
 	.num_reg_defaults = ARRAY_SIZE(wm8960_reg_defaults),
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 
 	.volatile_reg = wm8960_volatile,
 };
@@ -1414,7 +1427,9 @@ static int wm8960_i2c_probe(struct i2c_client *i2c)
 {
 	struct wm8960_data *pdata = dev_get_platdata(&i2c->dev);
 	struct wm8960_priv *wm8960;
+	unsigned int i;
 	int ret;
+	u8 val;
 
 	wm8960 = devm_kzalloc(&i2c->dev, sizeof(struct wm8960_priv),
 			      GFP_KERNEL);
@@ -1425,6 +1440,31 @@ static int wm8960_i2c_probe(struct i2c_client *i2c)
 	if (IS_ERR(wm8960->mclk)) {
 		if (PTR_ERR(wm8960->mclk) == -EPROBE_DEFER)
 			return -EPROBE_DEFER;
+	} else {
+		ret = clk_get_rate(wm8960->mclk);
+		if (ret >= 0) {
+			wm8960->freq_in = ret;
+		} else {
+			dev_err(&i2c->dev, "Failed to read MCLK rate: %d\n",
+				ret);
+		}
+	}
+
+	for (i = 0; i < ARRAY_SIZE(wm8960->supplies); i++)
+		wm8960->supplies[i].supply = wm8960_supply_names[i];
+
+	ret = devm_regulator_bulk_get(&i2c->dev, ARRAY_SIZE(wm8960->supplies),
+				 wm8960->supplies);
+	if (ret <  0) {
+		dev_err(&i2c->dev, "Failed to request supplies: %d\n", ret);
+		return ret;
+	}
+
+	ret = regulator_bulk_enable(ARRAY_SIZE(wm8960->supplies),
+				    wm8960->supplies);
+	if (ret < 0) {
+		dev_err(&i2c->dev, "Failed to enable supplies: %d\n", ret);
+		return ret;
 	}
 
 	wm8960->regmap = devm_regmap_init_i2c(i2c, &wm8960_regmap);
@@ -1435,6 +1475,12 @@ static int wm8960_i2c_probe(struct i2c_client *i2c)
 		memcpy(&wm8960->pdata, pdata, sizeof(struct wm8960_data));
 	else if (i2c->dev.of_node)
 		wm8960_set_pdata_from_of(i2c, &wm8960->pdata);
+
+	ret = i2c_master_recv(i2c, &val, sizeof(val));
+	if (ret >= 0) {
+		dev_err(&i2c->dev, "Not wm8960, wm8960 reg can not read by i2c\n");
+		return -EINVAL;
+	}
 
 	ret = wm8960_reset(wm8960->regmap);
 	if (ret != 0) {
@@ -1487,7 +1533,11 @@ static int wm8960_i2c_probe(struct i2c_client *i2c)
 }
 
 static void wm8960_i2c_remove(struct i2c_client *client)
-{}
+{
+	struct wm8960_priv *wm8960 = i2c_get_clientdata(client);
+
+	regulator_bulk_disable(ARRAY_SIZE(wm8960->supplies), wm8960->supplies);
+}
 
 static const struct i2c_device_id wm8960_i2c_id[] = {
 	{ "wm8960", 0 },

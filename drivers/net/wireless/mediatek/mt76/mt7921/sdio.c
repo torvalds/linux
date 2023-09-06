@@ -27,7 +27,7 @@ static void mt7921s_txrx_worker(struct mt76_worker *w)
 	struct mt76_sdio *sdio = container_of(w, struct mt76_sdio,
 					      txrx_worker);
 	struct mt76_dev *mdev = container_of(sdio, struct mt76_dev, sdio);
-	struct mt7921_dev *dev = container_of(mdev, struct mt7921_dev, mt76);
+	struct mt792x_dev *dev = container_of(mdev, struct mt792x_dev, mt76);
 
 	if (!mt76_connac_pm_ref(&dev->mphy, &dev->pm)) {
 		queue_work(mdev->wq, &dev->pm.wake_work);
@@ -38,7 +38,7 @@ static void mt7921s_txrx_worker(struct mt76_worker *w)
 	mt76_connac_pm_unref(&dev->mphy, &dev->pm);
 }
 
-static void mt7921s_unregister_device(struct mt7921_dev *dev)
+static void mt7921s_unregister_device(struct mt792x_dev *dev)
 {
 	struct mt76_connac_pm *pm = &dev->pm;
 
@@ -102,7 +102,7 @@ static int mt7921s_probe(struct sdio_func *func,
 		.sta_add = mt7921_mac_sta_add,
 		.sta_assoc = mt7921_mac_sta_assoc,
 		.sta_remove = mt7921_mac_sta_remove,
-		.update_survey = mt7921_update_channel,
+		.update_survey = mt792x_update_channel,
 	};
 	static const struct mt76_bus_ops mt7921s_ops = {
 		.rr = mt76s_rr,
@@ -114,7 +114,7 @@ static int mt7921s_probe(struct sdio_func *func,
 		.rd_rp = mt76s_rd_rp,
 		.type = MT76_BUS_SDIO,
 	};
-	static const struct mt7921_hif_ops mt7921_sdio_ops = {
+	static const struct mt792x_hif_ops mt7921_sdio_ops = {
 		.init_reset = mt7921s_init_reset,
 		.reset = mt7921s_mac_reset,
 		.mcu_init = mt7921s_mcu_init,
@@ -122,13 +122,13 @@ static int mt7921s_probe(struct sdio_func *func,
 		.fw_own = mt7921s_mcu_fw_pmctrl,
 	};
 	struct ieee80211_ops *ops;
-	struct mt7921_dev *dev;
+	struct mt792x_dev *dev;
 	struct mt76_dev *mdev;
 	u8 features;
 	int ret;
 
-	ops = mt7921_get_mac80211_ops(&func->dev, (void *)id->driver_data,
-				      &features);
+	ops = mt792x_get_mac80211_ops(&func->dev, &mt7921_ops,
+				      (void *)id->driver_data, &features);
 	if (!ops)
 		return -ENOMEM;
 
@@ -136,7 +136,7 @@ static int mt7921s_probe(struct sdio_func *func,
 	if (!mdev)
 		return -ENOMEM;
 
-	dev = container_of(mdev, struct mt7921_dev, mt76);
+	dev = container_of(mdev, struct mt792x_dev, mt76);
 	dev->fw_features = features;
 	dev->hif_ops = &mt7921_sdio_ops;
 	sdio_set_drvdata(func, dev);
@@ -196,7 +196,7 @@ error:
 
 static void mt7921s_remove(struct sdio_func *func)
 {
-	struct mt7921_dev *dev = sdio_get_drvdata(func);
+	struct mt792x_dev *dev = sdio_get_drvdata(func);
 
 	mt7921s_unregister_device(dev);
 }
@@ -204,7 +204,7 @@ static void mt7921s_remove(struct sdio_func *func)
 static int mt7921s_suspend(struct device *__dev)
 {
 	struct sdio_func *func = dev_to_sdio_func(__dev);
-	struct mt7921_dev *dev = sdio_get_drvdata(func);
+	struct mt792x_dev *dev = sdio_get_drvdata(func);
 	struct mt76_connac_pm *pm = &dev->pm;
 	struct mt76_dev *mdev = &dev->mt76;
 	int err;
@@ -216,7 +216,7 @@ static int mt7921s_suspend(struct device *__dev)
 	cancel_delayed_work_sync(&pm->ps_work);
 	cancel_work_sync(&pm->wake_work);
 
-	err = mt7921_mcu_drv_pmctrl(dev);
+	err = mt792x_mcu_drv_pmctrl(dev);
 	if (err < 0)
 		goto restore_suspend;
 
@@ -244,7 +244,7 @@ static int mt7921s_suspend(struct device *__dev)
 	mt76_worker_disable(&mdev->sdio.txrx_worker);
 	mt76_worker_disable(&mdev->sdio.net_worker);
 
-	err = mt7921_mcu_fw_pmctrl(dev);
+	err = mt792x_mcu_fw_pmctrl(dev);
 	if (err)
 		goto restore_txrx_worker;
 
@@ -269,7 +269,7 @@ restore_suspend:
 	pm->suspended = false;
 
 	if (err < 0)
-		mt7921_reset(&dev->mt76);
+		mt792x_reset(&dev->mt76);
 
 	return err;
 }
@@ -277,14 +277,14 @@ restore_suspend:
 static int mt7921s_resume(struct device *__dev)
 {
 	struct sdio_func *func = dev_to_sdio_func(__dev);
-	struct mt7921_dev *dev = sdio_get_drvdata(func);
+	struct mt792x_dev *dev = sdio_get_drvdata(func);
 	struct mt76_connac_pm *pm = &dev->pm;
 	struct mt76_dev *mdev = &dev->mt76;
 	int err;
 
 	clear_bit(MT76_STATE_SUSPEND, &mdev->phy.state);
 
-	err = mt7921_mcu_drv_pmctrl(dev);
+	err = mt792x_mcu_drv_pmctrl(dev);
 	if (err < 0)
 		goto failed;
 
@@ -302,7 +302,7 @@ failed:
 	pm->suspended = false;
 
 	if (err < 0)
-		mt7921_reset(&dev->mt76);
+		mt792x_reset(&dev->mt76);
 
 	return err;
 }

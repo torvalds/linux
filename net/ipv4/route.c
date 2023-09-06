@@ -515,13 +515,12 @@ static void __build_flow_key(const struct net *net, struct flowi4 *fl4,
 	__u8 scope = RT_SCOPE_UNIVERSE;
 
 	if (sk) {
-		const struct inet_sock *inet = inet_sk(sk);
-
 		oif = sk->sk_bound_dev_if;
 		mark = READ_ONCE(sk->sk_mark);
 		tos = ip_sock_rt_tos(sk);
 		scope = ip_sock_rt_scope(sk);
-		prot = inet->hdrincl ? IPPROTO_RAW : sk->sk_protocol;
+		prot = inet_test_bit(HDRINCL, sk) ? IPPROTO_RAW :
+						    sk->sk_protocol;
 	}
 
 	flowi4_init_output(fl4, oif, mark, tos & IPTOS_RT_MASK, scope,
@@ -555,7 +554,8 @@ static void build_sk_flow_key(struct flowi4 *fl4, const struct sock *sk)
 	flowi4_init_output(fl4, sk->sk_bound_dev_if, READ_ONCE(sk->sk_mark),
 			   ip_sock_rt_tos(sk) & IPTOS_RT_MASK,
 			   ip_sock_rt_scope(sk),
-			   inet->hdrincl ? IPPROTO_RAW : sk->sk_protocol,
+			   inet_test_bit(HDRINCL, sk) ?
+				IPPROTO_RAW : sk->sk_protocol,
 			   inet_sk_flowi_flags(sk),
 			   daddr, inet->inet_saddr, 0, 0, sk->sk_uid);
 	rcu_read_unlock();
@@ -3592,6 +3592,7 @@ static struct ctl_table ipv4_route_netns_table[] = {
 static __net_init int sysctl_route_net_init(struct net *net)
 {
 	struct ctl_table *tbl;
+	size_t table_size = ARRAY_SIZE(ipv4_route_netns_table);
 
 	tbl = ipv4_route_netns_table;
 	if (!net_eq(net, &init_net)) {
@@ -3603,8 +3604,10 @@ static __net_init int sysctl_route_net_init(struct net *net)
 
 		/* Don't export non-whitelisted sysctls to unprivileged users */
 		if (net->user_ns != &init_user_ns) {
-			if (tbl[0].procname != ipv4_route_flush_procname)
+			if (tbl[0].procname != ipv4_route_flush_procname) {
 				tbl[0].procname = NULL;
+				table_size = 0;
+			}
 		}
 
 		/* Update the variables to point into the current struct net
@@ -3615,7 +3618,8 @@ static __net_init int sysctl_route_net_init(struct net *net)
 	}
 	tbl[0].extra1 = net;
 
-	net->ipv4.route_hdr = register_net_sysctl(net, "net/ipv4/route", tbl);
+	net->ipv4.route_hdr = register_net_sysctl_sz(net, "net/ipv4/route",
+						     tbl, table_size);
 	if (!net->ipv4.route_hdr)
 		goto err_reg;
 	return 0;

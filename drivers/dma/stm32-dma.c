@@ -1581,8 +1581,7 @@ static int stm32_dma_probe(struct platform_device *pdev)
 
 	dd = &dmadev->ddev;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	dmadev->base = devm_ioremap_resource(&pdev->dev, res);
+	dmadev->base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(dmadev->base))
 		return PTR_ERR(dmadev->base);
 

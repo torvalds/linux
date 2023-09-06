@@ -30,6 +30,14 @@
 #define FDO_PWM_MODE_STATIC  1
 #define FDO_PWM_MODE_STATIC_RPM 5
 
+extern const int link_speed[];
+
+/* Helper to Convert from PCIE Gen 1/2/3/4/5/6 to 0.1 GT/s speed units */
+static inline int pcie_gen_to_speed(uint32_t gen)
+{
+	return ((gen == 0) ? link_speed[0] : link_speed[gen - 1]);
+}
+
 int smu_cmn_send_msg_without_waiting(struct smu_context *smu,
 				     uint16_t msg_index,
 				     uint32_t param);

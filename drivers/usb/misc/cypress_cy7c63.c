@@ -203,7 +203,7 @@ ATTRIBUTE_GROUPS(cypress);
 static int cypress_probe(struct usb_interface *interface,
 			 const struct usb_device_id *id)
 {
-	struct cypress *dev = NULL;
+	struct cypress *dev;
 	int retval = -ENOMEM;
 
 	/* allocate memory for our device state and initialize it */

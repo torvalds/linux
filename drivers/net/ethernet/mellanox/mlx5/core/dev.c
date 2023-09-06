@@ -36,6 +36,7 @@
 #include <linux/mlx5/vport.h>
 #include "mlx5_core.h"
 #include "devlink.h"
+#include "lag/lag.h"
 
 /* intf dev list mutex */
 static DEFINE_MUTEX(mlx5_intf_mutex);
@@ -587,10 +588,7 @@ static int next_phys_dev_lag(struct device *dev, const void *data)
 	if (!mdev)
 		return 0;
 
-	if (!MLX5_CAP_GEN(mdev, vport_group_manager) ||
-	    !MLX5_CAP_GEN(mdev, lag_master) ||
-	    (MLX5_CAP_GEN(mdev, num_lag_ports) > MLX5_MAX_PORTS ||
-	     MLX5_CAP_GEN(mdev, num_lag_ports) <= 1))
+	if (!mlx5_lag_is_supported(mdev))
 		return 0;
 
 	return _next_phys_dev(mdev, data);

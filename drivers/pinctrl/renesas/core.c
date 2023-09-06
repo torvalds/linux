@@ -19,7 +19,6 @@
 #include <linux/kernel.h>
 #include <linux/math.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/pinctrl/machine.h>
 #include <linux/platform_device.h>
 #include <linux/psci.h>
@@ -649,7 +648,7 @@ static const struct of_device_id sh_pfc_of_table[] = {
 };
 #endif
 
-#if defined(CONFIG_PM_SLEEP) && defined(CONFIG_ARM_PSCI_FW)
+#if defined(CONFIG_ARM_PSCI_FW)
 static void sh_pfc_nop_reg(struct sh_pfc *pfc, u32 reg, unsigned int idx)
 {
 }
@@ -732,15 +731,13 @@ static int sh_pfc_resume_noirq(struct device *dev)
 		sh_pfc_walk_regs(pfc, sh_pfc_restore_reg);
 	return 0;
 }
-
-static const struct dev_pm_ops sh_pfc_pm  = {
-	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(sh_pfc_suspend_noirq, sh_pfc_resume_noirq)
-};
-#define DEV_PM_OPS	&sh_pfc_pm
 #else
 static int sh_pfc_suspend_init(struct sh_pfc *pfc) { return 0; }
-#define DEV_PM_OPS	NULL
-#endif /* CONFIG_PM_SLEEP && CONFIG_ARM_PSCI_FW */
+static int sh_pfc_suspend_noirq(struct device *dev) { return 0; }
+static int sh_pfc_resume_noirq(struct device *dev) { return 0; }
+#endif	/* CONFIG_ARM_PSCI_FW */
+
+static DEFINE_NOIRQ_DEV_PM_OPS(sh_pfc_pm, sh_pfc_suspend_noirq, sh_pfc_resume_noirq);
 
 #ifdef DEBUG
 #define SH_PFC_MAX_REGS		300
@@ -1418,7 +1415,7 @@ static struct platform_driver sh_pfc_driver = {
 	.driver		= {
 		.name	= DRV_NAME,
 		.of_match_table = of_match_ptr(sh_pfc_of_table),
-		.pm     = DEV_PM_OPS,
+		.pm	= pm_sleep_ptr(&sh_pfc_pm),
 	},
 };
 

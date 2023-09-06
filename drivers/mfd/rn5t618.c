@@ -277,7 +277,7 @@ static SIMPLE_DEV_PM_OPS(rn5t618_i2c_dev_pm_ops,
 static struct i2c_driver rn5t618_i2c_driver = {
 	.driver = {
 		.name = "rn5t618",
-		.of_match_table = of_match_ptr(rn5t618_of_match),
+		.of_match_table = rn5t618_of_match,
 		.pm = &rn5t618_i2c_dev_pm_ops,
 	},
 	.probe = rn5t618_i2c_probe,

@@ -7,6 +7,7 @@
 #include <linux/time.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
+#include <linux/interconnect.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
@@ -44,6 +45,49 @@ enum {
 	TSTBUS_WRAPPER,
 	TSTBUS_UNIPRO,
 	TSTBUS_MAX,
+};
+
+#define QCOM_UFS_MAX_GEAR 4
+#define QCOM_UFS_MAX_LANE 2
+
+enum {
+	MODE_MIN,
+	MODE_PWM,
+	MODE_HS_RA,
+	MODE_HS_RB,
+	MODE_MAX,
+};
+
+static const struct __ufs_qcom_bw_table {
+	u32 mem_bw;
+	u32 cfg_bw;
+} ufs_qcom_bw_table[MODE_MAX + 1][QCOM_UFS_MAX_GEAR + 1][QCOM_UFS_MAX_LANE + 1] = {
+	[MODE_MIN][0][0]		   = { 0,		0 }, /* Bandwidth values in KB/s */
+	[MODE_PWM][UFS_PWM_G1][UFS_LANE_1] = { 922,		1000 },
+	[MODE_PWM][UFS_PWM_G2][UFS_LANE_1] = { 1844,		1000 },
+	[MODE_PWM][UFS_PWM_G3][UFS_LANE_1] = { 3688,		1000 },
+	[MODE_PWM][UFS_PWM_G4][UFS_LANE_1] = { 7376,		1000 },
+	[MODE_PWM][UFS_PWM_G1][UFS_LANE_2] = { 1844,		1000 },
+	[MODE_PWM][UFS_PWM_G2][UFS_LANE_2] = { 3688,		1000 },
+	[MODE_PWM][UFS_PWM_G3][UFS_LANE_2] = { 7376,		1000 },
+	[MODE_PWM][UFS_PWM_G4][UFS_LANE_2] = { 14752,		1000 },
+	[MODE_HS_RA][UFS_HS_G1][UFS_LANE_1] = { 127796,		1000 },
+	[MODE_HS_RA][UFS_HS_G2][UFS_LANE_1] = { 255591,		1000 },
+	[MODE_HS_RA][UFS_HS_G3][UFS_LANE_1] = { 1492582,	102400 },
+	[MODE_HS_RA][UFS_HS_G4][UFS_LANE_1] = { 2915200,	204800 },
+	[MODE_HS_RA][UFS_HS_G1][UFS_LANE_2] = { 255591,		1000 },
+	[MODE_HS_RA][UFS_HS_G2][UFS_LANE_2] = { 511181,		1000 },
+	[MODE_HS_RA][UFS_HS_G3][UFS_LANE_2] = { 1492582,	204800 },
+	[MODE_HS_RA][UFS_HS_G4][UFS_LANE_2] = { 2915200,	409600 },
+	[MODE_HS_RB][UFS_HS_G1][UFS_LANE_1] = { 149422,		1000 },
+	[MODE_HS_RB][UFS_HS_G2][UFS_LANE_1] = { 298189,		1000 },
+	[MODE_HS_RB][UFS_HS_G3][UFS_LANE_1] = { 1492582,	102400 },
+	[MODE_HS_RB][UFS_HS_G4][UFS_LANE_1] = { 2915200,	204800 },
+	[MODE_HS_RB][UFS_HS_G1][UFS_LANE_2] = { 298189,		1000 },
+	[MODE_HS_RB][UFS_HS_G2][UFS_LANE_2] = { 596378,		1000 },
+	[MODE_HS_RB][UFS_HS_G3][UFS_LANE_2] = { 1492582,	204800 },
+	[MODE_HS_RB][UFS_HS_G4][UFS_LANE_2] = { 2915200,	409600 },
+	[MODE_MAX][0][0]		    = { 7643136,	307200 },
 };
 
 static struct ufs_qcom_host *ufs_qcom_hosts[MAX_UFS_QCOM_HOSTS];
@@ -485,7 +529,7 @@ static int ufs_qcom_hce_enable_notify(struct ufs_hba *hba,
 }
 
 /*
- * Returns zero for success and non-zero in case of a failure
+ * Return: zero for success and non-zero in case of a failure.
  */
 static int ufs_qcom_cfg_timers(struct ufs_hba *hba, u32 gear,
 			       u32 hs, u32 rate, bool update_link_startup_timer)
@@ -789,6 +833,51 @@ static void ufs_qcom_dev_ref_clk_ctrl(struct ufs_qcom_host *host, bool enable)
 	}
 }
 
+static int ufs_qcom_icc_set_bw(struct ufs_qcom_host *host, u32 mem_bw, u32 cfg_bw)
+{
+	struct device *dev = host->hba->dev;
+	int ret;
+
+	ret = icc_set_bw(host->icc_ddr, 0, mem_bw);
+	if (ret < 0) {
+		dev_err(dev, "failed to set bandwidth request: %d\n", ret);
+		return ret;
+	}
+
+	ret = icc_set_bw(host->icc_cpu, 0, cfg_bw);
+	if (ret < 0) {
+		dev_err(dev, "failed to set bandwidth request: %d\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+
+static struct __ufs_qcom_bw_table ufs_qcom_get_bw_table(struct ufs_qcom_host *host)
+{
+	struct ufs_pa_layer_attr *p = &host->dev_req_params;
+	int gear = max_t(u32, p->gear_rx, p->gear_tx);
+	int lane = max_t(u32, p->lane_rx, p->lane_tx);
+
+	if (ufshcd_is_hs_mode(p)) {
+		if (p->hs_rate == PA_HS_MODE_B)
+			return ufs_qcom_bw_table[MODE_HS_RB][gear][lane];
+		else
+			return ufs_qcom_bw_table[MODE_HS_RA][gear][lane];
+	} else {
+		return ufs_qcom_bw_table[MODE_PWM][gear][lane];
+	}
+}
+
+static int ufs_qcom_icc_update_bw(struct ufs_qcom_host *host)
+{
+	struct __ufs_qcom_bw_table bw_table;
+
+	bw_table = ufs_qcom_get_bw_table(host);
+
+	return ufs_qcom_icc_set_bw(host, bw_table.mem_bw, bw_table.cfg_bw);
+}
+
 static int ufs_qcom_pwr_change_notify(struct ufs_hba *hba,
 				enum ufs_notify_change_status status,
 				struct ufs_pa_layer_attr *dev_max_params,
@@ -851,6 +940,8 @@ static int ufs_qcom_pwr_change_notify(struct ufs_hba *hba,
 		/* cache the power mode parameters to use internally */
 		memcpy(&host->dev_req_params,
 				dev_req_params, sizeof(*dev_req_params));
+
+		ufs_qcom_icc_update_bw(host);
 
 		/* disable the device ref clock if entered PWM mode */
 		if (ufshcd_is_hs_mode(&hba->pwr_info) &&
@@ -964,7 +1055,7 @@ static void ufs_qcom_set_caps(struct ufs_hba *hba)
  * @on: If true, enable clocks else disable them.
  * @status: PRE_CHANGE or POST_CHANGE notify
  *
- * Returns 0 on success, non-zero on failure.
+ * Return: 0 on success, non-zero on failure.
  */
 static int ufs_qcom_setup_clocks(struct ufs_hba *hba, bool on,
 				 enum ufs_notify_change_status status)
@@ -981,7 +1072,9 @@ static int ufs_qcom_setup_clocks(struct ufs_hba *hba, bool on,
 
 	switch (status) {
 	case PRE_CHANGE:
-		if (!on) {
+		if (on) {
+			ufs_qcom_icc_update_bw(host);
+		} else {
 			if (!ufs_qcom_is_link_active(hba)) {
 				/* disable device ref_clk */
 				ufs_qcom_dev_ref_clk_ctrl(host, false);
@@ -993,6 +1086,9 @@ static int ufs_qcom_setup_clocks(struct ufs_hba *hba, bool on,
 			/* enable the device ref clock for HS mode*/
 			if (ufshcd_is_hs_mode(&hba->pwr_info))
 				ufs_qcom_dev_ref_clk_ctrl(host, true);
+		} else {
+			ufs_qcom_icc_set_bw(host, ufs_qcom_bw_table[MODE_MIN][0][0].mem_bw,
+					    ufs_qcom_bw_table[MODE_MIN][0][0].cfg_bw);
 		}
 		break;
 	}
@@ -1031,6 +1127,34 @@ static const struct reset_control_ops ufs_qcom_reset_ops = {
 	.deassert = ufs_qcom_reset_deassert,
 };
 
+static int ufs_qcom_icc_init(struct ufs_qcom_host *host)
+{
+	struct device *dev = host->hba->dev;
+	int ret;
+
+	host->icc_ddr = devm_of_icc_get(dev, "ufs-ddr");
+	if (IS_ERR(host->icc_ddr))
+		return dev_err_probe(dev, PTR_ERR(host->icc_ddr),
+				    "failed to acquire interconnect path\n");
+
+	host->icc_cpu = devm_of_icc_get(dev, "cpu-ufs");
+	if (IS_ERR(host->icc_cpu))
+		return dev_err_probe(dev, PTR_ERR(host->icc_cpu),
+				    "failed to acquire interconnect path\n");
+
+	/*
+	 * Set Maximum bandwidth vote before initializing the UFS controller and
+	 * device. Ideally, a minimal interconnect vote would suffice for the
+	 * initialization, but a max vote would allow faster initialization.
+	 */
+	ret = ufs_qcom_icc_set_bw(host, ufs_qcom_bw_table[MODE_MAX][0][0].mem_bw,
+				  ufs_qcom_bw_table[MODE_MAX][0][0].cfg_bw);
+	if (ret < 0)
+		return dev_err_probe(dev, ret, "failed to set bandwidth request\n");
+
+	return 0;
+}
+
 /**
  * ufs_qcom_init - bind phy with controller
  * @hba: host controller instance
@@ -1038,7 +1162,7 @@ static const struct reset_control_ops ufs_qcom_reset_ops = {
  * Binds PHY with controller and powers up PHY enabling clocks
  * and regulators.
  *
- * Returns -EPROBE_DEFER if binding fails, returns negative error
+ * Return: -EPROBE_DEFER if binding fails, returns negative error
  * on phy power up failure and returns zero on success.
  */
 static int ufs_qcom_init(struct ufs_hba *hba)
@@ -1084,6 +1208,10 @@ static int ufs_qcom_init(struct ufs_hba *hba)
 			goto out_variant_clear;
 		}
 	}
+
+	err = ufs_qcom_icc_init(host);
+	if (err)
+		goto out_variant_clear;
 
 	host->device_reset = devm_gpiod_get_optional(dev, "reset",
 						     GPIOD_OUT_HIGH);
@@ -1254,6 +1382,10 @@ static int ufs_qcom_clk_scale_notify(struct ufs_hba *hba,
 	struct ufs_pa_layer_attr *dev_req_params = &host->dev_req_params;
 	int err = 0;
 
+	/* check the host controller state before sending hibern8 cmd */
+	if (!ufshcd_is_hba_active(hba))
+		return 0;
+
 	if (status == PRE_CHANGE) {
 		err = ufshcd_uic_hibern8_enter(hba);
 		if (err)
@@ -1282,6 +1414,7 @@ static int ufs_qcom_clk_scale_notify(struct ufs_hba *hba,
 				    dev_req_params->pwr_rx,
 				    dev_req_params->hs_rate,
 				    false);
+		ufs_qcom_icc_update_bw(host);
 		ufshcd_uic_hibern8_exit(hba);
 	}
 
@@ -1483,6 +1616,7 @@ static void ufs_qcom_config_scaling_param(struct ufs_hba *hba,
 					struct devfreq_simple_ondemand_data *d)
 {
 	p->polling_ms = 60;
+	p->timer = DEVFREQ_TIMER_DELAYED;
 	d->upthreshold = 70;
 	d->downdifferential = 5;
 }
@@ -1643,11 +1777,12 @@ static void ufs_qcom_write_msi_msg(struct msi_desc *desc, struct msi_msg *msg)
 	ufshcd_mcq_config_esi(hba, msg);
 }
 
-static irqreturn_t ufs_qcom_mcq_esi_handler(int irq, void *__hba)
+static irqreturn_t ufs_qcom_mcq_esi_handler(int irq, void *data)
 {
-	struct ufs_hba *hba = __hba;
-	struct ufs_qcom_host *host = ufshcd_get_variant(hba);
-	u32 id = irq - host->esi_base;
+	struct msi_desc *desc = data;
+	struct device *dev = msi_desc_to_dev(desc);
+	struct ufs_hba *hba = dev_get_drvdata(dev);
+	u32 id = desc->msi_index;
 	struct ufs_hw_queue *hwq = &hba->uhq[id];
 
 	ufshcd_mcq_write_cqis(hba, 0x1, id);
@@ -1665,8 +1800,6 @@ static int ufs_qcom_config_esi(struct ufs_hba *hba)
 
 	if (host->esi_enabled)
 		return 0;
-	else if (host->esi_base < 0)
-		return -EINVAL;
 
 	/*
 	 * 1. We only handle CQs as of now.
@@ -1675,16 +1808,16 @@ static int ufs_qcom_config_esi(struct ufs_hba *hba)
 	nr_irqs = hba->nr_hw_queues - hba->nr_queues[HCTX_TYPE_POLL];
 	ret = platform_msi_domain_alloc_irqs(hba->dev, nr_irqs,
 					     ufs_qcom_write_msi_msg);
-	if (ret)
+	if (ret) {
+		dev_err(hba->dev, "Failed to request Platform MSI %d\n", ret);
 		goto out;
+	}
 
+	msi_lock_descs(hba->dev);
 	msi_for_each_desc(desc, hba->dev, MSI_DESC_ALL) {
-		if (!desc->msi_index)
-			host->esi_base = desc->irq;
-
 		ret = devm_request_irq(hba->dev, desc->irq,
 				       ufs_qcom_mcq_esi_handler,
-				       IRQF_SHARED, "qcom-mcq-esi", hba);
+				       IRQF_SHARED, "qcom-mcq-esi", desc);
 		if (ret) {
 			dev_err(hba->dev, "%s: Fail to request IRQ for %d, err = %d\n",
 				__func__, desc->irq, ret);
@@ -1692,14 +1825,17 @@ static int ufs_qcom_config_esi(struct ufs_hba *hba)
 			break;
 		}
 	}
+	msi_unlock_descs(hba->dev);
 
 	if (ret) {
 		/* Rewind */
+		msi_lock_descs(hba->dev);
 		msi_for_each_desc(desc, hba->dev, MSI_DESC_ALL) {
 			if (desc == failed_desc)
 				break;
 			devm_free_irq(hba->dev, desc->irq, hba);
 		}
+		msi_unlock_descs(hba->dev);
 		platform_msi_domain_free_irqs(hba->dev);
 	} else {
 		if (host->hw_ver.major == 6 && host->hw_ver.minor == 0 &&
@@ -1712,12 +1848,8 @@ static int ufs_qcom_config_esi(struct ufs_hba *hba)
 	}
 
 out:
-	if (ret) {
-		host->esi_base = -1;
-		dev_warn(hba->dev, "Failed to request Platform MSI %d\n", ret);
-	} else {
+	if (!ret)
 		host->esi_enabled = true;
-	}
 
 	return ret;
 }
@@ -1757,7 +1889,7 @@ static const struct ufs_hba_variant_ops ufs_hba_qcom_vops = {
  * ufs_qcom_probe - probe routine of the driver
  * @pdev: pointer to Platform device handle
  *
- * Return zero for success and non-zero for failure
+ * Return: zero for success and non-zero for failure.
  */
 static int ufs_qcom_probe(struct platform_device *pdev)
 {

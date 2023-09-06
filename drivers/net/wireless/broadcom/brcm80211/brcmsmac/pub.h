@@ -297,7 +297,7 @@ struct brcms_pub *brcms_c_pub(struct brcms_c_info *wlc);
 void brcms_c_ampdu_flush(struct brcms_c_info *wlc, struct ieee80211_sta *sta,
 			 u16 tid);
 void brcms_c_ampdu_tx_operational(struct brcms_c_info *wlc, u8 tid,
-				  u8 ba_wsize, uint max_rx_ampdu_bytes);
+				  uint max_rx_ampdu_bytes);
 int brcms_c_module_register(struct brcms_pub *pub, const char *name,
 			    struct brcms_info *hdl,
 			    int (*down_fn)(void *handle));

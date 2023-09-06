@@ -72,8 +72,8 @@ struct serial_struct;
  *	is closed for the last time freeing up the resources. This is
  *	actually the second part of shutdown for routines that might sleep.
  *
- * @write: ``int ()(struct tty_struct *tty, const unsigned char *buf,
- *		    int count)``
+ * @write: ``ssize_t ()(struct tty_struct *tty, const unsigned char *buf,
+ *		    size_t count)``
  *
  *	This routine is called by the kernel to write a series (@count) of
  *	characters (@buf) to the @tty device. The characters may come from
@@ -356,9 +356,8 @@ struct tty_operations {
 	void (*close)(struct tty_struct * tty, struct file * filp);
 	void (*shutdown)(struct tty_struct *tty);
 	void (*cleanup)(struct tty_struct *tty);
-	int  (*write)(struct tty_struct * tty,
-		      const unsigned char *buf, int count);
-	int  (*put_char)(struct tty_struct *tty, unsigned char ch);
+	ssize_t (*write)(struct tty_struct *tty, const u8 *buf, size_t count);
+	int  (*put_char)(struct tty_struct *tty, u8 ch);
 	void (*flush_chars)(struct tty_struct *tty);
 	unsigned int (*write_room)(struct tty_struct *tty);
 	unsigned int (*chars_in_buffer)(struct tty_struct *tty);

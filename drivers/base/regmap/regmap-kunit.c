@@ -836,6 +836,45 @@ static void cache_drop(struct kunit *test)
 	regmap_exit(map);
 }
 
+static void cache_present(struct kunit *test)
+{
+	struct regcache_types *t = (struct regcache_types *)test->param_value;
+	struct regmap *map;
+	struct regmap_config config;
+	struct regmap_ram_data *data;
+	unsigned int val;
+	int i;
+
+	config = test_regmap_config;
+	config.cache_type = t->type;
+
+	map = gen_regmap(&config, &data);
+	KUNIT_ASSERT_FALSE(test, IS_ERR(map));
+	if (IS_ERR(map))
+		return;
+
+	for (i = 0; i < BLOCK_TEST_SIZE; i++)
+		data->read[i] = false;
+
+	/* No defaults so no registers cached. */
+	for (i = 0; i < BLOCK_TEST_SIZE; i++)
+		KUNIT_ASSERT_FALSE(test, regcache_reg_cached(map, i));
+
+	/* We didn't trigger any reads */
+	for (i = 0; i < BLOCK_TEST_SIZE; i++)
+		KUNIT_ASSERT_FALSE(test, data->read[i]);
+
+	/* Fill the cache */
+	for (i = 0; i < BLOCK_TEST_SIZE; i++)
+		KUNIT_EXPECT_EQ(test, 0, regmap_read(map, i, &val));
+
+	/* Now everything should be cached */
+	for (i = 0; i < BLOCK_TEST_SIZE; i++)
+		KUNIT_ASSERT_TRUE(test, regcache_reg_cached(map, i));
+
+	regmap_exit(map);
+}
+
 struct raw_test_types {
 	const char *name;
 
@@ -1177,6 +1216,7 @@ static struct kunit_case regmap_test_cases[] = {
 	KUNIT_CASE_PARAM(cache_sync_readonly, real_cache_types_gen_params),
 	KUNIT_CASE_PARAM(cache_sync_patch, real_cache_types_gen_params),
 	KUNIT_CASE_PARAM(cache_drop, sparse_cache_types_gen_params),
+	KUNIT_CASE_PARAM(cache_present, sparse_cache_types_gen_params),
 
 	KUNIT_CASE_PARAM(raw_read_defaults_single, raw_test_types_gen_params),
 	KUNIT_CASE_PARAM(raw_read_defaults, raw_test_types_gen_params),

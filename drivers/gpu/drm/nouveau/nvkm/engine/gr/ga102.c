@@ -137,8 +137,15 @@ ga102_gr_oneinit_intr(struct gf100_gr *gr, enum nvkm_intr_type *pvector)
 	return &device->vfn->intr;
 }
 
+static int
+ga102_gr_nonstall(struct gf100_gr *gr)
+{
+	return nvkm_rd32(gr->base.engine.subdev.device, 0x400160) & 0x00000fff;
+}
+
 static const struct gf100_gr_func
 ga102_gr = {
+	.nonstall = ga102_gr_nonstall,
 	.oneinit_intr = ga102_gr_oneinit_intr,
 	.oneinit_tiles = gm200_gr_oneinit_tiles,
 	.oneinit_sm_id = gv100_gr_oneinit_sm_id,

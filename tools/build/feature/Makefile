@@ -372,7 +372,7 @@ $(OUTPUT)test-libzstd.bin:
 	$(BUILD) -lzstd
 
 $(OUTPUT)test-clang-bpf-co-re.bin:
-	$(CLANG) -S -g -target bpf -o - $(patsubst %.bin,%.c,$(@F)) |	\
+	$(CLANG) -S -g --target=bpf -o - $(patsubst %.bin,%.c,$(@F)) |	\
 		grep BTF_KIND_VAR
 
 $(OUTPUT)test-file-handle.bin:

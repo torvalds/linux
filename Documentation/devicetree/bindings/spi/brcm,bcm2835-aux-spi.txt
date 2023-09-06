@@ -1,4 +1,4 @@
-Broadcom BCM2835 auxiliar SPI1/2 controller
+Broadcom BCM2835 auxiliary SPI1/2 controller
 
 The BCM2835 contains two forms of SPI master controller, one known simply as
 SPI0, and the other known as the "Universal SPI Master"; part of the
@@ -9,7 +9,7 @@ Required properties:
 - reg: Should contain register location and length for the spi block
 - interrupts: Should contain shared interrupt of the aux block
 - clocks: The clock feeding the SPI controller - needs to
-	  point to the auxiliar clock driver of the bcm2835,
+	  point to the auxiliary clock driver of the bcm2835,
 	  as this clock will enable the output gate for the specific
 	  clock.
 - cs-gpios: the cs-gpios (native cs is NOT supported)

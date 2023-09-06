@@ -500,7 +500,7 @@ intel_dp_set_source_rates(struct intel_dp *intel_dp)
 		else if (IS_ALDERLAKE_P(dev_priv) || IS_ALDERLAKE_S(dev_priv) ||
 			 IS_DG1(dev_priv) || IS_ROCKETLAKE(dev_priv))
 			max_rate = 810000;
-		else if (IS_JSL_EHL(dev_priv))
+		else if (IS_JASPERLAKE(dev_priv) || IS_ELKHARTLAKE(dev_priv))
 			max_rate = ehl_max_source_rate(intel_dp);
 		else
 			max_rate = icl_max_source_rate(intel_dp);
@@ -510,7 +510,7 @@ intel_dp_set_source_rates(struct intel_dp *intel_dp)
 	} else if (DISPLAY_VER(dev_priv) == 9) {
 		source_rates = skl_rates;
 		size = ARRAY_SIZE(skl_rates);
-	} else if ((IS_HASWELL(dev_priv) && !IS_HSW_ULX(dev_priv)) ||
+	} else if ((IS_HASWELL(dev_priv) && !IS_HASWELL_ULX(dev_priv)) ||
 		   IS_BROADWELL(dev_priv)) {
 		source_rates = hsw_rates;
 		size = ARRAY_SIZE(hsw_rates);
@@ -713,9 +713,18 @@ u32 intel_dp_dsc_nearest_valid_bpp(struct drm_i915_private *i915, u32 bpp, u32 p
 
 		/*
 		 * According to BSpec, 27 is the max DSC output bpp,
-		 * 8 is the min DSC output bpp
+		 * 8 is the min DSC output bpp.
+		 * While we can still clamp higher bpp values to 27, saving bandwidth,
+		 * if it is required to oompress up to bpp < 8, means we can't do
+		 * that and probably means we can't fit the required mode, even with
+		 * DSC enabled.
 		 */
-		bits_per_pixel = clamp_t(u32, bits_per_pixel, 8, 27);
+		if (bits_per_pixel < 8) {
+			drm_dbg_kms(&i915->drm, "Unsupported BPP %u, min 8\n",
+				    bits_per_pixel);
+			return 0;
+		}
+		bits_per_pixel = min_t(u32, bits_per_pixel, 27);
 	} else {
 		/* Find the nearest match in the array of known BPPs from VESA */
 		for (i = 0; i < ARRAY_SIZE(valid_dsc_bpp) - 1; i++) {

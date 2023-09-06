@@ -28,6 +28,8 @@
 #define EDID_BLOCK_SIZE	128
 #define EDID_NUM_BLOCKS	2
 
+#define FW_FILE "lt9611uxc_fw.bin"
+
 struct lt9611uxc {
 	struct device *dev;
 	struct drm_bridge bridge;
@@ -754,7 +756,7 @@ static int lt9611uxc_firmware_update(struct lt9611uxc *lt9611uxc)
 		REG_SEQ0(0x805a, 0x00),
 	};
 
-	ret = request_firmware(&fw, "lt9611uxc_fw.bin", lt9611uxc->dev);
+	ret = request_firmware(&fw, FW_FILE, lt9611uxc->dev);
 	if (ret < 0)
 		return ret;
 
@@ -1019,3 +1021,5 @@ module_i2c_driver(lt9611uxc_driver);
 
 MODULE_AUTHOR("Dmitry Baryshkov <dmitry.baryshkov@linaro.org>");
 MODULE_LICENSE("GPL v2");
+
+MODULE_FIRMWARE(FW_FILE);

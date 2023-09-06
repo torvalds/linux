@@ -49,9 +49,6 @@
 
 atomic_t __kexec_lock = ATOMIC_INIT(0);
 
-/* Per cpu memory for storing cpu states in case of system crash. */
-note_buf_t __percpu *crash_notes;
-
 /* Flag to indicate we are going to kexec a new kernel */
 bool kexec_in_progress = false;
 
@@ -276,6 +273,12 @@ struct kimage *do_kimage_alloc_init(void)
 
 	/* Initialize the list of unusable pages */
 	INIT_LIST_HEAD(&image->unusable_pages);
+
+#ifdef CONFIG_CRASH_HOTPLUG
+	image->hp_action = KEXEC_CRASH_HP_NONE;
+	image->elfcorehdr_index = -1;
+	image->elfcorehdr_updated = false;
+#endif
 
 	return image;
 }
@@ -1217,40 +1220,6 @@ void crash_save_cpu(struct pt_regs *regs, int cpu)
 			      &prstatus, sizeof(prstatus));
 	final_note(buf);
 }
-
-static int __init crash_notes_memory_init(void)
-{
-	/* Allocate memory for saving cpu registers. */
-	size_t size, align;
-
-	/*
-	 * crash_notes could be allocated across 2 vmalloc pages when percpu
-	 * is vmalloc based . vmalloc doesn't guarantee 2 continuous vmalloc
-	 * pages are also on 2 continuous physical pages. In this case the
-	 * 2nd part of crash_notes in 2nd page could be lost since only the
-	 * starting address and size of crash_notes are exported through sysfs.
-	 * Here round up the size of crash_notes to the nearest power of two
-	 * and pass it to __alloc_percpu as align value. This can make sure
-	 * crash_notes is allocated inside one physical page.
-	 */
-	size = sizeof(note_buf_t);
-	align = min(roundup_pow_of_two(sizeof(note_buf_t)), PAGE_SIZE);
-
-	/*
-	 * Break compile if size is bigger than PAGE_SIZE since crash_notes
-	 * definitely will be in 2 pages with that.
-	 */
-	BUILD_BUG_ON(size > PAGE_SIZE);
-
-	crash_notes = __alloc_percpu(size, align);
-	if (!crash_notes) {
-		pr_warn("Memory allocation for saving cpu register states failed\n");
-		return -ENOMEM;
-	}
-	return 0;
-}
-subsys_initcall(crash_notes_memory_init);
-
 
 /*
  * Move into place and start executing a preloaded standalone

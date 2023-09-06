@@ -632,7 +632,7 @@ static const struct regmap_config wm8770_regmap = {
 
 	.reg_defaults = wm8770_reg_defaults,
 	.num_reg_defaults = ARRAY_SIZE(wm8770_reg_defaults),
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 
 	.volatile_reg = wm8770_volatile_reg,
 };

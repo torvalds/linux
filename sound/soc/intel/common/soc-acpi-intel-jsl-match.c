@@ -34,6 +34,11 @@ static const struct snd_soc_acpi_codecs mx98360a_spk = {
 	.codecs = {"MX98360A"}
 };
 
+static struct snd_soc_acpi_codecs rt5650_spk = {
+	.num_codecs = 1,
+	.codecs = {"10EC5650"}
+};
+
 static const struct snd_soc_acpi_codecs rt5682_rt5682s_hp = {
 	.num_codecs = 2,
 	.codecs = {"10EC5682", "RTL5682"},
@@ -97,6 +102,13 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_jsl_machines[] = {
 		.tplg_quirk_mask = SND_SOC_ACPI_TPLG_INTEL_SSP_NUMBER |
 					SND_SOC_ACPI_TPLG_INTEL_SSP_MSB |
 					SND_SOC_ACPI_TPLG_INTEL_DMIC_NUMBER,
+	},
+	{
+		.id = "10EC5650",
+		.drv_name = "jsl_rt5650",
+		.machine_quirk = snd_soc_acpi_codec_list,
+		.quirk_data = &rt5650_spk,
+		.sof_tplg_filename = "sof-jsl-rt5650.tplg",
 	},
 	{},
 };
