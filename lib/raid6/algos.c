@@ -73,6 +73,14 @@ const struct raid6_calls * const raid6_algos[] = {
 	&raid6_neonx2,
 	&raid6_neonx1,
 #endif
+#ifdef CONFIG_LOONGARCH
+#ifdef CONFIG_CPU_HAS_LASX
+	&raid6_lasx,
+#endif
+#ifdef CONFIG_CPU_HAS_LSX
+	&raid6_lsx,
+#endif
+#endif
 #if defined(__ia64__)
 	&raid6_intx32,
 	&raid6_intx16,

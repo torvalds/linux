@@ -108,6 +108,8 @@ extern const struct raid6_calls raid6_vpermxor1;
 extern const struct raid6_calls raid6_vpermxor2;
 extern const struct raid6_calls raid6_vpermxor4;
 extern const struct raid6_calls raid6_vpermxor8;
+extern const struct raid6_calls raid6_lsx;
+extern const struct raid6_calls raid6_lasx;
 
 struct raid6_recov_calls {
 	void (*data2)(int, size_t, int, int, void **);
