@@ -191,43 +191,42 @@ void vmemmap_free(unsigned long start, unsigned long end, struct vmem_altmap *al
 #endif
 #endif
 
-static pte_t *fixmap_pte(unsigned long addr)
+pte_t * __init populate_kernel_pte(unsigned long addr)
 {
-	pgd_t *pgd;
-	p4d_t *p4d;
+	pgd_t *pgd = pgd_offset_k(addr);
+	p4d_t *p4d = p4d_offset(pgd, addr);
 	pud_t *pud;
 	pmd_t *pmd;
 
-	pgd = pgd_offset_k(addr);
-	p4d = p4d_offset(pgd, addr);
-
-	if (pgd_none(*pgd)) {
-		pud_t *new __maybe_unused;
-
-		new = memblock_alloc_low(PAGE_SIZE, PAGE_SIZE);
-		pgd_populate(&init_mm, pgd, new);
+	if (p4d_none(*p4d)) {
+		pud = memblock_alloc(PAGE_SIZE, PAGE_SIZE);
+		if (!pud)
+			panic("%s: Failed to allocate memory\n", __func__);
+		p4d_populate(&init_mm, p4d, pud);
 #ifndef __PAGETABLE_PUD_FOLDED
-		pud_init(new);
+		pud_init(pud);
 #endif
 	}
 
 	pud = pud_offset(p4d, addr);
 	if (pud_none(*pud)) {
-		pmd_t *new __maybe_unused;
-
-		new = memblock_alloc_low(PAGE_SIZE, PAGE_SIZE);
-		pud_populate(&init_mm, pud, new);
+		pmd = memblock_alloc(PAGE_SIZE, PAGE_SIZE);
+		if (!pmd)
+			panic("%s: Failed to allocate memory\n", __func__);
+		pud_populate(&init_mm, pud, pmd);
 #ifndef __PAGETABLE_PMD_FOLDED
-		pmd_init(new);
+		pmd_init(pmd);
 #endif
 	}
 
 	pmd = pmd_offset(pud, addr);
-	if (pmd_none(*pmd)) {
-		pte_t *new __maybe_unused;
+	if (!pmd_present(*pmd)) {
+		pte_t *pte;
 
-		new = memblock_alloc_low(PAGE_SIZE, PAGE_SIZE);
-		pmd_populate_kernel(&init_mm, pmd, new);
+		pte = memblock_alloc(PAGE_SIZE, PAGE_SIZE);
+		if (!pte)
+			panic("%s: Failed to allocate memory\n", __func__);
+		pmd_populate_kernel(&init_mm, pmd, pte);
 	}
 
 	return pte_offset_kernel(pmd, addr);
@@ -241,7 +240,7 @@ void __init __set_fixmap(enum fixed_addresses idx,
 
 	BUG_ON(idx <= FIX_HOLE || idx >= __end_of_fixed_addresses);
 
-	ptep = fixmap_pte(addr);
+	ptep = populate_kernel_pte(addr);
 	if (!pte_none(*ptep)) {
 		pte_ERROR(*ptep);
 		return;
