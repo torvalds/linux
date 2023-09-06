@@ -22,7 +22,7 @@
 
 	.macro	EX insn, reg, src, offs
 .ex\@:	\insn	\reg, \src, \offs
-	_asm_extable .ex\@, fault
+	_asm_extable .ex\@, .L_fpu_fault
 	.endm
 
 	.macro sc_save_fp base
@@ -514,7 +514,6 @@ SYM_FUNC_START(_restore_lasx_context)
 	jr	ra
 SYM_FUNC_END(_restore_lasx_context)
 
-SYM_FUNC_START(fault)
+.L_fpu_fault:
 	li.w	a0, -EFAULT				# failure
 	jr	ra
-SYM_FUNC_END(fault)
