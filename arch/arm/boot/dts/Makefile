@@ -1002,6 +1002,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += \
 	rv1106g-evb2-v10.dtb \
 	rv1106g-evb2-v10-dual-camera.dtb \
 	rv1106g-evb2-v11-emmc.dtb \
+	rv1106g-evb2-v11-trailcam-emmc.dtb \
 	rv1106g-evb2-v12-nofastae-emmc.dtb \
 	rv1106g-evb2-v12-nofastae-spi-nor.dtb \
 	rv1106g-evb2-v12-wakeup.dtb \
