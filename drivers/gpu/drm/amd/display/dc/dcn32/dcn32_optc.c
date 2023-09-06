@@ -201,7 +201,7 @@ static void optc32_disable_phantom_otg(struct timing_generator *optc)
 	REG_UPDATE(OTG_CONTROL, OTG_MASTER_EN, 0);
 }
 
-static void optc32_set_odm_bypass(struct timing_generator *optc,
+void optc32_set_odm_bypass(struct timing_generator *optc,
 		const struct dc_crtc_timing *dc_crtc_timing)
 {
 	struct optc *optc1 = DCN10TG_FROM_TG(optc);
