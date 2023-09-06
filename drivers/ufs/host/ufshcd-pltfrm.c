@@ -121,7 +121,7 @@ static bool phandle_exists(const struct device_node *np,
 
 #define MAX_PROP_SIZE 32
 int ufshcd_populate_vreg(struct device *dev, const char *name,
-			 struct ufs_vreg **out_vreg)
+			 struct ufs_vreg **out_vreg, bool skip_current)
 {
 	char prop_name[MAX_PROP_SIZE];
 	struct ufs_vreg *vreg = NULL;
@@ -146,6 +146,11 @@ int ufshcd_populate_vreg(struct device *dev, const char *name,
 	vreg->name = devm_kstrdup(dev, name, GFP_KERNEL);
 	if (!vreg->name)
 		return -ENOMEM;
+
+	if (skip_current) {
+		vreg->max_uA = 0;
+		goto out;
+	}
 
 	snprintf(prop_name, MAX_PROP_SIZE, "%s-max-microamp", name);
 	if (of_property_read_u32(np, prop_name, &vreg->max_uA)) {
@@ -175,19 +180,19 @@ static int ufshcd_parse_regulator_info(struct ufs_hba *hba)
 	struct device *dev = hba->dev;
 	struct ufs_vreg_info *info = &hba->vreg_info;
 
-	err = ufshcd_populate_vreg(dev, "vdd-hba", &info->vdd_hba);
+	err = ufshcd_populate_vreg(dev, "vdd-hba", &info->vdd_hba, true);
 	if (err)
 		goto out;
 
-	err = ufshcd_populate_vreg(dev, "vcc", &info->vcc);
+	err = ufshcd_populate_vreg(dev, "vcc", &info->vcc, false);
 	if (err)
 		goto out;
 
-	err = ufshcd_populate_vreg(dev, "vccq", &info->vccq);
+	err = ufshcd_populate_vreg(dev, "vccq", &info->vccq, false);
 	if (err)
 		goto out;
 
-	err = ufshcd_populate_vreg(dev, "vccq2", &info->vccq2);
+	err = ufshcd_populate_vreg(dev, "vccq2", &info->vccq2, false);
 out:
 	return err;
 }

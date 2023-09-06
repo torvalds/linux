@@ -806,7 +806,7 @@ static int ufs_mtk_vreg_fix_vcc(struct ufs_hba *hba)
 		return 0;
 	}
 
-	err = ufshcd_populate_vreg(dev, vcc_name, &info->vcc);
+	err = ufshcd_populate_vreg(dev, vcc_name, &info->vcc, false);
 	if (err)
 		return err;
 
