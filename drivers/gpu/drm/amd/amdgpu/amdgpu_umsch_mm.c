@@ -334,11 +334,10 @@ static int setup_umsch_mm_test(struct amdgpu_device *adev,
 	if (r)
 		goto error_free_vm;
 
-	test->pasid = amdgpu_pasid_alloc(16);
-	if (test->pasid < 0) {
-		r = test->pasid;
+	r = amdgpu_pasid_alloc(16);
+	if (r < 0)
 		goto error_fini_vm;
-	}
+	test->pasid = r;
 
 	r = amdgpu_bo_create_kernel(adev, sizeof(struct umsch_mm_test_ctx_data),
 				    PAGE_SIZE, AMDGPU_GEM_DOMAIN_GTT,
