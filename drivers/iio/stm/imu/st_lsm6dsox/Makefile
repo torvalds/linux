@@ -11,4 +11,3 @@ obj-$(CONFIG_IIO_ST_LSM6DSOX) += st_lsm6dsox.o
 obj-$(CONFIG_IIO_ST_LSM6DSOX_I2C) += st_lsm6dsox_i2c.o
 obj-$(CONFIG_IIO_ST_LSM6DSOX_SPI) += st_lsm6dsox_spi.o
 obj-$(CONFIG_IIO_ST_LSM6DSOX_I3C) += st_lsm6dsox_i3c.o
-obj-$(CONFIG_IIO_ST_LSM6DSOX_ASYNC_HW_TIMESTAMP) += st_lsm6dsox_hwtimestamp.o
