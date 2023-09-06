@@ -177,7 +177,7 @@ static void umc_v12_0_convert_error_address(struct amdgpu_device *adev,
 {
 	uint32_t channel_index, i;
 	uint64_t soc_pa, na, retired_page, column;
-	uint32_t bank_hash0, bank_hash1, bank_hash2, bank_hash3, col, row;
+	uint32_t bank_hash0, bank_hash1, bank_hash2, bank_hash3, col, row, row_xor;
 	uint32_t bank0, bank1, bank2, bank3, bank;
 
 	bank_hash0 = (err_addr >> UMC_V12_0_MCA_B0_BIT) & 0x1ULL;
@@ -232,17 +232,23 @@ static void umc_v12_0_convert_error_address(struct amdgpu_device *adev,
 	/* clear [C4] in soc physical address */
 	soc_pa &= ~(0x1ULL << UMC_V12_0_PA_C4_BIT);
 
+	row_xor = row ^ (0x1ULL << 13);
 	/* loop for all possibilities of [C4 C3 C2] */
 	for (column = 0; column < UMC_V12_0_NA_MAP_PA_NUM; column++) {
 		retired_page = soc_pa | ((column & 0x3) << UMC_V12_0_PA_C2_BIT);
 		retired_page |= (((column & 0x4) >> 2) << UMC_V12_0_PA_C4_BIT);
-		dev_info(adev->dev, "Error Address(PA): 0x%llx\n", retired_page);
+		/* include column bit 0 and 1 */
+		col &= 0x3;
+		col |= (column << 2);
+		dev_info(adev->dev, "Error Address(PA):0x%llx Row:0x%x Col:0x%x Bank:0x%x\n",
+			retired_page, row, col, bank);
 		amdgpu_umc_fill_error_record(err_data, err_addr,
 			retired_page, channel_index, umc_inst);
 
 		/* shift R13 bit */
 		retired_page ^= (0x1ULL << UMC_V12_0_PA_R13_BIT);
-		dev_info(adev->dev, "Error Address(PA): 0x%llx\n", retired_page);
+		dev_info(adev->dev, "Error Address(PA):0x%llx Row:0x%x Col:0x%x Bank:0x%x\n",
+			retired_page, row_xor, col, bank);
 		amdgpu_umc_fill_error_record(err_data, err_addr,
 			retired_page, channel_index, umc_inst);
 	}
