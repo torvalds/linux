@@ -60,6 +60,11 @@
 			no-map;
 		};
 
+		espi_mmbi_memory: espi-mmbi-memory@434000000 {
+			reg = <0x4 0x34000000 0x0 0x4000000>;
+			no-map;
+		};
+
 		video_engine_memory: video {
 			size = <0x0 0x04000000>;
 			alignment = <0x0 0x01000000>;
@@ -251,6 +256,13 @@
 &espi0 {
 	status = "okay";
 	perif-dma-mode;
+	perif-mmbi-enable;
+	perif-mmbi-src-addr = <0x0 0xa8000000>;
+	perif-mmbi-tgt-memory = <&espi_mmbi_memory>;
+	perif-mmbi-instance-num = <1>;
+	perif-mcyc-enable;
+	perif-mcyc-src-addr = <0x0 0x98000000>;
+	perif-mcyc-size = <0x0 0x10000>;
 	oob-dma-mode;
 	flash-dma-mode;
 };
