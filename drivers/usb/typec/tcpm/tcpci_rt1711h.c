@@ -7,6 +7,7 @@
 
 #include <linux/bits.h>
 #include <linux/kernel.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
@@ -411,19 +412,17 @@ static const struct i2c_device_id rt1711h_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, rt1711h_id);
 
-#ifdef CONFIG_OF
 static const struct of_device_id rt1711h_of_match[] = {
 	{ .compatible = "richtek,rt1711h", .data = &rt1711h },
 	{ .compatible = "richtek,rt1715", .data = &rt1715 },
 	{}
 };
 MODULE_DEVICE_TABLE(of, rt1711h_of_match);
-#endif
 
 static struct i2c_driver rt1711h_i2c_driver = {
 	.driver = {
 		.name = "rt1711h",
-		.of_match_table = of_match_ptr(rt1711h_of_match),
+		.of_match_table = rt1711h_of_match,
 	},
 	.probe = rt1711h_probe,
 	.remove = rt1711h_remove,
