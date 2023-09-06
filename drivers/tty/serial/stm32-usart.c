@@ -1047,9 +1047,20 @@ static void stm32_usart_stop_rx(struct uart_port *port)
 		stm32_usart_clr_bits(port, ofs->cr3, stm32_port->cr3_irq);
 }
 
-/* Handle breaks - ignored by us */
 static void stm32_usart_break_ctl(struct uart_port *port, int break_state)
 {
+	struct stm32_port *stm32_port = to_stm32_port(port);
+	const struct stm32_usart_offsets *ofs = &stm32_port->info->ofs;
+	unsigned long flags;
+
+	spin_lock_irqsave(&port->lock, flags);
+
+	if (break_state)
+		stm32_usart_set_bits(port, ofs->rqr, USART_RQR_SBKRQ);
+	else
+		stm32_usart_clr_bits(port, ofs->rqr, USART_RQR_SBKRQ);
+
+	spin_unlock_irqrestore(&port->lock, flags);
 }
 
 static int stm32_usart_startup(struct uart_port *port)
