@@ -50,21 +50,19 @@ aldebaran_get_reset_handler(struct amdgpu_reset_control *reset_ctl,
 	struct amdgpu_device *adev = (struct amdgpu_device *)reset_ctl->handle;
 	int i;
 
+	if (reset_context->method == AMD_RESET_METHOD_NONE) {
+		if (aldebaran_is_mode2_default(reset_ctl))
+			reset_context->method = AMD_RESET_METHOD_MODE2;
+		else
+			reset_context->method = amdgpu_asic_reset_method(adev);
+	}
+
 	if (reset_context->method != AMD_RESET_METHOD_NONE) {
 		dev_dbg(adev->dev, "Getting reset handler for method %d\n",
 			reset_context->method);
 		for_each_handler(i, handler, reset_ctl) {
 			if (handler->reset_method == reset_context->method)
 				return handler;
-		}
-	}
-
-	if (aldebaran_is_mode2_default(reset_ctl)) {
-		for_each_handler(i, handler, reset_ctl)	{
-			if (handler->reset_method == AMD_RESET_METHOD_MODE2) {
-				reset_context->method = AMD_RESET_METHOD_MODE2;
-				return handler;
-			}
 		}
 	}
 
