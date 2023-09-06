@@ -11,19 +11,6 @@
 #include <asm/cpu.h>
 #include <asm/regdef.h>
 
-.irp to, 0, 1, 2, 3, 4, 5, 6, 7
-.L_fixup_handle_\to\():
-	sub.d	a0, a2, a0
-	addi.d	a0, a0, (\to) * (-8)
-	jr	ra
-.endr
-
-.irp to, 0, 2, 4
-.L_fixup_handle_s\to\():
-	addi.d	a0, a1, -\to
-	jr	ra
-.endr
-
 SYM_FUNC_START(__clear_user)
 	/*
 	 * Some CPUs support hardware unaligned access
@@ -51,7 +38,7 @@ SYM_FUNC_START(__clear_user_generic)
 2:	move	a0, a1
 	jr	ra
 
-	_asm_extable 1b, .L_fixup_handle_s0
+	_asm_extable 1b, 2b
 SYM_FUNC_END(__clear_user_generic)
 
 /*
@@ -173,33 +160,47 @@ SYM_FUNC_START(__clear_user_fast)
 	jr	ra
 
 	/* fixup and ex_table */
-	_asm_extable 0b, .L_fixup_handle_0
-	_asm_extable 1b, .L_fixup_handle_0
-	_asm_extable 2b, .L_fixup_handle_1
-	_asm_extable 3b, .L_fixup_handle_2
-	_asm_extable 4b, .L_fixup_handle_3
-	_asm_extable 5b, .L_fixup_handle_4
-	_asm_extable 6b, .L_fixup_handle_5
-	_asm_extable 7b, .L_fixup_handle_6
-	_asm_extable 8b, .L_fixup_handle_7
-	_asm_extable 9b, .L_fixup_handle_0
-	_asm_extable 10b, .L_fixup_handle_1
-	_asm_extable 11b, .L_fixup_handle_2
-	_asm_extable 12b, .L_fixup_handle_3
-	_asm_extable 13b, .L_fixup_handle_0
-	_asm_extable 14b, .L_fixup_handle_1
-	_asm_extable 15b, .L_fixup_handle_0
-	_asm_extable 16b, .L_fixup_handle_0
-	_asm_extable 17b, .L_fixup_handle_s0
-	_asm_extable 18b, .L_fixup_handle_s0
-	_asm_extable 19b, .L_fixup_handle_s0
-	_asm_extable 20b, .L_fixup_handle_s2
-	_asm_extable 21b, .L_fixup_handle_s0
-	_asm_extable 22b, .L_fixup_handle_s0
-	_asm_extable 23b, .L_fixup_handle_s4
-	_asm_extable 24b, .L_fixup_handle_s0
-	_asm_extable 25b, .L_fixup_handle_s4
-	_asm_extable 26b, .L_fixup_handle_s0
-	_asm_extable 27b, .L_fixup_handle_s4
-	_asm_extable 28b, .L_fixup_handle_s0
+.Llarge_fixup:
+	sub.d	a1, a2, a0
+
+.Lsmall_fixup:
+29:	st.b	zero, a0, 0
+	addi.d	a0, a0, 1
+	addi.d	a1, a1, -1
+	bgt	a1, zero, 29b
+
+.Lexit:
+	move	a0, a1
+	jr	ra
+
+	_asm_extable 0b, .Lsmall_fixup
+	_asm_extable 1b, .Llarge_fixup
+	_asm_extable 2b, .Llarge_fixup
+	_asm_extable 3b, .Llarge_fixup
+	_asm_extable 4b, .Llarge_fixup
+	_asm_extable 5b, .Llarge_fixup
+	_asm_extable 6b, .Llarge_fixup
+	_asm_extable 7b, .Llarge_fixup
+	_asm_extable 8b, .Llarge_fixup
+	_asm_extable 9b, .Llarge_fixup
+	_asm_extable 10b, .Llarge_fixup
+	_asm_extable 11b, .Llarge_fixup
+	_asm_extable 12b, .Llarge_fixup
+	_asm_extable 13b, .Llarge_fixup
+	_asm_extable 14b, .Llarge_fixup
+	_asm_extable 15b, .Llarge_fixup
+	_asm_extable 16b, .Llarge_fixup
+	_asm_extable 17b, .Lexit
+	_asm_extable 18b, .Lsmall_fixup
+	_asm_extable 19b, .Lsmall_fixup
+	_asm_extable 20b, .Lsmall_fixup
+	_asm_extable 21b, .Lsmall_fixup
+	_asm_extable 22b, .Lsmall_fixup
+	_asm_extable 23b, .Lsmall_fixup
+	_asm_extable 24b, .Lsmall_fixup
+	_asm_extable 25b, .Lsmall_fixup
+	_asm_extable 26b, .Lsmall_fixup
+	_asm_extable 27b, .Lsmall_fixup
+	_asm_extable 28b, .Lsmall_fixup
+	_asm_extable 29b, .Lexit
 SYM_FUNC_END(__clear_user_fast)
