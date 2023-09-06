@@ -291,16 +291,15 @@ static int rcar_i2c_clock_calculate(struct rcar_i2c_priv *priv)
 	ick = rate / (cdf + 1);
 
 	/*
-	 * it is impossible to calculate large scale
-	 * number on u32. separate it
+	 * It is impossible to calculate a large scale number on u32. Separate it.
 	 *
 	 * F[(ticf + tr + intd) * ick] with sum = (ticf + tr + intd)
 	 *  = F[sum * ick / 1000000000]
 	 *  = F[(ick / 1000000) * sum / 1000]
 	 */
 	sum = t.scl_fall_ns + t.scl_rise_ns + t.scl_int_delay_ns;
-	round = (ick + 500000) / 1000000 * sum;
-	round = (round + 500) / 1000;
+	round = DIV_ROUND_CLOSEST(ick, 1000000);
+	round = DIV_ROUND_CLOSEST(round * sum, 1000);
 
 	/*
 	 * SCL	= ick / (20 + 8 * SCGD + F[(ticf + tr + intd) * ick])
