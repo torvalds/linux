@@ -133,10 +133,14 @@ static int emit_wa_job(struct xe_gt *gt, struct xe_exec_queue *q)
 		++count;
 
 	if (count) {
+		xe_gt_dbg(gt, "LRC WA %s save-restore batch\n", sr->name);
+
 		bb->cs[bb->len++] = MI_LOAD_REGISTER_IMM(count);
 		xa_for_each(&sr->xa, reg, entry) {
 			bb->cs[bb->len++] = reg;
 			bb->cs[bb->len++] = entry->set_bits;
+			xe_gt_dbg(gt, "REG[0x%lx] = 0x%08x", reg,
+				  entry->set_bits);
 		}
 	}
 
