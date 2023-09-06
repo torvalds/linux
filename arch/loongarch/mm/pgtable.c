@@ -9,6 +9,18 @@
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
 
+struct page *dmw_virt_to_page(unsigned long kaddr)
+{
+	return pfn_to_page(virt_to_pfn(kaddr));
+}
+EXPORT_SYMBOL_GPL(dmw_virt_to_page);
+
+struct page *tlb_virt_to_page(unsigned long kaddr)
+{
+	return pfn_to_page(pte_pfn(*virt_to_kpte(kaddr)));
+}
+EXPORT_SYMBOL_GPL(tlb_virt_to_page);
+
 pgd_t *pgd_alloc(struct mm_struct *mm)
 {
 	pgd_t *ret, *init;
