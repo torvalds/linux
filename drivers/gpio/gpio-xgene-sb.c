@@ -15,7 +15,6 @@
 #include <linux/gpio/driver.h>
 #include <linux/acpi.h>
 
-#include "gpiolib.h"
 #include "gpiolib-acpi.h"
 
 /* Common property names */
