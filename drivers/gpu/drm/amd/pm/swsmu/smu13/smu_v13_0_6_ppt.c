@@ -336,7 +336,7 @@ static int smu_v13_0_6_setup_driver_pptable(struct smu_context *smu)
 
 	/* Store one-time values in driver PPTable */
 	if (!pptable->Init) {
-		while (retry--) {
+		while (--retry) {
 			ret = smu_v13_0_6_get_metrics_table(smu, NULL, true);
 			if (ret)
 				return ret;
