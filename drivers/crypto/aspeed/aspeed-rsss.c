@@ -10,6 +10,10 @@
 
 static struct aspeed_rsss_alg *aspeed_rsss_algs[] = {
 	&aspeed_rsss_algs_rsa,
+	&aspeed_rsss_algs_sha3_224,
+	&aspeed_rsss_algs_sha3_256,
+	&aspeed_rsss_algs_sha3_384,
+	&aspeed_rsss_algs_sha3_512,
 };
 
 static void aspeed_rsss_register(struct aspeed_rsss_dev *rsss_dev)
@@ -123,6 +127,10 @@ static int aspeed_rsss_probe(struct platform_device *pdev)
 	if (rc)
 		goto clk_exit;
 
+	rc = aspeed_rsss_sha3_init(rsss_dev);
+	if (rc)
+		goto clk_exit;
+
 	aspeed_rsss_register(rsss_dev);
 
 	dev_info(dev, "Aspeed RSSS Hardware Accelerator successfully registered\n");
@@ -141,6 +149,7 @@ static int aspeed_rsss_remove(struct platform_device *pdev)
 
 	aspeed_rsss_unregister(rsss_dev);
 	aspeed_rsss_rsa_exit(rsss_dev);
+	aspeed_rsss_sha3_exit(rsss_dev);
 	clk_disable_unprepare(rsss_dev->clk);
 
 	return 0;

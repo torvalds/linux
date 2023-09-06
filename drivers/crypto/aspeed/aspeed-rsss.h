@@ -32,6 +32,15 @@
 #define ASPEED_RSA_KEY_INFO		0xe08	/* RSA Exp/Mod Key Length (Bits) */
 #define ASPEED_RSA_ENG_STS		0xe0c	/* RSA Engine Status */
 
+#define ASPEED_SHA3_CMD			0xe80
+#define ASPEED_SHA3_SRC_LO		0xe84
+#define ASPEED_SHA3_SRC_HI		0xe88
+#define ASPEED_SHA3_SRC_LEN		0xe8c
+#define ASPEED_SHA3_DST_LO		0xe90
+#define ASPEED_SHA3_DST_HI		0xe94
+#define ASPEED_SHA3_STATUS		0xe98
+#define ASPEED_SHA3_ENG_STS		0xe9c
+
 /* RSSS interrupt status */
 #define SM4_INT_DONE			BIT(3)
 #define SM3_INT_DONE			BIT(2)
@@ -126,8 +135,18 @@ struct aspeed_engine_sha3 {
 	unsigned long			flags;
 	struct ahash_request		*req;
 
+	/* input buffer */
+	void				*ahash_src_addr;
+	dma_addr_t			ahash_src_dma_addr;
+
+	dma_addr_t			src_dma;
+	dma_addr_t			digest_dma;
+
+	size_t				src_length;
+
 	/* callback func */
 	aspeed_rsss_fn_t		resume;
+	aspeed_rsss_fn_t		dma_prepare;
 };
 
 struct aspeed_rsss_dev {
@@ -182,6 +201,40 @@ enum aspeed_rsa_key_mode {
 	ASPEED_RSA_DATA_MODE,
 };
 
+/* Hash related */
+struct aspeed_sha3_ctx {
+	struct crypto_engine_ctx	enginectx;
+	struct aspeed_rsss_dev		*rsss_dev;
+};
+
+struct aspeed_sha3_reqctx {
+	unsigned long			flags;		/* final update flag should no use */
+	unsigned long			op;		/* final or update */
+	u32				cmd;		/* trigger cmd */
+
+	/* walk state */
+	struct scatterlist		*src_sg;
+	int				src_nents;
+	unsigned int			offset;		/* offset in current sg */
+	unsigned int			total;		/* per update length */
+
+	size_t				digsize;
+	size_t				blksize;
+	size_t				ivsize;
+
+	/* remain data buffer */
+	u8				buffer[SHA3_512_BLOCK_SIZE * 2];
+	dma_addr_t			buffer_dma_addr;
+	size_t				bufcnt;		/* buffer counter */
+
+	/* output buffer */
+	u8				digest[SHA3_512_DIGEST_SIZE] __aligned(64);
+	dma_addr_t			digest_dma_addr;
+	u64				digcnt[2];
+};
+
+/******************************************************************************/
+
 #define ast_rsss_write(rsss, val, offset)	\
 	writel((val), (rsss)->regs + (offset))
 
@@ -190,7 +243,13 @@ enum aspeed_rsa_key_mode {
 
 int aspeed_rsss_rsa_init(struct aspeed_rsss_dev *rsss_dev);
 void aspeed_rsss_rsa_exit(struct aspeed_rsss_dev *rsss_dev);
+int aspeed_rsss_sha3_init(struct aspeed_rsss_dev *rsss_dev);
+void aspeed_rsss_sha3_exit(struct aspeed_rsss_dev *rsss_dev);
 
 extern struct aspeed_rsss_alg aspeed_rsss_algs_rsa;
+extern struct aspeed_rsss_alg aspeed_rsss_algs_sha3_224;
+extern struct aspeed_rsss_alg aspeed_rsss_algs_sha3_256;
+extern struct aspeed_rsss_alg aspeed_rsss_algs_sha3_384;
+extern struct aspeed_rsss_alg aspeed_rsss_algs_sha3_512;
 
 #endif /* __ASPEED_RSSS_H__ */
