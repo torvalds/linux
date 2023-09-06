@@ -10,6 +10,7 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/i2c.h>
+#include <linux/irq.h>
 #include <linux/gpio/consumer.h>
 #include <linux/regulator/consumer.h>
 #include <linux/mfd/core.h>
@@ -652,6 +653,25 @@ static int rk_serdes_passthrough_init(struct rk_serdes *serdes)
 		kfree(configs);
 	}
 
+	/* config irq passthrough */
+	if (serdes->stream_type == STREAM_DISPLAY) {
+		rkx110_linktx_passthrough_cfg(serdes, DEVICE_LOCAL, RK_SERDES_PASSTHROUGH_IRQ,
+					      false);
+		rkx120_linkrx_passthrough_cfg(serdes, DEVICE_REMOTE0, RK_SERDES_PASSTHROUGH_IRQ,
+					      true);
+		if (serdes->remote_nr == 2)
+			rkx120_linkrx_passthrough_cfg(serdes, DEVICE_REMOTE1,
+						      RK_SERDES_PASSTHROUGH_IRQ, true);
+	} else {
+		rkx120_linkrx_passthrough_cfg(serdes, DEVICE_LOCAL, RK_SERDES_PASSTHROUGH_IRQ,
+					      false);
+		rkx110_linktx_passthrough_cfg(serdes, DEVICE_REMOTE0, RK_SERDES_PASSTHROUGH_IRQ,
+					      true);
+		if (serdes->remote_nr == 2)
+			rkx110_linktx_passthrough_cfg(serdes, DEVICE_REMOTE1,
+						      RK_SERDES_PASSTHROUGH_IRQ, true);
+	}
+
 	return 0;
 }
 
@@ -953,7 +973,64 @@ static int rk_serdes_pinctrl_init(struct rk_serdes *serdes)
 		kfree(configs);
 	}
 
+	/* config irq pinctrl */
+	if (serdes->stream_type == STREAM_DISPLAY) {
+		serdes->set_hwpin(serdes, serdes->chip[DEVICE_LOCAL].client, PIN_RKX110,
+				  RK_SERDES_SER_GPIO_BANK0, RK_SERDES_GPIO_PIN_A4,
+				  RK_SERDES_PIN_CONFIG_MUX_FUNC2);
+		serdes->set_hwpin(serdes, serdes->chip[DEVICE_REMOTE0].client, PIN_RKX120,
+				  RK_SERDES_DES_GPIO_BANK0, RK_SERDES_GPIO_PIN_A4,
+				  RK_SERDES_PIN_CONFIG_MUX_FUNC0);
+		if (serdes->remote_nr == 2)
+			serdes->set_hwpin(serdes, serdes->chip[DEVICE_REMOTE1].client, PIN_RKX120,
+					  RK_SERDES_DES_GPIO_BANK0, RK_SERDES_GPIO_PIN_A4,
+					  RK_SERDES_PIN_CONFIG_MUX_FUNC0);
+	} else {
+		serdes->set_hwpin(serdes, serdes->chip[DEVICE_REMOTE0].client, PIN_RKX110,
+				  RK_SERDES_SER_GPIO_BANK0, RK_SERDES_GPIO_PIN_A4,
+				  RK_SERDES_PIN_CONFIG_MUX_FUNC0);
+		serdes->set_hwpin(serdes, serdes->chip[DEVICE_LOCAL].client, PIN_RKX120,
+				  RK_SERDES_DES_GPIO_BANK0, RK_SERDES_GPIO_PIN_A4,
+				  RK_SERDES_PIN_CONFIG_MUX_FUNC2);
+		if (serdes->remote_nr == 2)
+			serdes->set_hwpin(serdes, serdes->chip[DEVICE_REMOTE1].client, PIN_RKX110,
+					  RK_SERDES_SER_GPIO_BANK0, RK_SERDES_GPIO_PIN_A4,
+					  RK_SERDES_PIN_CONFIG_MUX_FUNC2);
+	}
+
 	return 0;
+}
+
+static int rk_serdes_irq_enable(struct rk_serdes *serdes)
+{
+	if (serdes->stream_type == STREAM_DISPLAY)
+		rkx110_irq_enable(serdes, DEVICE_LOCAL);
+	else
+		rkx120_irq_enable(serdes, DEVICE_LOCAL);
+
+	return 0;
+}
+
+__maybe_unused static int rk_serdes_irq_disable(struct rk_serdes *serdes)
+{
+	if (serdes->stream_type == STREAM_DISPLAY)
+		rkx110_irq_disable(serdes, DEVICE_LOCAL);
+	else
+		rkx120_irq_disable(serdes, DEVICE_LOCAL);
+
+	return 0;
+}
+
+static irqreturn_t rk_serdes_irq_handler(int irq, void *arg)
+{
+	struct rk_serdes *serdes = arg;
+
+	if (serdes->stream_type == STREAM_DISPLAY)
+		rkx110_irq_handler(serdes, DEVICE_LOCAL);
+	else
+		rkx120_irq_handler(serdes, DEVICE_LOCAL);
+
+	return IRQ_HANDLED;
 }
 
 static int rk_serdes_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
@@ -1014,6 +1091,30 @@ static int rk_serdes_i2c_probe(struct i2c_client *client, const struct i2c_devic
 		return ret;
 	}
 
+	serdes->irq_gpio = devm_gpiod_get_optional(dev, "irq", GPIOD_IN);
+	if (IS_ERR(serdes->irq_gpio)) {
+		ret = PTR_ERR(serdes->irq_gpio);
+		dev_err(dev, "failed to request irq GPIO: %d\n", ret);
+		return ret;
+	}
+	if (serdes->irq_gpio) {
+		serdes->irq = gpiod_to_irq(serdes->irq_gpio);
+		if (serdes->irq < 0)
+			return dev_err_probe(dev, serdes->irq, "failed to get irq\n");
+
+		irq_set_status_flags(serdes->irq, IRQ_NOAUTOEN);
+		ret = devm_request_threaded_irq(dev, serdes->irq, NULL,
+						rk_serdes_irq_handler,
+						IRQF_TRIGGER_LOW |
+						IRQF_ONESHOT, "serdes-irq", serdes);
+		if (ret) {
+			dev_err(dev, "failed to request serdes interrupt\n");
+			return ret;
+		}
+	} else {
+		dev_warn(dev, "no support serdes irq function\n");
+	}
+
 	disp_np = of_get_child_by_name(dev->of_node, "serdes-panel");
 	if (disp_np) {
 		serdes->stream_type = STREAM_DISPLAY;
@@ -1062,6 +1163,9 @@ static int rk_serdes_i2c_probe(struct i2c_client *client, const struct i2c_devic
 	rk_serdes_set_rate(serdes, RATE_4GBPS_83M);
 	rk_serdes_pinctrl_init(serdes);
 	rk_serdes_passthrough_init(serdes);
+	rk_serdes_irq_enable(serdes);
+	enable_irq(serdes->irq);
+
 out:
 	rk_serdes_debugfs_init(serdes);
 

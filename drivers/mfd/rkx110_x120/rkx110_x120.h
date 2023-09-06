@@ -262,7 +262,9 @@ struct rk_serdes {
 	struct regulator *supply;
 	struct gpio_desc *reset;
 	struct gpio_desc *enable;
+	struct gpio_desc *irq_gpio;
 
+	int irq;
 	/*
 	 * Control by I2C-Debug
 	 */
@@ -364,4 +366,10 @@ void rkx110_linktx_passthrough_cfg(struct rk_serdes *serdes, u32 client_id, u32 
 				   bool is_rx);
 void rkx120_linkrx_passthrough_cfg(struct rk_serdes *serdes, u32 client_id, u32 func_id,
 				   bool is_rx);
+void rkx110_irq_enable(struct rk_serdes *serdes, u8 dev_id);
+void rkx110_irq_disable(struct rk_serdes *serdes, u8 dev_id);
+int rkx110_irq_handler(struct rk_serdes *serdes, u8 dev_id);
+void rkx120_irq_enable(struct rk_serdes *serdes, u8 dev_id);
+void rkx120_irq_disable(struct rk_serdes *serdes, u8 dev_id);
+int rkx120_irq_handler(struct rk_serdes *serdes, u8 dev_id);
 #endif

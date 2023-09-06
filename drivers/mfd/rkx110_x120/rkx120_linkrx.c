@@ -36,6 +36,8 @@
  #define LANE0_DATA_WIDTH_16BIT		UPDATE(1, 13, 12)
  #define LANE0_DATA_WIDTH_24BIT		UPDATE(2, 13, 12)
  #define LANE0_DATA_WIDTH_32BIT		UPDATE(3, 13, 12)
+ #define LANE1_PKT_LOSE_NUM_CLR		BIT(9)
+ #define LANE0_PKT_LOSE_NUM_CLR		BIT(8)
  #define LANE0_EN			BIT(4)
  #define LANE1_EN			BIT(5)
  #define DES_EN				BIT(0)
@@ -115,6 +117,42 @@
 #define E2_FIRST_FRAME_DEL		BIT(6)
 #define E1_FIRST_FRAME_DEL		BIT(5)
 #define E0_FIRST_FRAME_DEL		BIT(4)
+#define RKLINK_DES_FIFO_STATUS		LINK_REG(0x0084)
+ #define AUDIO_FIFO_UNDERRUN		BIT(29)
+ #define AUDIO_ORDER_UNDERRUN		BIT(28)
+ #define VIDEO_DATA_FIFO_UNDERRUN	BIT(27)
+ #define VIDEO_ORDER_UNDERRUN		BIT(26)
+ #define CMD_FIFO_UNDERRUN		BIT(25)
+ #define E1_ORDER_MIS			BIT(15)
+ #define E0_ORDER_MIS			BIT(14)
+ #define AUDIO_FIFO_OVERFLOW		BIT(13)
+ #define AUDIO_ORDER_OVERFLOW		BIT(12)
+ #define VIDEO_DATA_FIFO_OVERFLOW	GENMASK(11, 8)
+ #define VIDEO_ORDER_OVERFLOW		GENMASK(7, 4)
+ #define CMD_FIFO_OVERFLOW		GENMASK(3, 0)
+#define RKLINK_DES_SINK_IRQ_EN		LINK_REG(0x0088)
+ #define COMP_NOT_ENOUGH_IRQ_FLAG	BIT(26)
+ #define VIDEO_FM_IRQ_FLAG		BIT(25)
+ #define AUDIO_FM_IRQ_FLAG		BIT(24)
+ #define ORDER_MIS_IRQ_FLAG		BIT(23)
+ #define FIFO_UNDERRUN_IRQ_FLAG		BIT(22)
+ #define FIFO_OVERFLOW_IRQ_FLAG		BIT(21)
+ #define PKT_LOSE_IRQ_FLAG		BIT(20)
+ #define LAST_ERROR_IRQ_FLAG		BIT(19)
+ #define ECC2BIT_ERROR_IRQ_FLAG		BIT(18)
+ #define ECC1BIT_ERROR_IRQ_FLAG		BIT(17)
+ #define CRC_ERROR_IRQ_FLAG		BIT(16)
+ #define COMP_NOT_ENOUGH_IRQ_OUTPUT_EN	BIT(10)
+ #define VIDEO_FM_IRQ_OUTPUT_EN		BIT(9)
+ #define AUDIO_FM_IRQ_OUTPUT_EN		BIT(8)
+ #define ORDER_MIS_IRQ_OUTPUT_EN	BIT(7)
+ #define FIFO_UNDERRUN_IRQ_OUTPUT_EN	BIT(6)
+ #define FIFO_OVERFLOW_IRQ_OUTPUT_EN	BIT(5)
+ #define PKT_LOSE_IRQ_OUTPUT_EN		BIT(4)
+ #define LAST_ERROR_IRQ_OUTPUT_EN	BIT(3)
+ #define ECC2BIT_ERROR_IRQ_OUTPUT_EN	BIT(2)
+ #define ECC1BIT_ERROR_IRQ_OUTPUT_EN	BIT(1)
+ #define CRC_ERROR_IRQ_OUTPUT_EN	BIT(0)
 
 #define DES_RKLINK_STOP_CFG		LINK_REG(0x009C)
  #define STOP_AUDIO			BIT(4)
@@ -147,6 +185,7 @@
 #define PCS_REG24(id)			PCS_REG(id, 0x24)
 #define PCS_REG28(id)			PCS_REG(id, 0x28)
 #define PCS_REG30(id)			PCS_REG(id, 0x30)
+ #define DES_PCS_INI_EN(x)		HIWORD_UPDATE(x, GENMASK(15, 0), 0)
 #define PCS_REG34(id)			PCS_REG(id, 0x34)
 #define PCS_REG40(id)			PCS_REG(id, 0x40)
 
@@ -225,6 +264,19 @@
 
 #define DES_PMA_LOAD0E(id)		PMA_REG(id, 0x48)
 #define DES_PMA_REG100(id)		PMA_REG(id, 0x100)
+
+#define DES_PMA_IRQ_EN(id)		PMA_REG(id, 0xF0)
+ #define FORCE_INITIAL_IRQ_EN		HIWORD_UPDATE(1, BIT(6), 6)
+ #define RX_RDY_NEG_IRQ_EN		HIWORD_UPDATE(1, BIT(5), 5)
+ #define RX_LOS_IRQ_EN			HIWORD_UPDATE(1, BIT(4), 4)
+ #define RX_RDY_TIMEOUT_IRQ_EN		HIWORD_UPDATE(1, BIT(2), 2)
+ #define PLL_LOCK_TIMEOUT_IRQ_EN	HIWORD_UPDATE(1, BIT(0), 0)
+#define DES_PMA_IRQ_STATUS(id)		PMA_REG(id, 0xF4)
+ #define FORCE_INITIAL_IRQ_STATUS	BIT(6)
+ #define RX_RDY_NEG_IRQ_STATUS		BIT(5)
+ #define RX_LOS_IRQ_STATUS		BIT(4)
+ #define RX_RDY_TIMEOUT_IRQ_STATUS	BIT(2)
+ #define PLL_LOCK_TIMEOUT_IRQ_STATUS	BIT(0)
 
 static const struct rk_serdes_pt des_pt[] = {
 	{
@@ -813,3 +865,354 @@ void rkx120_des_pma_enable(struct rk_serdes *serdes, bool enable, u8 pma_id, u8 
 
 	serdes->i2c_update_bits(client, DES_GRF_SOC_CON4, mask, val);
 }
+
+
+static void rkx120_linkrx_irq_enable(struct rk_serdes *serdes, u8 dev_id)
+{
+	struct i2c_client *client = serdes->chip[dev_id].client;
+
+	serdes->i2c_write_reg(client, DES_GRF_IRQ_EN, DES_IRQ_LINK_EN);
+
+	serdes->i2c_write_reg(client, RKLINK_DES_SINK_IRQ_EN, FIFO_UNDERRUN_IRQ_OUTPUT_EN |
+			      FIFO_OVERFLOW_IRQ_OUTPUT_EN);
+}
+
+static void rkx120_linkrx_irq_disable(struct rk_serdes *serdes, u8 dev_id)
+{
+	struct i2c_client *client = serdes->chip[dev_id].client;
+	u32 val = 0;
+
+	serdes->i2c_write_reg(client, DES_GRF_IRQ_EN, DES_IRQ_LINK_DIS);
+
+	serdes->i2c_read_reg(client, RKLINK_DES_SINK_IRQ_EN, &val);
+	val &= ~(FIFO_UNDERRUN_IRQ_OUTPUT_EN | FIFO_OVERFLOW_IRQ_OUTPUT_EN);
+	serdes->i2c_write_reg(client, RKLINK_DES_SINK_IRQ_EN, val);
+}
+
+static void rkx120_linkrx_fifo_handler(struct rk_serdes *serdes, u8 dev_id)
+{
+	struct i2c_client *client = serdes->chip[dev_id].client;
+	u32 value;
+
+	serdes->i2c_read_reg(client, RKLINK_DES_FIFO_STATUS, &value);
+	dev_err(serdes->dev, "des rklink fifo status:0x%x\n", value);
+
+	if (value & AUDIO_FIFO_UNDERRUN)
+		dev_err(serdes->dev, "linkrx audio fifo underrun\n");
+	if (value & AUDIO_ORDER_UNDERRUN)
+		dev_err(serdes->dev, "linkrx audio order underrun\n");
+	if (value & VIDEO_DATA_FIFO_UNDERRUN)
+		dev_err(serdes->dev, "linkrx video data fifo underrun\n");
+	if (value & VIDEO_ORDER_UNDERRUN)
+		dev_err(serdes->dev, "linkrx video order underrun\n");
+	if (value & CMD_FIFO_UNDERRUN)
+		dev_err(serdes->dev, "linkrx cmd fifo underrun\n");
+	if (value & E1_ORDER_MIS)
+		dev_err(serdes->dev, "linkrx e1 order miss\n");
+	if (value & E0_ORDER_MIS)
+		dev_err(serdes->dev, "linkrx e0 order miss\n");
+	if (value & AUDIO_FIFO_OVERFLOW)
+		dev_err(serdes->dev, "linkrx audio fifo overflow\n");
+	if (value & AUDIO_ORDER_OVERFLOW)
+		dev_err(serdes->dev, "linkrx audio order overflow\n");
+	if (value & VIDEO_DATA_FIFO_OVERFLOW)
+		dev_err(serdes->dev, "linkrx video data fifo overflow\n");
+	if (value & VIDEO_ORDER_OVERFLOW)
+		dev_err(serdes->dev, "linkrx video order overflow\n");
+	if (value & CMD_FIFO_OVERFLOW)
+		dev_err(serdes->dev, "linkrx cmd fifo overflow\n");
+
+	serdes->i2c_write_reg(client, RKLINK_DES_FIFO_STATUS, value);
+}
+
+static void rkx120_linkrx_irq_handler(struct rk_serdes *serdes, u8 dev_id)
+{
+	struct i2c_client *client = serdes->chip[dev_id].client;
+	u32 flag, value;
+	int i = 0;
+
+	serdes->i2c_read_reg(client, RKLINK_DES_SINK_IRQ_EN, &flag);
+	flag &= COMP_NOT_ENOUGH_IRQ_FLAG | VIDEO_FM_IRQ_FLAG | AUDIO_FM_IRQ_FLAG |
+		ORDER_MIS_IRQ_FLAG | FIFO_UNDERRUN_IRQ_FLAG | FIFO_OVERFLOW_IRQ_FLAG |
+		PKT_LOSE_IRQ_FLAG | LAST_ERROR_IRQ_FLAG | ECC2BIT_ERROR_IRQ_FLAG |
+		ECC1BIT_ERROR_IRQ_FLAG | CRC_ERROR_IRQ_FLAG;
+	dev_info(serdes->dev, "linkrx irq flag:0x%08x\n", flag);
+	while (flag) {
+		switch (flag & BIT(i)) {
+		case COMP_NOT_ENOUGH_IRQ_FLAG:
+			break;
+		case VIDEO_FM_IRQ_FLAG:
+			break;
+		case AUDIO_FM_IRQ_FLAG:
+			break;
+		case ORDER_MIS_IRQ_FLAG:
+		case FIFO_UNDERRUN_IRQ_FLAG:
+		case FIFO_OVERFLOW_IRQ_FLAG:
+			flag &= ~(ORDER_MIS_IRQ_FLAG | FIFO_UNDERRUN_IRQ_FLAG |
+				FIFO_OVERFLOW_IRQ_FLAG);
+			rkx120_linkrx_fifo_handler(serdes, dev_id);
+			break;
+		case PKT_LOSE_IRQ_FLAG:
+			/* clear pkt lost irq flag */
+			serdes->i2c_read_reg(client, RKLINK_DES_LANE_ENGINE_CFG, &value);
+			value |= LANE0_PKT_LOSE_NUM_CLR | LANE1_PKT_LOSE_NUM_CLR;
+			serdes->i2c_write_reg(client, RKLINK_DES_LANE_ENGINE_CFG, value);
+			break;
+		case LAST_ERROR_IRQ_FLAG:
+		case ECC2BIT_ERROR_IRQ_FLAG:
+		case ECC1BIT_ERROR_IRQ_FLAG:
+		case CRC_ERROR_IRQ_FLAG:
+			flag &= ~(LAST_ERROR_IRQ_FLAG | ECC2BIT_ERROR_IRQ_FLAG |
+				ECC1BIT_ERROR_IRQ_FLAG | CRC_ERROR_IRQ_FLAG);
+			serdes->i2c_read_reg(client, RKLINK_DES_SINK_IRQ_EN, &value);
+			dev_info(serdes->dev, "linkrx ecc crc result:0x%08x\n", value);
+			/* clear ecc crc irq flag */
+			serdes->i2c_write_reg(client, RKLINK_DES_SINK_IRQ_EN, value);
+			break;
+		default:
+			break;
+		}
+		flag &= ~BIT(i);
+		i++;
+	}
+}
+static void rkx120_pcs_irq_enable(struct rk_serdes *serdes, u8 pcs_id, u8 dev_id)
+{
+	struct i2c_client *client = serdes->chip[dev_id].client;
+	u32 val = 0;
+
+	val = pcs_id ? DES_IRQ_PCS1_EN : DES_IRQ_PCS0_EN;
+	serdes->i2c_write_reg(client, DES_GRF_IRQ_EN, val);
+
+	serdes->i2c_write_reg(client, PCS_REG30(pcs_id), DES_PCS_INI_EN(0xffff));
+}
+
+static void rkx120_pcs_irq_disable(struct rk_serdes *serdes, u8 pcs_id, u8 dev_id)
+{
+	struct i2c_client *client = serdes->chip[dev_id].client;
+	u32 val = 0;
+
+	val = pcs_id ? DES_IRQ_PCS1_DIS : DES_IRQ_PCS0_DIS;
+	serdes->i2c_write_reg(client, DES_GRF_IRQ_EN, val);
+
+	serdes->i2c_write_reg(client, PCS_REG30(pcs_id), DES_PCS_INI_EN(0));
+}
+
+static void rkx120_pcs_irq_handler(struct rk_serdes *serdes, u8 pcs_id, u8 dev_id)
+{
+	struct i2c_client *client = serdes->chip[dev_id].client;
+	u32 value;
+
+	serdes->i2c_read_reg(client, PCS_REG20(pcs_id), &value);
+	dev_info(serdes->dev, "des pcs%d fatal status:0x%08x\n", pcs_id, value);
+
+	/* clear fatal status */
+	serdes->i2c_write_reg(client, PCS_REG10(pcs_id), 0xffffffff);
+	serdes->i2c_write_reg(client, PCS_REG10(pcs_id), 0xffff0000);
+}
+
+static void rkx120_pma_irq_enable(struct rk_serdes *serdes, u8 pcs_id, u8 dev_id)
+{
+	struct i2c_client *client = serdes->chip[dev_id].client;
+	u32 val = 0;
+
+	val = pcs_id ? DES_IRQ_PMA_ADAPT1_EN : DES_IRQ_PMA_ADAPT0_EN;
+	serdes->i2c_write_reg(client, DES_GRF_IRQ_EN, val);
+
+	serdes->i2c_write_reg(client, DES_PMA_IRQ_EN(pcs_id), FORCE_INITIAL_IRQ_EN |
+			      RX_RDY_NEG_IRQ_EN | RX_LOS_IRQ_EN | RX_RDY_TIMEOUT_IRQ_EN |
+			      PLL_LOCK_TIMEOUT_IRQ_EN);
+}
+
+static void rkx120_pma_irq_disable(struct rk_serdes *serdes, u8 pcs_id, u8 dev_id)
+{
+	struct i2c_client *client = serdes->chip[dev_id].client;
+	u32 val = 0;
+
+	val = pcs_id ? DES_IRQ_PMA_ADAPT1_DIS : DES_IRQ_PMA_ADAPT0_DIS;
+	serdes->i2c_write_reg(client, DES_GRF_IRQ_EN, val);
+
+	serdes->i2c_write_reg(client, DES_PMA_IRQ_EN(pcs_id), 0);
+}
+
+static void rkx120_pma_irq_handler(struct rk_serdes *serdes, u8 pcs_id, u8 dev_id)
+{
+	struct i2c_client *client = serdes->chip[dev_id].client;
+	u32 value;
+
+	serdes->i2c_read_reg(client, DES_PMA_IRQ_STATUS(pcs_id), &value);
+	dev_info(serdes->dev, "des pma%d irq status:0x%08x\n", pcs_id, value);
+
+	if (value & FORCE_INITIAL_IRQ_STATUS)
+		dev_info(serdes->dev, "des pma trig force initial pulse status\n");
+	else if (value & RX_RDY_NEG_IRQ_STATUS)
+		dev_info(serdes->dev, "des pma trig rx rdy neg status\n");
+	else if (value & RX_LOS_IRQ_STATUS)
+		dev_info(serdes->dev, "des pma trig rx los status\n");
+	else if (value & RX_RDY_TIMEOUT_IRQ_STATUS)
+		dev_info(serdes->dev, "des pma trig rx rdy timeout status\n");
+	else if (value & PLL_LOCK_TIMEOUT_IRQ_STATUS)
+		dev_info(serdes->dev, "des pma trig pll lock timeout status\n");
+
+	/* clear pma irq status */
+	serdes->i2c_write_reg(client, DES_PMA_IRQ_STATUS(pcs_id), value);
+}
+
+static void rkx120_remote_irq_enable(struct rk_serdes *serdes, u8 dev_id)
+{
+	struct i2c_client *client = serdes->chip[dev_id].client;
+
+	if (serdes->stream_type == STREAM_CAMERA) {
+		serdes->i2c_write_reg(client, DES_GRF_IRQ_EN, DES_IRQ_REMOTE_EN);
+		rkx110_irq_enable(serdes, DEVICE_REMOTE0);
+	}
+}
+
+static void rkx120_remote_irq_disable(struct rk_serdes *serdes, u8 dev_id)
+{
+	struct i2c_client *client = serdes->chip[dev_id].client;
+
+	if (serdes->stream_type == STREAM_CAMERA) {
+		serdes->i2c_write_reg(client, DES_GRF_IRQ_EN, DES_IRQ_REMOTE_DIS);
+		rkx110_irq_disable(serdes, DEVICE_REMOTE0);
+	}
+}
+
+static void rkx120_remote_irq_handler(struct rk_serdes *serdes, u8 dev_id)
+{
+	if (serdes->stream_type == STREAM_CAMERA)
+		rkx110_irq_handler(serdes, DEVICE_REMOTE0);
+}
+
+void rkx120_irq_enable(struct rk_serdes *serdes, u8 dev_id)
+{
+	/* enable pcs irq */
+	rkx120_pcs_irq_enable(serdes, 0, dev_id);
+
+	/* enable efuse irq */
+
+	/* enable gpio irq */
+
+	/* enable csitx irq */
+
+	/* enable mipi dsi host irq */
+
+	/* enable pma adapt irq */
+	rkx120_pma_irq_enable(serdes, 0, dev_id);
+
+	/* enable remote irq and other lane irq */
+	rkx120_remote_irq_enable(serdes, dev_id);
+
+	/* enable pwm irq */
+
+	/* enable dvp tx irq */
+
+	/* enable link irq */
+	rkx120_linkrx_irq_enable(serdes, dev_id);
+
+	/* enable ext irq */
+
+	/* enable ext irq */
+}
+
+void rkx120_irq_disable(struct rk_serdes *serdes, u8 dev_id)
+{
+	/* disable pcs irq */
+	rkx120_pcs_irq_disable(serdes, 0, dev_id);
+
+	/* disable efuse irq */
+
+	/* disable gpio irq */
+
+	/* disable csitx irq */
+
+	/* disable mipi dsi host irq */
+
+	/* disable pma adapt irq */
+	rkx120_pma_irq_disable(serdes, 0, dev_id);
+
+	/* disable remote irq */
+	rkx120_remote_irq_disable(serdes, dev_id);
+
+	/* disable pwm irq */
+
+	/* disable dvp tx irq */
+
+	/* disable link irq */
+	rkx120_linkrx_irq_disable(serdes, dev_id);
+
+	/* disable ext irq */
+}
+
+int rkx120_irq_handler(struct rk_serdes *serdes, u8 dev_id)
+{
+	struct i2c_client *client = serdes->chip[dev_id].client;
+	u32 status = 0;
+	u32 mask = 0;
+	u32 i = 0;
+
+	serdes->i2c_read_reg(client, DES_GRF_IRQ_EN, &mask);
+	serdes->i2c_read_reg(client, DES_GRF_IRQ_STATUS, &status);
+	dev_info(serdes->dev, "dev%d get the des irq status:0x%08x\n", dev_id, status);
+	status &= mask;
+
+	while (status) {
+		switch (status & BIT(i)) {
+		case DES_IRQ_PCS0:
+			rkx120_pcs_irq_handler(serdes, 0, dev_id);
+			break;
+		case DES_IRQ_PCS1:
+			rkx120_pcs_irq_handler(serdes, 1, dev_id);
+			break;
+		case DES_IRQ_EFUSE:
+			/* TBD */
+			break;
+		case DES_IRQ_GPIO0:
+			/* TBD */
+			break;
+		case DES_IRQ_GPIO1:
+			/* TBD */
+			break;
+		case DES_IRQ_CSITX0:
+			/* TBD */
+			break;
+		case DES_IRQ_CSITX1:
+			/* TBD */
+			break;
+		case DES_IRQ_MIPI_DSI_HOST:
+			/* TBD */
+			break;
+		case DES_IRQ_PMA_ADAPT0:
+			rkx120_pma_irq_handler(serdes, 0, dev_id);
+			break;
+		case DES_IRQ_PMA_ADAPT1:
+			rkx120_pma_irq_handler(serdes, 1, dev_id);
+			break;
+		case DES_IRQ_REMOTE:
+			rkx120_remote_irq_handler(serdes, dev_id);
+			break;
+		case DES_IRQ_PWM:
+			/* TBD */
+			break;
+		case DES_IRQ_DVP_TX:
+			/* TBD */
+			break;
+		case DES_IRQ_LINK:
+			rkx120_linkrx_irq_handler(serdes, dev_id);
+			break;
+		case DES_IRQ_EXT:
+			/* TBD */
+			break;
+		case DES_IRQ_OTHER_LANE:
+			/* TBD */
+			break;
+		default:
+			break;
+		}
+		status &= ~BIT(i);
+		i++;
+	}
+
+	return 0;
+}
+
