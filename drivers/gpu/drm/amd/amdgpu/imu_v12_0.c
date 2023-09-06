@@ -143,6 +143,11 @@ static void imu_v12_0_setup(struct amdgpu_device *adev)
 		imu_reg_val = RREG32_SOC15(GC, 0, regGFX_IMU_C2PMSG_16);
 		imu_reg_val |= 0x1;
 		WREG32_SOC15(GC, 0, regGFX_IMU_C2PMSG_16, imu_reg_val);
+
+		imu_reg_val = RREG32_SOC15(GC, 0, regGFX_IMU_SCRATCH_10);
+		imu_reg_val |= 0x20010007;
+		WREG32_SOC15(GC, 0, regGFX_IMU_SCRATCH_10, imu_reg_val);
+
 	}
 }
 
