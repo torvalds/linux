@@ -349,6 +349,7 @@ int hab_msg_recv(struct physical_channel *pchan,
 	uint32_t session_id = HAB_HEADER_GET_SESSION_ID(*header);
 	struct virtual_channel *vchan = NULL;
 	struct export_desc *exp_desc;
+	struct export_desc_super *exp_desc_super = NULL;
 	struct timespec64 ts = {0};
 	unsigned long long rx_mpm_tv;
 	size_t exp_desc_size_expected = 0;
@@ -463,16 +464,19 @@ int hab_msg_recv(struct physical_channel *pchan,
 		pr_debug("%s exp payload %zu bytes\n",
 				pchan->name, sizebytes);
 
-		exp_desc = kzalloc(sizebytes, GFP_ATOMIC);
-		if (!exp_desc)
+		exp_desc_super = kzalloc(sizebytes + sizeof(struct export_desc_super)
+							- sizeof(struct export_desc), GFP_ATOMIC);
+		if (!exp_desc_super)
 			break;
+
+		exp_desc = &exp_desc_super->exp;
 
 		if (physical_channel_read(pchan, exp_desc, sizebytes) !=
 			sizebytes) {
 			pr_err("%s corrupted exp expect %zd bytes vcid %X remote %X open %d!\n",
 				pchan->name, sizebytes, vchan->id,
 				vchan->otherend_id, vchan->session_id);
-			kfree(exp_desc);
+			kfree(exp_desc_super);
 			break;
 		}
 
@@ -500,21 +504,21 @@ int hab_msg_recv(struct physical_channel *pchan,
 			pfn_table->nregions * sizeof(struct region))) {
 			pr_err("%s nregions is too large or negative, nregions:%d!\n",
 					pchan->name, pfn_table->nregions);
-			kfree(exp_desc);
+			kfree(exp_desc_super);
 			break;
 		}
 
 		if (pfn_table->nregions > exp_desc->payload_count) {
 			pr_err("%s nregions %d greater than payload_count %d\n",
 				pchan->name, pfn_table->nregions, exp_desc->payload_count);
-			kfree(exp_desc);
+			kfree(exp_desc_super);
 			break;
 		}
 
 		if (exp_desc->payload_count > MAX_EXP_PAYLOAD_COUNT) {
 			pr_err("payload_count out of range: %d size overflow\n",
 				exp_desc->payload_count);
-			kfree(exp_desc);
+			kfree(exp_desc_super);
 			break;
 		}
 
@@ -522,7 +526,7 @@ int hab_msg_recv(struct physical_channel *pchan,
 		if (sizebytes != exp_desc_size_expected) {
 			pr_err("%s exp size not equal %zu expect %zu\n",
 				pchan->name, sizebytes, exp_desc_size_expected);
-			kfree(exp_desc);
+			kfree(exp_desc_super);
 			break;
 		}
 

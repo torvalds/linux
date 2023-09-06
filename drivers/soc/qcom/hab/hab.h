@@ -397,10 +397,57 @@ struct export_desc {
 	unsigned char       payload[1];
 } __packed;
 
+/*
+ * hab_mem_import       hab_mem_unimport
+ * --------------       ----------------
+ *      lock                 lock
+ *      query                query
+ *      unlock               unlock
+ *
+ *      use                  free
+ *
+ *      ret                  ret
+ *
+ * There are three scenarios to handle.
+ * First is:
+ * 1.thread1 enters import and finds out the exp desc, then unlock,
+ * 2.thread2 is scheduled to run on the same CPU,
+ * 3.it enters unimport, finds out the same exp desc, frees it and returns,
+ * 4.cpu is back to run thread1,
+ * 5.UAF occurs once thread1 uses this exp desc.
+ * We could use EXP_DESC_IMPORTED at the end of import and add query check
+ * in unimport to sync this access.
+ * A more complicated case is:
+ * 1.thread1 has completed the import,
+ * 2.thread2 enters import and gets the exp desc,
+ * 3.at this time point, thread3 which calls unimport could find out this
+ * exp desc due to its current state is EXP_DESC_IMPORTED,
+ * 4.if thread3 frees it, thread2 uses it afterward, will also occur UAF.
+ * Add query check with EXP_DESC_IMPORTED in import could avoid this,
+ * but it can not deal with the 3rd scenario:
+ * 1.thread1 and thread2 call import and both find out this exp desc,
+ * 2.thread1 runs quickly and returns from import,
+ * 3.then thread3 calls unimport and frees the exp desc,
+ * 4.UAF occurs once thread2 uses this exp desc afterward.
+ * In import, querying exp desc is a critical section, should prevent
+ * thread2 entering if thread1 is in. so EXP_DESC_IMPORTING is here.
+ */
+enum exp_desc_state {
+	EXP_DESC_INIT,
+	EXP_DESC_IMPORTING,	/* hab_mem_import is in progress */
+	EXP_DESC_IMPORTED,	/* hab_mem_import is called and returns success */
+};
 struct export_desc_super {
 	struct kref refcount;
 	void *platform_data;
 	unsigned long offset;
+
+	enum exp_desc_state import_state;
+
+	/*
+	 * exp must be the last member
+	 * because it is a variable length struct with pfns as payload
+	 */
 	struct export_desc  exp;
 };
 
