@@ -28,7 +28,6 @@
 #include "display/intel_de.h"
 #include "display/intel_display.h"
 #include "display/intel_display_trace.h"
-#include "display/intel_display_wa.h"
 #include "display/skl_watermark.h"
 
 #include "gt/intel_engine_regs.h"
@@ -758,8 +757,6 @@ static void i830_init_clock_gating(struct drm_i915_private *i915)
 void intel_clock_gating_init(struct drm_i915_private *i915)
 {
 	i915->clock_gating_funcs->init_clock_gating(i915);
-
-	intel_display_wa_apply(i915);
 }
 
 static void nop_init_clock_gating(struct drm_i915_private *i915)

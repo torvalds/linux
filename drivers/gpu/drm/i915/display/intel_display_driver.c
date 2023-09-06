@@ -31,6 +31,7 @@
 #include "intel_display_irq.h"
 #include "intel_display_power.h"
 #include "intel_display_types.h"
+#include "intel_display_wa.h"
 #include "intel_dkl_phy.h"
 #include "intel_dmc.h"
 #include "intel_dp.h"
@@ -88,6 +89,8 @@ void intel_display_driver_init_hw(struct drm_i915_private *i915)
 	intel_update_cdclk(i915);
 	intel_cdclk_dump_config(i915, &i915->display.cdclk.hw, "Current CDCLK");
 	cdclk_state->logical = cdclk_state->actual = i915->display.cdclk.hw;
+
+	intel_display_wa_apply(i915);
 }
 
 static const struct drm_mode_config_funcs intel_mode_funcs = {
