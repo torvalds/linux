@@ -3480,6 +3480,10 @@ cont:
 cont_skip:
 		(*idx)++;
 	}
+
+	if (reset && *idx)
+		audit_log_rule_reset(table, cb->seq, *idx);
+
 	return 0;
 }
 
@@ -3539,9 +3543,6 @@ static int nf_tables_dump_rules(struct sk_buff *skb,
 	}
 done:
 	rcu_read_unlock();
-
-	if (reset && idx > cb->args[0])
-		audit_log_rule_reset(table, cb->seq, idx - cb->args[0]);
 
 	cb->args[0] = idx;
 	return skb->len;
@@ -5760,14 +5761,14 @@ static int nf_tables_dump_set(struct sk_buff *skb, struct netlink_callback *cb)
 	if (!args.iter.err && args.iter.count == cb->args[0])
 		args.iter.err = nft_set_catchall_dump(net, skb, set,
 						      reset, cb->seq);
-	rcu_read_unlock();
-
 	nla_nest_end(skb, nest);
 	nlmsg_end(skb, nlh);
 
 	if (reset && args.iter.count > args.iter.skip)
 		audit_log_nft_set_reset(table, cb->seq,
 					args.iter.count - args.iter.skip);
+
+	rcu_read_unlock();
 
 	if (args.iter.err && args.iter.err != -EMSGSIZE)
 		return args.iter.err;
