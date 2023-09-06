@@ -341,14 +341,6 @@ static const struct component_ops dp_display_comp_ops = {
 	.unbind = dp_display_unbind,
 };
 
-static bool dp_display_is_sink_count_zero(struct dp_display_private *dp)
-{
-	drm_dbg_dp(dp->drm_dev, "present=%#x sink_count=%d\n",
-			dp->panel->dpcd[DP_DOWNSTREAMPORT_PRESENT],
-		dp->link->sink_count);
-	return drm_dp_is_branch(dp->panel->dpcd) && dp->link->sink_count == 0;
-}
-
 static void dp_display_send_hpd_event(struct msm_dp *dp_display)
 {
 	struct dp_display_private *dp;
@@ -507,7 +499,7 @@ static int dp_display_handle_port_ststus_changed(struct dp_display_private *dp)
 {
 	int rc = 0;
 
-	if (dp_display_is_sink_count_zero(dp)) {
+	if (drm_dp_is_branch(dp->panel->dpcd) && dp->link->sink_count == 0) {
 		drm_dbg_dp(dp->drm_dev, "sink count is zero, nothing to do\n");
 		if (dp->hpd_state != ST_DISCONNECTED) {
 			dp->hpd_state = ST_DISCONNECT_PENDING;
