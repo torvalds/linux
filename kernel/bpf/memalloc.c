@@ -732,12 +732,17 @@ static void notrace *unit_alloc(struct bpf_mem_cache *c)
 		}
 	}
 	local_dec(&c->active);
-	local_irq_restore(flags);
 
 	WARN_ON(cnt < 0);
 
 	if (cnt < c->low_watermark)
 		irq_work_raise(c);
+	/* Enable IRQ after the enqueue of irq work completes, so irq work
+	 * will run after IRQ is enabled and free_llist may be refilled by
+	 * irq work before other task preempts current task.
+	 */
+	local_irq_restore(flags);
+
 	return llnode;
 }
 
@@ -773,11 +778,16 @@ static void notrace unit_free(struct bpf_mem_cache *c, void *ptr)
 		llist_add(llnode, &c->free_llist_extra);
 	}
 	local_dec(&c->active);
-	local_irq_restore(flags);
 
 	if (cnt > c->high_watermark)
 		/* free few objects from current cpu into global kmalloc pool */
 		irq_work_raise(c);
+	/* Enable IRQ after irq_work_raise() completes, otherwise when current
+	 * task is preempted by task which does unit_alloc(), unit_alloc() may
+	 * return NULL unexpectedly because irq work is already pending but can
+	 * not been triggered and free_llist can not be refilled timely.
+	 */
+	local_irq_restore(flags);
 }
 
 static void notrace unit_free_rcu(struct bpf_mem_cache *c, void *ptr)
@@ -795,10 +805,10 @@ static void notrace unit_free_rcu(struct bpf_mem_cache *c, void *ptr)
 		llist_add(llnode, &c->free_llist_extra_rcu);
 	}
 	local_dec(&c->active);
-	local_irq_restore(flags);
 
 	if (!atomic_read(&c->call_rcu_in_progress))
 		irq_work_raise(c);
+	local_irq_restore(flags);
 }
 
 /* Called from BPF program or from sys_bpf syscall.
