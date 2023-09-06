@@ -4585,11 +4585,7 @@ static struct file_system_type shmem_fs_type = {
 	.parameters	= shmem_fs_parameters,
 #endif
 	.kill_sb	= kill_litter_super,
-#ifdef CONFIG_SHMEM
 	.fs_flags	= FS_USERNS_MOUNT | FS_ALLOW_IDMAP,
-#else
-	.fs_flags	= FS_USERNS_MOUNT,
-#endif
 };
 
 void __init shmem_init(void)
