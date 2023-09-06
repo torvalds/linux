@@ -34,6 +34,12 @@ ifdef CONFIG_FUNCTION_TRACER
   CFLAGS_REMOVE_rethook_trampoline.o = $(CC_FLAGS_FTRACE)
 endif
 
+KASAN_SANITIZE_efi.o := n
+KASAN_SANITIZE_cpu-probe.o := n
+KASAN_SANITIZE_traps.o := n
+KASAN_SANITIZE_smp.o := n
+KASAN_SANITIZE_vdso.o := n
+
 obj-$(CONFIG_MODULES)		+= module.o module-sections.o
 obj-$(CONFIG_STACKTRACE)	+= stacktrace.o
 

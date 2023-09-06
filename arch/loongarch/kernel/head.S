@@ -104,6 +104,10 @@ SYM_CODE_START(kernel_entry)			# kernel entry point
 
 #endif /* CONFIG_RELOCATABLE */
 
+#ifdef CONFIG_KASAN
+	bl		kasan_early_init
+#endif
+
 	bl		start_kernel
 	ASM_BUG()
 
