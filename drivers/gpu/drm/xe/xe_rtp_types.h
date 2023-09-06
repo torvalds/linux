@@ -22,7 +22,10 @@ struct xe_gt;
 struct xe_rtp_action {
 	/** @reg: Register */
 	struct xe_reg		reg;
-	/** @clr_bits: bits to clear when updating register */
+	/**
+	 * @clr_bits: bits to clear when updating register. It's always a
+	 * superset of bits being modified
+	 */
 	u32			clr_bits;
 	/** @set_bits: bits to set when updating register */
 	u32			set_bits;
