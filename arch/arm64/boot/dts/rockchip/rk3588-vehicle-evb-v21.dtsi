@@ -339,6 +339,13 @@
 	status = "disabled";
 };
 
+&uart7 {
+	/delete-property/ dmas;
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart7m1_xfer &uart7m1_ctsn>;
+};
+
 &uart9 {
 	status = "okay";
 	pinctrl-names = "default";
