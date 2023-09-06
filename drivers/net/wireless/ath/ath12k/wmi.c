@@ -5893,8 +5893,9 @@ exit:
 	rcu_read_unlock();
 }
 
-static struct ath12k *ath12k_get_ar_on_scan_abort(struct ath12k_base *ab,
-						  u32 vdev_id)
+static struct ath12k *ath12k_get_ar_on_scan_state(struct ath12k_base *ab,
+						  u32 vdev_id,
+						  enum ath12k_scan_state state)
 {
 	int i;
 	struct ath12k_pdev *pdev;
@@ -5906,7 +5907,7 @@ static struct ath12k *ath12k_get_ar_on_scan_abort(struct ath12k_base *ab,
 			ar = pdev->ar;
 
 			spin_lock_bh(&ar->data_lock);
-			if (ar->scan.state == ATH12K_SCAN_ABORTING &&
+			if (ar->scan.state == state &&
 			    ar->scan.vdev_id == vdev_id) {
 				spin_unlock_bh(&ar->data_lock);
 				return ar;
@@ -5936,10 +5937,15 @@ static void ath12k_scan_event(struct ath12k_base *ab, struct sk_buff *skb)
 	 * aborting scan's vdev id matches this event info.
 	 */
 	if (le32_to_cpu(scan_ev.event_type) == WMI_SCAN_EVENT_COMPLETED &&
-	    le32_to_cpu(scan_ev.reason) == WMI_SCAN_REASON_CANCELLED)
-		ar = ath12k_get_ar_on_scan_abort(ab, le32_to_cpu(scan_ev.vdev_id));
-	else
+	    le32_to_cpu(scan_ev.reason) == WMI_SCAN_REASON_CANCELLED) {
+		ar = ath12k_get_ar_on_scan_state(ab, le32_to_cpu(scan_ev.vdev_id),
+						 ATH12K_SCAN_ABORTING);
+		if (!ar)
+			ar = ath12k_get_ar_on_scan_state(ab, le32_to_cpu(scan_ev.vdev_id),
+							 ATH12K_SCAN_RUNNING);
+	} else {
 		ar = ath12k_mac_get_ar_by_vdev_id(ab, le32_to_cpu(scan_ev.vdev_id));
+	}
 
 	if (!ar) {
 		ath12k_warn(ab, "Received scan event for unknown vdev");
