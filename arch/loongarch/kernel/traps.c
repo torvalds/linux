@@ -38,6 +38,7 @@
 #include <asm/fpu.h>
 #include <asm/lbt.h>
 #include <asm/inst.h>
+#include <asm/kgdb.h>
 #include <asm/loongarch.h>
 #include <asm/mmu_context.h>
 #include <asm/pgtable.h>
@@ -703,6 +704,11 @@ asmlinkage void noinstr do_bp(struct pt_regs *regs)
 	 * pertain to them.
 	 */
 	switch (bcode) {
+	case BRK_KDB:
+		if (kgdb_breakpoint_handler(regs))
+			goto out;
+		else
+			break;
 	case BRK_KPROBE_BP:
 		if (kprobe_breakpoint_handler(regs))
 			goto out;
@@ -769,6 +775,9 @@ asmlinkage void noinstr do_watch(struct pt_regs *regs)
 #ifndef CONFIG_HAVE_HW_BREAKPOINT
 	pr_warn("Hardware watch point handler not implemented!\n");
 #else
+	if (kgdb_breakpoint_handler(regs))
+		goto out;
+
 	if (test_tsk_thread_flag(current, TIF_SINGLESTEP)) {
 		int llbit = (csr_read32(LOONGARCH_CSR_LLBCTL) & 0x1);
 		unsigned long pc = instruction_pointer(regs);
