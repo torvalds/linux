@@ -394,7 +394,7 @@ static void rt1711h_remove(struct i2c_client *client)
 static const struct i2c_device_id rt1711h_id[] = {
 	{ "rt1711h", 0 },
 	{ "rt1715", 0 },
-	{ }
+	{}
 };
 MODULE_DEVICE_TABLE(i2c, rt1711h_id);
 
@@ -402,7 +402,7 @@ MODULE_DEVICE_TABLE(i2c, rt1711h_id);
 static const struct of_device_id rt1711h_of_match[] = {
 	{ .compatible = "richtek,rt1711h", .data = (void *)RT1711H_DID },
 	{ .compatible = "richtek,rt1715", .data = (void *)RT1715_DID },
-	{},
+	{}
 };
 MODULE_DEVICE_TABLE(of, rt1711h_of_match);
 #endif
