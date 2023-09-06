@@ -1410,6 +1410,10 @@ __BUILD_CSR_OP(tlbidx)
 #define FPU_CSR_RU	0x200	/* towards +Infinity */
 #define FPU_CSR_RD	0x300	/* towards -Infinity */
 
+/* Bit 6 of FPU Status Register specify the LBT TOP simulation mode */
+#define FPU_CSR_TM_SHIFT	0x6
+#define FPU_CSR_TM		(_ULCAST_(1) << FPU_CSR_TM_SHIFT)
+
 #define read_fcsr(source)	\
 ({	\
 	unsigned int __res;	\

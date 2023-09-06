@@ -15,6 +15,8 @@ obj-$(CONFIG_EFI) 		+= efi.o
 
 obj-$(CONFIG_CPU_HAS_FPU)	+= fpu.o kfpu.o
 
+obj-$(CONFIG_CPU_HAS_LBT)	+= lbt.o
+
 obj-$(CONFIG_ARCH_STRICT_ALIGN)	+= unaligned.o
 
 ifdef CONFIG_FUNCTION_TRACER

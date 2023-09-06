@@ -41,12 +41,51 @@
 
 	.macro fpu_save_csr thread tmp
 	movfcsr2gr	\tmp, fcsr0
-	stptr.w	\tmp, \thread, THREAD_FCSR
+	stptr.w		\tmp, \thread, THREAD_FCSR
+#ifdef CONFIG_CPU_HAS_LBT
+	/* TM bit is always 0 if LBT not supported */
+	andi		\tmp, \tmp, FPU_CSR_TM
+	beqz		\tmp, 1f
+	/* Save FTOP */
+	x86mftop	\tmp
+	stptr.w		\tmp, \thread, THREAD_FTOP
+	/* Turn off TM to ensure the order of FPR in memory independent of TM */
+	x86clrtm
+1:
+#endif
 	.endm
 
-	.macro fpu_restore_csr thread tmp
-	ldptr.w	\tmp, \thread, THREAD_FCSR
-	movgr2fcsr	fcsr0, \tmp
+	.macro fpu_restore_csr thread tmp0 tmp1
+	ldptr.w		\tmp0, \thread, THREAD_FCSR
+	movgr2fcsr	fcsr0, \tmp0
+#ifdef CONFIG_CPU_HAS_LBT
+	/* TM bit is always 0 if LBT not supported */
+	andi		\tmp0, \tmp0, FPU_CSR_TM
+	beqz		\tmp0, 2f
+	/* Restore FTOP */
+	ldptr.w		\tmp0, \thread, THREAD_FTOP
+	andi		\tmp0, \tmp0, 0x7
+	la.pcrel	\tmp1, 1f
+	alsl.d		\tmp1, \tmp0, \tmp1, 3
+	jr		\tmp1
+1:
+	x86mttop	0
+	b	2f
+	x86mttop	1
+	b	2f
+	x86mttop	2
+	b	2f
+	x86mttop	3
+	b	2f
+	x86mttop	4
+	b	2f
+	x86mttop	5
+	b	2f
+	x86mttop	6
+	b	2f
+	x86mttop	7
+2:
+#endif
 	.endm
 
 	.macro fpu_save_cc thread tmp0 tmp1
@@ -246,7 +285,7 @@
 	.macro	lsx_restore_all	thread tmp0 tmp1
 	lsx_restore_data	\thread, \tmp0
 	fpu_restore_cc		\thread, \tmp0, \tmp1
-	fpu_restore_csr		\thread, \tmp0
+	fpu_restore_csr		\thread, \tmp0, \tmp1
 	.endm
 
 	.macro	lsx_save_upper vd base tmp off
@@ -456,7 +495,7 @@
 	.macro	lasx_restore_all thread tmp0 tmp1
 	lasx_restore_data	\thread, \tmp0
 	fpu_restore_cc		\thread, \tmp0, \tmp1
-	fpu_restore_csr		\thread, \tmp0
+	fpu_restore_csr		\thread, \tmp0, \tmp1
 	.endm
 
 	.macro	lasx_save_upper xd base tmp off

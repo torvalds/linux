@@ -254,6 +254,9 @@ config AS_HAS_LSX_EXTENSION
 config AS_HAS_LASX_EXTENSION
 	def_bool $(as-instr,xvld \$xr0$(comma)\$a0$(comma)0)
 
+config AS_HAS_LBT_EXTENSION
+	def_bool $(as-instr,movscr2gr \$a0$(comma)\$scr0)
+
 menu "Kernel type and options"
 
 source "kernel/Kconfig.hz"
@@ -533,6 +536,18 @@ config CPU_HAS_LASX
 	  the size & complexity of your kernel.
 
 	  If unsure, say Y.
+
+config CPU_HAS_LBT
+	bool "Support for the Loongson Binary Translation Extension"
+	depends on AS_HAS_LBT_EXTENSION
+	help
+	  Loongson Binary Translation (LBT) introduces 4 scratch registers (SCR0
+	  to SCR3), x86/ARM eflags (eflags) and x87 fpu stack pointer (ftop).
+	  Enabling this option allows the kernel to allocate and switch registers
+	  specific to LBT.
+
+	  If you want to use this feature, such as the Loongson Architecture
+	  Translator (LAT), say Y.
 
 config CPU_HAS_PREFETCH
 	bool
