@@ -20,7 +20,6 @@
 #include <linux/spinlock.h>
 #include <linux/slab.h>
 
-#include "gpiolib.h"
 #include "gpiolib-acpi.h"
 
 /*
