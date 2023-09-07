@@ -478,6 +478,8 @@ more detail, please read the usage documents for those
 :doc:`/admin-guide/mm/damon/lru_sort`).
 
 
+.. _damon_design_execution_model_and_data_structures:
+
 Execution Model and Data Structures
 ===================================
 
