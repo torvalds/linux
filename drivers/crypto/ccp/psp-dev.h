@@ -14,6 +14,8 @@
 #include <linux/list.h>
 #include <linux/bits.h>
 #include <linux/interrupt.h>
+#include <linux/mutex.h>
+#include <linux/psp.h>
 
 #include "sp-dev.h"
 
@@ -33,6 +35,7 @@ struct psp_device {
 	struct sp_device *sp;
 
 	void __iomem *io_regs;
+	struct mutex mailbox_mutex;
 
 	psp_irq_handler_t sev_irq_handler;
 	void *sev_irq_data;
@@ -70,5 +73,20 @@ struct psp_device *psp_get_master_device(void);
 #define PSP_SECURITY_RPMC_SPIROM_AVAILABLE	BIT(9)
 #define PSP_SECURITY_HSP_TPM_AVAILABLE		BIT(10)
 #define PSP_SECURITY_ROM_ARMOR_ENFORCED		BIT(11)
+
+/**
+ * enum psp_cmd - PSP mailbox commands
+ * @PSP_CMD_TEE_RING_INIT:	Initialize TEE ring buffer
+ * @PSP_CMD_TEE_RING_DESTROY:	Destroy TEE ring buffer
+ * @PSP_CMD_MAX:		Maximum command id
+ */
+enum psp_cmd {
+	PSP_CMD_TEE_RING_INIT		= 1,
+	PSP_CMD_TEE_RING_DESTROY	= 2,
+	PSP_CMD_MAX			= 15,
+};
+
+int psp_mailbox_command(struct psp_device *psp, enum psp_cmd cmd, void *cmdbuff,
+			unsigned int timeout_msecs, unsigned int *cmdresp);
 
 #endif /* __PSP_DEV_H */
