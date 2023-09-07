@@ -1170,16 +1170,61 @@ static int batadv_mcast_forw_rtr_count(struct batadv_priv *bat_priv,
 }
 
 /**
+ * batadv_mcast_forw_mode_by_count() - get forwarding mode by count
+ * @bat_priv: the bat priv with all the soft interface information
+ * @skb: the multicast packet to check
+ * @vid: the vlan identifier
+ * @is_routable: stores whether the destination is routable
+ * @count: the number of originators the multicast packet need to be sent to
+ *
+ * For a multicast packet with multiple destination originators, checks which
+ * mode to use. For BATADV_FORW_MCAST it also encapsulates the packet with a
+ * complete batman-adv multicast header.
+ *
+ * Return:
+ *	BATADV_FORW_MCAST: If all nodes have multicast packet routing
+ *	capabilities and an MTU >= 1280 on all hard interfaces (including us)
+ *	and the encapsulated multicast packet with all destination addresses
+ *	would still fit into an 1280 bytes batman-adv multicast packet
+ *	(excluding the outer ethernet frame) and we could successfully push
+ *	the full batman-adv multicast packet header.
+ *	BATADV_FORW_UCASTS: If the packet cannot be sent in a batman-adv
+ *	multicast packet and the amount of batman-adv unicast packets needed
+ *	is smaller or equal to the configured multicast fanout.
+ *	BATADV_FORW_BCAST: Otherwise.
+ */
+static enum batadv_forw_mode
+batadv_mcast_forw_mode_by_count(struct batadv_priv *bat_priv,
+				struct sk_buff *skb, unsigned short vid,
+				int is_routable, int count)
+{
+	unsigned int mcast_hdrlen = batadv_mcast_forw_packet_hdrlen(count);
+	u8 own_tvlv_flags = bat_priv->mcast.mla_flags.tvlv_flags;
+
+	if (!atomic_read(&bat_priv->mcast.num_no_mc_ptype_capa) &&
+	    own_tvlv_flags & BATADV_MCAST_HAVE_MC_PTYPE_CAPA &&
+	    skb->len + mcast_hdrlen <= IPV6_MIN_MTU &&
+	    batadv_mcast_forw_push(bat_priv, skb, vid, is_routable, count))
+		return BATADV_FORW_MCAST;
+
+	if (count <= atomic_read(&bat_priv->multicast_fanout))
+		return BATADV_FORW_UCASTS;
+
+	return BATADV_FORW_BCAST;
+}
+
+/**
  * batadv_mcast_forw_mode() - check on how to forward a multicast packet
  * @bat_priv: the bat priv with all the soft interface information
  * @skb: the multicast packet to check
+ * @vid: the vlan identifier
  * @is_routable: stores whether the destination is routable
  *
  * Return: The forwarding mode as enum batadv_forw_mode.
  */
 enum batadv_forw_mode
 batadv_mcast_forw_mode(struct batadv_priv *bat_priv, struct sk_buff *skb,
-		       int *is_routable)
+		       unsigned short vid, int *is_routable)
 {
 	int ret, tt_count, ip_count, unsnoop_count, total_count;
 	bool is_unsnoopable = false;
@@ -1209,10 +1254,8 @@ batadv_mcast_forw_mode(struct batadv_priv *bat_priv, struct sk_buff *skb,
 	else if (unsnoop_count)
 		return BATADV_FORW_BCAST;
 
-	if (total_count <= atomic_read(&bat_priv->multicast_fanout))
-		return BATADV_FORW_UCASTS;
-
-	return BATADV_FORW_BCAST;
+	return batadv_mcast_forw_mode_by_count(bat_priv, skb, vid, *is_routable,
+					       total_count);
 }
 
 /**
@@ -1773,6 +1816,31 @@ static void batadv_mcast_want_rtr6_update(struct batadv_priv *bat_priv,
 }
 
 /**
+ * batadv_mcast_have_mc_ptype_update() - update multicast packet type counter
+ * @bat_priv: the bat priv with all the soft interface information
+ * @orig: the orig_node which multicast state might have changed of
+ * @mcast_flags: flags indicating the new multicast state
+ *
+ * If the BATADV_MCAST_HAVE_MC_PTYPE_CAPA flag of this originator, orig, has
+ * toggled then this method updates the counter accordingly.
+ */
+static void batadv_mcast_have_mc_ptype_update(struct batadv_priv *bat_priv,
+					      struct batadv_orig_node *orig,
+					      u8 mcast_flags)
+{
+	lockdep_assert_held(&orig->mcast_handler_lock);
+
+	/* switched from flag set to unset */
+	if (!(mcast_flags & BATADV_MCAST_HAVE_MC_PTYPE_CAPA) &&
+	    orig->mcast_flags & BATADV_MCAST_HAVE_MC_PTYPE_CAPA)
+		atomic_inc(&bat_priv->mcast.num_no_mc_ptype_capa);
+	/* switched from flag unset to set */
+	else if (mcast_flags & BATADV_MCAST_HAVE_MC_PTYPE_CAPA &&
+		 !(orig->mcast_flags & BATADV_MCAST_HAVE_MC_PTYPE_CAPA))
+		atomic_dec(&bat_priv->mcast.num_no_mc_ptype_capa);
+}
+
+/**
  * batadv_mcast_tvlv_flags_get() - get multicast flags from an OGM TVLV
  * @enabled: whether the originator has multicast TVLV support enabled
  * @tvlv_value: tvlv buffer containing the multicast flags
@@ -1840,6 +1908,7 @@ static void batadv_mcast_tvlv_ogm_handler(struct batadv_priv *bat_priv,
 	batadv_mcast_want_ipv6_update(bat_priv, orig, mcast_flags);
 	batadv_mcast_want_rtr4_update(bat_priv, orig, mcast_flags);
 	batadv_mcast_want_rtr6_update(bat_priv, orig, mcast_flags);
+	batadv_mcast_have_mc_ptype_update(bat_priv, orig, mcast_flags);
 
 	orig->mcast_flags = mcast_flags;
 	spin_unlock_bh(&orig->mcast_handler_lock);
