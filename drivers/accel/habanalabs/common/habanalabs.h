@@ -1410,6 +1410,8 @@ struct dynamic_fw_load_mgr {
  * @boot_err0_reg: boot_err0 register address
  * @boot_err1_reg: boot_err1 register address
  * @wait_for_preboot_timeout: timeout to poll for preboot ready
+ * @wait_for_preboot_extended_timeout: timeout to pull for preboot ready in case where we know
+ *		preboot needs longer time.
  */
 struct pre_fw_load_props {
 	u32 cpu_boot_status_reg;
@@ -1418,6 +1420,7 @@ struct pre_fw_load_props {
 	u32 boot_err0_reg;
 	u32 boot_err1_reg;
 	u32 wait_for_preboot_timeout;
+	u32 wait_for_preboot_extended_timeout;
 };
 
 /**

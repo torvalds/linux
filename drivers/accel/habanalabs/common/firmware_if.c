@@ -1474,8 +1474,9 @@ static void detect_cpu_boot_status(struct hl_device *hdev, u32 status)
 int hl_fw_wait_preboot_ready(struct hl_device *hdev)
 {
 	struct pre_fw_load_props *pre_fw_load = &hdev->fw_loader.pre_fw_load;
-	u32 status;
-	int rc;
+	u32 status = 0, timeout;
+	int rc, tries = 1;
+	bool preboot_still_runs;
 
 	/* Need to check two possible scenarios:
 	 *
@@ -1485,6 +1486,8 @@ int hl_fw_wait_preboot_ready(struct hl_device *hdev)
 	 * All other status values - for older firmwares where the uboot was
 	 * loaded from the FLASH
 	 */
+	timeout = pre_fw_load->wait_for_preboot_timeout;
+retry:
 	rc = hl_poll_timeout(
 		hdev,
 		pre_fw_load->cpu_boot_status_reg,
@@ -1493,7 +1496,24 @@ int hl_fw_wait_preboot_ready(struct hl_device *hdev)
 		(status == CPU_BOOT_STATUS_READY_TO_BOOT) ||
 		(status == CPU_BOOT_STATUS_WAITING_FOR_BOOT_FIT),
 		hdev->fw_poll_interval_usec,
-		pre_fw_load->wait_for_preboot_timeout);
+		timeout);
+	/*
+	 * if F/W reports "security-ready" it means preboot might take longer.
+	 * If the field 'wait_for_preboot_extended_timeout' is non 0 we wait again
+	 * with that timeout
+	 */
+	preboot_still_runs = (status == CPU_BOOT_STATUS_SECURITY_READY ||
+				status == CPU_BOOT_STATUS_IN_PREBOOT ||
+				status == CPU_BOOT_STATUS_FW_SHUTDOWN_PREP ||
+				status == CPU_BOOT_STATUS_DRAM_RDY);
+
+	if (rc && tries && preboot_still_runs) {
+		tries--;
+		if (pre_fw_load->wait_for_preboot_extended_timeout) {
+			timeout = pre_fw_load->wait_for_preboot_extended_timeout;
+			goto retry;
+		}
+	}
 
 	if (rc) {
 		detect_cpu_boot_status(hdev, status);

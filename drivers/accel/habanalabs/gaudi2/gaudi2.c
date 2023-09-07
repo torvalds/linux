@@ -4825,6 +4825,8 @@ static void gaudi2_init_firmware_preload_params(struct hl_device *hdev)
 	pre_fw_load->boot_err0_reg = mmCPU_BOOT_ERR0;
 	pre_fw_load->boot_err1_reg = mmCPU_BOOT_ERR1;
 	pre_fw_load->wait_for_preboot_timeout = GAUDI2_PREBOOT_REQ_TIMEOUT_USEC;
+	pre_fw_load->wait_for_preboot_extended_timeout =
+		GAUDI2_PREBOOT_EXTENDED_REQ_TIMEOUT_USEC;
 }
 
 static void gaudi2_init_firmware_loader(struct hl_device *hdev)
