@@ -444,6 +444,21 @@
  * 13.no set clk if assigned-clock-rates in dts
  * 14.distinguish buf done or subscribed event for param poll
  * 15.fix repeated reporting statistics if stats video on/off
+ *
+ * v2.3.0 (AIQ v5.3.0)
+ * 1.fix drc and hdrmge err for multi sensor
+ * 2.fix 3dlut for multi sensor
+ * 3.fix stream init pause state
+ * 4.fix refer to sram info for multi sensor
+ * 5.add api get isp work mode for rockit
+ * 6.remove __isp_config_hdrshd
+ * 7.add lock to save tb info
+ * 8.fix list buf delete err
+ * 9.fix get tb info
+ * 10.add iqtool video for isp21
+ * 11.fix image effect for frame two-run
+ * 12.fix underperformance for frame two-run
+ * 13.support unite mode for isp32
  */
 
 #define RKISP_DRIVER_VERSION RKISP_API_VERSION
