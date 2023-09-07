@@ -30,6 +30,7 @@ select:
           - qcom,ipq5332
           - qcom,ipq8064
           - qcom,ipq8074
+          - qcom,ipq9574
           - qcom,msm8939
           - qcom,msm8960
           - qcom,msm8974
