@@ -64,7 +64,7 @@ struct aspeed_spi_chip {
 	u32			 cs;
 	void __iomem		*ctl;
 	void __iomem		*ahb_base;
-	size_t			 ahb_window_size;
+	size_t			 ahb_window_sz;
 	u32			 ctl_val[ASPEED_SPI_MAX];
 	u32			 clk_freq;
 };
@@ -95,7 +95,7 @@ struct aspeed_spi {
 	void __iomem		*regs;
 	void __iomem		*ahb_base;
 	phys_addr_t		 ahb_base_phy;
-	size_t			 ahb_window_size;
+	size_t			 ahb_window_sz;
 	u32			 num_cs;
 	struct device		*dev;
 
@@ -403,7 +403,7 @@ static int aspeed_spi_set_window(struct aspeed_spi *aspi)
 		seg_val_backup = readl(seg_reg);
 
 		start = aspi->ahb_base_phy + offset;
-		win_sz = aspi->chips[cs].ahb_window_size;
+		win_sz = aspi->chips[cs].ahb_window_sz;
 		end = start + win_sz;
 
 		seg_val = aspi->data->segment_reg(aspi, start, end);
@@ -456,7 +456,7 @@ static void aspeed_spi_chip_set_default_window(struct aspeed_spi *aspi)
 	/* No segment registers for the AST2400 SPI controller */
 	if (aspi->data == &ast2400_spi_data) {
 		aspi->chips[0].ahb_base = aspi->ahb_base;
-		aspi->chips[0].ahb_window_size = aspi->ahb_window_size;
+		aspi->chips[0].ahb_window_sz = aspi->ahb_window_sz;
 		return;
 	}
 
@@ -466,9 +466,9 @@ static void aspeed_spi_chip_set_default_window(struct aspeed_spi *aspi)
 		else
 			aspi->chips[cs].ahb_base =
 				aspi->chips[cs - 1].ahb_base +
-				aspi->chips[cs - 1].ahb_window_size;
+				aspi->chips[cs - 1].ahb_window_sz;
 
-		aspi->chips[cs].ahb_window_size = aspi->data->min_window_sz;
+		aspi->chips[cs].ahb_window_sz = aspi->data->min_window_sz;
 
 		dev_dbg(aspi->dev, "CE%d default window [ 0x%.9llx - 0x%.9llx ]",
 			cs, (u64)(aspi->ahb_base_phy +
@@ -480,7 +480,7 @@ static void aspeed_spi_chip_set_default_window(struct aspeed_spi *aspi)
 	/* Close unused CS */
 	for (cs = aspi->num_cs; cs < aspi->data->max_cs; cs++) {
 		aspi->chips[cs].ahb_base = aspi->ahb_base;
-		aspi->chips[cs].ahb_window_size = 0;
+		aspi->chips[cs].ahb_window_sz = 0;
 	}
 
 	aspeed_spi_set_window(aspi);
@@ -499,7 +499,7 @@ static int aspeed_spi_chip_adjust_window(struct aspeed_spi_chip *chip,
 	struct aspeed_spi *aspi = chip->aspi;
 	int ret;
 	u32 cs;
-	size_t total_window_size;
+	size_t total_window_sz;
 
 	/* No segment registers for the AST2400 SPI controller */
 	if (aspi->data == &ast2400_spi_data)
@@ -527,17 +527,17 @@ static int aspeed_spi_chip_adjust_window(struct aspeed_spi_chip *chip,
 	}
 
 	/* Adjust this chip window */
-	aspi->chips[chip->cs].ahb_window_size = size;
+	aspi->chips[chip->cs].ahb_window_sz = size;
 
-	total_window_size = 0;
+	total_window_sz = 0;
 	for (cs = 0; cs < aspi->data->max_cs; cs++)
-		total_window_size += aspi->chips[cs].ahb_window_size;
+		total_window_sz += aspi->chips[cs].ahb_window_sz;
 
-	if (total_window_size > aspi->ahb_window_size) {
-		aspi->chips[chip->cs].ahb_window_size -= (total_window_size -
-							  aspi->ahb_window_size);
+	if (total_window_sz > aspi->ahb_window_sz) {
+		aspi->chips[chip->cs].ahb_window_sz -= (total_window_sz -
+							aspi->ahb_window_sz);
 		dev_warn(aspi->dev, "CE%d window resized to %zdMB",
-			 chip->cs, aspi->chips[chip->cs].ahb_window_size >> 20);
+			 chip->cs, aspi->chips[chip->cs].ahb_window_sz >> 20);
 	}
 
 	ret = aspeed_spi_set_window(aspi);
@@ -573,9 +573,9 @@ static int aspeed_spi_dirmap_create(struct spi_mem_dirmap_desc *desc)
 
 	aspeed_spi_chip_adjust_window(chip, desc->info.length);
 
-	if (desc->info.length > chip->ahb_window_size)
+	if (desc->info.length > chip->ahb_window_sz)
 		dev_warn(aspi->dev, "CE%d window (%zdMB) too small for mapping",
-			 chip->cs, chip->ahb_window_size >> 20);
+			 chip->cs, chip->ahb_window_sz >> 20);
 
 	/* Define the default IO read settings */
 	ctl_val = readl(chip->ctl) & ~CTRL_IO_CMD_MASK;
@@ -622,7 +622,7 @@ static ssize_t aspeed_spi_dirmap_read(struct spi_mem_dirmap_desc *desc,
 	struct aspeed_spi_chip *chip = &aspi->chips[spi_get_chipselect(desc->mem->spi, 0)];
 
 	/* Switch to USER command mode if mapping window is too small */
-	if (chip->ahb_window_size < offset + len) {
+	if (chip->ahb_window_sz < offset + len) {
 		int ret;
 
 		ret = aspeed_spi_read_user(chip, &desc->info.op_tmpl, offset, len, buf);
@@ -738,7 +738,7 @@ static int aspeed_spi_probe(struct platform_device *pdev)
 		return PTR_ERR(aspi->ahb_base);
 	}
 
-	aspi->ahb_window_size = resource_size(res);
+	aspi->ahb_window_sz = resource_size(res);
 	aspi->ahb_base_phy = res->start;
 
 	aspi->clk = devm_clk_get(&pdev->dev, NULL);
