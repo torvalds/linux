@@ -186,7 +186,6 @@
 &flexspi0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_flexspi0>;
-	nxp,fspi-dll-slvdly = <4>;
 	status = "okay";
 
 	mt35xu512aba0: flash@0 {
