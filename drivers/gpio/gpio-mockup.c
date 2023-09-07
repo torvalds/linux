@@ -9,6 +9,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <linux/cleanup.h>
 #include <linux/debugfs.h>
 #include <linux/gpio/driver.h>
 #include <linux/interrupt.h>
@@ -92,9 +93,8 @@ static int gpio_mockup_get(struct gpio_chip *gc, unsigned int offset)
 	struct gpio_mockup_chip *chip = gpiochip_get_data(gc);
 	int val;
 
-	mutex_lock(&chip->lock);
-	val = __gpio_mockup_get(chip, offset);
-	mutex_unlock(&chip->lock);
+	scoped_guard(mutex, &chip->lock)
+		val = __gpio_mockup_get(chip, offset);
 
 	return val;
 }
@@ -105,12 +105,12 @@ static int gpio_mockup_get_multiple(struct gpio_chip *gc,
 	struct gpio_mockup_chip *chip = gpiochip_get_data(gc);
 	unsigned int bit, val;
 
-	mutex_lock(&chip->lock);
-	for_each_set_bit(bit, mask, gc->ngpio) {
-		val = __gpio_mockup_get(chip, bit);
-		__assign_bit(bit, bits, val);
+	scoped_guard(mutex, &chip->lock) {
+		for_each_set_bit(bit, mask, gc->ngpio) {
+			val = __gpio_mockup_get(chip, bit);
+			__assign_bit(bit, bits, val);
+		}
 	}
-	mutex_unlock(&chip->lock);
 
 	return 0;
 }
@@ -126,9 +126,9 @@ static void gpio_mockup_set(struct gpio_chip *gc,
 {
 	struct gpio_mockup_chip *chip = gpiochip_get_data(gc);
 
-	mutex_lock(&chip->lock);
+	guard(mutex)(&chip->lock);
+
 	__gpio_mockup_set(chip, offset, value);
-	mutex_unlock(&chip->lock);
 }
 
 static void gpio_mockup_set_multiple(struct gpio_chip *gc,
@@ -137,10 +137,10 @@ static void gpio_mockup_set_multiple(struct gpio_chip *gc,
 	struct gpio_mockup_chip *chip = gpiochip_get_data(gc);
 	unsigned int bit;
 
-	mutex_lock(&chip->lock);
+	guard(mutex)(&chip->lock);
+
 	for_each_set_bit(bit, mask, gc->ngpio)
 		__gpio_mockup_set(chip, bit, test_bit(bit, bits));
-	mutex_unlock(&chip->lock);
 }
 
 static int gpio_mockup_apply_pull(struct gpio_mockup_chip *chip,
@@ -150,7 +150,7 @@ static int gpio_mockup_apply_pull(struct gpio_mockup_chip *chip,
 	struct gpio_desc *desc = gpiochip_get_desc(gc, offset);
 	int curr, irq, irq_type, ret = 0;
 
-	mutex_lock(&chip->lock);
+	guard(mutex)(&chip->lock);
 
 	if (test_bit(FLAG_REQUESTED, &desc->flags) &&
 	    !test_bit(FLAG_IS_OUT, &desc->flags)) {
@@ -187,7 +187,6 @@ set_value:
 
 out:
 	chip->lines[offset].pull = value;
-	mutex_unlock(&chip->lock);
 	return ret;
 }
 
@@ -212,10 +211,10 @@ static int gpio_mockup_dirout(struct gpio_chip *gc,
 {
 	struct gpio_mockup_chip *chip = gpiochip_get_data(gc);
 
-	mutex_lock(&chip->lock);
-	chip->lines[offset].dir = GPIO_LINE_DIRECTION_OUT;
-	__gpio_mockup_set(chip, offset, value);
-	mutex_unlock(&chip->lock);
+	scoped_guard(mutex, &chip->lock) {
+		chip->lines[offset].dir = GPIO_LINE_DIRECTION_OUT;
+		__gpio_mockup_set(chip, offset, value);
+	}
 
 	return 0;
 }
@@ -224,9 +223,8 @@ static int gpio_mockup_dirin(struct gpio_chip *gc, unsigned int offset)
 {
 	struct gpio_mockup_chip *chip = gpiochip_get_data(gc);
 
-	mutex_lock(&chip->lock);
-	chip->lines[offset].dir = GPIO_LINE_DIRECTION_IN;
-	mutex_unlock(&chip->lock);
+	scoped_guard(mutex, &chip->lock)
+		chip->lines[offset].dir = GPIO_LINE_DIRECTION_IN;
 
 	return 0;
 }
@@ -236,9 +234,8 @@ static int gpio_mockup_get_direction(struct gpio_chip *gc, unsigned int offset)
 	struct gpio_mockup_chip *chip = gpiochip_get_data(gc);
 	int direction;
 
-	mutex_lock(&chip->lock);
-	direction = chip->lines[offset].dir;
-	mutex_unlock(&chip->lock);
+	scoped_guard(mutex, &chip->lock)
+		direction = chip->lines[offset].dir;
 
 	return direction;
 }
