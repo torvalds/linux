@@ -6,6 +6,7 @@
 
 set -e
 
+# shellcheck source=lib/stat_output.sh
 . "$(dirname $0)"/lib/stat_output.sh
 
 stat_output=$(mktemp /tmp/__perf_test.stat_output.std.XXXXX)

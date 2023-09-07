@@ -5,7 +5,10 @@
 # Carsten Haitzler <carsten.haitzler@arm.com>, 2021
 
 TEST="thread_loop"
+
+# shellcheck source=../lib/coresight.sh
 . "$(dirname $0)"/../lib/coresight.sh
+
 ARGS="10 1"
 DATV="check-tid-10th"
 DATA="$DATD/perf-$TEST-$DATV.data"
