@@ -675,6 +675,12 @@ static void __del_from_avail_list(struct swap_info_struct *p)
 
 static void del_from_avail_list(struct swap_info_struct *p)
 {
+	bool skip = false;
+
+	trace_android_vh_del_from_avail_list(p, &skip);
+	if (skip)
+		return;
+
 	spin_lock(&swap_avail_lock);
 	__del_from_avail_list(p);
 	spin_unlock(&swap_avail_lock);
@@ -700,6 +706,11 @@ static void swap_range_alloc(struct swap_info_struct *si, unsigned long offset,
 static void add_to_avail_list(struct swap_info_struct *p)
 {
 	int nid;
+	bool skip = false;
+
+	trace_android_vh_add_to_avail_list(p, &skip);
+	if (skip)
+		return;
 
 	spin_lock(&swap_avail_lock);
 	for_each_node(nid) {
@@ -3394,6 +3405,8 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
 	if (swap_flags & SWAP_FLAG_PREFER)
 		prio =
 		  (swap_flags & SWAP_FLAG_PRIO_MASK) >> SWAP_FLAG_PRIO_SHIFT;
+
+	trace_android_vh_swap_avail_heads_init(swap_avail_heads);
 	enable_swap_info(p, prio, swap_map, cluster_info, frontswap_map);
 
 	trace_android_vh_init_swap_info_struct(p, swap_avail_heads);
@@ -3848,6 +3861,7 @@ void __cgroup_throttle_swaprate(struct page *page, gfp_t gfp_mask)
 {
 	struct swap_info_struct *si, *next;
 	int nid = page_to_nid(page);
+	bool skip = false;
 
 	if (!(gfp_mask & __GFP_IO))
 		return;
@@ -3860,6 +3874,10 @@ void __cgroup_throttle_swaprate(struct page *page, gfp_t gfp_mask)
 	 * lock.
 	 */
 	if (current->throttle_queue)
+		return;
+
+	trace_android_vh___cgroup_throttle_swaprate(nid, &skip);
+	if (skip)
 		return;
 
 	spin_lock(&swap_avail_lock);
