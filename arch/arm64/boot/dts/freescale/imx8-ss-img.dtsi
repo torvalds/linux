@@ -3,18 +3,18 @@
  * Copyright 2019-2021 NXP
  * Zhou Guoniu <guoniu.zhou@nxp.com>
  */
+img_ipg_clk: clock-img-ipg {
+	compatible = "fixed-clock";
+	#clock-cells = <0>;
+	clock-frequency = <200000000>;
+	clock-output-names = "img_ipg_clk";
+};
+
 img_subsys: bus@58000000 {
 	compatible = "simple-bus";
 	#address-cells = <1>;
 	#size-cells = <1>;
 	ranges = <0x58000000 0x0 0x58000000 0x1000000>;
-
-	img_ipg_clk: clock-img-ipg {
-		compatible = "fixed-clock";
-		#clock-cells = <0>;
-		clock-frequency = <200000000>;
-		clock-output-names = "img_ipg_clk";
-	};
 
 	jpegdec: jpegdec@58400000 {
 		reg = <0x58400000 0x00050000>;
