@@ -1138,11 +1138,15 @@ static int update_pci_dma_nodes(void *fdt, const char *dmapropname)
 			continue;
 
 		ret = copy_property(fdt, pci_offset, dn, "ibm,dma-window");
-		if (ret < 0)
+		if (ret < 0) {
+			of_node_put(dn);
 			break;
+		}
 		ret = copy_property(fdt, pci_offset, dn, dmapropname);
-		if (ret < 0)
+		if (ret < 0) {
+			of_node_put(dn);
 			break;
+		}
 	}
 
 	return ret;
