@@ -247,7 +247,7 @@ struct prelim_ref {
 	struct rb_node rbnode;
 	u64 root_id;
 	struct btrfs_key key_for_search;
-	int level;
+	u8 level;
 	int count;
 	struct extent_inode_elem *inode_list;
 	u64 parent;
