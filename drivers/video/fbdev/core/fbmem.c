@@ -696,12 +696,7 @@ int fb_show_logo(struct fb_info *info, int rotate)
 
 	return y;
 }
-#else
-int fb_prepare_logo(struct fb_info *info, int rotate) { return 0; }
-int fb_show_logo(struct fb_info *info, int rotate) { return 0; }
 #endif /* CONFIG_LOGO */
-EXPORT_SYMBOL(fb_prepare_logo);
-EXPORT_SYMBOL(fb_show_logo);
 
 int
 fb_pan_display(struct fb_info *info, struct fb_var_screeninfo *var)
