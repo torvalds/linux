@@ -1790,9 +1790,11 @@ config GPIO_LATCH
 	  connected to other GPIOs.
 
 config GPIO_MOCKUP
-	tristate "GPIO Testing Driver"
+	tristate "GPIO Testing Driver (DEPRECATED)"
 	select IRQ_SIM
 	help
+	  This module is DEPRECATED. Please consider using gpio-sim instead.
+
 	  This enables GPIO Testing driver, which provides a way to test GPIO
 	  subsystem through sysfs (or char device) and debugfs.
 	  User could use it through the script in
