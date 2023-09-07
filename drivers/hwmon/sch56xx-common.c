@@ -9,6 +9,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
+#include <linux/regmap.h>
 #include <linux/err.h>
 #include <linux/io.h>
 #include <linux/acpi.h>
@@ -57,6 +58,11 @@ struct sch56xx_watchdog_data {
 	u8 watchdog_preset;
 	u8 watchdog_control;
 	u8 watchdog_output_enable;
+};
+
+struct sch56xx_bus_context {
+	struct mutex *lock;	/* Used to serialize access to the mailbox registers */
+	u16 addr;
 };
 
 static struct platform_device *sch56xx_pdev;
@@ -237,6 +243,76 @@ int sch56xx_read_virtual_reg12(u16 addr, u16 msb_reg, u16 lsn_reg,
 		return (msb << 4) | (lsn & 0x0f);
 }
 EXPORT_SYMBOL(sch56xx_read_virtual_reg12);
+
+/*
+ * Regmap support
+ */
+
+static int sch56xx_reg_write(void *context, unsigned int reg, unsigned int val)
+{
+	struct sch56xx_bus_context *bus = context;
+	int ret;
+
+	mutex_lock(bus->lock);
+	ret = sch56xx_write_virtual_reg(bus->addr, (u16)reg, (u8)val);
+	mutex_unlock(bus->lock);
+
+	return ret;
+}
+
+static int sch56xx_reg_read(void *context, unsigned int reg, unsigned int *val)
+{
+	struct sch56xx_bus_context *bus = context;
+	int ret;
+
+	mutex_lock(bus->lock);
+	ret = sch56xx_read_virtual_reg(bus->addr, (u16)reg);
+	mutex_unlock(bus->lock);
+
+	if (ret < 0)
+		return ret;
+
+	*val = ret;
+
+	return 0;
+}
+
+static void sch56xx_free_context(void *context)
+{
+	kfree(context);
+}
+
+static const struct regmap_bus sch56xx_bus = {
+	.reg_write = sch56xx_reg_write,
+	.reg_read = sch56xx_reg_read,
+	.free_context = sch56xx_free_context,
+	.reg_format_endian_default = REGMAP_ENDIAN_LITTLE,
+	.val_format_endian_default = REGMAP_ENDIAN_LITTLE,
+};
+
+struct regmap *devm_regmap_init_sch56xx(struct device *dev, struct mutex *lock, u16 addr,
+					const struct regmap_config *config)
+{
+	struct sch56xx_bus_context *context;
+	struct regmap *map;
+
+	if (config->reg_bits != 16 && config->val_bits != 8)
+		return ERR_PTR(-EOPNOTSUPP);
+
+	context = kzalloc(sizeof(*context), GFP_KERNEL);
+	if (!context)
+		return ERR_PTR(-ENOMEM);
+
+	context->lock = lock;
+	context->addr = addr;
+
+	map = devm_regmap_init(dev, &sch56xx_bus, context, config);
+	if (IS_ERR(map))
+		kfree(context);
+
+	return map;
+}
+EXPORT_SYMBOL(devm_regmap_init_sch56xx);
 
 /*
  * Watchdog routines

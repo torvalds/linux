@@ -1919,6 +1919,7 @@ config SENSORS_SMSC47B397
 
 config SENSORS_SCH56XX_COMMON
 	tristate
+	select REGMAP
 
 config SENSORS_SCH5627
 	tristate "SMSC SCH5627"

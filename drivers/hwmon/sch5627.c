@@ -9,7 +9,9 @@
 #include <linux/bits.h>
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
+#include <linux/pm.h>
 #include <linux/init.h>
+#include <linux/regmap.h>
 #include <linux/slab.h>
 #include <linux/jiffies.h>
 #include <linux/platform_device.h>
@@ -72,6 +74,7 @@ static const char * const SCH5627_IN_LABELS[SCH5627_NO_IN] = {
 	"VCC", "VTT", "VBAT", "VTR", "V_IN" };
 
 struct sch5627_data {
+	struct regmap *regmap;
 	unsigned short addr;
 	u8 control;
 	u8 temp_max[SCH5627_NO_TEMPS];
@@ -89,6 +92,26 @@ struct sch5627_data {
 	u16 temp[SCH5627_NO_TEMPS];
 	u16 fan[SCH5627_NO_FANS];
 	u16 in[SCH5627_NO_IN];
+};
+
+static const struct regmap_range sch5627_tunables_ranges[] = {
+	regmap_reg_range(0xA0, 0xA3),
+};
+
+static const struct regmap_access_table sch5627_tunables_table = {
+	.yes_ranges = sch5627_tunables_ranges,
+	.n_yes_ranges = ARRAY_SIZE(sch5627_tunables_ranges),
+};
+
+static const struct regmap_config sch5627_regmap_config = {
+	.reg_bits = 16,
+	.val_bits = 8,
+	.wr_table = &sch5627_tunables_table,
+	.rd_table = &sch5627_tunables_table,
+	.cache_type = REGCACHE_RBTREE,
+	.use_single_read = true,
+	.use_single_write = true,
+	.can_sleep = true,
 };
 
 static int sch5627_update_temp(struct sch5627_data *data)
@@ -250,7 +273,7 @@ static int sch5627_read(struct device *dev, enum hwmon_sensor_types type, u32 at
 			long *val)
 {
 	struct sch5627_data *data = dev_get_drvdata(dev);
-	int ret;
+	int ret, value;
 
 	switch (type) {
 	case hwmon_temp:
@@ -301,15 +324,11 @@ static int sch5627_read(struct device *dev, enum hwmon_sensor_types type, u32 at
 	case hwmon_pwm:
 		switch (attr) {
 		case hwmon_pwm_auto_channels_temp:
-			mutex_lock(&data->update_lock);
-			ret = sch56xx_read_virtual_reg(data->addr, SCH5627_REG_PWM_MAP[channel]);
-			mutex_unlock(&data->update_lock);
-
+			ret = regmap_read(data->regmap, SCH5627_REG_PWM_MAP[channel], &value);
 			if (ret < 0)
 				return ret;
 
-			*val = ret;
-
+			*val = value;
 			return 0;
 		default:
 			break;
@@ -359,7 +378,6 @@ static int sch5627_write(struct device *dev, enum hwmon_sensor_types type, u32 a
 			 long val)
 {
 	struct sch5627_data *data = dev_get_drvdata(dev);
-	int ret;
 
 	switch (type) {
 	case hwmon_pwm:
@@ -369,12 +387,7 @@ static int sch5627_write(struct device *dev, enum hwmon_sensor_types type, u32 a
 			if (val > U8_MAX || val < 0)
 				return -EINVAL;
 
-			mutex_lock(&data->update_lock);
-			ret = sch56xx_write_virtual_reg(data->addr, SCH5627_REG_PWM_MAP[channel],
-							val);
-			mutex_unlock(&data->update_lock);
-
-			return ret;
+			return regmap_write(data->regmap, SCH5627_REG_PWM_MAP[channel], val);
 		default:
 			break;
 		}
@@ -501,6 +514,12 @@ static int sch5627_probe(struct platform_device *pdev)
 		pr_err("hardware monitoring not enabled\n");
 		return -ENODEV;
 	}
+
+	data->regmap = devm_regmap_init_sch56xx(&pdev->dev, &data->update_lock, data->addr,
+						&sch5627_regmap_config);
+	if (IS_ERR(data->regmap))
+		return PTR_ERR(data->regmap);
+
 	/* Trigger a Vbat voltage measurement, so that we get a valid reading
 	   the first time we read Vbat */
 	sch56xx_write_virtual_reg(data->addr, SCH5627_REG_CTRL, data->control | SCH5627_CTRL_VBAT);
@@ -531,6 +550,30 @@ static int sch5627_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static int sch5627_suspend(struct device *dev)
+{
+	struct sch5627_data *data = dev_get_drvdata(dev);
+
+	regcache_cache_only(data->regmap, true);
+	regcache_mark_dirty(data->regmap);
+
+	return 0;
+}
+
+static int sch5627_resume(struct device *dev)
+{
+	struct sch5627_data *data = dev_get_drvdata(dev);
+
+	regcache_cache_only(data->regmap, false);
+	/* We must not access the virtual registers when the lock bit is set */
+	if (data->control & SCH5627_CTRL_LOCK)
+		return regcache_drop_region(data->regmap, 0, U16_MAX);
+
+	return regcache_sync(data->regmap);
+}
+
+static DEFINE_SIMPLE_DEV_PM_OPS(sch5627_dev_pm_ops, sch5627_suspend, sch5627_resume);
+
 static const struct platform_device_id sch5627_device_id[] = {
 	{
 		.name = "sch5627",
@@ -542,6 +585,7 @@ MODULE_DEVICE_TABLE(platform, sch5627_device_id);
 static struct platform_driver sch5627_driver = {
 	.driver = {
 		.name	= DRVNAME,
+		.pm	= pm_sleep_ptr(&sch5627_dev_pm_ops),
 	},
 	.probe		= sch5627_probe,
 	.id_table	= sch5627_device_id,

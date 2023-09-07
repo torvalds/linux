@@ -5,9 +5,12 @@
  ***************************************************************************/
 
 #include <linux/mutex.h>
+#include <linux/regmap.h>
 
 struct sch56xx_watchdog_data;
 
+struct regmap *devm_regmap_init_sch56xx(struct device *dev, struct mutex *lock, u16 addr,
+					const struct regmap_config *config);
 int sch56xx_read_virtual_reg(u16 addr, u16 reg);
 int sch56xx_write_virtual_reg(u16 addr, u16 reg, u8 val);
 int sch56xx_read_virtual_reg16(u16 addr, u16 reg);
