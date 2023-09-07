@@ -618,6 +618,5 @@ int ivpu_job_done_thread_init(struct ivpu_device *vdev)
 
 void ivpu_job_done_thread_fini(struct ivpu_device *vdev)
 {
-	kthread_stop(vdev->job_done_thread);
-	put_task_struct(vdev->job_done_thread);
+	kthread_stop_put(vdev->job_done_thread);
 }

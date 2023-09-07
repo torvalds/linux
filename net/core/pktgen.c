@@ -3982,8 +3982,7 @@ static void __net_exit pg_net_exit(struct net *net)
 	list_for_each_safe(q, n, &list) {
 		t = list_entry(q, struct pktgen_thread, th_list);
 		list_del(&t->th_list);
-		kthread_stop(t->tsk);
-		put_task_struct(t->tsk);
+		kthread_stop_put(t->tsk);
 		kfree(t);
 	}
 

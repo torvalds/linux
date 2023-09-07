@@ -1126,8 +1126,7 @@ static int init_threads(struct gfs2_sbd *sdp)
 	return 0;
 
 fail:
-	kthread_stop(sdp->sd_logd_process);
-	put_task_struct(sdp->sd_logd_process);
+	kthread_stop_put(sdp->sd_logd_process);
 	sdp->sd_logd_process = NULL;
 	return error;
 }
@@ -1135,13 +1134,11 @@ fail:
 void gfs2_destroy_threads(struct gfs2_sbd *sdp)
 {
 	if (sdp->sd_logd_process) {
-		kthread_stop(sdp->sd_logd_process);
-		put_task_struct(sdp->sd_logd_process);
+		kthread_stop_put(sdp->sd_logd_process);
 		sdp->sd_logd_process = NULL;
 	}
 	if (sdp->sd_quotad_process) {
-		kthread_stop(sdp->sd_quotad_process);
-		put_task_struct(sdp->sd_quotad_process);
+		kthread_stop_put(sdp->sd_quotad_process);
 		sdp->sd_quotad_process = NULL;
 	}
 }

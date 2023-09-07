@@ -715,6 +715,24 @@ int kthread_stop(struct task_struct *k)
 }
 EXPORT_SYMBOL(kthread_stop);
 
+/**
+ * kthread_stop_put - stop a thread and put its task struct
+ * @k: thread created by kthread_create().
+ *
+ * Stops a thread created by kthread_create() and put its task_struct.
+ * Only use when holding an extra task struct reference obtained by
+ * calling get_task_struct().
+ */
+int kthread_stop_put(struct task_struct *k)
+{
+	int ret;
+
+	ret = kthread_stop(k);
+	put_task_struct(k);
+	return ret;
+}
+EXPORT_SYMBOL(kthread_stop_put);
+
 int kthreadd(void *unused)
 {
 	struct task_struct *tsk = current;

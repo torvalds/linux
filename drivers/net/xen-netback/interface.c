@@ -672,8 +672,7 @@ err:
 static void xenvif_disconnect_queue(struct xenvif_queue *queue)
 {
 	if (queue->task) {
-		kthread_stop(queue->task);
-		put_task_struct(queue->task);
+		kthread_stop_put(queue->task);
 		queue->task = NULL;
 	}
 

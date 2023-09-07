@@ -699,8 +699,7 @@ static int __damon_stop(struct damon_ctx *ctx)
 	if (tsk) {
 		get_task_struct(tsk);
 		mutex_unlock(&ctx->kdamond_lock);
-		kthread_stop(tsk);
-		put_task_struct(tsk);
+		kthread_stop_put(tsk);
 		return 0;
 	}
 	mutex_unlock(&ctx->kdamond_lock);
