@@ -154,6 +154,8 @@ The monitoring overhead of this mechanism will arbitrarily increase as the
 size of the target workload grows.
 
 
+.. _damon_design_region_based_sampling:
+
 Region Based Sampling
 ~~~~~~~~~~~~~~~~~~~~~
 
@@ -190,6 +192,8 @@ will not exceed the user-specified maximum number of regions after the split.
 In this way, DAMON provides its best-effort quality and minimal overhead while
 keeping the bounds users set for their trade-off.
 
+
+.. _damon_design_age_tracking:
 
 Age Tracking
 ~~~~~~~~~~~~
