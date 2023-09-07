@@ -53,10 +53,8 @@ static void detect_facilities(void)
 	}
 	if (test_facility(78))
 		machine.has_edat2 = 1;
-	if (!noexec_disabled && test_facility(130)) {
+	if (test_facility(130))
 		machine.has_nx = 1;
-		__ctl_set_bit(0, 20);
-	}
 }
 
 static void setup_lpp(void)

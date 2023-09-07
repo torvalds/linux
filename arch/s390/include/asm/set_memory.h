@@ -24,43 +24,41 @@ enum {
 #define SET_MEMORY_INV	BIT(_SET_MEMORY_INV_BIT)
 #define SET_MEMORY_DEF	BIT(_SET_MEMORY_DEF_BIT)
 
-int __set_memory(unsigned long addr, int numpages, unsigned long flags);
-
-static inline int set_memory_ro(unsigned long addr, int numpages)
-{
-	return __set_memory(addr, numpages, SET_MEMORY_RO);
-}
-
-static inline int set_memory_rw(unsigned long addr, int numpages)
-{
-	return __set_memory(addr, numpages, SET_MEMORY_RW);
-}
-
-static inline int set_memory_nx(unsigned long addr, int numpages)
-{
-	return __set_memory(addr, numpages, SET_MEMORY_NX);
-}
-
-static inline int set_memory_x(unsigned long addr, int numpages)
-{
-	return __set_memory(addr, numpages, SET_MEMORY_X);
-}
+int __set_memory(unsigned long addr, unsigned long numpages, unsigned long flags);
 
 #define set_memory_rox set_memory_rox
-static inline int set_memory_rox(unsigned long addr, int numpages)
-{
-	return __set_memory(addr, numpages, SET_MEMORY_RO | SET_MEMORY_X);
+
+/*
+ * Generate two variants of each set_memory() function:
+ *
+ * set_memory_yy(unsigned long addr, int numpages);
+ * __set_memory_yy(void *start, void *end);
+ *
+ * The second variant exists for both convenience to avoid the usual
+ * (unsigned long) casts, but unlike the first variant it can also be used
+ * for areas larger than 8TB, which may happen at memory initialization.
+ */
+#define __SET_MEMORY_FUNC(fname, flags)					\
+static inline int fname(unsigned long addr, int numpages)		\
+{									\
+	return __set_memory(addr, numpages, (flags));			\
+}									\
+									\
+static inline int __##fname(void *start, void *end)			\
+{									\
+	unsigned long numpages;						\
+									\
+	numpages = (end - start) >> PAGE_SHIFT;				\
+	return __set_memory((unsigned long)start, numpages, (flags));	\
 }
 
-static inline int set_memory_rwnx(unsigned long addr, int numpages)
-{
-	return __set_memory(addr, numpages, SET_MEMORY_RW | SET_MEMORY_NX);
-}
-
-static inline int set_memory_4k(unsigned long addr, int numpages)
-{
-	return __set_memory(addr, numpages, SET_MEMORY_4K);
-}
+__SET_MEMORY_FUNC(set_memory_ro, SET_MEMORY_RO)
+__SET_MEMORY_FUNC(set_memory_rw, SET_MEMORY_RW)
+__SET_MEMORY_FUNC(set_memory_nx, SET_MEMORY_NX)
+__SET_MEMORY_FUNC(set_memory_x, SET_MEMORY_X)
+__SET_MEMORY_FUNC(set_memory_rox, SET_MEMORY_RO | SET_MEMORY_X)
+__SET_MEMORY_FUNC(set_memory_rwnx, SET_MEMORY_RW | SET_MEMORY_NX)
+__SET_MEMORY_FUNC(set_memory_4k, SET_MEMORY_4K)
 
 int set_direct_map_invalid_noflush(struct page *page);
 int set_direct_map_default_noflush(struct page *page);

@@ -250,7 +250,6 @@ static struct airq_info *new_airq_info(int index)
 	info->airq.handler = virtio_airq_handler;
 	info->summary_indicator_idx = index;
 	info->airq.lsi_ptr = get_summary_indicator(info);
-	info->airq.lsi_mask = 0xff;
 	info->airq.isc = VIRTIO_AIRQ_ISC;
 	rc = register_adapter_interrupt(&info->airq);
 	if (rc) {
