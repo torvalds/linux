@@ -1135,8 +1135,8 @@ static int team_port_add(struct team *team, struct net_device *port_dev,
 			 struct netlink_ext_ack *extack)
 {
 	struct net_device *dev = team->dev;
-	char *portname = port_dev->name;
 	struct team_port *port;
+	char *portname = port_dev->name;
 	int err;
 
 	if (port_dev->flags & IFF_LOOPBACK) {
@@ -1203,31 +1203,18 @@ static int team_port_add(struct team *team, struct net_device *port_dev,
 
 	memcpy(port->orig.dev_addr, port_dev->dev_addr, port_dev->addr_len);
 
-	err = dev_open(port_dev, extack);
-	if (err) {
-		netdev_dbg(dev, "Device %s opening failed\n",
-			   portname);
-		goto err_dev_open;
-	}
-
-	err = team_upper_dev_link(team, port, extack);
-	if (err) {
-		netdev_err(dev, "Device %s failed to set upper link\n",
-			   portname);
-		goto err_set_upper_link;
-	}
-
-	/* lockdep subclass variable(dev->nested_level) was updated by
-	 * team_upper_dev_link().
-	 */
-	team_unlock(team);
-	team_lock(team);
-
 	err = team_port_enter(team, port);
 	if (err) {
 		netdev_err(dev, "Device %s failed to enter team mode\n",
 			   portname);
 		goto err_port_enter;
+	}
+
+	err = dev_open(port_dev, extack);
+	if (err) {
+		netdev_dbg(dev, "Device %s opening failed\n",
+			   portname);
+		goto err_dev_open;
 	}
 
 	err = vlan_vids_add_by_dev(port_dev, dev);
@@ -1253,6 +1240,13 @@ static int team_port_add(struct team *team, struct net_device *port_dev,
 		netdev_err(dev, "Device %s failed to register rx_handler\n",
 			   portname);
 		goto err_handler_register;
+	}
+
+	err = team_upper_dev_link(team, port, extack);
+	if (err) {
+		netdev_err(dev, "Device %s failed to set upper link\n",
+			   portname);
+		goto err_set_upper_link;
 	}
 
 	err = __team_option_inst_add_port(team, port);
@@ -1301,6 +1295,9 @@ err_set_slave_promisc:
 	__team_option_inst_del_port(team, port);
 
 err_option_port_add:
+	team_upper_dev_unlink(team, port);
+
+err_set_upper_link:
 	netdev_rx_handler_unregister(port_dev);
 
 err_handler_register:
@@ -1310,16 +1307,13 @@ err_enable_netpoll:
 	vlan_vids_del_by_dev(port_dev, dev);
 
 err_vids_add:
-	team_port_leave(team, port);
-
-err_port_enter:
-	team_upper_dev_unlink(team, port);
-
-err_set_upper_link:
 	dev_close(port_dev);
 
 err_dev_open:
+	team_port_leave(team, port);
 	team_port_set_orig_dev_addr(port);
+
+err_port_enter:
 	dev_set_mtu(port_dev, port->orig.mtu);
 
 err_set_mtu:
@@ -1622,7 +1616,6 @@ static int team_init(struct net_device *dev)
 	int err;
 
 	team->dev = dev;
-	mutex_init(&team->lock);
 	team_set_no_mode(team);
 	team->notifier_ctx = false;
 
@@ -1650,6 +1643,8 @@ static int team_init(struct net_device *dev)
 		goto err_options_register;
 	netif_carrier_off(dev);
 
+	lockdep_register_key(&team->team_lock_key);
+	__mutex_init(&team->lock, "team->team_lock_key", &team->team_lock_key);
 	netdev_lockdep_set_classes(dev);
 
 	return 0;
@@ -1670,7 +1665,7 @@ static void team_uninit(struct net_device *dev)
 	struct team_port *port;
 	struct team_port *tmp;
 
-	team_lock(team);
+	mutex_lock(&team->lock);
 	list_for_each_entry_safe(port, tmp, &team->port_list, list)
 		team_port_del(team, port->dev);
 
@@ -1679,8 +1674,9 @@ static void team_uninit(struct net_device *dev)
 	team_mcast_rejoin_fini(team);
 	team_notify_peers_fini(team);
 	team_queue_override_fini(team);
-	team_unlock(team);
+	mutex_unlock(&team->lock);
 	netdev_change_features(dev);
+	lockdep_unregister_key(&team->team_lock_key);
 }
 
 static void team_destructor(struct net_device *dev)
@@ -1794,18 +1790,18 @@ static void team_set_rx_mode(struct net_device *dev)
 
 static int team_set_mac_address(struct net_device *dev, void *p)
 {
-	struct team *team = netdev_priv(dev);
 	struct sockaddr *addr = p;
+	struct team *team = netdev_priv(dev);
 	struct team_port *port;
 
 	if (dev->type == ARPHRD_ETHER && !is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 	dev_addr_set(dev, addr->sa_data);
-	team_lock(team);
+	mutex_lock(&team->lock);
 	list_for_each_entry(port, &team->port_list, list)
 		if (team->ops.port_change_dev_addr)
 			team->ops.port_change_dev_addr(team, port);
-	team_unlock(team);
+	mutex_unlock(&team->lock);
 	return 0;
 }
 
@@ -1819,7 +1815,7 @@ static int team_change_mtu(struct net_device *dev, int new_mtu)
 	 * Alhough this is reader, it's guarded by team lock. It's not possible
 	 * to traverse list in reverse under rcu_read_lock
 	 */
-	team_lock(team);
+	mutex_lock(&team->lock);
 	team->port_mtu_change_allowed = true;
 	list_for_each_entry(port, &team->port_list, list) {
 		err = dev_set_mtu(port->dev, new_mtu);
@@ -1830,7 +1826,7 @@ static int team_change_mtu(struct net_device *dev, int new_mtu)
 		}
 	}
 	team->port_mtu_change_allowed = false;
-	team_unlock(team);
+	mutex_unlock(&team->lock);
 
 	dev->mtu = new_mtu;
 
@@ -1840,7 +1836,7 @@ unwind:
 	list_for_each_entry_continue_reverse(port, &team->port_list, list)
 		dev_set_mtu(port->dev, dev->mtu);
 	team->port_mtu_change_allowed = false;
-	team_unlock(team);
+	mutex_unlock(&team->lock);
 
 	return err;
 }
@@ -1894,20 +1890,20 @@ static int team_vlan_rx_add_vid(struct net_device *dev, __be16 proto, u16 vid)
 	 * Alhough this is reader, it's guarded by team lock. It's not possible
 	 * to traverse list in reverse under rcu_read_lock
 	 */
-	team_lock(team);
+	mutex_lock(&team->lock);
 	list_for_each_entry(port, &team->port_list, list) {
 		err = vlan_vid_add(port->dev, proto, vid);
 		if (err)
 			goto unwind;
 	}
-	team_unlock(team);
+	mutex_unlock(&team->lock);
 
 	return 0;
 
 unwind:
 	list_for_each_entry_continue_reverse(port, &team->port_list, list)
 		vlan_vid_del(port->dev, proto, vid);
-	team_unlock(team);
+	mutex_unlock(&team->lock);
 
 	return err;
 }
@@ -1917,10 +1913,10 @@ static int team_vlan_rx_kill_vid(struct net_device *dev, __be16 proto, u16 vid)
 	struct team *team = netdev_priv(dev);
 	struct team_port *port;
 
-	team_lock(team);
+	mutex_lock(&team->lock);
 	list_for_each_entry(port, &team->port_list, list)
 		vlan_vid_del(port->dev, proto, vid);
-	team_unlock(team);
+	mutex_unlock(&team->lock);
 
 	return 0;
 }
@@ -1942,9 +1938,9 @@ static void team_netpoll_cleanup(struct net_device *dev)
 {
 	struct team *team = netdev_priv(dev);
 
-	team_lock(team);
+	mutex_lock(&team->lock);
 	__team_netpoll_cleanup(team);
-	team_unlock(team);
+	mutex_unlock(&team->lock);
 }
 
 static int team_netpoll_setup(struct net_device *dev,
@@ -1954,7 +1950,7 @@ static int team_netpoll_setup(struct net_device *dev,
 	struct team_port *port;
 	int err = 0;
 
-	team_lock(team);
+	mutex_lock(&team->lock);
 	list_for_each_entry(port, &team->port_list, list) {
 		err = __team_port_enable_netpoll(port);
 		if (err) {
@@ -1962,7 +1958,7 @@ static int team_netpoll_setup(struct net_device *dev,
 			break;
 		}
 	}
-	team_unlock(team);
+	mutex_unlock(&team->lock);
 	return err;
 }
 #endif
@@ -1973,9 +1969,9 @@ static int team_add_slave(struct net_device *dev, struct net_device *port_dev,
 	struct team *team = netdev_priv(dev);
 	int err;
 
-	team_lock(team);
+	mutex_lock(&team->lock);
 	err = team_port_add(team, port_dev, extack);
-	team_unlock(team);
+	mutex_unlock(&team->lock);
 
 	if (!err)
 		netdev_change_features(dev);
@@ -1988,12 +1984,19 @@ static int team_del_slave(struct net_device *dev, struct net_device *port_dev)
 	struct team *team = netdev_priv(dev);
 	int err;
 
-	team_lock(team);
+	mutex_lock(&team->lock);
 	err = team_port_del(team, port_dev);
-	team_unlock(team);
+	mutex_unlock(&team->lock);
 
-	if (!err)
-		netdev_change_features(dev);
+	if (err)
+		return err;
+
+	if (netif_is_team_master(port_dev)) {
+		lockdep_unregister_key(&team->team_lock_key);
+		lockdep_register_key(&team->team_lock_key);
+		lockdep_set_class(&team->lock, &team->team_lock_key);
+	}
+	netdev_change_features(dev);
 
 	return err;
 }
@@ -2313,13 +2316,13 @@ static struct team *team_nl_team_get(struct genl_info *info)
 	}
 
 	team = netdev_priv(dev);
-	__team_lock(team);
+	mutex_lock(&team->lock);
 	return team;
 }
 
 static void team_nl_team_put(struct team *team)
 {
-	team_unlock(team);
+	mutex_unlock(&team->lock);
 	dev_put(team->dev);
 }
 
@@ -2981,9 +2984,9 @@ static void team_port_change_check(struct team_port *port, bool linkup)
 {
 	struct team *team = port->team;
 
-	team_lock(team);
+	mutex_lock(&team->lock);
 	__team_port_change_check(port, linkup);
-	team_unlock(team);
+	mutex_unlock(&team->lock);
 }
 
 

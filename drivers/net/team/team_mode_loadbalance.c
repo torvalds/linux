@@ -478,7 +478,7 @@ static void lb_stats_refresh(struct work_struct *work)
 	team = lb_priv_ex->team;
 	lb_priv = get_lb_priv(team);
 
-	if (!team_trylock(team)) {
+	if (!mutex_trylock(&team->lock)) {
 		schedule_delayed_work(&lb_priv_ex->stats.refresh_dw, 0);
 		return;
 	}
@@ -515,7 +515,7 @@ static void lb_stats_refresh(struct work_struct *work)
 	schedule_delayed_work(&lb_priv_ex->stats.refresh_dw,
 			      (lb_priv_ex->stats.refresh_interval * HZ) / 10);
 
-	team_unlock(team);
+	mutex_unlock(&team->lock);
 }
 
 static void lb_stats_refresh_interval_get(struct team *team,
