@@ -78,15 +78,36 @@ struct psp_device *psp_get_master_device(void);
  * enum psp_cmd - PSP mailbox commands
  * @PSP_CMD_TEE_RING_INIT:	Initialize TEE ring buffer
  * @PSP_CMD_TEE_RING_DESTROY:	Destroy TEE ring buffer
+ * @PSP_CMD_TEE_EXTENDED_CMD:	Extended command
  * @PSP_CMD_MAX:		Maximum command id
  */
 enum psp_cmd {
 	PSP_CMD_TEE_RING_INIT		= 1,
 	PSP_CMD_TEE_RING_DESTROY	= 2,
+	PSP_CMD_TEE_EXTENDED_CMD	= 14,
 	PSP_CMD_MAX			= 15,
 };
 
 int psp_mailbox_command(struct psp_device *psp, enum psp_cmd cmd, void *cmdbuff,
 			unsigned int timeout_msecs, unsigned int *cmdresp);
 
+/**
+ * struct psp_ext_req_buffer_hdr - Structure of the extended command header
+ * @payload_size: total payload size
+ * @sub_cmd_id: extended command ID
+ * @status: status of command execution (out)
+ */
+struct psp_ext_req_buffer_hdr {
+	u32 payload_size;
+	u32 sub_cmd_id;
+	u32 status;
+} __packed;
+
+struct psp_ext_request {
+	struct psp_ext_req_buffer_hdr header;
+	void *buf;
+} __packed;
+
+int psp_extended_mailbox_cmd(struct psp_device *psp, unsigned int timeout_msecs,
+			     struct psp_ext_request *req);
 #endif /* __PSP_DEV_H */

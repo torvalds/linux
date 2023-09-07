@@ -78,6 +78,30 @@ unlock:
 	return ret;
 }
 
+int psp_extended_mailbox_cmd(struct psp_device *psp, unsigned int timeout_msecs,
+			     struct psp_ext_request *req)
+{
+	unsigned int reg;
+	int ret;
+
+	print_hex_dump_debug("->psp ", DUMP_PREFIX_OFFSET, 16, 2, req,
+			     req->header.payload_size, false);
+
+	ret = psp_mailbox_command(psp, PSP_CMD_TEE_EXTENDED_CMD, (void *)req,
+				  timeout_msecs, &reg);
+	if (ret) {
+		return ret;
+	} else if (FIELD_GET(PSP_CMDRESP_STS, reg)) {
+		req->header.status = FIELD_GET(PSP_CMDRESP_STS, reg);
+		return -EIO;
+	}
+
+	print_hex_dump_debug("<-psp ", DUMP_PREFIX_OFFSET, 16, 2, req,
+			     req->header.payload_size, false);
+
+	return 0;
+}
+
 static struct psp_device *psp_alloc_struct(struct sp_device *sp)
 {
 	struct device *dev = sp->dev;
