@@ -7,18 +7,18 @@
 #include <dt-bindings/clock/imx8-lpcg.h>
 #include <dt-bindings/firmware/imx/rsrc.h>
 
+audio_ipg_clk: clock-audio-ipg {
+	compatible = "fixed-clock";
+	#clock-cells = <0>;
+	clock-frequency = <120000000>;
+	clock-output-names = "audio_ipg_clk";
+};
+
 audio_subsys: bus@59000000 {
 	compatible = "simple-bus";
 	#address-cells = <1>;
 	#size-cells = <1>;
 	ranges = <0x59000000 0x0 0x59000000 0x1000000>;
-
-	audio_ipg_clk: clock-audio-ipg {
-		compatible = "fixed-clock";
-		#clock-cells = <0>;
-		clock-frequency = <120000000>;
-		clock-output-names = "audio_ipg_clk";
-	};
 
 	dsp_lpcg: clock-controller@59580000 {
 		compatible = "fsl,imx8qxp-lpcg";
