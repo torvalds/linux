@@ -58,7 +58,6 @@ struct gpio_mockup_chip {
 
 struct gpio_mockup_dbgfs_private {
 	struct gpio_mockup_chip *chip;
-	struct gpio_desc *desc;
 	unsigned int offset;
 };
 
@@ -369,7 +368,6 @@ static void gpio_mockup_debugfs_setup(struct device *dev,
 
 		priv->chip = chip;
 		priv->offset = i;
-		priv->desc = gpiochip_get_desc(gc, i);
 
 		debugfs_create_file(name, 0600, chip->dbg_dir, priv,
 				    &gpio_mockup_debugfs_ops);
