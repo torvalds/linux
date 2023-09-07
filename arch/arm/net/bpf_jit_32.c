@@ -2,6 +2,7 @@
 /*
  * Just-In-Time compiler for eBPF filters on 32bit ARM
  *
+ * Copyright (c) 2023 Puranjay Mohan <puranjay12@gmail.com>
  * Copyright (c) 2017 Shubham Bansal <illusionist.neo@gmail.com>
  * Copyright (c) 2011 Mircea Gherzan <mgherzan@gmail.com>
  */
@@ -15,6 +16,7 @@
 #include <linux/string.h>
 #include <linux/slab.h>
 #include <linux/if_vlan.h>
+#include <linux/math64.h>
 
 #include <asm/cacheflush.h>
 #include <asm/hwcap.h>
@@ -236,6 +238,34 @@ static s32 jit_sdiv32(s32 dividend, s32 divisor)
 static s32 jit_smod32(s32 dividend, s32 divisor)
 {
 	return dividend % divisor;
+}
+
+/* Wrappers for 64-bit div/mod */
+static u64 jit_udiv64(u64 dividend, u64 divisor)
+{
+	return div64_u64(dividend, divisor);
+}
+
+static u64 jit_mod64(u64 dividend, u64 divisor)
+{
+	u64 rem;
+
+	div64_u64_rem(dividend, divisor, &rem);
+	return rem;
+}
+
+static s64 jit_sdiv64(s64 dividend, s64 divisor)
+{
+	return div64_s64(dividend, divisor);
+}
+
+static s64 jit_smod64(s64 dividend, s64 divisor)
+{
+	u64 q;
+
+	q = div64_s64(dividend, divisor);
+
+	return dividend - q * divisor;
 }
 
 static inline void _emit(int cond, u32 inst, struct jit_ctx *ctx)
@@ -553,6 +583,78 @@ static inline void emit_udivmod(u8 rd, u8 rm, u8 rn, struct jit_ctx *ctx, u8 op,
 		emit(ARM_MOV_R(ARM_R1, tmp[0]), ctx);
 	if (rm != ARM_R0)
 		emit(ARM_MOV_R(ARM_R0, tmp[1]), ctx);
+}
+
+static inline void emit_udivmod64(const s8 *rd, const s8 *rm, const s8 *rn, struct jit_ctx *ctx,
+				  u8 op, u8 sign)
+{
+	u32 dst;
+
+	/* Push caller-saved registers on stack */
+	emit(ARM_PUSH(CALLER_MASK), ctx);
+
+	/*
+	 * As we are implementing 64-bit div/mod as function calls, We need to put the dividend in
+	 * R0-R1 and the divisor in R2-R3. As we have already pushed these registers on the stack,
+	 * we can recover them later after returning from the function call.
+	 */
+	if (rm[1] != ARM_R0 || rn[1] != ARM_R2) {
+		/*
+		 * Move Rm to {R1, R0} if it is not already there.
+		 */
+		if (rm[1] != ARM_R0) {
+			if (rn[1] == ARM_R0)
+				emit(ARM_PUSH(BIT(ARM_R0) | BIT(ARM_R1)), ctx);
+			emit(ARM_MOV_R(ARM_R1, rm[0]), ctx);
+			emit(ARM_MOV_R(ARM_R0, rm[1]), ctx);
+			if (rn[1] == ARM_R0) {
+				emit(ARM_POP(BIT(ARM_R2) | BIT(ARM_R3)), ctx);
+				goto cont;
+			}
+		}
+		/*
+		 * Move Rn to {R3, R2} if it is not already there.
+		 */
+		if (rn[1] != ARM_R2) {
+			emit(ARM_MOV_R(ARM_R3, rn[0]), ctx);
+			emit(ARM_MOV_R(ARM_R2, rn[1]), ctx);
+		}
+	}
+
+cont:
+
+	/* Call appropriate function */
+	if (sign) {
+		if (op == BPF_DIV)
+			dst = (u32)jit_sdiv64;
+		else
+			dst = (u32)jit_smod64;
+	} else {
+		if (op == BPF_DIV)
+			dst = (u32)jit_udiv64;
+		else
+			dst = (u32)jit_mod64;
+	}
+
+	emit_mov_i(ARM_IP, dst, ctx);
+	emit_blx_r(ARM_IP, ctx);
+
+	/* Save return value */
+	if (rd[1] != ARM_R0) {
+		emit(ARM_MOV_R(rd[0], ARM_R1), ctx);
+		emit(ARM_MOV_R(rd[1], ARM_R0), ctx);
+	}
+
+	/* Recover {R3, R2} and {R1, R0} from stack if they are not Rd */
+	if (rd[1] != ARM_R0 && rd[1] != ARM_R2) {
+		emit(ARM_POP(CALLER_MASK), ctx);
+	} else if (rd[1] != ARM_R0) {
+		emit(ARM_POP(BIT(ARM_R0) | BIT(ARM_R1)), ctx);
+		emit(ARM_ADD_I(ARM_SP, ARM_SP, 8), ctx);
+	} else {
+		emit(ARM_ADD_I(ARM_SP, ARM_SP, 8), ctx);
+		emit(ARM_POP(BIT(ARM_R2) | BIT(ARM_R3)), ctx);
+	}
 }
 
 /* Is the translated BPF register on stack? */
@@ -1582,7 +1684,19 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx)
 	case BPF_ALU64 | BPF_DIV | BPF_X:
 	case BPF_ALU64 | BPF_MOD | BPF_K:
 	case BPF_ALU64 | BPF_MOD | BPF_X:
-		goto notyet;
+		rd = arm_bpf_get_reg64(dst, tmp2, ctx);
+		switch (BPF_SRC(code)) {
+		case BPF_X:
+			rs = arm_bpf_get_reg64(src, tmp, ctx);
+			break;
+		case BPF_K:
+			rs = tmp;
+			emit_a32_mov_se_i64(is64, rs, imm, ctx);
+			break;
+		}
+		emit_udivmod64(rd, rd, rs, ctx, BPF_OP(code), off);
+		arm_bpf_put_reg64(dst, rd, ctx);
+		break;
 	/* dst = dst << imm */
 	/* dst = dst >> imm */
 	/* dst = dst >> imm (signed) */
