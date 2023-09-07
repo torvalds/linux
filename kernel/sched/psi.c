@@ -186,14 +186,9 @@ static void group_init(struct psi_group *group)
 		seqcount_init(&per_cpu_ptr(group->pcpu, cpu)->seq);
 	group->avg_last_update = sched_clock();
 	group->avg_next_update = group->avg_last_update + psi_period;
-	mutex_init(&group->avgs_lock);
-
-	/* Init avg trigger-related members */
-	INIT_LIST_HEAD(&group->avg_triggers);
-	memset(group->avg_nr_triggers, 0, sizeof(group->avg_nr_triggers));
 	INIT_DELAYED_WORK(&group->avgs_work, psi_avgs_work);
-
-	/* Init rtpoll trigger-related members */
+	mutex_init(&group->avgs_lock);
+	/* Init trigger-related members */
 	atomic_set(&group->rtpoll_scheduled, 0);
 	mutex_init(&group->rtpoll_trigger_lock);
 	INIT_LIST_HEAD(&group->rtpoll_triggers);
@@ -435,32 +430,21 @@ static u64 window_update(struct psi_window *win, u64 now, u64 value)
 	return growth;
 }
 
-static u64 update_triggers(struct psi_group *group, u64 now, bool *update_total,
-						   enum psi_aggregators aggregator)
+static u64 update_triggers(struct psi_group *group, u64 now, bool *update_total)
 {
 	struct psi_trigger *t;
-	u64 *total = group->total[aggregator];
-	struct list_head *triggers;
-	u64 *aggregator_total;
+	u64 *total = group->total[PSI_POLL];
 	*update_total = false;
-
-	if (aggregator == PSI_AVGS) {
-		triggers = &group->avg_triggers;
-		aggregator_total = group->avg_total;
-	} else {
-		triggers = &group->rtpoll_triggers;
-		aggregator_total = group->rtpoll_total;
-	}
 
 	/*
 	 * On subsequent updates, calculate growth deltas and let
 	 * watchers know when their specified thresholds are exceeded.
 	 */
-	list_for_each_entry(t, triggers, node) {
+	list_for_each_entry(t, &group->rtpoll_triggers, node) {
 		u64 growth;
 		bool new_stall;
 
-		new_stall = aggregator_total[t->state] != total[t->state];
+		new_stall = group->rtpoll_total[t->state] != total[t->state];
 
 		/* Check for stall activity or a previous threshold breach */
 		if (!new_stall && !t->pending_event)
@@ -562,7 +546,6 @@ static void psi_avgs_work(struct work_struct *work)
 	struct delayed_work *dwork;
 	struct psi_group *group;
 	u32 changed_states;
-	bool update_total;
 	u64 now;
 
 	dwork = to_delayed_work(work);
@@ -580,10 +563,8 @@ static void psi_avgs_work(struct work_struct *work)
 	 * Once restarted, we'll catch up the running averages in one
 	 * go - see calc_avgs() and missed_periods.
 	 */
-	if (now >= group->avg_next_update) {
-		update_triggers(group, now, &update_total, PSI_AVGS);
+	if (now >= group->avg_next_update)
 		group->avg_next_update = update_averages(group, now);
-	}
 
 	if (changed_states & PSI_STATE_RESCHEDULE) {
 		schedule_delayed_work(dwork, nsecs_to_jiffies(
@@ -593,7 +574,7 @@ static void psi_avgs_work(struct work_struct *work)
 	mutex_unlock(&group->avgs_lock);
 }
 
-static void init_rtpoll_triggers(struct psi_group *group, u64 now)
+static void init_triggers(struct psi_group *group, u64 now)
 {
 	struct psi_trigger *t;
 
@@ -686,7 +667,7 @@ static void psi_rtpoll_work(struct psi_group *group)
 	if (changed_states & group->rtpoll_states) {
 		/* Initialize trigger windows when entering polling mode */
 		if (now > group->rtpoll_until)
-			init_rtpoll_triggers(group, now);
+			init_triggers(group, now);
 
 		/*
 		 * Keep the monitor active for at least the duration of the
@@ -703,7 +684,7 @@ static void psi_rtpoll_work(struct psi_group *group)
 	}
 
 	if (now >= group->rtpoll_next_update) {
-		group->rtpoll_next_update = update_triggers(group, now, &update_total, PSI_POLL);
+		group->rtpoll_next_update = update_triggers(group, now, &update_total);
 		if (update_total)
 			memcpy(group->rtpoll_total, group->total[PSI_POLL],
 				   sizeof(group->rtpoll_total));
@@ -1273,22 +1254,15 @@ int psi_show(struct seq_file *m, struct psi_group *group, enum psi_res res)
 }
 
 struct psi_trigger *psi_trigger_create(struct psi_group *group,
-			char *buf, enum psi_res res, struct file *file)
+			char *buf, enum psi_res res)
 {
 	struct psi_trigger *t;
 	enum psi_states state;
 	u32 threshold_us;
-	bool privileged;
 	u32 window_us;
 
 	if (static_branch_likely(&psi_disabled))
 		return ERR_PTR(-EOPNOTSUPP);
-
-	/*
-	 * Checking the privilege here on file->f_cred implies that a privileged user
-	 * could open the file and delegate the write to an unprivileged one.
-	 */
-	privileged = cap_raised(file->f_cred->cap_effective, CAP_SYS_RESOURCE);
 
 	if (sscanf(buf, "some %u %u", &threshold_us, &window_us) == 2)
 		state = PSI_IO_SOME + res * 2;
@@ -1306,13 +1280,6 @@ struct psi_trigger *psi_trigger_create(struct psi_group *group,
 		return ERR_PTR(-EINVAL);
 
 	if (window_us == 0 || window_us > WINDOW_MAX_US)
-		return ERR_PTR(-EINVAL);
-
-	/*
-	 * Unprivileged users can only use 2s windows so that averages aggregation
-	 * work is used, and no RT threads need to be spawned.
-	 */
-	if (!privileged && window_us % 2000000)
 		return ERR_PTR(-EINVAL);
 
 	/* Check threshold */
@@ -1334,40 +1301,31 @@ struct psi_trigger *psi_trigger_create(struct psi_group *group,
 	t->last_event_time = 0;
 	init_waitqueue_head(&t->event_wait);
 	t->pending_event = false;
-	t->aggregator = privileged ? PSI_POLL : PSI_AVGS;
 
-	if (privileged) {
-		mutex_lock(&group->rtpoll_trigger_lock);
+	mutex_lock(&group->rtpoll_trigger_lock);
 
-		if (!rcu_access_pointer(group->rtpoll_task)) {
-			struct task_struct *task;
+	if (!rcu_access_pointer(group->rtpoll_task)) {
+		struct task_struct *task;
 
-			task = kthread_create(psi_rtpoll_worker, group, "psimon");
-			if (IS_ERR(task)) {
-				kfree(t);
-				mutex_unlock(&group->rtpoll_trigger_lock);
-				return ERR_CAST(task);
-			}
-			atomic_set(&group->rtpoll_wakeup, 0);
-			wake_up_process(task);
-			rcu_assign_pointer(group->rtpoll_task, task);
+		task = kthread_create(psi_rtpoll_worker, group, "psimon");
+		if (IS_ERR(task)) {
+			kfree(t);
+			mutex_unlock(&group->rtpoll_trigger_lock);
+			return ERR_CAST(task);
 		}
-
-		list_add(&t->node, &group->rtpoll_triggers);
-		group->rtpoll_min_period = min(group->rtpoll_min_period,
-			div_u64(t->win.size, UPDATES_PER_WINDOW));
-		group->rtpoll_nr_triggers[t->state]++;
-		group->rtpoll_states |= (1 << t->state);
-
-		mutex_unlock(&group->rtpoll_trigger_lock);
-	} else {
-		mutex_lock(&group->avgs_lock);
-
-		list_add(&t->node, &group->avg_triggers);
-		group->avg_nr_triggers[t->state]++;
-
-		mutex_unlock(&group->avgs_lock);
+		atomic_set(&group->rtpoll_wakeup, 0);
+		wake_up_process(task);
+		rcu_assign_pointer(group->rtpoll_task, task);
 	}
+
+	list_add(&t->node, &group->rtpoll_triggers);
+	group->rtpoll_min_period = min(group->rtpoll_min_period,
+		div_u64(t->win.size, UPDATES_PER_WINDOW));
+	group->rtpoll_nr_triggers[t->state]++;
+	group->rtpoll_states |= (1 << t->state);
+
+	mutex_unlock(&group->rtpoll_trigger_lock);
+
 	return t;
 }
 
@@ -1391,40 +1349,33 @@ void psi_trigger_destroy(struct psi_trigger *t)
 	 */
 	wake_up_pollfree(&t->event_wait);
 
-	if (t->aggregator == PSI_AVGS) {
-		mutex_lock(&group->avgs_lock);
-		if (!list_empty(&t->node)) {
-			list_del(&t->node);
-			group->avg_nr_triggers[t->state]--;
-		}
-		mutex_unlock(&group->avgs_lock);
-	} else {
-		mutex_lock(&group->rtpoll_trigger_lock);
-		if (!list_empty(&t->node)) {
-			struct psi_trigger *tmp;
-			u64 period = ULLONG_MAX;
+	mutex_lock(&group->rtpoll_trigger_lock);
 
-			list_del(&t->node);
-			group->rtpoll_nr_triggers[t->state]--;
-			if (!group->rtpoll_nr_triggers[t->state])
-				group->rtpoll_states &= ~(1 << t->state);
-			/* reset min update period for the remaining triggers */
-			list_for_each_entry(tmp, &group->rtpoll_triggers, node)
-				period = min(period, div_u64(tmp->win.size,
-						UPDATES_PER_WINDOW));
-			group->rtpoll_min_period = period;
-			/* Destroy rtpoll_task when the last trigger is destroyed */
-			if (group->rtpoll_states == 0) {
-				group->rtpoll_until = 0;
-				task_to_destroy = rcu_dereference_protected(
-						group->rtpoll_task,
-						lockdep_is_held(&group->rtpoll_trigger_lock));
-				rcu_assign_pointer(group->rtpoll_task, NULL);
-				del_timer(&group->rtpoll_timer);
-			}
+	if (!list_empty(&t->node)) {
+		struct psi_trigger *tmp;
+		u64 period = ULLONG_MAX;
+
+		list_del(&t->node);
+		group->rtpoll_nr_triggers[t->state]--;
+		if (!group->rtpoll_nr_triggers[t->state])
+			group->rtpoll_states &= ~(1 << t->state);
+		/* reset min update period for the remaining triggers */
+		list_for_each_entry(tmp, &group->rtpoll_triggers, node)
+			period = min(period, div_u64(tmp->win.size,
+					UPDATES_PER_WINDOW));
+		group->rtpoll_min_period = period;
+		/* Destroy rtpoll_task when the last trigger is destroyed */
+		if (group->rtpoll_states == 0) {
+			group->rtpoll_until = 0;
+			task_to_destroy = rcu_dereference_protected(
+					group->rtpoll_task,
+					lockdep_is_held(&group->rtpoll_trigger_lock));
+			rcu_assign_pointer(group->rtpoll_task, NULL);
+			del_timer(&group->rtpoll_timer);
 		}
-		mutex_unlock(&group->rtpoll_trigger_lock);
 	}
+
+	mutex_unlock(&group->rtpoll_trigger_lock);
 
 	/*
 	 * Wait for psi_schedule_rtpoll_work RCU to complete its read-side
@@ -1485,19 +1436,27 @@ static int psi_cpu_show(struct seq_file *m, void *v)
 	return psi_show(m, &psi_system, PSI_CPU);
 }
 
+static int psi_open(struct file *file, int (*psi_show)(struct seq_file *, void *))
+{
+	if (file->f_mode & FMODE_WRITE && !capable(CAP_SYS_RESOURCE))
+		return -EPERM;
+
+	return single_open(file, psi_show, NULL);
+}
+
 static int psi_io_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, psi_io_show, NULL);
+	return psi_open(file, psi_io_show);
 }
 
 static int psi_memory_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, psi_memory_show, NULL);
+	return psi_open(file, psi_memory_show);
 }
 
 static int psi_cpu_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, psi_cpu_show, NULL);
+	return psi_open(file, psi_cpu_show);
 }
 
 static ssize_t psi_write(struct file *file, const char __user *user_buf,
@@ -1531,7 +1490,7 @@ static ssize_t psi_write(struct file *file, const char __user *user_buf,
 		return -EBUSY;
 	}
 
-	new = psi_trigger_create(&psi_system, buf, res, file);
+	new = psi_trigger_create(&psi_system, buf, res);
 	if (IS_ERR(new)) {
 		mutex_unlock(&seq->lock);
 		return PTR_ERR(new);
@@ -1611,7 +1570,7 @@ static int psi_irq_show(struct seq_file *m, void *v)
 
 static int psi_irq_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, psi_irq_show, NULL);
+	return psi_open(file, psi_irq_show);
 }
 
 static ssize_t psi_irq_write(struct file *file, const char __user *user_buf,
