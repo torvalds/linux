@@ -767,6 +767,7 @@ static const struct dccg_funcs dccg35_funcs = {
 	.set_valid_pixel_rate = dccg35_set_valid_pixel_rate,
 	.enable_symclk_se = dccg35_enable_symclk_se,
 	.disable_symclk_se = dccg35_disable_symclk_se,
+	.set_dtbclk_p_src = dccg35_set_dtbclk_p_src,
 };
 
 struct dccg *dccg35_create(

@@ -192,6 +192,10 @@ struct dccg_funcs {
 	void (*set_dp_dto)(
 			struct dccg *dccg,
 			const struct dp_dto_params *params);
+	void (*set_dtbclk_p_src)(
+			struct dccg *dccg,
+			enum streamclk_source src,
+			uint32_t otg_inst);
 };
 
 #endif //__DAL_DCCG_H__
