@@ -1633,12 +1633,9 @@ static int rknpu_register_irq(struct platform_device *pdev,
 {
 	const struct rknpu_config *config = rknpu_dev->config;
 	struct device *dev = &pdev->dev;
-#if KERNEL_VERSION(6, 1, 0) > LINUX_VERSION_CODE
 	struct resource *res;
-#endif
 	int i, ret, irq;
 
-#if KERNEL_VERSION(6, 1, 0) > LINUX_VERSION_CODE
 	res = platform_get_resource_byname(pdev, IORESOURCE_IRQ,
 					   config->irqs[0].name);
 	if (res) {
@@ -1677,25 +1674,6 @@ static int rknpu_register_irq(struct platform_device *pdev,
 			return ret;
 		}
 	}
-#else
-	/* there are irq names in dts */
-	for (i = 0; i < config->num_irqs; i++) {
-		irq = platform_get_irq_byname(pdev, config->irqs[i].name);
-		if (irq < 0) {
-			LOG_DEV_ERROR(dev, "no npu %s in dts\n",
-				      config->irqs[i].name);
-			return irq;
-		}
-
-		ret = devm_request_irq(dev, irq, config->irqs[i].irq_hdl,
-				       IRQF_SHARED, dev_name(dev), rknpu_dev);
-		if (ret < 0) {
-			LOG_DEV_ERROR(dev, "request %s failed: %d\n",
-				      config->irqs[i].name, ret);
-			return ret;
-		}
-	}
-#endif
 
 	return 0;
 }
