@@ -2706,7 +2706,7 @@ static int aspeed_i3c_master_put_read_data(struct i3c_master_controller *m,
 					   struct i3c_slave_payload *ibi_notify)
 {
 	struct aspeed_i3c_master *master = to_aspeed_i3c_master(m);
-	u32 reg, thld_ctrl, ibi_len = ibi_notify->len;
+	u32 reg, thld_ctrl, slv_event, ibi_len = ibi_notify->len;
 	u8 *buf;
 	int ret;
 
@@ -2714,6 +2714,9 @@ static int aspeed_i3c_master_put_read_data(struct i3c_master_controller *m,
 		return -ENXIO;
 
 	if (ibi_notify) {
+		slv_event = readl(master->regs + SLV_EVENT_CTRL);
+		if ((slv_event & SLV_EVENT_CTRL_SIR_EN) == 0)
+			return -EPERM;
 		buf = (u8 *)ibi_notify->data;
 		init_completion(&master->sir_complete);
 
