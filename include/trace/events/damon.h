@@ -11,10 +11,10 @@
 
 TRACE_EVENT(damon_aggregated,
 
-	TP_PROTO(struct damon_target *t, unsigned int target_id,
-		struct damon_region *r, unsigned int nr_regions),
+	TP_PROTO(unsigned int target_id, struct damon_region *r,
+		unsigned int nr_regions),
 
-	TP_ARGS(t, target_id, r, nr_regions),
+	TP_ARGS(target_id, r, nr_regions),
 
 	TP_STRUCT__entry(
 		__field(unsigned long, target_id)
