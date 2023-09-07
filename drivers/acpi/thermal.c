@@ -492,7 +492,7 @@ static int thermal_get_temp(struct thermal_zone_device *thermal, int *temp)
 }
 
 static int thermal_get_trend(struct thermal_zone_device *thermal,
-			     struct thermal_trip *trip,
+			     const struct thermal_trip *trip,
 			     enum thermal_trend *trend)
 {
 	struct acpi_thermal *tz = thermal_zone_device_priv(thermal);
