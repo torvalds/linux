@@ -1028,7 +1028,10 @@ static bool aspeed_spi_check_reads(struct aspeed_spi_chip *chip,
 	return true;
 }
 
-#define FREAD_TPASS(i)	(((i) / 2) | (((i) & 1) ? 0 : 8))
+static inline u32 FREAD_TPASS(int i)
+{
+	return (((i) / 2) | (((i) & 1) ? 8 : 0));
+}
 
 /*
  * The timing register is shared by all devices. Only update for CE0.
@@ -1058,7 +1061,7 @@ static int aspeed_spi_calibrate(struct aspeed_spi_chip *chip, u32 hdiv,
 		pass = aspeed_spi_check_reads(chip, golden_buf, test_buf);
 		dev_dbg(aspi->dev,
 			"  * [%08x] %d HCLK delay, %dns DI delay : %s",
-			fread_timing_val, i / 2, (i & 1) ? 0 : 4,
+			fread_timing_val, i / 2, (i & 1) ? 4 : 0,
 			pass ? "PASS" : "FAIL");
 		if (pass) {
 			pass_count++;
