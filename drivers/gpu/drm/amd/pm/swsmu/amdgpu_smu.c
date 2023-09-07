@@ -3157,6 +3157,30 @@ static int smu_get_prv_buffer_details(void *handle, void **addr, size_t *size)
 	return 0;
 }
 
+int smu_set_xgmi_plpd_mode(struct smu_context *smu,
+			   enum pp_xgmi_plpd_mode mode)
+{
+	int ret = -EOPNOTSUPP;
+
+	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
+		return ret;
+
+	/* PLPD policy is not supported if it's NONE */
+	if (smu->plpd_mode == XGMI_PLPD_NONE)
+		return ret;
+
+	if (smu->plpd_mode == mode)
+		return 0;
+
+	if (smu->ppt_funcs && smu->ppt_funcs->select_xgmi_plpd_policy)
+		ret = smu->ppt_funcs->select_xgmi_plpd_policy(smu, mode);
+
+	if (!ret)
+		smu->plpd_mode = mode;
+
+	return ret;
+}
+
 static const struct amd_pm_funcs swsmu_pm_funcs = {
 	/* export for sysfs */
 	.set_fan_control_mode    = smu_set_fan_control_mode,

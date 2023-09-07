@@ -170,6 +170,7 @@ static const struct cmn2asic_msg_mapping smu_v13_0_6_message_map[SMU_MSG_MAX_COU
 	MSG_MAP(QueryValidMcaCeCount,                PPSMC_MSG_QueryValidMcaCeCount,            0),
 	MSG_MAP(McaBankDumpDW,                       PPSMC_MSG_McaBankDumpDW,                   0),
 	MSG_MAP(McaBankCeDumpDW,                     PPSMC_MSG_McaBankCeDumpDW,                 0),
+	MSG_MAP(SelectPLPDMode,                      PPSMC_MSG_SelectPLPDMode,                  0),
 };
 
 static const struct cmn2asic_mapping smu_v13_0_6_clk_map[SMU_CLK_COUNT] = {
@@ -2716,6 +2717,35 @@ static const struct amdgpu_mca_smu_funcs smu_v13_0_6_mca_smu_funcs = {
 	.mca_get_ras_mca_idx_array = mca_smu_get_ras_mca_idx_array,
 };
 
+static int smu_v13_0_6_select_xgmi_plpd_policy(struct smu_context *smu,
+					       enum pp_xgmi_plpd_mode mode)
+{
+	struct amdgpu_device *adev = smu->adev;
+	int ret, param;
+
+	switch (mode) {
+	case XGMI_PLPD_DEFAULT:
+		param = PPSMC_PLPD_MODE_DEFAULT;
+		break;
+	case XGMI_PLPD_OPTIMIZED:
+		param = PPSMC_PLPD_MODE_OPTIMIZED;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	/* change xgmi per-link power down policy */
+	ret = smu_cmn_send_smc_msg_with_param(
+		smu, SMU_MSG_SelectPLPDMode, param, NULL);
+
+	if (ret)
+		dev_err(adev->dev,
+			"select xgmi per-link power down policy %d failed\n",
+			mode);
+
+	return ret;
+}
+
 static const struct pptable_funcs smu_v13_0_6_ppt_funcs = {
 	/* init dpm */
 	.get_allowed_feature_mask = smu_v13_0_6_get_allowed_feature_mask,
@@ -2756,6 +2786,7 @@ static const struct pptable_funcs smu_v13_0_6_ppt_funcs = {
 	.od_edit_dpm_table = smu_v13_0_6_usr_edit_dpm_table,
 	.set_df_cstate = smu_v13_0_6_set_df_cstate,
 	.allow_xgmi_power_down = smu_v13_0_6_allow_xgmi_power_down,
+	.select_xgmi_plpd_policy = smu_v13_0_6_select_xgmi_plpd_policy,
 	.log_thermal_throttling_event = smu_v13_0_6_log_thermal_throttling_event,
 	.get_pp_feature_mask = smu_cmn_get_pp_feature_mask,
 	.get_gpu_metrics = smu_v13_0_6_get_gpu_metrics,

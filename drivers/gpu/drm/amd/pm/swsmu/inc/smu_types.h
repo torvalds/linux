@@ -252,7 +252,8 @@
 	__SMU_DUMMY_MAP(QueryValidMcaCount),	\
 	__SMU_DUMMY_MAP(QueryValidMcaCeCount),	\
 	__SMU_DUMMY_MAP(McaBankDumpDW),		\
-	__SMU_DUMMY_MAP(McaBankCeDumpDW),
+	__SMU_DUMMY_MAP(McaBankCeDumpDW),	\
+	__SMU_DUMMY_MAP(SelectPLPDMode),
 
 #undef __SMU_DUMMY_MAP
 #define __SMU_DUMMY_MAP(type)	SMU_MSG_##type
