@@ -163,9 +163,10 @@ assumption (pages in a region have the same access frequencies) is kept, only
 one page in the region is required to be checked.  Thus, for each ``sampling
 interval``, DAMON randomly picks one page in each region, waits for one
 ``sampling interval``, checks whether the page is accessed meanwhile, and
-increases the access frequency of the region if so.  Therefore, the monitoring
-overhead is controllable by setting the number of regions.  DAMON allows users
-to set the minimum and the maximum number of regions for the trade-off.
+increases the access frequency counter of the region if so.  The counter is
+called ``nr_regions`` of the region.  Therefore, the monitoring overhead is
+controllable by setting the number of regions.  DAMON allows users to set the
+minimum and the maximum number of regions for the trade-off.
 
 This scheme, however, cannot preserve the quality of the output if the
 assumption is not guaranteed.
