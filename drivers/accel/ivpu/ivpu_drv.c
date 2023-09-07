@@ -627,9 +627,7 @@ static int ivpu_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (ret)
 		return ret;
 
-#if defined(CONFIG_DEBUG_FS)
 	ivpu_debugfs_init(vdev);
-#endif
 
 	ret = drm_dev_register(&vdev->drm, 0);
 	if (ret) {
