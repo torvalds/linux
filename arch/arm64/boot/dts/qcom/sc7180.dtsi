@@ -2044,6 +2044,11 @@
 				pins = "gpio57";
 				function = "lpass_ext";
 			};
+
+			ter_mi2s_active: ter-mi2s-active-state {
+				pins = "gpio63", "gpio64", "gpio65", "gpio66";
+				function = "mi2s_2";
+			};
 		};
 
 		remoteproc_mpss: remoteproc@4080000 {
