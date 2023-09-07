@@ -3317,37 +3317,6 @@ static s64 tctx_inflight(struct io_uring_task *tctx, bool tracked)
 	return percpu_counter_sum(&tctx->inflight);
 }
 
-static void io_uring_cancel_wq(struct io_uring_task *tctx)
-{
-	int ret;
-
-	if (!tctx->io_wq)
-		return;
-
-	/*
-	 * FIXED_FILE request isn't tracked in do_exit(), and these
-	 * requests may be submitted to our io_wq as iopoll, so have to
-	 * cancel them before destroying io_wq for avoiding IO hang
-	 */
-	do {
-		struct io_tctx_node *node;
-		unsigned long index;
-
-		ret = 0;
-		xa_for_each(&tctx->xa, index, node) {
-			struct io_ring_ctx *ctx = node->ctx;
-			struct io_task_cancel cancel = { .task = current, .all = true, };
-			enum io_wq_cancel cret;
-
-			io_iopoll_try_reap_events(ctx);
-			cret = io_wq_cancel_cb(tctx->io_wq, io_cancel_task_cb,
-				       &cancel, true);
-			ret |= (cret != IO_WQ_CANCEL_NOTFOUND);
-			cond_resched();
-		}
-	} while (ret);
-}
-
 /*
  * Find any io_uring ctx that this task has registered or done IO on, and cancel
  * requests. @sqd should be not-null IFF it's an SQPOLL thread cancellation.
@@ -3419,7 +3388,6 @@ end_wait:
 		finish_wait(&tctx->wait, &wait);
 	} while (1);
 
-	io_uring_cancel_wq(tctx);
 	io_uring_clean_tctx(tctx);
 	if (cancel_all) {
 		/*
