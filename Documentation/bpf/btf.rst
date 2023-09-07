@@ -803,7 +803,7 @@ structure when .BTF.ext is generated. All ``bpf_core_relo`` structures
 within a single ``btf_ext_info_sec`` describe relocations applied to
 section named by ``btf_ext_info_sec->sec_name_off``.
 
-See :ref:`Documentation/bpf/llvm_reloc <btf-co-re-relocations>`
+See :ref:`Documentation/bpf/llvm_reloc.rst <btf-co-re-relocations>`
 for more information on CO-RE relocations.
 
 4.2 .BTF_ids section
