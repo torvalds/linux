@@ -747,12 +747,16 @@ static inline void emit_a32_alu_r64(const bool is64, const s8 dst[],
 }
 
 /* dst = src (4 bytes)*/
-static inline void emit_a32_mov_r(const s8 dst, const s8 src,
+static inline void emit_a32_mov_r(const s8 dst, const s8 src, const u8 off,
 				  struct jit_ctx *ctx) {
 	const s8 *tmp = bpf2a32[TMP_REG_1];
 	s8 rt;
 
 	rt = arm_bpf_get_reg32(src, tmp[0], ctx);
+	if (off && off != 32) {
+		emit(ARM_LSL_I(rt, rt, 32 - off), ctx);
+		emit(ARM_ASR_I(rt, rt, 32 - off), ctx);
+	}
 	arm_bpf_put_reg32(dst, rt, ctx);
 }
 
@@ -761,15 +765,15 @@ static inline void emit_a32_mov_r64(const bool is64, const s8 dst[],
 				  const s8 src[],
 				  struct jit_ctx *ctx) {
 	if (!is64) {
-		emit_a32_mov_r(dst_lo, src_lo, ctx);
+		emit_a32_mov_r(dst_lo, src_lo, 0, ctx);
 		if (!ctx->prog->aux->verifier_zext)
 			/* Zero out high 4 bytes */
 			emit_a32_mov_i(dst_hi, 0, ctx);
 	} else if (__LINUX_ARM_ARCH__ < 6 &&
 		   ctx->cpu_architecture < CPU_ARCH_ARMv5TE) {
 		/* complete 8 byte move */
-		emit_a32_mov_r(dst_lo, src_lo, ctx);
-		emit_a32_mov_r(dst_hi, src_hi, ctx);
+		emit_a32_mov_r(dst_lo, src_lo, 0, ctx);
+		emit_a32_mov_r(dst_hi, src_hi, 0, ctx);
 	} else if (is_stacked(src_lo) && is_stacked(dst_lo)) {
 		const u8 *tmp = bpf2a32[TMP_REG_1];
 
@@ -782,6 +786,24 @@ static inline void emit_a32_mov_r64(const bool is64, const s8 dst[],
 	} else {
 		emit(ARM_MOV_R(dst[0], src[0]), ctx);
 		emit(ARM_MOV_R(dst[1], src[1]), ctx);
+	}
+}
+
+/* dst = (signed)src */
+static inline void emit_a32_movsx_r64(const bool is64, const u8 off, const s8 dst[], const s8 src[],
+				      struct jit_ctx *ctx) {
+	const s8 *tmp = bpf2a32[TMP_REG_1];
+	const s8 *rt;
+
+	rt = arm_bpf_get_reg64(dst, tmp, ctx);
+
+	emit_a32_mov_r(dst_lo, src_lo, off, ctx);
+	if (!is64) {
+		if (!ctx->prog->aux->verifier_zext)
+			/* Zero out high 4 bytes */
+			emit_a32_mov_i(dst_hi, 0, ctx);
+	} else {
+		emit(ARM_ASR_I(rt[0], rt[1], 31), ctx);
 	}
 }
 
@@ -1450,7 +1472,10 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx)
 				emit_a32_mov_i(dst_hi, 0, ctx);
 				break;
 			}
-			emit_a32_mov_r64(is64, dst, src, ctx);
+			if (insn->off)
+				emit_a32_movsx_r64(is64, insn->off, dst, src, ctx);
+			else
+				emit_a32_mov_r64(is64, dst, src, ctx);
 			break;
 		case BPF_K:
 			/* Sign-extend immediate value to destination reg */
