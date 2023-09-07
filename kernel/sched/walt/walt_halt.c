@@ -431,7 +431,7 @@ int walt_pause_cpus(struct cpumask *cpus, enum pause_client client)
 		return -EAGAIN;
 	return walt_halt_cpus(cpus, client, HALT);
 }
-EXPORT_SYMBOL(walt_pause_cpus);
+EXPORT_SYMBOL_GPL(walt_pause_cpus);
 
 int walt_partial_pause_cpus(struct cpumask *cpus, enum pause_client client)
 {
@@ -439,7 +439,7 @@ int walt_partial_pause_cpus(struct cpumask *cpus, enum pause_client client)
 		return -EAGAIN;
 	return walt_halt_cpus(cpus, client, PARTIAL_HALT);
 }
-EXPORT_SYMBOL(walt_partial_pause_cpus);
+EXPORT_SYMBOL_GPL(walt_partial_pause_cpus);
 
 /* cpus will be modified */
 static int walt_start_cpus(struct cpumask *cpus, enum pause_client client, enum pause_type type)
@@ -475,7 +475,7 @@ int walt_resume_cpus(struct cpumask *cpus, enum pause_client client)
 		return -EAGAIN;
 	return walt_start_cpus(cpus, client, HALT);
 }
-EXPORT_SYMBOL(walt_resume_cpus);
+EXPORT_SYMBOL_GPL(walt_resume_cpus);
 
 int walt_partial_resume_cpus(struct cpumask *cpus, enum pause_client client)
 {
@@ -483,7 +483,7 @@ int walt_partial_resume_cpus(struct cpumask *cpus, enum pause_client client)
 		return -EAGAIN;
 	return walt_start_cpus(cpus, client, PARTIAL_HALT);
 }
-EXPORT_SYMBOL(walt_partial_resume_cpus);
+EXPORT_SYMBOL_GPL(walt_partial_resume_cpus);
 
 /* return true if the requested client has fully halted one of the cpus */
 bool cpus_halted_by_client(struct cpumask *cpus, enum pause_client client)

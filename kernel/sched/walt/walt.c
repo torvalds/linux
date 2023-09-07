@@ -131,7 +131,7 @@ int set_task_boost(int boost, u64 period)
 	}
 	return 0;
 }
-EXPORT_SYMBOL(set_task_boost);
+EXPORT_SYMBOL_GPL(set_task_boost);
 
 static inline void acquire_rq_locks_irqsave(const cpumask_t *cpus,
 				     unsigned long *flags)
@@ -5141,7 +5141,7 @@ void walt_set_cpus_taken(struct cpumask *set)
 	cpumask_or(&walt_cpus_taken_mask, &walt_cpus_taken_mask, set);
 	spin_unlock_irqrestore(&cpus_taken_lock, flags);
 }
-EXPORT_SYMBOL(walt_set_cpus_taken);
+EXPORT_SYMBOL_GPL(walt_set_cpus_taken);
 
 void walt_unset_cpus_taken(struct cpumask *unset)
 {
@@ -5157,13 +5157,13 @@ void walt_unset_cpus_taken(struct cpumask *unset)
 	}
 	spin_unlock_irqrestore(&cpus_taken_lock, flags);
 }
-EXPORT_SYMBOL(walt_unset_cpus_taken);
+EXPORT_SYMBOL_GPL(walt_unset_cpus_taken);
 
 cpumask_t walt_get_cpus_taken(void)
 {
 	return walt_cpus_taken_mask;
 }
-EXPORT_SYMBOL(walt_get_cpus_taken);
+EXPORT_SYMBOL_GPL(walt_get_cpus_taken);
 
 struct freq_qos_request *get_req_from_client(int cpu, enum qos_clients client)
 {
@@ -5362,7 +5362,7 @@ void walt_get_cpus_in_state1(struct cpumask *cpus)
 	cpumask_or(cpus, cpu_partial_halt_mask, &sched_cluster[0]->cpus);
 	cpumask_andnot(cpus, cpus, cpu_halt_mask);
 }
-EXPORT_SYMBOL(walt_get_cpus_in_state1);
+EXPORT_SYMBOL_GPL(walt_get_cpus_in_state1);
 
 static void register_walt_hooks(void)
 {
