@@ -71,6 +71,9 @@ config ARCH_HAS_ILOG2_U32
 config ARCH_HAS_ILOG2_U64
 	def_bool n
 
+config ARCH_MTD_XIP
+	def_bool y
+
 config NO_IOPORT_MAP
 	def_bool n
 
