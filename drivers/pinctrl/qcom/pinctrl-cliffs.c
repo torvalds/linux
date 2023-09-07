@@ -2232,8 +2232,20 @@ static const struct msm_pinctrl_soc_data cliffs_pinctrl = {
 	.egpio_func = 11,
 };
 
+static const struct msm_pinctrl_soc_data cliffs_vm_pinctrl = {
+	.pins = cliffs_pins,
+	.npins = ARRAY_SIZE(cliffs_pins),
+	.functions = cliffs_functions,
+	.nfunctions = ARRAY_SIZE(cliffs_functions),
+	.groups = cliffs_groups,
+	.ngroups = ARRAY_SIZE(cliffs_groups),
+	.ngpios = 176,
+	.egpio_func = 11,
+};
+
 static const struct of_device_id cliffs_pinctrl_of_match[] = {
 	{ .compatible = "qcom,cliffs-pinctrl", .data = &cliffs_pinctrl },
+	{ .compatible = "qcom,cliffs-vm-pinctrl", .data = &cliffs_vm_pinctrl },
 	{},
 };
 
@@ -2273,4 +2285,5 @@ module_exit(cliffs_pinctrl_exit);
 MODULE_DESCRIPTION("QTI cliffs pinctrl driver");
 MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(of, cliffs_pinctrl_of_match);
+MODULE_SOFTDEP("pre: qcom_tlmm_vm_irqchip");
 
