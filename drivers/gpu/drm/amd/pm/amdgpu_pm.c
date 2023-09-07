@@ -3446,6 +3446,11 @@ static int parse_input_od_command_lines(const char *buf,
 	case 'c':
 		*type = PP_OD_COMMIT_DPM_TABLE;
 		return 0;
+	case 'r':
+		params[parameter_size] = *type;
+		*num_of_params = 1;
+		*type = PP_OD_RESTORE_DEFAULT_TABLE;
+		return 0;
 	default:
 		break;
 	}
@@ -3539,6 +3544,9 @@ err_out0:
  *
  * When you have finished the editing, write "c" (commit) to the file to commit
  * your changes.
+ *
+ * If you want to reset to the default value, write "r" (reset) to the file to
+ * reset them
  *
  * There are two fan control modes supported: auto and manual. With auto mode,
  * PMFW handles the fan speed control(how fan speed reacts to ASIC temperature).
