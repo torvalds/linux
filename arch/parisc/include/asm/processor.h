@@ -310,6 +310,7 @@ extern void do_syscall_trace_exit(struct pt_regs *);
 struct seq_file;
 extern void early_trap_init(void);
 extern void collect_boot_cpu_data(void);
+extern void btlb_init_per_cpu(void);
 extern int show_cpuinfo (struct seq_file *m, void *v);
 
 /* driver code in driver/parisc */

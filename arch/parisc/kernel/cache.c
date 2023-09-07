@@ -58,7 +58,7 @@ int pa_serialize_tlb_flushes __ro_after_init;
 
 struct pdc_cache_info cache_info __ro_after_init;
 #ifndef CONFIG_PA20
-static struct pdc_btlb_info btlb_info __ro_after_init;
+struct pdc_btlb_info btlb_info __ro_after_init;
 #endif
 
 DEFINE_STATIC_KEY_TRUE(parisc_has_cache);
@@ -263,12 +263,6 @@ parisc_cache_init(void)
 	dcache_stride = CAFL_STRIDE(cache_info.dc_conf);
 	icache_stride = CAFL_STRIDE(cache_info.ic_conf);
 #undef CAFL_STRIDE
-
-#ifndef CONFIG_PA20
-	if (pdc_btlb_info(&btlb_info) < 0) {
-		memset(&btlb_info, 0, sizeof btlb_info);
-	}
-#endif
 
 	if ((boot_cpu_data.pdc.capabilities & PDC_MODEL_NVA_MASK) ==
 						PDC_MODEL_NVA_UNSUPPORTED) {
