@@ -405,15 +405,6 @@
 			status = "disabled";
 		};
 
-		jtag0: jtag@12c20000 {
-			compatible = "aspeed,ast2700-jtag";
-			reg= <0x0 0x12c20000 0x0 0x40>;
-			interrupts = <GIC_SPI 27 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&cpu_clk AST2700_CPU_CLK_APB>;
-			resets = <&cpu_clk ASPEED_RESET_JTAG0>;
-			status = "disabled";
-		};
-
 		pcie1_vuart0: serial@1a2c18200 {
 			compatible = "aspeed,ast2600-uart";
 			reg = <0x0 0x12c18200 0x0 0x40>;
@@ -557,6 +548,15 @@
 			clocks = <&cpu_clk AST2700_CPU_CLK_GATE_UART4CLK>;
 			interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>;
 			no-loopback-test;
+			status = "disabled";
+		};
+
+		jtag0: jtag@12c20000 {
+			compatible = "aspeed,ast2700-jtag";
+			reg= <0x0 0x12c20000 0x0 0x40>;
+			interrupts = <GIC_SPI 27 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cpu_clk AST2700_CPU_CLK_APB>;
+			resets = <&cpu_clk ASPEED_RESET_JTAG0>;
 			status = "disabled";
 		};
 
