@@ -394,6 +394,8 @@ enum cpu_boot_status {
 	CPU_BOOT_STATUS_WAITING_FOR_BOOT_FIT = 16,
 	/* Internal Security has been initialized, device can be accessed */
 	CPU_BOOT_STATUS_SECURITY_READY = 17,
+	/* FW component is preparing to shutdown and communication with host is not available */
+	CPU_BOOT_STATUS_FW_SHUTDOWN_PREP = 18,
 };
 
 enum kmd_msg {
