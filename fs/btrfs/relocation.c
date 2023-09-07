@@ -631,7 +631,7 @@ fail:
 /*
  * helper to add 'address of tree root -> reloc tree' mapping
  */
-static int __must_check __add_reloc_root(struct btrfs_root *root)
+static int __add_reloc_root(struct btrfs_root *root)
 {
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct rb_node *rb_node;
