@@ -80,6 +80,7 @@ struct aspeed_spi_data {
 	u32	hdiv_max;
 	size_t	min_window_sz;
 
+	int (*adjust_window)(struct aspeed_spi *aspi);
 	u64 (*segment_start)(struct aspeed_spi *aspi, u32 reg);
 	u64 (*segment_end)(struct aspeed_spi *aspi, u32 reg);
 	u32 (*segment_reg)(struct aspeed_spi *aspi, u64 start, u64 end);
@@ -487,8 +488,156 @@ static void aspeed_spi_chip_set_default_window(struct aspeed_spi *aspi)
 }
 
 /*
+ * As the flash size grows up, we need to trim some decoding
+ * size if needed for the sake of conforming the maximum
+ * decoding size. We trim the decoding size from the largest
+ * CS in order to avoid affecting the default boot up sequence
+ * from CS0 where command mode or normal mode is used.
+ * Notice, if a CS decoding size is trimmed, command mode may
+ * not work perfectly on that CS.
+ */
+static int aspeed_spi_trim_window_size(struct aspeed_spi *aspi)
+{
+	struct aspeed_spi_chip *chips = aspi->chips;
+	size_t total_sz;
+	int cs = aspi->data->max_cs - 1;
+	u32 i;
+	bool trimed = false;
+
+	do {
+		total_sz = 0;
+		for (i = 0; i < aspi->data->max_cs; i++)
+			total_sz += chips[i].ahb_window_sz;
+
+		if (cs < 0)
+			return -ENOMEM;
+
+		if (chips[cs].ahb_window_sz <= aspi->data->min_window_sz) {
+			cs--;
+			continue;
+		}
+
+		if (total_sz > aspi->ahb_window_sz) {
+			chips[cs].ahb_window_sz -= aspi->data->min_window_sz;
+			total_sz -= aspi->data->min_window_sz;
+			trimed = true;
+		}
+	} while (total_sz > aspi->ahb_window_sz);
+
+	if (trimed) {
+		dev_warn(aspi->dev, "trimed window size:\n");
+		for (cs = 0; cs < aspi->data->max_cs; cs++) {
+			dev_warn(aspi->dev, "CE%d: 0x%08zx\n",
+				 cs, chips[cs].ahb_window_sz);
+		}
+	}
+
+	return 0;
+}
+
+static int aspeed_adjust_window_ast2400(struct aspeed_spi *aspi)
+{
+	int ret;
+	int cs;
+	struct aspeed_spi_chip *chips = aspi->chips;
+
+	/* Close unused CS. */
+	for (cs = aspi->num_cs; cs < aspi->data->max_cs; cs++)
+		chips[cs].ahb_window_sz = 0;
+
+	ret = aspeed_spi_trim_window_size(aspi);
+	if (ret != 0)
+		return ret;
+
+	return 0;
+}
+
+/*
+ * For AST2500, the minimum address decoding size for each CS
+ * is 8MB instead of zero. This address decoding size is
+ * mandatory for each CS no matter whether it will be used.
+ * This is a HW limitation.
+ */
+static int aspeed_adjust_window_ast2500(struct aspeed_spi *aspi)
+{
+	int ret;
+	int i;
+	int cs;
+	size_t pre_sz;
+	size_t extra_sz;
+	struct aspeed_spi_chip *chips = aspi->chips;
+
+	/* Assign min_window_sz to unused CS. */
+	for (cs = aspi->num_cs; cs < aspi->data->max_cs; cs++)
+		chips[cs].ahb_window_sz = aspi->data->min_window_sz;
+
+	/*
+	 * If commnad mode or normal mode is used, the start address of a
+	 * decoding range should be multiple of its related flash size.
+	 * Namely, the total decoding size from flash 0 to flash N should
+	 * be multiple of the size of flash (N + 1).
+	 */
+	for (cs = aspi->num_cs - 1; cs >= 0; cs--) {
+		pre_sz = 0;
+		for (i = 0; i < cs; i++)
+			pre_sz += chips[i].ahb_window_sz;
+
+		if (chips[cs].ahb_window_sz != 0 &&
+		    (pre_sz % chips[cs].ahb_window_sz) != 0) {
+			extra_sz = chips[cs].ahb_window_sz -
+				   (pre_sz % chips[cs].ahb_window_sz);
+			chips[0].ahb_window_sz += extra_sz;
+		}
+	}
+
+	ret = aspeed_spi_trim_window_size(aspi);
+	if (ret != 0)
+		return ret;
+
+	return 0;
+}
+
+static int aspeed_adjust_window_ast2600(struct aspeed_spi *aspi)
+{
+	int ret;
+	int i;
+	int cs;
+	size_t pre_sz;
+	size_t extra_sz;
+	struct aspeed_spi_chip *chips = aspi->chips;
+
+	/* Close unused CS. */
+	for (cs = aspi->num_cs; cs < aspi->data->max_cs; cs++)
+		chips[cs].ahb_window_sz = 0;
+
+	/*
+	 * If commnad mode or normal mode is used, the start address of a
+	 * decoding range should be multiple of its related flash size.
+	 * Namely, the total decoding size from flash 0 to flash N should
+	 * be multiple of the size of flash (N + 1).
+	 */
+	for (cs = aspi->num_cs - 1; cs >= 0; cs--) {
+		pre_sz = 0;
+		for (i = 0; i < cs; i++)
+			pre_sz += chips[i].ahb_window_sz;
+
+		if (chips[cs].ahb_window_sz != 0 &&
+		    (pre_sz % chips[cs].ahb_window_sz) != 0) {
+			extra_sz = chips[cs].ahb_window_sz -
+				   (pre_sz % chips[cs].ahb_window_sz);
+			chips[0].ahb_window_sz += extra_sz;
+		}
+	}
+
+	ret = aspeed_spi_trim_window_size(aspi);
+	if (ret != 0)
+		return ret;
+
+	return 0;
+}
+
+/*
  * Yet to be done when possible :
- * - Align mappings on flash size (we don't have the info)
  * - ioremap each window, not strictly necessary since the overall window
  *   is correct.
  */
@@ -498,47 +647,16 @@ static int aspeed_spi_chip_adjust_window(struct aspeed_spi_chip *chip,
 {
 	struct aspeed_spi *aspi = chip->aspi;
 	int ret;
-	u32 cs;
-	size_t total_window_sz;
 
 	/* No segment registers for the AST2400 SPI controller */
 	if (aspi->data == &ast2400_spi_data)
 		return 0;
 
-	/*
-	 * Due to an HW issue on the AST2500 SPI controller, the CE0
-	 * window size should be smaller than the maximum 128MB.
-	 */
-	if (aspi->data == &ast2500_spi_data && chip->cs == 0 && size == SZ_128M) {
-		size = 120 << 20;
-		dev_info(aspi->dev, "CE%d window resized to %zdMB (AST2500 HW quirk)",
-			 chip->cs, size >> 20);
-	}
-
-	/*
-	 * The decoding size of AST2600 SPI controller should set at
-	 * least 2MB.
-	 */
-	if ((aspi->data == &ast2600_spi_data || aspi->data == &ast2600_fmc_data) &&
-	    size < SZ_2M) {
-		size = SZ_2M;
-		dev_info(aspi->dev, "CE%d window resized to %zdMB (AST2600 Decoding)",
-			 chip->cs, size >> 20);
-	}
-
 	/* Adjust this chip window */
 	aspi->chips[chip->cs].ahb_window_sz = size;
 
-	total_window_sz = 0;
-	for (cs = 0; cs < aspi->data->max_cs; cs++)
-		total_window_sz += aspi->chips[cs].ahb_window_sz;
-
-	if (total_window_sz > aspi->ahb_window_sz) {
-		aspi->chips[chip->cs].ahb_window_sz -= (total_window_sz -
-							aspi->ahb_window_sz);
-		dev_warn(aspi->dev, "CE%d window resized to %zdMB",
-			 chip->cs, aspi->chips[chip->cs].ahb_window_sz >> 20);
-	}
+	if (aspi->data->adjust_window)
+		aspi->data->adjust_window(aspi);
 
 	ret = aspeed_spi_set_window(aspi);
 	if (ret)
@@ -1145,6 +1263,7 @@ static const struct aspeed_spi_data ast2400_fmc_data = {
 	.segment_start = aspeed_spi_segment_start,
 	.segment_end   = aspeed_spi_segment_end,
 	.segment_reg   = aspeed_spi_segment_reg,
+	.adjust_window  = aspeed_adjust_window_ast2400,
 };
 
 static const struct aspeed_spi_data ast2400_spi_data = {
@@ -1172,6 +1291,7 @@ static const struct aspeed_spi_data ast2500_fmc_data = {
 	.segment_start = aspeed_spi_segment_start,
 	.segment_end   = aspeed_spi_segment_end,
 	.segment_reg   = aspeed_spi_segment_reg,
+	.adjust_window = aspeed_adjust_window_ast2500,
 };
 
 static const struct aspeed_spi_data ast2500_spi_data = {
@@ -1187,6 +1307,7 @@ static const struct aspeed_spi_data ast2500_spi_data = {
 	.segment_start = aspeed_spi_segment_start,
 	.segment_end   = aspeed_spi_segment_end,
 	.segment_reg   = aspeed_spi_segment_reg,
+	.adjust_window = aspeed_adjust_window_ast2500,
 };
 
 static const struct aspeed_spi_data ast2600_fmc_data = {
@@ -1203,6 +1324,7 @@ static const struct aspeed_spi_data ast2600_fmc_data = {
 	.segment_start = aspeed_spi_segment_ast2600_start,
 	.segment_end   = aspeed_spi_segment_ast2600_end,
 	.segment_reg   = aspeed_spi_segment_ast2600_reg,
+	.adjust_window = aspeed_adjust_window_ast2600,
 };
 
 static const struct aspeed_spi_data ast2600_spi_data = {
@@ -1219,6 +1341,7 @@ static const struct aspeed_spi_data ast2600_spi_data = {
 	.segment_start = aspeed_spi_segment_ast2600_start,
 	.segment_end   = aspeed_spi_segment_ast2600_end,
 	.segment_reg   = aspeed_spi_segment_ast2600_reg,
+	.adjust_window = aspeed_adjust_window_ast2600,
 };
 
 static const struct aspeed_spi_data ast2700_fmc_data = {
