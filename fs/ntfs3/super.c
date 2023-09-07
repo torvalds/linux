@@ -571,12 +571,8 @@ static void init_once(void *foo)
 /*
  * Noinline to reduce binary size.
  */
-static noinline void ntfs3_free_sbi(struct ntfs_sb_info *sbi)
+static noinline void ntfs3_put_sbi(struct ntfs_sb_info *sbi)
 {
-	kfree(sbi->new_rec);
-	kvfree(ntfs_put_shared(sbi->upcase));
-	kfree(sbi->def_table);
-
 	wnd_close(&sbi->mft.bitmap);
 	wnd_close(&sbi->used.bitmap);
 
@@ -601,6 +597,13 @@ static noinline void ntfs3_free_sbi(struct ntfs_sb_info *sbi)
 	indx_clear(&sbi->security.index_sdh);
 	indx_clear(&sbi->reparse.index_r);
 	indx_clear(&sbi->objid.index_o);
+}
+
+static void ntfs3_free_sbi(struct ntfs_sb_info *sbi)
+{
+	kfree(sbi->new_rec);
+	kvfree(ntfs_put_shared(sbi->upcase));
+	kfree(sbi->def_table);
 	kfree(sbi->compress.lznt);
 #ifdef CONFIG_NTFS3_LZX_XPRESS
 	xpress_free_decompressor(sbi->compress.xpress);
@@ -625,6 +628,7 @@ static void ntfs_put_super(struct super_block *sb)
 
 	/* Mark rw ntfs as clear, if possible. */
 	ntfs_set_state(sbi, NTFS_DIRTY_CLEAR);
+	ntfs3_put_sbi(sbi);
 }
 
 static int ntfs_statfs(struct dentry *dentry, struct kstatfs *buf)
@@ -1644,8 +1648,10 @@ static void ntfs_fs_free(struct fs_context *fc)
 	struct ntfs_mount_options *opts = fc->fs_private;
 	struct ntfs_sb_info *sbi = fc->s_fs_info;
 
-	if (sbi)
+	if (sbi) {
+		ntfs3_put_sbi(sbi);
 		ntfs3_free_sbi(sbi);
+	}
 
 	if (opts)
 		put_mount_options(opts);
