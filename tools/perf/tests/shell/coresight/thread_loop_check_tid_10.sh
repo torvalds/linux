@@ -11,6 +11,7 @@ TEST="thread_loop"
 
 ARGS="10 1"
 DATV="check-tid-10th"
+# shellcheck disable=SC2153
 DATA="$DATD/perf-$TEST-$DATV.data"
 STDO="$DATD/perf-$TEST-$DATV.stdout"
 

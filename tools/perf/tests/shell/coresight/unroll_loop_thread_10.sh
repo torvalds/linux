@@ -11,6 +11,7 @@ TEST="unroll_loop_thread"
 
 ARGS="10"
 DATV="10"
+# shellcheck disable=SC2153
 DATA="$DATD/perf-$TEST-$DATV.data"
 
 perf record $PERFRECOPT -o "$DATA" "$BIN" $ARGS

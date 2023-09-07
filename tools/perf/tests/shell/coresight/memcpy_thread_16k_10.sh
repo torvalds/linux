@@ -11,6 +11,7 @@ TEST="memcpy_thread"
 
 ARGS="16 10 1"
 DATV="16k_10"
+# shellcheck disable=SC2153
 DATA="$DATD/perf-$TEST-$DATV.data"
 
 perf record $PERFRECOPT -o "$DATA" "$BIN" $ARGS
