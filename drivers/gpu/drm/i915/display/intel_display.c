@@ -6936,6 +6936,12 @@ static void intel_commit_modeset_enables(struct intel_atomic_state *state)
 
 		intel_enable_crtc(state, crtc);
 		intel_pre_update_crtc(state, crtc);
+	}
+
+	for_each_new_intel_crtc_in_state(state, crtc, new_crtc_state, i) {
+		if (!new_crtc_state->hw.active)
+			continue;
+
 		intel_update_crtc(state, crtc);
 	}
 }
@@ -6973,6 +6979,15 @@ static void skl_commit_modeset_enables(struct intel_atomic_state *state)
 	 * So first lets enable all pipes that do not need a fullmodeset as
 	 * those don't have any external dependency.
 	 */
+	for_each_new_intel_crtc_in_state(state, crtc, new_crtc_state, i) {
+		enum pipe pipe = crtc->pipe;
+
+		if ((update_pipes & BIT(pipe)) == 0)
+			continue;
+
+		intel_pre_update_crtc(state, crtc);
+	}
+
 	while (update_pipes) {
 		for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,
 						    new_crtc_state, i) {
@@ -6988,7 +7003,6 @@ static void skl_commit_modeset_enables(struct intel_atomic_state *state)
 			entries[pipe] = new_crtc_state->wm.skl.ddb;
 			update_pipes &= ~BIT(pipe);
 
-			intel_pre_update_crtc(state, crtc);
 			intel_update_crtc(state, crtc);
 
 			/*
@@ -7050,13 +7064,21 @@ static void skl_commit_modeset_enables(struct intel_atomic_state *state)
 		if ((update_pipes & BIT(pipe)) == 0)
 			continue;
 
+		intel_pre_update_crtc(state, crtc);
+	}
+
+	for_each_new_intel_crtc_in_state(state, crtc, new_crtc_state, i) {
+		enum pipe pipe = crtc->pipe;
+
+		if ((update_pipes & BIT(pipe)) == 0)
+			continue;
+
 		drm_WARN_ON(&dev_priv->drm, skl_ddb_allocation_overlaps(&new_crtc_state->wm.skl.ddb,
 									entries, I915_MAX_PIPES, pipe));
 
 		entries[pipe] = new_crtc_state->wm.skl.ddb;
 		update_pipes &= ~BIT(pipe);
 
-		intel_pre_update_crtc(state, crtc);
 		intel_update_crtc(state, crtc);
 	}
 
