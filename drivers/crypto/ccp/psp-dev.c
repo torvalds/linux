@@ -157,7 +157,7 @@ static unsigned int psp_get_capability(struct psp_device *psp)
 	psp->capability = val;
 
 	/* Detect if TSME and SME are both enabled */
-	if (psp->capability & PSP_CAPABILITY_PSP_SECURITY_REPORTING &&
+	if (PSP_CAPABILITY(psp, PSP_SECURITY_REPORTING) &&
 	    psp->capability & (PSP_SECURITY_TSME_STATUS << PSP_CAPABILITY_PSP_SECURITY_OFFSET) &&
 	    cc_platform_has(CC_ATTR_HOST_MEM_ENCRYPT))
 		dev_notice(psp->dev, "psp: Both TSME and SME are active, SME is unnecessary when TSME is active.\n");
@@ -168,7 +168,7 @@ static unsigned int psp_get_capability(struct psp_device *psp)
 static int psp_check_sev_support(struct psp_device *psp)
 {
 	/* Check if device supports SEV feature */
-	if (!(psp->capability & PSP_CAPABILITY_SEV)) {
+	if (!PSP_CAPABILITY(psp, SEV)) {
 		dev_dbg(psp->dev, "psp does not support SEV\n");
 		return -ENODEV;
 	}
@@ -179,7 +179,7 @@ static int psp_check_sev_support(struct psp_device *psp)
 static int psp_check_tee_support(struct psp_device *psp)
 {
 	/* Check if device supports TEE feature */
-	if (!(psp->capability & PSP_CAPABILITY_TEE)) {
+	if (!PSP_CAPABILITY(psp, TEE)) {
 		dev_dbg(psp->dev, "psp does not support TEE\n");
 		return -ENODEV;
 	}

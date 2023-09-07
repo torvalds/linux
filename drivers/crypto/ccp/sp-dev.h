@@ -30,6 +30,7 @@
 
 #define PLATFORM_FEATURE_DBC		0x1
 
+#define PSP_CAPABILITY(psp, cap) (psp->capability & PSP_CAPABILITY_##cap)
 #define PSP_FEATURE(psp, feat)	(psp->vdata && psp->vdata->platform_features & PLATFORM_FEATURE_##feat)
 
 /* Structure to hold CCP device data */

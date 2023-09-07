@@ -84,7 +84,7 @@ static umode_t psp_security_is_visible(struct kobject *kobj, struct attribute *a
 	struct sp_device *sp = dev_get_drvdata(dev);
 	struct psp_device *psp = sp->psp_data;
 
-	if (psp && (psp->capability & PSP_CAPABILITY_PSP_SECURITY_REPORTING))
+	if (psp && PSP_CAPABILITY(psp, PSP_SECURITY_REPORTING))
 		return 0444;
 
 	return 0;
@@ -135,7 +135,7 @@ static umode_t psp_firmware_is_visible(struct kobject *kobj, struct attribute *a
 		val = ioread32(psp->io_regs + psp->vdata->bootloader_info_reg);
 
 	if (attr == &dev_attr_tee_version.attr &&
-	    psp->capability & PSP_CAPABILITY_TEE &&
+	    PSP_CAPABILITY(psp, TEE) &&
 	    psp->vdata->tee->info_reg)
 		val = ioread32(psp->io_regs + psp->vdata->tee->info_reg);
 
