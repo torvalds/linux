@@ -29,6 +29,7 @@
 #define DEVICE_CTRL			0x0
 #define DEV_CTRL_ENABLE			BIT(31)
 #define DEV_CTRL_RESUME			BIT(30)
+#define DEV_CTRL_ABORT			BIT(29)
 #define DEV_CTRL_HOT_JOIN_NACK		BIT(8)
 #define DEV_CTRL_I2C_SLAVE_PRESENT	BIT(7)
 
@@ -421,7 +422,7 @@ static void dw_i3c_master_enable(struct dw_i3c_master *master)
 	}
 }
 
-static int dw_i3c_master_resume(struct dw_i3c_master *master)
+static int dw_i3c_master_exit_halt(struct dw_i3c_master *master)
 {
 	u32 status;
 	u32 halt_state = CM_TFR_STS_MASTER_HALT;
@@ -439,9 +440,35 @@ static int dw_i3c_master_resume(struct dw_i3c_master *master)
 
 	if (ret)
 		dev_err(&master->base.dev,
-			"Exit halt status failed: %d %#x %#x\n", ret,
+			"Exit halt state failed: %d %#x %#x\n", ret,
 			readl(master->regs + PRESENT_STATE),
 			readl(master->regs + QUEUE_STATUS_LEVEL));
+	return ret;
+}
+
+static int dw_i3c_master_enter_halt(struct dw_i3c_master *master, bool by_sw)
+{
+	u32 status;
+	u32 halt_state = CM_TFR_STS_MASTER_HALT;
+	int ret;
+
+	if (master->base.target)
+		halt_state = CM_TFR_STS_SLAVE_HALT;
+
+	if (by_sw)
+		writel(readl(master->regs + DEVICE_CTRL) | DEV_CTRL_ABORT,
+		       master->regs + DEVICE_CTRL);
+
+	ret = readl_poll_timeout_atomic(master->regs + PRESENT_STATE, status,
+					FIELD_GET(CM_TFR_STS, status) == halt_state,
+					10, 1000000);
+
+	if (ret)
+		dev_err(&master->base.dev,
+			"Enter halt state failed: %d %#x %#x\n", ret,
+			readl(master->regs + PRESENT_STATE),
+			readl(master->regs + QUEUE_STATUS_LEVEL));
+
 	return ret;
 }
 
@@ -647,9 +674,14 @@ static void dw_i3c_master_end_xfer_locked(struct dw_i3c_master *master, u32 isr)
 	complete(&xfer->comp);
 
 	if (ret < 0) {
+		/*
+		 * The controller will enter the HALT state if an error occurs.
+		 * Therefore, there is no need to manually halt the controller
+		 * through software.
+		 */
+		dw_i3c_master_enter_halt(master, false);
 		dw_i3c_master_dequeue_xfer_locked(master, xfer);
-		writel(readl(master->regs + DEVICE_CTRL) | DEV_CTRL_RESUME,
-		       master->regs + DEVICE_CTRL);
+		dw_i3c_master_exit_halt(master);
 	}
 
 	xfer = list_first_entry_or_null(&master->xferqueue.list,
@@ -998,8 +1030,11 @@ static int dw_i3c_ccc_set(struct dw_i3c_master *master,
 		cmd->cmd_lo |= COMMAND_PORT_SPEED(SPEED_I3C_I2C_FM);
 
 	dw_i3c_master_enqueue_xfer(master, xfer);
-	if (!wait_for_completion_timeout(&xfer->comp, XFER_TIMEOUT))
+	if (!wait_for_completion_timeout(&xfer->comp, XFER_TIMEOUT)) {
+		dw_i3c_master_enter_halt(master, true);
 		dw_i3c_master_dequeue_xfer(master, xfer);
+		dw_i3c_master_exit_halt(master);
+	}
 
 	ret = xfer->ret;
 	if (xfer->cmds[0].error == RESPONSE_ERROR_IBA_NACK)
@@ -1039,8 +1074,11 @@ static int dw_i3c_ccc_get(struct dw_i3c_master *master, struct i3c_ccc_cmd *ccc)
 		      COMMAND_PORT_ROC;
 
 	dw_i3c_master_enqueue_xfer(master, xfer);
-	if (!wait_for_completion_timeout(&xfer->comp, XFER_TIMEOUT))
+	if (!wait_for_completion_timeout(&xfer->comp, XFER_TIMEOUT)) {
+		dw_i3c_master_enter_halt(master, true);
 		dw_i3c_master_dequeue_xfer(master, xfer);
+		dw_i3c_master_exit_halt(master);
+	}
 
 	ret = xfer->ret;
 	if (xfer->cmds[0].error == RESPONSE_ERROR_IBA_NACK)
@@ -1116,8 +1154,11 @@ static int dw_i3c_master_daa(struct i3c_master_controller *m)
 		      COMMAND_PORT_ROC;
 
 	dw_i3c_master_enqueue_xfer(master, xfer);
-	if (!wait_for_completion_timeout(&xfer->comp, XFER_TIMEOUT))
+	if (!wait_for_completion_timeout(&xfer->comp, XFER_TIMEOUT)) {
+		dw_i3c_master_enter_halt(master, true);
 		dw_i3c_master_dequeue_xfer(master, xfer);
+		dw_i3c_master_exit_halt(master);
+	}
 
 	newdevs = GENMASK(master->maxdevs - cmd->rx_len - 1, 0);
 	newdevs &= ~olddevs;
@@ -1192,8 +1233,11 @@ static int dw_i3c_master_priv_xfers(struct i3c_dev_desc *dev,
 	}
 
 	dw_i3c_master_enqueue_xfer(master, xfer);
-	if (!wait_for_completion_timeout(&xfer->comp, XFER_TIMEOUT))
+	if (!wait_for_completion_timeout(&xfer->comp, XFER_TIMEOUT)) {
+		dw_i3c_master_enter_halt(master, true);
 		dw_i3c_master_dequeue_xfer(master, xfer);
+		dw_i3c_master_exit_halt(master);
+	}
 
 	for (i = 0; i < i3c_nxfers; i++) {
 		struct dw_i3c_cmd *cmd = &xfer->cmds[i];
@@ -1411,8 +1455,11 @@ static int dw_i3c_master_i2c_xfers(struct i2c_dev_desc *dev,
 	}
 
 	dw_i3c_master_enqueue_xfer(master, xfer);
-	if (!wait_for_completion_timeout(&xfer->comp, XFER_TIMEOUT))
+	if (!wait_for_completion_timeout(&xfer->comp, XFER_TIMEOUT)) {
+		dw_i3c_master_enter_halt(master, true);
 		dw_i3c_master_dequeue_xfer(master, xfer);
+		dw_i3c_master_exit_halt(master);
+	}
 
 	for (i = 0; i < i3c_nxfers; i++) {
 		struct dw_i3c_cmd *cmd = &xfer->cmds[i];
@@ -1721,7 +1768,7 @@ static void dw_i3c_target_handle_ccc_update(struct dw_i3c_master *master)
 
 	/* The I3C engine would get into halt-state if it receives SETMRL/MWL CCCs */
 	if (FIELD_GET(CM_TFR_STS, present_state) == CM_TFR_STS_SLAVE_HALT)
-		dw_i3c_master_resume(master);
+		dw_i3c_master_exit_halt(master);
 
 	writel(INTR_CCC_UPDATED_STAT, master->regs + INTR_STATUS);
 }
