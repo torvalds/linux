@@ -2659,6 +2659,9 @@ static int aspeed_i3c_master_send_sir(struct i3c_master_controller *m,
 
 	aspeed_i3c_master_wr_tx_fifo(master, data, payload_len);
 
+	if (!master->ibi_wo_pec)
+		kfree(data);
+
 	reg = FIELD_PREP(COMMAND_PORT_SLAVE_DATA_LEN, payload_len);
 	writel(reg, master->regs + COMMAND_QUEUE_PORT);
 
