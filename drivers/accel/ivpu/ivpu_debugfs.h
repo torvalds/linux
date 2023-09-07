@@ -6,8 +6,8 @@
 #ifndef __IVPU_DEBUGFS_H__
 #define __IVPU_DEBUGFS_H__
 
-struct drm_minor;
+struct ivpu_device;
 
-void ivpu_debugfs_init(struct drm_minor *minor);
+void ivpu_debugfs_init(struct ivpu_device *vdev);
 
 #endif /* __IVPU_DEBUGFS_H__ */

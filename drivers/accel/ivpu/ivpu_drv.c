@@ -395,10 +395,6 @@ static const struct drm_driver driver = {
 	.postclose = ivpu_postclose,
 	.gem_prime_import = ivpu_gem_prime_import,
 
-#if defined(CONFIG_DEBUG_FS)
-	.debugfs_init = ivpu_debugfs_init,
-#endif
-
 	.ioctls = ivpu_drm_ioctls,
 	.num_ioctls = ARRAY_SIZE(ivpu_drm_ioctls),
 	.fops = &ivpu_fops,
@@ -630,6 +626,10 @@ static int ivpu_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	ret = ivpu_dev_init(vdev);
 	if (ret)
 		return ret;
+
+#if defined(CONFIG_DEBUG_FS)
+	ivpu_debugfs_init(vdev);
+#endif
 
 	ret = drm_dev_register(&vdev->drm, 0);
 	if (ret) {
