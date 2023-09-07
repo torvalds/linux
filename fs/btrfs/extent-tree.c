@@ -4803,6 +4803,28 @@ int btrfs_alloc_logged_file_extent(struct btrfs_trans_handle *trans,
 	return ret;
 }
 
+#ifdef CONFIG_BTRFS_DEBUG
+/*
+ * Extra safety check in case the extent tree is corrupted and extent allocator
+ * chooses to use a tree block which is already used and locked.
+ */
+static bool check_eb_lock_owner(const struct extent_buffer *eb)
+{
+	if (eb->lock_owner == current->pid) {
+		btrfs_err_rl(eb->fs_info,
+"tree block %llu owner %llu already locked by pid=%d, extent tree corruption detected",
+			     eb->start, btrfs_header_owner(eb), current->pid);
+		return true;
+	}
+	return false;
+}
+#else
+static bool check_eb_lock_owner(struct extent_buffer *eb)
+{
+	return false;
+}
+#endif
+
 static struct extent_buffer *
 btrfs_init_new_buffer(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 		      u64 bytenr, int level, u64 owner,
@@ -4816,15 +4838,7 @@ btrfs_init_new_buffer(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 	if (IS_ERR(buf))
 		return buf;
 
-	/*
-	 * Extra safety check in case the extent tree is corrupted and extent
-	 * allocator chooses to use a tree block which is already used and
-	 * locked.
-	 */
-	if (buf->lock_owner == current->pid) {
-		btrfs_err_rl(fs_info,
-"tree block %llu owner %llu already locked by pid=%d, extent tree corruption detected",
-			buf->start, btrfs_header_owner(buf), current->pid);
+	if (check_eb_lock_owner(buf)) {
 		free_extent_buffer(buf);
 		return ERR_PTR(-EUCLEAN);
 	}
