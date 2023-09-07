@@ -81,6 +81,15 @@ struct btrfs_inode {
 	 */
 	struct btrfs_key location;
 
+	/* Cached value of inode property 'compression'. */
+	u8 prop_compress;
+
+	/*
+	 * Force compression on the file using the defrag ioctl, could be
+	 * different from prop_compress and takes precedence if set.
+	 */
+	u8 defrag_compress;
+
 	/*
 	 * Lock for counters and all fields used to determine if the inode is in
 	 * the log or not (last_trans, last_sub_trans, last_log_commit,
@@ -234,16 +243,6 @@ struct btrfs_inode {
 	unsigned outstanding_extents;
 
 	struct btrfs_block_rsv block_rsv;
-
-	/*
-	 * Cached values of inode properties
-	 */
-	unsigned prop_compress;		/* per-file compression algorithm */
-	/*
-	 * Force compression on the file using the defrag ioctl, could be
-	 * different from prop_compress and takes precedence if set
-	 */
-	unsigned defrag_compress;
 
 	struct btrfs_delayed_node *delayed_node;
 
