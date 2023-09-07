@@ -1435,7 +1435,7 @@ int btrfs_inc_extent_ref(struct btrfs_trans_handle *trans,
 }
 
 /*
- * __btrfs_inc_extent_ref - insert backreference for a given extent
+ * Insert backreference for a given extent.
  *
  * The counterpart is in __btrfs_free_extent(), with examples and more details
  * how it works.
@@ -4442,8 +4442,8 @@ loop:
 }
 
 /*
- * btrfs_reserve_extent - entry point to the extent allocator. Tries to find a
- *			  hole that is at least as big as @num_bytes.
+ * Entry point to the extent allocator. Tries to find a hole that is at least
+ * as big as @num_bytes.
  *
  * @root           -	The root that will contain this extent
  *

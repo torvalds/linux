@@ -3027,7 +3027,8 @@ static int btrfs_del_sys_chunk(struct btrfs_fs_info *fs_info, u64 chunk_offset)
 }
 
 /*
- * btrfs_get_chunk_map() - Find the mapping containing the given logical extent.
+ * Find the mapping containing the given logical extent.
+ *
  * @logical: Logical block offset in bytes.
  * @length: Length of extent in bytes.
  *

@@ -247,7 +247,7 @@ out:
 }
 
 /*
- * btrfs_insert_inode_extref() - Inserts an extended inode ref into a tree.
+ * Insert an extended inode ref into a tree.
  *
  * The caller must have checked against BTRFS_LINK_MAX already.
  */

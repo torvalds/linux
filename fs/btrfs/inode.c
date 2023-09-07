@@ -348,7 +348,7 @@ static void __cold btrfs_print_data_csum_error(struct btrfs_inode *inode,
 }
 
 /*
- * btrfs_inode_lock - lock inode i_rwsem based on arguments passed
+ * Lock inode i_rwsem based on arguments passed.
  *
  * ilock_flags can have the following bit set:
  *
@@ -382,7 +382,7 @@ int btrfs_inode_lock(struct btrfs_inode *inode, unsigned int ilock_flags)
 }
 
 /*
- * btrfs_inode_unlock - unock inode i_rwsem
+ * Unock inode i_rwsem.
  *
  * ilock_flags should contain the same bits set as passed to btrfs_inode_lock()
  * to decide whether the lock acquired is shared or exclusive.
@@ -3306,7 +3306,7 @@ zeroit:
 }
 
 /*
- * btrfs_add_delayed_iput - perform a delayed iput on @inode
+ * Perform a delayed iput on @inode.
  *
  * @inode: The inode we want to perform iput on
  *
@@ -4641,7 +4641,8 @@ out_notrans:
 }
 
 /*
- * btrfs_truncate_block - read, zero a chunk and write a block
+ * Read, zero a chunk and write a block.
+ *
  * @inode - inode that we're zeroing
  * @from - the offset to start zeroing
  * @len - the length to zero, 0 to zero the entire range respective to the

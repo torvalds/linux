@@ -328,7 +328,8 @@ static struct btrfs_delayed_item *btrfs_alloc_delayed_item(u16 data_len,
 }
 
 /*
- * __btrfs_lookup_delayed_item - look up the delayed item by key
+ * Look up the delayed item by key.
+ *
  * @delayed_node: pointer to the delayed node
  * @index:	  the dir index value to lookup (offset of a dir index key)
  *
@@ -1760,8 +1761,7 @@ int btrfs_should_delete_dir_index(struct list_head *del_list,
 }
 
 /*
- * btrfs_readdir_delayed_dir_index - read dir info stored in the delayed tree
- *
+ * Read dir info stored in the delayed tree.
  */
 int btrfs_readdir_delayed_dir_index(struct dir_context *ctx,
 				    struct list_head *ins_list)

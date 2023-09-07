@@ -182,7 +182,8 @@ void btrfs_tree_read_unlock(struct extent_buffer *eb)
 }
 
 /*
- * __btrfs_tree_lock - lock eb for write
+ * Lock eb for write.
+ *
  * @eb:		the eb to lock
  * @nest:	the nesting to use for the lock
  *

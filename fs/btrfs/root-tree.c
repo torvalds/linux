@@ -51,7 +51,8 @@ static void btrfs_read_root_item(struct extent_buffer *eb, int slot,
 }
 
 /*
- * btrfs_find_root - lookup the root by the key.
+ * Lookup the root by the key.
+ *
  * root: the root of the root tree
  * search_key: the key to search
  * path: the path we search
@@ -485,7 +486,8 @@ void btrfs_update_root_times(struct btrfs_trans_handle *trans,
 }
 
 /*
- * btrfs_subvolume_reserve_metadata() - reserve space for subvolume operation
+ * Reserve space for subvolume operation.
+ *
  * root: the root of the parent directory
  * rsv: block reservation
  * items: the number of items that we need do reservation

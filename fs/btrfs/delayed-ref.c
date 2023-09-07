@@ -837,8 +837,7 @@ add_delayed_ref_head(struct btrfs_trans_handle *trans,
 }
 
 /*
- * init_delayed_ref_common - Initialize the structure which represents a
- *			     modification to a an extent.
+ * Initialize the structure which represents a modification to a an extent.
  *
  * @fs_info:    Internal to the mounted filesystem mount structure.
  *

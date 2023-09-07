@@ -1403,7 +1403,8 @@ struct btrfs_root *btrfs_get_new_fs_root(struct btrfs_fs_info *fs_info,
 }
 
 /*
- * btrfs_get_fs_root_commit_root - return a root for the given objectid
+ * Return a root for the given objectid.
+ *
  * @fs_info:	the fs_info
  * @objectid:	the objectid we need to lookup
  *
@@ -1700,11 +1701,11 @@ static void backup_super_roots(struct btrfs_fs_info *info)
 }
 
 /*
- * read_backup_root - Reads a backup root based on the passed priority. Prio 0
- * is the newest, prio 1/2/3 are 2nd newest/3rd newest/4th (oldest) backup roots
+ * Reads a backup root based on the passed priority. Prio 0 is the newest, prio
+ * 1/2/3 are 2nd newest/3rd newest/4th (oldest) backup roots
  *
- * fs_info - filesystem whose backup roots need to be read
- * priority - priority of backup root required
+ * @fs_info:  filesystem whose backup roots need to be read
+ * @priority: priority of backup root required
  *
  * Returns backup root index on success and -EINVAL otherwise.
  */

@@ -2080,8 +2080,8 @@ static int search_leaf(struct btrfs_trans_handle *trans,
 }
 
 /*
- * btrfs_search_slot - look for a key in a tree and perform necessary
- * modifications to preserve tree invariants.
+ * Look for a key in a tree and perform necessary modifications to preserve
+ * tree invariants.
  *
  * @trans:	Handle of transaction, used when modifying the tree
  * @p:		Holds all btree nodes along the search path

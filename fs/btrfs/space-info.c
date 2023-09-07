@@ -978,7 +978,8 @@ static bool steal_from_global_rsv(struct btrfs_fs_info *fs_info,
 }
 
 /*
- * maybe_fail_all_tickets - we've exhausted our flushing, start failing tickets
+ * We've exhausted our flushing, start failing tickets.
+ *
  * @fs_info - fs_info for this fs
  * @space_info - the space info we were flushing
  *

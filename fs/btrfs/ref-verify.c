@@ -652,7 +652,7 @@ static void dump_block_entry(struct btrfs_fs_info *fs_info,
 }
 
 /*
- * btrfs_ref_tree_mod: called when we modify a ref for a bytenr
+ * Called when we modify a ref for a bytenr.
  *
  * This will add an action item to the given bytenr and do sanity checks to make
  * sure we haven't messed something up.  If we are making a new allocation and

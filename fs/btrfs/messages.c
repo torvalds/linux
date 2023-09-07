@@ -110,8 +110,8 @@ const char * __attribute_const__ btrfs_decode_error(int errno)
 }
 
 /*
- * __btrfs_handle_fs_error decodes expected errors from the caller and
- * invokes the appropriate error response.
+ * Decodes expected errors from the caller and invokes the appropriate error
+ * response.
  */
 __cold
 void __btrfs_handle_fs_error(struct btrfs_fs_info *fs_info, const char *function,
@@ -283,8 +283,8 @@ void __cold btrfs_err_32bit_limit(struct btrfs_fs_info *fs_info)
 #endif
 
 /*
- * __btrfs_panic decodes unexpected, fatal errors from the caller, issues an
- * alert, and either panics or BUGs, depending on mount options.
+ * Decode unexpected, fatal errors from the caller, issue an alert, and either
+ * panic or BUGs, depending on mount options.
  */
 __cold
 void __btrfs_panic(struct btrfs_fs_info *fs_info, const char *function,
