@@ -532,6 +532,8 @@ static void batadv_recv_handler_init(void)
 
 	/* broadcast packet */
 	batadv_rx_handler[BATADV_BCAST] = batadv_recv_bcast_packet;
+	/* multicast packet */
+	batadv_rx_handler[BATADV_MCAST] = batadv_recv_mcast_packet;
 
 	/* unicast packets ... */
 	/* unicast with 4 addresses packet */

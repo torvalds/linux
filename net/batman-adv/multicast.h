@@ -52,6 +52,11 @@ void batadv_mcast_free(struct batadv_priv *bat_priv);
 
 void batadv_mcast_purge_orig(struct batadv_orig_node *orig_node);
 
+/* multicast_forw.c */
+
+int batadv_mcast_forw_tracker_tvlv_handler(struct batadv_priv *bat_priv,
+					   struct sk_buff *skb);
+
 #else
 
 static inline enum batadv_forw_mode
