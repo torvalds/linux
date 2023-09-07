@@ -27,6 +27,7 @@ select:
         enum:
           - qcom,apq8064
           - qcom,apq8096
+          - qcom,ipq5332
           - qcom,ipq8064
           - qcom,ipq8074
           - qcom,msm8939
