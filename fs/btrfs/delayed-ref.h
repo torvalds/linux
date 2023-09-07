@@ -9,10 +9,16 @@
 #include <linux/refcount.h>
 
 /* these are the possible values of struct btrfs_delayed_ref_node->action */
-#define BTRFS_ADD_DELAYED_REF    1 /* add one backref to the tree */
-#define BTRFS_DROP_DELAYED_REF   2 /* delete one backref from the tree */
-#define BTRFS_ADD_DELAYED_EXTENT 3 /* record a full extent allocation */
-#define BTRFS_UPDATE_DELAYED_HEAD 4 /* not changing ref count on head ref */
+enum btrfs_delayed_ref_action {
+	/* Add one backref to the tree */
+	BTRFS_ADD_DELAYED_REF = 1,
+	/* Delete one backref from the tree */
+	BTRFS_DROP_DELAYED_REF,
+	/* Record a full extent allocation */
+	BTRFS_ADD_DELAYED_EXTENT,
+	/* Not changing ref count on head ref */
+	BTRFS_UPDATE_DELAYED_HEAD,
+} __packed;
 
 struct btrfs_delayed_ref_node {
 	struct rb_node ref_node;
@@ -183,7 +189,7 @@ enum btrfs_ref_type {
 	BTRFS_REF_DATA,
 	BTRFS_REF_METADATA,
 	BTRFS_REF_LAST,
-};
+} __packed;
 
 struct btrfs_data_ref {
 	/* For EXTENT_DATA_REF */
@@ -223,7 +229,7 @@ struct btrfs_tree_ref {
 
 struct btrfs_ref {
 	enum btrfs_ref_type type;
-	int action;
+	enum btrfs_delayed_ref_action action;
 
 	/*
 	 * Whether this extent should go through qgroup record.
