@@ -15,7 +15,7 @@
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/rtc.h>
 
 #define RV8803_I2C_TRY_COUNT		4
@@ -645,8 +645,7 @@ static int rv8803_probe(struct i2c_client *client)
 	mutex_init(&rv8803->flags_lock);
 	rv8803->client = client;
 	if (client->dev.of_node) {
-		rv8803->type = (enum rv8803_type)
-			of_device_get_match_data(&client->dev);
+		rv8803->type = (uintptr_t)of_device_get_match_data(&client->dev);
 	} else {
 		const struct i2c_device_id *id = i2c_match_id(rv8803_id, client);
 
