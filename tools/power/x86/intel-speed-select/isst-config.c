@@ -4,6 +4,7 @@
  * Copyright (c) 2019 Intel Corporation.
  */
 
+#include <ctype.h>
 #include <linux/isst_if.h>
 #include <sys/utsname.h>
 
@@ -2730,6 +2731,43 @@ error:
 	exit(-1);
 }
 
+static void check_optarg(char *option, int hex)
+{
+	if (optarg) {
+		char *start = optarg;
+		int i;
+
+		if (hex && strlen(optarg) < 3) {
+			/* At least 0x plus one character must be present */
+			fprintf(stderr, "malformed arguments for:%s [%s]\n", option, optarg);
+			exit(0);
+		}
+
+		if (hex) {
+			if (optarg[0] != '0' || tolower(optarg[1]) != 'x') {
+				fprintf(stderr, "malformed arguments for:%s [%s]\n",
+					option, optarg);
+				exit(0);
+			}
+			start = &optarg[2];
+		}
+
+		for (i = 0; i < strlen(start); ++i) {
+			if (hex) {
+				if (!isxdigit(start[i])) {
+					fprintf(stderr, "malformed arguments for:%s [%s]\n",
+						option, optarg);
+					exit(0);
+				}
+			} else if (!isdigit(start[i])) {
+				fprintf(stderr, "malformed arguments for:%s [%s]\n",
+					option, optarg);
+				exit(0);
+			}
+		}
+	}
+}
+
 static void parse_cmd_args(int argc, int start, char **argv)
 {
 	int opt;
@@ -2763,18 +2801,21 @@ static void parse_cmd_args(int argc, int start, char **argv)
 			auto_mode = 1;
 			break;
 		case 'b':
+			check_optarg("bucket", 0);
 			fact_bucket = atoi(optarg);
 			break;
 		case 'h':
 			cmd_help = 1;
 			break;
 		case 'l':
+			check_optarg("level", 0);
 			tdp_level = atoi(optarg);
 			break;
 		case 'o':
 			force_online_offline = 1;
 			break;
 		case 't':
+			check_optarg("trl", 1);
 			sscanf(optarg, "0x%llx", &fact_trl);
 			break;
 		case 'r':
@@ -2791,13 +2832,16 @@ static void parse_cmd_args(int argc, int start, char **argv)
 			break;
 		/* CLOS related */
 		case 'c':
+			check_optarg("clos", 0);
 			current_clos = atoi(optarg);
 			break;
 		case 'd':
+			check_optarg("desired", 0);
 			clos_desired = atoi(optarg);
 			clos_desired /= isst_get_disp_freq_multiplier();
 			break;
 		case 'e':
+			check_optarg("epp", 0);
 			clos_epp = atoi(optarg);
 			if (is_skx_based_platform()) {
 				isst_display_error_info_message(1, "epp can't be specified on this platform", 0, 0);
@@ -2805,14 +2849,17 @@ static void parse_cmd_args(int argc, int start, char **argv)
 			}
 			break;
 		case 'n':
+			check_optarg("min", 0);
 			clos_min = atoi(optarg);
 			clos_min /= isst_get_disp_freq_multiplier();
 			break;
 		case 'm':
+			check_optarg("max", 0);
 			clos_max = atoi(optarg);
 			clos_max /= isst_get_disp_freq_multiplier();
 			break;
 		case 'p':
+			check_optarg("priority", 0);
 			clos_priority_type = atoi(optarg);
 			if (is_skx_based_platform() && !clos_priority_type) {
 				isst_display_error_info_message(1, "Invalid clos priority type: proportional for this platform", 0, 0);
@@ -2820,6 +2867,7 @@ static void parse_cmd_args(int argc, int start, char **argv)
 			}
 			break;
 		case 'w':
+			check_optarg("weight", 0);
 			clos_prop_prio = atoi(optarg);
 			if (is_skx_based_platform()) {
 				isst_display_error_info_message(1, "weight can't be specified on this platform", 0, 0);
