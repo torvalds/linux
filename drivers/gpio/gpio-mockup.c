@@ -11,6 +11,7 @@
 
 #include <linux/cleanup.h>
 #include <linux/debugfs.h>
+#include <linux/device.h>
 #include <linux/gpio/driver.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
@@ -24,8 +25,6 @@
 #include <linux/slab.h>
 #include <linux/string_helpers.h>
 #include <linux/uaccess.h>
-
-#include "gpiolib.h"
 
 #define GPIO_MOCKUP_MAX_GC	10
 /*
@@ -42,11 +41,13 @@
  * @value:     Configures status of the gpio as 0(low) or 1(high)
  * @pull:      Configures the current pull of the GPIO as 0 (pull-down) or
  *             1 (pull-up)
+ * @requested: Request status of this GPIO
  */
 struct gpio_mockup_line_status {
 	int dir;
 	int value;
 	int pull;
+	bool requested;
 };
 
 struct gpio_mockup_chip {
@@ -146,14 +147,12 @@ static void gpio_mockup_set_multiple(struct gpio_chip *gc,
 static int gpio_mockup_apply_pull(struct gpio_mockup_chip *chip,
 				  unsigned int offset, int value)
 {
-	struct gpio_chip *gc = &chip->gc;
-	struct gpio_desc *desc = gpiochip_get_desc(gc, offset);
+	struct gpio_mockup_line_status *line = &chip->lines[offset];
 	int curr, irq, irq_type, ret = 0;
 
 	guard(mutex)(&chip->lock);
 
-	if (test_bit(FLAG_REQUESTED, &desc->flags) &&
-	    !test_bit(FLAG_IS_OUT, &desc->flags)) {
+	if (line->requested && line->dir == GPIO_LINE_DIRECTION_IN) {
 		curr = __gpio_mockup_get(chip, offset);
 		if (curr == value)
 			goto out;
@@ -181,8 +180,7 @@ static int gpio_mockup_apply_pull(struct gpio_mockup_chip *chip,
 
 set_value:
 	/* Change the value unless we're actively driving the line. */
-	if (!test_bit(FLAG_REQUESTED, &desc->flags) ||
-	    !test_bit(FLAG_IS_OUT, &desc->flags))
+	if (!line->requested || line->dir == GPIO_LINE_DIRECTION_IN)
 		__gpio_mockup_set(chip, offset, value);
 
 out:
@@ -247,10 +245,23 @@ static int gpio_mockup_to_irq(struct gpio_chip *gc, unsigned int offset)
 	return irq_create_mapping(chip->irq_sim_domain, offset);
 }
 
+static int gpio_mockup_request(struct gpio_chip *gc, unsigned int offset)
+{
+	struct gpio_mockup_chip *chip = gpiochip_get_data(gc);
+
+	scoped_guard(mutex, &chip->lock)
+		chip->lines[offset].requested = true;
+
+	return 0;
+}
+
 static void gpio_mockup_free(struct gpio_chip *gc, unsigned int offset)
 {
 	struct gpio_mockup_chip *chip = gpiochip_get_data(gc);
 
+	guard(mutex)(&chip->lock);
+
+	chip->lines[offset].requested = false;
 	__gpio_mockup_set(chip, offset, chip->lines[offset].pull);
 }
 
@@ -343,6 +354,7 @@ static const struct file_operations gpio_mockup_debugfs_ops = {
 static void gpio_mockup_debugfs_setup(struct device *dev,
 				      struct gpio_mockup_chip *chip)
 {
+	struct device *child __free(put_device) = NULL;
 	struct gpio_mockup_dbgfs_private *priv;
 	struct gpio_chip *gc;
 	const char *devname;
@@ -350,8 +362,16 @@ static void gpio_mockup_debugfs_setup(struct device *dev,
 	int i;
 
 	gc = &chip->gc;
-	devname = dev_name(&gc->gpiodev->dev);
 
+	/*
+	 * There can only be a single GPIO device per platform device in
+	 * gpio-mockup so using device_find_any_child() is OK.
+	 */
+	child = device_find_any_child(dev);
+	if (!child)
+		return;
+
+	devname = dev_name(child);
 	chip->dbg_dir = debugfs_create_dir(devname, gpio_mockup_dbg_dir);
 
 	for (i = 0; i < gc->ngpio; i++) {
@@ -435,6 +455,7 @@ static int gpio_mockup_probe(struct platform_device *pdev)
 	gc->get_direction = gpio_mockup_get_direction;
 	gc->set_config = gpio_mockup_set_config;
 	gc->to_irq = gpio_mockup_to_irq;
+	gc->request = gpio_mockup_request;
 	gc->free = gpio_mockup_free;
 
 	chip->lines = devm_kcalloc(dev, gc->ngpio,
