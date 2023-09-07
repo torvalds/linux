@@ -248,6 +248,37 @@ EXPORT_SYMBOL(sch56xx_read_virtual_reg12);
  * Regmap support
  */
 
+int sch56xx_regmap_read16(struct regmap *map, unsigned int reg, unsigned int *val)
+{
+	int lsb, msb, ret;
+
+	/* See sch56xx_read_virtual_reg16() */
+	ret = regmap_read(map, reg, &lsb);
+	if (ret < 0)
+		return ret;
+
+	ret = regmap_read(map, reg + 1, &msb);
+	if (ret < 0)
+		return ret;
+
+	*val = lsb | (msb << 8);
+
+	return 0;
+}
+EXPORT_SYMBOL(sch56xx_regmap_read16);
+
+int sch56xx_regmap_write16(struct regmap *map, unsigned int reg, unsigned int val)
+{
+	int ret;
+
+	ret = regmap_write(map, reg, val & 0xff);
+	if (ret < 0)
+		return ret;
+
+	return regmap_write(map, reg + 1, (val >> 8) & 0xff);
+}
+EXPORT_SYMBOL(sch56xx_regmap_write16);
+
 static int sch56xx_reg_write(void *context, unsigned int reg, unsigned int val)
 {
 	struct sch56xx_bus_context *bus = context;
