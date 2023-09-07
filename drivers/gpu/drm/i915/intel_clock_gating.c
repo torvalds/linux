@@ -28,6 +28,7 @@
 #include "display/intel_de.h"
 #include "display/intel_display.h"
 #include "display/intel_display_trace.h"
+#include "display/intel_display_wa.h"
 #include "display/skl_watermark.h"
 
 #include "gt/intel_engine_regs.h"
@@ -347,39 +348,6 @@ static void gen8_set_l3sqc_credits(struct drm_i915_private *i915,
 	intel_gt_mcr_read_any(to_gt(i915), GEN8_L3SQCREG1);
 	udelay(1);
 	intel_uncore_write(&i915->uncore, GEN7_MISCCPCTL, misccpctl);
-}
-
-static void icl_init_clock_gating(struct drm_i915_private *i915)
-{
-	/* Wa_1409120013:icl,ehl */
-	intel_uncore_write(&i915->uncore, ILK_DPFC_CHICKEN(INTEL_FBC_A),
-			   DPFC_CHICKEN_COMP_DUMMY_PIXEL);
-
-	/*Wa_14010594013:icl, ehl */
-	intel_uncore_rmw(&i915->uncore, GEN8_CHICKEN_DCPR_1,
-			 0, ICL_DELAY_PMRSP);
-}
-
-static void gen12lp_init_clock_gating(struct drm_i915_private *i915)
-{
-	/* Wa_1409120013 */
-	if (DISPLAY_VER(i915) == 12)
-		intel_uncore_write(&i915->uncore, ILK_DPFC_CHICKEN(INTEL_FBC_A),
-				   DPFC_CHICKEN_COMP_DUMMY_PIXEL);
-
-	/* Wa_14013723622:tgl,rkl,dg1,adl-s */
-	if (DISPLAY_VER(i915) == 12)
-		intel_uncore_rmw(&i915->uncore, CLKREQ_POLICY,
-				 CLKREQ_POLICY_MEM_UP_OVRD, 0);
-}
-
-static void adlp_init_clock_gating(struct drm_i915_private *i915)
-{
-	/* Wa_22011091694:adlp */
-	intel_de_rmw(i915, GEN9_CLKGATE_DIS_5, 0, DPCE_GATING_DIS);
-
-	/* Bspec/49189 Initialize Sequence */
-	intel_de_rmw(i915, GEN8_CHICKEN_DCPR_1, DDI_CLOCK_REG_ACCESS, 0);
 }
 
 static void xehpsdv_init_clock_gating(struct drm_i915_private *i915)
@@ -790,6 +758,8 @@ static void i830_init_clock_gating(struct drm_i915_private *i915)
 void intel_clock_gating_init(struct drm_i915_private *i915)
 {
 	i915->clock_gating_funcs->init_clock_gating(i915);
+
+	intel_display_wa_apply(i915);
 }
 
 static void nop_init_clock_gating(struct drm_i915_private *i915)
@@ -806,9 +776,6 @@ static const struct drm_i915_clock_gating_funcs platform##_clock_gating_funcs = 
 CG_FUNCS(pvc);
 CG_FUNCS(dg2);
 CG_FUNCS(xehpsdv);
-CG_FUNCS(adlp);
-CG_FUNCS(gen12lp);
-CG_FUNCS(icl);
 CG_FUNCS(cfl);
 CG_FUNCS(skl);
 CG_FUNCS(kbl);
@@ -847,12 +814,6 @@ void intel_clock_gating_hooks_init(struct drm_i915_private *i915)
 		i915->clock_gating_funcs = &dg2_clock_gating_funcs;
 	else if (IS_XEHPSDV(i915))
 		i915->clock_gating_funcs = &xehpsdv_clock_gating_funcs;
-	else if (IS_ALDERLAKE_P(i915))
-		i915->clock_gating_funcs = &adlp_clock_gating_funcs;
-	else if (DISPLAY_VER(i915) == 12)
-		i915->clock_gating_funcs = &gen12lp_clock_gating_funcs;
-	else if (GRAPHICS_VER(i915) == 11)
-		i915->clock_gating_funcs = &icl_clock_gating_funcs;
 	else if (IS_COFFEELAKE(i915) || IS_COMETLAKE(i915))
 		i915->clock_gating_funcs = &cfl_clock_gating_funcs;
 	else if (IS_SKYLAKE(i915))
