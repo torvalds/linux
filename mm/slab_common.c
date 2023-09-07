@@ -745,24 +745,24 @@ struct kmem_cache *kmalloc_slab(size_t size, gfp_t flags, unsigned long caller)
 
 size_t kmalloc_size_roundup(size_t size)
 {
-	struct kmem_cache *c;
+	if (size && size <= KMALLOC_MAX_CACHE_SIZE) {
+		/*
+		 * The flags don't matter since size_index is common to all.
+		 * Neither does the caller for just getting ->object_size.
+		 */
+		return kmalloc_slab(size, GFP_KERNEL, 0)->object_size;
+	}
 
-	/* Short-circuit the 0 size case. */
-	if (unlikely(size == 0))
-		return 0;
-	/* Short-circuit saturated "too-large" case. */
-	if (unlikely(size == SIZE_MAX))
-		return SIZE_MAX;
 	/* Above the smaller buckets, size is a multiple of page size. */
-	if (size > KMALLOC_MAX_CACHE_SIZE)
+	if (size && size <= KMALLOC_MAX_SIZE)
 		return PAGE_SIZE << get_order(size);
 
 	/*
-	 * The flags don't matter since size_index is common to all.
-	 * Neither does the caller for just getting ->object_size.
+	 * Return 'size' for 0 - kmalloc() returns ZERO_SIZE_PTR
+	 * and very large size - kmalloc() may fail.
 	 */
-	c = kmalloc_slab(size, GFP_KERNEL, 0);
-	return c ? c->object_size : 0;
+	return size;
+
 }
 EXPORT_SYMBOL(kmalloc_size_roundup);
 
