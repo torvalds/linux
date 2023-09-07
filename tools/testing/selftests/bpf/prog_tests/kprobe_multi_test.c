@@ -3,6 +3,7 @@
 #include "kprobe_multi.skel.h"
 #include "trace_helpers.h"
 #include "kprobe_multi_empty.skel.h"
+#include "kprobe_multi_override.skel.h"
 #include "bpf/libbpf_internal.h"
 #include "bpf/hashmap.h"
 
@@ -453,6 +454,40 @@ cleanup:
 	}
 }
 
+void test_attach_override(void)
+{
+	struct kprobe_multi_override *skel = NULL;
+	struct bpf_link *link = NULL;
+
+	skel = kprobe_multi_override__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "kprobe_multi_empty__open_and_load"))
+		goto cleanup;
+
+	/* The test_override calls bpf_override_return so it should fail
+	 * to attach to bpf_fentry_test1 function, which is not on error
+	 * injection list.
+	 */
+	link = bpf_program__attach_kprobe_multi_opts(skel->progs.test_override,
+						     "bpf_fentry_test1", NULL);
+	if (!ASSERT_ERR_PTR(link, "override_attached_bpf_fentry_test1")) {
+		bpf_link__destroy(link);
+		goto cleanup;
+	}
+
+	/* The should_fail_bio function is on error injection list,
+	 * attach should succeed.
+	 */
+	link = bpf_program__attach_kprobe_multi_opts(skel->progs.test_override,
+						     "should_fail_bio", NULL);
+	if (!ASSERT_OK_PTR(link, "override_attached_should_fail_bio"))
+		goto cleanup;
+
+	bpf_link__destroy(link);
+
+cleanup:
+	kprobe_multi_override__destroy(skel);
+}
+
 void serial_test_kprobe_multi_bench_attach(void)
 {
 	if (test__start_subtest("kernel"))
@@ -480,4 +515,6 @@ void test_kprobe_multi_test(void)
 		test_attach_api_syms();
 	if (test__start_subtest("attach_api_fails"))
 		test_attach_api_fails();
+	if (test__start_subtest("attach_override"))
+		test_attach_override();
 }
