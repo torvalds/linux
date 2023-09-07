@@ -2569,12 +2569,12 @@ int btrfs_pin_extent(struct btrfs_trans_handle *trans,
  * this function must be called within transaction
  */
 int btrfs_pin_extent_for_log_replay(struct btrfs_trans_handle *trans,
-				    u64 bytenr, u64 num_bytes)
+				    const struct extent_buffer *eb)
 {
 	struct btrfs_block_group *cache;
 	int ret;
 
-	cache = btrfs_lookup_block_group(trans->fs_info, bytenr);
+	cache = btrfs_lookup_block_group(trans->fs_info, eb->start);
 	if (!cache)
 		return -EINVAL;
 
@@ -2586,10 +2586,10 @@ int btrfs_pin_extent_for_log_replay(struct btrfs_trans_handle *trans,
 	if (ret)
 		goto out;
 
-	pin_down_extent(trans, cache, bytenr, num_bytes, 0);
+	pin_down_extent(trans, cache, eb->start, eb->len, 0);
 
 	/* remove us from the free space cache (if we're there at all) */
-	ret = btrfs_remove_free_space(cache, bytenr, num_bytes);
+	ret = btrfs_remove_free_space(cache, eb->start, eb->len);
 out:
 	btrfs_put_block_group(cache);
 	return ret;
