@@ -908,7 +908,7 @@ static void __io_flush_post_cqes(struct io_ring_ctx *ctx)
 		struct io_uring_cqe *cqe = &ctx->completion_cqes[i];
 
 		if (!io_fill_cqe_aux(ctx, cqe->user_data, cqe->res, cqe->flags)) {
-			if (ctx->task_complete) {
+			if (ctx->lockless_cq) {
 				spin_lock(&ctx->completion_lock);
 				io_cqring_event_overflow(ctx, cqe->user_data,
 							cqe->res, cqe->flags, 0, 0);
@@ -1566,7 +1566,7 @@ void __io_submit_flush_completions(struct io_ring_ctx *ctx)
 
 		if (!(req->flags & REQ_F_CQE_SKIP) &&
 		    unlikely(!io_fill_cqe_req(ctx, req))) {
-			if (ctx->task_complete) {
+			if (ctx->lockless_cq) {
 				spin_lock(&ctx->completion_lock);
 				io_req_cqe_overflow(req);
 				spin_unlock(&ctx->completion_lock);
