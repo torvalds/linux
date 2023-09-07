@@ -85,6 +85,7 @@ unsigned int sysctl_sched_heavy_nr;
 unsigned int sysctl_max_freq_partial_halt = FREQ_QOS_MAX_DEFAULT_VALUE;
 unsigned int sysctl_fmax_cap[MAX_CLUSTERS];
 unsigned int sysctl_sched_sbt_pause_cpus;
+unsigned int sysctl_sched_sbt_enable = 1;
 unsigned int sysctl_sched_sbt_delay_windows;
 unsigned int high_perf_cluster_freq_cap[MAX_CLUSTERS];
 unsigned int sysctl_sched_pipeline_cpus;
@@ -1304,6 +1305,15 @@ struct ctl_table walt_table[] = {
 		.proc_handler	= proc_douintvec_minmax,
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= &walt_max_cpus,
+	},
+	{
+		.procname	= "sched_sbt_enable",
+		.data		= &sysctl_sched_sbt_enable,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_douintvec_minmax,
+		.extra1		= SYSCTL_ZERO,
+		.extra2		= SYSCTL_ONE,
 	},
 	{
 		.procname	= "sched_sbt_pause_cpus",

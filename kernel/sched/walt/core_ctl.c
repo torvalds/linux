@@ -1297,6 +1297,9 @@ static inline bool is_sbt(bool prev_is_sbt, int prev_is_sbt_windows)
 	struct cluster_data *cluster = &cluster_state[MAX_CLUSTERS - 1];
 	bool ret = false;
 
+	if (!sysctl_sched_sbt_enable)
+		goto out;
+
 	if (last_nr_big != 1)
 		goto out;
 
