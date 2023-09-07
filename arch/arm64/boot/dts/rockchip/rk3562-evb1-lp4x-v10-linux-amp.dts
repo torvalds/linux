@@ -12,7 +12,17 @@
 / {
 	memory {
 		device_type = "memory";
-		reg = <0x0 0x01000000 0x0 0x07400000>,
+		reg = <0x0 0x02000000 0x0 0x06400000>,
 		      <0x0 0x0a200000 0x0 0xf1e00000>;
 	};
+};
+
+&arm_pmu {
+	interrupt-affinity = <&cpu0>, <&cpu1>, <&cpu2>;
+};
+
+/delete-node/ &cpu3;
+
+&sdmmc0 {
+	status = "disabled";
 };
