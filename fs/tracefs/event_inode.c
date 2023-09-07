@@ -195,16 +195,38 @@ void eventfs_set_ef_status_free(struct tracefs_inode *ti, struct dentry *dentry)
 {
 	struct tracefs_inode *ti_parent;
 	struct eventfs_inode *ei;
-	struct eventfs_file *ef;
-
-	mutex_lock(&eventfs_mutex);
+	struct eventfs_file *ef, *tmp;
 
 	/* The top level events directory may be freed by this */
 	if (unlikely(ti->flags & TRACEFS_EVENT_TOP_INODE)) {
+		LIST_HEAD(ef_del_list);
+
+		mutex_lock(&eventfs_mutex);
+
 		ei = ti->private;
+
+		/* Record all the top level files */
+		list_for_each_entry_srcu(ef, &ei->e_top_files, list,
+					 lockdep_is_held(&eventfs_mutex)) {
+			list_add_tail(&ef->del_list, &ef_del_list);
+		}
+
+		/* Nothing should access this, but just in case! */
+		ti->private = NULL;
+
+		mutex_unlock(&eventfs_mutex);
+
+		/* Now safely free the top level files and their children */
+		list_for_each_entry_safe(ef, tmp, &ef_del_list, del_list) {
+			list_del(&ef->del_list);
+			eventfs_remove(ef);
+		}
+
 		kfree(ei);
-		goto out;
+		return;
 	}
+
+	mutex_lock(&eventfs_mutex);
 
 	ti_parent = get_tracefs(dentry->d_parent->d_inode);
 	if (!ti_parent || !(ti_parent->flags & TRACEFS_EVENT_INODE))
