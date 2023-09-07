@@ -2574,7 +2574,7 @@ static int clean_log_buffer(struct btrfs_trans_handle *trans,
 	btrfs_tree_unlock(eb);
 
 	if (trans) {
-		ret = btrfs_pin_reserved_extent(trans, eb->start, eb->len);
+		ret = btrfs_pin_reserved_extent(trans, eb);
 		if (ret)
 			return ret;
 		btrfs_redirty_list_add(trans->transaction, eb);

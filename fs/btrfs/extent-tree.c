@@ -4562,20 +4562,20 @@ int btrfs_free_reserved_extent(struct btrfs_fs_info *fs_info,
 	return 0;
 }
 
-int btrfs_pin_reserved_extent(struct btrfs_trans_handle *trans, u64 start,
-			      u64 len)
+int btrfs_pin_reserved_extent(struct btrfs_trans_handle *trans,
+			      const struct extent_buffer *eb)
 {
 	struct btrfs_block_group *cache;
 	int ret = 0;
 
-	cache = btrfs_lookup_block_group(trans->fs_info, start);
+	cache = btrfs_lookup_block_group(trans->fs_info, eb->start);
 	if (!cache) {
 		btrfs_err(trans->fs_info, "unable to find block group for %llu",
-			  start);
+			  eb->start);
 		return -ENOSPC;
 	}
 
-	ret = pin_down_extent(trans, cache, start, len, 1);
+	ret = pin_down_extent(trans, cache, eb->start, eb->len, 1);
 	btrfs_put_block_group(cache);
 	return ret;
 }

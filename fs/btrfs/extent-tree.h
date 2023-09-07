@@ -139,7 +139,8 @@ int btrfs_free_extent(struct btrfs_trans_handle *trans, struct btrfs_ref *ref);
 
 int btrfs_free_reserved_extent(struct btrfs_fs_info *fs_info,
 			       u64 start, u64 len, int delalloc);
-int btrfs_pin_reserved_extent(struct btrfs_trans_handle *trans, u64 start, u64 len);
+int btrfs_pin_reserved_extent(struct btrfs_trans_handle *trans,
+			      const struct extent_buffer *eb);
 int btrfs_finish_extent_commit(struct btrfs_trans_handle *trans);
 int btrfs_inc_extent_ref(struct btrfs_trans_handle *trans, struct btrfs_ref *generic_ref);
 int btrfs_drop_snapshot(struct btrfs_root *root, int update_ref,
