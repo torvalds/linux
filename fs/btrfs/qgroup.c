@@ -1783,6 +1783,17 @@ out:
 	return ret;
 }
 
+/*
+ * Inform qgroup to trace one dirty extent, its info is recorded in @record.
+ * So qgroup can account it at transaction committing time.
+ *
+ * No lock version, caller must acquire delayed ref lock and allocated memory,
+ * then call btrfs_qgroup_trace_extent_post() after exiting lock context.
+ *
+ * Return 0 for success insert
+ * Return >0 for existing record, caller can free @record safely.
+ * Error is not possible
+ */
 int btrfs_qgroup_trace_extent_nolock(struct btrfs_fs_info *fs_info,
 				struct btrfs_delayed_ref_root *delayed_refs,
 				struct btrfs_qgroup_extent_record *record)
@@ -1818,6 +1829,27 @@ int btrfs_qgroup_trace_extent_nolock(struct btrfs_fs_info *fs_info,
 	return 0;
 }
 
+/*
+ * Post handler after qgroup_trace_extent_nolock().
+ *
+ * NOTE: Current qgroup does the expensive backref walk at transaction
+ * committing time with TRANS_STATE_COMMIT_DOING, this blocks incoming
+ * new transaction.
+ * This is designed to allow btrfs_find_all_roots() to get correct new_roots
+ * result.
+ *
+ * However for old_roots there is no need to do backref walk at that time,
+ * since we search commit roots to walk backref and result will always be
+ * correct.
+ *
+ * Due to the nature of no lock version, we can't do backref there.
+ * So we must call btrfs_qgroup_trace_extent_post() after exiting
+ * spinlock context.
+ *
+ * TODO: If we can fix and prove btrfs_find_all_roots() can get correct result
+ * using current root, then we can move all expensive backref walk out of
+ * transaction committing, but not now as qgroup accounting will be wrong again.
+ */
 int btrfs_qgroup_trace_extent_post(struct btrfs_trans_handle *trans,
 				   struct btrfs_qgroup_extent_record *qrecord)
 {
@@ -1871,6 +1903,19 @@ int btrfs_qgroup_trace_extent_post(struct btrfs_trans_handle *trans,
 	return 0;
 }
 
+/*
+ * Inform qgroup to trace one dirty extent, specified by @bytenr and
+ * @num_bytes.
+ * So qgroup can account it at commit trans time.
+ *
+ * Better encapsulated version, with memory allocation and backref walk for
+ * commit roots.
+ * So this can sleep.
+ *
+ * Return 0 if the operation is done.
+ * Return <0 for error, like memory allocation failure or invalid parameter
+ * (NULL trans)
+ */
 int btrfs_qgroup_trace_extent(struct btrfs_trans_handle *trans, u64 bytenr,
 			      u64 num_bytes)
 {
@@ -1901,6 +1946,12 @@ int btrfs_qgroup_trace_extent(struct btrfs_trans_handle *trans, u64 bytenr,
 	return btrfs_qgroup_trace_extent_post(trans, record);
 }
 
+/*
+ * Inform qgroup to trace all leaf items of data
+ *
+ * Return 0 for success
+ * Return <0 for error(ENOMEM)
+ */
 int btrfs_qgroup_trace_leaf_items(struct btrfs_trans_handle *trans,
 				  struct extent_buffer *eb)
 {
@@ -2331,6 +2382,16 @@ out:
 	return ret;
 }
 
+/*
+ * Inform qgroup to trace a whole subtree, including all its child tree
+ * blocks and data.
+ * The root tree block is specified by @root_eb.
+ *
+ * Normally used by relocation(tree block swap) and subvolume deletion.
+ *
+ * Return 0 for success
+ * Return <0 for error(ENOMEM or tree search error)
+ */
 int btrfs_qgroup_trace_subtree(struct btrfs_trans_handle *trans,
 			       struct extent_buffer *root_eb,
 			       u64 root_gen, int root_level)
@@ -4040,6 +4101,10 @@ int __btrfs_qgroup_reserve_meta(struct btrfs_root *root, int num_bytes,
 	return btrfs_qgroup_reserve_meta(root, num_bytes, type, enforce);
 }
 
+/*
+ * Per-transaction meta reservation should be all freed at transaction commit
+ * time
+ */
 void btrfs_qgroup_free_meta_all_pertrans(struct btrfs_root *root)
 {
 	struct btrfs_fs_info *fs_info = root->fs_info;
@@ -4109,6 +4174,12 @@ out:
 	spin_unlock(&fs_info->qgroup_lock);
 }
 
+/*
+ * Convert @num_bytes of META_PREALLOCATED reservation to META_PERTRANS.
+ *
+ * This is called when preallocated meta reservation needs to be used.
+ * Normally after btrfs_join_transaction() call.
+ */
 void btrfs_qgroup_convert_reserved_meta(struct btrfs_root *root, int num_bytes)
 {
 	struct btrfs_fs_info *fs_info = root->fs_info;
