@@ -20,6 +20,7 @@
 
 struct psp_dbc_device {
 	struct device *dev;
+	struct psp_device *psp;
 
 	union dbc_buffer *mbox;
 
@@ -37,6 +38,7 @@ struct psp_dbc_device {
 
 union dbc_buffer {
 	struct psp_request		pa_req;
+	struct psp_ext_request		ext_req;
 };
 
 void dbc_dev_destroy(struct psp_device *psp);

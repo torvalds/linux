@@ -187,23 +187,6 @@ static int psp_check_tee_support(struct psp_device *psp)
 	return 0;
 }
 
-static void psp_init_platform_access(struct psp_device *psp)
-{
-	int ret;
-
-	ret = platform_access_dev_init(psp);
-	if (ret) {
-		dev_warn(psp->dev, "platform access init failed: %d\n", ret);
-		return;
-	}
-
-	/* dbc must come after platform access as it tests the feature */
-	ret = dbc_dev_init(psp);
-	if (ret)
-		dev_warn(psp->dev, "failed to init dynamic boost control: %d\n",
-			 ret);
-}
-
 static int psp_init(struct psp_device *psp)
 {
 	int ret;
@@ -220,8 +203,19 @@ static int psp_init(struct psp_device *psp)
 			return ret;
 	}
 
-	if (psp->vdata->platform_access)
-		psp_init_platform_access(psp);
+	if (psp->vdata->platform_access) {
+		ret = platform_access_dev_init(psp);
+		if (ret)
+			return ret;
+	}
+
+	/* dbc must come after platform access as it tests the feature */
+	if (PSP_FEATURE(psp, DBC) ||
+	    PSP_CAPABILITY(psp, DBC_THRU_EXT)) {
+		ret = dbc_dev_init(psp);
+		if (ret)
+			return ret;
+	}
 
 	return 0;
 }

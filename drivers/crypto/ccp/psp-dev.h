@@ -16,6 +16,7 @@
 #include <linux/interrupt.h>
 #include <linux/mutex.h>
 #include <linux/psp.h>
+#include <linux/psp-platform-access.h>
 
 #include "sp-dev.h"
 
@@ -56,6 +57,7 @@ struct psp_device *psp_get_master_device(void);
 
 #define PSP_CAPABILITY_SEV			BIT(0)
 #define PSP_CAPABILITY_TEE			BIT(1)
+#define PSP_CAPABILITY_DBC_THRU_EXT		BIT(2)
 #define PSP_CAPABILITY_PSP_SECURITY_REPORTING	BIT(7)
 
 #define PSP_CAPABILITY_PSP_SECURITY_OFFSET	8
@@ -107,6 +109,20 @@ struct psp_ext_request {
 	struct psp_ext_req_buffer_hdr header;
 	void *buf;
 } __packed;
+
+/**
+ * enum psp_sub_cmd - PSP mailbox sub commands
+ * @PSP_SUB_CMD_DBC_GET_NONCE:		Get nonce from DBC
+ * @PSP_SUB_CMD_DBC_SET_UID:		Set UID for DBC
+ * @PSP_SUB_CMD_DBC_GET_PARAMETER:	Get parameter from DBC
+ * @PSP_SUB_CMD_DBC_SET_PARAMETER:	Set parameter for DBC
+ */
+enum psp_sub_cmd {
+	PSP_SUB_CMD_DBC_GET_NONCE	= PSP_DYNAMIC_BOOST_GET_NONCE,
+	PSP_SUB_CMD_DBC_SET_UID		= PSP_DYNAMIC_BOOST_SET_UID,
+	PSP_SUB_CMD_DBC_GET_PARAMETER	= PSP_DYNAMIC_BOOST_GET_PARAMETER,
+	PSP_SUB_CMD_DBC_SET_PARAMETER	= PSP_DYNAMIC_BOOST_SET_PARAMETER,
+};
 
 int psp_extended_mailbox_cmd(struct psp_device *psp, unsigned int timeout_msecs,
 			     struct psp_ext_request *req);

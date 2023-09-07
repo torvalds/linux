@@ -9,6 +9,7 @@
 
 #include "dbc.h"
 
+#define DBC_DEFAULT_TIMEOUT		(10 * MSEC_PER_SEC)
 struct error_map {
 	u32 psp;
 	int ret;
@@ -37,13 +38,28 @@ static struct error_map error_codes[] = {
 	{0x0,	0x0},
 };
 
-static int send_dbc_cmd(struct psp_dbc_device *dbc_dev,
-			enum psp_platform_access_msg msg)
+static inline int send_dbc_cmd_thru_ext(struct psp_dbc_device *dbc_dev, int msg)
+{
+	dbc_dev->mbox->ext_req.header.sub_cmd_id = msg;
+
+	return psp_extended_mailbox_cmd(dbc_dev->psp,
+					DBC_DEFAULT_TIMEOUT,
+					(struct psp_ext_request *)dbc_dev->mbox);
+}
+
+static inline int send_dbc_cmd_thru_pa(struct psp_dbc_device *dbc_dev, int msg)
+{
+	return psp_send_platform_access_msg(msg,
+					    (struct psp_request *)dbc_dev->mbox);
+}
+
+static int send_dbc_cmd(struct psp_dbc_device *dbc_dev, int msg)
 {
 	int ret;
 
 	*dbc_dev->result = 0;
-	ret = psp_send_platform_access_msg(msg, (struct psp_request *)dbc_dev->mbox);
+	ret = dbc_dev->use_ext ? send_dbc_cmd_thru_ext(dbc_dev, msg) :
+				 send_dbc_cmd_thru_pa(dbc_dev, msg);
 	if (ret == -EIO) {
 		int i;
 
@@ -192,9 +208,6 @@ int dbc_dev_init(struct psp_device *psp)
 	struct psp_dbc_device *dbc_dev;
 	int ret;
 
-	if (!PSP_FEATURE(psp, DBC))
-		return 0;
-
 	dbc_dev = devm_kzalloc(dev, sizeof(*dbc_dev), GFP_KERNEL);
 	if (!dbc_dev)
 		return -ENOMEM;
@@ -208,10 +221,20 @@ int dbc_dev_init(struct psp_device *psp)
 
 	psp->dbc_data = dbc_dev;
 	dbc_dev->dev = dev;
-	dbc_dev->payload_size = &dbc_dev->mbox->pa_req.header.payload_size;
-	dbc_dev->result = &dbc_dev->mbox->pa_req.header.status;
-	dbc_dev->payload = &dbc_dev->mbox->pa_req.buf;
-	dbc_dev->header_size = sizeof(struct psp_req_buffer_hdr);
+	dbc_dev->psp = psp;
+
+	if (PSP_CAPABILITY(psp, DBC_THRU_EXT)) {
+		dbc_dev->use_ext = true;
+		dbc_dev->payload_size = &dbc_dev->mbox->ext_req.header.payload_size;
+		dbc_dev->result = &dbc_dev->mbox->ext_req.header.status;
+		dbc_dev->payload = &dbc_dev->mbox->ext_req.buf;
+		dbc_dev->header_size = sizeof(struct psp_ext_req_buffer_hdr);
+	} else {
+		dbc_dev->payload_size = &dbc_dev->mbox->pa_req.header.payload_size;
+		dbc_dev->result = &dbc_dev->mbox->pa_req.header.status;
+		dbc_dev->payload = &dbc_dev->mbox->pa_req.buf;
+		dbc_dev->header_size = sizeof(struct psp_req_buffer_hdr);
+	}
 
 	ret = send_dbc_nonce(dbc_dev);
 	if (ret == -EACCES) {
