@@ -459,7 +459,19 @@ static irqreturn_t cs35l41_irq(int irq, void *data)
 
 	if (status[2] & CS35L41_PLL_LOCK) {
 		regmap_write(cs35l41->regmap, CS35L41_IRQ1_STATUS3, CS35L41_PLL_LOCK);
-		complete(&cs35l41->pll_lock);
+
+		if (cs35l41->hw_cfg.bst_type == CS35L41_SHD_BOOST_ACTV ||
+		    cs35l41->hw_cfg.bst_type == CS35L41_SHD_BOOST_PASS) {
+			ret = cs35l41_mdsync_up(cs35l41->regmap);
+			if (ret)
+				dev_err(cs35l41->dev, "MDSYNC-up failed: %d\n", ret);
+			else
+				dev_dbg(cs35l41->dev, "MDSYNC-up done\n");
+
+			dev_dbg(cs35l41->dev, "PUP-done status: %d\n",
+				!!(status[0] & CS35L41_PUP_DONE_MASK));
+		}
+
 		ret = IRQ_HANDLED;
 	}
 
@@ -500,11 +512,11 @@ static int cs35l41_main_amp_event(struct snd_soc_dapm_widget *w,
 						ARRAY_SIZE(cs35l41_pup_patch));
 
 		ret = cs35l41_global_enable(cs35l41->dev, cs35l41->regmap, cs35l41->hw_cfg.bst_type,
-					    1, &cs35l41->pll_lock, cs35l41->dsp.cs_dsp.running);
+					    1, cs35l41->dsp.cs_dsp.running);
 		break;
 	case SND_SOC_DAPM_POST_PMD:
 		ret = cs35l41_global_enable(cs35l41->dev, cs35l41->regmap, cs35l41->hw_cfg.bst_type,
-					    0, &cs35l41->pll_lock, cs35l41->dsp.cs_dsp.running);
+					    0, cs35l41->dsp.cs_dsp.running);
 
 		regmap_multi_reg_write_bypassed(cs35l41->regmap,
 						cs35l41_pdn_patch,
@@ -802,10 +814,6 @@ static const struct snd_pcm_hw_constraint_list cs35l41_constraints = {
 static int cs35l41_pcm_startup(struct snd_pcm_substream *substream,
 			       struct snd_soc_dai *dai)
 {
-	struct cs35l41_private *cs35l41 = snd_soc_component_get_drvdata(dai->component);
-
-	reinit_completion(&cs35l41->pll_lock);
-
 	if (substream->runtime)
 		return snd_pcm_hw_constraint_list(substream->runtime, 0,
 						  SNDRV_PCM_HW_PARAM_RATE,
@@ -1272,8 +1280,6 @@ int cs35l41_probe(struct cs35l41_private *cs35l41, const struct cs35l41_hw_cfg *
 	    cs35l41->hw_cfg.bst_type == CS35L41_SHD_BOOST_ACTV)
 		regmap_update_bits(cs35l41->regmap, CS35L41_IRQ1_MASK3, CS35L41_INT3_PLL_LOCK_MASK,
 				   0 << CS35L41_INT3_PLL_LOCK_SHIFT);
-
-	init_completion(&cs35l41->pll_lock);
 
 	ret = devm_request_threaded_irq(cs35l41->dev, cs35l41->irq, NULL, cs35l41_irq,
 					IRQF_ONESHOT | IRQF_SHARED | irq_pol,

@@ -527,7 +527,7 @@ static void cs35l41_hda_play_done(struct device *dev)
 
 	dev_dbg(dev, "Play (Complete)\n");
 
-	cs35l41_global_enable(dev, reg, cs35l41->hw_cfg.bst_type, 1, NULL,
+	cs35l41_global_enable(dev, reg, cs35l41->hw_cfg.bst_type, 1,
 			      cs35l41->firmware_running);
 	if (cs35l41->firmware_running) {
 		regmap_multi_reg_write(reg, cs35l41_hda_unmute_dsp,
@@ -546,7 +546,7 @@ static void cs35l41_hda_pause_start(struct device *dev)
 	dev_dbg(dev, "Pause (Start)\n");
 
 	regmap_multi_reg_write(reg, cs35l41_hda_mute, ARRAY_SIZE(cs35l41_hda_mute));
-	cs35l41_global_enable(dev, reg, cs35l41->hw_cfg.bst_type, 0, NULL,
+	cs35l41_global_enable(dev, reg, cs35l41->hw_cfg.bst_type, 0,
 			      cs35l41->firmware_running);
 }
 
