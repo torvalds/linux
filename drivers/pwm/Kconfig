@@ -186,9 +186,19 @@ config PWM_CROS_EC
 	  PWM driver for exposing a PWM attached to the ChromeOS Embedded
 	  Controller.
 
+config PWM_DWC_CORE
+	tristate
+	depends on HAS_IOMEM
+	help
+	  PWM driver for Synopsys DWC PWM Controller.
+
+	  To compile this driver as a module, build the dependecies as
+	  modules, this will be called pwm-dwc-core.
+
 config PWM_DWC
-	tristate "DesignWare PWM Controller"
-	depends on PCI
+	tristate "DesignWare PWM Controller (PCI bus)"
+	depends on HAS_IOMEM && PCI
+	select PWM_DWC_CORE
 	help
 	  PWM driver for Synopsys DWC PWM Controller attached to a PCI bus.
 
