@@ -11,29 +11,12 @@
  * for more details.
  */
 
-#include <linux/module.h>
-
-#include <linux/types.h>
-#include <linux/errno.h>
-#include <linux/kernel.h>
-#include <linux/slab.h>
-#include <linux/mm.h>
-#include <linux/mman.h>
-#include <linux/vt.h>
-#include <linux/init.h>
-#include <linux/platform_device.h>
 #include <linux/console.h>
-#include <linux/kmod.h>
-#include <linux/err.h>
-#include <linux/device.h>
-#include <linux/efi.h>
+#include <linux/export.h>
 #include <linux/fb.h>
 #include <linux/fbcon.h>
-#include <linux/mem_encrypt.h>
-#include <linux/pci.h>
 
 #include <video/nomodeset.h>
-#include <video/vga.h>
 
 #include "fb_internal.h"
 
