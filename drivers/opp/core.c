@@ -814,6 +814,31 @@ struct dev_pm_opp *dev_pm_opp_find_level_ceil(struct device *dev,
 EXPORT_SYMBOL_GPL(dev_pm_opp_find_level_ceil);
 
 /**
+ * dev_pm_opp_find_level_floor() - Search for a rounded floor level
+ * @dev:	device for which we do this operation
+ * @level:	Start level
+ *
+ * Search for the matching floor *available* OPP from a starting level
+ * for a device.
+ *
+ * Return: matching *opp and refreshes *level accordingly, else returns
+ * ERR_PTR in case of error and should be handled using IS_ERR. Error return
+ * values can be:
+ * EINVAL:	for bad pointer
+ * ERANGE:	no match found for search
+ * ENODEV:	if device not found in list of registered devices
+ *
+ * The callers are required to call dev_pm_opp_put() for the returned OPP after
+ * use.
+ */
+struct dev_pm_opp *dev_pm_opp_find_level_floor(struct device *dev,
+					       unsigned long *level)
+{
+	return _find_key_floor(dev, level, 0, true, _read_level, NULL);
+}
+EXPORT_SYMBOL_GPL(dev_pm_opp_find_level_floor);
+
+/**
  * dev_pm_opp_find_bw_ceil() - Search for a rounded ceil bandwidth
  * @dev:	device for which we do this operation
  * @bw:	start bandwidth
