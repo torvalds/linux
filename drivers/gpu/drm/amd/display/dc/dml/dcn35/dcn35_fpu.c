@@ -29,6 +29,7 @@
 #include "dcn32/dcn32_resource.h"
 #include "dcn35/dcn35_resource.h"
 #include "dml/dcn31/dcn31_fpu.h"
+#include "dml/dml_inline_defs.h"
 
 #include "link.h"
 
@@ -358,6 +359,36 @@ static bool is_dual_plane(enum surface_pixel_format format)
 		format == SURFACE_PIXEL_FORMAT_GRPH_RGBE_ALPHA;
 }
 
+/*
+ * micro_sec_to_vert_lines () - converts time to number of vertical lines for a given timing
+ *
+ * @param: num_us: number of microseconds
+ * @return: number of vertical lines. If exact number of vertical lines is not found then
+ *          it will round up to next number of lines to guarantee num_us
+ */
+static unsigned int micro_sec_to_vert_lines(unsigned int num_us, struct dc_crtc_timing *timing)
+{
+	unsigned int num_lines = 0;
+	unsigned int lines_time_in_ns = 1000.0 *
+			(((float)timing->h_total * 1000.0) /
+			 ((float)timing->pix_clk_100hz / 10.0));
+
+	num_lines = dml_ceil(1000.0 * num_us / lines_time_in_ns, 1.0);
+
+	return num_lines;
+}
+
+static unsigned int get_vertical_back_porch(struct dc_crtc_timing *timing)
+{
+	unsigned int v_active = 0, v_blank = 0, v_back_porch = 0;
+
+	v_active = timing->v_border_top + timing->v_addressable + timing->v_border_bottom;
+	v_blank = timing->v_total - v_active;
+	v_back_porch = v_blank - timing->v_front_porch - timing->v_sync_width;
+
+	return v_back_porch;
+}
+
 int dcn35_populate_dml_pipes_from_context_fpu(struct dc *dc,
 					      struct dc_state *context,
 					      display_e2e_pipe_params_st *pipes,
@@ -367,18 +398,24 @@ int dcn35_populate_dml_pipes_from_context_fpu(struct dc *dc,
 	struct resource_context *res_ctx = &context->res_ctx;
 	struct pipe_ctx *pipe;
 	bool upscaled = false;
+	const unsigned int max_allowed_vblank_nom = 1023;
 
 	dcn31_populate_dml_pipes_from_context(dc, context, pipes,
 					      fast_validate);
 
 	for (i = 0, pipe_cnt = 0; i < dc->res_pool->pipe_count; i++) {
 		struct dc_crtc_timing *timing;
+		unsigned int num_lines = 0;
+		unsigned int v_back_porch = 0;
 
 		if (!res_ctx->pipe_ctx[i].stream)
 			continue;
 
 		pipe = &res_ctx->pipe_ctx[i];
 		timing = &pipe->stream->timing;
+
+		num_lines = micro_sec_to_vert_lines(dcn3_5_ip.VBlankNomDefaultUS, timing);
+		v_back_porch  = get_vertical_back_porch(timing);
 
 		if (pipe->stream->adjust.v_total_max ==
 		    pipe->stream->adjust.v_total_min &&
@@ -388,6 +425,16 @@ int dcn35_populate_dml_pipes_from_context_fpu(struct dc *dc,
 			pipes[pipe_cnt].pipe.dest.vblank_nom = timing->v_total -
 				pipes[pipe_cnt].pipe.dest.vactive;
 		}
+
+		pipes[pipe_cnt].pipe.dest.vblank_nom = timing->v_total - pipes[pipe_cnt].pipe.dest.vactive;
+		pipes[pipe_cnt].pipe.dest.vblank_nom = min(pipes[pipe_cnt].pipe.dest.vblank_nom, num_lines);
+		// vblank_nom should not smaller than (VSync (timing->v_sync_width + v_back_porch) + 2)
+		// + 2 is because
+		// 1 -> VStartup_start should be 1 line before VSync
+		// 1 -> always reserve 1 line between start of vblank to vstartup signal
+		pipes[pipe_cnt].pipe.dest.vblank_nom =
+			max(pipes[pipe_cnt].pipe.dest.vblank_nom, timing->v_sync_width + v_back_porch + 2);
+		pipes[pipe_cnt].pipe.dest.vblank_nom = min(pipes[pipe_cnt].pipe.dest.vblank_nom, max_allowed_vblank_nom);
 
 		if (pipe->plane_state &&
 		    (pipe->plane_state->src_rect.height <
