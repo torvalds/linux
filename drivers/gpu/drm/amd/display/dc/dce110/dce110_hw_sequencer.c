@@ -1041,7 +1041,8 @@ void dce110_edp_backlight_control(
 
 	link_transmitter_control(ctx->dc_bios, &cntl);
 
-	if (enable && link->dpcd_sink_ext_caps.bits.oled) {
+	if (enable && link->dpcd_sink_ext_caps.bits.oled &&
+	    !link->dc->config.edp_no_power_sequencing) {
 		post_T7_delay += link->panel_config.pps.extra_post_t7_ms;
 		msleep(post_T7_delay);
 	}
