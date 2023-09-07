@@ -426,6 +426,11 @@ int amdgpu_dpm_set_df_cstate(struct amdgpu_device *adev,
 
 int amdgpu_dpm_allow_xgmi_power_down(struct amdgpu_device *adev, bool en);
 
+int amdgpu_dpm_get_xgmi_plpd_mode(struct amdgpu_device *adev,
+				  char **mode);
+
+int amdgpu_dpm_set_xgmi_plpd_mode(struct amdgpu_device *adev, int mode);
+
 int amdgpu_dpm_enable_mgpu_fan_boost(struct amdgpu_device *adev);
 
 int amdgpu_dpm_set_clockgating_by_smu(struct amdgpu_device *adev,
