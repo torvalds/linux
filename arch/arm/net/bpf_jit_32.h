@@ -139,6 +139,7 @@
 #define ARM_INST_TST_I		0x03100000
 
 #define ARM_INST_UDIV		0x0730f010
+#define ARM_INST_SDIV		0x0710f010
 
 #define ARM_INST_UMULL		0x00800090
 
@@ -267,6 +268,7 @@
 #define ARM_TST_I(rn, imm)	_AL3_I(ARM_INST_TST, 0, rn, imm)
 
 #define ARM_UDIV(rd, rn, rm)	(ARM_INST_UDIV | (rd) << 16 | (rn) | (rm) << 8)
+#define ARM_SDIV(rd, rn, rm)	(ARM_INST_SDIV | (rd) << 16 | (rn) | (rm) << 8)
 
 #define ARM_UMULL(rd_lo, rd_hi, rn, rm)	(ARM_INST_UMULL | (rd_hi) << 16 \
 					 | (rd_lo) << 12 | (rm) << 8 | rn)
