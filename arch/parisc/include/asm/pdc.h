@@ -46,6 +46,9 @@ int pdc_cache_info(struct pdc_cache_info *cache);
 int pdc_spaceid_bits(unsigned long *space_bits);
 #ifndef CONFIG_PA20
 int pdc_btlb_info(struct pdc_btlb_info *btlb);
+int pdc_btlb_insert(unsigned long long vpage, unsigned long physpage, unsigned long len,
+                    unsigned long entry_info, unsigned long slot);
+int pdc_btlb_purge_all(void);
 int pdc_mem_map_hpa(struct pdc_memory_map *r_addr, struct pdc_module_path *mod_path);
 #endif /* !CONFIG_PA20 */
 int pdc_pim_toc11(struct pdc_toc_pim_11 *ret);

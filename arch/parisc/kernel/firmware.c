@@ -696,18 +696,42 @@ int pdc_spaceid_bits(unsigned long *space_bits)
  */
 int pdc_btlb_info(struct pdc_btlb_info *btlb) 
 {
-        int retval;
+	int retval;
 	unsigned long flags;
 
-        spin_lock_irqsave(&pdc_lock, flags);
-        retval = mem_pdc_call(PDC_BLOCK_TLB, PDC_BTLB_INFO, __pa(pdc_result), 0);
-        memcpy(btlb, pdc_result, sizeof(*btlb));
-        spin_unlock_irqrestore(&pdc_lock, flags);
+	spin_lock_irqsave(&pdc_lock, flags);
+	retval = mem_pdc_call(PDC_BLOCK_TLB, PDC_BTLB_INFO, __pa(pdc_result), 0);
+	memcpy(btlb, pdc_result, sizeof(*btlb));
+	spin_unlock_irqrestore(&pdc_lock, flags);
 
-        if(retval < 0) {
-                btlb->max_size = 0;
-        }
-        return retval;
+	if(retval < 0) {
+		btlb->max_size = 0;
+	}
+	return retval;
+}
+
+int pdc_btlb_insert(unsigned long long vpage, unsigned long physpage, unsigned long len,
+		    unsigned long entry_info, unsigned long slot)
+{
+	int retval;
+	unsigned long flags;
+
+	spin_lock_irqsave(&pdc_lock, flags);
+	retval = mem_pdc_call(PDC_BLOCK_TLB, PDC_BTLB_INSERT, (unsigned long) (vpage >> 32),
+			      (unsigned long) vpage, physpage, len, entry_info, slot);
+	spin_unlock_irqrestore(&pdc_lock, flags);
+	return retval;
+}
+
+int pdc_btlb_purge_all(void)
+{
+	int retval;
+	unsigned long flags;
+
+	spin_lock_irqsave(&pdc_lock, flags);
+	retval = mem_pdc_call(PDC_BLOCK_TLB, PDC_BTLB_PURGE_ALL);
+	spin_unlock_irqrestore(&pdc_lock, flags);
+	return retval;
 }
 
 /**
