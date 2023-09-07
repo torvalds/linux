@@ -1300,6 +1300,7 @@ static int bcmasp_probe(struct platform_device *pdev)
 		if (!intf) {
 			dev_err(dev, "Cannot create eth interface %d\n", i);
 			bcmasp_remove_intfs(priv);
+			of_node_put(intf_node);
 			goto of_put_exit;
 		}
 		list_add_tail(&intf->list, &priv->intfs);
