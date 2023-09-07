@@ -39,6 +39,8 @@
  * struct gpio_pin_status - structure describing a GPIO status
  * @dir:       Configures direction of gpio as "in" or "out"
  * @value:     Configures status of the gpio as 0(low) or 1(high)
+ * @pull:      Configures the current pull of the GPIO as 0 (pull-down) or
+ *             1 (pull-up)
  */
 struct gpio_mockup_line_status {
 	int dir;
