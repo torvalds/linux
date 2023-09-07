@@ -9,12 +9,16 @@
   swap_alloc_cluster
   swapcache_free_entries
   swap_type_to_swap_info
+  blkcg_schedule_throttle
   __traceiter_android_rvh_alloc_si
   __traceiter_android_rvh_alloc_swap_slot_cache
   __traceiter_android_rvh_drain_slots_cache_cpu
   __traceiter_android_rvh_free_swap_slot
   __traceiter_android_rvh_get_swap_page
   __traceiter_android_rvh_handle_pte_fault_end
+  __traceiter_android_vh_add_to_avail_list
+  __traceiter_android_vh_del_from_avail_list
+  __traceiter_android_vh___cgroup_throttle_swaprate
   __traceiter_android_vh_account_swap_pages
   __traceiter_android_vh_alloc_si
   __traceiter_android_vh_alloc_swap_slot_cache
@@ -28,6 +32,7 @@
   __traceiter_android_vh_get_swap_page
   __traceiter_android_vh_handle_pte_fault_end
   __traceiter_android_vh_inactive_is_low
+  __traceiter_android_vh_swap_avail_heads_init
   __traceiter_android_vh_init_swap_info_struct
   __traceiter_android_vh_migrate_page_states
   __traceiter_android_vh_page_isolated_for_reclaim
@@ -46,6 +51,9 @@
   __tracepoint_android_rvh_free_swap_slot
   __tracepoint_android_rvh_get_swap_page
   __tracepoint_android_rvh_handle_pte_fault_end
+  __tracepoint_android_vh_add_to_avail_list
+  __tracepoint_android_vh_del_from_avail_list
+  __tracepoint_android_vh___cgroup_throttle_swaprate
   __tracepoint_android_vh_account_swap_pages
   __tracepoint_android_vh_alloc_si
   __tracepoint_android_vh_alloc_swap_slot_cache
@@ -59,6 +67,7 @@
   __tracepoint_android_vh_get_swap_page
   __tracepoint_android_vh_handle_pte_fault_end
   __tracepoint_android_vh_inactive_is_low
+  __tracepoint_android_vh_swap_avail_heads_init
   __tracepoint_android_vh_init_swap_info_struct
   __tracepoint_android_vh_migrate_page_states
   __tracepoint_android_vh_page_isolated_for_reclaim
