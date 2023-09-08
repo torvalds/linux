@@ -267,12 +267,15 @@ static void arm_preempt_fences(struct xe_vm *vm, struct list_head *list)
 static int add_preempt_fences(struct xe_vm *vm, struct xe_bo *bo)
 {
 	struct xe_exec_queue *q;
-	struct ww_acquire_ctx ww;
 	int err;
 
-	err = xe_bo_lock(bo, &ww, vm->preempt.num_exec_queues, true);
+	err = xe_bo_lock(bo, true);
 	if (err)
 		return err;
+
+	err = dma_resv_reserve_fences(bo->ttm.base.resv, vm->preempt.num_exec_queues);
+	if (err)
+		goto out_unlock;
 
 	list_for_each_entry(q, &vm->preempt.exec_queues, compute.link)
 		if (q->compute.pfence) {
@@ -281,8 +284,9 @@ static int add_preempt_fences(struct xe_vm *vm, struct xe_bo *bo)
 					   DMA_RESV_USAGE_BOOKKEEP);
 		}
 
-	xe_bo_unlock(bo, &ww);
-	return 0;
+out_unlock:
+	xe_bo_unlock(bo);
+	return err;
 }
 
 /**
@@ -1033,12 +1037,11 @@ bo_has_vm_references_locked(struct xe_bo *bo, struct xe_vm *vm,
 static bool bo_has_vm_references(struct xe_bo *bo, struct xe_vm *vm,
 				 struct xe_vma *ignore)
 {
-	struct ww_acquire_ctx ww;
 	bool ret;
 
-	xe_bo_lock(bo, &ww, 0, false);
+	xe_bo_lock(bo, false);
 	ret = !!bo_has_vm_references_locked(bo, vm, ignore);
-	xe_bo_unlock(bo, &ww);
+	xe_bo_unlock(bo);
 
 	return ret;
 }
@@ -2264,7 +2267,6 @@ vm_bind_ioctl_ops_create(struct xe_vm *vm, struct xe_bo *bo,
 			 u32 operation, u8 tile_mask, u32 region)
 {
 	struct drm_gem_object *obj = bo ? &bo->ttm.base : NULL;
-	struct ww_acquire_ctx ww;
 	struct drm_gpuva_ops *ops;
 	struct drm_gpuva_op *__op;
 	struct xe_vma_op *op;
@@ -2323,7 +2325,7 @@ vm_bind_ioctl_ops_create(struct xe_vm *vm, struct xe_bo *bo,
 	case XE_VM_BIND_OP_UNMAP_ALL:
 		XE_WARN_ON(!bo);
 
-		err = xe_bo_lock(bo, &ww, 0, true);
+		err = xe_bo_lock(bo, true);
 		if (err)
 			return ERR_PTR(err);
 
@@ -2333,7 +2335,7 @@ vm_bind_ioctl_ops_create(struct xe_vm *vm, struct xe_bo *bo,
 
 		ops = drm_gpuvm_bo_unmap_ops_create(vm_bo);
 		drm_gpuvm_bo_put(vm_bo);
-		xe_bo_unlock(bo, &ww);
+		xe_bo_unlock(bo);
 		if (IS_ERR(ops))
 			return ops;
 
@@ -2369,13 +2371,12 @@ static struct xe_vma *new_vma(struct xe_vm *vm, struct drm_gpuva_op_map *op,
 {
 	struct xe_bo *bo = op->gem.obj ? gem_to_xe_bo(op->gem.obj) : NULL;
 	struct xe_vma *vma;
-	struct ww_acquire_ctx ww;
 	int err;
 
 	lockdep_assert_held_write(&vm->lock);
 
 	if (bo) {
-		err = xe_bo_lock(bo, &ww, 0, true);
+		err = xe_bo_lock(bo, true);
 		if (err)
 			return ERR_PTR(err);
 	}
@@ -2384,7 +2385,7 @@ static struct xe_vma *new_vma(struct xe_vm *vm, struct drm_gpuva_op_map *op,
 			    op->va.range - 1, read_only, is_null,
 			    tile_mask);
 	if (bo)
-		xe_bo_unlock(bo, &ww);
+		xe_bo_unlock(bo);
 
 	if (xe_vma_is_userptr(vma)) {
 		err = xe_vma_userptr_pin_pages(vma);

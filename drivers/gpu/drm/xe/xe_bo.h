@@ -158,10 +158,9 @@ static inline void xe_bo_assert_held(struct xe_bo *bo)
 		dma_resv_assert_held((bo)->ttm.base.resv);
 }
 
-int xe_bo_lock(struct xe_bo *bo, struct ww_acquire_ctx *ww,
-	       int num_resv, bool intr);
+int xe_bo_lock(struct xe_bo *bo, bool intr);
 
-void xe_bo_unlock(struct xe_bo *bo, struct ww_acquire_ctx *ww);
+void xe_bo_unlock(struct xe_bo *bo);
 
 static inline void xe_bo_unlock_vm_held(struct xe_bo *bo)
 {

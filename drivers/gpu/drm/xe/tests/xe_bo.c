@@ -204,9 +204,9 @@ static int evict_test_run_tile(struct xe_device *xe, struct xe_tile *tile, struc
 			goto cleanup_bo;
 		}
 
-		xe_bo_lock(external, &ww, 0, false);
+		xe_bo_lock(external, false);
 		err = xe_bo_pin_external(external);
-		xe_bo_unlock(external, &ww);
+		xe_bo_unlock(external);
 		if (err) {
 			KUNIT_FAIL(test, "external bo pin err=%pe\n",
 				   ERR_PTR(err));
@@ -272,9 +272,9 @@ static int evict_test_run_tile(struct xe_device *xe, struct xe_tile *tile, struc
 					   ERR_PTR(err));
 				goto cleanup_all;
 			}
-			xe_bo_lock(external, &ww, 0, false);
+			xe_bo_lock(external, false);
 			err = xe_bo_validate(external, NULL, false);
-			xe_bo_unlock(external, &ww);
+			xe_bo_unlock(external);
 			if (err) {
 				KUNIT_FAIL(test, "external bo valid err=%pe\n",
 					   ERR_PTR(err));
@@ -282,28 +282,28 @@ static int evict_test_run_tile(struct xe_device *xe, struct xe_tile *tile, struc
 			}
 		}
 
-		xe_bo_lock(external, &ww, 0, false);
+		xe_bo_lock(external, false);
 		xe_bo_unpin_external(external);
-		xe_bo_unlock(external, &ww);
+		xe_bo_unlock(external);
 
 		xe_bo_put(external);
 
-		xe_bo_lock(bo, &ww, 0, false);
+		xe_bo_lock(bo, false);
 		__xe_bo_unset_bulk_move(bo);
-		xe_bo_unlock(bo, &ww);
+		xe_bo_unlock(bo);
 		xe_bo_put(bo);
 		continue;
 
 cleanup_all:
-		xe_bo_lock(external, &ww, 0, false);
+		xe_bo_lock(external, false);
 		xe_bo_unpin_external(external);
-		xe_bo_unlock(external, &ww);
+		xe_bo_unlock(external);
 cleanup_external:
 		xe_bo_put(external);
 cleanup_bo:
-		xe_bo_lock(bo, &ww, 0, false);
+		xe_bo_lock(bo, false);
 		__xe_bo_unset_bulk_move(bo);
-		xe_bo_unlock(bo, &ww);
+		xe_bo_unlock(bo);
 		xe_bo_put(bo);
 		break;
 	}
