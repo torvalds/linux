@@ -247,7 +247,8 @@
 	__SMU_DUMMY_MAP(Mode2Reset),	\
 	__SMU_DUMMY_MAP(RequestI2cTransaction), \
 	__SMU_DUMMY_MAP(GetMetricsTable), \
-	__SMU_DUMMY_MAP(DALNotPresent),
+	__SMU_DUMMY_MAP(DALNotPresent), \
+	__SMU_DUMMY_MAP(ClearMcaOnRead),
 
 #undef __SMU_DUMMY_MAP
 #define __SMU_DUMMY_MAP(type)	SMU_MSG_##type

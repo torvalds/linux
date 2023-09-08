@@ -133,6 +133,7 @@ static const struct cmn2asic_msg_mapping smu_v13_0_6_message_map[SMU_MSG_MAX_COU
 	MSG_MAP(SetSoftMaxGfxClk,                    PPSMC_MSG_SetSoftMaxGfxClk,                0),
 	MSG_MAP(PrepareMp1ForUnload,                 PPSMC_MSG_PrepareForDriverUnload,          0),
 	MSG_MAP(GetCTFLimit,                         PPSMC_MSG_GetCTFLimit,                     0),
+	MSG_MAP(ClearMcaOnRead,	                     PPSMC_MSG_ClearMcaOnRead,                  0),
 };
 
 static const struct cmn2asic_mapping smu_v13_0_6_clk_map[SMU_CLK_COUNT] = {
@@ -1393,6 +1394,20 @@ static int smu_v13_0_6_notify_unload(struct smu_context *smu)
 	return 0;
 }
 
+static int smu_v13_0_6_mca_set_debug_mode(struct smu_context *smu, bool enable)
+{
+	uint32_t smu_version;
+
+	/* NOTE: this ClearMcaOnRead message is only supported for smu version 85.72.0 or higher */
+	smu_cmn_get_smc_version(smu, NULL, &smu_version);
+	if (smu_version < 0x554800)
+		return 0;
+
+	return smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_ClearMcaOnRead,
+					       enable ? 0 : ClearMcaOnRead_UE_FLAG_MASK | ClearMcaOnRead_CE_POLL_MASK,
+					       NULL);
+}
+
 static int smu_v13_0_6_system_features_control(struct smu_context *smu,
 					       bool enable)
 {
@@ -2182,6 +2197,16 @@ static int smu_v13_0_6_smu_send_hbm_bad_page_num(struct smu_context *smu,
 	return ret;
 }
 
+static int smu_v13_0_6_post_init(struct smu_context *smu)
+{
+	struct amdgpu_device *adev = smu->adev;
+
+	if (!amdgpu_sriov_vf(adev) && amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__UMC))
+		return smu_v13_0_6_mca_set_debug_mode(smu, true);
+
+	return 0;
+}
+
 static const struct pptable_funcs smu_v13_0_6_ppt_funcs = {
 	/* init dpm */
 	.get_allowed_feature_mask = smu_v13_0_6_get_allowed_feature_mask,
@@ -2235,6 +2260,7 @@ static const struct pptable_funcs smu_v13_0_6_ppt_funcs = {
 	.i2c_init = smu_v13_0_6_i2c_control_init,
 	.i2c_fini = smu_v13_0_6_i2c_control_fini,
 	.send_hbm_bad_pages_num = smu_v13_0_6_smu_send_hbm_bad_page_num,
+	.post_init = smu_v13_0_6_post_init,
 };
 
 void smu_v13_0_6_set_ppt_funcs(struct smu_context *smu)
