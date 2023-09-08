@@ -2762,22 +2762,24 @@ dw_hdmi_rockchip_attach_properties(struct drm_connector *connector,
 		drm_object_attach_property(&connector->base, prop, 0);
 	}
 
-	prop = drm_property_create_bool(connector->dev, 0, "allm_capacity");
-	if (prop) {
-		hdmi->allm_capacity = prop;
-		drm_object_attach_property(&connector->base, prop,
-					   !!(hdmi->add_func & SUPPORT_HDMI_ALLM));
-	}
+	if (hdmi->is_hdmi_qp) {
+		prop = drm_property_create_bool(connector->dev, 0, "allm_capacity");
+		if (prop) {
+			hdmi->allm_capacity = prop;
+			drm_object_attach_property(&connector->base, prop,
+						   !!(hdmi->add_func & SUPPORT_HDMI_ALLM));
+		}
 
-	prop = drm_property_create_enum(connector->dev, 0,
-					"allm_enable",
-					allm_enable_list,
-					ARRAY_SIZE(allm_enable_list));
-	if (prop) {
-		hdmi->allm_enable = prop;
-		drm_object_attach_property(&connector->base, prop, 0);
+		prop = drm_property_create_enum(connector->dev, 0,
+						"allm_enable",
+						allm_enable_list,
+						ARRAY_SIZE(allm_enable_list));
+		if (prop) {
+			hdmi->allm_enable = prop;
+			drm_object_attach_property(&connector->base, prop, 0);
+		}
+		hdmi->enable_allm = allm_en;
 	}
-	hdmi->enable_allm = allm_en;
 
 	prop = drm_property_create_enum(connector->dev, 0,
 					"output_hdmi_dvi",
@@ -2964,6 +2966,7 @@ dw_hdmi_rockchip_set_property(struct drm_connector *connector,
 		hdmi->enable_allm = val;
 		if (allm_enable != hdmi->enable_allm)
 			dw_hdmi_qp_set_allm_enable(hdmi->hdmi_qp, hdmi->enable_allm);
+		return 0;
 	} else if (property == hdmi->hdcp_state_property) {
 		return 0;
 	}
