@@ -386,6 +386,7 @@ int mnt_get_write_access(struct vfsmount *m)
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(mnt_get_write_access);
 
 /**
  * mnt_want_write - get write access to a mount
@@ -466,6 +467,7 @@ void mnt_put_write_access(struct vfsmount *mnt)
 	mnt_dec_writers(real_mount(mnt));
 	preempt_enable();
 }
+EXPORT_SYMBOL_GPL(mnt_put_write_access);
 
 /**
  * mnt_drop_write - give up write access to a mount
