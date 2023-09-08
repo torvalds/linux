@@ -789,7 +789,6 @@ int lookup_inline_extent_backref(struct btrfs_trans_handle *trans,
 	int type;
 	int want;
 	int ret;
-	int err = 0;
 	bool skinny_metadata = btrfs_fs_incompat(fs_info, SKINNY_METADATA);
 	int needed;
 
@@ -816,10 +815,8 @@ int lookup_inline_extent_backref(struct btrfs_trans_handle *trans,
 
 again:
 	ret = btrfs_search_slot(trans, root, &key, path, extra_size, 1);
-	if (ret < 0) {
-		err = ret;
+	if (ret < 0)
 		goto out;
-	}
 
 	/*
 	 * We may be a newly converted file system which still has the old fat
@@ -846,7 +843,7 @@ again:
 	}
 
 	if (ret && !insert) {
-		err = -ENOENT;
+		ret = -ENOENT;
 		goto out;
 	} else if (WARN_ON(ret)) {
 		btrfs_print_leaf(path->nodes[0]);
@@ -854,18 +851,18 @@ again:
 "extent item not found for insert, bytenr %llu num_bytes %llu parent %llu root_objectid %llu owner %llu offset %llu",
 			  bytenr, num_bytes, parent, root_objectid, owner,
 			  offset);
-		err = -EIO;
+		ret = -EIO;
 		goto out;
 	}
 
 	leaf = path->nodes[0];
 	item_size = btrfs_item_size(leaf, path->slots[0]);
 	if (unlikely(item_size < sizeof(*ei))) {
-		err = -EUCLEAN;
+		ret = -EUCLEAN;
 		btrfs_err(fs_info,
 			  "unexpected extent item size, has %llu expect >= %zu",
 			  item_size, sizeof(*ei));
-		btrfs_abort_transaction(trans, err);
+		btrfs_abort_transaction(trans, ret);
 		goto out;
 	}
 
@@ -885,11 +882,11 @@ again:
 	else
 		needed = BTRFS_REF_TYPE_BLOCK;
 
-	err = -ENOENT;
+	ret = -ENOENT;
 	while (1) {
 		if (ptr >= end) {
 			if (ptr > end) {
-				err = -EUCLEAN;
+				ret = -EUCLEAN;
 				btrfs_print_leaf(path->nodes[0]);
 				btrfs_crit(fs_info,
 "overrun extent record at slot %d while looking for inline extent for root %llu owner %llu offset %llu parent %llu",
@@ -900,7 +897,7 @@ again:
 		iref = (struct btrfs_extent_inline_ref *)ptr;
 		type = btrfs_get_extent_inline_ref_type(leaf, iref, needed);
 		if (type == BTRFS_REF_TYPE_INVALID) {
-			err = -EUCLEAN;
+			ret = -EUCLEAN;
 			goto out;
 		}
 
@@ -916,7 +913,7 @@ again:
 			dref = (struct btrfs_extent_data_ref *)(&iref->offset);
 			if (match_extent_data_ref(leaf, dref, root_objectid,
 						  owner, offset)) {
-				err = 0;
+				ret = 0;
 				break;
 			}
 			if (hash_extent_data_ref_item(leaf, dref) <
@@ -927,14 +924,14 @@ again:
 			ref_offset = btrfs_extent_inline_ref_offset(leaf, iref);
 			if (parent > 0) {
 				if (parent == ref_offset) {
-					err = 0;
+					ret = 0;
 					break;
 				}
 				if (ref_offset < parent)
 					break;
 			} else {
 				if (root_objectid == ref_offset) {
-					err = 0;
+					ret = 0;
 					break;
 				}
 				if (ref_offset < root_objectid)
@@ -943,10 +940,10 @@ again:
 		}
 		ptr += btrfs_extent_inline_ref_size(type);
 	}
-	if (err == -ENOENT && insert) {
+	if (ret == -ENOENT && insert) {
 		if (item_size + extra_size >=
 		    BTRFS_MAX_EXTENT_ITEM_SIZE(root)) {
-			err = -EAGAIN;
+			ret = -EAGAIN;
 			goto out;
 		}
 		/*
@@ -958,7 +955,7 @@ again:
 		if (find_next_key(path, 0, &key) == 0 &&
 		    key.objectid == bytenr &&
 		    key.type < BTRFS_BLOCK_GROUP_ITEM_KEY) {
-			err = -EAGAIN;
+			ret = -EAGAIN;
 			goto out;
 		}
 	}
@@ -969,7 +966,7 @@ out:
 		path->search_for_extension = 0;
 		btrfs_unlock_up_safe(path, 1);
 	}
-	return err;
+	return ret;
 }
 
 /*
