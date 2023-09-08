@@ -302,6 +302,7 @@ struct flr_work {
 struct refill_work {
 	struct delayed_work pool_refill_work;
 	struct otx2_nic *pf;
+	struct napi_struct *napi;
 };
 
 /* PTPv2 originTimestamp structure */
@@ -370,7 +371,7 @@ struct dev_hw_ops {
 	int	(*sq_aq_init)(void *dev, u16 qidx, u16 sqb_aura);
 	void	(*sqe_flush)(void *dev, struct otx2_snd_queue *sq,
 			     int size, int qidx);
-	void	(*refill_pool_ptrs)(void *dev, struct otx2_cq_queue *cq);
+	int	(*refill_pool_ptrs)(void *dev, struct otx2_cq_queue *cq);
 	void	(*aura_freeptr)(void *dev, int aura, u64 buf);
 };
 
