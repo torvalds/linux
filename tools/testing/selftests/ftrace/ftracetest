@@ -124,6 +124,7 @@ parse_opts() { # opts
     ;;
     --logdir|-l)
       LOG_DIR=$2
+      LINK_PTR=
       shift 2
     ;;
     *.tc)
@@ -181,7 +182,10 @@ fi
 TOP_DIR=`absdir $0`
 TEST_DIR=$TOP_DIR/test.d
 TEST_CASES=`find_testcases $TEST_DIR`
-LOG_DIR=$TOP_DIR/logs/`date +%Y%m%d-%H%M%S`/
+LOG_TOP_DIR=$TOP_DIR/logs
+LOG_DATE=`date +%Y%m%d-%H%M%S`
+LOG_DIR=$LOG_TOP_DIR/$LOG_DATE/
+LINK_PTR=$LOG_TOP_DIR/latest
 KEEP_LOG=0
 KTAP=0
 DEBUG=0
@@ -207,6 +211,10 @@ else
   LOG_FILE=$LOG_DIR/ftracetest.log
   mkdir -p $LOG_DIR || errexit "Failed to make a log directory: $LOG_DIR"
   date > $LOG_FILE
+  if [ "x-$LINK_PTR" != "x-" ]; then
+    unlink $LINK_PTR
+    ln -fs $LOG_DATE $LINK_PTR
+  fi
 fi
 
 # Define text colors
