@@ -4563,6 +4563,7 @@ static void btrfs_destroy_delayed_refs(struct btrfs_transaction *trans,
 				list_del(&ref->add_list);
 			atomic_dec(&delayed_refs->num_entries);
 			btrfs_put_delayed_ref(ref);
+			btrfs_delayed_refs_rsv_release(fs_info, 1);
 		}
 		if (head->must_insert_reserved)
 			pin_bytes = true;

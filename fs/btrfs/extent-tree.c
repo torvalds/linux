@@ -1819,22 +1819,24 @@ u64 btrfs_cleanup_ref_head_accounting(struct btrfs_fs_info *fs_info,
 				  struct btrfs_delayed_ref_root *delayed_refs,
 				  struct btrfs_delayed_ref_head *head)
 {
-	int nr_items = 1;	/* Dropping this ref head update. */
-
 	/*
 	 * We had csum deletions accounted for in our delayed refs rsv, we need
 	 * to drop the csum leaves for this update from our delayed_refs_rsv.
 	 */
 	if (head->total_ref_mod < 0 && head->is_data) {
+		int nr_items;
+
 		spin_lock(&delayed_refs->lock);
 		delayed_refs->pending_csums -= head->num_bytes;
 		spin_unlock(&delayed_refs->lock);
-		nr_items += btrfs_csum_bytes_to_leaves(fs_info, head->num_bytes);
+		nr_items = btrfs_csum_bytes_to_leaves(fs_info, head->num_bytes);
+
+		btrfs_delayed_refs_rsv_release(fs_info, nr_items);
+
+		return btrfs_calc_delayed_ref_bytes(fs_info, nr_items);
 	}
 
-	btrfs_delayed_refs_rsv_release(fs_info, nr_items);
-
-	return btrfs_calc_delayed_ref_bytes(fs_info, nr_items);
+	return 0;
 }
 
 static int cleanup_ref_head(struct btrfs_trans_handle *trans,
@@ -1884,7 +1886,7 @@ static int cleanup_ref_head(struct btrfs_trans_handle *trans,
 		}
 	}
 
-	*bytes_released = btrfs_cleanup_ref_head_accounting(fs_info, delayed_refs, head);
+	*bytes_released += btrfs_cleanup_ref_head_accounting(fs_info, delayed_refs, head);
 
 	trace_run_delayed_ref_head(fs_info, head, 0);
 	btrfs_delayed_ref_unlock(head);
@@ -1926,7 +1928,8 @@ static struct btrfs_delayed_ref_head *btrfs_obtain_ref_head(
 }
 
 static int btrfs_run_delayed_refs_for_head(struct btrfs_trans_handle *trans,
-					   struct btrfs_delayed_ref_head *locked_ref)
+					   struct btrfs_delayed_ref_head *locked_ref,
+					   u64 *bytes_released)
 {
 	struct btrfs_fs_info *fs_info = trans->fs_info;
 	struct btrfs_delayed_ref_root *delayed_refs;
@@ -1982,7 +1985,8 @@ static int btrfs_run_delayed_refs_for_head(struct btrfs_trans_handle *trans,
 
 		ret = run_one_delayed_ref(trans, ref, extent_op,
 					  must_insert_reserved);
-
+		btrfs_delayed_refs_rsv_release(fs_info, 1);
+		*bytes_released += btrfs_calc_delayed_ref_bytes(fs_info, 1);
 		btrfs_free_delayed_extent_op(extent_op);
 		if (ret) {
 			unselect_delayed_ref_head(delayed_refs, locked_ref);
@@ -2048,7 +2052,7 @@ static noinline int __btrfs_run_delayed_refs(struct btrfs_trans_handle *trans,
 		spin_lock(&locked_ref->lock);
 		btrfs_merge_delayed_refs(fs_info, delayed_refs, locked_ref);
 
-		ret = btrfs_run_delayed_refs_for_head(trans, locked_ref);
+		ret = btrfs_run_delayed_refs_for_head(trans, locked_ref, &bytes_processed);
 		if (ret < 0 && ret != -EAGAIN) {
 			/*
 			 * Error, btrfs_run_delayed_refs_for_head already
@@ -2056,14 +2060,11 @@ static noinline int __btrfs_run_delayed_refs(struct btrfs_trans_handle *trans,
 			 */
 			return ret;
 		} else if (!ret) {
-			u64 bytes_released = 0;
-
 			/*
 			 * Success, perform the usual cleanup of a processed
 			 * head
 			 */
-			ret = cleanup_ref_head(trans, locked_ref, &bytes_released);
-			bytes_processed += bytes_released;
+			ret = cleanup_ref_head(trans, locked_ref, &bytes_processed);
 			if (ret > 0 ) {
 				/* We dropped our lock, we need to loop. */
 				ret = 0;
