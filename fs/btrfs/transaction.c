@@ -2735,18 +2735,18 @@ int btrfs_clean_one_deleted_snapshot(struct btrfs_fs_info *fs_info)
  */
 void __cold __btrfs_abort_transaction(struct btrfs_trans_handle *trans,
 				      const char *function,
-				      unsigned int line, int errno, bool first_hit)
+				      unsigned int line, int error, bool first_hit)
 {
 	struct btrfs_fs_info *fs_info = trans->fs_info;
 
-	WRITE_ONCE(trans->aborted, errno);
-	WRITE_ONCE(trans->transaction->aborted, errno);
-	if (first_hit && errno == -ENOSPC)
+	WRITE_ONCE(trans->aborted, error);
+	WRITE_ONCE(trans->transaction->aborted, error);
+	if (first_hit && error == -ENOSPC)
 		btrfs_dump_space_info_for_trans_abort(fs_info);
 	/* Wake up anybody who may be waiting on this transaction */
 	wake_up(&fs_info->transaction_wait);
 	wake_up(&fs_info->transaction_blocked_wait);
-	__btrfs_handle_fs_error(fs_info, function, line, errno, NULL);
+	__btrfs_handle_fs_error(fs_info, function, line, error, NULL);
 }
 
 int __init btrfs_transaction_init(void)

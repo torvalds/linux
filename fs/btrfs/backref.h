@@ -533,9 +533,9 @@ void btrfs_backref_cleanup_node(struct btrfs_backref_cache *cache,
 void btrfs_backref_release_cache(struct btrfs_backref_cache *cache);
 
 static inline void btrfs_backref_panic(struct btrfs_fs_info *fs_info,
-				       u64 bytenr, int errno)
+				       u64 bytenr, int error)
 {
-	btrfs_panic(fs_info, errno,
+	btrfs_panic(fs_info, error,
 		    "Inconsistency in backref cache found at offset %llu",
 		    bytenr);
 }
