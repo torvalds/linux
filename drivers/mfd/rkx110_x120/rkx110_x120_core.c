@@ -15,6 +15,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/mfd/core.h>
 #include "rkx110_x120.h"
+#include "rkx110_x120_display.h"
 #include "rkx110_reg.h"
 #include "rkx110_dsi_rx.h"
 #include "rkx120_dsi_tx.h"
@@ -25,6 +26,10 @@ static const struct mfd_cell rkx110_x120_devs[] = {
 	/* 2 panel device for rkx110_x120 drm panel */
 	{
 		.name = "rockchip-serdes-panel",
+		.of_compatible = "rockchip,serdes-panel",
+	},
+	{
+		.name = "rockchip-serdes-panel1",
 		.of_compatible = "rockchip,serdes-panel",
 	},
 	{
@@ -145,26 +150,40 @@ static bool rk_serdes_debug_mode(struct rk_serdes *serdes)
 	return serdes->rkx110_debug || serdes->rkx120_debug;
 }
 
-static void rk_serdes_wait_link_ready(struct rk_serdes *serdes)
+static int rk_serdes_wait_link_ready(struct rk_serdes *serdes)
 {
+	int ret;
+
 	if (serdes->stream_type == STREAM_DISPLAY) {
-		rkx110_linktx_wait_link_ready(serdes, 0);
-		if (serdes->route_flag & ROUTE_MULTI_LANE) {
+		ret = rkx110_linktx_wait_link_ready(serdes, 0);
+		if (ret)
+			return ret;
+
+		if (serdes->lane_nr == 2) {
 			rkx110_ser_pma_enable(serdes, true, 1, DEVICE_LOCAL);
-			if (!(serdes->route_flag & ROUTE_MULTI_REMOTE))
+			if (!(serdes->remote_nr == 2))
 				rkx120_des_pma_enable(serdes, true, 1, DEVICE_REMOTE0);
-			rkx110_linktx_wait_link_ready(serdes, 1);
+			ret = rkx110_linktx_wait_link_ready(serdes, 1);
+			if (ret)
+				return ret;
 		}
 
 	} else {
-		rkx120_linkrx_wait_link_ready(serdes, 0);
-		if (serdes->route_flag & ROUTE_MULTI_LANE) {
+		ret = rkx120_linkrx_wait_link_ready(serdes, 0);
+		if (ret)
+			return ret;
+
+		if (serdes->lane_nr == 2) {
 			rkx120_des_pma_enable(serdes, true, 1, DEVICE_LOCAL);
-			if (!(serdes->route_flag & ROUTE_MULTI_REMOTE))
+			if (!(serdes->remote_nr == 2))
 				rkx110_ser_pma_enable(serdes, true, 1, DEVICE_REMOTE0);
-			rkx120_linkrx_wait_link_ready(serdes, 1);
+			ret = rkx120_linkrx_wait_link_ready(serdes, 1);
+			if (ret)
+				return ret;
 		}
 	}
+
+	return 0;
 }
 
 static void rk_serdes_print_rate(struct rk_serdes *serdes, enum rk_serdes_rate rate)
@@ -336,9 +355,9 @@ static void rk_serdes_set_rate(struct rk_serdes *serdes, enum rk_serdes_rate rat
 	if (serdes->stream_type == STREAM_DISPLAY) {
 		rkx110_pma_set_rate(serdes, &rkx110_pll, 0, DEVICE_LOCAL);
 		rkx120_pma_set_rate(serdes, &rkx120_pll, 0, DEVICE_REMOTE0);
-		if (serdes->route_flag & ROUTE_MULTI_LANE) {
+		if (serdes->lane_nr == 2) {
 			rkx110_pma_set_rate(serdes, &rkx110_pll, 1, DEVICE_LOCAL);
-			if (serdes->route_flag & ROUTE_MULTI_REMOTE)
+			if (serdes->remote_nr == 2)
 				rkx120_pma_set_rate(serdes, &rkx120_pll, 0, DEVICE_REMOTE1);
 			else
 				rkx120_pma_set_rate(serdes, &rkx120_pll, 1, DEVICE_REMOTE0);
@@ -349,9 +368,9 @@ static void rk_serdes_set_rate(struct rk_serdes *serdes, enum rk_serdes_rate rat
 	} else {
 		rkx120_pma_set_rate(serdes, &rkx120_pll, 0, DEVICE_LOCAL);
 		rkx110_pma_set_rate(serdes, &rkx110_pll, 0, DEVICE_REMOTE0);
-		if (serdes->route_flag & ROUTE_MULTI_LANE) {
+		if (serdes->lane_nr == 2) {
 			rkx120_pma_set_rate(serdes, &rkx120_pll, 1, DEVICE_LOCAL);
-			if (serdes->route_flag & ROUTE_MULTI_REMOTE)
+			if (serdes->remote_nr == 2)
 				rkx110_pma_set_rate(serdes, &rkx110_pll, 0, DEVICE_REMOTE1);
 			else
 				rkx110_pma_set_rate(serdes, &rkx110_pll, 1, DEVICE_REMOTE0);
@@ -364,225 +383,6 @@ static void rk_serdes_set_rate(struct rk_serdes *serdes, enum rk_serdes_rate rat
 	rk_serdes_wait_link_ready(serdes);
 
 	serdes->rate = rate;
-}
-
-static int rk_serdes_route_prepare(struct rk_serdes *serdes, struct rk_serdes_route *route)
-{
-	if (rk_serdes_debug_mode(serdes))
-		return 0;
-
-	if (route->stream_type == STREAM_DISPLAY) {
-		switch (route->local_port0) {
-		case RK_SERDES_RGB_RX:
-			rkx110_rgb_rx_enable(serdes, route);
-			break;
-		case RK_SERDES_LVDS_RX0:
-			rkx110_lvds_rx_enable(serdes, route, 0);
-			if (serdes->route_flag & ROUTE_MULTI_LVDS_INPUT)
-				rkx110_lvds_rx_enable(serdes, route, 1);
-			break;
-		case RK_SERDES_LVDS_RX1:
-			rkx110_lvds_rx_enable(serdes, route, 1);
-			if (serdes->route_flag & ROUTE_MULTI_LVDS_INPUT)
-				rkx110_lvds_rx_enable(serdes, route, 0);
-			break;
-		case RK_SERDES_DUAL_LVDS_RX:
-			rkx110_lvds_rx_enable(serdes, route, 0);
-			rkx110_lvds_rx_enable(serdes, route, 1);
-			break;
-		case RK_SERDES_DSI_RX0:
-			rkx110_dsi_rx_enable(serdes, route, 0);
-			if (serdes->route_flag & ROUTE_MULTI_DSI_INPUT)
-				rkx110_dsi_rx_enable(serdes, route, 1);
-			break;
-		case RK_SERDES_DSI_RX1:
-			rkx110_dsi_rx_enable(serdes, route, 1);
-			if (serdes->route_flag & ROUTE_MULTI_DSI_INPUT)
-				rkx110_dsi_rx_enable(serdes, route, 0);
-			break;
-		default:
-			dev_info(serdes->dev, "undefined local port0");
-			return -EINVAL;
-		}
-
-		rkx110_linktx_enable(serdes, route);
-
-		rkx120_linkrx_enable(serdes, route, DEVICE_REMOTE0);
-		if (serdes->route_flag & ROUTE_MULTI_REMOTE)
-			rkx120_linkrx_enable(serdes, route, DEVICE_REMOTE1);
-
-		if (route->remote0_port0 & RK_SERDES_DSI_TX0)
-			rkx120_dsi_tx_pre_enable(serdes, route, DEVICE_REMOTE0);
-		if (route->remote1_port0 & RK_SERDES_DSI_TX0)
-			rkx120_dsi_tx_pre_enable(serdes, route, DEVICE_REMOTE1);
-	} else {
-		/* for camera stream */
-	}
-
-	return 0;
-}
-
-static int rk_serdes_route_enable(struct rk_serdes *serdes, struct rk_serdes_route *route)
-{
-	if (rk_serdes_debug_mode(serdes))
-		return 0;
-
-	if (route->stream_type == STREAM_DISPLAY) {
-		switch (route->remote0_port0) {
-		case RK_SERDES_RGB_TX:
-			rkx120_rgb_tx_enable(serdes, route, DEVICE_REMOTE0);
-			break;
-		case RK_SERDES_LVDS_TX0:
-			rkx120_lvds_tx_enable(serdes, route, DEVICE_REMOTE0, 0);
-			break;
-		case RK_SERDES_LVDS_TX1:
-			rkx120_lvds_tx_enable(serdes, route, DEVICE_REMOTE0, 1);
-			break;
-		case RK_SERDES_DUAL_LVDS_TX:
-			rkx120_lvds_tx_enable(serdes, route, DEVICE_REMOTE0, 0);
-			rkx120_lvds_tx_enable(serdes, route, DEVICE_REMOTE0, 1);
-			break;
-		case RK_SERDES_DSI_TX0:
-			rkx120_dsi_tx_enable(serdes, route, DEVICE_REMOTE0);
-			break;
-		default:
-			dev_err(serdes->dev, "undefined remote0_port0\n");
-			return -EINVAL;
-		}
-
-		if (serdes->route_flag & ROUTE_MULTI_REMOTE) {
-			switch (route->remote1_port0) {
-			case RK_SERDES_RGB_TX:
-				rkx120_rgb_tx_enable(serdes, route, DEVICE_REMOTE1);
-				break;
-			case RK_SERDES_LVDS_TX0:
-				rkx120_lvds_tx_enable(serdes, route, DEVICE_REMOTE1, 0);
-				break;
-			case RK_SERDES_LVDS_TX1:
-				rkx120_lvds_tx_enable(serdes, route, DEVICE_REMOTE1, 1);
-				break;
-			case RK_SERDES_DUAL_LVDS_TX:
-				rkx120_lvds_tx_enable(serdes, route, DEVICE_REMOTE1, 0);
-				rkx120_lvds_tx_enable(serdes, route, DEVICE_REMOTE1, 1);
-				break;
-			case RK_SERDES_DSI_TX0:
-				rkx120_dsi_tx_enable(serdes, route, DEVICE_REMOTE1);
-				break;
-			default:
-				dev_err(serdes->dev, "undefined remote1_port0\n");
-				return -EINVAL;
-			}
-		} else if (serdes->route_flag & ROUTE_MULTI_CHANNEL) {
-			if (route->remote0_port1 & RK_SERDES_LVDS_TX0) {
-				rkx120_lvds_tx_enable(serdes, route, DEVICE_REMOTE0, 0);
-			} else if (route->remote0_port1 & RK_SERDES_LVDS_TX1) {
-				rkx120_lvds_tx_enable(serdes, route, DEVICE_REMOTE0, 1);
-			} else {
-				dev_err(serdes->dev, "undefined remote0_port1\n");
-				return -EINVAL;
-			}
-		}
-
-		if (serdes->version == SERDES_V1) {
-			rkx120_linkrx_engine_enable(serdes, 0, DEVICE_REMOTE0, true);
-			rkx110_linktx_channel_enable(serdes, 0, DEVICE_LOCAL, true);
-		}
-
-		rkx110_linktx_video_enable(serdes, DEVICE_LOCAL, true);
-	} else {
-		/* for camera stream */
-	}
-
-	return 0;
-}
-
-static int rk_serdes_route_disable(struct rk_serdes *serdes, struct rk_serdes_route *route)
-{
-	if (route->stream_type == STREAM_DISPLAY) {
-		if (route->remote0_port0 & RK_SERDES_DSI_TX0)
-			rkx120_dsi_tx_disable(serdes, route, DEVICE_REMOTE0);
-
-		if (serdes->version == SERDES_V1) {
-			rkx120_linkrx_engine_enable(serdes, 0, DEVICE_REMOTE0, false);
-			rkx110_linktx_channel_enable(serdes, 0, DEVICE_LOCAL, false);
-
-			if (route->local_port0 == RK_SERDES_DUAL_LVDS_RX) {
-				rkx110_set_stream_source(serdes, RK_SERDES_RGB_RX,
-							 DEVICE_LOCAL);
-				hwclk_reset(serdes->chip[DEVICE_LOCAL].hwclk,
-					    RKX110_SRST_RESETN_2X_LVDS_RKLINK_TX);
-				hwclk_reset(serdes->chip[DEVICE_LOCAL].hwclk,
-					    RKX110_SRST_RESETN_D_LVDS0_RKLINK_TX);
-				hwclk_reset(serdes->chip[DEVICE_LOCAL].hwclk,
-					    RKX110_SRST_RESETN_D_LVDS1_RKLINK_TX);
-			}
-
-			if ((route->local_port0 == RK_SERDES_DSI_RX0) ||
-			    (route->local_port1 == RK_SERDES_DSI_RX0)) {
-				serdes->i2c_write_reg(serdes->chip[DEVICE_LOCAL].client, 0x0314,
-						      0x1400140);
-				hwclk_reset(serdes->chip[DEVICE_LOCAL].hwclk,
-					    RKX111_SRST_RESETN_D_DSI_0_REC_RKLINK_TX);
-				hwclk_reset(serdes->chip[DEVICE_LOCAL].hwclk,
-					    RKX110_SRST_RESETN_D_DSI_0_RKLINK_TX);
-			}
-
-			if ((route->local_port0 == RK_SERDES_DSI_RX1) ||
-			    (route->local_port1 == RK_SERDES_DSI_RX1)) {
-				serdes->i2c_write_reg(serdes->chip[DEVICE_LOCAL].client, 0x0314,
-						      0x2800280);
-				hwclk_reset(serdes->chip[DEVICE_LOCAL].hwclk,
-					    RKX111_SRST_RESETN_D_DSI_1_REC_RKLINK_TX);
-				hwclk_reset(serdes->chip[DEVICE_LOCAL].hwclk,
-					    RKX110_SRST_RESETN_D_DSI_1_RKLINK_TX);
-			}
-		}
-	}
-
-	return 0;
-}
-
-static int rk_serdes_route_unprepare(struct rk_serdes *serdes, struct rk_serdes_route *route)
-{
-	if (route->stream_type == STREAM_DISPLAY) {
-		if (route->remote0_port0 & RK_SERDES_DSI_TX0)
-			rkx120_dsi_tx_post_disable(serdes, route, DEVICE_REMOTE0);
-
-		if (serdes->version == SERDES_V1) {
-			if (route->local_port0 == RK_SERDES_DUAL_LVDS_RX) {
-				hwclk_reset_deassert(serdes->chip[DEVICE_LOCAL].hwclk,
-						     RKX110_SRST_RESETN_2X_LVDS_RKLINK_TX);
-				hwclk_reset_deassert(serdes->chip[DEVICE_LOCAL].hwclk,
-						     RKX110_SRST_RESETN_D_LVDS0_RKLINK_TX);
-				hwclk_reset_deassert(serdes->chip[DEVICE_LOCAL].hwclk,
-						     RKX110_SRST_RESETN_D_LVDS1_RKLINK_TX);
-				rkx110_set_stream_source(serdes, RK_SERDES_DUAL_LVDS_RX,
-							    DEVICE_LOCAL);
-			}
-
-			if ((route->local_port0 == RK_SERDES_DSI_RX0) ||
-			    (route->local_port1 == RK_SERDES_DSI_RX0)) {
-				hwclk_reset_deassert(serdes->chip[DEVICE_LOCAL].hwclk,
-						     RKX110_SRST_RESETN_D_DSI_0_RKLINK_TX);
-				hwclk_reset_deassert(serdes->chip[DEVICE_LOCAL].hwclk,
-						     RKX111_SRST_RESETN_D_DSI_0_REC_RKLINK_TX);
-				serdes->i2c_write_reg(serdes->chip[DEVICE_LOCAL].client, 0x0314,
-						      0x1400000);
-			}
-
-			if ((route->local_port0 == RK_SERDES_DSI_RX1) ||
-			    (route->local_port1 == RK_SERDES_DSI_RX1)) {
-				hwclk_reset_deassert(serdes->chip[DEVICE_LOCAL].hwclk,
-						     RKX110_SRST_RESETN_D_DSI_1_RKLINK_TX);
-				hwclk_reset_deassert(serdes->chip[DEVICE_LOCAL].hwclk,
-						     RKX111_SRST_RESETN_D_DSI_1_REC_RKLINK_TX);
-				serdes->i2c_write_reg(serdes->chip[DEVICE_LOCAL].client, 0x0314,
-						      0x2800000);
-			}
-		}
-	}
-
-	return 0;
 }
 
 static int rk_serdes_set_hwpin(struct rk_serdes *serdes, struct i2c_client *client,
@@ -610,11 +410,17 @@ static void rk_serdes_add_callback(struct rk_serdes *serdes)
 	serdes->i2c_read_reg = rk_serdes_i2c_read;
 	serdes->i2c_write_reg = rk_serdes_i2c_write;
 	serdes->i2c_update_bits = rk_serdes_i2c_update_bits;
-	serdes->route_prepare = rk_serdes_route_prepare;
-	serdes->route_enable = rk_serdes_route_enable;
-	serdes->route_disable = rk_serdes_route_disable;
-	serdes->route_unprepare = rk_serdes_route_unprepare;
 	serdes->set_hwpin = rk_serdes_set_hwpin;
+
+	if (rk_serdes_debug_mode(serdes))
+		return;
+
+	if (serdes->stream_type == STREAM_DISPLAY) {
+		serdes->route_prepare = rk_serdes_display_route_prepare;
+		serdes->route_enable = rk_serdes_display_route_enable;
+		serdes->route_disable = rk_serdes_display_route_disable;
+		serdes->route_unprepare = rk_serdes_display_route_unprepare;
+	}
 }
 
 static int rk_serdes_passthrough_init(struct rk_serdes *serdes)
@@ -956,6 +762,9 @@ static int rk_serdes_add_remote_i2c_device(struct rk_serdes *serdes)
 		i2c_set_clientdata(client, serdes);
 	}
 
+	if (serdes->remote_nr == 2)
+		serdes->lane_nr = 2;
+
 	if (serdes->remote_nr == 0)
 		return -ENODEV;
 
@@ -1071,6 +880,7 @@ static int rk_serdes_i2c_probe(struct i2c_client *client, const struct i2c_devic
 	struct device_node *disp_np;
 	struct rk_serdes *serdes;
 	int ret;
+	bool dual_lane;
 
 	serdes = devm_kzalloc(dev, sizeof(*serdes), GFP_KERNEL);
 	if (!serdes)
@@ -1161,6 +971,11 @@ static int rk_serdes_i2c_probe(struct i2c_client *client, const struct i2c_devic
 	if (ret)
 		return ret;
 
+	if (serdes->remote_nr != 2) {
+		dual_lane = device_property_read_bool(dev, "dual-lane");
+		serdes->lane_nr = dual_lane ? 2 : 1;
+	}
+
 	ret = mfd_add_devices(dev, -1, rkx110_x120_devs, ARRAY_SIZE(rkx110_x120_devs),
 			      NULL, 0, NULL);
 	if (ret) {
@@ -1197,6 +1012,9 @@ static int rk_serdes_i2c_probe(struct i2c_client *client, const struct i2c_devic
 	rk_serdes_passthrough_init(serdes);
 	rk_serdes_irq_enable(serdes);
 	enable_irq(serdes->irq);
+
+	if (serdes->stream_type == STREAM_DISPLAY)
+		rk_serdes_display_route_init(serdes);
 
 out:
 	rk_serdes_debugfs_init(serdes);

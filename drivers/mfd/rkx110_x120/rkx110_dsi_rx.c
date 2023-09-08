@@ -55,7 +55,9 @@ static inline int dsi_rx_update_bits(struct rk_serdes *ser,
 
 void rkx110_dsi_rx_enable(struct rk_serdes *ser, struct rk_serdes_route *route, int id)
 {
-	struct rkx110_dsi_rx *dsi = &ser->dsi_rx;
+	struct rk_serdes_panel *sd_panel = container_of(route, struct rk_serdes_panel, route);
+	struct rkx110_dsi_rx *dsi = &sd_panel->dsi_rx;
+	struct rkx110_combrxphy *combrxphy = &sd_panel->combrxphy;
 	const struct videomode *vm = &route->vm;
 	unsigned long pixelclock;
 	u32 hactive, vactive;
@@ -87,9 +89,10 @@ void rkx110_dsi_rx_enable(struct rk_serdes *ser, struct rk_serdes_route *route, 
 
 	rate = DIV_ROUND_CLOSEST_ULL(pixelclock, dsi->lanes);
 
-	rkx110_combrxphy_set_mode(ser, COMBRX_PHY_MODE_VIDEO_MIPI);
-	rkx110_combrxphy_set_rate(ser, rate * MSEC_PER_SEC);
-	rkx110_combrxphy_power_on(ser, id ? COMBPHY_1 : COMBPHY_0);
+	rkx110_combrxphy_set_mode(combrxphy, COMBRX_PHY_MODE_VIDEO_MIPI);
+	rkx110_combrxphy_set_rate(combrxphy, rate * MSEC_PER_SEC);
+	rkx110_combrxphy_set_lanes(combrxphy, dsi->lanes);
+	rkx110_combrxphy_power_on(ser, combrxphy, DEVICE_LOCAL, id ? COMBPHY_1 : COMBPHY_0);
 
 	csi_base = id ? RKX110_CSI2HOST1_BASE : RKX110_CSI2HOST0_BASE;
 	dsirx_base = id ? RKX110_DSI_RX1_BASE : RKX110_DSI_RX0_BASE;
@@ -120,5 +123,8 @@ void rkx110_dsi_rx_enable(struct rk_serdes *ser, struct rk_serdes_route *route, 
 
 void rkx110_dsi_rx_disable(struct rk_serdes *ser, struct rk_serdes_route *route, int id)
 {
-	rkx110_combrxphy_power_off(ser, id ? COMBPHY_1 : COMBPHY_0);
+	struct rk_serdes_panel *sd_panel = container_of(route, struct rk_serdes_panel, route);
+	struct rkx110_combrxphy *combrxphy = &sd_panel->combrxphy;
+
+	rkx110_combrxphy_power_off(ser, combrxphy, DEVICE_LOCAL, id ? COMBPHY_1 : COMBPHY_0);
 }

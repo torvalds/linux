@@ -295,9 +295,11 @@ int rkx110_rgb_rx_enable(struct rk_serdes *serdes, struct rk_serdes_route *route
 
 int rkx110_lvds_rx_enable(struct rk_serdes *serdes, struct rk_serdes_route *route, int id)
 {
-	rkx110_combrxphy_set_mode(serdes, COMBRX_PHY_MODE_VIDEO_LVDS);
+	struct rk_serdes_panel *sd_panel = container_of(route, struct rk_serdes_panel, route);
+	struct rkx110_combrxphy *combrxphy = &sd_panel->combrxphy;
 
-	rkx110_combrxphy_power_on(serdes, id ? COMBPHY_1 : COMBPHY_0);
+	rkx110_combrxphy_set_mode(combrxphy, COMBRX_PHY_MODE_VIDEO_LVDS);
+	rkx110_combrxphy_power_on(serdes, combrxphy, DEVICE_LOCAL, id ? COMBPHY_1 : COMBPHY_0);
 
 	return 0;
 }

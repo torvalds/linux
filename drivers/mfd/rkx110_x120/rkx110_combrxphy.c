@@ -114,15 +114,18 @@
 #define LVDS0_MSBSEL(x)		HIWORD_UPDATE(x, BIT(2), 2)
 
 static void
-rkx110_combrxphy_dsi_timing_init(struct rk_serdes *ser, enum comb_phy_id id)
+rkx110_combrxphy_dsi_timing_init(struct rk_serdes *ser,
+				 struct rkx110_combrxphy *combrxphy,
+				 u8 dev_id, enum comb_phy_id id)
 {
 }
 
-static void rkx110_combrxphy_dsi_power_on(struct rk_serdes *ser, enum comb_phy_id id)
+static void rkx110_combrxphy_dsi_power_on(struct rk_serdes *ser,
+					  struct rkx110_combrxphy *combrxphy,
+					  u8 dev_id, enum comb_phy_id id)
 {
-	struct hwclk *hwclk = ser->chip[DEVICE_LOCAL].hwclk;
-	struct rkx110_combrxphy *combrxphy = &ser->combrxphy;
-	struct i2c_client *client = ser->chip[DEVICE_LOCAL].client;
+	struct hwclk *hwclk = ser->chip[dev_id].hwclk;
+	struct i2c_client *client = ser->chip[dev_id].client;
 	u32 val = 0;
 	u32 grf_base;
 
@@ -144,7 +147,7 @@ static void rkx110_combrxphy_dsi_power_on(struct rk_serdes *ser, enum comb_phy_i
 	serdes_combphy_get_default_config(combrxphy->rate,
 					  &combrxphy->mipi_dphy_cfg);
 
-	switch (ser->dsi_rx.lanes) {
+	switch (combrxphy->lanes) {
 	case 4:
 		val |= LANE3_ENABLE(1);
 		fallthrough;
@@ -164,12 +167,14 @@ static void rkx110_combrxphy_dsi_power_on(struct rk_serdes *ser, enum comb_phy_i
 	ser->i2c_write_reg(client, grf_base + GRF_MIPI_RX_CON0,
 			   PHY_MODE(COMBRX_PHY_MODE_VIDEO_MIPI) | val);
 
-	rkx110_combrxphy_dsi_timing_init(ser, id);
+	rkx110_combrxphy_dsi_timing_init(ser, combrxphy, dev_id, id);
 }
 
-static void rkx110_combrxphy_dsi_power_off(struct rk_serdes *ser, enum comb_phy_id id)
+static void rkx110_combrxphy_dsi_power_off(struct rk_serdes *ser,
+					   struct rkx110_combrxphy *combrxphy,
+					   u8 dev_id, enum comb_phy_id id)
 {
-	struct i2c_client *client = ser->chip[DEVICE_LOCAL].client;
+	struct i2c_client *client = ser->chip[dev_id].client;
 	u32 grf_base;
 
 	grf_base = id ? RKX110_GRF_MIPI1_BASE : RKX110_GRF_MIPI0_BASE;
@@ -178,9 +183,11 @@ static void rkx110_combrxphy_dsi_power_off(struct rk_serdes *ser, enum comb_phy_
 			    LANE1_ENABLE(0) | LANE0_ENABLE(0));
 }
 
-static void rkx110_combrxphy_lvds_power_on(struct rk_serdes *ser, enum comb_phy_id id)
+static void rkx110_combrxphy_lvds_power_on(struct rk_serdes *ser,
+					   struct rkx110_combrxphy *combrxphy,
+					   u8 dev_id, enum comb_phy_id id)
 {
-	struct i2c_client *client = ser->chip[DEVICE_LOCAL].client;
+	struct i2c_client *client = ser->chip[dev_id].client;
 	u32 grf_base = id ? RKX110_GRF_MIPI1_BASE : RKX110_GRF_MIPI0_BASE;
 	u32 val;
 	int ret;
@@ -209,9 +216,11 @@ static void rkx110_combrxphy_lvds_power_on(struct rk_serdes *ser, enum comb_phy_
 			   LVDS_RX1_PD(0) | LVDS_RX0_PD(0));
 }
 
-static void rkx110_combrxphy_lvds_power_off(struct rk_serdes *ser, enum comb_phy_id id)
+static void rkx110_combrxphy_lvds_power_off(struct rk_serdes *ser,
+					    struct rkx110_combrxphy *combrxphy,
+					    u8 dev_id, enum comb_phy_id id)
 {
-	struct i2c_client *client = ser->chip[DEVICE_LOCAL].client;
+	struct i2c_client *client = ser->chip[dev_id].client;
 	u32 grf_base = id ? RKX110_GRF_MIPI1_BASE : RKX110_GRF_MIPI0_BASE;
 
 	ser->i2c_write_reg(client, grf_base + GRF_MIPI_RX_CON0,
@@ -219,62 +228,65 @@ static void rkx110_combrxphy_lvds_power_off(struct rk_serdes *ser, enum comb_phy
 			   LVDS_RX1_PD(1) | LVDS_RX0_PD(1));
 }
 
-static void rkx110_combrxphy_lvds_camera_power_on(struct rk_serdes *ser, enum comb_phy_id id)
+static void rkx110_combrxphy_lvds_camera_power_on(struct rk_serdes *ser,
+						  struct rkx110_combrxphy *combrxphy,
+						  u8 dev_id, enum comb_phy_id id)
 {
 }
 
-static void rkx110_combrxphy_lvds_camera_power_off(struct rk_serdes *ser, enum comb_phy_id id)
+static void rkx110_combrxphy_lvds_camera_power_off(struct rk_serdes *ser,
+						   struct rkx110_combrxphy *combrxphy,
+						   u8 dev_id, enum comb_phy_id id)
 {
 }
 
-void rkx110_combrxphy_power_on(struct rk_serdes *ser, enum comb_phy_id id)
+void rkx110_combrxphy_power_on(struct rk_serdes *ser, struct rkx110_combrxphy *combrxphy,
+			       u8 dev_id, enum comb_phy_id id)
 {
-	struct rkx110_combrxphy *combrxphy = &ser->combrxphy;
-
 	switch (combrxphy->mode) {
 	case COMBRX_PHY_MODE_VIDEO_MIPI:
-		rkx110_combrxphy_dsi_power_on(ser, id);
+		rkx110_combrxphy_dsi_power_on(ser, combrxphy, dev_id, id);
 		break;
 	case COMBRX_PHY_MODE_VIDEO_LVDS:
-		rkx110_combrxphy_lvds_power_on(ser, id);
+		rkx110_combrxphy_lvds_power_on(ser, combrxphy, dev_id, id);
 		break;
 	case COMBRX_PHY_MODE_LVDS_CAMERA:
-		rkx110_combrxphy_lvds_camera_power_on(ser, id);
+		rkx110_combrxphy_lvds_camera_power_on(ser, combrxphy, dev_id, id);
 		break;
 	default:
 		break;
 	}
 }
 
-void rkx110_combrxphy_power_off(struct rk_serdes *ser, enum comb_phy_id id)
+void rkx110_combrxphy_power_off(struct rk_serdes *ser, struct rkx110_combrxphy *combrxphy,
+				u8 dev_id, enum comb_phy_id id)
 {
-	struct rkx110_combrxphy *combrxphy = &ser->combrxphy;
-
 	switch (combrxphy->mode) {
 	case COMBRX_PHY_MODE_VIDEO_MIPI:
-		rkx110_combrxphy_dsi_power_off(ser, id);
+		rkx110_combrxphy_dsi_power_off(ser, combrxphy, dev_id, id);
 		break;
 	case COMBRX_PHY_MODE_VIDEO_LVDS:
-		rkx110_combrxphy_lvds_power_off(ser, id);
+		rkx110_combrxphy_lvds_power_off(ser, combrxphy, dev_id, id);
 		break;
 	case COMBRX_PHY_MODE_LVDS_CAMERA:
-		rkx110_combrxphy_lvds_camera_power_off(ser, id);
+		rkx110_combrxphy_lvds_camera_power_off(ser, combrxphy, dev_id, id);
 		break;
 	default:
 		break;
 	}
 }
 
-void rkx110_combrxphy_set_rate(struct rk_serdes *ser, u64 rate)
+void rkx110_combrxphy_set_rate(struct rkx110_combrxphy *combrxphy, u64 rate)
 {
-	struct rkx110_combrxphy *combrxphy = &ser->combrxphy;
-
 	combrxphy->rate = rate;
 }
 
-void rkx110_combrxphy_set_mode(struct rk_serdes *ser, enum combrx_phy_mode mode)
+void rkx110_combrxphy_set_lanes(struct rkx110_combrxphy *combrxphy, uint8_t lanes)
 {
-	struct rkx110_combrxphy *combrxphy = &ser->combrxphy;
+	combrxphy->lanes = lanes;
+}
 
+void rkx110_combrxphy_set_mode(struct rkx110_combrxphy *combrxphy, enum combrx_phy_mode mode)
+{
 	combrxphy->mode = mode;
 }

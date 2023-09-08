@@ -55,6 +55,7 @@
 #define SER_EN				BIT(0)
 
 #define RKLINK_TX_VIDEO_CTRL		LINK_REG(0x0004)
+#define VIDEO_REPKT_LENGTH_MASK		GENMASK(29, 16)
 #define VIDEO_REPKT_LENGTH(x)		UPDATE(x, 29, 16)
 #define DUAL_LVDS_CYCLE_DIFF(x)		UPDATE(x, 13, 4)
 #define PIXEL_VSYNC_SEL			BIT(3)
@@ -86,6 +87,7 @@
  #define DSI_CHANNEL_SWAP		UPDATE(2, 31, 30)
  #define DSI0_SPLIT_MODE		UPDATE(0, 31, 30)
  #define DSI1_SPLIT_MODE		UPDATE(3, 31, 30)
+#define DSI_DST_VPORCH_MASK		GENMASK(29, 0)
  #define DSI_VFP(x)			UPDATE(x, 29, 20)
  #define DSI_VBP(x)			UPDATE(x, 19, 10)
  #define DSI_VSA(x)			UPDATE(x, 9, 0)
@@ -459,67 +461,93 @@ void rkx110_set_stream_source(struct rk_serdes *serdes, int local_port, u8 dev_i
 	serdes->i2c_write_reg(client, RKLINK_TX_VIDEO_CTRL, val);
 }
 
-static int rk_serdes_link_tx_ctrl_enable(struct rk_serdes *serdes,
-					 struct rk_serdes_route *route,
-					 u8 remote_id)
+static int rkx110_linktx_ser_enable(struct rk_serdes *serdes, u8 dev_id, bool enable)
 {
-	struct hwclk *hwclk = serdes->chip[remote_id].hwclk;
-	struct i2c_client *client;
-	struct videomode *vm = &route->vm;
-	u32 ctrl_val, val;
-	u32 rx_src;
-	u32 stream_type;
-	u32 length;
+	struct i2c_client *client = serdes->chip[dev_id].client;
 
-	if (route->stream_type == STREAM_DISPLAY) {
-		client = serdes->chip[DEVICE_LOCAL].client;
-		stream_type = SER_STREAM_DISPLAY;
-	} else {
-		client = serdes->chip[remote_id].client;
-		stream_type = SER_STREAM_CAMERA;
-	}
+	serdes->i2c_update_bits(client, RKLINK_TX_SERDES_CTRL, SER_EN, enable ? SER_EN : 0);
 
-	serdes->i2c_read_reg(client, RKLINK_TX_SERDES_CTRL, &ctrl_val);
+	return 0;
+}
 
-	ctrl_val &= ~(SER_EN | SERDES_DUAL_LANE_EN | SER_CH1_EN | SERDES_MIRROR_EN |
-		      CH1_LVDS_SEL_EN);
-	ctrl_val |= stream_type;
-	if (serdes->route_flag & ROUTE_MULTI_LANE)
-		ctrl_val |= SERDES_DUAL_LANE_EN;
-	if (serdes->route_flag & ROUTE_MULTI_CHANNEL)
-		ctrl_val |= SER_CH1_EN;
-	if (serdes->route_flag & ROUTE_MULTI_MIRROR)
-		ctrl_val |= SERDES_MIRROR_EN;
-	if (serdes->route_flag & ROUTE_MULTI_LVDS_INPUT)
-		ctrl_val |= CH1_LVDS_SEL_EN;
+static int rk110_linktx_dual_lane_enable(struct rk_serdes *serdes, u8 dev_id, bool enable)
+{
+	struct i2c_client *client = serdes->chip[dev_id].client;
 
-	serdes->i2c_write_reg(client, RKLINK_TX_SERDES_CTRL, ctrl_val);
+	serdes->i2c_update_bits(client, RKLINK_TX_SERDES_CTRL, SERDES_DUAL_LANE_EN,
+				enable ? SERDES_DUAL_LANE_EN : 0);
 
-	serdes->i2c_read_reg(client, RKLINK_TX_VIDEO_CTRL, &val);
-	rx_src = rk_serdes_get_stream_source(serdes, route->local_port0);
-	val |= rx_src;
-	if (serdes->version == SERDES_V1) {
-		/*
-		 * The serdes v1 have a bug when enable video suspend function, which
-		 * is used to enhance the i2c frequency. A workaround ways to do it is
-		 * reducing the video packet length:
-		 * length = ((hactive x 24 / 32 / 16) + 15) / 16 * 16
-		 */
-		length = vm->hactive * 24 / 32 / 16;
-		length = (length + 15) / 16 * 16;
-		val &= ~VIDEO_REPKT_LENGTH(0xffff);
-		val |= VIDEO_REPKT_LENGTH(length);
-	}
-	serdes->i2c_write_reg(client, RKLINK_TX_VIDEO_CTRL, val);
+	return 0;
+}
 
-	if (route->local_port0 & RK_SERDES_DUAL_LVDS_RX) {
-		hwclk_set_rate(hwclk, RKX110_CPS_CLK_2X_LVDS_RKLINK_TX, route->vm.pixelclock);
-		dev_info(serdes->dev, "RKX110_CPS_CLK_2X_LVDS_RKLINK_TX:%d\n",
-			 hwclk_get_rate(hwclk, RKX110_CPS_CLK_2X_LVDS_RKLINK_TX));
-	}
+void rkx110_linktx_video_enable(struct rk_serdes *serdes, u8 dev_id, bool enable)
+{
+	struct i2c_client *client = serdes->chip[dev_id].client;
 
-	ctrl_val |= SER_EN;
-	serdes->i2c_write_reg(client, RKLINK_TX_SERDES_CTRL, ctrl_val);
+	serdes->i2c_update_bits(client, RKLINK_TX_SERDES_CTRL, VIDEO_EN, enable ? VIDEO_EN : 0);
+}
+
+int rk110_linktx_dual_channel_enable(struct rk_serdes *serdes, u8 dev_id, bool enable)
+{
+	struct i2c_client *client = serdes->chip[dev_id].client;
+
+	serdes->i2c_update_bits(client, RKLINK_TX_SERDES_CTRL, SER_CH1_EN,
+				enable ? SER_CH1_EN : 0);
+
+	return 0;
+}
+
+static int rk110_linktx_config_pkg_length(struct rk_serdes *serdes, u8 dev_id, u32 length)
+{
+	struct i2c_client *client = serdes->chip[dev_id].client;
+
+	serdes->i2c_update_bits(client, RKLINK_TX_VIDEO_CTRL, VIDEO_REPKT_LENGTH_MASK,
+				VIDEO_REPKT_LENGTH(length));
+
+	return 0;
+}
+
+static int rk110_linktx_stream_type_cfg(struct rk_serdes *serdes, u8 dev_id)
+{
+	struct i2c_client *client = serdes->chip[dev_id].client;
+
+	if (serdes->stream_type == STREAM_DISPLAY)
+		serdes->i2c_update_bits(client, RKLINK_TX_SERDES_CTRL, STREAM_TYPE_MASK,
+					SER_STREAM_DISPLAY);
+	else
+		serdes->i2c_update_bits(client, RKLINK_TX_SERDES_CTRL, STREAM_TYPE_MASK,
+					SER_STREAM_CAMERA);
+
+	return 0;
+}
+
+static int rk110_linktx_replicate_enable(struct rk_serdes *serdes, u8 dev_id, bool enable)
+{
+	struct i2c_client *client = serdes->chip[dev_id].client;
+
+	serdes->i2c_update_bits(client, RKLINK_TX_SERDES_CTRL, SERDES_MIRROR_EN,
+				enable ? SERDES_MIRROR_EN : 0);
+
+	return 0;
+}
+
+static int rkx110_linktx_dual_input_cfg(struct rk_serdes *serdes, u8 dev_id, bool is_lvds)
+{
+	struct i2c_client *client = serdes->chip[dev_id].client;
+
+	serdes->i2c_update_bits(client, RKLINK_TX_SERDES_CTRL, CH1_LVDS_SEL_EN,
+				is_lvds ? CH1_LVDS_SEL_EN : 0);
+
+	return 0;
+}
+
+static int rkx110_linktx_input_port_cfg(struct rk_serdes *serdes, u8 dev_id, u32 port)
+{
+	struct i2c_client *client = serdes->chip[dev_id].client;
+	u32 val;
+
+	val = rk_serdes_get_stream_source(serdes, port);
+	serdes->i2c_update_bits(client, RKLINK_TX_VIDEO_CTRL, SOURCE_ID_MASK, val);
 
 	return 0;
 }
@@ -530,22 +558,22 @@ static int rk_serdes_link_tx_dsi_enable(struct rk_serdes *serdes, struct rk_serd
 	struct videomode *vm = &route->vm;
 	struct i2c_client *client = serdes->chip[DEVICE_LOCAL].client;
 	struct hwclk *hwclk = serdes->chip[DEVICE_LOCAL].hwclk;
+	struct rk_serdes_panel *sd_panel = container_of(route, struct rk_serdes_panel, route);
+	struct rkx110_dsi_rx *dsi = &sd_panel->dsi_rx;
 	int delay_length;
 	u32 value, type;
 
-	if (id == 0) {
-		hwclk_set_rate(hwclk, RKX110_CPS_DCLK_D_DSI_0_REC_RKLINK_TX,
-			       route->vm.pixelclock);
-		dev_info(serdes->dev, "RKX110_CPS_DCLK_D_DSI_0_REC_RKLINK_TX:%d\n",
-			 hwclk_get_rate(hwclk, RKX110_CPS_DCLK_D_DSI_0_REC_RKLINK_TX));
-	} else if (id == 1) {
+	if (id) {
 		hwclk_set_rate(hwclk, RKX110_CPS_DCLK_D_DSI_1_REC_RKLINK_TX,
 			       route->vm.pixelclock);
 		dev_info(serdes->dev, "RKX110_CPS_DCLK_D_DSI_1_REC_RKLINK_TX:%d\n",
 			 hwclk_get_rate(hwclk, RKX110_CPS_DCLK_D_DSI_1_REC_RKLINK_TX));
 
 	} else {
-		return 0;
+		hwclk_set_rate(hwclk, RKX110_CPS_DCLK_D_DSI_0_REC_RKLINK_TX,
+			       route->vm.pixelclock);
+		dev_info(serdes->dev, "RKX110_CPS_DCLK_D_DSI_0_REC_RKLINK_TX:%d\n",
+			 hwclk_get_rate(hwclk, RKX110_CPS_DCLK_D_DSI_0_REC_RKLINK_TX));
 	}
 
 	/* config SER_RKLINK_DSI_REC1 */
@@ -558,17 +586,25 @@ static int rk_serdes_link_tx_dsi_enable(struct rk_serdes *serdes, struct rk_serd
 	value = DSI_VFP(vm->vfront_porch);
 	value |= DSI_VBP(vm->vback_porch);
 	value |= DSI_VSA(vm->vsync_len);
-	serdes->i2c_write_reg(client, SER_RKLINK_DSI_REC2(id), value);
+	serdes->i2c_update_bits(client, SER_RKLINK_DSI_REC2(id), DSI_DST_VPORCH_MASK, value);
 
-	if (id)
-		type = (serdes->route_flag & ROUTE_MULTI_CHANNEL) ? DSI_0_DST(0) : DSI_0_DST(2);
-	else
-		type = (serdes->route_flag & ROUTE_MULTI_CHANNEL) ? DSI_0_DST(3) : DSI_0_DST(1);
+	if (route->local_port0) {
+		if (serdes->route_nr == 2) {
+			type = id ? DSI_0_DST(2) : DSI_0_DST(1);
+		} else {
+			if (id)
+				type = (serdes->channel_nr == 2) ? DSI_0_DST(0) : DSI_0_DST(2);
+			else
+				type = (serdes->channel_nr == 2) ? DSI_0_DST(3) : DSI_0_DST(1);
+		}
+	} else {
+		type = id ? DSI_0_DST(1) : DSI_0_DST(2);
+	}
 
 	serdes->i2c_update_bits(client, SER_RKLINK_DSI_REC2(0), DSI_0_DST_MASK, type);
 
 	/* config SER_RKLINK_DSI_REC3 */
-	if (serdes->dsi_rx.mode_flags & SERDES_MIPI_DSI_MODE_VIDEO)
+	if (dsi->mode_flags & SERDES_MIPI_DSI_MODE_VIDEO)
 		delay_length = vm->hsync_len + vm->hback_porch +
 			       vm->hactive + vm->hfront_porch;
 	else
@@ -582,33 +618,12 @@ static int rk_serdes_link_tx_dsi_enable(struct rk_serdes *serdes, struct rk_serd
 
 	/* config SER_RKLINK_DSI_REC0 */
 	value = DSI_REC_START;
-	if (!(serdes->dsi_rx.mode_flags & SERDES_MIPI_DSI_MODE_VIDEO))
+	if (!(dsi->mode_flags & SERDES_MIPI_DSI_MODE_VIDEO))
 		value |= DSI_CMD_TYPE;
 
 	value |= DSI_HACT(vm->hactive);
 	value |= DSI_VACT(vm->vactive);
 	serdes->i2c_write_reg(client, SER_RKLINK_DSI_REC0(id), value);
-
-	return 0;
-}
-
-static int rk110_linktx_cfg(struct rk_serdes *serdes, struct rk_serdes_route *route)
-{
-	u8 remote_id = 0;
-
-	rk_serdes_link_tx_ctrl_enable(serdes, route, remote_id);
-
-	if (route->local_port0 & RK_SERDES_DSI_RX0) {
-		rk_serdes_link_tx_dsi_enable(serdes, route, 0);
-		if (serdes->route_flag & ROUTE_MULTI_DSI_INPUT)
-			rk_serdes_link_tx_dsi_enable(serdes, route, 1);
-	}
-
-	if (route->local_port0 & RK_SERDES_DSI_RX1) {
-		rk_serdes_link_tx_dsi_enable(serdes, route, 1);
-		if (serdes->route_flag & ROUTE_MULTI_DSI_INPUT)
-			rk_serdes_link_tx_dsi_enable(serdes, route, 0);
-	}
 
 	return 0;
 }
@@ -634,24 +649,96 @@ static int rk110_ser_pma_cfg(struct rk_serdes *serdes, struct rk_serdes_route *r
 	return 0;
 }
 
-int rkx110_linktx_enable(struct rk_serdes *serdes, struct rk_serdes_route *route)
+static int rkx110_display_linktx_ctrl_enable(struct rk_serdes *serdes,
+					     struct rk_serdes_route *route,
+					     u8 dev_id)
 {
-	rk110_linktx_cfg(serdes, route);
+	struct hwclk *hwclk = serdes->chip[dev_id].hwclk;
+	bool enable;
+	bool is_lvds = false;
+
+	rk110_linktx_stream_type_cfg(serdes, dev_id);
+
+	enable = (serdes->lane_nr == 2) ? true : false;
+	rk110_linktx_dual_lane_enable(serdes, dev_id, enable);
+
+	enable = (serdes->channel_nr == 2) ? true : false;
+	rk110_linktx_dual_channel_enable(serdes, dev_id, enable);
+
+	enable = (route->route_flag & ROUTE_MULTI_MIRROR) ? true : false;
+	rk110_linktx_replicate_enable(serdes, dev_id, enable);
+
+	if (((route->local_port0 == RK_SERDES_LVDS_RX0) ||
+	     (route->local_port0 == RK_SERDES_LVDS_RX1) ||
+	     (route->local_port1 == RK_SERDES_LVDS_RX0) ||
+	     (route->local_port1 == RK_SERDES_LVDS_RX1)) &&
+	    (serdes->route_nr == 2))
+		is_lvds = true;
+	rkx110_linktx_dual_input_cfg(serdes, dev_id, is_lvds);
+
+	if (route->local_port0) {
+		rkx110_linktx_input_port_cfg(serdes, dev_id, route->local_port0);
+	} else {
+		if (route->local_port1 == RK_SERDES_LVDS_RX0)
+			rkx110_linktx_input_port_cfg(serdes, dev_id, RK_SERDES_LVDS_RX1);
+		else if (route->local_port1 == RK_SERDES_LVDS_RX1)
+			rkx110_linktx_input_port_cfg(serdes, dev_id, RK_SERDES_LVDS_RX0);
+		else if (route->local_port1 == RK_SERDES_DSI_RX0)
+			rkx110_linktx_input_port_cfg(serdes, dev_id, RK_SERDES_DSI_RX1);
+		else if (route->local_port1 == RK_SERDES_DSI_RX1)
+			rkx110_linktx_input_port_cfg(serdes, dev_id, RK_SERDES_DSI_RX0);
+
+	}
+
+	if (route->local_port0 & RK_SERDES_DUAL_LVDS_RX) {
+		hwclk_set_rate(hwclk, RKX110_CPS_CLK_2X_LVDS_RKLINK_TX, route->vm.pixelclock);
+		dev_info(serdes->dev, "RKX110_CPS_CLK_2X_LVDS_RKLINK_TX:%d\n",
+			 hwclk_get_rate(hwclk, RKX110_CPS_CLK_2X_LVDS_RKLINK_TX));
+	}
+
+	if (serdes->version == SERDES_V1) {
+		/*
+		 * The serdes v1 have a bug when enable video suspend function, which
+		 * is used to enhance the i2c frequency. A workaround ways to do it is
+		 * reducing the video packet length:
+		 * length = ((hactive x 24 / 32 / 16) + 15) / 16 * 16
+		 */
+		u32 length;
+
+		length = route->vm.hactive * 24 / 32 / 16;
+		length = (length + 15) / 16 * 16;
+		rk110_linktx_config_pkg_length(serdes, dev_id, length);
+	}
+
+	rkx110_linktx_ser_enable(serdes, dev_id, true);
+
+	return 0;
+}
+
+int rkx110_display_linktx_enable(struct rk_serdes *serdes, struct rk_serdes_route *route)
+{
+	rkx110_display_linktx_ctrl_enable(serdes, route, DEVICE_LOCAL);
+
+	if (route->local_port0 & RK_SERDES_DSI_RX0)
+		rk_serdes_link_tx_dsi_enable(serdes, route, 0);
+
+	if (route->local_port0 & RK_SERDES_DSI_RX1)
+		rk_serdes_link_tx_dsi_enable(serdes, route, 1);
+
+	if (route->local_port1 & RK_SERDES_DSI_RX0)
+		rk_serdes_link_tx_dsi_enable(serdes, route, 0);
+
+	if (route->local_port1 & RK_SERDES_DSI_RX1)
+		rk_serdes_link_tx_dsi_enable(serdes, route, 1);
+
 	rk110_ser_pcs_cfg(serdes, route, 0);
 	rk110_ser_pma_cfg(serdes, route, 0);
-	if (serdes->route_flag & ROUTE_MULTI_LANE) {
+	if (serdes->lane_nr == 2) {
 		rk110_ser_pcs_cfg(serdes, route, 1);
 		rk110_ser_pma_cfg(serdes, route, 1);
 	}
 
 	return 0;
-}
-
-void rkx110_linktx_video_enable(struct rk_serdes *serdes, u8 dev_id, bool enable)
-{
-	struct i2c_client *client = serdes->chip[dev_id].client;
-
-	serdes->i2c_update_bits(client, RKLINK_TX_SERDES_CTRL, VIDEO_EN, enable ? VIDEO_EN : 0);
 }
 
 void rkx110_linktx_channel_enable(struct rk_serdes *serdes, u8 ch_id, u8 dev_id, bool enable)
@@ -687,7 +774,7 @@ void rkx110_linktx_passthrough_cfg(struct rk_serdes *serdes, u32 client_id, u32 
 	}
 }
 
-void rkx110_linktx_wait_link_ready(struct rk_serdes *serdes, u8 id)
+int rkx110_linktx_wait_link_ready(struct rk_serdes *serdes, u8 id)
 {
 	struct i2c_client *client = serdes->chip[DEVICE_LOCAL].client;
 	u32 val;
@@ -707,6 +794,8 @@ void rkx110_linktx_wait_link_ready(struct rk_serdes *serdes, u8 id)
 		dev_err(&client->dev, "wait link ready timeout: 0x%08x\n", val);
 	else
 		dev_info(&client->dev, "link success: 0x%08x\n", val);
+
+	return ret;
 }
 
 void rkx110_pma_set_rate(struct rk_serdes *serdes, struct rk_serdes_pma_pll *pll,

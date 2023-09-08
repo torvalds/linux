@@ -751,10 +751,9 @@ static int rkx120_dsi_tx_transfer(struct rk_serdes *des, u8 remote_id,
 	return msg->tx_len;
 }
 
-static int rkx120_mipi_dsi_generic_write(struct rk_serdes *des, u8 remote_id,
-				  const void *payload, size_t size)
+static int rkx120_mipi_dsi_generic_write(struct rk_serdes *des, struct rkx120_dsi_tx *dsi,
+					 u8 remote_id, const void *payload, size_t size)
 {
-	const struct rkx120_dsi_tx *dsi = &des->dsi_tx;
 	struct mipi_dsi_msg msg;
 
 	memset(&msg, 0, sizeof(msg));
@@ -785,10 +784,9 @@ static int rkx120_mipi_dsi_generic_write(struct rk_serdes *des, u8 remote_id,
 	return rkx120_dsi_tx_transfer(des, remote_id, dsi, &msg);
 }
 
-static int rkx120_mipi_dsi_dcs_write_buffer(struct rk_serdes *des, u8 remote_id,
-				     const void *data, size_t len)
+static int rkx120_mipi_dsi_dcs_write_buffer(struct rk_serdes *des, struct rkx120_dsi_tx *dsi,
+					    u8 remote_id, const void *data, size_t len)
 {
-	const struct rkx120_dsi_tx *dsi = &des->dsi_tx;
 	struct mipi_dsi_msg msg;
 
 	memset(&msg, 0, sizeof(msg));
@@ -818,10 +816,9 @@ static int rkx120_mipi_dsi_dcs_write_buffer(struct rk_serdes *des, u8 remote_id,
 }
 
 static __maybe_unused int
-rkx120_mipi_dsi_dcs_read(struct rk_serdes *des, u8 remote_id,
+rkx120_mipi_dsi_dcs_read(struct rk_serdes *des, struct rkx120_dsi_tx *dsi, u8 remote_id,
 			 u8 cmd, void *data, size_t len)
 {
-	const struct rkx120_dsi_tx *dsi = &des->dsi_tx;
 	struct mipi_dsi_msg msg;
 
 	memset(&msg, 0, sizeof(msg));
@@ -835,7 +832,7 @@ rkx120_mipi_dsi_dcs_read(struct rk_serdes *des, u8 remote_id,
 	return rkx120_dsi_tx_transfer(des, remote_id, dsi, &msg);
 }
 
-int rkx120_dsi_tx_cmd_seq_xfer(struct rk_serdes *des, u8 remote_id,
+int rkx120_dsi_tx_cmd_seq_xfer(struct rk_serdes *des, struct rkx120_dsi_tx *dsi, u8 remote_id,
 			       struct panel_cmds *cmds)
 {
 	u16 i;
@@ -852,13 +849,13 @@ int rkx120_dsi_tx_cmd_seq_xfer(struct rk_serdes *des, u8 remote_id,
 		case MIPI_DSI_GENERIC_SHORT_WRITE_1_PARAM:
 		case MIPI_DSI_GENERIC_SHORT_WRITE_2_PARAM:
 		case MIPI_DSI_GENERIC_LONG_WRITE:
-			err = rkx120_mipi_dsi_generic_write(des, remote_id, cmd->payload,
+			err = rkx120_mipi_dsi_generic_write(des, dsi, remote_id, cmd->payload,
 							    cmd->dchdr.dlen);
 			break;
 		case MIPI_DSI_DCS_SHORT_WRITE:
 		case MIPI_DSI_DCS_SHORT_WRITE_PARAM:
 		case MIPI_DSI_DCS_LONG_WRITE:
-			err = rkx120_mipi_dsi_dcs_write_buffer(des, remote_id, cmd->payload,
+			err = rkx120_mipi_dsi_dcs_write_buffer(des, dsi, remote_id, cmd->payload,
 							       cmd->dchdr.dlen);
 			break;
 		default:
@@ -901,7 +898,8 @@ static u64 rkx120_dsi_tx_get_lane_rate(const struct rkx120_dsi_tx *dsi)
 }
 
 static void
-mipi_dphy_power_on(struct rk_serdes *des, const struct rkx120_dsi_tx *dsi, u8 remote_id)
+mipi_dphy_power_on(struct rk_serdes *des, const struct rkx120_dsi_tx *dsi,
+		   u8 remote_id)
 {
 	struct i2c_client *client = des->chip[remote_id].client;
 	u32 val, mask;
@@ -920,7 +918,7 @@ mipi_dphy_power_on(struct rk_serdes *des, const struct rkx120_dsi_tx *dsi, u8 re
 	dsi_update_bits(des, remote_id, DSI_PHY_RSTZ, PHY_RSTZ, PHY_RSTZ);
 	usleep_range(1500, 2000);
 
-	rkx120_combtxphy_power_on(des, remote_id, 0);
+	rkx120_combtxphy_power_on(des, dsi->combtxphy, remote_id, 0);
 
 	ret = read_poll_timeout(des->i2c_read_reg, ret,
 				!(ret < 0) && (val & PHY_LOCK),
@@ -954,9 +952,9 @@ static void rkx120_dsi_tx_reset_control_deassert(struct rk_serdes *des, u8 remot
 	//dsi_i2c_write(des, remote_id, CRU_SOFTRST_CON02, 0x400000);
 }
 
-static void rkx120_dsi_tx_bridge_pre_enable(struct rk_serdes *des, u8 remote_id)
+static void rkx120_dsi_tx_bridge_pre_enable(struct rk_serdes *des, struct rkx120_dsi_tx *dsi,
+					    u8 remote_id)
 {
-	struct rkx120_dsi_tx *dsi = &des->dsi_tx;
 	u32 val;
 
 	dsi_write(des, remote_id, DSI_PWR_UP, RESET);
@@ -1064,9 +1062,8 @@ static void rkx120_dsi_tx_set_cmd_mode(struct rk_serdes *des, u8 remote_id,
 }
 
 static void
-rkx120_dsi_tx_bridge_enable(struct rk_serdes *des, u8 remote_id)
+rkx120_dsi_tx_bridge_enable(struct rk_serdes *des, struct rkx120_dsi_tx *dsi, u8 remote_id)
 {
-	struct rkx120_dsi_tx *dsi = &des->dsi_tx;
 	const struct videomode *vm = dsi->vm;
 	u32 val;
 
@@ -1117,15 +1114,16 @@ void rkx120_dsi_tx_pre_enable(struct rk_serdes *des,
 			      struct rk_serdes_route *route,
 			      u8 remote_id)
 {
-	struct rkx120_dsi_tx *dsi = &des->dsi_tx;
+	struct rk_serdes_panel *sd_panel = container_of(route, struct rk_serdes_panel, route);
+	struct rkx120_dsi_tx *dsi = &sd_panel->dsi_tx;
 	u64 rate;
 
 	dsi->vm = &route->vm;
 	rate = rkx120_dsi_tx_get_lane_rate(dsi);
 
-	rkx120_combtxphy_set_mode(des, COMBTX_PHY_MODE_VIDEO_MIPI);
-	rkx120_combtxphy_set_rate(des, rate);
-	lane_kbps = rkx120_combtxphy_get_rate(des) / MSEC_PER_SEC;
+	rkx120_combtxphy_set_mode(dsi->combtxphy, COMBTX_PHY_MODE_VIDEO_MIPI);
+	rkx120_combtxphy_set_rate(dsi->combtxphy, rate);
+	lane_kbps = rkx120_combtxphy_get_rate(dsi->combtxphy) / MSEC_PER_SEC;
 
 	/* rst for dsi */
 	rkx120_dsi_tx_reset_control_assert(des, remote_id);
@@ -1133,12 +1131,11 @@ void rkx120_dsi_tx_pre_enable(struct rk_serdes *des,
 	rkx120_dsi_tx_reset_control_deassert(des, remote_id);
 	usleep_range(20, 40);
 
-	rkx120_dsi_tx_bridge_pre_enable(des, remote_id);
-
+	rkx120_dsi_tx_bridge_pre_enable(des, dsi, remote_id);
 #ifdef DSI_READ_POWER_MODE
 	u8 mode;
 
-	rkx120_mipi_dsi_dcs_read(des, remote_id, MIPI_DCS_GET_POWER_MODE,
+	rkx120_mipi_dsi_dcs_read(des, dsi, remote_id, MIPI_DCS_GET_POWER_MODE,
 				 &mode, sizeof(mode));
 
 	dev_info(rkx120->dev, "dsi: mode: 0x%x\n", mode);
@@ -1149,17 +1146,18 @@ void rkx120_dsi_tx_enable(struct rk_serdes *des,
 			  struct rk_serdes_route *route,
 			  u8 remote_id)
 {
-	struct rkx120_dsi_tx *dsi = &des->dsi_tx;
+	struct rk_serdes_panel *sd_panel = container_of(route, struct rk_serdes_panel, route);
+	struct rkx120_dsi_tx *dsi = &sd_panel->dsi_tx;
 
 #ifdef DSI_READ_POWER_MODE
 	u8 mode;
 
-	rkx120_mipi_dsi_dcs_read(des, remote_id, MIPI_DCS_GET_POWER_MODE,
+	rkx120_mipi_dsi_dcs_read(des, dsi, remote_id, MIPI_DCS_GET_POWER_MODE,
 				 &mode, sizeof(mode));
 
 	dev_info(rkx120->dev, "dsi: mode: 0x%x\n", mode);
 #endif
-	rkx120_dsi_tx_bridge_enable(des, remote_id);
+	rkx120_dsi_tx_bridge_enable(des, dsi, remote_id);
 
 	dev_info(des->dev, "rkx120_dsi_tx final DSI-Link bandwidth: %llu Kbps x %d lanes\n",
 		 lane_kbps, dsi->lanes);
@@ -1169,7 +1167,10 @@ void rkx120_dsi_tx_post_disable(struct rk_serdes *des,
 				struct rk_serdes_route *route,
 				u8 remote_id)
 {
-	rkx120_combtxphy_power_off(des, remote_id);
+	struct rk_serdes_panel *sd_panel = container_of(route, struct rk_serdes_panel, route);
+	struct rkx120_dsi_tx *dsi = &sd_panel->dsi_tx;
+
+	rkx120_combtxphy_power_off(des, dsi->combtxphy, remote_id, 0);
 }
 
 void rkx120_dsi_tx_disable(struct rk_serdes *des, struct rk_serdes_route *route, u8 remote_id)

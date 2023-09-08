@@ -111,9 +111,10 @@
 #define GRF_MIPI_STATUS		0x0080
 #define PHYLOCK			BIT(0)
 
-static void rkx120_combtxphy_dsi_timing_init(struct rk_serdes *des, u8 remote_id)
+static void rkx120_combtxphy_dsi_timing_init(struct rk_serdes *des,
+					     struct rkx120_combtxphy *combtxphy,
+					     u8 dev_id)
 {
-	struct rkx120_combtxphy *combtxphy = &des->combtxphy;
 	const struct configure_opts_combphy cfg = combtxphy->mipi_dphy_cfg;
 	u32 byte_clk = DIV_ROUND_CLOSEST_ULL(combtxphy->rate, 8);
 	u32 esc_div = DIV_ROUND_UP(byte_clk, 20 * USEC_PER_SEC);
@@ -123,30 +124,30 @@ static void rkx120_combtxphy_dsi_timing_init(struct rk_serdes *des, u8 remote_id
 	u32 t_tago, t_tasure, t_taget;
 	u32 base = RKX120_MIPI_LVDS_TX_PHY0_BASE;
 
-	serdes_combphy_write(des, remote_id, base + INTERFACE_PARA,
+	serdes_combphy_write(des, dev_id, base + INTERFACE_PARA,
 			     TXREADYESC_VLD(esc_div - 2) |
 			     RXVALIDESC_VLD(esc_div - 2));
-	serdes_combphy_write(des, remote_id, base + COMMON_PARA0, esc_div);
-	serdes_combphy_update_bits(des, remote_id, base + TEST_PARA0, FSET_EN, FSET_EN);
+	serdes_combphy_write(des, dev_id, base + COMMON_PARA0, esc_div);
+	serdes_combphy_update_bits(des, dev_id, base + TEST_PARA0, FSET_EN, FSET_EN);
 
 	t_init = DIV_ROUND_UP(cfg.init, t_byte_clk) - 1;
-	serdes_combphy_write(des, remote_id, base + CLANE_PARA1, T_INITTIME_C(t_init));
-	serdes_combphy_write(des, remote_id, base + DLANE0_PARA1, T_INITTIME_D(t_init));
-	serdes_combphy_write(des, remote_id, base + DLANE_PARA1(1), T_INITTIME_D(t_init));
-	serdes_combphy_write(des, remote_id, base + DLANE_PARA1(2), T_INITTIME_D(t_init));
-	serdes_combphy_write(des, remote_id, base + DLANE_PARA1(3), T_INITTIME_D(t_init));
+	serdes_combphy_write(des, dev_id, base + CLANE_PARA1, T_INITTIME_C(t_init));
+	serdes_combphy_write(des, dev_id, base + DLANE0_PARA1, T_INITTIME_D(t_init));
+	serdes_combphy_write(des, dev_id, base + DLANE_PARA1(1), T_INITTIME_D(t_init));
+	serdes_combphy_write(des, dev_id, base + DLANE_PARA1(2), T_INITTIME_D(t_init));
+	serdes_combphy_write(des, dev_id, base + DLANE_PARA1(3), T_INITTIME_D(t_init));
 
 	t_clkprepare = DIV_ROUND_UP(cfg.clk_prepare, t_byte_clk) - 1;
 	t_clkzero = DIV_ROUND_UP(cfg.clk_zero, t_byte_clk) - 1;
 	t_clkpre = DIV_ROUND_UP(cfg.clk_pre, t_byte_clk) - 1;
-	serdes_combphy_write(des, remote_id, base + CLANE_PARA2,
+	serdes_combphy_write(des, dev_id, base + CLANE_PARA2,
 			     T_CLKPREPARE_C(t_clkprepare) |
 			     T_CLKZERO_C(t_clkzero) | T_CLKPRE_C(t_clkpre));
 
 	t_clkpost = DIV_ROUND_UP(cfg.clk_post, t_byte_clk) - 1;
 	t_clktrail = DIV_ROUND_UP(cfg.clk_trail, t_byte_clk) - 1;
 	t_hsexit = DIV_ROUND_UP(cfg.hs_exit, t_byte_clk) - 1;
-	serdes_combphy_write(des, remote_id, base + CLANE_PARA3,
+	serdes_combphy_write(des, dev_id, base + CLANE_PARA3,
 			     T_CLKPOST_C(t_clkpost) |
 			     T_CLKTRAIL_C(t_clktrail) |
 			     T_HSEXIT_C(t_hsexit));
@@ -154,62 +155,63 @@ static void rkx120_combtxphy_dsi_timing_init(struct rk_serdes *des, u8 remote_id
 	t_hsprepare = DIV_ROUND_UP(cfg.hs_prepare, t_byte_clk) - 1;
 	t_hszero = DIV_ROUND_UP(cfg.hs_zero, t_byte_clk) - 1;
 	t_hstrail = DIV_ROUND_UP(cfg.hs_trail, t_byte_clk) - 1;
-	serdes_combphy_write(des, remote_id, base + DLANE0_PARA2,
+	serdes_combphy_write(des, dev_id, base + DLANE0_PARA2,
 			     T_HSPREPARE_D(t_hsprepare) |
 			     T_HSZERO_D(t_hszero) |
 			     T_HSTRAIL_D(t_hstrail) |
 			     T_HSEXIT_D(t_hsexit));
 
-	serdes_combphy_write(des, remote_id, base + DLANE_PARA2(1),
+	serdes_combphy_write(des, dev_id, base + DLANE_PARA2(1),
 			     T_HSPREPARE_D(t_hsprepare) |
 			     T_HSZERO_D(t_hszero) |
 			     T_HSTRAIL_D(t_hstrail) |
 			     T_HSEXIT_D(t_hsexit));
 
-	serdes_combphy_write(des, remote_id, base + DLANE_PARA2(2),
+	serdes_combphy_write(des, dev_id, base + DLANE_PARA2(2),
 			     T_HSPREPARE_D(t_hsprepare) |
 			     T_HSZERO_D(t_hszero) |
 			     T_HSTRAIL_D(t_hstrail) |
 			     T_HSEXIT_D(t_hsexit));
 
-	serdes_combphy_write(des, remote_id, base + DLANE_PARA2(3),
+	serdes_combphy_write(des, dev_id, base + DLANE_PARA2(3),
 			     T_HSPREPARE_D(t_hsprepare) |
 			     T_HSZERO_D(t_hszero) |
 			     T_HSTRAIL_D(t_hstrail) |
 			     T_HSEXIT_D(t_hsexit));
 
 	t_wakeup = DIV_ROUND_UP(cfg.wakeup, t_byte_clk) - 1;
-	serdes_combphy_write(des, remote_id, base + DLANE0_PARA3, T_WAKEUP_D(t_wakeup));
-	serdes_combphy_write(des, remote_id, base + DLANE_PARA3(1), T_WAKEUP_D(t_wakeup));
-	serdes_combphy_write(des, remote_id, base + DLANE_PARA3(2), T_WAKEUP_D(t_wakeup));
-	serdes_combphy_write(des, remote_id, base + DLANE_PARA3(3), T_WAKEUP_D(t_wakeup));
-	serdes_combphy_write(des, remote_id, base + CLANE_PARA4, T_WAKEUP_D(t_wakeup));
+	serdes_combphy_write(des, dev_id, base + DLANE0_PARA3, T_WAKEUP_D(t_wakeup));
+	serdes_combphy_write(des, dev_id, base + DLANE_PARA3(1), T_WAKEUP_D(t_wakeup));
+	serdes_combphy_write(des, dev_id, base + DLANE_PARA3(2), T_WAKEUP_D(t_wakeup));
+	serdes_combphy_write(des, dev_id, base + DLANE_PARA3(3), T_WAKEUP_D(t_wakeup));
+	serdes_combphy_write(des, dev_id, base + CLANE_PARA4, T_WAKEUP_D(t_wakeup));
 
 	t_tago = DIV_ROUND_UP(cfg.ta_go, t_byte_clk) - 1;
 	t_tasure = DIV_ROUND_UP(cfg.ta_sure, t_byte_clk) - 1;
 	t_taget = DIV_ROUND_UP(cfg.ta_get, t_byte_clk) - 1;
-	serdes_combphy_write(des, remote_id, base + DLANE0_PARA4,
+	serdes_combphy_write(des, dev_id, base + DLANE0_PARA4,
 			     T_TAGO_D0(t_tago) |
 			     T_TASURE_D0(t_tasure) |
 			     T_TAGET_D0(t_taget));
 }
 
-static void rkx120_combtxphy_dsi_pll_set(struct rk_serdes *des, u8 remote_id)
+static void rkx120_combtxphy_dsi_pll_set(struct rk_serdes *des,
+					 struct rkx120_combtxphy *combtxphy, u8 dev_id)
 {
-	struct rkx120_combtxphy *combtxphy = &des->combtxphy;
 	u32 base = RKX120_MIPI_LVDS_TX_PHY0_BASE;
 
-	serdes_combphy_update_bits(des, remote_id, base + PLL_CTRL_PARA0,
+	serdes_combphy_update_bits(des, dev_id, base + PLL_CTRL_PARA0,
 				   RATE_MASK | REFCLK_DIV_MASK | PLL_DIV_MASK,
 				   RATE(combtxphy->rate_factor) |
 				   REFCLK_DIV(combtxphy->ref_div - 1) |
 				   PLL_DIV(combtxphy->fb_div));
 }
 
-static void rkx120_combtxphy_dsi_power_on(struct rk_serdes *des, u8 remote_id)
+static void rkx120_combtxphy_dsi_power_on(struct rk_serdes *des,
+					  struct rkx120_combtxphy *combtxphy,
+					  u8 dev_id)
 {
-	struct rkx120_combtxphy *combtxphy = &des->combtxphy;
-	struct i2c_client *client = des->chip[remote_id].client;
+	struct i2c_client *client = des->chip[dev_id].client;
 	u32 grf_base = RKX120_GRF_MIPI0_BASE;
 	u32 val;
 	int ret;
@@ -218,8 +220,8 @@ static void rkx120_combtxphy_dsi_power_on(struct rk_serdes *des, u8 remote_id)
 			   PHY_MODE(COMBTX_PHY_MODE_VIDEO_MIPI));
 
 	serdes_combphy_get_default_config(combtxphy->rate, &combtxphy->mipi_dphy_cfg);
-	rkx120_combtxphy_dsi_timing_init(des, remote_id);
-	rkx120_combtxphy_dsi_pll_set(des, remote_id);
+	rkx120_combtxphy_dsi_timing_init(des, combtxphy, dev_id);
+	rkx120_combtxphy_dsi_pll_set(des, combtxphy, dev_id);
 
 	des->i2c_write_reg(client, grf_base + GRF_MIPITX_CON0, PHYSHUTDWN(1));
 	des->i2c_write_reg(client, grf_base + GRF_MIPITX_CON1, PWON_PLL(1));
@@ -233,19 +235,20 @@ static void rkx120_combtxphy_dsi_power_on(struct rk_serdes *des, u8 remote_id)
 		dev_err(des->dev, "PLL is not locked\n");
 }
 
-static void rkx120_combtxphy_dsi_power_off(struct rk_serdes *des, u8 remote_id)
+static void rkx120_combtxphy_dsi_power_off(struct rk_serdes *des, u8 dev_id)
 {
-	struct i2c_client *client = des->chip[remote_id].client;
+	struct i2c_client *client = des->chip[dev_id].client;
 	u32 grf_base = RKX120_GRF_MIPI0_BASE;
 
 	des->i2c_write_reg(client, grf_base + GRF_MIPITX_CON0, PHYSHUTDWN(0));
 	des->i2c_write_reg(client, grf_base + GRF_MIPITX_CON1, PWON_PLL(0));
 }
 
-static void rkx120_combtxphy_lvds_power_on(struct rk_serdes *des, u8 remote_id, u8 phy_id)
+static void rkx120_combtxphy_lvds_power_on(struct rk_serdes *des,
+					   struct rkx120_combtxphy *combtxphy,
+					   u8 dev_id, u8 phy_id)
 {
-	struct rkx120_combtxphy *combtxphy = &des->combtxphy;
-	struct i2c_client *client = des->chip[remote_id].client;
+	struct i2c_client *client = des->chip[dev_id].client;
 	u32 grf_base = (phy_id == 0) ?
 			RKX120_GRF_MIPI0_BASE : RKX120_GRF_MIPI1_BASE;
 	const struct {
@@ -304,29 +307,27 @@ static void rkx120_combtxphy_lvds_power_on(struct rk_serdes *des, u8 remote_id, 
 	des->i2c_write_reg(client, grf_base + GRF_MIPITX_CON13, TX_IDLE(0));
 }
 
-void rkx120_combtxphy_power_on(struct rk_serdes *des, u8 remote_id, u8 phy_id)
+void rkx120_combtxphy_power_on(struct rk_serdes *des, struct rkx120_combtxphy *combtxphy,
+			       u8 dev_id, u8 phy_id)
 {
-	struct rkx120_combtxphy *combtxphy = &des->combtxphy;
-
 	switch (combtxphy->mode) {
 	case COMBTX_PHY_MODE_VIDEO_MIPI:
-		rkx120_combtxphy_dsi_power_on(des, remote_id);
+		rkx120_combtxphy_dsi_power_on(des, combtxphy, dev_id);
 		break;
 	case COMBTX_PHY_MODE_VIDEO_LVDS:
-		rkx120_combtxphy_lvds_power_on(des, remote_id, phy_id);
+		rkx120_combtxphy_lvds_power_on(des, combtxphy, dev_id, phy_id);
 		break;
 	default:
 		break;
 	}
 }
 
-void rkx120_combtxphy_power_off(struct rk_serdes *des, u8 remote_id)
+void rkx120_combtxphy_power_off(struct rk_serdes *des, struct rkx120_combtxphy *combtxphy,
+				u8 dev_id, u8 phy_id)
 {
-	struct rkx120_combtxphy *combtxphy = &des->combtxphy;
-
 	switch (combtxphy->mode) {
 	case COMBTX_PHY_MODE_VIDEO_MIPI:
-		rkx120_combtxphy_dsi_power_off(des, remote_id);
+		rkx120_combtxphy_dsi_power_off(des, dev_id);
 		break;
 	case COMBTX_PHY_MODE_VIDEO_LVDS:
 		break;
@@ -385,10 +386,8 @@ static void rkx120_combtxphy_lvds_pll_calc_rate(struct rkx120_combtxphy *combtxp
 {
 }
 
-void rkx120_combtxphy_set_rate(struct rk_serdes *des, u64 rate)
+void rkx120_combtxphy_set_rate(struct rkx120_combtxphy *combtxphy, u64 rate)
 {
-	struct rkx120_combtxphy *combtxphy = &des->combtxphy;
-
 	switch (combtxphy->mode) {
 	case COMBTX_PHY_MODE_VIDEO_MIPI:
 		rkx120_combtxphy_dsi_pll_calc_rate(combtxphy, rate);
@@ -403,14 +402,12 @@ void rkx120_combtxphy_set_rate(struct rk_serdes *des, u64 rate)
 	combtxphy->rate = rate;
 }
 
-u64 rkx120_combtxphy_get_rate(struct rk_serdes *des)
+u64 rkx120_combtxphy_get_rate(struct rkx120_combtxphy *combtxphy)
 {
-	return des->combtxphy.rate;
+	return combtxphy->rate;
 }
 
-void rkx120_combtxphy_set_mode(struct rk_serdes *des, enum combtx_phy_mode mode)
+void rkx120_combtxphy_set_mode(struct rkx120_combtxphy *combtxphy, enum combtx_phy_mode mode)
 {
-	struct rkx120_combtxphy *combtxphy = &des->combtxphy;
-
 	combtxphy->mode = mode;
 }
