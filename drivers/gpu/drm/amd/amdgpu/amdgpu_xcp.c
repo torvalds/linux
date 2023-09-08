@@ -163,15 +163,10 @@ int amdgpu_xcp_init(struct amdgpu_xcp_mgr *xcp_mgr, int num_xcps, int mode)
 	return 0;
 }
 
-int amdgpu_xcp_switch_partition_mode(struct amdgpu_xcp_mgr *xcp_mgr, int mode)
+static int __amdgpu_xcp_switch_partition_mode(struct amdgpu_xcp_mgr *xcp_mgr,
+					      int mode)
 {
 	int ret, curr_mode, num_xcps = 0;
-
-	if (!xcp_mgr || mode == AMDGPU_XCP_MODE_NONE)
-		return -EINVAL;
-
-	if (xcp_mgr->mode == mode)
-		return 0;
 
 	if (!xcp_mgr->funcs || !xcp_mgr->funcs->switch_partition_mode)
 		return 0;
@@ -199,6 +194,25 @@ out:
 	mutex_unlock(&xcp_mgr->xcp_lock);
 
 	return ret;
+}
+
+int amdgpu_xcp_switch_partition_mode(struct amdgpu_xcp_mgr *xcp_mgr, int mode)
+{
+	if (!xcp_mgr || mode == AMDGPU_XCP_MODE_NONE)
+		return -EINVAL;
+
+	if (xcp_mgr->mode == mode)
+		return 0;
+
+	return __amdgpu_xcp_switch_partition_mode(xcp_mgr, mode);
+}
+
+int amdgpu_xcp_restore_partition_mode(struct amdgpu_xcp_mgr *xcp_mgr)
+{
+	if (!xcp_mgr || xcp_mgr->mode == AMDGPU_XCP_MODE_NONE)
+		return 0;
+
+	return __amdgpu_xcp_switch_partition_mode(xcp_mgr, xcp_mgr->mode);
 }
 
 int amdgpu_xcp_query_partition_mode(struct amdgpu_xcp_mgr *xcp_mgr, u32 flags)

@@ -5137,6 +5137,11 @@ int amdgpu_do_asic_reset(struct list_head *device_list_handle,
 				if (r)
 					return r;
 
+				r = amdgpu_xcp_restore_partition_mode(
+					tmp_adev->xcp_mgr);
+				if (r)
+					goto out;
+
 				r = amdgpu_device_ip_resume_phase2(tmp_adev);
 				if (r)
 					goto out;
