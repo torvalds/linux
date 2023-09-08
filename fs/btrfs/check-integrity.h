@@ -6,9 +6,6 @@
 #ifndef BTRFS_CHECK_INTEGRITY_H
 #define BTRFS_CHECK_INTEGRITY_H
 
-int btrfsic_mount(struct btrfs_fs_info *fs_info,
-		  struct btrfs_fs_devices *fs_devices,
-		  int including_extent_data, u32 print_mask);
 void btrfsic_unmount(struct btrfs_fs_devices *fs_devices);
 
 #endif
