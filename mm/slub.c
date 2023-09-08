@@ -4141,14 +4141,6 @@ static inline int calculate_order(unsigned int size)
 	unsigned int max_objects;
 	unsigned int nr_cpus;
 
-	/*
-	 * Attempt to find best configuration for a slab. This
-	 * works by first attempting to generate a layout with
-	 * the best configuration and backing off gradually.
-	 *
-	 * First we increase the acceptable waste in a slab. Then
-	 * we reduce the minimum objects required in a slab.
-	 */
 	min_objects = slub_min_objects;
 	if (!min_objects) {
 		/*
@@ -4168,18 +4160,24 @@ static inline int calculate_order(unsigned int size)
 	max_objects = order_objects(slub_max_order, size);
 	min_objects = min(min_objects, max_objects);
 
-	while (min_objects > 1) {
-		unsigned int fraction;
-
-		fraction = 16;
-		while (fraction >= 4) {
-			order = calc_slab_order(size, min_objects,
-					slub_max_order, fraction);
-			if (order <= slub_max_order)
-				return order;
-			fraction /= 2;
-		}
-		min_objects--;
+	/*
+	 * Attempt to find best configuration for a slab. This works by first
+	 * attempting to generate a layout with the best possible configuration
+	 * and backing off gradually.
+	 *
+	 * We start with accepting at most 1/16 waste and try to find the
+	 * smallest order from min_objects-derived/slub_min_order up to
+	 * slub_max_order that will satisfy the constraint. Note that increasing
+	 * the order can only result in same or less fractional waste, not more.
+	 *
+	 * If that fails, we increase the acceptable fraction of waste and try
+	 * again.
+	 */
+	for (unsigned int fraction = 16; fraction >= 4; fraction /= 2) {
+		order = calc_slab_order(size, min_objects, slub_max_order,
+					fraction);
+		if (order <= slub_max_order)
+			return order;
 	}
 
 	/*
