@@ -1805,6 +1805,7 @@ static int sja1105_fdb_add(struct dsa_switch *ds, int port,
 			   struct dsa_db db)
 {
 	struct sja1105_private *priv = ds->priv;
+	int rc;
 
 	if (!vid) {
 		switch (db.type) {
@@ -1819,12 +1820,16 @@ static int sja1105_fdb_add(struct dsa_switch *ds, int port,
 		}
 	}
 
-	return priv->info->fdb_add_cmd(ds, port, addr, vid);
+	mutex_lock(&priv->fdb_lock);
+	rc = priv->info->fdb_add_cmd(ds, port, addr, vid);
+	mutex_unlock(&priv->fdb_lock);
+
+	return rc;
 }
 
-static int sja1105_fdb_del(struct dsa_switch *ds, int port,
-			   const unsigned char *addr, u16 vid,
-			   struct dsa_db db)
+static int __sja1105_fdb_del(struct dsa_switch *ds, int port,
+			     const unsigned char *addr, u16 vid,
+			     struct dsa_db db)
 {
 	struct sja1105_private *priv = ds->priv;
 
@@ -1842,6 +1847,20 @@ static int sja1105_fdb_del(struct dsa_switch *ds, int port,
 	}
 
 	return priv->info->fdb_del_cmd(ds, port, addr, vid);
+}
+
+static int sja1105_fdb_del(struct dsa_switch *ds, int port,
+			   const unsigned char *addr, u16 vid,
+			   struct dsa_db db)
+{
+	struct sja1105_private *priv = ds->priv;
+	int rc;
+
+	mutex_lock(&priv->fdb_lock);
+	rc = __sja1105_fdb_del(ds, port, addr, vid, db);
+	mutex_unlock(&priv->fdb_lock);
+
+	return rc;
 }
 
 static int sja1105_fdb_dump(struct dsa_switch *ds, int port,
@@ -1906,6 +1925,8 @@ static void sja1105_fast_age(struct dsa_switch *ds, int port)
 	};
 	int i;
 
+	mutex_lock(&priv->fdb_lock);
+
 	for (i = 0; i < SJA1105_MAX_L2_LOOKUP_COUNT; i++) {
 		struct sja1105_l2_lookup_entry l2_lookup = {0};
 		u8 macaddr[ETH_ALEN];
@@ -1919,7 +1940,7 @@ static void sja1105_fast_age(struct dsa_switch *ds, int port)
 		if (rc) {
 			dev_err(ds->dev, "Failed to read FDB: %pe\n",
 				ERR_PTR(rc));
-			return;
+			break;
 		}
 
 		if (!(l2_lookup.destports & BIT(port)))
@@ -1931,14 +1952,16 @@ static void sja1105_fast_age(struct dsa_switch *ds, int port)
 
 		u64_to_ether_addr(l2_lookup.macaddr, macaddr);
 
-		rc = sja1105_fdb_del(ds, port, macaddr, l2_lookup.vlanid, db);
+		rc = __sja1105_fdb_del(ds, port, macaddr, l2_lookup.vlanid, db);
 		if (rc) {
 			dev_err(ds->dev,
 				"Failed to delete FDB entry %pM vid %lld: %pe\n",
 				macaddr, l2_lookup.vlanid, ERR_PTR(rc));
-			return;
+			break;
 		}
 	}
+
+	mutex_unlock(&priv->fdb_lock);
 }
 
 static int sja1105_mdb_add(struct dsa_switch *ds, int port,
@@ -2964,7 +2987,9 @@ static int sja1105_port_mcast_flood(struct sja1105_private *priv, int to,
 {
 	struct sja1105_l2_lookup_entry *l2_lookup;
 	struct sja1105_table *table;
-	int match;
+	int match, rc;
+
+	mutex_lock(&priv->fdb_lock);
 
 	table = &priv->static_config.tables[BLK_IDX_L2_LOOKUP];
 	l2_lookup = table->entries;
@@ -2977,7 +3002,8 @@ static int sja1105_port_mcast_flood(struct sja1105_private *priv, int to,
 	if (match == table->entry_count) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "Could not find FDB entry for unknown multicast");
-		return -ENOSPC;
+		rc = -ENOSPC;
+		goto out;
 	}
 
 	if (flags.val & BR_MCAST_FLOOD)
@@ -2985,10 +3011,13 @@ static int sja1105_port_mcast_flood(struct sja1105_private *priv, int to,
 	else
 		l2_lookup[match].destports &= ~BIT(to);
 
-	return sja1105_dynamic_config_write(priv, BLK_IDX_L2_LOOKUP,
-					    l2_lookup[match].index,
-					    &l2_lookup[match],
-					    true);
+	rc = sja1105_dynamic_config_write(priv, BLK_IDX_L2_LOOKUP,
+					  l2_lookup[match].index,
+					  &l2_lookup[match], true);
+out:
+	mutex_unlock(&priv->fdb_lock);
+
+	return rc;
 }
 
 static int sja1105_port_pre_bridge_flags(struct dsa_switch *ds, int port,
@@ -3358,6 +3387,7 @@ static int sja1105_probe(struct spi_device *spi)
 	mutex_init(&priv->ptp_data.lock);
 	mutex_init(&priv->dynamic_config_lock);
 	mutex_init(&priv->mgmt_lock);
+	mutex_init(&priv->fdb_lock);
 	spin_lock_init(&priv->ts_id_lock);
 
 	rc = sja1105_parse_dt(priv);
