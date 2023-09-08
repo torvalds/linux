@@ -790,15 +790,9 @@ err_lrc_finish:
 void xe_lrc_finish(struct xe_lrc *lrc)
 {
 	xe_hw_fence_ctx_finish(&lrc->fence_ctx);
-	if (lrc->bo->vm)
-		xe_vm_lock(lrc->bo->vm, false);
-	else
-		xe_bo_lock_no_vm(lrc->bo, NULL);
+	xe_bo_lock(lrc->bo, false);
 	xe_bo_unpin(lrc->bo);
-	if (lrc->bo->vm)
-		xe_vm_unlock(lrc->bo->vm);
-	else
-		xe_bo_unlock_no_vm(lrc->bo);
+	xe_bo_unlock(lrc->bo);
 	xe_bo_put(lrc->bo);
 }
 

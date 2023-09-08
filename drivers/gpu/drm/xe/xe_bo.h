@@ -173,25 +173,6 @@ static inline void xe_bo_unlock_vm_held(struct xe_bo *bo)
 	}
 }
 
-static inline void xe_bo_lock_no_vm(struct xe_bo *bo,
-				    struct ww_acquire_ctx *ctx)
-{
-	if (bo) {
-		XE_WARN_ON(bo->vm || (bo->ttm.type != ttm_bo_type_sg &&
-				      bo->ttm.base.resv != &bo->ttm.base._resv));
-		dma_resv_lock(bo->ttm.base.resv, ctx);
-	}
-}
-
-static inline void xe_bo_unlock_no_vm(struct xe_bo *bo)
-{
-	if (bo) {
-		XE_WARN_ON(bo->vm || (bo->ttm.type != ttm_bo_type_sg &&
-				      bo->ttm.base.resv != &bo->ttm.base._resv));
-		dma_resv_unlock(bo->ttm.base.resv);
-	}
-}
-
 int xe_bo_pin_external(struct xe_bo *bo);
 int xe_bo_pin(struct xe_bo *bo);
 void xe_bo_unpin_external(struct xe_bo *bo);
@@ -206,9 +187,9 @@ static inline bool xe_bo_is_pinned(struct xe_bo *bo)
 static inline void xe_bo_unpin_map_no_vm(struct xe_bo *bo)
 {
 	if (likely(bo)) {
-		xe_bo_lock_no_vm(bo, NULL);
+		xe_bo_lock(bo, false);
 		xe_bo_unpin(bo);
-		xe_bo_unlock_no_vm(bo);
+		xe_bo_unlock(bo);
 
 		xe_bo_put(bo);
 	}

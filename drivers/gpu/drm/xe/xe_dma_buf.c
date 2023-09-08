@@ -150,9 +150,10 @@ static int xe_dma_buf_begin_cpu_access(struct dma_buf *dma_buf,
 	if (!reads)
 		return 0;
 
-	xe_bo_lock_no_vm(bo, NULL);
+	/* Can we do interruptible lock here? */
+	xe_bo_lock(bo, false);
 	(void)xe_bo_migrate(bo, XE_PL_TT);
-	xe_bo_unlock_no_vm(bo);
+	xe_bo_unlock(bo);
 
 	return 0;
 }

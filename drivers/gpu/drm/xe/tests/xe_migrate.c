@@ -183,7 +183,7 @@ static void test_copy(struct xe_migrate *m, struct xe_bo *bo,
 
 	xe_bo_vunmap(sysmem);
 out_unlock:
-	xe_bo_unlock_no_vm(sysmem);
+	xe_bo_unlock(sysmem);
 	xe_bo_put(sysmem);
 }
 

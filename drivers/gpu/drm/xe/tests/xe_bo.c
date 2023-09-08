@@ -143,7 +143,7 @@ static void ccs_test_run_gt(struct xe_device *xe, struct xe_gt *gt,
 	ret = ccs_test_migrate(gt, bo, true, 0ULL, 0ULL, test);
 
 out_unlock:
-	xe_bo_unlock_no_vm(bo);
+	xe_bo_unlock(bo);
 	xe_bo_put(bo);
 }
 
