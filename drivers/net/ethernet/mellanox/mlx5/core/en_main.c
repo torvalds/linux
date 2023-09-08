@@ -3799,7 +3799,7 @@ mlx5e_get_stats(struct net_device *dev, struct rtnl_link_stats64 *stats)
 	stats->tx_errors = stats->tx_aborted_errors + stats->tx_carrier_errors;
 }
 
-static void mlx5e_nic_set_rx_mode(struct mlx5e_priv *priv)
+void mlx5e_nic_set_rx_mode(struct mlx5e_priv *priv)
 {
 	if (mlx5e_is_uplink_rep(priv))
 		return; /* no rx mode for uplink rep */
@@ -5004,6 +5004,15 @@ const struct net_device_ops mlx5e_netdev_ops = {
 #endif
 };
 
+const struct net_device_ops mlx5e_mgmt_netdev_ops = {
+	.ndo_open		= mlx5e_open,
+	.ndo_stop		= mlx5e_close,
+	.ndo_start_xmit		= mlx5e_xmit,
+	.ndo_get_stats64	= mlx5e_get_stats,
+	.ndo_change_mtu		= mlx5e_change_nic_mtu,
+	.ndo_set_rx_mode	= mlx5e_set_rx_mode,
+};
+
 static u32 mlx5e_choose_lro_timeout(struct mlx5_core_dev *mdev, u32 wanted_timeout)
 {
 	int i;
@@ -5143,7 +5152,11 @@ static void mlx5e_build_nic_netdev(struct net_device *netdev)
 
 	SET_NETDEV_DEV(netdev, mdev->device);
 
-	netdev->netdev_ops = &mlx5e_netdev_ops;
+	if (mlx5_core_is_mgmt_pf(mdev))
+		netdev->netdev_ops = &mlx5e_mgmt_netdev_ops;
+	else
+		netdev->netdev_ops = &mlx5e_netdev_ops;
+
 	netdev->xdp_metadata_ops = &mlx5e_xdp_metadata_ops;
 	netdev->xsk_tx_metadata_ops = &mlx5e_xsk_tx_metadata_ops;
 
@@ -6094,12 +6107,17 @@ static int mlx5e_suspend(struct auxiliary_device *adev, pm_message_t state)
 static int _mlx5e_probe(struct auxiliary_device *adev)
 {
 	struct mlx5_adev *edev = container_of(adev, struct mlx5_adev, adev);
-	const struct mlx5e_profile *profile = &mlx5e_nic_profile;
 	struct mlx5_core_dev *mdev = edev->mdev;
+	const struct mlx5e_profile *profile;
 	struct mlx5e_dev *mlx5e_dev;
 	struct net_device *netdev;
 	struct mlx5e_priv *priv;
 	int err;
+
+	if (mlx5_core_is_mgmt_pf(mdev))
+		profile = &mlx5e_mgmt_pf_nic_profile;
+	else
+		profile = &mlx5e_nic_profile;
 
 	mlx5e_dev = mlx5e_create_devlink(&adev->dev, mdev);
 	if (IS_ERR(mlx5e_dev))

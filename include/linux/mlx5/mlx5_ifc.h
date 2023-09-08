@@ -1954,8 +1954,10 @@ enum {
 struct mlx5_ifc_cmd_hca_cap_2_bits {
 	u8	   reserved_at_0[0x80];
 
-	u8         migratable[0x1];
-	u8         reserved_at_81[0x1f];
+	u8	   migratable[0x1];
+	u8	   reserved_at_81[0x19];
+	u8	   local_mng_port[0x1];
+	u8	   reserved_at_9b[0x5];
 
 	u8	   max_reformat_insert_size[0x8];
 	u8	   max_reformat_insert_offset[0x8];
@@ -1973,7 +1975,13 @@ struct mlx5_ifc_cmd_hca_cap_2_bits {
 
 	u8	   allowed_object_for_other_vhca_access[0x40];
 
-	u8	   reserved_at_140[0x60];
+	u8	   reserved_at_140[0x20];
+
+	u8	   reserved_at_160[0xa];
+	u8	   local_mng_port_valid[0x1];
+	u8	   reserved_at_16b[0x15];
+
+	u8	   reserved_at_180[0x20];
 
 	u8	   flow_table_type_2_type[0x8];
 	u8	   reserved_at_1a8[0x3];

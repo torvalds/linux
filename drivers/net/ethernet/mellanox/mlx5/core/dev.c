@@ -190,6 +190,9 @@ bool mlx5_rdma_supported(struct mlx5_core_dev *dev)
 	if (is_mp_supported(dev))
 		return false;
 
+	if (mlx5_core_is_mgmt_pf(dev))
+		return false;
+
 	return true;
 }
 

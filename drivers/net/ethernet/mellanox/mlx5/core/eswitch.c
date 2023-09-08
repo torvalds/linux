@@ -1665,7 +1665,7 @@ int mlx5_esw_sf_max_hpf_functions(struct mlx5_core_dev *dev, u16 *max_sfs, u16 *
 	void *hca_caps;
 	int err;
 
-	if (!mlx5_core_is_ecpf(dev)) {
+	if (!mlx5_core_is_ecpf(dev) || mlx5_core_is_mgmt_pf(dev)) {
 		*max_sfs = 0;
 		return 0;
 	}

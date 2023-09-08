@@ -1224,6 +1224,14 @@ static inline bool mlx5_core_is_ecpf(const struct mlx5_core_dev *dev)
 	return dev->caps.embedded_cpu;
 }
 
+static inline bool mlx5_core_is_mgmt_pf(const struct mlx5_core_dev *dev)
+{
+	if (!MLX5_CAP_GEN_2(dev, local_mng_port_valid))
+		return false;
+
+	return MLX5_CAP_GEN_2(dev, local_mng_port);
+}
+
 static inline bool
 mlx5_core_is_ecpf_esw_manager(const struct mlx5_core_dev *dev)
 {

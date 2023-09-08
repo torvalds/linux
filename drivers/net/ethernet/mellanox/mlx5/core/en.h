@@ -63,6 +63,7 @@
 #include "lib/sd.h"
 
 extern const struct net_device_ops mlx5e_netdev_ops;
+extern const struct net_device_ops mlx5e_mgmt_netdev_ops;
 struct page_pool;
 
 #define MLX5E_METADATA_ETHER_TYPE (0x8CE4)
@@ -1125,6 +1126,7 @@ static inline bool mlx5_tx_swp_supported(struct mlx5_core_dev *mdev)
 }
 
 extern const struct ethtool_ops mlx5e_ethtool_ops;
+extern const struct mlx5e_profile mlx5e_mgmt_pf_nic_profile;
 
 int mlx5e_create_mkey(struct mlx5_core_dev *mdev, u32 pdn, u32 *mkey);
 int mlx5e_create_mdev_resources(struct mlx5_core_dev *mdev, bool create_tises);
@@ -1230,6 +1232,8 @@ netdev_features_t mlx5e_features_check(struct sk_buff *skb,
 				       struct net_device *netdev,
 				       netdev_features_t features);
 int mlx5e_set_features(struct net_device *netdev, netdev_features_t features);
+void mlx5e_nic_set_rx_mode(struct mlx5e_priv *priv);
+
 #ifdef CONFIG_MLX5_ESWITCH
 int mlx5e_set_vf_mac(struct net_device *dev, int vf, u8 *mac);
 int mlx5e_set_vf_rate(struct net_device *dev, int vf, int min_tx_rate, int max_tx_rate);
