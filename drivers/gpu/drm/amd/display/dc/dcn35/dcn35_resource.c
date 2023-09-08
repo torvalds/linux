@@ -749,7 +749,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 	.dmcub_emulation = false,
 	.disable_boot_optimizations = false,
 	.disable_unbounded_requesting = false,
-	.disable_mem_low_power = true,
+	.disable_mem_low_power = false,
 	.enable_hpo_pg_support = false,
 	//must match enable_single_display_2to1_odm_policy to support dynamic ODM transitions
 	.enable_double_buffered_dsc_pg_support = false,
