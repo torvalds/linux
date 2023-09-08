@@ -66,7 +66,7 @@ void btrfs_delayed_refs_rsv_release(struct btrfs_fs_info *fs_info, int nr)
 {
 	struct btrfs_block_rsv *block_rsv = &fs_info->delayed_refs_rsv;
 	const u64 num_bytes = btrfs_calc_delayed_ref_bytes(fs_info, nr);
-	u64 released = 0;
+	u64 released;
 
 	released = btrfs_block_rsv_release(fs_info, block_rsv, num_bytes, NULL);
 	if (released)
