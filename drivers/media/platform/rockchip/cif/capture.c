@@ -2037,6 +2037,17 @@ static int rkcif_assign_new_buffer_update_toisp(struct rkcif_stream *stream,
 		}
 		if (stream->lack_buf_cnt)
 			stream->lack_buf_cnt--;
+		if (stream->lack_buf_cnt == 2 || stream->is_single_cap) {
+			stream->to_stop_dma = RKCIF_DMAEN_BY_ISP;
+			rkcif_stop_dma_capture(stream);
+			stream->is_single_cap = false;
+			if ((dev->hdr.hdr_mode == NO_HDR && atomic_read(&dev->streamoff_cnt) == 1) ||
+			    (dev->hdr.hdr_mode == HDR_X2 && atomic_read(&dev->streamoff_cnt) == 2) ||
+			    (dev->hdr.hdr_mode == HDR_X3 && atomic_read(&dev->streamoff_cnt) == 3)) {
+				dev->sensor_work.on = 0;
+				schedule_work(&dev->sensor_work.work);
+			}
+		}
 	} else {
 		if (priv->mode.rdbk_mode == RKISP_VICAP_ONLINE)
 			goto out_get_buf;
@@ -7209,6 +7220,7 @@ void rkcif_set_fps(struct rkcif_stream *stream, struct rkcif_fps *fps)
 
 static int rkcif_do_reset_work(struct rkcif_device *cif_dev,
 			       enum rkmodule_reset_src reset_src);
+static bool rkcif_check_single_dev_stream_on(struct rkcif_hw *hw);
 
 static long rkcif_ioctl_default(struct file *file, void *fh,
 				bool valid_prio, unsigned int cmd, void *arg)
@@ -7220,6 +7232,10 @@ static long rkcif_ioctl_default(struct file *file, void *fh,
 	struct csi_channel_info csi_info;
 	struct rkcif_fps fps;
 	int reset_src;
+	int on = 0;
+	bool is_single_dev = false;
+	struct v4l2_subdev *sd;
+	int ret = -EINVAL;
 
 	switch (cmd) {
 	case RKCIF_CMD_GET_CSI_MEMORY_MODE:
@@ -7268,6 +7284,43 @@ static long rkcif_ioctl_default(struct file *file, void *fh,
 	case RKCIF_CMD_SET_RESET:
 		reset_src = *(int *)arg;
 		return rkcif_do_reset_work(dev, reset_src);
+	case RKCIF_CMD_SET_QUICK_STREAM:
+		on = *(int *)arg;
+		if (!dev->sditf[0])
+			return -EINVAL;
+		if (on) {
+			is_single_dev = rkcif_check_single_dev_stream_on(dev->hw_dev);
+			if (is_single_dev) {
+				dev->sditf[0]->mode.rdbk_mode = RKISP_VICAP_ONLINE;
+				sditf_change_to_online(dev->sditf[0]);
+				sd = get_rkisp_sd(dev->sditf[0]);
+				if (sd)
+					ret = v4l2_subdev_call(sd, core, ioctl,
+							       RKISP_VICAP_CMD_MODE, &dev->sditf[0]->mode);
+				if (ret) {
+					v4l2_err(&dev->v4l2_dev, "set isp work mode online fail\n");
+					return -EINVAL;
+				}
+			} else {
+				dev->sditf[0]->mode.rdbk_mode = RKISP_VICAP_RDBK_AUTO;
+				sditf_disable_immediately(dev->sditf[0]);
+				stream->to_en_dma = RKCIF_DMAEN_BY_ISP;
+				rkcif_enable_dma_capture(stream, true);
+			}
+
+			v4l2_subdev_call(dev->terminal_sensor.sd, core, ioctl,
+					 RKMODULE_SET_QUICK_STREAM, &on);
+		} else {
+			if (dev->sditf[0]->mode.rdbk_mode == RKISP_VICAP_RDBK_AUTO) {
+				stream->to_stop_dma = RKCIF_DMAEN_BY_ISP;
+			} else if (dev->sditf[0]->mode.rdbk_mode == RKISP_VICAP_RDBK_AIQ) {
+				stream->to_stop_dma = RKCIF_DMAEN_BY_VICAP;
+			} else {
+				stream->cifdev->sensor_state = 0;
+				stream->cifdev->sensor_state_change = true;
+			}
+		}
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -9959,7 +10012,11 @@ static void rkcif_toisp_check_stop_status(struct sditf_priv *priv,
 				stream->stopping = false;
 				wake_up(&stream->wq_stopped);
 			}
-
+			if (stream->cifdev->sensor_state_change) {
+				stream->cifdev->sensor_work.on = stream->cifdev->sensor_state;
+				schedule_work(&stream->cifdev->sensor_work.work);
+				stream->cifdev->sensor_state_change = false;
+			}
 			if (stream->cifdev->chip_id >= CHIP_RV1106_CIF)
 				rkcif_modify_frame_skip_config(stream);
 			if (stream->cifdev->rdbk_debug &&

@@ -668,39 +668,36 @@ static int sditf_start_stream(struct sditf_priv *priv)
 	struct rkcif_device *cif_dev = priv->cif_dev;
 	struct v4l2_subdev_format fmt;
 	unsigned int mode = RKCIF_STREAM_MODE_TOISP;
-	int ret = 0;
 
 	sditf_check_capture_mode(cif_dev);
 	sditf_get_set_fmt(&priv->sd, NULL, &fmt);
 	if (priv->mode.rdbk_mode == RKISP_VICAP_ONLINE) {
 		if (priv->toisp_inf.link_mode == TOISP0) {
-			ret = sditf_channel_enable(priv, 0);
+			sditf_channel_enable(priv, 0);
 		} else if (priv->toisp_inf.link_mode == TOISP1) {
-			ret = sditf_channel_enable(priv, 1);
+			sditf_channel_enable(priv, 1);
 		} else if (priv->toisp_inf.link_mode == TOISP_UNITE) {
-			ret = sditf_channel_enable(priv, 0);
-			ret |= sditf_channel_enable(priv, 1);
+			sditf_channel_enable(priv, 0);
+			sditf_channel_enable(priv, 1);
 		}
 		mode = RKCIF_STREAM_MODE_TOISP;
 	} else if (priv->mode.rdbk_mode == RKISP_VICAP_RDBK_AUTO) {
 		mode = RKCIF_STREAM_MODE_TOISP_RDBK;
 	}
-	if (ret)
-		return ret;
 
 	if (priv->hdr_cfg.hdr_mode == NO_HDR ||
 	    priv->hdr_cfg.hdr_mode == HDR_COMPR) {
-		ret = rkcif_do_start_stream(&cif_dev->stream[0], mode);
+		rkcif_do_start_stream(&cif_dev->stream[0], mode);
 	} else if (priv->hdr_cfg.hdr_mode == HDR_X2) {
-		ret = rkcif_do_start_stream(&cif_dev->stream[0], mode);
-		ret |= rkcif_do_start_stream(&cif_dev->stream[1], mode);
+		rkcif_do_start_stream(&cif_dev->stream[0], mode);
+		rkcif_do_start_stream(&cif_dev->stream[1], mode);
 	} else if (priv->hdr_cfg.hdr_mode == HDR_X3) {
-		ret = rkcif_do_start_stream(&cif_dev->stream[0], mode);
-		ret |= rkcif_do_start_stream(&cif_dev->stream[1], mode);
-		ret |= rkcif_do_start_stream(&cif_dev->stream[2], mode);
+		rkcif_do_start_stream(&cif_dev->stream[0], mode);
+		rkcif_do_start_stream(&cif_dev->stream[1], mode);
+		rkcif_do_start_stream(&cif_dev->stream[2], mode);
 	}
 	INIT_LIST_HEAD(&priv->buf_free_list);
-	return ret;
+	return 0;
 }
 
 static int sditf_stop_stream(struct sditf_priv *priv)
@@ -873,6 +870,8 @@ static int sditf_s_rx_buffer(struct v4l2_subdev *sd,
 		if (!stream->dma_en && cif_dev->resume_mode != RKISP_RTT_MODE_ONE_FRAME) {
 			stream->to_en_dma = RKCIF_DMAEN_BY_ISP;
 			rkcif_enable_dma_capture(stream, true);
+			cif_dev->sensor_work.on = 1;
+			schedule_work(&cif_dev->sensor_work.work);
 		}
 		if (cif_dev->rdbk_debug) {
 			u32 offset = 0;

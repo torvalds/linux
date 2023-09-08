@@ -882,7 +882,7 @@ struct rkcif_device {
 	bool				is_rdbk_to_online;
 	bool				is_support_tools;
 	bool				is_rtt_suspend;
-
+	bool				sensor_state_change;
 	int				rdbk_debug;
 	struct rkcif_sync_cfg		sync_cfg;
 	int				sditf_cnt;
@@ -893,6 +893,7 @@ struct rkcif_device {
 	struct rkcif_err_state_work	err_state_work;
 	struct rkcif_sensor_work	sensor_work;
 	int				resume_mode;
+	int				sensor_state;
 };
 
 extern struct platform_driver rkcif_plat_drv;

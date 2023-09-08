@@ -2160,7 +2160,7 @@ static int rkcif_get_reserved_mem(struct rkcif_device *cif_dev)
 
 	if (device_property_read_bool(dev, "rtt-suspend"))
 		cif_dev->is_rtt_suspend = true;
-	else
+	if (IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_ISP))
 		cif_dev->is_thunderboot = true;
 	dev_info(dev, "Allocated reserved memory, paddr: 0x%x, size 0x%x\n",
 		 (u32)cif_dev->resmem_pa,
