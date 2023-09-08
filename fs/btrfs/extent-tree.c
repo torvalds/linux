@@ -1536,7 +1536,6 @@ static int run_delayed_data_ref(struct btrfs_trans_handle *trans,
 	int ret = 0;
 	struct btrfs_delayed_data_ref *ref;
 	u64 parent = 0;
-	u64 ref_root = 0;
 	u64 flags = 0;
 
 	ref = btrfs_delayed_node_to_data_ref(node);
@@ -1544,7 +1543,6 @@ static int run_delayed_data_ref(struct btrfs_trans_handle *trans,
 
 	if (node->type == BTRFS_SHARED_DATA_REF_KEY)
 		parent = ref->parent;
-	ref_root = ref->root;
 
 	if (node->action == BTRFS_ADD_DELAYED_REF && insert_reserved) {
 		struct btrfs_key key;
@@ -1556,17 +1554,17 @@ static int run_delayed_data_ref(struct btrfs_trans_handle *trans,
 		key.type = BTRFS_EXTENT_ITEM_KEY;
 		key.offset = node->num_bytes;
 
-		ret = alloc_reserved_file_extent(trans, parent, ref_root,
+		ret = alloc_reserved_file_extent(trans, parent, ref->root,
 						 flags, ref->objectid,
 						 ref->offset, &key,
 						 node->ref_mod);
 	} else if (node->action == BTRFS_ADD_DELAYED_REF) {
-		ret = __btrfs_inc_extent_ref(trans, node, parent, ref_root,
+		ret = __btrfs_inc_extent_ref(trans, node, parent, ref->root,
 					     ref->objectid, ref->offset,
 					     extent_op);
 	} else if (node->action == BTRFS_DROP_DELAYED_REF) {
 		ret = __btrfs_free_extent(trans, node, parent,
-					  ref_root, ref->objectid,
+					  ref->root, ref->objectid,
 					  ref->offset, extent_op);
 	} else {
 		BUG();
