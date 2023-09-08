@@ -2242,6 +2242,14 @@ static void enable_clos_qos_config(struct isst_id *id, void *arg1, void *arg2, v
 {
 	int ret;
 	int status = *(int *)arg4;
+	int cp_state, cp_cap;
+
+	if (!isst_read_pm_config(id, &cp_state, &cp_cap)) {
+		if (!cp_cap) {
+			isst_display_error_info_message(1, "core-power not supported", 0, 0);
+			return;
+		}
+	}
 
 	if (is_skx_based_platform())
 		clos_priority_type = 1;
