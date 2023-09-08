@@ -2085,7 +2085,7 @@ static void btrfs_cleanup_pending_block_groups(struct btrfs_trans_handle *trans)
        struct btrfs_block_group *block_group, *tmp;
 
        list_for_each_entry_safe(block_group, tmp, &trans->new_bgs, bg_list) {
-               btrfs_delayed_refs_rsv_release(fs_info, 1);
+               btrfs_delayed_refs_rsv_release(fs_info, 1, 0);
                list_del_init(&block_group->bg_list);
        }
 }

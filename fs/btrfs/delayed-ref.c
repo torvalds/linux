@@ -57,16 +57,20 @@ bool btrfs_check_space_for_delayed_refs(struct btrfs_fs_info *fs_info)
  * Release a ref head's reservation.
  *
  * @fs_info:  the filesystem
- * @nr:       number of items to drop
+ * @nr_refs:  number of delayed refs to drop
+ * @nr_csums: number of csum items to drop
  *
  * Drops the delayed ref head's count from the delayed refs rsv and free any
  * excess reservation we had.
  */
-void btrfs_delayed_refs_rsv_release(struct btrfs_fs_info *fs_info, int nr)
+void btrfs_delayed_refs_rsv_release(struct btrfs_fs_info *fs_info, int nr_refs, int nr_csums)
 {
 	struct btrfs_block_rsv *block_rsv = &fs_info->delayed_refs_rsv;
-	const u64 num_bytes = btrfs_calc_delayed_ref_bytes(fs_info, nr);
+	u64 num_bytes;
 	u64 released;
+
+	num_bytes = btrfs_calc_delayed_ref_bytes(fs_info, nr_refs);
+	num_bytes += btrfs_calc_delayed_ref_csum_bytes(fs_info, nr_csums);
 
 	released = btrfs_block_rsv_release(fs_info, block_rsv, num_bytes, NULL);
 	if (released)
@@ -77,8 +81,9 @@ void btrfs_delayed_refs_rsv_release(struct btrfs_fs_info *fs_info, int nr)
 /*
  * Adjust the size of the delayed refs rsv.
  *
- * This is to be called anytime we may have adjusted trans->delayed_ref_updates,
- * it'll calculate the additional size and add it to the delayed_refs_rsv.
+ * This is to be called anytime we may have adjusted trans->delayed_ref_updates
+ * or trans->delayed_ref_csum_deletions, it'll calculate the additional size and
+ * add it to the delayed_refs_rsv.
  */
 void btrfs_update_delayed_refs_rsv(struct btrfs_trans_handle *trans)
 {
@@ -86,17 +91,19 @@ void btrfs_update_delayed_refs_rsv(struct btrfs_trans_handle *trans)
 	struct btrfs_block_rsv *delayed_rsv = &fs_info->delayed_refs_rsv;
 	u64 num_bytes;
 
-	if (!trans->delayed_ref_updates)
-		return;
+	num_bytes = btrfs_calc_delayed_ref_bytes(fs_info, trans->delayed_ref_updates);
+	num_bytes += btrfs_calc_delayed_ref_csum_bytes(fs_info,
+						       trans->delayed_ref_csum_deletions);
 
-	num_bytes = btrfs_calc_delayed_ref_bytes(fs_info,
-						 trans->delayed_ref_updates);
+	if (num_bytes == 0)
+		return;
 
 	spin_lock(&delayed_rsv->lock);
 	delayed_rsv->size += num_bytes;
 	delayed_rsv->full = false;
 	spin_unlock(&delayed_rsv->lock);
 	trans->delayed_ref_updates = 0;
+	trans->delayed_ref_csum_deletions = 0;
 }
 
 /*
@@ -434,7 +441,7 @@ static inline void drop_delayed_ref(struct btrfs_fs_info *fs_info,
 		list_del(&ref->add_list);
 	btrfs_put_delayed_ref(ref);
 	atomic_dec(&delayed_refs->num_entries);
-	btrfs_delayed_refs_rsv_release(fs_info, 1);
+	btrfs_delayed_refs_rsv_release(fs_info, 1, 0);
 }
 
 static bool merge_ref(struct btrfs_fs_info *fs_info,
@@ -710,11 +717,11 @@ static noinline void update_existing_head_ref(struct btrfs_trans_handle *trans,
 
 		if (existing->total_ref_mod >= 0 && old_ref_mod < 0) {
 			delayed_refs->pending_csums -= existing->num_bytes;
-			btrfs_delayed_refs_rsv_release(fs_info, csum_leaves);
+			btrfs_delayed_refs_rsv_release(fs_info, 0, csum_leaves);
 		}
 		if (existing->total_ref_mod < 0 && old_ref_mod >= 0) {
 			delayed_refs->pending_csums += existing->num_bytes;
-			trans->delayed_ref_updates += csum_leaves;
+			trans->delayed_ref_csum_deletions += csum_leaves;
 		}
 	}
 
@@ -834,7 +841,7 @@ add_delayed_ref_head(struct btrfs_trans_handle *trans,
 		 */
 		if (head_ref->is_data && head_ref->ref_mod < 0) {
 			delayed_refs->pending_csums += head_ref->num_bytes;
-			trans->delayed_ref_updates +=
+			trans->delayed_ref_csum_deletions +=
 				btrfs_csum_bytes_to_leaves(trans->fs_info,
 							   head_ref->num_bytes);
 		}

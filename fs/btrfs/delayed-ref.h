@@ -283,6 +283,17 @@ static inline u64 btrfs_calc_delayed_ref_bytes(const struct btrfs_fs_info *fs_in
 	return num_bytes;
 }
 
+static inline u64 btrfs_calc_delayed_ref_csum_bytes(const struct btrfs_fs_info *fs_info,
+						    int num_csum_items)
+{
+	/*
+	 * Deleting csum items does not result in new nodes/leaves and does not
+	 * require changing the free space tree, only the csum tree, so this is
+	 * all we need.
+	 */
+	return btrfs_calc_metadata_size(fs_info, num_csum_items);
+}
+
 static inline void btrfs_init_generic_ref(struct btrfs_ref *generic_ref,
 				int action, u64 bytenr, u64 len, u64 parent)
 {
@@ -407,7 +418,7 @@ struct btrfs_delayed_ref_head *btrfs_select_ref_head(
 
 int btrfs_check_delayed_seq(struct btrfs_fs_info *fs_info, u64 seq);
 
-void btrfs_delayed_refs_rsv_release(struct btrfs_fs_info *fs_info, int nr);
+void btrfs_delayed_refs_rsv_release(struct btrfs_fs_info *fs_info, int nr_refs, int nr_csums);
 void btrfs_update_delayed_refs_rsv(struct btrfs_trans_handle *trans);
 int btrfs_delayed_refs_rsv_refill(struct btrfs_fs_info *fs_info,
 				  enum btrfs_reserve_flush_enum flush);

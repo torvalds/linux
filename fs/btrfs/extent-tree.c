@@ -1824,16 +1824,16 @@ u64 btrfs_cleanup_ref_head_accounting(struct btrfs_fs_info *fs_info,
 	 * to drop the csum leaves for this update from our delayed_refs_rsv.
 	 */
 	if (head->total_ref_mod < 0 && head->is_data) {
-		int nr_items;
+		int nr_csums;
 
 		spin_lock(&delayed_refs->lock);
 		delayed_refs->pending_csums -= head->num_bytes;
 		spin_unlock(&delayed_refs->lock);
-		nr_items = btrfs_csum_bytes_to_leaves(fs_info, head->num_bytes);
+		nr_csums = btrfs_csum_bytes_to_leaves(fs_info, head->num_bytes);
 
-		btrfs_delayed_refs_rsv_release(fs_info, nr_items);
+		btrfs_delayed_refs_rsv_release(fs_info, 0, nr_csums);
 
-		return btrfs_calc_delayed_ref_bytes(fs_info, nr_items);
+		return btrfs_calc_delayed_ref_csum_bytes(fs_info, nr_csums);
 	}
 
 	return 0;
@@ -1985,7 +1985,7 @@ static int btrfs_run_delayed_refs_for_head(struct btrfs_trans_handle *trans,
 
 		ret = run_one_delayed_ref(trans, ref, extent_op,
 					  must_insert_reserved);
-		btrfs_delayed_refs_rsv_release(fs_info, 1);
+		btrfs_delayed_refs_rsv_release(fs_info, 1, 0);
 		*bytes_released += btrfs_calc_delayed_ref_bytes(fs_info, 1);
 		btrfs_free_delayed_extent_op(extent_op);
 		if (ret) {

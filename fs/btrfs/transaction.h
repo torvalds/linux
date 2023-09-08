@@ -120,6 +120,7 @@ struct btrfs_trans_handle {
 	u64 bytes_reserved;
 	u64 chunk_bytes_reserved;
 	unsigned long delayed_ref_updates;
+	unsigned long delayed_ref_csum_deletions;
 	struct btrfs_transaction *transaction;
 	struct btrfs_block_rsv *block_rsv;
 	struct btrfs_block_rsv *orig_rsv;
