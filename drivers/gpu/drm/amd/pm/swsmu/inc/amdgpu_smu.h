@@ -1031,10 +1031,7 @@ struct pptable_funcs {
 						   enum smu_feature_mask mask);
 
 	/**
-	 * @notify_display_change: Enable fast memory clock switching.
-	 *
-	 * Allows for fine grained memory clock switching but has more stringent
-	 * timing requirements.
+	 * @notify_display_change: General interface call to let SMU know about DC change
 	 */
 	int (*notify_display_change)(struct smu_context *smu);
 

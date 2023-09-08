@@ -293,6 +293,17 @@ static unsigned int micro_sec_to_vert_lines(unsigned int num_us, struct dc_crtc_
 	return num_lines;
 }
 
+static unsigned int get_vertical_back_porch(struct dc_crtc_timing *timing)
+{
+	unsigned int v_active = 0, v_blank = 0, v_back_porch = 0;
+
+	v_active = timing->v_border_top + timing->v_addressable + timing->v_border_bottom;
+	v_blank = timing->v_total - v_active;
+	v_back_porch = v_blank - timing->v_front_porch - timing->v_sync_width;
+
+	return v_back_porch;
+}
+
 int dcn314_populate_dml_pipes_from_context_fpu(struct dc *dc, struct dc_state *context,
 					       display_e2e_pipe_params_st *pipes,
 					       bool fast_validate)
@@ -310,6 +321,7 @@ int dcn314_populate_dml_pipes_from_context_fpu(struct dc *dc, struct dc_state *c
 	for (i = 0, pipe_cnt = 0; i < dc->res_pool->pipe_count; i++) {
 		struct dc_crtc_timing *timing;
 		unsigned int num_lines = 0;
+		unsigned int v_back_porch = 0;
 
 		if (!res_ctx->pipe_ctx[i].stream)
 			continue;
@@ -323,9 +335,16 @@ int dcn314_populate_dml_pipes_from_context_fpu(struct dc *dc, struct dc_state *c
 		else
 			pipes[pipe_cnt].pipe.dest.vtotal = timing->v_total;
 
+		v_back_porch  = get_vertical_back_porch(timing);
+
 		pipes[pipe_cnt].pipe.dest.vblank_nom = timing->v_total - pipes[pipe_cnt].pipe.dest.vactive;
 		pipes[pipe_cnt].pipe.dest.vblank_nom = min(pipes[pipe_cnt].pipe.dest.vblank_nom, num_lines);
-		pipes[pipe_cnt].pipe.dest.vblank_nom = max(pipes[pipe_cnt].pipe.dest.vblank_nom, timing->v_sync_width);
+		// vblank_nom should not smaller than (VSync (timing->v_sync_width + v_back_porch) + 2)
+		// + 2 is because
+		// 1 -> VStartup_start should be 1 line before VSync
+		// 1 -> always reserve 1 line between start of vblank to vstartup signal
+		pipes[pipe_cnt].pipe.dest.vblank_nom =
+			max(pipes[pipe_cnt].pipe.dest.vblank_nom, timing->v_sync_width + v_back_porch + 2);
 		pipes[pipe_cnt].pipe.dest.vblank_nom = min(pipes[pipe_cnt].pipe.dest.vblank_nom, max_allowed_vblank_nom);
 
 		if (pipe->plane_state &&

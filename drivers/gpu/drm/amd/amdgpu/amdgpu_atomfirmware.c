@@ -217,6 +217,7 @@ union umc_info {
 	struct atom_umc_info_v3_1 v31;
 	struct atom_umc_info_v3_2 v32;
 	struct atom_umc_info_v3_3 v33;
+	struct atom_umc_info_v4_0 v40;
 };
 
 union vram_info {
@@ -508,9 +509,8 @@ bool amdgpu_atomfirmware_mem_ecc_supported(struct amdgpu_device *adev)
 
 	if (amdgpu_atom_parse_data_header(mode_info->atom_context,
 				index, &size, &frev, &crev, &data_offset)) {
+		umc_info = (union umc_info *)(mode_info->atom_context->bios + data_offset);
 		if (frev == 3) {
-			umc_info = (union umc_info *)
-				(mode_info->atom_context->bios + data_offset);
 			switch (crev) {
 			case 1:
 				umc_config = le32_to_cpu(umc_info->v31.umc_config);
@@ -533,6 +533,20 @@ bool amdgpu_atomfirmware_mem_ecc_supported(struct amdgpu_device *adev)
 				/* unsupported crev */
 				return false;
 			}
+		} else if (frev == 4) {
+			switch (crev) {
+			case 0:
+				umc_config1 = le32_to_cpu(umc_info->v40.umc_config1);
+				ecc_default_enabled =
+					(umc_config1 & UMC_CONFIG1__ENABLE_ECC_CAPABLE) ? true : false;
+				break;
+			default:
+				/* unsupported crev */
+				return false;
+			}
+		} else {
+			/* unsupported frev */
+			return false;
 		}
 	}
 

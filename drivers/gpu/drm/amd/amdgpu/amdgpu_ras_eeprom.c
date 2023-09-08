@@ -158,9 +158,10 @@ static bool __is_ras_eeprom_supported(struct amdgpu_device *adev)
 	case IP_VERSION(11, 0, 7): /* Sienna cichlid */
 	case IP_VERSION(13, 0, 0):
 	case IP_VERSION(13, 0, 2): /* Aldebaran */
-	case IP_VERSION(13, 0, 6):
 	case IP_VERSION(13, 0, 10):
 		return true;
+	case IP_VERSION(13, 0, 6):
+		return (adev->gmc.is_app_apu) ? false : true;
 	default:
 		return false;
 	}
