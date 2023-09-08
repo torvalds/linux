@@ -34,9 +34,15 @@
 #define   ASPEED_SDC_PHASE_MAX		31
 
 /* SDIO{10,20} */
-#define ASPEED_SDC_CAP1_1_8V           (0 * 32 + 26)
+#define ASPEED_SDC_CAP1_1_8V	       (0 * 32 + 26)
 /* SDIO{14,24} */
-#define ASPEED_SDC_CAP2_SDR104         (1 * 32 + 1)
+#define ASPEED_SDC_CAP2_SDR104	       (1 * 32 + 1)
+
+#define PROBE_AFTER_ASSET_DEASSERT 0x1
+
+struct aspeed_sdc_info {
+	u32 flag;
+};
 
 struct aspeed_sdc {
 	struct clk *clk;
@@ -80,15 +86,19 @@ struct aspeed_sdhci {
 	const struct aspeed_sdhci_phase_desc *phase_desc;
 };
 
+static struct aspeed_sdc_info ast2600_sdc_info = {
+	.flag = PROBE_AFTER_ASSET_DEASSERT
+};
+
 /*
  * The function sets the mirror register for updating
  * capbilities of the current slot.
  *
- *   slot | capability  | caps_reg | mirror_reg
+ *   slot | capability	| caps_reg | mirror_reg
  *   -----|-------------|----------|------------
- *     0  | CAP1_1_8V   | SDIO140  |   SDIO10
+ *     0  | CAP1_1_8V	| SDIO140  |   SDIO10
  *     0  | CAP2_SDR104 | SDIO144  |   SDIO14
- *     1  | CAP1_1_8V   | SDIO240  |   SDIO20
+ *     1  | CAP1_1_8V	| SDIO240  |   SDIO20
  *     1  | CAP2_SDR104 | SDIO244  |   SDIO24
  */
 static void aspeed_sdc_set_slot_capability(struct sdhci_host *host, struct aspeed_sdc *sdc,
@@ -668,11 +678,22 @@ static struct platform_driver aspeed_sdhci_driver = {
 	.remove_new	= aspeed_sdhci_remove,
 };
 
+static const struct of_device_id aspeed_sdc_of_match[] = {
+	{ .compatible = "aspeed,ast2400-sd-controller", },
+	{ .compatible = "aspeed,ast2500-sd-controller", },
+	{ .compatible = "aspeed,ast2600-sd-controller", .data = &ast2600_sdc_info},
+	{ }
+};
+
+MODULE_DEVICE_TABLE(of, aspeed_sdc_of_match);
+
 static int aspeed_sdc_probe(struct platform_device *pdev)
 
 {
 	struct device_node *parent, *child;
 	struct aspeed_sdc *sdc;
+	const struct of_device_id *match = NULL;
+	const struct aspeed_sdc_info *info = NULL;
 	int ret;
 
 	sdc = devm_kzalloc(&pdev->dev, sizeof(*sdc), GFP_KERNEL);
@@ -680,6 +701,23 @@ static int aspeed_sdc_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	spin_lock_init(&sdc->lock);
+
+	match = of_match_device(aspeed_sdc_of_match, &pdev->dev);
+	if (!match)
+		return -ENODEV;
+
+	if (match->data)
+		info = match->data;
+
+	if (info) {
+		if (info->flag & PROBE_AFTER_ASSET_DEASSERT) {
+			sdc->rst = devm_reset_control_get(&pdev->dev, NULL);
+			if (!IS_ERR(sdc->rst)) {
+				reset_control_assert(sdc->rst);
+				reset_control_deassert(sdc->rst);
+			}
+		}
+	}
 
 	sdc->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(sdc->clk))
@@ -724,15 +762,6 @@ static void aspeed_sdc_remove(struct platform_device *pdev)
 
 	clk_disable_unprepare(sdc->clk);
 }
-
-static const struct of_device_id aspeed_sdc_of_match[] = {
-	{ .compatible = "aspeed,ast2400-sd-controller", },
-	{ .compatible = "aspeed,ast2500-sd-controller", },
-	{ .compatible = "aspeed,ast2600-sd-controller", },
-	{ }
-};
-
-MODULE_DEVICE_TABLE(of, aspeed_sdc_of_match);
 
 static struct platform_driver aspeed_sdc_driver = {
 	.driver		= {
