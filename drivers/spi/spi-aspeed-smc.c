@@ -1194,8 +1194,37 @@ no_calib:
 	return 0;
 }
 
+static int get_mid_point_of_longest_one(u8 *buf, u32 len)
+{
+	int i;
+	int start = 0, mid_point = 0;
+	int max_cnt = 0, cnt = 0;
+
+	for (i = 0; i < len; i++) {
+		if (buf[i] == 1) {
+			cnt++;
+		} else {
+			cnt = 0;
+			start = i;
+		}
+
+		if (max_cnt < cnt) {
+			max_cnt = cnt;
+			mid_point = start + (cnt / 2);
+		}
+	}
+
+	/*
+	 * In order to get a stable SPI read timing,
+	 * abandon the result if the length of longest
+	 * consecutive good points is too short.
+	 */
+	if (max_cnt < 4)
+		return -1;
+	return mid_point;
+}
+
 #define TIMING_DELAY_DI		BIT(3)
-#define TIMING_DELAY_HCYCLE_MAX	5
 #define TIMING_REG_AST2600(chip)				\
 	((chip)->aspi->regs + (chip)->aspi->data->timing +	\
 	 (chip)->cs * 4)
@@ -1203,54 +1232,61 @@ no_calib:
 static int aspeed_spi_ast2600_calibrate(struct aspeed_spi_chip *chip, u32 hdiv,
 					const u8 *golden_buf, u8 *test_buf)
 {
+	struct device *dev = chip->aspi->dev;
 	struct aspeed_spi *aspi = chip->aspi;
 	int hcycle;
 	u32 shift = (hdiv - 2) << 3;
-	u32 mask = ~(0xfu << shift);
+	u32 mask = ~(0xffu << shift);
 	u32 fread_timing_val = 0;
+	u8 *calib_res = NULL;
+	int calib_point;
+	u32 final_delay;
+	int delay_ns;
+	bool pass;
 
-	for (hcycle = 0; hcycle <= TIMING_DELAY_HCYCLE_MAX; hcycle++) {
-		int delay_ns;
-		bool pass = false;
+	calib_res = kzalloc(6 * 17, GFP_KERNEL);
+	if (!calib_res)
+		return -ENOMEM;
 
-		fread_timing_val &= mask;
-		fread_timing_val |= hcycle << shift;
-
-		/* no DI input delay first  */
-		writel(fread_timing_val, TIMING_REG_AST2600(chip));
-		pass = aspeed_spi_check_reads(chip, golden_buf, test_buf);
-		dev_dbg(aspi->dev,
-			"  * [%08x] %d HCLK delay, DI delay none : %s",
-			fread_timing_val, hcycle, pass ? "PASS" : "FAIL");
-		if (pass)
-			return 0;
-
-		/* Add DI input delays  */
+	for (hcycle = 0; hcycle <= 5; hcycle++) {
 		fread_timing_val &= mask;
 		fread_timing_val |= (TIMING_DELAY_DI | hcycle) << shift;
 
-		for (delay_ns = 0; delay_ns < 0x10; delay_ns++) {
-			fread_timing_val &= ~(0xf << (4 + shift));
+		for (delay_ns = 0; delay_ns < 16; delay_ns++) {
+			fread_timing_val &= ~(0xfu << (4 + shift));
 			fread_timing_val |= delay_ns << (4 + shift);
 
 			writel(fread_timing_val, TIMING_REG_AST2600(chip));
 			pass = aspeed_spi_check_reads(chip, golden_buf, test_buf);
 			dev_dbg(aspi->dev,
 				"  * [%08x] %d HCLK delay, DI delay %d.%dns : %s",
-				fread_timing_val, hcycle, (delay_ns + 1) / 2,
-				(delay_ns + 1) & 1 ? 5 : 5, pass ? "PASS" : "FAIL");
-			/*
-			 * TODO: This is optimistic. We should look
-			 * for a working interval and save the middle
-			 * value in the read timing register.
-			 */
-			if (pass)
-				return 0;
+				fread_timing_val, hcycle, delay_ns / 2,
+				(delay_ns & 1) ? 5 : 0, pass ? "PASS" : "FAIL");
+
+			calib_res[hcycle * 17 + delay_ns] = pass;
 		}
 	}
 
-	/* No good setting for this frequency */
-	return -1;
+	calib_point = get_mid_point_of_longest_one(calib_res, 6 * 17);
+
+	if (calib_point < 0) {
+		dev_info(dev, "[HCLK/%d] cannot get good calibration point.\n",
+			 hdiv);
+		return -1;
+	}
+
+	hcycle = calib_point / 17;
+	delay_ns = calib_point % 17;
+
+	dev_dbg(dev, "final hcycle: %d, delay_ns: %d\n", hcycle,
+		delay_ns);
+
+	final_delay = (TIMING_DELAY_DI | hcycle | (delay_ns << 4)) << shift;
+	writel(final_delay, TIMING_REG_AST2600(chip));
+
+	kfree(calib_res);
+
+	return 0;
 }
 
 /*
