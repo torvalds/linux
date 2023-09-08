@@ -2,6 +2,7 @@
 /* Copyright(c) 2019-2022  Realtek Corporation
  */
 
+#include "chan.h"
 #include "coex.h"
 #include "debug.h"
 #include "phy.h"
@@ -4068,21 +4069,53 @@ void rtw8852c_set_channel_rf(struct rtw89_dev *rtwdev,
 
 void rtw8852c_mcc_get_ch_info(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy_idx)
 {
-	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
 	struct rtw89_rfk_mcc_info *rfk_mcc = &rtwdev->rfk_mcc;
-	u8 idx = rfk_mcc->table_idx;
-	int i;
+	DECLARE_BITMAP(map, RTW89_IQK_CHS_NR) = {};
+	const struct rtw89_chan *chan;
+	enum rtw89_entity_mode mode;
+	u8 chan_idx;
+	u8 idx;
+	u8 i;
 
-	for (i = 0; i < RTW89_IQK_CHS_NR; i++) {
-		if (rfk_mcc->ch[idx] == 0)
-			break;
-		if (++idx >= RTW89_IQK_CHS_NR)
-			idx = 0;
+	mode = rtw89_get_entity_mode(rtwdev);
+	switch (mode) {
+	case RTW89_ENTITY_MODE_MCC_PREPARE:
+		chan_idx = RTW89_SUB_ENTITY_1;
+		break;
+	default:
+		chan_idx = RTW89_SUB_ENTITY_0;
+		break;
 	}
 
-	rfk_mcc->table_idx = idx;
+	for (i = 0; i <= chan_idx; i++) {
+		chan = rtw89_chan_get(rtwdev, i);
+
+		for (idx = 0; idx < RTW89_IQK_CHS_NR; idx++) {
+			if (rfk_mcc->ch[idx] == chan->channel &&
+			    rfk_mcc->band[idx] == chan->band_type) {
+				if (i != chan_idx) {
+					set_bit(idx, map);
+					break;
+				}
+
+				goto bottom;
+			}
+		}
+	}
+
+	idx = find_first_zero_bit(map, RTW89_IQK_CHS_NR);
+	if (idx == RTW89_IQK_CHS_NR) {
+		rtw89_debug(rtwdev, RTW89_DBG_RFK,
+			    "%s: no empty rfk table; force replace the first\n",
+			    __func__);
+		idx = 0;
+	}
+
 	rfk_mcc->ch[idx] = chan->channel;
 	rfk_mcc->band[idx] = chan->band_type;
+
+bottom:
+	rfk_mcc->table_idx = idx;
 }
 
 void rtw8852c_rck(struct rtw89_dev *rtwdev)

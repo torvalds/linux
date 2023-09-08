@@ -3220,11 +3220,11 @@ fail:
 
 int rtw89_fw_h2c_rf_ntfy_mcc(struct rtw89_dev *rtwdev)
 {
-	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
 	struct rtw89_rfk_mcc_info *rfk_mcc = &rtwdev->rfk_mcc;
 	struct rtw89_fw_h2c_rf_get_mccch *mccch;
 	struct sk_buff *skb;
 	int ret;
+	u8 idx;
 
 	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, sizeof(*mccch));
 	if (!skb) {
@@ -3234,12 +3234,13 @@ int rtw89_fw_h2c_rf_ntfy_mcc(struct rtw89_dev *rtwdev)
 	skb_put(skb, sizeof(*mccch));
 	mccch = (struct rtw89_fw_h2c_rf_get_mccch *)skb->data;
 
+	idx = rfk_mcc->table_idx;
 	mccch->ch_0 = cpu_to_le32(rfk_mcc->ch[0]);
 	mccch->ch_1 = cpu_to_le32(rfk_mcc->ch[1]);
 	mccch->band_0 = cpu_to_le32(rfk_mcc->band[0]);
 	mccch->band_1 = cpu_to_le32(rfk_mcc->band[1]);
-	mccch->current_channel = cpu_to_le32(chan->channel);
-	mccch->current_band_type = cpu_to_le32(chan->band_type);
+	mccch->current_channel = cpu_to_le32(rfk_mcc->ch[idx]);
+	mccch->current_band_type = cpu_to_le32(rfk_mcc->band[idx]);
 
 	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
 			      H2C_CAT_OUTSRC, H2C_CL_OUTSRC_RF_FW_NOTIFY,
