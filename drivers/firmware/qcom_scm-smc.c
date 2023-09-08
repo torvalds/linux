@@ -143,26 +143,18 @@ static int scm_smc_do_quirk(struct device *dev, struct arm_smccc_args *smc,
 			if (res->a0 == QCOM_SCM_WAITQ_SLEEP) {
 				wait_for_completion(wq);
 				fill_wq_resume_args(smc, smc_call_ctx);
-				wq = NULL;
 				continue;
 			} else {
 				fill_wq_wake_ack_args(smc, smc_call_ctx);
+				scm_waitq_flag_handler(wq, flags);
 				continue;
 			}
 		} else if ((long)res->a0 < 0) {
 			/* Error, return to caller with original SMC call */
 			*smc = original;
 			break;
-		} else {
-			/*
-			 * Success.
-			 * wq will be set only if a prior WAKE happened.
-			 * Its value will be the one from the prior WAKE.
-			 */
-			if (wq)
-				scm_waitq_flag_handler(wq, flags);
-			break;
-		}
+		} else
+			return 0;
 	} while (IS_WAITQ_SLEEP_OR_WAKE(res));
 
 	return 0;
