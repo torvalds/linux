@@ -6770,16 +6770,21 @@ static void sched_update_worker(struct task_struct *tsk)
 	}
 }
 
+static __always_inline void __schedule_loop(unsigned int sched_mode)
+{
+	do {
+		preempt_disable();
+		__schedule(sched_mode);
+		sched_preempt_enable_no_resched();
+	} while (need_resched());
+}
+
 asmlinkage __visible void __sched schedule(void)
 {
 	struct task_struct *tsk = current;
 
 	sched_submit_work(tsk);
-	do {
-		preempt_disable();
-		__schedule(SM_NONE);
-		sched_preempt_enable_no_resched();
-	} while (need_resched());
+	__schedule_loop(SM_NONE);
 	sched_update_worker(tsk);
 }
 EXPORT_SYMBOL(schedule);
@@ -6843,11 +6848,7 @@ void __sched schedule_preempt_disabled(void)
 #ifdef CONFIG_PREEMPT_RT
 void __sched notrace schedule_rtlock(void)
 {
-	do {
-		preempt_disable();
-		__schedule(SM_RTLOCK_WAIT);
-		sched_preempt_enable_no_resched();
-	} while (need_resched());
+	__schedule_loop(SM_RTLOCK_WAIT);
 }
 NOKPROBE_SYMBOL(schedule_rtlock);
 #endif
