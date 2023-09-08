@@ -3992,7 +3992,7 @@ void ice_init_feature_support(struct ice_pf *pf)
 		if (ice_is_phy_rclk_present(&pf->hw))
 			ice_set_feature_support(pf, ICE_F_PHY_RCLK);
 		/* If we don't own the timer - don't enable other caps */
-		if (!pf->hw.func_caps.ts_func_info.src_tmr_owned)
+		if (!ice_pf_src_tmr_owned(pf))
 			break;
 		if (ice_is_cgu_present(&pf->hw))
 			ice_set_feature_support(pf, ICE_F_CGU);
