@@ -883,17 +883,7 @@ again:
 		needed = BTRFS_REF_TYPE_BLOCK;
 
 	ret = -ENOENT;
-	while (1) {
-		if (ptr >= end) {
-			if (ptr > end) {
-				ret = -EUCLEAN;
-				btrfs_print_leaf(path->nodes[0]);
-				btrfs_crit(fs_info,
-"overrun extent record at slot %d while looking for inline extent for root %llu owner %llu offset %llu parent %llu",
-					path->slots[0], root_objectid, owner, offset, parent);
-			}
-			break;
-		}
+	while (ptr < end) {
 		iref = (struct btrfs_extent_inline_ref *)ptr;
 		type = btrfs_get_extent_inline_ref_type(leaf, iref, needed);
 		if (type == BTRFS_REF_TYPE_INVALID) {
@@ -940,6 +930,16 @@ again:
 		}
 		ptr += btrfs_extent_inline_ref_size(type);
 	}
+
+	if (unlikely(ptr > end)) {
+		ret = -EUCLEAN;
+		btrfs_print_leaf(path->nodes[0]);
+		btrfs_crit(fs_info,
+"overrun extent record at slot %d while looking for inline extent for root %llu owner %llu offset %llu parent %llu",
+			   path->slots[0], root_objectid, owner, offset, parent);
+		goto out;
+	}
+
 	if (ret == -ENOENT && insert) {
 		if (item_size + extra_size >=
 		    BTRFS_MAX_EXTENT_ITEM_SIZE(root)) {
