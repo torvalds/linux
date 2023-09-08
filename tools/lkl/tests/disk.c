@@ -126,7 +126,7 @@ static int lkl_test_opendir(void)
 
 	dir = lkl_opendir(mnt_point, &err);
 
-	lkl_test_logf("lkl_opedir(%s) = %d %s\n", mnt_point, err,
+	lkl_test_logf("lkl_opendir(%s) = %d %s\n", mnt_point, err,
 		      lkl_strerror(err));
 
 	if (err == 0)
@@ -181,6 +181,11 @@ int main(int argc, const char **argv)
 
 	if (parse_args(argc, argv, args) < 0)
 		return -1;
+
+	if (!cla.disk || !cla.fstype) {
+		fprintf(stderr, "disk and type parameters required.\n");
+		return -1;
+	}
 
 	lkl_host_ops.print = lkl_test_log;
 
