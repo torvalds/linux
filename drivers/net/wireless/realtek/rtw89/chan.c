@@ -1423,6 +1423,89 @@ static int __mcc_fw_set_duration_no_bt(struct rtw89_dev *rtwdev, bool sync_chang
 	return 0;
 }
 
+static void rtw89_mcc_handle_beacon_noa(struct rtw89_dev *rtwdev, bool enable)
+{
+	struct rtw89_mcc_info *mcc = &rtwdev->mcc;
+	struct rtw89_mcc_role *ref = &mcc->role_ref;
+	struct rtw89_mcc_role *aux = &mcc->role_aux;
+	struct rtw89_mcc_config *config = &mcc->config;
+	struct rtw89_mcc_pattern *pattern = &config->pattern;
+	struct ieee80211_p2p_noa_desc noa_desc = {};
+	u64 start_time = config->start_tsf;
+	u32 interval = config->mcc_interval;
+	struct rtw89_vif *rtwvif_go;
+	u32 duration;
+
+	if (mcc->mode != RTW89_MCC_MODE_GO_STA)
+		return;
+
+	if (ref->is_go) {
+		rtwvif_go = ref->rtwvif;
+		start_time += ieee80211_tu_to_usec(ref->duration);
+		duration = config->mcc_interval - ref->duration;
+	} else if (aux->is_go) {
+		rtwvif_go = aux->rtwvif;
+		start_time += ieee80211_tu_to_usec(pattern->tob_ref) +
+			      ieee80211_tu_to_usec(config->beacon_offset) +
+			      ieee80211_tu_to_usec(pattern->toa_aux);
+		duration = config->mcc_interval - aux->duration;
+	} else {
+		rtw89_debug(rtwdev, RTW89_DBG_CHAN,
+			    "MCC find no GO: skip updating beacon NoA\n");
+		return;
+	}
+
+	rtw89_p2p_noa_renew(rtwvif_go);
+
+	if (enable) {
+		noa_desc.start_time = cpu_to_le32(start_time);
+		noa_desc.interval = cpu_to_le32(ieee80211_tu_to_usec(interval));
+		noa_desc.duration = cpu_to_le32(ieee80211_tu_to_usec(duration));
+		noa_desc.count = 255;
+		rtw89_p2p_noa_append(rtwvif_go, &noa_desc);
+	}
+
+	/* without chanctx, we cannot get beacon from mac80211 stack */
+	if (!rtwvif_go->chanctx_assigned)
+		return;
+
+	rtw89_fw_h2c_update_beacon(rtwdev, rtwvif_go);
+}
+
+static void rtw89_mcc_start_beacon_noa(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_mcc_info *mcc = &rtwdev->mcc;
+	struct rtw89_mcc_role *ref = &mcc->role_ref;
+	struct rtw89_mcc_role *aux = &mcc->role_aux;
+
+	if (mcc->mode != RTW89_MCC_MODE_GO_STA)
+		return;
+
+	if (ref->is_go)
+		rtw89_fw_h2c_tsf32_toggle(rtwdev, ref->rtwvif, true);
+	else if (aux->is_go)
+		rtw89_fw_h2c_tsf32_toggle(rtwdev, aux->rtwvif, true);
+
+	rtw89_mcc_handle_beacon_noa(rtwdev, true);
+}
+
+static void rtw89_mcc_stop_beacon_noa(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_mcc_info *mcc = &rtwdev->mcc;
+	struct rtw89_mcc_role *ref = &mcc->role_ref;
+	struct rtw89_mcc_role *aux = &mcc->role_aux;
+
+	if (mcc->mode != RTW89_MCC_MODE_GO_STA)
+		return;
+
+	if (ref->is_go)
+		rtw89_fw_h2c_tsf32_toggle(rtwdev, ref->rtwvif, false);
+	else if (aux->is_go)
+		rtw89_fw_h2c_tsf32_toggle(rtwdev, aux->rtwvif, false);
+
+	rtw89_mcc_handle_beacon_noa(rtwdev, false);
+}
+
 static int rtw89_mcc_start(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_mcc_info *mcc = &rtwdev->mcc;
@@ -1459,6 +1542,8 @@ static int rtw89_mcc_start(struct rtw89_dev *rtwdev)
 		return ret;
 
 	rtw89_chanctx_notify(rtwdev, RTW89_CHANCTX_STATE_MCC_START);
+
+	rtw89_mcc_start_beacon_noa(rtwdev);
 	return 0;
 }
 
@@ -1482,6 +1567,8 @@ static void rtw89_mcc_stop(struct rtw89_dev *rtwdev)
 			    "MCC h2c failed to delete group: %d\n", ret);
 
 	rtw89_chanctx_notify(rtwdev, RTW89_CHANCTX_STATE_MCC_STOP);
+
+	rtw89_mcc_stop_beacon_noa(rtwdev);
 }
 
 static int rtw89_mcc_update(struct rtw89_dev *rtwdev)
@@ -1517,6 +1604,7 @@ static int rtw89_mcc_update(struct rtw89_dev *rtwdev)
 			return ret;
 	}
 
+	rtw89_mcc_handle_beacon_noa(rtwdev, true);
 	return 0;
 }
 
@@ -1647,7 +1735,8 @@ void rtw89_chanctx_work(struct work_struct *work)
 	case RTW89_ENTITY_MODE_MCC:
 		if (changed & BIT(RTW89_CHANCTX_BCN_OFFSET_CHANGE) ||
 		    changed & BIT(RTW89_CHANCTX_P2P_PS_CHANGE) ||
-		    changed & BIT(RTW89_CHANCTX_BT_SLOT_CHANGE))
+		    changed & BIT(RTW89_CHANCTX_BT_SLOT_CHANGE) ||
+		    changed & BIT(RTW89_CHANCTX_TSF32_TOGGLE_CHANGE))
 			update_mcc_pattern = true;
 		if (changed & BIT(RTW89_CHANCTX_REMOTE_STA_CHANGE))
 			rtw89_mcc_update_macid_bitmap(rtwdev);
@@ -1809,6 +1898,7 @@ int rtw89_chanctx_ops_assign_vif(struct rtw89_dev *rtwdev,
 	struct rtw89_chanctx_cfg *cfg = (struct rtw89_chanctx_cfg *)ctx->drv_priv;
 
 	rtwvif->sub_entity_idx = cfg->idx;
+	rtwvif->chanctx_assigned = true;
 	return 0;
 }
 
@@ -1817,4 +1907,5 @@ void rtw89_chanctx_ops_unassign_vif(struct rtw89_dev *rtwdev,
 				    struct ieee80211_chanctx_conf *ctx)
 {
 	rtwvif->sub_entity_idx = RTW89_SUB_ENTITY_0;
+	rtwvif->chanctx_assigned = false;
 }

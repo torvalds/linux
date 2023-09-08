@@ -4488,6 +4488,7 @@ static void
 rtw89_mac_c2h_tsf32_toggle_rpt(struct rtw89_dev *rtwdev, struct sk_buff *c2h,
 			       u32 len)
 {
+	rtw89_queue_chanctx_change(rtwdev, RTW89_CHANCTX_TSF32_TOGGLE_CHANGE);
 }
 
 static void
