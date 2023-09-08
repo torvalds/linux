@@ -320,6 +320,8 @@ void i3c_device_get_info(const struct i3c_device *dev, struct i3c_device_info *i
 
 int i3c_device_generate_ibi(struct i3c_device *dev, const u8 *data, int len);
 
+bool i3c_device_is_ibi_enabled(struct i3c_device *dev);
+
 struct i3c_ibi_payload {
 	unsigned int len;
 	const void *data;

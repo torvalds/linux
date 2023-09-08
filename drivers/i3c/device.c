@@ -74,6 +74,28 @@ int i3c_device_generate_ibi(struct i3c_device *dev, const u8 *data, int len)
 EXPORT_SYMBOL_GPL(i3c_device_generate_ibi);
 
 /**
+ * i3c_device_is_ibi_enabled() - Query the In-Band Interrupt status
+ *
+ * @dev: target device
+ *
+ * Queries the device to check if In-Band Interrupt (IBI) is enabled by the bus
+ * controller.
+ *
+ * Return: 1 if enabled, 0 if disabled.
+ */
+bool i3c_device_is_ibi_enabled(struct i3c_device *dev)
+{
+	bool ret;
+
+	i3c_bus_normaluse_lock(dev->bus);
+	ret = i3c_dev_is_ibi_enabled_locked(dev->desc);
+	i3c_bus_normaluse_unlock(dev->bus);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(i3c_device_is_ibi_enabled);
+
+/**
  * i3c_device_do_setdasa() - do I3C dynamic address assignement with
  *                           static address
  *
