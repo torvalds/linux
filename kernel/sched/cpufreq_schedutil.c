@@ -767,14 +767,6 @@ static int sugov_start(struct cpufreq_policy *policy)
 
 	sg_policy->need_freq_update = cpufreq_driver_test_flags(CPUFREQ_NEED_UPDATE_LIMITS);
 
-	for_each_cpu(cpu, policy->cpus) {
-		struct sugov_cpu *sg_cpu = &per_cpu(sugov_cpu, cpu);
-
-		memset(sg_cpu, 0, sizeof(*sg_cpu));
-		sg_cpu->cpu			= cpu;
-		sg_cpu->sg_policy		= sg_policy;
-	}
-
 	if (policy_is_shared(policy))
 		uu = sugov_update_shared;
 	else if (policy->fast_switch_enabled && cpufreq_driver_has_adjust_perf())
@@ -785,6 +777,9 @@ static int sugov_start(struct cpufreq_policy *policy)
 	for_each_cpu(cpu, policy->cpus) {
 		struct sugov_cpu *sg_cpu = &per_cpu(sugov_cpu, cpu);
 
+		memset(sg_cpu, 0, sizeof(*sg_cpu));
+		sg_cpu->cpu = cpu;
+		sg_cpu->sg_policy = sg_policy;
 		cpufreq_add_update_util_hook(cpu, &sg_cpu->update_util, uu);
 	}
 	return 0;
