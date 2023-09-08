@@ -2328,7 +2328,7 @@ static void hdmi_config_drm_infoframe(struct dw_hdmi *hdmi,
 
 	/* Dynamic Range and Mastering Infoframe is introduced in v2.11a. */
 	if (hdmi->version < 0x211a) {
-		DRM_ERROR("Not support DRM Infoframe\n");
+		dev_dbg(hdmi->dev, "Not support DRM Infoframe\n");
 		return;
 	}
 
