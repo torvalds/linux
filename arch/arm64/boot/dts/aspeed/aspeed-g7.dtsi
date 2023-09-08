@@ -1154,7 +1154,7 @@
 			};
 
 			lpc0_uart_routing: uart-routing@98 {
-				compatible = "aspeed,ast2700-uart-routing";
+				compatible = "aspeed,ast2700n0-uart-routing";
 				reg = <0x98 0x8>;
 				status = "disabled";
 			};
@@ -1232,7 +1232,7 @@
 			};
 
 			lpc1_uart_routing: uart-routing@98 {
-				compatible = "aspeed,ast2700-uart-routing";
+				compatible = "aspeed,ast2700n1-uart-routing";
 				reg = <0x98 0x8>;
 				status = "disabled";
 			};

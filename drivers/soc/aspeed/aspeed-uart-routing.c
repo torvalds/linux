@@ -15,20 +15,30 @@
 #define HICRA	0x9c
 
 /* attributes options */
+#define UART_ROUTING_IO0	"io0"
 #define UART_ROUTING_IO1	"io1"
 #define UART_ROUTING_IO2	"io2"
 #define UART_ROUTING_IO3	"io3"
 #define UART_ROUTING_IO4	"io4"
 #define UART_ROUTING_IO5	"io5"
 #define UART_ROUTING_IO6	"io6"
+#define UART_ROUTING_IO7	"io7"
+#define UART_ROUTING_IO8	"io8"
+#define UART_ROUTING_IO9	"io9"
 #define UART_ROUTING_IO10	"io10"
+#define UART_ROUTING_IO12	"io12"
+#define UART_ROUTING_UART0	"uart0"
 #define UART_ROUTING_UART1	"uart1"
 #define UART_ROUTING_UART2	"uart2"
 #define UART_ROUTING_UART3	"uart3"
 #define UART_ROUTING_UART4	"uart4"
 #define UART_ROUTING_UART5	"uart5"
 #define UART_ROUTING_UART6	"uart6"
+#define UART_ROUTING_UART7	"uart7"
+#define UART_ROUTING_UART8	"uart8"
+#define UART_ROUTING_UART9	"uart9"
 #define UART_ROUTING_UART10	"uart10"
+#define UART_ROUTING_UART12	"uart12"
 #define UART_ROUTING_RES	"reserved"
 
 struct aspeed_uart_routing {
@@ -488,6 +498,416 @@ static const struct attribute_group ast2600_uart_routing_attr_group = {
 	.attrs = ast2600_uart_routing_attrs,
 };
 
+/* routing selector for AST27xx node 0 */
+static struct aspeed_uart_routing_selector ast2700n0_uart9_sel = {
+	.dev_attr = ROUTING_ATTR(UART_ROUTING_UART9),
+	.reg = HICR9,
+	.shift = 12,
+	.mask = 0xf,
+	.options = {
+		    UART_ROUTING_IO9,
+		    UART_ROUTING_IO0,
+		    UART_ROUTING_IO1,
+		    UART_ROUTING_IO2,
+		    UART_ROUTING_IO3,
+			UART_ROUTING_RES,
+		    UART_ROUTING_UART0,
+		    UART_ROUTING_UART1,
+		    UART_ROUTING_UART2,
+		    UART_ROUTING_UART3,
+			UART_ROUTING_UART12,
+		    NULL,
+		    },
+};
+
+static struct aspeed_uart_routing_selector ast2700n0_io9_sel = {
+	.dev_attr = ROUTING_ATTR(UART_ROUTING_IO9),
+	.reg = HICR9,
+	.shift = 8,
+	.mask = 0xf,
+	.options = {
+		    UART_ROUTING_UART0,
+		    UART_ROUTING_UART1,
+		    UART_ROUTING_UART2,
+		    UART_ROUTING_UART3,
+		    UART_ROUTING_UART12,
+		    UART_ROUTING_IO0,
+		    UART_ROUTING_IO1,
+		    UART_ROUTING_IO2,
+		    UART_ROUTING_IO3,
+			UART_ROUTING_RES,
+		    UART_ROUTING_UART9,
+		    NULL,
+		    },
+};
+
+static struct aspeed_uart_routing_selector ast2700n0_uart3_sel = {
+	.dev_attr = ROUTING_ATTR(UART_ROUTING_UART3),
+	.reg = HICRA,
+	.shift = 25,
+	.mask = 0x7,
+	.options = {
+		    UART_ROUTING_IO3,
+		    UART_ROUTING_IO0,
+		    UART_ROUTING_IO1,
+		    UART_ROUTING_IO2,
+		    UART_ROUTING_UART0,
+		    UART_ROUTING_UART1,
+		    UART_ROUTING_UART2,
+		    UART_ROUTING_IO9,
+		    NULL,
+	},
+};
+
+static struct aspeed_uart_routing_selector ast2700n0_uart2_sel = {
+	.dev_attr = ROUTING_ATTR(UART_ROUTING_UART2),
+	.reg = HICRA,
+	.shift = 22,
+	.mask = 0x7,
+	.options = {
+		    UART_ROUTING_IO2,
+		    UART_ROUTING_IO3,
+		    UART_ROUTING_IO0,
+		    UART_ROUTING_IO1,
+		    UART_ROUTING_UART3,
+		    UART_ROUTING_UART0,
+		    UART_ROUTING_UART1,
+		    UART_ROUTING_IO9,
+		    NULL,
+		    },
+};
+
+static struct aspeed_uart_routing_selector ast2700n0_uart1_sel = {
+	.dev_attr = ROUTING_ATTR(UART_ROUTING_UART1),
+	.reg = HICRA,
+	.shift = 19,
+	.mask = 0x7,
+	.options = {
+		    UART_ROUTING_IO1,
+		    UART_ROUTING_IO2,
+		    UART_ROUTING_IO3,
+		    UART_ROUTING_IO0,
+		    UART_ROUTING_UART2,
+		    UART_ROUTING_UART3,
+		    UART_ROUTING_UART0,
+		    UART_ROUTING_IO9,
+		    NULL,
+		    },
+};
+
+static struct aspeed_uart_routing_selector ast2700n0_uart0_sel = {
+	.dev_attr = ROUTING_ATTR(UART_ROUTING_UART0),
+	.reg = HICRA,
+	.shift = 16,
+	.mask = 0x7,
+	.options = {
+		    UART_ROUTING_IO0,
+		    UART_ROUTING_IO1,
+		    UART_ROUTING_IO2,
+		    UART_ROUTING_IO3,
+		    UART_ROUTING_UART1,
+		    UART_ROUTING_UART2,
+		    UART_ROUTING_UART3,
+		    UART_ROUTING_IO9,
+		    NULL,
+		    },
+};
+
+static struct aspeed_uart_routing_selector ast2700n0_io3_sel = {
+	.dev_attr = ROUTING_ATTR(UART_ROUTING_IO3),
+	.reg = HICRA,
+	.shift = 9,
+	.mask = 0x7,
+	.options = {
+		    UART_ROUTING_UART3,
+		    UART_ROUTING_UART9,
+		    UART_ROUTING_UART0,
+		    UART_ROUTING_UART1,
+		    UART_ROUTING_UART2,
+		    UART_ROUTING_IO0,
+		    UART_ROUTING_IO1,
+		    UART_ROUTING_IO9,
+		    NULL,
+		    },
+};
+
+static struct aspeed_uart_routing_selector ast2700n0_io2_sel = {
+	.dev_attr = ROUTING_ATTR(UART_ROUTING_IO2),
+	.reg = HICRA,
+	.shift = 6,
+	.mask = 0x7,
+	.options = {
+		    UART_ROUTING_UART2,
+		    UART_ROUTING_UART3,
+		    UART_ROUTING_UART9,
+		    UART_ROUTING_UART0,
+		    UART_ROUTING_UART1,
+		    UART_ROUTING_IO0,
+		    UART_ROUTING_IO1,
+		    UART_ROUTING_IO9,
+		    NULL,
+		    },
+};
+
+static struct aspeed_uart_routing_selector ast2700n0_io1_sel = {
+	.dev_attr = ROUTING_ATTR(UART_ROUTING_IO1),
+	.reg = HICRA,
+	.shift = 3,
+	.mask = 0x7,
+	.options = {
+		    UART_ROUTING_UART1,
+		    UART_ROUTING_UART2,
+		    UART_ROUTING_UART3,
+		    UART_ROUTING_UART9,
+		    UART_ROUTING_UART0,
+		    UART_ROUTING_IO2,
+		    UART_ROUTING_IO3,
+		    UART_ROUTING_IO9,
+		    NULL,
+		    },
+};
+
+static struct aspeed_uart_routing_selector ast2700n0_io0_sel = {
+	.dev_attr = ROUTING_ATTR(UART_ROUTING_IO0),
+	.reg = HICRA,
+	.shift = 0,
+	.mask = 0x7,
+	.options = {
+		    UART_ROUTING_UART0,
+		    UART_ROUTING_UART1,
+		    UART_ROUTING_UART2,
+		    UART_ROUTING_UART3,
+		    UART_ROUTING_UART9,
+		    UART_ROUTING_IO2,
+		    UART_ROUTING_IO3,
+		    UART_ROUTING_IO9,
+		    NULL,
+		    },
+};
+
+static struct attribute *ast2700n0_uart_routing_attrs[] = {
+	&ast2700n0_uart9_sel.dev_attr.attr,
+	&ast2700n0_io9_sel.dev_attr.attr,
+	&ast2700n0_uart3_sel.dev_attr.attr,
+	&ast2700n0_uart2_sel.dev_attr.attr,
+	&ast2700n0_uart1_sel.dev_attr.attr,
+	&ast2700n0_uart0_sel.dev_attr.attr,
+	&ast2700n0_io3_sel.dev_attr.attr,
+	&ast2700n0_io2_sel.dev_attr.attr,
+	&ast2700n0_io1_sel.dev_attr.attr,
+	&ast2700n0_io0_sel.dev_attr.attr,
+	NULL,
+};
+
+static const struct attribute_group ast2700n0_uart_routing_attr_group = {
+	.attrs = ast2700n0_uart_routing_attrs,
+};
+
+/* routing selector for AST27xx node 1 */
+static struct aspeed_uart_routing_selector ast2700n1_uart10_sel = {
+	.dev_attr = ROUTING_ATTR(UART_ROUTING_UART10),
+	.reg = HICR9,
+	.shift = 12,
+	.mask = 0xf,
+	.options = {
+		    UART_ROUTING_IO10,
+		    UART_ROUTING_IO5,
+		    UART_ROUTING_IO6,
+		    UART_ROUTING_IO7,
+		    UART_ROUTING_IO8,
+			UART_ROUTING_RES,
+		    UART_ROUTING_UART5,
+		    UART_ROUTING_UART6,
+		    UART_ROUTING_UART7,
+		    UART_ROUTING_UART8,
+			UART_ROUTING_UART12,
+		    NULL,
+		    },
+};
+
+static struct aspeed_uart_routing_selector ast2700n1_io10_sel = {
+	.dev_attr = ROUTING_ATTR(UART_ROUTING_IO10),
+	.reg = HICR9,
+	.shift = 8,
+	.mask = 0xf,
+	.options = {
+		    UART_ROUTING_UART5,
+		    UART_ROUTING_UART6,
+		    UART_ROUTING_UART7,
+		    UART_ROUTING_UART8,
+		    UART_ROUTING_UART12,
+		    UART_ROUTING_IO5,
+		    UART_ROUTING_IO6,
+		    UART_ROUTING_IO7,
+		    UART_ROUTING_IO8,
+			UART_ROUTING_RES,
+		    UART_ROUTING_UART10,
+		    NULL,
+		    },
+};
+
+static struct aspeed_uart_routing_selector ast2700n1_uart8_sel = {
+	.dev_attr = ROUTING_ATTR(UART_ROUTING_UART8),
+	.reg = HICRA,
+	.shift = 25,
+	.mask = 0x7,
+	.options = {
+		    UART_ROUTING_IO8,
+		    UART_ROUTING_IO5,
+		    UART_ROUTING_IO6,
+		    UART_ROUTING_IO7,
+		    UART_ROUTING_UART5,
+		    UART_ROUTING_UART6,
+		    UART_ROUTING_UART7,
+		    UART_ROUTING_IO10,
+		    NULL,
+	},
+};
+
+static struct aspeed_uart_routing_selector ast2700n1_uart7_sel = {
+	.dev_attr = ROUTING_ATTR(UART_ROUTING_UART7),
+	.reg = HICRA,
+	.shift = 22,
+	.mask = 0x7,
+	.options = {
+		    UART_ROUTING_IO7,
+		    UART_ROUTING_IO8,
+		    UART_ROUTING_IO5,
+		    UART_ROUTING_IO6,
+		    UART_ROUTING_UART8,
+		    UART_ROUTING_UART5,
+		    UART_ROUTING_UART6,
+		    UART_ROUTING_IO10,
+		    NULL,
+		    },
+};
+
+static struct aspeed_uart_routing_selector ast2700n1_uart6_sel = {
+	.dev_attr = ROUTING_ATTR(UART_ROUTING_UART6),
+	.reg = HICRA,
+	.shift = 19,
+	.mask = 0x7,
+	.options = {
+		    UART_ROUTING_IO6,
+		    UART_ROUTING_IO7,
+		    UART_ROUTING_IO8,
+		    UART_ROUTING_IO5,
+		    UART_ROUTING_UART7,
+		    UART_ROUTING_UART8,
+		    UART_ROUTING_UART5,
+		    UART_ROUTING_IO10,
+		    NULL,
+		    },
+};
+
+static struct aspeed_uart_routing_selector ast2700n1_uart5_sel = {
+	.dev_attr = ROUTING_ATTR(UART_ROUTING_UART0),
+	.reg = HICRA,
+	.shift = 16,
+	.mask = 0x7,
+	.options = {
+		    UART_ROUTING_IO5,
+		    UART_ROUTING_IO6,
+		    UART_ROUTING_IO7,
+		    UART_ROUTING_IO8,
+		    UART_ROUTING_UART6,
+		    UART_ROUTING_UART7,
+		    UART_ROUTING_UART8,
+		    UART_ROUTING_IO10,
+		    NULL,
+		    },
+};
+
+static struct aspeed_uart_routing_selector ast2700n1_io8_sel = {
+	.dev_attr = ROUTING_ATTR(UART_ROUTING_IO8),
+	.reg = HICRA,
+	.shift = 9,
+	.mask = 0x7,
+	.options = {
+		    UART_ROUTING_UART8,
+		    UART_ROUTING_UART10,
+		    UART_ROUTING_UART5,
+		    UART_ROUTING_UART6,
+		    UART_ROUTING_UART7,
+		    UART_ROUTING_IO5,
+		    UART_ROUTING_IO6,
+		    UART_ROUTING_IO10,
+		    NULL,
+		    },
+};
+
+static struct aspeed_uart_routing_selector ast2700n1_io7_sel = {
+	.dev_attr = ROUTING_ATTR(UART_ROUTING_IO7),
+	.reg = HICRA,
+	.shift = 6,
+	.mask = 0x7,
+	.options = {
+		    UART_ROUTING_UART7,
+		    UART_ROUTING_UART8,
+		    UART_ROUTING_UART10,
+		    UART_ROUTING_UART5,
+		    UART_ROUTING_UART6,
+		    UART_ROUTING_IO5,
+		    UART_ROUTING_IO6,
+		    UART_ROUTING_IO10,
+		    NULL,
+		    },
+};
+
+static struct aspeed_uart_routing_selector ast2700n1_io6_sel = {
+	.dev_attr = ROUTING_ATTR(UART_ROUTING_IO6),
+	.reg = HICRA,
+	.shift = 3,
+	.mask = 0x7,
+	.options = {
+		    UART_ROUTING_UART6,
+		    UART_ROUTING_UART7,
+		    UART_ROUTING_UART8,
+		    UART_ROUTING_UART10,
+		    UART_ROUTING_UART5,
+		    UART_ROUTING_IO7,
+		    UART_ROUTING_IO8,
+		    UART_ROUTING_IO10,
+		    NULL,
+		    },
+};
+
+static struct aspeed_uart_routing_selector ast2700n1_io5_sel = {
+	.dev_attr = ROUTING_ATTR(UART_ROUTING_IO0),
+	.reg = HICRA,
+	.shift = 0,
+	.mask = 0x7,
+	.options = {
+		    UART_ROUTING_UART5,
+		    UART_ROUTING_UART6,
+		    UART_ROUTING_UART7,
+		    UART_ROUTING_UART8,
+		    UART_ROUTING_UART10,
+		    UART_ROUTING_IO7,
+		    UART_ROUTING_IO8,
+		    UART_ROUTING_IO10,
+		    NULL,
+		    },
+};
+
+static struct attribute *ast2700n1_uart_routing_attrs[] = {
+	&ast2700n1_uart10_sel.dev_attr.attr,
+	&ast2700n1_io10_sel.dev_attr.attr,
+	&ast2700n1_uart8_sel.dev_attr.attr,
+	&ast2700n1_uart7_sel.dev_attr.attr,
+	&ast2700n1_uart6_sel.dev_attr.attr,
+	&ast2700n1_uart5_sel.dev_attr.attr,
+	&ast2700n1_io8_sel.dev_attr.attr,
+	&ast2700n1_io7_sel.dev_attr.attr,
+	&ast2700n1_io6_sel.dev_attr.attr,
+	&ast2700n1_io5_sel.dev_attr.attr,
+	NULL,
+};
+
+static const struct attribute_group ast2700n1_uart_routing_attr_group = {
+	.attrs = ast2700n1_uart_routing_attrs,
+};
+
 static ssize_t aspeed_uart_routing_show(struct device *dev,
 					struct device_attribute *attr,
 					char *buf)
@@ -582,6 +1002,10 @@ static const struct of_device_id aspeed_uart_routing_table[] = {
 	  .data = &ast2500_uart_routing_attr_group },
 	{ .compatible = "aspeed,ast2600-uart-routing",
 	  .data = &ast2600_uart_routing_attr_group },
+	{ .compatible = "aspeed,ast2700n0-uart-routing",
+	  .data = &ast2700n0_uart_routing_attr_group },
+	{ .compatible = "aspeed,ast2700n1-uart-routing",
+	  .data = &ast2700n1_uart_routing_attr_group },
 	{ },
 };
 
