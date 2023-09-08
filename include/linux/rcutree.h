@@ -110,9 +110,16 @@ void rcu_all_qs(void);
 /* RCUtree hotplug events */
 int rcutree_prepare_cpu(unsigned int cpu);
 int rcutree_online_cpu(unsigned int cpu);
-int rcutree_offline_cpu(unsigned int cpu);
+void rcu_cpu_starting(unsigned int cpu);
+
+#ifdef CONFIG_HOTPLUG_CPU
 int rcutree_dead_cpu(unsigned int cpu);
 int rcutree_dying_cpu(unsigned int cpu);
-void rcu_cpu_starting(unsigned int cpu);
+int rcutree_offline_cpu(unsigned int cpu);
+#else
+#define rcutree_dead_cpu NULL
+#define rcutree_dying_cpu NULL
+#define rcutree_offline_cpu NULL
+#endif
 
 #endif /* __LINUX_RCUTREE_H */
