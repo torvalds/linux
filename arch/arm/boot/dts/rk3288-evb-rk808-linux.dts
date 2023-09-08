@@ -136,6 +136,14 @@
 	pinctrl-0 = <&hdmi_ddc>, <&hdmi_cec_c0>;
 };
 
+&hdmi_in_vopb {
+	status = "okay";
+};
+
+&hdmi_in_vopl {
+	status = "disabled";
+};
+
 &i2c0 {
 	clock-frequency = <400000>;
 
