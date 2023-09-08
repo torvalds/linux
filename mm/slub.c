@@ -4171,22 +4171,16 @@ static inline int calculate_order(unsigned int size)
 	 * the order can only result in same or less fractional waste, not more.
 	 *
 	 * If that fails, we increase the acceptable fraction of waste and try
-	 * again.
+	 * again. The last iteration with fraction of 1/2 would effectively
+	 * accept any waste and give us the order determined by min_objects, as
+	 * long as at least single object fits within slub_max_order.
 	 */
-	for (unsigned int fraction = 16; fraction >= 4; fraction /= 2) {
+	for (unsigned int fraction = 16; fraction > 1; fraction /= 2) {
 		order = calc_slab_order(size, min_objects, slub_max_order,
 					fraction);
 		if (order <= slub_max_order)
 			return order;
 	}
-
-	/*
-	 * We were unable to place multiple objects in a slab. Now
-	 * lets see if we can place a single object there.
-	 */
-	order = calc_slab_order(size, 1, slub_max_order, 1);
-	if (order <= slub_max_order)
-		return order;
 
 	/*
 	 * Doh this slab cannot be placed using slub_max_order.
