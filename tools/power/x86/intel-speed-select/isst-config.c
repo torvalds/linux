@@ -2574,6 +2574,9 @@ static void get_set_trl(struct isst_id *id, void *arg1, void *arg2, void *arg3,
 	int set = *(int *)arg4;
 	int ret;
 
+	if (id->cpu < 0)
+		return;
+
 	if (set && !fact_trl) {
 		isst_display_error_info_message(1, "Invalid TRL. Specify with [-t|--trl]", 0, 0);
 		exit(0);
