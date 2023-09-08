@@ -463,8 +463,6 @@ static void btrfs_submit_dev_bio(struct btrfs_device *dev, struct bio *bio)
 		(unsigned long)dev->bdev->bd_dev, btrfs_dev_name(dev),
 		dev->devid, bio->bi_iter.bi_size);
 
-	btrfsic_check_bio(bio);
-
 	if (bio->bi_opf & REQ_BTRFS_CGROUP_PUNT)
 		blkcg_punt_bio_submit(bio);
 	else
@@ -779,8 +777,6 @@ int btrfs_repair_io_failure(struct btrfs_fs_info *fs_info, u64 ino, u64 start,
 	bio_init(&bio, smap.dev->bdev, &bvec, 1, REQ_OP_WRITE | REQ_SYNC);
 	bio.bi_iter.bi_sector = smap.physical >> SECTOR_SHIFT;
 	__bio_add_page(&bio, page, length, pg_offset);
-
-	btrfsic_check_bio(&bio);
 	ret = submit_bio_wait(&bio);
 	if (ret) {
 		/* try to remap that extent elsewhere? */
