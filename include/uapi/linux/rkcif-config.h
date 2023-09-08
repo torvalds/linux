@@ -36,6 +36,9 @@
 #define RKCIF_CMD_SET_CSI_IDX \
 	_IOW('V', BASE_VIDIOC_PRIVATE + 7, struct rkcif_csi_info)
 
+#define RKCIF_CMD_SET_QUICK_STREAM \
+	_IOW('V', BASE_VIDIOC_PRIVATE + 8, int)
+
 /* cif memory mode
  * 0: raw12/raw10/raw8 8bit memory compact
  * 1: raw12/raw10 16bit memory one pixel
