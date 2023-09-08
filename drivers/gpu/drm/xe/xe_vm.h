@@ -180,8 +180,6 @@ int xe_vm_async_fence_wait_start(struct dma_fence *fence);
 
 extern struct ttm_device_funcs xe_ttm_funcs;
 
-struct ttm_buffer_object *xe_vm_ttm_bo(struct xe_vm *vm);
-
 static inline void xe_vm_queue_rebind_worker(struct xe_vm *vm)
 {
 	XE_WARN_ON(!xe_vm_in_compute_mode(vm));
