@@ -3429,6 +3429,7 @@ enum rtw89_chanctx_state {
 
 enum rtw89_chanctx_callbacks {
 	RTW89_CHANCTX_CALLBACK_PLACEHOLDER,
+	RTW89_CHANCTX_CALLBACK_RFK,
 
 	NUM_OF_RTW89_CHANCTX_CALLBACKS,
 };

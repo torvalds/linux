@@ -4265,6 +4265,14 @@ trigger_rx_dck:
 	rtw89_btc_ntfy_wl_rfk(rtwdev, phy_map, BTC_WRFKT_RXDCK, BTC_WRFK_STOP);
 }
 
+void rtw8852c_dpk_init(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_dpk_info *dpk = &rtwdev->dpk;
+
+	dpk->is_dpk_enable = true;
+	dpk->is_dpk_reload_en = false;
+}
+
 void rtw8852c_dpk(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy_idx)
 {
 	u32 tx_en;
@@ -4274,8 +4282,6 @@ void rtw8852c_dpk(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy_idx)
 	rtw89_chip_stop_sch_tx(rtwdev, phy_idx, &tx_en, RTW89_SCH_TX_SEL_ALL);
 	_wait_rx_mode(rtwdev, _kpath(rtwdev, phy_idx));
 
-	rtwdev->dpk.is_dpk_enable = true;
-	rtwdev->dpk.is_dpk_reload_en = false;
 	_dpk(rtwdev, phy_idx, false);
 
 	rtw89_chip_resume_sch_tx(rtwdev, phy_idx, tx_en);
@@ -4412,4 +4418,27 @@ void rtw8852c_wifi_scan_notify(struct rtw89_dev *rtwdev,
 		rtw8852c_tssi_default_txagc(rtwdev, phy_idx, true);
 	else
 		rtw8852c_tssi_default_txagc(rtwdev, phy_idx, false);
+}
+
+void rtw8852c_rfk_chanctx_cb(struct rtw89_dev *rtwdev,
+			     enum rtw89_chanctx_state state)
+{
+	struct rtw89_dpk_info *dpk = &rtwdev->dpk;
+	u8 path;
+
+	switch (state) {
+	case RTW89_CHANCTX_STATE_MCC_START:
+		dpk->is_dpk_enable = false;
+		for (path = 0; path < RTW8852C_DPK_RF_PATH; path++)
+			_dpk_onoff(rtwdev, path, false);
+		break;
+	case RTW89_CHANCTX_STATE_MCC_STOP:
+		dpk->is_dpk_enable = true;
+		for (path = 0; path < RTW8852C_DPK_RF_PATH; path++)
+			_dpk_onoff(rtwdev, path, false);
+		rtw8852c_dpk(rtwdev, RTW89_PHY_0);
+		break;
+	default:
+		break;
+	}
 }
