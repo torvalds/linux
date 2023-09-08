@@ -916,3 +916,41 @@ void notrace *bpf_mem_cache_alloc_flags(struct bpf_mem_alloc *ma, gfp_t flags)
 
 	return !ret ? NULL : ret + LLIST_NODE_SZ;
 }
+
+/* Most of the logic is taken from setup_kmalloc_cache_index_table() */
+static __init int bpf_mem_cache_adjust_size(void)
+{
+	unsigned int size, index;
+
+	/* Normally KMALLOC_MIN_SIZE is 8-bytes, but it can be
+	 * up-to 256-bytes.
+	 */
+	size = KMALLOC_MIN_SIZE;
+	if (size <= 192)
+		index = size_index[(size - 1) / 8];
+	else
+		index = fls(size - 1) - 1;
+	for (size = 8; size < KMALLOC_MIN_SIZE && size <= 192; size += 8)
+		size_index[(size - 1) / 8] = index;
+
+	/* The minimal alignment is 64-bytes, so disable 96-bytes cache and
+	 * use 128-bytes cache instead.
+	 */
+	if (KMALLOC_MIN_SIZE >= 64) {
+		index = size_index[(128 - 1) / 8];
+		for (size = 64 + 8; size <= 96; size += 8)
+			size_index[(size - 1) / 8] = index;
+	}
+
+	/* The minimal alignment is 128-bytes, so disable 192-bytes cache and
+	 * use 256-bytes cache instead.
+	 */
+	if (KMALLOC_MIN_SIZE >= 128) {
+		index = fls(256 - 1) - 1;
+		for (size = 128 + 8; size <= 192; size += 8)
+			size_index[(size - 1) / 8] = index;
+	}
+
+	return 0;
+}
+subsys_initcall(bpf_mem_cache_adjust_size);
