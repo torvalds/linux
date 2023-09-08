@@ -41,6 +41,16 @@ ifeq ($(findstring ppc,$(ARCH)),ppc)
                          gcc -c -x c - >/dev/null && rm ./-.o && echo yes)
 endif
 
+ifeq ($(ARCH),loongarch64)
+        CFLAGS += -I../../../arch/loongarch/include -DCONFIG_LOONGARCH=1
+        CFLAGS += $(shell echo 'vld $$vr0, $$zero, 0' |         \
+                    gcc -c -x assembler - >/dev/null 2>&1 &&    \
+                    rm ./-.o && echo -DCONFIG_CPU_HAS_LSX=1)
+        CFLAGS += $(shell echo 'xvld $$xr0, $$zero, 0' |        \
+                    gcc -c -x assembler - >/dev/null 2>&1 &&    \
+                    rm ./-.o && echo -DCONFIG_CPU_HAS_LASX=1)
+endif
+
 ifeq ($(IS_X86),yes)
         OBJS   += mmx.o sse1.o sse2.o avx2.o recov_ssse3.o recov_avx2.o avx512.o recov_avx512.o
         CFLAGS += -DCONFIG_X86
@@ -54,6 +64,8 @@ else ifeq ($(HAS_ALTIVEC),yes)
         CFLAGS += -DCONFIG_ALTIVEC
         OBJS += altivec1.o altivec2.o altivec4.o altivec8.o \
                 vpermxor1.o vpermxor2.o vpermxor4.o vpermxor8.o
+else ifeq ($(ARCH),loongarch64)
+        OBJS += loongarch_simd.o recov_loongarch_simd.o
 endif
 
 .c.o:
