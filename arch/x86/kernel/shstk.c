@@ -205,10 +205,21 @@ unsigned long shstk_alloc_thread_stack(struct task_struct *tsk, unsigned long cl
 		return 0;
 
 	/*
-	 * For CLONE_VM, except vfork, the child needs a separate shadow
+	 * For CLONE_VFORK the child will share the parents shadow stack.
+	 * Make sure to clear the internal tracking of the thread shadow
+	 * stack so the freeing logic run for child knows to leave it alone.
+	 */
+	if (clone_flags & CLONE_VFORK) {
+		shstk->base = 0;
+		shstk->size = 0;
+		return 0;
+	}
+
+	/*
+	 * For !CLONE_VM the child will use a copy of the parents shadow
 	 * stack.
 	 */
-	if ((clone_flags & (CLONE_VFORK | CLONE_VM)) != CLONE_VM)
+	if (!(clone_flags & CLONE_VM))
 		return 0;
 
 	size = adjust_shstk_size(stack_size);
@@ -406,6 +417,13 @@ void shstk_free(struct task_struct *tsk)
 	 * the same mm struct.
 	 */
 	if (!tsk->mm || tsk->mm != current->mm)
+		return;
+
+	/*
+	 * If shstk->base is NULL, then this task is not managing its
+	 * own shadow stack (CLONE_VFORK). So skip freeing it.
+	 */
+	if (!shstk->base)
 		return;
 
 	unmap_shadow_stack(shstk->base, shstk->size);
