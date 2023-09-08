@@ -4110,17 +4110,12 @@ static unsigned int slub_min_objects;
  * the smallest order which will fit the object.
  */
 static inline unsigned int calc_slab_order(unsigned int size,
-		unsigned int min_objects, unsigned int max_order,
+		unsigned int min_order, unsigned int max_order,
 		unsigned int fract_leftover)
 {
-	unsigned int min_order = slub_min_order;
 	unsigned int order;
 
-	if (order_objects(min_order, size) > MAX_OBJS_PER_PAGE)
-		return get_order(size * MAX_OBJS_PER_PAGE) - 1;
-
-	for (order = max(min_order, (unsigned int)get_order(min_objects * size));
-			order <= max_order; order++) {
+	for (order = min_order; order <= max_order; order++) {
 
 		unsigned int slab_size = (unsigned int)PAGE_SIZE << order;
 		unsigned int rem;
@@ -4139,7 +4134,7 @@ static inline int calculate_order(unsigned int size)
 	unsigned int order;
 	unsigned int min_objects;
 	unsigned int max_objects;
-	unsigned int nr_cpus;
+	unsigned int min_order;
 
 	min_objects = slub_min_objects;
 	if (!min_objects) {
@@ -4152,13 +4147,19 @@ static inline int calculate_order(unsigned int size)
 		 * order on systems that appear larger than they are, and too
 		 * low order on systems that appear smaller than they are.
 		 */
-		nr_cpus = num_present_cpus();
+		unsigned int nr_cpus = num_present_cpus();
 		if (nr_cpus <= 1)
 			nr_cpus = nr_cpu_ids;
 		min_objects = 4 * (fls(nr_cpus) + 1);
 	}
-	max_objects = order_objects(slub_max_order, size);
+	/* min_objects can't be 0 because get_order(0) is undefined */
+	max_objects = max(order_objects(slub_max_order, size), 1U);
 	min_objects = min(min_objects, max_objects);
+
+	min_order = max_t(unsigned int, slub_min_order,
+			  get_order(min_objects * size));
+	if (order_objects(min_order, size) > MAX_OBJS_PER_PAGE)
+		return get_order(size * MAX_OBJS_PER_PAGE) - 1;
 
 	/*
 	 * Attempt to find best configuration for a slab. This works by first
@@ -4176,7 +4177,7 @@ static inline int calculate_order(unsigned int size)
 	 * long as at least single object fits within slub_max_order.
 	 */
 	for (unsigned int fraction = 16; fraction > 1; fraction /= 2) {
-		order = calc_slab_order(size, min_objects, slub_max_order,
+		order = calc_slab_order(size, min_order, slub_max_order,
 					fraction);
 		if (order <= slub_max_order)
 			return order;
