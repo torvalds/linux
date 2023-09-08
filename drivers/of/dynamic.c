@@ -902,12 +902,12 @@ int of_changeset_action(struct of_changeset *ocs, unsigned long action,
 {
 	struct of_changeset_entry *ce;
 
+	if (WARN_ON(action >= ARRAY_SIZE(action_names)))
+		return -EINVAL;
+
 	ce = kzalloc(sizeof(*ce), GFP_KERNEL);
 	if (!ce)
 		return -ENOMEM;
-
-	if (WARN_ON(action >= ARRAY_SIZE(action_names)))
-		return -EINVAL;
 
 	/* get a reference to the node */
 	ce->action = action;
