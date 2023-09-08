@@ -779,8 +779,31 @@ static inline bool task_in_related_thread_group(struct task_struct *p)
 	return (rcu_access_pointer(wts->grp) != NULL);
 }
 
+bool walt_halt_check_last(int cpu);
+extern struct cpumask __cpu_halt_mask;
+extern struct cpumask __cpu_partial_halt_mask;
+
+#define cpu_halt_mask ((struct cpumask *)&__cpu_halt_mask)
+#define cpu_partial_halt_mask ((struct cpumask *)&__cpu_partial_halt_mask)
+
+/* a halted cpu must NEVER be used for tasks, as this is the thermal indication to avoid a cpu */
+#define cpu_halted(cpu) cpumask_test_cpu((cpu), cpu_halt_mask)
+
+/* a partially halted may be used for helping smaller cpus with small tasks */
+#define cpu_partial_halted(cpu) cpumask_test_cpu((cpu), cpu_partial_halt_mask)
+
+#define ASYMCAP_BOOST(cpu)	(sysctl_sched_asymcap_boost && \
+				!is_min_possible_cluster_cpu(cpu) && \
+				!cpu_partial_halted(cpu))
+
 static bool check_for_higher_capacity(int cpu1, int cpu2)
 {
+	if (cpu_partial_halted(cpu1) && is_min_possible_cluster_cpu(cpu2))
+		return true;
+
+	if (is_min_possible_cluster_cpu(cpu1) && cpu_partial_halted(cpu2))
+		return false;
+
 	return capacity_orig_of(cpu1) > capacity_orig_of(cpu2);
 }
 
@@ -1000,23 +1023,6 @@ struct compute_energy_output {
 	unsigned long	cost[MAX_CLUSTERS];
 	unsigned int	cluster_first_cpu[MAX_CLUSTERS];
 };
-
-bool walt_halt_check_last(int cpu);
-extern struct cpumask __cpu_halt_mask;
-extern struct cpumask __cpu_partial_halt_mask;
-
-#define cpu_halt_mask ((struct cpumask *)&__cpu_halt_mask)
-#define cpu_partial_halt_mask ((struct cpumask *)&__cpu_partial_halt_mask)
-
-/* a halted cpu must NEVER be used for tasks, as this is the thermal indication to avoid a cpu */
-#define cpu_halted(cpu) cpumask_test_cpu((cpu), cpu_halt_mask)
-
-/* a partially halted may be used for helping smaller cpus with small tasks */
-#define cpu_partial_halted(cpu) cpumask_test_cpu((cpu), cpu_partial_halt_mask)
-
-#define ASYMCAP_BOOST(cpu)	(sysctl_sched_asymcap_boost && \
-				!is_min_possible_cluster_cpu(cpu) && \
-				!cpu_partial_halted(cpu))
 
 static inline bool is_state1(void)
 {
