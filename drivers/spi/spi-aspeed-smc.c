@@ -84,6 +84,7 @@ struct aspeed_spi_data {
 	u64 (*segment_start)(struct aspeed_spi *aspi, u32 reg);
 	u64 (*segment_end)(struct aspeed_spi *aspi, u32 reg);
 	u32 (*segment_reg)(struct aspeed_spi *aspi, u64 start, u64 end);
+	u32 (*get_clk_div)(struct aspeed_spi_chip *chip, u32 hz);
 	int (*calibrate)(struct aspeed_spi_chip *chip, u32 hdiv,
 			 const u8 *golden_buf, u8 *test_buf);
 };
@@ -673,6 +674,8 @@ static int aspeed_spi_dirmap_create(struct spi_mem_dirmap_desc *desc)
 	struct aspeed_spi_chip *chip = &aspi->chips[spi_get_chipselect(desc->mem->spi, 0)];
 	struct spi_mem_op *op = &desc->info.op_tmpl;
 	u32 ctl_val;
+	u32 div = 0;
+	int i;
 	int ret = 0;
 
 	dev_dbg(aspi->dev,
@@ -725,7 +728,18 @@ static int aspeed_spi_dirmap_create(struct spi_mem_dirmap_desc *desc)
 	chip->ctl_val[ASPEED_SPI_READ] = ctl_val;
 	writel(chip->ctl_val[ASPEED_SPI_READ], chip->ctl);
 
-	ret = aspeed_spi_do_calibration(chip);
+	/* assign SPI clock frequency division */
+	if (chip->clk_freq < aspi->clk_freq / 5) {
+		if (aspi->data->get_clk_div)
+			div = aspi->data->get_clk_div(chip, chip->clk_freq);
+
+		for (i = 0; i < ASPEED_SPI_MAX; i++)
+			chip->ctl_val[i] = (chip->ctl_val[i] &
+					    aspi->data->hclk_mask) |
+					   div;
+	} else {
+		ret = aspeed_spi_do_calibration(chip);
+	}
 
 	dev_info(aspi->dev, "CE%d read buswidth:%d [0x%08x]\n",
 		 chip->cs, op->data.buswidth, chip->ctl_val[ASPEED_SPI_READ]);
@@ -1004,6 +1018,137 @@ static u32 aspeed_spi_segment_ast2700_reg(struct aspeed_spi *aspi,
 		     ((end + 1) & 0xffff0000));
 }
 
+static const u32 aspeed_spi_hclk_divs[] = {
+	/* HCLK, HCLK/2, HCLK/3, HCLK/4, HCLK/5, ..., HCLK/16 */
+	0xf, 0x7, 0xe, 0x6, 0xd,
+	0x5, 0xc, 0x4, 0xb, 0x3,
+	0xa, 0x2, 0x9, 0x1, 0x8,
+	0x0
+};
+
+#define ASPEED_SPI_HCLK_DIV(i) \
+	(aspeed_spi_hclk_divs[(i)] << CTRL_FREQ_SEL_SHIFT)
+
+/* Transfer maximum clock frequency to register setting */
+static u32 apseed_get_clk_div_ast2400(struct aspeed_spi_chip *chip,
+				      u32 max_hz)
+{
+	struct device *dev = chip->aspi->dev;
+	u32 hclk_clk = chip->aspi->clk_freq;
+	u32 hclk_div = 0;
+	u32 i;
+	bool found = false;
+
+	/* FMC/SPIR10[11:8] */
+	for (i = 0; i < ARRAY_SIZE(aspeed_spi_hclk_divs); i++) {
+		if (hclk_clk / (i + 1) <= max_hz) {
+			found = true;
+			break;
+		}
+	}
+
+	if (found) {
+		hclk_div = ASPEED_SPI_HCLK_DIV(i);
+		chip->clk_freq = hclk_clk / (i + 1);
+	}
+
+	dev_dbg(dev, "found: %s, hclk: %d, max_clk: %d\n", found ? "yes" : "no",
+		hclk_clk, max_hz);
+
+	if (found) {
+		dev_dbg(dev, "h_div: %d (mask 0x%08x), speed: %d\n",
+			i + 1, hclk_div, chip->clk_freq);
+	}
+
+	return hclk_div;
+}
+
+static u32 apseed_get_clk_div_ast2500(struct aspeed_spi_chip *chip,
+				      u32 max_hz)
+{
+	struct device *dev = chip->aspi->dev;
+	u32 hclk_clk = chip->aspi->clk_freq;
+	u32 hclk_div = 0;
+	u32 i;
+	bool found = false;
+
+	/* FMC/SPIR10[11:8] */
+	for (i = 0; i < ARRAY_SIZE(aspeed_spi_hclk_divs); i++) {
+		if (hclk_clk / (i + 1) <= max_hz) {
+			found = true;
+			chip->clk_freq = hclk_clk / (i + 1);
+			break;
+		}
+	}
+
+	if (found) {
+		hclk_div = ASPEED_SPI_HCLK_DIV(i);
+		goto end;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(aspeed_spi_hclk_divs); i++) {
+		if (hclk_clk / ((i + 1) * 4) <= max_hz) {
+			found = true;
+			chip->clk_freq = hclk_clk / ((i + 1) * 4);
+			break;
+		}
+	}
+
+	if (found)
+		hclk_div = BIT(13) | ASPEED_SPI_HCLK_DIV(i);
+
+end:
+	dev_dbg(dev, "found: %s, hclk: %d, max_clk: %d\n", found ? "yes" : "no",
+		hclk_clk, max_hz);
+
+	if (found) {
+		dev_dbg(dev, "h_div: %d (mask %x), speed: %d\n",
+			i + 1, hclk_div, chip->clk_freq);
+	}
+
+	return hclk_div;
+}
+
+static u32 apseed_get_clk_div_ast2600(struct aspeed_spi_chip *chip,
+				      u32 max_hz)
+{
+	struct device *dev = chip->aspi->dev;
+	u32 hclk_clk = chip->aspi->clk_freq;
+	u32 hclk_div = 0;
+	u32 i, j;
+	bool found = false;
+
+	/* FMC/SPIR10[27:24] */
+	for (j = 0; j < 0xf; j++) {
+		/* FMC/SPIR10[11:8] */
+		for (i = 0; i < ARRAY_SIZE(aspeed_spi_hclk_divs); i++) {
+			if (i == 0 && j == 0)
+				continue;
+
+			if (hclk_clk / (i + 1 + (j * 16)) <= max_hz) {
+				found = true;
+				break;
+			}
+		}
+
+		if (found) {
+			hclk_div = ((j << 24) | ASPEED_SPI_HCLK_DIV(i));
+			chip->clk_freq = hclk_clk / (i + 1 + j * 16);
+			break;
+		}
+	}
+
+	dev_dbg(dev, "found: %s, hclk: %d, max_clk: %d\n", found ? "yes" : "no",
+		hclk_clk, max_hz);
+
+	if (found) {
+		dev_dbg(dev, "base_clk: %d, h_div: %d (mask %x), speed: %d\n",
+			j, i + 1, hclk_div, chip->clk_freq);
+	}
+
+	return hclk_div;
+}
+
 /*
  * Read timing compensation sequences
  */
@@ -1107,17 +1252,6 @@ static bool aspeed_spi_check_calib_data(const u8 *test_buf, u32 size)
 	return cnt >= 64;
 }
 
-static const u32 aspeed_spi_hclk_divs[] = {
-	0xf, /* HCLK */
-	0x7, /* HCLK/2 */
-	0xe, /* HCLK/3 */
-	0x6, /* HCLK/4 */
-	0xd, /* HCLK/5 */
-};
-
-#define ASPEED_SPI_HCLK_DIV(i) \
-	(aspeed_spi_hclk_divs[(i) - 1] << CTRL_FREQ_SEL_SHIFT)
-
 static int aspeed_spi_do_calibration(struct aspeed_spi_chip *chip)
 {
 	struct aspeed_spi *aspi = chip->aspi;
@@ -1157,7 +1291,7 @@ static int aspeed_spi_do_calibration(struct aspeed_spi_chip *chip)
 #endif
 
 	/* Now we iterate the HCLK dividers until we find our breaking point */
-	for (i = data->hdiv_max; i <= ARRAY_SIZE(aspeed_spi_hclk_divs); i++) {
+	for (i = data->hdiv_max; i <= 5; i++) {
 		u32 tv, freq;
 
 		freq = ahb_freq / i;
@@ -1166,7 +1300,7 @@ static int aspeed_spi_do_calibration(struct aspeed_spi_chip *chip)
 
 		/* Set the timing */
 		tv = chip->ctl_val[ASPEED_SPI_READ] & data->hclk_mask;
-		tv |= ASPEED_SPI_HCLK_DIV(i);
+		tv |= ASPEED_SPI_HCLK_DIV(i - 1);
 		writel(tv, chip->ctl);
 		dev_dbg(aspi->dev, "Trying HCLK/%d [%08x] ...", i, tv);
 		rc = data->calibrate(chip, i, golden_buf, test_buf);
@@ -1185,7 +1319,7 @@ static int aspeed_spi_do_calibration(struct aspeed_spi_chip *chip)
 		/* Record the freq */
 		for (i = 0; i < ASPEED_SPI_MAX; i++)
 			chip->ctl_val[i] = (chip->ctl_val[i] & data->hclk_mask) |
-				ASPEED_SPI_HCLK_DIV(best_div);
+				ASPEED_SPI_HCLK_DIV(best_div - 1);
 	}
 
 no_calib:
@@ -1221,6 +1355,7 @@ static int get_mid_point_of_longest_one(u8 *buf, u32 len)
 	 */
 	if (max_cnt < 4)
 		return -1;
+
 	return mid_point;
 }
 
@@ -1301,6 +1436,7 @@ static const struct aspeed_spi_data ast2400_fmc_data = {
 	.hclk_mask     = 0xfffff0ff,
 	.hdiv_max      = 1,
 	.min_window_sz = 0x800000,
+	.get_clk_div   = apseed_get_clk_div_ast2400,
 	.calibrate     = aspeed_spi_calibrate,
 	.segment_start = aspeed_spi_segment_start,
 	.segment_end   = aspeed_spi_segment_end,
@@ -1316,6 +1452,7 @@ static const struct aspeed_spi_data ast2400_spi_data = {
 	.timing	       = 0x14,
 	.hclk_mask     = 0xfffff0ff,
 	.hdiv_max      = 1,
+	.get_clk_div   = apseed_get_clk_div_ast2400,
 	.calibrate     = aspeed_spi_calibrate,
 	/* No segment registers */
 };
@@ -1329,6 +1466,7 @@ static const struct aspeed_spi_data ast2500_fmc_data = {
 	.hclk_mask     = 0xffffd0ff,
 	.hdiv_max      = 1,
 	.min_window_sz = 0x800000,
+	.get_clk_div   = apseed_get_clk_div_ast2500,
 	.calibrate     = aspeed_spi_calibrate,
 	.segment_start = aspeed_spi_segment_start,
 	.segment_end   = aspeed_spi_segment_end,
@@ -1345,6 +1483,7 @@ static const struct aspeed_spi_data ast2500_spi_data = {
 	.hclk_mask     = 0xffffd0ff,
 	.hdiv_max      = 1,
 	.min_window_sz = 0x800000,
+	.get_clk_div   = apseed_get_clk_div_ast2500,
 	.calibrate     = aspeed_spi_calibrate,
 	.segment_start = aspeed_spi_segment_start,
 	.segment_end   = aspeed_spi_segment_end,
@@ -1362,6 +1501,7 @@ static const struct aspeed_spi_data ast2600_fmc_data = {
 	.hclk_mask     = 0xf0fff0ff,
 	.hdiv_max      = 2,
 	.min_window_sz = 0x200000,
+	.get_clk_div   = apseed_get_clk_div_ast2600,
 	.calibrate     = aspeed_spi_ast2600_calibrate,
 	.segment_start = aspeed_spi_segment_ast2600_start,
 	.segment_end   = aspeed_spi_segment_ast2600_end,
@@ -1379,6 +1519,7 @@ static const struct aspeed_spi_data ast2600_spi_data = {
 	.hclk_mask     = 0xf0fff0ff,
 	.hdiv_max      = 2,
 	.min_window_sz = 0x200000,
+	.get_clk_div   = apseed_get_clk_div_ast2600,
 	.calibrate     = aspeed_spi_ast2600_calibrate,
 	.segment_start = aspeed_spi_segment_ast2600_start,
 	.segment_end   = aspeed_spi_segment_ast2600_end,
@@ -1396,6 +1537,7 @@ static const struct aspeed_spi_data ast2700_fmc_data = {
 	.hclk_mask     = 0xf0fff0ff,
 	.hdiv_max      = 2,
 	.min_window_sz = 0x10000,
+	.get_clk_div   = apseed_get_clk_div_ast2600,
 	.calibrate     = aspeed_spi_ast2600_calibrate,
 	.segment_start = aspeed_spi_segment_ast2700_start,
 	.segment_end   = aspeed_spi_segment_ast2700_end,
@@ -1412,6 +1554,7 @@ static const struct aspeed_spi_data ast2700_spi_data = {
 	.hclk_mask     = 0xf0fff0ff,
 	.hdiv_max      = 2,
 	.min_window_sz = 0x10000,
+	.get_clk_div   = apseed_get_clk_div_ast2600,
 	.calibrate     = aspeed_spi_ast2600_calibrate,
 	.segment_start = aspeed_spi_segment_ast2700_start,
 	.segment_end   = aspeed_spi_segment_ast2700_end,
