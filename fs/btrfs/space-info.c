@@ -1743,7 +1743,7 @@ static int __reserve_bytes(struct btrfs_fs_info *fs_info,
  * Try to reserve metadata bytes from the block_rsv's space.
  *
  * @fs_info:    the filesystem
- * @block_rsv:  block_rsv we're allocating for
+ * @space_info: the space_info we're allocating for
  * @orig_bytes: number of bytes we want
  * @flush:      whether or not we can flush to make our reservation
  *
@@ -1755,21 +1755,19 @@ static int __reserve_bytes(struct btrfs_fs_info *fs_info,
  * space already.
  */
 int btrfs_reserve_metadata_bytes(struct btrfs_fs_info *fs_info,
-				 struct btrfs_block_rsv *block_rsv,
+				 struct btrfs_space_info *space_info,
 				 u64 orig_bytes,
 				 enum btrfs_reserve_flush_enum flush)
 {
 	int ret;
 
-	ret = __reserve_bytes(fs_info, block_rsv->space_info, orig_bytes, flush);
+	ret = __reserve_bytes(fs_info, space_info, orig_bytes, flush);
 	if (ret == -ENOSPC) {
 		trace_btrfs_space_reservation(fs_info, "space_info:enospc",
-					      block_rsv->space_info->flags,
-					      orig_bytes, 1);
+					      space_info->flags, orig_bytes, 1);
 
 		if (btrfs_test_opt(fs_info, ENOSPC_DEBUG))
-			btrfs_dump_space_info(fs_info, block_rsv->space_info,
-					      orig_bytes, 0);
+			btrfs_dump_space_info(fs_info, space_info, orig_bytes, 0);
 	}
 	return ret;
 }

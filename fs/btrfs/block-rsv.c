@@ -221,7 +221,8 @@ int btrfs_block_rsv_add(struct btrfs_fs_info *fs_info,
 	if (num_bytes == 0)
 		return 0;
 
-	ret = btrfs_reserve_metadata_bytes(fs_info, block_rsv, num_bytes, flush);
+	ret = btrfs_reserve_metadata_bytes(fs_info, block_rsv->space_info,
+					   num_bytes, flush);
 	if (!ret)
 		btrfs_block_rsv_add_bytes(block_rsv, num_bytes, true);
 
@@ -261,7 +262,8 @@ int btrfs_block_rsv_refill(struct btrfs_fs_info *fs_info,
 	if (!ret)
 		return 0;
 
-	ret = btrfs_reserve_metadata_bytes(fs_info, block_rsv, num_bytes, flush);
+	ret = btrfs_reserve_metadata_bytes(fs_info, block_rsv->space_info,
+					   num_bytes, flush);
 	if (!ret) {
 		btrfs_block_rsv_add_bytes(block_rsv, num_bytes, false);
 		return 0;
@@ -517,8 +519,8 @@ again:
 				block_rsv->type, ret);
 	}
 try_reserve:
-	ret = btrfs_reserve_metadata_bytes(fs_info, block_rsv, blocksize,
-					   BTRFS_RESERVE_NO_FLUSH);
+	ret = btrfs_reserve_metadata_bytes(fs_info, block_rsv->space_info,
+					   blocksize, BTRFS_RESERVE_NO_FLUSH);
 	if (!ret)
 		return block_rsv;
 	/*
@@ -539,7 +541,7 @@ try_reserve:
 	 * one last time to force a reservation if there's enough actual space
 	 * on disk to make the reservation.
 	 */
-	ret = btrfs_reserve_metadata_bytes(fs_info, block_rsv, blocksize,
+	ret = btrfs_reserve_metadata_bytes(fs_info, block_rsv->space_info, blocksize,
 					   BTRFS_RESERVE_FLUSH_EMERGENCY);
 	if (!ret)
 		return block_rsv;
