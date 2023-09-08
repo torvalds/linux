@@ -1418,6 +1418,8 @@ static int aspeed_spi_ast2600_calibrate(struct aspeed_spi_chip *chip, u32 hdiv,
 	if (calib_point < 0) {
 		dev_info(dev, "[HCLK/%d] cannot get good calibration point.\n",
 			 hdiv);
+		kfree(calib_res);
+
 		return -1;
 	}
 
