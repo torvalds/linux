@@ -348,6 +348,7 @@ struct tb_retimer {
  *		     the path
  * @nfc_credits: Number of non-flow controlled buffers allocated for the
  *		 @in_port.
+ * @pm_support: Set path PM packet support bit to 1 (for USB4 v2 routers)
  *
  * Hop configuration is always done on the IN port of a switch.
  * in_port and out_port have to be on the same switch. Packets arriving on
@@ -368,6 +369,7 @@ struct tb_path_hop {
 	int next_hop_index;
 	unsigned int initial_credits;
 	unsigned int nfc_credits;
+	bool pm_support;
 };
 
 /**

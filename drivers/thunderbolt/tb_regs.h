@@ -496,7 +496,8 @@ struct tb_regs_hop {
 			  * out_port (on the incoming port of the next switch)
 			  */
 	u32 out_port:6; /* next port of the path (on the same switch) */
-	u32 initial_credits:8;
+	u32 initial_credits:7;
+	u32 pmps:1;
 	u32 unknown1:6; /* set to zero */
 	bool enable:1;
 
