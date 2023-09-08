@@ -2126,7 +2126,7 @@ static void set_fact_enable(int arg)
 			fprintf(stderr,
 				"Enable Intel Speed Select Technology Turbo frequency feature\n");
 			fprintf(stderr,
-				"Optional: -t|--trl : Specify turbo ratio limit\n");
+				"Optional: -t|--trl : Specify turbo ratio limit in hex starting with 0x\n");
 			fprintf(stderr,
 				"\tOptional Arguments: -a|--auto : Designate specified target CPUs with");
 			fprintf(stderr,
@@ -2135,7 +2135,7 @@ static void set_fact_enable(int arg)
 			fprintf(stderr,
 				"Disable Intel Speed Select Technology turbo frequency feature\n");
 			fprintf(stderr,
-				"Optional: -t|--trl : Specify turbo ratio limit\n");
+				"Optional: -t|--trl : Specify turbo ratio limit in hex starting with 0x\n");
 			fprintf(stderr,
 				"\tOptional Arguments: -a|--auto : Also disable core-power associations\n");
 		}
@@ -2597,7 +2597,7 @@ static void process_trl(int arg)
 	if (cmd_help) {
 		if (arg) {
 			fprintf(stderr, "Set TRL (turbo ratio limits)\n");
-			fprintf(stderr, "\t t|--trl: Specify turbo ratio limit for setting TRL\n");
+			fprintf(stderr, "\t t|--trl: Specify turbo ratio limit for setting TRL in hex starting with 0x\n");
 		} else {
 			fprintf(stderr, "Get TRL (turbo ratio limits)\n");
 		}
