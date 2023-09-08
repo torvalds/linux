@@ -11,7 +11,7 @@
 #
 # Authors: Paul E. McKenney <paulmck@linux.ibm.com>
 
-T=${TMPDIR-/tmp}/parse-console.sh.$$
+T="`mktemp -d ${TMPDIR-/tmp}/parse-console.sh.XXXXXX`"
 file="$1"
 title="$2"
 
