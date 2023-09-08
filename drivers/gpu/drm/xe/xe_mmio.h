@@ -127,9 +127,13 @@ static inline int xe_mmio_wait32(struct xe_gt *gt, struct xe_reg reg, u32 mask,
 int xe_mmio_ioctl(struct drm_device *dev, void *data,
 		  struct drm_file *file);
 
-static inline bool xe_mmio_in_range(const struct xe_mmio_range *range,
+static inline bool xe_mmio_in_range(const struct xe_gt *gt,
+				    const struct xe_mmio_range *range,
 				    struct xe_reg reg)
 {
+	if (reg.addr < gt->mmio.adj_limit)
+		reg.addr += gt->mmio.adj_offset;
+
 	return range && reg.addr >= range->start && reg.addr <= range->end;
 }
 
