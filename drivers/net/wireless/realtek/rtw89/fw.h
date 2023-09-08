@@ -2931,6 +2931,11 @@ static inline void RTW89_SET_FWCMD_ADD_MCC_COURTESY_TARGET(void *cmd, u32 val)
 	le32p_replace_bits((__le32 *)cmd + 3, val, GENMASK(23, 16));
 }
 
+enum rtw89_fw_mcc_old_group_actions {
+	RTW89_FW_MCC_OLD_GROUP_ACT_NONE = 0,
+	RTW89_FW_MCC_OLD_GROUP_ACT_REPLACE = 1,
+};
+
 struct rtw89_fw_mcc_start_req {
 	u32 group: 2;
 	u32 btc_in_group: 1;
