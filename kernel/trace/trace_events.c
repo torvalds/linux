@@ -992,19 +992,6 @@ static void remove_subsystem(struct trace_subsystem_dir *dir)
 
 static void remove_event_file_dir(struct trace_event_file *file)
 {
-	struct dentry *dir = file->dir;
-	struct dentry *child;
-
-	if (dir) {
-		spin_lock(&dir->d_lock);	/* probably unneeded */
-		list_for_each_entry(child, &dir->d_subdirs, d_child) {
-			if (d_really_is_positive(child))	/* probably unneeded */
-				d_inode(child)->i_private = NULL;
-		}
-		spin_unlock(&dir->d_lock);
-
-		tracefs_remove(dir);
-	}
 	eventfs_remove(file->ef);
 	list_del(&file->list);
 	remove_subsystem(file->system);
