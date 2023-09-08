@@ -2736,9 +2736,6 @@ void btrfs_init_fs_info(struct btrfs_fs_info *fs_info)
 	spin_lock_init(&fs_info->ordered_root_lock);
 
 	btrfs_init_scrub(fs_info);
-#ifdef CONFIG_BTRFS_FS_CHECK_INTEGRITY
-	fs_info->check_integrity_print_mask = 0;
-#endif
 	btrfs_init_balance(fs_info);
 	btrfs_init_async_reclaim_work(fs_info);
 
@@ -3904,21 +3901,6 @@ static void write_dev_flush(struct btrfs_device *device)
 
 	device->last_flush_error = BLK_STS_OK;
 
-#ifndef CONFIG_BTRFS_FS_CHECK_INTEGRITY
-	/*
-	 * When a disk has write caching disabled, we skip submission of a bio
-	 * with flush and sync requests before writing the superblock, since
-	 * it's not needed. However when the integrity checker is enabled, this
-	 * results in reports that there are metadata blocks referred by a
-	 * superblock that were not properly flushed. So don't skip the bio
-	 * submission only when the integrity checker is enabled for the sake
-	 * of simplicity, since this is a debug tool and not meant for use in
-	 * non-debug builds.
-	 */
-	if (!bdev_write_cache(device->bdev))
-		return;
-#endif
-
 	bio_init(bio, device->bdev, NULL, 0,
 		 REQ_OP_WRITE | REQ_SYNC | REQ_PREFLUSH);
 	bio->bi_end_io = btrfs_end_empty_barrier;
@@ -4422,16 +4404,6 @@ void btrfs_mark_buffer_dirty(struct extent_buffer *buf)
 		WARN(1, KERN_CRIT "btrfs transid mismatch buffer %llu, found %llu running %llu\n",
 			buf->start, transid, fs_info->generation);
 	set_extent_buffer_dirty(buf);
-#ifdef CONFIG_BTRFS_FS_CHECK_INTEGRITY
-	/*
-	 * btrfs_check_leaf() won't check item data if we don't have WRITTEN
-	 * set, so this will only validate the basic structure of the items.
-	 */
-	if (btrfs_header_level(buf) == 0 && btrfs_check_leaf(buf)) {
-		btrfs_print_leaf(buf);
-		ASSERT(0);
-	}
-#endif
 }
 
 static void __btrfs_btree_balance_dirty(struct btrfs_fs_info *fs_info,
