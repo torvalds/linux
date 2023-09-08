@@ -1832,7 +1832,7 @@ rx_processing_done:
 	rxq->bd.cur = bdp;
 
 	if (xdp_result & FEC_ENET_XDP_REDIR)
-		xdp_do_flush_map();
+		xdp_do_flush();
 
 	return pkt_received;
 }
