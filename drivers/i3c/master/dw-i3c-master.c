@@ -30,6 +30,7 @@
 #define DEV_CTRL_ENABLE			BIT(31)
 #define DEV_CTRL_RESUME			BIT(30)
 #define DEV_CTRL_ABORT			BIT(29)
+#define DEV_CTRL_IBI_PAYLOAD_EN		BIT(9)
 #define DEV_CTRL_HOT_JOIN_NACK		BIT(8)
 #define DEV_CTRL_I2C_SLAVE_PRESENT	BIT(7)
 
@@ -200,12 +201,9 @@
 #define SLV_PID_HI(x)			(((x) >> 32) & GENMASK(15, 0))
 #define SLV_PID_LO(x)			((x) & GENMASK(31, 0))
 #define SLV_CHAR_CTRL			0x78
-#define SLV_DCR_MASK			GENMASK(15, 8)
-#define SLV_DCR(x)			(((x) << 8) & SLV_DCR_MASK)
-#define SLV_DEVICE_ROLE_MASK		GENMASK(7, 6)
-#define SLV_DEVICE_ROLE(x)		(((x) << 6) & SLV_DEVICE_ROLE_MASK)
-#define SLV_HDR_CAPABLE			BIT(5)
-#define SLV_MAX_DATA_SPEED_LIMIT	BIT(0)
+#define   SLV_DCR			GENMASK(15, 8)
+#define   SLV_BCR			GENMASK(7, 0)
+#define     SLV_BCR_DEVICE_ROLE		GENMASK(7, 6)
 
 #define SLV_MAX_LEN			0x7c
 #define SLV_MAX_RD_LEN(x)		(((x) & GENMASK(31, 16)) >> 16)
@@ -909,9 +907,18 @@ static int dw_i3c_target_bus_init(struct i3c_master_controller *m)
 	writel(SLV_PID_LO(desc->info.pid), master->regs + SLV_PID_VALUE);
 	writel(SLV_PID_HI(desc->info.pid), master->regs + SLV_MIPI_ID_VALUE);
 
-	reg = readl(master->regs + SLV_CHAR_CTRL) & ~SLV_DCR_MASK & ~SLV_DEVICE_ROLE_MASK;
-	reg |= SLV_DCR(desc->info.dcr) | SLV_DEVICE_ROLE(0);
+	reg = readl(master->regs + SLV_CHAR_CTRL);
+	reg &= ~(SLV_DCR | SLV_BCR_DEVICE_ROLE);
+	reg |= FIELD_PREP(SLV_DCR, desc->info.dcr) |
+	       FIELD_PREP(SLV_BCR_DEVICE_ROLE, 0);
 	writel(reg, master->regs + SLV_CHAR_CTRL);
+
+	reg = FIELD_GET(SLV_BCR, reg);
+	if (reg & I3C_BCR_IBI_PAYLOAD) {
+		reg = readl(master->regs + DEVICE_CTRL);
+		reg |= DEV_CTRL_IBI_PAYLOAD_EN;
+		writel(reg, master->regs + DEVICE_CTRL);
+	}
 
 	reg = readl(master->regs + BUS_FREE_TIMING) |
 	      FIELD_PREP(BUS_AVAIL_TIME, MAX_BUS_AVAIL_CNT);
