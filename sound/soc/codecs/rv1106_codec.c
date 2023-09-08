@@ -97,6 +97,9 @@ struct rv1106_codec_priv {
 	unsigned int mic_mute_l;
 	unsigned int mic_mute_r;
 
+	/* DAC Control Manually */
+	unsigned int dac_ctrl_manual;
+
 	/* For the high pass filter */
 	unsigned int hpf_cutoff;
 
@@ -182,10 +185,20 @@ static int rv1106_codec_main_micbias_get(struct snd_kcontrol *kcontrol,
 					 struct snd_ctl_elem_value *ucontrol);
 static int rv1106_codec_main_micbias_put(struct snd_kcontrol *kcontrol,
 					 struct snd_ctl_elem_value *ucontrol);
+static int rv1106_codec_dac_ctrl_manual_get(struct snd_kcontrol *kcontrol,
+					    struct snd_ctl_elem_value *ucontrol);
+static int rv1106_codec_dac_ctrl_manual_put(struct snd_kcontrol *kcontrol,
+					    struct snd_ctl_elem_value *ucontrol);
 
 static const char *offon_text[2] = {
 	[0] = "Off",
 	[1] = "On",
+};
+
+static const char *noneoffon_text[3] = {
+	[0] = "None",
+	[1] = "Off",
+	[2] = "On",
 };
 
 static const char *mute_text[2] = {
@@ -252,6 +265,11 @@ static const struct soc_enum rv1106_agc_enum_array[] = {
 static const struct soc_enum rv1106_mic_mute_enum_array[] = {
 	SOC_ENUM_SINGLE(0, 0, ARRAY_SIZE(mute_text), mute_text),
 	SOC_ENUM_SINGLE(0, 1, ARRAY_SIZE(mute_text), mute_text),
+};
+
+/* DAC Control Manually */
+static const struct soc_enum rv1106_dac_pa_ctrl_maunal_enum_array[] = {
+	SOC_ENUM_SINGLE(0, 0, ARRAY_SIZE(noneoffon_text), noneoffon_text),
 };
 
 /* ALC AGC Approximate Sample Rate */
@@ -422,6 +440,10 @@ static const struct snd_kcontrol_new rv1106_codec_dapm_controls[] = {
 			   rv1106_codec_hpmix_gain_get,
 			   rv1106_codec_hpmix_gain_put,
 			   rv1106_codec_dac_hpmix_gain_tlv),
+
+	/* DAC Control Manually */
+	SOC_ENUM_EXT("DAC Control Manually", rv1106_dac_pa_ctrl_maunal_enum_array[0],
+		     rv1106_codec_dac_ctrl_manual_get, rv1106_codec_dac_ctrl_manual_put),
 };
 
 static unsigned int using_adc_lr(enum adc_mode_e adc_mode)
@@ -1015,35 +1037,47 @@ static int rv1106_codec_adc_dig_config(struct rv1106_codec_priv *rv1106,
 	return 0;
 }
 
+static int rv1106_codec_dac_mute(struct rv1106_codec_priv *rv1106, int mute)
+{
+	if (mute) {
+		/* Mute DAC HPMIX/LINEOUT */
+		regmap_update_bits(rv1106->regmap,
+				   ACODEC_DAC_ANA_CTL1,
+				   ACODEC_DAC_L_LINEOUT_MUTE_MSK,
+				   ACODEC_DAC_L_LINEOUT_MUTE);
+		regmap_update_bits(rv1106->regmap,
+				   ACODEC_DAC_HPMIX_CTL,
+				   ACODEC_DAC_HPMIX_MUTE_MSK,
+				   ACODEC_DAC_HPMIX_MUTE);
+		rv1106_codec_pa_ctrl(rv1106, false);
+	} else {
+		/* Unmute DAC HPMIX/LINEOUT */
+		regmap_update_bits(rv1106->regmap,
+				   ACODEC_DAC_HPMIX_CTL,
+				   ACODEC_DAC_HPMIX_MUTE_MSK,
+				   ACODEC_DAC_HPMIX_WORK);
+		regmap_update_bits(rv1106->regmap,
+				   ACODEC_DAC_ANA_CTL1,
+				   ACODEC_DAC_L_LINEOUT_MUTE_MSK,
+				   ACODEC_DAC_L_LINEOUT_WORK);
+		rv1106_codec_pa_ctrl(rv1106, true);
+	}
+
+	return 0;
+}
+
 static int rv1106_mute_stream(struct snd_soc_dai *dai, int mute, int stream)
 {
 	struct snd_soc_component *component = dai->component;
 	struct rv1106_codec_priv *rv1106 = snd_soc_component_get_drvdata(component);
 
 	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		if (mute) {
-			/* Mute DAC HPMIX/LINEOUT */
-			regmap_update_bits(rv1106->regmap,
-					   ACODEC_DAC_ANA_CTL1,
-					   ACODEC_DAC_L_LINEOUT_MUTE_MSK,
-					   ACODEC_DAC_L_LINEOUT_MUTE);
-			regmap_update_bits(rv1106->regmap,
-					   ACODEC_DAC_HPMIX_CTL,
-					   ACODEC_DAC_HPMIX_MUTE_MSK,
-					   ACODEC_DAC_HPMIX_MUTE);
-			rv1106_codec_pa_ctrl(rv1106, false);
-		} else {
-			/* Unmute DAC HPMIX/LINEOUT */
-			regmap_update_bits(rv1106->regmap,
-					   ACODEC_DAC_HPMIX_CTL,
-					   ACODEC_DAC_HPMIX_MUTE_MSK,
-					   ACODEC_DAC_HPMIX_WORK);
-			regmap_update_bits(rv1106->regmap,
-					   ACODEC_DAC_L_LINEOUT_MUTE_MSK,
-					   ACODEC_DAC_MUTE_MSK,
-					   ACODEC_DAC_L_LINEOUT_WORK);
-			rv1106_codec_pa_ctrl(rv1106, true);
-		}
+		if (rv1106->dac_ctrl_manual == 1)
+			mute = 1;  /* Force DAC control off manually */
+		else if (rv1106->dac_ctrl_manual == 2)
+			mute = 0;  /* Force DAC control on manually */
+
+		rv1106_codec_dac_mute(rv1106, mute);
 	}
 
 	return 0;
@@ -1341,6 +1375,36 @@ static int rv1106_codec_hpmix_gain_put(struct snd_kcontrol *kcontrol,
 	}
 
 	return snd_soc_put_volsw_range(kcontrol, ucontrol);
+}
+
+static int rv1106_codec_dac_ctrl_manual_get(struct snd_kcontrol *kcontrol,
+					    struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct rv1106_codec_priv *rv1106 = snd_soc_component_get_drvdata(component);
+
+	ucontrol->value.integer.value[0] = rv1106->dac_ctrl_manual;
+
+	return 0;
+}
+
+static int rv1106_codec_dac_ctrl_manual_put(struct snd_kcontrol *kcontrol,
+					    struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct rv1106_codec_priv *rv1106 = snd_soc_component_get_drvdata(component);
+
+	rv1106->dac_ctrl_manual = ucontrol->value.integer.value[0];
+
+	if (rv1106->dac_ctrl_manual == 0)
+		return 0;
+
+	if (rv1106->dac_ctrl_manual == 1)
+		rv1106_codec_dac_mute(rv1106, 1); /* Force DAC control off manually */
+	else if (rv1106->dac_ctrl_manual == 2)
+		rv1106_codec_dac_mute(rv1106, 0); /* Force DAC control on manually */
+
+	return 0;
 }
 
 static int rv1106_codec_adc_enable(struct rv1106_codec_priv *rv1106)
@@ -1774,6 +1838,7 @@ static int rv1106_codec_check_micbias(struct rv1106_codec_priv *rv1106,
 static int rv1106_codec_dapm_controls_prepare(struct rv1106_codec_priv *rv1106)
 {
 	rv1106->adc_mode = DIFF_ADCL;
+	rv1106->dac_ctrl_manual = 0;
 	rv1106->hpf_cutoff = 0;
 	rv1106->agc_l = 0;
 	rv1106->agc_r = 0;
