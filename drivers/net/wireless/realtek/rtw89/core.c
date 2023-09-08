@@ -3528,6 +3528,7 @@ void rtw89_core_ntfy_btc_event(struct rtw89_dev *rtwdev, enum rtw89_btc_hmsg eve
 		bt_req_len = rtw89_coex_query_bt_req_len(rtwdev, RTW89_PHY_0);
 		rtw89_debug(rtwdev, RTW89_DBG_BTC,
 			    "coex updates BT req len to %d TU\n", bt_req_len);
+		rtw89_queue_chanctx_change(rtwdev, RTW89_CHANCTX_BT_SLOT_CHANGE);
 		break;
 	default:
 		if (event < NUM_OF_RTW89_BTC_HMSG)

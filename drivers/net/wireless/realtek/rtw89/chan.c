@@ -1646,12 +1646,15 @@ void rtw89_chanctx_work(struct work_struct *work)
 		break;
 	case RTW89_ENTITY_MODE_MCC:
 		if (changed & BIT(RTW89_CHANCTX_BCN_OFFSET_CHANGE) ||
-		    changed & BIT(RTW89_CHANCTX_P2P_PS_CHANGE))
+		    changed & BIT(RTW89_CHANCTX_P2P_PS_CHANGE) ||
+		    changed & BIT(RTW89_CHANCTX_BT_SLOT_CHANGE))
 			update_mcc_pattern = true;
 		if (changed & BIT(RTW89_CHANCTX_REMOTE_STA_CHANGE))
 			rtw89_mcc_update_macid_bitmap(rtwdev);
 		if (changed & BIT(RTW89_CHANCTX_P2P_PS_CHANGE))
 			rtw89_mcc_update_limit(rtwdev);
+		if (changed & BIT(RTW89_CHANCTX_BT_SLOT_CHANGE))
+			rtw89_mcc_fill_bt_role(rtwdev);
 		if (update_mcc_pattern) {
 			ret = rtw89_mcc_update(rtwdev);
 			if (ret)
