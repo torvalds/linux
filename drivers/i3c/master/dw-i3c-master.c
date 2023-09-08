@@ -1326,6 +1326,16 @@ static int dw_i3c_target_generate_ibi(struct i3c_dev_desc *dev, const u8 *data, 
 	return 0;
 }
 
+static bool dw_i3c_target_is_ibi_enabled(struct i3c_dev_desc *dev)
+{
+	struct i3c_master_controller *m = i3c_dev_get_master(dev);
+	struct dw_i3c_master *master = to_dw_i3c_master(m);
+	u32 reg;
+
+	reg = readl(master->regs + SLV_EVENT_CTRL);
+	return !!(reg & SLV_EVENT_CTRL_SIR_EN);
+}
+
 static int dw_i3c_master_reattach_i3c_dev(struct i3c_dev_desc *dev,
 					  u8 old_dyn_addr)
 {
@@ -1865,6 +1875,7 @@ static const struct i3c_target_ops dw_mipi_i3c_target_ops = {
 	.bus_cleanup = dw_i3c_target_bus_cleanup,
 	.priv_xfers = dw_i3c_target_priv_xfers,
 	.generate_ibi = dw_i3c_target_generate_ibi,
+	.is_ibi_enabled = dw_i3c_target_is_ibi_enabled,
 };
 
 static const struct i3c_master_controller_ops dw_mipi_i3c_ops = {
