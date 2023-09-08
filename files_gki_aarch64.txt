@@ -619,6 +619,7 @@ crypto/xctr.c
 crypto/xts.c
 crypto/zstd.c
 drivers/amba/bus.c
+drivers/android/android_debug_symbols.c
 drivers/android/binder.c
 drivers/android/binder_alloc.c
 drivers/android/binder_alloc.h
@@ -1375,6 +1376,7 @@ drivers/net/wireguard/socket.h
 drivers/net/wireguard/timers.c
 drivers/net/wireguard/timers.h
 drivers/net/wireguard/version.h
+drivers/net/wwan/wwan_core.c
 drivers/nvdimm/badrange.c
 drivers/nvdimm/btt.c
 drivers/nvdimm/btt.h
@@ -2594,6 +2596,7 @@ include/linux/alarmtimer.h
 include/linux/align.h
 include/linux/amba/bus.h
 include/linux/amba/serial.h
+include/linux/android_debug_symbols.h
 include/linux/android_kabi.h
 include/linux/android_vendor.h
 include/linux/anon_inodes.h
@@ -3777,6 +3780,7 @@ include/linux/workqueue.h
 include/linux/workqueue_api.h
 include/linux/writeback.h
 include/linux/ww_mutex.h
+include/linux/wwan.h
 include/linux/xarray.h
 include/linux/xattr.h
 include/linux/xxhash.h
@@ -4246,6 +4250,7 @@ include/trace/hooks/preemptirq.h
 include/trace/hooks/printk.h
 include/trace/hooks/psci.h
 include/trace/hooks/psi.h
+include/trace/hooks/regmap.h
 include/trace/hooks/remoteproc.h
 include/trace/hooks/rwsem.h
 include/trace/hooks/sched.h
@@ -4731,6 +4736,7 @@ include/uapi/linux/watch_queue.h
 include/uapi/linux/watchdog.h
 include/uapi/linux/wireguard.h
 include/uapi/linux/wireless.h
+include/uapi/linux/wwan.h
 include/uapi/linux/xattr.h
 include/uapi/linux/xfrm.h
 include/uapi/rdma/hfi/hfi1_ioctl.h

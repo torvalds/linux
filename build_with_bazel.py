@@ -147,6 +147,7 @@ class BazelBuilder:
                 "query",
                 "--ui_event_filters=-info",
                 "--noshow_progress",
+                "--nocheck_bzl_visibility",
                 query,
             ]
 
@@ -286,6 +287,7 @@ class BazelBuilder:
         self.user_opts.extend([
             "--user_kmi_symbol_lists=//msm-kernel:android/abi_gki_aarch64_qcom",
             "--ignore_missing_projects",
+            "--nocheck_bzl_visibility",
         ])
 
         if self.dry_run:
