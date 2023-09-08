@@ -2662,6 +2662,17 @@ static void rtw89_enter_lps_track(struct rtw89_dev *rtwdev)
 		rtw89_vif_enter_lps(rtwdev, rtwvif);
 }
 
+static void rtw89_core_rfk_track(struct rtw89_dev *rtwdev)
+{
+	enum rtw89_entity_mode mode;
+
+	mode = rtw89_get_entity_mode(rtwdev);
+	if (mode == RTW89_ENTITY_MODE_MCC)
+		return;
+
+	rtw89_chip_rfk_track(rtwdev);
+}
+
 void rtw89_traffic_stats_init(struct rtw89_dev *rtwdev,
 			      struct rtw89_traffic_stats *stats)
 {
@@ -2704,7 +2715,7 @@ static void rtw89_track_work(struct work_struct *work)
 	rtw89_phy_stat_track(rtwdev);
 	rtw89_phy_env_monitor_track(rtwdev);
 	rtw89_phy_dig(rtwdev);
-	rtw89_chip_rfk_track(rtwdev);
+	rtw89_core_rfk_track(rtwdev);
 	rtw89_phy_ra_update(rtwdev);
 	rtw89_phy_cfo_track(rtwdev);
 	rtw89_phy_tx_path_div_track(rtwdev);
