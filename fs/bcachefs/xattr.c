@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 #include "bcachefs.h"
+#include "acl.h"
 #include "bkey_methods.h"
 #include "btree_update.h"
 #include "extents.h"
@@ -130,6 +131,13 @@ void bch2_xattr_to_text(struct printbuf *out, struct bch_fs *c,
 	       xattr.v->x_name,
 	       le16_to_cpu(xattr.v->x_val_len),
 	       (char *) xattr_val(xattr.v));
+
+	if (xattr.v->x_type == KEY_TYPE_XATTR_INDEX_POSIX_ACL_ACCESS ||
+	    xattr.v->x_type == KEY_TYPE_XATTR_INDEX_POSIX_ACL_DEFAULT) {
+		prt_char(out, ' ');
+		bch2_acl_to_text(out, xattr_val(xattr.v),
+				 le16_to_cpu(xattr.v->x_val_len));
+	}
 }
 
 static int bch2_xattr_get_trans(struct btree_trans *trans, struct bch_inode_info *inode,

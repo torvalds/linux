@@ -1,17 +1,70 @@
 // SPDX-License-Identifier: GPL-2.0
-#ifdef CONFIG_BCACHEFS_POSIX_ACL
 
 #include "bcachefs.h"
 
-#include <linux/fs.h>
+#include "acl.h"
+#include "xattr.h"
+
 #include <linux/posix_acl.h>
+
+static const char * const acl_types[] = {
+	[ACL_USER_OBJ]	= "user_obj",
+	[ACL_USER]	= "user",
+	[ACL_GROUP_OBJ]	= "group_obj",
+	[ACL_GROUP]	= "group",
+	[ACL_MASK]	= "mask",
+	[ACL_OTHER]	= "other",
+	NULL,
+};
+
+void bch2_acl_to_text(struct printbuf *out, const void *value, size_t size)
+{
+	const void *p, *end = value + size;
+
+	if (!value ||
+	    size < sizeof(bch_acl_header) ||
+	    ((bch_acl_header *)value)->a_version != cpu_to_le32(BCH_ACL_VERSION))
+		return;
+
+	p = value + sizeof(bch_acl_header);
+	while (p < end) {
+		const bch_acl_entry *in = p;
+		unsigned tag = le16_to_cpu(in->e_tag);
+
+		prt_str(out, acl_types[tag]);
+
+		switch (tag) {
+		case ACL_USER_OBJ:
+		case ACL_GROUP_OBJ:
+		case ACL_MASK:
+		case ACL_OTHER:
+			p += sizeof(bch_acl_entry_short);
+			break;
+		case ACL_USER:
+			prt_printf(out, " uid %u", le32_to_cpu(in->e_id));
+			p += sizeof(bch_acl_entry);
+			break;
+		case ACL_GROUP:
+			prt_printf(out, " gid %u", le32_to_cpu(in->e_id));
+			p += sizeof(bch_acl_entry);
+			break;
+		}
+
+		prt_printf(out, " %o", le16_to_cpu(in->e_perm));
+
+		if (p != end)
+			prt_char(out, ' ');
+	}
+}
+
+#ifdef CONFIG_BCACHEFS_POSIX_ACL
+
+#include "fs.h"
+
+#include <linux/fs.h>
 #include <linux/posix_acl_xattr.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
-
-#include "acl.h"
-#include "fs.h"
-#include "xattr.h"
 
 static inline size_t bch2_acl_size(unsigned nr_short, unsigned nr_long)
 {

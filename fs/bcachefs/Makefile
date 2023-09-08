@@ -2,6 +2,7 @@
 obj-$(CONFIG_BCACHEFS_FS)	+= bcachefs.o
 
 bcachefs-y		:=	\
+	acl.o			\
 	alloc_background.o	\
 	alloc_foreground.o	\
 	backpointers.o		\
@@ -81,5 +82,4 @@ bcachefs-y		:=	\
 	varint.o		\
 	xattr.o
 
-bcachefs-$(CONFIG_BCACHEFS_POSIX_ACL) += acl.o
 obj-$(CONFIG_MEAN_AND_VARIANCE_UNIT_TEST)   += mean_and_variance_test.o

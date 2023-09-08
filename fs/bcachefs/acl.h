@@ -7,8 +7,6 @@ struct bch_hash_info;
 struct bch_inode_info;
 struct posix_acl;
 
-#ifdef CONFIG_BCACHEFS_POSIX_ACL
-
 #define BCH_ACL_VERSION	0x0001
 
 typedef struct {
@@ -25,6 +23,10 @@ typedef struct {
 typedef struct {
 	__le32		a_version;
 } bch_acl_header;
+
+void bch2_acl_to_text(struct printbuf *, const void *, size_t);
+
+#ifdef CONFIG_BCACHEFS_POSIX_ACL
 
 struct posix_acl *bch2_get_acl(struct mnt_idmap *, struct dentry *, int);
 
