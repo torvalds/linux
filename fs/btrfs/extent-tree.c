@@ -1465,8 +1465,6 @@ int btrfs_inc_extent_ref(struct btrfs_trans_handle *trans,
  *		    always passed as 0. For data extents it is the fileoffset
  *		    this extent belongs to.
  *
- * @refs_to_add     Number of references to add
- *
  * @extent_op       Pointer to a structure, holding information necessary when
  *                  updating a tree block's flags
  *
@@ -1474,7 +1472,7 @@ int btrfs_inc_extent_ref(struct btrfs_trans_handle *trans,
 static int __btrfs_inc_extent_ref(struct btrfs_trans_handle *trans,
 				  struct btrfs_delayed_ref_node *node,
 				  u64 parent, u64 root_objectid,
-				  u64 owner, u64 offset, int refs_to_add,
+				  u64 owner, u64 offset,
 				  struct btrfs_delayed_extent_op *extent_op)
 {
 	struct btrfs_path *path;
@@ -1484,6 +1482,7 @@ static int __btrfs_inc_extent_ref(struct btrfs_trans_handle *trans,
 	u64 bytenr = node->bytenr;
 	u64 num_bytes = node->num_bytes;
 	u64 refs;
+	int refs_to_add = node->ref_mod;
 	int ret;
 
 	path = btrfs_alloc_path();
@@ -1562,7 +1561,7 @@ static int run_delayed_data_ref(struct btrfs_trans_handle *trans,
 	} else if (node->action == BTRFS_ADD_DELAYED_REF) {
 		ret = __btrfs_inc_extent_ref(trans, node, parent, ref_root,
 					     ref->objectid, ref->offset,
-					     node->ref_mod, extent_op);
+					     extent_op);
 	} else if (node->action == BTRFS_DROP_DELAYED_REF) {
 		ret = __btrfs_free_extent(trans, node, parent,
 					  ref_root, ref->objectid,
@@ -1713,7 +1712,7 @@ static int run_delayed_tree_ref(struct btrfs_trans_handle *trans,
 		ret = alloc_reserved_tree_block(trans, node, extent_op);
 	} else if (node->action == BTRFS_ADD_DELAYED_REF) {
 		ret = __btrfs_inc_extent_ref(trans, node, parent, ref_root,
-					     ref->level, 0, 1, extent_op);
+					     ref->level, 0, extent_op);
 	} else if (node->action == BTRFS_DROP_DELAYED_REF) {
 		ret = __btrfs_free_extent(trans, node, parent, ref_root,
 					  ref->level, 0, 1, extent_op);
