@@ -2137,9 +2137,7 @@ int btrfs_run_delayed_refs(struct btrfs_trans_handle *trans,
 			   unsigned long count)
 {
 	struct btrfs_fs_info *fs_info = trans->fs_info;
-	struct rb_node *node;
 	struct btrfs_delayed_ref_root *delayed_refs;
-	struct btrfs_delayed_ref_head *head;
 	int ret;
 	int run_all = count == (unsigned long)-1;
 
@@ -2168,25 +2166,16 @@ again:
 		btrfs_create_pending_block_groups(trans);
 
 		spin_lock(&delayed_refs->lock);
-		node = rb_first_cached(&delayed_refs->href_root);
-		if (!node) {
+		if (RB_EMPTY_ROOT(&delayed_refs->href_root.rb_root)) {
 			spin_unlock(&delayed_refs->lock);
-			goto out;
+			return 0;
 		}
-		head = rb_entry(node, struct btrfs_delayed_ref_head,
-				href_node);
-		refcount_inc(&head->refs);
 		spin_unlock(&delayed_refs->lock);
 
-		/* Mutex was contended, block until it's released and retry. */
-		mutex_lock(&head->mutex);
-		mutex_unlock(&head->mutex);
-
-		btrfs_put_delayed_ref_head(head);
 		cond_resched();
 		goto again;
 	}
-out:
+
 	return 0;
 }
 
