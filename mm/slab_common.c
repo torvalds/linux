@@ -479,7 +479,7 @@ void slab_kmem_cache_release(struct kmem_cache *s)
 
 void kmem_cache_destroy(struct kmem_cache *s)
 {
-	int refcnt;
+	int err = -EBUSY;
 	bool rcu_set;
 
 	if (unlikely(!s) || !kasan_check_byte(s))
@@ -490,17 +490,17 @@ void kmem_cache_destroy(struct kmem_cache *s)
 
 	rcu_set = s->flags & SLAB_TYPESAFE_BY_RCU;
 
-	refcnt = --s->refcount;
-	if (refcnt)
+	s->refcount--;
+	if (s->refcount)
 		goto out_unlock;
 
-	WARN(shutdown_cache(s),
-	     "%s %s: Slab cache still has objects when called from %pS",
+	err = shutdown_cache(s);
+	WARN(err, "%s %s: Slab cache still has objects when called from %pS",
 	     __func__, s->name, (void *)_RET_IP_);
 out_unlock:
 	mutex_unlock(&slab_mutex);
 	cpus_read_unlock();
-	if (!refcnt && !rcu_set)
+	if (!err && !rcu_set)
 		kmem_cache_release(s);
 }
 EXPORT_SYMBOL(kmem_cache_destroy);
