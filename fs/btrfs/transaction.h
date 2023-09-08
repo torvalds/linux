@@ -118,6 +118,7 @@ enum {
 struct btrfs_trans_handle {
 	u64 transid;
 	u64 bytes_reserved;
+	u64 delayed_refs_bytes_reserved;
 	u64 chunk_bytes_reserved;
 	unsigned long delayed_ref_updates;
 	unsigned long delayed_ref_csum_deletions;
@@ -140,6 +141,7 @@ struct btrfs_trans_handle {
 	bool in_fsync;
 	struct btrfs_fs_info *fs_info;
 	struct list_head new_bgs;
+	struct btrfs_block_rsv delayed_rsv;
 };
 
 /*

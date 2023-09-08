@@ -281,10 +281,10 @@ u64 btrfs_block_rsv_release(struct btrfs_fs_info *fs_info,
 	struct btrfs_block_rsv *target = NULL;
 
 	/*
-	 * If we are the delayed_rsv then push to the global rsv, otherwise dump
-	 * into the delayed rsv if it is not full.
+	 * If we are a delayed block reserve then push to the global rsv,
+	 * otherwise dump into the global delayed reserve if it is not full.
 	 */
-	if (block_rsv == delayed_rsv)
+	if (block_rsv->type == BTRFS_BLOCK_RSV_DELOPS)
 		target = global_rsv;
 	else if (block_rsv != global_rsv && !btrfs_block_rsv_full(delayed_rsv))
 		target = delayed_rsv;

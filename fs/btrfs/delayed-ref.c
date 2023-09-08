@@ -89,7 +89,9 @@ void btrfs_update_delayed_refs_rsv(struct btrfs_trans_handle *trans)
 {
 	struct btrfs_fs_info *fs_info = trans->fs_info;
 	struct btrfs_block_rsv *delayed_rsv = &fs_info->delayed_refs_rsv;
+	struct btrfs_block_rsv *local_rsv = &trans->delayed_rsv;
 	u64 num_bytes;
+	u64 reserved_bytes;
 
 	num_bytes = btrfs_calc_delayed_ref_bytes(fs_info, trans->delayed_ref_updates);
 	num_bytes += btrfs_calc_delayed_ref_csum_bytes(fs_info,
@@ -98,9 +100,26 @@ void btrfs_update_delayed_refs_rsv(struct btrfs_trans_handle *trans)
 	if (num_bytes == 0)
 		return;
 
+	/*
+	 * Try to take num_bytes from the transaction's local delayed reserve.
+	 * If not possible, try to take as much as it's available. If the local
+	 * reserve doesn't have enough reserved space, the delayed refs reserve
+	 * will be refilled next time btrfs_delayed_refs_rsv_refill() is called
+	 * by someone or if a transaction commit is triggered before that, the
+	 * global block reserve will be used. We want to minimize using the
+	 * global block reserve for cases we can account for in advance, to
+	 * avoid exhausting it and reach -ENOSPC during a transaction commit.
+	 */
+	spin_lock(&local_rsv->lock);
+	reserved_bytes = min(num_bytes, local_rsv->reserved);
+	local_rsv->reserved -= reserved_bytes;
+	local_rsv->full = (local_rsv->reserved >= local_rsv->size);
+	spin_unlock(&local_rsv->lock);
+
 	spin_lock(&delayed_rsv->lock);
 	delayed_rsv->size += num_bytes;
-	delayed_rsv->full = false;
+	delayed_rsv->reserved += reserved_bytes;
+	delayed_rsv->full = (delayed_rsv->reserved >= delayed_rsv->size);
 	spin_unlock(&delayed_rsv->lock);
 	trans->delayed_ref_updates = 0;
 	trans->delayed_ref_csum_deletions = 0;
