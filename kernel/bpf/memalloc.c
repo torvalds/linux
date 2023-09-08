@@ -459,8 +459,7 @@ static void notrace irq_work_raise(struct bpf_mem_cache *c)
  * Typical case will be between 11K and 116K closer to 11K.
  * bpf progs can and should share bpf_mem_cache when possible.
  */
-
-static void prefill_mem_cache(struct bpf_mem_cache *c, int cpu)
+static void init_refill_work(struct bpf_mem_cache *c)
 {
 	init_irq_work(&c->refill_work, bpf_mem_refill);
 	if (c->unit_size <= 256) {
@@ -476,7 +475,10 @@ static void prefill_mem_cache(struct bpf_mem_cache *c, int cpu)
 		c->high_watermark = max(96 * 256 / c->unit_size, 3);
 	}
 	c->batch = max((c->high_watermark - c->low_watermark) / 4 * 3, 1);
+}
 
+static void prefill_mem_cache(struct bpf_mem_cache *c, int cpu)
+{
 	/* To avoid consuming memory assume that 1st run of bpf
 	 * prog won't be doing more than 4 map_update_elem from
 	 * irq disabled region
@@ -521,6 +523,7 @@ int bpf_mem_alloc_init(struct bpf_mem_alloc *ma, int size, bool percpu)
 			c->objcg = objcg;
 			c->percpu_size = percpu_size;
 			c->tgt = c;
+			init_refill_work(c);
 			prefill_mem_cache(c, cpu);
 		}
 		ma->cache = pc;
@@ -544,6 +547,15 @@ int bpf_mem_alloc_init(struct bpf_mem_alloc *ma, int size, bool percpu)
 			c->unit_size = sizes[i];
 			c->objcg = objcg;
 			c->tgt = c;
+
+			init_refill_work(c);
+			/* Another bpf_mem_cache will be used when allocating
+			 * c->unit_size in bpf_mem_alloc(), so doesn't prefill
+			 * for the bpf_mem_cache because these free objects will
+			 * never be used.
+			 */
+			if (i != bpf_mem_cache_idx(c->unit_size))
+				continue;
 			prefill_mem_cache(c, cpu);
 		}
 	}
