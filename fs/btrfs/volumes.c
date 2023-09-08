@@ -559,13 +559,13 @@ static int btrfs_free_stale_devices(dev_t devt, struct btrfs_device *skip_device
 {
 	struct btrfs_fs_devices *fs_devices, *tmp_fs_devices;
 	struct btrfs_device *device, *tmp_device;
-	int ret = 0;
+	int ret;
+	bool freed = false;
 
 	lockdep_assert_held(&uuid_mutex);
 
-	if (devt)
-		ret = -ENOENT;
-
+	/* Return good status if there is no instance of devt. */
+	ret = 0;
 	list_for_each_entry_safe(fs_devices, tmp_fs_devices, &fs_uuids, fs_list) {
 
 		mutex_lock(&fs_devices->device_list_mutex);
@@ -576,8 +576,7 @@ static int btrfs_free_stale_devices(dev_t devt, struct btrfs_device *skip_device
 			if (devt && devt != device->devt)
 				continue;
 			if (fs_devices->opened) {
-				/* for an already deleted device return 0 */
-				if (devt && ret != 0)
+				if (devt)
 					ret = -EBUSY;
 				break;
 			}
@@ -587,7 +586,7 @@ static int btrfs_free_stale_devices(dev_t devt, struct btrfs_device *skip_device
 			list_del(&device->dev_list);
 			btrfs_free_device(device);
 
-			ret = 0;
+			freed = true;
 		}
 		mutex_unlock(&fs_devices->device_list_mutex);
 
@@ -597,6 +596,10 @@ static int btrfs_free_stale_devices(dev_t devt, struct btrfs_device *skip_device
 			free_fs_devices(fs_devices);
 		}
 	}
+
+	/* If there is at least one freed device return 0. */
+	if (freed)
+		return 0;
 
 	return ret;
 }
@@ -1356,9 +1359,14 @@ int btrfs_forget_devices(dev_t devt)
 /*
  * Look for a btrfs signature on a device. This may be called out of the mount path
  * and we are not allowed to call set_blocksize during the scan. The superblock
- * is read via pagecache
+ * is read via pagecache.
+ *
+ * With @mount_arg_dev it's a scan during mount time that will always register
+ * the device or return an error. Multi-device and seeding devices are registered
+ * in both cases.
  */
-struct btrfs_device *btrfs_scan_one_device(const char *path, blk_mode_t flags)
+struct btrfs_device *btrfs_scan_one_device(const char *path, blk_mode_t flags,
+					   bool mount_arg_dev)
 {
 	struct btrfs_super_block *disk_super;
 	bool new_device_added = false;
@@ -1403,10 +1411,27 @@ struct btrfs_device *btrfs_scan_one_device(const char *path, blk_mode_t flags)
 		goto error_bdev_put;
 	}
 
+	if (!mount_arg_dev && btrfs_super_num_devices(disk_super) == 1 &&
+	    !(btrfs_super_flags(disk_super) & BTRFS_SUPER_FLAG_SEEDING)) {
+		dev_t devt;
+
+		ret = lookup_bdev(path, &devt);
+		if (ret)
+			btrfs_warn(NULL, "lookup bdev failed for path %s: %d",
+				   path, ret);
+		else
+			btrfs_free_stale_devices(devt, NULL);
+
+		pr_debug("BTRFS: skip registering single non-seed device %s\n", path);
+		device = NULL;
+		goto free_disk_super;
+	}
+
 	device = device_list_add(path, disk_super, &new_device_added);
 	if (!IS_ERR(device) && new_device_added)
 		btrfs_free_stale_devices(device->devt, device);
 
+free_disk_super:
 	btrfs_release_disk_super(disk_super);
 
 error_bdev_put:
