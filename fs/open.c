@@ -895,7 +895,7 @@ static int do_dentry_open(struct file *f,
 		error = get_write_access(inode);
 		if (unlikely(error))
 			goto cleanup_file;
-		error = __mnt_want_write(f->f_path.mnt);
+		error = mnt_get_write_access(f->f_path.mnt);
 		if (unlikely(error)) {
 			put_write_access(inode);
 			goto cleanup_file;

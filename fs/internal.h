@@ -73,8 +73,8 @@ extern int sb_prepare_remount_readonly(struct super_block *);
 
 extern void __init mnt_init(void);
 
-extern int __mnt_want_write_file(struct file *);
-extern void __mnt_drop_write_file(struct file *);
+int mnt_get_write_access_file(struct file *file);
+void mnt_put_write_access_file(struct file *file);
 
 extern void dissolve_on_fput(struct vfsmount *);
 extern bool may_mount(void);
@@ -101,7 +101,7 @@ static inline void put_file_access(struct file *file)
 		i_readcount_dec(file->f_inode);
 	} else if (file->f_mode & FMODE_WRITER) {
 		put_write_access(file->f_inode);
-		__mnt_drop_write(file->f_path.mnt);
+		mnt_put_write_access(file->f_path.mnt);
 	}
 }
 
@@ -130,9 +130,9 @@ static inline void sb_start_ro_state_change(struct super_block *sb)
 	 * mnt_is_readonly() making sure if mnt_is_readonly() sees SB_RDONLY
 	 * cleared, it will see s_readonly_remount set.
 	 * For RW->RO transition, the barrier pairs with the barrier in
-	 * __mnt_want_write() before the mnt_is_readonly() check. The barrier
-	 * makes sure if __mnt_want_write() sees MNT_WRITE_HOLD already
-	 * cleared, it will see s_readonly_remount set.
+	 * mnt_get_write_access() before the mnt_is_readonly() check.
+	 * The barrier makes sure if mnt_get_write_access() sees MNT_WRITE_HOLD
+	 * already cleared, it will see s_readonly_remount set.
 	 */
 	smp_wmb();
 }
