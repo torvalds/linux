@@ -443,9 +443,9 @@ struct spi_nor_fixups {
  * @id:             the flash's ID bytes. The first three bytes are the
  *                  JEDIC ID. JEDEC ID zero means "no ID" (mostly older chips).
  * @id_len:         the number of bytes of ID.
+ * @size:           the size of the flash in bytes.
  * @sector_size:    the size listed here is what works with SPINOR_OP_SE, which
  *                  isn't necessarily called a "sector" by the vendor.
- * @n_sectors:      the number of sectors.
  * @n_banks:        the number of banks.
  * @page_size:      the flash's page size.
  * @addr_nbytes:    number of address bytes to send.
@@ -505,8 +505,8 @@ struct flash_info {
 	char *name;
 	u8 id[SPI_NOR_MAX_ID_LEN];
 	u8 id_len;
+	size_t size;
 	unsigned sector_size;
-	u16 n_sectors;
 	u16 page_size;
 	u8 n_banks;
 	u8 addr_nbytes;
@@ -556,8 +556,8 @@ struct flash_info {
 	.id_len = 6
 
 #define SPI_NOR_GEOMETRY(_sector_size, _n_sectors, _n_banks)		\
+	.size = (_sector_size) * (_n_sectors),				\
 	.sector_size = (_sector_size),					\
-	.n_sectors = (_n_sectors),					\
 	.page_size = 256,						\
 	.n_banks = (_n_banks)
 
@@ -575,8 +575,8 @@ struct flash_info {
 	SPI_NOR_GEOMETRY((_sector_size), (_n_sectors), 1),
 
 #define CAT25_INFO(_sector_size, _n_sectors, _page_size, _addr_nbytes)	\
+		.size = (_sector_size) * (_n_sectors),			\
 		.sector_size = (_sector_size),				\
-		.n_sectors = (_n_sectors),				\
 		.page_size = (_page_size),				\
 		.n_banks = 1,						\
 		.addr_nbytes = (_addr_nbytes),				\
