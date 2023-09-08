@@ -17,7 +17,6 @@
 #include "print-tree.h"
 #include "volumes.h"
 #include "async-thread.h"
-#include "check-integrity.h"
 #include "dev-replace.h"
 #include "sysfs.h"
 #include "zoned.h"

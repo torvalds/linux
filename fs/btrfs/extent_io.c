@@ -21,7 +21,6 @@
 #include "ctree.h"
 #include "btrfs_inode.h"
 #include "bio.h"
-#include "check-integrity.h"
 #include "locking.h"
 #include "rcu-string.h"
 #include "backref.h"
