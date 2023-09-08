@@ -49,7 +49,7 @@
 static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 			       struct btrfs_delayed_ref_node *node, u64 parent,
 			       u64 root_objectid, u64 owner_objectid,
-			       u64 owner_offset, int refs_to_drop,
+			       u64 owner_offset,
 			       struct btrfs_delayed_extent_op *extra_op);
 static void __run_delayed_extent_op(struct btrfs_delayed_extent_op *extent_op,
 				    struct extent_buffer *leaf,
@@ -1565,8 +1565,7 @@ static int run_delayed_data_ref(struct btrfs_trans_handle *trans,
 	} else if (node->action == BTRFS_DROP_DELAYED_REF) {
 		ret = __btrfs_free_extent(trans, node, parent,
 					  ref_root, ref->objectid,
-					  ref->offset, node->ref_mod,
-					  extent_op);
+					  ref->offset, extent_op);
 	} else {
 		BUG();
 	}
@@ -1715,7 +1714,7 @@ static int run_delayed_tree_ref(struct btrfs_trans_handle *trans,
 					     ref->level, 0, extent_op);
 	} else if (node->action == BTRFS_DROP_DELAYED_REF) {
 		ret = __btrfs_free_extent(trans, node, parent, ref_root,
-					  ref->level, 0, 1, extent_op);
+					  ref->level, 0, extent_op);
 	} else {
 		BUG();
 	}
@@ -2930,7 +2929,7 @@ static int do_free_extent_accounting(struct btrfs_trans_handle *trans,
 static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 			       struct btrfs_delayed_ref_node *node, u64 parent,
 			       u64 root_objectid, u64 owner_objectid,
-			       u64 owner_offset, int refs_to_drop,
+			       u64 owner_offset,
 			       struct btrfs_delayed_extent_op *extent_op)
 {
 	struct btrfs_fs_info *info = trans->fs_info;
@@ -2945,6 +2944,7 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 	int extent_slot = 0;
 	int found_extent = 0;
 	int num_to_del = 1;
+	int refs_to_drop = node->ref_mod;
 	u32 item_size;
 	u64 refs;
 	u64 bytenr = node->bytenr;
