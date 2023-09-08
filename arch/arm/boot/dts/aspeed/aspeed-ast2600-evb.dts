@@ -170,13 +170,27 @@
 
 &emmc_controller {
 	status = "okay";
+	aspeed-max-tap-delay = <736>;
+	mmc-hs200-1_8v;
 };
 
 &emmc {
-	non-removable;
+	status = "okay";
+#if 1
 	bus-width = <4>;
+#else
+	bus-width = <8>;
+	pinctrl-0 = <&pinctrl_emmc_default
+			&pinctrl_emmcg8_default>;
+#endif
+	non-removable;
 	max-frequency = <100000000>;
-	clk-phase-mmc-hs200 = <9>, <225>;
+	/* <0 (MHz * 0.26496)>, <1 (MHz * 0.04968 + 180)> */
+	clk-phase-mmc-hs200 = <0 27>, <1 185>;
+	/*
+	 * max-frequency = <200000000>;
+	 * clk-phase-mmc-hs200 = <0 53>, <1 190>;
+	 */
 };
 
 &rtc {
@@ -470,27 +484,27 @@
  * SPD5118: SPD Hub device
  *
  * +---------------------+
- * | SoC                 |
- * |                     |
+ * | SoC		 |
+ * |			 |
  * | I3C controller #0 - | --+
- * |                     |    \                 SPD5118@50 (I3C mode)
- * |                     |     +-----------+    |
- * |                     |     | IMX3102@f | ---+--+---- i3c bus
- * |                     |     | (I3C mode)|       |
- * |                     |     +-----------+       |
- * |                     |    /                    SPD5118@51 (I3C mode)
+ * |			 |    \			SPD5118@50 (I3C mode)
+ * |			 |     +-----------+	|
+ * |			 |     | IMX3102@f | ---+--+---- i3c bus
+ * |			 |     | (I3C mode)|	   |
+ * |			 |     +-----------+	   |
+ * |			 |    /			   SPD5118@51 (I3C mode)
  * | I3C controller #1 - | --+
- * |                     |
- * |                     |
+ * |			 |
+ * |			 |
  * | I3C controller #2 - | --+
- * |                     |    \                 SPD5118@52 (I2C mode)
- * |                     |     +-----------+    |
- * |                     |     | IMX3102@f | ---+--+---- i2c bus
- * |                     |     | (I2C mode)|       |
- * |                     |     +-----------+       |
- * |                     |    /                    SPD5118@53 (I2C mode)
+ * |			 |    \			SPD5118@52 (I2C mode)
+ * |			 |     +-----------+	|
+ * |			 |     | IMX3102@f | ---+--+---- i2c bus
+ * |			 |     | (I2C mode)|	   |
+ * |			 |     +-----------+	   |
+ * |			 |    /			   SPD5118@53 (I2C mode)
  * | I3C controller #3 - | --+
- * |                     |
+ * |			 |
  * +---------------------+
  */
 #define JESD300_SPD_I2C_MODE(bus, index, addr) \
@@ -577,8 +591,8 @@ spd_ ## bus ## _ ## index: spd@addr,4cc5118 ## index ## 000 { \
  *   i3c-4: represent i3c4 controller, play the role as the target device
  *   i3c-5: represent i3c5 controller, play the role as the master device
  *   5-7ec05034000: the device descriptor represents the target device attached
- *                  to the bus hosted by i3c-5 controller. In this case,
- *                  5-7ec05034000 maps to the physical device i3c4.
+ *		    to the bus hosted by i3c-5 controller. In this case,
+ *		    5-7ec05034000 maps to the physical device i3c4.
  *   4-target: the device descriptor represents i3c-4 itself.
  */
 &i3c4 {
