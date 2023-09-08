@@ -743,6 +743,8 @@ static int aspeed_spi_dirmap_create(struct spi_mem_dirmap_desc *desc)
 
 	dev_info(aspi->dev, "CE%d read buswidth:%d [0x%08x]\n",
 		 chip->cs, op->data.buswidth, chip->ctl_val[ASPEED_SPI_READ]);
+	dev_dbg(aspi->dev, "spi clock frequency: %dMHz\n",
+		chip->clk_freq / 1000000);
 
 	return ret;
 }
@@ -1052,8 +1054,8 @@ static u32 apseed_get_clk_div_ast2400(struct aspeed_spi_chip *chip,
 		chip->clk_freq = hclk_clk / (i + 1);
 	}
 
-	dev_dbg(dev, "found: %s, hclk: %d, max_clk: %d\n", found ? "yes" : "no",
-		hclk_clk, max_hz);
+	dev_dbg(dev, "found: %s, hclk: %d, max_clk: %d\n",
+		found ? "yes" : "no", hclk_clk, max_hz);
 
 	if (found) {
 		dev_dbg(dev, "h_div: %d (mask 0x%08x), speed: %d\n",
@@ -1098,8 +1100,8 @@ static u32 apseed_get_clk_div_ast2500(struct aspeed_spi_chip *chip,
 		hclk_div = BIT(13) | ASPEED_SPI_HCLK_DIV(i);
 
 end:
-	dev_dbg(dev, "found: %s, hclk: %d, max_clk: %d\n", found ? "yes" : "no",
-		hclk_clk, max_hz);
+	dev_dbg(dev, "found: %s, hclk: %d, max_clk: %d\n",
+		found ? "yes" : "no", hclk_clk, max_hz);
 
 	if (found) {
 		dev_dbg(dev, "h_div: %d (mask %x), speed: %d\n",
@@ -1119,7 +1121,7 @@ static u32 apseed_get_clk_div_ast2600(struct aspeed_spi_chip *chip,
 	bool found = false;
 
 	/* FMC/SPIR10[27:24] */
-	for (j = 0; j < 0xf; j++) {
+	for (j = 0; j < 16; j++) {
 		/* FMC/SPIR10[11:8] */
 		for (i = 0; i < ARRAY_SIZE(aspeed_spi_hclk_divs); i++) {
 			if (i == 0 && j == 0)
@@ -1138,8 +1140,8 @@ static u32 apseed_get_clk_div_ast2600(struct aspeed_spi_chip *chip,
 		}
 	}
 
-	dev_dbg(dev, "found: %s, hclk: %d, max_clk: %d\n", found ? "yes" : "no",
-		hclk_clk, max_hz);
+	dev_dbg(dev, "found: %s, hclk: %d, max_clk: %d\n",
+		found ? "yes" : "no", hclk_clk, max_hz);
 
 	if (found) {
 		dev_dbg(dev, "base_clk: %d, h_div: %d (mask %x), speed: %d\n",
@@ -1262,6 +1264,8 @@ static int aspeed_spi_do_calibration(struct aspeed_spi_chip *chip)
 	u8 *golden_buf = NULL;
 	u8 *test_buf = NULL;
 	int i, rc, best_div = -1;
+	u32 clk_div_config = 0;
+	u32 freq = 0;
 
 	dev_dbg(aspi->dev, "calculate timing compensation - AHB freq: %d MHz",
 		ahb_freq / 1000000);
@@ -1292,7 +1296,7 @@ static int aspeed_spi_do_calibration(struct aspeed_spi_chip *chip)
 
 	/* Now we iterate the HCLK dividers until we find our breaking point */
 	for (i = data->hdiv_max; i <= 5; i++) {
-		u32 tv, freq;
+		u32 tv;
 
 		freq = ahb_freq / i;
 		if (freq > max_freq)
@@ -1310,21 +1314,28 @@ static int aspeed_spi_do_calibration(struct aspeed_spi_chip *chip)
 		}
 	}
 
+no_calib:
+
 	/* Nothing found ? */
 	if (best_div < 0) {
 		dev_warn(aspi->dev, "No good frequency, using dumb slow");
+		if (data->get_clk_div)
+			clk_div_config = data->get_clk_div(chip, max_freq);
 	} else {
 		dev_dbg(aspi->dev, "Found good read timings at HCLK/%d", best_div);
-
-		/* Record the freq */
-		for (i = 0; i < ASPEED_SPI_MAX; i++)
-			chip->ctl_val[i] = (chip->ctl_val[i] & data->hclk_mask) |
-				ASPEED_SPI_HCLK_DIV(best_div - 1);
+		chip->clk_freq = freq;
+		clk_div_config = ASPEED_SPI_HCLK_DIV(best_div - 1);
 	}
 
-no_calib:
+	/* Record the freq */
+	for (i = 0; i < ASPEED_SPI_MAX; i++)
+		chip->ctl_val[i] = (chip->ctl_val[i] & data->hclk_mask) |
+				   clk_div_config;
+
 	writel(chip->ctl_val[ASPEED_SPI_READ], chip->ctl);
+
 	kfree(test_buf);
+
 	return 0;
 }
 
