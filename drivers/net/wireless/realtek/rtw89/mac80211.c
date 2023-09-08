@@ -445,7 +445,7 @@ static void rtw89_ops_bss_info_changed(struct ieee80211_hw *hw,
 		rtw89_mac_bf_set_gid_table(rtwdev, vif, conf);
 
 	if (changed & BSS_CHANGED_P2P_PS)
-		rtw89_process_p2p_ps(rtwdev, vif);
+		rtw89_core_update_p2p_ps(rtwdev, vif);
 
 	if (changed & BSS_CHANGED_CQM)
 		rtw89_fw_h2c_set_bcn_fltr_cfg(rtwdev, vif, true);

@@ -3790,6 +3790,7 @@ struct rtw89_chanctx_cfg {
 enum rtw89_chanctx_changes {
 	RTW89_CHANCTX_REMOTE_STA_CHANGE,
 	RTW89_CHANCTX_BCN_OFFSET_CHANGE,
+	RTW89_CHANCTX_P2P_PS_CHANGE,
 
 	NUM_OF_RTW89_CHANCTX_CHANGES,
 	RTW89_CHANCTX_CHANGE_DFLT = NUM_OF_RTW89_CHANCTX_CHANGES,
@@ -5526,6 +5527,7 @@ void rtw89_core_scan_complete(struct rtw89_dev *rtwdev,
 			      struct ieee80211_vif *vif, bool hw_scan);
 void rtw89_reg_6ghz_power_recalc(struct rtw89_dev *rtwdev,
 				 struct rtw89_vif *rtwvif, bool active);
+void rtw89_core_update_p2p_ps(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif);
 void rtw89_core_ntfy_btc_event(struct rtw89_dev *rtwdev, enum rtw89_btc_hmsg event);
 
 #endif

@@ -1596,6 +1596,26 @@ static void rtw89_mcc_update_macid_bitmap(struct rtw89_dev *rtwdev)
 	rtw89_iterate_mcc_roles(rtwdev, rtw89_mcc_upd_map_iterator, NULL);
 }
 
+static int rtw89_mcc_upd_lmt_iterator(struct rtw89_dev *rtwdev,
+				      struct rtw89_mcc_role *mcc_role,
+				      unsigned int ordered_idx,
+				      void *data)
+{
+	memset(&mcc_role->limit, 0, sizeof(mcc_role->limit));
+	rtw89_mcc_fill_role_limit(rtwdev, mcc_role);
+	return 0;
+}
+
+static void rtw89_mcc_update_limit(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_mcc_info *mcc = &rtwdev->mcc;
+
+	if (mcc->mode != RTW89_MCC_MODE_GC_STA)
+		return;
+
+	rtw89_iterate_mcc_roles(rtwdev, rtw89_mcc_upd_lmt_iterator, NULL);
+}
+
 void rtw89_chanctx_work(struct work_struct *work)
 {
 	struct rtw89_dev *rtwdev = container_of(work, struct rtw89_dev,
@@ -1625,10 +1645,13 @@ void rtw89_chanctx_work(struct work_struct *work)
 			rtw89_warn(rtwdev, "failed to start MCC: %d\n", ret);
 		break;
 	case RTW89_ENTITY_MODE_MCC:
-		if (changed & BIT(RTW89_CHANCTX_BCN_OFFSET_CHANGE))
+		if (changed & BIT(RTW89_CHANCTX_BCN_OFFSET_CHANGE) ||
+		    changed & BIT(RTW89_CHANCTX_P2P_PS_CHANGE))
 			update_mcc_pattern = true;
 		if (changed & BIT(RTW89_CHANCTX_REMOTE_STA_CHANGE))
 			rtw89_mcc_update_macid_bitmap(rtwdev);
+		if (changed & BIT(RTW89_CHANCTX_P2P_PS_CHANGE))
+			rtw89_mcc_update_limit(rtwdev);
 		if (update_mcc_pattern) {
 			ret = rtw89_mcc_update(rtwdev);
 			if (ret)

@@ -2673,6 +2673,16 @@ static void rtw89_core_rfk_track(struct rtw89_dev *rtwdev)
 	rtw89_chip_rfk_track(rtwdev);
 }
 
+void rtw89_core_update_p2p_ps(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif)
+{
+	enum rtw89_entity_mode mode = rtw89_get_entity_mode(rtwdev);
+
+	if (mode == RTW89_ENTITY_MODE_MCC)
+		rtw89_queue_chanctx_change(rtwdev, RTW89_CHANCTX_P2P_PS_CHANGE);
+	else
+		rtw89_process_p2p_ps(rtwdev, vif);
+}
+
 void rtw89_traffic_stats_init(struct rtw89_dev *rtwdev,
 			      struct rtw89_traffic_stats *stats)
 {
