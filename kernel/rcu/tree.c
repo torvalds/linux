@@ -4216,7 +4216,7 @@ bool rcu_lockdep_current_cpu_online(void)
 	rdp = this_cpu_ptr(&rcu_data);
 	/*
 	 * Strictly, we care here about the case where the current CPU is
-	 * in rcu_cpu_starting() and thus has an excuse for rdp->grpmask
+	 * in rcutree_report_cpu_starting() and thus has an excuse for rdp->grpmask
 	 * not being up to date. So arch_spin_is_locked() might have a
 	 * false positive if it's held by some *other* CPU, but that's
 	 * OK because that just means a false *negative* on the warning.
@@ -4445,8 +4445,10 @@ int rcutree_online_cpu(unsigned int cpu)
  * from the incoming CPU rather than from the cpuhp_step mechanism.
  * This is because this function must be invoked at a precise location.
  * This incoming CPU must not have enabled interrupts yet.
+ *
+ * This mirrors the effects of rcutree_report_cpu_dead().
  */
-void rcu_cpu_starting(unsigned int cpu)
+void rcutree_report_cpu_starting(unsigned int cpu)
 {
 	unsigned long mask;
 	struct rcu_data *rdp;
@@ -4500,8 +4502,10 @@ void rcu_cpu_starting(unsigned int cpu)
  * Note that this function is special in that it is invoked directly
  * from the outgoing CPU rather than from the cpuhp_step mechanism.
  * This is because this function must be invoked at a precise location.
+ *
+ * This mirrors the effect of rcutree_report_cpu_starting().
  */
-void rcu_report_dead(void)
+void rcutree_report_cpu_dead(void)
 {
 	unsigned long flags;
 	unsigned long mask;
@@ -5072,7 +5076,7 @@ void __init rcu_init(void)
 	pm_notifier(rcu_pm_notify, 0);
 	WARN_ON(num_online_cpus() > 1); // Only one CPU this early in boot.
 	rcutree_prepare_cpu(cpu);
-	rcu_cpu_starting(cpu);
+	rcutree_report_cpu_starting(cpu);
 	rcutree_online_cpu(cpu);
 
 	/* Create workqueue for Tree SRCU and for expedited GPs. */
