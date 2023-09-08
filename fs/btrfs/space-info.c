@@ -556,18 +556,6 @@ static inline u64 calc_reclaim_items_nr(const struct btrfs_fs_info *fs_info,
 	return nr;
 }
 
-static inline u64 calc_delayed_refs_nr(const struct btrfs_fs_info *fs_info,
-				       u64 to_reclaim)
-{
-	const u64 bytes = btrfs_calc_delayed_ref_bytes(fs_info, 1);
-	u64 nr;
-
-	nr = div64_u64(to_reclaim, bytes);
-	if (!nr)
-		nr = 1;
-	return nr;
-}
-
 #define EXTENT_SIZE_PER_ITEM	SZ_256K
 
 /*
@@ -749,10 +737,9 @@ static void flush_space(struct btrfs_fs_info *fs_info,
 			break;
 		}
 		if (state == FLUSH_DELAYED_REFS_NR)
-			nr = calc_delayed_refs_nr(fs_info, num_bytes);
+			btrfs_run_delayed_refs(trans, num_bytes);
 		else
-			nr = 0;
-		btrfs_run_delayed_refs(trans, nr);
+			btrfs_run_delayed_refs(trans, 0);
 		btrfs_end_transaction(trans);
 		break;
 	case ALLOC_CHUNK:

@@ -92,8 +92,8 @@ int btrfs_get_extent_inline_ref_type(const struct extent_buffer *eb,
 				     enum btrfs_inline_ref_type is_data);
 u64 hash_extent_data_ref(u64 root_objectid, u64 owner, u64 offset);
 
-int btrfs_run_delayed_refs(struct btrfs_trans_handle *trans, unsigned long count);
-void btrfs_cleanup_ref_head_accounting(struct btrfs_fs_info *fs_info,
+int btrfs_run_delayed_refs(struct btrfs_trans_handle *trans, u64 min_bytes);
+u64 btrfs_cleanup_ref_head_accounting(struct btrfs_fs_info *fs_info,
 				  struct btrfs_delayed_ref_root *delayed_refs,
 				  struct btrfs_delayed_ref_head *head);
 int btrfs_lookup_data_extent(struct btrfs_fs_info *fs_info, u64 start, u64 len);

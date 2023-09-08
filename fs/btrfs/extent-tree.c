@@ -1815,7 +1815,7 @@ static int run_and_cleanup_extent_op(struct btrfs_trans_handle *trans,
 	return ret ? ret : 1;
 }
 
-void btrfs_cleanup_ref_head_accounting(struct btrfs_fs_info *fs_info,
+u64 btrfs_cleanup_ref_head_accounting(struct btrfs_fs_info *fs_info,
 				  struct btrfs_delayed_ref_root *delayed_refs,
 				  struct btrfs_delayed_ref_head *head)
 {
@@ -1833,10 +1833,13 @@ void btrfs_cleanup_ref_head_accounting(struct btrfs_fs_info *fs_info,
 	}
 
 	btrfs_delayed_refs_rsv_release(fs_info, nr_items);
+
+	return btrfs_calc_delayed_ref_bytes(fs_info, nr_items);
 }
 
 static int cleanup_ref_head(struct btrfs_trans_handle *trans,
-			    struct btrfs_delayed_ref_head *head)
+			    struct btrfs_delayed_ref_head *head,
+			    u64 *bytes_released)
 {
 
 	struct btrfs_fs_info *fs_info = trans->fs_info;
@@ -1881,7 +1884,7 @@ static int cleanup_ref_head(struct btrfs_trans_handle *trans,
 		}
 	}
 
-	btrfs_cleanup_ref_head_accounting(fs_info, delayed_refs, head);
+	*bytes_released = btrfs_cleanup_ref_head_accounting(fs_info, delayed_refs, head);
 
 	trace_run_delayed_ref_head(fs_info, head, 0);
 	btrfs_delayed_ref_unlock(head);
@@ -2002,15 +2005,22 @@ static int btrfs_run_delayed_refs_for_head(struct btrfs_trans_handle *trans,
  * Returns -ENOMEM or -EIO on failure and will abort the transaction.
  */
 static noinline int __btrfs_run_delayed_refs(struct btrfs_trans_handle *trans,
-					     unsigned long nr)
+					     u64 min_bytes)
 {
 	struct btrfs_fs_info *fs_info = trans->fs_info;
 	struct btrfs_delayed_ref_root *delayed_refs;
 	struct btrfs_delayed_ref_head *locked_ref = NULL;
 	int ret;
 	unsigned long count = 0;
+	unsigned long max_count = 0;
+	u64 bytes_processed = 0;
 
 	delayed_refs = &trans->transaction->delayed_refs;
+	if (min_bytes == 0) {
+		max_count = delayed_refs->num_heads_ready;
+		min_bytes = U64_MAX;
+	}
+
 	do {
 		if (!locked_ref) {
 			locked_ref = btrfs_obtain_ref_head(trans);
@@ -2046,11 +2056,14 @@ static noinline int __btrfs_run_delayed_refs(struct btrfs_trans_handle *trans,
 			 */
 			return ret;
 		} else if (!ret) {
+			u64 bytes_released = 0;
+
 			/*
 			 * Success, perform the usual cleanup of a processed
 			 * head
 			 */
-			ret = cleanup_ref_head(trans, locked_ref);
+			ret = cleanup_ref_head(trans, locked_ref, &bytes_released);
+			bytes_processed += bytes_released;
 			if (ret > 0 ) {
 				/* We dropped our lock, we need to loop. */
 				ret = 0;
@@ -2067,7 +2080,9 @@ static noinline int __btrfs_run_delayed_refs(struct btrfs_trans_handle *trans,
 
 		locked_ref = NULL;
 		cond_resched();
-	} while ((nr != -1 && count < nr) || locked_ref);
+	} while ((min_bytes != U64_MAX && bytes_processed < min_bytes) ||
+		 (max_count > 0 && count < max_count) ||
+		 locked_ref);
 
 	return 0;
 }
@@ -2116,22 +2131,25 @@ static u64 find_middle(struct rb_root *root)
 #endif
 
 /*
- * this starts processing the delayed reference count updates and
- * extent insertions we have queued up so far.  count can be
- * 0, which means to process everything in the tree at the start
- * of the run (but not newly added entries), or it can be some target
- * number you'd like to process.
+ * Start processing the delayed reference count updates and extent insertions
+ * we have queued up so far.
+ *
+ * @trans:	Transaction handle.
+ * @min_bytes:	How many bytes of delayed references to process. After this
+ *		many bytes we stop processing delayed references if there are
+ *		any more. If 0 it means to run all existing delayed references,
+ *		but not new ones added after running all existing ones.
+ *		Use (u64)-1 (U64_MAX) to run all existing delayed references
+ *		plus any new ones that are added.
  *
  * Returns 0 on success or if called with an aborted transaction
  * Returns <0 on error and aborts the transaction
  */
-int btrfs_run_delayed_refs(struct btrfs_trans_handle *trans,
-			   unsigned long count)
+int btrfs_run_delayed_refs(struct btrfs_trans_handle *trans, u64 min_bytes)
 {
 	struct btrfs_fs_info *fs_info = trans->fs_info;
 	struct btrfs_delayed_ref_root *delayed_refs;
 	int ret;
-	int run_all = count == (unsigned long)-1;
 
 	/* We'll clean this up in btrfs_cleanup_transaction */
 	if (TRANS_ABORTED(trans))
@@ -2141,20 +2159,17 @@ int btrfs_run_delayed_refs(struct btrfs_trans_handle *trans,
 		return 0;
 
 	delayed_refs = &trans->transaction->delayed_refs;
-	if (count == 0)
-		count = delayed_refs->num_heads_ready;
-
 again:
 #ifdef SCRAMBLE_DELAYED_REFS
 	delayed_refs->run_delayed_start = find_middle(&delayed_refs->root);
 #endif
-	ret = __btrfs_run_delayed_refs(trans, count);
+	ret = __btrfs_run_delayed_refs(trans, min_bytes);
 	if (ret < 0) {
 		btrfs_abort_transaction(trans, ret);
 		return ret;
 	}
 
-	if (run_all) {
+	if (min_bytes == U64_MAX) {
 		btrfs_create_pending_block_groups(trans);
 
 		spin_lock(&delayed_refs->lock);
