@@ -347,7 +347,7 @@
 		syscon: syscon@12c02000 {
 			compatible = "syscon", "simple-mfd";
 			reg = <0x0 0x12c02000 0x0 0x1000>;
-			ranges = <0x0 0x12c02000 0x0 0x1000>;
+			ranges = <0x0 0x0 0x12c02000 0x1000>;
 			#address-cells = <1>;
 			#size-cells = <1>;
 			#clock-cells = <1>;
