@@ -9,7 +9,6 @@
 #include "core.h"
 
 static const struct flash_info eon_nor_parts[] = {
-	/* EON -- en25xxx */
 	{ "en25f32",    INFO(0x1c3116, 0, 64 * 1024,   64)
 		NO_SFDP_FLAGS(SECT_4K) },
 	{ "en25p32",    INFO(0x1c2016, 0, 64 * 1024,   64) },
