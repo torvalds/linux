@@ -1388,7 +1388,7 @@ void cpuhp_report_idle_dead(void)
 	struct cpuhp_cpu_state *st = this_cpu_ptr(&cpuhp_state);
 
 	BUG_ON(st->state != CPUHP_AP_OFFLINE);
-	rcu_report_dead(smp_processor_id());
+	rcu_report_dead();
 	st->state = CPUHP_AP_IDLE_DEAD;
 	/*
 	 * We cannot call complete after rcu_report_dead() so we delegate it
