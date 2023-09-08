@@ -408,7 +408,7 @@ static int bt_bmc_probe(struct platform_device *pdev)
 {
 	struct bt_bmc *bt_bmc;
 	struct device *dev;
-	int rc;
+	int rc, chan;
 
 	dev = &pdev->dev;
 	dev_info(dev, "Found bt bmc device\n");
@@ -426,9 +426,15 @@ static int bt_bmc_probe(struct platform_device *pdev)
 	mutex_init(&bt_bmc->mutex);
 	init_waitqueue_head(&bt_bmc->queue);
 
-	bt_bmc->miscdev.minor	= MISC_DYNAMIC_MINOR;
-	bt_bmc->miscdev.name	= DEVICE_NAME;
-	bt_bmc->miscdev.fops	= &bt_bmc_fops;
+	if (of_property_read_u32(dev->of_node, "bt-channel", &chan))
+		bt_bmc->miscdev.name = DEVICE_NAME;
+	else
+		bt_bmc->miscdev.name = devm_kasprintf(dev, GFP_KERNEL, "%s%u",
+						      DEVICE_NAME,
+						      chan);
+
+	bt_bmc->miscdev.minor = MISC_DYNAMIC_MINOR;
+	bt_bmc->miscdev.fops = &bt_bmc_fops;
 	bt_bmc->miscdev.parent = dev;
 	rc = misc_register(&bt_bmc->miscdev);
 	if (rc) {
