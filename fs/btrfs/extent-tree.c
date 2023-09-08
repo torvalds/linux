@@ -851,7 +851,7 @@ again:
 "extent item not found for insert, bytenr %llu num_bytes %llu parent %llu root_objectid %llu owner %llu offset %llu",
 			  bytenr, num_bytes, parent, root_objectid, owner,
 			  offset);
-		ret = -EIO;
+		ret = -EUCLEAN;
 		goto out;
 	}
 
