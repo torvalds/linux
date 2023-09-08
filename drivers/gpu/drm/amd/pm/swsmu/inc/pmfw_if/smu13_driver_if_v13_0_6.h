@@ -132,6 +132,9 @@ typedef struct {
 #define THROTTLER_THERMAL_VR_BIT        3//VRHOT
 #define THROTTLER_THERMAL_HBM_BIT       4
 
+#define ClearMcaOnRead_UE_FLAG_MASK              0x1
+#define ClearMcaOnRead_CE_POLL_MASK              0x2
+
 // These defines are used with the following messages:
 // SMC_MSG_TransferTableDram2Smu
 // SMC_MSG_TransferTableSmu2Dram

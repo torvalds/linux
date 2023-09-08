@@ -87,7 +87,8 @@
 #define PPSMC_MSG_QueryValidMcaCount                0x36
 #define PPSMC_MSG_McaBankDumpDW                     0x37
 #define PPSMC_MSG_GetCTFLimit                       0x38
-#define PPSMC_Message_Count                         0x39
+#define PPSMC_MSG_ClearMcaOnRead                    0x39
+#define PPSMC_Message_Count                         0x40
 
 //PPSMC Reset Types for driver msg argument
 #define PPSMC_RESET_TYPE_DRIVER_MODE_1_RESET        0x1
