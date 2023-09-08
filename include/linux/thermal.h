@@ -300,16 +300,22 @@ int thermal_acpi_critical_trip_temp(struct acpi_device *adev, int *ret_temp);
 #endif
 
 #ifdef CONFIG_THERMAL
-struct thermal_zone_device *thermal_zone_device_register(const char *, int, int,
-		void *, struct thermal_zone_device_ops *,
-		const struct thermal_zone_params *, int, int);
+struct thermal_zone_device *thermal_zone_device_register_with_trips(
+					const char *type,
+					struct thermal_trip *trips,
+					int num_trips, int mask,
+					void *devdata,
+					struct thermal_zone_device_ops *ops,
+					const struct thermal_zone_params *tzp,
+					int passive_delay, int polling_delay);
 
-void thermal_zone_device_unregister(struct thermal_zone_device *);
+struct thermal_zone_device *thermal_tripless_zone_device_register(
+					const char *type,
+					void *devdata,
+					struct thermal_zone_device_ops *ops,
+					const struct thermal_zone_params *tzp);
 
-struct thermal_zone_device *
-thermal_zone_device_register_with_trips(const char *, struct thermal_trip *, int, int,
-					void *, struct thermal_zone_device_ops *,
-					const struct thermal_zone_params *, int, int);
+void thermal_zone_device_unregister(struct thermal_zone_device *tz);
 
 void *thermal_zone_device_priv(struct thermal_zone_device *tzd);
 const char *thermal_zone_device_type(struct thermal_zone_device *tzd);
@@ -350,15 +356,26 @@ int thermal_zone_device_enable(struct thermal_zone_device *tz);
 int thermal_zone_device_disable(struct thermal_zone_device *tz);
 void thermal_zone_device_critical(struct thermal_zone_device *tz);
 #else
-static inline struct thermal_zone_device *thermal_zone_device_register(
-	const char *type, int trips, int mask, void *devdata,
-	struct thermal_zone_device_ops *ops,
-	const struct thermal_zone_params *tzp,
-	int passive_delay, int polling_delay)
+static inline struct thermal_zone_device *thermal_zone_device_register_with_trips(
+					const char *type,
+					struct thermal_trip *trips,
+					int num_trips, int mask,
+					void *devdata,
+					struct thermal_zone_device_ops *ops,
+					const struct thermal_zone_params *tzp,
+					int passive_delay, int polling_delay)
 { return ERR_PTR(-ENODEV); }
-static inline void thermal_zone_device_unregister(
-	struct thermal_zone_device *tz)
+
+static inline struct thermal_zone_device *thermal_tripless_zone_device_register(
+					const char *type,
+					void *devdata,
+					struct thermal_zone_device_ops *ops,
+					const struct thermal_zone_params *tzp)
+{ return ERR_PTR(-ENODEV); }
+
+static inline void thermal_zone_device_unregister(struct thermal_zone_device *tz)
 { }
+
 static inline struct thermal_cooling_device *
 thermal_cooling_device_register(const char *type, void *devdata,
 	const struct thermal_cooling_device_ops *ops)
