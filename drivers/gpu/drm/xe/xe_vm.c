@@ -7,6 +7,7 @@
 
 #include <linux/dma-fence-array.h>
 
+#include <drm/drm_exec.h>
 #include <drm/drm_print.h>
 #include <drm/ttm/ttm_execbuf_util.h>
 #include <drm/ttm/ttm_tt.h>
@@ -327,10 +328,7 @@ static void resume_and_reinstall_preempt_fences(struct xe_vm *vm)
 
 int xe_vm_add_compute_exec_queue(struct xe_vm *vm, struct xe_exec_queue *q)
 {
-	struct ttm_validate_buffer tv_onstack[XE_ONSTACK_TV];
-	struct ttm_validate_buffer *tv;
-	struct ww_acquire_ctx ww;
-	struct list_head objs;
+	struct drm_exec exec;
 	struct dma_fence *pfence;
 	int err;
 	bool wait;
@@ -338,10 +336,13 @@ int xe_vm_add_compute_exec_queue(struct xe_vm *vm, struct xe_exec_queue *q)
 	XE_WARN_ON(!xe_vm_in_compute_mode(vm));
 
 	down_write(&vm->lock);
-
-	err = xe_vm_lock_dma_resv(vm, &ww, tv_onstack, &tv, &objs, true, 1);
-	if (err)
-		goto out_unlock_outer;
+	drm_exec_init(&exec, DRM_EXEC_INTERRUPTIBLE_WAIT);
+	drm_exec_until_all_locked(&exec) {
+		err = xe_vm_lock_dma_resv(vm, &exec, 1, true);
+		drm_exec_retry_on_contention(&exec);
+		if (err)
+			goto out_unlock;
+	}
 
 	pfence = xe_preempt_fence_create(q, q->compute.context,
 					 ++q->compute.seqno);
@@ -373,8 +374,7 @@ int xe_vm_add_compute_exec_queue(struct xe_vm *vm, struct xe_exec_queue *q)
 	up_read(&vm->userptr.notifier_lock);
 
 out_unlock:
-	xe_vm_unlock_dma_resv(vm, tv_onstack, tv, &ww, &objs);
-out_unlock_outer:
+	drm_exec_fini(&exec);
 	up_write(&vm->lock);
 
 	return err;
@@ -403,68 +403,35 @@ int __xe_vm_userptr_needs_repin(struct xe_vm *vm)
  * xe_vm_lock_dma_resv() - Lock the vm dma_resv object and the dma_resv
  * objects of the vm's external buffer objects.
  * @vm: The vm.
- * @ww: Pointer to a struct ww_acquire_ctx locking context.
- * @tv_onstack: Array size XE_ONSTACK_TV of storage for the struct
- * ttm_validate_buffers used for locking.
- * @tv: Pointer to a pointer that on output contains the actual storage used.
- * @objs: List head for the buffer objects locked.
- * @intr: Whether to lock interruptible.
+ * @exec: Pointer to a struct drm_exec locking context.
  * @num_shared: Number of dma-fence slots to reserve in the locked objects.
+ * @lock_vm: Lock also the vm's dma_resv.
  *
  * Locks the vm dma-resv objects and all the dma-resv objects of the
- * buffer objects on the vm external object list. The TTM utilities require
- * a list of struct ttm_validate_buffers pointing to the actual buffer
- * objects to lock. Storage for those struct ttm_validate_buffers should
- * be provided in @tv_onstack, and is typically reserved on the stack
- * of the caller. If the size of @tv_onstack isn't sufficient, then
- * storage will be allocated internally using kvmalloc().
- *
- * The function performs deadlock handling internally, and after a
- * successful return the ww locking transaction should be considered
- * sealed.
+ * buffer objects on the vm external object list.
  *
  * Return: 0 on success, Negative error code on error. In particular if
- * @intr is set to true, -EINTR or -ERESTARTSYS may be returned. In case
- * of error, any locking performed has been reverted.
+ * @intr is set to true, -EINTR or -ERESTARTSYS may be returned.
  */
-int xe_vm_lock_dma_resv(struct xe_vm *vm, struct ww_acquire_ctx *ww,
-			struct ttm_validate_buffer *tv_onstack,
-			struct ttm_validate_buffer **tv,
-			struct list_head *objs,
-			bool intr,
-			unsigned int num_shared)
+int xe_vm_lock_dma_resv(struct xe_vm *vm, struct drm_exec *exec,
+			unsigned int num_shared, bool lock_vm)
 {
-	struct ttm_validate_buffer *tv_vm, *tv_bo;
 	struct xe_vma *vma, *next;
-	LIST_HEAD(dups);
-	int err;
+	int err = 0;
 
 	lockdep_assert_held(&vm->lock);
 
-	if (vm->extobj.entries < XE_ONSTACK_TV) {
-		tv_vm = tv_onstack;
-	} else {
-		tv_vm = kvmalloc_array(vm->extobj.entries + 1, sizeof(*tv_vm),
-				       GFP_KERNEL);
-		if (!tv_vm)
-			return -ENOMEM;
+	if (lock_vm) {
+		err = drm_exec_prepare_obj(exec, &xe_vm_ttm_bo(vm)->base, num_shared);
+		if (err)
+			return err;
 	}
-	tv_bo = tv_vm + 1;
 
-	INIT_LIST_HEAD(objs);
 	list_for_each_entry(vma, &vm->extobj.list, extobj.link) {
-		tv_bo->num_shared = num_shared;
-		tv_bo->bo = &xe_vma_bo(vma)->ttm;
-
-		list_add_tail(&tv_bo->head, objs);
-		tv_bo++;
+		err = drm_exec_prepare_obj(exec, &xe_vma_bo(vma)->ttm.base, num_shared);
+		if (err)
+			return err;
 	}
-	tv_vm->num_shared = num_shared;
-	tv_vm->bo = xe_vm_ttm_bo(vm);
-	list_add_tail(&tv_vm->head, objs);
-	err = ttm_eu_reserve_buffers(ww, objs, intr, &dups);
-	if (err)
-		goto out_err;
 
 	spin_lock(&vm->notifier.list_lock);
 	list_for_each_entry_safe(vma, next, &vm->notifier.rebind_list,
@@ -478,45 +445,7 @@ int xe_vm_lock_dma_resv(struct xe_vm *vm, struct ww_acquire_ctx *ww,
 	}
 	spin_unlock(&vm->notifier.list_lock);
 
-	*tv = tv_vm;
 	return 0;
-
-out_err:
-	if (tv_vm != tv_onstack)
-		kvfree(tv_vm);
-
-	return err;
-}
-
-/**
- * xe_vm_unlock_dma_resv() - Unlock reservation objects locked by
- * xe_vm_lock_dma_resv()
- * @vm: The vm.
- * @tv_onstack: The @tv_onstack array given to xe_vm_lock_dma_resv().
- * @tv: The value of *@tv given by xe_vm_lock_dma_resv().
- * @ww: The ww_acquire_context used for locking.
- * @objs: The list returned from xe_vm_lock_dma_resv().
- *
- * Unlocks the reservation objects and frees any memory allocated by
- * xe_vm_lock_dma_resv().
- */
-void xe_vm_unlock_dma_resv(struct xe_vm *vm,
-			   struct ttm_validate_buffer *tv_onstack,
-			   struct ttm_validate_buffer *tv,
-			   struct ww_acquire_ctx *ww,
-			   struct list_head *objs)
-{
-	/*
-	 * Nothing should've been able to enter the list while we were locked,
-	 * since we've held the dma-resvs of all the vm's external objects,
-	 * and holding the dma_resv of an object is required for list
-	 * addition, and we shouldn't add ourselves.
-	 */
-	XE_WARN_ON(!list_empty(&vm->notifier.rebind_list));
-
-	ttm_eu_backoff_reservation(ww, objs);
-	if (tv && tv != tv_onstack)
-		kvfree(tv);
 }
 
 #define XE_VM_REBIND_RETRY_TIMEOUT_MS 1000
@@ -538,14 +467,94 @@ static void xe_vm_kill(struct xe_vm *vm)
 	/* TODO: Inform user the VM is banned */
 }
 
+/**
+ * xe_vm_validate_should_retry() - Whether to retry after a validate error.
+ * @exec: The drm_exec object used for locking before validation.
+ * @err: The error returned from ttm_bo_validate().
+ * @end: A ktime_t cookie that should be set to 0 before first use and
+ * that should be reused on subsequent calls.
+ *
+ * With multiple active VMs, under memory pressure, it is possible that
+ * ttm_bo_validate() run into -EDEADLK and in such case returns -ENOMEM.
+ * Until ttm properly handles locking in such scenarios, best thing the
+ * driver can do is retry with a timeout. Check if that is necessary, and
+ * if so unlock the drm_exec's objects while keeping the ticket to prepare
+ * for a rerun.
+ *
+ * Return: true if a retry after drm_exec_init() is recommended;
+ * false otherwise.
+ */
+bool xe_vm_validate_should_retry(struct drm_exec *exec, int err, ktime_t *end)
+{
+	ktime_t cur;
+
+	if (err != -ENOMEM)
+		return false;
+
+	cur = ktime_get();
+	*end = *end ? : ktime_add_ms(cur, XE_VM_REBIND_RETRY_TIMEOUT_MS);
+	if (!ktime_before(cur, *end))
+		return false;
+
+	/*
+	 * We would like to keep the ticket here with
+	 * drm_exec_unlock_all(), but WW mutex asserts currently
+	 * stop us from that. In any case this function could go away
+	 * with proper TTM -EDEADLK handling.
+	 */
+	drm_exec_fini(exec);
+
+	msleep(20);
+	return true;
+}
+
+static int xe_preempt_work_begin(struct drm_exec *exec, struct xe_vm *vm,
+				 bool *done)
+{
+	struct xe_vma *vma;
+	int err;
+
+	err = drm_exec_prepare_obj(exec, &xe_vm_ttm_bo(vm)->base,
+				   vm->preempt.num_exec_queues);
+	if (err)
+		return err;
+
+	if (xe_vm_is_idle(vm)) {
+		vm->preempt.rebind_deactivated = true;
+		*done = true;
+		return 0;
+	}
+
+	if (!preempt_fences_waiting(vm)) {
+		*done = true;
+		return 0;
+	}
+
+	err = xe_vm_lock_dma_resv(vm, exec, vm->preempt.num_exec_queues, false);
+	if (err)
+		return err;
+
+	err = wait_for_existing_preempt_fences(vm);
+	if (err)
+		return err;
+
+	list_for_each_entry(vma, &vm->rebind_list, combined_links.rebind) {
+		if (xe_vma_has_no_bo(vma) ||
+		    vma->gpuva.flags & XE_VMA_DESTROYED)
+			continue;
+
+		err = xe_bo_validate(xe_vma_bo(vma), vm, false);
+		if (err)
+			break;
+	}
+
+	return err;
+}
+
 static void preempt_rebind_work_func(struct work_struct *w)
 {
 	struct xe_vm *vm = container_of(w, struct xe_vm, preempt.rebind_work);
-	struct xe_vma *vma;
-	struct ttm_validate_buffer tv_onstack[XE_ONSTACK_TV];
-	struct ttm_validate_buffer *tv;
-	struct ww_acquire_ctx ww;
-	struct list_head objs;
+	struct drm_exec exec;
 	struct dma_fence *rebind_fence;
 	unsigned int fence_count = 0;
 	LIST_HEAD(preempt_fences);
@@ -588,41 +597,24 @@ retry:
 			goto out_unlock_outer;
 	}
 
-	err = xe_vm_lock_dma_resv(vm, &ww, tv_onstack, &tv, &objs,
-				  false, vm->preempt.num_exec_queues);
-	if (err)
-		goto out_unlock_outer;
+	drm_exec_init(&exec, DRM_EXEC_INTERRUPTIBLE_WAIT);
 
-	if (xe_vm_is_idle(vm)) {
-		vm->preempt.rebind_deactivated = true;
-		goto out_unlock;
+	drm_exec_until_all_locked(&exec) {
+		bool done = false;
+
+		err = xe_preempt_work_begin(&exec, vm, &done);
+		drm_exec_retry_on_contention(&exec);
+		if (err && xe_vm_validate_should_retry(&exec, err, &end)) {
+			err = -EAGAIN;
+			goto out_unlock_outer;
+		}
+		if (err || done)
+			goto out_unlock;
 	}
-
-	/* Fresh preempt fences already installed. Everyting is running. */
-	if (!preempt_fences_waiting(vm))
-		goto out_unlock;
-
-	/*
-	 * This makes sure vm is completely suspended and also balances
-	 * xe_engine suspend- and resume; we resume *all* vm engines below.
-	 */
-	err = wait_for_existing_preempt_fences(vm);
-	if (err)
-		goto out_unlock;
 
 	err = alloc_preempt_fences(vm, &preempt_fences, &fence_count);
 	if (err)
 		goto out_unlock;
-
-	list_for_each_entry(vma, &vm->rebind_list, combined_links.rebind) {
-		if (xe_vma_has_no_bo(vma) ||
-		    vma->gpuva.flags & XE_VMA_DESTROYED)
-			continue;
-
-		err = xe_bo_validate(xe_vma_bo(vma), vm, false);
-		if (err)
-			goto out_unlock;
-	}
 
 	rebind_fence = xe_vm_rebind(vm, true);
 	if (IS_ERR(rebind_fence)) {
@@ -668,30 +660,13 @@ retry:
 	up_read(&vm->userptr.notifier_lock);
 
 out_unlock:
-	xe_vm_unlock_dma_resv(vm, tv_onstack, tv, &ww, &objs);
+	drm_exec_fini(&exec);
 out_unlock_outer:
 	if (err == -EAGAIN) {
 		trace_xe_vm_rebind_worker_retry(vm);
 		goto retry;
 	}
 
-	/*
-	 * With multiple active VMs, under memory pressure, it is possible that
-	 * ttm_bo_validate() run into -EDEADLK and in such case returns -ENOMEM.
-	 * Until ttm properly handles locking in such scenarios, best thing the
-	 * driver can do is retry with a timeout. Killing the VM or putting it
-	 * in error state after timeout or other error scenarios is still TBD.
-	 */
-	if (err == -ENOMEM) {
-		ktime_t cur = ktime_get();
-
-		end = end ? : ktime_add_ms(cur, XE_VM_REBIND_RETRY_TIMEOUT_MS);
-		if (ktime_before(cur, end)) {
-			msleep(20);
-			trace_xe_vm_rebind_worker_retry(vm);
-			goto retry;
-		}
-	}
 	if (err) {
 		drm_warn(&vm->xe->drm, "VM worker error: %d\n", err);
 		xe_vm_kill(vm);

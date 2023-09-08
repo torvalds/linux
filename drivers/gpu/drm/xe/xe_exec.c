@@ -6,6 +6,7 @@
 #include "xe_exec.h"
 
 #include <drm/drm_device.h>
+#include <drm/drm_exec.h>
 #include <drm/drm_file.h>
 #include <drm/xe_drm.h>
 #include <linux/delay.h>
@@ -93,25 +94,16 @@
  *	Unlock all
  */
 
-#define XE_EXEC_BIND_RETRY_TIMEOUT_MS 1000
-
-static int xe_exec_begin(struct xe_exec_queue *q, struct ww_acquire_ctx *ww,
-			 struct ttm_validate_buffer tv_onstack[],
-			 struct ttm_validate_buffer **tv,
-			 struct list_head *objs)
+static int xe_exec_begin(struct drm_exec *exec, struct xe_vm *vm)
 {
-	struct xe_vm *vm = q->vm;
 	struct xe_vma *vma;
 	LIST_HEAD(dups);
-	ktime_t end = 0;
 	int err = 0;
 
-	*tv = NULL;
-	if (xe_vm_no_dma_fences(q->vm))
+	if (xe_vm_no_dma_fences(vm))
 		return 0;
 
-retry:
-	err = xe_vm_lock_dma_resv(vm, ww, tv_onstack, tv, objs, true, 1);
+	err = xe_vm_lock_dma_resv(vm, exec, 1, true);
 	if (err)
 		return err;
 
@@ -127,40 +119,11 @@ retry:
 			continue;
 
 		err = xe_bo_validate(xe_vma_bo(vma), vm, false);
-		if (err) {
-			xe_vm_unlock_dma_resv(vm, tv_onstack, *tv, ww, objs);
-			*tv = NULL;
+		if (err)
 			break;
-		}
-	}
-
-	/*
-	 * With multiple active VMs, under memory pressure, it is possible that
-	 * ttm_bo_validate() run into -EDEADLK and in such case returns -ENOMEM.
-	 * Until ttm properly handles locking in such scenarios, best thing the
-	 * driver can do is retry with a timeout.
-	 */
-	if (err == -ENOMEM) {
-		ktime_t cur = ktime_get();
-
-		end = end ? : ktime_add_ms(cur, XE_EXEC_BIND_RETRY_TIMEOUT_MS);
-		if (ktime_before(cur, end)) {
-			msleep(20);
-			goto retry;
-		}
 	}
 
 	return err;
-}
-
-static void xe_exec_end(struct xe_exec_queue *q,
-			struct ttm_validate_buffer *tv_onstack,
-			struct ttm_validate_buffer *tv,
-			struct ww_acquire_ctx *ww,
-			struct list_head *objs)
-{
-	if (!xe_vm_no_dma_fences(q->vm))
-		xe_vm_unlock_dma_resv(q->vm, tv_onstack, tv, ww, objs);
 }
 
 int xe_exec_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
@@ -173,15 +136,13 @@ int xe_exec_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 	struct xe_exec_queue *q;
 	struct xe_sync_entry *syncs = NULL;
 	u64 addresses[XE_HW_ENGINE_MAX_INSTANCE];
-	struct ttm_validate_buffer tv_onstack[XE_ONSTACK_TV];
-	struct ttm_validate_buffer *tv = NULL;
+	struct drm_exec exec;
 	u32 i, num_syncs = 0;
 	struct xe_sched_job *job;
 	struct dma_fence *rebind_fence;
 	struct xe_vm *vm;
-	struct ww_acquire_ctx ww;
-	struct list_head objs;
 	bool write_locked;
+	ktime_t end = 0;
 	int err = 0;
 
 	if (XE_IOCTL_DBG(xe, args->extensions) ||
@@ -294,26 +255,34 @@ retry:
 			goto err_unlock_list;
 	}
 
-	err = xe_exec_begin(q, &ww, tv_onstack, &tv, &objs);
-	if (err)
-		goto err_unlock_list;
+	drm_exec_init(&exec, DRM_EXEC_INTERRUPTIBLE_WAIT);
+	drm_exec_until_all_locked(&exec) {
+		err = xe_exec_begin(&exec, vm);
+		drm_exec_retry_on_contention(&exec);
+		if (err && xe_vm_validate_should_retry(&exec, err, &end)) {
+			err = -EAGAIN;
+			goto err_unlock_list;
+		}
+		if (err)
+			goto err_exec;
+	}
 
 	if (xe_vm_is_closed_or_banned(q->vm)) {
 		drm_warn(&xe->drm, "Trying to schedule after vm is closed or banned\n");
 		err = -ECANCELED;
-		goto err_exec_queue_end;
+		goto err_exec;
 	}
 
 	if (xe_exec_queue_is_lr(q) && xe_exec_queue_ring_full(q)) {
 		err = -EWOULDBLOCK;
-		goto err_exec_queue_end;
+		goto err_exec;
 	}
 
 	job = xe_sched_job_create(q, xe_exec_queue_is_parallel(q) ?
 				  addresses : &args->address);
 	if (IS_ERR(job)) {
 		err = PTR_ERR(job);
-		goto err_exec_queue_end;
+		goto err_exec;
 	}
 
 	/*
@@ -412,8 +381,8 @@ err_repin:
 err_put_job:
 	if (err)
 		xe_sched_job_put(job);
-err_exec_queue_end:
-	xe_exec_end(q, tv_onstack, tv, &ww, &objs);
+err_exec:
+	drm_exec_fini(&exec);
 err_unlock_list:
 	if (write_locked)
 		up_write(&vm->lock);
