@@ -8,6 +8,7 @@
 #include <linux/bitfield.h>
 #include <linux/circ_buf.h>
 
+#include <drm/drm_exec.h>
 #include <drm/drm_managed.h>
 #include <drm/ttm/ttm_execbuf_util.h>
 
@@ -84,11 +85,6 @@ static bool vma_matches(struct xe_vma *vma, u64 page_addr)
 	return true;
 }
 
-static bool only_needs_bo_lock(struct xe_bo *bo)
-{
-	return bo && bo->vm;
-}
-
 static struct xe_vma *lookup_vma(struct xe_vm *vm, u64 page_addr)
 {
 	struct xe_vma *vma = NULL;
@@ -103,17 +99,45 @@ static struct xe_vma *lookup_vma(struct xe_vm *vm, u64 page_addr)
 	return vma;
 }
 
+static int xe_pf_begin(struct drm_exec *exec, struct xe_vma *vma,
+		       bool atomic, unsigned int id)
+{
+	struct xe_bo *bo = xe_vma_bo(vma);
+	struct xe_vm *vm = xe_vma_vm(vma);
+	unsigned int num_shared = 2; /* slots for bind + move */
+	int err;
+
+	err = xe_vm_prepare_vma(exec, vma, num_shared);
+	if (err)
+		return err;
+
+	if (atomic) {
+		if (xe_vma_is_userptr(vma)) {
+			err = -EACCES;
+			return err;
+		}
+
+		/* Migrate to VRAM, move should invalidate the VMA first */
+		err = xe_bo_migrate(bo, XE_PL_VRAM0 + id);
+		if (err)
+			return err;
+	} else if (bo) {
+		/* Create backing store if needed */
+		err = xe_bo_validate(bo, vm, true);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
 static int handle_pagefault(struct xe_gt *gt, struct pagefault *pf)
 {
 	struct xe_device *xe = gt_to_xe(gt);
 	struct xe_tile *tile = gt_to_tile(gt);
+	struct drm_exec exec;
 	struct xe_vm *vm;
 	struct xe_vma *vma = NULL;
-	struct xe_bo *bo;
-	LIST_HEAD(objs);
-	LIST_HEAD(dups);
-	struct ttm_validate_buffer tv_bo, tv_vm;
-	struct ww_acquire_ctx ww;
 	struct dma_fence *fence;
 	bool write_locked;
 	int ret = 0;
@@ -170,35 +194,10 @@ retry_userptr:
 	}
 
 	/* Lock VM and BOs dma-resv */
-	bo = xe_vma_bo(vma);
-	if (!only_needs_bo_lock(bo)) {
-		tv_vm.num_shared = xe->info.tile_count;
-		tv_vm.bo = xe_vm_ttm_bo(vm);
-		list_add(&tv_vm.head, &objs);
-	}
-	if (bo) {
-		tv_bo.bo = &bo->ttm;
-		tv_bo.num_shared = xe->info.tile_count;
-		list_add(&tv_bo.head, &objs);
-	}
-
-	ret = ttm_eu_reserve_buffers(&ww, &objs, false, &dups);
-	if (ret)
-		goto unlock_vm;
-
-	if (atomic) {
-		if (xe_vma_is_userptr(vma)) {
-			ret = -EACCES;
-			goto unlock_dma_resv;
-		}
-
-		/* Migrate to VRAM, move should invalidate the VMA first */
-		ret = xe_bo_migrate(bo, XE_PL_VRAM0 + tile->id);
-		if (ret)
-			goto unlock_dma_resv;
-	} else if (bo) {
-		/* Create backing store if needed */
-		ret = xe_bo_validate(bo, vm, true);
+	drm_exec_init(&exec, 0);
+	drm_exec_until_all_locked(&exec) {
+		ret = xe_pf_begin(&exec, vma, atomic, tile->id);
+		drm_exec_retry_on_contention(&exec);
 		if (ret)
 			goto unlock_dma_resv;
 	}
@@ -225,7 +224,7 @@ retry_userptr:
 	vma->usm.tile_invalidated &= ~BIT(tile->id);
 
 unlock_dma_resv:
-	ttm_eu_backoff_reservation(&ww, &objs);
+	drm_exec_fini(&exec);
 unlock_vm:
 	if (!ret)
 		vm->usm.last_fault_vma = vma;
@@ -490,13 +489,9 @@ static int handle_acc(struct xe_gt *gt, struct acc *acc)
 {
 	struct xe_device *xe = gt_to_xe(gt);
 	struct xe_tile *tile = gt_to_tile(gt);
+	struct drm_exec exec;
 	struct xe_vm *vm;
 	struct xe_vma *vma;
-	struct xe_bo *bo;
-	LIST_HEAD(objs);
-	LIST_HEAD(dups);
-	struct ttm_validate_buffer tv_bo, tv_vm;
-	struct ww_acquire_ctx ww;
 	int ret = 0;
 
 	/* We only support ACC_TRIGGER at the moment */
@@ -528,23 +523,15 @@ static int handle_acc(struct xe_gt *gt, struct acc *acc)
 		goto unlock_vm;
 
 	/* Lock VM and BOs dma-resv */
-	bo = xe_vma_bo(vma);
-	if (!only_needs_bo_lock(bo)) {
-		tv_vm.num_shared = xe->info.tile_count;
-		tv_vm.bo = xe_vm_ttm_bo(vm);
-		list_add(&tv_vm.head, &objs);
+	drm_exec_init(&exec, 0);
+	drm_exec_until_all_locked(&exec) {
+		ret = xe_pf_begin(&exec, vma, true, tile->id);
+		drm_exec_retry_on_contention(&exec);
+		if (ret)
+			break;
 	}
-	tv_bo.bo = &bo->ttm;
-	tv_bo.num_shared = xe->info.tile_count;
-	list_add(&tv_bo.head, &objs);
-	ret = ttm_eu_reserve_buffers(&ww, &objs, false, &dups);
-	if (ret)
-		goto unlock_vm;
 
-	/* Migrate to VRAM, move should invalidate the VMA first */
-	ret = xe_bo_migrate(bo, XE_PL_VRAM0 + tile->id);
-
-	ttm_eu_backoff_reservation(&ww, &objs);
+	drm_exec_fini(&exec);
 unlock_vm:
 	up_read(&vm->lock);
 	xe_vm_put(vm);

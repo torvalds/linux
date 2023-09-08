@@ -219,6 +219,9 @@ void xe_vm_fence_all_extobjs(struct xe_vm *vm, struct dma_fence *fence,
 
 int xe_analyze_vm(struct drm_printer *p, struct xe_vm *vm, int gt_id);
 
+int xe_vm_prepare_vma(struct drm_exec *exec, struct xe_vma *vma,
+		      unsigned int num_shared);
+
 /**
  * xe_vm_resv() - Return's the vm's reservation object
  * @vm: The vm
