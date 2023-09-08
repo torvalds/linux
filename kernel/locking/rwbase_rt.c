@@ -71,6 +71,7 @@ static int __sched __rwbase_read_lock(struct rwbase_rt *rwb,
 	struct rt_mutex_base *rtm = &rwb->rtmutex;
 	int ret;
 
+	rwbase_pre_schedule();
 	raw_spin_lock_irq(&rtm->wait_lock);
 
 	/*
@@ -125,6 +126,7 @@ static int __sched __rwbase_read_lock(struct rwbase_rt *rwb,
 		rwbase_rtmutex_unlock(rtm);
 
 	trace_contention_end(rwb, ret);
+	rwbase_post_schedule();
 	return ret;
 }
 
@@ -237,6 +239,8 @@ static int __sched rwbase_write_lock(struct rwbase_rt *rwb,
 	/* Force readers into slow path */
 	atomic_sub(READER_BIAS, &rwb->readers);
 
+	rwbase_pre_schedule();
+
 	raw_spin_lock_irqsave(&rtm->wait_lock, flags);
 	if (__rwbase_write_trylock(rwb))
 		goto out_unlock;
@@ -248,6 +252,7 @@ static int __sched rwbase_write_lock(struct rwbase_rt *rwb,
 		if (rwbase_signal_pending_state(state, current)) {
 			rwbase_restore_current_state();
 			__rwbase_write_unlock(rwb, 0, flags);
+			rwbase_post_schedule();
 			trace_contention_end(rwb, -EINTR);
 			return -EINTR;
 		}
@@ -266,6 +271,7 @@ static int __sched rwbase_write_lock(struct rwbase_rt *rwb,
 
 out_unlock:
 	raw_spin_unlock_irqrestore(&rtm->wait_lock, flags);
+	rwbase_post_schedule();
 	return 0;
 }
 
