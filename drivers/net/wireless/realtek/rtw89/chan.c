@@ -191,6 +191,7 @@ void rtw89_entity_init(struct rtw89_dev *rtwdev)
 	struct rtw89_hal *hal = &rtwdev->hal;
 
 	bitmap_zero(hal->entity_map, NUM_OF_RTW89_SUB_ENTITY);
+	bitmap_zero(hal->changes, NUM_OF_RTW89_CHANCTX_CHANGES);
 	atomic_set(&hal->roc_entity_idx, RTW89_SUB_ENTITY_IDLE);
 	rtw89_config_default_chandef(rtwdev);
 }
@@ -1436,14 +1437,65 @@ static void rtw89_mcc_stop(struct rtw89_dev *rtwdev)
 	rtw89_chanctx_notify(rtwdev, RTW89_CHANCTX_STATE_MCC_STOP);
 }
 
+static int rtw89_mcc_upd_map_iterator(struct rtw89_dev *rtwdev,
+				      struct rtw89_mcc_role *mcc_role,
+				      unsigned int ordered_idx,
+				      void *data)
+{
+	struct rtw89_mcc_info *mcc = &rtwdev->mcc;
+	struct rtw89_mcc_role upd = {
+		.rtwvif = mcc_role->rtwvif,
+	};
+	int ret;
+
+	if (!mcc_role->is_go)
+		return 0;
+
+	rtw89_mcc_fill_role_macid_bitmap(rtwdev, &upd);
+	if (memcmp(mcc_role->macid_bitmap, upd.macid_bitmap,
+		   sizeof(mcc_role->macid_bitmap)) == 0)
+		return 0;
+
+	ret = rtw89_fw_h2c_mcc_macid_bitmap(rtwdev, mcc->group,
+					    upd.rtwvif->mac_id,
+					    upd.macid_bitmap);
+	if (ret) {
+		rtw89_debug(rtwdev, RTW89_DBG_CHAN,
+			    "MCC h2c failed to update macid bitmap: %d\n", ret);
+		return ret;
+	}
+
+	memcpy(mcc_role->macid_bitmap, upd.macid_bitmap,
+	       sizeof(mcc_role->macid_bitmap));
+	return 0;
+}
+
+static void rtw89_mcc_update_macid_bitmap(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_mcc_info *mcc = &rtwdev->mcc;
+
+	if (mcc->mode != RTW89_MCC_MODE_GO_STA)
+		return;
+
+	rtw89_iterate_mcc_roles(rtwdev, rtw89_mcc_upd_map_iterator, NULL);
+}
+
 void rtw89_chanctx_work(struct work_struct *work)
 {
 	struct rtw89_dev *rtwdev = container_of(work, struct rtw89_dev,
 						chanctx_work.work);
+	struct rtw89_hal *hal = &rtwdev->hal;
 	enum rtw89_entity_mode mode;
+	u32 changed = 0;
 	int ret;
+	int i;
 
 	mutex_lock(&rtwdev->mutex);
+
+	for (i = 0; i < NUM_OF_RTW89_CHANCTX_CHANGES; i++) {
+		if (test_and_clear_bit(i, hal->changes))
+			changed |= BIT(i);
+	}
 
 	mode = rtw89_get_entity_mode(rtwdev);
 	switch (mode) {
@@ -1455,6 +1507,10 @@ void rtw89_chanctx_work(struct work_struct *work)
 		if (ret)
 			rtw89_warn(rtwdev, "failed to start MCC: %d\n", ret);
 		break;
+	case RTW89_ENTITY_MODE_MCC:
+		if (changed & BIT(RTW89_CHANCTX_REMOTE_STA_CHANGE))
+			rtw89_mcc_update_macid_bitmap(rtwdev);
+		break;
 	default:
 		break;
 	}
@@ -1462,8 +1518,10 @@ void rtw89_chanctx_work(struct work_struct *work)
 	mutex_unlock(&rtwdev->mutex);
 }
 
-void rtw89_queue_chanctx_work(struct rtw89_dev *rtwdev)
+void rtw89_queue_chanctx_change(struct rtw89_dev *rtwdev,
+				enum rtw89_chanctx_changes change)
 {
+	struct rtw89_hal *hal = &rtwdev->hal;
 	enum rtw89_entity_mode mode;
 	u32 delay;
 
@@ -1474,6 +1532,15 @@ void rtw89_queue_chanctx_work(struct rtw89_dev *rtwdev)
 	case RTW89_ENTITY_MODE_MCC_PREPARE:
 		delay = ieee80211_tu_to_usec(RTW89_CHANCTX_TIME_MCC_PREPARE);
 		break;
+	case RTW89_ENTITY_MODE_MCC:
+		delay = ieee80211_tu_to_usec(RTW89_CHANCTX_TIME_MCC);
+		break;
+	}
+
+	if (change != RTW89_CHANCTX_CHANGE_DFLT) {
+		rtw89_debug(rtwdev, RTW89_DBG_CHAN, "set chanctx change %d\n",
+			    change);
+		set_bit(change, hal->changes);
 	}
 
 	rtw89_debug(rtwdev, RTW89_DBG_CHAN,
@@ -1481,6 +1548,11 @@ void rtw89_queue_chanctx_work(struct rtw89_dev *rtwdev)
 		    mode, delay);
 	ieee80211_queue_delayed_work(rtwdev->hw, &rtwdev->chanctx_work,
 				     usecs_to_jiffies(delay));
+}
+
+void rtw89_queue_chanctx_work(struct rtw89_dev *rtwdev)
+{
+	rtw89_queue_chanctx_change(rtwdev, RTW89_CHANCTX_CHANGE_DFLT);
 }
 
 int rtw89_chanctx_ops_add(struct rtw89_dev *rtwdev,

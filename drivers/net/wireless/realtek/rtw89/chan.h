@@ -9,6 +9,7 @@
 
 /* The dwell time in TU before doing rtw89_chanctx_work(). */
 #define RTW89_CHANCTX_TIME_MCC_PREPARE 100
+#define RTW89_CHANCTX_TIME_MCC 100
 
 /* various MCC setting time in TU */
 #define RTW89_MCC_LONG_TRIGGER_TIME 300
@@ -75,6 +76,8 @@ void rtw89_entity_init(struct rtw89_dev *rtwdev);
 enum rtw89_entity_mode rtw89_entity_recalc(struct rtw89_dev *rtwdev);
 void rtw89_chanctx_work(struct work_struct *work);
 void rtw89_queue_chanctx_work(struct rtw89_dev *rtwdev);
+void rtw89_queue_chanctx_change(struct rtw89_dev *rtwdev,
+				enum rtw89_chanctx_changes change);
 int rtw89_chanctx_ops_add(struct rtw89_dev *rtwdev,
 			  struct ieee80211_chanctx_conf *ctx);
 void rtw89_chanctx_ops_remove(struct rtw89_dev *rtwdev,
