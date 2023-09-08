@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
 %YAML 1.2
 ---
-$id: "http://devicetree.org/schemas/remoteproc/st,stm32-rproc.yaml#"
-$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+$id: http://devicetree.org/schemas/remoteproc/st,stm32-rproc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: STMicroelectronics STM32 remote processor controller bindings
+title: STMicroelectronics STM32 remote processor controller
 
 description:
   This document defines the binding for the remoteproc component that loads and
@@ -29,7 +29,7 @@ properties:
 
   st,syscfg-holdboot:
     description: remote processor reset hold boot
-    $ref: "/schemas/types.yaml#/definitions/phandle-array"
+    $ref: /schemas/types.yaml#/definitions/phandle-array
     items:
       - items:
           - description: Phandle of syscon block
@@ -39,7 +39,7 @@ properties:
   st,syscfg-tz:
     description:
       Reference to the system configuration which holds the RCC trust zone mode
-    $ref: "/schemas/types.yaml#/definitions/phandle-array"
+    $ref: /schemas/types.yaml#/definitions/phandle-array
     items:
       - items:
           - description: Phandle of syscon block
@@ -72,9 +72,9 @@ properties:
               ready for shutdown
       - description: |
           A channel (d) used by the local proc to notify the remote proc that it
-          has to stop interprocessor communnication.
+          has to stop interprocessor communication.
           Unidirectional channel:
-            - from local to remote, where ACK from the remote means that communnication
+            - from local to remote, where ACK from the remote means that communication
               as been stopped on the remote side.
     minItems: 1
 
@@ -95,7 +95,7 @@ properties:
       (see ../reserved-memory/reserved-memory.txt)
 
   st,syscfg-pdds:
-    $ref: "/schemas/types.yaml#/definitions/phandle-array"
+    $ref: /schemas/types.yaml#/definitions/phandle-array
     description: |
       Reference to the system configuration which holds the remote
     items:
@@ -105,7 +105,7 @@ properties:
           - description: The field mask of the PDDS selection
 
   st,syscfg-m4-state:
-    $ref: "/schemas/types.yaml#/definitions/phandle-array"
+    $ref: /schemas/types.yaml#/definitions/phandle-array
     description: |
       Reference to the tamp register which exposes the Cortex-M4 state.
     items:
@@ -115,7 +115,7 @@ properties:
           - description: The field mask of the Cortex-M4 state
 
   st,syscfg-rsc-tbl:
-    $ref: "/schemas/types.yaml#/definitions/phandle-array"
+    $ref: /schemas/types.yaml#/definitions/phandle-array
     description: |
       Reference to the tamp register which references the Cortex-M4
       resource table address.

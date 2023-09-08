@@ -31,6 +31,7 @@
 #include "intel_display_types.h"
 #include "intel_fbc.h"
 #include "intel_fifo_underrun.h"
+#include "intel_pch_display.h"
 
 /**
  * DOC: fifo underrun handling
@@ -508,4 +509,23 @@ void intel_check_pch_fifo_underruns(struct drm_i915_private *dev_priv)
 	}
 
 	spin_unlock_irq(&dev_priv->irq_lock);
+}
+
+void intel_init_fifo_underrun_reporting(struct drm_i915_private *i915,
+					struct intel_crtc *crtc,
+					bool enable)
+{
+	crtc->cpu_fifo_underrun_disabled = !enable;
+
+	/*
+	 * We track the PCH trancoder underrun reporting state
+	 * within the crtc. With crtc for pipe A housing the underrun
+	 * reporting state for PCH transcoder A, crtc for pipe B housing
+	 * it for PCH transcoder B, etc. LPT-H has only PCH transcoder A,
+	 * and marking underrun reporting as disabled for the non-existing
+	 * PCH transcoders B and C would prevent enabling the south
+	 * error interrupt (see cpt_can_enable_serr_int()).
+	 */
+	if (intel_has_pch_trancoder(i915, crtc->pipe))
+		crtc->pch_fifo_underrun_disabled = !enable;
 }

@@ -103,35 +103,6 @@ config GDROM
 	  Most users will want to say "Y" here.
 	  You can also build this as a module which will be called gdrom.
 
-config PARIDE
-	tristate "Parallel port IDE device support"
-	depends on PARPORT_PC
-	help
-	  There are many external CD-ROM and disk devices that connect through
-	  your computer's parallel port. Most of them are actually IDE devices
-	  using a parallel port IDE adapter. This option enables the PARIDE
-	  subsystem which contains drivers for many of these external drives.
-	  Read <file:Documentation/admin-guide/blockdev/paride.rst> for more information.
-
-	  If you have said Y to the "Parallel-port support" configuration
-	  option, you may share a single port between your printer and other
-	  parallel port devices. Answer Y to build PARIDE support into your
-	  kernel, or M if you would like to build it as a loadable module. If
-	  your parallel port support is in a loadable module, you must build
-	  PARIDE as a module. If you built PARIDE support into your kernel,
-	  you may still build the individual protocol modules and high-level
-	  drivers as loadable modules. If you build this support as a module,
-	  it will be called paride.
-
-	  To use the PARIDE support, you must say Y or M here and also to at
-	  least one high-level driver (e.g. "Parallel port IDE disks",
-	  "Parallel port ATAPI CD-ROMs", "Parallel port ATAPI disks" etc.) and
-	  to at least one protocol driver (e.g. "ATEN EH-100 protocol",
-	  "MicroSolutions backpack protocol", "DataStor Commuter protocol"
-	  etc.).
-
-source "drivers/block/paride/Kconfig"
-
 source "drivers/block/mtip32xx/Kconfig"
 
 source "drivers/block/zram/Kconfig"
@@ -413,6 +384,23 @@ config BLK_DEV_UBLK
 	  shared between IO tasks and ubq daemon, meantime task_work_add() can
 	  can handle batch more effectively, but task_work_add() isn't exported
 	  for module, so ublk has to be built to kernel.
+
+config BLKDEV_UBLK_LEGACY_OPCODES
+	bool "Support legacy command opcode"
+	depends on BLK_DEV_UBLK
+	default y
+	help
+	  ublk driver started to take plain command encoding, which turns out
+	  one bad way. The traditional ioctl command opcode encodes more
+	  info and basically defines each code uniquely, so opcode conflict
+	  is avoided, and driver can handle wrong command easily, meantime it
+	  may help security subsystem to audit io_uring command.
+
+	  Say Y if your application still uses legacy command opcode.
+
+	  Say N if you don't want to support legacy command opcode. It is
+	  suggested to enable N if your application(ublk server) switches to
+	  ioctl command encoding.
 
 source "drivers/block/rnbd/Kconfig"
 

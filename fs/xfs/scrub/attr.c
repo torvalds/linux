@@ -1,7 +1,7 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (C) 2017 Oracle.  All Rights Reserved.
- * Author: Darrick J. Wong <darrick.wong@oracle.com>
+ * Copyright (C) 2017-2023 Oracle.  All Rights Reserved.
+ * Author: Darrick J. Wong <djwong@kernel.org>
  */
 #include "xfs.h"
 #include "xfs_fs.h"
@@ -15,10 +15,50 @@
 #include "xfs_da_btree.h"
 #include "xfs_attr.h"
 #include "xfs_attr_leaf.h"
+#include "xfs_attr_sf.h"
 #include "scrub/scrub.h"
 #include "scrub/common.h"
 #include "scrub/dabtree.h"
 #include "scrub/attr.h"
+
+/* Free the buffers linked from the xattr buffer. */
+static void
+xchk_xattr_buf_cleanup(
+	void			*priv)
+{
+	struct xchk_xattr_buf	*ab = priv;
+
+	kvfree(ab->freemap);
+	ab->freemap = NULL;
+	kvfree(ab->usedmap);
+	ab->usedmap = NULL;
+	kvfree(ab->value);
+	ab->value = NULL;
+	ab->value_sz = 0;
+}
+
+/*
+ * Allocate the free space bitmap if we're trying harder; there are leaf blocks
+ * in the attr fork; or we can't tell if there are leaf blocks.
+ */
+static inline bool
+xchk_xattr_want_freemap(
+	struct xfs_scrub	*sc)
+{
+	struct xfs_ifork	*ifp;
+
+	if (sc->flags & XCHK_TRY_HARDER)
+		return true;
+
+	if (!sc->ip)
+		return true;
+
+	ifp = xfs_ifork_ptr(sc->ip, XFS_ATTR_FORK);
+	if (!ifp)
+		return false;
+
+	return xfs_ifork_has_extents(ifp);
+}
 
 /*
  * Allocate enough memory to hold an attr value and attr block bitmaps,
@@ -28,41 +68,49 @@
 static int
 xchk_setup_xattr_buf(
 	struct xfs_scrub	*sc,
-	size_t			value_size,
-	gfp_t			flags)
+	size_t			value_size)
 {
-	size_t			sz;
+	size_t			bmp_sz;
 	struct xchk_xattr_buf	*ab = sc->buf;
+	void			*new_val;
 
-	/*
-	 * We need enough space to read an xattr value from the file or enough
-	 * space to hold three copies of the xattr free space bitmap.  We don't
-	 * need the buffer space for both purposes at the same time.
-	 */
-	sz = 3 * sizeof(long) * BITS_TO_LONGS(sc->mp->m_attr_geo->blksize);
-	sz = max_t(size_t, sz, value_size);
+	bmp_sz = sizeof(long) * BITS_TO_LONGS(sc->mp->m_attr_geo->blksize);
 
-	/*
-	 * If there's already a buffer, figure out if we need to reallocate it
-	 * to accommodate a larger size.
-	 */
-	if (ab) {
-		if (sz <= ab->sz)
-			return 0;
-		kmem_free(ab);
-		sc->buf = NULL;
-	}
+	if (ab)
+		goto resize_value;
 
-	/*
-	 * Don't zero the buffer upon allocation to avoid runtime overhead.
-	 * All users must be careful never to read uninitialized contents.
-	 */
-	ab = kvmalloc(sizeof(*ab) + sz, flags);
+	ab = kvzalloc(sizeof(struct xchk_xattr_buf), XCHK_GFP_FLAGS);
 	if (!ab)
 		return -ENOMEM;
-
-	ab->sz = sz;
 	sc->buf = ab;
+	sc->buf_cleanup = xchk_xattr_buf_cleanup;
+
+	ab->usedmap = kvmalloc(bmp_sz, XCHK_GFP_FLAGS);
+	if (!ab->usedmap)
+		return -ENOMEM;
+
+	if (xchk_xattr_want_freemap(sc)) {
+		ab->freemap = kvmalloc(bmp_sz, XCHK_GFP_FLAGS);
+		if (!ab->freemap)
+			return -ENOMEM;
+	}
+
+resize_value:
+	if (ab->value_sz >= value_size)
+		return 0;
+
+	if (ab->value) {
+		kvfree(ab->value);
+		ab->value = NULL;
+		ab->value_sz = 0;
+	}
+
+	new_val = kvmalloc(value_size, XCHK_GFP_FLAGS);
+	if (!new_val)
+		return -ENOMEM;
+
+	ab->value = new_val;
+	ab->value_sz = value_size;
 	return 0;
 }
 
@@ -79,7 +127,7 @@ xchk_setup_xattr(
 	 * without the inode lock held, which means we can sleep.
 	 */
 	if (sc->flags & XCHK_TRY_HARDER) {
-		error = xchk_setup_xattr_buf(sc, XATTR_SIZE_MAX, GFP_KERNEL);
+		error = xchk_setup_xattr_buf(sc, XATTR_SIZE_MAX);
 		if (error)
 			return error;
 	}
@@ -110,11 +158,24 @@ xchk_xattr_listent(
 	int				namelen,
 	int				valuelen)
 {
+	struct xfs_da_args		args = {
+		.op_flags		= XFS_DA_OP_NOTIME,
+		.attr_filter		= flags & XFS_ATTR_NSP_ONDISK_MASK,
+		.geo			= context->dp->i_mount->m_attr_geo,
+		.whichfork		= XFS_ATTR_FORK,
+		.dp			= context->dp,
+		.name			= name,
+		.namelen		= namelen,
+		.hashval		= xfs_da_hashname(name, namelen),
+		.trans			= context->tp,
+		.valuelen		= valuelen,
+	};
+	struct xchk_xattr_buf		*ab;
 	struct xchk_xattr		*sx;
-	struct xfs_da_args		args = { NULL };
 	int				error = 0;
 
 	sx = container_of(context, struct xchk_xattr, context);
+	ab = sx->sc->buf;
 
 	if (xchk_should_terminate(sx->sc, &error)) {
 		context->seen_enough = error;
@@ -127,19 +188,32 @@ xchk_xattr_listent(
 		return;
 	}
 
+	/* Only one namespace bit allowed. */
+	if (hweight32(flags & XFS_ATTR_NSP_ONDISK_MASK) > 1) {
+		xchk_fblock_set_corrupt(sx->sc, XFS_ATTR_FORK, args.blkno);
+		goto fail_xref;
+	}
+
 	/* Does this name make sense? */
 	if (!xfs_attr_namecheck(name, namelen)) {
 		xchk_fblock_set_corrupt(sx->sc, XFS_ATTR_FORK, args.blkno);
-		return;
+		goto fail_xref;
 	}
+
+	/*
+	 * Local xattr values are stored in the attr leaf block, so we don't
+	 * need to retrieve the value from a remote block to detect corruption
+	 * problems.
+	 */
+	if (flags & XFS_ATTR_LOCAL)
+		goto fail_xref;
 
 	/*
 	 * Try to allocate enough memory to extrat the attr value.  If that
 	 * doesn't work, we overload the seen_enough variable to convey
 	 * the error message back to the main scrub function.
 	 */
-	error = xchk_setup_xattr_buf(sx->sc, valuelen,
-			GFP_KERNEL | __GFP_RETRY_MAYFAIL);
+	error = xchk_setup_xattr_buf(sx->sc, valuelen);
 	if (error == -ENOMEM)
 		error = -EDEADLOCK;
 	if (error) {
@@ -147,17 +221,7 @@ xchk_xattr_listent(
 		return;
 	}
 
-	args.op_flags = XFS_DA_OP_NOTIME;
-	args.attr_filter = flags & XFS_ATTR_NSP_ONDISK_MASK;
-	args.geo = context->dp->i_mount->m_attr_geo;
-	args.whichfork = XFS_ATTR_FORK;
-	args.dp = context->dp;
-	args.name = name;
-	args.namelen = namelen;
-	args.hashval = xfs_da_hashname(args.name, args.namelen);
-	args.trans = context->tp;
-	args.value = xchk_xattr_valuebuf(sx->sc);
-	args.valuelen = valuelen;
+	args.value = ab->value;
 
 	error = xfs_attr_get_ilocked(&args);
 	/* ENODATA means the hash lookup failed and the attr is bad */
@@ -213,25 +277,23 @@ xchk_xattr_set_map(
 STATIC bool
 xchk_xattr_check_freemap(
 	struct xfs_scrub		*sc,
-	unsigned long			*map,
 	struct xfs_attr3_icleaf_hdr	*leafhdr)
 {
-	unsigned long			*freemap = xchk_xattr_freemap(sc);
-	unsigned long			*dstmap = xchk_xattr_dstmap(sc);
+	struct xchk_xattr_buf		*ab = sc->buf;
 	unsigned int			mapsize = sc->mp->m_attr_geo->blksize;
 	int				i;
 
 	/* Construct bitmap of freemap contents. */
-	bitmap_zero(freemap, mapsize);
+	bitmap_zero(ab->freemap, mapsize);
 	for (i = 0; i < XFS_ATTR_LEAF_MAPSIZE; i++) {
-		if (!xchk_xattr_set_map(sc, freemap,
+		if (!xchk_xattr_set_map(sc, ab->freemap,
 				leafhdr->freemap[i].base,
 				leafhdr->freemap[i].size))
 			return false;
 	}
 
 	/* Look for bits that are set in freemap and are marked in use. */
-	return bitmap_and(dstmap, freemap, map, mapsize) == 0;
+	return !bitmap_intersects(ab->freemap, ab->usedmap, mapsize);
 }
 
 /*
@@ -251,7 +313,7 @@ xchk_xattr_entry(
 	__u32				*last_hashval)
 {
 	struct xfs_mount		*mp = ds->state->mp;
-	unsigned long			*usedmap = xchk_xattr_usedmap(ds->sc);
+	struct xchk_xattr_buf		*ab = ds->sc->buf;
 	char				*name_end;
 	struct xfs_attr_leaf_name_local	*lentry;
 	struct xfs_attr_leaf_name_remote *rentry;
@@ -291,7 +353,7 @@ xchk_xattr_entry(
 	if (name_end > buf_end)
 		xchk_da_set_corrupt(ds, level);
 
-	if (!xchk_xattr_set_map(ds->sc, usedmap, nameidx, namesize))
+	if (!xchk_xattr_set_map(ds->sc, ab->usedmap, nameidx, namesize))
 		xchk_da_set_corrupt(ds, level);
 	if (!(ds->sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT))
 		*usedbytes += namesize;
@@ -311,36 +373,26 @@ xchk_xattr_block(
 	struct xfs_attr_leafblock	*leaf = bp->b_addr;
 	struct xfs_attr_leaf_entry	*ent;
 	struct xfs_attr_leaf_entry	*entries;
-	unsigned long			*usedmap;
+	struct xchk_xattr_buf		*ab = ds->sc->buf;
 	char				*buf_end;
 	size_t				off;
 	__u32				last_hashval = 0;
 	unsigned int			usedbytes = 0;
 	unsigned int			hdrsize;
 	int				i;
-	int				error;
 
 	if (*last_checked == blk->blkno)
 		return 0;
 
-	/* Allocate memory for block usage checking. */
-	error = xchk_setup_xattr_buf(ds->sc, 0,
-			GFP_KERNEL | __GFP_RETRY_MAYFAIL);
-	if (error == -ENOMEM)
-		return -EDEADLOCK;
-	if (error)
-		return error;
-	usedmap = xchk_xattr_usedmap(ds->sc);
-
 	*last_checked = blk->blkno;
-	bitmap_zero(usedmap, mp->m_attr_geo->blksize);
+	bitmap_zero(ab->usedmap, mp->m_attr_geo->blksize);
 
 	/* Check all the padding. */
 	if (xfs_has_crc(ds->sc->mp)) {
-		struct xfs_attr3_leafblock	*leaf = bp->b_addr;
+		struct xfs_attr3_leafblock	*leaf3 = bp->b_addr;
 
-		if (leaf->hdr.pad1 != 0 || leaf->hdr.pad2 != 0 ||
-		    leaf->hdr.info.hdr.pad != 0)
+		if (leaf3->hdr.pad1 != 0 || leaf3->hdr.pad2 != 0 ||
+		    leaf3->hdr.info.hdr.pad != 0)
 			xchk_da_set_corrupt(ds, level);
 	} else {
 		if (leaf->hdr.pad1 != 0 || leaf->hdr.info.pad != 0)
@@ -357,7 +409,7 @@ xchk_xattr_block(
 		xchk_da_set_corrupt(ds, level);
 	if (leafhdr.firstused < hdrsize)
 		xchk_da_set_corrupt(ds, level);
-	if (!xchk_xattr_set_map(ds->sc, usedmap, 0, hdrsize))
+	if (!xchk_xattr_set_map(ds->sc, ab->usedmap, 0, hdrsize))
 		xchk_da_set_corrupt(ds, level);
 
 	if (ds->sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
@@ -371,7 +423,7 @@ xchk_xattr_block(
 	for (i = 0, ent = entries; i < leafhdr.count; ent++, i++) {
 		/* Mark the leaf entry itself. */
 		off = (char *)ent - (char *)leaf;
-		if (!xchk_xattr_set_map(ds->sc, usedmap, off,
+		if (!xchk_xattr_set_map(ds->sc, ab->usedmap, off,
 				sizeof(xfs_attr_leaf_entry_t))) {
 			xchk_da_set_corrupt(ds, level);
 			goto out;
@@ -385,7 +437,7 @@ xchk_xattr_block(
 			goto out;
 	}
 
-	if (!xchk_xattr_check_freemap(ds->sc, usedmap, &leafhdr))
+	if (!xchk_xattr_check_freemap(ds->sc, &leafhdr))
 		xchk_da_set_corrupt(ds, level);
 
 	if (leafhdr.usedbytes != usedbytes)
@@ -469,38 +521,115 @@ out:
 	return error;
 }
 
+/* Check space usage of shortform attrs. */
+STATIC int
+xchk_xattr_check_sf(
+	struct xfs_scrub		*sc)
+{
+	struct xchk_xattr_buf		*ab = sc->buf;
+	struct xfs_attr_shortform	*sf;
+	struct xfs_attr_sf_entry	*sfe;
+	struct xfs_attr_sf_entry	*next;
+	struct xfs_ifork		*ifp;
+	unsigned char			*end;
+	int				i;
+	int				error = 0;
+
+	ifp = xfs_ifork_ptr(sc->ip, XFS_ATTR_FORK);
+
+	bitmap_zero(ab->usedmap, ifp->if_bytes);
+	sf = (struct xfs_attr_shortform *)sc->ip->i_af.if_u1.if_data;
+	end = (unsigned char *)ifp->if_u1.if_data + ifp->if_bytes;
+	xchk_xattr_set_map(sc, ab->usedmap, 0, sizeof(sf->hdr));
+
+	sfe = &sf->list[0];
+	if ((unsigned char *)sfe > end) {
+		xchk_fblock_set_corrupt(sc, XFS_ATTR_FORK, 0);
+		return 0;
+	}
+
+	for (i = 0; i < sf->hdr.count; i++) {
+		unsigned char		*name = sfe->nameval;
+		unsigned char		*value = &sfe->nameval[sfe->namelen];
+
+		if (xchk_should_terminate(sc, &error))
+			return error;
+
+		next = xfs_attr_sf_nextentry(sfe);
+		if ((unsigned char *)next > end) {
+			xchk_fblock_set_corrupt(sc, XFS_ATTR_FORK, 0);
+			break;
+		}
+
+		if (!xchk_xattr_set_map(sc, ab->usedmap,
+				(char *)sfe - (char *)sf,
+				sizeof(struct xfs_attr_sf_entry))) {
+			xchk_fblock_set_corrupt(sc, XFS_ATTR_FORK, 0);
+			break;
+		}
+
+		if (!xchk_xattr_set_map(sc, ab->usedmap,
+				(char *)name - (char *)sf,
+				sfe->namelen)) {
+			xchk_fblock_set_corrupt(sc, XFS_ATTR_FORK, 0);
+			break;
+		}
+
+		if (!xchk_xattr_set_map(sc, ab->usedmap,
+				(char *)value - (char *)sf,
+				sfe->valuelen)) {
+			xchk_fblock_set_corrupt(sc, XFS_ATTR_FORK, 0);
+			break;
+		}
+
+		sfe = next;
+	}
+
+	return 0;
+}
+
 /* Scrub the extended attribute metadata. */
 int
 xchk_xattr(
 	struct xfs_scrub		*sc)
 {
-	struct xchk_xattr		sx;
+	struct xchk_xattr		sx = {
+		.sc			= sc,
+		.context		= {
+			.dp		= sc->ip,
+			.tp		= sc->tp,
+			.resynch	= 1,
+			.put_listent	= xchk_xattr_listent,
+			.allow_incomplete = true,
+		},
+	};
 	xfs_dablk_t			last_checked = -1U;
 	int				error = 0;
 
 	if (!xfs_inode_hasattr(sc->ip))
 		return -ENOENT;
 
-	memset(&sx, 0, sizeof(sx));
-	/* Check attribute tree structure */
-	error = xchk_da_btree(sc, XFS_ATTR_FORK, xchk_xattr_rec,
-			&last_checked);
+	/* Allocate memory for xattr checking. */
+	error = xchk_setup_xattr_buf(sc, 0);
+	if (error == -ENOMEM)
+		return -EDEADLOCK;
 	if (error)
-		goto out;
+		return error;
+
+	/* Check the physical structure of the xattr. */
+	if (sc->ip->i_af.if_format == XFS_DINODE_FMT_LOCAL)
+		error = xchk_xattr_check_sf(sc);
+	else
+		error = xchk_da_btree(sc, XFS_ATTR_FORK, xchk_xattr_rec,
+				&last_checked);
+	if (error)
+		return error;
 
 	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
-		goto out;
-
-	/* Check that every attr key can also be looked up by hash. */
-	sx.context.dp = sc->ip;
-	sx.context.resynch = 1;
-	sx.context.put_listent = xchk_xattr_listent;
-	sx.context.tp = sc->tp;
-	sx.context.allow_incomplete = true;
-	sx.sc = sc;
+		return 0;
 
 	/*
-	 * Look up every xattr in this file by name.
+	 * Look up every xattr in this file by name and hash.
 	 *
 	 * Use the backend implementation of xfs_attr_list to call
 	 * xchk_xattr_listent on every attribute key in this inode.
@@ -517,11 +646,11 @@ xchk_xattr(
 	 */
 	error = xfs_attr_list_ilocked(&sx.context);
 	if (!xchk_fblock_process_error(sc, XFS_ATTR_FORK, 0, &error))
-		goto out;
+		return error;
 
 	/* Did our listent function try to return any errors? */
 	if (sx.context.seen_enough < 0)
-		error = sx.context.seen_enough;
-out:
-	return error;
+		return sx.context.seen_enough;
+
+	return 0;
 }

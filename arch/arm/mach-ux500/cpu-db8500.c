@@ -26,7 +26,6 @@
 #include <asm/mach/map.h>
 #include <asm/mach/arch.h>
 
-#include "db8500-regs.h"
 #include "pm_domains.h"
 
 static int __init ux500_l2x0_unlock(void)

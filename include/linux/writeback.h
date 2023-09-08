@@ -70,8 +70,6 @@ struct writeback_control {
 	 */
 	unsigned no_cgroup_owner:1;
 
-	unsigned punt_to_cgroup:1;	/* cgrp punting, see __REQ_CGROUP_PUNT */
-
 	/* To enable batching of swap writes to non-block-device backends,
 	 * "plug" can be set point to a 'struct swap_iocb *'.  When all swap
 	 * writes have been submitted, if with swap_iocb is not NULL,
@@ -96,9 +94,6 @@ struct writeback_control {
 static inline blk_opf_t wbc_to_write_flags(struct writeback_control *wbc)
 {
 	blk_opf_t flags = 0;
-
-	if (wbc->punt_to_cgroup)
-		flags = REQ_CGROUP_PUNT;
 
 	if (wbc->sync_mode == WB_SYNC_ALL)
 		flags |= REQ_SYNC;
@@ -207,7 +202,7 @@ static inline void wait_on_inode(struct inode *inode)
 #include <linux/cgroup.h>
 #include <linux/bio.h>
 
-void __inode_attach_wb(struct inode *inode, struct page *page);
+void __inode_attach_wb(struct inode *inode, struct folio *folio);
 void wbc_attach_and_unlock_inode(struct writeback_control *wbc,
 				 struct inode *inode)
 	__releases(&inode->i_lock);
@@ -222,16 +217,16 @@ bool cleanup_offline_cgwb(struct bdi_writeback *wb);
 /**
  * inode_attach_wb - associate an inode with its wb
  * @inode: inode of interest
- * @page: page being dirtied (may be NULL)
+ * @folio: folio being dirtied (may be NULL)
  *
  * If @inode doesn't have its wb, associate it with the wb matching the
- * memcg of @page or, if @page is NULL, %current.  May be called w/ or w/o
+ * memcg of @folio or, if @folio is NULL, %current.  May be called w/ or w/o
  * @inode->i_lock.
  */
-static inline void inode_attach_wb(struct inode *inode, struct page *page)
+static inline void inode_attach_wb(struct inode *inode, struct folio *folio)
 {
 	if (!inode->i_wb)
-		__inode_attach_wb(inode, page);
+		__inode_attach_wb(inode, folio);
 }
 
 /**
@@ -290,7 +285,7 @@ static inline void wbc_init_bio(struct writeback_control *wbc, struct bio *bio)
 
 #else	/* CONFIG_CGROUP_WRITEBACK */
 
-static inline void inode_attach_wb(struct inode *inode, struct page *page)
+static inline void inode_attach_wb(struct inode *inode, struct folio *folio)
 {
 }
 
@@ -366,11 +361,9 @@ int balance_dirty_pages_ratelimited_flags(struct address_space *mapping,
 
 bool wb_over_bg_thresh(struct bdi_writeback *wb);
 
-typedef int (*writepage_t)(struct page *page, struct writeback_control *wbc,
+typedef int (*writepage_t)(struct folio *folio, struct writeback_control *wbc,
 				void *data);
 
-int generic_writepages(struct address_space *mapping,
-		       struct writeback_control *wbc);
 void tag_pages_for_writeback(struct address_space *mapping,
 			     pgoff_t start, pgoff_t end);
 int write_cache_pages(struct address_space *mapping,

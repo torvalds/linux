@@ -1,0 +1,280 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2022 Radxa Limited
+ * Copyright (c) 2022 Amarula Solutions(India)
+ */
+
+/dts-v1/;
+#include <dt-bindings/soc/rockchip,vop2.h>
+#include "rk3566.dtsi"
+#include "rk3566-radxa-cm3.dtsi"
+
+/ {
+	model = "Radxa Compute Module 3(CM3) IO Board";
+	compatible = "radxa,cm3-io", "radxa,cm3", "rockchip,rk3566";
+
+	aliases {
+		mmc1 = &sdmmc0;
+	};
+
+	chosen: chosen {
+		stdout-path = "serial2:1500000n8";
+	};
+
+	gmac1_clkin: external-gmac1-clock {
+		compatible = "fixed-clock";
+		clock-frequency = <125000000>;
+		clock-output-names = "gmac1_clkin";
+		#clock-cells = <0>;
+	};
+
+	hdmi-con {
+		compatible = "hdmi-connector";
+		type = "a";
+
+		port {
+			hdmi_con_in: endpoint {
+				remote-endpoint = <&hdmi_out_con>;
+			};
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		led-1 {
+			gpios = <&gpio4 RK_PA4 GPIO_ACTIVE_LOW>;
+			color = <LED_COLOR_ID_GREEN>;
+			function = LED_FUNCTION_ACTIVITY;
+			linux,default-trigger = "heartbeat";
+			pinctrl-names = "default";
+			pinctrl-0 = <&pi_nled_activity>;
+		};
+	};
+
+	vcc5v0_usb30: vcc5v0-usb30-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc5v0_usb30";
+		enable-active-high;
+		gpio = <&gpio3 RK_PC2 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&vcc5v0_usb30_en_h>;
+		regulator-always-on;
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		vin-supply = <&vcc_sys>;
+	};
+
+	vcca1v8_image: vcca1v8-image-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "vcca1v8_image";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		vin-supply = <&vcc_1v8_p>;
+	};
+
+	vdda0v9_image: vdda0v9-image-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "vcca0v9_image";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <900000>;
+		regulator-max-microvolt = <900000>;
+		vin-supply = <&vdda_0v9>;
+	};
+};
+
+&combphy1 {
+	status = "okay";
+};
+
+&gmac1 {
+	assigned-clocks = <&cru SCLK_GMAC1_RX_TX>, <&cru SCLK_GMAC1>;
+	assigned-clock-parents = <&cru SCLK_GMAC1_RGMII_SPEED>, <&gmac1_clkin>;
+	assigned-clock-rates = <0>, <125000000>;
+	clock_in_out = "input";
+	phy-handle = <&rgmii_phy1>;
+	phy-mode = "rgmii";
+	pinctrl-names = "default";
+	pinctrl-0 = <&gmac1m0_miim
+		     &gmac1m0_tx_bus2
+		     &gmac1m0_rx_bus2
+		     &gmac1m0_rgmii_clk
+		     &gmac1m0_rgmii_bus
+		     &gmac1m0_clkinout>;
+	snps,reset-gpio = <&gpio4 RK_PC2 GPIO_ACTIVE_LOW>;
+	snps,reset-active-low;
+	/* Reset time is 20ms, 100ms for rtl8211f */
+	snps,reset-delays-us = <0 20000 100000>;
+	tx_delay = <0x46>;
+	rx_delay = <0x2e>;
+	status = "okay";
+};
+
+&hdmi {
+	avdd-0v9-supply = <&vdda0v9_image>;
+	avdd-1v8-supply = <&vcca1v8_image>;
+	status = "okay";
+};
+
+&hdmi_in {
+	hdmi_in_vp0: endpoint {
+		remote-endpoint = <&vp0_out_hdmi>;
+	};
+};
+
+&hdmi_out {
+	hdmi_out_con: endpoint {
+		remote-endpoint = <&hdmi_con_in>;
+	};
+};
+
+&hdmi_sound {
+	status = "okay";
+};
+
+&mdio1 {
+	rgmii_phy1: ethernet-phy@0 {
+		compatible="ethernet-phy-ieee802.3-c22";
+		reg= <0x0>;
+	};
+};
+
+&pinctrl {
+	gmac1 {
+		gmac1m0_miim: gmac1m0-miim {
+			rockchip,pins =
+				/* gmac1_mdcm0 */
+				<3 RK_PC4 3 &pcfg_pull_none_drv_level_15>,
+				/* gmac1_mdiom0 */
+				<3 RK_PC5 3 &pcfg_pull_none_drv_level_15>;
+		};
+
+		gmac1m0_rx_bus2: gmac1m0-rx-bus2 {
+			rockchip,pins =
+				/* gmac1_rxd0m0 */
+				<3 RK_PB1 3 &pcfg_pull_none_drv_level_15>,
+				/* gmac1_rxd1m0 */
+				<3 RK_PB2 3 &pcfg_pull_none_drv_level_15>,
+				/* gmac1_rxdvcrsm0 */
+				<3 RK_PB3 3 &pcfg_pull_none_drv_level_15>;
+		};
+
+		gmac1m0_tx_bus2: gmac1m0-tx-bus2 {
+			rockchip,pins =
+				/* gmac1_txd0m0 */
+				<3 RK_PB5 3 &pcfg_pull_none_drv_level_15>,
+				/* gmac1_txd1m0 */
+				<3 RK_PB6 3 &pcfg_pull_none_drv_level_15>,
+				/* gmac1_txenm0 */
+				<3 RK_PB7 3 &pcfg_pull_none_drv_level_15>;
+		};
+
+		gmac1m0_rgmii_clk: gmac1m0-rgmii-clk {
+			rockchip,pins =
+				/* gmac1_rxclkm0 */
+				<3 RK_PA7 3 &pcfg_pull_none_drv_level_15>,
+				/* gmac1_txclkm0 */
+				<3 RK_PA6 3 &pcfg_pull_none_drv_level_15>;
+		};
+
+		gmac1m0_rgmii_bus: gmac1m0-rgmii-bus {
+			rockchip,pins =
+				/* gmac1_rxd2m0 */
+				<3 RK_PA4 3 &pcfg_pull_none_drv_level_15>,
+				/* gmac1_rxd3m0 */
+				<3 RK_PA5 3 &pcfg_pull_none_drv_level_15>,
+				/* gmac1_txd2m0 */
+				<3 RK_PA2 3 &pcfg_pull_none_drv_level_15>,
+				/* gmac1_txd3m0 */
+				<3 RK_PA3 3 &pcfg_pull_none_drv_level_15>;
+		};
+
+		gmac1m0_clkinout: gmac1m0-clkinout {
+			rockchip,pins =
+				/* gmac1_mclkinoutm0 */
+				<3 RK_PC0 3 &pcfg_pull_none_drv_level_15>;
+		};
+	};
+
+	leds {
+		pi_nled_activity: pi-nled-activity {
+			rockchip,pins = <4 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	sdcard {
+		sdmmc_pwren: sdmmc-pwren {
+			rockchip,pins = <0 RK_PA5 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	usb {
+		vcc5v0_usb30_en_h: vcc5v0-host-en-h {
+			rockchip,pins = <3 RK_PC2 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+};
+
+&sdmmc0 {
+	bus-width = <4>;
+	cap-mmc-highspeed;
+	cap-sd-highspeed;
+	disable-wp;
+	vqmmc-supply = <&vccio_sd>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&sdmmc0_bus4 &sdmmc0_clk &sdmmc0_cmd &sdmmc0_det &sdmmc0_pwren>;
+	status = "okay";
+};
+
+&uart2 {
+	status = "okay";
+};
+
+&usb2phy0_host {
+	phy-supply = <&vcc5v0_usb30>;
+	status = "okay";
+};
+
+&usb2phy1_host {
+	status = "okay";
+};
+
+&usb2phy1_otg {
+	status = "okay";
+};
+
+&usb_host0_ehci {
+	status = "okay";
+};
+
+&usb_host1_xhci {
+	status = "okay";
+};
+
+&usb2phy0_otg {
+	status = "okay";
+};
+
+&usb_host0_xhci {
+	status = "okay";
+};
+
+&vop {
+	assigned-clocks = <&cru DCLK_VOP0>, <&cru DCLK_VOP1>;
+	assigned-clock-parents = <&pmucru PLL_HPLL>, <&cru PLL_VPLL>;
+	status = "okay";
+};
+
+&vop_mmu {
+	status = "okay";
+};
+
+&vp0 {
+	vp0_out_hdmi: endpoint@ROCKCHIP_VOP2_EP_HDMI0 {
+		reg = <ROCKCHIP_VOP2_EP_HDMI0>;
+		remote-endpoint = <&hdmi_in_vp0>;
+	};
+};

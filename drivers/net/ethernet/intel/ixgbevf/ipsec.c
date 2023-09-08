@@ -257,8 +257,10 @@ static int ixgbevf_ipsec_parse_proto_keys(struct xfrm_state *xs,
 /**
  * ixgbevf_ipsec_add_sa - program device with a security association
  * @xs: pointer to transformer state struct
+ * @extack: extack point to fill failure reason
  **/
-static int ixgbevf_ipsec_add_sa(struct xfrm_state *xs)
+static int ixgbevf_ipsec_add_sa(struct xfrm_state *xs,
+				struct netlink_ext_ack *extack)
 {
 	struct net_device *dev = xs->xso.real_dev;
 	struct ixgbevf_adapter *adapter;
@@ -270,13 +272,17 @@ static int ixgbevf_ipsec_add_sa(struct xfrm_state *xs)
 	ipsec = adapter->ipsec;
 
 	if (xs->id.proto != IPPROTO_ESP && xs->id.proto != IPPROTO_AH) {
-		netdev_err(dev, "Unsupported protocol 0x%04x for IPsec offload\n",
-			   xs->id.proto);
+		NL_SET_ERR_MSG_MOD(extack, "Unsupported protocol for IPsec offload");
 		return -EINVAL;
 	}
 
 	if (xs->props.mode != XFRM_MODE_TRANSPORT) {
-		netdev_err(dev, "Unsupported mode for ipsec offload\n");
+		NL_SET_ERR_MSG_MOD(extack, "Unsupported mode for ipsec offload");
+		return -EINVAL;
+	}
+
+	if (xs->xso.type != XFRM_DEV_OFFLOAD_CRYPTO) {
+		NL_SET_ERR_MSG_MOD(extack, "Unsupported ipsec offload type");
 		return -EINVAL;
 	}
 
@@ -284,14 +290,14 @@ static int ixgbevf_ipsec_add_sa(struct xfrm_state *xs)
 		struct rx_sa rsa;
 
 		if (xs->calg) {
-			netdev_err(dev, "Compression offload not supported\n");
+			NL_SET_ERR_MSG_MOD(extack, "Compression offload not supported");
 			return -EINVAL;
 		}
 
 		/* find the first unused index */
 		ret = ixgbevf_ipsec_find_empty_idx(ipsec, true);
 		if (ret < 0) {
-			netdev_err(dev, "No space for SA in Rx table!\n");
+			NL_SET_ERR_MSG_MOD(extack, "No space for SA in Rx table!");
 			return ret;
 		}
 		sa_idx = (u16)ret;
@@ -306,7 +312,7 @@ static int ixgbevf_ipsec_add_sa(struct xfrm_state *xs)
 		/* get the key and salt */
 		ret = ixgbevf_ipsec_parse_proto_keys(xs, rsa.key, &rsa.salt);
 		if (ret) {
-			netdev_err(dev, "Failed to get key data for Rx SA table\n");
+			NL_SET_ERR_MSG_MOD(extack, "Failed to get key data for Rx SA table");
 			return ret;
 		}
 
@@ -345,7 +351,7 @@ static int ixgbevf_ipsec_add_sa(struct xfrm_state *xs)
 		/* find the first unused index */
 		ret = ixgbevf_ipsec_find_empty_idx(ipsec, false);
 		if (ret < 0) {
-			netdev_err(dev, "No space for SA in Tx table\n");
+			NL_SET_ERR_MSG_MOD(extack, "No space for SA in Tx table");
 			return ret;
 		}
 		sa_idx = (u16)ret;
@@ -359,7 +365,7 @@ static int ixgbevf_ipsec_add_sa(struct xfrm_state *xs)
 
 		ret = ixgbevf_ipsec_parse_proto_keys(xs, tsa.key, &tsa.salt);
 		if (ret) {
-			netdev_err(dev, "Failed to get key data for Tx SA table\n");
+			NL_SET_ERR_MSG_MOD(extack, "Failed to get key data for Tx SA table");
 			memset(&tsa, 0, sizeof(tsa));
 			return ret;
 		}

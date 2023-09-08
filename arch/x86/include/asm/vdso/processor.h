@@ -18,6 +18,10 @@ static __always_inline void cpu_relax(void)
 	rep_nop();
 }
 
+struct getcpu_cache;
+
+notrace long __vdso_getcpu(unsigned *cpu, unsigned *node, struct getcpu_cache *unused);
+
 #endif /* __ASSEMBLY__ */
 
 #endif /* __ASM_VDSO_PROCESSOR_H */

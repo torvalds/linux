@@ -52,17 +52,25 @@ void acpi_processor_power_init_bm_check(struct acpi_processor_flags *flags,
 	if (c->x86_vendor == X86_VENDOR_INTEL &&
 	    (c->x86 > 0xf || (c->x86 == 6 && c->x86_model >= 0x0f)))
 			flags->bm_control = 0;
-	/*
-	 * For all recent Centaur CPUs, the ucode will make sure that each
-	 * core can keep cache coherence with each other while entering C3
-	 * type state. So, set bm_check to 1 to indicate that the kernel
-	 * doesn't need to execute a cache flush operation (WBINVD) when
-	 * entering C3 type state.
-	 */
+
 	if (c->x86_vendor == X86_VENDOR_CENTAUR) {
 		if (c->x86 > 6 || (c->x86 == 6 && c->x86_model == 0x0f &&
-		    c->x86_stepping >= 0x0e))
+		    c->x86_stepping >= 0x0e)) {
+			/*
+			 * For all recent Centaur CPUs, the ucode will make sure that each
+			 * core can keep cache coherence with each other while entering C3
+			 * type state. So, set bm_check to 1 to indicate that the kernel
+			 * doesn't need to execute a cache flush operation (WBINVD) when
+			 * entering C3 type state.
+			 */
 			flags->bm_check = 1;
+			/*
+			 * For all recent Centaur platforms, ARB_DISABLE is a nop.
+			 * Set bm_control to zero to indicate that ARB_DISABLE is
+			 * not required while entering C3 type state.
+			 */
+			flags->bm_control = 0;
+		}
 	}
 
 	if (c->x86_vendor == X86_VENDOR_ZHAOXIN) {

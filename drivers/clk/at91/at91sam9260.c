@@ -460,7 +460,7 @@ static void __init at91sam926x_pmc_setup(struct device_node *np,
 	for (i = 0; i < data->num_sck; i++) {
 		hw = at91_clk_register_system(regmap, data->sck[i].n,
 					      data->sck[i].p,
-					      data->sck[i].id);
+					      data->sck[i].id, 0);
 		if (IS_ERR(hw))
 			goto err_free;
 

@@ -127,6 +127,7 @@ static void iwl_dealloc_ucode(struct iwl_drv *drv)
 	kfree(drv->fw.iml);
 	kfree(drv->fw.ucode_capa.cmd_versions);
 	kfree(drv->fw.phy_integration_ver);
+	kfree(drv->trans->dbg.pc_data);
 
 	for (i = 0; i < IWL_UCODE_TYPE_MAX; i++)
 		iwl_free_fw_img(drv, drv->fw.img + i);
@@ -163,7 +164,6 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw,
 static int iwl_request_firmware(struct iwl_drv *drv, bool first)
 {
 	const struct iwl_cfg *cfg = drv->trans->cfg;
-	char tag[8];
 
 	if (drv->trans->trans_cfg->device_family == IWL_DEVICE_FAMILY_9000 &&
 	    (drv->trans->hw_rev_step != SILICON_B_STEP &&
@@ -174,13 +174,10 @@ static int iwl_request_firmware(struct iwl_drv *drv, bool first)
 		return -EINVAL;
 	}
 
-	if (first) {
+	if (first)
 		drv->fw_index = cfg->ucode_api_max;
-		sprintf(tag, "%d", drv->fw_index);
-	} else {
+	else
 		drv->fw_index--;
-		sprintf(tag, "%d", drv->fw_index);
-	}
 
 	if (drv->fw_index < cfg->ucode_api_min) {
 		IWL_ERR(drv, "no suitable firmware found!\n");
@@ -200,8 +197,8 @@ static int iwl_request_firmware(struct iwl_drv *drv, bool first)
 		return -ENOENT;
 	}
 
-	snprintf(drv->firmware_name, sizeof(drv->firmware_name), "%s%s.ucode",
-		 cfg->fw_name_pre, tag);
+	snprintf(drv->firmware_name, sizeof(drv->firmware_name), "%s%d.ucode",
+		 cfg->fw_name_pre, drv->fw_index);
 
 	IWL_DEBUG_FW_INFO(drv, "attempting to load firmware '%s'\n",
 			  drv->firmware_name);
@@ -898,7 +895,7 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 				drv->fw.img[IWL_UCODE_WOWLAN].is_dual_cpus =
 					true;
 			} else if ((num_of_cpus > 2) || (num_of_cpus < 1)) {
-				IWL_ERR(drv, "Driver support upto 2 CPUs\n");
+				IWL_ERR(drv, "Driver support up to 2 CPUs\n");
 				return -EINVAL;
 			}
 			break;
@@ -1158,6 +1155,12 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 			capa->num_stations =
 				le32_to_cpup((const __le32 *)tlv_data);
 			break;
+		case IWL_UCODE_TLV_FW_NUM_BEACONS:
+			if (tlv_len != sizeof(u32))
+				goto invalid_tlv_len;
+			capa->num_beacons =
+				le32_to_cpup((const __le32 *)tlv_data);
+			break;
 		case IWL_UCODE_TLV_UMAC_DEBUG_ADDRS: {
 			const struct iwl_umac_debug_addrs *dbg_ptrs =
 				(const void *)tlv_data;
@@ -1235,6 +1238,14 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 		case IWL_UCODE_TLV_D3_KEK_KCK_ADDR:
 			iwl_drv_set_dump_exclude(drv, tlv_type,
 						 tlv_data, tlv_len);
+			break;
+		case IWL_UCODE_TLV_CURRENT_PC:
+			if (tlv_len < sizeof(struct iwl_pc_data))
+				goto invalid_tlv_len;
+			drv->trans->dbg.num_pc =
+				tlv_len / sizeof(struct iwl_pc_data);
+			drv->trans->dbg.pc_data =
+				kmemdup(tlv_data, tlv_len, GFP_KERNEL);
 			break;
 		default:
 			IWL_DEBUG_INFO(drv, "unknown TLV: %d\n", tlv_type);
@@ -1410,6 +1421,7 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 			IWL_DEFAULT_STANDARD_PHY_CALIBRATE_TBL_SIZE;
 	fw->ucode_capa.n_scan_channels = IWL_DEFAULT_SCAN_CHANNELS;
 	fw->ucode_capa.num_stations = IWL_MVM_STATION_COUNT_MAX;
+	fw->ucode_capa.num_beacons = 1;
 	/* dump all fw memory areas by default */
 	fw->dbg.dump_mask = 0xffffffff;
 
@@ -1971,3 +1983,6 @@ MODULE_PARM_DESC(remove_when_gone,
 module_param_named(disable_11ax, iwlwifi_mod_params.disable_11ax, bool,
 		   S_IRUGO);
 MODULE_PARM_DESC(disable_11ax, "Disable HE capabilities (default: false)");
+
+module_param_named(disable_11be, iwlwifi_mod_params.disable_11be, bool, 0444);
+MODULE_PARM_DESC(disable_11be, "Disable EHT capabilities (default: false)");

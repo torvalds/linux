@@ -770,7 +770,7 @@ static void scsifront_sdev_destroy(struct scsi_device *sdev)
 	}
 }
 
-static struct scsi_host_template scsifront_sht = {
+static const struct scsi_host_template scsifront_sht = {
 	.module			= THIS_MODULE,
 	.name			= "Xen SCSI frontend driver",
 	.queuecommand		= scsifront_queuecommand,
@@ -995,7 +995,7 @@ static int scsifront_suspend(struct xenbus_device *dev)
 	return err;
 }
 
-static int scsifront_remove(struct xenbus_device *dev)
+static void scsifront_remove(struct xenbus_device *dev)
 {
 	struct vscsifrnt_info *info = dev_get_drvdata(&dev->dev);
 
@@ -1011,8 +1011,6 @@ static int scsifront_remove(struct xenbus_device *dev)
 
 	scsifront_free_ring(info);
 	scsi_host_put(info->host);
-
-	return 0;
 }
 
 static void scsifront_disconnect(struct vscsifrnt_info *info)

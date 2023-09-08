@@ -113,12 +113,14 @@ struct cio2_sensor_config {
 };
 
 struct cio2_sensor {
-	char name[ACPI_ID_LEN];
+	/* append ssdb.link(u8) in "-%u" format as suffix of HID */
+	char name[ACPI_ID_LEN + 4];
 	struct acpi_device *adev;
 	struct i2c_client *vcm_i2c_client;
 
-	/* SWNODE_COUNT + 1 for terminating empty node */
-	struct software_node swnodes[SWNODE_COUNT + 1];
+	/* SWNODE_COUNT + 1 for terminating NULL */
+	const struct software_node *group[SWNODE_COUNT + 1];
+	struct software_node swnodes[SWNODE_COUNT];
 	struct cio2_node_names node_names;
 
 	struct cio2_sensor_ssdb ssdb;

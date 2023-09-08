@@ -289,10 +289,9 @@ static int bcm63xx_i2s_dev_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int bcm63xx_i2s_dev_remove(struct platform_device *pdev)
+static void bcm63xx_i2s_dev_remove(struct platform_device *pdev)
 {
 	bcm63xx_soc_platform_remove(pdev);
-	return 0;
 }
 
 #ifdef CONFIG_OF
@@ -308,7 +307,7 @@ static struct platform_driver bcm63xx_i2s_driver = {
 		.of_match_table = of_match_ptr(snd_soc_bcm_audio_match),
 	},
 	.probe = bcm63xx_i2s_dev_probe,
-	.remove = bcm63xx_i2s_dev_remove,
+	.remove_new = bcm63xx_i2s_dev_remove,
 };
 
 module_platform_driver(bcm63xx_i2s_driver);

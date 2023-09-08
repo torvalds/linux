@@ -1,0 +1,53 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mailbox/st,sti-mailbox.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: STMicroelectronics Mailbox Driver for STi platform
+
+description:
+  Each ST Mailbox IP currently consists of 4 instances of 32 channels.
+  Messages are passed between Application and Remote processors using
+  shared memory.
+
+maintainers:
+  - Patrice Chotard <patrice.chotard@foss.st.com>
+
+properties:
+  compatible:
+    const: st,stih407-mailbox
+
+  reg:
+    maxItems: 1
+
+  mbox-name:
+    $ref: /schemas/types.yaml#/definitions/string
+    description: name of the mailbox IP
+
+  interrupts:
+    description: the irq line for the RX mailbox
+    maxItems: 1
+
+  "#mbox-cells":
+    const: 2
+
+required:
+  - compatible
+  - reg
+  - "#mbox-cells"
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    mailbox0: mailbox@8f00000  {
+        compatible = "st,stih407-mailbox";
+        reg = <0x8f00000 0x1000>;
+        interrupts = <GIC_SPI 1 IRQ_TYPE_LEVEL_HIGH>;
+        #mbox-cells = <2>;
+        mbox-name = "a9";
+    };
+
+...

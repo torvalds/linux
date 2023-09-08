@@ -7,6 +7,7 @@
 
 #include <linux/threads.h>
 
+#include <asm/addrspace.h>
 #include <asm/asm.h>
 #include <asm/asmmacro.h>
 #include <asm/asm-offsets.h>
@@ -34,6 +35,14 @@
 	.macro cfi_ld reg offset=0 docfi=0
 	LONG_L	\reg, sp, \offset
 	cfi_restore \reg \offset \docfi
+	.endm
+
+/* Jump to the runtime virtual address. */
+	.macro JUMP_VIRT_ADDR temp1 temp2
+	li.d	\temp1, CACHE_BASE
+	pcaddi	\temp2, 0
+	or	\temp1, \temp1, \temp2
+	jirl	zero, \temp1, 0xc
 	.endm
 
 	.macro BACKUP_T0T1
@@ -77,7 +86,7 @@
  * new value in sp.
  */
 	.macro	get_saved_sp docfi=0
-	la.abs	  t1, kernelsp
+	la_abs	  t1, kernelsp
 #ifdef CONFIG_SMP
 	csrrd	  t0, PERCPU_BASE_KS
 	LONG_ADD  t1, t1, t0
@@ -90,7 +99,7 @@
 	.endm
 
 	.macro	set_saved_sp stackp temp temp2
-	la.abs	  \temp, kernelsp
+	la.pcrel  \temp, kernelsp
 #ifdef CONFIG_SMP
 	LONG_ADD  \temp, \temp, u0
 #endif

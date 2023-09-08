@@ -15,7 +15,6 @@
 #include <linux/printk.h>
 #include <linux/uts.h>
 #include <linux/utsname.h>
-#include <generated/utsrelease.h>
 #include <linux/proc_ns.h>
 
 static int __init early_hostname(char *arg)

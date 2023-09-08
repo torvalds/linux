@@ -111,6 +111,55 @@ struct acpi_rsconvert_info acpi_rs_convert_gpio[18] = {
 
 /*******************************************************************************
  *
+ * acpi_rs_convert_clock_input
+ *
+ ******************************************************************************/
+
+struct acpi_rsconvert_info acpi_rs_convert_clock_input[8] = {
+	{ACPI_RSC_INITGET, ACPI_RESOURCE_TYPE_CLOCK_INPUT,
+	 ACPI_RS_SIZE(struct acpi_resource_clock_input),
+	 ACPI_RSC_TABLE_SIZE(acpi_rs_convert_clock_input)},
+
+	{ACPI_RSC_INITSET, ACPI_RESOURCE_NAME_CLOCK_INPUT,
+	 sizeof(struct aml_resource_clock_input),
+	 0}
+	,
+
+	{ACPI_RSC_MOVE8, ACPI_RS_OFFSET(data.clock_input.revision_id),
+	 AML_OFFSET(clock_input.revision_id),
+	 1}
+	,
+
+	{ACPI_RSC_1BITFLAG, ACPI_RS_OFFSET(data.clock_input.mode),
+	 AML_OFFSET(clock_input.flags),
+	 0}
+	,
+
+	{ACPI_RSC_2BITFLAG, ACPI_RS_OFFSET(data.clock_input.scale),
+	 AML_OFFSET(clock_input.flags),
+	 1}
+	,
+
+	{ACPI_RSC_MOVE16, ACPI_RS_OFFSET(data.clock_input.frequency_divisor),
+	 AML_OFFSET(clock_input.frequency_divisor),
+	 2}
+	,
+
+	{ACPI_RSC_MOVE32, ACPI_RS_OFFSET(data.clock_input.frequency_numerator),
+	 AML_OFFSET(clock_input.frequency_numerator),
+	 4}
+	,
+
+	/* Resource Source */
+	{ACPI_RSC_SOURCE, ACPI_RS_OFFSET(data.clock_input.resource_source),
+	 0,
+	 sizeof(struct aml_resource_clock_input)}
+	,
+
+};
+
+/*******************************************************************************
+ *
  * acpi_rs_convert_pinfunction
  *
  ******************************************************************************/

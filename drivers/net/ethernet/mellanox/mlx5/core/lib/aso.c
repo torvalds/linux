@@ -334,9 +334,6 @@ err_cq:
 
 void mlx5_aso_destroy(struct mlx5_aso *aso)
 {
-	if (IS_ERR_OR_NULL(aso))
-		return;
-
 	mlx5_aso_destroy_sq(aso);
 	mlx5_aso_destroy_cq(&aso->cq);
 	kfree(aso);
@@ -356,12 +353,15 @@ void mlx5_aso_build_wqe(struct mlx5_aso *aso, u8 ds_cnt,
 	cseg->general_id = cpu_to_be32(obj_id);
 }
 
-void *mlx5_aso_get_wqe(struct mlx5_aso *aso)
+struct mlx5_aso_wqe *mlx5_aso_get_wqe(struct mlx5_aso *aso)
 {
+	struct mlx5_aso_wqe *wqe;
 	u16 pi;
 
 	pi = mlx5_wq_cyc_ctr2ix(&aso->wq, aso->pc);
-	return mlx5_wq_cyc_get_wqe(&aso->wq, pi);
+	wqe = mlx5_wq_cyc_get_wqe(&aso->wq, pi);
+	memset(wqe, 0, sizeof(*wqe));
+	return wqe;
 }
 
 void mlx5_aso_post_wqe(struct mlx5_aso *aso, bool with_data,

@@ -235,15 +235,15 @@ void ovl_dir_cache_free(struct inode *inode)
 	}
 }
 
-static void ovl_cache_put(struct ovl_dir_file *od, struct dentry *dentry)
+static void ovl_cache_put(struct ovl_dir_file *od, struct inode *inode)
 {
 	struct ovl_dir_cache *cache = od->cache;
 
 	WARN_ON(cache->refcount <= 0);
 	cache->refcount--;
 	if (!cache->refcount) {
-		if (ovl_dir_cache(d_inode(dentry)) == cache)
-			ovl_set_dir_cache(d_inode(dentry), NULL);
+		if (ovl_dir_cache(inode) == cache)
+			ovl_set_dir_cache(inode, NULL);
 
 		ovl_cache_free(&cache->entries);
 		kfree(cache);
@@ -278,7 +278,7 @@ static int ovl_check_whiteouts(const struct path *path, struct ovl_readdir_data 
 		while (rdd->first_maybe_whiteout) {
 			p = rdd->first_maybe_whiteout;
 			rdd->first_maybe_whiteout = p->next_maybe_whiteout;
-			dentry = lookup_one(mnt_user_ns(path->mnt), p->name, dir, p->len);
+			dentry = lookup_one(mnt_idmap(path->mnt), p->name, dir, p->len);
 			if (!IS_ERR(dentry)) {
 				p->is_whiteout = ovl_is_whiteout(dentry);
 				dput(dentry);
@@ -323,15 +323,15 @@ static void ovl_dir_reset(struct file *file)
 {
 	struct ovl_dir_file *od = file->private_data;
 	struct ovl_dir_cache *cache = od->cache;
-	struct dentry *dentry = file->f_path.dentry;
+	struct inode *inode = file_inode(file);
 	bool is_real;
 
-	if (cache && ovl_dentry_version_get(dentry) != cache->version) {
-		ovl_cache_put(od, dentry);
+	if (cache && ovl_inode_version_get(inode) != cache->version) {
+		ovl_cache_put(od, inode);
 		od->cache = NULL;
 		od->cursor = NULL;
 	}
-	is_real = ovl_dir_is_real(dentry);
+	is_real = ovl_dir_is_real(inode);
 	if (od->is_real != is_real) {
 		/* is_real can only become false when dir is copied up */
 		if (WARN_ON(is_real))
@@ -394,9 +394,10 @@ static struct ovl_dir_cache *ovl_cache_get(struct dentry *dentry)
 {
 	int res;
 	struct ovl_dir_cache *cache;
+	struct inode *inode = d_inode(dentry);
 
-	cache = ovl_dir_cache(d_inode(dentry));
-	if (cache && ovl_dentry_version_get(dentry) == cache->version) {
+	cache = ovl_dir_cache(inode);
+	if (cache && ovl_inode_version_get(inode) == cache->version) {
 		WARN_ON(!cache->refcount);
 		cache->refcount++;
 		return cache;
@@ -418,8 +419,8 @@ static struct ovl_dir_cache *ovl_cache_get(struct dentry *dentry)
 		return ERR_PTR(res);
 	}
 
-	cache->version = ovl_dentry_version_get(dentry);
-	ovl_set_dir_cache(d_inode(dentry), cache);
+	cache->version = ovl_inode_version_get(inode);
+	ovl_set_dir_cache(inode, cache);
 
 	return cache;
 }
@@ -479,7 +480,7 @@ static int ovl_cache_update_ino(const struct path *path, struct ovl_cache_entry 
 			goto get;
 		}
 	}
-	this = lookup_one(mnt_user_ns(path->mnt), p->name, dir, p->len);
+	this = lookup_one(mnt_idmap(path->mnt), p->name, dir, p->len);
 	if (IS_ERR_OR_NULL(this) || !this->d_inode) {
 		/* Mark a stale entry */
 		p->is_whiteout = true;
@@ -596,16 +597,17 @@ static struct ovl_dir_cache *ovl_cache_get_impure(const struct path *path)
 {
 	int res;
 	struct dentry *dentry = path->dentry;
+	struct inode *inode = d_inode(dentry);
 	struct ovl_fs *ofs = OVL_FS(dentry->d_sb);
 	struct ovl_dir_cache *cache;
 
-	cache = ovl_dir_cache(d_inode(dentry));
-	if (cache && ovl_dentry_version_get(dentry) == cache->version)
+	cache = ovl_dir_cache(inode);
+	if (cache && ovl_inode_version_get(inode) == cache->version)
 		return cache;
 
 	/* Impure cache is not refcounted, free it here */
-	ovl_dir_cache_free(d_inode(dentry));
-	ovl_set_dir_cache(d_inode(dentry), NULL);
+	ovl_dir_cache_free(inode);
+	ovl_set_dir_cache(inode, NULL);
 
 	cache = kzalloc(sizeof(struct ovl_dir_cache), GFP_KERNEL);
 	if (!cache)
@@ -627,13 +629,13 @@ static struct ovl_dir_cache *ovl_cache_get_impure(const struct path *path)
 					OVL_XATTR_IMPURE);
 			ovl_drop_write(dentry);
 		}
-		ovl_clear_flag(OVL_IMPURE, d_inode(dentry));
+		ovl_clear_flag(OVL_IMPURE, inode);
 		kfree(cache);
 		return NULL;
 	}
 
-	cache->version = ovl_dentry_version_get(dentry);
-	ovl_set_dir_cache(d_inode(dentry), cache);
+	cache->version = ovl_inode_version_get(inode);
+	ovl_set_dir_cache(inode, cache);
 
 	return cache;
 }
@@ -675,7 +677,7 @@ static bool ovl_fill_real(struct dir_context *ctx, const char *name,
 static bool ovl_is_impure_dir(struct file *file)
 {
 	struct ovl_dir_file *od = file->private_data;
-	struct inode *dir = d_inode(file->f_path.dentry);
+	struct inode *dir = file_inode(file);
 
 	/*
 	 * Only upper dir can be impure, but if we are in the middle of
@@ -893,7 +895,7 @@ static int ovl_dir_fsync(struct file *file, loff_t start, loff_t end,
 	struct file *realfile;
 	int err;
 
-	err = ovl_sync_status(OVL_FS(file->f_path.dentry->d_sb));
+	err = ovl_sync_status(OVL_FS(file_inode(file)->i_sb));
 	if (err <= 0)
 		return err;
 
@@ -913,7 +915,7 @@ static int ovl_dir_release(struct inode *inode, struct file *file)
 
 	if (od->cache) {
 		inode_lock(inode);
-		ovl_cache_put(od, file->f_path.dentry);
+		ovl_cache_put(od, inode);
 		inode_unlock(inode);
 	}
 	fput(od->realfile);
@@ -942,7 +944,7 @@ static int ovl_dir_open(struct inode *inode, struct file *file)
 		return PTR_ERR(realfile);
 	}
 	od->realfile = realfile;
-	od->is_real = ovl_dir_is_real(file->f_path.dentry);
+	od->is_real = ovl_dir_is_real(inode);
 	od->is_upper = OVL_TYPE_UPPER(type);
 	file->private_data = od;
 
@@ -1071,14 +1073,10 @@ static int ovl_workdir_cleanup_recurse(struct ovl_fs *ofs, const struct path *pa
 	int err;
 	struct inode *dir = path->dentry->d_inode;
 	LIST_HEAD(list);
-	struct rb_root root = RB_ROOT;
 	struct ovl_cache_entry *p;
 	struct ovl_readdir_data rdd = {
-		.ctx.actor = ovl_fill_merge,
-		.dentry = NULL,
+		.ctx.actor = ovl_fill_plain,
 		.list = &list,
-		.root = &root,
-		.is_lowest = false,
 	};
 	bool incompat = false;
 
@@ -1159,14 +1157,10 @@ int ovl_indexdir_cleanup(struct ovl_fs *ofs)
 	struct inode *dir = indexdir->d_inode;
 	struct path path = { .mnt = ovl_upper_mnt(ofs), .dentry = indexdir };
 	LIST_HEAD(list);
-	struct rb_root root = RB_ROOT;
 	struct ovl_cache_entry *p;
 	struct ovl_readdir_data rdd = {
-		.ctx.actor = ovl_fill_merge,
-		.dentry = NULL,
+		.ctx.actor = ovl_fill_plain,
 		.list = &list,
-		.root = &root,
-		.is_lowest = false,
 	};
 
 	err = ovl_dir_read(&path, &rdd);

@@ -267,7 +267,7 @@ static char *ibmebus_chomp(const char *in, size_t count)
 	return out;
 }
 
-static ssize_t probe_store(struct bus_type *bus, const char *buf, size_t count)
+static ssize_t probe_store(const struct bus_type *bus, const char *buf, size_t count)
 {
 	struct device_node *dn = NULL;
 	struct device *dev;
@@ -305,7 +305,7 @@ out:
 }
 static BUS_ATTR_WO(probe);
 
-static ssize_t remove_store(struct bus_type *bus, const char *buf, size_t count)
+static ssize_t remove_store(const struct bus_type *bus, const char *buf, size_t count)
 {
 	struct device *dev;
 	char *path;
@@ -426,9 +426,14 @@ static struct attribute *ibmebus_bus_device_attrs[] = {
 };
 ATTRIBUTE_GROUPS(ibmebus_bus_device);
 
+static int ibmebus_bus_modalias(const struct device *dev, struct kobj_uevent_env *env)
+{
+	return of_device_uevent_modalias(dev, env);
+}
+
 struct bus_type ibmebus_bus_type = {
 	.name      = "ibmebus",
-	.uevent    = of_device_uevent_modalias,
+	.uevent    = ibmebus_bus_modalias,
 	.bus_groups = ibmbus_bus_groups,
 	.match     = ibmebus_bus_bus_match,
 	.probe     = ibmebus_bus_device_probe,

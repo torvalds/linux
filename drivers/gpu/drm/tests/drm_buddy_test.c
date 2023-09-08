@@ -89,7 +89,8 @@ static int check_block(struct kunit *test, struct drm_buddy *mm,
 		err = -EINVAL;
 	}
 
-	if (!is_power_of_2(block_size)) {
+	/* We can't use is_power_of_2() for a u64 on 32-bit systems. */
+	if (block_size & (block_size - 1)) {
 		kunit_err(test, "block size not power of two\n");
 		err = -EINVAL;
 	}
@@ -726,10 +727,12 @@ static void drm_test_buddy_alloc_limit(struct kunit *test)
 	drm_buddy_fini(&mm);
 }
 
-static int drm_buddy_init_test(struct kunit *test)
+static int drm_buddy_suite_init(struct kunit_suite *suite)
 {
 	while (!random_seed)
 		random_seed = get_random_u32();
+
+	kunit_info(suite, "Testing DRM buddy manager, with random_seed=0x%x\n", random_seed);
 
 	return 0;
 }
@@ -746,7 +749,7 @@ static struct kunit_case drm_buddy_tests[] = {
 
 static struct kunit_suite drm_buddy_test_suite = {
 	.name = "drm_buddy",
-	.init = drm_buddy_init_test,
+	.suite_init = drm_buddy_suite_init,
 	.test_cases = drm_buddy_tests,
 };
 

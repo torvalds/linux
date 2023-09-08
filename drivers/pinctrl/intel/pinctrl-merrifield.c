@@ -12,8 +12,10 @@
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
-#include <linux/pinctrl/pinconf.h>
+#include <linux/seq_file.h>
+
 #include <linux/pinctrl/pinconf-generic.h>
+#include <linux/pinctrl/pinconf.h>
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/pinmux.h>
 
@@ -574,7 +576,7 @@ static const char *mrfld_get_function_name(struct pinctrl_dev *pctldev,
 {
 	struct mrfld_pinctrl *mp = pinctrl_dev_get_drvdata(pctldev);
 
-	return mp->functions[function].name;
+	return mp->functions[function].func.name;
 }
 
 static int mrfld_get_function_groups(struct pinctrl_dev *pctldev,
@@ -584,8 +586,8 @@ static int mrfld_get_function_groups(struct pinctrl_dev *pctldev,
 {
 	struct mrfld_pinctrl *mp = pinctrl_dev_get_drvdata(pctldev);
 
-	*groups = mp->functions[function].groups;
-	*ngroups = mp->functions[function].ngroups;
+	*groups = mp->functions[function].func.groups;
+	*ngroups = mp->functions[function].func.ngroups;
 	return 0;
 }
 
@@ -895,17 +897,18 @@ static const struct pinctrl_desc mrfld_pinctrl_desc = {
 
 static int mrfld_pinctrl_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	struct mrfld_family *families;
 	struct mrfld_pinctrl *mp;
 	void __iomem *regs;
 	size_t nfamilies;
 	unsigned int i;
 
-	mp = devm_kzalloc(&pdev->dev, sizeof(*mp), GFP_KERNEL);
+	mp = devm_kzalloc(dev, sizeof(*mp), GFP_KERNEL);
 	if (!mp)
 		return -ENOMEM;
 
-	mp->dev = &pdev->dev;
+	mp->dev = dev;
 	raw_spin_lock_init(&mp->lock);
 
 	regs = devm_platform_ioremap_resource(pdev, 0);
@@ -917,9 +920,7 @@ static int mrfld_pinctrl_probe(struct platform_device *pdev)
 	 * to the registers.
 	 */
 	nfamilies = ARRAY_SIZE(mrfld_families),
-	families = devm_kmemdup(&pdev->dev, mrfld_families,
-					    sizeof(mrfld_families),
-					    GFP_KERNEL);
+	families = devm_kmemdup(dev, mrfld_families, sizeof(mrfld_families), GFP_KERNEL);
 	if (!families)
 		return -ENOMEM;
 
@@ -937,13 +938,13 @@ static int mrfld_pinctrl_probe(struct platform_device *pdev)
 	mp->groups = mrfld_groups;
 	mp->ngroups = ARRAY_SIZE(mrfld_groups);
 	mp->pctldesc = mrfld_pinctrl_desc;
-	mp->pctldesc.name = dev_name(&pdev->dev);
+	mp->pctldesc.name = dev_name(dev);
 	mp->pctldesc.pins = mrfld_pins;
 	mp->pctldesc.npins = ARRAY_SIZE(mrfld_pins);
 
-	mp->pctldev = devm_pinctrl_register(&pdev->dev, &mp->pctldesc, mp);
+	mp->pctldev = devm_pinctrl_register(dev, &mp->pctldesc, mp);
 	if (IS_ERR(mp->pctldev)) {
-		dev_err(&pdev->dev, "failed to register pinctrl driver\n");
+		dev_err(dev, "failed to register pinctrl driver\n");
 		return PTR_ERR(mp->pctldev);
 	}
 

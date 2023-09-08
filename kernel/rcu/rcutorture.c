@@ -119,7 +119,9 @@ torture_param(int, stutter, 5, "Number of seconds to run/halt test");
 torture_param(int, test_boost, 1, "Test RCU prio boost: 0=no, 1=maybe, 2=yes.");
 torture_param(int, test_boost_duration, 4, "Duration of each boost test, seconds.");
 torture_param(int, test_boost_interval, 7, "Interval between boost tests, seconds.");
+torture_param(int, test_nmis, 0, "End-test NMI tests, 0 to disable.");
 torture_param(bool, test_no_idle_hz, true, "Test support for tickless idle CPUs");
+torture_param(int, test_srcu_lockdep, 0, "Test specified SRCU deadlock scenario.");
 torture_param(int, verbose, 1, "Enable verbose debugging printk()s");
 
 static char *torture_type = "rcu";
@@ -179,7 +181,6 @@ static atomic_t n_rcu_torture_mbchk_tries;
 static atomic_t n_rcu_torture_error;
 static long n_rcu_torture_barrier_error;
 static long n_rcu_torture_boost_ktrerror;
-static long n_rcu_torture_boost_rterror;
 static long n_rcu_torture_boost_failure;
 static long n_rcu_torture_boosts;
 static atomic_long_t n_rcu_torture_timers;
@@ -357,6 +358,10 @@ struct rcu_torture_ops {
 	bool (*poll_gp_state_exp)(unsigned long oldstate);
 	void (*cond_sync_exp)(unsigned long oldstate);
 	void (*cond_sync_exp_full)(struct rcu_gp_oldstate *rgosp);
+	unsigned long (*get_comp_state)(void);
+	void (*get_comp_state_full)(struct rcu_gp_oldstate *rgosp);
+	bool (*same_gp_state)(unsigned long oldstate1, unsigned long oldstate2);
+	bool (*same_gp_state_full)(struct rcu_gp_oldstate *rgosp1, struct rcu_gp_oldstate *rgosp2);
 	unsigned long (*get_gp_state)(void);
 	void (*get_gp_state_full)(struct rcu_gp_oldstate *rgosp);
 	unsigned long (*get_gp_completed)(void);
@@ -395,7 +400,7 @@ static int torture_readlock_not_held(void)
 	return rcu_read_lock_bh_held() || rcu_read_lock_sched_held();
 }
 
-static int rcu_torture_read_lock(void) __acquires(RCU)
+static int rcu_torture_read_lock(void)
 {
 	rcu_read_lock();
 	return 0;
@@ -437,7 +442,7 @@ rcu_read_delay(struct torture_random_state *rrsp, struct rt_read_seg *rtrsp)
 	}
 }
 
-static void rcu_torture_read_unlock(int idx) __releases(RCU)
+static void rcu_torture_read_unlock(int idx)
 {
 	rcu_read_unlock();
 }
@@ -510,7 +515,7 @@ static unsigned long rcu_no_completed(void)
 
 static void rcu_torture_deferred_free(struct rcu_torture *p)
 {
-	call_rcu(&p->rtort_rcu, rcu_torture_cb);
+	call_rcu_hurry(&p->rtort_rcu, rcu_torture_cb);
 }
 
 static void rcu_sync_torture_init(void)
@@ -535,6 +540,10 @@ static struct rcu_torture_ops rcu_ops = {
 	.deferred_free		= rcu_torture_deferred_free,
 	.sync			= synchronize_rcu,
 	.exp_sync		= synchronize_rcu_expedited,
+	.same_gp_state		= same_state_synchronize_rcu,
+	.same_gp_state_full	= same_state_synchronize_rcu_full,
+	.get_comp_state		= get_completed_synchronize_rcu,
+	.get_comp_state_full	= get_completed_synchronize_rcu_full,
 	.get_gp_state		= get_state_synchronize_rcu,
 	.get_gp_state_full	= get_state_synchronize_rcu_full,
 	.get_gp_completed	= get_completed_synchronize_rcu,
@@ -551,7 +560,7 @@ static struct rcu_torture_ops rcu_ops = {
 	.start_gp_poll_exp_full	= start_poll_synchronize_rcu_expedited_full,
 	.poll_gp_state_exp	= poll_state_synchronize_rcu,
 	.cond_sync_exp		= cond_synchronize_rcu_expedited,
-	.call			= call_rcu,
+	.call			= call_rcu_hurry,
 	.cb_barrier		= rcu_barrier,
 	.fqs			= rcu_force_quiescent_state,
 	.stats			= NULL,
@@ -615,10 +624,14 @@ static struct rcu_torture_ops rcu_busted_ops = {
 DEFINE_STATIC_SRCU(srcu_ctl);
 static struct srcu_struct srcu_ctld;
 static struct srcu_struct *srcu_ctlp = &srcu_ctl;
+static struct rcu_torture_ops srcud_ops;
 
-static int srcu_torture_read_lock(void) __acquires(srcu_ctlp)
+static int srcu_torture_read_lock(void)
 {
-	return srcu_read_lock(srcu_ctlp);
+	if (cur_ops == &srcud_ops)
+		return srcu_read_lock_nmisafe(srcu_ctlp);
+	else
+		return srcu_read_lock(srcu_ctlp);
 }
 
 static void
@@ -640,9 +653,12 @@ srcu_read_delay(struct torture_random_state *rrsp, struct rt_read_seg *rtrsp)
 	}
 }
 
-static void srcu_torture_read_unlock(int idx) __releases(srcu_ctlp)
+static void srcu_torture_read_unlock(int idx)
 {
-	srcu_read_unlock(srcu_ctlp, idx);
+	if (cur_ops == &srcud_ops)
+		srcu_read_unlock_nmisafe(srcu_ctlp, idx);
+	else
+		srcu_read_unlock(srcu_ctlp, idx);
 }
 
 static int torture_srcu_read_lock_held(void)
@@ -799,13 +815,13 @@ static void synchronize_rcu_trivial(void)
 	}
 }
 
-static int rcu_torture_read_lock_trivial(void) __acquires(RCU)
+static int rcu_torture_read_lock_trivial(void)
 {
 	preempt_disable();
 	return 0;
 }
 
-static void rcu_torture_read_unlock_trivial(int idx) __releases(RCU)
+static void rcu_torture_read_unlock_trivial(int idx)
 {
 	preempt_enable();
 }
@@ -848,7 +864,7 @@ static void rcu_tasks_torture_deferred_free(struct rcu_torture *p)
 
 static void synchronize_rcu_mult_test(void)
 {
-	synchronize_rcu_mult(call_rcu_tasks, call_rcu);
+	synchronize_rcu_mult(call_rcu_tasks, call_rcu_hurry);
 }
 
 static struct rcu_torture_ops tasks_ops = {
@@ -1258,13 +1274,15 @@ static void rcu_torture_write_types(void)
 	} else if (gp_normal && !cur_ops->deferred_free) {
 		pr_alert("%s: gp_normal without primitives.\n", __func__);
 	}
-	if (gp_poll1 && cur_ops->start_gp_poll && cur_ops->poll_gp_state) {
+	if (gp_poll1 && cur_ops->get_comp_state && cur_ops->same_gp_state &&
+	    cur_ops->start_gp_poll && cur_ops->poll_gp_state) {
 		synctype[nsynctypes++] = RTWS_POLL_GET;
 		pr_info("%s: Testing polling GPs.\n", __func__);
 	} else if (gp_poll && (!cur_ops->start_gp_poll || !cur_ops->poll_gp_state)) {
 		pr_alert("%s: gp_poll without primitives.\n", __func__);
 	}
-	if (gp_poll_full1 && cur_ops->start_gp_poll_full && cur_ops->poll_gp_state_full) {
+	if (gp_poll_full1 && cur_ops->get_comp_state_full && cur_ops->same_gp_state_full
+	    && cur_ops->start_gp_poll_full && cur_ops->poll_gp_state_full) {
 		synctype[nsynctypes++] = RTWS_POLL_GET_FULL;
 		pr_info("%s: Testing polling full-state GPs.\n", __func__);
 	} else if (gp_poll_full && (!cur_ops->start_gp_poll_full || !cur_ops->poll_gp_state_full)) {
@@ -1339,14 +1357,18 @@ rcu_torture_writer(void *arg)
 	struct rcu_gp_oldstate cookie_full;
 	int expediting = 0;
 	unsigned long gp_snap;
+	unsigned long gp_snap1;
 	struct rcu_gp_oldstate gp_snap_full;
+	struct rcu_gp_oldstate gp_snap1_full;
 	int i;
 	int idx;
 	int oldnice = task_nice(current);
+	struct rcu_gp_oldstate rgo[NUM_ACTIVE_RCU_POLL_FULL_OLDSTATE];
 	struct rcu_torture *rp;
 	struct rcu_torture *old_rp;
 	static DEFINE_TORTURE_RANDOM(rand);
 	bool stutter_waited;
+	unsigned long ulo[NUM_ACTIVE_RCU_POLL_OLDSTATE];
 
 	VERBOSE_TOROUT_STRING("rcu_torture_writer task started");
 	if (!can_expedite)
@@ -1463,20 +1485,43 @@ rcu_torture_writer(void *arg)
 				break;
 			case RTWS_POLL_GET:
 				rcu_torture_writer_state = RTWS_POLL_GET;
+				for (i = 0; i < ARRAY_SIZE(ulo); i++)
+					ulo[i] = cur_ops->get_comp_state();
 				gp_snap = cur_ops->start_gp_poll();
 				rcu_torture_writer_state = RTWS_POLL_WAIT;
-				while (!cur_ops->poll_gp_state(gp_snap))
+				while (!cur_ops->poll_gp_state(gp_snap)) {
+					gp_snap1 = cur_ops->get_gp_state();
+					for (i = 0; i < ARRAY_SIZE(ulo); i++)
+						if (cur_ops->poll_gp_state(ulo[i]) ||
+						    cur_ops->same_gp_state(ulo[i], gp_snap1)) {
+							ulo[i] = gp_snap1;
+							break;
+						}
+					WARN_ON_ONCE(i >= ARRAY_SIZE(ulo));
 					torture_hrtimeout_jiffies(torture_random(&rand) % 16,
 								  &rand);
+				}
 				rcu_torture_pipe_update(old_rp);
 				break;
 			case RTWS_POLL_GET_FULL:
 				rcu_torture_writer_state = RTWS_POLL_GET_FULL;
+				for (i = 0; i < ARRAY_SIZE(rgo); i++)
+					cur_ops->get_comp_state_full(&rgo[i]);
 				cur_ops->start_gp_poll_full(&gp_snap_full);
 				rcu_torture_writer_state = RTWS_POLL_WAIT_FULL;
-				while (!cur_ops->poll_gp_state_full(&gp_snap_full))
+				while (!cur_ops->poll_gp_state_full(&gp_snap_full)) {
+					cur_ops->get_gp_state_full(&gp_snap1_full);
+					for (i = 0; i < ARRAY_SIZE(rgo); i++)
+						if (cur_ops->poll_gp_state_full(&rgo[i]) ||
+						    cur_ops->same_gp_state_full(&rgo[i],
+										&gp_snap1_full)) {
+							rgo[i] = gp_snap1_full;
+							break;
+						}
+					WARN_ON_ONCE(i >= ARRAY_SIZE(rgo));
 					torture_hrtimeout_jiffies(torture_random(&rand) % 16,
 								  &rand);
+				}
 				rcu_torture_pipe_update(old_rp);
 				break;
 			case RTWS_POLL_GET_EXP:
@@ -2150,12 +2195,11 @@ rcu_torture_stats_print(void)
 		atomic_read(&n_rcu_torture_alloc),
 		atomic_read(&n_rcu_torture_alloc_fail),
 		atomic_read(&n_rcu_torture_free));
-	pr_cont("rtmbe: %d rtmbkf: %d/%d rtbe: %ld rtbke: %ld rtbre: %ld ",
+	pr_cont("rtmbe: %d rtmbkf: %d/%d rtbe: %ld rtbke: %ld ",
 		atomic_read(&n_rcu_torture_mberror),
 		atomic_read(&n_rcu_torture_mbchk_fail), atomic_read(&n_rcu_torture_mbchk_tries),
 		n_rcu_torture_barrier_error,
-		n_rcu_torture_boost_ktrerror,
-		n_rcu_torture_boost_rterror);
+		n_rcu_torture_boost_ktrerror);
 	pr_cont("rtbf: %ld rtb: %ld nt: %ld ",
 		n_rcu_torture_boost_failure,
 		n_rcu_torture_boosts,
@@ -2173,15 +2217,13 @@ rcu_torture_stats_print(void)
 	if (atomic_read(&n_rcu_torture_mberror) ||
 	    atomic_read(&n_rcu_torture_mbchk_fail) ||
 	    n_rcu_torture_barrier_error || n_rcu_torture_boost_ktrerror ||
-	    n_rcu_torture_boost_rterror || n_rcu_torture_boost_failure ||
-	    i > 1) {
+	    n_rcu_torture_boost_failure || i > 1) {
 		pr_cont("%s", "!!! ");
 		atomic_inc(&n_rcu_torture_error);
 		WARN_ON_ONCE(atomic_read(&n_rcu_torture_mberror));
 		WARN_ON_ONCE(atomic_read(&n_rcu_torture_mbchk_fail));
 		WARN_ON_ONCE(n_rcu_torture_barrier_error);  // rcu_barrier()
 		WARN_ON_ONCE(n_rcu_torture_boost_ktrerror); // no boost kthread
-		WARN_ON_ONCE(n_rcu_torture_boost_rterror); // can't set RT prio
 		WARN_ON_ONCE(n_rcu_torture_boost_failure); // boost failed (TIMER_SOFTIRQ RT prio?)
 		WARN_ON_ONCE(i > 1); // Too-short grace period
 	}
@@ -2314,7 +2356,8 @@ rcu_torture_print_module_parms(struct rcu_torture_ops *cur_ops, const char *tag)
 		 "n_barrier_cbs=%d "
 		 "onoff_interval=%d onoff_holdoff=%d "
 		 "read_exit_delay=%d read_exit_burst=%d "
-		 "nocbs_nthreads=%d nocbs_toggle=%d\n",
+		 "nocbs_nthreads=%d nocbs_toggle=%d "
+		 "test_nmis=%d\n",
 		 torture_type, tag, nrealreaders, nfakewriters,
 		 stat_interval, verbose, test_no_idle_hz, shuffle_interval,
 		 stutter, irqreader, fqs_duration, fqs_holdoff, fqs_stutter,
@@ -2325,7 +2368,8 @@ rcu_torture_print_module_parms(struct rcu_torture_ops *cur_ops, const char *tag)
 		 n_barrier_cbs,
 		 onoff_interval, onoff_holdoff,
 		 read_exit_delay, read_exit_burst,
-		 nocbs_nthreads, nocbs_toggle);
+		 nocbs_nthreads, nocbs_toggle,
+		 test_nmis);
 }
 
 static int rcutorture_booster_cleanup(unsigned int cpu)
@@ -3229,6 +3273,29 @@ static void rcu_torture_read_exit_cleanup(void)
 	torture_stop_kthread(rcutorture_read_exit, read_exit_task);
 }
 
+static void rcutorture_test_nmis(int n)
+{
+#if IS_BUILTIN(CONFIG_RCU_TORTURE_TEST)
+	int cpu;
+	int dumpcpu;
+	int i;
+
+	for (i = 0; i < n; i++) {
+		preempt_disable();
+		cpu = smp_processor_id();
+		dumpcpu = cpu + 1;
+		if (dumpcpu >= nr_cpu_ids)
+			dumpcpu = 0;
+		pr_alert("%s: CPU %d invoking dump_cpu_task(%d)\n", __func__, cpu, dumpcpu);
+		dump_cpu_task(dumpcpu);
+		preempt_enable();
+		schedule_timeout_uninterruptible(15 * HZ);
+	}
+#else // #if IS_BUILTIN(CONFIG_RCU_TORTURE_TEST)
+	WARN_ONCE(n, "Non-zero rcutorture.test_nmis=%d permitted only when rcutorture is built in.\n", test_nmis);
+#endif // #else // #if IS_BUILTIN(CONFIG_RCU_TORTURE_TEST)
+}
+
 static enum cpuhp_state rcutor_hp;
 
 static void
@@ -3252,6 +3319,8 @@ rcu_torture_cleanup(void)
 		rcu_gp_slow_unregister(NULL);
 		return;
 	}
+
+	rcutorture_test_nmis(test_nmis);
 
 	if (cur_ops->gp_kthread_dbg)
 		cur_ops->gp_kthread_dbg();
@@ -3388,13 +3457,13 @@ static void rcu_test_debug_objects(void)
 	/* Try to queue the rh2 pair of callbacks for the same grace period. */
 	preempt_disable(); /* Prevent preemption from interrupting test. */
 	rcu_read_lock(); /* Make it impossible to finish a grace period. */
-	call_rcu(&rh1, rcu_torture_leak_cb); /* Start grace period. */
+	call_rcu_hurry(&rh1, rcu_torture_leak_cb); /* Start grace period. */
 	local_irq_disable(); /* Make it harder to start a new grace period. */
-	call_rcu(&rh2, rcu_torture_leak_cb);
-	call_rcu(&rh2, rcu_torture_err_cb); /* Duplicate callback. */
+	call_rcu_hurry(&rh2, rcu_torture_leak_cb);
+	call_rcu_hurry(&rh2, rcu_torture_err_cb); /* Duplicate callback. */
 	if (rhp) {
-		call_rcu(rhp, rcu_torture_leak_cb);
-		call_rcu(rhp, rcu_torture_err_cb); /* Another duplicate callback. */
+		call_rcu_hurry(rhp, rcu_torture_leak_cb);
+		call_rcu_hurry(rhp, rcu_torture_err_cb); /* Another duplicate callback. */
 	}
 	local_irq_enable();
 	rcu_read_unlock();
@@ -3417,6 +3486,188 @@ static void rcutorture_sync(void)
 
 	if (cur_ops->sync && !(++n & 0xfff))
 		cur_ops->sync();
+}
+
+static DEFINE_MUTEX(mut0);
+static DEFINE_MUTEX(mut1);
+static DEFINE_MUTEX(mut2);
+static DEFINE_MUTEX(mut3);
+static DEFINE_MUTEX(mut4);
+static DEFINE_MUTEX(mut5);
+static DEFINE_MUTEX(mut6);
+static DEFINE_MUTEX(mut7);
+static DEFINE_MUTEX(mut8);
+static DEFINE_MUTEX(mut9);
+
+static DECLARE_RWSEM(rwsem0);
+static DECLARE_RWSEM(rwsem1);
+static DECLARE_RWSEM(rwsem2);
+static DECLARE_RWSEM(rwsem3);
+static DECLARE_RWSEM(rwsem4);
+static DECLARE_RWSEM(rwsem5);
+static DECLARE_RWSEM(rwsem6);
+static DECLARE_RWSEM(rwsem7);
+static DECLARE_RWSEM(rwsem8);
+static DECLARE_RWSEM(rwsem9);
+
+DEFINE_STATIC_SRCU(srcu0);
+DEFINE_STATIC_SRCU(srcu1);
+DEFINE_STATIC_SRCU(srcu2);
+DEFINE_STATIC_SRCU(srcu3);
+DEFINE_STATIC_SRCU(srcu4);
+DEFINE_STATIC_SRCU(srcu5);
+DEFINE_STATIC_SRCU(srcu6);
+DEFINE_STATIC_SRCU(srcu7);
+DEFINE_STATIC_SRCU(srcu8);
+DEFINE_STATIC_SRCU(srcu9);
+
+static int srcu_lockdep_next(const char *f, const char *fl, const char *fs, const char *fu, int i,
+			     int cyclelen, int deadlock)
+{
+	int j = i + 1;
+
+	if (j >= cyclelen)
+		j = deadlock ? 0 : -1;
+	if (j >= 0)
+		pr_info("%s: %s(%d), %s(%d), %s(%d)\n", f, fl, i, fs, j, fu, i);
+	else
+		pr_info("%s: %s(%d), %s(%d)\n", f, fl, i, fu, i);
+	return j;
+}
+
+// Test lockdep on SRCU-based deadlock scenarios.
+static void rcu_torture_init_srcu_lockdep(void)
+{
+	int cyclelen;
+	int deadlock;
+	bool err = false;
+	int i;
+	int j;
+	int idx;
+	struct mutex *muts[] = { &mut0, &mut1, &mut2, &mut3, &mut4,
+				 &mut5, &mut6, &mut7, &mut8, &mut9 };
+	struct rw_semaphore *rwsems[] = { &rwsem0, &rwsem1, &rwsem2, &rwsem3, &rwsem4,
+					  &rwsem5, &rwsem6, &rwsem7, &rwsem8, &rwsem9 };
+	struct srcu_struct *srcus[] = { &srcu0, &srcu1, &srcu2, &srcu3, &srcu4,
+					&srcu5, &srcu6, &srcu7, &srcu8, &srcu9 };
+	int testtype;
+
+	if (!test_srcu_lockdep)
+		return;
+
+	deadlock = test_srcu_lockdep / 1000;
+	testtype = (test_srcu_lockdep / 10) % 100;
+	cyclelen = test_srcu_lockdep % 10;
+	WARN_ON_ONCE(ARRAY_SIZE(muts) != ARRAY_SIZE(srcus));
+	if (WARN_ONCE(deadlock != !!deadlock,
+		      "%s: test_srcu_lockdep=%d and deadlock digit %d must be zero or one.\n",
+		      __func__, test_srcu_lockdep, deadlock))
+		err = true;
+	if (WARN_ONCE(cyclelen <= 0,
+		      "%s: test_srcu_lockdep=%d and cycle-length digit %d must be greater than zero.\n",
+		      __func__, test_srcu_lockdep, cyclelen))
+		err = true;
+	if (err)
+		goto err_out;
+
+	if (testtype == 0) {
+		pr_info("%s: test_srcu_lockdep = %05d: SRCU %d-way %sdeadlock.\n",
+			__func__, test_srcu_lockdep, cyclelen, deadlock ? "" : "non-");
+		if (deadlock && cyclelen == 1)
+			pr_info("%s: Expect hang.\n", __func__);
+		for (i = 0; i < cyclelen; i++) {
+			j = srcu_lockdep_next(__func__, "srcu_read_lock", "synchronize_srcu",
+					      "srcu_read_unlock", i, cyclelen, deadlock);
+			idx = srcu_read_lock(srcus[i]);
+			if (j >= 0)
+				synchronize_srcu(srcus[j]);
+			srcu_read_unlock(srcus[i], idx);
+		}
+		return;
+	}
+
+	if (testtype == 1) {
+		pr_info("%s: test_srcu_lockdep = %05d: SRCU/mutex %d-way %sdeadlock.\n",
+			__func__, test_srcu_lockdep, cyclelen, deadlock ? "" : "non-");
+		for (i = 0; i < cyclelen; i++) {
+			pr_info("%s: srcu_read_lock(%d), mutex_lock(%d), mutex_unlock(%d), srcu_read_unlock(%d)\n",
+				__func__, i, i, i, i);
+			idx = srcu_read_lock(srcus[i]);
+			mutex_lock(muts[i]);
+			mutex_unlock(muts[i]);
+			srcu_read_unlock(srcus[i], idx);
+
+			j = srcu_lockdep_next(__func__, "mutex_lock", "synchronize_srcu",
+					      "mutex_unlock", i, cyclelen, deadlock);
+			mutex_lock(muts[i]);
+			if (j >= 0)
+				synchronize_srcu(srcus[j]);
+			mutex_unlock(muts[i]);
+		}
+		return;
+	}
+
+	if (testtype == 2) {
+		pr_info("%s: test_srcu_lockdep = %05d: SRCU/rwsem %d-way %sdeadlock.\n",
+			__func__, test_srcu_lockdep, cyclelen, deadlock ? "" : "non-");
+		for (i = 0; i < cyclelen; i++) {
+			pr_info("%s: srcu_read_lock(%d), down_read(%d), up_read(%d), srcu_read_unlock(%d)\n",
+				__func__, i, i, i, i);
+			idx = srcu_read_lock(srcus[i]);
+			down_read(rwsems[i]);
+			up_read(rwsems[i]);
+			srcu_read_unlock(srcus[i], idx);
+
+			j = srcu_lockdep_next(__func__, "down_write", "synchronize_srcu",
+					      "up_write", i, cyclelen, deadlock);
+			down_write(rwsems[i]);
+			if (j >= 0)
+				synchronize_srcu(srcus[j]);
+			up_write(rwsems[i]);
+		}
+		return;
+	}
+
+#ifdef CONFIG_TASKS_TRACE_RCU
+	if (testtype == 3) {
+		pr_info("%s: test_srcu_lockdep = %05d: SRCU and Tasks Trace RCU %d-way %sdeadlock.\n",
+			__func__, test_srcu_lockdep, cyclelen, deadlock ? "" : "non-");
+		if (deadlock && cyclelen == 1)
+			pr_info("%s: Expect hang.\n", __func__);
+		for (i = 0; i < cyclelen; i++) {
+			char *fl = i == 0 ? "rcu_read_lock_trace" : "srcu_read_lock";
+			char *fs = i == cyclelen - 1 ? "synchronize_rcu_tasks_trace"
+						     : "synchronize_srcu";
+			char *fu = i == 0 ? "rcu_read_unlock_trace" : "srcu_read_unlock";
+
+			j = srcu_lockdep_next(__func__, fl, fs, fu, i, cyclelen, deadlock);
+			if (i == 0)
+				rcu_read_lock_trace();
+			else
+				idx = srcu_read_lock(srcus[i]);
+			if (j >= 0) {
+				if (i == cyclelen - 1)
+					synchronize_rcu_tasks_trace();
+				else
+					synchronize_srcu(srcus[j]);
+			}
+			if (i == 0)
+				rcu_read_unlock_trace();
+			else
+				srcu_read_unlock(srcus[i], idx);
+		}
+		return;
+	}
+#endif // #ifdef CONFIG_TASKS_TRACE_RCU
+
+err_out:
+	pr_info("%s: test_srcu_lockdep = %05d does nothing.\n", __func__, test_srcu_lockdep);
+	pr_info("%s: test_srcu_lockdep = DNNL.\n", __func__);
+	pr_info("%s: D: Deadlock if nonzero.\n", __func__);
+	pr_info("%s: NN: Test number, 0=SRCU, 1=SRCU/mutex, 2=SRCU/rwsem, 3=SRCU/Tasks Trace RCU.\n", __func__);
+	pr_info("%s: L: Cycle length.\n", __func__);
+	if (!IS_ENABLED(CONFIG_TASKS_TRACE_RCU))
+		pr_info("%s: NN=3 disallowed because kernel is built with CONFIG_TASKS_TRACE_RCU=n\n", __func__);
 }
 
 static int __init
@@ -3457,8 +3708,16 @@ rcu_torture_init(void)
 		pr_alert("rcu-torture: ->fqs NULL and non-zero fqs_duration, fqs disabled.\n");
 		fqs_duration = 0;
 	}
+	if (nocbs_nthreads != 0 && (cur_ops != &rcu_ops ||
+				    !IS_ENABLED(CONFIG_RCU_NOCB_CPU))) {
+		pr_alert("rcu-torture types: %s and CONFIG_RCU_NOCB_CPU=%d, nocb toggle disabled.\n",
+			 cur_ops->name, IS_ENABLED(CONFIG_RCU_NOCB_CPU));
+		nocbs_nthreads = 0;
+	}
 	if (cur_ops->init)
 		cur_ops->init();
+
+	rcu_torture_init_srcu_lockdep();
 
 	if (nreaders >= 0) {
 		nrealreaders = nreaders;
@@ -3496,7 +3755,6 @@ rcu_torture_init(void)
 	atomic_set(&n_rcu_torture_error, 0);
 	n_rcu_torture_barrier_error = 0;
 	n_rcu_torture_boost_ktrerror = 0;
-	n_rcu_torture_boost_rterror = 0;
 	n_rcu_torture_boost_failure = 0;
 	n_rcu_torture_boosts = 0;
 	for (i = 0; i < RCU_TORTURE_PIPE_LEN + 1; i++)

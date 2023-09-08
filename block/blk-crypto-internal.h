@@ -21,9 +21,9 @@ extern const struct blk_crypto_mode blk_crypto_modes[];
 
 #ifdef CONFIG_BLK_INLINE_ENCRYPTION
 
-int blk_crypto_sysfs_register(struct request_queue *q);
+int blk_crypto_sysfs_register(struct gendisk *disk);
 
-void blk_crypto_sysfs_unregister(struct request_queue *q);
+void blk_crypto_sysfs_unregister(struct gendisk *disk);
 
 void bio_crypt_dun_increment(u64 dun[BLK_CRYPTO_DUN_ARRAY_SIZE],
 			     unsigned int inc);
@@ -65,14 +65,33 @@ static inline bool blk_crypto_rq_is_encrypted(struct request *rq)
 	return rq->crypt_ctx;
 }
 
+static inline bool blk_crypto_rq_has_keyslot(struct request *rq)
+{
+	return rq->crypt_keyslot;
+}
+
+blk_status_t blk_crypto_get_keyslot(struct blk_crypto_profile *profile,
+				    const struct blk_crypto_key *key,
+				    struct blk_crypto_keyslot **slot_ptr);
+
+void blk_crypto_put_keyslot(struct blk_crypto_keyslot *slot);
+
+int __blk_crypto_evict_key(struct blk_crypto_profile *profile,
+			   const struct blk_crypto_key *key);
+
+bool __blk_crypto_cfg_supported(struct blk_crypto_profile *profile,
+				const struct blk_crypto_config *cfg);
+
 #else /* CONFIG_BLK_INLINE_ENCRYPTION */
 
-static inline int blk_crypto_sysfs_register(struct request_queue *q)
+static inline int blk_crypto_sysfs_register(struct gendisk *disk)
 {
 	return 0;
 }
 
-static inline void blk_crypto_sysfs_unregister(struct request_queue *q) { }
+static inline void blk_crypto_sysfs_unregister(struct gendisk *disk)
+{
+}
 
 static inline bool bio_crypt_rq_ctx_compatible(struct request *rq,
 					       struct bio *bio)
@@ -101,6 +120,11 @@ static inline bool bio_crypt_ctx_merge_rq(struct request *req,
 static inline void blk_crypto_rq_set_defaults(struct request *rq) { }
 
 static inline bool blk_crypto_rq_is_encrypted(struct request *rq)
+{
+	return false;
+}
+
+static inline bool blk_crypto_rq_has_keyslot(struct request *rq)
 {
 	return false;
 }
@@ -139,12 +163,19 @@ static inline bool blk_crypto_bio_prep(struct bio **bio_ptr)
 	return true;
 }
 
-blk_status_t __blk_crypto_init_request(struct request *rq);
-static inline blk_status_t blk_crypto_init_request(struct request *rq)
+blk_status_t __blk_crypto_rq_get_keyslot(struct request *rq);
+static inline blk_status_t blk_crypto_rq_get_keyslot(struct request *rq)
 {
 	if (blk_crypto_rq_is_encrypted(rq))
-		return __blk_crypto_init_request(rq);
+		return __blk_crypto_rq_get_keyslot(rq);
 	return BLK_STS_OK;
+}
+
+void __blk_crypto_rq_put_keyslot(struct request *rq);
+static inline void blk_crypto_rq_put_keyslot(struct request *rq)
+{
+	if (blk_crypto_rq_has_keyslot(rq))
+		__blk_crypto_rq_put_keyslot(rq);
 }
 
 void __blk_crypto_free_request(struct request *rq);
@@ -172,21 +203,6 @@ static inline int blk_crypto_rq_bio_prep(struct request *rq, struct bio *bio,
 	if (bio_has_crypt_ctx(bio))
 		return __blk_crypto_rq_bio_prep(rq, bio, gfp_mask);
 	return 0;
-}
-
-/**
- * blk_crypto_insert_cloned_request - Prepare a cloned request to be inserted
- *				      into a request queue.
- * @rq: the request being queued
- *
- * Return: BLK_STS_OK on success, nonzero on error.
- */
-static inline blk_status_t blk_crypto_insert_cloned_request(struct request *rq)
-{
-
-	if (blk_crypto_rq_is_encrypted(rq))
-		return blk_crypto_init_request(rq);
-	return BLK_STS_OK;
 }
 
 #ifdef CONFIG_BLK_INLINE_ENCRYPTION_FALLBACK

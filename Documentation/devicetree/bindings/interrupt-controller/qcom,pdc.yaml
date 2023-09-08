@@ -26,13 +26,19 @@ properties:
   compatible:
     items:
       - enum:
+          - qcom,qdu1000-pdc
+          - qcom,sa8775p-pdc
           - qcom,sc7180-pdc
           - qcom,sc7280-pdc
+          - qcom,sc8280xp-pdc
           - qcom,sdm845-pdc
+          - qcom,sdx55-pdc
+          - qcom,sdx65-pdc
           - qcom,sm6350-pdc
           - qcom,sm8150-pdc
           - qcom,sm8250-pdc
           - qcom,sm8350-pdc
+          - qcom,sm8450-pdc
       - const: qcom,pdc
 
   reg:
@@ -49,7 +55,7 @@ properties:
   qcom,pdc-ranges:
     $ref: /schemas/types.yaml#/definitions/uint32-matrix
     minItems: 1
-    maxItems: 32 # no hard limit
+    maxItems: 128 # no hard limit
     items:
       items:
         - description: starting PDC port

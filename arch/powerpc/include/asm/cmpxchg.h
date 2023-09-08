@@ -77,10 +77,76 @@ u32 __cmpxchg_##type##sfx(volatile void *p, u32 old, u32 new)	\
  * the previous value stored there.
  */
 
+#ifndef CONFIG_PPC_HAS_LBARX_LHARX
 XCHG_GEN(u8, _local, "memory");
 XCHG_GEN(u8, _relaxed, "cc");
 XCHG_GEN(u16, _local, "memory");
 XCHG_GEN(u16, _relaxed, "cc");
+#else
+static __always_inline unsigned long
+__xchg_u8_local(volatile void *p, unsigned long val)
+{
+	unsigned long prev;
+
+	__asm__ __volatile__(
+"1:	lbarx	%0,0,%2		# __xchg_u8_local\n"
+"	stbcx.	%3,0,%2 \n"
+"	bne-	1b"
+	: "=&r" (prev), "+m" (*(volatile unsigned char *)p)
+	: "r" (p), "r" (val)
+	: "cc", "memory");
+
+	return prev;
+}
+
+static __always_inline unsigned long
+__xchg_u8_relaxed(u8 *p, unsigned long val)
+{
+	unsigned long prev;
+
+	__asm__ __volatile__(
+"1:	lbarx	%0,0,%2		# __xchg_u8_relaxed\n"
+"	stbcx.	%3,0,%2\n"
+"	bne-	1b"
+	: "=&r" (prev), "+m" (*p)
+	: "r" (p), "r" (val)
+	: "cc");
+
+	return prev;
+}
+
+static __always_inline unsigned long
+__xchg_u16_local(volatile void *p, unsigned long val)
+{
+	unsigned long prev;
+
+	__asm__ __volatile__(
+"1:	lharx	%0,0,%2		# __xchg_u16_local\n"
+"	sthcx.	%3,0,%2\n"
+"	bne-	1b"
+	: "=&r" (prev), "+m" (*(volatile unsigned short *)p)
+	: "r" (p), "r" (val)
+	: "cc", "memory");
+
+	return prev;
+}
+
+static __always_inline unsigned long
+__xchg_u16_relaxed(u16 *p, unsigned long val)
+{
+	unsigned long prev;
+
+	__asm__ __volatile__(
+"1:	lharx	%0,0,%2		# __xchg_u16_relaxed\n"
+"	sthcx.	%3,0,%2\n"
+"	bne-	1b"
+	: "=&r" (prev), "+m" (*p)
+	: "r" (p), "r" (val)
+	: "cc");
+
+	return prev;
+}
+#endif
 
 static __always_inline unsigned long
 __xchg_u32_local(volatile void *p, unsigned long val)
@@ -163,7 +229,7 @@ __xchg_local(void *ptr, unsigned long x, unsigned int size)
 		return __xchg_u64_local(ptr, x);
 #endif
 	}
-	BUILD_BUG_ON_MSG(1, "Unsupported size for __xchg");
+	BUILD_BUG_ON_MSG(1, "Unsupported size for __xchg_local");
 	return x;
 }
 
@@ -182,7 +248,7 @@ __xchg_relaxed(void *ptr, unsigned long x, unsigned int size)
 		return __xchg_u64_relaxed(ptr, x);
 #endif
 	}
-	BUILD_BUG_ON_MSG(1, "Unsupported size for __xchg_local");
+	BUILD_BUG_ON_MSG(1, "Unsupported size for __xchg_relaxed");
 	return x;
 }
 #define arch_xchg_local(ptr,x)						     \
@@ -198,11 +264,12 @@ __xchg_relaxed(void *ptr, unsigned long x, unsigned int size)
 	(__typeof__(*(ptr))) __xchg_relaxed((ptr),			\
 			(unsigned long)_x_, sizeof(*(ptr)));		\
 })
+
 /*
  * Compare and exchange - if *p == old, set it to new,
  * and return the old value of *p.
  */
-
+#ifndef CONFIG_PPC_HAS_LBARX_LHARX
 CMPXCHG_GEN(u8, , PPC_ATOMIC_ENTRY_BARRIER, PPC_ATOMIC_EXIT_BARRIER, "memory");
 CMPXCHG_GEN(u8, _local, , , "memory");
 CMPXCHG_GEN(u8, _acquire, , PPC_ACQUIRE_BARRIER, "memory");
@@ -211,6 +278,168 @@ CMPXCHG_GEN(u16, , PPC_ATOMIC_ENTRY_BARRIER, PPC_ATOMIC_EXIT_BARRIER, "memory");
 CMPXCHG_GEN(u16, _local, , , "memory");
 CMPXCHG_GEN(u16, _acquire, , PPC_ACQUIRE_BARRIER, "memory");
 CMPXCHG_GEN(u16, _relaxed, , , "cc");
+#else
+static __always_inline unsigned long
+__cmpxchg_u8(volatile unsigned char *p, unsigned long old, unsigned long new)
+{
+	unsigned int prev;
+
+	__asm__ __volatile__ (
+	PPC_ATOMIC_ENTRY_BARRIER
+"1:	lbarx	%0,0,%2		# __cmpxchg_u8\n"
+"	cmpw	0,%0,%3\n"
+"	bne-	2f\n"
+"	stbcx.	%4,0,%2\n"
+"	bne-	1b"
+	PPC_ATOMIC_EXIT_BARRIER
+	"\n\
+2:"
+	: "=&r" (prev), "+m" (*p)
+	: "r" (p), "r" (old), "r" (new)
+	: "cc", "memory");
+
+	return prev;
+}
+
+static __always_inline unsigned long
+__cmpxchg_u8_local(volatile unsigned char *p, unsigned long old,
+			unsigned long new)
+{
+	unsigned int prev;
+
+	__asm__ __volatile__ (
+"1:	lbarx	%0,0,%2		# __cmpxchg_u8_local\n"
+"	cmpw	0,%0,%3\n"
+"	bne-	2f\n"
+"	stbcx.	%4,0,%2\n"
+"	bne-	1b\n"
+"2:"
+	: "=&r" (prev), "+m" (*p)
+	: "r" (p), "r" (old), "r" (new)
+	: "cc", "memory");
+
+	return prev;
+}
+
+static __always_inline unsigned long
+__cmpxchg_u8_relaxed(u8 *p, unsigned long old, unsigned long new)
+{
+	unsigned long prev;
+
+	__asm__ __volatile__ (
+"1:	lbarx	%0,0,%2		# __cmpxchg_u8_relaxed\n"
+"	cmpw	0,%0,%3\n"
+"	bne-	2f\n"
+"	stbcx.	%4,0,%2\n"
+"	bne-	1b\n"
+"2:"
+	: "=&r" (prev), "+m" (*p)
+	: "r" (p), "r" (old), "r" (new)
+	: "cc");
+
+	return prev;
+}
+
+static __always_inline unsigned long
+__cmpxchg_u8_acquire(u8 *p, unsigned long old, unsigned long new)
+{
+	unsigned long prev;
+
+	__asm__ __volatile__ (
+"1:	lbarx	%0,0,%2		# __cmpxchg_u8_acquire\n"
+"	cmpw	0,%0,%3\n"
+"	bne-	2f\n"
+"	stbcx.	%4,0,%2\n"
+"	bne-	1b\n"
+	PPC_ACQUIRE_BARRIER
+"2:"
+	: "=&r" (prev), "+m" (*p)
+	: "r" (p), "r" (old), "r" (new)
+	: "cc", "memory");
+
+	return prev;
+}
+
+static __always_inline unsigned long
+__cmpxchg_u16(volatile unsigned short *p, unsigned long old, unsigned long new)
+{
+	unsigned int prev;
+
+	__asm__ __volatile__ (
+	PPC_ATOMIC_ENTRY_BARRIER
+"1:	lharx	%0,0,%2		# __cmpxchg_u16\n"
+"	cmpw	0,%0,%3\n"
+"	bne-	2f\n"
+"	sthcx.	%4,0,%2\n"
+"	bne-	1b\n"
+	PPC_ATOMIC_EXIT_BARRIER
+"2:"
+	: "=&r" (prev), "+m" (*p)
+	: "r" (p), "r" (old), "r" (new)
+	: "cc", "memory");
+
+	return prev;
+}
+
+static __always_inline unsigned long
+__cmpxchg_u16_local(volatile unsigned short *p, unsigned long old,
+			unsigned long new)
+{
+	unsigned int prev;
+
+	__asm__ __volatile__ (
+"1:	lharx	%0,0,%2		# __cmpxchg_u16_local\n"
+"	cmpw	0,%0,%3\n"
+"	bne-	2f\n"
+"	sthcx.	%4,0,%2\n"
+"	bne-	1b"
+"2:"
+	: "=&r" (prev), "+m" (*p)
+	: "r" (p), "r" (old), "r" (new)
+	: "cc", "memory");
+
+	return prev;
+}
+
+static __always_inline unsigned long
+__cmpxchg_u16_relaxed(u16 *p, unsigned long old, unsigned long new)
+{
+	unsigned long prev;
+
+	__asm__ __volatile__ (
+"1:	lharx	%0,0,%2		# __cmpxchg_u16_relaxed\n"
+"	cmpw	0,%0,%3\n"
+"	bne-	2f\n"
+"	sthcx.	%4,0,%2\n"
+"	bne-	1b\n"
+"2:"
+	: "=&r" (prev), "+m" (*p)
+	: "r" (p), "r" (old), "r" (new)
+	: "cc");
+
+	return prev;
+}
+
+static __always_inline unsigned long
+__cmpxchg_u16_acquire(u16 *p, unsigned long old, unsigned long new)
+{
+	unsigned long prev;
+
+	__asm__ __volatile__ (
+"1:	lharx	%0,0,%2		# __cmpxchg_u16_acquire\n"
+"	cmpw	0,%0,%3\n"
+"	bne-	2f\n"
+"	sthcx.	%4,0,%2\n"
+"	bne-	1b\n"
+	PPC_ACQUIRE_BARRIER
+"2:"
+	: "=&r" (prev), "+m" (*p)
+	: "r" (p), "r" (old), "r" (new)
+	: "cc", "memory");
+
+	return prev;
+}
+#endif
 
 static __always_inline unsigned long
 __cmpxchg_u32(volatile unsigned int *p, unsigned long old, unsigned long new)

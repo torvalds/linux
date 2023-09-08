@@ -53,7 +53,7 @@ $(LIBBPF_INTERNAL_HDRS): $(LIBBPF_HDRS_DIR)/%.h: $(BPF_DIR)/%.h | $(LIBBPF_HDRS_
 $(LIBBPF_BOOTSTRAP): $(wildcard $(BPF_DIR)/*.[ch] $(BPF_DIR)/Makefile) | $(LIBBPF_BOOTSTRAP_OUTPUT)
 	$(Q)$(MAKE) -C $(BPF_DIR) OUTPUT=$(LIBBPF_BOOTSTRAP_OUTPUT) \
 		DESTDIR=$(LIBBPF_BOOTSTRAP_DESTDIR:/=) prefix= \
-		ARCH= CROSS_COMPILE= CC=$(HOSTCC) LD=$(HOSTLD) AR=$(HOSTAR) $@ install_headers
+		ARCH= CROSS_COMPILE= CC="$(HOSTCC)" LD="$(HOSTLD)" AR="$(HOSTAR)" $@ install_headers
 
 $(LIBBPF_BOOTSTRAP_INTERNAL_HDRS): $(LIBBPF_BOOTSTRAP_HDRS_DIR)/%.h: $(BPF_DIR)/%.h | $(LIBBPF_BOOTSTRAP_HDRS_DIR)
 	$(call QUIET_INSTALL, $@)
@@ -93,11 +93,22 @@ INSTALL ?= install
 RM ?= rm -f
 
 FEATURE_USER = .bpftool
-FEATURE_TESTS = libbfd libbfd-liberty libbfd-liberty-z \
-	disassembler-four-args disassembler-init-styled libcap \
-	clang-bpf-co-re
-FEATURE_DISPLAY = libbfd libbfd-liberty libbfd-liberty-z \
-	libcap clang-bpf-co-re
+
+FEATURE_TESTS := clang-bpf-co-re
+FEATURE_TESTS += llvm
+FEATURE_TESTS += libcap
+FEATURE_TESTS += libbfd
+FEATURE_TESTS += libbfd-liberty
+FEATURE_TESTS += libbfd-liberty-z
+FEATURE_TESTS += disassembler-four-args
+FEATURE_TESTS += disassembler-init-styled
+
+FEATURE_DISPLAY := clang-bpf-co-re
+FEATURE_DISPLAY += llvm
+FEATURE_DISPLAY += libcap
+FEATURE_DISPLAY += libbfd
+FEATURE_DISPLAY += libbfd-liberty
+FEATURE_DISPLAY += libbfd-liberty-z
 
 check_feat := 1
 NON_CHECK_FEAT_TARGETS := clean uninstall doc doc-clean doc-install doc-uninstall
@@ -115,13 +126,6 @@ include $(FEATURES_DUMP)
 endif
 endif
 
-ifeq ($(feature-disassembler-four-args), 1)
-CFLAGS += -DDISASM_FOUR_ARGS_SIGNATURE
-endif
-ifeq ($(feature-disassembler-init-styled), 1)
-    CFLAGS += -DDISASM_INIT_STYLED
-endif
-
 LIBS = $(LIBBPF) -lelf -lz
 LIBS_BOOTSTRAP = $(LIBBPF_BOOTSTRAP) -lelf -lz
 ifeq ($(feature-libcap), 1)
@@ -133,21 +137,45 @@ include $(wildcard $(OUTPUT)*.d)
 
 all: $(OUTPUT)bpftool
 
-BFD_SRCS = jit_disasm.c
+SRCS := $(wildcard *.c)
 
-SRCS = $(filter-out $(BFD_SRCS),$(wildcard *.c))
+ifeq ($(feature-llvm),1)
+  # If LLVM is available, use it for JIT disassembly
+  CFLAGS  += -DHAVE_LLVM_SUPPORT
+  LLVM_CONFIG_LIB_COMPONENTS := mcdisassembler all-targets
+  CFLAGS  += $(shell $(LLVM_CONFIG) --cflags --libs $(LLVM_CONFIG_LIB_COMPONENTS))
+  LIBS    += $(shell $(LLVM_CONFIG) --libs $(LLVM_CONFIG_LIB_COMPONENTS))
+  ifeq ($(shell $(LLVM_CONFIG) --shared-mode),static)
+    LIBS += $(shell $(LLVM_CONFIG) --system-libs $(LLVM_CONFIG_LIB_COMPONENTS))
+    LIBS += -lstdc++
+  endif
+  LDFLAGS += $(shell $(LLVM_CONFIG) --ldflags)
+else
+  # Fall back on libbfd
+  ifeq ($(feature-libbfd),1)
+    LIBS += -lbfd -ldl -lopcodes
+  else ifeq ($(feature-libbfd-liberty),1)
+    LIBS += -lbfd -ldl -lopcodes -liberty
+  else ifeq ($(feature-libbfd-liberty-z),1)
+    LIBS += -lbfd -ldl -lopcodes -liberty -lz
+  endif
 
-ifeq ($(feature-libbfd),1)
-  LIBS += -lbfd -ldl -lopcodes
-else ifeq ($(feature-libbfd-liberty),1)
-  LIBS += -lbfd -ldl -lopcodes -liberty
-else ifeq ($(feature-libbfd-liberty-z),1)
-  LIBS += -lbfd -ldl -lopcodes -liberty -lz
+  # If one of the above feature combinations is set, we support libbfd
+  ifneq ($(filter -lbfd,$(LIBS)),)
+    CFLAGS += -DHAVE_LIBBFD_SUPPORT
+
+    # Libbfd interface changed over time, figure out what we need
+    ifeq ($(feature-disassembler-four-args), 1)
+      CFLAGS += -DDISASM_FOUR_ARGS_SIGNATURE
+    endif
+    ifeq ($(feature-disassembler-init-styled), 1)
+      CFLAGS += -DDISASM_INIT_STYLED
+    endif
+  endif
 endif
-
-ifneq ($(filter -lbfd,$(LIBS)),)
-CFLAGS += -DHAVE_LIBBFD_SUPPORT
-SRCS += $(BFD_SRCS)
+ifeq ($(filter -DHAVE_LLVM_SUPPORT -DHAVE_LIBBFD_SUPPORT,$(CFLAGS)),)
+  # No support for JIT disassembly
+  SRCS := $(filter-out jit_disasm.c,$(SRCS))
 endif
 
 HOST_CFLAGS = $(subst -I$(LIBBPF_INCLUDE),-I$(LIBBPF_BOOTSTRAP_INCLUDE),\
@@ -187,7 +215,8 @@ $(OUTPUT)%.bpf.o: skeleton/%.bpf.c $(OUTPUT)vmlinux.h $(LIBBPF_BOOTSTRAP)
 		-I$(or $(OUTPUT),.) \
 		-I$(srctree)/tools/include/uapi/ \
 		-I$(LIBBPF_BOOTSTRAP_INCLUDE) \
-		-g -O2 -Wall -target bpf -c $< -o $@
+		-g -O2 -Wall -fno-stack-protector \
+		-target bpf -c $< -o $@
 	$(Q)$(LLVM_STRIP) -g $@
 
 $(OUTPUT)%.skel.h: $(OUTPUT)%.bpf.o $(BPFTOOL_BOOTSTRAP)
@@ -265,3 +294,6 @@ FORCE:
 .PHONY: all FORCE bootstrap clean install-bin install uninstall
 .PHONY: doc doc-clean doc-install doc-uninstall
 .DEFAULT_GOAL := all
+
+# Delete partially updated (corrupted) files on error
+.DELETE_ON_ERROR:

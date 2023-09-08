@@ -95,14 +95,9 @@
 		#size-cells = <1>;
 		ranges;
 
-		flash_memory: region@b8000000 {
-			no-map;
-			reg = <0xb8000000 0x04000000>; /* 64M */
-		};
-
-		ramoops@bc000000 {
+		ramoops@b3e00000 {
 			compatible = "ramoops";
-			reg = <0xbc000000 0x200000>; /* 16 * (4 * 0x8000) */
+			reg = <0xb3e00000 0x200000>; /* 16 * (4 * 0x8000) */
 			record-size = <0x8000>;
 			console-size = <0x8000>;
 			ftrace-size = <0x8000>;
@@ -110,6 +105,13 @@
 			max-reason = <3>; /* KMSG_DUMP_EMERG */
 		};
 
+		/* LPC FW cycle bridge region requires natural alignment */
+		flash_memory: region@b4000000 {
+			no-map;
+			reg = <0xb4000000 0x04000000>; /* 64M */
+		};
+
+		/* VGA region is dictated by hardware strapping */
 		vga_memory: region@bf000000 {
 			no-map;
 			compatible = "shared-dma-pool";
@@ -218,7 +220,7 @@
 		};
 	};
 
-	iio-hwmon-battery {
+	iio-hwmon {
 		compatible = "iio-hwmon";
 		io-channels = <&adc1 7>;
 	};
@@ -442,6 +444,11 @@
 
 			fsi_occ0: occ {
 				compatible = "ibm,p10-occ";
+
+				occ-hwmon {
+					compatible = "ibm,p10-occ-hwmon";
+					ibm,no-poll-on-init;
+				};
 			};
 		};
 
@@ -586,6 +593,11 @@
 
 			fsi_occ1: occ {
 				compatible = "ibm,p10-occ";
+
+				occ-hwmon {
+					compatible = "ibm,p10-occ-hwmon";
+					ibm,no-poll-on-init;
+				};
 			};
 		};
 
@@ -730,6 +742,11 @@
 
 			fsi_occ2: occ {
 				compatible = "ibm,p10-occ";
+
+				occ-hwmon {
+					compatible = "ibm,p10-occ-hwmon";
+					ibm,no-poll-on-init;
+				};
 			};
 		};
 
@@ -874,6 +891,11 @@
 
 			fsi_occ3: occ {
 				compatible = "ibm,p10-occ";
+
+				occ-hwmon {
+					compatible = "ibm,p10-occ-hwmon";
+					ibm,no-poll-on-init;
+				};
 			};
 		};
 
@@ -995,32 +1017,6 @@
 		reg = <0x4a>;
 	};
 
-	pca9551@60 {
-		compatible = "nxp,pca9551";
-		reg = <0x60>;
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		gpio-controller;
-		#gpio-cells = <2>;
-
-		led@0 {
-			label = "cablecard0-cxp-top";
-			reg = <0>;
-			retain-state-shutdown;
-			default-state = "keep";
-			type = <PCA955X_TYPE_LED>;
-		};
-
-		led@1 {
-			label = "cablecard0-cxp-bot";
-			reg = <1>;
-			retain-state-shutdown;
-			default-state = "keep";
-			type = <PCA955X_TYPE_LED>;
-		};
-	};
-
 	pca9546@70 {
 		compatible = "nxp,pca9546";
 		reg = <0x70>;
@@ -1037,6 +1033,32 @@
 			eeprom@50 {
 				compatible = "atmel,24c64";
 				reg = <0x50>;
+			};
+
+			pca9551@60 {
+				compatible = "nxp,pca9551";
+				reg = <0x60>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				gpio-controller;
+				#gpio-cells = <2>;
+
+				led@0 {
+					label = "cablecard0-cxp-top";
+					reg = <0>;
+					retain-state-shutdown;
+					default-state = "keep";
+					type = <PCA955X_TYPE_LED>;
+				};
+
+				led@1 {
+					label = "cablecard0-cxp-bot";
+					reg = <1>;
+					retain-state-shutdown;
+					default-state = "keep";
+					type = <PCA955X_TYPE_LED>;
+				};
 			};
 		};
 
@@ -1077,58 +1099,6 @@
 		reg = <0x49>;
 	};
 
-	pca9551@60 {
-		compatible = "nxp,pca9551";
-		reg = <0x60>;
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		gpio-controller;
-		#gpio-cells = <2>;
-
-		led@0 {
-			label = "cablecard3-cxp-top";
-			reg = <0>;
-			retain-state-shutdown;
-			default-state = "keep";
-			type = <PCA955X_TYPE_LED>;
-		};
-
-		led@1 {
-			label = "cablecard3-cxp-bot";
-			reg = <1>;
-			retain-state-shutdown;
-			default-state = "keep";
-			type = <PCA955X_TYPE_LED>;
-		};
-	};
-
-	pca9551@61 {
-		compatible = "nxp,pca9551";
-		reg = <0x61>;
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		gpio-controller;
-		#gpio-cells = <2>;
-
-		led@0 {
-			label = "cablecard4-cxp-top";
-			reg = <0>;
-			retain-state-shutdown;
-			default-state = "keep";
-			type = <PCA955X_TYPE_LED>;
-		};
-
-		led@1 {
-			label = "cablecard4-cxp-bot";
-			reg = <1>;
-			retain-state-shutdown;
-			default-state = "keep";
-			type = <PCA955X_TYPE_LED>;
-		};
-	};
-
 	pca9546@70 {
 		compatible = "nxp,pca9546";
 		reg = <0x70>;
@@ -1146,6 +1116,32 @@
 				compatible = "atmel,24c64";
 				reg = <0x50>;
 			};
+
+			pca9551@60 {
+				compatible = "nxp,pca9551";
+				reg = <0x60>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				gpio-controller;
+				#gpio-cells = <2>;
+
+				led@0 {
+					label = "cablecard3-cxp-top";
+					reg = <0>;
+					retain-state-shutdown;
+					default-state = "keep";
+					type = <PCA955X_TYPE_LED>;
+				};
+
+				led@1 {
+					label = "cablecard3-cxp-bot";
+					reg = <1>;
+					retain-state-shutdown;
+					default-state = "keep";
+					type = <PCA955X_TYPE_LED>;
+				};
+			};
 		};
 
 		i2c5mux0chn1: i2c@1 {
@@ -1156,6 +1152,32 @@
 			eeprom@51 {
 				compatible = "atmel,24c64";
 				reg = <0x51>;
+			};
+
+			pca9551@61 {
+				compatible = "nxp,pca9551";
+				reg = <0x61>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				gpio-controller;
+				#gpio-cells = <2>;
+
+				led@0 {
+					label = "cablecard4-cxp-top";
+					reg = <0>;
+					retain-state-shutdown;
+					default-state = "keep";
+					type = <PCA955X_TYPE_LED>;
+				};
+
+				led@1 {
+					label = "cablecard4-cxp-bot";
+					reg = <1>;
+					retain-state-shutdown;
+					default-state = "keep";
+					type = <PCA955X_TYPE_LED>;
+				};
 			};
 		};
 	};
@@ -2009,32 +2031,6 @@
 		reg = <0x49>;
 	};
 
-	pca9551@60 {
-		compatible = "nxp,pca9551";
-		reg = <0x60>;
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		gpio-controller;
-		#gpio-cells = <2>;
-
-		led@0 {
-			label = "cablecard10-cxp-top";
-			reg = <0>;
-			retain-state-shutdown;
-			default-state = "keep";
-			type = <PCA955X_TYPE_LED>;
-		};
-
-		led@1 {
-			label = "cablecard10-cxp-bot";
-			reg = <1>;
-			retain-state-shutdown;
-			default-state = "keep";
-			type = <PCA955X_TYPE_LED>;
-		};
-	};
-
 	pca9546@70 {
 		compatible = "nxp,pca9546";
 		reg = <0x70>;
@@ -2051,6 +2047,32 @@
 			eeprom@50 {
 				compatible = "atmel,24c64";
 				reg = <0x50>;
+			};
+
+			pca9551@60 {
+				compatible = "nxp,pca9551";
+				reg = <0x60>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				gpio-controller;
+				#gpio-cells = <2>;
+
+				led@0 {
+					label = "cablecard10-cxp-top";
+					reg = <0>;
+					retain-state-shutdown;
+					default-state = "keep";
+					type = <PCA955X_TYPE_LED>;
+				};
+
+				led@1 {
+					label = "cablecard10-cxp-bot";
+					reg = <1>;
+					retain-state-shutdown;
+					default-state = "keep";
+					type = <PCA955X_TYPE_LED>;
+				};
 			};
 		};
 
@@ -2328,6 +2350,10 @@
 			type = <PCA955X_TYPE_LED>;
 		};
 	};
+};
+
+&uart2 {
+	status = "okay";
 };
 
 &vuart1 {

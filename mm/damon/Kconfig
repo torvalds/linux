@@ -60,7 +60,7 @@ config DAMON_SYSFS
 	  the interface for arbitrary data access monitoring.
 
 config DAMON_DBGFS
-	bool "DAMON debugfs interface"
+	bool "DAMON debugfs interface (DEPRECATED!)"
 	depends on DAMON_VADDR && DAMON_PADDR && DEBUG_FS
 	help
 	  This builds the debugfs interface for DAMON.  The user space admins
@@ -68,8 +68,9 @@ config DAMON_DBGFS
 
 	  If unsure, say N.
 
-	  This will be removed after >5.15.y LTS kernel is released, so users
-	  should move to the sysfs interface (DAMON_SYSFS).
+	  This is deprecated, so users should move to the sysfs interface
+	  (DAMON_SYSFS).  If you depend on this and cannot move, please report
+	  your usecase to damon@lists.linux.dev and linux-mm@kvack.org.
 
 config DAMON_DBGFS_KUNIT_TEST
 	bool "Test for damon debugfs interface" if !KUNIT_ALL_TESTS

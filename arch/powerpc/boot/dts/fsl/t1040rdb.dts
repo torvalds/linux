@@ -180,6 +180,9 @@
 };
 
 &seville_port8 {
-	ethernet = <&enet0>;
+	status = "okay";
+};
+
+&seville_port9 {
 	status = "okay";
 };

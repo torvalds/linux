@@ -68,3 +68,10 @@ Description:
 		Wasted   burnt and invalid
 		Invalid  not burnt but marked as valid (error state).
 		=======  ===============================================
+
+What:		/sys/bus/platform/devices/MLNXBF04:00/bootfifo
+Date:		Apr 2023
+KernelVersion:	6.4
+Contact:	"Liming Sun <limings@nvidia.com>"
+Description:
+		The file used to access the BlueField boot fifo.

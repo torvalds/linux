@@ -2908,7 +2908,6 @@ static int pch_udc_start(struct usb_gadget *g,
 {
 	struct pch_udc_dev	*dev = to_pch_udc(g);
 
-	driver->driver.bus = NULL;
 	dev->driver = driver;
 
 	/* get ready for ep0 traffic */

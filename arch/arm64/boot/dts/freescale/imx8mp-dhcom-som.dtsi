@@ -83,7 +83,7 @@
 
 &eqos {	/* First ethernet */
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_eqos>;
+	pinctrl-0 = <&pinctrl_eqos_rgmii>;
 	phy-handle = <&ethphy0g>;
 	phy-mode = "rgmii-id";
 	status = "okay";
@@ -94,14 +94,14 @@
 		#size-cells = <0>;
 
 		/* Up to one of these two PHYs may be populated. */
-		ethphy0f: ethernet-phy@1 { /* SMSC LAN8740Ai */
+		ethphy0f: ethernet-phy@0 { /* SMSC LAN8740Ai */
 			compatible = "ethernet-phy-id0007.c110",
 				     "ethernet-phy-ieee802.3-c22";
 			interrupt-parent = <&gpio3>;
 			interrupts = <19 IRQ_TYPE_LEVEL_LOW>;
 			pinctrl-0 = <&pinctrl_ethphy0>;
 			pinctrl-names = "default";
-			reg = <1>;
+			reg = <0>;
 			reset-assert-us = <1000>;
 			reset-deassert-us = <1000>;
 			reset-gpios = <&gpio3 20 GPIO_ACTIVE_LOW>;
@@ -129,9 +129,9 @@
 
 &fec {	/* Second ethernet */
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_fec>;
+	pinctrl-0 = <&pinctrl_fec_rmii>;
 	phy-handle = <&ethphy1f>;
-	phy-mode = "rgmii";
+	phy-mode = "rmii";
 	fsl,magic-packet;
 	status = "okay";
 
@@ -239,7 +239,6 @@
 		pinctrl-0 = <&pinctrl_pmic>;
 		interrupt-parent = <&gpio1>;
 		interrupts = <3 IRQ_TYPE_LEVEL_LOW>;
-		sd-vsel-gpios = <&gpio1 4 GPIO_ACTIVE_HIGH>;
 
 		/*
 		 * i.MX 8M Plus Data Sheet for Consumer Products
@@ -248,7 +247,6 @@
 		 */
 		regulators {
 			buck1: BUCK1 {	/* VDD_SOC (dual-phase with BUCK3) */
-				regulator-compatible = "BUCK1";
 				regulator-min-microvolt = <850000>;
 				regulator-max-microvolt = <1000000>;
 				regulator-ramp-delay = <3125>;
@@ -257,7 +255,6 @@
 			};
 
 			buck2: BUCK2 {	/* VDD_ARM */
-				regulator-compatible = "BUCK2";
 				regulator-min-microvolt = <850000>;
 				regulator-max-microvolt = <1000000>;
 				regulator-ramp-delay = <3125>;
@@ -266,7 +263,6 @@
 			};
 
 			buck4: BUCK4 {	/* VDD_3V3 */
-				regulator-compatible = "BUCK4";
 				regulator-min-microvolt = <3300000>;
 				regulator-max-microvolt = <3300000>;
 				regulator-always-on;
@@ -274,7 +270,6 @@
 			};
 
 			buck5: BUCK5 {	/* VDD_1V8 */
-				regulator-compatible = "BUCK5";
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <1800000>;
 				regulator-always-on;
@@ -282,7 +277,6 @@
 			};
 
 			buck6: BUCK6 {	/* NVCC_DRAM_1V1 */
-				regulator-compatible = "BUCK6";
 				regulator-min-microvolt = <1100000>;
 				regulator-max-microvolt = <1100000>;
 				regulator-always-on;
@@ -290,7 +284,6 @@
 			};
 
 			ldo1: LDO1 {	/* NVCC_SNVS_1V8 */
-				regulator-compatible = "LDO1";
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <1800000>;
 				regulator-always-on;
@@ -298,7 +291,6 @@
 			};
 
 			ldo3: LDO3 {	/* VDDA_1V8 */
-				regulator-compatible = "LDO3";
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <1800000>;
 				regulator-always-on;
@@ -306,13 +298,11 @@
 			};
 
 			ldo4: LDO4 {	/* PMIC_LDO4 */
-				regulator-compatible = "LDO4";
 				regulator-min-microvolt = <3300000>;
 				regulator-max-microvolt = <3300000>;
 			};
 
 			ldo5: LDO5 {	/* NVCC_SD2 */
-				regulator-compatible = "LDO5";
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <3300000>;
 			};
@@ -427,6 +417,25 @@
 	pinctrl-0 = <&pinctrl_uart2>;
 	uart-has-rtscts;
 	status = "okay";
+
+	/*
+	 * PLL1 at 80 MHz supplies UART2 root with 80 MHz clock,
+	 * which with 16x oversampling yields 5 Mbdps baud base,
+	 * which can be well divided by 5/4 to achieve 4 Mbdps,
+	 * which is exactly the maximum rate supported by muRata
+	 * 2AE bluetooth UART.
+	 */
+	assigned-clocks = <&clk IMX8MP_CLK_UART2>;
+	assigned-clock-parents = <&clk IMX8MP_SYS_PLL1_80M>;
+	assigned-clock-rates = <80000000>;
+
+	bluetooth {
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_uart2_bt>;
+		compatible = "cypress,cyw4373a0-bt";
+		shutdown-gpios = <&gpio1 12 GPIO_ACTIVE_HIGH>;
+		max-speed = <4000000>;
+	};
 };
 
 &uart3 {
@@ -538,7 +547,7 @@
 		     &pinctrl_dhcom_d &pinctrl_dhcom_e &pinctrl_dhcom_f
 		     &pinctrl_dhcom_g &pinctrl_dhcom_h &pinctrl_dhcom_i
 		     &pinctrl_dhcom_j &pinctrl_dhcom_k &pinctrl_dhcom_l
-		     /* GPIO_M is connected to CLKOUT2 */
+		     /* GPIO_M is connected to CLKOUT1 */
 		     &pinctrl_dhcom_int>;
 	pinctrl-names = "default";
 
@@ -664,7 +673,7 @@
 		>;
 	};
 
-	pinctrl_eqos: dhcom-eqos-grp {	/* RGMII */
+	pinctrl_eqos_rgmii: dhcom-eqos-rgmii-grp {	/* RGMII */
 		fsl,pins = <
 			MX8MP_IOMUXC_ENET_MDC__ENET_QOS_MDC		0x3
 			MX8MP_IOMUXC_ENET_MDIO__ENET_QOS_MDIO		0x3
@@ -683,6 +692,22 @@
 		>;
 	};
 
+	pinctrl_eqos_rmii: dhcom-eqos-rmii-grp {	/* RMII */
+		fsl,pins = <
+			MX8MP_IOMUXC_ENET_MDC__ENET_QOS_MDC		0x3
+			MX8MP_IOMUXC_ENET_MDIO__ENET_QOS_MDIO		0x3
+			MX8MP_IOMUXC_ENET_TX_CTL__ENET_QOS_RGMII_TX_CTL	0x1f
+			MX8MP_IOMUXC_ENET_TD0__ENET_QOS_RGMII_TD0	0x1f
+			MX8MP_IOMUXC_ENET_TD1__ENET_QOS_RGMII_TD1	0x1f
+			MX8MP_IOMUXC_ENET_RXC__ENET_QOS_RX_ER		0x1f
+			MX8MP_IOMUXC_ENET_RX_CTL__ENET_QOS_RGMII_RX_CTL	0x91
+			MX8MP_IOMUXC_ENET_RD0__ENET_QOS_RGMII_RD0	0x91
+			MX8MP_IOMUXC_ENET_RD1__ENET_QOS_RGMII_RD1	0x91
+			/* Clock */
+			MX8MP_IOMUXC_ENET_TD2__CCM_ENET_QOS_CLOCK_GENERATE_REF_CLK	0x4000001f
+		>;
+	};
+
 	pinctrl_enet_vio: dhcom-enet-vio-grp {
 		fsl,pins = <
 			MX8MP_IOMUXC_SD1_RESET_B__GPIO2_IO10		0x22
@@ -691,9 +716,9 @@
 
 	pinctrl_ethphy0: dhcom-ethphy0-grp {
 		fsl,pins = <
-			/* ENET1_#RST Reset */
+			/* ENET_QOS_#RST Reset */
 			MX8MP_IOMUXC_SAI5_RXC__GPIO3_IO20		0x22
-			/* ENET1_#INT Interrupt */
+			/* ENET_QOS_#INT Interrupt */
 			MX8MP_IOMUXC_SAI5_RXFS__GPIO3_IO19		0x22
 		>;
 	};
@@ -707,7 +732,7 @@
 		>;
 	};
 
-	pinctrl_fec: dhcom-fec-grp {
+	pinctrl_fec_rgmii: dhcom-fec-rgmii-grp {	/* RGMII */
 		fsl,pins = <
 			MX8MP_IOMUXC_SAI1_MCLK__ENET1_TX_CLK		0x1f
 			MX8MP_IOMUXC_SAI1_RXD2__ENET1_MDC		0x3
@@ -725,6 +750,22 @@
 			MX8MP_IOMUXC_SAI1_TXD4__ENET1_RGMII_TX_CTL	0x1f
 			MX8MP_IOMUXC_SAI1_TXD5__ENET1_RGMII_TXC		0x1f
 			MX8MP_IOMUXC_SAI1_TXD6__ENET1_RX_ER		0x1f
+		>;
+	};
+
+	pinctrl_fec_rmii: dhcom-fec-rmii-grp {	/* RMII */
+		fsl,pins = <
+			MX8MP_IOMUXC_SAI1_RXD2__ENET1_MDC		0x3
+			MX8MP_IOMUXC_SAI1_RXD3__ENET1_MDIO		0x3
+			MX8MP_IOMUXC_SAI1_RXD4__ENET1_RGMII_RD0		0x91
+			MX8MP_IOMUXC_SAI1_RXD5__ENET1_RGMII_RD1		0x91
+			MX8MP_IOMUXC_SAI1_TXFS__ENET1_RGMII_RX_CTL	0x91
+			MX8MP_IOMUXC_SAI1_TXD6__ENET1_RX_ER		0x91
+			MX8MP_IOMUXC_SAI1_TXD0__ENET1_RGMII_TD0		0x1f
+			MX8MP_IOMUXC_SAI1_TXD1__ENET1_RGMII_TD1		0x1f
+			MX8MP_IOMUXC_SAI1_TXD4__ENET1_RGMII_TX_CTL	0x1f
+			/* Clock */
+			MX8MP_IOMUXC_SAI1_MCLK__ENET1_TX_CLK		0x4000001f
 		>;
 	};
 
@@ -849,6 +890,13 @@
 		>;
 	};
 
+	pinctrl_uart2_bt: dhcom-uart2-bt-grp {
+		fsl,pins = <
+			/* BT_REG_EN */
+			MX8MP_IOMUXC_GPIO1_IO12__GPIO1_IO12		0x144
+		>;
+	};
+
 	pinctrl_uart3: dhcom-uart3-grp {
 		fsl,pins = <
 			MX8MP_IOMUXC_ECSPI1_SCLK__UART3_DCE_RX		0x49
@@ -886,8 +934,6 @@
 			MX8MP_IOMUXC_SD1_DATA1__USDHC1_DATA1		0x1d0
 			MX8MP_IOMUXC_SD1_DATA2__USDHC1_DATA2		0x1d0
 			MX8MP_IOMUXC_SD1_DATA3__USDHC1_DATA3		0x1d0
-			/* BT_REG_EN */
-			MX8MP_IOMUXC_GPIO1_IO12__GPIO1_IO12		0x144
 			/* WL_REG_EN */
 			MX8MP_IOMUXC_GPIO1_IO13__GPIO1_IO13		0x144
 		>;
@@ -901,8 +947,6 @@
 			MX8MP_IOMUXC_SD1_DATA1__USDHC1_DATA1		0x1d4
 			MX8MP_IOMUXC_SD1_DATA2__USDHC1_DATA2		0x1d4
 			MX8MP_IOMUXC_SD1_DATA3__USDHC1_DATA3		0x1d4
-			/* BT_REG_EN */
-			MX8MP_IOMUXC_GPIO1_IO12__GPIO1_IO12		0x144
 			/* WL_REG_EN */
 			MX8MP_IOMUXC_GPIO1_IO13__GPIO1_IO13		0x144
 		>;
@@ -916,8 +960,6 @@
 			MX8MP_IOMUXC_SD1_DATA1__USDHC1_DATA1		0x1d6
 			MX8MP_IOMUXC_SD1_DATA2__USDHC1_DATA2		0x1d6
 			MX8MP_IOMUXC_SD1_DATA3__USDHC1_DATA3		0x1d6
-			/* BT_REG_EN */
-			MX8MP_IOMUXC_GPIO1_IO12__GPIO1_IO12		0x144
 			/* WL_REG_EN */
 			MX8MP_IOMUXC_GPIO1_IO13__GPIO1_IO13		0x144
 		>;

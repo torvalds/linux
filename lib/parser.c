@@ -11,6 +11,15 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 
+/*
+ * max size needed by different bases to express U64
+ * HEX: "0xFFFFFFFFFFFFFFFF" --> 18
+ * DEC: "18446744073709551615" --> 20
+ * OCT: "01777777777777777777777" --> 23
+ * pick the max one to define NUMBER_BUF_LEN
+ */
+#define NUMBER_BUF_LEN 24
+
 /**
  * match_one - Determines if a string matches a simple pattern
  * @s: the string to examine for presence of the pattern
@@ -124,19 +133,17 @@ EXPORT_SYMBOL(match_token);
  * as a number in that base.
  *
  * Return: On success, sets @result to the integer represented by the
- * string and returns 0. Returns -ENOMEM, -EINVAL, or -ERANGE on failure.
+ * string and returns 0. Returns -EINVAL or -ERANGE on failure.
  */
 static int match_number(substring_t *s, int *result, int base)
 {
 	char *endp;
-	char *buf;
+	char buf[NUMBER_BUF_LEN];
 	int ret;
 	long val;
 
-	buf = match_strdup(s);
-	if (!buf)
-		return -ENOMEM;
-
+	if (match_strlcpy(buf, s, NUMBER_BUF_LEN) >= NUMBER_BUF_LEN)
+		return -ERANGE;
 	ret = 0;
 	val = simple_strtol(buf, &endp, base);
 	if (endp == buf)
@@ -145,7 +152,6 @@ static int match_number(substring_t *s, int *result, int base)
 		ret = -ERANGE;
 	else
 		*result = (int) val;
-	kfree(buf);
 	return ret;
 }
 
@@ -159,22 +165,19 @@ static int match_number(substring_t *s, int *result, int base)
  * as a number in that base.
  *
  * Return: On success, sets @result to the integer represented by the
- * string and returns 0. Returns -ENOMEM, -EINVAL, or -ERANGE on failure.
+ * string and returns 0. Returns -EINVAL or -ERANGE on failure.
  */
 static int match_u64int(substring_t *s, u64 *result, int base)
 {
-	char *buf;
+	char buf[NUMBER_BUF_LEN];
 	int ret;
 	u64 val;
 
-	buf = match_strdup(s);
-	if (!buf)
-		return -ENOMEM;
-
+	if (match_strlcpy(buf, s, NUMBER_BUF_LEN) >= NUMBER_BUF_LEN)
+		return -ERANGE;
 	ret = kstrtoull(buf, base, &val);
 	if (!ret)
 		*result = val;
-	kfree(buf);
 	return ret;
 }
 
@@ -186,7 +189,7 @@ static int match_u64int(substring_t *s, u64 *result, int base)
  * Description: Attempts to parse the &substring_t @s as a decimal integer.
  *
  * Return: On success, sets @result to the integer represented by the string
- * and returns 0. Returns -ENOMEM, -EINVAL, or -ERANGE on failure.
+ * and returns 0. Returns -EINVAL or -ERANGE on failure.
  */
 int match_int(substring_t *s, int *result)
 {
@@ -202,18 +205,16 @@ EXPORT_SYMBOL(match_int);
  * Description: Attempts to parse the &substring_t @s as a decimal integer.
  *
  * Return: On success, sets @result to the integer represented by the string
- * and returns 0. Returns -ENOMEM, -EINVAL, or -ERANGE on failure.
+ * and returns 0. Returns -EINVAL or -ERANGE on failure.
  */
 int match_uint(substring_t *s, unsigned int *result)
 {
-	int err = -ENOMEM;
-	char *buf = match_strdup(s);
+	char buf[NUMBER_BUF_LEN];
 
-	if (buf) {
-		err = kstrtouint(buf, 10, result);
-		kfree(buf);
-	}
-	return err;
+	if (match_strlcpy(buf, s, NUMBER_BUF_LEN) >= NUMBER_BUF_LEN)
+		return -ERANGE;
+
+	return kstrtouint(buf, 10, result);
 }
 EXPORT_SYMBOL(match_uint);
 
@@ -227,7 +228,7 @@ EXPORT_SYMBOL(match_uint);
  * integer.
  *
  * Return: On success, sets @result to the integer represented by the string
- * and returns 0. Returns -ENOMEM, -EINVAL, or -ERANGE on failure.
+ * and returns 0. Returns -EINVAL or -ERANGE on failure.
  */
 int match_u64(substring_t *s, u64 *result)
 {
@@ -243,7 +244,7 @@ EXPORT_SYMBOL(match_u64);
  * Description: Attempts to parse the &substring_t @s as an octal integer.
  *
  * Return: On success, sets @result to the integer represented by the string
- * and returns 0. Returns -ENOMEM, -EINVAL, or -ERANGE on failure.
+ * and returns 0. Returns -EINVAL or -ERANGE on failure.
  */
 int match_octal(substring_t *s, int *result)
 {
@@ -259,7 +260,7 @@ EXPORT_SYMBOL(match_octal);
  * Description: Attempts to parse the &substring_t @s as a hexadecimal integer.
  *
  * Return: On success, sets @result to the integer represented by the string
- * and returns 0. Returns -ENOMEM, -EINVAL, or -ERANGE on failure.
+ * and returns 0. Returns -EINVAL or -ERANGE on failure.
  */
 int match_hex(substring_t *s, int *result)
 {

@@ -25,6 +25,11 @@ endif
 32bit-emul		= elf32loongarch
 64bit-emul		= elf64loongarch
 
+ifdef CONFIG_DYNAMIC_FTRACE
+KBUILD_CPPFLAGS += -DCC_USING_PATCHABLE_FUNCTION_ENTRY
+CC_FLAGS_FTRACE := -fpatchable-function-entry=2
+endif
+
 ifdef CONFIG_64BIT
 tool-archpref		= $(64bit-tool-archpref)
 UTS_MACHINE		:= loongarch64
@@ -66,14 +71,15 @@ KBUILD_AFLAGS_MODULE		+= -Wa,-mla-global-with-abs
 KBUILD_CFLAGS_MODULE		+= -fplt -Wa,-mla-global-with-abs,-mla-local-with-abs
 endif
 
+ifeq ($(CONFIG_RELOCATABLE),y)
+KBUILD_CFLAGS_KERNEL		+= -fPIE
+LDFLAGS_vmlinux			+= -static -pie --no-dynamic-linker -z notext
+endif
+
 cflags-y += -ffreestanding
 cflags-y += $(call cc-option, -mno-check-zero-division)
 
-ifndef CONFIG_PHYSICAL_START
 load-y		= 0x9000000000200000
-else
-load-y		= $(CONFIG_PHYSICAL_START)
-endif
 bootvars-y	= VMLINUX_LOAD_ADDRESS=$(load-y)
 
 drivers-$(CONFIG_PCI)		+= arch/loongarch/pci/
@@ -86,10 +92,15 @@ KBUILD_CPPFLAGS += -DVMLINUX_LOAD_ADDRESS=$(load-y)
 # instead of .eh_frame so we don't discard them.
 KBUILD_CFLAGS += -fno-asynchronous-unwind-tables
 
+ifdef CONFIG_ARCH_STRICT_ALIGN
 # Don't emit unaligned accesses.
 # Not all LoongArch cores support unaligned access, and as kernel we can't
 # rely on others to provide emulation for these accesses.
 KBUILD_CFLAGS += $(call cc-option,-mstrict-align)
+else
+# Optimise for performance on hardware supports unaligned access.
+KBUILD_CFLAGS += $(call cc-option,-mno-strict-align)
+endif
 
 KBUILD_CFLAGS += -isystem $(shell $(CC) -print-file-name=include)
 
@@ -103,6 +114,11 @@ endif
 
 libs-y += arch/loongarch/lib/
 libs-$(CONFIG_EFI_STUB) += $(objtree)/drivers/firmware/efi/libstub/lib.a
+
+drivers-y		+= arch/loongarch/crypto/
+
+# suspend and hibernation support
+drivers-$(CONFIG_PM)	+= arch/loongarch/power/
 
 ifeq ($(KBUILD_EXTMOD),)
 prepare: vdso_prepare

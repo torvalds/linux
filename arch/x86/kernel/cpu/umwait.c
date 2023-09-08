@@ -232,7 +232,11 @@ static int __init umwait_init(void)
 	 * Add umwait control interface. Ignore failure, so at least the
 	 * default values are set up in case the machine manages to boot.
 	 */
-	dev = cpu_subsys.dev_root;
-	return sysfs_create_group(&dev->kobj, &umwait_attr_group);
+	dev = bus_get_dev_root(&cpu_subsys);
+	if (dev) {
+		ret = sysfs_create_group(&dev->kobj, &umwait_attr_group);
+		put_device(dev);
+	}
+	return ret;
 }
 device_initcall(umwait_init);

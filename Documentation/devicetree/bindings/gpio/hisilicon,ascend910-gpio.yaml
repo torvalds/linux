@@ -1,0 +1,56 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/gpio/hisilicon,ascend910-gpio.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: HiSilicon common GPIO controller
+
+maintainers:
+  - Jay Fang <f.fangjian@huawei.com>
+
+description:
+  The HiSilicon common GPIO controller can be used for many different
+  types of SoC such as Huawei Ascend AI series chips.
+
+properties:
+  compatible:
+    const: hisilicon,ascend910-gpio
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  gpio-controller: true
+
+  "#gpio-cells":
+    const: 2
+
+  ngpios:
+    minimum: 1
+    maximum: 32
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - gpio-controller
+  - "#gpio-cells"
+  - ngpios
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    gpio@840d0000 {
+      compatible = "hisilicon,ascend910-gpio";
+      reg = <0x840d0000 0x1000>;
+      ngpios = <32>;
+      gpio-controller;
+      #gpio-cells = <2>;
+      interrupts = <GIC_SPI 33 IRQ_TYPE_LEVEL_HIGH>;
+    };

@@ -119,15 +119,6 @@ static inline void mchp_corespi_write(struct mchp_corespi *spi, unsigned int reg
 	writel(val, spi->regs + reg);
 }
 
-static inline void mchp_corespi_enable(struct mchp_corespi *spi)
-{
-	u32 control = mchp_corespi_read(spi, REG_CONTROL);
-
-	control |= CONTROL_ENABLE;
-
-	mchp_corespi_write(spi, REG_CONTROL, control);
-}
-
 static inline void mchp_corespi_disable(struct mchp_corespi *spi)
 {
 	u32 control = mchp_corespi_read(spi, REG_CONTROL);
@@ -256,8 +247,8 @@ static void mchp_corespi_set_cs(struct spi_device *spi, bool disable)
 	struct mchp_corespi *corespi = spi_master_get_devdata(spi->master);
 
 	reg = mchp_corespi_read(corespi, REG_SLAVE_SELECT);
-	reg &= ~BIT(spi->chip_select);
-	reg |= !disable << spi->chip_select;
+	reg &= ~BIT(spi_get_chipselect(spi, 0));
+	reg |= !disable << spi_get_chipselect(spi, 0);
 
 	mchp_corespi_write(corespi, REG_SLAVE_SELECT, reg);
 }
@@ -274,7 +265,7 @@ static int mchp_corespi_setup(struct spi_device *spi)
 	 */
 	if (spi->mode & SPI_CS_HIGH) {
 		reg = mchp_corespi_read(corespi, REG_SLAVE_SELECT);
-		reg |= BIT(spi->chip_select);
+		reg |= BIT(spi_get_chipselect(spi, 0));
 		mchp_corespi_write(corespi, REG_SLAVE_SELECT, reg);
 	}
 	return 0;
@@ -575,7 +566,7 @@ static int mchp_corespi_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int mchp_corespi_remove(struct platform_device *pdev)
+static void mchp_corespi_remove(struct platform_device *pdev)
 {
 	struct spi_master *master  = platform_get_drvdata(pdev);
 	struct mchp_corespi *spi = spi_master_get_devdata(master);
@@ -583,8 +574,6 @@ static int mchp_corespi_remove(struct platform_device *pdev)
 	mchp_corespi_disable_ints(spi);
 	clk_disable_unprepare(spi->clk);
 	mchp_corespi_disable(spi);
-
-	return 0;
 }
 
 #define MICROCHIP_SPI_PM_OPS (NULL)
@@ -608,7 +597,7 @@ static struct platform_driver mchp_corespi_driver = {
 		.pm = MICROCHIP_SPI_PM_OPS,
 		.of_match_table = of_match_ptr(mchp_corespi_dt_ids),
 	},
-	.remove = mchp_corespi_remove,
+	.remove_new = mchp_corespi_remove,
 };
 module_platform_driver(mchp_corespi_driver);
 MODULE_DESCRIPTION("Microchip coreSPI SPI controller driver");

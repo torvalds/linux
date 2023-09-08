@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2003 Sistina Software.
  * Copyright (C) 2004 Red Hat, Inc. All rights reserved.
@@ -52,44 +53,43 @@ struct path_selector_type {
 	/*
 	 * Constructs a path selector object, takes custom arguments
 	 */
-	int (*create) (struct path_selector *ps, unsigned argc, char **argv);
-	void (*destroy) (struct path_selector *ps);
+	int (*create)(struct path_selector *ps, unsigned int argc, char **argv);
+	void (*destroy)(struct path_selector *ps);
 
 	/*
 	 * Add an opaque path object, along with some selector specific
 	 * path args (eg, path priority).
 	 */
-	int (*add_path) (struct path_selector *ps, struct dm_path *path,
-			 int argc, char **argv, char **error);
+	int (*add_path)(struct path_selector *ps, struct dm_path *path,
+			int argc, char **argv, char **error);
 
 	/*
 	 * Chooses a path for this io, if no paths are available then
 	 * NULL will be returned.
 	 */
-	struct dm_path *(*select_path) (struct path_selector *ps,
-					size_t nr_bytes);
+	struct dm_path *(*select_path)(struct path_selector *ps, size_t nr_bytes);
 
 	/*
 	 * Notify the selector that a path has failed.
 	 */
-	void (*fail_path) (struct path_selector *ps, struct dm_path *p);
+	void (*fail_path)(struct path_selector *ps, struct dm_path *p);
 
 	/*
 	 * Ask selector to reinstate a path.
 	 */
-	int (*reinstate_path) (struct path_selector *ps, struct dm_path *p);
+	int (*reinstate_path)(struct path_selector *ps, struct dm_path *p);
 
 	/*
 	 * Table content based on parameters added in ps_add_path_fn
 	 * or path selector status
 	 */
-	int (*status) (struct path_selector *ps, struct dm_path *path,
-		       status_type_t type, char *result, unsigned int maxlen);
+	int (*status)(struct path_selector *ps, struct dm_path *path,
+		      status_type_t type, char *result, unsigned int maxlen);
 
-	int (*start_io) (struct path_selector *ps, struct dm_path *path,
-			 size_t nr_bytes);
-	int (*end_io) (struct path_selector *ps, struct dm_path *path,
-		       size_t nr_bytes, u64 start_time);
+	int (*start_io)(struct path_selector *ps, struct dm_path *path,
+			size_t nr_bytes);
+	int (*end_io)(struct path_selector *ps, struct dm_path *path,
+		      size_t nr_bytes, u64 start_time);
 };
 
 /* Register a path selector */

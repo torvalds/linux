@@ -409,7 +409,7 @@ err_put_regulator:
 	return status;
 }
 
-static int twl6030_usb_remove(struct platform_device *pdev)
+static void twl6030_usb_remove(struct platform_device *pdev)
 {
 	struct twl6030_usb *twl = platform_get_drvdata(pdev);
 
@@ -422,8 +422,6 @@ static int twl6030_usb_remove(struct platform_device *pdev)
 	free_irq(twl->irq2, twl);
 	regulator_put(twl->usb3v3);
 	cancel_work_sync(&twl->set_vbus_work);
-
-	return 0;
 }
 
 static const struct of_device_id twl6030_usb_id_table[] = {
@@ -434,7 +432,7 @@ MODULE_DEVICE_TABLE(of, twl6030_usb_id_table);
 
 static struct platform_driver twl6030_usb_driver = {
 	.probe		= twl6030_usb_probe,
-	.remove		= twl6030_usb_remove,
+	.remove_new	= twl6030_usb_remove,
 	.driver		= {
 		.name	= "twl6030_usb",
 		.of_match_table = of_match_ptr(twl6030_usb_id_table),

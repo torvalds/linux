@@ -30,6 +30,7 @@ properties:
 
   clocks:
     type: object
+    additionalProperties: false
 
     properties:
       compatible:
@@ -47,6 +48,7 @@ properties:
 
   reset:
     type: object
+    additionalProperties: false
 
     properties:
       compatible:
@@ -63,6 +65,7 @@ properties:
 
   pwm:
     type: object
+    additionalProperties: false
 
     properties:
       compatible:
@@ -75,8 +78,6 @@ properties:
     required:
       - compatible
       - "#pwm-cells"
-
-    additionalProperties: false
 
 required:
   - compatible

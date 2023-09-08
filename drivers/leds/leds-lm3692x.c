@@ -456,9 +456,9 @@ static int lm3692x_probe_dt(struct lm3692x_led *led)
 	return ret;
 }
 
-static int lm3692x_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int lm3692x_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct lm3692x_led *led;
 	int ret;
 
@@ -518,7 +518,7 @@ static struct i2c_driver lm3692x_driver = {
 		.name	= "lm3692x",
 		.of_match_table = of_lm3692x_leds_match,
 	},
-	.probe		= lm3692x_probe,
+	.probe_new	= lm3692x_probe,
 	.remove		= lm3692x_remove,
 	.id_table	= lm3692x_id,
 };

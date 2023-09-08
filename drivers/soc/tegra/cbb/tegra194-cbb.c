@@ -23,7 +23,6 @@
 #include <linux/of_address.h>
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
-#include <linux/version.h>
 #include <soc/tegra/fuse.h>
 #include <soc/tegra/tegra-cbb.h>
 
@@ -101,8 +100,6 @@
 #define CLUSTER_NOC_GRPSEC GENMASK(15, 9)
 #define CLUSTER_NOC_VQC GENMASK(17, 16)
 #define CLUSTER_NOC_MSTR_ID GENMASK(21, 18)
-
-#define USRBITS_MSTR_ID GENMASK(21, 18)
 
 #define CBB_ERR_OPC GENMASK(4, 1)
 #define CBB_ERR_ERRCODE GENMASK(10, 8)
@@ -2038,15 +2035,17 @@ static irqreturn_t tegra194_cbb_err_isr(int irq, void *data)
 					    smp_processor_id(), priv->noc->name, priv->res->start,
 					    irq);
 
-			mstr_id =  FIELD_GET(USRBITS_MSTR_ID, priv->errlog5) - 1;
 			is_fatal = print_errlog(NULL, priv, status);
 
 			/*
-			 * If illegal request is from CCPLEX(0x1)
-			 * initiator then call BUG() to crash system.
+			 * If illegal request is from CCPLEX(0x1) initiator
+			 * and error is fatal then call BUG() to crash system.
 			 */
-			if ((mstr_id == 0x1) && priv->noc->erd_mask_inband_err)
-				is_inband_err = 1;
+			if (priv->noc->erd_mask_inband_err) {
+				mstr_id =  FIELD_GET(CBB_NOC_MSTR_ID, priv->errlog5);
+				if (mstr_id == 0x1)
+					is_inband_err = 1;
+			}
 		}
 	}
 
@@ -2191,7 +2190,6 @@ MODULE_DEVICE_TABLE(of, tegra194_cbb_match);
 static int tegra194_cbb_get_bridges(struct tegra194_cbb *cbb, struct device_node *np)
 {
 	struct tegra_cbb *entry;
-	struct resource res;
 	unsigned long flags;
 	unsigned int i;
 	int err;
@@ -2211,8 +2209,7 @@ static int tegra194_cbb_get_bridges(struct tegra194_cbb *cbb, struct device_node
 	spin_unlock_irqrestore(&cbb_lock, flags);
 
 	if (!cbb->bridges) {
-		while (of_address_to_resource(np, cbb->num_bridges, &res) == 0)
-			cbb->num_bridges++;
+		cbb->num_bridges = of_address_count(np);
 
 		cbb->bridges = devm_kcalloc(cbb->base.dev, cbb->num_bridges,
 					    sizeof(*cbb->bridges), GFP_KERNEL);
@@ -2226,10 +2223,8 @@ static int tegra194_cbb_get_bridges(struct tegra194_cbb *cbb, struct device_node
 
 			cbb->bridges[i].base = devm_ioremap_resource(cbb->base.dev,
 								     &cbb->bridges[i].res);
-			if (IS_ERR(cbb->bridges[i].base)) {
-				dev_err(cbb->base.dev, "failed to map AXI2APB range\n");
+			if (IS_ERR(cbb->bridges[i].base))
 				return PTR_ERR(cbb->bridges[i].base);
-			}
 		}
 	}
 
@@ -2361,4 +2356,3 @@ module_exit(tegra194_cbb_exit);
 
 MODULE_AUTHOR("Sumit Gupta <sumitg@nvidia.com>");
 MODULE_DESCRIPTION("Control Backbone error handling driver for Tegra194");
-MODULE_LICENSE("GPL");

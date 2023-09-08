@@ -50,7 +50,7 @@
 #define PVH_DS_SEL		(PVH_GDT_ENTRY_DS * 8)
 
 SYM_CODE_START_LOCAL(pvh_start_xen)
-	UNWIND_HINT_EMPTY
+	UNWIND_HINT_END_OF_STACK
 	cld
 
 	lgdt (_pa(gdt))

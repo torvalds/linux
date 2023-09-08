@@ -68,8 +68,8 @@
 #define AR5416_EEPROM_OFFSET        0x2000
 #define AR5416_EEPROM_MAX           0xae0
 
-#define AR5416_EEPROM_START_ADDR \
-	(AR_SREV_9100(ah)) ? 0x1fff1000 : 0x503f1200
+#define AR5416_EEPROM_START_ADDR(_ah) \
+	(AR_SREV_9100(_ah)) ? 0x1fff1000 : 0x503f1200
 
 #define SD_NO_CTL               0xE0
 #define NO_CTL                  0xff
@@ -110,10 +110,10 @@
 #define FBIN2FREQ(x, y)		((y) ? (2300 + x) : (4800 + 5 * x))
 #define ath9k_hw_use_flash(_ah)	(!(_ah->ah_flags & AH_USE_EEPROM))
 
-#define OLC_FOR_AR9280_20_LATER (AR_SREV_9280_20_OR_LATER(ah) && \
-				 ah->eep_ops->get_eeprom(ah, EEP_OL_PWRCTRL))
-#define OLC_FOR_AR9287_10_LATER (AR_SREV_9287_11_OR_LATER(ah) && \
-				 ah->eep_ops->get_eeprom(ah, EEP_OL_PWRCTRL))
+#define OLC_FOR_AR9280_20_LATER(_ah) (AR_SREV_9280_20_OR_LATER(_ah) && \
+				 _ah->eep_ops->get_eeprom(_ah, EEP_OL_PWRCTRL))
+#define OLC_FOR_AR9287_10_LATER(_ah) (AR_SREV_9287_11_OR_LATER(_ah) && \
+				 _ah->eep_ops->get_eeprom(_ah, EEP_OL_PWRCTRL))
 
 #define EEP_RFSILENT_ENABLED        0x0001
 #define EEP_RFSILENT_ENABLED_S      0

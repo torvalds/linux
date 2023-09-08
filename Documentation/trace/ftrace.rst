@@ -350,6 +350,19 @@ of ftrace. Here is a list of some of the key files:
 	an 'I' will be displayed on the same line as the function that
 	can be overridden.
 
+	If a non ftrace trampoline is attached (BPF) a 'D' will be displayed.
+	Note, normal ftrace trampolines can also be attached, but only one
+	"direct" trampoline can be attached to a given function at a time.
+
+	Some architectures can not call direct trampolines, but instead have
+	the ftrace ops function located above the function entry point. In
+	such cases an 'O' will be displayed.
+
+	If a function had either the "ip modify" or a "direct" call attached to
+	it in the past, a 'M' will be shown. This flag is never cleared. It is
+	used to know if a function was every modified by the ftrace infrastructure,
+	and can be used for debugging.
+
 	If the architecture supports it, it will also show what callback
 	is being directly called by the function. If the count is greater
 	than 1 it most likely will be ftrace_ops_list_func().
@@ -358,6 +371,18 @@ of ftrace. Here is a list of some of the key files:
 	specific to the callback and which is not the standard trampoline,
 	its address will be printed as well as the function that the
 	trampoline calls.
+
+  touched_functions:
+
+	This file contains all the functions that ever had a function callback
+	to it via the ftrace infrastructure. It has the same format as
+	enabled_functions but shows all functions that have every been
+	traced.
+
+	To see any function that has every been modified by "ip modify" or a
+	direct trampoline, one can perform the following command:
+
+	grep ' M ' /sys/kernel/tracing/touched_functions
 
   function_profile_enabled:
 
@@ -830,10 +855,10 @@ Error conditions
   The extended error information and usage takes the form shown in
   this example::
 
-    # echo xxx > /sys/kernel/debug/tracing/events/sched/sched_wakeup/trigger
+    # echo xxx > /sys/kernel/tracing/events/sched/sched_wakeup/trigger
     echo: write error: Invalid argument
 
-    # cat /sys/kernel/debug/tracing/error_log
+    # cat /sys/kernel/tracing/error_log
     [ 5348.887237] location: error: Couldn't yyy: zzz
       Command: xxx
                ^
@@ -843,7 +868,7 @@ Error conditions
 
   To clear the error log, echo the empty string into it::
 
-    # echo > /sys/kernel/debug/tracing/error_log
+    # echo > /sys/kernel/tracing/error_log
 
 Examples of using the tracer
 ----------------------------
@@ -1027,6 +1052,7 @@ To see what is available, simply cat the file::
 	nohex
 	nobin
 	noblock
+	nofields
 	trace_printk
 	annotate
 	nouserstacktrace
@@ -1109,6 +1135,11 @@ Here are the available options:
 
   block
 	When set, reading trace_pipe will not block when polled.
+
+  fields
+	Print the fields as described by their types. This is a better
+	option than using hex, bin or raw, as it gives a better parsing
+	of the content of the event.
 
   trace_printk
 	Can disable trace_printk() from writing into the buffer.
@@ -2940,7 +2971,7 @@ Produces::
               bash-1994  [000] ....  4342.324898: ima_get_action <-process_measurement
               bash-1994  [000] ....  4342.324898: ima_match_policy <-ima_get_action
               bash-1994  [000] ....  4342.324899: do_truncate <-do_last
-              bash-1994  [000] ....  4342.324899: should_remove_suid <-do_truncate
+              bash-1994  [000] ....  4342.324899: setattr_should_drop_suidgid <-do_truncate
               bash-1994  [000] ....  4342.324899: notify_change <-do_truncate
               bash-1994  [000] ....  4342.324900: current_fs_time <-notify_change
               bash-1994  [000] ....  4342.324900: current_kernel_time <-current_fs_time
@@ -3510,7 +3541,7 @@ directories, the rmdir will fail with EBUSY.
 Stack trace
 -----------
 Since the kernel has a fixed sized stack, it is important not to
-waste it in functions. A kernel developer must be conscience of
+waste it in functions. A kernel developer must be conscious of
 what they allocate on the stack. If they add too much, the system
 can be in danger of a stack overflow, and corruption will occur,
 usually leading to a system panic.

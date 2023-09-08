@@ -30,9 +30,9 @@ __diag_ignore_all("-Wmissing-prototypes",
  *		  interpreted as select a random port.
  * @manip	- NF_NAT_MANIP_SRC or NF_NAT_MANIP_DST
  */
-int bpf_ct_set_nat_info(struct nf_conn___init *nfct,
-			union nf_inet_addr *addr, int port,
-			enum nf_nat_manip_type manip)
+__bpf_kfunc int bpf_ct_set_nat_info(struct nf_conn___init *nfct,
+				    union nf_inet_addr *addr, int port,
+				    enum nf_nat_manip_type manip)
 {
 	struct nf_conn *ct = (struct nf_conn *)nfct;
 	u16 proto = nf_ct_l3num(ct);

@@ -15,12 +15,14 @@
 #include <linux/mfd/ocelot.h>
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
-#include <linux/pinctrl/pinmux.h>
 #include <linux/platform_device.h>
 #include <linux/property.h>
 #include <linux/regmap.h>
 #include <linux/reset.h>
 #include <linux/spinlock.h>
+
+#include <linux/pinctrl/pinconf.h>
+#include <linux/pinctrl/pinmux.h>
 
 #include "core.h"
 #include "pinconf.h"

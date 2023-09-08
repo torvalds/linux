@@ -32,7 +32,8 @@ void dwmac_enable_dma_transmission(void __iomem *ioaddr)
 	writel(1, ioaddr + DMA_XMT_POLL_DEMAND);
 }
 
-void dwmac_enable_dma_irq(void __iomem *ioaddr, u32 chan, bool rx, bool tx)
+void dwmac_enable_dma_irq(struct stmmac_priv *priv, void __iomem *ioaddr,
+			  u32 chan, bool rx, bool tx)
 {
 	u32 value = readl(ioaddr + DMA_INTR_ENA);
 
@@ -44,7 +45,8 @@ void dwmac_enable_dma_irq(void __iomem *ioaddr, u32 chan, bool rx, bool tx)
 	writel(value, ioaddr + DMA_INTR_ENA);
 }
 
-void dwmac_disable_dma_irq(void __iomem *ioaddr, u32 chan, bool rx, bool tx)
+void dwmac_disable_dma_irq(struct stmmac_priv *priv, void __iomem *ioaddr,
+			   u32 chan, bool rx, bool tx)
 {
 	u32 value = readl(ioaddr + DMA_INTR_ENA);
 
@@ -56,28 +58,30 @@ void dwmac_disable_dma_irq(void __iomem *ioaddr, u32 chan, bool rx, bool tx)
 	writel(value, ioaddr + DMA_INTR_ENA);
 }
 
-void dwmac_dma_start_tx(void __iomem *ioaddr, u32 chan)
+void dwmac_dma_start_tx(struct stmmac_priv *priv, void __iomem *ioaddr,
+			u32 chan)
 {
 	u32 value = readl(ioaddr + DMA_CONTROL);
 	value |= DMA_CONTROL_ST;
 	writel(value, ioaddr + DMA_CONTROL);
 }
 
-void dwmac_dma_stop_tx(void __iomem *ioaddr, u32 chan)
+void dwmac_dma_stop_tx(struct stmmac_priv *priv, void __iomem *ioaddr, u32 chan)
 {
 	u32 value = readl(ioaddr + DMA_CONTROL);
 	value &= ~DMA_CONTROL_ST;
 	writel(value, ioaddr + DMA_CONTROL);
 }
 
-void dwmac_dma_start_rx(void __iomem *ioaddr, u32 chan)
+void dwmac_dma_start_rx(struct stmmac_priv *priv, void __iomem *ioaddr,
+			u32 chan)
 {
 	u32 value = readl(ioaddr + DMA_CONTROL);
 	value |= DMA_CONTROL_SR;
 	writel(value, ioaddr + DMA_CONTROL);
 }
 
-void dwmac_dma_stop_rx(void __iomem *ioaddr, u32 chan)
+void dwmac_dma_stop_rx(struct stmmac_priv *priv, void __iomem *ioaddr, u32 chan)
 {
 	u32 value = readl(ioaddr + DMA_CONTROL);
 	value &= ~DMA_CONTROL_SR;
@@ -154,7 +158,7 @@ static void show_rx_process_state(unsigned int status)
 }
 #endif
 
-int dwmac_dma_interrupt(void __iomem *ioaddr,
+int dwmac_dma_interrupt(struct stmmac_priv *priv, void __iomem *ioaddr,
 			struct stmmac_extra_stats *x, u32 chan, u32 dir)
 {
 	int ret = 0;

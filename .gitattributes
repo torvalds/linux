@@ -1,4 +1,4 @@
-*.c   diff=cpp
-*.h   diff=cpp
-*.dtsi diff=dts
-*.dts  diff=dts
+# SPDX-License-Identifier: GPL-2.0-only
+*.[ch] diff=cpp
+*.dts diff=dts
+*.dts[io] diff=dts

@@ -4,6 +4,7 @@
  */
 #include <linux/sched.h>
 #include <linux/of.h>
+#include <net/page_pool.h>
 #include "mt76.h"
 
 #define CHAN2G(_idx, _freq) {			\
@@ -192,42 +193,48 @@ static const struct cfg80211_sar_capa mt76_sar_capa = {
 	.freq_ranges = &mt76_sar_freq_ranges[0],
 };
 
-static int mt76_led_init(struct mt76_dev *dev)
+static int mt76_led_init(struct mt76_phy *phy)
 {
-	struct device_node *np = dev->dev->of_node;
-	struct ieee80211_hw *hw = dev->hw;
-	int led_pin;
+	struct mt76_dev *dev = phy->dev;
+	struct ieee80211_hw *hw = phy->hw;
 
-	if (!dev->led_cdev.brightness_set && !dev->led_cdev.blink_set)
+	if (!phy->leds.cdev.brightness_set && !phy->leds.cdev.blink_set)
 		return 0;
 
-	snprintf(dev->led_name, sizeof(dev->led_name),
-		 "mt76-%s", wiphy_name(hw->wiphy));
+	snprintf(phy->leds.name, sizeof(phy->leds.name), "mt76-%s",
+		 wiphy_name(hw->wiphy));
 
-	dev->led_cdev.name = dev->led_name;
-	dev->led_cdev.default_trigger =
+	phy->leds.cdev.name = phy->leds.name;
+	phy->leds.cdev.default_trigger =
 		ieee80211_create_tpt_led_trigger(hw,
 					IEEE80211_TPT_LEDTRIG_FL_RADIO,
 					mt76_tpt_blink,
 					ARRAY_SIZE(mt76_tpt_blink));
 
-	np = of_get_child_by_name(np, "led");
-	if (np) {
-		if (!of_property_read_u32(np, "led-sources", &led_pin))
-			dev->led_pin = led_pin;
-		dev->led_al = of_property_read_bool(np, "led-active-low");
-		of_node_put(np);
+	if (phy == &dev->phy) {
+		struct device_node *np = dev->dev->of_node;
+
+		np = of_get_child_by_name(np, "led");
+		if (np) {
+			int led_pin;
+
+			if (!of_property_read_u32(np, "led-sources", &led_pin))
+				phy->leds.pin = led_pin;
+			phy->leds.al = of_property_read_bool(np,
+							     "led-active-low");
+			of_node_put(np);
+		}
 	}
 
-	return led_classdev_register(dev->dev, &dev->led_cdev);
+	return led_classdev_register(dev->dev, &phy->leds.cdev);
 }
 
-static void mt76_led_cleanup(struct mt76_dev *dev)
+static void mt76_led_cleanup(struct mt76_phy *phy)
 {
-	if (!dev->led_cdev.brightness_set && !dev->led_cdev.blink_set)
+	if (!phy->leds.cdev.brightness_set && !phy->leds.cdev.blink_set)
 		return;
 
-	led_classdev_unregister(&dev->led_cdev);
+	led_classdev_unregister(&phy->leds.cdev);
 }
 
 static void mt76_init_stream_cap(struct mt76_phy *phy,
@@ -411,7 +418,8 @@ mt76_phy_init(struct mt76_phy *phy, struct ieee80211_hw *hw)
 	SET_IEEE80211_DEV(hw, dev->dev);
 	SET_IEEE80211_PERM_ADDR(hw, phy->macaddr);
 
-	wiphy->features |= NL80211_FEATURE_ACTIVE_MONITOR;
+	wiphy->features |= NL80211_FEATURE_ACTIVE_MONITOR |
+			   NL80211_FEATURE_AP_MODE_CHAN_WIDTH_CHANGE;
 	wiphy->flags |= WIPHY_FLAG_HAS_CHANNEL_SWITCH |
 			WIPHY_FLAG_SUPPORTS_TDLS |
 			WIPHY_FLAG_AP_UAPSD;
@@ -443,8 +451,12 @@ mt76_phy_init(struct mt76_phy *phy, struct ieee80211_hw *hw)
 	ieee80211_hw_set(hw, SUPPORTS_CLONED_SKBS);
 	ieee80211_hw_set(hw, SUPPORTS_AMSDU_IN_AMPDU);
 	ieee80211_hw_set(hw, SUPPORTS_REORDERING_BUFFER);
-	ieee80211_hw_set(hw, TX_AMSDU);
-	ieee80211_hw_set(hw, TX_FRAG_LIST);
+
+	if (!(dev->drv->drv_flags & MT_DRV_AMSDU_OFFLOAD)) {
+		ieee80211_hw_set(hw, TX_AMSDU);
+		ieee80211_hw_set(hw, TX_FRAG_LIST);
+	}
+
 	ieee80211_hw_set(hw, MFP_CAPABLE);
 	ieee80211_hw_set(hw, AP_LINK_PS);
 	ieee80211_hw_set(hw, REPORTS_TX_ACK_STATUS);
@@ -513,6 +525,12 @@ int mt76_register_phy(struct mt76_phy *phy, bool vht,
 			return ret;
 	}
 
+	if (IS_ENABLED(CONFIG_MT76_LEDS)) {
+		ret = mt76_led_init(phy);
+		if (ret)
+			return ret;
+	}
+
 	wiphy_read_of_freq_limits(phy->hw->wiphy);
 	mt76_check_sband(phy, &phy->sband_2g, NL80211_BAND_2GHZ);
 	mt76_check_sband(phy, &phy->sband_5g, NL80211_BAND_5GHZ);
@@ -522,6 +540,7 @@ int mt76_register_phy(struct mt76_phy *phy, bool vht,
 	if (ret)
 		return ret;
 
+	set_bit(MT76_STATE_REGISTERED, &phy->state);
 	phy->dev->phys[phy->band_idx] = phy;
 
 	return 0;
@@ -532,11 +551,57 @@ void mt76_unregister_phy(struct mt76_phy *phy)
 {
 	struct mt76_dev *dev = phy->dev;
 
+	if (!test_bit(MT76_STATE_REGISTERED, &phy->state))
+		return;
+
+	if (IS_ENABLED(CONFIG_MT76_LEDS))
+		mt76_led_cleanup(phy);
 	mt76_tx_status_check(dev, true);
 	ieee80211_unregister_hw(phy->hw);
 	dev->phys[phy->band_idx] = NULL;
 }
 EXPORT_SYMBOL_GPL(mt76_unregister_phy);
+
+int mt76_create_page_pool(struct mt76_dev *dev, struct mt76_queue *q)
+{
+	struct page_pool_params pp_params = {
+		.order = 0,
+		.flags = PP_FLAG_PAGE_FRAG,
+		.nid = NUMA_NO_NODE,
+		.dev = dev->dma_dev,
+	};
+	int idx = q - dev->q_rx;
+
+	switch (idx) {
+	case MT_RXQ_MAIN:
+	case MT_RXQ_BAND1:
+	case MT_RXQ_BAND2:
+		pp_params.pool_size = 256;
+		break;
+	default:
+		pp_params.pool_size = 16;
+		break;
+	}
+
+	if (mt76_is_mmio(dev)) {
+		/* rely on page_pool for DMA mapping */
+		pp_params.flags |= PP_FLAG_DMA_MAP | PP_FLAG_DMA_SYNC_DEV;
+		pp_params.dma_dir = DMA_FROM_DEVICE;
+		pp_params.max_len = PAGE_SIZE;
+		pp_params.offset = 0;
+	}
+
+	q->page_pool = page_pool_create(&pp_params);
+	if (IS_ERR(q->page_pool)) {
+		int err = PTR_ERR(q->page_pool);
+
+		q->page_pool = NULL;
+		return err;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(mt76_create_page_pool);
 
 struct mt76_dev *
 mt76_alloc_device(struct device *pdev, unsigned int size,
@@ -568,6 +633,7 @@ mt76_alloc_device(struct device *pdev, unsigned int size,
 	spin_lock_init(&dev->lock);
 	spin_lock_init(&dev->cc_lock);
 	spin_lock_init(&dev->status_lock);
+	spin_lock_init(&dev->wed_lock);
 	mutex_init(&dev->mutex);
 	init_waitqueue_head(&dev->tx_wait);
 
@@ -590,9 +656,13 @@ mt76_alloc_device(struct device *pdev, unsigned int size,
 	spin_lock_init(&dev->token_lock);
 	idr_init(&dev->token);
 
+	spin_lock_init(&dev->rx_token_lock);
+	idr_init(&dev->rx_token);
+
 	INIT_LIST_HEAD(&dev->wcid_list);
 
 	INIT_LIST_HEAD(&dev->txwi_cache);
+	INIT_LIST_HEAD(&dev->rxwi_cache);
 	dev->token_size = dev->drv->token_size;
 
 	for (i = 0; i < ARRAY_SIZE(dev->q_rx); i++)
@@ -644,7 +714,7 @@ int mt76_register_device(struct mt76_dev *dev, bool vht,
 	mt76_check_sband(&dev->phy, &phy->sband_6g, NL80211_BAND_6GHZ);
 
 	if (IS_ENABLED(CONFIG_MT76_LEDS)) {
-		ret = mt76_led_init(dev);
+		ret = mt76_led_init(phy);
 		if (ret)
 			return ret;
 	}
@@ -654,6 +724,7 @@ int mt76_register_device(struct mt76_dev *dev, bool vht,
 		return ret;
 
 	WARN_ON(mt76_worker_setup(hw, &dev->tx_worker, NULL, "tx"));
+	set_bit(MT76_STATE_REGISTERED, &phy->state);
 	sched_set_fifo_low(dev->tx_worker.task);
 
 	return 0;
@@ -664,8 +735,11 @@ void mt76_unregister_device(struct mt76_dev *dev)
 {
 	struct ieee80211_hw *hw = dev->hw;
 
+	if (!test_bit(MT76_STATE_REGISTERED, &dev->phy.state))
+		return;
+
 	if (IS_ENABLED(CONFIG_MT76_LEDS))
-		mt76_led_cleanup(dev);
+		mt76_led_cleanup(&dev->phy);
 	mt76_tx_status_check(dev, true);
 	ieee80211_unregister_hw(hw);
 }
@@ -947,14 +1021,12 @@ void mt76_wcid_key_setup(struct mt76_dev *dev, struct mt76_wcid *wcid,
 }
 EXPORT_SYMBOL(mt76_wcid_key_setup);
 
-static int
-mt76_rx_signal(struct mt76_rx_status *status)
+int mt76_rx_signal(u8 chain_mask, s8 *chain_signal)
 {
-	s8 *chain_signal = status->chain_signal;
 	int signal = -128;
 	u8 chains;
 
-	for (chains = status->chains; chains; chains >>= 1, chain_signal++) {
+	for (chains = chain_mask; chains; chains >>= 1, chain_signal++) {
 		int cur, diff;
 
 		cur = *chain_signal;
@@ -976,6 +1048,7 @@ mt76_rx_signal(struct mt76_rx_status *status)
 
 	return signal;
 }
+EXPORT_SYMBOL(mt76_rx_signal);
 
 static void
 mt76_rx_convert(struct mt76_dev *dev, struct sk_buff *skb,
@@ -994,9 +1067,14 @@ mt76_rx_convert(struct mt76_dev *dev, struct sk_buff *skb,
 	status->enc_flags = mstat.enc_flags;
 	status->encoding = mstat.encoding;
 	status->bw = mstat.bw;
-	status->he_ru = mstat.he_ru;
-	status->he_gi = mstat.he_gi;
-	status->he_dcm = mstat.he_dcm;
+	if (status->encoding == RX_ENC_EHT) {
+		status->eht.ru = mstat.eht.ru;
+		status->eht.gi = mstat.eht.gi;
+	} else {
+		status->he_ru = mstat.he_ru;
+		status->he_gi = mstat.he_gi;
+		status->he_dcm = mstat.he_dcm;
+	}
 	status->rate_idx = mstat.rate_idx;
 	status->nss = mstat.nss;
 	status->band = mstat.band;
@@ -1005,7 +1083,7 @@ mt76_rx_convert(struct mt76_dev *dev, struct sk_buff *skb,
 	status->ampdu_reference = mstat.ampdu_ref;
 	status->device_timestamp = mstat.timestamp;
 	status->mactime = mstat.timestamp;
-	status->signal = mt76_rx_signal(&mstat);
+	status->signal = mt76_rx_signal(mstat.chains, mstat.chain_signal);
 	if (status->signal <= -128)
 		status->flag |= RX_FLAG_NO_SIGNAL_VAL;
 
@@ -1231,7 +1309,8 @@ mt76_check_sta(struct mt76_dev *dev, struct sk_buff *skb)
 	if (ps)
 		set_bit(MT_WCID_FLAG_PS, &wcid->flags);
 
-	dev->drv->sta_ps(dev, sta, ps);
+	if (dev->drv->sta_ps)
+		dev->drv->sta_ps(dev, sta, ps);
 
 	if (!ps)
 		clear_bit(MT_WCID_FLAG_PS, &wcid->flags);
@@ -1289,7 +1368,10 @@ void mt76_rx_poll_complete(struct mt76_dev *dev, enum mt76_rxq_id q,
 
 	while ((skb = __skb_dequeue(&dev->rx_skb[q])) != NULL) {
 		mt76_check_sta(dev, skb);
-		mt76_rx_aggr_reorder(skb, &frames);
+		if (mtk_wed_device_active(&dev->mmio.wed))
+			__skb_queue_tail(&frames, skb);
+		else
+			mt76_rx_aggr_reorder(skb, &frames);
 	}
 
 	mt76_rx_complete(dev, &frames, napi);
@@ -1633,7 +1715,7 @@ u16 mt76_calculate_default_rate(struct mt76_phy *phy, int rateidx)
 EXPORT_SYMBOL_GPL(mt76_calculate_default_rate);
 
 void mt76_ethtool_worker(struct mt76_ethtool_worker_info *wi,
-			 struct mt76_sta_stats *stats)
+			 struct mt76_sta_stats *stats, bool eht)
 {
 	int i, ei = wi->initial_stat_idx;
 	u64 *data = wi->data;
@@ -1649,16 +1731,36 @@ void mt76_ethtool_worker(struct mt76_ethtool_worker_info *wi,
 	data[ei++] += stats->tx_mode[MT_PHY_TYPE_HE_EXT_SU];
 	data[ei++] += stats->tx_mode[MT_PHY_TYPE_HE_TB];
 	data[ei++] += stats->tx_mode[MT_PHY_TYPE_HE_MU];
+	if (eht) {
+		data[ei++] += stats->tx_mode[MT_PHY_TYPE_EHT_SU];
+		data[ei++] += stats->tx_mode[MT_PHY_TYPE_EHT_TRIG];
+		data[ei++] += stats->tx_mode[MT_PHY_TYPE_EHT_MU];
+	}
 
-	for (i = 0; i < ARRAY_SIZE(stats->tx_bw); i++)
+	for (i = 0; i < (ARRAY_SIZE(stats->tx_bw) - !eht); i++)
 		data[ei++] += stats->tx_bw[i];
 
-	for (i = 0; i < 12; i++)
+	for (i = 0; i < (eht ? 14 : 12); i++)
 		data[ei++] += stats->tx_mcs[i];
 
 	wi->worker_stat_count = ei - wi->initial_stat_idx;
 }
 EXPORT_SYMBOL_GPL(mt76_ethtool_worker);
+
+void mt76_ethtool_page_pool_stats(struct mt76_dev *dev, u64 *data, int *index)
+{
+#ifdef CONFIG_PAGE_POOL_STATS
+	struct page_pool_stats stats = {};
+	int i;
+
+	mt76_for_each_q_rx(dev, i)
+		page_pool_get_stats(dev->q_rx[i].page_pool, &stats);
+
+	page_pool_ethtool_stats_get(data, &stats);
+	*index += page_pool_ethtool_stats_get_count();
+#endif
+}
+EXPORT_SYMBOL_GPL(mt76_ethtool_page_pool_stats);
 
 enum mt76_dfs_state mt76_phy_dfs_state(struct mt76_phy *phy)
 {

@@ -18,12 +18,4 @@ source "drivers/net/wireless/ti/wl18xx/Kconfig"
 # keep last for automatic dependencies
 source "drivers/net/wireless/ti/wlcore/Kconfig"
 
-config WILINK_PLATFORM_DATA
-	bool "TI WiLink platform data"
-	depends on WLCORE_SDIO || WL1251_SDIO
-	default y
-	help
-	Small platform data bit needed to pass data to the sdio modules.
-
-
 endif # WLAN_VENDOR_TI

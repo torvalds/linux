@@ -94,7 +94,7 @@ static inline struct workspace *list_to_workspace(struct list_head *list)
 void zstd_free_workspace(struct list_head *ws);
 struct list_head *zstd_alloc_workspace(unsigned int level);
 
-/**
+/*
  * Timer callback to free unused workspaces.
  *
  * @t: timer
@@ -609,14 +609,13 @@ int zstd_decompress_bio(struct list_head *ws, struct compressed_bio *cb)
 		}
 	}
 	ret = 0;
-	zero_fill_bio(cb->orig_bio);
 done:
 	if (workspace->in_buf.src)
 		kunmap_local(workspace->in_buf.src);
 	return ret;
 }
 
-int zstd_decompress(struct list_head *ws, unsigned char *data_in,
+int zstd_decompress(struct list_head *ws, const u8 *data_in,
 		struct page *dest_page, unsigned long start_byte, size_t srclen,
 		size_t destlen)
 {

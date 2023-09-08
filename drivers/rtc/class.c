@@ -374,11 +374,11 @@ struct rtc_device *devm_rtc_allocate_device(struct device *dev)
 
 	rtc->id = id;
 	rtc->dev.parent = dev;
-	err = dev_set_name(&rtc->dev, "rtc%d", id);
+	err = devm_add_action_or_reset(dev, devm_rtc_release_device, rtc);
 	if (err)
 		return ERR_PTR(err);
 
-	err = devm_add_action_or_reset(dev, devm_rtc_release_device, rtc);
+	err = dev_set_name(&rtc->dev, "rtc%d", id);
 	if (err)
 		return ERR_PTR(err);
 
@@ -475,7 +475,7 @@ EXPORT_SYMBOL_GPL(devm_rtc_device_register);
 
 static int __init rtc_init(void)
 {
-	rtc_class = class_create(THIS_MODULE, "rtc");
+	rtc_class = class_create("rtc");
 	if (IS_ERR(rtc_class)) {
 		pr_err("couldn't create class\n");
 		return PTR_ERR(rtc_class);

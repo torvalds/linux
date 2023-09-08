@@ -547,7 +547,7 @@ static int qt1050_probe(struct i2c_client *client)
 	return 0;
 }
 
-static int __maybe_unused qt1050_suspend(struct device *dev)
+static int qt1050_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct qt1050_priv *ts = i2c_get_clientdata(client);
@@ -563,7 +563,7 @@ static int __maybe_unused qt1050_suspend(struct device *dev)
 			    device_may_wakeup(dev) ? 125 : 0);
 }
 
-static int __maybe_unused qt1050_resume(struct device *dev)
+static int qt1050_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct qt1050_priv *ts = i2c_get_clientdata(client);
@@ -574,7 +574,7 @@ static int __maybe_unused qt1050_resume(struct device *dev)
 	return regmap_write(ts->regmap, QT1050_LPMODE, 2);
 }
 
-static SIMPLE_DEV_PM_OPS(qt1050_pm_ops, qt1050_suspend, qt1050_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(qt1050_pm_ops, qt1050_suspend, qt1050_resume);
 
 static const struct of_device_id __maybe_unused qt1050_of_match[] = {
 	{ .compatible = "microchip,qt1050", },
@@ -586,7 +586,7 @@ static struct i2c_driver qt1050_driver = {
 	.driver	= {
 		.name = "qt1050",
 		.of_match_table = of_match_ptr(qt1050_of_match),
-		.pm = &qt1050_pm_ops,
+		.pm = pm_sleep_ptr(&qt1050_pm_ops),
 	},
 	.probe_new = qt1050_probe,
 };

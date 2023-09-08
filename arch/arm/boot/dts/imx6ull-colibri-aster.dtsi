@@ -130,11 +130,13 @@
 };
 
 &usbotg1 {
+	disable-over-current;
 	vbus-supply = <&reg_usbh_vbus>;
 	status = "okay";
 };
 
 &usbotg2 {
+	disable-over-current;
 	vbus-supply = <&reg_usbh_vbus>;
 	status = "okay";
 };

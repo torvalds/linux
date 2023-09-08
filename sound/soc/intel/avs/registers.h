@@ -59,7 +59,8 @@
 #define AVS_FW_REG_STATUS(adev)		(AVS_FW_REG_BASE(adev) + 0x0)
 #define AVS_FW_REG_ERROR_CODE(adev)	(AVS_FW_REG_BASE(adev) + 0x4)
 
-#define AVS_FW_REGS_SIZE		PAGE_SIZE
+#define AVS_WINDOW_CHUNK_SIZE		PAGE_SIZE
+#define AVS_FW_REGS_SIZE		AVS_WINDOW_CHUNK_SIZE
 #define AVS_FW_REGS_WINDOW		0
 /* DSP -> HOST communication window */
 #define AVS_UPLINK_WINDOW		AVS_FW_REGS_WINDOW

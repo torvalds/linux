@@ -4,10 +4,10 @@
 $id: http://devicetree.org/schemas/mfd/rohm,bd9576-pmic.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: ROHM BD9576MUF and BD9573MUF Power Management Integrated Circuit bindings
+title: ROHM BD9576MUF and BD9573MUF Power Management Integrated Circuit
 
 maintainers:
-  - Matti Vaittinen <matti.vaittinen@fi.rohmeurope.com>
+  - Matti Vaittinen <mazziesaccount@gmail.com>
 
 description: |
   BD9576MUF and BD9573MUF are power management ICs primarily intended for

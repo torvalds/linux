@@ -56,41 +56,30 @@ static void vic_writel(struct vic *vic, u32 value, unsigned int offset)
 
 static int vic_boot(struct vic *vic)
 {
-#ifdef CONFIG_IOMMU_API
-	struct iommu_fwspec *spec = dev_iommu_fwspec_get(vic->dev);
-#endif
-	u32 fce_ucode_size, fce_bin_data_offset;
+	u32 fce_ucode_size, fce_bin_data_offset, stream_id;
 	void *hdr;
 	int err = 0;
 
-#ifdef CONFIG_IOMMU_API
-	if (vic->config->supports_sid && spec) {
+	if (vic->config->supports_sid && tegra_dev_iommu_get_stream_id(vic->dev, &stream_id)) {
 		u32 value;
 
 		value = TRANSCFG_ATT(1, TRANSCFG_SID_FALCON) |
 			TRANSCFG_ATT(0, TRANSCFG_SID_HW);
 		vic_writel(vic, value, VIC_TFBIF_TRANSCFG);
 
-		if (spec->num_ids > 0) {
-			value = spec->ids[0] & 0xffff;
+		/*
+		 * STREAMID0 is used for input/output buffers. Initialize it to SID_VIC in case
+		 * context isolation is not enabled, and SID_VIC is used for both firmware and
+		 * data buffers.
+		 *
+		 * If context isolation is enabled, it will be overridden by the SETSTREAMID
+		 * opcode as part of each job.
+		 */
+		vic_writel(vic, stream_id, VIC_THI_STREAMID0);
 
-			/*
-			 * STREAMID0 is used for input/output buffers.
-			 * Initialize it to SID_VIC in case context isolation
-			 * is not enabled, and SID_VIC is used for both firmware
-			 * and data buffers.
-			 *
-			 * If context isolation is enabled, it will be
-			 * overridden by the SETSTREAMID opcode as part of
-			 * each job.
-			 */
-			vic_writel(vic, value, VIC_THI_STREAMID0);
-
-			/* STREAMID1 is used for firmware loading. */
-			vic_writel(vic, value, VIC_THI_STREAMID1);
-		}
+		/* STREAMID1 is used for firmware loading. */
+		vic_writel(vic, stream_id, VIC_THI_STREAMID1);
 	}
-#endif
 
 	/* setup clockgating registers */
 	vic_writel(vic, CG_IDLE_CG_DLY_CNT(4) |
@@ -548,21 +537,13 @@ exit_falcon:
 	return err;
 }
 
-static int vic_remove(struct platform_device *pdev)
+static void vic_remove(struct platform_device *pdev)
 {
 	struct vic *vic = platform_get_drvdata(pdev);
-	int err;
 
-	err = host1x_client_unregister(&vic->client.base);
-	if (err < 0) {
-		dev_err(&pdev->dev, "failed to unregister host1x client: %d\n",
-			err);
-		return err;
-	}
+	host1x_client_unregister(&vic->client.base);
 
 	falcon_exit(&vic->falcon);
-
-	return 0;
 }
 
 static const struct dev_pm_ops vic_pm_ops = {
@@ -577,7 +558,7 @@ struct platform_driver tegra_vic_driver = {
 		.pm = &vic_pm_ops
 	},
 	.probe = vic_probe,
-	.remove = vic_remove,
+	.remove_new = vic_remove,
 };
 
 #if IS_ENABLED(CONFIG_ARCH_TEGRA_124_SOC)

@@ -67,7 +67,14 @@
 	/* TODO: Audio Codec */
 };
 
-/* TODO: Verdin PCIE_1 */
+/* Verdin PCIE_1 */
+&pcie {
+	status = "okay";
+};
+
+&pcie_phy {
+	status = "okay";
+};
 
 /* Verdin PWM_1 */
 &pwm1 {
@@ -116,6 +123,7 @@
 
 /* Verdin USB_2 */
 &usb3_1 {
+	fsl,permanently-attached;
 	status = "okay";
 };
 

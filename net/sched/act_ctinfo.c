@@ -18,6 +18,7 @@
 #include <net/pkt_cls.h>
 #include <uapi/linux/tc_act/tc_ctinfo.h>
 #include <net/tc_act/tc_ctinfo.h>
+#include <net/tc_wrapper.h>
 
 #include <net/netfilter/nf_conntrack.h>
 #include <net/netfilter/nf_conntrack_core.h>
@@ -75,8 +76,9 @@ static void tcf_ctinfo_cpmark_set(struct nf_conn *ct, struct tcf_ctinfo *ca,
 	skb->mark = READ_ONCE(ct->mark) & cp->cpmarkmask;
 }
 
-static int tcf_ctinfo_act(struct sk_buff *skb, const struct tc_action *a,
-			  struct tcf_result *res)
+TC_INDIRECT_SCOPE int tcf_ctinfo_act(struct sk_buff *skb,
+				     const struct tc_action *a,
+				     struct tcf_result *res)
 {
 	const struct nf_conntrack_tuple_hash *thash = NULL;
 	struct tcf_ctinfo *ca = to_ctinfo(a);
@@ -91,7 +93,7 @@ static int tcf_ctinfo_act(struct sk_buff *skb, const struct tc_action *a,
 	cp = rcu_dereference_bh(ca->params);
 
 	tcf_lastuse_update(&ca->tcf_tm);
-	bstats_update(&ca->tcf_bstats, skb);
+	tcf_action_update_bstats(&ca->common, skb);
 	action = READ_ONCE(ca->tcf_action);
 
 	wlen = skb_network_offset(skb);
@@ -210,8 +212,8 @@ static int tcf_ctinfo_init(struct net *net, struct nlattr *nla,
 	index = actparm->index;
 	err = tcf_idr_check_alloc(tn, &index, a, bind);
 	if (!err) {
-		ret = tcf_idr_create(tn, index, est, a,
-				     &act_ctinfo_ops, bind, false, flags);
+		ret = tcf_idr_create_from_flags(tn, index, est, a,
+						&act_ctinfo_ops, bind, flags);
 		if (ret) {
 			tcf_idr_cleanup(tn, index);
 			return ret;

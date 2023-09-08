@@ -27,6 +27,8 @@ struct ghes {
 		struct timer_list timer;
 		unsigned int irq;
 	};
+	struct device *dev;
+	struct list_head elist;
 };
 
 struct ghes_estatus_node {
@@ -69,34 +71,13 @@ int ghes_register_vendor_record_notifier(struct notifier_block *nb);
  * @nb: pointer to the notifier_block structure of the vendor record handler.
  */
 void ghes_unregister_vendor_record_notifier(struct notifier_block *nb);
+
+struct list_head *ghes_get_devices(void);
+#else
+static inline struct list_head *ghes_get_devices(void) { return NULL; }
 #endif
 
 int ghes_estatus_pool_init(unsigned int num_ghes);
-
-/* From drivers/edac/ghes_edac.c */
-
-#ifdef CONFIG_EDAC_GHES
-void ghes_edac_report_mem_error(int sev, struct cper_sec_mem_err *mem_err);
-
-int ghes_edac_register(struct ghes *ghes, struct device *dev);
-
-void ghes_edac_unregister(struct ghes *ghes);
-
-#else
-static inline void ghes_edac_report_mem_error(int sev,
-				       struct cper_sec_mem_err *mem_err)
-{
-}
-
-static inline int ghes_edac_register(struct ghes *ghes, struct device *dev)
-{
-	return -ENODEV;
-}
-
-static inline void ghes_edac_unregister(struct ghes *ghes)
-{
-}
-#endif
 
 static inline int acpi_hest_get_version(struct acpi_hest_generic_data *gdata)
 {
@@ -145,4 +126,7 @@ int ghes_notify_sea(void);
 static inline int ghes_notify_sea(void) { return -ENOENT; }
 #endif
 
+struct notifier_block;
+extern void ghes_register_report_chain(struct notifier_block *nb);
+extern void ghes_unregister_report_chain(struct notifier_block *nb);
 #endif /* GHES_H */

@@ -19,6 +19,7 @@ struct special_alt {
 	bool skip_orig;
 	bool skip_alt;
 	bool jump_or_nop;
+	u8 key_addend;
 
 	struct section *orig_sec;
 	unsigned long orig_off;
@@ -27,7 +28,6 @@ struct special_alt {
 	unsigned long new_off;
 
 	unsigned int orig_len, new_len; /* group only */
-	u8 key_addend;
 };
 
 int special_get_alts(struct elf *elf, struct list_head *alts);

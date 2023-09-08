@@ -504,6 +504,16 @@ void mlx5_fc_query_cached(struct mlx5_fc *counter,
 	counter->lastpackets = c.packets;
 }
 
+void mlx5_fc_query_cached_raw(struct mlx5_fc *counter,
+			      u64 *bytes, u64 *packets, u64 *lastuse)
+{
+	struct mlx5_fc_cache c = counter->cache;
+
+	*bytes = c.bytes;
+	*packets = c.packets;
+	*lastuse = c.lastuse;
+}
+
 void mlx5_fc_queue_stats_work(struct mlx5_core_dev *dev,
 			      struct delayed_work *dwork,
 			      unsigned long delay)

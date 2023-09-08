@@ -11,7 +11,7 @@
 #ifndef AMDSFH_HID_H
 #define AMDSFH_HID_H
 
-#define MAX_HID_DEVICES		5
+#define MAX_HID_DEVICES		6
 #define AMD_SFH_HID_VENDOR	0x1022
 #define AMD_SFH_HID_PRODUCT	0x0001
 
@@ -32,6 +32,7 @@ struct amd_input_data {
 struct amdtp_cl_data {
 	u8 init_done;
 	u32 cur_hid_dev;
+	bool is_any_sensor_enabled;
 	u32 hid_dev_count;
 	u32 num_hid_devices;
 	struct device_info *hid_devices;

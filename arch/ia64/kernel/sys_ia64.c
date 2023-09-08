@@ -140,7 +140,7 @@ asmlinkage unsigned long
 sys_mmap2 (unsigned long addr, unsigned long len, int prot, int flags, int fd, long pgoff)
 {
 	addr = ksys_mmap_pgoff(addr, len, prot, flags, fd, pgoff);
-	if (!IS_ERR((void *) addr))
+	if (!IS_ERR_VALUE(addr))
 		force_successful_syscall_return();
 	return addr;
 }
@@ -152,7 +152,7 @@ sys_mmap (unsigned long addr, unsigned long len, int prot, int flags, int fd, lo
 		return -EINVAL;
 
 	addr = ksys_mmap_pgoff(addr, len, prot, flags, fd, off >> PAGE_SHIFT);
-	if (!IS_ERR((void *) addr))
+	if (!IS_ERR_VALUE(addr))
 		force_successful_syscall_return();
 	return addr;
 }
@@ -162,7 +162,7 @@ ia64_mremap (unsigned long addr, unsigned long old_len, unsigned long new_len, u
 	     unsigned long new_addr)
 {
 	addr = sys_mremap(addr, old_len, new_len, flags, new_addr);
-	if (!IS_ERR((void *) addr))
+	if (!IS_ERR_VALUE(addr))
 		force_successful_syscall_return();
 	return addr;
 }
@@ -170,6 +170,9 @@ ia64_mremap (unsigned long addr, unsigned long old_len, unsigned long new_len, u
 asmlinkage long
 ia64_clock_getres(const clockid_t which_clock, struct __kernel_timespec __user *tp)
 {
+	struct timespec64 rtn_tp;
+	s64 tick_ns;
+
 	/*
 	 * ia64's clock_gettime() syscall is implemented as a vdso call
 	 * fsys_clock_gettime(). Currently it handles only
@@ -185,8 +188,8 @@ ia64_clock_getres(const clockid_t which_clock, struct __kernel_timespec __user *
 	switch (which_clock) {
 	case CLOCK_REALTIME:
 	case CLOCK_MONOTONIC:
-		s64 tick_ns = DIV_ROUND_UP(NSEC_PER_SEC, local_cpu_data->itc_freq);
-		struct timespec64 rtn_tp = ns_to_timespec64(tick_ns);
+		tick_ns = DIV_ROUND_UP(NSEC_PER_SEC, local_cpu_data->itc_freq);
+		rtn_tp = ns_to_timespec64(tick_ns);
 		return put_timespec64(&rtn_tp, tp);
 	}
 

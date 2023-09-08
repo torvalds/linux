@@ -27,6 +27,7 @@ properties:
   led:
     type: object
     $ref: common.yaml#
+    unevaluatedProperties: false
 
 required:
   - compatible
@@ -38,7 +39,7 @@ examples:
   - |
     #include <dt-bindings/leds/common.h>
 
-    i2c0 {
+    i2c {
       #address-cells = <1>;
       #size-cells = <0>;
 

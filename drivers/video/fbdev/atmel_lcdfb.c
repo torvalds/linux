@@ -49,7 +49,6 @@ struct atmel_lcdfb_info {
 	struct clk		*lcdc_clk;
 
 	struct backlight_device	*backlight;
-	u8			bl_power;
 	u8			saved_lcdcon;
 
 	u32			pseudo_palette[16];
@@ -109,22 +108,7 @@ static u32 contrast_ctr = ATMEL_LCDC_PS_DIV8
 static int atmel_bl_update_status(struct backlight_device *bl)
 {
 	struct atmel_lcdfb_info *sinfo = bl_get_data(bl);
-	int			power = sinfo->bl_power;
-	int			brightness = bl->props.brightness;
-
-	/* REVISIT there may be a meaningful difference between
-	 * fb_blank and power ... there seem to be some cases
-	 * this doesn't handle correctly.
-	 */
-	if (bl->props.fb_blank != sinfo->bl_power)
-		power = bl->props.fb_blank;
-	else if (bl->props.power != sinfo->bl_power)
-		power = bl->props.power;
-
-	if (brightness < 0 && power == FB_BLANK_UNBLANK)
-		brightness = lcdc_readl(sinfo, ATMEL_LCDC_CONTRAST_VAL);
-	else if (power != FB_BLANK_UNBLANK)
-		brightness = 0;
+	int			brightness = backlight_get_brightness(bl);
 
 	lcdc_writel(sinfo, ATMEL_LCDC_CONTRAST_VAL, brightness);
 	if (contrast_ctr & ATMEL_LCDC_POL_POSITIVE)
@@ -132,8 +116,6 @@ static int atmel_bl_update_status(struct backlight_device *bl)
 			brightness ? contrast_ctr : 0);
 	else
 		lcdc_writel(sinfo, ATMEL_LCDC_CONTRAST_CTR, contrast_ctr);
-
-	bl->props.fb_blank = bl->props.power = sinfo->bl_power = power;
 
 	return 0;
 }
@@ -154,8 +136,6 @@ static void init_backlight(struct atmel_lcdfb_info *sinfo)
 {
 	struct backlight_properties props;
 	struct backlight_device	*bl;
-
-	sinfo->bl_power = FB_BLANK_UNBLANK;
 
 	if (sinfo->backlight)
 		return;
@@ -337,7 +317,7 @@ static inline void atmel_lcdfb_free_video_memory(struct atmel_lcdfb_info *sinfo)
 /**
  *	atmel_lcdfb_alloc_video_memory - Allocate framebuffer memory
  *	@sinfo: the frame buffer to allocate memory for
- * 	
+ *
  * 	This function is called only from the atmel_lcdfb_probe()
  * 	so no locking by fb_info->mm_lock around smem_len setting is needed.
  */

@@ -266,7 +266,9 @@ static void ath_mci_set_concur_txprio(struct ath_softc *sc)
 			stomp_txprio[ATH_BTCOEX_STOMP_NONE] =
 				ATH_MCI_INQUIRY_PRIO;
 	} else {
-		u8 prof_prio[] = { 50, 90, 94, 52 };/* RFCOMM, A2DP, HID, PAN */
+		static const u8 prof_prio[] = {
+			50, 90, 94, 52
+		}; /* RFCOMM, A2DP, HID, PAN */
 
 		stomp_txprio[ATH_BTCOEX_STOMP_LOW] =
 		stomp_txprio[ATH_BTCOEX_STOMP_NONE] = 0xff;

@@ -190,19 +190,19 @@ int jffs2_do_setattr (struct inode *inode, struct iattr *iattr)
 	return 0;
 }
 
-int jffs2_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
+int jffs2_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 		  struct iattr *iattr)
 {
 	struct inode *inode = d_inode(dentry);
 	int rc;
 
-	rc = setattr_prepare(&init_user_ns, dentry, iattr);
+	rc = setattr_prepare(&nop_mnt_idmap, dentry, iattr);
 	if (rc)
 		return rc;
 
 	rc = jffs2_do_setattr(inode, iattr);
 	if (!rc && (iattr->ia_valid & ATTR_MODE))
-		rc = posix_acl_chmod(&init_user_ns, inode, inode->i_mode);
+		rc = posix_acl_chmod(&nop_mnt_idmap, dentry, inode->i_mode);
 
 	return rc;
 }
@@ -403,7 +403,7 @@ int jffs2_do_remount_fs(struct super_block *sb, struct fs_context *fc)
 	/* We stop if it was running, then restart if it needs to.
 	   This also catches the case where it was stopped and this
 	   is just a remount to restart it.
-	   Flush the writebuffer, if neccecary, else we loose it */
+	   Flush the writebuffer, if necessary, else we loose it */
 	if (!sb_rdonly(sb)) {
 		jffs2_stop_garbage_collect_thread(c);
 		mutex_lock(&c->alloc_sem);

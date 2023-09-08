@@ -250,8 +250,9 @@ static int query_perf_config_data(struct drm_i915_private *i915,
 		return total_size;
 
 	if (query_item->length < total_size) {
-		DRM_DEBUG("Invalid query config data item size=%u expected=%u\n",
-			  query_item->length, total_size);
+		drm_dbg(&i915->drm,
+			"Invalid query config data item size=%u expected=%u\n",
+			query_item->length, total_size);
 		return -EINVAL;
 	}
 
@@ -418,9 +419,10 @@ static int query_perf_config_list(struct drm_i915_private *i915,
 	} while (n_configs > alloc);
 
 	if (query_item->length < sizeof_perf_config_list(n_configs)) {
-		DRM_DEBUG("Invalid query config list item size=%u expected=%zu\n",
-			  query_item->length,
-			  sizeof_perf_config_list(n_configs));
+		drm_dbg(&i915->drm,
+			"Invalid query config list item size=%u expected=%zu\n",
+			query_item->length,
+			sizeof_perf_config_list(n_configs));
 		kfree(oa_config_ids);
 		return -EINVAL;
 	}

@@ -20,17 +20,6 @@
 	pll-supply = <&pm8916_l7>;
 };
 
-&pronto {
-	vddpx-supply = <&pm8916_l7>;
-
-	iris {
-		vddxo-supply = <&pm8916_l7>;
-		vddrfa-supply = <&pm8916_s3>;
-		vddpa-supply = <&pm8916_l9>;
-		vdddig-supply = <&pm8916_l5>;
-	};
-};
-
 &sdhc_1 {
 	vmmc-supply = <&pm8916_l8>;
 	vqmmc-supply = <&pm8916_l5>;
@@ -46,8 +35,19 @@
 	v3p3-supply = <&pm8916_l13>;
 };
 
+&wcnss {
+	vddpx-supply = <&pm8916_l7>;
+};
+
+&wcnss_iris {
+	vddxo-supply = <&pm8916_l7>;
+	vddrfa-supply = <&pm8916_s3>;
+	vddpa-supply = <&pm8916_l9>;
+	vdddig-supply = <&pm8916_l5>;
+};
+
 &rpm_requests {
-	smd_rpm_regulators: pm8916-regulators {
+	smd_rpm_regulators: regulators {
 		compatible = "qcom,rpm-pm8916-regulators";
 
 		/* pm8916_s1 is managed by rpmpd (MSM8916_VDDCX) */

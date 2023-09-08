@@ -64,7 +64,6 @@ static inline psched_time_t psched_get_time(void)
 }
 
 struct qdisc_watchdog {
-	u64		last_expires;
 	struct hrtimer	timer;
 	struct Qdisc	*qdisc;
 };
@@ -128,6 +127,8 @@ static inline void qdisc_run(struct Qdisc *q)
 	}
 }
 
+extern const struct nla_policy rtm_tca_policy[TCA_MAX + 1];
+
 /* Calculate maximal size of packet seen by hard_start_xmit
    routine of this device.
  */
@@ -160,8 +161,30 @@ struct tc_etf_qopt_offload {
 	s32 queue;
 };
 
+struct tc_mqprio_caps {
+	bool validate_queue_counts:1;
+};
+
+struct tc_mqprio_qopt_offload {
+	/* struct tc_mqprio_qopt must always be the first element */
+	struct tc_mqprio_qopt qopt;
+	struct netlink_ext_ack *extack;
+	u16 mode;
+	u16 shaper;
+	u32 flags;
+	u64 min_rate[TC_QOPT_MAX_QUEUE];
+	u64 max_rate[TC_QOPT_MAX_QUEUE];
+	unsigned long preemptible_tcs;
+};
+
 struct tc_taprio_caps {
 	bool supports_queue_max_sdu:1;
+	bool gate_mask_per_txq:1;
+	/* Device expects lower TXQ numbers to have higher priority over higher
+	 * TXQs, regardless of their TC mapping. DO NOT USE FOR NEW DRIVERS,
+	 * INSTEAD ENFORCE A PROPER TC:TXQ MAPPING COMING FROM USER SPACE.
+	 */
+	bool broken_mqprio:1;
 };
 
 struct tc_taprio_sched_entry {
@@ -173,6 +196,8 @@ struct tc_taprio_sched_entry {
 };
 
 struct tc_taprio_qopt_offload {
+	struct tc_mqprio_qopt_offload mqprio;
+	struct netlink_ext_ack *extack;
 	u8 enable;
 	ktime_t base_time;
 	u64 cycle_time;

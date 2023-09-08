@@ -13,6 +13,7 @@
 / {
 	model = "LG G Watch R";
 	compatible = "lg,lenok", "qcom,apq8026";
+	chassis-type = "watch";
 	qcom,board-id = <132 0x0a>;
 	qcom,msm-id = <199 0x20000>;
 
@@ -26,6 +27,16 @@
 	};
 
 	reserved-memory {
+		sbl_region: sbl@2f00000 {
+			reg = <0x02f00000 0x100000>;
+			no-map;
+		};
+
+		external_image_region: external-image@3100000 {
+			reg = <0x03100000 0x200000>;
+			no-map;
+		};
+
 		adsp_region: adsp@3300000 {
 			reg = <0x03300000 0x1400000>;
 			no-map;
@@ -115,7 +126,7 @@
 };
 
 &rpm_requests {
-	pm8226-regulators {
+	regulators {
 		compatible = "qcom,rpm-pm8226-regulators";
 
 		pm8226_s3: s3 {
@@ -296,20 +307,18 @@
 		function = "gpio";
 		drive-strength = <2>;
 		bias-disable;
-		input-enable;
 	};
 
-	touch_pins: touch {
-		irq {
+	touch_pins: touch-state {
+		irq-pins {
 			pins = "gpio17";
 			function = "gpio";
 
 			drive-strength = <8>;
 			bias-pull-down;
-			input-enable;
 		};
 
-		reset {
+		reset-pins {
 			pins = "gpio16";
 			function = "gpio";
 
@@ -324,7 +333,6 @@
 		function = "gpio";
 		drive-strength = <2>;
 		bias-disable;
-		input-enable;
 	};
 
 	wlan_regulator_default_state: wlan-regulator-default-state {

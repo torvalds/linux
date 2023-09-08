@@ -204,9 +204,9 @@ static int rio_match_bus(struct device *dev, struct device_driver *drv)
       out:return 0;
 }
 
-static int rio_uevent(struct device *dev, struct kobj_uevent_env *env)
+static int rio_uevent(const struct device *dev, struct kobj_uevent_env *env)
 {
-	struct rio_dev *rdev;
+	const struct rio_dev *rdev;
 
 	if (!dev)
 		return -ENODEV;
@@ -223,7 +223,6 @@ static int rio_uevent(struct device *dev, struct kobj_uevent_env *env)
 
 struct class rio_mport_class = {
 	.name		= "rapidio_port",
-	.owner		= THIS_MODULE,
 	.dev_groups	= rio_mport_groups,
 };
 EXPORT_SYMBOL_GPL(rio_mport_class);

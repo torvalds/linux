@@ -34,6 +34,7 @@ struct cfi_state {
 	unsigned char type;
 	bool bp_scratch;
 	bool drap;
+	bool signal;
 	bool end;
 };
 

@@ -35,8 +35,10 @@
 #include "tool.h"
 #include "thread.h"
 #include "thread-stack.h"
+#include "tsc.h"
 #include <tools/libc_compat.h>
 #include "util/synthetic-events.h"
+#include "util/util.h"
 
 struct cs_etm_auxtrace {
 	struct auxtrace auxtrace;
@@ -46,10 +48,27 @@ struct cs_etm_auxtrace {
 	struct perf_session *session;
 	struct machine *machine;
 	struct thread *unknown_thread;
+	struct perf_tsc_conversion tc;
 
-	u8 timeless_decoding;
-	u8 snapshot_mode;
-	u8 data_queued;
+	/*
+	 * Timeless has no timestamps in the trace so overlapping mmap lookups
+	 * are less accurate but produces smaller trace data. We use context IDs
+	 * in the trace instead of matching timestamps with fork records so
+	 * they're not really needed in the general case. Overlapping mmaps
+	 * happen in cases like between a fork and an exec.
+	 */
+	bool timeless_decoding;
+
+	/*
+	 * Per-thread ignores the trace channel ID and instead assumes that
+	 * everything in a buffer comes from the same process regardless of
+	 * which CPU it ran on. It also implies no context IDs so the TID is
+	 * taken from the auxtrace buffer.
+	 */
+	bool per_thread_decoding;
+	bool snapshot_mode;
+	bool data_queued;
+	bool has_virtual_ts; /* Virtual/Kernel timestamps in the trace. */
 
 	int num_cpu;
 	u64 latest_kernel_timestamp;
@@ -94,7 +113,7 @@ struct cs_etm_queue {
 /* RB tree for quick conversion between traceID and metadata pointers */
 static struct intlist *traceid_list;
 
-static int cs_etm__process_queues(struct cs_etm_auxtrace *etm);
+static int cs_etm__process_timestamped_queues(struct cs_etm_auxtrace *etm);
 static int cs_etm__process_timeless_queues(struct cs_etm_auxtrace *etm,
 					   pid_t tid);
 static int cs_etm__get_data_block(struct cs_etm_queue *etmq);
@@ -191,6 +210,189 @@ int cs_etm__get_pid_fmt(u8 trace_chan_id, u64 *pid_fmt)
 	}
 
 	return 0;
+}
+
+static int cs_etm__map_trace_id(u8 trace_chan_id, u64 *cpu_metadata)
+{
+	struct int_node *inode;
+
+	/* Get an RB node for this CPU */
+	inode = intlist__findnew(traceid_list, trace_chan_id);
+
+	/* Something went wrong, no need to continue */
+	if (!inode)
+		return -ENOMEM;
+
+	/*
+	 * The node for that CPU should not be taken.
+	 * Back out if that's the case.
+	 */
+	if (inode->priv)
+		return -EINVAL;
+
+	/* All good, associate the traceID with the metadata pointer */
+	inode->priv = cpu_metadata;
+
+	return 0;
+}
+
+static int cs_etm__metadata_get_trace_id(u8 *trace_chan_id, u64 *cpu_metadata)
+{
+	u64 cs_etm_magic = cpu_metadata[CS_ETM_MAGIC];
+
+	switch (cs_etm_magic) {
+	case __perf_cs_etmv3_magic:
+		*trace_chan_id = (u8)(cpu_metadata[CS_ETM_ETMTRACEIDR] &
+				      CORESIGHT_TRACE_ID_VAL_MASK);
+		break;
+	case __perf_cs_etmv4_magic:
+	case __perf_cs_ete_magic:
+		*trace_chan_id = (u8)(cpu_metadata[CS_ETMV4_TRCTRACEIDR] &
+				      CORESIGHT_TRACE_ID_VAL_MASK);
+		break;
+	default:
+		return -EINVAL;
+	}
+	return 0;
+}
+
+/*
+ * update metadata trace ID from the value found in the AUX_HW_INFO packet.
+ * This will also clear the CORESIGHT_TRACE_ID_UNUSED_FLAG flag if present.
+ */
+static int cs_etm__metadata_set_trace_id(u8 trace_chan_id, u64 *cpu_metadata)
+{
+	u64 cs_etm_magic = cpu_metadata[CS_ETM_MAGIC];
+
+	switch (cs_etm_magic) {
+	case __perf_cs_etmv3_magic:
+		 cpu_metadata[CS_ETM_ETMTRACEIDR] = trace_chan_id;
+		break;
+	case __perf_cs_etmv4_magic:
+	case __perf_cs_ete_magic:
+		cpu_metadata[CS_ETMV4_TRCTRACEIDR] = trace_chan_id;
+		break;
+
+	default:
+		return -EINVAL;
+	}
+	return 0;
+}
+
+/*
+ * FIELD_GET (linux/bitfield.h) not available outside kernel code,
+ * and the header contains too many dependencies to just copy over,
+ * so roll our own based on the original
+ */
+#define __bf_shf(x) (__builtin_ffsll(x) - 1)
+#define FIELD_GET(_mask, _reg)						\
+	({								\
+		(typeof(_mask))(((_reg) & (_mask)) >> __bf_shf(_mask)); \
+	})
+
+/*
+ * Get a metadata for a specific cpu from an array.
+ *
+ */
+static u64 *get_cpu_data(struct cs_etm_auxtrace *etm, int cpu)
+{
+	int i;
+	u64 *metadata = NULL;
+
+	for (i = 0; i < etm->num_cpu; i++) {
+		if (etm->metadata[i][CS_ETM_CPU] == (u64)cpu) {
+			metadata = etm->metadata[i];
+			break;
+		}
+	}
+
+	return metadata;
+}
+
+/*
+ * Handle the PERF_RECORD_AUX_OUTPUT_HW_ID event.
+ *
+ * The payload associates the Trace ID and the CPU.
+ * The routine is tolerant of seeing multiple packets with the same association,
+ * but a CPU / Trace ID association changing during a session is an error.
+ */
+static int cs_etm__process_aux_output_hw_id(struct perf_session *session,
+					    union perf_event *event)
+{
+	struct cs_etm_auxtrace *etm;
+	struct perf_sample sample;
+	struct int_node *inode;
+	struct evsel *evsel;
+	u64 *cpu_data;
+	u64 hw_id;
+	int cpu, version, err;
+	u8 trace_chan_id, curr_chan_id;
+
+	/* extract and parse the HW ID */
+	hw_id = event->aux_output_hw_id.hw_id;
+	version = FIELD_GET(CS_AUX_HW_ID_VERSION_MASK, hw_id);
+	trace_chan_id = FIELD_GET(CS_AUX_HW_ID_TRACE_ID_MASK, hw_id);
+
+	/* check that we can handle this version */
+	if (version > CS_AUX_HW_ID_CURR_VERSION)
+		return -EINVAL;
+
+	/* get access to the etm metadata */
+	etm = container_of(session->auxtrace, struct cs_etm_auxtrace, auxtrace);
+	if (!etm || !etm->metadata)
+		return -EINVAL;
+
+	/* parse the sample to get the CPU */
+	evsel = evlist__event2evsel(session->evlist, event);
+	if (!evsel)
+		return -EINVAL;
+	err = evsel__parse_sample(evsel, event, &sample);
+	if (err)
+		return err;
+	cpu = sample.cpu;
+	if (cpu == -1) {
+		/* no CPU in the sample - possibly recorded with an old version of perf */
+		pr_err("CS_ETM: no CPU AUX_OUTPUT_HW_ID sample. Use compatible perf to record.");
+		return -EINVAL;
+	}
+
+	/* See if the ID is mapped to a CPU, and it matches the current CPU */
+	inode = intlist__find(traceid_list, trace_chan_id);
+	if (inode) {
+		cpu_data = inode->priv;
+		if ((int)cpu_data[CS_ETM_CPU] != cpu) {
+			pr_err("CS_ETM: map mismatch between HW_ID packet CPU and Trace ID\n");
+			return -EINVAL;
+		}
+
+		/* check that the mapped ID matches */
+		err = cs_etm__metadata_get_trace_id(&curr_chan_id, cpu_data);
+		if (err)
+			return err;
+		if (curr_chan_id != trace_chan_id) {
+			pr_err("CS_ETM: mismatch between CPU trace ID and HW_ID packet ID\n");
+			return -EINVAL;
+		}
+
+		/* mapped and matched - return OK */
+		return 0;
+	}
+
+	cpu_data = get_cpu_data(etm, cpu);
+	if (cpu_data == NULL)
+		return err;
+
+	/* not one we've seen before - lets map it */
+	err = cs_etm__map_trace_id(trace_chan_id, cpu_data);
+	if (err)
+		return err;
+
+	/*
+	 * if we are picking up the association from the packet, need to plug
+	 * the correct trace ID into the metadata for setting up decoders later.
+	 */
+	err = cs_etm__metadata_set_trace_id(trace_chan_id, cpu_data);
+	return err;
 }
 
 void cs_etm__etmq_set_traceid_queue_timestamp(struct cs_etm_queue *etmq,
@@ -327,7 +529,7 @@ static struct cs_etm_traceid_queue
 	struct cs_etm_traceid_queue *tidq, **traceid_queues;
 	struct cs_etm_auxtrace *etm = etmq->etm;
 
-	if (etm->timeless_decoding)
+	if (etm->per_thread_decoding)
 		trace_chan_id = CS_ETM_PER_THREAD_TRACEID;
 
 	traceid_queues_list = etmq->traceid_queues_list;
@@ -464,12 +666,12 @@ static void cs_etm__set_trace_param_ete(struct cs_etm_trace_params *t_params,
 	u64 **metadata = etm->metadata;
 
 	t_params[idx].protocol = CS_ETM_PROTO_ETE;
-	t_params[idx].ete.reg_idr0 = metadata[idx][CS_ETMV4_TRCIDR0];
-	t_params[idx].ete.reg_idr1 = metadata[idx][CS_ETMV4_TRCIDR1];
-	t_params[idx].ete.reg_idr2 = metadata[idx][CS_ETMV4_TRCIDR2];
-	t_params[idx].ete.reg_idr8 = metadata[idx][CS_ETMV4_TRCIDR8];
-	t_params[idx].ete.reg_configr = metadata[idx][CS_ETMV4_TRCCONFIGR];
-	t_params[idx].ete.reg_traceidr = metadata[idx][CS_ETMV4_TRCTRACEIDR];
+	t_params[idx].ete.reg_idr0 = metadata[idx][CS_ETE_TRCIDR0];
+	t_params[idx].ete.reg_idr1 = metadata[idx][CS_ETE_TRCIDR1];
+	t_params[idx].ete.reg_idr2 = metadata[idx][CS_ETE_TRCIDR2];
+	t_params[idx].ete.reg_idr8 = metadata[idx][CS_ETE_TRCIDR8];
+	t_params[idx].ete.reg_configr = metadata[idx][CS_ETE_TRCCONFIGR];
+	t_params[idx].ete.reg_traceidr = metadata[idx][CS_ETE_TRCTRACEIDR];
 	t_params[idx].ete.reg_devarch = metadata[idx][CS_ETE_TRCDEVARCH];
 }
 
@@ -566,10 +768,15 @@ static int cs_etm__flush_events(struct perf_session *session,
 	if (!tool->ordered_events)
 		return -EINVAL;
 
-	if (etm->timeless_decoding)
+	if (etm->timeless_decoding) {
+		/*
+		 * Pass tid = -1 to process all queues. But likely they will have
+		 * already been processed on PERF_RECORD_EXIT anyway.
+		 */
 		return cs_etm__process_timeless_queues(etm, -1);
+	}
 
-	return cs_etm__process_queues(etm);
+	return cs_etm__process_timestamped_queues(etm);
 }
 
 static void cs_etm__free_traceid_queues(struct cs_etm_queue *etmq)
@@ -701,6 +908,7 @@ static u32 cs_etm__mem_access(struct cs_etm_queue *etmq, u8 trace_chan_id,
 	struct thread *thread;
 	struct machine *machine;
 	struct addr_location al;
+	struct dso *dso;
 	struct cs_etm_traceid_queue *tidq;
 
 	if (!etmq)
@@ -719,27 +927,31 @@ static u32 cs_etm__mem_access(struct cs_etm_queue *etmq, u8 trace_chan_id,
 		thread = etmq->etm->unknown_thread;
 	}
 
-	if (!thread__find_map(thread, cpumode, address, &al) || !al.map->dso)
+	if (!thread__find_map(thread, cpumode, address, &al))
 		return 0;
 
-	if (al.map->dso->data.status == DSO_DATA_STATUS_ERROR &&
-	    dso__data_status_seen(al.map->dso, DSO_DATA_STATUS_SEEN_ITRACE))
+	dso = map__dso(al.map);
+	if (!dso)
 		return 0;
 
-	offset = al.map->map_ip(al.map, address);
+	if (dso->data.status == DSO_DATA_STATUS_ERROR &&
+	    dso__data_status_seen(dso, DSO_DATA_STATUS_SEEN_ITRACE))
+		return 0;
+
+	offset = map__map_ip(al.map, address);
 
 	map__load(al.map);
 
-	len = dso__data_read_offset(al.map->dso, machine, offset, buffer, size);
+	len = dso__data_read_offset(dso, machine, offset, buffer, size);
 
 	if (len <= 0) {
 		ui__warning_once("CS ETM Trace: Missing DSO. Use 'perf archive' or debuginfod to export data from the traced system.\n"
 				 "              Enable CONFIG_PROC_KCORE or use option '-k /path/to/vmlinux' for kernel symbols.\n");
-		if (!al.map->dso->auxtrace_warned) {
+		if (!dso->auxtrace_warned) {
 			pr_err("CS ETM Trace: Debug data not found for address %#"PRIx64" in %s\n",
 				    address,
-				    al.map->dso->long_name ? al.map->dso->long_name : "Unknown");
-			al.map->dso->auxtrace_warned = true;
+				    dso->long_name ? dso->long_name : "Unknown");
+			dso->auxtrace_warned = true;
 		}
 		return 0;
 	}
@@ -896,7 +1108,7 @@ static int cs_etm__queue_first_cs_timestamp(struct cs_etm_auxtrace *etm,
 	 * chronological order.
 	 *
 	 * Note that packets decoded above are still in the traceID's packet
-	 * queue and will be processed in cs_etm__process_queues().
+	 * queue and will be processed in cs_etm__process_timestamped_queues().
 	 */
 	cs_queue_nr = TO_CS_QUEUE_NR(queue_nr, trace_chan_id);
 	ret = auxtrace_heap__add(&etm->heap, cs_queue_nr, cs_timestamp);
@@ -1161,6 +1373,28 @@ static void cs_etm__copy_insn(struct cs_etm_queue *etmq,
 			   sample->insn_len, (void *)sample->insn);
 }
 
+u64 cs_etm__convert_sample_time(struct cs_etm_queue *etmq, u64 cs_timestamp)
+{
+	struct cs_etm_auxtrace *etm = etmq->etm;
+
+	if (etm->has_virtual_ts)
+		return tsc_to_perf_time(cs_timestamp, &etm->tc);
+	else
+		return cs_timestamp;
+}
+
+static inline u64 cs_etm__resolve_sample_time(struct cs_etm_queue *etmq,
+					       struct cs_etm_traceid_queue *tidq)
+{
+	struct cs_etm_auxtrace *etm = etmq->etm;
+	struct cs_etm_packet_queue *packet_queue = &tidq->packet_queue;
+
+	if (!etm->timeless_decoding && etm->has_virtual_ts)
+		return packet_queue->cs_timestamp;
+	else
+		return etm->latest_kernel_timestamp;
+}
+
 static int cs_etm__synth_instruction_sample(struct cs_etm_queue *etmq,
 					    struct cs_etm_traceid_queue *tidq,
 					    u64 addr, u64 period)
@@ -1174,8 +1408,9 @@ static int cs_etm__synth_instruction_sample(struct cs_etm_queue *etmq,
 	event->sample.header.misc = cs_etm__cpu_mode(etmq, addr);
 	event->sample.header.size = sizeof(struct perf_event_header);
 
-	if (!etm->timeless_decoding)
-		sample.time = etm->latest_kernel_timestamp;
+	/* Set time field based on etm auxtrace config. */
+	sample.time = cs_etm__resolve_sample_time(etmq, tidq);
+
 	sample.ip = addr;
 	sample.pid = tidq->pid;
 	sample.tid = tidq->tid;
@@ -1232,8 +1467,9 @@ static int cs_etm__synth_branch_sample(struct cs_etm_queue *etmq,
 	event->sample.header.misc = cs_etm__cpu_mode(etmq, ip);
 	event->sample.header.size = sizeof(struct perf_event_header);
 
-	if (!etm->timeless_decoding)
-		sample.time = etm->latest_kernel_timestamp;
+	/* Set time field based on etm auxtrace config. */
+	sample.time = cs_etm__resolve_sample_time(etmq, tidq);
+
 	sample.ip = ip;
 	sample.pid = tidq->pid;
 	sample.tid = tidq->tid;
@@ -2133,7 +2369,7 @@ static void cs_etm__clear_all_traceid_queues(struct cs_etm_queue *etmq)
 	}
 }
 
-static int cs_etm__run_decoder(struct cs_etm_queue *etmq)
+static int cs_etm__run_per_thread_timeless_decoder(struct cs_etm_queue *etmq)
 {
 	int err = 0;
 	struct cs_etm_traceid_queue *tidq;
@@ -2171,6 +2407,51 @@ static int cs_etm__run_decoder(struct cs_etm_queue *etmq)
 	return err;
 }
 
+static int cs_etm__run_per_cpu_timeless_decoder(struct cs_etm_queue *etmq)
+{
+	int idx, err = 0;
+	struct cs_etm_traceid_queue *tidq;
+	struct int_node *inode;
+
+	/* Go through each buffer in the queue and decode them one by one */
+	while (1) {
+		err = cs_etm__get_data_block(etmq);
+		if (err <= 0)
+			return err;
+
+		/* Run trace decoder until buffer consumed or end of trace */
+		do {
+			err = cs_etm__decode_data_block(etmq);
+			if (err)
+				return err;
+
+			/*
+			 * cs_etm__run_per_thread_timeless_decoder() runs on a
+			 * single traceID queue because each TID has a separate
+			 * buffer. But here in per-cpu mode we need to iterate
+			 * over each channel instead.
+			 */
+			intlist__for_each_entry(inode,
+						etmq->traceid_queues_list) {
+				idx = (int)(intptr_t)inode->priv;
+				tidq = etmq->traceid_queues[idx];
+				cs_etm__process_traceid_queue(etmq, tidq);
+			}
+		} while (etmq->buf_len);
+
+		intlist__for_each_entry(inode, etmq->traceid_queues_list) {
+			idx = (int)(intptr_t)inode->priv;
+			tidq = etmq->traceid_queues[idx];
+			/* Flush any remaining branch stack entries */
+			err = cs_etm__end_block(etmq, tidq);
+			if (err)
+				return err;
+		}
+	}
+
+	return err;
+}
+
 static int cs_etm__process_timeless_queues(struct cs_etm_auxtrace *etm,
 					   pid_t tid)
 {
@@ -2185,22 +2466,30 @@ static int cs_etm__process_timeless_queues(struct cs_etm_auxtrace *etm,
 		if (!etmq)
 			continue;
 
-		tidq = cs_etm__etmq_get_traceid_queue(etmq,
-						CS_ETM_PER_THREAD_TRACEID);
+		/*
+		 * Per-cpu mode has contextIDs in the trace and the decoder
+		 * calls cs_etm__set_pid_tid_cpu() automatically so no need
+		 * to do this here
+		 */
+		if (etm->per_thread_decoding) {
+			tidq = cs_etm__etmq_get_traceid_queue(
+				etmq, CS_ETM_PER_THREAD_TRACEID);
 
-		if (!tidq)
-			continue;
+			if (!tidq)
+				continue;
 
-		if ((tid == -1) || (tidq->tid == tid)) {
-			cs_etm__set_pid_tid_cpu(etm, tidq);
-			cs_etm__run_decoder(etmq);
-		}
+			if ((tid == -1) || (tidq->tid == tid)) {
+				cs_etm__set_pid_tid_cpu(etm, tidq);
+				cs_etm__run_per_thread_timeless_decoder(etmq);
+			}
+		} else
+			cs_etm__run_per_cpu_timeless_decoder(etmq);
 	}
 
 	return 0;
 }
 
-static int cs_etm__process_queues(struct cs_etm_auxtrace *etm)
+static int cs_etm__process_timestamped_queues(struct cs_etm_auxtrace *etm)
 {
 	int ret = 0;
 	unsigned int cs_queue_nr, queue_nr, i;
@@ -2377,7 +2666,6 @@ static int cs_etm__process_event(struct perf_session *session,
 				 struct perf_sample *sample,
 				 struct perf_tool *tool)
 {
-	u64 sample_kernel_timestamp;
 	struct cs_etm_auxtrace *etm = container_of(session->auxtrace,
 						   struct cs_etm_auxtrace,
 						   auxtrace);
@@ -2390,33 +2678,39 @@ static int cs_etm__process_event(struct perf_session *session,
 		return -EINVAL;
 	}
 
-	if (sample->time && (sample->time != (u64) -1))
-		sample_kernel_timestamp = sample->time;
-	else
-		sample_kernel_timestamp = 0;
+	switch (event->header.type) {
+	case PERF_RECORD_EXIT:
+		/*
+		 * Don't need to wait for cs_etm__flush_events() in per-thread mode to
+		 * start the decode because we know there will be no more trace from
+		 * this thread. All this does is emit samples earlier than waiting for
+		 * the flush in other modes, but with timestamps it makes sense to wait
+		 * for flush so that events from different threads are interleaved
+		 * properly.
+		 */
+		if (etm->per_thread_decoding && etm->timeless_decoding)
+			return cs_etm__process_timeless_queues(etm,
+							       event->fork.tid);
+		break;
 
-	/*
-	 * Don't wait for cs_etm__flush_events() in per-thread/timeless mode to start the decode. We
-	 * need the tid of the PERF_RECORD_EXIT event to assign to the synthesised samples because
-	 * ETM_OPT_CTXTID is not enabled.
-	 */
-	if (etm->timeless_decoding &&
-	    event->header.type == PERF_RECORD_EXIT)
-		return cs_etm__process_timeless_queues(etm,
-						       event->fork.tid);
-
-	if (event->header.type == PERF_RECORD_ITRACE_START)
+	case PERF_RECORD_ITRACE_START:
 		return cs_etm__process_itrace_start(etm, event);
-	else if (event->header.type == PERF_RECORD_SWITCH_CPU_WIDE)
+
+	case PERF_RECORD_SWITCH_CPU_WIDE:
 		return cs_etm__process_switch_cpu_wide(etm, event);
 
-	if (!etm->timeless_decoding && event->header.type == PERF_RECORD_AUX) {
+	case PERF_RECORD_AUX:
 		/*
 		 * Record the latest kernel timestamp available in the header
 		 * for samples so that synthesised samples occur from this point
 		 * onwards.
 		 */
-		etm->latest_kernel_timestamp = sample_kernel_timestamp;
+		if (sample->time && (sample->time != (u64)-1))
+			etm->latest_kernel_timestamp = sample->time;
+		break;
+
+	default:
+		break;
 	}
 
 	return 0;
@@ -2488,161 +2782,29 @@ static int cs_etm__process_auxtrace_event(struct perf_session *session,
 	return 0;
 }
 
-static bool cs_etm__is_timeless_decoding(struct cs_etm_auxtrace *etm)
+static int cs_etm__setup_timeless_decoding(struct cs_etm_auxtrace *etm)
 {
 	struct evsel *evsel;
 	struct evlist *evlist = etm->session->evlist;
-	bool timeless_decoding = true;
 
 	/* Override timeless mode with user input from --itrace=Z */
-	if (etm->synth_opts.timeless_decoding)
-		return true;
+	if (etm->synth_opts.timeless_decoding) {
+		etm->timeless_decoding = true;
+		return 0;
+	}
 
 	/*
-	 * Circle through the list of event and complain if we find one
-	 * with the time bit set.
+	 * Find the cs_etm evsel and look at what its timestamp setting was
 	 */
-	evlist__for_each_entry(evlist, evsel) {
-		if ((evsel->core.attr.sample_type & PERF_SAMPLE_TIME))
-			timeless_decoding = false;
-	}
-
-	return timeless_decoding;
-}
-
-static const char * const cs_etm_global_header_fmts[] = {
-	[CS_HEADER_VERSION]	= "	Header version		       %llx\n",
-	[CS_PMU_TYPE_CPUS]	= "	PMU type/num cpus	       %llx\n",
-	[CS_ETM_SNAPSHOT]	= "	Snapshot		       %llx\n",
-};
-
-static const char * const cs_etm_priv_fmts[] = {
-	[CS_ETM_MAGIC]		= "	Magic number		       %llx\n",
-	[CS_ETM_CPU]		= "	CPU			       %lld\n",
-	[CS_ETM_NR_TRC_PARAMS]	= "	NR_TRC_PARAMS		       %llx\n",
-	[CS_ETM_ETMCR]		= "	ETMCR			       %llx\n",
-	[CS_ETM_ETMTRACEIDR]	= "	ETMTRACEIDR		       %llx\n",
-	[CS_ETM_ETMCCER]	= "	ETMCCER			       %llx\n",
-	[CS_ETM_ETMIDR]		= "	ETMIDR			       %llx\n",
-};
-
-static const char * const cs_etmv4_priv_fmts[] = {
-	[CS_ETM_MAGIC]		= "	Magic number		       %llx\n",
-	[CS_ETM_CPU]		= "	CPU			       %lld\n",
-	[CS_ETM_NR_TRC_PARAMS]	= "	NR_TRC_PARAMS		       %llx\n",
-	[CS_ETMV4_TRCCONFIGR]	= "	TRCCONFIGR		       %llx\n",
-	[CS_ETMV4_TRCTRACEIDR]	= "	TRCTRACEIDR		       %llx\n",
-	[CS_ETMV4_TRCIDR0]	= "	TRCIDR0			       %llx\n",
-	[CS_ETMV4_TRCIDR1]	= "	TRCIDR1			       %llx\n",
-	[CS_ETMV4_TRCIDR2]	= "	TRCIDR2			       %llx\n",
-	[CS_ETMV4_TRCIDR8]	= "	TRCIDR8			       %llx\n",
-	[CS_ETMV4_TRCAUTHSTATUS] = "	TRCAUTHSTATUS		       %llx\n",
-	[CS_ETE_TRCDEVARCH]	= "	TRCDEVARCH                     %llx\n"
-};
-
-static const char * const param_unk_fmt =
-	"	Unknown parameter [%d]	       %llx\n";
-static const char * const magic_unk_fmt =
-	"	Magic number Unknown	       %llx\n";
-
-static int cs_etm__print_cpu_metadata_v0(__u64 *val, int *offset)
-{
-	int i = *offset, j, nr_params = 0, fmt_offset;
-	__u64 magic;
-
-	/* check magic value */
-	magic = val[i + CS_ETM_MAGIC];
-	if ((magic != __perf_cs_etmv3_magic) &&
-	    (magic != __perf_cs_etmv4_magic)) {
-		/* failure - note bad magic value */
-		fprintf(stdout, magic_unk_fmt, magic);
-		return -EINVAL;
-	}
-
-	/* print common header block */
-	fprintf(stdout, cs_etm_priv_fmts[CS_ETM_MAGIC], val[i++]);
-	fprintf(stdout, cs_etm_priv_fmts[CS_ETM_CPU], val[i++]);
-
-	if (magic == __perf_cs_etmv3_magic) {
-		nr_params = CS_ETM_NR_TRC_PARAMS_V0;
-		fmt_offset = CS_ETM_ETMCR;
-		/* after common block, offset format index past NR_PARAMS */
-		for (j = fmt_offset; j < nr_params + fmt_offset; j++, i++)
-			fprintf(stdout, cs_etm_priv_fmts[j], val[i]);
-	} else if (magic == __perf_cs_etmv4_magic) {
-		nr_params = CS_ETMV4_NR_TRC_PARAMS_V0;
-		fmt_offset = CS_ETMV4_TRCCONFIGR;
-		/* after common block, offset format index past NR_PARAMS */
-		for (j = fmt_offset; j < nr_params + fmt_offset; j++, i++)
-			fprintf(stdout, cs_etmv4_priv_fmts[j], val[i]);
-	}
-	*offset = i;
-	return 0;
-}
-
-static int cs_etm__print_cpu_metadata_v1(__u64 *val, int *offset)
-{
-	int i = *offset, j, total_params = 0;
-	__u64 magic;
-
-	magic = val[i + CS_ETM_MAGIC];
-	/* total params to print is NR_PARAMS + common block size for v1 */
-	total_params = val[i + CS_ETM_NR_TRC_PARAMS] + CS_ETM_COMMON_BLK_MAX_V1;
-
-	if (magic == __perf_cs_etmv3_magic) {
-		for (j = 0; j < total_params; j++, i++) {
-			/* if newer record - could be excess params */
-			if (j >= CS_ETM_PRIV_MAX)
-				fprintf(stdout, param_unk_fmt, j, val[i]);
-			else
-				fprintf(stdout, cs_etm_priv_fmts[j], val[i]);
+	evlist__for_each_entry(evlist, evsel)
+		if (cs_etm__evsel_is_auxtrace(etm->session, evsel)) {
+			etm->timeless_decoding =
+				!(evsel->core.attr.config & BIT(ETM_OPT_TS));
+			return 0;
 		}
-	} else if (magic == __perf_cs_etmv4_magic || magic == __perf_cs_ete_magic) {
-		/*
-		 * ETE and ETMv4 can be printed in the same block because the number of parameters
-		 * is saved and they share the list of parameter names. ETE is also only supported
-		 * in V1 files.
-		 */
-		for (j = 0; j < total_params; j++, i++) {
-			/* if newer record - could be excess params */
-			if (j >= CS_ETE_PRIV_MAX)
-				fprintf(stdout, param_unk_fmt, j, val[i]);
-			else
-				fprintf(stdout, cs_etmv4_priv_fmts[j], val[i]);
-		}
-	} else {
-		/* failure - note bad magic value and error out */
-		fprintf(stdout, magic_unk_fmt, magic);
-		return -EINVAL;
-	}
-	*offset = i;
-	return 0;
-}
 
-static void cs_etm__print_auxtrace_info(__u64 *val, int num)
-{
-	int i, cpu = 0, version, err;
-
-	/* bail out early on bad header version */
-	version = val[0];
-	if (version > CS_HEADER_CURRENT_VERSION) {
-		/* failure.. return */
-		fprintf(stdout, "	Unknown Header Version = %x, ", version);
-		fprintf(stdout, "Version supported <= %x\n", CS_HEADER_CURRENT_VERSION);
-		return;
-	}
-
-	for (i = 0; i < CS_HEADER_VERSION_MAX; i++)
-		fprintf(stdout, cs_etm_global_header_fmts[i], val[i]);
-
-	for (i = CS_HEADER_VERSION_MAX; cpu < num; cpu++) {
-		if (version == 0)
-			err = cs_etm__print_cpu_metadata_v0(val, &i);
-		else if (version == 1)
-			err = cs_etm__print_cpu_metadata_v1(val, &i);
-		if (err)
-			return;
-	}
+	pr_err("CS ETM: Couldn't find ETM evsel\n");
+	return -EINVAL;
 }
 
 /*
@@ -2750,12 +2912,27 @@ static int cs_etm__queue_aux_fragment(struct perf_session *session, off_t file_o
 	}
 
 	/*
-	 * In per-thread mode, CPU is set to -1, but TID will be set instead. See
-	 * auxtrace_mmap_params__set_idx(). Return 'not found' if neither CPU nor TID match.
+	 * In per-thread mode, auxtrace CPU is set to -1, but TID will be set instead. See
+	 * auxtrace_mmap_params__set_idx(). However, the sample AUX event will contain a
+	 * CPU as we set this always for the AUX_OUTPUT_HW_ID event.
+	 * So now compare only TIDs if auxtrace CPU is -1, and CPUs if auxtrace CPU is not -1.
+	 * Return 'not found' if mismatch.
 	 */
-	if ((auxtrace_event->cpu == (__u32) -1 && auxtrace_event->tid != sample->tid) ||
-			auxtrace_event->cpu != sample->cpu)
+	if (auxtrace_event->cpu == (__u32) -1) {
+		etm->per_thread_decoding = true;
+		if (auxtrace_event->tid != sample->tid)
+			return 1;
+	} else if (auxtrace_event->cpu != sample->cpu) {
+		if (etm->per_thread_decoding) {
+			/*
+			 * Found a per-cpu buffer after a per-thread one was
+			 * already found
+			 */
+			pr_err("CS ETM: Inconsistent per-thread/per-cpu mode.\n");
+			return -EINVAL;
+		}
 		return 1;
+	}
 
 	if (aux_event->flags & PERF_AUX_FLAG_OVERWRITE) {
 		/*
@@ -2801,6 +2978,17 @@ static int cs_etm__queue_aux_fragment(struct perf_session *session, off_t file_o
 
 	/* Wasn't inside this buffer, but there were no parse errors. 1 == 'not found' */
 	return 1;
+}
+
+static int cs_etm__process_aux_hw_id_cb(struct perf_session *session, union perf_event *event,
+					u64 offset __maybe_unused, void *data __maybe_unused)
+{
+	/* look to handle PERF_RECORD_AUX_OUTPUT_HW_ID early to ensure decoders can be set up */
+	if (event->header.type == PERF_RECORD_AUX_OUTPUT_HW_ID) {
+		(*(int *)data)++; /* increment found count */
+		return cs_etm__process_aux_output_hw_id(session, event);
+	}
+	return 0;
 }
 
 static int cs_etm__queue_aux_records_cb(struct perf_session *session, union perf_event *event,
@@ -2881,57 +3069,109 @@ static int cs_etm__queue_aux_records(struct perf_session *session)
 	return 0;
 }
 
-int cs_etm__process_auxtrace_info(union perf_event *event,
-				  struct perf_session *session)
+#define HAS_PARAM(j, type, param) (metadata[(j)][CS_ETM_NR_TRC_PARAMS] <= \
+				  (CS_##type##_##param - CS_ETM_COMMON_BLK_MAX_V1))
+
+/*
+ * Loop through the ETMs and complain if we find at least one where ts_source != 1 (virtual
+ * timestamps).
+ */
+static bool cs_etm__has_virtual_ts(u64 **metadata, int num_cpu)
+{
+	int j;
+
+	for (j = 0; j < num_cpu; j++) {
+		switch (metadata[j][CS_ETM_MAGIC]) {
+		case __perf_cs_etmv4_magic:
+			if (HAS_PARAM(j, ETMV4, TS_SOURCE) || metadata[j][CS_ETMV4_TS_SOURCE] != 1)
+				return false;
+			break;
+		case __perf_cs_ete_magic:
+			if (HAS_PARAM(j, ETE, TS_SOURCE) || metadata[j][CS_ETE_TS_SOURCE] != 1)
+				return false;
+			break;
+		default:
+			/* Unknown / unsupported magic number. */
+			return false;
+		}
+	}
+	return true;
+}
+
+/* map trace ids to correct metadata block, from information in metadata */
+static int cs_etm__map_trace_ids_metadata(int num_cpu, u64 **metadata)
+{
+	u64 cs_etm_magic;
+	u8 trace_chan_id;
+	int i, err;
+
+	for (i = 0; i < num_cpu; i++) {
+		cs_etm_magic = metadata[i][CS_ETM_MAGIC];
+		switch (cs_etm_magic) {
+		case __perf_cs_etmv3_magic:
+			metadata[i][CS_ETM_ETMTRACEIDR] &= CORESIGHT_TRACE_ID_VAL_MASK;
+			trace_chan_id = (u8)(metadata[i][CS_ETM_ETMTRACEIDR]);
+			break;
+		case __perf_cs_etmv4_magic:
+		case __perf_cs_ete_magic:
+			metadata[i][CS_ETMV4_TRCTRACEIDR] &= CORESIGHT_TRACE_ID_VAL_MASK;
+			trace_chan_id = (u8)(metadata[i][CS_ETMV4_TRCTRACEIDR]);
+			break;
+		default:
+			/* unknown magic number */
+			return -EINVAL;
+		}
+		err = cs_etm__map_trace_id(trace_chan_id, metadata[i]);
+		if (err)
+			return err;
+	}
+	return 0;
+}
+
+/*
+ * If we found AUX_HW_ID packets, then set any metadata marked as unused to the
+ * unused value to reduce the number of unneeded decoders created.
+ */
+static int cs_etm__clear_unused_trace_ids_metadata(int num_cpu, u64 **metadata)
+{
+	u64 cs_etm_magic;
+	int i;
+
+	for (i = 0; i < num_cpu; i++) {
+		cs_etm_magic = metadata[i][CS_ETM_MAGIC];
+		switch (cs_etm_magic) {
+		case __perf_cs_etmv3_magic:
+			if (metadata[i][CS_ETM_ETMTRACEIDR] & CORESIGHT_TRACE_ID_UNUSED_FLAG)
+				metadata[i][CS_ETM_ETMTRACEIDR] = CORESIGHT_TRACE_ID_UNUSED_VAL;
+			break;
+		case __perf_cs_etmv4_magic:
+		case __perf_cs_ete_magic:
+			if (metadata[i][CS_ETMV4_TRCTRACEIDR] & CORESIGHT_TRACE_ID_UNUSED_FLAG)
+				metadata[i][CS_ETMV4_TRCTRACEIDR] = CORESIGHT_TRACE_ID_UNUSED_VAL;
+			break;
+		default:
+			/* unknown magic number */
+			return -EINVAL;
+		}
+	}
+	return 0;
+}
+
+int cs_etm__process_auxtrace_info_full(union perf_event *event,
+				       struct perf_session *session)
 {
 	struct perf_record_auxtrace_info *auxtrace_info = &event->auxtrace_info;
 	struct cs_etm_auxtrace *etm = NULL;
-	struct int_node *inode;
-	unsigned int pmu_type;
+	struct perf_record_time_conv *tc = &session->time_conv;
 	int event_header_size = sizeof(struct perf_event_header);
-	int info_header_size;
 	int total_size = auxtrace_info->header.size;
 	int priv_size = 0;
-	int num_cpu, trcidr_idx;
+	int num_cpu;
 	int err = 0;
+	int aux_hw_id_found;
 	int i, j;
-	u64 *ptr, *hdr = NULL;
+	u64 *ptr = NULL;
 	u64 **metadata = NULL;
-	u64 hdr_version;
-
-	/*
-	 * sizeof(auxtrace_info_event::type) +
-	 * sizeof(auxtrace_info_event::reserved) == 8
-	 */
-	info_header_size = 8;
-
-	if (total_size < (event_header_size + info_header_size))
-		return -EINVAL;
-
-	priv_size = total_size - event_header_size - info_header_size;
-
-	/* First the global part */
-	ptr = (u64 *) auxtrace_info->priv;
-
-	/* Look for version of the header */
-	hdr_version = ptr[0];
-	if (hdr_version > CS_HEADER_CURRENT_VERSION) {
-		/* print routine will print an error on bad version */
-		if (dump_trace)
-			cs_etm__print_auxtrace_info(auxtrace_info->priv, 0);
-		return -EINVAL;
-	}
-
-	hdr = zalloc(sizeof(*hdr) * CS_HEADER_VERSION_MAX);
-	if (!hdr)
-		return -ENOMEM;
-
-	/* Extract header information - see cs-etm.h for format */
-	for (i = 0; i < CS_HEADER_VERSION_MAX; i++)
-		hdr[i] = ptr[i];
-	num_cpu = hdr[CS_PMU_TYPE_CPUS] & 0xffffffff;
-	pmu_type = (unsigned int) ((hdr[CS_PMU_TYPE_CPUS] >> 32) &
-				    0xffffffff);
 
 	/*
 	 * Create an RB tree for traceID-metadata tuple.  Since the conversion
@@ -2939,16 +3179,20 @@ int cs_etm__process_auxtrace_info(union perf_event *event,
 	 * in anything other than a sequential array is worth doing.
 	 */
 	traceid_list = intlist__new(NULL);
-	if (!traceid_list) {
-		err = -ENOMEM;
-		goto err_free_hdr;
-	}
+	if (!traceid_list)
+		return -ENOMEM;
 
+	/* First the global part */
+	ptr = (u64 *) auxtrace_info->priv;
+	num_cpu = ptr[CS_PMU_TYPE_CPUS] & 0xffffffff;
 	metadata = zalloc(sizeof(*metadata) * num_cpu);
 	if (!metadata) {
 		err = -ENOMEM;
 		goto err_free_traceid_list;
 	}
+
+	/* Start parsing after the common part of the header */
+	i = CS_HEADER_VERSION_MAX;
 
 	/*
 	 * The metadata is stored in the auxtrace_info section and encodes
@@ -2962,23 +3206,13 @@ int cs_etm__process_auxtrace_info(union perf_event *event,
 				cs_etm__create_meta_blk(ptr, &i,
 							CS_ETM_PRIV_MAX,
 							CS_ETM_NR_TRC_PARAMS_V0);
-
-			/* The traceID is our handle */
-			trcidr_idx = CS_ETM_ETMTRACEIDR;
-
 		} else if (ptr[i] == __perf_cs_etmv4_magic) {
 			metadata[j] =
 				cs_etm__create_meta_blk(ptr, &i,
 							CS_ETMV4_PRIV_MAX,
 							CS_ETMV4_NR_TRC_PARAMS_V0);
-
-			/* The traceID is our handle */
-			trcidr_idx = CS_ETMV4_TRCTRACEIDR;
 		} else if (ptr[i] == __perf_cs_ete_magic) {
 			metadata[j] = cs_etm__create_meta_blk(ptr, &i, CS_ETE_PRIV_MAX, -1);
-
-			/* ETE shares first part of metadata with ETMv4 */
-			trcidr_idx = CS_ETMV4_TRCTRACEIDR;
 		} else {
 			ui__error("CS ETM Trace: Unrecognised magic number %#"PRIx64". File could be from a newer version of perf.\n",
 				  ptr[i]);
@@ -2990,26 +3224,6 @@ int cs_etm__process_auxtrace_info(union perf_event *event,
 			err = -ENOMEM;
 			goto err_free_metadata;
 		}
-
-		/* Get an RB node for this CPU */
-		inode = intlist__findnew(traceid_list, metadata[j][trcidr_idx]);
-
-		/* Something went wrong, no need to continue */
-		if (!inode) {
-			err = -ENOMEM;
-			goto err_free_metadata;
-		}
-
-		/*
-		 * The node for that CPU should not be taken.
-		 * Back out if that's the case.
-		 */
-		if (inode->priv) {
-			err = -EINVAL;
-			goto err_free_metadata;
-		}
-		/* All good, associate the traceID with the metadata pointer */
-		inode->priv = metadata[j];
 	}
 
 	/*
@@ -3019,6 +3233,7 @@ int cs_etm__process_auxtrace_info(union perf_event *event,
 	 * The following tests if the correct number of double words was
 	 * present in the auxtrace info section.
 	 */
+	priv_size = total_size - event_header_size - INFO_HEADER_SIZE;
 	if (i * 8 != priv_size) {
 		err = -EINVAL;
 		goto err_free_metadata;
@@ -3047,11 +3262,17 @@ int cs_etm__process_auxtrace_info(union perf_event *event,
 	etm->machine = &session->machines.host;
 
 	etm->num_cpu = num_cpu;
-	etm->pmu_type = pmu_type;
-	etm->snapshot_mode = (hdr[CS_ETM_SNAPSHOT] != 0);
+	etm->pmu_type = (unsigned int) ((ptr[CS_PMU_TYPE_CPUS] >> 32) & 0xffffffff);
+	etm->snapshot_mode = (ptr[CS_ETM_SNAPSHOT] != 0);
 	etm->metadata = metadata;
 	etm->auxtrace_type = auxtrace_info->type;
-	etm->timeless_decoding = cs_etm__is_timeless_decoding(etm);
+
+	/* Use virtual timestamps if all ETMs report ts_source = 1 */
+	etm->has_virtual_ts = cs_etm__has_virtual_ts(metadata, num_cpu);
+
+	if (!etm->has_virtual_ts)
+		ui__warning("Virtual timestamps are not enabled, or not supported by the traced system.\n"
+			    "The time field of the samples will not be set accurately.\n\n");
 
 	etm->auxtrace.process_event = cs_etm__process_event;
 	etm->auxtrace.process_auxtrace_event = cs_etm__process_auxtrace_event;
@@ -3060,6 +3281,10 @@ int cs_etm__process_auxtrace_info(union perf_event *event,
 	etm->auxtrace.free = cs_etm__free;
 	etm->auxtrace.evsel_is_auxtrace = cs_etm__evsel_is_auxtrace;
 	session->auxtrace = &etm->auxtrace;
+
+	err = cs_etm__setup_timeless_decoding(etm);
+	if (err)
+		return err;
 
 	etm->unknown_thread = thread__new(999999999, 999999999);
 	if (!etm->unknown_thread) {
@@ -3082,11 +3307,56 @@ int cs_etm__process_auxtrace_info(union perf_event *event,
 		goto err_delete_thread;
 	}
 
-	if (dump_trace) {
-		cs_etm__print_auxtrace_info(auxtrace_info->priv, num_cpu);
+	etm->tc.time_shift = tc->time_shift;
+	etm->tc.time_mult = tc->time_mult;
+	etm->tc.time_zero = tc->time_zero;
+	if (event_contains(*tc, time_cycles)) {
+		etm->tc.time_cycles = tc->time_cycles;
+		etm->tc.time_mask = tc->time_mask;
+		etm->tc.cap_user_time_zero = tc->cap_user_time_zero;
+		etm->tc.cap_user_time_short = tc->cap_user_time_short;
 	}
-
 	err = cs_etm__synth_events(etm, session);
+	if (err)
+		goto err_delete_thread;
+
+	/*
+	 * Map Trace ID values to CPU metadata.
+	 *
+	 * Trace metadata will always contain Trace ID values from the legacy algorithm. If the
+	 * files has been recorded by a "new" perf updated to handle AUX_HW_ID then the metadata
+	 * ID value will also have the CORESIGHT_TRACE_ID_UNUSED_FLAG set.
+	 *
+	 * The updated kernel drivers that use AUX_HW_ID to sent Trace IDs will attempt to use
+	 * the same IDs as the old algorithm as far as is possible, unless there are clashes
+	 * in which case a different value will be used. This means an older perf may still
+	 * be able to record and read files generate on a newer system.
+	 *
+	 * For a perf able to interpret AUX_HW_ID packets we first check for the presence of
+	 * those packets. If they are there then the values will be mapped and plugged into
+	 * the metadata. We then set any remaining metadata values with the used flag to a
+	 * value CORESIGHT_TRACE_ID_UNUSED_VAL - which indicates no decoder is required.
+	 *
+	 * If no AUX_HW_ID packets are present - which means a file recorded on an old kernel
+	 * then we map Trace ID values to CPU directly from the metadata - clearing any unused
+	 * flags if present.
+	 */
+
+	/* first scan for AUX_OUTPUT_HW_ID records to map trace ID values to CPU metadata */
+	aux_hw_id_found = 0;
+	err = perf_session__peek_events(session, session->header.data_offset,
+					session->header.data_size,
+					cs_etm__process_aux_hw_id_cb, &aux_hw_id_found);
+	if (err)
+		goto err_delete_thread;
+
+	/* if HW ID found then clear any unused metadata ID values */
+	if (aux_hw_id_found)
+		err = cs_etm__clear_unused_trace_ids_metadata(num_cpu, metadata);
+	/* otherwise, this is a file with metadata values only, map from metadata */
+	else
+		err = cs_etm__map_trace_ids_metadata(num_cpu, metadata);
+
 	if (err)
 		goto err_delete_thread;
 
@@ -3095,14 +3365,6 @@ int cs_etm__process_auxtrace_info(union perf_event *event,
 		goto err_delete_thread;
 
 	etm->data_queued = etm->queues.populated;
-	/*
-	 * Print warning in pipe mode, see cs_etm__process_auxtrace_event() and
-	 * cs_etm__queue_aux_fragment() for details relating to limitations.
-	 */
-	if (!etm->data_queued)
-		pr_warning("CS ETM warning: Coresight decode and TRBE support requires random file access.\n"
-			   "Continuing with best effort decoding in piped mode.\n\n");
-
 	return 0;
 
 err_delete_thread:
@@ -3119,14 +3381,5 @@ err_free_metadata:
 	zfree(&metadata);
 err_free_traceid_list:
 	intlist__delete(traceid_list);
-err_free_hdr:
-	zfree(&hdr);
-	/*
-	 * At this point, as a minimum we have valid header. Dump the rest of
-	 * the info section - the print routines will error out on structural
-	 * issues.
-	 */
-	if (dump_trace)
-		cs_etm__print_auxtrace_info(auxtrace_info->priv, num_cpu);
 	return err;
 }

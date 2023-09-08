@@ -2625,7 +2625,7 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		/* IP7_1_0 [2] */
 		FN_PWM0, FN_TCLK1, FN_FSO_CFE_0, 0 ))
 	},
-	{ },
+	{ /* sentinel */ }
 };
 
 static const struct pinmux_bias_reg pinmux_bias_regs[] = {

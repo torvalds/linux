@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/display/panel/panel-lvds.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Generic LVDS Display Panel Device Tree Bindings
+title: Generic LVDS Display Panel
 
 maintainers:
   - Lad Prabhakar <prabhakar.mahadev-lad.rj@bp.renesas.com>
@@ -12,7 +12,7 @@ maintainers:
 
 allOf:
   - $ref: panel-common.yaml#
-  - $ref: /schemas/display/lvds.yaml/#
+  - $ref: /schemas/display/lvds.yaml#
 
 select:
   properties:

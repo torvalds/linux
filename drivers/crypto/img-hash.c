@@ -157,9 +157,9 @@ static inline void img_hash_write(struct img_hash_dev *hdev,
 	writel_relaxed(value, hdev->io_base + offset);
 }
 
-static inline u32 img_hash_read_result_queue(struct img_hash_dev *hdev)
+static inline __be32 img_hash_read_result_queue(struct img_hash_dev *hdev)
 {
-	return be32_to_cpu(img_hash_read(hdev, CR_RESULT_QUEUE));
+	return cpu_to_be32(img_hash_read(hdev, CR_RESULT_QUEUE));
 }
 
 static void img_hash_start(struct img_hash_dev *hdev, bool dma)
@@ -209,7 +209,7 @@ static int img_hash_xmit_cpu(struct img_hash_dev *hdev, const u8 *buf,
 
 static void img_hash_dma_callback(void *data)
 {
-	struct img_hash_dev *hdev = (struct img_hash_dev *)data;
+	struct img_hash_dev *hdev = data;
 	struct img_hash_request_ctx *ctx = ahash_request_ctx(hdev->req);
 
 	if (ctx->bufcnt) {
@@ -283,10 +283,10 @@ static int img_hash_finish(struct ahash_request *req)
 static void img_hash_copy_hash(struct ahash_request *req)
 {
 	struct img_hash_request_ctx *ctx = ahash_request_ctx(req);
-	u32 *hash = (u32 *)ctx->digest;
+	__be32 *hash = (__be32 *)ctx->digest;
 	int i;
 
-	for (i = (ctx->digsize / sizeof(u32)) - 1; i >= 0; i--)
+	for (i = (ctx->digsize / sizeof(*hash)) - 1; i >= 0; i--)
 		hash[i] = img_hash_read_result_queue(ctx->hdev);
 }
 
@@ -308,7 +308,7 @@ static void img_hash_finish_req(struct ahash_request *req, int err)
 		DRIVER_FLAGS_CPU | DRIVER_FLAGS_BUSY | DRIVER_FLAGS_FINAL);
 
 	if (req->base.complete)
-		req->base.complete(&req->base, err);
+		ahash_request_complete(req, err);
 }
 
 static int img_hash_write_via_dma(struct img_hash_dev *hdev)
@@ -358,12 +358,16 @@ static int img_hash_dma_init(struct img_hash_dev *hdev)
 static void img_hash_dma_task(unsigned long d)
 {
 	struct img_hash_dev *hdev = (struct img_hash_dev *)d;
-	struct img_hash_request_ctx *ctx = ahash_request_ctx(hdev->req);
+	struct img_hash_request_ctx *ctx;
 	u8 *addr;
 	size_t nbytes, bleft, wsend, len, tbc;
 	struct scatterlist tsg;
 
-	if (!hdev->req || !ctx->sg)
+	if (!hdev->req)
+		return;
+
+	ctx = ahash_request_ctx(hdev->req);
+	if (!ctx->sg)
 		return;
 
 	addr = sg_virt(ctx->sg);
@@ -522,7 +526,7 @@ static int img_hash_handle_queue(struct img_hash_dev *hdev,
 		return res;
 
 	if (backlog)
-		backlog->complete(backlog, -EINPROGRESS);
+		crypto_request_complete(backlog, -EINPROGRESS);
 
 	req = ahash_request_cast(async_req);
 	hdev->req = req;
@@ -923,7 +927,7 @@ finish:
 	img_hash_finish_req(hdev->req, err);
 }
 
-static const struct of_device_id img_hash_match[] = {
+static const struct of_device_id img_hash_match[] __maybe_unused = {
 	{ .compatible = "img,hash-accelerator" },
 	{}
 };
@@ -962,8 +966,7 @@ static int img_hash_probe(struct platform_device *pdev)
 	}
 
 	/* Write port (DMA or CPU) */
-	hash_res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	hdev->cpu_addr = devm_ioremap_resource(dev, hash_res);
+	hdev->cpu_addr = devm_platform_get_and_ioremap_resource(pdev, 1, &hash_res);
 	if (IS_ERR(hdev->cpu_addr)) {
 		err = PTR_ERR(hdev->cpu_addr);
 		goto res_err;

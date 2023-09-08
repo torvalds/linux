@@ -10,6 +10,7 @@
 
 #include <crypto/algapi.h>
 #include <linux/completion.h>
+#include <linux/err.h>
 #include <linux/jump_label.h>
 #include <linux/list.h>
 #include <linux/module.h>
@@ -47,7 +48,27 @@ extern struct list_head crypto_alg_list;
 extern struct rw_semaphore crypto_alg_sem;
 extern struct blocking_notifier_head crypto_chain;
 
-DECLARE_STATIC_KEY_FALSE(crypto_boot_test_finished);
+int alg_test(const char *driver, const char *alg, u32 type, u32 mask);
+
+#ifdef CONFIG_CRYPTO_MANAGER_DISABLE_TESTS
+static inline bool crypto_boot_test_finished(void)
+{
+	return true;
+}
+static inline void set_crypto_boot_test_finished(void)
+{
+}
+#else
+DECLARE_STATIC_KEY_FALSE(__crypto_boot_test_finished);
+static inline bool crypto_boot_test_finished(void)
+{
+	return static_branch_likely(&__crypto_boot_test_finished);
+}
+static inline void set_crypto_boot_test_finished(void)
+{
+	static_branch_enable(&__crypto_boot_test_finished);
+}
+#endif /* !CONFIG_CRYPTO_MANAGER_DISABLE_TESTS */
 
 #ifdef CONFIG_PROC_FS
 void __init crypto_init_proc(void);
@@ -85,6 +106,8 @@ struct crypto_tfm *__crypto_alloc_tfm(struct crypto_alg *alg, u32 type,
 				      u32 mask);
 void *crypto_create_tfm_node(struct crypto_alg *alg,
 			const struct crypto_type *frontend, int node);
+void *crypto_clone_tfm(const struct crypto_type *frontend,
+		       struct crypto_tfm *otfm);
 
 static inline void *crypto_create_tfm(struct crypto_alg *alg,
 			const struct crypto_type *frontend)
@@ -164,6 +187,11 @@ static inline void crypto_yield(u32 flags)
 static inline int crypto_is_test_larval(struct crypto_larval *larval)
 {
 	return larval->alg.cra_driver_name[0];
+}
+
+static inline struct crypto_tfm *crypto_tfm_get(struct crypto_tfm *tfm)
+{
+	return refcount_inc_not_zero(&tfm->refcnt) ? tfm : ERR_PTR(-EOVERFLOW);
 }
 
 #endif	/* _CRYPTO_INTERNAL_H */

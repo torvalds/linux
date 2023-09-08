@@ -1225,7 +1225,7 @@ int __gfs2_xattr_set(struct inode *inode, const char *name,
 }
 
 static int gfs2_xattr_set(const struct xattr_handler *handler,
-			  struct user_namespace *mnt_userns,
+			  struct mnt_idmap *idmap,
 			  struct dentry *unused, struct inode *inode,
 			  const char *name, const void *value,
 			  size_t size, int flags)
@@ -1412,11 +1412,13 @@ static int ea_dealloc_block(struct gfs2_inode *ip)
 	ip->i_eattr = 0;
 	gfs2_add_inode_blocks(&ip->i_inode, -1);
 
-	error = gfs2_meta_inode_buffer(ip, &dibh);
-	if (!error) {
-		gfs2_trans_add_meta(ip->i_gl, dibh);
-		gfs2_dinode_out(ip, dibh->b_data);
-		brelse(dibh);
+	if (likely(!test_bit(GIF_ALLOC_FAILED, &ip->i_flags))) {
+		error = gfs2_meta_inode_buffer(ip, &dibh);
+		if (!error) {
+			gfs2_trans_add_meta(ip->i_gl, dibh);
+			gfs2_dinode_out(ip, dibh->b_data);
+			brelse(dibh);
+		}
 	}
 
 	gfs2_trans_end(sdp);
@@ -1445,14 +1447,16 @@ int gfs2_ea_dealloc(struct gfs2_inode *ip)
 	if (error)
 		return error;
 
-	error = ea_foreach(ip, ea_dealloc_unstuffed, NULL);
-	if (error)
-		goto out_quota;
-
-	if (ip->i_diskflags & GFS2_DIF_EA_INDIRECT) {
-		error = ea_dealloc_indirect(ip);
+	if (likely(!test_bit(GIF_ALLOC_FAILED, &ip->i_flags))) {
+		error = ea_foreach(ip, ea_dealloc_unstuffed, NULL);
 		if (error)
 			goto out_quota;
+
+		if (ip->i_diskflags & GFS2_DIF_EA_INDIRECT) {
+			error = ea_dealloc_indirect(ip);
+			if (error)
+				goto out_quota;
+		}
 	}
 
 	error = ea_dealloc_block(ip);
@@ -1497,8 +1501,6 @@ const struct xattr_handler *gfs2_xattr_handlers_max[] = {
 	/* GFS2_FS_FORMAT_MIN */
 	&gfs2_xattr_user_handler,
 	&gfs2_xattr_security_handler,
-	&posix_acl_access_xattr_handler,
-	&posix_acl_default_xattr_handler,
 	NULL,
 };
 

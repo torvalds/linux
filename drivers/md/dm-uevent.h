@@ -3,7 +3,7 @@
  * Device Mapper Uevent Support
  *
  * Copyright IBM Corporation, 2007
- * 	Author: Mike Anderson <andmike@linux.vnet.ibm.com>
+ *	Author: Mike Anderson <andmike@linux.vnet.ibm.com>
  */
 #ifndef DM_UEVENT_H
 #define DM_UEVENT_H
@@ -20,7 +20,7 @@ extern void dm_uevent_exit(void);
 extern void dm_send_uevents(struct list_head *events, struct kobject *kobj);
 extern void dm_path_uevent(enum dm_uevent_type event_type,
 			   struct dm_target *ti, const char *path,
-			   unsigned nr_valid_paths);
+			   unsigned int nr_valid_paths);
 
 #else
 
@@ -37,7 +37,7 @@ static inline void dm_send_uevents(struct list_head *events,
 }
 static inline void dm_path_uevent(enum dm_uevent_type event_type,
 				  struct dm_target *ti, const char *path,
-				  unsigned nr_valid_paths)
+				  unsigned int nr_valid_paths)
 {
 }
 

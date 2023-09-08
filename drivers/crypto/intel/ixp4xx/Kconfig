@@ -1,0 +1,14 @@
+config CRYPTO_DEV_IXP4XX
+	tristate "Driver for IXP4xx crypto hardware acceleration"
+	depends on (ARCH_IXP4XX || COMPILE_TEST) && IXP4XX_QMGR && IXP4XX_NPE
+	select CRYPTO_AES
+	select CRYPTO_DES
+	select CRYPTO_ECB
+	select CRYPTO_CBC
+	select CRYPTO_CTR
+	select CRYPTO_LIB_DES
+	select CRYPTO_AEAD
+	select CRYPTO_AUTHENC
+	select CRYPTO_SKCIPHER
+	help
+	  Driver for the IXP4xx NPE crypto engine.

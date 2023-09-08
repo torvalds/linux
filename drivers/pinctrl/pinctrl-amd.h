@@ -42,6 +42,7 @@
 #define OUTPUT_ENABLE_OFF		23
 #define SW_CNTRL_IN_OFF			24
 #define SW_CNTRL_EN_OFF			25
+#define WAKECNTRL_Z_OFF			27
 #define INTERRUPT_STS_OFF		28
 #define WAKE_STS_OFF			29
 

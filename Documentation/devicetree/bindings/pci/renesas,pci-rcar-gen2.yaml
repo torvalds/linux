@@ -65,7 +65,7 @@ properties:
     maxItems: 1
 
 patternProperties:
-  'usb@[0-1],0':
+  '^usb@[0-1],0$':
     type: object
 
     description:

@@ -508,6 +508,8 @@ handle_error:
 			zc_pfrag.offset = iter_offset.offset;
 			zc_pfrag.size = copy;
 			tls_append_frag(record, &zc_pfrag, copy);
+
+			iter_offset.offset += copy;
 		} else if (copy) {
 			copy = min_t(size_t, copy, pfrag->size - pfrag->offset);
 
@@ -620,7 +622,7 @@ int tls_device_sendpage(struct sock *sk, struct page *page,
 	kaddr = kmap(page);
 	iov.iov_base = kaddr + offset;
 	iov.iov_len = size;
-	iov_iter_kvec(&msg_iter, WRITE, &iov, 1, size);
+	iov_iter_kvec(&msg_iter, ITER_SOURCE, &iov, 1, size);
 	iter_offset.msg_iter = &msg_iter;
 	rc = tls_push_data(sk, iter_offset, size, flags, TLS_RECORD_TYPE_DATA,
 			   NULL);
@@ -697,7 +699,7 @@ static int tls_device_push_pending_record(struct sock *sk, int flags)
 	union tls_iter_offset iter;
 	struct iov_iter msg_iter;
 
-	iov_iter_kvec(&msg_iter, WRITE, NULL, 0, 0);
+	iov_iter_kvec(&msg_iter, ITER_SOURCE, NULL, 0, 0);
 	iter.msg_iter = &msg_iter;
 	return tls_push_data(sk, iter, 0, flags, TLS_RECORD_TYPE_DATA, NULL);
 }
@@ -1005,20 +1007,14 @@ int tls_device_decrypted(struct sock *sk, struct tls_context *tls_ctx)
 	struct tls_sw_context_rx *sw_ctx = tls_sw_ctx_rx(tls_ctx);
 	struct sk_buff *skb = tls_strp_msg(sw_ctx);
 	struct strp_msg *rxm = strp_msg(skb);
-	int is_decrypted = skb->decrypted;
-	int is_encrypted = !is_decrypted;
-	struct sk_buff *skb_iter;
-	int left;
+	int is_decrypted, is_encrypted;
 
-	left = rxm->full_len - skb->len;
-	/* Check if all the data is decrypted already */
-	skb_iter = skb_shinfo(skb)->frag_list;
-	while (skb_iter && left > 0) {
-		is_decrypted &= skb_iter->decrypted;
-		is_encrypted &= !skb_iter->decrypted;
-
-		left -= skb_iter->len;
-		skb_iter = skb_iter->next;
+	if (!tls_strp_msg_mixed_decrypted(sw_ctx)) {
+		is_decrypted = skb->decrypted;
+		is_encrypted = !is_decrypted;
+	} else {
+		is_decrypted = 0;
+		is_encrypted = 0;
 	}
 
 	trace_tls_device_decrypted(sk, tcp_sk(sk)->copied_seq - rxm->full_len,

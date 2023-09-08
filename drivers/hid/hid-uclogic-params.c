@@ -18,6 +18,7 @@
 #include "usbhid/usbhid.h"
 #include "hid-ids.h"
 #include <linux/ctype.h>
+#include <linux/string.h>
 #include <asm/unaligned.h>
 
 /**
@@ -615,6 +616,31 @@ cleanup:
 }
 
 /**
+ * uclogic_params_cleanup_event_hooks - free resources used by the list of raw
+ * event hooks.
+ * Can be called repeatedly.
+ *
+ * @params: Input parameters to cleanup. Cannot be NULL.
+ */
+static void uclogic_params_cleanup_event_hooks(struct uclogic_params *params)
+{
+	struct uclogic_raw_event_hook *curr, *n;
+
+	if (!params || !params->event_hooks)
+		return;
+
+	list_for_each_entry_safe(curr, n, &params->event_hooks->list, list) {
+		cancel_work_sync(&curr->work);
+		list_del(&curr->list);
+		kfree(curr->event);
+		kfree(curr);
+	}
+
+	kfree(params->event_hooks);
+	params->event_hooks = NULL;
+}
+
+/**
  * uclogic_params_cleanup - free resources used by struct uclogic_params
  * (tablet interface's parameters).
  * Can be called repeatedly.
@@ -630,6 +656,7 @@ void uclogic_params_cleanup(struct uclogic_params *params)
 		for (i = 0; i < ARRAY_SIZE(params->frame_list); i++)
 			uclogic_params_frame_cleanup(&params->frame_list[i]);
 
+		uclogic_params_cleanup_event_hooks(params);
 		memset(params, 0, sizeof(*params));
 	}
 }
@@ -1020,8 +1047,8 @@ cleanup:
  * Returns:
  *	Zero, if successful. A negative errno code on error.
  */
-static int uclogic_probe_interface(struct hid_device *hdev, u8 *magic_arr,
-				   int magic_size, int endpoint)
+static int uclogic_probe_interface(struct hid_device *hdev, const u8 *magic_arr,
+				   size_t magic_size, int endpoint)
 {
 	struct usb_device *udev;
 	unsigned int pipe = 0;
@@ -1212,6 +1239,140 @@ static int uclogic_params_ugee_v2_init_frame_mouse(struct uclogic_params *p)
 }
 
 /**
+ * uclogic_params_ugee_v2_has_battery() - check whether a UGEE v2 device has
+ * battery or not.
+ * @hdev:	The HID device of the tablet interface.
+ *
+ * Returns:
+ *	True if the device has battery, false otherwise.
+ */
+static bool uclogic_params_ugee_v2_has_battery(struct hid_device *hdev)
+{
+	struct uclogic_drvdata *drvdata = hid_get_drvdata(hdev);
+
+	if (drvdata->quirks & UCLOGIC_BATTERY_QUIRK)
+		return true;
+
+	/* The XP-PEN Deco LW vendor, product and version are identical to the
+	 * Deco L. The only difference reported by their firmware is the product
+	 * name. Add a quirk to support battery reporting on the wireless
+	 * version.
+	 */
+	if (hdev->vendor == USB_VENDOR_ID_UGEE &&
+	    hdev->product == USB_DEVICE_ID_UGEE_XPPEN_TABLET_DECO_L) {
+		struct usb_device *udev = hid_to_usb_dev(hdev);
+
+		if (strstarts(udev->product, "Deco LW"))
+			return true;
+	}
+
+	return false;
+}
+
+/**
+ * uclogic_params_ugee_v2_init_battery() - initialize UGEE v2 battery reporting.
+ * @hdev:	The HID device of the tablet interface, cannot be NULL.
+ * @p:		Parameters to fill in, cannot be NULL.
+ *
+ * Returns:
+ *	Zero, if successful. A negative errno code on error.
+ */
+static int uclogic_params_ugee_v2_init_battery(struct hid_device *hdev,
+					       struct uclogic_params *p)
+{
+	int rc = 0;
+
+	if (!hdev || !p)
+		return -EINVAL;
+
+	/* Some tablets contain invalid characters in hdev->uniq, throwing a
+	 * "hwmon: '<name>' is not a valid name attribute, please fix" error.
+	 * Use the device vendor and product IDs instead.
+	 */
+	snprintf(hdev->uniq, sizeof(hdev->uniq), "%x-%x", hdev->vendor,
+		 hdev->product);
+
+	rc = uclogic_params_frame_init_with_desc(&p->frame_list[1],
+						 uclogic_rdesc_ugee_v2_battery_template_arr,
+						 uclogic_rdesc_ugee_v2_battery_template_size,
+						 UCLOGIC_RDESC_UGEE_V2_BATTERY_ID);
+	if (rc)
+		return rc;
+
+	p->frame_list[1].suffix = "Battery";
+	p->pen.subreport_list[1].value = 0xf2;
+	p->pen.subreport_list[1].id = UCLOGIC_RDESC_UGEE_V2_BATTERY_ID;
+
+	return rc;
+}
+
+/**
+ * uclogic_params_ugee_v2_reconnect_work() - When a wireless tablet looses
+ * connection to the USB dongle and reconnects, either because of its physical
+ * distance or because it was switches off and on using the frame's switch,
+ * uclogic_probe_interface() needs to be called again to enable the tablet.
+ *
+ * @work: The work that triggered this function.
+ */
+static void uclogic_params_ugee_v2_reconnect_work(struct work_struct *work)
+{
+	struct uclogic_raw_event_hook *event_hook;
+
+	event_hook = container_of(work, struct uclogic_raw_event_hook, work);
+	uclogic_probe_interface(event_hook->hdev, uclogic_ugee_v2_probe_arr,
+				uclogic_ugee_v2_probe_size,
+				uclogic_ugee_v2_probe_endpoint);
+}
+
+/**
+ * uclogic_params_ugee_v2_init_event_hooks() - initialize the list of events
+ * to be hooked for UGEE v2 devices.
+ * @hdev:	The HID device of the tablet interface to initialize and get
+ *		parameters from.
+ * @p:		Parameters to fill in, cannot be NULL.
+ *
+ * Returns:
+ *	Zero, if successful. A negative errno code on error.
+ */
+static int uclogic_params_ugee_v2_init_event_hooks(struct hid_device *hdev,
+						   struct uclogic_params *p)
+{
+	struct uclogic_raw_event_hook *event_hook;
+	__u8 reconnect_event[] = {
+		/* Event received on wireless tablet reconnection */
+		0x02, 0xF8, 0x02, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+	};
+
+	if (!p)
+		return -EINVAL;
+
+	/* The reconnection event is only received if the tablet has battery */
+	if (!uclogic_params_ugee_v2_has_battery(hdev))
+		return 0;
+
+	p->event_hooks = kzalloc(sizeof(*p->event_hooks), GFP_KERNEL);
+	if (!p->event_hooks)
+		return -ENOMEM;
+
+	INIT_LIST_HEAD(&p->event_hooks->list);
+
+	event_hook = kzalloc(sizeof(*event_hook), GFP_KERNEL);
+	if (!event_hook)
+		return -ENOMEM;
+
+	INIT_WORK(&event_hook->work, uclogic_params_ugee_v2_reconnect_work);
+	event_hook->hdev = hdev;
+	event_hook->size = ARRAY_SIZE(reconnect_event);
+	event_hook->event = kmemdup(reconnect_event, event_hook->size, GFP_KERNEL);
+	if (!event_hook->event)
+		return -ENOMEM;
+
+	list_add_tail(&event_hook->list, &p->event_hooks->list);
+
+	return 0;
+}
+
+/**
  * uclogic_params_ugee_v2_init() - initialize a UGEE graphics tablets by
  * discovering their parameters.
  *
@@ -1234,6 +1395,7 @@ static int uclogic_params_ugee_v2_init(struct uclogic_params *params,
 				       struct hid_device *hdev)
 {
 	int rc = 0;
+	struct uclogic_drvdata *drvdata;
 	struct usb_interface *iface;
 	__u8 bInterfaceNumber;
 	const int str_desc_len = 12;
@@ -1241,9 +1403,6 @@ static int uclogic_params_ugee_v2_init(struct uclogic_params *params,
 	__u8 *rdesc_pen = NULL;
 	s32 desc_params[UCLOGIC_RDESC_PH_ID_NUM];
 	enum uclogic_params_frame_type frame_type;
-	__u8 magic_arr[] = {
-		0x02, 0xb0, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-	};
 	/* The resulting parameters (noop) */
 	struct uclogic_params p = {0, };
 
@@ -1252,6 +1411,7 @@ static int uclogic_params_ugee_v2_init(struct uclogic_params *params,
 		goto cleanup;
 	}
 
+	drvdata = hid_get_drvdata(hdev);
 	iface = to_usb_interface(hdev->dev.parent);
 	bInterfaceNumber = iface->cur_altsetting->desc.bInterfaceNumber;
 
@@ -1273,7 +1433,9 @@ static int uclogic_params_ugee_v2_init(struct uclogic_params *params,
 	 * The specific data was discovered by sniffing the Windows driver
 	 * traffic.
 	 */
-	rc = uclogic_probe_interface(hdev, magic_arr, sizeof(magic_arr), 0x03);
+	rc = uclogic_probe_interface(hdev, uclogic_ugee_v2_probe_arr,
+				     uclogic_ugee_v2_probe_size,
+				     uclogic_ugee_v2_probe_endpoint);
 	if (rc) {
 		uclogic_params_init_invalid(&p);
 		goto output;
@@ -1318,6 +1480,9 @@ static int uclogic_params_ugee_v2_init(struct uclogic_params *params,
 	p.pen.subreport_list[0].id = UCLOGIC_RDESC_V1_FRAME_ID;
 
 	/* Initialize the frame interface */
+	if (drvdata->quirks & UCLOGIC_MOUSE_FRAME_QUIRK)
+		frame_type = UCLOGIC_PARAMS_FRAME_MOUSE;
+
 	switch (frame_type) {
 	case UCLOGIC_PARAMS_FRAME_DIAL:
 	case UCLOGIC_PARAMS_FRAME_MOUSE:
@@ -1333,6 +1498,22 @@ static int uclogic_params_ugee_v2_init(struct uclogic_params *params,
 
 	if (rc)
 		goto cleanup;
+
+	/* Initialize the battery interface*/
+	if (uclogic_params_ugee_v2_has_battery(hdev)) {
+		rc = uclogic_params_ugee_v2_init_battery(hdev, &p);
+		if (rc) {
+			hid_err(hdev, "error initializing battery: %d\n", rc);
+			goto cleanup;
+		}
+	}
+
+	/* Create a list of raw events to be ignored */
+	rc = uclogic_params_ugee_v2_init_event_hooks(hdev, &p);
+	if (rc) {
+		hid_err(hdev, "error initializing event hook list: %d\n", rc);
+		goto cleanup;
+	}
 
 output:
 	/* Output parameters */
@@ -1583,9 +1764,15 @@ int uclogic_params_init(struct uclogic_params *params,
 	case VID_PID(USB_VENDOR_ID_UGEE,
 		     USB_DEVICE_ID_UGEE_PARBLO_A610_PRO):
 	case VID_PID(USB_VENDOR_ID_UGEE,
+		     USB_DEVICE_ID_UGEE_XPPEN_TABLET_DECO01_V2):
+	case VID_PID(USB_VENDOR_ID_UGEE,
 		     USB_DEVICE_ID_UGEE_XPPEN_TABLET_DECO_L):
 	case VID_PID(USB_VENDOR_ID_UGEE,
+		     USB_DEVICE_ID_UGEE_XPPEN_TABLET_DECO_PRO_MW):
+	case VID_PID(USB_VENDOR_ID_UGEE,
 		     USB_DEVICE_ID_UGEE_XPPEN_TABLET_DECO_PRO_S):
+	case VID_PID(USB_VENDOR_ID_UGEE,
+		     USB_DEVICE_ID_UGEE_XPPEN_TABLET_DECO_PRO_SW):
 		rc = uclogic_params_ugee_v2_init(&p, hdev);
 		if (rc != 0)
 			goto cleanup;

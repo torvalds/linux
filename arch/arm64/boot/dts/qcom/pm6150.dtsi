@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
-// Copyright (c) 2019, The Linux Foundation. All rights reserved.
+/*
+ * Copyright (c) 2019, The Linux Foundation. All rights reserved.
+ */
 
 #include <dt-bindings/iio/qcom,spmi-vadc.h>
 #include <dt-bindings/input/linux-event-codes.h>
@@ -86,11 +88,11 @@
 			status = "disabled";
 		};
 
-		pm6150_gpio: gpios@c000 {
+		pm6150_gpios: gpio@c000 {
 			compatible = "qcom,pm6150-gpio", "qcom,spmi-gpio";
 			reg = <0xc000>;
 			gpio-controller;
-			gpio-ranges = <&pm6150_gpio 0 0 10>;
+			gpio-ranges = <&pm6150_gpios 0 0 10>;
 			#gpio-cells = <2>;
 			interrupt-controller;
 			#interrupt-cells = <2>;

@@ -10,8 +10,6 @@
 #include <internal/evsel.h>
 #include <perf/evsel.h>
 #include "symbol_conf.h"
-#include <internal/cpumap.h>
-#include <perf/cpumap.h>
 
 struct bpf_object;
 struct cgroup;
@@ -74,7 +72,9 @@ struct evsel {
 		char			*name;
 		char			*group_name;
 		const char		*pmu_name;
+#ifdef HAVE_LIBTRACEEVENT
 		struct tep_event	*tp_format;
+#endif
 		char			*filter;
 		unsigned long		max_events;
 		double			scale;
@@ -89,13 +89,13 @@ struct evsel {
 		bool			per_pkg;
 		bool			percore;
 		bool			precise_max;
-		bool			use_uncore_alias;
 		bool			is_libpfm_event;
 		bool			auto_merge_stats;
 		bool			collect_stat;
 		bool			weak_group;
 		bool			bpf_counter;
 		bool			use_config_name;
+		bool			skippable;
 		int			bpf_fd;
 		struct bpf_object	*bpf_obj;
 		struct list_head	config_terms;
@@ -105,8 +105,6 @@ struct evsel {
 	 * metric fields are similar, but needs more care as they can have
 	 * references to other metric (evsel).
 	 */
-	const char *		metric_expr;
-	const char *		metric_name;
 	struct evsel		**metric_events;
 	struct evsel		*metric_leader;
 
@@ -153,8 +151,8 @@ struct evsel {
 	 */
 	struct bpf_counter_ops	*bpf_counter_ops;
 
-	/* for perf-stat -b */
-	struct list_head	bpf_counter_list;
+	struct list_head	bpf_counter_list; /* for perf-stat -b */
+	struct list_head	bpf_filters; /* for perf-record --filter */
 
 	/* for perf-stat --use-bpf */
 	int			bperf_leader_prog_fd;
@@ -162,6 +160,7 @@ struct evsel {
 	union {
 		struct bperf_leader_bpf *leader_skel;
 		struct bperf_follower_bpf *follower_skel;
+		void *bpf_skel;
 	};
 	unsigned long		open_flags;
 	int			precise_ip_original;
@@ -214,8 +213,8 @@ int evsel__object_config(size_t object_size,
 			 int (*init)(struct evsel *evsel),
 			 void (*fini)(struct evsel *evsel));
 
-struct perf_pmu *evsel__find_pmu(struct evsel *evsel);
-bool evsel__is_aux_event(struct evsel *evsel);
+struct perf_pmu *evsel__find_pmu(const struct evsel *evsel);
+bool evsel__is_aux_event(const struct evsel *evsel);
 
 struct evsel *evsel__new_idx(struct perf_event_attr *attr, int idx);
 
@@ -225,10 +224,13 @@ static inline struct evsel *evsel__new(struct perf_event_attr *attr)
 }
 
 struct evsel *evsel__clone(struct evsel *orig);
-struct evsel *evsel__newtp_idx(const char *sys, const char *name, int idx);
 
 int copy_config_terms(struct list_head *dst, struct list_head *src);
 void free_config_terms(struct list_head *config_terms);
+
+
+#ifdef HAVE_LIBTRACEEVENT
+struct evsel *evsel__newtp_idx(const char *sys, const char *name, int idx);
 
 /*
  * Returns pointer with encoded error via <linux/err.h> interface.
@@ -237,10 +239,13 @@ static inline struct evsel *evsel__newtp(const char *sys, const char *name)
 {
 	return evsel__newtp_idx(sys, name, 0);
 }
+#endif
 
 struct evsel *evsel__new_cycles(bool precise, __u32 type, __u64 config);
 
+#ifdef HAVE_LIBTRACEEVENT
 struct tep_event *event_format__new(const char *sys, const char *name);
+#endif
 
 void evsel__init(struct evsel *evsel, struct perf_event_attr *attr, int idx);
 void evsel__exit(struct evsel *evsel);
@@ -263,6 +268,11 @@ static inline bool evsel__is_bpf(struct evsel *evsel)
 	return evsel->bpf_counter_ops != NULL;
 }
 
+static inline bool evsel__is_bperf(struct evsel *evsel)
+{
+	return evsel->bpf_counter_ops != NULL && list_empty(&evsel->bpf_counter_list);
+}
+
 #define EVSEL__MAX_ALIASES 8
 
 extern const char *const evsel__hw_cache[PERF_COUNT_HW_CACHE_MAX][EVSEL__MAX_ALIASES];
@@ -276,6 +286,8 @@ int arch_evsel__hw_name(struct evsel *evsel, char *bf, size_t size);
 
 int __evsel__hw_cache_type_op_res_name(u8 type, u8 op, u8 result, char *bf, size_t size);
 const char *evsel__name(struct evsel *evsel);
+bool evsel__name_is(struct evsel *evsel, const char *name);
+const char *evsel__group_pmu_name(const struct evsel *evsel);
 const char *evsel__metric_id(const struct evsel *evsel);
 
 static inline bool evsel__is_tool(const struct evsel *evsel)
@@ -325,6 +337,7 @@ bool evsel__precise_ip_fallback(struct evsel *evsel);
 
 struct perf_sample;
 
+#ifdef HAVE_LIBTRACEEVENT
 void *evsel__rawptr(struct evsel *evsel, struct perf_sample *sample, const char *name);
 u64 evsel__intval(struct evsel *evsel, struct perf_sample *sample, const char *name);
 
@@ -332,6 +345,7 @@ static inline char *evsel__strval(struct evsel *evsel, struct perf_sample *sampl
 {
 	return evsel__rawptr(evsel, sample, name);
 }
+#endif
 
 struct tep_format_field;
 
@@ -430,7 +444,7 @@ static inline bool evsel__is_bpf_output(struct evsel *evsel)
 	return evsel__match(evsel, SOFTWARE, SW_BPF_OUTPUT);
 }
 
-static inline bool evsel__is_clock(struct evsel *evsel)
+static inline bool evsel__is_clock(const struct evsel *evsel)
 {
 	return evsel__match(evsel, SOFTWARE, SW_CPU_CLOCK) ||
 	       evsel__match(evsel, SOFTWARE, SW_TASK_CLOCK);
@@ -498,8 +512,8 @@ struct perf_env *evsel__env(struct evsel *evsel);
 int evsel__store_ids(struct evsel *evsel, struct evlist *evlist);
 
 void evsel__zero_per_pkg(struct evsel *evsel);
-bool evsel__is_hybrid(struct evsel *evsel);
-struct evsel *evsel__leader(struct evsel *evsel);
+bool evsel__is_hybrid(const struct evsel *evsel);
+struct evsel *evsel__leader(const struct evsel *evsel);
 bool evsel__has_leader(struct evsel *evsel, struct evsel *leader);
 bool evsel__is_leader(struct evsel *evsel);
 void evsel__set_leader(struct evsel *evsel, struct evsel *leader);
@@ -520,4 +534,7 @@ bool arch_evsel__must_be_in_group(const struct evsel *evsel);
 	((((src) >> (pos)) & ((1ull << (size)) - 1)) << (63 - ((pos) + (size) - 1)))
 
 u64 evsel__bitfield_swap_branch_flags(u64 value);
+void evsel__set_config_if_unset(struct perf_pmu *pmu, struct evsel *evsel,
+				const char *config_name, u64 val);
+
 #endif /* __PERF_EVSEL_H */

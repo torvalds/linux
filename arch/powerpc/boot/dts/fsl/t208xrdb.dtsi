@@ -138,7 +138,7 @@
 		};
 
 		i2c@118100 {
-			pca9546@77 {
+			i2c-mux@77 {
 				compatible = "nxp,pca9546";
 				reg = <0x77>;
 			};

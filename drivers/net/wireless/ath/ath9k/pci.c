@@ -804,14 +804,14 @@ static bool ath_pci_eeprom_read(struct ath_common *common, u32 off, u16 *data)
 	common->ops->read(ah, AR5416_EEPROM_OFFSET + (off << AR5416_EEPROM_S));
 
 	if (!ath9k_hw_wait(ah,
-				AR_EEPROM_STATUS_DATA,
+				AR_EEPROM_STATUS_DATA(ah),
 				AR_EEPROM_STATUS_DATA_BUSY |
 				AR_EEPROM_STATUS_DATA_PROT_ACCESS, 0,
 				AH_WAIT_TIMEOUT)) {
 		return false;
 	}
 
-	*data = MS(common->ops->read(ah, AR_EEPROM_STATUS_DATA),
+	*data = MS(common->ops->read(ah, AR_EEPROM_STATUS_DATA(ah)),
 			AR_EEPROM_STATUS_DATA_VAL);
 
 	return true;

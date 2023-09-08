@@ -3,8 +3,8 @@
  * Copyright 2022 Toradex
  */
 
-#include "dt-bindings/phy/phy-imx8-pcie.h"
-#include "dt-bindings/pwm/pwm.h"
+#include <dt-bindings/phy/phy-imx8-pcie.h>
+#include <dt-bindings/pwm/pwm.h>
 #include "imx8mm.dtsi"
 
 / {
@@ -56,7 +56,11 @@
 	hdmi_connector: hdmi-connector {
 		compatible = "hdmi-connector";
 		ddc-i2c-bus = <&i2c2>;
+		/* Verdin PWM_3_DSI (SODIMM 19) */
+		hpd-gpios = <&gpio1 1 GPIO_ACTIVE_HIGH>;
 		label = "hdmi";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_pwm_3_dsi_hpd_gpio>;
 		type = "a";
 		status = "disabled";
 	};
@@ -95,9 +99,10 @@
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpio = <&gpio2 20 GPIO_ACTIVE_HIGH>; /* PMIC_EN_ETH */
-		off-on-delay = <500000>;
+		off-on-delay-us = <500000>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_reg_eth>;
+		regulator-always-on;
 		regulator-boot-on;
 		regulator-max-microvolt = <3300000>;
 		regulator-min-microvolt = <3300000>;
@@ -134,7 +139,7 @@
 		enable-active-high;
 		/* Verdin SD_1_PWR_EN (SODIMM 76) */
 		gpio = <&gpio3 5 GPIO_ACTIVE_HIGH>;
-		off-on-delay = <100000>;
+		off-on-delay-us = <100000>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_usdhc2_pwr_en>;
 		regulator-max-microvolt = <3300000>;
@@ -183,15 +188,15 @@
 	ddrc_opp_table: opp-table {
 		compatible = "operating-points-v2";
 
-		opp-25M {
+		opp-25000000 {
 			opp-hz = /bits/ 64 <25000000>;
 		};
 
-		opp-100M {
+		opp-100000000 {
 			opp-hz = /bits/ 64 <100000000>;
 		};
 
-		opp-750M {
+		opp-750000000 {
 			opp-hz = /bits/ 64 <750000000>;
 		};
 	};
@@ -358,7 +363,6 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_pmic>;
 		reg = <0x25>;
-		sd-vsel-gpios = <&gpio1 4 GPIO_ACTIVE_HIGH>;
 
 		/*
 		 * The bootloader is expected to switch on the I2C level shifter for the TLA2024 ADC
@@ -598,7 +602,7 @@
 	hdmi_lontium_lt8912: hdmi@48 {
 		compatible = "lontium,lt8912b";
 		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_gpio_10_dsi>, <&pinctrl_pwm_3_dsi_hpd_gpio>;
+		pinctrl-0 = <&pinctrl_gpio_10_dsi>;
 		reg = <0x48>;
 		/* Verdin GPIO_9_DSI (LT8912 INT, SODIMM 17, unused) */
 		/* Verdin GPIO_10_DSI (SODIMM 21) */
@@ -610,7 +614,7 @@
 		compatible = "atmel,maxtouch";
 		/*
 		 * Verdin GPIO_9_DSI
-		 * (TOUCH_INT#, SODIMM 17, also routed to SN65DSI83 IRQ albeit currently unused)
+		 * (TOUCH_INT#, SODIMM 17, also routed to SN65DSI84 IRQ albeit currently unused)
 		 */
 		interrupt-parent = <&gpio3>;
 		interrupts = <15 IRQ_TYPE_EDGE_FALLING>;
@@ -653,9 +657,6 @@
 	assigned-clock-parents = <&clk IMX8MM_SYS_PLL2_50M>,
 				 <&clk IMX8MM_SYS_PLL2_250M>;
 	assigned-clock-rates = <10000000>, <250000000>;
-	clocks = <&clk IMX8MM_CLK_PCIE1_ROOT>, <&clk IMX8MM_CLK_PCIE1_AUX>,
-		 <&clk IMX8MM_CLK_PCIE1_PHY>;
-	clock-names = "pcie", "pcie_aux", "pcie_bus";
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_pcie0>;
 	/* PCIE_1_RESET# (SODIMM 244) */
@@ -664,6 +665,7 @@
 
 &pcie_phy {
 	clocks = <&clk IMX8MM_CLK_PCIE1_PHY>;
+	clock-names = "ref";
 	fsl,clkreq-unsupported;
 	fsl,refclk-pad-mode = <IMX8_PCIE_REFCLK_PAD_OUTPUT>;
 	fsl,tx-deemph-gen1 = <0x2d>;
@@ -739,7 +741,6 @@
 	adp-disable;
 	dr_mode = "otg";
 	hnp-disable;
-	over-current-active-low;
 	samsung,picophy-dc-vol-level-adjust = <7>;
 	samsung,picophy-pre-emp-curr-control = <3>;
 	srp-disable;
@@ -749,7 +750,6 @@
 /* Verdin USB_2 */
 &usbotg2 {
 	dr_mode = "host";
-	over-current-active-low;
 	samsung,picophy-dc-vol-level-adjust = <7>;
 	samsung,picophy-pre-emp-curr-control = <3>;
 	vbus-supply = <&reg_usb_otg2_vbus>;

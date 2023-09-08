@@ -15,11 +15,7 @@
 #include <linux/types.h>
 /* include compiler specific intrinsics */
 #include <asm/ia64regs.h>
-#ifdef __INTEL_COMPILER
-# include <asm/intel_intrin.h>
-#else
-# include <asm/gcc_intrin.h>
-#endif
+#include <asm/gcc_intrin.h>
 
 /*
  * This function doesn't exist, so you'll get a linker error if
@@ -27,7 +23,7 @@
  */
 extern void ia64_xchg_called_with_bad_pointer(void);
 
-#define __xchg(x, ptr, size)						\
+#define __arch_xchg(x, ptr, size)					\
 ({									\
 	unsigned long __xchg_result;					\
 									\
@@ -55,7 +51,7 @@ extern void ia64_xchg_called_with_bad_pointer(void);
 
 #ifndef __KERNEL__
 #define xchg(ptr, x)							\
-({(__typeof__(*(ptr))) __xchg((unsigned long) (x), (ptr), sizeof(*(ptr)));})
+({(__typeof__(*(ptr))) __arch_xchg((unsigned long) (x), (ptr), sizeof(*(ptr)));})
 #endif
 
 /*

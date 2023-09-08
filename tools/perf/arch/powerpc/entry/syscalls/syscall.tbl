@@ -394,8 +394,11 @@
 305	common	signalfd			sys_signalfd			compat_sys_signalfd
 306	common	timerfd_create			sys_timerfd_create
 307	common	eventfd				sys_eventfd
-308	common	sync_file_range2		sys_sync_file_range2		compat_sys_ppc_sync_file_range2
-309	nospu	fallocate			sys_fallocate			compat_sys_fallocate
+308	32	sync_file_range2		sys_ppc_sync_file_range2	compat_sys_ppc_sync_file_range2
+308	64	sync_file_range2		sys_sync_file_range2
+308	spu	sync_file_range2		sys_sync_file_range2
+309	32	fallocate			sys_ppc_fallocate		compat_sys_fallocate
+309	64	fallocate			sys_fallocate
 310	nospu	subpage_prot			sys_subpage_prot
 311	32	timerfd_settime			sys_timerfd_settime32
 311	64	timerfd_settime			sys_timerfd_settime

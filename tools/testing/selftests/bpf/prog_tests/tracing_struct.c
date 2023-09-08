@@ -15,7 +15,7 @@ static void test_fentry(void)
 
 	err = tracing_struct__attach(skel);
 	if (!ASSERT_OK(err, "tracing_struct__attach"))
-		return;
+		goto destroy_skel;
 
 	ASSERT_OK(trigger_module_test_read(256), "trigger_read");
 
@@ -53,7 +53,10 @@ static void test_fentry(void)
 
 	ASSERT_EQ(skel->bss->t5_ret, 1, "t5 ret");
 
+	ASSERT_EQ(skel->bss->t6, 1, "t6 ret");
+
 	tracing_struct__detach(skel);
+destroy_skel:
 	tracing_struct__destroy(skel);
 }
 

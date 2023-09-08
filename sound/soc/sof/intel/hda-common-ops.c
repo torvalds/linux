@@ -19,11 +19,7 @@ struct snd_sof_dsp_ops sof_hda_common_ops = {
 	.probe		= hda_dsp_probe,
 	.remove		= hda_dsp_remove,
 
-	/* Register IO */
-	.write		= sof_io_write,
-	.read		= sof_io_read,
-	.write64	= sof_io_write64,
-	.read64		= sof_io_read64,
+	/* Register IO uses direct mmio */
 
 	/* Block IO */
 	.block_read	= sof_block_read,
@@ -93,7 +89,6 @@ struct snd_sof_dsp_ops sof_hda_common_ops = {
 	.runtime_resume		= hda_dsp_runtime_resume,
 	.runtime_idle		= hda_dsp_runtime_idle,
 	.set_hw_params_upon_resume = hda_dsp_set_hw_params_upon_resume,
-	.set_power_state	= hda_dsp_set_power_state,
 
 	/* ALSA HW info flags */
 	.hw_info =	SNDRV_PCM_INFO_MMAP |

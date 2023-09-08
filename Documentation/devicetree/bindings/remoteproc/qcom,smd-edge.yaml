@@ -21,7 +21,7 @@ description:
 
 properties:
   $nodename:
-    const: "smd-edge"
+    const: smd-edge
 
   apr:
     $ref: /schemas/soc/qcom/qcom,apr.yaml#

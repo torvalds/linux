@@ -189,7 +189,7 @@
 		};
 
 		usbotg1: usb@40330000 {
-			compatible = "fsl,imx7ulp-usb", "fsl,imx6ul-usb";
+			compatible = "fsl,imx7ulp-usb", "fsl,imx6ul-usb", "fsl,imx27-usb";
 			reg = <0x40330000 0x200>;
 			interrupts = <GIC_SPI 40 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&pcc2 IMX7ULP_CLK_USB0>;
@@ -202,7 +202,8 @@
 		};
 
 		usbmisc1: usbmisc@40330200 {
-			compatible = "fsl,imx7ulp-usbmisc", "fsl,imx7d-usbmisc";
+			compatible = "fsl,imx7ulp-usbmisc", "fsl,imx7d-usbmisc",
+				     "fsl,imx6q-usbmisc";
 			#index-cells = <1>;
 			reg = <0x40330200 0x200>;
 		};

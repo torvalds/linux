@@ -289,7 +289,7 @@ static int gve_adminq_parse_err(struct gve_priv *priv, u32 status)
 	case GVE_ADMINQ_COMMAND_ERROR_RESOURCE_EXHAUSTED:
 		return -ENOMEM;
 	case GVE_ADMINQ_COMMAND_ERROR_UNIMPLEMENTED:
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 	default:
 		dev_err(&priv->pdev->dev, "parse_aq_err: unknown status code %d\n", status);
 		return -EINVAL;
@@ -407,6 +407,9 @@ static int gve_adminq_issue_cmd(struct gve_priv *priv,
 	case GVE_ADMINQ_GET_PTYPE_MAP:
 		priv->adminq_get_ptype_map_cnt++;
 		break;
+	case GVE_ADMINQ_VERIFY_DRIVER_COMPATIBILITY:
+		priv->adminq_verify_driver_compatibility_cnt++;
+		break;
 	default:
 		dev_err(&priv->pdev->dev, "unknown AQ command opcode %d\n", opcode);
 	}
@@ -513,12 +516,12 @@ static int gve_adminq_create_tx_queue(struct gve_priv *priv, u32 queue_index)
 	return gve_adminq_issue_cmd(priv, &cmd);
 }
 
-int gve_adminq_create_tx_queues(struct gve_priv *priv, u32 num_queues)
+int gve_adminq_create_tx_queues(struct gve_priv *priv, u32 start_id, u32 num_queues)
 {
 	int err;
 	int i;
 
-	for (i = 0; i < num_queues; i++) {
+	for (i = start_id; i < start_id + num_queues; i++) {
 		err = gve_adminq_create_tx_queue(priv, i);
 		if (err)
 			return err;
@@ -601,12 +604,12 @@ static int gve_adminq_destroy_tx_queue(struct gve_priv *priv, u32 queue_index)
 	return 0;
 }
 
-int gve_adminq_destroy_tx_queues(struct gve_priv *priv, u32 num_queues)
+int gve_adminq_destroy_tx_queues(struct gve_priv *priv, u32 start_id, u32 num_queues)
 {
 	int err;
 	int i;
 
-	for (i = 0; i < num_queues; i++) {
+	for (i = start_id; i < start_id + num_queues; i++) {
 		err = gve_adminq_destroy_tx_queue(priv, i);
 		if (err)
 			return err;
@@ -873,6 +876,22 @@ int gve_adminq_report_stats(struct gve_priv *priv, u64 stats_report_len,
 		.stats_report_len = cpu_to_be64(stats_report_len),
 		.stats_report_addr = cpu_to_be64(stats_report_addr),
 		.interval = cpu_to_be64(interval),
+	};
+
+	return gve_adminq_execute_cmd(priv, &cmd);
+}
+
+int gve_adminq_verify_driver_compatibility(struct gve_priv *priv,
+					   u64 driver_info_len,
+					   dma_addr_t driver_info_addr)
+{
+	union gve_adminq_command cmd;
+
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.opcode = cpu_to_be32(GVE_ADMINQ_VERIFY_DRIVER_COMPATIBILITY);
+	cmd.verify_driver_compatibility = (struct gve_adminq_verify_driver_compatibility) {
+		.driver_info_len = cpu_to_be64(driver_info_len),
+		.driver_info_addr = cpu_to_be64(driver_info_addr),
 	};
 
 	return gve_adminq_execute_cmd(priv, &cmd);

@@ -288,20 +288,20 @@ static const struct file_operations kvm_spapr_tce_fops = {
 	.release	= kvm_spapr_tce_release,
 };
 
-long kvm_vm_ioctl_create_spapr_tce(struct kvm *kvm,
-				   struct kvm_create_spapr_tce_64 *args)
+int kvm_vm_ioctl_create_spapr_tce(struct kvm *kvm,
+				  struct kvm_create_spapr_tce_64 *args)
 {
 	struct kvmppc_spapr_tce_table *stt = NULL;
 	struct kvmppc_spapr_tce_table *siter;
 	struct mm_struct *mm = kvm->mm;
-	unsigned long npages, size = args->size;
+	unsigned long npages;
 	int ret;
 
 	if (!args->size || args->page_shift < 12 || args->page_shift > 34 ||
 		(args->offset + args->size > (ULLONG_MAX >> args->page_shift)))
 		return -EINVAL;
 
-	npages = kvmppc_tce_pages(size);
+	npages = kvmppc_tce_pages(args->size);
 	ret = account_locked_vm(mm, kvmppc_stt_pages(npages), true);
 	if (ret)
 		return ret;
@@ -314,7 +314,7 @@ long kvm_vm_ioctl_create_spapr_tce(struct kvm *kvm,
 	stt->liobn = args->liobn;
 	stt->page_shift = args->page_shift;
 	stt->offset = args->offset;
-	stt->size = size;
+	stt->size = args->size;
 	stt->kvm = kvm;
 	mutex_init(&stt->alloc_lock);
 	INIT_LIST_HEAD_RCU(&stt->iommu_tables);

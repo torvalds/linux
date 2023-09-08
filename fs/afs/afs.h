@@ -19,8 +19,8 @@
 #define AFSPATHMAX		1024	/* Maximum length of a pathname plus NUL */
 #define AFSOPAQUEMAX		1024	/* Maximum length of an opaque field */
 
-#define AFS_VL_MAX_LIFESPAN	(120 * HZ)
-#define AFS_PROBE_MAX_LIFESPAN	(30 * HZ)
+#define AFS_VL_MAX_LIFESPAN	120
+#define AFS_PROBE_MAX_LIFESPAN	30
 
 typedef u64			afs_volid_t;
 typedef u64			afs_vnodeid_t;

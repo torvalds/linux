@@ -17,7 +17,7 @@ description:
   to be the same.
 
 allOf:
-  - $ref: "regulator.yaml#"
+  - $ref: regulator.yaml#
   - if:
       properties:
         compatible:
@@ -35,6 +35,10 @@ allOf:
       required:
         - power-domains
         - required-opps
+  - not:
+      required:
+        - gpio
+        - gpios
 
 properties:
   compatible:
@@ -47,6 +51,9 @@ properties:
 
   gpio:
     description: gpio to use for enable control
+    maxItems: 1
+
+  gpios:
     maxItems: 1
 
   clocks:

@@ -90,7 +90,7 @@ aflags-$(CONFIG_CPU_LITTLE_ENDIAN)	+= -mlittle-endian
 
 ifeq ($(HAS_BIARCH),y)
 KBUILD_CFLAGS	+= -m$(BITS)
-KBUILD_AFLAGS	+= -m$(BITS) -Wl,-a$(BITS)
+KBUILD_AFLAGS	+= -m$(BITS)
 KBUILD_LDFLAGS	+= -m elf$(BITS)$(LDEMULATION)
 endif
 
@@ -107,6 +107,7 @@ LDFLAGS_vmlinux-$(CONFIG_RELOCATABLE) += -z notext
 LDFLAGS_vmlinux	:= $(LDFLAGS_vmlinux-y)
 
 ifdef CONFIG_PPC64
+ifndef CONFIG_PPC_KERNEL_PCREL
 ifeq ($(call cc-option-yn,-mcmodel=medium),y)
 	# -mcmodel=medium breaks modules because it uses 32bit offsets from
 	# the TOC pointer to create pointers where possible. Pointers into the
@@ -121,20 +122,20 @@ else
 	export NO_MINIMAL_TOC := -mno-minimal-toc
 endif
 endif
+endif
 
 CFLAGS-$(CONFIG_PPC64)	:= $(call cc-option,-mtraceback=no)
-ifndef CONFIG_CC_IS_CLANG
 ifdef CONFIG_PPC64_ELF_ABI_V2
 CFLAGS-$(CONFIG_PPC64)	+= $(call cc-option,-mabi=elfv2,$(call cc-option,-mcall-aixdesc))
-AFLAGS-$(CONFIG_PPC64)	+= $(call cc-option,-mabi=elfv2)
 else
+ifndef CONFIG_CC_IS_CLANG
 CFLAGS-$(CONFIG_PPC64)	+= $(call cc-option,-mabi=elfv1)
 CFLAGS-$(CONFIG_PPC64)	+= $(call cc-option,-mcall-aixdesc)
-AFLAGS-$(CONFIG_PPC64)	+= $(call cc-option,-mabi=elfv1)
 endif
 endif
 CFLAGS-$(CONFIG_PPC64)	+= $(call cc-option,-mcmodel=medium,$(call cc-option,-mminimal-toc))
 CFLAGS-$(CONFIG_PPC64)	+= $(call cc-option,-mno-pointers-to-nested-functions)
+CFLAGS-$(CONFIG_PPC64)	+= $(call cc-option,-mlong-double-128)
 
 # Clang unconditionally reserves r2 on ppc32 and does not support the flag
 # https://bugs.llvm.org/show_bug.cgi?id=39555
@@ -146,19 +147,6 @@ CFLAGS-$(CONFIG_PPC32)	+= $(call cc-option, $(MULTIPLEWORD))
 
 CFLAGS-$(CONFIG_PPC32)	+= $(call cc-option,-mno-readonly-in-sdata)
 
-ifdef CONFIG_PPC_BOOK3S_64
-ifdef CONFIG_CPU_LITTLE_ENDIAN
-CFLAGS-$(CONFIG_GENERIC_CPU) += -mcpu=power8
-else
-CFLAGS-$(CONFIG_GENERIC_CPU) += -mcpu=power4
-endif
-CFLAGS-$(CONFIG_GENERIC_CPU) += $(call cc-option,-mtune=power10,	\
-				  $(call cc-option,-mtune=power9,	\
-				  $(call cc-option,-mtune=power8)))
-else ifdef CONFIG_PPC_BOOK3E_64
-CFLAGS-$(CONFIG_GENERIC_CPU) += -mcpu=powerpc64
-endif
-
 ifdef CONFIG_FUNCTION_TRACER
 CC_FLAGS_FTRACE := -pg
 ifdef CONFIG_MPROFILE_KERNEL
@@ -166,11 +154,12 @@ CC_FLAGS_FTRACE += -mprofile-kernel
 endif
 endif
 
-CFLAGS-$(CONFIG_TARGET_CPU_BOOL) += $(call cc-option,-mcpu=$(CONFIG_TARGET_CPU))
-AFLAGS-$(CONFIG_TARGET_CPU_BOOL) += $(call cc-option,-mcpu=$(CONFIG_TARGET_CPU))
+CFLAGS-$(CONFIG_TARGET_CPU_BOOL) += -mcpu=$(CONFIG_TARGET_CPU)
+AFLAGS-$(CONFIG_TARGET_CPU_BOOL) += -mcpu=$(CONFIG_TARGET_CPU)
 
-CFLAGS-$(CONFIG_E5500_CPU) += $(call cc-option,-mcpu=e500mc64,-mcpu=powerpc64)
-CFLAGS-$(CONFIG_E6500_CPU) += $(call cc-option,-mcpu=e6500,$(E5500_CPU))
+CFLAGS-$(CONFIG_POWERPC64_CPU) += $(call cc-option,-mtune=power10,	\
+				  $(call cc-option,-mtune=power9,	\
+				  $(call cc-option,-mtune=power8)))
 
 asinstr := $(call as-instr,lis 9$(comma)foo@high,-DHAVE_AS_ATHIGH=1)
 
@@ -193,8 +182,16 @@ ifdef CONFIG_476FPE_ERR46
 endif
 
 # No prefix or pcrel
+ifdef CONFIG_PPC_KERNEL_PREFIXED
+KBUILD_CFLAGS += $(call cc-option,-mprefixed)
+else
 KBUILD_CFLAGS += $(call cc-option,-mno-prefixed)
+endif
+ifdef CONFIG_PPC_KERNEL_PCREL
+KBUILD_CFLAGS += $(call cc-option,-mpcrel)
+else
 KBUILD_CFLAGS += $(call cc-option,-mno-pcrel)
+endif
 
 # No AltiVec or VSX or MMA instructions when building kernel
 KBUILD_CFLAGS += $(call cc-option,-mno-altivec)
@@ -213,10 +210,7 @@ KBUILD_CFLAGS += -fno-asynchronous-unwind-tables
 # often slow when they are implemented at all
 KBUILD_CFLAGS		+= $(call cc-option,-mno-string)
 
-cpu-as-$(CONFIG_40x)		+= -Wa,-m405
-cpu-as-$(CONFIG_44x)		+= -Wa,-m440
 cpu-as-$(CONFIG_ALTIVEC)	+= $(call as-option,-Wa$(comma)-maltivec)
-cpu-as-$(CONFIG_PPC_E500)		+= -Wa,-me500
 
 # When using '-many -mpower4' gas will first try and find a matching power4
 # mnemonic and failing that it will allow any valid mnemonic that GAS knows
@@ -224,7 +218,6 @@ cpu-as-$(CONFIG_PPC_E500)		+= -Wa,-me500
 # LLVM IAS doesn't understand either flag: https://github.com/ClangBuiltLinux/linux/issues/675
 # but LLVM IAS only supports ISA >= 2.06 for Book3S 64 anyway...
 cpu-as-$(CONFIG_PPC_BOOK3S_64)	+= $(call as-option,-Wa$(comma)-mpower4) $(call as-option,-Wa$(comma)-many)
-cpu-as-$(CONFIG_PPC_E500MC)	+= $(call as-option,-Wa$(comma)-me500mc)
 
 KBUILD_AFLAGS += $(cpu-as-y)
 KBUILD_CFLAGS += $(cpu-as-y)
@@ -253,121 +246,119 @@ PHONY += bootwrapper_install
 bootwrapper_install:
 	$(Q)$(MAKE) $(build)=$(boot) $(patsubst %,$(boot)/%,$@)
 
-# Used to create 'merged defconfigs'
-# To use it $(call) it with the first argument as the base defconfig
-# and the second argument as a space separated list of .config files to merge,
-# without the .config suffix.
-define merge_into_defconfig
-	$(Q)$(CONFIG_SHELL) $(srctree)/scripts/kconfig/merge_config.sh \
-		-m -O $(objtree) $(srctree)/arch/$(ARCH)/configs/$(1) \
-		$(foreach config,$(2),$(srctree)/arch/$(ARCH)/configs/$(config).config)
-	+$(Q)$(MAKE) -f $(srctree)/Makefile olddefconfig
-endef
+include $(srctree)/scripts/Makefile.defconf
 
-PHONY += pseries_le_defconfig
-pseries_le_defconfig:
-	$(call merge_into_defconfig,pseries_defconfig,le)
-
-PHONY += ppc64le_defconfig
+generated_configs += ppc64le_defconfig
 ppc64le_defconfig:
 	$(call merge_into_defconfig,ppc64_defconfig,le)
 
-PHONY += ppc64le_guest_defconfig
+generated_configs += ppc64le_guest_defconfig
 ppc64le_guest_defconfig:
-	$(call merge_into_defconfig,ppc64_defconfig,le guest)
+	$(call merge_into_defconfig,ppc64_defconfig,le guest kvm_guest)
 
-PHONY += ppc64_guest_defconfig
+generated_configs += ppc64_guest_defconfig
 ppc64_guest_defconfig:
-	$(call merge_into_defconfig,ppc64_defconfig,be guest)
+	$(call merge_into_defconfig,ppc64_defconfig,be guest kvm_guest)
 
-PHONY += powernv_be_defconfig
+generated_configs += pseries_le_defconfig
+pseries_le_defconfig: ppc64le_guest_defconfig
+
+generated_configs += pseries_defconfig
+pseries_defconfig: ppc64le_guest_defconfig
+
+generated_configs += powernv_be_defconfig
 powernv_be_defconfig:
 	$(call merge_into_defconfig,powernv_defconfig,be)
 
-PHONY += mpc85xx_defconfig
+generated_configs += mpc85xx_defconfig
 mpc85xx_defconfig:
 	$(call merge_into_defconfig,mpc85xx_base.config,\
 		85xx-32bit 85xx-hw fsl-emb-nonhw)
 
-PHONY += mpc85xx_smp_defconfig
+generated_configs += mpc85xx_smp_defconfig
 mpc85xx_smp_defconfig:
 	$(call merge_into_defconfig,mpc85xx_base.config,\
 		85xx-32bit 85xx-smp 85xx-hw fsl-emb-nonhw)
 
-PHONY += corenet32_smp_defconfig
+generated_configs += corenet32_smp_defconfig
 corenet32_smp_defconfig:
 	$(call merge_into_defconfig,corenet_base.config,\
 		85xx-32bit 85xx-smp 85xx-hw fsl-emb-nonhw dpaa)
 
-PHONY += corenet64_smp_defconfig
+generated_configs += corenet64_smp_defconfig
 corenet64_smp_defconfig:
 	$(call merge_into_defconfig,corenet_base.config,\
 		85xx-64bit 85xx-smp altivec 85xx-hw fsl-emb-nonhw dpaa)
 
-PHONY += mpc86xx_defconfig
+generated_configs += mpc86xx_defconfig
 mpc86xx_defconfig:
 	$(call merge_into_defconfig,mpc86xx_base.config,\
 		86xx-hw fsl-emb-nonhw)
 
-PHONY += mpc86xx_smp_defconfig
+generated_configs += mpc86xx_smp_defconfig
 mpc86xx_smp_defconfig:
 	$(call merge_into_defconfig,mpc86xx_base.config,\
 		86xx-smp 86xx-hw fsl-emb-nonhw)
 
-PHONY += ppc32_allmodconfig
+generated_configs += ppc32_allmodconfig
 ppc32_allmodconfig:
 	$(Q)$(MAKE) KCONFIG_ALLCONFIG=$(srctree)/arch/powerpc/configs/book3s_32.config \
 		-f $(srctree)/Makefile allmodconfig
 
-PHONY += ppc_defconfig
+generated_configs += ppc_defconfig
 ppc_defconfig:
 	$(call merge_into_defconfig,book3s_32.config,)
 
-PHONY += ppc64le_allmodconfig
+generated_configs += ppc64le_allmodconfig
 ppc64le_allmodconfig:
 	$(Q)$(MAKE) KCONFIG_ALLCONFIG=$(srctree)/arch/powerpc/configs/le.config \
 		-f $(srctree)/Makefile allmodconfig
 
-PHONY += ppc64le_allnoconfig
+generated_configs += ppc64le_allnoconfig
 ppc64le_allnoconfig:
 	$(Q)$(MAKE) KCONFIG_ALLCONFIG=$(srctree)/arch/powerpc/configs/ppc64le.config \
 		-f $(srctree)/Makefile allnoconfig
 
-PHONY += ppc64_book3e_allmodconfig
+generated_configs += ppc64_book3e_allmodconfig
 ppc64_book3e_allmodconfig:
 	$(Q)$(MAKE) KCONFIG_ALLCONFIG=$(srctree)/arch/powerpc/configs/85xx-64bit.config \
 		-f $(srctree)/Makefile allmodconfig
 
-PHONY += ppc32_randconfig
+generated_configs += ppc32_randconfig
 ppc32_randconfig:
 	$(Q)$(MAKE) KCONFIG_ALLCONFIG=$(srctree)/arch/powerpc/configs/32-bit.config \
 		-f $(srctree)/Makefile randconfig
 
-PHONY += ppc64_randconfig
+generated_configs += ppc64_randconfig
 ppc64_randconfig:
 	$(Q)$(MAKE) KCONFIG_ALLCONFIG=$(srctree)/arch/powerpc/configs/64-bit.config \
 		-f $(srctree)/Makefile randconfig
 
+PHONY += $(generated_configs)
+
 define archhelp
-  @echo '* zImage          - Build default images selected by kernel config'
-  @echo '  zImage.*        - Compressed kernel image (arch/$(ARCH)/boot/zImage.*)'
-  @echo '  uImage          - U-Boot native image format'
-  @echo '  cuImage.<dt>    - Backwards compatible U-Boot image for older'
-  @echo '                    versions which do not support device trees'
-  @echo '  dtbImage.<dt>   - zImage with an embedded device tree blob'
-  @echo '  simpleImage.<dt> - Firmware independent image.'
-  @echo '  treeImage.<dt>  - Support for older IBM 4xx firmware (not U-Boot)'
-  @echo '  install         - Install kernel using'
-  @echo '                    (your) ~/bin/$(INSTALLKERNEL) or'
-  @echo '                    (distribution) /sbin/$(INSTALLKERNEL) or'
-  @echo '                    install to $$(INSTALL_PATH) and run lilo'
-  @echo '  *_defconfig     - Select default config from arch/$(ARCH)/configs'
-  @echo ''
-  @echo '  Targets with <dt> embed a device tree blob inside the image'
-  @echo '  These targets support board with firmware that does not'
-  @echo '  support passing a device tree directly.  Replace <dt> with the'
-  @echo '  name of a dts file from the arch/$(ARCH)/boot/dts/ directory'
-  @echo '  (minus the .dts extension).'
+  echo '* zImage          - Build default images selected by kernel config'
+  echo '  zImage.*        - Compressed kernel image (arch/$(ARCH)/boot/zImage.*)'
+  echo '  uImage          - U-Boot native image format'
+  echo '  cuImage.<dt>    - Backwards compatible U-Boot image for older'
+  echo '                    versions which do not support device trees'
+  echo '  dtbImage.<dt>   - zImage with an embedded device tree blob'
+  echo '  simpleImage.<dt> - Firmware independent image.'
+  echo '  treeImage.<dt>  - Support for older IBM 4xx firmware (not U-Boot)'
+  echo '  install         - Install kernel using'
+  echo '                    (your) ~/bin/$(INSTALLKERNEL) or'
+  echo '                    (distribution) /sbin/$(INSTALLKERNEL) or'
+  echo '                    install to $$(INSTALL_PATH) and run lilo'
+  echo '  *_defconfig     - Select default config from arch/$(ARCH)/configs'
+  echo ''
+  echo '  Targets with <dt> embed a device tree blob inside the image'
+  echo '  These targets support board with firmware that does not'
+  echo '  support passing a device tree directly.  Replace <dt> with the'
+  echo '  name of a dts file from the arch/$(ARCH)/boot/dts/ directory'
+  echo '  (minus the .dts extension).'
+  echo
+  $(foreach cfg,$(generated_configs),
+    printf "  %-27s - Build for %s\\n" $(cfg) $(subst _defconfig,,$(cfg));)
 endef
 
 PHONY += install

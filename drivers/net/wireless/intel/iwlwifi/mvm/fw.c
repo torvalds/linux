@@ -21,6 +21,7 @@
 #include "iwl-phy-db.h"
 #include "iwl-modparams.h"
 #include "iwl-nvm-parse.h"
+#include "time-sync.h"
 
 #define MVM_UCODE_ALIVE_TIMEOUT	(HZ)
 #define MVM_UCODE_CALIB_TIMEOUT	(2 * HZ)
@@ -122,6 +123,7 @@ static bool iwl_alive_fn(struct iwl_notif_wait_data *notif_wait,
 	u32 version = iwl_fw_lookup_notif_ver(mvm->fw, LEGACY_GROUP,
 					      UCODE_ALIVE_NTFY, 0);
 	u32 i;
+
 
 	if (version == 6) {
 		struct iwl_alive_ntf_v6 *palive;
@@ -319,6 +321,8 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 	static const u16 alive_cmd[] = { UCODE_ALIVE_NTFY };
 	bool run_in_rfkill =
 		ucode_type == IWL_UCODE_INIT || iwl_mvm_has_unified_ucode(mvm);
+	u8 count;
+	struct iwl_pc_data *pc_data;
 
 	if (ucode_type == IWL_UCODE_REGULAR &&
 	    iwl_fw_dbg_conf_usniffer(mvm->fw, FW_DBG_START_FROM_ALIVE) &&
@@ -354,6 +358,20 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 	 */
 	ret = iwl_wait_notification(&mvm->notif_wait, &alive_wait,
 				    MVM_UCODE_ALIVE_TIMEOUT);
+
+	if (mvm->trans->trans_cfg->device_family ==
+	    IWL_DEVICE_FAMILY_AX210) {
+		/* print these registers regardless of alive fail/success */
+		IWL_INFO(mvm, "WFPM_UMAC_PD_NOTIFICATION: 0x%x\n",
+			 iwl_read_umac_prph(mvm->trans, WFPM_ARC1_PD_NOTIFICATION));
+		IWL_INFO(mvm, "WFPM_LMAC2_PD_NOTIFICATION: 0x%x\n",
+			 iwl_read_umac_prph(mvm->trans, WFPM_LMAC2_PD_NOTIFICATION));
+		IWL_INFO(mvm, "WFPM_AUTH_KEY_0: 0x%x\n",
+			 iwl_read_umac_prph(mvm->trans, SB_MODIFY_CFG_FLAG));
+		IWL_INFO(mvm, "CNVI_SCU_SEQ_DATA_DW9: 0x%x\n",
+			 iwl_read_prph(mvm->trans, CNVI_SCU_SEQ_DATA_DW9));
+	}
+
 	if (ret) {
 		struct iwl_trans *trans = mvm->trans;
 
@@ -377,6 +395,14 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 
 		/* LMAC/UMAC PC info */
 		if (trans->trans_cfg->device_family >=
+					IWL_DEVICE_FAMILY_22000) {
+			pc_data = trans->dbg.pc_data;
+			for (count = 0; count < trans->dbg.num_pc;
+			     count++, pc_data++)
+				IWL_ERR(mvm, "%s: 0x%x\n",
+					pc_data->pc_name,
+					pc_data->pc_address);
+		} else if (trans->trans_cfg->device_family >=
 					IWL_DEVICE_FAMILY_9000) {
 			IWL_ERR(mvm, "UMAC PC: 0x%x\n",
 				iwl_read_umac_prph(trans,
@@ -390,7 +416,7 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 						UREG_LMAC2_CURRENT_PC));
 		}
 
-		if (ret == -ETIMEDOUT)
+		if (ret == -ETIMEDOUT && !mvm->pldr_sync)
 			iwl_fw_dbg_error_collect(&mvm->fwrt,
 						 FW_DBG_TRIGGER_ALIVE_TIMEOUT);
 
@@ -403,6 +429,9 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 		iwl_fw_set_current_image(&mvm->fwrt, old_type);
 		return -EIO;
 	}
+
+	/* if reached this point, Alive notification was received */
+	iwl_mei_alive_notif(true);
 
 	ret = iwl_pnvm_load(mvm->trans, &mvm->notif_wait);
 	if (ret) {
@@ -446,111 +475,6 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 	cfg80211_bss_flush(mvm->hw->wiphy);
 
 	return 0;
-}
-
-static int iwl_run_unified_mvm_ucode(struct iwl_mvm *mvm)
-{
-	struct iwl_notification_wait init_wait;
-	struct iwl_nvm_access_complete_cmd nvm_complete = {};
-	struct iwl_init_extended_cfg_cmd init_cfg = {
-		.init_flags = cpu_to_le32(BIT(IWL_INIT_NVM)),
-	};
-	static const u16 init_complete[] = {
-		INIT_COMPLETE_NOTIF,
-	};
-	int ret;
-
-	if (mvm->trans->cfg->tx_with_siso_diversity)
-		init_cfg.init_flags |= cpu_to_le32(BIT(IWL_INIT_PHY));
-
-	lockdep_assert_held(&mvm->mutex);
-
-	mvm->rfkill_safe_init_done = false;
-
-	iwl_init_notification_wait(&mvm->notif_wait,
-				   &init_wait,
-				   init_complete,
-				   ARRAY_SIZE(init_complete),
-				   iwl_wait_init_complete,
-				   NULL);
-
-	iwl_dbg_tlv_time_point(&mvm->fwrt, IWL_FW_INI_TIME_POINT_EARLY, NULL);
-
-	/* Will also start the device */
-	ret = iwl_mvm_load_ucode_wait_alive(mvm, IWL_UCODE_REGULAR);
-	if (ret) {
-		IWL_ERR(mvm, "Failed to start RT ucode: %d\n", ret);
-		goto error;
-	}
-	iwl_dbg_tlv_time_point(&mvm->fwrt, IWL_FW_INI_TIME_POINT_AFTER_ALIVE,
-			       NULL);
-
-	/* Send init config command to mark that we are sending NVM access
-	 * commands
-	 */
-	ret = iwl_mvm_send_cmd_pdu(mvm, WIDE_ID(SYSTEM_GROUP,
-						INIT_EXTENDED_CFG_CMD),
-				   CMD_SEND_IN_RFKILL,
-				   sizeof(init_cfg), &init_cfg);
-	if (ret) {
-		IWL_ERR(mvm, "Failed to run init config command: %d\n",
-			ret);
-		goto error;
-	}
-
-	/* Load NVM to NIC if needed */
-	if (mvm->nvm_file_name) {
-		ret = iwl_read_external_nvm(mvm->trans, mvm->nvm_file_name,
-					    mvm->nvm_sections);
-		if (ret)
-			goto error;
-		ret = iwl_mvm_load_nvm_to_nic(mvm);
-		if (ret)
-			goto error;
-	}
-
-	if (IWL_MVM_PARSE_NVM && !mvm->nvm_data) {
-		ret = iwl_nvm_init(mvm);
-		if (ret) {
-			IWL_ERR(mvm, "Failed to read NVM: %d\n", ret);
-			goto error;
-		}
-	}
-
-	ret = iwl_mvm_send_cmd_pdu(mvm, WIDE_ID(REGULATORY_AND_NVM_GROUP,
-						NVM_ACCESS_COMPLETE),
-				   CMD_SEND_IN_RFKILL,
-				   sizeof(nvm_complete), &nvm_complete);
-	if (ret) {
-		IWL_ERR(mvm, "Failed to run complete NVM access: %d\n",
-			ret);
-		goto error;
-	}
-
-	/* We wait for the INIT complete notification */
-	ret = iwl_wait_notification(&mvm->notif_wait, &init_wait,
-				    MVM_UCODE_ALIVE_TIMEOUT);
-	if (ret)
-		return ret;
-
-	/* Read the NVM only at driver load time, no need to do this twice */
-	if (!IWL_MVM_PARSE_NVM && !mvm->nvm_data) {
-		mvm->nvm_data = iwl_get_nvm(mvm->trans, mvm->fw);
-		if (IS_ERR(mvm->nvm_data)) {
-			ret = PTR_ERR(mvm->nvm_data);
-			mvm->nvm_data = NULL;
-			IWL_ERR(mvm, "Failed to read NVM: %d\n", ret);
-			return ret;
-		}
-	}
-
-	mvm->rfkill_safe_init_done = true;
-
-	return 0;
-
-error:
-	iwl_remove_notification(&mvm->notif_wait, &init_wait);
-	return ret;
 }
 
 #ifdef CONFIG_ACPI
@@ -677,6 +601,118 @@ static int iwl_send_phy_cfg_cmd(struct iwl_mvm *mvm)
 	cmd_size = (cmd_ver == 3) ? sizeof(struct iwl_phy_cfg_cmd_v3) :
 				    sizeof(struct iwl_phy_cfg_cmd_v1);
 	return iwl_mvm_send_cmd_pdu(mvm, cmd_id, 0, cmd_size, &phy_cfg_cmd);
+}
+
+static int iwl_run_unified_mvm_ucode(struct iwl_mvm *mvm)
+{
+	struct iwl_notification_wait init_wait;
+	struct iwl_nvm_access_complete_cmd nvm_complete = {};
+	struct iwl_init_extended_cfg_cmd init_cfg = {
+		.init_flags = cpu_to_le32(BIT(IWL_INIT_NVM)),
+	};
+	static const u16 init_complete[] = {
+		INIT_COMPLETE_NOTIF,
+	};
+	int ret;
+
+	if (mvm->trans->cfg->tx_with_siso_diversity)
+		init_cfg.init_flags |= cpu_to_le32(BIT(IWL_INIT_PHY));
+
+	lockdep_assert_held(&mvm->mutex);
+
+	mvm->rfkill_safe_init_done = false;
+
+	iwl_init_notification_wait(&mvm->notif_wait,
+				   &init_wait,
+				   init_complete,
+				   ARRAY_SIZE(init_complete),
+				   iwl_wait_init_complete,
+				   NULL);
+
+	iwl_dbg_tlv_time_point(&mvm->fwrt, IWL_FW_INI_TIME_POINT_EARLY, NULL);
+
+	/* Will also start the device */
+	ret = iwl_mvm_load_ucode_wait_alive(mvm, IWL_UCODE_REGULAR);
+	if (ret) {
+		IWL_ERR(mvm, "Failed to start RT ucode: %d\n", ret);
+		goto error;
+	}
+	iwl_dbg_tlv_time_point(&mvm->fwrt, IWL_FW_INI_TIME_POINT_AFTER_ALIVE,
+			       NULL);
+
+	/* Send init config command to mark that we are sending NVM access
+	 * commands
+	 */
+	ret = iwl_mvm_send_cmd_pdu(mvm, WIDE_ID(SYSTEM_GROUP,
+						INIT_EXTENDED_CFG_CMD),
+				   CMD_SEND_IN_RFKILL,
+				   sizeof(init_cfg), &init_cfg);
+	if (ret) {
+		IWL_ERR(mvm, "Failed to run init config command: %d\n",
+			ret);
+		goto error;
+	}
+
+	/* Load NVM to NIC if needed */
+	if (mvm->nvm_file_name) {
+		ret = iwl_read_external_nvm(mvm->trans, mvm->nvm_file_name,
+					    mvm->nvm_sections);
+		if (ret)
+			goto error;
+		ret = iwl_mvm_load_nvm_to_nic(mvm);
+		if (ret)
+			goto error;
+	}
+
+	if (IWL_MVM_PARSE_NVM && !mvm->nvm_data) {
+		ret = iwl_nvm_init(mvm);
+		if (ret) {
+			IWL_ERR(mvm, "Failed to read NVM: %d\n", ret);
+			goto error;
+		}
+	}
+
+	ret = iwl_mvm_send_cmd_pdu(mvm, WIDE_ID(REGULATORY_AND_NVM_GROUP,
+						NVM_ACCESS_COMPLETE),
+				   CMD_SEND_IN_RFKILL,
+				   sizeof(nvm_complete), &nvm_complete);
+	if (ret) {
+		IWL_ERR(mvm, "Failed to run complete NVM access: %d\n",
+			ret);
+		goto error;
+	}
+
+	ret = iwl_send_phy_cfg_cmd(mvm);
+	if (ret) {
+		IWL_ERR(mvm, "Failed to run PHY configuration: %d\n",
+			ret);
+		goto error;
+	}
+
+	/* We wait for the INIT complete notification */
+	ret = iwl_wait_notification(&mvm->notif_wait, &init_wait,
+				    MVM_UCODE_ALIVE_TIMEOUT);
+	if (ret)
+		return ret;
+
+	/* Read the NVM only at driver load time, no need to do this twice */
+	if (!IWL_MVM_PARSE_NVM && !mvm->nvm_data) {
+		mvm->nvm_data = iwl_get_nvm(mvm->trans, mvm->fw);
+		if (IS_ERR(mvm->nvm_data)) {
+			ret = PTR_ERR(mvm->nvm_data);
+			mvm->nvm_data = NULL;
+			IWL_ERR(mvm, "Failed to read NVM: %d\n", ret);
+			return ret;
+		}
+	}
+
+	mvm->rfkill_safe_init_done = true;
+
+	return 0;
+
+error:
+	iwl_remove_notification(&mvm->notif_wait, &init_wait);
+	return ret;
 }
 
 int iwl_run_init_mvm_ucode(struct iwl_mvm *mvm)
@@ -1019,7 +1055,7 @@ int iwl_mvm_ppag_send_cmd(struct iwl_mvm *mvm)
 
 	ret = iwl_read_ppag_table(&mvm->fwrt, &cmd, &cmd_size);
 	/* Not supporting PPAG table is a valid scenario */
-	if(ret < 0)
+	if (ret < 0)
 		return 0;
 
 	IWL_DEBUG_RADIO(mvm, "Sending PER_PLATFORM_ANT_GAIN_CMD\n");
@@ -1055,7 +1091,7 @@ static const struct dmi_system_id dmi_tas_approved_list[] = {
 	},
 		{ .ident = "LENOVO",
 	  .matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "Lenovo"),
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
 		},
 	},
 	{ .ident = "DELL",
@@ -1063,10 +1099,20 @@ static const struct dmi_system_id dmi_tas_approved_list[] = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
 		},
 	},
+	{ .ident = "MSFT",
+	  .matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Microsoft Corporation"),
+		},
+	},
 
 	/* keep last */
 	{}
 };
+
+bool iwl_mvm_is_vendor_in_approved_list(void)
+{
+	return dmi_check_system(dmi_tas_approved_list);
+}
 
 static bool iwl_mvm_add_to_tas_block_list(__le32 *list, __le32 *le_size, unsigned int mcc)
 {
@@ -1347,6 +1393,11 @@ static void iwl_mvm_lari_cfg(struct iwl_mvm *mvm)
 {
 }
 
+bool iwl_mvm_is_vendor_in_approved_list(void)
+{
+	return false;
+}
+
 static u8 iwl_mvm_eval_dsm_rfi(struct iwl_mvm *mvm)
 {
 	return DSM_VALUE_RFI_DISABLE;
@@ -1456,6 +1507,7 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 	struct ieee80211_channel *chan;
 	struct cfg80211_chan_def chandef;
 	struct ieee80211_supported_band *sband = NULL;
+	u32 sb_cfg;
 
 	lockdep_assert_held(&mvm->mutex);
 
@@ -1463,14 +1515,22 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 	if (ret)
 		return ret;
 
+	sb_cfg = iwl_read_umac_prph(mvm->trans, SB_MODIFY_CFG_FLAG);
+	mvm->pldr_sync = !(sb_cfg & SB_CFG_RESIDES_IN_OTP_MASK);
+	if (mvm->pldr_sync && iwl_mei_pldr_req())
+		return -EBUSY;
+
 	ret = iwl_mvm_load_rt_fw(mvm);
 	if (ret) {
 		IWL_ERR(mvm, "Failed to start RT ucode: %d\n", ret);
-		if (ret != -ERFKILL)
+		if (ret != -ERFKILL && !mvm->pldr_sync)
 			iwl_fw_dbg_error_collect(&mvm->fwrt,
 						 FW_DBG_TRIGGER_DRIVER);
 		goto error;
 	}
+
+	/* FW loaded successfully */
+	mvm->pldr_sync = false;
 
 	iwl_get_shared_mem_conf(&mvm->fwrt);
 
@@ -1495,11 +1555,10 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 		ret = iwl_send_phy_db_data(mvm->phy_db);
 		if (ret)
 			goto error;
+		ret = iwl_send_phy_cfg_cmd(mvm);
+		if (ret)
+			goto error;
 	}
-
-	ret = iwl_send_phy_cfg_cmd(mvm);
-	if (ret)
-		goto error;
 
 	ret = iwl_mvm_send_bt_init_conf(mvm);
 	if (ret)
@@ -1527,8 +1586,12 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 	}
 
 	/* init the fw <-> mac80211 STA mapping */
-	for (i = 0; i < mvm->fw->ucode_capa.num_stations; i++)
+	for (i = 0; i < mvm->fw->ucode_capa.num_stations; i++) {
 		RCU_INIT_POINTER(mvm->fw_id_to_mac_id[i], NULL);
+		RCU_INIT_POINTER(mvm->fw_id_to_link_sta[i], NULL);
+	}
+
+	memset(&mvm->fw_link_ids_map, 0, sizeof(mvm->fw_link_ids_map));
 
 	mvm->tdls_cs.peer.sta_id = IWL_MVM_INVALID_STA;
 
@@ -1634,8 +1697,15 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 			goto error;
 	}
 
-	if (test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status))
+	if (test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status)) {
 		iwl_mvm_send_recovery_cmd(mvm, ERROR_RECOVERY_UPDATE_DB);
+		iwl_mvm_time_sync_config(mvm, mvm->time_sync.peer_addr,
+					 IWL_TIME_SYNC_PROTOCOL_TM |
+					 IWL_TIME_SYNC_PROTOCOL_FTM);
+	}
+
+	if (!mvm->ptp_data.ptp_clock)
+		iwl_mvm_ptp_init(mvm);
 
 	if (iwl_acpi_get_eckv(mvm->dev, &mvm->ext_clock_valid))
 		IWL_DEBUG_INFO(mvm, "ECKV table doesn't exist in BIOS\n");
@@ -1657,13 +1727,12 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 	iwl_mvm_tas_init(mvm);
 	iwl_mvm_leds_sync(mvm);
 
-	iwl_mvm_ftm_initiator_smooth_config(mvm);
-
-	if (fw_has_capa(&mvm->fw->ucode_capa,
-			IWL_UCODE_TLV_CAPA_RFIM_SUPPORT)) {
+	if (iwl_rfi_supported(mvm)) {
 		if (iwl_mvm_eval_dsm_rfi(mvm) == DSM_VALUE_RFI_ENABLE)
 			iwl_rfi_send_config_cmd(mvm, NULL);
 	}
+
+	iwl_mvm_mei_device_state(mvm, true);
 
 	IWL_DEBUG_INFO(mvm, "RT uCode started.\n");
 	return 0;
@@ -1703,8 +1772,10 @@ int iwl_mvm_load_d3_fw(struct iwl_mvm *mvm)
 		goto error;
 
 	/* init the fw <-> mac80211 STA mapping */
-	for (i = 0; i < mvm->fw->ucode_capa.num_stations; i++)
+	for (i = 0; i < mvm->fw->ucode_capa.num_stations; i++) {
 		RCU_INIT_POINTER(mvm->fw_id_to_mac_id[i], NULL);
+		RCU_INIT_POINTER(mvm->fw_id_to_link_sta[i], NULL);
+	}
 
 	if (iwl_fw_lookup_cmd_ver(mvm->fw, ADD_STA, 0) < 12) {
 		/*

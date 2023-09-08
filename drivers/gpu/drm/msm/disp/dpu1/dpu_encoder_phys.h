@@ -61,25 +61,6 @@ enum dpu_enc_enable_state {
 struct dpu_encoder_phys;
 
 /**
- * struct dpu_encoder_virt_ops - Interface the containing virtual encoder
- *	provides for the physical encoders to use to callback.
- * @handle_vblank_virt:	Notify virtual encoder of vblank IRQ reception
- *			Note: This is called from IRQ handler context.
- * @handle_underrun_virt: Notify virtual encoder of underrun IRQ reception
- *			Note: This is called from IRQ handler context.
- * @handle_frame_done:	Notify virtual encoder that this phys encoder
- *			completes last request frame.
- */
-struct dpu_encoder_virt_ops {
-	void (*handle_vblank_virt)(struct drm_encoder *,
-			struct dpu_encoder_phys *phys);
-	void (*handle_underrun_virt)(struct drm_encoder *,
-			struct dpu_encoder_phys *phys);
-	void (*handle_frame_done)(struct drm_encoder *,
-			struct dpu_encoder_phys *phys, u32 event);
-};
-
-/**
  * struct dpu_encoder_phys_ops - Interface the physical encoders provide to
  *	the containing virtual encoder.
  * @late_register:		DRM Call. Add Userspace interfaces, debugfs.
@@ -199,7 +180,6 @@ enum dpu_intr_idx {
 struct dpu_encoder_phys {
 	struct drm_encoder *parent;
 	struct dpu_encoder_phys_ops ops;
-	const struct dpu_encoder_virt_ops *parent_ops;
 	struct dpu_hw_mdp *hw_mdptop;
 	struct dpu_hw_ctl *hw_ctl;
 	struct dpu_hw_pingpong *hw_pp;
@@ -283,7 +263,6 @@ struct dpu_encoder_phys_cmd {
 struct dpu_enc_phys_init_params {
 	struct dpu_kms *dpu_kms;
 	struct drm_encoder *parent;
-	const struct dpu_encoder_virt_ops *parent_ops;
 	enum dpu_enc_split_role split_role;
 	enum dpu_intf intf_idx;
 	enum dpu_wb wb_idx;
@@ -399,5 +378,31 @@ int dpu_encoder_helper_wait_for_irq(struct dpu_encoder_phys *phys_enc,
  * @phys_enc: Pointer to physical encoder structure
  */
 void dpu_encoder_helper_phys_cleanup(struct dpu_encoder_phys *phys_enc);
+
+/**
+ * dpu_encoder_vblank_callback - Notify virtual encoder of vblank IRQ reception
+ * @drm_enc:    Pointer to drm encoder structure
+ * @phys_enc:	Pointer to physical encoder
+ * Note: This is called from IRQ handler context.
+ */
+void dpu_encoder_vblank_callback(struct drm_encoder *drm_enc,
+				 struct dpu_encoder_phys *phy_enc);
+
+/** dpu_encoder_underrun_callback - Notify virtual encoder of underrun IRQ reception
+ * @drm_enc:    Pointer to drm encoder structure
+ * @phys_enc:	Pointer to physical encoder
+ * Note: This is called from IRQ handler context.
+ */
+void dpu_encoder_underrun_callback(struct drm_encoder *drm_enc,
+				   struct dpu_encoder_phys *phy_enc);
+
+/** dpu_encoder_frame_done_callback -- Notify virtual encoder that this phys encoder completes last request frame
+ * @drm_enc:    Pointer to drm encoder structure
+ * @phys_enc:	Pointer to physical encoder
+ * @event:	Event to process
+ */
+void dpu_encoder_frame_done_callback(
+		struct drm_encoder *drm_enc,
+		struct dpu_encoder_phys *ready_phys, u32 event);
 
 #endif /* __dpu_encoder_phys_H__ */

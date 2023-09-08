@@ -19,11 +19,14 @@ properties:
       - brcm,bcm4329-bt
       - brcm,bcm4330-bt
       - brcm,bcm4334-bt
+      - brcm,bcm43430a0-bt
+      - brcm,bcm43430a1-bt
       - brcm,bcm43438-bt
       - brcm,bcm4345c5
       - brcm,bcm43540-bt
       - brcm,bcm4335a0
       - brcm,bcm4349-bt
+      - cypress,cyw4373a0-bt
       - infineon,cyw55572-bt
 
   shutdown-gpios:
@@ -118,7 +121,7 @@ required:
   - compatible
 
 dependencies:
-  brcm,requires-autobaud-mode: [ 'shutdown-gpios' ]
+  brcm,requires-autobaud-mode: [ shutdown-gpios ]
 
 if:
   not:

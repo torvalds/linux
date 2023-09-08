@@ -67,10 +67,10 @@ nsim_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 	unsigned int start;
 
 	do {
-		start = u64_stats_fetch_begin_irq(&ns->syncp);
+		start = u64_stats_fetch_begin(&ns->syncp);
 		stats->tx_bytes = ns->tx_bytes;
 		stats->tx_packets = ns->tx_packets;
-	} while (u64_stats_fetch_retry_irq(&ns->syncp, start));
+	} while (u64_stats_fetch_retry(&ns->syncp, start));
 }
 
 static int
@@ -238,13 +238,6 @@ nsim_set_features(struct net_device *dev, netdev_features_t features)
 	return 0;
 }
 
-static struct devlink_port *nsim_get_devlink_port(struct net_device *dev)
-{
-	struct netdevsim *ns = netdev_priv(dev);
-
-	return &ns->nsim_dev_port->devlink_port;
-}
-
 static const struct net_device_ops nsim_netdev_ops = {
 	.ndo_start_xmit		= nsim_start_xmit,
 	.ndo_set_rx_mode	= nsim_set_rx_mode,
@@ -263,7 +256,6 @@ static const struct net_device_ops nsim_netdev_ops = {
 	.ndo_setup_tc		= nsim_setup_tc,
 	.ndo_set_features	= nsim_set_features,
 	.ndo_bpf		= nsim_bpf,
-	.ndo_get_devlink_port	= nsim_get_devlink_port,
 };
 
 static const struct net_device_ops nsim_vf_netdev_ops = {
@@ -275,7 +267,6 @@ static const struct net_device_ops nsim_vf_netdev_ops = {
 	.ndo_get_stats64	= nsim_get_stats64,
 	.ndo_setup_tc		= nsim_setup_tc,
 	.ndo_set_features	= nsim_set_features,
-	.ndo_get_devlink_port	= nsim_get_devlink_port,
 };
 
 static void nsim_setup(struct net_device *dev)
@@ -295,6 +286,7 @@ static void nsim_setup(struct net_device *dev)
 			 NETIF_F_TSO;
 	dev->hw_features |= NETIF_F_HW_TC;
 	dev->max_mtu = ETH_MAX_MTU;
+	dev->xdp_features = NETDEV_XDP_ACT_HW_OFFLOAD;
 }
 
 static int nsim_init_netdevsim(struct netdevsim *ns)
@@ -360,6 +352,7 @@ nsim_create(struct nsim_dev *nsim_dev, struct nsim_dev_port *nsim_dev_port)
 	ns->nsim_dev_port = nsim_dev_port;
 	ns->nsim_bus_dev = nsim_dev->nsim_bus_dev;
 	SET_NETDEV_DEV(dev, &ns->nsim_bus_dev->dev);
+	SET_NETDEV_DEVLINK_PORT(dev, &nsim_dev_port->devlink_port);
 	nsim_ethtool_init(ns);
 	if (nsim_dev_port_is_pf(nsim_dev_port))
 		err = nsim_init_netdevsim(ns);

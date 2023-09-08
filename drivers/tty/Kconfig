@@ -149,6 +149,25 @@ config LEGACY_PTY_COUNT
 	  When not in use, each legacy PTY occupies 12 bytes on 32-bit
 	  architectures and 24 bytes on 64-bit architectures.
 
+config LEGACY_TIOCSTI
+	bool "Allow legacy TIOCSTI usage"
+	default y
+	help
+	  Historically the kernel has allowed TIOCSTI, which will push
+	  characters into a controlling TTY. This continues to be used
+	  as a malicious privilege escalation mechanism, and provides no
+	  meaningful real-world utility any more. Its use is considered
+	  a dangerous legacy operation, and can be disabled on most
+	  systems.
+
+	  Say Y here only if you have confirmed that your system's
+	  userspace depends on this functionality to continue operating
+	  normally.
+
+	  This functionality can be changed at runtime with the
+	  dev.tty.legacy_tiocsti sysctl. This configuration option sets
+	  the default value of the sysctl.
+
 config LDISC_AUTOLOAD
 	bool "Automatically load TTY Line Disciplines"
 	default y
@@ -281,6 +300,15 @@ config GOLDFISH_TTY_EARLY_CONSOLE
 	bool
 	default y if GOLDFISH_TTY=y
 	select SERIAL_EARLYCON
+
+config IPWIRELESS
+	tristate "IPWireless 3G UMTS PCMCIA card support"
+	depends on PCMCIA && NETDEVICES
+	select PPP
+	help
+	  This is a driver for 3G UMTS PCMCIA card from IPWireless company. In
+	  some countries (for example Czech Republic, T-Mobile ISP) this card
+	  is shipped for service called UMTS 4G.
 
 config N_GSM
 	tristate "GSM MUX line discipline support (EXPERIMENTAL)"

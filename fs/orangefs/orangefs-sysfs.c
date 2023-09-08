@@ -896,9 +896,18 @@ static struct attribute *orangefs_default_attrs[] = {
 };
 ATTRIBUTE_GROUPS(orangefs_default);
 
+static struct kobject *orangefs_obj;
+
+static void orangefs_obj_release(struct kobject *kobj)
+{
+	kfree(orangefs_obj);
+	orangefs_obj = NULL;
+}
+
 static struct kobj_type orangefs_ktype = {
 	.sysfs_ops = &orangefs_sysfs_ops,
 	.default_groups = orangefs_default_groups,
+	.release = orangefs_obj_release,
 };
 
 static struct orangefs_attribute acache_hard_limit_attribute =
@@ -934,9 +943,18 @@ static struct attribute *acache_orangefs_default_attrs[] = {
 };
 ATTRIBUTE_GROUPS(acache_orangefs_default);
 
+static struct kobject *acache_orangefs_obj;
+
+static void acache_orangefs_obj_release(struct kobject *kobj)
+{
+	kfree(acache_orangefs_obj);
+	acache_orangefs_obj = NULL;
+}
+
 static struct kobj_type acache_orangefs_ktype = {
 	.sysfs_ops = &orangefs_sysfs_ops,
 	.default_groups = acache_orangefs_default_groups,
+	.release = acache_orangefs_obj_release,
 };
 
 static struct orangefs_attribute capcache_hard_limit_attribute =
@@ -972,9 +990,18 @@ static struct attribute *capcache_orangefs_default_attrs[] = {
 };
 ATTRIBUTE_GROUPS(capcache_orangefs_default);
 
+static struct kobject *capcache_orangefs_obj;
+
+static void capcache_orangefs_obj_release(struct kobject *kobj)
+{
+	kfree(capcache_orangefs_obj);
+	capcache_orangefs_obj = NULL;
+}
+
 static struct kobj_type capcache_orangefs_ktype = {
 	.sysfs_ops = &orangefs_sysfs_ops,
 	.default_groups = capcache_orangefs_default_groups,
+	.release = capcache_orangefs_obj_release,
 };
 
 static struct orangefs_attribute ccache_hard_limit_attribute =
@@ -1010,9 +1037,18 @@ static struct attribute *ccache_orangefs_default_attrs[] = {
 };
 ATTRIBUTE_GROUPS(ccache_orangefs_default);
 
+static struct kobject *ccache_orangefs_obj;
+
+static void ccache_orangefs_obj_release(struct kobject *kobj)
+{
+	kfree(ccache_orangefs_obj);
+	ccache_orangefs_obj = NULL;
+}
+
 static struct kobj_type ccache_orangefs_ktype = {
 	.sysfs_ops = &orangefs_sysfs_ops,
 	.default_groups = ccache_orangefs_default_groups,
+	.release = ccache_orangefs_obj_release,
 };
 
 static struct orangefs_attribute ncache_hard_limit_attribute =
@@ -1048,9 +1084,18 @@ static struct attribute *ncache_orangefs_default_attrs[] = {
 };
 ATTRIBUTE_GROUPS(ncache_orangefs_default);
 
+static struct kobject *ncache_orangefs_obj;
+
+static void ncache_orangefs_obj_release(struct kobject *kobj)
+{
+	kfree(ncache_orangefs_obj);
+	ncache_orangefs_obj = NULL;
+}
+
 static struct kobj_type ncache_orangefs_ktype = {
 	.sysfs_ops = &orangefs_sysfs_ops,
 	.default_groups = ncache_orangefs_default_groups,
+	.release = ncache_orangefs_obj_release,
 };
 
 static struct orangefs_attribute pc_acache_attribute =
@@ -1079,9 +1124,18 @@ static struct attribute *pc_orangefs_default_attrs[] = {
 };
 ATTRIBUTE_GROUPS(pc_orangefs_default);
 
+static struct kobject *pc_orangefs_obj;
+
+static void pc_orangefs_obj_release(struct kobject *kobj)
+{
+	kfree(pc_orangefs_obj);
+	pc_orangefs_obj = NULL;
+}
+
 static struct kobj_type pc_orangefs_ktype = {
 	.sysfs_ops = &orangefs_sysfs_ops,
 	.default_groups = pc_orangefs_default_groups,
+	.release = pc_orangefs_obj_release,
 };
 
 static struct orangefs_attribute stats_reads_attribute =
@@ -1103,18 +1157,19 @@ static struct attribute *stats_orangefs_default_attrs[] = {
 };
 ATTRIBUTE_GROUPS(stats_orangefs_default);
 
+static struct kobject *stats_orangefs_obj;
+
+static void stats_orangefs_obj_release(struct kobject *kobj)
+{
+	kfree(stats_orangefs_obj);
+	stats_orangefs_obj = NULL;
+}
+
 static struct kobj_type stats_orangefs_ktype = {
 	.sysfs_ops = &orangefs_sysfs_ops,
 	.default_groups = stats_orangefs_default_groups,
+	.release = stats_orangefs_obj_release,
 };
-
-static struct kobject *orangefs_obj;
-static struct kobject *acache_orangefs_obj;
-static struct kobject *capcache_orangefs_obj;
-static struct kobject *ccache_orangefs_obj;
-static struct kobject *ncache_orangefs_obj;
-static struct kobject *pc_orangefs_obj;
-static struct kobject *stats_orangefs_obj;
 
 int orangefs_sysfs_init(void)
 {

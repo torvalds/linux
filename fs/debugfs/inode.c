@@ -42,7 +42,7 @@ static unsigned int debugfs_allow __ro_after_init = DEFAULT_DEBUGFS_ALLOW_BITS;
  * so that we can use the file mode as part of a heuristic to determine whether
  * to lock down individual files.
  */
-static int debugfs_setattr(struct user_namespace *mnt_userns,
+static int debugfs_setattr(struct mnt_idmap *idmap,
 			   struct dentry *dentry, struct iattr *ia)
 {
 	int ret;
@@ -52,7 +52,7 @@ static int debugfs_setattr(struct user_namespace *mnt_userns,
 		if (ret)
 			return ret;
 	}
-	return simple_setattr(&init_user_ns, dentry, ia);
+	return simple_setattr(&nop_mnt_idmap, dentry, ia);
 }
 
 static const struct inode_operations debugfs_file_inode_operations = {
@@ -802,8 +802,8 @@ EXPORT_SYMBOL_GPL(debugfs_lookup_and_remove);
  * exist for rename to succeed.
  *
  * This function will return a pointer to old_dentry (which is updated to
- * reflect renaming) if it succeeds. If an error occurs, %NULL will be
- * returned.
+ * reflect renaming) if it succeeds. If an error occurs, ERR_PTR(-ERROR)
+ * will be returned.
  *
  * If debugfs is not enabled in the kernel, the value -%ENODEV will be
  * returned.
@@ -837,7 +837,7 @@ struct dentry *debugfs_rename(struct dentry *old_dir, struct dentry *old_dentry,
 
 	take_dentry_name_snapshot(&old_name, old_dentry);
 
-	error = simple_rename(&init_user_ns, d_inode(old_dir), old_dentry,
+	error = simple_rename(&nop_mnt_idmap, d_inode(old_dir), old_dentry,
 			      d_inode(new_dir), dentry, 0);
 	if (error) {
 		release_dentry_name_snapshot(&old_name);

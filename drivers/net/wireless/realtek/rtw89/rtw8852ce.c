@@ -53,6 +53,7 @@ static const struct rtw89_pci_info rtw8852c_pci_info = {
 	.tx_dma_ch_mask		= 0,
 	.bd_idx_addr_low_power	= &rtw8852c_bd_idx_addr_low_power,
 	.dma_addr_set		= &rtw89_pci_ch_dma_addr_set_v1,
+	.bd_ram_table		= &rtw89_bd_ram_table_dual,
 
 	.ltr_set		= rtw89_pci_ltr_set_v1,
 	.fill_txaddr_info	= rtw89_pci_fill_txaddr_info_v1,

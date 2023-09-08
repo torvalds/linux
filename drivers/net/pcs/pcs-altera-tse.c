@@ -12,22 +12,13 @@
 
 /* SGMII PCS register addresses
  */
-#define SGMII_PCS_SCRATCH	0x10
-#define SGMII_PCS_REV		0x11
 #define SGMII_PCS_LINK_TIMER_0	0x12
-#define   SGMII_PCS_LINK_TIMER_REG(x)		(0x12 + (x))
 #define SGMII_PCS_LINK_TIMER_1	0x13
 #define SGMII_PCS_IF_MODE	0x14
 #define   PCS_IF_MODE_SGMII_ENA		BIT(0)
 #define   PCS_IF_MODE_USE_SGMII_AN	BIT(1)
-#define   PCS_IF_MODE_SGMI_SPEED_MASK	GENMASK(3, 2)
-#define   PCS_IF_MODE_SGMI_SPEED_10	(0 << 2)
-#define   PCS_IF_MODE_SGMI_SPEED_100	(1 << 2)
-#define   PCS_IF_MODE_SGMI_SPEED_1000	(2 << 2)
 #define   PCS_IF_MODE_SGMI_HALF_DUPLEX	BIT(4)
 #define   PCS_IF_MODE_SGMI_PHY_AN	BIT(5)
-#define SGMII_PCS_DIS_READ_TO	0x15
-#define SGMII_PCS_READ_TO	0x16
 #define SGMII_PCS_SW_RESET_TIMEOUT 100 /* usecs */
 
 struct altera_tse_pcs {
@@ -60,7 +51,6 @@ static void tse_pcs_write(struct altera_tse_pcs *tse_pcs, int regnum,
 
 static int tse_pcs_reset(struct altera_tse_pcs *tse_pcs)
 {
-	int i = 0;
 	u16 bmcr;
 
 	/* Reset PCS block */
@@ -68,13 +58,9 @@ static int tse_pcs_reset(struct altera_tse_pcs *tse_pcs)
 	bmcr |= BMCR_RESET;
 	tse_pcs_write(tse_pcs, MII_BMCR, bmcr);
 
-	for (i = 0; i < SGMII_PCS_SW_RESET_TIMEOUT; i++) {
-		if (!(tse_pcs_read(tse_pcs, MII_BMCR) & BMCR_RESET))
-			return 0;
-		udelay(1);
-	}
-
-	return -ETIMEDOUT;
+	return read_poll_timeout(tse_pcs_read, bmcr, (bmcr & BMCR_RESET),
+				 10, SGMII_PCS_SW_RESET_TIMEOUT, 1,
+				 tse_pcs, MII_BMCR);
 }
 
 static int alt_tse_pcs_validate(struct phylink_pcs *pcs,
@@ -107,7 +93,6 @@ static int alt_tse_pcs_config(struct phylink_pcs *pcs, unsigned int mode,
 		if_mode |= PCS_IF_MODE_USE_SGMII_AN | PCS_IF_MODE_SGMII_ENA;
 	} else if (interface == PHY_INTERFACE_MODE_1000BASEX) {
 		if_mode &= ~(PCS_IF_MODE_USE_SGMII_AN | PCS_IF_MODE_SGMII_ENA);
-		if_mode |= PCS_IF_MODE_SGMI_SPEED_1000;
 	}
 
 	ctrl |= (BMCR_SPEED1000 | BMCR_FULLDPLX | BMCR_ANENABLE);

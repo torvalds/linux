@@ -74,13 +74,13 @@ static const struct sysfs_ops ubifs_attr_ops = {
 	.show	= ubifs_attr_show,
 };
 
-static struct kobj_type ubifs_sb_ktype = {
+static const struct kobj_type ubifs_sb_ktype = {
 	.default_groups	= ubifs_groups,
 	.sysfs_ops	= &ubifs_attr_ops,
 	.release	= ubifs_sb_release,
 };
 
-static struct kobj_type ubifs_ktype = {
+static const struct kobj_type ubifs_ktype = {
 	.sysfs_ops	= &ubifs_attr_ops,
 };
 
@@ -144,6 +144,8 @@ int __init ubifs_sysfs_init(void)
 	kobject_set_name(&ubifs_kset.kobj, "ubifs");
 	ubifs_kset.kobj.parent = fs_kobj;
 	ret = kset_register(&ubifs_kset);
+	if (ret)
+		kset_put(&ubifs_kset);
 
 	return ret;
 }

@@ -19,8 +19,6 @@
 #include <linux/regmap.h>
 #include <linux/interrupt.h>
 
-#include "thermal_core.h"
-
 /* Thermal Manager Control and Status Register */
 #define PMU_TDC0_SW_RST_MASK		(0x1 << 1)
 #define PMU_TM_DISABLE_OFFS		0
@@ -362,11 +360,8 @@ static int armada_select_channel(struct armada_thermal_priv *priv, int channel)
 	 * we must absolutely wait for the sensor validity bit to ensure we read
 	 * actual data.
 	 */
-	if (armada_wait_sensor_validity(priv)) {
-		dev_err(priv->dev,
-			"Temperature sensor reading not valid\n");
+	if (armada_wait_sensor_validity(priv))
 		return -EIO;
-	}
 
 	return 0;
 }
@@ -400,15 +395,12 @@ static int armada_read_sensor(struct armada_thermal_priv *priv, int *temp)
 static int armada_get_temp_legacy(struct thermal_zone_device *thermal,
 				  int *temp)
 {
-	struct armada_thermal_priv *priv = thermal->devdata;
+	struct armada_thermal_priv *priv = thermal_zone_device_priv(thermal);
 	int ret;
 
 	/* Valid check */
-	if (!armada_is_valid(priv)) {
-		dev_err(priv->dev,
-			"Temperature sensor reading not valid\n");
+	if (!armada_is_valid(priv))
 		return -EIO;
-	}
 
 	/* Do the actual reading */
 	ret = armada_read_sensor(priv, temp);
@@ -422,7 +414,7 @@ static struct thermal_zone_device_ops legacy_ops = {
 
 static int armada_get_temp(struct thermal_zone_device *tz, int *temp)
 {
-	struct armada_thermal_sensor *sensor = tz->devdata;
+	struct armada_thermal_sensor *sensor = thermal_zone_device_priv(tz);
 	struct armada_thermal_priv *priv = sensor->priv;
 	int ret;
 
@@ -709,12 +701,10 @@ static int armada_thermal_probe_legacy(struct platform_device *pdev,
 				       struct armada_thermal_priv *priv)
 {
 	struct armada_thermal_data *data = priv->data;
-	struct resource *res;
 	void __iomem *base;
 
 	/* First memory region points towards the status register */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = devm_ioremap_resource(&pdev->dev, res);
+	base = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 
@@ -761,8 +751,7 @@ static void armada_set_sane_name(struct platform_device *pdev,
 	}
 
 	/* Save the name locally */
-	strncpy(priv->zone_name, name, THERMAL_NAME_LENGTH - 1);
-	priv->zone_name[THERMAL_NAME_LENGTH - 1] = '\0';
+	strscpy(priv->zone_name, name, THERMAL_NAME_LENGTH);
 
 	/* Then check there are no '-' or hwmon core will complain */
 	do {
@@ -785,30 +774,23 @@ static int armada_configure_overheat_int(struct armada_thermal_priv *priv,
 					 int sensor_id)
 {
 	/* Retrieve the critical trip point to enable the overheat interrupt */
-	const struct thermal_trip *trips = of_thermal_get_trip_points(tz);
+	int temperature;
 	int ret;
-	int i;
 
-	if (!trips)
-		return -EINVAL;
-
-	for (i = 0; i < of_thermal_get_ntrips(tz); i++)
-		if (trips[i].type == THERMAL_TRIP_CRITICAL)
-			break;
-
-	if (i == of_thermal_get_ntrips(tz))
-		return -EINVAL;
+	ret = thermal_zone_get_crit_temp(tz, &temperature);
+	if (ret)
+		return ret;
 
 	ret = armada_select_channel(priv, sensor_id);
 	if (ret)
 		return ret;
 
-	armada_set_overheat_thresholds(priv,
-				       trips[i].temperature,
-				       trips[i].hysteresis);
+	/*
+	 * A critical temperature does not have a hysteresis
+	 */
+	armada_set_overheat_thresholds(priv, temperature, 0);
 	priv->overheat_sensor = tz;
 	priv->interrupt_source = sensor_id;
-
 	armada_enable_overheat_interrupt(priv);
 
 	return 0;

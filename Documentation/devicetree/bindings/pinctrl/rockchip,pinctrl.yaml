@@ -50,12 +50,12 @@ properties:
       - rockchip,rv1126-pinctrl
 
   rockchip,grf:
-    $ref: "/schemas/types.yaml#/definitions/phandle"
+    $ref: /schemas/types.yaml#/definitions/phandle
     description:
       The phandle of the syscon node for the GRF registers.
 
   rockchip,pmu:
-    $ref: "/schemas/types.yaml#/definitions/phandle"
+    $ref: /schemas/types.yaml#/definitions/phandle
     description:
       The phandle of the syscon node for the PMU registers,
       as some SoCs carry parts of the iomux controller registers there.
@@ -71,20 +71,18 @@ properties:
   ranges: true
 
 allOf:
-  - $ref: "pinctrl.yaml#"
+  - $ref: pinctrl.yaml#
 
 required:
   - compatible
   - rockchip,grf
-  - "#address-cells"
-  - "#size-cells"
-  - ranges
 
 patternProperties:
   "gpio@[0-9a-f]+$":
     type: object
 
-    $ref: "/schemas/gpio/rockchip,gpio-bank.yaml#"
+    $ref: /schemas/gpio/rockchip,gpio-bank.yaml#
+    deprecated: true
 
     unevaluatedProperties: false
 
@@ -119,7 +117,7 @@ additionalProperties:
     type: object
     properties:
       rockchip,pins:
-        $ref: "/schemas/types.yaml#/definitions/uint32-matrix"
+        $ref: /schemas/types.yaml#/definitions/uint32-matrix
         minItems: 1
         items:
           items:
@@ -132,7 +130,7 @@ additionalProperties:
               description:
                 Pin bank index.
             - minimum: 0
-              maximum: 10
+              maximum: 13
               description:
                 Mux 0 means GPIO and mux 1 to N means
                 the specific device function.

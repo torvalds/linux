@@ -59,7 +59,6 @@ int test_ringbuf(void *ctx)
 	int cur_pid = bpf_get_current_pid_tgid() >> 32;
 	struct sample *sample;
 	void *rb;
-	int zero = 0;
 
 	if (cur_pid != pid)
 		return 0;

@@ -27,6 +27,7 @@
 #include "reg_helper.h"
 #include "dcn10_optc.h"
 #include "dc.h"
+#include "dc_trace.h"
 
 #define REG(reg)\
 	optc1->tg_regs->reg
@@ -657,6 +658,8 @@ void optc1_lock(struct timing_generator *optc)
 		REG_WAIT(OTG_MASTER_UPDATE_LOCK,
 				UPDATE_LOCK_STATUS, 1,
 				1, 10);
+
+	TRACE_OPTC_LOCK_UNLOCK_STATE(optc1, optc->inst, true);
 }
 
 void optc1_unlock(struct timing_generator *optc)
@@ -665,6 +668,8 @@ void optc1_unlock(struct timing_generator *optc)
 
 	REG_SET(OTG_MASTER_UPDATE_LOCK, 0,
 			OTG_MASTER_UPDATE_LOCK, 0);
+
+	TRACE_OPTC_LOCK_UNLOCK_STATE(optc1, optc->inst, false);
 }
 
 void optc1_get_position(struct timing_generator *optc,

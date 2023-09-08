@@ -41,27 +41,6 @@ static void asoc_simple_fixup_sample_fmt(struct asoc_simple_data *data,
 	}
 }
 
-void asoc_simple_convert_fixup(struct asoc_simple_data *data,
-			       struct snd_pcm_hw_params *params)
-{
-	struct snd_interval *rate = hw_param_interval(params,
-						SNDRV_PCM_HW_PARAM_RATE);
-	struct snd_interval *channels = hw_param_interval(params,
-						SNDRV_PCM_HW_PARAM_CHANNELS);
-
-	if (data->convert_rate)
-		rate->min =
-		rate->max = data->convert_rate;
-
-	if (data->convert_channels)
-		channels->min =
-		channels->max = data->convert_channels;
-
-	if (data->convert_sample_format)
-		asoc_simple_fixup_sample_fmt(data, params);
-}
-EXPORT_SYMBOL_GPL(asoc_simple_convert_fixup);
-
 void asoc_simple_parse_convert(struct device_node *np,
 			       char *prefix,
 			       struct asoc_simple_data *data)
@@ -335,7 +314,7 @@ int asoc_simple_startup(struct snd_pcm_substream *substream)
 		}
 		ret = snd_pcm_hw_constraint_minmax(substream->runtime, SNDRV_PCM_HW_PARAM_RATE,
 			fixed_rate, fixed_rate);
-		if (ret)
+		if (ret < 0)
 			goto codec_err;
 	}
 
@@ -522,8 +501,20 @@ int asoc_simple_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 {
 	struct asoc_simple_priv *priv = snd_soc_card_get_drvdata(rtd->card);
 	struct simple_dai_props *dai_props = simple_priv_to_props(priv, rtd->num);
+	struct asoc_simple_data *data = &dai_props->adata;
+	struct snd_interval *rate = hw_param_interval(params, SNDRV_PCM_HW_PARAM_RATE);
+	struct snd_interval *channels = hw_param_interval(params, SNDRV_PCM_HW_PARAM_CHANNELS);
 
-	asoc_simple_convert_fixup(&dai_props->adata, params);
+	if (data->convert_rate)
+		rate->min =
+		rate->max = data->convert_rate;
+
+	if (data->convert_channels)
+		channels->min =
+		channels->max = data->convert_channels;
+
+	if (data->convert_sample_format)
+		asoc_simple_fixup_sample_fmt(data, params);
 
 	return 0;
 }
@@ -571,12 +562,12 @@ static int asoc_simple_init_for_codec2codec(struct snd_soc_pcm_runtime *rtd,
 {
 	struct snd_soc_dai_link *dai_link = rtd->dai_link;
 	struct snd_soc_component *component;
-	struct snd_soc_pcm_stream *params;
+	struct snd_soc_pcm_stream *c2c_params;
 	struct snd_pcm_hardware hw;
 	int i, ret, stream;
 
 	/* Do nothing if it already has Codec2Codec settings */
-	if (dai_link->params)
+	if (dai_link->c2c_params)
 		return 0;
 
 	/* Do nothing if it was DPCM :: BE */
@@ -601,19 +592,19 @@ static int asoc_simple_init_for_codec2codec(struct snd_soc_pcm_runtime *rtd,
 		return ret;
 	}
 
-	params = devm_kzalloc(rtd->dev, sizeof(*params), GFP_KERNEL);
-	if (!params)
+	c2c_params = devm_kzalloc(rtd->dev, sizeof(*c2c_params), GFP_KERNEL);
+	if (!c2c_params)
 		return -ENOMEM;
 
-	params->formats = hw.formats;
-	params->rates = hw.rates;
-	params->rate_min = hw.rate_min;
-	params->rate_max = hw.rate_max;
-	params->channels_min = hw.channels_min;
-	params->channels_max = hw.channels_max;
+	c2c_params->formats		= hw.formats;
+	c2c_params->rates		= hw.rates;
+	c2c_params->rate_min		= hw.rate_min;
+	c2c_params->rate_max		= hw.rate_max;
+	c2c_params->channels_min	= hw.channels_min;
+	c2c_params->channels_max	= hw.channels_max;
 
-	dai_link->params = params;
-	dai_link->num_params = 1;
+	dai_link->c2c_params		= c2c_params;
+	dai_link->num_c2c_params	= 1;
 
 	return 0;
 }
@@ -647,7 +638,16 @@ EXPORT_SYMBOL_GPL(asoc_simple_dai_init);
 void asoc_simple_canonicalize_platform(struct snd_soc_dai_link_component *platforms,
 				       struct snd_soc_dai_link_component *cpus)
 {
-	/* Assumes platform == cpu */
+	/*
+	 * Assumes Platform == CPU
+	 *
+	 * Some CPU might be using soc-generic-dmaengine-pcm. This means CPU and Platform
+	 * are different Component, but are sharing same component->dev.
+	 *
+	 * Let's assume Platform is same as CPU if it doesn't identify Platform on DT.
+	 * see
+	 *	simple-card.c :: simple_count_noml()
+	 */
 	if (!platforms->of_node)
 		platforms->of_node = cpus->of_node;
 }
@@ -794,6 +794,55 @@ int asoc_simple_init_jack(struct snd_soc_card *card,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(asoc_simple_init_jack);
+
+int asoc_simple_init_aux_jacks(struct asoc_simple_priv *priv, char *prefix)
+{
+	struct snd_soc_card *card = simple_priv_to_card(priv);
+	struct snd_soc_component *component;
+	int found_jack_index = 0;
+	int type = 0;
+	int num = 0;
+	int ret;
+
+	if (priv->aux_jacks)
+		return 0;
+
+	for_each_card_auxs(card, component) {
+		type = snd_soc_component_get_jack_type(component);
+		if (type > 0)
+			num++;
+	}
+	if (num < 1)
+		return 0;
+
+	priv->aux_jacks = devm_kcalloc(card->dev, num,
+				       sizeof(struct snd_soc_jack), GFP_KERNEL);
+	if (!priv->aux_jacks)
+		return -ENOMEM;
+
+	for_each_card_auxs(card, component) {
+		char id[128];
+		struct snd_soc_jack *jack;
+
+		if (found_jack_index >= num)
+			break;
+
+		type = snd_soc_component_get_jack_type(component);
+		if (type <= 0)
+			continue;
+
+		/* create jack */
+		jack = &(priv->aux_jacks[found_jack_index++]);
+		snprintf(id, sizeof(id), "%s-jack", component->name);
+		ret = snd_soc_card_jack_new(card, id, type, jack);
+		if (ret)
+			continue;
+
+		(void)snd_soc_component_set_jack(component, jack, NULL);
+	}
+	return 0;
+}
+EXPORT_SYMBOL_GPL(asoc_simple_init_aux_jacks);
 
 int asoc_simple_init_priv(struct asoc_simple_priv *priv,
 			  struct link_info *li)

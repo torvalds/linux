@@ -58,6 +58,10 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SIL164_9_MDI (1<<0)
 
 #define SIL164_REGC 0x0c
+#define SIL164_C_SCNT (1<<7)
+#define SIL164_C_PLLF_MASK (0xf<<1)
+#define SIL164_C_PLLF_REC (4<<1)
+#define SIL164_C_PFEN (1<<0)
 
 struct sil164_priv {
 	//I2CDevRec d;
@@ -205,7 +209,13 @@ static void sil164_mode_set(struct intel_dvo_device *dvo,
 	  sil164_writeb(sil, 0x0c, 0x89);
 	  sil164_writeb(sil, 0x08, 0x31);*/
 	/* don't do much */
-	return;
+
+	sil164_writeb(dvo, SIL164_REG8,
+		      SIL164_8_VEN | SIL164_8_HEN);
+	sil164_writeb(dvo, SIL164_REG9,
+		      SIL164_9_TSEL);
+	sil164_writeb(dvo, SIL164_REGC,
+		      SIL164_C_PLLF_REC | SIL164_C_PFEN);
 }
 
 /* set the SIL164 power state */
@@ -224,7 +234,6 @@ static void sil164_dpms(struct intel_dvo_device *dvo, bool enable)
 		ch &= ~SIL164_8_PD;
 
 	sil164_writeb(dvo, SIL164_REG8, ch);
-	return;
 }
 
 static bool sil164_get_hw_state(struct intel_dvo_device *dvo)

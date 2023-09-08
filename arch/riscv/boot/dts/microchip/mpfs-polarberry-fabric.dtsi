@@ -30,8 +30,8 @@
 				<0 0 0 3 &pcie_intc 2>,
 				<0 0 0 4 &pcie_intc 3>;
 		interrupt-map-mask = <0 0 0 7>;
-		clocks = <&fabric_clk1>, <&fabric_clk1>, <&fabric_clk3>;
-		clock-names = "fic0", "fic1", "fic3";
+		clocks = <&fabric_clk1>, <&fabric_clk3>;
+		clock-names = "fic0", "fic3";
 		ranges = <0x3000000 0x0 0x8000000 0x20 0x8000000 0x0 0x80000000>;
 		msi-parent = <&pcie>;
 		msi-controller;

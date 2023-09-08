@@ -51,16 +51,7 @@ __setup("vdso32=", vdso32_setup);
 __setup_param("vdso=", vdso_setup, vdso32_setup, 0);
 #endif
 
-int __init sysenter_setup(void)
-{
-	init_vdso_image(&vdso_image_32);
-
-	return 0;
-}
-
 #ifdef CONFIG_X86_64
-
-subsys_initcall(sysenter_setup);
 
 #ifdef CONFIG_SYSCTL
 /* Register vsyscall32 into the ABI table */
@@ -79,18 +70,9 @@ static struct ctl_table abi_table2[] = {
 	{}
 };
 
-static struct ctl_table abi_root_table2[] = {
-	{
-		.procname = "abi",
-		.mode = 0555,
-		.child = abi_table2
-	},
-	{}
-};
-
 static __init int ia32_binfmt_init(void)
 {
-	register_sysctl_table(abi_root_table2);
+	register_sysctl("abi", abi_table2);
 	return 0;
 }
 __initcall(ia32_binfmt_init);

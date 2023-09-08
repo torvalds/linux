@@ -279,7 +279,7 @@ powertecscsi_store_term(struct device *dev, struct device_attribute *attr, const
 static DEVICE_ATTR(bus_term, S_IRUGO | S_IWUSR,
 		   powertecscsi_show_term, powertecscsi_store_term);
 
-static struct scsi_host_template powertecscsi_template = {
+static const struct scsi_host_template powertecscsi_template = {
 	.module				= THIS_MODULE,
 	.show_info			= powertecscsi_show_info,
 	.write_info			= powertecscsi_set_proc_info,

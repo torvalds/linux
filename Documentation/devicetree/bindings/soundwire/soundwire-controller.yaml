@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/soundwire/soundwire-controller.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: SoundWire Controller Generic Binding
+title: SoundWire Controller Common Properties
 
 maintainers:
   - Srinivas Kandagatla <srinivas.kandagatla@linaro.org>

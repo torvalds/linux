@@ -459,9 +459,10 @@ int cmd_monitor(int argc, char **argv)
 			print_results(1, cpu);
 	}
 
-	for (num = 0; num < avail_monitors; num++)
-		monitors[num]->unregister();
-
+	for (num = 0; num < avail_monitors; num++) {
+		if (monitors[num]->unregister)
+			monitors[num]->unregister();
+	}
 	cpu_topology_release(cpu_top);
 	return 0;
 }

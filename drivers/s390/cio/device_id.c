@@ -210,7 +210,7 @@ void ccw_device_sense_id_start(struct ccw_device *cdev)
 	snsid_init(cdev);
 	/* Channel program setup. */
 	cp->cmd_code	= CCW_CMD_SENSE_ID;
-	cp->cda		= (u32) (addr_t) &cdev->private->dma_area->senseid;
+	cp->cda		= (u32)virt_to_phys(&cdev->private->dma_area->senseid);
 	cp->count	= sizeof(struct senseid);
 	cp->flags	= CCW_FLAG_SLI;
 	/* Request setup. */

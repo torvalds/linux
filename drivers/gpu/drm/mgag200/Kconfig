@@ -4,6 +4,8 @@ config DRM_MGAG200
 	depends on DRM && PCI && MMU
 	select DRM_GEM_SHMEM_HELPER
 	select DRM_KMS_HELPER
+	select I2C
+	select I2C_ALGOBIT
 	help
 	 This is a KMS driver for Matrox G200 chips. It supports the original
 	 MGA G200 desktop chips and the server variants. It requires 0.3.0

@@ -17,6 +17,7 @@ struct sof_ipc_dai_acp_params {
 
 	uint32_t fsync_rate;    /* FSYNC frequency in Hz */
 	uint32_t tdm_slots;
+	uint32_t tdm_mode;
 } __packed;
 
 /* ACPDMIC Configuration Request - SOF_IPC_DAI_AMD_CONFIG */

@@ -58,10 +58,11 @@ struct vmw_user_resource_conv {
  * struct vmw_res_func - members and functions common for a resource type
  *
  * @res_type:          Enum that identifies the lru list to use for eviction.
- * @needs_backup:      Whether the resource is guest-backed and needs
+ * @needs_guest_memory:Whether the resource is guest-backed and needs
  *                     persistent buffer storage.
  * @type_name:         String that identifies the resource type.
- * @backup_placement:  TTM placement for backup buffers.
+ * @domain:            TTM placement for guest memory buffers.
+ * @busy_domain:       TTM busy placement for guest memory buffers.
  * @may_evict          Whether the resource may be evicted.
  * @create:            Create a hardware resource.
  * @destroy:           Destroy a hardware resource.
@@ -81,9 +82,10 @@ struct vmw_user_resource_conv {
  */
 struct vmw_res_func {
 	enum vmw_res_type res_type;
-	bool needs_backup;
+	bool needs_guest_memory;
 	const char *type_name;
-	struct ttm_placement *backup_placement;
+	u32 domain;
+	u32 busy_domain;
 	bool may_evict;
 	u32 prio;
 	u32 dirty_prio;

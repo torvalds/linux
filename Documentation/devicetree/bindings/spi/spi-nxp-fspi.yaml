@@ -11,7 +11,7 @@ maintainers:
   - Kuldeep Singh <singh.kuldeep87k@gmail.com>
 
 allOf:
-  - $ref: "spi-controller.yaml#"
+  - $ref: spi-controller.yaml#
 
 properties:
   compatible:

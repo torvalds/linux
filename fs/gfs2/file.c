@@ -15,6 +15,7 @@
 #include <linux/mm.h>
 #include <linux/mount.h>
 #include <linux/fs.h>
+#include <linux/filelock.h>
 #include <linux/gfs2_ondisk.h>
 #include <linux/falloc.h>
 #include <linux/swap.h>
@@ -235,7 +236,7 @@ static int do_gfs2_set_flags(struct inode *inode, u32 reqflags, u32 mask)
 		goto out;
 
 	if (!IS_IMMUTABLE(inode)) {
-		error = gfs2_permission(&init_user_ns, inode, MAY_WRITE);
+		error = gfs2_permission(&nop_mnt_idmap, inode, MAY_WRITE);
 		if (error)
 			goto out;
 	}
@@ -273,7 +274,7 @@ out:
 	return error;
 }
 
-int gfs2_fileattr_set(struct user_namespace *mnt_userns,
+int gfs2_fileattr_set(struct mnt_idmap *idmap,
 		      struct dentry *dentry, struct fileattr *fa)
 {
 	struct inode *inode = d_inode(dentry);
@@ -783,9 +784,13 @@ static inline bool should_fault_in_pages(struct iov_iter *i,
 	if (!user_backed_iter(i))
 		return false;
 
+	/*
+	 * Try to fault in multiple pages initially.  When that doesn't result
+	 * in any progress, fall back to a single page.
+	 */
 	size = PAGE_SIZE;
 	offs = offset_in_page(iocb->ki_pos);
-	if (*prev_count != count || !*window_size) {
+	if (*prev_count != count) {
 		size_t nr_dirtied;
 
 		nr_dirtied = max(current->nr_dirtied_pause -
@@ -869,6 +874,7 @@ static ssize_t gfs2_file_direct_write(struct kiocb *iocb, struct iov_iter *from,
 	struct gfs2_inode *ip = GFS2_I(inode);
 	size_t prev_count = 0, window_size = 0;
 	size_t written = 0;
+	bool enough_retries;
 	ssize_t ret;
 
 	/*
@@ -912,11 +918,17 @@ retry:
 	if (ret > 0)
 		written = ret;
 
+	enough_retries = prev_count == iov_iter_count(from) &&
+			 window_size <= PAGE_SIZE;
 	if (should_fault_in_pages(from, iocb, &prev_count, &window_size)) {
 		gfs2_glock_dq(gh);
 		window_size -= fault_in_iov_iter_readable(from, window_size);
-		if (window_size)
-			goto retry;
+		if (window_size) {
+			if (!enough_retries)
+				goto retry;
+			/* fall back to buffered I/O */
+			ret = 0;
+		}
 	}
 out_unlock:
 	if (gfs2_holder_queued(gh))
@@ -1445,14 +1457,13 @@ static int gfs2_lock(struct file *file, int cmd, struct file_lock *fl)
 
 static void __flock_holder_uninit(struct file *file, struct gfs2_holder *fl_gh)
 {
-	struct gfs2_glock *gl = fl_gh->gh_gl;
+	struct gfs2_glock *gl = gfs2_glock_hold(fl_gh->gh_gl);
 
 	/*
 	 * Make sure gfs2_glock_put() won't sleep under the file->f_lock
 	 * spinlock.
 	 */
 
-	gfs2_glock_hold(gl);
 	spin_lock(&file->f_lock);
 	gfs2_holder_uninit(fl_gh);
 	spin_unlock(&file->f_lock);

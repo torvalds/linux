@@ -182,10 +182,12 @@ config SND_SOC_MT8186_MT6366_DA7219_MAX98357
 	  If unsure select "N".
 
 config SND_SOC_MT8186_MT6366_RT1019_RT5682S
-	tristate "ASoC Audio driver for MT8186 with RT1019 RT5682S codec"
+	tristate "ASoC Audio driver for MT8186 with RT1019 RT5682S MAX98357A/MAX98360 codec"
 	depends on I2C && GPIOLIB
 	depends on SND_SOC_MT8186 && MTK_PMIC_WRAP
+	select SND_SOC_MAX98357A
 	select SND_SOC_MT6358
+	select SND_SOC_MAX98357A
 	select SND_SOC_RT1015P
 	select SND_SOC_RT5682S
 	select SND_SOC_BT_SCO
@@ -203,6 +205,29 @@ config SND_SOC_MTK_BTCVSD
 	  This is for software BTCVSD. This enable
 	  the function for transferring/receiving
 	  BT encoded data to/from BT firmware.
+	  Select Y if you have such device.
+	  If unsure select "N".
+
+config SND_SOC_MT8188
+	tristate "ASoC support for MediaTek MT8188 chip"
+	depends on ARCH_MEDIATEK || COMPILE_TEST
+	depends on COMMON_CLK
+	select SND_SOC_MEDIATEK
+	select MFD_SYSCON if SND_SOC_MT6359
+	help
+	  This adds ASoC platform driver support for MediaTek MT8188 chip
+	  that can be used with other codecs.
+	  Select Y if you have such device.
+	  If unsure select "N".
+
+config SND_SOC_MT8188_MT6359
+	tristate "ASoC Audio driver for MT8188 with MT6359 and I2S codecs"
+	depends on SND_SOC_MT8188 && MTK_PMIC_WRAP
+	select SND_SOC_MT6359
+	select SND_SOC_HDMI_CODEC
+	help
+	  This adds support for ASoC machine driver for MediaTek MT8188
+	  boards with the MT6359 and other I2S audio codecs.
 	  Select Y if you have such device.
 	  If unsure select "N".
 

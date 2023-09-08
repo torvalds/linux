@@ -134,7 +134,7 @@ OPTIONS
         srcline, period, iregs, uregs, brstack, brstacksym, flags, bpf-output,
         brstackinsn, brstackinsnlen, brstackoff, callindent, insn, insnlen, synth,
         phys_addr, metric, misc, srccode, ipc, data_page_size, code_page_size, ins_lat,
-        machine_pid, vcpu.
+        machine_pid, vcpu, cgroup, retire_lat.
         Field list can be prepended with the type, trace, sw or hw,
         to indicate to which event type the field list applies.
         e.g., -F sw:comm,tid,time,ip,sym  and -F trace:time,cpu,trace
@@ -230,6 +230,9 @@ OPTIONS
 	The machine_pid and vcpu fields are derived from data resulting from using
 	perf inject to insert a perf.data file recorded inside a virtual machine into
 	a perf.data file recorded on the host at the same time.
+
+	The cgroup fields requires sample having the cgroup id which is saved
+	when "--all-cgroups" option is passed to 'perf record'.
 
 	Finally, a user may not set fields to none for all event types.
 	i.e., -F "" is not allowed.
@@ -502,7 +505,7 @@ include::itrace.txt[]
 	perf record --call-graph lbr.
 	Disabled by default. In common cases with call stack overflows,
 	it can recreate better call stacks than the default lbr call stack
-	output. But this approach is not full proof. There can be cases
+	output. But this approach is not foolproof. There can be cases
 	where it creates incorrect call stacks from incorrect matches.
 	The known limitations include exception handing such as
 	setjmp/longjmp will have calls/returns not match.

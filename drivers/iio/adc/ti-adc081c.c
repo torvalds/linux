@@ -152,9 +152,9 @@ static void adc081c_reg_disable(void *reg)
 	regulator_disable(reg);
 }
 
-static int adc081c_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int adc081c_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct iio_dev *iio;
 	struct adc081c *adc;
 	const struct adcxx1c_model *model;
@@ -235,7 +235,7 @@ static struct i2c_driver adc081c_driver = {
 		.of_match_table = adc081c_of_match,
 		.acpi_match_table = adc081c_acpi_match,
 	},
-	.probe = adc081c_probe,
+	.probe_new = adc081c_probe,
 	.id_table = adc081c_id,
 };
 module_i2c_driver(adc081c_driver);

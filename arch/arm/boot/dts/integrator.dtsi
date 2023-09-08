@@ -88,12 +88,12 @@
 			interrupts = <8>;
 		};
 
-		uart@16000000 {
+		serial@16000000 {
 			reg = <0x16000000 0x1000>;
 			interrupts = <1>;
 		};
 
-		uart@17000000 {
+		serial@17000000 {
 			reg = <0x17000000 0x1000>;
 			interrupts = <2>;
 		};

@@ -402,7 +402,7 @@ int cap_init(void)
 {
 	int ret;
 
-	cap_class = class_create(THIS_MODULE, "gb_authenticate");
+	cap_class = class_create("gb_authenticate");
 	if (IS_ERR(cap_class))
 		return PTR_ERR(cap_class);
 

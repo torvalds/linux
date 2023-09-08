@@ -125,7 +125,7 @@
 			#interrupt-cells = <1>;
 		};
 
-		pci2_root@0,0,0 {
+		pci2_root@0,0 {
 			compatible = "pci10ee,7021";
 			reg = <0x00000000 0 0 0 0>;
 

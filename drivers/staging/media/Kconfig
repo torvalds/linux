@@ -22,6 +22,8 @@ if STAGING_MEDIA && MEDIA_SUPPORT
 # Please keep them in alphabetic order
 source "drivers/staging/media/atomisp/Kconfig"
 
+source "drivers/staging/media/av7110/Kconfig"
+
 source "drivers/staging/media/imx/Kconfig"
 
 source "drivers/staging/media/ipu3/Kconfig"
@@ -51,14 +53,7 @@ menuconfig STAGING_MEDIA_DEPRECATED
 	  If in doubt, say N here.
 
 if STAGING_MEDIA_DEPRECATED
-source "drivers/staging/media/deprecated/cpia2/Kconfig"
-source "drivers/staging/media/deprecated/fsl-viu/Kconfig"
-source "drivers/staging/media/deprecated/meye/Kconfig"
-source "drivers/staging/media/deprecated/saa7146/Kconfig"
-source "drivers/staging/media/deprecated/stkwebcam/Kconfig"
-source "drivers/staging/media/deprecated/tm6000/Kconfig"
-source "drivers/staging/media/deprecated/vpfe_capture/Kconfig"
-source "drivers/staging/media/deprecated/zr364xx/Kconfig"
+source "drivers/staging/media/deprecated/atmel/Kconfig"
 endif
 
 endif

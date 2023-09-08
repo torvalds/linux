@@ -31,8 +31,8 @@ void test_recursion(void)
 	bpf_map_delete_elem(bpf_map__fd(skel->maps.hash2), &key);
 	ASSERT_EQ(skel->bss->pass2, 2, "pass2 == 2");
 
-	err = bpf_obj_get_info_by_fd(bpf_program__fd(skel->progs.on_delete),
-				     &prog_info, &prog_info_len);
+	err = bpf_prog_get_info_by_fd(bpf_program__fd(skel->progs.on_delete),
+				      &prog_info, &prog_info_len);
 	if (!ASSERT_OK(err, "get_prog_info"))
 		goto out;
 	ASSERT_EQ(prog_info.recursion_misses, 2, "recursion_misses");

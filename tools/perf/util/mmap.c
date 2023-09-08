@@ -111,7 +111,7 @@ static int perf_mmap__aio_bind(struct mmap *map, int idx, struct perf_cpu cpu, i
 			pr_err("Failed to allocate node mask for mbind: error %m\n");
 			return -1;
 		}
-		set_bit(node_index, node_mask);
+		__set_bit(node_index, node_mask);
 		if (mbind(data, mmap_len, MPOL_BIND, node_mask, node_index + 1 + 1, 0)) {
 			pr_err("Failed to bind [%p-%p] AIO buffer to node %lu: error %m\n",
 				data, data + mmap_len, node_index);
@@ -256,7 +256,7 @@ static void build_node_mask(int node, struct mmap_cpu_mask *mask)
 	for (idx = 0; idx < nr_cpus; idx++) {
 		cpu = perf_cpu_map__cpu(cpu_map, idx); /* map c index to online cpu index */
 		if (cpu__get_node(cpu) == node)
-			set_bit(cpu.cpu, mask->bits);
+			__set_bit(cpu.cpu, mask->bits);
 	}
 }
 
@@ -270,7 +270,7 @@ static int perf_mmap__setup_affinity_mask(struct mmap *map, struct mmap_params *
 	if (mp->affinity == PERF_AFFINITY_NODE && cpu__max_node() > 1)
 		build_node_mask(cpu__get_node(map->core.cpu), &map->affinity_mask);
 	else if (mp->affinity == PERF_AFFINITY_CPU)
-		set_bit(map->core.cpu.cpu, map->affinity_mask.bits);
+		__set_bit(map->core.cpu.cpu, map->affinity_mask.bits);
 
 	return 0;
 }

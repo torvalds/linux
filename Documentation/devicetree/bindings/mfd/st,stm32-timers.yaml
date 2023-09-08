@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/mfd/st,stm32-timers.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: STMicroelectronics STM32 Timers bindings
+title: STMicroelectronics STM32 Timers
 
 description: |
   This hardware block provides 3 types of timer along with PWM functionality:

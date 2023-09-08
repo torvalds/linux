@@ -134,6 +134,7 @@
 #define GPMC_CONFIG_DEV_SIZE	0x00000002
 #define GPMC_CONFIG_DEV_TYPE	0x00000003
 
+#define GPMC_CONFIG_WAITPINPOLARITY(pin)	(BIT(pin) << 8)
 #define GPMC_CONFIG1_WRAPBURST_SUPP     (1 << 31)
 #define GPMC_CONFIG1_READMULTIPLE_SUPP  (1 << 30)
 #define GPMC_CONFIG1_READTYPE_ASYNC     (0 << 29)
@@ -229,6 +230,12 @@ struct omap3_gpmc_regs {
 	struct gpmc_cs_config cs_context[GPMC_CS_NUM];
 };
 
+struct gpmc_waitpin {
+	u32 pin;
+	u32 polarity;
+	struct gpio_desc *desc;
+};
+
 struct gpmc_device {
 	struct device *dev;
 	int irq;
@@ -236,6 +243,7 @@ struct gpmc_device {
 	struct gpio_chip gpio_chip;
 	struct notifier_block nb;
 	struct omap3_gpmc_regs context;
+	struct gpmc_waitpin *waitpins;
 	int nirqs;
 	unsigned int is_suspended:1;
 	struct resource *data;
@@ -1034,6 +1042,62 @@ void gpmc_cs_free(int cs)
 	spin_unlock(&gpmc_mem_lock);
 }
 EXPORT_SYMBOL(gpmc_cs_free);
+
+static bool gpmc_is_valid_waitpin(u32 waitpin)
+{
+	return waitpin < gpmc_nr_waitpins;
+}
+
+static int gpmc_alloc_waitpin(struct gpmc_device *gpmc,
+			      struct gpmc_settings *p)
+{
+	int ret;
+	struct gpmc_waitpin *waitpin;
+	struct gpio_desc *waitpin_desc;
+
+	if (!gpmc_is_valid_waitpin(p->wait_pin))
+		return -EINVAL;
+
+	waitpin = &gpmc->waitpins[p->wait_pin];
+
+	if (!waitpin->desc) {
+		/* Reserve the GPIO for wait pin usage.
+		 * GPIO polarity doesn't matter here. Wait pin polarity
+		 * is set in GPMC_CONFIG register.
+		 */
+		waitpin_desc = gpiochip_request_own_desc(&gpmc->gpio_chip,
+							 p->wait_pin, "WAITPIN",
+							 GPIO_ACTIVE_HIGH,
+							 GPIOD_IN);
+
+		ret = PTR_ERR(waitpin_desc);
+		if (IS_ERR(waitpin_desc) && ret != -EBUSY)
+			return ret;
+
+		/* New wait pin */
+		waitpin->desc = waitpin_desc;
+		waitpin->pin = p->wait_pin;
+		waitpin->polarity = p->wait_pin_polarity;
+	} else {
+		/* Shared wait pin */
+		if (p->wait_pin_polarity != waitpin->polarity ||
+		    p->wait_pin != waitpin->pin) {
+			dev_err(gpmc->dev,
+				"shared-wait-pin: invalid configuration\n");
+			return -EINVAL;
+		}
+		dev_info(gpmc->dev, "shared wait-pin: %d\n", waitpin->pin);
+	}
+
+	return 0;
+}
+
+static void gpmc_free_waitpin(struct gpmc_device *gpmc,
+			      int wait_pin)
+{
+	if (gpmc_is_valid_waitpin(wait_pin))
+		gpiochip_free_own_desc(gpmc->waitpins[wait_pin].desc);
+}
 
 /**
  * gpmc_configure - write request to configure gpmc
@@ -1854,7 +1918,8 @@ int gpmc_cs_program_settings(int cs, struct gpmc_settings *p)
 		}
 	}
 
-	if (p->wait_pin > gpmc_nr_waitpins) {
+	if (p->wait_pin != GPMC_WAITPIN_INVALID &&
+	    p->wait_pin > gpmc_nr_waitpins) {
 		pr_err("%s: invalid wait-pin (%d)\n", __func__, p->wait_pin);
 		return -EINVAL;
 	}
@@ -1885,6 +1950,17 @@ int gpmc_cs_program_settings(int cs, struct gpmc_settings *p)
 	}
 
 	gpmc_cs_write_reg(cs, GPMC_CS_CONFIG1, config1);
+
+	if (p->wait_pin_polarity != GPMC_WAITPINPOLARITY_INVALID) {
+		config1 = gpmc_read_reg(GPMC_CONFIG);
+
+		if (p->wait_pin_polarity == GPMC_WAITPINPOLARITY_ACTIVE_LOW)
+			config1 &= ~GPMC_CONFIG_WAITPINPOLARITY(p->wait_pin);
+		else if (p->wait_pin_polarity == GPMC_WAITPINPOLARITY_ACTIVE_HIGH)
+			config1 |= GPMC_CONFIG_WAITPINPOLARITY(p->wait_pin);
+
+		gpmc_write_reg(GPMC_CONFIG, config1);
+	}
 
 	return 0;
 }
@@ -1975,7 +2051,25 @@ void gpmc_read_settings_dt(struct device_node *np, struct gpmc_settings *p)
 				__func__);
 	}
 
+	p->wait_pin = GPMC_WAITPIN_INVALID;
+	p->wait_pin_polarity = GPMC_WAITPINPOLARITY_INVALID;
+
 	if (!of_property_read_u32(np, "gpmc,wait-pin", &p->wait_pin)) {
+		if (!gpmc_is_valid_waitpin(p->wait_pin)) {
+			pr_err("%s: Invalid wait-pin (%d)\n", __func__, p->wait_pin);
+			p->wait_pin = GPMC_WAITPIN_INVALID;
+		}
+
+		if (!of_property_read_u32(np, "ti,wait-pin-polarity",
+					  &p->wait_pin_polarity)) {
+			if (p->wait_pin_polarity != GPMC_WAITPINPOLARITY_ACTIVE_HIGH &&
+			    p->wait_pin_polarity != GPMC_WAITPINPOLARITY_ACTIVE_LOW) {
+				pr_err("%s: Invalid wait-pin-polarity (%d)\n",
+				       __func__, p->wait_pin_polarity);
+				p->wait_pin_polarity = GPMC_WAITPINPOLARITY_INVALID;
+				}
+		}
+
 		p->wait_on_read = of_property_read_bool(np,
 							"gpmc,wait-on-read");
 		p->wait_on_write = of_property_read_bool(np,
@@ -2080,7 +2174,6 @@ static int gpmc_probe_generic_child(struct platform_device *pdev,
 	const char *name;
 	int ret, cs;
 	u32 val;
-	struct gpio_desc *waitpin_desc = NULL;
 	struct gpmc_device *gpmc = platform_get_drvdata(pdev);
 
 	if (of_property_read_u32(child, "reg", &cs) < 0) {
@@ -2208,17 +2301,9 @@ static int gpmc_probe_generic_child(struct platform_device *pdev,
 
 	/* Reserve wait pin if it is required and valid */
 	if (gpmc_s.wait_on_read || gpmc_s.wait_on_write) {
-		unsigned int wait_pin = gpmc_s.wait_pin;
-
-		waitpin_desc = gpiochip_request_own_desc(&gpmc->gpio_chip,
-							 wait_pin, "WAITPIN",
-							 GPIO_ACTIVE_HIGH,
-							 GPIOD_IN);
-		if (IS_ERR(waitpin_desc)) {
-			dev_err(&pdev->dev, "invalid wait-pin: %d\n", wait_pin);
-			ret = PTR_ERR(waitpin_desc);
+		ret = gpmc_alloc_waitpin(gpmc, &gpmc_s);
+		if (ret < 0)
 			goto err;
-		}
 	}
 
 	gpmc_cs_show_timings(cs, "before gpmc_cs_program_settings");
@@ -2260,7 +2345,7 @@ err_child_fail:
 	ret = -ENODEV;
 
 err_cs:
-	gpiochip_free_own_desc(waitpin_desc);
+	gpmc_free_waitpin(gpmc, gpmc_s.wait_pin);
 err:
 	gpmc_cs_free(cs);
 
@@ -2489,7 +2574,7 @@ static int omap_gpmc_context_notifier(struct notifier_block *nb,
 
 static int gpmc_probe(struct platform_device *pdev)
 {
-	int rc;
+	int rc, i;
 	u32 l;
 	struct resource *res;
 	struct gpmc_device *gpmc;
@@ -2545,6 +2630,15 @@ static int gpmc_probe(struct platform_device *pdev)
 		gpmc_nr_waitpins = GPMC_NR_WAITPINS;
 	}
 
+	gpmc->waitpins = devm_kzalloc(&pdev->dev,
+				      gpmc_nr_waitpins * sizeof(struct gpmc_waitpin),
+				      GFP_KERNEL);
+	if (!gpmc->waitpins)
+		return -ENOMEM;
+
+	for (i = 0; i < gpmc_nr_waitpins; i++)
+		gpmc->waitpins[i].pin = GPMC_WAITPIN_INVALID;
+
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_get_sync(&pdev->dev);
 
@@ -2598,9 +2692,12 @@ gpio_init_failed:
 
 static int gpmc_remove(struct platform_device *pdev)
 {
+	int i;
 	struct gpmc_device *gpmc = platform_get_drvdata(pdev);
 
 	cpu_pm_unregister_notifier(&gpmc->nb);
+	for (i = 0; i < gpmc_nr_waitpins; i++)
+		gpmc_free_waitpin(gpmc, i);
 	gpmc_free_irq(gpmc);
 	gpmc_mem_exit();
 	pm_runtime_put_sync(&pdev->dev);

@@ -42,7 +42,19 @@
 #define LLCC_CPUHWT      36
 #define LLCC_MDMCLAD2    37
 #define LLCC_CAMEXP1     38
+#define LLCC_CMPTHCP     39
+#define LLCC_LCPDARE     40
 #define LLCC_AENPU       45
+#define LLCC_ISLAND1     46
+#define LLCC_ISLAND2     47
+#define LLCC_ISLAND3     48
+#define LLCC_ISLAND4     49
+#define LLCC_CAMEXP2	 50
+#define LLCC_CAMEXP3	 51
+#define LLCC_CAMEXP4	 52
+#define LLCC_DISP_WB	 53
+#define LLCC_DISP_1	 54
+#define LLCC_VIDVSP	 64
 
 /**
  * struct llcc_slice_desc - Cache slice descriptor
@@ -57,9 +69,6 @@ struct llcc_slice_desc {
 /**
  * struct llcc_edac_reg_data - llcc edac registers data for each error type
  * @name: Name of the error
- * @synd_reg: Syndrome register address
- * @count_status_reg: Status register address to read the error count
- * @ways_status_reg: Status register address to read the error ways
  * @reg_cnt: Number of registers
  * @count_mask: Mask value to get the error count
  * @ways_mask: Mask value to get the error ways
@@ -68,9 +77,6 @@ struct llcc_slice_desc {
  */
 struct llcc_edac_reg_data {
 	char *name;
-	u64 synd_reg;
-	u64 count_status_reg;
-	u64 ways_status_reg;
 	u32 reg_cnt;
 	u32 count_mask;
 	u32 ways_mask;
@@ -108,7 +114,7 @@ struct llcc_edac_reg_offset {
 
 /**
  * struct llcc_drv_data - Data associated with the llcc driver
- * @regmap: regmap associated with the llcc device
+ * @regmaps: regmaps associated with the llcc device
  * @bcast_regmap: regmap associated with llcc broadcast offset
  * @cfg: pointer to the data structure for slice configuration
  * @edac_reg_offset: Offset of the LLCC EDAC registers
@@ -117,12 +123,11 @@ struct llcc_edac_reg_offset {
  * @max_slices: max slices as read from device tree
  * @num_banks: Number of llcc banks
  * @bitmap: Bit map to track the active slice ids
- * @offsets: Pointer to the bank offsets array
  * @ecc_irq: interrupt for llcc cache error detection and reporting
  * @version: Indicates the LLCC version
  */
 struct llcc_drv_data {
-	struct regmap *regmap;
+	struct regmap **regmaps;
 	struct regmap *bcast_regmap;
 	const struct llcc_slice_config *cfg;
 	const struct llcc_edac_reg_offset *edac_reg_offset;
@@ -131,7 +136,6 @@ struct llcc_drv_data {
 	u32 max_slices;
 	u32 num_banks;
 	unsigned long *bitmap;
-	u32 *offsets;
 	int ecc_irq;
 	u32 version;
 };

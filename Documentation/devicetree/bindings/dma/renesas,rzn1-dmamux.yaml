@@ -10,7 +10,7 @@ maintainers:
   - Miquel Raynal <miquel.raynal@bootlin.com>
 
 allOf:
-  - $ref: "dma-router.yaml#"
+  - $ref: dma-router.yaml#
 
 properties:
   compatible:

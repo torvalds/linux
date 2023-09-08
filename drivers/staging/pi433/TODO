@@ -3,3 +3,6 @@
 * Some missing data (marked with ###) needs to be added in the documentation
 * Change (struct pi433_tx_cfg)->bit_rate to be a u32 so that we can support
     bit rates up to 300kbps per the spec.
+  -> This configuration needs to be moved to sysfs instead of being done through
+     IOCTL. Going forward, we need to port userspace tools to use sysfs instead
+     of IOCTL and then we would delete IOCTL.

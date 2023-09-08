@@ -78,13 +78,25 @@ gmc_v10_0_vm_fault_interrupt_state(struct amdgpu_device *adev,
 		/* MM HUB */
 		amdgpu_gmc_set_vm_fault_masks(adev, AMDGPU_MMHUB_0, false);
 		/* GFX HUB */
-		amdgpu_gmc_set_vm_fault_masks(adev, AMDGPU_GFXHUB_0, false);
+		/* This works because this interrupt is only
+		 * enabled at init/resume and disabled in
+		 * fini/suspend, so the overall state doesn't
+		 * change over the course of suspend/resume.
+		 */
+		if (!adev->in_s0ix)
+			amdgpu_gmc_set_vm_fault_masks(adev, AMDGPU_GFXHUB_0, false);
 		break;
 	case AMDGPU_IRQ_STATE_ENABLE:
 		/* MM HUB */
 		amdgpu_gmc_set_vm_fault_masks(adev, AMDGPU_MMHUB_0, true);
 		/* GFX HUB */
-		amdgpu_gmc_set_vm_fault_masks(adev, AMDGPU_GFXHUB_0, true);
+		/* This works because this interrupt is only
+		 * enabled at init/resume and disabled in
+		 * fini/suspend, so the overall state doesn't
+		 * change over the course of suspend/resume.
+		 */
+		if (!adev->in_s0ix)
+			amdgpu_gmc_set_vm_fault_masks(adev, AMDGPU_GFXHUB_0, true);
 		break;
 	default:
 		break;
@@ -371,7 +383,9 @@ static void gmc_v10_0_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid,
 	 * translation. Avoid this by doing the invalidation from the SDMA
 	 * itself.
 	 */
-	r = amdgpu_job_alloc_with_ib(adev, 16 * 4, AMDGPU_IB_POOL_IMMEDIATE,
+	r = amdgpu_job_alloc_with_ib(ring->adev, &adev->mman.entity,
+				     AMDGPU_FENCE_OWNER_UNDEFINED,
+				     16 * 4, AMDGPU_IB_POOL_IMMEDIATE,
 				     &job);
 	if (r)
 		goto error_alloc;
@@ -380,10 +394,7 @@ static void gmc_v10_0_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid,
 	job->vm_needs_flush = true;
 	job->ibs->ptr[job->ibs->length_dw++] = ring->funcs->nop;
 	amdgpu_ring_pad_ib(ring, &job->ibs[0]);
-	r = amdgpu_job_submit(job, &adev->mman.entity,
-			      AMDGPU_FENCE_OWNER_UNDEFINED, &fence);
-	if (r)
-		goto error_submit;
+	fence = amdgpu_job_submit(job);
 
 	mutex_unlock(&adev->mman.gtt_window_lock);
 
@@ -391,9 +402,6 @@ static void gmc_v10_0_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid,
 	dma_fence_put(fence);
 
 	return;
-
-error_submit:
-	amdgpu_job_free(job);
 
 error_alloc:
 	mutex_unlock(&adev->mman.gtt_window_lock);
@@ -471,8 +479,8 @@ static int gmc_v10_0_flush_gpu_tlb_pasid(struct amdgpu_device *adev,
 static uint64_t gmc_v10_0_emit_flush_gpu_tlb(struct amdgpu_ring *ring,
 					     unsigned vmid, uint64_t pd_addr)
 {
-	bool use_semaphore = gmc_v10_0_use_invalidate_semaphore(ring->adev, ring->funcs->vmhub);
-	struct amdgpu_vmhub *hub = &ring->adev->vmhub[ring->funcs->vmhub];
+	bool use_semaphore = gmc_v10_0_use_invalidate_semaphore(ring->adev, ring->vm_hub);
+	struct amdgpu_vmhub *hub = &ring->adev->vmhub[ring->vm_hub];
 	uint32_t req = hub->vmhub_funcs->get_invalidate_req(vmid, 0);
 	unsigned eng = ring->vm_inv_eng;
 
@@ -526,7 +534,7 @@ static void gmc_v10_0_emit_pasid_mapping(struct amdgpu_ring *ring, unsigned vmid
 	if (ring->is_mes_queue)
 		return;
 
-	if (ring->funcs->vmhub == AMDGPU_GFXHUB_0)
+	if (ring->vm_hub == AMDGPU_GFXHUB_0)
 		reg = SOC15_REG_OFFSET(OSSSYS, 0, mmIH_VMID_0_LUT) + vmid;
 	else
 		reg = SOC15_REG_OFFSET(OSSSYS, 0, mmIH_VMID_0_LUT_MM) + vmid;
@@ -612,6 +620,8 @@ static void gmc_v10_0_get_vm_pte(struct amdgpu_device *adev,
 				 struct amdgpu_bo_va_mapping *mapping,
 				 uint64_t *flags)
 {
+	struct amdgpu_bo *bo = mapping->bo_va->base.bo;
+
 	*flags &= ~AMDGPU_PTE_EXECUTABLE;
 	*flags |= mapping->flags & AMDGPU_PTE_EXECUTABLE;
 
@@ -628,6 +638,11 @@ static void gmc_v10_0_get_vm_pte(struct amdgpu_device *adev,
 		*flags |= AMDGPU_PTE_SYSTEM;
 		*flags &= ~AMDGPU_PTE_VALID;
 	}
+
+	if (bo && bo->flags & (AMDGPU_GEM_CREATE_COHERENT |
+			       AMDGPU_GEM_CREATE_UNCACHED))
+		*flags = (*flags & ~AMDGPU_PTE_MTYPE_NV10_MASK) |
+			 AMDGPU_PTE_MTYPE_NV10(MTYPE_UC);
 }
 
 static unsigned gmc_v10_0_get_vbios_fb_size(struct amdgpu_device *adev)
@@ -677,30 +692,14 @@ static void gmc_v10_0_set_umc_funcs(struct amdgpu_device *adev)
 		adev->umc.channel_inst_num = UMC_V8_7_CHANNEL_INSTANCE_NUM;
 		adev->umc.umc_inst_num = UMC_V8_7_UMC_INSTANCE_NUM;
 		adev->umc.channel_offs = UMC_V8_7_PER_CHANNEL_OFFSET_SIENNA;
+		adev->umc.retire_unit = 1;
 		adev->umc.channel_idx_tbl = &umc_v8_7_channel_idx_tbl[0][0];
 		adev->umc.ras = &umc_v8_7_ras;
 		break;
 	default:
 		break;
 	}
-	if (adev->umc.ras) {
-		amdgpu_ras_register_ras_block(adev, &adev->umc.ras->ras_block);
-
-		strcpy(adev->umc.ras->ras_block.ras_comm.name, "umc");
-		adev->umc.ras->ras_block.ras_comm.block = AMDGPU_RAS_BLOCK__UMC;
-		adev->umc.ras->ras_block.ras_comm.type = AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE;
-		adev->umc.ras_if = &adev->umc.ras->ras_block.ras_comm;
-
-		/* If don't define special ras_late_init function, use default ras_late_init */
-		if (!adev->umc.ras->ras_block.ras_late_init)
-				adev->umc.ras->ras_block.ras_late_init = amdgpu_umc_ras_late_init;
-
-		/* If not defined special ras_cb function, use default ras_cb */
-		if (!adev->umc.ras->ras_block.ras_cb)
-			adev->umc.ras->ras_block.ras_cb = amdgpu_umc_process_ras_data_cb;
-	}
 }
-
 
 static void gmc_v10_0_set_mmhub_funcs(struct amdgpu_device *adev)
 {
@@ -738,7 +737,6 @@ static void gmc_v10_0_set_gfxhub_funcs(struct amdgpu_device *adev)
 
 static int gmc_v10_0_early_init(void *handle)
 {
-	int r;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	gmc_v10_0_set_mmhub_funcs(adev);
@@ -753,10 +751,6 @@ static int gmc_v10_0_early_init(void *handle)
 	adev->gmc.private_aperture_start = 0x1000000000000000ULL;
 	adev->gmc.private_aperture_end =
 		adev->gmc.private_aperture_start + (4ULL << 30) - 1;
-
-	r = amdgpu_gmc_ras_early_init(adev);
-	if (r)
-		return r;
 
 	return 0;
 }
@@ -832,10 +826,7 @@ static int gmc_v10_0_mc_init(struct amdgpu_device *adev)
 	}
 #endif
 
-	/* In case the PCI BAR is larger than the actual amount of vram */
 	adev->gmc.visible_vram_size = adev->gmc.aper_size;
-	if (adev->gmc.visible_vram_size > adev->gmc.real_vram_size)
-		adev->gmc.visible_vram_size = adev->gmc.real_vram_size;
 
 	/* set the gart size */
 	if (amdgpu_gart_size == -1) {
@@ -1011,6 +1002,10 @@ static int gmc_v10_0_sw_init(void *handle)
 
 	amdgpu_vm_manager_init(adev);
 
+	r = amdgpu_gmc_ras_sw_init(adev);
+	if (r)
+		return r;
+
 	return 0;
 }
 
@@ -1058,9 +1053,12 @@ static int gmc_v10_0_gart_enable(struct amdgpu_device *adev)
 	}
 
 	amdgpu_gtt_mgr_recover(&adev->mman.gtt_mgr);
-	r = adev->gfxhub.funcs->gart_enable(adev);
-	if (r)
-		return r;
+
+	if (!adev->in_s0ix) {
+		r = adev->gfxhub.funcs->gart_enable(adev);
+		if (r)
+			return r;
+	}
 
 	r = adev->mmhub.funcs->gart_enable(adev);
 	if (r)
@@ -1074,10 +1072,12 @@ static int gmc_v10_0_gart_enable(struct amdgpu_device *adev)
 	value = (amdgpu_vm_fault_stop == AMDGPU_VM_FAULT_STOP_ALWAYS) ?
 		false : true;
 
-	adev->gfxhub.funcs->set_fault_enable_default(adev, value);
+	if (!adev->in_s0ix)
+		adev->gfxhub.funcs->set_fault_enable_default(adev, value);
 	adev->mmhub.funcs->set_fault_enable_default(adev, value);
 	gmc_v10_0_flush_gpu_tlb(adev, 0, AMDGPU_MMHUB_0, 0);
-	gmc_v10_0_flush_gpu_tlb(adev, 0, AMDGPU_GFXHUB_0, 0);
+	if (!adev->in_s0ix)
+		gmc_v10_0_flush_gpu_tlb(adev, 0, AMDGPU_GFXHUB_0, 0);
 
 	DRM_INFO("PCIE GART of %uM enabled (table at 0x%016llX).\n",
 		 (unsigned)(adev->gmc.gart_size >> 20),
@@ -1098,7 +1098,7 @@ static int gmc_v10_0_hw_init(void *handle)
 	 * harvestable groups in gc_utcl2 need to be programmed before any GFX block
 	 * register setup within GMC, or else system hang when harvesting SA.
 	 */
-	if (adev->gfxhub.funcs && adev->gfxhub.funcs->utcl2_harvest)
+	if (!adev->in_s0ix && adev->gfxhub.funcs && adev->gfxhub.funcs->utcl2_harvest)
 		adev->gfxhub.funcs->utcl2_harvest(adev);
 
 	r = gmc_v10_0_gart_enable(adev);
@@ -1126,7 +1126,8 @@ static int gmc_v10_0_hw_init(void *handle)
  */
 static void gmc_v10_0_gart_disable(struct amdgpu_device *adev)
 {
-	adev->gfxhub.funcs->gart_disable(adev);
+	if (!adev->in_s0ix)
+		adev->gfxhub.funcs->gart_disable(adev);
 	adev->mmhub.funcs->gart_disable(adev);
 }
 
@@ -1142,7 +1143,6 @@ static int gmc_v10_0_hw_fini(void *handle)
 		return 0;
 	}
 
-	amdgpu_irq_put(adev, &adev->gmc.ecc_irq, 0);
 	amdgpu_irq_put(adev, &adev->gmc.vm_fault, 0);
 
 	return 0;

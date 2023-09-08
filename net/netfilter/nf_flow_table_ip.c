@@ -384,7 +384,7 @@ nf_flow_offload_ip_hook(void *priv, struct sk_buff *skb,
 	if (skb_try_make_writable(skb, thoff + hdrsize))
 		return NF_DROP;
 
-	flow_offload_refresh(flow_table, flow);
+	flow_offload_refresh(flow_table, flow, false);
 
 	nf_flow_encap_pop(skb, tuplehash);
 	thoff -= offset;
@@ -420,6 +420,10 @@ nf_flow_offload_ip_hook(void *priv, struct sk_buff *skb,
 		ret = nf_flow_queue_xmit(state->net, skb, tuplehash, ETH_P_IP);
 		if (ret == NF_DROP)
 			flow_offload_teardown(flow);
+		break;
+	default:
+		WARN_ON_ONCE(1);
+		ret = NF_DROP;
 		break;
 	}
 
@@ -646,7 +650,7 @@ nf_flow_offload_ipv6_hook(void *priv, struct sk_buff *skb,
 	if (skb_try_make_writable(skb, thoff + hdrsize))
 		return NF_DROP;
 
-	flow_offload_refresh(flow_table, flow);
+	flow_offload_refresh(flow_table, flow, false);
 
 	nf_flow_encap_pop(skb, tuplehash);
 
@@ -681,6 +685,10 @@ nf_flow_offload_ipv6_hook(void *priv, struct sk_buff *skb,
 		ret = nf_flow_queue_xmit(state->net, skb, tuplehash, ETH_P_IPV6);
 		if (ret == NF_DROP)
 			flow_offload_teardown(flow);
+		break;
+	default:
+		WARN_ON_ONCE(1);
+		ret = NF_DROP;
 		break;
 	}
 

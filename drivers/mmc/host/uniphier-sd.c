@@ -8,6 +8,7 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
+#include <linux/mfd/syscon.h>
 #include <linux/mfd/tmio.h>
 #include <linux/mmc/host.h>
 #include <linux/module.h>
@@ -15,6 +16,7 @@
 #include <linux/of_device.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/platform_device.h>
+#include <linux/regmap.h>
 #include <linux/reset.h>
 
 #include "tmio_mmc.h"
@@ -48,6 +50,12 @@
 #define UNIPHIER_SD_DMA_ADDR_L		0x440
 #define UNIPHIER_SD_DMA_ADDR_H		0x444
 
+/* SD control */
+#define UNIPHIER_SDCTRL_CHOFFSET	0x200
+#define UNIPHIER_SDCTRL_MODE		0x30
+#define   UNIPHIER_SDCTRL_MODE_UHS1MOD		BIT(15)
+#define   UNIPHIER_SDCTRL_MODE_SDRSEL		BIT(14)
+
 /*
  * IP is extended to support various features: built-in DMA engine,
  * 1/1024 divisor, etc.
@@ -66,6 +74,8 @@ struct uniphier_sd_priv {
 	struct reset_control *rst_hw;
 	struct dma_chan *chan;
 	enum dma_data_direction dma_dir;
+	struct regmap *sdctrl_regmap;
+	u32 sdctrl_ch;
 	unsigned long clk_rate;
 	unsigned long caps;
 };
@@ -420,6 +430,42 @@ static void uniphier_sd_hw_reset(struct mmc_host *mmc)
 	usleep_range(300, 1000);
 }
 
+static void uniphier_sd_speed_switch(struct tmio_mmc_host *host)
+{
+	struct uniphier_sd_priv *priv = uniphier_sd_priv(host);
+	unsigned int offset;
+	u32 val = 0;
+
+	if (!(host->mmc->caps & MMC_CAP_UHS))
+		return;
+
+	if (host->mmc->ios.timing == MMC_TIMING_UHS_SDR50 ||
+	    host->mmc->ios.timing == MMC_TIMING_UHS_SDR104)
+		val = UNIPHIER_SDCTRL_MODE_SDRSEL;
+
+	offset = UNIPHIER_SDCTRL_CHOFFSET * priv->sdctrl_ch
+		+ UNIPHIER_SDCTRL_MODE;
+	regmap_write_bits(priv->sdctrl_regmap, offset,
+			  UNIPHIER_SDCTRL_MODE_SDRSEL, val);
+}
+
+static void uniphier_sd_uhs_enable(struct tmio_mmc_host *host, bool uhs_en)
+{
+	struct uniphier_sd_priv *priv = uniphier_sd_priv(host);
+	unsigned int offset;
+	u32 val;
+
+	if (!(host->mmc->caps & MMC_CAP_UHS))
+		return;
+
+	val = (uhs_en) ? UNIPHIER_SDCTRL_MODE_UHS1MOD : 0;
+
+	offset = UNIPHIER_SDCTRL_CHOFFSET * priv->sdctrl_ch
+		+ UNIPHIER_SDCTRL_MODE;
+	regmap_write_bits(priv->sdctrl_regmap, offset,
+			  UNIPHIER_SDCTRL_MODE_UHS1MOD, val);
+}
+
 static void uniphier_sd_set_clock(struct tmio_mmc_host *host,
 				  unsigned int clock)
 {
@@ -432,6 +478,8 @@ static void uniphier_sd_set_clock(struct tmio_mmc_host *host,
 	/* stop the clock before changing its rate to avoid a glitch signal */
 	tmp &= ~CLK_CTL_SCLKEN;
 	writel(tmp, host->ctl + (CTL_SD_CARD_CLK_CTL << 1));
+
+	uniphier_sd_speed_switch(host);
 
 	if (clock == 0)
 		return;
@@ -500,14 +548,17 @@ static int uniphier_sd_start_signal_voltage_switch(struct mmc_host *mmc,
 	struct uniphier_sd_priv *priv = uniphier_sd_priv(host);
 	struct pinctrl_state *pinstate = NULL;
 	u32 val, tmp;
+	bool uhs_en;
 
 	switch (ios->signal_voltage) {
 	case MMC_SIGNAL_VOLTAGE_330:
 		val = UNIPHIER_SD_VOLT_330;
+		uhs_en = false;
 		break;
 	case MMC_SIGNAL_VOLTAGE_180:
 		val = UNIPHIER_SD_VOLT_180;
 		pinstate = priv->pinstate_uhs;
+		uhs_en = true;
 		break;
 	default:
 		return -ENOTSUPP;
@@ -523,12 +574,19 @@ static int uniphier_sd_start_signal_voltage_switch(struct mmc_host *mmc,
 	else
 		pinctrl_select_default_state(mmc_dev(mmc));
 
+	uniphier_sd_uhs_enable(host, uhs_en);
+
 	return 0;
 }
 
-static int uniphier_sd_uhs_init(struct tmio_mmc_host *host,
-				struct uniphier_sd_priv *priv)
+static int uniphier_sd_uhs_init(struct tmio_mmc_host *host)
 {
+	struct uniphier_sd_priv *priv = uniphier_sd_priv(host);
+	struct device *dev = &host->pdev->dev;
+	struct device_node *np = dev->of_node;
+	struct of_phandle_args args;
+	int ret;
+
 	priv->pinctrl = devm_pinctrl_get(mmc_dev(host->mmc));
 	if (IS_ERR(priv->pinctrl))
 		return PTR_ERR(priv->pinctrl);
@@ -537,8 +595,20 @@ static int uniphier_sd_uhs_init(struct tmio_mmc_host *host,
 	if (IS_ERR(priv->pinstate_uhs))
 		return PTR_ERR(priv->pinstate_uhs);
 
-	host->ops.start_signal_voltage_switch =
-					uniphier_sd_start_signal_voltage_switch;
+	ret = of_parse_phandle_with_fixed_args(np,
+					       "socionext,syscon-uhs-mode",
+					       1, 0, &args);
+	if (ret) {
+		dev_err(dev, "Can't get syscon-uhs-mode property\n");
+		return ret;
+	}
+	priv->sdctrl_regmap = syscon_node_to_regmap(args.np);
+	of_node_put(args.np);
+	if (IS_ERR(priv->sdctrl_regmap)) {
+		dev_err(dev, "Can't map syscon-uhs-mode\n");
+		return PTR_ERR(priv->sdctrl_regmap);
+	}
+	priv->sdctrl_ch = args.args[0];
 
 	return 0;
 }
@@ -601,12 +671,15 @@ static int uniphier_sd_probe(struct platform_device *pdev)
 	}
 
 	if (host->mmc->caps & MMC_CAP_UHS) {
-		ret = uniphier_sd_uhs_init(host, priv);
+		ret = uniphier_sd_uhs_init(host);
 		if (ret) {
 			dev_warn(dev,
 				 "failed to setup UHS (error %d).  Disabling UHS.",
 				 ret);
 			host->mmc->caps &= ~MMC_CAP_UHS;
+		} else {
+			host->ops.start_signal_voltage_switch =
+				uniphier_sd_start_signal_voltage_switch;
 		}
 	}
 

@@ -79,7 +79,6 @@ static struct kvm_vm *setup_vm(void *guest_code, struct kvm_vcpu **source,
 	struct kvm_vm *vm;
 
 	vm = vm_create(2);
-	ucall_init(vm, NULL);
 
 	vm_ioctl(vm, KVM_ARM_PREFERRED_TARGET, &init);
 	init.features[0] |= (1 << KVM_ARM_VCPU_PSCI_0_2);
@@ -181,9 +180,7 @@ static void host_test_system_suspend(void)
 
 	enter_guest(source);
 
-	TEST_ASSERT(run->exit_reason == KVM_EXIT_SYSTEM_EVENT,
-		    "Unhandled exit reason: %u (%s)",
-		    run->exit_reason, exit_reason_str(run->exit_reason));
+	TEST_ASSERT_KVM_EXIT_REASON(source, KVM_EXIT_SYSTEM_EVENT);
 	TEST_ASSERT(run->system_event.type == KVM_SYSTEM_EVENT_SUSPEND,
 		    "Unhandled system event: %u (expected: %u)",
 		    run->system_event.type, KVM_SYSTEM_EVENT_SUSPEND);

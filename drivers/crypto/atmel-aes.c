@@ -493,17 +493,11 @@ static void atmel_aes_set_iv_as_last_ciphertext_block(struct atmel_aes_dev *dd)
 	if (req->cryptlen < ivsize)
 		return;
 
-	if (rctx->mode & AES_FLAGS_ENCRYPT) {
+	if (rctx->mode & AES_FLAGS_ENCRYPT)
 		scatterwalk_map_and_copy(req->iv, req->dst,
 					 req->cryptlen - ivsize, ivsize, 0);
-	} else {
-		if (req->src == req->dst)
-			memcpy(req->iv, rctx->lastc, ivsize);
-		else
-			scatterwalk_map_and_copy(req->iv, req->src,
-						 req->cryptlen - ivsize,
-						 ivsize, 0);
-	}
+	else
+		memcpy(req->iv, rctx->lastc, ivsize);
 }
 
 static inline struct atmel_aes_ctr_ctx *
@@ -554,7 +548,7 @@ static inline int atmel_aes_complete(struct atmel_aes_dev *dd, int err)
 	}
 
 	if (dd->is_async)
-		dd->areq->complete(dd->areq, err);
+		crypto_request_complete(dd->areq, err);
 
 	tasklet_schedule(&dd->queue_task);
 
@@ -955,7 +949,7 @@ static int atmel_aes_handle_queue(struct atmel_aes_dev *dd,
 		return ret;
 
 	if (backlog)
-		backlog->complete(backlog, -EINPROGRESS);
+		crypto_request_complete(backlog, -EINPROGRESS);
 
 	ctx = crypto_tfm_ctx(areq->tfm);
 
@@ -1146,7 +1140,7 @@ static int atmel_aes_crypt(struct skcipher_request *req, unsigned long mode)
 	rctx->mode = mode;
 
 	if (opmode != AES_FLAGS_ECB &&
-	    !(mode & AES_FLAGS_ENCRYPT) && req->src == req->dst) {
+	    !(mode & AES_FLAGS_ENCRYPT)) {
 		unsigned int ivsize = crypto_skcipher_ivsize(skcipher);
 
 		if (req->cryptlen >= ivsize)
@@ -1341,7 +1335,7 @@ static struct skcipher_alg aes_algs[] = {
 {
 	.base.cra_name		= "cfb(aes)",
 	.base.cra_driver_name	= "atmel-cfb-aes",
-	.base.cra_blocksize	= AES_BLOCK_SIZE,
+	.base.cra_blocksize	= 1,
 	.base.cra_ctxsize	= sizeof(struct atmel_aes_ctx),
 
 	.init			= atmel_aes_init_tfm,
@@ -1879,7 +1873,7 @@ static int atmel_aes_xts_setkey(struct crypto_skcipher *tfm, const u8 *key,
 	struct atmel_aes_xts_ctx *ctx = crypto_skcipher_ctx(tfm);
 	int err;
 
-	err = xts_check_key(crypto_skcipher_tfm(tfm), key, keylen);
+	err = xts_verify_key(tfm, key, keylen);
 	if (err)
 		return err;
 
@@ -2510,6 +2504,7 @@ static void atmel_aes_get_cap(struct atmel_aes_dev *dd)
 	/* keep only major version number */
 	switch (dd->hw_version & 0xff0) {
 	case 0x700:
+	case 0x600:
 	case 0x500:
 		dd->caps.has_dualbuff = 1;
 		dd->caps.has_cfb64 = 1;

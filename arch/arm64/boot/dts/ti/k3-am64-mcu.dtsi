@@ -14,6 +14,7 @@
 		power-domains = <&k3_pds 149 TI_SCI_PD_EXCLUSIVE>;
 		clocks = <&k3_clks 149 0>;
 		clock-names = "fclk";
+		status = "disabled";
 	};
 
 	mcu_uart1: serial@4a10000 {
@@ -24,6 +25,7 @@
 		power-domains = <&k3_pds 160 TI_SCI_PD_EXCLUSIVE>;
 		clocks = <&k3_clks 160 0>;
 		clock-names = "fclk";
+		status = "disabled";
 	};
 
 	mcu_i2c0: i2c@4900000 {
@@ -35,6 +37,7 @@
 		power-domains = <&k3_pds 106 TI_SCI_PD_EXCLUSIVE>;
 		clocks = <&k3_clks 106 2>;
 		clock-names = "fck";
+		status = "disabled";
 	};
 
 	mcu_i2c1: i2c@4910000 {
@@ -46,6 +49,7 @@
 		power-domains = <&k3_pds 107 TI_SCI_PD_EXCLUSIVE>;
 		clocks = <&k3_clks 107 2>;
 		clock-names = "fck";
+		status = "disabled";
 	};
 
 	mcu_spi0: spi@4b00000 {
@@ -56,6 +60,7 @@
 		#size-cells = <0>;
 		power-domains = <&k3_pds 147 TI_SCI_PD_EXCLUSIVE>;
 		clocks = <&k3_clks 147 0>;
+		status = "disabled";
 	};
 
 	mcu_spi1: spi@4b10000 {
@@ -66,6 +71,7 @@
 		#size-cells = <0>;
 		power-domains = <&k3_pds 148 TI_SCI_PD_EXCLUSIVE>;
 		clocks = <&k3_clks 148 0>;
+		status = "disabled";
 	};
 
 	mcu_gpio_intr: interrupt-controller@4210000 {

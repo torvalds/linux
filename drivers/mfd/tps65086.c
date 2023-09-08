@@ -61,8 +61,7 @@ static const struct of_device_id tps65086_of_match_table[] = {
 };
 MODULE_DEVICE_TABLE(of, tps65086_of_match_table);
 
-static int tps65086_probe(struct i2c_client *client,
-			  const struct i2c_device_id *ids)
+static int tps65086_probe(struct i2c_client *client)
 {
 	struct tps65086 *tps;
 	unsigned int version;
@@ -130,7 +129,7 @@ static struct i2c_driver tps65086_driver = {
 		.name	= "tps65086",
 		.of_match_table = tps65086_of_match_table,
 	},
-	.probe		= tps65086_probe,
+	.probe_new	= tps65086_probe,
 	.remove		= tps65086_remove,
 	.id_table       = tps65086_id_table,
 };

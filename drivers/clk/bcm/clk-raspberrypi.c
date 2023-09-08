@@ -18,25 +18,6 @@
 
 #include <soc/bcm2835/raspberrypi-firmware.h>
 
-enum rpi_firmware_clk_id {
-	RPI_FIRMWARE_EMMC_CLK_ID = 1,
-	RPI_FIRMWARE_UART_CLK_ID,
-	RPI_FIRMWARE_ARM_CLK_ID,
-	RPI_FIRMWARE_CORE_CLK_ID,
-	RPI_FIRMWARE_V3D_CLK_ID,
-	RPI_FIRMWARE_H264_CLK_ID,
-	RPI_FIRMWARE_ISP_CLK_ID,
-	RPI_FIRMWARE_SDRAM_CLK_ID,
-	RPI_FIRMWARE_PIXEL_CLK_ID,
-	RPI_FIRMWARE_PWM_CLK_ID,
-	RPI_FIRMWARE_HEVC_CLK_ID,
-	RPI_FIRMWARE_EMMC2_CLK_ID,
-	RPI_FIRMWARE_M2MC_CLK_ID,
-	RPI_FIRMWARE_PIXEL_BVB_CLK_ID,
-	RPI_FIRMWARE_VEC_CLK_ID,
-	RPI_FIRMWARE_NUM_CLK_ID,
-};
-
 static char *rpi_firmware_clk_names[] = {
 	[RPI_FIRMWARE_EMMC_CLK_ID]	= "emmc",
 	[RPI_FIRMWARE_UART_CLK_ID]	= "uart",
@@ -458,13 +439,11 @@ static int raspberrypi_clk_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int raspberrypi_clk_remove(struct platform_device *pdev)
+static void raspberrypi_clk_remove(struct platform_device *pdev)
 {
 	struct raspberrypi_clk *rpi = platform_get_drvdata(pdev);
 
 	platform_device_unregister(rpi->cpufreq);
-
-	return 0;
 }
 
 static const struct of_device_id raspberrypi_clk_match[] = {
@@ -479,7 +458,7 @@ static struct platform_driver raspberrypi_clk_driver = {
 		.of_match_table = raspberrypi_clk_match,
 	},
 	.probe          = raspberrypi_clk_probe,
-	.remove		= raspberrypi_clk_remove,
+	.remove_new	= raspberrypi_clk_remove,
 };
 module_platform_driver(raspberrypi_clk_driver);
 

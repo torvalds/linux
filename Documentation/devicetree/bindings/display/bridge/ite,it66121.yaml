@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/display/bridge/ite,it66121.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: ITE it66121 HDMI bridge Device Tree Bindings
+title: ITE it66121 HDMI bridge
 
 maintainers:
   - Phong LE <ple@baylibre.com>
@@ -17,7 +17,9 @@ description: |
 
 properties:
   compatible:
-    const: ite,it66121
+    enum:
+      - ite,it66121
+      - ite,it6610
 
   reg:
     maxItems: 1

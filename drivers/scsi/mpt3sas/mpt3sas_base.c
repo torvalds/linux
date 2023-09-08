@@ -60,7 +60,6 @@
 #include <linux/ktime.h>
 #include <linux/kthread.h>
 #include <asm/page.h>        /* To get host page size per arch */
-#include <linux/aer.h>
 
 
 #include "mpt3sas_base.h"
@@ -2992,8 +2991,7 @@ _base_config_dma_addressing(struct MPT3SAS_ADAPTER *ioc, struct pci_dev *pdev)
 	struct sysinfo s;
 	u64 coherent_dma_mask, dma_mask;
 
-	if (ioc->is_mcpu_endpoint || sizeof(dma_addr_t) == 4 ||
-	    dma_get_required_mask(&pdev->dev) <= DMA_BIT_MASK(32)) {
+	if (ioc->is_mcpu_endpoint || sizeof(dma_addr_t) == 4) {
 		ioc->dma_mask = 32;
 		coherent_dma_mask = dma_mask = DMA_BIT_MASK(32);
 	/* Set 63 bit DMA mask for all SAS3 and SAS35 controllers */
@@ -3536,7 +3534,6 @@ mpt3sas_base_unmap_resources(struct MPT3SAS_ADAPTER *ioc)
 
 	if (pci_is_enabled(pdev)) {
 		pci_release_selected_regions(ioc->pdev, ioc->bars);
-		pci_disable_pcie_error_reporting(pdev);
 		pci_disable_device(pdev);
 	}
 }
@@ -3615,9 +3612,6 @@ mpt3sas_base_map_resources(struct MPT3SAS_ADAPTER *ioc)
 		r = -ENODEV;
 		goto out_fail;
 	}
-
-/* AER (Advanced Error Reporting) hooks */
-	pci_enable_pcie_error_reporting(pdev);
 
 	pci_set_master(pdev);
 
@@ -4762,21 +4756,15 @@ _base_display_ioc_capabilities(struct MPT3SAS_ADAPTER *ioc)
 	int i = 0;
 	char desc[17] = {0};
 	u32 iounit_pg1_flags;
-	u32 bios_version;
 
-	bios_version = le32_to_cpu(ioc->bios_pg3.BiosVersion);
 	strncpy(desc, ioc->manu_pg0.ChipName, 16);
-	ioc_info(ioc, "%s: FWVersion(%02d.%02d.%02d.%02d), ChipRevision(0x%02x), BiosVersion(%02d.%02d.%02d.%02d)\n",
+	ioc_info(ioc, "%s: FWVersion(%02d.%02d.%02d.%02d), ChipRevision(0x%02x)\n",
 		 desc,
 		 (ioc->facts.FWVersion.Word & 0xFF000000) >> 24,
 		 (ioc->facts.FWVersion.Word & 0x00FF0000) >> 16,
 		 (ioc->facts.FWVersion.Word & 0x0000FF00) >> 8,
 		 ioc->facts.FWVersion.Word & 0x000000FF,
-		 ioc->pdev->revision,
-		 (bios_version & 0xFF000000) >> 24,
-		 (bios_version & 0x00FF0000) >> 16,
-		 (bios_version & 0x0000FF00) >> 8,
-		 bios_version & 0x000000FF);
+		 ioc->pdev->revision);
 
 	_base_display_OEMs_branding(ioc);
 
@@ -5850,6 +5838,9 @@ _base_release_memory_pools(struct MPT3SAS_ADAPTER *ioc)
 		}
 		dma_pool_destroy(ioc->pcie_sgl_dma_pool);
 	}
+	kfree(ioc->pcie_sg_lookup);
+	ioc->pcie_sg_lookup = NULL;
+
 	if (ioc->config_page) {
 		dexitprintk(ioc,
 			    ioc_info(ioc, "config_page(0x%p): free\n",
@@ -6614,11 +6605,6 @@ _base_allocate_memory_pools(struct MPT3SAS_ADAPTER *ioc)
 	else if (rc == -EAGAIN)
 		goto try_32bit_dma;
 	total_sz += sense_sz;
-	ioc_info(ioc,
-	    "sense pool(0x%p)- dma(0x%llx): depth(%d),"
-	    "element_size(%d), pool_size(%d kB)\n",
-	    ioc->sense, (unsigned long long)ioc->sense_dma, ioc->scsiio_depth,
-	    SCSI_SENSE_BUFFERSIZE, sz / 1024);
 	/* reply pool, 4 byte align */
 	sz = ioc->reply_free_queue_depth * ioc->reply_sz;
 	rc = _base_allocate_reply_pool(ioc, sz);

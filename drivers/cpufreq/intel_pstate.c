@@ -298,6 +298,7 @@ static int hwp_active __read_mostly;
 static int hwp_mode_bdw __read_mostly;
 static bool per_cpu_limits __read_mostly;
 static bool hwp_boost __read_mostly;
+static bool hwp_forced __read_mostly;
 
 static struct cpufreq_driver *intel_pstate_driver __read_mostly;
 
@@ -451,20 +452,6 @@ static void intel_pstate_init_acpi_perf_limits(struct cpufreq_policy *policy)
 			 (u32) cpu->acpi_perf_data.states[i].control);
 	}
 
-	/*
-	 * The _PSS table doesn't contain whole turbo frequency range.
-	 * This just contains +1 MHZ above the max non turbo frequency,
-	 * with control value corresponding to max turbo ratio. But
-	 * when cpufreq set policy is called, it will call with this
-	 * max frequency, which will cause a reduced performance as
-	 * this driver uses real max turbo frequency as the max
-	 * frequency. So correct this frequency in _PSS table to
-	 * correct max turbo frequency based on the turbo state.
-	 * Also need to convert to MHz as _PSS freq is in MHz.
-	 */
-	if (!global.turbo_disabled)
-		cpu->acpi_perf_data.states[0].core_frequency =
-					policy->cpuinfo.max_freq / 1000;
 	cpu->valid_pss_table = true;
 	pr_debug("_PPC limits will be enforced\n");
 
@@ -1486,10 +1473,13 @@ static struct kobject *intel_pstate_kobject;
 
 static void __init intel_pstate_sysfs_expose_params(void)
 {
+	struct device *dev_root = bus_get_dev_root(&cpu_subsys);
 	int rc;
 
-	intel_pstate_kobject = kobject_create_and_add("intel_pstate",
-						&cpu_subsys.dev_root->kobj);
+	if (dev_root) {
+		intel_pstate_kobject = kobject_create_and_add("intel_pstate", &dev_root->kobj);
+		put_device(dev_root);
+	}
 	if (WARN_ON(!intel_pstate_kobject))
 		return;
 
@@ -1679,12 +1669,12 @@ static void intel_pstate_update_epp_defaults(struct cpudata *cpudata)
 		return;
 
 	/*
-	 * If powerup EPP is something other than chipset default 0x80 and
-	 * - is more performance oriented than 0x80 (default balance_perf EPP)
+	 * If the EPP is set by firmware, which means that firmware enabled HWP
+	 * - Is equal or less than 0x80 (default balance_perf EPP)
 	 * - But less performance oriented than performance EPP
 	 *   then use this as new balance_perf EPP.
 	 */
-	if (cpudata->epp_default < HWP_EPP_BALANCE_PERFORMANCE &&
+	if (hwp_forced && cpudata->epp_default <= HWP_EPP_BALANCE_PERFORMANCE &&
 	    cpudata->epp_default > HWP_EPP_PERFORMANCE) {
 		epp_values[EPP_INDEX_BALANCE_PERFORMANCE] = cpudata->epp_default;
 		return;
@@ -2378,6 +2368,7 @@ static const struct x86_cpu_id intel_pstate_cpu_ids[] = {
 	X86_MATCH(COMETLAKE,		core_funcs),
 	X86_MATCH(ICELAKE_X,		core_funcs),
 	X86_MATCH(TIGERLAKE,		core_funcs),
+	X86_MATCH(SAPPHIRERAPIDS_X,	core_funcs),
 	{}
 };
 MODULE_DEVICE_TABLE(x86cpu, intel_pstate_cpu_ids);
@@ -2393,12 +2384,6 @@ static const struct x86_cpu_id intel_pstate_cpu_oob_ids[] __initconst = {
 
 static const struct x86_cpu_id intel_pstate_cpu_ee_disable_ids[] = {
 	X86_MATCH(KABYLAKE,		core_funcs),
-	{}
-};
-
-static const struct x86_cpu_id intel_pstate_hwp_boost_ids[] = {
-	X86_MATCH(SKYLAKE_X,		core_funcs),
-	X86_MATCH(SKYLAKE,		core_funcs),
 	{}
 };
 
@@ -2420,12 +2405,9 @@ static int intel_pstate_init_cpu(unsigned int cpunum)
 		cpu->epp_default = -EINVAL;
 
 		if (hwp_active) {
-			const struct x86_cpu_id *id;
-
 			intel_pstate_hwp_enable(cpu);
 
-			id = x86_match_cpu(intel_pstate_hwp_boost_ids);
-			if (id && intel_pstate_acpi_pm_profile_server())
+			if (intel_pstate_acpi_pm_profile_server())
 				hwp_boost = true;
 		}
 	} else if (hwp_active) {
@@ -3370,6 +3352,7 @@ static const struct x86_cpu_id intel_epp_balance_perf[] = {
 	 * AlderLake Mobile CPUs.
 	 */
 	X86_MATCH_INTEL_FAM6_MODEL(ALDERLAKE_L, 102),
+	X86_MATCH_INTEL_FAM6_MODEL(SAPPHIRERAPIDS_X, 32),
 	{}
 };
 
@@ -3384,7 +3367,7 @@ static int __init intel_pstate_init(void)
 
 	id = x86_match_cpu(hwp_support_ids);
 	if (id) {
-		bool hwp_forced = intel_pstate_hwp_is_enabled();
+		hwp_forced = intel_pstate_hwp_is_enabled();
 
 		if (hwp_forced)
 			pr_info("HWP enabled by BIOS\n");
@@ -3528,4 +3511,3 @@ early_param("intel_pstate", intel_pstate_setup);
 
 MODULE_AUTHOR("Dirk Brandewie <dirk.j.brandewie@intel.com>");
 MODULE_DESCRIPTION("'intel_pstate' - P state driver Intel Core processors");
-MODULE_LICENSE("GPL");

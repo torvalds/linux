@@ -197,10 +197,7 @@ struct mipi_dsi_device {
 
 #define MIPI_DSI_MODULE_PREFIX "mipi-dsi:"
 
-static inline struct mipi_dsi_device *to_mipi_dsi_device(struct device *dev)
-{
-	return container_of(dev, struct mipi_dsi_device, dev);
-}
+#define to_mipi_dsi_device(__dev)	container_of_const(__dev, struct mipi_dsi_device, dev)
 
 /**
  * mipi_dsi_pixel_format_to_bpp - obtain the number of bits per pixel for any
@@ -296,6 +293,28 @@ int mipi_dsi_dcs_set_display_brightness(struct mipi_dsi_device *dsi,
 					u16 brightness);
 int mipi_dsi_dcs_get_display_brightness(struct mipi_dsi_device *dsi,
 					u16 *brightness);
+int mipi_dsi_dcs_set_display_brightness_large(struct mipi_dsi_device *dsi,
+					     u16 brightness);
+int mipi_dsi_dcs_get_display_brightness_large(struct mipi_dsi_device *dsi,
+					     u16 *brightness);
+
+/**
+ * mipi_dsi_generic_write_seq - transmit data using a generic write packet
+ * @dsi: DSI peripheral device
+ * @seq: buffer containing the payload
+ */
+#define mipi_dsi_generic_write_seq(dsi, seq...)                                \
+	do {                                                                   \
+		static const u8 d[] = { seq };                                 \
+		struct device *dev = &dsi->dev;                                \
+		int ret;                                                       \
+		ret = mipi_dsi_generic_write(dsi, d, ARRAY_SIZE(d));           \
+		if (ret < 0) {                                                 \
+			dev_err_ratelimited(dev, "transmit data failed: %d\n", \
+					    ret);                              \
+			return ret;                                            \
+		}                                                              \
+	} while (0)
 
 /**
  * mipi_dsi_dcs_write_seq - transmit a DCS command with payload
@@ -303,15 +322,18 @@ int mipi_dsi_dcs_get_display_brightness(struct mipi_dsi_device *dsi,
  * @cmd: Command
  * @seq: buffer containing data to be transmitted
  */
-#define mipi_dsi_dcs_write_seq(dsi, cmd, seq...) do {				\
-		static const u8 d[] = { cmd, seq };				\
-		struct device *dev = &dsi->dev;	\
-		int ret;						\
-		ret = mipi_dsi_dcs_write_buffer(dsi, d, ARRAY_SIZE(d));	\
-		if (ret < 0) {						\
-			dev_err_ratelimited(dev, "sending command %#02x failed: %d\n", cmd, ret); \
-			return ret;						\
-		}						\
+#define mipi_dsi_dcs_write_seq(dsi, cmd, seq...)                           \
+	do {                                                               \
+		static const u8 d[] = { cmd, seq };                        \
+		struct device *dev = &dsi->dev;                            \
+		int ret;                                                   \
+		ret = mipi_dsi_dcs_write_buffer(dsi, d, ARRAY_SIZE(d));    \
+		if (ret < 0) {                                             \
+			dev_err_ratelimited(                               \
+				dev, "sending command %#02x failed: %d\n", \
+				cmd, ret);                                 \
+			return ret;                                        \
+		}                                                          \
 	} while (0)
 
 /**

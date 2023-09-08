@@ -1006,7 +1006,7 @@ ATTRIBUTE_GROUPS(vio_cmo_dev);
 /* sysfs bus functions and data structures for CMO */
 
 #define viobus_cmo_rd_attr(name)                                        \
-static ssize_t cmo_bus_##name##_show(struct bus_type *bt, char *buf)    \
+static ssize_t cmo_bus_##name##_show(const struct bus_type *bt, char *buf)    \
 {                                                                       \
 	return sprintf(buf, "%lu\n", vio_cmo.name);                     \
 }                                                                       \
@@ -1015,7 +1015,7 @@ static struct bus_attribute bus_attr_cmo_bus_##name =			\
 
 #define viobus_cmo_pool_rd_attr(name, var)                              \
 static ssize_t                                                          \
-cmo_##name##_##var##_show(struct bus_type *bt, char *buf)               \
+cmo_##name##_##var##_show(const struct bus_type *bt, char *buf)         \
 {                                                                       \
 	return sprintf(buf, "%lu\n", vio_cmo.name.var);                 \
 }                                                                       \
@@ -1030,12 +1030,12 @@ viobus_cmo_pool_rd_attr(reserve, size);
 viobus_cmo_pool_rd_attr(excess, size);
 viobus_cmo_pool_rd_attr(excess, free);
 
-static ssize_t cmo_high_show(struct bus_type *bt, char *buf)
+static ssize_t cmo_high_show(const struct bus_type *bt, char *buf)
 {
 	return sprintf(buf, "%lu\n", vio_cmo.high);
 }
 
-static ssize_t cmo_high_store(struct bus_type *bt, const char *buf,
+static ssize_t cmo_high_store(const struct bus_type *bt, const char *buf,
 			      size_t count)
 {
 	unsigned long flags;
@@ -1381,7 +1381,7 @@ struct vio_dev *vio_register_device_node(struct device_node *of_node)
 	}
 
 	if (family == PFO) {
-		if (of_get_property(of_node, "interrupt-controller", NULL)) {
+		if (of_property_read_bool(of_node, "interrupt-controller")) {
 			pr_debug("%s: Skipping the interrupt controller %pOFn.\n",
 					__func__, of_node);
 			return NULL;
@@ -1440,7 +1440,7 @@ struct vio_dev *vio_register_device_node(struct device_node *of_node)
 	viodev->dev.bus = &vio_bus_type;
 	viodev->dev.release = vio_dev_release;
 
-	if (of_get_property(viodev->dev.of_node, "ibm,my-dma-window", NULL)) {
+	if (of_property_present(viodev->dev.of_node, "ibm,my-dma-window")) {
 		if (firmware_has_feature(FW_FEATURE_CMO))
 			vio_cmo_set_dma_ops(viodev);
 		else
@@ -1609,10 +1609,10 @@ static int vio_bus_match(struct device *dev, struct device_driver *drv)
 	return (ids != NULL) && (vio_match_device(ids, vio_dev) != NULL);
 }
 
-static int vio_hotplug(struct device *dev, struct kobj_uevent_env *env)
+static int vio_hotplug(const struct device *dev, struct kobj_uevent_env *env)
 {
 	const struct vio_dev *vio_dev = to_vio_dev(dev);
-	struct device_node *dn;
+	const struct device_node *dn;
 	const char *cp;
 
 	dn = dev->of_node;

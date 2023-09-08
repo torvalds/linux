@@ -27,6 +27,12 @@ snd-sof-of-objs := sof-of-dev.o
 snd-sof-ipc-flood-test-objs := sof-client-ipc-flood-test.o
 snd-sof-ipc-msg-injector-objs := sof-client-ipc-msg-injector.o
 snd-sof-probes-objs := sof-client-probes.o
+ifneq ($(CONFIG_SND_SOC_SOF_IPC3),)
+snd-sof-probes-objs += sof-client-probes-ipc3.o
+endif
+ifneq ($(CONFIG_SND_SOC_SOF_INTEL_IPC4),)
+snd-sof-probes-objs += sof-client-probes-ipc4.o
+endif
 
 snd-sof-nocodec-objs := nocodec.o
 

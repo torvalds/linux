@@ -79,9 +79,10 @@ static inline bool nested_ept_ad_enabled(struct kvm_vcpu *vcpu)
 }
 
 /*
- * Return the cr0 value that a nested guest would read. This is a combination
- * of the real cr0 used to run the guest (guest_cr0), and the bits shadowed by
- * its hypervisor (cr0_read_shadow).
+ * Return the cr0/4 value that a nested guest would read. This is a combination
+ * of L1's "real" cr0 used to run the guest (guest_cr0), and the bits shadowed
+ * by the L1 hypervisor (cr0_read_shadow).  KVM must emulate CPU behavior as
+ * the value+mask loaded into vmcs02 may not match the vmcs12 fields.
  */
 static inline unsigned long nested_read_cr0(struct vmcs12 *fields)
 {

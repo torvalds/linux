@@ -24,7 +24,7 @@ static bool __kprobes aarch64_insn_is_steppable(u32 insn)
 	 * currently safe. Lastly, MSR instructions can do any number of nasty
 	 * things we can't handle during single-stepping.
 	 */
-	if (aarch64_get_insn_class(insn) == AARCH64_INSN_CLS_BR_SYS) {
+	if (aarch64_insn_is_class_branch_sys(insn)) {
 		if (aarch64_insn_is_branch(insn) ||
 		    aarch64_insn_is_msr_imm(insn) ||
 		    aarch64_insn_is_msr_reg(insn) ||

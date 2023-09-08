@@ -183,8 +183,8 @@ static int cros_ec_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	return 0;
 }
 
-static void cros_ec_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
-				  struct pwm_state *state)
+static int cros_ec_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
+				 struct pwm_state *state)
 {
 	struct cros_ec_pwm_device *ec_pwm = pwm_to_cros_ec_pwm(chip);
 	struct cros_ec_pwm *channel = pwm_get_chip_data(pwm);
@@ -193,11 +193,12 @@ static void cros_ec_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
 	ret = cros_ec_pwm_get_duty(ec_pwm, pwm->hwpwm);
 	if (ret < 0) {
 		dev_err(chip->dev, "error getting initial duty: %d\n", ret);
-		return;
+		return ret;
 	}
 
 	state->enabled = (ret > 0);
 	state->period = EC_PWM_MAX_DUTY;
+	state->polarity = PWM_POLARITY_NORMAL;
 
 	/*
 	 * Note that "disabled" and "duty cycle == 0" are treated the same. If
@@ -212,6 +213,8 @@ static void cros_ec_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
 		state->duty_cycle = channel->duty_cycle;
 	else
 		state->duty_cycle = ret;
+
+	return 0;
 }
 
 static struct pwm_device *
@@ -326,14 +329,12 @@ static int cros_ec_pwm_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int cros_ec_pwm_remove(struct platform_device *dev)
+static void cros_ec_pwm_remove(struct platform_device *dev)
 {
 	struct cros_ec_pwm_device *ec_pwm = platform_get_drvdata(dev);
 	struct pwm_chip *chip = &ec_pwm->chip;
 
 	pwmchip_remove(chip);
-
-	return 0;
 }
 
 #ifdef CONFIG_OF
@@ -347,7 +348,7 @@ MODULE_DEVICE_TABLE(of, cros_ec_pwm_of_match);
 
 static struct platform_driver cros_ec_pwm_driver = {
 	.probe = cros_ec_pwm_probe,
-	.remove = cros_ec_pwm_remove,
+	.remove_new = cros_ec_pwm_remove,
 	.driver = {
 		.name = "cros-ec-pwm",
 		.of_match_table = of_match_ptr(cros_ec_pwm_of_match),

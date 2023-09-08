@@ -138,7 +138,7 @@ Command	    Function
 ``v``	    Forcefully restores framebuffer console
 ``v``	    Causes ETM buffer dump [ARM-specific]
 
-``w``	    Dumps tasks that are in uninterruptable (blocked) state.
+``w``	    Dumps tasks that are in uninterruptible (blocked) state.
 
 ``x``	    Used by xmon interface on ppc/powerpc platforms.
             Show global PMU Registers on sparc64.

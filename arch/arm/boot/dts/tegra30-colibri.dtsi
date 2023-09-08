@@ -20,6 +20,15 @@
 		};
 	};
 
+	gpio: gpio@6000d000 {
+		lan-reset-n-hog {
+			gpio-hog;
+			gpios = <TEGRA_GPIO(DD, 0) GPIO_ACTIVE_HIGH>;
+			output-high;
+			line-name = "LAN_RESET#";
+		};
+	};
+
 	pinmux@70000868 {
 		pinctrl-names = "default";
 		pinctrl-0 = <&state_default>;
@@ -864,6 +873,11 @@
 			st,sample-time = <4>;
 			/* forbid to use ADC channels 3-0 (touch) */
 
+			stmpe_adc {
+				compatible = "st,stmpe-adc";
+				st,norequest-mask = <0x0F>;
+			};
+
 			stmpe_touchscreen {
 				compatible = "st,stmpe-ts";
 				/* 8 sample average control */
@@ -879,11 +893,6 @@
 				st,settling = <3>;
 				/* 5 ms touch detect interrupt delay */
 				st,touch-det-delay = <5>;
-			};
-
-			stmpe_adc {
-				compatible = "st,stmpe-adc";
-				st,norequest-mask = <0x0F>;
 			};
 		};
 
@@ -972,7 +981,7 @@
 		vbus-supply = <&reg_lan_v_bus>;
 	};
 
-	clk32k_in: xtal1 {
+	clk32k_in: clock-xtal1 {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		clock-frequency = <32768>;
@@ -1051,14 +1060,5 @@
 
 		assigned-clock-parents = <&tegra_car TEGRA30_CLK_PLL_A_OUT0>,
 					 <&tegra_car TEGRA30_CLK_EXTERN1>;
-	};
-};
-
-&gpio {
-	lan-reset-n-hog {
-		gpio-hog;
-		gpios = <TEGRA_GPIO(DD, 0) GPIO_ACTIVE_HIGH>;
-		output-high;
-		line-name = "LAN_RESET#";
 	};
 };

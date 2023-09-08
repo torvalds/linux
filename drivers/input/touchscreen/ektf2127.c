@@ -177,7 +177,7 @@ static void ektf2127_stop(struct input_dev *dev)
 	gpiod_set_value_cansleep(ts->power_gpios, 0);
 }
 
-static int __maybe_unused ektf2127_suspend(struct device *dev)
+static int ektf2127_suspend(struct device *dev)
 {
 	struct ektf2127_ts *ts = i2c_get_clientdata(to_i2c_client(dev));
 
@@ -189,7 +189,7 @@ static int __maybe_unused ektf2127_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused ektf2127_resume(struct device *dev)
+static int ektf2127_resume(struct device *dev)
 {
 	struct ektf2127_ts *ts = i2c_get_clientdata(to_i2c_client(dev));
 
@@ -201,8 +201,8 @@ static int __maybe_unused ektf2127_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(ektf2127_pm_ops, ektf2127_suspend,
-			 ektf2127_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(ektf2127_pm_ops, ektf2127_suspend,
+				ektf2127_resume);
 
 static int ektf2127_query_dimension(struct i2c_client *client, bool width)
 {
@@ -244,8 +244,7 @@ static int ektf2127_query_dimension(struct i2c_client *client, bool width)
 	return (((buf[3] & 0xf0) << 4) | buf[2]) - 1;
 }
 
-static int ektf2127_probe(struct i2c_client *client,
-			  const struct i2c_device_id *id)
+static int ektf2127_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct ektf2127_ts *ts;
@@ -349,10 +348,10 @@ MODULE_DEVICE_TABLE(i2c, ektf2127_i2c_id);
 static struct i2c_driver ektf2127_driver = {
 	.driver = {
 		.name	= "elan_ektf2127",
-		.pm	= &ektf2127_pm_ops,
+		.pm	= pm_sleep_ptr(&ektf2127_pm_ops),
 		.of_match_table = of_match_ptr(ektf2127_of_match),
 	},
-	.probe = ektf2127_probe,
+	.probe_new = ektf2127_probe,
 	.id_table = ektf2127_i2c_id,
 };
 module_i2c_driver(ektf2127_driver);

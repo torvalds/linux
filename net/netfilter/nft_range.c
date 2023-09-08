@@ -111,7 +111,8 @@ err1:
 	return err;
 }
 
-static int nft_range_dump(struct sk_buff *skb, const struct nft_expr *expr)
+static int nft_range_dump(struct sk_buff *skb,
+			  const struct nft_expr *expr, bool reset)
 {
 	const struct nft_range_expr *priv = nft_expr_priv(expr);
 

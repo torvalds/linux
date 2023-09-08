@@ -214,8 +214,7 @@ static int exynos_nocp_parse_dt(struct platform_device *pdev,
 		nocp->clk = NULL;
 
 	/* Maps the memory mapped IO to control nocp register */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = devm_ioremap_resource(dev, res);
+	base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 

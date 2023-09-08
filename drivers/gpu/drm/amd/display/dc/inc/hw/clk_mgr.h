@@ -293,6 +293,9 @@ struct clk_mgr_funcs {
 
 	/* Get SMU present */
 	bool (*is_smu_present)(struct clk_mgr *clk_mgr);
+
+	int (*get_dispclk_from_dentist)(struct clk_mgr *clk_mgr_base);
+
 };
 
 struct clk_mgr {

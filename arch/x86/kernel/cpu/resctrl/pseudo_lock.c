@@ -477,7 +477,7 @@ static int pseudo_lock_fn(void *_rdtgrp)
 	 * pseudo-locked followed by reading of kernel memory to load it
 	 * into the cache.
 	 */
-	__wrmsr(IA32_PQR_ASSOC, rmid_p, rdtgrp->closid);
+	__wrmsr(MSR_IA32_PQR_ASSOC, rmid_p, rdtgrp->closid);
 	/*
 	 * Cache was flushed earlier. Now access kernel memory to read it
 	 * into cache region associated with just activated plr->closid.
@@ -513,7 +513,7 @@ static int pseudo_lock_fn(void *_rdtgrp)
 	 * Critical section end: restore closid with capacity bitmask that
 	 * does not overlap with pseudo-locked region.
 	 */
-	__wrmsr(IA32_PQR_ASSOC, rmid_p, closid_p);
+	__wrmsr(MSR_IA32_PQR_ASSOC, rmid_p, closid_p);
 
 	/* Re-enable the hardware prefetcher(s) */
 	wrmsrl(MSR_MISC_FEATURE_CONTROL, saved_msr);
@@ -1560,9 +1560,9 @@ static const struct file_operations pseudo_lock_dev_fops = {
 	.mmap =		pseudo_lock_dev_mmap,
 };
 
-static char *pseudo_lock_devnode(struct device *dev, umode_t *mode)
+static char *pseudo_lock_devnode(const struct device *dev, umode_t *mode)
 {
-	struct rdtgroup *rdtgrp;
+	const struct rdtgroup *rdtgrp;
 
 	rdtgrp = dev_get_drvdata(dev);
 	if (mode)
@@ -1580,7 +1580,7 @@ int rdt_pseudo_lock_init(void)
 
 	pseudo_lock_major = ret;
 
-	pseudo_lock_class = class_create(THIS_MODULE, "pseudo_lock");
+	pseudo_lock_class = class_create("pseudo_lock");
 	if (IS_ERR(pseudo_lock_class)) {
 		ret = PTR_ERR(pseudo_lock_class);
 		unregister_chrdev(pseudo_lock_major, "pseudo_lock");

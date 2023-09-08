@@ -37,6 +37,7 @@
 #include <linux/slab.h>
 
 #include "i915_drv.h"
+#include "i915_reg.h"
 #include "gt/intel_engine_regs.h"
 #include "gt/intel_gpu_commands.h"
 #include "gt/intel_gt_regs.h"
@@ -48,6 +49,7 @@
 #include "i915_pvinfo.h"
 #include "trace.h"
 
+#include "display/intel_display.h"
 #include "gem/i915_gem_context.h"
 #include "gem/i915_gem_pm.h"
 #include "gt/intel_context.h"

@@ -3,6 +3,7 @@ menuconfig NET_DSA_MICROCHIP_KSZ_COMMON
 	tristate "Microchip KSZ8795/KSZ9477/LAN937x series switch support"
 	depends on NET_DSA
 	select NET_DSA_TAG_KSZ
+	select NET_DSA_TAG_NONE
 	help
 	  This driver adds support for Microchip KSZ9477 series switch and
 	  KSZ8795/KSZ88x3 switch chips.
@@ -20,6 +21,16 @@ config NET_DSA_MICROCHIP_KSZ_SPI
 	select REGMAP_SPI
 	help
 	  Select to enable support for registering switches configured through SPI.
+
+config NET_DSA_MICROCHIP_KSZ_PTP
+	bool "Support for the PTP clock on the KSZ9563/LAN937x Ethernet Switch"
+	depends on NET_DSA_MICROCHIP_KSZ_COMMON && PTP_1588_CLOCK
+	depends on NET_DSA_MICROCHIP_KSZ_COMMON=m || PTP_1588_CLOCK=y
+	help
+	  Select to enable support for timestamping & PTP clock manipulation in
+	  KSZ8563/KSZ9563/LAN937x series of switches. KSZ9563/KSZ8563 supports
+	  only one step timestamping. LAN937x switch supports both one step and
+	  two step timestamping.
 
 config NET_DSA_MICROCHIP_KSZ8863_SMI
 	tristate "KSZ series SMI connected switch driver"

@@ -83,7 +83,7 @@ int ring_buffer__add(struct ring_buffer *rb, int map_fd,
 
 	memset(&info, 0, sizeof(info));
 
-	err = bpf_obj_get_info_by_fd(map_fd, &info, &len);
+	err = bpf_map_get_info_by_fd(map_fd, &info, &len);
 	if (err) {
 		err = -errno;
 		pr_warn("ringbuf: failed to get map info for fd=%d: %d\n",
@@ -128,7 +128,7 @@ int ring_buffer__add(struct ring_buffer *rb, int map_fd,
 	/* Map read-only producer page and data pages. We map twice as big
 	 * data size to allow simple reading of samples that wrap around the
 	 * end of a ring buffer. See kernel implementation for details.
-	 * */
+	 */
 	mmap_sz = rb->page_size + 2 * (__u64)info.max_entries;
 	if (mmap_sz != (__u64)(size_t)mmap_sz) {
 		pr_warn("ringbuf: ring buffer size (%u) is too big\n", info.max_entries);
@@ -224,7 +224,7 @@ static inline int roundup_len(__u32 len)
 	return (len + 7) / 8 * 8;
 }
 
-static int64_t ringbuf_process_ring(struct ring* r)
+static int64_t ringbuf_process_ring(struct ring *r)
 {
 	int *len_ptr, len, err;
 	/* 64-bit to avoid overflow in case of extreme application behavior */
@@ -359,7 +359,7 @@ static int user_ringbuf_map(struct user_ring_buffer *rb, int map_fd)
 
 	memset(&info, 0, sizeof(info));
 
-	err = bpf_obj_get_info_by_fd(map_fd, &info, &len);
+	err = bpf_map_get_info_by_fd(map_fd, &info, &len);
 	if (err) {
 		err = -errno;
 		pr_warn("user ringbuf: failed to get map info for fd=%d: %d\n", map_fd, err);

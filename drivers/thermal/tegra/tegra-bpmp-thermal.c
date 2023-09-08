@@ -52,6 +52,8 @@ static int __tegra_bpmp_thermal_get_temp(struct tegra_bpmp_thermal_zone *zone,
 	err = tegra_bpmp_transfer(zone->tegra->bpmp, &msg);
 	if (err)
 		return err;
+	if (msg.rx.ret == -BPMP_EFAULT)
+		return -EAGAIN;
 	if (msg.rx.ret)
 		return -EINVAL;
 
@@ -62,12 +64,14 @@ static int __tegra_bpmp_thermal_get_temp(struct tegra_bpmp_thermal_zone *zone,
 
 static int tegra_bpmp_thermal_get_temp(struct thermal_zone_device *tz, int *out_temp)
 {
-	return __tegra_bpmp_thermal_get_temp(tz->devdata, out_temp);
+	struct tegra_bpmp_thermal_zone *zone = thermal_zone_device_priv(tz);
+
+	return __tegra_bpmp_thermal_get_temp(zone, out_temp);
 }
 
 static int tegra_bpmp_thermal_set_trips(struct thermal_zone_device *tz, int low, int high)
 {
-	struct tegra_bpmp_thermal_zone *zone = tz->devdata;
+	struct tegra_bpmp_thermal_zone *zone = thermal_zone_device_priv(tz);
 	struct mrq_thermal_host_to_bpmp_request req;
 	struct tegra_bpmp_message msg;
 	int err;
@@ -106,21 +110,22 @@ static void tz_device_update_work_fn(struct work_struct *work)
 static void bpmp_mrq_thermal(unsigned int mrq, struct tegra_bpmp_channel *ch,
 			     void *data)
 {
-	struct mrq_thermal_bpmp_to_host_request *req;
+	struct mrq_thermal_bpmp_to_host_request req;
 	struct tegra_bpmp_thermal *tegra = data;
+	size_t offset;
 	int i;
 
-	req = (struct mrq_thermal_bpmp_to_host_request *)ch->ib->data;
+	offset = offsetof(struct tegra_bpmp_mb_data, data);
+	iosys_map_memcpy_from(&req, &ch->ib, offset, sizeof(req));
 
-	if (req->type != CMD_THERMAL_HOST_TRIP_REACHED) {
-		dev_err(tegra->dev, "%s: invalid request type: %d\n",
-			__func__, req->type);
+	if (req.type != CMD_THERMAL_HOST_TRIP_REACHED) {
+		dev_err(tegra->dev, "%s: invalid request type: %d\n", __func__, req.type);
 		tegra_bpmp_mrq_return(ch, -EINVAL, NULL, 0);
 		return;
 	}
 
 	for (i = 0; i < tegra->num_zones; ++i) {
-		if (tegra->zones[i]->idx != req->host_trip_reached.zone)
+		if (tegra->zones[i]->idx != req.host_trip_reached.zone)
 			continue;
 
 		schedule_work(&tegra->zones[i]->tz_device_update_work);
@@ -129,7 +134,7 @@ static void bpmp_mrq_thermal(unsigned int mrq, struct tegra_bpmp_channel *ch,
 	}
 
 	dev_err(tegra->dev, "%s: invalid thermal zone: %d\n", __func__,
-		req->host_trip_reached.zone);
+		req.host_trip_reached.zone);
 	tegra_bpmp_mrq_return(ch, -EINVAL, NULL, 0);
 }
 
@@ -206,7 +211,12 @@ static int tegra_bpmp_thermal_probe(struct platform_device *pdev)
 		zone->tegra = tegra;
 
 		err = __tegra_bpmp_thermal_get_temp(zone, &temp);
-		if (err < 0) {
+
+		/*
+		 * Sensors in powergated domains may temporarily fail to be read
+		 * (-EAGAIN), but will become accessible when the domain is powered on.
+		 */
+		if (err < 0 && err != -EAGAIN) {
 			devm_kfree(&pdev->dev, zone);
 			continue;
 		}

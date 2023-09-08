@@ -18,7 +18,7 @@
 	};
 
 	/* User IO */
-	user_leds: user_leds {
+	user_leds: user-leds {
 		compatible = "gpio-leds";
 		pinctrl-names = "default";
 		pinctrl-0 = <&user_leds_pins>;
@@ -39,7 +39,7 @@
 
 /* User Leds */
 &am33xx_pinmux {
-	user_leds_pins: pinmux_user_leds {
+	user_leds_pins: pinmux-user-leds {
 		pinctrl-single,pins = <
 			AM33XX_PADCONF(AM335X_PIN_LCD_VSYNC, PIN_OUTPUT_PULLDOWN, MUX_MODE7)	/* lcd_hsync.gpio2_22 */
 			AM33XX_PADCONF(AM335X_PIN_MCASP0_FSX, PIN_OUTPUT_PULLDOWN, MUX_MODE7)	/* mcasp0_fsx.gpio3_15 */
@@ -49,7 +49,7 @@
 
 /* CAN Busses */
 &am33xx_pinmux {
-	dcan1_pins: pinmux_dcan1 {
+	dcan1_pins: pinmux-dcan1 {
 		pinctrl-single,pins = <
 			AM33XX_PADCONF(AM335X_PIN_UART0_CTSN, PIN_OUTPUT_PULLUP, MUX_MODE2)	/* uart0_ctsn.d_can1_tx */
 			AM33XX_PADCONF(AM335X_PIN_UART0_RTSN, PIN_INPUT_PULLUP, MUX_MODE2)	/* uart0_rtsn.d_can1_rx */
@@ -65,7 +65,7 @@
 
 /* Ethernet */
 &am33xx_pinmux {
-	ethernet1_pins: pinmux_ethernet1 {
+	ethernet1_pins: pinmux-ethernet1 {
 		pinctrl-single,pins = <
 			AM33XX_PADCONF(AM335X_PIN_GPMC_A0, PIN_OUTPUT, MUX_MODE1)		/* gpmc_a0.mii2_txen */
 			AM33XX_PADCONF(AM335X_PIN_GPMC_A1, PIN_INPUT_PULLDOWN, MUX_MODE1)	/* gpmc_a1.mii2_rxdv */
@@ -108,7 +108,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&user_gpios_pins>;
 
-	user_gpios_pins: pinmux_user_gpios {
+	user_gpios_pins: pinmux-user-gpios {
 		pinctrl-single,pins = <
 			/* DIGIN 1-4 */
 			AM33XX_PADCONF(AM335X_PIN_GPMC_AD11, PIN_INPUT, MUX_MODE7)		/* gpmc_ad11.gpio0_27 */
@@ -126,7 +126,7 @@
 
 /* MMC */
 &am33xx_pinmux {
-	mmc1_pins: pinmux_mmc1 {
+	mmc1_pins: pinmux-mmc1 {
 		pinctrl-single,pins = <
 			AM33XX_PADCONF(AM335X_PIN_MMC0_DAT3, PIN_INPUT_PULLUP, MUX_MODE0)
 			AM33XX_PADCONF(AM335X_PIN_MMC0_DAT2, PIN_INPUT_PULLUP, MUX_MODE0)
@@ -155,14 +155,14 @@
 
 /* UARTs */
 &am33xx_pinmux {
-	uart0_pins: pinmux_uart0 {
+	uart0_pins: pinmux-uart0 {
 		pinctrl-single,pins = <
 			AM33XX_PADCONF(AM335X_PIN_UART0_RXD, PIN_INPUT_PULLUP, MUX_MODE0)
 			AM33XX_PADCONF(AM335X_PIN_UART0_TXD, PIN_OUTPUT_PULLDOWN, MUX_MODE0)
 		>;
 	};
 
-	uart2_pins: pinmux_uart2 {
+	uart2_pins: pinmux-uart2 {
 		pinctrl-single,pins = <
 			AM33XX_PADCONF(AM335X_PIN_MII1_TX_CLK, PIN_INPUT_PULLUP, MUX_MODE1)	/* mii1_tx_clk.uart2_rxd */
 			AM33XX_PADCONF(AM335X_PIN_MII1_RX_CLK, PIN_OUTPUT_PULLDOWN, MUX_MODE1)	/* mii1_rx_clk.uart2_txd */
@@ -184,7 +184,7 @@
 
 /* RS485 - UART1 */
 &am33xx_pinmux {
-	uart1_rs485_pins: pinmux_uart1_rs485_pins {
+	uart1_rs485_pins: pinmux-uart1-rs485-pins {
 		pinctrl-single,pins = <
 			AM33XX_PADCONF(AM335X_PIN_UART1_RXD, PIN_INPUT_PULLUP, MUX_MODE0)
 			AM33XX_PADCONF(AM335X_PIN_UART1_TXD, PIN_OUTPUT_PULLDOWN, MUX_MODE0)

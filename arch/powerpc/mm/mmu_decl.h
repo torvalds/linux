@@ -120,6 +120,7 @@ extern int switch_to_as1(void);
 extern void restore_to_as0(int esel, int offset, void *dt_ptr, int bootcpu);
 void create_kaslr_tlb_entry(int entry, unsigned long virt, phys_addr_t phys);
 void reloc_kernel_entry(void *fdt, int addr);
+void relocate_init(u64 dt_ptr, phys_addr_t start);
 extern int is_second_reloc;
 #endif
 extern void loadcam_entry(unsigned int index);

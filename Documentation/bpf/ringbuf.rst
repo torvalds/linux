@@ -124,7 +124,7 @@ buffer.  Currently 4 are supported:
 
 - ``BPF_RB_AVAIL_DATA`` returns amount of unconsumed data in ring buffer;
 - ``BPF_RB_RING_SIZE`` returns the size of ring buffer;
-- ``BPF_RB_CONS_POS``/``BPF_RB_PROD_POS`` returns current logical possition
+- ``BPF_RB_CONS_POS``/``BPF_RB_PROD_POS`` returns current logical position
   of consumer/producer, respectively.
 
 Returned values are momentarily snapshots of ring buffer state and could be
@@ -146,7 +146,7 @@ Design and Implementation
 This reserve/commit schema allows a natural way for multiple producers, either
 on different CPUs or even on the same CPU/in the same BPF program, to reserve
 independent records and work with them without blocking other producers. This
-means that if BPF program was interruped by another BPF program sharing the
+means that if BPF program was interrupted by another BPF program sharing the
 same ring buffer, they will both get a record reserved (provided there is
 enough space left) and can work with it and submit it independently. This
 applies to NMI context as well, except that due to using a spinlock during

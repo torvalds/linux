@@ -20,24 +20,38 @@ properties:
     oneOf:
       - description: v1 of CPUFREQ HW
         items:
+          - enum:
+              - qcom,qcm2290-cpufreq-hw
+              - qcom,sc7180-cpufreq-hw
+              - qcom,sdm845-cpufreq-hw
+              - qcom,sm6115-cpufreq-hw
+              - qcom,sm6350-cpufreq-hw
+              - qcom,sm8150-cpufreq-hw
           - const: qcom,cpufreq-hw
 
       - description: v2 of CPUFREQ HW (EPSS)
         items:
           - enum:
+              - qcom,qdu1000-cpufreq-epss
+              - qcom,sa8775p-cpufreq-epss
+              - qcom,sc7280-cpufreq-epss
+              - qcom,sc8280xp-cpufreq-epss
               - qcom,sm6375-cpufreq-epss
               - qcom,sm8250-cpufreq-epss
+              - qcom,sm8350-cpufreq-epss
+              - qcom,sm8450-cpufreq-epss
+              - qcom,sm8550-cpufreq-epss
           - const: qcom,cpufreq-epss
 
   reg:
-    minItems: 2
+    minItems: 1
     items:
       - description: Frequency domain 0 register region
       - description: Frequency domain 1 register region
       - description: Frequency domain 2 register region
 
   reg-names:
-    minItems: 2
+    minItems: 1
     items:
       - const: freq-domain0
       - const: freq-domain1
@@ -53,7 +67,21 @@ properties:
       - const: xo
       - const: alternate
 
+  interrupts:
+    minItems: 1
+    maxItems: 3
+
+  interrupt-names:
+    minItems: 1
+    items:
+      - const: dcvsh-irq-0
+      - const: dcvsh-irq-1
+      - const: dcvsh-irq-2
+
   '#freq-domain-cells':
+    const: 1
+
+  '#clock-cells':
     const: 1
 
 required:
@@ -64,6 +92,111 @@ required:
   - '#freq-domain-cells'
 
 additionalProperties: false
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,qcm2290-cpufreq-hw
+    then:
+      properties:
+        reg:
+          minItems: 1
+          maxItems: 1
+
+        reg-names:
+          minItems: 1
+          maxItems: 1
+
+        interrupts:
+          minItems: 1
+          maxItems: 1
+
+        interrupt-names:
+          minItems: 1
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,qdu1000-cpufreq-epss
+              - qcom,sc7180-cpufreq-hw
+              - qcom,sc8280xp-cpufreq-epss
+              - qcom,sdm845-cpufreq-hw
+              - qcom,sm6115-cpufreq-hw
+              - qcom,sm6350-cpufreq-hw
+              - qcom,sm6375-cpufreq-epss
+    then:
+      properties:
+        reg:
+          minItems: 2
+          maxItems: 2
+
+        reg-names:
+          minItems: 2
+          maxItems: 2
+
+        interrupts:
+          minItems: 2
+          maxItems: 2
+
+        interrupt-names:
+          minItems: 2
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,sc7280-cpufreq-epss
+              - qcom,sm8250-cpufreq-epss
+              - qcom,sm8350-cpufreq-epss
+              - qcom,sm8450-cpufreq-epss
+              - qcom,sm8550-cpufreq-epss
+    then:
+      properties:
+        reg:
+          minItems: 3
+          maxItems: 3
+
+        reg-names:
+          minItems: 3
+          maxItems: 3
+
+        interrupts:
+          minItems: 3
+          maxItems: 3
+
+        interrupt-names:
+          minItems: 3
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,sm8150-cpufreq-hw
+    then:
+      properties:
+        reg:
+          minItems: 3
+          maxItems: 3
+
+        reg-names:
+          minItems: 3
+          maxItems: 3
+
+        # On some SoCs the Prime core shares the LMH irq with Big cores
+        interrupts:
+          minItems: 2
+          maxItems: 2
+
+        interrupt-names:
+          minItems: 2
+
 
 examples:
   - |
@@ -83,11 +216,16 @@ examples:
         enable-method = "psci";
         next-level-cache = <&L2_0>;
         qcom,freq-domain = <&cpufreq_hw 0>;
+        clocks = <&cpufreq_hw 0>;
         L2_0: l2-cache {
           compatible = "cache";
+          cache-unified;
+          cache-level = <2>;
           next-level-cache = <&L3_0>;
           L3_0: l3-cache {
             compatible = "cache";
+            cache-unified;
+            cache-level = <3>;
           };
         };
       };
@@ -99,8 +237,11 @@ examples:
         enable-method = "psci";
         next-level-cache = <&L2_100>;
         qcom,freq-domain = <&cpufreq_hw 0>;
+        clocks = <&cpufreq_hw 0>;
         L2_100: l2-cache {
           compatible = "cache";
+          cache-unified;
+          cache-level = <2>;
           next-level-cache = <&L3_0>;
         };
       };
@@ -112,8 +253,11 @@ examples:
         enable-method = "psci";
         next-level-cache = <&L2_200>;
         qcom,freq-domain = <&cpufreq_hw 0>;
+        clocks = <&cpufreq_hw 0>;
         L2_200: l2-cache {
           compatible = "cache";
+          cache-unified;
+          cache-level = <2>;
           next-level-cache = <&L3_0>;
         };
       };
@@ -125,8 +269,11 @@ examples:
         enable-method = "psci";
         next-level-cache = <&L2_300>;
         qcom,freq-domain = <&cpufreq_hw 0>;
+        clocks = <&cpufreq_hw 0>;
         L2_300: l2-cache {
           compatible = "cache";
+          cache-unified;
+          cache-level = <2>;
           next-level-cache = <&L3_0>;
         };
       };
@@ -138,8 +285,11 @@ examples:
         enable-method = "psci";
         next-level-cache = <&L2_400>;
         qcom,freq-domain = <&cpufreq_hw 1>;
+        clocks = <&cpufreq_hw 1>;
         L2_400: l2-cache {
           compatible = "cache";
+          cache-unified;
+          cache-level = <2>;
           next-level-cache = <&L3_0>;
         };
       };
@@ -151,8 +301,11 @@ examples:
         enable-method = "psci";
         next-level-cache = <&L2_500>;
         qcom,freq-domain = <&cpufreq_hw 1>;
+        clocks = <&cpufreq_hw 1>;
         L2_500: l2-cache {
           compatible = "cache";
+          cache-unified;
+          cache-level = <2>;
           next-level-cache = <&L3_0>;
         };
       };
@@ -164,8 +317,11 @@ examples:
         enable-method = "psci";
         next-level-cache = <&L2_600>;
         qcom,freq-domain = <&cpufreq_hw 1>;
+        clocks = <&cpufreq_hw 1>;
         L2_600: l2-cache {
           compatible = "cache";
+          cache-unified;
+          cache-level = <2>;
           next-level-cache = <&L3_0>;
         };
       };
@@ -177,8 +333,11 @@ examples:
         enable-method = "psci";
         next-level-cache = <&L2_700>;
         qcom,freq-domain = <&cpufreq_hw 1>;
+        clocks = <&cpufreq_hw 1>;
         L2_700: l2-cache {
           compatible = "cache";
+          cache-unified;
+          cache-level = <2>;
           next-level-cache = <&L3_0>;
         };
       };
@@ -189,7 +348,7 @@ examples:
       #size-cells = <1>;
 
       cpufreq@17d43000 {
-        compatible = "qcom,cpufreq-hw";
+        compatible = "qcom,sdm845-cpufreq-hw", "qcom,cpufreq-hw";
         reg = <0x17d43000 0x1400>, <0x17d45800 0x1400>;
         reg-names = "freq-domain0", "freq-domain1";
 
@@ -197,6 +356,7 @@ examples:
         clock-names = "xo", "alternate";
 
         #freq-domain-cells = <1>;
+        #clock-cells = <1>;
       };
     };
 ...

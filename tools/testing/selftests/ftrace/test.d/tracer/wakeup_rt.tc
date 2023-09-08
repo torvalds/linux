@@ -1,12 +1,7 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0
 # description: Test wakeup RT tracer
-# requires: wakeup_rt:tracer
-
-if ! which chrt ; then
-  echo "chrt is not found. This test requires chrt command."
-  exit_unresolved
-fi
+# requires: wakeup_rt:tracer chrt:program
 
 echo wakeup_rt > current_tracer
 echo 1 > tracing_on

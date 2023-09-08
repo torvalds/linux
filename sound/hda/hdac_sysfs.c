@@ -148,7 +148,7 @@ static void widget_release(struct kobject *kobj)
 	kfree(kobj);
 }
 
-static struct kobj_type widget_ktype = {
+static const struct kobj_type widget_ktype = {
 	.release	= widget_release,
 	.sysfs_ops	= &widget_sysfs_ops,
 };

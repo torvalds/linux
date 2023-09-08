@@ -1046,16 +1046,13 @@ clean_open:
 /* called when module removal */
 static void snd_ps3_driver_remove(struct ps3_system_bus_device *dev)
 {
-	int ret;
 	pr_info("%s:start id=%d\n", __func__,  dev->match_id);
 
 	/*
 	 * ctl and preallocate buffer will be freed in
 	 * snd_card_free
 	 */
-	ret = snd_card_free(the_card.card);
-	if (ret)
-		pr_info("%s: ctl freecard=%d\n", __func__, ret);
+	snd_card_free(the_card.card);
 
 	dma_free_coherent(&dev->core,
 			  PAGE_SIZE,

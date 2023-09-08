@@ -21,7 +21,7 @@
 #include <linux/bitops.h>
 #include <linux/userfaultfd.h>
 
-#include "perf_test_util.h"
+#include "memstress.h"
 #include "processor.h"
 #include "test_util.h"
 #include "guest_modes.h"
@@ -34,9 +34,7 @@
 static int nr_vcpus = 1;
 static uint64_t guest_percpu_mem_size = DEFAULT_PER_VCPU_MEM_SIZE;
 
-static bool run_vcpus = true;
-
-static void vcpu_worker(struct perf_test_vcpu_args *vcpu_args)
+static void vcpu_worker(struct memstress_vcpu_args *vcpu_args)
 {
 	struct kvm_vcpu *vcpu = vcpu_args->vcpu;
 	struct kvm_run *run;
@@ -45,7 +43,7 @@ static void vcpu_worker(struct perf_test_vcpu_args *vcpu_args)
 	run = vcpu->run;
 
 	/* Let the guest access its memory until a stop signal is received */
-	while (READ_ONCE(run_vcpus)) {
+	while (!READ_ONCE(memstress_args.stop_vcpus)) {
 		ret = _vcpu_run(vcpu);
 		TEST_ASSERT(ret == 0, "vcpu_run failed: %d\n", ret);
 
@@ -72,10 +70,10 @@ static void add_remove_memslot(struct kvm_vm *vm, useconds_t delay,
 	int i;
 
 	/*
-	 * Add the dummy memslot just below the perf_test_util memslot, which is
+	 * Add the dummy memslot just below the memstress memslot, which is
 	 * at the top of the guest physical address space.
 	 */
-	gpa = perf_test_args.gpa - pages * vm->page_size;
+	gpa = memstress_args.gpa - pages * vm->page_size;
 
 	for (i = 0; i < nr_modifications; i++) {
 		usleep(delay);
@@ -87,8 +85,8 @@ static void add_remove_memslot(struct kvm_vm *vm, useconds_t delay,
 }
 
 struct test_params {
-	useconds_t memslot_modification_delay;
-	uint64_t nr_memslot_modifications;
+	useconds_t delay;
+	uint64_t nr_iterations;
 	bool partition_vcpu_memory_access;
 };
 
@@ -97,25 +95,22 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 	struct test_params *p = arg;
 	struct kvm_vm *vm;
 
-	vm = perf_test_create_vm(mode, nr_vcpus, guest_percpu_mem_size, 1,
+	vm = memstress_create_vm(mode, nr_vcpus, guest_percpu_mem_size, 1,
 				 VM_MEM_SRC_ANONYMOUS,
 				 p->partition_vcpu_memory_access);
 
 	pr_info("Finished creating vCPUs\n");
 
-	perf_test_start_vcpu_threads(nr_vcpus, vcpu_worker);
+	memstress_start_vcpu_threads(nr_vcpus, vcpu_worker);
 
 	pr_info("Started all vCPUs\n");
 
-	add_remove_memslot(vm, p->memslot_modification_delay,
-			   p->nr_memslot_modifications);
+	add_remove_memslot(vm, p->delay, p->nr_iterations);
 
-	run_vcpus = false;
-
-	perf_test_join_vcpu_threads(nr_vcpus);
+	memstress_join_vcpu_threads(nr_vcpus);
 	pr_info("All vCPU threads joined\n");
 
-	perf_test_destroy_vm(vm);
+	memstress_destroy_vm(vm);
 }
 
 static void help(char *name)
@@ -144,9 +139,8 @@ int main(int argc, char *argv[])
 	int max_vcpus = kvm_check_cap(KVM_CAP_MAX_VCPUS);
 	int opt;
 	struct test_params p = {
-		.memslot_modification_delay = 0,
-		.nr_memslot_modifications =
-			DEFAULT_MEMSLOT_MODIFICATION_ITERATIONS,
+		.delay = 0,
+		.nr_iterations = DEFAULT_MEMSLOT_MODIFICATION_ITERATIONS,
 		.partition_vcpu_memory_access = true
 	};
 
@@ -158,16 +152,14 @@ int main(int argc, char *argv[])
 			guest_modes_cmdline(optarg);
 			break;
 		case 'd':
-			p.memslot_modification_delay = strtoul(optarg, NULL, 0);
-			TEST_ASSERT(p.memslot_modification_delay >= 0,
-				    "A negative delay is not supported.");
+			p.delay = atoi_non_negative("Delay", optarg);
 			break;
 		case 'b':
 			guest_percpu_mem_size = parse_size(optarg);
 			break;
 		case 'v':
-			nr_vcpus = atoi(optarg);
-			TEST_ASSERT(nr_vcpus > 0 && nr_vcpus <= max_vcpus,
+			nr_vcpus = atoi_positive("Number of vCPUs", optarg);
+			TEST_ASSERT(nr_vcpus <= max_vcpus,
 				    "Invalid number of vcpus, must be between 1 and %d",
 				    max_vcpus);
 			break;
@@ -175,7 +167,7 @@ int main(int argc, char *argv[])
 			p.partition_vcpu_memory_access = false;
 			break;
 		case 'i':
-			p.nr_memslot_modifications = atoi(optarg);
+			p.nr_iterations = atoi_positive("Number of iterations", optarg);
 			break;
 		case 'h':
 		default:

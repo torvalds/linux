@@ -83,7 +83,7 @@ passed in.
 6. Freeze
 ---------
 The freeze operation does not require any keys. The security config can be
-frozen by a user with root privelege.
+frozen by a user with root privilege.
 
 7. Disable
 ----------

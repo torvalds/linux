@@ -645,6 +645,22 @@ typedef struct drm_i915_irq_wait {
  */
 #define   I915_SCHEDULER_CAP_STATIC_PRIORITY_MAP	(1ul << 5)
 
+/*
+ * Query the status of HuC load.
+ *
+ * The query can fail in the following scenarios with the listed error codes:
+ *  -ENODEV if HuC is not present on this platform,
+ *  -EOPNOTSUPP if HuC firmware usage is disabled,
+ *  -ENOPKG if HuC firmware fetch failed,
+ *  -ENOEXEC if HuC firmware is invalid or mismatched,
+ *  -ENOMEM if i915 failed to prepare the FW objects for transfer to the uC,
+ *  -EIO if the FW transfer or the FW authentication failed.
+ *
+ * If the IOCTL is successful, the returned parameter will be set to one of the
+ * following values:
+ *  * 0 if HuC firmware load is not complete,
+ *  * 1 if HuC firmware is authenticated and running.
+ */
 #define I915_PARAM_HUC_STATUS		 42
 
 /* Query whether DRM_I915_GEM_EXECBUFFER2 supports the ability to opt-out of
@@ -748,6 +764,12 @@ typedef struct drm_i915_irq_wait {
 
 /* Query if the kernel supports the I915_USERPTR_PROBE flag. */
 #define I915_PARAM_HAS_USERPTR_PROBE 56
+
+/*
+ * Frequency of the timestamps in OA reports. This used to be the same as the CS
+ * timestamp frequency, but differs on some platforms.
+ */
+#define I915_PARAM_OA_TIMESTAMP_FREQUENCY 57
 
 /* Must be kept compact -- no holes and well documented */
 
@@ -2469,7 +2491,7 @@ struct i915_context_param_engines {
 #define I915_CONTEXT_ENGINES_EXT_LOAD_BALANCE 0 /* see i915_context_engines_load_balance */
 #define I915_CONTEXT_ENGINES_EXT_BOND 1 /* see i915_context_engines_bond */
 #define I915_CONTEXT_ENGINES_EXT_PARALLEL_SUBMIT 2 /* see i915_context_engines_parallel_submit */
-	struct i915_engine_class_instance engines[0];
+	struct i915_engine_class_instance engines[];
 } __attribute__((packed));
 
 #define I915_DEFINE_CONTEXT_PARAM_ENGINES(name__, N__) struct { \
@@ -2650,6 +2672,14 @@ enum drm_i915_oa_format {
 	I915_OA_FORMAT_A12_B8_C8,
 	I915_OA_FORMAT_A32u40_A4u32_B8_C8,
 
+	/* DG2 */
+	I915_OAR_FORMAT_A32u40_A4u32_B8_C8,
+	I915_OA_FORMAT_A24u40_A14u32_B8_C8,
+
+	/* MTL OAM */
+	I915_OAM_FORMAT_MPEC8u64_B8_C8,
+	I915_OAM_FORMAT_MPEC8u32_B8_C8,
+
 	I915_OA_FORMAT_MAX	    /* non-ABI */
 };
 
@@ -2731,6 +2761,25 @@ enum drm_i915_perf_property_id {
 	 * This property is available in perf revision 5.
 	 */
 	DRM_I915_PERF_PROP_POLL_OA_PERIOD,
+
+	/**
+	 * Multiple engines may be mapped to the same OA unit. The OA unit is
+	 * identified by class:instance of any engine mapped to it.
+	 *
+	 * This parameter specifies the engine class and must be passed along
+	 * with DRM_I915_PERF_PROP_OA_ENGINE_INSTANCE.
+	 *
+	 * This property is available in perf revision 6.
+	 */
+	DRM_I915_PERF_PROP_OA_ENGINE_CLASS,
+
+	/**
+	 * This parameter specifies the engine instance and must be passed along
+	 * with DRM_I915_PERF_PROP_OA_ENGINE_CLASS.
+	 *
+	 * This property is available in perf revision 6.
+	 */
+	DRM_I915_PERF_PROP_OA_ENGINE_INSTANCE,
 
 	DRM_I915_PERF_PROP_MAX /* non-ABI */
 };
@@ -3493,27 +3542,13 @@ struct drm_i915_gem_create_ext {
 	 *
 	 * The (page-aligned) allocated size for the object will be returned.
 	 *
-	 * DG2 64K min page size implications:
+	 * On platforms like DG2/ATS the kernel will always use 64K or larger
+	 * pages for I915_MEMORY_CLASS_DEVICE. The kernel also requires a
+	 * minimum of 64K GTT alignment for such objects.
 	 *
-	 * On discrete platforms, starting from DG2, we have to contend with GTT
-	 * page size restrictions when dealing with I915_MEMORY_CLASS_DEVICE
-	 * objects.  Specifically the hardware only supports 64K or larger GTT
-	 * page sizes for such memory. The kernel will already ensure that all
-	 * I915_MEMORY_CLASS_DEVICE memory is allocated using 64K or larger page
-	 * sizes underneath.
-	 *
-	 * Note that the returned size here will always reflect any required
-	 * rounding up done by the kernel, i.e 4K will now become 64K on devices
-	 * such as DG2. The kernel will always select the largest minimum
-	 * page-size for the set of possible placements as the value to use when
-	 * rounding up the @size.
-	 *
-	 * Special DG2 GTT address alignment requirement:
-	 *
-	 * The GTT alignment will also need to be at least 2M for such objects.
-	 *
-	 * Note that due to how the hardware implements 64K GTT page support, we
-	 * have some further complications:
+	 * NOTE: Previously the ABI here required a minimum GTT alignment of 2M
+	 * on DG2/ATS, due to how the hardware implemented 64K GTT page support,
+	 * where we had the following complications:
 	 *
 	 *   1) The entire PDE (which covers a 2MB virtual address range), must
 	 *   contain only 64K PTEs, i.e mixing 4K and 64K PTEs in the same
@@ -3522,12 +3557,10 @@ struct drm_i915_gem_create_ext {
 	 *   2) We still need to support 4K PTEs for I915_MEMORY_CLASS_SYSTEM
 	 *   objects.
 	 *
-	 * To keep things simple for userland, we mandate that any GTT mappings
-	 * must be aligned to and rounded up to 2MB. The kernel will internally
-	 * pad them out to the next 2MB boundary. As this only wastes virtual
-	 * address space and avoids userland having to copy any needlessly
-	 * complicated PDE sharing scheme (coloring) and only affects DG2, this
-	 * is deemed to be a good compromise.
+	 * However on actual production HW this was completely changed to now
+	 * allow setting a TLB hint at the PTE level (see PS64), which is a lot
+	 * more flexible than the above. With this the 2M restriction was
+	 * dropped where we now only require 64K.
 	 */
 	__u64 size;
 

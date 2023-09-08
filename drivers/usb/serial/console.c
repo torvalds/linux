@@ -169,7 +169,7 @@ static int usb_console_setup(struct console *co, char *options)
 			tty_save_termios(tty);
 			tty_kref_put(tty);
 		}
-		tty_port_set_initialized(&port->port, 1);
+		tty_port_set_initialized(&port->port, true);
 	}
 	/* Now that any required fake tty operations are completed restore
 	 * the tty port count */

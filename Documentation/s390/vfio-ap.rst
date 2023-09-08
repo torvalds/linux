@@ -551,9 +551,7 @@ These are the steps:
    * IOMMU_SUPPORT
    * S390
    * ZCRYPT
-   * S390_AP_IOMMU
    * VFIO
-   * VFIO_MDEV
    * KVM
 
    If using make menuconfig select the following to build the vfio_ap module::

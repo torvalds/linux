@@ -68,22 +68,11 @@ gp10b_pmu_acr = {
 	.bld_size = sizeof(struct loader_config),
 	.bld_write = gm20b_pmu_acr_bld_write,
 	.bld_patch = gm20b_pmu_acr_bld_patch,
-	.boot = gm20b_pmu_acr_boot,
 	.bootstrap_falcons = BIT_ULL(NVKM_ACR_LSF_PMU) |
 			     BIT_ULL(NVKM_ACR_LSF_FECS) |
 			     BIT_ULL(NVKM_ACR_LSF_GPCCS),
 	.bootstrap_falcon = gm20b_pmu_acr_bootstrap_falcon,
 	.bootstrap_multiple_falcons = gp10b_pmu_acr_bootstrap_multiple_falcons,
-};
-
-static const struct nvkm_pmu_func
-gp10b_pmu = {
-	.flcn = &gm200_pmu_flcn,
-	.enabled = gf100_pmu_enabled,
-	.intr = gt215_pmu_intr,
-	.recv = gm20b_pmu_recv,
-	.initmsg = gm20b_pmu_initmsg,
-	.reset = gp102_pmu_reset,
 };
 
 #if IS_ENABLED(CONFIG_ARCH_TEGRA_210_SOC)
@@ -94,8 +83,8 @@ MODULE_FIRMWARE("nvidia/gp10b/pmu/sig.bin");
 
 static const struct nvkm_pmu_fwif
 gp10b_pmu_fwif[] = {
-	{  0, gm20b_pmu_load, &gp10b_pmu, &gp10b_pmu_acr },
-	{ -1, gm200_pmu_nofw, &gp10b_pmu },
+	{  0, gm20b_pmu_load, &gm20b_pmu, &gp10b_pmu_acr },
+	{ -1, gm200_pmu_nofw, &gm20b_pmu },
 	{}
 };
 

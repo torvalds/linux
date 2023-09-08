@@ -20,6 +20,10 @@
 	model = "TOPEET iTop 4412 Elite board based on Exynos4412";
 	compatible = "topeet,itop4412-elite", "samsung,exynos4412", "samsung,exynos4";
 
+	aliases {
+		mmc1 = &sdhci_2;
+	};
+
 	chosen {
 		bootargs = "root=/dev/mmcblk0p2 rw rootfstype=ext4 rootdelay=1 rootwait";
 		stdout-path = "serial2:115200n8";
@@ -182,7 +186,7 @@
 		compatible = "wlf,wm8960";
 		reg = <0x1a>;
 		clocks = <&pmu_system_controller 0>;
-		clock-names = "MCLK1";
+		clock-names = "mclk";
 		wlf,shared-lrclk;
 		#sound-dai-cells = <0>;
 	};
@@ -214,7 +218,7 @@
 	bus-width = <4>;
 	pinctrl-0 = <&sd2_clk &sd2_cmd &sd2_bus4>;
 	pinctrl-names = "default";
-	cd-gpio = <&gpx0 7 GPIO_ACTIVE_LOW>;
+	cd-gpios = <&gpx0 7 GPIO_ACTIVE_LOW>;
 	cap-sd-highspeed;
 	vmmc-supply = <&ldo23_reg>;
 	vqmmc-supply = <&ldo17_reg>;

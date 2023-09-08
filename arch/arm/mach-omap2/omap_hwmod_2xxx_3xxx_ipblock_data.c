@@ -62,7 +62,7 @@ struct omap_hwmod_class iva_hwmod_class = {
 	.name = "iva",
 };
 
-struct omap_hwmod_class_sysconfig omap2_hdq1w_sysc = {
+static struct omap_hwmod_class_sysconfig omap2_hdq1w_sysc = {
 	.rev_offs	= 0x0,
 	.sysc_offs	= 0x14,
 	.syss_offs	= 0x18,

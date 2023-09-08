@@ -28,6 +28,7 @@
 #include <net/netns/generic.h>
 #include <net/sock.h>
 #include <uapi/linux/kcm.h>
+#include <trace/events/sock.h>
 
 unsigned int kcm_net_id;
 
@@ -348,6 +349,8 @@ static void unreserve_rx_kcm(struct kcm_psock *psock,
 static void psock_data_ready(struct sock *sk)
 {
 	struct kcm_psock *psock;
+
+	trace_sk_data_ready(sk);
 
 	read_lock_bh(&sk->sk_callback_lock);
 

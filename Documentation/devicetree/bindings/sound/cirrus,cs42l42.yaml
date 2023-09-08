@@ -68,7 +68,7 @@ properties:
       This is "normal tip sense (TS)" in the datasheet.
 
       The CS42L42_TS_INV_* defines are available for this.
-    $ref: "/schemas/types.yaml#/definitions/uint32"
+    $ref: /schemas/types.yaml#/definitions/uint32
     minimum: 0
     maximum: 1
 
@@ -87,7 +87,7 @@ properties:
       7 - 1.5s
 
       The CS42L42_TS_DBNCE_* defines are available for this.
-    $ref: "/schemas/types.yaml#/definitions/uint32"
+    $ref: /schemas/types.yaml#/definitions/uint32
     minimum: 0
     maximum: 7
 
@@ -106,7 +106,7 @@ properties:
       7 - 1.5s
 
       The CS42L42_TS_DBNCE_* defines are available for this.
-    $ref: "/schemas/types.yaml#/definitions/uint32"
+    $ref: /schemas/types.yaml#/definitions/uint32
     minimum: 0
     maximum: 7
 
@@ -120,7 +120,7 @@ properties:
 
       0ms - 200ms,
       Default = 100ms
-    $ref: "/schemas/types.yaml#/definitions/uint32"
+    $ref: /schemas/types.yaml#/definitions/uint32
     minimum: 0
     maximum: 200
 
@@ -133,7 +133,7 @@ properties:
 
       0ms - 20ms,
       Default = 10ms
-    $ref: "/schemas/types.yaml#/definitions/uint32"
+    $ref: /schemas/types.yaml#/definitions/uint32
     minimum: 0
     maximum: 20
 
@@ -169,7 +169,7 @@ properties:
       3 - Slowest
 
       The CS42L42_HSBIAS_RAMP_* defines are available for this.
-    $ref: "/schemas/types.yaml#/definitions/uint32"
+    $ref: /schemas/types.yaml#/definitions/uint32
     minimum: 0
     maximum: 3
 

@@ -70,6 +70,7 @@ struct amdgpu_gmc_fault {
 	uint64_t	timestamp:48;
 	uint64_t	next:AMDGPU_GMC_FAULT_RING_ORDER;
 	atomic64_t	key;
+	uint64_t	timestamp_expiry:48;
 };
 
 /*
@@ -103,6 +104,8 @@ struct amdgpu_vmhub {
 	uint32_t        vm_cntx_cntl;
 	uint32_t	vm_cntx_cntl_vm_fault;
 	uint32_t	vm_l2_bank_select_reserved_cid2;
+
+	uint32_t	vm_contexts_disable;
 
 	const struct amdgpu_vmhub_funcs *vmhub_funcs;
 };
@@ -351,7 +354,7 @@ bool amdgpu_gmc_filter_faults(struct amdgpu_device *adev,
 			      uint16_t pasid, uint64_t timestamp);
 void amdgpu_gmc_filter_faults_remove(struct amdgpu_device *adev, uint64_t addr,
 				     uint16_t pasid);
-int amdgpu_gmc_ras_early_init(struct amdgpu_device *adev);
+int amdgpu_gmc_ras_sw_init(struct amdgpu_device *adev);
 int amdgpu_gmc_ras_late_init(struct amdgpu_device *adev);
 void amdgpu_gmc_ras_fini(struct amdgpu_device *adev);
 int amdgpu_gmc_allocate_vm_inv_eng(struct amdgpu_device *adev);

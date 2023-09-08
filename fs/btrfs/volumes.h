@@ -6,16 +6,22 @@
 #ifndef BTRFS_VOLUMES_H
 #define BTRFS_VOLUMES_H
 
-#include <linux/bio.h>
 #include <linux/sort.h>
 #include <linux/btrfs.h>
 #include "async-thread.h"
+#include "messages.h"
+#include "tree-checker.h"
+#include "rcu-string.h"
 
 #define BTRFS_MAX_DATA_CHUNK_SIZE	(10ULL * SZ_1G)
 
 extern struct mutex uuid_mutex;
 
-#define BTRFS_STRIPE_LEN	SZ_64K
+#define BTRFS_STRIPE_LEN		SZ_64K
+#define BTRFS_STRIPE_LEN_SHIFT		(16)
+#define BTRFS_STRIPE_LEN_MASK		(BTRFS_STRIPE_LEN - 1)
+
+static_assert(const_ilog2(BTRFS_STRIPE_LEN) == BTRFS_STRIPE_LEN_SHIFT);
 
 /* Used by sanity check for btrfs_raid_types. */
 #define const_ffs(n) (__builtin_ctzll(n) + 1)
@@ -49,21 +55,6 @@ enum btrfs_raid_types {
 	BTRFS_RAID_RAID1C4 = BTRFS_BG_FLAG_TO_INDEX(BTRFS_BLOCK_GROUP_RAID1C4),
 
 	BTRFS_NR_RAID_TYPES
-};
-
-struct btrfs_io_geometry {
-	/* remaining bytes before crossing a stripe */
-	u64 len;
-	/* offset of logical address in chunk */
-	u64 offset;
-	/* length of single IO stripe */
-	u32 stripe_len;
-	/* offset of address in stripe */
-	u32 stripe_offset;
-	/* number of stripe where address falls */
-	u64 stripe_nr;
-	/* offset of raid56 stripe into the chunk */
-	u64 raid56_stripe_offset;
 };
 
 /*
@@ -354,6 +345,8 @@ struct btrfs_fs_devices {
 	 * nonrot flag set
 	 */
 	bool rotating;
+	/* Devices support TRIM/discard commands */
+	bool discardable;
 
 	struct btrfs_fs_info *fs_info;
 	/* sysfs kobjects */
@@ -368,8 +361,6 @@ struct btrfs_fs_devices {
 	enum btrfs_read_policy read_policy;
 };
 
-#define BTRFS_BIO_INLINE_CSUM_SIZE	64
-
 #define BTRFS_MAX_DEVS(info) ((BTRFS_MAX_ITEM_SIZE(info)	\
 			- sizeof(struct btrfs_chunk))		\
 			/ sizeof(struct btrfs_stripe) + 1)
@@ -378,89 +369,6 @@ struct btrfs_fs_devices {
 				- 2 * sizeof(struct btrfs_disk_key)	\
 				- 2 * sizeof(struct btrfs_chunk))	\
 				/ sizeof(struct btrfs_stripe) + 1)
-
-/*
- * Maximum number of sectors for a single bio to limit the size of the
- * checksum array.  This matches the number of bio_vecs per bio and thus the
- * I/O size for buffered I/O.
- */
-#define BTRFS_MAX_BIO_SECTORS				(256)
-
-typedef void (*btrfs_bio_end_io_t)(struct btrfs_bio *bbio);
-
-/*
- * Additional info to pass along bio.
- *
- * Mostly for btrfs specific features like csum and mirror_num.
- */
-struct btrfs_bio {
-	unsigned int mirror_num;
-	struct bvec_iter iter;
-
-	/* for direct I/O */
-	u64 file_offset;
-
-	/* @device is for stripe IO submission. */
-	struct btrfs_device *device;
-	u8 *csum;
-	u8 csum_inline[BTRFS_BIO_INLINE_CSUM_SIZE];
-
-	/* End I/O information supplied to btrfs_bio_alloc */
-	btrfs_bio_end_io_t end_io;
-	void *private;
-
-	/* For read end I/O handling */
-	struct work_struct end_io_work;
-
-	/*
-	 * This member must come last, bio_alloc_bioset will allocate enough
-	 * bytes for entire btrfs_bio but relies on bio being last.
-	 */
-	struct bio bio;
-};
-
-static inline struct btrfs_bio *btrfs_bio(struct bio *bio)
-{
-	return container_of(bio, struct btrfs_bio, bio);
-}
-
-int __init btrfs_bioset_init(void);
-void __cold btrfs_bioset_exit(void);
-
-struct bio *btrfs_bio_alloc(unsigned int nr_vecs, blk_opf_t opf,
-			    btrfs_bio_end_io_t end_io, void *private);
-struct bio *btrfs_bio_clone_partial(struct bio *orig, u64 offset, u64 size,
-				    btrfs_bio_end_io_t end_io, void *private);
-
-static inline void btrfs_bio_end_io(struct btrfs_bio *bbio, blk_status_t status)
-{
-	bbio->bio.bi_status = status;
-	bbio->end_io(bbio);
-}
-
-static inline void btrfs_bio_free_csum(struct btrfs_bio *bbio)
-{
-	if (bbio->csum != bbio->csum_inline) {
-		kfree(bbio->csum);
-		bbio->csum = NULL;
-	}
-}
-
-/*
- * Iterate through a btrfs_bio (@bbio) on a per-sector basis.
- *
- * bvl        - struct bio_vec
- * bbio       - struct btrfs_bio
- * iters      - struct bvec_iter
- * bio_offset - unsigned int
- */
-#define btrfs_bio_for_each_sector(fs_info, bvl, bbio, iter, bio_offset)	\
-	for ((iter) = (bbio)->iter, (bio_offset) = 0;			\
-	     (iter).bi_size &&					\
-	     (((bvl) = bio_iter_iovec((&(bbio)->bio), (iter))), 1);	\
-	     (bio_offset) += fs_info->sectorsize,			\
-	     bio_advance_iter_single(&(bbio)->bio, &(iter),		\
-	     (fs_info)->sectorsize))
 
 struct btrfs_io_stripe {
 	struct btrfs_device *dev;
@@ -500,17 +408,74 @@ struct btrfs_io_context {
 	u64 map_type; /* get from map_lookup->type */
 	struct bio *orig_bio;
 	atomic_t error;
-	int max_errors;
-	int num_stripes;
-	int mirror_num;
-	int num_tgtdevs;
-	int *tgtdev_map;
+	u16 max_errors;
+
 	/*
-	 * logical block numbers for the start of each stripe
-	 * The last one or two are p/q.  These are sorted,
-	 * so raid_map[0] is the start of our full stripe
+	 * The total number of stripes, including the extra duplicated
+	 * stripe for replace.
 	 */
-	u64 *raid_map;
+	u16 num_stripes;
+
+	/*
+	 * The mirror_num of this bioc.
+	 *
+	 * This is for reads which use 0 as mirror_num, thus we should return a
+	 * valid mirror_num (>0) for the reader.
+	 */
+	u16 mirror_num;
+
+	/*
+	 * The following two members are for dev-replace case only.
+	 *
+	 * @replace_nr_stripes:	Number of duplicated stripes which need to be
+	 *			written to replace target.
+	 *			Should be <= 2 (2 for DUP, otherwise <= 1).
+	 * @replace_stripe_src:	The array indicates where the duplicated stripes
+	 *			are from.
+	 *
+	 * The @replace_stripe_src[] array is mostly for RAID56 cases.
+	 * As non-RAID56 stripes share the same contents of the mapped range,
+	 * thus no need to bother where the duplicated ones are from.
+	 *
+	 * But for RAID56 case, all stripes contain different contents, thus
+	 * we need a way to know the mapping.
+	 *
+	 * There is an example for the two members, using a RAID5 write:
+	 *
+	 *   num_stripes:	4 (3 + 1 duplicated write)
+	 *   stripes[0]:	dev = devid 1, physical = X
+	 *   stripes[1]:	dev = devid 2, physical = Y
+	 *   stripes[2]:	dev = devid 3, physical = Z
+	 *   stripes[3]:	dev = devid 0, physical = Y
+	 *
+	 * replace_nr_stripes = 1
+	 * replace_stripe_src = 1	<- Means stripes[1] is involved in replace.
+	 *				   The duplicated stripe index would be
+	 *				   (@num_stripes - 1).
+	 *
+	 * Note, that we can still have cases replace_nr_stripes = 2 for DUP.
+	 * In that case, all stripes share the same content, thus we don't
+	 * need to bother @replace_stripe_src value at all.
+	 */
+	u16 replace_nr_stripes;
+	s16 replace_stripe_src;
+	/*
+	 * Logical bytenr of the full stripe start, only for RAID56 cases.
+	 *
+	 * When this value is set to other than (u64)-1, the stripes[] should
+	 * follow this pattern:
+	 *
+	 * (real_stripes = num_stripes - replace_nr_stripes)
+	 * (data_stripes = (is_raid6) ? (real_stripes - 2) : (real_stripes - 1))
+	 *
+	 * stripes[0]:			The first data stripe
+	 * stripes[1]:			The second data stripe
+	 * ...
+	 * stripes[data_stripes - 1]:	The last data stripe
+	 * stripes[data_stripes]:	The P stripe
+	 * stripes[data_stripes + 1]:	The Q stripe (only for RAID6).
+	 */
+	u64 full_stripe_logical;
 	struct btrfs_io_stripe stripes[];
 };
 
@@ -542,7 +507,6 @@ struct map_lookup {
 	u64 type;
 	int io_align;
 	int io_width;
-	u32 stripe_len;
 	int num_stripes;
 	int sub_stripes;
 	int verified_stripes; /* For mount time dev extent verification */
@@ -603,6 +567,24 @@ static inline enum btrfs_map_op btrfs_op(struct bio *bio)
 	}
 }
 
+static inline unsigned long btrfs_chunk_item_size(int num_stripes)
+{
+	ASSERT(num_stripes);
+	return sizeof(struct btrfs_chunk) +
+		sizeof(struct btrfs_stripe) * (num_stripes - 1);
+}
+
+/*
+ * Do the type safe converstion from stripe_nr to offset inside the chunk.
+ *
+ * @stripe_nr is u32, with left shift it can overflow u32 for chunks larger
+ * than 4G.  This does the proper type cast to avoid overflow.
+ */
+static inline u64 btrfs_stripe_nr_to_offset(u32 stripe_nr)
+{
+	return (u64)stripe_nr << BTRFS_STRIPE_LEN_SHIFT;
+}
+
 void btrfs_get_bioc(struct btrfs_io_context *bioc);
 void btrfs_put_bioc(struct btrfs_io_context *bioc);
 int btrfs_map_block(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
@@ -611,18 +593,22 @@ int btrfs_map_block(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
 int btrfs_map_sblock(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
 		     u64 logical, u64 *length,
 		     struct btrfs_io_context **bioc_ret);
+int __btrfs_map_block(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
+		      u64 logical, u64 *length,
+		      struct btrfs_io_context **bioc_ret,
+		      struct btrfs_io_stripe *smap, int *mirror_num_ret,
+		      int need_raid_map);
+int btrfs_map_repair_block(struct btrfs_fs_info *fs_info,
+			   struct btrfs_io_stripe *smap, u64 logical,
+			   u32 length, int mirror_num);
 struct btrfs_discard_stripe *btrfs_map_discard(struct btrfs_fs_info *fs_info,
 					       u64 logical, u64 *length_ret,
 					       u32 *num_stripes);
-int btrfs_get_io_geometry(struct btrfs_fs_info *fs_info, struct extent_map *map,
-			  enum btrfs_map_op op, u64 logical,
-			  struct btrfs_io_geometry *io_geom);
 int btrfs_read_sys_array(struct btrfs_fs_info *fs_info);
 int btrfs_read_chunk_tree(struct btrfs_fs_info *fs_info);
 struct btrfs_block_group *btrfs_create_chunk(struct btrfs_trans_handle *trans,
 					    u64 type);
 void btrfs_mapping_tree_free(struct extent_map_tree *tree);
-void btrfs_submit_bio(struct btrfs_fs_info *fs_info, struct bio *bio, int mirror_num);
 int btrfs_open_devices(struct btrfs_fs_devices *fs_devices,
 		       fmode_t flags, void *holder);
 struct btrfs_device *btrfs_scan_one_device(const char *path,
@@ -639,8 +625,8 @@ int btrfs_get_dev_args_from_path(struct btrfs_fs_info *fs_info,
 				 struct btrfs_dev_lookup_args *args,
 				 const char *path);
 struct btrfs_device *btrfs_alloc_device(struct btrfs_fs_info *fs_info,
-					const u64 *devid,
-					const u8 *uuid);
+					const u64 *devid, const u8 *uuid,
+					const char *path);
 void btrfs_put_dev_args_from_path(struct btrfs_dev_lookup_args *args);
 void btrfs_free_device(struct btrfs_device *device);
 int btrfs_rm_device(struct btrfs_fs_info *fs_info,
@@ -739,6 +725,14 @@ static inline void btrfs_dev_stat_set(struct btrfs_device *dev,
 	 */
 	smp_mb__before_atomic();
 	atomic_inc(&dev->dev_stats_ccnt);
+}
+
+static inline const char *btrfs_dev_name(const struct btrfs_device *device)
+{
+	if (!device || test_bit(BTRFS_DEV_STATE_MISSING, &device->dev_state))
+		return "<missing disk>";
+	else
+		return rcu_str_deref(device->name);
 }
 
 void btrfs_commit_device_sizes(struct btrfs_transaction *trans);

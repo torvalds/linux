@@ -407,6 +407,16 @@ Description:
 	        file contains a '1' if the memory has been published for
 		use outside the driver that owns the device.
 
+What:		/sys/bus/pci/devices/.../p2pmem/allocate
+Date:		August 2022
+Contact:	Logan Gunthorpe <logang@deltatee.com>
+Description:
+		This file allows mapping p2pmem into userspace. For each
+		mmap() call on this file, the kernel will allocate a chunk
+		of Peer-to-Peer memory for use in Peer-to-Peer transactions.
+		This memory can be used in O_DIRECT calls to NVMe backed
+		files for Peer-to-Peer copies.
+
 What:		/sys/bus/pci/devices/.../link/clkpm
 		/sys/bus/pci/devices/.../link/l0s_aspm
 		/sys/bus/pci/devices/.../link/l1_aspm

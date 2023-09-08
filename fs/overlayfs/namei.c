@@ -204,7 +204,7 @@ static struct dentry *ovl_lookup_positive_unlocked(struct ovl_lookup_data *d,
 						   struct dentry *base, int len,
 						   bool drop_negative)
 {
-	struct dentry *ret = lookup_one_unlocked(mnt_user_ns(d->mnt), name, base, len);
+	struct dentry *ret = lookup_one_unlocked(mnt_idmap(d->mnt), name, base, len);
 
 	if (!IS_ERR(ret) && d_flags_negative(smp_load_acquire(&ret->d_flags))) {
 		if (drop_negative && ret->d_lockref.count == 1) {
@@ -487,7 +487,8 @@ fail:
 }
 
 /* Get upper dentry from index */
-struct dentry *ovl_index_upper(struct ovl_fs *ofs, struct dentry *index)
+struct dentry *ovl_index_upper(struct ovl_fs *ofs, struct dentry *index,
+			       bool connected)
 {
 	struct ovl_fh *fh;
 	struct dentry *upper;
@@ -499,7 +500,7 @@ struct dentry *ovl_index_upper(struct ovl_fs *ofs, struct dentry *index)
 	if (IS_ERR_OR_NULL(fh))
 		return ERR_CAST(fh);
 
-	upper = ovl_decode_real_fh(ofs, fh, ovl_upper_mnt(ofs), true);
+	upper = ovl_decode_real_fh(ofs, fh, ovl_upper_mnt(ofs), connected);
 	kfree(fh);
 
 	if (IS_ERR_OR_NULL(upper))
@@ -572,7 +573,7 @@ int ovl_verify_index(struct ovl_fs *ofs, struct dentry *index)
 	 * directly from the index dentry, but for dir index we first need to
 	 * decode the upper directory.
 	 */
-	upper = ovl_index_upper(ofs, index);
+	upper = ovl_index_upper(ofs, index, false);
 	if (IS_ERR_OR_NULL(upper)) {
 		err = PTR_ERR(upper);
 		/*
@@ -710,7 +711,7 @@ struct dentry *ovl_lookup_index(struct ovl_fs *ofs, struct dentry *upper,
 	if (err)
 		return ERR_PTR(err);
 
-	index = lookup_one_positive_unlocked(ovl_upper_mnt_userns(ofs), name.name,
+	index = lookup_one_positive_unlocked(ovl_upper_mnt_idmap(ofs), name.name,
 					     ofs->indexdir, name.len);
 	if (IS_ERR(index)) {
 		err = PTR_ERR(index);
@@ -1085,6 +1086,11 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 			.mnt = ovl_upper_mnt(ofs),
 		};
 
+		/*
+		 * It's safe to assign upperredirect here: the previous
+		 * assignment of happens only if upperdentry is non-NULL, and
+		 * this one only if upperdentry is NULL.
+		 */
 		upperredirect = ovl_get_redirect_xattr(ofs, &upperpath, 0);
 		if (IS_ERR(upperredirect)) {
 			err = PTR_ERR(upperredirect);
@@ -1176,7 +1182,7 @@ bool ovl_lower_positive(struct dentry *dentry)
 		struct dentry *this;
 		struct dentry *lowerdir = poe->lowerstack[i].dentry;
 
-		this = lookup_one_positive_unlocked(mnt_user_ns(poe->lowerstack[i].layer->mnt),
+		this = lookup_one_positive_unlocked(mnt_idmap(poe->lowerstack[i].layer->mnt),
 						   name->name, lowerdir, name->len);
 		if (IS_ERR(this)) {
 			switch (PTR_ERR(this)) {

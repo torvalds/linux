@@ -216,7 +216,6 @@
 				     <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>;
-			interrupt-names = "gpmi0", "gpmi1", "gpmi2", "gpmi3";
 			#dma-cells = <1>;
 			dma-channels = <4>;
 			clocks = <&clks IMX6SX_CLK_APBH_DMA>;
@@ -1391,7 +1390,7 @@
 
 			pwm8: pwm@22b0000 {
 				compatible = "fsl,imx6sx-pwm", "fsl,imx27-pwm";
-				reg = <0x0022b0000 0x4000>;
+				reg = <0x022b0000 0x4000>;
 				interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clks IMX6SX_CLK_PWM8>,
 					 <&clks IMX6SX_CLK_PWM8>;

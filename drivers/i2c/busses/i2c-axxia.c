@@ -118,7 +118,7 @@
 #define SDA_HOLD_TIME		0x90
 
 /**
- * axxia_i2c_dev - I2C device context
+ * struct axxia_i2c_dev - I2C device context
  * @base: pointer to register struct
  * @msg: pointer to current message
  * @msg_r: pointer to current read message (sequence transfer)

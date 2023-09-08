@@ -18,6 +18,8 @@ description: |
 maintainers:
   - Rafał Miłecki <rafal@milecki.pl>
 
+select: false
+
 properties:
   compatible:
     const: linksys,ns-partitions
@@ -30,7 +32,7 @@ properties:
 
 patternProperties:
   "^partition@[0-9a-f]+$":
-    $ref: "partition.yaml#"
+    $ref: partition.yaml#
     properties:
       compatible:
         items:

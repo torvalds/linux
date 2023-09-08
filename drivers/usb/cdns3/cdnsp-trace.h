@@ -271,7 +271,6 @@ DECLARE_EVENT_CLASS(cdnsp_log_ctrl,
 		__field(u16, wValue)
 		__field(u16, wIndex)
 		__field(u16, wLength)
-		__dynamic_array(char, str, CDNSP_MSG_MAX)
 	),
 	TP_fast_assign(
 		__entry->bRequestType = ctrl->bRequestType;
@@ -280,7 +279,7 @@ DECLARE_EVENT_CLASS(cdnsp_log_ctrl,
 		__entry->wIndex = le16_to_cpu(ctrl->wIndex);
 		__entry->wLength = le16_to_cpu(ctrl->wLength);
 	),
-	TP_printk("%s", usb_decode_ctrl(__get_str(str), CDNSP_MSG_MAX,
+	TP_printk("%s", usb_decode_ctrl(__get_buf(CDNSP_MSG_MAX), CDNSP_MSG_MAX,
 					__entry->bRequestType,
 					__entry->bRequest, __entry->wValue,
 					__entry->wIndex, __entry->wLength)
@@ -345,7 +344,6 @@ DECLARE_EVENT_CLASS(cdnsp_log_trb,
 		__field(u32, field3)
 		__field(union cdnsp_trb *, trb)
 		__field(dma_addr_t, trb_dma)
-		__dynamic_array(char, str, CDNSP_MSG_MAX)
 	),
 	TP_fast_assign(
 		__entry->type = ring->type;
@@ -359,7 +357,7 @@ DECLARE_EVENT_CLASS(cdnsp_log_trb,
 
 	),
 	TP_printk("%s: %s trb: %p(%pad)", cdnsp_ring_type_string(__entry->type),
-		  cdnsp_decode_trb(__get_str(str), CDNSP_MSG_MAX,
+		  cdnsp_decode_trb(__get_buf(CDNSP_MSG_MAX), CDNSP_MSG_MAX,
 				   __entry->field0, __entry->field1,
 				   __entry->field2, __entry->field3),
 				   __entry->trb, &__entry->trb_dma
@@ -544,7 +542,6 @@ DECLARE_EVENT_CLASS(cdnsp_log_ep_ctx,
 		__field(u32, info2)
 		__field(u64, deq)
 		__field(u32, tx_info)
-		__dynamic_array(char, str, CDNSP_MSG_MAX)
 	),
 	TP_fast_assign(
 		__entry->info = le32_to_cpu(ctx->ep_info);
@@ -552,7 +549,7 @@ DECLARE_EVENT_CLASS(cdnsp_log_ep_ctx,
 		__entry->deq = le64_to_cpu(ctx->deq);
 		__entry->tx_info = le32_to_cpu(ctx->tx_info);
 	),
-	TP_printk("%s", cdnsp_decode_ep_context(__get_str(str), CDNSP_MSG_MAX,
+	TP_printk("%s", cdnsp_decode_ep_context(__get_buf(CDNSP_MSG_MAX), CDNSP_MSG_MAX,
 						__entry->info, __entry->info2,
 						__entry->deq, __entry->tx_info)
 	)
@@ -777,7 +774,6 @@ DECLARE_EVENT_CLASS(cdnsp_log_portsc,
 		TP_STRUCT__entry(
 				__field(u32, portnum)
 				__field(u32, portsc)
-				__dynamic_array(char, str, CDNSP_MSG_MAX)
 				),
 		TP_fast_assign(
 				__entry->portnum = portnum;
@@ -785,7 +781,7 @@ DECLARE_EVENT_CLASS(cdnsp_log_portsc,
 				),
 		TP_printk("port-%d: %s",
 			  __entry->portnum,
-			  cdnsp_decode_portsc(__get_str(str), CDNSP_MSG_MAX,
+			  cdnsp_decode_portsc(__get_buf(CDNSP_MSG_MAX), CDNSP_MSG_MAX,
 					      __entry->portsc)
 			)
 );

@@ -186,9 +186,8 @@ static int vfio_set_trigger(struct vfio_platform_device *vdev, int index,
 
 	if (fd < 0) /* Disable only */
 		return 0;
-
-	irq->name = kasprintf(GFP_KERNEL, "vfio-irq[%d](%s)",
-						irq->hwirq, vdev->name);
+	irq->name = kasprintf(GFP_KERNEL_ACCOUNT, "vfio-irq[%d](%s)",
+			      irq->hwirq, vdev->name);
 	if (!irq->name)
 		return -ENOMEM;
 
@@ -286,7 +285,8 @@ int vfio_platform_irq_init(struct vfio_platform_device *vdev)
 	while (vdev->get_irq(vdev, cnt) >= 0)
 		cnt++;
 
-	vdev->irqs = kcalloc(cnt, sizeof(struct vfio_platform_irq), GFP_KERNEL);
+	vdev->irqs = kcalloc(cnt, sizeof(struct vfio_platform_irq),
+			     GFP_KERNEL_ACCOUNT);
 	if (!vdev->irqs)
 		return -ENOMEM;
 

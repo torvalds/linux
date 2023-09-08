@@ -19,6 +19,7 @@
 #include "kvm_util.h"
 #include "asm/kvm.h"
 #include "linux/kvm.h"
+#include "kselftest.h"
 
 static void stats_test(int stats_fd)
 {
@@ -51,7 +52,7 @@ static void stats_test(int stats_fd)
 
 	/* Sanity check for other fields in header */
 	if (header.num_desc == 0) {
-		printf("No KVM stats defined!");
+		ksft_print_msg("No KVM stats defined!\n");
 		return;
 	}
 	/*
@@ -133,7 +134,7 @@ static void stats_test(int stats_fd)
 				    "Bucket size of stats (%s) is not zero",
 				    pdesc->name);
 		}
-		size_data += pdesc->size * sizeof(*stats_data);
+		size_data = max(size_data, pdesc->offset + pdesc->size * sizeof(*stats_data));
 	}
 
 	/*
@@ -147,14 +148,6 @@ static void stats_test(int stats_fd)
 	/* Check validity of all stats data size */
 	TEST_ASSERT(size_data >= header.num_desc * sizeof(*stats_data),
 		    "Data size is not correct");
-
-	/* Check stats offset */
-	for (i = 0; i < header.num_desc; ++i) {
-		pdesc = get_stats_descriptor(stats_desc, i, &header);
-		TEST_ASSERT(pdesc->offset < size_data,
-			    "Invalid offset (%u) for stats: %s",
-			    pdesc->offset, pdesc->name);
-	}
 
 	/* Allocate memory for stats data */
 	stats_data = malloc(size_data);
@@ -224,8 +217,12 @@ int main(int argc, char *argv[])
 			max_vcpu = DEFAULT_NUM_VCPU;
 	}
 
+	ksft_print_header();
+
 	/* Check the extension for binary stats */
 	TEST_REQUIRE(kvm_has_cap(KVM_CAP_BINARY_STATS_FD));
+
+	ksft_set_plan(max_vm);
 
 	/* Create VMs and VCPUs */
 	vms = malloc(sizeof(vms[0]) * max_vm);
@@ -245,10 +242,12 @@ int main(int argc, char *argv[])
 		vm_stats_test(vms[i]);
 		for (j = 0; j < max_vcpu; ++j)
 			vcpu_stats_test(vcpus[i * max_vcpu + j]);
+		ksft_test_result_pass("vm%i\n", i);
 	}
 
 	for (i = 0; i < max_vm; ++i)
 		kvm_vm_free(vms[i]);
 	free(vms);
-	return 0;
+
+	ksft_finished();	/* Print results and exit() accordingly */
 }

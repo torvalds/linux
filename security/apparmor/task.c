@@ -31,7 +31,7 @@ struct aa_label *aa_get_task_label(struct task_struct *task)
 	struct aa_label *p;
 
 	rcu_read_lock();
-	p = aa_get_newest_label(__aa_task_raw_label(task));
+	p = aa_get_newest_cred_label(__task_cred(task));
 	rcu_read_unlock();
 
 	return p;
@@ -223,16 +223,18 @@ static void audit_ptrace_cb(struct audit_buffer *ab, void *va)
 			FLAGS_NONE, GFP_ATOMIC);
 }
 
-/* assumes check for PROFILE_MEDIATES is already done */
+/* assumes check for RULE_MEDIATES is already done */
 /* TODO: conditionals */
 static int profile_ptrace_perm(struct aa_profile *profile,
 			     struct aa_label *peer, u32 request,
 			     struct common_audit_data *sa)
 {
+	struct aa_ruleset *rules = list_first_entry(&profile->rules,
+						    typeof(*rules), list);
 	struct aa_perms perms = { };
 
 	aad(sa)->peer = peer;
-	aa_profile_match_label(profile, peer, AA_CLASS_PTRACE, request,
+	aa_profile_match_label(profile, rules, peer, AA_CLASS_PTRACE, request,
 			       &perms);
 	aa_apply_modes_to_perms(profile, &perms);
 	return aa_check_perms(profile, &perms, request, sa, audit_ptrace_cb);
@@ -243,7 +245,7 @@ static int profile_tracee_perm(struct aa_profile *tracee,
 			       struct common_audit_data *sa)
 {
 	if (profile_unconfined(tracee) || unconfined(tracer) ||
-	    !PROFILE_MEDIATES(tracee, AA_CLASS_PTRACE))
+	    !ANY_RULE_MEDIATES(&tracee->rules, AA_CLASS_PTRACE))
 		return 0;
 
 	return profile_ptrace_perm(tracee, tracer, request, sa);
@@ -256,7 +258,7 @@ static int profile_tracer_perm(struct aa_profile *tracer,
 	if (profile_unconfined(tracer))
 		return 0;
 
-	if (PROFILE_MEDIATES(tracer, AA_CLASS_PTRACE))
+	if (ANY_RULE_MEDIATES(&tracer->rules, AA_CLASS_PTRACE))
 		return profile_ptrace_perm(tracer, tracee, request, sa);
 
 	/* profile uses the old style capability check for ptrace */
@@ -285,7 +287,7 @@ int aa_may_ptrace(struct aa_label *tracer, struct aa_label *tracee,
 {
 	struct aa_profile *profile;
 	u32 xrequest = request << PTRACE_PERM_SHIFT;
-	DEFINE_AUDIT_DATA(sa, LSM_AUDIT_DATA_NONE, OP_PTRACE);
+	DEFINE_AUDIT_DATA(sa, LSM_AUDIT_DATA_NONE, AA_CLASS_PTRACE, OP_PTRACE);
 
 	return xcheck_labels(tracer, tracee, profile,
 			profile_tracer_perm(profile, tracee, request, &sa),

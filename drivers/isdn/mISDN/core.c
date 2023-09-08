@@ -139,9 +139,9 @@ static struct attribute *mISDN_attrs[] = {
 };
 ATTRIBUTE_GROUPS(mISDN);
 
-static int mISDN_uevent(struct device *dev, struct kobj_uevent_env *env)
+static int mISDN_uevent(const struct device *dev, struct kobj_uevent_env *env)
 {
-	struct mISDNdevice *mdev = dev_to_mISDN(dev);
+	const struct mISDNdevice *mdev = dev_to_mISDN(dev);
 
 	if (!mdev)
 		return 0;
@@ -152,18 +152,11 @@ static int mISDN_uevent(struct device *dev, struct kobj_uevent_env *env)
 	return 0;
 }
 
-static void mISDN_class_release(struct class *cls)
-{
-	/* do nothing, it's static */
-}
-
 static struct class mISDN_class = {
 	.name = "mISDN",
-	.owner = THIS_MODULE,
 	.dev_uevent = mISDN_uevent,
 	.dev_groups = mISDN_groups,
 	.dev_release = mISDN_dev_release,
-	.class_release = mISDN_class_release,
 };
 
 static int

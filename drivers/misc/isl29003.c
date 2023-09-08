@@ -186,7 +186,7 @@ static ssize_t isl29003_show_range(struct device *dev,
 {
 	struct i2c_client *client = to_i2c_client(dev);
 
-	return sprintf(buf, "%i\n", isl29003_get_range(client));
+	return sysfs_emit(buf, "%i\n", isl29003_get_range(client));
 }
 
 static ssize_t isl29003_store_range(struct device *dev,
@@ -222,7 +222,7 @@ static ssize_t isl29003_show_resolution(struct device *dev,
 {
 	struct i2c_client *client = to_i2c_client(dev);
 
-	return sprintf(buf, "%d\n", isl29003_get_resolution(client));
+	return sysfs_emit(buf, "%d\n", isl29003_get_resolution(client));
 }
 
 static ssize_t isl29003_store_resolution(struct device *dev,
@@ -256,7 +256,7 @@ static ssize_t isl29003_show_mode(struct device *dev,
 {
 	struct i2c_client *client = to_i2c_client(dev);
 
-	return sprintf(buf, "%d\n", isl29003_get_mode(client));
+	return sysfs_emit(buf, "%d\n", isl29003_get_mode(client));
 }
 
 static ssize_t isl29003_store_mode(struct device *dev,
@@ -291,7 +291,7 @@ static ssize_t isl29003_show_power_state(struct device *dev,
 {
 	struct i2c_client *client = to_i2c_client(dev);
 
-	return sprintf(buf, "%d\n", isl29003_get_power_state(client));
+	return sysfs_emit(buf, "%d\n", isl29003_get_power_state(client));
 }
 
 static ssize_t isl29003_store_power_state(struct device *dev,
@@ -327,7 +327,7 @@ static ssize_t isl29003_show_lux(struct device *dev,
 	if (!isl29003_get_power_state(client))
 		return -EBUSY;
 
-	return sprintf(buf, "%d\n", isl29003_get_adc_value(client));
+	return sysfs_emit(buf, "%d\n", isl29003_get_adc_value(client));
 }
 
 static DEVICE_ATTR(lux, S_IRUGO, isl29003_show_lux, NULL);
@@ -374,8 +374,7 @@ static int isl29003_init_client(struct i2c_client *client)
  * I2C layer
  */
 
-static int isl29003_probe(struct i2c_client *client,
-				    const struct i2c_device_id *id)
+static int isl29003_probe(struct i2c_client *client)
 {
 	struct i2c_adapter *adapter = client->adapter;
 	struct isl29003_data *data;
@@ -460,7 +459,7 @@ static struct i2c_driver isl29003_driver = {
 		.name	= ISL29003_DRV_NAME,
 		.pm	= ISL29003_PM_OPS,
 	},
-	.probe	= isl29003_probe,
+	.probe_new = isl29003_probe,
 	.remove	= isl29003_remove,
 	.id_table = isl29003_id,
 };

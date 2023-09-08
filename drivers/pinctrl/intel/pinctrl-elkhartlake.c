@@ -27,18 +27,8 @@
 		.size = ((e) - (s) + 1),		\
 	}
 
-#define EHL_COMMUNITY(s, e, g)				\
-	{						\
-		.padown_offset = EHL_PAD_OWN,		\
-		.padcfglock_offset = EHL_PADCFGLOCK,	\
-		.hostown_offset = EHL_HOSTSW_OWN,	\
-		.is_offset = EHL_GPI_IS,		\
-		.ie_offset = EHL_GPI_IE,		\
-		.pin_base = (s),			\
-		.npins = ((e) - (s) + 1),		\
-		.gpps = (g),				\
-		.ngpps = ARRAY_SIZE(g),			\
-	}
+#define EHL_COMMUNITY(b, s, e, g)			\
+	INTEL_COMMUNITY_GPPS(b, s, e, g, EHL)
 
 /* Elkhart Lake */
 static const struct pinctrl_pin_desc ehl_community0_pins[] = {
@@ -121,7 +111,7 @@ static const struct intel_padgroup ehl_community0_gpps[] = {
 };
 
 static const struct intel_community ehl_community0[] = {
-	EHL_COMMUNITY(0, 66, ehl_community0_gpps),
+	EHL_COMMUNITY(0, 0, 66, ehl_community0_gpps),
 };
 
 static const struct intel_pinctrl_soc_data ehl_community0_soc_data = {
@@ -262,7 +252,7 @@ static const struct intel_padgroup ehl_community1_gpps[] = {
 };
 
 static const struct intel_community ehl_community1[] = {
-	EHL_COMMUNITY(0, 112, ehl_community1_gpps),
+	EHL_COMMUNITY(0, 0, 112, ehl_community1_gpps),
 };
 
 static const struct intel_pinctrl_soc_data ehl_community1_soc_data = {
@@ -335,7 +325,7 @@ static const struct intel_padgroup ehl_community3_gpps[] = {
 };
 
 static const struct intel_community ehl_community3[] = {
-	EHL_COMMUNITY(0, 46, ehl_community3_gpps),
+	EHL_COMMUNITY(0, 0, 46, ehl_community3_gpps),
 };
 
 static const struct intel_pinctrl_soc_data ehl_community3_soc_data = {
@@ -441,7 +431,7 @@ static const struct intel_padgroup ehl_community4_gpps[] = {
 };
 
 static const struct intel_community ehl_community4[] = {
-	EHL_COMMUNITY(0, 79, ehl_community4_gpps),
+	EHL_COMMUNITY(0, 0, 79, ehl_community4_gpps),
 };
 
 static const struct intel_pinctrl_soc_data ehl_community4_soc_data = {
@@ -469,7 +459,7 @@ static const struct intel_padgroup ehl_community5_gpps[] = {
 };
 
 static const struct intel_community ehl_community5[] = {
-	EHL_COMMUNITY(0, 7, ehl_community5_gpps),
+	EHL_COMMUNITY(0, 0, 7, ehl_community5_gpps),
 };
 
 static const struct intel_pinctrl_soc_data ehl_community5_soc_data = {

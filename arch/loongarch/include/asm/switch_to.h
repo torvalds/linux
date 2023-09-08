@@ -34,6 +34,7 @@ extern asmlinkage struct task_struct *__switch_to(struct task_struct *prev,
 #define switch_to(prev, next, last)						\
 do {										\
 	lose_fpu_inatomic(1, prev);						\
+	hw_breakpoint_thread_switch(next);					\
 	(last) = __switch_to(prev, next, task_thread_info(next),		\
 		 __builtin_return_address(0), __builtin_frame_address(0));	\
 } while (0)

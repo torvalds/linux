@@ -22,13 +22,16 @@
 #include <linux/gfp.h>
 #include <linux/if_arp.h>
 #include <linux/if_ether.h>
+#include <linux/ip.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/netdev_features.h>
 #include <linux/netdevice.h>
+#include <linux/pm_runtime.h>
 #include <linux/skbuff.h>
 #include <linux/types.h>
 #include <linux/wwan.h>
+#include <net/ipv6.h>
 #include <net/pkt_sched.h>
 
 #include "t7xx_hif_dpmaif_rx.h"
@@ -39,13 +42,60 @@
 #include "t7xx_state_monitor.h"
 
 #define IP_MUX_SESSION_DEFAULT	0
+#define SBD_PACKET_TYPE_MASK	GENMASK(7, 4)
+
+static void t7xx_ccmni_enable_napi(struct t7xx_ccmni_ctrl *ctlb)
+{
+	struct dpmaif_ctrl *ctrl;
+	int i, ret;
+
+	ctrl =  ctlb->hif_ctrl;
+
+	if (ctlb->is_napi_en)
+		return;
+
+	for (i = 0; i < RXQ_NUM; i++) {
+		/* The usage count has to be bumped every time before calling
+		 * napi_schedule. It will be decresed in the poll routine,
+		 * right after napi_complete_done is called.
+		 */
+		ret = pm_runtime_resume_and_get(ctrl->dev);
+		if (ret < 0) {
+			dev_err(ctrl->dev, "Failed to resume device: %d\n",
+				ret);
+			return;
+		}
+		napi_enable(ctlb->napi[i]);
+		napi_schedule(ctlb->napi[i]);
+	}
+	ctlb->is_napi_en = true;
+}
+
+static void t7xx_ccmni_disable_napi(struct t7xx_ccmni_ctrl *ctlb)
+{
+	int i;
+
+	if (!ctlb->is_napi_en)
+		return;
+
+	for (i = 0; i < RXQ_NUM; i++) {
+		napi_synchronize(ctlb->napi[i]);
+		napi_disable(ctlb->napi[i]);
+	}
+
+	ctlb->is_napi_en = false;
+}
 
 static int t7xx_ccmni_open(struct net_device *dev)
 {
 	struct t7xx_ccmni *ccmni = wwan_netdev_drvpriv(dev);
+	struct t7xx_ccmni_ctrl *ccmni_ctl = ccmni->ctlb;
 
 	netif_carrier_on(dev);
 	netif_tx_start_all_queues(dev);
+	if (!atomic_fetch_inc(&ccmni_ctl->napi_usr_refcnt))
+		t7xx_ccmni_enable_napi(ccmni_ctl);
+
 	atomic_inc(&ccmni->usage);
 	return 0;
 }
@@ -53,8 +103,12 @@ static int t7xx_ccmni_open(struct net_device *dev)
 static int t7xx_ccmni_close(struct net_device *dev)
 {
 	struct t7xx_ccmni *ccmni = wwan_netdev_drvpriv(dev);
+	struct t7xx_ccmni_ctrl *ccmni_ctl = ccmni->ctlb;
 
 	atomic_dec(&ccmni->usage);
+	if (atomic_dec_and_test(&ccmni_ctl->napi_usr_refcnt))
+		t7xx_ccmni_disable_napi(ccmni_ctl);
+
 	netif_carrier_off(dev);
 	netif_tx_disable(dev);
 	return 0;
@@ -127,6 +181,9 @@ static void t7xx_ccmni_start(struct t7xx_ccmni_ctrl *ctlb)
 			netif_carrier_on(ccmni->dev);
 		}
 	}
+
+	if (atomic_read(&ctlb->napi_usr_refcnt))
+		t7xx_ccmni_enable_napi(ctlb);
 }
 
 static void t7xx_ccmni_pre_stop(struct t7xx_ccmni_ctrl *ctlb)
@@ -149,6 +206,9 @@ static void t7xx_ccmni_post_stop(struct t7xx_ccmni_ctrl *ctlb)
 	struct t7xx_ccmni *ccmni;
 	int i;
 
+	if (atomic_read(&ctlb->napi_usr_refcnt))
+		t7xx_ccmni_disable_napi(ctlb);
+
 	for (i = 0; i < ctlb->nic_dev_num; i++) {
 		ccmni = ctlb->ccmni_inst[i];
 		if (!ccmni)
@@ -161,7 +221,7 @@ static void t7xx_ccmni_post_stop(struct t7xx_ccmni_ctrl *ctlb)
 
 static void t7xx_ccmni_wwan_setup(struct net_device *dev)
 {
-	dev->hard_header_len += sizeof(struct ccci_header);
+	dev->needed_headroom += sizeof(struct ccci_header);
 
 	dev->mtu = ETH_DATA_LEN;
 	dev->max_mtu = CCMNI_MTU_MAX;
@@ -183,11 +243,42 @@ static void t7xx_ccmni_wwan_setup(struct net_device *dev)
 	dev->features |= NETIF_F_RXCSUM;
 	dev->hw_features |= NETIF_F_RXCSUM;
 
+	dev->features |= NETIF_F_GRO;
+	dev->hw_features |= NETIF_F_GRO;
+
 	dev->needs_free_netdev = true;
 
 	dev->type = ARPHRD_NONE;
 
 	dev->netdev_ops = &ccmni_netdev_ops;
+}
+
+static void t7xx_init_netdev_napi(struct t7xx_ccmni_ctrl *ctlb)
+{
+	int i;
+
+	/* one HW, but shared with multiple net devices,
+	 * so add a dummy device for NAPI.
+	 */
+	init_dummy_netdev(&ctlb->dummy_dev);
+	atomic_set(&ctlb->napi_usr_refcnt, 0);
+	ctlb->is_napi_en = false;
+
+	for (i = 0; i < RXQ_NUM; i++) {
+		ctlb->napi[i] = &ctlb->hif_ctrl->rxq[i].napi;
+		netif_napi_add_weight(&ctlb->dummy_dev, ctlb->napi[i], t7xx_dpmaif_napi_rx_poll,
+				      NIC_NAPI_POLL_BUDGET);
+	}
+}
+
+static void t7xx_uninit_netdev_napi(struct t7xx_ccmni_ctrl *ctlb)
+{
+	int i;
+
+	for (i = 0; i < RXQ_NUM; i++) {
+		netif_napi_del(ctlb->napi[i]);
+		ctlb->napi[i] = NULL;
+	}
 }
 
 static int t7xx_ccmni_wwan_newlink(void *ctxt, struct net_device *dev, u32 if_id,
@@ -311,7 +402,8 @@ static void init_md_status_notifier(struct t7xx_pci_dev *t7xx_dev)
 	t7xx_fsm_notifier_register(t7xx_dev->md, md_status_notifier);
 }
 
-static void t7xx_ccmni_recv_skb(struct t7xx_pci_dev *t7xx_dev, struct sk_buff *skb)
+static void t7xx_ccmni_recv_skb(struct t7xx_ccmni_ctrl *ccmni_ctlb, struct sk_buff *skb,
+				struct napi_struct *napi)
 {
 	struct t7xx_skb_cb *skb_cb;
 	struct net_device *net_dev;
@@ -321,23 +413,22 @@ static void t7xx_ccmni_recv_skb(struct t7xx_pci_dev *t7xx_dev, struct sk_buff *s
 
 	skb_cb = T7XX_SKB_CB(skb);
 	netif_id = skb_cb->netif_idx;
-	ccmni = t7xx_dev->ccmni_ctlb->ccmni_inst[netif_id];
+	ccmni = ccmni_ctlb->ccmni_inst[netif_id];
 	if (!ccmni) {
 		dev_kfree_skb(skb);
 		return;
 	}
 
 	net_dev = ccmni->dev;
-	skb->dev = net_dev;
-
 	pkt_type = skb_cb->rx_pkt_type;
+	skb->dev = net_dev;
 	if (pkt_type == PKT_TYPE_IP6)
 		skb->protocol = htons(ETH_P_IPV6);
 	else
 		skb->protocol = htons(ETH_P_IP);
 
 	skb_len = skb->len;
-	netif_rx(skb);
+	napi_gro_receive(napi, skb);
 	net_dev->stats.rx_packets++;
 	net_dev->stats.rx_bytes += skb_len;
 }
@@ -404,6 +495,7 @@ int t7xx_ccmni_init(struct t7xx_pci_dev *t7xx_dev)
 	if (!ctlb->hif_ctrl)
 		return -ENOMEM;
 
+	t7xx_init_netdev_napi(ctlb);
 	init_md_status_notifier(t7xx_dev);
 	return 0;
 }
@@ -419,5 +511,6 @@ void t7xx_ccmni_exit(struct t7xx_pci_dev *t7xx_dev)
 		ctlb->wwan_is_registered = false;
 	}
 
+	t7xx_uninit_netdev_napi(ctlb);
 	t7xx_dpmaif_hif_exit(ctlb->hif_ctrl);
 }

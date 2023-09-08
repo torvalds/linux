@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/rtc/st,stm32-rtc.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: STMicroelectronics STM32 Real Time Clock Bindings
+title: STMicroelectronics STM32 Real Time Clock
 
 maintainers:
   - Gabriel Fernandez <gabriel.fernandez@foss.st.com>
@@ -32,7 +32,7 @@ properties:
     maxItems: 1
 
   st,syscfg:
-    $ref: "/schemas/types.yaml#/definitions/phandle-array"
+    $ref: /schemas/types.yaml#/definitions/phandle-array
     items:
       minItems: 3
       maxItems: 3

@@ -59,7 +59,7 @@ static void test_check_mtu_xdp_attach(void)
 
 	memset(&link_info, 0, sizeof(link_info));
 	fd = bpf_link__fd(link);
-	err = bpf_obj_get_info_by_fd(fd, &link_info, &link_info_len);
+	err = bpf_link_get_info_by_fd(fd, &link_info, &link_info_len);
 	if (CHECK(err, "link_info", "failed: %d\n", err))
 		goto out;
 

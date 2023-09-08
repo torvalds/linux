@@ -42,25 +42,25 @@
 	leds {
 		compatible = "gpio-leds";
 
-		led0 {
+		led-0 {
 			label = "ci20:red:led0";
 			gpios = <&gpc 3 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "none";
 		};
 
-		led1 {
+		led-1 {
 			label = "ci20:red:led1";
 			gpios = <&gpc 2 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "nand-disk";
 		};
 
-		led2 {
+		led-2 {
 			label = "ci20:red:led2";
 			gpios = <&gpc 1 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "cpu1";
 		};
 
-		led3 {
+		led-3 {
 			label = "ci20:red:led3";
 			gpios = <&gpc 0 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "cpu0";
@@ -113,7 +113,7 @@
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
 
-		gpio = <&gpf 14 GPIO_ACTIVE_LOW>;
+		gpio = <&gpf 15 GPIO_ACTIVE_LOW>;
 		enable-active-high;
 	};
 };
@@ -438,7 +438,7 @@
 		ingenic,nemc-tAW = <50>;
 		ingenic,nemc-tSTRV = <100>;
 
-		reset-gpios = <&gpf 12 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpf 12 GPIO_ACTIVE_LOW>;
 		vcc-supply = <&eth0_power>;
 
 		interrupt-parent = <&gpe>;

@@ -5,7 +5,13 @@
  * Copyright (C) 2012 NVIDIA CORPORATION. All rights reserved.
  */
 
+#include <linux/errno.h>
+
+struct device_node;
 struct of_phandle_args;
+
+struct pinctrl;
+struct pinctrl_dev;
 
 #ifdef CONFIG_OF
 

@@ -5,6 +5,12 @@
 #include <linux/auxiliary_bus.h>
 #include <linux/bits.h>
 
+#define VSEC_CAP_TELEMETRY	BIT(0)
+#define VSEC_CAP_WATCHER	BIT(1)
+#define VSEC_CAP_CRASHLOG	BIT(2)
+#define VSEC_CAP_SDSI		BIT(3)
+#define VSEC_CAP_TPMI		BIT(4)
+
 struct pci_dev;
 struct resource;
 
@@ -27,7 +33,8 @@ enum intel_vsec_quirks {
 
 /* Platform specific data */
 struct intel_vsec_platform_info {
-	struct intel_vsec_header **capabilities;
+	struct intel_vsec_header **headers;
+	unsigned long caps;
 	unsigned long quirks;
 };
 
@@ -38,7 +45,13 @@ struct intel_vsec_device {
 	struct ida *ida;
 	struct intel_vsec_platform_info *info;
 	int num_resources;
+	void *priv_data;
+	size_t priv_data_size;
 };
+
+int intel_vsec_add_aux(struct pci_dev *pdev, struct device *parent,
+		       struct intel_vsec_device *intel_vsec_dev,
+		       const char *name);
 
 static inline struct intel_vsec_device *dev_to_ivdev(struct device *dev)
 {

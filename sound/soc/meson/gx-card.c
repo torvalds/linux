@@ -104,7 +104,8 @@ static int gx_card_add_link(struct snd_soc_card *card, struct device_node *np,
 
 	/* Or apply codec to codec params if necessary */
 	if (gx_card_cpu_identify(dai_link->cpus, "CODEC CTRL")) {
-		dai_link->params = &codec_params;
+		dai_link->c2c_params = &codec_params;
+		dai_link->num_c2c_params = 1;
 	} else {
 		dai_link->no_pcm = 1;
 		snd_soc_dai_link_set_capabilities(dai_link);

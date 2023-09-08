@@ -15,15 +15,16 @@
 // but provides extensions to which platform specific implementation of the gpio
 // and wakeup interrupts can be hooked to.
 
-#include <linux/init.h>
-#include <linux/platform_device.h>
-#include <linux/io.h>
-#include <linux/property.h>
-#include <linux/slab.h>
 #include <linux/err.h>
 #include <linux/gpio/driver.h>
+#include <linux/init.h>
+#include <linux/io.h>
 #include <linux/irqdomain.h>
 #include <linux/of_device.h>
+#include <linux/platform_device.h>
+#include <linux/property.h>
+#include <linux/seq_file.h>
+#include <linux/slab.h>
 #include <linux/spinlock.h>
 
 #include "../core.h"
@@ -648,7 +649,7 @@ static int samsung_gpio_direction_output(struct gpio_chip *gc, unsigned offset,
 }
 
 /*
- * gpiolib gpio_to_irq callback function. Creates a mapping between a GPIO pin
+ * gpiod_to_irq() callback function. Creates a mapping between a GPIO pin
  * and a virtual IRQ, if not already present.
  */
 static int samsung_gpio_to_irq(struct gpio_chip *gc, unsigned offset)
@@ -1322,16 +1323,6 @@ static const struct of_device_id samsung_pinctrl_dt_match[] = {
 #ifdef CONFIG_PINCTRL_S3C64XX
 	{ .compatible = "samsung,s3c64xx-pinctrl",
 		.data = &s3c64xx_of_data },
-#endif
-#ifdef CONFIG_PINCTRL_S3C24XX
-	{ .compatible = "samsung,s3c2412-pinctrl",
-		.data = &s3c2412_of_data },
-	{ .compatible = "samsung,s3c2416-pinctrl",
-		.data = &s3c2416_of_data },
-	{ .compatible = "samsung,s3c2440-pinctrl",
-		.data = &s3c2440_of_data },
-	{ .compatible = "samsung,s3c2450-pinctrl",
-		.data = &s3c2450_of_data },
 #endif
 	{},
 };

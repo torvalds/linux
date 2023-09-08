@@ -19,7 +19,7 @@ _DEFAULT_OUTPUT = 'compile_commands.json'
 _DEFAULT_LOG_LEVEL = 'WARNING'
 
 _FILENAME_PATTERN = r'^\..*\.cmd$'
-_LINE_PATTERN = r'^cmd_[^ ]*\.o := (.* )([^ ]*\.c) *(;|$)'
+_LINE_PATTERN = r'^savedcmd_[^ ]*\.o := (.* )([^ ]*\.c) *(;|$)'
 _VALID_LOG_LEVELS = ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']
 # The tools/ directory adopts a different build system, and produces .cmd
 # files in a different format. Do not support it.
@@ -138,10 +138,10 @@ def cmdfiles_for_modorder(modorder):
     """
     with open(modorder) as f:
         for line in f:
-            ko = line.rstrip()
-            base, ext = os.path.splitext(ko)
-            if ext != '.ko':
-                sys.exit('{}: module path must end with .ko'.format(ko))
+            obj = line.rstrip()
+            base, ext = os.path.splitext(obj)
+            if ext != '.o':
+                sys.exit('{}: module path must end with .o'.format(obj))
             mod = base + '.mod'
             # Read from *.mod, to get a list of objects that compose the module.
             with open(mod) as m:

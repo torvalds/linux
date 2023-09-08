@@ -19,11 +19,12 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
+#include <drm/ttm/ttm_tt.h>
+
 #include "nouveau_mem.h"
 #include "nouveau_drv.h"
 #include "nouveau_bo.h"
 
-#include <drm/ttm/ttm_bo_driver.h>
 
 #include <nvif/class.h>
 #include <nvif/if000a.h>
@@ -115,7 +116,7 @@ nouveau_mem_host(struct ttm_resource *reg, struct ttm_tt *tt)
 
 	mutex_lock(&drm->master.lock);
 	ret = nvif_mem_ctor_type(mmu, "ttmHostMem", cli->mem->oclass, type, PAGE_SHIFT,
-				 reg->num_pages << PAGE_SHIFT,
+				 reg->size,
 				 &args, sizeof(args), &mem->mem);
 	mutex_unlock(&drm->master.lock);
 	return ret;
@@ -128,7 +129,7 @@ nouveau_mem_vram(struct ttm_resource *reg, bool contig, u8 page)
 	struct nouveau_cli *cli = mem->cli;
 	struct nouveau_drm *drm = cli->drm;
 	struct nvif_mmu *mmu = &cli->mmu;
-	u64 size = ALIGN(reg->num_pages << PAGE_SHIFT, 1 << page);
+	u64 size = ALIGN(reg->size, 1 << page);
 	int ret;
 
 	mutex_lock(&drm->master.lock);

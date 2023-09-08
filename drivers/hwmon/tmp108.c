@@ -272,7 +272,7 @@ static umode_t tmp108_is_visible(const void *data, enum hwmon_sensor_types type,
 	}
 }
 
-static const struct hwmon_channel_info *tmp108_info[] = {
+static const struct hwmon_channel_info * const tmp108_info[] = {
 	HWMON_CHANNEL_INFO(chip,
 			   HWMON_C_REGISTER_TZ | HWMON_C_UPDATE_INTERVAL),
 	HWMON_CHANNEL_INFO(temp,

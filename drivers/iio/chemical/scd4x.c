@@ -615,7 +615,7 @@ out:
 	return IRQ_HANDLED;
 }
 
-static int scd4x_probe(struct i2c_client *client, const struct i2c_device_id *id)
+static int scd4x_probe(struct i2c_client *client)
 {
 	static const unsigned long scd4x_scan_masks[] = { 0x07, 0x00 };
 	struct device *dev = &client->dev;
@@ -690,7 +690,7 @@ static struct i2c_driver scd4x_i2c_driver = {
 		.of_match_table = scd4x_dt_ids,
 		.pm = pm_sleep_ptr(&scd4x_pm_ops),
 	},
-	.probe = scd4x_probe,
+	.probe_new = scd4x_probe,
 };
 module_i2c_driver(scd4x_i2c_driver);
 

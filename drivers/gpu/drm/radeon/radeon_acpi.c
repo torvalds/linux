@@ -22,6 +22,7 @@
  */
 
 #include <linux/acpi.h>
+#include <linux/backlight.h>
 #include <linux/pci.h>
 #include <linux/pm_runtime.h>
 #include <linux/power_supply.h>
@@ -30,7 +31,6 @@
 #include <acpi/acpi_bus.h>
 #include <acpi/video.h>
 
-#include <drm/drm_crtc_helper.h>
 #include <drm/drm_probe_helper.h>
 
 #include "atom.h"

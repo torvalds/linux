@@ -172,7 +172,7 @@ static void qeth_get_strings(struct net_device *dev, u32 stringset, u8 *data)
 		qeth_add_stat_strings(&data, prefix, card_stats,
 				      CARD_STATS_LEN);
 		for (i = 0; i < card->qdio.no_out_queues; i++) {
-			snprintf(prefix, ETH_GSTRING_LEN, "tx%u ", i);
+			scnprintf(prefix, ETH_GSTRING_LEN, "tx%u ", i);
 			qeth_add_stat_strings(&data, prefix, txq_stats,
 					      TXQ_STATS_LEN);
 		}
@@ -192,8 +192,8 @@ static void qeth_get_drvinfo(struct net_device *dev,
 		sizeof(info->driver));
 	strscpy(info->fw_version, card->info.mcl_level,
 		sizeof(info->fw_version));
-	snprintf(info->bus_info, sizeof(info->bus_info), "%s/%s/%s",
-		 CARD_RDEV_ID(card), CARD_WDEV_ID(card), CARD_DDEV_ID(card));
+	scnprintf(info->bus_info, sizeof(info->bus_info), "%s/%s/%s",
+		  CARD_RDEV_ID(card), CARD_WDEV_ID(card), CARD_DDEV_ID(card));
 }
 
 static void qeth_get_channels(struct net_device *dev,

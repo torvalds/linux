@@ -309,22 +309,32 @@ static int scsi_vpd_inquiry(struct scsi_device *sdev, unsigned char *buffer,
 	 * I'm not convinced we need to try quite this hard to get VPD, but
 	 * all the existing users tried this hard.
 	 */
-	result = scsi_execute_req(sdev, cmd, DMA_FROM_DEVICE, buffer,
-				  len, NULL, 30 * HZ, 3, NULL);
+	result = scsi_execute_cmd(sdev, cmd, REQ_OP_DRV_IN, buffer, len,
+				  30 * HZ, 3, NULL);
 	if (result)
 		return -EIO;
 
-	/* Sanity check that we got the page back that we asked for */
+	/*
+	 * Sanity check that we got the page back that we asked for and that
+	 * the page size is not 0.
+	 */
 	if (buffer[1] != page)
 		return -EIO;
 
-	return get_unaligned_be16(&buffer[2]) + 4;
+	result = get_unaligned_be16(&buffer[2]);
+	if (!result)
+		return -EIO;
+
+	return result + 4;
 }
 
 static int scsi_get_vpd_size(struct scsi_device *sdev, u8 page)
 {
 	unsigned char vpd_header[SCSI_VPD_HEADER_SIZE] __aligned(4);
 	int result;
+
+	if (sdev->no_vpd_size)
+		return SCSI_DEFAULT_VPD_LEN;
 
 	/*
 	 * Fetch the VPD page header to find out how big the page
@@ -510,6 +520,9 @@ int scsi_report_opcode(struct scsi_device *sdev, unsigned char *buffer,
 	unsigned char cmd[16];
 	struct scsi_sense_hdr sshdr;
 	int result, request_len;
+	const struct scsi_exec_args exec_args = {
+		.sshdr = &sshdr,
+	};
 
 	if (sdev->no_report_opcodes || sdev->scsi_level < SCSI_SPC_3)
 		return -EINVAL;
@@ -531,9 +544,8 @@ int scsi_report_opcode(struct scsi_device *sdev, unsigned char *buffer,
 	put_unaligned_be32(request_len, &cmd[6]);
 	memset(buffer, 0, len);
 
-	result = scsi_execute_req(sdev, cmd, DMA_FROM_DEVICE, buffer,
-				  request_len, &sshdr, 30 * HZ, 3, NULL);
-
+	result = scsi_execute_cmd(sdev, cmd, REQ_OP_DRV_IN, buffer,
+				  request_len, 30 * HZ, 3, &exec_args);
 	if (result < 0)
 		return result;
 	if (result && scsi_sense_valid(&sshdr) &&
@@ -563,14 +575,14 @@ int scsi_device_get(struct scsi_device *sdev)
 {
 	if (sdev->sdev_state == SDEV_DEL || sdev->sdev_state == SDEV_CANCEL)
 		goto fail;
-	if (!get_device(&sdev->sdev_gendev))
-		goto fail;
 	if (!try_module_get(sdev->host->hostt->module))
-		goto fail_put_device;
+		goto fail;
+	if (!get_device(&sdev->sdev_gendev))
+		goto fail_put_module;
 	return 0;
 
-fail_put_device:
-	put_device(&sdev->sdev_gendev);
+fail_put_module:
+	module_put(sdev->host->hostt->module);
 fail:
 	return -ENXIO;
 }

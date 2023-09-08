@@ -46,13 +46,12 @@ void gp102_pmu_reset(struct nvkm_pmu *pmu);
 void gk110_pmu_pgob(struct nvkm_pmu *, bool);
 
 extern const struct nvkm_falcon_func gm200_pmu_flcn;
+void gm200_pmu_flcn_bind_inst(struct nvkm_falcon *, int, u64);
 
+extern const struct nvkm_pmu_func gm20b_pmu;
 void gm20b_pmu_acr_bld_patch(struct nvkm_acr *, u32, s64);
 void gm20b_pmu_acr_bld_write(struct nvkm_acr *, u32, struct nvkm_acr_lsfw *);
-int gm20b_pmu_acr_boot(struct nvkm_falcon *);
 int gm20b_pmu_acr_bootstrap_falcon(struct nvkm_falcon *, enum nvkm_acr_lsf_id);
-void gm20b_pmu_recv(struct nvkm_pmu *);
-int gm20b_pmu_initmsg(struct nvkm_pmu *);
 
 struct nvkm_pmu_fwif {
 	int version;

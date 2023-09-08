@@ -32,14 +32,12 @@ struct xfs_ag_resv {
 struct xfs_perag {
 	struct xfs_mount *pag_mount;	/* owner filesystem */
 	xfs_agnumber_t	pag_agno;	/* AG this structure belongs to */
-	atomic_t	pag_ref;	/* perag reference count */
-	char		pagf_init;	/* this agf's entry is initialized */
-	char		pagi_init;	/* this agi's entry is initialized */
-	char		pagf_metadata;	/* the agf is preferred to be metadata */
-	char		pagi_inodeok;	/* The agi is ok for inodes */
+	atomic_t	pag_ref;	/* passive reference count */
+	atomic_t	pag_active_ref;	/* active reference count */
+	wait_queue_head_t pag_active_wq;/* woken active_ref falls to zero */
+	unsigned long	pag_opstate;
 	uint8_t		pagf_levels[XFS_BTNUM_AGF];
 					/* # of levels in bno & cnt btree */
-	bool		pagf_agflreset; /* agfl requires reset before use */
 	uint32_t	pagf_flcount;	/* count of blocks in freelist */
 	xfs_extlen_t	pagf_freeblks;	/* total free blocks */
 	xfs_extlen_t	pagf_longest;	/* longest free space */
@@ -103,18 +101,55 @@ struct xfs_perag {
 	/* background prealloc block trimming */
 	struct delayed_work	pag_blockgc_work;
 
+	/*
+	 * We use xfs_drain to track the number of deferred log intent items
+	 * that have been queued (but not yet processed) so that waiters (e.g.
+	 * scrub) will not lock resources when other threads are in the middle
+	 * of processing a chain of intent items only to find momentary
+	 * inconsistencies.
+	 */
+	struct xfs_defer_drain	pag_intents_drain;
 #endif /* __KERNEL__ */
 };
+
+/*
+ * Per-AG operational state. These are atomic flag bits.
+ */
+#define XFS_AGSTATE_AGF_INIT		0
+#define XFS_AGSTATE_AGI_INIT		1
+#define XFS_AGSTATE_PREFERS_METADATA	2
+#define XFS_AGSTATE_ALLOWS_INODES	3
+#define XFS_AGSTATE_AGFL_NEEDS_RESET	4
+
+#define __XFS_AG_OPSTATE(name, NAME) \
+static inline bool xfs_perag_ ## name (struct xfs_perag *pag) \
+{ \
+	return test_bit(XFS_AGSTATE_ ## NAME, &pag->pag_opstate); \
+}
+
+__XFS_AG_OPSTATE(initialised_agf, AGF_INIT)
+__XFS_AG_OPSTATE(initialised_agi, AGI_INIT)
+__XFS_AG_OPSTATE(prefers_metadata, PREFERS_METADATA)
+__XFS_AG_OPSTATE(allows_inodes, ALLOWS_INODES)
+__XFS_AG_OPSTATE(agfl_needs_reset, AGFL_NEEDS_RESET)
 
 int xfs_initialize_perag(struct xfs_mount *mp, xfs_agnumber_t agcount,
 			xfs_rfsblock_t dcount, xfs_agnumber_t *maxagi);
 int xfs_initialize_perag_data(struct xfs_mount *mp, xfs_agnumber_t agno);
 void xfs_free_perag(struct xfs_mount *mp);
 
+/* Passive AG references */
 struct xfs_perag *xfs_perag_get(struct xfs_mount *mp, xfs_agnumber_t agno);
 struct xfs_perag *xfs_perag_get_tag(struct xfs_mount *mp, xfs_agnumber_t agno,
 		unsigned int tag);
+struct xfs_perag *xfs_perag_hold(struct xfs_perag *pag);
 void xfs_perag_put(struct xfs_perag *pag);
+
+/* Active AG references */
+struct xfs_perag *xfs_perag_grab(struct xfs_mount *, xfs_agnumber_t);
+struct xfs_perag *xfs_perag_grab_tag(struct xfs_mount *, xfs_agnumber_t,
+				   int tag);
+void xfs_perag_rele(struct xfs_perag *pag);
 
 /*
  * Per-ag geometry infomation and validation
@@ -193,31 +228,86 @@ xfs_perag_next(
 	struct xfs_mount	*mp = pag->pag_mount;
 
 	*agno = pag->pag_agno + 1;
-	xfs_perag_put(pag);
-	if (*agno > end_agno)
-		return NULL;
-	return xfs_perag_get(mp, *agno);
+	xfs_perag_rele(pag);
+	while (*agno <= end_agno) {
+		pag = xfs_perag_grab(mp, *agno);
+		if (pag)
+			return pag;
+		(*agno)++;
+	}
+	return NULL;
 }
 
 #define for_each_perag_range(mp, agno, end_agno, pag) \
-	for ((pag) = xfs_perag_get((mp), (agno)); \
+	for ((pag) = xfs_perag_grab((mp), (agno)); \
 		(pag) != NULL; \
 		(pag) = xfs_perag_next((pag), &(agno), (end_agno)))
 
 #define for_each_perag_from(mp, agno, pag) \
 	for_each_perag_range((mp), (agno), (mp)->m_sb.sb_agcount - 1, (pag))
 
-
 #define for_each_perag(mp, agno, pag) \
 	(agno) = 0; \
 	for_each_perag_from((mp), (agno), (pag))
 
 #define for_each_perag_tag(mp, agno, pag, tag) \
-	for ((agno) = 0, (pag) = xfs_perag_get_tag((mp), 0, (tag)); \
+	for ((agno) = 0, (pag) = xfs_perag_grab_tag((mp), 0, (tag)); \
 		(pag) != NULL; \
 		(agno) = (pag)->pag_agno + 1, \
-		xfs_perag_put(pag), \
-		(pag) = xfs_perag_get_tag((mp), (agno), (tag)))
+		xfs_perag_rele(pag), \
+		(pag) = xfs_perag_grab_tag((mp), (agno), (tag)))
+
+static inline struct xfs_perag *
+xfs_perag_next_wrap(
+	struct xfs_perag	*pag,
+	xfs_agnumber_t		*agno,
+	xfs_agnumber_t		stop_agno,
+	xfs_agnumber_t		restart_agno,
+	xfs_agnumber_t		wrap_agno)
+{
+	struct xfs_mount	*mp = pag->pag_mount;
+
+	*agno = pag->pag_agno + 1;
+	xfs_perag_rele(pag);
+	while (*agno != stop_agno) {
+		if (*agno >= wrap_agno) {
+			if (restart_agno >= stop_agno)
+				break;
+			*agno = restart_agno;
+		}
+
+		pag = xfs_perag_grab(mp, *agno);
+		if (pag)
+			return pag;
+		(*agno)++;
+	}
+	return NULL;
+}
+
+/*
+ * Iterate all AGs from start_agno through wrap_agno, then restart_agno through
+ * (start_agno - 1).
+ */
+#define for_each_perag_wrap_range(mp, start_agno, restart_agno, wrap_agno, agno, pag) \
+	for ((agno) = (start_agno), (pag) = xfs_perag_grab((mp), (agno)); \
+		(pag) != NULL; \
+		(pag) = xfs_perag_next_wrap((pag), &(agno), (start_agno), \
+				(restart_agno), (wrap_agno)))
+/*
+ * Iterate all AGs from start_agno through wrap_agno, then 0 through
+ * (start_agno - 1).
+ */
+#define for_each_perag_wrap_at(mp, start_agno, wrap_agno, agno, pag) \
+	for_each_perag_wrap_range((mp), (start_agno), 0, (wrap_agno), (agno), (pag))
+
+/*
+ * Iterate all AGs from start_agno through to the end of the filesystem, then 0
+ * through (start_agno - 1).
+ */
+#define for_each_perag_wrap(mp, start_agno, agno, pag) \
+	for_each_perag_wrap_at((mp), (start_agno), (mp)->m_sb.sb_agcount, \
+				(agno), (pag))
+
 
 struct aghdr_init_data {
 	/* per ag data */

@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/power/supply/maxim,ds2760.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Maxim DS2760 DT bindings
+title: Maxim DS2760
 
 maintainers:
   - Sebastian Reichel <sre@kernel.org>

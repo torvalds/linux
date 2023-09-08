@@ -4,10 +4,13 @@
 $id: http://devicetree.org/schemas/sound/cirrus,cs42l51.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: CS42L51 audio codec DT bindings
+title: CS42L51 audio codec
 
 maintainers:
   - Olivier Moysan <olivier.moysan@foss.st.com>
+
+allOf:
+  - $ref: dai-common.yaml#
 
 properties:
   compatible:
@@ -46,7 +49,7 @@ required:
   - reg
   - "#sound-dai-cells"
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |

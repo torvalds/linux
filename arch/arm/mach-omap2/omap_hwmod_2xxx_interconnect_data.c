@@ -13,7 +13,6 @@
 #include "omap_hwmod.h"
 #include "l3_2xxx.h"
 #include "l4_2xxx.h"
-#include "serial.h"
 
 #include "omap_hwmod_common_data.h"
 

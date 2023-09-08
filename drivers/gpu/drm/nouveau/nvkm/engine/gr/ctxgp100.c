@@ -30,66 +30,76 @@
  ******************************************************************************/
 
 void
-gp100_grctx_generate_pagepool(struct gf100_grctx *info)
+gp100_grctx_generate_pagepool(struct gf100_gr_chan *chan, u64 addr)
 {
-	const struct gf100_grctx_func *grctx = info->gr->func->grctx;
-	const int s = 8;
-	const int b = mmio_vram(info, grctx->pagepool_size, (1 << s), true);
-	mmio_refn(info, 0x40800c, 0x00000000, s, b);
-	mmio_wr32(info, 0x408010, 0x8007d800);
-	mmio_refn(info, 0x419004, 0x00000000, s, b);
-	mmio_wr32(info, 0x419008, 0x00000000);
+	gf100_grctx_patch_wr32(chan, 0x40800c, addr >> 8);
+	gf100_grctx_patch_wr32(chan, 0x408010, 0x8007d800);
+	gf100_grctx_patch_wr32(chan, 0x419004, addr >> 8);
+	gf100_grctx_patch_wr32(chan, 0x419008, 0x00000000);
 }
 
 static void
-gp100_grctx_generate_attrib(struct gf100_grctx *info)
+gp100_grctx_generate_attrib(struct gf100_gr_chan *chan)
 {
-	struct gf100_gr *gr = info->gr;
+	struct gf100_gr *gr = chan->gr;
 	const struct gf100_grctx_func *grctx = gr->func->grctx;
 	const u32  alpha = grctx->alpha_nr;
 	const u32 attrib = grctx->attrib_nr;
-	const int s = 12;
 	const int max_batches = 0xffff;
 	u32 size = grctx->alpha_nr_max * gr->tpc_total;
 	u32 ao = 0;
 	u32 bo = ao + size;
-	int gpc, ppc, b, n = 0;
+	int gpc, ppc, n = 0;
 
-	for (gpc = 0; gpc < gr->gpc_nr; gpc++)
-		size += grctx->attrib_nr_max * gr->ppc_nr[gpc] * gr->ppc_tpc_max;
-	size = ((size * 0x20) + 128) & ~127;
-	b = mmio_vram(info, size, (1 << s), false);
-
-	mmio_refn(info, 0x418810, 0x80000000, s, b);
-	mmio_refn(info, 0x419848, 0x10000000, s, b);
-	mmio_refn(info, 0x419c2c, 0x10000000, s, b);
-	mmio_refn(info, 0x419b00, 0x00000000, s, b);
-	mmio_wr32(info, 0x419b04, 0x80000000 | size >> 7);
-	mmio_wr32(info, 0x405830, attrib);
-	mmio_wr32(info, 0x40585c, alpha);
-	mmio_wr32(info, 0x4064c4, ((alpha / 4) << 16) | max_batches);
+	gf100_grctx_patch_wr32(chan, 0x405830, attrib);
+	gf100_grctx_patch_wr32(chan, 0x40585c, alpha);
+	gf100_grctx_patch_wr32(chan, 0x4064c4, ((alpha / 4) << 16) | max_batches);
 
 	for (gpc = 0; gpc < gr->gpc_nr; gpc++) {
-		for (ppc = 0; ppc < gr->ppc_nr[gpc]; ppc++, n++) {
+		for (ppc = 0; ppc < gr->func->ppc_nr; ppc++, n++) {
 			const u32 as =  alpha * gr->ppc_tpc_nr[gpc][ppc];
 			const u32 bs = attrib * gr->ppc_tpc_max;
 			const u32 u = 0x418ea0 + (n * 0x04);
 			const u32 o = PPC_UNIT(gpc, ppc, 0);
+
 			if (!(gr->ppc_mask[gpc] & (1 << ppc)))
 				continue;
-			mmio_wr32(info, o + 0xc0, bs);
-			mmio_wr32(info, o + 0xf4, bo);
-			mmio_wr32(info, o + 0xf0, bs);
+
+			gf100_grctx_patch_wr32(chan, o + 0xc0, bs);
+			gf100_grctx_patch_wr32(chan, o + 0xf4, bo);
+			gf100_grctx_patch_wr32(chan, o + 0xf0, bs);
 			bo += grctx->attrib_nr_max * gr->ppc_tpc_max;
-			mmio_wr32(info, o + 0xe4, as);
-			mmio_wr32(info, o + 0xf8, ao);
+			gf100_grctx_patch_wr32(chan, o + 0xe4, as);
+			gf100_grctx_patch_wr32(chan, o + 0xf8, ao);
 			ao += grctx->alpha_nr_max * gr->ppc_tpc_nr[gpc][ppc];
-			mmio_wr32(info, u, bs);
+			gf100_grctx_patch_wr32(chan, u, bs);
 		}
 	}
 
-	mmio_wr32(info, 0x418eec, 0x00000000);
-	mmio_wr32(info, 0x41befc, 0x00000000);
+	gf100_grctx_patch_wr32(chan, 0x418eec, 0x00000000);
+	gf100_grctx_patch_wr32(chan, 0x41befc, 0x00000000);
+}
+
+void
+gp100_grctx_generate_attrib_cb(struct gf100_gr_chan *chan, u64 addr, u32 size)
+{
+	gm107_grctx_generate_attrib_cb(chan, addr, size);
+
+	gf100_grctx_patch_wr32(chan, 0x419b00, 0x00000000 | addr >> 12);
+	gf100_grctx_patch_wr32(chan, 0x419b04, 0x80000000 | size >> 7);
+}
+
+static u32
+gp100_grctx_generate_attrib_cb_size(struct gf100_gr *gr)
+{
+	const struct gf100_grctx_func *grctx = gr->func->grctx;
+	u32 size = grctx->alpha_nr_max * gr->tpc_total;
+	int gpc;
+
+	for (gpc = 0; gpc < gr->gpc_nr; gpc++)
+		size += grctx->attrib_nr_max * gr->func->ppc_nr * gr->ppc_tpc_max;
+
+	return ((size * 0x20) + 128) & ~127;
 }
 
 void
@@ -123,6 +133,8 @@ gp100_grctx = {
 	.bundle_token_limit = 0x1080,
 	.pagepool = gp100_grctx_generate_pagepool,
 	.pagepool_size = 0x20000,
+	.attrib_cb_size = gp100_grctx_generate_attrib_cb_size,
+	.attrib_cb = gp100_grctx_generate_attrib_cb,
 	.attrib = gp100_grctx_generate_attrib,
 	.attrib_nr_max = 0x660,
 	.attrib_nr = 0x440,

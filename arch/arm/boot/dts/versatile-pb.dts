@@ -85,7 +85,7 @@
 				 */
 				interrupts-extended = <&sic 22 &sic 23>;
 			};
-			uart@9000 {
+			serial@9000 {
 				compatible = "arm,pl011", "arm,primecell";
 				reg = <0x9000 0x1000>;
 				interrupt-parent = <&sic>;

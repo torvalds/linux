@@ -481,8 +481,7 @@ static const struct regmap_config mmc35240_regmap_config = {
 	.num_reg_defaults = ARRAY_SIZE(mmc35240_reg_defaults),
 };
 
-static int mmc35240_probe(struct i2c_client *client,
-			  const struct i2c_device_id *id)
+static int mmc35240_probe(struct i2c_client *client)
 {
 	struct mmc35240_data *data;
 	struct iio_dev *indio_dev;
@@ -576,7 +575,7 @@ static struct i2c_driver mmc35240_driver = {
 		.pm = pm_sleep_ptr(&mmc35240_pm_ops),
 		.acpi_match_table = ACPI_PTR(mmc35240_acpi_match),
 	},
-	.probe		= mmc35240_probe,
+	.probe_new	= mmc35240_probe,
 	.id_table	= mmc35240_id,
 };
 

@@ -118,7 +118,7 @@ int nft_fib_init(const struct nft_ctx *ctx, const struct nft_expr *expr,
 }
 EXPORT_SYMBOL_GPL(nft_fib_init);
 
-int nft_fib_dump(struct sk_buff *skb, const struct nft_expr *expr)
+int nft_fib_dump(struct sk_buff *skb, const struct nft_expr *expr, bool reset)
 {
 	const struct nft_fib *priv = nft_expr_priv(expr);
 

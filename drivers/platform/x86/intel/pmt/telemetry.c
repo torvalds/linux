@@ -78,7 +78,7 @@ static int pmt_telem_header_decode(struct intel_pmt_entry *entry,
 	 * reserved for future use. They have zero size. Do not fail
 	 * probe for these. Just ignore them.
 	 */
-	if (header->size == 0)
+	if (header->size == 0 || header->access_type == 0xF)
 		return 1;
 
 	return 0;
@@ -160,3 +160,4 @@ module_exit(pmt_telem_exit);
 MODULE_AUTHOR("David E. Box <david.e.box@linux.intel.com>");
 MODULE_DESCRIPTION("Intel PMT Telemetry driver");
 MODULE_LICENSE("GPL v2");
+MODULE_IMPORT_NS(INTEL_PMT);

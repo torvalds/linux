@@ -15,7 +15,7 @@ description: |
   and control the backlight.
 
 allOf:
-  - $ref: "regulator.yaml#"
+  - $ref: regulator.yaml#
 
 properties:
   compatible:

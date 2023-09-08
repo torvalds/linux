@@ -30,7 +30,7 @@
 		pinctrl-0 = <&pinctrl_gpioleds_som>;
 		compatible = "gpio-leds";
 
-		phycore-green {
+		led-phycore-green {
 			gpios = <&gpio5 4 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "heartbeat";
 		};
@@ -100,6 +100,10 @@
 	no-1-8-v;
 	non-removable;
 	status = "disabled";
+};
+
+&wdog1 {
+	fsl,suspend-in-wait;
 };
 
 &iomuxc {

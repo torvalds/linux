@@ -330,7 +330,7 @@ static int k2_sata_show_info(struct seq_file *m, struct Scsi_Host *shost)
 	return 0;
 }
 
-static struct scsi_host_template k2_sata_sht = {
+static const struct scsi_host_template k2_sata_sht = {
 	ATA_BMDMA_SHT(DRV_NAME),
 	.show_info		= k2_sata_show_info,
 };

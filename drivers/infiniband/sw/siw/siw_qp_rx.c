@@ -139,7 +139,7 @@ static int siw_rx_pbl(struct siw_rx_stream *srx, int *pbl_idx,
 			break;
 
 		bytes = min(bytes, len);
-		if (siw_rx_kva(srx, (void *)(uintptr_t)buf_addr, bytes) ==
+		if (siw_rx_kva(srx, ib_virt_dma_to_ptr(buf_addr), bytes) ==
 		    bytes) {
 			copied += bytes;
 			offset += bytes;
@@ -487,7 +487,7 @@ int siw_proc_send(struct siw_qp *qp)
 		mem_p = *mem;
 		if (mem_p->mem_obj == NULL)
 			rv = siw_rx_kva(srx,
-				(void *)(uintptr_t)(sge->laddr + frx->sge_off),
+				ib_virt_dma_to_ptr(sge->laddr + frx->sge_off),
 				sge_bytes);
 		else if (!mem_p->is_pbl)
 			rv = siw_rx_umem(srx, mem_p->umem,
@@ -852,7 +852,7 @@ int siw_proc_rresp(struct siw_qp *qp)
 
 	if (mem_p->mem_obj == NULL)
 		rv = siw_rx_kva(srx,
-			(void *)(uintptr_t)(sge->laddr + wqe->processed),
+			ib_virt_dma_to_ptr(sge->laddr + wqe->processed),
 			bytes);
 	else if (!mem_p->is_pbl)
 		rv = siw_rx_umem(srx, mem_p->umem, sge->laddr + wqe->processed,

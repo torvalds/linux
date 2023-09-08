@@ -384,7 +384,7 @@ static void ip_vs_lblc_done_svc(struct ip_vs_service *svc)
 	struct ip_vs_lblc_table *tbl = svc->sched_data;
 
 	/* remove periodic timer */
-	del_timer_sync(&tbl->periodic_timer);
+	timer_shutdown_sync(&tbl->periodic_timer);
 
 	/* got to clean up table entries here */
 	ip_vs_lblc_flush(svc);

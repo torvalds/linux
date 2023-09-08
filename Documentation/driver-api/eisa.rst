@@ -189,7 +189,7 @@ eisa_bus.enable_dev
 	initialize the device in such conditions.
 
 eisa_bus.disable_dev
-	A comma-separated list of slots to be enabled, even if the firmware
+	A comma-separated list of slots to be disabled, even if the firmware
 	set the card as enabled. The driver won't be called to handle this
 	device.
 

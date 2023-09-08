@@ -1,30 +1,48 @@
 menu "SoC selection"
 
+config ARCH_MICROCHIP_POLARFIRE
+	def_bool SOC_MICROCHIP_POLARFIRE
+
 config SOC_MICROCHIP_POLARFIRE
 	bool "Microchip PolarFire SoCs"
-	select MCHP_CLK_MPFS
-	select SIFIVE_PLIC
 	help
 	  This enables support for Microchip PolarFire SoC platforms.
 
+config ARCH_RENESAS
+	bool "Renesas RISC-V SoCs"
+	help
+	  This enables support for the RISC-V based Renesas SoCs.
+
+config ARCH_SIFIVE
+	def_bool SOC_SIFIVE
+
 config SOC_SIFIVE
 	bool "SiFive SoCs"
-	select SERIAL_SIFIVE if TTY
-	select SERIAL_SIFIVE_CONSOLE if TTY
-	select CLK_SIFIVE
-	select CLK_SIFIVE_PRCI
-	select SIFIVE_PLIC
 	select ERRATA_SIFIVE if !XIP_KERNEL
 	help
 	  This enables support for SiFive SoC platform hardware.
+
+config ARCH_STARFIVE
+	def_bool SOC_STARFIVE
 
 config SOC_STARFIVE
 	bool "StarFive SoCs"
 	select PINCTRL
 	select RESET_CONTROLLER
-	select SIFIVE_PLIC
 	help
 	  This enables support for StarFive SoC platform hardware.
+
+config ARCH_SUNXI
+	bool "Allwinner sun20i SoCs"
+	depends on MMU && !XIP_KERNEL
+	select ERRATA_THEAD
+	select SUN4I_TIMER
+	help
+	  This enables support for Allwinner sun20i platform hardware,
+	  including boards based on the D1 and D1s SoCs.
+
+config ARCH_VIRT
+	def_bool SOC_VIRT
 
 config SOC_VIRT
 	bool "QEMU Virt Machine"
@@ -34,32 +52,33 @@ config SOC_VIRT
 	select POWER_RESET_SYSCON_POWEROFF
 	select GOLDFISH
 	select RTC_DRV_GOLDFISH if RTC_CLASS
-	select SIFIVE_PLIC
 	select PM_GENERIC_DOMAINS if PM
 	select PM_GENERIC_DOMAINS_OF if PM && OF
 	select RISCV_SBI_CPUIDLE if CPU_IDLE && RISCV_SBI
 	help
 	  This enables support for QEMU Virt Machine.
 
+config ARCH_CANAAN
+	def_bool SOC_CANAAN
+
 config SOC_CANAAN
 	bool "Canaan Kendryte K210 SoC"
 	depends on !MMU
 	select CLINT_TIMER if RISCV_M_MODE
-	select SERIAL_SIFIVE if TTY
-	select SERIAL_SIFIVE_CONSOLE if TTY
-	select SIFIVE_PLIC
 	select ARCH_HAS_RESET_CONTROLLER
 	select PINCTRL
 	select COMMON_CLK
-	select COMMON_CLK_K210
 	help
 	  This enables support for Canaan Kendryte K210 SoC platform hardware.
 
-if SOC_CANAAN
+if ARCH_CANAAN
+
+config ARCH_CANAAN_K210_DTB_BUILTIN
+	def_bool SOC_CANAAN_K210_DTB_BUILTIN
 
 config SOC_CANAAN_K210_DTB_BUILTIN
 	bool "Builtin device tree for the Canaan Kendryte K210"
-	depends on SOC_CANAAN
+	depends on ARCH_CANAAN
 	default y
 	select OF
 	select BUILTIN_DTB
@@ -68,16 +87,20 @@ config SOC_CANAAN_K210_DTB_BUILTIN
 	  This option should be selected if no bootloader is being used.
 	  If unsure, say Y.
 
+config ARCH_CANAAN_K210_DTB_SOURCE
+	string
+	default SOC_CANAAN_K210_DTB_SOURCE
+
 config SOC_CANAAN_K210_DTB_SOURCE
 	string "Source file for the Canaan Kendryte K210 builtin DTB"
-	depends on SOC_CANAAN
-	depends on SOC_CANAAN_K210_DTB_BUILTIN
+	depends on ARCH_CANAAN
+	depends on ARCH_CANAAN_K210_DTB_BUILTIN
 	default "k210_generic"
 	help
 	  Base name (without suffix, relative to arch/riscv/boot/dts/canaan)
 	  for the DTS file that will be used to produce the DTB linked into the
 	  kernel.
 
-endif # SOC_CANAAN
+endif # ARCH_CANAAN
 
 endmenu # "SoC selection"

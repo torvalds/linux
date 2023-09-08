@@ -1,0 +1,23 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+/*
+ * Copyright (C) 2021 MediaTek Inc.
+ * Author: Sam.Shih <sam.shih@mediatek.com>
+ */
+
+/dts-v1/;
+/plugin/;
+
+/ {
+	compatible = "bananapi,bpi-r3", "mediatek,mt7986a";
+
+	fragment@0 {
+		target-path = "/soc/mmc@11230000";
+		__overlay__ {
+			bus-width = <4>;
+			max-frequency = <52000000>;
+			cap-sd-highspeed;
+			status = "okay";
+		};
+	};
+};
+

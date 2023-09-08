@@ -408,7 +408,7 @@ int pvrdma_mmap(struct ib_ucontext *ibcontext, struct vm_area_struct *vma)
 	}
 
 	/* Map UAR to kernel space, VM_LOCKED? */
-	vma->vm_flags |= VM_DONTCOPY | VM_DONTEXPAND;
+	vm_flags_set(vma, VM_DONTCOPY | VM_DONTEXPAND);
 	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 	if (io_remap_pfn_range(vma, start, context->uar.pfn, size,
 			       vma->vm_page_prot))

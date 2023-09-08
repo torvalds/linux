@@ -49,7 +49,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_gpio_leds>;
 
-		blue {
+		led-blue {
 			label = "blue_status_led";
 			gpios = <&gpio1 2 GPIO_ACTIVE_HIGH>;
 			default-state = "keep";

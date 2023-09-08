@@ -73,7 +73,7 @@ static struct dentry *coda_lookup(struct inode *dir, struct dentry *entry, unsig
 }
 
 
-int coda_permission(struct user_namespace *mnt_userns, struct inode *inode,
+int coda_permission(struct mnt_idmap *idmap, struct inode *inode,
 		    int mask)
 {
 	int error;
@@ -133,7 +133,7 @@ static inline void coda_dir_drop_nlink(struct inode *dir)
 }
 
 /* creation routines: create, mknod, mkdir, link, symlink */
-static int coda_create(struct user_namespace *mnt_userns, struct inode *dir,
+static int coda_create(struct mnt_idmap *idmap, struct inode *dir,
 		       struct dentry *de, umode_t mode, bool excl)
 {
 	int error;
@@ -166,7 +166,7 @@ err_out:
 	return error;
 }
 
-static int coda_mkdir(struct user_namespace *mnt_userns, struct inode *dir,
+static int coda_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 		      struct dentry *de, umode_t mode)
 {
 	struct inode *inode;
@@ -228,7 +228,7 @@ static int coda_link(struct dentry *source_de, struct inode *dir_inode,
 }
 
 
-static int coda_symlink(struct user_namespace *mnt_userns,
+static int coda_symlink(struct mnt_idmap *idmap,
 			struct inode *dir_inode, struct dentry *de,
 			const char *symname)
 {
@@ -295,7 +295,7 @@ static int coda_rmdir(struct inode *dir, struct dentry *de)
 }
 
 /* rename */
-static int coda_rename(struct user_namespace *mnt_userns, struct inode *old_dir,
+static int coda_rename(struct mnt_idmap *idmap, struct inode *old_dir,
 		       struct dentry *old_dentry, struct inode *new_dir,
 		       struct dentry *new_dentry, unsigned int flags)
 {

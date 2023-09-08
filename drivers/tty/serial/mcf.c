@@ -327,34 +327,16 @@ static void mcf_rx_chars(struct mcf_uart *pp)
 static void mcf_tx_chars(struct mcf_uart *pp)
 {
 	struct uart_port *port = &pp->port;
-	struct circ_buf *xmit = &port->state->xmit;
+	bool pending;
+	u8 ch;
 
-	if (port->x_char) {
-		/* Send special char - probably flow control */
-		writeb(port->x_char, port->membase + MCFUART_UTB);
-		port->x_char = 0;
-		port->icount.tx++;
-		return;
-	}
+	pending = uart_port_tx(port, ch,
+		readb(port->membase + MCFUART_USR) & MCFUART_USR_TXREADY,
+		writeb(ch, port->membase + MCFUART_UTB));
 
-	while (readb(port->membase + MCFUART_USR) & MCFUART_USR_TXREADY) {
-		if (uart_circ_empty(xmit))
-			break;
-		writeb(xmit->buf[xmit->tail], port->membase + MCFUART_UTB);
-		xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE -1);
-		port->icount.tx++;
-	}
-
-	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
-		uart_write_wakeup(port);
-
-	if (uart_circ_empty(xmit)) {
-		mcf_stop_tx(port);
-		/* Disable TX to negate RTS automatically */
-		if (port->rs485.flags & SER_RS485_ENABLED)
-			writeb(MCFUART_UCR_TXDISABLE,
-				port->membase + MCFUART_UCR);
-	}
+	/* Disable TX to negate RTS automatically */
+	if (!pending && (port->rs485.flags & SER_RS485_ENABLED))
+		writeb(MCFUART_UCR_TXDISABLE, port->membase + MCFUART_UCR);
 }
 
 /****************************************************************************/

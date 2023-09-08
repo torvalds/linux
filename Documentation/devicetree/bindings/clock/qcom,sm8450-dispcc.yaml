@@ -10,11 +10,10 @@ maintainers:
   - Dmitry Baryshkov <dmitry.baryshkov@linaro.org>
 
 description: |
-  Qualcomm display clock control module which supports the clocks, resets and
-  power domains on SM8450.
+  Qualcomm display clock control module provides the clocks, resets and power
+  domains on SM8450.
 
-  See also:
-    include/dt-bindings/clock/qcom,sm8450-dispcc.h
+  See also:: include/dt-bindings/clock/qcom,sm8450-dispcc.h
 
 properties:
   compatible:

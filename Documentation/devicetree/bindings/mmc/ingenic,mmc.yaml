@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/mmc/ingenic,mmc.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Ingenic SoCs MMC Controller DT bindings
+title: Ingenic SoCs MMC Controller
 
 maintainers:
   - Paul Cercueil <paul@crapouillou.net>

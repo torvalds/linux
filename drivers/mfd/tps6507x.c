@@ -84,8 +84,7 @@ static int tps6507x_i2c_write_device(struct tps6507x_dev *tps6507x, char reg,
 	return 0;
 }
 
-static int tps6507x_i2c_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
+static int tps6507x_i2c_probe(struct i2c_client *i2c)
 {
 	struct tps6507x_dev *tps6507x;
 
@@ -123,7 +122,7 @@ static struct i2c_driver tps6507x_i2c_driver = {
 		   .name = "tps6507x",
 		   .of_match_table = of_match_ptr(tps6507x_of_match),
 	},
-	.probe = tps6507x_i2c_probe,
+	.probe_new = tps6507x_i2c_probe,
 	.id_table = tps6507x_i2c_id,
 };
 

@@ -37,6 +37,7 @@ mlx5_ib_vport_rep_load(struct mlx5_core_dev *dev, struct mlx5_eswitch_rep *rep)
 	const struct mlx5_ib_profile *profile;
 	struct mlx5_core_dev *peer_dev;
 	struct mlx5_ib_dev *ibdev;
+	int second_uplink = false;
 	u32 peer_num_ports;
 	int vport_index;
 	int ret;
@@ -47,17 +48,24 @@ mlx5_ib_vport_rep_load(struct mlx5_core_dev *dev, struct mlx5_eswitch_rep *rep)
 		peer_dev = mlx5_lag_get_peer_mdev(dev);
 		peer_num_ports = mlx5_eswitch_get_total_vports(peer_dev);
 		if (mlx5_lag_is_master(dev)) {
-			/* Only 1 ib port is the representor for both uplinks */
-			num_ports += peer_num_ports - 1;
+			if (mlx5_lag_is_mpesw(dev))
+				num_ports += peer_num_ports;
+			else
+				num_ports += peer_num_ports - 1;
+
 		} else {
-			if (rep->vport == MLX5_VPORT_UPLINK)
-				return 0;
+			if (rep->vport == MLX5_VPORT_UPLINK) {
+				if (!mlx5_lag_is_mpesw(dev))
+					return 0;
+				second_uplink = true;
+			}
+
 			vport_index += peer_num_ports;
 			dev = peer_dev;
 		}
 	}
 
-	if (rep->vport == MLX5_VPORT_UPLINK)
+	if (rep->vport == MLX5_VPORT_UPLINK && !second_uplink)
 		profile = &raw_eth_profile;
 	else
 		return mlx5_ib_set_vport_rep(dev, rep, vport_index);

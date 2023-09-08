@@ -280,6 +280,9 @@ struct mv88e6xxx_port {
 	unsigned int serdes_irq;
 	char serdes_irq_name[64];
 	struct devlink_region *region;
+
+	/* MacAuth Bypass control flag */
+	bool mab;
 };
 
 enum mv88e6xxx_region_id {
@@ -450,6 +453,13 @@ struct mv88e6xxx_ops {
 	int (*phy_write)(struct mv88e6xxx_chip *chip,
 			 struct mii_bus *bus,
 			 int addr, int reg, u16 val);
+
+	int (*phy_read_c45)(struct mv88e6xxx_chip *chip,
+			    struct mii_bus *bus,
+			    int addr, int devad, int reg, u16 *val);
+	int (*phy_write_c45)(struct mv88e6xxx_chip *chip,
+			     struct mii_bus *bus,
+			     int addr, int devad, int reg, u16 val);
 
 	/* Priority Override Table operations */
 	int (*pot_clear)(struct mv88e6xxx_chip *chip);
@@ -705,6 +715,7 @@ struct mv88e6xxx_ptp_ops {
 	int (*port_disable)(struct mv88e6xxx_chip *chip, int port);
 	int (*global_enable)(struct mv88e6xxx_chip *chip);
 	int (*global_disable)(struct mv88e6xxx_chip *chip);
+	int (*set_ptp_cpu_port)(struct mv88e6xxx_chip *chip, int port);
 	int n_ext_ts;
 	int arr0_sts_reg;
 	int arr1_sts_reg;
@@ -784,6 +795,12 @@ static inline bool mv88e6xxx_is_invalid_port(struct mv88e6xxx_chip *chip, int po
 	return (chip->info->invalid_port_mask & BIT(port)) != 0;
 }
 
+static inline void mv88e6xxx_port_set_mab(struct mv88e6xxx_chip *chip,
+					  int port, bool mab)
+{
+	chip->ports[port].mab = mab;
+}
+
 int mv88e6xxx_read(struct mv88e6xxx_chip *chip, int addr, int reg, u16 *val);
 int mv88e6xxx_write(struct mv88e6xxx_chip *chip, int addr, int reg, u16 val);
 int mv88e6xxx_wait_mask(struct mv88e6xxx_chip *chip, int addr, int reg,
@@ -801,6 +818,12 @@ static inline void mv88e6xxx_reg_unlock(struct mv88e6xxx_chip *chip)
 {
 	mutex_unlock(&chip->reg_lock);
 }
+
+int mv88e6xxx_vtu_walk(struct mv88e6xxx_chip *chip,
+		       int (*cb)(struct mv88e6xxx_chip *chip,
+				 const struct mv88e6xxx_vtu_entry *entry,
+				 void *priv),
+		       void *priv);
 
 int mv88e6xxx_fid_map(struct mv88e6xxx_chip *chip, unsigned long *bitmap);
 

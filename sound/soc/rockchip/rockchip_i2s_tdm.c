@@ -756,6 +756,12 @@ static int rockchip_i2s_io_multiplex(struct snd_pcm_substream *substream,
 	if (!i2s_tdm->io_multiplex)
 		return 0;
 
+	if (IS_ERR_OR_NULL(i2s_tdm->grf)) {
+		dev_err(i2s_tdm->dev,
+			"io multiplex not supported for this device\n");
+		return -EINVAL;
+	}
+
 	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
 		struct snd_pcm_str *playback_str =
 			&substream->pcm->streams[SNDRV_PCM_STREAM_PLAYBACK];
@@ -1064,9 +1070,9 @@ static int rockchip_i2s_tdm_dai_probe(struct snd_soc_dai *dai)
 	struct rk_i2s_tdm_dev *i2s_tdm = snd_soc_dai_get_drvdata(dai);
 
 	if (i2s_tdm->has_capture)
-		dai->capture_dma_data = &i2s_tdm->capture_dma_data;
+		snd_soc_dai_dma_data_set_capture(dai,  &i2s_tdm->capture_dma_data);
 	if (i2s_tdm->has_playback)
-		dai->playback_dma_data = &i2s_tdm->playback_dma_data;
+		snd_soc_dai_dma_data_set_playback(dai, &i2s_tdm->playback_dma_data);
 
 	if (i2s_tdm->mclk_calibrate)
 		snd_soc_add_dai_controls(dai, &rockchip_i2s_tdm_compensation_control, 1);
@@ -1222,6 +1228,12 @@ static int common_soc_init(struct device *dev, u32 addr)
 	if (trcm == TRCM_TXRX)
 		return 0;
 
+	if (IS_ERR_OR_NULL(i2s_tdm->grf)) {
+		dev_err(i2s_tdm->dev,
+			"no grf present but non-txrx TRCM specified\n");
+		return -EINVAL;
+	}
+
 	for (i = 0; i < i2s_tdm->soc_data->config_count; i++) {
 		if (addr != configs[i].addr)
 			continue;
@@ -1306,6 +1318,7 @@ static const struct of_device_id rockchip_i2s_tdm_match[] = {
 	{ .compatible = "rockchip,rk1808-i2s-tdm", .data = &rk1808_i2s_soc_data },
 	{ .compatible = "rockchip,rk3308-i2s-tdm", .data = &rk3308_i2s_soc_data },
 	{ .compatible = "rockchip,rk3568-i2s-tdm", .data = &rk3568_i2s_soc_data },
+	{ .compatible = "rockchip,rk3588-i2s-tdm" },
 	{ .compatible = "rockchip,rv1126-i2s-tdm", .data = &rv1126_i2s_soc_data },
 	{},
 };
@@ -1544,7 +1557,7 @@ static int rockchip_i2s_tdm_probe(struct platform_device *pdev)
 	i2s_tdm->dev = &pdev->dev;
 
 	of_id = of_match_device(rockchip_i2s_tdm_match, &pdev->dev);
-	if (!of_id || !of_id->data)
+	if (!of_id)
 		return -EINVAL;
 
 	spin_lock_init(&i2s_tdm->lock);
@@ -1568,10 +1581,6 @@ static int rockchip_i2s_tdm_probe(struct platform_device *pdev)
 		return ret;
 
 	i2s_tdm->grf = syscon_regmap_lookup_by_phandle(node, "rockchip,grf");
-	if (IS_ERR(i2s_tdm->grf))
-		return dev_err_probe(i2s_tdm->dev, PTR_ERR(i2s_tdm->grf),
-				     "Error in rockchip,grf\n");
-
 	i2s_tdm->tx_reset = devm_reset_control_get_optional_exclusive(&pdev->dev,
 								      "tx-m");
 	if (IS_ERR(i2s_tdm->tx_reset)) {

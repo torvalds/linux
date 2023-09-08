@@ -4868,6 +4868,10 @@
 #define mmCP_ME2_PIPE2_INT_STATUS_BASE_IDX                                                             0
 #define mmCP_ME2_PIPE3_INT_STATUS                                                                      0x1e34
 #define mmCP_ME2_PIPE3_INT_STATUS_BASE_IDX                                                             0
+#define mmCP_ME1_INT_STAT_DEBUG                                                                        0x1e35
+#define mmCP_ME1_INT_STAT_DEBUG_BASE_IDX                                                               0
+#define mmCP_ME2_INT_STAT_DEBUG                                                                        0x1e36
+#define mmCP_ME2_INT_STAT_DEBUG_BASE_IDX                                                               0
 #define mmCP_GFX_QUEUE_INDEX                                                                           0x1e37
 #define mmCP_GFX_QUEUE_INDEX_BASE_IDX                                                                  0
 #define mmCC_GC_EDC_CONFIG                                                                             0x1e38

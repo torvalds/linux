@@ -337,12 +337,11 @@ static int nitrox_3des_decrypt(struct skcipher_request *skreq)
 static int nitrox_aes_xts_setkey(struct crypto_skcipher *cipher,
 				 const u8 *key, unsigned int keylen)
 {
-	struct crypto_tfm *tfm = crypto_skcipher_tfm(cipher);
-	struct nitrox_crypto_ctx *nctx = crypto_tfm_ctx(tfm);
+	struct nitrox_crypto_ctx *nctx = crypto_skcipher_ctx(cipher);
 	struct flexi_crypto_context *fctx;
 	int aes_keylen, ret;
 
-	ret = xts_check_key(tfm, key, keylen);
+	ret = xts_verify_key(cipher, key, keylen);
 	if (ret)
 		return ret;
 
@@ -362,8 +361,7 @@ static int nitrox_aes_xts_setkey(struct crypto_skcipher *cipher,
 static int nitrox_aes_ctr_rfc3686_setkey(struct crypto_skcipher *cipher,
 					 const u8 *key, unsigned int keylen)
 {
-	struct crypto_tfm *tfm = crypto_skcipher_tfm(cipher);
-	struct nitrox_crypto_ctx *nctx = crypto_tfm_ctx(tfm);
+	struct nitrox_crypto_ctx *nctx = crypto_skcipher_ctx(cipher);
 	struct flexi_crypto_context *fctx;
 	int aes_keylen;
 

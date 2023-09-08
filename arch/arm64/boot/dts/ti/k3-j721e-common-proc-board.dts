@@ -96,7 +96,7 @@
 			 <3300000 0x1>;
 	};
 
-	sound0: sound@0 {
+	sound0: sound-0 {
 		compatible = "ti,j721e-cpb-audio";
 		model = "j721e-cpb";
 
@@ -370,38 +370,30 @@
 	status = "reserved";
 };
 
+&mcu_uart0 {
+	status = "okay";
+	/* Default pinmux */
+};
+
 &main_uart0 {
+	status = "okay";
+	/* Shared with ATF on this platform */
 	power-domains = <&k3_pds 146 TI_SCI_PD_SHARED>;
 };
 
-&main_uart3 {
-	/* UART not brought out */
-	status = "disabled";
+&main_uart1 {
+	status = "okay";
+	/* Default pinmux */
 };
 
-&main_uart5 {
-	/* UART not brought out */
-	status = "disabled";
+&main_uart2 {
+	status = "okay";
+	/* Default pinmux */
 };
 
-&main_uart6 {
-	/* UART not brought out */
-	status = "disabled";
-};
-
-&main_uart7 {
-	/* UART not brought out */
-	status = "disabled";
-};
-
-&main_uart8 {
-	/* UART not brought out */
-	status = "disabled";
-};
-
-&main_uart9 {
-	/* UART not brought out */
-	status = "disabled";
+&main_uart4 {
+	status = "okay";
+	/* Default pinmux */
 };
 
 &main_gpio2 {
@@ -537,6 +529,7 @@
 };
 
 &main_i2c0 {
+	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&main_i2c0_pins_default>;
 	clock-frequency = <400000>;
@@ -573,6 +566,7 @@
 };
 
 &main_i2c1 {
+	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&main_i2c1_pins_default>;
 	clock-frequency = <400000>;
@@ -598,6 +592,7 @@
 };
 
 &main_i2c3 {
+	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&main_i2c3_pins_default>;
 	clock-frequency = <400000>;
@@ -636,6 +631,7 @@
 };
 
 &main_i2c6 {
+	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&main_i2c6_pins_default>;
 	clock-frequency = <400000>;
@@ -713,47 +709,8 @@
 	};
 };
 
-&mcasp0 {
-	status = "disabled";
-};
-
-&mcasp1 {
-	status = "disabled";
-};
-
-&mcasp2 {
-	status = "disabled";
-};
-
-&mcasp3 {
-	status = "disabled";
-};
-
-&mcasp4 {
-	status = "disabled";
-};
-
-&mcasp5 {
-	status = "disabled";
-};
-
-&mcasp6 {
-	status = "disabled";
-};
-
-&mcasp7 {
-	status = "disabled";
-};
-
-&mcasp8 {
-	status = "disabled";
-};
-
-&mcasp9 {
-	status = "disabled";
-};
-
 &mcasp10 {
+	status = "okay";
 	#sound-dai-cells = <0>;
 
 	pinctrl-names = "default";
@@ -769,10 +726,6 @@
 	>;
 	tx-num-evt = <0>;
 	rx-num-evt = <0>;
-};
-
-&mcasp11 {
-	status = "disabled";
 };
 
 &cmn_refclk1 {
@@ -925,73 +878,29 @@
 };
 
 &mcu_mcan0 {
+	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&mcu_mcan0_pins_default>;
 	phys = <&transceiver1>;
 };
 
 &mcu_mcan1 {
+	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&mcu_mcan1_pins_default>;
 	phys = <&transceiver2>;
 };
 
 &main_mcan0 {
+	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&main_mcan0_pins_default>;
 	phys = <&transceiver3>;
 };
 
-&main_mcan1 {
-	status = "disabled";
-};
-
 &main_mcan2 {
+	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&main_mcan2_pins_default>;
 	phys = <&transceiver4>;
-};
-
-&main_mcan3 {
-	status = "disabled";
-};
-
-&main_mcan4 {
-	status = "disabled";
-};
-
-&main_mcan5 {
-	status = "disabled";
-};
-
-&main_mcan6 {
-	status = "disabled";
-};
-
-&main_mcan7 {
-	status = "disabled";
-};
-
-&main_mcan8 {
-	status = "disabled";
-};
-
-&main_mcan9 {
-	status = "disabled";
-};
-
-&main_mcan10 {
-	status = "disabled";
-};
-
-&main_mcan11 {
-	status = "disabled";
-};
-
-&main_mcan12 {
-	status = "disabled";
-};
-
-&main_mcan13 {
-	status = "disabled";
 };

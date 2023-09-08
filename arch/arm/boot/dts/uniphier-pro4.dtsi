@@ -241,33 +241,33 @@
 			reg = <0x59801000 0x400>;
 		};
 
-		mioctrl@59810000 {
+		mioctrl: syscon@59810000 {
 			compatible = "socionext,uniphier-pro4-mioctrl",
 				     "simple-mfd", "syscon";
 			reg = <0x59810000 0x800>;
 
-			mio_clk: clock {
+			mio_clk: clock-controller {
 				compatible = "socionext,uniphier-pro4-mio-clock";
 				#clock-cells = <1>;
 			};
 
-			mio_rst: reset {
+			mio_rst: reset-controller {
 				compatible = "socionext,uniphier-pro4-mio-reset";
 				#reset-cells = <1>;
 			};
 		};
 
-		perictrl@59820000 {
+		syscon@59820000 {
 			compatible = "socionext,uniphier-pro4-perictrl",
 				     "simple-mfd", "syscon";
 			reg = <0x59820000 0x200>;
 
-			peri_clk: clock {
+			peri_clk: clock-controller {
 				compatible = "socionext,uniphier-pro4-peri-clock";
 				#clock-cells = <1>;
 			};
 
-			peri_rst: reset {
+			peri_rst: reset-controller {
 				compatible = "socionext,uniphier-pro4-peri-reset";
 				#reset-cells = <1>;
 			};
@@ -307,6 +307,7 @@
 			sd-uhs-sdr12;
 			sd-uhs-sdr25;
 			sd-uhs-sdr50;
+			socionext,syscon-uhs-mode = <&mioctrl 0>;
 		};
 
 		emmc: mmc@5a500000 {
@@ -375,7 +376,7 @@
 			has-transaction-translator;
 		};
 
-		soc_glue: soc-glue@5f800000 {
+		soc_glue: syscon@5f800000 {
 			compatible = "socionext,uniphier-pro4-soc-glue",
 				     "simple-mfd", "syscon";
 			reg = <0x5f800000 0x2000>;
@@ -384,7 +385,7 @@
 				compatible = "socionext,uniphier-pro4-pinctrl";
 			};
 
-			usb-controller {
+			usb-hub {
 				compatible = "socionext,uniphier-pro4-usb2-phy";
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -412,15 +413,16 @@
 				};
 			};
 
-			sg_clk: clock {
+			sg_clk: clock-controller {
 				compatible = "socionext,uniphier-pro4-sg-clock";
 				#clock-cells = <1>;
 			};
 		};
 
-		soc-glue@5f900000 {
+		syscon@5f900000 {
 			compatible = "socionext,uniphier-pro4-soc-glue-debug",
-				     "simple-mfd";
+				     "simple-mfd", "syscon";
+			reg = <0x5f900000 0x2000>;
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0 0x5f900000 0x2000>;
@@ -480,17 +482,17 @@
 			interrupt-controller;
 		};
 
-		sysctrl@61840000 {
+		syscon@61840000 {
 			compatible = "socionext,uniphier-pro4-sysctrl",
 				     "simple-mfd", "syscon";
 			reg = <0x61840000 0x10000>;
 
-			sys_clk: clock {
+			sys_clk: clock-controller {
 				compatible = "socionext,uniphier-pro4-clock";
 				#clock-cells = <1>;
 			};
 
-			sys_rst: reset {
+			sys_rst: reset-controller {
 				compatible = "socionext,uniphier-pro4-reset";
 				#reset-cells = <1>;
 			};
@@ -535,6 +537,7 @@
 		sata-controller@65700000 {
 			compatible = "socionext,uniphier-pxs2-ahci-glue",
 				     "simple-mfd";
+			reg = <0x65700000 0x100>;
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0 0x65700000 0x100>;
@@ -549,7 +552,7 @@
 				#reset-cells = <1>;
 			};
 
-			ahci0_phy: sata-phy@10 {
+			ahci0_phy: phy@10 {
 				compatible = "socionext,uniphier-pro4-ahci-phy";
 				reg = <0x10 0x40>;
 				clock-names = "link", "gio";
@@ -581,6 +584,7 @@
 		sata-controller@65900000 {
 			compatible = "socionext,uniphier-pro4-ahci-glue",
 				     "simple-mfd";
+			reg = <0x65900000 0x100>;
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0 0x65900000 0x100>;
@@ -595,7 +599,7 @@
 				#reset-cells = <1>;
 			};
 
-			ahci1_phy: sata-phy@10 {
+			ahci1_phy: phy@10 {
 				compatible = "socionext,uniphier-pro4-ahci-phy";
 				reg = <0x10 0x40>;
 				clock-names = "link", "gio";
@@ -629,6 +633,7 @@
 		usb-controller@65b00000 {
 			compatible = "socionext,uniphier-pro4-dwc3-glue",
 				     "simple-mfd";
+			reg = <0x65b00000 0x100>;
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0 0x65b00000 0x100>;
@@ -642,7 +647,7 @@
 				resets = <&sys_rst 12>, <&sys_rst 14>;
 			};
 
-			usb0_ssphy: ss-phy@10 {
+			usb0_ssphy: phy@10 {
 				compatible = "socionext,uniphier-pro4-usb3-ssphy";
 				reg = <0x10 0x10>;
 				#phy-cells = <0>;
@@ -653,7 +658,7 @@
 				vbus-supply = <&usb0_vbus>;
 			};
 
-			usb0_rst: reset@40 {
+			usb0_rst: reset-controller@40 {
 				compatible = "socionext,uniphier-pro4-usb3-reset";
 				reg = <0x40 0x4>;
 				#reset-cells = <1>;
@@ -683,6 +688,7 @@
 		usb-controller@65d00000 {
 			compatible = "socionext,uniphier-pro4-dwc3-glue",
 				     "simple-mfd";
+			reg = <0x65d00000 0x100>;
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0 0x65d00000 0x100>;
@@ -696,7 +702,7 @@
 				resets = <&sys_rst 12>, <&sys_rst 15>;
 			};
 
-			usb1_rst: reset@40 {
+			usb1_rst: reset-controller@40 {
 				compatible = "socionext,uniphier-pro4-usb3-reset";
 				reg = <0x40 0x4>;
 				#reset-cells = <1>;

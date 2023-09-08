@@ -246,6 +246,110 @@ def prepare_env(args, pm, stage, prefix, cmdlist, output = None):
                 stage, output,
                 '"{}" did not complete successfully'.format(prefix))
 
+def verify_by_json(procout, res, tidx, args, pm):
+    try:
+        outputJSON = json.loads(procout)
+    except json.JSONDecodeError:
+        res.set_result(ResultState.fail)
+        res.set_failmsg('Cannot decode verify command\'s output. Is it JSON?')
+        return res
+
+    matchJSON = json.loads(json.dumps(tidx['matchJSON']))
+
+    if type(outputJSON) != type(matchJSON):
+        failmsg = 'Original output and matchJSON value are not the same type: output: {} != matchJSON: {} '
+        failmsg = failmsg.format(type(outputJSON).__name__, type(matchJSON).__name__)
+        res.set_result(ResultState.fail)
+        res.set_failmsg(failmsg)
+        return res
+
+    if len(matchJSON) > len(outputJSON):
+        failmsg = "Your matchJSON value is an array, and it contains more elements than the command under test\'s output:\ncommand output (length: {}):\n{}\nmatchJSON value (length: {}):\n{}"
+        failmsg = failmsg.format(len(outputJSON), outputJSON, len(matchJSON), matchJSON)
+        res.set_result(ResultState.fail)
+        res.set_failmsg(failmsg)
+        return res
+    res = find_in_json(res, outputJSON, matchJSON, 0)
+
+    return res
+
+def find_in_json(res, outputJSONVal, matchJSONVal, matchJSONKey=None):
+    if res.get_result() == ResultState.fail:
+        return res
+
+    if type(matchJSONVal) == list:
+        res = find_in_json_list(res, outputJSONVal, matchJSONVal, matchJSONKey)
+
+    elif type(matchJSONVal) == dict:
+        res = find_in_json_dict(res, outputJSONVal, matchJSONVal)
+    else:
+        res = find_in_json_other(res, outputJSONVal, matchJSONVal, matchJSONKey)
+
+    if res.get_result() != ResultState.fail:
+        res.set_result(ResultState.success)
+        return res
+
+    return res
+
+def find_in_json_list(res, outputJSONVal, matchJSONVal, matchJSONKey=None):
+    if (type(matchJSONVal) != type(outputJSONVal)):
+        failmsg = 'Original output and matchJSON value are not the same type: output: {} != matchJSON: {}'
+        failmsg = failmsg.format(outputJSONVal, matchJSONVal)
+        res.set_result(ResultState.fail)
+        res.set_failmsg(failmsg)
+        return res
+
+    if len(matchJSONVal) > len(outputJSONVal):
+        failmsg = "Your matchJSON value is an array, and it contains more elements than the command under test\'s output:\ncommand output (length: {}):\n{}\nmatchJSON value (length: {}):\n{}"
+        failmsg = failmsg.format(len(outputJSONVal), outputJSONVal, len(matchJSONVal), matchJSONVal)
+        res.set_result(ResultState.fail)
+        res.set_failmsg(failmsg)
+        return res
+
+    for matchJSONIdx, matchJSONVal in enumerate(matchJSONVal):
+        res = find_in_json(res, outputJSONVal[matchJSONIdx], matchJSONVal,
+                           matchJSONKey)
+    return res
+
+def find_in_json_dict(res, outputJSONVal, matchJSONVal):
+    for matchJSONKey, matchJSONVal in matchJSONVal.items():
+        if type(outputJSONVal) == dict:
+            if matchJSONKey not in outputJSONVal:
+                failmsg = 'Key not found in json output: {}: {}\nMatching against output: {}'
+                failmsg = failmsg.format(matchJSONKey, matchJSONVal, outputJSONVal)
+                res.set_result(ResultState.fail)
+                res.set_failmsg(failmsg)
+                return res
+
+        else:
+            failmsg = 'Original output and matchJSON value are not the same type: output: {} != matchJSON: {}'
+            failmsg = failmsg.format(type(outputJSON).__name__, type(matchJSON).__name__)
+            res.set_result(ResultState.fail)
+            res.set_failmsg(failmsg)
+            return rest
+
+        if type(outputJSONVal) == dict and (type(outputJSONVal[matchJSONKey]) == dict or
+                type(outputJSONVal[matchJSONKey]) == list):
+            if len(matchJSONVal) > 0:
+                res = find_in_json(res, outputJSONVal[matchJSONKey], matchJSONVal, matchJSONKey)
+            # handling corner case where matchJSONVal == [] or matchJSONVal == {}
+            else:
+                res = find_in_json_other(res, outputJSONVal, matchJSONVal, matchJSONKey)
+        else:
+            res = find_in_json(res, outputJSONVal, matchJSONVal, matchJSONKey)
+    return res
+
+def find_in_json_other(res, outputJSONVal, matchJSONVal, matchJSONKey=None):
+    if matchJSONKey in outputJSONVal:
+        if matchJSONVal != outputJSONVal[matchJSONKey]:
+            failmsg = 'Value doesn\'t match: {}: {} != {}\nMatching against output: {}'
+            failmsg = failmsg.format(matchJSONKey, matchJSONVal, outputJSONVal[matchJSONKey], outputJSONVal)
+            res.set_result(ResultState.fail)
+            res.set_failmsg(failmsg)
+            return res
+
+    return res
+
 def run_one_test(pm, args, index, tidx):
     global NAMES
     result = True
@@ -264,6 +368,19 @@ def run_one_test(pm, args, index, tidx):
             pm.call_pre_case(tidx, test_skip=True)
             pm.call_post_execute()
             return res
+
+    if 'dependsOn' in tidx:
+        if (args.verbose > 0):
+            print('probe command for test skip')
+        (p, procout) = exec_cmd(args, pm, 'execute', tidx['dependsOn'])
+        if p:
+            if (p.returncode != 0):
+                res = TestResult(tidx['id'], tidx['name'])
+                res.set_result(ResultState.skip)
+                res.set_errormsg('probe command: test skipped.')
+                pm.call_pre_case(tidx, test_skip=True)
+                pm.call_post_execute()
+                return res
 
     # populate NAMES with TESTID for this test
     NAMES['TESTID'] = tidx['id']
@@ -292,16 +409,22 @@ def run_one_test(pm, args, index, tidx):
     else:
         if args.verbose > 0:
             print('-----> verify stage')
-        match_pattern = re.compile(
-            str(tidx["matchPattern"]), re.DOTALL | re.MULTILINE)
         (p, procout) = exec_cmd(args, pm, 'verify', tidx["verifyCmd"])
         if procout:
-            match_index = re.findall(match_pattern, procout)
-            if len(match_index) != int(tidx["matchCount"]):
-                res.set_result(ResultState.fail)
-                res.set_failmsg('Could not match regex pattern. Verify command output:\n{}'.format(procout))
+            if 'matchJSON' in tidx:
+                verify_by_json(procout, res, tidx, args, pm)
+            elif 'matchPattern' in tidx:
+                match_pattern = re.compile(
+                    str(tidx["matchPattern"]), re.DOTALL | re.MULTILINE)
+                match_index = re.findall(match_pattern, procout)
+                if len(match_index) != int(tidx["matchCount"]):
+                    res.set_result(ResultState.fail)
+                    res.set_failmsg('Could not match regex pattern. Verify command output:\n{}'.format(procout))
+                else:
+                    res.set_result(ResultState.success)
             else:
-                res.set_result(ResultState.success)
+                res.set_result(ResultState.fail)
+                res.set_failmsg('Must specify a match option: matchJSON or matchPattern\n{}'.format(procout))
         elif int(tidx["matchCount"]) != 0:
             res.set_result(ResultState.fail)
             res.set_failmsg('No output generated by verify command.')
@@ -365,6 +488,7 @@ def test_runner(pm, args, filtered_tests):
             res.set_result(ResultState.skip)
             res.set_errormsg(errmsg)
             tsr.add_resultdata(res)
+            index += 1
             continue
         try:
             badtest = tidx  # in case it goes bad

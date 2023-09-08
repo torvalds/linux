@@ -10,8 +10,8 @@ maintainers:
   - Fabio Estevam <festevam@gmail.com>
 
 allOf:
-  - $ref: "serial.yaml"
-  - $ref: "rs485.yaml"
+  - $ref: serial.yaml#
+  - $ref: rs485.yaml#
 
 properties:
   compatible:
@@ -49,6 +49,24 @@ properties:
   reg:
     maxItems: 1
 
+  clocks:
+    maxItems: 2
+
+  clock-names:
+    items:
+      - const: ipg
+      - const: per
+
+  dmas:
+    items:
+      - description: DMA controller phandle and request line for RX
+      - description: DMA controller phandle and request line for TX
+
+  dma-names:
+    items:
+      - const: rx
+      - const: tx
+
   interrupts:
     maxItems: 1
 
@@ -83,22 +101,19 @@ properties:
       are sensible for most use cases. If you need low latency processing on
       slow connections this needs to be configured appropriately.
 
-  uart-has-rtscts: true
-
-  rs485-rts-delay: true
-  rs485-rts-active-low: true
-  rs485-rx-during-tx: true
-  linux,rs485-enabled-at-boot-time: true
-
 required:
   - compatible
   - reg
+  - clocks
+  - clock-names
   - interrupts
 
 unevaluatedProperties: false
 
 examples:
   - |
+    #include <dt-bindings/clock/imx5-clock.h>
+
     aliases {
         serial0 = &uart1;
     };
@@ -107,6 +122,11 @@ examples:
         compatible = "fsl,imx51-uart", "fsl,imx21-uart";
         reg = <0x73fbc000 0x4000>;
         interrupts = <31>;
+        clocks = <&clks IMX5_CLK_UART1_IPG_GATE>,
+                 <&clks IMX5_CLK_UART1_PER_GATE>;
+        clock-names = "ipg", "per";
+        dmas = <&sdma 18 4 1>, <&sdma 19 4 2>;
+        dma-names = "rx", "tx";
         uart-has-rtscts;
         fsl,dte-mode;
     };

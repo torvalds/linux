@@ -178,8 +178,9 @@ static inline struct ext2_sb_info *EXT2_SB(struct super_block *sb)
  * Macro-instructions used to manage several block sizes
  */
 #define EXT2_MIN_BLOCK_SIZE		1024
-#define	EXT2_MAX_BLOCK_SIZE		4096
+#define	EXT2_MAX_BLOCK_SIZE		65536
 #define EXT2_MIN_BLOCK_LOG_SIZE		  10
+#define EXT2_MAX_BLOCK_LOG_SIZE		  16
 #define EXT2_BLOCK_SIZE(s)		((s)->s_blocksize)
 #define	EXT2_ADDR_PER_BLOCK(s)		(EXT2_BLOCK_SIZE(s) / sizeof (__u32))
 #define EXT2_BLOCK_SIZE_BITS(s)		((s)->s_blocksize_bits)
@@ -734,8 +735,9 @@ extern int ext2_delete_entry(struct ext2_dir_entry_2 *dir, struct page *page,
 			     char *kaddr);
 extern int ext2_empty_dir (struct inode *);
 extern struct ext2_dir_entry_2 *ext2_dotdot(struct inode *dir, struct page **p, void **pa);
-extern void ext2_set_link(struct inode *, struct ext2_dir_entry_2 *, struct page *, void *,
-			  struct inode *, int);
+int ext2_set_link(struct inode *dir, struct ext2_dir_entry_2 *de,
+		struct page *page, void *page_addr, struct inode *inode,
+		bool update_times);
 static inline void ext2_put_page(struct page *page, void *page_addr)
 {
 	kunmap_local(page_addr);
@@ -753,8 +755,8 @@ extern struct inode *ext2_iget (struct super_block *, unsigned long);
 extern int ext2_write_inode (struct inode *, struct writeback_control *);
 extern void ext2_evict_inode(struct inode *);
 extern int ext2_get_block(struct inode *, sector_t, struct buffer_head *, int);
-extern int ext2_setattr (struct user_namespace *, struct dentry *, struct iattr *);
-extern int ext2_getattr (struct user_namespace *, const struct path *,
+extern int ext2_setattr (struct mnt_idmap *, struct dentry *, struct iattr *);
+extern int ext2_getattr (struct mnt_idmap *, const struct path *,
 			 struct kstat *, u32, unsigned int);
 extern void ext2_set_inode_flags(struct inode *inode);
 extern int ext2_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
@@ -762,7 +764,7 @@ extern int ext2_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 
 /* ioctl.c */
 extern int ext2_fileattr_get(struct dentry *dentry, struct fileattr *fa);
-extern int ext2_fileattr_set(struct user_namespace *mnt_userns,
+extern int ext2_fileattr_set(struct mnt_idmap *idmap,
 			     struct dentry *dentry, struct fileattr *fa);
 extern long ext2_ioctl(struct file *, unsigned int, unsigned long);
 extern long ext2_compat_ioctl(struct file *, unsigned int, unsigned long);

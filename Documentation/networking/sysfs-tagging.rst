@@ -43,6 +43,6 @@ Users of this interface:
 
   - current_ns() which returns current's namespace
   - netlink_ns() which returns a socket's namespace
-  - initial_ns() which returns the initial namesapce
+  - initial_ns() which returns the initial namespace
 
 - call kobj_ns_exit() when an individual tag is no longer valid

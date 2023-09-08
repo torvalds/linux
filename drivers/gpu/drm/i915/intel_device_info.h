@@ -29,7 +29,7 @@
 
 #include "intel_step.h"
 
-#include "display/intel_display.h"
+#include "display/intel_display_limits.h"
 
 #include "gt/intel_engine_types.h"
 #include "gt/intel_context_types.h"
@@ -127,6 +127,7 @@ enum intel_platform {
  * bit set
  */
 #define INTEL_SUBPLATFORM_N    1
+#define INTEL_SUBPLATFORM_RPLU  2
 
 /* MTL */
 #define INTEL_SUBPLATFORM_M	0
@@ -146,13 +147,13 @@ enum intel_ppgtt_type {
 	/* Keep has_* in alphabetical order */ \
 	func(has_64bit_reloc); \
 	func(has_64k_pages); \
-	func(needs_compact_pt); \
 	func(gpu_reset_clobbers_display); \
 	func(has_reset_engine); \
 	func(has_3d_pipeline); \
 	func(has_4tile); \
 	func(has_flat_ccs); \
 	func(has_global_mocs); \
+	func(has_gmd_id); \
 	func(has_gt_uc); \
 	func(has_heci_pxp); \
 	func(has_heci_gscfi); \
@@ -164,6 +165,9 @@ enum intel_ppgtt_type {
 	func(has_logical_ring_elsq); \
 	func(has_media_ratio_mode); \
 	func(has_mslice_steering); \
+	func(has_oa_bpc_reporting); \
+	func(has_oa_slice_contrib_limits); \
+	func(has_oam); \
 	func(has_one_eu_per_fuse_bit); \
 	func(has_pxp); \
 	func(has_rc6); \
@@ -180,6 +184,7 @@ enum intel_ppgtt_type {
 	/* Keep in alphabetical order */ \
 	func(cursor_needs_physical); \
 	func(has_cdclk_crawl); \
+	func(has_cdclk_squash); \
 	func(has_ddi); \
 	func(has_dp_mst); \
 	func(has_dsb); \
@@ -188,27 +193,31 @@ enum intel_ppgtt_type {
 	func(has_hotplug); \
 	func(has_hti); \
 	func(has_ipc); \
-	func(has_modular_fia); \
 	func(has_overlay); \
 	func(has_psr); \
 	func(has_psr_hw_tracking); \
 	func(overlay_needs_physical); \
 	func(supports_tv);
 
-struct ip_version {
+struct intel_ip_version {
 	u8 ver;
 	u8 rel;
+	u8 step;
 };
 
 struct intel_runtime_info {
+	/*
+	 * Single "graphics" IP version that represents
+	 * render, compute and copy behavior.
+	 */
 	struct {
-		struct ip_version ip;
+		struct intel_ip_version ip;
 	} graphics;
 	struct {
-		struct ip_version ip;
+		struct intel_ip_version ip;
 	} media;
 	struct {
-		struct ip_version ip;
+		struct intel_ip_version ip;
 	} display;
 
 	/*
@@ -308,7 +317,7 @@ struct intel_driver_caps {
 
 const char *intel_platform_name(enum intel_platform platform);
 
-void intel_device_info_subplatform_init(struct drm_i915_private *dev_priv);
+void intel_device_info_runtime_init_early(struct drm_i915_private *dev_priv);
 void intel_device_info_runtime_init(struct drm_i915_private *dev_priv);
 
 void intel_device_info_print(const struct intel_device_info *info,

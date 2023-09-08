@@ -15,10 +15,10 @@ HiSilicon PCIe PMU driver
 The PCIe PMU driver registers a perf PMU with the name of its sicl-id and PCIe
 Core id.::
 
-  /sys/bus/event_source/hisi_pcie<sicl>_<core>
+  /sys/bus/event_source/hisi_pcie<sicl>_core<core>
 
 PMU driver provides description of available events and filter options in sysfs,
-see /sys/bus/event_source/devices/hisi_pcie<sicl>_<core>.
+see /sys/bus/event_source/devices/hisi_pcie<sicl>_core<core>.
 
 The "format" directory describes all formats of the config (events) and config1
 (filter options) fields of the perf_event_attr structure. The "events" directory
@@ -33,13 +33,13 @@ monitored by PMU.
 Example usage of perf::
 
   $# perf list
-  hisi_pcie0_0/rx_mwr_latency/ [kernel PMU event]
-  hisi_pcie0_0/rx_mwr_cnt/ [kernel PMU event]
+  hisi_pcie0_core0/rx_mwr_latency/ [kernel PMU event]
+  hisi_pcie0_core0/rx_mwr_cnt/ [kernel PMU event]
   ------------------------------------------
 
-  $# perf stat -e hisi_pcie0_0/rx_mwr_latency/
-  $# perf stat -e hisi_pcie0_0/rx_mwr_cnt/
-  $# perf stat -g -e hisi_pcie0_0/rx_mwr_latency/ -e hisi_pcie0_0/rx_mwr_cnt/
+  $# perf stat -e hisi_pcie0_core0/rx_mwr_latency/
+  $# perf stat -e hisi_pcie0_core0/rx_mwr_cnt/
+  $# perf stat -g -e hisi_pcie0_core0/rx_mwr_latency/ -e hisi_pcie0_core0/rx_mwr_cnt/
 
 The current driver does not support sampling. So "perf record" is unsupported.
 Also attach to a task is unsupported for PCIe PMU.
@@ -48,59 +48,83 @@ Filter options
 --------------
 
 1. Target filter
-PMU could only monitor the performance of traffic downstream target Root Ports
-or downstream target Endpoint. PCIe PMU driver support "port" and "bdf"
-interfaces for users, and these two interfaces aren't supported at the same
-time.
 
--port
-"port" filter can be used in all PCIe PMU events, target Root Port can be
-selected by configuring the 16-bits-bitmap "port". Multi ports can be selected
-for AP-layer-events, and only one port can be selected for TL/DL-layer-events.
+   PMU could only monitor the performance of traffic downstream target Root
+   Ports or downstream target Endpoint. PCIe PMU driver support "port" and
+   "bdf" interfaces for users, and these two interfaces aren't supported at the
+   same time.
 
-For example, if target Root Port is 0000:00:00.0 (x8 lanes), bit0 of bitmap
-should be set, port=0x1; if target Root Port is 0000:00:04.0 (x4 lanes),
-bit8 is set, port=0x100; if these two Root Ports are both monitored, port=0x101.
+   - port
 
-Example usage of perf::
+     "port" filter can be used in all PCIe PMU events, target Root Port can be
+     selected by configuring the 16-bits-bitmap "port". Multi ports can be
+     selected for AP-layer-events, and only one port can be selected for
+     TL/DL-layer-events.
 
-  $# perf stat -e hisi_pcie0_0/rx_mwr_latency,port=0x1/ sleep 5
+     For example, if target Root Port is 0000:00:00.0 (x8 lanes), bit0 of
+     bitmap should be set, port=0x1; if target Root Port is 0000:00:04.0 (x4
+     lanes), bit8 is set, port=0x100; if these two Root Ports are both
+     monitored, port=0x101.
 
--bdf
+     Example usage of perf::
 
-"bdf" filter can only be used in bandwidth events, target Endpoint is selected
-by configuring BDF to "bdf". Counter only counts the bandwidth of message
-requested by target Endpoint.
+       $# perf stat -e hisi_pcie0_core0/rx_mwr_latency,port=0x1/ sleep 5
 
-For example, "bdf=0x3900" means BDF of target Endpoint is 0000:39:00.0.
+   - bdf
 
-Example usage of perf::
+     "bdf" filter can only be used in bandwidth events, target Endpoint is
+     selected by configuring BDF to "bdf". Counter only counts the bandwidth of
+     message requested by target Endpoint.
 
-  $# perf stat -e hisi_pcie0_0/rx_mrd_flux,bdf=0x3900/ sleep 5
+     For example, "bdf=0x3900" means BDF of target Endpoint is 0000:39:00.0.
+
+     Example usage of perf::
+
+       $# perf stat -e hisi_pcie0_core0/rx_mrd_flux,bdf=0x3900/ sleep 5
 
 2. Trigger filter
-Event statistics start when the first time TLP length is greater/smaller
-than trigger condition. You can set the trigger condition by writing "trig_len",
-and set the trigger mode by writing "trig_mode". This filter can only be used
-in bandwidth events.
 
-For example, "trig_len=4" means trigger condition is 2^4 DW, "trig_mode=0"
-means statistics start when TLP length > trigger condition, "trig_mode=1"
-means start when TLP length < condition.
+   Event statistics start when the first time TLP length is greater/smaller
+   than trigger condition. You can set the trigger condition by writing
+   "trig_len", and set the trigger mode by writing "trig_mode". This filter can
+   only be used in bandwidth events.
 
-Example usage of perf::
+   For example, "trig_len=4" means trigger condition is 2^4 DW, "trig_mode=0"
+   means statistics start when TLP length > trigger condition, "trig_mode=1"
+   means start when TLP length < condition.
 
-  $# perf stat -e hisi_pcie0_0/rx_mrd_flux,trig_len=0x4,trig_mode=1/ sleep 5
+   Example usage of perf::
+
+     $# perf stat -e hisi_pcie0_core0/rx_mrd_flux,trig_len=0x4,trig_mode=1/ sleep 5
 
 3. Threshold filter
-Counter counts when TLP length within the specified range. You can set the
-threshold by writing "thr_len", and set the threshold mode by writing
-"thr_mode". This filter can only be used in bandwidth events.
 
-For example, "thr_len=4" means threshold is 2^4 DW, "thr_mode=0" means
-counter counts when TLP length >= threshold, and "thr_mode=1" means counts
-when TLP length < threshold.
+   Counter counts when TLP length within the specified range. You can set the
+   threshold by writing "thr_len", and set the threshold mode by writing
+   "thr_mode". This filter can only be used in bandwidth events.
 
-Example usage of perf::
+   For example, "thr_len=4" means threshold is 2^4 DW, "thr_mode=0" means
+   counter counts when TLP length >= threshold, and "thr_mode=1" means counts
+   when TLP length < threshold.
 
-  $# perf stat -e hisi_pcie0_0/rx_mrd_flux,thr_len=0x4,thr_mode=1/ sleep 5
+   Example usage of perf::
+
+     $# perf stat -e hisi_pcie0_core0/rx_mrd_flux,thr_len=0x4,thr_mode=1/ sleep 5
+
+4. TLP Length filter
+
+   When counting bandwidth, the data can be composed of certain parts of TLP
+   packets. You can specify it through "len_mode":
+
+   - 2'b00: Reserved (Do not use this since the behaviour is undefined)
+   - 2'b01: Bandwidth of TLP payloads
+   - 2'b10: Bandwidth of TLP headers
+   - 2'b11: Bandwidth of both TLP payloads and headers
+
+   For example, "len_mode=2" means only counting the bandwidth of TLP headers
+   and "len_mode=3" means the final bandwidth data is composed of both TLP
+   headers and payloads. Default value if not specified is 2'b11.
+
+   Example usage of perf::
+
+     $# perf stat -e hisi_pcie0_core0/rx_mrd_flux,len_mode=0x1/ sleep 5

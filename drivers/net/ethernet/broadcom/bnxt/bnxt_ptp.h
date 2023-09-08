@@ -17,6 +17,8 @@
 #define BNXT_PTP_GRC_WIN_BASE	0x6000
 
 #define BNXT_MAX_PHC_DRIFT	31000000
+#define BNXT_CYCLES_SHIFT	23
+#define BNXT_DEVCLK_FREQ	1000000
 #define BNXT_LO_TIMER_MASK	0x0000ffffffffUL
 #define BNXT_HI_TIMER_MASK	0xffff00000000UL
 
@@ -88,8 +90,9 @@ struct bnxt_ptp_cfg {
 	u64			old_time;
 	unsigned long		next_period;
 	unsigned long		next_overflow_check;
-	/* 48-bit PHC overflows in 78 hours.  Check overflow every 19 hours. */
-	#define BNXT_PHC_OVERFLOW_PERIOD	(19 * 3600 * HZ)
+	u32			cmult;
+	/* a 23b shift cyclecounter will overflow in ~36 mins.  Check overflow every 18 mins. */
+	#define BNXT_PHC_OVERFLOW_PERIOD	(18 * 60 * HZ)
 
 	u16			tx_seqid;
 	u16			tx_hdr_off;

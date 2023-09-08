@@ -128,10 +128,6 @@
 	status = "okay";
 };
 
-&pronto {
-	status = "okay";
-};
-
 &sdhc_1 {
 	status = "okay";
 
@@ -157,6 +153,14 @@
 
 &usb_hs_phy {
 	extcon = <&usb_id>;
+};
+
+&wcnss {
+	status = "okay";
+};
+
+&wcnss_iris {
+	compatible = "qcom,wcn3620";
 };
 
 &smd_rpm_regulators {
@@ -263,7 +267,7 @@
 };
 
 &msmgpio {
-	gpio_keys_default: gpio-keys-default {
+	gpio_keys_default: gpio-keys-default-state {
 		pins = "gpio107", "gpio117";
 		function = "gpio";
 
@@ -271,7 +275,7 @@
 		bias-pull-up;
 	};
 
-	imu_default: imu-default {
+	imu_default: imu-default-state {
 		pins = "gpio36";
 		function = "gpio";
 
@@ -279,7 +283,7 @@
 		bias-disable;
 	};
 
-	mag_reset_default: mag-reset-default {
+	mag_reset_default: mag-reset-default-state {
 		pins = "gpio112";
 		function = "gpio";
 
@@ -287,7 +291,7 @@
 		bias-disable;
 	};
 
-	sd_vmmc_en_default: sd-vmmc-en-default {
+	sd_vmmc_en_default: sd-vmmc-en-default-state {
 		pins = "gpio87";
 		function = "gpio";
 
@@ -295,14 +299,16 @@
 		bias-disable;
 	};
 
-	touchscreen_default: touchscreen-default {
-		pins = "gpio13";
-		function = "gpio";
+	touchscreen_default: touchscreen-default-state {
+		touch-pins {
+			pins = "gpio13";
+			function = "gpio";
 
-		drive-strength = <2>;
-		bias-pull-up;
+			drive-strength = <2>;
+			bias-pull-up;
+		};
 
-		reset {
+		reset-pins {
 			pins = "gpio12";
 			function = "gpio";
 
@@ -311,7 +317,7 @@
 		};
 	};
 
-	usb_id_default: usb-id-default {
+	usb_id_default: usb-id-default-state {
 		pins = "gpio110";
 		function = "gpio";
 

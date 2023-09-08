@@ -73,28 +73,38 @@ struct out_csc_color_matrix_type {
 
 static const struct out_csc_color_matrix_type output_csc_matrix[] = {
 	{ COLOR_SPACE_RGB_TYPE,
-		{ 0x2000, 0, 0, 0, 0, 0x2000, 0, 0, 0, 0, 0x2000, 0} },
+		{ 0x2000, 0,      0,      0,
+		  0,      0x2000, 0,      0,
+		  0,      0,      0x2000, 0} },
 	{ COLOR_SPACE_RGB_LIMITED_TYPE,
-		{ 0x1B67, 0, 0, 0x201, 0, 0x1B67, 0, 0x201, 0, 0, 0x1B67, 0x201} },
+		{ 0x1B67, 0,      0,      0x201,
+		  0,      0x1B67, 0,      0x201,
+		  0,      0,      0x1B67, 0x201} },
 	{ COLOR_SPACE_YCBCR601_TYPE,
-		{ 0xE04, 0xF444, 0xFDB9, 0x1004, 0x831, 0x1016, 0x320, 0x201, 0xFB45,
-				0xF6B7, 0xE04, 0x1004} },
+		{ 0xE04,  0xF444, 0xFDB9, 0x1004,
+		  0x831,  0x1016, 0x320,  0x201,
+		  0xFB45, 0xF6B7, 0xE04,  0x1004} },
 	{ COLOR_SPACE_YCBCR709_TYPE,
-		{ 0xE04, 0xF345, 0xFEB7, 0x1004, 0x5D3, 0x1399, 0x1FA,
-				0x201, 0xFCCA, 0xF533, 0xE04, 0x1004} },
+		{ 0xE04,  0xF345, 0xFEB7, 0x1004,
+		  0x5D3,  0x1399, 0x1FA,  0x201,
+		  0xFCCA, 0xF533, 0xE04,  0x1004} },
 	/* TODO: correct values below */
 	{ COLOR_SPACE_YCBCR601_LIMITED_TYPE,
-		{ 0xE00, 0xF447, 0xFDB9, 0x1000, 0x991,
-				0x12C9, 0x3A6, 0x200, 0xFB47, 0xF6B9, 0xE00, 0x1000} },
+		{ 0xE00,  0xF447, 0xFDB9, 0x1000,
+		  0x991,  0x12C9, 0x3A6,  0x200,
+		  0xFB47, 0xF6B9, 0xE00,  0x1000} },
 	{ COLOR_SPACE_YCBCR709_LIMITED_TYPE,
-		{ 0xE00, 0xF349, 0xFEB7, 0x1000, 0x6CE, 0x16E3,
-				0x24F, 0x200, 0xFCCB, 0xF535, 0xE00, 0x1000} },
+		{ 0xE00, 0xF349, 0xFEB7, 0x1000,
+		  0x6CE, 0x16E3, 0x24F,  0x200,
+		  0xFCCB, 0xF535, 0xE00, 0x1000} },
 	{ COLOR_SPACE_YCBCR2020_TYPE,
-		{ 0x1000, 0xF149, 0xFEB7, 0x0000, 0x0868, 0x15B2,
-				0x01E6, 0x0000, 0xFB88, 0xF478, 0x1000, 0x0000} },
+		{ 0x1000, 0xF149, 0xFEB7, 0x1004,
+		  0x0868, 0x15B2, 0x01E6, 0x201,
+		  0xFB88, 0xF478, 0x1000, 0x1004} },
 	{ COLOR_SPACE_YCBCR709_BLACK_TYPE,
-		{ 0x0000, 0x0000, 0x0000, 0x1000, 0x0000, 0x0000,
-				0x0000, 0x0200, 0x0000, 0x0000, 0x0000, 0x1000} },
+		{ 0x0000, 0x0000, 0x0000, 0x1000,
+		  0x0000, 0x0000, 0x0000, 0x0200,
+		  0x0000, 0x0000, 0x0000, 0x1000} },
 };
 
 static bool is_rgb_type(
@@ -366,6 +376,7 @@ void get_hdr_visual_confirm_color(
 		struct tg_color *color)
 {
 	uint32_t color_value = MAX_TG_COLOR_VALUE;
+	bool is_sdr = false;
 
 	/* Determine the overscan color based on the top-most (desktop) plane's context */
 	struct pipe_ctx *top_pipe_ctx  = pipe_ctx;
@@ -382,7 +393,8 @@ void get_hdr_visual_confirm_color(
 			/* FreeSync 2 ARGB2101010 - set border color to pink */
 			color->color_r_cr = color_value;
 			color->color_b_cb = color_value;
-		}
+		} else
+			is_sdr = true;
 		break;
 	case PIXEL_FORMAT_FP16:
 		if (top_pipe_ctx->stream->out_transfer_func->tf == TRANSFER_FUNCTION_PQ) {
@@ -391,14 +403,19 @@ void get_hdr_visual_confirm_color(
 		} else if (top_pipe_ctx->stream->out_transfer_func->tf == TRANSFER_FUNCTION_GAMMA22) {
 			/* FreeSync 2 HDR - set border color to green */
 			color->color_g_y = color_value;
-		}
+		} else
+			is_sdr = true;
 		break;
 	default:
+		is_sdr = true;
+		break;
+	}
+
+	if (is_sdr) {
 		/* SDR - set border color to Gray */
 		color->color_r_cr = color_value/2;
 		color->color_b_cb = color_value/2;
 		color->color_g_y = color_value/2;
-		break;
 	}
 }
 

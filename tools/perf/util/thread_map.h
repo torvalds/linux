@@ -4,8 +4,6 @@
 
 #include <sys/types.h>
 #include <stdio.h>
-#include <linux/refcount.h>
-#include <internal/threadmap.h>
 #include <perf/threadmap.h>
 
 struct perf_record_thread_map;

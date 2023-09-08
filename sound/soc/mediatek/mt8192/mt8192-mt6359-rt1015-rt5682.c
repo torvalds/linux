@@ -161,8 +161,6 @@ static int mt8192_mt6359_mtkaif_calibration(struct snd_soc_pcm_runtime *rtd)
 	int counter;
 	int mtkaif_calib_ok;
 
-	dev_info(afe->dev, "%s(), start\n", __func__);
-
 	pm_runtime_get_sync(afe->dev);
 	mt8192_afe_gpio_request(afe->dev, true, MT8192_DAI_ADDA, 1);
 	mt8192_afe_gpio_request(afe->dev, true, MT8192_DAI_ADDA, 0);
@@ -294,11 +292,11 @@ static int mt8192_mt6359_mtkaif_calibration(struct snd_soc_pcm_runtime *rtd)
 	mt8192_afe_gpio_request(afe->dev, false, MT8192_DAI_ADDA_CH34, 0);
 	pm_runtime_put(afe->dev);
 
-	dev_info(afe->dev, "%s(), mtkaif_chosen_phase[0/1/2]:%d/%d/%d\n",
-		 __func__,
-		 afe_priv->mtkaif_chosen_phase[0],
-		 afe_priv->mtkaif_chosen_phase[1],
-		 afe_priv->mtkaif_chosen_phase[2]);
+	dev_dbg(afe->dev, "%s(), mtkaif_chosen_phase[0/1/2]:%d/%d/%d\n",
+		__func__,
+		afe_priv->mtkaif_chosen_phase[0],
+		afe_priv->mtkaif_chosen_phase[1],
+		afe_priv->mtkaif_chosen_phase[2]);
 
 	return 0;
 }
@@ -1261,6 +1259,7 @@ static const struct of_device_id mt8192_mt6359_dt_match[] = {
 	},
 	{}
 };
+MODULE_DEVICE_TABLE(of, mt8192_mt6359_dt_match);
 #endif
 
 static const struct dev_pm_ops mt8192_mt6359_pm_ops = {

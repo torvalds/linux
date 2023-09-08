@@ -10,7 +10,7 @@
 #include "ubi.h"
 
 /**
- * calc_data_len - calculate how much real data is stored in a buffer.
+ * ubi_calc_data_len - calculate how much real data is stored in a buffer.
  * @ubi: UBI device description object
  * @buf: a buffer with the contents of the physical eraseblock
  * @length: the buffer length

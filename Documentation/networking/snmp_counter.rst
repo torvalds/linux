@@ -980,7 +980,7 @@ How many reply packets of the SYN cookies the TCP stack receives.
 
 The MSS decoded from the SYN cookie is invalid. When this counter is
 updated, the received packet won't be treated as a SYN cookie and the
-TcpExtSyncookiesRecv counter wont be updated.
+TcpExtSyncookiesRecv counter won't be updated.
 
 Challenge ACK
 =============
@@ -1681,7 +1681,7 @@ RST to nstat-b::
 
   nstatuser@nstat-a:~$ sudo iptables -A INPUT -p tcp --sport 9000 -j DROP
 
-Send 3 SYN repeatly to nstat-b::
+Send 3 SYN repeatedly to nstat-b::
 
   nstatuser@nstat-a:~$ for i in {1..3}; do sudo tcpreplay -i ens3 /tmp/syn_fixcsum.pcap; done
 

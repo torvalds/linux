@@ -110,7 +110,7 @@ void __init save_area_add_vxrs(struct save_area *sa, __vector128 *vxrs)
 
 	/* Copy lower halves of vector registers 0-15 */
 	for (i = 0; i < 16; i++)
-		memcpy(&sa->vxrs_low[i], &vxrs[i].u[2], 8);
+		sa->vxrs_low[i] = vxrs[i].low;
 	/* Copy vector registers 16-31 */
 	memcpy(sa->vxrs_high, vxrs + 16, 16 * sizeof(__vector128));
 }
@@ -153,7 +153,7 @@ int copy_oldmem_kernel(void *dst, unsigned long src, size_t count)
 
 	kvec.iov_base = dst;
 	kvec.iov_len = count;
-	iov_iter_kvec(&iter, WRITE, &kvec, 1, count);
+	iov_iter_kvec(&iter, ITER_DEST, &kvec, 1, count);
 	if (copy_oldmem_iter(&iter, src, count) < count)
 		return -EFAULT;
 	return 0;

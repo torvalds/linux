@@ -149,7 +149,7 @@ static struct attribute *isci_host_attrs[] = {
 
 ATTRIBUTE_GROUPS(isci_host);
 
-static struct scsi_host_template isci_sht = {
+static const struct scsi_host_template isci_sht = {
 
 	.module				= THIS_MODULE,
 	.name				= DRV_NAME,

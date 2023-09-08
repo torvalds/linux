@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/mips/loongson/devices.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Loongson based Platforms Device Tree Bindings
+title: Loongson based Platforms
 
 maintainers:
   - Jiaxun Yang <jiaxun.yang@flygoat.com>
@@ -36,6 +36,18 @@ properties:
       - description: Virtual Loongson64 Quad Core + VirtIO
         items:
           - const: loongson,loongson64v-4core-virtio
+
+      - description: LS1B based boards
+        items:
+          - enum:
+              - loongson,lsgz-1b-dev
+          - const: loongson,ls1b
+
+      - description: LS1C based boards
+        items:
+          - enum:
+              - loongmasses,smartloong-1c
+          - const: loongson,ls1c
 
 additionalProperties: true
 

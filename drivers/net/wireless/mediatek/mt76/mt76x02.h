@@ -72,6 +72,18 @@ struct mt76x02_beacon_ops {
 #define mt76x02_pre_tbtt_enable(dev, enable)	\
 	(dev)->beacon_ops->pre_tbtt_enable(dev, enable)
 
+struct mt76x02_rate_power {
+	union {
+		struct {
+			s8 cck[4];
+			s8 ofdm[8];
+			s8 ht[16];
+			s8 vht[2];
+		};
+		s8 all[30];
+	};
+};
+
 struct mt76x02_dev {
 	union { /* must be first */
 		struct mt76_dev mt76;
@@ -106,6 +118,8 @@ struct mt76x02_dev {
 	u8 tx_hang_check[4];
 	u8 beacon_hang_check;
 	u8 mcu_timeout;
+
+	struct mt76x02_rate_power rate_power;
 
 	struct mt76x02_calibration cal;
 
@@ -174,7 +188,7 @@ int mt76x02_set_rts_threshold(struct ieee80211_hw *hw, u32 val);
 void mt76x02_remove_hdr_pad(struct sk_buff *skb, int len);
 bool mt76x02_tx_status_data(struct mt76_dev *mdev, u8 *update);
 void mt76x02_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
-			  struct sk_buff *skb);
+			  struct sk_buff *skb, u32 *info);
 void mt76x02_rx_poll_complete(struct mt76_dev *mdev, enum mt76_rxq_id q);
 irqreturn_t mt76x02_irq_handler(int irq, void *dev_instance);
 void mt76x02_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,

@@ -5,6 +5,8 @@
 #include <uapi/asm/svm.h>
 #include <uapi/asm/kvm.h>
 
+#include <asm/hyperv-tlfs.h>
+
 /*
  * 32-bit intercept words in the VMCB Control Area, starting
  * at Byte offset 000h.
@@ -161,7 +163,10 @@ struct __attribute__ ((__packed__)) vmcb_control_area {
 	 * Offset 0x3e0, 32 bytes reserved
 	 * for use by hypervisor/software.
 	 */
-	u8 reserved_sw[32];
+	union {
+		struct hv_vmcb_enlightenments hv_enlightenments;
+		u8 reserved_sw[32];
+	};
 };
 
 
@@ -178,6 +183,12 @@ struct __attribute__ ((__packed__)) vmcb_control_area {
 #define V_GIF_SHIFT 9
 #define V_GIF_MASK (1 << V_GIF_SHIFT)
 
+#define V_NMI_PENDING_SHIFT 11
+#define V_NMI_PENDING_MASK (1 << V_NMI_PENDING_SHIFT)
+
+#define V_NMI_BLOCKING_SHIFT 12
+#define V_NMI_BLOCKING_MASK (1 << V_NMI_BLOCKING_SHIFT)
+
 #define V_INTR_PRIO_SHIFT 16
 #define V_INTR_PRIO_MASK (0x0f << V_INTR_PRIO_SHIFT)
 
@@ -191,6 +202,9 @@ struct __attribute__ ((__packed__)) vmcb_control_area {
 
 #define V_GIF_ENABLE_SHIFT 25
 #define V_GIF_ENABLE_MASK (1 << V_GIF_ENABLE_SHIFT)
+
+#define V_NMI_ENABLE_SHIFT 26
+#define V_NMI_ENABLE_MASK (1 << V_NMI_ENABLE_SHIFT)
 
 #define AVIC_ENABLE_SHIFT 31
 #define AVIC_ENABLE_MASK (1 << AVIC_ENABLE_SHIFT)
@@ -256,22 +270,23 @@ enum avic_ipi_failure_cause {
 	AVIC_IPI_FAILURE_INVALID_BACKING_PAGE,
 };
 
-#define AVIC_PHYSICAL_MAX_INDEX_MASK	GENMASK_ULL(9, 0)
+#define AVIC_PHYSICAL_MAX_INDEX_MASK	GENMASK_ULL(8, 0)
 
 /*
- * For AVIC, the max index allowed for physical APIC ID
- * table is 0xff (255).
+ * For AVIC, the max index allowed for physical APIC ID table is 0xfe (254), as
+ * 0xff is a broadcast to all CPUs, i.e. can't be targeted individually.
  */
 #define AVIC_MAX_PHYSICAL_ID		0XFEULL
 
 /*
- * For x2AVIC, the max index allowed for physical APIC ID
- * table is 0x1ff (511).
+ * For x2AVIC, the max index allowed for physical APIC ID table is 0x1ff (511).
  */
 #define X2AVIC_MAX_PHYSICAL_ID		0x1FFUL
 
+static_assert((AVIC_MAX_PHYSICAL_ID & AVIC_PHYSICAL_MAX_INDEX_MASK) == AVIC_MAX_PHYSICAL_ID);
+static_assert((X2AVIC_MAX_PHYSICAL_ID & AVIC_PHYSICAL_MAX_INDEX_MASK) == X2AVIC_MAX_PHYSICAL_ID);
+
 #define AVIC_HPA_MASK	~((0xFFFULL << 52) | 0xFFF)
-#define VMCB_AVIC_APIC_BAR_MASK		0xFFFFFFFFFF000ULL
 
 
 struct vmcb_seg {
@@ -293,12 +308,13 @@ struct vmcb_save_area {
 	struct vmcb_seg ldtr;
 	struct vmcb_seg idtr;
 	struct vmcb_seg tr;
-	u8 reserved_1[42];
+	/* Reserved fields are named following their struct offset */
+	u8 reserved_0xa0[42];
 	u8 vmpl;
 	u8 cpl;
-	u8 reserved_2[4];
+	u8 reserved_0xcc[4];
 	u64 efer;
-	u8 reserved_3[112];
+	u8 reserved_0xd8[112];
 	u64 cr4;
 	u64 cr3;
 	u64 cr0;
@@ -306,7 +322,7 @@ struct vmcb_save_area {
 	u64 dr6;
 	u64 rflags;
 	u64 rip;
-	u8 reserved_4[88];
+	u8 reserved_0x180[88];
 	u64 rsp;
 	u64 s_cet;
 	u64 ssp;
@@ -321,14 +337,14 @@ struct vmcb_save_area {
 	u64 sysenter_esp;
 	u64 sysenter_eip;
 	u64 cr2;
-	u8 reserved_5[32];
+	u8 reserved_0x248[32];
 	u64 g_pat;
 	u64 dbgctl;
 	u64 br_from;
 	u64 br_to;
 	u64 last_excp_from;
 	u64 last_excp_to;
-	u8 reserved_6[72];
+	u8 reserved_0x298[72];
 	u32 spec_ctrl;		/* Guest version of SPEC_CTRL at 0x2E0 */
 } __packed;
 
@@ -349,12 +365,12 @@ struct sev_es_save_area {
 	u64 vmpl2_ssp;
 	u64 vmpl3_ssp;
 	u64 u_cet;
-	u8 reserved_1[2];
+	u8 reserved_0xc8[2];
 	u8 vmpl;
 	u8 cpl;
-	u8 reserved_2[4];
+	u8 reserved_0xcc[4];
 	u64 efer;
-	u8 reserved_3[104];
+	u8 reserved_0xd8[104];
 	u64 xss;
 	u64 cr4;
 	u64 cr3;
@@ -371,7 +387,7 @@ struct sev_es_save_area {
 	u64 dr1_addr_mask;
 	u64 dr2_addr_mask;
 	u64 dr3_addr_mask;
-	u8 reserved_4[24];
+	u8 reserved_0x1c0[24];
 	u64 rsp;
 	u64 s_cet;
 	u64 ssp;
@@ -386,21 +402,21 @@ struct sev_es_save_area {
 	u64 sysenter_esp;
 	u64 sysenter_eip;
 	u64 cr2;
-	u8 reserved_5[32];
+	u8 reserved_0x248[32];
 	u64 g_pat;
 	u64 dbgctl;
 	u64 br_from;
 	u64 br_to;
 	u64 last_excp_from;
 	u64 last_excp_to;
-	u8 reserved_7[80];
+	u8 reserved_0x298[80];
 	u32 pkru;
-	u8 reserved_8[20];
-	u64 reserved_9;		/* rax already available at 0x01f8 */
+	u32 tsc_aux;
+	u8 reserved_0x2f0[24];
 	u64 rcx;
 	u64 rdx;
 	u64 rbx;
-	u64 reserved_10;	/* rsp already available at 0x01d8 */
+	u64 reserved_0x320;	/* rsp already available at 0x01d8 */
 	u64 rbp;
 	u64 rsi;
 	u64 rdi;
@@ -412,7 +428,7 @@ struct sev_es_save_area {
 	u64 r13;
 	u64 r14;
 	u64 r15;
-	u8 reserved_11[16];
+	u8 reserved_0x380[16];
 	u64 guest_exit_info_1;
 	u64 guest_exit_info_2;
 	u64 guest_exit_int_info;
@@ -425,7 +441,7 @@ struct sev_es_save_area {
 	u64 pcpu_id;
 	u64 event_inj;
 	u64 xcr0;
-	u8 reserved_12[16];
+	u8 reserved_0x3f0[16];
 
 	/* Floating point area */
 	u64 x87_dp;
@@ -443,23 +459,23 @@ struct sev_es_save_area {
 } __packed;
 
 struct ghcb_save_area {
-	u8 reserved_1[203];
+	u8 reserved_0x0[203];
 	u8 cpl;
-	u8 reserved_2[116];
+	u8 reserved_0xcc[116];
 	u64 xss;
-	u8 reserved_3[24];
+	u8 reserved_0x148[24];
 	u64 dr7;
-	u8 reserved_4[16];
+	u8 reserved_0x168[16];
 	u64 rip;
-	u8 reserved_5[88];
+	u8 reserved_0x180[88];
 	u64 rsp;
-	u8 reserved_6[24];
+	u8 reserved_0x1e0[24];
 	u64 rax;
-	u8 reserved_7[264];
+	u8 reserved_0x200[264];
 	u64 rcx;
 	u64 rdx;
 	u64 rbx;
-	u8 reserved_8[8];
+	u8 reserved_0x320[8];
 	u64 rbp;
 	u64 rsi;
 	u64 rdi;
@@ -471,12 +487,12 @@ struct ghcb_save_area {
 	u64 r13;
 	u64 r14;
 	u64 r15;
-	u8 reserved_9[16];
+	u8 reserved_0x380[16];
 	u64 sw_exit_code;
 	u64 sw_exit_info_1;
 	u64 sw_exit_info_2;
 	u64 sw_scratch;
-	u8 reserved_10[56];
+	u8 reserved_0x3b0[56];
 	u64 xcr0;
 	u8 valid_bitmap[16];
 	u64 x87_state_gpa;
@@ -490,7 +506,7 @@ struct ghcb {
 
 	u8 shared_buffer[GHCB_SHARED_BUF_SIZE];
 
-	u8 reserved_1[10];
+	u8 reserved_0xff0[10];
 	u16 protocol_version;	/* negotiated SEV-ES/GHCB protocol version */
 	u32 ghcb_usage;
 } __packed;
@@ -502,6 +518,9 @@ struct ghcb {
 #define EXPECTED_VMCB_CONTROL_AREA_SIZE		1024
 #define EXPECTED_GHCB_SIZE			PAGE_SIZE
 
+#define BUILD_BUG_RESERVED_OFFSET(x, y) \
+	ASSERT_STRUCT_OFFSET(struct x, reserved ## _ ## y, y)
+
 static inline void __unused_size_checks(void)
 {
 	BUILD_BUG_ON(sizeof(struct vmcb_save_area)	!= EXPECTED_VMCB_SAVE_AREA_SIZE);
@@ -509,6 +528,39 @@ static inline void __unused_size_checks(void)
 	BUILD_BUG_ON(sizeof(struct sev_es_save_area)	!= EXPECTED_SEV_ES_SAVE_AREA_SIZE);
 	BUILD_BUG_ON(sizeof(struct vmcb_control_area)	!= EXPECTED_VMCB_CONTROL_AREA_SIZE);
 	BUILD_BUG_ON(sizeof(struct ghcb)		!= EXPECTED_GHCB_SIZE);
+
+	/* Check offsets of reserved fields */
+
+	BUILD_BUG_RESERVED_OFFSET(vmcb_save_area, 0xa0);
+	BUILD_BUG_RESERVED_OFFSET(vmcb_save_area, 0xcc);
+	BUILD_BUG_RESERVED_OFFSET(vmcb_save_area, 0xd8);
+	BUILD_BUG_RESERVED_OFFSET(vmcb_save_area, 0x180);
+	BUILD_BUG_RESERVED_OFFSET(vmcb_save_area, 0x248);
+	BUILD_BUG_RESERVED_OFFSET(vmcb_save_area, 0x298);
+
+	BUILD_BUG_RESERVED_OFFSET(sev_es_save_area, 0xc8);
+	BUILD_BUG_RESERVED_OFFSET(sev_es_save_area, 0xcc);
+	BUILD_BUG_RESERVED_OFFSET(sev_es_save_area, 0xd8);
+	BUILD_BUG_RESERVED_OFFSET(sev_es_save_area, 0x1c0);
+	BUILD_BUG_RESERVED_OFFSET(sev_es_save_area, 0x248);
+	BUILD_BUG_RESERVED_OFFSET(sev_es_save_area, 0x298);
+	BUILD_BUG_RESERVED_OFFSET(sev_es_save_area, 0x2f0);
+	BUILD_BUG_RESERVED_OFFSET(sev_es_save_area, 0x320);
+	BUILD_BUG_RESERVED_OFFSET(sev_es_save_area, 0x380);
+	BUILD_BUG_RESERVED_OFFSET(sev_es_save_area, 0x3f0);
+
+	BUILD_BUG_RESERVED_OFFSET(ghcb_save_area, 0x0);
+	BUILD_BUG_RESERVED_OFFSET(ghcb_save_area, 0xcc);
+	BUILD_BUG_RESERVED_OFFSET(ghcb_save_area, 0x148);
+	BUILD_BUG_RESERVED_OFFSET(ghcb_save_area, 0x168);
+	BUILD_BUG_RESERVED_OFFSET(ghcb_save_area, 0x180);
+	BUILD_BUG_RESERVED_OFFSET(ghcb_save_area, 0x1e0);
+	BUILD_BUG_RESERVED_OFFSET(ghcb_save_area, 0x200);
+	BUILD_BUG_RESERVED_OFFSET(ghcb_save_area, 0x320);
+	BUILD_BUG_RESERVED_OFFSET(ghcb_save_area, 0x380);
+	BUILD_BUG_RESERVED_OFFSET(ghcb_save_area, 0x3b0);
+
+	BUILD_BUG_RESERVED_OFFSET(ghcb, 0xff0);
 }
 
 struct vmcb {

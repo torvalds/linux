@@ -33,7 +33,7 @@
 #define SKX_NUM_CHANNELS	3	/* Channels per memory controller */
 #define SKX_NUM_DIMMS		2	/* Max DIMMS per channel */
 
-#define I10NM_NUM_DDR_IMC	4
+#define I10NM_NUM_DDR_IMC	12
 #define I10NM_NUM_DDR_CHANNELS	2
 #define I10NM_NUM_DDR_DIMMS	2
 
@@ -55,6 +55,30 @@
 
 #define MCI_MISC_ECC_MODE(m)	(((m) >> 59) & 15)
 #define MCI_MISC_ECC_DDRT	8	/* read from DDRT */
+
+/*
+ * According to Intel Architecture spec vol 3B,
+ * Table 15-10 "IA32_MCi_Status [15:0] Compound Error Code Encoding"
+ * memory errors should fit one of these masks:
+ *	000f 0000 1mmm cccc (binary)
+ *	000f 0010 1mmm cccc (binary)	[RAM used as cache]
+ * where:
+ *	f = Correction Report Filtering Bit. If 1, subsequent errors
+ *	    won't be shown
+ *	mmm = error type
+ *	cccc = channel
+ */
+#define MCACOD_MEM_ERR_MASK	0xef80
+/*
+ * Errors from either the memory of the 1-level memory system or the
+ * 2nd level memory (the slow "far" memory) of the 2-level memory system.
+ */
+#define MCACOD_MEM_CTL_ERR	0x80
+/*
+ * Errors from the 1st level memory (the fast "near" memory as cache)
+ * of the 2-level memory system.
+ */
+#define MCACOD_EXT_MEM_ERR	0x280
 
 /*
  * Each cpu socket contains some pci devices that provide global
@@ -105,7 +129,8 @@ struct skx_pvt {
 enum type {
 	SKX,
 	I10NM,
-	SPR
+	SPR,
+	GNR
 };
 
 enum {
@@ -149,19 +174,47 @@ struct decoded_addr {
 	bool	decoded_by_adxl;
 };
 
+struct pci_bdf {
+	u32 bus : 8;
+	u32 dev : 5;
+	u32 fun : 3;
+};
+
 struct res_config {
 	enum type type;
 	/* Configuration agent device ID */
 	unsigned int decs_did;
 	/* Default bus number configuration register offset */
 	int busno_cfg_offset;
+	/* DDR memory controllers per socket */
+	int ddr_imc_num;
+	/* DDR channels per DDR memory controller */
+	int ddr_chan_num;
+	/* DDR DIMMs per DDR memory channel */
+	int ddr_dimm_num;
 	/* Per DDR channel memory-mapped I/O size */
 	int ddr_chan_mmio_sz;
+	/* HBM memory controllers per socket */
+	int hbm_imc_num;
+	/* HBM channels per HBM memory controller */
+	int hbm_chan_num;
+	/* HBM DIMMs per HBM memory channel */
+	int hbm_dimm_num;
 	/* Per HBM channel memory-mapped I/O size */
 	int hbm_chan_mmio_sz;
 	bool support_ddr5;
-	/* SAD device number and function number */
-	unsigned int sad_all_devfn;
+	/* SAD device BDF */
+	struct pci_bdf sad_all_bdf;
+	/* PCU device BDF */
+	struct pci_bdf pcu_cr3_bdf;
+	/* UTIL device BDF */
+	struct pci_bdf util_all_bdf;
+	/* URACU device BDF */
+	struct pci_bdf uracu_bdf;
+	/* DDR mdev device BDF */
+	struct pci_bdf ddr_mdev_bdf;
+	/* HBM mdev device BDF */
+	struct pci_bdf hbm_mdev_bdf;
 	int sad_all_offset;
 	/* Offsets of retry_rd_err_log registers */
 	u32 *offsets_scrub;

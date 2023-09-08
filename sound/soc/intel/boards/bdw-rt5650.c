@@ -88,7 +88,7 @@ static int broadwell_ssp0_fixup(struct snd_soc_pcm_runtime *rtd,
 	struct snd_interval *chan = hw_param_interval(params,
 						      SNDRV_PCM_HW_PARAM_CHANNELS);
 
-	/* The ADSP will covert the FE rate to 48k, max 4-channels */
+	/* The ADSP will convert the FE rate to 48k, max 4-channels */
 	rate->min = rate->max = 48000;
 	chan->min = 2;
 	chan->max = 4;

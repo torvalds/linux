@@ -29,7 +29,6 @@
 
 	extcon_usbc_det: usbc-det {
 		compatible = "linux,extcon-usb-gpio";
-		debounce = <25>;
 		id-gpio = <&gpio7 14 GPIO_ACTIVE_HIGH>; /* SODIMM 137 / USBC_DET */
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_usbc_det>;
@@ -40,7 +39,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_gpiokeys>;
 
-		wakeup {
+		key-wakeup {
 			debounce-interval = <10>;
 			gpios = <&gpio1 1 (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)>; /* SODIMM 45 */
 			label = "Wake-Up";
@@ -652,7 +651,7 @@
 	 * NOTE: This pin group conflicts with pin groups pinctrl_pwm2/pinctrl_pwm3.
 	 * Don't use them simultaneously.
 	 */
-	pinctrl_atmel_adapter: atmelconnectorgrp {
+	pinctrl_atmel_adapter: atmeladaptergrp {
 		fsl,pins = <
 			MX7D_PAD_GPIO1_IO09__GPIO1_IO9		0x74 /* SODIMM 28 / INT */
 			MX7D_PAD_GPIO1_IO10__GPIO1_IO10		0x14 /* SODIMM 30 / RST */
@@ -660,7 +659,7 @@
 	};
 
 	/* Atmel MXT touchsceen + boards with built-in Capacitive Touch Connector */
-	pinctrl_atmel_connector: atmeladaptergrp {
+	pinctrl_atmel_connector: atmelconnectorgrp {
 		fsl,pins = <
 			MX7D_PAD_EPDC_BDR0__GPIO2_IO28		0x14 /* SODIMM 106 / RST */
 			MX7D_PAD_EPDC_DATA15__GPIO2_IO15	0x74 /* SODIMM 107 / INT */

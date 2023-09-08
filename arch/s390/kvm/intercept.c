@@ -217,7 +217,7 @@ static int handle_itdb(struct kvm_vcpu *vcpu)
 		return 0;
 	if (current->thread.per_flags & PER_FLAG_NO_TE)
 		return 0;
-	itdb = (struct kvm_s390_itdb *)vcpu->arch.sie_block->itdba;
+	itdb = phys_to_virt(vcpu->arch.sie_block->itdba);
 	rc = write_guest_lc(vcpu, __LC_PGM_TDB, itdb, sizeof(*itdb));
 	if (rc)
 		return rc;
@@ -271,10 +271,18 @@ static int handle_prog(struct kvm_vcpu *vcpu)
  * handle_external_interrupt - used for external interruption interceptions
  * @vcpu: virtual cpu
  *
- * This interception only occurs if the CPUSTAT_EXT_INT bit was set, or if
- * the new PSW does not have external interrupts disabled. In the first case,
- * we've got to deliver the interrupt manually, and in the second case, we
- * drop to userspace to handle the situation there.
+ * This interception occurs if:
+ * - the CPUSTAT_EXT_INT bit was already set when the external interrupt
+ *   occurred. In this case, the interrupt needs to be injected manually to
+ *   preserve interrupt priority.
+ * - the external new PSW has external interrupts enabled, which will cause an
+ *   interruption loop. We drop to userspace in this case.
+ *
+ * The latter case can be detected by inspecting the external mask bit in the
+ * external new psw.
+ *
+ * Under PV, only the latter case can occur, since interrupt priorities are
+ * handled in the ultravisor.
  */
 static int handle_external_interrupt(struct kvm_vcpu *vcpu)
 {
@@ -285,10 +293,18 @@ static int handle_external_interrupt(struct kvm_vcpu *vcpu)
 
 	vcpu->stat.exit_external_interrupt++;
 
-	rc = read_guest_lc(vcpu, __LC_EXT_NEW_PSW, &newpsw, sizeof(psw_t));
-	if (rc)
-		return rc;
-	/* We can not handle clock comparator or timer interrupt with bad PSW */
+	if (kvm_s390_pv_cpu_is_protected(vcpu)) {
+		newpsw = vcpu->arch.sie_block->gpsw;
+	} else {
+		rc = read_guest_lc(vcpu, __LC_EXT_NEW_PSW, &newpsw, sizeof(psw_t));
+		if (rc)
+			return rc;
+	}
+
+	/*
+	 * Clock comparator or timer interrupt with external interrupt enabled
+	 * will cause interrupt loop. Drop to userspace.
+	 */
 	if ((eic == EXT_IRQ_CLK_COMP || eic == EXT_IRQ_CPU_TIMER) &&
 	    (newpsw.mask & PSW_MASK_EXT))
 		return -EOPNOTSUPP;
@@ -409,8 +425,7 @@ int handle_sthyi(struct kvm_vcpu *vcpu)
 out:
 	if (!cc) {
 		if (kvm_s390_pv_cpu_is_protected(vcpu)) {
-			memcpy((void *)(sida_origin(vcpu->arch.sie_block)),
-			       sctns, PAGE_SIZE);
+			memcpy(sida_addr(vcpu->arch.sie_block), sctns, PAGE_SIZE);
 		} else {
 			r = write_guest(vcpu, addr, reg2, sctns, PAGE_SIZE);
 			if (r) {
@@ -464,7 +479,7 @@ static int handle_operexc(struct kvm_vcpu *vcpu)
 
 static int handle_pv_spx(struct kvm_vcpu *vcpu)
 {
-	u32 pref = *(u32 *)vcpu->arch.sie_block->sidad;
+	u32 pref = *(u32 *)sida_addr(vcpu->arch.sie_block);
 
 	kvm_s390_set_prefix(vcpu, pref);
 	trace_kvm_s390_handle_prefix(vcpu, 1, pref);
@@ -497,7 +512,7 @@ static int handle_pv_sclp(struct kvm_vcpu *vcpu)
 
 static int handle_pv_uvc(struct kvm_vcpu *vcpu)
 {
-	struct uv_cb_share *guest_uvcb = (void *)vcpu->arch.sie_block->sidad;
+	struct uv_cb_share *guest_uvcb = sida_addr(vcpu->arch.sie_block);
 	struct uv_cb_cts uvcb = {
 		.header.cmd	= UVC_CMD_UNPIN_PAGE_SHARED,
 		.header.len	= sizeof(uvcb),

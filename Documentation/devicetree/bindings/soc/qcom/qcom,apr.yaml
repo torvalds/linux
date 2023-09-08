@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
 %YAML 1.2
 ---
-$id: "http://devicetree.org/schemas/soc/qcom/qcom,apr.yaml#"
-$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+$id: http://devicetree.org/schemas/soc/qcom/qcom,apr.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Qualcomm APR/GPR (Asynchronous/Generic Packet Router) binding
+title: Qualcomm APR/GPR (Asynchronous/Generic Packet Router)
 
 maintainers:
   - Srinivas Kandagatla <srinivas.kandagatla@linaro.org>
@@ -17,6 +17,7 @@ description: |
 properties:
   compatible:
     enum:
+      - qcom,apr
       - qcom,apr-v2
       - qcom,gpr
 
@@ -58,11 +59,17 @@ properties:
   qcom,glink-channels:
     $ref: /schemas/types.yaml#/definitions/string-array
     description: Channel name used for the communication
-    items:
-      - const: apr_audio_svc
+    maxItems: 1
 
   qcom,intents:
-    $ref: /schemas/types.yaml#/definitions/uint32-array
+    $ref: /schemas/types.yaml#/definitions/uint32-matrix
+    minItems: 1
+    maxItems: 32
+    items:
+      items:
+        - description: size of each intent to preallocate
+        - description: amount of intents to preallocate
+          minimum: 1
     description:
       List of (size, amount) pairs describing what intents should be
       preallocated for this virtual channel. This can be used to tweak the
@@ -81,12 +88,13 @@ properties:
   '#size-cells':
     const: 0
 
-#APR/GPR Services
 patternProperties:
   "^service@[1-9a-d]$":
     type: object
+    $ref: /schemas/soc/qcom/qcom,apr-services.yaml
+    additionalProperties: true
     description:
-      APR/GPR node's client devices use subnodes for desired static port services.
+      APR/GPR static port services.
 
     properties:
       compatible:
@@ -97,99 +105,6 @@ patternProperties:
           - qcom,q6adm
           - qcom,q6apm
           - qcom,q6prm
-
-      reg:
-        minimum: 1
-        maximum: 13
-        description:
-          APR Service ID
-            3 = DSP Core Service
-            4 = Audio  Front End Service.
-            5 = Voice Stream Manager Service.
-            6 = Voice processing manager.
-            7 = Audio Stream Manager Service.
-            8 = Audio Device Manager Service.
-            9 = Multimode voice manager.
-            10 = Core voice stream.
-            11 = Core voice processor.
-            12 = Ultrasound stream manager.
-            13 = Listen stream manager.
-          GPR Service ID
-            1 = Audio Process Manager Service
-            2 = Proxy Resource Manager Service.
-            3 = AMDB Service.
-            4 = Voice processing manager.
-
-      clock-controller:
-        $ref: /schemas/sound/qcom,q6dsp-lpass-clocks.yaml#
-        description: Qualcomm DSP LPASS clock controller
-        unevaluatedProperties: false
-
-      dais:
-        type: object
-        oneOf:
-          - $ref: /schemas/sound/qcom,q6apm-dai.yaml#
-          - $ref: /schemas/sound/qcom,q6dsp-lpass-ports.yaml#
-          - $ref: /schemas/sound/qcom,q6asm-dais.yaml#
-        unevaluatedProperties: false
-        description: Qualcomm DSP audio ports
-
-      routing:
-        type: object
-        $ref: /schemas/sound/qcom,q6adm-routing.yaml#
-        unevaluatedProperties: false
-        description: Qualcomm DSP LPASS audio routing
-
-      qcom,protection-domain:
-        $ref: /schemas/types.yaml#/definitions/string-array
-        description: protection domain service name and path for apr service
-          possible values are
-          "avs/audio", "msm/adsp/audio_pd".
-          "kernel/elf_loader", "msm/modem/wlan_pd".
-          "tms/servreg", "msm/adsp/audio_pd".
-          "tms/servreg", "msm/modem/wlan_pd".
-          "tms/servreg", "msm/slpi/sensor_pd".
-
-    allOf:
-      - if:
-          properties:
-            compatible:
-              enum:
-                - qcom,q6afe
-        then:
-          properties:
-            dais:
-              properties:
-                compatible:
-                  const: qcom,q6afe-dais
-
-      - if:
-          properties:
-            compatible:
-              enum:
-                - qcom,q6apm
-        then:
-          properties:
-            dais:
-              properties:
-                compatible:
-                  enum:
-                    - qcom,q6apm-dais
-                    - qcom,q6apm-lpass-dais
-
-      - if:
-          properties:
-            compatible:
-              enum:
-                - qcom,q6asm
-        then:
-          properties:
-            dais:
-              properties:
-                compatible:
-                  const: qcom,q6asm-dais
-
-    additionalProperties: false
 
 required:
   - compatible
@@ -203,7 +118,15 @@ allOf:
             - qcom,gpr
     then:
       properties:
+        qcom,glink-channels:
+          items:
+            - const: adsp_apps
         power-domains: false
+    else:
+      properties:
+        qcom,glink-channels:
+          items:
+            - const: apr_audio_svc
 
   - if:
       required:
@@ -227,31 +150,35 @@ examples:
     apr {
         compatible = "qcom,apr-v2";
         qcom,domain = <APR_DOMAIN_ADSP>;
+        qcom,glink-channels = "apr_audio_svc";
+        qcom,intents = <512 20>;
         #address-cells = <1>;
         #size-cells = <0>;
 
         q6core: service@3 {
-          compatible = "qcom,q6core";
-          reg = <APR_SVC_ADSP_CORE>;
-          qcom,protection-domain = "avs/audio", "msm/adsp/audio_pd";
+            compatible = "qcom,q6core";
+            reg = <APR_SVC_ADSP_CORE>;
+            qcom,protection-domain = "avs/audio", "msm/adsp/audio_pd";
         };
 
-        q6afe: service@4 {
-          compatible = "qcom,q6afe";
-          reg = <APR_SVC_AFE>;
-          qcom,protection-domain = "avs/audio", "msm/adsp/audio_pd";
-        };
+        service@4 {
+            compatible = "qcom,q6afe";
+            reg = <APR_SVC_AFE>;
+            qcom,protection-domain = "avs/audio", "msm/adsp/audio_pd";
 
-        q6asm: service@7 {
-          compatible = "qcom,q6asm";
-          reg = <APR_SVC_ASM>;
-          qcom,protection-domain = "avs/audio", "msm/adsp/audio_pd";
-        };
+            clock-controller {
+                compatible = "qcom,q6afe-clocks";
+                #clock-cells = <2>;
+            };
 
-        q6adm: service@8 {
-          compatible = "qcom,q6adm";
-          reg = <APR_SVC_ADM>;
-          qcom,protection-domain = "avs/audio", "msm/adsp/audio_pd";
+            dais {
+                compatible = "qcom,q6afe-dais";
+                #address-cells = <1>;
+                #size-cells = <0>;
+                #sound-dai-cells = <1>;
+                /* ... */
+            };
+            /* ... */
         };
     };
 
@@ -260,12 +187,25 @@ examples:
     gpr {
         compatible = "qcom,gpr";
         qcom,domain = <GPR_DOMAIN_ID_ADSP>;
+        qcom,glink-channels = "adsp_apps";
+        qcom,intents = <512 20>;
         #address-cells = <1>;
         #size-cells = <0>;
 
         service@1 {
-          compatible = "qcom,q6apm";
-          reg = <GPR_APM_MODULE_IID>;
-          qcom,protection-domain = "avs/audio", "msm/adsp/audio_pd";
+            compatible = "qcom,q6apm";
+            reg = <GPR_APM_MODULE_IID>;
+            #sound-dai-cells = <0>;
+            qcom,protection-domain = "avs/audio", "msm/adsp/audio_pd";
+
+            dais {
+                compatible = "qcom,q6apm-dais";
+                iommus = <&apps_smmu 0x1801 0x0>;
+            };
+
+            bedais {
+                compatible = "qcom,q6apm-lpass-dais";
+                #sound-dai-cells = <1>;
+            };
         };
     };

@@ -810,15 +810,14 @@ static int dpi_probe(struct platform_device *pdev)
 	return component_add(&pdev->dev, &dpi_component_ops);
 }
 
-static int dpi_remove(struct platform_device *pdev)
+static void dpi_remove(struct platform_device *pdev)
 {
 	component_del(&pdev->dev, &dpi_component_ops);
-	return 0;
 }
 
 static struct platform_driver omap_dpi_driver = {
 	.probe		= dpi_probe,
-	.remove		= dpi_remove,
+	.remove_new	= dpi_remove,
 	.driver         = {
 		.name   = "omapdss_dpi",
 		.suppress_bind_attrs = true,

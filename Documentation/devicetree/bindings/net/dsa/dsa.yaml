@@ -4,12 +4,12 @@
 $id: http://devicetree.org/schemas/net/dsa/dsa.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Ethernet Switch Device Tree Bindings
+title: Ethernet Switch
 
 maintainers:
   - Andrew Lunn <andrew@lunn.ch>
   - Florian Fainelli <f.fainelli@gmail.com>
-  - Vivien Didelot <vivien.didelot@gmail.com>
+  - Vladimir Oltean <olteanv@gmail.com>
 
 description:
   This binding represents Ethernet Switches which have a dedicated CPU
@@ -18,10 +18,9 @@ description:
 
 select: false
 
-properties:
-  $nodename:
-    pattern: "^(ethernet-)?switch(@.*)?$"
+$ref: /schemas/net/ethernet-switch.yaml#
 
+properties:
   dsa,member:
     minItems: 2
     maxItems: 2
@@ -32,30 +31,28 @@ properties:
       (single device hanging off a CPU port) must not specify this property
     $ref: /schemas/types.yaml#/definitions/uint32-array
 
-patternProperties:
-  "^(ethernet-)?ports$":
-    type: object
-    properties:
-      '#address-cells':
-        const: 1
-      '#size-cells':
-        const: 0
+additionalProperties: true
+
+$defs:
+  ethernet-ports:
+    description: A DSA switch without any extra port properties
+    $ref: '#/'
 
     patternProperties:
-      "^(ethernet-)?port@[0-9]+$":
+      "^(ethernet-)?ports$":
         type: object
-        description: Ethernet switch ports
+        additionalProperties: false
 
-        $ref: dsa-port.yaml#
+        properties:
+          '#address-cells':
+            const: 1
+          '#size-cells':
+            const: 0
 
-        unevaluatedProperties: false
-
-oneOf:
-  - required:
-      - ports
-  - required:
-      - ethernet-ports
-
-additionalProperties: true
+        patternProperties:
+          "^(ethernet-)?port@[0-9]+$":
+            description: Ethernet switch ports
+            $ref: dsa-port.yaml#
+            unevaluatedProperties: false
 
 ...

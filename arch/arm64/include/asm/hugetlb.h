@@ -49,6 +49,15 @@ extern pte_t huge_ptep_get(pte_t *ptep);
 
 void __init arm64_hugetlb_cma_reserve(void);
 
+#define huge_ptep_modify_prot_start huge_ptep_modify_prot_start
+extern pte_t huge_ptep_modify_prot_start(struct vm_area_struct *vma,
+					 unsigned long addr, pte_t *ptep);
+
+#define huge_ptep_modify_prot_commit huge_ptep_modify_prot_commit
+extern void huge_ptep_modify_prot_commit(struct vm_area_struct *vma,
+					 unsigned long addr, pte_t *ptep,
+					 pte_t old_pte, pte_t new_pte);
+
 #include <asm-generic/hugetlb.h>
 
 #endif /* __ASM_HUGETLB_H */

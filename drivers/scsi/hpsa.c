@@ -967,7 +967,7 @@ ATTRIBUTE_GROUPS(hpsa_shost);
 #define HPSA_NRESERVED_CMDS	(HPSA_CMDS_RESERVED_FOR_DRIVER +\
 				 HPSA_MAX_CONCURRENT_PASSTHRUS)
 
-static struct scsi_host_template hpsa_driver_template = {
+static const struct scsi_host_template hpsa_driver_template = {
 	.module			= THIS_MODULE,
 	.name			= HPSA,
 	.proc_name		= HPSA,
@@ -5850,7 +5850,7 @@ static int hpsa_scsi_host_alloc(struct ctlr_info *h)
 {
 	struct Scsi_Host *sh;
 
-	sh = scsi_host_alloc(&hpsa_driver_template, sizeof(h));
+	sh = scsi_host_alloc(&hpsa_driver_template, sizeof(struct ctlr_info));
 	if (sh == NULL) {
 		dev_err(&h->pdev->dev, "scsi_host_alloc failed\n");
 		return -ENOMEM;
@@ -8925,7 +8925,7 @@ clean1:	/* wq/aer/h */
 		destroy_workqueue(h->monitor_ctlr_wq);
 		h->monitor_ctlr_wq = NULL;
 	}
-	kfree(h);
+	hpda_free_ctlr_info(h);
 	return rc;
 }
 
@@ -9108,7 +9108,6 @@ static void hpsa_remove_one(struct pci_dev *pdev)
 
 	free_percpu(h->lockup_detected);		/* init_one 2 */
 	h->lockup_detected = NULL;			/* init_one 2 */
-	/* (void) pci_disable_pcie_error_reporting(pdev); */	/* init_one 1 */
 
 	hpda_free_ctlr_info(h);				/* init_one 1 */
 }
@@ -9476,8 +9475,6 @@ static void hpsa_free_performant_mode(struct ctlr_info *h)
 static int hpsa_put_ctlr_into_performant_mode(struct ctlr_info *h)
 {
 	u32 trans_support;
-	unsigned long transMethod = CFGTBL_Trans_Performant |
-					CFGTBL_Trans_use_short_tags;
 	int i, rc;
 
 	if (hpsa_simple_mode)
@@ -9489,14 +9486,10 @@ static int hpsa_put_ctlr_into_performant_mode(struct ctlr_info *h)
 
 	/* Check for I/O accelerator mode support */
 	if (trans_support & CFGTBL_Trans_io_accel1) {
-		transMethod |= CFGTBL_Trans_io_accel1 |
-				CFGTBL_Trans_enable_directed_msix;
 		rc = hpsa_alloc_ioaccel1_cmd_and_bft(h);
 		if (rc)
 			return rc;
 	} else if (trans_support & CFGTBL_Trans_io_accel2) {
-		transMethod |= CFGTBL_Trans_io_accel2 |
-				CFGTBL_Trans_enable_directed_msix;
 		rc = hpsa_alloc_ioaccel2_cmd_and_bft(h);
 		if (rc)
 			return rc;
@@ -9786,7 +9779,8 @@ static int hpsa_add_sas_host(struct ctlr_info *h)
 	return 0;
 
 free_sas_phy:
-	hpsa_free_sas_phy(hpsa_sas_phy);
+	sas_phy_free(hpsa_sas_phy->phy);
+	kfree(hpsa_sas_phy);
 free_sas_port:
 	hpsa_free_sas_port(hpsa_sas_port);
 free_sas_node:
@@ -9822,10 +9816,12 @@ static int hpsa_add_sas_device(struct hpsa_sas_node *hpsa_sas_node,
 
 	rc = hpsa_sas_port_add_rphy(hpsa_sas_port, rphy);
 	if (rc)
-		goto free_sas_port;
+		goto free_sas_rphy;
 
 	return 0;
 
+free_sas_rphy:
+	sas_rphy_free(rphy);
 free_sas_port:
 	hpsa_free_sas_port(hpsa_sas_port);
 	device->sas_port = NULL;

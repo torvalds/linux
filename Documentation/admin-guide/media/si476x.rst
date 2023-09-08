@@ -142,7 +142,7 @@ The drivers exposes following files:
 				  indicator
   0x18		 lassi		  Signed Low side adjacent Channel
 				  Strength indicator
-  0x19		 hassi		  ditto fpr High side
+  0x19		 hassi		  ditto for High side
   0x20		 mult		  Multipath indicator
   0x21		 dev		  Frequency deviation
   0x24		 assi		  Adjacent channel SSI

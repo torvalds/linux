@@ -206,11 +206,15 @@ static __always_inline void call_do_softirq(const void *sp)
 	asm volatile (
 		 PPC_STLU "	%%r1, %[offset](%[sp])	;"
 		"mr		%%r1, %[sp]		;"
+#ifdef CONFIG_PPC_KERNEL_PCREL
+		"bl		%[callee]@notoc		;"
+#else
 		"bl		%[callee]		;"
+#endif
 		 PPC_LL "	%%r1, 0(%%r1)		;"
 		 : // Outputs
 		 : // Inputs
-		   [sp] "b" (sp), [offset] "i" (THREAD_SIZE - STACK_FRAME_OVERHEAD),
+		   [sp] "b" (sp), [offset] "i" (THREAD_SIZE - STACK_FRAME_MIN_SIZE),
 		   [callee] "i" (__do_softirq)
 		 : // Clobbers
 		   "lr", "xer", "ctr", "memory", "cr0", "cr1", "cr5", "cr6",
@@ -238,7 +242,7 @@ static void __do_irq(struct pt_regs *regs, unsigned long oldsp)
 	irq = static_call(ppc_get_irq)();
 
 	/* We can hard enable interrupts now to allow perf interrupts */
-	if (should_hard_irq_enable())
+	if (should_hard_irq_enable(regs))
 		do_hard_irq_enable();
 
 	/* And finally process it */
@@ -259,12 +263,16 @@ static __always_inline void call_do_irq(struct pt_regs *regs, void *sp)
 		 PPC_STLU "	%%r1, %[offset](%[sp])	;"
 		"mr		%%r4, %%r1		;"
 		"mr		%%r1, %[sp]		;"
+#ifdef CONFIG_PPC_KERNEL_PCREL
+		"bl		%[callee]@notoc		;"
+#else
 		"bl		%[callee]		;"
+#endif
 		 PPC_LL "	%%r1, 0(%%r1)		;"
 		 : // Outputs
 		   "+r" (r3)
 		 : // Inputs
-		   [sp] "b" (sp), [offset] "i" (THREAD_SIZE - STACK_FRAME_OVERHEAD),
+		   [sp] "b" (sp), [offset] "i" (THREAD_SIZE - STACK_FRAME_MIN_SIZE),
 		   [callee] "i" (__do_irq)
 		 : // Clobbers
 		   "lr", "xer", "ctr", "memory", "cr0", "cr1", "cr5", "cr6",

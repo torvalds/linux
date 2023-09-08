@@ -605,7 +605,7 @@ err:
 	return err;
 }
 
-static int xtfpga_i2s_remove(struct platform_device *pdev)
+static void xtfpga_i2s_remove(struct platform_device *pdev)
 {
 	struct xtfpga_i2s *i2s = dev_get_drvdata(&pdev->dev);
 
@@ -618,7 +618,6 @@ static int xtfpga_i2s_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 	if (!pm_runtime_status_suspended(&pdev->dev))
 		xtfpga_i2s_runtime_suspend(&pdev->dev);
-	return 0;
 }
 
 #ifdef CONFIG_OF
@@ -636,7 +635,7 @@ static const struct dev_pm_ops xtfpga_i2s_pm_ops = {
 
 static struct platform_driver xtfpga_i2s_driver = {
 	.probe   = xtfpga_i2s_probe,
-	.remove  = xtfpga_i2s_remove,
+	.remove_new = xtfpga_i2s_remove,
 	.driver  = {
 		.name = "xtfpga-i2s",
 		.of_match_table = of_match_ptr(xtfpga_i2s_of_match),

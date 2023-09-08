@@ -47,6 +47,7 @@
 #include "dcn30/dcn30_clk_mgr.h"
 
 #include "dc_dmub_srv.h"
+#include "link.h"
 
 #include "logger_types.h"
 #undef DC_LOGGER
@@ -609,8 +610,10 @@ static void dcn31_clk_mgr_helper_populate_bw_params(struct clk_mgr_internal *clk
 	}
 
 	bw_params->vram_type = bios_info->memory_type;
-	bw_params->num_channels = bios_info->ma_channel_number;
 
+	bw_params->dram_channel_width_bytes = bios_info->memory_type == 0x22 ? 8 : 4;
+	//bw_params->dram_channel_width_bytes = dc->ctx->asic_id.vram_width;
+	bw_params->num_channels = bios_info->ma_channel_number ? bios_info->ma_channel_number : 4;
 	for (i = 0; i < WM_SET_COUNT; i++) {
 		bw_params->wm_table.entries[i].wm_inst = i;
 

@@ -23,6 +23,7 @@
 #define I2S_BT_INSTANCE		1
 #define I2S_SP_INSTANCE		2
 #define PDM_DMIC_INSTANCE	3
+#define I2S_HS_VIRTUAL_INSTANCE	4
 
 static struct snd_soc_dai_driver rembrandt_sof_dai[] = {
 	[I2S_HS_INSTANCE] = {
@@ -47,7 +48,6 @@ static struct snd_soc_dai_driver rembrandt_sof_dai[] = {
 			.rate_min = 8000,
 			.rate_max = 48000,
 		},
-		.probe = &acp_dai_probe,
 	},
 
 	[I2S_BT_INSTANCE] = {
@@ -72,7 +72,6 @@ static struct snd_soc_dai_driver rembrandt_sof_dai[] = {
 			.rate_min = 8000,
 			.rate_max = 48000,
 		},
-		.probe = &acp_dai_probe,
 	},
 
 	[I2S_SP_INSTANCE] = {
@@ -97,7 +96,6 @@ static struct snd_soc_dai_driver rembrandt_sof_dai[] = {
 			.rate_min = 8000,
 			.rate_max = 48000,
 		},
-		.probe = &acp_dai_probe,
 	},
 
 	[PDM_DMIC_INSTANCE] = {
@@ -110,6 +108,20 @@ static struct snd_soc_dai_driver rembrandt_sof_dai[] = {
 			.channels_max = 4,
 			.rate_min = 8000,
 			.rate_max = 48000,
+		},
+	},
+
+	[I2S_HS_VIRTUAL_INSTANCE] = {
+		.id = I2S_HS_VIRTUAL_INSTANCE,
+		.name = "acp-sof-hs-virtual",
+		.playback = {
+			.rates = SNDRV_PCM_RATE_8000_96000,
+			.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S8 |
+				   SNDRV_PCM_FMTBIT_U8 | SNDRV_PCM_FMTBIT_S32_LE,
+			.channels_min = 2,
+			.channels_max = 8,
+			.rate_min = 8000,
+			.rate_max = 96000,
 		},
 	},
 };

@@ -4,7 +4,6 @@
 #include <linux/skbuff.h>
 #include <net/ip.h>
 #include <net/ipv6.h>
-#include <net/sctp/sctp.h>
 #include <linux/sctp.h>
 
 #include <linux/netfilter/x_tables.h>

@@ -661,15 +661,9 @@ static int cdce706_probe(struct i2c_client *client)
 	ret = cdce706_register_clkouts(cdce);
 	if (ret < 0)
 		return ret;
-	return of_clk_add_hw_provider(client->dev.of_node, of_clk_cdce_get,
-				      cdce);
+	return devm_of_clk_add_hw_provider(&client->dev, of_clk_cdce_get,
+					   cdce);
 }
-
-static void cdce706_remove(struct i2c_client *client)
-{
-	of_clk_del_provider(client->dev.of_node);
-}
-
 
 #ifdef CONFIG_OF
 static const struct of_device_id cdce706_dt_match[] = {
@@ -691,7 +685,6 @@ static struct i2c_driver cdce706_i2c_driver = {
 		.of_match_table = of_match_ptr(cdce706_dt_match),
 	},
 	.probe_new	= cdce706_probe,
-	.remove		= cdce706_remove,
 	.id_table	= cdce706_id,
 };
 module_i2c_driver(cdce706_i2c_driver);

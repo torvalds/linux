@@ -125,7 +125,8 @@ static int nsim_ipsec_parse_proto_keys(struct xfrm_state *xs,
 	return 0;
 }
 
-static int nsim_ipsec_add_sa(struct xfrm_state *xs)
+static int nsim_ipsec_add_sa(struct xfrm_state *xs,
+			     struct netlink_ext_ack *extack)
 {
 	struct nsim_ipsec *ipsec;
 	struct net_device *dev;
@@ -139,20 +140,24 @@ static int nsim_ipsec_add_sa(struct xfrm_state *xs)
 	ipsec = &ns->ipsec;
 
 	if (xs->id.proto != IPPROTO_ESP && xs->id.proto != IPPROTO_AH) {
-		netdev_err(dev, "Unsupported protocol 0x%04x for ipsec offload\n",
-			   xs->id.proto);
+		NL_SET_ERR_MSG_MOD(extack, "Unsupported protocol for ipsec offload");
 		return -EINVAL;
 	}
 
 	if (xs->calg) {
-		netdev_err(dev, "Compression offload not supported\n");
+		NL_SET_ERR_MSG_MOD(extack, "Compression offload not supported");
+		return -EINVAL;
+	}
+
+	if (xs->xso.type != XFRM_DEV_OFFLOAD_CRYPTO) {
+		NL_SET_ERR_MSG_MOD(extack, "Unsupported ipsec offload type");
 		return -EINVAL;
 	}
 
 	/* find the first unused index */
 	ret = nsim_ipsec_find_empty_idx(ipsec);
 	if (ret < 0) {
-		netdev_err(dev, "No space for SA in Rx table!\n");
+		NL_SET_ERR_MSG_MOD(extack, "No space for SA in Rx table!");
 		return ret;
 	}
 	sa_idx = (u16)ret;
@@ -167,7 +172,7 @@ static int nsim_ipsec_add_sa(struct xfrm_state *xs)
 	/* get the key and salt */
 	ret = nsim_ipsec_parse_proto_keys(xs, sa.key, &sa.salt);
 	if (ret) {
-		netdev_err(dev, "Failed to get key data for SA table\n");
+		NL_SET_ERR_MSG_MOD(extack, "Failed to get key data for SA table");
 		return ret;
 	}
 

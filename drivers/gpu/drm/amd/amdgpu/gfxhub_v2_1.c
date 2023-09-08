@@ -167,7 +167,7 @@ static void gfxhub_v2_1_init_system_aperture_regs(struct amdgpu_device *adev)
 		     max(adev->gmc.fb_end, adev->gmc.agp_end) >> 18);
 
 	/* Set default page address. */
-	value = amdgpu_gmc_vram_mc2pa(adev, adev->vram_scratch.gpu_addr);
+	value = amdgpu_gmc_vram_mc2pa(adev, adev->mem_scratch.gpu_addr);
 	WREG32_SOC15(GC, 0, mmGCMC_VM_SYSTEM_APERTURE_DEFAULT_ADDR_LSB,
 		     (u32)(value >> 12));
 	WREG32_SOC15(GC, 0, mmGCMC_VM_SYSTEM_APERTURE_DEFAULT_ADDR_MSB,
@@ -396,6 +396,9 @@ static void gfxhub_v2_1_gart_disable(struct amdgpu_device *adev)
 	tmp = REG_SET_FIELD(tmp, GCMC_VM_MX_L1_TLB_CNTL,
 			    ENABLE_ADVANCED_DRIVER_MODEL, 0);
 	WREG32_SOC15(GC, 0, mmGCMC_VM_MX_L1_TLB_CNTL, tmp);
+
+	if (amdgpu_sriov_vf(adev))
+		return;
 
 	/* Setup L2 cache */
 	WREG32_FIELD15(GC, 0, GCVM_L2_CNTL, ENABLE_L2_CACHE, 0);

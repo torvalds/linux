@@ -149,7 +149,8 @@ static const struct ddc_sh_mask ddc_shift[] = {
 	DDC_MASK_SH_LIST_DCN2(__SHIFT, 3),
 	DDC_MASK_SH_LIST_DCN2(__SHIFT, 4),
 	DDC_MASK_SH_LIST_DCN2(__SHIFT, 5),
-	DDC_MASK_SH_LIST_DCN2(__SHIFT, 6)
+	DDC_MASK_SH_LIST_DCN2(__SHIFT, 6),
+	DDC_MASK_SH_LIST_DCN2_VGA(__SHIFT)
 };
 
 static const struct ddc_sh_mask ddc_mask[] = {
@@ -158,7 +159,8 @@ static const struct ddc_sh_mask ddc_mask[] = {
 	DDC_MASK_SH_LIST_DCN2(_MASK, 3),
 	DDC_MASK_SH_LIST_DCN2(_MASK, 4),
 	DDC_MASK_SH_LIST_DCN2(_MASK, 5),
-	DDC_MASK_SH_LIST_DCN2(_MASK, 6)
+	DDC_MASK_SH_LIST_DCN2(_MASK, 6),
+	DDC_MASK_SH_LIST_DCN2_VGA(_MASK)
 };
 
 #include "../generic_regs.h"
@@ -256,8 +258,8 @@ static const struct hw_factory_funcs funcs = {
  */
 void dal_hw_factory_dcn32_init(struct hw_factory *factory)
 {
-	factory->number_of_pins[GPIO_ID_DDC_DATA] = 6;
-	factory->number_of_pins[GPIO_ID_DDC_CLOCK] = 6;
+	factory->number_of_pins[GPIO_ID_DDC_DATA] = 8;
+	factory->number_of_pins[GPIO_ID_DDC_CLOCK] = 8;
 	factory->number_of_pins[GPIO_ID_GENERIC] = 4;
 	factory->number_of_pins[GPIO_ID_HPD] = 5;
 	factory->number_of_pins[GPIO_ID_GPIO_PAD] = 28;

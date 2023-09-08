@@ -10,22 +10,22 @@
 / {
 	/* BOARD-SPECIFIC TOP LEVEL NODES */
 
-	max98360a_1: max98360a_1 {
+	max98360a_1: amplifier-1 {
 		compatible = "maxim,max98360a";
 		#sound-dai-cells = <0>;
 	};
 
-	max98360a_2: max98360a_2 {
+	max98360a_2: amplifier-2 {
 		compatible = "maxim,max98360a";
 		#sound-dai-cells = <0>;
 	};
 
-	max98360a_3: max98360a_3 {
+	max98360a_3: amplifier-3 {
 		compatible = "maxim,max98360a";
 		#sound-dai-cells = <0>;
 	};
 
-	pp3300_touch: pp3300-touch {
+	pp3300_touch: pp3300-touch-regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "pp3300_touch";
 
@@ -84,6 +84,24 @@
 		};
 	};
 };
+
+/*
+ * ADDITIONS TO FIXED REGULATORS DEFINED IN PARENT DEVICE TREE FILES
+ *
+ * Sort order matches the order in the parent files (parents before children).
+ */
+
+&pp3300_dx_edp {
+	/*
+	 * The atna33xc20 really likes to be power cycled to keep it from
+	 * getting in a bad state. This is the reason that the touchscreen
+	 * rail and eDP rails are separate from each other on homestar (but
+	 * not other trogdor devices) Make sure it starts "off" at bootup.
+	 */
+	/delete-property/ regulator-boot-on;
+};
+
+/* ADDITIONS TO NODES DEFINED IN PARENT DEVICE TREE FILES */
 
 ap_ts_pen_1v8: &i2c4 {
 	status = "okay";
@@ -180,30 +198,19 @@ ap_ts_pen_1v8: &i2c4 {
 /* PINCTRL - modifications to sc7180-trogdor.dtsi */
 
 &en_pp3300_dx_edp {
-	pinmux {
-		pins = "gpio67";
-	};
-
-	pinconf {
-		pins = "gpio67";
-	};
+	pins = "gpio67";
 };
 
-&sec_mi2s_active{
-	pinmux {
-		pins = "gpio49", "gpio50", "gpio51", "gpio52";
-		function = "mi2s_1";
-	};
+&sec_mi2s_active {
+	pins = "gpio49", "gpio50", "gpio51", "gpio52";
 };
 
 &ts_reset_l {
-	pinconf {
-		/*
-		 * We want reset state by default and it will be up to the
-		 * driver to disable this when it's ready.
-		 */
-		output-low;
-	};
+	/*
+	 * We want reset state by default and it will be up to the
+	 * driver to disable this when it's ready.
+	 */
+	output-low;
 };
 
 /* PINCTRL - board-specific pinctrl */
@@ -333,16 +340,10 @@ ap_ts_pen_1v8: &i2c4 {
 			  "DP_HOT_PLUG_DET",
 			  "EC_IN_RW_ODL";
 
-	en_pp3300_touch: en-pp3300-touch {
-		pinmux {
-			pins = "gpio87";
-			function = "gpio";
-		};
-
-		pinconf {
-			pins = "gpio87";
-			drive-strength = <2>;
-			bias-disable;
-		};
+	en_pp3300_touch: en-pp3300-touch-state {
+		pins = "gpio87";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
 	};
 };

@@ -304,6 +304,44 @@ config CRYPTO_ARIA_AESNI_AVX_X86_64
 
 	  Processes 16 blocks in parallel.
 
+config CRYPTO_ARIA_AESNI_AVX2_X86_64
+	tristate "Ciphers: ARIA with modes: ECB, CTR (AES-NI/AVX2/GFNI)"
+	depends on X86 && 64BIT
+	select CRYPTO_SKCIPHER
+	select CRYPTO_SIMD
+	select CRYPTO_ALGAPI
+	select CRYPTO_ARIA
+	select CRYPTO_ARIA_AESNI_AVX_X86_64
+	help
+	  Length-preserving cipher: ARIA cipher algorithms
+	  (RFC 5794) with ECB and CTR modes
+
+	  Architecture: x86_64 using:
+	  - AES-NI (AES New Instructions)
+	  - AVX2 (Advanced Vector Extensions)
+	  - GFNI (Galois Field New Instructions)
+
+	  Processes 32 blocks in parallel.
+
+config CRYPTO_ARIA_GFNI_AVX512_X86_64
+	tristate "Ciphers: ARIA with modes: ECB, CTR (AVX512/GFNI)"
+	depends on X86 && 64BIT && AS_AVX512 && AS_GFNI
+	select CRYPTO_SKCIPHER
+	select CRYPTO_SIMD
+	select CRYPTO_ALGAPI
+	select CRYPTO_ARIA
+	select CRYPTO_ARIA_AESNI_AVX_X86_64
+	select CRYPTO_ARIA_AESNI_AVX2_X86_64
+	help
+	  Length-preserving cipher: ARIA cipher algorithms
+	  (RFC 5794) with ECB and CTR modes
+
+	  Architecture: x86_64 using:
+	  - AVX512 (Advanced Vector Extensions)
+	  - GFNI (Galois Field New Instructions)
+
+	  Processes 64 blocks in parallel.
+
 config CRYPTO_CHACHA20_X86_64
 	tristate "Ciphers: ChaCha20, XChaCha20, XChaCha12 (SSSE3/AVX2/AVX-512VL)"
 	depends on X86 && 64BIT

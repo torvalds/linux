@@ -164,7 +164,6 @@ MODULE_DEVICE_TABLE(of, imx93_pd_ids);
 static struct platform_driver imx93_power_domain_driver = {
 	.driver = {
 		.name	= "imx93_power_domain",
-		.owner	= THIS_MODULE,
 		.of_match_table = imx93_pd_ids,
 	},
 	.probe = imx93_pd_probe,

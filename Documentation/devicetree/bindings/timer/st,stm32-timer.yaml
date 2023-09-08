@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/timer/st,stm32-timer.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: STMicroelectronics STM32 general-purpose 16 and 32 bits timers bindings
+title: STMicroelectronics STM32 general-purpose 16 and 32 bits timers
 
 maintainers:
   - Fabrice Gasnier <fabrice.gasnier@foss.st.com>

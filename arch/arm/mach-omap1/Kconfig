@@ -4,6 +4,7 @@ menuconfig ARCH_OMAP1
 	depends on ARCH_MULTI_V4T || ARCH_MULTI_V5
 	depends on CPU_LITTLE_ENDIAN
 	depends on ATAGS
+	select ARCH_OMAP
 	select ARCH_HAS_HOLES_MEMORYMODEL
 	select ARCH_OMAP
 	select CLKSRC_MMIO
@@ -18,19 +19,6 @@ menu "TI OMAP1 specific features"
 
 comment "OMAP Core Type"
 
-config ARCH_OMAP730
-	depends on ARCH_MULTI_V5
-	bool "OMAP730 Based System"
-	select ARCH_OMAP_OTG
-	select CPU_ARM926T
-	select OMAP_MPU_TIMER
-
-config ARCH_OMAP850
-	depends on ARCH_MULTI_V5
-	bool "OMAP850 Based System"
-	select ARCH_OMAP_OTG
-	select CPU_ARM926T
-
 config ARCH_OMAP15XX
 	depends on ARCH_MULTI_V4T
 	default y
@@ -44,10 +32,6 @@ config ARCH_OMAP16XX
 	select ARCH_OMAP_OTG
 	select CPU_ARM926T
 	select OMAP_DM_TIMER
-
-config ARCH_OMAP1_ANY
-	select ARCH_OMAP
-	def_bool ARCH_OMAP730 || ARCH_OMAP850 || ARCH_OMAP15XX || ARCH_OMAP16XX
 
 config ARCH_OMAP
 	bool
@@ -129,68 +113,12 @@ config ARCH_OMAP_OTG
 
 comment "OMAP Board Type"
 
-config MACH_OMAP_INNOVATOR
-	bool "TI Innovator"
-	depends on ARCH_OMAP15XX || ARCH_OMAP16XX
-	depends on UNUSED_BOARD_FILES
-	help
-          TI OMAP 1510 or 1610 Innovator board support. Say Y here if you
-          have such a board.
-
-config MACH_OMAP_H2
-	bool "TI H2 Support"
-	depends on ARCH_OMAP16XX
-	depends on UNUSED_BOARD_FILES
-	help
-	  TI OMAP 1610/1611B H2 board support. Say Y here if you have such
-	  a board.
-
-config MACH_OMAP_H3
-	bool "TI H3 Support"
-	depends on ARCH_OMAP16XX
-	depends on UNUSED_BOARD_FILES
-	help
-	  TI OMAP 1710 H3 board support. Say Y here if you have such
-	  a board.
-
-config MACH_HERALD
-	bool "HTC Herald"
-	depends on ARCH_OMAP850
-	depends on UNUSED_BOARD_FILES
-	help
-	  HTC Herald smartphone support (AKA T-Mobile Wing, ...)
-
 config MACH_OMAP_OSK
 	bool "TI OSK Support"
 	depends on ARCH_OMAP16XX
 	help
 	  TI OMAP 5912 OSK (OMAP Starter Kit) board support. Say Y here
-          if you have such a board.
-
-config OMAP_OSK_MISTRAL
-	bool "Mistral QVGA board Support"
-	depends on MACH_OMAP_OSK
-	depends on UNUSED_BOARD_FILES
-	help
-	  The OSK supports an optional add-on board with a Quarter-VGA
-	  touchscreen, PDA-ish buttons, a resume button, bicolor LED,
-	  and camera connector.  Say Y here if you have this board.
-
-config MACH_OMAP_PERSEUS2
-	bool "TI Perseus2"
-	depends on ARCH_OMAP730
-	depends on UNUSED_BOARD_FILES
-	help
-	  Support for TI OMAP 730 Perseus2 board. Say Y here if you have such
-	  a board.
-
-config MACH_OMAP_FSAMPLE
-	bool "TI F-Sample"
-	depends on ARCH_OMAP730
-	depends on UNUSED_BOARD_FILES
-	help
-	  Support for TI OMAP 850 F-Sample board. Say Y here if you have such
-	  a board.
+	  if you have such a board.
 
 config MACH_OMAP_PALMTE
 	bool "Palm Tungsten E"
@@ -199,26 +127,6 @@ config MACH_OMAP_PALMTE
 	  Support for the Palm Tungsten E PDA.  To boot the kernel, you'll
 	  need a PalmOS compatible bootloader; check out
 	  http://palmtelinux.sourceforge.net/ for more information.
-	  Say Y here if you have this PDA model, say N otherwise.
-
-config MACH_OMAP_PALMZ71
-	bool "Palm Zire71"
-	depends on ARCH_OMAP15XX
-	depends on UNUSED_BOARD_FILES
-	help
-	 Support for the Palm Zire71 PDA. To boot the kernel,
-	 you'll need a PalmOS compatible bootloader; check out
-	 http://hackndev.com/palm/z71 for more information.
-	 Say Y here if you have such a PDA, say N otherwise.
-
-config MACH_OMAP_PALMTT
-	bool "Palm Tungsten|T"
-	depends on ARCH_OMAP15XX
-	depends on UNUSED_BOARD_FILES
-	help
-	  Support for the Palm Tungsten|T PDA. To boot the kernel, you'll
-	  need a PalmOS compatible bootloader (Garux); check out
-	  http://garux.sourceforge.net/ for more information.
 	  Say Y here if you have this PDA model, say N otherwise.
 
 config MACH_SX1
@@ -251,16 +159,6 @@ config MACH_AMS_DELTA
 	help
 	  Support for the Amstrad E3 (codename Delta) videophone. Say Y here
 	  if you have such a device.
-
-config MACH_OMAP_GENERIC
-	bool "Generic OMAP board"
-	depends on ARCH_OMAP15XX || ARCH_OMAP16XX
-	depends on UNUSED_BOARD_FILES
-	help
-          Support for generic OMAP-1510, 1610 or 1710 board with
-          no FPGA. Can be used as template for porting Linux to
-          custom OMAP boards. Say Y here if you have a custom
-          board.
 
 endmenu
 

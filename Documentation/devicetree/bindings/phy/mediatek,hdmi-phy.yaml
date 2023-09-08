@@ -5,7 +5,7 @@
 $id: http://devicetree.org/schemas/phy/mediatek,hdmi-phy.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: MediaTek High Definition Multimedia Interface (HDMI) PHY binding
+title: MediaTek High Definition Multimedia Interface (HDMI) PHY
 
 maintainers:
   - Chun-Kuang Hu <chunkuang.hu@kernel.org>
@@ -28,6 +28,7 @@ properties:
           - const: mediatek,mt2701-hdmi-phy
       - const: mediatek,mt2701-hdmi-phy
       - const: mediatek,mt8173-hdmi-phy
+      - const: mediatek,mt8195-hdmi-phy
 
   reg:
     maxItems: 1

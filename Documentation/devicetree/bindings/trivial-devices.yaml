@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/trivial-devices.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Trivial I2C and SPI devices that have simple device tree bindings
+title: Trivial I2C and SPI devices
 
 maintainers:
   - Rob Herring <robh@kernel.org>
@@ -29,6 +29,8 @@ properties:
   compatible:
     items:
       - enum:
+            # Acbel fsg032 power supply
+          - acbel,fsg032
             # SMBus/I2C Digital Temperature Sensor in 6-Pin SOT with SMBus Alert and Over Temperature Pin
           - ad,ad7414
             # ADM9240: Complete System Hardware Monitor for uProcessor-Based Systems
@@ -65,6 +67,8 @@ properties:
           - capella,cm3232
             # CM3323: Ambient Light Sensor
           - capella,cm3323
+            # Cisco SPI Petra
+          - cisco,spi-petra
             # High-Precision Digital Thermometer
           - dallas,ds1631
             # Total-Elapsed-Time Recorder with Alarm
@@ -141,6 +145,8 @@ properties:
           - infineon,slb9645tt
             # Infineon SLB9673 I2C TPM 2.0
           - infineon,slb9673
+            # Infineon TDA38640 Voltage Regulator
+          - infineon,tda38640
             # Infineon TLV493D-A1B6 I2C 3D Magnetic Sensor
           - infineon,tlv493d-a1b6
             # Infineon Multi-phase Digital VR Controller xdpe11280
@@ -169,6 +175,8 @@ properties:
           - isil,isl29030
             # Intersil ISL68137 Digital Output Configurable PWM Controller
           - isil,isl68137
+            # Linear Technology LTC2488
+          - lineartechnology,ltc2488
             # 5 Bit Programmable, Pulse-Width Modulator
           - maxim,ds1050
             # 10 kOhm digital potentiometer with I2C interface
@@ -227,6 +235,8 @@ properties:
           - memsic,mxc6655
             # Menlo on-board CPLD trivial SPI device
           - menlo,m53cpld
+            # Micron SPI NOR Authenta
+          - micron,spi-authenta
             # Microchip differential I2C ADC, 1 Channel, 18 bit
           - microchip,mcp3421
             # Microchip differential I2C ADC, 2 Channel, 18 bit
@@ -305,10 +315,14 @@ properties:
           - pulsedlight,lidar-lite-v2
             # Renesas ISL29501 time-of-flight sensor
           - renesas,isl29501
+            # Rohm DH2228FV
+          - rohm,dh2228fv
             # S524AD0XF1 (128K/256K-bit Serial EEPROM for Low Power)
           - samsung,24ad0xd1
             # Samsung Exynos SoC SATA PHY I2C device
           - samsung,exynos-sataphy-i2c
+            # Semtech sx1301 baseband processor
+          - semtech,sx1301
             # Sensirion low power multi-pixel gas sensor with I2C interface
           - sensirion,sgpc3
             # Sensirion multi-pixel gas sensor with I2C interface
@@ -323,6 +337,10 @@ properties:
           - sensortek,stk8ba50
             # SGX Sensortech VZ89X Sensors
           - sgx,vz89x
+            # Silicon Labs EM3581 Zigbee SoC with SPI interface
+          - silabs,em3581
+            # Silicon Labs SI3210 Programmable CMOS SLIC/CODEC with SPI interface
+          - silabs,si3210
             # Relative Humidity and Temperature Sensors
           - silabs,si7020
             # Skyworks SKY81452: Six-Channel White LED Driver with Touch Panel Bias Supply

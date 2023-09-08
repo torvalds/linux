@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/ipmi/ipmi-smic.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: IPMI device bindings
+title: IPMI device
 
 description: IPMI device bindings
 

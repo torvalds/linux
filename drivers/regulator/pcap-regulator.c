@@ -251,6 +251,7 @@ static int pcap_regulator_probe(struct platform_device *pdev)
 static struct platform_driver pcap_regulator_driver = {
 	.driver = {
 		.name	= "pcap-regulator",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 	.probe	= pcap_regulator_probe,
 };

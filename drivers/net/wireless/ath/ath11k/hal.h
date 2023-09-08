@@ -321,6 +321,10 @@ struct ath11k_base;
 #define HAL_WBM2SW_RELEASE_RING_BASE_MSB_RING_SIZE	0x000fffff
 #define HAL_RXDMA_RING_MAX_SIZE				0x0000ffff
 
+/* IPQ5018 ce registers */
+#define HAL_IPQ5018_CE_WFSS_REG_BASE		0x08400000
+#define HAL_IPQ5018_CE_SIZE			0x200000
+
 /* Add any other errors here and return them in
  * ath11k_hal_rx_desc_get_err().
  */
@@ -519,6 +523,7 @@ enum hal_srng_dir {
 #define HAL_SRNG_FLAGS_MSI_INTR			0x00020000
 #define HAL_SRNG_FLAGS_CACHED                   0x20000000
 #define HAL_SRNG_FLAGS_LMAC_RING		0x80000000
+#define HAL_SRNG_FLAGS_REMAP_CE_RING        0x10000000
 
 #define HAL_SRNG_TLV_HDR_TAG		GENMASK(9, 1)
 #define HAL_SRNG_TLV_HDR_LEN		GENMASK(25, 10)

@@ -21,6 +21,7 @@
 #include <linux/platform_data/cros_ec_proto.h>
 #include <linux/platform_device.h>
 #include <linux/printk.h>
+#include <linux/reboot.h>
 #include <linux/suspend.h>
 
 #include "cros_ec.h"
@@ -320,6 +321,15 @@ static void cros_ec_lpc_acpi_notify(acpi_handle device, u32 value, void *data)
 
 	ec_dev->last_event_time = cros_ec_get_time_ns();
 
+	if (value == ACPI_NOTIFY_CROS_EC_PANIC) {
+		dev_emerg(ec_dev->dev, "CrOS EC Panic Reported. Shutdown is imminent!");
+		blocking_notifier_call_chain(&ec_dev->panic_notifier, 0, ec_dev);
+		/* Begin orderly shutdown. Force shutdown after 1 second. */
+		hw_protection_shutdown("CrOS EC Panic", 1000);
+		/* Do not query for other events after a panic is reported */
+		return;
+	}
+
 	if (ec_dev->mkbp_event_supported)
 		do {
 			ret = cros_ec_get_next_event(ec_dev, NULL,
@@ -340,7 +350,7 @@ static int cros_ec_lpc_probe(struct platform_device *pdev)
 	struct acpi_device *adev;
 	acpi_status status;
 	struct cros_ec_device *ec_dev;
-	u8 buf[2];
+	u8 buf[2] = {};
 	int irq, ret;
 
 	/*
@@ -353,6 +363,9 @@ static int cros_ec_lpc_probe(struct platform_device *pdev)
 		dev_err(dev, "couldn't reserve MEC region\n");
 		return -EBUSY;
 	}
+
+	cros_ec_lpc_mec_init(EC_HOST_CMD_REGION0,
+			     EC_LPC_ADDR_MEMMAP + EC_MEMMAP_SIZE);
 
 	/*
 	 * Read the mapped ID twice, the first one is assuming the
@@ -554,6 +567,12 @@ static struct platform_driver cros_ec_lpc_driver = {
 		.name = DRV_NAME,
 		.acpi_match_table = cros_ec_lpc_acpi_device_ids,
 		.pm = &cros_ec_lpc_pm_ops,
+		/*
+		 * ACPI child devices may probe before us, and they racily
+		 * check our drvdata pointer. Force synchronous probe until
+		 * those races are resolved.
+		 */
+		.probe_type = PROBE_FORCE_SYNCHRONOUS,
 	},
 	.probe = cros_ec_lpc_probe,
 	.remove = cros_ec_lpc_remove,
@@ -586,14 +605,10 @@ static int __init cros_ec_lpc_init(void)
 		return -ENODEV;
 	}
 
-	cros_ec_lpc_mec_init(EC_HOST_CMD_REGION0,
-			     EC_LPC_ADDR_MEMMAP + EC_MEMMAP_SIZE);
-
 	/* Register the driver */
 	ret = platform_driver_register(&cros_ec_lpc_driver);
 	if (ret) {
 		pr_err(DRV_NAME ": can't register driver: %d\n", ret);
-		cros_ec_lpc_mec_destroy();
 		return ret;
 	}
 
@@ -603,7 +618,6 @@ static int __init cros_ec_lpc_init(void)
 		if (ret) {
 			pr_err(DRV_NAME ": can't register device: %d\n", ret);
 			platform_driver_unregister(&cros_ec_lpc_driver);
-			cros_ec_lpc_mec_destroy();
 		}
 	}
 
@@ -615,7 +629,6 @@ static void __exit cros_ec_lpc_exit(void)
 	if (!cros_ec_lpc_acpi_device_found)
 		platform_device_unregister(&cros_ec_lpc_device);
 	platform_driver_unregister(&cros_ec_lpc_driver);
-	cros_ec_lpc_mec_destroy();
 }
 
 module_init(cros_ec_lpc_init);

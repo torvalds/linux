@@ -2,13 +2,20 @@
 #
 # HID driver configuration
 #
-menu "HID support"
-     depends on INPUT
+menuconfig HID_SUPPORT
+	bool "HID bus support"
+	default y
+	depends on INPUT
+	help
+	  This option adds core support for human interface device (HID).
+	  You will also need drivers from the following menu to make use of it.
+
+if HID_SUPPORT
 
 config HID
-	tristate "HID bus support"
-	depends on INPUT
+	tristate "HID bus core support"
 	default y
+	depends on INPUT
 	help
 	  A human interface device (HID) is a type of computer device that
 	  interacts directly with and takes input from humans. The term "HID"
@@ -328,6 +335,13 @@ config HID_ELO
 	help
 	Support for the ELO USB 4000/4500 touchscreens. Note that this is for
 	different devices than those handled by CONFIG_TOUCHSCREEN_USB_ELO.
+
+config HID_EVISION
+	tristate "EVision Keyboards Support"
+	depends on HID
+	help
+	Support for some EVision keyboards. Note that this is needed only when
+	applying customization using userspace programs.
 
 config HID_EZKEY
 	tristate "Ezkey BTC 8193 keyboard"
@@ -897,7 +911,7 @@ config HID_PLAYSTATION
 	select CRC32
 	select POWER_SUPPLY
 	help
-	  Provides support for Sony PS5 controllers including support for
+	  Provides support for Sony PS4/PS5 controllers including support for
 	  its special functionalities e.g. touchpad, lights and motion
 	  sensors.
 
@@ -1018,12 +1032,20 @@ config HID_SPEEDLINK
 	Support for Speedlink Vicious and Divine Cezanne mouse.
 
 config HID_STEAM
-	tristate "Steam Controller support"
+	tristate "Steam Controller/Deck support"
 	select POWER_SUPPLY
 	help
-	Say Y here if you have a Steam Controller if you want to use it
+	Say Y here if you have a Steam Controller or Deck if you want to use it
 	without running the Steam Client. It supports both the wired and
 	the wireless adaptor.
+
+config STEAM_FF
+	bool "Steam Deck force feedback support"
+	depends on HID_STEAM
+	select INPUT_FF_MEMLESS
+	help
+	Say Y here if you want to enable force feedback support for the Steam
+	Deck.
 
 config HID_STEELSERIES
 	tristate "Steelseries SRW-S1 steering wheel support"
@@ -1100,7 +1122,7 @@ config HID_TOPRE
 	tristate "Topre REALFORCE keyboards"
 	depends on HID
 	help
-	  Say Y for N-key rollover support on Topre REALFORCE R2 108 key keyboards.
+	  Say Y for N-key rollover support on Topre REALFORCE R2 108/87 key keyboards.
 
 config HID_THINGM
 	tristate "ThingM blink(1) USB RGB LED"
@@ -1252,7 +1274,8 @@ config HID_ALPS
 config HID_MCP2221
 	tristate "Microchip MCP2221 HID USB-to-I2C/SMbus host support"
 	depends on USB_HID && I2C
-	depends on GPIOLIB
+	imply GPIOLIB
+	imply IIO
 	help
 	Provides I2C and SMBUS host adapter functionality over USB-HID
 	through MCP2221 device.
@@ -1263,6 +1286,7 @@ config HID_MCP2221
 config HID_KUNIT_TEST
 	tristate "KUnit tests for HID" if !KUNIT_ALL_TESTS
 	depends on KUNIT=y
+	depends on HID_BATTERY_STRENGTH
 	depends on HID_UCLOGIC
 	default KUNIT_ALL_TESTS
 	help
@@ -1278,6 +1302,8 @@ config HID_KUNIT_TEST
 
 endmenu
 
+source "drivers/hid/bpf/Kconfig"
+
 endif # HID
 
 source "drivers/hid/usbhid/Kconfig"
@@ -1290,4 +1316,4 @@ source "drivers/hid/amd-sfh-hid/Kconfig"
 
 source "drivers/hid/surface-hid/Kconfig"
 
-endmenu
+endif # HID_SUPPORT

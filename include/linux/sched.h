@@ -36,6 +36,7 @@
 #include <linux/seqlock.h>
 #include <linux/kcsan.h>
 #include <linux/rv.h>
+#include <linux/livepatch_sched.h>
 #include <asm/kmap_size.h>
 
 /* task_struct member predeclarations (sorted alphabetically): */
@@ -69,6 +70,7 @@ struct sighand_struct;
 struct signal_struct;
 struct task_delay_info;
 struct task_group;
+struct user_event_mm;
 
 /*
  * Task state bitmask. NOTE! These bits are also
@@ -870,9 +872,6 @@ struct task_struct {
 	struct mm_struct		*mm;
 	struct mm_struct		*active_mm;
 
-#ifdef SPLIT_RSS_COUNTING
-	struct task_rss_stat		rss_stat;
-#endif
 	int				exit_state;
 	int				exit_code;
 	int				exit_signal;
@@ -888,9 +887,6 @@ struct task_struct {
 	unsigned			sched_reset_on_fork:1;
 	unsigned			sched_contributes_to_load:1;
 	unsigned			sched_migrated:1;
-#ifdef CONFIG_PSI
-	unsigned			sched_psi_wake_requeue:1;
-#endif
 
 	/* Force alignment to the next boundary: */
 	unsigned			:0;
@@ -1243,7 +1239,7 @@ struct task_struct {
 	unsigned int			futex_state;
 #endif
 #ifdef CONFIG_PERF_EVENTS
-	struct perf_event_context	*perf_event_ctxp[perf_nr_task_contexts];
+	struct perf_event_context	*perf_event_ctxp;
 	struct mutex			perf_event_mutex;
 	struct list_head		perf_event_list;
 #endif
@@ -1308,6 +1304,7 @@ struct task_struct {
 
 #ifdef CONFIG_RSEQ
 	struct rseq __user *rseq;
+	u32 rseq_len;
 	u32 rseq_sig;
 	/*
 	 * RmW on rseq_event_mask must be performed atomically
@@ -1316,12 +1313,15 @@ struct task_struct {
 	unsigned long rseq_event_mask;
 #endif
 
-	struct tlbflush_unmap_batch	tlb_ubc;
+#ifdef CONFIG_SCHED_MM_CID
+	int				mm_cid;		/* Current cid in mm */
+	int				last_mm_cid;	/* Most recent cid in mm */
+	int				migrate_from_cpu;
+	int				mm_cid_active;	/* Whether cid bitmap is active */
+	struct callback_head		cid_work;
+#endif
 
-	union {
-		refcount_t		rcu_users;
-		struct rcu_head		rcu;
-	};
+	struct tlbflush_unmap_batch	tlb_ubc;
 
 	/* Cache last used pipe for splice(): */
 	struct pipe_inode_info		*splice_pipe;
@@ -1442,7 +1442,7 @@ struct task_struct {
 #endif
 
 #ifdef CONFIG_BLK_CGROUP
-	struct request_queue		*throttle_queue;
+	struct gendisk			*throttle_disk;
 #endif
 
 #ifdef CONFIG_UPROBES
@@ -1459,6 +1459,8 @@ struct task_struct {
 	unsigned long			saved_state_change;
 # endif
 #endif
+	struct rcu_head			rcu;
+	refcount_t			rcu_users;
 	int				pagefault_disabled;
 #ifdef CONFIG_MMU
 	struct task_struct		*oom_reaper_list;
@@ -1526,6 +1528,10 @@ struct task_struct {
 	 * none of these are justified.
 	 */
 	union rv_task_monitor		rv[RV_PER_TASK_MONITORS];
+#endif
+
+#ifdef CONFIG_USER_EVENTS
+	struct user_event_mm		*user_event_mm;
 #endif
 
 	/*
@@ -1729,7 +1735,7 @@ extern struct pid *cad_pid;
 #define PF_MEMALLOC		0x00000800	/* Allocating memory */
 #define PF_NPROC_EXCEEDED	0x00001000	/* set_user() noticed that RLIMIT_NPROC was exceeded */
 #define PF_USED_MATH		0x00002000	/* If unset the fpu must be initialized before use */
-#define PF__HOLE__00004000	0x00004000
+#define PF_USER_WORKER		0x00004000	/* Kernel thread cloned from userspace thread */
 #define PF_NOFREEZE		0x00008000	/* This thread should not be frozen */
 #define PF__HOLE__00010000	0x00010000
 #define PF_KSWAPD		0x00020000	/* I am kswapd */
@@ -2070,6 +2076,9 @@ extern int __cond_resched(void);
 
 #if defined(CONFIG_PREEMPT_DYNAMIC) && defined(CONFIG_HAVE_PREEMPT_DYNAMIC_CALL)
 
+void sched_dynamic_klp_enable(void);
+void sched_dynamic_klp_disable(void);
+
 DECLARE_STATIC_CALL(cond_resched, __cond_resched);
 
 static __always_inline int _cond_resched(void)
@@ -2078,6 +2087,7 @@ static __always_inline int _cond_resched(void)
 }
 
 #elif defined(CONFIG_PREEMPT_DYNAMIC) && defined(CONFIG_HAVE_PREEMPT_DYNAMIC_KEY)
+
 extern int dynamic_cond_resched(void);
 
 static __always_inline int _cond_resched(void)
@@ -2085,20 +2095,25 @@ static __always_inline int _cond_resched(void)
 	return dynamic_cond_resched();
 }
 
-#else
+#else /* !CONFIG_PREEMPTION */
 
 static inline int _cond_resched(void)
 {
+	klp_sched_try_switch();
 	return __cond_resched();
 }
 
-#endif /* CONFIG_PREEMPT_DYNAMIC */
+#endif /* PREEMPT_DYNAMIC && CONFIG_HAVE_PREEMPT_DYNAMIC_CALL */
 
-#else
+#else /* CONFIG_PREEMPTION && !CONFIG_PREEMPT_DYNAMIC */
 
-static inline int _cond_resched(void) { return 0; }
+static inline int _cond_resched(void)
+{
+	klp_sched_try_switch();
+	return 0;
+}
 
-#endif /* !defined(CONFIG_PREEMPTION) || defined(CONFIG_PREEMPT_DYNAMIC) */
+#endif /* !CONFIG_PREEMPTION || CONFIG_PREEMPT_DYNAMIC */
 
 #define cond_resched() ({			\
 	__might_resched(__FILE__, __LINE__, 0);	\
@@ -2358,10 +2373,12 @@ static inline void rseq_fork(struct task_struct *t, unsigned long clone_flags)
 {
 	if (clone_flags & CLONE_VM) {
 		t->rseq = NULL;
+		t->rseq_len = 0;
 		t->rseq_sig = 0;
 		t->rseq_event_mask = 0;
 	} else {
 		t->rseq = current->rseq;
+		t->rseq_len = current->rseq_len;
 		t->rseq_sig = current->rseq_sig;
 		t->rseq_event_mask = current->rseq_event_mask;
 	}
@@ -2370,6 +2387,7 @@ static inline void rseq_fork(struct task_struct *t, unsigned long clone_flags)
 static inline void rseq_execve(struct task_struct *t)
 {
 	t->rseq = NULL;
+	t->rseq_len = 0;
 	t->rseq_sig = 0;
 	t->rseq_event_mask = 0;
 }

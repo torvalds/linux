@@ -14,9 +14,11 @@
 #include <linux/device.h>
 #include <linux/utsname.h>
 #include <linux/bitfield.h>
+#include <linux/uuid.h>
 
 #include <linux/usb/composite.h>
 #include <linux/usb/otg.h>
+#include <linux/usb/webusb.h>
 #include <asm/unaligned.h>
 
 #include "u_os_desc.h"
@@ -490,6 +492,46 @@ int usb_interface_id(struct usb_configuration *config,
 }
 EXPORT_SYMBOL_GPL(usb_interface_id);
 
+/**
+ * usb_func_wakeup - sends function wake notification to the host.
+ * @func: function that sends the remote wakeup notification.
+ *
+ * Applicable to devices operating at enhanced superspeed when usb
+ * functions are put in function suspend state and armed for function
+ * remote wakeup. On completion, function wake notification is sent. If
+ * the device is in low power state it tries to bring the device to active
+ * state before sending the wake notification. Since it is a synchronous
+ * call, caller must take care of not calling it in interrupt context.
+ * For devices operating at lower speeds  returns negative errno.
+ *
+ * Returns zero on success, else negative errno.
+ */
+int usb_func_wakeup(struct usb_function *func)
+{
+	struct usb_gadget	*gadget = func->config->cdev->gadget;
+	int			id;
+
+	if (!gadget->ops->func_wakeup)
+		return -EOPNOTSUPP;
+
+	if (!func->func_wakeup_armed) {
+		ERROR(func->config->cdev, "not armed for func remote wakeup\n");
+		return -EINVAL;
+	}
+
+	for (id = 0; id < MAX_CONFIG_INTERFACES; id++)
+		if (func->config->interface[id] == func)
+			break;
+
+	if (id == MAX_CONFIG_INTERFACES) {
+		ERROR(func->config->cdev, "Invalid function\n");
+		return -EINVAL;
+	}
+
+	return gadget->ops->func_wakeup(gadget, id);
+}
+EXPORT_SYMBOL_GPL(usb_func_wakeup);
+
 static u8 encode_bMaxPower(enum usb_device_speed speed,
 		struct usb_configuration *c)
 {
@@ -509,6 +551,19 @@ static u8 encode_bMaxPower(enum usb_device_speed speed,
 		 * by 8 the integral division will effectively cap to 896mA.
 		 */
 		return min(val, 900U) / 8;
+}
+
+void check_remote_wakeup_config(struct usb_gadget *g,
+				struct usb_configuration *c)
+{
+	if (USB_CONFIG_ATT_WAKEUP & c->bmAttributes) {
+		/* Reset the rw bit if gadget is not capable of it */
+		if (!g->wakeup_capable && g->ops->set_remote_wakeup) {
+			WARN(c->cdev, "Clearing wakeup bit for config c.%d\n",
+			     c->bConfigurationValue);
+			c->bmAttributes &= ~USB_CONFIG_ATT_WAKEUP;
+		}
+	}
 }
 
 static int config_buf(struct usb_configuration *config,
@@ -713,14 +768,16 @@ static int bos_desc(struct usb_composite_dev *cdev)
 	 * A SuperSpeed device shall include the USB2.0 extension descriptor
 	 * and shall support LPM when operating in USB2.0 HS mode.
 	 */
-	usb_ext = cdev->req->buf + le16_to_cpu(bos->wTotalLength);
-	bos->bNumDeviceCaps++;
-	le16_add_cpu(&bos->wTotalLength, USB_DT_USB_EXT_CAP_SIZE);
-	usb_ext->bLength = USB_DT_USB_EXT_CAP_SIZE;
-	usb_ext->bDescriptorType = USB_DT_DEVICE_CAPABILITY;
-	usb_ext->bDevCapabilityType = USB_CAP_TYPE_EXT;
-	usb_ext->bmAttributes = cpu_to_le32(USB_LPM_SUPPORT |
-					    USB_BESL_SUPPORT | besl);
+	if (cdev->gadget->lpm_capable) {
+		usb_ext = cdev->req->buf + le16_to_cpu(bos->wTotalLength);
+		bos->bNumDeviceCaps++;
+		le16_add_cpu(&bos->wTotalLength, USB_DT_USB_EXT_CAP_SIZE);
+		usb_ext->bLength = USB_DT_USB_EXT_CAP_SIZE;
+		usb_ext->bDescriptorType = USB_DT_DEVICE_CAPABILITY;
+		usb_ext->bDevCapabilityType = USB_CAP_TYPE_EXT;
+		usb_ext->bmAttributes = cpu_to_le32(USB_LPM_SUPPORT |
+							USB_BESL_SUPPORT | besl);
+	}
 
 	/*
 	 * The Superspeed USB Capability descriptor shall be implemented by all
@@ -821,6 +878,37 @@ static int bos_desc(struct usb_composite_dev *cdev)
 		}
 	}
 
+	/* The WebUSB Platform Capability descriptor */
+	if (cdev->use_webusb) {
+		struct usb_plat_dev_cap_descriptor *webusb_cap;
+		struct usb_webusb_cap_data *webusb_cap_data;
+		guid_t webusb_uuid = WEBUSB_UUID;
+
+		webusb_cap = cdev->req->buf + le16_to_cpu(bos->wTotalLength);
+		webusb_cap_data = (struct usb_webusb_cap_data *) webusb_cap->CapabilityData;
+		bos->bNumDeviceCaps++;
+		le16_add_cpu(&bos->wTotalLength,
+			USB_DT_USB_PLAT_DEV_CAP_SIZE(USB_WEBUSB_CAP_DATA_SIZE));
+
+		webusb_cap->bLength = USB_DT_USB_PLAT_DEV_CAP_SIZE(USB_WEBUSB_CAP_DATA_SIZE);
+		webusb_cap->bDescriptorType = USB_DT_DEVICE_CAPABILITY;
+		webusb_cap->bDevCapabilityType = USB_PLAT_DEV_CAP_TYPE;
+		webusb_cap->bReserved = 0;
+		export_guid(webusb_cap->UUID, &webusb_uuid);
+
+		if (cdev->bcd_webusb_version != 0)
+			webusb_cap_data->bcdVersion = cpu_to_le16(cdev->bcd_webusb_version);
+		else
+			webusb_cap_data->bcdVersion = WEBUSB_VERSION_1_00;
+
+		webusb_cap_data->bVendorCode = cdev->b_webusb_vendor_code;
+
+		if (strnlen(cdev->landing_page, sizeof(cdev->landing_page)) > 0)
+			webusb_cap_data->iLandingPage = WEBUSB_LANDING_PAGE_PRESENT;
+		else
+			webusb_cap_data->iLandingPage = WEBUSB_LANDING_PAGE_NOT_PRESENT;
+	}
+
 	return le16_to_cpu(bos->wTotalLength);
 }
 
@@ -852,6 +940,9 @@ static void reset_config(struct usb_composite_dev *cdev)
 	list_for_each_entry(f, &cdev->config->functions, list) {
 		if (f->disable)
 			f->disable(f);
+
+		/* Section 9.1.1.6, disable remote wakeup when device is reset */
+		f->func_wakeup_armed = false;
 
 		bitmap_zero(f->endpoints, 32);
 	}
@@ -959,6 +1050,11 @@ static int set_config(struct usb_composite_dev *cdev,
 		power = min(power, 500U);
 	else
 		power = min(power, 900U);
+
+	if (USB_CONFIG_ATT_WAKEUP & c->bmAttributes)
+		usb_gadget_set_remote_wakeup(gadget, 1);
+	else
+		usb_gadget_set_remote_wakeup(gadget, 0);
 done:
 	if (power <= USB_SELF_POWER_VBUS_MAX_DRAW)
 		usb_gadget_set_selfpowered(gadget);
@@ -1744,7 +1840,7 @@ composite_setup(struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 					cdev->desc.bcdUSB = cpu_to_le16(0x0210);
 				}
 			} else {
-				if (gadget->lpm_capable)
+				if (gadget->lpm_capable || cdev->use_webusb)
 					cdev->desc.bcdUSB = cpu_to_le16(0x0201);
 				else
 					cdev->desc.bcdUSB = cpu_to_le16(0x0200);
@@ -1779,7 +1875,7 @@ composite_setup(struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 			break;
 		case USB_DT_BOS:
 			if (gadget_is_superspeed(gadget) ||
-			    gadget->lpm_capable) {
+			    gadget->lpm_capable || cdev->use_webusb) {
 				value = bos_desc(cdev);
 				value = min(w_length, (u16) value);
 			}
@@ -1913,9 +2009,20 @@ composite_setup(struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 		f = cdev->config->interface[intf];
 		if (!f)
 			break;
-		status = f->get_status ? f->get_status(f) : 0;
-		if (status < 0)
-			break;
+
+		if (f->get_status) {
+			status = f->get_status(f);
+			if (status < 0)
+				break;
+		} else {
+			/* Set D0 and D1 bits based on func wakeup capability */
+			if (f->config->bmAttributes & USB_CONFIG_ATT_WAKEUP) {
+				status |= USB_INTRF_STAT_FUNC_RW_CAP;
+				if (f->func_wakeup_armed)
+					status |= USB_INTRF_STAT_FUNC_RW;
+			}
+		}
+
 		put_unaligned_le16(status & 0x0000ffff, req->buf);
 		break;
 	/*
@@ -1937,8 +2044,44 @@ composite_setup(struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 			if (!f)
 				break;
 			value = 0;
-			if (f->func_suspend)
+			if (f->func_suspend) {
 				value = f->func_suspend(f, w_index >> 8);
+			/* SetFeature(FUNCTION_SUSPEND) */
+			} else if (ctrl->bRequest == USB_REQ_SET_FEATURE) {
+				if (!(f->config->bmAttributes &
+				      USB_CONFIG_ATT_WAKEUP) &&
+				     (w_index & USB_INTRF_FUNC_SUSPEND_RW))
+					break;
+
+				f->func_wakeup_armed = !!(w_index &
+							  USB_INTRF_FUNC_SUSPEND_RW);
+
+				if (w_index & USB_INTRF_FUNC_SUSPEND_LP) {
+					if (f->suspend && !f->func_suspended) {
+						f->suspend(f);
+						f->func_suspended = true;
+					}
+				/*
+				 * Handle cases where host sends function resume
+				 * through SetFeature(FUNCTION_SUSPEND) but low power
+				 * bit reset
+				 */
+				} else {
+					if (f->resume && f->func_suspended) {
+						f->resume(f);
+						f->func_suspended = false;
+					}
+				}
+			/* ClearFeature(FUNCTION_SUSPEND) */
+			} else if (ctrl->bRequest == USB_REQ_CLEAR_FEATURE) {
+				f->func_wakeup_armed = false;
+
+				if (f->resume && f->func_suspended) {
+					f->resume(f);
+					f->func_suspended = false;
+				}
+			}
+
 			if (value < 0) {
 				ERROR(cdev,
 				      "func_suspend() returned error %d\n",
@@ -2009,6 +2152,52 @@ unknown:
 				}
 				break;
 			}
+
+			goto check_value;
+		}
+
+		/*
+		 * WebUSB URL descriptor handling, following:
+		 * https://wicg.github.io/webusb/#device-requests
+		 */
+		if (cdev->use_webusb &&
+		    ctrl->bRequestType == (USB_DIR_IN | USB_TYPE_VENDOR) &&
+		    w_index == WEBUSB_GET_URL &&
+		    w_value == WEBUSB_LANDING_PAGE_PRESENT &&
+		    ctrl->bRequest == cdev->b_webusb_vendor_code) {
+			unsigned int	landing_page_length;
+			unsigned int	landing_page_offset;
+			struct webusb_url_descriptor *url_descriptor =
+					(struct webusb_url_descriptor *)cdev->req->buf;
+
+			url_descriptor->bDescriptorType = WEBUSB_URL_DESCRIPTOR_TYPE;
+
+			if (strncasecmp(cdev->landing_page, "https://",  8) == 0) {
+				landing_page_offset = 8;
+				url_descriptor->bScheme = WEBUSB_URL_SCHEME_HTTPS;
+			} else if (strncasecmp(cdev->landing_page, "http://", 7) == 0) {
+				landing_page_offset = 7;
+				url_descriptor->bScheme = WEBUSB_URL_SCHEME_HTTP;
+			} else {
+				landing_page_offset = 0;
+				url_descriptor->bScheme = WEBUSB_URL_SCHEME_NONE;
+			}
+
+			landing_page_length = strnlen(cdev->landing_page,
+				sizeof(url_descriptor->URL)
+				- WEBUSB_URL_DESCRIPTOR_HEADER_LENGTH + landing_page_offset);
+
+			if (w_length < WEBUSB_URL_DESCRIPTOR_HEADER_LENGTH + landing_page_length)
+				landing_page_length = w_length
+				- WEBUSB_URL_DESCRIPTOR_HEADER_LENGTH + landing_page_offset;
+
+			memcpy(url_descriptor->URL,
+				cdev->landing_page + landing_page_offset,
+				landing_page_length - landing_page_offset);
+			url_descriptor->bLength = landing_page_length
+				- landing_page_offset + WEBUSB_URL_DESCRIPTOR_HEADER_LENGTH;
+
+			value = url_descriptor->bLength;
 
 			goto check_value;
 		}
@@ -2434,7 +2623,12 @@ void composite_resume(struct usb_gadget *gadget)
 		cdev->driver->resume(cdev);
 	if (cdev->config) {
 		list_for_each_entry(f, &cdev->config->functions, list) {
-			if (f->resume)
+			/*
+			 * Check for func_suspended flag to see if the function is
+			 * in USB3 FUNCTION_SUSPEND state. In this case resume is
+			 * done via FUNCTION_SUSPEND feature selector.
+			 */
+			if (f->resume && !f->func_suspended)
 				f->resume(f);
 		}
 
@@ -2448,6 +2642,10 @@ void composite_resume(struct usb_gadget *gadget)
 		if (maxpower > USB_SELF_POWER_VBUS_MAX_DRAW)
 			usb_gadget_clear_selfpowered(gadget);
 
+		usb_gadget_vbus_draw(gadget, maxpower);
+	} else {
+		maxpower = CONFIG_USB_GADGET_VBUS_DRAW;
+		maxpower = min(maxpower, 100U);
 		usb_gadget_vbus_draw(gadget, maxpower);
 	}
 

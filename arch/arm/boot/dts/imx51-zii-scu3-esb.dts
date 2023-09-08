@@ -319,7 +319,7 @@
 	pinctrl-0 = <&pinctrl_uart3>;
 	status = "okay";
 
-	rave-sp {
+	mcu {
 		compatible = "zii,rave-sp-esb";
 		current-speed = <57600>;
 		#address-cells = <1>;

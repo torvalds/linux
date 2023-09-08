@@ -141,6 +141,34 @@ void control_writeln(const char *str)
 	timeout_end();
 }
 
+void control_writeulong(unsigned long value)
+{
+	char str[32];
+
+	if (snprintf(str, sizeof(str), "%lu", value) >= sizeof(str)) {
+		perror("snprintf");
+		exit(EXIT_FAILURE);
+	}
+
+	control_writeln(str);
+}
+
+unsigned long control_readulong(void)
+{
+	unsigned long value;
+	char *str;
+
+	str = control_readln();
+
+	if (!str)
+		exit(EXIT_FAILURE);
+
+	value = strtoul(str, NULL, 10);
+	free(str);
+
+	return value;
+}
+
 /* Return the next line from the control socket (without the trailing newline).
  *
  * The program terminates if a timeout occurs.

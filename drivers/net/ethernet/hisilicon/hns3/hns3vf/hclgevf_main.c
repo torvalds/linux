@@ -1436,7 +1436,10 @@ static int hclgevf_reset_wait(struct hclgevf_dev *hdev)
 	 * might happen in case reset assertion was made by PF. Yes, this also
 	 * means we might end up waiting bit more even for VF reset.
 	 */
-	msleep(5000);
+	if (hdev->reset_type == HNAE3_VF_FULL_RESET)
+		msleep(5000);
+	else
+		msleep(500);
 
 	return 0;
 }
@@ -2598,7 +2601,7 @@ static int hclgevf_pci_init(struct hclgevf_dev *hdev)
 	if (!hw->hw.io_base) {
 		dev_err(&pdev->dev, "can't map configuration register space\n");
 		ret = -ENOMEM;
-		goto err_clr_master;
+		goto err_release_regions;
 	}
 
 	ret = hclgevf_dev_mem_map(hdev);
@@ -2609,8 +2612,7 @@ static int hclgevf_pci_init(struct hclgevf_dev *hdev)
 
 err_unmap_io_base:
 	pci_iounmap(pdev, hdev->hw.hw.io_base);
-err_clr_master:
-	pci_clear_master(pdev);
+err_release_regions:
 	pci_release_regions(pdev);
 err_disable_device:
 	pci_disable_device(pdev);
@@ -2626,7 +2628,6 @@ static void hclgevf_pci_uninit(struct hclgevf_dev *hdev)
 		devm_iounmap(&pdev->dev, hdev->hw.hw.mem_base);
 
 	pci_iounmap(pdev, hdev->hw.hw.io_base);
-	pci_clear_master(pdev);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
 }
@@ -2767,7 +2768,8 @@ static int hclgevf_pci_reset(struct hclgevf_dev *hdev)
 	struct pci_dev *pdev = hdev->pdev;
 	int ret = 0;
 
-	if (hdev->reset_type == HNAE3_VF_FULL_RESET &&
+	if ((hdev->reset_type == HNAE3_VF_FULL_RESET ||
+	     hdev->reset_type == HNAE3_FLR_RESET) &&
 	    test_bit(HCLGEVF_STATE_IRQ_INITED, &hdev->state)) {
 		hclgevf_misc_irq_uninit(hdev);
 		hclgevf_uninit_msi(hdev);
@@ -3129,7 +3131,7 @@ static int hclgevf_set_channels(struct hnae3_handle *handle, u32 new_tqps_num,
 
 	hclgevf_update_rss_size(handle, new_tqps_num);
 
-	hclge_comm_get_rss_tc_info(cur_rss_size, hdev->hw_tc_map,
+	hclge_comm_get_rss_tc_info(kinfo->rss_size, hdev->hw_tc_map,
 				   tc_offset, tc_valid, tc_size);
 	ret = hclge_comm_set_rss_tc_mode(&hdev->hw.hw, tc_offset,
 					 tc_valid, tc_size);

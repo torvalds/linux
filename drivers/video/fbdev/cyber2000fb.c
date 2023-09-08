@@ -48,7 +48,6 @@
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
 
-
 #ifdef __arm__
 #include <asm/mach-types.h>
 #endif
@@ -1878,7 +1877,12 @@ static int __init cyber2000fb_init(void)
 
 #ifndef MODULE
 	char *option = NULL;
+#endif
 
+	if (fb_modesetting_disabled("CyberPro"))
+		return -ENODEV;
+
+#ifndef MODULE
 	if (fb_get_options("cyber2000fb", &option))
 		return -ENODEV;
 	cyber2000fb_setup(option);

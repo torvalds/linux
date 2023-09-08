@@ -77,11 +77,11 @@ _ASM_NOKPROBE_SYMBOL(system_call_vectored_\name)
 	std	r11,_TRAP(r1)
 	std	r12,_CCR(r1)
 	std	r3,ORIG_GPR3(r1)
-	/* Calling convention has r3 = regs, r4 = orig r0 */
-	addi	r3,r1,STACK_FRAME_OVERHEAD
-	mr	r4,r0
 	LOAD_REG_IMMEDIATE(r11, STACK_FRAME_REGS_MARKER)
-	std	r11,-16(r3)		/* "regshere" marker */
+	std	r11,STACK_INT_FRAME_MARKER(r1)		/* "regs" marker */
+	/* Calling convention has r3 = regs, r4 = orig r0 */
+	addi	r3,r1,STACK_INT_FRAME_REGS
+	mr	r4,r0
 
 BEGIN_FTR_SECTION
 	HMT_MEDIUM
@@ -96,12 +96,17 @@ END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 	 * but this is the best we can do.
 	 */
 
-	bl	system_call_exception
+	/*
+	 * Zero user registers to prevent influencing speculative execution
+	 * state of kernel code.
+	 */
+	SANITIZE_SYSCALL_GPRS()
+	bl	CFUNC(system_call_exception)
 
 .Lsyscall_vectored_\name\()_exit:
-	addi	r4,r1,STACK_FRAME_OVERHEAD
+	addi	r4,r1,STACK_INT_FRAME_REGS
 	li	r5,1 /* scv */
-	bl	syscall_exit_prepare
+	bl	CFUNC(syscall_exit_prepare)
 	std	r1,PACA_EXIT_SAVE_R1(r13) /* save r1 for restart */
 .Lsyscall_vectored_\name\()_rst_start:
 	lbz	r11,PACAIRQHAPPENED(r13)
@@ -124,6 +129,7 @@ BEGIN_FTR_SECTION
 	HMT_MEDIUM_LOW
 END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 
+	SANITIZE_RESTORE_NVGPRS()
 	cmpdi	r3,0
 	bne	.Lsyscall_vectored_\name\()_restore_regs
 
@@ -159,7 +165,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 	ld	r4,_LINK(r1)
 	ld	r5,_XER(r1)
 
-	REST_NVGPRS(r1)
+	HANDLER_RESTORE_NVGPRS()
 	REST_GPR(0, r1)
 	mtcr	r2
 	mtctr	r3
@@ -176,10 +182,10 @@ _ASM_NOKPROBE_SYMBOL(syscall_vectored_\name\()_restart)
 	ld	r1,PACA_EXIT_SAVE_R1(r13)
 	LOAD_PACA_TOC()
 	ld	r3,RESULT(r1)
-	addi	r4,r1,STACK_FRAME_OVERHEAD
+	addi	r4,r1,STACK_INT_FRAME_REGS
 	li	r11,IRQS_ALL_DISABLED
 	stb	r11,PACAIRQSOFTMASK(r13)
-	bl	syscall_exit_restart
+	bl	CFUNC(syscall_exit_restart)
 	std	r1,PACA_EXIT_SAVE_R1(r13) /* save r1 for restart */
 	b	.Lsyscall_vectored_\name\()_rst_start
 1:
@@ -250,11 +256,11 @@ END_BTB_FLUSH_SECTION
 	std	r11,_TRAP(r1)
 	std	r12,_CCR(r1)
 	std	r3,ORIG_GPR3(r1)
-	/* Calling convention has r3 = regs, r4 = orig r0 */
-	addi	r3,r1,STACK_FRAME_OVERHEAD
-	mr	r4,r0
 	LOAD_REG_IMMEDIATE(r11, STACK_FRAME_REGS_MARKER)
-	std	r11,-16(r3)		/* "regshere" marker */
+	std	r11,STACK_INT_FRAME_MARKER(r1)		/* "regs" marker */
+	/* Calling convention has r3 = regs, r4 = orig r0 */
+	addi	r3,r1,STACK_INT_FRAME_REGS
+	mr	r4,r0
 
 #ifdef CONFIG_PPC_BOOK3S
 	li	r11,1
@@ -275,12 +281,17 @@ END_BTB_FLUSH_SECTION
 	wrteei	1
 #endif
 
-	bl	system_call_exception
+	/*
+	 * Zero user registers to prevent influencing speculative execution
+	 * state of kernel code.
+	 */
+	SANITIZE_SYSCALL_GPRS()
+	bl	CFUNC(system_call_exception)
 
 .Lsyscall_exit:
-	addi	r4,r1,STACK_FRAME_OVERHEAD
+	addi	r4,r1,STACK_INT_FRAME_REGS
 	li	r5,0 /* !scv */
-	bl	syscall_exit_prepare
+	bl	CFUNC(syscall_exit_prepare)
 	std	r1,PACA_EXIT_SAVE_R1(r13) /* save r1 for restart */
 #ifdef CONFIG_PPC_BOOK3S
 .Lsyscall_rst_start:
@@ -315,6 +326,7 @@ BEGIN_FTR_SECTION
 	stdcx.	r0,0,r1			/* to clear the reservation */
 END_FTR_SECTION_IFCLR(CPU_FTR_STCX_CHECKS_ADDRESS)
 
+	SANITIZE_RESTORE_NVGPRS()
 	cmpdi	r3,0
 	bne	.Lsyscall_restore_regs
 	/* Zero volatile regs that may contain sensitive kernel data */
@@ -342,7 +354,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 .Lsyscall_restore_regs:
 	ld	r3,_CTR(r1)
 	ld	r4,_XER(r1)
-	REST_NVGPRS(r1)
+	HANDLER_RESTORE_NVGPRS()
 	mtctr	r3
 	mtspr	SPRN_XER,r4
 	REST_GPR(0, r1)
@@ -357,10 +369,10 @@ _ASM_NOKPROBE_SYMBOL(syscall_restart)
 	ld	r1,PACA_EXIT_SAVE_R1(r13)
 	LOAD_PACA_TOC()
 	ld	r3,RESULT(r1)
-	addi	r4,r1,STACK_FRAME_OVERHEAD
+	addi	r4,r1,STACK_INT_FRAME_REGS
 	li	r11,IRQS_ALL_DISABLED
 	stb	r11,PACAIRQSOFTMASK(r13)
-	bl	syscall_exit_restart
+	bl	CFUNC(syscall_exit_restart)
 	std	r1,PACA_EXIT_SAVE_R1(r13) /* save r1 for restart */
 	b	.Lsyscall_rst_start
 1:
@@ -388,8 +400,8 @@ _ASM_NOKPROBE_SYMBOL(fast_interrupt_return_srr)
 	andi.	r0,r5,MSR_RI
 	li	r3,0 /* 0 return value, no EMULATE_STACK_STORE */
 	bne+	.Lfast_kernel_interrupt_return_srr
-	addi	r3,r1,STACK_FRAME_OVERHEAD
-	bl	unrecoverable_exception
+	addi	r3,r1,STACK_INT_FRAME_REGS
+	bl	CFUNC(unrecoverable_exception)
 	b	. /* should not get here */
 #else
 	bne	.Lfast_user_interrupt_return_srr
@@ -406,11 +418,13 @@ _ASM_NOKPROBE_SYMBOL(interrupt_return_\srr\())
 	beq	interrupt_return_\srr\()_kernel
 interrupt_return_\srr\()_user: /* make backtraces match the _kernel variant */
 _ASM_NOKPROBE_SYMBOL(interrupt_return_\srr\()_user)
-	addi	r3,r1,STACK_FRAME_OVERHEAD
-	bl	interrupt_exit_user_prepare
+	addi	r3,r1,STACK_INT_FRAME_REGS
+	bl	CFUNC(interrupt_exit_user_prepare)
+#ifndef CONFIG_INTERRUPT_SANITIZE_REGISTERS
 	cmpdi	r3,0
 	bne-	.Lrestore_nvgprs_\srr
 .Lrestore_nvgprs_\srr\()_cont:
+#endif
 	std	r1,PACA_EXIT_SAVE_R1(r13) /* save r1 for restart */
 #ifdef CONFIG_PPC_BOOK3S
 .Linterrupt_return_\srr\()_user_rst_start:
@@ -424,6 +438,7 @@ _ASM_NOKPROBE_SYMBOL(interrupt_return_\srr\()_user)
 	stb	r11,PACAIRQHAPPENED(r13) # clear out possible HARD_DIS
 
 .Lfast_user_interrupt_return_\srr\():
+	SANITIZE_RESTORE_NVGPRS()
 #ifdef CONFIG_PPC_BOOK3S
 	.ifc \srr,srr
 	lbz	r4,PACASRR_VALID(r13)
@@ -493,9 +508,11 @@ ALT_FTR_SECTION_END_IFCLR(CPU_FTR_STCX_CHECKS_ADDRESS)
 	b	.	/* prevent speculative execution */
 .Linterrupt_return_\srr\()_user_rst_end:
 
+#ifndef CONFIG_INTERRUPT_SANITIZE_REGISTERS
 .Lrestore_nvgprs_\srr\():
 	REST_NVGPRS(r1)
 	b	.Lrestore_nvgprs_\srr\()_cont
+#endif
 
 #ifdef CONFIG_PPC_BOOK3S
 interrupt_return_\srr\()_user_restart:
@@ -503,10 +520,10 @@ _ASM_NOKPROBE_SYMBOL(interrupt_return_\srr\()_user_restart)
 	GET_PACA(r13)
 	ld	r1,PACA_EXIT_SAVE_R1(r13)
 	LOAD_PACA_TOC()
-	addi	r3,r1,STACK_FRAME_OVERHEAD
+	addi	r3,r1,STACK_INT_FRAME_REGS
 	li	r11,IRQS_ALL_DISABLED
 	stb	r11,PACAIRQSOFTMASK(r13)
-	bl	interrupt_exit_user_restart
+	bl	CFUNC(interrupt_exit_user_restart)
 	std	r1,PACA_EXIT_SAVE_R1(r13) /* save r1 for restart */
 	b	.Linterrupt_return_\srr\()_user_rst_start
 1:
@@ -518,8 +535,8 @@ RESTART_TABLE(.Linterrupt_return_\srr\()_user_rst_start, .Linterrupt_return_\srr
 	.balign IFETCH_ALIGN_BYTES
 interrupt_return_\srr\()_kernel:
 _ASM_NOKPROBE_SYMBOL(interrupt_return_\srr\()_kernel)
-	addi	r3,r1,STACK_FRAME_OVERHEAD
-	bl	interrupt_exit_kernel_prepare
+	addi	r3,r1,STACK_INT_FRAME_REGS
+	bl	CFUNC(interrupt_exit_kernel_prepare)
 
 	std	r1,PACA_EXIT_SAVE_R1(r13) /* save r1 for restart */
 .Linterrupt_return_\srr\()_kernel_rst_start:
@@ -585,6 +602,7 @@ _ASM_NOKPROBE_SYMBOL(interrupt_return_\srr\()_kernel)
 	stb	r11,PACAIRQHAPPENED(r13) // clear the possible HARD_DIS
 
 .Lfast_kernel_interrupt_return_\srr\():
+	SANITIZE_RESTORE_NVGPRS()
 	cmpdi	cr1,r3,0
 #ifdef CONFIG_PPC_BOOK3S
 	.ifc \srr,srr
@@ -637,7 +655,7 @@ ALT_FTR_SECTION_END_IFCLR(CPU_FTR_STCX_CHECKS_ADDRESS)
 	 * Leaving a stale STACK_FRAME_REGS_MARKER on the stack can confuse
 	 * the reliable stack unwinder later on. Clear it.
 	 */
-	std	r0,STACK_FRAME_OVERHEAD-16(r1)
+	std	r0,STACK_INT_FRAME_MARKER(r1)
 
 	REST_GPRS(2, 5, r1)
 
@@ -684,10 +702,10 @@ _ASM_NOKPROBE_SYMBOL(interrupt_return_\srr\()_kernel_restart)
 	GET_PACA(r13)
 	ld	r1,PACA_EXIT_SAVE_R1(r13)
 	LOAD_PACA_TOC()
-	addi	r3,r1,STACK_FRAME_OVERHEAD
+	addi	r3,r1,STACK_INT_FRAME_REGS
 	li	r11,IRQS_ALL_DISABLED
 	stb	r11,PACAIRQSOFTMASK(r13)
-	bl	interrupt_exit_kernel_restart
+	bl	CFUNC(interrupt_exit_kernel_restart)
 	std	r1,PACA_EXIT_SAVE_R1(r13) /* save r1 for restart */
 	b	.Linterrupt_return_\srr\()_kernel_rst_start
 1:
@@ -709,21 +727,20 @@ DEFINE_FIXED_SYMBOL(__end_soft_masked, text)
 
 #ifdef CONFIG_PPC_BOOK3S
 _GLOBAL(ret_from_fork_scv)
-	bl	schedule_tail
-	REST_NVGPRS(r1)
+	bl	CFUNC(schedule_tail)
+	HANDLER_RESTORE_NVGPRS()
 	li	r3,0	/* fork() return value */
 	b	.Lsyscall_vectored_common_exit
 #endif
 
 _GLOBAL(ret_from_fork)
-	bl	schedule_tail
-	REST_NVGPRS(r1)
+	bl	CFUNC(schedule_tail)
+	HANDLER_RESTORE_NVGPRS()
 	li	r3,0	/* fork() return value */
 	b	.Lsyscall_exit
 
-_GLOBAL(ret_from_kernel_thread)
-	bl	schedule_tail
-	REST_NVGPRS(r1)
+_GLOBAL(ret_from_kernel_user_thread)
+	bl	CFUNC(schedule_tail)
 	mtctr	r14
 	mr	r3,r15
 #ifdef CONFIG_PPC64_ELF_ABI_V2
@@ -731,4 +748,25 @@ _GLOBAL(ret_from_kernel_thread)
 #endif
 	bctrl
 	li	r3,0
+	/*
+	 * It does not matter whether this returns via the scv or sc path
+	 * because it returns as execve() and therefore has no calling ABI
+	 * (i.e., it sets registers according to the exec()ed entry point).
+	 */
 	b	.Lsyscall_exit
+
+_GLOBAL(start_kernel_thread)
+	bl	CFUNC(schedule_tail)
+	mtctr	r14
+	mr	r3,r15
+#ifdef CONFIG_PPC64_ELF_ABI_V2
+	mr	r12,r14
+#endif
+	bctrl
+	/*
+	 * This must not return. We actually want to BUG here, not WARN,
+	 * because BUG will exit the process which is what the kernel thread
+	 * should have done, which may give some hope of continuing.
+	 */
+100:	trap
+	EMIT_BUG_ENTRY 100b,__FILE__,__LINE__,0

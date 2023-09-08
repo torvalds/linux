@@ -176,7 +176,7 @@ static ssize_t charger_state_show(struct device *dev,
 		return 0;
 	}
 
-	return sprintf(buf, "%s\n", charge);
+	return sysfs_emit(buf, "%s\n", charge);
 }
 
 static DEVICE_ATTR_RO(charger_state);

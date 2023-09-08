@@ -54,6 +54,25 @@ VEC (Composite TV out) encoder
 .. kernel-doc:: drivers/gpu/drm/vc4/vc4_vec.c
    :doc: VC4 SDTV module
 
+KUnit Tests
+===========
+
+The VC4 Driver uses KUnit to perform driver-specific unit and
+integration tests.
+
+These tests are using a mock driver and can be ran using the
+command below, on either arm or arm64 architectures,
+
+.. code-block:: bash
+
+	$ ./tools/testing/kunit/kunit.py run \
+		--kunitconfig=drivers/gpu/drm/vc4/tests/.kunitconfig \
+		--cross_compile aarch64-linux-gnu- --arch arm64
+
+Parts of the driver that are currently covered by tests are:
+ * The HVS to PixelValve dynamic FIFO assignment, for the BCM2835-7
+   and BCM2711.
+
 Memory Management and 3D Command Submission
 ===========================================
 

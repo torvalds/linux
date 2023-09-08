@@ -95,7 +95,9 @@ properties:
       PIO (polled I/O) interrupt and occurs when the FIFO needs to be
       emptied as part of a bulk read from the card. Some variants have these
       two interrupts wired into the same line (logic OR) and in that case
-      only one interrupt may be provided.
+      only one interrupt may be provided. The interrupt-names property is
+      not used due to inconsistency of existing DTs regarding its content.
+    deprecated: false
     minItems: 1
     maxItems: 2
 

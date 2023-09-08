@@ -18,7 +18,7 @@ void __write_overflow_field(size_t avail, size_t wanted) __compiletime_warning("
 
 #define __compiletime_strlen(p)					\
 ({								\
-	unsigned char *__p = (unsigned char *)(p);		\
+	char *__p = (char *)(p);				\
 	size_t __ret = SIZE_MAX;				\
 	size_t __p_size = __member_size(p);			\
 	if (__p_size != SIZE_MAX &&				\
@@ -90,10 +90,17 @@ extern char *__underlying_strncpy(char *p, const char *q, __kernel_size_t size) 
  * size, rather than struct size), but there remain some stragglers using
  * type 0 that will be converted in the future.
  */
+#if __has_builtin(__builtin_dynamic_object_size)
+#define POS			__pass_dynamic_object_size(1)
+#define POS0			__pass_dynamic_object_size(0)
+#define __struct_size(p)	__builtin_dynamic_object_size(p, 0)
+#define __member_size(p)	__builtin_dynamic_object_size(p, 1)
+#else
 #define POS			__pass_object_size(1)
 #define POS0			__pass_object_size(0)
 #define __struct_size(p)	__builtin_object_size(p, 0)
 #define __member_size(p)	__builtin_object_size(p, 1)
+#endif
 
 #define __compiletime_lessthan(bounds, length)	(	\
 	__builtin_constant_p((bounds) < (length)) &&	\
@@ -119,13 +126,13 @@ extern char *__underlying_strncpy(char *p, const char *q, __kernel_size_t size) 
  * Instead, please choose an alternative, so that the expectation
  * of @p's contents is unambiguous:
  *
- * +--------------------+-----------------+------------+
- * | @p needs to be:    | padded to @size | not padded |
- * +====================+=================+============+
- * |     NUL-terminated | strscpy_pad()   | strscpy()  |
- * +--------------------+-----------------+------------+
- * | not NUL-terminated | strtomem_pad()  | strtomem() |
- * +--------------------+-----------------+------------+
+ * +--------------------+--------------------+------------+
+ * | **p** needs to be: | padded to **size** | not padded |
+ * +====================+====================+============+
+ * |     NUL-terminated | strscpy_pad()      | strscpy()  |
+ * +--------------------+--------------------+------------+
+ * | not NUL-terminated | strtomem_pad()     | strtomem() |
+ * +--------------------+--------------------+------------+
  *
  * Note strscpy*()'s differing return values for detecting truncation,
  * and strtomem*()'s expectation that the destination is marked with
@@ -144,6 +151,21 @@ char *strncpy(char * const POS p, const char *q, __kernel_size_t size)
 	return __underlying_strncpy(p, q, size);
 }
 
+/**
+ * strcat - Append a string to an existing string
+ *
+ * @p: pointer to NUL-terminated string to append to
+ * @q: pointer to NUL-terminated source string to append from
+ *
+ * Do not use this function. While FORTIFY_SOURCE tries to avoid
+ * read and write overflows, this is only possible when the
+ * destination buffer size is known to the compiler. Prefer
+ * building the string with formatting, via scnprintf() or similar.
+ * At the very least, use strncat().
+ *
+ * Returns @p.
+ *
+ */
 __FORTIFY_INLINE __diagnose_as(__builtin_strcat, 1, 2)
 char *strcat(char * const POS p, const char *q)
 {
@@ -157,6 +179,16 @@ char *strcat(char * const POS p, const char *q)
 }
 
 extern __kernel_size_t __real_strnlen(const char *, __kernel_size_t) __RENAME(strnlen);
+/**
+ * strnlen - Return bounded count of characters in a NUL-terminated string
+ *
+ * @p: pointer to NUL-terminated string to count.
+ * @maxlen: maximum number of characters to count.
+ *
+ * Returns number of characters in @p (NOT including the final NUL), or
+ * @maxlen, if no NUL has been found up to there.
+ *
+ */
 __FORTIFY_INLINE __kernel_size_t strnlen(const char * const POS p, __kernel_size_t maxlen)
 {
 	size_t p_size = __member_size(p);
@@ -182,6 +214,19 @@ __FORTIFY_INLINE __kernel_size_t strnlen(const char * const POS p, __kernel_size
  * possible for strlen() to be used on compile-time strings for use in
  * static initializers (i.e. as a constant expression).
  */
+/**
+ * strlen - Return count of characters in a NUL-terminated string
+ *
+ * @p: pointer to NUL-terminated string to count.
+ *
+ * Do not use this function unless the string length is known at
+ * compile-time. When @p is unterminated, this function may crash
+ * or return unexpected counts that could lead to memory content
+ * exposures. Prefer strnlen().
+ *
+ * Returns number of characters in @p (NOT including the final NUL).
+ *
+ */
 #define strlen(p)							\
 	__builtin_choose_expr(__is_constexpr(__builtin_strlen(p)),	\
 		__builtin_strlen(p), __fortify_strlen(p))
@@ -200,8 +245,26 @@ __kernel_size_t __fortify_strlen(const char * const POS p)
 	return ret;
 }
 
-/* defined after fortified strlen to reuse it */
+/* Defined after fortified strlen() to reuse it. */
 extern size_t __real_strlcpy(char *, const char *, size_t) __RENAME(strlcpy);
+/**
+ * strlcpy - Copy a string into another string buffer
+ *
+ * @p: pointer to destination of copy
+ * @q: pointer to NUL-terminated source string to copy
+ * @size: maximum number of bytes to write at @p
+ *
+ * If strlen(@q) >= @size, the copy of @q will be truncated at
+ * @size - 1 bytes. @p will always be NUL-terminated.
+ *
+ * Do not use this function. While FORTIFY_SOURCE tries to avoid
+ * over-reads when calculating strlen(@q), it is still possible.
+ * Prefer strscpy(), though note its different return values for
+ * detecting truncation.
+ *
+ * Returns total number of bytes written to @p, including terminating NUL.
+ *
+ */
 __FORTIFY_INLINE size_t strlcpy(char * const POS p, const char * const POS q, size_t size)
 {
 	size_t p_size = __member_size(p);
@@ -227,8 +290,32 @@ __FORTIFY_INLINE size_t strlcpy(char * const POS p, const char * const POS q, si
 	return q_len;
 }
 
-/* defined after fortified strnlen to reuse it */
+/* Defined after fortified strnlen() to reuse it. */
 extern ssize_t __real_strscpy(char *, const char *, size_t) __RENAME(strscpy);
+/**
+ * strscpy - Copy a C-string into a sized buffer
+ *
+ * @p: Where to copy the string to
+ * @q: Where to copy the string from
+ * @size: Size of destination buffer
+ *
+ * Copy the source string @p, or as much of it as fits, into the destination
+ * @q buffer. The behavior is undefined if the string buffers overlap. The
+ * destination @p buffer is always NUL terminated, unless it's zero-sized.
+ *
+ * Preferred to strlcpy() since the API doesn't require reading memory
+ * from the source @q string beyond the specified @size bytes, and since
+ * the return value is easier to error-check than strlcpy()'s.
+ * In addition, the implementation is robust to the string changing out
+ * from underneath it, unlike the current strlcpy() implementation.
+ *
+ * Preferred to strncpy() since it always returns a valid string, and
+ * doesn't unnecessarily force the tail of the destination buffer to be
+ * zero padded. If padding is desired please use strscpy_pad().
+ *
+ * Returns the number of characters copied in @p (not including the
+ * trailing %NUL) or -E2BIG if @size is 0 or the copy of @q was truncated.
+ */
 __FORTIFY_INLINE ssize_t strscpy(char * const POS p, const char * const POS q, size_t size)
 {
 	size_t len;
@@ -246,6 +333,16 @@ __FORTIFY_INLINE ssize_t strscpy(char * const POS p, const char * const POS q, s
 	 */
 	if (__compiletime_lessthan(p_size, size))
 		__write_overflow();
+
+	/* Short-circuit for compile-time known-safe lengths. */
+	if (__compiletime_lessthan(p_size, SIZE_MAX)) {
+		len = __compiletime_strlen(q);
+
+		if (len < SIZE_MAX && __compiletime_lessthan(len, size)) {
+			__underlying_memcpy(p, q, len + 1);
+			return len;
+		}
+	}
 
 	/*
 	 * This call protects from read overflow, because len will default to q
@@ -274,7 +371,26 @@ __FORTIFY_INLINE ssize_t strscpy(char * const POS p, const char * const POS q, s
 	return __real_strscpy(p, q, len);
 }
 
-/* defined after fortified strlen and strnlen to reuse them */
+/**
+ * strncat - Append a string to an existing string
+ *
+ * @p: pointer to NUL-terminated string to append to
+ * @q: pointer to source string to append from
+ * @count: Maximum bytes to read from @q
+ *
+ * Appends at most @count bytes from @q (stopping at the first
+ * NUL byte) after the NUL-terminated string at @p. @p will be
+ * NUL-terminated.
+ *
+ * Do not use this function. While FORTIFY_SOURCE tries to avoid
+ * read and write overflows, this is only possible when the sizes
+ * of @p and @q are known to the compiler. Prefer building the
+ * string with formatting, via scnprintf() or similar.
+ *
+ * Returns @p.
+ *
+ */
+/* Defined after fortified strlen() and strnlen() to reuse them. */
 __FORTIFY_INLINE __diagnose_as(__builtin_strncat, 1, 2, 3)
 char *strncat(char * const POS p, const char * const POS q, __kernel_size_t count)
 {
@@ -573,7 +689,8 @@ __FORTIFY_INLINE void *memchr_inv(const void * const POS0 p, int c, size_t size)
 	return __real_memchr_inv(p, c, size);
 }
 
-extern void *__real_kmemdup(const void *src, size_t len, gfp_t gfp) __RENAME(kmemdup);
+extern void *__real_kmemdup(const void *src, size_t len, gfp_t gfp) __RENAME(kmemdup)
+								    __realloc_size(2);
 __FORTIFY_INLINE void *kmemdup(const void * const POS0 p, size_t size, gfp_t gfp)
 {
 	size_t p_size = __struct_size(p);
@@ -585,6 +702,20 @@ __FORTIFY_INLINE void *kmemdup(const void * const POS0 p, size_t size, gfp_t gfp
 	return __real_kmemdup(p, size, gfp);
 }
 
+/**
+ * strcpy - Copy a string into another string buffer
+ *
+ * @p: pointer to destination of copy
+ * @q: pointer to NUL-terminated source string to copy
+ *
+ * Do not use this function. While FORTIFY_SOURCE tries to avoid
+ * overflows, this is only possible when the sizes of @q and @p are
+ * known to the compiler. Prefer strscpy(), though note its different
+ * return values for detecting truncation.
+ *
+ * Returns @p.
+ *
+ */
 /* Defined after fortified strlen to reuse it. */
 __FORTIFY_INLINE __diagnose_as(__builtin_strcpy, 1, 2)
 char *strcpy(char * const POS p, const char * const POS q)

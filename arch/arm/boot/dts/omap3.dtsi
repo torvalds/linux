@@ -893,15 +893,37 @@
 			#gpio-cells = <2>;
 		};
 
-		usb_otg_hs: usb_otg_hs@480ab000 {
-			compatible = "ti,omap3-musb";
-			reg = <0x480ab000 0x1000>;
-			interrupts = <92>, <93>;
-			interrupt-names = "mc", "dma";
-			ti,hwmods = "usb_otg_hs";
-			multipoint = <1>;
-			num-eps = <16>;
-			ram-bits = <12>;
+		usb_otg_target: target-module@480ab000 {
+			compatible = "ti,sysc-omap2", "ti,sysc";
+			reg = <0x480ab400 0x4>,
+			      <0x480ab404 0x4>,
+			      <0x480ab408 0x4>;
+			reg-names = "rev", "sysc", "syss";
+			ti,sysc-mask = <(SYSC_OMAP2_ENAWAKEUP |
+					 SYSC_OMAP2_SOFTRESET |
+					 SYSC_OMAP2_AUTOIDLE)>;
+			ti,sysc-midle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>;
+			ti,syss-mask = <1>;
+			/* Clock defined in the SoC specific dtsi file */
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x480ab000 0x1000>;
+
+			usb_otg_hs: usb@0 {
+				compatible = "ti,omap3-musb";
+				reg = <0 0x1000>;
+				interrupts = <92>, <93>;
+				interrupt-names = "mc", "dma";
+				multipoint = <1>;
+				num-eps = <16>;
+				ram-bits = <12>;
+			};
 		};
 
 		dss: dss@48050000 {

@@ -49,11 +49,6 @@ properties:
       List of the hardware port in respective IOMMU block for current Socs.
       Refer to bindings/iommu/mediatek,iommu.yaml.
 
-  dma-ranges:
-    maxItems: 1
-    description: |
-      Describes the physical address space of IOMMU maps to memory.
-
   mediatek,vpu:
     $ref: /schemas/types.yaml#/definitions/phandle
     description:
@@ -66,6 +61,12 @@ properties:
 
   power-domains:
     maxItems: 1
+
+  "#address-cells":
+    const: 2
+
+  "#size-cells":
+    const: 2
 
 required:
   - compatible
@@ -84,7 +85,9 @@ allOf:
           contains:
             enum:
               - mediatek,mt8183-vcodec-enc
+              - mediatek,mt8188-vcodec-enc
               - mediatek,mt8192-vcodec-enc
+              - mediatek,mt8195-vcodec-enc
 
     then:
       required:
@@ -107,7 +110,9 @@ allOf:
         compatible:
           enum:
             - mediatek,mt8173-vcodec-enc
+            - mediatek,mt8188-vcodec-enc
             - mediatek,mt8192-vcodec-enc
+            - mediatek,mt8195-vcodec-enc
 
     then:
       properties:
@@ -118,7 +123,7 @@ allOf:
         clock-names:
           items:
             - const: venc_sel
-    else:  # for vp8 hw decoder
+    else:  # for vp8 hw encoder
       properties:
         clock:
           items:

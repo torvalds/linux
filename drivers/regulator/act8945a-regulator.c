@@ -15,7 +15,7 @@
 #include <linux/regulator/machine.h>
 #include <dt-bindings/regulator/active-semi,8945a-regulator.h>
 
-/**
+/*
  * ACT8945A Global Register Map.
  */
 #define ACT8945A_SYS_MODE	0x00
@@ -46,13 +46,13 @@
 #define ACT8945A_LDO4_CTRL	0x65
 #define ACT8945A_LDO4_SUS	0x66
 
-/**
+/*
  * Field Definitions.
  */
 #define ACT8945A_ENA		0x80	/* ON - [7] */
 #define ACT8945A_VSEL_MASK	0x3F	/* VSET - [5:0] */
 
-/**
+/*
  * ACT8945A Voltage Number
  */
 #define ACT8945A_VOLTAGE_NUM	64
@@ -348,6 +348,7 @@ static void act8945a_pmic_shutdown(struct platform_device *pdev)
 static struct platform_driver act8945a_pmic_driver = {
 	.driver = {
 		.name = "act8945a-regulator",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.pm = &act8945a_pm,
 	},
 	.probe = act8945a_pmic_probe,

@@ -1956,7 +1956,7 @@ static void
 bna_rx_stop(struct bna_rx *rx)
 {
 	rx->rx_flags &= ~BNA_RX_F_ENET_STARTED;
-	if (rx->fsm == (bfa_fsm_t) bna_rx_sm_stopped)
+	if (rx->fsm == bna_rx_sm_stopped)
 		bna_rx_mod_cb_rx_stopped(&rx->bna->rx_mod, rx);
 	else {
 		rx->stop_cbfn = bna_rx_mod_cb_rx_stopped;
@@ -2535,7 +2535,7 @@ bna_rx_destroy(struct bna_rx *rx)
 void
 bna_rx_enable(struct bna_rx *rx)
 {
-	if (rx->fsm != (bfa_sm_t)bna_rx_sm_stopped)
+	if (rx->fsm != bna_rx_sm_stopped)
 		return;
 
 	rx->rx_flags |= BNA_RX_F_ENABLED;
@@ -3523,7 +3523,7 @@ bna_tx_destroy(struct bna_tx *tx)
 void
 bna_tx_enable(struct bna_tx *tx)
 {
-	if (tx->fsm != (bfa_sm_t)bna_tx_sm_stopped)
+	if (tx->fsm != bna_tx_sm_stopped)
 		return;
 
 	tx->flags |= BNA_TX_F_ENABLED;

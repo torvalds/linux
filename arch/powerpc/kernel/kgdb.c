@@ -191,7 +191,7 @@ static int kgdb_break_match(struct pt_regs *regs)
 void sleeping_thread_to_gdb_regs(unsigned long *gdb_regs, struct task_struct *p)
 {
 	struct pt_regs *regs = (struct pt_regs *)(p->thread.ksp +
-						  STACK_FRAME_OVERHEAD);
+						  STACK_INT_FRAME_REGS);
 	unsigned long *ptr = gdb_regs;
 	int reg;
 

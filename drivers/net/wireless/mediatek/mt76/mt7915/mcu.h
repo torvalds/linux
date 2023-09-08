@@ -129,6 +129,17 @@ struct mt7915_mcu_background_chain_ctrl {
 	u8 rsv[2];
 } __packed;
 
+struct mt7915_mcu_sr_ctrl {
+	u8 action;
+	u8 argnum;
+	u8 band_idx;
+	u8 status;
+	u8 drop_ta_idx;
+	u8 sta_idx;	/* 256 sta */
+	u8 rsv[2];
+	__le32 val;
+} __packed;
+
 struct mt7915_mcu_eeprom {
 	u8 buffer_mode;
 	u8 format;
@@ -160,16 +171,25 @@ struct mt7915_mcu_mib {
 
 enum mt7915_chan_mib_offs {
 	/* mt7915 */
-	MIB_BUSY_TIME = 14,
 	MIB_TX_TIME = 81,
 	MIB_RX_TIME,
 	MIB_OBSS_AIRTIME = 86,
+	MIB_NON_WIFI_TIME,
+	MIB_TXOP_INIT_COUNT,
+
 	/* mt7916 */
-	MIB_BUSY_TIME_V2 = 0,
 	MIB_TX_TIME_V2 = 6,
 	MIB_RX_TIME_V2 = 8,
-	MIB_OBSS_AIRTIME_V2 = 490
+	MIB_OBSS_AIRTIME_V2 = 490,
+	MIB_NON_WIFI_TIME_V2
 };
+
+struct mt7915_mcu_txpower_sku {
+	u8 format_id;
+	u8 limit_type;
+	u8 band_idx;
+	s8 txpower_sku[MT7915_SKU_RATE_NUM];
+} __packed;
 
 struct edca {
 	u8 queue;
@@ -258,6 +278,7 @@ enum {
 	MCU_WA_PARAM_PDMA_RX = 0x04,
 	MCU_WA_PARAM_CPU_UTIL = 0x0b,
 	MCU_WA_PARAM_RED = 0x0e,
+	MCU_WA_PARAM_RED_SETTING = 0x40,
 };
 
 enum mcu_mmps_mode {
@@ -394,6 +415,7 @@ enum {
 	RATE_PARAM_FIXED_MCS,
 	RATE_PARAM_FIXED_GI = 11,
 	RATE_PARAM_AUTO = 20,
+	RATE_PARAM_SPE_UPDATE = 22,
 };
 
 #define RATE_CFG_MCS			GENMASK(3, 0)
@@ -404,6 +426,25 @@ enum {
 #define RATE_CFG_LDPC			GENMASK(23, 20)
 #define RATE_CFG_PHY_TYPE		GENMASK(27, 24)
 #define RATE_CFG_HE_LTF			GENMASK(31, 28)
+
+enum {
+	TX_POWER_LIMIT_ENABLE,
+	TX_POWER_LIMIT_TABLE = 0x4,
+	TX_POWER_LIMIT_INFO = 0x7,
+	TX_POWER_LIMIT_FRAME = 0x11,
+	TX_POWER_LIMIT_FRAME_MIN = 0x12,
+};
+
+enum {
+	SPR_ENABLE = 0x1,
+	SPR_ENABLE_SD = 0x3,
+	SPR_ENABLE_MODE = 0x5,
+	SPR_ENABLE_DPD = 0x23,
+	SPR_ENABLE_TX = 0x25,
+	SPR_SET_SRG_BITMAP = 0x80,
+	SPR_SET_PARAM = 0xc2,
+	SPR_SET_SIGA = 0xdc,
+};
 
 enum {
 	THERMAL_PROTECT_PARAMETER_CTRL,
@@ -447,6 +488,8 @@ enum {
 	SER_SET_RECOVER_L3_TX_ABORT,
 	SER_SET_RECOVER_L3_TX_DISABLE,
 	SER_SET_RECOVER_L3_BF,
+	SER_SET_RECOVER_FULL,
+	SER_SET_SYSTEM_ASSERT,
 	/* action */
 	SER_ENABLE = 2,
 	SER_RECOVER
@@ -473,5 +516,17 @@ enum {
 					 sizeof(struct bss_info_bcn_mbss) + \
 					 sizeof(struct bss_info_bcn_cont) + \
 					 sizeof(struct bss_info_inband_discovery))
+
+static inline s8
+mt7915_get_power_bound(struct mt7915_phy *phy, s8 txpower)
+{
+	struct mt76_phy *mphy = phy->mt76;
+	int n_chains = hweight8(mphy->antenna_mask);
+
+	txpower = mt76_get_sar_power(mphy, mphy->chandef.chan, txpower * 2);
+	txpower -= mt76_tx_power_nss_delta(n_chains);
+
+	return txpower;
+}
 
 #endif

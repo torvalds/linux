@@ -16,6 +16,7 @@
  * abort here if the I-TLB and D-TLB aren't seeing the same
  * picture.  Unfortunately, this does happen.  We live with it.
  */
+	.arch	armv6k
 	.align	5
 ENTRY(v6_early_abort)
 	mrc	p15, 0, r1, c5, c0, 0		@ get FSR

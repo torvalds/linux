@@ -47,6 +47,7 @@
 ########################################################################
 
 #include <linux/linkage.h>
+#include <linux/cfi_types.h>
 
 ## assume buffers not aligned
 #define    MOVDQ movdqu
@@ -355,8 +356,7 @@ a = TMP_
 ## arg 3 : Num blocks
 ########################################################################
 .text
-SYM_FUNC_START(sha256_transform_ssse3)
-.align 32
+SYM_TYPED_FUNC_START(sha256_transform_ssse3)
 	pushq   %rbx
 	pushq   %r12
 	pushq   %r13
@@ -369,7 +369,7 @@ SYM_FUNC_START(sha256_transform_ssse3)
 	and	$~15, %rsp
 
 	shl     $6, NUM_BLKS		 # convert to bytes
-	jz      done_hash
+	jz      .Ldone_hash
 	add     INP, NUM_BLKS
 	mov     NUM_BLKS, _INP_END(%rsp) # pointer to end of data
 
@@ -387,7 +387,7 @@ SYM_FUNC_START(sha256_transform_ssse3)
 	movdqa  _SHUF_00BA(%rip), SHUF_00BA
 	movdqa  _SHUF_DC00(%rip), SHUF_DC00
 
-loop0:
+.Lloop0:
 	lea     K256(%rip), TBL
 
 	## byte swap first 16 dwords
@@ -401,7 +401,7 @@ loop0:
 	## schedule 48 input dwords, by doing 3 rounds of 16 each
 	mov     $3, SRND
 .align 16
-loop1:
+.Lloop1:
 	movdqa  (TBL), XFER
 	paddd   X0, XFER
 	movdqa  XFER, _XFER(%rsp)
@@ -424,10 +424,10 @@ loop1:
 	FOUR_ROUNDS_AND_SCHED
 
 	sub     $1, SRND
-	jne     loop1
+	jne     .Lloop1
 
 	mov     $2, SRND
-loop2:
+.Lloop2:
 	paddd   (TBL), X0
 	movdqa  X0, _XFER(%rsp)
 	DO_ROUND        0
@@ -446,7 +446,7 @@ loop2:
 	movdqa  X3, X1
 
 	sub     $1, SRND
-	jne     loop2
+	jne     .Lloop2
 
 	addm    (4*0)(CTX),a
 	addm    (4*1)(CTX),b
@@ -460,9 +460,9 @@ loop2:
 	mov     _INP(%rsp), INP
 	add     $64, INP
 	cmp     _INP_END(%rsp), INP
-	jne     loop0
+	jne     .Lloop0
 
-done_hash:
+.Ldone_hash:
 
 	mov	%rbp, %rsp
 	popq	%rbp

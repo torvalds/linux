@@ -78,11 +78,11 @@
 		};
 
 		clocks {
-		       g762_clk: g762-oscillator {
-				 compatible = "fixed-clock";
-				 #clock-cells = <0>;
-				 clock-frequency = <8192>;
-		       };
+			g762_clk: g762-oscillator {
+				compatible = "fixed-clock";
+				#clock-cells = <0>;
+				clock-frequency = <8192>;
+			};
 		};
 
 		i2c@11000 {
@@ -266,7 +266,7 @@
 
 /* Connected to NEC uPD720200 USB 3.0 controller */
 &pciec {
-        status = "okay";
+	status = "okay";
 };
 
 &pcie0 {

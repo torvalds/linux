@@ -122,7 +122,7 @@ static struct pci_driver pdc2027x_pci_driver = {
 #endif
 };
 
-static struct scsi_host_template pdc2027x_sht = {
+static const struct scsi_host_template pdc2027x_sht = {
 	ATA_BMDMA_SHT(DRV_NAME),
 };
 

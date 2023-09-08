@@ -1108,8 +1108,10 @@ struct htt_rx_in_ord_ind {
 	u8 reserved;
 	__le16 msdu_count;
 	union {
-		struct htt_rx_in_ord_msdu_desc msdu_descs32[0];
-		struct htt_rx_in_ord_msdu_desc_ext msdu_descs64[0];
+		DECLARE_FLEX_ARRAY(struct htt_rx_in_ord_msdu_desc,
+				   msdu_descs32);
+		DECLARE_FLEX_ARRAY(struct htt_rx_in_ord_msdu_desc_ext,
+				   msdu_descs64);
 	} __packed;
 } __packed;
 

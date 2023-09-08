@@ -230,7 +230,7 @@ Sat Nov 21  18:00 1998 Gerard Roudier (groudier@club-internet.fr)
 	- Still a buglet in the tags initial settings that needed to be fixed.
 	  It was not possible to disable TGQ at system startup for devices 
 	  that claim TGQ support. The driver used at least 2 for the queue 
-	  depth but did'nt keep track of user settings for tags depth lower 
+	  depth but didn't keep track of user settings for tags depth lower
 	  than 2.
 
 Wed Nov 11  10:00 1998 Gerard Roudier (groudier@club-internet.fr)
@@ -270,7 +270,7 @@ Sun Oct  4 14:00 1998 Gerard Roudier (groudier@club-internet.fr)
 	  were due to a SCSI selection problem triggered by a clearly 
 	  documented feature that in fact seems not to work: (53C8XX chips  
 	  are claimed by the manuals to be able to execute SCSI scripts just 
-	  after abitration while the SCSI core is performing SCSI selection).
+	  after arbitration while the SCSI core is performing SCSI selection).
 	  This optimization is broken and has been removed.
 	- Some broken scsi devices are confused when a negotiation is started 
 	  on a LUN that does not correspond to a real device. According to 
@@ -347,7 +347,7 @@ Tue Jun 4 23:00 1998 Gerard Roudier (groudier@club-internet.fr)
 	- Code cleanup and simplification:
 	  Remove kernel 1.2.X and 1.3.X support.
 	  Remove the _old_ target capabilities table.
-	  Remove the error recovery code that have'nt been really useful.
+	  Remove the error recovery code that hasn't been really useful.
 	  Use a single alignment boundary (CACHE_LINE_SIZE) for data 
 	  structures.
 	- Several aggressive SCRIPTS optimizations and changes:
@@ -367,8 +367,8 @@ Wed May 13 20:00 1998 Gerard Roudier (groudier@club-internet.fr)
 	- Some simplification for 64 bit arch done ccb address testing.
 	- Add a check of the MSG_OUT phase after Selection with ATN.
 	- The new tagged queue stuff seems ok, so some informationnal 
-	  message have been conditionned by verbose >= 3.
-	- Donnot reset if a SBMC interrupt reports the same bus mode.
+	  message have been conditioned by verbose >= 3.
+	- Do not reset if a SBMC interrupt reports the same bus mode.
 	- Print out the whole driver set-up. Some options were missing and 
 	  the print statement was misplaced for modules.
 	- Ignore a SCSI parity interrupt if the chip is not connected to 
@@ -392,7 +392,7 @@ Sat Apr 25 21:00 1998 Gerard Roudier (groudier@club-internet.fr)
 	  context on phase mismatch.
 	- The above allows now to use the on-chip RAM without requiring 
 	  to get access to the on-chip RAM from the C code. This makes 
-	  on-chip RAM useable for linux-1.2.13 and for Linux-Alpha for 
+	  on-chip RAM usable for linux-1.2.13 and for Linux-Alpha for
 	  instance.
 	- Some simplifications and cleanups in the SCRIPTS and C code.
 	- Buglet fixed in parity error recovery SCRIPTS (never tested).
@@ -433,7 +433,7 @@ Sun Mar 29 12:00 1998 Gerard Roudier (groudier@club-internet.fr)
 
 Tue Mar 26 23:00 1998 Gerard Roudier (groudier@club-internet.fr)
 	* revision 2.6g
-	- New done queue. 8 entries by default (6 always useable).
+	- New done queue. 8 entries by default (6 always usable).
 	  Can be increased if needed.
 	- Resources management using doubly linked queues.
 	- New auto-sense and QUEUE FULL handling that does not need to 
@@ -464,7 +464,7 @@ Sun Jan 11 22:00 1998 Gerard Roudier (groudier@club-internet.fr)
 	- generalization of the restart of CCB on special condition as 
           Abort, QUEUE FULL, CHECK CONDITION.
           This has been called 'silly scheduler'.
-	- make all the profiling code conditionned by a config option.
+	- make all the profiling code conditioned by a config option.
 	  This spare some PCI traffic and C code when this feature is not 
           needed.
 	- handle more cleanly the situation where direction is unknown.

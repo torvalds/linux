@@ -1378,7 +1378,7 @@ int stmpe_probe(struct stmpe_client_info *ci, enum stmpe_partnum partnum)
 
 	stmpe_of_probe(pdata, np);
 
-	if (of_find_property(np, "interrupts", NULL) == NULL)
+	if (!of_property_present(np, "interrupts"))
 		ci->irq = -1;
 
 	stmpe = devm_kzalloc(ci->dev, sizeof(struct stmpe), GFP_KERNEL);
@@ -1495,7 +1495,6 @@ void stmpe_remove(struct stmpe *stmpe)
 	mfd_remove_devices(stmpe->dev);
 }
 
-#ifdef CONFIG_PM
 static int stmpe_suspend(struct device *dev)
 {
 	struct stmpe *stmpe = dev_get_drvdata(dev);
@@ -1516,8 +1515,5 @@ static int stmpe_resume(struct device *dev)
 	return 0;
 }
 
-const struct dev_pm_ops stmpe_dev_pm_ops = {
-	.suspend	= stmpe_suspend,
-	.resume		= stmpe_resume,
-};
-#endif
+EXPORT_GPL_SIMPLE_DEV_PM_OPS(stmpe_dev_pm_ops,
+			     stmpe_suspend, stmpe_resume);

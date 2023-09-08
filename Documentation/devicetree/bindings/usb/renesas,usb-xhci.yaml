@@ -10,9 +10,6 @@ maintainers:
   - Lad Prabhakar <prabhakar.mahadev-lad.rj@bp.renesas.com>
   - Yoshihiro Shimoda <yoshihiro.shimoda.uh@renesas.com>
 
-allOf:
-  - $ref: "usb-xhci.yaml"
-
 properties:
   compatible:
     oneOf:
@@ -37,6 +34,11 @@ properties:
               - renesas,xhci-r8a77965 # R-Car M3-N
               - renesas,xhci-r8a77990 # R-Car E3
           - const: renesas,rcar-gen3-xhci # R-Car Gen3 and RZ/G2
+      - items:
+          - enum:
+              - renesas,r9a09g011-xhci # RZ/V2M
+              - renesas,r9a09g055-xhci # RZ/V2MA
+          - const: renesas,rzv2m-xhci  # RZ/{V2M, V2MA}
 
   reg:
     maxItems: 1
@@ -45,7 +47,16 @@ properties:
     maxItems: 1
 
   clocks:
-    maxItems: 1
+    minItems: 1
+    items:
+      - description: Main clock for host
+      - description: Register access clock
+
+  clock-names:
+    minItems: 1
+    items:
+      - const: axi
+      - const: reg
 
   phys:
     maxItems: 1
@@ -67,6 +78,28 @@ required:
   - clocks
   - power-domains
   - resets
+
+allOf:
+  - $ref: usb-xhci.yaml
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - renesas,rzv2m-xhci
+    then:
+      properties:
+        clocks:
+          minItems: 2
+        clock-names:
+          minItems: 2
+      required:
+        - clock-names
+    else:
+      properties:
+        clocks:
+          maxItems: 1
 
 unevaluatedProperties: false
 

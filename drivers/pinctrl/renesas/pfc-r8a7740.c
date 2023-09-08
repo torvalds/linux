@@ -3348,7 +3348,7 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 			MSEL5CR_0_0,	MSEL5CR_0_1,
 		))
 	},
-	{ },
+	{ /* sentinel */ }
 };
 
 static const struct pinmux_data_reg pinmux_data_regs[] = {
@@ -3452,7 +3452,7 @@ static const struct pinmux_data_reg pinmux_data_regs[] = {
 		0, 0, 0, 0,
 		0, 0, 0, 0 ))
 	},
-	{ },
+	{ /* sentinel */ }
 };
 
 static const struct pinmux_irq pinmux_irqs[] = {

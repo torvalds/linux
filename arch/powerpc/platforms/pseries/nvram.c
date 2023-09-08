@@ -227,8 +227,8 @@ int __init pSeries_nvram_init(void)
 
 	nvram_size = be32_to_cpup(nbytes_p);
 
-	nvram_fetch = rtas_token("nvram-fetch");
-	nvram_store = rtas_token("nvram-store");
+	nvram_fetch = rtas_function_token(RTAS_FN_NVRAM_FETCH);
+	nvram_store = rtas_function_token(RTAS_FN_NVRAM_STORE);
 	printk(KERN_INFO "PPC64 nvram contains %d bytes\n", nvram_size);
 	of_node_put(nvram);
 

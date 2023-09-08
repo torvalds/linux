@@ -90,6 +90,7 @@ static void elfhdr_get(const char *filename, Elf64_Ehdr *hdrp)
 		"  hdrp->e_shentsize: %x\n"
 		"  expected: %zx",
 		hdrp->e_shentsize, sizeof(Elf64_Shdr));
+	close(fd);
 }
 
 /* VM ELF Load
@@ -138,7 +139,7 @@ void kvm_vm_elf_load(struct kvm_vm *vm, const char *filename)
 		offset = hdr.e_phoff + (n1 * hdr.e_phentsize);
 		offset_rv = lseek(fd, offset, SEEK_SET);
 		TEST_ASSERT(offset_rv == offset,
-			"Failed to seek to begining of program header %u,\n"
+			"Failed to seek to beginning of program header %u,\n"
 			"  filename: %s\n"
 			"  rv: %jd errno: %i",
 			n1, filename, (intmax_t) offset_rv, errno);
@@ -161,7 +162,8 @@ void kvm_vm_elf_load(struct kvm_vm *vm, const char *filename)
 		seg_vend |= vm->page_size - 1;
 		size_t seg_size = seg_vend - seg_vstart + 1;
 
-		vm_vaddr_t vaddr = vm_vaddr_alloc(vm, seg_size, seg_vstart);
+		vm_vaddr_t vaddr = __vm_vaddr_alloc(vm, seg_size, seg_vstart,
+						    MEM_REGION_CODE);
 		TEST_ASSERT(vaddr == seg_vstart, "Unable to allocate "
 			"virtual memory for segment at requested min addr,\n"
 			"  segment idx: %u\n"
@@ -189,4 +191,5 @@ void kvm_vm_elf_load(struct kvm_vm *vm, const char *filename)
 				phdr.p_filesz);
 		}
 	}
+	close(fd);
 }

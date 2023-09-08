@@ -17,6 +17,8 @@ description: |
 maintainers:
   - Rafał Miłecki <rafal@milecki.pl>
 
+select: false
+
 properties:
   compatible:
     const: brcm,bcm4908-partitions
@@ -29,7 +31,7 @@ properties:
 
 patternProperties:
   "^partition@[0-9a-f]+$":
-    $ref: "partition.yaml#"
+    $ref: partition.yaml#
     properties:
       compatible:
         const: brcm,bcm4908-firmware

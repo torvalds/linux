@@ -29,22 +29,22 @@
 
 	leds {
 		compatible = "gpio-leds";
-		hps0 {
+		led-hps0 {
 			label = "hps_led0";
 			gpios = <&porta 0 1>;
 		};
 
-		hps1 {
+		led-hps1 {
 			label = "hps_led1";
 			gpios = <&portb 11 1>;
 		};
 
-		hps2 {
+		led-hps2 {
 			label = "hps_led2";
 			gpios = <&porta 17 1>;
 		};
 
-		hps3 {
+		led-hps3 {
 			label = "hps_led3";
 			gpios = <&porta 18 1>;
 		};

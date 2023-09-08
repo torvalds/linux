@@ -144,6 +144,7 @@ enum {
 	HNS_ROCE_CAP_FLAG_DIRECT_WQE		= BIT(12),
 	HNS_ROCE_CAP_FLAG_SDI_MODE		= BIT(14),
 	HNS_ROCE_CAP_FLAG_STASH			= BIT(17),
+	HNS_ROCE_CAP_FLAG_CQE_INLINE		= BIT(19),
 };
 
 #define HNS_ROCE_DB_TYPE_COUNT			2
@@ -202,6 +203,7 @@ struct hns_roce_ucontext {
 	struct list_head	page_list;
 	struct mutex		page_mutex;
 	struct hns_user_mmap_entry *db_mmap_entry;
+	u32			config;
 };
 
 struct hns_roce_pd {
@@ -334,6 +336,7 @@ struct hns_roce_wq {
 	u32		head;
 	u32		tail;
 	void __iomem	*db_reg;
+	u32		ext_sge_cnt;
 };
 
 struct hns_roce_sge {
@@ -565,21 +568,6 @@ struct hns_roce_mbox_msg {
 
 struct hns_roce_dev;
 
-struct hns_roce_rinl_sge {
-	void			*addr;
-	u32			len;
-};
-
-struct hns_roce_rinl_wqe {
-	struct hns_roce_rinl_sge *sg_list;
-	u32			 sge_cnt;
-};
-
-struct hns_roce_rinl_buf {
-	struct hns_roce_rinl_wqe *wqe_list;
-	u32			 wqe_cnt;
-};
-
 enum {
 	HNS_ROCE_FLUSH_FLAG = 0,
 };
@@ -630,11 +618,11 @@ struct hns_roce_qp {
 	/* 0: flush needed, 1: unneeded */
 	unsigned long		flush_flag;
 	struct hns_roce_work	flush_work;
-	struct hns_roce_rinl_buf rq_inl_buf;
 	struct list_head	node; /* all qps are on a list */
 	struct list_head	rq_node; /* all recv qps are on a list */
 	struct list_head	sq_node; /* all send qps are on a list */
 	struct hns_user_mmap_entry *dwqe_mmap_entry;
+	u32			config;
 };
 
 struct hns_roce_ib_iboe {
@@ -884,7 +872,7 @@ struct hns_roce_hw {
 			 u32 step_idx);
 	int (*modify_qp)(struct ib_qp *ibqp, const struct ib_qp_attr *attr,
 			 int attr_mask, enum ib_qp_state cur_state,
-			 enum ib_qp_state new_state);
+			 enum ib_qp_state new_state, struct ib_udata *udata);
 	int (*qp_flow_control_init)(struct hns_roce_dev *hr_dev,
 			 struct hns_roce_qp *hr_qp);
 	void (*dereg_mr)(struct hns_roce_dev *hr_dev);

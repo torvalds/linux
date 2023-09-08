@@ -155,7 +155,7 @@ static const char * const cs35l41_name_prefixes[] = { "WL", "WR", "TL", "TR" };
  */
 static int cs35l41_compute_codec_conf(void)
 {
-	const char * const uid_strings[] = { "0", "1", "2", "3" };
+	static const char * const uid_strings[] = { "0", "1", "2", "3" };
 	unsigned int uid, sz = 0;
 	struct acpi_device *adev;
 	struct device *physdev;
@@ -168,11 +168,16 @@ static int cs35l41_compute_codec_conf(void)
 			continue;
 		}
 		physdev = get_device(acpi_get_first_physical_node(adev));
+		acpi_dev_put(adev);
+		if (!physdev) {
+			pr_devel("Cannot find physical node for HID %s UID %u (%s)\n", CS35L41_HID,
+					uid, cs35l41_name_prefixes[uid]);
+			return 0;
+		}
 		cs35l41_components[sz].name = dev_name(physdev);
 		cs35l41_components[sz].dai_name = CS35L41_CODEC_DAI;
 		cs35l41_codec_conf[sz].dlc.name = dev_name(physdev);
 		cs35l41_codec_conf[sz].name_prefix = cs35l41_name_prefixes[uid];
-		acpi_dev_put(adev);
 		sz++;
 	}
 

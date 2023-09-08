@@ -103,7 +103,7 @@ void dw_spi_set_cs(struct spi_device *spi, bool enable)
 	 * support active-high or active-low CS level.
 	 */
 	if (cs_high == enable)
-		dw_writel(dws, DW_SPI_SER, BIT(spi->chip_select));
+		dw_writel(dws, DW_SPI_SER, BIT(spi_get_chipselect(spi, 0)));
 	else
 		dw_writel(dws, DW_SPI_SER, 0);
 }
@@ -366,7 +366,7 @@ static void dw_spi_irq_setup(struct dw_spi *dws)
 	 * will be adjusted at the final stage of the IRQ-based SPI transfer
 	 * execution so not to lose the leftover of the incoming data.
 	 */
-	level = min_t(u16, dws->fifo_len / 2, dws->tx_len);
+	level = min_t(unsigned int, dws->fifo_len / 2, dws->tx_len);
 	dw_writel(dws, DW_SPI_TXFTLR, level);
 	dw_writel(dws, DW_SPI_RXFTLR, level - 1);
 

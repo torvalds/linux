@@ -400,7 +400,7 @@ MODULE_DEVICE_TABLE(isapnp, id_table);
 
 #endif /* !AHA152X_PCMCIA */
 
-static struct scsi_host_template aha152x_driver_template;
+static const struct scsi_host_template aha152x_driver_template;
 
 /*
  * internal states of the host
@@ -2946,7 +2946,7 @@ static int aha152x_adjust_queue(struct scsi_device *device)
 	return 0;
 }
 
-static struct scsi_host_template aha152x_driver_template = {
+static const struct scsi_host_template aha152x_driver_template = {
 	.module				= THIS_MODULE,
 	.name				= AHA152X_REVID,
 	.proc_name			= "aha152x",

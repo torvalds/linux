@@ -48,12 +48,12 @@
    circular-buffers
    generic-radix-tree
    packing
+   this_cpu_ops
+
+=======
 
 Todolist:
 
-
-
-   this_cpu_ops
    timekeeping
    errseq
 

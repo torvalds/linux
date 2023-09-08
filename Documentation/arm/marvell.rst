@@ -14,18 +14,20 @@ Orion family
 
   Flavors:
         - 88F5082
-        - 88F5181
-        - 88F5181L
-        - 88F5182
+        - 88F5181  a.k.a Orion-1
+        - 88F5181L a.k.a Orion-VoIP
+        - 88F5182  a.k.a Orion-NAS
 
                - Datasheet: https://web.archive.org/web/20210124231420/http://csclub.uwaterloo.ca/~board/ts7800/MV88F5182-datasheet.pdf
                - Programmer's User Guide: https://web.archive.org/web/20210124231536/http://csclub.uwaterloo.ca/~board/ts7800/MV88F5182-opensource-manual.pdf
                - User Manual: https://web.archive.org/web/20210124231631/http://csclub.uwaterloo.ca/~board/ts7800/MV88F5182-usermanual.pdf
                - Functional Errata: https://web.archive.org/web/20210704165540/https://www.digriz.org.uk/ts78xx/88F5182_Functional_Errata.pdf
-        - 88F5281
+        - 88F5281  a.k.a Orion-2
 
                - Datasheet: https://web.archive.org/web/20131028144728/http://www.ocmodshop.com/images/reviews/networking/qnap_ts409u/marvel_88f5281_data_sheet.pdf
-        - 88F6183
+        - 88F6183  a.k.a Orion-1-90
+  Homepage:
+        https://web.archive.org/web/20080607215437/http://www.marvell.com/products/media/index.jsp
   Core:
 	Feroceon 88fr331 (88f51xx) or 88fr531-vd (88f52xx) ARMv5 compatible
   Linux kernel mach directory:

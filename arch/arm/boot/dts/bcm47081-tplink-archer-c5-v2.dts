@@ -23,50 +23,50 @@
 	leds {
 		compatible = "gpio-leds";
 
-		2ghz {
+		led-2ghz {
 			label = "bcm53xx:green:2ghz";
 			gpios = <&chipcommon 0 GPIO_ACTIVE_HIGH>;
 		};
 
-		lan {
+		led-lan {
 			label = "bcm53xx:green:lan";
 			gpios = <&chipcommon 1 GPIO_ACTIVE_HIGH>;
 		};
 
-		usb2-port1 {
+		led-usb2-port1 {
 			label = "bcm53xx:green:usb2-port1";
 			gpios = <&chipcommon 2 GPIO_ACTIVE_HIGH>;
 			trigger-sources = <&ohci_port1>, <&ehci_port1>;
 			linux,default-trigger = "usbport";
 		};
 
-		power {
+		led-power {
 			label = "bcm53xx:green:power";
 			gpios = <&chipcommon 4 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "default-on";
 		};
 
-		wan-green {
+		led-wan-green {
 			label = "bcm53xx:green:wan";
 			gpios = <&chipcommon 5 GPIO_ACTIVE_HIGH>;
 		};
 
-		wps {
+		led-wps {
 			label = "bcm53xx:green:wps";
 			gpios = <&chipcommon 6 GPIO_ACTIVE_HIGH>;
 		};
 
-		wan-amber {
+		led-wan-amber {
 			label = "bcm53xx:amber:wan";
 			gpios = <&chipcommon 8 GPIO_ACTIVE_HIGH>;
 		};
 
-		5ghz {
+		led-5ghz {
 			label = "bcm53xx:green:5ghz";
 			gpios = <&chipcommon 12 GPIO_ACTIVE_HIGH>;
 		};
 
-		usb2-port2 {
+		led-usb2-port2 {
 			label = "bcm53xx:green:usb2-port2";
 			gpios = <&chipcommon 13 GPIO_ACTIVE_HIGH>;
 			trigger-sources = <&ohci_port2>, <&ehci_port2>;
@@ -95,30 +95,15 @@
 	status = "okay";
 
 	partitions {
-		compatible = "fixed-partitions";
-		#address-cells = <1>;
-		#size-cells = <1>;
+		compatible = "tplink,safeloader-partitions";
+		partitions-table-offset = <0xe50000>;
 
-		boot@0 {
-			label = "boot";
-			reg = <0x000000 0x040000>;
-			read-only;
-		};
-
-		os-image@100000 {
-			label = "os-image";
-			reg = <0x040000 0x200000>;
+		partition-os-image {
 			compatible = "brcm,trx";
 		};
 
-		rootfs@240000 {
-			label = "rootfs";
-			reg = <0x240000 0xc00000>;
-		};
-
-		nvram@ff0000 {
-			label = "nvram";
-			reg = <0xff0000 0x010000>;
+		partition-file-system {
+			linux,rootfs;
 		};
 	};
 };

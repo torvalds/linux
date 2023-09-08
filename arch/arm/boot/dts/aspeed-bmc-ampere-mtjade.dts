@@ -342,6 +342,10 @@
 
 &i2c0 {
 	status = "okay";
+	ssif-bmc@10 {
+		compatible = "ssif-bmc";
+		reg = <0x10>;
+	};
 };
 
 &i2c1 {
@@ -350,6 +354,14 @@
 
 &i2c2 {
 	status = "okay";
+	smpro@4f {
+		compatible = "ampere,smpro";
+		reg = <0x4f>;
+	};
+	smpro@4e {
+		compatible = "ampere,smpro";
+		reg = <0x4e>;
+	};
 };
 
 &i2c3 {

@@ -14,39 +14,52 @@
  * code that will combine entry/exit in a strace like way.
  */
 
-#include <unistd.h>
+#include <linux/bpf.h>
+#include <bpf/bpf_helpers.h>
 #include <linux/limits.h>
-#include <linux/socket.h>
-#include <pid_filter.h>
 
-/* bpf-output associated map */
-bpf_map(__augmented_syscalls__, PERF_EVENT_ARRAY, int, u32, __NR_CPUS__);
+// FIXME: These should come from system headers
+typedef char bool;
+typedef int pid_t;
+typedef long long int __s64;
+typedef __s64 time64_t;
 
-/*
- * string_args_len: one per syscall arg, 0 means not a string or don't copy it,
- * 		    PATH_MAX for copying everything, any other value to limit
- * 		    it a la 'strace -s strsize'.
- */
-struct syscall {
-	bool	enabled;
-	u16	string_args_len[6];
+struct timespec64 {
+	time64_t	tv_sec;
+	long int	tv_nsec;
 };
 
-bpf_map(syscalls, ARRAY, int, struct syscall, 512);
+/* bpf-output associated map */
+struct __augmented_syscalls__ {
+	__uint(type, BPF_MAP_TYPE_PERF_EVENT_ARRAY);
+	__type(key, int);
+	__type(value, __u32);
+	__uint(max_entries, __NR_CPUS__);
+} __augmented_syscalls__ SEC(".maps");
 
 /*
  * What to augment at entry?
  *
  * Pointer arg payloads (filenames, etc) passed from userspace to the kernel
  */
-bpf_map(syscalls_sys_enter, PROG_ARRAY, u32, u32, 512);
+struct syscalls_sys_enter {
+	__uint(type, BPF_MAP_TYPE_PROG_ARRAY);
+	__type(key, __u32);
+	__type(value, __u32);
+	__uint(max_entries, 512);
+} syscalls_sys_enter SEC(".maps");
 
 /*
  * What to augment at exit?
  *
  * Pointer arg payloads returned from the kernel (struct stat, etc) to userspace.
  */
-bpf_map(syscalls_sys_exit, PROG_ARRAY, u32, u32, 512);
+struct syscalls_sys_exit {
+	__uint(type, BPF_MAP_TYPE_PROG_ARRAY);
+	__type(key, __u32);
+	__type(value, __u32);
+	__uint(max_entries, 512);
+} syscalls_sys_exit SEC(".maps");
 
 struct syscall_enter_args {
 	unsigned long long common_tp_fields;
@@ -66,7 +79,38 @@ struct augmented_arg {
 	char		value[PATH_MAX];
 };
 
-pid_filter(pids_filtered);
+struct pids_filtered {
+	__uint(type, BPF_MAP_TYPE_HASH);
+	__type(key, pid_t);
+	__type(value, bool);
+	__uint(max_entries, 64);
+} pids_filtered SEC(".maps");
+
+/*
+ * Desired design of maximum size and alignment (see RFC2553)
+ */
+#define SS_MAXSIZE   128     /* Implementation specific max size */
+
+typedef unsigned short sa_family_t;
+
+/*
+ * FIXME: Should come from system headers
+ *
+ * The definition uses anonymous union and struct in order to control the
+ * default alignment.
+ */
+struct sockaddr_storage {
+	union {
+		struct {
+			sa_family_t    ss_family; /* address family */
+			/* Following field(s) are implementation specific */
+			char __data[SS_MAXSIZE - sizeof(unsigned short)];
+				/* space to achieve desired size, */
+				/* _SS_MAXSIZE value minus size of ss_family */
+		};
+		void *__align; /* implementation specific desired alignment */
+	};
+};
 
 struct augmented_args_payload {
        struct syscall_enter_args args;
@@ -75,11 +119,17 @@ struct augmented_args_payload {
 			struct augmented_arg arg, arg2;
 		};
 		struct sockaddr_storage saddr;
+		char   __data[sizeof(struct augmented_arg)];
 	};
 };
 
 // We need more tmp space than the BPF stack can give us
-bpf_map(augmented_args_tmp, PERCPU_ARRAY, int, struct augmented_args_payload, 1);
+struct augmented_args_tmp {
+	__uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
+	__type(key, int);
+	__type(value, struct augmented_args_payload);
+	__uint(max_entries, 1);
+} augmented_args_tmp SEC(".maps");
 
 static inline struct augmented_args_payload *augmented_args_payload(void)
 {
@@ -90,14 +140,14 @@ static inline struct augmented_args_payload *augmented_args_payload(void)
 static inline int augmented__output(void *ctx, struct augmented_args_payload *args, int len)
 {
 	/* If perf_event_output fails, return non-zero so that it gets recorded unaugmented */
-	return perf_event_output(ctx, &__augmented_syscalls__, BPF_F_CURRENT_CPU, args, len);
+	return bpf_perf_event_output(ctx, &__augmented_syscalls__, BPF_F_CURRENT_CPU, args, len);
 }
 
 static inline
 unsigned int augmented_arg__read_str(struct augmented_arg *augmented_arg, const void *arg, unsigned int arg_len)
 {
 	unsigned int augmented_len = sizeof(*augmented_arg);
-	int string_len = probe_read_str(&augmented_arg->value, arg_len, arg);
+	int string_len = bpf_probe_read_str(&augmented_arg->value, arg_len, arg);
 
 	augmented_arg->size = augmented_arg->err = 0;
 	/*
@@ -146,7 +196,7 @@ int sys_enter_connect(struct syscall_enter_args *args)
 	if (socklen > sizeof(augmented_args->saddr))
 		socklen = sizeof(augmented_args->saddr);
 
-	probe_read(&augmented_args->saddr, socklen, sockaddr_arg);
+	bpf_probe_read(&augmented_args->saddr, socklen, sockaddr_arg);
 
 	return augmented__output(args, augmented_args, len + socklen);
 }
@@ -165,7 +215,7 @@ int sys_enter_sendto(struct syscall_enter_args *args)
 	if (socklen > sizeof(augmented_args->saddr))
 		socklen = sizeof(augmented_args->saddr);
 
-	probe_read(&augmented_args->saddr, socklen, sockaddr_arg);
+	bpf_probe_read(&augmented_args->saddr, socklen, sockaddr_arg);
 
 	return augmented__output(args, augmented_args, len + socklen);
 }
@@ -234,6 +284,80 @@ int sys_enter_renameat(struct syscall_enter_args *args)
 	return augmented__output(args, augmented_args, len);
 }
 
+#define PERF_ATTR_SIZE_VER0     64      /* sizeof first published struct */
+
+// we need just the start, get the size to then copy it
+struct perf_event_attr_size {
+        __u32                   type;
+        /*
+         * Size of the attr structure, for fwd/bwd compat.
+         */
+        __u32                   size;
+};
+
+SEC("!syscalls:sys_enter_perf_event_open")
+int sys_enter_perf_event_open(struct syscall_enter_args *args)
+{
+	struct augmented_args_payload *augmented_args = augmented_args_payload();
+	const struct perf_event_attr_size *attr = (const struct perf_event_attr_size *)args->args[0], *attr_read;
+	unsigned int len = sizeof(augmented_args->args);
+
+        if (augmented_args == NULL)
+		goto failure;
+
+	if (bpf_probe_read(&augmented_args->__data, sizeof(*attr), attr) < 0)
+		goto failure;
+
+	attr_read = (const struct perf_event_attr_size *)augmented_args->__data;
+
+	__u32 size = attr_read->size;
+
+	if (!size)
+		size = PERF_ATTR_SIZE_VER0;
+
+	if (size > sizeof(augmented_args->__data))
+                goto failure;
+
+	// Now that we read attr->size and tested it against the size limits, read it completely
+	if (bpf_probe_read(&augmented_args->__data, size, attr) < 0)
+		goto failure;
+
+	return augmented__output(args, augmented_args, len + size);
+failure:
+	return 1; /* Failure: don't filter */
+}
+
+SEC("!syscalls:sys_enter_clock_nanosleep")
+int sys_enter_clock_nanosleep(struct syscall_enter_args *args)
+{
+	struct augmented_args_payload *augmented_args = augmented_args_payload();
+	const void *rqtp_arg = (const void *)args->args[2];
+	unsigned int len = sizeof(augmented_args->args);
+	__u32 size = sizeof(struct timespec64);
+
+        if (augmented_args == NULL)
+		goto failure;
+
+	if (size > sizeof(augmented_args->__data))
+                goto failure;
+
+	bpf_probe_read(&augmented_args->__data, size, rqtp_arg);
+
+	return augmented__output(args, augmented_args, len + size);
+failure:
+	return 1; /* Failure: don't filter */
+}
+
+static pid_t getpid(void)
+{
+	return bpf_get_current_pid_tgid();
+}
+
+static bool pid_filter__has(struct pids_filtered *pids, pid_t pid)
+{
+	return bpf_map_lookup_elem(pids, &pid) != NULL;
+}
+
 SEC("raw_syscalls:sys_enter")
 int sys_enter(struct syscall_enter_args *args)
 {
@@ -248,7 +372,6 @@ int sys_enter(struct syscall_enter_args *args)
 	 * initial, non-augmented raw_syscalls:sys_enter payload.
 	 */
 	unsigned int len = sizeof(augmented_args->args);
-	struct syscall *syscall;
 
 	if (pid_filter__has(&pids_filtered, getpid()))
 		return 0;
@@ -257,7 +380,7 @@ int sys_enter(struct syscall_enter_args *args)
 	if (augmented_args == NULL)
 		return 1;
 
-	probe_read(&augmented_args->args, sizeof(augmented_args->args), args);
+	bpf_probe_read(&augmented_args->args, sizeof(augmented_args->args), args);
 
 	/*
 	 * Jump to syscall specific augmenter, even if the default one,
@@ -278,7 +401,7 @@ int sys_exit(struct syscall_exit_args *args)
 	if (pid_filter__has(&pids_filtered, getpid()))
 		return 0;
 
-	probe_read(&exit_args, sizeof(exit_args), args);
+	bpf_probe_read(&exit_args, sizeof(exit_args), args);
 	/*
 	 * Jump to syscall specific return augmenter, even if the default one,
 	 * "!raw_syscalls:unaugmented" that will just return 1 to return the
@@ -291,4 +414,4 @@ int sys_exit(struct syscall_exit_args *args)
 	return 0;
 }
 
-license(GPL);
+char _license[] SEC("license") = "GPL";

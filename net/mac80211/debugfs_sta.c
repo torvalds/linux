@@ -5,7 +5,7 @@
  * Copyright 2007	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
  * Copyright(c) 2016 Intel Deutschland GmbH
- * Copyright (C) 2018 - 2021 Intel Corporation
+ * Copyright (C) 2018 - 2022 Intel Corporation
  */
 
 #include <linux/debugfs.h>
@@ -167,7 +167,7 @@ static ssize_t sta_aqm_read(struct file *file, char __user *userbuf,
 			continue;
 		txqi = to_txq_info(sta->sta.txq[i]);
 		p += scnprintf(p, bufsz + buf - p,
-			       "%d %d %u %u %u %u %u %u %u %u %u 0x%lx(%s%s%s)\n",
+			       "%d %d %u %u %u %u %u %u %u %u %u 0x%lx(%s%s%s%s)\n",
 			       txqi->txq.tid,
 			       txqi->txq.ac,
 			       txqi->tin.backlog_bytes,
@@ -182,7 +182,8 @@ static ssize_t sta_aqm_read(struct file *file, char __user *userbuf,
 			       txqi->flags,
 			       test_bit(IEEE80211_TXQ_STOP, &txqi->flags) ? "STOP" : "RUN",
 			       test_bit(IEEE80211_TXQ_AMPDU, &txqi->flags) ? " AMPDU" : "",
-			       test_bit(IEEE80211_TXQ_NO_AMSDU, &txqi->flags) ? " NO-AMSDU" : "");
+			       test_bit(IEEE80211_TXQ_NO_AMSDU, &txqi->flags) ? " NO-AMSDU" : "",
+			       test_bit(IEEE80211_TXQ_DIRTY, &txqi->flags) ? " DIRTY" : "");
 	}
 
 	rcu_read_unlock();
@@ -435,8 +436,29 @@ static ssize_t sta_agg_status_write(struct file *file, const char __user *userbu
 }
 STA_OPS_RW(agg_status);
 
-static ssize_t sta_ht_capa_read(struct file *file, char __user *userbuf,
-				size_t count, loff_t *ppos)
+/* link sta attributes */
+#define LINK_STA_OPS(name)						\
+static const struct file_operations link_sta_ ##name## _ops = {		\
+	.read = link_sta_##name##_read,					\
+	.open = simple_open,						\
+	.llseek = generic_file_llseek,					\
+}
+
+static ssize_t link_sta_addr_read(struct file *file, char __user *userbuf,
+				  size_t count, loff_t *ppos)
+{
+	struct link_sta_info *link_sta = file->private_data;
+	u8 mac[3 * ETH_ALEN + 1];
+
+	snprintf(mac, sizeof(mac), "%pM\n", link_sta->pub->addr);
+
+	return simple_read_from_buffer(userbuf, count, ppos, mac, 3 * ETH_ALEN);
+}
+
+LINK_STA_OPS(addr);
+
+static ssize_t link_sta_ht_capa_read(struct file *file, char __user *userbuf,
+				     size_t count, loff_t *ppos)
 {
 #define PRINT_HT_CAP(_cond, _str) \
 	do { \
@@ -446,8 +468,8 @@ static ssize_t sta_ht_capa_read(struct file *file, char __user *userbuf,
 	char *buf, *p;
 	int i;
 	ssize_t bufsz = 512;
-	struct sta_info *sta = file->private_data;
-	struct ieee80211_sta_ht_cap *htc = &sta->sta.deflink.ht_cap;
+	struct link_sta_info *link_sta = file->private_data;
+	struct ieee80211_sta_ht_cap *htc = &link_sta->pub->ht_cap;
 	ssize_t ret;
 
 	buf = kzalloc(bufsz, GFP_KERNEL);
@@ -524,14 +546,14 @@ static ssize_t sta_ht_capa_read(struct file *file, char __user *userbuf,
 	kfree(buf);
 	return ret;
 }
-STA_OPS(ht_capa);
+LINK_STA_OPS(ht_capa);
 
-static ssize_t sta_vht_capa_read(struct file *file, char __user *userbuf,
-				 size_t count, loff_t *ppos)
+static ssize_t link_sta_vht_capa_read(struct file *file, char __user *userbuf,
+				      size_t count, loff_t *ppos)
 {
 	char *buf, *p;
-	struct sta_info *sta = file->private_data;
-	struct ieee80211_sta_vht_cap *vhtc = &sta->sta.deflink.vht_cap;
+	struct link_sta_info *link_sta = file->private_data;
+	struct ieee80211_sta_vht_cap *vhtc = &link_sta->pub->vht_cap;
 	ssize_t ret;
 	ssize_t bufsz = 512;
 
@@ -638,15 +660,15 @@ static ssize_t sta_vht_capa_read(struct file *file, char __user *userbuf,
 	kfree(buf);
 	return ret;
 }
-STA_OPS(vht_capa);
+LINK_STA_OPS(vht_capa);
 
-static ssize_t sta_he_capa_read(struct file *file, char __user *userbuf,
-				size_t count, loff_t *ppos)
+static ssize_t link_sta_he_capa_read(struct file *file, char __user *userbuf,
+				     size_t count, loff_t *ppos)
 {
 	char *buf, *p;
 	size_t buf_sz = PAGE_SIZE;
-	struct sta_info *sta = file->private_data;
-	struct ieee80211_sta_he_cap *hec = &sta->sta.deflink.he_cap;
+	struct link_sta_info *link_sta = file->private_data;
+	struct ieee80211_sta_he_cap *hec = &link_sta->pub->he_cap;
 	struct ieee80211_he_mcs_nss_supp *nss = &hec->he_mcs_nss_supp;
 	u8 ppe_size;
 	u8 *cap;
@@ -1011,7 +1033,7 @@ out:
 	kfree(buf);
 	return ret;
 }
-STA_OPS(he_capa);
+LINK_STA_OPS(he_capa);
 
 #define DEBUGFS_ADD(name) \
 	debugfs_create_file(#name, 0400, \
@@ -1048,18 +1070,11 @@ void ieee80211_sta_debugfs_add(struct sta_info *sta)
 	DEBUGFS_ADD(num_ps_buf_frames);
 	DEBUGFS_ADD(last_seq_ctrl);
 	DEBUGFS_ADD(agg_status);
-	DEBUGFS_ADD(ht_capa);
-	DEBUGFS_ADD(vht_capa);
-	DEBUGFS_ADD(he_capa);
-
-	DEBUGFS_ADD_COUNTER(rx_duplicates, deflink.rx_stats.num_duplicates);
-	DEBUGFS_ADD_COUNTER(rx_fragments, deflink.rx_stats.fragments);
+	/* FIXME: Kept here as the statistics are only done on the deflink */
 	DEBUGFS_ADD_COUNTER(tx_filtered, deflink.status_stats.filtered);
 
-	if (local->ops->wake_tx_queue) {
-		DEBUGFS_ADD(aqm);
-		DEBUGFS_ADD(airtime);
-	}
+	DEBUGFS_ADD(aqm);
+	DEBUGFS_ADD(airtime);
 
 	if (wiphy_ext_feature_isset(local->hw.wiphy,
 				    NL80211_EXT_FEATURE_AQL))
@@ -1075,4 +1090,86 @@ void ieee80211_sta_debugfs_remove(struct sta_info *sta)
 {
 	debugfs_remove_recursive(sta->debugfs_dir);
 	sta->debugfs_dir = NULL;
+}
+
+#undef DEBUGFS_ADD
+#undef DEBUGFS_ADD_COUNTER
+
+#define DEBUGFS_ADD(name) \
+	debugfs_create_file(#name, 0400, \
+		link_sta->debugfs_dir, link_sta, &link_sta_ ##name## _ops)
+#define DEBUGFS_ADD_COUNTER(name, field)				\
+	debugfs_create_ulong(#name, 0400, link_sta->debugfs_dir, &link_sta->field)
+
+void ieee80211_link_sta_debugfs_add(struct link_sta_info *link_sta)
+{
+	if (WARN_ON(!link_sta->sta->debugfs_dir))
+		return;
+
+	/* For non-MLO, leave the files in the main directory. */
+	if (link_sta->sta->sta.valid_links) {
+		char link_dir_name[10];
+
+		snprintf(link_dir_name, sizeof(link_dir_name),
+			 "link-%d", link_sta->link_id);
+
+		link_sta->debugfs_dir =
+			debugfs_create_dir(link_dir_name,
+					   link_sta->sta->debugfs_dir);
+
+		DEBUGFS_ADD(addr);
+	} else {
+		if (WARN_ON(link_sta != &link_sta->sta->deflink))
+			return;
+
+		link_sta->debugfs_dir = link_sta->sta->debugfs_dir;
+	}
+
+	DEBUGFS_ADD(ht_capa);
+	DEBUGFS_ADD(vht_capa);
+	DEBUGFS_ADD(he_capa);
+
+	DEBUGFS_ADD_COUNTER(rx_duplicates, rx_stats.num_duplicates);
+	DEBUGFS_ADD_COUNTER(rx_fragments, rx_stats.fragments);
+}
+
+void ieee80211_link_sta_debugfs_remove(struct link_sta_info *link_sta)
+{
+	if (!link_sta->debugfs_dir || !link_sta->sta->debugfs_dir) {
+		link_sta->debugfs_dir = NULL;
+		return;
+	}
+
+	if (link_sta->debugfs_dir == link_sta->sta->debugfs_dir) {
+		WARN_ON(link_sta != &link_sta->sta->deflink);
+		link_sta->sta->debugfs_dir = NULL;
+		return;
+	}
+
+	debugfs_remove_recursive(link_sta->debugfs_dir);
+	link_sta->debugfs_dir = NULL;
+}
+
+void ieee80211_link_sta_debugfs_drv_add(struct link_sta_info *link_sta)
+{
+	if (WARN_ON(!link_sta->debugfs_dir))
+		return;
+
+	drv_link_sta_add_debugfs(link_sta->sta->local, link_sta->sta->sdata,
+				 link_sta->pub, link_sta->debugfs_dir);
+}
+
+void ieee80211_link_sta_debugfs_drv_remove(struct link_sta_info *link_sta)
+{
+	if (!link_sta->debugfs_dir)
+		return;
+
+	if (WARN_ON(link_sta->debugfs_dir == link_sta->sta->debugfs_dir))
+		return;
+
+	/* Recreate the directory excluding the driver data */
+	debugfs_remove_recursive(link_sta->debugfs_dir);
+	link_sta->debugfs_dir = NULL;
+
+	ieee80211_link_sta_debugfs_add(link_sta);
 }

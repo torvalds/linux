@@ -10,8 +10,8 @@
 #include <linux/kref.h>
 #include <linux/rcupdate.h>
 #include <linux/wait.h>
-#include <linux/raspberrypi/vchiq.h>
 
+#include "../../include/linux/raspberrypi/vchiq.h"
 #include "vchiq_cfg.h"
 
 /* Do this so that we can test-build the code on non-rpi systems */
@@ -166,6 +166,24 @@ struct vchiq_bulk_queue {
 	struct vchiq_bulk bulks[VCHIQ_NUM_SERVICE_BULKS];
 };
 
+/*
+ * Remote events provide a way of presenting several virtual doorbells to a
+ * peer (ARM host to VPU) using only one physical doorbell. They can be thought
+ * of as a way for the peer to signal a semaphore, in this case implemented as
+ * a workqueue.
+ *
+ * Remote events remain signalled until acknowledged by the receiver, and they
+ * are non-counting. They are designed in such a way as to minimise the number
+ * of interrupts and avoid unnecessary waiting.
+ *
+ * A remote_event is as small data structures that live in shared memory. It
+ * comprises two booleans - armed and fired:
+ *
+ * The sender sets fired when they signal the receiver.
+ * If fired is set, the receiver has been signalled and need not wait.
+ * The receiver sets the armed field before they begin to wait.
+ * If armed is set, the receiver is waiting and wishes to be woken by interrupt.
+ */
 struct remote_event {
 	int armed;
 	int fired;
@@ -458,7 +476,7 @@ vchiq_init_slots(void *mem_base, int mem_size);
 extern int
 vchiq_init_state(struct vchiq_state *state, struct vchiq_slot_zero *slot_zero, struct device *dev);
 
-extern enum vchiq_status
+extern int
 vchiq_connect_internal(struct vchiq_state *state, struct vchiq_instance *instance);
 
 struct vchiq_service *
@@ -467,10 +485,10 @@ vchiq_add_service_internal(struct vchiq_state *state,
 			   int srvstate, struct vchiq_instance *instance,
 			   void (*userdata_term)(void *userdata));
 
-extern enum vchiq_status
+extern int
 vchiq_open_service_internal(struct vchiq_service *service, int client_id);
 
-extern enum vchiq_status
+extern int
 vchiq_close_service_internal(struct vchiq_service *service, int close_recvd);
 
 extern void
@@ -485,7 +503,7 @@ vchiq_shutdown_internal(struct vchiq_state *state, struct vchiq_instance *instan
 extern void
 remote_event_pollall(struct vchiq_state *state);
 
-extern enum vchiq_status
+extern int
 vchiq_bulk_transfer(struct vchiq_instance *instance, unsigned int handle, void *offset,
 		    void __user *uoffset, int size, void *userdata, enum vchiq_bulk_mode mode,
 		    enum vchiq_bulk_dir dir);
@@ -536,7 +554,7 @@ vchiq_service_get(struct vchiq_service *service);
 extern void
 vchiq_service_put(struct vchiq_service *service);
 
-extern enum vchiq_status
+extern int
 vchiq_queue_message(struct vchiq_instance *instance, unsigned int handle,
 		    ssize_t (*copy_callback)(void *context, void *dest,
 					     size_t offset, size_t maxsize),
@@ -568,13 +586,13 @@ void vchiq_on_remote_release(struct vchiq_state *state);
 
 int vchiq_platform_init_state(struct vchiq_state *state);
 
-enum vchiq_status vchiq_check_service(struct vchiq_service *service);
+int vchiq_check_service(struct vchiq_service *service);
 
 void vchiq_on_remote_use_active(struct vchiq_state *state);
 
-enum vchiq_status vchiq_send_remote_use(struct vchiq_state *state);
+int vchiq_send_remote_use(struct vchiq_state *state);
 
-enum vchiq_status vchiq_send_remote_use_active(struct vchiq_state *state);
+int vchiq_send_remote_use_active(struct vchiq_state *state);
 
 void vchiq_platform_conn_state_changed(struct vchiq_state *state,
 				       enum vchiq_connstate oldstate,
@@ -584,7 +602,7 @@ void vchiq_set_conn_state(struct vchiq_state *state, enum vchiq_connstate newsta
 
 void vchiq_log_dump_mem(const char *label, u32 addr, const void *void_mem, size_t num_bytes);
 
-enum vchiq_status vchiq_remove_service(struct vchiq_instance *instance, unsigned int service);
+int vchiq_remove_service(struct vchiq_instance *instance, unsigned int service);
 
 int vchiq_get_client_id(struct vchiq_instance *instance, unsigned int service);
 

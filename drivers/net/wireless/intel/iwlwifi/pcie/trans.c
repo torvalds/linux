@@ -599,7 +599,6 @@ static int iwl_pcie_set_hw_ready(struct iwl_trans *trans)
 int iwl_pcie_prepare_card_hw(struct iwl_trans *trans)
 {
 	int ret;
-	int t = 0;
 	int iter;
 
 	IWL_DEBUG_INFO(trans, "iwl_trans_prepare_card_hw enter\n");
@@ -616,6 +615,8 @@ int iwl_pcie_prepare_card_hw(struct iwl_trans *trans)
 	usleep_range(1000, 2000);
 
 	for (iter = 0; iter < 10; iter++) {
+		int t = 0;
+
 		/* If HW is not ready, prepare the conditions to check again */
 		iwl_set_bit(trans, CSR_HW_IF_CONFIG_REG,
 			    CSR_HW_IF_CONFIG_REG_PREPARE);
@@ -1260,6 +1261,7 @@ static void _iwl_trans_pcie_stop_device(struct iwl_trans *trans)
 	if (test_and_clear_bit(STATUS_DEVICE_ENABLED, &trans->status)) {
 		IWL_DEBUG_INFO(trans,
 			       "DEVICE_ENABLED bit was set and is now cleared\n");
+		iwl_pcie_rx_napi_sync(trans);
 		iwl_pcie_tx_stop(trans);
 		iwl_pcie_rx_stop(trans);
 
@@ -1522,19 +1524,16 @@ static int iwl_pcie_d3_handshake(struct iwl_trans *trans, bool suspend)
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	int ret;
 
-	if (trans->trans_cfg->device_family == IWL_DEVICE_FAMILY_AX210) {
+	if (trans->trans_cfg->device_family == IWL_DEVICE_FAMILY_AX210)
 		iwl_write_umac_prph(trans, UREG_DOORBELL_TO_ISR6,
 				    suspend ? UREG_DOORBELL_TO_ISR6_SUSPEND :
 					      UREG_DOORBELL_TO_ISR6_RESUME);
-	} else if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_BZ) {
+	else if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_BZ)
 		iwl_write32(trans, CSR_IPC_SLEEP_CONTROL,
 			    suspend ? CSR_IPC_SLEEP_CONTROL_SUSPEND :
 				      CSR_IPC_SLEEP_CONTROL_RESUME);
-		iwl_write_umac_prph(trans, UREG_DOORBELL_TO_ISR6,
-				    UREG_DOORBELL_TO_ISR6_SLEEP_CTRL);
-	} else {
+	else
 		return 0;
-	}
 
 	ret = wait_event_timeout(trans_pcie->sx_waitq,
 				 trans_pcie->sx_complete, 2 * HZ);
@@ -2052,6 +2051,7 @@ static void iwl_trans_pcie_set_pmi(struct iwl_trans *trans, bool state)
 struct iwl_trans_pcie_removal {
 	struct pci_dev *pdev;
 	struct work_struct work;
+	bool rescan;
 };
 
 static void iwl_trans_pcie_removal_wk(struct work_struct *wk)
@@ -2060,17 +2060,60 @@ static void iwl_trans_pcie_removal_wk(struct work_struct *wk)
 		container_of(wk, struct iwl_trans_pcie_removal, work);
 	struct pci_dev *pdev = removal->pdev;
 	static char *prop[] = {"EVENT=INACCESSIBLE", NULL};
+	struct pci_bus *bus = pdev->bus;
 
 	dev_err(&pdev->dev, "Device gone - attempting removal\n");
 	kobject_uevent_env(&pdev->dev.kobj, KOBJ_CHANGE, prop);
 	pci_lock_rescan_remove();
 	pci_dev_put(pdev);
 	pci_stop_and_remove_bus_device(pdev);
+	if (removal->rescan)
+		pci_rescan_bus(bus->parent);
 	pci_unlock_rescan_remove();
 
 	kfree(removal);
 	module_put(THIS_MODULE);
 }
+
+void iwl_trans_pcie_remove(struct iwl_trans *trans, bool rescan)
+{
+	struct iwl_trans_pcie_removal *removal;
+
+	if (test_bit(STATUS_TRANS_DEAD, &trans->status))
+		return;
+
+	IWL_ERR(trans, "Device gone - scheduling removal!\n");
+
+	/*
+	 * get a module reference to avoid doing this
+	 * while unloading anyway and to avoid
+	 * scheduling a work with code that's being
+	 * removed.
+	 */
+	if (!try_module_get(THIS_MODULE)) {
+		IWL_ERR(trans,
+			"Module is being unloaded - abort\n");
+		return;
+	}
+
+	removal = kzalloc(sizeof(*removal), GFP_ATOMIC);
+	if (!removal) {
+		module_put(THIS_MODULE);
+		return;
+	}
+	/*
+	 * we don't need to clear this flag, because
+	 * the trans will be freed and reallocated.
+	 */
+	set_bit(STATUS_TRANS_DEAD, &trans->status);
+
+	removal->pdev = to_pci_dev(trans->dev);
+	removal->rescan = rescan;
+	INIT_WORK(&removal->work, iwl_trans_pcie_removal_wk);
+	pci_dev_get(removal->pdev);
+	schedule_work(&removal->work);
+}
+EXPORT_SYMBOL(iwl_trans_pcie_remove);
 
 /*
  * This version doesn't disable BHs but rather assumes they're
@@ -2131,47 +2174,12 @@ bool __iwl_trans_pcie_grab_nic_access(struct iwl_trans *trans)
 
 		iwl_trans_pcie_dump_regs(trans);
 
-		if (iwlwifi_mod_params.remove_when_gone && cntrl == ~0U) {
-			struct iwl_trans_pcie_removal *removal;
-
-			if (test_bit(STATUS_TRANS_DEAD, &trans->status))
-				goto err;
-
-			IWL_ERR(trans, "Device gone - scheduling removal!\n");
-
-			/*
-			 * get a module reference to avoid doing this
-			 * while unloading anyway and to avoid
-			 * scheduling a work with code that's being
-			 * removed.
-			 */
-			if (!try_module_get(THIS_MODULE)) {
-				IWL_ERR(trans,
-					"Module is being unloaded - abort\n");
-				goto err;
-			}
-
-			removal = kzalloc(sizeof(*removal), GFP_ATOMIC);
-			if (!removal) {
-				module_put(THIS_MODULE);
-				goto err;
-			}
-			/*
-			 * we don't need to clear this flag, because
-			 * the trans will be freed and reallocated.
-			*/
-			set_bit(STATUS_TRANS_DEAD, &trans->status);
-
-			removal->pdev = to_pci_dev(trans->dev);
-			INIT_WORK(&removal->work, iwl_trans_pcie_removal_wk);
-			pci_dev_get(removal->pdev);
-			schedule_work(&removal->work);
-		} else {
+		if (iwlwifi_mod_params.remove_when_gone && cntrl == ~0U)
+			iwl_trans_pcie_remove(trans, false);
+		else
 			iwl_write32(trans, CSR_RESET,
 				    CSR_RESET_REG_FLAG_FORCE_NMI);
-		}
 
-err:
 		spin_unlock(&trans_pcie->reg_lock);
 		return false;
 	}
@@ -2854,7 +2862,7 @@ static bool iwl_write_to_user_buf(char __user *user_buf, ssize_t count,
 				  void *buf, ssize_t *size,
 				  ssize_t *bytes_copied)
 {
-	int buf_size_left = count - *bytes_copied;
+	ssize_t buf_size_left = count - *bytes_copied;
 
 	buf_size_left = buf_size_left - (buf_size_left % sizeof(u32));
 	if (*size > buf_size_left)

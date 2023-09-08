@@ -421,7 +421,7 @@ static int mtk_spi_hw_init(struct spi_master *master,
 
 	/* pad select */
 	if (mdata->dev_comp->need_pad_sel)
-		writel(mdata->pad_sel[spi->chip_select],
+		writel(mdata->pad_sel[spi_get_chipselect(spi, 0)],
 		       mdata->base + SPI_PAD_SEL_REG);
 
 	/* tick delay */
@@ -735,9 +735,9 @@ static int mtk_spi_setup(struct spi_device *spi)
 	if (!spi->controller_data)
 		spi->controller_data = (void *)&mtk_default_chip_info;
 
-	if (mdata->dev_comp->need_pad_sel && spi->cs_gpiod)
+	if (mdata->dev_comp->need_pad_sel && spi_get_csgpiod(spi, 0))
 		/* CS de-asserted, gpiolib will handle inversion */
-		gpiod_direction_output(spi->cs_gpiod, 0);
+		gpiod_direction_output(spi_get_csgpiod(spi, 0), 0);
 
 	return 0;
 }
@@ -1192,11 +1192,6 @@ static int mtk_spi_probe(struct platform_device *pdev)
 	else
 		dma_set_max_seg_size(dev, SZ_256K);
 
-	ret = devm_request_irq(dev, irq, mtk_spi_interrupt,
-			       IRQF_TRIGGER_NONE, dev_name(dev), master);
-	if (ret)
-		return dev_err_probe(dev, ret, "failed to register irq\n");
-
 	mdata->parent_clk = devm_clk_get(dev, "parent-clk");
 	if (IS_ERR(mdata->parent_clk))
 		return dev_err_probe(dev, PTR_ERR(mdata->parent_clk),
@@ -1258,6 +1253,11 @@ static int mtk_spi_probe(struct platform_device *pdev)
 		dev_notice(dev, "SPI dma_set_mask(%d) failed, ret:%d\n",
 			   addr_bits, ret);
 
+	ret = devm_request_irq(dev, irq, mtk_spi_interrupt,
+			       IRQF_TRIGGER_NONE, dev_name(dev), master);
+	if (ret)
+		return dev_err_probe(dev, ret, "failed to register irq\n");
+
 	pm_runtime_enable(dev);
 
 	ret = devm_spi_register_master(dev, master);
@@ -1274,6 +1274,9 @@ static int mtk_spi_remove(struct platform_device *pdev)
 	struct spi_master *master = platform_get_drvdata(pdev);
 	struct mtk_spi *mdata = spi_master_get_devdata(master);
 	int ret;
+
+	if (mdata->use_spimem && !completion_done(&mdata->spimem_done))
+		complete(&mdata->spimem_done);
 
 	ret = pm_runtime_resume_and_get(&pdev->dev);
 	if (ret < 0)

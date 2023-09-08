@@ -655,7 +655,7 @@ static const struct mdp5_cfg_hw msm8x96_config = {
 	.max_clk = 412500000,
 };
 
-const struct mdp5_cfg_hw msm8x76_config = {
+static const struct mdp5_cfg_hw msm8x76_config = {
 	.name = "msm8x76",
 	.mdp = {
 		.count = 1,

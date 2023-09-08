@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/display/bridge/anx6345.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Analogix ANX6345 eDP Transmitter Device Tree Bindings
+title: Analogix ANX6345 eDP Transmitter
 
 maintainers:
   - Torsten Duwe <duwe@lst.de>
@@ -61,7 +61,7 @@ additionalProperties: false
 
 examples:
   - |
-    i2c0 {
+    i2c {
       #address-cells = <1>;
       #size-cells = <0>;
 

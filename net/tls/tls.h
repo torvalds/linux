@@ -70,6 +70,8 @@ struct tls_rec {
 	char content_type;
 	struct scatterlist sg_content_type;
 
+	struct sock *sk;
+
 	char aad_space[TLS_AAD_SPACE_SIZE];
 	u8 iv_data[MAX_IV_SIZE];
 	struct aead_request aead_req;
@@ -163,6 +165,11 @@ static inline struct sk_buff *tls_strp_msg(struct tls_sw_context_rx *ctx)
 static inline bool tls_strp_msg_ready(struct tls_sw_context_rx *ctx)
 {
 	return ctx->strp.msg_ready;
+}
+
+static inline bool tls_strp_msg_mixed_decrypted(struct tls_sw_context_rx *ctx)
+{
+	return ctx->strp.mixed_decrypted;
 }
 
 #ifdef CONFIG_TLS_DEVICE

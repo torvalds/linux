@@ -14,9 +14,8 @@
 scriptname=$0
 args="$*"
 
-T=${TMPDIR-/tmp}/kvm.sh.$$
+T="`mktemp -d ${TMPDIR-/tmp}/kvm.sh.XXXXXX`"
 trap 'rm -rf $T' 0
-mkdir $T
 
 cd `dirname $scriptname`/../../../../../
 
@@ -187,7 +186,7 @@ do
 		fi
 		;;
 	--kconfig|--kconfigs)
-		checkarg --kconfig "(Kconfig options)" $# "$2" '^CONFIG_[A-Z0-9_]\+=\([ynm]\|[0-9]\+\)\( CONFIG_[A-Z0-9_]\+=\([ynm]\|[0-9]\+\)\)*$' '^error$'
+		checkarg --kconfig "(Kconfig options)" $# "$2" '^CONFIG_[A-Z0-9_]\+=\([ynm]\|[0-9]\+\|"[^"]*"\)\( CONFIG_[A-Z0-9_]\+=\([ynm]\|[0-9]\+\|"[^"]*"\)\)*$' '^error$'
 		TORTURE_KCONFIG_ARG="`echo "$TORTURE_KCONFIG_ARG $2" | sed -e 's/^ *//' -e 's/ *$//'`"
 		shift
 		;;
@@ -586,7 +585,7 @@ awk < $T/cfgcpu.pack \
 echo kvm-end-run-stats.sh "$resdir/$ds" "$starttime" >> $T/script
 
 # Extract the tests and their batches from the script.
-egrep 'Start batch|Starting build\.' $T/script | grep -v ">>" |
+grep -E 'Start batch|Starting build\.' $T/script | grep -v ">>" |
 	sed -e 's/:.*$//' -e 's/^echo //' -e 's/-ovf//' |
 	awk '
 	/^----Start/ {
@@ -623,7 +622,7 @@ then
 elif test "$dryrun" = sched
 then
 	# Extract the test run schedule from the script.
-	egrep 'Start batch|Starting build\.' $T/script | grep -v ">>" |
+	grep -E 'Start batch|Starting build\.' $T/script | grep -v ">>" |
 		sed -e 's/:.*$//' -e 's/^echo //'
 	nbuilds="`grep 'Starting build\.' $T/script |
 		  grep -v ">>" | sed -e 's/:.*$//' -e 's/^echo //' |

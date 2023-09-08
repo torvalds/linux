@@ -360,15 +360,13 @@
 };
 
 &main_uart1 {
+	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&main_uart1_pins_default>;
 };
 
-&main_uart2 {
-	status = "disabled";
-};
-
 &mcu_uart0 {
+	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&arduino_uart_pins_default>;
 };
@@ -413,12 +411,14 @@
 };
 
 &wkup_i2c0 {
+	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&wkup_i2c0_pins_default>;
 	clock-frequency = <400000>;
 };
 
 &mcu_i2c0 {
+	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&mcu_i2c0_pins_default>;
 	clock-frequency = <400000>;
@@ -478,6 +478,7 @@
 };
 
 &main_i2c0 {
+	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&main_i2c0_pins_default>;
 	clock-frequency = <400000>;
@@ -495,18 +496,21 @@
 };
 
 &main_i2c1 {
+	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&main_i2c1_pins_default>;
 	clock-frequency = <400000>;
 };
 
 &main_i2c2 {
+	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&main_i2c2_pins_default>;
 	clock-frequency = <400000>;
 };
 
 &main_i2c3 {
+	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&main_i2c3_pins_default>;
 	clock-frequency = <400000>;
@@ -546,6 +550,7 @@
 };
 
 &ecap0 {
+	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&ecap0_pins_default>;
 };
@@ -570,6 +575,7 @@
 };
 
 &mcu_spi0 {
+	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&mcu_spi0_pins_default>;
 
@@ -603,6 +609,52 @@
 		cdns,tchsh-ns = <60>;
 		cdns,tslch-ns = <60>;
 		cdns,read-delay = <2>;
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			seboot@0 {
+				label = "seboot";
+				reg = <0x0 0x180000>; /* 1.5M */
+			};
+
+			tispl@180000 {
+				label = "tispl";
+				reg = <0x180000 0x200000>; /* 2M */
+			};
+
+			u-boot@380000 {
+				label = "u-boot";
+				reg = <0x380000 0x300000>; /* 3M */
+			};
+
+			env@680000 {
+				label = "env";
+				reg = <0x680000 0x20000>; /* 128K */
+			};
+
+			env-backup@6a0000 {
+				label = "env.backup";
+				reg = <0x6a0000 0x20000>; /* 128K */
+			};
+
+			otpcmd@6c0000 {
+				label = "otpcmd";
+				reg = <0x6c0000 0x10000>; /* 64K */
+			};
+
+			unused@6d0000 {
+				label = "unused";
+				reg = <0x6d0000 0x7b0000>; /* 7872K */
+			};
+
+			seboot-backup@e80000 {
+				label = "seboot.backup";
+				reg = <0xe80000 0x180000>; /* 1.5M */
+			};
+		};
 	};
 };
 
@@ -626,15 +678,8 @@
 	};
 };
 
-&pcie0_rc {
-	status = "disabled";
-};
-
-&pcie0_ep {
-	status = "disabled";
-};
-
 &pcie1_rc {
+	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&minipcie_pins_default>;
 
@@ -644,19 +689,8 @@
 	reset-gpios = <&wkup_gpio0 27 GPIO_ACTIVE_HIGH>;
 };
 
-&m_can0 {
-	status = "disabled";
-};
-
-&m_can1 {
-	status = "disabled";
-};
-
-&pcie1_ep {
-	status = "disabled";
-};
-
 &mailbox0_cluster0 {
+	status = "okay";
 	interrupts = <436>;
 
 	mbox_mcu_r5fss0_core0: mbox-mcu-r5fss0-core0 {
@@ -666,52 +700,13 @@
 };
 
 &mailbox0_cluster1 {
+	status = "okay";
 	interrupts = <432>;
 
 	mbox_mcu_r5fss0_core1: mbox-mcu-r5fss0-core1 {
 		ti,mbox-tx = <1 0 0>;
 		ti,mbox-rx = <0 0 0>;
 	};
-};
-
-&mailbox0_cluster2 {
-	status = "disabled";
-};
-
-&mailbox0_cluster3 {
-	status = "disabled";
-};
-
-&mailbox0_cluster4 {
-	status = "disabled";
-};
-
-&mailbox0_cluster5 {
-	status = "disabled";
-};
-
-&mailbox0_cluster6 {
-	status = "disabled";
-};
-
-&mailbox0_cluster7 {
-	status = "disabled";
-};
-
-&mailbox0_cluster8 {
-	status = "disabled";
-};
-
-&mailbox0_cluster9 {
-	status = "disabled";
-};
-
-&mailbox0_cluster10 {
-	status = "disabled";
-};
-
-&mailbox0_cluster11 {
-	status = "disabled";
 };
 
 &mcu_r5fss0_core0 {
@@ -724,28 +719,4 @@
 	memory-region = <&mcu_r5fss0_core1_dma_memory_region>,
 			<&mcu_r5fss0_core1_memory_region>;
 	mboxes = <&mailbox0_cluster1 &mbox_mcu_r5fss0_core1>;
-};
-
-&icssg0_mdio {
-	status = "disabled";
-};
-
-&icssg1_mdio {
-	status = "disabled";
-};
-
-&icssg2_mdio {
-	status = "disabled";
-};
-
-&mcasp0 {
-	status = "disabled";
-};
-
-&mcasp1 {
-	status = "disabled";
-};
-
-&mcasp2 {
-	status = "disabled";
 };

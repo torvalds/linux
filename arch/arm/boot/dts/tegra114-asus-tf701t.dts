@@ -25,6 +25,14 @@
 		serial2 = &uartb; /* GPS */
 	};
 
+	firmware {
+		trusted-foundations {
+			compatible = "tlm,trusted-foundations";
+			tlm,version-major = <2>;
+			tlm,version-minor = <8>;
+		};
+	};
+
 	memory@80000000 {
 		reg = <0x80000000 0x80000000>;
 	};
@@ -80,7 +88,7 @@
 	};
 
 	pinmux@70000868 {
-		asus_pad_ec_default: asus-pad-ec-default {
+		asus_pad_ec_default: pinmux-asus-pad-ec-default {
 			ec-interrupt {
 				nvidia,pins = "kb_col5_pq5";
 				nvidia,function = "kbc";
@@ -98,7 +106,7 @@
 			};
 		};
 
-		backlight_default: backlight-default {
+		backlight_default: pinmux-backlight-default {
 			backlight-enable {
 				nvidia,pins = "gmi_ad10_ph2";
 				nvidia,function = "gmi";
@@ -108,15 +116,7 @@
 			};
 		};
 
-		codec_default: codec-default {
-			ldo1-en {
-				nvidia,pins = "sdmmc1_wp_n_pv3";
-				nvidia,function = "sdmmc1";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
-				nvidia,tristate = <TEGRA_PIN_DISABLE>;
-				nvidia,enable-input = <TEGRA_PIN_DISABLE>;
-			};
-
+		codec_default: pinmux-codec-default {
 			interrupt {
 				nvidia,pins = "gpio_w2_aud_pw2",
 						"gpio_w3_aud_pw3";
@@ -125,9 +125,27 @@
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 				nvidia,enable-input = <TEGRA_PIN_ENABLE>;
 			};
+
+			ldo1-en {
+				nvidia,pins = "sdmmc1_wp_n_pv3";
+				nvidia,function = "sdmmc1";
+				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,tristate = <TEGRA_PIN_DISABLE>;
+				nvidia,enable-input = <TEGRA_PIN_DISABLE>;
+			};
 		};
 
-		gpio_keys_default: gpio-keys-default {
+		gpio_hall_sensor_default: pinmux-gpio-hall-sensor-default {
+			ulpi_data4_po5 {
+				nvidia,pins = "ulpi_data4_po5";
+				nvidia,function = "spi2";
+				nvidia,pull = <TEGRA_PIN_PULL_UP>;
+				nvidia,tristate = <TEGRA_PIN_DISABLE>;
+				nvidia,enable-input = <TEGRA_PIN_ENABLE>;
+			};
+		};
+
+		gpio_keys_default: pinmux-gpio-keys-default {
 			power {
 				nvidia,pins = "kb_col0_pq0";
 				nvidia,function = "kbc";
@@ -146,17 +164,7 @@
 			};
 		};
 
-		gpio_hall_sensor_default: gpio-hall-sensor-default {
-			ulpi_data4_po5 {
-				nvidia,pins = "ulpi_data4_po5";
-				nvidia,function = "spi2";
-				nvidia,pull = <TEGRA_PIN_PULL_UP>;
-				nvidia,tristate = <TEGRA_PIN_DISABLE>;
-				nvidia,enable-input = <TEGRA_PIN_ENABLE>;
-			};
-		};
-
-		hp_det_default: hp-det-default {
+		hp_det_default: pinmux-hp-det-default {
 			gmi_iordy_pi5 {
 				nvidia,pins = "kb_row7_pr7";
 				nvidia,function = "rsvd2";
@@ -166,7 +174,7 @@
 			};
 		};
 
-		imu_default: imu-default {
+		imu_default: pinmux-imu-default {
 			kb_row3_pr3 {
 				nvidia,pins = "kb_row3_pr3";
 				nvidia,function = "rsvd3";
@@ -176,7 +184,7 @@
 			};
 		};
 
-		pwm_default: pwm-default {
+		pwm_default: pinmux-pwm-default {
 			gmi_ad9_ph1 {
 				nvidia,pins = "gmi_ad9_ph1";
 				nvidia,function = "pwm1";
@@ -187,7 +195,7 @@
 		};
 
 		/* XXX make this something more sensible */
-		pwm_sleep: pwm-sleep {
+		pwm_sleep: pinmux-pwm-sleep {
 			gmi_ad9_ph1 {
 				nvidia,pins = "gmi_ad9_ph1";
 				nvidia,function = "pwm1";
@@ -197,7 +205,17 @@
 			};
 		};
 
-		sdmmc3_default: sdmmc3-default {
+		sdmmc3_default: pinmux-sdmmc3-default {
+			drive_sdio3 {
+				nvidia,pins = "drive_sdio3";
+				nvidia,high-speed-mode = <TEGRA_PIN_ENABLE>;
+				nvidia,schmitt = <TEGRA_PIN_DISABLE>;
+				nvidia,pull-down-strength = <22>;
+				nvidia,pull-up-strength = <36>;
+				nvidia,slew-rate-rising = <TEGRA_PIN_SLEW_RATE_FASTEST>;
+				nvidia,slew-rate-falling = <TEGRA_PIN_SLEW_RATE_FASTEST>;
+			};
+
 			sdmmc3_clk_pa6 {
 				nvidia,pins = "sdmmc3_clk_pa6";
 				nvidia,function = "sdmmc3";
@@ -221,19 +239,9 @@
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 				nvidia,enable-input = <TEGRA_PIN_ENABLE>;
 			};
-
-			drive_sdio3 {
-				nvidia,pins = "drive_sdio3";
-				nvidia,high-speed-mode = <TEGRA_PIN_ENABLE>;
-				nvidia,schmitt = <TEGRA_PIN_DISABLE>;
-				nvidia,pull-down-strength = <22>;
-				nvidia,pull-up-strength = <36>;
-				nvidia,slew-rate-rising = <TEGRA_PIN_SLEW_RATE_FASTEST>;
-				nvidia,slew-rate-falling = <TEGRA_PIN_SLEW_RATE_FASTEST>;
-			};
 		};
 
-		sdmmc3_vdd_default: sdmmc3-vdd-default {
+		sdmmc3_vdd_default: pinmux-sdmmc3-vdd-default {
 			gmi_clk_pk1 {
 				nvidia,pins = "gmi_clk_pk1";
 				nvidia,function = "gmi";
@@ -243,7 +251,7 @@
 			};
 		};
 
-		vdd_lcd_default: vdd-lcd-default {
+		vdd_lcd_default: pinmux-vdd-lcd-default {
 			sdmmc4_clk_pcc4 {
 				nvidia,pins = "sdmmc4_clk_pcc4";
 				nvidia,function = "sdmmc4";
@@ -298,6 +306,14 @@
 			pinctrl-0 = <&codec_default>;
 		};
 
+		temp_sensor: temperature-sensor@4c {
+			compatible = "onnn,nct1008";
+			reg = <0x4c>;
+
+			vcc-supply = <&vdd_3v3_sys>;
+			#thermal-sensor-cells = <1>;
+		};
+
 		motion-tracker@68 {
 			compatible = "invensense,mpu6500";
 			reg = <0x68>;
@@ -311,14 +327,6 @@
 
 			pinctrl-names = "default";
 			pinctrl-0 = <&imu_default>;
-		};
-
-		temp_sensor: temperature-sensor@4c {
-			compatible = "onnn,nct1008";
-			reg = <0x4c>;
-
-			vcc-supply = <&vdd_3v3_sys>;
-			#thermal-sensor-cells = <1>;
 		};
 	};
 
@@ -366,6 +374,66 @@
 				compatible = "ti,palmas-gpio";
 				gpio-controller;
 				#gpio-cells = <2>;
+			};
+
+			pinmux {
+				compatible = "ti,tps65913-pinctrl";
+				ti,palmas-enable-dvfs1;
+
+				pinctrl-names = "default";
+				pinctrl-0 = <&palmas_default>;
+
+				palmas_default: pinmux {
+					pin_gpio0 {
+						pins = "gpio0";
+						function = "gpio";
+					};
+
+					pin_gpio1 {
+						pins = "gpio1";
+						function = "gpio";
+					};
+
+					pin_gpio2 {
+						pins = "gpio2";
+						function = "gpio";
+					};
+
+					pin_gpio3 {
+						pins = "gpio3";
+						function = "gpio";
+					};
+
+					pin_gpio4 {
+						pins = "gpio4";
+						function = "gpio";
+					};
+
+					pin_gpio5 {
+						pins = "gpio5";
+						function = "gpio";
+					};
+
+					pin_gpio6 {
+						pins = "gpio6";
+						function = "gpio";
+					};
+
+					pin_gpio7 {
+						pins = "gpio7";
+						function = "gpio";
+					};
+
+					pin_powergood {
+						pins = "powergood";
+						function = "powergood";
+					};
+
+					pin_vac {
+						pins = "vac";
+						function = "vac";
+					};
+				};
 			};
 
 			pmic {
@@ -528,66 +596,6 @@
 				interrupt-parent = <&palmas>;
 				interrupts = <8 0>;
 			};
-
-			pinmux {
-				compatible = "ti,tps65913-pinctrl";
-				ti,palmas-enable-dvfs1;
-
-				pinctrl-names = "default";
-				pinctrl-0 = <&palmas_default>;
-
-				palmas_default: pinmux {
-					pin_powergood {
-						pins = "powergood";
-						function = "powergood";
-					};
-
-					pin_vac {
-						pins = "vac";
-						function = "vac";
-					};
-
-					pin_gpio0 {
-						pins = "gpio0";
-						function = "gpio";
-					};
-
-					pin_gpio1 {
-						pins = "gpio1";
-						function = "gpio";
-					};
-
-					pin_gpio2 {
-						pins = "gpio2";
-						function = "gpio";
-					};
-
-					pin_gpio3 {
-						pins = "gpio3";
-						function = "gpio";
-					};
-
-					pin_gpio4 {
-						pins = "gpio4";
-						function = "gpio";
-					};
-
-					pin_gpio5 {
-						pins = "gpio5";
-						function = "gpio";
-					};
-
-					pin_gpio6 {
-						pins = "gpio6";
-						function = "gpio";
-					};
-
-					pin_gpio7 {
-						pins = "gpio7";
-						function = "gpio";
-					};
-				};
-			};
 		};
 	};
 
@@ -668,11 +676,21 @@
 		clock-output-names = "pmic-oscillator";
 	};
 
-	firmware {
-		trusted-foundations {
-			compatible = "tlm,trusted-foundations";
-			tlm,version-major = <2>;
-			tlm,version-minor = <8>;
+	gpio-hall-sensor {
+		compatible = "gpio-keys";
+
+		label = "GPIO Hall Effect Sensor";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&gpio_hall_sensor_default>;
+
+		switch-hall-sensor {
+			label = "Hall Effect Sensor";
+			gpios = <&gpio TEGRA_GPIO(O, 5) GPIO_ACTIVE_LOW>;
+			linux,input-type = <EV_SW>;
+			linux,code = <SW_LID>;
+			linux,can-disable;
+			wakeup-source;
 		};
 	};
 
@@ -692,36 +710,18 @@
 			wakeup-source;
 		};
 
-		button-volume-up {
-			label = "Volume Up";
-			gpios = <&gpio TEGRA_GPIO(R, 2) GPIO_ACTIVE_LOW>;
-			linux,code = <KEY_VOLUMEUP>;
-			debounce-interval = <10>;
-		};
-
 		button-volume-down {
 			label = "Volume Down";
 			gpios = <&gpio TEGRA_GPIO(R, 1) GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_VOLUMEDOWN>;
 			debounce-interval = <10>;
 		};
-	};
 
-	gpio-hall-sensor {
-		compatible = "gpio-keys";
-
-		label = "GPIO Hall Effect Sensor";
-
-		pinctrl-names = "default";
-		pinctrl-0 = <&gpio_hall_sensor_default>;
-
-		switch-hall-sensor {
-			label = "Hall Effect Sensor";
-			gpios = <&gpio TEGRA_GPIO(O, 5) GPIO_ACTIVE_LOW>;
-			linux,input-type = <EV_SW>;
-			linux,code = <SW_LID>;
-			linux,can-disable;
-			wakeup-source;
+		button-volume-up {
+			label = "Volume Up";
+			gpios = <&gpio TEGRA_GPIO(R, 2) GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_VOLUMEUP>;
+			debounce-interval = <10>;
 		};
 	};
 

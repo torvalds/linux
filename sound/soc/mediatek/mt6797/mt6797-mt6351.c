@@ -242,6 +242,7 @@ static const struct of_device_id mt6797_mt6351_dt_match[] = {
 	{.compatible = "mediatek,mt6797-mt6351-sound",},
 	{}
 };
+MODULE_DEVICE_TABLE(of, mt6797_mt6351_dt_match);
 #endif
 
 static struct platform_driver mt6797_mt6351_driver = {

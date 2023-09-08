@@ -18,7 +18,7 @@
 
 static struct sock *__mptcp_tcp_fallback(struct mptcp_sock *msk)
 {
-	sock_owned_by_me((const struct sock *)msk);
+	msk_owned_by_me(msk);
 
 	if (likely(!__mptcp_check_fallback(msk)))
 		return NULL;
@@ -301,9 +301,9 @@ static int mptcp_setsockopt_sol_socket(struct mptcp_sock *msk, int optname,
 	case SO_BINDTOIFINDEX:
 		lock_sock(sk);
 		ssock = __mptcp_nmpc_socket(msk);
-		if (!ssock) {
+		if (IS_ERR(ssock)) {
 			release_sock(sk);
-			return -EINVAL;
+			return PTR_ERR(ssock);
 		}
 
 		ret = sock_setsockopt(ssock, SOL_SOCKET, optname, optval, optlen);
@@ -396,9 +396,9 @@ static int mptcp_setsockopt_v6(struct mptcp_sock *msk, int optname,
 	case IPV6_FREEBIND:
 		lock_sock(sk);
 		ssock = __mptcp_nmpc_socket(msk);
-		if (!ssock) {
+		if (IS_ERR(ssock)) {
 			release_sock(sk);
-			return -EINVAL;
+			return PTR_ERR(ssock);
 		}
 
 		ret = tcp_setsockopt(ssock->sk, SOL_IPV6, optname, optval, optlen);
@@ -559,7 +559,10 @@ static bool mptcp_supported_sockopt(int level, int optname)
 		case TCP_NOTSENT_LOWAT:
 		case TCP_TX_DELAY:
 		case TCP_INQ:
+		case TCP_FASTOPEN:
 		case TCP_FASTOPEN_CONNECT:
+		case TCP_FASTOPEN_KEY:
+		case TCP_FASTOPEN_NO_COOKIE:
 			return true;
 		}
 
@@ -567,9 +570,6 @@ static bool mptcp_supported_sockopt(int level, int optname)
 
 		/* TCP_REPAIR, TCP_REPAIR_QUEUE, TCP_QUEUE_SEQ, TCP_REPAIR_OPTIONS,
 		 * TCP_REPAIR_WINDOW are not supported, better avoid this mess
-		 */
-		/* TCP_FASTOPEN_KEY, TCP_FASTOPEN, TCP_FASTOPEN_NO_COOKIE,
-		 * are not supported fastopen is currently unsupported
 		 */
 	}
 	return false;
@@ -693,9 +693,9 @@ static int mptcp_setsockopt_sol_ip_set_transparent(struct mptcp_sock *msk, int o
 	lock_sock(sk);
 
 	ssock = __mptcp_nmpc_socket(msk);
-	if (!ssock) {
+	if (IS_ERR(ssock)) {
 		release_sock(sk);
-		return -EINVAL;
+		return PTR_ERR(ssock);
 	}
 
 	issk = inet_sk(ssock->sk);
@@ -740,7 +740,7 @@ static int mptcp_setsockopt_v4_set_tos(struct mptcp_sock *msk, int optname,
 	}
 	release_sock(sk);
 
-	return err;
+	return 0;
 }
 
 static int mptcp_setsockopt_v4(struct mptcp_sock *msk, int optname,
@@ -757,29 +757,26 @@ static int mptcp_setsockopt_v4(struct mptcp_sock *msk, int optname,
 	return -EOPNOTSUPP;
 }
 
-static int mptcp_setsockopt_sol_tcp_defer(struct mptcp_sock *msk, sockptr_t optval,
-					  unsigned int optlen)
+static int mptcp_setsockopt_first_sf_only(struct mptcp_sock *msk, int level, int optname,
+					  sockptr_t optval, unsigned int optlen)
 {
-	struct socket *listener;
-
-	listener = __mptcp_nmpc_socket(msk);
-	if (!listener)
-		return 0; /* TCP_DEFER_ACCEPT does not fail */
-
-	return tcp_setsockopt(listener->sk, SOL_TCP, TCP_DEFER_ACCEPT, optval, optlen);
-}
-
-static int mptcp_setsockopt_sol_tcp_fastopen_connect(struct mptcp_sock *msk, sockptr_t optval,
-						     unsigned int optlen)
-{
+	struct sock *sk = (struct sock *)msk;
 	struct socket *sock;
+	int ret;
 
-	/* Limit to first subflow */
+	/* Limit to first subflow, before the connection establishment */
+	lock_sock(sk);
 	sock = __mptcp_nmpc_socket(msk);
-	if (!sock)
-		return -EINVAL;
+	if (IS_ERR(sock)) {
+		ret = PTR_ERR(sock);
+		goto unlock;
+	}
 
-	return tcp_setsockopt(sock->sk, SOL_TCP, TCP_FASTOPEN_CONNECT, optval, optlen);
+	ret = tcp_setsockopt(sock->sk, level, optname, optval, optlen);
+
+unlock:
+	release_sock(sk);
+	return ret;
 }
 
 static int mptcp_setsockopt_sol_tcp(struct mptcp_sock *msk, int optname,
@@ -809,9 +806,15 @@ static int mptcp_setsockopt_sol_tcp(struct mptcp_sock *msk, int optname,
 	case TCP_NODELAY:
 		return mptcp_setsockopt_sol_tcp_nodelay(msk, optval, optlen);
 	case TCP_DEFER_ACCEPT:
-		return mptcp_setsockopt_sol_tcp_defer(msk, optval, optlen);
+		/* See tcp.c: TCP_DEFER_ACCEPT does not fail */
+		mptcp_setsockopt_first_sf_only(msk, SOL_TCP, optname, optval, optlen);
+		return 0;
+	case TCP_FASTOPEN:
 	case TCP_FASTOPEN_CONNECT:
-		return mptcp_setsockopt_sol_tcp_fastopen_connect(msk, optval, optlen);
+	case TCP_FASTOPEN_KEY:
+	case TCP_FASTOPEN_NO_COOKIE:
+		return mptcp_setsockopt_first_sf_only(msk, SOL_TCP, optname,
+						      optval, optlen);
 	}
 
 	return -EOPNOTSUPP;
@@ -860,7 +863,7 @@ static int mptcp_getsockopt_first_sf_only(struct mptcp_sock *msk, int level, int
 {
 	struct sock *sk = (struct sock *)msk;
 	struct socket *ssock;
-	int ret = -EINVAL;
+	int ret;
 	struct sock *ssk;
 
 	lock_sock(sk);
@@ -871,8 +874,10 @@ static int mptcp_getsockopt_first_sf_only(struct mptcp_sock *msk, int level, int
 	}
 
 	ssock = __mptcp_nmpc_socket(msk);
-	if (!ssock)
+	if (IS_ERR(ssock)) {
+		ret = PTR_ERR(ssock);
 		goto out;
+	}
 
 	ret = tcp_getsockopt(ssock->sk, level, optname, optval, optlen);
 
@@ -884,7 +889,6 @@ out:
 void mptcp_diag_fill_info(struct mptcp_sock *msk, struct mptcp_info *info)
 {
 	u32 flags = 0;
-	u8 val;
 
 	memset(info, 0, sizeof(*info));
 
@@ -892,12 +896,19 @@ void mptcp_diag_fill_info(struct mptcp_sock *msk, struct mptcp_info *info)
 	info->mptcpi_add_addr_signal = READ_ONCE(msk->pm.add_addr_signaled);
 	info->mptcpi_add_addr_accepted = READ_ONCE(msk->pm.add_addr_accepted);
 	info->mptcpi_local_addr_used = READ_ONCE(msk->pm.local_addr_used);
-	info->mptcpi_subflows_max = mptcp_pm_get_subflows_max(msk);
-	val = mptcp_pm_get_add_addr_signal_max(msk);
-	info->mptcpi_add_addr_signal_max = val;
-	val = mptcp_pm_get_add_addr_accept_max(msk);
-	info->mptcpi_add_addr_accepted_max = val;
-	info->mptcpi_local_addr_max = mptcp_pm_get_local_addr_max(msk);
+
+	/* The following limits only make sense for the in-kernel PM */
+	if (mptcp_pm_is_kernel(msk)) {
+		info->mptcpi_subflows_max =
+			mptcp_pm_get_subflows_max(msk);
+		info->mptcpi_add_addr_signal_max =
+			mptcp_pm_get_add_addr_signal_max(msk);
+		info->mptcpi_add_addr_accepted_max =
+			mptcp_pm_get_add_addr_accept_max(msk);
+		info->mptcpi_local_addr_max =
+			mptcp_pm_get_local_addr_max(msk);
+	}
+
 	if (test_bit(MPTCP_FALLBACK_DONE, &msk->flags))
 		flags |= MPTCP_INFO_FLAG_FALLBACK;
 	if (READ_ONCE(msk->can_ack))
@@ -994,7 +1005,7 @@ static int mptcp_getsockopt_tcpinfo(struct mptcp_sock *msk, char __user *optval,
 				    int __user *optlen)
 {
 	struct mptcp_subflow_context *subflow;
-	struct sock *sk = &msk->sk.icsk_inet.sk;
+	struct sock *sk = (struct sock *)msk;
 	unsigned int sfcount = 0, copied = 0;
 	struct mptcp_subflow_data sfd;
 	char __user *infoptr;
@@ -1045,7 +1056,7 @@ static int mptcp_getsockopt_tcpinfo(struct mptcp_sock *msk, char __user *optval,
 
 static void mptcp_get_sub_addrs(const struct sock *sk, struct mptcp_subflow_addrs *a)
 {
-	struct inet_sock *inet = inet_sk(sk);
+	const struct inet_sock *inet = inet_sk(sk);
 
 	memset(a, 0, sizeof(*a));
 
@@ -1085,8 +1096,8 @@ static void mptcp_get_sub_addrs(const struct sock *sk, struct mptcp_subflow_addr
 static int mptcp_getsockopt_subflow_addrs(struct mptcp_sock *msk, char __user *optval,
 					  int __user *optlen)
 {
-	struct sock *sk = &msk->sk.icsk_inet.sk;
 	struct mptcp_subflow_context *subflow;
+	struct sock *sk = (struct sock *)msk;
 	unsigned int sfcount = 0, copied = 0;
 	struct mptcp_subflow_data sfd;
 	char __user *addrptr;
@@ -1173,7 +1184,10 @@ static int mptcp_getsockopt_sol_tcp(struct mptcp_sock *msk, int optname,
 	case TCP_INFO:
 	case TCP_CC_INFO:
 	case TCP_DEFER_ACCEPT:
+	case TCP_FASTOPEN:
 	case TCP_FASTOPEN_CONNECT:
+	case TCP_FASTOPEN_KEY:
+	case TCP_FASTOPEN_NO_COOKIE:
 		return mptcp_getsockopt_first_sf_only(msk, SOL_TCP, optname,
 						      optval, optlen);
 	case TCP_INQ:
@@ -1258,6 +1272,7 @@ static void sync_socket_options(struct mptcp_sock *msk, struct sock *ssk)
 	ssk->sk_priority = sk->sk_priority;
 	ssk->sk_bound_dev_if = sk->sk_bound_dev_if;
 	ssk->sk_incoming_cpu = sk->sk_incoming_cpu;
+	ssk->sk_ipv6only = sk->sk_ipv6only;
 	__ip_sock_set_tos(ssk, inet_sk(sk)->tos);
 
 	if (sk->sk_userlocks & tx_rx_locks) {

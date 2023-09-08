@@ -182,8 +182,8 @@ nv44_mpeg_intr(struct nvkm_engine *engine)
 
 	if (show) {
 		nvkm_error(subdev, "ch %d [%08x %s] %08x %08x %08x %08x\n",
-			   chan ? chan->fifo->chid : -1, inst << 4,
-			   chan ? chan->object.client->name : "unknown",
+			   chan ? chan->fifo->id : -1, inst << 4,
+			   chan ? chan->fifo->name : "unknown",
 			   stat, type, mthd, data);
 	}
 

@@ -7,6 +7,14 @@
 #define _IPA_UC_H_
 
 struct ipa;
+enum ipa_irq_id;
+
+/**
+ * ipa_uc_interrupt_handler() - Handler for microcontroller IPA interrupts
+ * @ipa:	IPA pointer
+ * @irq_id:	IPA interrupt ID
+ */
+void ipa_uc_interrupt_handler(struct ipa *ipa, enum ipa_irq_id irq_id);
 
 /**
  * ipa_uc_config() - Configure the IPA microcontroller subsystem

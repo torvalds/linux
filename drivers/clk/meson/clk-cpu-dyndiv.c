@@ -27,14 +27,13 @@ static unsigned long meson_clk_cpu_dyndiv_recalc_rate(struct clk_hw *hw,
 				   NULL, 0, data->div.width);
 }
 
-static long meson_clk_cpu_dyndiv_round_rate(struct clk_hw *hw,
-					    unsigned long rate,
-					    unsigned long *prate)
+static int meson_clk_cpu_dyndiv_determine_rate(struct clk_hw *hw,
+					       struct clk_rate_request *req)
 {
 	struct clk_regmap *clk = to_clk_regmap(hw);
 	struct meson_clk_cpu_dyndiv_data *data = meson_clk_cpu_dyndiv_data(clk);
 
-	return divider_round_rate(hw, rate, prate, NULL, data->div.width, 0);
+	return divider_determine_rate(hw, req, NULL, data->div.width, 0);
 }
 
 static int meson_clk_cpu_dyndiv_set_rate(struct clk_hw *hw, unsigned long rate,
@@ -63,7 +62,7 @@ static int meson_clk_cpu_dyndiv_set_rate(struct clk_hw *hw, unsigned long rate,
 
 const struct clk_ops meson_clk_cpu_dyndiv_ops = {
 	.recalc_rate = meson_clk_cpu_dyndiv_recalc_rate,
-	.round_rate = meson_clk_cpu_dyndiv_round_rate,
+	.determine_rate = meson_clk_cpu_dyndiv_determine_rate,
 	.set_rate = meson_clk_cpu_dyndiv_set_rate,
 };
 EXPORT_SYMBOL_GPL(meson_clk_cpu_dyndiv_ops);

@@ -108,9 +108,9 @@ static struct device_attribute *atm_attrs[] = {
 };
 
 
-static int atm_uevent(struct device *cdev, struct kobj_uevent_env *env)
+static int atm_uevent(const struct device *cdev, struct kobj_uevent_env *env)
 {
-	struct atm_dev *adev;
+	const struct atm_dev *adev;
 
 	if (!cdev)
 		return -ENODEV;

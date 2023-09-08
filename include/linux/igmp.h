@@ -15,6 +15,7 @@
 #include <linux/in.h>
 #include <linux/ip.h>
 #include <linux/refcount.h>
+#include <linux/sockptr.h>
 #include <uapi/linux/igmp.h>
 
 static inline struct igmphdr *igmp_hdr(const struct sk_buff *skb)
@@ -121,7 +122,7 @@ extern int ip_mc_msfget(struct sock *sk, struct ip_msfilter *msf,
 			sockptr_t optval, sockptr_t optlen);
 extern int ip_mc_gsfget(struct sock *sk, struct group_filter *gsf,
 			sockptr_t optval, size_t offset);
-extern int ip_mc_sf_allow(struct sock *sk, __be32 local, __be32 rmt,
+extern int ip_mc_sf_allow(const struct sock *sk, __be32 local, __be32 rmt,
 			  int dif, int sdif);
 extern void ip_mc_init_dev(struct in_device *);
 extern void ip_mc_destroy_dev(struct in_device *);

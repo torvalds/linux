@@ -696,7 +696,7 @@ int fw_mgmt_init(void)
 {
 	int ret;
 
-	fw_mgmt_class = class_create(THIS_MODULE, "gb_fw_mgmt");
+	fw_mgmt_class = class_create("gb_fw_mgmt");
 	if (IS_ERR(fw_mgmt_class))
 		return PTR_ERR(fw_mgmt_class);
 

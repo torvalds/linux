@@ -5,6 +5,7 @@
  * Copyright (C) 2008 Nokia Corporation
  */
 
+#include <linux/err.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/module.h>
@@ -12,15 +13,18 @@
 #include <linux/swab.h>
 #include <linux/crc7.h>
 #include <linux/spi/spi.h>
-#include <linux/wl12xx.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/of.h>
-#include <linux/of_gpio.h>
 #include <linux/regulator/consumer.h>
 
 #include "wl1251.h"
 #include "reg.h"
 #include "spi.h"
+
+struct wl1251_spi {
+	struct spi_device *spi;
+	struct gpio_desc *power_gpio;
+};
 
 static irqreturn_t wl1251_irq(int irq, void *cookie)
 {
@@ -35,13 +39,9 @@ static irqreturn_t wl1251_irq(int irq, void *cookie)
 	return IRQ_HANDLED;
 }
 
-static struct spi_device *wl_to_spi(struct wl1251 *wl)
-{
-	return wl->if_priv;
-}
-
 static void wl1251_spi_reset(struct wl1251 *wl)
 {
+	struct wl1251_spi *wl_spi = wl->if_priv;
 	u8 *cmd;
 	struct spi_transfer t;
 	struct spi_message m;
@@ -61,7 +61,7 @@ static void wl1251_spi_reset(struct wl1251 *wl)
 	t.len = WSPI_INIT_CMD_LEN;
 	spi_message_add_tail(&t, &m);
 
-	spi_sync(wl_to_spi(wl), &m);
+	spi_sync(wl_spi->spi, &m);
 
 	wl1251_dump(DEBUG_SPI, "spi reset -> ", cmd, WSPI_INIT_CMD_LEN);
 
@@ -70,6 +70,7 @@ static void wl1251_spi_reset(struct wl1251 *wl)
 
 static void wl1251_spi_wake(struct wl1251 *wl)
 {
+	struct wl1251_spi *wl_spi = wl->if_priv;
 	struct spi_transfer t;
 	struct spi_message m;
 	u8 *cmd = kzalloc(WSPI_INIT_CMD_LEN, GFP_KERNEL);
@@ -113,7 +114,7 @@ static void wl1251_spi_wake(struct wl1251 *wl)
 	t.len = WSPI_INIT_CMD_LEN;
 	spi_message_add_tail(&t, &m);
 
-	spi_sync(wl_to_spi(wl), &m);
+	spi_sync(wl_spi->spi, &m);
 
 	wl1251_dump(DEBUG_SPI, "spi init -> ", cmd, WSPI_INIT_CMD_LEN);
 
@@ -129,6 +130,7 @@ static void wl1251_spi_reset_wake(struct wl1251 *wl)
 static void wl1251_spi_read(struct wl1251 *wl, int addr, void *buf,
 			    size_t len)
 {
+	struct wl1251_spi *wl_spi = wl->if_priv;
 	struct spi_transfer t[3];
 	struct spi_message m;
 	u8 *busy_buf;
@@ -158,7 +160,7 @@ static void wl1251_spi_read(struct wl1251 *wl, int addr, void *buf,
 	t[2].len = len;
 	spi_message_add_tail(&t[2], &m);
 
-	spi_sync(wl_to_spi(wl), &m);
+	spi_sync(wl_spi->spi, &m);
 
 	/* FIXME: check busy words */
 
@@ -169,6 +171,7 @@ static void wl1251_spi_read(struct wl1251 *wl, int addr, void *buf,
 static void wl1251_spi_write(struct wl1251 *wl, int addr, void *buf,
 			     size_t len)
 {
+	struct wl1251_spi *wl_spi = wl->if_priv;
 	struct spi_transfer t[2];
 	struct spi_message m;
 	u32 *cmd;
@@ -191,7 +194,7 @@ static void wl1251_spi_write(struct wl1251 *wl, int addr, void *buf,
 	t[1].len = len;
 	spi_message_add_tail(&t[1], &m);
 
-	spi_sync(wl_to_spi(wl), &m);
+	spi_sync(wl_spi->spi, &m);
 
 	wl1251_dump(DEBUG_SPI, "spi_write cmd -> ", cmd, sizeof(*cmd));
 	wl1251_dump(DEBUG_SPI, "spi_write buf -> ", buf, len);
@@ -209,8 +212,10 @@ static void wl1251_spi_disable_irq(struct wl1251 *wl)
 
 static int wl1251_spi_set_power(struct wl1251 *wl, bool enable)
 {
-	if (gpio_is_valid(wl->power_gpio))
-		gpio_set_value(wl->power_gpio, enable);
+	struct wl1251_spi *wl_spi = wl->if_priv;
+
+	if (wl_spi->power_gpio)
+		gpiod_set_value_cansleep(wl_spi->power_gpio, enable);
 
 	return 0;
 }
@@ -226,16 +231,20 @@ static const struct wl1251_if_operations wl1251_spi_ops = {
 
 static int wl1251_spi_probe(struct spi_device *spi)
 {
-	struct wl1251_platform_data *pdata = dev_get_platdata(&spi->dev);
 	struct device_node *np = spi->dev.of_node;
 	struct ieee80211_hw *hw;
+	struct wl1251_spi *wl_spi;
 	struct wl1251 *wl;
 	int ret;
 
-	if (!np && !pdata) {
-		wl1251_error("no platform data");
+	if (!np)
 		return -ENODEV;
-	}
+
+	wl_spi = devm_kzalloc(&spi->dev, sizeof(*wl_spi), GFP_KERNEL);
+	if (!wl_spi)
+		return -ENOMEM;
+
+	wl_spi->spi = spi;
 
 	hw = wl1251_alloc_hw();
 	if (IS_ERR(hw))
@@ -245,7 +254,7 @@ static int wl1251_spi_probe(struct spi_device *spi)
 
 	SET_IEEE80211_DEV(hw, &spi->dev);
 	spi_set_drvdata(spi, wl);
-	wl->if_priv = spi;
+	wl->if_priv = wl_spi;
 	wl->if_ops = &wl1251_spi_ops;
 
 	/* This is the only SPI value that we need to set here, the rest
@@ -259,31 +268,18 @@ static int wl1251_spi_probe(struct spi_device *spi)
 		goto out_free;
 	}
 
-	if (np) {
-		wl->use_eeprom = of_property_read_bool(np, "ti,wl1251-has-eeprom");
-		wl->power_gpio = of_get_named_gpio(np, "ti,power-gpio", 0);
-	} else if (pdata) {
-		wl->power_gpio = pdata->power_gpio;
-		wl->use_eeprom = pdata->use_eeprom;
-	}
+	wl->use_eeprom = of_property_read_bool(np, "ti,wl1251-has-eeprom");
 
-	if (wl->power_gpio == -EPROBE_DEFER) {
-		ret = -EPROBE_DEFER;
-		goto out_free;
-	}
-
-	if (gpio_is_valid(wl->power_gpio)) {
-		ret = devm_gpio_request_one(&spi->dev, wl->power_gpio,
-					GPIOF_OUT_INIT_LOW, "wl1251 power");
-		if (ret) {
+	wl_spi->power_gpio = devm_gpiod_get_optional(&spi->dev, "ti,power",
+						     GPIOD_OUT_LOW);
+	ret = PTR_ERR_OR_ZERO(wl_spi->power_gpio);
+	if (ret) {
+		if (ret != -EPROBE_DEFER)
 			wl1251_error("Failed to request gpio: %d\n", ret);
-			goto out_free;
-		}
-	} else {
-		wl1251_error("set power gpio missing in platform data");
-		ret = -ENODEV;
 		goto out_free;
 	}
+
+	gpiod_set_consumer_name(wl_spi->power_gpio, "wl1251 power");
 
 	wl->irq = spi->irq;
 	if (wl->irq < 0) {

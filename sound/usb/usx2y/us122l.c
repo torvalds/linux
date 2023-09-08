@@ -224,9 +224,9 @@ static int usb_stream_hwdep_mmap(struct snd_hwdep *hw,
 	}
 
 	area->vm_ops = &usb_stream_hwdep_vm_ops;
-	area->vm_flags |= VM_DONTDUMP;
+	vm_flags_set(area, VM_DONTDUMP);
 	if (!read)
-		area->vm_flags |= VM_DONTEXPAND;
+		vm_flags_set(area, VM_DONTEXPAND);
 	area->vm_private_data = us122l;
 	atomic_inc(&us122l->mmap_count);
 out:

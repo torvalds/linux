@@ -7,6 +7,7 @@
 #include <linux/bitops.h>
 #include <linux/errno.h>
 #include <linux/types.h>
+#include <linux/bitrev.h>
 
 static int get_le_offset(int offset)
 {
@@ -29,19 +30,6 @@ static int get_reverse_lsw32_offset(int offset, size_t len)
 	return word_index * 4 + offset;
 }
 
-static u64 bit_reverse(u64 val, unsigned int width)
-{
-	u64 new_val = 0;
-	unsigned int bit;
-	unsigned int i;
-
-	for (i = 0; i < width; i++) {
-		bit = (val & (1 << i)) != 0;
-		new_val |= (bit << (width - i - 1));
-	}
-	return new_val;
-}
-
 static void adjust_for_msb_right_quirk(u64 *to_write, int *box_start_bit,
 				       int *box_end_bit, u8 *box_mask)
 {
@@ -49,7 +37,7 @@ static void adjust_for_msb_right_quirk(u64 *to_write, int *box_start_bit,
 	int new_box_start_bit, new_box_end_bit;
 
 	*to_write >>= *box_end_bit;
-	*to_write = bit_reverse(*to_write, box_bit_width);
+	*to_write = bitrev8(*to_write) >> (8 - box_bit_width);
 	*to_write <<= *box_end_bit;
 
 	new_box_end_bit   = box_bit_width - *box_start_bit - 1;
@@ -210,5 +198,4 @@ int packing(void *pbuf, u64 *uval, int startbit, int endbit, size_t pbuflen,
 }
 EXPORT_SYMBOL(packing);
 
-MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("Generic bitfield packing and unpacking");

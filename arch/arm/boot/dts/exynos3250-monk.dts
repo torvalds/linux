@@ -22,6 +22,7 @@
 
 	aliases {
 		i2c7 = &i2c_max77836;
+		mmc0 = &mshc_0;
 	};
 
 	memory@40000000 {
@@ -31,7 +32,7 @@
 
 	firmware@205f000 {
 		compatible = "samsung,secure-firmware";
-		reg = <0x0205F000 0x1000>;
+		reg = <0x0205f000 0x1000>;
 	};
 
 	gpio-keys {
@@ -438,12 +439,12 @@
 	broken-cd;
 	non-removable;
 	cap-mmc-highspeed;
-	desc-num = <4>;
 	mmc-hs200-1_8v;
 	card-detect-delay = <200>;
 	vmmc-supply = <&vemmc_reg>;
 	clock-frequency = <100000000>;
 	max-frequency = <100000000>;
+	mmc-ddr-1_8v;
 	samsung,dw-mshc-ciu-div = <1>;
 	samsung,dw-mshc-sdr-timing = <0 1>;
 	samsung,dw-mshc-ddr-timing = <1 2>;

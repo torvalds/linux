@@ -116,27 +116,19 @@ static int bperf_load_program(struct evlist *evlist)
 
 			/* open single copy of the events w/o cgroup */
 			err = evsel__open_per_cpu(evsel, evsel->core.cpus, -1);
-			if (err) {
-				pr_err("Failed to open first cgroup events\n");
-				goto out;
-			}
+			if (err == 0)
+				evsel->supported = true;
 
 			map_fd = bpf_map__fd(skel->maps.events);
 			perf_cpu_map__for_each_cpu(cpu, j, evsel->core.cpus) {
 				int fd = FD(evsel, j);
 				__u32 idx = evsel->core.idx * total_cpus + cpu.cpu;
 
-				err = bpf_map_update_elem(map_fd, &idx, &fd,
-							  BPF_ANY);
-				if (err < 0) {
-					pr_err("Failed to update perf_event fd\n");
-					goto out;
-				}
+				bpf_map_update_elem(map_fd, &idx, &fd, BPF_ANY);
 			}
 
 			evsel->cgrp = leader_cgrp;
 		}
-		evsel->supported = true;
 
 		if (evsel->cgrp == cgrp)
 			continue;

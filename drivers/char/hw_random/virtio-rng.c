@@ -148,7 +148,6 @@ static int probe_common(struct virtio_device *vdev)
 		.cleanup = virtio_cleanup,
 		.priv = (unsigned long)vi,
 		.name = vi->name,
-		.quality = 1000,
 	};
 	vdev->priv = vi;
 

@@ -3,43 +3,47 @@
 #ifndef BTRFS_EXTENT_IO_TREE_H
 #define BTRFS_EXTENT_IO_TREE_H
 
+#include "misc.h"
+
 struct extent_changeset;
-struct io_failure_record;
 
 /* Bits for the extent state */
-#define EXTENT_DIRTY		(1U << 0)
-#define EXTENT_UPTODATE		(1U << 1)
-#define EXTENT_LOCKED		(1U << 2)
-#define EXTENT_NEW		(1U << 3)
-#define EXTENT_DELALLOC		(1U << 4)
-#define EXTENT_DEFRAG		(1U << 5)
-#define EXTENT_BOUNDARY		(1U << 6)
-#define EXTENT_NODATASUM	(1U << 7)
-#define EXTENT_CLEAR_META_RESV	(1U << 8)
-#define EXTENT_NEED_WAIT	(1U << 9)
-#define EXTENT_NORESERVE	(1U << 11)
-#define EXTENT_QGROUP_RESERVED	(1U << 12)
-#define EXTENT_CLEAR_DATA_RESV	(1U << 13)
-/*
- * Must be cleared only during ordered extent completion or on error paths if we
- * did not manage to submit bios and create the ordered extents for the range.
- * Should not be cleared during page release and page invalidation (if there is
- * an ordered extent in flight), that is left for the ordered extent completion.
- */
-#define EXTENT_DELALLOC_NEW	(1U << 14)
-/*
- * When an ordered extent successfully completes for a region marked as a new
- * delalloc range, use this flag when clearing a new delalloc range to indicate
- * that the VFS' inode number of bytes should be incremented and the inode's new
- * delalloc bytes decremented, in an atomic way to prevent races with stat(2).
- */
-#define EXTENT_ADD_INODE_BYTES  (1U << 15)
-
-/*
- * Set during truncate when we're clearing an entire range and we just want the
- * extent states to go away.
- */
-#define EXTENT_CLEAR_ALL_BITS	(1U << 16)
+enum {
+	ENUM_BIT(EXTENT_DIRTY),
+	ENUM_BIT(EXTENT_UPTODATE),
+	ENUM_BIT(EXTENT_LOCKED),
+	ENUM_BIT(EXTENT_NEW),
+	ENUM_BIT(EXTENT_DELALLOC),
+	ENUM_BIT(EXTENT_DEFRAG),
+	ENUM_BIT(EXTENT_BOUNDARY),
+	ENUM_BIT(EXTENT_NODATASUM),
+	ENUM_BIT(EXTENT_CLEAR_META_RESV),
+	ENUM_BIT(EXTENT_NEED_WAIT),
+	ENUM_BIT(EXTENT_NORESERVE),
+	ENUM_BIT(EXTENT_QGROUP_RESERVED),
+	ENUM_BIT(EXTENT_CLEAR_DATA_RESV),
+	/*
+	 * Must be cleared only during ordered extent completion or on error
+	 * paths if we did not manage to submit bios and create the ordered
+	 * extents for the range.  Should not be cleared during page release
+	 * and page invalidation (if there is an ordered extent in flight),
+	 * that is left for the ordered extent completion.
+	 */
+	ENUM_BIT(EXTENT_DELALLOC_NEW),
+	/*
+	 * When an ordered extent successfully completes for a region marked as
+	 * a new delalloc range, use this flag when clearing a new delalloc
+	 * range to indicate that the VFS' inode number of bytes should be
+	 * incremented and the inode's new delalloc bytes decremented, in an
+	 * atomic way to prevent races with stat(2).
+	 */
+	ENUM_BIT(EXTENT_ADD_INODE_BYTES),
+	/*
+	 * Set during truncate when we're clearing an entire range and we just
+	 * want the extent states to go away.
+	 */
+	ENUM_BIT(EXTENT_CLEAR_ALL_BITS),
+};
 
 #define EXTENT_DO_ACCOUNTING    (EXTENT_CLEAR_META_RESV | \
 				 EXTENT_CLEAR_DATA_RESV)
@@ -75,7 +79,8 @@ enum {
 struct extent_io_tree {
 	struct rb_root state;
 	struct btrfs_fs_info *fs_info;
-	void *private_data;
+	/* Inode associated with this tree, or NULL. */
+	struct btrfs_inode *inode;
 
 	/* Who owns this io tree, should be one of IO_TREE_* */
 	u8 owner;
@@ -99,21 +104,22 @@ struct extent_state {
 };
 
 void extent_io_tree_init(struct btrfs_fs_info *fs_info,
-			 struct extent_io_tree *tree, unsigned int owner,
-			 void *private_data);
+			 struct extent_io_tree *tree, unsigned int owner);
 void extent_io_tree_release(struct extent_io_tree *tree);
 
 int lock_extent(struct extent_io_tree *tree, u64 start, u64 end,
 		struct extent_state **cached);
 
-int try_lock_extent(struct extent_io_tree *tree, u64 start, u64 end);
+int try_lock_extent(struct extent_io_tree *tree, u64 start, u64 end,
+		    struct extent_state **cached);
 
 int __init extent_state_init_cachep(void);
 void __cold extent_state_free_cachep(void);
 
 u64 count_range_bits(struct extent_io_tree *tree,
 		     u64 *start, u64 search_end,
-		     u64 max_bytes, u32 bits, int contig);
+		     u64 max_bytes, u32 bits, int contig,
+		     struct extent_state **cached_state);
 
 void free_extent_state(struct extent_state *state);
 int test_range_bit(struct extent_io_tree *tree, u64 start, u64 end,
@@ -137,13 +143,6 @@ static inline int unlock_extent(struct extent_io_tree *tree, u64 start, u64 end,
 {
 	return __clear_extent_bit(tree, start, end, EXTENT_LOCKED, cached,
 				  GFP_NOFS, NULL);
-}
-
-static inline int unlock_extent_atomic(struct extent_io_tree *tree, u64 start,
-				       u64 end, struct extent_state **cached)
-{
-	return __clear_extent_bit(tree, start, end, EXTENT_LOCKED, cached,
-				  GFP_ATOMIC, NULL);
 }
 
 static inline int clear_extent_bits(struct extent_io_tree *tree, u64 start,
@@ -217,13 +216,6 @@ static inline int set_extent_new(struct extent_io_tree *tree, u64 start,
 	return set_extent_bit(tree, start, end, EXTENT_NEW, NULL, GFP_NOFS);
 }
 
-static inline int set_extent_uptodate(struct extent_io_tree *tree, u64 start,
-		u64 end, struct extent_state **cached_state, gfp_t mask)
-{
-	return set_extent_bit(tree, start, end, EXTENT_UPTODATE,
-			      cached_state, mask);
-}
-
 int find_first_extent_bit(struct extent_io_tree *tree, u64 start,
 			  u64 *start_ret, u64 *end_ret, u32 bits,
 			  struct extent_state **cached_state);
@@ -234,6 +226,7 @@ int find_contiguous_extent_bit(struct extent_io_tree *tree, u64 start,
 bool btrfs_find_delalloc_range(struct extent_io_tree *tree, u64 *start,
 			       u64 *end, u64 max_bytes,
 			       struct extent_state **cached_state);
-void wait_extent_bit(struct extent_io_tree *tree, u64 start, u64 end, u32 bits);
+void wait_extent_bit(struct extent_io_tree *tree, u64 start, u64 end, u32 bits,
+		     struct extent_state **cached_state);
 
 #endif /* BTRFS_EXTENT_IO_TREE_H */

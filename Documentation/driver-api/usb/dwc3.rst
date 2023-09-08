@@ -18,7 +18,7 @@ controller which can be configured in one of 4 ways:
 	4. Hub configuration
 
 Linux currently supports several versions of this controller. In all
-likelyhood, the version in your SoC is already supported. At the time
+likelihood, the version in your SoC is already supported. At the time
 of this writing, known tested versions range from 2.02a to 3.10a. As a
 rule of thumb, anything above 2.02a should work reliably well.
 

@@ -7,9 +7,6 @@ tree
   - ABI Documentation
   - Audit driviers/iio/staging/Documentation
 
-- Replace iio_dev->mlock by either a local lock or use
-iio_claim_direct.(Requires analysis of the purpose of the lock.)
-
 - Converting drivers from device tree centric to more generic
 property handlers.
 

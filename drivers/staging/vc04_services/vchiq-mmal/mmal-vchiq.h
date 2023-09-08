@@ -48,7 +48,7 @@ typedef void (*vchiq_mmal_buffer_cb)(
 		int status, struct mmal_buffer *buffer);
 
 struct vchiq_mmal_port {
-	u32 enabled:1;
+	bool enabled;
 	u32 handle;
 	u32 type; /* port type, cached to use on port info set */
 	u32 index; /* port index, cached to use on port info set */
@@ -82,8 +82,8 @@ struct vchiq_mmal_port {
 };
 
 struct vchiq_mmal_component {
-	u32 in_use:1;
-	u32 enabled:1;
+	bool in_use;
+	bool enabled;
 	u32 handle;  /* VideoCore handle for component */
 	u32 inputs;  /* Number of input ports */
 	u32 outputs; /* Number of output ports */

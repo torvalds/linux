@@ -65,7 +65,6 @@
 	ov5645: ov5645@3c {
 		compatible = "ovti,ov5645";
 		reg = <0x3c>;
-		clock-names = "xclk";
 		clocks = <&osc25250_clk>;
 		clock-frequency = <24000000>;
 		vdddo-supply = <&ov5645_vdddo_1v8>;

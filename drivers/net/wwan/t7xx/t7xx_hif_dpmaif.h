@@ -20,6 +20,7 @@
 
 #include <linux/bitmap.h>
 #include <linux/mm_types.h>
+#include <linux/netdevice.h>
 #include <linux/sched.h>
 #include <linux/skbuff.h>
 #include <linux/spinlock.h>
@@ -109,20 +110,14 @@ struct dpmaif_rx_queue {
 	struct dpmaif_bat_request *bat_req;
 	struct dpmaif_bat_request *bat_frag;
 
-	wait_queue_head_t	rx_wq;
-	struct task_struct	*rx_thread;
-	struct sk_buff_head	skb_list;
-	unsigned int		skb_list_max_len;
-
-	struct workqueue_struct	*worker;
-	struct work_struct	dpmaif_rxq_work;
-
 	atomic_t		rx_processing;
 
 	struct dpmaif_ctrl	*dpmaif_ctrl;
 	unsigned int		expect_pit_seq;
 	unsigned int		pit_remain_release_cnt;
 	struct dpmaif_cur_rx_skb_info rx_data_info;
+	struct napi_struct	napi;
+	bool			sleep_lock_pending;
 };
 
 struct dpmaif_tx_queue {
@@ -168,7 +163,8 @@ enum dpmaif_txq_state {
 struct dpmaif_callbacks {
 	void (*state_notify)(struct t7xx_pci_dev *t7xx_dev,
 			     enum dpmaif_txq_state state, int txq_number);
-	void (*recv_skb)(struct t7xx_pci_dev *t7xx_dev, struct sk_buff *skb);
+	void (*recv_skb)(struct t7xx_ccmni_ctrl *ccmni_ctlb, struct sk_buff *skb,
+			 struct napi_struct *napi);
 };
 
 struct dpmaif_ctrl {

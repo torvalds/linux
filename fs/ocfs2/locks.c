@@ -8,6 +8,7 @@
  */
 
 #include <linux/fs.h>
+#include <linux/filelock.h>
 #include <linux/fcntl.h>
 
 #include <cluster/masklog.h>

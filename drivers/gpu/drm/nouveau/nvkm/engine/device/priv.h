@@ -27,6 +27,7 @@
 #include <subdev/therm.h>
 #include <subdev/timer.h>
 #include <subdev/top.h>
+#include <subdev/vfn.h>
 #include <subdev/volt.h>
 
 #include <engine/bsp.h>

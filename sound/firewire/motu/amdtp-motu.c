@@ -73,7 +73,7 @@ int amdtp_motu_set_parameters(struct amdtp_stream *s, unsigned int rate,
 	data_chunks = formats->msg_chunks + pcm_chunks;
 	data_block_quadlets = 1 + DIV_ROUND_UP(data_chunks * 3, 4);
 
-	err = amdtp_stream_set_parameters(s, rate, data_block_quadlets);
+	err = amdtp_stream_set_parameters(s, rate, data_block_quadlets, 1);
 	if (err < 0)
 		return err;
 
@@ -284,19 +284,19 @@ static void __maybe_unused copy_message(u64 *frames, __be32 *buffer,
 	}
 }
 
-static void probe_tracepoints_events(struct amdtp_stream *s,
-				     const struct pkt_desc *descs,
-				     unsigned int packets)
+static void probe_tracepoints_events(struct amdtp_stream *s, const struct pkt_desc *desc,
+				     unsigned int count)
 {
 	int i;
 
-	for (i = 0; i < packets; ++i) {
-		const struct pkt_desc *desc = descs + i;
+	for (i = 0; i < count; ++i) {
 		__be32 *buf = desc->ctx_payload;
 		unsigned int data_blocks = desc->data_blocks;
 
 		trace_data_block_sph(s, data_blocks, buf);
 		trace_data_block_message(s, data_blocks, buf);
+
+		desc = amdtp_stream_next_packet_desc(s, desc);
 	}
 }
 
@@ -328,13 +328,12 @@ static void cache_event_offsets(struct amdtp_motu_cache *cache, const __be32 *bu
 	cache->tx_cycle_count = (cache->tx_cycle_count + 1) % CYCLES_PER_SECOND;
 }
 
-static unsigned int process_ir_ctx_payloads(struct amdtp_stream *s,
-					    const struct pkt_desc *descs,
-					    unsigned int packets,
-					    struct snd_pcm_substream *pcm)
+static void process_ir_ctx_payloads(struct amdtp_stream *s, const struct pkt_desc *desc,
+				    unsigned int count, struct snd_pcm_substream *pcm)
 {
 	struct snd_motu *motu = container_of(s, struct snd_motu, tx_stream);
 	struct amdtp_motu *p = s->protocol;
+	const struct pkt_desc *cursor = desc;
 	unsigned int pcm_frames = 0;
 	int i;
 
@@ -342,8 +341,7 @@ static unsigned int process_ir_ctx_payloads(struct amdtp_stream *s,
 		p->cache->tx_cycle_count = (s->domain->processing_cycle.tx_start % CYCLES_PER_SECOND);
 
 	// For data block processing.
-	for (i = 0; i < packets; ++i) {
-		const struct pkt_desc *desc = descs + i;
+	for (i = 0; i < count; ++i) {
 		__be32 *buf = desc->ctx_payload;
 		unsigned int data_blocks = desc->data_blocks;
 
@@ -356,22 +354,20 @@ static unsigned int process_ir_ctx_payloads(struct amdtp_stream *s,
 
 		if (p->midi_ports)
 			read_midi_messages(s, buf, data_blocks);
+
+		desc = amdtp_stream_next_packet_desc(s, desc);
 	}
 
-	if (motu->spec->flags & SND_MOTU_SPEC_REGISTER_DSP) {
-		snd_motu_register_dsp_message_parser_parse(motu, descs, packets,
-							   s->data_block_quadlets);
-	} else if (motu->spec->flags & SND_MOTU_SPEC_COMMAND_DSP) {
-		snd_motu_command_dsp_message_parser_parse(motu, descs, packets,
-							  s->data_block_quadlets);
-	}
+	desc = cursor;
+	if (motu->spec->flags & SND_MOTU_SPEC_REGISTER_DSP)
+		snd_motu_register_dsp_message_parser_parse(s, desc, count);
+	else if (motu->spec->flags & SND_MOTU_SPEC_COMMAND_DSP)
+		snd_motu_command_dsp_message_parser_parse(s, desc, count);
 
 	// For tracepoints.
 	if (trace_data_block_sph_enabled() ||
 	    trace_data_block_message_enabled())
-		probe_tracepoints_events(s, descs, packets);
-
-	return pcm_frames;
+		probe_tracepoints_events(s, desc, count);
 }
 
 static void write_sph(struct amdtp_motu_cache *cache, __be32 *buffer, unsigned int data_blocks,
@@ -396,12 +392,11 @@ static void write_sph(struct amdtp_motu_cache *cache, __be32 *buffer, unsigned i
 	cache->rx_cycle_count = (cache->rx_cycle_count + 1) % CYCLES_PER_SECOND;
 }
 
-static unsigned int process_it_ctx_payloads(struct amdtp_stream *s,
-					    const struct pkt_desc *descs,
-					    unsigned int packets,
-					    struct snd_pcm_substream *pcm)
+static void process_it_ctx_payloads(struct amdtp_stream *s, const struct pkt_desc *desc,
+				    unsigned int count, struct snd_pcm_substream *pcm)
 {
 	struct amdtp_motu *p = s->protocol;
+	const struct pkt_desc *cursor = desc;
 	unsigned int pcm_frames = 0;
 	int i;
 
@@ -409,8 +404,7 @@ static unsigned int process_it_ctx_payloads(struct amdtp_stream *s,
 		p->cache->rx_cycle_count = (s->domain->processing_cycle.rx_start % CYCLES_PER_SECOND);
 
 	// For data block processing.
-	for (i = 0; i < packets; ++i) {
-		const struct pkt_desc *desc = descs + i;
+	for (i = 0; i < count; ++i) {
 		__be32 *buf = desc->ctx_payload;
 		unsigned int data_blocks = desc->data_blocks;
 
@@ -425,14 +419,16 @@ static unsigned int process_it_ctx_payloads(struct amdtp_stream *s,
 			write_midi_messages(s, buf, data_blocks);
 
 		write_sph(p->cache, buf, data_blocks, s->data_block_quadlets);
+
+		desc = amdtp_stream_next_packet_desc(s, desc);
 	}
+
+	desc = cursor;
 
 	// For tracepoints.
 	if (trace_data_block_sph_enabled() ||
 	    trace_data_block_message_enabled())
-		probe_tracepoints_events(s, descs, packets);
-
-	return pcm_frames;
+		probe_tracepoints_events(s, desc, count);
 }
 
 int amdtp_motu_init(struct amdtp_stream *s, struct fw_unit *unit,

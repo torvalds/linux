@@ -1294,7 +1294,6 @@ static int nbpf_probe(struct platform_device *pdev)
 	struct device_node *np = dev->of_node;
 	struct nbpf_device *nbpf;
 	struct dma_device *dma_dev;
-	struct resource *iomem;
 	const struct nbpf_config *cfg;
 	int num_channels;
 	int ret, irq, eirq, i;
@@ -1318,8 +1317,7 @@ static int nbpf_probe(struct platform_device *pdev)
 	dma_dev = &nbpf->dma_dev;
 	dma_dev->dev = dev;
 
-	iomem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	nbpf->base = devm_ioremap_resource(dev, iomem);
+	nbpf->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(nbpf->base))
 		return PTR_ERR(nbpf->base);
 

@@ -40,7 +40,9 @@ hostprogs += makemapdata
 makemapdata-objs := makemapdata.o
 
 quiet_cmd_mkmap = MKMAP   $@
-      cmd_mkmap = TOPDIR=$(srctree) $(obj)/makemapdata > $@
+      cmd_mkmap = TOPDIR=$(srctree) \
+		  SPKDIR=$(if $(KBUILD_EXTMOD),$(KBUILD_EXTMOD),$(srctree)/drivers/accessibility/speakup) \
+		  $(obj)/makemapdata > $@
 
 $(obj)/mapdata.h: $(obj)/makemapdata
 	$(call cmd,mkmap)

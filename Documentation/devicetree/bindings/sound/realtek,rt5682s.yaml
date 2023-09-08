@@ -4,13 +4,16 @@
 $id: http://devicetree.org/schemas/sound/realtek,rt5682s.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Realtek rt5682s codec devicetree bindings
+title: Realtek rt5682s codec
 
 maintainers:
   - Derek Fang <derek.fang@realtek.com>
 
 description: |
   Rt5682s(ALC5682I-VS) is a rt5682i variant which supports I2C only.
+
+allOf:
+  - $ref: dai-common.yaml#
 
 properties:
   compatible:
@@ -87,11 +90,32 @@ properties:
     maxItems: 2
     description: Name given for DAI word clock and bit clock outputs.
 
-additionalProperties: false
+  "#sound-dai-cells":
+    const: 1
+
+  AVDD-supply:
+    description: Regulator supplying analog power through the AVDD pin.
+
+  MICVDD-supply:
+    description: Regulator supplying power for the microphone bias through the
+      MICVDD pin.
+
+  DBVDD-supply:
+    description: Regulator supplying I/O power through the DBVDD pin.
+
+  LDO1-IN-supply:
+    description: Regulator supplying power to the digital core and charge pump
+      through the LDO1_IN pin.
+
+unevaluatedProperties: false
 
 required:
   - compatible
   - reg
+  - AVDD-supply
+  - MICVDD-supply
+  - DBVDD-supply
+  - LDO1-IN-supply
 
 examples:
   - |
@@ -117,5 +141,10 @@ examples:
 
             clocks = <&osc>;
             clock-names = "mclk";
+
+            AVDD-supply = <&avdd_reg>;
+            MICVDD-supply = <&micvdd_reg>;
+            DBVDD-supply = <&dbvdd_reg>;
+            LDO1-IN-supply = <&ldo1_in_reg>;
         };
     };

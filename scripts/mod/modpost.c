@@ -22,6 +22,7 @@
 #include <errno.h>
 #include "modpost.h"
 #include "../../include/linux/license.h"
+#include "../../include/linux/module_symbol.h"
 
 /* Are we using CONFIG_MODVERSIONS? */
 static bool modversions;
@@ -519,9 +520,8 @@ static int parse_elf(struct elf_info *info, const char *filename)
 		int nobits = sechdrs[i].sh_type == SHT_NOBITS;
 
 		if (!nobits && sechdrs[i].sh_offset > info->size) {
-			fatal("%s is truncated. sechdrs[i].sh_offset=%lu > "
-			      "sizeof(*hrd)=%zu\n", filename,
-			      (unsigned long)sechdrs[i].sh_offset,
+			fatal("%s is truncated. sechdrs[i].sh_offset=%lu > sizeof(*hrd)=%zu\n",
+			      filename, (unsigned long)sechdrs[i].sh_offset,
 			      sizeof(*hdr));
 			return 0;
 		}
@@ -823,10 +823,10 @@ static void check_section(const char *modname, struct elf_info *elf,
 #define ALL_EXIT_SECTIONS EXIT_SECTIONS, ALL_XXXEXIT_SECTIONS
 
 #define DATA_SECTIONS ".data", ".data.rel"
-#define TEXT_SECTIONS ".text", ".text.unlikely", ".sched.text", \
+#define TEXT_SECTIONS ".text", ".text.*", ".sched.text", \
 		".kprobes.text", ".cpuidle.text", ".noinstr.text"
 #define OTHER_TEXT_SECTIONS ".ref.text", ".head.text", ".spinlock.text", \
-		".fixup", ".entry.text", ".exception.text", ".text.*", \
+		".fixup", ".entry.text", ".exception.text", \
 		".coldtext", ".softirqentry.text"
 
 #define INIT_SECTIONS      ".init.*"
@@ -1113,16 +1113,9 @@ static int secref_whitelist(const struct sectioncheck *mismatch,
 	return 1;
 }
 
-static inline int is_arm_mapping_symbol(const char *str)
-{
-	return str[0] == '$' &&
-	       (str[1] == 'a' || str[1] == 'd' || str[1] == 't' || str[1] == 'x')
-	       && (str[2] == '\0' || str[2] == '.');
-}
-
 /*
  * If there's no name there, ignore it; likewise, ignore it if it's
- * one of the magic symbols emitted used by current ARM tools.
+ * one of the magic symbols emitted used by current tools.
  *
  * Otherwise if find_symbols_between() returns those symbols, they'll
  * fail the whitelist tests and cause lots of false alarms ... fixable
@@ -1135,7 +1128,7 @@ static inline int is_valid_name(struct elf_info *elf, Elf_Sym *sym)
 
 	if (!name || !strlen(name))
 		return 0;
-	return !is_arm_mapping_symbol(name);
+	return !is_mapping_symbol(name);
 }
 
 /**
@@ -1355,8 +1348,7 @@ static void report_extable_warnings(const char* modname, struct elf_info* elf,
 	get_pretty_name(is_function(tosym),
 			&to_pretty_name, &to_pretty_name_p);
 
-	warn("%s(%s+0x%lx): Section mismatch in reference"
-	     " from the %s %s%s to the %s %s:%s%s\n",
+	warn("%s(%s+0x%lx): Section mismatch in reference from the %s %s%s to the %s %s:%s%s\n",
 	     modname, fromsec, (long)r->r_offset, from_pretty_name,
 	     fromsym_name, from_pretty_name_p,
 	     to_pretty_name, tosec, tosym_name, to_pretty_name_p);
@@ -1523,6 +1515,14 @@ static int addend_mips_rel(struct elf_info *elf, Elf_Shdr *sechdr, Elf_Rela *r)
 #define R_RISCV_SUB32		39
 #endif
 
+#ifndef EM_LOONGARCH
+#define EM_LOONGARCH		258
+#endif
+
+#ifndef R_LARCH_SUB32
+#define R_LARCH_SUB32		55
+#endif
+
 static void section_rela(const char *modname, struct elf_info *elf,
 			 Elf_Shdr *sechdr)
 {
@@ -1562,6 +1562,11 @@ static void section_rela(const char *modname, struct elf_info *elf,
 		case EM_RISCV:
 			if (!strcmp("__ex_table", fromsec) &&
 			    ELF_R_TYPE(r.r_info) == R_RISCV_SUB32)
+				continue;
+			break;
+		case EM_LOONGARCH:
+			if (!strcmp("__ex_table", fromsec) &&
+			    ELF_R_TYPE(r.r_info) == R_LARCH_SUB32)
 				continue;
 			break;
 		}
@@ -1722,7 +1727,7 @@ static void extract_crcs_for_object(const char *object, struct module *mod)
 		if (!isdigit(*p))
 			continue;	/* skip this line */
 
-		crc = strtol(p, &p, 0);
+		crc = strtoul(p, &p, 0);
 		if (*p != '\n')
 			continue;	/* skip this line */
 
@@ -1858,11 +1863,9 @@ static void read_symbols_from_files(const char *filename)
 	FILE *in = stdin;
 	char fname[PATH_MAX];
 
-	if (strcmp(filename, "-") != 0) {
-		in = fopen(filename, "r");
-		if (!in)
-			fatal("Can't open filenames file %s: %m", filename);
-	}
+	in = fopen(filename, "r");
+	if (!in)
+		fatal("Can't open filenames file %s: %m", filename);
 
 	while (fgets(fname, PATH_MAX, in) != NULL) {
 		if (strends(fname, "\n"))
@@ -1870,8 +1873,7 @@ static void read_symbols_from_files(const char *filename)
 		read_symbols(fname);
 	}
 
-	if (in != stdin)
-		fclose(in);
+	fclose(in);
 }
 
 #define SZ 500
@@ -1976,6 +1978,11 @@ static void add_header(struct buffer *b, struct module *mod)
 	buf_printf(b, "#include <linux/export-internal.h>\n");
 	buf_printf(b, "#include <linux/vermagic.h>\n");
 	buf_printf(b, "#include <linux/compiler.h>\n");
+	buf_printf(b, "\n");
+	buf_printf(b, "#ifdef CONFIG_UNWINDER_ORC\n");
+	buf_printf(b, "#include <asm/orc_header.h>\n");
+	buf_printf(b, "ORC_HEADER;\n");
+	buf_printf(b, "#endif\n");
 	buf_printf(b, "\n");
 	buf_printf(b, "BUILD_SALT;\n");
 	buf_printf(b, "BUILD_LTO_INFO;\n");

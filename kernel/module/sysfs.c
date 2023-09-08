@@ -340,7 +340,7 @@ static int mod_sysfs_init(struct module *mod)
 	int err;
 	struct kobject *kobj;
 
-	if (!module_sysfs_initialized) {
+	if (!module_kset) {
 		pr_err("%s: module sysfs not initialized\n", mod->name);
 		err = -EINVAL;
 		goto out;

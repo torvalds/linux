@@ -136,18 +136,11 @@ Quindi, per esempio, la storia del kernel 5.2 appare così (anno 2019):
 La 5.2.21 fu l'aggiornamento finale per la versione 5.2.
 
 Alcuni kernel sono destinati ad essere kernel a "lungo termine"; questi
-riceveranno assistenza per un lungo periodo di tempo.  Al momento in cui
-scriviamo, i manutentori dei kernel stabili a lungo termine sono:
+riceveranno assistenza per un lungo periodo di tempo. Consultate il seguente
+collegamento per avere la lista delle versioni attualmente supportate e i
+relativi manutentori:
 
-	======  ================================  ==========================================
-	3.16	Ben Hutchings			  (kernel stabile molto più a lungo termine)
-	4.4	Greg Kroah-Hartman e Sasha Levin  (kernel stabile molto più a lungo termine)
-	4.9	Greg Kroah-Hartman e Sasha Levin
-	4.14	Greg Kroah-Hartman e Sasha Levin
-	4.19	Greg Kroah-Hartman e Sasha Levin
-	5.4i	Greg Kroah-Hartman e Sasha Levin
-	======  ================================  ==========================================
-
+       https://www.kernel.org/category/releases.html
 
 Questa selezione di kernel di lungo periodo sono puramente dovuti ai loro
 manutentori, alla loro necessità e al tempo per tenere aggiornate proprio

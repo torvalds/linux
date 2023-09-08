@@ -452,9 +452,7 @@ retry:
 	*cs++ = i915_ggtt_offset(scratch) + RING_TAIL_IDX * sizeof(u32);
 	*cs++ = 0;
 
-	err = i915_request_await_object(rq, scratch->obj, true);
-	if (!err)
-		err = i915_vma_move_to_active(scratch, rq, EXEC_OBJECT_WRITE);
+	err = i915_vma_move_to_active(scratch, rq, EXEC_OBJECT_WRITE);
 
 	i915_request_get(rq);
 	i915_request_add(rq);
@@ -601,11 +599,7 @@ __gpr_read(struct intel_context *ce, struct i915_vma *scratch, u32 *slot)
 		*cs++ = 0;
 	}
 
-	i915_vma_lock(scratch);
-	err = i915_request_await_object(rq, scratch->obj, true);
-	if (!err)
-		err = i915_vma_move_to_active(scratch, rq, EXEC_OBJECT_WRITE);
-	i915_vma_unlock(scratch);
+	err = igt_vma_move_to_active_unlocked(scratch, rq, EXEC_OBJECT_WRITE);
 
 	i915_request_get(rq);
 	i915_request_add(rq);
@@ -1034,8 +1028,8 @@ store_context(struct intel_context *ce, struct i915_vma *scratch)
 		while (len--) {
 			*cs++ = MI_STORE_REGISTER_MEM_GEN8;
 			*cs++ = hw[dw];
-			*cs++ = lower_32_bits(scratch->node.start + x);
-			*cs++ = upper_32_bits(scratch->node.start + x);
+			*cs++ = lower_32_bits(i915_vma_offset(scratch) + x);
+			*cs++ = upper_32_bits(i915_vma_offset(scratch) + x);
 
 			dw += 2;
 			x += 4;
@@ -1051,21 +1045,6 @@ store_context(struct intel_context *ce, struct i915_vma *scratch)
 	i915_gem_object_unpin_map(batch->obj);
 
 	return batch;
-}
-
-static int move_to_active(struct i915_request *rq,
-			  struct i915_vma *vma,
-			  unsigned int flags)
-{
-	int err;
-
-	i915_vma_lock(vma);
-	err = i915_request_await_object(rq, vma->obj, flags);
-	if (!err)
-		err = i915_vma_move_to_active(vma, rq, flags);
-	i915_vma_unlock(vma);
-
-	return err;
 }
 
 static struct i915_request *
@@ -1093,19 +1072,19 @@ record_registers(struct intel_context *ce,
 	if (IS_ERR(rq))
 		goto err_after;
 
-	err = move_to_active(rq, before, EXEC_OBJECT_WRITE);
+	err = igt_vma_move_to_active_unlocked(before, rq, EXEC_OBJECT_WRITE);
 	if (err)
 		goto err_rq;
 
-	err = move_to_active(rq, b_before, 0);
+	err = igt_vma_move_to_active_unlocked(b_before, rq, 0);
 	if (err)
 		goto err_rq;
 
-	err = move_to_active(rq, after, EXEC_OBJECT_WRITE);
+	err = igt_vma_move_to_active_unlocked(after, rq, EXEC_OBJECT_WRITE);
 	if (err)
 		goto err_rq;
 
-	err = move_to_active(rq, b_after, 0);
+	err = igt_vma_move_to_active_unlocked(b_after, rq, 0);
 	if (err)
 		goto err_rq;
 
@@ -1117,8 +1096,8 @@ record_registers(struct intel_context *ce,
 
 	*cs++ = MI_ARB_ON_OFF | MI_ARB_DISABLE;
 	*cs++ = MI_BATCH_BUFFER_START_GEN8 | BIT(8);
-	*cs++ = lower_32_bits(b_before->node.start);
-	*cs++ = upper_32_bits(b_before->node.start);
+	*cs++ = lower_32_bits(i915_vma_offset(b_before));
+	*cs++ = upper_32_bits(i915_vma_offset(b_before));
 
 	*cs++ = MI_ARB_ON_OFF | MI_ARB_ENABLE;
 	*cs++ = MI_SEMAPHORE_WAIT |
@@ -1133,8 +1112,8 @@ record_registers(struct intel_context *ce,
 
 	*cs++ = MI_ARB_ON_OFF | MI_ARB_DISABLE;
 	*cs++ = MI_BATCH_BUFFER_START_GEN8 | BIT(8);
-	*cs++ = lower_32_bits(b_after->node.start);
-	*cs++ = upper_32_bits(b_after->node.start);
+	*cs++ = lower_32_bits(i915_vma_offset(b_after));
+	*cs++ = upper_32_bits(i915_vma_offset(b_after));
 
 	intel_ring_advance(rq, cs);
 
@@ -1243,7 +1222,7 @@ static int poison_registers(struct intel_context *ce, u32 poison, u32 *sema)
 		goto err_batch;
 	}
 
-	err = move_to_active(rq, batch, 0);
+	err = igt_vma_move_to_active_unlocked(batch, rq, 0);
 	if (err)
 		goto err_rq;
 
@@ -1255,8 +1234,8 @@ static int poison_registers(struct intel_context *ce, u32 poison, u32 *sema)
 
 	*cs++ = MI_ARB_ON_OFF | MI_ARB_DISABLE;
 	*cs++ = MI_BATCH_BUFFER_START_GEN8 | BIT(8);
-	*cs++ = lower_32_bits(batch->node.start);
-	*cs++ = upper_32_bits(batch->node.start);
+	*cs++ = lower_32_bits(i915_vma_offset(batch));
+	*cs++ = upper_32_bits(i915_vma_offset(batch));
 
 	*cs++ = MI_STORE_DWORD_IMM_GEN4 | MI_USE_GGTT;
 	*cs++ = i915_ggtt_offset(ce->engine->status_page.vma) +

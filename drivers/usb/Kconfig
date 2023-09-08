@@ -111,7 +111,11 @@ source "drivers/usb/usbip/Kconfig"
 
 endif
 
+comment "USB dual-mode controller drivers"
+
 source "drivers/usb/cdns3/Kconfig"
+
+source "drivers/usb/fotg210/Kconfig"
 
 source "drivers/usb/mtu3/Kconfig"
 
@@ -128,35 +132,6 @@ source "drivers/usb/isp1760/Kconfig"
 comment "USB port drivers"
 
 if USB
-
-config USB_USS720
-	tristate "USS720 parport driver"
-	depends on PARPORT
-	select PARPORT_NOT_PC
-	help
-	  This driver is for USB parallel port adapters that use the Lucent
-	  Technologies USS-720 chip. These cables are plugged into your USB
-	  port and provide USB compatibility to peripherals designed with
-	  parallel port interfaces.
-
-	  The chip has two modes: automatic mode and manual mode. In automatic
-	  mode, it looks to the computer like a standard USB printer. Only
-	  printers may be connected to the USS-720 in this mode. The generic
-	  USB printer driver ("USB Printer support", above) may be used in
-	  that mode, and you can say N here if you want to use the chip only
-	  in this mode.
-
-	  Manual mode is not limited to printers, any parallel port
-	  device should work. This driver utilizes manual mode.
-	  Note however that some operations are three orders of magnitude
-	  slower than on a PCI/ISA Parallel Port, so timing critical
-	  applications might not work.
-
-	  Say Y here if you own an USS-720 USB->Parport cable and intend to
-	  connect anything other than a printer to it.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called uss720.
 
 source "drivers/usb/serial/Kconfig"
 

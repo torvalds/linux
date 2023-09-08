@@ -1025,8 +1025,7 @@ static const struct v4l2_subdev_internal_ops ov6650_internal_ops = {
 /*
  * i2c_driver function
  */
-static int ov6650_probe(struct i2c_client *client,
-			const struct i2c_device_id *did)
+static int ov6650_probe(struct i2c_client *client)
 {
 	struct ov6650 *priv;
 	int ret;
@@ -1114,7 +1113,7 @@ static struct i2c_driver ov6650_i2c_driver = {
 	.driver = {
 		.name = "ov6650",
 	},
-	.probe    = ov6650_probe,
+	.probe_new = ov6650_probe,
 	.remove   = ov6650_remove,
 	.id_table = ov6650_id,
 };

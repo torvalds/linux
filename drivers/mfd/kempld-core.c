@@ -349,7 +349,7 @@ static ssize_t pld_version_show(struct device *dev,
 {
 	struct kempld_device_data *pld = dev_get_drvdata(dev);
 
-	return scnprintf(buf, PAGE_SIZE, "%s\n", pld->info.version);
+	return sysfs_emit(buf, "%s\n", pld->info.version);
 }
 
 static ssize_t pld_specification_show(struct device *dev,
@@ -357,8 +357,7 @@ static ssize_t pld_specification_show(struct device *dev,
 {
 	struct kempld_device_data *pld = dev_get_drvdata(dev);
 
-	return scnprintf(buf, PAGE_SIZE, "%d.%d\n", pld->info.spec_major,
-		       pld->info.spec_minor);
+	return sysfs_emit(buf, "%d.%d\n", pld->info.spec_major, pld->info.spec_minor);
 }
 
 static ssize_t pld_type_show(struct device *dev,
@@ -366,7 +365,7 @@ static ssize_t pld_type_show(struct device *dev,
 {
 	struct kempld_device_data *pld = dev_get_drvdata(dev);
 
-	return scnprintf(buf, PAGE_SIZE, "%s\n", kempld_get_type_string(pld));
+	return sysfs_emit(buf, "%s\n", kempld_get_type_string(pld));
 }
 
 static DEVICE_ATTR_RO(pld_version);

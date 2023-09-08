@@ -79,51 +79,45 @@ struct kobject {
 	unsigned int uevent_suppress:1;
 };
 
-extern __printf(2, 3)
-int kobject_set_name(struct kobject *kobj, const char *name, ...);
-extern __printf(2, 0)
-int kobject_set_name_vargs(struct kobject *kobj, const char *fmt,
-			   va_list vargs);
+__printf(2, 3) int kobject_set_name(struct kobject *kobj, const char *name, ...);
+__printf(2, 0) int kobject_set_name_vargs(struct kobject *kobj, const char *fmt, va_list vargs);
 
 static inline const char *kobject_name(const struct kobject *kobj)
 {
 	return kobj->name;
 }
 
-extern void kobject_init(struct kobject *kobj, const struct kobj_type *ktype);
-extern __printf(3, 4) __must_check
-int kobject_add(struct kobject *kobj, struct kobject *parent,
-		const char *fmt, ...);
-extern __printf(4, 5) __must_check
-int kobject_init_and_add(struct kobject *kobj,
-			 const struct kobj_type *ktype, struct kobject *parent,
-			 const char *fmt, ...);
+void kobject_init(struct kobject *kobj, const struct kobj_type *ktype);
+__printf(3, 4) __must_check int kobject_add(struct kobject *kobj,
+					    struct kobject *parent,
+					    const char *fmt, ...);
+__printf(4, 5) __must_check int kobject_init_and_add(struct kobject *kobj,
+						     const struct kobj_type *ktype,
+						     struct kobject *parent,
+						     const char *fmt, ...);
 
-extern void kobject_del(struct kobject *kobj);
+void kobject_del(struct kobject *kobj);
 
-extern struct kobject * __must_check kobject_create_and_add(const char *name,
-						struct kobject *parent);
+struct kobject * __must_check kobject_create_and_add(const char *name, struct kobject *parent);
 
-extern int __must_check kobject_rename(struct kobject *, const char *new_name);
-extern int __must_check kobject_move(struct kobject *, struct kobject *);
+int __must_check kobject_rename(struct kobject *, const char *new_name);
+int __must_check kobject_move(struct kobject *, struct kobject *);
 
-extern struct kobject *kobject_get(struct kobject *kobj);
-extern struct kobject * __must_check kobject_get_unless_zero(
-						struct kobject *kobj);
-extern void kobject_put(struct kobject *kobj);
+struct kobject *kobject_get(struct kobject *kobj);
+struct kobject * __must_check kobject_get_unless_zero(struct kobject *kobj);
+void kobject_put(struct kobject *kobj);
 
-extern const void *kobject_namespace(struct kobject *kobj);
-extern void kobject_get_ownership(struct kobject *kobj,
-				  kuid_t *uid, kgid_t *gid);
-extern char *kobject_get_path(struct kobject *kobj, gfp_t flag);
+const void *kobject_namespace(const struct kobject *kobj);
+void kobject_get_ownership(const struct kobject *kobj, kuid_t *uid, kgid_t *gid);
+char *kobject_get_path(const struct kobject *kobj, gfp_t flag);
 
 struct kobj_type {
 	void (*release)(struct kobject *kobj);
 	const struct sysfs_ops *sysfs_ops;
 	const struct attribute_group **default_groups;
-	const struct kobj_ns_type_operations *(*child_ns_type)(struct kobject *kobj);
-	const void *(*namespace)(struct kobject *kobj);
-	void (*get_ownership)(struct kobject *kobj, kuid_t *uid, kgid_t *gid);
+	const struct kobj_ns_type_operations *(*child_ns_type)(const struct kobject *kobj);
+	const void *(*namespace)(const struct kobject *kobj);
+	void (*get_ownership)(const struct kobject *kobj, kuid_t *uid, kgid_t *gid);
 };
 
 struct kobj_uevent_env {
@@ -135,9 +129,9 @@ struct kobj_uevent_env {
 };
 
 struct kset_uevent_ops {
-	int (* const filter)(struct kobject *kobj);
-	const char *(* const name)(struct kobject *kobj);
-	int (* const uevent)(struct kobject *kobj, struct kobj_uevent_env *env);
+	int (* const filter)(const struct kobject *kobj);
+	const char *(* const name)(const struct kobject *kobj);
+	int (* const uevent)(const struct kobject *kobj, struct kobj_uevent_env *env);
 };
 
 struct kobj_attribute {
@@ -176,12 +170,11 @@ struct kset {
 	const struct kset_uevent_ops *uevent_ops;
 } __randomize_layout;
 
-extern void kset_init(struct kset *kset);
-extern int __must_check kset_register(struct kset *kset);
-extern void kset_unregister(struct kset *kset);
-extern struct kset * __must_check kset_create_and_add(const char *name,
-						const struct kset_uevent_ops *u,
-						struct kobject *parent_kobj);
+void kset_init(struct kset *kset);
+int __must_check kset_register(struct kset *kset);
+void kset_unregister(struct kset *kset);
+struct kset * __must_check kset_create_and_add(const char *name, const struct kset_uevent_ops *u,
+					       struct kobject *parent_kobj);
 
 static inline struct kset *to_kset(struct kobject *kobj)
 {
@@ -198,12 +191,12 @@ static inline void kset_put(struct kset *k)
 	kobject_put(&k->kobj);
 }
 
-static inline const struct kobj_type *get_ktype(struct kobject *kobj)
+static inline const struct kobj_type *get_ktype(const struct kobject *kobj)
 {
 	return kobj->ktype;
 }
 
-extern struct kobject *kset_find_obj(struct kset *, const char *);
+struct kobject *kset_find_obj(struct kset *, const char *);
 
 /* The global /sys/kernel/ kobject for people to chain off of */
 extern struct kobject *kernel_kobj;

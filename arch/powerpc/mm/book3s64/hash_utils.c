@@ -471,7 +471,7 @@ int htab_remove_mapping(unsigned long vstart, unsigned long vend,
 	return ret;
 }
 
-static bool disable_1tb_segments = false;
+static bool disable_1tb_segments __ro_after_init;
 
 static int __init parse_disable_1tb_segments(char *p)
 {
@@ -479,6 +479,40 @@ static int __init parse_disable_1tb_segments(char *p)
 	return 0;
 }
 early_param("disable_1tb_segments", parse_disable_1tb_segments);
+
+bool stress_hpt_enabled __initdata;
+
+static int __init parse_stress_hpt(char *p)
+{
+	stress_hpt_enabled = true;
+	return 0;
+}
+early_param("stress_hpt", parse_stress_hpt);
+
+__ro_after_init DEFINE_STATIC_KEY_FALSE(stress_hpt_key);
+
+/*
+ * per-CPU array allocated if we enable stress_hpt.
+ */
+#define STRESS_MAX_GROUPS 16
+struct stress_hpt_struct {
+	unsigned long last_group[STRESS_MAX_GROUPS];
+};
+
+static inline int stress_nr_groups(void)
+{
+	/*
+	 * LPAR H_REMOVE flushes TLB, so need some number > 1 of entries
+	 * to allow practical forward progress. Bare metal returns 1, which
+	 * seems to help uncover more bugs.
+	 */
+	if (firmware_has_feature(FW_FEATURE_LPAR))
+		return STRESS_MAX_GROUPS;
+	else
+		return 1;
+}
+
+static struct stress_hpt_struct *stress_hpt_struct;
 
 static int __init htab_dt_scan_seg_sizes(unsigned long node,
 					 const char *uname, int depth,
@@ -976,6 +1010,23 @@ static void __init hash_init_partition_table(phys_addr_t hash_table,
 	pr_info("Partition table %p\n", partition_tb);
 }
 
+void hpt_clear_stress(void);
+static struct timer_list stress_hpt_timer;
+static void stress_hpt_timer_fn(struct timer_list *timer)
+{
+	int next_cpu;
+
+	hpt_clear_stress();
+	if (!firmware_has_feature(FW_FEATURE_LPAR))
+		tlbiel_all();
+
+	next_cpu = cpumask_next(raw_smp_processor_id(), cpu_online_mask);
+	if (next_cpu >= nr_cpu_ids)
+		next_cpu = cpumask_first(cpu_online_mask);
+	stress_hpt_timer.expires = jiffies + msecs_to_jiffies(10);
+	add_timer_on(&stress_hpt_timer, next_cpu);
+}
+
 static void __init htab_initialize(void)
 {
 	unsigned long table;
@@ -994,6 +1045,21 @@ static void __init htab_initialize(void)
 
 	if (stress_slb_enabled)
 		static_branch_enable(&stress_slb_key);
+
+	if (stress_hpt_enabled) {
+		unsigned long tmp;
+		static_branch_enable(&stress_hpt_key);
+		// Too early to use nr_cpu_ids, so use NR_CPUS
+		tmp = memblock_phys_alloc_range(sizeof(struct stress_hpt_struct) * NR_CPUS,
+						__alignof__(struct stress_hpt_struct),
+						0, MEMBLOCK_ALLOC_ANYWHERE);
+		memset((void *)tmp, 0xff, sizeof(struct stress_hpt_struct) * NR_CPUS);
+		stress_hpt_struct = __va(tmp);
+
+		timer_setup(&stress_hpt_timer, stress_hpt_timer_fn, 0);
+		stress_hpt_timer.expires = jiffies + msecs_to_jiffies(10);
+		add_timer(&stress_hpt_timer);
+	}
 
 	/*
 	 * Calculate the required size of the htab.  We want the number of
@@ -1978,6 +2044,69 @@ repeat:
 	}
 
 	return slot;
+}
+
+void hpt_clear_stress(void)
+{
+	int cpu = raw_smp_processor_id();
+	int g;
+
+	for (g = 0; g < stress_nr_groups(); g++) {
+		unsigned long last_group;
+		last_group = stress_hpt_struct[cpu].last_group[g];
+
+		if (last_group != -1UL) {
+			int i;
+			for (i = 0; i < HPTES_PER_GROUP; i++) {
+				if (mmu_hash_ops.hpte_remove(last_group) == -1)
+					break;
+			}
+			stress_hpt_struct[cpu].last_group[g] = -1;
+		}
+	}
+}
+
+void hpt_do_stress(unsigned long ea, unsigned long hpte_group)
+{
+	unsigned long last_group;
+	int cpu = raw_smp_processor_id();
+
+	last_group = stress_hpt_struct[cpu].last_group[stress_nr_groups() - 1];
+	if (hpte_group == last_group)
+		return;
+
+	if (last_group != -1UL) {
+		int i;
+		/*
+		 * Concurrent CPUs might be inserting into this group, so
+		 * give up after a number of iterations, to prevent a live
+		 * lock.
+		 */
+		for (i = 0; i < HPTES_PER_GROUP; i++) {
+			if (mmu_hash_ops.hpte_remove(last_group) == -1)
+				break;
+		}
+		stress_hpt_struct[cpu].last_group[stress_nr_groups() - 1] = -1;
+	}
+
+	if (ea >= PAGE_OFFSET) {
+		/*
+		 * We would really like to prefetch to get the TLB loaded, then
+		 * remove the PTE before returning from fault interrupt, to
+		 * increase the hash fault rate.
+		 *
+		 * Unfortunately QEMU TCG does not model the TLB in a way that
+		 * makes this possible, and systemsim (mambo) emulator does not
+		 * bring in TLBs with prefetches (although loads/stores do
+		 * work for non-CI PTEs).
+		 *
+		 * So remember this PTE and clear it on the next hash fault.
+		 */
+		memmove(&stress_hpt_struct[cpu].last_group[1],
+			&stress_hpt_struct[cpu].last_group[0],
+			(stress_nr_groups() - 1) * sizeof(unsigned long));
+		stress_hpt_struct[cpu].last_group[0] = hpte_group;
+	}
 }
 
 #if defined(CONFIG_DEBUG_PAGEALLOC) || defined(CONFIG_KFENCE)

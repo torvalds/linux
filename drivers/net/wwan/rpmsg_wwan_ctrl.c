@@ -129,7 +129,7 @@ static int rpmsg_wwan_ctrl_probe(struct rpmsg_device *rpdev)
 
 	/* Register as a wwan port, id.driver_data contains wwan port type */
 	port = wwan_create_port(parent, rpdev->id.driver_data,
-				&rpmsg_wwan_pops, rpwwan);
+				&rpmsg_wwan_pops, NULL, rpwwan);
 	if (IS_ERR(port))
 		return PTR_ERR(port);
 
@@ -149,6 +149,7 @@ static const struct rpmsg_device_id rpmsg_wwan_ctrl_id_table[] = {
 	/* RPMSG channels for Qualcomm SoCs with integrated modem */
 	{ .name = "DATA5_CNTL", .driver_data = WWAN_PORT_QMI },
 	{ .name = "DATA4", .driver_data = WWAN_PORT_AT },
+	{ .name = "DATA1", .driver_data = WWAN_PORT_AT },
 	{},
 };
 MODULE_DEVICE_TABLE(rpmsg, rpmsg_wwan_ctrl_id_table);

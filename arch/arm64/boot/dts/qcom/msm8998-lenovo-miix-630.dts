@@ -28,8 +28,8 @@
 };
 
 &remoteproc_mss {
-	firmware-name = "qcom/LENOVO/81F1/qcdsp1v28998.mbn",
-			"qcom/LENOVO/81F1/qcdsp28998.mbn";
+	firmware-name = "qcom/msm8998/LENOVO/81F1/qcdsp1v28998.mbn",
+			"qcom/msm8998/LENOVO/81F1/qcdsp28998.mbn";
 };
 
 &sdhc2 {

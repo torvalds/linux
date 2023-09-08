@@ -17,7 +17,7 @@ extern int qedi_do_not_recover;
 
 extern uint qedi_io_tracing;
 
-extern struct scsi_host_template qedi_host_template;
+extern const struct scsi_host_template qedi_host_template;
 extern struct iscsi_transport qedi_iscsi_transport;
 extern const struct qed_iscsi_ops *qedi_ops;
 extern const struct qedi_debugfs_ops qedi_debugfs_ops[];

@@ -184,6 +184,14 @@ void local_flush_tlb_page(struct vm_area_struct *vma, unsigned long vmaddr)
 			       mmu_get_tsize(mmu_virtual_psize), 0);
 }
 EXPORT_SYMBOL(local_flush_tlb_page);
+
+void local_flush_tlb_page_psize(struct mm_struct *mm,
+				unsigned long vmaddr, int psize)
+{
+	__local_flush_tlb_page(mm, vmaddr, mmu_get_tsize(psize), 0);
+}
+EXPORT_SYMBOL(local_flush_tlb_page_psize);
+
 #endif
 
 /*

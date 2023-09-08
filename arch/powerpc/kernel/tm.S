@@ -117,7 +117,7 @@ _GLOBAL(tm_reclaim)
 	std	r2, STK_GOT(r1)
 	stdu	r1, -TM_FRAME_SIZE(r1)
 
-	/* We've a struct pt_regs at [r1+STACK_FRAME_OVERHEAD]. */
+	/* We've a struct pt_regs at [r1+STACK_INT_FRAME_REGS]. */
 
 	std	r3, STK_PARAM(R3)(r1)
 	SAVE_NVGPRS(r1)
@@ -222,7 +222,7 @@ _GLOBAL(tm_reclaim)
 	 * Make r7 look like an exception frame so that we can use the neat
 	 * GPRx(n) macros. r7 is NOT a pt_regs ptr!
 	 */
-	subi	r7, r7, STACK_FRAME_OVERHEAD
+	subi	r7, r7, STACK_INT_FRAME_REGS
 
 	/* Sync the userland GPRs 2-12, 14-31 to thread->regs: */
 	SAVE_GPR(0, r7)				/* user r0 */
@@ -359,7 +359,7 @@ _GLOBAL(__tm_recheckpoint)
 	stdu	r1, -TM_FRAME_SIZE(r1)
 
 	/*
-	 * We've a struct pt_regs at [r1+STACK_FRAME_OVERHEAD].
+	 * We've a struct pt_regs at [r1+STACK_INT_FRAME_REGS].
 	 * This is used for backing up the NVGPRs:
 	 */
 	SAVE_NVGPRS(r1)
@@ -379,7 +379,7 @@ _GLOBAL(__tm_recheckpoint)
 	 * Make r7 look like an exception frame so that we can use the neat
 	 * GPRx(n) macros. r7 is now NOT a pt_regs ptr!
 	 */
-	subi	r7, r7, STACK_FRAME_OVERHEAD
+	subi	r7, r7, STACK_INT_FRAME_REGS
 
 	/* We need to setup MSR for FP/VMX/VSX register save instructions. */
 	mfmsr	r6

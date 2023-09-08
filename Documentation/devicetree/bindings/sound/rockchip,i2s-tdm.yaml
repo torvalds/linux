@@ -14,6 +14,9 @@ description:
 maintainers:
   - Nicolas Frattaroli <frattaroli.nicolas@gmail.com>
 
+allOf:
+  - $ref: dai-common.yaml#
+
 properties:
   compatible:
     enum:
@@ -21,6 +24,7 @@ properties:
       - rockchip,rk1808-i2s-tdm
       - rockchip,rk3308-i2s-tdm
       - rockchip,rk3568-i2s-tdm
+      - rockchip,rk3588-i2s-tdm
       - rockchip,rv1126-i2s-tdm
 
   reg:
@@ -82,6 +86,13 @@ properties:
         - tx-m
         - rx-m
 
+  port:
+    $ref: audio-graph-port.yaml#
+    unevaluatedProperties: false
+
+  power-domains:
+    maxItems: 1
+
   rockchip,grf:
     $ref: /schemas/types.yaml#/definitions/phandle
     description:
@@ -135,10 +146,9 @@ required:
   - clock-names
   - resets
   - reset-names
-  - rockchip,grf
   - "#sound-dai-cells"
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |

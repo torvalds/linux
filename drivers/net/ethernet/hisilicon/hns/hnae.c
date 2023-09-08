@@ -424,8 +424,6 @@ int hnae_ae_register(struct hnae_ae_dev *hdev, struct module *owner)
 		return ret;
 	}
 
-	__module_get(THIS_MODULE);
-
 	INIT_LIST_HEAD(&hdev->handle_list);
 	spin_lock_init(&hdev->lock);
 
@@ -445,13 +443,12 @@ EXPORT_SYMBOL(hnae_ae_register);
 void hnae_ae_unregister(struct hnae_ae_dev *hdev)
 {
 	device_unregister(&hdev->cls_dev);
-	module_put(THIS_MODULE);
 }
 EXPORT_SYMBOL(hnae_ae_unregister);
 
 static int __init hnae_init(void)
 {
-	hnae_class = class_create(THIS_MODULE, "hnae");
+	hnae_class = class_create("hnae");
 	return PTR_ERR_OR_ZERO(hnae_class);
 }
 

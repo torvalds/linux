@@ -15,6 +15,7 @@
 #include <linux/slab.h>
 #include <linux/clk.h>
 #include <linux/io.h>
+#include <linux/of.h>
 
 #include <sound/core.h>
 #include <sound/dmaengine_pcm.h>
@@ -202,8 +203,18 @@ static int ep93xx_i2s_dai_probe(struct snd_soc_dai *dai)
 	info->dma_params_rx.filter_data =
 		&ep93xx_i2s_dma_data[SNDRV_PCM_STREAM_CAPTURE];
 
-	dai->playback_dma_data = &info->dma_params_tx;
-	dai->capture_dma_data = &info->dma_params_rx;
+	snd_soc_dai_init_dma_data(dai,	&info->dma_params_tx,
+					&info->dma_params_rx);
+
+	return 0;
+}
+
+static int ep93xx_i2s_startup(struct snd_pcm_substream *substream,
+			      struct snd_soc_dai *dai)
+{
+	struct ep93xx_i2s_info *info = snd_soc_dai_get_drvdata(dai);
+
+	ep93xx_i2s_enable(info, substream->stream);
 
 	return 0;
 }
@@ -348,7 +359,6 @@ static int ep93xx_i2s_hw_params(struct snd_pcm_substream *substream,
 	if (err)
 		return err;
 
-	ep93xx_i2s_enable(info, substream->stream);
 	return 0;
 }
 
@@ -359,6 +369,8 @@ static int ep93xx_i2s_set_sysclk(struct snd_soc_dai *cpu_dai, int clk_id,
 
 	if (dir == SND_SOC_CLOCK_IN || clk_id != 0)
 		return -EINVAL;
+	if (!freq)
+		return 0;
 
 	return clk_set_rate(info->mclk, freq);
 }
@@ -395,6 +407,7 @@ static int ep93xx_i2s_resume(struct snd_soc_component *component)
 #endif
 
 static const struct snd_soc_dai_ops ep93xx_i2s_dai_ops = {
+	.startup	= ep93xx_i2s_startup,
 	.shutdown	= ep93xx_i2s_shutdown,
 	.hw_params	= ep93xx_i2s_hw_params,
 	.set_sysclk	= ep93xx_i2s_set_sysclk,
@@ -493,21 +506,27 @@ fail:
 	return err;
 }
 
-static int ep93xx_i2s_remove(struct platform_device *pdev)
+static void ep93xx_i2s_remove(struct platform_device *pdev)
 {
 	struct ep93xx_i2s_info *info = dev_get_drvdata(&pdev->dev);
 
 	clk_put(info->lrclk);
 	clk_put(info->sclk);
 	clk_put(info->mclk);
-	return 0;
 }
+
+static const struct of_device_id ep93xx_i2s_of_ids[] = {
+	{ .compatible = "cirrus,ep9301-i2s" },
+	{}
+};
+MODULE_DEVICE_TABLE(of, ep93xx_i2s_of_ids);
 
 static struct platform_driver ep93xx_i2s_driver = {
 	.probe	= ep93xx_i2s_probe,
-	.remove	= ep93xx_i2s_remove,
+	.remove_new = ep93xx_i2s_remove,
 	.driver	= {
 		.name	= "ep93xx-i2s",
+		.of_match_table = ep93xx_i2s_of_ids,
 	},
 };
 

@@ -275,15 +275,15 @@ static inline int user_regset_copyin(unsigned int *pos, unsigned int *count,
 	return 0;
 }
 
-static inline int user_regset_copyin_ignore(unsigned int *pos,
-					    unsigned int *count,
-					    const void **kbuf,
-					    const void __user **ubuf,
-					    const int start_pos,
-					    const int end_pos)
+static inline void user_regset_copyin_ignore(unsigned int *pos,
+					     unsigned int *count,
+					     const void **kbuf,
+					     const void __user **ubuf,
+					     const int start_pos,
+					     const int end_pos)
 {
 	if (*count == 0)
-		return 0;
+		return;
 	BUG_ON(*pos < start_pos);
 	if (end_pos < 0 || *pos < end_pos) {
 		unsigned int copy = (end_pos < 0 ? *count
@@ -295,7 +295,6 @@ static inline int user_regset_copyin_ignore(unsigned int *pos,
 		*pos += copy;
 		*count -= copy;
 	}
-	return 0;
 }
 
 extern int regset_get(struct task_struct *target,

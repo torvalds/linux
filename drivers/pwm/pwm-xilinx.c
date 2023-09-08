@@ -169,9 +169,9 @@ static int xilinx_pwm_apply(struct pwm_chip *chip, struct pwm_device *unused,
 	return 0;
 }
 
-static void xilinx_pwm_get_state(struct pwm_chip *chip,
-				 struct pwm_device *unused,
-				 struct pwm_state *state)
+static int xilinx_pwm_get_state(struct pwm_chip *chip,
+				struct pwm_device *unused,
+				struct pwm_state *state)
 {
 	struct xilinx_timer_priv *priv = xilinx_pwm_chip_to_priv(chip);
 	u32 tlr0, tlr1, tcsr0, tcsr1;
@@ -191,6 +191,8 @@ static void xilinx_pwm_get_state(struct pwm_chip *chip,
 	 */
 	if (state->period == state->duty_cycle)
 		state->duty_cycle = 0;
+
+	return 0;
 }
 
 static const struct pwm_ops xilinx_pwm_ops = {
@@ -290,14 +292,13 @@ static int xilinx_pwm_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int xilinx_pwm_remove(struct platform_device *pdev)
+static void xilinx_pwm_remove(struct platform_device *pdev)
 {
 	struct xilinx_pwm_device *xilinx_pwm = platform_get_drvdata(pdev);
 
 	pwmchip_remove(&xilinx_pwm->chip);
 	clk_rate_exclusive_put(xilinx_pwm->priv.clk);
 	clk_disable_unprepare(xilinx_pwm->priv.clk);
-	return 0;
 }
 
 static const struct of_device_id xilinx_pwm_of_match[] = {
@@ -308,7 +309,7 @@ MODULE_DEVICE_TABLE(of, xilinx_pwm_of_match);
 
 static struct platform_driver xilinx_pwm_driver = {
 	.probe = xilinx_pwm_probe,
-	.remove = xilinx_pwm_remove,
+	.remove_new = xilinx_pwm_remove,
 	.driver = {
 		.name = "xilinx-pwm",
 		.of_match_table = of_match_ptr(xilinx_pwm_of_match),

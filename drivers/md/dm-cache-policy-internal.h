@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2012 Red Hat. All rights reserved.
  *
@@ -85,9 +86,10 @@ static inline void policy_tick(struct dm_cache_policy *p, bool can_block)
 }
 
 static inline int policy_emit_config_values(struct dm_cache_policy *p, char *result,
-					    unsigned maxlen, ssize_t *sz_ptr)
+					    unsigned int maxlen, ssize_t *sz_ptr)
 {
 	ssize_t sz = *sz_ptr;
+
 	if (p->emit_config_values)
 		return p->emit_config_values(p, result, maxlen, sz_ptr);
 
@@ -112,20 +114,22 @@ static inline void policy_allow_migrations(struct dm_cache_policy *p, bool allow
 /*
  * Some utility functions commonly used by policies and the core target.
  */
-static inline size_t bitset_size_in_bytes(unsigned nr_entries)
+static inline size_t bitset_size_in_bytes(unsigned int nr_entries)
 {
 	return sizeof(unsigned long) * dm_div_up(nr_entries, BITS_PER_LONG);
 }
 
-static inline unsigned long *alloc_bitset(unsigned nr_entries)
+static inline unsigned long *alloc_bitset(unsigned int nr_entries)
 {
 	size_t s = bitset_size_in_bytes(nr_entries);
+
 	return vzalloc(s);
 }
 
-static inline void clear_bitset(void *bitset, unsigned nr_entries)
+static inline void clear_bitset(void *bitset, unsigned int nr_entries)
 {
 	size_t s = bitset_size_in_bytes(nr_entries);
+
 	memset(bitset, 0, s);
 }
 
@@ -154,7 +158,7 @@ void dm_cache_policy_destroy(struct dm_cache_policy *p);
  */
 const char *dm_cache_policy_get_name(struct dm_cache_policy *p);
 
-const unsigned *dm_cache_policy_get_version(struct dm_cache_policy *p);
+const unsigned int *dm_cache_policy_get_version(struct dm_cache_policy *p);
 
 size_t dm_cache_policy_get_hint_size(struct dm_cache_policy *p);
 

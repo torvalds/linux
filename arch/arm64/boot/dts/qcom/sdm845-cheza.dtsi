@@ -16,7 +16,7 @@
 / {
 	aliases {
 		bluetooth0 = &bluetooth;
-		hsuart0 = &uart6;
+		serial1 = &uart6;
 		serial0 = &uart9;
 		wifi0 = &wifi;
 	};
@@ -135,11 +135,9 @@
 		backlight = <&backlight>;
 		no-hpd;
 
-		ports {
-			panel_in: port {
-				panel_in_edp: endpoint {
-					remote-endpoint = <&sn65dsi86_out>;
-				};
+		panel_in: port {
+			panel_in_edp: endpoint {
+				remote-endpoint = <&sn65dsi86_out>;
 			};
 		};
 	};
@@ -319,8 +317,9 @@
 
 &qspi {
 	status = "okay";
-	pinctrl-names = "default";
-	pinctrl-0 = <&qspi_clk &qspi_cs0 &qspi_data01>;
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&qspi_clk>, <&qspi_cs0>, <&qspi_data0>, <&qspi_data1>;
+	pinctrl-1 = <&qspi_sleep>;
 
 	flash@0 {
 		compatible = "jedec,spi-nor";
@@ -339,7 +338,7 @@
 
 
 &apps_rsc {
-	pm8998-rpmh-regulators {
+	regulators-0 {
 		compatible = "qcom,pm8998-rpmh-regulators";
 		qcom,pmic-id = "a";
 
@@ -621,7 +620,7 @@
 		};
 	};
 
-	pm8005-rpmh-regulators {
+	regulators-1 {
 		compatible = "qcom,pm8005-rpmh-regulators";
 		qcom,pmic-id = "c";
 
@@ -756,8 +755,8 @@ ap_ts_i2c: &i2c14 {
 };
 
 &ipa {
+	qcom,gsi-loader = "modem";
 	status = "okay";
-	modem-init;
 };
 
 &lpasscc {
@@ -860,7 +859,9 @@ ap_ts_i2c: &i2c14 {
 &uart6 {
 	status = "okay";
 
-	bluetooth: wcn3990-bt {
+	pinctrl-0 = <&qup_uart6_4pin>;
+
+	bluetooth: bluetooth {
 		compatible = "qcom,wcn3990-bt";
 		vddio-supply = <&src_pp1800_s4a>;
 		vddxo-supply = <&pp1800_l7a_wcn3990>;
@@ -993,143 +994,76 @@ ap_ts_i2c: &i2c14 {
 /* PINCTRL - additions to nodes defined in sdm845.dtsi */
 
 &qspi_cs0 {
-	pinconf {
-		pins = "gpio90";
-		bias-disable;
-	};
+	bias-disable;		/* External pullup */
 };
 
 &qspi_clk {
-	pinconf {
-		pins = "gpio95";
-		bias-disable;
-	};
+	bias-disable;		/* Rely on Cr50 internal pulldown */
 };
 
-&qspi_data01 {
-	pinconf {
-		pins = "gpio91", "gpio92";
+&qspi_data0 {
+	bias-disable;		/* Rely on Cr50 internal pulldown */
+};
 
-		/* High-Z when no transfers; nice to park the lines */
-		bias-pull-up;
-	};
+&qspi_data1 {
+	bias-pull-down;
 };
 
 &qup_i2c3_default {
-	pinconf {
-		pins = "gpio41", "gpio42";
-		drive-strength = <2>;
+	drive-strength = <2>;
 
-		/* Has external pullup */
-		bias-disable;
-	};
+	/* Has external pullup */
+	bias-disable;
 };
 
 &qup_i2c11_default {
-	pinconf {
-		pins = "gpio31", "gpio32";
-		drive-strength = <2>;
+	drive-strength = <2>;
 
-		/* Has external pullup */
-		bias-disable;
-	};
+	/* Has external pullup */
+	bias-disable;
 };
 
 &qup_i2c12_default {
-	pinconf {
-		pins = "gpio49", "gpio50";
-		drive-strength = <2>;
+	drive-strength = <2>;
 
-		/* Has external pullup */
-		bias-disable;
-	};
+	/* Has external pullup */
+	bias-disable;
 };
 
 &qup_i2c14_default {
-	pinconf {
-		pins = "gpio33", "gpio34";
-		drive-strength = <2>;
+	drive-strength = <2>;
 
-		/* Has external pullup */
-		bias-disable;
-	};
+	/* Has external pullup */
+	bias-disable;
 };
 
 &qup_spi0_default {
-	pinconf {
-		pins = "gpio0", "gpio1", "gpio2", "gpio3";
-		drive-strength = <2>;
-		bias-disable;
-	};
+	drive-strength = <2>;
+	bias-disable;
 };
 
 &qup_spi5_default {
-	pinconf {
-		pins = "gpio85", "gpio86", "gpio87", "gpio88";
-		drive-strength = <2>;
-		bias-disable;
-	};
+	drive-strength = <2>;
+	bias-disable;
 };
 
 &qup_spi10_default {
-	pinconf {
-		pins = "gpio53", "gpio54", "gpio55", "gpio56";
-		drive-strength = <2>;
-		bias-disable;
-	};
+	drive-strength = <2>;
+	bias-disable;
 };
 
-&qup_uart6_default {
-	/* Change pinmux to all 4 pins since CTS and RTS are connected */
-	pinmux {
-		pins = "gpio45", "gpio46",
-		       "gpio47", "gpio48";
-	};
-
-	pinconf-cts {
-		/*
-		 * Configure a pull-down on 45 (CTS) to match the pull of
-		 * the Bluetooth module.
-		 */
-		pins = "gpio45";
-		bias-pull-down;
-	};
-
-	pinconf-rts-tx {
-		/* We'll drive 46 (RTS) and 47 (TX), so no pull */
-		pins = "gpio46", "gpio47";
-		drive-strength = <2>;
-		bias-disable;
-	};
-
-	pinconf-rx {
-		/*
-		 * Configure a pull-up on 48 (RX). This is needed to avoid
-		 * garbage data when the TX pin of the Bluetooth module is
-		 * in tri-state (module powered off or not driving the
-		 * signal yet).
-		 */
-		pins = "gpio48";
-		bias-pull-up;
-	};
+&qup_uart9_rx {
+	drive-strength = <2>;
+	bias-pull-up;
 };
 
-&qup_uart9_default {
-	pinconf-tx {
-		pins = "gpio4";
-		drive-strength = <2>;
-		bias-disable;
-	};
-
-	pinconf-rx {
-		pins = "gpio5";
-		drive-strength = <2>;
-		bias-pull-up;
-	};
+&qup_uart9_tx {
+	drive-strength = <2>;
+	bias-disable;
 };
 
 /* PINCTRL - board-specific pinctrl */
-&pm8005_gpio {
+&pm8005_gpios {
 	gpio-line-names = "",
 			  "",
 			  "SLB",
@@ -1163,7 +1097,7 @@ ap_ts_i2c: &i2c14 {
 	};
 };
 
-&pm8998_gpio {
+&pm8998_gpios {
 	gpio-line-names = "",
 			  "",
 			  "SW_CTRL",
@@ -1213,243 +1147,166 @@ ap_ts_i2c: &i2c14 {
 		output-low;
 	};
 
-	ap_edp_bklten: ap-edp-bklten {
-		pinmux {
-			pins = "gpio37";
-			function = "gpio";
-		};
-
-		pinconf {
-			pins = "gpio37";
-			drive-strength = <2>;
-			bias-disable;
-		};
+	ap_edp_bklten: ap-edp-bklten-state {
+		pins = "gpio37";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
 	};
 
-	bios_flash_wp_r_l: bios-flash-wp-r-l {
-		pinmux {
-			pins = "gpio128";
-			function = "gpio";
-			input-enable;
-		};
-
-		pinconf {
-			pins = "gpio128";
-			bias-disable;
-		};
+	bios_flash_wp_r_l: bios-flash-wp-r-l-state {
+		pins = "gpio128";
+		function = "gpio";
+		bias-disable;
 	};
 
-	ec_ap_int_l: ec-ap-int-l {
-		pinmux {
-		       pins = "gpio122";
-		       function = "gpio";
-		       input-enable;
-		};
-
-		pinconf {
-		       pins = "gpio122";
-		       bias-pull-up;
-		};
+	ec_ap_int_l: ec-ap-int-l-state {
+	       pins = "gpio122";
+	       function = "gpio";
+	       bias-pull-up;
 	};
 
-	edp_brij_en: edp-brij-en {
-		pinmux {
-			pins = "gpio102";
-			function = "gpio";
-		};
-
-		pinconf {
-			pins = "gpio102";
-			drive-strength = <2>;
-			bias-disable;
-		};
+	edp_brij_en: edp-brij-en-state {
+		pins = "gpio102";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
 	};
 
-	edp_brij_irq: edp-brij-irq {
-		pinmux {
-			pins = "gpio10";
-			function = "gpio";
-		};
-
-		pinconf {
-			pins = "gpio10";
-			drive-strength = <2>;
-			bias-pull-down;
-		};
+	edp_brij_irq: edp-brij-irq-state {
+		pins = "gpio10";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-pull-down;
 	};
 
-	en_pp3300_dx_edp: en-pp3300-dx-edp {
-		pinmux {
-			pins = "gpio43";
-			function = "gpio";
-		};
-
-		pinconf {
-			pins = "gpio43";
-			drive-strength = <2>;
-			bias-disable;
-		};
+	en_pp3300_dx_edp: en-pp3300-dx-edp-state {
+		pins = "gpio43";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
 	};
 
-	h1_ap_int_odl: h1-ap-int-odl {
-		pinmux {
-			pins = "gpio129";
-			function = "gpio";
-			input-enable;
-		};
-
-		pinconf {
-			pins = "gpio129";
-			bias-pull-up;
-		};
+	h1_ap_int_odl: h1-ap-int-odl-state {
+		pins = "gpio129";
+		function = "gpio";
+		bias-pull-up;
 	};
 
-	pen_eject_odl: pen-eject-odl {
-		pinmux {
-			pins = "gpio119";
-			function = "gpio";
-			bias-pull-up;
-		};
+	pen_eject_odl: pen-eject-odl-state {
+		pins = "gpio119";
+		function = "gpio";
+		bias-pull-up;
 	};
 
-	pen_irq_l: pen-irq-l {
-		pinmux {
-			pins = "gpio24";
-			function = "gpio";
-		};
+	pen_irq_l: pen-irq-l-state {
+		pins = "gpio24";
+		function = "gpio";
 
-		pinconf {
-			pins = "gpio24";
-
-			/* Has external pullup */
-			bias-disable;
-		};
+		/* Has external pullup */
+		bias-disable;
 	};
 
-	pen_pdct_l: pen-pdct-l {
-		pinmux {
-			pins = "gpio63";
-			function = "gpio";
-		};
+	pen_pdct_l: pen-pdct-l-state {
+		pins = "gpio63";
+		function = "gpio";
 
-		pinconf {
-			pins = "gpio63";
-
-			/* Has external pullup */
-			bias-disable;
-		};
+		/* Has external pullup */
+		bias-disable;
 	};
 
-	pen_rst_l: pen-rst-l {
-		pinmux  {
-			pins = "gpio23";
-			function = "gpio";
-		};
+	pen_rst_l: pen-rst-l-state {
+		pins = "gpio23";
+		function = "gpio";
+		bias-disable;
+		drive-strength = <2>;
 
-		pinconf {
-			pins = "gpio23";
-			bias-disable;
-			drive-strength = <2>;
-
-			/*
-			 * The pen driver doesn't currently support
-			 * driving this reset line.  By specifying
-			 * output-high here we're relying on the fact
-			 * that this pin has a default pulldown at boot
-			 * (which makes sure the pen was in reset if it
-			 * was powered) and then we set it high here to
-			 * take it out of reset.  Better would be if the
-			 * pen driver could control this and we could
-			 * remove "output-high" here.
-			 */
-			output-high;
-		};
+		/*
+		 * The pen driver doesn't currently support
+		 * driving this reset line.  By specifying
+		 * output-high here we're relying on the fact
+		 * that this pin has a default pulldown at boot
+		 * (which makes sure the pen was in reset if it
+		 * was powered) and then we set it high here to
+		 * take it out of reset.  Better would be if the
+		 * pen driver could control this and we could
+		 * remove "output-high" here.
+		 */
+		output-high;
 	};
 
-	sdc2_clk: sdc2-clk {
-		pinconf {
-			pins = "sdc2_clk";
-			bias-disable;
+	qspi_sleep: qspi-sleep-state {
+		pins = "gpio90", "gpio91", "gpio92", "gpio95";
 
-			/*
-			 * It seems that mmc_test reports errors if drive
-			 * strength is not 16.
-			 */
-			drive-strength = <16>;
-		};
+		/*
+		 * When we're not actively transferring we want pins as GPIOs
+		 * with output disabled so that the quad SPI IP block stops
+		 * driving them. We rely on the normal pulls configured in
+		 * the active state and don't redefine them here. Also note
+		 * that we don't need the reverse (output-enable) in the
+		 * normal mode since the "output-enable" only matters for
+		 * GPIO function.
+		 */
+		function = "gpio";
+		output-disable;
 	};
 
-	sdc2_cmd: sdc2-cmd {
-		pinconf {
-			pins = "sdc2_cmd";
-			bias-pull-up;
-			drive-strength = <16>;
-		};
+	sdc2_clk: sdc2-clk-state {
+		pins = "sdc2_clk";
+		bias-disable;
+
+		/*
+		 * It seems that mmc_test reports errors if drive
+		 * strength is not 16.
+		 */
+		drive-strength = <16>;
 	};
 
-	sdc2_data: sdc2-data {
-		pinconf {
-			pins = "sdc2_data";
-			bias-pull-up;
-			drive-strength = <16>;
-		};
+	sdc2_cmd: sdc2-cmd-state {
+		pins = "sdc2_cmd";
+		bias-pull-up;
+		drive-strength = <16>;
 	};
 
-	sd_cd_odl: sd-cd-odl {
-		pinmux {
-			pins = "gpio44";
-			function = "gpio";
-		};
-
-		pinconf {
-			pins = "gpio44";
-			bias-pull-up;
-		};
+	sdc2_data: sdc2-data-state {
+		pins = "sdc2_data";
+		bias-pull-up;
+		drive-strength = <16>;
 	};
 
-	ts_int_l: ts-int-l {
-		pinmux  {
-			pins = "gpio125";
-			function = "gpio";
-		};
-
-		pinconf {
-			pins = "gpio125";
-			bias-pull-up;
-		};
+	sd_cd_odl: sd-cd-odl-state {
+		pins = "gpio44";
+		function = "gpio";
+		bias-pull-up;
 	};
 
-	ts_reset_l: ts-reset-l {
-		pinmux  {
-			pins = "gpio118";
-			function = "gpio";
-		};
-
-		pinconf {
-			pins = "gpio118";
-			bias-disable;
-			drive-strength = <2>;
-		};
+	ts_int_l: ts-int-l-state {
+		pins = "gpio125";
+		function = "gpio";
+		bias-pull-up;
 	};
 
-	ap_suspend_l_assert: ap_suspend_l_assert {
-		config {
-			pins = "gpio126";
-			function = "gpio";
-			bias-no-pull;
-			drive-strength = <2>;
-			output-low;
-		};
+	ts_reset_l: ts-reset-l-state {
+		pins = "gpio118";
+		function = "gpio";
+		bias-disable;
+		drive-strength = <2>;
 	};
 
-	ap_suspend_l_deassert: ap_suspend_l_deassert {
-		config {
-			pins = "gpio126";
-			function = "gpio";
-			bias-no-pull;
-			drive-strength = <2>;
-			output-high;
-		};
+	ap_suspend_l_assert: ap-suspend-l-assert-state {
+		pins = "gpio126";
+		function = "gpio";
+		bias-disable;
+		drive-strength = <2>;
+		output-low;
+	};
+
+	ap_suspend_l_deassert: ap-suspend-l-deassert-state {
+		pins = "gpio126";
+		function = "gpio";
+		bias-disable;
+		drive-strength = <2>;
+		output-high;
 	};
 };
 

@@ -362,8 +362,6 @@ static void do_unaligned_user(struct pt_regs *regs)
 	__die_if_kernel("Unhandled unaligned exception in kernel",
 			regs, SIGKILL);
 
-	current->thread.bad_vaddr = regs->excvaddr;
-	current->thread.error_code = -3;
 	pr_info_ratelimited("Unaligned memory access to %08lx in '%s' "
 			    "(pid = %d, pc = %#010lx)\n",
 			    regs->excvaddr, current->comm,
@@ -541,7 +539,7 @@ static size_t kstack_depth_to_print = CONFIG_PRINT_STACK_DEPTH;
 
 void show_stack(struct task_struct *task, unsigned long *sp, const char *loglvl)
 {
-	size_t len;
+	size_t len, off = 0;
 
 	if (!sp)
 		sp = stack_pointer(task);
@@ -550,9 +548,17 @@ void show_stack(struct task_struct *task, unsigned long *sp, const char *loglvl)
 		  kstack_depth_to_print * STACK_DUMP_ENTRY_SIZE);
 
 	printk("%sStack:\n", loglvl);
-	print_hex_dump(loglvl, " ", DUMP_PREFIX_NONE,
-		       STACK_DUMP_LINE_SIZE, STACK_DUMP_ENTRY_SIZE,
-		       sp, len, false);
+	while (off < len) {
+		u8 line[STACK_DUMP_LINE_SIZE];
+		size_t line_len = len - off > STACK_DUMP_LINE_SIZE ?
+			STACK_DUMP_LINE_SIZE : len - off;
+
+		__memcpy(line, (u8 *)sp + off, line_len);
+		print_hex_dump(loglvl, " ", DUMP_PREFIX_NONE,
+			       STACK_DUMP_LINE_SIZE, STACK_DUMP_ENTRY_SIZE,
+			       line, line_len, false);
+		off += STACK_DUMP_LINE_SIZE;
+	}
 	show_trace(task, sp, loglvl);
 }
 

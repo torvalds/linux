@@ -133,12 +133,11 @@ void start_thread(struct pt_regs *regs, unsigned long pc, unsigned long usp)
 /*
  * Set up a thread for executing a new program
  */
-int dump_fpu(struct pt_regs *regs, elf_fpregset_t *fpregs)
+int elf_core_copy_task_fpregs(struct task_struct *t, elf_fpregset_t *fpu)
 {
 	return 0; /* MicroBlaze has no separate FPU registers */
 }
 
 void arch_cpu_idle(void)
 {
-       raw_local_irq_enable();
 }

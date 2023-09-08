@@ -57,7 +57,7 @@ static int dump_prog_id_as_func_ptr(const struct btf_dumper *d,
 	if (prog_fd < 0)
 		goto print;
 
-	err = bpf_obj_get_info_by_fd(prog_fd, &info, &info_len);
+	err = bpf_prog_get_info_by_fd(prog_fd, &info, &info_len);
 	if (err)
 		goto print;
 
@@ -70,12 +70,12 @@ static int dump_prog_id_as_func_ptr(const struct btf_dumper *d,
 	info.func_info_rec_size = finfo_rec_size;
 	info.func_info = ptr_to_u64(&finfo);
 
-	err = bpf_obj_get_info_by_fd(prog_fd, &info, &info_len);
+	err = bpf_prog_get_info_by_fd(prog_fd, &info, &info_len);
 	if (err)
 		goto print;
 
 	prog_btf = btf__load_from_kernel_by_id(info.btf_id);
-	if (libbpf_get_error(prog_btf))
+	if (!prog_btf)
 		goto print;
 	func_type = btf__type_by_id(prog_btf, finfo.type_id);
 	if (!func_type || !btf_is_func(func_type))
@@ -820,4 +820,87 @@ void btf_dump_linfo_json(const struct btf *btf,
 			jsonw_int_field(json_wtr, "line_col",
 					BPF_LINE_INFO_LINE_COL(linfo->line_col));
 	}
+}
+
+static void dotlabel_puts(const char *s)
+{
+	for (; *s; ++s) {
+		switch (*s) {
+		case '\\':
+		case '"':
+		case '{':
+		case '}':
+		case '<':
+		case '>':
+		case '|':
+		case ' ':
+			putchar('\\');
+			/* fallthrough */
+		default:
+			putchar(*s);
+		}
+	}
+}
+
+static const char *shorten_path(const char *path)
+{
+	const unsigned int MAX_PATH_LEN = 32;
+	size_t len = strlen(path);
+	const char *shortpath;
+
+	if (len <= MAX_PATH_LEN)
+		return path;
+
+	/* Search for last '/' under the MAX_PATH_LEN limit */
+	shortpath = strchr(path + len - MAX_PATH_LEN, '/');
+	if (shortpath) {
+		if (shortpath < path + strlen("..."))
+			/* We removed a very short prefix, e.g. "/w", and we'll
+			 * make the path longer by prefixing with the ellipsis.
+			 * Not worth it, keep initial path.
+			 */
+			return path;
+		return shortpath;
+	}
+
+	/* File base name length is > MAX_PATH_LEN, search for last '/' */
+			shortpath = strrchr(path, '/');
+	if (shortpath)
+		return shortpath;
+
+	return path;
+}
+
+void btf_dump_linfo_dotlabel(const struct btf *btf,
+			     const struct bpf_line_info *linfo, bool linum)
+{
+	const char *line = btf__name_by_offset(btf, linfo->line_off);
+
+	if (!line || !strlen(line))
+		return;
+	line = ltrim(line);
+
+	if (linum) {
+		const char *file = btf__name_by_offset(btf, linfo->file_name_off);
+		const char *shortfile;
+
+		/* More forgiving on file because linum option is
+		 * expected to provide more info than the already
+		 * available src line.
+		 */
+		if (!file)
+			shortfile = "";
+		else
+			shortfile = shorten_path(file);
+
+		printf("; [%s", shortfile > file ? "..." : "");
+		dotlabel_puts(shortfile);
+		printf(" line:%u col:%u]\\l\\\n",
+		       BPF_LINE_INFO_LINE_NUM(linfo->line_col),
+		       BPF_LINE_INFO_LINE_COL(linfo->line_col));
+	}
+
+	printf("; ");
+	dotlabel_puts(line);
+	printf("\\l\\\n");
 }

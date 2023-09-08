@@ -60,8 +60,7 @@ static const struct wf_sensor_ops wf_max6690_ops = {
 	.owner		= THIS_MODULE,
 };
 
-static int wf_max6690_probe(struct i2c_client *client,
-			    const struct i2c_device_id *id)
+static int wf_max6690_probe(struct i2c_client *client)
 {
 	const char *name, *loc;
 	struct wf_6690_sensor *max;
@@ -129,7 +128,7 @@ static struct i2c_driver wf_max6690_driver = {
 		.name		= "wf_max6690",
 		.of_match_table = wf_max6690_of_id,
 	},
-	.probe		= wf_max6690_probe,
+	.probe_new	= wf_max6690_probe,
 	.remove		= wf_max6690_remove,
 	.id_table	= wf_max6690_id,
 };

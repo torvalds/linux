@@ -22,6 +22,104 @@ menuconfig MODULES
 
 if MODULES
 
+config MODULE_DEBUGFS
+	bool
+
+config MODULE_DEBUG
+	bool "Module debugging"
+	depends on DEBUG_FS
+	help
+	  Allows you to enable / disable features which can help you debug
+	  modules. You don't need these options on production systems.
+
+if MODULE_DEBUG
+
+config MODULE_STATS
+	bool "Module statistics"
+	depends on DEBUG_FS
+	select MODULE_DEBUGFS
+	help
+	  This option allows you to maintain a record of module statistics.
+	  For example, size of all modules, average size, text size, a list
+	  of failed modules and the size for each of those. For failed
+	  modules we keep track of modules which failed due to either the
+	  existing module taking too long to load or that module was already
+	  loaded.
+
+	  You should enable this if you are debugging production loads
+	  and want to see if userspace or the kernel is doing stupid things
+	  with loading modules when it shouldn't or if you want to help
+	  optimize userspace / kernel space module autoloading schemes.
+	  You might want to do this because failed modules tend to use
+	  up significant amount of memory, and so you'd be doing everyone a
+	  favor in avoiding these failures proactively.
+
+	  This functionality is also useful for those experimenting with
+	  module .text ELF section optimization.
+
+	  If unsure, say N.
+
+config MODULE_DEBUG_AUTOLOAD_DUPS
+	bool "Debug duplicate modules with auto-loading"
+	help
+	  Module autoloading allows in-kernel code to request modules through
+	  the *request_module*() API calls. This in turn just calls userspace
+	  modprobe. Although modprobe checks to see if a module is already
+	  loaded before trying to load a module there is a small time window in
+	  which multiple duplicate requests can end up in userspace and multiple
+	  modprobe calls race calling finit_module() around the same time for
+	  duplicate modules. The finit_module() system call can consume in the
+	  worst case more than twice the respective module size in virtual
+	  memory for each duplicate module requests. Although duplicate module
+	  requests are non-fatal virtual memory is a limited resource and each
+	  duplicate module request ends up just unnecessarily straining virtual
+	  memory.
+
+	  This debugging facility will create pr_warn() splats for duplicate
+	  module requests to help identify if module auto-loading may be the
+	  culprit to your early boot virtual memory pressure. Since virtual
+	  memory abuse caused by duplicate module requests could render a
+	  system unusable this functionality will also converge races in
+	  requests for the same module to a single request. You can boot with
+	  the module.enable_dups_trace=1 kernel parameter to use WARN_ON()
+	  instead of the pr_warn().
+
+	  If the first module request used request_module_nowait() we cannot
+	  use that as the anchor to wait for duplicate module requests, since
+	  users of request_module() do want a proper return value. If a call
+	  for the same module happened earlier with request_module() though,
+	  then a duplicate request_module_nowait() would be detected. The
+	  non-wait request_module() call is synchronous and waits until modprobe
+	  completes. Subsequent auto-loading requests for the same module do
+	  not trigger a new finit_module() calls and do not strain virtual
+	  memory, and so as soon as modprobe successfully completes we remove
+	  tracking for duplicates for that module.
+
+	  Enable this functionality to try to debug virtual memory abuse during
+	  boot on systems which are failing to boot or if you suspect you may be
+	  straining virtual memory during boot, and you want to identify if the
+	  abuse was due to module auto-loading. These issues are currently only
+	  known to occur on systems with many CPUs (over 400) and is likely the
+	  result of udev issuing duplicate module requests for each CPU, and so
+	  module auto-loading is not the culprit. There may very well still be
+	  many duplicate module auto-loading requests which could be optimized
+	  for and this debugging facility can be used to help identify them.
+
+	  Only enable this for debugging system functionality, never have it
+	  enabled on real systems.
+
+config MODULE_DEBUG_AUTOLOAD_DUPS_TRACE
+	bool "Force full stack trace when duplicates are found"
+	depends on MODULE_DEBUG_AUTOLOAD_DUPS
+	help
+	  Enabling this will force a full stack trace for duplicate module
+	  auto-loading requests using WARN_ON() instead of pr_warn(). You
+	  should keep this disabled at all times unless you are a developer
+	  and are doing a manual inspection and want to debug exactly why
+	  these duplicates occur.
+
+endif # MODULE_DEBUG
+
 config MODULE_FORCE_LOAD
 	bool "Forced module loading"
 	default n
@@ -51,7 +149,7 @@ config MODULE_FORCE_UNLOAD
 config MODULE_UNLOAD_TAINT_TRACKING
 	bool "Tainted module unload tracking"
 	depends on MODULE_UNLOAD
-	default n
+	select MODULE_DEBUGFS
 	help
 	  This option allows you to maintain a record of each unloaded
 	  module that tainted the kernel. In addition to displaying a
@@ -221,9 +319,10 @@ endchoice
 
 config MODULE_DECOMPRESS
 	bool "Support in-kernel module decompression"
-	depends on MODULE_COMPRESS_GZIP || MODULE_COMPRESS_XZ
+	depends on MODULE_COMPRESS_GZIP || MODULE_COMPRESS_XZ || MODULE_COMPRESS_ZSTD
 	select ZLIB_INFLATE if MODULE_COMPRESS_GZIP
 	select XZ_DEC if MODULE_COMPRESS_XZ
+	select ZSTD_DECOMPRESS if MODULE_COMPRESS_ZSTD
 	help
 
 	  Support for decompressing kernel modules by the kernel itself

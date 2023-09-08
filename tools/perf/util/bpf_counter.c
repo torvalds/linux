@@ -312,24 +312,6 @@ static bool bperf_attr_map_compatible(int attr_map_fd)
 		(map_info.value_size == sizeof(struct perf_event_attr_map_entry));
 }
 
-#ifndef HAVE_LIBBPF_BPF_MAP_CREATE
-LIBBPF_API int bpf_create_map(enum bpf_map_type map_type, int key_size,
-                              int value_size, int max_entries, __u32 map_flags);
-int
-bpf_map_create(enum bpf_map_type map_type,
-	       const char *map_name __maybe_unused,
-	       __u32 key_size,
-	       __u32 value_size,
-	       __u32 max_entries,
-	       const struct bpf_map_create_opts *opts __maybe_unused)
-{
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-	return bpf_create_map(map_type, key_size, value_size, max_entries, 0);
-#pragma GCC diagnostic pop
-}
-#endif
-
 static int bperf_lock_attr_map(struct target *target)
 {
 	char path[PATH_MAX];
@@ -561,9 +543,9 @@ static int bperf__load(struct evsel *evsel, struct target *target)
 
 		if (filter_type == BPERF_FILTER_PID ||
 		    filter_type == BPERF_FILTER_TGID)
-			key = evsel->core.threads->map[i].pid;
+			key = perf_thread_map__pid(evsel->core.threads, i);
 		else if (filter_type == BPERF_FILTER_CPU)
-			key = evsel->core.cpus->map[i].cpu;
+			key = perf_cpu_map__cpu(evsel->core.cpus, i).cpu;
 		else
 			break;
 
@@ -605,9 +587,9 @@ static int bperf_sync_counters(struct evsel *evsel)
 {
 	int num_cpu, i, cpu;
 
-	num_cpu = all_cpu_map->nr;
+	num_cpu = perf_cpu_map__nr(all_cpu_map);
 	for (i = 0; i < num_cpu; i++) {
-		cpu = all_cpu_map->map[i].cpu;
+		cpu = perf_cpu_map__cpu(all_cpu_map, i).cpu;
 		bperf_trigger_reading(evsel->bperf_leader_prog_fd, cpu);
 	}
 	return 0;
@@ -781,8 +763,7 @@ extern struct bpf_counter_ops bperf_cgrp_ops;
 
 static inline bool bpf_counter_skip(struct evsel *evsel)
 {
-	return list_empty(&evsel->bpf_counter_list) &&
-		evsel->follower_skel == NULL;
+	return evsel->bpf_counter_ops == NULL;
 }
 
 int bpf_counter__install_pe(struct evsel *evsel, int cpu_map_idx, int fd)
@@ -834,4 +815,5 @@ void bpf_counter__destroy(struct evsel *evsel)
 		return;
 	evsel->bpf_counter_ops->destroy(evsel);
 	evsel->bpf_counter_ops = NULL;
+	evsel->bpf_skel = NULL;
 }

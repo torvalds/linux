@@ -60,7 +60,7 @@ int sof_tgl_ops_init(struct snd_sof_dev *sdev)
 	memcpy(&sof_tgl_ops, &sof_hda_common_ops, sizeof(struct snd_sof_dsp_ops));
 
 	/* probe/remove/shutdown */
-	sof_tgl_ops.shutdown	= hda_dsp_shutdown;
+	sof_tgl_ops.shutdown	= hda_dsp_shutdown_dma_flush;
 
 	if (sdev->pdata->ipc_type == SOF_IPC) {
 		/* doorbell */
@@ -71,6 +71,8 @@ int sof_tgl_ops_init(struct snd_sof_dev *sdev)
 
 		/* debug */
 		sof_tgl_ops.ipc_dump	= cnl_ipc_dump;
+
+		sof_tgl_ops.set_power_state = hda_dsp_set_power_state_ipc3;
 	}
 
 	if (sdev->pdata->ipc_type == SOF_INTEL_IPC4) {
@@ -85,6 +87,9 @@ int sof_tgl_ops_init(struct snd_sof_dev *sdev)
 
 		ipc4_data->mtrace_type = SOF_IPC4_MTRACE_INTEL_CAVS_2;
 
+		/* External library loading support */
+		ipc4_data->load_library = hda_dsp_ipc4_load_library;
+
 		/* doorbell */
 		sof_tgl_ops.irq_thread	= cnl_ipc4_irq_thread;
 
@@ -93,6 +98,8 @@ int sof_tgl_ops_init(struct snd_sof_dev *sdev)
 
 		/* debug */
 		sof_tgl_ops.ipc_dump	= cnl_ipc4_dump;
+
+		sof_tgl_ops.set_power_state = hda_dsp_set_power_state_ipc4;
 	}
 
 	/* set DAI driver ops */
@@ -132,6 +139,9 @@ const struct sof_intel_dsp_desc tgl_chip_info = {
 	.ssp_base_offset = CNL_SSP_BASE_OFFSET,
 	.sdw_shim_base = SDW_SHIM_BASE,
 	.sdw_alh_base = SDW_ALH_BASE,
+	.d0i3_offset = SOF_HDA_VS_D0I3C,
+	.read_sdw_lcount =  hda_sdw_check_lcount_common,
+	.enable_sdw_irq	= hda_common_enable_sdw_irq,
 	.check_sdw_irq	= hda_common_check_sdw_irq,
 	.check_ipc_irq	= hda_dsp_check_ipc_irq,
 	.cl_init = cl_dsp_init,
@@ -157,6 +167,9 @@ const struct sof_intel_dsp_desc tglh_chip_info = {
 	.ssp_base_offset = CNL_SSP_BASE_OFFSET,
 	.sdw_shim_base = SDW_SHIM_BASE,
 	.sdw_alh_base = SDW_ALH_BASE,
+	.d0i3_offset = SOF_HDA_VS_D0I3C,
+	.read_sdw_lcount =  hda_sdw_check_lcount_common,
+	.enable_sdw_irq	= hda_common_enable_sdw_irq,
 	.check_sdw_irq	= hda_common_check_sdw_irq,
 	.check_ipc_irq	= hda_dsp_check_ipc_irq,
 	.cl_init = cl_dsp_init,
@@ -182,6 +195,9 @@ const struct sof_intel_dsp_desc ehl_chip_info = {
 	.ssp_base_offset = CNL_SSP_BASE_OFFSET,
 	.sdw_shim_base = SDW_SHIM_BASE,
 	.sdw_alh_base = SDW_ALH_BASE,
+	.d0i3_offset = SOF_HDA_VS_D0I3C,
+	.read_sdw_lcount =  hda_sdw_check_lcount_common,
+	.enable_sdw_irq	= hda_common_enable_sdw_irq,
 	.check_sdw_irq	= hda_common_check_sdw_irq,
 	.check_ipc_irq	= hda_dsp_check_ipc_irq,
 	.cl_init = cl_dsp_init,
@@ -207,6 +223,9 @@ const struct sof_intel_dsp_desc adls_chip_info = {
 	.ssp_base_offset = CNL_SSP_BASE_OFFSET,
 	.sdw_shim_base = SDW_SHIM_BASE,
 	.sdw_alh_base = SDW_ALH_BASE,
+	.d0i3_offset = SOF_HDA_VS_D0I3C,
+	.read_sdw_lcount =  hda_sdw_check_lcount_common,
+	.enable_sdw_irq	= hda_common_enable_sdw_irq,
 	.check_sdw_irq	= hda_common_check_sdw_irq,
 	.check_ipc_irq	= hda_dsp_check_ipc_irq,
 	.cl_init = cl_dsp_init,

@@ -4,21 +4,21 @@
 $id: http://devicetree.org/schemas/clock/qcom,gcc-ipq8064.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Qualcomm Global Clock & Reset Controller Binding for IPQ8064
-
-allOf:
-  - $ref: qcom,gcc.yaml#
+title: Qualcomm Global Clock & Reset Controller on IPQ8064
 
 maintainers:
   - Ansuel Smith <ansuelsmth@gmail.com>
 
 description: |
-  Qualcomm global clock control module which supports the clocks, resets and
-  power domains on IPQ8064.
+  Qualcomm global clock control module provides the clocks, resets and power
+  domains on IPQ8064.
 
-  See also:
-  - dt-bindings/clock/qcom,gcc-ipq806x.h (qcom,gcc-ipq8064)
-  - dt-bindings/reset/qcom,gcc-ipq806x.h (qcom,gcc-ipq8064)
+  See also::
+    include/dt-bindings/clock/qcom,gcc-ipq806x.h (qcom,gcc-ipq8064)
+    include/dt-bindings/reset/qcom,gcc-ipq806x.h (qcom,gcc-ipq8064)
+
+allOf:
+  - $ref: qcom,gcc.yaml#
 
 properties:
   compatible:
@@ -27,14 +27,18 @@ properties:
       - const: syscon
 
   clocks:
+    minItems: 2
     items:
       - description: PXO source
       - description: CXO source
+      - description: PLL4 from LCC
 
   clock-names:
+    minItems: 2
     items:
       - const: pxo
       - const: cxo
+      - const: pll4
 
   thermal-sensor:
     type: object
@@ -51,13 +55,14 @@ unevaluatedProperties: false
 
 examples:
   - |
+    #include <dt-bindings/clock/qcom,lcc-ipq806x.h>
     #include <dt-bindings/interrupt-controller/arm-gic.h>
 
     gcc: clock-controller@900000 {
       compatible = "qcom,gcc-ipq8064", "syscon";
       reg = <0x00900000 0x4000>;
-      clocks = <&pxo_board>, <&cxo_board>;
-      clock-names = "pxo", "cxo";
+      clocks = <&pxo_board>, <&cxo_board>, <&lcc PLL4>;
+      clock-names = "pxo", "cxo", "pll4";
       #clock-cells = <1>;
       #reset-cells = <1>;
       #power-domain-cells = <1>;

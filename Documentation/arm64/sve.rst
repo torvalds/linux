@@ -52,6 +52,7 @@ model features for SVE is included in Appendix A.
 	HWCAP2_SVEBITPERM
 	HWCAP2_SVESHA3
 	HWCAP2_SVESM4
+	HWCAP2_SVE2P1
 
   This list may be extended over time as the SVE architecture evolves.
 
@@ -174,7 +175,7 @@ the SVE instruction set architecture.
 When returning from a signal handler:
 
 * If there is no sve_context record in the signal frame, or if the record is
-  present but contains no register data as desribed in the previous section,
+  present but contains no register data as described in the previous section,
   then the SVE registers/bits become non-live and take unspecified values.
 
 * If sve_context is present in the signal frame and contains full register
@@ -222,7 +223,7 @@ prctl(PR_SVE_SET_VL, unsigned long arg)
 	    Defer the requested vector length change until the next execve()
 	    performed by this thread.
 
-	    The effect is equivalent to implicit exceution of the following
+	    The effect is equivalent to implicit execution of the following
 	    call immediately after the next execve() (if any) by the thread:
 
 		prctl(PR_SVE_SET_VL, arg & ~PR_SVE_SET_VL_ONEXEC)

@@ -199,7 +199,7 @@ static void nitrox_aead_callback(void *arg, int err)
 		err = -EINVAL;
 	}
 
-	areq->base.complete(&areq->base, err);
+	aead_request_complete(areq, err);
 }
 
 static inline bool nitrox_aes_gcm_assoclen_supported(unsigned int assoclen)
@@ -392,7 +392,7 @@ static int nitrox_rfc4106_setauthsize(struct crypto_aead *aead,
 
 static int nitrox_rfc4106_set_aead_rctx_sglist(struct aead_request *areq)
 {
-	struct nitrox_rfc4106_rctx *rctx = aead_request_ctx(areq);
+	struct nitrox_rfc4106_rctx *rctx = aead_request_ctx_dma(areq);
 	struct nitrox_aead_rctx *aead_rctx = &rctx->base;
 	unsigned int assoclen = areq->assoclen - GCM_RFC4106_IV_SIZE;
 	struct scatterlist *sg;
@@ -424,7 +424,7 @@ static int nitrox_rfc4106_set_aead_rctx_sglist(struct aead_request *areq)
 static void nitrox_rfc4106_callback(void *arg, int err)
 {
 	struct aead_request *areq = arg;
-	struct nitrox_rfc4106_rctx *rctx = aead_request_ctx(areq);
+	struct nitrox_rfc4106_rctx *rctx = aead_request_ctx_dma(areq);
 	struct nitrox_kcrypt_request *nkreq = &rctx->base.nkreq;
 
 	free_src_sglist(nkreq);
@@ -434,14 +434,14 @@ static void nitrox_rfc4106_callback(void *arg, int err)
 		err = -EINVAL;
 	}
 
-	areq->base.complete(&areq->base, err);
+	aead_request_complete(areq, err);
 }
 
 static int nitrox_rfc4106_enc(struct aead_request *areq)
 {
 	struct crypto_aead *aead = crypto_aead_reqtfm(areq);
 	struct nitrox_crypto_ctx *nctx = crypto_aead_ctx(aead);
-	struct nitrox_rfc4106_rctx *rctx = aead_request_ctx(areq);
+	struct nitrox_rfc4106_rctx *rctx = aead_request_ctx_dma(areq);
 	struct nitrox_aead_rctx *aead_rctx = &rctx->base;
 	struct se_crypto_request *creq = &aead_rctx->nkreq.creq;
 	int ret;
@@ -472,7 +472,7 @@ static int nitrox_rfc4106_enc(struct aead_request *areq)
 static int nitrox_rfc4106_dec(struct aead_request *areq)
 {
 	struct crypto_aead *aead = crypto_aead_reqtfm(areq);
-	struct nitrox_crypto_ctx *nctx = crypto_aead_ctx(aead);
+	struct nitrox_crypto_ctx *nctx = crypto_aead_ctx_dma(aead);
 	struct nitrox_rfc4106_rctx *rctx = aead_request_ctx(areq);
 	struct nitrox_aead_rctx *aead_rctx = &rctx->base;
 	struct se_crypto_request *creq = &aead_rctx->nkreq.creq;
@@ -510,8 +510,8 @@ static int nitrox_rfc4106_init(struct crypto_aead *aead)
 	if (ret)
 		return ret;
 
-	crypto_aead_set_reqsize(aead, sizeof(struct aead_request) +
-				sizeof(struct nitrox_rfc4106_rctx));
+	crypto_aead_set_reqsize_dma(aead, sizeof(struct aead_request) +
+					  sizeof(struct nitrox_rfc4106_rctx));
 
 	return 0;
 }

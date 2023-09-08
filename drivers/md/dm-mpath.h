@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2004 Red Hat, Inc. All rights reserved.
  *
@@ -17,6 +18,6 @@ struct dm_path {
 };
 
 /* Callback for hwh_pg_init_fn to use when complete */
-void dm_pg_init_complete(struct dm_path *path, unsigned err_flags);
+void dm_pg_init_complete(struct dm_path *path, unsigned int err_flags);
 
 #endif

@@ -46,7 +46,7 @@ struct dcn_hubbub_wm_set {
 	uint32_t pte_meta_urgent;
 	uint32_t sr_enter;
 	uint32_t sr_exit;
-	uint32_t dram_clk_chanage;
+	uint32_t dram_clk_change;
 	uint32_t usr_retrain;
 	uint32_t fclk_pstate_change;
 };
@@ -167,10 +167,27 @@ struct hubbub_funcs {
 	void (*force_pstate_change_control)(struct hubbub *hubbub, bool force, bool allow);
 
 	void (*init_watermarks)(struct hubbub *hubbub);
+
+	/**
+	 * @program_det_size:
+	 *
+	 * DE-Tile buffers (DET) is a memory that is used to convert the tiled
+	 * data into linear, which the rest of the display can use to generate
+	 * the graphics output. One of the main features of this component is
+	 * that each pipe has a configurable DET buffer which means that when a
+	 * pipe is not enabled, the device can assign the memory to other
+	 * enabled pipes to try to be more efficient.
+	 *
+	 * DET logic is handled by dchubbub. Some ASICs provide a feature named
+	 * Configurable Return Buffer (CRB) segments which can be allocated to
+	 * compressed or detiled buffers.
+	 */
 	void (*program_det_size)(struct hubbub *hubbub, int hubp_inst, unsigned det_buffer_size_in_kbyte);
 	void (*program_compbuf_size)(struct hubbub *hubbub, unsigned compbuf_size_kb, bool safe_to_increase);
 	void (*init_crb)(struct hubbub *hubbub);
 	void (*force_usr_retraining_allow)(struct hubbub *hubbub, bool allow);
+	void (*set_request_limit)(struct hubbub *hubbub, int memory_channel_count, int words_per_channel);
+	void (*dchubbub_init)(struct hubbub *hubbub);
 };
 
 struct hubbub {

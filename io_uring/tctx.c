@@ -83,7 +83,7 @@ __cold int io_uring_alloc_task_context(struct task_struct *task,
 
 	xa_init(&tctx->xa);
 	init_waitqueue_head(&tctx->wait);
-	atomic_set(&tctx->in_idle, 0);
+	atomic_set(&tctx->in_cancel, 0);
 	atomic_set(&tctx->inflight_tracked, 0);
 	task->io_uring = tctx;
 	init_llist_head(&tctx->task_list);

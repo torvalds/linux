@@ -78,14 +78,14 @@ static int greybus_match_device(struct device *dev, struct device_driver *drv)
 	return 0;
 }
 
-static int greybus_uevent(struct device *dev, struct kobj_uevent_env *env)
+static int greybus_uevent(const struct device *dev, struct kobj_uevent_env *env)
 {
-	struct gb_host_device *hd;
-	struct gb_module *module = NULL;
-	struct gb_interface *intf = NULL;
-	struct gb_control *control = NULL;
-	struct gb_bundle *bundle = NULL;
-	struct gb_svc *svc = NULL;
+	const struct gb_host_device *hd;
+	const struct gb_module *module = NULL;
+	const struct gb_interface *intf = NULL;
+	const struct gb_control *control = NULL;
+	const struct gb_bundle *bundle = NULL;
+	const struct gb_svc *svc = NULL;
 
 	if (is_gb_host_device(dev)) {
 		hd = to_gb_host_device(dev);

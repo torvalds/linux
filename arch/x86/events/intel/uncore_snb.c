@@ -109,6 +109,19 @@
 #define PCI_DEVICE_ID_INTEL_RPL_23_IMC		0xA728
 #define PCI_DEVICE_ID_INTEL_RPL_24_IMC		0xA729
 #define PCI_DEVICE_ID_INTEL_RPL_25_IMC		0xA72A
+#define PCI_DEVICE_ID_INTEL_MTL_1_IMC		0x7d00
+#define PCI_DEVICE_ID_INTEL_MTL_2_IMC		0x7d01
+#define PCI_DEVICE_ID_INTEL_MTL_3_IMC		0x7d02
+#define PCI_DEVICE_ID_INTEL_MTL_4_IMC		0x7d05
+#define PCI_DEVICE_ID_INTEL_MTL_5_IMC		0x7d10
+#define PCI_DEVICE_ID_INTEL_MTL_6_IMC		0x7d14
+#define PCI_DEVICE_ID_INTEL_MTL_7_IMC		0x7d15
+#define PCI_DEVICE_ID_INTEL_MTL_8_IMC		0x7d16
+#define PCI_DEVICE_ID_INTEL_MTL_9_IMC		0x7d21
+#define PCI_DEVICE_ID_INTEL_MTL_10_IMC		0x7d22
+#define PCI_DEVICE_ID_INTEL_MTL_11_IMC		0x7d23
+#define PCI_DEVICE_ID_INTEL_MTL_12_IMC		0x7d24
+#define PCI_DEVICE_ID_INTEL_MTL_13_IMC		0x7d28
 
 
 #define IMC_UNCORE_DEV(a)						\
@@ -204,6 +217,32 @@
 #define ADL_UNC_ARB_PER_CTR0			0x2FD2
 #define ADL_UNC_ARB_PERFEVTSEL0			0x2FD0
 #define ADL_UNC_ARB_MSR_OFFSET			0x8
+
+/* MTL Cbo register */
+#define MTL_UNC_CBO_0_PER_CTR0			0x2448
+#define MTL_UNC_CBO_0_PERFEVTSEL0		0x2442
+
+/* MTL HAC_ARB register */
+#define MTL_UNC_HAC_ARB_CTR			0x2018
+#define MTL_UNC_HAC_ARB_CTRL			0x2012
+
+/* MTL ARB register */
+#define MTL_UNC_ARB_CTR				0x2418
+#define MTL_UNC_ARB_CTRL			0x2412
+
+/* MTL cNCU register */
+#define MTL_UNC_CNCU_FIXED_CTR			0x2408
+#define MTL_UNC_CNCU_FIXED_CTRL			0x2402
+#define MTL_UNC_CNCU_BOX_CTL			0x240e
+
+/* MTL sNCU register */
+#define MTL_UNC_SNCU_FIXED_CTR			0x2008
+#define MTL_UNC_SNCU_FIXED_CTRL			0x2002
+#define MTL_UNC_SNCU_BOX_CTL			0x200e
+
+/* MTL HAC_CBO register */
+#define MTL_UNC_HBO_CTR				0x2048
+#define MTL_UNC_HBO_CTRL			0x2042
 
 DEFINE_UNCORE_FORMAT_ATTR(event, event, "config:0-7");
 DEFINE_UNCORE_FORMAT_ATTR(umask, umask, "config:8-15");
@@ -596,6 +635,115 @@ void adl_uncore_cpu_init(void)
 {
 	adl_uncore_cbox.num_boxes = icl_get_cbox_num();
 	uncore_msr_uncores = adl_msr_uncores;
+}
+
+static struct intel_uncore_type mtl_uncore_cbox = {
+	.name		= "cbox",
+	.num_counters   = 2,
+	.perf_ctr_bits	= 48,
+	.perf_ctr	= MTL_UNC_CBO_0_PER_CTR0,
+	.event_ctl	= MTL_UNC_CBO_0_PERFEVTSEL0,
+	.event_mask	= ADL_UNC_RAW_EVENT_MASK,
+	.msr_offset	= SNB_UNC_CBO_MSR_OFFSET,
+	.ops		= &icl_uncore_msr_ops,
+	.format_group	= &adl_uncore_format_group,
+};
+
+static struct intel_uncore_type mtl_uncore_hac_arb = {
+	.name		= "hac_arb",
+	.num_counters   = 2,
+	.num_boxes	= 2,
+	.perf_ctr_bits	= 48,
+	.perf_ctr	= MTL_UNC_HAC_ARB_CTR,
+	.event_ctl	= MTL_UNC_HAC_ARB_CTRL,
+	.event_mask	= ADL_UNC_RAW_EVENT_MASK,
+	.msr_offset	= SNB_UNC_CBO_MSR_OFFSET,
+	.ops		= &icl_uncore_msr_ops,
+	.format_group	= &adl_uncore_format_group,
+};
+
+static struct intel_uncore_type mtl_uncore_arb = {
+	.name		= "arb",
+	.num_counters   = 2,
+	.num_boxes	= 2,
+	.perf_ctr_bits	= 48,
+	.perf_ctr	= MTL_UNC_ARB_CTR,
+	.event_ctl	= MTL_UNC_ARB_CTRL,
+	.event_mask	= ADL_UNC_RAW_EVENT_MASK,
+	.msr_offset	= SNB_UNC_CBO_MSR_OFFSET,
+	.ops		= &icl_uncore_msr_ops,
+	.format_group	= &adl_uncore_format_group,
+};
+
+static struct intel_uncore_type mtl_uncore_hac_cbox = {
+	.name		= "hac_cbox",
+	.num_counters   = 2,
+	.num_boxes	= 2,
+	.perf_ctr_bits	= 48,
+	.perf_ctr	= MTL_UNC_HBO_CTR,
+	.event_ctl	= MTL_UNC_HBO_CTRL,
+	.event_mask	= ADL_UNC_RAW_EVENT_MASK,
+	.msr_offset	= SNB_UNC_CBO_MSR_OFFSET,
+	.ops		= &icl_uncore_msr_ops,
+	.format_group	= &adl_uncore_format_group,
+};
+
+static void mtl_uncore_msr_init_box(struct intel_uncore_box *box)
+{
+	wrmsrl(uncore_msr_box_ctl(box), SNB_UNC_GLOBAL_CTL_EN);
+}
+
+static struct intel_uncore_ops mtl_uncore_msr_ops = {
+	.init_box	= mtl_uncore_msr_init_box,
+	.disable_event	= snb_uncore_msr_disable_event,
+	.enable_event	= snb_uncore_msr_enable_event,
+	.read_counter	= uncore_msr_read_counter,
+};
+
+static struct intel_uncore_type mtl_uncore_cncu = {
+	.name		= "cncu",
+	.num_counters   = 1,
+	.num_boxes	= 1,
+	.box_ctl	= MTL_UNC_CNCU_BOX_CTL,
+	.fixed_ctr_bits = 48,
+	.fixed_ctr	= MTL_UNC_CNCU_FIXED_CTR,
+	.fixed_ctl	= MTL_UNC_CNCU_FIXED_CTRL,
+	.single_fixed	= 1,
+	.event_mask	= SNB_UNC_CTL_EV_SEL_MASK,
+	.format_group	= &icl_uncore_clock_format_group,
+	.ops		= &mtl_uncore_msr_ops,
+	.event_descs	= icl_uncore_events,
+};
+
+static struct intel_uncore_type mtl_uncore_sncu = {
+	.name		= "sncu",
+	.num_counters   = 1,
+	.num_boxes	= 1,
+	.box_ctl	= MTL_UNC_SNCU_BOX_CTL,
+	.fixed_ctr_bits	= 48,
+	.fixed_ctr	= MTL_UNC_SNCU_FIXED_CTR,
+	.fixed_ctl	= MTL_UNC_SNCU_FIXED_CTRL,
+	.single_fixed	= 1,
+	.event_mask	= SNB_UNC_CTL_EV_SEL_MASK,
+	.format_group	= &icl_uncore_clock_format_group,
+	.ops		= &mtl_uncore_msr_ops,
+	.event_descs	= icl_uncore_events,
+};
+
+static struct intel_uncore_type *mtl_msr_uncores[] = {
+	&mtl_uncore_cbox,
+	&mtl_uncore_hac_arb,
+	&mtl_uncore_arb,
+	&mtl_uncore_hac_cbox,
+	&mtl_uncore_cncu,
+	&mtl_uncore_sncu,
+	NULL
+};
+
+void mtl_uncore_cpu_init(void)
+{
+	mtl_uncore_cbox.num_boxes = icl_get_cbox_num();
+	uncore_msr_uncores = mtl_msr_uncores;
 }
 
 enum {
@@ -1264,6 +1412,19 @@ static const struct pci_device_id tgl_uncore_pci_ids[] = {
 	IMC_UNCORE_DEV(RPL_23),
 	IMC_UNCORE_DEV(RPL_24),
 	IMC_UNCORE_DEV(RPL_25),
+	IMC_UNCORE_DEV(MTL_1),
+	IMC_UNCORE_DEV(MTL_2),
+	IMC_UNCORE_DEV(MTL_3),
+	IMC_UNCORE_DEV(MTL_4),
+	IMC_UNCORE_DEV(MTL_5),
+	IMC_UNCORE_DEV(MTL_6),
+	IMC_UNCORE_DEV(MTL_7),
+	IMC_UNCORE_DEV(MTL_8),
+	IMC_UNCORE_DEV(MTL_9),
+	IMC_UNCORE_DEV(MTL_10),
+	IMC_UNCORE_DEV(MTL_11),
+	IMC_UNCORE_DEV(MTL_12),
+	IMC_UNCORE_DEV(MTL_13),
 	{ /* end: all zeroes */ }
 };
 
@@ -1338,6 +1499,7 @@ static void __uncore_imc_init_box(struct intel_uncore_box *box,
 	/* MCHBAR is disabled */
 	if (!(mch_bar & BIT(0))) {
 		pr_warn("perf uncore: MCHBAR is disabled. Failed to map IMC free-running counters.\n");
+		pci_dev_put(pdev);
 		return;
 	}
 	mch_bar &= ~BIT(0);
@@ -1352,6 +1514,8 @@ static void __uncore_imc_init_box(struct intel_uncore_box *box,
 	box->io_addr = ioremap(addr, type->mmio_map_size);
 	if (!box->io_addr)
 		pr_warn("perf uncore: Failed to ioremap for %s.\n", type->name);
+
+	pci_dev_put(pdev);
 }
 
 static void tgl_uncore_imc_freerunning_init_box(struct intel_uncore_box *box)

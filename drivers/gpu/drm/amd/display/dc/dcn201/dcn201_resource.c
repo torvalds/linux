@@ -74,7 +74,7 @@
 #define MIN_DISP_CLK_KHZ 100000
 #define MIN_DPP_CLK_KHZ 100000
 
-struct _vcs_dpi_ip_params_st dcn201_ip = {
+static struct _vcs_dpi_ip_params_st dcn201_ip = {
 	.gpuvm_enable = 0,
 	.hostvm_enable = 0,
 	.gpuvm_max_page_table_levels = 4,
@@ -136,7 +136,7 @@ struct _vcs_dpi_ip_params_st dcn201_ip = {
 	.number_of_cursors = 1,
 };
 
-struct _vcs_dpi_soc_bounding_box_st dcn201_soc = {
+static struct _vcs_dpi_soc_bounding_box_st dcn201_soc = {
 	.clock_limits = {
 			{
 				.state = 0,
@@ -571,8 +571,6 @@ static const struct resource_caps res_cap_dnc201 = {
 
 static const struct dc_plane_cap plane_cap = {
 	.type = DC_PLANE_TYPE_DCN_UNIVERSAL,
-	.blends_with_above = true,
-	.blends_with_below = true,
 	.per_pixel_alpha = true,
 
 	.pixel_format_support = {

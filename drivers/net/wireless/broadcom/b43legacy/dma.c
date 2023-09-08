@@ -127,14 +127,6 @@ static inline int next_slot(struct b43legacy_dmaring *ring, int slot)
 	return slot + 1;
 }
 
-static inline int prev_slot(struct b43legacy_dmaring *ring, int slot)
-{
-	B43legacy_WARN_ON(!(slot >= 0 && slot <= ring->nr_slots - 1));
-	if (slot == 0)
-		return ring->nr_slots - 1;
-	return slot - 1;
-}
-
 #ifdef CONFIG_B43LEGACY_DEBUG
 static void update_max_used_slots(struct b43legacy_dmaring *ring,
 				  int current_used_slots)

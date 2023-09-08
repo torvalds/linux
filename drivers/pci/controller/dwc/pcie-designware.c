@@ -10,7 +10,11 @@
 
 #include <linux/align.h>
 #include <linux/bitops.h>
+#include <linux/clk.h>
 #include <linux/delay.h>
+#include <linux/dma/edma.h>
+#include <linux/gpio/consumer.h>
+#include <linux/ioport.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/sizes.h>
@@ -18,6 +22,160 @@
 
 #include "../../pci.h"
 #include "pcie-designware.h"
+
+static const char * const dw_pcie_app_clks[DW_PCIE_NUM_APP_CLKS] = {
+	[DW_PCIE_DBI_CLK] = "dbi",
+	[DW_PCIE_MSTR_CLK] = "mstr",
+	[DW_PCIE_SLV_CLK] = "slv",
+};
+
+static const char * const dw_pcie_core_clks[DW_PCIE_NUM_CORE_CLKS] = {
+	[DW_PCIE_PIPE_CLK] = "pipe",
+	[DW_PCIE_CORE_CLK] = "core",
+	[DW_PCIE_AUX_CLK] = "aux",
+	[DW_PCIE_REF_CLK] = "ref",
+};
+
+static const char * const dw_pcie_app_rsts[DW_PCIE_NUM_APP_RSTS] = {
+	[DW_PCIE_DBI_RST] = "dbi",
+	[DW_PCIE_MSTR_RST] = "mstr",
+	[DW_PCIE_SLV_RST] = "slv",
+};
+
+static const char * const dw_pcie_core_rsts[DW_PCIE_NUM_CORE_RSTS] = {
+	[DW_PCIE_NON_STICKY_RST] = "non-sticky",
+	[DW_PCIE_STICKY_RST] = "sticky",
+	[DW_PCIE_CORE_RST] = "core",
+	[DW_PCIE_PIPE_RST] = "pipe",
+	[DW_PCIE_PHY_RST] = "phy",
+	[DW_PCIE_HOT_RST] = "hot",
+	[DW_PCIE_PWR_RST] = "pwr",
+};
+
+static int dw_pcie_get_clocks(struct dw_pcie *pci)
+{
+	int i, ret;
+
+	for (i = 0; i < DW_PCIE_NUM_APP_CLKS; i++)
+		pci->app_clks[i].id = dw_pcie_app_clks[i];
+
+	for (i = 0; i < DW_PCIE_NUM_CORE_CLKS; i++)
+		pci->core_clks[i].id = dw_pcie_core_clks[i];
+
+	ret = devm_clk_bulk_get_optional(pci->dev, DW_PCIE_NUM_APP_CLKS,
+					 pci->app_clks);
+	if (ret)
+		return ret;
+
+	return devm_clk_bulk_get_optional(pci->dev, DW_PCIE_NUM_CORE_CLKS,
+					  pci->core_clks);
+}
+
+static int dw_pcie_get_resets(struct dw_pcie *pci)
+{
+	int i, ret;
+
+	for (i = 0; i < DW_PCIE_NUM_APP_RSTS; i++)
+		pci->app_rsts[i].id = dw_pcie_app_rsts[i];
+
+	for (i = 0; i < DW_PCIE_NUM_CORE_RSTS; i++)
+		pci->core_rsts[i].id = dw_pcie_core_rsts[i];
+
+	ret = devm_reset_control_bulk_get_optional_shared(pci->dev,
+							  DW_PCIE_NUM_APP_RSTS,
+							  pci->app_rsts);
+	if (ret)
+		return ret;
+
+	ret = devm_reset_control_bulk_get_optional_exclusive(pci->dev,
+							     DW_PCIE_NUM_CORE_RSTS,
+							     pci->core_rsts);
+	if (ret)
+		return ret;
+
+	pci->pe_rst = devm_gpiod_get_optional(pci->dev, "reset", GPIOD_OUT_HIGH);
+	if (IS_ERR(pci->pe_rst))
+		return PTR_ERR(pci->pe_rst);
+
+	return 0;
+}
+
+int dw_pcie_get_resources(struct dw_pcie *pci)
+{
+	struct platform_device *pdev = to_platform_device(pci->dev);
+	struct device_node *np = dev_of_node(pci->dev);
+	struct resource *res;
+	int ret;
+
+	if (!pci->dbi_base) {
+		res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "dbi");
+		pci->dbi_base = devm_pci_remap_cfg_resource(pci->dev, res);
+		if (IS_ERR(pci->dbi_base))
+			return PTR_ERR(pci->dbi_base);
+	}
+
+	/* DBI2 is mainly useful for the endpoint controller */
+	if (!pci->dbi_base2) {
+		res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "dbi2");
+		if (res) {
+			pci->dbi_base2 = devm_pci_remap_cfg_resource(pci->dev, res);
+			if (IS_ERR(pci->dbi_base2))
+				return PTR_ERR(pci->dbi_base2);
+		} else {
+			pci->dbi_base2 = pci->dbi_base + SZ_4K;
+		}
+	}
+
+	/* For non-unrolled iATU/eDMA platforms this range will be ignored */
+	if (!pci->atu_base) {
+		res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "atu");
+		if (res) {
+			pci->atu_size = resource_size(res);
+			pci->atu_base = devm_ioremap_resource(pci->dev, res);
+			if (IS_ERR(pci->atu_base))
+				return PTR_ERR(pci->atu_base);
+		} else {
+			pci->atu_base = pci->dbi_base + DEFAULT_DBI_ATU_OFFSET;
+		}
+	}
+
+	/* Set a default value suitable for at most 8 in and 8 out windows */
+	if (!pci->atu_size)
+		pci->atu_size = SZ_4K;
+
+	/* eDMA region can be mapped to a custom base address */
+	if (!pci->edma.reg_base) {
+		res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "dma");
+		if (res) {
+			pci->edma.reg_base = devm_ioremap_resource(pci->dev, res);
+			if (IS_ERR(pci->edma.reg_base))
+				return PTR_ERR(pci->edma.reg_base);
+		} else if (pci->atu_size >= 2 * DEFAULT_DBI_DMA_OFFSET) {
+			pci->edma.reg_base = pci->atu_base + DEFAULT_DBI_DMA_OFFSET;
+		}
+	}
+
+	/* LLDD is supposed to manually switch the clocks and resets state */
+	if (dw_pcie_cap_is(pci, REQ_RES)) {
+		ret = dw_pcie_get_clocks(pci);
+		if (ret)
+			return ret;
+
+		ret = dw_pcie_get_resets(pci);
+		if (ret)
+			return ret;
+	}
+
+	if (pci->link_gen < 1)
+		pci->link_gen = of_pci_get_max_link_speed(np);
+
+	of_property_read_u32(np, "num-lanes", &pci->num_lanes);
+
+	if (of_property_read_bool(np, "snps,enable-cdm-check"))
+		dw_pcie_cap_set(pci, CDM_CHECK);
+
+	return 0;
+}
 
 void dw_pcie_version_detect(struct dw_pcie *pci)
 {
@@ -211,7 +369,7 @@ void dw_pcie_write_dbi2(struct dw_pcie *pci, u32 reg, size_t size, u32 val)
 static inline void __iomem *dw_pcie_select_atu(struct dw_pcie *pci, u32 dir,
 					       u32 index)
 {
-	if (pci->iatu_unroll_enabled)
+	if (dw_pcie_cap_is(pci, IATU_UNROLL))
 		return pci->atu_base + PCIE_ATU_UNROLL_BASE(dir, index);
 
 	dw_pcie_writel_dbi(pci, PCIE_ATU_VIEWPORT, dir | index);
@@ -393,8 +551,60 @@ static inline void dw_pcie_writel_atu_ib(struct dw_pcie *pci, u32 index, u32 reg
 	dw_pcie_writel_atu(pci, PCIE_ATU_REGION_DIR_IB, index, reg, val);
 }
 
-int dw_pcie_prog_inbound_atu(struct dw_pcie *pci, u8 func_no, int index,
-			     int type, u64 cpu_addr, u8 bar)
+int dw_pcie_prog_inbound_atu(struct dw_pcie *pci, int index, int type,
+			     u64 cpu_addr, u64 pci_addr, u64 size)
+{
+	u64 limit_addr = pci_addr + size - 1;
+	u32 retries, val;
+
+	if ((limit_addr & ~pci->region_limit) != (pci_addr & ~pci->region_limit) ||
+	    !IS_ALIGNED(cpu_addr, pci->region_align) ||
+	    !IS_ALIGNED(pci_addr, pci->region_align) || !size) {
+		return -EINVAL;
+	}
+
+	dw_pcie_writel_atu_ib(pci, index, PCIE_ATU_LOWER_BASE,
+			      lower_32_bits(pci_addr));
+	dw_pcie_writel_atu_ib(pci, index, PCIE_ATU_UPPER_BASE,
+			      upper_32_bits(pci_addr));
+
+	dw_pcie_writel_atu_ib(pci, index, PCIE_ATU_LIMIT,
+			      lower_32_bits(limit_addr));
+	if (dw_pcie_ver_is_ge(pci, 460A))
+		dw_pcie_writel_atu_ib(pci, index, PCIE_ATU_UPPER_LIMIT,
+				      upper_32_bits(limit_addr));
+
+	dw_pcie_writel_atu_ib(pci, index, PCIE_ATU_LOWER_TARGET,
+			      lower_32_bits(cpu_addr));
+	dw_pcie_writel_atu_ib(pci, index, PCIE_ATU_UPPER_TARGET,
+			      upper_32_bits(cpu_addr));
+
+	val = type;
+	if (upper_32_bits(limit_addr) > upper_32_bits(pci_addr) &&
+	    dw_pcie_ver_is_ge(pci, 460A))
+		val |= PCIE_ATU_INCREASE_REGION_SIZE;
+	dw_pcie_writel_atu_ib(pci, index, PCIE_ATU_REGION_CTRL1, val);
+	dw_pcie_writel_atu_ib(pci, index, PCIE_ATU_REGION_CTRL2, PCIE_ATU_ENABLE);
+
+	/*
+	 * Make sure ATU enable takes effect before any subsequent config
+	 * and I/O accesses.
+	 */
+	for (retries = 0; retries < LINK_WAIT_MAX_IATU_RETRIES; retries++) {
+		val = dw_pcie_readl_atu_ib(pci, index, PCIE_ATU_REGION_CTRL2);
+		if (val & PCIE_ATU_ENABLE)
+			return 0;
+
+		mdelay(LINK_WAIT_IATU);
+	}
+
+	dev_err(pci->dev, "Inbound iATU is not being enabled\n");
+
+	return -ETIMEDOUT;
+}
+
+int dw_pcie_prog_ep_inbound_atu(struct dw_pcie *pci, u8 func_no, int index,
+				int type, u64 cpu_addr, u8 bar)
 {
 	u32 retries, val;
 
@@ -448,7 +658,7 @@ int dw_pcie_wait_for_link(struct dw_pcie *pci)
 	}
 
 	if (retries >= LINK_WAIT_MAX_RETRIES) {
-		dev_err(pci->dev, "Phy link never came up\n");
+		dev_info(pci->dev, "Phy link never came up\n");
 		return -ETIMEDOUT;
 	}
 
@@ -522,26 +732,21 @@ static void dw_pcie_link_set_max_speed(struct dw_pcie *pci, u32 link_gen)
 
 }
 
-static bool dw_pcie_iatu_unroll_enabled(struct dw_pcie *pci)
-{
-	u32 val;
-
-	val = dw_pcie_readl_dbi(pci, PCIE_ATU_VIEWPORT);
-	if (val == 0xffffffff)
-		return true;
-
-	return false;
-}
-
-static void dw_pcie_iatu_detect_regions(struct dw_pcie *pci)
+void dw_pcie_iatu_detect(struct dw_pcie *pci)
 {
 	int max_region, ob, ib;
 	u32 val, min, dir;
 	u64 max;
 
-	if (pci->iatu_unroll_enabled) {
+	val = dw_pcie_readl_dbi(pci, PCIE_ATU_VIEWPORT);
+	if (val == 0xFFFFFFFF) {
+		dw_pcie_cap_set(pci, IATU_UNROLL);
+
 		max_region = min((int)pci->atu_size / 512, 256);
 	} else {
+		pci->atu_base = pci->dbi_base + PCIE_ATU_VIEWPORT_BASE;
+		pci->atu_size = PCIE_ATU_VIEWPORT_SIZE;
+
 		dw_pcie_writel_dbi(pci, PCIE_ATU_VIEWPORT, 0xFF);
 		max_region = dw_pcie_readl_dbi(pci, PCIE_ATU_VIEWPORT) + 1;
 	}
@@ -583,46 +788,197 @@ static void dw_pcie_iatu_detect_regions(struct dw_pcie *pci)
 	pci->num_ib_windows = ib;
 	pci->region_align = 1 << fls(min);
 	pci->region_limit = (max << 32) | (SZ_4G - 1);
-}
 
-void dw_pcie_iatu_detect(struct dw_pcie *pci)
-{
-	struct platform_device *pdev = to_platform_device(pci->dev);
-
-	pci->iatu_unroll_enabled = dw_pcie_iatu_unroll_enabled(pci);
-	if (pci->iatu_unroll_enabled) {
-		if (!pci->atu_base) {
-			struct resource *res =
-				platform_get_resource_byname(pdev, IORESOURCE_MEM, "atu");
-			if (res) {
-				pci->atu_size = resource_size(res);
-				pci->atu_base = devm_ioremap_resource(pci->dev, res);
-			}
-			if (!pci->atu_base || IS_ERR(pci->atu_base))
-				pci->atu_base = pci->dbi_base + DEFAULT_DBI_ATU_OFFSET;
-		}
-
-		if (!pci->atu_size)
-			/* Pick a minimal default, enough for 8 in and 8 out windows */
-			pci->atu_size = SZ_4K;
-	} else {
-		pci->atu_base = pci->dbi_base + PCIE_ATU_VIEWPORT_BASE;
-		pci->atu_size = PCIE_ATU_VIEWPORT_SIZE;
-	}
-
-	dw_pcie_iatu_detect_regions(pci);
-
-	dev_info(pci->dev, "iATU unroll: %s\n", pci->iatu_unroll_enabled ?
-		"enabled" : "disabled");
-
-	dev_info(pci->dev, "iATU regions: %u ob, %u ib, align %uK, limit %lluG\n",
+	dev_info(pci->dev, "iATU: unroll %s, %u ob, %u ib, align %uK, limit %lluG\n",
+		 dw_pcie_cap_is(pci, IATU_UNROLL) ? "T" : "F",
 		 pci->num_ob_windows, pci->num_ib_windows,
 		 pci->region_align / SZ_1K, (pci->region_limit + 1) / SZ_1G);
 }
 
+static u32 dw_pcie_readl_dma(struct dw_pcie *pci, u32 reg)
+{
+	u32 val = 0;
+	int ret;
+
+	if (pci->ops && pci->ops->read_dbi)
+		return pci->ops->read_dbi(pci, pci->edma.reg_base, reg, 4);
+
+	ret = dw_pcie_read(pci->edma.reg_base + reg, 4, &val);
+	if (ret)
+		dev_err(pci->dev, "Read DMA address failed\n");
+
+	return val;
+}
+
+static int dw_pcie_edma_irq_vector(struct device *dev, unsigned int nr)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	char name[6];
+	int ret;
+
+	if (nr >= EDMA_MAX_WR_CH + EDMA_MAX_RD_CH)
+		return -EINVAL;
+
+	ret = platform_get_irq_byname_optional(pdev, "dma");
+	if (ret > 0)
+		return ret;
+
+	snprintf(name, sizeof(name), "dma%u", nr);
+
+	return platform_get_irq_byname_optional(pdev, name);
+}
+
+static struct dw_edma_core_ops dw_pcie_edma_ops = {
+	.irq_vector = dw_pcie_edma_irq_vector,
+};
+
+static int dw_pcie_edma_find_chip(struct dw_pcie *pci)
+{
+	u32 val;
+
+	/*
+	 * Indirect eDMA CSRs access has been completely removed since v5.40a
+	 * thus no space is now reserved for the eDMA channels viewport and
+	 * former DMA CTRL register is no longer fixed to FFs.
+	 */
+	if (dw_pcie_ver_is_ge(pci, 540A))
+		val = 0xFFFFFFFF;
+	else
+		val = dw_pcie_readl_dbi(pci, PCIE_DMA_VIEWPORT_BASE + PCIE_DMA_CTRL);
+
+	if (val == 0xFFFFFFFF && pci->edma.reg_base) {
+		pci->edma.mf = EDMA_MF_EDMA_UNROLL;
+
+		val = dw_pcie_readl_dma(pci, PCIE_DMA_CTRL);
+	} else if (val != 0xFFFFFFFF) {
+		pci->edma.mf = EDMA_MF_EDMA_LEGACY;
+
+		pci->edma.reg_base = pci->dbi_base + PCIE_DMA_VIEWPORT_BASE;
+	} else {
+		return -ENODEV;
+	}
+
+	pci->edma.dev = pci->dev;
+
+	if (!pci->edma.ops)
+		pci->edma.ops = &dw_pcie_edma_ops;
+
+	pci->edma.flags |= DW_EDMA_CHIP_LOCAL;
+
+	pci->edma.ll_wr_cnt = FIELD_GET(PCIE_DMA_NUM_WR_CHAN, val);
+	pci->edma.ll_rd_cnt = FIELD_GET(PCIE_DMA_NUM_RD_CHAN, val);
+
+	/* Sanity check the channels count if the mapping was incorrect */
+	if (!pci->edma.ll_wr_cnt || pci->edma.ll_wr_cnt > EDMA_MAX_WR_CH ||
+	    !pci->edma.ll_rd_cnt || pci->edma.ll_rd_cnt > EDMA_MAX_RD_CH)
+		return -EINVAL;
+
+	return 0;
+}
+
+static int dw_pcie_edma_irq_verify(struct dw_pcie *pci)
+{
+	struct platform_device *pdev = to_platform_device(pci->dev);
+	u16 ch_cnt = pci->edma.ll_wr_cnt + pci->edma.ll_rd_cnt;
+	char name[6];
+	int ret;
+
+	if (pci->edma.nr_irqs == 1)
+		return 0;
+	else if (pci->edma.nr_irqs > 1)
+		return pci->edma.nr_irqs != ch_cnt ? -EINVAL : 0;
+
+	ret = platform_get_irq_byname_optional(pdev, "dma");
+	if (ret > 0) {
+		pci->edma.nr_irqs = 1;
+		return 0;
+	}
+
+	for (; pci->edma.nr_irqs < ch_cnt; pci->edma.nr_irqs++) {
+		snprintf(name, sizeof(name), "dma%d", pci->edma.nr_irqs);
+
+		ret = platform_get_irq_byname_optional(pdev, name);
+		if (ret <= 0)
+			return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int dw_pcie_edma_ll_alloc(struct dw_pcie *pci)
+{
+	struct dw_edma_region *ll;
+	dma_addr_t paddr;
+	int i;
+
+	for (i = 0; i < pci->edma.ll_wr_cnt; i++) {
+		ll = &pci->edma.ll_region_wr[i];
+		ll->sz = DMA_LLP_MEM_SIZE;
+		ll->vaddr.mem = dmam_alloc_coherent(pci->dev, ll->sz,
+						    &paddr, GFP_KERNEL);
+		if (!ll->vaddr.mem)
+			return -ENOMEM;
+
+		ll->paddr = paddr;
+	}
+
+	for (i = 0; i < pci->edma.ll_rd_cnt; i++) {
+		ll = &pci->edma.ll_region_rd[i];
+		ll->sz = DMA_LLP_MEM_SIZE;
+		ll->vaddr.mem = dmam_alloc_coherent(pci->dev, ll->sz,
+						    &paddr, GFP_KERNEL);
+		if (!ll->vaddr.mem)
+			return -ENOMEM;
+
+		ll->paddr = paddr;
+	}
+
+	return 0;
+}
+
+int dw_pcie_edma_detect(struct dw_pcie *pci)
+{
+	int ret;
+
+	/* Don't fail if no eDMA was found (for the backward compatibility) */
+	ret = dw_pcie_edma_find_chip(pci);
+	if (ret)
+		return 0;
+
+	/* Don't fail on the IRQs verification (for the backward compatibility) */
+	ret = dw_pcie_edma_irq_verify(pci);
+	if (ret) {
+		dev_err(pci->dev, "Invalid eDMA IRQs found\n");
+		return 0;
+	}
+
+	ret = dw_pcie_edma_ll_alloc(pci);
+	if (ret) {
+		dev_err(pci->dev, "Couldn't allocate LLP memory\n");
+		return ret;
+	}
+
+	/* Don't fail if the DW eDMA driver can't find the device */
+	ret = dw_edma_probe(&pci->edma);
+	if (ret && ret != -ENODEV) {
+		dev_err(pci->dev, "Couldn't register eDMA device\n");
+		return ret;
+	}
+
+	dev_info(pci->dev, "eDMA: unroll %s, %hu wr, %hu rd\n",
+		 pci->edma.mf == EDMA_MF_EDMA_UNROLL ? "T" : "F",
+		 pci->edma.ll_wr_cnt, pci->edma.ll_rd_cnt);
+
+	return 0;
+}
+
+void dw_pcie_edma_remove(struct dw_pcie *pci)
+{
+	dw_edma_remove(&pci->edma);
+}
+
 void dw_pcie_setup(struct dw_pcie *pci)
 {
-	struct device_node *np = pci->dev->of_node;
 	u32 val;
 
 	if (pci->link_gen > 0)
@@ -641,8 +997,15 @@ void dw_pcie_setup(struct dw_pcie *pci)
 	if (pci->n_fts[1]) {
 		val = dw_pcie_readl_dbi(pci, PCIE_LINK_WIDTH_SPEED_CONTROL);
 		val &= ~PORT_LOGIC_N_FTS_MASK;
-		val |= pci->n_fts[pci->link_gen - 1];
+		val |= pci->n_fts[1];
 		dw_pcie_writel_dbi(pci, PCIE_LINK_WIDTH_SPEED_CONTROL, val);
+	}
+
+	if (dw_pcie_cap_is(pci, CDM_CHECK)) {
+		val = dw_pcie_readl_dbi(pci, PCIE_PL_CHK_REG_CONTROL_STATUS);
+		val |= PCIE_PL_CHK_REG_CHK_REG_CONTINUOUS |
+		       PCIE_PL_CHK_REG_CHK_REG_START;
+		dw_pcie_writel_dbi(pci, PCIE_PL_CHK_REG_CONTROL_STATUS, val);
 	}
 
 	val = dw_pcie_readl_dbi(pci, PCIE_PORT_LINK_CONTROL);
@@ -650,14 +1013,6 @@ void dw_pcie_setup(struct dw_pcie *pci)
 	val |= PORT_LINK_DLL_LINK_EN;
 	dw_pcie_writel_dbi(pci, PCIE_PORT_LINK_CONTROL, val);
 
-	if (of_property_read_bool(np, "snps,enable-cdm-check")) {
-		val = dw_pcie_readl_dbi(pci, PCIE_PL_CHK_REG_CONTROL_STATUS);
-		val |= PCIE_PL_CHK_REG_CHK_REG_CONTINUOUS |
-		       PCIE_PL_CHK_REG_CHK_REG_START;
-		dw_pcie_writel_dbi(pci, PCIE_PL_CHK_REG_CONTROL_STATUS, val);
-	}
-
-	of_property_read_u32(np, "num-lanes", &pci->num_lanes);
 	if (!pci->num_lanes) {
 		dev_dbg(pci->dev, "Using h/w default number of lanes\n");
 		return;

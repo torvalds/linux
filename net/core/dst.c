@@ -66,7 +66,8 @@ void dst_init(struct dst_entry *dst, struct dst_ops *ops,
 	dst->tclassid = 0;
 #endif
 	dst->lwtstate = NULL;
-	atomic_set(&dst->__refcnt, initial_ref);
+	rcuref_init(&dst->__rcuref, initial_ref);
+	INIT_LIST_HEAD(&dst->rt_uncached);
 	dst->__use = 0;
 	dst->lastuse = jiffies;
 	dst->flags = flags;
@@ -82,12 +83,8 @@ void *dst_alloc(struct dst_ops *ops, struct net_device *dev,
 
 	if (ops->gc &&
 	    !(flags & DST_NOCOUNT) &&
-	    dst_entries_get_fast(ops) > ops->gc_thresh) {
-		if (ops->gc(ops)) {
-			pr_notice_ratelimited("Route cache is full: consider increasing sysctl net.ipv6.route.max_size.\n");
-			return NULL;
-		}
-	}
+	    dst_entries_get_fast(ops) > ops->gc_thresh)
+		ops->gc(ops);
 
 	dst = kmem_cache_alloc(ops->kmem_cachep, GFP_ATOMIC);
 	if (!dst)
@@ -166,31 +163,15 @@ EXPORT_SYMBOL(dst_dev_put);
 
 void dst_release(struct dst_entry *dst)
 {
-	if (dst) {
-		int newrefcnt;
-
-		newrefcnt = atomic_dec_return(&dst->__refcnt);
-		if (WARN_ONCE(newrefcnt < 0, "dst_release underflow"))
-			net_warn_ratelimited("%s: dst:%p refcnt:%d\n",
-					     __func__, dst, newrefcnt);
-		if (!newrefcnt)
-			call_rcu(&dst->rcu_head, dst_destroy_rcu);
-	}
+	if (dst && rcuref_put(&dst->__rcuref))
+		call_rcu_hurry(&dst->rcu_head, dst_destroy_rcu);
 }
 EXPORT_SYMBOL(dst_release);
 
 void dst_release_immediate(struct dst_entry *dst)
 {
-	if (dst) {
-		int newrefcnt;
-
-		newrefcnt = atomic_dec_return(&dst->__refcnt);
-		if (WARN_ONCE(newrefcnt < 0, "dst_release_immediate underflow"))
-			net_warn_ratelimited("%s: dst:%p refcnt:%d\n",
-					     __func__, dst, newrefcnt);
-		if (!newrefcnt)
-			dst_destroy(dst);
-	}
+	if (dst && rcuref_put(&dst->__rcuref))
+		dst_destroy(dst);
 }
 EXPORT_SYMBOL(dst_release_immediate);
 
@@ -316,6 +297,8 @@ void metadata_dst_free(struct metadata_dst *md_dst)
 	if (md_dst->type == METADATA_IP_TUNNEL)
 		dst_cache_destroy(&md_dst->u.tun_info.dst_cache);
 #endif
+	if (md_dst->type == METADATA_XFRM)
+		dst_release(md_dst->u.xfrm_info.dst_orig);
 	kfree(md_dst);
 }
 EXPORT_SYMBOL_GPL(metadata_dst_free);
@@ -340,16 +323,18 @@ EXPORT_SYMBOL_GPL(metadata_dst_alloc_percpu);
 
 void metadata_dst_free_percpu(struct metadata_dst __percpu *md_dst)
 {
-#ifdef CONFIG_DST_CACHE
 	int cpu;
 
 	for_each_possible_cpu(cpu) {
 		struct metadata_dst *one_md_dst = per_cpu_ptr(md_dst, cpu);
 
+#ifdef CONFIG_DST_CACHE
 		if (one_md_dst->type == METADATA_IP_TUNNEL)
 			dst_cache_destroy(&one_md_dst->u.tun_info.dst_cache);
-	}
 #endif
+		if (one_md_dst->type == METADATA_XFRM)
+			dst_release(one_md_dst->u.xfrm_info.dst_orig);
+	}
 	free_percpu(md_dst);
 }
 EXPORT_SYMBOL_GPL(metadata_dst_free_percpu);

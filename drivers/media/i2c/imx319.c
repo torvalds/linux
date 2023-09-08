@@ -2328,8 +2328,12 @@ static int imx319_init_controls(struct imx319 *imx319)
 
 	imx319->hflip = v4l2_ctrl_new_std(ctrl_hdlr, &imx319_ctrl_ops,
 					  V4L2_CID_HFLIP, 0, 1, 1, 0);
+	if (imx319->hflip)
+		imx319->hflip->flags |= V4L2_CTRL_FLAG_MODIFY_LAYOUT;
 	imx319->vflip = v4l2_ctrl_new_std(ctrl_hdlr, &imx319_ctrl_ops,
 					  V4L2_CID_VFLIP, 0, 1, 1, 0);
+	if (imx319->vflip)
+		imx319->vflip->flags |= V4L2_CTRL_FLAG_MODIFY_LAYOUT;
 
 	v4l2_ctrl_new_std(ctrl_hdlr, &imx319_ctrl_ops, V4L2_CID_ANALOGUE_GAIN,
 			  IMX319_ANA_GAIN_MIN, IMX319_ANA_GAIN_MAX,

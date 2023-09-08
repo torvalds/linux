@@ -16,14 +16,8 @@
 
 #include <dt-bindings/clock/mt7629-clk.h>
 
-#define GATE_ETH(_id, _name, _parent, _shift) {		\
-		.id = _id,				\
-		.name = _name,				\
-		.parent_name = _parent,			\
-		.regs = &eth_cg_regs,			\
-		.shift = _shift,			\
-		.ops = &mtk_clk_gate_ops_no_setclr_inv,	\
-	}
+#define GATE_ETH(_id, _name, _parent, _shift)			\
+	GATE_MTK(_id, _name, _parent, &eth_cg_regs, _shift, &mtk_clk_gate_ops_no_setclr_inv)
 
 static const struct mtk_gate_regs eth_cg_regs = {
 	.set_ofs = 0x30,
@@ -45,14 +39,8 @@ static const struct mtk_gate_regs sgmii_cg_regs = {
 	.sta_ofs = 0xE4,
 };
 
-#define GATE_SGMII(_id, _name, _parent, _shift) {	\
-		.id = _id,				\
-		.name = _name,				\
-		.parent_name = _parent,			\
-		.regs = &sgmii_cg_regs,			\
-		.shift = _shift,			\
-		.ops = &mtk_clk_gate_ops_no_setclr_inv,	\
-	}
+#define GATE_SGMII(_id, _name, _parent, _shift)			\
+	GATE_MTK(_id, _name, _parent, &sgmii_cg_regs, _shift, &mtk_clk_gate_ops_no_setclr_inv)
 
 static const struct mtk_gate sgmii_clks[2][4] = {
 	{
@@ -92,7 +80,8 @@ static int clk_mt7629_ethsys_init(struct platform_device *pdev)
 
 	clk_data = mtk_alloc_clk_data(CLK_ETH_NR_CLK);
 
-	mtk_clk_register_gates(node, eth_clks, CLK_ETH_NR_CLK, clk_data);
+	mtk_clk_register_gates(&pdev->dev, node, eth_clks,
+			       CLK_ETH_NR_CLK, clk_data);
 
 	r = of_clk_add_hw_provider(node, of_clk_hw_onecell_get, clk_data);
 	if (r)
@@ -114,8 +103,8 @@ static int clk_mt7629_sgmiisys_init(struct platform_device *pdev)
 
 	clk_data = mtk_alloc_clk_data(CLK_SGMII_NR_CLK);
 
-	mtk_clk_register_gates(node, sgmii_clks[id++], CLK_SGMII_NR_CLK,
-			       clk_data);
+	mtk_clk_register_gates(&pdev->dev, node, sgmii_clks[id++],
+			       CLK_SGMII_NR_CLK, clk_data);
 
 	r = of_clk_add_hw_provider(node, of_clk_hw_onecell_get, clk_data);
 	if (r)
@@ -137,6 +126,7 @@ static const struct of_device_id of_match_clk_mt7629_eth[] = {
 		/* sentinel */
 	}
 };
+MODULE_DEVICE_TABLE(of, of_match_clk_mt7629_eth);
 
 static int clk_mt7629_eth_probe(struct platform_device *pdev)
 {
@@ -165,3 +155,4 @@ static struct platform_driver clk_mt7629_eth_drv = {
 };
 
 builtin_platform_driver(clk_mt7629_eth_drv);
+MODULE_LICENSE("GPL");

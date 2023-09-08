@@ -11,7 +11,10 @@
 #ifndef ZSTD_LDM_GEARTAB_H
 #define ZSTD_LDM_GEARTAB_H
 
-static U64 ZSTD_ldm_gearTab[256] = {
+#include "../common/compiler.h" /* UNUSED_ATTR */
+#include "../common/mem.h"      /* U64 */
+
+static UNUSED_ATTR const U64 ZSTD_ldm_gearTab[256] = {
     0xf5b8f72c5f77775c, 0x84935f266b7ac412, 0xb647ada9ca730ccc,
     0xb065bb4b114fb1de, 0x34584e7e8c3a9fd0, 0x4e97e17c6ae26b05,
     0x3a03d743bc99a604, 0xcecd042422c4044f, 0x76de76c58524259e,

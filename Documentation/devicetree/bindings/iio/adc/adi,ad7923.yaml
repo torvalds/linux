@@ -11,7 +11,7 @@ maintainers:
 
 description: |
   Analog Devices AD7904, AD7914, AD7923, AD7924 4 Channel ADCs, and AD7908,
-   AD7918, AD7928 8 Channels ADCs.
+   AD7918, AD7927, AD7928 8 Channels ADCs.
 
   Specifications about the part can be found at:
     https://www.analog.com/media/en/technical-documentation/data-sheets/AD7923.pdf
@@ -20,14 +20,22 @@ description: |
 
 properties:
   compatible:
-    enum:
-      - adi,ad7904
-      - adi,ad7914
-      - adi,ad7923
-      - adi,ad7924
-      - adi,ad7908
-      - adi,ad7918
-      - adi,ad7928
+    oneOf:
+      - enum:
+          - adi,ad7904
+          - adi,ad7908
+          - adi,ad7914
+          - adi,ad7918
+          - adi,ad7923
+          - adi,ad7928
+      - const: adi,ad7924
+        deprecated: true
+      - items:
+          - const: adi,ad7924
+          - const: adi,ad7923
+      - items:
+          - const: adi,ad7927
+          - const: adi,ad7928
 
   reg:
     maxItems: 1

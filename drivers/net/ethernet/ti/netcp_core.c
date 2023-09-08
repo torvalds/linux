@@ -1261,7 +1261,7 @@ out:
 }
 
 /* Submit the packet */
-static int netcp_ndo_start_xmit(struct sk_buff *skb, struct net_device *ndev)
+static netdev_tx_t netcp_ndo_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 {
 	struct netcp_intf *netcp = netdev_priv(ndev);
 	struct netcp_stats *tx_stats = &netcp->stats;
@@ -1916,16 +1916,16 @@ netcp_get_stats(struct net_device *ndev, struct rtnl_link_stats64 *stats)
 	unsigned int start;
 
 	do {
-		start = u64_stats_fetch_begin_irq(&p->syncp_rx);
+		start = u64_stats_fetch_begin(&p->syncp_rx);
 		rxpackets       = p->rx_packets;
 		rxbytes         = p->rx_bytes;
-	} while (u64_stats_fetch_retry_irq(&p->syncp_rx, start));
+	} while (u64_stats_fetch_retry(&p->syncp_rx, start));
 
 	do {
-		start = u64_stats_fetch_begin_irq(&p->syncp_tx);
+		start = u64_stats_fetch_begin(&p->syncp_tx);
 		txpackets       = p->tx_packets;
 		txbytes         = p->tx_bytes;
-	} while (u64_stats_fetch_retry_irq(&p->syncp_tx, start));
+	} while (u64_stats_fetch_retry(&p->syncp_tx, start));
 
 	stats->rx_packets = rxpackets;
 	stats->rx_bytes = rxbytes;
@@ -2081,8 +2081,8 @@ static int netcp_create_interface(struct netcp_device *netcp_device,
 	netcp->tx_pool_region_id = temp[1];
 
 	if (netcp->tx_pool_size < MAX_SKB_FRAGS) {
-		dev_err(dev, "tx-pool size too small, must be at least %ld\n",
-			MAX_SKB_FRAGS);
+		dev_err(dev, "tx-pool size too small, must be at least %u\n",
+			(unsigned int)MAX_SKB_FRAGS);
 		ret = -ENODEV;
 		goto quit;
 	}

@@ -54,31 +54,3 @@ measure_rate()
 	echo $ir $er
 	return $ret
 }
-
-bail_on_lldpad()
-{
-	if systemctl is-active --quiet lldpad; then
-
-		cat >/dev/stderr <<-EOF
-		WARNING: lldpad is running
-
-			lldpad will likely configure DCB, and this test will
-			configure Qdiscs. mlxsw does not support both at the
-			same time, one of them is arbitrarily going to overwrite
-			the other. That will cause spurious failures (or,
-			unlikely, passes) of this test.
-		EOF
-
-		if [[ -z $ALLOW_LLDPAD ]]; then
-			cat >/dev/stderr <<-EOF
-
-				If you want to run the test anyway, please set
-				an environment variable ALLOW_LLDPAD to a
-				non-empty string.
-			EOF
-			exit 1
-		else
-			return
-		fi
-	fi
-}

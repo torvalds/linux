@@ -149,7 +149,7 @@
 			 * sata0, and accesses to SATA disk 0 make it blink so it
 			 * doesn't need to be declared here.
 			 */
-			orange {
+			led-orange {
 				gpios = <&gpio0 13 GPIO_ACTIVE_HIGH>;
 				label = "ds116:orange:disk";
 				default-state = "off";

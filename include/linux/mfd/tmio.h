@@ -84,11 +84,6 @@
 /* Some controllers have a CBSY bit */
 #define TMIO_MMC_HAVE_CBSY		BIT(11)
 
-int tmio_core_mmc_enable(void __iomem *cnf, int shift, unsigned long base);
-int tmio_core_mmc_resume(void __iomem *cnf, int shift, unsigned long base);
-void tmio_core_mmc_pwr(void __iomem *cnf, int shift, int state);
-void tmio_core_mmc_clk_div(void __iomem *cnf, int shift, int state);
-
 struct dma_chan;
 
 /*
@@ -102,7 +97,6 @@ struct tmio_mmc_data {
 	unsigned long			capabilities2;
 	unsigned long			flags;
 	u32				ocr_mask;	/* available voltages */
-	int				alignment_shift;
 	dma_addr_t			dma_rx_offset;
 	unsigned int			max_blk_count;
 	unsigned short			max_segs;

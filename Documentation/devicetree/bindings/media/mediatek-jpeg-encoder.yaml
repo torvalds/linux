@@ -19,6 +19,7 @@ properties:
           - mediatek,mt2701-jpgenc
           - mediatek,mt8183-jpgenc
           - mediatek,mt8186-jpgenc
+          - mediatek,mt8188-jpgenc
       - const: mediatek,mtk-jpgenc
   reg:
     maxItems: 1
@@ -42,11 +43,6 @@ properties:
       Points to the respective IOMMU block with master port as argument, see
       Documentation/devicetree/bindings/iommu/mediatek,iommu.yaml for details.
       Ports are according to the HW.
-
-  dma-ranges:
-    maxItems: 1
-    description: |
-      Describes the physical address space of IOMMU maps to memory.
 
 required:
   - compatible

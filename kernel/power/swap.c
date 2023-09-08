@@ -581,7 +581,7 @@ static int save_image(struct swap_map_handle *handle,
 	return ret;
 }
 
-/**
+/*
  * Structure used for CRC32.
  */
 struct crc_data {
@@ -596,7 +596,7 @@ struct crc_data {
 	unsigned char *unc[LZO_THREADS];          /* uncompressed data */
 };
 
-/**
+/*
  * CRC32 update function that runs in its own thread.
  */
 static int crc32_threadfn(void *data)
@@ -623,7 +623,7 @@ static int crc32_threadfn(void *data)
 	}
 	return 0;
 }
-/**
+/*
  * Structure used for LZO data compression.
  */
 struct cmp_data {
@@ -640,7 +640,7 @@ struct cmp_data {
 	unsigned char wrk[LZO1X_1_MEM_COMPRESS];  /* compression workspace */
 };
 
-/**
+/*
  * Compression function that runs in its own thread.
  */
 static int lzo_compress_threadfn(void *data)
@@ -948,9 +948,9 @@ out_finish:
 	return error;
 }
 
-/**
+/*
  *	The following functions allow us to read data using a swap map
- *	in a file-alike way
+ *	in a file-like way.
  */
 
 static void release_swap_reader(struct swap_map_handle *handle)
@@ -1107,7 +1107,7 @@ static int load_image(struct swap_map_handle *handle,
 	return ret;
 }
 
-/**
+/*
  * Structure used for LZO data decompression.
  */
 struct dec_data {
@@ -1123,7 +1123,7 @@ struct dec_data {
 	unsigned char cmp[LZO_CMP_SIZE];          /* compressed buffer */
 };
 
-/**
+/*
  * Decompression function that runs in its own thread.
  */
 static int lzo_decompress_threadfn(void *data)
@@ -1518,9 +1518,13 @@ int swsusp_check(void)
 {
 	int error;
 	void *holder;
+	fmode_t mode = FMODE_READ;
+
+	if (snapshot_test)
+		mode |= FMODE_EXCL;
 
 	hib_resume_bdev = blkdev_get_by_dev(swsusp_resume_device,
-					    FMODE_READ | FMODE_EXCL, &holder);
+					    mode, &holder);
 	if (!IS_ERR(hib_resume_bdev)) {
 		set_blocksize(hib_resume_bdev, PAGE_SIZE);
 		clear_page(swsusp_header);
@@ -1547,7 +1551,7 @@ int swsusp_check(void)
 
 put:
 		if (error)
-			blkdev_put(hib_resume_bdev, FMODE_READ | FMODE_EXCL);
+			blkdev_put(hib_resume_bdev, mode);
 		else
 			pr_debug("Image signature found, resuming\n");
 	} else {

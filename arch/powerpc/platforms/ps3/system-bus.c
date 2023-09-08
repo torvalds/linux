@@ -439,7 +439,7 @@ static void ps3_system_bus_shutdown(struct device *_dev)
 	dev_dbg(&dev->core, " <- %s:%d\n", __func__, __LINE__);
 }
 
-static int ps3_system_bus_uevent(struct device *_dev, struct kobj_uevent_env *env)
+static int ps3_system_bus_uevent(const struct device *_dev, struct kobj_uevent_env *env)
 {
 	struct ps3_system_bus_device *dev = ps3_dev_to_system_bus_dev(_dev);
 
@@ -466,7 +466,7 @@ static struct attribute *ps3_system_bus_dev_attrs[] = {
 };
 ATTRIBUTE_GROUPS(ps3_system_bus_dev);
 
-struct bus_type ps3_system_bus_type = {
+static struct bus_type ps3_system_bus_type = {
 	.name = "ps3_system_bus",
 	.match = ps3_system_bus_match,
 	.uevent = ps3_system_bus_uevent,

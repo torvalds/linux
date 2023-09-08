@@ -84,7 +84,7 @@ struct ftide010 {
 #define FTIDE010_CLK_MOD_DEV0_UDMA_EN	BIT(4)
 #define FTIDE010_CLK_MOD_DEV1_UDMA_EN	BIT(5)
 
-static struct scsi_host_template pata_ftide010_sht = {
+static const struct scsi_host_template pata_ftide010_sht = {
 	ATA_BMDMA_SHT(DRV_NAME),
 };
 
@@ -560,7 +560,7 @@ static const struct of_device_id pata_ftide010_of_match[] = {
 static struct platform_driver pata_ftide010_driver = {
 	.driver = {
 		.name = DRV_NAME,
-		.of_match_table = of_match_ptr(pata_ftide010_of_match),
+		.of_match_table = pata_ftide010_of_match,
 	},
 	.probe = pata_ftide010_probe,
 	.remove = pata_ftide010_remove,

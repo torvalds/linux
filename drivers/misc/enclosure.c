@@ -32,7 +32,7 @@ static struct class enclosure_class;
  * found. @start can be used as a starting point to obtain multiple
  * enclosures per parent (should begin with NULL and then be set to
  * each returned enclosure device). Obtains a reference to the
- * enclosure class device which must be released with device_put().
+ * enclosure class device which must be released with put_device().
  * If @start is not NULL, a reference must be taken on it which is
  * released before returning (this allows a loop through all
  * enclosures to exit with only the reference on the enclosure of
@@ -451,7 +451,6 @@ ATTRIBUTE_GROUPS(enclosure_class);
 
 static struct class enclosure_class = {
 	.name			= "enclosure",
-	.owner			= THIS_MODULE,
 	.dev_release		= enclosure_release,
 	.dev_groups		= enclosure_class_groups,
 };

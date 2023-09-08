@@ -11,6 +11,7 @@
 #include <linux/cpufeature.h>
 
 #include <asm/cmdline.h>
+#include <asm/cpu.h>
 
 #include "cpu.h"
 

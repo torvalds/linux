@@ -194,17 +194,20 @@ int cxgb4_ptp_redirect_rx_packet(struct adapter *adapter, struct port_info *pi)
 }
 
 /**
- * cxgb4_ptp_adjfreq - Adjust frequency of PHC cycle counter
+ * cxgb4_ptp_adjfine - Adjust frequency of PHC cycle counter
  * @ptp: ptp clock structure
- * @ppb: Desired frequency change in parts per billion
+ * @scaled_ppm: Desired frequency in scaled parts per billion
  *
- * Adjust the frequency of the PHC cycle counter by the indicated ppb from
+ * Adjust the frequency of the PHC cycle counter by the indicated amount from
  * the base frequency.
+ *
+ * Scaled parts per million is ppm with a 16-bit binary fractional field.
  */
-static int cxgb4_ptp_adjfreq(struct ptp_clock_info *ptp, s32 ppb)
+static int cxgb4_ptp_adjfine(struct ptp_clock_info *ptp, long scaled_ppm)
 {
 	struct adapter *adapter = (struct adapter *)container_of(ptp,
 				   struct adapter, ptp_clock_info);
+	s32 ppb = scaled_ppm_to_ppb(scaled_ppm);
 	struct fw_ptp_cmd c;
 	int err;
 
@@ -404,7 +407,7 @@ static const struct ptp_clock_info cxgb4_ptp_clock_info = {
 	.n_ext_ts       = 0,
 	.n_per_out      = 0,
 	.pps            = 0,
-	.adjfreq        = cxgb4_ptp_adjfreq,
+	.adjfine        = cxgb4_ptp_adjfine,
 	.adjtime        = cxgb4_ptp_adjtime,
 	.gettime64      = cxgb4_ptp_gettime,
 	.settime64      = cxgb4_ptp_settime,

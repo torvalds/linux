@@ -6,14 +6,19 @@
 
 #include <linux/slab.h>
 #include <linux/iversion.h>
+#include "ctree.h"
+#include "fs.h"
+#include "messages.h"
 #include "misc.h"
 #include "delayed-inode.h"
 #include "disk-io.h"
 #include "transaction.h"
-#include "ctree.h"
 #include "qgroup.h"
 #include "locking.h"
 #include "inode-item.h"
+#include "space-info.h"
+#include "accessors.h"
+#include "file-item.h"
 
 #define BTRFS_DELAYED_WRITEBACK		512
 #define BTRFS_DELAYED_BACKGROUND	128
@@ -1043,7 +1048,7 @@ again:
 	 * so there is only one iref. The case that several irefs are
 	 * in the same item doesn't exist.
 	 */
-	btrfs_del_item(trans, root, path);
+	ret = btrfs_del_item(trans, root, path);
 out:
 	btrfs_release_delayed_iref(node);
 	btrfs_release_path(path);
@@ -1412,7 +1417,7 @@ void btrfs_balance_delayed_items(struct btrfs_fs_info *fs_info)
 int btrfs_insert_delayed_dir_index(struct btrfs_trans_handle *trans,
 				   const char *name, int name_len,
 				   struct btrfs_inode *dir,
-				   struct btrfs_disk_key *disk_key, u8 type,
+				   struct btrfs_disk_key *disk_key, u8 flags,
 				   u64 index)
 {
 	struct btrfs_fs_info *fs_info = trans->fs_info;
@@ -1443,7 +1448,7 @@ int btrfs_insert_delayed_dir_index(struct btrfs_trans_handle *trans,
 	btrfs_set_stack_dir_transid(dir_item, trans->transid);
 	btrfs_set_stack_dir_data_len(dir_item, 0);
 	btrfs_set_stack_dir_name_len(dir_item, name_len);
-	btrfs_set_stack_dir_type(dir_item, type);
+	btrfs_set_stack_dir_flags(dir_item, flags);
 	memcpy((char *)(dir_item + 1), name, name_len);
 
 	data_len = delayed_item->data_len + sizeof(struct btrfs_item);
@@ -1641,8 +1646,8 @@ bool btrfs_readdir_get_delayed_items(struct inode *inode,
 	 * We can only do one readdir with delayed items at a time because of
 	 * item->readdir_list.
 	 */
-	btrfs_inode_unlock(inode, BTRFS_ILOCK_SHARED);
-	btrfs_inode_lock(inode, 0);
+	btrfs_inode_unlock(BTRFS_I(inode), BTRFS_ILOCK_SHARED);
+	btrfs_inode_lock(BTRFS_I(inode), 0);
 
 	mutex_lock(&delayed_node->mutex);
 	item = __btrfs_first_delayed_insertion_item(delayed_node);
@@ -1753,7 +1758,7 @@ int btrfs_readdir_delayed_dir_index(struct dir_context *ctx,
 		name = (char *)(di + 1);
 		name_len = btrfs_stack_dir_name_len(di);
 
-		d_type = fs_ftype_to_dtype(di->type);
+		d_type = fs_ftype_to_dtype(btrfs_dir_flags_to_ftype(di->type));
 		btrfs_disk_key_to_cpu(&location, &di->location);
 
 		over = !dir_emit(ctx, name, name_len,

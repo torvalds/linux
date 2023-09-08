@@ -8,6 +8,7 @@ union nvif_disp_args {
 		__u8 pad01[3];
 		__u32 conn_mask;
 		__u32 outp_mask;
+		__u32 head_mask;
 	} v0;
 };
 #endif

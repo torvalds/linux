@@ -39,14 +39,14 @@ static const char *libbpf_strerror_table[NR_ERRNO] = {
 
 int libbpf_strerror(int err, char *buf, size_t size)
 {
+	int ret;
+
 	if (!buf || !size)
 		return libbpf_err(-EINVAL);
 
 	err = err > 0 ? err : -err;
 
 	if (err < __LIBBPF_ERRNO__START) {
-		int ret;
-
 		ret = strerror_r(err, buf, size);
 		buf[size - 1] = '\0';
 		return libbpf_err_errno(ret);
@@ -56,12 +56,20 @@ int libbpf_strerror(int err, char *buf, size_t size)
 		const char *msg;
 
 		msg = libbpf_strerror_table[ERRNO_OFFSET(err)];
-		snprintf(buf, size, "%s", msg);
+		ret = snprintf(buf, size, "%s", msg);
 		buf[size - 1] = '\0';
+		/* The length of the buf and msg is positive.
+		 * A negative number may be returned only when the
+		 * size exceeds INT_MAX. Not likely to appear.
+		 */
+		if (ret >= size)
+			return libbpf_err(-ERANGE);
 		return 0;
 	}
 
-	snprintf(buf, size, "Unknown libbpf error %d", err);
+	ret = snprintf(buf, size, "Unknown libbpf error %d", err);
 	buf[size - 1] = '\0';
+	if (ret >= size)
+		return libbpf_err(-ERANGE);
 	return libbpf_err(-ENOENT);
 }

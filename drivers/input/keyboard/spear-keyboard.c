@@ -186,7 +186,6 @@ static int spear_kbd_probe(struct platform_device *pdev)
 	const struct matrix_keymap_data *keymap = pdata ? pdata->keymap : NULL;
 	struct spear_kbd *kbd;
 	struct input_dev *input_dev;
-	struct resource *res;
 	int irq;
 	int error;
 
@@ -219,8 +218,7 @@ static int spear_kbd_probe(struct platform_device *pdev)
 		kbd->suspended_rate = pdata->suspended_rate;
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	kbd->io_base = devm_ioremap_resource(&pdev->dev, res);
+	kbd->io_base = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
 	if (IS_ERR(kbd->io_base))
 		return PTR_ERR(kbd->io_base);
 
@@ -284,7 +282,7 @@ static int spear_kbd_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int __maybe_unused spear_kbd_suspend(struct device *dev)
+static int spear_kbd_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct spear_kbd *kbd = platform_get_drvdata(pdev);
@@ -337,7 +335,7 @@ static int __maybe_unused spear_kbd_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused spear_kbd_resume(struct device *dev)
+static int spear_kbd_resume(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct spear_kbd *kbd = platform_get_drvdata(pdev);
@@ -364,7 +362,8 @@ static int __maybe_unused spear_kbd_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(spear_kbd_pm_ops, spear_kbd_suspend, spear_kbd_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(spear_kbd_pm_ops,
+				spear_kbd_suspend, spear_kbd_resume);
 
 #ifdef CONFIG_OF
 static const struct of_device_id spear_kbd_id_table[] = {
@@ -379,7 +378,7 @@ static struct platform_driver spear_kbd_driver = {
 	.remove		= spear_kbd_remove,
 	.driver		= {
 		.name	= "keyboard",
-		.pm	= &spear_kbd_pm_ops,
+		.pm	= pm_sleep_ptr(&spear_kbd_pm_ops),
 		.of_match_table = of_match_ptr(spear_kbd_id_table),
 	},
 };

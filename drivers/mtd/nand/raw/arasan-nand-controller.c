@@ -1496,7 +1496,7 @@ disable_controller_clk:
 	return ret;
 }
 
-static int anfc_remove(struct platform_device *pdev)
+static void anfc_remove(struct platform_device *pdev)
 {
 	struct arasan_nfc *nfc = platform_get_drvdata(pdev);
 
@@ -1504,8 +1504,6 @@ static int anfc_remove(struct platform_device *pdev)
 
 	clk_disable_unprepare(nfc->bus_clk);
 	clk_disable_unprepare(nfc->controller_clk);
-
-	return 0;
 }
 
 static const struct of_device_id anfc_ids[] = {
@@ -1525,7 +1523,7 @@ static struct platform_driver anfc_driver = {
 		.of_match_table = anfc_ids,
 	},
 	.probe = anfc_probe,
-	.remove = anfc_remove,
+	.remove_new = anfc_remove,
 };
 module_platform_driver(anfc_driver);
 

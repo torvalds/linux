@@ -1440,8 +1440,7 @@ static int anx7411_psy_register(struct anx7411_data *ctx)
 	return PTR_ERR_OR_ZERO(ctx->psy);
 }
 
-static int anx7411_i2c_probe(struct i2c_client *client,
-			     const struct i2c_device_id *id)
+static int anx7411_i2c_probe(struct i2c_client *client)
 {
 	struct anx7411_data *plat;
 	struct device *dev = &client->dev;
@@ -1585,7 +1584,7 @@ static struct i2c_driver anx7411_driver = {
 		.of_match_table = anx_match_table,
 		.pm = &anx7411_pm_ops,
 	},
-	.probe = anx7411_i2c_probe,
+	.probe_new = anx7411_i2c_probe,
 	.remove = anx7411_i2c_remove,
 
 	.id_table = anx7411_id,

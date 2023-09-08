@@ -230,8 +230,8 @@ with :c:macro:`MSR_AMD_CPPC_ENABLE` or ``cppc_set_enable``, it will respond
 to the request from AMD P-States.
 
 
-User Space Interface in ``sysfs``
-==================================
+User Space Interface in ``sysfs`` - Per-policy control
+======================================================
 
 ``amd-pstate`` exposes several global attributes (files) in ``sysfs`` to
 control its functionality at the system level. They are located in the
@@ -262,6 +262,25 @@ lowest non-linear performance in `AMD CPPC Performance Capability
 <perf_cap_>`_.)
 This attribute is read-only.
 
+``energy_performance_available_preferences``
+
+A list of all the supported EPP preferences that could be used for
+``energy_performance_preference`` on this system.
+These profiles represent different hints that are provided
+to the low-level firmware about the user's desired energy vs efficiency
+tradeoff.  ``default`` represents the epp value is set by platform
+firmware. This attribute is read-only.
+
+``energy_performance_preference``
+
+The current energy performance preference can be read from this attribute.
+and user can change current preference according to energy or performance needs
+Please get all support profiles list from
+``energy_performance_available_preferences`` attribute, all the profiles are
+integer values defined between 0 to 255 when EPP feature is enabled by platform
+firmware, if EPP feature is disabled, driver will ignore the written value
+This attribute is read-write.
+
 Other performance and frequency values can be read back from
 ``/sys/devices/system/cpu/cpuX/acpi_cppc/``, see :ref:`cppc_sysfs`.
 
@@ -280,8 +299,35 @@ module which supports the new AMD P-States mechanism on most of the future AMD
 platforms. The AMD P-States mechanism is the more performance and energy
 efficiency frequency management method on AMD processors.
 
-Kernel Module Options for ``amd-pstate``
-=========================================
+
+AMD Pstate Driver Operation Modes
+=================================
+
+``amd_pstate`` CPPC has 3 operation modes: autonomous (active) mode,
+non-autonomous (passive) mode and guided autonomous (guided) mode.
+Active/passive/guided mode can be chosen by different kernel parameters.
+
+- In autonomous mode, platform ignores the desired performance level request
+  and takes into account only the values set to the minimum, maximum and energy
+  performance preference registers.
+- In non-autonomous mode, platform gets desired performance level
+  from OS directly through Desired Performance Register.
+- In guided-autonomous mode, platform sets operating performance level
+  autonomously according to the current workload and within the limits set by
+  OS through min and max performance registers.
+
+Active Mode
+------------
+
+``amd_pstate=active``
+
+This is the low-level firmware control mode which is implemented by ``amd_pstate_epp``
+driver with ``amd_pstate=active`` passed to the kernel in the command line.
+In this mode, ``amd_pstate_epp`` driver provides a hint to the hardware if software
+wants to bias toward performance (0x0) or energy efficiency (0xff) to the CPPC firmware.
+then CPPC power algorithm will calculate the runtime workload and adjust the realtime
+cores frequency according to the power supply and thermal, core voltage and some other
+hardware conditions.
 
 Passive Mode
 ------------
@@ -297,6 +343,47 @@ to the Performance Reduction Tolerance register. Above the nominal performance l
 processor must provide at least nominal performance requested and go higher if current
 operating conditions allow.
 
+Guided Mode
+-----------
+
+``amd_pstate=guided``
+
+If ``amd_pstate=guided`` is passed to kernel command line option then this mode
+is activated.  In this mode, driver requests minimum and maximum performance
+level and the platform autonomously selects a performance level in this range
+and appropriate to the current workload.
+
+User Space Interface in ``sysfs`` - General
+===========================================
+
+Global Attributes
+-----------------
+
+``amd-pstate`` exposes several global attributes (files) in ``sysfs`` to
+control its functionality at the system level.  They are located in the
+``/sys/devices/system/cpu/amd-pstate/`` directory and affect all CPUs.
+
+``status``
+	Operation mode of the driver: "active", "passive" or "disable".
+
+	"active"
+		The driver is functional and in the ``active mode``
+
+	"passive"
+		The driver is functional and in the ``passive mode``
+
+	"guided"
+		The driver is functional and in the ``guided mode``
+
+	"disable"
+		The driver is unregistered and not functional now.
+
+        This attribute can be written to in order to change the driver's
+        operation mode or to unregister it.  The string written to it must be
+        one of the possible values of it and, if successful, writing one of
+        these values to the sysfs file will cause the driver to switch over
+        to the operation mode represented by that string - or to be
+        unregistered in the "disable" case.
 
 ``cpupower`` tool support for ``amd-pstate``
 ===============================================
@@ -403,39 +490,57 @@ Unit Tests for amd-pstate
 
  * We can introduce more functional or performance tests to align the result together, it will benefit power and performance scale optimization.
 
-1. Test case decriptions
+1. Test case descriptions
+
+    1). Basic tests
+
+        Test prerequisite and basic functions for the ``amd-pstate`` driver.
 
         +---------+--------------------------------+------------------------------------------------------------------------------------+
         | Index   | Functions                      | Description                                                                        |
         +=========+================================+====================================================================================+
-        | 0       | amd_pstate_ut_acpi_cpc_valid   || Check whether the _CPC object is present in SBIOS.                                |
+        | 1       | amd_pstate_ut_acpi_cpc_valid   || Check whether the _CPC object is present in SBIOS.                                |
         |         |                                ||                                                                                   |
         |         |                                || The detail refer to `Processor Support <processor_support_>`_.                    |
         +---------+--------------------------------+------------------------------------------------------------------------------------+
-        | 1       | amd_pstate_ut_check_enabled    || Check whether AMD P-State is enabled.                                             |
+        | 2       | amd_pstate_ut_check_enabled    || Check whether AMD P-State is enabled.                                             |
         |         |                                ||                                                                                   |
         |         |                                || AMD P-States and ACPI hardware P-States always can be supported in one processor. |
         |         |                                | But AMD P-States has the higher priority and if it is enabled with                 |
         |         |                                | :c:macro:`MSR_AMD_CPPC_ENABLE` or ``cppc_set_enable``, it will respond to the      |
         |         |                                | request from AMD P-States.                                                         |
         +---------+--------------------------------+------------------------------------------------------------------------------------+
-        | 2       | amd_pstate_ut_check_perf       || Check if the each performance values are reasonable.                              |
+        | 3       | amd_pstate_ut_check_perf       || Check if the each performance values are reasonable.                              |
         |         |                                || highest_perf >= nominal_perf > lowest_nonlinear_perf > lowest_perf > 0.           |
         +---------+--------------------------------+------------------------------------------------------------------------------------+
-        | 3       | amd_pstate_ut_check_freq       || Check if the each frequency values and max freq when set support boost mode       |
+        | 4       | amd_pstate_ut_check_freq       || Check if the each frequency values and max freq when set support boost mode       |
         |         |                                | are reasonable.                                                                    |
         |         |                                || max_freq >= nominal_freq > lowest_nonlinear_freq > min_freq > 0                   |
         |         |                                || If boost is not active but supported, this maximum frequency will be larger than  |
         |         |                                | the one in ``cpuinfo``.                                                            |
         +---------+--------------------------------+------------------------------------------------------------------------------------+
 
+    2). Tbench test
+
+        Test and monitor the cpu changes when running tbench benchmark under the specified governor.
+        These changes include desire performance, frequency, load, performance, energy etc.
+        The specified governor is ondemand or schedutil.
+        Tbench can also be tested on the ``acpi-cpufreq`` kernel driver for comparison.
+
+    3). Gitsource test
+
+        Test and monitor the cpu changes when running gitsource benchmark under the specified governor.
+        These changes include desire performance, frequency, load, time, energy etc.
+        The specified governor is ondemand or schedutil.
+        Gitsource can also be tested on the ``acpi-cpufreq`` kernel driver for comparison.
+
 #. How to execute the tests
 
    We use test module in the kselftest frameworks to implement it.
-   We create amd-pstate-ut module and tie it into kselftest.(for
+   We create ``amd-pstate-ut`` module and tie it into kselftest.(for
    details refer to Linux Kernel Selftests [4]_).
 
-    1. Build
+    1). Build
 
         + open the :c:macro:`CONFIG_X86_AMD_PSTATE` configuration option.
         + set the :c:macro:`CONFIG_X86_AMD_PSTATE_UT` configuration option to M.
@@ -445,23 +550,159 @@ Unit Tests for amd-pstate
             $ cd linux
             $ make -C tools/testing/selftests
 
-    #. Installation & Steps ::
+        + make perf ::
+
+            $ cd tools/perf/
+            $ make
+
+
+    2). Installation & Steps ::
 
         $ make -C tools/testing/selftests install INSTALL_PATH=~/kselftest
+        $ cp tools/perf/perf /usr/bin/perf
         $ sudo ./kselftest/run_kselftest.sh -c amd-pstate
-        TAP version 13
-        1..1
-        # selftests: amd-pstate: amd-pstate-ut.sh
-        # amd-pstate-ut: ok
-        ok 1 selftests: amd-pstate: amd-pstate-ut.sh
 
-    #. Results ::
+    3). Specified test case ::
 
-         $ dmesg | grep "amd_pstate_ut" | tee log.txt
-         [12977.570663] amd_pstate_ut: 1    amd_pstate_ut_acpi_cpc_valid  success!
-         [12977.570673] amd_pstate_ut: 2    amd_pstate_ut_check_enabled   success!
-         [12977.571207] amd_pstate_ut: 3    amd_pstate_ut_check_perf      success!
-         [12977.571212] amd_pstate_ut: 4    amd_pstate_ut_check_freq      success!
+        $ cd ~/kselftest/amd-pstate
+        $ sudo ./run.sh -t basic
+        $ sudo ./run.sh -t tbench
+        $ sudo ./run.sh -t tbench -m acpi-cpufreq
+        $ sudo ./run.sh -t gitsource
+        $ sudo ./run.sh -t gitsource -m acpi-cpufreq
+        $ ./run.sh --help
+        ./run.sh: illegal option -- -
+        Usage: ./run.sh [OPTION...]
+                [-h <help>]
+                [-o <output-file-for-dump>]
+                [-c <all: All testing,
+                     basic: Basic testing,
+                     tbench: Tbench testing,
+                     gitsource: Gitsource testing.>]
+                [-t <tbench time limit>]
+                [-p <tbench process number>]
+                [-l <loop times for tbench>]
+                [-i <amd tracer interval>]
+                [-m <comparative test: acpi-cpufreq>]
+
+
+    4). Results
+
+        + basic
+
+         When you finish test, you will get the following log info ::
+
+          $ dmesg | grep "amd_pstate_ut" | tee log.txt
+          [12977.570663] amd_pstate_ut: 1    amd_pstate_ut_acpi_cpc_valid  success!
+          [12977.570673] amd_pstate_ut: 2    amd_pstate_ut_check_enabled   success!
+          [12977.571207] amd_pstate_ut: 3    amd_pstate_ut_check_perf      success!
+          [12977.571212] amd_pstate_ut: 4    amd_pstate_ut_check_freq      success!
+
+        + tbench
+
+         When you finish test, you will get selftest.tbench.csv and png images.
+         The selftest.tbench.csv file contains the raw data and the drop of the comparative test.
+         The png images shows the performance, energy and performan per watt of each test.
+         Open selftest.tbench.csv :
+
+         +-------------------------------------------------+--------------+----------+---------+----------+-------------+---------+----------------------+
+         + Governor                                        | Round        | Des-perf | Freq    | Load     | Performance | Energy  | Performance Per Watt |
+         +-------------------------------------------------+--------------+----------+---------+----------+-------------+---------+----------------------+
+         + Unit                                            |              |          | GHz     |          | MB/s        | J       | MB/J                 |
+         +=================================================+==============+==========+=========+==========+=============+=========+======================+
+         + amd-pstate-ondemand                             | 1            |          |         |          | 2504.05     | 1563.67 | 158.5378             |
+         +-------------------------------------------------+--------------+----------+---------+----------+-------------+---------+----------------------+
+         + amd-pstate-ondemand                             | 2            |          |         |          | 2243.64     | 1430.32 | 155.2941             |
+         +-------------------------------------------------+--------------+----------+---------+----------+-------------+---------+----------------------+
+         + amd-pstate-ondemand                             | 3            |          |         |          | 2183.88     | 1401.32 | 154.2860             |
+         +-------------------------------------------------+--------------+----------+---------+----------+-------------+---------+----------------------+
+         + amd-pstate-ondemand                             | Average      |          |         |          | 2310.52     | 1465.1  | 156.1268             |
+         +-------------------------------------------------+--------------+----------+---------+----------+-------------+---------+----------------------+
+         + amd-pstate-schedutil                            | 1            | 165.329  | 1.62257 | 99.798   | 2136.54     | 1395.26 | 151.5971             |
+         +-------------------------------------------------+--------------+----------+---------+----------+-------------+---------+----------------------+
+         + amd-pstate-schedutil                            | 2            | 166      | 1.49761 | 99.9993  | 2100.56     | 1380.5  | 150.6377             |
+         +-------------------------------------------------+--------------+----------+---------+----------+-------------+---------+----------------------+
+         + amd-pstate-schedutil                            | 3            | 166      | 1.47806 | 99.9993  | 2084.12     | 1375.76 | 149.9737             |
+         +-------------------------------------------------+--------------+----------+---------+----------+-------------+---------+----------------------+
+         + amd-pstate-schedutil                            | Average      | 165.776  | 1.53275 | 99.9322  | 2107.07     | 1383.84 | 150.7399             |
+         +-------------------------------------------------+--------------+----------+---------+----------+-------------+---------+----------------------+
+         + acpi-cpufreq-ondemand                           | 1            |          |         |          | 2529.9      | 1564.4  | 160.0997             |
+         +-------------------------------------------------+--------------+----------+---------+----------+-------------+---------+----------------------+
+         + acpi-cpufreq-ondemand                           | 2            |          |         |          | 2249.76     | 1432.97 | 155.4297             |
+         +-------------------------------------------------+--------------+----------+---------+----------+-------------+---------+----------------------+
+         + acpi-cpufreq-ondemand                           | 3            |          |         |          | 2181.46     | 1406.88 | 153.5060             |
+         +-------------------------------------------------+--------------+----------+---------+----------+-------------+---------+----------------------+
+         + acpi-cpufreq-ondemand                           | Average      |          |         |          | 2320.37     | 1468.08 | 156.4741             |
+         +-------------------------------------------------+--------------+----------+---------+----------+-------------+---------+----------------------+
+         + acpi-cpufreq-schedutil                          | 1            |          |         |          | 2137.64     | 1385.24 | 152.7723             |
+         +-------------------------------------------------+--------------+----------+---------+----------+-------------+---------+----------------------+
+         + acpi-cpufreq-schedutil                          | 2            |          |         |          | 2107.05     | 1372.23 | 152.0138             |
+         +-------------------------------------------------+--------------+----------+---------+----------+-------------+---------+----------------------+
+         + acpi-cpufreq-schedutil                          | 3            |          |         |          | 2085.86     | 1365.35 | 151.2433             |
+         +-------------------------------------------------+--------------+----------+---------+----------+-------------+---------+----------------------+
+         + acpi-cpufreq-schedutil                          | Average      |          |         |          | 2110.18     | 1374.27 | 152.0136             |
+         +-------------------------------------------------+--------------+----------+---------+----------+-------------+---------+----------------------+
+         + acpi-cpufreq-ondemand VS acpi-cpufreq-schedutil | Comprison(%) |          |         |          | -9.0584     | -6.3899 | -2.8506              |
+         +-------------------------------------------------+--------------+----------+---------+----------+-------------+---------+----------------------+
+         + amd-pstate-ondemand VS amd-pstate-schedutil     | Comprison(%) |          |         |          | 8.8053      | -5.5463 | -3.4503              |
+         +-------------------------------------------------+--------------+----------+---------+----------+-------------+---------+----------------------+
+         + acpi-cpufreq-ondemand VS amd-pstate-ondemand    | Comprison(%) |          |         |          | -0.4245     | -0.2029 | -0.2219              |
+         +-------------------------------------------------+--------------+----------+---------+----------+-------------+---------+----------------------+
+         + acpi-cpufreq-schedutil VS amd-pstate-schedutil  | Comprison(%) |          |         |          | -0.1473     | 0.6963  | -0.8378              |
+         +-------------------------------------------------+--------------+----------+---------+----------+-------------+---------+----------------------+
+
+        + gitsource
+
+         When you finish test, you will get selftest.gitsource.csv and png images.
+         The selftest.gitsource.csv file contains the raw data and the drop of the comparative test.
+         The png images shows the performance, energy and performan per watt of each test.
+         Open selftest.gitsource.csv :
+
+         +-------------------------------------------------+--------------+----------+----------+----------+-------------+---------+----------------------+
+         + Governor                                        | Round        | Des-perf | Freq     | Load     | Time        | Energy  | Performance Per Watt |
+         +-------------------------------------------------+--------------+----------+----------+----------+-------------+---------+----------------------+
+         + Unit                                            |              |          | GHz      |          | s           | J       | 1/J                  |
+         +=================================================+==============+==========+==========+==========+=============+=========+======================+
+         + amd-pstate-ondemand                             | 1            | 50.119   | 2.10509  | 23.3076  | 475.69      | 865.78  | 0.001155027          |
+         +-------------------------------------------------+--------------+----------+----------+----------+-------------+---------+----------------------+
+         + amd-pstate-ondemand                             | 2            | 94.8006  | 1.98771  | 56.6533  | 467.1       | 839.67  | 0.001190944          |
+         +-------------------------------------------------+--------------+----------+----------+----------+-------------+---------+----------------------+
+         + amd-pstate-ondemand                             | 3            | 76.6091  | 2.53251  | 43.7791  | 467.69      | 855.85  | 0.001168429          |
+         +-------------------------------------------------+--------------+----------+----------+----------+-------------+---------+----------------------+
+         + amd-pstate-ondemand                             | Average      | 73.8429  | 2.20844  | 41.2467  | 470.16      | 853.767 | 0.001171279          |
+         +-------------------------------------------------+--------------+----------+----------+----------+-------------+---------+----------------------+
+         + amd-pstate-schedutil                            | 1            | 165.919  | 1.62319  | 98.3868  | 464.17      | 866.8   | 0.001153668          |
+         +-------------------------------------------------+--------------+----------+----------+----------+-------------+---------+----------------------+
+         + amd-pstate-schedutil                            | 2            | 165.97   | 1.31309  | 99.5712  | 480.15      | 880.4   | 0.001135847          |
+         +-------------------------------------------------+--------------+----------+----------+----------+-------------+---------+----------------------+
+         + amd-pstate-schedutil                            | 3            | 165.973  | 1.28448  | 99.9252  | 481.79      | 867.02  | 0.001153375          |
+         +-------------------------------------------------+--------------+----------+----------+----------+-------------+---------+----------------------+
+         + amd-pstate-schedutil                            | Average      | 165.954  | 1.40692  | 99.2944  | 475.37      | 871.407 | 0.001147569          |
+         +-------------------------------------------------+--------------+----------+----------+----------+-------------+---------+----------------------+
+         + acpi-cpufreq-ondemand                           | 1            |          |          |          | 2379.62     | 742.96  | 0.001345967          |
+         +-------------------------------------------------+--------------+----------+----------+----------+-------------+---------+----------------------+
+         + acpi-cpufreq-ondemand                           | 2            |          |          |          | 441.74      | 817.49  | 0.001223256          |
+         +-------------------------------------------------+--------------+----------+----------+----------+-------------+---------+----------------------+
+         + acpi-cpufreq-ondemand                           | 3            |          |          |          | 455.48      | 820.01  | 0.001219497          |
+         +-------------------------------------------------+--------------+----------+----------+----------+-------------+---------+----------------------+
+         + acpi-cpufreq-ondemand                           | Average      |          |          |          | 425.613     | 793.487 | 0.001260260          |
+         +-------------------------------------------------+--------------+----------+----------+----------+-------------+---------+----------------------+
+         + acpi-cpufreq-schedutil                          | 1            |          |          |          | 459.69      | 838.54  | 0.001192548          |
+         +-------------------------------------------------+--------------+----------+----------+----------+-------------+---------+----------------------+
+         + acpi-cpufreq-schedutil                          | 2            |          |          |          | 466.55      | 830.89  | 0.001203528          |
+         +-------------------------------------------------+--------------+----------+----------+----------+-------------+---------+----------------------+
+         + acpi-cpufreq-schedutil                          | 3            |          |          |          | 470.38      | 837.32  | 0.001194286          |
+         +-------------------------------------------------+--------------+----------+----------+----------+-------------+---------+----------------------+
+         + acpi-cpufreq-schedutil                          | Average      |          |          |          | 465.54      | 835.583 | 0.001196769          |
+         +-------------------------------------------------+--------------+----------+----------+----------+-------------+---------+----------------------+
+         + acpi-cpufreq-ondemand VS acpi-cpufreq-schedutil | Comprison(%) |          |          |          | 9.3810      | 5.3051  | -5.0379              |
+         +-------------------------------------------------+--------------+----------+----------+----------+-------------+---------+----------------------+
+         + amd-pstate-ondemand VS amd-pstate-schedutil     | Comprison(%) | 124.7392 | -36.2934 | 140.7329 | 1.1081      | 2.0661  | -2.0242              |
+         +-------------------------------------------------+--------------+----------+----------+----------+-------------+---------+----------------------+
+         + acpi-cpufreq-ondemand VS amd-pstate-ondemand    | Comprison(%) |          |          |          | 10.4665     | 7.5968  | -7.0605              |
+         +-------------------------------------------------+--------------+----------+----------+----------+-------------+---------+----------------------+
+         + acpi-cpufreq-schedutil VS amd-pstate-schedutil  | Comprison(%) |          |          |          | 2.1115      | 4.2873  | -4.1110              |
+         +-------------------------------------------------+--------------+----------+----------+----------+-------------+---------+----------------------+
 
 Reference
 ===========

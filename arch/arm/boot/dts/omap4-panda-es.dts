@@ -79,10 +79,10 @@
 		&led_wkgpio_pins
 	>;
 
-	heartbeat {
+	led-heartbeat {
 		gpios = <&gpio4 14 GPIO_ACTIVE_HIGH>;
 	};
-	mmc {
+	led-mmc {
 		gpios = <&gpio1 8 GPIO_ACTIVE_HIGH>;
 	};
 };

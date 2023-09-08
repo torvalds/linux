@@ -19,7 +19,7 @@ accuracy:)
 - nxp,wr_low: WR_LOW
 
 Optional subnodes:
-- Partitions, see Documentation/devicetree/bindings/mtd/partition.txt
+- Partitions, see Documentation/devicetree/bindings/mtd/mtd.yaml
 
 Example:
 

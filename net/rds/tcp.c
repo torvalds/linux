@@ -503,6 +503,9 @@ bool rds_tcp_tune(struct socket *sock)
 			release_sock(sk);
 			return false;
 		}
+		/* Update ns_tracker to current stack trace and refcounted tracker */
+		__netns_tracker_free(net, &sk->ns_tracker, false);
+
 		sk->sk_net_refcnt = 1;
 		netns_tracker_alloc(net, &sk->ns_tracker, GFP_KERNEL);
 		sock_inuse_add(net, 1);

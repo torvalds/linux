@@ -87,15 +87,12 @@ static int dove_get_temp(struct thermal_zone_device *thermal,
 			  int *temp)
 {
 	unsigned long reg;
-	struct dove_thermal_priv *priv = thermal->devdata;
+	struct dove_thermal_priv *priv = thermal_zone_device_priv(thermal);
 
 	/* Valid check */
 	reg = readl_relaxed(priv->control + PMU_TEMP_DIOD_CTRL1_REG);
-	if ((reg & PMU_TDC1_TEMP_VALID_MASK) == 0x0) {
-		dev_err(&thermal->device,
-			"Temperature sensor reading not valid\n");
+	if ((reg & PMU_TDC1_TEMP_VALID_MASK) == 0x0)
 		return -EIO;
-	}
 
 	/*
 	 * Calculate temperature. According to Marvell internal
@@ -122,20 +119,17 @@ static int dove_thermal_probe(struct platform_device *pdev)
 {
 	struct thermal_zone_device *thermal = NULL;
 	struct dove_thermal_priv *priv;
-	struct resource *res;
 	int ret;
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	priv->sensor = devm_ioremap_resource(&pdev->dev, res);
+	priv->sensor = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
 	if (IS_ERR(priv->sensor))
 		return PTR_ERR(priv->sensor);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	priv->control = devm_ioremap_resource(&pdev->dev, res);
+	priv->control = devm_platform_get_and_ioremap_resource(pdev, 1, NULL);
 	if (IS_ERR(priv->control))
 		return PTR_ERR(priv->control);
 

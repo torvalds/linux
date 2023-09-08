@@ -188,6 +188,7 @@ static int phylink_interface_max_speed(phy_interface_t interface)
 	case PHY_INTERFACE_MODE_RGMII_ID:
 	case PHY_INTERFACE_MODE_RGMII:
 	case PHY_INTERFACE_MODE_QSGMII:
+	case PHY_INTERFACE_MODE_QUSGMII:
 	case PHY_INTERFACE_MODE_SGMII:
 	case PHY_INTERFACE_MODE_GMII:
 		return SPEED_1000;
@@ -204,7 +205,6 @@ static int phylink_interface_max_speed(phy_interface_t interface)
 	case PHY_INTERFACE_MODE_10GBASER:
 	case PHY_INTERFACE_MODE_10GKR:
 	case PHY_INTERFACE_MODE_USXGMII:
-	case PHY_INTERFACE_MODE_QUSGMII:
 		return SPEED_10000;
 
 	case PHY_INTERFACE_MODE_25GBASER:
@@ -241,12 +241,16 @@ void phylink_caps_to_linkmodes(unsigned long *linkmodes, unsigned long caps)
 	if (caps & MAC_ASYM_PAUSE)
 		__set_bit(ETHTOOL_LINK_MODE_Asym_Pause_BIT, linkmodes);
 
-	if (caps & MAC_10HD)
+	if (caps & MAC_10HD) {
 		__set_bit(ETHTOOL_LINK_MODE_10baseT_Half_BIT, linkmodes);
+		__set_bit(ETHTOOL_LINK_MODE_10baseT1S_Half_BIT, linkmodes);
+		__set_bit(ETHTOOL_LINK_MODE_10baseT1S_P2MP_Half_BIT, linkmodes);
+	}
 
 	if (caps & MAC_10FD) {
 		__set_bit(ETHTOOL_LINK_MODE_10baseT_Full_BIT, linkmodes);
 		__set_bit(ETHTOOL_LINK_MODE_10baseT1L_Full_BIT, linkmodes);
+		__set_bit(ETHTOOL_LINK_MODE_10baseT1S_Full_BIT, linkmodes);
 	}
 
 	if (caps & MAC_100HD) {
@@ -562,6 +566,34 @@ unsigned long phylink_get_capabilities(phy_interface_t interface,
 EXPORT_SYMBOL_GPL(phylink_get_capabilities);
 
 /**
+ * phylink_validate_mask_caps() - Restrict link modes based on caps
+ * @supported: ethtool bitmask for supported link modes.
+ * @state: pointer to a &struct phylink_link_state.
+ * @mac_capabilities: bitmask of MAC capabilities
+ *
+ * Calculate the supported link modes based on @mac_capabilities, and restrict
+ * @supported and @state based on that. Use this function if your capabiliies
+ * aren't constant, such as if they vary depending on the interface.
+ */
+void phylink_validate_mask_caps(unsigned long *supported,
+				struct phylink_link_state *state,
+				unsigned long mac_capabilities)
+{
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(mask) = { 0, };
+	unsigned long caps;
+
+	phylink_set_port_modes(mask);
+	phylink_set(mask, Autoneg);
+	caps = phylink_get_capabilities(state->interface, mac_capabilities,
+					state->rate_matching);
+	phylink_caps_to_linkmodes(mask, caps);
+
+	linkmode_and(supported, supported, mask);
+	linkmode_and(state->advertising, state->advertising, mask);
+}
+EXPORT_SYMBOL_GPL(phylink_validate_mask_caps);
+
+/**
  * phylink_generic_validate() - generic validate() callback implementation
  * @config: a pointer to a &struct phylink_config.
  * @supported: ethtool bitmask for supported link modes.
@@ -569,24 +601,12 @@ EXPORT_SYMBOL_GPL(phylink_get_capabilities);
  *
  * Generic implementation of the validate() callback that MAC drivers can
  * use when they pass the range of supported interfaces and MAC capabilities.
- * This makes use of phylink_get_linkmodes().
  */
 void phylink_generic_validate(struct phylink_config *config,
 			      unsigned long *supported,
 			      struct phylink_link_state *state)
 {
-	__ETHTOOL_DECLARE_LINK_MODE_MASK(mask) = { 0, };
-	unsigned long caps;
-
-	phylink_set_port_modes(mask);
-	phylink_set(mask, Autoneg);
-	caps = phylink_get_capabilities(state->interface,
-					config->mac_capabilities,
-					state->rate_matching);
-	phylink_caps_to_linkmodes(mask, caps);
-
-	linkmode_and(supported, supported, mask);
-	linkmode_and(state->advertising, state->advertising, mask);
+	phylink_validate_mask_caps(supported, state, config->mac_capabilities);
 }
 EXPORT_SYMBOL_GPL(phylink_generic_validate);
 
@@ -633,7 +653,10 @@ static int phylink_validate_mac_and_pcs(struct phylink *pl,
 	}
 
 	/* Then validate the link parameters with the MAC */
-	pl->mac_ops->validate(pl->config, supported, state);
+	if (pl->mac_ops->validate)
+		pl->mac_ops->validate(pl->config, supported, state);
+	else
+		phylink_generic_validate(pl->config, supported, state);
 
 	return phylink_is_empty_linkmode(supported) ? -EINVAL : 0;
 }
@@ -688,6 +711,7 @@ static int phylink_parse_fixedlink(struct phylink *pl,
 				   struct fwnode_handle *fwnode)
 {
 	struct fwnode_handle *fixed_node;
+	bool pause, asym_pause, autoneg;
 	const struct phy_setting *s;
 	struct gpio_desc *desc;
 	u32 speed;
@@ -760,13 +784,23 @@ static int phylink_parse_fixedlink(struct phylink *pl,
 	linkmode_copy(pl->link_config.advertising, pl->supported);
 	phylink_validate(pl, pl->supported, &pl->link_config);
 
+	pause = phylink_test(pl->supported, Pause);
+	asym_pause = phylink_test(pl->supported, Asym_Pause);
+	autoneg = phylink_test(pl->supported, Autoneg);
 	s = phy_lookup_setting(pl->link_config.speed, pl->link_config.duplex,
 			       pl->supported, true);
 	linkmode_zero(pl->supported);
 	phylink_set(pl->supported, MII);
-	phylink_set(pl->supported, Pause);
-	phylink_set(pl->supported, Asym_Pause);
-	phylink_set(pl->supported, Autoneg);
+
+	if (pause)
+		phylink_set(pl->supported, Pause);
+
+	if (asym_pause)
+		phylink_set(pl->supported, Asym_Pause);
+
+	if (autoneg)
+		phylink_set(pl->supported, Autoneg);
+
 	if (s) {
 		__set_bit(s->bit, pl->supported);
 		__set_bit(s->bit, pl->link_config.lp_advertising);
@@ -809,7 +843,6 @@ static int phylink_parse_mode(struct phylink *pl, struct fwnode_handle *fwnode)
 		phylink_set(pl->supported, Autoneg);
 		phylink_set(pl->supported, Asym_Pause);
 		phylink_set(pl->supported, Pause);
-		pl->link_config.an_enabled = true;
 		pl->cfg_link_an_mode = MLO_AN_INBAND;
 
 		switch (pl->link_config.interface) {
@@ -911,9 +944,6 @@ static int phylink_parse_mode(struct phylink *pl, struct fwnode_handle *fwnode)
 				    "failed to validate link configuration for in-band status\n");
 			return -EINVAL;
 		}
-
-		/* Check if MAC/PCS also supports Autoneg. */
-		pl->link_config.an_enabled = phylink_test(pl->supported, Autoneg);
 	}
 
 	return 0;
@@ -923,7 +953,8 @@ static void phylink_apply_manual_flow(struct phylink *pl,
 				      struct phylink_link_state *state)
 {
 	/* If autoneg is disabled, pause AN is also disabled */
-	if (!state->an_enabled)
+	if (!linkmode_test_bit(ETHTOOL_LINK_MODE_Autoneg_BIT,
+			       state->advertising))
 		state->pause &= ~MLO_PAUSE_AN;
 
 	/* Manual configuration of pause modes */
@@ -963,21 +994,22 @@ static void phylink_mac_config(struct phylink *pl,
 			       const struct phylink_link_state *state)
 {
 	phylink_dbg(pl,
-		    "%s: mode=%s/%s/%s/%s/%s adv=%*pb pause=%02x link=%u an=%u\n",
+		    "%s: mode=%s/%s/%s/%s/%s adv=%*pb pause=%02x link=%u\n",
 		    __func__, phylink_an_mode_str(pl->cur_link_an_mode),
 		    phy_modes(state->interface),
 		    phy_speed_to_str(state->speed),
 		    phy_duplex_to_str(state->duplex),
 		    phy_rate_matching_to_str(state->rate_matching),
 		    __ETHTOOL_LINK_MODE_MASK_NBITS, state->advertising,
-		    state->pause, state->link, state->an_enabled);
+		    state->pause, state->link);
 
 	pl->mac_ops->mac_config(pl->config, pl->cur_link_an_mode, state);
 }
 
 static void phylink_mac_pcs_an_restart(struct phylink *pl)
 {
-	if (pl->link_config.an_enabled &&
+	if (linkmode_test_bit(ETHTOOL_LINK_MODE_Autoneg_BIT,
+			      pl->link_config.advertising) &&
 	    phy_interface_mode_is_8023z(pl->link_config.interface) &&
 	    phylink_autoneg_inband(pl->cur_link_an_mode)) {
 		if (pl->pcs)
@@ -1104,9 +1136,9 @@ static void phylink_mac_pcs_get_state(struct phylink *pl,
 	linkmode_copy(state->advertising, pl->link_config.advertising);
 	linkmode_zero(state->lp_advertising);
 	state->interface = pl->link_config.interface;
-	state->an_enabled = pl->link_config.an_enabled;
 	state->rate_matching = pl->link_config.rate_matching;
-	if (state->an_enabled) {
+	if (linkmode_test_bit(ETHTOOL_LINK_MODE_Autoneg_BIT,
+			      state->advertising)) {
 		state->speed = SPEED_UNKNOWN;
 		state->duplex = DUPLEX_UNKNOWN;
 		state->pause = MLO_PAUSE_NONE;
@@ -1497,7 +1529,6 @@ struct phylink *phylink_create(struct phylink_config *config,
 	pl->link_config.pause = MLO_PAUSE_AN;
 	pl->link_config.speed = SPEED_UNKNOWN;
 	pl->link_config.duplex = DUPLEX_UNKNOWN;
-	pl->link_config.an_enabled = true;
 	pl->mac_ops = mac_ops;
 	__set_bit(PHYLINK_DISABLE_STOPPED, &pl->phylink_disable_state);
 	timer_setup(&pl->link_poll, phylink_fixed_poll, 0);
@@ -1551,6 +1582,25 @@ void phylink_destroy(struct phylink *pl)
 	kfree(pl);
 }
 EXPORT_SYMBOL_GPL(phylink_destroy);
+
+/**
+ * phylink_expects_phy() - Determine if phylink expects a phy to be attached
+ * @pl: a pointer to a &struct phylink returned from phylink_create()
+ *
+ * When using fixed-link mode, or in-band mode with 1000base-X or 2500base-X,
+ * no PHY is needed.
+ *
+ * Returns true if phylink will be expecting a PHY.
+ */
+bool phylink_expects_phy(struct phylink *pl)
+{
+	if (pl->cfg_link_an_mode == MLO_AN_FIXED ||
+	    (pl->cfg_link_an_mode == MLO_AN_INBAND &&
+	     phy_interface_mode_is_8023z(pl->link_config.interface)))
+		return false;
+	return true;
+}
+EXPORT_SYMBOL_GPL(phylink_expects_phy);
 
 static void phylink_phy_change(struct phy_device *phydev, bool up)
 {
@@ -1793,10 +1843,9 @@ int phylink_fwnode_phy_connect(struct phylink *pl,
 
 	ret = phy_attach_direct(pl->netdev, phy_dev, flags,
 				pl->link_interface);
-	if (ret) {
-		phy_device_free(phy_dev);
+	phy_device_free(phy_dev);
+	if (ret)
 		return ret;
-	}
 
 	ret = phylink_bringup_phy(pl, phy_dev, pl->link_config.interface);
 	if (ret)
@@ -2103,8 +2152,9 @@ static void phylink_get_ksettings(const struct phylink_link_state *state,
 		kset->base.speed = state->speed;
 		kset->base.duplex = state->duplex;
 	}
-	kset->base.autoneg = state->an_enabled ? AUTONEG_ENABLE :
-				AUTONEG_DISABLE;
+	kset->base.autoneg = linkmode_test_bit(ETHTOOL_LINK_MODE_Autoneg_BIT,
+					       state->advertising) ?
+				AUTONEG_ENABLE : AUTONEG_DISABLE;
 }
 
 /**
@@ -2176,6 +2226,12 @@ int phylink_ethtool_ksettings_set(struct phylink *pl,
 	ASSERT_RTNL();
 
 	if (pl->phydev) {
+		struct ethtool_link_ksettings phy_kset = *kset;
+
+		linkmode_and(phy_kset.link_modes.advertising,
+			     phy_kset.link_modes.advertising,
+			     pl->supported);
+
 		/* We can rely on phylib for this update; we also do not need
 		 * to update the pl->link_config settings:
 		 * - the configuration returned via ksettings_get() will come
@@ -2194,11 +2250,10 @@ int phylink_ethtool_ksettings_set(struct phylink *pl,
 		 *   the presence of a PHY, this should not be changed as that
 		 *   should be determined from the media side advertisement.
 		 */
-		return phy_ethtool_ksettings_set(pl->phydev, kset);
+		return phy_ethtool_ksettings_set(pl->phydev, &phy_kset);
 	}
 
 	config = pl->link_config;
-
 	/* Mask out unsupported advertisements */
 	linkmode_and(config.advertising, kset->link_modes.advertising,
 		     pl->supported);
@@ -2251,9 +2306,8 @@ int phylink_ethtool_ksettings_set(struct phylink *pl,
 	/* We have ruled out the case with a PHY attached, and the
 	 * fixed-link cases.  All that is left are in-band links.
 	 */
-	config.an_enabled = kset->base.autoneg == AUTONEG_ENABLE;
 	linkmode_mod_bit(ETHTOOL_LINK_MODE_Autoneg_BIT, config.advertising,
-			 config.an_enabled);
+			 kset->base.autoneg == AUTONEG_ENABLE);
 
 	/* If this link is with an SFP, ensure that changes to advertised modes
 	 * also cause the associated interface to be selected such that the
@@ -2287,13 +2341,14 @@ int phylink_ethtool_ksettings_set(struct phylink *pl,
 	}
 
 	/* If autonegotiation is enabled, we must have an advertisement */
-	if (config.an_enabled && phylink_is_empty_linkmode(config.advertising))
+	if (linkmode_test_bit(ETHTOOL_LINK_MODE_Autoneg_BIT,
+			      config.advertising) &&
+	    phylink_is_empty_linkmode(config.advertising))
 		return -EINVAL;
 
 	mutex_lock(&pl->state_mutex);
 	pl->link_config.speed = config.speed;
 	pl->link_config.duplex = config.duplex;
-	pl->link_config.an_enabled = config.an_enabled;
 
 	if (pl->link_config.interface != config.interface) {
 		/* The interface changed, e.g. 1000base-X <-> 2500base-X */
@@ -2899,7 +2954,6 @@ static int phylink_sfp_config_phy(struct phylink *pl, u8 mode,
 	config.speed = SPEED_UNKNOWN;
 	config.duplex = DUPLEX_UNKNOWN;
 	config.pause = MLO_PAUSE_AN;
-	config.an_enabled = pl->link_config.an_enabled;
 
 	/* Ignore errors if we're expecting a PHY to attach later */
 	ret = phylink_validate(pl, support, &config);
@@ -2968,7 +3022,6 @@ static int phylink_sfp_config_optical(struct phylink *pl)
 	config.speed = SPEED_UNKNOWN;
 	config.duplex = DUPLEX_UNKNOWN;
 	config.pause = MLO_PAUSE_AN;
-	config.an_enabled = true;
 
 	/* For all the interfaces that are supported, reduce the sfp_support
 	 * mask to only those link modes that can be supported.
@@ -3246,6 +3299,41 @@ void phylink_decode_usxgmii_word(struct phylink_link_state *state,
 EXPORT_SYMBOL_GPL(phylink_decode_usxgmii_word);
 
 /**
+ * phylink_decode_usgmii_word() - decode the USGMII word from a MAC PCS
+ * @state: a pointer to a struct phylink_link_state.
+ * @lpa: a 16 bit value which stores the USGMII auto-negotiation word
+ *
+ * Helper for MAC PCS supporting the USGMII protocol and the auto-negotiation
+ * code word.  Decode the USGMII code word and populate the corresponding fields
+ * (speed, duplex) into the phylink_link_state structure. The structure for this
+ * word is the same as the USXGMII word, except it only supports speeds up to
+ * 1Gbps.
+ */
+static void phylink_decode_usgmii_word(struct phylink_link_state *state,
+				       uint16_t lpa)
+{
+	switch (lpa & MDIO_USXGMII_SPD_MASK) {
+	case MDIO_USXGMII_10:
+		state->speed = SPEED_10;
+		break;
+	case MDIO_USXGMII_100:
+		state->speed = SPEED_100;
+		break;
+	case MDIO_USXGMII_1000:
+		state->speed = SPEED_1000;
+		break;
+	default:
+		state->link = false;
+		return;
+	}
+
+	if (lpa & MDIO_USXGMII_FULL_DUPLEX)
+		state->duplex = DUPLEX_FULL;
+	else
+		state->duplex = DUPLEX_HALF;
+}
+
+/**
  * phylink_mii_c22_pcs_decode_state() - Decode MAC PCS state from MII registers
  * @state: a pointer to a &struct phylink_link_state.
  * @bmsr: The value of the %MII_BMSR register
@@ -3267,7 +3355,8 @@ void phylink_mii_c22_pcs_decode_state(struct phylink_link_state *state,
 	/* If there is no link or autonegotiation is disabled, the LP advertisement
 	 * data is not meaningful, so don't go any further.
 	 */
-	if (!state->link || !state->an_enabled)
+	if (!state->link || !linkmode_test_bit(ETHTOOL_LINK_MODE_Autoneg_BIT,
+					       state->advertising))
 		return;
 
 	switch (state->interface) {
@@ -3281,8 +3370,10 @@ void phylink_mii_c22_pcs_decode_state(struct phylink_link_state *state,
 
 	case PHY_INTERFACE_MODE_SGMII:
 	case PHY_INTERFACE_MODE_QSGMII:
-	case PHY_INTERFACE_MODE_QUSGMII:
 		phylink_decode_sgmii_word(state, lpa);
+		break;
+	case PHY_INTERFACE_MODE_QUSGMII:
+		phylink_decode_usgmii_word(state, lpa);
 		break;
 
 	default:

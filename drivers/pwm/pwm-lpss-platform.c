@@ -31,7 +31,7 @@ static int pwm_lpss_probe_platform(struct platform_device *pdev)
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 
-	lpwm = pwm_lpss_probe(&pdev->dev, base, info);
+	lpwm = devm_pwm_lpss_probe(&pdev->dev, base, info);
 	if (IS_ERR(lpwm))
 		return PTR_ERR(lpwm);
 
@@ -62,10 +62,9 @@ static int pwm_lpss_probe_platform(struct platform_device *pdev)
 	return 0;
 }
 
-static int pwm_lpss_remove_platform(struct platform_device *pdev)
+static void pwm_lpss_remove_platform(struct platform_device *pdev)
 {
 	pm_runtime_disable(&pdev->dev);
-	return 0;
 }
 
 static const struct acpi_device_id pwm_lpss_acpi_match[] = {
@@ -83,7 +82,7 @@ static struct platform_driver pwm_lpss_driver_platform = {
 		.acpi_match_table = pwm_lpss_acpi_match,
 	},
 	.probe = pwm_lpss_probe_platform,
-	.remove = pwm_lpss_remove_platform,
+	.remove_new = pwm_lpss_remove_platform,
 };
 module_platform_driver(pwm_lpss_driver_platform);
 

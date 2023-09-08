@@ -346,7 +346,7 @@ void ef100_tx_write(struct efx_tx_queue *tx_queue)
 	ef100_tx_push_buffers(tx_queue);
 }
 
-void ef100_ev_tx(struct efx_channel *channel, const efx_qword_t *p_event)
+int ef100_ev_tx(struct efx_channel *channel, const efx_qword_t *p_event)
 {
 	unsigned int tx_done =
 		EFX_QWORD_FIELD(*p_event, ESF_GZ_EV_TXCMPL_NUM_DESC);
@@ -357,7 +357,7 @@ void ef100_ev_tx(struct efx_channel *channel, const efx_qword_t *p_event)
 	unsigned int tx_index = (tx_queue->read_count + tx_done - 1) &
 				tx_queue->ptr_mask;
 
-	efx_xmit_done(tx_queue, tx_index);
+	return efx_xmit_done(tx_queue, tx_index);
 }
 
 /* Add a socket buffer to a TX queue
@@ -367,7 +367,8 @@ void ef100_ev_tx(struct efx_channel *channel, const efx_qword_t *p_event)
  * Returns 0 on success, error code otherwise. In case of an error this
  * function will free the SKB.
  */
-int ef100_enqueue_skb(struct efx_tx_queue *tx_queue, struct sk_buff *skb)
+netdev_tx_t ef100_enqueue_skb(struct efx_tx_queue *tx_queue,
+			      struct sk_buff *skb)
 {
 	return __ef100_enqueue_skb(tx_queue, skb, NULL);
 }

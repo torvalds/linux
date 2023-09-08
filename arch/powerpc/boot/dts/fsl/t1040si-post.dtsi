@@ -686,6 +686,7 @@
 			seville_port8: port@8 {
 				reg = <8>;
 				phy-mode = "internal";
+				ethernet = <&enet0>;
 				status = "disabled";
 
 				fixed-link {
@@ -697,6 +698,7 @@
 			seville_port9: port@9 {
 				reg = <9>;
 				phy-mode = "internal";
+				ethernet = <&enet1>;
 				status = "disabled";
 
 				fixed-link {

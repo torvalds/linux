@@ -115,19 +115,19 @@
 		compatible = "gpio-leds";
 		status = "okay";
 
-		user1 {
+		led-user1 {
 			label = "user1";
 			gpios = <&pioD 28 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "heartbeat";
 		};
 
-		user2 {
+		led-user2 {
 			label = "user2";
 			gpios = <&pioD 29 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "heartbeat";
 		};
 
-		user3 {
+		led-user3 {
 			label = "user3";
 			gpios = <&pioD 30 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "heartbeat";

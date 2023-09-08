@@ -30,6 +30,7 @@
 #include "dcn30/dcn30_hwseq.h"
 #include "dcn31/dcn31_hwseq.h"
 #include "dcn32_hwseq.h"
+#include "dcn32_init.h"
 
 static const struct hw_sequencer_funcs dcn32_funcs = {
 	.program_gamut_remap = dcn10_program_gamut_remap,
@@ -94,7 +95,7 @@ static const struct hw_sequencer_funcs dcn32_funcs = {
 	.get_vupdate_offset_from_vsync = dcn10_get_vupdate_offset_from_vsync,
 	.calc_vupdate_position = dcn10_calc_vupdate_position,
 	.apply_idle_power_optimizations = dcn32_apply_idle_power_optimizations,
-	.does_plane_fit_in_mall = dcn30_does_plane_fit_in_mall,
+	.does_plane_fit_in_mall = NULL,
 	.set_backlight_level = dcn21_set_backlight_level,
 	.set_abm_immediate_disable = dcn21_set_abm_immediate_disable,
 	.hardware_release = dcn30_hardware_release,
@@ -106,10 +107,12 @@ static const struct hw_sequencer_funcs dcn32_funcs = {
 	.set_disp_pattern_generator = dcn30_set_disp_pattern_generator,
 	.get_dcc_en_bits = dcn10_get_dcc_en_bits,
 	.commit_subvp_config = dcn32_commit_subvp_config,
+	.enable_phantom_streams = dcn32_enable_phantom_streams,
 	.subvp_pipe_control_lock = dcn32_subvp_pipe_control_lock,
 	.update_visual_confirm_color = dcn20_update_visual_confirm_color,
 	.update_phantom_vp_position = dcn32_update_phantom_vp_position,
 	.update_dsc_pg = dcn32_update_dsc_pg,
+	.apply_update_flags_for_phantom = dcn32_apply_update_flags_for_phantom,
 };
 
 static const struct hwseq_private_funcs dcn32_private_funcs = {
@@ -129,7 +132,7 @@ static const struct hwseq_private_funcs dcn32_private_funcs = {
 	.enable_stream_gating = dcn20_enable_stream_gating,
 	.setup_vupdate_interrupt = dcn20_setup_vupdate_interrupt,
 	.did_underflow_occur = dcn10_did_underflow_occur,
-	.init_blank = dcn20_init_blank,
+	.init_blank = dcn32_init_blank,
 	.disable_vga = dcn20_disable_vga,
 	.bios_golden_init = dcn10_bios_golden_init,
 	.plane_atomic_disable = dcn20_plane_atomic_disable,
@@ -146,7 +149,7 @@ static const struct hwseq_private_funcs dcn32_private_funcs = {
 	.dccg_init = dcn20_dccg_init,
 	.set_mcm_luts = dcn32_set_mcm_luts,
 	.program_mall_pipe_config = dcn32_program_mall_pipe_config,
-	.subvp_update_force_pstate = dcn32_subvp_update_force_pstate,
+	.update_force_pstate = dcn32_update_force_pstate,
 	.update_mall_sel = dcn32_update_mall_sel,
 	.calculate_dccg_k1_k2_values = dcn32_calculate_dccg_k1_k2_values,
 	.set_pixels_per_cycle = dcn32_set_pixels_per_cycle,

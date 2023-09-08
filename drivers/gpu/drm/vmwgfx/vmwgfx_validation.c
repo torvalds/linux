@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR MIT
 /**************************************************************************
  *
- * Copyright © 2018 VMware, Inc., Palo Alto, CA., USA
+ * Copyright © 2018 - 2023 VMware, Inc., Palo Alto, CA., USA
  * All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -25,9 +25,12 @@
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
  **************************************************************************/
-#include <linux/slab.h>
-#include "vmwgfx_validation.h"
+#include "vmwgfx_bo.h"
 #include "vmwgfx_drv.h"
+#include "vmwgfx_resource_priv.h"
+#include "vmwgfx_validation.h"
+
+#include <linux/slab.h>
 
 
 #define VMWGFX_VALIDATION_MEM_GRAN (16*PAGE_SIZE)
@@ -38,8 +41,6 @@
  * @hash: A hash entry used for the duplicate detection hash table.
  * @coherent_count: If switching backup buffers, number of new coherent
  * resources that will have this buffer as a backup buffer.
- * @as_mob: Validate as mob.
- * @cpu_blit: Validate for cpu blit access.
  *
  * Bit fields are used since these structures are allocated and freed in
  * large numbers and space conservation is desired.
@@ -48,21 +49,19 @@ struct vmw_validation_bo_node {
 	struct ttm_validate_buffer base;
 	struct vmwgfx_hash_item hash;
 	unsigned int coherent_count;
-	u32 as_mob : 1;
-	u32 cpu_blit : 1;
 };
 /**
  * struct vmw_validation_res_node - Resource validation metadata.
  * @head: List head for the resource validation list.
  * @hash: A hash entry used for the duplicate detection hash table.
  * @res: Reference counted resource pointer.
- * @new_backup: Non ref-counted pointer to new backup buffer to be assigned
- * to a resource.
- * @new_backup_offset: Offset into the new backup mob for resources that can
- * share MOBs.
+ * @new_guest_memory_bo: Non ref-counted pointer to new guest memory buffer
+ * to be assigned to a resource.
+ * @new_guest_memory_offset: Offset into the new backup mob for resources
+ * that can share MOBs.
  * @no_buffer_needed: Kernel does not need to allocate a MOB during validation,
  * the command stream provides a mob bind operation.
- * @switching_backup: The validation process is switching backup MOB.
+ * @switching_guest_memory_bo: The validation process is switching backup MOB.
  * @first_usage: True iff the resource has been seen only once in the current
  * validation batch.
  * @reserved: Whether the resource is currently reserved by this process.
@@ -77,10 +76,10 @@ struct vmw_validation_res_node {
 	struct list_head head;
 	struct vmwgfx_hash_item hash;
 	struct vmw_resource *res;
-	struct vmw_buffer_object *new_backup;
-	unsigned long new_backup_offset;
+	struct vmw_bo *new_guest_memory_bo;
+	unsigned long new_guest_memory_offset;
 	u32 no_buffer_needed : 1;
-	u32 switching_backup : 1;
+	u32 switching_guest_memory_bo : 1;
 	u32 first_usage : 1;
 	u32 reserved : 1;
 	u32 dirty : 1;
@@ -173,23 +172,28 @@ static void vmw_validation_mem_free(struct vmw_validation_context *ctx)
  */
 static struct vmw_validation_bo_node *
 vmw_validation_find_bo_dup(struct vmw_validation_context *ctx,
-			   struct vmw_buffer_object *vbo)
+			   struct vmw_bo *vbo)
 {
 	struct  vmw_validation_bo_node *bo_node = NULL;
 
 	if (!ctx->merge_dups)
 		return NULL;
 
-	if (ctx->ht) {
+	if (ctx->sw_context) {
 		struct vmwgfx_hash_item *hash;
+		unsigned long key = (unsigned long) vbo;
 
-		if (!vmwgfx_ht_find_item(ctx->ht, (unsigned long) vbo, &hash))
-			bo_node = container_of(hash, typeof(*bo_node), hash);
+		hash_for_each_possible_rcu(ctx->sw_context->res_ht, hash, head, key) {
+			if (hash->key == key) {
+				bo_node = container_of(hash, typeof(*bo_node), hash);
+				break;
+			}
+		}
 	} else {
 		struct  vmw_validation_bo_node *entry;
 
 		list_for_each_entry(entry, &ctx->bo_list, base.head) {
-			if (entry->base.bo == &vbo->base) {
+			if (entry->base.bo == &vbo->tbo) {
 				bo_node = entry;
 				break;
 			}
@@ -217,11 +221,16 @@ vmw_validation_find_res_dup(struct vmw_validation_context *ctx,
 	if (!ctx->merge_dups)
 		return NULL;
 
-	if (ctx->ht) {
+	if (ctx->sw_context) {
 		struct vmwgfx_hash_item *hash;
+		unsigned long key = (unsigned long) res;
 
-		if (!vmwgfx_ht_find_item(ctx->ht, (unsigned long) res, &hash))
-			res_node = container_of(hash, typeof(*res_node), hash);
+		hash_for_each_possible_rcu(ctx->sw_context->res_ht, hash, head, key) {
+			if (hash->key == key) {
+				res_node = container_of(hash, typeof(*res_node), hash);
+				break;
+			}
+		}
 	} else {
 		struct  vmw_validation_res_node *entry;
 
@@ -248,50 +257,33 @@ out:
  * vmw_validation_add_bo - Add a buffer object to the validation context.
  * @ctx: The validation context.
  * @vbo: The buffer object.
- * @as_mob: Validate as mob, otherwise suitable for GMR operations.
- * @cpu_blit: Validate in a page-mappable location.
  *
  * Return: Zero on success, negative error code otherwise.
  */
 int vmw_validation_add_bo(struct vmw_validation_context *ctx,
-			  struct vmw_buffer_object *vbo,
-			  bool as_mob,
-			  bool cpu_blit)
+			  struct vmw_bo *vbo)
 {
 	struct vmw_validation_bo_node *bo_node;
 
 	bo_node = vmw_validation_find_bo_dup(ctx, vbo);
-	if (bo_node) {
-		if (bo_node->as_mob != as_mob ||
-		    bo_node->cpu_blit != cpu_blit) {
-			DRM_ERROR("Inconsistent buffer usage.\n");
-			return -EINVAL;
-		}
-	} else {
+	if (!bo_node) {
 		struct ttm_validate_buffer *val_buf;
-		int ret;
 
 		bo_node = vmw_validation_mem_alloc(ctx, sizeof(*bo_node));
 		if (!bo_node)
 			return -ENOMEM;
 
-		if (ctx->ht) {
+		if (ctx->sw_context) {
 			bo_node->hash.key = (unsigned long) vbo;
-			ret = vmwgfx_ht_insert_item(ctx->ht, &bo_node->hash);
-			if (ret) {
-				DRM_ERROR("Failed to initialize a buffer "
-					  "validation entry.\n");
-				return ret;
-			}
+			hash_add_rcu(ctx->sw_context->res_ht, &bo_node->hash.head,
+				bo_node->hash.key);
 		}
 		val_buf = &bo_node->base;
-		val_buf->bo = ttm_bo_get_unless_zero(&vbo->base);
+		val_buf->bo = ttm_bo_get_unless_zero(&vbo->tbo);
 		if (!val_buf->bo)
 			return -ESRCH;
 		val_buf->num_shared = 0;
 		list_add_tail(&val_buf->head, &ctx->bo_list);
-		bo_node->as_mob = as_mob;
-		bo_node->cpu_blit = cpu_blit;
 	}
 
 	return 0;
@@ -316,7 +308,6 @@ int vmw_validation_add_resource(struct vmw_validation_context *ctx,
 				bool *first_usage)
 {
 	struct vmw_validation_res_node *node;
-	int ret;
 
 	node = vmw_validation_find_res_dup(ctx, res);
 	if (node) {
@@ -330,14 +321,9 @@ int vmw_validation_add_resource(struct vmw_validation_context *ctx,
 		return -ENOMEM;
 	}
 
-	if (ctx->ht) {
+	if (ctx->sw_context) {
 		node->hash.key = (unsigned long) res;
-		ret = vmwgfx_ht_insert_item(ctx->ht, &node->hash);
-		if (ret) {
-			DRM_ERROR("Failed to initialize a resource validation "
-				  "entry.\n");
-			return ret;
-		}
+		hash_add_rcu(ctx->sw_context->res_ht, &node->hash.head, node->hash.key);
 	}
 	node->res = vmw_resource_reference_unless_doomed(res);
 	if (!node->res)
@@ -407,23 +393,23 @@ void vmw_validation_res_set_dirty(struct vmw_validation_context *ctx,
  * the resource.
  * @vbo: The new backup buffer object MOB. This buffer object needs to have
  * already been registered with the validation context.
- * @backup_offset: Offset into the new backup MOB.
+ * @guest_memory_offset: Offset into the new backup MOB.
  */
 void vmw_validation_res_switch_backup(struct vmw_validation_context *ctx,
 				      void *val_private,
-				      struct vmw_buffer_object *vbo,
-				      unsigned long backup_offset)
+				      struct vmw_bo *vbo,
+				      unsigned long guest_memory_offset)
 {
 	struct vmw_validation_res_node *val;
 
 	val = container_of(val_private, typeof(*val), private);
 
-	val->switching_backup = 1;
+	val->switching_guest_memory_bo = 1;
 	if (val->first_usage)
 		val->no_buffer_needed = 1;
 
-	val->new_backup = vbo;
-	val->new_backup_offset = backup_offset;
+	val->new_guest_memory_bo = vbo;
+	val->new_guest_memory_offset = guest_memory_offset;
 }
 
 /**
@@ -451,21 +437,22 @@ int vmw_validation_res_reserve(struct vmw_validation_context *ctx,
 			goto out_unreserve;
 
 		val->reserved = 1;
-		if (res->backup) {
-			struct vmw_buffer_object *vbo = res->backup;
+		if (res->guest_memory_bo) {
+			struct vmw_bo *vbo = res->guest_memory_bo;
 
-			ret = vmw_validation_add_bo
-				(ctx, vbo, vmw_resource_needs_backup(res),
-				 false);
+			vmw_bo_placement_set(vbo,
+					     res->func->domain,
+					     res->func->busy_domain);
+			ret = vmw_validation_add_bo(ctx, vbo);
 			if (ret)
 				goto out_unreserve;
 		}
 
-		if (val->switching_backup && val->new_backup &&
+		if (val->switching_guest_memory_bo && val->new_guest_memory_bo &&
 		    res->coherent) {
 			struct vmw_validation_bo_node *bo_node =
 				vmw_validation_find_bo_dup(ctx,
-							   val->new_backup);
+							   val->new_guest_memory_bo);
 
 			if (WARN_ON(!bo_node)) {
 				ret = -EINVAL;
@@ -508,9 +495,9 @@ void vmw_validation_res_unreserve(struct vmw_validation_context *ctx,
 				vmw_resource_unreserve(val->res,
 						       val->dirty_set,
 						       val->dirty,
-						       val->switching_backup,
-						       val->new_backup,
-						       val->new_backup_offset);
+						       val->switching_guest_memory_bo,
+						       val->new_guest_memory_bo,
+						       val->new_guest_memory_offset);
 		}
 }
 
@@ -518,17 +505,14 @@ void vmw_validation_res_unreserve(struct vmw_validation_context *ctx,
  * vmw_validation_bo_validate_single - Validate a single buffer object.
  * @bo: The TTM buffer object base.
  * @interruptible: Whether to perform waits interruptible if possible.
- * @validate_as_mob: Whether to validate in MOB memory.
  *
  * Return: Zero on success, -ERESTARTSYS if interrupted. Negative error
  * code on failure.
  */
-int vmw_validation_bo_validate_single(struct ttm_buffer_object *bo,
-				      bool interruptible,
-				      bool validate_as_mob)
+static int vmw_validation_bo_validate_single(struct ttm_buffer_object *bo,
+					     bool interruptible)
 {
-	struct vmw_buffer_object *vbo =
-		container_of(bo, struct vmw_buffer_object, base);
+	struct vmw_bo *vbo = to_vmw_bo(&bo->base);
 	struct ttm_operation_ctx ctx = {
 		.interruptible = interruptible,
 		.no_wait_gpu = false
@@ -538,30 +522,20 @@ int vmw_validation_bo_validate_single(struct ttm_buffer_object *bo,
 	if (atomic_read(&vbo->cpu_writers))
 		return -EBUSY;
 
-	if (vbo->base.pin_count > 0)
+	if (vbo->tbo.pin_count > 0)
 		return 0;
 
-	if (validate_as_mob)
-		return ttm_bo_validate(bo, &vmw_mob_placement, &ctx);
-
-	/**
-	 * Put BO in VRAM if there is space, otherwise as a GMR.
-	 * If there is no space in VRAM and GMR ids are all used up,
-	 * start evicting GMRs to make room. If the DMA buffer can't be
-	 * used as a GMR, this will return -ENOMEM.
-	 */
-
-	ret = ttm_bo_validate(bo, &vmw_vram_gmr_placement, &ctx);
+	ret = ttm_bo_validate(bo, &vbo->placement, &ctx);
 	if (ret == 0 || ret == -ERESTARTSYS)
 		return ret;
 
-	/**
-	 * If that failed, try VRAM again, this time evicting
+	/*
+	 * If that failed, try again, this time evicting
 	 * previous contents.
 	 */
+	ctx.allow_res_evict = true;
 
-	ret = ttm_bo_validate(bo, &vmw_vram_placement, &ctx);
-	return ret;
+	return ttm_bo_validate(bo, &vbo->placement, &ctx);
 }
 
 /**
@@ -579,21 +553,10 @@ int vmw_validation_bo_validate(struct vmw_validation_context *ctx, bool intr)
 	int ret;
 
 	list_for_each_entry(entry, &ctx->bo_list, base.head) {
-		struct vmw_buffer_object *vbo =
-			container_of(entry->base.bo, typeof(*vbo), base);
+		struct vmw_bo *vbo = to_vmw_bo(&entry->base.bo->base);
 
-		if (entry->cpu_blit) {
-			struct ttm_operation_ctx ttm_ctx = {
-				.interruptible = intr,
-				.no_wait_gpu = false
-			};
+		ret = vmw_validation_bo_validate_single(entry->base.bo, intr);
 
-			ret = ttm_bo_validate(entry->base.bo,
-					      &vmw_nonfixed_placement, &ttm_ctx);
-		} else {
-			ret = vmw_validation_bo_validate_single
-			(entry->base.bo, intr, entry->as_mob);
-		}
 		if (ret)
 			return ret;
 
@@ -640,7 +603,7 @@ int vmw_validation_res_validate(struct vmw_validation_context *ctx, bool intr)
 
 	list_for_each_entry(val, &ctx->resource_list, head) {
 		struct vmw_resource *res = val->res;
-		struct vmw_buffer_object *backup = res->backup;
+		struct vmw_bo *backup = res->guest_memory_bo;
 
 		ret = vmw_resource_validate(res, intr, val->dirty_set &&
 					    val->dirty);
@@ -651,12 +614,12 @@ int vmw_validation_res_validate(struct vmw_validation_context *ctx, bool intr)
 		}
 
 		/* Check if the resource switched backup buffer */
-		if (backup && res->backup && (backup != res->backup)) {
-			struct vmw_buffer_object *vbo = res->backup;
+		if (backup && res->guest_memory_bo && backup != res->guest_memory_bo) {
+			struct vmw_bo *vbo = res->guest_memory_bo;
 
-			ret = vmw_validation_add_bo
-				(ctx, vbo, vmw_resource_needs_backup(res),
-				 false);
+			vmw_bo_placement_set(vbo, res->func->domain,
+					     res->func->busy_domain);
+			ret = vmw_validation_add_bo(ctx, vbo);
 			if (ret)
 				return ret;
 		}
@@ -681,19 +644,19 @@ void vmw_validation_drop_ht(struct vmw_validation_context *ctx)
 	struct vmw_validation_bo_node *entry;
 	struct vmw_validation_res_node *val;
 
-	if (!ctx->ht)
+	if (!ctx->sw_context)
 		return;
 
 	list_for_each_entry(entry, &ctx->bo_list, base.head)
-		(void) vmwgfx_ht_remove_item(ctx->ht, &entry->hash);
+		hash_del_rcu(&entry->hash.head);
 
 	list_for_each_entry(val, &ctx->resource_list, head)
-		(void) vmwgfx_ht_remove_item(ctx->ht, &val->hash);
+		hash_del_rcu(&val->hash.head);
 
 	list_for_each_entry(val, &ctx->resource_ctx_list, head)
-		(void) vmwgfx_ht_remove_item(ctx->ht, &val->hash);
+		hash_del_rcu(&entry->hash.head);
 
-	ctx->ht = NULL;
+	ctx->sw_context = NULL;
 }
 
 /**
@@ -890,9 +853,7 @@ void vmw_validation_bo_backoff(struct vmw_validation_context *ctx)
 	list_for_each_entry(entry, &ctx->bo_list, base.head) {
 		if (entry->coherent_count) {
 			unsigned int coherent_count = entry->coherent_count;
-			struct vmw_buffer_object *vbo =
-				container_of(entry->base.bo, typeof(*vbo),
-					     base);
+			struct vmw_bo *vbo = to_vmw_bo(&entry->base.bo->base);
 
 			while (coherent_count--)
 				vmw_bo_dirty_release(vbo);

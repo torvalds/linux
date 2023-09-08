@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/display/mediatek/mediatek,dsi.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: MediaTek DSI Controller Device Tree Bindings
+title: MediaTek DSI Controller
 
 maintainers:
   - Chun-Kuang Hu <chunkuang.hu@kernel.org>

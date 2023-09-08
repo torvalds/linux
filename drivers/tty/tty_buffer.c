@@ -21,7 +21,7 @@
 #include "tty.h"
 
 #define MIN_TTYB_SIZE	256
-#define TTYB_ALIGN_MASK	255
+#define TTYB_ALIGN_MASK	0xff
 
 /*
  * Byte threshold to limit memory consumption for flip buffers.
@@ -37,7 +37,7 @@
  * logic this must match.
  */
 
-#define TTY_BUFFER_PAGE	(((PAGE_SIZE - sizeof(struct tty_buffer)) / 2) & ~0xFF)
+#define TTY_BUFFER_PAGE	(((PAGE_SIZE - sizeof(struct tty_buffer)) / 2) & ~TTYB_ALIGN_MASK)
 
 /**
  * tty_buffer_lock_exclusive	-	gain exclusive access to buffer
@@ -107,7 +107,7 @@ static void tty_buffer_reset(struct tty_buffer *p, size_t size)
 	p->commit = 0;
 	p->lookahead = 0;
 	p->read = 0;
-	p->flags = 0;
+	p->flags = true;
 }
 
 /**
@@ -249,7 +249,7 @@ void tty_buffer_flush(struct tty_struct *tty, struct tty_ldisc *ld)
  * __tty_buffer_request_room	-	grow tty buffer if needed
  * @port: tty port
  * @size: size desired
- * @flags: buffer flags if new buffer allocated (default = 0)
+ * @flags: buffer has to store flags along character data
  *
  * Make at least @size bytes of linear space available for the tty buffer.
  *
@@ -260,19 +260,19 @@ void tty_buffer_flush(struct tty_struct *tty, struct tty_ldisc *ld)
  * Returns: the size we managed to find.
  */
 static int __tty_buffer_request_room(struct tty_port *port, size_t size,
-				     int flags)
+				     bool flags)
 {
 	struct tty_bufhead *buf = &port->buf;
 	struct tty_buffer *b, *n;
 	int left, change;
 
 	b = buf->tail;
-	if (b->flags & TTYB_NORMAL)
+	if (!b->flags)
 		left = 2 * b->size - b->used;
 	else
 		left = b->size - b->used;
 
-	change = (b->flags & TTYB_NORMAL) && (~flags & TTYB_NORMAL);
+	change = !b->flags && flags;
 	if (change || left < size) {
 		/* This is the slow path - looking for new buffers to use */
 		n = tty_buffer_alloc(port, size);
@@ -300,7 +300,7 @@ static int __tty_buffer_request_room(struct tty_port *port, size_t size,
 
 int tty_buffer_request_room(struct tty_port *port, size_t size)
 {
-	return __tty_buffer_request_room(port, size, 0);
+	return __tty_buffer_request_room(port, size, true);
 }
 EXPORT_SYMBOL_GPL(tty_buffer_request_room);
 
@@ -320,17 +320,17 @@ int tty_insert_flip_string_fixed_flag(struct tty_port *port,
 		const unsigned char *chars, char flag, size_t size)
 {
 	int copied = 0;
+	bool flags = flag != TTY_NORMAL;
 
 	do {
 		int goal = min_t(size_t, size - copied, TTY_BUFFER_PAGE);
-		int flags = (flag == TTY_NORMAL) ? TTYB_NORMAL : 0;
 		int space = __tty_buffer_request_room(port, goal, flags);
 		struct tty_buffer *tb = port->buf.tail;
 
 		if (unlikely(space == 0))
 			break;
 		memcpy(char_buf_ptr(tb, tb->used), chars, space);
-		if (~tb->flags & TTYB_NORMAL)
+		if (tb->flags)
 			memset(flag_buf_ptr(tb, tb->used), flag, space);
 		tb->used += space;
 		copied += space;
@@ -393,13 +393,13 @@ EXPORT_SYMBOL(tty_insert_flip_string_flags);
 int __tty_insert_flip_char(struct tty_port *port, unsigned char ch, char flag)
 {
 	struct tty_buffer *tb;
-	int flags = (flag == TTY_NORMAL) ? TTYB_NORMAL : 0;
+	bool flags = flag != TTY_NORMAL;
 
 	if (!__tty_buffer_request_room(port, 1, flags))
 		return 0;
 
 	tb = port->buf.tail;
-	if (~tb->flags & TTYB_NORMAL)
+	if (tb->flags)
 		*flag_buf_ptr(tb, tb->used) = flag;
 	*char_buf_ptr(tb, tb->used++) = ch;
 
@@ -424,13 +424,13 @@ EXPORT_SYMBOL(__tty_insert_flip_char);
 int tty_prepare_flip_string(struct tty_port *port, unsigned char **chars,
 		size_t size)
 {
-	int space = __tty_buffer_request_room(port, size, TTYB_NORMAL);
+	int space = __tty_buffer_request_room(port, size, false);
 
 	if (likely(space)) {
 		struct tty_buffer *tb = port->buf.tail;
 
 		*chars = char_buf_ptr(tb, tb->used);
-		if (~tb->flags & TTYB_NORMAL)
+		if (tb->flags)
 			memset(flag_buf_ptr(tb, tb->used), TTY_NORMAL, space);
 		tb->used += space;
 	}
@@ -492,7 +492,7 @@ static void lookahead_bufs(struct tty_port *port, struct tty_buffer *head)
 			unsigned char *p, *f = NULL;
 
 			p = char_buf_ptr(head, head->lookahead);
-			if (~head->flags & TTYB_NORMAL)
+			if (head->flags)
 				f = flag_buf_ptr(head, head->lookahead);
 
 			port->client_ops->lookahead_buf(port, p, f, count);
@@ -509,7 +509,7 @@ receive_buf(struct tty_port *port, struct tty_buffer *head, int count)
 	const char *f = NULL;
 	int n;
 
-	if (~head->flags & TTYB_NORMAL)
+	if (head->flags)
 		f = flag_buf_ptr(head, head->read);
 
 	n = port->client_ops->receive_buf(port, p, f, count);

@@ -121,4 +121,5 @@ struct mlx5e_tc_act mlx5e_tc_act_goto = {
 	.can_offload = tc_act_can_offload_goto,
 	.parse_action = tc_act_parse_goto,
 	.post_parse = tc_act_post_parse_goto,
+	.is_terminating_action = true,
 };

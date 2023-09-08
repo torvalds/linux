@@ -27,6 +27,7 @@
 #include <sys/prctl.h>
 #include <unistd.h>
 #include <time.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -151,12 +152,17 @@ static void create_threads(int num_threads, int thr_tids[])
 static int child_func_process(void *arg)
 {
 	struct child_args *ca = (struct child_args *)arg;
+	int ret;
 
 	close(ca->pfd[0]);
 
 	create_threads(ca->num_threads, ca->thr_tids);
 
-	write(ca->pfd[1], &ca->thr_tids, sizeof(int) * ca->num_threads);
+	ret = write(ca->pfd[1], &ca->thr_tids, sizeof(int) * ca->num_threads);
+	if (ret == -1)
+		printf("write failed on pfd[%d] - error (%s)\n",
+			ca->pfd[1], strerror(errno));
+
 	close(ca->pfd[1]);
 
 	while (1)
@@ -169,7 +175,7 @@ static unsigned char child_func_process_stack[STACK_SIZE];
 void create_processes(int num_processes, int num_threads, struct child_args proc[])
 {
 	pid_t cpid;
-	int i;
+	int i, ret;
 
 	for (i = 0; i < num_processes; ++i) {
 		proc[i].num_threads = num_threads;
@@ -184,7 +190,10 @@ void create_processes(int num_processes, int num_threads, struct child_args proc
 	}
 
 	for (i = 0; i < num_processes; ++i) {
-		read(proc[i].pfd[0], &proc[i].thr_tids, sizeof(int) * proc[i].num_threads);
+		ret = read(proc[i].pfd[0], &proc[i].thr_tids, sizeof(int) * proc[i].num_threads);
+		if (ret == -1)
+			printf("read failed on proc[%d].pfd[0] error (%s)\n",
+				i, strerror(errno));
 		close(proc[i].pfd[0]);
 	}
 }
@@ -324,6 +333,12 @@ int main(int argc, char *argv[])
 	validate(get_cs_cookie(0) == get_cs_cookie(pid));
 	validate(get_cs_cookie(pid) != 0);
 	validate(get_cs_cookie(pid) == get_cs_cookie(procs[pidx].thr_tids[0]));
+
+	validate(_prctl(PR_SCHED_CORE, PR_SCHED_CORE_MAX, 0, PIDTYPE_PGID, 0) < 0
+		&& errno == EINVAL);
+
+	validate(_prctl(PR_SCHED_CORE, PR_SCHED_CORE_SHARE_TO, 0, PIDTYPE_PGID, 1) < 0
+		&& errno == EINVAL);
 
 	if (errors) {
 		printf("TESTS FAILED. errors: %d\n", errors);

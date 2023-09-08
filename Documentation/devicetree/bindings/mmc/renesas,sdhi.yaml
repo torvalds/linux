@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 %YAML 1.2
 ---
-$id: "http://devicetree.org/schemas/mmc/renesas,sdhi.yaml#"
-$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+$id: http://devicetree.org/schemas/mmc/renesas,sdhi.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
 
 title: Renesas SDHI SD/MMC controller
 
@@ -59,11 +59,13 @@ properties:
               - renesas,sdhi-r9a07g043 # RZ/G2UL
               - renesas,sdhi-r9a07g044 # RZ/G2{L,LC}
               - renesas,sdhi-r9a07g054 # RZ/V2L
+              - renesas,sdhi-r9a09g011 # RZ/V2M
           - const: renesas,rcar-gen3-sdhi # R-Car Gen3 or RZ/G2
       - items:
           - enum:
               - renesas,sdhi-r8a779a0  # R-Car V3U
               - renesas,sdhi-r8a779f0  # R-Car S4-8
+              - renesas,sdhi-r8a779g0  # R-Car V4H
           - const: renesas,rcar-gen4-sdhi # R-Car Gen4
 
   reg:
@@ -110,7 +112,7 @@ properties:
   max-frequency: true
 
 allOf:
-  - $ref: "mmc-controller.yaml"
+  - $ref: mmc-controller.yaml
 
   - if:
       properties:
@@ -120,6 +122,7 @@ allOf:
               - renesas,sdhi-r9a07g043
               - renesas,sdhi-r9a07g044
               - renesas,sdhi-r9a07g054
+              - renesas,sdhi-r9a09g011
     then:
       properties:
         clocks:

@@ -127,7 +127,7 @@ void guest_modes_cmdline(const char *arg)
 		mode_selected = true;
 	}
 
-	mode = strtoul(optarg, NULL, 10);
+	mode = atoi_non_negative("Guest mode ID", arg);
 	TEST_ASSERT(mode < NUM_VM_MODES, "Guest mode ID %d too big", mode);
 	guest_modes[mode].enabled = true;
 }

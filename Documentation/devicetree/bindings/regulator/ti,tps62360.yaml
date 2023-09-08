@@ -19,7 +19,7 @@ description: |
   https://www.ti.com/lit/gpn/tps62360
 
 allOf:
-  - $ref: "regulator.yaml#"
+  - $ref: regulator.yaml#
 
 properties:
   compatible:

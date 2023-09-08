@@ -131,6 +131,26 @@ struct media_pipeline_pad {
 };
 
 /**
+ * struct media_pipeline_pad_iter - Iterator for media_pipeline_for_each_pad
+ *
+ * @cursor: The current element
+ */
+struct media_pipeline_pad_iter {
+	struct list_head *cursor;
+};
+
+/**
+ * struct media_pipeline_entity_iter - Iterator for media_pipeline_for_each_entity
+ *
+ * @ent_enum: The entity enumeration tracker
+ * @cursor: The current element
+ */
+struct media_pipeline_entity_iter {
+	struct media_entity_enum ent_enum;
+	struct list_head *cursor;
+};
+
+/**
  * struct media_link - A link object part of a media graph.
  *
  * @graph_obj:	Embedded structure containing the media object common data
@@ -237,12 +257,14 @@ struct media_pad {
  * @link_validate:	Return whether a link is valid from the entity point of
  *			view. The media_pipeline_start() function
  *			validates all links by calling this operation. Optional.
- * @has_pad_interdep:	Return whether a two pads inside the entity are
+ * @has_pad_interdep:	Return whether two pads of the entity are
  *			interdependent. If two pads are interdependent they are
  *			part of the same pipeline and enabling one of the pads
  *			means that the other pad will become "locked" and
  *			doesn't allow configuration changes. pad0 and pad1 are
- *			guaranteed to not both be sinks or sources.
+ *			guaranteed to not both be sinks or sources. Never call
+ *			the .has_pad_interdep() operation directly, always use
+ *			media_entity_has_pad_interdep().
  *			Optional: If the operation isn't implemented all pads
  *			will be considered as interdependent.
  *
@@ -1066,6 +1088,8 @@ int media_entity_get_fwnode_pad(struct media_entity *entity,
  * @graph: Media graph structure that will be used to walk the graph
  * @mdev: Pointer to the &media_device that contains the object
  *
+ * This function is deprecated, use media_pipeline_for_each_pad() instead.
+ *
  * The caller is required to hold the media_device graph_mutex during the graph
  * walk until the graph state is released.
  *
@@ -1078,6 +1102,8 @@ __must_check int media_graph_walk_init(
  * media_graph_walk_cleanup - Release resources used by graph walk.
  *
  * @graph: Media graph structure that will be used to walk the graph
+ *
+ * This function is deprecated, use media_pipeline_for_each_pad() instead.
  */
 void media_graph_walk_cleanup(struct media_graph *graph);
 
@@ -1087,6 +1113,8 @@ void media_graph_walk_cleanup(struct media_graph *graph);
  *
  * @graph: Media graph structure that will be used to walk the graph
  * @entity: Starting entity
+ *
+ * This function is deprecated, use media_pipeline_for_each_pad() instead.
  *
  * Before using this function, media_graph_walk_init() must be
  * used to allocate resources used for walking the graph. This
@@ -1102,6 +1130,8 @@ void media_graph_walk_start(struct media_graph *graph,
 /**
  * media_graph_walk_next - Get the next entity in the graph
  * @graph: Media graph structure
+ *
+ * This function is deprecated, use media_pipeline_for_each_pad() instead.
  *
  * Perform a depth-first traversal of the given media entities graph.
  *
@@ -1144,7 +1174,7 @@ __must_check int __media_pipeline_start(struct media_pad *pad,
  * media_pipeline_stop - Mark a pipeline as not streaming
  * @pad: Starting pad
  *
- * Mark all pads connected to a given pads through enabled links, either
+ * Mark all pads connected to a given pad through enabled links, either
  * directly or indirectly, as not streaming. The media_pad pipe field is
  * reset to %NULL.
  *
@@ -1162,6 +1192,76 @@ void media_pipeline_stop(struct media_pad *pad);
  * .. note:: This is the non-locking version of media_pipeline_stop()
  */
 void __media_pipeline_stop(struct media_pad *pad);
+
+struct media_pad *
+__media_pipeline_pad_iter_next(struct media_pipeline *pipe,
+			       struct media_pipeline_pad_iter *iter,
+			       struct media_pad *pad);
+
+/**
+ * media_pipeline_for_each_pad - Iterate on all pads in a media pipeline
+ * @pipe: The pipeline
+ * @iter: The iterator (struct media_pipeline_pad_iter)
+ * @pad: The iterator pad
+ *
+ * Iterate on all pads in a media pipeline. This is only valid after the
+ * pipeline has been built with media_pipeline_start() and before it gets
+ * destroyed with media_pipeline_stop().
+ */
+#define media_pipeline_for_each_pad(pipe, iter, pad)			\
+	for (pad = __media_pipeline_pad_iter_next((pipe), iter, NULL);	\
+	     pad != NULL;						\
+	     pad = __media_pipeline_pad_iter_next((pipe), iter, pad))
+
+/**
+ * media_pipeline_entity_iter_init - Initialize a pipeline entity iterator
+ * @pipe: The pipeline
+ * @iter: The iterator
+ *
+ * This function must be called to initialize the iterator before using it in a
+ * media_pipeline_for_each_entity() loop. The iterator must be destroyed by a
+ * call to media_pipeline_entity_iter_cleanup after the loop (including in code
+ * paths that break from the loop).
+ *
+ * The same iterator can be used in multiple consecutive loops without being
+ * destroyed and reinitialized.
+ *
+ * Return: 0 on success or a negative error code otherwise.
+ */
+int media_pipeline_entity_iter_init(struct media_pipeline *pipe,
+				    struct media_pipeline_entity_iter *iter);
+
+/**
+ * media_pipeline_entity_iter_cleanup - Destroy a pipeline entity iterator
+ * @iter: The iterator
+ *
+ * This function must be called to destroy iterators initialized with
+ * media_pipeline_entity_iter_init().
+ */
+void media_pipeline_entity_iter_cleanup(struct media_pipeline_entity_iter *iter);
+
+struct media_entity *
+__media_pipeline_entity_iter_next(struct media_pipeline *pipe,
+				  struct media_pipeline_entity_iter *iter,
+				  struct media_entity *entity);
+
+/**
+ * media_pipeline_for_each_entity - Iterate on all entities in a media pipeline
+ * @pipe: The pipeline
+ * @iter: The iterator (struct media_pipeline_entity_iter)
+ * @entity: The iterator entity
+ *
+ * Iterate on all entities in a media pipeline. This is only valid after the
+ * pipeline has been built with media_pipeline_start() and before it gets
+ * destroyed with media_pipeline_stop(). The iterator must be initialized with
+ * media_pipeline_entity_iter_init() before iteration, and destroyed with
+ * media_pipeline_entity_iter_cleanup() after (including in code paths that
+ * break from the loop).
+ */
+#define media_pipeline_for_each_entity(pipe, iter, entity)			\
+	for (entity = __media_pipeline_entity_iter_next((pipe), iter, NULL);	\
+	     entity != NULL;							\
+	     entity = __media_pipeline_entity_iter_next((pipe), iter, entity))
 
 /**
  * media_pipeline_alloc_start - Mark a pipeline as streaming

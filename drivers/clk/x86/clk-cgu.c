@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
+ * Copyright (C) 2020-2022 MaxLinear, Inc.
  * Copyright (C) 2020 Intel Corporation.
- * Zhu YiXin <yixin.zhu@intel.com>
- * Rahul Tanwar <rahul.tanwar@intel.com>
+ * Zhu Yixin <yzhu@maxlinear.com>
+ * Rahul Tanwar <rtanwar@maxlinear.com>
  */
 #include <linux/clk-provider.h>
 #include <linux/device.h>
@@ -24,14 +25,10 @@
 static struct clk_hw *lgm_clk_register_fixed(struct lgm_clk_provider *ctx,
 					     const struct lgm_clk_branch *list)
 {
-	unsigned long flags;
 
-	if (list->div_flags & CLOCK_FLAG_VAL_INIT) {
-		spin_lock_irqsave(&ctx->lock, flags);
+	if (list->div_flags & CLOCK_FLAG_VAL_INIT)
 		lgm_set_clk_val(ctx->membase, list->div_off, list->div_shift,
 				list->div_width, list->div_val);
-		spin_unlock_irqrestore(&ctx->lock, flags);
-	}
 
 	return clk_hw_register_fixed_rate(NULL, list->name,
 					  list->parent_data[0].name,
@@ -41,33 +38,27 @@ static struct clk_hw *lgm_clk_register_fixed(struct lgm_clk_provider *ctx,
 static u8 lgm_clk_mux_get_parent(struct clk_hw *hw)
 {
 	struct lgm_clk_mux *mux = to_lgm_clk_mux(hw);
-	unsigned long flags;
 	u32 val;
 
-	spin_lock_irqsave(&mux->lock, flags);
 	if (mux->flags & MUX_CLK_SW)
 		val = mux->reg;
 	else
 		val = lgm_get_clk_val(mux->membase, mux->reg, mux->shift,
 				      mux->width);
-	spin_unlock_irqrestore(&mux->lock, flags);
 	return clk_mux_val_to_index(hw, NULL, mux->flags, val);
 }
 
 static int lgm_clk_mux_set_parent(struct clk_hw *hw, u8 index)
 {
 	struct lgm_clk_mux *mux = to_lgm_clk_mux(hw);
-	unsigned long flags;
 	u32 val;
 
 	val = clk_mux_index_to_val(NULL, mux->flags, index);
-	spin_lock_irqsave(&mux->lock, flags);
 	if (mux->flags & MUX_CLK_SW)
 		mux->reg = val;
 	else
 		lgm_set_clk_val(mux->membase, mux->reg, mux->shift,
 				mux->width, val);
-	spin_unlock_irqrestore(&mux->lock, flags);
 
 	return 0;
 }
@@ -90,7 +81,7 @@ static struct clk_hw *
 lgm_clk_register_mux(struct lgm_clk_provider *ctx,
 		     const struct lgm_clk_branch *list)
 {
-	unsigned long flags, cflags = list->mux_flags;
+	unsigned long cflags = list->mux_flags;
 	struct device *dev = ctx->dev;
 	u8 shift = list->mux_shift;
 	u8 width = list->mux_width;
@@ -111,7 +102,6 @@ lgm_clk_register_mux(struct lgm_clk_provider *ctx,
 	init.num_parents = list->num_parents;
 
 	mux->membase = ctx->membase;
-	mux->lock = ctx->lock;
 	mux->reg = reg;
 	mux->shift = shift;
 	mux->width = width;
@@ -123,11 +113,8 @@ lgm_clk_register_mux(struct lgm_clk_provider *ctx,
 	if (ret)
 		return ERR_PTR(ret);
 
-	if (cflags & CLOCK_FLAG_VAL_INIT) {
-		spin_lock_irqsave(&mux->lock, flags);
+	if (cflags & CLOCK_FLAG_VAL_INIT)
 		lgm_set_clk_val(mux->membase, reg, shift, width, list->mux_val);
-		spin_unlock_irqrestore(&mux->lock, flags);
-	}
 
 	return hw;
 }
@@ -136,13 +123,10 @@ static unsigned long
 lgm_clk_divider_recalc_rate(struct clk_hw *hw, unsigned long parent_rate)
 {
 	struct lgm_clk_divider *divider = to_lgm_clk_divider(hw);
-	unsigned long flags;
 	unsigned int val;
 
-	spin_lock_irqsave(&divider->lock, flags);
 	val = lgm_get_clk_val(divider->membase, divider->reg,
 			      divider->shift, divider->width);
-	spin_unlock_irqrestore(&divider->lock, flags);
 
 	return divider_recalc_rate(hw, parent_rate, val, divider->table,
 				   divider->flags, divider->width);
@@ -163,7 +147,6 @@ lgm_clk_divider_set_rate(struct clk_hw *hw, unsigned long rate,
 			 unsigned long prate)
 {
 	struct lgm_clk_divider *divider = to_lgm_clk_divider(hw);
-	unsigned long flags;
 	int value;
 
 	value = divider_get_val(rate, prate, divider->table,
@@ -171,10 +154,8 @@ lgm_clk_divider_set_rate(struct clk_hw *hw, unsigned long rate,
 	if (value < 0)
 		return value;
 
-	spin_lock_irqsave(&divider->lock, flags);
 	lgm_set_clk_val(divider->membase, divider->reg,
 			divider->shift, divider->width, value);
-	spin_unlock_irqrestore(&divider->lock, flags);
 
 	return 0;
 }
@@ -182,12 +163,10 @@ lgm_clk_divider_set_rate(struct clk_hw *hw, unsigned long rate,
 static int lgm_clk_divider_enable_disable(struct clk_hw *hw, int enable)
 {
 	struct lgm_clk_divider *div = to_lgm_clk_divider(hw);
-	unsigned long flags;
 
-	spin_lock_irqsave(&div->lock, flags);
-	lgm_set_clk_val(div->membase, div->reg, div->shift_gate,
-			div->width_gate, enable);
-	spin_unlock_irqrestore(&div->lock, flags);
+	if (div->flags != DIV_CLK_NO_MASK)
+		lgm_set_clk_val(div->membase, div->reg, div->shift_gate,
+				div->width_gate, enable);
 	return 0;
 }
 
@@ -213,7 +192,7 @@ static struct clk_hw *
 lgm_clk_register_divider(struct lgm_clk_provider *ctx,
 			 const struct lgm_clk_branch *list)
 {
-	unsigned long flags, cflags = list->div_flags;
+	unsigned long cflags = list->div_flags;
 	struct device *dev = ctx->dev;
 	struct lgm_clk_divider *div;
 	struct clk_init_data init = {};
@@ -236,7 +215,6 @@ lgm_clk_register_divider(struct lgm_clk_provider *ctx,
 	init.num_parents = 1;
 
 	div->membase = ctx->membase;
-	div->lock = ctx->lock;
 	div->reg = reg;
 	div->shift = shift;
 	div->width = width;
@@ -251,11 +229,8 @@ lgm_clk_register_divider(struct lgm_clk_provider *ctx,
 	if (ret)
 		return ERR_PTR(ret);
 
-	if (cflags & CLOCK_FLAG_VAL_INIT) {
-		spin_lock_irqsave(&div->lock, flags);
+	if (cflags & CLOCK_FLAG_VAL_INIT)
 		lgm_set_clk_val(div->membase, reg, shift, width, list->div_val);
-		spin_unlock_irqrestore(&div->lock, flags);
-	}
 
 	return hw;
 }
@@ -264,7 +239,6 @@ static struct clk_hw *
 lgm_clk_register_fixed_factor(struct lgm_clk_provider *ctx,
 			      const struct lgm_clk_branch *list)
 {
-	unsigned long flags;
 	struct clk_hw *hw;
 
 	hw = clk_hw_register_fixed_factor(ctx->dev, list->name,
@@ -273,12 +247,9 @@ lgm_clk_register_fixed_factor(struct lgm_clk_provider *ctx,
 	if (IS_ERR(hw))
 		return ERR_CAST(hw);
 
-	if (list->div_flags & CLOCK_FLAG_VAL_INIT) {
-		spin_lock_irqsave(&ctx->lock, flags);
+	if (list->div_flags & CLOCK_FLAG_VAL_INIT)
 		lgm_set_clk_val(ctx->membase, list->div_off, list->div_shift,
 				list->div_width, list->div_val);
-		spin_unlock_irqrestore(&ctx->lock, flags);
-	}
 
 	return hw;
 }
@@ -286,13 +257,10 @@ lgm_clk_register_fixed_factor(struct lgm_clk_provider *ctx,
 static int lgm_clk_gate_enable(struct clk_hw *hw)
 {
 	struct lgm_clk_gate *gate = to_lgm_clk_gate(hw);
-	unsigned long flags;
 	unsigned int reg;
 
-	spin_lock_irqsave(&gate->lock, flags);
 	reg = GATE_HW_REG_EN(gate->reg);
 	lgm_set_clk_val(gate->membase, reg, gate->shift, 1, 1);
-	spin_unlock_irqrestore(&gate->lock, flags);
 
 	return 0;
 }
@@ -300,25 +268,19 @@ static int lgm_clk_gate_enable(struct clk_hw *hw)
 static void lgm_clk_gate_disable(struct clk_hw *hw)
 {
 	struct lgm_clk_gate *gate = to_lgm_clk_gate(hw);
-	unsigned long flags;
 	unsigned int reg;
 
-	spin_lock_irqsave(&gate->lock, flags);
 	reg = GATE_HW_REG_DIS(gate->reg);
 	lgm_set_clk_val(gate->membase, reg, gate->shift, 1, 1);
-	spin_unlock_irqrestore(&gate->lock, flags);
 }
 
 static int lgm_clk_gate_is_enabled(struct clk_hw *hw)
 {
 	struct lgm_clk_gate *gate = to_lgm_clk_gate(hw);
 	unsigned int reg, ret;
-	unsigned long flags;
 
-	spin_lock_irqsave(&gate->lock, flags);
 	reg = GATE_HW_REG_STAT(gate->reg);
 	ret = lgm_get_clk_val(gate->membase, reg, gate->shift, 1);
-	spin_unlock_irqrestore(&gate->lock, flags);
 
 	return ret;
 }
@@ -333,7 +295,7 @@ static struct clk_hw *
 lgm_clk_register_gate(struct lgm_clk_provider *ctx,
 		      const struct lgm_clk_branch *list)
 {
-	unsigned long flags, cflags = list->gate_flags;
+	unsigned long cflags = list->gate_flags;
 	const char *pname = list->parent_data[0].name;
 	struct device *dev = ctx->dev;
 	u8 shift = list->gate_shift;
@@ -354,7 +316,6 @@ lgm_clk_register_gate(struct lgm_clk_provider *ctx,
 	init.num_parents = pname ? 1 : 0;
 
 	gate->membase = ctx->membase;
-	gate->lock = ctx->lock;
 	gate->reg = reg;
 	gate->shift = shift;
 	gate->flags = cflags;
@@ -366,9 +327,7 @@ lgm_clk_register_gate(struct lgm_clk_provider *ctx,
 		return ERR_PTR(ret);
 
 	if (cflags & CLOCK_FLAG_VAL_INIT) {
-		spin_lock_irqsave(&gate->lock, flags);
 		lgm_set_clk_val(gate->membase, reg, shift, 1, list->gate_val);
-		spin_unlock_irqrestore(&gate->lock, flags);
 	}
 
 	return hw;
@@ -396,8 +355,22 @@ int lgm_clk_register_branches(struct lgm_clk_provider *ctx,
 			hw = lgm_clk_register_fixed_factor(ctx, list);
 			break;
 		case CLK_TYPE_GATE:
-			hw = lgm_clk_register_gate(ctx, list);
+			if (list->gate_flags & GATE_CLK_HW) {
+				hw = lgm_clk_register_gate(ctx, list);
+			} else {
+				/*
+				 * GATE_CLKs can be controlled either from
+				 * CGU clk driver i.e. this driver or directly
+				 * from power management driver/daemon. It is
+				 * dependent on the power policy/profile requirements
+				 * of the end product. To override control of gate
+				 * clks from this driver, provide NULL for this index
+				 * of gate clk provider.
+				 */
+				hw = NULL;
+			}
 			break;
+
 		default:
 			dev_err(ctx->dev, "invalid clk type\n");
 			return -EINVAL;
@@ -443,24 +416,18 @@ lgm_clk_ddiv_recalc_rate(struct clk_hw *hw, unsigned long parent_rate)
 static int lgm_clk_ddiv_enable(struct clk_hw *hw)
 {
 	struct lgm_clk_ddiv *ddiv = to_lgm_clk_ddiv(hw);
-	unsigned long flags;
 
-	spin_lock_irqsave(&ddiv->lock, flags);
 	lgm_set_clk_val(ddiv->membase, ddiv->reg, ddiv->shift_gate,
 			ddiv->width_gate, 1);
-	spin_unlock_irqrestore(&ddiv->lock, flags);
 	return 0;
 }
 
 static void lgm_clk_ddiv_disable(struct clk_hw *hw)
 {
 	struct lgm_clk_ddiv *ddiv = to_lgm_clk_ddiv(hw);
-	unsigned long flags;
 
-	spin_lock_irqsave(&ddiv->lock, flags);
 	lgm_set_clk_val(ddiv->membase, ddiv->reg, ddiv->shift_gate,
 			ddiv->width_gate, 0);
-	spin_unlock_irqrestore(&ddiv->lock, flags);
 }
 
 static int
@@ -497,32 +464,25 @@ lgm_clk_ddiv_set_rate(struct clk_hw *hw, unsigned long rate,
 {
 	struct lgm_clk_ddiv *ddiv = to_lgm_clk_ddiv(hw);
 	u32 div, ddiv1, ddiv2;
-	unsigned long flags;
 
 	div = DIV_ROUND_CLOSEST_ULL((u64)prate, rate);
 
-	spin_lock_irqsave(&ddiv->lock, flags);
 	if (lgm_get_clk_val(ddiv->membase, ddiv->reg, ddiv->shift2, 1)) {
 		div = DIV_ROUND_CLOSEST_ULL((u64)div, 5);
 		div = div * 2;
 	}
 
-	if (div <= 0) {
-		spin_unlock_irqrestore(&ddiv->lock, flags);
+	if (div <= 0)
 		return -EINVAL;
-	}
 
-	if (lgm_clk_get_ddiv_val(div, &ddiv1, &ddiv2)) {
-		spin_unlock_irqrestore(&ddiv->lock, flags);
+	if (lgm_clk_get_ddiv_val(div, &ddiv1, &ddiv2))
 		return -EINVAL;
-	}
 
 	lgm_set_clk_val(ddiv->membase, ddiv->reg, ddiv->shift0, ddiv->width0,
 			ddiv1 - 1);
 
 	lgm_set_clk_val(ddiv->membase, ddiv->reg,  ddiv->shift1, ddiv->width1,
 			ddiv2 - 1);
-	spin_unlock_irqrestore(&ddiv->lock, flags);
 
 	return 0;
 }
@@ -533,18 +493,15 @@ lgm_clk_ddiv_round_rate(struct clk_hw *hw, unsigned long rate,
 {
 	struct lgm_clk_ddiv *ddiv = to_lgm_clk_ddiv(hw);
 	u32 div, ddiv1, ddiv2;
-	unsigned long flags;
 	u64 rate64;
 
 	div = DIV_ROUND_CLOSEST_ULL((u64)*prate, rate);
 
 	/* if predivide bit is enabled, modify div by factor of 2.5 */
-	spin_lock_irqsave(&ddiv->lock, flags);
 	if (lgm_get_clk_val(ddiv->membase, ddiv->reg, ddiv->shift2, 1)) {
 		div = div * 2;
 		div = DIV_ROUND_CLOSEST_ULL((u64)div, 5);
 	}
-	spin_unlock_irqrestore(&ddiv->lock, flags);
 
 	if (div <= 0)
 		return *prate;
@@ -558,12 +515,10 @@ lgm_clk_ddiv_round_rate(struct clk_hw *hw, unsigned long rate,
 	do_div(rate64, ddiv2);
 
 	/* if predivide bit is enabled, modify rounded rate by factor of 2.5 */
-	spin_lock_irqsave(&ddiv->lock, flags);
 	if (lgm_get_clk_val(ddiv->membase, ddiv->reg, ddiv->shift2, 1)) {
 		rate64 = rate64 * 2;
 		rate64 = DIV_ROUND_CLOSEST_ULL(rate64, 5);
 	}
-	spin_unlock_irqrestore(&ddiv->lock, flags);
 
 	return rate64;
 }
@@ -600,7 +555,6 @@ int lgm_clk_register_ddiv(struct lgm_clk_provider *ctx,
 		init.num_parents = 1;
 
 		ddiv->membase = ctx->membase;
-		ddiv->lock = ctx->lock;
 		ddiv->reg = list->reg;
 		ddiv->shift0 = list->shift0;
 		ddiv->width0 = list->width0;

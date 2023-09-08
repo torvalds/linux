@@ -480,7 +480,7 @@ NESTED(nmi_handler, PT_SIZE, sp)
 	.set	push
 	/* gas fails to assemble cfc1 for some archs (octeon).*/ \
 	.set	mips1
-	SET_HARDFLOAT
+	.set	hardfloat
 	cfc1	a1, fcr31
 	.set	pop
 	.endm

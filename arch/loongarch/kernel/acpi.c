@@ -12,6 +12,7 @@
 #include <linux/irq.h>
 #include <linux/irqdomain.h>
 #include <linux/memblock.h>
+#include <linux/of_fdt.h>
 #include <linux/serial_core.h>
 #include <asm/io.h>
 #include <asm/numa.h>
@@ -139,20 +140,26 @@ static void __init acpi_process_madt(void)
 	loongson_sysconf.nr_cpus = num_processors;
 }
 
+#ifndef CONFIG_SUSPEND
+int (*acpi_suspend_lowlevel)(void);
+#else
+int (*acpi_suspend_lowlevel)(void) = loongarch_acpi_suspend;
+#endif
+
 void __init acpi_boot_table_init(void)
 {
 	/*
 	 * If acpi_disabled, bail out
 	 */
 	if (acpi_disabled)
-		return;
+		goto fdt_earlycon;
 
 	/*
 	 * Initialize the ACPI boot-time table parser.
 	 */
 	if (acpi_table_init()) {
 		disable_acpi();
-		return;
+		goto fdt_earlycon;
 	}
 
 	loongson_sysconf.boot_cpu_id = read_csr_cpuid();
@@ -164,6 +171,12 @@ void __init acpi_boot_table_init(void)
 
 	/* Do not enable ACPI SPCR console by default */
 	acpi_parse_spcr(earlycon_acpi_spcr_enable, false);
+
+	return;
+
+fdt_earlycon:
+	if (earlycon_acpi_spcr_enable)
+		early_init_dt_scan_chosen_stdout();
 }
 
 #ifdef CONFIG_ACPI_NUMA

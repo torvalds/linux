@@ -1,0 +1,72 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/misc/idt,89hpesx.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: EEPROM / CSR SMBus-slave interface of IDT 89HPESx devices
+
+maintainers:
+  - Serge Semin <fancer.lancer@gmail.com>
+
+select:
+  properties:
+    compatible:
+      contains:
+        pattern: '^idt,89hpes'
+  required:
+    - compatible
+
+properties:
+  compatible:
+    oneOf:
+      - pattern: '^idt,89hpes(8nt2|12nt3|12n3a?|24n3a?|(12|24)t3g2|4t4g2|10t4g2|[56]t5|8t5a?)$'
+      - pattern: '^idt,89hpes(6t6g2|16t7|(24t6|32t8|48t12|16t4a?)(g2)?)$'
+      - pattern: '^idt,89hpes(24nt6a|32nt8[ab]|12nt12|16nt16|24nt24|32nt24[ab])g2$'
+      - pattern: '^idt,89hpes((32h8|48h12a?|22h16|34h16|64h16a?)(g2)?|16h16)$'
+
+  reg:
+    maxItems: 1
+
+  '#address-cells':
+    const: 1
+  
+  '#size-cells':
+    const: 0
+
+patternProperties:
+  '^eeprom@':
+    $ref: /schemas/eeprom/at24.yaml#
+    unevaluatedProperties: false
+
+    properties:
+      compatible:
+        description: Only a subset of devices are supported
+        pattern: ',24c(32|64|128|256|512)$'
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        idt@74 {
+            compatible = "idt,89hpes32nt8ag2";
+            reg = <0x74>;
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            eeprom@50 {
+                compatible = "atmel,24c64";
+                reg = <0x50>;
+                read-only;
+            };
+        };
+    };
+...

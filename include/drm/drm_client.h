@@ -106,6 +106,14 @@ struct drm_client_dev {
 	 * @modesets: CRTC configurations
 	 */
 	struct drm_mode_set *modesets;
+
+	/**
+	 * @hotplug_failed:
+	 *
+	 * Set by client hotplug helpers if the hotplugging failed
+	 * before. It is usually not tried again.
+	 */
+	bool hotplug_failed;
 };
 
 int drm_client_init(struct drm_device *dev, struct drm_client_dev *client,
@@ -125,11 +133,6 @@ struct drm_client_buffer {
 	 * @client: DRM client
 	 */
 	struct drm_client_dev *client;
-
-	/**
-	 * @handle: Buffer handle
-	 */
-	u32 handle;
 
 	/**
 	 * @pitch: Buffer pitch

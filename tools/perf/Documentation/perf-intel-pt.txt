@@ -101,12 +101,12 @@ data is available you can use the 'perf script' tool with all itrace sampling
 options, which will list all the samples.
 
 	perf record -e intel_pt//u ls
-	perf script --itrace=ibxwpe
+	perf script --itrace=iybxwpe
 
 An interesting field that is not printed by default is 'flags' which can be
 displayed as follows:
 
-	perf script --itrace=ibxwpe -F+flags
+	perf script --itrace=iybxwpe -F+flags
 
 The flags are "bcrosyiABExghDt" which stand for branch, call, return, conditional,
 system, asynchronous, interrupt, transaction abort, trace begin, trace end,
@@ -147,16 +147,17 @@ displayed as follows:
 There are two ways that instructions-per-cycle (IPC) can be calculated depending
 on the recording.
 
-If the 'cyc' config term (see config terms section below) was used, then IPC is
-calculated using the cycle count from CYC packets, otherwise MTC packets are
-used - refer to the 'mtc' config term.  When MTC is used, however, the values
-are less accurate because the timing is less accurate.
+If the 'cyc' config term (see config terms section below) was used, then IPC
+and cycle events are calculated using the cycle count from CYC packets, otherwise
+MTC packets are used - refer to the 'mtc' config term.  When MTC is used, however,
+the values are less accurate because the timing is less accurate.
 
 Because Intel PT does not update the cycle count on every branch or instruction,
 the values will often be zero.  When there are values, they will be the number
 of instructions and number of cycles since the last update, and thus represent
-the average IPC since the last IPC for that event type.  Note IPC for "branches"
-events is calculated separately from IPC for "instructions" events.
+the average IPC cycle count since the last IPC for that event type.
+Note IPC for "branches" events is calculated separately from IPC for "instructions"
+events.
 
 Even with the 'cyc' config term, it is possible to produce IPC information for
 every change of timestamp, but at the expense of accuracy.  That is selected by
@@ -189,8 +190,16 @@ There is also script intel-pt-events.py which provides an example of how to
 unpack the raw data for power events and PTWRITE. The script also displays
 branches, and supports 2 additional modes selected by option:
 
- --insn-trace - instruction trace
- --src-trace - source trace
+ - --insn-trace - instruction trace
+ - --src-trace - source trace
+
+The intel-pt-events.py script also has options:
+
+ - --all-switch-events - display all switch events, not only the last consecutive.
+ - --interleave [<n>] - interleave sample output for the same timestamp so that
+ no more than n samples for a CPU are displayed in a row. 'n' defaults to 4.
+ Note this only affects the order of output, and only when the timestamp is the
+ same.
 
 As mentioned above, it is easy to capture too much data.  One way to limit the
 data captured is to use 'snapshot' mode which is explained further below.
@@ -892,11 +901,12 @@ Having no option is the same as
 
 which, in turn, is the same as
 
-	--itrace=cepwx
+	--itrace=cepwxy
 
 The letters are:
 
 	i	synthesize "instructions" events
+	y	synthesize "cycles" events
 	b	synthesize "branches" events
 	x	synthesize "transactions" events
 	w	synthesize "ptwrite" events
@@ -919,6 +929,16 @@ The letters are:
 "Instructions" events look like they were recorded by "perf record -e
 instructions".
 
+"Cycles" events look like they were recorded by "perf record -e cycles"
+(ie., the default). Note that even with CYC packets enabled and no sampling,
+these are not fully accurate, since CYC packets are not emitted for each
+instruction, only when some other event (like an indirect branch, or a
+TNT packet representing multiple branches) happens causes a packet to
+be emitted. Thus, it is more effective for attributing cycles to functions
+(and possibly basic blocks) than to individual instructions, although it
+is not even perfect for functions (although it becomes better if the noretcomp
+option is active).
+
 "Branches" events look like they were recorded by "perf record -e branches". "c"
 and "r" can be combined to get calls and returns.
 
@@ -926,9 +946,9 @@ and "r" can be combined to get calls and returns.
 'flags' field can be used in perf script to determine whether the event is a
 transaction start, commit or abort.
 
-Note that "instructions", "branches" and "transactions" events depend on code
-flow packets which can be disabled by using the config term "branch=0".  Refer
-to the config terms section above.
+Note that "instructions", "cycles", "branches" and "transactions" events
+depend on code flow packets which can be disabled by using the config term
+"branch=0".  Refer to the config terms section above.
 
 "ptwrite" events record the payload of the ptwrite instruction and whether
 "fup_on_ptw" was used.  "ptwrite" events depend on PTWRITE packets which are
@@ -1811,6 +1831,36 @@ Can be compiled and traced:
  $ perf script --itrace=ew
            eg_ptw 19875 [007]  8061.235912:     ptwrite:  IP: 0 payload: 0x1234567890abcdef      55701249a196 perf_emulate_ptwrite+0x16 (/home/user/eg_ptw)
  $
+
+
+Pipe mode
+---------
+Pipe mode is a problem for Intel PT and possibly other auxtrace users.
+It's not recommended to use a pipe as data output with Intel PT because
+of the following reason.
+
+Essentially the auxtrace buffers do not behave like the regular perf
+event buffers.  That is because the head and tail are updated by
+software, but in the auxtrace case the data is written by hardware.
+So the head and tail do not get updated as data is written.
+
+In the Intel PT case, the head and tail are updated only when the trace
+is disabled by software, for example:
+    - full-trace, system wide : when buffer passes watermark
+    - full-trace, not system-wide : when buffer passes watermark or
+                                    context switches
+    - snapshot mode : as above but also when a snapshot is made
+    - sample mode : as above but also when a sample is made
+
+That means finished-round ordering doesn't work.  An auxtrace buffer
+can turn up that has data that extends back in time, possibly to the
+very beginning of tracing.
+
+For a perf.data file, that problem is solved by going through the trace
+and queuing up the auxtrace buffers in advance.
+
+For pipe mode, the order of events and timestamps can presumably
+be messed up.
 
 
 EXAMPLE

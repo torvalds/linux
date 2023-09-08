@@ -72,7 +72,6 @@
 #include <linux/cpumask.h>
 #include <linux/memblock.h>
 #include <linux/err.h>
-#include <linux/lcm.h>
 #include <linux/list.h>
 #include <linux/log2.h>
 #include <linux/mm.h>
@@ -173,9 +172,6 @@ DEFINE_SPINLOCK(pcpu_lock);	/* all internal data structures */
 static DEFINE_MUTEX(pcpu_alloc_mutex);	/* chunk create/destroy, [de]pop, map ext */
 
 struct list_head *pcpu_chunk_lists __ro_after_init; /* chunk list slots */
-
-/* chunks which need their map areas extended, protected by pcpu_lock */
-static LIST_HEAD(pcpu_map_extend_chunks);
 
 /*
  * The number of empty populated pages, protected by pcpu_lock.
@@ -834,13 +830,15 @@ static void pcpu_block_update_hint_alloc(struct pcpu_chunk *chunk, int bit_off,
 
 	/*
 	 * Update s_block.
-	 * block->first_free must be updated if the allocation takes its place.
-	 * If the allocation breaks the contig_hint, a scan is required to
-	 * restore this hint.
 	 */
 	if (s_block->contig_hint == PCPU_BITMAP_BLOCK_BITS)
 		nr_empty_pages++;
 
+	/*
+	 * block->first_free must be updated if the allocation takes its place.
+	 * If the allocation breaks the contig_hint, a scan is required to
+	 * restore this hint.
+	 */
 	if (s_off == s_block->first_free)
 		s_block->first_free = find_next_zero_bit(
 					pcpu_index_alloc_map(chunk, s_index),
@@ -915,6 +913,12 @@ static void pcpu_block_update_hint_alloc(struct pcpu_chunk *chunk, int bit_off,
 		}
 	}
 
+	/*
+	 * If the allocation is not atomic, some blocks may not be
+	 * populated with pages, while we account it here.  The number
+	 * of pages will be added back with pcpu_chunk_populated()
+	 * when populating pages.
+	 */
 	if (nr_empty_pages)
 		pcpu_update_empty_pages(chunk, -nr_empty_pages);
 
@@ -1342,7 +1346,7 @@ static struct pcpu_chunk * __init pcpu_alloc_first_chunk(unsigned long tmp_addr,
 							 int map_size)
 {
 	struct pcpu_chunk *chunk;
-	unsigned long aligned_addr, lcm_align;
+	unsigned long aligned_addr;
 	int start_offset, offset_bits, region_size, region_bits;
 	size_t alloc_size;
 
@@ -1350,14 +1354,7 @@ static struct pcpu_chunk * __init pcpu_alloc_first_chunk(unsigned long tmp_addr,
 	aligned_addr = tmp_addr & PAGE_MASK;
 
 	start_offset = tmp_addr - aligned_addr;
-
-	/*
-	 * Align the end of the region with the LCM of PAGE_SIZE and
-	 * PCPU_BITMAP_BLOCK_SIZE.  One of these constants is a multiple of
-	 * the other.
-	 */
-	lcm_align = lcm(PAGE_SIZE, PCPU_BITMAP_BLOCK_SIZE);
-	region_size = ALIGN(start_offset + map_size, lcm_align);
+	region_size = ALIGN(start_offset + map_size, PAGE_SIZE);
 
 	/* allocate chunk */
 	alloc_size = struct_size(chunk, populated,
@@ -1628,7 +1625,7 @@ static bool pcpu_memcg_pre_alloc_hook(size_t size, gfp_t gfp,
 {
 	struct obj_cgroup *objcg;
 
-	if (!memcg_kmem_enabled() || !(gfp & __GFP_ACCOUNT))
+	if (!memcg_kmem_online() || !(gfp & __GFP_ACCOUNT))
 		return true;
 
 	objcg = get_obj_cgroup_from_current();
@@ -1820,16 +1817,12 @@ restart:
 
 	spin_unlock_irqrestore(&pcpu_lock, flags);
 
-	/*
-	 * No space left.  Create a new chunk.  We don't want multiple
-	 * tasks to create chunks simultaneously.  Serialize and create iff
-	 * there's still no empty chunk after grabbing the mutex.
-	 */
 	if (is_atomic) {
 		err = "atomic alloc failed, no space left";
 		goto fail;
 	}
 
+	/* No space left.  Create a new chunk. */
 	if (list_empty(&pcpu_chunk_lists[pcpu_free_slot])) {
 		chunk = pcpu_create_chunk(pcpu_gfp);
 		if (!chunk) {
@@ -2146,9 +2139,9 @@ static void pcpu_reclaim_populated(void)
 	 * other accessor is the free path which only returns area back to the
 	 * allocator not touching the populated bitmap.
 	 */
-	while (!list_empty(&pcpu_chunk_lists[pcpu_to_depopulate_slot])) {
-		chunk = list_first_entry(&pcpu_chunk_lists[pcpu_to_depopulate_slot],
-					 struct pcpu_chunk, list);
+	while ((chunk = list_first_entry_or_null(
+			&pcpu_chunk_lists[pcpu_to_depopulate_slot],
+			struct pcpu_chunk, list))) {
 		WARN_ON(chunk->immutable);
 
 		/*
@@ -2166,7 +2159,7 @@ static void pcpu_reclaim_populated(void)
 			/* reintegrate chunk to prevent atomic alloc failures */
 			if (pcpu_nr_empty_pop_pages < PCPU_EMPTY_POP_PAGES_HIGH) {
 				reintegrate = true;
-				goto end_chunk;
+				break;
 			}
 
 			/*
@@ -2202,7 +2195,6 @@ static void pcpu_reclaim_populated(void)
 			end = -1;
 		}
 
-end_chunk:
 		/* batch tlb flush per chunk to amortize cost */
 		if (freed_page_start < freed_page_end) {
 			spin_unlock_irq(&pcpu_lock);

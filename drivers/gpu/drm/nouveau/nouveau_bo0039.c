@@ -52,7 +52,7 @@ nv04_bo_move_m2mf(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
 	u32 src_offset = old_reg->start << PAGE_SHIFT;
 	u32 dst_ctxdma = nouveau_bo_mem_ctxdma(bo, chan, new_reg);
 	u32 dst_offset = new_reg->start << PAGE_SHIFT;
-	u32 page_count = new_reg->num_pages;
+	u32 page_count = PFN_UP(new_reg->size);
 	int ret;
 
 	ret = PUSH_WAIT(push, 3);
@@ -62,7 +62,7 @@ nv04_bo_move_m2mf(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
 	PUSH_MTHD(push, NV039, SET_CONTEXT_DMA_BUFFER_IN, src_ctxdma,
 			       SET_CONTEXT_DMA_BUFFER_OUT, dst_ctxdma);
 
-	page_count = new_reg->num_pages;
+	page_count = PFN_UP(new_reg->size);
 	while (page_count) {
 		int line_count = (page_count > 2047) ? 2047 : page_count;
 

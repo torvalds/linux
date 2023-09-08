@@ -633,6 +633,8 @@ static struct omap_dm_timer *omap_dm_timer_request_by_node(struct device_node *n
 static int omap_dm_timer_free(struct omap_dm_timer *cookie)
 {
 	struct dmtimer *timer;
+	struct device *dev;
+	int rc;
 
 	timer = to_dmtimer(cookie);
 	if (unlikely(!timer))
@@ -640,10 +642,21 @@ static int omap_dm_timer_free(struct omap_dm_timer *cookie)
 
 	WARN_ON(!timer->reserved);
 	timer->reserved = 0;
+
+	dev = &timer->pdev->dev;
+	rc = pm_runtime_resume_and_get(dev);
+	if (rc)
+		return rc;
+
+	/* Clear timer configuration */
+	dmtimer_write(timer, OMAP_TIMER_CTRL_REG, 0);
+
+	pm_runtime_put_sync(dev);
+
 	return 0;
 }
 
-int omap_dm_timer_get_irq(struct omap_dm_timer *cookie)
+static int omap_dm_timer_get_irq(struct omap_dm_timer *cookie)
 {
 	struct dmtimer *timer = to_dmtimer(cookie);
 	if (timer)
@@ -1091,13 +1104,13 @@ static int omap_dm_timer_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, timer);
 
 	if (dev->of_node) {
-		if (of_find_property(dev->of_node, "ti,timer-alwon", NULL))
+		if (of_property_read_bool(dev->of_node, "ti,timer-alwon"))
 			timer->capability |= OMAP_TIMER_ALWON;
-		if (of_find_property(dev->of_node, "ti,timer-dsp", NULL))
+		if (of_property_read_bool(dev->of_node, "ti,timer-dsp"))
 			timer->capability |= OMAP_TIMER_HAS_DSP_IRQ;
-		if (of_find_property(dev->of_node, "ti,timer-pwm", NULL))
+		if (of_property_read_bool(dev->of_node, "ti,timer-pwm"))
 			timer->capability |= OMAP_TIMER_HAS_PWM;
-		if (of_find_property(dev->of_node, "ti,timer-secure", NULL))
+		if (of_property_read_bool(dev->of_node, "ti,timer-secure"))
 			timer->capability |= OMAP_TIMER_SECURE;
 	} else {
 		timer->id = pdev->id;
@@ -1135,6 +1148,10 @@ static int omap_dm_timer_probe(struct platform_device *pdev)
 			goto err_disable;
 		}
 		__omap_dm_timer_init_regs(timer);
+
+		/* Clear timer configuration */
+		dmtimer_write(timer, OMAP_TIMER_CTRL_REG, 0);
+
 		pm_runtime_put(dev);
 	}
 
@@ -1160,7 +1177,7 @@ err_disable:
  * In addition to freeing platform resources it also deletes the timer
  * entry from the local list.
  */
-static int omap_dm_timer_remove(struct platform_device *pdev)
+static void omap_dm_timer_remove(struct platform_device *pdev)
 {
 	struct dmtimer *timer;
 	unsigned long flags;
@@ -1180,7 +1197,8 @@ static int omap_dm_timer_remove(struct platform_device *pdev)
 
 	pm_runtime_disable(&pdev->dev);
 
-	return ret;
+	if (ret)
+		dev_err(&pdev->dev, "Unable to determine timer entry in list of drivers on remove\n");
 }
 
 static const struct omap_dm_timer_ops dmtimer_ops = {
@@ -1255,10 +1273,10 @@ MODULE_DEVICE_TABLE(of, omap_timer_match);
 
 static struct platform_driver omap_dm_timer_driver = {
 	.probe  = omap_dm_timer_probe,
-	.remove = omap_dm_timer_remove,
+	.remove_new = omap_dm_timer_remove,
 	.driver = {
 		.name   = "omap_timer",
-		.of_match_table = of_match_ptr(omap_timer_match),
+		.of_match_table = omap_timer_match,
 		.pm = &omap_dm_timer_pm_ops,
 	},
 };
@@ -1266,5 +1284,4 @@ static struct platform_driver omap_dm_timer_driver = {
 module_platform_driver(omap_dm_timer_driver);
 
 MODULE_DESCRIPTION("OMAP Dual-Mode Timer Driver");
-MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Texas Instruments Inc");

@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/phy/fsl,lynx-28g.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Freescale Lynx 28G SerDes PHY binding
+title: Freescale Lynx 28G SerDes PHY
 
 maintainers:
   - Ioana Ciornei <ioana.ciornei@nxp.com>

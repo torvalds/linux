@@ -210,7 +210,7 @@ void minix_free_inode(struct inode * inode)
 	mark_buffer_dirty(bh);
 }
 
-struct inode *minix_new_inode(const struct inode *dir, umode_t mode, int *error)
+struct inode *minix_new_inode(const struct inode *dir, umode_t mode)
 {
 	struct super_block *sb = dir->i_sb;
 	struct minix_sb_info *sbi = minix_sb(sb);
@@ -220,13 +220,10 @@ struct inode *minix_new_inode(const struct inode *dir, umode_t mode, int *error)
 	unsigned long j;
 	int i;
 
-	if (!inode) {
-		*error = -ENOMEM;
-		return NULL;
-	}
+	if (!inode)
+		return ERR_PTR(-ENOMEM);
 	j = bits_per_zone;
 	bh = NULL;
-	*error = -ENOSPC;
 	spin_lock(&bitmap_lock);
 	for (i = 0; i < sbi->s_imap_blocks; i++) {
 		bh = sbi->s_imap[i];
@@ -237,22 +234,22 @@ struct inode *minix_new_inode(const struct inode *dir, umode_t mode, int *error)
 	if (!bh || j >= bits_per_zone) {
 		spin_unlock(&bitmap_lock);
 		iput(inode);
-		return NULL;
+		return ERR_PTR(-ENOSPC);
 	}
 	if (minix_test_and_set_bit(j, bh->b_data)) {	/* shouldn't happen */
 		spin_unlock(&bitmap_lock);
 		printk("minix_new_inode: bit already set\n");
 		iput(inode);
-		return NULL;
+		return ERR_PTR(-ENOSPC);
 	}
 	spin_unlock(&bitmap_lock);
 	mark_buffer_dirty(bh);
 	j += i * bits_per_zone;
 	if (!j || j > sbi->s_ninodes) {
 		iput(inode);
-		return NULL;
+		return ERR_PTR(-ENOSPC);
 	}
-	inode_init_owner(&init_user_ns, inode, dir, mode);
+	inode_init_owner(&nop_mnt_idmap, inode, dir, mode);
 	inode->i_ino = j;
 	inode->i_mtime = inode->i_atime = inode->i_ctime = current_time(inode);
 	inode->i_blocks = 0;
@@ -260,7 +257,6 @@ struct inode *minix_new_inode(const struct inode *dir, umode_t mode, int *error)
 	insert_inode_hash(inode);
 	mark_inode_dirty(inode);
 
-	*error = 0;
 	return inode;
 }
 

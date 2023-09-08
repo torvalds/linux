@@ -5,6 +5,7 @@
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
 #include <bpf/bpf_core_read.h>
+#include "bpf_misc.h"
 
 /* weak and shared between both files */
 const volatile int my_tid __weak;
@@ -51,6 +52,7 @@ __weak int set_output_weak(int x)
 	 * cause problems for BPF static linker
 	 */
 	whatever = 2 * bpf_core_type_size(struct task_struct);
+	__sink(whatever);
 
 	output_weak2 = x;
 	return 2 * x;
@@ -71,6 +73,7 @@ int BPF_PROG(handler2, struct pt_regs *regs, long id)
 
 	/* make sure we have CO-RE relocations in main program */
 	whatever = bpf_core_type_size(struct task_struct);
+	__sink(whatever);
 
 	set_output_val1(2000);
 	set_output_ctx1(ctx); /* ctx definition is hidden in BPF_PROG macro */

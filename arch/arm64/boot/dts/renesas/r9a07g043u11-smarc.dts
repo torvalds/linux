@@ -17,7 +17,7 @@
 #define SW_SW0_DEV_SEL	1
 #define SW_ET0_EN_N	1
 
-#include "r9a07g043.dtsi"
+#include "r9a07g043u.dtsi"
 #include "rzg2ul-smarc-som.dtsi"
 #include "rzg2ul-smarc.dtsi"
 

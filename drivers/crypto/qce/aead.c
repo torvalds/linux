@@ -24,7 +24,7 @@ static void qce_aead_done(void *data)
 {
 	struct crypto_async_request *async_req = data;
 	struct aead_request *req = aead_request_cast(async_req);
-	struct qce_aead_reqctx *rctx = aead_request_ctx(req);
+	struct qce_aead_reqctx *rctx = aead_request_ctx_dma(req);
 	struct qce_aead_ctx *ctx = crypto_tfm_ctx(async_req->tfm);
 	struct qce_alg_template *tmpl = to_aead_tmpl(crypto_aead_reqtfm(req));
 	struct qce_device *qce = tmpl->qce;
@@ -92,7 +92,7 @@ static void qce_aead_done(void *data)
 static struct scatterlist *
 qce_aead_prepare_result_buf(struct sg_table *tbl, struct aead_request *req)
 {
-	struct qce_aead_reqctx *rctx = aead_request_ctx(req);
+	struct qce_aead_reqctx *rctx = aead_request_ctx_dma(req);
 	struct qce_alg_template *tmpl = to_aead_tmpl(crypto_aead_reqtfm(req));
 	struct qce_device *qce = tmpl->qce;
 
@@ -103,7 +103,7 @@ qce_aead_prepare_result_buf(struct sg_table *tbl, struct aead_request *req)
 static struct scatterlist *
 qce_aead_prepare_ccm_result_buf(struct sg_table *tbl, struct aead_request *req)
 {
-	struct qce_aead_reqctx *rctx = aead_request_ctx(req);
+	struct qce_aead_reqctx *rctx = aead_request_ctx_dma(req);
 
 	sg_init_one(&rctx->result_sg, rctx->ccmresult_buf, QCE_BAM_BURST_SIZE);
 	return qce_sgtable_add(tbl, &rctx->result_sg, QCE_BAM_BURST_SIZE);
@@ -112,7 +112,7 @@ qce_aead_prepare_ccm_result_buf(struct sg_table *tbl, struct aead_request *req)
 static struct scatterlist *
 qce_aead_prepare_dst_buf(struct aead_request *req)
 {
-	struct qce_aead_reqctx *rctx = aead_request_ctx(req);
+	struct qce_aead_reqctx *rctx = aead_request_ctx_dma(req);
 	struct qce_alg_template *tmpl = to_aead_tmpl(crypto_aead_reqtfm(req));
 	struct qce_device *qce = tmpl->qce;
 	struct scatterlist *sg, *msg_sg, __sg[2];
@@ -186,7 +186,7 @@ qce_aead_ccm_prepare_buf_assoclen(struct aead_request *req)
 {
 	struct scatterlist *sg, *msg_sg, __sg[2];
 	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
-	struct qce_aead_reqctx *rctx = aead_request_ctx(req);
+	struct qce_aead_reqctx *rctx = aead_request_ctx_dma(req);
 	struct qce_aead_ctx *ctx = crypto_aead_ctx(tfm);
 	unsigned int assoclen = rctx->assoclen;
 	unsigned int adata_header_len, cryptlen, totallen;
@@ -300,7 +300,7 @@ err_free:
 
 static int qce_aead_prepare_buf(struct aead_request *req)
 {
-	struct qce_aead_reqctx *rctx = aead_request_ctx(req);
+	struct qce_aead_reqctx *rctx = aead_request_ctx_dma(req);
 	struct qce_alg_template *tmpl = to_aead_tmpl(crypto_aead_reqtfm(req));
 	struct qce_device *qce = tmpl->qce;
 	struct scatterlist *sg;
@@ -328,7 +328,7 @@ static int qce_aead_prepare_buf(struct aead_request *req)
 
 static int qce_aead_ccm_prepare_buf(struct aead_request *req)
 {
-	struct qce_aead_reqctx *rctx = aead_request_ctx(req);
+	struct qce_aead_reqctx *rctx = aead_request_ctx_dma(req);
 	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
 	struct qce_aead_ctx *ctx = crypto_aead_ctx(tfm);
 	struct scatterlist *sg;
@@ -408,7 +408,7 @@ static int
 qce_aead_async_req_handle(struct crypto_async_request *async_req)
 {
 	struct aead_request *req = aead_request_cast(async_req);
-	struct qce_aead_reqctx *rctx = aead_request_ctx(req);
+	struct qce_aead_reqctx *rctx = aead_request_ctx_dma(req);
 	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
 	struct qce_aead_ctx *ctx = crypto_tfm_ctx(async_req->tfm);
 	struct qce_alg_template *tmpl = to_aead_tmpl(crypto_aead_reqtfm(req));
@@ -502,7 +502,7 @@ error_free:
 static int qce_aead_crypt(struct aead_request *req, int encrypt)
 {
 	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
-	struct qce_aead_reqctx *rctx = aead_request_ctx(req);
+	struct qce_aead_reqctx *rctx = aead_request_ctx_dma(req);
 	struct qce_aead_ctx *ctx = crypto_aead_ctx(tfm);
 	struct qce_alg_template *tmpl = to_aead_tmpl(tfm);
 	unsigned int blocksize = crypto_aead_blocksize(tfm);
@@ -675,8 +675,8 @@ static int qce_aead_init(struct crypto_aead *tfm)
 	if (IS_ERR(ctx->fallback))
 		return PTR_ERR(ctx->fallback);
 
-	crypto_aead_set_reqsize(tfm, sizeof(struct qce_aead_reqctx) +
-				crypto_aead_reqsize(ctx->fallback));
+	crypto_aead_set_reqsize_dma(tfm, sizeof(struct qce_aead_reqctx) +
+					 crypto_aead_reqsize(ctx->fallback));
 	return 0;
 }
 

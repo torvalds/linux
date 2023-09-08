@@ -4,6 +4,7 @@ menu "Bus options (PCI, PCMCIA, EISA, GSC, ISA)"
 config GSC
 	bool "VSC/GSC/HSC bus support"
 	select HAVE_EISA
+	select HAS_IOPORT
 	default y
 	help
 	  The VSC, GSC and HSC busses were used from the earliest 700-series

@@ -104,6 +104,7 @@ required:
 
 allOf:
   - $ref: /schemas/spi/spi-peripheral-props.yaml#
+  - $ref: /schemas/nvmem/nvmem.yaml
   - if:
       properties:
         compatible:
@@ -121,7 +122,7 @@ unevaluatedProperties: false
 examples:
   - |
     #include <dt-bindings/gpio/gpio.h>
-    spi0 {
+    spi {
         #address-cells = <1>;
         #size-cells = <0>;
 

@@ -142,6 +142,7 @@ enum ath11k_hw_rev {
 	ATH11K_HW_WCN6855_HW20,
 	ATH11K_HW_WCN6855_HW21,
 	ATH11K_HW_WCN6750_HW10,
+	ATH11K_HW_IPQ5018_HW10,
 };
 
 enum ath11k_firmware_mode {
@@ -229,6 +230,13 @@ struct ath11k_he {
 };
 
 #define MAX_RADIOS 3
+
+/* ipq5018 hw param macros */
+#define MAX_RADIOS_5018	1
+#define CE_CNT_5018	6
+#define TARGET_CE_CNT_5018	9
+#define SVC_CE_MAP_LEN_5018	17
+#define RXDMA_PER_PDEV_5018	1
 
 enum {
 	WMI_HOST_TP_SCALE_MAX   = 0,
@@ -338,6 +346,7 @@ struct ath11k_vif {
 
 	bool is_started;
 	bool is_up;
+	bool ftm_responder;
 	bool spectral_enabled;
 	bool ps;
 	u32 aid;
@@ -505,13 +514,15 @@ struct ath11k_sta {
 	u64 ps_start_jiffies;
 	u64 ps_total_duration;
 	bool peer_current_ps_valid;
+
+	u32 bw_prev;
 };
 
 #define ATH11K_MIN_5G_FREQ 4150
 #define ATH11K_MIN_6G_FREQ 5925
 #define ATH11K_MAX_6G_FREQ 7115
-#define ATH11K_NUM_CHANS 101
-#define ATH11K_MAX_5G_CHAN 173
+#define ATH11K_NUM_CHANS 102
+#define ATH11K_MAX_5G_CHAN 177
 
 enum ath11k_state {
 	ATH11K_STATE_OFF,
@@ -841,6 +852,7 @@ struct ath11k_base {
 	struct ath11k_dp dp;
 
 	void __iomem *mem;
+	void __iomem *mem_ce;
 	unsigned long mem_len;
 
 	struct {
@@ -910,7 +922,6 @@ struct ath11k_base {
 	enum ath11k_dfs_region dfs_region;
 #ifdef CONFIG_ATH11K_DEBUGFS
 	struct dentry *debugfs_soc;
-	struct dentry *debugfs_ath11k;
 #endif
 	struct ath11k_soc_dp_stats soc_stats;
 
@@ -1136,6 +1147,9 @@ extern const struct service_to_pipe ath11k_target_service_to_ce_map_wlan_ipq6018
 extern const struct ce_pipe_config ath11k_target_ce_config_wlan_qca6390[];
 extern const struct service_to_pipe ath11k_target_service_to_ce_map_wlan_qca6390[];
 
+extern const struct ce_pipe_config ath11k_target_ce_config_wlan_ipq5018[];
+extern const struct service_to_pipe ath11k_target_service_to_ce_map_wlan_ipq5018[];
+
 extern const struct ce_pipe_config ath11k_target_ce_config_wlan_qcn9074[];
 extern const struct service_to_pipe ath11k_target_service_to_ce_map_wlan_qcn9074[];
 int ath11k_core_qmi_firmware_ready(struct ath11k_base *ab);
@@ -1157,6 +1171,7 @@ int ath11k_core_check_smbios(struct ath11k_base *ab);
 void ath11k_core_halt(struct ath11k *ar);
 int ath11k_core_resume(struct ath11k_base *ab);
 int ath11k_core_suspend(struct ath11k_base *ab);
+void ath11k_core_pre_reconfigure_recovery(struct ath11k_base *ab);
 
 const struct firmware *ath11k_core_firmware_request(struct ath11k_base *ab,
 						    const char *filename);

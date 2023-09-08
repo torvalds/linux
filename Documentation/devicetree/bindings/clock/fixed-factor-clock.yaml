@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/clock/fixed-factor-clock.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Binding for simple fixed factor rate clock sources
+title: Simple fixed factor rate clock sources
 
 maintainers:
   - Michael Turquette <mturquette@baylibre.com>

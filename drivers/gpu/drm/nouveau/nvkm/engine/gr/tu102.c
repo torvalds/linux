@@ -24,13 +24,13 @@
 
 #include <nvif/class.h>
 
-static void
+void
 tu102_gr_init_fecs_exceptions(struct gf100_gr *gr)
 {
-	nvkm_wr32(gr->base.engine.subdev.device, 0x409c24, 0x006f0002);
+	nvkm_wr32(gr->base.engine.subdev.device, 0x409c24, 0x006e0003);
 }
 
-static void
+void
 tu102_gr_init_fs(struct gf100_gr *gr)
 {
 	struct nvkm_device *device = gr->base.engine.subdev.device;
@@ -40,20 +40,21 @@ tu102_gr_init_fs(struct gf100_gr *gr)
 	gk104_grctx_generate_gpc_tpc_nr(gr);
 
 	for (sm = 0; sm < gr->sm_nr; sm++) {
-		nvkm_wr32(device, GPC_UNIT(gr->sm[sm].gpc, 0x0c10 +
-					   gr->sm[sm].tpc * 4), sm);
+		int tpc = gv100_gr_nonpes_aware_tpc(gr, gr->sm[sm].gpc, gr->sm[sm].tpc);
+
+		nvkm_wr32(device, GPC_UNIT(gr->sm[sm].gpc, 0x0c10 + tpc * 4), sm);
 	}
 
 	gm200_grctx_generate_dist_skip_table(gr);
 	gf100_gr_init_num_tpc_per_gpc(gr, true, true);
 }
 
-static void
+void
 tu102_gr_init_zcull(struct gf100_gr *gr)
 {
 	struct nvkm_device *device = gr->base.engine.subdev.device;
 	const u32 magicgpc918 = DIV_ROUND_UP(0x00800000, gr->tpc_total);
-	const u8 tile_nr = ALIGN(gr->tpc_total, 64);
+	const u8 tile_nr = gr->func->gpc_nr * gr->func->tpc_nr;
 	u8 bank[GPC_MAX] = {}, gpc, i, j;
 	u32 data;
 
@@ -93,7 +94,7 @@ tu102_gr_init_gpc_mmu(struct gf100_gr *gr)
 static const struct gf100_gr_func
 tu102_gr = {
 	.oneinit_tiles = gm200_gr_oneinit_tiles,
-	.oneinit_sm_id = gm200_gr_oneinit_sm_id,
+	.oneinit_sm_id = gv100_gr_oneinit_sm_id,
 	.init = gf100_gr_init,
 	.init_419bd8 = gv100_gr_init_419bd8,
 	.init_gpc_mmu = tu102_gr_init_gpc_mmu,
@@ -109,10 +110,14 @@ tu102_gr = {
 	.init_ppc_exceptions = gk104_gr_init_ppc_exceptions,
 	.init_504430 = gv100_gr_init_504430,
 	.init_shader_exceptions = gv100_gr_init_shader_exceptions,
+	.init_rop_exceptions = gf100_gr_init_rop_exceptions,
+	.init_exception2 = gf100_gr_init_exception2,
+	.init_4188a4 = gv100_gr_init_4188a4,
 	.trap_mp = gv100_gr_trap_mp,
+	.fecs.reset = gf100_gr_fecs_reset,
 	.rops = gm200_gr_rops,
 	.gpc_nr = 6,
-	.tpc_nr = 5,
+	.tpc_nr = 6,
 	.ppc_nr = 3,
 	.grctx = &tu102_grctx,
 	.zbc = &gp102_gr_zbc,
@@ -137,6 +142,7 @@ MODULE_FIRMWARE("nvidia/tu102/gr/sw_ctx.bin");
 MODULE_FIRMWARE("nvidia/tu102/gr/sw_nonctx.bin");
 MODULE_FIRMWARE("nvidia/tu102/gr/sw_bundle_init.bin");
 MODULE_FIRMWARE("nvidia/tu102/gr/sw_method_init.bin");
+MODULE_FIRMWARE("nvidia/tu102/gr/sw_veid_bundle_init.bin");
 
 MODULE_FIRMWARE("nvidia/tu104/gr/fecs_bl.bin");
 MODULE_FIRMWARE("nvidia/tu104/gr/fecs_inst.bin");
@@ -150,6 +156,7 @@ MODULE_FIRMWARE("nvidia/tu104/gr/sw_ctx.bin");
 MODULE_FIRMWARE("nvidia/tu104/gr/sw_nonctx.bin");
 MODULE_FIRMWARE("nvidia/tu104/gr/sw_bundle_init.bin");
 MODULE_FIRMWARE("nvidia/tu104/gr/sw_method_init.bin");
+MODULE_FIRMWARE("nvidia/tu104/gr/sw_veid_bundle_init.bin");
 
 MODULE_FIRMWARE("nvidia/tu106/gr/fecs_bl.bin");
 MODULE_FIRMWARE("nvidia/tu106/gr/fecs_inst.bin");
@@ -163,6 +170,7 @@ MODULE_FIRMWARE("nvidia/tu106/gr/sw_ctx.bin");
 MODULE_FIRMWARE("nvidia/tu106/gr/sw_nonctx.bin");
 MODULE_FIRMWARE("nvidia/tu106/gr/sw_bundle_init.bin");
 MODULE_FIRMWARE("nvidia/tu106/gr/sw_method_init.bin");
+MODULE_FIRMWARE("nvidia/tu106/gr/sw_veid_bundle_init.bin");
 
 MODULE_FIRMWARE("nvidia/tu117/gr/fecs_bl.bin");
 MODULE_FIRMWARE("nvidia/tu117/gr/fecs_inst.bin");
@@ -176,6 +184,7 @@ MODULE_FIRMWARE("nvidia/tu117/gr/sw_ctx.bin");
 MODULE_FIRMWARE("nvidia/tu117/gr/sw_nonctx.bin");
 MODULE_FIRMWARE("nvidia/tu117/gr/sw_bundle_init.bin");
 MODULE_FIRMWARE("nvidia/tu117/gr/sw_method_init.bin");
+MODULE_FIRMWARE("nvidia/tu117/gr/sw_veid_bundle_init.bin");
 
 MODULE_FIRMWARE("nvidia/tu116/gr/fecs_bl.bin");
 MODULE_FIRMWARE("nvidia/tu116/gr/fecs_inst.bin");
@@ -189,6 +198,26 @@ MODULE_FIRMWARE("nvidia/tu116/gr/sw_ctx.bin");
 MODULE_FIRMWARE("nvidia/tu116/gr/sw_nonctx.bin");
 MODULE_FIRMWARE("nvidia/tu116/gr/sw_bundle_init.bin");
 MODULE_FIRMWARE("nvidia/tu116/gr/sw_method_init.bin");
+MODULE_FIRMWARE("nvidia/tu116/gr/sw_veid_bundle_init.bin");
+
+int
+tu102_gr_av_to_init_veid(struct nvkm_blob *blob, struct gf100_gr_pack **ppack)
+{
+	return gk20a_gr_av_to_init_(blob, 64, 0x00100000, ppack);
+}
+
+int
+tu102_gr_load(struct gf100_gr *gr, int ver, const struct gf100_gr_fwif *fwif)
+{
+	int ret;
+
+	ret = gm200_gr_load(gr, ver, fwif);
+	if (ret)
+		return ret;
+
+	return gk20a_gr_load_net(gr, "gr/", "sw_veid_bundle_init", ver, tu102_gr_av_to_init_veid,
+				 &gr->bundle_veid);
+}
 
 static const struct gf100_gr_fwif
 tu102_gr_fwif[] = {

@@ -50,7 +50,7 @@
 #include "dmub_subvp_state.h"
 #include "dce/dmub_hw_lock_mgr.h"
 #include "dcn32_resource.h"
-#include "dc_link_dp.h"
+#include "link.h"
 #include "dmub/inc/dmub_subvp_state.h"
 
 #define DC_LOGGER_INIT(logger)
@@ -131,9 +131,14 @@ void dcn32_enable_power_gating_plane(
 	bool enable)
 {
 	bool force_on = true; /* disable power gating */
+	uint32_t org_ip_request_cntl = 0;
 
 	if (enable)
 		force_on = false;
+
+	REG_GET(DC_IP_REQUEST_CNTL, IP_REQUEST_EN, &org_ip_request_cntl);
+	if (org_ip_request_cntl == 0)
+		REG_SET(DC_IP_REQUEST_CNTL, 0, IP_REQUEST_EN, 1);
 
 	/* DCHUBP0/1/2/3 */
 	REG_UPDATE(DOMAIN0_PG_CONFIG, DOMAIN_POWER_FORCEON, force_on);
@@ -146,6 +151,9 @@ void dcn32_enable_power_gating_plane(
 	REG_UPDATE(DOMAIN17_PG_CONFIG, DOMAIN_POWER_FORCEON, force_on);
 	REG_UPDATE(DOMAIN18_PG_CONFIG, DOMAIN_POWER_FORCEON, force_on);
 	REG_UPDATE(DOMAIN19_PG_CONFIG, DOMAIN_POWER_FORCEON, force_on);
+
+	if (org_ip_request_cntl == 0)
+		REG_SET(DC_IP_REQUEST_CNTL, 0, IP_REQUEST_EN, 0);
 }
 
 void dcn32_hubp_pg_control(struct dce_hwseq *hws, unsigned int hubp_inst, bool power_on)
@@ -188,7 +196,8 @@ static bool dcn32_check_no_memory_request_for_cab(struct dc *dc)
 
     /* First, check no-memory-request case */
 	for (i = 0; i < dc->current_state->stream_count; i++) {
-		if (dc->current_state->stream_status[i].plane_count)
+		if ((dc->current_state->stream_status[i].plane_count) &&
+			(dc->current_state->streams[i]->link->psr_settings.psr_version == DC_PSR_VERSION_UNSUPPORTED))
 			/* Fail eligibility on a visible stream */
 			break;
 	}
@@ -206,146 +215,31 @@ static bool dcn32_check_no_memory_request_for_cab(struct dc *dc)
  */
 static uint32_t dcn32_calculate_cab_allocation(struct dc *dc, struct dc_state *ctx)
 {
-	int i, j;
-	struct dc_stream_state *stream = NULL;
-	struct dc_plane_state *plane = NULL;
-	uint32_t cursor_size = 0;
-	uint32_t total_lines = 0;
-	uint32_t lines_per_way = 0;
+	int i;
 	uint8_t num_ways = 0;
-	uint8_t bytes_per_pixel = 0;
-	uint8_t cursor_bpp = 0;
-	uint16_t mblk_width = 0;
-	uint16_t mblk_height = 0;
-	uint16_t mall_alloc_width_blk_aligned = 0;
-	uint16_t mall_alloc_height_blk_aligned = 0;
-	uint16_t num_mblks = 0;
-	uint32_t bytes_in_mall = 0;
-	uint32_t cache_lines_used = 0;
-	uint32_t cache_lines_per_plane = 0;
+	uint32_t mall_ss_size_bytes = 0;
 
-	for (i = 0; i < dc->res_pool->pipe_count; i++) {
-		struct pipe_ctx *pipe = &dc->current_state->res_ctx.pipe_ctx[i];
-
-		if (!pipe->stream || !pipe->plane_state ||
-				pipe->stream->link->psr_settings.psr_version != DC_PSR_VERSION_UNSUPPORTED ||
-				pipe->stream->mall_stream_config.type == SUBVP_PHANTOM)
-			continue;
-
-		bytes_per_pixel = pipe->plane_state->format >= SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616 ? 8 : 4;
-		mblk_width = DCN3_2_MBLK_WIDTH;
-		mblk_height = bytes_per_pixel == 4 ? DCN3_2_MBLK_HEIGHT_4BPE : DCN3_2_MBLK_HEIGHT_8BPE;
-
-		/* full_vp_width_blk_aligned = FLOOR(vp_x_start + full_vp_width + blk_width - 1, blk_width) -
-		 * FLOOR(vp_x_start, blk_width)
-		 *
-		 * mall_alloc_width_blk_aligned_l/c = full_vp_width_blk_aligned_l/c
-		 */
-		mall_alloc_width_blk_aligned = ((pipe->plane_res.scl_data.viewport.x +
-				pipe->plane_res.scl_data.viewport.width + mblk_width - 1) / mblk_width * mblk_width) -
-						(pipe->plane_res.scl_data.viewport.x / mblk_width * mblk_width);
-
-		/* full_vp_height_blk_aligned = FLOOR(vp_y_start + full_vp_height + blk_height - 1, blk_height) -
-		 * FLOOR(vp_y_start, blk_height)
-		 *
-		 * mall_alloc_height_blk_aligned_l/c = full_vp_height_blk_aligned_l/c
-		 */
-		mall_alloc_height_blk_aligned = ((pipe->plane_res.scl_data.viewport.y +
-				pipe->plane_res.scl_data.viewport.height + mblk_height - 1) / mblk_height * mblk_height) -
-						(pipe->plane_res.scl_data.viewport.y / mblk_height * mblk_height);
-
-		num_mblks = ((mall_alloc_width_blk_aligned + mblk_width - 1) / mblk_width) *
-				((mall_alloc_height_blk_aligned + mblk_height - 1) / mblk_height);
-
-		/* For DCC:
-		 * meta_num_mblk = CEILING(full_mblk_width_ub_l*full_mblk_height_ub_l*Bpe/256/mblk_bytes, 1)
-		 */
-		if (pipe->plane_state->dcc.enable)
-			num_mblks += (mall_alloc_width_blk_aligned * mall_alloc_width_blk_aligned * bytes_per_pixel +
-					(256 * DCN3_2_MALL_MBLK_SIZE_BYTES) - 1) / (256 * DCN3_2_MALL_MBLK_SIZE_BYTES);
-
-		bytes_in_mall = num_mblks * DCN3_2_MALL_MBLK_SIZE_BYTES;
-
-		/* (cache lines used is total bytes / cache_line size. Add +2 for worst case alignment
-		 * (MALL is 64-byte aligned)
-		 */
-		cache_lines_per_plane = bytes_in_mall / dc->caps.cache_line_size + 2;
-		cache_lines_used += cache_lines_per_plane;
-	}
+	mall_ss_size_bytes = ctx->bw_ctx.bw.dcn.mall_ss_size_bytes;
+	// TODO add additional logic for PSR active stream exclusion optimization
+	// mall_ss_psr_active_size_bytes = ctx->bw_ctx.bw.dcn.mall_ss_psr_active_size_bytes;
 
 	// Include cursor size for CAB allocation
-	for (j = 0; j < dc->res_pool->pipe_count; j++) {
-		struct pipe_ctx *pipe = &ctx->res_ctx.pipe_ctx[j];
-		struct hubp *hubp = pipe->plane_res.hubp;
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe = &ctx->res_ctx.pipe_ctx[i];
 
-		if (pipe->stream && pipe->plane_state && hubp)
-			/* Find the cursor plane and use the exact size instead of
-			using the max for calculation */
+		if (!pipe->stream || !pipe->plane_state)
+			continue;
 
-		if (hubp->curs_attr.width > 0) {
-				cursor_size = hubp->curs_attr.pitch * hubp->curs_attr.height;
-
-				switch (pipe->stream->cursor_attributes.color_format) {
-				case CURSOR_MODE_MONO:
-					cursor_size /= 2;
-					cursor_bpp = 4;
-					break;
-				case CURSOR_MODE_COLOR_1BIT_AND:
-				case CURSOR_MODE_COLOR_PRE_MULTIPLIED_ALPHA:
-				case CURSOR_MODE_COLOR_UN_PRE_MULTIPLIED_ALPHA:
-					cursor_size *= 4;
-					cursor_bpp = 4;
-					break;
-
-				case CURSOR_MODE_COLOR_64BIT_FP_PRE_MULTIPLIED:
-				case CURSOR_MODE_COLOR_64BIT_FP_UN_PRE_MULTIPLIED:
-					cursor_size *= 8;
-					cursor_bpp = 8;
-					break;
-				}
-
-				if (pipe->stream->cursor_position.enable && !dc->debug.alloc_extra_way_for_cursor &&
-						cursor_size > 16384) {
-					/* cursor_num_mblk = CEILING(num_cursors*cursor_width*cursor_width*cursor_Bpe/mblk_bytes, 1)
-					 */
-					cache_lines_used += (((cursor_size + DCN3_2_MALL_MBLK_SIZE_BYTES - 1) /
-							DCN3_2_MALL_MBLK_SIZE_BYTES) * DCN3_2_MALL_MBLK_SIZE_BYTES) /
-							dc->caps.cache_line_size + 2;
-				}
-				break;
-			}
+		mall_ss_size_bytes += dcn32_helper_calculate_mall_bytes_for_cursor(dc, pipe, false);
 	}
 
 	// Convert number of cache lines required to number of ways
-	total_lines = dc->caps.max_cab_allocation_bytes / dc->caps.cache_line_size;
-	lines_per_way = total_lines / dc->caps.cache_num_ways;
-	num_ways = cache_lines_used / lines_per_way;
-
-	if (cache_lines_used % lines_per_way > 0)
-		num_ways++;
-
-	for (i = 0; i < ctx->stream_count; i++) {
-		stream = ctx->streams[i];
-		for (j = 0; j < ctx->stream_status[i].plane_count; j++) {
-			plane = ctx->stream_status[i].plane_states[j];
-
-			if (stream->cursor_position.enable && plane &&
-					dc->debug.alloc_extra_way_for_cursor &&
-					cursor_size > 16384) {
-				/* Cursor caching is not supported since it won't be on the same line.
-				 * So we need an extra line to accommodate it. With large cursors and a single 4k monitor
-				 * this case triggers corruption. If we're at the edge, then dont trigger display refresh
-				 * from MALL. We only need to cache cursor if its greater that 64x64 at 4 bpp.
-				 */
-				num_ways++;
-				/* We only expect one cursor plane */
-				break;
-			}
-		}
-	}
 	if (dc->debug.force_mall_ss_num_ways > 0) {
 		num_ways = dc->debug.force_mall_ss_num_ways;
+	} else {
+		num_ways = dcn32_helper_mall_bytes_to_ways(dc, mall_ss_size_bytes);
 	}
+
 	return num_ways;
 }
 
@@ -359,6 +253,13 @@ bool dcn32_apply_idle_power_optimizations(struct dc *dc, bool enable)
 
 	if (!dc->ctx->dmub_srv)
 		return false;
+
+	for (i = 0; i < dc->current_state->stream_count; i++) {
+		/* MALL SS messaging is not supported with PSR at this time */
+		if (dc->current_state->streams[i] != NULL &&
+				dc->current_state->streams[i]->link->psr_settings.psr_version != DC_PSR_VERSION_UNSUPPORTED)
+			return false;
+	}
 
 	if (enable) {
 		if (dc->current_state) {
@@ -513,7 +414,7 @@ void dcn32_subvp_pipe_control_lock(struct dc *dc,
 }
 
 
-static bool dcn32_set_mpc_shaper_3dlut(
+bool dcn32_set_mpc_shaper_3dlut(
 	struct pipe_ctx *pipe_ctx, const struct dc_stream_state *stream)
 {
 	struct dpp *dpp_base = pipe_ctx->plane_res.dpp;
@@ -670,43 +571,56 @@ bool dcn32_set_output_transfer_func(struct dc *dc,
 	return ret;
 }
 
-/* Program P-State force value according to if pipe is using SubVP or not:
+/* Program P-State force value according to if pipe is using SubVP / FPO or not:
  * 1. Reset P-State force on all pipes first
  * 2. For each main pipe, force P-State disallow (P-State allow moderated by DMUB)
  */
-void dcn32_subvp_update_force_pstate(struct dc *dc, struct dc_state *context)
+void dcn32_update_force_pstate(struct dc *dc, struct dc_state *context)
 {
 	int i;
-	int num_subvp = 0;
-	/* Unforce p-state for each pipe
+
+	/* Unforce p-state for each pipe if it is not FPO or SubVP.
+	 * For FPO and SubVP, if it's already forced disallow, leave
+	 * it as disallow.
 	 */
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
 		struct hubp *hubp = pipe->plane_res.hubp;
 
-		if (hubp && hubp->funcs->hubp_update_force_pstate_disallow)
-			hubp->funcs->hubp_update_force_pstate_disallow(hubp, false);
-		if (pipe->stream && pipe->stream->mall_stream_config.type == SUBVP_MAIN)
-			num_subvp++;
-	}
+		if (!pipe->stream || (pipe->stream && !(pipe->stream->mall_stream_config.type == SUBVP_MAIN ||
+						pipe->stream->fpo_in_use))) {
+			if (hubp && hubp->funcs->hubp_update_force_pstate_disallow)
+				hubp->funcs->hubp_update_force_pstate_disallow(hubp, false);
+		}
 
-	if (num_subvp == 0)
-		return;
+		/* Today only FPO uses cursor P-State force. Only clear cursor P-State force
+		 * if it's not FPO.
+		 */
+		if (!pipe->stream || (pipe->stream && !pipe->stream->fpo_in_use)) {
+			if (hubp && hubp->funcs->hubp_update_force_cursor_pstate_disallow)
+				hubp->funcs->hubp_update_force_cursor_pstate_disallow(hubp, false);
+		}
+	}
 
 	/* Loop through each pipe -- for each subvp main pipe force p-state allow equal to false.
 	 */
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
+		struct hubp *hubp = pipe->plane_res.hubp;
 
-		// For SubVP + DRR, also force disallow on the DRR pipe
-		// (We will force allow in the DMUB sequence -- some DRR timings by default won't allow P-State so we have
-		// to force once the vblank is stretched).
-		if (pipe->stream && pipe->plane_state && (pipe->stream->mall_stream_config.type == SUBVP_MAIN ||
-				(pipe->stream->mall_stream_config.type == SUBVP_NONE && pipe->stream->ignore_msa_timing_param))) {
-			struct hubp *hubp = pipe->plane_res.hubp;
-
+		if (pipe->stream && pipe->plane_state && pipe->stream->mall_stream_config.type == SUBVP_MAIN) {
 			if (hubp && hubp->funcs->hubp_update_force_pstate_disallow)
 				hubp->funcs->hubp_update_force_pstate_disallow(hubp, true);
+		}
+
+		if (pipe->stream && pipe->stream->fpo_in_use) {
+			if (hubp && hubp->funcs->hubp_update_force_pstate_disallow)
+				hubp->funcs->hubp_update_force_pstate_disallow(hubp, true);
+			/* For now only force cursor p-state disallow for FPO
+			 * Needs to be added for subvp once FW side gets updated
+			 */
+			if (hubp && hubp->funcs->hubp_update_force_cursor_pstate_disallow)
+				hubp->funcs->hubp_update_force_cursor_pstate_disallow(hubp, true);
 		}
 	}
 }
@@ -798,6 +712,35 @@ void dcn32_program_mall_pipe_config(struct dc *dc, struct dc_state *context)
 	}
 }
 
+static void dcn32_initialize_min_clocks(struct dc *dc)
+{
+	struct dc_clocks *clocks = &dc->current_state->bw_ctx.bw.dcn.clk;
+
+	clocks->dcfclk_deep_sleep_khz = DCN3_2_DCFCLK_DS_INIT_KHZ;
+	clocks->dcfclk_khz = dc->clk_mgr->bw_params->clk_table.entries[0].dcfclk_mhz * 1000;
+	clocks->socclk_khz = dc->clk_mgr->bw_params->clk_table.entries[0].socclk_mhz * 1000;
+	clocks->dramclk_khz = dc->clk_mgr->bw_params->clk_table.entries[0].memclk_mhz * 1000;
+	clocks->dppclk_khz = dc->clk_mgr->bw_params->clk_table.entries[0].dppclk_mhz * 1000;
+	if (dc->debug.disable_boot_optimizations) {
+		clocks->dispclk_khz = dc->clk_mgr->bw_params->clk_table.entries[0].dispclk_mhz * 1000;
+	} else {
+		/* Even though DPG_EN = 1 for the connected display, it still requires the
+		 * correct timing so we cannot set DISPCLK to min freq or it could cause
+		 * audio corruption. Read current DISPCLK from DENTIST and request the same
+		 * freq to ensure that the timing is valid and unchanged.
+		 */
+		clocks->dispclk_khz = dc->clk_mgr->funcs->get_dispclk_from_dentist(dc->clk_mgr);
+		clocks->ref_dtbclk_khz = dc->clk_mgr->bw_params->clk_table.entries[0].dtbclk_mhz * 1000;
+		clocks->fclk_p_state_change_support = true;
+		clocks->p_state_change_support = true;
+	}
+
+	dc->clk_mgr->funcs->update_clocks(
+			dc->clk_mgr,
+			dc->current_state,
+			true);
+}
+
 void dcn32_init_hw(struct dc *dc)
 {
 	struct abm **abms = dc->res_pool->multiple_abms;
@@ -873,13 +816,14 @@ void dcn32_init_hw(struct dc *dc)
 		}
 	}
 
-	/* Power gate DSCs */
-	for (i = 0; i < res_pool->res_cap->num_dsc; i++)
-		if (hws->funcs.dsc_pg_control != NULL)
-			hws->funcs.dsc_pg_control(hws, res_pool->dscs[i]->inst, false);
+	/* enable_power_gating_plane before dsc_pg_control because
+	 * FORCEON = 1 with hw default value on bootup, resume from s3
+	 */
+	if (hws->funcs.enable_power_gating_plane)
+		hws->funcs.enable_power_gating_plane(dc->hwseq, true);
 
 	/* we want to turn off all dp displays before doing detection */
-	dc_link_blank_all_dp_displays(dc);
+	dc->link_srv->blank_all_dp_displays(dc);
 
 	/* If taking control over from VBIOS, we may want to optimize our first
 	 * mode set, so we need to skip powering down pipes until we know which
@@ -888,10 +832,29 @@ void dcn32_init_hw(struct dc *dc)
 	 * everything down.
 	 */
 	if (dcb->funcs->is_accelerated_mode(dcb) || !dc->config.seamless_boot_edp_requested) {
-		hws->funcs.init_pipes(dc, dc->current_state);
+		/* Disable boot optimizations means power down everything including PHY, DIG,
+		 * and OTG (i.e. the boot is not optimized because we do a full power down).
+		 */
+		if (dc->hwss.enable_accelerated_mode && dc->debug.disable_boot_optimizations)
+			dc->hwss.enable_accelerated_mode(dc, dc->current_state);
+		else
+			hws->funcs.init_pipes(dc, dc->current_state);
+
 		if (dc->res_pool->hubbub->funcs->allow_self_refresh_control)
 			dc->res_pool->hubbub->funcs->allow_self_refresh_control(dc->res_pool->hubbub,
 					!dc->res_pool->hubbub->ctx->dc->debug.disable_stutter);
+
+		dcn32_initialize_min_clocks(dc);
+
+		/* On HW init, allow idle optimizations after pipes have been turned off.
+		 *
+		 * In certain D3 cases (i.e. BOCO / BOMACO) it's possible that hardware state
+		 * is reset (i.e. not in idle at the time hw init is called), but software state
+		 * still has idle_optimizations = true, so we must disable idle optimizations first
+		 * (i.e. set false), then re-enable (set true).
+		 */
+		dc_allow_idle_optimizations(dc, false);
+		dc_allow_idle_optimizations(dc, true);
 	}
 
 	/* In headless boot cases, DIG may be turned
@@ -903,7 +866,7 @@ void dcn32_init_hw(struct dc *dc)
 		struct dc_link *edp_links[MAX_NUM_EDP];
 		struct dc_link *edp_link;
 
-		get_edp_links(dc, edp_links, &edp_num);
+		dc_get_edp_links(dc, edp_links, &edp_num);
 		if (edp_num) {
 			for (i = 0; i < edp_num; i++) {
 				edp_link = edp_links[i];
@@ -961,8 +924,6 @@ void dcn32_init_hw(struct dc *dc)
 
 		REG_UPDATE(DCFCLK_CNTL, DCFCLK_GATE_DIS, 0);
 	}
-	if (hws->funcs.enable_power_gating_plane)
-		hws->funcs.enable_power_gating_plane(dc->hwseq, true);
 
 	if (!dcb->funcs->is_accelerated_mode(dcb) && dc->res_pool->hubbub->funcs->init_watermarks)
 		dc->res_pool->hubbub->funcs->init_watermarks(dc->res_pool->hubbub);
@@ -970,7 +931,7 @@ void dcn32_init_hw(struct dc *dc)
 	if (dc->clk_mgr->funcs->notify_wm_ranges)
 		dc->clk_mgr->funcs->notify_wm_ranges(dc->clk_mgr);
 
-	if (dc->clk_mgr->funcs->set_hard_max_memclk)
+	if (dc->clk_mgr->funcs->set_hard_max_memclk && !dc->clk_mgr->dc_mode_softmax_enabled)
 		dc->clk_mgr->funcs->set_hard_max_memclk(dc->clk_mgr);
 
 	if (dc->res_pool->hubbub->funcs->force_pstate_change_control)
@@ -980,15 +941,15 @@ void dcn32_init_hw(struct dc *dc)
 	if (dc->res_pool->hubbub->funcs->init_crb)
 		dc->res_pool->hubbub->funcs->init_crb(dc->res_pool->hubbub);
 
+	if (dc->res_pool->hubbub->funcs->set_request_limit && dc->config.sdpif_request_limit_words_per_umc > 0)
+		dc->res_pool->hubbub->funcs->set_request_limit(dc->res_pool->hubbub, dc->ctx->dc_bios->vram_info.num_chans, dc->config.sdpif_request_limit_words_per_umc);
+
 	// Get DMCUB capabilities
 	if (dc->ctx->dmub_srv) {
 		dc_dmub_srv_query_caps_cmd(dc->ctx->dmub_srv->dmub);
 		dc->caps.dmub_caps.psr = dc->ctx->dmub_srv->dmub->feature_caps.psr;
+		dc->caps.dmub_caps.mclk_sw = dc->ctx->dmub_srv->dmub->feature_caps.fw_assisted_mclk_switch;
 	}
-
-	/* Enable support for ODM and windowed MPO if policy flag is set */
-	if (dc->debug.enable_single_display_2to1_odm_policy)
-		dc->config.enable_windowed_mpo_odm = true;
 }
 
 static int calc_mpc_flow_ctrl_cnt(const struct dc_stream_state *stream,
@@ -1171,16 +1132,16 @@ unsigned int dcn32_calculate_dccg_k1_k2_values(struct pipe_ctx *pipe_ctx, unsign
 	two_pix_per_container = optc2_is_two_pixels_per_containter(&stream->timing);
 	odm_combine_factor = get_odm_config(pipe_ctx, NULL);
 
-	if (is_dp_128b_132b_signal(pipe_ctx)) {
+	if (stream->ctx->dc->link_srv->dp_is_128b_132b_signal(pipe_ctx)) {
 		*k1_div = PIXEL_RATE_DIV_BY_1;
 		*k2_div = PIXEL_RATE_DIV_BY_1;
-	} else if (dc_is_hdmi_tmds_signal(pipe_ctx->stream->signal) || dc_is_dvi_signal(pipe_ctx->stream->signal)) {
+	} else if (dc_is_hdmi_tmds_signal(stream->signal) || dc_is_dvi_signal(stream->signal)) {
 		*k1_div = PIXEL_RATE_DIV_BY_1;
 		if (stream->timing.pixel_encoding == PIXEL_ENCODING_YCBCR420)
 			*k2_div = PIXEL_RATE_DIV_BY_2;
 		else
 			*k2_div = PIXEL_RATE_DIV_BY_4;
-	} else if (dc_is_dp_signal(pipe_ctx->stream->signal)) {
+	} else if (dc_is_dp_signal(stream->signal) || dc_is_virtual_signal(stream->signal)) {
 		if (two_pix_per_container) {
 			*k1_div = PIXEL_RATE_DIV_BY_1;
 			*k2_div = PIXEL_RATE_DIV_BY_2;
@@ -1235,7 +1196,7 @@ void dcn32_unblank_stream(struct pipe_ctx *pipe_ctx,
 
 	params.link_settings.link_rate = link_settings->link_rate;
 
-	if (is_dp_128b_132b_signal(pipe_ctx)) {
+	if (link->dc->link_srv->dp_is_128b_132b_signal(pipe_ctx)) {
 		/* TODO - DP2.0 HW: Set ODM mode in dp hpo encoder here */
 		pipe_ctx->stream_res.hpo_dp_stream_enc->funcs->dp_unblank(
 				pipe_ctx->stream_res.hpo_dp_stream_enc,
@@ -1262,7 +1223,7 @@ bool dcn32_is_dp_dig_pixel_rate_div_policy(struct pipe_ctx *pipe_ctx)
 	if (!is_h_timing_divisible_by_2(pipe_ctx->stream))
 		return false;
 
-	if (dc_is_dp_signal(pipe_ctx->stream->signal) && !is_dp_128b_132b_signal(pipe_ctx) &&
+	if (dc_is_dp_signal(pipe_ctx->stream->signal) && !dc->link_srv->dp_is_128b_132b_signal(pipe_ctx) &&
 		dc->debug.enable_dp_dig_pixel_rate_div_policy)
 		return true;
 	return false;
@@ -1296,7 +1257,8 @@ static void apply_symclk_on_tx_off_wa(struct dc_link *link)
 				pipe_ctx->clock_source->funcs->program_pix_clk(
 						pipe_ctx->clock_source,
 						&pipe_ctx->stream_res.pix_clk_params,
-						dp_get_link_encoding_format(&pipe_ctx->link_config.dp_link_settings),
+						dc->link_srv->dp_get_encoding_format(
+								&pipe_ctx->link_config.dp_link_settings),
 						&pipe_ctx->pll_settings);
 				link->phy_state.symclk_state = SYMCLK_ON_TX_OFF;
 				break;
@@ -1328,7 +1290,7 @@ void dcn32_disable_link_output(struct dc_link *link,
 	else if (dmcu != NULL && dmcu->funcs->lock_phy)
 		dmcu->funcs->unlock_phy(dmcu);
 
-	dp_source_sequence_trace(link, DPCD_SOURCE_SEQ_AFTER_DISABLE_LINK_PHY);
+	dc->link_srv->dp_trace_source_sequence(link, DPCD_SOURCE_SEQ_AFTER_DISABLE_LINK_PHY);
 
 	apply_symclk_on_tx_off_wa(link);
 }
@@ -1360,6 +1322,33 @@ void dcn32_update_phantom_vp_position(struct dc *dc,
 				phantom_pipe->plane_state->update_flags.bits.position_change = 1;
 				resource_build_scaling_params(phantom_pipe);
 				return;
+			}
+		}
+	}
+}
+
+/* Treat the phantom pipe as if it needs to be fully enabled.
+ * If the pipe was previously in use but not phantom, it would
+ * have been disabled earlier in the sequence so we need to run
+ * the full enable sequence.
+ */
+void dcn32_apply_update_flags_for_phantom(struct pipe_ctx *phantom_pipe)
+{
+	phantom_pipe->update_flags.raw = 0;
+	if (phantom_pipe->stream && phantom_pipe->stream->mall_stream_config.type == SUBVP_PHANTOM) {
+		if (phantom_pipe->stream && phantom_pipe->plane_state) {
+			phantom_pipe->update_flags.bits.enable = 1;
+			phantom_pipe->update_flags.bits.mpcc = 1;
+			phantom_pipe->update_flags.bits.dppclk = 1;
+			phantom_pipe->update_flags.bits.hubp_interdependent = 1;
+			phantom_pipe->update_flags.bits.hubp_rq_dlg_ttu = 1;
+			phantom_pipe->update_flags.bits.gamut_remap = 1;
+			phantom_pipe->update_flags.bits.scaler = 1;
+			phantom_pipe->update_flags.bits.viewport = 1;
+			phantom_pipe->update_flags.bits.det_size = 1;
+			if (!phantom_pipe->top_pipe && !phantom_pipe->prev_odm_pipe) {
+				phantom_pipe->update_flags.bits.odm = 1;
+				phantom_pipe->update_flags.bits.global_sync = 1;
 			}
 		}
 	}
@@ -1418,4 +1407,123 @@ void dcn32_update_dsc_pg(struct dc *dc,
 			}
 		}
 	}
+}
+
+void dcn32_enable_phantom_streams(struct dc *dc, struct dc_state *context)
+{
+	unsigned int i;
+
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
+		struct pipe_ctx *old_pipe = &dc->current_state->res_ctx.pipe_ctx[i];
+
+		/* If an active, non-phantom pipe is being transitioned into a phantom
+		 * pipe, wait for the double buffer update to complete first before we do
+		 * ANY phantom pipe programming.
+		 */
+		if (pipe->stream && pipe->stream->mall_stream_config.type == SUBVP_PHANTOM &&
+				old_pipe->stream && old_pipe->stream->mall_stream_config.type != SUBVP_PHANTOM) {
+			old_pipe->stream_res.tg->funcs->wait_for_state(
+					old_pipe->stream_res.tg,
+					CRTC_STATE_VBLANK);
+			old_pipe->stream_res.tg->funcs->wait_for_state(
+					old_pipe->stream_res.tg,
+					CRTC_STATE_VACTIVE);
+		}
+	}
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *new_pipe = &context->res_ctx.pipe_ctx[i];
+
+		if (new_pipe->stream && new_pipe->stream->mall_stream_config.type == SUBVP_PHANTOM) {
+			// If old context or new context has phantom pipes, apply
+			// the phantom timings now. We can't change the phantom
+			// pipe configuration safely without driver acquiring
+			// the DMCUB lock first.
+			dc->hwss.apply_ctx_to_hw(dc, context);
+			break;
+		}
+	}
+}
+
+/* Blank pixel data during initialization */
+void dcn32_init_blank(
+		struct dc *dc,
+		struct timing_generator *tg)
+{
+	struct dce_hwseq *hws = dc->hwseq;
+	enum dc_color_space color_space;
+	struct tg_color black_color = {0};
+	struct output_pixel_processor *opp = NULL;
+	struct output_pixel_processor *bottom_opp = NULL;
+	uint32_t num_opps, opp_id_src0, opp_id_src1;
+	uint32_t otg_active_width, otg_active_height;
+	uint32_t i;
+
+	/* program opp dpg blank color */
+	color_space = COLOR_SPACE_SRGB;
+	color_space_to_black_color(dc, color_space, &black_color);
+
+	/* get the OTG active size */
+	tg->funcs->get_otg_active_size(tg,
+			&otg_active_width,
+			&otg_active_height);
+
+	/* get the OPTC source */
+	tg->funcs->get_optc_source(tg, &num_opps, &opp_id_src0, &opp_id_src1);
+
+	if (opp_id_src0 >= dc->res_pool->res_cap->num_opp) {
+		ASSERT(false);
+		return;
+	}
+
+	for (i = 0; i < dc->res_pool->res_cap->num_opp; i++) {
+		if (dc->res_pool->opps[i] != NULL && dc->res_pool->opps[i]->inst == opp_id_src0) {
+			opp = dc->res_pool->opps[i];
+			break;
+		}
+	}
+
+	if (num_opps == 2) {
+		otg_active_width = otg_active_width / 2;
+
+		if (opp_id_src1 >= dc->res_pool->res_cap->num_opp) {
+			ASSERT(false);
+			return;
+		}
+		for (i = 0; i < dc->res_pool->res_cap->num_opp; i++) {
+			if (dc->res_pool->opps[i] != NULL && dc->res_pool->opps[i]->inst == opp_id_src1) {
+				bottom_opp = dc->res_pool->opps[i];
+				break;
+			}
+		}
+	}
+
+	if (opp && opp->funcs->opp_set_disp_pattern_generator)
+		opp->funcs->opp_set_disp_pattern_generator(
+				opp,
+				CONTROLLER_DP_TEST_PATTERN_SOLID_COLOR,
+				CONTROLLER_DP_COLOR_SPACE_UDEFINED,
+				COLOR_DEPTH_UNDEFINED,
+				&black_color,
+				otg_active_width,
+				otg_active_height,
+				0);
+
+	if (num_opps == 2) {
+		if (bottom_opp && bottom_opp->funcs->opp_set_disp_pattern_generator) {
+			bottom_opp->funcs->opp_set_disp_pattern_generator(
+					bottom_opp,
+					CONTROLLER_DP_TEST_PATTERN_SOLID_COLOR,
+					CONTROLLER_DP_COLOR_SPACE_UDEFINED,
+					COLOR_DEPTH_UNDEFINED,
+					&black_color,
+					otg_active_width,
+					otg_active_height,
+					0);
+			hws->funcs.wait_for_blank_complete(bottom_opp);
+		}
+	}
+
+	if (opp)
+		hws->funcs.wait_for_blank_complete(opp);
 }

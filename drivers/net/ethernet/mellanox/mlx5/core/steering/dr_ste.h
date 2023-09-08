@@ -151,6 +151,7 @@ struct mlx5dr_ste_ctx {
 			 bool is_rx, u16 gvmi);
 	void (*set_next_lu_type)(u8 *hw_ste_p, u16 lu_type);
 	u16  (*get_next_lu_type)(u8 *hw_ste_p);
+	bool (*is_miss_addr_set)(u8 *hw_ste_p);
 	void (*set_miss_addr)(u8 *hw_ste_p, u64 miss_addr);
 	u64  (*get_miss_addr)(u8 *hw_ste_p);
 	void (*set_hit_addr)(u8 *hw_ste_p, u64 icm_addr, u32 ht_size);
@@ -194,6 +195,8 @@ struct mlx5dr_ste_ctx {
 					u8 *hw_action,
 					u32 hw_action_sz,
 					u16 *used_hw_action_num);
+	int (*alloc_modify_hdr_chunk)(struct mlx5dr_action *action);
+	void (*dealloc_modify_hdr_chunk)(struct mlx5dr_action *action);
 
 	/* Send */
 	void (*prepare_for_postsend)(u8 *hw_ste_p, u32 ste_size);

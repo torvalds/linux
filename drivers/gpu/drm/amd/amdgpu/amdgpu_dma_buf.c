@@ -37,6 +37,7 @@
 #include "amdgpu_dma_buf.h"
 #include "amdgpu_xgmi.h"
 #include <drm/amdgpu_drm.h>
+#include <drm/ttm/ttm_tt.h>
 #include <linux/dma-buf.h>
 #include <linux/dma-fence-array.h>
 #include <linux/pci-p2pdma.h>
@@ -328,7 +329,9 @@ amdgpu_dma_buf_create_obj(struct drm_device *dev, struct dma_buf *dma_buf)
 	if (dma_buf->ops == &amdgpu_dmabuf_ops) {
 		struct amdgpu_bo *other = gem_to_amdgpu_bo(dma_buf->priv);
 
-		flags |= other->flags & AMDGPU_GEM_CREATE_CPU_GTT_USWC;
+		flags |= other->flags & (AMDGPU_GEM_CREATE_CPU_GTT_USWC |
+					 AMDGPU_GEM_CREATE_COHERENT |
+					 AMDGPU_GEM_CREATE_UNCACHED);
 	}
 
 	ret = amdgpu_gem_object_create(adev, dma_buf->size, PAGE_SIZE,

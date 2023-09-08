@@ -25,7 +25,8 @@
 void __tlb_remove_table(void *_table);
 static inline void tlb_flush(struct mmu_gather *tlb);
 static inline bool __tlb_remove_page_size(struct mmu_gather *tlb,
-					  struct page *page, int page_size);
+					  struct encoded_page *page,
+					  int page_size);
 
 #define tlb_flush tlb_flush
 #define pte_free_tlb pte_free_tlb
@@ -40,11 +41,15 @@ static inline bool __tlb_remove_page_size(struct mmu_gather *tlb,
  * Release the page cache reference for a pte removed by
  * tlb_ptep_clear_flush. In both flush modes the tlb for a page cache page
  * has already been freed, so just do free_page_and_swap_cache.
+ *
+ * s390 doesn't delay rmap removal, so there is nothing encoded in
+ * the page pointer.
  */
 static inline bool __tlb_remove_page_size(struct mmu_gather *tlb,
-					  struct page *page, int page_size)
+					  struct encoded_page *page,
+					  int page_size)
 {
-	free_page_and_swap_cache(page);
+	free_page_and_swap_cache(encoded_page_ptr(page));
 	return false;
 }
 

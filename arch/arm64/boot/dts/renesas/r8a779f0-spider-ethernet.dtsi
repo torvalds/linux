@@ -5,11 +5,101 @@
  * Copyright (C) 2021 Renesas Electronics Corp.
  */
 
+&eth_serdes {
+	status = "okay";
+};
+
 &i2c4 {
 	eeprom@52 {
 		compatible = "rohm,br24g01", "atmel,24c01";
 		label = "ethernet-sub-board";
 		reg = <0x52>;
 		pagesize = <8>;
+	};
+};
+
+&pfc {
+	tsn0_pins: tsn0 {
+		groups = "tsn0_mdio_b", "tsn0_link_b";
+		function = "tsn0";
+		power-source = <1800>;
+	};
+
+	tsn1_pins: tsn1 {
+		groups = "tsn1_mdio_b", "tsn1_link_b";
+		function = "tsn1";
+		power-source = <1800>;
+	};
+
+	tsn2_pins: tsn2 {
+		groups = "tsn2_mdio_b", "tsn2_link_b";
+		function = "tsn2";
+		power-source = <1800>;
+	};
+};
+
+&rswitch {
+	pinctrl-0 = <&tsn0_pins>, <&tsn1_pins>, <&tsn2_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+
+	ethernet-ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			phy-handle = <&u101>;
+			phy-mode = "sgmii";
+			phys = <&eth_serdes 0>;
+
+			mdio {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				u101: ethernet-phy@1 {
+					reg = <1>;
+					compatible = "ethernet-phy-ieee802.3-c45";
+					interrupt-parent = <&gpio3>;
+					interrupts = <10 IRQ_TYPE_LEVEL_LOW>;
+				};
+			};
+		};
+		port@1 {
+			reg = <1>;
+			phy-handle = <&u201>;
+			phy-mode = "sgmii";
+			phys = <&eth_serdes 1>;
+
+			mdio {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				u201: ethernet-phy@2 {
+					reg = <2>;
+					compatible = "ethernet-phy-ieee802.3-c45";
+					interrupt-parent = <&gpio3>;
+					interrupts = <11 IRQ_TYPE_LEVEL_LOW>;
+				};
+			};
+		};
+		port@2 {
+			reg = <2>;
+			phy-handle = <&u301>;
+			phy-mode = "sgmii";
+			phys = <&eth_serdes 2>;
+
+			mdio {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				u301: ethernet-phy@3 {
+					reg = <3>;
+					compatible = "ethernet-phy-ieee802.3-c45";
+					interrupt-parent = <&gpio3>;
+					interrupts = <9 IRQ_TYPE_LEVEL_LOW>;
+				};
+			};
+		};
 	};
 };

@@ -81,6 +81,7 @@
 #define RING_EIR(base)				_MMIO((base) + 0xb0)
 #define RING_EMR(base)				_MMIO((base) + 0xb4)
 #define RING_ESR(base)				_MMIO((base) + 0xb8)
+#define GEN12_STATE_ACK_DEBUG(base)		_MMIO((base) + 0xbc)
 #define RING_INSTPM(base)			_MMIO((base) + 0xc0)
 #define RING_CMD_CCTL(base)			_MMIO((base) + 0xc4)
 #define ACTHD(base)				_MMIO((base) + 0xc8)
@@ -201,6 +202,7 @@
 #define RING_CONTEXT_STATUS_PTR(base)		_MMIO((base) + 0x3a0)
 #define RING_CTX_TIMESTAMP(base)		_MMIO((base) + 0x3a8) /* gen8+ */
 #define RING_PREDICATE_RESULT(base)		_MMIO((base) + 0x3b8)
+#define MI_PREDICATE_RESULT_2_ENGINE(base)	_MMIO((base) + 0x3bc)
 #define RING_FORCE_TO_NONPRIV(base, i)		_MMIO(((base) + 0x4D0) + (i) * 4)
 #define   RING_FORCE_TO_NONPRIV_DENY		REG_BIT(30)
 #define   RING_FORCE_TO_NONPRIV_ADDRESS_MASK	REG_GENMASK(25, 2)

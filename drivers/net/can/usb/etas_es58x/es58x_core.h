@@ -6,17 +6,18 @@
  *
  * Copyright (c) 2019 Robert Bosch Engineering and Business Solutions. All rights reserved.
  * Copyright (c) 2020 ETAS K.K.. All rights reserved.
- * Copyright (c) 2020, 2021 Vincent Mailhol <mailhol.vincent@wanadoo.fr>
+ * Copyright (c) 2020-2022 Vincent Mailhol <mailhol.vincent@wanadoo.fr>
  */
 
 #ifndef __ES58X_COMMON_H__
 #define __ES58X_COMMON_H__
 
-#include <linux/types.h>
-#include <linux/usb.h>
-#include <linux/netdevice.h>
 #include <linux/can.h>
 #include <linux/can/dev.h>
+#include <linux/netdevice.h>
+#include <linux/types.h>
+#include <linux/usb.h>
+#include <net/devlink.h>
 
 #include "es581_4.h"
 #include "es58x_fd.h"
@@ -230,6 +231,7 @@ union es58x_urb_cmd {
  * @can: struct can_priv must be the first member (Socket CAN relies
  *	on the fact that function netdev_priv() returns a pointer to
  *	a struct can_priv).
+ * @devlink_port: devlink instance for the network interface.
  * @es58x_dev: pointer to the corresponding ES58X device.
  * @tx_urb: Used as a buffer to concatenate the TX messages and to do
  *	a bulk send. Please refer to es58x_start_xmit() for more
@@ -255,6 +257,7 @@ union es58x_urb_cmd {
  */
 struct es58x_priv {
 	struct can_priv can;
+	struct devlink_port devlink_port;
 	struct es58x_device *es58x_dev;
 	struct urb *tx_urb;
 
@@ -357,6 +360,39 @@ struct es58x_operators {
 };
 
 /**
+ * struct es58x_sw_version - Version number of the firmware or the
+ *	bootloader.
+ * @major: Version major number, represented on two digits.
+ * @minor: Version minor number, represented on two digits.
+ * @revision: Version revision number, represented on two digits.
+ *
+ * The firmware and the bootloader share the same format: "xx.xx.xx"
+ * where 'x' is a digit. Both can be retrieved from the product
+ * information string.
+ */
+struct es58x_sw_version {
+	u8 major;
+	u8 minor;
+	u8 revision;
+};
+
+/**
+ * struct es58x_hw_revision - Hardware revision number.
+ * @letter: Revision letter.
+ * @major: Version major number, represented on three digits.
+ * @minor: Version minor number, represented on three digits.
+ *
+ * The hardware revision uses its own format: "axxx/xxx" where 'a' is
+ * a letter and 'x' a digit. It can be retrieved from the product
+ * information string.
+ */
+struct es58x_hw_revision {
+	char letter;
+	u16 major;
+	u16 minor;
+};
+
+/**
  * struct es58x_device - All information specific to an ES58X device.
  * @dev: Device information.
  * @udev: USB device information.
@@ -373,6 +409,9 @@ struct es58x_operators {
  *	queue wake/stop logic should prevent this URB from getting
  *	empty. Please refer to es58x_get_tx_urb() for more details.
  * @tx_urbs_idle_cnt: number of urbs in @tx_urbs_idle.
+ * @firmware_version: The firmware version number.
+ * @bootloader_version: The bootloader version number.
+ * @hardware_revision: The hardware revision number.
  * @ktime_req_ns: kernel timestamp when es58x_set_realtime_diff_ns()
  *	was called.
  * @realtime_diff_ns: difference in nanoseconds between the clocks of
@@ -407,6 +446,10 @@ struct es58x_device {
 	struct usb_anchor tx_urbs_busy;
 	struct usb_anchor tx_urbs_idle;
 	atomic_t tx_urbs_idle_cnt;
+
+	struct es58x_sw_version firmware_version;
+	struct es58x_sw_version bootloader_version;
+	struct es58x_hw_revision hardware_revision;
 
 	u64 ktime_req_ns;
 	s64 realtime_diff_ns;
@@ -674,6 +717,7 @@ static inline enum es58x_flag es58x_get_flags(const struct sk_buff *skb)
 	return es58x_flags;
 }
 
+/* es58x_core.c. */
 int es58x_can_get_echo_skb(struct net_device *netdev, u32 packet_idx,
 			   u64 *tstamps, unsigned int pkts);
 int es58x_tx_ack_msg(struct net_device *netdev, u16 tx_free_entries,
@@ -691,9 +735,15 @@ int es58x_rx_cmd_ret_u32(struct net_device *netdev,
 int es58x_send_msg(struct es58x_device *es58x_dev, u8 cmd_type, u8 cmd_id,
 		   const void *msg, u16 cmd_len, int channel_idx);
 
+/* es58x_devlink.c. */
+void es58x_parse_product_info(struct es58x_device *es58x_dev);
+extern const struct devlink_ops es58x_dl_ops;
+
+/* es581_4.c. */
 extern const struct es58x_parameters es581_4_param;
 extern const struct es58x_operators es581_4_ops;
 
+/* es58x_fd.c. */
 extern const struct es58x_parameters es58x_fd_param;
 extern const struct es58x_operators es58x_fd_ops;
 

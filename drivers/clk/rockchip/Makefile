@@ -28,3 +28,4 @@ obj-$(CONFIG_CLK_RK3328)        += clk-rk3328.o
 obj-$(CONFIG_CLK_RK3368)        += clk-rk3368.o
 obj-$(CONFIG_CLK_RK3399)        += clk-rk3399.o
 obj-$(CONFIG_CLK_RK3568)	+= clk-rk3568.o
+obj-$(CONFIG_CLK_RK3588)	+= clk-rk3588.o rst-rk3588.o

@@ -651,7 +651,7 @@ static int fileattr_set_prepare(struct inode *inode,
 
 /**
  * vfs_fileattr_set - change miscellaneous file attributes
- * @mnt_userns:	user namespace of the mount
+ * @idmap:	idmap of the mount
  * @dentry:	the object to change
  * @fa:		fileattr pointer
  *
@@ -665,7 +665,7 @@ static int fileattr_set_prepare(struct inode *inode,
  *
  * Return: 0 on success, or a negative error on failure.
  */
-int vfs_fileattr_set(struct user_namespace *mnt_userns, struct dentry *dentry,
+int vfs_fileattr_set(struct mnt_idmap *idmap, struct dentry *dentry,
 		     struct fileattr *fa)
 {
 	struct inode *inode = d_inode(dentry);
@@ -675,7 +675,7 @@ int vfs_fileattr_set(struct user_namespace *mnt_userns, struct dentry *dentry,
 	if (!inode->i_op->fileattr_set)
 		return -ENOIOCTLCMD;
 
-	if (!inode_owner_or_capable(mnt_userns, inode))
+	if (!inode_owner_or_capable(idmap, inode))
 		return -EPERM;
 
 	inode_lock(inode);
@@ -693,7 +693,7 @@ int vfs_fileattr_set(struct user_namespace *mnt_userns, struct dentry *dentry,
 		}
 		err = fileattr_set_prepare(inode, &old_ma, fa);
 		if (!err)
-			err = inode->i_op->fileattr_set(mnt_userns, dentry, fa);
+			err = inode->i_op->fileattr_set(idmap, dentry, fa);
 	}
 	inode_unlock(inode);
 
@@ -714,7 +714,7 @@ static int ioctl_getflags(struct file *file, unsigned int __user *argp)
 
 static int ioctl_setflags(struct file *file, unsigned int __user *argp)
 {
-	struct user_namespace *mnt_userns = file_mnt_user_ns(file);
+	struct mnt_idmap *idmap = file_mnt_idmap(file);
 	struct dentry *dentry = file->f_path.dentry;
 	struct fileattr fa;
 	unsigned int flags;
@@ -725,7 +725,7 @@ static int ioctl_setflags(struct file *file, unsigned int __user *argp)
 		err = mnt_want_write_file(file);
 		if (!err) {
 			fileattr_fill_flags(&fa, flags);
-			err = vfs_fileattr_set(mnt_userns, dentry, &fa);
+			err = vfs_fileattr_set(idmap, dentry, &fa);
 			mnt_drop_write_file(file);
 		}
 	}
@@ -746,7 +746,7 @@ static int ioctl_fsgetxattr(struct file *file, void __user *argp)
 
 static int ioctl_fssetxattr(struct file *file, void __user *argp)
 {
-	struct user_namespace *mnt_userns = file_mnt_user_ns(file);
+	struct mnt_idmap *idmap = file_mnt_idmap(file);
 	struct dentry *dentry = file->f_path.dentry;
 	struct fileattr fa;
 	int err;
@@ -755,7 +755,7 @@ static int ioctl_fssetxattr(struct file *file, void __user *argp)
 	if (!err) {
 		err = mnt_want_write_file(file);
 		if (!err) {
-			err = vfs_fileattr_set(mnt_userns, dentry, &fa);
+			err = vfs_fileattr_set(idmap, dentry, &fa);
 			mnt_drop_write_file(file);
 		}
 	}

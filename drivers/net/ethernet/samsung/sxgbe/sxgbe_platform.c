@@ -229,7 +229,7 @@ static struct platform_driver sxgbe_platform_driver = {
 	.driver	= {
 		.name		= SXGBE_RESOURCE_NAME,
 		.pm		= &sxgbe_platform_pm_ops,
-		.of_match_table	= of_match_ptr(sxgbe_dt_ids),
+		.of_match_table	= sxgbe_dt_ids,
 	},
 };
 

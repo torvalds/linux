@@ -25,17 +25,17 @@
 	leds {
 		compatible = "gpio-leds";
 
-		wps {
+		led-wps {
 			label = "bcm53xx:blue:wps";
 			gpios = <&chipcommon 10 GPIO_ACTIVE_HIGH>;
 		};
 
-		5ghz {
+		led-5ghz {
 			label = "bcm53xx:blue:5ghz";
 			gpios = <&chipcommon 11 GPIO_ACTIVE_HIGH>;
 		};
 
-		2ghz {
+		led-2ghz {
 			label = "bcm53xx:blue:2ghz";
 			gpios = <&chipcommon 12 GPIO_ACTIVE_HIGH>;
 		};

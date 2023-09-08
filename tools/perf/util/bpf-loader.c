@@ -27,32 +27,10 @@
 #include "util.h"
 #include "llvm-utils.h"
 #include "c++/clang-c.h"
-#ifdef HAVE_LIBBPF_SUPPORT
-#include <bpf/hashmap.h>
-#else
 #include "util/hashmap.h"
-#endif
 #include "asm/bug.h"
 
 #include <internal/xyarray.h>
-
-#ifndef HAVE_LIBBPF_BPF_PROGRAM__SET_INSNS
-int bpf_program__set_insns(struct bpf_program *prog __maybe_unused,
-			   struct bpf_insn *new_insns __maybe_unused, size_t new_insn_cnt __maybe_unused)
-{
-	pr_err("%s: not support, update libbpf\n", __func__);
-	return -ENOTSUP;
-}
-
-int libbpf_register_prog_handler(const char *sec __maybe_unused,
-                                 enum bpf_prog_type prog_type __maybe_unused,
-                                 enum bpf_attach_type exp_attach_type __maybe_unused,
-                                 const struct libbpf_prog_handler_opts *opts __maybe_unused)
-{
-	pr_err("%s: not support, update libbpf\n", __func__);
-	return -ENOTSUP;
-}
-#endif
 
 /* temporarily disable libbpf deprecation warnings */
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
@@ -318,7 +296,7 @@ static void bpf_program_hash_free(void)
 		return;
 
 	hashmap__for_each_entry(bpf_program_hash, cur, bkt)
-		clear_prog_priv(cur->key, cur->value);
+		clear_prog_priv(cur->pkey, cur->pvalue);
 
 	hashmap__free(bpf_program_hash);
 	bpf_program_hash = NULL;
@@ -339,13 +317,12 @@ void bpf__clear(void)
 	bpf_map_hash_free();
 }
 
-static size_t ptr_hash(const void *__key, void *ctx __maybe_unused)
+static size_t ptr_hash(const long __key, void *ctx __maybe_unused)
 {
-	return (size_t) __key;
+	return __key;
 }
 
-static bool ptr_equal(const void *key1, const void *key2,
-			  void *ctx __maybe_unused)
+static bool ptr_equal(long key1, long key2, void *ctx __maybe_unused)
 {
 	return key1 == key2;
 }
@@ -1185,7 +1162,7 @@ static void bpf_map_hash_free(void)
 		return;
 
 	hashmap__for_each_entry(bpf_map_hash, cur, bkt)
-		bpf_map_priv__clear(cur->key, cur->value);
+		bpf_map_priv__clear(cur->pkey, cur->pvalue);
 
 	hashmap__free(bpf_map_hash);
 	bpf_map_hash = NULL;

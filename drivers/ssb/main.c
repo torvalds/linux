@@ -339,9 +339,9 @@ static int ssb_bus_match(struct device *dev, struct device_driver *drv)
 	return 0;
 }
 
-static int ssb_device_uevent(struct device *dev, struct kobj_uevent_env *env)
+static int ssb_device_uevent(const struct device *dev, struct kobj_uevent_env *env)
 {
-	struct ssb_device *ssb_dev = dev_to_ssb_dev(dev);
+	const struct ssb_device *ssb_dev = dev_to_ssb_dev(dev);
 
 	if (!dev)
 		return -ENODEV;

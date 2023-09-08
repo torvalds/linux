@@ -24,6 +24,7 @@ enum rtw_debug_mask {
 	RTW_DBG_ADAPTIVITY	= 0x00008000,
 	RTW_DBG_HW_SCAN		= 0x00010000,
 	RTW_DBG_STATE		= 0x00020000,
+	RTW_DBG_SDIO		= 0x00040000,
 
 	RTW_DBG_ALL		= 0xffffffff
 };

@@ -135,7 +135,7 @@ nfsd4_get_nfs4_acl(struct svc_rqst *rqstp, struct dentry *dentry,
 	unsigned int flags = 0;
 	int size = 0;
 
-	pacl = get_acl(inode, ACL_TYPE_ACCESS);
+	pacl = get_inode_acl(inode, ACL_TYPE_ACCESS);
 	if (!pacl)
 		pacl = posix_acl_from_mode(inode->i_mode, GFP_KERNEL);
 
@@ -147,7 +147,7 @@ nfsd4_get_nfs4_acl(struct svc_rqst *rqstp, struct dentry *dentry,
 
 	if (S_ISDIR(inode->i_mode)) {
 		flags = NFS4_ACL_DIR;
-		dpacl = get_acl(inode, ACL_TYPE_DEFAULT);
+		dpacl = get_inode_acl(inode, ACL_TYPE_DEFAULT);
 		if (IS_ERR(dpacl)) {
 			error = PTR_ERR(dpacl);
 			goto rel_pacl;

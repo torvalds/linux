@@ -38,12 +38,15 @@ struct renesas_sdhi_of_data {
 
 #define SDHI_CALIB_TABLE_MAX 32
 
+#define sdhi_has_quirk(p, q) ((p)->quirks && (p)->quirks->q)
+
 struct renesas_sdhi_quirks {
 	bool hs400_disabled;
 	bool hs400_4taps;
 	bool fixed_addr_mode;
 	bool dma_one_rx_only;
 	bool manual_tap_correction;
+	bool old_info1_layout;
 	u32 hs400_bad_taps;
 	const u8 (*hs400_calib_table)[SDHI_CALIB_TABLE_MAX];
 };
@@ -53,12 +56,17 @@ struct renesas_sdhi_of_data_with_quirks {
 	const struct renesas_sdhi_quirks *quirks;
 };
 
-struct tmio_mmc_dma {
+/* We want both end_flags to be set before we mark DMA as finished */
+#define SDHI_DMA_END_FLAG_DMA		0
+#define SDHI_DMA_END_FLAG_ACCESS	1
+
+struct renesas_sdhi_dma {
+	unsigned long end_flags;
 	enum dma_slave_buswidth dma_buswidth;
 	bool (*filter)(struct dma_chan *chan, void *arg);
 	void (*enable)(struct tmio_mmc_host *host, bool enable);
-	struct completion	dma_dataend;
-	struct tasklet_struct	dma_complete;
+	struct completion dma_dataend;
+	struct tasklet_struct dma_complete;
 };
 
 struct renesas_sdhi {
@@ -66,7 +74,7 @@ struct renesas_sdhi {
 	struct clk *clkh;
 	struct clk *clk_cd;
 	struct tmio_mmc_data mmc_data;
-	struct tmio_mmc_dma dma_priv;
+	struct renesas_sdhi_dma dma_priv;
 	const struct renesas_sdhi_quirks *quirks;
 	struct pinctrl *pinctrl;
 	struct pinctrl_state *pins_default, *pins_uhs;

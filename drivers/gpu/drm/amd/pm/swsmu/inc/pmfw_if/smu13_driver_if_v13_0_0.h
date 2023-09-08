@@ -123,7 +123,8 @@
 									(1 << FEATURE_DS_FCLK_BIT) | \
 									(1 << FEATURE_DS_LCLK_BIT) | \
 									(1 << FEATURE_DS_DCFCLK_BIT) | \
-									(1 << FEATURE_DS_UCLK_BIT))
+									(1 << FEATURE_DS_UCLK_BIT) | \
+									(1ULL << FEATURE_DS_VCN_BIT))
 
 //For use with feature control messages
 typedef enum {
@@ -1346,10 +1347,12 @@ typedef struct {
   uint32_t     MmHubPadding[8];
 } BoardTable_t;
 
+#pragma pack(push, 1)
 typedef struct {
   SkuTable_t SkuTable;
   BoardTable_t BoardTable;
 } PPTable_t;
+#pragma pack(pop)
 
 typedef struct {
   // Time constant parameters for clock averages in ms

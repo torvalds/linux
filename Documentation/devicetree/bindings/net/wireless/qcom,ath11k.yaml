@@ -1,12 +1,11 @@
 # SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 # Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
-
 %YAML 1.2
 ---
 $id: http://devicetree.org/schemas/net/wireless/qcom,ath11k.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Qualcomm Technologies ath11k wireless devices Generic Binding
+title: Qualcomm Technologies ath11k wireless devices
 
 maintainers:
   - Kalle Valo <kvalo@kernel.org>
@@ -21,6 +20,7 @@ properties:
       - qcom,ipq8074-wifi
       - qcom,ipq6018-wifi
       - qcom,wcn6750-wifi
+      - qcom,ipq5018-wifi
 
   reg:
     maxItems: 1
@@ -262,10 +262,10 @@ allOf:
 examples:
   - |
 
-    q6v5_wcss: q6v5_wcss@CD00000 {
+    q6v5_wcss: remoteproc@cd00000 {
         compatible = "qcom,ipq8074-wcss-pil";
-        reg = <0xCD00000 0x4040>,
-              <0x4AB000 0x20>;
+        reg = <0xcd00000 0x4040>,
+              <0x4ab000 0x20>;
         reg-names = "qdsp6",
                     "rmb";
     };
@@ -386,7 +386,7 @@ examples:
         #address-cells = <2>;
         #size-cells = <2>;
 
-        qcn9074_0: qcn9074_0@51100000 {
+        qcn9074_0: wifi@51100000 {
             no-map;
             reg = <0x0 0x51100000 0x0 0x03500000>;
         };
@@ -463,6 +463,6 @@ examples:
         qcom,smem-states = <&wlan_smp2p_out 0>;
         qcom,smem-state-names = "wlan-smp2p-out";
         wifi-firmware {
-                iommus = <&apps_smmu 0x1c02 0x1>;
+            iommus = <&apps_smmu 0x1c02 0x1>;
         };
     };

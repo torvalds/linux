@@ -692,7 +692,7 @@ static void wdt_disable(void)
  *	@ppos: pointer to the position to write. No seeks allowed
  *
  *	A write to a watchdog device is defined as a keepalive signal. Any
- *	write of data will do, as we we don't define content meaning.
+ *	write of data will do, as we don't define content meaning.
  */
 static ssize_t wdt_write(struct file *file, const char __user *buf,
 			 size_t count, loff_t *ppos)
@@ -876,8 +876,7 @@ static struct notifier_block wdt_notifier = {
  *****************************************************************************
  */
 
-static int m41t80_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int m41t80_probe(struct i2c_client *client)
 {
 	struct i2c_adapter *adapter = client->adapter;
 	int rc = 0;
@@ -897,11 +896,13 @@ static int m41t80_probe(struct i2c_client *client,
 		return -ENOMEM;
 
 	m41t80_data->client = client;
-	if (client->dev.of_node)
+	if (client->dev.of_node) {
 		m41t80_data->features = (unsigned long)
 			of_device_get_match_data(&client->dev);
-	else
+	} else {
+		const struct i2c_device_id *id = i2c_match_id(m41t80_id, client);
 		m41t80_data->features = id->driver_data;
+	}
 	i2c_set_clientdata(client, m41t80_data);
 
 	m41t80_data->rtc =  devm_rtc_allocate_device(&client->dev);
@@ -913,9 +914,14 @@ static int m41t80_probe(struct i2c_client *client,
 					      "wakeup-source");
 #endif
 	if (client->irq > 0) {
+		unsigned long irqflags = IRQF_TRIGGER_LOW;
+
+		if (dev_fwnode(&client->dev))
+			irqflags = 0;
+
 		rc = devm_request_threaded_irq(&client->dev, client->irq,
 					       NULL, m41t80_handle_irq,
-					       IRQF_TRIGGER_LOW | IRQF_ONESHOT,
+					       irqflags | IRQF_ONESHOT,
 					       "m41t80", client);
 		if (rc) {
 			dev_warn(&client->dev, "unable to request IRQ, alarms disabled\n");
@@ -1007,7 +1013,7 @@ static struct i2c_driver m41t80_driver = {
 		.of_match_table = of_match_ptr(m41t80_of_match),
 		.pm = &m41t80_pm,
 	},
-	.probe = m41t80_probe,
+	.probe_new = m41t80_probe,
 	.remove = m41t80_remove,
 	.id_table = m41t80_id,
 };

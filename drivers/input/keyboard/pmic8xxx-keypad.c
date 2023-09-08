@@ -621,7 +621,6 @@ static int pmic8xxx_kp_probe(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int pmic8xxx_kp_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
@@ -661,10 +660,9 @@ static int pmic8xxx_kp_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
-static SIMPLE_DEV_PM_OPS(pm8xxx_kp_pm_ops,
-			 pmic8xxx_kp_suspend, pmic8xxx_kp_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(pm8xxx_kp_pm_ops,
+				pmic8xxx_kp_suspend, pmic8xxx_kp_resume);
 
 static const struct of_device_id pm8xxx_match_table[] = {
 	{ .compatible = "qcom,pm8058-keypad" },
@@ -677,7 +675,7 @@ static struct platform_driver pmic8xxx_kp_driver = {
 	.probe		= pmic8xxx_kp_probe,
 	.driver		= {
 		.name = "pm8xxx-keypad",
-		.pm = &pm8xxx_kp_pm_ops,
+		.pm = pm_sleep_ptr(&pm8xxx_kp_pm_ops),
 		.of_match_table = pm8xxx_match_table,
 	},
 };

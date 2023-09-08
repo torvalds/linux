@@ -130,6 +130,7 @@ ssize_t iomap_dio_complete(struct iomap_dio *dio)
 	if (ret > 0)
 		ret += dio->done_before;
 
+	trace_iomap_dio_complete(iocb, dio->error, ret);
 	kfree(dio);
 
 	return ret;
@@ -217,16 +218,10 @@ static inline blk_opf_t iomap_dio_bio_opflags(struct iomap_dio *dio,
 {
 	blk_opf_t opflags = REQ_SYNC | REQ_IDLE;
 
-	if (!(dio->flags & IOMAP_DIO_WRITE)) {
-		WARN_ON_ONCE(iomap->flags & IOMAP_F_ZONE_APPEND);
+	if (!(dio->flags & IOMAP_DIO_WRITE))
 		return REQ_OP_READ;
-	}
 
-	if (iomap->flags & IOMAP_F_ZONE_APPEND)
-		opflags |= REQ_OP_ZONE_APPEND;
-	else
-		opflags |= REQ_OP_WRITE;
-
+	opflags |= REQ_OP_WRITE;
 	if (use_fua)
 		opflags |= REQ_FUA;
 	else
@@ -240,7 +235,6 @@ static loff_t iomap_dio_bio_iter(const struct iomap_iter *iter,
 {
 	const struct iomap *iomap = &iter->iomap;
 	struct inode *inode = iter->inode;
-	unsigned int blkbits = blksize_bits(bdev_logical_block_size(iomap->bdev));
 	unsigned int fs_block_size = i_blocksize(inode), pad;
 	loff_t length = iomap_length(iter);
 	loff_t pos = iter->pos;
@@ -252,7 +246,7 @@ static loff_t iomap_dio_bio_iter(const struct iomap_iter *iter,
 	size_t copied = 0;
 	size_t orig_count;
 
-	if ((pos | length) & ((1 << blkbits) - 1) ||
+	if ((pos | length) & (bdev_logical_block_size(iomap->bdev) - 1) ||
 	    !bdev_iter_is_aligned(iomap->bdev, dio->submit.iter))
 		return -EINVAL;
 
@@ -500,6 +494,8 @@ __iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 	struct blk_plug plug;
 	struct iomap_dio *dio;
 
+	trace_iomap_dio_rw_begin(iocb, iter, dio_flags, done_before);
+
 	if (!iomi.len)
 		return NULL;
 
@@ -548,7 +544,7 @@ __iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 		}
 
 		/* for data sync or sync, we need sync completion processing */
-		if (iocb_is_dsync(iocb) && !(dio_flags & IOMAP_DIO_NOSYNC)) {
+		if (iocb_is_dsync(iocb)) {
 			dio->flags |= IOMAP_DIO_NEED_SYNC;
 
 		       /*
@@ -657,8 +653,10 @@ __iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 	 */
 	dio->wait_for_completion = wait_for_completion;
 	if (!atomic_dec_and_test(&dio->ref)) {
-		if (!wait_for_completion)
+		if (!wait_for_completion) {
+			trace_iomap_dio_rw_queued(inode, iomi.pos, iomi.len);
 			return ERR_PTR(-EIOCBQUEUED);
+		}
 
 		for (;;) {
 			set_current_state(TASK_UNINTERRUPTIBLE);

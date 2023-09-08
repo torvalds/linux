@@ -1438,6 +1438,8 @@ struct pll_calc_map {
 enum {
 	RT5682S_SUPPLY_AVDD,
 	RT5682S_SUPPLY_MICVDD,
+	RT5682S_SUPPLY_DBVDD,
+	RT5682S_SUPPLY_LDO1_IN,
 	RT5682S_NUM_SUPPLIES,
 };
 
@@ -1470,6 +1472,7 @@ struct rt5682s_priv {
 	int pll_comb;
 
 	int jack_type;
+	unsigned int irq;
 	int irq_work_delay_time;
 	int wclk_enabled;
 };

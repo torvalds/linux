@@ -31,7 +31,7 @@ Mandatory parameters:
 
 Optional parameter:
 
-    <underyling sectors>:
+    <underlying sectors>:
         Number of sectors defining the logical block size of <dev path>.
         2^N supported, e.g. 8 = emulate 8 sectors of 512 bytes = 4KiB.
         If not provided, the logical block size of <dev path> will be used.

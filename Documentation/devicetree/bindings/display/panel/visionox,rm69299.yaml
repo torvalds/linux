@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/display/panel/visionox,rm69299.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Visionox model RM69299 Panels Device Tree Bindings.
+title: Visionox model RM69299 Panels
 
 maintainers:
   - Harigovindan P <harigovi@codeaurora.org>
@@ -18,6 +18,8 @@ allOf:
 properties:
   compatible:
     const: visionox,rm69299-1080p-display
+
+  reg: true
 
   vdda-supply:
     description: |
@@ -34,6 +36,7 @@ additionalProperties: false
 
 required:
   - compatible
+  - reg
   - vdda-supply
   - vdd3p3-supply
   - reset-gpios
@@ -41,16 +44,22 @@ required:
 
 examples:
   - |
-    panel {
-        compatible = "visionox,rm69299-1080p-display";
+    dsi {
+        #address-cells = <1>;
+        #size-cells = <0>;
 
-        vdda-supply = <&src_pp1800_l8c>;
-        vdd3p3-supply = <&src_pp2800_l18a>;
+        panel@0 {
+            compatible = "visionox,rm69299-1080p-display";
+            reg = <0>;
 
-        reset-gpios = <&pm6150l_gpio 3 0>;
-        port {
-            panel0_in: endpoint {
-                remote-endpoint = <&dsi0_out>;
+            vdda-supply = <&src_pp1800_l8c>;
+            vdd3p3-supply = <&src_pp2800_l18a>;
+
+            reset-gpios = <&pm6150l_gpio 3 0>;
+            port {
+                panel0_in: endpoint {
+                    remote-endpoint = <&dsi0_out>;
+                };
             };
         };
     };

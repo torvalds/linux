@@ -44,11 +44,11 @@ examples:
         #size-cells = <0>;
 
         adc@2f {
-                compatible = "adi,ad7091r5";
-                reg = <0x2f>;
+            compatible = "adi,ad7091r5";
+            reg = <0x2f>;
 
-                interrupts = <25 IRQ_TYPE_EDGE_FALLING>;
-                interrupt-parent = <&gpio>;
+            interrupts = <25 IRQ_TYPE_EDGE_FALLING>;
+            interrupt-parent = <&gpio>;
         };
     };
 ...

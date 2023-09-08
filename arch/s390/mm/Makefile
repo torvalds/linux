@@ -10,6 +10,3 @@ obj-$(CONFIG_CMM)		+= cmm.o
 obj-$(CONFIG_HUGETLB_PAGE)	+= hugetlbpage.o
 obj-$(CONFIG_PTDUMP_CORE)	+= dump_pagetables.o
 obj-$(CONFIG_PGSTE)		+= gmap.o
-
-KASAN_SANITIZE_kasan_init.o	:= n
-obj-$(CONFIG_KASAN)		+= kasan_init.o

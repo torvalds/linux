@@ -74,16 +74,6 @@ gp102_sec2_acr_bootstrap_falcon(struct nvkm_falcon *falcon,
 				     msecs_to_jiffies(1000));
 }
 
-static int
-gp102_sec2_acr_boot(struct nvkm_falcon *falcon)
-{
-	struct nv_sec2_args args = {};
-	nvkm_falcon_load_dmem(falcon, &args,
-			      falcon->func->emem_addr, sizeof(args), 0);
-	nvkm_falcon_start(falcon);
-	return 0;
-}
-
 static void
 gp102_sec2_acr_bld_patch(struct nvkm_acr *acr, u32 bld, s64 adjust)
 {
@@ -122,7 +112,6 @@ gp102_sec2_acr_0 = {
 	.bld_size = sizeof(struct loader_config_v1),
 	.bld_write = gp102_sec2_acr_bld_write,
 	.bld_patch = gp102_sec2_acr_bld_patch,
-	.boot = gp102_sec2_acr_boot,
 	.bootstrap_falcons = BIT_ULL(NVKM_ACR_LSF_FECS) |
 			     BIT_ULL(NVKM_ACR_LSF_GPCCS) |
 			     BIT_ULL(NVKM_ACR_LSF_SEC2),
@@ -160,89 +149,68 @@ gp102_sec2_initmsg(struct nvkm_sec2 *sec2)
 	return 0;
 }
 
-void
-gp102_sec2_intr(struct nvkm_sec2 *sec2)
+irqreturn_t
+gp102_sec2_intr(struct nvkm_inth *inth)
 {
+	struct nvkm_sec2 *sec2 = container_of(inth, typeof(*sec2), engine.subdev.inth);
 	struct nvkm_subdev *subdev = &sec2->engine.subdev;
 	struct nvkm_falcon *falcon = &sec2->falcon;
 	u32 disp = nvkm_falcon_rd32(falcon, 0x01c);
 	u32 intr = nvkm_falcon_rd32(falcon, 0x008) & disp & ~(disp >> 16);
 
 	if (intr & 0x00000040) {
-		schedule_work(&sec2->work);
+		if (unlikely(atomic_read(&sec2->initmsg) == 0)) {
+			int ret = sec2->func->initmsg(sec2);
+
+			if (ret)
+				nvkm_error(subdev, "error parsing init message: %d\n", ret);
+
+			atomic_set(&sec2->initmsg, ret ?: 1);
+		}
+
+		if (atomic_read(&sec2->initmsg) > 0) {
+			if (!nvkm_falcon_msgq_empty(sec2->msgq))
+				nvkm_falcon_msgq_recv(sec2->msgq);
+		}
+
 		nvkm_falcon_wr32(falcon, 0x004, 0x00000040);
 		intr &= ~0x00000040;
+	}
+
+	if (intr & 0x00000010) {
+		if (atomic_read(&sec2->running)) {
+			FLCN_ERR(falcon, "halted");
+			gm200_flcn_tracepc(falcon);
+		}
+
+		nvkm_falcon_wr32(falcon, 0x004, 0x00000010);
+		intr &= ~0x00000010;
 	}
 
 	if (intr) {
 		nvkm_error(subdev, "unhandled intr %08x\n", intr);
 		nvkm_falcon_wr32(falcon, 0x004, intr);
 	}
-}
 
-int
-gp102_sec2_flcn_enable(struct nvkm_falcon *falcon)
-{
-	nvkm_falcon_mask(falcon, 0x3c0, 0x00000001, 0x00000001);
-	udelay(10);
-	nvkm_falcon_mask(falcon, 0x3c0, 0x00000001, 0x00000000);
-	return nvkm_falcon_v1_enable(falcon);
-}
-
-void
-gp102_sec2_flcn_bind_context(struct nvkm_falcon *falcon,
-			     struct nvkm_memory *ctx)
-{
-	struct nvkm_device *device = falcon->owner->device;
-
-	nvkm_falcon_v1_bind_context(falcon, ctx);
-	if (!ctx)
-		return;
-
-	/* Not sure if this is a WAR for a HW issue, or some additional
-	 * programming sequence that's needed to properly complete the
-	 * context switch we trigger above.
-	 *
-	 * Fixes unreliability of booting the SEC2 RTOS on Quadro P620,
-	 * particularly when resuming from suspend.
-	 *
-	 * Also removes the need for an odd workaround where we needed
-	 * to program SEC2's FALCON_CPUCTL_ALIAS_STARTCPU twice before
-	 * the SEC2 RTOS would begin executing.
-	 */
-	nvkm_msec(device, 10,
-		u32 irqstat = nvkm_falcon_rd32(falcon, 0x008);
-		u32 flcn0dc = nvkm_falcon_rd32(falcon, 0x0dc);
-		if ((irqstat & 0x00000008) &&
-		    (flcn0dc & 0x00007000) == 0x00005000)
-			break;
-	);
-
-	nvkm_falcon_mask(falcon, 0x004, 0x00000008, 0x00000008);
-	nvkm_falcon_mask(falcon, 0x058, 0x00000002, 0x00000002);
-
-	nvkm_msec(device, 10,
-		u32 flcn0dc = nvkm_falcon_rd32(falcon, 0x0dc);
-		if ((flcn0dc & 0x00007000) == 0x00000000)
-			break;
-	);
+	return IRQ_HANDLED;
 }
 
 static const struct nvkm_falcon_func
 gp102_sec2_flcn = {
+	.disable = gm200_flcn_disable,
+	.enable = gm200_flcn_enable,
+	.reset_pmc = true,
+	.reset_eng = gp102_flcn_reset_eng,
+	.reset_wait_mem_scrubbing = gm200_flcn_reset_wait_mem_scrubbing,
 	.debug = 0x408,
-	.fbif = 0x600,
-	.load_imem = nvkm_falcon_v1_load_imem,
-	.load_dmem = nvkm_falcon_v1_load_dmem,
-	.read_dmem = nvkm_falcon_v1_read_dmem,
+	.bind_inst = gm200_flcn_bind_inst,
+	.bind_stat = gm200_flcn_bind_stat,
+	.bind_intr = true,
+	.imem_pio = &gm200_flcn_imem_pio,
+	.dmem_pio = &gm200_flcn_dmem_pio,
 	.emem_addr = 0x01000000,
-	.bind_context = gp102_sec2_flcn_bind_context,
-	.wait_for_halt = nvkm_falcon_v1_wait_for_halt,
-	.clear_interrupt = nvkm_falcon_v1_clear_interrupt,
-	.set_start_addr = nvkm_falcon_v1_set_start_addr,
+	.emem_pio = &gp102_flcn_emem_pio,
 	.start = nvkm_falcon_v1_start,
-	.enable = gp102_sec2_flcn_enable,
-	.disable = nvkm_falcon_v1_disable,
 	.cmdq = { 0xa00, 0xa04, 8 },
 	.msgq = { 0xa30, 0xa34, 8 },
 };
@@ -250,6 +218,7 @@ gp102_sec2_flcn = {
 const struct nvkm_sec2_func
 gp102_sec2 = {
 	.flcn = &gp102_sec2_flcn,
+	.unit_unload = NV_SEC2_UNIT_UNLOAD,
 	.unit_acr = NV_SEC2_UNIT_ACR,
 	.intr = gp102_sec2_intr,
 	.initmsg = gp102_sec2_initmsg,
@@ -268,7 +237,7 @@ MODULE_FIRMWARE("nvidia/gp107/sec2/desc.bin");
 MODULE_FIRMWARE("nvidia/gp107/sec2/image.bin");
 MODULE_FIRMWARE("nvidia/gp107/sec2/sig.bin");
 
-static void
+void
 gp102_sec2_acr_bld_patch_1(struct nvkm_acr *acr, u32 bld, s64 adjust)
 {
 	struct flcn_bl_dmem_desc_v2 hdr;
@@ -279,7 +248,7 @@ gp102_sec2_acr_bld_patch_1(struct nvkm_acr *acr, u32 bld, s64 adjust)
 	flcn_bl_dmem_desc_v2_dump(&acr->subdev, &hdr);
 }
 
-static void
+void
 gp102_sec2_acr_bld_write_1(struct nvkm_acr *acr, u32 bld,
 			   struct nvkm_acr_lsfw *lsfw)
 {
@@ -304,7 +273,6 @@ gp102_sec2_acr_1 = {
 	.bld_size = sizeof(struct flcn_bl_dmem_desc_v2),
 	.bld_write = gp102_sec2_acr_bld_write_1,
 	.bld_patch = gp102_sec2_acr_bld_patch_1,
-	.boot = gp102_sec2_acr_boot,
 	.bootstrap_falcons = BIT_ULL(NVKM_ACR_LSF_FECS) |
 			     BIT_ULL(NVKM_ACR_LSF_GPCCS) |
 			     BIT_ULL(NVKM_ACR_LSF_SEC2),

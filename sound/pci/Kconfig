@@ -461,7 +461,7 @@ config SND_INDIGODJX
 	  will be called snd-indigodjx
 
 config SND_EMU10K1
-	tristate "Emu10k1 (SB Live!, Audigy, E-mu APS)"
+	tristate "Emu10k1 (SB Live!, Audigy, E-MU APS/0404/1010/1212/1616/1820)"
 	select FW_LOADER
 	select SND_HWDEP
 	select SND_RAWMIDI
@@ -471,7 +471,7 @@ config SND_EMU10K1
 	depends on ZONE_DMA
 	help
 	  Say Y to include support for Sound Blaster PCI 512, Live!,
-	  Audigy and E-mu APS (partially supported) soundcards.
+	  Audigy and E-MU APS/0404/1010/1212/1616/1820 soundcards.
 
 	  The confusing multitude of mixer controls is documented in
 	  <file:Documentation/sound/cards/sb-live-mixer.rst> and

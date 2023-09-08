@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2001 Sistina Software (UK) Limited
  *
@@ -84,14 +85,18 @@ int dm_register_target(struct target_type *tt)
 	int rv = 0;
 
 	down_write(&_lock);
-	if (__find_target_type(tt->name))
+	if (__find_target_type(tt->name)) {
+		DMERR("%s: '%s' target already registered",
+		      __func__, tt->name);
 		rv = -EEXIST;
-	else
+	} else {
 		list_add(&tt->list, &_targets);
-
+	}
 	up_write(&_lock);
+
 	return rv;
 }
+EXPORT_SYMBOL(dm_register_target);
 
 void dm_unregister_target(struct target_type *tt)
 {
@@ -105,6 +110,7 @@ void dm_unregister_target(struct target_type *tt)
 
 	up_write(&_lock);
 }
+EXPORT_SYMBOL(dm_unregister_target);
 
 /*
  * io-err: always fails an io, useful for bringing
@@ -116,6 +122,7 @@ static int io_err_ctr(struct dm_target *tt, unsigned int argc, char **args)
 	 * Return error for discards instead of -EOPNOTSUPP
 	 */
 	tt->num_discard_bios = 1;
+	tt->discards_supported = true;
 
 	return 0;
 }
@@ -142,6 +149,13 @@ static void io_err_release_clone_rq(struct request *clone,
 {
 }
 
+static void io_err_io_hints(struct dm_target *ti, struct queue_limits *limits)
+{
+	limits->max_discard_sectors = UINT_MAX;
+	limits->max_hw_discard_sectors = UINT_MAX;
+	limits->discard_granularity = 512;
+}
+
 static long io_err_dax_direct_access(struct dm_target *ti, pgoff_t pgoff,
 		long nr_pages, enum dax_access_mode mode, void **kaddr,
 		pfn_t *pfn)
@@ -151,13 +165,14 @@ static long io_err_dax_direct_access(struct dm_target *ti, pgoff_t pgoff,
 
 static struct target_type error_target = {
 	.name = "error",
-	.version = {1, 5, 0},
+	.version = {1, 6, 0},
 	.features = DM_TARGET_WILDCARD,
 	.ctr  = io_err_ctr,
 	.dtr  = io_err_dtr,
 	.map  = io_err_map,
 	.clone_and_map_rq = io_err_clone_and_map_rq,
 	.release_clone_rq = io_err_release_clone_rq,
+	.io_hints = io_err_io_hints,
 	.direct_access = io_err_dax_direct_access,
 };
 
@@ -170,6 +185,3 @@ void dm_target_exit(void)
 {
 	dm_unregister_target(&error_target);
 }
-
-EXPORT_SYMBOL(dm_register_target);
-EXPORT_SYMBOL(dm_unregister_target);

@@ -24,6 +24,7 @@ config LINEAR_RANGES
 
 config PACKING
 	bool "Generic bitfield packing and unpacking"
+	select BITREVERSE
 	default n
 	help
 	  This option provides the packing() helper function, which permits
@@ -91,6 +92,7 @@ config ARCH_USE_SYM_ANNOTATIONS
 config INDIRECT_PIO
 	bool "Access I/O in non-MMIO mode"
 	depends on ARM64
+	depends on HAS_IOPORT
 	help
 	  On some platforms where no separate I/O space exists, there are I/O
 	  hosts which can not be accessed in MMIO mode. Using the logical PIO
@@ -479,6 +481,10 @@ config INTERVAL_TREE
 
 	  for more information.
 
+config INTERVAL_TREE_SPAN_ITER
+	bool
+	depends on INTERVAL_TREE
+
 config XARRAY_MULTI
 	bool
 	help
@@ -503,6 +509,9 @@ config HAS_IOMEM
 	bool
 	depends on !NO_IOMEM
 	default y
+
+config HAS_IOPORT
+	bool
 
 config HAS_IOPORT_MAP
 	bool
@@ -529,8 +538,8 @@ config CPUMASK_OFFSTACK
 	  stack overflow.
 
 config FORCE_NR_CPUS
-       bool "NR_CPUS is set to an actual number of CPUs"
-       depends on SMP
+       bool "Set number of CPUs at compile time"
+       depends on SMP && EXPERT && !COMPILE_TEST
        help
          Say Yes if you have NR_CPUS set to an actual number of possible
          CPUs in your system, not to a default value. This forces the core
@@ -670,6 +679,9 @@ config ARCH_HAS_PMEM_API
 	bool
 
 config MEMREGION
+	bool
+
+config ARCH_HAS_CPU_CACHE_INVALIDATE_MEMREGION
 	bool
 
 config ARCH_HAS_MEMREMAP_COMPAT_ALIGN

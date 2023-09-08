@@ -2,10 +2,10 @@
 /* Copyright (C) 2020 MediaTek Inc. */
 
 #include <linux/etherdevice.h>
+#include <linux/firmware.h>
 #include "mt7921.h"
-#include "mac.h"
+#include "../mt76_connac2_mac.h"
 #include "mcu.h"
-#include "eeprom.h"
 
 static const struct ieee80211_iface_limit if_limits[] = {
 	{
@@ -25,6 +25,29 @@ static const struct ieee80211_iface_combination if_comb[] = {
 		.max_interfaces = MT7921_MAX_INTERFACES,
 		.num_different_channels = 1,
 		.beacon_int_infra_match = true,
+	},
+};
+
+static const struct ieee80211_iface_limit if_limits_chanctx[] = {
+	{
+		.max = 2,
+		.types = BIT(NL80211_IFTYPE_STATION) |
+			 BIT(NL80211_IFTYPE_P2P_CLIENT)
+	},
+	{
+		.max = 1,
+		.types = BIT(NL80211_IFTYPE_AP) |
+			 BIT(NL80211_IFTYPE_P2P_GO)
+	}
+};
+
+static const struct ieee80211_iface_combination if_comb_chanctx[] = {
+	{
+		.limits = if_limits_chanctx,
+		.n_limits = ARRAY_SIZE(if_limits_chanctx),
+		.max_interfaces = 2,
+		.num_different_channels = 2,
+		.beacon_int_infra_match = false,
 	}
 };
 
@@ -37,6 +60,7 @@ mt7921_regd_notifier(struct wiphy *wiphy,
 
 	memcpy(dev->mt76.alpha2, request->alpha2, sizeof(dev->mt76.alpha2));
 	dev->mt76.region = request->dfs_region;
+	dev->country_ie_env = request->country_ie_env;
 
 	mt7921_mutex_acquire(dev);
 	mt7921_mcu_set_clc(dev, request->alpha2, request->country_ie_env);
@@ -65,12 +89,22 @@ mt7921_init_wiphy(struct ieee80211_hw *hw)
 	hw->sta_data_size = sizeof(struct mt7921_sta);
 	hw->vif_data_size = sizeof(struct mt7921_vif);
 
-	wiphy->iface_combinations = if_comb;
+	if (dev->fw_features & MT7921_FW_CAP_CNM) {
+		wiphy->flags |= WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL;
+		wiphy->iface_combinations = if_comb_chanctx;
+		wiphy->n_iface_combinations = ARRAY_SIZE(if_comb_chanctx);
+	} else {
+		wiphy->flags &= ~WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL;
+		wiphy->iface_combinations = if_comb;
+		wiphy->n_iface_combinations = ARRAY_SIZE(if_comb);
+	}
 	wiphy->flags &= ~(WIPHY_FLAG_IBSS_RSN | WIPHY_FLAG_4ADDR_AP |
 			  WIPHY_FLAG_4ADDR_STATION);
 	wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) |
-				 BIT(NL80211_IFTYPE_AP);
-	wiphy->n_iface_combinations = ARRAY_SIZE(if_comb);
+				 BIT(NL80211_IFTYPE_AP) |
+				 BIT(NL80211_IFTYPE_P2P_CLIENT) |
+				 BIT(NL80211_IFTYPE_P2P_GO);
+	wiphy->max_remain_on_channel_duration = 5000;
 	wiphy->max_scan_ie_len = MT76_CONNAC_SCAN_IE_LEN;
 	wiphy->max_scan_ssids = 4;
 	wiphy->max_sched_scan_plan_interval =
@@ -89,6 +123,8 @@ mt7921_init_wiphy(struct ieee80211_hw *hw)
 	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_BEACON_RATE_HT);
 	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_BEACON_RATE_VHT);
 	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_BEACON_RATE_HE);
+	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_ACK_SIGNAL_SUPPORT);
+	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_CAN_REPLACE_PTK0);
 
 	ieee80211_hw_set(hw, SINGLE_SCAN_ON_ALL_BANDS);
 	ieee80211_hw_set(hw, HAS_RATE_CONTROL);
@@ -111,6 +147,8 @@ mt7921_init_wiphy(struct ieee80211_hw *hw)
 static void
 mt7921_mac_init_band(struct mt7921_dev *dev, u8 band)
 {
+	u32 mask, set;
+
 	mt76_rmw_field(dev, MT_TMAC_CTCR0(band),
 		       MT_TMAC_CTCR0_INS_DDLMT_REFTIME, 0x3f);
 	mt76_set(dev, MT_TMAC_CTCR0(band),
@@ -127,7 +165,94 @@ mt7921_mac_init_band(struct mt7921_dev *dev, u8 band)
 	mt76_rmw_field(dev, MT_DMA_DCR0(band), MT_DMA_DCR0_MAX_RX_LEN, 1536);
 	/* disable rx rate report by default due to hw issues */
 	mt76_clear(dev, MT_DMA_DCR0(band), MT_DMA_DCR0_RXD_G5_EN);
+
+	/* filter out non-resp frames and get instantaneous signal reporting */
+	mask = MT_WTBLOFF_TOP_RSCR_RCPI_MODE | MT_WTBLOFF_TOP_RSCR_RCPI_PARAM;
+	set = FIELD_PREP(MT_WTBLOFF_TOP_RSCR_RCPI_MODE, 0) |
+	      FIELD_PREP(MT_WTBLOFF_TOP_RSCR_RCPI_PARAM, 0x3);
+	mt76_rmw(dev, MT_WTBLOFF_TOP_RSCR(band), mask, set);
 }
+
+static u8
+mt7921_get_offload_capability(struct device *dev, const char *fw_wm)
+{
+	const struct mt76_connac2_fw_trailer *hdr;
+	struct mt7921_realease_info *rel_info;
+	const struct firmware *fw;
+	int ret, i, offset = 0;
+	const u8 *data, *end;
+	u8 offload_caps = 0;
+
+	ret = request_firmware(&fw, fw_wm, dev);
+	if (ret)
+		return ret;
+
+	if (!fw || !fw->data || fw->size < sizeof(*hdr)) {
+		dev_err(dev, "Invalid firmware\n");
+		goto out;
+	}
+
+	data = fw->data;
+	hdr = (const void *)(fw->data + fw->size - sizeof(*hdr));
+
+	for (i = 0; i < hdr->n_region; i++) {
+		const struct mt76_connac2_fw_region *region;
+
+		region = (const void *)((const u8 *)hdr -
+					(hdr->n_region - i) * sizeof(*region));
+		offset += le32_to_cpu(region->len);
+	}
+
+	data += offset + 16;
+	rel_info = (struct mt7921_realease_info *)data;
+	data += sizeof(*rel_info);
+	end = data + le16_to_cpu(rel_info->len);
+
+	while (data < end) {
+		rel_info = (struct mt7921_realease_info *)data;
+		data += sizeof(*rel_info);
+
+		if (rel_info->tag == MT7921_FW_TAG_FEATURE) {
+			struct mt7921_fw_features *features;
+
+			features = (struct mt7921_fw_features *)data;
+			offload_caps = features->data;
+			break;
+		}
+
+		data += le16_to_cpu(rel_info->len) + rel_info->pad_len;
+	}
+
+out:
+	release_firmware(fw);
+
+	return offload_caps;
+}
+
+struct ieee80211_ops *
+mt7921_get_mac80211_ops(struct device *dev, void *drv_data, u8 *fw_features)
+{
+	struct ieee80211_ops *ops;
+
+	ops = devm_kmemdup(dev, &mt7921_ops, sizeof(mt7921_ops), GFP_KERNEL);
+	if (!ops)
+		return NULL;
+
+	*fw_features = mt7921_get_offload_capability(dev, drv_data);
+	if (!(*fw_features & MT7921_FW_CAP_CNM)) {
+		ops->remain_on_channel = NULL;
+		ops->cancel_remain_on_channel = NULL;
+		ops->add_chanctx = NULL;
+		ops->remove_chanctx = NULL;
+		ops->change_chanctx = NULL;
+		ops->assign_vif_chanctx = NULL;
+		ops->unassign_vif_chanctx = NULL;
+		ops->mgd_prepare_tx = NULL;
+		ops->mgd_complete_tx = NULL;
+	}
+	return ops;
+}
+EXPORT_SYMBOL_GPL(mt7921_get_mac80211_ops);
 
 int mt7921_mac_init(struct mt7921_dev *dev)
 {
@@ -144,8 +269,6 @@ int mt7921_mac_init(struct mt7921_dev *dev)
 				       MT_WTBL_UPDATE_ADM_COUNT_CLEAR);
 	for (i = 0; i < 2; i++)
 		mt7921_mac_init_band(dev, i);
-
-	dev->mt76.rxfilter = mt76_rr(dev, MT_WF_RFCR(0));
 
 	return mt76_connac_mcu_set_rts_thresh(&dev->mt76, 0x92b, 0);
 }
@@ -277,6 +400,10 @@ int mt7921_register_device(struct mt7921_dev *dev)
 
 	INIT_WORK(&dev->reset_work, mt7921_mac_reset_work);
 	INIT_WORK(&dev->init_work, mt7921_init_work);
+
+	INIT_WORK(&dev->phy.roc_work, mt7921_roc_work);
+	timer_setup(&dev->phy.roc_timer, mt7921_roc_timer, 0);
+	init_waitqueue_head(&dev->phy.roc_wait);
 
 	dev->pm.idle_timeout = MT7921_PM_TIMEOUT;
 	dev->pm.stats.last_wake_event = jiffies;

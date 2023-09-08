@@ -344,7 +344,7 @@ def get_algorithm(name):
 
 
 def hex_dump(d):
-    d = [format(ord(x), '02x') for x in d]
+    d = [format(x, '02x') for x in d]
     d = [d[i: i + 16] for i in range(0, len(d), 16)]
     d = [' '.join(x) for x in d]
     d = os.linesep.join(d)

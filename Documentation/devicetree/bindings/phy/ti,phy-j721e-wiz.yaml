@@ -2,8 +2,8 @@
 # Copyright (C) 2019 Texas Instruments Incorporated - http://www.ti.com/
 %YAML 1.2
 ---
-$id: "http://devicetree.org/schemas/phy/ti,phy-j721e-wiz.yaml#"
-$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+$id: http://devicetree.org/schemas/phy/ti,phy-j721e-wiz.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
 
 title: TI J721E WIZ (SERDES Wrapper)
 
@@ -15,8 +15,10 @@ properties:
     enum:
       - ti,j721e-wiz-16g
       - ti,j721e-wiz-10g
+      - ti,j721s2-wiz-10g
       - ti,am64-wiz-10g
       - ti,j7200-wiz-10g
+      - ti,j784s4-wiz-10g
 
   power-domains:
     maxItems: 1
@@ -51,18 +53,6 @@ properties:
     const: 1
 
   ranges: true
-
-  assigned-clocks:
-    minItems: 1
-    maxItems: 2
-
-  assigned-clock-parents:
-    minItems: 1
-    maxItems: 2
-
-  assigned-clock-rates:
-    minItems: 1
-    maxItems: 2
 
   typec-dir-gpios:
     maxItems: 1
@@ -99,6 +89,9 @@ properties:
       "#clock-cells":
         const: 0
 
+      clock-output-names:
+        maxItems: 1
+
       assigned-clocks:
         maxItems: 1
 
@@ -132,6 +125,9 @@ patternProperties:
       "#clock-cells":
         const: 0
 
+      clock-output-names:
+        maxItems: 1
+
       assigned-clocks:
         maxItems: 1
 
@@ -159,6 +155,9 @@ patternProperties:
 
       "#clock-cells":
         const: 0
+
+      clock-output-names:
+        maxItems: 1
 
     required:
       - clocks

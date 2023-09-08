@@ -47,9 +47,6 @@
 
 #define HSR_V1_SUP_LSDUSIZE		52
 
-#define HSR_HSIZE_SHIFT	8
-#define HSR_HSIZE	BIT(HSR_HSIZE_SHIFT)
-
 /* The helper functions below assumes that 'path' occupies the 4 most
  * significant bits of the 16-bit field shared by 'path' and 'LSDU_size' (or
  * equivalently, the 4 most significant bits of HSR tag byte 14).
@@ -185,11 +182,17 @@ struct hsr_proto_ops {
 	void (*update_san_info)(struct hsr_node *node, bool is_sup);
 };
 
+struct hsr_self_node {
+	unsigned char	macaddress_A[ETH_ALEN];
+	unsigned char	macaddress_B[ETH_ALEN];
+	struct rcu_head	rcu_head;
+};
+
 struct hsr_priv {
 	struct rcu_head		rcu_head;
 	struct list_head	ports;
-	struct hlist_head	node_db[HSR_HSIZE];	/* Known HSR nodes */
-	struct hlist_head	self_node_db;	/* MACs of slaves */
+	struct list_head	node_db;	/* Known HSR nodes */
+	struct hsr_self_node	__rcu *self_node;	/* MACs of slaves */
 	struct timer_list	announce_timer;	/* Supervision frame dispatch */
 	struct timer_list	prune_timer;
 	int announce_count;
@@ -199,8 +202,6 @@ struct hsr_priv {
 	spinlock_t seqnr_lock;	/* locking for sequence_nr */
 	spinlock_t list_lock;	/* locking for node list */
 	struct hsr_proto_ops	*proto_ops;
-	u32 hash_buckets;
-	u32 hash_seed;
 #define PRP_LAN_ID	0x5     /* 0x1010 for A and 0x1011 for B. Bit 0 is set
 				 * based on SLAVE_A or SLAVE_B
 				 */

@@ -85,7 +85,7 @@ mt7603_ampdu_stat_show(struct seq_file *file, void *data)
 			   bound[i], bound[i + 1]);
 	seq_puts(file, "\nCount:  ");
 	for (i = 0; i < ARRAY_SIZE(bound); i++)
-		seq_printf(file, "%8d | ", dev->mt76.aggr_stats[i]);
+		seq_printf(file, "%8d | ", dev->mphy.aggr_stats[i]);
 	seq_puts(file, "\n");
 
 	return 0;

@@ -2,7 +2,6 @@
 /* Copyright (C) 2020 MediaTek Inc. */
 
 #include "mt7921.h"
-#include "eeprom.h"
 
 static int
 mt7921_reg_set(void *data, u64 val)
@@ -85,7 +84,7 @@ mt7921_ampdu_stat_read_phy(struct mt7921_phy *phy,
 
 	seq_puts(file, "\nCount:  ");
 	for (i = 0; i < ARRAY_SIZE(bound); i++)
-		seq_printf(file, "%8d | ", dev->mt76.aggr_stats[i]);
+		seq_printf(file, "%8d | ", phy->mt76->aggr_stats[i]);
 	seq_puts(file, "\n");
 
 	seq_printf(file, "BA miss count: %d\n", phy->mib.ba_miss_cnt);

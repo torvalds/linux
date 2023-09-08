@@ -10,11 +10,19 @@
 ksft_skip=4
 
 testns=testns-$(mktemp -u "XXXXXXXX")
+tmp=""
 
 tables="foo bar baz quux"
 global_ret=0
 eret=0
 lret=0
+
+cleanup() {
+	ip netns pids "$testns" | xargs kill 2>/dev/null
+	ip netns del "$testns"
+
+	rm -f "$tmp"
+}
 
 check_result()
 {
@@ -43,6 +51,7 @@ if [ $? -ne 0 ];then
 	exit $ksft_skip
 fi
 
+trap cleanup EXIT
 tmp=$(mktemp)
 
 for table in $tables; do
@@ -138,12 +147,5 @@ for i in $(seq 1 10) ; do
 done
 
 check_result $lret "add/delete with nftrace enabled"
-
-pkill -9 ping
-
-wait
-
-rm -f "$tmp"
-ip netns del "$testns"
 
 exit $global_ret

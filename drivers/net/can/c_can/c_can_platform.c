@@ -290,8 +290,7 @@ static int c_can_plat_probe(struct platform_device *pdev)
 		goto exit;
 	}
 
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	addr = devm_ioremap_resource(&pdev->dev, mem);
+	addr = devm_platform_get_and_ioremap_resource(pdev, 0, &mem);
 	if (IS_ERR(addr)) {
 		ret =  PTR_ERR(addr);
 		goto exit;

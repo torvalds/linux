@@ -620,7 +620,7 @@ out:
 
 static DEF_SCSI_QCMD(mts_scsi_queuecommand)
 
-static struct scsi_host_template mts_scsi_host_template = {
+static const struct scsi_host_template mts_scsi_host_template = {
 	.module			= THIS_MODULE,
 	.name			= "microtekX6",
 	.proc_name		= "microtekX6",

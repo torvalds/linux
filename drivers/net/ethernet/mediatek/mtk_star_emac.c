@@ -1378,9 +1378,6 @@ static int mtk_star_mdio_read(struct mii_bus *mii, int phy_id, int regnum)
 	unsigned int val, data;
 	int ret;
 
-	if (regnum & MII_ADDR_C45)
-		return -EOPNOTSUPP;
-
 	mtk_star_mdio_rwok_clear(priv);
 
 	val = (regnum << MTK_STAR_OFF_PHY_CTRL0_PREG);
@@ -1406,9 +1403,6 @@ static int mtk_star_mdio_write(struct mii_bus *mii, int phy_id,
 {
 	struct mtk_star_priv *priv = mii->priv;
 	unsigned int val;
-
-	if (regnum & MII_ADDR_C45)
-		return -EOPNOTSUPP;
 
 	mtk_star_mdio_rwok_clear(priv);
 

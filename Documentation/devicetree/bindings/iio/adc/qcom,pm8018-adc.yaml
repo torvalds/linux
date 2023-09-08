@@ -160,7 +160,7 @@ examples:
             };
             ref_muxoff: adc-channel@f {
                 reg = <0x00 0x0f>;
-           };
+            };
         };
     };
 ...

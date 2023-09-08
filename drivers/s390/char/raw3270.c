@@ -30,6 +30,7 @@
 #include <linux/mutex.h>
 
 struct class *class3270;
+EXPORT_SYMBOL(class3270);
 
 /* The main 3270 data structure. */
 struct raw3270 {
@@ -37,7 +38,8 @@ struct raw3270 {
 	struct ccw_device *cdev;
 	int minor;
 
-	short model, rows, cols;
+	int model, rows, cols;
+	int old_model, old_rows, old_cols;
 	unsigned int state;
 	unsigned long flags;
 
@@ -54,6 +56,7 @@ struct raw3270 {
 	struct raw3270_request init_readpart;
 	struct raw3270_request init_readmod;
 	unsigned char init_data[256];
+	struct work_struct resize_work;
 };
 
 /* raw3270->state */
@@ -89,6 +92,7 @@ module_param(tubxcorrect, bool, 0);
  * Wait queue for device init/delete, view delete.
  */
 DECLARE_WAIT_QUEUE_HEAD(raw3270_wait_queue);
+EXPORT_SYMBOL(raw3270_wait_queue);
 
 static void __raw3270_disconnect(struct raw3270 *rp);
 
@@ -111,15 +115,15 @@ static inline int raw3270_state_ready(struct raw3270 *rp)
 	return rp->state == RAW3270_STATE_READY;
 }
 
-static inline int raw3270_state_final(struct raw3270 *rp)
+void raw3270_buffer_address(struct raw3270 *rp, char *cp, int x, int y)
 {
-	return rp->state == RAW3270_STATE_INIT ||
-		rp->state == RAW3270_STATE_READY;
-}
+	int addr;
 
-void
-raw3270_buffer_address(struct raw3270 *rp, char *cp, unsigned short addr)
-{
+	if (x < 0)
+		x = max_t(int, 0, rp->view->cols + x);
+	if (y < 0)
+		y = max_t(int, 0, rp->view->rows + y);
+	addr = (y * rp->view->cols) + x;
 	if (test_bit(RAW3270_FLAGS_14BITADDR, &rp->flags)) {
 		cp[0] = (addr >> 8) & 0x3f;
 		cp[1] = addr & 0xff;
@@ -128,17 +132,17 @@ raw3270_buffer_address(struct raw3270 *rp, char *cp, unsigned short addr)
 		cp[1] = raw3270_ebcgraf[addr & 0x3f];
 	}
 }
+EXPORT_SYMBOL(raw3270_buffer_address);
 
 /*
  * Allocate a new 3270 ccw request
  */
-struct raw3270_request *
-raw3270_request_alloc(size_t size)
+struct raw3270_request *raw3270_request_alloc(size_t size)
 {
 	struct raw3270_request *rq;
 
 	/* Allocate request structure */
-	rq = kzalloc(sizeof(struct raw3270_request), GFP_KERNEL | GFP_DMA);
+	rq = kzalloc(sizeof(*rq), GFP_KERNEL | GFP_DMA);
 	if (!rq)
 		return ERR_PTR(-ENOMEM);
 
@@ -161,46 +165,48 @@ raw3270_request_alloc(size_t size)
 
 	return rq;
 }
+EXPORT_SYMBOL(raw3270_request_alloc);
 
 /*
  * Free 3270 ccw request
  */
-void
-raw3270_request_free (struct raw3270_request *rq)
+void raw3270_request_free(struct raw3270_request *rq)
 {
 	kfree(rq->buffer);
 	kfree(rq);
 }
+EXPORT_SYMBOL(raw3270_request_free);
 
 /*
  * Reset request to initial state.
  */
-void
-raw3270_request_reset(struct raw3270_request *rq)
+int raw3270_request_reset(struct raw3270_request *rq)
 {
-	BUG_ON(!list_empty(&rq->list));
+	if (WARN_ON_ONCE(!list_empty(&rq->list)))
+		return -EBUSY;
 	rq->ccw.cmd_code = 0;
 	rq->ccw.count = 0;
 	rq->ccw.cda = __pa(rq->buffer);
 	rq->ccw.flags = CCW_FLAG_SLI;
 	rq->rescnt = 0;
 	rq->rc = 0;
+	return 0;
 }
+EXPORT_SYMBOL(raw3270_request_reset);
 
 /*
  * Set command code to ccw of a request.
  */
-void
-raw3270_request_set_cmd(struct raw3270_request *rq, u8 cmd)
+void raw3270_request_set_cmd(struct raw3270_request *rq, u8 cmd)
 {
 	rq->ccw.cmd_code = cmd;
 }
+EXPORT_SYMBOL(raw3270_request_set_cmd);
 
 /*
  * Add data fragment to output buffer.
  */
-int
-raw3270_request_add_data(struct raw3270_request *rq, void *data, size_t size)
+int raw3270_request_add_data(struct raw3270_request *rq, void *data, size_t size)
 {
 	if (size + rq->ccw.count > rq->size)
 		return -E2BIG;
@@ -208,35 +214,35 @@ raw3270_request_add_data(struct raw3270_request *rq, void *data, size_t size)
 	rq->ccw.count += size;
 	return 0;
 }
+EXPORT_SYMBOL(raw3270_request_add_data);
 
 /*
  * Set address/length pair to ccw of a request.
  */
-void
-raw3270_request_set_data(struct raw3270_request *rq, void *data, size_t size)
+void raw3270_request_set_data(struct raw3270_request *rq, void *data, size_t size)
 {
 	rq->ccw.cda = __pa(data);
 	rq->ccw.count = size;
 }
+EXPORT_SYMBOL(raw3270_request_set_data);
 
 /*
  * Set idal buffer to ccw of a request.
  */
-void
-raw3270_request_set_idal(struct raw3270_request *rq, struct idal_buffer *ib)
+void raw3270_request_set_idal(struct raw3270_request *rq, struct idal_buffer *ib)
 {
 	rq->ccw.cda = __pa(ib->data);
 	rq->ccw.count = ib->size;
 	rq->ccw.flags |= CCW_FLAG_IDA;
 }
+EXPORT_SYMBOL(raw3270_request_set_idal);
 
 /*
  * Add the request to the request queue, try to start it if the
  * 3270 device is idle. Return without waiting for end of i/o.
  */
-static int
-__raw3270_start(struct raw3270 *rp, struct raw3270_view *view,
-		struct raw3270_request *rq)
+static int __raw3270_start(struct raw3270 *rp, struct raw3270_view *view,
+			   struct raw3270_request *rq)
 {
 	rq->view = view;
 	raw3270_get_view(view);
@@ -244,7 +250,7 @@ __raw3270_start(struct raw3270 *rp, struct raw3270_view *view,
 	    !test_bit(RAW3270_FLAGS_BUSY, &rp->flags)) {
 		/* No other requests are on the queue. Start this one. */
 		rq->rc = ccw_device_start(rp->cdev, &rq->ccw,
-					       (unsigned long) rq, 0, 0);
+					  (unsigned long)rq, 0, 0);
 		if (rq->rc) {
 			raw3270_put_view(view);
 			return rq->rc;
@@ -254,16 +260,14 @@ __raw3270_start(struct raw3270 *rp, struct raw3270_view *view,
 	return 0;
 }
 
-int
-raw3270_view_active(struct raw3270_view *view)
+int raw3270_view_active(struct raw3270_view *view)
 {
 	struct raw3270 *rp = view->dev;
 
 	return rp && rp->view == view;
 }
 
-int
-raw3270_start(struct raw3270_view *view, struct raw3270_request *rq)
+int raw3270_start(struct raw3270_view *view, struct raw3270_request *rq)
 {
 	unsigned long flags;
 	struct raw3270 *rp;
@@ -280,9 +284,25 @@ raw3270_start(struct raw3270_view *view, struct raw3270_request *rq)
 	spin_unlock_irqrestore(get_ccwdev_lock(view->dev->cdev), flags);
 	return rc;
 }
+EXPORT_SYMBOL(raw3270_start);
 
-int
-raw3270_start_locked(struct raw3270_view *view, struct raw3270_request *rq)
+int raw3270_start_request(struct raw3270_view *view, struct raw3270_request *rq,
+			  int cmd, void *data, size_t len)
+{
+	int rc;
+
+	rc = raw3270_request_reset(rq);
+	if (rc)
+		return rc;
+	raw3270_request_set_cmd(rq, cmd);
+	rc = raw3270_request_add_data(rq, data, len);
+	if (rc)
+		return rc;
+	return raw3270_start(view, rq);
+}
+EXPORT_SYMBOL(raw3270_start_request);
+
+int raw3270_start_locked(struct raw3270_view *view, struct raw3270_request *rq)
 {
 	struct raw3270 *rp;
 	int rc;
@@ -296,9 +316,9 @@ raw3270_start_locked(struct raw3270_view *view, struct raw3270_request *rq)
 		rc =  __raw3270_start(rp, view, rq);
 	return rc;
 }
+EXPORT_SYMBOL(raw3270_start_locked);
 
-int
-raw3270_start_irq(struct raw3270_view *view, struct raw3270_request *rq)
+int raw3270_start_irq(struct raw3270_view *view, struct raw3270_request *rq)
 {
 	struct raw3270 *rp;
 
@@ -308,12 +328,12 @@ raw3270_start_irq(struct raw3270_view *view, struct raw3270_request *rq)
 	list_add_tail(&rq->list, &rp->req_queue);
 	return 0;
 }
+EXPORT_SYMBOL(raw3270_start_irq);
 
 /*
  * 3270 interrupt routine, called from the ccw_device layer
  */
-static void
-raw3270_irq (struct ccw_device *cdev, unsigned long intparm, struct irb *irb)
+static void raw3270_irq(struct ccw_device *cdev, unsigned long intparm, struct irb *irb)
 {
 	struct raw3270 *rp;
 	struct raw3270_view *view;
@@ -322,7 +342,7 @@ raw3270_irq (struct ccw_device *cdev, unsigned long intparm, struct irb *irb)
 	rp = dev_get_drvdata(&cdev->dev);
 	if (!rp)
 		return;
-	rq = (struct raw3270_request *) intparm;
+	rq = (struct raw3270_request *)intparm;
 	view = rq ? rq->view : rp->view;
 
 	if (!IS_ERR(irb)) {
@@ -363,9 +383,9 @@ raw3270_irq (struct ccw_device *cdev, unsigned long intparm, struct irb *irb)
 	 * started successful.
 	 */
 	while (!list_empty(&rp->req_queue)) {
-		rq = list_entry(rp->req_queue.next,struct raw3270_request,list);
+		rq = list_entry(rp->req_queue.next, struct raw3270_request, list);
 		rq->rc = ccw_device_start(rp->cdev, &rq->ccw,
-					  (unsigned long) rq, 0, 0);
+					  (unsigned long)rq, 0, 0);
 		if (rq->rc == 0)
 			break;
 		/* Start failed. Remove request and do callback. */
@@ -405,7 +425,7 @@ struct raw3270_ua {	/* Query Reply structure for Usable Area */
 		char  ymin;
 		char  xmax;
 		char  ymax;
-	} __attribute__ ((packed)) uab;
+	} __packed uab;
 	struct {	/* Alternate Usable Area Self-Defining Parameter */
 		char  l;	/* Length of this Self-Defining Parm */
 		char  sdpid;	/* 0x02 if Alternate Usable Area */
@@ -418,17 +438,27 @@ struct raw3270_ua {	/* Query Reply structure for Usable Area */
 		int   auayr;
 		char  awauai;
 		char  ahauai;
-	} __attribute__ ((packed)) aua;
-} __attribute__ ((packed));
+	} __packed aua;
+} __packed;
 
-static void
-raw3270_size_device_vm(struct raw3270 *rp)
+static void raw3270_size_device_vm(struct raw3270 *rp)
 {
 	int rc, model;
 	struct ccw_dev_id dev_id;
 	struct diag210 diag_data;
+	struct diag8c diag8c_data;
 
 	ccw_device_get_id(rp->cdev, &dev_id);
+	rc = diag8c(&diag8c_data, &dev_id);
+	if (!rc) {
+		rp->model = 2;
+		rp->rows = diag8c_data.height;
+		rp->cols = diag8c_data.width;
+		if (diag8c_data.flags & 1)
+			set_bit(RAW3270_FLAGS_14BITADDR, &rp->flags);
+		return;
+	}
+
 	diag_data.vrdcdvno = dev_id.devno;
 	diag_data.vrdclen = sizeof(struct diag210);
 	rc = diag210(&diag_data);
@@ -460,16 +490,14 @@ raw3270_size_device_vm(struct raw3270 *rp)
 	}
 }
 
-static void
-raw3270_size_device(struct raw3270 *rp)
+static void raw3270_size_device(struct raw3270 *rp, char *init_data)
 {
 	struct raw3270_ua *uap;
 
 	/* Got a Query Reply */
-	uap = (struct raw3270_ua *) (rp->init_data + 1);
+	uap = (struct raw3270_ua *)(init_data + 1);
 	/* Paranoia check. */
-	if (rp->init_readmod.rc || rp->init_data[0] != 0x88 ||
-	    uap->uab.qcode != 0x81) {
+	if (init_data[0] != 0x88 || uap->uab.qcode != 0x81) {
 		/* Couldn't detect size. Use default model 2. */
 		rp->model = 2;
 		rp->rows = 24;
@@ -500,17 +528,20 @@ raw3270_size_device(struct raw3270 *rp)
 		rp->model = 5;
 }
 
-static void
-raw3270_size_device_done(struct raw3270 *rp)
+static void raw3270_resize_work(struct work_struct *work)
 {
+	struct raw3270 *rp = container_of(work, struct raw3270, resize_work);
 	struct raw3270_view *view;
 
-	rp->view = NULL;
-	rp->state = RAW3270_STATE_READY;
 	/* Notify views about new size */
-	list_for_each_entry(view, &rp->view_list, list)
+	list_for_each_entry(view, &rp->view_list, list) {
 		if (view->fn->resize)
-			view->fn->resize(view, rp->model, rp->rows, rp->cols);
+			view->fn->resize(view, rp->model, rp->rows, rp->cols,
+					 rp->old_model, rp->old_rows, rp->old_cols);
+	}
+	rp->old_cols = rp->cols;
+	rp->old_rows = rp->rows;
+	rp->old_model = rp->model;
 	/* Setup processing done, now activate a view */
 	list_for_each_entry(view, &rp->view_list, list) {
 		rp->view = view;
@@ -520,17 +551,23 @@ raw3270_size_device_done(struct raw3270 *rp)
 	}
 }
 
-static void
-raw3270_read_modified_cb(struct raw3270_request *rq, void *data)
+static void raw3270_size_device_done(struct raw3270 *rp)
+{
+	rp->view = NULL;
+	rp->state = RAW3270_STATE_READY;
+	schedule_work(&rp->resize_work);
+}
+
+void raw3270_read_modified_cb(struct raw3270_request *rq, void *data)
 {
 	struct raw3270 *rp = rq->view->dev;
 
-	raw3270_size_device(rp);
+	raw3270_size_device(rp, data);
 	raw3270_size_device_done(rp);
 }
+EXPORT_SYMBOL(raw3270_read_modified_cb);
 
-static void
-raw3270_read_modified(struct raw3270 *rp)
+static void raw3270_read_modified(struct raw3270 *rp)
 {
 	if (rp->state != RAW3270_STATE_W4ATTN)
 		return;
@@ -540,17 +577,18 @@ raw3270_read_modified(struct raw3270 *rp)
 	rp->init_readmod.ccw.cmd_code = TC_READMOD;
 	rp->init_readmod.ccw.flags = CCW_FLAG_SLI;
 	rp->init_readmod.ccw.count = sizeof(rp->init_data);
-	rp->init_readmod.ccw.cda = (__u32) __pa(rp->init_data);
+	rp->init_readmod.ccw.cda = (__u32)__pa(rp->init_data);
 	rp->init_readmod.callback = raw3270_read_modified_cb;
+	rp->init_readmod.callback_data = rp->init_data;
 	rp->state = RAW3270_STATE_READMOD;
 	raw3270_start_irq(&rp->init_view, &rp->init_readmod);
 }
 
-static void
-raw3270_writesf_readpart(struct raw3270 *rp)
+static void raw3270_writesf_readpart(struct raw3270 *rp)
 {
-	static const unsigned char wbuf[] =
-		{ 0x00, 0x07, 0x01, 0xff, 0x03, 0x00, 0x81 };
+	static const unsigned char wbuf[] = {
+		0x00, 0x07, 0x01, 0xff, 0x03, 0x00, 0x81
+	};
 
 	/* Store 'read partition' data stream to init_data */
 	memset(&rp->init_readpart, 0, sizeof(rp->init_readpart));
@@ -559,7 +597,7 @@ raw3270_writesf_readpart(struct raw3270 *rp)
 	rp->init_readpart.ccw.cmd_code = TC_WRITESF;
 	rp->init_readpart.ccw.flags = CCW_FLAG_SLI;
 	rp->init_readpart.ccw.count = sizeof(wbuf);
-	rp->init_readpart.ccw.cda = (__u32) __pa(&rp->init_data);
+	rp->init_readpart.ccw.cda = (__u32)__pa(&rp->init_data);
 	rp->state = RAW3270_STATE_W4ATTN;
 	raw3270_start_irq(&rp->init_view, &rp->init_readpart);
 }
@@ -567,8 +605,7 @@ raw3270_writesf_readpart(struct raw3270 *rp)
 /*
  * Device reset
  */
-static void
-raw3270_reset_device_cb(struct raw3270_request *rq, void *data)
+static void raw3270_reset_device_cb(struct raw3270_request *rq, void *data)
 {
 	struct raw3270 *rp = rq->view->dev;
 
@@ -580,13 +617,13 @@ raw3270_reset_device_cb(struct raw3270_request *rq, void *data)
 	} else if (MACHINE_IS_VM) {
 		raw3270_size_device_vm(rp);
 		raw3270_size_device_done(rp);
-	} else
+	} else {
 		raw3270_writesf_readpart(rp);
+	}
 	memset(&rp->init_reset, 0, sizeof(rp->init_reset));
 }
 
-static int
-__raw3270_reset_device(struct raw3270 *rp)
+static int __raw3270_reset_device(struct raw3270 *rp)
 {
 	int rc;
 
@@ -598,7 +635,7 @@ __raw3270_reset_device(struct raw3270 *rp)
 	rp->init_reset.ccw.cmd_code = TC_EWRITEA;
 	rp->init_reset.ccw.flags = CCW_FLAG_SLI;
 	rp->init_reset.ccw.count = 1;
-	rp->init_reset.ccw.cda = (__u32) __pa(rp->init_data);
+	rp->init_reset.ccw.cda = (__u32)__pa(rp->init_data);
 	rp->init_reset.callback = raw3270_reset_device_cb;
 	rc = __raw3270_start(rp, &rp->init_view, &rp->init_reset);
 	if (rc == 0 && rp->state == RAW3270_STATE_INIT)
@@ -606,8 +643,7 @@ __raw3270_reset_device(struct raw3270 *rp)
 	return rc;
 }
 
-static int
-raw3270_reset_device(struct raw3270 *rp)
+static int raw3270_reset_device(struct raw3270 *rp)
 {
 	unsigned long flags;
 	int rc;
@@ -618,8 +654,7 @@ raw3270_reset_device(struct raw3270 *rp)
 	return rc;
 }
 
-int
-raw3270_reset(struct raw3270_view *view)
+int raw3270_reset(struct raw3270_view *view)
 {
 	struct raw3270 *rp;
 	int rc;
@@ -633,9 +668,9 @@ raw3270_reset(struct raw3270_view *view)
 		rc = raw3270_reset_device(view->dev);
 	return rc;
 }
+EXPORT_SYMBOL(raw3270_reset);
 
-static void
-__raw3270_disconnect(struct raw3270 *rp)
+static void __raw3270_disconnect(struct raw3270 *rp)
 {
 	struct raw3270_request *rq;
 	struct raw3270_view *view;
@@ -644,7 +679,7 @@ __raw3270_disconnect(struct raw3270 *rp)
 	rp->view = &rp->init_view;
 	/* Cancel all queued requests */
 	while (!list_empty(&rp->req_queue)) {
-		rq = list_entry(rp->req_queue.next,struct raw3270_request,list);
+		rq = list_entry(rp->req_queue.next, struct raw3270_request, list);
 		view = rq->view;
 		rq->rc = -EACCES;
 		list_del_init(&rq->list);
@@ -656,9 +691,8 @@ __raw3270_disconnect(struct raw3270 *rp)
 	__raw3270_reset_device(rp);
 }
 
-static void
-raw3270_init_irq(struct raw3270_view *view, struct raw3270_request *rq,
-		 struct irb *irb)
+static void raw3270_init_irq(struct raw3270_view *view, struct raw3270_request *rq,
+			     struct irb *irb)
 {
 	struct raw3270 *rp;
 
@@ -684,8 +718,8 @@ static struct raw3270_fn raw3270_init_fn = {
 /*
  * Setup new 3270 device.
  */
-static int
-raw3270_setup_device(struct ccw_device *cdev, struct raw3270 *rp, char *ascebc)
+static int raw3270_setup_device(struct ccw_device *cdev, struct raw3270 *rp,
+				char *ascebc)
 {
 	struct list_head *l;
 	struct raw3270 *tmp;
@@ -705,6 +739,8 @@ raw3270_setup_device(struct ccw_device *cdev, struct raw3270 *rp, char *ascebc)
 	/* Set defaults. */
 	rp->rows = 24;
 	rp->cols = 80;
+	rp->old_rows = rp->rows;
+	rp->old_cols = rp->cols;
 
 	INIT_LIST_HEAD(&rp->req_queue);
 	INIT_LIST_HEAD(&rp->view_list);
@@ -712,6 +748,7 @@ raw3270_setup_device(struct ccw_device *cdev, struct raw3270 *rp, char *ascebc)
 	rp->init_view.dev = rp;
 	rp->init_view.fn = &raw3270_init_fn;
 	rp->view = &rp->init_view;
+	INIT_WORK(&rp->resize_work, raw3270_resize_work);
 
 	/*
 	 * Add device to list and find the smallest unused minor
@@ -749,6 +786,12 @@ raw3270_setup_device(struct ccw_device *cdev, struct raw3270 *rp, char *ascebc)
 /* Tentative definition - see below for actual definition. */
 static struct ccw_driver raw3270_ccw_driver;
 
+static inline int raw3270_state_final(struct raw3270 *rp)
+{
+	return rp->state == RAW3270_STATE_INIT ||
+		rp->state == RAW3270_STATE_READY;
+}
+
 /*
  * Setup 3270 device configured as console.
  */
@@ -764,7 +807,7 @@ struct raw3270 __init *raw3270_setup_console(void)
 	if (IS_ERR(cdev))
 		return ERR_CAST(cdev);
 
-	rp = kzalloc(sizeof(struct raw3270), GFP_KERNEL | GFP_DMA);
+	rp = kzalloc(sizeof(*rp), GFP_KERNEL | GFP_DMA);
 	ascebc = kzalloc(256, GFP_KERNEL);
 	rc = raw3270_setup_device(cdev, rp, ascebc);
 	if (rc)
@@ -789,8 +832,7 @@ struct raw3270 __init *raw3270_setup_console(void)
 	return rp;
 }
 
-void
-raw3270_wait_cons_dev(struct raw3270 *rp)
+void raw3270_wait_cons_dev(struct raw3270 *rp)
 {
 	unsigned long flags;
 
@@ -804,14 +846,13 @@ raw3270_wait_cons_dev(struct raw3270 *rp)
 /*
  * Create a 3270 device structure.
  */
-static struct raw3270 *
-raw3270_create_device(struct ccw_device *cdev)
+static struct raw3270 *raw3270_create_device(struct ccw_device *cdev)
 {
 	struct raw3270 *rp;
 	char *ascebc;
 	int rc;
 
-	rp = kzalloc(sizeof(struct raw3270), GFP_KERNEL | GFP_DMA);
+	rp = kzalloc(sizeof(*rp), GFP_KERNEL | GFP_DMA);
 	if (!rp)
 		return ERR_PTR(-ENOMEM);
 	ascebc = kmalloc(256, GFP_KERNEL);
@@ -845,14 +886,57 @@ int raw3270_view_lock_unavailable(struct raw3270_view *view)
 	return 0;
 }
 
+static int raw3270_assign_activate_view(struct raw3270 *rp, struct raw3270_view *view)
+{
+	rp->view = view;
+	return view->fn->activate(view);
+}
+
+static int __raw3270_activate_view(struct raw3270 *rp, struct raw3270_view *view)
+{
+	struct raw3270_view *oldview = NULL, *nv;
+	int rc;
+
+	if (rp->view == view)
+		return 0;
+
+	if (!raw3270_state_ready(rp))
+		return -EBUSY;
+
+	if (rp->view && rp->view->fn->deactivate) {
+		oldview = rp->view;
+		oldview->fn->deactivate(oldview);
+	}
+
+	rc = raw3270_assign_activate_view(rp, view);
+	if (!rc)
+		return 0;
+
+	/* Didn't work. Try to reactivate the old view. */
+	if (oldview) {
+		rc = raw3270_assign_activate_view(rp, oldview);
+		if (!rc)
+			return 0;
+	}
+
+	/* Didn't work as well. Try any other view. */
+	list_for_each_entry(nv, &rp->view_list, list) {
+		if (nv == view || nv == oldview)
+			continue;
+		rc = raw3270_assign_activate_view(rp, nv);
+		if (!rc)
+			break;
+		rp->view = NULL;
+	}
+	return rc;
+}
+
 /*
  * Activate a view.
  */
-int
-raw3270_activate_view(struct raw3270_view *view)
+int raw3270_activate_view(struct raw3270_view *view)
 {
 	struct raw3270 *rp;
-	struct raw3270_view *oldview, *nv;
 	unsigned long flags;
 	int rc;
 
@@ -860,42 +944,16 @@ raw3270_activate_view(struct raw3270_view *view)
 	if (!rp)
 		return -ENODEV;
 	spin_lock_irqsave(get_ccwdev_lock(rp->cdev), flags);
-	if (rp->view == view)
-		rc = 0;
-	else if (!raw3270_state_ready(rp))
-		rc = -EBUSY;
-	else {
-		oldview = NULL;
-		if (rp->view && rp->view->fn->deactivate) {
-			oldview = rp->view;
-			oldview->fn->deactivate(oldview);
-		}
-		rp->view = view;
-		rc = view->fn->activate(view);
-		if (rc) {
-			/* Didn't work. Try to reactivate the old view. */
-			rp->view = oldview;
-			if (!oldview || oldview->fn->activate(oldview) != 0) {
-				/* Didn't work as well. Try any other view. */
-				list_for_each_entry(nv, &rp->view_list, list)
-					if (nv != view && nv != oldview) {
-						rp->view = nv;
-						if (nv->fn->activate(nv) == 0)
-							break;
-						rp->view = NULL;
-					}
-			}
-		}
-	}
+	rc = __raw3270_activate_view(rp, view);
 	spin_unlock_irqrestore(get_ccwdev_lock(rp->cdev), flags);
 	return rc;
 }
+EXPORT_SYMBOL(raw3270_activate_view);
 
 /*
  * Deactivate current view.
  */
-void
-raw3270_deactivate_view(struct raw3270_view *view)
+void raw3270_deactivate_view(struct raw3270_view *view)
 {
 	unsigned long flags;
 	struct raw3270 *rp;
@@ -922,12 +980,13 @@ raw3270_deactivate_view(struct raw3270_view *view)
 	}
 	spin_unlock_irqrestore(get_ccwdev_lock(rp->cdev), flags);
 }
+EXPORT_SYMBOL(raw3270_deactivate_view);
 
 /*
  * Add view to device with minor "minor".
  */
-int
-raw3270_add_view(struct raw3270_view *view, struct raw3270_fn *fn, int minor, int subclass)
+int raw3270_add_view(struct raw3270_view *view, struct raw3270_fn *fn,
+		     int minor, int subclass)
 {
 	unsigned long flags;
 	struct raw3270 *rp;
@@ -958,12 +1017,12 @@ raw3270_add_view(struct raw3270_view *view, struct raw3270_fn *fn, int minor, in
 	mutex_unlock(&raw3270_mutex);
 	return rc;
 }
+EXPORT_SYMBOL(raw3270_add_view);
 
 /*
  * Find specific view of device with minor "minor".
  */
-struct raw3270_view *
-raw3270_find_view(struct raw3270_fn *fn, int minor)
+struct raw3270_view *raw3270_find_view(struct raw3270_fn *fn, int minor)
 {
 	struct raw3270 *rp;
 	struct raw3270_view *view, *tmp;
@@ -988,12 +1047,12 @@ raw3270_find_view(struct raw3270_fn *fn, int minor)
 	mutex_unlock(&raw3270_mutex);
 	return view;
 }
+EXPORT_SYMBOL(raw3270_find_view);
 
 /*
  * Remove view from device and free view structure via call to view->fn->free.
  */
-void
-raw3270_del_view(struct raw3270_view *view)
+void raw3270_del_view(struct raw3270_view *view)
 {
 	unsigned long flags;
 	struct raw3270 *rp;
@@ -1022,12 +1081,12 @@ raw3270_del_view(struct raw3270_view *view)
 	if (view->fn->free)
 		view->fn->free(view);
 }
+EXPORT_SYMBOL(raw3270_del_view);
 
 /*
  * Remove a 3270 device structure.
  */
-static void
-raw3270_delete_device(struct raw3270 *rp)
+static void raw3270_delete_device(struct raw3270 *rp)
 {
 	struct ccw_device *cdev;
 
@@ -1050,8 +1109,7 @@ raw3270_delete_device(struct raw3270 *rp)
 	kfree(rp);
 }
 
-static int
-raw3270_probe (struct ccw_device *cdev)
+static int raw3270_probe(struct ccw_device *cdev)
 {
 	return 0;
 }
@@ -1059,31 +1117,32 @@ raw3270_probe (struct ccw_device *cdev)
 /*
  * Additional attributes for a 3270 device
  */
-static ssize_t
-raw3270_model_show(struct device *dev, struct device_attribute *attr, char *buf)
+static ssize_t model_show(struct device *dev, struct device_attribute *attr,
+			  char *buf)
 {
 	return sysfs_emit(buf, "%i\n",
 			  ((struct raw3270 *)dev_get_drvdata(dev))->model);
 }
-static DEVICE_ATTR(model, 0444, raw3270_model_show, NULL);
+static DEVICE_ATTR_RO(model);
 
-static ssize_t
-raw3270_rows_show(struct device *dev, struct device_attribute *attr, char *buf)
+static ssize_t rows_show(struct device *dev, struct device_attribute *attr,
+			 char *buf)
 {
 	return sysfs_emit(buf, "%i\n",
 			  ((struct raw3270 *)dev_get_drvdata(dev))->rows);
 }
-static DEVICE_ATTR(rows, 0444, raw3270_rows_show, NULL);
+static DEVICE_ATTR_RO(rows);
 
 static ssize_t
-raw3270_columns_show(struct device *dev, struct device_attribute *attr, char *buf)
+columns_show(struct device *dev, struct device_attribute *attr,
+	     char *buf)
 {
 	return sysfs_emit(buf, "%i\n",
 			  ((struct raw3270 *)dev_get_drvdata(dev))->cols);
 }
-static DEVICE_ATTR(columns, 0444, raw3270_columns_show, NULL);
+static DEVICE_ATTR_RO(columns);
 
-static struct attribute * raw3270_attrs[] = {
+static struct attribute *raw3270_attrs[] = {
 	&dev_attr_model.attr,
 	&dev_attr_rows.attr,
 	&dev_attr_columns.attr,
@@ -1115,6 +1174,7 @@ int raw3270_register_notifier(struct raw3270_notifier *notifier)
 	mutex_unlock(&raw3270_mutex);
 	return 0;
 }
+EXPORT_SYMBOL(raw3270_register_notifier);
 
 void raw3270_unregister_notifier(struct raw3270_notifier *notifier)
 {
@@ -1126,12 +1186,12 @@ void raw3270_unregister_notifier(struct raw3270_notifier *notifier)
 	list_del(&notifier->list);
 	mutex_unlock(&raw3270_mutex);
 }
+EXPORT_SYMBOL(raw3270_unregister_notifier);
 
 /*
  * Set 3270 device online.
  */
-static int
-raw3270_set_online (struct ccw_device *cdev)
+static int raw3270_set_online(struct ccw_device *cdev)
 {
 	struct raw3270_notifier *np;
 	struct raw3270 *rp;
@@ -1158,8 +1218,7 @@ failure:
 /*
  * Remove 3270 device structure.
  */
-static void
-raw3270_remove (struct ccw_device *cdev)
+static void raw3270_remove(struct ccw_device *cdev)
 {
 	unsigned long flags;
 	struct raw3270 *rp;
@@ -1173,7 +1232,7 @@ raw3270_remove (struct ccw_device *cdev)
 	 * devices even if they haven't been varied online.
 	 * Thus, rp may validly be NULL here.
 	 */
-	if (rp == NULL)
+	if (!rp)
 		return;
 
 	sysfs_remove_group(&cdev->dev.kobj, &raw3270_attr_group);
@@ -1209,8 +1268,7 @@ raw3270_remove (struct ccw_device *cdev)
 /*
  * Set 3270 device offline.
  */
-static int
-raw3270_set_offline (struct ccw_device *cdev)
+static int raw3270_set_offline(struct ccw_device *cdev)
 {
 	struct raw3270 *rp;
 
@@ -1249,8 +1307,7 @@ static struct ccw_driver raw3270_ccw_driver = {
 	.int_class	= IRQIO_C70,
 };
 
-static int
-raw3270_init(void)
+static int raw3270_init(void)
 {
 	struct raw3270 *rp;
 	int rc;
@@ -1262,7 +1319,7 @@ raw3270_init(void)
 	if (rc == 0) {
 		/* Create attributes for early (= console) device. */
 		mutex_lock(&raw3270_mutex);
-		class3270 = class_create(THIS_MODULE, "3270");
+		class3270 = class_create("3270");
 		list_for_each_entry(rp, &raw3270_devices, list) {
 			get_device(&rp->cdev->dev);
 			raw3270_create_attributes(rp);
@@ -1272,8 +1329,7 @@ raw3270_init(void)
 	return rc;
 }
 
-static void
-raw3270_exit(void)
+static void raw3270_exit(void)
 {
 	ccw_driver_unregister(&raw3270_ccw_driver);
 	class_destroy(class3270);
@@ -1283,25 +1339,3 @@ MODULE_LICENSE("GPL");
 
 module_init(raw3270_init);
 module_exit(raw3270_exit);
-
-EXPORT_SYMBOL(class3270);
-EXPORT_SYMBOL(raw3270_request_alloc);
-EXPORT_SYMBOL(raw3270_request_free);
-EXPORT_SYMBOL(raw3270_request_reset);
-EXPORT_SYMBOL(raw3270_request_set_cmd);
-EXPORT_SYMBOL(raw3270_request_add_data);
-EXPORT_SYMBOL(raw3270_request_set_data);
-EXPORT_SYMBOL(raw3270_request_set_idal);
-EXPORT_SYMBOL(raw3270_buffer_address);
-EXPORT_SYMBOL(raw3270_add_view);
-EXPORT_SYMBOL(raw3270_del_view);
-EXPORT_SYMBOL(raw3270_find_view);
-EXPORT_SYMBOL(raw3270_activate_view);
-EXPORT_SYMBOL(raw3270_deactivate_view);
-EXPORT_SYMBOL(raw3270_start);
-EXPORT_SYMBOL(raw3270_start_locked);
-EXPORT_SYMBOL(raw3270_start_irq);
-EXPORT_SYMBOL(raw3270_reset);
-EXPORT_SYMBOL(raw3270_register_notifier);
-EXPORT_SYMBOL(raw3270_unregister_notifier);
-EXPORT_SYMBOL(raw3270_wait_queue);

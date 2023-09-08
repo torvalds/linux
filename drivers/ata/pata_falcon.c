@@ -33,7 +33,7 @@
 #define DRV_NAME "pata_falcon"
 #define DRV_VERSION "0.1.0"
 
-static struct scsi_host_template pata_falcon_sht = {
+static const struct scsi_host_template pata_falcon_sht = {
 	ATA_PIO_SHT(DRV_NAME),
 };
 

@@ -29,6 +29,8 @@
 #include <linux/init.h>
 #include <linux/threads.h>
 #include <linux/pgtable.h>
+#include <linux/linkage.h>
+
 #include <asm/processor.h>
 #include <asm/page.h>
 #include <asm/mmu.h>
@@ -229,7 +231,7 @@ set_ivor:
 	lis	r1,init_thread_union@h
 	ori	r1,r1,init_thread_union@l
 	li	r0,0
-	stwu	r0,THREAD_SIZE-STACK_FRAME_OVERHEAD(r1)
+	stwu	r0,THREAD_SIZE-STACK_FRAME_MIN_SIZE(r1)
 
 #ifdef CONFIG_SMP
 	stw	r24, TASK_CPU(r2)
@@ -862,7 +864,7 @@ _GLOBAL(load_up_spe)
  * SPE unavailable trap from kernel - print a message, but let
  * the task use SPE in the kernel until it returns to user mode.
  */
-KernelSPE:
+SYM_FUNC_START_LOCAL(KernelSPE)
 	lwz	r3,_MSR(r1)
 	oris	r3,r3,MSR_SPE@h
 	stw	r3,_MSR(r1)	/* enable use of SPE after return */
@@ -879,13 +881,14 @@ KernelSPE:
 #endif
 	.align	4,0
 
+SYM_FUNC_END(KernelSPE)
 #endif /* CONFIG_SPE */
 
 /*
  * Translate the effec addr in r3 to phys addr. The phys addr will be put
  * into r3(higher 32bit) and r4(lower 32bit)
  */
-get_phys_addr:
+SYM_FUNC_START_LOCAL(get_phys_addr)
 	mfmsr	r8
 	mfspr	r9,SPRN_PID
 	rlwinm	r9,r9,16,0x3fff0000	/* turn PID into MAS6[SPID] */
@@ -907,6 +910,7 @@ get_phys_addr:
 	mfspr	r3,SPRN_MAS7
 #endif
 	blr
+SYM_FUNC_END(get_phys_addr)
 
 /*
  * Global functions
@@ -972,10 +976,10 @@ _GLOBAL(__giveup_spe)
 	li	r4,THREAD_ACC
 	evstddx	evr6, r4, r3		/* save off accumulator */
 	beq	1f
-	lwz	r4,_MSR-STACK_FRAME_OVERHEAD(r5)
+	lwz	r4,_MSR-STACK_INT_FRAME_REGS(r5)
 	lis	r3,MSR_SPE@h
 	andc	r4,r4,r3		/* disable SPE for previous task */
-	stw	r4,_MSR-STACK_FRAME_OVERHEAD(r5)
+	stw	r4,_MSR-STACK_INT_FRAME_REGS(r5)
 1:
 	blr
 #endif /* CONFIG_SPE */
@@ -1044,7 +1048,7 @@ __secondary_start:
 	lwz	r1,TASK_STACK(r2)
 
 	/* stack */
-	addi	r1,r1,THREAD_SIZE-STACK_FRAME_OVERHEAD
+	addi	r1,r1,THREAD_SIZE-STACK_FRAME_MIN_SIZE
 	li	r0,0
 	stw	r0,0(r1)
 

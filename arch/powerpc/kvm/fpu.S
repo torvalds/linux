@@ -6,6 +6,8 @@
  */
 
 #include <linux/pgtable.h>
+#include <linux/linkage.h>
+
 #include <asm/reg.h>
 #include <asm/page.h>
 #include <asm/mmu.h>
@@ -110,18 +112,22 @@ FPS_THREE_IN(fsel)
  * R8 = (double*)&param3 [load_three]
  * LR = instruction call function
  */
-fpd_load_three:
+SYM_FUNC_START_LOCAL(fpd_load_three)
 	lfd	2,0(r8)			/* load param3 */
-fpd_load_two:
+SYM_FUNC_START_LOCAL(fpd_load_two)
 	lfd	1,0(r7)			/* load param2 */
-fpd_load_one:
+SYM_FUNC_START_LOCAL(fpd_load_one)
 	lfd	0,0(r6)			/* load param1 */
-fpd_load_none:
+SYM_FUNC_START_LOCAL(fpd_load_none)
 	lfd	3,0(r3)			/* load up fpscr value */
 	MTFSF_L(3)
 	lwz	r6, 0(r4)		/* load cr */
 	mtcr	r6
 	blr
+SYM_FUNC_END(fpd_load_none)
+SYM_FUNC_END(fpd_load_one)
+SYM_FUNC_END(fpd_load_two)
+SYM_FUNC_END(fpd_load_three)
 
 /*
  * End of double instruction processing
@@ -131,13 +137,14 @@ fpd_load_none:
  * R5 = (double*)&result
  * LR = caller of instruction call function
  */
-fpd_return:
+SYM_FUNC_START_LOCAL(fpd_return)
 	mfcr	r6
 	stfd	0,0(r5)			/* save result */
 	mffs	0
 	stfd	0,0(r3)			/* save new fpscr value */
 	stw	r6,0(r4)		/* save new cr value */
 	blr
+SYM_FUNC_END(fpd_return)
 
 /*
  * Double operation with no input operand

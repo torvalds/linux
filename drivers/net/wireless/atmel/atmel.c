@@ -1643,9 +1643,10 @@ EXPORT_SYMBOL(stop_atmel_card);
 
 static int atmel_set_essid(struct net_device *dev,
 			   struct iw_request_info *info,
-			   struct iw_point *dwrq,
+			   union iwreq_data *wrqu,
 			   char *extra)
 {
+	struct iw_point *dwrq = &wrqu->essid;
 	struct atmel_private *priv = netdev_priv(dev);
 
 	/* Check if we asked for `any' */
@@ -1671,9 +1672,10 @@ static int atmel_set_essid(struct net_device *dev,
 
 static int atmel_get_essid(struct net_device *dev,
 			   struct iw_request_info *info,
-			   struct iw_point *dwrq,
+			   union iwreq_data *wrqu,
 			   char *extra)
 {
+	struct iw_point *dwrq = &wrqu->essid;
 	struct atmel_private *priv = netdev_priv(dev);
 
 	/* Get the current SSID */
@@ -1692,9 +1694,10 @@ static int atmel_get_essid(struct net_device *dev,
 
 static int atmel_get_wap(struct net_device *dev,
 			 struct iw_request_info *info,
-			 struct sockaddr *awrq,
+			 union iwreq_data *wrqu,
 			 char *extra)
 {
+	struct sockaddr *awrq = &wrqu->ap_addr;
 	struct atmel_private *priv = netdev_priv(dev);
 	memcpy(awrq->sa_data, priv->CurrentBSSID, ETH_ALEN);
 	awrq->sa_family = ARPHRD_ETHER;
@@ -1704,9 +1707,10 @@ static int atmel_get_wap(struct net_device *dev,
 
 static int atmel_set_encode(struct net_device *dev,
 			    struct iw_request_info *info,
-			    struct iw_point *dwrq,
+			    union iwreq_data *wrqu,
 			    char *extra)
 {
+	struct iw_point *dwrq = &wrqu->encoding;
 	struct atmel_private *priv = netdev_priv(dev);
 
 	/* Basic checking: do we have a key to set ?
@@ -1793,9 +1797,10 @@ static int atmel_set_encode(struct net_device *dev,
 
 static int atmel_get_encode(struct net_device *dev,
 			    struct iw_request_info *info,
-			    struct iw_point *dwrq,
+			    union iwreq_data *wrqu,
 			    char *extra)
 {
+	struct iw_point *dwrq = &wrqu->encoding;
 	struct atmel_private *priv = netdev_priv(dev);
 	int index = (dwrq->flags & IW_ENCODE_INDEX) - 1;
 
@@ -2003,18 +2008,19 @@ static int atmel_get_auth(struct net_device *dev,
 
 static int atmel_get_name(struct net_device *dev,
 			  struct iw_request_info *info,
-			  char *cwrq,
+			  union iwreq_data *wrqu,
 			  char *extra)
 {
-	strcpy(cwrq, "IEEE 802.11-DS");
+	strcpy(wrqu->name, "IEEE 802.11-DS");
 	return 0;
 }
 
 static int atmel_set_rate(struct net_device *dev,
 			  struct iw_request_info *info,
-			  struct iw_param *vwrq,
+			  union iwreq_data *wrqu,
 			  char *extra)
 {
+	struct iw_param *vwrq = &wrqu->bitrate;
 	struct atmel_private *priv = netdev_priv(dev);
 
 	if (vwrq->fixed == 0) {
@@ -2053,9 +2059,10 @@ static int atmel_set_rate(struct net_device *dev,
 
 static int atmel_set_mode(struct net_device *dev,
 			  struct iw_request_info *info,
-			  __u32 *uwrq,
+			  union iwreq_data *wrqu,
 			  char *extra)
 {
+	__u32 *uwrq = &wrqu->mode;
 	struct atmel_private *priv = netdev_priv(dev);
 
 	if (*uwrq != IW_MODE_ADHOC && *uwrq != IW_MODE_INFRA)
@@ -2067,9 +2074,10 @@ static int atmel_set_mode(struct net_device *dev,
 
 static int atmel_get_mode(struct net_device *dev,
 			  struct iw_request_info *info,
-			  __u32 *uwrq,
+			  union iwreq_data *wrqu,
 			  char *extra)
 {
+	__u32 *uwrq = &wrqu->mode;
 	struct atmel_private *priv = netdev_priv(dev);
 
 	*uwrq = priv->operating_mode;
@@ -2078,9 +2086,10 @@ static int atmel_get_mode(struct net_device *dev,
 
 static int atmel_get_rate(struct net_device *dev,
 			 struct iw_request_info *info,
-			 struct iw_param *vwrq,
+			 union iwreq_data *wrqu,
 			 char *extra)
 {
+	struct iw_param *vwrq = &wrqu->bitrate;
 	struct atmel_private *priv = netdev_priv(dev);
 
 	if (priv->auto_tx_rate) {
@@ -2108,9 +2117,10 @@ static int atmel_get_rate(struct net_device *dev,
 
 static int atmel_set_power(struct net_device *dev,
 			   struct iw_request_info *info,
-			   struct iw_param *vwrq,
+			   union iwreq_data *wrqu,
 			   char *extra)
 {
+	struct iw_param *vwrq = &wrqu->power;
 	struct atmel_private *priv = netdev_priv(dev);
 	priv->power_mode = vwrq->disabled ? 0 : 1;
 	return -EINPROGRESS;
@@ -2118,9 +2128,10 @@ static int atmel_set_power(struct net_device *dev,
 
 static int atmel_get_power(struct net_device *dev,
 			   struct iw_request_info *info,
-			   struct iw_param *vwrq,
+			   union iwreq_data *wrqu,
 			   char *extra)
 {
+	struct iw_param *vwrq = &wrqu->power;
 	struct atmel_private *priv = netdev_priv(dev);
 	vwrq->disabled = priv->power_mode ? 0 : 1;
 	vwrq->flags = IW_POWER_ON;
@@ -2129,9 +2140,10 @@ static int atmel_get_power(struct net_device *dev,
 
 static int atmel_set_retry(struct net_device *dev,
 			   struct iw_request_info *info,
-			   struct iw_param *vwrq,
+			   union iwreq_data *wrqu,
 			   char *extra)
 {
+	struct iw_param *vwrq = &wrqu->retry;
 	struct atmel_private *priv = netdev_priv(dev);
 
 	if (!vwrq->disabled && (vwrq->flags & IW_RETRY_LIMIT)) {
@@ -2152,9 +2164,10 @@ static int atmel_set_retry(struct net_device *dev,
 
 static int atmel_get_retry(struct net_device *dev,
 			   struct iw_request_info *info,
-			   struct iw_param *vwrq,
+			   union iwreq_data *wrqu,
 			   char *extra)
 {
+	struct iw_param *vwrq = &wrqu->retry;
 	struct atmel_private *priv = netdev_priv(dev);
 
 	vwrq->disabled = 0;      /* Can't be disabled */
@@ -2175,9 +2188,10 @@ static int atmel_get_retry(struct net_device *dev,
 
 static int atmel_set_rts(struct net_device *dev,
 			 struct iw_request_info *info,
-			 struct iw_param *vwrq,
+			 union iwreq_data *wrqu,
 			 char *extra)
 {
+	struct iw_param *vwrq = &wrqu->rts;
 	struct atmel_private *priv = netdev_priv(dev);
 	int rthr = vwrq->value;
 
@@ -2193,9 +2207,10 @@ static int atmel_set_rts(struct net_device *dev,
 
 static int atmel_get_rts(struct net_device *dev,
 			 struct iw_request_info *info,
-			 struct iw_param *vwrq,
+			 union iwreq_data *wrqu,
 			 char *extra)
 {
+	struct iw_param *vwrq = &wrqu->rts;
 	struct atmel_private *priv = netdev_priv(dev);
 
 	vwrq->value = priv->rts_threshold;
@@ -2207,9 +2222,10 @@ static int atmel_get_rts(struct net_device *dev,
 
 static int atmel_set_frag(struct net_device *dev,
 			  struct iw_request_info *info,
-			  struct iw_param *vwrq,
+			  union iwreq_data *wrqu,
 			  char *extra)
 {
+	struct iw_param *vwrq = &wrqu->frag;
 	struct atmel_private *priv = netdev_priv(dev);
 	int fthr = vwrq->value;
 
@@ -2226,9 +2242,10 @@ static int atmel_set_frag(struct net_device *dev,
 
 static int atmel_get_frag(struct net_device *dev,
 			  struct iw_request_info *info,
-			  struct iw_param *vwrq,
+			  union iwreq_data *wrqu,
 			  char *extra)
 {
+	struct iw_param *vwrq = &wrqu->frag;
 	struct atmel_private *priv = netdev_priv(dev);
 
 	vwrq->value = priv->frag_threshold;
@@ -2240,9 +2257,10 @@ static int atmel_get_frag(struct net_device *dev,
 
 static int atmel_set_freq(struct net_device *dev,
 			  struct iw_request_info *info,
-			  struct iw_freq *fwrq,
+			  union iwreq_data *wrqu,
 			  char *extra)
 {
+	struct iw_freq *fwrq = &wrqu->freq;
 	struct atmel_private *priv = netdev_priv(dev);
 	int rc = -EINPROGRESS;		/* Call commit handler */
 
@@ -2270,9 +2288,10 @@ static int atmel_set_freq(struct net_device *dev,
 
 static int atmel_get_freq(struct net_device *dev,
 			  struct iw_request_info *info,
-			  struct iw_freq *fwrq,
+			  union iwreq_data *wrqu,
 			  char *extra)
 {
+	struct iw_freq *fwrq = &wrqu->freq;
 	struct atmel_private *priv = netdev_priv(dev);
 
 	fwrq->m = priv->channel;
@@ -2282,7 +2301,7 @@ static int atmel_get_freq(struct net_device *dev,
 
 static int atmel_set_scan(struct net_device *dev,
 			  struct iw_request_info *info,
-			  struct iw_point *dwrq,
+			  union iwreq_data *dwrq,
 			  char *extra)
 {
 	struct atmel_private *priv = netdev_priv(dev);
@@ -2320,9 +2339,10 @@ static int atmel_set_scan(struct net_device *dev,
 
 static int atmel_get_scan(struct net_device *dev,
 			  struct iw_request_info *info,
-			  struct iw_point *dwrq,
+			  union iwreq_data *wrqu,
 			  char *extra)
 {
+	struct iw_point *dwrq = &wrqu->data;
 	struct atmel_private *priv = netdev_priv(dev);
 	int i;
 	char *current_ev = extra;
@@ -2391,9 +2411,10 @@ static int atmel_get_scan(struct net_device *dev,
 
 static int atmel_get_range(struct net_device *dev,
 			   struct iw_request_info *info,
-			   struct iw_point *dwrq,
+			   union iwreq_data *wrqu,
 			   char *extra)
 {
+	struct iw_point *dwrq = &wrqu->data;
 	struct atmel_private *priv = netdev_priv(dev);
 	struct iw_range *range = (struct iw_range *) extra;
 	int k, i, j;
@@ -2465,9 +2486,10 @@ static int atmel_get_range(struct net_device *dev,
 
 static int atmel_set_wap(struct net_device *dev,
 			 struct iw_request_info *info,
-			 struct sockaddr *awrq,
+			 union iwreq_data *wrqu,
 			 char *extra)
 {
+	struct sockaddr *awrq = &wrqu->ap_addr;
 	struct atmel_private *priv = netdev_priv(dev);
 	int i;
 	static const u8 any[] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
@@ -2507,7 +2529,7 @@ static int atmel_set_wap(struct net_device *dev,
 
 static int atmel_config_commit(struct net_device *dev,
 			       struct iw_request_info *info,	/* NULL */
-			       void *zwrq,			/* NULL */
+			       union iwreq_data *zwrq,		/* NULL */
 			       char *extra)			/* NULL */
 {
 	return atmel_open(dev);
@@ -2515,61 +2537,35 @@ static int atmel_config_commit(struct net_device *dev,
 
 static const iw_handler atmel_handler[] =
 {
-	(iw_handler) atmel_config_commit,	/* SIOCSIWCOMMIT */
-	(iw_handler) atmel_get_name,		/* SIOCGIWNAME */
-	(iw_handler) NULL,			/* SIOCSIWNWID */
-	(iw_handler) NULL,			/* SIOCGIWNWID */
-	(iw_handler) atmel_set_freq,		/* SIOCSIWFREQ */
-	(iw_handler) atmel_get_freq,		/* SIOCGIWFREQ */
-	(iw_handler) atmel_set_mode,		/* SIOCSIWMODE */
-	(iw_handler) atmel_get_mode,		/* SIOCGIWMODE */
-	(iw_handler) NULL,			/* SIOCSIWSENS */
-	(iw_handler) NULL,			/* SIOCGIWSENS */
-	(iw_handler) NULL,			/* SIOCSIWRANGE */
-	(iw_handler) atmel_get_range,           /* SIOCGIWRANGE */
-	(iw_handler) NULL,			/* SIOCSIWPRIV */
-	(iw_handler) NULL,			/* SIOCGIWPRIV */
-	(iw_handler) NULL,			/* SIOCSIWSTATS */
-	(iw_handler) NULL,			/* SIOCGIWSTATS */
-	(iw_handler) NULL,			/* SIOCSIWSPY */
-	(iw_handler) NULL,			/* SIOCGIWSPY */
-	(iw_handler) NULL,			/* -- hole -- */
-	(iw_handler) NULL,			/* -- hole -- */
-	(iw_handler) atmel_set_wap,		/* SIOCSIWAP */
-	(iw_handler) atmel_get_wap,		/* SIOCGIWAP */
-	(iw_handler) NULL,			/* -- hole -- */
-	(iw_handler) NULL,			/* SIOCGIWAPLIST */
-	(iw_handler) atmel_set_scan,		/* SIOCSIWSCAN */
-	(iw_handler) atmel_get_scan,		/* SIOCGIWSCAN */
-	(iw_handler) atmel_set_essid,		/* SIOCSIWESSID */
-	(iw_handler) atmel_get_essid,		/* SIOCGIWESSID */
-	(iw_handler) NULL,			/* SIOCSIWNICKN */
-	(iw_handler) NULL,			/* SIOCGIWNICKN */
-	(iw_handler) NULL,			/* -- hole -- */
-	(iw_handler) NULL,			/* -- hole -- */
-	(iw_handler) atmel_set_rate,		/* SIOCSIWRATE */
-	(iw_handler) atmel_get_rate,		/* SIOCGIWRATE */
-	(iw_handler) atmel_set_rts,		/* SIOCSIWRTS */
-	(iw_handler) atmel_get_rts,		/* SIOCGIWRTS */
-	(iw_handler) atmel_set_frag,		/* SIOCSIWFRAG */
-	(iw_handler) atmel_get_frag,		/* SIOCGIWFRAG */
-	(iw_handler) NULL,			/* SIOCSIWTXPOW */
-	(iw_handler) NULL,			/* SIOCGIWTXPOW */
-	(iw_handler) atmel_set_retry,		/* SIOCSIWRETRY */
-	(iw_handler) atmel_get_retry,		/* SIOCGIWRETRY */
-	(iw_handler) atmel_set_encode,		/* SIOCSIWENCODE */
-	(iw_handler) atmel_get_encode,		/* SIOCGIWENCODE */
-	(iw_handler) atmel_set_power,		/* SIOCSIWPOWER */
-	(iw_handler) atmel_get_power,		/* SIOCGIWPOWER */
-	(iw_handler) NULL,			/* -- hole -- */
-	(iw_handler) NULL,			/* -- hole -- */
-	(iw_handler) NULL,			/* SIOCSIWGENIE */
-	(iw_handler) NULL,			/* SIOCGIWGENIE */
-	(iw_handler) atmel_set_auth,		/* SIOCSIWAUTH */
-	(iw_handler) atmel_get_auth,		/* SIOCGIWAUTH */
-	(iw_handler) atmel_set_encodeext,	/* SIOCSIWENCODEEXT */
-	(iw_handler) atmel_get_encodeext,	/* SIOCGIWENCODEEXT */
-	(iw_handler) NULL,			/* SIOCSIWPMKSA */
+	IW_HANDLER(SIOCSIWCOMMIT,	atmel_config_commit),
+	IW_HANDLER(SIOCGIWNAME,		atmel_get_name),
+	IW_HANDLER(SIOCSIWFREQ,		atmel_set_freq),
+	IW_HANDLER(SIOCGIWFREQ,		atmel_get_freq),
+	IW_HANDLER(SIOCSIWMODE,		atmel_set_mode),
+	IW_HANDLER(SIOCGIWMODE,		atmel_get_mode),
+	IW_HANDLER(SIOCGIWRANGE,	atmel_get_range),
+	IW_HANDLER(SIOCSIWAP,		atmel_set_wap),
+	IW_HANDLER(SIOCGIWAP,		atmel_get_wap),
+	IW_HANDLER(SIOCSIWSCAN,		atmel_set_scan),
+	IW_HANDLER(SIOCGIWSCAN,		atmel_get_scan),
+	IW_HANDLER(SIOCSIWESSID,	atmel_set_essid),
+	IW_HANDLER(SIOCGIWESSID,	atmel_get_essid),
+	IW_HANDLER(SIOCSIWRATE,		atmel_set_rate),
+	IW_HANDLER(SIOCGIWRATE,		atmel_get_rate),
+	IW_HANDLER(SIOCSIWRTS,		atmel_set_rts),
+	IW_HANDLER(SIOCGIWRTS,		atmel_get_rts),
+	IW_HANDLER(SIOCSIWFRAG,		atmel_set_frag),
+	IW_HANDLER(SIOCGIWFRAG,		atmel_get_frag),
+	IW_HANDLER(SIOCSIWRETRY,	atmel_set_retry),
+	IW_HANDLER(SIOCGIWRETRY,	atmel_get_retry),
+	IW_HANDLER(SIOCSIWENCODE,	atmel_set_encode),
+	IW_HANDLER(SIOCGIWENCODE,	atmel_get_encode),
+	IW_HANDLER(SIOCSIWPOWER,	atmel_set_power),
+	IW_HANDLER(SIOCGIWPOWER,	atmel_get_power),
+	IW_HANDLER(SIOCSIWAUTH,		atmel_set_auth),
+	IW_HANDLER(SIOCGIWAUTH,		atmel_get_auth),
+	IW_HANDLER(SIOCSIWENCODEEXT,	atmel_set_encodeext),
+	IW_HANDLER(SIOCGIWENCODEEXT,	atmel_get_encodeext),
 };
 
 static const iw_handler atmel_private_handler[] =
@@ -2614,8 +2610,8 @@ static const struct iw_handler_def atmel_handler_def = {
 	.num_standard	= ARRAY_SIZE(atmel_handler),
 	.num_private	= ARRAY_SIZE(atmel_private_handler),
 	.num_private_args = ARRAY_SIZE(atmel_private_args),
-	.standard	= (iw_handler *) atmel_handler,
-	.private	= (iw_handler *) atmel_private_handler,
+	.standard	= atmel_handler,
+	.private	= atmel_private_handler,
 	.private_args	= (struct iw_priv_args *) atmel_private_args,
 	.get_wireless_stats = atmel_get_wireless_stats
 };

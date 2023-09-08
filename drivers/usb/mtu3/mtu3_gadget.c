@@ -23,7 +23,6 @@ __acquires(mep->mtu->lock)
 		req->status = status;
 
 	trace_mtu3_req_complete(mreq);
-	spin_unlock(&mtu->lock);
 
 	/* ep0 makes use of PIO, needn't unmap it */
 	if (mep->epnum)
@@ -32,6 +31,7 @@ __acquires(mep->mtu->lock)
 	dev_dbg(mtu->dev, "%s complete req: %p, sts %d, %d/%d\n",
 		mep->name, req, req->status, req->actual, req->length);
 
+	spin_unlock(&mtu->lock);
 	usb_gadget_giveback_request(&mep->ep, req);
 	spin_lock(&mtu->lock);
 }
@@ -133,10 +133,9 @@ static int mtu3_ep_disable(struct mtu3_ep *mep)
 {
 	struct mtu3 *mtu = mep->mtu;
 
-	mtu3_qmu_stop(mep);
-
 	/* abort all pending requests */
 	nuke(mep, -ESHUTDOWN);
+	mtu3_qmu_stop(mep);
 	mtu3_deconfig_ep(mtu, mep);
 	mtu3_gpd_ring_free(mep);
 

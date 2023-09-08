@@ -1380,9 +1380,7 @@ static int subdev_notifier_bound(struct v4l2_async_notifier *notifier,
 
 	/* Find platform data for this sensor subdev */
 	for (i = 0; i < ARRAY_SIZE(fmd->sensor); i++)
-		if (fmd->sensor[i].asd &&
-		    fmd->sensor[i].asd->match.fwnode ==
-		    of_fwnode_handle(subdev->dev->of_node))
+		if (fmd->sensor[i].asd == asd)
 			si = &fmd->sensor[i];
 
 	if (si == NULL)
@@ -1442,6 +1440,10 @@ static int fimc_md_probe(struct platform_device *pdev)
 	if (!fmd)
 		return -ENOMEM;
 
+	ret = of_platform_populate(dev->of_node, NULL, NULL, dev);
+	if (ret < 0)
+		return -ENOMEM;
+
 	spin_lock_init(&fmd->slock);
 	INIT_LIST_HEAD(&fmd->pipelines);
 	fmd->pdev = pdev;
@@ -1472,12 +1474,8 @@ static int fimc_md_probe(struct platform_device *pdev)
 		goto err_v4l2dev;
 
 	pinctrl = devm_pinctrl_get(dev);
-	if (IS_ERR(pinctrl)) {
-		ret = PTR_ERR(pinctrl);
-		if (ret != EPROBE_DEFER)
-			dev_err(dev, "Failed to get pinctrl: %d\n", ret);
-		goto err_clk;
-	}
+	if (IS_ERR(pinctrl))
+		dev_dbg(dev, "Failed to get pinctrl: %pe\n", pinctrl);
 
 	platform_set_drvdata(pdev, fmd);
 
@@ -1534,12 +1532,12 @@ err_md:
 	return ret;
 }
 
-static int fimc_md_remove(struct platform_device *pdev)
+static void fimc_md_remove(struct platform_device *pdev)
 {
 	struct fimc_md *fmd = platform_get_drvdata(pdev);
 
 	if (!fmd)
-		return 0;
+		return;
 
 	fimc_md_unregister_clk_provider(fmd);
 	v4l2_async_nf_unregister(&fmd->subdev_notifier);
@@ -1552,8 +1550,6 @@ static int fimc_md_remove(struct platform_device *pdev)
 	media_device_unregister(&fmd->media_dev);
 	media_device_cleanup(&fmd->media_dev);
 	fimc_md_put_clocks(fmd);
-
-	return 0;
 }
 
 static const struct platform_device_id fimc_driver_ids[] __always_unused = {
@@ -1570,7 +1566,7 @@ MODULE_DEVICE_TABLE(of, fimc_md_of_match);
 
 static struct platform_driver fimc_md_driver = {
 	.probe		= fimc_md_probe,
-	.remove		= fimc_md_remove,
+	.remove_new	= fimc_md_remove,
 	.driver = {
 		.of_match_table = of_match_ptr(fimc_md_of_match),
 		.name		= "s5p-fimc-md",
@@ -1586,7 +1582,11 @@ static int __init fimc_md_init(void)
 	if (ret)
 		return ret;
 
-	return platform_driver_register(&fimc_md_driver);
+	ret = platform_driver_register(&fimc_md_driver);
+	if (ret)
+		fimc_unregister_driver();
+
+	return ret;
 }
 
 static void __exit fimc_md_exit(void)

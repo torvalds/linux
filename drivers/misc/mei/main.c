@@ -18,7 +18,6 @@
 #include <linux/ioctl.h>
 #include <linux/cdev.h>
 #include <linux/sched/signal.h>
-#include <linux/uuid.h>
 #include <linux/compat.h>
 #include <linux/jiffies.h>
 #include <linux/interrupt.h>
@@ -383,7 +382,7 @@ static ssize_t mei_write(struct file *file, const char __user *ubuf,
 		goto out;
 	}
 
-	rets = mei_cl_write(cl, cb);
+	rets = mei_cl_write(cl, cb, MAX_SCHEDULE_TIMEOUT);
 out:
 	mutex_unlock(&dev->device_lock);
 	return rets;
@@ -1275,7 +1274,7 @@ static int __init mei_init(void)
 {
 	int ret;
 
-	mei_class = class_create(THIS_MODULE, "mei");
+	mei_class = class_create("mei");
 	if (IS_ERR(mei_class)) {
 		pr_err("couldn't create class\n");
 		ret = PTR_ERR(mei_class);

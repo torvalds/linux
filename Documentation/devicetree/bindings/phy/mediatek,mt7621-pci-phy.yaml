@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: (GPL-2.0-only or BSD-2-Clause)
 %YAML 1.2
 ---
-$id: "http://devicetree.org/schemas/phy/mediatek,mt7621-pci-phy.yaml#"
-$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+$id: http://devicetree.org/schemas/phy/mediatek,mt7621-pci-phy.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
 
 title: Mediatek Mt7621 PCIe PHY
 

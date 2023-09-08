@@ -109,18 +109,6 @@ vcpu_alloc_vmx(struct kvm_vm *vm, vm_vaddr_t *p_vmx_gva)
 	vmx->vmwrite_gpa = addr_gva2gpa(vm, (uintptr_t)vmx->vmwrite);
 	memset(vmx->vmwrite_hva, 0, getpagesize());
 
-	/* Setup of a region of guest memory for the VP Assist page. */
-	vmx->vp_assist = (void *)vm_vaddr_alloc_page(vm);
-	vmx->vp_assist_hva = addr_gva2hva(vm, (uintptr_t)vmx->vp_assist);
-	vmx->vp_assist_gpa = addr_gva2gpa(vm, (uintptr_t)vmx->vp_assist);
-
-	/* Setup of a region of guest memory for the enlightened VMCS. */
-	vmx->enlightened_vmcs = (void *)vm_vaddr_alloc_page(vm);
-	vmx->enlightened_vmcs_hva =
-		addr_gva2hva(vm, (uintptr_t)vmx->enlightened_vmcs);
-	vmx->enlightened_vmcs_gpa =
-		addr_gva2gpa(vm, (uintptr_t)vmx->enlightened_vmcs);
-
 	*p_vmx_gva = vmx_gva;
 	return vmx;
 }
@@ -171,26 +159,18 @@ bool prepare_for_vmx_operation(struct vmx_pages *vmx)
 
 bool load_vmcs(struct vmx_pages *vmx)
 {
-	if (!enable_evmcs) {
-		/* Load a VMCS. */
-		*(uint32_t *)(vmx->vmcs) = vmcs_revision();
-		if (vmclear(vmx->vmcs_gpa))
-			return false;
+	/* Load a VMCS. */
+	*(uint32_t *)(vmx->vmcs) = vmcs_revision();
+	if (vmclear(vmx->vmcs_gpa))
+		return false;
 
-		if (vmptrld(vmx->vmcs_gpa))
-			return false;
+	if (vmptrld(vmx->vmcs_gpa))
+		return false;
 
-		/* Setup shadow VMCS, do not load it yet. */
-		*(uint32_t *)(vmx->shadow_vmcs) =
-			vmcs_revision() | 0x80000000ul;
-		if (vmclear(vmx->shadow_vmcs_gpa))
-			return false;
-	} else {
-		if (evmcs_vmptrld(vmx->enlightened_vmcs_gpa,
-				  vmx->enlightened_vmcs))
-			return false;
-		current_evmcs->revision_id = EVMCS_VERSION;
-	}
+	/* Setup shadow VMCS, do not load it yet. */
+	*(uint32_t *)(vmx->shadow_vmcs) = vmcs_revision() | 0x80000000ul;
+	if (vmclear(vmx->shadow_vmcs_gpa))
+		return false;
 
 	return true;
 }
@@ -544,26 +524,22 @@ void nested_identity_map_1g(struct vmx_pages *vmx, struct kvm_vm *vm,
 	__nested_map(vmx, vm, addr, addr, size, PG_LEVEL_1G);
 }
 
-bool kvm_vm_has_ept(struct kvm_vm *vm)
+bool kvm_cpu_has_ept(void)
 {
-	struct kvm_vcpu *vcpu;
 	uint64_t ctrl;
 
-	vcpu = list_first_entry(&vm->vcpus, struct kvm_vcpu, list);
-	TEST_ASSERT(vcpu, "Cannot determine EPT support without vCPUs.\n");
-
-	ctrl = vcpu_get_msr(vcpu, MSR_IA32_VMX_TRUE_PROCBASED_CTLS) >> 32;
+	ctrl = kvm_get_feature_msr(MSR_IA32_VMX_TRUE_PROCBASED_CTLS) >> 32;
 	if (!(ctrl & CPU_BASED_ACTIVATE_SECONDARY_CONTROLS))
 		return false;
 
-	ctrl = vcpu_get_msr(vcpu, MSR_IA32_VMX_PROCBASED_CTLS2) >> 32;
+	ctrl = kvm_get_feature_msr(MSR_IA32_VMX_PROCBASED_CTLS2) >> 32;
 	return ctrl & SECONDARY_EXEC_ENABLE_EPT;
 }
 
 void prepare_eptp(struct vmx_pages *vmx, struct kvm_vm *vm,
 		  uint32_t eptp_memslot)
 {
-	TEST_REQUIRE(kvm_vm_has_ept(vm));
+	TEST_ASSERT(kvm_cpu_has_ept(), "KVM doesn't support nested EPT");
 
 	vmx->eptp = (void *)vm_vaddr_alloc_page(vm);
 	vmx->eptp_hva = addr_gva2hva(vm, (uintptr_t)vmx->eptp);

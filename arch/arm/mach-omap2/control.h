@@ -512,8 +512,6 @@ extern void omap_ctrl_writeb(u8 val, u16 offset);
 extern void omap_ctrl_writew(u16 val, u16 offset);
 extern void omap_ctrl_writel(u32 val, u16 offset);
 
-extern void omap3_save_scratchpad_contents(void);
-extern void omap3_clear_scratchpad_contents(void);
 extern void omap3_restore(void);
 extern void omap3_restore_es3(void);
 extern void omap3_restore_3630(void);
@@ -521,14 +519,11 @@ extern u32 omap3_arm_context[128];
 extern void omap3_control_save_context(void);
 extern void omap3_control_restore_context(void);
 extern void omap3_ctrl_write_boot_mode(u8 bootmode);
-extern void omap_ctrl_write_dsp_boot_addr(u32 bootaddr);
-extern void omap_ctrl_write_dsp_boot_mode(u8 bootmode);
 extern void omap3630_ctrl_disable_rta(void);
 extern int omap3_ctrl_save_padconf(void);
 void omap3_ctrl_init(void);
 int omap2_control_base_init(void);
 int omap_control_init(void);
-void __init omap3_control_legacy_iomap_init(void);
 #else
 #define omap_ctrl_readb(x)		0
 #define omap_ctrl_readw(x)		0

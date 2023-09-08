@@ -546,7 +546,7 @@ static const struct file_operations afu_master_fops = {
 };
 
 
-static char *cxl_devnode(struct device *dev, umode_t *mode)
+static char *cxl_devnode(const struct device *dev, umode_t *mode)
 {
 	if (cpu_has_feature(CPU_FTR_HVMODE) &&
 	    CXL_DEVT_IS_CARD(dev->devt)) {
@@ -678,7 +678,7 @@ int __init cxl_file_init(void)
 
 	pr_devel("CXL device allocated, MAJOR %i\n", MAJOR(cxl_dev));
 
-	cxl_class = class_create(THIS_MODULE, "cxl");
+	cxl_class = class_create("cxl");
 	if (IS_ERR(cxl_class)) {
 		pr_err("Unable to create CXL class\n");
 		rc = PTR_ERR(cxl_class);

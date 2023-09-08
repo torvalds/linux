@@ -113,7 +113,7 @@ additionalProperties:
         $ref: "#/additionalProperties/anyOf/0"
 
 allOf:
-  - $ref: "pinctrl.yaml#"
+  - $ref: pinctrl.yaml#
 
 required:
   - compatible

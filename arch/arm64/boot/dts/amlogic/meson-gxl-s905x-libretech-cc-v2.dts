@@ -305,7 +305,6 @@
 };
 
 &usb2_phy0 {
-	pinctrl-names = "default";
 	phy-supply = <&vcc5v>;
 };
 

@@ -307,6 +307,7 @@ static inline int mt9p031_pll_disable(struct mt9p031 *mt9p031)
 
 static int mt9p031_power_on(struct mt9p031 *mt9p031)
 {
+	unsigned long rate, delay;
 	int ret;
 
 	/* Ensure RESET_BAR is active */
@@ -334,7 +335,12 @@ static int mt9p031_power_on(struct mt9p031 *mt9p031)
 	/* Now RESET_BAR must be high */
 	if (mt9p031->reset) {
 		gpiod_set_value(mt9p031->reset, 0);
-		usleep_range(1000, 2000);
+		/* Wait 850000 EXTCLK cycles before de-asserting reset. */
+		rate = clk_get_rate(mt9p031->clk);
+		if (!rate)
+			rate = 6000000;	/* Slowest supported clock, 6 MHz */
+		delay = DIV_ROUND_UP(850000 * 1000, rate);
+		msleep(delay);
 	}
 
 	return 0;
@@ -702,7 +708,6 @@ static int mt9p031_init_cfg(struct v4l2_subdev *subdev,
 					     V4L2_SUBDEV_FORMAT_TRY;
 
 	crop = __mt9p031_get_pad_crop(mt9p031, sd_state, 0, which);
-	v4l2_subdev_get_try_crop(subdev, sd_state, 0);
 	crop->left = MT9P031_COLUMN_START_DEF;
 	crop->top = MT9P031_ROW_START_DEF;
 	crop->width = MT9P031_WINDOW_WIDTH_DEF;
@@ -1097,9 +1102,9 @@ done:
 	return pdata;
 }
 
-static int mt9p031_probe(struct i2c_client *client,
-			 const struct i2c_device_id *did)
+static int mt9p031_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *did = i2c_client_get_device_id(client);
 	struct mt9p031_platform_data *pdata = mt9p031_get_pdata(client);
 	struct i2c_adapter *adapter = client->adapter;
 	struct mt9p031 *mt9p031;
@@ -1243,7 +1248,7 @@ static struct i2c_driver mt9p031_i2c_driver = {
 		.of_match_table = of_match_ptr(mt9p031_of_match),
 		.name = "mt9p031",
 	},
-	.probe          = mt9p031_probe,
+	.probe_new      = mt9p031_probe,
 	.remove         = mt9p031_remove,
 	.id_table       = mt9p031_id,
 };

@@ -68,10 +68,6 @@
 		};
 	};
 
-	cec@70015000 {
-		status = "okay";
-	};
-
 	gpu@57000000 {
 		/*
 		 * Node left disabled on purpose - the bootloader will enable
@@ -1681,6 +1677,10 @@
 			nvidia,reg-addr = <0x36>;
 			nvidia,reg-data = <0x2>;
 		};
+	};
+
+	cec@70015000 {
+		status = "okay";
 	};
 
 	/* Serial ATA */

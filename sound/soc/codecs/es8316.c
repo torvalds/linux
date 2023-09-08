@@ -803,14 +803,15 @@ static const struct snd_soc_component_driver soc_component_dev_es8316 = {
 	.endianness		= 1,
 };
 
-static const struct regmap_range es8316_volatile_ranges[] = {
-	regmap_reg_range(ES8316_GPIO_FLAG, ES8316_GPIO_FLAG),
-};
-
-static const struct regmap_access_table es8316_volatile_table = {
-	.yes_ranges	= es8316_volatile_ranges,
-	.n_yes_ranges	= ARRAY_SIZE(es8316_volatile_ranges),
-};
+static bool es8316_volatile_reg(struct device *dev, unsigned int reg)
+{
+	switch (reg) {
+	case ES8316_GPIO_FLAG:
+		return true;
+	default:
+		return false;
+	}
+}
 
 static const struct regmap_config es8316_regmap = {
 	.reg_bits = 8,
@@ -818,7 +819,7 @@ static const struct regmap_config es8316_regmap = {
 	.use_single_read = true,
 	.use_single_write = true,
 	.max_register = 0x53,
-	.volatile_table	= &es8316_volatile_table,
+	.volatile_reg = es8316_volatile_reg,
 	.cache_type = REGCACHE_RBTREE,
 };
 
@@ -842,12 +843,14 @@ static int es8316_i2c_probe(struct i2c_client *i2c_client)
 	es8316->irq = i2c_client->irq;
 	mutex_init(&es8316->lock);
 
-	ret = devm_request_threaded_irq(dev, es8316->irq, NULL, es8316_irq,
-					IRQF_TRIGGER_HIGH | IRQF_ONESHOT | IRQF_NO_AUTOEN,
-					"es8316", es8316);
-	if (ret) {
-		dev_warn(dev, "Failed to get IRQ %d: %d\n", es8316->irq, ret);
-		es8316->irq = -ENXIO;
+	if (es8316->irq > 0) {
+		ret = devm_request_threaded_irq(dev, es8316->irq, NULL, es8316_irq,
+						IRQF_TRIGGER_HIGH | IRQF_ONESHOT | IRQF_NO_AUTOEN,
+						"es8316", es8316);
+		if (ret) {
+			dev_warn(dev, "Failed to get IRQ %d: %d\n", es8316->irq, ret);
+			es8316->irq = -ENXIO;
+		}
 	}
 
 	return devm_snd_soc_register_component(&i2c_client->dev,

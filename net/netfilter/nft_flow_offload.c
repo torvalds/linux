@@ -433,7 +433,8 @@ static void nft_flow_offload_destroy(const struct nft_ctx *ctx,
 	nf_ct_netns_put(ctx->net, ctx->family);
 }
 
-static int nft_flow_offload_dump(struct sk_buff *skb, const struct nft_expr *expr)
+static int nft_flow_offload_dump(struct sk_buff *skb,
+				 const struct nft_expr *expr, bool reset)
 {
 	struct nft_flow_offload *priv = nft_expr_priv(expr);
 

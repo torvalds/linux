@@ -282,9 +282,9 @@ static irqreturn_t dlh_interrupt(int irq, void *private)
 	return IRQ_HANDLED;
 };
 
-static int dlh_probe(struct i2c_client *client,
-	const struct i2c_device_id *id)
+static int dlh_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct dlh_state *st;
 	struct iio_dev *indio_dev;
 	int ret;
@@ -362,7 +362,7 @@ static struct i2c_driver dlh_driver = {
 		.name = "dlhl60d",
 		.of_match_table = dlh_of_match,
 	},
-	.probe = dlh_probe,
+	.probe_new = dlh_probe,
 	.id_table = dlh_id,
 };
 module_i2c_driver(dlh_driver);

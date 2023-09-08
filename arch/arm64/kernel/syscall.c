@@ -173,31 +173,18 @@ static inline void fp_user_discard(void)
 	 * register state to track, if this changes the KVM code will
 	 * need updating.
 	 */
-	if (system_supports_sme() && test_thread_flag(TIF_SME)) {
-		u64 svcr = read_sysreg_s(SYS_SVCR);
-
-		if (svcr & SVCR_SM_MASK)
-			sme_smstop_sm();
-	}
+	if (system_supports_sme())
+		sme_smstop_sm();
 
 	if (!system_supports_sve())
 		return;
 
-	/*
-	 * If SME is not active then disable SVE, the registers will
-	 * be cleared when userspace next attempts to access them and
-	 * we do not need to track the SVE register state until then.
-	 */
-	clear_thread_flag(TIF_SVE);
+	if (test_thread_flag(TIF_SVE)) {
+		unsigned int sve_vq_minus_one;
 
-	/*
-	 * task_fpsimd_load() won't be called to update CPACR_EL1 in
-	 * ret_to_user unless TIF_FOREIGN_FPSTATE is still set, which only
-	 * happens if a context switch or kernel_neon_begin() or context
-	 * modification (sigreturn, ptrace) intervenes.
-	 * So, ensure that CPACR_EL1 is already correct for the fast-path case.
-	 */
-	sve_user_disable();
+		sve_vq_minus_one = sve_vq_from_vl(task_get_sve_vl(current)) - 1;
+		sve_flush_live(true, sve_vq_minus_one);
+	}
 }
 
 void do_el0_svc(struct pt_regs *regs)

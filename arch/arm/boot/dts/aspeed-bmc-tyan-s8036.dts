@@ -364,6 +364,7 @@
 &kcs3 {
 	status = "okay";
 	aspeed,lpc-io-reg = <0xca2>;
+	aspeed,lpc-interrupts = <1 IRQ_TYPE_LEVEL_HIGH>;
 };
 
 /* Enable BMC VGA output to show an early (pre-BIOS) boot screen */

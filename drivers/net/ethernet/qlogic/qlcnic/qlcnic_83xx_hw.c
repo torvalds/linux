@@ -8,7 +8,6 @@
 #include <linux/ipv6.h>
 #include <linux/ethtool.h>
 #include <linux/interrupt.h>
-#include <linux/aer.h>
 
 #include "qlcnic.h"
 #include "qlcnic_sriov.h"

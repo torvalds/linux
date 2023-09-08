@@ -15,7 +15,7 @@ description: |
   settings, chip identifiers) or user specific data could be stored.
 
 allOf:
-  - $ref: "nvmem.yaml#"
+  - $ref: nvmem.yaml#
 
 properties:
   compatible:

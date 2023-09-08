@@ -14,6 +14,7 @@
 #include <linux/mutex.h>
 #include <linux/err.h>
 #include <linux/hwmon.h>
+#include <linux/kstrtox.h>
 
 /* Insmod parameters */
 

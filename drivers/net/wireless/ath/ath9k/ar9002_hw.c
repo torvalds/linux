@@ -249,9 +249,9 @@ static void ar9002_hw_configpcipowersave(struct ath_hw *ah,
 
 	if (power_off) {
 		/* clear bit 19 to disable L1 */
-		REG_CLR_BIT(ah, AR_PCIE_PM_CTRL, AR_PCIE_PM_CTRL_ENA);
+		REG_CLR_BIT(ah, AR_PCIE_PM_CTRL(ah), AR_PCIE_PM_CTRL_ENA);
 
-		val = REG_READ(ah, AR_WA);
+		val = REG_READ(ah, AR_WA(ah));
 
 		/*
 		 * Set PCIe workaround bits
@@ -286,7 +286,7 @@ static void ar9002_hw_configpcipowersave(struct ath_hw *ah,
 		if (AR_SREV_9285E_20(ah))
 			val |= AR_WA_BIT23;
 
-		REG_WRITE(ah, AR_WA, val);
+		REG_WRITE(ah, AR_WA(ah), val);
 	} else {
 		if (ah->config.pcie_waen) {
 			val = ah->config.pcie_waen;
@@ -314,10 +314,10 @@ static void ar9002_hw_configpcipowersave(struct ath_hw *ah,
 		if (AR_SREV_9285E_20(ah))
 			val |= AR_WA_BIT23;
 
-		REG_WRITE(ah, AR_WA, val);
+		REG_WRITE(ah, AR_WA(ah), val);
 
 		/* set bit 19 to allow forcing of pcie core into L1 state */
-		REG_SET_BIT(ah, AR_PCIE_PM_CTRL, AR_PCIE_PM_CTRL_ENA);
+		REG_SET_BIT(ah, AR_PCIE_PM_CTRL(ah), AR_PCIE_PM_CTRL_ENA);
 	}
 }
 

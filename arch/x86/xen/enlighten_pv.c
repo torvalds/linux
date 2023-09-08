@@ -33,6 +33,7 @@
 #include <linux/edd.h>
 #include <linux/reboot.h>
 #include <linux/virtio_anchor.h>
+#include <linux/stackprotector.h>
 
 #include <xen/xen.h>
 #include <xen/events.h>
@@ -65,7 +66,6 @@
 #include <asm/pgalloc.h>
 #include <asm/tlbflush.h>
 #include <asm/reboot.h>
-#include <asm/stackprotector.h>
 #include <asm/hypervisor.h>
 #include <asm/mach_traps.h>
 #include <asm/mwait.h>
@@ -276,6 +276,7 @@ static void __init xen_init_capabilities(void)
 	setup_clear_cpu_cap(X86_FEATURE_ACC);
 	setup_clear_cpu_cap(X86_FEATURE_X2APIC);
 	setup_clear_cpu_cap(X86_FEATURE_SME);
+	setup_clear_cpu_cap(X86_FEATURE_LKGS);
 
 	/*
 	 * Xen PV would need some work to support PCID: CR3 handling as well
@@ -1068,7 +1069,7 @@ static const typeof(pv_ops) xen_cpu_ops __initconst = {
 
 		.write_cr4 = xen_write_cr4,
 
-		.wbinvd = native_wbinvd,
+		.wbinvd = pv_native_wbinvd,
 
 		.read_msr = xen_read_msr,
 		.write_msr = xen_write_msr,
@@ -1210,7 +1211,7 @@ static void __init xen_setup_gdt(int cpu)
 	pv_ops.cpu.write_gdt_entry = xen_write_gdt_entry_boot;
 	pv_ops.cpu.load_gdt = xen_load_gdt_boot;
 
-	switch_to_new_gdt(cpu);
+	switch_gdt_and_percpu_base(cpu);
 
 	pv_ops.cpu.write_gdt_entry = xen_write_gdt_entry;
 	pv_ops.cpu.load_gdt = xen_load_gdt;
@@ -1266,6 +1267,8 @@ asmlinkage __visible void __init xen_start_kernel(struct start_info *si)
 	xen_vcpu_info_reset(0);
 
 	x86_platform.get_nmi_reason = xen_get_nmi_reason;
+	x86_platform.realmode_reserve = x86_init_noop;
+	x86_platform.realmode_init = x86_init_noop;
 
 	x86_init.resources.memory_setup = xen_memory_setup;
 	x86_init.irqs.intr_mode_select	= x86_init_noop;
@@ -1387,7 +1390,8 @@ asmlinkage __visible void __init xen_start_kernel(struct start_info *si)
 
 		x86_platform.set_legacy_features =
 				xen_dom0_set_legacy_features;
-		xen_init_vga(info, xen_start_info->console.dom0.info_size);
+		xen_init_vga(info, xen_start_info->console.dom0.info_size,
+			     &boot_params.screen_info);
 		xen_start_info->console.domU.mfn = 0;
 		xen_start_info->console.domU.evtchn = 0;
 

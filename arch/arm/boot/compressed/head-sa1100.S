@@ -20,10 +20,6 @@ __SA1100_start:
 #ifdef CONFIG_SA1100_COLLIE
 		mov	r7, #MACH_TYPE_COLLIE
 #endif
-#ifdef CONFIG_SA1100_SIMPAD
-		@ UNTIL we've something like an open bootldr
-		mov	r7, #MACH_TYPE_SIMPAD	@should be 87
-#endif
 		mrc	p15, 0, r0, c1, c0, 0	@ read control reg
 		ands	r0, r0, #0x0d
 		beq	99f

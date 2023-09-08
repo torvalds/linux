@@ -131,7 +131,7 @@
 	leds {
 		compatible = "gpio-leds";
 
-		user_led: user {
+		user_led: led-user {
 			label = "Heartbeat";
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_led>;

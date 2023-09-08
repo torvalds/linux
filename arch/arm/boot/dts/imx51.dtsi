@@ -124,6 +124,9 @@
 		iram: sram@1ffe0000 {
 			compatible = "mmio-sram";
 			reg = <0x1ffe0000 0x20000>;
+			ranges = <0 0x1ffe0000 0x20000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
 		};
 
 		gpu: gpu@30000000 {

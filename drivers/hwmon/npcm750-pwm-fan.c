@@ -629,7 +629,7 @@ static umode_t npcm7xx_is_visible(const void *data,
 	}
 }
 
-static const struct hwmon_channel_info *npcm7xx_info[] = {
+static const struct hwmon_channel_info * const npcm7xx_info[] = {
 	HWMON_CHANNEL_INFO(pwm,
 			   HWMON_PWM_INPUT,
 			   HWMON_PWM_INPUT,

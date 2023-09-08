@@ -419,7 +419,7 @@ XDP_UMEM_REG setsockopt
 -----------------------
 
 This setsockopt registers a UMEM to a socket. This is the area that
-contain all the buffers that packet can recide in. The call takes a
+contain all the buffers that packet can reside in. The call takes a
 pointer to the beginning of this area and the size of it. Moreover, it
 also has parameter called chunk_size that is the size that the UMEM is
 divided into. It can only be 2K or 4K at the moment. If you have an
@@ -592,7 +592,7 @@ A: When a netdev of a physical NIC is initialized, Linux usually
    A number of other ways are possible all up to the capabilities of
    the NIC you have.
 
-Q: Can I use the XSKMAP to implement a switch betwen different umems
+Q: Can I use the XSKMAP to implement a switch between different umems
    in copy mode?
 
 A: The short answer is no, that is not supported at the moment. The

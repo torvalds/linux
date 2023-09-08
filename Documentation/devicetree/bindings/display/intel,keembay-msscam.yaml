@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/display/intel,keembay-msscam.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Devicetree bindings for Intel Keem Bay MSSCAM
+title: Intel Keem Bay MSSCAM
 
 maintainers:
   - Anitha Chrisanthus <anitha.chrisanthus@intel.com>

@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/net/mctp-i2c-controller.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: MCTP I2C transport binding
+title: MCTP I2C transport
 
 maintainers:
   - Matt Johnston <matt@codeconstruct.com.au>

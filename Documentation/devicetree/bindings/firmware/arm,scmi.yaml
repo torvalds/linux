@@ -5,7 +5,7 @@
 $id: http://devicetree.org/schemas/firmware/arm,scmi.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: System Control and Management Interface (SCMI) Message Protocol bindings
+title: System Control and Management Interface (SCMI) Message Protocol
 
 maintainers:
   - Sudeep Holla <sudeep.holla@arm.com>
@@ -56,17 +56,38 @@ properties:
     description:
       Specifies the mailboxes used to communicate with SCMI compliant
       firmware.
-    items:
-      - const: tx
-      - const: rx
+    oneOf:
+      - items:
+          - const: tx
+          - const: rx
+        minItems: 1
+      - items:
+          - const: tx
+          - const: tx_reply
+          - const: rx
+        minItems: 2
 
   mboxes:
     description:
       List of phandle and mailbox channel specifiers. It should contain
-      exactly one or two mailboxes, one for transmitting messages("tx")
-      and another optional for receiving the notifications("rx") if supported.
+      exactly one, two or three mailboxes; the first one or two for transmitting
+      messages ("tx") and another optional ("rx") for receiving notifications
+      and delayed responses, if supported by the platform.
+      The number of mailboxes needed for transmitting messages depends on the
+      type of channels exposed by the specific underlying mailbox controller;
+      one single channel descriptor is enough if such channel is bidirectional,
+      while two channel descriptors are needed to represent the SCMI ("tx")
+      channel if the underlying mailbox channels are of unidirectional type.
+      The effective combination in numbers of mboxes and shmem descriptors let
+      the SCMI subsystem determine unambiguosly which type of SCMI channels are
+      made available by the underlying mailbox controller and how to use them.
+       1 mbox / 1 shmem => SCMI TX over 1 mailbox bidirectional channel
+       2 mbox / 2 shmem => SCMI TX and RX over 2 mailbox bidirectional channels
+       2 mbox / 1 shmem => SCMI TX over 2 mailbox unidirectional channels
+       3 mbox / 2 shmem => SCMI TX and RX over 3 mailbox unidirectional channels
+      Any other combination of mboxes and shmem is invalid.
     minItems: 1
-    maxItems: 2
+    maxItems: 3
 
   shmem:
     description:
@@ -100,7 +121,9 @@ properties:
       Channel specifier required when using OP-TEE transport.
 
   protocol@11:
-    type: object
+    $ref: '#/$defs/protocol-node'
+    unevaluatedProperties: false
+
     properties:
       reg:
         const: 0x11
@@ -112,7 +135,9 @@ properties:
       - '#power-domain-cells'
 
   protocol@13:
-    type: object
+    $ref: '#/$defs/protocol-node'
+    unevaluatedProperties: false
+
     properties:
       reg:
         const: 0x13
@@ -124,7 +149,9 @@ properties:
       - '#clock-cells'
 
   protocol@14:
-    type: object
+    $ref: '#/$defs/protocol-node'
+    unevaluatedProperties: false
+
     properties:
       reg:
         const: 0x14
@@ -136,7 +163,9 @@ properties:
       - '#clock-cells'
 
   protocol@15:
-    type: object
+    $ref: '#/$defs/protocol-node'
+    unevaluatedProperties: false
+
     properties:
       reg:
         const: 0x15
@@ -148,7 +177,9 @@ properties:
       - '#thermal-sensor-cells'
 
   protocol@16:
-    type: object
+    $ref: '#/$defs/protocol-node'
+    unevaluatedProperties: false
+
     properties:
       reg:
         const: 0x16
@@ -160,20 +191,31 @@ properties:
       - '#reset-cells'
 
   protocol@17:
-    type: object
+    $ref: '#/$defs/protocol-node'
+    unevaluatedProperties: false
+
     properties:
       reg:
         const: 0x17
 
       regulators:
         type: object
+        additionalProperties: false
         description:
           The list of all regulators provided by this SCMI controller.
 
+        properties:
+          '#address-cells':
+            const: 1
+
+          '#size-cells':
+            const: 0
+
         patternProperties:
-          '^regulators@[0-9a-f]+$':
+          '^regulator@[0-9a-f]+$':
             type: object
             $ref: "../regulator/regulator.yaml#"
+            unevaluatedProperties: false
 
             properties:
               reg:
@@ -184,15 +226,17 @@ properties:
               - reg
 
   protocol@18:
-    type: object
+    $ref: '#/$defs/protocol-node'
+    unevaluatedProperties: false
+
     properties:
       reg:
         const: 0x18
 
 additionalProperties: false
 
-patternProperties:
-  '^protocol@[0-9a-f]+$':
+$defs:
+  protocol-node:
     type: object
     description:
       Each sub-node represents a protocol supported. If the platform
@@ -205,13 +249,20 @@ patternProperties:
         maxItems: 1
 
       mbox-names:
-        items:
-          - const: tx
-          - const: rx
+        oneOf:
+          - items:
+              - const: tx
+              - const: rx
+            minItems: 1
+          - items:
+              - const: tx
+              - const: tx_reply
+              - const: rx
+            minItems: 2
 
       mboxes:
         minItems: 1
-        maxItems: 2
+        maxItems: 3
 
       shmem:
         minItems: 1

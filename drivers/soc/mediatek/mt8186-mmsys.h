@@ -5,9 +5,11 @@
 
 /* Values for DPI configuration in MMSYS address space */
 #define MT8186_MMSYS_DPI_OUTPUT_FORMAT		0x400
-#define DPI_FORMAT_MASK					0x1
-#define DPI_RGB888_DDR_CON				BIT(0)
-#define DPI_RGB565_SDR_CON				BIT(1)
+#define MT8186_DPI_FORMAT_MASK				GENMASK(1, 0)
+#define MT8186_DPI_RGB888_SDR_CON			0
+#define MT8186_DPI_RGB888_DDR_CON			1
+#define MT8186_DPI_RGB565_SDR_CON			2
+#define MT8186_DPI_RGB565_DDR_CON			3
 
 #define MT8186_MMSYS_OVL_CON			0xF04
 #define MT8186_MMSYS_OVL0_CON_MASK			0x3

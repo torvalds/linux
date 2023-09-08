@@ -23,8 +23,7 @@ static const struct regmap_config ad7879_i2c_regmap_config = {
 	.max_register = 15,
 };
 
-static int ad7879_i2c_probe(struct i2c_client *client,
-				      const struct i2c_device_id *id)
+static int ad7879_i2c_probe(struct i2c_client *client)
 {
 	struct regmap *regmap;
 
@@ -63,7 +62,7 @@ static struct i2c_driver ad7879_i2c_driver = {
 		.pm	= &ad7879_pm_ops,
 		.of_match_table = of_match_ptr(ad7879_i2c_dt_ids),
 	},
-	.probe		= ad7879_i2c_probe,
+	.probe_new	= ad7879_i2c_probe,
 	.id_table	= ad7879_id,
 };
 

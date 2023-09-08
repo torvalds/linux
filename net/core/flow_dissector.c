@@ -971,12 +971,14 @@ bool __skb_flow_dissect(const struct net *net,
 #if IS_ENABLED(CONFIG_NET_DSA)
 		if (unlikely(skb->dev && netdev_uses_dsa(skb->dev) &&
 			     proto == htons(ETH_P_XDSA))) {
+			struct metadata_dst *md_dst = skb_metadata_dst(skb);
 			const struct dsa_device_ops *ops;
 			int offset = 0;
 
 			ops = skb->dev->dsa_ptr->tag_ops;
 			/* Only DSA header taggers break flow dissection */
-			if (ops->needed_headroom) {
+			if (ops->needed_headroom &&
+			    (!md_dst || md_dst->type != METADATA_HW_PORT_MUX)) {
 				if (ops->flow_dissect)
 					ops->flow_dissect(skb, &proto, &offset);
 				else

@@ -161,6 +161,6 @@ xxx_packing() that calls it using the proper QUIRK_* one-hot bits set.
 
 The packing() function returns an int-encoded error code, which protects the
 programmer against incorrect API use.  The errors are not expected to occur
-durring runtime, therefore it is reasonable for xxx_packing() to return void
+during runtime, therefore it is reasonable for xxx_packing() to return void
 and simply swallow those errors. Optionally it can dump stack or print the
 error description.

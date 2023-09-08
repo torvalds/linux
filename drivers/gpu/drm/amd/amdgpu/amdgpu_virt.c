@@ -64,6 +64,10 @@ void amdgpu_virt_init_setting(struct amdgpu_device *adev)
 	ddev->driver_features &= ~DRIVER_ATOMIC;
 	adev->cg_flags = 0;
 	adev->pg_flags = 0;
+
+	/* enable mcbp for sriov asic_type before soc21 */
+	amdgpu_mcbp = (adev->asic_type < CHIP_IP_DISCOVERY) ? 1 : 0;
+
 }
 
 void amdgpu_virt_kiq_reg_write_reg_wait(struct amdgpu_device *adev,
@@ -228,7 +232,8 @@ int amdgpu_virt_alloc_mm_table(struct amdgpu_device *adev)
 		return 0;
 
 	r = amdgpu_bo_create_kernel(adev, PAGE_SIZE, PAGE_SIZE,
-				    AMDGPU_GEM_DOMAIN_VRAM,
+				    AMDGPU_GEM_DOMAIN_VRAM |
+				    AMDGPU_GEM_DOMAIN_GTT,
 				    &adev->virt.mm_table.bo,
 				    &adev->virt.mm_table.gpu_addr,
 				    (void *)&adev->virt.mm_table.cpu_addr);
@@ -391,7 +396,6 @@ static void amdgpu_virt_ras_reserve_bps(struct amdgpu_device *adev)
 		 */
 		if (amdgpu_bo_create_kernel_at(adev, bp << AMDGPU_GPU_PAGE_SHIFT,
 					       AMDGPU_GPU_PAGE_SIZE,
-					       AMDGPU_GEM_DOMAIN_VRAM,
 					       &bo, NULL))
 			DRM_DEBUG("RAS WARN: reserve vram for retired page %llx fail\n", bp);
 
@@ -424,11 +428,17 @@ static void amdgpu_virt_add_bad_page(struct amdgpu_device *adev,
 	struct eeprom_table_record bp;
 	uint64_t retired_page;
 	uint32_t bp_idx, bp_cnt;
+	void *vram_usage_va = NULL;
+
+	if (adev->mman.fw_vram_usage_va)
+		vram_usage_va = adev->mman.fw_vram_usage_va;
+	else
+		vram_usage_va = adev->mman.drv_vram_usage_va;
 
 	if (bp_block_size) {
 		bp_cnt = bp_block_size / sizeof(uint64_t);
 		for (bp_idx = 0; bp_idx < bp_cnt; bp_idx++) {
-			retired_page = *(uint64_t *)(adev->mman.fw_vram_usage_va +
+			retired_page = *(uint64_t *)(vram_usage_va +
 					bp_block_offset + bp_idx * sizeof(uint64_t));
 			bp.retired_page = retired_page;
 
@@ -639,7 +649,9 @@ void amdgpu_virt_init_data_exchange(struct amdgpu_device *adev)
 	adev->virt.fw_reserve.p_vf2pf = NULL;
 	adev->virt.vf2pf_update_interval_ms = 0;
 
-	if (adev->mman.fw_vram_usage_va != NULL) {
+	if (adev->mman.fw_vram_usage_va && adev->mman.drv_vram_usage_va) {
+		DRM_WARN("Currently fw_vram and drv_vram should not have values at the same time!");
+	} else if (adev->mman.fw_vram_usage_va || adev->mman.drv_vram_usage_va) {
 		/* go through this logic in ip_init and reset to init workqueue*/
 		amdgpu_virt_exchange_data(adev);
 
@@ -662,32 +674,40 @@ void amdgpu_virt_exchange_data(struct amdgpu_device *adev)
 	uint32_t bp_block_size = 0;
 	struct amd_sriov_msg_pf2vf_info *pf2vf_v2 = NULL;
 
-	if (adev->mman.fw_vram_usage_va != NULL) {
-
-		adev->virt.fw_reserve.p_pf2vf =
-			(struct amd_sriov_msg_pf2vf_info_header *)
-			(adev->mman.fw_vram_usage_va + (AMD_SRIOV_MSG_PF2VF_OFFSET_KB << 10));
-		adev->virt.fw_reserve.p_vf2pf =
-			(struct amd_sriov_msg_vf2pf_info_header *)
-			(adev->mman.fw_vram_usage_va + (AMD_SRIOV_MSG_VF2PF_OFFSET_KB << 10));
+	if (adev->mman.fw_vram_usage_va || adev->mman.drv_vram_usage_va) {
+		if (adev->mman.fw_vram_usage_va) {
+			adev->virt.fw_reserve.p_pf2vf =
+				(struct amd_sriov_msg_pf2vf_info_header *)
+				(adev->mman.fw_vram_usage_va + (AMD_SRIOV_MSG_PF2VF_OFFSET_KB << 10));
+			adev->virt.fw_reserve.p_vf2pf =
+				(struct amd_sriov_msg_vf2pf_info_header *)
+				(adev->mman.fw_vram_usage_va + (AMD_SRIOV_MSG_VF2PF_OFFSET_KB << 10));
+		} else if (adev->mman.drv_vram_usage_va) {
+			adev->virt.fw_reserve.p_pf2vf =
+				(struct amd_sriov_msg_pf2vf_info_header *)
+				(adev->mman.drv_vram_usage_va + (AMD_SRIOV_MSG_PF2VF_OFFSET_KB << 10));
+			adev->virt.fw_reserve.p_vf2pf =
+				(struct amd_sriov_msg_vf2pf_info_header *)
+				(adev->mman.drv_vram_usage_va + (AMD_SRIOV_MSG_VF2PF_OFFSET_KB << 10));
+		}
 
 		amdgpu_virt_read_pf2vf_data(adev);
 		amdgpu_virt_write_vf2pf_data(adev);
 
 		/* bad page handling for version 2 */
 		if (adev->virt.fw_reserve.p_pf2vf->version == 2) {
-				pf2vf_v2 = (struct amd_sriov_msg_pf2vf_info *)adev->virt.fw_reserve.p_pf2vf;
+			pf2vf_v2 = (struct amd_sriov_msg_pf2vf_info *)adev->virt.fw_reserve.p_pf2vf;
 
-				bp_block_offset = ((uint64_t)pf2vf_v2->bp_block_offset_low & 0xFFFFFFFF) |
-						((((uint64_t)pf2vf_v2->bp_block_offset_high) << 32) & 0xFFFFFFFF00000000);
-				bp_block_size = pf2vf_v2->bp_block_size;
+			bp_block_offset = ((uint64_t)pf2vf_v2->bp_block_offset_low & 0xFFFFFFFF) |
+				((((uint64_t)pf2vf_v2->bp_block_offset_high) << 32) & 0xFFFFFFFF00000000);
+			bp_block_size = pf2vf_v2->bp_block_size;
 
-				if (bp_block_size && !adev->virt.ras_init_done)
-					amdgpu_virt_init_ras_err_handler_data(adev);
+			if (bp_block_size && !adev->virt.ras_init_done)
+				amdgpu_virt_init_ras_err_handler_data(adev);
 
-				if (adev->virt.ras_init_done)
-					amdgpu_virt_add_bad_page(adev, bp_block_offset, bp_block_size);
-			}
+			if (adev->virt.ras_init_done)
+				amdgpu_virt_add_bad_page(adev, bp_block_offset, bp_block_size);
+		}
 	}
 }
 
@@ -963,11 +983,13 @@ static u32 amdgpu_virt_rlcg_reg_rw(struct amdgpu_device *adev, u32 offset, u32 v
 	if (offset == reg_access_ctrl->grbm_cntl) {
 		/* if the target reg offset is grbm_cntl, write to scratch_reg2 */
 		writel(v, scratch_reg2);
-		writel(v, ((void __iomem *)adev->rmmio) + (offset * 4));
+		if (flag == AMDGPU_RLCG_GC_WRITE_LEGACY)
+			writel(v, ((void __iomem *)adev->rmmio) + (offset * 4));
 	} else if (offset == reg_access_ctrl->grbm_idx) {
 		/* if the target reg offset is grbm_idx, write to scratch_reg3 */
 		writel(v, scratch_reg3);
-		writel(v, ((void __iomem *)adev->rmmio) + (offset * 4));
+		if (flag == AMDGPU_RLCG_GC_WRITE_LEGACY)
+			writel(v, ((void __iomem *)adev->rmmio) + (offset * 4));
 	} else {
 		/*
 		 * SCRATCH_REG0 	= read/write value

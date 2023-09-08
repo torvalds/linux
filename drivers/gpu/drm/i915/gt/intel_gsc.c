@@ -7,6 +7,7 @@
 #include <linux/mei_aux.h>
 #include "i915_drv.h"
 #include "i915_reg.h"
+#include "gem/i915_gem_lmem.h"
 #include "gem/i915_gem_region.h"
 #include "gt/intel_gsc.h"
 #include "gt/intel_gt.h"
@@ -142,8 +143,14 @@ static void gsc_destroy_one(struct drm_i915_private *i915,
 	struct intel_gsc_intf *intf = &gsc->intf[intf_id];
 
 	if (intf->adev) {
-		auxiliary_device_delete(&intf->adev->aux_dev);
-		auxiliary_device_uninit(&intf->adev->aux_dev);
+		struct auxiliary_device *aux_dev = &intf->adev->aux_dev;
+
+		if (intf_id == 0)
+			intel_huc_unregister_gsc_notifier(&gsc_to_gt(gsc)->uc.huc,
+							  aux_dev->dev.bus);
+
+		auxiliary_device_delete(aux_dev);
+		auxiliary_device_uninit(aux_dev);
 		intf->adev = NULL;
 	}
 
@@ -166,6 +173,14 @@ static void gsc_init_one(struct drm_i915_private *i915, struct intel_gsc *gsc,
 
 	intf->irq = -1;
 	intf->id = intf_id;
+
+	/*
+	 * On the multi-tile setups the GSC is functional on the first tile only
+	 */
+	if (gsc_to_gt(gsc)->info.id != 0) {
+		drm_dbg(&i915->drm, "Not initializing gsc for remote tiles\n");
+		return;
+	}
 
 	if (intf_id == 0 && !HAS_HECI_PXP(i915))
 		return;
@@ -242,14 +257,24 @@ add_device:
 		goto fail;
 	}
 
+	intf->adev = adev; /* needed by the notifier */
+
+	if (intf_id == 0)
+		intel_huc_register_gsc_notifier(&gsc_to_gt(gsc)->uc.huc,
+						aux_dev->dev.bus);
+
 	ret = auxiliary_device_add(aux_dev);
 	if (ret < 0) {
 		drm_err(&i915->drm, "gsc aux add failed %d\n", ret);
+		if (intf_id == 0)
+			intel_huc_unregister_gsc_notifier(&gsc_to_gt(gsc)->uc.huc,
+							  aux_dev->dev.bus);
+		intf->adev = NULL;
+
 		/* adev will be freed with the put_device() and .release sequence */
 		auxiliary_device_uninit(aux_dev);
 		goto fail;
 	}
-	intf->adev = adev;
 
 	return;
 fail:

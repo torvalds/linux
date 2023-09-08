@@ -18,7 +18,6 @@
 #include <linux/delay.h>
 #include <linux/clk-provider.h>
 #include <linux/cpu.h>
-#include <linux/platform_data/dsa.h>
 #include <asm/page.h>
 #include <asm/setup.h>
 #include <asm/system_misc.h>
@@ -97,15 +96,6 @@ void __init orion5x_eth_init(struct mv643xx_eth_platform_data *eth_data)
 			ORION5X_ETH_PHYS_BASE, IRQ_ORION5X_ETH_SUM,
 			IRQ_ORION5X_ETH_ERR,
 			MV643XX_TX_CSUM_DEFAULT_LIMIT);
-}
-
-
-/*****************************************************************************
- * Ethernet switch
- ****************************************************************************/
-void __init orion5x_eth_switch_init(struct dsa_chip_data *d)
-{
-	orion_ge00_switch_init(d);
 }
 
 

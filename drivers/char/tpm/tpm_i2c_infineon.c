@@ -681,8 +681,7 @@ MODULE_DEVICE_TABLE(of, tpm_tis_i2c_of_match);
 
 static SIMPLE_DEV_PM_OPS(tpm_tis_i2c_ops, tpm_pm_suspend, tpm_pm_resume);
 
-static int tpm_tis_i2c_probe(struct i2c_client *client,
-			     const struct i2c_device_id *id)
+static int tpm_tis_i2c_probe(struct i2c_client *client)
 {
 	int rc;
 	struct device *dev = &(client->dev);
@@ -717,7 +716,7 @@ static void tpm_tis_i2c_remove(struct i2c_client *client)
 
 static struct i2c_driver tpm_tis_i2c_driver = {
 	.id_table = tpm_tis_i2c_table,
-	.probe = tpm_tis_i2c_probe,
+	.probe_new = tpm_tis_i2c_probe,
 	.remove = tpm_tis_i2c_remove,
 	.driver = {
 		   .name = "tpm_i2c_infineon",

@@ -26,10 +26,12 @@ static struct genl_family nl802154_fam;
 /* multicast groups */
 enum nl802154_multicast_groups {
 	NL802154_MCGRP_CONFIG,
+	NL802154_MCGRP_SCAN,
 };
 
 static const struct genl_multicast_group nl802154_mcgrps[] = {
 	[NL802154_MCGRP_CONFIG] = { .name = "config", },
+	[NL802154_MCGRP_SCAN] = { .name = "scan", },
 };
 
 /* returns ERR_PTR values */
@@ -185,8 +187,8 @@ static const struct nla_policy nl802154_policy[NL802154_ATTR_MAX+1] = {
 
 	[NL802154_ATTR_WPAN_DEV] = { .type = NLA_U64 },
 
-	[NL802154_ATTR_PAGE] = { .type = NLA_U8, },
-	[NL802154_ATTR_CHANNEL] = { .type = NLA_U8, },
+	[NL802154_ATTR_PAGE] = NLA_POLICY_MAX(NLA_U8, IEEE802154_MAX_PAGE),
+	[NL802154_ATTR_CHANNEL] = NLA_POLICY_MAX(NLA_U8, IEEE802154_MAX_CHANNEL),
 
 	[NL802154_ATTR_TX_POWER] = { .type = NLA_S32, },
 
@@ -216,6 +218,23 @@ static const struct nla_policy nl802154_policy[NL802154_ATTR_MAX+1] = {
 
 	[NL802154_ATTR_PID] = { .type = NLA_U32 },
 	[NL802154_ATTR_NETNS_FD] = { .type = NLA_U32 },
+
+	[NL802154_ATTR_COORDINATOR] = { .type = NLA_NESTED },
+
+	[NL802154_ATTR_SCAN_TYPE] =
+		NLA_POLICY_RANGE(NLA_U8, NL802154_SCAN_ED, NL802154_SCAN_RIT_PASSIVE),
+	[NL802154_ATTR_SCAN_CHANNELS] =
+		NLA_POLICY_MASK(NLA_U32, GENMASK(IEEE802154_MAX_CHANNEL, 0)),
+	[NL802154_ATTR_SCAN_PREAMBLE_CODES] = { .type = NLA_REJECT },
+	[NL802154_ATTR_SCAN_MEAN_PRF] = { .type = NLA_REJECT },
+	[NL802154_ATTR_SCAN_DURATION] =
+		NLA_POLICY_MAX(NLA_U8, IEEE802154_MAX_SCAN_DURATION),
+	[NL802154_ATTR_SCAN_DONE_REASON] =
+		NLA_POLICY_RANGE(NLA_U8, NL802154_SCAN_DONE_REASON_FINISHED,
+				 NL802154_SCAN_DONE_REASON_ABORTED),
+	[NL802154_ATTR_BEACON_INTERVAL] =
+		NLA_POLICY_MAX(NLA_U8, IEEE802154_MAX_SCAN_DURATION),
+
 #ifdef CONFIG_IEEE802154_NL802154_EXPERIMENTAL
 	[NL802154_ATTR_SEC_ENABLED] = { .type = NLA_U8, },
 	[NL802154_ATTR_SEC_OUT_LEVEL] = { .type = NLA_U32, },
@@ -964,8 +983,7 @@ static int nl802154_set_channel(struct sk_buff *skb, struct genl_info *info)
 	channel = nla_get_u8(info->attrs[NL802154_ATTR_CHANNEL]);
 
 	/* check 802.15.4 constraints */
-	if (page > IEEE802154_MAX_PAGE || channel > IEEE802154_MAX_CHANNEL ||
-	    !(rdev->wpan_phy.supported.channels[page] & BIT(channel)))
+	if (!ieee802154_chan_is_valid(&rdev->wpan_phy, page, channel))
 		return -EINVAL;
 
 	return rdev_set_channel(rdev, page, channel);
@@ -1279,6 +1297,334 @@ static int nl802154_wpan_phy_netns(struct sk_buff *skb, struct genl_info *info)
 
 	put_net(net);
 	return err;
+}
+
+static int nl802154_prep_scan_event_msg(struct sk_buff *msg,
+					struct cfg802154_registered_device *rdev,
+					struct wpan_dev *wpan_dev,
+					u32 portid, u32 seq, int flags, u8 cmd,
+					struct ieee802154_coord_desc *desc)
+{
+	struct nlattr *nla;
+	void *hdr;
+
+	hdr = nl802154hdr_put(msg, portid, seq, flags, cmd);
+	if (!hdr)
+		return -ENOBUFS;
+
+	if (nla_put_u32(msg, NL802154_ATTR_WPAN_PHY, rdev->wpan_phy_idx))
+		goto nla_put_failure;
+
+	if (wpan_dev->netdev &&
+	    nla_put_u32(msg, NL802154_ATTR_IFINDEX, wpan_dev->netdev->ifindex))
+		goto nla_put_failure;
+
+	if (nla_put_u64_64bit(msg, NL802154_ATTR_WPAN_DEV,
+			      wpan_dev_id(wpan_dev), NL802154_ATTR_PAD))
+		goto nla_put_failure;
+
+	nla = nla_nest_start_noflag(msg, NL802154_ATTR_COORDINATOR);
+	if (!nla)
+		goto nla_put_failure;
+
+	if (nla_put(msg, NL802154_COORD_PANID, IEEE802154_PAN_ID_LEN,
+		    &desc->addr.pan_id))
+		goto nla_put_failure;
+
+	if (desc->addr.mode == IEEE802154_ADDR_SHORT) {
+		if (nla_put(msg, NL802154_COORD_ADDR,
+			    IEEE802154_SHORT_ADDR_LEN,
+			    &desc->addr.short_addr))
+			goto nla_put_failure;
+	} else {
+		if (nla_put(msg, NL802154_COORD_ADDR,
+			    IEEE802154_EXTENDED_ADDR_LEN,
+			    &desc->addr.extended_addr))
+			goto nla_put_failure;
+	}
+
+	if (nla_put_u8(msg, NL802154_COORD_CHANNEL, desc->channel))
+		goto nla_put_failure;
+
+	if (nla_put_u8(msg, NL802154_COORD_PAGE, desc->page))
+		goto nla_put_failure;
+
+	if (nla_put_u16(msg, NL802154_COORD_SUPERFRAME_SPEC,
+			desc->superframe_spec))
+		goto nla_put_failure;
+
+	if (nla_put_u8(msg, NL802154_COORD_LINK_QUALITY, desc->link_quality))
+		goto nla_put_failure;
+
+	if (desc->gts_permit && nla_put_flag(msg, NL802154_COORD_GTS_PERMIT))
+		goto nla_put_failure;
+
+	/* TODO: NL802154_COORD_PAYLOAD_DATA if any */
+
+	nla_nest_end(msg, nla);
+
+	genlmsg_end(msg, hdr);
+
+	return 0;
+
+ nla_put_failure:
+	genlmsg_cancel(msg, hdr);
+
+	return -EMSGSIZE;
+}
+
+int nl802154_scan_event(struct wpan_phy *wpan_phy, struct wpan_dev *wpan_dev,
+			struct ieee802154_coord_desc *desc)
+{
+	struct cfg802154_registered_device *rdev = wpan_phy_to_rdev(wpan_phy);
+	struct sk_buff *msg;
+	int ret;
+
+	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_ATOMIC);
+	if (!msg)
+		return -ENOMEM;
+
+	ret = nl802154_prep_scan_event_msg(msg, rdev, wpan_dev, 0, 0, 0,
+					   NL802154_CMD_SCAN_EVENT,
+					   desc);
+	if (ret < 0) {
+		nlmsg_free(msg);
+		return ret;
+	}
+
+	return genlmsg_multicast_netns(&nl802154_fam, wpan_phy_net(wpan_phy),
+				       msg, 0, NL802154_MCGRP_SCAN, GFP_ATOMIC);
+}
+EXPORT_SYMBOL_GPL(nl802154_scan_event);
+
+static int nl802154_trigger_scan(struct sk_buff *skb, struct genl_info *info)
+{
+	struct cfg802154_registered_device *rdev = info->user_ptr[0];
+	struct net_device *dev = info->user_ptr[1];
+	struct wpan_dev *wpan_dev = dev->ieee802154_ptr;
+	struct wpan_phy *wpan_phy = &rdev->wpan_phy;
+	struct cfg802154_scan_request *request;
+	u8 type;
+	int err;
+
+	if (wpan_dev->iftype == NL802154_IFTYPE_MONITOR) {
+		NL_SET_ERR_MSG(info->extack, "Monitors are not allowed to perform scans");
+		return -EOPNOTSUPP;
+	}
+
+	if (!info->attrs[NL802154_ATTR_SCAN_TYPE]) {
+		NL_SET_ERR_MSG(info->extack, "Malformed request, missing scan type");
+		return -EINVAL;
+	}
+
+	request = kzalloc(sizeof(*request), GFP_KERNEL);
+	if (!request)
+		return -ENOMEM;
+
+	request->wpan_dev = wpan_dev;
+	request->wpan_phy = wpan_phy;
+
+	type = nla_get_u8(info->attrs[NL802154_ATTR_SCAN_TYPE]);
+	switch (type) {
+	case NL802154_SCAN_PASSIVE:
+		request->type = type;
+		break;
+	default:
+		NL_SET_ERR_MSG_FMT(info->extack, "Unsupported scan type: %d", type);
+		err = -EINVAL;
+		goto free_request;
+	}
+
+	/* Use current page by default */
+	if (info->attrs[NL802154_ATTR_PAGE])
+		request->page = nla_get_u8(info->attrs[NL802154_ATTR_PAGE]);
+	else
+		request->page = wpan_phy->current_page;
+
+	/* Scan all supported channels by default */
+	if (info->attrs[NL802154_ATTR_SCAN_CHANNELS])
+		request->channels = nla_get_u32(info->attrs[NL802154_ATTR_SCAN_CHANNELS]);
+	else
+		request->channels = wpan_phy->supported.channels[request->page];
+
+	/* Use maximum duration order by default */
+	if (info->attrs[NL802154_ATTR_SCAN_DURATION])
+		request->duration = nla_get_u8(info->attrs[NL802154_ATTR_SCAN_DURATION]);
+	else
+		request->duration = IEEE802154_MAX_SCAN_DURATION;
+
+	err = rdev_trigger_scan(rdev, request);
+	if (err) {
+		pr_err("Failure starting scanning (%d)\n", err);
+		goto free_request;
+	}
+
+	return 0;
+
+free_request:
+	kfree(request);
+
+	return err;
+}
+
+static int nl802154_prep_scan_msg(struct sk_buff *msg,
+				  struct cfg802154_registered_device *rdev,
+				  struct wpan_dev *wpan_dev, u32 portid,
+				  u32 seq, int flags, u8 cmd, u8 arg)
+{
+	void *hdr;
+
+	hdr = nl802154hdr_put(msg, portid, seq, flags, cmd);
+	if (!hdr)
+		return -ENOBUFS;
+
+	if (nla_put_u32(msg, NL802154_ATTR_WPAN_PHY, rdev->wpan_phy_idx))
+		goto nla_put_failure;
+
+	if (wpan_dev->netdev &&
+	    nla_put_u32(msg, NL802154_ATTR_IFINDEX, wpan_dev->netdev->ifindex))
+		goto nla_put_failure;
+
+	if (nla_put_u64_64bit(msg, NL802154_ATTR_WPAN_DEV,
+			      wpan_dev_id(wpan_dev), NL802154_ATTR_PAD))
+		goto nla_put_failure;
+
+	if (cmd == NL802154_CMD_SCAN_DONE &&
+	    nla_put_u8(msg, NL802154_ATTR_SCAN_DONE_REASON, arg))
+		goto nla_put_failure;
+
+	genlmsg_end(msg, hdr);
+
+	return 0;
+
+nla_put_failure:
+	genlmsg_cancel(msg, hdr);
+
+	return -EMSGSIZE;
+}
+
+static int nl802154_send_scan_msg(struct cfg802154_registered_device *rdev,
+				  struct wpan_dev *wpan_dev, u8 cmd, u8 arg)
+{
+	struct sk_buff *msg;
+	int ret;
+
+	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
+	if (!msg)
+		return -ENOMEM;
+
+	ret = nl802154_prep_scan_msg(msg, rdev, wpan_dev, 0, 0, 0, cmd, arg);
+	if (ret < 0) {
+		nlmsg_free(msg);
+		return ret;
+	}
+
+	return genlmsg_multicast_netns(&nl802154_fam,
+				       wpan_phy_net(&rdev->wpan_phy), msg, 0,
+				       NL802154_MCGRP_SCAN, GFP_KERNEL);
+}
+
+int nl802154_scan_started(struct wpan_phy *wpan_phy, struct wpan_dev *wpan_dev)
+{
+	struct cfg802154_registered_device *rdev = wpan_phy_to_rdev(wpan_phy);
+	int err;
+
+	/* Ignore errors when there are no listeners */
+	err = nl802154_send_scan_msg(rdev, wpan_dev, NL802154_CMD_TRIGGER_SCAN, 0);
+	if (err == -ESRCH)
+		err = 0;
+
+	return err;
+}
+EXPORT_SYMBOL_GPL(nl802154_scan_started);
+
+int nl802154_scan_done(struct wpan_phy *wpan_phy, struct wpan_dev *wpan_dev,
+		       enum nl802154_scan_done_reasons reason)
+{
+	struct cfg802154_registered_device *rdev = wpan_phy_to_rdev(wpan_phy);
+	int err;
+
+	/* Ignore errors when there are no listeners */
+	err = nl802154_send_scan_msg(rdev, wpan_dev, NL802154_CMD_SCAN_DONE, reason);
+	if (err == -ESRCH)
+		err = 0;
+
+	return err;
+}
+EXPORT_SYMBOL_GPL(nl802154_scan_done);
+
+static int nl802154_abort_scan(struct sk_buff *skb, struct genl_info *info)
+{
+	struct cfg802154_registered_device *rdev = info->user_ptr[0];
+	struct net_device *dev = info->user_ptr[1];
+	struct wpan_dev *wpan_dev = dev->ieee802154_ptr;
+
+	/* Resources are released in the notification helper above */
+	return rdev_abort_scan(rdev, wpan_dev);
+}
+
+static int
+nl802154_send_beacons(struct sk_buff *skb, struct genl_info *info)
+{
+	struct cfg802154_registered_device *rdev = info->user_ptr[0];
+	struct net_device *dev = info->user_ptr[1];
+	struct wpan_dev *wpan_dev = dev->ieee802154_ptr;
+	struct wpan_phy *wpan_phy = &rdev->wpan_phy;
+	struct cfg802154_beacon_request *request;
+	int err;
+
+	if (wpan_dev->iftype != NL802154_IFTYPE_COORD) {
+		NL_SET_ERR_MSG(info->extack, "Only coordinators can send beacons");
+		return -EOPNOTSUPP;
+	}
+
+	if (wpan_dev->pan_id == cpu_to_le16(IEEE802154_PANID_BROADCAST)) {
+		NL_SET_ERR_MSG(info->extack, "Device is not part of any PAN");
+		return -EPERM;
+	}
+
+	request = kzalloc(sizeof(*request), GFP_KERNEL);
+	if (!request)
+		return -ENOMEM;
+
+	request->wpan_dev = wpan_dev;
+	request->wpan_phy = wpan_phy;
+
+	/* Use maximum duration order by default */
+	if (info->attrs[NL802154_ATTR_BEACON_INTERVAL])
+		request->interval = nla_get_u8(info->attrs[NL802154_ATTR_BEACON_INTERVAL]);
+	else
+		request->interval = IEEE802154_MAX_SCAN_DURATION;
+
+	err = rdev_send_beacons(rdev, request);
+	if (err) {
+		pr_err("Failure starting sending beacons (%d)\n", err);
+		goto free_request;
+	}
+
+	return 0;
+
+free_request:
+	kfree(request);
+
+	return err;
+}
+
+void nl802154_beaconing_done(struct wpan_dev *wpan_dev)
+{
+	/* NOP */
+}
+EXPORT_SYMBOL_GPL(nl802154_beaconing_done);
+
+static int
+nl802154_stop_beacons(struct sk_buff *skb, struct genl_info *info)
+{
+	struct cfg802154_registered_device *rdev = info->user_ptr[0];
+	struct net_device *dev = info->user_ptr[1];
+	struct wpan_dev *wpan_dev = dev->ieee802154_ptr;
+
+	/* Resources are released in the notification helper above */
+	return rdev_stop_beacons(rdev, wpan_dev);
 }
 
 #ifdef CONFIG_IEEE802154_NL802154_EXPERIMENTAL
@@ -2142,8 +2488,7 @@ static int nl802154_del_llsec_seclevel(struct sk_buff *skb,
 	if (wpan_dev->iftype == NL802154_IFTYPE_MONITOR)
 		return -EOPNOTSUPP;
 
-	if (!info->attrs[NL802154_ATTR_SEC_LEVEL] ||
-	    llsec_parse_seclevel(info->attrs[NL802154_ATTR_SEC_LEVEL],
+	if (llsec_parse_seclevel(info->attrs[NL802154_ATTR_SEC_LEVEL],
 				 &sl) < 0)
 		return -EINVAL;
 
@@ -2157,7 +2502,8 @@ static int nl802154_del_llsec_seclevel(struct sk_buff *skb,
 #define NL802154_FLAG_CHECK_NETDEV_UP	0x08
 #define NL802154_FLAG_NEED_WPAN_DEV	0x10
 
-static int nl802154_pre_doit(const struct genl_ops *ops, struct sk_buff *skb,
+static int nl802154_pre_doit(const struct genl_split_ops *ops,
+			     struct sk_buff *skb,
 			     struct genl_info *info)
 {
 	struct cfg802154_registered_device *rdev;
@@ -2219,7 +2565,8 @@ static int nl802154_pre_doit(const struct genl_ops *ops, struct sk_buff *skb,
 	return 0;
 }
 
-static void nl802154_post_doit(const struct genl_ops *ops, struct sk_buff *skb,
+static void nl802154_post_doit(const struct genl_split_ops *ops,
+			       struct sk_buff *skb,
 			       struct genl_info *info)
 {
 	if (info->user_ptr[1]) {
@@ -2367,6 +2714,38 @@ static const struct genl_ops nl802154_ops[] = {
 		.doit = nl802154_set_ackreq_default,
 		.flags = GENL_ADMIN_PERM,
 		.internal_flags = NL802154_FLAG_NEED_NETDEV |
+				  NL802154_FLAG_NEED_RTNL,
+	},
+	{
+		.cmd = NL802154_CMD_TRIGGER_SCAN,
+		.doit = nl802154_trigger_scan,
+		.flags = GENL_ADMIN_PERM,
+		.internal_flags = NL802154_FLAG_NEED_NETDEV |
+				  NL802154_FLAG_CHECK_NETDEV_UP |
+				  NL802154_FLAG_NEED_RTNL,
+	},
+	{
+		.cmd = NL802154_CMD_ABORT_SCAN,
+		.doit = nl802154_abort_scan,
+		.flags = GENL_ADMIN_PERM,
+		.internal_flags = NL802154_FLAG_NEED_NETDEV |
+				  NL802154_FLAG_CHECK_NETDEV_UP |
+				  NL802154_FLAG_NEED_RTNL,
+	},
+	{
+		.cmd = NL802154_CMD_SEND_BEACONS,
+		.doit = nl802154_send_beacons,
+		.flags = GENL_ADMIN_PERM,
+		.internal_flags = NL802154_FLAG_NEED_NETDEV |
+				  NL802154_FLAG_CHECK_NETDEV_UP |
+				  NL802154_FLAG_NEED_RTNL,
+	},
+	{
+		.cmd = NL802154_CMD_STOP_BEACONS,
+		.doit = nl802154_stop_beacons,
+		.flags = GENL_ADMIN_PERM,
+		.internal_flags = NL802154_FLAG_NEED_NETDEV |
+				  NL802154_FLAG_CHECK_NETDEV_UP |
 				  NL802154_FLAG_NEED_RTNL,
 	},
 #ifdef CONFIG_IEEE802154_NL802154_EXPERIMENTAL

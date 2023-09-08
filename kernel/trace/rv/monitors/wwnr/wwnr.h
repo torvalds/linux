@@ -27,7 +27,7 @@ struct automaton_wwnr {
 	bool final_states[state_max_wwnr];
 };
 
-static struct automaton_wwnr automaton_wwnr = {
+static const struct automaton_wwnr automaton_wwnr = {
 	.state_names = {
 		"not_running",
 		"running"

@@ -117,7 +117,7 @@ static struct omap_id omap_ids[] __initdata = {
 static void __iomem *tap_base;
 static u16 tap_prod_id;
 
-void omap_get_die_id(struct omap_die_id *odi)
+static void omap_get_die_id(struct omap_die_id *odi)
 {
 	if (soc_is_omap44xx() || soc_is_omap54xx() || soc_is_dra7xx()) {
 		odi->id_0 = read_tap_reg(OMAP_TAP_DIE_ID_44XX_0);

@@ -12,6 +12,7 @@
 #include "types.h"
 #include "sys.h"
 #include "string.h"
+#include <linux/auxvec.h>
 
 struct nolibc_heap {
 	size_t	len;
@@ -106,6 +107,32 @@ char *getenv(const char *name)
 {
 	extern char **environ;
 	return _getenv(name, environ);
+}
+
+static __attribute__((unused))
+unsigned long getauxval(unsigned long type)
+{
+	const unsigned long *auxv = _auxv;
+	unsigned long ret;
+
+	if (!auxv)
+		return 0;
+
+	while (1) {
+		if (!auxv[0] && !auxv[1]) {
+			ret = 0;
+			break;
+		}
+
+		if (auxv[0] == type) {
+			ret = auxv[1];
+			break;
+		}
+
+		auxv += 2;
+	}
+
+	return ret;
 }
 
 static __attribute__((unused))
@@ -418,5 +445,8 @@ char *u64toa(uint64_t in)
 	u64toa_r(in, itoa_buffer);
 	return itoa_buffer;
 }
+
+/* make sure to include all global symbols */
+#include "nolibc.h"
 
 #endif /* _NOLIBC_STDLIB_H */

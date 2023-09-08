@@ -6,6 +6,7 @@
 #define __KVM_ARM_VGIC_NEW_H__
 
 #include <linux/irqchip/arm-gic-common.h>
+#include <asm/kvm_mmu.h>
 
 #define PRODUCT_ID_KVM		0x4b	/* ASCII code K */
 #define IMPLEMENTER_ARM		0x43b
@@ -129,6 +130,19 @@ static inline int vgic_irq_get_lr_count(struct vgic_irq *irq)
 static inline bool vgic_irq_is_multi_sgi(struct vgic_irq *irq)
 {
 	return vgic_irq_get_lr_count(irq) > 1;
+}
+
+static inline int vgic_write_guest_lock(struct kvm *kvm, gpa_t gpa,
+					const void *data, unsigned long len)
+{
+	struct vgic_dist *dist = &kvm->arch.vgic;
+	int ret;
+
+	dist->table_write_in_progress = true;
+	ret = kvm_write_guest_lock(kvm, gpa, data, len);
+	dist->table_write_in_progress = false;
+
+	return ret;
 }
 
 /*
@@ -259,9 +273,6 @@ int vgic_init(struct kvm *kvm);
 void vgic_debug_init(struct kvm *kvm);
 void vgic_debug_destroy(struct kvm *kvm);
 
-bool lock_all_vcpus(struct kvm *kvm);
-void unlock_all_vcpus(struct kvm *kvm);
-
 static inline int vgic_v3_max_apr_idx(struct kvm_vcpu *vcpu)
 {
 	struct vgic_cpu *cpu_if = &vcpu->arch.vgic_cpu;
@@ -331,5 +342,6 @@ int vgic_v4_init(struct kvm *kvm);
 void vgic_v4_teardown(struct kvm *kvm);
 void vgic_v4_configure_vsgis(struct kvm *kvm);
 void vgic_v4_get_vlpi_state(struct vgic_irq *irq, bool *val);
+int vgic_v4_request_vpe_irq(struct kvm_vcpu *vcpu, int irq);
 
 #endif

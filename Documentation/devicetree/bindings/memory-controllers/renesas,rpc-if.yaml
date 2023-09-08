@@ -20,7 +20,7 @@ description: |
   - if it contains "cfi-flash", then HyperFlash is used.
 
 allOf:
-  - $ref: "/schemas/spi/spi-controller.yaml#"
+  - $ref: /schemas/spi/spi-controller.yaml#
 
 properties:
   compatible:
@@ -41,6 +41,11 @@ properties:
               - renesas,r8a77995-rpc-if       # R-Car D3
               - renesas,r8a779a0-rpc-if       # R-Car V3U
           - const: renesas,rcar-gen3-rpc-if   # a generic R-Car gen3 or RZ/G2{E,H,M,N} device
+
+      - items:
+          - enum:
+              - renesas,r8a779g0-rpc-if       # R-Car V4H
+          - const: renesas,rcar-gen4-rpc-if   # a generic R-Car gen4 device
 
       - items:
           - enum:

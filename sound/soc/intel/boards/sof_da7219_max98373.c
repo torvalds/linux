@@ -7,13 +7,13 @@
 
 #include <linux/input.h>
 #include <linux/module.h>
+#include <sound/jack.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <linux/platform_device.h>
 #include <sound/soc.h>
 #include <sound/soc-acpi.h>
 #include "../../codecs/da7219.h"
-#include "../../codecs/da7219-aad.h"
 #include "hda_dsp_common.h"
 
 #define DIALOG_CODEC_DAI	"da7219-hifi"
@@ -184,7 +184,7 @@ static int da7219_codec_init(struct snd_soc_pcm_runtime *rtd)
 	snd_jack_set_key(jack->jack, SND_JACK_BTN_1, KEY_VOLUMEUP);
 	snd_jack_set_key(jack->jack, SND_JACK_BTN_2, KEY_VOLUMEDOWN);
 	snd_jack_set_key(jack->jack, SND_JACK_BTN_3, KEY_VOICECOMMAND);
-	da7219_aad_jack_det(component, jack);
+	snd_soc_component_set_jack(component, jack, NULL);
 
 	return ret;
 }

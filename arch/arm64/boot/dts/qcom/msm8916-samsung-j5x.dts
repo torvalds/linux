@@ -1,0 +1,19 @@
+// SPDX-License-Identifier: GPL-2.0-only
+
+/dts-v1/;
+
+#include "msm8916-samsung-j5-common.dtsi"
+
+/ {
+	model = "Samsung Galaxy J5 (2016)";
+	compatible = "samsung,j5x", "qcom,msm8916";
+	chassis-type = "handset";
+};
+
+&muic {
+	interrupts = <121 IRQ_TYPE_EDGE_FALLING>;
+};
+
+&muic_int_default {
+	pins = "gpio121";
+};

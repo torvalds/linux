@@ -22,7 +22,7 @@
 	};
 
 	reserved-memory {
-		// wcnss.mdt is not relocatable, so it must be loaded at 0x8b600000
+		/* wcnss.mdt is not relocatable, so it must be loaded at 0x8b600000 */
 		/delete-node/ wcnss@89300000;
 
 		wcnss_mem: wcnss@8b600000 {
@@ -204,12 +204,12 @@
 
 		rmi4-f01@1 {
 			reg = <0x1>;
-			syna,nosleep-mode = <1>; // Allow sleeping
+			syna,nosleep-mode = <1>; /* Allow sleeping */
 		};
 
 		rmi4-f12@12 {
 			reg = <0x12>;
-			syna,sensor-type = <1>; // Touchscreen
+			syna,sensor-type = <1>; /* Touchscreen */
 		};
 	};
 };
@@ -228,10 +228,6 @@
 };
 
 &pm8916_vib {
-	status = "okay";
-};
-
-&pronto {
 	status = "okay";
 };
 
@@ -261,6 +257,14 @@
 
 &usb_hs_phy {
 	extcon = <&pm8916_usbin>;
+};
+
+&wcnss {
+	status = "okay";
+};
+
+&wcnss_iris {
+	compatible = "qcom,wcn3620";
 };
 
 &smd_rpm_regulators {
@@ -367,7 +371,7 @@
 };
 
 &msmgpio {
-	accel_int_default: accel-int-default {
+	accel_int_default: accel-int-default-state {
 		pins = "gpio116";
 		function = "gpio";
 
@@ -375,7 +379,7 @@
 		bias-disable;
 	};
 
-	camera_flash_default: camera-flash-default {
+	camera_flash_default: camera-flash-default-state {
 		pins = "gpio31", "gpio32";
 		function = "gpio";
 
@@ -383,7 +387,7 @@
 		bias-disable;
 	};
 
-	ctp_pwr_en_default: ctp-pwr-en-default {
+	ctp_pwr_en_default: ctp-pwr-en-default-state {
 		pins = "gpio17";
 		function = "gpio";
 
@@ -391,7 +395,7 @@
 		bias-disable;
 	};
 
-	gpio_keys_default: gpio-keys-default {
+	gpio_keys_default: gpio-keys-default-state {
 		pins = "gpio107";
 		function = "gpio";
 
@@ -399,7 +403,7 @@
 		bias-pull-up;
 	};
 
-	gyro_int_default: gyro-int-default {
+	gyro_int_default: gyro-int-default-state {
 		pins = "gpio22", "gpio23";
 		function = "gpio";
 
@@ -407,7 +411,7 @@
 		bias-disable;
 	};
 
-	light_int_default: light-int-default {
+	light_int_default: light-int-default-state {
 		pins = "gpio115";
 		function = "gpio";
 
@@ -415,7 +419,7 @@
 		bias-disable;
 	};
 
-	magn_int_default: magn-int-default {
+	magn_int_default: magn-int-default-state {
 		pins = "gpio113";
 		function = "gpio";
 
@@ -423,7 +427,7 @@
 		bias-disable;
 	};
 
-	tp_int_default: tp-int-default {
+	tp_int_default: tp-int-default-state {
 		pins = "gpio13";
 		function = "gpio";
 

@@ -7,8 +7,9 @@
 
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
-#include <dt-bindings/pinctrl/k3.h>
 #include <dt-bindings/soc/ti,sci_pm_domain.h>
+
+#include "k3-pinctrl.h"
 
 / {
 	model = "Texas Instruments K3 J7200 SoC";
@@ -84,6 +85,7 @@
 	L2_0: l2-cache0 {
 		compatible = "cache";
 		cache-level = <2>;
+		cache-unified;
 		cache-size = <0x100000>;
 		cache-line-size = <64>;
 		cache-sets = <1024>;

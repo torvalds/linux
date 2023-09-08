@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0
-config COMEDI
+menuconfig COMEDI
 	tristate "Data acquisition support (comedi)"
 	help
 	  Enable support for a wide range of data acquisition devices

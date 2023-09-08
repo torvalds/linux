@@ -92,7 +92,7 @@ static ssize_t temp_show(struct device *dev, struct device_attribute *da,
 	/* use integer division instead of equivalent right shift to
 	   guarantee arithmetic shift and preserve the sign */
 	temp = (((s16) err) * 250) / 32;
-	return scnprintf(buf, PAGE_SIZE, "%d\n", temp);
+	return sysfs_emit(buf, "%d\n", temp);
 }
 
 static ssize_t convrate_store(struct device *dev, struct device_attribute *da,
@@ -137,7 +137,7 @@ static ssize_t convrate_show(struct device *dev, struct device_attribute *da,
 	int res;
 
 	res = (data->ctrl & LM73_CTRL_RES_MASK) >> LM73_CTRL_RES_SHIFT;
-	return scnprintf(buf, PAGE_SIZE, "%hu\n", lm73_convrates[res]);
+	return sysfs_emit(buf, "%hu\n", lm73_convrates[res]);
 }
 
 static ssize_t maxmin_alarm_show(struct device *dev,
@@ -154,7 +154,7 @@ static ssize_t maxmin_alarm_show(struct device *dev,
 	data->ctrl = ctrl;
 	mutex_unlock(&data->lock);
 
-	return scnprintf(buf, PAGE_SIZE, "%d\n", (ctrl >> attr->index) & 1);
+	return sysfs_emit(buf, "%d\n", (ctrl >> attr->index) & 1);
 
 abort:
 	mutex_unlock(&data->lock);

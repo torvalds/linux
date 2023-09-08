@@ -70,6 +70,8 @@ static int intel_shadow_table_check(void)
 		{ gen12_shadowed_regs, ARRAY_SIZE(gen12_shadowed_regs) },
 		{ dg2_shadowed_regs, ARRAY_SIZE(dg2_shadowed_regs) },
 		{ pvc_shadowed_regs, ARRAY_SIZE(pvc_shadowed_regs) },
+		{ mtl_shadowed_regs, ARRAY_SIZE(mtl_shadowed_regs) },
+		{ xelpmp_shadowed_regs, ARRAY_SIZE(xelpmp_shadowed_regs) },
 	};
 	const struct i915_range *range;
 	unsigned int i, j;
@@ -117,6 +119,8 @@ int intel_uncore_mock_selftests(void)
 		{ __gen12_fw_ranges, ARRAY_SIZE(__gen12_fw_ranges), true },
 		{ __xehp_fw_ranges, ARRAY_SIZE(__xehp_fw_ranges), true },
 		{ __pvc_fw_ranges, ARRAY_SIZE(__pvc_fw_ranges), true },
+		{ __mtl_fw_ranges, ARRAY_SIZE(__mtl_fw_ranges), true },
+		{ __xelpmp_fw_ranges, ARRAY_SIZE(__xelpmp_fw_ranges), true },
 	};
 	int err, i;
 

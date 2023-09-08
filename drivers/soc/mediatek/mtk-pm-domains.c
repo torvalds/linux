@@ -21,6 +21,7 @@
 #include "mt8173-pm-domains.h"
 #include "mt8183-pm-domains.h"
 #include "mt8186-pm-domains.h"
+#include "mt8188-pm-domains.h"
 #include "mt8192-pm-domains.h"
 #include "mt8195-pm-domains.h"
 
@@ -218,6 +219,10 @@ static int scpsys_power_on(struct generic_pm_domain *genpd)
 	if (ret)
 		goto err_reg;
 
+	if (pd->data->ext_buck_iso_offs && MTK_SCPD_CAPS(pd, MTK_SCPD_EXT_BUCK_ISO))
+		regmap_clear_bits(scpsys->base, pd->data->ext_buck_iso_offs,
+				  pd->data->ext_buck_iso_mask);
+
 	/* subsys power on */
 	regmap_set_bits(scpsys->base, pd->data->ctl_offs, PWR_ON_BIT);
 	regmap_set_bits(scpsys->base, pd->data->ctl_offs, PWR_ON_2ND_BIT);
@@ -272,12 +277,16 @@ static int scpsys_power_off(struct generic_pm_domain *genpd)
 	if (ret < 0)
 		return ret;
 
+	if (pd->data->ext_buck_iso_offs && MTK_SCPD_CAPS(pd, MTK_SCPD_EXT_BUCK_ISO))
+		regmap_set_bits(scpsys->base, pd->data->ext_buck_iso_offs,
+				pd->data->ext_buck_iso_mask);
+
 	clk_bulk_disable_unprepare(pd->num_subsys_clks, pd->subsys_clks);
 
 	/* subsys power off */
-	regmap_clear_bits(scpsys->base, pd->data->ctl_offs, PWR_RST_B_BIT);
 	regmap_set_bits(scpsys->base, pd->data->ctl_offs, PWR_ISO_BIT);
 	regmap_set_bits(scpsys->base, pd->data->ctl_offs, PWR_CLK_DIS_BIT);
+	regmap_clear_bits(scpsys->base, pd->data->ctl_offs, PWR_RST_B_BIT);
 	regmap_clear_bits(scpsys->base, pd->data->ctl_offs, PWR_ON_2ND_BIT);
 	regmap_clear_bits(scpsys->base, pd->data->ctl_offs, PWR_ON_BIT);
 
@@ -578,6 +587,10 @@ static const struct of_device_id scpsys_of_match[] = {
 	{
 		.compatible = "mediatek,mt8186-power-controller",
 		.data = &mt8186_scpsys_data,
+	},
+	{
+		.compatible = "mediatek,mt8188-power-controller",
+		.data = &mt8188_scpsys_data,
 	},
 	{
 		.compatible = "mediatek,mt8192-power-controller",

@@ -413,9 +413,8 @@ static struct regmap_irq_chip bd71828_irq_chip = {
 	.irqs = &bd71828_irqs[0],
 	.num_irqs = ARRAY_SIZE(bd71828_irqs),
 	.status_base = BD71828_REG_INT_BUCK,
-	.mask_base = BD71828_REG_INT_MASK_BUCK,
+	.unmask_base = BD71828_REG_INT_MASK_BUCK,
 	.ack_base = BD71828_REG_INT_BUCK,
-	.mask_invert = true,
 	.init_ack_masked = true,
 	.num_regs = 12,
 	.num_main_regs = 1,
@@ -430,9 +429,8 @@ static struct regmap_irq_chip bd71815_irq_chip = {
 	.irqs = &bd71815_irqs[0],
 	.num_irqs = ARRAY_SIZE(bd71815_irqs),
 	.status_base = BD71815_REG_INT_STAT_01,
-	.mask_base = BD71815_REG_INT_EN_01,
+	.unmask_base = BD71815_REG_INT_EN_01,
 	.ack_base = BD71815_REG_INT_STAT_01,
-	.mask_invert = true,
 	.init_ack_masked = true,
 	.num_regs = 12,
 	.num_main_regs = 1,
@@ -515,27 +513,24 @@ static int bd71828_i2c_probe(struct i2c_client *i2c)
 	}
 
 	regmap = devm_regmap_init_i2c(i2c, regmap_config);
-	if (IS_ERR(regmap)) {
-		dev_err(&i2c->dev, "Failed to initialize Regmap\n");
-		return PTR_ERR(regmap);
-	}
+	if (IS_ERR(regmap))
+		return dev_err_probe(&i2c->dev, PTR_ERR(regmap),
+				     "Failed to initialize Regmap\n");
 
 	ret = devm_regmap_add_irq_chip(&i2c->dev, regmap, i2c->irq,
 				       IRQF_ONESHOT, 0, irqchip, &irq_data);
-	if (ret) {
-		dev_err(&i2c->dev, "Failed to add IRQ chip\n");
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(&i2c->dev, ret,
+				     "Failed to add IRQ chip\n");
 
 	dev_dbg(&i2c->dev, "Registered %d IRQs for chip\n",
 		irqchip->num_irqs);
 
 	if (button_irq) {
 		ret = regmap_irq_get_virq(irq_data, button_irq);
-		if (ret < 0) {
-			dev_err(&i2c->dev, "Failed to get the power-key IRQ\n");
-			return ret;
-		}
+		if (ret < 0)
+			return dev_err_probe(&i2c->dev, ret,
+					     "Failed to get the power-key IRQ\n");
 
 		button.irq = ret;
 	}
@@ -547,7 +542,7 @@ static int bd71828_i2c_probe(struct i2c_client *i2c)
 	ret = devm_mfd_add_devices(&i2c->dev, PLATFORM_DEVID_AUTO, mfd, cells,
 				   NULL, 0, regmap_irq_get_domain(irq_data));
 	if (ret)
-		dev_err(&i2c->dev, "Failed to create subdevices\n");
+		dev_err_probe(&i2c->dev, ret, "Failed to create subdevices\n");
 
 	return ret;
 }

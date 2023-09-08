@@ -37,8 +37,12 @@
 	};
 };
 
+&can_clk {
+	clock-frequency = <40000000>;
+};
+
 &canfd {
-	pinctrl-0 = <&canfd0_pins>, <&canfd1_pins>;
+	pinctrl-0 = <&canfd0_pins>, <&canfd1_pins>, <&can_clk_pins>;
 	pinctrl-names = "default";
 	status = "okay";
 
@@ -78,6 +82,11 @@
 			drive-strength = <21>;
 		};
 
+	};
+
+	can_clk_pins: can-clk {
+		groups = "can_clk";
+		function = "can_clk";
 	};
 
 	canfd0_pins: canfd0 {

@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/rtc/epson,rx8900.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: EPSON RX8900 / Microcrystal RV8803 Real-Time Clock DT bindings
+title: EPSON RX8900 / Microcrystal RV8803 Real-Time Clock
 
 maintainers:
   - Marek Vasut <marex@denx.de>

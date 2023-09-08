@@ -119,6 +119,8 @@ install: doc_install
 	$(STRIP) $(DESTDIR)$(BINDIR)/rtla
 	@test ! -f $(DESTDIR)$(BINDIR)/osnoise || rm $(DESTDIR)$(BINDIR)/osnoise
 	ln -s rtla $(DESTDIR)$(BINDIR)/osnoise
+	@test ! -f $(DESTDIR)$(BINDIR)/hwnoise || rm $(DESTDIR)$(BINDIR)/hwnoise
+	ln -s rtla $(DESTDIR)$(BINDIR)/hwnoise
 	@test ! -f $(DESTDIR)$(BINDIR)/timerlat || rm $(DESTDIR)$(BINDIR)/timerlat
 	ln -s rtla $(DESTDIR)$(BINDIR)/timerlat
 

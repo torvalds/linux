@@ -48,7 +48,7 @@ kernel boot parameter::
 	"earlyprintk=xdbc"
 
 If there are multiple xHCI controllers in your system, you can
-append a host contoller index to this kernel parameter. This
+append a host controller index to this kernel parameter. This
 index starts from 0.
 
 Current design doesn't support DbC runtime suspend/resume. As

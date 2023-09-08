@@ -468,8 +468,7 @@ static void sccnxp_handle_tx(struct uart_port *port)
 			break;
 
 		sccnxp_port_write(port, SCCNXP_THR_REG, xmit->buf[xmit->tail]);
-		xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
-		port->icount.tx++;
+		uart_xmit_advance(port, 1);
 	}
 
 	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
@@ -914,23 +913,13 @@ static int sccnxp_probe(struct platform_device *pdev)
 	} else if (PTR_ERR(s->regulator) == -EPROBE_DEFER)
 		return -EPROBE_DEFER;
 
-	clk = devm_clk_get(&pdev->dev, NULL);
+	clk = devm_clk_get_enabled(&pdev->dev, NULL);
 	if (IS_ERR(clk)) {
 		ret = PTR_ERR(clk);
 		if (ret == -EPROBE_DEFER)
 			goto err_out;
 		uartclk = 0;
 	} else {
-		ret = clk_prepare_enable(clk);
-		if (ret)
-			goto err_out;
-
-		ret = devm_add_action_or_reset(&pdev->dev,
-				(void(*)(void *))clk_disable_unprepare,
-				clk);
-		if (ret)
-			goto err_out;
-
 		uartclk = clk_get_rate(clk);
 	}
 

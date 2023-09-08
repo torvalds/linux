@@ -633,7 +633,7 @@ static struct sk_buff *rtw_coex_info_request(struct rtw_dev *rtwdev,
 	struct rtw_coex *coex = &rtwdev->coex;
 	struct sk_buff *skb_resp = NULL;
 
-	mutex_lock(&coex->mutex);
+	lockdep_assert_held(&rtwdev->mutex);
 
 	rtw_fw_query_bt_mp_info(rtwdev, req);
 
@@ -650,7 +650,6 @@ static struct sk_buff *rtw_coex_info_request(struct rtw_dev *rtwdev,
 	}
 
 out:
-	mutex_unlock(&coex->mutex);
 	return skb_resp;
 }
 
@@ -4057,7 +4056,7 @@ void rtw_coex_display_coex_info(struct rtw_dev *rtwdev, struct seq_file *m)
 		   rtwdev->stats.tx_throughput, rtwdev->stats.rx_throughput);
 	seq_printf(m, "%-40s = %u/ %u/ %u\n",
 		   "IPS/ Low Power/ PS mode",
-		   test_bit(RTW_FLAG_INACTIVE_PS, rtwdev->flags),
+		   !test_bit(RTW_FLAG_POWERON, rtwdev->flags),
 		   test_bit(RTW_FLAG_LEISURE_PS_DEEP, rtwdev->flags),
 		   rtwdev->lps_conf.mode);
 

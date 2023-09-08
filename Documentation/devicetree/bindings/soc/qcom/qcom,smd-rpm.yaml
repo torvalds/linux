@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
 %YAML 1.2
 ---
-$id: "http://devicetree.org/schemas/soc/qcom/qcom,smd-rpm.yaml#"
-$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+$id: http://devicetree.org/schemas/soc/qcom/qcom,smd-rpm.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Qualcomm Resource Power Manager (RPM) over SMD
+title: Qualcomm Resource Power Manager (RPM) over SMD/GLINK
 
 description: |
   This driver is used to interface with the Resource Power Manager (RPM) found
@@ -12,9 +12,9 @@ description: |
   to vote for state of the system resources, such as clocks, regulators and bus
   frequencies.
 
-  The SMD information for the RPM edge should be filled out.  See qcom,smd.yaml
-  for the required edge properties.  All SMD related properties will reside
-  within the RPM node itself.
+  The SMD or GLINK information for the RPM edge should be filled out.  See
+  qcom,smd.yaml for the required edge properties.  All SMD/GLINK related
+  properties will reside within the RPM node itself.
 
   The RPM exposes resources to its subnodes.  The rpm_requests node must be
   present and this subnode may contain children that designate regulator
@@ -33,6 +33,7 @@ properties:
     enum:
       - qcom,rpm-apq8084
       - qcom,rpm-ipq6018
+      - qcom,rpm-ipq9574
       - qcom,rpm-msm8226
       - qcom,rpm-msm8909
       - qcom,rpm-msm8916
@@ -40,11 +41,13 @@ properties:
       - qcom,rpm-msm8953
       - qcom,rpm-msm8974
       - qcom,rpm-msm8976
+      - qcom,rpm-msm8994
       - qcom,rpm-msm8996
       - qcom,rpm-msm8998
       - qcom,rpm-sdm660
       - qcom,rpm-sm6115
       - qcom,rpm-sm6125
+      - qcom,rpm-sm6375
       - qcom,rpm-qcm2290
       - qcom,rpm-qcs404
 
@@ -55,11 +58,22 @@ properties:
   power-controller:
     $ref: /schemas/power/qcom,rpmpd.yaml#
 
+  qcom,glink-channels:
+    $ref: /schemas/types.yaml#/definitions/string-array
+    description: Channel name used for the RPM communication
+    items:
+      - const: rpm_requests
+
   qcom,smd-channels:
     $ref: /schemas/types.yaml#/definitions/string-array
     description: Channel name used for the RPM communication
     items:
       - const: rpm_requests
+
+patternProperties:
+  "^regulators(-[01])?$":
+    $ref: /schemas/regulator/qcom,smd-rpm-regulator.yaml#
+    unevaluatedProperties: false
 
 if:
   properties:
@@ -68,11 +82,21 @@ if:
         enum:
           - qcom,rpm-apq8084
           - qcom,rpm-msm8916
+          - qcom,rpm-msm8936
           - qcom,rpm-msm8974
+          - qcom,rpm-msm8976
           - qcom,rpm-msm8953
+          - qcom,rpm-msm8994
 then:
+  properties:
+    qcom,glink-channels: false
   required:
     - qcom,smd-channels
+else:
+  properties:
+    qcom,smd-channels: false
+  required:
+    - qcom,glink-channels
 
 required:
   - compatible

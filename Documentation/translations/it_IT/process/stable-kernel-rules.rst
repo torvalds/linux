@@ -106,6 +106,12 @@ al messaggio della patch, così:
 
     commit <sha1> upstream.
 
+o in alternativa:
+
+.. code-block:: none
+
+    [ Upstream commit <sha1>  ]
+
 In aggiunta, alcune patch inviate attraverso l':ref:`it_option_1` potrebbero
 dipendere da altre che devo essere incluse. Questa situazione può essere
 indicata nel seguente modo nell'area dedicata alle firme:

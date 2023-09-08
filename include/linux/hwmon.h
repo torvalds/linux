@@ -430,12 +430,16 @@ struct hwmon_channel_info {
  */
 struct hwmon_chip_info {
 	const struct hwmon_ops *ops;
-	const struct hwmon_channel_info **info;
+	const struct hwmon_channel_info * const *info;
 };
 
 /* hwmon_device_register() is deprecated */
 struct device *hwmon_device_register(struct device *dev);
 
+/*
+ * hwmon_device_register_with_groups() and
+ * devm_hwmon_device_register_with_groups() are deprecated.
+ */
 struct device *
 hwmon_device_register_with_groups(struct device *dev, const char *name,
 				  void *drvdata,

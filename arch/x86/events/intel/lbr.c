@@ -515,21 +515,21 @@ static void __intel_pmu_lbr_save(void *ctx)
 	cpuc->last_log_id = ++task_context_opt(ctx)->log_id;
 }
 
-void intel_pmu_lbr_swap_task_ctx(struct perf_event_context *prev,
-				 struct perf_event_context *next)
+void intel_pmu_lbr_swap_task_ctx(struct perf_event_pmu_context *prev_epc,
+				 struct perf_event_pmu_context *next_epc)
 {
 	void *prev_ctx_data, *next_ctx_data;
 
-	swap(prev->task_ctx_data, next->task_ctx_data);
+	swap(prev_epc->task_ctx_data, next_epc->task_ctx_data);
 
 	/*
-	 * Architecture specific synchronization makes sense in
-	 * case both prev->task_ctx_data and next->task_ctx_data
+	 * Architecture specific synchronization makes sense in case
+	 * both prev_epc->task_ctx_data and next_epc->task_ctx_data
 	 * pointers are allocated.
 	 */
 
-	prev_ctx_data = next->task_ctx_data;
-	next_ctx_data = prev->task_ctx_data;
+	prev_ctx_data = next_epc->task_ctx_data;
+	next_ctx_data = prev_epc->task_ctx_data;
 
 	if (!prev_ctx_data || !next_ctx_data)
 		return;
@@ -538,7 +538,7 @@ void intel_pmu_lbr_swap_task_ctx(struct perf_event_context *prev,
 	     task_context_opt(next_ctx_data)->lbr_callstack_users);
 }
 
-void intel_pmu_lbr_sched_task(struct perf_event_context *ctx, bool sched_in)
+void intel_pmu_lbr_sched_task(struct perf_event_pmu_context *pmu_ctx, bool sched_in)
 {
 	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
 	void *task_ctx;
@@ -551,7 +551,7 @@ void intel_pmu_lbr_sched_task(struct perf_event_context *ctx, bool sched_in)
 	 * the task was scheduled out, restore the stack. Otherwise flush
 	 * the LBR stack.
 	 */
-	task_ctx = ctx ? ctx->task_ctx_data : NULL;
+	task_ctx = pmu_ctx ? pmu_ctx->task_ctx_data : NULL;
 	if (task_ctx) {
 		if (sched_in)
 			__intel_pmu_lbr_restore(task_ctx);
@@ -587,8 +587,8 @@ void intel_pmu_lbr_add(struct perf_event *event)
 
 	cpuc->br_sel = event->hw.branch_reg.reg;
 
-	if (branch_user_callstack(cpuc->br_sel) && event->ctx->task_ctx_data)
-		task_context_opt(event->ctx->task_ctx_data)->lbr_callstack_users++;
+	if (branch_user_callstack(cpuc->br_sel) && event->pmu_ctx->task_ctx_data)
+		task_context_opt(event->pmu_ctx->task_ctx_data)->lbr_callstack_users++;
 
 	/*
 	 * Request pmu::sched_task() callback, which will fire inside the
@@ -611,7 +611,7 @@ void intel_pmu_lbr_add(struct perf_event *event)
 	 */
 	if (x86_pmu.intel_cap.pebs_baseline && event->attr.precise_ip > 0)
 		cpuc->lbr_pebs_users++;
-	perf_sched_cb_inc(event->ctx->pmu);
+	perf_sched_cb_inc(event->pmu);
 	if (!cpuc->lbr_users++ && !event->total_time_running)
 		intel_pmu_lbr_reset();
 }
@@ -664,8 +664,8 @@ void intel_pmu_lbr_del(struct perf_event *event)
 		return;
 
 	if (branch_user_callstack(cpuc->br_sel) &&
-	    event->ctx->task_ctx_data)
-		task_context_opt(event->ctx->task_ctx_data)->lbr_callstack_users--;
+	    event->pmu_ctx->task_ctx_data)
+		task_context_opt(event->pmu_ctx->task_ctx_data)->lbr_callstack_users--;
 
 	if (event->hw.flags & PERF_X86_EVENT_LBR_SELECT)
 		cpuc->lbr_select = 0;
@@ -675,7 +675,7 @@ void intel_pmu_lbr_del(struct perf_event *event)
 	cpuc->lbr_users--;
 	WARN_ON_ONCE(cpuc->lbr_users < 0);
 	WARN_ON_ONCE(cpuc->lbr_pebs_users < 0);
-	perf_sched_cb_dec(event->ctx->pmu);
+	perf_sched_cb_dec(event->pmu);
 }
 
 static inline bool vlbr_exclude_host(void)
@@ -1603,19 +1603,13 @@ clear_arch_lbr:
  * x86_perf_get_lbr - get the LBR records information
  *
  * @lbr: the caller's memory to store the LBR records information
- *
- * Returns: 0 indicates the LBR info has been successfully obtained
  */
-int x86_perf_get_lbr(struct x86_pmu_lbr *lbr)
+void x86_perf_get_lbr(struct x86_pmu_lbr *lbr)
 {
-	int lbr_fmt = x86_pmu.intel_cap.lbr_format;
-
 	lbr->nr = x86_pmu.lbr_nr;
 	lbr->from = x86_pmu.lbr_from;
 	lbr->to = x86_pmu.lbr_to;
-	lbr->info = (lbr_fmt == LBR_FORMAT_INFO) ? x86_pmu.lbr_info : 0;
-
-	return 0;
+	lbr->info = x86_pmu.lbr_info;
 }
 EXPORT_SYMBOL_GPL(x86_perf_get_lbr);
 

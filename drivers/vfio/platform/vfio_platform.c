@@ -83,7 +83,6 @@ static void vfio_platform_release_dev(struct vfio_device *core_vdev)
 		container_of(core_vdev, struct vfio_platform_device, vdev);
 
 	vfio_platform_release_common(vdev);
-	vfio_free_device(core_vdev);
 }
 
 static int vfio_platform_remove(struct platform_device *pdev)
@@ -106,6 +105,9 @@ static const struct vfio_device_ops vfio_platform_ops = {
 	.read		= vfio_platform_read,
 	.write		= vfio_platform_write,
 	.mmap		= vfio_platform_mmap,
+	.bind_iommufd	= vfio_iommufd_physical_bind,
+	.unbind_iommufd	= vfio_iommufd_physical_unbind,
+	.attach_ioas	= vfio_iommufd_physical_attach_ioas,
 };
 
 static struct platform_driver vfio_platform_driver = {

@@ -560,44 +560,28 @@ static void skx_mce_output_error(struct mem_ctl_info *mci,
 		tp_event = HW_EVENT_ERR_CORRECTED;
 	}
 
-	/*
-	 * According to Intel Architecture spec vol 3B,
-	 * Table 15-10 "IA32_MCi_Status [15:0] Compound Error Code Encoding"
-	 * memory errors should fit one of these masks:
-	 *	000f 0000 1mmm cccc (binary)
-	 *	000f 0010 1mmm cccc (binary)	[RAM used as cache]
-	 * where:
-	 *	f = Correction Report Filtering Bit. If 1, subsequent errors
-	 *	    won't be shown
-	 *	mmm = error type
-	 *	cccc = channel
-	 * If the mask doesn't match, report an error to the parsing logic
-	 */
-	if (!((errcode & 0xef80) == 0x80 || (errcode & 0xef80) == 0x280)) {
-		optype = "Can't parse: it is not a mem";
-	} else {
-		switch (optypenum) {
-		case 0:
-			optype = "generic undef request error";
-			break;
-		case 1:
-			optype = "memory read error";
-			break;
-		case 2:
-			optype = "memory write error";
-			break;
-		case 3:
-			optype = "addr/cmd error";
-			break;
-		case 4:
-			optype = "memory scrubbing error";
-			scrub_err = true;
-			break;
-		default:
-			optype = "reserved";
-			break;
-		}
+	switch (optypenum) {
+	case 0:
+		optype = "generic undef request error";
+		break;
+	case 1:
+		optype = "memory read error";
+		break;
+	case 2:
+		optype = "memory write error";
+		break;
+	case 3:
+		optype = "addr/cmd error";
+		break;
+	case 4:
+		optype = "memory scrubbing error";
+		scrub_err = true;
+		break;
+	default:
+		optype = "reserved";
+		break;
 	}
+
 	if (res->decoded_by_adxl) {
 		len = snprintf(skx_msg, MSG_SIZE, "%s%s err_code:0x%04x:0x%04x %s",
 			 overflow ? " OVERFLOW" : "",
@@ -632,12 +616,18 @@ static bool skx_error_in_1st_level_mem(const struct mce *m)
 	if (!skx_mem_cfg_2lm)
 		return false;
 
-	errcode = GET_BITFIELD(m->status, 0, 15);
+	errcode = GET_BITFIELD(m->status, 0, 15) & MCACOD_MEM_ERR_MASK;
 
-	if ((errcode & 0xef80) != 0x280)
-		return false;
+	return errcode == MCACOD_EXT_MEM_ERR;
+}
 
-	return true;
+static bool skx_error_in_mem(const struct mce *m)
+{
+	u32 errcode;
+
+	errcode = GET_BITFIELD(m->status, 0, 15) & MCACOD_MEM_ERR_MASK;
+
+	return (errcode == MCACOD_MEM_CTL_ERR || errcode == MCACOD_EXT_MEM_ERR);
 }
 
 int skx_mce_check_error(struct notifier_block *nb, unsigned long val,
@@ -651,13 +641,13 @@ int skx_mce_check_error(struct notifier_block *nb, unsigned long val,
 	if (mce->kflags & MCE_HANDLED_CEC)
 		return NOTIFY_DONE;
 
-	/* ignore unless this is memory related with an address */
-	if ((mce->status & 0xefff) >> 7 != 1 || !(mce->status & MCI_STATUS_ADDRV))
+	/* Ignore unless this is memory related with an address */
+	if (!skx_error_in_mem(mce) || !(mce->status & MCI_STATUS_ADDRV))
 		return NOTIFY_DONE;
 
 	memset(&res, 0, sizeof(res));
 	res.mce  = mce;
-	res.addr = mce->addr;
+	res.addr = mce->addr & MCI_ADDR_PHYSADDR;
 
 	/* Try driver decoder first */
 	if (!(driver_decode && driver_decode(&res))) {

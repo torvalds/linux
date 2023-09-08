@@ -1,7 +1,7 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (C) 2017 Oracle.  All Rights Reserved.
- * Author: Darrick J. Wong <darrick.wong@oracle.com>
+ * Copyright (C) 2017-2023 Oracle.  All Rights Reserved.
+ * Author: Darrick J. Wong <djwong@kernel.org>
  */
 #include "xfs.h"
 #include "xfs_fs.h"
@@ -14,6 +14,7 @@
 #include "xfs_inode.h"
 #include "xfs_quota.h"
 #include "xfs_qm.h"
+#include "xfs_bmap.h"
 #include "scrub/scrub.h"
 #include "scrub/common.h"
 
@@ -52,6 +53,9 @@ xchk_setup_quota(
 	if (!xfs_this_quota_on(sc->mp, dqtype))
 		return -ENOENT;
 
+	if (xchk_need_intent_drain(sc))
+		xchk_fsgates_enable(sc, XCHK_FSGATES_DRAIN);
+
 	error = xchk_setup_fs(sc);
 	if (error)
 		return error;
@@ -84,7 +88,7 @@ xchk_quota_item(
 	int			error = 0;
 
 	if (xchk_should_terminate(sc, &error))
-		return -ECANCELED;
+		return error;
 
 	/*
 	 * Except for the root dquot, the actual dquot we got must either have
@@ -189,11 +193,12 @@ xchk_quota_data_fork(
 	for_each_xfs_iext(ifp, &icur, &irec) {
 		if (xchk_should_terminate(sc, &error))
 			break;
+
 		/*
-		 * delalloc extents or blocks mapped above the highest
+		 * delalloc/unwritten extents or blocks mapped above the highest
 		 * quota id shouldn't happen.
 		 */
-		if (isnullstartblock(irec.br_startblock) ||
+		if (!xfs_bmap_is_written_extent(&irec) ||
 		    irec.br_startoff > max_dqid_off ||
 		    irec.br_startoff + irec.br_blockcount - 1 > max_dqid_off) {
 			xchk_fblock_set_corrupt(sc, XFS_DATA_FORK,

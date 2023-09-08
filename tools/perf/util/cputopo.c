@@ -238,6 +238,20 @@ static bool has_die_topology(void)
 	return true;
 }
 
+const struct cpu_topology *online_topology(void)
+{
+	static const struct cpu_topology *topology;
+
+	if (!topology) {
+		topology = cpu_topology__new();
+		if (!topology) {
+			pr_err("Error creating CPU topology");
+			abort();
+		}
+	}
+	return topology;
+}
+
 struct cpu_topology *cpu_topology__new(void)
 {
 	struct cpu_topology *tp = NULL;
@@ -422,8 +436,6 @@ void numa_topology__delete(struct numa_topology *tp)
 static int load_hybrid_node(struct hybrid_topology_node *node,
 			    struct perf_pmu *pmu)
 {
-	const char *sysfs;
-	char path[PATH_MAX];
 	char *buf = NULL, *p;
 	FILE *fp;
 	size_t len = 0;
@@ -432,12 +444,7 @@ static int load_hybrid_node(struct hybrid_topology_node *node,
 	if (!node->pmu_name)
 		return -1;
 
-	sysfs = sysfs__mountpoint();
-	if (!sysfs)
-		goto err;
-
-	snprintf(path, PATH_MAX, CPUS_TEMPLATE_CPU, sysfs, pmu->name);
-	fp = fopen(path, "r");
+	fp = perf_pmu__open_file(pmu, "cpus");
 	if (!fp)
 		goto err;
 

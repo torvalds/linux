@@ -135,17 +135,17 @@
 			 * groups only make sense to switch to a
 			 * particular function together.
 			 */
-			dpi_gpio0: dpi_gpio0 {
+			dpi_gpio0: dpi-gpio0 {
 				brcm,pins = <0 1 2 3 4 5 6 7 8 9 10 11
 					     12 13 14 15 16 17 18 19
 					     20 21 22 23 24 25 26 27>;
 				brcm,function = <BCM2835_FSEL_ALT2>;
 			};
-			emmc_gpio22: emmc_gpio22 {
+			emmc_gpio22: emmc-gpio22 {
 				brcm,pins = <22 23 24 25 26 27>;
 				brcm,function = <BCM2835_FSEL_ALT3>;
 			};
-			emmc_gpio34: emmc_gpio34 {
+			emmc_gpio34: emmc-gpio34 {
 				brcm,pins = <34 35 36 37 38 39>;
 				brcm,function = <BCM2835_FSEL_ALT3>;
 				brcm,pull = <BCM2835_PUD_OFF
@@ -155,95 +155,95 @@
 					     BCM2835_PUD_UP
 					     BCM2835_PUD_UP>;
 			};
-			emmc_gpio48: emmc_gpio48 {
+			emmc_gpio48: emmc-gpio48 {
 				brcm,pins = <48 49 50 51 52 53>;
 				brcm,function = <BCM2835_FSEL_ALT3>;
 			};
 
-			gpclk0_gpio4: gpclk0_gpio4 {
+			gpclk0_gpio4: gpclk0-gpio4 {
 				brcm,pins = <4>;
 				brcm,function = <BCM2835_FSEL_ALT0>;
 			};
-			gpclk1_gpio5: gpclk1_gpio5 {
+			gpclk1_gpio5: gpclk1-gpio5 {
 				brcm,pins = <5>;
 				brcm,function = <BCM2835_FSEL_ALT0>;
 			};
-			gpclk1_gpio42: gpclk1_gpio42 {
+			gpclk1_gpio42: gpclk1-gpio42 {
 				brcm,pins = <42>;
 				brcm,function = <BCM2835_FSEL_ALT0>;
 			};
-			gpclk1_gpio44: gpclk1_gpio44 {
+			gpclk1_gpio44: gpclk1-gpio44 {
 				brcm,pins = <44>;
 				brcm,function = <BCM2835_FSEL_ALT0>;
 			};
-			gpclk2_gpio6: gpclk2_gpio6 {
+			gpclk2_gpio6: gpclk2-gpio6 {
 				brcm,pins = <6>;
 				brcm,function = <BCM2835_FSEL_ALT0>;
 			};
-			gpclk2_gpio43: gpclk2_gpio43 {
+			gpclk2_gpio43: gpclk2-gpio43 {
 				brcm,pins = <43>;
 				brcm,function = <BCM2835_FSEL_ALT0>;
 				brcm,pull = <BCM2835_PUD_OFF>;
 			};
 
-			i2c0_gpio0: i2c0_gpio0 {
+			i2c0_gpio0: i2c0-gpio0 {
 				brcm,pins = <0 1>;
 				brcm,function = <BCM2835_FSEL_ALT0>;
 			};
-			i2c0_gpio28: i2c0_gpio28 {
+			i2c0_gpio28: i2c0-gpio28 {
 				brcm,pins = <28 29>;
 				brcm,function = <BCM2835_FSEL_ALT0>;
 			};
-			i2c0_gpio44: i2c0_gpio44 {
+			i2c0_gpio44: i2c0-gpio44 {
 				brcm,pins = <44 45>;
 				brcm,function = <BCM2835_FSEL_ALT1>;
 			};
-			i2c1_gpio2: i2c1_gpio2 {
+			i2c1_gpio2: i2c1-gpio2 {
 				brcm,pins = <2 3>;
 				brcm,function = <BCM2835_FSEL_ALT0>;
 			};
-			i2c1_gpio44: i2c1_gpio44 {
+			i2c1_gpio44: i2c1-gpio44 {
 				brcm,pins = <44 45>;
 				brcm,function = <BCM2835_FSEL_ALT2>;
 			};
 
-			jtag_gpio22: jtag_gpio22 {
+			jtag_gpio22: jtag-gpio22 {
 				brcm,pins = <22 23 24 25 26 27>;
 				brcm,function = <BCM2835_FSEL_ALT4>;
 			};
 
-			pcm_gpio18: pcm_gpio18 {
+			pcm_gpio18: pcm-gpio18 {
 				brcm,pins = <18 19 20 21>;
 				brcm,function = <BCM2835_FSEL_ALT0>;
 			};
-			pcm_gpio28: pcm_gpio28 {
+			pcm_gpio28: pcm-gpio28 {
 				brcm,pins = <28 29 30 31>;
 				brcm,function = <BCM2835_FSEL_ALT2>;
 			};
 
-			sdhost_gpio48: sdhost_gpio48 {
+			sdhost_gpio48: sdhost-gpio48 {
 				brcm,pins = <48 49 50 51 52 53>;
 				brcm,function = <BCM2835_FSEL_ALT0>;
 			};
 
-			spi0_gpio7: spi0_gpio7 {
+			spi0_gpio7: spi0-gpio7 {
 				brcm,pins = <7 8 9 10 11>;
 				brcm,function = <BCM2835_FSEL_ALT0>;
 			};
-			spi0_gpio35: spi0_gpio35 {
+			spi0_gpio35: spi0-gpio35 {
 				brcm,pins = <35 36 37 38 39>;
 				brcm,function = <BCM2835_FSEL_ALT0>;
 			};
-			spi1_gpio16: spi1_gpio16 {
+			spi1_gpio16: spi1-gpio16 {
 				brcm,pins = <16 17 18 19 20 21>;
 				brcm,function = <BCM2835_FSEL_ALT4>;
 			};
-			spi2_gpio40: spi2_gpio40 {
+			spi2_gpio40: spi2-gpio40 {
 				brcm,pins = <40 41 42 43 44 45>;
 				brcm,function = <BCM2835_FSEL_ALT4>;
 			};
 
-			uart0_gpio14: uart0_gpio14 {
+			uart0_gpio14: uart0-gpio14 {
 				brcm,pins = <14 15>;
 				brcm,function = <BCM2835_FSEL_ALT0>;
 			};
@@ -252,50 +252,50 @@
 			 * people often run uart0 on the two pins
 			 * without flow control.
 			 */
-			uart0_ctsrts_gpio16: uart0_ctsrts_gpio16 {
+			uart0_ctsrts_gpio16: uart0-ctsrts-gpio16 {
 				brcm,pins = <16 17>;
 				brcm,function = <BCM2835_FSEL_ALT3>;
 			};
-			uart0_ctsrts_gpio30: uart0_ctsrts_gpio30 {
+			uart0_ctsrts_gpio30: uart0-ctsrts-gpio30 {
 				brcm,pins = <30 31>;
 				brcm,function = <BCM2835_FSEL_ALT3>;
 				brcm,pull = <BCM2835_PUD_UP BCM2835_PUD_OFF>;
 			};
-			uart0_gpio32: uart0_gpio32 {
+			uart0_gpio32: uart0-gpio32 {
 				brcm,pins = <32 33>;
 				brcm,function = <BCM2835_FSEL_ALT3>;
 				brcm,pull = <BCM2835_PUD_OFF BCM2835_PUD_UP>;
 			};
-			uart0_gpio36: uart0_gpio36 {
+			uart0_gpio36: uart0-gpio36 {
 				brcm,pins = <36 37>;
 				brcm,function = <BCM2835_FSEL_ALT2>;
 			};
-			uart0_ctsrts_gpio38: uart0_ctsrts_gpio38 {
+			uart0_ctsrts_gpio38: uart0-ctsrts-gpio38 {
 				brcm,pins = <38 39>;
 				brcm,function = <BCM2835_FSEL_ALT2>;
 			};
 
-			uart1_gpio14: uart1_gpio14 {
+			uart1_gpio14: uart1-gpio14 {
 				brcm,pins = <14 15>;
 				brcm,function = <BCM2835_FSEL_ALT5>;
 			};
-			uart1_ctsrts_gpio16: uart1_ctsrts_gpio16 {
+			uart1_ctsrts_gpio16: uart1-ctsrts-gpio16 {
 				brcm,pins = <16 17>;
 				brcm,function = <BCM2835_FSEL_ALT5>;
 			};
-			uart1_gpio32: uart1_gpio32 {
+			uart1_gpio32: uart1-gpio32 {
 				brcm,pins = <32 33>;
 				brcm,function = <BCM2835_FSEL_ALT5>;
 			};
-			uart1_ctsrts_gpio30: uart1_ctsrts_gpio30 {
+			uart1_ctsrts_gpio30: uart1-ctsrts-gpio30 {
 				brcm,pins = <30 31>;
 				brcm,function = <BCM2835_FSEL_ALT5>;
 			};
-			uart1_gpio40: uart1_gpio40 {
+			uart1_gpio40: uart1-gpio40 {
 				brcm,pins = <40 41>;
 				brcm,function = <BCM2835_FSEL_ALT5>;
 			};
-			uart1_ctsrts_gpio42: uart1_ctsrts_gpio42 {
+			uart1_ctsrts_gpio42: uart1-ctsrts-gpio42 {
 				brcm,pins = <42 43>;
 				brcm,function = <BCM2835_FSEL_ALT5>;
 			};

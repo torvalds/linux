@@ -4,6 +4,7 @@
  * Copyright (C) 2009 - 2016 STMicroelectronics
  */
 
+#include <linux/acpi.h>
 #include <linux/module.h>
 #include <linux/fs.h>
 #include <linux/kernel.h>
@@ -12,7 +13,7 @@
 #include <linux/freezer.h>
 #include <linux/string.h>
 #include <linux/interrupt.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/sched.h>
 #include <linux/uaccess.h>
 #include <linux/io.h>
@@ -432,11 +433,18 @@ static const struct tpm_class_ops st33zp24_tpm = {
 	.req_canceled = st33zp24_req_canceled,
 };
 
+static const struct acpi_gpio_params lpcpd_gpios = { 1, 0, false };
+
+static const struct acpi_gpio_mapping acpi_st33zp24_gpios[] = {
+	{ "lpcpd-gpios", &lpcpd_gpios, 1 },
+	{ },
+};
+
 /*
  * initialize the TPM device
  */
 int st33zp24_probe(void *phy_id, const struct st33zp24_phy_ops *ops,
-		   struct device *dev, int irq, int io_lpcpd)
+		   struct device *dev, int irq)
 {
 	int ret;
 	u8 intmask = 0;
@@ -462,6 +470,25 @@ int st33zp24_probe(void *phy_id, const struct st33zp24_phy_ops *ops,
 	chip->timeout_d = msecs_to_jiffies(TIS_SHORT_TIMEOUT);
 
 	tpm_dev->locality = LOCALITY0;
+
+	if (ACPI_COMPANION(dev)) {
+		ret = devm_acpi_dev_add_driver_gpios(dev, acpi_st33zp24_gpios);
+		if (ret)
+			return ret;
+	}
+
+	/*
+	 * Get LPCPD GPIO. If lpcpd pin is not specified. This is not an
+	 * issue as power management can be also managed by TPM specific
+	 * commands.
+	 */
+	tpm_dev->io_lpcpd = devm_gpiod_get_optional(dev, "lpcpd",
+						    GPIOD_OUT_HIGH);
+	ret = PTR_ERR_OR_ZERO(tpm_dev->io_lpcpd);
+	if (ret) {
+		dev_err(dev, "failed to request lpcpd gpio: %d\n", ret);
+		return ret;
+	}
 
 	if (irq) {
 		/* INTERRUPT Setup */
@@ -525,8 +552,8 @@ int st33zp24_pm_suspend(struct device *dev)
 
 	int ret = 0;
 
-	if (gpio_is_valid(tpm_dev->io_lpcpd))
-		gpio_set_value(tpm_dev->io_lpcpd, 0);
+	if (tpm_dev->io_lpcpd)
+		gpiod_set_value_cansleep(tpm_dev->io_lpcpd, 0);
 	else
 		ret = tpm_pm_suspend(dev);
 
@@ -540,8 +567,8 @@ int st33zp24_pm_resume(struct device *dev)
 	struct st33zp24_dev *tpm_dev = dev_get_drvdata(&chip->dev);
 	int ret = 0;
 
-	if (gpio_is_valid(tpm_dev->io_lpcpd)) {
-		gpio_set_value(tpm_dev->io_lpcpd, 1);
+	if (tpm_dev->io_lpcpd) {
+		gpiod_set_value_cansleep(tpm_dev->io_lpcpd, 1);
 		ret = wait_for_stat(chip,
 				TPM_STS_VALID, chip->timeout_b,
 				&tpm_dev->read_queue, false);

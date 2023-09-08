@@ -505,6 +505,7 @@ static struct platform_driver wm831x_buckv_driver = {
 	.probe = wm831x_buckv_probe,
 	.driver		= {
 		.name	= "wm831x-buckv",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 };
 
@@ -632,6 +633,7 @@ static struct platform_driver wm831x_buckp_driver = {
 	.probe = wm831x_buckp_probe,
 	.driver		= {
 		.name	= "wm831x-buckp",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 };
 
@@ -747,6 +749,7 @@ static struct platform_driver wm831x_boostp_driver = {
 	.probe = wm831x_boostp_probe,
 	.driver		= {
 		.name	= "wm831x-boostp",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 };
 
@@ -822,6 +825,7 @@ static struct platform_driver wm831x_epe_driver = {
 	.probe = wm831x_epe_probe,
 	.driver		= {
 		.name	= "wm831x-epe",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 };
 

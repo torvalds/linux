@@ -21,6 +21,7 @@ config MICROBLAZE
 	select GENERIC_IRQ_SHOW
 	select GENERIC_PCI_IOMAP
 	select GENERIC_SCHED_CLOCK
+	select HAS_IOPORT if PCI
 	select HAVE_ARCH_HASH
 	select HAVE_ARCH_KGDB
 	select HAVE_ARCH_SECCOMP
@@ -213,13 +214,5 @@ config MB_MANAGER
 	  block the break.
 
 	  Say N here unless you know what you are doing.
-
-endmenu
-
-menu "Bus Options"
-
-config PCI_XILINX
-	bool "Xilinx PCI host bridge support"
-	depends on PCI
 
 endmenu

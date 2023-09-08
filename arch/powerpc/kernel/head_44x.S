@@ -109,7 +109,7 @@ _GLOBAL(_start);
 	lis	r1,init_thread_union@h
 	ori	r1,r1,init_thread_union@l
 	li	r0,0
-	stwu	r0,THREAD_SIZE-STACK_FRAME_OVERHEAD(r1)
+	stwu	r0,THREAD_SIZE-STACK_FRAME_MIN_SIZE(r1)
 
 	bl	early_init
 
@@ -1012,7 +1012,7 @@ _GLOBAL(start_secondary_47x)
 	 */
 	lis	r1,temp_boot_stack@h
 	ori	r1,r1,temp_boot_stack@l
-	addi	r1,r1,1024-STACK_FRAME_OVERHEAD
+	addi	r1,r1,1024-STACK_FRAME_MIN_SIZE
 	li	r0,0
 	stw	r0,0(r1)
 	bl	mmu_init_secondary
@@ -1025,7 +1025,7 @@ _GLOBAL(start_secondary_47x)
 	lwz	r1,TASK_STACK(r2)
 
 	/* Current stack pointer */
-	addi	r1,r1,THREAD_SIZE-STACK_FRAME_OVERHEAD
+	addi	r1,r1,THREAD_SIZE-STACK_FRAME_MIN_SIZE
 	li	r0,0
 	stw	r0,0(r1)
 

@@ -1233,12 +1233,9 @@ mcr20a_probe(struct spi_device *spi)
 	}
 
 	rst_b = devm_gpiod_get(&spi->dev, "rst_b", GPIOD_OUT_HIGH);
-	if (IS_ERR(rst_b)) {
-		ret = PTR_ERR(rst_b);
-		if (ret != -EPROBE_DEFER)
-			dev_err(&spi->dev, "Failed to get 'rst_b' gpio: %d", ret);
-		return ret;
-	}
+	if (IS_ERR(rst_b))
+		return dev_err_probe(&spi->dev, PTR_ERR(rst_b),
+				     "Failed to get 'rst_b' gpio");
 
 	/* reset mcr20a */
 	usleep_range(10, 20);
@@ -1355,7 +1352,7 @@ MODULE_DEVICE_TABLE(spi, mcr20a_device_id);
 static struct spi_driver mcr20a_driver = {
 	.id_table = mcr20a_device_id,
 	.driver = {
-		.of_match_table = of_match_ptr(mcr20a_of_match),
+		.of_match_table = mcr20a_of_match,
 		.name	= "mcr20a",
 	},
 	.probe      = mcr20a_probe,

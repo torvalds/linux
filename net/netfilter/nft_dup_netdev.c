@@ -44,7 +44,8 @@ static int nft_dup_netdev_init(const struct nft_ctx *ctx,
 				       sizeof(int));
 }
 
-static int nft_dup_netdev_dump(struct sk_buff *skb, const struct nft_expr *expr)
+static int nft_dup_netdev_dump(struct sk_buff *skb,
+			       const struct nft_expr *expr, bool reset)
 {
 	struct nft_dup_netdev *priv = nft_expr_priv(expr);
 

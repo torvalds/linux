@@ -471,7 +471,7 @@ struct ehci_iso_sched {
  * acts like a qh would, if EHCI had them for ISO.
  */
 struct ehci_iso_stream {
-	/* first field matches ehci_hq, but is NULL */
+	/* first field matches ehci_qh, but is NULL */
 	struct ehci_qh_hw	*hw;
 
 	u8			bEndpointAddress;

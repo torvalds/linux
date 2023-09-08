@@ -665,7 +665,7 @@ xfs_ioc_fsbulkstat(
 	struct xfs_fsop_bulkreq	bulkreq;
 	struct xfs_ibulk	breq = {
 		.mp		= mp,
-		.mnt_userns	= file_mnt_user_ns(file),
+		.idmap		= file_mnt_idmap(file),
 		.ocount		= 0,
 	};
 	xfs_ino_t		lastino;
@@ -754,7 +754,7 @@ xfs_bulkstat_fmt(
 static int
 xfs_bulk_ireq_setup(
 	struct xfs_mount	*mp,
-	struct xfs_bulk_ireq	*hdr,
+	const struct xfs_bulk_ireq *hdr,
 	struct xfs_ibulk	*breq,
 	void __user		*ubuffer)
 {
@@ -780,7 +780,7 @@ xfs_bulk_ireq_setup(
 
 		switch (hdr->ino) {
 		case XFS_BULK_IREQ_SPECIAL_ROOT:
-			hdr->ino = mp->m_sb.sb_rootino;
+			breq->startino = mp->m_sb.sb_rootino;
 			break;
 		default:
 			return -EINVAL;
@@ -844,7 +844,7 @@ xfs_ioc_bulkstat(
 	struct xfs_bulk_ireq		hdr;
 	struct xfs_ibulk		breq = {
 		.mp			= mp,
-		.mnt_userns		= file_mnt_user_ns(file),
+		.idmap			= file_mnt_idmap(file),
 	};
 	int				error;
 
@@ -1138,10 +1138,6 @@ xfs_ioctl_setattr_xflags(
 	if ((fa->fsx_xflags & FS_XFLAG_REALTIME) && xfs_is_reflink_inode(ip))
 		ip->i_diflags2 &= ~XFS_DIFLAG2_REFLINK;
 
-	/* Don't allow us to set DAX mode for a reflinked file for now. */
-	if ((fa->fsx_xflags & FS_XFLAG_DAX) && xfs_is_reflink_inode(ip))
-		return -EINVAL;
-
 	/* diflags2 only valid for v3 inodes. */
 	i_flags2 = xfs_flags2diflags2(ip, fa->fsx_xflags);
 	if (i_flags2 && !xfs_has_v3inodes(mp))
@@ -1301,7 +1297,7 @@ xfs_ioctl_setattr_check_projid(
 
 int
 xfs_fileattr_set(
-	struct user_namespace	*mnt_userns,
+	struct mnt_idmap	*idmap,
 	struct dentry		*dentry,
 	struct fileattr		*fa)
 {
@@ -1375,7 +1371,7 @@ xfs_fileattr_set(
 	 */
 
 	if ((VFS_I(ip)->i_mode & (S_ISUID|S_ISGID)) &&
-	    !capable_wrt_inode_uidgid(mnt_userns, VFS_I(ip), CAP_FSETID))
+	    !capable_wrt_inode_uidgid(idmap, VFS_I(ip), CAP_FSETID))
 		VFS_I(ip)->i_mode &= ~(S_ISUID|S_ISGID);
 
 	/* Change the ownerships and register project quota modifications */

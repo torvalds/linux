@@ -46,7 +46,7 @@ static const struct software_node ssam_node_hub_kip = {
 
 /* Base device hub (devices attached to Surface Book 3 base). */
 static const struct software_node ssam_node_hub_base = {
-	.name = "ssam:00:00:02:11:00",
+	.name = "ssam:00:00:01:11:00",
 	.parent = &ssam_node_root,
 };
 
@@ -305,7 +305,7 @@ static const struct software_node *ssam_node_group_sp9[] = {
 	&ssam_node_bat_ac,
 	&ssam_node_bat_main,
 	&ssam_node_tmp_pprof,
-	/* TODO: Tablet mode switch (via POS subsystem) */
+	&ssam_node_pos_tablet_switch,
 	&ssam_node_hid_kip_keyboard,
 	&ssam_node_hid_kip_penstash,
 	&ssam_node_hid_kip_touchpad,

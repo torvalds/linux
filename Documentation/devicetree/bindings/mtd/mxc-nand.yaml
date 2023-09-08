@@ -4,13 +4,13 @@
 $id: http://devicetree.org/schemas/mtd/mxc-nand.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Freescale's mxc_nand binding
+title: Freescale's mxc_nand
 
 maintainers:
   - Uwe Kleine-König <u.kleine-koenig@pengutronix.de>
 
 allOf:
-  - $ref: "nand-controller.yaml"
+  - $ref: nand-controller.yaml
 
 properties:
   compatible:

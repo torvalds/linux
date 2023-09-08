@@ -125,7 +125,7 @@ Linux内核代码中包含有大量的文档。这些文档对于学习如何与
     这篇文档对于理解Linux的开发哲学至关重要。对于将开发平台从其他操作系
     统转移到Linux的人来说也很重要。
 
-  :ref:`Documentation/admin-guide/security-bugs.rst <securitybugs>`
+  :ref:`Documentation/process/security-bugs.rst <securitybugs>`
     如果你认为自己发现了Linux内核的安全性问题，请根据这篇文档中的步骤来
     提醒其他内核开发者并帮助解决这个问题。
 
@@ -254,7 +254,7 @@ Linux-next 集成测试树
         https://git.kernel.org/?p=linux/kernel/git/next/linux-next.git
 
 通过这种方式，Linux-next 对下一个合并阶段将进入主线内核的内容给出了一个概要
-展望。非常欢冒险的测试者运行测试Linux-next。
+展望。非常欢迎冒险的测试者运行测试Linux-next。
 
 多个主要版本的稳定版内核树
 -----------------------------------

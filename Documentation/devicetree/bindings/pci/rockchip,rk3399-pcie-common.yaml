@@ -1,0 +1,69 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/pci/rockchip,rk3399-pcie-common.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Rockchip AXI PCIe Bridge Common Properties
+
+maintainers:
+  - Shawn Lin <shawn.lin@rock-chips.com>
+
+properties:
+  reg:
+    maxItems: 2
+
+  clocks:
+    maxItems: 4
+
+  clock-names:
+    items:
+      - const: aclk
+      - const: aclk-perf
+      - const: hclk
+      - const: pm
+
+  num-lanes:
+    maximum: 4
+
+  phys:
+    oneOf:
+      - maxItems: 1
+      - maxItems: 4
+
+  phy-names:
+    oneOf:
+      - const: pcie-phy
+      - items:
+          - const: pcie-phy-0
+          - const: pcie-phy-1
+          - const: pcie-phy-2
+          - const: pcie-phy-3
+
+  resets:
+    maxItems: 7
+
+  reset-names:
+    items:
+      - const: core
+      - const: mgmt
+      - const: mgmt-sticky
+      - const: pipe
+      - const: pm
+      - const: pclk
+      - const: aclk
+
+required:
+  - compatible
+  - reg
+  - reg-names
+  - clocks
+  - clock-names
+  - phys
+  - phy-names
+  - resets
+  - reset-names
+
+additionalProperties: true
+
+...

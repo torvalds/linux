@@ -150,9 +150,7 @@ struct io_pgtable_cfg {
 /**
  * struct io_pgtable_ops - Page table manipulation API for IOMMU drivers.
  *
- * @map:          Map a physically contiguous memory region.
  * @map_pages:    Map a physically contiguous range of pages of the same size.
- * @unmap:        Unmap a physically contiguous memory region.
  * @unmap_pages:  Unmap a range of virtually contiguous pages of the same size.
  * @iova_to_phys: Translate iova to physical address.
  *
@@ -160,13 +158,9 @@ struct io_pgtable_cfg {
  * the same names.
  */
 struct io_pgtable_ops {
-	int (*map)(struct io_pgtable_ops *ops, unsigned long iova,
-		   phys_addr_t paddr, size_t size, int prot, gfp_t gfp);
 	int (*map_pages)(struct io_pgtable_ops *ops, unsigned long iova,
 			 phys_addr_t paddr, size_t pgsize, size_t pgcount,
 			 int prot, gfp_t gfp, size_t *mapped);
-	size_t (*unmap)(struct io_pgtable_ops *ops, unsigned long iova,
-			size_t size, struct iommu_iotlb_gather *gather);
 	size_t (*unmap_pages)(struct io_pgtable_ops *ops, unsigned long iova,
 			      size_t pgsize, size_t pgcount,
 			      struct iommu_iotlb_gather *gather);

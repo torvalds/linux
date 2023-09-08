@@ -9,6 +9,9 @@ title: AK4613 I2C transmitter
 maintainers:
   - Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
 
+allOf:
+  - $ref: dai-common.yaml#
+
 properties:
   compatible:
     const: asahi-kasei,ak4613
@@ -21,6 +24,13 @@ properties:
 
   "#sound-dai-cells":
     const: 0
+
+  ports:
+    $ref: audio-graph-port.yaml#/definitions/ports
+
+  port:
+    $ref: audio-graph-port.yaml#
+    unevaluatedProperties: false
 
 patternProperties:
   "^asahi-kasei,in[1-2]-single-end$":
@@ -35,7 +45,7 @@ required:
   - compatible
   - reg
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |

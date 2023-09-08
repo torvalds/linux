@@ -4,7 +4,7 @@
  * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.
  */
 
-/**
+/*
  * All common (i.e. transport-independent) SLI-4 functions are implemented
  * in this file.
  */

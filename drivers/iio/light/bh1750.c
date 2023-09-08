@@ -228,9 +228,9 @@ static const struct iio_chan_spec bh1750_channels[] = {
 	}
 };
 
-static int bh1750_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int bh1750_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	int ret, usec;
 	struct bh1750_data *data;
 	struct iio_dev *indio_dev;
@@ -320,7 +320,7 @@ static struct i2c_driver bh1750_driver = {
 		.of_match_table = bh1750_of_match,
 		.pm = pm_sleep_ptr(&bh1750_pm_ops),
 	},
-	.probe = bh1750_probe,
+	.probe_new = bh1750_probe,
 	.remove = bh1750_remove,
 	.id_table = bh1750_id,
 

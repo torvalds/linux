@@ -47,8 +47,7 @@ static inline void flush_pmd_tlb_range(struct vm_area_struct *vma,
 				       unsigned long start, unsigned long end)
 {
 	if (radix_enabled())
-		return radix__flush_pmd_tlb_range(vma, start, end);
-	return hash__flush_tlb_range(vma, start, end);
+		radix__flush_pmd_tlb_range(vma, start, end);
 }
 
 #define __HAVE_ARCH_FLUSH_HUGETLB_TLB_RANGE
@@ -57,86 +56,73 @@ static inline void flush_hugetlb_tlb_range(struct vm_area_struct *vma,
 					   unsigned long end)
 {
 	if (radix_enabled())
-		return radix__flush_hugetlb_tlb_range(vma, start, end);
-	return hash__flush_tlb_range(vma, start, end);
+		radix__flush_hugetlb_tlb_range(vma, start, end);
 }
 
 static inline void flush_tlb_range(struct vm_area_struct *vma,
 				   unsigned long start, unsigned long end)
 {
 	if (radix_enabled())
-		return radix__flush_tlb_range(vma, start, end);
-	return hash__flush_tlb_range(vma, start, end);
+		radix__flush_tlb_range(vma, start, end);
 }
 
 static inline void flush_tlb_kernel_range(unsigned long start,
 					  unsigned long end)
 {
 	if (radix_enabled())
-		return radix__flush_tlb_kernel_range(start, end);
-	return hash__flush_tlb_kernel_range(start, end);
+		radix__flush_tlb_kernel_range(start, end);
 }
 
 static inline void local_flush_tlb_mm(struct mm_struct *mm)
 {
 	if (radix_enabled())
-		return radix__local_flush_tlb_mm(mm);
-	return hash__local_flush_tlb_mm(mm);
+		radix__local_flush_tlb_mm(mm);
 }
 
 static inline void local_flush_tlb_page(struct vm_area_struct *vma,
 					unsigned long vmaddr)
 {
 	if (radix_enabled())
-		return radix__local_flush_tlb_page(vma, vmaddr);
-	return hash__local_flush_tlb_page(vma, vmaddr);
+		radix__local_flush_tlb_page(vma, vmaddr);
 }
 
-static inline void local_flush_all_mm(struct mm_struct *mm)
+static inline void local_flush_tlb_page_psize(struct mm_struct *mm,
+					      unsigned long vmaddr, int psize)
 {
 	if (radix_enabled())
-		return radix__local_flush_all_mm(mm);
-	return hash__local_flush_all_mm(mm);
+		radix__local_flush_tlb_page_psize(mm, vmaddr, psize);
 }
 
 static inline void tlb_flush(struct mmu_gather *tlb)
 {
 	if (radix_enabled())
-		return radix__tlb_flush(tlb);
-	return hash__tlb_flush(tlb);
+		radix__tlb_flush(tlb);
+	else
+		hash__tlb_flush(tlb);
 }
 
 #ifdef CONFIG_SMP
 static inline void flush_tlb_mm(struct mm_struct *mm)
 {
 	if (radix_enabled())
-		return radix__flush_tlb_mm(mm);
-	return hash__flush_tlb_mm(mm);
+		radix__flush_tlb_mm(mm);
 }
 
 static inline void flush_tlb_page(struct vm_area_struct *vma,
 				  unsigned long vmaddr)
 {
 	if (radix_enabled())
-		return radix__flush_tlb_page(vma, vmaddr);
-	return hash__flush_tlb_page(vma, vmaddr);
-}
-
-static inline void flush_all_mm(struct mm_struct *mm)
-{
-	if (radix_enabled())
-		return radix__flush_all_mm(mm);
-	return hash__flush_all_mm(mm);
+		radix__flush_tlb_page(vma, vmaddr);
 }
 #else
 #define flush_tlb_mm(mm)		local_flush_tlb_mm(mm)
 #define flush_tlb_page(vma, addr)	local_flush_tlb_page(vma, addr)
-#define flush_all_mm(mm)		local_flush_all_mm(mm)
 #endif /* CONFIG_SMP */
 
 #define flush_tlb_fix_spurious_fault flush_tlb_fix_spurious_fault
 static inline void flush_tlb_fix_spurious_fault(struct vm_area_struct *vma,
-						unsigned long address)
+						unsigned long address,
+						pte_t *ptep)
 {
 	/*
 	 * Book3S 64 does not require spurious fault flushes because the PTE
@@ -163,6 +149,11 @@ static inline void flush_tlb_fix_spurious_fault(struct vm_area_struct *vma,
 	 */
 }
 
+static inline bool __pte_protnone(unsigned long pte)
+{
+	return (pte & (pgprot_val(PAGE_NONE) | _PAGE_RWX)) == pgprot_val(PAGE_NONE);
+}
+
 static inline bool __pte_flags_need_flush(unsigned long oldval,
 					  unsigned long newval)
 {
@@ -179,8 +170,8 @@ static inline bool __pte_flags_need_flush(unsigned long oldval,
 	/*
 	 * We do not expect kernel mappings or non-PTEs or not-present PTEs.
 	 */
-	VM_WARN_ON_ONCE(oldval & _PAGE_PRIVILEGED);
-	VM_WARN_ON_ONCE(newval & _PAGE_PRIVILEGED);
+	VM_WARN_ON_ONCE(!__pte_protnone(oldval) && oldval & _PAGE_PRIVILEGED);
+	VM_WARN_ON_ONCE(!__pte_protnone(newval) && newval & _PAGE_PRIVILEGED);
 	VM_WARN_ON_ONCE(!(oldval & _PAGE_PTE));
 	VM_WARN_ON_ONCE(!(newval & _PAGE_PTE));
 	VM_WARN_ON_ONCE(!(oldval & _PAGE_PRESENT));

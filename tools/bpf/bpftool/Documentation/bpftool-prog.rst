@@ -28,10 +28,10 @@ PROG COMMANDS
 =============
 
 |	**bpftool** **prog** { **show** | **list** } [*PROG*]
-|	**bpftool** **prog dump xlated** *PROG* [{**file** *FILE* | **opcodes** | **visual** | **linum**}]
-|	**bpftool** **prog dump jited**  *PROG* [{**file** *FILE* | **opcodes** | **linum**}]
+|	**bpftool** **prog dump xlated** *PROG* [{ **file** *FILE* | [**opcodes**] [**linum**] [**visual**] }]
+|	**bpftool** **prog dump jited**  *PROG* [{ **file** *FILE* | [**opcodes**] [**linum**] }]
 |	**bpftool** **prog pin** *PROG* *FILE*
-|	**bpftool** **prog** { **load** | **loadall** } *OBJ* *PATH* [**type** *TYPE*] [**map** {**idx** *IDX* | **name** *NAME*} *MAP*] [**dev** *NAME*] [**pinmaps** *MAP_DIR*]
+|	**bpftool** **prog** { **load** | **loadall** } *OBJ* *PATH* [**type** *TYPE*] [**map** {**idx** *IDX* | **name** *NAME*} *MAP*] [**dev** *NAME*] [**pinmaps** *MAP_DIR*] [**autoattach**]
 |	**bpftool** **prog attach** *PROG* *ATTACH_TYPE* [*MAP*]
 |	**bpftool** **prog detach** *PROG* *ATTACH_TYPE* [*MAP*]
 |	**bpftool** **prog tracelog**
@@ -88,7 +88,7 @@ DESCRIPTION
 		  programs. On such kernels bpftool will automatically emit this
 		  information as well.
 
-	**bpftool prog dump xlated** *PROG* [{ **file** *FILE* | **opcodes** | **visual** | **linum** }]
+	**bpftool prog dump xlated** *PROG* [{ **file** *FILE* | [**opcodes**] [**linum**] [**visual**] }]
 		  Dump eBPF instructions of the programs from the kernel. By
 		  default, eBPF will be disassembled and printed to standard
 		  output in human-readable format. In this case, **opcodes**
@@ -106,11 +106,10 @@ DESCRIPTION
 		  CFG in DOT format, on standard output.
 
 		  If the programs have line_info available, the source line will
-		  be displayed by default.  If **linum** is specified,
-		  the filename, line number and line column will also be
-		  displayed on top of the source line.
+		  be displayed.  If **linum** is specified, the filename, line
+		  number and line column will also be displayed.
 
-	**bpftool prog dump jited**  *PROG* [{ **file** *FILE* | **opcodes** | **linum** }]
+	**bpftool prog dump jited**  *PROG* [{ **file** *FILE* | [**opcodes**] [**linum**] }]
 		  Dump jited image (host machine code) of the program.
 
 		  If *FILE* is specified image will be written to a file,
@@ -120,9 +119,8 @@ DESCRIPTION
 		  **opcodes** controls if raw opcodes will be printed.
 
 		  If the prog has line_info available, the source line will
-		  be displayed by default.  If **linum** is specified,
-		  the filename, line number and line column will also be
-		  displayed on top of the source line.
+		  be displayed.  If **linum** is specified, the filename, line
+		  number and line column will also be displayed.
 
 	**bpftool prog pin** *PROG* *FILE*
 		  Pin program *PROG* as *FILE*.
@@ -131,7 +129,7 @@ DESCRIPTION
 		  contain a dot character ('.'), which is reserved for future
 		  extensions of *bpffs*.
 
-	**bpftool prog { load | loadall }** *OBJ* *PATH* [**type** *TYPE*] [**map** {**idx** *IDX* | **name** *NAME*} *MAP*] [**dev** *NAME*] [**pinmaps** *MAP_DIR*]
+	**bpftool prog { load | loadall }** *OBJ* *PATH* [**type** *TYPE*] [**map** {**idx** *IDX* | **name** *NAME*} *MAP*] [**dev** *NAME*] [**pinmaps** *MAP_DIR*] [**autoattach**]
 		  Load bpf program(s) from binary *OBJ* and pin as *PATH*.
 		  **bpftool prog load** pins only the first program from the
 		  *OBJ* as *PATH*. **bpftool prog loadall** pins all programs
@@ -149,6 +147,17 @@ DESCRIPTION
 		  given networking device (offload).
 		  Optional **pinmaps** argument can be provided to pin all
 		  maps under *MAP_DIR* directory.
+
+		  If **autoattach** is specified program will be attached
+		  before pin. In that case, only the link (representing the
+		  program attached to its hook) is pinned, not the program as
+		  such, so the path won't show in **bpftool prog show -f**,
+		  only show in **bpftool link show -f**. Also, this only works
+		  when bpftool (libbpf) is able to infer all necessary
+		  information from the object file, in particular, it's not
+		  supported for all program types. If a program does not
+		  support autoattach, bpftool falls back to regular pinning
+		  for that program instead.
 
 		  Note: *PATH* must be located in *bpffs* mount. It must not
 		  contain a dot character ('.'), which is reserved for future

@@ -1,0 +1,101 @@
+// SPDX-License-Identifier: GPL-2.0+ OR BSD-3-Clause
+/*
+ * Copyright (C) 2023 DH electronics GmbH
+ *
+ * DHCOM iMX6ULL variant:
+ * DHCM-iMX6ULL-C080-R051-F0409-SPI-E2-CAN2-SD-RTC-ADC-I-01D2
+ * DHCOR PCB number: 578-200 or newer
+ * DHCOM PCB number: 579-200 or newer
+ * PicoITX PCB number: 487-600 or newer
+ */
+/dts-v1/;
+
+#include "imx6ull-dhcom-som.dtsi"
+#include "imx6ull-dhcom-som-cfg-sdcard.dtsi"
+
+/ {
+	model = "DH electronics i.MX6ULL DHCOM on PicoITX";
+	compatible = "dh,imx6ull-dhcom-picoitx", "dh,imx6ull-dhcom-som",
+		     "dh,imx6ull-dhcor-som", "fsl,imx6ull";
+
+	led {
+		compatible = "gpio-leds";
+
+		led-0 {
+			color = <LED_COLOR_ID_YELLOW>;
+			default-state = "off";
+			function = LED_FUNCTION_INDICATOR;
+			gpios = <&gpio4 8 GPIO_ACTIVE_HIGH>; /* GPIO I */
+		};
+	};
+};
+
+&fec1 {
+	phy-handle = <&mdio1_phy0>;
+
+	mdio {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		mdio1_phy0: ethernet-phy@0 {
+			compatible = "ethernet-phy-id0007.c0f0", /* SMSC LAN8710Ai */
+				     "ethernet-phy-ieee802.3-c22";
+			reg = <0>;
+			clock-names = "rmii-ref";
+			clocks = <&clks IMX6UL_CLK_ENET_REF>;
+			interrupt-parent = <&gpio5>;
+			interrupts = <5 IRQ_TYPE_LEVEL_LOW>;
+			pinctrl-0 = <&pinctrl_fec1_phy &pinctrl_snvs_fec1_phy>;
+			pinctrl-names = "default";
+			reset-assert-us = <500>;
+			reset-deassert-us = <500>;
+			reset-gpios = <&gpio3 23 GPIO_ACTIVE_LOW>;
+			smsc,disable-energy-detect; /* Make plugin detection reliable */
+		};
+	};
+};
+
+&fec2 {
+	status = "disabled";
+};
+
+&gpio4 {
+	gpio-line-names =
+		"", "", "", "",
+		"", "", "", "",
+		"", "", "", "",
+		"", "", "", "",
+		"", "PicoITX-HW2", "PicoITX-HW1", "DHCOM-M",
+		"PicoITX-HW0", "DHCOM-U", "DHCOM-T", "DHCOM-S",
+		"DHCOM-R", "DHCOM-Q", "DHCOM-P", "DHCOM-O",
+		"DHCOM-N", "", "", "";
+};
+
+&gpio5 {
+	gpio-line-names =
+		"DHCOM-A", "DHCOM-B", "PicoITX-In2", "PicoITX-Out2",
+		"PicoITX-In1", "", "", "PicoITX-Out1",
+		"DHCOM-G", "DHCOM-H", "", "",
+		"", "", "", "",
+		"", "", "", "",
+		"", "", "", "",
+		"", "", "", "",
+		"", "", "", "";
+};
+
+&iomuxc {
+	pinctrl_fec1: fec1-grp {
+		fsl,pins = <
+			MX6UL_PAD_GPIO1_IO07__ENET1_MDC		0x1b0b0
+			MX6UL_PAD_GPIO1_IO06__ENET1_MDIO	0x1b0b0
+			MX6UL_PAD_ENET1_RX_EN__ENET1_RX_EN	0x1b0b0
+			MX6UL_PAD_ENET1_RX_ER__ENET1_RX_ER	0x1b0b0
+			MX6UL_PAD_ENET1_RX_DATA0__ENET1_RDATA00	0x1b0b0
+			MX6UL_PAD_ENET1_RX_DATA1__ENET1_RDATA01	0x1b0b0
+			MX6UL_PAD_ENET1_TX_EN__ENET1_TX_EN	0x1b010
+			MX6UL_PAD_ENET1_TX_DATA0__ENET1_TDATA00	0x1b010
+			MX6UL_PAD_ENET1_TX_DATA1__ENET1_TDATA01	0x1b010
+			MX6UL_PAD_ENET1_TX_CLK__ENET1_REF_CLK1	0x4001b010
+		>;
+	};
+};

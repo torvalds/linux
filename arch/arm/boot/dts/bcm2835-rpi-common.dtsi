@@ -7,6 +7,23 @@
 
 #include <dt-bindings/power/raspberrypi-power.h>
 
+&firmware {
+	firmware_clocks: clocks {
+		compatible = "raspberrypi,firmware-clocks";
+		#clock-cells = <1>;
+	};
+};
+
+&hdmi {
+	clocks = <&firmware_clocks 9>,
+		 <&firmware_clocks 13>;
+	clock-names = "pixel", "hdmi";
+};
+
 &v3d {
 	power-domains = <&power RPI_POWER_DOMAIN_V3D>;
+};
+
+&vec {
+	clocks = <&firmware_clocks 15>;
 };

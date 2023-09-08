@@ -502,27 +502,11 @@ static void __vb2_free_mem(struct vb2_queue *q, unsigned int buffers)
  * related information, if no buffers are left return the queue to an
  * uninitialized state. Might be called even if the queue has already been freed.
  */
-static int __vb2_queue_free(struct vb2_queue *q, unsigned int buffers)
+static void __vb2_queue_free(struct vb2_queue *q, unsigned int buffers)
 {
 	unsigned int buffer;
 
-	/*
-	 * Sanity check: when preparing a buffer the queue lock is released for
-	 * a short while (see __buf_prepare for the details), which would allow
-	 * a race with a reqbufs which can call this function. Removing the
-	 * buffers from underneath __buf_prepare is obviously a bad idea, so we
-	 * check if any of the buffers is in the state PREPARING, and if so we
-	 * just return -EAGAIN.
-	 */
-	for (buffer = q->num_buffers - buffers; buffer < q->num_buffers;
-	     ++buffer) {
-		if (q->bufs[buffer] == NULL)
-			continue;
-		if (q->bufs[buffer]->state == VB2_BUF_STATE_PREPARING) {
-			dprintk(q, 1, "preparing buffers, cannot free\n");
-			return -EAGAIN;
-		}
-	}
+	lockdep_assert_held(&q->mmap_lock);
 
 	/* Call driver-provided cleanup function for each buffer, if provided */
 	for (buffer = q->num_buffers - buffers; buffer < q->num_buffers;
@@ -544,6 +528,7 @@ static int __vb2_queue_free(struct vb2_queue *q, unsigned int buffers)
 	 */
 	if (q->num_buffers) {
 		bool unbalanced = q->cnt_start_streaming != q->cnt_stop_streaming ||
+				  q->cnt_prepare_streaming != q->cnt_unprepare_streaming ||
 				  q->cnt_wait_prepare != q->cnt_wait_finish;
 
 		if (unbalanced || debug) {
@@ -552,14 +537,18 @@ static int __vb2_queue_free(struct vb2_queue *q, unsigned int buffers)
 			pr_info("     setup: %u start_streaming: %u stop_streaming: %u\n",
 				q->cnt_queue_setup, q->cnt_start_streaming,
 				q->cnt_stop_streaming);
+			pr_info("     prepare_streaming: %u unprepare_streaming: %u\n",
+				q->cnt_prepare_streaming, q->cnt_unprepare_streaming);
 			pr_info("     wait_prepare: %u wait_finish: %u\n",
 				q->cnt_wait_prepare, q->cnt_wait_finish);
 		}
 		q->cnt_queue_setup = 0;
 		q->cnt_wait_prepare = 0;
 		q->cnt_wait_finish = 0;
+		q->cnt_prepare_streaming = 0;
 		q->cnt_start_streaming = 0;
 		q->cnt_stop_streaming = 0;
+		q->cnt_unprepare_streaming = 0;
 	}
 	for (buffer = 0; buffer < q->num_buffers; ++buffer) {
 		struct vb2_buffer *vb = q->bufs[buffer];
@@ -611,7 +600,6 @@ static int __vb2_queue_free(struct vb2_queue *q, unsigned int buffers)
 		q->memory = VB2_MEMORY_UNKNOWN;
 		INIT_LIST_HEAD(&q->queued_list);
 	}
-	return 0;
 }
 
 bool vb2_buffer_in_use(struct vb2_queue *q, struct vb2_buffer *vb)
@@ -793,10 +781,8 @@ int vb2_core_reqbufs(struct vb2_queue *q, enum vb2_memory memory,
 		 * queued without ever calling STREAMON.
 		 */
 		__vb2_queue_cancel(q);
-		ret = __vb2_queue_free(q, q->num_buffers);
+		__vb2_queue_free(q, q->num_buffers);
 		mutex_unlock(&q->mmap_lock);
-		if (ret)
-			return ret;
 
 		/*
 		 * In case of REQBUFS(0) return immediately without calling
@@ -2026,6 +2012,9 @@ static void __vb2_queue_cancel(struct vb2_queue *q)
 	if (q->start_streaming_called)
 		call_void_qop(q, stop_streaming, q);
 
+	if (q->streaming)
+		call_void_qop(q, unprepare_streaming, q);
+
 	/*
 	 * If you see this warning, then the driver isn't cleaning up properly
 	 * in stop_streaming(). See the stop_streaming() documentation in
@@ -2137,23 +2126,28 @@ int vb2_core_streamon(struct vb2_queue *q, unsigned int type)
 		return -EINVAL;
 	}
 
+	ret = call_qop(q, prepare_streaming, q);
+	if (ret)
+		return ret;
+
 	/*
 	 * Tell driver to start streaming provided sufficient buffers
 	 * are available.
 	 */
 	if (q->queued_count >= q->min_buffers_needed) {
-		ret = v4l_vb2q_enable_media_source(q);
-		if (ret)
-			return ret;
 		ret = vb2_start_streaming(q);
 		if (ret)
-			return ret;
+			goto unprepare;
 	}
 
 	q->streaming = 1;
 
 	dprintk(q, 3, "successful\n");
 	return 0;
+
+unprepare:
+	call_void_qop(q, unprepare_streaming, q);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(vb2_core_streamon);
 

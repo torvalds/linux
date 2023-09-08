@@ -1,11 +1,7 @@
 Lantiq XWAY pinmux controller
 
 Required properties:
-- compatible: "lantiq,pinctrl-xway", (DEPRECATED: Use "lantiq,pinctrl-danube")
-	      "lantiq,pinctrl-xr9", (DEPRECATED: Use "lantiq,xrx100-pinctrl" or
-					"lantiq,xrx200-pinctrl")
-	      "lantiq,pinctrl-ase", (DEPRECATED: Use "lantiq,ase-pinctrl")
-	      "lantiq,<chip>-pinctrl", where <chip> is:
+- compatible:	"lantiq,<chip>-pinctrl", where <chip> is:
 		"ase" (XWAY AMAZON Family)
 		"danube" (XWAY DANUBE Family)
 		"xrx100" (XWAY xRX100 Family)
@@ -44,29 +40,6 @@ Required subnode-properties:
   group. Valid values for function names are listed below.
 
 Valid values for group and function names:
-
-XWAY: (DEPRECATED: Use DANUBE)
-  mux groups:
-    exin0, exin1, exin2, jtag, ebu a23, ebu a24, ebu a25, ebu clk, ebu cs1,
-    ebu wait, nand ale, nand cs1, nand cle, spi, spi_cs1, spi_cs2, spi_cs3,
-    spi_cs4, spi_cs5, spi_cs6, asc0, asc0 cts rts, stp, nmi, gpt1, gpt2,
-    gpt3, clkout0, clkout1, clkout2, clkout3, gnt1, gnt2, gnt3, req1, req2,
-    req3
-
-  functions:
-    spi, asc, cgu, jtag, exin, stp, gpt, nmi, pci, ebu
-
-XR9: ( DEPRECATED: Use xRX100/xRX200)
-  mux groups:
-    exin0, exin1, exin2, exin3, exin4, jtag, ebu a23, ebu a24, ebu a25,
-    ebu clk, ebu cs1, ebu wait, nand ale, nand cs1, nand cle, nand rdy,
-    nand rd, spi, spi_cs1, spi_cs2, spi_cs3, spi_cs4, spi_cs5, spi_cs6,
-    asc0, asc0 cts rts, stp, nmi, gpt1, gpt2, gpt3, clkout0, clkout1,
-    clkout2, clkout3, gnt1, gnt2, gnt3, gnt4, req1, req2, req3, req4, mdio,
-    gphy0 led0, gphy0 led1, gphy0 led2, gphy1 led0, gphy1 led1, gphy1 led2
-
-  functions:
-    spi, asc, cgu, jtag, exin, stp, gpt, nmi, pci, ebu, mdio, gphy
 
 AMAZON:
   mux groups:
@@ -138,12 +111,6 @@ Optional subnode-properties:
 - lantiq,pull: Integer, representing the pull-down/up to apply to the pin.
     0: none, 1: down, 2: up.
 - lantiq,open-drain: Boolean, enables open-drain on the defined pin.
-
-Valid values for XWAY pin names: (DEPRECATED: Use DANUBE)
-  Pinconf pins can be referenced via the names io0-io31.
-
-Valid values for XR9 pin names: (DEPRECATED: Use xrX100/xRX200)
-  Pinconf pins can be referenced via the names io0-io55.
 
 Valid values for AMAZON pin names:
   Pinconf pins can be referenced via the names io0-io31.

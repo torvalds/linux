@@ -6,7 +6,7 @@ config INTEL_ISH_HID
 	tristate "Intel Integrated Sensor Hub"
 	default n
 	depends on X86
-	select HID
+	depends on HID
 	help
 	  The Integrated Sensor Hub (ISH) enables the ability to offload
 	  sensor polling and algorithm processing to a dedicated low power

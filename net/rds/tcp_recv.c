@@ -33,6 +33,7 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <net/tcp.h>
+#include <trace/events/sock.h>
 
 #include "rds.h"
 #include "tcp.h"
@@ -309,6 +310,7 @@ void rds_tcp_data_ready(struct sock *sk)
 	struct rds_conn_path *cp;
 	struct rds_tcp_connection *tc;
 
+	trace_sk_data_ready(sk);
 	rdsdebug("data ready sk %p\n", sk);
 
 	read_lock_bh(&sk->sk_callback_lock);

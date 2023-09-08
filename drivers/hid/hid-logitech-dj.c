@@ -554,7 +554,7 @@ static const u8 hid_reportid_size_map[NUMBER_OF_HID_REPORTS] = {
 
 #define LOGITECH_DJ_INTERFACE_NUMBER 0x02
 
-static struct hid_ll_driver logi_dj_ll_driver;
+static const struct hid_ll_driver logi_dj_ll_driver;
 
 static int logi_dj_recv_query_paired_devices(struct dj_receiver_dev *djrcv_dev);
 static void delayedwork_callback(struct work_struct *work);
@@ -1506,7 +1506,7 @@ static bool logi_dj_ll_may_wakeup(struct hid_device *hid)
 	return hid_hw_may_wakeup(djrcv_dev->hidpp);
 }
 
-static struct hid_ll_driver logi_dj_ll_driver = {
+static const struct hid_ll_driver logi_dj_ll_driver = {
 	.parse = logi_dj_ll_parse,
 	.start = logi_dj_ll_start,
 	.stop = logi_dj_ll_stop,

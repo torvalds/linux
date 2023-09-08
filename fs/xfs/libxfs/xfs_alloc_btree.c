@@ -260,19 +260,26 @@ STATIC int64_t
 xfs_bnobt_diff_two_keys(
 	struct xfs_btree_cur		*cur,
 	const union xfs_btree_key	*k1,
-	const union xfs_btree_key	*k2)
+	const union xfs_btree_key	*k2,
+	const union xfs_btree_key	*mask)
 {
+	ASSERT(!mask || mask->alloc.ar_startblock);
+
 	return (int64_t)be32_to_cpu(k1->alloc.ar_startblock) -
-			  be32_to_cpu(k2->alloc.ar_startblock);
+			be32_to_cpu(k2->alloc.ar_startblock);
 }
 
 STATIC int64_t
 xfs_cntbt_diff_two_keys(
 	struct xfs_btree_cur		*cur,
 	const union xfs_btree_key	*k1,
-	const union xfs_btree_key	*k2)
+	const union xfs_btree_key	*k2,
+	const union xfs_btree_key	*mask)
 {
 	int64_t				diff;
+
+	ASSERT(!mask || (mask->alloc.ar_blockcount &&
+			 mask->alloc.ar_startblock));
 
 	diff =  be32_to_cpu(k1->alloc.ar_blockcount) -
 		be32_to_cpu(k2->alloc.ar_blockcount);
@@ -315,7 +322,7 @@ xfs_allocbt_verify(
 	level = be16_to_cpu(block->bb_level);
 	if (bp->b_ops->magic[0] == cpu_to_be32(XFS_ABTC_MAGIC))
 		btnum = XFS_BTNUM_CNTi;
-	if (pag && pag->pagf_init) {
+	if (pag && xfs_perag_initialised_agf(pag)) {
 		if (level >= pag->pagf_levels[btnum])
 			return __this_address;
 	} else if (level >= mp->m_alloc_maxlevels)
@@ -423,6 +430,19 @@ xfs_cntbt_recs_inorder(
 		 be32_to_cpu(r2->alloc.ar_startblock));
 }
 
+STATIC enum xbtree_key_contig
+xfs_allocbt_keys_contiguous(
+	struct xfs_btree_cur		*cur,
+	const union xfs_btree_key	*key1,
+	const union xfs_btree_key	*key2,
+	const union xfs_btree_key	*mask)
+{
+	ASSERT(!mask || mask->alloc.ar_startblock);
+
+	return xbtree_key_contig(be32_to_cpu(key1->alloc.ar_startblock),
+				 be32_to_cpu(key2->alloc.ar_startblock));
+}
+
 static const struct xfs_btree_ops xfs_bnobt_ops = {
 	.rec_len		= sizeof(xfs_alloc_rec_t),
 	.key_len		= sizeof(xfs_alloc_key_t),
@@ -443,6 +463,7 @@ static const struct xfs_btree_ops xfs_bnobt_ops = {
 	.diff_two_keys		= xfs_bnobt_diff_two_keys,
 	.keys_inorder		= xfs_bnobt_keys_inorder,
 	.recs_inorder		= xfs_bnobt_recs_inorder,
+	.keys_contiguous	= xfs_allocbt_keys_contiguous,
 };
 
 static const struct xfs_btree_ops xfs_cntbt_ops = {
@@ -465,6 +486,7 @@ static const struct xfs_btree_ops xfs_cntbt_ops = {
 	.diff_two_keys		= xfs_cntbt_diff_two_keys,
 	.keys_inorder		= xfs_cntbt_keys_inorder,
 	.recs_inorder		= xfs_cntbt_recs_inorder,
+	.keys_contiguous	= NULL, /* not needed right now */
 };
 
 /* Allocate most of a new allocation btree cursor. */
@@ -492,9 +514,7 @@ xfs_allocbt_init_common(
 		cur->bc_statoff = XFS_STATS_CALC_INDEX(xs_abtb_2);
 	}
 
-	/* take a reference for the cursor */
-	atomic_inc(&pag->pag_ref);
-	cur->bc_ag.pag = pag;
+	cur->bc_ag.pag = xfs_perag_hold(pag);
 
 	if (xfs_has_crc(mp))
 		cur->bc_flags |= XFS_BTREE_CRC_BLOCKS;

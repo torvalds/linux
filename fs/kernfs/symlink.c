@@ -19,7 +19,7 @@
  * @name: name of the symlink
  * @target: target node for the symlink to point to
  *
- * Returns the created node on success, ERR_PTR() value on error.
+ * Return: the created node on success, ERR_PTR() value on error.
  * Ownership of the link matches ownership of the target.
  */
 struct kernfs_node *kernfs_create_link(struct kernfs_node *parent,

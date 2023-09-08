@@ -8,9 +8,6 @@
 #include <subdev/bios/gpio.h>
 
 struct nvkm_gpio_ntfy_req {
-#define NVKM_GPIO_HI                                                       0x01
-#define NVKM_GPIO_LO                                                       0x02
-#define NVKM_GPIO_TOGGLED                                                  0x03
 	u8 mask;
 	u8 line;
 };
@@ -23,6 +20,9 @@ struct nvkm_gpio {
 	const struct nvkm_gpio_func *func;
 	struct nvkm_subdev subdev;
 
+#define NVKM_GPIO_HI       BIT(0)
+#define NVKM_GPIO_LO       BIT(1)
+#define NVKM_GPIO_TOGGLED (NVKM_GPIO_HI | NVKM_GPIO_LO)
 	struct nvkm_event event;
 };
 

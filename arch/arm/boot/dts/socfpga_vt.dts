@@ -29,7 +29,7 @@
 			};
 		};
 
-		dwmmc0@ff704000 {
+		mmc@ff704000 {
 			broken-cd;
 			bus-width = <4>;
 			cap-mmc-highspeed;
@@ -57,11 +57,11 @@
 			clock-frequency = <7000000>;
 		};
 
-		serial0@ffc02000 {
+		serial@ffc02000 {
 			clock-frequency = <7372800>;
 		};
 
-		serial1@ffc03000 {
+		serial@ffc03000 {
 			clock-frequency = <7372800>;
 		};
 

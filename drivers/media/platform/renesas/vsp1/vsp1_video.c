@@ -62,7 +62,9 @@ vsp1_video_remote_subdev(struct media_pad *local, u32 *pad)
 
 static int vsp1_video_verify_format(struct vsp1_video *video)
 {
-	struct v4l2_subdev_format fmt;
+	struct v4l2_subdev_format fmt = {
+		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+	};
 	struct v4l2_subdev *subdev;
 	int ret;
 
@@ -70,7 +72,6 @@ static int vsp1_video_verify_format(struct vsp1_video *video)
 	if (subdev == NULL)
 		return -EINVAL;
 
-	fmt.which = V4L2_SUBDEV_FORMAT_ACTIVE;
 	ret = v4l2_subdev_call(subdev, pad, get_fmt, NULL, &fmt);
 	if (ret < 0)
 		return ret == -ENOIOCTLCMD ? -EINVAL : ret;
@@ -267,10 +268,10 @@ static int vsp1_video_pipeline_setup_partitions(struct vsp1_pipeline *pipe)
 	div_size = format->width;
 
 	/*
-	 * Only Gen3 hardware requires image partitioning, Gen2 will operate
+	 * Only Gen3+ hardware requires image partitioning, Gen2 will operate
 	 * with a single partition that covers the whole output.
 	 */
-	if (vsp1->info->gen == 3) {
+	if (vsp1->info->gen >= 3) {
 		list_for_each_entry(entity, &pipe->entities, list_pipe) {
 			unsigned int entity_max;
 
@@ -776,7 +777,7 @@ static void vsp1_video_buffer_queue(struct vb2_buffer *vb)
 	video->rwpf->mem = buf->mem;
 	pipe->buffers_ready |= 1 << video->pipe_index;
 
-	if (vb2_is_streaming(&video->queue) &&
+	if (vb2_start_streaming_called(&video->queue) &&
 	    vsp1_pipeline_ready(pipe))
 		vsp1_video_pipeline_run(pipe);
 

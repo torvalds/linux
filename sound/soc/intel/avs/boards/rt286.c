@@ -14,6 +14,8 @@
 #include <sound/soc-acpi.h>
 #include "../../../codecs/rt286.h"
 
+#define RT286_CODEC_DAI		"rt286-aif1"
+
 static const struct snd_kcontrol_new card_controls[] = {
 	SOC_DAPM_PIN_SWITCH("Headphone Jack"),
 	SOC_DAPM_PIN_SWITCH("Mic Jack"),
@@ -48,10 +50,9 @@ static struct snd_soc_jack_pin card_headset_pins[] = {
 
 static int avs_rt286_codec_init(struct snd_soc_pcm_runtime *runtime)
 {
-	struct snd_soc_component *component = asoc_rtd_to_codec(runtime, 0)->component;
+	struct snd_soc_card *card = runtime->card;
 	struct snd_soc_jack_pin *pins;
 	struct snd_soc_jack *jack;
-	struct snd_soc_card *card = runtime->card;
 	int num_pins, ret;
 
 	jack = snd_soc_card_get_drvdata(card);
@@ -66,9 +67,12 @@ static int avs_rt286_codec_init(struct snd_soc_pcm_runtime *runtime)
 	if (ret)
 		return ret;
 
-	snd_soc_component_set_jack(component, jack, NULL);
+	return snd_soc_component_set_jack(asoc_rtd_to_codec(runtime, 0)->component, jack, NULL);
+}
 
-	return 0;
+static void avs_rt286_codec_exit(struct snd_soc_pcm_runtime *rtd)
+{
+	snd_soc_component_set_jack(asoc_rtd_to_codec(rtd, 0)->component, NULL, NULL);
 }
 
 static int avs_rt286_be_fixup(struct snd_soc_pcm_runtime *runtime, struct snd_pcm_hw_params *params)
@@ -94,7 +98,7 @@ static int avs_rt286_be_fixup(struct snd_soc_pcm_runtime *runtime, struct snd_pc
 static int
 avs_rt286_hw_params(struct snd_pcm_substream *substream, struct snd_pcm_hw_params *params)
 {
-	struct snd_soc_pcm_runtime *runtime = substream->private_data;
+	struct snd_soc_pcm_runtime *runtime = asoc_substream_to_rtd(substream);
 	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(runtime, 0);
 	int ret;
 
@@ -130,7 +134,7 @@ static int avs_create_dai_link(struct device *dev, const char *platform_name, in
 
 	dl->cpus->dai_name = devm_kasprintf(dev, GFP_KERNEL, "SSP%d Pin", ssp_port);
 	dl->codecs->name = devm_kasprintf(dev, GFP_KERNEL, "i2c-INT343A:00");
-	dl->codecs->dai_name = devm_kasprintf(dev, GFP_KERNEL, "rt286-aif1");
+	dl->codecs->dai_name = devm_kasprintf(dev, GFP_KERNEL, RT286_CODEC_DAI);
 	if (!dl->cpus->dai_name || !dl->codecs->name || !dl->codecs->dai_name)
 		return -ENOMEM;
 
@@ -141,6 +145,7 @@ static int avs_create_dai_link(struct device *dev, const char *platform_name, in
 	dl->id = 0;
 	dl->dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBS_CFS;
 	dl->init = avs_rt286_codec_init;
+	dl->exit = avs_rt286_codec_exit;
 	dl->be_hw_params_fixup = avs_rt286_be_fixup;
 	dl->ops = &avs_rt286_ops;
 	dl->nonatomic = 1;
@@ -185,30 +190,19 @@ static int avs_create_dapm_routes(struct device *dev, int ssp_port,
 	return 0;
 }
 
-static int avs_card_set_jack(struct snd_soc_card *card, struct snd_soc_jack *jack)
-{
-	struct snd_soc_component *component;
-
-	for_each_card_components(card, component)
-		snd_soc_component_set_jack(component, jack, NULL);
-	return 0;
-}
-
-static int avs_card_remove(struct snd_soc_card *card)
-{
-	return avs_card_set_jack(card, NULL);
-}
-
 static int avs_card_suspend_pre(struct snd_soc_card *card)
 {
-	return avs_card_set_jack(card, NULL);
+	struct snd_soc_dai *codec_dai = snd_soc_card_get_codec_dai(card, RT286_CODEC_DAI);
+
+	return snd_soc_component_set_jack(codec_dai->component, NULL, NULL);
 }
 
 static int avs_card_resume_post(struct snd_soc_card *card)
 {
+	struct snd_soc_dai *codec_dai = snd_soc_card_get_codec_dai(card, RT286_CODEC_DAI);
 	struct snd_soc_jack *jack = snd_soc_card_get_drvdata(card);
 
-	return avs_card_set_jack(card, jack);
+	return snd_soc_component_set_jack(codec_dai->component, jack, NULL);
 }
 
 static int avs_rt286_probe(struct platform_device *pdev)
@@ -246,7 +240,6 @@ static int avs_rt286_probe(struct platform_device *pdev)
 	card->name = "avs_rt286";
 	card->dev = dev;
 	card->owner = THIS_MODULE;
-	card->remove = avs_card_remove;
 	card->suspend_pre = avs_card_suspend_pre;
 	card->resume_post = avs_card_resume_post;
 	card->dai_link = dai_link;

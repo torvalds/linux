@@ -60,7 +60,7 @@ for F_FILE in Documentation/features/*/*/arch-support.txt; do
 	echo "    |         arch |status|" >> $T_FILE
 	echo "    -----------------------" >> $T_FILE
 	for ARCH_DIR in arch/*/; do
-		ARCH=$(echo $ARCH_DIR | sed -e 's/arch//g' | sed -e 's/\///g')
+		ARCH=$(echo $ARCH_DIR | sed -e 's/^arch//g' | sed -e 's/\///g')
 		K_FILES=$(find $ARCH_DIR -name "Kconfig*")
 		K_GREP=$(grep "$K" $K_FILES)
 		#

@@ -97,4 +97,3 @@ module_platform_driver(mt6323_pwrc_driver);
 
 MODULE_DESCRIPTION("Poweroff driver for MT6323 PMIC");
 MODULE_AUTHOR("Sean Wang <sean.wang@mediatek.com>");
-MODULE_LICENSE("GPL v2");

@@ -7,18 +7,6 @@
 #ifndef _NOLIBC_ARCH_AARCH64_H
 #define _NOLIBC_ARCH_AARCH64_H
 
-/* O_* macros for fcntl/open are architecture-specific */
-#define O_RDONLY            0
-#define O_WRONLY            1
-#define O_RDWR              2
-#define O_CREAT          0x40
-#define O_EXCL           0x80
-#define O_NOCTTY        0x100
-#define O_TRUNC         0x200
-#define O_APPEND        0x400
-#define O_NONBLOCK      0x800
-#define O_DIRECTORY    0x4000
-
 /* The struct returned by the newfstatat() syscall. Differs slightly from the
  * x86_64's stat one by field ordering, so be careful.
  */
@@ -181,19 +169,31 @@ struct sys_stat_struct {
 	_arg1;                                                                \
 })
 
-/* startup code */
-__asm__ (".section .text\n"
-    ".weak _start\n"
-    "_start:\n"
-    "ldr x0, [sp]\n"              // argc (x0) was in the stack
-    "add x1, sp, 8\n"             // argv (x1) = sp
-    "lsl x2, x0, 3\n"             // envp (x2) = 8*argc ...
-    "add x2, x2, 8\n"             //           + 8 (skip null)
-    "add x2, x2, x1\n"            //           + argv
-    "and sp, x1, -16\n"           // sp must be 16-byte aligned in the callee
-    "bl main\n"                   // main() returns the status code, we'll exit with it.
-    "mov x8, 93\n"                // NR_exit == 93
-    "svc #0\n"
-    "");
+char **environ __attribute__((weak));
+const unsigned long *_auxv __attribute__((weak));
 
+/* startup code */
+void __attribute__((weak,noreturn,optimize("omit-frame-pointer"))) _start(void)
+{
+	__asm__ volatile (
+		"ldr x0, [sp]\n"     // argc (x0) was in the stack
+		"add x1, sp, 8\n"    // argv (x1) = sp
+		"lsl x2, x0, 3\n"    // envp (x2) = 8*argc ...
+		"add x2, x2, 8\n"    //           + 8 (skip null)
+		"add x2, x2, x1\n"   //           + argv
+		"adrp x3, environ\n"          // x3 = &environ (high bits)
+		"str x2, [x3, #:lo12:environ]\n" // store envp into environ
+		"mov x4, x2\n"       // search for auxv (follows NULL after last env)
+		"0:\n"
+		"ldr x5, [x4], 8\n"  // x5 = *x4; x4 += 8
+		"cbnz x5, 0b\n"      // and stop at NULL after last env
+		"adrp x3, _auxv\n"   // x3 = &_auxv (high bits)
+		"str x4, [x3, #:lo12:_auxv]\n" // store x4 into _auxv
+		"and sp, x1, -16\n"  // sp must be 16-byte aligned in the callee
+		"bl main\n"          // main() returns the status code, we'll exit with it.
+		"mov x8, 93\n"       // NR_exit == 93
+		"svc #0\n"
+	);
+	__builtin_unreachable();
+}
 #endif // _NOLIBC_ARCH_AARCH64_H

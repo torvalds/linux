@@ -6,9 +6,11 @@
 //
 // Author: Codrin Ciubotariu <codrin.ciubotariu@microchip.com>
 
+#include <linux/bitfield.h>
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/module.h>
+#include <linux/pm_runtime.h>
 #include <linux/spinlock.h>
 
 #include <sound/asoundef.h>
@@ -70,11 +72,9 @@
 
 /* Valid Bits per Sample */
 #define SPDIFTX_MR_VBPS_MASK		GENMASK(13, 8)
-#define SPDIFTX_MR_VBPS(bps)		(((bps) << 8) & SPDIFTX_MR_VBPS_MASK)
 
 /* Chunk Size */
 #define SPDIFTX_MR_CHUNK_MASK		GENMASK(19, 16)
-#define SPDIFTX_MR_CHUNK(size)		(((size) << 16) & SPDIFTX_MR_CHUNK_MASK)
 
 /* Validity Bits for Channels 1 and 2 */
 #define SPDIFTX_MR_VALID1			BIT(24)
@@ -87,8 +87,6 @@
 
 /* Bytes per Sample */
 #define SPDIFTX_MR_BPS_MASK		GENMASK(29, 28)
-#define SPDIFTX_MR_BPS(bytes) \
-	((((bytes) - 1) << 28) & SPDIFTX_MR_BPS_MASK)
 
 /*
  * ---- Interrupt Enable/Disable/Mask/Status Register (Write/Read-only) ----
@@ -175,6 +173,7 @@ static const struct regmap_config mchp_spdiftx_regmap_config = {
 	.readable_reg = mchp_spdiftx_readable_reg,
 	.writeable_reg = mchp_spdiftx_writeable_reg,
 	.precious_reg = mchp_spdiftx_precious_reg,
+	.cache_type = REGCACHE_FLAT,
 };
 
 #define SPDIFTX_GCLK_RATIO	128
@@ -196,7 +195,7 @@ struct mchp_spdiftx_dev {
 	struct clk				*pclk;
 	struct clk				*gclk;
 	unsigned int				fmt;
-	unsigned int				gclk_enabled:1;
+	unsigned int				suspend_irq;
 };
 
 static inline int mchp_spdiftx_is_running(struct mchp_spdiftx_dev *dev)
@@ -307,41 +306,38 @@ static int mchp_spdiftx_trigger(struct snd_pcm_substream *substream, int cmd,
 {
 	struct mchp_spdiftx_dev *dev = snd_soc_dai_get_drvdata(dai);
 	struct mchp_spdiftx_mixer_control *ctrl = &dev->control;
-	u32 mr;
-	int running;
 	int ret;
 
 	/* do not start/stop while channel status or user data is updated */
 	spin_lock(&ctrl->lock);
-	regmap_read(dev->regmap, SPDIFTX_MR, &mr);
-	running = !!(mr & SPDIFTX_MR_TXEN_ENABLE);
-
 	switch (cmd) {
-	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
+	case SNDRV_PCM_TRIGGER_START:
+		regmap_write(dev->regmap, SPDIFTX_IER, dev->suspend_irq |
+			     SPDIFTX_IR_TXUDR | SPDIFTX_IR_TXOVR);
+		dev->suspend_irq = 0;
+		fallthrough;
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-		if (!running) {
-			mr &= ~SPDIFTX_MR_TXEN_MASK;
-			mr |= SPDIFTX_MR_TXEN_ENABLE;
-		}
+		ret = regmap_update_bits(dev->regmap, SPDIFTX_MR, SPDIFTX_MR_TXEN_MASK,
+					 SPDIFTX_MR_TXEN_ENABLE);
 		break;
-	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_SUSPEND:
+		regmap_read(dev->regmap, SPDIFTX_IMR, &dev->suspend_irq);
+		fallthrough;
+	case SNDRV_PCM_TRIGGER_STOP:
+		regmap_write(dev->regmap, SPDIFTX_IDR, dev->suspend_irq |
+			     SPDIFTX_IR_TXUDR | SPDIFTX_IR_TXOVR);
+		fallthrough;
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
-		if (running) {
-			mr &= ~SPDIFTX_MR_TXEN_MASK;
-			mr |= SPDIFTX_MR_TXEN_DISABLE;
-		}
+		ret = regmap_update_bits(dev->regmap, SPDIFTX_MR, SPDIFTX_MR_TXEN_MASK,
+					 SPDIFTX_MR_TXEN_DISABLE);
 		break;
 	default:
-		spin_unlock(&ctrl->lock);
-		return -EINVAL;
+		ret = -EINVAL;
 	}
-
-	ret = regmap_write(dev->regmap, SPDIFTX_MR, mr);
 	spin_unlock(&ctrl->lock);
 	if (ret)
-		dev_err(dev->dev, "unable to disable TX: %d\n", ret);
+		dev_err(dev->dev, "unable to start/stop TX: %d\n", ret);
 
 	return ret;
 }
@@ -355,6 +351,7 @@ static int mchp_spdiftx_hw_params(struct snd_pcm_substream *substream,
 	struct mchp_spdiftx_mixer_control *ctrl = &dev->control;
 	u32 mr;
 	unsigned int bps = params_physical_width(params) / 8;
+	unsigned char aes3;
 	int ret;
 
 	dev_dbg(dev->dev, "%s() rate=%u format=%#x width=%u channels=%u\n",
@@ -390,47 +387,47 @@ static int mchp_spdiftx_hw_params(struct snd_pcm_substream *substream,
 			params_channels(params));
 		return -EINVAL;
 	}
-	mr |= SPDIFTX_MR_CHUNK(dev->playback.maxburst);
+	mr |= FIELD_PREP(SPDIFTX_MR_CHUNK_MASK, dev->playback.maxburst);
 
 	switch (params_format(params)) {
 	case SNDRV_PCM_FORMAT_S8:
-		mr |= SPDIFTX_MR_VBPS(8);
+		mr |= FIELD_PREP(SPDIFTX_MR_VBPS_MASK, 8);
 		break;
 	case SNDRV_PCM_FORMAT_S16_BE:
 		mr |= SPDIFTX_MR_ENDIAN_BIG;
 		fallthrough;
 	case SNDRV_PCM_FORMAT_S16_LE:
-		mr |= SPDIFTX_MR_VBPS(16);
+		mr |= FIELD_PREP(SPDIFTX_MR_VBPS_MASK, 16);
 		break;
 	case SNDRV_PCM_FORMAT_S18_3BE:
 		mr |= SPDIFTX_MR_ENDIAN_BIG;
 		fallthrough;
 	case SNDRV_PCM_FORMAT_S18_3LE:
-		mr |= SPDIFTX_MR_VBPS(18);
+		mr |= FIELD_PREP(SPDIFTX_MR_VBPS_MASK, 18);
 		break;
 	case SNDRV_PCM_FORMAT_S20_3BE:
 		mr |= SPDIFTX_MR_ENDIAN_BIG;
 		fallthrough;
 	case SNDRV_PCM_FORMAT_S20_3LE:
-		mr |= SPDIFTX_MR_VBPS(20);
+		mr |= FIELD_PREP(SPDIFTX_MR_VBPS_MASK, 20);
 		break;
 	case SNDRV_PCM_FORMAT_S24_3BE:
 		mr |= SPDIFTX_MR_ENDIAN_BIG;
 		fallthrough;
 	case SNDRV_PCM_FORMAT_S24_3LE:
-		mr |= SPDIFTX_MR_VBPS(24);
+		mr |= FIELD_PREP(SPDIFTX_MR_VBPS_MASK, 24);
 		break;
 	case SNDRV_PCM_FORMAT_S24_BE:
 		mr |= SPDIFTX_MR_ENDIAN_BIG;
 		fallthrough;
 	case SNDRV_PCM_FORMAT_S24_LE:
-		mr |= SPDIFTX_MR_VBPS(24);
+		mr |= FIELD_PREP(SPDIFTX_MR_VBPS_MASK, 24);
 		break;
 	case SNDRV_PCM_FORMAT_S32_BE:
 		mr |= SPDIFTX_MR_ENDIAN_BIG;
 		fallthrough;
 	case SNDRV_PCM_FORMAT_S32_LE:
-		mr |= SPDIFTX_MR_VBPS(32);
+		mr |= FIELD_PREP(SPDIFTX_MR_VBPS_MASK, 32);
 		break;
 	default:
 		dev_err(dev->dev, "unsupported PCM format: %d\n",
@@ -438,57 +435,56 @@ static int mchp_spdiftx_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-	mr |= SPDIFTX_MR_BPS(bps);
+	mr |= FIELD_PREP(SPDIFTX_MR_BPS_MASK, bps - 1);
 
-	spin_lock_irqsave(&ctrl->lock, flags);
-	ctrl->ch_stat[3] &= ~IEC958_AES3_CON_FS;
 	switch (params_rate(params)) {
 	case 22050:
-		ctrl->ch_stat[3] |= IEC958_AES3_CON_FS_22050;
+		aes3 = IEC958_AES3_CON_FS_22050;
 		break;
 	case 24000:
-		ctrl->ch_stat[3] |= IEC958_AES3_CON_FS_24000;
+		aes3 = IEC958_AES3_CON_FS_24000;
 		break;
 	case 32000:
-		ctrl->ch_stat[3] |= IEC958_AES3_CON_FS_32000;
+		aes3 = IEC958_AES3_CON_FS_32000;
 		break;
 	case 44100:
-		ctrl->ch_stat[3] |= IEC958_AES3_CON_FS_44100;
+		aes3 = IEC958_AES3_CON_FS_44100;
 		break;
 	case 48000:
-		ctrl->ch_stat[3] |= IEC958_AES3_CON_FS_48000;
+		aes3 = IEC958_AES3_CON_FS_48000;
 		break;
 	case 88200:
-		ctrl->ch_stat[3] |= IEC958_AES3_CON_FS_88200;
+		aes3 = IEC958_AES3_CON_FS_88200;
 		break;
 	case 96000:
-		ctrl->ch_stat[3] |= IEC958_AES3_CON_FS_96000;
+		aes3 = IEC958_AES3_CON_FS_96000;
 		break;
 	case 176400:
-		ctrl->ch_stat[3] |= IEC958_AES3_CON_FS_176400;
+		aes3 = IEC958_AES3_CON_FS_176400;
 		break;
 	case 192000:
-		ctrl->ch_stat[3] |= IEC958_AES3_CON_FS_192000;
+		aes3 = IEC958_AES3_CON_FS_192000;
 		break;
 	case 8000:
 	case 11025:
 	case 16000:
 	case 64000:
-		ctrl->ch_stat[3] |= IEC958_AES3_CON_FS_NOTID;
+		aes3 = IEC958_AES3_CON_FS_NOTID;
 		break;
 	default:
 		dev_err(dev->dev, "unsupported sample frequency: %u\n",
 			params_rate(params));
-		spin_unlock_irqrestore(&ctrl->lock, flags);
 		return -EINVAL;
 	}
+	spin_lock_irqsave(&ctrl->lock, flags);
+	ctrl->ch_stat[3] &= ~IEC958_AES3_CON_FS;
+	ctrl->ch_stat[3] |= aes3;
 	mchp_spdiftx_channel_status_write(dev);
 	spin_unlock_irqrestore(&ctrl->lock, flags);
 
-	if (dev->gclk_enabled) {
-		clk_disable_unprepare(dev->gclk);
-		dev->gclk_enabled = 0;
-	}
+	/* GCLK is enabled by runtime PM. */
+	clk_disable_unprepare(dev->gclk);
+
 	ret = clk_set_rate(dev->gclk, params_rate(params) *
 				      SPDIFTX_GCLK_RATIO);
 	if (ret) {
@@ -502,13 +498,9 @@ static int mchp_spdiftx_hw_params(struct snd_pcm_substream *substream,
 		dev_err(dev->dev, "unable to enable gclk: %d\n", ret);
 		return ret;
 	}
-	dev->gclk_enabled = 1;
+
 	dev_dbg(dev->dev, "%s(): GCLK set to %d\n", __func__,
 		params_rate(params) * SPDIFTX_GCLK_RATIO);
-
-	/* Enable interrupts */
-	regmap_write(dev->regmap, SPDIFTX_IER,
-		     SPDIFTX_IR_TXUDR | SPDIFTX_IR_TXOVR);
 
 	regmap_write(dev->regmap, SPDIFTX_MR, mr);
 
@@ -519,13 +511,6 @@ static int mchp_spdiftx_hw_free(struct snd_pcm_substream *substream,
 				struct snd_soc_dai *dai)
 {
 	struct mchp_spdiftx_dev *dev = snd_soc_dai_get_drvdata(dai);
-
-	regmap_write(dev->regmap, SPDIFTX_IDR,
-		     SPDIFTX_IR_TXUDR | SPDIFTX_IR_TXOVR);
-	if (dev->gclk_enabled) {
-		clk_disable_unprepare(dev->gclk);
-		dev->gclk_enabled = 0;
-	}
 
 	return regmap_write(dev->regmap, SPDIFTX_CR,
 			    SPDIFTX_CR_SWRST | SPDIFTX_CR_FCLR);
@@ -708,16 +693,8 @@ static struct snd_kcontrol_new mchp_spdiftx_ctrls[] = {
 static int mchp_spdiftx_dai_probe(struct snd_soc_dai *dai)
 {
 	struct mchp_spdiftx_dev *dev = snd_soc_dai_get_drvdata(dai);
-	int ret;
 
 	snd_soc_dai_init_dma_data(dai, &dev->playback, NULL);
-
-	ret = clk_prepare_enable(dev->pclk);
-	if (ret) {
-		dev_err(dev->dev,
-			"failed to enable the peripheral clock: %d\n", ret);
-		return ret;
-	}
 
 	/* Add controls */
 	snd_soc_add_dai_controls(dai, mchp_spdiftx_ctrls,
@@ -726,19 +703,9 @@ static int mchp_spdiftx_dai_probe(struct snd_soc_dai *dai)
 	return 0;
 }
 
-static int mchp_spdiftx_dai_remove(struct snd_soc_dai *dai)
-{
-	struct mchp_spdiftx_dev *dev = snd_soc_dai_get_drvdata(dai);
-
-	clk_disable_unprepare(dev->pclk);
-
-	return 0;
-}
-
 static struct snd_soc_dai_driver mchp_spdiftx_dai = {
 	.name = "mchp-spdiftx",
 	.probe	= mchp_spdiftx_dai_probe,
-	.remove	= mchp_spdiftx_dai_remove,
 	.playback = {
 		.stream_name = "S/PDIF Playback",
 		.channels_min = 1,
@@ -761,6 +728,55 @@ static const struct of_device_id mchp_spdiftx_dt_ids[] = {
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, mchp_spdiftx_dt_ids);
+
+static int mchp_spdiftx_runtime_suspend(struct device *dev)
+{
+	struct mchp_spdiftx_dev *spdiftx = dev_get_drvdata(dev);
+
+	regcache_cache_only(spdiftx->regmap, true);
+
+	clk_disable_unprepare(spdiftx->gclk);
+	clk_disable_unprepare(spdiftx->pclk);
+
+	return 0;
+}
+
+static int mchp_spdiftx_runtime_resume(struct device *dev)
+{
+	struct mchp_spdiftx_dev *spdiftx = dev_get_drvdata(dev);
+	int ret;
+
+	ret = clk_prepare_enable(spdiftx->pclk);
+	if (ret) {
+		dev_err(spdiftx->dev,
+			"failed to enable the peripheral clock: %d\n", ret);
+		return ret;
+	}
+	ret = clk_prepare_enable(spdiftx->gclk);
+	if (ret) {
+		dev_err(spdiftx->dev,
+			"failed to enable generic clock: %d\n", ret);
+		goto disable_pclk;
+	}
+
+	regcache_cache_only(spdiftx->regmap, false);
+	regcache_mark_dirty(spdiftx->regmap);
+	ret = regcache_sync(spdiftx->regmap);
+	if (ret) {
+		regcache_cache_only(spdiftx->regmap, true);
+		clk_disable_unprepare(spdiftx->gclk);
+disable_pclk:
+		clk_disable_unprepare(spdiftx->pclk);
+	}
+
+	return ret;
+}
+
+static const struct dev_pm_ops mchp_spdiftx_pm_ops = {
+	SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend, pm_runtime_force_resume)
+	RUNTIME_PM_OPS(mchp_spdiftx_runtime_suspend, mchp_spdiftx_runtime_resume,
+		       NULL)
+};
 
 static int mchp_spdiftx_probe(struct platform_device *pdev)
 {
@@ -826,29 +842,57 @@ static int mchp_spdiftx_probe(struct platform_device *pdev)
 	dev->regmap = regmap;
 	platform_set_drvdata(pdev, dev);
 
+	pm_runtime_enable(dev->dev);
+	if (!pm_runtime_enabled(dev->dev)) {
+		err = mchp_spdiftx_runtime_resume(dev->dev);
+		if (err)
+			return err;
+	}
+
 	dev->playback.addr = (dma_addr_t)mem->start + SPDIFTX_CDR;
 	dev->playback.addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
 
 	err = devm_snd_dmaengine_pcm_register(&pdev->dev, NULL, 0);
 	if (err) {
 		dev_err(&pdev->dev, "failed to register PMC: %d\n", err);
-		return err;
+		goto pm_runtime_suspend;
 	}
 
 	err = devm_snd_soc_register_component(&pdev->dev,
 					      &mchp_spdiftx_component,
 					      &mchp_spdiftx_dai, 1);
-	if (err)
+	if (err) {
 		dev_err(&pdev->dev, "failed to register component: %d\n", err);
+		goto pm_runtime_suspend;
+	}
+
+	return 0;
+
+pm_runtime_suspend:
+	if (!pm_runtime_status_suspended(dev->dev))
+		mchp_spdiftx_runtime_suspend(dev->dev);
+	pm_runtime_disable(dev->dev);
 
 	return err;
 }
 
+static void mchp_spdiftx_remove(struct platform_device *pdev)
+{
+	struct mchp_spdiftx_dev *dev = platform_get_drvdata(pdev);
+
+	if (!pm_runtime_status_suspended(dev->dev))
+		mchp_spdiftx_runtime_suspend(dev->dev);
+
+	pm_runtime_disable(dev->dev);
+}
+
 static struct platform_driver mchp_spdiftx_driver = {
 	.probe	= mchp_spdiftx_probe,
+	.remove_new = mchp_spdiftx_remove,
 	.driver	= {
 		.name	= "mchp_spdiftx",
 		.of_match_table = of_match_ptr(mchp_spdiftx_dt_ids),
+		.pm = pm_ptr(&mchp_spdiftx_pm_ops)
 	},
 };
 

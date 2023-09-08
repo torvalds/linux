@@ -11,7 +11,6 @@
 #include <linux/fs.h>
 #include "nvmet.h"
 
-#define NVMET_MAX_MPOOL_BVEC		16
 #define NVMET_MIN_MPOOL_OBJ		16
 
 void nvmet_file_ns_revalidate(struct nvmet_ns *ns)
@@ -26,8 +25,6 @@ void nvmet_file_ns_disable(struct nvmet_ns *ns)
 			flush_workqueue(buffered_io_wq);
 		mempool_destroy(ns->bvec_pool);
 		ns->bvec_pool = NULL;
-		kmem_cache_destroy(ns->bvec_cache);
-		ns->bvec_cache = NULL;
 		fput(ns->file);
 		ns->file = NULL;
 	}
@@ -59,16 +56,8 @@ int nvmet_file_ns_enable(struct nvmet_ns *ns)
 	ns->blksize_shift = min_t(u8,
 			file_inode(ns->file)->i_blkbits, 12);
 
-	ns->bvec_cache = kmem_cache_create("nvmet-bvec",
-			NVMET_MAX_MPOOL_BVEC * sizeof(struct bio_vec),
-			0, SLAB_HWCACHE_ALIGN, NULL);
-	if (!ns->bvec_cache) {
-		ret = -ENOMEM;
-		goto err;
-	}
-
 	ns->bvec_pool = mempool_create(NVMET_MIN_MPOOL_OBJ, mempool_alloc_slab,
-			mempool_free_slab, ns->bvec_cache);
+			mempool_free_slab, nvmet_bvec_cache);
 
 	if (!ns->bvec_pool) {
 		ret = -ENOMEM;
@@ -77,17 +66,11 @@ int nvmet_file_ns_enable(struct nvmet_ns *ns)
 
 	return ret;
 err:
+	fput(ns->file);
+	ns->file = NULL;
 	ns->size = 0;
 	ns->blksize_shift = 0;
-	nvmet_file_ns_disable(ns);
 	return ret;
-}
-
-static void nvmet_file_init_bvec(struct bio_vec *bv, struct scatterlist *sg)
-{
-	bv->bv_page = sg_page(sg);
-	bv->bv_offset = sg->offset;
-	bv->bv_len = sg->length;
 }
 
 static ssize_t nvmet_file_submit_bvec(struct nvmet_req *req, loff_t pos,
@@ -102,10 +85,10 @@ static ssize_t nvmet_file_submit_bvec(struct nvmet_req *req, loff_t pos,
 		if (req->cmd->rw.control & cpu_to_le16(NVME_RW_FUA))
 			ki_flags |= IOCB_DSYNC;
 		call_iter = req->ns->file->f_op->write_iter;
-		rw = WRITE;
+		rw = ITER_SOURCE;
 	} else {
 		call_iter = req->ns->file->f_op->read_iter;
-		rw = READ;
+		rw = ITER_DEST;
 	}
 
 	iov_iter_bvec(&iter, rw, req->f.bvec, nr_segs, count);
@@ -156,7 +139,8 @@ static bool nvmet_file_execute_io(struct nvmet_req *req, int ki_flags)
 
 	memset(&req->f.iocb, 0, sizeof(struct kiocb));
 	for_each_sg(req->sg, sg, req->sg_cnt, i) {
-		nvmet_file_init_bvec(&req->f.bvec[bv_cnt], sg);
+		bvec_set_page(&req->f.bvec[bv_cnt], sg_page(sg), sg->length,
+			      sg->offset);
 		len += req->f.bvec[bv_cnt].bv_len;
 		total_len += req->f.bvec[bv_cnt].bv_len;
 		bv_cnt++;

@@ -30,7 +30,7 @@ struct section {
 	struct hlist_node hash;
 	struct hlist_node name_hash;
 	GElf_Shdr sh;
-	struct rb_root symbol_tree;
+	struct rb_root_cached symbol_tree;
 	struct list_head symbol_list;
 	struct list_head reloc_list;
 	struct section *base, *reloc;
@@ -38,7 +38,8 @@ struct section {
 	Elf_Data *data;
 	char *name;
 	int idx;
-	bool changed, text, rodata, noinstr;
+	bool changed, text, rodata, noinstr, init, truncate;
+	struct reloc *reloc_data;
 };
 
 struct symbol {
@@ -49,11 +50,11 @@ struct symbol {
 	GElf_Sym sym;
 	struct section *sec;
 	char *name;
-	unsigned int idx;
-	unsigned char bind, type;
+	unsigned int idx, len;
 	unsigned long offset;
-	unsigned int len;
+	unsigned long __subtree_last;
 	struct symbol *pfunc, *cfunc, *alias;
+	unsigned char bind, type;
 	u8 uaccess_safe      : 1;
 	u8 static_call_tramp : 1;
 	u8 retpoline_thunk   : 1;
@@ -61,6 +62,7 @@ struct symbol {
 	u8 fentry            : 1;
 	u8 profiling_func    : 1;
 	struct list_head pv_target;
+	struct list_head reloc_list;
 };
 
 struct reloc {
@@ -72,6 +74,7 @@ struct reloc {
 	};
 	struct section *sec;
 	struct symbol *sym;
+	struct list_head sym_reloc_entry;
 	unsigned long offset;
 	unsigned int type;
 	s64 addend;
@@ -101,6 +104,9 @@ struct elf {
 	struct hlist_head *section_hash;
 	struct hlist_head *section_name_hash;
 	struct hlist_head *reloc_hash;
+
+	struct section *section_data;
+	struct symbol *symbol_data;
 };
 
 #define OFFSET_STRIDE_BITS	4
@@ -142,8 +148,18 @@ static inline bool has_multiple_files(struct elf *elf)
 	return elf->num_files > 1;
 }
 
+static inline int elf_class_addrsize(struct elf *elf)
+{
+	if (elf->ehdr.e_ident[EI_CLASS] == ELFCLASS32)
+		return sizeof(u32);
+	else
+		return sizeof(u64);
+}
+
 struct elf *elf_open_read(const char *name, int flags);
 struct section *elf_create_section(struct elf *elf, const char *name, unsigned int sh_flags, size_t entsize, int nr);
+
+struct symbol *elf_create_prefix_symbol(struct elf *elf, struct symbol *orig, long size);
 
 int elf_add_reloc(struct elf *elf, struct section *sec, unsigned long offset,
 		  unsigned int type, struct symbol *sym, s64 addend);
@@ -171,5 +187,14 @@ struct symbol *find_func_containing(struct section *sec, unsigned long offset);
 
 #define for_each_sec(file, sec)						\
 	list_for_each_entry(sec, &file->elf->sections, list)
+
+#define sec_for_each_sym(sec, sym)					\
+	list_for_each_entry(sym, &sec->symbol_list, list)
+
+#define for_each_sym(file, sym)						\
+	for (struct section *__sec, *__fake = (struct section *)1;	\
+	     __fake; __fake = NULL)					\
+		for_each_sec(file, __sec)				\
+			sec_for_each_sym(__sec, sym)
 
 #endif /* _OBJTOOL_ELF_H */

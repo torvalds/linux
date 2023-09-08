@@ -80,6 +80,8 @@ struct kfd_mem_properties {
 	struct attribute	attr;
 };
 
+#define CACHE_SIBLINGMAP_SIZE 64
+
 struct kfd_cache_properties {
 	struct list_head	list;
 	uint32_t		processor_id_low;
@@ -90,10 +92,11 @@ struct kfd_cache_properties {
 	uint32_t		cache_assoc;
 	uint32_t		cache_latency;
 	uint32_t		cache_type;
-	uint8_t			sibling_map[CRAT_SIBLINGMAP_SIZE];
+	uint8_t			sibling_map[CACHE_SIBLINGMAP_SIZE];
 	struct kfd_dev		*gpu;
 	struct kobject		*kobj;
 	struct attribute	attr;
+	uint32_t		sibling_map_size;
 };
 
 struct kfd_iolink_properties {
@@ -128,7 +131,6 @@ struct kfd_topology_device {
 	uint32_t			proximity_domain;
 	struct kfd_node_properties	node_props;
 	struct list_head		mem_props;
-	uint32_t			cache_count;
 	struct list_head		cache_props;
 	struct list_head		io_link_props;
 	struct list_head		p2p_link_props;

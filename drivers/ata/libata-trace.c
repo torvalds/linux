@@ -142,7 +142,7 @@ libata_trace_parse_qc_flags(struct trace_seq *p, unsigned int qc_flags)
 			trace_seq_printf(p, "QUIET ");
 		if (qc_flags & ATA_QCFLAG_RETRY)
 			trace_seq_printf(p, "RETRY ");
-		if (qc_flags & ATA_QCFLAG_FAILED)
+		if (qc_flags & ATA_QCFLAG_EH)
 			trace_seq_printf(p, "FAILED ");
 		if (qc_flags & ATA_QCFLAG_SENSE_VALID)
 			trace_seq_printf(p, "SENSE_VALID ");

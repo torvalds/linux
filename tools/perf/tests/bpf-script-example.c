@@ -43,7 +43,7 @@ struct {
 	__type(value, int);
 } flip_table SEC(".maps");
 
-SEC("func=do_epoll_wait")
+SEC("syscalls:sys_enter_epoll_pwait")
 int bpf_func__SyS_epoll_pwait(void *ctx)
 {
 	int ind =0;

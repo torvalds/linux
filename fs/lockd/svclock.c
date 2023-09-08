@@ -659,11 +659,13 @@ nlmsvc_unlock(struct net *net, struct nlm_file *file, struct nlm_lock *lock)
 	nlmsvc_cancel_blocked(net, file, lock);
 
 	lock->fl.fl_type = F_UNLCK;
-	if (file->f_file[O_RDONLY])
-		error = vfs_lock_file(file->f_file[O_RDONLY], F_SETLK,
+	lock->fl.fl_file = file->f_file[O_RDONLY];
+	if (lock->fl.fl_file)
+		error = vfs_lock_file(lock->fl.fl_file, F_SETLK,
 					&lock->fl, NULL);
-	if (file->f_file[O_WRONLY])
-		error = vfs_lock_file(file->f_file[O_WRONLY], F_SETLK,
+	lock->fl.fl_file = file->f_file[O_WRONLY];
+	if (lock->fl.fl_file)
+		error |= vfs_lock_file(lock->fl.fl_file, F_SETLK,
 					&lock->fl, NULL);
 
 	return (error < 0)? nlm_lck_denied_nolocks : nlm_granted;
@@ -697,9 +699,10 @@ nlmsvc_cancel_blocked(struct net *net, struct nlm_file *file, struct nlm_lock *l
 	block = nlmsvc_lookup_block(file, lock);
 	mutex_unlock(&file->f_mutex);
 	if (block != NULL) {
-		mode = lock_to_openmode(&lock->fl);
-		vfs_cancel_lock(block->b_file->f_file[mode],
-				&block->b_call->a_args.lock.fl);
+		struct file_lock *fl = &block->b_call->a_args.lock.fl;
+
+		mode = lock_to_openmode(fl);
+		vfs_cancel_lock(block->b_file->f_file[mode], fl);
 		status = nlmsvc_unlink_block(block);
 		nlmsvc_release_block(block);
 	}
@@ -951,19 +954,32 @@ void
 nlmsvc_grant_reply(struct nlm_cookie *cookie, __be32 status)
 {
 	struct nlm_block	*block;
+	struct file_lock	*fl;
+	int			error;
 
 	dprintk("grant_reply: looking for cookie %x, s=%d \n",
 		*(unsigned int *)(cookie->data), status);
 	if (!(block = nlmsvc_find_block(cookie)))
 		return;
 
-	if (status == nlm_lck_denied_grace_period) {
+	switch (status) {
+	case nlm_lck_denied_grace_period:
 		/* Try again in a couple of seconds */
 		nlmsvc_insert_block(block, 10 * HZ);
-	} else {
+		break;
+	case nlm_lck_denied:
+		/* Client doesn't want it, just unlock it */
+		nlmsvc_unlink_block(block);
+		fl = &block->b_call->a_args.lock.fl;
+		fl->fl_type = F_UNLCK;
+		error = vfs_lock_file(fl->fl_file, F_SETLK, fl, NULL);
+		if (error)
+			pr_warn("lockd: unable to unlock lock rejected by client!\n");
+		break;
+	default:
 		/*
-		 * Lock is now held by client, or has been rejected.
-		 * In both cases, the block should be removed.
+		 * Either it was accepted or the status makes no sense
+		 * just unlink it either way.
 		 */
 		nlmsvc_unlink_block(block);
 	}

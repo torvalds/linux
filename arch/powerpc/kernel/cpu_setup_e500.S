@@ -8,6 +8,8 @@
  * Benjamin Herrenschmidt <benh@kernel.crashing.org>
  */
 
+#include <linux/linkage.h>
+
 #include <asm/page.h>
 #include <asm/processor.h>
 #include <asm/cputable.h>
@@ -274,7 +276,7 @@ _GLOBAL(flush_dcache_L1)
 
 	blr
 
-has_L2_cache:
+SYM_FUNC_START_LOCAL(has_L2_cache)
 	/* skip L2 cache on P2040/P2040E as they have no L2 cache */
 	mfspr	r3, SPRN_SVR
 	/* shift right by 8 bits and clear E bit of SVR */
@@ -290,9 +292,10 @@ has_L2_cache:
 1:
 	li	r3, 0
 	blr
+SYM_FUNC_END(has_L2_cache)
 
 /* flush backside L2 cache */
-flush_backside_L2_cache:
+SYM_FUNC_START_LOCAL(flush_backside_L2_cache)
 	mflr	r10
 	bl	has_L2_cache
 	mtlr	r10
@@ -313,6 +316,7 @@ flush_backside_L2_cache:
 	bne	1b
 2:
 	blr
+SYM_FUNC_END(flush_backside_L2_cache)
 
 _GLOBAL(cpu_down_flush_e500v2)
 	mflr r0

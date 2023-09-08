@@ -38,8 +38,8 @@
  * Third Edition.
  */
 
+#include <crypto/algapi.h>
 #include <crypto/twofish.h>
-#include <linux/crypto.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/types.h>

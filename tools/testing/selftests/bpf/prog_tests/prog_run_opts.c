@@ -12,7 +12,7 @@ static void check_run_cnt(int prog_fd, __u64 run_cnt)
 	__u32 info_len = sizeof(info);
 	int err;
 
-	err = bpf_obj_get_info_by_fd(prog_fd, &info, &info_len);
+	err = bpf_prog_get_info_by_fd(prog_fd, &info, &info_len);
 	if (CHECK(err, "get_prog_info", "failed to get bpf_prog_info for fd %d\n", prog_fd))
 		return;
 

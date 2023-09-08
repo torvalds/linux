@@ -250,7 +250,7 @@ static int msr_device_destroy(unsigned int cpu)
 	return 0;
 }
 
-static char *msr_devnode(struct device *dev, umode_t *mode)
+static char *msr_devnode(const struct device *dev, umode_t *mode)
 {
 	return kasprintf(GFP_KERNEL, "cpu/%u/msr", MINOR(dev->devt));
 }
@@ -263,7 +263,7 @@ static int __init msr_init(void)
 		pr_err("unable to get major %d for msr\n", MSR_MAJOR);
 		return -EBUSY;
 	}
-	msr_class = class_create(THIS_MODULE, "msr");
+	msr_class = class_create("msr");
 	if (IS_ERR(msr_class)) {
 		err = PTR_ERR(msr_class);
 		goto out_chrdev;

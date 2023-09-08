@@ -16,8 +16,10 @@ struct virtio_shm_region {
 	u64 len;
 };
 
+typedef void vq_callback_t(struct virtqueue *);
+
 /**
- * virtio_config_ops - operations for configuring a virtio device
+ * struct virtio_config_ops - operations for configuring a virtio device
  * Note: Do not assume that a transport implements all of the operations
  *       getting/setting a value as a simple read/write! Generally speaking,
  *       any of @get/@set, @get_status/@set_status, or @get_features/
@@ -69,7 +71,8 @@ struct virtio_shm_region {
  *	vdev: the virtio_device
  *	This sends the driver feature bits to the device: it can change
  *	the dev->feature bits if it wants.
- * Note: despite the name this can be called any number of times.
+ *	Note that despite the name this	can be called any number of
+ *	times.
  *	Returns 0 on success or error status
  * @bus_name: return the bus name associated with the device (optional)
  *	vdev: the virtio_device
@@ -91,7 +94,6 @@ struct virtio_shm_region {
  *	If disable_vq_and_reset is set, then enable_vq_after_reset must also be
  *	set.
  */
-typedef void vq_callback_t(struct virtqueue *);
 struct virtio_config_ops {
 	void (*get)(struct virtio_device *vdev, unsigned offset,
 		    void *buf, unsigned len);

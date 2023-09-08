@@ -96,7 +96,7 @@ static void amdgpu_doorbell_get_kfd_info(struct amdgpu_device *adev,
 					 size_t *start_offset)
 {
 	/*
-	 * The first num_doorbells are used by amdgpu.
+	 * The first num_kernel_doorbells are used by amdgpu.
 	 * amdkfd takes whatever's left in the aperture.
 	 */
 	if (adev->enable_mes) {
@@ -109,11 +109,11 @@ static void amdgpu_doorbell_get_kfd_info(struct amdgpu_device *adev,
 		*aperture_base = adev->doorbell.base;
 		*aperture_size = 0;
 		*start_offset = 0;
-	} else if (adev->doorbell.size > adev->doorbell.num_doorbells *
+	} else if (adev->doorbell.size > adev->doorbell.num_kernel_doorbells *
 						sizeof(u32)) {
 		*aperture_base = adev->doorbell.base;
 		*aperture_size = adev->doorbell.size;
-		*start_offset = adev->doorbell.num_doorbells * sizeof(u32);
+		*start_offset = adev->doorbell.num_kernel_doorbells * sizeof(u32);
 	} else {
 		*aperture_base = 0;
 		*aperture_size = 0;
@@ -195,7 +195,7 @@ void amdgpu_amdkfd_device_init(struct amdgpu_device *adev)
 		}
 
 		adev->kfd.init_complete = kgd2kfd_device_init(adev->kfd.dev,
-						adev_to_drm(adev), &gpu_resources);
+							&gpu_resources);
 
 		amdgpu_amdkfd_total_mem_size += adev->gmc.real_vram_size;
 
@@ -673,7 +673,7 @@ int amdgpu_amdkfd_submit_ib(struct amdgpu_device *adev,
 		goto err;
 	}
 
-	ret = amdgpu_job_alloc(adev, 1, &job, NULL);
+	ret = amdgpu_job_alloc(adev, NULL, NULL, NULL, 1, &job);
 	if (ret)
 		goto err;
 
@@ -760,9 +760,7 @@ bool amdgpu_amdkfd_have_atomics_support(struct amdgpu_device *adev)
 
 void amdgpu_amdkfd_ras_poison_consumption_handler(struct amdgpu_device *adev, bool reset)
 {
-	struct ras_err_data err_data = {0, 0, 0, NULL};
-
-	amdgpu_umc_poison_handler(adev, &err_data, reset);
+	amdgpu_umc_poison_handler(adev, reset);
 }
 
 bool amdgpu_amdkfd_ras_query_utcl2_poison_status(struct amdgpu_device *adev)

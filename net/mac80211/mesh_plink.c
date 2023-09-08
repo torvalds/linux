@@ -219,12 +219,14 @@ static int mesh_plink_frame_tx(struct ieee80211_sub_if_data *sdata,
 	bool include_plid = false;
 	u16 peering_proto = 0;
 	u8 *pos, ie_len = 4;
-	u8 ie_len_he_cap;
+	u8 ie_len_he_cap, ie_len_eht_cap;
 	int hdr_len = offsetofend(struct ieee80211_mgmt, u.action.u.self_prot);
 	int err = -ENOMEM;
 
 	ie_len_he_cap = ieee80211_ie_len_he_cap(sdata,
 						NL80211_IFTYPE_MESH_POINT);
+	ie_len_eht_cap = ieee80211_ie_len_eht_cap(sdata,
+						  NL80211_IFTYPE_MESH_POINT);
 	skb = dev_alloc_skb(local->tx_headroom +
 			    hdr_len +
 			    2 + /* capability info */
@@ -241,6 +243,9 @@ static int mesh_plink_frame_tx(struct ieee80211_sub_if_data *sdata,
 			    2 + 1 + sizeof(struct ieee80211_he_operation) +
 				    sizeof(struct ieee80211_he_6ghz_oper) +
 			    2 + 1 + sizeof(struct ieee80211_he_6ghz_capa) +
+			    ie_len_eht_cap +
+			    2 + 1 + offsetof(struct ieee80211_eht_operation, optional) +
+				    offsetof(struct ieee80211_eht_operation_info, optional) +
 			    2 + 8 + /* peering IE */
 			    sdata->u.mesh.ie_len);
 	if (!skb)
@@ -332,7 +337,9 @@ static int mesh_plink_frame_tx(struct ieee80211_sub_if_data *sdata,
 		    mesh_add_vht_oper_ie(sdata, skb) ||
 		    mesh_add_he_cap_ie(sdata, skb, ie_len_he_cap) ||
 		    mesh_add_he_oper_ie(sdata, skb) ||
-		    mesh_add_he_6ghz_cap_ie(sdata, skb))
+		    mesh_add_he_6ghz_cap_ie(sdata, skb) ||
+		    mesh_add_eht_cap_ie(sdata, skb, ie_len_eht_cap) ||
+		    mesh_add_eht_oper_ie(sdata, skb))
 			goto free;
 	}
 
@@ -450,6 +457,11 @@ static void mesh_sta_info_init(struct ieee80211_sub_if_data *sdata,
 					  elems->he_cap_len,
 					  elems->he_6ghz_capa,
 					  &sta->deflink);
+
+	ieee80211_eht_cap_ie_to_sta_eht_cap(sdata, sband, elems->he_cap,
+					    elems->he_cap_len,
+					    elems->eht_cap, elems->eht_cap_len,
+					    &sta->deflink);
 
 	if (bw != sta->sta.deflink.bandwidth)
 		changed |= IEEE80211_RC_BW_CHANGED;

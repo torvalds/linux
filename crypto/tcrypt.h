@@ -62,7 +62,7 @@ static u8 speed_template_32[] = {32, 0};
  * AEAD speed tests
  */
 static u8 aead_speed_template_19[] = {19, 0};
-static u8 aead_speed_template_20[] = {20, 0};
+static u8 aead_speed_template_20_28_36[] = {20, 28, 36, 0};
 static u8 aead_speed_template_36[] = {36, 0};
 
 /*

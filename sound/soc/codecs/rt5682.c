@@ -35,6 +35,8 @@ const char *rt5682_supply_names[RT5682_NUM_SUPPLIES] = {
 	"AVDD",
 	"MICVDD",
 	"VBAT",
+	"DBVDD",
+	"LDO1-IN",
 };
 EXPORT_SYMBOL_GPL(rt5682_supply_names);
 
@@ -1092,8 +1094,8 @@ void rt5682_jack_detect_handler(struct work_struct *work)
 	struct snd_soc_dapm_context *dapm;
 	int val, btn_type;
 
-	if (!rt5682->component || !rt5682->component->card ||
-	    !rt5682->component->card->instantiated) {
+	if (!rt5682->component ||
+	    !snd_soc_card_is_instantiated(rt5682->component->card)) {
 		/* card not yet ready, try later */
 		mod_delayed_work(system_power_efficient_wq,
 				 &rt5682->jack_detect_work, msecs_to_jiffies(15));
@@ -2957,6 +2959,9 @@ static int rt5682_suspend(struct snd_soc_component *component)
 	if (rt5682->is_sdw)
 		return 0;
 
+	if (rt5682->irq)
+		disable_irq(rt5682->irq);
+
 	cancel_delayed_work_sync(&rt5682->jack_detect_work);
 	cancel_delayed_work_sync(&rt5682->jd_check_work);
 	if (rt5682->hs_jack && (rt5682->jack_type & SND_JACK_HEADSET) == SND_JACK_HEADSET) {
@@ -3024,6 +3029,9 @@ static int rt5682_resume(struct snd_soc_component *component)
 	rt5682->jack_type = 0;
 	mod_delayed_work(system_power_efficient_wq,
 		&rt5682->jack_detect_work, msecs_to_jiffies(0));
+
+	if (rt5682->irq)
+		enable_irq(rt5682->irq);
 
 	return 0;
 }

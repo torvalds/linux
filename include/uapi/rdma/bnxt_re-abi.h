@@ -96,6 +96,10 @@ struct bnxt_re_cq_resp {
 	__u32 rsvd;
 };
 
+struct bnxt_re_resize_cq_req {
+	__aligned_u64 cq_va;
+};
+
 struct bnxt_re_qp_req {
 	__aligned_u64 qpsva;
 	__aligned_u64 qprva;

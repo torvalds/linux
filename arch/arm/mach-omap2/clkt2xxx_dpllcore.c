@@ -20,6 +20,7 @@
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/clk.h>
+#include <linux/clk/ti.h>
 #include <linux/io.h>
 
 #include "clock.h"

@@ -76,7 +76,7 @@ static int test__pfm_events(struct test_suite *test __maybe_unused,
 				count_pfm_events(&evlist->core),
 				table[i].nr_events);
 		TEST_ASSERT_EQUAL(table[i].events,
-				evlist->core.nr_groups,
+				evlist__nr_groups(evlist),
 				0);
 
 		evlist__delete(evlist);
@@ -103,22 +103,22 @@ static int test__pfm_group(struct test_suite *test __maybe_unused,
 		{
 			.events = "{instructions}",
 			.nr_events = 1,
-			.nr_groups = 1,
+			.nr_groups = 0,
 		},
 		{
 			.events = "{instructions},{}",
 			.nr_events = 1,
-			.nr_groups = 1,
+			.nr_groups = 0,
 		},
 		{
 			.events = "{},{instructions}",
 			.nr_events = 1,
-			.nr_groups = 1,
+			.nr_groups = 0,
 		},
 		{
 			.events = "{instructions},{instructions}",
 			.nr_events = 2,
-			.nr_groups = 2,
+			.nr_groups = 0,
 		},
 		{
 			.events = "{instructions,cycles},{instructions,cycles}",
@@ -161,7 +161,7 @@ static int test__pfm_group(struct test_suite *test __maybe_unused,
 				count_pfm_events(&evlist->core),
 				table[i].nr_events);
 		TEST_ASSERT_EQUAL(table[i].events,
-				evlist->core.nr_groups,
+				evlist__nr_groups(evlist),
 				table[i].nr_groups);
 
 		evlist__delete(evlist);

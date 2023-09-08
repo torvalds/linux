@@ -456,7 +456,7 @@ static int __init pps_init(void)
 {
 	int err;
 
-	pps_class = class_create(THIS_MODULE, "pps");
+	pps_class = class_create("pps");
 	if (IS_ERR(pps_class)) {
 		pr_err("failed to allocate class\n");
 		return PTR_ERR(pps_class);

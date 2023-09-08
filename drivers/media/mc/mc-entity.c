@@ -226,7 +226,13 @@ EXPORT_SYMBOL_GPL(media_entity_pads_init);
  * Graph traversal
  */
 
-/*
+/**
+ * media_entity_has_pad_interdep - Check interdependency between two pads
+ *
+ * @entity: The entity
+ * @pad0: The first pad index
+ * @pad1: The second pad index
+ *
  * This function checks the interdependency inside the entity between @pad0
  * and @pad1. If two pads are interdependent they are part of the same pipeline
  * and enabling one of the pads means that the other pad will become "locked"
@@ -236,6 +242,13 @@ EXPORT_SYMBOL_GPL(media_entity_pads_init);
  * to check the dependency inside the entity between @pad0 and @pad1. If the
  * has_pad_interdep operation is not implemented, all pads of the entity are
  * considered to be interdependent.
+ *
+ * One of @pad0 and @pad1 must be a sink pad and the other one a source pad.
+ * The function returns false if both pads are sinks or sources.
+ *
+ * The caller must hold entity->graph_obj.mdev->mutex.
+ *
+ * Return: true if the pads are connected internally and false otherwise.
  */
 static bool media_entity_has_pad_interdep(struct media_entity *entity,
 					  unsigned int pad0, unsigned int pad1)
@@ -295,7 +308,7 @@ static struct media_entity *stack_pop(struct media_graph *graph)
  *
  * Reserve resources for graph walk in media device's current
  * state. The memory must be released using
- * media_graph_walk_free().
+ * media_graph_walk_cleanup().
  *
  * Returns error on failure, zero on success.
  */
@@ -703,7 +716,7 @@ done:
 __must_check int __media_pipeline_start(struct media_pad *pad,
 					struct media_pipeline *pipe)
 {
-	struct media_device *mdev = pad->entity->graph_obj.mdev;
+	struct media_device *mdev = pad->graph_obj.mdev;
 	struct media_pipeline_pad *err_ppad;
 	struct media_pipeline_pad *ppad;
 	int ret;
@@ -711,8 +724,8 @@ __must_check int __media_pipeline_start(struct media_pad *pad,
 	lockdep_assert_held(&mdev->graph_mutex);
 
 	/*
-	 * If the entity is already part of a pipeline, that pipeline must
-	 * be the same as the pipe given to media_pipeline_start().
+	 * If the pad is already part of a pipeline, that pipeline must be the
+	 * same as the pipe given to media_pipeline_start().
 	 */
 	if (WARN_ON(pad->pipe && pad->pipe != pipe))
 		return -EINVAL;
@@ -851,7 +864,7 @@ EXPORT_SYMBOL_GPL(__media_pipeline_start);
 __must_check int media_pipeline_start(struct media_pad *pad,
 				      struct media_pipeline *pipe)
 {
-	struct media_device *mdev = pad->entity->graph_obj.mdev;
+	struct media_device *mdev = pad->graph_obj.mdev;
 	int ret;
 
 	mutex_lock(&mdev->graph_mutex);
@@ -888,7 +901,7 @@ EXPORT_SYMBOL_GPL(__media_pipeline_stop);
 
 void media_pipeline_stop(struct media_pad *pad)
 {
-	struct media_device *mdev = pad->entity->graph_obj.mdev;
+	struct media_device *mdev = pad->graph_obj.mdev;
 
 	mutex_lock(&mdev->graph_mutex);
 	__media_pipeline_stop(pad);
@@ -898,7 +911,7 @@ EXPORT_SYMBOL_GPL(media_pipeline_stop);
 
 __must_check int media_pipeline_alloc_start(struct media_pad *pad)
 {
-	struct media_device *mdev = pad->entity->graph_obj.mdev;
+	struct media_device *mdev = pad->graph_obj.mdev;
 	struct media_pipeline *new_pipe = NULL;
 	struct media_pipeline *pipe;
 	int ret;
@@ -906,7 +919,7 @@ __must_check int media_pipeline_alloc_start(struct media_pad *pad)
 	mutex_lock(&mdev->graph_mutex);
 
 	/*
-	 * Is the entity already part of a pipeline? If not, we need to allocate
+	 * Is the pad already part of a pipeline? If not, we need to allocate
 	 * a pipe.
 	 */
 	pipe = media_pad_pipeline(pad);
@@ -931,6 +944,61 @@ out:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(media_pipeline_alloc_start);
+
+struct media_pad *
+__media_pipeline_pad_iter_next(struct media_pipeline *pipe,
+			       struct media_pipeline_pad_iter *iter,
+			       struct media_pad *pad)
+{
+	if (!pad)
+		iter->cursor = pipe->pads.next;
+
+	if (iter->cursor == &pipe->pads)
+		return NULL;
+
+	pad = list_entry(iter->cursor, struct media_pipeline_pad, list)->pad;
+	iter->cursor = iter->cursor->next;
+
+	return pad;
+}
+EXPORT_SYMBOL_GPL(__media_pipeline_pad_iter_next);
+
+int media_pipeline_entity_iter_init(struct media_pipeline *pipe,
+				    struct media_pipeline_entity_iter *iter)
+{
+	return media_entity_enum_init(&iter->ent_enum, pipe->mdev);
+}
+EXPORT_SYMBOL_GPL(media_pipeline_entity_iter_init);
+
+void media_pipeline_entity_iter_cleanup(struct media_pipeline_entity_iter *iter)
+{
+	media_entity_enum_cleanup(&iter->ent_enum);
+}
+EXPORT_SYMBOL_GPL(media_pipeline_entity_iter_cleanup);
+
+struct media_entity *
+__media_pipeline_entity_iter_next(struct media_pipeline *pipe,
+				  struct media_pipeline_entity_iter *iter,
+				  struct media_entity *entity)
+{
+	if (!entity)
+		iter->cursor = pipe->pads.next;
+
+	while (iter->cursor != &pipe->pads) {
+		struct media_pipeline_pad *ppad;
+		struct media_entity *entity;
+
+		ppad = list_entry(iter->cursor, struct media_pipeline_pad, list);
+		entity = ppad->pad->entity;
+		iter->cursor = iter->cursor->next;
+
+		if (!media_entity_enum_test_and_set(&iter->ent_enum, entity))
+			return entity;
+	}
+
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(__media_pipeline_entity_iter_next);
 
 /* -----------------------------------------------------------------------------
  * Links management

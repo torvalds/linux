@@ -1717,7 +1717,7 @@ no_preempt:
 
 static int amdgpu_debugfs_ib_preempt(void *data, u64 val)
 {
-	int r, resched, length;
+	int r, length;
 	struct amdgpu_ring *ring;
 	struct dma_fence **fences = NULL;
 	struct amdgpu_device *adev = (struct amdgpu_device *)data;
@@ -1746,8 +1746,6 @@ static int amdgpu_debugfs_ib_preempt(void *data, u64 val)
 
 	/* stop the scheduler */
 	kthread_park(ring->sched.thread);
-
-	resched = ttm_bo_lock_delayed_workqueue(&adev->mman.bdev);
 
 	/* preempt the IB */
 	r = amdgpu_ring_preempt_ib(ring);
@@ -1784,8 +1782,6 @@ failure:
 	kthread_unpark(ring->sched.thread);
 
 	up_read(&adev->reset_domain->sem);
-
-	ttm_bo_unlock_delayed_workqueue(&adev->mman.bdev, resched);
 
 pro_end:
 	kfree(fences);
@@ -1969,7 +1965,7 @@ int amdgpu_debugfs_init(struct amdgpu_device *adev)
 	amdgpu_ta_if_debugfs_init(adev);
 
 #if defined(CONFIG_DRM_AMD_DC)
-	if (amdgpu_device_has_dc_support(adev))
+	if (adev->dc_enabled)
 		dtn_debugfs_init(adev);
 #endif
 

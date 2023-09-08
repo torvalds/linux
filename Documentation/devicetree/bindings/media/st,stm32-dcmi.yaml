@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/media/st,stm32-dcmi.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: STMicroelectronics STM32 Digital Camera Memory Interface (DCMI) binding
+title: STMicroelectronics STM32 Digital Camera Memory Interface (DCMI)
 
 maintainers:
   - Hugues Fruchet <hugues.fruchet@foss.st.com>
@@ -90,7 +90,9 @@ examples:
   - |
     #include <dt-bindings/interrupt-controller/arm-gic.h>
     #include <dt-bindings/clock/stm32mp1-clks.h>
+    #include <dt-bindings/media/video-interfaces.h>
     #include <dt-bindings/reset/stm32mp1-resets.h>
+
     dcmi: dcmi@4c006000 {
         compatible = "st,stm32-dcmi";
         reg = <0x4c006000 0x400>;
@@ -104,7 +106,7 @@ examples:
         port {
              dcmi_0: endpoint {
                    remote-endpoint = <&ov5640_0>;
-                   bus-type = <5>;
+                   bus-type = <MEDIA_BUS_TYPE_PARALLEL>;
                    bus-width = <8>;
                    hsync-active = <0>;
                    vsync-active = <0>;

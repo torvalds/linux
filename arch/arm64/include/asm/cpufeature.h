@@ -769,6 +769,12 @@ static __always_inline bool system_supports_sme(void)
 		cpus_have_const_cap(ARM64_SME);
 }
 
+static __always_inline bool system_supports_sme2(void)
+{
+	return IS_ENABLED(CONFIG_ARM64_SME) &&
+		cpus_have_const_cap(ARM64_SME2);
+}
+
 static __always_inline bool system_supports_fa64(void)
 {
 	return IS_ENABLED(CONFIG_ARM64_SME) &&
@@ -806,7 +812,7 @@ static inline bool system_has_full_ptr_auth(void)
 static __always_inline bool system_uses_irq_prio_masking(void)
 {
 	return IS_ENABLED(CONFIG_ARM64_PSEUDO_NMI) &&
-	       cpus_have_const_cap(ARM64_HAS_IRQ_PRIO_MASKING);
+	       cpus_have_const_cap(ARM64_HAS_GIC_PRIO_MASKING);
 }
 
 static inline bool system_supports_mte(void)
@@ -832,7 +838,8 @@ static inline bool system_supports_tlb_range(void)
 		cpus_have_const_cap(ARM64_HAS_TLB_RANGE);
 }
 
-extern int do_emulate_mrs(struct pt_regs *regs, u32 sys_reg, u32 rt);
+int do_emulate_mrs(struct pt_regs *regs, u32 sys_reg, u32 rt);
+bool try_emulate_mrs(struct pt_regs *regs, u32 isn);
 
 static inline u32 id_aa64mmfr0_parange_to_phys_shift(int parange)
 {
@@ -863,7 +870,11 @@ static inline bool cpu_has_hw_af(void)
 	if (!IS_ENABLED(CONFIG_ARM64_HW_AFDBM))
 		return false;
 
-	mmfr1 = read_cpuid(ID_AA64MMFR1_EL1);
+	/*
+	 * Use cached version to avoid emulated msr operation on KVM
+	 * guests.
+	 */
+	mmfr1 = read_sanitised_ftr_reg(SYS_ID_AA64MMFR1_EL1);
 	return cpuid_feature_extract_unsigned_field(mmfr1,
 						ID_AA64MMFR1_EL1_HAFDBS_SHIFT);
 }

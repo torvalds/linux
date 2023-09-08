@@ -992,7 +992,7 @@ int ata_acpi_on_devcfg(struct ata_device *dev)
 
  acpi_err:
 	/* ignore evaluation failure if we can continue safely */
-	if (rc == -EINVAL && !nr_executed && !(ap->pflags & ATA_PFLAG_FROZEN))
+	if (rc == -EINVAL && !nr_executed && !ata_port_is_frozen(ap))
 		return 0;
 
 	/* fail and let EH retry once more for unknown IO errors */
@@ -1007,7 +1007,7 @@ int ata_acpi_on_devcfg(struct ata_device *dev)
 	/* We can safely continue if no _GTF command has been executed
 	 * and port is not frozen.
 	 */
-	if (!nr_executed && !(ap->pflags & ATA_PFLAG_FROZEN))
+	if (!nr_executed && !ata_port_is_frozen(ap))
 		return 0;
 
 	return rc;

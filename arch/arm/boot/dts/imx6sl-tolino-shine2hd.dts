@@ -18,6 +18,21 @@
 	model = "Tolino Shine 2 HD";
 	compatible = "kobo,tolino-shine2hd", "fsl,imx6sl";
 
+	backlight {
+		compatible = "pwm-backlight";
+		pwms = <&ec 0 50000>;
+		power-supply = <&backlight_regulator>;
+	};
+
+	backlight_regulator: regulator-backlight {
+		compatible = "regulator-fixed";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_backlight_power>;
+		regulator-name = "backlight";
+		gpio = <&gpio2 10 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
 	chosen {
 		stdout-path = &uart1;
 	};
@@ -64,6 +79,12 @@
 			label = "tolinoshine2hd:white:on";
 			gpios = <&gpio5 13 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "timer";
+		};
+
+		led-1 {
+			label = "tolinoshine2hd:white:backlightboost";
+			gpios = <&gpio1 29 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "off";
 		};
 	};
 
@@ -299,6 +320,12 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_hog>;
 
+	pinctrl_backlight_power: backlight-powergrp {
+		fsl,pins = <
+			MX6SL_PAD_EPDC_PWRCTRL3__GPIO2_IO10 0x10059
+		>;
+	};
+
 	pinctrl_gpio_keys: gpio-keysgrp {
 		fsl,pins = <
 			MX6SL_PAD_SD1_DAT1__GPIO5_IO08  0x17059
@@ -383,7 +410,8 @@
 
 	pinctrl_led: ledgrp {
 		fsl,pins = <
-			MX6SL_PAD_SD1_DAT2__GPIO5_IO13 0x17059
+			MX6SL_PAD_SD1_DAT2__GPIO5_IO13    0x17059
+			MX6SL_PAD_EPDC_SDCE2__GPIO1_IO29  0x17059
 		>;
 	};
 
@@ -597,6 +625,7 @@
 
 &usbotg1 {
 	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usbotg1>;
 	disable-over-current;
 	srp-disable;
 	hnp-disable;

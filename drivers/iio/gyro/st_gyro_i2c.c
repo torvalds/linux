@@ -58,8 +58,7 @@ static const struct of_device_id st_gyro_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, st_gyro_of_match);
 
-static int st_gyro_i2c_probe(struct i2c_client *client,
-			     const struct i2c_device_id *id)
+static int st_gyro_i2c_probe(struct i2c_client *client)
 {
 	const struct st_sensor_settings *settings;
 	struct st_sensor_data *gdata;
@@ -112,7 +111,7 @@ static struct i2c_driver st_gyro_driver = {
 		.name = "st-gyro-i2c",
 		.of_match_table = st_gyro_of_match,
 	},
-	.probe = st_gyro_i2c_probe,
+	.probe_new = st_gyro_i2c_probe,
 	.id_table = st_gyro_id_table,
 };
 module_i2c_driver(st_gyro_driver);

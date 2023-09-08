@@ -187,7 +187,7 @@ static void uclogic_template_case_desc(struct uclogic_template_case *t,
 KUNIT_ARRAY_PARAM(uclogic_template, uclogic_template_cases,
 		  uclogic_template_case_desc);
 
-static void uclogic_template_test(struct kunit *test)
+static void hid_test_uclogic_template(struct kunit *test)
 {
 	__u8 *res;
 	const struct uclogic_template_case *params = test->param_value;
@@ -197,13 +197,12 @@ static void uclogic_template_test(struct kunit *test)
 					   params->param_list,
 					   params->param_num);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, res);
-	KUNIT_EXPECT_EQ(test, 0,
-			memcmp(res, params->expected, params->template_size));
+	KUNIT_EXPECT_MEMEQ(test, res, params->expected, params->template_size);
 	kfree(res);
 }
 
 static struct kunit_case hid_uclogic_rdesc_test_cases[] = {
-	KUNIT_CASE_PARAM(uclogic_template_test, uclogic_template_gen_params),
+	KUNIT_CASE_PARAM(hid_test_uclogic_template, uclogic_template_gen_params),
 	{}
 };
 

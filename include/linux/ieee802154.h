@@ -44,6 +44,13 @@
 #define IEEE802154_SHORT_ADDR_LEN	2
 #define IEEE802154_PAN_ID_LEN		2
 
+/* Duration in superframe order */
+#define IEEE802154_MAX_SCAN_DURATION	14
+#define IEEE802154_ACTIVE_SCAN_DURATION	15
+/* Superframe duration in slots */
+#define IEEE802154_SUPERFRAME_PERIOD	16
+/* Various periods expressed in symbols */
+#define IEEE802154_SLOT_PERIOD		60
 #define IEEE802154_LIFS_PERIOD		40
 #define IEEE802154_SIFS_PERIOD		12
 #define IEEE802154_MAX_SIFS_FRAME_SIZE	18
@@ -274,6 +281,30 @@ enum {
 	IEEE802154_SUPERFRAME_OVERLAP = 0xfd,
 	/* Any other error situation. */
 	IEEE802154_SYSTEM_ERROR = 0xff,
+};
+
+/**
+ * enum ieee802154_filtering_level - Filtering levels applicable to a PHY
+ *
+ * @IEEE802154_FILTERING_NONE: No filtering at all, what is received is
+ *	forwarded to the softMAC
+ * @IEEE802154_FILTERING_1_FCS: First filtering level, frames with an invalid
+ *	FCS should be dropped
+ * @IEEE802154_FILTERING_2_PROMISCUOUS: Second filtering level, promiscuous
+ *	mode as described in the spec, identical in terms of filtering to the
+ *	level one on PHY side, but at the MAC level the frame should be
+ *	forwarded to the upper layer directly
+ * @IEEE802154_FILTERING_3_SCAN: Third filtering level, scan related, where
+ *	only beacons must be processed, all remaining traffic gets dropped
+ * @IEEE802154_FILTERING_4_FRAME_FIELDS: Fourth filtering level actually
+ *	enforcing the validity of the content of the frame with various checks
+ */
+enum ieee802154_filtering_level {
+	IEEE802154_FILTERING_NONE,
+	IEEE802154_FILTERING_1_FCS,
+	IEEE802154_FILTERING_2_PROMISCUOUS,
+	IEEE802154_FILTERING_3_SCAN,
+	IEEE802154_FILTERING_4_FRAME_FIELDS,
 };
 
 /* frame control handling */

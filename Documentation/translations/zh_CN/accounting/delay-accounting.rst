@@ -17,8 +17,9 @@ a) 等待一个CPU（任务为可运行）
 b) 完成由该任务发起的块I/O同步请求
 c) 页面交换
 d) 内存回收
-e) 页缓存抖动
+e) 抖动
 f) 直接规整
+g) 写保护复制
 
 并将这些统计信息通过taskstats接口提供给用户空间。
 
@@ -42,7 +43,7 @@ f) 直接规整
      include/uapi/linux/taskstats.h
 
 其描述了延时计数相关字段。系统通常以计数器形式返回 CPU、同步块 I/O、交换、内存
-回收、页缓存抖动、直接规整等的累积延时。
+回收、页缓存抖动、直接规整、写保护复制等的累积延时。
 
 取任务某计数器两个连续读数的差值，将得到任务在该时间间隔内等待对应资源的总延时。
 
@@ -91,15 +92,17 @@ getdelays命令的一般格式::
 	CPU             count     real total  virtual total    delay total  delay average
 	                    8        7000000        6872122        3382277          0.423ms
 	IO              count    delay total  delay average
-	                    0              0              0ms
+	                    0              0              0.000ms
 	SWAP            count    delay total  delay average
-	                    0              0              0ms
+	                    0              0              0.000ms
 	RECLAIM         count    delay total  delay average
-	                    0              0              0ms
+	                    0              0              0.000ms
 	THRASHING       count    delay total  delay average
-	                    0              0              0ms
+	                    0              0              0.000ms
 	COMPACT         count    delay total  delay average
-	                    0              0              0ms
+	                    0              0              0.000ms
+    WPCOPY          count    delay total  delay average
+                       0              0              0ms
 
 获取pid为1的IO计数，它只和-p一起使用::
 	# ./getdelays -i -p 1

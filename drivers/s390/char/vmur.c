@@ -1022,7 +1022,7 @@ static int __init ur_init(void)
 
 	debug_set_level(vmur_dbf, 6);
 
-	vmur_class = class_create(THIS_MODULE, "vmur");
+	vmur_class = class_create("vmur");
 	if (IS_ERR(vmur_class)) {
 		rc = PTR_ERR(vmur_class);
 		goto fail_free_dbf;

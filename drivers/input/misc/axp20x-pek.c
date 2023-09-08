@@ -336,7 +336,7 @@ static int axp20x_pek_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __maybe_unused axp20x_pek_suspend(struct device *dev)
+static int axp20x_pek_suspend(struct device *dev)
 {
 	struct axp20x_pek *axp20x_pek = dev_get_drvdata(dev);
 
@@ -355,7 +355,7 @@ static int __maybe_unused axp20x_pek_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused axp20x_pek_resume(struct device *dev)
+static int axp20x_pek_resume(struct device *dev)
 {
 	struct axp20x_pek *axp20x_pek = dev_get_drvdata(dev);
 
@@ -389,10 +389,8 @@ static int __maybe_unused axp20x_pek_resume_noirq(struct device *dev)
 }
 
 static const struct dev_pm_ops axp20x_pek_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(axp20x_pek_suspend, axp20x_pek_resume)
-#ifdef CONFIG_PM_SLEEP
-	.resume_noirq = axp20x_pek_resume_noirq,
-#endif
+	SYSTEM_SLEEP_PM_OPS(axp20x_pek_suspend, axp20x_pek_resume)
+	.resume_noirq = pm_sleep_ptr(axp20x_pek_resume_noirq),
 };
 
 static const struct platform_device_id axp_pek_id_match[] = {
@@ -413,7 +411,7 @@ static struct platform_driver axp20x_pek_driver = {
 	.id_table	= axp_pek_id_match,
 	.driver		= {
 		.name		= "axp20x-pek",
-		.pm		= &axp20x_pek_pm_ops,
+		.pm		= pm_sleep_ptr(&axp20x_pek_pm_ops),
 		.dev_groups	= axp20x_groups,
 	},
 };

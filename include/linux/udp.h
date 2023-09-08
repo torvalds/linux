@@ -23,7 +23,9 @@ static inline struct udphdr *udp_hdr(const struct sk_buff *skb)
 	return (struct udphdr *)skb_transport_header(skb);
 }
 
+#define UDP_HTABLE_SIZE_MIN_PERNET	128
 #define UDP_HTABLE_SIZE_MIN		(CONFIG_BASE_SMALL ? 128 : 256)
+#define UDP_HTABLE_SIZE_MAX		65536
 
 static inline u32 udp_hashfn(const struct net *net, u32 num, u32 mask)
 {
@@ -70,7 +72,8 @@ struct udp_sock {
 	 * For encapsulation sockets.
 	 */
 	int (*encap_rcv)(struct sock *sk, struct sk_buff *skb);
-	void (*encap_err_rcv)(struct sock *sk, struct sk_buff *skb, unsigned int udp_offset);
+	void (*encap_err_rcv)(struct sock *sk, struct sk_buff *skb, int err,
+			      __be16 port, u32 info, u8 *payload);
 	int (*encap_err_lookup)(struct sock *sk, struct sk_buff *skb);
 	void (*encap_destroy)(struct sock *sk);
 
@@ -87,14 +90,14 @@ struct udp_sock {
 
 	/* This field is dirtied by udp_recvmsg() */
 	int		forward_deficit;
+
+	/* This fields follows rcvbuf value, and is touched by udp_recvmsg */
+	int		forward_threshold;
 };
 
 #define UDP_MAX_SEGMENTS	(1 << 6UL)
 
-static inline struct udp_sock *udp_sk(const struct sock *sk)
-{
-	return (struct udp_sock *)sk;
-}
+#define udp_sk(ptr) container_of_const(ptr, struct udp_sock, inet.sk)
 
 static inline void udp_set_no_check6_tx(struct sock *sk, bool val)
 {

@@ -172,12 +172,17 @@ static void sunxi_rsb_device_remove(struct device *dev)
 	drv->remove(to_sunxi_rsb_device(dev));
 }
 
+static int sunxi_rsb_device_modalias(const struct device *dev, struct kobj_uevent_env *env)
+{
+	return of_device_uevent_modalias(dev, env);
+}
+
 static struct bus_type sunxi_rsb_bus = {
 	.name		= RSB_CTRL_NAME,
 	.match		= sunxi_rsb_device_match,
 	.probe		= sunxi_rsb_device_probe,
 	.remove		= sunxi_rsb_device_remove,
-	.uevent		= of_device_uevent_modalias,
+	.uevent		= sunxi_rsb_device_modalias,
 };
 
 static void sunxi_rsb_dev_release(struct device *dev)
@@ -857,7 +862,13 @@ static int __init sunxi_rsb_init(void)
 		return ret;
 	}
 
-	return platform_driver_register(&sunxi_rsb_driver);
+	ret = platform_driver_register(&sunxi_rsb_driver);
+	if (ret) {
+		bus_unregister(&sunxi_rsb_bus);
+		return ret;
+	}
+
+	return 0;
 }
 module_init(sunxi_rsb_init);
 

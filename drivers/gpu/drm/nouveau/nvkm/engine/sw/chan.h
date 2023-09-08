@@ -14,6 +14,7 @@ struct nvkm_sw_chan {
 	struct nvkm_fifo_chan *fifo;
 	struct list_head head;
 
+#define NVKM_SW_CHAN_EVENT_PAGE_FLIP BIT(0)
 	struct nvkm_event event;
 };
 

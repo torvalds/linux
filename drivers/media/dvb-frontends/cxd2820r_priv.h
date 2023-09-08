@@ -52,8 +52,6 @@ struct cxd2820r_priv {
 
 /* cxd2820r_core.c */
 
-extern int cxd2820r_debug;
-
 int cxd2820r_gpio(struct dvb_frontend *fe, u8 *gpio);
 
 int cxd2820r_wr_reg_val_mask_tab(struct cxd2820r_priv *priv,

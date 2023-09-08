@@ -397,13 +397,6 @@
 		#clock-cells = <1>;
 		#reset-cells = <1>;
 
-		sclk {
-			compatible = "nvidia,tegra30-sclk";
-			clocks = <&tegra_car TEGRA30_CLK_SCLK>;
-			power-domains = <&pd_core>;
-			operating-points-v2 = <&sclk_dvfs_opp_table>;
-		};
-
 		pll-c {
 			compatible = "nvidia,tegra30-pllc";
 			clocks = <&tegra_car TEGRA30_CLK_PLL_C>;
@@ -423,6 +416,13 @@
 			clocks = <&tegra_car TEGRA30_CLK_PLL_M>;
 			power-domains = <&pd_core>;
 			operating-points-v2 = <&pll_m_dvfs_opp_table>;
+		};
+
+		sclk {
+			compatible = "nvidia,tegra30-sclk";
+			clocks = <&tegra_car TEGRA30_CLK_SCLK>;
+			power-domains = <&pd_core>;
+			operating-points-v2 = <&sclk_dvfs_opp_table>;
 		};
 	};
 
@@ -648,13 +648,6 @@
 		status = "disabled";
 	};
 
-	rtc@7000e000 {
-		compatible = "nvidia,tegra30-rtc", "nvidia,tegra20-rtc";
-		reg = <0x7000e000 0x100>;
-		interrupts = <GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&tegra_car TEGRA30_CLK_RTC>;
-	};
-
 	i2c@7000c000 {
 		compatible = "nvidia,tegra30-i2c", "nvidia,tegra20-i2c";
 		reg = <0x7000c000 0x100>;
@@ -831,6 +824,13 @@
 		status = "disabled";
 	};
 
+	rtc@7000e000 {
+		compatible = "nvidia,tegra30-rtc", "nvidia,tegra20-rtc";
+		reg = <0x7000e000 0x100>;
+		interrupts = <GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&tegra_car TEGRA30_CLK_RTC>;
+	};
+
 	kbc@7000e200 {
 		compatible = "nvidia,tegra30-kbc", "nvidia,tegra20-kbc";
 		reg = <0x7000e200 0x100>;
@@ -854,6 +854,28 @@
 		};
 
 		powergates {
+			pd_heg: heg {
+				clocks = <&tegra_car TEGRA30_CLK_GR2D>,
+					 <&tegra_car TEGRA30_CLK_EPP>,
+					 <&tegra_car TEGRA30_CLK_HOST1X>;
+				resets = <&mc TEGRA30_MC_RESET_2D>,
+					 <&mc TEGRA30_MC_RESET_EPP>,
+					 <&mc TEGRA30_MC_RESET_HC>,
+					 <&tegra_car TEGRA30_CLK_GR2D>,
+					 <&tegra_car TEGRA30_CLK_EPP>,
+					 <&tegra_car TEGRA30_CLK_HOST1X>;
+				power-domains = <&pd_core>;
+				#power-domain-cells = <0>;
+			};
+
+			pd_mpe: mpe {
+				clocks = <&tegra_car TEGRA30_CLK_MPE>;
+				resets = <&mc TEGRA30_MC_RESET_MPE>,
+					 <&tegra_car TEGRA30_CLK_MPE>;
+				power-domains = <&pd_core>;
+				#power-domain-cells = <0>;
+			};
+
 			pd_3d0: td {
 				clocks = <&tegra_car TEGRA30_CLK_GR3D>;
 				resets = <&mc TEGRA30_MC_RESET_3D>,
@@ -870,6 +892,14 @@
 				#power-domain-cells = <0>;
 			};
 
+			pd_vde: vdec {
+				clocks = <&tegra_car TEGRA30_CLK_VDE>;
+				resets = <&mc TEGRA30_MC_RESET_VDE>,
+					 <&tegra_car TEGRA30_CLK_VDE>;
+				power-domains = <&pd_core>;
+				#power-domain-cells = <0>;
+			};
+
 			pd_venc: venc {
 				clocks = <&tegra_car TEGRA30_CLK_ISP>,
 					 <&tegra_car TEGRA30_CLK_VI>,
@@ -879,36 +909,6 @@
 					 <&tegra_car TEGRA30_CLK_ISP>,
 					 <&tegra_car 20 /* VI */>,
 					 <&tegra_car TEGRA30_CLK_CSI>;
-				power-domains = <&pd_core>;
-				#power-domain-cells = <0>;
-			};
-
-			pd_vde: vdec {
-				clocks = <&tegra_car TEGRA30_CLK_VDE>;
-				resets = <&mc TEGRA30_MC_RESET_VDE>,
-					 <&tegra_car TEGRA30_CLK_VDE>;
-				power-domains = <&pd_core>;
-				#power-domain-cells = <0>;
-			};
-
-			pd_mpe: mpe {
-				clocks = <&tegra_car TEGRA30_CLK_MPE>;
-				resets = <&mc TEGRA30_MC_RESET_MPE>,
-					 <&tegra_car TEGRA30_CLK_MPE>;
-				power-domains = <&pd_core>;
-				#power-domain-cells = <0>;
-			};
-
-			pd_heg: heg {
-				clocks = <&tegra_car TEGRA30_CLK_GR2D>,
-					 <&tegra_car TEGRA30_CLK_EPP>,
-					 <&tegra_car TEGRA30_CLK_HOST1X>;
-				resets = <&mc TEGRA30_MC_RESET_2D>,
-					 <&mc TEGRA30_MC_RESET_EPP>,
-					 <&mc TEGRA30_MC_RESET_HC>,
-					 <&tegra_car TEGRA30_CLK_GR2D>,
-					 <&tegra_car TEGRA30_CLK_EPP>,
-					 <&tegra_car TEGRA30_CLK_HOST1X>;
 				power-domains = <&pd_core>;
 				#power-domain-cells = <0>;
 			};
@@ -1283,10 +1283,7 @@
 			     <GIC_SPI 145 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 146 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 147 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-affinity = <&{/cpus/cpu@0}>,
-				     <&{/cpus/cpu@1}>,
-				     <&{/cpus/cpu@2}>,
-				     <&{/cpus/cpu@3}>;
+		interrupt-affinity = <&cpu0>, <&cpu1>, <&cpu2>, <&cpu3>;
 	};
 
 	thermal-zones {

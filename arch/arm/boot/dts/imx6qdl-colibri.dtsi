@@ -24,14 +24,21 @@
 		status = "disabled";
 	};
 
+	extcon_usbc_det: usbc-det {
+		compatible = "linux,extcon-usb-gpio";
+		id-gpio = <&gpio7 12 GPIO_ACTIVE_HIGH>; /* SODIMM 137 / USBC_DET */
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_usbc_det>;
+	};
+
 	gpio-keys {
 		compatible = "gpio-keys";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_gpio_keys>;
 
-		wakeup {
+		key-wakeup {
 			debounce-interval = <10>;
-			gpios = <&gpio2 22 GPIO_ACTIVE_HIGH>; /* SODIMM 45 */
+			gpios = <&gpio2 22 (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)>; /* SODIMM 45 */
 			label = "Wake-Up";
 			linux,code = <KEY_WAKEUP>;
 			wakeup-source;
@@ -105,7 +112,7 @@
 
 	reg_usb_host_vbus: regulator-usb-host-vbus {
 		compatible = "regulator-fixed";
-		gpio = <&gpio3 31 GPIO_ACTIVE_HIGH>; /* USBH_PEN */
+		gpio = <&gpio3 31 GPIO_ACTIVE_LOW>; /* SODIMM 129 / USBH_PEN */
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_regulator_usbh_pwr>;
 		regulator-max-microvolt = <5000000>;
@@ -670,9 +677,15 @@
 	status = "disabled";
 };
 
+/* Colibri USBH */
+&usbh1 {
+	vbus-supply = <&reg_usb_host_vbus>;
+};
+
+/* Colibri USBC */
 &usbotg {
-	disable-over-current;
-	dr_mode = "peripheral";
+	dr_mode = "otg";
+	extcon = <0>, <&extcon_usbc_det>;
 	status = "disabled";
 };
 
@@ -986,7 +999,7 @@
 
 	pinctrl_regulator_usbh_pwr: gpioregusbhpwrgrp {
 		fsl,pins = <
-			/* USBH_EN */
+			/* SODIMM 129 / USBH_PEN */
 			MX6QDL_PAD_EIM_D31__GPIO3_IO31	0x0f058
 		>;
 	};
@@ -1055,7 +1068,7 @@
 
 	pinctrl_usbc_det: usbcdetgrp {
 		fsl,pins = <
-			/* USBC_DET */
+			/* SODIMM 137 / USBC_DET */
 			MX6QDL_PAD_GPIO_17__GPIO7_IO12		0x1b0b0
 			/* USBC_DET_OVERWRITE */
 			MX6QDL_PAD_RGMII_RXC__GPIO6_IO30	0x0f058

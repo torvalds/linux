@@ -158,6 +158,7 @@ KSZ9031:
         no link will be established.
 
 KSZ9131:
+LAN8841:
 
   All skew control options are specified in picoseconds. The increment
   step is 100ps. Unlike KSZ9031, the values represent picoseccond delays.

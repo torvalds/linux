@@ -193,7 +193,7 @@ struct pnfs_commit_ops {
 	void (*recover_commit_reqs) (struct list_head *list,
 				     struct nfs_commit_info *cinfo);
 	struct nfs_page * (*search_commit_reqs)(struct nfs_commit_info *cinfo,
-						struct page *page);
+						struct folio *folio);
 };
 
 struct pnfs_layout_hdr {
@@ -395,7 +395,7 @@ void pnfs_generic_rw_release(void *data);
 void pnfs_generic_recover_commit_reqs(struct list_head *dst,
 				      struct nfs_commit_info *cinfo);
 struct nfs_page *pnfs_generic_search_commit_reqs(struct nfs_commit_info *cinfo,
-						 struct page *page);
+						 struct folio *folio);
 int pnfs_generic_commit_pagelist(struct inode *inode,
 				 struct list_head *mds_pages,
 				 int how,
@@ -557,13 +557,13 @@ pnfs_recover_commit_reqs(struct list_head *head, struct nfs_commit_info *cinfo)
 
 static inline struct nfs_page *
 pnfs_search_commit_reqs(struct inode *inode, struct nfs_commit_info *cinfo,
-			struct page *page)
+			struct folio *folio)
 {
 	struct pnfs_ds_commit_info *fl_cinfo = cinfo->ds;
 
 	if (!fl_cinfo->ops || !fl_cinfo->ops->search_commit_reqs)
 		return NULL;
-	return fl_cinfo->ops->search_commit_reqs(cinfo, page);
+	return fl_cinfo->ops->search_commit_reqs(cinfo, folio);
 }
 
 /* Should the pNFS client commit and return the layout upon a setattr */
@@ -864,7 +864,7 @@ pnfs_recover_commit_reqs(struct list_head *head, struct nfs_commit_info *cinfo)
 
 static inline struct nfs_page *
 pnfs_search_commit_reqs(struct inode *inode, struct nfs_commit_info *cinfo,
-			struct page *page)
+			struct folio *folio)
 {
 	return NULL;
 }

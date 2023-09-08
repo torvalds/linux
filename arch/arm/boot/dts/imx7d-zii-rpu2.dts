@@ -607,7 +607,7 @@
 	assigned-clock-parents = <&clks IMX7D_PLL_SYS_MAIN_240M_CLK>;
 	status = "okay";
 
-	rave-sp {
+	mcu {
 		compatible = "zii,rave-sp-rdu2";
 		current-speed = <1000000>;
 		#address-cells = <1>;

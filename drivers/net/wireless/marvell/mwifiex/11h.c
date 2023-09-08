@@ -195,7 +195,6 @@ int mwifiex_11h_handle_chanrpt_ready(struct mwifiex_private *priv,
 {
 	struct host_cmd_ds_chan_rpt_event *rpt_event;
 	struct mwifiex_ie_types_chan_rpt_data *rpt;
-	u8 *evt_buf;
 	u16 event_len, tlv_len;
 
 	rpt_event = (void *)(skb->data + sizeof(u32));
@@ -207,8 +206,6 @@ int mwifiex_11h_handle_chanrpt_ready(struct mwifiex_private *priv,
 			    "Error in channel report event\n");
 		return -1;
 	}
-
-	evt_buf = (void *)&rpt_event->tlvbuf;
 
 	while (event_len >= sizeof(struct mwifiex_ie_types_header)) {
 		rpt = (void *)&rpt_event->tlvbuf;
@@ -231,7 +228,6 @@ int mwifiex_11h_handle_chanrpt_ready(struct mwifiex_private *priv,
 			break;
 		}
 
-		evt_buf += (tlv_len + sizeof(rpt->header));
 		event_len -= (tlv_len + sizeof(rpt->header));
 	}
 
@@ -292,6 +288,6 @@ void mwifiex_dfs_chan_sw_work_queue(struct work_struct *work)
 	mwifiex_dbg(priv->adapter, MSG,
 		    "indicating channel switch completion to kernel\n");
 	mutex_lock(&priv->wdev.mtx);
-	cfg80211_ch_switch_notify(priv->netdev, &priv->dfs_chandef, 0);
+	cfg80211_ch_switch_notify(priv->netdev, &priv->dfs_chandef, 0, 0);
 	mutex_unlock(&priv->wdev.mtx);
 }

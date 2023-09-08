@@ -41,7 +41,7 @@ A consumer can enable its power supply by calling::
 	int regulator_enable(regulator);
 
 NOTE:
-  The supply may already be enabled before regulator_enabled() is called.
+  The supply may already be enabled before regulator_enable() is called.
   This may happen if the consumer shares the regulator or the regulator has been
   previously enabled by bootloader or kernel board initialization code.
 

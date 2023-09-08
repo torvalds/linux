@@ -417,7 +417,7 @@ out_disable_clks:
 	return ret;
 }
 
-static struct scsi_host_template ahci_platform_sht = {
+static const struct scsi_host_template ahci_platform_sht = {
 	AHCI_SHT(DRV_NAME),
 };
 

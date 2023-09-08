@@ -4,6 +4,7 @@
 #include <linux/debugfs.h>
 #include <linux/kernel.h>
 #include <linux/seq_file.h>
+#include <linux/version.h>
 #include "dr_types.h"
 
 #define DR_DBG_PTR_TO_ID(p) ((u64)(uintptr_t)(p) & 0xFFFFFFFFULL)
@@ -49,7 +50,8 @@ enum dr_dump_rec_type {
 	DR_DUMP_REC_TYPE_ACTION_POP_VLAN = 3413,
 	DR_DUMP_REC_TYPE_ACTION_SAMPLER = 3415,
 	DR_DUMP_REC_TYPE_ACTION_INSERT_HDR = 3420,
-	DR_DUMP_REC_TYPE_ACTION_REMOVE_HDR = 3421
+	DR_DUMP_REC_TYPE_ACTION_REMOVE_HDR = 3421,
+	DR_DUMP_REC_TYPE_ACTION_MATCH_RANGE = 3425,
 };
 
 void mlx5dr_dbg_tbl_add(struct mlx5dr_table *tbl)
@@ -107,6 +109,8 @@ dr_dump_rule_action_mem(struct seq_file *file, const u64 rule_id,
 {
 	struct mlx5dr_action *action = action_mem->action;
 	const u64 action_id = DR_DBG_PTR_TO_ID(action);
+	u64 hit_tbl_ptr, miss_tbl_ptr;
+	u32 hit_tbl_id, miss_tbl_id;
 
 	switch (action->action_type) {
 	case DR_ACTION_TYP_DROP:
@@ -137,10 +141,33 @@ dr_dump_rule_action_mem(struct seq_file *file, const u64 rule_id,
 			   action->flow_tag->flow_tag);
 		break;
 	case DR_ACTION_TYP_MODIFY_HDR:
-		seq_printf(file, "%d,0x%llx,0x%llx,0x%x\n",
+	{
+		struct mlx5dr_ptrn_obj *ptrn = action->rewrite->ptrn;
+		struct mlx5dr_arg_obj *arg = action->rewrite->arg;
+		u8 *rewrite_data = action->rewrite->data;
+		bool ptrn_arg;
+		int i;
+
+		ptrn_arg = !action->rewrite->single_action_opt && ptrn && arg;
+
+		seq_printf(file, "%d,0x%llx,0x%llx,0x%x,%d,0x%x,0x%x,0x%x",
 			   DR_DUMP_REC_TYPE_ACTION_MODIFY_HDR, action_id,
-			   rule_id, action->rewrite->index);
+			   rule_id, action->rewrite->index,
+			   action->rewrite->single_action_opt,
+			   ptrn_arg ? action->rewrite->num_of_actions : 0,
+			   ptrn_arg ? ptrn->index : 0,
+			   ptrn_arg ? mlx5dr_arg_get_obj_id(arg) : 0);
+
+		if (ptrn_arg) {
+			for (i = 0; i < action->rewrite->num_of_actions; i++) {
+				seq_printf(file, ",0x%016llx",
+					   be64_to_cpu(((__be64 *)rewrite_data)[i]));
+			}
+		}
+
+		seq_puts(file, "\n");
 		break;
+	}
 	case DR_ACTION_TYP_VPORT:
 		seq_printf(file, "%d,0x%llx,0x%llx,0x%x\n",
 			   DR_DUMP_REC_TYPE_ACTION_VPORT, action_id, rule_id,
@@ -154,7 +181,10 @@ dr_dump_rule_action_mem(struct seq_file *file, const u64 rule_id,
 	case DR_ACTION_TYP_TNL_L3_TO_L2:
 		seq_printf(file, "%d,0x%llx,0x%llx,0x%x\n",
 			   DR_DUMP_REC_TYPE_ACTION_DECAP_L3, action_id,
-			   rule_id, action->rewrite->index);
+			   rule_id,
+			   (action->rewrite->ptrn && action->rewrite->arg) ?
+			   mlx5dr_arg_get_obj_id(action->rewrite->arg) :
+			   action->rewrite->index);
 		break;
 	case DR_ACTION_TYP_L2_TO_TNL_L2:
 		seq_printf(file, "%d,0x%llx,0x%llx,0x%x\n",
@@ -197,6 +227,30 @@ dr_dump_rule_action_mem(struct seq_file *file, const u64 rule_id,
 			   0, 0, action->sampler->sampler_id,
 			   action->sampler->rx_icm_addr,
 			   action->sampler->tx_icm_addr);
+		break;
+	case DR_ACTION_TYP_RANGE:
+		if (action->range->hit_tbl_action->dest_tbl->is_fw_tbl) {
+			hit_tbl_id = action->range->hit_tbl_action->dest_tbl->fw_tbl.id;
+			hit_tbl_ptr = 0;
+		} else {
+			hit_tbl_id = action->range->hit_tbl_action->dest_tbl->tbl->table_id;
+			hit_tbl_ptr =
+				DR_DBG_PTR_TO_ID(action->range->hit_tbl_action->dest_tbl->tbl);
+		}
+
+		if (action->range->miss_tbl_action->dest_tbl->is_fw_tbl) {
+			miss_tbl_id = action->range->miss_tbl_action->dest_tbl->fw_tbl.id;
+			miss_tbl_ptr = 0;
+		} else {
+			miss_tbl_id = action->range->miss_tbl_action->dest_tbl->tbl->table_id;
+			miss_tbl_ptr =
+				DR_DBG_PTR_TO_ID(action->range->miss_tbl_action->dest_tbl->tbl);
+		}
+
+		seq_printf(file, "%d,0x%llx,0x%llx,0x%x,0x%llx,0x%x,0x%llx,0x%x\n",
+			   DR_DUMP_REC_TYPE_ACTION_MATCH_RANGE, action_id, rule_id,
+			   hit_tbl_id, hit_tbl_ptr, miss_tbl_id, miss_tbl_ptr,
+			   action->range->definer_id);
 		break;
 	default:
 		return 0;
@@ -579,9 +633,18 @@ dr_dump_domain(struct seq_file *file, struct mlx5dr_domain *dmn)
 	u64 domain_id = DR_DBG_PTR_TO_ID(dmn);
 	int ret;
 
-	seq_printf(file, "%d,0x%llx,%d,0%x,%d,%s\n", DR_DUMP_REC_TYPE_DOMAIN,
+	seq_printf(file, "%d,0x%llx,%d,0%x,%d,%u.%u.%u,%s,%d,%u,%u,%u\n",
+		   DR_DUMP_REC_TYPE_DOMAIN,
 		   domain_id, dmn->type, dmn->info.caps.gvmi,
-		   dmn->info.supp_sw_steering, pci_name(dmn->mdev->pdev));
+		   dmn->info.supp_sw_steering,
+		   /* package version */
+		   LINUX_VERSION_MAJOR, LINUX_VERSION_PATCHLEVEL,
+		   LINUX_VERSION_SUBLEVEL,
+		   pci_name(dmn->mdev->pdev),
+		   0, /* domain flags */
+		   dmn->num_buddies[DR_ICM_TYPE_STE],
+		   dmn->num_buddies[DR_ICM_TYPE_MODIFY_ACTION],
+		   dmn->num_buddies[DR_ICM_TYPE_MODIFY_HDR_PTRN]);
 
 	ret = dr_dump_domain_info(file, &dmn->info, domain_id);
 	if (ret < 0)

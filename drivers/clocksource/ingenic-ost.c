@@ -141,7 +141,7 @@ static int __init ingenic_ost_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __maybe_unused ingenic_ost_suspend(struct device *dev)
+static int ingenic_ost_suspend(struct device *dev)
 {
 	struct ingenic_ost *ost = dev_get_drvdata(dev);
 
@@ -150,14 +150,14 @@ static int __maybe_unused ingenic_ost_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused ingenic_ost_resume(struct device *dev)
+static int ingenic_ost_resume(struct device *dev)
 {
 	struct ingenic_ost *ost = dev_get_drvdata(dev);
 
 	return clk_enable(ost->clk);
 }
 
-static const struct dev_pm_ops __maybe_unused ingenic_ost_pm_ops = {
+static const struct dev_pm_ops ingenic_ost_pm_ops = {
 	/* _noirq: We want the OST clock to be gated last / ungated first */
 	.suspend_noirq = ingenic_ost_suspend,
 	.resume_noirq  = ingenic_ost_resume,
@@ -181,9 +181,7 @@ static const struct of_device_id ingenic_ost_of_match[] = {
 static struct platform_driver ingenic_ost_driver = {
 	.driver = {
 		.name = "ingenic-ost",
-#ifdef CONFIG_PM_SUSPEND
-		.pm = &ingenic_ost_pm_ops,
-#endif
+		.pm = pm_sleep_ptr(&ingenic_ost_pm_ops),
 		.of_match_table = ingenic_ost_of_match,
 	},
 };

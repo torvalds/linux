@@ -89,9 +89,19 @@
 #define MLX4_EN_FILTER_HASH_SHIFT 4
 #define MLX4_EN_FILTER_EXPIRY_QUOTA 60
 
-/* Typical TSO descriptor with 16 gather entries is 352 bytes... */
-#define MAX_DESC_SIZE		512
-#define MAX_DESC_TXBBS		(MAX_DESC_SIZE / TXBB_SIZE)
+#define CTRL_SIZE	sizeof(struct mlx4_wqe_ctrl_seg)
+#define DS_SIZE		sizeof(struct mlx4_wqe_data_seg)
+
+/* Maximal size of the bounce buffer:
+ * 256 bytes for LSO headers.
+ * CTRL_SIZE for control desc.
+ * DS_SIZE if skb->head contains some payload.
+ * MAX_SKB_FRAGS frags.
+ */
+#define MLX4_TX_BOUNCE_BUFFER_SIZE \
+	ALIGN(256 + CTRL_SIZE + DS_SIZE + MAX_SKB_FRAGS * DS_SIZE, TXBB_SIZE)
+
+#define MLX4_MAX_DESC_TXBBS	   (MLX4_TX_BOUNCE_BUFFER_SIZE / TXBB_SIZE)
 
 /*
  * OS related constants and tunables
@@ -217,9 +227,7 @@ struct mlx4_en_tx_info {
 
 
 #define MLX4_EN_BIT_DESC_OWN	0x80000000
-#define CTRL_SIZE	sizeof(struct mlx4_wqe_ctrl_seg)
 #define MLX4_EN_MEMTYPE_PAD	0x100
-#define DS_SIZE		sizeof(struct mlx4_wqe_data_seg)
 
 
 struct mlx4_en_tx_desc {
@@ -315,7 +323,7 @@ struct mlx4_en_tx_ring {
 
 struct mlx4_en_rx_desc {
 	/* actual number of entries depends on rx ring stride */
-	struct mlx4_wqe_data_seg data[0];
+	DECLARE_FLEX_ARRAY(struct mlx4_wqe_data_seg, data);
 };
 
 struct mlx4_en_rx_ring {
@@ -788,10 +796,16 @@ void mlx4_en_update_pfc_stats_bitmap(struct mlx4_dev *dev,
 int mlx4_en_netdev_event(struct notifier_block *this,
 			 unsigned long event, void *ptr);
 
+struct xdp_md;
+int mlx4_en_xdp_rx_timestamp(const struct xdp_md *ctx, u64 *timestamp);
+int mlx4_en_xdp_rx_hash(const struct xdp_md *ctx, u32 *hash,
+			enum xdp_rss_hash_type *rss_type);
+
 /*
  * Functions for time stamping
  */
 u64 mlx4_en_get_cqe_ts(struct mlx4_cqe *cqe);
+u64 mlx4_en_get_hwtstamp(struct mlx4_en_dev *mdev, u64 timestamp);
 void mlx4_en_fill_hwtstamps(struct mlx4_en_dev *mdev,
 			    struct skb_shared_hwtstamps *hwts,
 			    u64 timestamp);

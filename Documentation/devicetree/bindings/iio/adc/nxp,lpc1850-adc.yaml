@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/iio/adc/nxp,lpc1850-adc.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: NXP LPC1850 ADC bindings
+title: NXP LPC1850 ADC
 
 maintainers:
   - Jonathan Cameron <jic23@kernel.org>

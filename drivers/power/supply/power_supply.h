@@ -16,7 +16,7 @@ struct power_supply;
 #ifdef CONFIG_SYSFS
 
 extern void power_supply_init_attrs(struct device_type *dev_type);
-extern int power_supply_uevent(struct device *dev, struct kobj_uevent_env *env);
+extern int power_supply_uevent(const struct device *dev, struct kobj_uevent_env *env);
 
 #else
 

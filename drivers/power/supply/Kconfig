@@ -28,15 +28,6 @@ config POWER_SUPPLY_HWMON
 	  Say 'Y' here if you want power supplies to
 	  have hwmon sysfs interface too.
 
-
-config PDA_POWER
-	tristate "Generic PDA/phone power driver"
-	depends on !S390
-	help
-	  Say Y here to enable generic power driver for PDAs and phones with
-	  one or two external power supplies (AC/USB) connected to main and
-	  backup batteries, and optional builtin charger.
-
 config APM_POWER
 	tristate "APM emulation for class batteries"
 	depends on APM_EMULATION
@@ -183,6 +174,15 @@ config BATTERY_PMU
 	  Say Y here to expose battery information on Apple machines
 	  through the generic battery class.
 
+config BATTERY_QCOM_BATTMGR
+	tristate "Qualcomm PMIC GLINK battery manager support"
+	depends on QCOM_PMIC_GLINK
+	select AUXILIARY_BUS
+	help
+	  Say Y here to enable the Qualcomm PMIC GLINK power supply driver,
+	  which is used on modern Qualcomm platforms to provide battery and
+	  power supply information.
+
 config BATTERY_OLPC
 	tristate "One Laptop Per Child battery"
 	depends on OLPC_EC
@@ -194,13 +194,6 @@ config BATTERY_SAMSUNG_SDI
 	help
 	  Say Y to enable support for Samsung SDI battery data.
 	  These batteries are used in Samsung mobile phones.
-
-config BATTERY_TOSA
-	tristate "Sharp SL-6000 (tosa) battery"
-	depends on MACH_TOSA && MFD_TC6393XB && TOUCHSCREEN_WM97XX
-	help
-	  Say Y to enable support for the battery on the Sharp Zaurus
-	  SL-6000 (tosa) models.
 
 config BATTERY_COLLIE
 	tristate "Sharp SL-5500 (collie) battery"
@@ -421,18 +414,6 @@ config BATTERY_MAX1721X
 
 	  Say Y here to enable support for the MAX17211/MAX17215 standalone
 	  battery gas-gauge.
-
-config BATTERY_Z2
-	tristate "Z2 battery driver"
-	depends on I2C && MACH_ZIPIT2
-	help
-	  Say Y to include support for the battery on the Zipit Z2.
-
-config BATTERY_S3C_ADC
-	tristate "Battery driver for Samsung ADC based monitoring"
-	depends on S3C_ADC
-	help
-	  Say Y here to enable support for iPAQ h1930/h1940/rx1950 battery
 
 config BATTERY_TWL4030_MADC
 	tristate "TWL4030 MADC battery driver"
@@ -792,6 +773,41 @@ config CHARGER_RT9455
 	select REGMAP_I2C
 	help
 	  Say Y to enable support for Richtek RT9455 battery charger.
+
+config CHARGER_RT9467
+	tristate "Richtek RT9467 Battery Charger Driver"
+	depends on I2C && GPIOLIB && REGULATOR
+	select REGMAP_I2C
+	select REGMAP_IRQ
+	select LINEAR_RANGES
+	help
+	  Say Y here to enable RT9467 Battery Charger.
+	  RT9467 is a switch-mode single cell Li-Ion/Li-Polymer battery charger
+	  for portable applications. It integrates a synchronous PWM controller,
+	  power MOSFETs, input current sensing and regulation, high-accuracy
+	  voltage regulation, and charge termination. The charge current is
+	  regulated through integrated sensing resistors. It also features
+	  USB On-The-Go (OTG) support and integrates D+/D- pin for USB
+	  host/charging port detection.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called "rt9467-charger".
+
+config CHARGER_RT9471
+	tristate "Richtek RT9471 battery charger driver"
+	depends on I2C && GPIOLIB && REGULATOR
+	select REGMAP_I2C
+	select REGMAP_IRQ
+	select LINEAR_RANGES
+	help
+	  This adds support for Richtek RT9471 battery charger. RT9471 is
+	  highly-integrated switch mode battery charger which is system power
+	  patch manageable device for single cell Li-Ion and Li-polymer battery.
+	  It can support BC12 detection on DPDM, and current and voltage
+	  regulation on both charging and boost mode.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called rt9471.
 
 config CHARGER_CROS_USBPD
 	tristate "ChromeOS EC based USBPD charger"

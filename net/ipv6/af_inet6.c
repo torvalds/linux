@@ -114,6 +114,7 @@ void inet6_sock_destruct(struct sock *sk)
 	inet6_cleanup_sock(sk);
 	inet_sock_destruct(sk);
 }
+EXPORT_SYMBOL_GPL(inet6_sock_destruct);
 
 static int inet6_create(struct net *net, struct socket *sock, int protocol,
 			int kern)
@@ -221,6 +222,7 @@ lookup_protocol:
 	np->pmtudisc	= IPV6_PMTUDISC_WANT;
 	np->repflow	= net->ipv6.sysctl.flowlabel_reflect & FLOWLABEL_REFLECT_ESTABLISHED;
 	sk->sk_ipv6only	= net->ipv6.sysctl.bindv6only;
+	sk->sk_txrehash = READ_ONCE(net->core.sysctl_txrehash);
 
 	/* Init the ipv4 part of the socket since we can have sockets
 	 * using v6 API for ipv4.
@@ -237,16 +239,6 @@ lookup_protocol:
 		inet->pmtudisc = IP_PMTUDISC_DONT;
 	else
 		inet->pmtudisc = IP_PMTUDISC_WANT;
-	/*
-	 * Increment only the relevant sk_prot->socks debug field, this changes
-	 * the previous behaviour of incrementing both the equivalent to
-	 * answer->prot->socks (inet6_sock_nr) and inet_sock_nr.
-	 *
-	 * This allows better debug granularity as we'll know exactly how many
-	 * UDPv6, TCPv6, etc socks were allocated, not the sum of all IPv6
-	 * transport protocol socks. -acme
-	 */
-	sk_refcnt_debug_inc(sk);
 
 	if (inet->inet_num) {
 		/* It assumes that any protocol which allows
@@ -409,10 +401,10 @@ static int __inet6_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len,
 	/* Make sure we are allowed to bind here. */
 	if (snum || !(inet->bind_address_no_port ||
 		      (flags & BIND_FORCE_ADDRESS_NO_PORT))) {
-		if (sk->sk_prot->get_port(sk, snum)) {
+		err = sk->sk_prot->get_port(sk, snum);
+		if (err) {
 			sk->sk_ipv6only = saved_ipv6only;
 			inet_reset_saddr(sk);
-			err = -EADDRINUSE;
 			goto out;
 		}
 		if (!(flags & BIND_FROM_BPF)) {
@@ -489,7 +481,7 @@ int inet6_release(struct socket *sock)
 }
 EXPORT_SYMBOL(inet6_release);
 
-void inet6_destroy_sock(struct sock *sk)
+void inet6_cleanup_sock(struct sock *sk)
 {
 	struct ipv6_pinfo *np = inet6_sk(sk);
 	struct sk_buff *skb;
@@ -513,12 +505,6 @@ void inet6_destroy_sock(struct sock *sk)
 		atomic_sub(opt->tot_len, &sk->sk_omem_alloc);
 		txopt_put(opt);
 	}
-}
-EXPORT_SYMBOL_GPL(inet6_destroy_sock);
-
-void inet6_cleanup_sock(struct sock *sk)
-{
-	inet6_destroy_sock(sk);
 }
 EXPORT_SYMBOL_GPL(inet6_cleanup_sock);
 
@@ -859,7 +845,7 @@ int inet6_sk_rebuild_header(struct sock *sk)
 		dst = ip6_dst_lookup_flow(sock_net(sk), sk, &fl6, final_p);
 		if (IS_ERR(dst)) {
 			sk->sk_route_caps = 0;
-			sk->sk_err_soft = -PTR_ERR(dst);
+			WRITE_ONCE(sk->sk_err_soft, -PTR_ERR(dst));
 			return PTR_ERR(dst);
 		}
 
@@ -966,6 +952,7 @@ static int __net_init inet6_net_init(struct net *net)
 	net->ipv6.sysctl.icmpv6_echo_ignore_all = 0;
 	net->ipv6.sysctl.icmpv6_echo_ignore_multicast = 0;
 	net->ipv6.sysctl.icmpv6_echo_ignore_anycast = 0;
+	net->ipv6.sysctl.icmpv6_error_anycast_as_unicast = 0;
 
 	/* By default, rate limit error messages.
 	 * Except for pmtu discovery, it would break it.

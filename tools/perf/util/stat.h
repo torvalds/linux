@@ -8,6 +8,7 @@
 #include <sys/resource.h>
 #include "cpumap.h"
 #include "rblist.h"
+#include "counts.h"
 
 struct perf_cpu_map;
 struct perf_stat_config;
@@ -18,33 +19,27 @@ struct stats {
 	u64 max, min;
 };
 
-enum perf_stat_evsel_id {
-	PERF_STAT_EVSEL_ID__NONE = 0,
-	PERF_STAT_EVSEL_ID__CYCLES_IN_TX,
-	PERF_STAT_EVSEL_ID__TRANSACTION_START,
-	PERF_STAT_EVSEL_ID__ELISION_START,
-	PERF_STAT_EVSEL_ID__CYCLES_IN_TX_CP,
-	PERF_STAT_EVSEL_ID__TOPDOWN_TOTAL_SLOTS,
-	PERF_STAT_EVSEL_ID__TOPDOWN_SLOTS_ISSUED,
-	PERF_STAT_EVSEL_ID__TOPDOWN_SLOTS_RETIRED,
-	PERF_STAT_EVSEL_ID__TOPDOWN_FETCH_BUBBLES,
-	PERF_STAT_EVSEL_ID__TOPDOWN_RECOVERY_BUBBLES,
-	PERF_STAT_EVSEL_ID__TOPDOWN_RETIRING,
-	PERF_STAT_EVSEL_ID__TOPDOWN_BAD_SPEC,
-	PERF_STAT_EVSEL_ID__TOPDOWN_FE_BOUND,
-	PERF_STAT_EVSEL_ID__TOPDOWN_BE_BOUND,
-	PERF_STAT_EVSEL_ID__TOPDOWN_HEAVY_OPS,
-	PERF_STAT_EVSEL_ID__TOPDOWN_BR_MISPREDICT,
-	PERF_STAT_EVSEL_ID__TOPDOWN_FETCH_LAT,
-	PERF_STAT_EVSEL_ID__TOPDOWN_MEM_BOUND,
-	PERF_STAT_EVSEL_ID__SMI_NUM,
-	PERF_STAT_EVSEL_ID__APERF,
-	PERF_STAT_EVSEL_ID__MAX,
+/* hold aggregated event info */
+struct perf_stat_aggr {
+	/* aggregated values */
+	struct perf_counts_values	counts;
+	/* number of entries (CPUs) aggregated */
+	int				nr;
+	/* whether any entry has failed to read/process event */
+	bool				failed;
+	/* to mark this data is processed already */
+	bool				used;
 };
 
+/* per-evsel event stats */
 struct perf_stat_evsel {
+	/* used for repeated runs */
 	struct stats		 res_stats;
-	enum perf_stat_evsel_id	 id;
+	/* number of allocated 'aggr' */
+	int			 nr_aggr;
+	/* aggregated event values */
+	struct perf_stat_aggr	*aggr;
+	/* used for group read */
 	u64			*group_data;
 };
 
@@ -58,55 +53,6 @@ enum aggr_mode {
 	AGGR_UNSET,
 	AGGR_NODE,
 	AGGR_MAX
-};
-
-enum {
-	CTX_BIT_USER	= 1 << 0,
-	CTX_BIT_KERNEL	= 1 << 1,
-	CTX_BIT_HV	= 1 << 2,
-	CTX_BIT_HOST	= 1 << 3,
-	CTX_BIT_IDLE	= 1 << 4,
-	CTX_BIT_MAX	= 1 << 5,
-};
-
-#define NUM_CTX CTX_BIT_MAX
-
-enum stat_type {
-	STAT_NONE = 0,
-	STAT_NSECS,
-	STAT_CYCLES,
-	STAT_STALLED_CYCLES_FRONT,
-	STAT_STALLED_CYCLES_BACK,
-	STAT_BRANCHES,
-	STAT_CACHEREFS,
-	STAT_L1_DCACHE,
-	STAT_L1_ICACHE,
-	STAT_LL_CACHE,
-	STAT_ITLB_CACHE,
-	STAT_DTLB_CACHE,
-	STAT_CYCLES_IN_TX,
-	STAT_TRANSACTION,
-	STAT_ELISION,
-	STAT_TOPDOWN_TOTAL_SLOTS,
-	STAT_TOPDOWN_SLOTS_ISSUED,
-	STAT_TOPDOWN_SLOTS_RETIRED,
-	STAT_TOPDOWN_FETCH_BUBBLES,
-	STAT_TOPDOWN_RECOVERY_BUBBLES,
-	STAT_TOPDOWN_RETIRING,
-	STAT_TOPDOWN_BAD_SPEC,
-	STAT_TOPDOWN_FE_BOUND,
-	STAT_TOPDOWN_BE_BOUND,
-	STAT_TOPDOWN_HEAVY_OPS,
-	STAT_TOPDOWN_BR_MISPREDICT,
-	STAT_TOPDOWN_FETCH_LAT,
-	STAT_TOPDOWN_MEM_BOUND,
-	STAT_SMI_NUM,
-	STAT_APERF,
-	STAT_MAX
-};
-
-struct runtime_stat {
-	struct rblist value_list;
 };
 
 struct rusage_stats {
@@ -138,15 +84,14 @@ struct perf_stat_config {
 	bool			 no_csv_summary;
 	bool			 metric_no_group;
 	bool			 metric_no_merge;
+	bool			 metric_no_threshold;
 	bool			 stop_read_counter;
-	bool			 quiet;
 	bool			 iostat_run;
 	char			 *user_requested_cpu_list;
 	bool			 system_wide;
 	FILE			*output;
 	unsigned int		 interval;
 	unsigned int		 timeout;
-	int			 initial_delay;
 	unsigned int		 unit_width;
 	unsigned int		 metric_only_len;
 	int			 times;
@@ -203,21 +148,6 @@ static inline void update_rusage_stats(struct rusage_stats *ru_stats, struct rus
 struct evsel;
 struct evlist;
 
-struct perf_aggr_thread_value {
-	struct evsel *counter;
-	struct aggr_cpu_id id;
-	double uval;
-	u64 val;
-	u64 run;
-	u64 ena;
-};
-
-bool __perf_stat_evsel__is(struct evsel *evsel, enum perf_stat_evsel_id id);
-
-#define perf_stat_evsel__is(evsel, id) \
-	__perf_stat_evsel__is(evsel, PERF_STAT_EVSEL_ID__ ## id)
-
-extern struct runtime_stat rt_stat;
 extern struct stats walltime_nsecs_stats;
 extern struct rusage_stats ru_stats;
 
@@ -226,13 +156,7 @@ typedef void (*print_metric_t)(struct perf_stat_config *config,
 			       const char *fmt, double val);
 typedef void (*new_line_t)(struct perf_stat_config *config, void *ctx);
 
-void runtime_stat__init(struct runtime_stat *st);
-void runtime_stat__exit(struct runtime_stat *st);
-void perf_stat__init_shadow_stats(void);
 void perf_stat__reset_shadow_stats(void);
-void perf_stat__reset_shadow_per_stat(struct runtime_stat *st);
-void perf_stat__update_shadow_stats(struct evsel *counter, u64 count,
-				    int map_idx, struct runtime_stat *st);
 struct perf_stat_output_ctx {
 	void *ctx;
 	print_metric_t print_metric;
@@ -242,21 +166,26 @@ struct perf_stat_output_ctx {
 
 void perf_stat__print_shadow_stats(struct perf_stat_config *config,
 				   struct evsel *evsel,
-				   double avg, int map_idx,
+				   double avg, int aggr_idx,
 				   struct perf_stat_output_ctx *out,
-				   struct rblist *metric_events,
-				   struct runtime_stat *st);
-void perf_stat__collect_metric_expr(struct evlist *);
+				   struct rblist *metric_events);
 
-int evlist__alloc_stats(struct evlist *evlist, bool alloc_raw);
+int evlist__alloc_stats(struct perf_stat_config *config,
+			struct evlist *evlist, bool alloc_raw);
 void evlist__free_stats(struct evlist *evlist);
 void evlist__reset_stats(struct evlist *evlist);
 void evlist__reset_prev_raw_counts(struct evlist *evlist);
 void evlist__copy_prev_raw_counts(struct evlist *evlist);
 void evlist__save_aggr_prev_raw_counts(struct evlist *evlist);
 
+int evlist__alloc_aggr_stats(struct evlist *evlist, int nr_aggr);
+void evlist__reset_aggr_stats(struct evlist *evlist);
+
 int perf_stat_process_counter(struct perf_stat_config *config,
 			      struct evsel *counter);
+void perf_stat_merge_counters(struct perf_stat_config *config, struct evlist *evlist);
+void perf_stat_process_percore(struct perf_stat_config *config, struct evlist *evlist);
+
 struct perf_tool;
 union perf_event;
 struct perf_session;
@@ -277,5 +206,5 @@ void evlist__print_counters(struct evlist *evlist, struct perf_stat_config *conf
 			    struct target *_target, struct timespec *ts, int argc, const char **argv);
 
 struct metric_expr;
-double test_generic_metric(struct metric_expr *mexp, int map_idx, struct runtime_stat *st);
+double test_generic_metric(struct metric_expr *mexp, int aggr_idx);
 #endif

@@ -14,7 +14,7 @@
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
-#include <linux/qcom-geni-se.h>
+#include <linux/soc/qcom/geni-se.h>
 #include <linux/spinlock.h>
 
 #define SE_I2C_TX_TRANS_LEN		0x26c
@@ -88,6 +88,7 @@ struct geni_i2c_dev {
 	int cur_wr;
 	int cur_rd;
 	spinlock_t lock;
+	struct clk *core_clk;
 	u32 clk_freq_out;
 	const struct geni_i2c_clk_fld *clk_fld;
 	int suspended;
@@ -98,6 +99,13 @@ struct geni_i2c_dev {
 	struct dma_chan *rx_c;
 	bool gpi_mode;
 	bool abort_done;
+};
+
+struct geni_i2c_desc {
+	bool has_core_clk;
+	char *icc_ddr;
+	bool no_dma_support;
+	unsigned int tx_fifo_depth;
 };
 
 struct geni_i2c_err_log {
@@ -763,6 +771,7 @@ static int geni_i2c_probe(struct platform_device *pdev)
 	u32 proto, tx_depth, fifo_disable;
 	int ret;
 	struct device *dev = &pdev->dev;
+	const struct geni_i2c_desc *desc = NULL;
 
 	gi2c = devm_kzalloc(dev, sizeof(*gi2c), GFP_KERNEL);
 	if (!gi2c)
@@ -774,6 +783,14 @@ static int geni_i2c_probe(struct platform_device *pdev)
 	gi2c->se.base = devm_ioremap_resource(dev, res);
 	if (IS_ERR(gi2c->se.base))
 		return PTR_ERR(gi2c->se.base);
+
+	desc = device_get_match_data(&pdev->dev);
+
+	if (desc && desc->has_core_clk) {
+		gi2c->core_clk = devm_clk_get(dev, "core");
+		if (IS_ERR(gi2c->core_clk))
+			return PTR_ERR(gi2c->core_clk);
+	}
 
 	gi2c->se.clk = devm_clk_get(dev, "se");
 	if (IS_ERR(gi2c->se.clk) && !has_acpi_companion(dev))
@@ -818,7 +835,7 @@ static int geni_i2c_probe(struct platform_device *pdev)
 	gi2c->adap.dev.of_node = dev->of_node;
 	strscpy(gi2c->adap.name, "Geni-I2C", sizeof(gi2c->adap.name));
 
-	ret = geni_icc_get(&gi2c->se, "qup-memory");
+	ret = geni_icc_get(&gi2c->se, desc ? desc->icc_ddr : "qup-memory");
 	if (ret)
 		return ret;
 	/*
@@ -828,9 +845,14 @@ static int geni_i2c_probe(struct platform_device *pdev)
 	 */
 	gi2c->se.icc_paths[GENI_TO_CORE].avg_bw = GENI_DEFAULT_BW;
 	gi2c->se.icc_paths[CPU_TO_GENI].avg_bw = GENI_DEFAULT_BW;
-	gi2c->se.icc_paths[GENI_TO_DDR].avg_bw = Bps_to_icc(gi2c->clk_freq_out);
+	if (!desc || desc->icc_ddr)
+		gi2c->se.icc_paths[GENI_TO_DDR].avg_bw = Bps_to_icc(gi2c->clk_freq_out);
 
 	ret = geni_icc_set_bw(&gi2c->se);
+	if (ret)
+		return ret;
+
+	ret = clk_prepare_enable(gi2c->core_clk);
 	if (ret)
 		return ret;
 
@@ -843,10 +865,15 @@ static int geni_i2c_probe(struct platform_device *pdev)
 	if (proto != GENI_SE_I2C) {
 		dev_err(dev, "Invalid proto %d\n", proto);
 		geni_se_resources_off(&gi2c->se);
+		clk_disable_unprepare(gi2c->core_clk);
 		return -ENXIO;
 	}
 
-	fifo_disable = readl_relaxed(gi2c->se.base + GENI_IF_DISABLE_RO) & FIFO_IF_DISABLE;
+	if (desc && desc->no_dma_support)
+		fifo_disable = false;
+	else
+		fifo_disable = readl_relaxed(gi2c->se.base + GENI_IF_DISABLE_RO) & FIFO_IF_DISABLE;
+
 	if (fifo_disable) {
 		/* FIFO is disabled, so we can only use GPI DMA */
 		gi2c->gpi_mode = true;
@@ -858,6 +885,16 @@ static int geni_i2c_probe(struct platform_device *pdev)
 	} else {
 		gi2c->gpi_mode = false;
 		tx_depth = geni_se_get_tx_fifo_depth(&gi2c->se);
+
+		/* I2C Master Hub Serial Elements doesn't have the HW_PARAM_0 register */
+		if (!tx_depth && desc)
+			tx_depth = desc->tx_fifo_depth;
+
+		if (!tx_depth) {
+			dev_err(dev, "Invalid TX FIFO depth\n");
+			return -EINVAL;
+		}
+
 		gi2c->tx_wm = tx_depth - 1;
 		geni_se_init(&gi2c->se, gi2c->tx_wm, tx_depth);
 		geni_se_config_packing(&gi2c->se, BITS_PER_BYTE,
@@ -866,6 +903,7 @@ static int geni_i2c_probe(struct platform_device *pdev)
 		dev_dbg(dev, "i2c fifo/se-dma mode. fifo depth:%d\n", tx_depth);
 	}
 
+	clk_disable_unprepare(gi2c->core_clk);
 	ret = geni_se_resources_off(&gi2c->se);
 	if (ret) {
 		dev_err(dev, "Error turning off resources %d\n", ret);
@@ -931,6 +969,8 @@ static int __maybe_unused geni_i2c_runtime_suspend(struct device *dev)
 		gi2c->suspended = 1;
 	}
 
+	clk_disable_unprepare(gi2c->core_clk);
+
 	return geni_icc_disable(&gi2c->se);
 }
 
@@ -940,6 +980,10 @@ static int __maybe_unused geni_i2c_runtime_resume(struct device *dev)
 	struct geni_i2c_dev *gi2c = dev_get_drvdata(dev);
 
 	ret = geni_icc_enable(&gi2c->se);
+	if (ret)
+		return ret;
+
+	ret = clk_prepare_enable(gi2c->core_clk);
 	if (ret)
 		return ret;
 
@@ -981,8 +1025,16 @@ static const struct dev_pm_ops geni_i2c_pm_ops = {
 									NULL)
 };
 
+static const struct geni_i2c_desc i2c_master_hub = {
+	.has_core_clk = true,
+	.icc_ddr = NULL,
+	.no_dma_support = true,
+	.tx_fifo_depth = 16,
+};
+
 static const struct of_device_id geni_i2c_dt_match[] = {
 	{ .compatible = "qcom,geni-i2c" },
+	{ .compatible = "qcom,geni-i2c-master-hub", .data = &i2c_master_hub },
 	{}
 };
 MODULE_DEVICE_TABLE(of, geni_i2c_dt_match);

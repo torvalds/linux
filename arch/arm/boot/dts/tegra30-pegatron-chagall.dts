@@ -37,6 +37,14 @@
 	 */
 	chosen {};
 
+	firmware {
+		trusted-foundations {
+			compatible = "tlm,trusted-foundations";
+			tlm,version-major = <2>;
+			tlm,version-minor = <8>;
+		};
+	};
+
 	memory@80000000 {
 		reg = <0x80000000 0x40000000>;
 	};
@@ -134,7 +142,7 @@
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 				nvidia,enable-input = <TEGRA_PIN_ENABLE>;
 				nvidia,lock = <0>;
-				nvidia,ioreset = <0>;
+				nvidia,io-reset = <0>;
 			};
 
 			/* SDMMC3 pinmux */
@@ -149,7 +157,6 @@
 			sdmmc3_cmd_pa7 {
 				nvidia,pins = "sdmmc3_cmd_pa7",
 						"sdmmc3_dat3_pb4",
-						"sdmmc3_dat2_pb5",
 						"sdmmc3_dat2_pb5",
 						"sdmmc3_dat1_pb6",
 						"sdmmc3_dat0_pb7",
@@ -622,7 +629,7 @@
 				nvidia,tristate = <TEGRA_PIN_ENABLE>;
 				nvidia,enable-input = <TEGRA_PIN_ENABLE>;
 				nvidia,lock = <0>;
-				nvidia,ioreset = <0>;
+				nvidia,io-reset = <0>;
 			};
 
 			pu1 {
@@ -689,7 +696,7 @@
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 				nvidia,enable-input = <TEGRA_PIN_ENABLE>;
 				nvidia,lock = <0>;
-				nvidia,ioreset = <0>;
+				nvidia,io-reset = <0>;
 			};
 
 			vi_d10_pt2 {
@@ -864,7 +871,7 @@
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 				nvidia,enable-input = <TEGRA_PIN_DISABLE>;
 				nvidia,lock = <0>;
-				nvidia,ioreset = <0>;
+				nvidia,io-reset = <0>;
 			};
 
 			vi_mclk_pt1 {
@@ -1191,16 +1198,6 @@
 		status = "okay";
 		clock-frequency = <400000>;
 
-		light-sensor@44 {
-			compatible = "isil,isl29023";
-			reg = <0x44>;
-
-			interrupt-parent = <&gpio>;
-			interrupts = <TEGRA_GPIO(Q, 3) IRQ_TYPE_LEVEL_HIGH>;
-
-			vcc-supply = <&vdd_3v3_sen>;
-		};
-
 		/* AsahiKASEI AK8975 magnetometer sensor */
 		magnetometer@c {
 			compatible = "asahi-kasei,ak8975";
@@ -1212,6 +1209,16 @@
 			mount-matrix =   "0",  "1",  "0",
 					 "1",  "0",  "0",
 					 "0",  "0", "-1";
+		};
+
+		light-sensor@44 {
+			compatible = "isil,isl29023";
+			reg = <0x44>;
+
+			interrupt-parent = <&gpio>;
+			interrupts = <TEGRA_GPIO(Q, 3) IRQ_TYPE_LEVEL_HIGH>;
+
+			vcc-supply = <&vdd_3v3_sen>;
 		};
 
 		gyroscope@68 {
@@ -1259,17 +1266,6 @@
 	i2c5: i2c@7000d000 {
 		status = "okay";
 		clock-frequency = <400000>;
-
-		nct72: temperature-sensor@4c {
-			compatible = "onnn,nct1008";
-			reg = <0x4c>;
-
-			interrupt-parent = <&gpio>;
-			interrupts = <TEGRA_GPIO(U, 5) IRQ_TYPE_EDGE_FALLING>;
-
-			vcc-supply = <&vdd_3v3_sys>;
-			#thermal-sensor-cells = <1>;
-		};
 
 		/* Texas Instruments TPS659110 PMIC */
 		pmic: pmic@2d {
@@ -1399,6 +1395,17 @@
 					ti,regulator-ext-sleep-control = <8>;
 				};
 			};
+		};
+
+		nct72: temperature-sensor@4c {
+			compatible = "onnn,nct1008";
+			reg = <0x4c>;
+
+			interrupt-parent = <&gpio>;
+			interrupts = <TEGRA_GPIO(U, 5) IRQ_TYPE_EDGE_FALLING>;
+
+			vcc-supply = <&vdd_3v3_sys>;
+			#thermal-sensor-cells = <1>;
 		};
 
 		vdd_core: core-regulator@60 {
@@ -2507,17 +2514,6 @@
 		vqmmc-supply = <&vddio_usd>; /* ldo3 */
 	};
 
-	brcm_wifi_pwrseq: wifi-pwrseq {
-		compatible = "mmc-pwrseq-simple";
-
-		clocks = <&tegra_pmc TEGRA_PMC_CLK_BLINK>;
-		clock-names = "ext_clock";
-
-		reset-gpios = <&gpio TEGRA_GPIO(D, 3) GPIO_ACTIVE_LOW>;
-		post-power-on-delay-ms = <300>;
-		power-off-delay-us = <300>;
-	};
-
 	sdmmc3: mmc@78000400 {
 		status = "okay";
 
@@ -2653,7 +2649,6 @@
 
 	extcon-keys {
 		compatible = "gpio-keys";
-		interrupt-parent = <&gpio>;
 
 		switch-dock-insert {
 			label = "Chagall Dock";
@@ -2676,31 +2671,13 @@
 		};
 	};
 
-	firmware {
-		trusted-foundations {
-			compatible = "tlm,trusted-foundations";
-			tlm,version-major = <2>;
-			tlm,version-minor = <8>;
-		};
-	};
-
 	gpio-keys {
 		compatible = "gpio-keys";
-		interrupt-parent = <&gpio>;
 
 		key-power {
 			label = "Power";
 			gpios = <&gpio TEGRA_GPIO(V, 0) GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_POWER>;
-			debounce-interval = <10>;
-			wakeup-event-action = <EV_ACT_ASSERTED>;
-			wakeup-source;
-		};
-
-		key-volume-up {
-			label = "Volume Up";
-			gpios = <&gpio TEGRA_GPIO(Q, 0) GPIO_ACTIVE_LOW>;
-			linux,code = <KEY_VOLUMEUP>;
 			debounce-interval = <10>;
 			wakeup-event-action = <EV_ACT_ASSERTED>;
 			wakeup-source;
@@ -2714,12 +2691,49 @@
 			wakeup-event-action = <EV_ACT_ASSERTED>;
 			wakeup-source;
 		};
+
+		key-volume-up {
+			label = "Volume Up";
+			gpios = <&gpio TEGRA_GPIO(Q, 0) GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_VOLUMEUP>;
+			debounce-interval = <10>;
+			wakeup-event-action = <EV_ACT_ASSERTED>;
+			wakeup-source;
+		};
 	};
 
 	haptic-feedback {
 		compatible = "gpio-vibrator";
 		enable-gpios = <&gpio TEGRA_GPIO(U, 4) GPIO_ACTIVE_HIGH>;
 		vcc-supply = <&vdd_3v3_sys>;
+	};
+
+	opp-table-actmon {
+		/delete-node/ opp-625000000;
+		/delete-node/ opp-667000000;
+		/delete-node/ opp-750000000;
+		/delete-node/ opp-800000000;
+		/delete-node/ opp-900000000;
+	};
+
+	opp-table-emc {
+		/delete-node/ opp-625000000-1200;
+		/delete-node/ opp-625000000-1250;
+		/delete-node/ opp-667000000-1200;
+		/delete-node/ opp-750000000-1300;
+		/delete-node/ opp-800000000-1300;
+		/delete-node/ opp-900000000-1350;
+	};
+
+	brcm_wifi_pwrseq: pwrseq-wifi {
+		compatible = "mmc-pwrseq-simple";
+
+		clocks = <&tegra_pmc TEGRA_PMC_CLK_BLINK>;
+		clock-names = "ext_clock";
+
+		reset-gpios = <&gpio TEGRA_GPIO(D, 3) GPIO_ACTIVE_LOW>;
+		post-power-on-delay-ms = <300>;
+		power-off-delay-us = <300>;
 	};
 
 	sound {
@@ -2841,21 +2855,4 @@
 			};
 		};
 	};
-};
-
-&emc_icc_dvfs_opp_table {
-	/delete-node/ opp-625000000-1200;
-	/delete-node/ opp-625000000-1250;
-	/delete-node/ opp-667000000-1200;
-	/delete-node/ opp-750000000-1300;
-	/delete-node/ opp-800000000-1300;
-	/delete-node/ opp-900000000-1350;
-};
-
-&emc_bw_dfs_opp_table {
-	/delete-node/ opp-625000000;
-	/delete-node/ opp-667000000;
-	/delete-node/ opp-750000000;
-	/delete-node/ opp-800000000;
-	/delete-node/ opp-900000000;
 };

@@ -29,10 +29,18 @@ struct selinux_policy {
 	u32 latest_granting;
 } __randomize_layout;
 
-void services_compute_xperms_drivers(struct extended_perms *xperms,
-				struct avtab_node *node);
+struct convert_context_args {
+	struct policydb *oldp;
+	struct policydb *newp;
+};
 
+void services_compute_xperms_drivers(struct extended_perms *xperms,
+				     struct avtab_node *node);
 void services_compute_xperms_decision(struct extended_perms_decision *xpermd,
-					struct avtab_node *node);
+				      struct avtab_node *node);
+
+int services_convert_context(struct convert_context_args *args,
+			     struct context *oldc, struct context *newc,
+			     gfp_t gfp_flags);
 
 #endif	/* _SS_SERVICES_H_ */

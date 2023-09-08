@@ -31,24 +31,17 @@ properties:
 
 patternProperties:
   "@[0-9a-f]+$":
-    allOf:
-      - $ref: "partition.yaml#"
-      - if:
-          properties:
-            compatible:
-              contains:
-                const: sercomm,sc-partitions
-        then:
-          properties:
-            sercomm,scpart-id:
-              description: Partition id in Sercomm partition map. Mtd
-                parser uses this id to find a record in the partition map
-                containing offset and size of the current partition. The
-                values from partition map overrides partition offset and
-                size defined in reg property of the dts. Frequently these
-                values are the same, but may differ if device has bad
-                eraseblocks on a flash.
-              $ref: /schemas/types.yaml#/definitions/uint32
+    $ref: partition.yaml#
+
+    properties:
+      sercomm,scpart-id:
+        description: Partition id in Sercomm partition map. Mtd parser
+          uses this id to find a record in the partition map containing
+          offset and size of the current partition. The values from
+          partition map overrides partition offset and size defined in
+          reg property of the dts. Frequently these values are the same,
+          but may differ if device has bad eraseblocks on a flash.
+        $ref: /schemas/types.yaml#/definitions/uint32
 
 required:
   - "#address-cells"
@@ -84,6 +77,7 @@ examples:
         partition@0 {
             label = "filesystem";
             reg = <0x00000000 0x1 0x00000000>;
+            linux,rootfs;
         };
     };
 

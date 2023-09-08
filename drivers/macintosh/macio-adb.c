@@ -100,7 +100,7 @@ int macio_init(void)
 	unsigned int irq;
 
 	adbs = of_find_compatible_node(NULL, "adb", "chrp,adb0");
-	if (adbs == 0)
+	if (!adbs)
 		return -ENXIO;
 
 	if (of_address_to_resource(adbs, 0, &r)) {
@@ -108,6 +108,10 @@ int macio_init(void)
 		return -ENXIO;
 	}
 	adb = ioremap(r.start, sizeof(struct adb_regs));
+	if (!adb) {
+		of_node_put(adbs);
+		return -ENOMEM;
+	}
 
 	out_8(&adb->ctrl.r, 0);
 	out_8(&adb->intr.r, 0);
@@ -183,7 +187,7 @@ static int macio_send_request(struct adb_request *req, int sync)
 	req->reply_len = 0;
 
 	spin_lock_irqsave(&macio_lock, flags);
-	if (current_req != 0) {
+	if (current_req) {
 		last_req->next = req;
 		last_req = req;
 	} else {
@@ -213,7 +217,8 @@ static irqreturn_t macio_adb_interrupt(int irq, void *arg)
 	spin_lock(&macio_lock);
 	if (in_8(&adb->intr.r) & TAG) {
 		handled = 1;
-		if ((req = current_req) != 0) {
+		req = current_req;
+		if (req) {
 			/* put the current request in */
 			for (i = 0; i < req->nbytes; ++i)
 				out_8(&adb->data[i].r, req->data[i]);

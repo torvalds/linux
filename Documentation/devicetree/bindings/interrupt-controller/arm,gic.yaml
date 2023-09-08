@@ -133,8 +133,8 @@ properties:
       - items: # for "arm,cortex-a9-gic"
           - const: PERIPHCLK
           - const: PERIPHCLKEN
-      - const: clk # for "arm,gic-400" and "nvidia,tegra210"
-      - const: gclk #for "arm,pl390"
+      - const: clk  # for "arm,gic-400" and "nvidia,tegra210"
+      - const: gclk # for "arm,pl390"
 
   power-domains:
     maxItems: 1

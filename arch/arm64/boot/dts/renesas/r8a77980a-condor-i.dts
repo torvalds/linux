@@ -13,3 +13,7 @@
 	model = "Renesas Condor-I board based on r8a77980A (ES2.0)";
 	compatible = "renesas,condor-i", "renesas,r8a77980a", "renesas,r8a77980";
 };
+
+&mmc0 {
+	mmc-hs400-1_8v;
+};

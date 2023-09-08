@@ -1,0 +1,79 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/ufs/sprd,ums9620-ufs.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Unisoc Universal Flash Storage (UFS) Controller
+
+maintainers:
+  - Zhe Wang <zhe.wang1@unisoc.com>
+
+allOf:
+  - $ref: ufs-common.yaml
+
+properties:
+  compatible:
+    const: sprd,ums9620-ufs
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    maxItems: 3
+
+  clock-names:
+    items:
+      - const: controller_eb
+      - const: cfg_eb
+      - const: core
+
+  resets:
+    maxItems: 2
+
+  reset-names:
+    items:
+      - const: controller
+      - const: device
+
+  vdd-mphy-supply:
+    description:
+      Phandle to vdd-mphy supply regulator node.
+
+  sprd,ufs-anlg-syscon:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description: phandle of syscon used to control ufs analog regs.
+
+  sprd,aon-apb-syscon:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description: phandle of syscon used to control always-on regs.
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - clock-names
+  - resets
+  - reset-names
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    ufs: ufs@22000000 {
+        compatible = "sprd,ums9620-ufs";
+        reg = <0x22000000 0x3000>;
+        interrupts = <GIC_SPI 159 IRQ_TYPE_LEVEL_HIGH>;
+        vcc-supply = <&vddemmccore>;
+        vdd-mphy-supply = <&vddufs1v2>;
+        clocks = <&apahb_gate 5>, <&apahb_gate 22>, <&aonapb_clk 52>;
+        clock-names = "controller_eb", "cfg_eb", "core";
+        assigned-clocks = <&aonapb_clk 52>;
+        assigned-clock-parents = <&g5l_pll 12>;
+        resets = <&apahb_gate 4>, <&aonapb_gate 69>;
+        reset-names = "controller", "device";
+        sprd,ufs-anlg-syscon = <&anlg_phy_g12_regs>;
+        sprd,aon-apb-syscon = <&aon_apb_regs>;
+    };

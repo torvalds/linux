@@ -108,18 +108,6 @@ static int eee_fill_reply(struct sk_buff *skb,
 	return 0;
 }
 
-const struct ethnl_request_ops ethnl_eee_request_ops = {
-	.request_cmd		= ETHTOOL_MSG_EEE_GET,
-	.reply_cmd		= ETHTOOL_MSG_EEE_GET_REPLY,
-	.hdr_attr		= ETHTOOL_A_EEE_HEADER,
-	.req_info_size		= sizeof(struct eee_req_info),
-	.reply_data_size	= sizeof(struct eee_reply_data),
-
-	.prepare_data		= eee_prepare_data,
-	.reply_size		= eee_reply_size,
-	.fill_reply		= eee_fill_reply,
-};
-
 /* EEE_SET */
 
 const struct nla_policy ethnl_eee_set_policy[] = {
@@ -131,60 +119,56 @@ const struct nla_policy ethnl_eee_set_policy[] = {
 	[ETHTOOL_A_EEE_TX_LPI_TIMER]	= { .type = NLA_U32 },
 };
 
-int ethnl_set_eee(struct sk_buff *skb, struct genl_info *info)
+static int
+ethnl_set_eee_validate(struct ethnl_req_info *req_info, struct genl_info *info)
 {
-	struct ethnl_req_info req_info = {};
+	const struct ethtool_ops *ops = req_info->dev->ethtool_ops;
+
+	return ops->get_eee && ops->set_eee ? 1 : -EOPNOTSUPP;
+}
+
+static int
+ethnl_set_eee(struct ethnl_req_info *req_info, struct genl_info *info)
+{
+	struct net_device *dev = req_info->dev;
 	struct nlattr **tb = info->attrs;
-	const struct ethtool_ops *ops;
 	struct ethtool_eee eee = {};
-	struct net_device *dev;
 	bool mod = false;
 	int ret;
 
-	ret = ethnl_parse_header_dev_get(&req_info,
-					 tb[ETHTOOL_A_EEE_HEADER],
-					 genl_info_net(info), info->extack,
-					 true);
+	ret = dev->ethtool_ops->get_eee(dev, &eee);
 	if (ret < 0)
 		return ret;
-	dev = req_info.dev;
-	ops = dev->ethtool_ops;
-	ret = -EOPNOTSUPP;
-	if (!ops->get_eee || !ops->set_eee)
-		goto out_dev;
-
-	rtnl_lock();
-	ret = ethnl_ops_begin(dev);
-	if (ret < 0)
-		goto out_rtnl;
-	ret = ops->get_eee(dev, &eee);
-	if (ret < 0)
-		goto out_ops;
 
 	ret = ethnl_update_bitset32(&eee.advertised, EEE_MODES_COUNT,
 				    tb[ETHTOOL_A_EEE_MODES_OURS],
 				    link_mode_names, info->extack, &mod);
 	if (ret < 0)
-		goto out_ops;
+		return ret;
 	ethnl_update_bool32(&eee.eee_enabled, tb[ETHTOOL_A_EEE_ENABLED], &mod);
 	ethnl_update_bool32(&eee.tx_lpi_enabled,
 			    tb[ETHTOOL_A_EEE_TX_LPI_ENABLED], &mod);
 	ethnl_update_u32(&eee.tx_lpi_timer, tb[ETHTOOL_A_EEE_TX_LPI_TIMER],
 			 &mod);
-	ret = 0;
 	if (!mod)
-		goto out_ops;
+		return 0;
 
 	ret = dev->ethtool_ops->set_eee(dev, &eee);
-	if (ret < 0)
-		goto out_ops;
-	ethtool_notify(dev, ETHTOOL_MSG_EEE_NTF, NULL);
-
-out_ops:
-	ethnl_ops_complete(dev);
-out_rtnl:
-	rtnl_unlock();
-out_dev:
-	ethnl_parse_header_dev_put(&req_info);
-	return ret;
+	return ret < 0 ? ret : 1;
 }
+
+const struct ethnl_request_ops ethnl_eee_request_ops = {
+	.request_cmd		= ETHTOOL_MSG_EEE_GET,
+	.reply_cmd		= ETHTOOL_MSG_EEE_GET_REPLY,
+	.hdr_attr		= ETHTOOL_A_EEE_HEADER,
+	.req_info_size		= sizeof(struct eee_req_info),
+	.reply_data_size	= sizeof(struct eee_reply_data),
+
+	.prepare_data		= eee_prepare_data,
+	.reply_size		= eee_reply_size,
+	.fill_reply		= eee_fill_reply,
+
+	.set_validate		= ethnl_set_eee_validate,
+	.set			= ethnl_set_eee,
+	.set_ntf_cmd		= ETHTOOL_MSG_EEE_NTF,
+};

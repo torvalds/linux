@@ -76,5 +76,23 @@
 				};
 			};
 		};
+
+		/* LAN port */
+		ethernet@c8009000 {
+			status = "okay";
+			queue-rx = <&qmgr 3>;
+			queue-txready = <&qmgr 20>;
+			phy-mode = "rgmii";
+			phy-handle = <&phy5>;
+
+			mdio {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				phy5: ethernet-phy@5 {
+					reg = <5>;
+				};
+			};
+		};
 	};
 };

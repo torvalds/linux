@@ -715,7 +715,7 @@ static int stm_char_mmap(struct file *file, struct vm_area_struct *vma)
 	pm_runtime_get_sync(&stm->dev);
 
 	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
-	vma->vm_flags |= VM_IO | VM_DONTEXPAND | VM_DONTDUMP;
+	vm_flags_set(vma, VM_IO | VM_DONTEXPAND | VM_DONTDUMP);
 	vma->vm_ops = &stm_mmap_vmops;
 	vm_iomap_memory(vma, phys, size);
 

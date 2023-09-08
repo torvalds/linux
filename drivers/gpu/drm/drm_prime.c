@@ -285,7 +285,7 @@ EXPORT_SYMBOL(drm_gem_dmabuf_release);
 
 /**
  * drm_gem_prime_fd_to_handle - PRIME import function for GEM drivers
- * @dev: dev to export the buffer from
+ * @dev: drm_device to import into
  * @file_priv: drm file-private structure
  * @prime_fd: fd id of the dma-buf which should be imported
  * @handle: pointer to storage for the handle of the imported buffer object
@@ -544,7 +544,8 @@ int drm_prime_handle_to_fd_ioctl(struct drm_device *dev, void *data,
  * Optional pinning of buffers is handled at dma-buf attach and detach time in
  * drm_gem_map_attach() and drm_gem_map_detach(). Backing storage itself is
  * handled by drm_gem_map_dma_buf() and drm_gem_unmap_dma_buf(), which relies on
- * &drm_gem_object_funcs.get_sg_table.
+ * &drm_gem_object_funcs.get_sg_table. If &drm_gem_object_funcs.get_sg_table is
+ * unimplemented, exports into another device are rejected.
  *
  * For kernel-internal access there's drm_gem_dmabuf_vmap() and
  * drm_gem_dmabuf_vunmap(). Userspace mmap support is provided by
@@ -582,6 +583,9 @@ int drm_gem_map_attach(struct dma_buf *dma_buf,
 		       struct dma_buf_attachment *attach)
 {
 	struct drm_gem_object *obj = dma_buf->priv;
+
+	if (!obj->funcs->get_sg_table)
+		return -ENOSYS;
 
 	return drm_gem_pin(obj);
 }
@@ -781,6 +785,8 @@ int drm_gem_dmabuf_mmap(struct dma_buf *dma_buf, struct vm_area_struct *vma)
 	struct drm_gem_object *obj = dma_buf->priv;
 	struct drm_device *dev = obj->dev;
 
+	dma_resv_assert_held(dma_buf->resv);
+
 	if (!dev->driver->gem_prime_mmap)
 		return -ENOSYS;
 
@@ -923,7 +929,7 @@ struct drm_gem_object *drm_gem_prime_import_dev(struct drm_device *dev,
 		obj = dma_buf->priv;
 		if (obj->dev == dev) {
 			/*
-			 * Importing dmabuf exported from out own gem increases
+			 * Importing dmabuf exported from our own gem increases
 			 * refcount on gem itself instead of f_count of dmabuf.
 			 */
 			drm_gem_object_get(obj);
@@ -940,7 +946,7 @@ struct drm_gem_object *drm_gem_prime_import_dev(struct drm_device *dev,
 
 	get_dma_buf(dma_buf);
 
-	sgt = dma_buf_map_attachment(attach, DMA_BIDIRECTIONAL);
+	sgt = dma_buf_map_attachment_unlocked(attach, DMA_BIDIRECTIONAL);
 	if (IS_ERR(sgt)) {
 		ret = PTR_ERR(sgt);
 		goto fail_detach;
@@ -958,7 +964,7 @@ struct drm_gem_object *drm_gem_prime_import_dev(struct drm_device *dev,
 	return obj;
 
 fail_unmap:
-	dma_buf_unmap_attachment(attach, sgt, DMA_BIDIRECTIONAL);
+	dma_buf_unmap_attachment_unlocked(attach, sgt, DMA_BIDIRECTIONAL);
 fail_detach:
 	dma_buf_detach(dma_buf, attach);
 	dma_buf_put(dma_buf);
@@ -1056,7 +1062,7 @@ void drm_prime_gem_destroy(struct drm_gem_object *obj, struct sg_table *sg)
 
 	attach = obj->import_attach;
 	if (sg)
-		dma_buf_unmap_attachment(attach, sg, DMA_BIDIRECTIONAL);
+		dma_buf_unmap_attachment_unlocked(attach, sg, DMA_BIDIRECTIONAL);
 	dma_buf = attach->dmabuf;
 	dma_buf_detach(attach->dmabuf, attach);
 	/* remove the reference */

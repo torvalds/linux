@@ -20,7 +20,7 @@
 
 static bool intel_pxp_session_is_in_play(struct intel_pxp *pxp, u32 id)
 {
-	struct intel_uncore *uncore = pxp_to_gt(pxp)->uncore;
+	struct intel_uncore *uncore = pxp->ctrl_gt->uncore;
 	intel_wakeref_t wakeref;
 	u32 sip = 0;
 
@@ -33,7 +33,7 @@ static bool intel_pxp_session_is_in_play(struct intel_pxp *pxp, u32 id)
 
 static int pxp_wait_for_session_state(struct intel_pxp *pxp, u32 id, bool in_play)
 {
-	struct intel_uncore *uncore = pxp_to_gt(pxp)->uncore;
+	struct intel_uncore *uncore = pxp->ctrl_gt->uncore;
 	intel_wakeref_t wakeref;
 	u32 mask = BIT(id);
 	int ret;
@@ -56,7 +56,7 @@ static int pxp_wait_for_session_state(struct intel_pxp *pxp, u32 id, bool in_pla
 
 static int pxp_create_arb_session(struct intel_pxp *pxp)
 {
-	struct intel_gt *gt = pxp_to_gt(pxp);
+	struct intel_gt *gt = pxp->ctrl_gt;
 	int ret;
 
 	pxp->arb_is_valid = false;
@@ -74,9 +74,10 @@ static int pxp_create_arb_session(struct intel_pxp *pxp)
 
 	ret = pxp_wait_for_session_state(pxp, ARB_SESSION, true);
 	if (ret) {
-		drm_err(&gt->i915->drm, "arb session failed to go in play\n");
+		drm_dbg(&gt->i915->drm, "arb session failed to go in play\n");
 		return ret;
 	}
+	drm_dbg(&gt->i915->drm, "PXP ARB session is alive\n");
 
 	if (!++pxp->key_instance)
 		++pxp->key_instance;
@@ -89,7 +90,7 @@ static int pxp_create_arb_session(struct intel_pxp *pxp)
 static int pxp_terminate_arb_session_and_global(struct intel_pxp *pxp)
 {
 	int ret;
-	struct intel_gt *gt = pxp_to_gt(pxp);
+	struct intel_gt *gt = pxp->ctrl_gt;
 
 	/* must mark termination in progress calling this function */
 	GEM_WARN_ON(pxp->arb_is_valid);
@@ -109,14 +110,16 @@ static int pxp_terminate_arb_session_and_global(struct intel_pxp *pxp)
 
 	intel_uncore_write(gt->uncore, PXP_GLOBAL_TERMINATE, 1);
 
+	intel_pxp_tee_end_arb_fw_session(pxp, ARB_SESSION);
+
 	return ret;
 }
 
-static void pxp_terminate(struct intel_pxp *pxp)
+void intel_pxp_terminate(struct intel_pxp *pxp, bool post_invalidation_needs_restart)
 {
 	int ret;
 
-	pxp->hw_state_invalidated = true;
+	pxp->hw_state_invalidated = post_invalidation_needs_restart;
 
 	/*
 	 * if we fail to submit the termination there is no point in waiting for
@@ -137,10 +140,10 @@ static void pxp_terminate_complete(struct intel_pxp *pxp)
 	complete_all(&pxp->termination);
 }
 
-void intel_pxp_session_work(struct work_struct *work)
+static void pxp_session_work(struct work_struct *work)
 {
 	struct intel_pxp *pxp = container_of(work, typeof(*pxp), session_work);
-	struct intel_gt *gt = pxp_to_gt(pxp);
+	struct intel_gt *gt = pxp->ctrl_gt;
 	intel_wakeref_t wakeref;
 	u32 events = 0;
 
@@ -164,11 +167,17 @@ void intel_pxp_session_work(struct work_struct *work)
 
 	if (events & PXP_TERMINATION_REQUEST) {
 		events &= ~PXP_TERMINATION_COMPLETE;
-		pxp_terminate(pxp);
+		intel_pxp_terminate(pxp, true);
 	}
 
 	if (events & PXP_TERMINATION_COMPLETE)
 		pxp_terminate_complete(pxp);
 
 	intel_runtime_pm_put(gt->uncore->rpm, wakeref);
+}
+
+void intel_pxp_session_management_init(struct intel_pxp *pxp)
+{
+	mutex_init(&pxp->arb_mutex);
+	INIT_WORK(&pxp->session_work, pxp_session_work);
 }

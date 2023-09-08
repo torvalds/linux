@@ -166,8 +166,7 @@ static irqreturn_t uart_clps711x_int_tx(int irq, void *dev_id)
 		u32 sysflg = 0;
 
 		writew(xmit->buf[xmit->tail], port->membase + UARTDR_OFFSET);
-		xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
-		port->icount.tx++;
+		uart_xmit_advance(port, 1);
 
 		regmap_read(s->syscon, SYSFLG_OFFSET, &sysflg);
 		if (sysflg & SYSFLG_UTXFF)

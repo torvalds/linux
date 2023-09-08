@@ -925,32 +925,19 @@ static const struct iio_chan_spec_ext_info bmc150_accel_ext_info[] = {
 	{ }
 };
 
-static ssize_t hwfifo_watermark_min_show(struct device *dev,
-					 struct device_attribute *attr,
-					 char *buf)
-{
-	return sysfs_emit(buf, "%s\n", "1");
-}
-
-static ssize_t hwfifo_watermark_max_show(struct device *dev,
-					 struct device_attribute *attr,
-					 char *buf)
-{
-	return sysfs_emit(buf, "%s\n", __stringify(BMC150_ACCEL_FIFO_LENGTH));
-}
-
-static IIO_DEVICE_ATTR_RO(hwfifo_watermark_min, 0);
-static IIO_DEVICE_ATTR_RO(hwfifo_watermark_max, 0);
+IIO_STATIC_CONST_DEVICE_ATTR(hwfifo_watermark_min, "1");
+IIO_STATIC_CONST_DEVICE_ATTR(hwfifo_watermark_max,
+			     __stringify(BMC150_ACCEL_FIFO_LENGTH));
 static IIO_DEVICE_ATTR(hwfifo_enabled, S_IRUGO,
 		       bmc150_accel_get_fifo_state, NULL, 0);
 static IIO_DEVICE_ATTR(hwfifo_watermark, S_IRUGO,
 		       bmc150_accel_get_fifo_watermark, NULL, 0);
 
-static const struct attribute *bmc150_accel_fifo_attributes[] = {
-	&iio_dev_attr_hwfifo_watermark_min.dev_attr.attr,
-	&iio_dev_attr_hwfifo_watermark_max.dev_attr.attr,
-	&iio_dev_attr_hwfifo_watermark.dev_attr.attr,
-	&iio_dev_attr_hwfifo_enabled.dev_attr.attr,
+static const struct iio_dev_attr *bmc150_accel_fifo_attributes[] = {
+	&iio_dev_attr_hwfifo_watermark_min,
+	&iio_dev_attr_hwfifo_watermark_max,
+	&iio_dev_attr_hwfifo_watermark,
+	&iio_dev_attr_hwfifo_enabled,
 	NULL,
 };
 
@@ -1678,7 +1665,7 @@ int bmc150_accel_core_probe(struct device *dev, struct regmap *regmap, int irq,
 			    enum bmc150_type type, const char *name,
 			    bool block_supported)
 {
-	const struct attribute **fifo_attrs;
+	const struct iio_dev_attr **fifo_attrs;
 	struct bmc150_accel_data *data;
 	struct iio_dev *indio_dev;
 	int ret;

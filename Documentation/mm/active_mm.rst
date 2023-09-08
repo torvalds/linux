@@ -1,8 +1,12 @@
-.. _active_mm:
-
 =========
 Active MM
 =========
+
+Note, the mm_count refcount may no longer include the "lazy" users
+(running tasks with ->active_mm == mm && ->mm == NULL) on kernels
+with CONFIG_MMU_LAZY_TLB_REFCOUNT=n. Taking and releasing these lazy
+references must be done with mmgrab_lazy_tlb() and mmdrop_lazy_tlb()
+helpers, which abstract this config option.
 
 ::
 

@@ -606,7 +606,7 @@ mpc52xx_ata_task_irq(int irq, void *vpriv)
 	return IRQ_HANDLED;
 }
 
-static struct scsi_host_template mpc52xx_ata_sht = {
+static const struct scsi_host_template mpc52xx_ata_sht = {
 	ATA_PIO_SHT(DRV_NAME),
 };
 
@@ -731,7 +731,7 @@ static int mpc52xx_ata_probe(struct platform_device *op)
 		udma_mask = ATA_UDMA2 & ((1 << (*prop + 1)) - 1);
 
 	ata_irq = irq_of_parse_and_map(op->dev.of_node, 0);
-	if (ata_irq == NO_IRQ) {
+	if (!ata_irq) {
 		dev_err(&op->dev, "error mapping irq\n");
 		return -EINVAL;
 	}

@@ -351,7 +351,7 @@ END_FTR_SECTION_NESTED(CPU_FTR_EMB_HV,CPU_FTR_EMB_HV,532)
 
 	mfspr	r15,SPRN_MAS2
 	isync
-	tlbilxva 0,r15
+	PPC_TLBILX_VA(0,R15)
 	isync
 
 	mtspr	SPRN_MAS6,r10

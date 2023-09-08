@@ -1,5 +1,3 @@
-.. _frontswap:
-
 =========
 Frontswap
 =========

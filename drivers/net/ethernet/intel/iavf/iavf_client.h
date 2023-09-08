@@ -159,7 +159,7 @@ struct iavf_client {
 #define IAVF_CLIENT_FLAGS_LAUNCH_ON_PROBE	BIT(0)
 #define IAVF_TX_FLAGS_NOTIFY_OTHER_EVENTS	BIT(2)
 	u8 type;
-#define IAVF_CLIENT_IWARP 0
+#define IAVF_CLIENT_RDMA 0
 	struct iavf_client_ops *ops;	/* client ops provided by the client */
 };
 

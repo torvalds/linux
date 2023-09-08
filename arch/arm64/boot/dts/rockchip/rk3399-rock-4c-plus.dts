@@ -15,8 +15,8 @@
 	compatible = "radxa,rock-4c-plus", "rockchip,rk3399";
 
 	aliases {
-		mmc0 = &sdmmc;
-		mmc1 = &sdhci;
+		mmc0 = &sdhci;
+		mmc1 = &sdmmc;
 	};
 
 	chosen {
@@ -598,6 +598,12 @@
 };
 
 &tcphy1 {
+	status = "okay";
+};
+
+&tsadc {
+	rockchip,hw-tshut-mode = <1>;
+	rockchip,hw-tshut-polarity = <1>;
 	status = "okay";
 };
 

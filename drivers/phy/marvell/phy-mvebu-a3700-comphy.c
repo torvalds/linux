@@ -826,6 +826,9 @@ mvebu_a3700_comphy_usb3_power_on(struct mvebu_a3700_comphy_lane *lane)
 	if (ret)
 		return ret;
 
+	/* COMPHY register reset (cleared automatically) */
+	comphy_lane_reg_set(lane, COMPHY_SFT_RESET, SFT_RST, SFT_RST);
+
 	/*
 	 * 0. Set PHY OTG Control(0x5d034), bit 4, Power up OTG module The
 	 * register belong to UTMI module, so it is set in UTMI phy driver.

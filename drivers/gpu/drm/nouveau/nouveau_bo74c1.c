@@ -44,7 +44,7 @@ nv84_bo_move_exec(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
 	if (ret)
 		return ret;
 
-	PUSH_NVSQ(push, NV74C1, 0x0304, new_reg->num_pages << PAGE_SHIFT,
+	PUSH_NVSQ(push, NV74C1, 0x0304, new_reg->size,
 				0x0308, upper_32_bits(mem->vma[0].addr),
 				0x030c, lower_32_bits(mem->vma[0].addr),
 				0x0310, upper_32_bits(mem->vma[1].addr),

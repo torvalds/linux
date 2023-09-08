@@ -395,3 +395,16 @@ void skip_test(struct test_case *test_cases, size_t test_cases_len,
 
 	test_cases[test_id].skip = true;
 }
+
+unsigned long hash_djb2(const void *data, size_t len)
+{
+	unsigned long hash = 5381;
+	int i = 0;
+
+	while (i < len) {
+		hash = ((hash << 5) + hash) + ((unsigned char *)data)[i];
+		i++;
+	}
+
+	return hash;
+}

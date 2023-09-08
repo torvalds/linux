@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/net/ingenic,mac.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Bindings for MAC in Ingenic SoCs
+title: MAC in Ingenic SoCs
 
 maintainers:
   - 周琰杰 (Zhou Yanjie) <zhouyanjie@wanyeetech.com>

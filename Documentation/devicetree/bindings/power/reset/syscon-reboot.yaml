@@ -42,6 +42,9 @@ properties:
     $ref: /schemas/types.yaml#/definitions/uint32
     description: The reset value written to the reboot register (32 bit access).
 
+  priority:
+    default: 192
+
 required:
   - compatible
   - offset
@@ -49,6 +52,7 @@ required:
 additionalProperties: false
 
 allOf:
+  - $ref: restart-handler.yaml#
   - if:
       not:
         required:

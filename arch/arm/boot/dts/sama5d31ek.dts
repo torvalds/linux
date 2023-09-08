@@ -40,7 +40,7 @@
 	};
 
 	leds {
-		d3 {
+		led-d3 {
 			label = "d3";
 			gpios = <&pioE 24 GPIO_ACTIVE_HIGH>;
 		};

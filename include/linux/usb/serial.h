@@ -378,7 +378,7 @@ void usb_serial_handle_dcd_change(struct usb_serial_port *usb_port,
 int usb_serial_bus_register(struct usb_serial_driver *device);
 void usb_serial_bus_deregister(struct usb_serial_driver *device);
 
-extern struct bus_type usb_serial_bus_type;
+extern const struct bus_type usb_serial_bus_type;
 extern struct tty_driver *usb_serial_tty_driver;
 
 static inline void usb_serial_debug_data(struct device *dev,

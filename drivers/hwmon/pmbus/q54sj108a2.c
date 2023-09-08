@@ -8,6 +8,7 @@
 
 #include <linux/debugfs.h>
 #include <linux/i2c.h>
+#include <linux/kstrtox.h>
 #include <linux/module.h>
 #include <linux/of_device.h>
 #include "pmbus.h"

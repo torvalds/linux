@@ -8,6 +8,7 @@
 / {
 	model = "Samsung Galaxy S III Neo";
 	compatible = "samsung,s3ve3g", "qcom,msm8226";
+	chassis-type = "handset";
 
 	aliases {
 		serial0 = &blsp1_uart3;
@@ -19,5 +20,5 @@
 };
 
 &blsp1_uart3 {
-	status = "ok";
+	status = "okay";
 };

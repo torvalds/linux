@@ -433,7 +433,7 @@ static int __init arvo_init(void)
 {
 	int retval;
 
-	arvo_class = class_create(THIS_MODULE, "arvo");
+	arvo_class = class_create("arvo");
 	if (IS_ERR(arvo_class))
 		return PTR_ERR(arvo_class);
 	arvo_class->dev_groups = arvo_groups;

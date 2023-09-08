@@ -152,8 +152,8 @@ struct devfreq_stats {
  * @max_state:		count of entry present in the frequency table.
  * @previous_freq:	previously configured frequency value.
  * @last_status:	devfreq user device info, performance statistics
- * @data:	Private data of the governor. The devfreq framework does not
- *		touch this.
+ * @data:	devfreq driver pass to governors, governor should not change it.
+ * @governor_data:	private data for governors, devfreq core doesn't touch it.
  * @user_min_freq_req:	PM QoS minimum frequency request from user (via sysfs)
  * @user_max_freq_req:	PM QoS maximum frequency request from user (via sysfs)
  * @scaling_min_freq:	Limit minimum frequency requested by OPP interface
@@ -193,7 +193,8 @@ struct devfreq {
 	unsigned long previous_freq;
 	struct devfreq_dev_status last_status;
 
-	void *data; /* private data for governors */
+	void *data;
+	void *governor_data;
 
 	struct dev_pm_qos_request user_min_freq_req;
 	struct dev_pm_qos_request user_max_freq_req;
@@ -272,8 +273,8 @@ void devm_devfreq_unregister_notifier(struct device *dev,
 struct devfreq *devfreq_get_devfreq_by_node(struct device_node *node);
 struct devfreq *devfreq_get_devfreq_by_phandle(struct device *dev,
 				const char *phandle_name, int index);
+#endif /* CONFIG_PM_DEVFREQ */
 
-#if IS_ENABLED(CONFIG_DEVFREQ_GOV_SIMPLE_ONDEMAND)
 /**
  * struct devfreq_simple_ondemand_data - ``void *data`` fed to struct devfreq
  *	and devfreq_add_device
@@ -291,9 +292,7 @@ struct devfreq_simple_ondemand_data {
 	unsigned int upthreshold;
 	unsigned int downdifferential;
 };
-#endif
 
-#if IS_ENABLED(CONFIG_DEVFREQ_GOV_PASSIVE)
 enum devfreq_parent_dev_type {
 	DEVFREQ_PARENT_DEV,
 	CPUFREQ_PARENT_DEV,
@@ -336,9 +335,8 @@ struct devfreq_passive_data {
 	struct notifier_block nb;
 	struct list_head cpu_data_list;
 };
-#endif
 
-#else /* !CONFIG_PM_DEVFREQ */
+#if !defined(CONFIG_PM_DEVFREQ)
 static inline struct devfreq *devfreq_add_device(struct device *dev,
 					struct devfreq_dev_profile *profile,
 					const char *governor_name,

@@ -2519,9 +2519,9 @@ static struct snd_soc_component_driver tda1997x_codec_driver = {
 	.endianness		= 1,
 };
 
-static int tda1997x_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int tda1997x_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct tda1997x_state *state;
 	struct tda1997x_platform_data *pdata;
 	struct v4l2_subdev *sd;
@@ -2834,7 +2834,7 @@ static struct i2c_driver tda1997x_i2c_driver = {
 		.name = "tda1997x",
 		.of_match_table = of_match_ptr(tda1997x_of_id),
 	},
-	.probe = tda1997x_probe,
+	.probe_new = tda1997x_probe,
 	.remove = tda1997x_remove,
 	.id_table = tda1997x_i2c_id,
 };

@@ -26,7 +26,7 @@
 
 	.macro	EX insn, reg, src
 	.set	push
-	SET_HARDFLOAT
+	.set	hardfloat
 	.set	nomacro
 .ex\@:	\insn	\reg, \src
 	.set	pop
@@ -98,14 +98,14 @@ LEAF(_init_msa_upper)
  */
 LEAF(_save_fp_context)
 	.set	push
-	SET_HARDFLOAT
+	.set	hardfloat
 	cfc1	t1, fcr31
 	.set	pop
 
 #if defined(CONFIG_64BIT) || defined(CONFIG_CPU_MIPSR2) || \
     defined(CONFIG_CPU_MIPSR5) || defined(CONFIG_CPU_MIPSR6)
 	.set	push
-	SET_HARDFLOAT
+	.set	hardfloat
 #if defined(CONFIG_CPU_MIPSR2) || defined(CONFIG_CPU_MIPSR5)
 	.set	mips32r2
 	.set	fp=64
@@ -135,7 +135,7 @@ LEAF(_save_fp_context)
 #endif
 
 	.set push
-	SET_HARDFLOAT
+	.set	hardfloat
 	/* Store the 16 even double precision registers */
 	EX	sdc1 $f0, 0(a0)
 	EX	sdc1 $f2, 16(a0)
@@ -173,7 +173,7 @@ LEAF(_restore_fp_context)
 #if defined(CONFIG_64BIT) || defined(CONFIG_CPU_MIPSR2) || \
     defined(CONFIG_CPU_MIPSR5) || defined(CONFIG_CPU_MIPSR6)
 	.set	push
-	SET_HARDFLOAT
+	.set	hardfloat
 #if defined(CONFIG_CPU_MIPSR2) || defined(CONFIG_CPU_MIPSR5)
 	.set	mips32r2
 	.set	fp=64
@@ -201,7 +201,7 @@ LEAF(_restore_fp_context)
 1:	.set pop
 #endif
 	.set push
-	SET_HARDFLOAT
+	.set hardfloat
 	EX	ldc1 $f0, 0(a0)
 	EX	ldc1 $f2, 16(a0)
 	EX	ldc1 $f4, 32(a0)

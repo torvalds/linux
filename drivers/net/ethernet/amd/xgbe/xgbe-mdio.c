@@ -274,6 +274,15 @@ static void xgbe_sgmii_1000_mode(struct xgbe_prv_data *pdata)
 	pdata->phy_if.phy_impl.set_mode(pdata, XGBE_MODE_SGMII_1000);
 }
 
+static void xgbe_sgmii_10_mode(struct xgbe_prv_data *pdata)
+{
+	/* Set MAC to 10M speed */
+	pdata->hw_if.set_speed(pdata, SPEED_10);
+
+	/* Call PHY implementation support to complete rate change */
+	pdata->phy_if.phy_impl.set_mode(pdata, XGBE_MODE_SGMII_10);
+}
+
 static void xgbe_sgmii_100_mode(struct xgbe_prv_data *pdata)
 {
 	/* Set MAC to 1G speed */
@@ -305,6 +314,9 @@ static void xgbe_change_mode(struct xgbe_prv_data *pdata,
 		break;
 	case XGBE_MODE_KR:
 		xgbe_kr_mode(pdata);
+		break;
+	case XGBE_MODE_SGMII_10:
+		xgbe_sgmii_10_mode(pdata);
 		break;
 	case XGBE_MODE_SGMII_100:
 		xgbe_sgmii_100_mode(pdata);
@@ -496,6 +508,7 @@ static enum xgbe_an xgbe_an73_tx_training(struct xgbe_prv_data *pdata,
 	reg |= XGBE_KR_TRAINING_ENABLE;
 	reg |= XGBE_KR_TRAINING_START;
 	XMDIO_WRITE(pdata, MDIO_MMD_PMAPMD, MDIO_PMA_10GBR_PMD_CTRL, reg);
+	pdata->kr_start_time = jiffies;
 
 	netif_dbg(pdata, link, pdata->netdev,
 		  "KR training initiated\n");
@@ -631,6 +644,8 @@ static enum xgbe_an xgbe_an73_incompat_link(struct xgbe_prv_data *pdata)
 	xgbe_an_disable(pdata);
 
 	xgbe_switch_mode(pdata);
+
+	pdata->an_result = XGBE_AN_READY;
 
 	xgbe_an_restart(pdata);
 
@@ -1074,6 +1089,8 @@ static const char *xgbe_phy_fc_string(struct xgbe_prv_data *pdata)
 static const char *xgbe_phy_speed_string(int speed)
 {
 	switch (speed) {
+	case SPEED_10:
+		return "10Mbps";
 	case SPEED_100:
 		return "100Mbps";
 	case SPEED_1000:
@@ -1161,6 +1178,7 @@ static int xgbe_phy_config_fixed(struct xgbe_prv_data *pdata)
 	case XGBE_MODE_KX_1000:
 	case XGBE_MODE_KX_2500:
 	case XGBE_MODE_KR:
+	case XGBE_MODE_SGMII_10:
 	case XGBE_MODE_SGMII_100:
 	case XGBE_MODE_SGMII_1000:
 	case XGBE_MODE_X:
@@ -1222,6 +1240,8 @@ static int __xgbe_phy_config_aneg(struct xgbe_prv_data *pdata, bool set_mode)
 			xgbe_set_mode(pdata, XGBE_MODE_SGMII_1000);
 		} else if (xgbe_use_mode(pdata, XGBE_MODE_SGMII_100)) {
 			xgbe_set_mode(pdata, XGBE_MODE_SGMII_100);
+		} else if (xgbe_use_mode(pdata, XGBE_MODE_SGMII_10)) {
+			xgbe_set_mode(pdata, XGBE_MODE_SGMII_10);
 		} else {
 			enable_irq(pdata->an_irq);
 			ret = -EINVAL;
@@ -1275,9 +1295,30 @@ static bool xgbe_phy_aneg_done(struct xgbe_prv_data *pdata)
 static void xgbe_check_link_timeout(struct xgbe_prv_data *pdata)
 {
 	unsigned long link_timeout;
+	unsigned long kr_time;
+	int wait;
 
 	link_timeout = pdata->link_check + (XGBE_LINK_TIMEOUT * HZ);
 	if (time_after(jiffies, link_timeout)) {
+		if ((xgbe_cur_mode(pdata) == XGBE_MODE_KR) &&
+		    pdata->phy.autoneg == AUTONEG_ENABLE) {
+			/* AN restart should not happen while KR training is in progress.
+			 * The while loop ensures no AN restart during KR training,
+			 * waits up to 500ms and AN restart is triggered only if KR
+			 * training is failed.
+			 */
+			wait = XGBE_KR_TRAINING_WAIT_ITER;
+			while (wait--) {
+				kr_time = pdata->kr_start_time +
+					  msecs_to_jiffies(XGBE_AN_MS_TIMEOUT);
+				if (time_after(jiffies, kr_time))
+					break;
+				/* AN restart is not required, if AN result is COMPLETE */
+				if (pdata->an_result == XGBE_AN_COMPLETE)
+					return;
+				usleep_range(10000, 11000);
+			}
+		}
 		netif_dbg(pdata, link, pdata->netdev, "AN link timeout\n");
 		xgbe_phy_config_aneg(pdata);
 	}
@@ -1288,7 +1329,7 @@ static enum xgbe_mode xgbe_phy_status_aneg(struct xgbe_prv_data *pdata)
 	return pdata->phy_if.phy_impl.an_outcome(pdata);
 }
 
-static void xgbe_phy_status_result(struct xgbe_prv_data *pdata)
+static bool xgbe_phy_status_result(struct xgbe_prv_data *pdata)
 {
 	struct ethtool_link_ksettings *lks = &pdata->phy.lks;
 	enum xgbe_mode mode;
@@ -1301,6 +1342,9 @@ static void xgbe_phy_status_result(struct xgbe_prv_data *pdata)
 		mode = xgbe_phy_status_aneg(pdata);
 
 	switch (mode) {
+	case XGBE_MODE_SGMII_10:
+		pdata->phy.speed = SPEED_10;
+		break;
 	case XGBE_MODE_SGMII_100:
 		pdata->phy.speed = SPEED_100;
 		break;
@@ -1323,8 +1367,13 @@ static void xgbe_phy_status_result(struct xgbe_prv_data *pdata)
 
 	pdata->phy.duplex = DUPLEX_FULL;
 
-	if (xgbe_set_mode(pdata, mode) && pdata->an_again)
+	if (!xgbe_set_mode(pdata, mode))
+		return false;
+
+	if (pdata->an_again)
 		xgbe_phy_reconfig_aneg(pdata);
+
+	return true;
 }
 
 static void xgbe_phy_status(struct xgbe_prv_data *pdata)
@@ -1354,7 +1403,8 @@ static void xgbe_phy_status(struct xgbe_prv_data *pdata)
 			return;
 		}
 
-		xgbe_phy_status_result(pdata);
+		if (xgbe_phy_status_result(pdata))
+			return;
 
 		if (test_bit(XGBE_LINK_INIT, &pdata->dev_state))
 			clear_bit(XGBE_LINK_INIT, &pdata->dev_state);
@@ -1390,8 +1440,10 @@ static void xgbe_phy_stop(struct xgbe_prv_data *pdata)
 	/* Disable auto-negotiation */
 	xgbe_an_disable_all(pdata);
 
-	if (pdata->dev_irq != pdata->an_irq)
+	if (pdata->dev_irq != pdata->an_irq) {
 		devm_free_irq(pdata->dev, pdata->an_irq, pdata);
+		tasklet_kill(&pdata->tasklet_an);
+	}
 
 	pdata->phy_if.phy_impl.stop(pdata);
 
@@ -1441,6 +1493,8 @@ static int xgbe_phy_start(struct xgbe_prv_data *pdata)
 		xgbe_sgmii_1000_mode(pdata);
 	} else if (xgbe_use_mode(pdata, XGBE_MODE_SGMII_100)) {
 		xgbe_sgmii_100_mode(pdata);
+	} else if (xgbe_use_mode(pdata, XGBE_MODE_SGMII_10)) {
+		xgbe_sgmii_10_mode(pdata);
 	} else {
 		ret = -EINVAL;
 		goto err_irq;
@@ -1538,6 +1592,8 @@ static int xgbe_phy_best_advertised_speed(struct xgbe_prv_data *pdata)
 		return SPEED_1000;
 	else if (XGBE_ADV(lks, 100baseT_Full))
 		return SPEED_100;
+	else if (XGBE_ADV(lks, 10baseT_Full))
+		return SPEED_10;
 
 	return SPEED_UNKNOWN;
 }

@@ -223,8 +223,8 @@ const char *iavf_stat_str(struct iavf_hw *hw, enum iavf_status stat_err)
 		return "IAVF_ERR_ADMIN_QUEUE_FULL";
 	case IAVF_ERR_ADMIN_QUEUE_NO_WORK:
 		return "IAVF_ERR_ADMIN_QUEUE_NO_WORK";
-	case IAVF_ERR_BAD_IWARP_CQE:
-		return "IAVF_ERR_BAD_IWARP_CQE";
+	case IAVF_ERR_BAD_RDMA_CQE:
+		return "IAVF_ERR_BAD_RDMA_CQE";
 	case IAVF_ERR_NVM_BLANK_MODE:
 		return "IAVF_ERR_NVM_BLANK_MODE";
 	case IAVF_ERR_NOT_IMPLEMENTED:
@@ -661,7 +661,7 @@ struct iavf_rx_ptype_decoded iavf_ptype_lookup[BIT(8)] = {
 	/* Non Tunneled IPv6 */
 	IAVF_PTT(88, IP, IPV6, FRG, NONE, NONE, NOF, NONE, PAY3),
 	IAVF_PTT(89, IP, IPV6, NOF, NONE, NONE, NOF, NONE, PAY3),
-	IAVF_PTT(90, IP, IPV6, NOF, NONE, NONE, NOF, UDP,  PAY3),
+	IAVF_PTT(90, IP, IPV6, NOF, NONE, NONE, NOF, UDP,  PAY4),
 	IAVF_PTT_UNUSED_ENTRY(91),
 	IAVF_PTT(92, IP, IPV6, NOF, NONE, NONE, NOF, TCP,  PAY4),
 	IAVF_PTT(93, IP, IPV6, NOF, NONE, NONE, NOF, SCTP, PAY4),

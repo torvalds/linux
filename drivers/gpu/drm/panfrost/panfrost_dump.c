@@ -209,7 +209,7 @@ void panfrost_core_dump(struct panfrost_job *job)
 			goto dump_header;
 		}
 
-		ret = drm_gem_shmem_vmap(&bo->base, &map);
+		ret = drm_gem_vmap_unlocked(&bo->base.base, &map);
 		if (ret) {
 			dev_err(pfdev->dev, "Panfrost Dump: couldn't map Buffer Object\n");
 			iter.hdr->bomap.valid = 0;
@@ -236,7 +236,7 @@ void panfrost_core_dump(struct panfrost_job *job)
 		vaddr = map.vaddr;
 		memcpy(iter.data, vaddr, bo->base.base.size);
 
-		drm_gem_shmem_vunmap(&bo->base, &map);
+		drm_gem_vunmap_unlocked(&bo->base.base, &map);
 
 		iter.hdr->bomap.valid = 1;
 

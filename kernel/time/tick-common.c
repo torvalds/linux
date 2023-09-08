@@ -219,7 +219,6 @@ static void tick_setup_device(struct tick_device *td,
 		 */
 		if (tick_do_timer_cpu == TICK_DO_TIMER_BOOT) {
 			tick_do_timer_cpu = cpu;
-
 			tick_next_period = ktime_get();
 #ifdef CONFIG_NO_HZ_FULL
 			/*

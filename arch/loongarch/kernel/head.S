@@ -24,8 +24,9 @@ _head:
 	.org	0x8
 	.dword	kernel_entry		/* Kernel entry point */
 	.dword	_end - _text		/* Kernel image effective size */
-	.quad	0			/* Kernel image load offset from start of RAM */
-	.org	0x3c			/* 0x20 ~ 0x3b reserved */
+	.quad	PHYS_LINK_KADDR		/* Kernel image load offset from start of RAM */
+	.org	0x38			/* 0x20 ~ 0x37 reserved */
+	.long	LINUX_PE_MAGIC
 	.long	pe_header - _head	/* Offset to the PE header */
 
 pe_header:
@@ -49,11 +50,8 @@ SYM_CODE_START(kernel_entry)			# kernel entry point
 	li.d		t0, CSR_DMW1_INIT	# CA, PLV0, 0x9000 xxxx xxxx xxxx
 	csrwr		t0, LOONGARCH_CSR_DMWIN1
 
-	/* We might not get launched at the address the kernel is linked to,
-	   so we jump there.  */
-	la.abs		t0, 0f
-	jr		t0
-0:
+	JUMP_VIRT_ADDR	t0, t1
+
 	/* Enable PG */
 	li.w		t0, 0xb0		# PLV=0, IE=0, PG=1
 	csrwr		t0, LOONGARCH_CSR_CRMD
@@ -88,6 +86,23 @@ SYM_CODE_START(kernel_entry)			# kernel entry point
 	PTR_ADD		sp, sp, tp
 	set_saved_sp	sp, t0, t1
 
+#ifdef CONFIG_RELOCATABLE
+
+	bl		relocate_kernel
+
+#ifdef CONFIG_RANDOMIZE_BASE
+	/* Repoint the sp into the new kernel */
+	PTR_LI		sp, (_THREAD_SIZE - PT_SIZE)
+	PTR_ADD		sp, sp, tp
+	set_saved_sp	sp, t0, t1
+#endif
+
+	/* relocate_kernel() returns the new kernel entry point */
+	jr		a0
+	ASM_BUG()
+
+#endif
+
 	bl		start_kernel
 	ASM_BUG()
 
@@ -105,9 +120,8 @@ SYM_CODE_START(smpboot_entry)
 	li.d		t0, CSR_DMW1_INIT	# CA, PLV0
 	csrwr		t0, LOONGARCH_CSR_DMWIN1
 
-	la.abs		t0, 0f
-	jr		t0
-0:
+	JUMP_VIRT_ADDR	t0, t1
+
 	/* Enable PG */
 	li.w		t0, 0xb0		# PLV=0, IE=0, PG=1
 	csrwr		t0, LOONGARCH_CSR_CRMD
@@ -116,7 +130,7 @@ SYM_CODE_START(smpboot_entry)
 	li.w		t0, 0x00		# FPE=0, SXE=0, ASXE=0, BTE=0
 	csrwr		t0, LOONGARCH_CSR_EUEN
 
-	la.abs		t0, cpuboot_data
+	la.pcrel	t0, cpuboot_data
 	ld.d		sp, t0, CPU_BOOT_STACK
 	ld.d		tp, t0, CPU_BOOT_TINFO
 

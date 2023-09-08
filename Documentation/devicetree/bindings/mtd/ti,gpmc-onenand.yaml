@@ -15,6 +15,9 @@ description:
   as child nodes of the GPMC controller.
 
 properties:
+  $nodename:
+    pattern: "^onenand@[0-9],[0,9]$"
+
   compatible:
     const: ti,omap2-onenand
 
@@ -33,10 +36,10 @@ properties:
 
 patternProperties:
   "@[0-9a-f]+$":
-    $ref: "/schemas/mtd/partitions/partition.yaml"
+    $ref: /schemas/mtd/partitions/partition.yaml
 
 allOf:
-  - $ref: "/schemas/memory-controllers/ti,gpmc-child.yaml"
+  - $ref: /schemas/memory-controllers/ti,gpmc-child.yaml
 
 required:
   - compatible

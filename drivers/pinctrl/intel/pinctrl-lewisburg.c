@@ -21,17 +21,7 @@
 #define LBG_GPI_IE	0x110
 
 #define LBG_COMMUNITY(b, s, e)				\
-	{						\
-		.barno = (b),				\
-		.padown_offset = LBG_PAD_OWN,		\
-		.padcfglock_offset = LBG_PADCFGLOCK,	\
-		.hostown_offset = LBG_HOSTSW_OWN,	\
-		.is_offset = LBG_GPI_IS,		\
-		.ie_offset = LBG_GPI_IE,		\
-		.gpp_size = 24,				\
-		.pin_base = (s),			\
-		.npins = ((e) - (s) + 1),		\
-	}
+	INTEL_COMMUNITY_SIZE(b, s, e, 24, 3, LBG)
 
 /* Lewisburg */
 static const struct pinctrl_pin_desc lbg_pins[] = {

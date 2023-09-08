@@ -639,13 +639,11 @@ static void hns3_get_drvinfo(struct net_device *netdev,
 		return;
 	}
 
-	strncpy(drvinfo->driver, dev_driver_string(&h->pdev->dev),
+	strscpy(drvinfo->driver, dev_driver_string(&h->pdev->dev),
 		sizeof(drvinfo->driver));
-	drvinfo->driver[sizeof(drvinfo->driver) - 1] = '\0';
 
-	strncpy(drvinfo->bus_info, pci_name(h->pdev),
+	strscpy(drvinfo->bus_info, pci_name(h->pdev),
 		sizeof(drvinfo->bus_info));
-	drvinfo->bus_info[ETHTOOL_BUSINFO_LEN - 1] = '\0';
 
 	fw_version = priv->ae_handle->ae_algo->ops->get_fw_version(h);
 
@@ -2065,6 +2063,31 @@ static int hns3_get_link_ext_state(struct net_device *netdev,
 	return -ENODATA;
 }
 
+static void hns3_get_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
+{
+	struct hnae3_handle *handle = hns3_get_handle(netdev);
+	const struct hnae3_ae_ops *ops = hns3_get_ops(handle);
+	struct hnae3_ae_dev *ae_dev = hns3_get_ae_dev(handle);
+
+	if (!hnae3_ae_dev_wol_supported(ae_dev))
+		return;
+
+	ops->get_wol(handle, wol);
+}
+
+static int hns3_set_wol(struct net_device *netdev,
+			struct ethtool_wolinfo *wol)
+{
+	struct hnae3_handle *handle = hns3_get_handle(netdev);
+	const struct hnae3_ae_ops *ops = hns3_get_ops(handle);
+	struct hnae3_ae_dev *ae_dev = hns3_get_ae_dev(handle);
+
+	if (!hnae3_ae_dev_wol_supported(ae_dev))
+		return -EOPNOTSUPP;
+
+	return ops->set_wol(handle, wol);
+}
+
 static const struct ethtool_ops hns3vf_ethtool_ops = {
 	.supported_coalesce_params = HNS3_ETHTOOL_COALESCE,
 	.supported_ring_params = HNS3_ETHTOOL_RING,
@@ -2141,6 +2164,8 @@ static const struct ethtool_ops hns3_ethtool_ops = {
 	.set_tunable = hns3_set_tunable,
 	.reset = hns3_set_reset,
 	.get_link_ext_state = hns3_get_link_ext_state,
+	.get_wol = hns3_get_wol,
+	.set_wol = hns3_set_wol,
 };
 
 void hns3_ethtool_set_ops(struct net_device *netdev)

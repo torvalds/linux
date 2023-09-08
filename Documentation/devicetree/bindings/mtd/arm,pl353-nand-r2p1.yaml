@@ -7,11 +7,10 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: PL353 NAND Controller
 
 allOf:
-  - $ref: "nand-controller.yaml"
+  - $ref: nand-controller.yaml
 
 maintainers:
   - Miquel Raynal <miquel.raynal@bootlin.com>
-  - Naga Sureshkumar Relli <naga.sureshkumar.relli@xilinx.com>
 
 properties:
   compatible:
@@ -34,20 +33,20 @@ unevaluatedProperties: false
 examples:
   - |
     smcc: memory-controller@e000e000 {
-      compatible = "arm,pl353-smc-r2p1", "arm,primecell";
-      reg = <0xe000e000 0x0001000>;
-      clock-names = "memclk", "apb_pclk";
-      clocks = <&clkc 11>, <&clkc 44>;
-      ranges = <0x0 0x0 0xe1000000 0x1000000 /* Nand CS region */
-                0x1 0x0 0xe2000000 0x2000000 /* SRAM/NOR CS0 region */
-                0x2 0x0 0xe4000000 0x2000000>; /* SRAM/NOR CS1 region */
-      #address-cells = <2>;
-      #size-cells = <1>;
+        compatible = "arm,pl353-smc-r2p1", "arm,primecell";
+        reg = <0xe000e000 0x0001000>;
+        clock-names = "memclk", "apb_pclk";
+        clocks = <&clkc 11>, <&clkc 44>;
+        ranges = <0x0 0x0 0xe1000000 0x1000000 /* Nand CS region */
+                  0x1 0x0 0xe2000000 0x2000000 /* SRAM/NOR CS0 region */
+                  0x2 0x0 0xe4000000 0x2000000>; /* SRAM/NOR CS1 region */
+        #address-cells = <2>;
+        #size-cells = <1>;
 
-      nfc0: nand-controller@0,0 {
-        compatible = "arm,pl353-nand-r2p1";
-        reg = <0 0 0x1000000>;
-        #address-cells = <1>;
-        #size-cells = <0>;
-      };
+        nfc0: nand-controller@0,0 {
+            compatible = "arm,pl353-nand-r2p1";
+            reg = <0 0 0x1000000>;
+            #address-cells = <1>;
+            #size-cells = <0>;
+        };
     };

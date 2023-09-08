@@ -10,6 +10,7 @@
 
 .. _it_process_index:
 
+===============================================
 Lavorare con la comunità di sviluppo del kernel
 ===============================================
 
@@ -58,6 +59,7 @@ perché non si è trovato un posto migliore.
    adding-syscalls
    magic-number
    volatile-considered-harmful
+   botching-up-ioctls
    clang-format
    ../riscv/patch-acceptance
 

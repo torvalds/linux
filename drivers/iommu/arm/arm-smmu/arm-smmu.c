@@ -139,7 +139,7 @@ static int arm_smmu_register_legacy_master(struct device *dev,
 	int err;
 
 	np = dev_get_dev_node(dev);
-	if (!np || !of_find_property(np, "#stream-id-cells", NULL)) {
+	if (!np || !of_property_present(np, "#stream-id-cells")) {
 		of_node_put(np);
 		return -ENODEV;
 	}
@@ -1150,9 +1150,6 @@ static int arm_smmu_attach_dev(struct iommu_domain *domain, struct device *dev)
 	 * different SMMUs.
 	 */
 	if (smmu_domain->smmu != smmu) {
-		dev_err(dev,
-			"cannot attach to SMMU %s whilst already attached to domain on SMMU %s\n",
-			dev_name(smmu_domain->smmu->dev), dev_name(smmu->dev));
 		ret = -EINVAL;
 		goto rpm_put;
 	}
@@ -1319,8 +1316,14 @@ static bool arm_smmu_capable(struct device *dev, enum iommu_cap cap)
 
 	switch (cap) {
 	case IOMMU_CAP_CACHE_COHERENCY:
-		/* Assume that a coherent TCU implies coherent TBUs */
-		return cfg->smmu->features & ARM_SMMU_FEAT_COHERENT_WALK;
+		/*
+		 * It's overwhelmingly the case in practice that when the pagetable
+		 * walk interface is connected to a coherent interconnect, all the
+		 * translation interfaces are too. Furthermore if the device is
+		 * natively coherent, then its translation interface must also be.
+		 */
+		return cfg->smmu->features & ARM_SMMU_FEAT_COHERENT_WALK ||
+			device_get_dma_attr(dev) == DEV_DMA_COHERENT;
 	case IOMMU_CAP_NOEXEC:
 		return true;
 	default:
@@ -2188,18 +2191,12 @@ static int arm_smmu_device_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int arm_smmu_device_remove(struct platform_device *pdev)
+static void arm_smmu_device_shutdown(struct platform_device *pdev)
 {
 	struct arm_smmu_device *smmu = platform_get_drvdata(pdev);
 
-	if (!smmu)
-		return -ENODEV;
-
 	if (!bitmap_empty(smmu->context_map, ARM_SMMU_MAX_CBS))
 		dev_notice(&pdev->dev, "disabling translation\n");
-
-	iommu_device_unregister(&smmu->iommu);
-	iommu_device_sysfs_remove(&smmu->iommu);
 
 	arm_smmu_rpm_get(smmu);
 	/* Turn the thing off */
@@ -2212,12 +2209,16 @@ static int arm_smmu_device_remove(struct platform_device *pdev)
 		clk_bulk_disable(smmu->num_clks, smmu->clks);
 
 	clk_bulk_unprepare(smmu->num_clks, smmu->clks);
-	return 0;
 }
 
-static void arm_smmu_device_shutdown(struct platform_device *pdev)
+static void arm_smmu_device_remove(struct platform_device *pdev)
 {
-	arm_smmu_device_remove(pdev);
+	struct arm_smmu_device *smmu = platform_get_drvdata(pdev);
+
+	iommu_device_unregister(&smmu->iommu);
+	iommu_device_sysfs_remove(&smmu->iommu);
+
+	arm_smmu_device_shutdown(pdev);
 }
 
 static int __maybe_unused arm_smmu_runtime_resume(struct device *dev)
@@ -2293,7 +2294,7 @@ static struct platform_driver arm_smmu_driver = {
 		.suppress_bind_attrs    = true,
 	},
 	.probe	= arm_smmu_device_probe,
-	.remove	= arm_smmu_device_remove,
+	.remove_new = arm_smmu_device_remove,
 	.shutdown = arm_smmu_device_shutdown,
 };
 module_platform_driver(arm_smmu_driver);

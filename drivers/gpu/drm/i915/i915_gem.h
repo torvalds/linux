@@ -39,6 +39,13 @@ struct i915_gem_ww_ctx;
 struct i915_gtt_view;
 struct i915_vma;
 
+#define I915_GEM_GPU_DOMAINS	       \
+	(I915_GEM_DOMAIN_RENDER |      \
+	 I915_GEM_DOMAIN_SAMPLER |     \
+	 I915_GEM_DOMAIN_COMMAND |     \
+	 I915_GEM_DOMAIN_INSTRUCTION | \
+	 I915_GEM_DOMAIN_VERTEX)
+
 void i915_gem_init_early(struct drm_i915_private *i915);
 void i915_gem_cleanup_early(struct drm_i915_private *i915);
 

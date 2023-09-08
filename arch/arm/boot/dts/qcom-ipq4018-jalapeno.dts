@@ -7,7 +7,7 @@
 
 / {
 	model = "8devices Jalapeno";
-	compatible = "8dev,jalapeno";
+	compatible = "8dev,jalapeno", "qcom,ipq4018";
 };
 
 &tlmm {

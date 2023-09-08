@@ -16,6 +16,8 @@ description: The FLASH Image System (FIS) directory is a flash description
 maintainers:
   - Linus Walleij <linus.walleij@linaro.org>
 
+select: false
+
 properties:
   compatible:
     const: redboot-fis
@@ -25,6 +27,10 @@ properties:
     description: a index to the eraseblock containing the FIS directory on this
       device. On a flash memory with 32KB eraseblocks, 0 means the first
       eraseblock at 0x00000000, 1 means the second eraseblock at 0x00008000 and so on.
+
+  '#address-cells': false
+
+  '#size-cells': false
 
 required:
   - compatible

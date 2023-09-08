@@ -21,17 +21,17 @@
 		pinctrl-0 = <&pmx_gpio_0 &pmx_gpio_1 &pmx_gpio_2>;
 		pinctrl-names = "default";
 
-		wlan-act {
+		led-wlan-act {
 			label = "wlan-act";
 			gpios = <&gpio0 0 1>;
 		};
 
-		wlan-ap {
+		led-wlan-ap {
 			label = "wlan-ap";
 			gpios = <&gpio0 1 1>;
 		};
 
-		status {
+		led-status {
 			label = "status";
 			gpios = <&gpio0 2 1>;
 		};

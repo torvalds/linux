@@ -68,6 +68,9 @@ config SND_SOC_APQ8016_SBC
 config SND_SOC_QCOM_COMMON
 	tristate
 
+config SND_SOC_QCOM_SDW
+	tristate
+
 config SND_SOC_QDSP6_COMMON
 	tristate
 
@@ -168,6 +171,7 @@ config SND_SOC_SM8250
 	depends on COMMON_CLK
 	select SND_SOC_QDSP6
 	select SND_SOC_QCOM_COMMON
+	select SND_SOC_QCOM_SDW
 	help
 	  To add support for audio on Qualcomm Technologies Inc.
 	  SM8250 SoC-based systems.
@@ -179,6 +183,7 @@ config SND_SOC_SC8280XP
 	depends on COMMON_CLK
 	select SND_SOC_QDSP6
 	select SND_SOC_QCOM_COMMON
+	select SND_SOC_QCOM_SDW
 	help
 	  To add support for audio on Qualcomm Technologies Inc.
 	  SC8280XP SoC-based systems.

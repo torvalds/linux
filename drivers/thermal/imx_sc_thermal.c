@@ -13,7 +13,6 @@
 #include <linux/slab.h>
 #include <linux/thermal.h>
 
-#include "thermal_core.h"
 #include "thermal_hwmon.h"
 
 #define IMX_SC_MISC_FUNC_GET_TEMP	13
@@ -47,7 +46,7 @@ static int imx_sc_thermal_get_temp(struct thermal_zone_device *tz, int *temp)
 {
 	struct imx_sc_msg_misc_get_temp msg;
 	struct imx_sc_rpc_msg *hdr = &msg.hdr;
-	struct imx_sc_sensor *sensor = tz->devdata;
+	struct imx_sc_sensor *sensor = thermal_zone_device_priv(tz);
 	int ret;
 
 	msg.data.req.resource_id = sensor->resource_id;
@@ -59,11 +58,8 @@ static int imx_sc_thermal_get_temp(struct thermal_zone_device *tz, int *temp)
 	hdr->size = 2;
 
 	ret = imx_scu_call_rpc(thermal_ipc_handle, &msg, true);
-	if (ret) {
-		dev_err(&sensor->tzd->device, "read temp sensor %d failed, ret %d\n",
-			sensor->resource_id, ret);
+	if (ret)
 		return ret;
-	}
 
 	*temp = msg.data.resp.celsius * 1000 + msg.data.resp.tenths * 100;
 
@@ -88,7 +84,7 @@ static int imx_sc_thermal_probe(struct platform_device *pdev)
 	if (!resource_id)
 		return -EINVAL;
 
-	for (i = 0; resource_id[i] > 0; i++) {
+	for (i = 0; resource_id[i] >= 0; i++) {
 
 		sensor = devm_kzalloc(&pdev->dev, sizeof(*sensor), GFP_KERNEL);
 		if (!sensor)
@@ -120,19 +116,18 @@ static int imx_sc_thermal_probe(struct platform_device *pdev)
 			return ret;
 		}
 
-		if (devm_thermal_add_hwmon_sysfs(sensor->tzd))
+		if (devm_thermal_add_hwmon_sysfs(&pdev->dev, sensor->tzd))
 			dev_warn(&pdev->dev, "failed to add hwmon sysfs attributes\n");
 	}
 
 	return 0;
 }
 
-static int imx_sc_thermal_remove(struct platform_device *pdev)
-{
-	return 0;
-}
-
-static int imx_sc_sensors[] = { IMX_SC_R_SYSTEM, IMX_SC_R_PMIC_0, -1 };
+static const int imx_sc_sensors[] = {
+	IMX_SC_R_SYSTEM, IMX_SC_R_PMIC_0,
+	IMX_SC_R_AP_0, IMX_SC_R_AP_1,
+	IMX_SC_R_GPU_0_PID0, IMX_SC_R_GPU_1_PID0,
+	IMX_SC_R_DRC_0, -1 };
 
 static const struct of_device_id imx_sc_thermal_table[] = {
 	{ .compatible = "fsl,imx-sc-thermal", .data =  imx_sc_sensors },
@@ -142,7 +137,6 @@ MODULE_DEVICE_TABLE(of, imx_sc_thermal_table);
 
 static struct platform_driver imx_sc_thermal_driver = {
 		.probe = imx_sc_thermal_probe,
-		.remove	= imx_sc_thermal_remove,
 		.driver = {
 			.name = "imx-sc-thermal",
 			.of_match_table = imx_sc_thermal_table,

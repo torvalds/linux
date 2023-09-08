@@ -121,15 +121,11 @@ static const char *index_to_string[MIIC_MODCTRL_CONF_CONV_NUM] = {
  * struct miic - MII converter structure
  * @base: base address of the MII converter
  * @dev: Device associated to the MII converter
- * @clks: Clocks used for this device
- * @nclk: Number of clocks
  * @lock: Lock used for read-modify-write access
  */
 struct miic {
 	void __iomem *base;
 	struct device *dev;
-	struct clk_bulk_data *clks;
-	int nclk;
 	spinlock_t lock;
 };
 
@@ -232,7 +228,7 @@ static int miic_config(struct phylink_pcs *pcs, unsigned int mode,
 	}
 
 	miic_reg_rmw(miic, MIIC_CONVCTRL(port), mask, val);
-	miic_converter_enable(miic_port->miic, miic_port->port, 1);
+	miic_converter_enable(miic, miic_port->port, 1);
 
 	return 0;
 }

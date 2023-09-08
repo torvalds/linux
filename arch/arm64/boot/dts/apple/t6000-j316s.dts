@@ -1,0 +1,18 @@
+// SPDX-License-Identifier: GPL-2.0+ OR MIT
+/*
+ * MacBook Pro (16-inch, M1 Pro, 2021)
+ *
+ * target-type: J316s
+ *
+ * Copyright The Asahi Linux Contributors
+ */
+
+/dts-v1/;
+
+#include "t6000.dtsi"
+#include "t600x-j314-j316.dtsi"
+
+/ {
+	compatible = "apple,j316s", "apple,t6000", "apple,arm-platform";
+	model = "Apple MacBook Pro (16-inch, M1 Pro, 2021)";
+};

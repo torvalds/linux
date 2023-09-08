@@ -102,6 +102,25 @@ config NVDIMM_KEYS
 	depends on ENCRYPTED_KEYS
 	depends on (LIBNVDIMM=ENCRYPTED_KEYS) || LIBNVDIMM=m
 
+config NVDIMM_KMSAN
+	bool
+	depends on KMSAN
+	help
+	  KMSAN, and other memory debug facilities, increase the size of
+	  'struct page' to contain extra metadata. This collides with
+	  the NVDIMM capability to store a potentially
+	  larger-than-"System RAM" size 'struct page' array in a
+	  reservation of persistent memory rather than limited /
+	  precious DRAM. However, that reservation needs to persist for
+	  the life of the given NVDIMM namespace. If you are using KMSAN
+	  to debug an issue unrelated to NVDIMMs or DAX then say N to this
+	  option. Otherwise, say Y but understand that any namespaces
+	  (with the page array stored pmem) created with this build of
+	  the kernel will permanently reserve and strand excess
+	  capacity compared to the CONFIG_KMSAN=n case.
+
+	  Select N if unsure.
+
 config NVDIMM_TEST_BUILD
 	tristate "Build the unit test core"
 	depends on m
@@ -113,5 +132,17 @@ config NVDIMM_TEST_BUILD
 	  otherwise helps catch build errors induced by changes to the
 	  core devm_memremap_pages() implementation and other
 	  infrastructure.
+
+config NVDIMM_SECURITY_TEST
+	bool "Enable NVDIMM security unit tests"
+	depends on NVDIMM_KEYS
+	help
+	  The NVDIMM and CXL subsystems support unit testing of their device
+	  security state machines. The NVDIMM_SECURITY_TEST option disables CPU
+	  cache maintenance operations around events like secure erase and
+	  overwrite.  Also, when enabled, the NVDIMM subsystem core helps the unit
+	  test implement a mock state machine.
+
+	  Select N if unsure.
 
 endif

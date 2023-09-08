@@ -9,8 +9,9 @@
 #include <linux/spinlock.h>
 #include <linux/completion.h>
 #include <linux/bug.h>
+#include <linux/list.h>
 #include <crypto/hash.h>
-
+#include "messages.h"
 #include "ctree.h"
 #include "discard.h"
 #include "disk-io.h"
@@ -22,6 +23,8 @@
 #include "block-group.h"
 #include "qgroup.h"
 #include "misc.h"
+#include "fs.h"
+#include "accessors.h"
 
 /*
  * Structure name                       Path
@@ -248,7 +251,7 @@ static ssize_t btrfs_feature_attr_store(struct kobject *kobj,
 	/*
 	 * We don't want to do full transaction commit from inside sysfs
 	 */
-	btrfs_set_pending(fs_info, COMMIT);
+	set_bit(BTRFS_FS_NEED_TRANS_COMMIT, &fs_info->flags);
 	wake_up_process(fs_info->transaction_kthread);
 
 	return count;
@@ -700,7 +703,7 @@ static void release_raid_kobj(struct kobject *kobj)
 	kfree(to_raid_kobj(kobj));
 }
 
-static struct kobj_type btrfs_raid_ktype = {
+static const struct kobj_type btrfs_raid_ktype = {
 	.sysfs_ops = &kobj_sysfs_ops,
 	.release = release_raid_kobj,
 	.default_groups = raid_groups,
@@ -762,7 +765,7 @@ static ssize_t btrfs_chunk_size_store(struct kobject *kobj,
 	val = min(val, BTRFS_MAX_DATA_CHUNK_SIZE);
 
 	/* Limit stripe size to 10% of available space. */
-	val = min(div_factor(fs_info->fs_devices->total_rw_bytes, 1), val);
+	val = min(mult_perc(fs_info->fs_devices->total_rw_bytes, 10), val);
 
 	/* Must be multiple of 256M. */
 	val &= ~((u64)SZ_256M - 1);
@@ -774,6 +777,45 @@ static ssize_t btrfs_chunk_size_store(struct kobject *kobj,
 	btrfs_update_space_info_chunk_size(space_info, val);
 
 	return len;
+}
+
+static ssize_t btrfs_size_classes_show(struct kobject *kobj,
+				       struct kobj_attribute *a, char *buf)
+{
+	struct btrfs_space_info *sinfo = to_space_info(kobj);
+	struct btrfs_block_group *bg;
+	u32 none = 0;
+	u32 small = 0;
+	u32 medium = 0;
+	u32 large = 0;
+
+	for (int i = 0; i < BTRFS_NR_RAID_TYPES; ++i) {
+		down_read(&sinfo->groups_sem);
+		list_for_each_entry(bg, &sinfo->block_groups[i], list) {
+			if (!btrfs_block_group_should_use_size_class(bg))
+				continue;
+			switch (bg->size_class) {
+			case BTRFS_BG_SZ_NONE:
+				none++;
+				break;
+			case BTRFS_BG_SZ_SMALL:
+				small++;
+				break;
+			case BTRFS_BG_SZ_MEDIUM:
+				medium++;
+				break;
+			case BTRFS_BG_SZ_LARGE:
+				large++;
+				break;
+			}
+		}
+		up_read(&sinfo->groups_sem);
+	}
+	return sysfs_emit(buf, "none %u\n"
+			       "small %u\n"
+			       "medium %u\n"
+			       "large %u\n",
+			       none, small, medium, large);
 }
 
 #ifdef CONFIG_BTRFS_DEBUG
@@ -833,6 +875,7 @@ SPACE_INFO_ATTR(bytes_zone_unusable);
 SPACE_INFO_ATTR(disk_used);
 SPACE_INFO_ATTR(disk_total);
 BTRFS_ATTR_RW(space_info, chunk_size, btrfs_chunk_size_show, btrfs_chunk_size_store);
+BTRFS_ATTR(space_info, size_classes, btrfs_size_classes_show);
 
 static ssize_t btrfs_sinfo_bg_reclaim_threshold_show(struct kobject *kobj,
 						     struct kobj_attribute *a,
@@ -885,6 +928,7 @@ static struct attribute *space_info_attrs[] = {
 	BTRFS_ATTR_PTR(space_info, disk_total),
 	BTRFS_ATTR_PTR(space_info, bg_reclaim_threshold),
 	BTRFS_ATTR_PTR(space_info, chunk_size),
+	BTRFS_ATTR_PTR(space_info, size_classes),
 #ifdef CONFIG_BTRFS_DEBUG
 	BTRFS_ATTR_PTR(space_info, force_chunk_alloc),
 #endif
@@ -898,7 +942,7 @@ static void space_info_release(struct kobject *kobj)
 	kfree(sinfo);
 }
 
-static struct kobj_type space_info_ktype = {
+static const struct kobj_type space_info_ktype = {
 	.sysfs_ops = &kobj_sysfs_ops,
 	.release = space_info_release,
 	.default_groups = space_info_groups,
@@ -959,7 +1003,7 @@ static ssize_t btrfs_label_store(struct kobject *kobj,
 	/*
 	 * We don't want to do full transaction commit from inside sysfs
 	 */
-	btrfs_set_pending(fs_info, COMMIT);
+	set_bit(BTRFS_FS_NEED_TRANS_COMMIT, &fs_info->flags);
 	wake_up_process(fs_info->transaction_kthread);
 
 	return len;
@@ -1160,16 +1204,16 @@ static ssize_t btrfs_read_policy_show(struct kobject *kobj,
 
 	for (i = 0; i < BTRFS_NR_READ_POLICY; i++) {
 		if (fs_devices->read_policy == i)
-			ret += scnprintf(buf + ret, PAGE_SIZE - ret, "%s[%s]",
+			ret += sysfs_emit_at(buf, ret, "%s[%s]",
 					 (ret == 0 ? "" : " "),
 					 btrfs_read_policy_name[i]);
 		else
-			ret += scnprintf(buf + ret, PAGE_SIZE - ret, "%s%s",
+			ret += sysfs_emit_at(buf, ret, "%s%s",
 					 (ret == 0 ? "" : " "),
 					 btrfs_read_policy_name[i]);
 	}
 
-	ret += scnprintf(buf + ret, PAGE_SIZE - ret, "\n");
+	ret += sysfs_emit_at(buf, ret, "\n");
 
 	return ret;
 }
@@ -1218,8 +1262,13 @@ static ssize_t btrfs_bg_reclaim_threshold_store(struct kobject *kobj,
 	if (ret)
 		return ret;
 
+#ifdef CONFIG_BTRFS_DEBUG
+	if (thresh != 0 && (thresh > 100))
+		return -EINVAL;
+#else
 	if (thresh != 0 && (thresh <= 50 || thresh > 100))
 		return -EINVAL;
+#endif
 
 	WRITE_ONCE(fs_info->bg_reclaim_threshold, thresh);
 
@@ -1257,7 +1306,7 @@ static void btrfs_release_fsid_kobj(struct kobject *kobj)
 	complete(&fs_devs->kobj_unregister);
 }
 
-static struct kobj_type btrfs_ktype = {
+static const struct kobj_type btrfs_ktype = {
 	.sysfs_ops	= &kobj_sysfs_ops,
 	.release	= btrfs_release_fsid_kobj,
 };
@@ -1787,7 +1836,7 @@ static void btrfs_release_devid_kobj(struct kobject *kobj)
 	complete(&device->kobj_unregister);
 }
 
-static struct kobj_type devid_ktype = {
+static const struct kobj_type devid_ktype = {
 	.sysfs_ops	= &kobj_sysfs_ops,
 	.default_groups = devid_groups,
 	.release	= btrfs_release_devid_kobj,
@@ -2101,7 +2150,7 @@ static void qgroups_release(struct kobject *kobj)
 	kfree(kobj);
 }
 
-static struct kobj_type qgroups_ktype = {
+static const struct kobj_type qgroups_ktype = {
 	.sysfs_ops = &kobj_sysfs_ops,
 	.default_groups = qgroups_groups,
 	.release = qgroups_release,
@@ -2171,7 +2220,7 @@ static void qgroup_release(struct kobject *kobj)
 	memset(&qgroup->kobj, 0, sizeof(*kobj));
 }
 
-static struct kobj_type qgroup_ktype = {
+static const struct kobj_type qgroup_ktype = {
 	.sysfs_ops = &kobj_sysfs_ops,
 	.release = qgroup_release,
 	.default_groups = qgroup_groups,
@@ -2270,36 +2319,23 @@ void btrfs_sysfs_del_one_qgroup(struct btrfs_fs_info *fs_info,
  * Change per-fs features in /sys/fs/btrfs/UUID/features to match current
  * values in superblock. Call after any changes to incompat/compat_ro flags
  */
-void btrfs_sysfs_feature_update(struct btrfs_fs_info *fs_info,
-		u64 bit, enum btrfs_feature_set set)
+void btrfs_sysfs_feature_update(struct btrfs_fs_info *fs_info)
 {
-	struct btrfs_fs_devices *fs_devs;
 	struct kobject *fsid_kobj;
-	u64 __maybe_unused features;
-	int __maybe_unused ret;
+	int ret;
 
 	if (!fs_info)
 		return;
 
-	/*
-	 * See 14e46e04958df74 and e410e34fad913dd, feature bit updates are not
-	 * safe when called from some contexts (eg. balance)
-	 */
-	features = get_features(fs_info, set);
-	ASSERT(bit & supported_feature_masks[set]);
-
-	fs_devs = fs_info->fs_devices;
-	fsid_kobj = &fs_devs->fsid_kobj;
-
+	fsid_kobj = &fs_info->fs_devices->fsid_kobj;
 	if (!fsid_kobj->state_initialized)
 		return;
 
-	/*
-	 * FIXME: this is too heavy to update just one value, ideally we'd like
-	 * to use sysfs_update_group but some refactoring is needed first.
-	 */
-	sysfs_remove_group(fsid_kobj, &btrfs_feature_attr_group);
-	ret = sysfs_create_group(fsid_kobj, &btrfs_feature_attr_group);
+	ret = sysfs_update_group(fsid_kobj, &btrfs_feature_attr_group);
+	if (ret < 0)
+		btrfs_warn(fs_info,
+			   "failed to update /sys/fs/btrfs/%pU/features: %d",
+			   fs_info->fs_devices->fsid, ret);
 }
 
 int __init btrfs_init_sysfs(void)

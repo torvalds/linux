@@ -3,7 +3,7 @@
  *
  * Name: acuuid.h - ACPI-related UUID/GUID definitions
  *
- * Copyright (C) 2000 - 2022, Intel Corp.
+ * Copyright (C) 2000 - 2023, Intel Corp.
  *
  *****************************************************************************/
 
@@ -69,5 +69,6 @@
 #define UUID_HIERARCHICAL_DATA_EXTENSION "dbb8e3e6-5886-4ba6-8795-1319f52a966b"
 #define UUID_CORESIGHT_GRAPH            "3ecbc8b6-1d0e-4fb3-8107-e627f805c6cd"
 #define UUID_USB4_CAPABILITIES          "23a0d13a-26ab-486c-9c5f-0ffa525a575a"
-
+#define UUID_1ST_FUNCTION_ID            "893f00a6-660c-494e-bcfd-3043f4fb67c0"
+#define UUID_2ND_FUNCTION_ID            "107ededd-d381-4fd7-8da9-08e9a6c79644"
 #endif				/* __ACUUID_H__ */

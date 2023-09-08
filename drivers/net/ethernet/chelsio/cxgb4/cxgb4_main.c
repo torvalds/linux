@@ -51,7 +51,6 @@
 #include <linux/mutex.h>
 #include <linux/netdevice.h>
 #include <linux/pci.h>
-#include <linux/aer.h>
 #include <linux/rtnetlink.h>
 #include <linux/sched.h>
 #include <linux/seq_file.h>
@@ -6490,21 +6489,21 @@ static const struct tlsdev_ops cxgb4_ktls_ops = {
 
 #if IS_ENABLED(CONFIG_CHELSIO_IPSEC_INLINE)
 
-static int cxgb4_xfrm_add_state(struct xfrm_state *x)
+static int cxgb4_xfrm_add_state(struct xfrm_state *x,
+				struct netlink_ext_ack *extack)
 {
 	struct adapter *adap = netdev2adap(x->xso.dev);
 	int ret;
 
 	if (!mutex_trylock(&uld_mutex)) {
-		dev_dbg(adap->pdev_dev,
-			"crypto uld critical resource is under use\n");
+		NL_SET_ERR_MSG_MOD(extack, "crypto uld critical resource is under use");
 		return -EBUSY;
 	}
 	ret = chcr_offload_state(adap, CXGB4_XFRMDEV_OPS);
 	if (ret)
 		goto out_unlock;
 
-	ret = adap->uld[CXGB4_ULD_IPSEC].xfrmdev_ops->xdo_dev_state_add(x);
+	ret = adap->uld[CXGB4_ULD_IPSEC].xfrmdev_ops->xdo_dev_state_add(x, extack);
 
 out_unlock:
 	mutex_unlock(&uld_mutex);
@@ -6687,7 +6686,6 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto out_free_adapter;
 	}
 
-	pci_enable_pcie_error_reporting(pdev);
 	pci_set_master(pdev);
 	pci_save_state(pdev);
 	adap_idx++;
@@ -7092,7 +7090,6 @@ fw_attach_fail:
  out_unmap_bar0:
 	iounmap(regs);
  out_disable_device:
-	pci_disable_pcie_error_reporting(pdev);
 	pci_disable_device(pdev);
  out_release_regions:
 	pci_release_regions(pdev);
@@ -7171,7 +7168,6 @@ static void remove_one(struct pci_dev *pdev)
 	}
 #endif
 	iounmap(adapter->regs);
-	pci_disable_pcie_error_reporting(pdev);
 	if ((adapter->flags & CXGB4_DEV_ENABLED)) {
 		pci_disable_device(pdev);
 		adapter->flags &= ~CXGB4_DEV_ENABLED;

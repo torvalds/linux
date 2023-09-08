@@ -1,0 +1,164 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/pinctrl/qcom,msm8998-pinctrl.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Qualcomm MSM8998 TLMM pin controller
+
+maintainers:
+  - Bjorn Andersson <andersson@kernel.org>
+  - Krzysztof Kozlowski <krzysztof.kozlowski@linaro.org>
+
+description:
+  Top Level Mode Multiplexer pin controller in Qualcomm MSM8998 SoC.
+
+properties:
+  compatible:
+    const: qcom,msm8998-pinctrl
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  interrupt-controller: true
+  "#interrupt-cells": true
+  gpio-controller: true
+  "#gpio-cells": true
+  gpio-ranges: true
+  wakeup-parent: true
+
+  gpio-reserved-ranges:
+    minItems: 1
+    maxItems: 75
+
+  gpio-line-names:
+    maxItems: 150
+
+patternProperties:
+  "-state$":
+    oneOf:
+      - $ref: "#/$defs/qcom-msm8998-tlmm-state"
+      - patternProperties:
+          "-pins$":
+            $ref: "#/$defs/qcom-msm8998-tlmm-state"
+        additionalProperties: false
+
+$defs:
+  qcom-msm8998-tlmm-state:
+    type: object
+    description:
+      Pinctrl node's client devices use subnodes for desired pin configuration.
+      Client device subnodes use below standard properties.
+    $ref: qcom,tlmm-common.yaml#/$defs/qcom-tlmm-state
+    unevaluatedProperties: false
+
+    properties:
+      pins:
+        description:
+          List of gpio pins affected by the properties specified in this
+          subnode.
+        items:
+          oneOf:
+            - pattern: "^gpio([0-9]|[1-9][0-9]|1[0-4][0-9])$"
+            - enum: [ sdc2_clk, sdc2_cmd, sdc2_data, ufs_reset ]
+        minItems: 1
+        maxItems: 36
+
+      function:
+        description:
+          Specify the alternative function to be configured for the specified
+          pins.
+
+        enum: [ gpio, adsp_ext, agera_pll, atest_char, atest_gpsadc0,
+                atest_gpsadc1, atest_tsens, atest_tsens2, atest_usb1,
+                atest_usb10, atest_usb11, atest_usb12, atest_usb13, audio_ref,
+                bimc_dte0, bimc_dte1, blsp10_spi, blsp10_spi_a, blsp10_spi_b,
+                blsp11_i2c, blsp1_spi, blsp1_spi_a, blsp1_spi_b, blsp2_spi,
+                blsp9_spi, blsp_i2c1, blsp_i2c2, blsp_i2c3, blsp_i2c4,
+                blsp_i2c5, blsp_i2c6, blsp_i2c7, blsp_i2c8, blsp_i2c9,
+                blsp_i2c10, blsp_i2c11, blsp_i2c12, blsp_spi1, blsp_spi2,
+                blsp_spi3, blsp_spi4, blsp_spi5, blsp_spi6, blsp_spi7,
+                blsp_spi8, blsp_spi9, blsp_spi10, blsp_spi11, blsp_spi12,
+                blsp_uart1_a, blsp_uart1_b, blsp_uart2_a, blsp_uart2_b,
+                blsp_uart3_a, blsp_uart3_b, blsp_uart7_a, blsp_uart7_b,
+                blsp_uart8, blsp_uart8_a, blsp_uart8_b, blsp_uart9_a,
+                blsp_uart9_b, blsp_uim1_a, blsp_uim1_b, blsp_uim2_a,
+                blsp_uim2_b, blsp_uim3_a, blsp_uim3_b, blsp_uim7_a,
+                blsp_uim7_b, blsp_uim8_a, blsp_uim8_b, blsp_uim9_a,
+                blsp_uim9_b, bt_reset, btfm_slimbus, cam_mclk, cci_async,
+                cci_i2c, cci_timer0, cci_timer1, cci_timer2, cci_timer3,
+                cci_timer4, cri_trng, cri_trng0, cri_trng1, dbg_out, ddr_bist,
+                edp_hot, edp_lcd, gcc_gp1_a, gcc_gp1_b, gcc_gp2_a, gcc_gp2_b,
+                gcc_gp3_a, gcc_gp3_b, hdmi_cec, hdmi_ddc, hdmi_hot, hdmi_rcv,
+                isense_dbg, jitter_bist, ldo_en, ldo_update, lpass_slimbus,
+                m_voc, mdp_vsync, mdp_vsync0, mdp_vsync1, mdp_vsync2,
+                mdp_vsync3, mdp_vsync_a, mdp_vsync_b, modem_tsync, mss_lte,
+                nav_dr, nav_pps, pa_indicator, pci_e0, phase_flag,
+                pll_bypassnl, pll_reset, pri_mi2s, pri_mi2s_ws, prng_rosc,
+                pwr_crypto, pwr_modem, pwr_nav, qdss_cti0_a, qdss_cti0_b,
+                qdss_cti1_a, qdss_cti1_b, qdss, qlink_enable, qlink_request,
+                qua_mi2s, sd_card, sd_write, sdc40, sdc41, sdc42, sdc43,
+                sdc4_clk, sdc4_cmd, sec_mi2s, sp_cmu, spkr_i2s, ssbi1, ssc_irq,
+                ter_mi2s, tgu_ch0, tgu_ch1, tsense_pwm1, tsense_pwm2, tsif0,
+                tsif1, uim1_clk, uim1_data, uim1_present, uim1_reset, uim2_clk,
+                uim2_data, uim2_present, uim2_reset, uim_batt, usb_phy, vfr_1,
+                vsense_clkout, vsense_data0, vsense_data1, vsense_mode,
+                wlan1_adc0, wlan1_adc1, wlan2_adc0, wlan2_adc1 ]
+
+    required:
+      - pins
+
+allOf:
+  - $ref: /schemas/pinctrl/qcom,tlmm-common.yaml#
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    tlmm: pinctrl@3400000 {
+        compatible = "qcom,msm8998-pinctrl";
+        reg = <0x03400000 0xc00000>;
+        interrupts = <GIC_SPI 208 IRQ_TYPE_LEVEL_HIGH>;
+        gpio-ranges = <&tlmm 0 0 150>;
+        gpio-controller;
+        #gpio-cells = <2>;
+        interrupt-controller;
+        #interrupt-cells = <2>;
+        gpio-reserved-ranges = <0 4>, <81 4>;
+
+        sdc2-off-state {
+            clk-pins {
+                pins = "sdc2_clk";
+                drive-strength = <2>;
+                bias-disable;
+            };
+
+            cmd-pins {
+                pins = "sdc2_cmd";
+                drive-strength = <2>;
+                bias-pull-up;
+            };
+
+            data-pins {
+                pins = "sdc2_data";
+                drive-strength = <2>;
+                bias-pull-up;
+            };
+        };
+
+        sdc2-cd-state {
+            pins = "gpio95";
+            function = "gpio";
+            bias-pull-up;
+            drive-strength = <2>;
+        };
+    };

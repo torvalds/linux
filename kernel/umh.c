@@ -32,9 +32,6 @@
 
 #include <trace/events/module.h>
 
-#define CAP_BSET	(void *)1
-#define CAP_PI		(void *)2
-
 static kernel_cap_t usermodehelper_bset = CAP_FULL_SET;
 static kernel_cap_t usermodehelper_inheritable = CAP_FULL_SET;
 static DEFINE_SPINLOCK(umh_sysctl_lock);
@@ -438,21 +435,27 @@ int call_usermodehelper_exec(struct subprocess_info *sub_info, int wait)
 	if (wait == UMH_NO_WAIT)	/* task has freed sub_info */
 		goto unlock;
 
-	if (wait & UMH_KILLABLE)
-		state |= TASK_KILLABLE;
-
 	if (wait & UMH_FREEZABLE)
 		state |= TASK_FREEZABLE;
 
-	retval = wait_for_completion_state(&done, state);
-	if (!retval)
-		goto wait_done;
-
 	if (wait & UMH_KILLABLE) {
+		retval = wait_for_completion_state(&done, state | TASK_KILLABLE);
+		if (!retval)
+			goto wait_done;
+
 		/* umh_complete() will see NULL and free sub_info */
 		if (xchg(&sub_info->complete, NULL))
 			goto unlock;
+
+		/*
+		 * fallthrough; in case of -ERESTARTSYS now do uninterruptible
+		 * wait_for_completion_state(). Since umh_complete() shall call
+		 * complete() in a moment if xchg() above returned NULL, this
+		 * uninterruptible wait_for_completion_state() will not block
+		 * SIGKILL'ed processes for long.
+		 */
 	}
+	wait_for_completion_state(&done, state);
 
 wait_done:
 	retval = sub_info->retval;
@@ -495,9 +498,9 @@ static int proc_cap_handler(struct ctl_table *table, int write,
 			 void *buffer, size_t *lenp, loff_t *ppos)
 {
 	struct ctl_table t;
-	unsigned long cap_array[_KERNEL_CAPABILITY_U32S];
-	kernel_cap_t new_cap;
-	int err, i;
+	unsigned long cap_array[2];
+	kernel_cap_t new_cap, *cap;
+	int err;
 
 	if (write && (!capable(CAP_SETPCAP) ||
 		      !capable(CAP_SYS_MODULE)))
@@ -506,16 +509,13 @@ static int proc_cap_handler(struct ctl_table *table, int write,
 	/*
 	 * convert from the global kernel_cap_t to the ulong array to print to
 	 * userspace if this is a read.
+	 *
+	 * Legacy format: capabilities are exposed as two 32-bit values
 	 */
+	cap = table->data;
 	spin_lock(&umh_sysctl_lock);
-	for (i = 0; i < _KERNEL_CAPABILITY_U32S; i++)  {
-		if (table->data == CAP_BSET)
-			cap_array[i] = usermodehelper_bset.cap[i];
-		else if (table->data == CAP_PI)
-			cap_array[i] = usermodehelper_inheritable.cap[i];
-		else
-			BUG();
-	}
+	cap_array[0] = (u32) cap->val;
+	cap_array[1] = cap->val >> 32;
 	spin_unlock(&umh_sysctl_lock);
 
 	t = *table;
@@ -529,22 +529,15 @@ static int proc_cap_handler(struct ctl_table *table, int write,
 	if (err < 0)
 		return err;
 
-	/*
-	 * convert from the sysctl array of ulongs to the kernel_cap_t
-	 * internal representation
-	 */
-	for (i = 0; i < _KERNEL_CAPABILITY_U32S; i++)
-		new_cap.cap[i] = cap_array[i];
+	new_cap.val = (u32)cap_array[0];
+	new_cap.val += (u64)cap_array[1] << 32;
 
 	/*
 	 * Drop everything not in the new_cap (but don't add things)
 	 */
 	if (write) {
 		spin_lock(&umh_sysctl_lock);
-		if (table->data == CAP_BSET)
-			usermodehelper_bset = cap_intersect(usermodehelper_bset, new_cap);
-		if (table->data == CAP_PI)
-			usermodehelper_inheritable = cap_intersect(usermodehelper_inheritable, new_cap);
+		*cap = cap_intersect(*cap, new_cap);
 		spin_unlock(&umh_sysctl_lock);
 	}
 
@@ -554,15 +547,15 @@ static int proc_cap_handler(struct ctl_table *table, int write,
 struct ctl_table usermodehelper_table[] = {
 	{
 		.procname	= "bset",
-		.data		= CAP_BSET,
-		.maxlen		= _KERNEL_CAPABILITY_U32S * sizeof(unsigned long),
+		.data		= &usermodehelper_bset,
+		.maxlen		= 2 * sizeof(unsigned long),
 		.mode		= 0600,
 		.proc_handler	= proc_cap_handler,
 	},
 	{
 		.procname	= "inheritable",
-		.data		= CAP_PI,
-		.maxlen		= _KERNEL_CAPABILITY_U32S * sizeof(unsigned long),
+		.data		= &usermodehelper_inheritable,
+		.maxlen		= 2 * sizeof(unsigned long),
 		.mode		= 0600,
 		.proc_handler	= proc_cap_handler,
 	},

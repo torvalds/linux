@@ -161,19 +161,25 @@ struct console_font_op {
 	unsigned int flags;	/* KD_FONT_FLAG_* */
 	unsigned int width, height;	/* font size */
 	unsigned int charcount;
-	unsigned char __user *data;	/* font data with height fixed to 32 */
+	unsigned char __user *data;	/* font data with vpitch fixed to 32 for
+					 * KD_FONT_OP_SET/GET
+					 */
 };
 
 struct console_font {
 	unsigned int width, height;	/* font size */
 	unsigned int charcount;
-	unsigned char *data;	/* font data with height fixed to 32 */
+	unsigned char *data;	/* font data with vpitch fixed to 32 for
+				 * KD_FONT_OP_SET/GET
+				 */
 };
 
 #define KD_FONT_OP_SET		0	/* Set font */
 #define KD_FONT_OP_GET		1	/* Get font */
 #define KD_FONT_OP_SET_DEFAULT	2	/* Set font to default, data points to name / NULL */
 #define KD_FONT_OP_COPY		3	/* Obsolete, do not use */
+#define KD_FONT_OP_SET_TALL	4	/* Set font with vpitch = height */
+#define KD_FONT_OP_GET_TALL	5	/* Get font with vpitch = height */
 
 #define KD_FONT_FLAG_DONT_RECALC 	1	/* Don't recalculate hw charcell size [compat] */
 

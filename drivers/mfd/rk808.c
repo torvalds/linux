@@ -137,58 +137,65 @@ static const struct resource rk817_charger_resources[] = {
 };
 
 static const struct mfd_cell rk805s[] = {
-	{ .name = "rk808-clkout", },
-	{ .name = "rk808-regulator", },
-	{ .name = "rk805-pinctrl", },
+	{ .name = "rk808-clkout", .id = PLATFORM_DEVID_NONE, },
+	{ .name = "rk808-regulator", .id = PLATFORM_DEVID_NONE, },
+	{ .name = "rk805-pinctrl", .id = PLATFORM_DEVID_NONE, },
 	{
 		.name = "rk808-rtc",
 		.num_resources = ARRAY_SIZE(rtc_resources),
 		.resources = &rtc_resources[0],
+		.id = PLATFORM_DEVID_NONE,
 	},
 	{	.name = "rk805-pwrkey",
 		.num_resources = ARRAY_SIZE(rk805_key_resources),
 		.resources = &rk805_key_resources[0],
+		.id = PLATFORM_DEVID_NONE,
 	},
 };
 
 static const struct mfd_cell rk808s[] = {
-	{ .name = "rk808-clkout", },
-	{ .name = "rk808-regulator", },
+	{ .name = "rk808-clkout", .id = PLATFORM_DEVID_NONE, },
+	{ .name = "rk808-regulator", .id = PLATFORM_DEVID_NONE, },
 	{
 		.name = "rk808-rtc",
 		.num_resources = ARRAY_SIZE(rtc_resources),
 		.resources = rtc_resources,
+		.id = PLATFORM_DEVID_NONE,
 	},
 };
 
 static const struct mfd_cell rk817s[] = {
-	{ .name = "rk808-clkout",},
-	{ .name = "rk808-regulator",},
+	{ .name = "rk808-clkout", .id = PLATFORM_DEVID_NONE, },
+	{ .name = "rk808-regulator", .id = PLATFORM_DEVID_NONE, },
 	{
 		.name = "rk805-pwrkey",
 		.num_resources = ARRAY_SIZE(rk817_pwrkey_resources),
 		.resources = &rk817_pwrkey_resources[0],
+		.id = PLATFORM_DEVID_NONE,
 	},
 	{
 		.name = "rk808-rtc",
 		.num_resources = ARRAY_SIZE(rk817_rtc_resources),
 		.resources = &rk817_rtc_resources[0],
+		.id = PLATFORM_DEVID_NONE,
 	},
-	{ .name = "rk817-codec",},
+	{ .name = "rk817-codec", .id = PLATFORM_DEVID_NONE, },
 	{
 		.name = "rk817-charger",
 		.num_resources = ARRAY_SIZE(rk817_charger_resources),
 		.resources = &rk817_charger_resources[0],
+		.id = PLATFORM_DEVID_NONE,
 	},
 };
 
 static const struct mfd_cell rk818s[] = {
-	{ .name = "rk808-clkout", },
-	{ .name = "rk808-regulator", },
+	{ .name = "rk808-clkout", .id = PLATFORM_DEVID_NONE, },
+	{ .name = "rk808-regulator", .id = PLATFORM_DEVID_NONE, },
 	{
 		.name = "rk808-rtc",
 		.num_resources = ARRAY_SIZE(rtc_resources),
 		.resources = rtc_resources,
+		.id = PLATFORM_DEVID_NONE,
 	},
 };
 
@@ -640,8 +647,7 @@ static const struct of_device_id rk808_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, rk808_of_match);
 
-static int rk808_probe(struct i2c_client *client,
-		       const struct i2c_device_id *id)
+static int rk808_probe(struct i2c_client *client)
 {
 	struct device_node *np = client->dev.of_node;
 	struct rk808 *rk808;
@@ -861,7 +867,7 @@ static struct i2c_driver rk808_i2c_driver = {
 		.of_match_table = rk808_of_match,
 		.pm = &rk8xx_pm_ops,
 	},
-	.probe    = rk808_probe,
+	.probe_new = rk808_probe,
 	.remove   = rk808_remove,
 	.shutdown = rk8xx_shutdown,
 };

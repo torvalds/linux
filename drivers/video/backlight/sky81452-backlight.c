@@ -41,7 +41,7 @@
 #define SKY81452_MAX_BRIGHTNESS	(SKY81452_CS + 1)
 
 /**
- * struct sky81452_platform_data
+ * struct sky81452_bl_platform_data - backlight platform data
  * @name:	backlight driver name.
  *		If it is not defined, default name is lcd-backlight.
  * @gpiod_enable:GPIO descriptor which control EN pin
@@ -311,7 +311,7 @@ static int sky81452_bl_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int sky81452_bl_remove(struct platform_device *pdev)
+static void sky81452_bl_remove(struct platform_device *pdev)
 {
 	const struct sky81452_bl_platform_data *pdata =
 						dev_get_platdata(&pdev->dev);
@@ -325,8 +325,6 @@ static int sky81452_bl_remove(struct platform_device *pdev)
 
 	if (pdata->gpiod_enable)
 		gpiod_set_value_cansleep(pdata->gpiod_enable, 0);
-
-	return 0;
 }
 
 #ifdef CONFIG_OF
@@ -343,7 +341,7 @@ static struct platform_driver sky81452_bl_driver = {
 		.of_match_table = of_match_ptr(sky81452_bl_of_match),
 	},
 	.probe = sky81452_bl_probe,
-	.remove = sky81452_bl_remove,
+	.remove_new = sky81452_bl_remove,
 };
 
 module_platform_driver(sky81452_bl_driver);

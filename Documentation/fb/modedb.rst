@@ -26,6 +26,14 @@ Valid mode specifiers (mode_option argument)::
 with <xres>, <yres>, <bpp> and <refresh> decimal numbers and <name> a string.
 Things between square brackets are optional.
 
+Valid names are::
+
+  - NSTC: 480i output, with the CCIR System-M TV mode and NTSC color encoding
+  - NTSC-J: 480i output, with the CCIR System-M TV mode, the NTSC color
+    encoding, and a black level equal to the blanking level.
+  - PAL: 576i output, with the CCIR System-B TV mode and PAL color encoding
+  - PAL-M: 480i output, with the CCIR System-M TV mode and PAL color encoding
+
 If 'M' is specified in the mode_option argument (after <yres> and before
 <bpp> and <refresh>, if specified) the timings will be calculated using
 VESA(TM) Coordinated Video Timings instead of looking up the mode from a table.
@@ -65,6 +73,8 @@ Valid options are::
   - reflect_y (boolean): Perform an axial symmetry on the Y axis
   - rotate (integer): Rotate the initial framebuffer by x
     degrees. Valid values are 0, 90, 180 and 270.
+  - tv_mode: Analog TV mode. One of "NTSC", "NTSC-443", "NTSC-J", "PAL",
+    "PAL-M", "PAL-N", or "SECAM".
   - panel_orientation, one of "normal", "upside_down", "left_side_up", or
     "right_side_up". For KMS drivers only, this sets the "panel orientation"
     property on the kms connector as hint for kms users.

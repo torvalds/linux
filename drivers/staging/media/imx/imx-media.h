@@ -201,25 +201,14 @@ int imx_media_mbus_fmt_to_pix_fmt(struct v4l2_pix_format *pix,
 				  const struct imx_media_pixfmt *cc);
 void imx_media_grp_id_to_sd_name(char *sd_name, int sz,
 				 u32 grp_id, int ipu_id);
-struct v4l2_subdev *
-imx_media_find_subdev_by_fwnode(struct imx_media_dev *imxmd,
-				struct fwnode_handle *fwnode);
-struct v4l2_subdev *
-imx_media_find_subdev_by_devname(struct imx_media_dev *imxmd,
-				 const char *devname);
 void imx_media_add_video_device(struct imx_media_dev *imxmd,
 				struct imx_media_video_dev *vdev);
-int imx_media_pipeline_csi2_channel(struct media_entity *start_entity);
 struct media_pad *
 imx_media_pipeline_pad(struct media_entity *start_entity, u32 grp_id,
 		       enum v4l2_buf_type buftype, bool upstream);
 struct v4l2_subdev *
 imx_media_pipeline_subdev(struct media_entity *start_entity, u32 grp_id,
 			  bool upstream);
-struct video_device *
-imx_media_pipeline_video_device(struct media_entity *start_entity,
-				enum v4l2_buf_type buftype, bool upstream);
-struct fwnode_handle *imx_media_get_pad_fwnode(struct media_pad *pad);
 
 struct imx_media_dma_buf {
 	void          *virt;
@@ -247,9 +236,9 @@ int imx_media_dev_notifier_register(struct imx_media_dev *imxmd,
 /* imx-media-fim.c */
 struct imx_media_fim;
 void imx_media_fim_eof_monitor(struct imx_media_fim *fim, ktime_t timestamp);
-int imx_media_fim_set_stream(struct imx_media_fim *fim,
-			     const struct v4l2_fract *frame_interval,
-			     bool on);
+void imx_media_fim_set_stream(struct imx_media_fim *fim,
+			      const struct v4l2_fract *frame_interval,
+			      bool on);
 int imx_media_fim_add_controls(struct imx_media_fim *fim);
 struct imx_media_fim *imx_media_fim_init(struct v4l2_subdev *sd);
 void imx_media_fim_free(struct imx_media_fim *fim);
@@ -262,8 +251,6 @@ void imx_media_unregister_ipu_internal_subdevs(struct imx_media_dev *imxmd);
 /* imx-media-of.c */
 int imx_media_add_of_subdevs(struct imx_media_dev *dev,
 			     struct device_node *np);
-int imx_media_of_add_csi(struct imx_media_dev *imxmd,
-			 struct device_node *csi_np);
 
 /* imx-media-vdic.c */
 struct v4l2_subdev *imx_media_vdic_register(struct v4l2_device *v4l2_dev,
@@ -299,7 +286,6 @@ void imx_media_csc_scaler_device_unregister(struct imx_media_video_dev *vdev);
 
 /* subdev group ids */
 #define IMX_MEDIA_GRP_ID_CSI2          BIT(8)
-#define IMX_MEDIA_GRP_ID_CSI           BIT(9)
 #define IMX_MEDIA_GRP_ID_IPU_CSI_BIT   10
 #define IMX_MEDIA_GRP_ID_IPU_CSI       (0x3 << IMX_MEDIA_GRP_ID_IPU_CSI_BIT)
 #define IMX_MEDIA_GRP_ID_IPU_CSI0      BIT(IMX_MEDIA_GRP_ID_IPU_CSI_BIT)

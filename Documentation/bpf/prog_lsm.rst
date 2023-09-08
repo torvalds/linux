@@ -18,7 +18,7 @@ LSM hook:
 .. c:function:: int file_mprotect(struct vm_area_struct *vma, unsigned long reqprot, unsigned long prot);
 
 Other LSM hooks which can be instrumented can be found in
-``include/linux/lsm_hooks.h``.
+``security/security.c``.
 
 eBPF programs that use Documentation/bpf/btf.rst do not need to include kernel
 headers for accessing information from the attached eBPF program's context.

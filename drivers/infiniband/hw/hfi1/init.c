@@ -342,7 +342,7 @@ int hfi1_create_ctxtdata(struct hfi1_pportdata *ppd, int numa,
 		INIT_LIST_HEAD(&rcd->flow_queue.queue_head);
 		INIT_LIST_HEAD(&rcd->rarr_queue.queue_head);
 
-		hfi1_cdbg(PROC, "setting up context %u\n", rcd->ctxt);
+		hfi1_cdbg(PROC, "setting up context %u", rcd->ctxt);
 
 		/*
 		 * Calculate the context's RcvArray entry starting point.
@@ -400,7 +400,7 @@ int hfi1_create_ctxtdata(struct hfi1_pportdata *ppd, int numa,
 			rcd->egrbufs.count = MAX_EAGER_ENTRIES;
 		}
 		hfi1_cdbg(PROC,
-			  "ctxt%u: max Eager buffer RcvArray entries: %u\n",
+			  "ctxt%u: max Eager buffer RcvArray entries: %u",
 			  rcd->ctxt, rcd->egrbufs.count);
 
 		/*
@@ -432,7 +432,7 @@ int hfi1_create_ctxtdata(struct hfi1_pportdata *ppd, int numa,
 		if (rcd->egrbufs.size < hfi1_max_mtu) {
 			rcd->egrbufs.size = __roundup_pow_of_two(hfi1_max_mtu);
 			hfi1_cdbg(PROC,
-				  "ctxt%u: eager bufs size too small. Adjusting to %u\n",
+				  "ctxt%u: eager bufs size too small. Adjusting to %u",
 				    rcd->ctxt, rcd->egrbufs.size);
 		}
 		rcd->egrbufs.rcvtid_size = HFI1_MAX_EAGER_BUFFER_SIZE;
@@ -464,7 +464,7 @@ bail:
  *
  * This wrapper is the free function that matches hfi1_create_ctxtdata().
  * When a context is done being used (kernel or user), this function is called
- * for the "final" put to match the kref init from hf1i_create_ctxtdata().
+ * for the "final" put to match the kref init from hfi1_create_ctxtdata().
  * Other users of the context do a get/put sequence to make sure that the
  * structure isn't removed while in use.
  */
@@ -1761,17 +1761,11 @@ int hfi1_create_rcvhdrq(struct hfi1_devdata *dd, struct hfi1_ctxtdata *rcd)
 	unsigned amt;
 
 	if (!rcd->rcvhdrq) {
-		gfp_t gfp_flags;
-
 		amt = rcvhdrq_size(rcd);
 
-		if (rcd->ctxt < dd->first_dyn_alloc_ctxt || rcd->is_vnic)
-			gfp_flags = GFP_KERNEL;
-		else
-			gfp_flags = GFP_USER;
 		rcd->rcvhdrq = dma_alloc_coherent(&dd->pcidev->dev, amt,
 						  &rcd->rcvhdrq_dma,
-						  gfp_flags | __GFP_COMP);
+						  GFP_KERNEL);
 
 		if (!rcd->rcvhdrq) {
 			dd_dev_err(dd,
@@ -1785,7 +1779,7 @@ int hfi1_create_rcvhdrq(struct hfi1_devdata *dd, struct hfi1_ctxtdata *rcd)
 			rcd->rcvhdrtail_kvaddr = dma_alloc_coherent(&dd->pcidev->dev,
 								    PAGE_SIZE,
 								    &rcd->rcvhdrqtailaddr_dma,
-								    gfp_flags);
+								    GFP_KERNEL);
 			if (!rcd->rcvhdrtail_kvaddr)
 				goto bail_free;
 		}
@@ -1821,18 +1815,9 @@ int hfi1_setup_eagerbufs(struct hfi1_ctxtdata *rcd)
 {
 	struct hfi1_devdata *dd = rcd->dd;
 	u32 max_entries, egrtop, alloced_bytes = 0;
-	gfp_t gfp_flags;
 	u16 order, idx = 0;
 	int ret = 0;
 	u16 round_mtu = roundup_pow_of_two(hfi1_max_mtu);
-
-	/*
-	 * GFP_USER, but without GFP_FS, so buffer cache can be
-	 * coalesced (we hope); otherwise, even at order 4,
-	 * heavy filesystem activity makes these fail, and we can
-	 * use compound pages.
-	 */
-	gfp_flags = __GFP_RECLAIM | __GFP_IO | __GFP_COMP;
 
 	/*
 	 * The minimum size of the eager buffers is a groups of MTU-sized
@@ -1864,7 +1849,7 @@ int hfi1_setup_eagerbufs(struct hfi1_ctxtdata *rcd)
 			dma_alloc_coherent(&dd->pcidev->dev,
 					   rcd->egrbufs.rcvtid_size,
 					   &rcd->egrbufs.buffers[idx].dma,
-					   gfp_flags);
+					   GFP_KERNEL);
 		if (rcd->egrbufs.buffers[idx].addr) {
 			rcd->egrbufs.buffers[idx].len =
 				rcd->egrbufs.rcvtid_size;
@@ -1935,7 +1920,7 @@ int hfi1_setup_eagerbufs(struct hfi1_ctxtdata *rcd)
 	rcd->egrbufs.size = alloced_bytes;
 
 	hfi1_cdbg(PROC,
-		  "ctxt%u: Alloced %u rcv tid entries @ %uKB, total %uKB\n",
+		  "ctxt%u: Alloced %u rcv tid entries @ %uKB, total %uKB",
 		  rcd->ctxt, rcd->egrbufs.alloced,
 		  rcd->egrbufs.rcvtid_size / 1024, rcd->egrbufs.size / 1024);
 
@@ -1958,13 +1943,13 @@ int hfi1_setup_eagerbufs(struct hfi1_ctxtdata *rcd)
 		rcd->expected_count = MAX_TID_PAIR_ENTRIES * 2;
 
 	rcd->expected_base = rcd->eager_base + egrtop;
-	hfi1_cdbg(PROC, "ctxt%u: eager:%u, exp:%u, egrbase:%u, expbase:%u\n",
+	hfi1_cdbg(PROC, "ctxt%u: eager:%u, exp:%u, egrbase:%u, expbase:%u",
 		  rcd->ctxt, rcd->egrbufs.alloced, rcd->expected_count,
 		  rcd->eager_base, rcd->expected_base);
 
 	if (!hfi1_rcvbuf_validate(rcd->egrbufs.rcvtid_size, PT_EAGER, &order)) {
 		hfi1_cdbg(PROC,
-			  "ctxt%u: current Eager buffer size is invalid %u\n",
+			  "ctxt%u: current Eager buffer size is invalid %u",
 			  rcd->ctxt, rcd->egrbufs.rcvtid_size);
 		ret = -EINVAL;
 		goto bail_rcvegrbuf_phys;

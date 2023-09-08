@@ -42,6 +42,12 @@ static const struct esdhc_clk_fixup ls1021a_esdhc_clk = {
 	.max_clk[MMC_TIMING_SD_HS] = 46500000,
 };
 
+static const struct esdhc_clk_fixup ls1043a_esdhc_clk = {
+	.sd_dflt_max_clk = 25000000,
+	.max_clk[MMC_TIMING_UHS_SDR104] = 116700000,
+	.max_clk[MMC_TIMING_MMC_HS200] = 116700000,
+};
+
 static const struct esdhc_clk_fixup ls1046a_esdhc_clk = {
 	.sd_dflt_max_clk = 25000000,
 	.max_clk[MMC_TIMING_UHS_SDR104] = 167000000,
@@ -63,6 +69,7 @@ static const struct esdhc_clk_fixup p1010_esdhc_clk = {
 
 static const struct of_device_id sdhci_esdhc_of_match[] = {
 	{ .compatible = "fsl,ls1021a-esdhc", .data = &ls1021a_esdhc_clk},
+	{ .compatible = "fsl,ls1043a-esdhc", .data = &ls1043a_esdhc_clk},
 	{ .compatible = "fsl,ls1046a-esdhc", .data = &ls1046a_esdhc_clk},
 	{ .compatible = "fsl,ls1012a-esdhc", .data = &ls1012a_esdhc_clk},
 	{ .compatible = "fsl,p1010-esdhc",   .data = &p1010_esdhc_clk},
@@ -91,7 +98,7 @@ struct sdhci_esdhc {
 };
 
 /**
- * esdhc_read*_fixup - Fixup the value read from incompatible eSDHC register
+ * esdhc_readl_fixup - Fixup the value read from incompatible eSDHC register
  *		       to make it compatible with SD spec.
  *
  * @host: pointer to sdhci_host
@@ -126,6 +133,7 @@ static u32 esdhc_readl_fixup(struct sdhci_host *host,
 			return ret;
 		}
 	}
+
 	/*
 	 * The DAT[3:0] line signal levels and the CMD line signal level are
 	 * not compatible with standard SDHC register. The line signal levels
@@ -137,6 +145,16 @@ static u32 esdhc_readl_fixup(struct sdhci_host *host,
 		ret = value & 0x000fffff;
 		ret |= (value >> 4) & SDHCI_DATA_LVL_MASK;
 		ret |= (value << 1) & SDHCI_CMD_LVL;
+
+		/*
+		 * Some controllers have unreliable Data Line Active
+		 * bit for commands with busy signal. This affects
+		 * Command Inhibit (data) bit. Just ignore it since
+		 * MMC core driver has already polled card status
+		 * with CMD13 after any command with busy siganl.
+		 */
+		if (esdhc->quirk_ignore_data_inhibit)
+			ret &= ~SDHCI_DATA_INHIBIT;
 		return ret;
 	}
 
@@ -148,19 +166,6 @@ static u32 esdhc_readl_fixup(struct sdhci_host *host,
 	if (spec_reg == SDHCI_CAPABILITIES_1) {
 		ret = value & ~(SDHCI_SUPPORT_SDR50 | SDHCI_SUPPORT_SDR104 |
 				SDHCI_SUPPORT_DDR50);
-		return ret;
-	}
-
-	/*
-	 * Some controllers have unreliable Data Line Active
-	 * bit for commands with busy signal. This affects
-	 * Command Inhibit (data) bit. Just ignore it since
-	 * MMC core driver has already polled card status
-	 * with CMD13 after any command with busy siganl.
-	 */
-	if ((spec_reg == SDHCI_PRESENT_STATE) &&
-	(esdhc->quirk_ignore_data_inhibit == true)) {
-		ret = value & ~SDHCI_DATA_INHIBIT;
 		return ret;
 	}
 
@@ -216,7 +221,7 @@ static u8 esdhc_readb_fixup(struct sdhci_host *host,
 }
 
 /**
- * esdhc_write*_fixup - Fixup the SD spec register value so that it could be
+ * esdhc_writel_fixup - Fixup the SD spec register value so that it could be
  *			written into eSDHC register.
  *
  * @host: pointer to sdhci_host

@@ -200,11 +200,11 @@ ip netns exec ${NS2} sh -c 'ping -W 1 -c 1 100.64.41.1 || echo "Success: First p
 # ----------------------------------------------------------------------
 # In ns1: ingress use XDP to remove VLAN tags
 export DEVNS1=veth1
-export FILE=test_xdp_vlan.o
+export BPF_FILE=test_xdp_vlan.bpf.o
 
 # First test: Remove VLAN by setting VLAN ID 0, using "xdp_vlan_change"
 export XDP_PROG=xdp_vlan_change
-ip netns exec ${NS1} ip link set $DEVNS1 $XDP_MODE object $FILE section $XDP_PROG
+ip netns exec ${NS1} ip link set $DEVNS1 $XDP_MODE object $BPF_FILE section $XDP_PROG
 
 # In ns1: egress use TC to add back VLAN tag 4011
 #  (del cmd)
@@ -212,7 +212,7 @@ ip netns exec ${NS1} ip link set $DEVNS1 $XDP_MODE object $FILE section $XDP_PRO
 #
 ip netns exec ${NS1} tc qdisc add dev $DEVNS1 clsact
 ip netns exec ${NS1} tc filter add dev $DEVNS1 egress \
-  prio 1 handle 1 bpf da obj $FILE sec tc_vlan_push
+  prio 1 handle 1 bpf da obj $BPF_FILE sec tc_vlan_push
 
 # Now the namespaces can reach each-other, test with ping:
 ip netns exec ${NS2} ping -i 0.2 -W 2 -c 2 $IPADDR1
@@ -226,7 +226,7 @@ ip netns exec ${NS1} ping -i 0.2 -W 2 -c 2 $IPADDR2
 #
 export XDP_PROG=xdp_vlan_remove_outer2
 ip netns exec ${NS1} ip link set $DEVNS1 $XDP_MODE off
-ip netns exec ${NS1} ip link set $DEVNS1 $XDP_MODE object $FILE section $XDP_PROG
+ip netns exec ${NS1} ip link set $DEVNS1 $XDP_MODE object $BPF_FILE section $XDP_PROG
 
 # Now the namespaces should still be able reach each-other, test with ping:
 ip netns exec ${NS2} ping -i 0.2 -W 2 -c 2 $IPADDR1

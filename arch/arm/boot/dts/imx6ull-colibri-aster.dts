@@ -15,6 +15,46 @@
 		     "fsl,imx6ull";
 };
 
+&ad7879_ts {
+	status = "okay";
+};
+
 &atmel_mxt_ts {
 	status = "okay";
+};
+
+&backlight {
+	status = "okay";
+};
+
+&i2c1 {
+	status = "okay";
+};
+
+&i2c2 {
+	status = "okay";
+};
+
+&lcdif {
+	status = "okay";
+};
+
+&panel_dpi {
+	status = "okay";
+};
+
+&pwm4 {
+	status = "okay";
+};
+
+/* PWM <B> */
+&pwm5 {
+	/* Pin already used by atmel_mxt_ts touchscreen */
+	status = "disabled";
+};
+
+/* PWM <C> */
+&pwm6 {
+	/* Pin already used by atmel_mxt_ts touchscreen */
+	status = "disabled";
 };

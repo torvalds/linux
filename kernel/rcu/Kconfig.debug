@@ -27,7 +27,6 @@ config RCU_SCALE_TEST
 	tristate "performance tests for RCU"
 	depends on DEBUG_KERNEL
 	select TORTURE_TEST
-	select SRCU
 	default n
 	help
 	  This option provides a kernel module that runs performance
@@ -43,7 +42,6 @@ config RCU_TORTURE_TEST
 	tristate "torture tests for RCU"
 	depends on DEBUG_KERNEL
 	select TORTURE_TEST
-	select SRCU
 	default n
 	help
 	  This option provides a kernel module that runs torture tests
@@ -59,7 +57,6 @@ config RCU_REF_SCALE_TEST
 	tristate "Scalability tests for read-side synchronization (RCU and others)"
 	depends on DEBUG_KERNEL
 	select TORTURE_TEST
-	select SRCU
 	default n
 	help
 	  This option provides a kernel module that runs performance tests
@@ -85,7 +82,7 @@ config RCU_CPU_STALL_TIMEOUT
 config RCU_EXP_CPU_STALL_TIMEOUT
 	int "Expedited RCU CPU stall timeout in milliseconds"
 	depends on RCU_STALL_COMMON
-	range 0 21000
+	range 0 300000
 	default 0
 	help
 	  If a given expedited RCU grace period extends more than the
@@ -94,6 +91,19 @@ config RCU_EXP_CPU_STALL_TIMEOUT
 	  are printed at more widely spaced intervals.  A value of zero
 	  says to use the RCU_CPU_STALL_TIMEOUT value converted from
 	  seconds to milliseconds.
+
+config RCU_CPU_STALL_CPUTIME
+	bool "Provide additional RCU stall debug information"
+	depends on RCU_STALL_COMMON
+	default n
+	help
+	  Collect statistics during the sampling period, such as the number of
+	  (hard interrupts, soft interrupts, task switches) and the cputime of
+	  (hard interrupts, soft interrupts, kernel tasks) are added to the
+	  RCU stall report. For multiple continuous RCU stalls, all sampling
+	  periods begin at half of the first RCU stall timeout.
+	  The boot option rcupdate.rcu_cpu_stall_cputime has the same function
+	  as this one, but will override this if it exists.
 
 config RCU_TRACE
 	bool "Enable tracing for RCU"

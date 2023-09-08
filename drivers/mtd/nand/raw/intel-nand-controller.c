@@ -706,7 +706,7 @@ err_of_node_put:
 	return ret;
 }
 
-static int ebu_nand_remove(struct platform_device *pdev)
+static void ebu_nand_remove(struct platform_device *pdev)
 {
 	struct ebu_nand_controller *ebu_host = platform_get_drvdata(pdev);
 	int ret;
@@ -717,8 +717,6 @@ static int ebu_nand_remove(struct platform_device *pdev)
 	ebu_nand_disable(&ebu_host->chip);
 	ebu_dma_cleanup(ebu_host);
 	clk_disable_unprepare(ebu_host->clk);
-
-	return 0;
 }
 
 static const struct of_device_id ebu_nand_match[] = {
@@ -729,7 +727,7 @@ MODULE_DEVICE_TABLE(of, ebu_nand_match);
 
 static struct platform_driver ebu_nand_driver = {
 	.probe = ebu_nand_probe,
-	.remove = ebu_nand_remove,
+	.remove_new = ebu_nand_remove,
 	.driver = {
 		.name = "intel-nand-controller",
 		.of_match_table = ebu_nand_match,

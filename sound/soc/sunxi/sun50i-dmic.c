@@ -317,8 +317,7 @@ static int sun50i_dmic_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	/* Get the addresses */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = devm_ioremap_resource(&pdev->dev, res);
+	base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(base))
 		return dev_err_probe(&pdev->dev, PTR_ERR(base),
 				     "get resource failed.\n");
@@ -374,13 +373,11 @@ err_disable_runtime_pm:
 	return ret;
 }
 
-static int sun50i_dmic_remove(struct platform_device *pdev)
+static void sun50i_dmic_remove(struct platform_device *pdev)
 {
 	pm_runtime_disable(&pdev->dev);
 	if (!pm_runtime_status_suspended(&pdev->dev))
 		sun50i_dmic_runtime_suspend(&pdev->dev);
-
-	return 0;
 }
 
 static const struct dev_pm_ops sun50i_dmic_pm = {
@@ -391,11 +388,11 @@ static const struct dev_pm_ops sun50i_dmic_pm = {
 static struct platform_driver sun50i_dmic_driver = {
 	.driver         = {
 		.name   = "sun50i-dmic",
-		.of_match_table = of_match_ptr(sun50i_dmic_of_match),
+		.of_match_table = sun50i_dmic_of_match,
 		.pm     = &sun50i_dmic_pm,
 	},
 	.probe          = sun50i_dmic_probe,
-	.remove         = sun50i_dmic_remove,
+	.remove_new     = sun50i_dmic_remove,
 };
 
 module_platform_driver(sun50i_dmic_driver);

@@ -93,7 +93,7 @@ int liointc_acpi_init(struct irq_domain *parent,
 int eiointc_acpi_init(struct irq_domain *parent,
 					struct acpi_madt_eio_pic *acpi_eiointc);
 
-struct irq_domain *htvec_acpi_init(struct irq_domain *parent,
+int htvec_acpi_init(struct irq_domain *parent,
 					struct acpi_madt_ht_pic *acpi_htvec);
 int pch_lpc_acpi_init(struct irq_domain *parent,
 					struct acpi_madt_lpc_pic *acpi_pchlpc);

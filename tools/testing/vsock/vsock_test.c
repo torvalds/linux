@@ -284,10 +284,14 @@ static void test_stream_msg_peek_server(const struct test_opts *opts)
 	close(fd);
 }
 
-#define MESSAGES_CNT 7
-#define MSG_EOR_IDX (MESSAGES_CNT / 2)
+#define SOCK_BUF_SIZE (2 * 1024 * 1024)
+#define MAX_MSG_SIZE (32 * 1024)
+
 static void test_seqpacket_msg_bounds_client(const struct test_opts *opts)
 {
+	unsigned long curr_hash;
+	int page_size;
+	int msg_count;
 	int fd;
 
 	fd = vsock_seqpacket_connect(opts->peer_cid, 1234);
@@ -296,18 +300,79 @@ static void test_seqpacket_msg_bounds_client(const struct test_opts *opts)
 		exit(EXIT_FAILURE);
 	}
 
-	/* Send several messages, one with MSG_EOR flag */
-	for (int i = 0; i < MESSAGES_CNT; i++)
-		send_byte(fd, 1, (i == MSG_EOR_IDX) ? MSG_EOR : 0);
+	/* Wait, until receiver sets buffer size. */
+	control_expectln("SRVREADY");
+
+	curr_hash = 0;
+	page_size = getpagesize();
+	msg_count = SOCK_BUF_SIZE / MAX_MSG_SIZE;
+
+	for (int i = 0; i < msg_count; i++) {
+		ssize_t send_size;
+		size_t buf_size;
+		int flags;
+		void *buf;
+
+		/* Use "small" buffers and "big" buffers. */
+		if (i & 1)
+			buf_size = page_size +
+					(rand() % (MAX_MSG_SIZE - page_size));
+		else
+			buf_size = 1 + (rand() % page_size);
+
+		buf = malloc(buf_size);
+
+		if (!buf) {
+			perror("malloc");
+			exit(EXIT_FAILURE);
+		}
+
+		memset(buf, rand() & 0xff, buf_size);
+		/* Set at least one MSG_EOR + some random. */
+		if (i == (msg_count / 2) || (rand() & 1)) {
+			flags = MSG_EOR;
+			curr_hash++;
+		} else {
+			flags = 0;
+		}
+
+		send_size = send(fd, buf, buf_size, flags);
+
+		if (send_size < 0) {
+			perror("send");
+			exit(EXIT_FAILURE);
+		}
+
+		if (send_size != buf_size) {
+			fprintf(stderr, "Invalid send size\n");
+			exit(EXIT_FAILURE);
+		}
+
+		/*
+		 * Hash sum is computed at both client and server in
+		 * the same way:
+		 * H += hash('message data')
+		 * Such hash "controls" both data integrity and message
+		 * bounds. After data exchange, both sums are compared
+		 * using control socket, and if message bounds wasn't
+		 * broken - two values must be equal.
+		 */
+		curr_hash += hash_djb2(buf, buf_size);
+		free(buf);
+	}
 
 	control_writeln("SENDDONE");
+	control_writeulong(curr_hash);
 	close(fd);
 }
 
 static void test_seqpacket_msg_bounds_server(const struct test_opts *opts)
 {
+	unsigned long sock_buf_size;
+	unsigned long remote_hash;
+	unsigned long curr_hash;
 	int fd;
-	char buf[16];
+	char buf[MAX_MSG_SIZE];
 	struct msghdr msg = {0};
 	struct iovec iov = {0};
 
@@ -317,25 +382,57 @@ static void test_seqpacket_msg_bounds_server(const struct test_opts *opts)
 		exit(EXIT_FAILURE);
 	}
 
+	sock_buf_size = SOCK_BUF_SIZE;
+
+	if (setsockopt(fd, AF_VSOCK, SO_VM_SOCKETS_BUFFER_MAX_SIZE,
+		       &sock_buf_size, sizeof(sock_buf_size))) {
+		perror("setsockopt(SO_VM_SOCKETS_BUFFER_MAX_SIZE)");
+		exit(EXIT_FAILURE);
+	}
+
+	if (setsockopt(fd, AF_VSOCK, SO_VM_SOCKETS_BUFFER_SIZE,
+		       &sock_buf_size, sizeof(sock_buf_size))) {
+		perror("setsockopt(SO_VM_SOCKETS_BUFFER_SIZE)");
+		exit(EXIT_FAILURE);
+	}
+
+	/* Ready to receive data. */
+	control_writeln("SRVREADY");
+	/* Wait, until peer sends whole data. */
 	control_expectln("SENDDONE");
 	iov.iov_base = buf;
 	iov.iov_len = sizeof(buf);
 	msg.msg_iov = &iov;
 	msg.msg_iovlen = 1;
 
-	for (int i = 0; i < MESSAGES_CNT; i++) {
-		if (recvmsg(fd, &msg, 0) != 1) {
-			perror("message bound violated");
+	curr_hash = 0;
+
+	while (1) {
+		ssize_t recv_size;
+
+		recv_size = recvmsg(fd, &msg, 0);
+
+		if (!recv_size)
+			break;
+
+		if (recv_size < 0) {
+			perror("recvmsg");
 			exit(EXIT_FAILURE);
 		}
 
-		if ((i == MSG_EOR_IDX) ^ !!(msg.msg_flags & MSG_EOR)) {
-			perror("MSG_EOR");
-			exit(EXIT_FAILURE);
-		}
+		if (msg.msg_flags & MSG_EOR)
+			curr_hash++;
+
+		curr_hash += hash_djb2(msg.msg_iov[0].iov_base, recv_size);
 	}
 
 	close(fd);
+	remote_hash = control_readulong();
+
+	if (curr_hash != remote_hash) {
+		fprintf(stderr, "Message bounds broken\n");
+		exit(EXIT_FAILURE);
+	}
 }
 
 #define MESSAGE_TRUNC_SZ 32
@@ -427,7 +524,7 @@ static void test_seqpacket_timeout_client(const struct test_opts *opts)
 	tv.tv_usec = 0;
 
 	if (setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, (void *)&tv, sizeof(tv)) == -1) {
-		perror("setsockopt 'SO_RCVTIMEO'");
+		perror("setsockopt(SO_RCVTIMEO)");
 		exit(EXIT_FAILURE);
 	}
 
@@ -469,6 +566,70 @@ static void test_seqpacket_timeout_server(const struct test_opts *opts)
 	}
 
 	control_expectln("WAITDONE");
+	close(fd);
+}
+
+static void test_seqpacket_bigmsg_client(const struct test_opts *opts)
+{
+	unsigned long sock_buf_size;
+	ssize_t send_size;
+	socklen_t len;
+	void *data;
+	int fd;
+
+	len = sizeof(sock_buf_size);
+
+	fd = vsock_seqpacket_connect(opts->peer_cid, 1234);
+	if (fd < 0) {
+		perror("connect");
+		exit(EXIT_FAILURE);
+	}
+
+	if (getsockopt(fd, AF_VSOCK, SO_VM_SOCKETS_BUFFER_SIZE,
+		       &sock_buf_size, &len)) {
+		perror("getsockopt");
+		exit(EXIT_FAILURE);
+	}
+
+	sock_buf_size++;
+
+	data = malloc(sock_buf_size);
+	if (!data) {
+		perror("malloc");
+		exit(EXIT_FAILURE);
+	}
+
+	send_size = send(fd, data, sock_buf_size, 0);
+	if (send_size != -1) {
+		fprintf(stderr, "expected 'send(2)' failure, got %zi\n",
+			send_size);
+		exit(EXIT_FAILURE);
+	}
+
+	if (errno != EMSGSIZE) {
+		fprintf(stderr, "expected EMSGSIZE in 'errno', got %i\n",
+			errno);
+		exit(EXIT_FAILURE);
+	}
+
+	control_writeln("CLISENT");
+
+	free(data);
+	close(fd);
+}
+
+static void test_seqpacket_bigmsg_server(const struct test_opts *opts)
+{
+	int fd;
+
+	fd = vsock_seqpacket_accept(VMADDR_CID_ANY, 1234, NULL);
+	if (fd < 0) {
+		perror("accept");
+		exit(EXIT_FAILURE);
+	}
+
+	control_expectln("CLISENT");
+
 	close(fd);
 }
 
@@ -562,7 +723,7 @@ static void test_seqpacket_invalid_rec_buffer_server(const struct test_opts *opt
 		exit(EXIT_FAILURE);
 	}
 
-	if (errno != ENOMEM) {
+	if (errno != EFAULT) {
 		perror("unexpected errno of 'broken_buf'");
 		exit(EXIT_FAILURE);
 	}
@@ -644,7 +805,7 @@ static void test_stream_poll_rcvlowat_client(const struct test_opts *opts)
 
 	if (setsockopt(fd, SOL_SOCKET, SO_RCVLOWAT,
 		       &lowat_val, sizeof(lowat_val))) {
-		perror("setsockopt");
+		perror("setsockopt(SO_RCVLOWAT)");
 		exit(EXIT_FAILURE);
 	}
 
@@ -695,6 +856,199 @@ static void test_stream_poll_rcvlowat_client(const struct test_opts *opts)
 	}
 
 	control_writeln("POLLDONE");
+
+	close(fd);
+}
+
+#define INV_BUF_TEST_DATA_LEN 512
+
+static void test_inv_buf_client(const struct test_opts *opts, bool stream)
+{
+	unsigned char data[INV_BUF_TEST_DATA_LEN] = {0};
+	ssize_t ret;
+	int fd;
+
+	if (stream)
+		fd = vsock_stream_connect(opts->peer_cid, 1234);
+	else
+		fd = vsock_seqpacket_connect(opts->peer_cid, 1234);
+
+	if (fd < 0) {
+		perror("connect");
+		exit(EXIT_FAILURE);
+	}
+
+	control_expectln("SENDDONE");
+
+	/* Use invalid buffer here. */
+	ret = recv(fd, NULL, sizeof(data), 0);
+	if (ret != -1) {
+		fprintf(stderr, "expected recv(2) failure, got %zi\n", ret);
+		exit(EXIT_FAILURE);
+	}
+
+	if (errno != EFAULT) {
+		fprintf(stderr, "unexpected recv(2) errno %d\n", errno);
+		exit(EXIT_FAILURE);
+	}
+
+	ret = recv(fd, data, sizeof(data), MSG_DONTWAIT);
+
+	if (stream) {
+		/* For SOCK_STREAM we must continue reading. */
+		if (ret != sizeof(data)) {
+			fprintf(stderr, "expected recv(2) success, got %zi\n", ret);
+			exit(EXIT_FAILURE);
+		}
+		/* Don't check errno in case of success. */
+	} else {
+		/* For SOCK_SEQPACKET socket's queue must be empty. */
+		if (ret != -1) {
+			fprintf(stderr, "expected recv(2) failure, got %zi\n", ret);
+			exit(EXIT_FAILURE);
+		}
+
+		if (errno != EAGAIN) {
+			fprintf(stderr, "unexpected recv(2) errno %d\n", errno);
+			exit(EXIT_FAILURE);
+		}
+	}
+
+	control_writeln("DONE");
+
+	close(fd);
+}
+
+static void test_inv_buf_server(const struct test_opts *opts, bool stream)
+{
+	unsigned char data[INV_BUF_TEST_DATA_LEN] = {0};
+	ssize_t res;
+	int fd;
+
+	if (stream)
+		fd = vsock_stream_accept(VMADDR_CID_ANY, 1234, NULL);
+	else
+		fd = vsock_seqpacket_accept(VMADDR_CID_ANY, 1234, NULL);
+
+	if (fd < 0) {
+		perror("accept");
+		exit(EXIT_FAILURE);
+	}
+
+	res = send(fd, data, sizeof(data), 0);
+	if (res != sizeof(data)) {
+		fprintf(stderr, "unexpected send(2) result %zi\n", res);
+		exit(EXIT_FAILURE);
+	}
+
+	control_writeln("SENDDONE");
+
+	control_expectln("DONE");
+
+	close(fd);
+}
+
+static void test_stream_inv_buf_client(const struct test_opts *opts)
+{
+	test_inv_buf_client(opts, true);
+}
+
+static void test_stream_inv_buf_server(const struct test_opts *opts)
+{
+	test_inv_buf_server(opts, true);
+}
+
+static void test_seqpacket_inv_buf_client(const struct test_opts *opts)
+{
+	test_inv_buf_client(opts, false);
+}
+
+static void test_seqpacket_inv_buf_server(const struct test_opts *opts)
+{
+	test_inv_buf_server(opts, false);
+}
+
+#define HELLO_STR "HELLO"
+#define WORLD_STR "WORLD"
+
+static void test_stream_virtio_skb_merge_client(const struct test_opts *opts)
+{
+	ssize_t res;
+	int fd;
+
+	fd = vsock_stream_connect(opts->peer_cid, 1234);
+	if (fd < 0) {
+		perror("connect");
+		exit(EXIT_FAILURE);
+	}
+
+	/* Send first skbuff. */
+	res = send(fd, HELLO_STR, strlen(HELLO_STR), 0);
+	if (res != strlen(HELLO_STR)) {
+		fprintf(stderr, "unexpected send(2) result %zi\n", res);
+		exit(EXIT_FAILURE);
+	}
+
+	control_writeln("SEND0");
+	/* Peer reads part of first skbuff. */
+	control_expectln("REPLY0");
+
+	/* Send second skbuff, it will be appended to the first. */
+	res = send(fd, WORLD_STR, strlen(WORLD_STR), 0);
+	if (res != strlen(WORLD_STR)) {
+		fprintf(stderr, "unexpected send(2) result %zi\n", res);
+		exit(EXIT_FAILURE);
+	}
+
+	control_writeln("SEND1");
+	/* Peer reads merged skbuff packet. */
+	control_expectln("REPLY1");
+
+	close(fd);
+}
+
+static void test_stream_virtio_skb_merge_server(const struct test_opts *opts)
+{
+	unsigned char buf[64];
+	ssize_t res;
+	int fd;
+
+	fd = vsock_stream_accept(VMADDR_CID_ANY, 1234, NULL);
+	if (fd < 0) {
+		perror("accept");
+		exit(EXIT_FAILURE);
+	}
+
+	control_expectln("SEND0");
+
+	/* Read skbuff partially. */
+	res = recv(fd, buf, 2, 0);
+	if (res != 2) {
+		fprintf(stderr, "expected recv(2) returns 2 bytes, got %zi\n", res);
+		exit(EXIT_FAILURE);
+	}
+
+	control_writeln("REPLY0");
+	control_expectln("SEND1");
+
+	res = recv(fd, buf + 2, sizeof(buf) - 2, 0);
+	if (res != 8) {
+		fprintf(stderr, "expected recv(2) returns 8 bytes, got %zi\n", res);
+		exit(EXIT_FAILURE);
+	}
+
+	res = recv(fd, buf, sizeof(buf) - 8 - 2, MSG_DONTWAIT);
+	if (res != -1) {
+		fprintf(stderr, "expected recv(2) failure, got %zi\n", res);
+		exit(EXIT_FAILURE);
+	}
+
+	if (memcmp(buf, HELLO_STR WORLD_STR, strlen(HELLO_STR WORLD_STR))) {
+		fprintf(stderr, "pattern mismatch\n");
+		exit(EXIT_FAILURE);
+	}
+
+	control_writeln("REPLY1");
 
 	close(fd);
 }
@@ -753,6 +1107,26 @@ static struct test_case test_cases[] = {
 		.name = "SOCK_STREAM poll() + SO_RCVLOWAT",
 		.run_client = test_stream_poll_rcvlowat_client,
 		.run_server = test_stream_poll_rcvlowat_server,
+	},
+	{
+		.name = "SOCK_SEQPACKET big message",
+		.run_client = test_seqpacket_bigmsg_client,
+		.run_server = test_seqpacket_bigmsg_server,
+	},
+	{
+		.name = "SOCK_STREAM test invalid buffer",
+		.run_client = test_stream_inv_buf_client,
+		.run_server = test_stream_inv_buf_server,
+	},
+	{
+		.name = "SOCK_SEQPACKET test invalid buffer",
+		.run_client = test_seqpacket_inv_buf_client,
+		.run_server = test_seqpacket_inv_buf_server,
+	},
+	{
+		.name = "SOCK_STREAM virtio skb merge",
+		.run_client = test_stream_virtio_skb_merge_client,
+		.run_server = test_stream_virtio_skb_merge_server,
 	},
 	{},
 };
@@ -837,6 +1211,7 @@ int main(int argc, char **argv)
 		.peer_cid = VMADDR_CID_ANY,
 	};
 
+	srand(time(NULL));
 	init_signals();
 
 	for (;;) {

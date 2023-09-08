@@ -28,7 +28,7 @@ static int ccp_sha_complete(struct crypto_async_request *async_req, int ret)
 {
 	struct ahash_request *req = ahash_request_cast(async_req);
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
-	struct ccp_sha_req_ctx *rctx = ahash_request_ctx(req);
+	struct ccp_sha_req_ctx *rctx = ahash_request_ctx_dma(req);
 	unsigned int digest_size = crypto_ahash_digestsize(tfm);
 
 	if (ret)
@@ -59,8 +59,8 @@ static int ccp_do_sha_update(struct ahash_request *req, unsigned int nbytes,
 			     unsigned int final)
 {
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
-	struct ccp_ctx *ctx = crypto_ahash_ctx(tfm);
-	struct ccp_sha_req_ctx *rctx = ahash_request_ctx(req);
+	struct ccp_ctx *ctx = crypto_ahash_ctx_dma(tfm);
+	struct ccp_sha_req_ctx *rctx = ahash_request_ctx_dma(req);
 	struct scatterlist *sg;
 	unsigned int block_size =
 		crypto_tfm_alg_blocksize(crypto_ahash_tfm(tfm));
@@ -182,8 +182,8 @@ e_free:
 static int ccp_sha_init(struct ahash_request *req)
 {
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
-	struct ccp_ctx *ctx = crypto_ahash_ctx(tfm);
-	struct ccp_sha_req_ctx *rctx = ahash_request_ctx(req);
+	struct ccp_ctx *ctx = crypto_ahash_ctx_dma(tfm);
+	struct ccp_sha_req_ctx *rctx = ahash_request_ctx_dma(req);
 	struct ccp_crypto_ahash_alg *alg =
 		ccp_crypto_ahash_alg(crypto_ahash_tfm(tfm));
 	unsigned int block_size =
@@ -231,7 +231,7 @@ static int ccp_sha_digest(struct ahash_request *req)
 
 static int ccp_sha_export(struct ahash_request *req, void *out)
 {
-	struct ccp_sha_req_ctx *rctx = ahash_request_ctx(req);
+	struct ccp_sha_req_ctx *rctx = ahash_request_ctx_dma(req);
 	struct ccp_sha_exp_ctx state;
 
 	/* Don't let anything leak to 'out' */
@@ -252,7 +252,7 @@ static int ccp_sha_export(struct ahash_request *req, void *out)
 
 static int ccp_sha_import(struct ahash_request *req, const void *in)
 {
-	struct ccp_sha_req_ctx *rctx = ahash_request_ctx(req);
+	struct ccp_sha_req_ctx *rctx = ahash_request_ctx_dma(req);
 	struct ccp_sha_exp_ctx state;
 
 	/* 'in' may not be aligned so memcpy to local variable */
@@ -272,7 +272,7 @@ static int ccp_sha_import(struct ahash_request *req, const void *in)
 static int ccp_sha_setkey(struct crypto_ahash *tfm, const u8 *key,
 			  unsigned int key_len)
 {
-	struct ccp_ctx *ctx = crypto_tfm_ctx(crypto_ahash_tfm(tfm));
+	struct ccp_ctx *ctx = crypto_ahash_ctx_dma(tfm);
 	struct crypto_shash *shash = ctx->u.sha.hmac_tfm;
 	unsigned int block_size = crypto_shash_blocksize(shash);
 	unsigned int digest_size = crypto_shash_digestsize(shash);
@@ -313,13 +313,13 @@ static int ccp_sha_setkey(struct crypto_ahash *tfm, const u8 *key,
 
 static int ccp_sha_cra_init(struct crypto_tfm *tfm)
 {
-	struct ccp_ctx *ctx = crypto_tfm_ctx(tfm);
 	struct crypto_ahash *ahash = __crypto_ahash_cast(tfm);
+	struct ccp_ctx *ctx = crypto_ahash_ctx_dma(ahash);
 
 	ctx->complete = ccp_sha_complete;
 	ctx->u.sha.key_len = 0;
 
-	crypto_ahash_set_reqsize(ahash, sizeof(struct ccp_sha_req_ctx));
+	crypto_ahash_set_reqsize_dma(ahash, sizeof(struct ccp_sha_req_ctx));
 
 	return 0;
 }
@@ -330,7 +330,7 @@ static void ccp_sha_cra_exit(struct crypto_tfm *tfm)
 
 static int ccp_hmac_sha_cra_init(struct crypto_tfm *tfm)
 {
-	struct ccp_ctx *ctx = crypto_tfm_ctx(tfm);
+	struct ccp_ctx *ctx = crypto_tfm_ctx_dma(tfm);
 	struct ccp_crypto_ahash_alg *alg = ccp_crypto_ahash_alg(tfm);
 	struct crypto_shash *hmac_tfm;
 
@@ -348,7 +348,7 @@ static int ccp_hmac_sha_cra_init(struct crypto_tfm *tfm)
 
 static void ccp_hmac_sha_cra_exit(struct crypto_tfm *tfm)
 {
-	struct ccp_ctx *ctx = crypto_tfm_ctx(tfm);
+	struct ccp_ctx *ctx = crypto_tfm_ctx_dma(tfm);
 
 	if (ctx->u.sha.hmac_tfm)
 		crypto_free_shash(ctx->u.sha.hmac_tfm);
@@ -492,7 +492,7 @@ static int ccp_register_sha_alg(struct list_head *head,
 			  CRYPTO_ALG_KERN_DRIVER_ONLY |
 			  CRYPTO_ALG_NEED_FALLBACK;
 	base->cra_blocksize = def->block_size;
-	base->cra_ctxsize = sizeof(struct ccp_ctx);
+	base->cra_ctxsize = sizeof(struct ccp_ctx) + crypto_dma_padding();
 	base->cra_priority = CCP_CRA_PRIORITY;
 	base->cra_init = ccp_sha_cra_init;
 	base->cra_exit = ccp_sha_cra_exit;

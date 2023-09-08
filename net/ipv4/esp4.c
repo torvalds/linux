@@ -244,9 +244,9 @@ static int esp_output_tail_tcp(struct xfrm_state *x, struct sk_buff *skb)
 }
 #endif
 
-static void esp_output_done(struct crypto_async_request *base, int err)
+static void esp_output_done(void *data, int err)
 {
-	struct sk_buff *skb = base->data;
+	struct sk_buff *skb = data;
 	struct xfrm_offload *xo = xfrm_offload(skb);
 	void *tmp;
 	struct xfrm_state *x;
@@ -332,12 +332,12 @@ static struct ip_esp_hdr *esp_output_set_extra(struct sk_buff *skb,
 	return esph;
 }
 
-static void esp_output_done_esn(struct crypto_async_request *base, int err)
+static void esp_output_done_esn(void *data, int err)
 {
-	struct sk_buff *skb = base->data;
+	struct sk_buff *skb = data;
 
 	esp_output_restore_header(skb);
-	esp_output_done(base, err);
+	esp_output_done(data, err);
 }
 
 static struct ip_esp_hdr *esp_output_udp_encap(struct sk_buff *skb,
@@ -830,9 +830,9 @@ out:
 }
 EXPORT_SYMBOL_GPL(esp_input_done2);
 
-static void esp_input_done(struct crypto_async_request *base, int err)
+static void esp_input_done(void *data, int err)
 {
-	struct sk_buff *skb = base->data;
+	struct sk_buff *skb = data;
 
 	xfrm_input_resume(skb, esp_input_done2(skb, err));
 }
@@ -860,12 +860,12 @@ static void esp_input_set_header(struct sk_buff *skb, __be32 *seqhi)
 	}
 }
 
-static void esp_input_done_esn(struct crypto_async_request *base, int err)
+static void esp_input_done_esn(void *data, int err)
 {
-	struct sk_buff *skb = base->data;
+	struct sk_buff *skb = data;
 
 	esp_input_restore_header(skb);
-	esp_input_done(base, err);
+	esp_input_done(data, err);
 }
 
 /*

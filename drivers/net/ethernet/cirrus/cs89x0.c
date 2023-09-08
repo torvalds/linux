@@ -72,6 +72,8 @@
 #include <linux/gfp.h>
 #include <linux/io.h>
 
+#include <net/Space.h>
+
 #include <asm/irq.h>
 #include <linux/atomic.h>
 #if ALLOW_DMA

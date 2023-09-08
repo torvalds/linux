@@ -4,18 +4,20 @@
  * Copyright (c) 2013, The Linux Foundation. All rights reserved.
  */
 
-#include <linux/module.h>
-#include <linux/platform_device.h>
-#include <linux/pinctrl/pinctrl.h>
-#include <linux/pinctrl/pinmux.h>
-#include <linux/pinctrl/pinconf.h>
-#include <linux/pinctrl/pinconf-generic.h>
-#include <linux/slab.h>
-#include <linux/regmap.h>
 #include <linux/gpio/driver.h>
 #include <linux/interrupt.h>
+#include <linux/module.h>
 #include <linux/of_device.h>
 #include <linux/of_irq.h>
+#include <linux/platform_device.h>
+#include <linux/regmap.h>
+#include <linux/seq_file.h>
+#include <linux/slab.h>
+
+#include <linux/pinctrl/pinconf-generic.h>
+#include <linux/pinctrl/pinconf.h>
+#include <linux/pinctrl/pinctrl.h>
+#include <linux/pinctrl/pinmux.h>
 
 #include <dt-bindings/pinctrl/qcom,pmic-mpp.h>
 
@@ -124,7 +126,6 @@ struct pm8xxx_mpp {
 	struct regmap *regmap;
 	struct pinctrl_dev *pctrl;
 	struct gpio_chip chip;
-	struct irq_chip irq;
 
 	struct pinctrl_desc desc;
 	unsigned npins;
@@ -534,7 +535,6 @@ static int pm8xxx_mpp_of_xlate(struct gpio_chip *chip,
 
 
 #ifdef CONFIG_DEBUG_FS
-#include <linux/seq_file.h>
 
 static void pm8xxx_mpp_dbg_show_one(struct seq_file *s,
 				  struct pinctrl_dev *pctldev,
@@ -777,6 +777,32 @@ static int pm8xxx_mpp_child_to_parent_hwirq(struct gpio_chip *chip,
 	return 0;
 }
 
+static void pm8xxx_mpp_irq_disable(struct irq_data *d)
+{
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+
+	gpiochip_disable_irq(gc, irqd_to_hwirq(d));
+}
+
+static void pm8xxx_mpp_irq_enable(struct irq_data *d)
+{
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+
+	gpiochip_enable_irq(gc, irqd_to_hwirq(d));
+}
+
+static const struct irq_chip pm8xxx_mpp_irq_chip = {
+	.name = "ssbi-mpp",
+	.irq_mask_ack = irq_chip_mask_ack_parent,
+	.irq_unmask = irq_chip_unmask_parent,
+	.irq_disable = pm8xxx_mpp_irq_disable,
+	.irq_enable = pm8xxx_mpp_irq_enable,
+	.irq_set_type = irq_chip_set_type_parent,
+	.flags = IRQCHIP_MASK_ON_SUSPEND | IRQCHIP_SKIP_SET_WAKE |
+		IRQCHIP_IMMUTABLE,
+	GPIOCHIP_IRQ_RESOURCE_HELPERS,
+};
+
 static const struct of_device_id pm8xxx_mpp_of_match[] = {
 	{ .compatible = "qcom,pm8018-mpp", .data = (void *) 6 },
 	{ .compatible = "qcom,pm8038-mpp", .data = (void *) 6 },
@@ -870,17 +896,11 @@ static int pm8xxx_mpp_probe(struct platform_device *pdev)
 	if (!parent_domain)
 		return -ENXIO;
 
-	pctrl->irq.name = "ssbi-mpp";
-	pctrl->irq.irq_mask_ack = irq_chip_mask_ack_parent;
-	pctrl->irq.irq_unmask = irq_chip_unmask_parent;
-	pctrl->irq.irq_set_type = irq_chip_set_type_parent;
-	pctrl->irq.flags = IRQCHIP_MASK_ON_SUSPEND | IRQCHIP_SKIP_SET_WAKE;
-
 	girq = &pctrl->chip.irq;
-	girq->chip = &pctrl->irq;
+	gpio_irq_chip_set_chip(girq, &pm8xxx_mpp_irq_chip);
 	girq->default_type = IRQ_TYPE_NONE;
 	girq->handler = handle_level_irq;
-	girq->fwnode = of_node_to_fwnode(pctrl->dev->of_node);
+	girq->fwnode = dev_fwnode(pctrl->dev);
 	girq->parent_domain = parent_domain;
 	if (of_device_is_compatible(pdev->dev.of_node, "qcom,pm8821-mpp"))
 		girq->child_to_parent_hwirq = pm8821_mpp_child_to_parent_hwirq;

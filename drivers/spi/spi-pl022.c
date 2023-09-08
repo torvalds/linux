@@ -1587,9 +1587,9 @@ static int pl022_transfer_one_message(struct spi_master *master,
 
 	/* Setup the SPI using the per chip configuration */
 	pl022->cur_chip = spi_get_ctldata(msg->spi);
-	pl022->cur_cs = msg->spi->chip_select;
+	pl022->cur_cs = spi_get_chipselect(msg->spi, 0);
 	/* This is always available but may be set to -ENOENT */
-	pl022->cur_gpiod = msg->spi->cs_gpiod;
+	pl022->cur_gpiod = spi_get_csgpiod(msg->spi, 0);
 
 	restore_state(pl022);
 	flush(pl022);
@@ -2091,7 +2091,6 @@ pl022_platform_data_dt_get(struct device *dev)
 		return NULL;
 
 	pd->bus_id = -1;
-	pd->enable_dma = 1;
 	of_property_read_u32(np, "pl022,autosuspend-delay",
 			     &pd->autosuspend_delay);
 	pd->rt = of_property_read_bool(np, "pl022,rt");

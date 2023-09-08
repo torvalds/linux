@@ -93,7 +93,6 @@ static inline bool phylink_autoneg_inband(unsigned int mode)
  *   the medium link mode (@speed and @duplex) and the speed/duplex of the phy
  *   interface mode (@interface) are different.
  * @link: true if the link is up.
- * @an_enabled: true if autonegotiation is enabled/desired.
  * @an_complete: true if autonegotiation has completed.
  */
 struct phylink_link_state {
@@ -105,7 +104,6 @@ struct phylink_link_state {
 	int pause;
 	int rate_matching;
 	unsigned int link:1;
-	unsigned int an_enabled:1;
 	unsigned int an_complete:1;
 };
 
@@ -207,6 +205,11 @@ struct phylink_mac_ops {
  *
  * If the @state->interface mode is not supported, then the @supported
  * mask must be cleared.
+ *
+ * This member is optional; if not set, the generic validator will be
+ * used making use of @config->mac_capabilities and
+ * @config->supported_interfaces to determine which link modes are
+ * supported.
  */
 void validate(struct phylink_config *config, unsigned long *supported,
 	      struct phylink_link_state *state);
@@ -558,6 +561,9 @@ void phylink_caps_to_linkmodes(unsigned long *linkmodes, unsigned long caps);
 unsigned long phylink_get_capabilities(phy_interface_t interface,
 				       unsigned long mac_capabilities,
 				       int rate_matching);
+void phylink_validate_mask_caps(unsigned long *supported,
+				struct phylink_link_state *state,
+				unsigned long caps);
 void phylink_generic_validate(struct phylink_config *config,
 			      unsigned long *supported,
 			      struct phylink_link_state *state);
@@ -566,6 +572,7 @@ struct phylink *phylink_create(struct phylink_config *, struct fwnode_handle *,
 			       phy_interface_t iface,
 			       const struct phylink_mac_ops *mac_ops);
 void phylink_destroy(struct phylink *);
+bool phylink_expects_phy(struct phylink *pl);
 
 int phylink_connect_phy(struct phylink *, struct phy_device *);
 int phylink_of_phy_connect(struct phylink *, struct device_node *, u32 flags);
@@ -612,6 +619,30 @@ int phylink_speed_up(struct phylink *pl);
 #define phylink_test(bm, mode)	__phylink_do_bit(test_bit, bm, mode)
 
 void phylink_set_port_modes(unsigned long *bits);
+
+/**
+ * phylink_get_link_timer_ns - return the PCS link timer value
+ * @interface: link &typedef phy_interface_t mode
+ *
+ * Return the PCS link timer setting in nanoseconds for the PHY @interface
+ * mode, or -EINVAL if not appropriate.
+ */
+static inline int phylink_get_link_timer_ns(phy_interface_t interface)
+{
+	switch (interface) {
+	case PHY_INTERFACE_MODE_SGMII:
+	case PHY_INTERFACE_MODE_QSGMII:
+	case PHY_INTERFACE_MODE_USXGMII:
+		return 1600000;
+
+	case PHY_INTERFACE_MODE_1000BASEX:
+	case PHY_INTERFACE_MODE_2500BASEX:
+		return 10000000;
+
+	default:
+		return -EINVAL;
+	}
+}
 
 void phylink_mii_c22_pcs_decode_state(struct phylink_link_state *state,
 				      u16 bmsr, u16 lpa);

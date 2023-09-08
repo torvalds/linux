@@ -8,7 +8,7 @@
 #include <dt-bindings/gpio/gpio.h>
 
 / {
-	pp3300_brij_ps8640: pp3300-brij-ps8640 {
+	pp3300_brij_ps8640: pp3300-brij-ps8640-regulator {
 		compatible = "regulator-fixed";
 		status = "okay";
 		regulator-name = "pp3300_brij_ps8640";
@@ -25,6 +25,26 @@
 		vin-supply = <&pp3300_a>;
 	};
 };
+
+/*
+ * ADDITIONS TO FIXED REGULATORS DEFINED IN PARENT DEVICE TREE FILES
+ *
+ * Sort order matches the order in the parent files (parents before children).
+ */
+
+&pp3300_dx_edp {
+	off-on-delay-us = <500000>;
+
+	/*
+	 * It's nicer to start with this regulator enabled. The
+	 * bootloader may have left it on and it's nice not to cause an
+	 * extra power cycle of the touchscreen and eDP panel at bootup.
+	 * This should help speed bootup because we have off-on-delay-us.
+	 */
+	regulator-boot-on;
+};
+
+/* ADDITIONS TO NODES DEFINED IN PARENT DEVICE TREE FILES */
 
 &dsi0_out {
 	remote-endpoint = <&ps8640_in>;
@@ -83,29 +103,17 @@ edp_brij_i2c: &i2c2 {
 };
 
 &tlmm {
-	edp_brij_ps8640_rst: edp-brij-ps8640-rst {
-		pinmux {
-			pins = "gpio11";
-			function = "gpio";
-		};
-
-		pinconf {
-			pins = "gpio11";
-			drive-strength = <2>;
-			bias-disable;
-		};
+	edp_brij_ps8640_rst: edp-brij-ps8640-rst-state {
+		pins = "gpio11";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
 	};
 
-	en_pp3300_edp_brij_ps8640: en-pp3300-edp-brij-ps8640 {
-		pinmux {
-			pins = "gpio32";
-			function = "gpio";
-		};
-
-		pinconf {
-			pins = "gpio32";
-			drive-strength = <2>;
-			bias-disable;
-		};
+	en_pp3300_edp_brij_ps8640: en-pp3300-edp-brij-ps8640-state {
+		pins = "gpio32";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
 	};
 };

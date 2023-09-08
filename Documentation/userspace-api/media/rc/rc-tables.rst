@@ -628,7 +628,7 @@ the remote via /dev/input/event devices.
 
        -  Put device into zoom/full screen mode
 
-       -  ZOOM / FULL SCREEN / ZOOM+ / HIDE PANNEL / SWITCH
+       -  ZOOM / FULL SCREEN / ZOOM+ / HIDE PANEL / SWITCH
 
     -  .. row 80
 

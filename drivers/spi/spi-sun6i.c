@@ -174,7 +174,7 @@ static void sun6i_spi_set_cs(struct spi_device *spi, bool enable)
 
 	reg = sun6i_spi_read(sspi, SUN6I_TFR_CTL_REG);
 	reg &= ~SUN6I_TFR_CTL_CS_MASK;
-	reg |= SUN6I_TFR_CTL_CS(spi->chip_select);
+	reg |= SUN6I_TFR_CTL_CS(spi_get_chipselect(spi, 0));
 
 	if (enable)
 		reg |= SUN6I_TFR_CTL_CS_LEVEL;
@@ -683,7 +683,7 @@ err_free_master:
 	return ret;
 }
 
-static int sun6i_spi_remove(struct platform_device *pdev)
+static void sun6i_spi_remove(struct platform_device *pdev)
 {
 	struct spi_master *master = platform_get_drvdata(pdev);
 
@@ -693,7 +693,6 @@ static int sun6i_spi_remove(struct platform_device *pdev)
 		dma_release_channel(master->dma_tx);
 	if (master->dma_rx)
 		dma_release_channel(master->dma_rx);
-	return 0;
 }
 
 static const struct of_device_id sun6i_spi_match[] = {
@@ -710,7 +709,7 @@ static const struct dev_pm_ops sun6i_spi_pm_ops = {
 
 static struct platform_driver sun6i_spi_driver = {
 	.probe	= sun6i_spi_probe,
-	.remove	= sun6i_spi_remove,
+	.remove_new = sun6i_spi_remove,
 	.driver	= {
 		.name		= "sun6i-spi",
 		.of_match_table	= sun6i_spi_match,

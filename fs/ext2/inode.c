@@ -869,11 +869,6 @@ int ext2_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 	return ret;
 }
 
-static int ext2_writepage(struct page *page, struct writeback_control *wbc)
-{
-	return block_write_full_page(page, ext2_get_block, wbc);
-}
-
 static int ext2_read_folio(struct file *file, struct folio *folio)
 {
 	return mpage_read_folio(folio, ext2_get_block);
@@ -948,7 +943,6 @@ const struct address_space_operations ext2_aops = {
 	.invalidate_folio	= block_invalidate_folio,
 	.read_folio		= ext2_read_folio,
 	.readahead		= ext2_readahead,
-	.writepage		= ext2_writepage,
 	.write_begin		= ext2_write_begin,
 	.write_end		= ext2_write_end,
 	.bmap			= ext2_bmap,
@@ -1598,7 +1592,7 @@ int ext2_write_inode(struct inode *inode, struct writeback_control *wbc)
 	return __ext2_write_inode(inode, wbc->sync_mode == WB_SYNC_ALL);
 }
 
-int ext2_getattr(struct user_namespace *mnt_userns, const struct path *path,
+int ext2_getattr(struct mnt_idmap *idmap, const struct path *path,
 		 struct kstat *stat, u32 request_mask, unsigned int query_flags)
 {
 	struct inode *inode = d_inode(path->dentry);
@@ -1620,28 +1614,28 @@ int ext2_getattr(struct user_namespace *mnt_userns, const struct path *path,
 			STATX_ATTR_IMMUTABLE |
 			STATX_ATTR_NODUMP);
 
-	generic_fillattr(&init_user_ns, inode, stat);
+	generic_fillattr(&nop_mnt_idmap, inode, stat);
 	return 0;
 }
 
-int ext2_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
+int ext2_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 		 struct iattr *iattr)
 {
 	struct inode *inode = d_inode(dentry);
 	int error;
 
-	error = setattr_prepare(&init_user_ns, dentry, iattr);
+	error = setattr_prepare(&nop_mnt_idmap, dentry, iattr);
 	if (error)
 		return error;
 
-	if (is_quota_modification(mnt_userns, inode, iattr)) {
+	if (is_quota_modification(&nop_mnt_idmap, inode, iattr)) {
 		error = dquot_initialize(inode);
 		if (error)
 			return error;
 	}
-	if (i_uid_needs_update(mnt_userns, iattr, inode) ||
-	    i_gid_needs_update(mnt_userns, iattr, inode)) {
-		error = dquot_transfer(mnt_userns, inode, iattr);
+	if (i_uid_needs_update(&nop_mnt_idmap, iattr, inode) ||
+	    i_gid_needs_update(&nop_mnt_idmap, iattr, inode)) {
+		error = dquot_transfer(&nop_mnt_idmap, inode, iattr);
 		if (error)
 			return error;
 	}
@@ -1650,9 +1644,9 @@ int ext2_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
 		if (error)
 			return error;
 	}
-	setattr_copy(&init_user_ns, inode, iattr);
+	setattr_copy(&nop_mnt_idmap, inode, iattr);
 	if (iattr->ia_valid & ATTR_MODE)
-		error = posix_acl_chmod(&init_user_ns, inode, inode->i_mode);
+		error = posix_acl_chmod(&nop_mnt_idmap, dentry, inode->i_mode);
 	mark_inode_dirty(inode);
 
 	return error;

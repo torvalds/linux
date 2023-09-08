@@ -105,6 +105,21 @@
 		/* enables internal regulator and de-asserts reset */
 		reset-gpios = <&r_pio 0 2 GPIO_ACTIVE_LOW>; /* PL2 WL-PMU-EN */
 	};
+
+	/*
+	 * Power supply for the SATA disk, behind a USB-SATA bridge.
+	 * Since it is a USB device, there is no consumer in the DT, so we
+	 * have to keep this always on.
+	 */
+	regulator-sata-disk-pwr {
+		compatible = "regulator-fixed";
+		regulator-name = "sata-disk-pwr";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		regulator-always-on;
+		enable-active-high;
+		gpio = <&pio 3 25 GPIO_ACTIVE_HIGH>; /* PD25 */
+	};
 };
 
 &cpu0 {

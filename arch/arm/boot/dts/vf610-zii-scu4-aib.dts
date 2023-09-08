@@ -23,7 +23,7 @@
 		pinctrl-0 = <&pinctrl_leds_debug>;
 		pinctrl-names = "default";
 
-		debug {
+		led-debug {
 			label = "zii:green:debug1";
 			gpios = <&gpio3 0 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "heartbeat";

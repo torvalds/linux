@@ -1807,8 +1807,8 @@ What:		/sys/bus/iio/devices/iio:deviceX/out_resistanceX_raw
 KernelVersion:	4.3
 Contact:	linux-iio@vger.kernel.org
 Description:
-		Raw (unscaled no offset etc.) resistance reading that can be processed
-		into an ohm value.
+		Raw (unscaled no offset etc.) resistance reading.
+		Units after application of scale and offset are ohms.
 
 What:		/sys/bus/iio/devices/iio:deviceX/heater_enable
 KernelVersion:	4.1.0
@@ -1894,8 +1894,9 @@ What:		/sys/bus/iio/devices/iio:deviceX/in_electricalconductivity_raw
 KernelVersion:	4.8
 Contact:	linux-iio@vger.kernel.org
 Description:
-		Raw (unscaled no offset etc.) electric conductivity reading that
-		can be processed to siemens per meter.
+		Raw (unscaled no offset etc.) electric conductivity reading.
+		Units after application of scale and offset are siemens per
+		meter.
 
 What:		/sys/bus/iio/devices/iio:deviceX/in_countY_raw
 KernelVersion:	4.10
@@ -1951,8 +1952,8 @@ What:		/sys/bus/iio/devices/iio:deviceX/in_phaseY_raw
 KernelVersion:	4.18
 Contact:	linux-iio@vger.kernel.org
 Description:
-		Raw (unscaled) phase difference reading from channel Y
-		that can be processed to radians.
+		Raw (unscaled) phase difference reading from channel Y.
+		Units after application of scale and offset are radians.
 
 What:		/sys/bus/iio/devices/iio:deviceX/in_massconcentration_pm1_input
 What:		/sys/bus/iio/devices/iio:deviceX/in_massconcentrationY_pm1_input

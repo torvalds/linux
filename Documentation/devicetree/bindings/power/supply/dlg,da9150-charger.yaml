@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/power/supply/dlg,da9150-charger.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Dialog Semiconductor DA9150 Charger Power Supply bindings
+title: Dialog Semiconductor DA9150 Charger Power Supply
 
 maintainers:
   - Sebastian Reichel <sre@kernel.org>

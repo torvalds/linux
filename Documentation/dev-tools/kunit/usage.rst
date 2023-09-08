@@ -112,11 +112,45 @@ terminates the test case if the condition is not satisfied. For example:
 			KUNIT_EXPECT_LE(test, a[i], a[i + 1]);
 	}
 
-In this example, the method under test should return pointer to a value. If the
-pointer returns null or an errno, we want to stop the test since the following
-expectation could crash the test case. `ASSERT_NOT_ERR_OR_NULL(...)` allows us
-to bail out of the test case if the appropriate conditions are not satisfied to
-complete the test.
+In this example, we need to be able to allocate an array to test the ``sort()``
+function. So we use ``KUNIT_ASSERT_NOT_ERR_OR_NULL()`` to abort the test if
+there's an allocation error.
+
+.. note::
+   In other test frameworks, ``ASSERT`` macros are often implemented by calling
+   ``return`` so they only work from the test function. In KUnit, we stop the
+   current kthread on failure, so you can call them from anywhere.
+
+Customizing error messages
+--------------------------
+
+Each of the ``KUNIT_EXPECT`` and ``KUNIT_ASSERT`` macros have a ``_MSG``
+variant.  These take a format string and arguments to provide additional
+context to the automatically generated error messages.
+
+.. code-block:: c
+
+	char some_str[41];
+	generate_sha1_hex_string(some_str);
+
+	/* Before. Not easy to tell why the test failed. */
+	KUNIT_EXPECT_EQ(test, strlen(some_str), 40);
+
+	/* After. Now we see the offending string. */
+	KUNIT_EXPECT_EQ_MSG(test, strlen(some_str), 40, "some_str='%s'", some_str);
+
+Alternatively, one can take full control over the error message by using
+``KUNIT_FAIL()``, e.g.
+
+.. code-block:: c
+
+	/* Before */
+	KUNIT_EXPECT_EQ(test, some_setup_function(), 0);
+
+	/* After: full control over the failure message. */
+	if (some_setup_function())
+		KUNIT_FAIL(test, "Failed to setup thing for testing");
+
 
 Test Suites
 ~~~~~~~~~~~
@@ -546,24 +580,6 @@ By reusing the same ``cases`` array from above, we can write the test as a
 		{}
 	};
 
-Exiting Early on Failed Expectations
-------------------------------------
-
-We can use ``KUNIT_EXPECT_EQ`` to mark the test as failed and continue
-execution.  In some cases, it is unsafe to continue. We can use the
-``KUNIT_ASSERT`` variant to exit on failure.
-
-.. code-block:: c
-
-	void example_test_user_alloc_function(struct kunit *test)
-	{
-		void *object = alloc_some_object_for_me();
-
-		/* Make sure we got a valid pointer back. */
-		KUNIT_ASSERT_NOT_ERR_OR_NULL(test, object);
-		do_something_with_object(object);
-	}
-
 Allocating Memory
 -----------------
 
@@ -625,17 +641,22 @@ as shown in next section: *Accessing The Current Test*.
 Accessing The Current Test
 --------------------------
 
-In some cases, we need to call test-only code from outside the test file.
-For example, see example in section *Injecting Test-Only Code* or if
-we are providing a fake implementation of an ops struct. Using
-``kunit_test`` field in ``task_struct``, we can access it via
-``current->kunit_test``.
+In some cases, we need to call test-only code from outside the test file.  This
+is helpful, for example, when providing a fake implementation of a function, or
+to fail any current test from within an error handler.
+We can do this via the ``kunit_test`` field in ``task_struct``, which we can
+access using the ``kunit_get_current_test()`` function in ``kunit/test-bug.h``.
 
-The example below includes how to implement "mocking":
+``kunit_get_current_test()`` is safe to call even if KUnit is not enabled. If
+KUnit is not enabled, or if no test is running in the current task, it will
+return ``NULL``. This compiles down to either a no-op or a static key check,
+so will have a negligible performance impact when no test is running.
+
+The example below uses this to implement a "mock" implementation of a function, ``foo``:
 
 .. code-block:: c
 
-	#include <linux/sched.h> /* for current */
+	#include <kunit/test-bug.h> /* for kunit_get_current_test */
 
 	struct test_data {
 		int foo_result;
@@ -644,7 +665,7 @@ The example below includes how to implement "mocking":
 
 	static int fake_foo(int arg)
 	{
-		struct kunit *test = current->kunit_test;
+		struct kunit *test = kunit_get_current_test();
 		struct test_data *test_data = test->priv;
 
 		KUNIT_EXPECT_EQ(test, test_data->want_foo_called_with, arg);
@@ -675,7 +696,7 @@ Each test can have multiple resources which have string names providing the same
 flexibility as a ``priv`` member, but also, for example, allowing helper
 functions to create resources without conflicting with each other. It is also
 possible to define a clean up function for each resource, making it easy to
-avoid resource leaks. For more information, see Documentation/dev-tools/kunit/api/test.rst.
+avoid resource leaks. For more information, see Documentation/dev-tools/kunit/api/resource.rst.
 
 Failing The Current Test
 ------------------------
@@ -703,3 +724,7 @@ structures as shown below:
 	static void my_debug_function(void) { }
 	#endif
 
+``kunit_fail_current_test()`` is safe to call even if KUnit is not enabled. If
+KUnit is not enabled, or if no test is running in the current task, it will do
+nothing. This compiles down to either a no-op or a static key check, so will
+have a negligible performance impact when no test is running.

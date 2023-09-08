@@ -2,6 +2,8 @@
 #ifndef _ASM_POWERPC_BOOK3S_32_TLBFLUSH_H
 #define _ASM_POWERPC_BOOK3S_32_TLBFLUSH_H
 
+#include <linux/build_bug.h>
+
 #define MMU_NO_CONTEXT      (0)
 /*
  * TLB flushing for "classic" hash-MMU 32-bit CPUs, 6xx, 7xx, 7xxx
@@ -74,6 +76,13 @@ static inline void local_flush_tlb_page(struct vm_area_struct *vma,
 {
 	flush_tlb_page(vma, vmaddr);
 }
+
+static inline void local_flush_tlb_page_psize(struct mm_struct *mm,
+					      unsigned long vmaddr, int psize)
+{
+	BUILD_BUG();
+}
+
 static inline void local_flush_tlb_mm(struct mm_struct *mm)
 {
 	flush_tlb_mm(mm);

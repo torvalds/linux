@@ -37,7 +37,7 @@ properties:
 
   backlight:
     description: Backlight used by the panel
-    $ref: "/schemas/types.yaml#/definitions/phandle"
+    $ref: /schemas/types.yaml#/definitions/phandle
 
 required:
   - compatible

@@ -19,7 +19,6 @@
 #include <linux/i2c.h>
 
 #include <drm/drm_edid.h>
-#include <drm/drm_fb_helper.h>
 #include <drm/drm_framebuffer.h>
 
 struct hibmc_connector {
@@ -32,9 +31,6 @@ struct hibmc_connector {
 struct hibmc_drm_private {
 	/* hw */
 	void __iomem   *mmio;
-	void __iomem   *fb_map;
-	resource_size_t  fb_base;
-	resource_size_t  fb_size;
 
 	/* drm */
 	struct drm_device dev;

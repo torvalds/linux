@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017-2022 Broadcom. All Rights Reserved. The term *
+ * Copyright (C) 2017-2023 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.     *
  * Copyright (C) 2004-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
@@ -1036,7 +1036,6 @@ struct lpfc_hba {
 #define FCF_TS_INPROG           0x200 /* FCF table scan in progress */
 #define FCF_RR_INPROG           0x400 /* FCF roundrobin flogi in progress */
 #define HBA_FIP_SUPPORT		0x800 /* FIP support in HBA */
-#define HBA_AER_ENABLED		0x1000 /* AER enabled with HBA */
 #define HBA_DEVLOSS_TMO         0x2000 /* HBA in devloss timeout */
 #define HBA_RRQ_ACTIVE		0x4000 /* process the rrq active list */
 #define HBA_IOQ_FLUSH		0x8000 /* FCP/NVME I/O queues being flushed */
@@ -1190,7 +1189,6 @@ struct lpfc_hba {
 #define LPFC_MAX_ENBL_FC4_TYPE LPFC_ENABLE_FCP
 #define LPFC_DEF_ENBL_FC4_TYPE LPFC_ENABLE_FCP
 #endif
-	uint32_t cfg_aer_support;
 	uint32_t cfg_sriov_nr_virtfn;
 	uint32_t cfg_request_firmware_upgrade;
 	uint32_t cfg_suppress_link_up;
@@ -1592,8 +1590,6 @@ struct lpfc_hba {
 	struct timer_list cpuhp_poll_timer;
 	struct list_head poll_list;	/* slowpath eq polling list */
 #define LPFC_POLL_HB	1		/* slowpath heartbeat */
-#define LPFC_POLL_FASTPATH	0	/* called from fastpath */
-#define LPFC_POLL_SLOWPATH	1	/* called from slowpath */
 
 	char os_host_name[MAXHOSTNAMELEN];
 

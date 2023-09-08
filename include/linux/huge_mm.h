@@ -39,47 +39,12 @@ bool move_huge_pmd(struct vm_area_struct *vma, unsigned long old_addr,
 int change_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
 		    pmd_t *pmd, unsigned long addr, pgprot_t newprot,
 		    unsigned long cp_flags);
-vm_fault_t vmf_insert_pfn_pmd_prot(struct vm_fault *vmf, pfn_t pfn,
-				   pgprot_t pgprot, bool write);
 
-/**
- * vmf_insert_pfn_pmd - insert a pmd size pfn
- * @vmf: Structure describing the fault
- * @pfn: pfn to insert
- * @pgprot: page protection to use
- * @write: whether it's a write fault
- *
- * Insert a pmd size pfn. See vmf_insert_pfn() for additional info.
- *
- * Return: vm_fault_t value.
- */
-static inline vm_fault_t vmf_insert_pfn_pmd(struct vm_fault *vmf, pfn_t pfn,
-					    bool write)
-{
-	return vmf_insert_pfn_pmd_prot(vmf, pfn, vmf->vma->vm_page_prot, write);
-}
-vm_fault_t vmf_insert_pfn_pud_prot(struct vm_fault *vmf, pfn_t pfn,
-				   pgprot_t pgprot, bool write);
-
-/**
- * vmf_insert_pfn_pud - insert a pud size pfn
- * @vmf: Structure describing the fault
- * @pfn: pfn to insert
- * @pgprot: page protection to use
- * @write: whether it's a write fault
- *
- * Insert a pud size pfn. See vmf_insert_pfn() for additional info.
- *
- * Return: vm_fault_t value.
- */
-static inline vm_fault_t vmf_insert_pfn_pud(struct vm_fault *vmf, pfn_t pfn,
-					    bool write)
-{
-	return vmf_insert_pfn_pud_prot(vmf, pfn, vmf->vma->vm_page_prot, write);
-}
+vm_fault_t vmf_insert_pfn_pmd(struct vm_fault *vmf, pfn_t pfn, bool write);
+vm_fault_t vmf_insert_pfn_pud(struct vm_fault *vmf, pfn_t pfn, bool write);
 
 enum transparent_hugepage_flag {
-	TRANSPARENT_HUGEPAGE_NEVER_DAX,
+	TRANSPARENT_HUGEPAGE_UNSUPPORTED,
 	TRANSPARENT_HUGEPAGE_FLAG,
 	TRANSPARENT_HUGEPAGE_REQ_MADV_FLAG,
 	TRANSPARENT_HUGEPAGE_DEFRAG_DIRECT_FLAG,
@@ -187,7 +152,7 @@ static inline int split_huge_page(struct page *page)
 {
 	return split_huge_page_to_list(page, NULL);
 }
-void deferred_split_huge_page(struct page *page);
+void deferred_split_folio(struct folio *folio);
 
 void __split_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
 		unsigned long address, bool freeze, struct folio *folio);
@@ -293,15 +258,6 @@ static inline bool thp_migration_supported(void)
 	return IS_ENABLED(CONFIG_ARCH_ENABLE_THP_MIGRATION);
 }
 
-static inline struct list_head *page_deferred_list(struct page *page)
-{
-	/*
-	 * See organization of tail pages of compound page in
-	 * "struct page" definition.
-	 */
-	return &page[2].deferred_list;
-}
-
 #else /* CONFIG_TRANSPARENT_HUGEPAGE */
 #define HPAGE_PMD_SHIFT ({ BUILD_BUG(); 0; })
 #define HPAGE_PMD_MASK ({ BUILD_BUG(); 0; })
@@ -349,7 +305,7 @@ static inline int split_huge_page(struct page *page)
 {
 	return 0;
 }
-static inline void deferred_split_huge_page(struct page *page) {}
+static inline void deferred_split_folio(struct folio *folio) {}
 #define split_huge_pmd(__vma, __pmd, __address)	\
 	do { } while (0)
 

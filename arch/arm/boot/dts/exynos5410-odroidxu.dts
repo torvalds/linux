@@ -21,6 +21,8 @@
 
 	aliases {
 		ethernet = &ethernet;
+		mmc0 = &mmc_0;
+		mmc1 = &mmc_2;
 	};
 
 	memory@40000000 {
@@ -120,7 +122,6 @@
 };
 
 &cpu0_thermal {
-	thermal-sensors = <&tmu_cpu0 0>;
 	polling-delay-passive = <0>;
 	polling-delay = <0>;
 
@@ -164,8 +165,7 @@
 };
 
 &hsi2c_4 {
-	samsung,i2c-sda-delay = <100>;
-	samsung,i2c-max-bus-freq = <400000>;
+	clock-frequency = <400000>;
 	status = "okay";
 
 	usb3503: usb-hub@8 {
@@ -515,6 +515,7 @@
 	pinctrl-0 = <&sd0_clk &sd0_cmd &sd0_bus1 &sd0_bus4 &sd0_bus8 &sd0_cd>;
 	bus-width = <8>;
 	cap-mmc-highspeed;
+	mmc-ddr-1_8v;
 	mmc-hs200-1_8v;
 	vmmc-supply = <&ldo20_reg>;
 	vqmmc-supply = <&ldo11_reg>;

@@ -206,23 +206,34 @@ values for memory may require disabling the callback-flooding tests
 using the --bootargs parameter discussed below.
 
 Sometimes additional debugging is useful, and in such cases the --kconfig
-parameter to kvm.sh may be used, for example, ``--kconfig 'CONFIG_KASAN=y'``.
+parameter to kvm.sh may be used, for example, ``--kconfig 'CONFIG_RCU_EQS_DEBUG=y'``.
+In addition, there are the --gdb, --kasan, and --kcsan parameters.
+Note that --gdb limits you to one scenario per kvm.sh run and requires
+that you have another window open from which to run ``gdb`` as instructed
+by the script.
 
 Kernel boot arguments can also be supplied, for example, to control
 rcutorture's module parameters.  For example, to test a change to RCU's
 CPU stall-warning code, use "--bootargs 'rcutorture.stall_cpu=30'".
 This will of course result in the scripting reporting a failure, namely
-the resuling RCU CPU stall warning.  As noted above, reducing memory may
+the resulting RCU CPU stall warning.  As noted above, reducing memory may
 require disabling rcutorture's callback-flooding tests::
 
 	kvm.sh --cpus 448 --configs '56*TREE04' --memory 128M \
 		--bootargs 'rcutorture.fwd_progress=0'
 
 Sometimes all that is needed is a full set of kernel builds.  This is
-what the --buildonly argument does.
+what the --buildonly parameter does.
 
-Finally, the --trust-make argument allows each kernel build to reuse what
-it can from the previous kernel build.
+The --duration parameter can override the default run time of 30 minutes.
+For example, ``--duration 2d`` would run for two days, ``--duration 3h``
+would run for three hours, ``--duration 5m`` would run for five minutes,
+and ``--duration 45s`` would run for 45 seconds.  This last can be useful
+for tracking down rare boot-time failures.
+
+Finally, the --trust-make parameter allows each kernel build to reuse what
+it can from the previous kernel build.  Please note that without the
+--trust-make parameter, your tags files may be demolished.
 
 There are additional more arcane arguments that are documented in the
 source code of the kvm.sh script.
@@ -291,3 +302,73 @@ the following summary at the end of the run on a 12-CPU system::
     TREE07 ------- 167347 GPs (30.9902/s) [rcu: g1079021 f0x0 ] n_max_cbs: 478732
     CPU count limited from 16 to 12
     TREE09 ------- 752238 GPs (139.303/s) [rcu: g13075057 f0x0 ] n_max_cbs: 99011
+
+
+Repeated Runs
+=============
+
+Suppose that you are chasing down a rare boot-time failure.  Although you
+could use kvm.sh, doing so will rebuild the kernel on each run.  If you
+need (say) 1,000 runs to have confidence that you have fixed the bug,
+these pointless rebuilds can become extremely annoying.
+
+This is why kvm-again.sh exists.
+
+Suppose that a previous kvm.sh run left its output in this directory::
+
+	tools/testing/selftests/rcutorture/res/2022.11.03-11.26.28
+
+Then this run can be re-run without rebuilding as follow:
+
+	kvm-again.sh tools/testing/selftests/rcutorture/res/2022.11.03-11.26.28
+
+A few of the original run's kvm.sh parameters may be overridden, perhaps
+most notably --duration and --bootargs.  For example::
+
+	kvm-again.sh tools/testing/selftests/rcutorture/res/2022.11.03-11.26.28 \
+		--duration 45s
+
+would re-run the previous test, but for only 45 seconds, thus facilitating
+tracking down the aforementioned rare boot-time failure.
+
+
+Distributed Runs
+================
+
+Although kvm.sh is quite useful, its testing is confined to a single
+system.  It is not all that hard to use your favorite framework to cause
+(say) 5 instances of kvm.sh to run on your 5 systems, but this will very
+likely unnecessarily rebuild kernels.  In addition, manually distributing
+the desired rcutorture scenarios across the available systems can be
+painstaking and error-prone.
+
+And this is why the kvm-remote.sh script exists.
+
+If you the following command works::
+
+	ssh system0 date
+
+and if it also works for system1, system2, system3, system4, and system5,
+and all of these systems have 64 CPUs, you can type::
+
+	kvm-remote.sh "system0 system1 system2 system3 system4 system5" \
+		--cpus 64 --duration 8h --configs "5*CFLIST"
+
+This will build each default scenario's kernel on the local system, then
+spread each of five instances of each scenario over the systems listed,
+running each scenario for eight hours.  At the end of the runs, the
+results will be gathered, recorded, and printed.  Most of the parameters
+that kvm.sh will accept can be passed to kvm-remote.sh, but the list of
+systems must come first.
+
+The kvm.sh ``--dryrun scenarios`` argument is useful for working out
+how many scenarios may be run in one batch across a group of systems.
+
+You can also re-run a previous remote run in a manner similar to kvm.sh:
+
+	kvm-remote.sh "system0 system1 system2 system3 system4 system5" \
+		tools/testing/selftests/rcutorture/res/2022.11.03-11.26.28-remote \
+		--duration 24h
+
+In this case, most of the kvm-again.sh parameters may be supplied following
+the pathname of the old run-results directory.

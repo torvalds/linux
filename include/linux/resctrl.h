@@ -89,11 +89,12 @@ struct rdt_domain {
 /**
  * struct resctrl_cache - Cache allocation related data
  * @cbm_len:		Length of the cache bit mask
- * @min_cbm_bits:	Minimum number of consecutive bits to be set
+ * @min_cbm_bits:	Minimum number of consecutive bits to be set.
+ *			The value 0 means the architecture can support
+ *			zero CBM.
  * @shareable_bits:	Bitmask of shareable resource with other
  *			executing entities
  * @arch_has_sparse_bitmaps:	True if a bitmap like f00f is valid.
- * @arch_has_empty_bitmaps:	True if the '0' bitmap is valid.
  * @arch_has_per_cpu_cfg:	True if QOS_CFG register for this cache
  *				level has CPU scope.
  */
@@ -102,7 +103,6 @@ struct resctrl_cache {
 	unsigned int	min_cbm_bits;
 	unsigned int	shareable_bits;
 	bool		arch_has_sparse_bitmaps;
-	bool		arch_has_empty_bitmaps;
 	bool		arch_has_per_cpu_cfg;
 };
 
@@ -249,6 +249,17 @@ int resctrl_arch_rmid_read(struct rdt_resource *r, struct rdt_domain *d,
  */
 void resctrl_arch_reset_rmid(struct rdt_resource *r, struct rdt_domain *d,
 			     u32 rmid, enum resctrl_event_id eventid);
+
+/**
+ * resctrl_arch_reset_rmid_all() - Reset all private state associated with
+ *				   all rmids and eventids.
+ * @r:		The resctrl resource.
+ * @d:		The domain for which all architectural counter state will
+ *		be cleared.
+ *
+ * This can be called from any CPU.
+ */
+void resctrl_arch_reset_rmid_all(struct rdt_resource *r, struct rdt_domain *d);
 
 extern unsigned int resctrl_rmid_realloc_threshold;
 extern unsigned int resctrl_rmid_realloc_limit;

@@ -940,4 +940,7 @@ int mlx4_ib_umem_calc_optimal_mtt_size(struct ib_umem *umem, u64 start_va,
 int mlx4_ib_cm_init(void);
 void mlx4_ib_cm_destroy(void);
 
+int mlx4_ib_qp_event_init(void);
+void mlx4_ib_qp_event_cleanup(void);
+
 #endif /* MLX4_IB_H */

@@ -280,9 +280,8 @@ static void pcpu_attach_task(struct pcpu *pcpu, struct task_struct *tsk)
 
 	cpu = pcpu - pcpu_devices;
 	lc = lowcore_ptr[cpu];
-	lc->kernel_stack = (unsigned long) task_stack_page(tsk)
-		+ THREAD_SIZE - STACK_FRAME_OVERHEAD - sizeof(struct pt_regs);
-	lc->current_task = (unsigned long) tsk;
+	lc->kernel_stack = (unsigned long)task_stack_page(tsk) + STACK_INIT_OFFSET;
+	lc->current_task = (unsigned long)tsk;
 	lc->lpp = LPP_MAGIC;
 	lc->current_pid = tsk->pid;
 	lc->user_timer = tsk->thread.user_timer;
@@ -323,17 +322,17 @@ static void pcpu_delegate(struct pcpu *pcpu,
 {
 	struct lowcore *lc, *abs_lc;
 	unsigned int source_cpu;
-	unsigned long flags;
 
 	lc = lowcore_ptr[pcpu - pcpu_devices];
 	source_cpu = stap();
-	__load_psw_mask(PSW_KERNEL_BITS | PSW_MASK_DAT);
+
 	if (pcpu->address == source_cpu) {
 		call_on_stack(2, stack, void, __pcpu_delegate,
 			      pcpu_delegate_fn *, func, void *, data);
 	}
 	/* Stop target cpu (if func returns this stops the current cpu). */
 	pcpu_sigp_retry(pcpu, SIGP_STOP, 0);
+	pcpu_sigp_retry(pcpu, SIGP_CPU_RESET, 0);
 	/* Restart func on the target cpu and stop the current cpu. */
 	if (lc) {
 		lc->restart_stack = stack;
@@ -341,14 +340,13 @@ static void pcpu_delegate(struct pcpu *pcpu,
 		lc->restart_data = (unsigned long)data;
 		lc->restart_source = source_cpu;
 	} else {
-		abs_lc = get_abs_lowcore(&flags);
+		abs_lc = get_abs_lowcore();
 		abs_lc->restart_stack = stack;
 		abs_lc->restart_fn = (unsigned long)func;
 		abs_lc->restart_data = (unsigned long)data;
 		abs_lc->restart_source = source_cpu;
-		put_abs_lowcore(abs_lc, flags);
+		put_abs_lowcore(abs_lc);
 	}
-	__bpon();
 	asm volatile(
 		"0:	sigp	0,%0,%2	# sigp restart to target cpu\n"
 		"	brc	2,0b	# busy, try again\n"
@@ -488,7 +486,7 @@ void smp_send_stop(void)
 	int cpu;
 
 	/* Disable all interrupts/machine checks */
-	__load_psw_mask(PSW_KERNEL_BITS | PSW_MASK_DAT);
+	__load_psw_mask(PSW_KERNEL_BITS);
 	trace_hardirqs_off();
 
 	debug_set_critical();
@@ -523,7 +521,7 @@ static void smp_handle_ext_call(void)
 	if (test_bit(ec_call_function_single, &bits))
 		generic_smp_call_function_single_interrupt();
 	if (test_bit(ec_mcck_pending, &bits))
-		__s390_handle_mcck();
+		s390_handle_mcck();
 	if (test_bit(ec_irq_work, &bits))
 		irq_work_run();
 }
@@ -553,7 +551,7 @@ void arch_send_call_function_single_ipi(int cpu)
  * it goes straight through and wastes no time serializing
  * anything. Worst case is that we lose a reschedule ...
  */
-void smp_send_reschedule(int cpu)
+void arch_smp_send_reschedule(int cpu)
 {
 	pcpu_ec_call(pcpu_devices + cpu, ec_schedule);
 }
@@ -593,7 +591,6 @@ void smp_ctl_set_clear_bit(int cr, int bit, bool set)
 {
 	struct ec_creg_mask_parms parms = { .cr = cr, };
 	struct lowcore *abs_lc;
-	unsigned long flags;
 	u64 ctlreg;
 
 	if (set) {
@@ -604,11 +601,11 @@ void smp_ctl_set_clear_bit(int cr, int bit, bool set)
 		parms.andval = ~(1UL << bit);
 	}
 	spin_lock(&ctl_lock);
-	abs_lc = get_abs_lowcore(&flags);
+	abs_lc = get_abs_lowcore();
 	ctlreg = abs_lc->cregs_save_area[cr];
 	ctlreg = (ctlreg & parms.andval) | parms.orval;
 	abs_lc->cregs_save_area[cr] = ctlreg;
-	put_abs_lowcore(abs_lc, flags);
+	put_abs_lowcore(abs_lc);
 	spin_unlock(&ctl_lock);
 	on_each_cpu(smp_ctl_bit_callback, &parms, 1);
 }
@@ -987,7 +984,6 @@ void __cpu_die(unsigned int cpu)
 void __noreturn cpu_die(void)
 {
 	idle_task_exit();
-	__bpon();
 	pcpu_sigp_retry(pcpu_devices + smp_processor_id(), SIGP_STOP, 0);
 	for (;;) ;
 }
@@ -1228,11 +1224,17 @@ static DEVICE_ATTR_WO(rescan);
 
 static int __init s390_smp_init(void)
 {
+	struct device *dev_root;
 	int cpu, rc = 0;
 
-	rc = device_create_file(cpu_subsys.dev_root, &dev_attr_rescan);
-	if (rc)
-		return rc;
+	dev_root = bus_get_dev_root(&cpu_subsys);
+	if (dev_root) {
+		rc = device_create_file(dev_root, &dev_attr_rescan);
+		put_device(dev_root);
+		if (rc)
+			return rc;
+	}
+
 	for_each_present_cpu(cpu) {
 		rc = smp_add_present_cpu(cpu);
 		if (rc)
@@ -1297,9 +1299,9 @@ int __init smp_reinit_ipl_cpu(void)
 	local_mcck_enable();
 	local_irq_restore(flags);
 
-	free_pages(lc_ipl->async_stack - STACK_INIT_OFFSET, THREAD_SIZE_ORDER);
 	memblock_free_late(__pa(lc_ipl->mcck_stack - STACK_INIT_OFFSET), THREAD_SIZE);
+	memblock_free_late(__pa(lc_ipl->async_stack - STACK_INIT_OFFSET), THREAD_SIZE);
+	memblock_free_late(__pa(lc_ipl->nodat_stack - STACK_INIT_OFFSET), THREAD_SIZE);
 	memblock_free_late(__pa(lc_ipl), sizeof(*lc_ipl));
-
 	return 0;
 }

@@ -8,6 +8,7 @@
 #include <byteswap.h>
 #include <stdint.h>
 #include <inttypes.h>
+#include <linux/limits.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/syscall.h>
@@ -50,70 +51,16 @@ struct region {
 	struct region *next;
 };
 
-int read_entire_file(int fd, char **buf, size_t *len)
-{
-	size_t buf_size = 0;
-	size_t off = 0;
-	int rc;
-
-	*buf = NULL;
-	do {
-		buf_size += BLOCK_SIZE;
-		if (*buf == NULL)
-			*buf = malloc(buf_size);
-		else
-			*buf = realloc(*buf, buf_size);
-
-		if (*buf == NULL)
-			return -ENOMEM;
-
-		rc = read(fd, *buf + off, BLOCK_SIZE);
-		if (rc < 0)
-			return -EIO;
-
-		off += rc;
-	} while (rc == BLOCK_SIZE);
-
-	if (len)
-		*len = off;
-
-	return 0;
-}
-
-static int open_prop_file(const char *prop_path, const char *prop_name, int *fd)
-{
-	char *path;
-	int len;
-
-	/* allocate enough for two string, a slash and trailing NULL */
-	len = strlen(prop_path) + strlen(prop_name) + 1 + 1;
-	path = malloc(len);
-	if (path == NULL)
-		return -ENOMEM;
-
-	snprintf(path, len, "%s/%s", prop_path, prop_name);
-
-	*fd = open(path, O_RDONLY);
-	free(path);
-	if (*fd < 0)
-		return -errno;
-
-	return 0;
-}
-
 static int get_property(const char *prop_path, const char *prop_name,
 			char **prop_val, size_t *prop_len)
 {
-	int rc, fd;
+	char path[PATH_MAX];
 
-	rc = open_prop_file(prop_path, prop_name, &fd);
-	if (rc)
-		return rc;
+	int len = snprintf(path, sizeof(path), "%s/%s", prop_path, prop_name);
+	if (len < 0 || len >= sizeof(path))
+		return -ENOMEM;
 
-	rc = read_entire_file(fd, prop_val, prop_len);
-	close(fd);
-
-	return rc;
+	return read_file_alloc(path, prop_val, prop_len);
 }
 
 int rtas_token(const char *call_name)
@@ -138,20 +85,12 @@ err:
 static int read_kregion_bounds(struct region *kregion)
 {
 	char *buf;
-	int fd;
-	int rc;
+	int err;
 
-	fd = open("/proc/ppc64/rtas/rmo_buffer", O_RDONLY);
-	if (fd < 0) {
-		printf("Could not open rmo_buffer file\n");
+	err = read_file_alloc("/proc/ppc64/rtas/rmo_buffer", &buf, NULL);
+	if (err) {
+		perror("Could not open rmo_buffer file");
 		return RTAS_IO_ASSERT;
-	}
-
-	rc = read_entire_file(fd, &buf, NULL);
-	close(fd);
-	if (rc) {
-		free(buf);
-		return rc;
 	}
 
 	sscanf(buf, "%" SCNx64 " %x", &kregion->addr, &kregion->size);

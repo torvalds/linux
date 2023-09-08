@@ -279,7 +279,7 @@ struct mvumi_msg_frame {
 	u16 request_id;
 	u16 reserved1;
 	u8 cdb[MAX_COMMAND_SIZE];
-	u32 payload[1];
+	u32 payload[];
 };
 
 /*
@@ -294,7 +294,7 @@ struct mvumi_rsp_frame {
 	u8 req_status;
 	u8 rsp_flag;	/* Indicates the type of Data_Payload.*/
 	u16 request_id;
-	u32 payload[1];
+	u32 payload[];
 };
 
 struct mvumi_ob_data {
@@ -380,7 +380,7 @@ struct mvumi_hs_header {
 	u8	page_code;
 	u8	checksum;
 	u16	frame_length;
-	u32	frame_content[1];
+	u32	frame_content[];
 };
 
 /*

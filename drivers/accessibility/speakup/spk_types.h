@@ -49,7 +49,7 @@ enum var_id_t {
 	RATE, PITCH, VOL, TONE, PUNCT, VOICE, FREQUENCY, LANG,
 	DIRECT, PAUSE,
 	CAPS_START, CAPS_STOP, CHARTAB, INFLECTION, FLUSH,
-	MAXVARS
+	CUR_PHONETIC, MAXVARS
 };
 
 typedef int (*special_func)(struct vc_data *vc, u_char type, u_char ch,

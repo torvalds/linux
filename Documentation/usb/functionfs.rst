@@ -49,7 +49,7 @@ level it would look like this::
   $ ( cd /dev/ffs-hid && hid-daemon ) &
 
 On kernel level the gadget checks ffs_data->dev_name to identify
-whether it's FunctionFS designed for MTP ("mtp") or HID ("hid").
+whether its FunctionFS is designed for MTP ("mtp") or HID ("hid").
 
 If no "functions" module parameters is supplied, the driver accepts
 just one function with any name.

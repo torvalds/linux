@@ -218,9 +218,16 @@ int ath11k_pcic_read(struct ath11k_base *ab, void *buf, u32 start, u32 end)
 	if (wakeup_required && ab->pci.ops->wakeup) {
 		ret = ab->pci.ops->wakeup(ab);
 		if (ret) {
-			ath11k_warn(ab, "failed to wakeup for read from 0x%x: %d\n",
-				    start, ret);
-			return ret;
+			ath11k_warn(ab,
+				    "wakeup failed, data may be invalid: %d",
+				    ret);
+			/* Even though wakeup() failed, continue processing rather
+			 * than returning because some parts of the data may still
+			 * be valid and useful in some cases, e.g. could give us
+			 * some clues on firmware crash.
+			 * Mislead due to invalid data could be avoided because we
+			 * are aware of the wakeup failure.
+			 */
 		}
 	}
 

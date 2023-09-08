@@ -21,7 +21,7 @@
 #include <asm/maccess.h>
 
 unsigned long __bootdata_preserved(__memcpy_real_area);
-static __ro_after_init pte_t *memcpy_real_ptep;
+pte_t *__bootdata_preserved(memcpy_real_ptep);
 static DEFINE_MUTEX(memcpy_real_mutex);
 
 static notrace long s390_kernel_write_odd(void *dst, const void *src, size_t size)
@@ -68,26 +68,15 @@ notrace void *s390_kernel_write(void *dst, const void *src, size_t size)
 	long copied;
 
 	spin_lock_irqsave(&s390_kernel_write_lock, flags);
-	if (!(flags & PSW_MASK_DAT)) {
-		memcpy(dst, src, size);
-	} else {
-		while (size) {
-			copied = s390_kernel_write_odd(tmp, src, size);
-			tmp += copied;
-			src += copied;
-			size -= copied;
-		}
+	while (size) {
+		copied = s390_kernel_write_odd(tmp, src, size);
+		tmp += copied;
+		src += copied;
+		size -= copied;
 	}
 	spin_unlock_irqrestore(&s390_kernel_write_lock, flags);
 
 	return dst;
-}
-
-void __init memcpy_real_init(void)
-{
-	memcpy_real_ptep = vmem_get_alloc_pte(__memcpy_real_area, true);
-	if (!memcpy_real_ptep)
-		panic("Couldn't setup memcpy real area");
 }
 
 size_t memcpy_real_iter(struct iov_iter *iter, unsigned long src, size_t count)
@@ -128,7 +117,7 @@ int memcpy_real(void *dest, unsigned long src, size_t count)
 
 	kvec.iov_base = dest;
 	kvec.iov_len = count;
-	iov_iter_kvec(&iter, WRITE, &kvec, 1, count);
+	iov_iter_kvec(&iter, ITER_DEST, &kvec, 1, count);
 	if (memcpy_real_iter(&iter, src, count) < count)
 		return -EFAULT;
 	return 0;
@@ -162,7 +151,6 @@ void *xlate_dev_mem_ptr(phys_addr_t addr)
 	void *ptr = phys_to_virt(addr);
 	void *bounce = ptr;
 	struct lowcore *abs_lc;
-	unsigned long flags;
 	unsigned long size;
 	int this_cpu, cpu;
 
@@ -178,10 +166,10 @@ void *xlate_dev_mem_ptr(phys_addr_t addr)
 		goto out;
 	size = PAGE_SIZE - (addr & ~PAGE_MASK);
 	if (addr < sizeof(struct lowcore)) {
-		abs_lc = get_abs_lowcore(&flags);
+		abs_lc = get_abs_lowcore();
 		ptr = (void *)abs_lc + addr;
 		memcpy(bounce, ptr, size);
-		put_abs_lowcore(abs_lc, flags);
+		put_abs_lowcore(abs_lc);
 	} else if (cpu == this_cpu) {
 		ptr = (void *)(addr - virt_to_phys(lowcore_ptr[cpu]));
 		memcpy(bounce, ptr, size);

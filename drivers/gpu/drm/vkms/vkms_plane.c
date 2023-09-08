@@ -132,7 +132,6 @@ static int vkms_plane_atomic_check(struct drm_plane *plane,
 	struct drm_plane_state *new_plane_state = drm_atomic_get_new_plane_state(state,
 										 plane);
 	struct drm_crtc_state *crtc_state;
-	bool can_position = false;
 	int ret;
 
 	if (!new_plane_state->fb || WARN_ON(!new_plane_state->crtc))
@@ -143,27 +142,54 @@ static int vkms_plane_atomic_check(struct drm_plane *plane,
 	if (IS_ERR(crtc_state))
 		return PTR_ERR(crtc_state);
 
-	if (plane->type != DRM_PLANE_TYPE_PRIMARY)
-		can_position = true;
-
 	ret = drm_atomic_helper_check_plane_state(new_plane_state, crtc_state,
 						  DRM_PLANE_NO_SCALING,
 						  DRM_PLANE_NO_SCALING,
-						  can_position, true);
+						  true, true);
 	if (ret != 0)
 		return ret;
 
-	/* for now primary plane must be visible and full screen */
-	if (!new_plane_state->visible && !can_position)
-		return -EINVAL;
-
 	return 0;
+}
+
+static int vkms_prepare_fb(struct drm_plane *plane,
+			   struct drm_plane_state *state)
+{
+	struct drm_shadow_plane_state *shadow_plane_state;
+	struct drm_framebuffer *fb = state->fb;
+	int ret;
+
+	if (!fb)
+		return 0;
+
+	shadow_plane_state = to_drm_shadow_plane_state(state);
+
+	ret = drm_gem_plane_helper_prepare_fb(plane, state);
+	if (ret)
+		return ret;
+
+	return drm_gem_fb_vmap(fb, shadow_plane_state->map, shadow_plane_state->data);
+}
+
+static void vkms_cleanup_fb(struct drm_plane *plane,
+			    struct drm_plane_state *state)
+{
+	struct drm_shadow_plane_state *shadow_plane_state;
+	struct drm_framebuffer *fb = state->fb;
+
+	if (!fb)
+		return;
+
+	shadow_plane_state = to_drm_shadow_plane_state(state);
+
+	drm_gem_fb_vunmap(fb, shadow_plane_state->map);
 }
 
 static const struct drm_plane_helper_funcs vkms_primary_helper_funcs = {
 	.atomic_update		= vkms_plane_atomic_update,
 	.atomic_check		= vkms_plane_atomic_check,
-	DRM_GEM_SHADOW_PLANE_HELPER_FUNCS,
+	.prepare_fb		= vkms_prepare_fb,
+	.cleanup_fb		= vkms_cleanup_fb,
 };
 
 struct vkms_plane *vkms_plane_init(struct vkms_device *vkmsdev,

@@ -234,11 +234,15 @@ int jfs_mount_rw(struct super_block *sb, int remount)
 
 		truncate_inode_pages(sbi->ipimap->i_mapping, 0);
 		truncate_inode_pages(sbi->ipbmap->i_mapping, 0);
+
+		IWRITE_LOCK(sbi->ipimap, RDWRLOCK_IMAP);
 		diUnmount(sbi->ipimap, 1);
 		if ((rc = diMount(sbi->ipimap))) {
+			IWRITE_UNLOCK(sbi->ipimap);
 			jfs_err("jfs_mount_rw: diMount failed!");
 			return rc;
 		}
+		IWRITE_UNLOCK(sbi->ipimap);
 
 		dbUnmount(sbi->ipbmap, 1);
 		if ((rc = dbMount(sbi->ipbmap))) {

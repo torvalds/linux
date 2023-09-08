@@ -3,10 +3,10 @@
 #define _ASM_X86_SMP_H
 #ifndef __ASSEMBLY__
 #include <linux/cpumask.h>
-#include <asm/percpu.h>
 
-#include <asm/thread_info.h>
 #include <asm/cpumask.h>
+#include <asm/current.h>
+#include <asm/thread_info.h>
 
 extern int smp_num_siblings;
 extern unsigned int num_processors;
@@ -19,7 +19,6 @@ DECLARE_PER_CPU_READ_MOSTLY(cpumask_var_t, cpu_llc_shared_map);
 DECLARE_PER_CPU_READ_MOSTLY(cpumask_var_t, cpu_l2c_shared_map);
 DECLARE_PER_CPU_READ_MOSTLY(u16, cpu_llc_id);
 DECLARE_PER_CPU_READ_MOSTLY(u16, cpu_l2c_id);
-DECLARE_PER_CPU_READ_MOSTLY(int, cpu_number);
 
 DECLARE_EARLY_PER_CPU_READ_MOSTLY(u16, x86_cpu_to_apicid);
 DECLARE_EARLY_PER_CPU_READ_MOSTLY(u32, x86_cpu_to_acpiid);
@@ -94,12 +93,13 @@ static inline void __cpu_die(unsigned int cpu)
 	smp_ops.cpu_die(cpu);
 }
 
-static inline void play_dead(void)
+static inline void __noreturn play_dead(void)
 {
 	smp_ops.play_dead();
+	BUG();
 }
 
-static inline void smp_send_reschedule(int cpu)
+static inline void arch_smp_send_reschedule(int cpu)
 {
 	smp_ops.smp_send_reschedule(cpu);
 }
@@ -125,7 +125,7 @@ int native_cpu_up(unsigned int cpunum, struct task_struct *tidle);
 int native_cpu_disable(void);
 int common_cpu_die(unsigned int cpu);
 void native_cpu_die(unsigned int cpu);
-void hlt_play_dead(void);
+void __noreturn hlt_play_dead(void);
 void native_play_dead(void);
 void play_dead_common(void);
 void wbinvd_on_cpu(int cpu);
@@ -150,11 +150,10 @@ __visible void smp_call_function_single_interrupt(struct pt_regs *r);
 
 /*
  * This function is needed by all SMP systems. It must _always_ be valid
- * from the initial startup. We map APIC_BASE very early in page_setup(),
- * so this is correct in the x86 case.
+ * from the initial startup.
  */
-#define raw_smp_processor_id()  this_cpu_read(cpu_number)
-#define __smp_processor_id() __this_cpu_read(cpu_number)
+#define raw_smp_processor_id()  this_cpu_read(pcpu_hot.cpu_number)
+#define __smp_processor_id() __this_cpu_read(pcpu_hot.cpu_number)
 
 #ifdef CONFIG_X86_32
 extern int safe_smp_processor_id(void);
@@ -201,5 +200,8 @@ extern void nmi_selftest(void);
 #define nmi_selftest() do { } while (0)
 #endif
 
-#endif /* __ASSEMBLY__ */
+extern unsigned int smpboot_control;
+
+#endif /* !__ASSEMBLY__ */
+
 #endif /* _ASM_X86_SMP_H */

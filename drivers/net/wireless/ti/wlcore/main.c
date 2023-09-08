@@ -5942,6 +5942,7 @@ static const struct ieee80211_ops wl1271_ops = {
 	.prepare_multicast = wl1271_op_prepare_multicast,
 	.configure_filter = wl1271_op_configure_filter,
 	.tx = wl1271_op_tx,
+	.wake_tx_queue = ieee80211_handle_wake_tx_queue,
 	.set_key = wlcore_op_set_key,
 	.hw_scan = wl1271_op_hw_scan,
 	.cancel_hw_scan = wl1271_op_cancel_hw_scan,

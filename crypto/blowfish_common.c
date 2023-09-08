@@ -14,11 +14,12 @@
  * Copyright (c) Kyle McMartin <kyle@debian.org>
  * Copyright (c) 2002 James Morris <jmorris@intercode.com.au>
  */
+
+#include <crypto/algapi.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/mm.h>
 #include <asm/byteorder.h>
-#include <linux/crypto.h>
 #include <linux/types.h>
 #include <crypto/blowfish.h>
 

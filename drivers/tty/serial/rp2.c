@@ -427,32 +427,13 @@ static void rp2_rx_chars(struct rp2_uart_port *up)
 
 static void rp2_tx_chars(struct rp2_uart_port *up)
 {
-	u16 max_tx = FIFO_SIZE - readw(up->base + RP2_TX_FIFO_COUNT);
-	struct circ_buf *xmit = &up->port.state->xmit;
+	u8 ch;
 
-	if (uart_tx_stopped(&up->port)) {
-		rp2_uart_stop_tx(&up->port);
-		return;
-	}
-
-	for (; max_tx != 0; max_tx--) {
-		if (up->port.x_char) {
-			writeb(up->port.x_char, up->base + RP2_DATA_BYTE);
-			up->port.x_char = 0;
-			up->port.icount.tx++;
-			continue;
-		}
-		if (uart_circ_empty(xmit)) {
-			rp2_uart_stop_tx(&up->port);
-			break;
-		}
-		writeb(xmit->buf[xmit->tail], up->base + RP2_DATA_BYTE);
-		xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
-		up->port.icount.tx++;
-	}
-
-	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
-		uart_write_wakeup(&up->port);
+	uart_port_tx_limited(&up->port, ch,
+		FIFO_SIZE - readw(up->base + RP2_TX_FIFO_COUNT),
+		true,
+		writeb(ch, up->base + RP2_DATA_BYTE),
+		({}));
 }
 
 static void rp2_ch_interrupt(struct rp2_uart_port *up)

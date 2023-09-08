@@ -842,66 +842,82 @@
 
 		cluster0_l2: l2-cache0 {
 			compatible = "cache";
+			cache-level = <2>;
 		};
 
 		cluster1_l2: l2-cache1 {
 			compatible = "cache";
+			cache-level = <2>;
 		};
 
 		cluster2_l2: l2-cache2 {
 			compatible = "cache";
+			cache-level = <2>;
 		};
 
 		cluster3_l2: l2-cache3 {
 			compatible = "cache";
+			cache-level = <2>;
 		};
 
 		cluster4_l2: l2-cache4 {
 			compatible = "cache";
+			cache-level = <2>;
 		};
 
 		cluster5_l2: l2-cache5 {
 			compatible = "cache";
+			cache-level = <2>;
 		};
 
 		cluster6_l2: l2-cache6 {
 			compatible = "cache";
+			cache-level = <2>;
 		};
 
 		cluster7_l2: l2-cache7 {
 			compatible = "cache";
+			cache-level = <2>;
 		};
 
 		cluster8_l2: l2-cache8 {
 			compatible = "cache";
+			cache-level = <2>;
 		};
 
 		cluster9_l2: l2-cache9 {
 			compatible = "cache";
+			cache-level = <2>;
 		};
 
 		cluster10_l2: l2-cache10 {
 			compatible = "cache";
+			cache-level = <2>;
 		};
 
 		cluster11_l2: l2-cache11 {
 			compatible = "cache";
+			cache-level = <2>;
 		};
 
 		cluster12_l2: l2-cache12 {
 			compatible = "cache";
+			cache-level = <2>;
 		};
 
 		cluster13_l2: l2-cache13 {
 			compatible = "cache";
+			cache-level = <2>;
 		};
 
 		cluster14_l2: l2-cache14 {
 			compatible = "cache";
+			cache-level = <2>;
 		};
 
 		cluster15_l2: l2-cache15 {
 			compatible = "cache";
+			cache-level = <2>;
 		};
 	};
 
@@ -1238,7 +1254,7 @@
 			};
 		};
 
-		uart0: uart@602b0000 {
+		uart0: serial@602b0000 {
 			compatible = "arm,sbsa-uart";
 			reg = <0x0 0x602b0000 0x0 0x1000>;
 			interrupt-parent = <&mbigen_uart>;

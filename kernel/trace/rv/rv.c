@@ -290,8 +290,6 @@ static ssize_t monitor_enable_write_data(struct file *filp, const char __user *u
 	if (retval)
 		return retval;
 
-	retval = count;
-
 	mutex_lock(&rv_interface_lock);
 
 	if (val)
@@ -516,7 +514,7 @@ static ssize_t enabled_monitors_write(struct file *filp, const char __user *user
 	struct rv_monitor_def *mdef;
 	int retval = -EINVAL;
 	bool enable = true;
-	char *ptr = buff;
+	char *ptr;
 	int len;
 
 	if (count < 1 || count > MAX_RV_MONITOR_NAME_SIZE + 1)

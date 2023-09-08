@@ -784,7 +784,6 @@ static void mtty_release_dev(struct vfio_device *vdev)
 
 	atomic_add(mdev_state->nr_ports, &mdev_avail_ports);
 	kfree(mdev_state->vconfig);
-	vfio_free_device(vdev);
 }
 
 static void mtty_remove(struct mdev_device *mdev)
@@ -1270,6 +1269,9 @@ static const struct vfio_device_ops mtty_dev_ops = {
 	.read = mtty_read,
 	.write = mtty_write,
 	.ioctl = mtty_ioctl,
+	.bind_iommufd	= vfio_iommufd_emulated_bind,
+	.unbind_iommufd	= vfio_iommufd_emulated_unbind,
+	.attach_ioas	= vfio_iommufd_emulated_attach_ioas,
 };
 
 static struct mdev_driver mtty_driver = {
@@ -1317,7 +1319,7 @@ static int __init mtty_dev_init(void)
 	if (ret)
 		goto err_cdev;
 
-	mtty_dev.vd_class = class_create(THIS_MODULE, MTTY_CLASS_NAME);
+	mtty_dev.vd_class = class_create(MTTY_CLASS_NAME);
 
 	if (IS_ERR(mtty_dev.vd_class)) {
 		pr_err("Error: failed to register mtty_dev class\n");
@@ -1331,7 +1333,7 @@ static int __init mtty_dev_init(void)
 
 	ret = device_register(&mtty_dev.dev);
 	if (ret)
-		goto err_class;
+		goto err_put;
 
 	ret = mdev_register_parent(&mtty_dev.parent, &mtty_dev.dev,
 				   &mtty_driver, mtty_mdev_types,
@@ -1341,8 +1343,9 @@ static int __init mtty_dev_init(void)
 	return 0;
 
 err_device:
-	device_unregister(&mtty_dev.dev);
-err_class:
+	device_del(&mtty_dev.dev);
+err_put:
+	put_device(&mtty_dev.dev);
 	class_destroy(mtty_dev.vd_class);
 err_driver:
 	mdev_unregister_driver(&mtty_driver);

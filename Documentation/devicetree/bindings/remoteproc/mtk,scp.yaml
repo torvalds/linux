@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/remoteproc/mtk,scp.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Mediatek SCP Bindings
+title: Mediatek SCP
 
 maintainers:
   - Tinghan Shen <tinghan.shen@mediatek.com>

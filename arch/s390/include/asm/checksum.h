@@ -12,7 +12,7 @@
 #ifndef _S390_CHECKSUM_H
 #define _S390_CHECKSUM_H
 
-#include <linux/uaccess.h>
+#include <linux/kasan-checks.h>
 #include <linux/in6.h>
 
 /*
@@ -34,6 +34,7 @@ static inline __wsum csum_partial(const void *buff, int len, __wsum sum)
 		.odd = (unsigned long) len,
 	};
 
+	kasan_check_read(buff, len);
 	asm volatile(
 		"0:	cksm	%[sum],%[rp]\n"
 		"	jo	0b\n"

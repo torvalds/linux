@@ -116,7 +116,7 @@ int tegra_drm_ioctl_channel_open(struct drm_device *drm, void *data, struct drm_
 
 		if (supported)
 			context->memory_context = host1x_memory_context_alloc(
-				host, get_task_pid(current, PIDTYPE_TGID));
+				host, client->base.dev, get_task_pid(current, PIDTYPE_TGID));
 
 		if (IS_ERR(context->memory_context)) {
 			if (PTR_ERR(context->memory_context) != -EOPNOTSUPP) {

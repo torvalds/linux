@@ -23,7 +23,7 @@ static void seqiv_aead_encrypt_complete2(struct aead_request *req, int err)
 	struct aead_request *subreq = aead_request_ctx(req);
 	struct crypto_aead *geniv;
 
-	if (err == -EINPROGRESS)
+	if (err == -EINPROGRESS || err == -EBUSY)
 		return;
 
 	if (err)
@@ -36,10 +36,9 @@ out:
 	kfree_sensitive(subreq->iv);
 }
 
-static void seqiv_aead_encrypt_complete(struct crypto_async_request *base,
-					int err)
+static void seqiv_aead_encrypt_complete(void *data, int err)
 {
-	struct aead_request *req = base->data;
+	struct aead_request *req = data;
 
 	seqiv_aead_encrypt_complete2(req, err);
 	aead_request_complete(req, err);

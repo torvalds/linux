@@ -26,6 +26,7 @@
 #include <api/fs/tracing_path.h>
 #include "evsel.h"
 #include "debug.h"
+#include "util.h"
 
 #define VERSION "0.6"
 #define MAX_EVENT_LENGTH 512
@@ -37,15 +38,6 @@ struct tracepoint_path {
 	char *name;
 	struct tracepoint_path *next;
 };
-
-int bigendian(void)
-{
-	unsigned char str[] = { 0x1, 0x2, 0x3, 0x4, 0x0, 0x0, 0x0, 0x0};
-	unsigned int *ptr;
-
-	ptr = (unsigned int *)(void *)str;
-	return *ptr == 0x01020304;
-}
 
 /* unfortunately, you can not stat debugfs or proc files for size */
 static int record_file(const char *file, ssize_t hdr_sz)
@@ -79,7 +71,7 @@ static int record_file(const char *file, ssize_t hdr_sz)
 
 	/* ugh, handle big-endian hdr_size == 4 */
 	sizep = (char*)&size;
-	if (bigendian())
+	if (host_is_bigendian())
 		sizep += sizeof(u64) - hdr_sz;
 
 	if (hdr_sz && pwrite(output_fd, sizep, hdr_sz, hdr_pos) < 0) {
@@ -564,7 +556,7 @@ static int tracing_data_header(void)
 		return -1;
 
 	/* save endian */
-	if (bigendian())
+	if (host_is_bigendian())
 		buf[0] = 1;
 	else
 		buf[0] = 0;

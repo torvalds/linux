@@ -344,7 +344,7 @@ static int igt_evict_vm(void *arg)
 
 	/* Everything is pinned, nothing should happen */
 	mutex_lock(&ggtt->vm.mutex);
-	err = i915_gem_evict_vm(&ggtt->vm, NULL);
+	err = i915_gem_evict_vm(&ggtt->vm, NULL, NULL);
 	mutex_unlock(&ggtt->vm.mutex);
 	if (err) {
 		pr_err("i915_gem_evict_vm on a full GGTT returned err=%d]\n",
@@ -356,7 +356,7 @@ static int igt_evict_vm(void *arg)
 
 	for_i915_gem_ww(&ww, err, false) {
 		mutex_lock(&ggtt->vm.mutex);
-		err = i915_gem_evict_vm(&ggtt->vm, &ww);
+		err = i915_gem_evict_vm(&ggtt->vm, &ww, NULL);
 		mutex_unlock(&ggtt->vm.mutex);
 	}
 

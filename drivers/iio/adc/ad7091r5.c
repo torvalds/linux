@@ -69,9 +69,9 @@ static const struct ad7091r_chip_info ad7091r5_chip_info_noirq = {
 	.vref_mV = 2500,
 };
 
-static int ad7091r5_i2c_probe(struct i2c_client *i2c,
-		const struct i2c_device_id *id)
+static int ad7091r5_i2c_probe(struct i2c_client *i2c)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(i2c);
 	const struct ad7091r_chip_info *chip_info;
 	struct regmap *map = devm_regmap_init_i2c(i2c, &ad7091r_regmap_config);
 
@@ -103,7 +103,7 @@ static struct i2c_driver ad7091r5_driver = {
 		.name = "ad7091r5",
 		.of_match_table = ad7091r5_dt_ids,
 	},
-	.probe = ad7091r5_i2c_probe,
+	.probe_new = ad7091r5_i2c_probe,
 	.id_table = ad7091r5_i2c_ids,
 };
 module_i2c_driver(ad7091r5_driver);

@@ -11,7 +11,6 @@
 #define UX500_MSP_I2S_H
 
 #include <linux/platform_device.h>
-#include <linux/platform_data/asoc-ux500-msp.h>
 
 #define MSP_INPUT_FREQ_APB 48000000
 
@@ -463,18 +462,11 @@ struct ux500_msp_config {
 	unsigned int iodelay;
 };
 
-struct ux500_msp_dma_params {
-	unsigned int data_size;
-	dma_addr_t tx_rx_addr;
-	struct stedma40_chan_cfg *dma_cfg;
-};
-
 struct ux500_msp {
 	int id;
 	void __iomem *registers;
 	struct device *dev;
-	struct ux500_msp_dma_params playback_dma_data;
-	struct ux500_msp_dma_params capture_dma_data;
+	dma_addr_t tx_rx_addr;
 	enum msp_state msp_state;
 	int def_elem_len;
 	unsigned int dir_busy;
@@ -482,10 +474,8 @@ struct ux500_msp {
 	unsigned int f_bitclk;
 };
 
-struct msp_i2s_platform_data;
 int ux500_msp_i2s_init_msp(struct platform_device *pdev,
-			struct ux500_msp **msp_p,
-			struct msp_i2s_platform_data *platform_data);
+			struct ux500_msp **msp_p);
 void ux500_msp_i2s_cleanup_msp(struct platform_device *pdev,
 			struct ux500_msp *msp);
 int ux500_msp_i2s_open(struct ux500_msp *msp, struct ux500_msp_config *config);

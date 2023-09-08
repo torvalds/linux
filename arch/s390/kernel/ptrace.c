@@ -474,9 +474,7 @@ long arch_ptrace(struct task_struct *child, long request,
 		}
 		return 0;
 	case PTRACE_GET_LAST_BREAK:
-		put_user(child->thread.last_break,
-			 (unsigned long __user *) data);
-		return 0;
+		return put_user(child->thread.last_break, (unsigned long __user *)data);
 	case PTRACE_ENABLE_TE:
 		if (!MACHINE_HAS_TE)
 			return -EIO;
@@ -824,9 +822,7 @@ long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 		}
 		return 0;
 	case PTRACE_GET_LAST_BREAK:
-		put_user(child->thread.last_break,
-			 (unsigned int __user *) data);
-		return 0;
+		return put_user(child->thread.last_break, (unsigned int __user *)data);
 	}
 	return compat_ptrace_request(child, request, addr, data);
 }
@@ -990,7 +986,7 @@ static int s390_vxrs_low_get(struct task_struct *target,
 	if (target == current)
 		save_fpu_regs();
 	for (i = 0; i < __NUM_VXRS_LOW; i++)
-		vxrs[i] = *((__u64 *)(target->thread.fpu.vxrs + i) + 1);
+		vxrs[i] = target->thread.fpu.vxrs[i].low;
 	return membuf_write(&to, vxrs, sizeof(vxrs));
 }
 
@@ -1008,12 +1004,12 @@ static int s390_vxrs_low_set(struct task_struct *target,
 		save_fpu_regs();
 
 	for (i = 0; i < __NUM_VXRS_LOW; i++)
-		vxrs[i] = *((__u64 *)(target->thread.fpu.vxrs + i) + 1);
+		vxrs[i] = target->thread.fpu.vxrs[i].low;
 
 	rc = user_regset_copyin(&pos, &count, &kbuf, &ubuf, vxrs, 0, -1);
 	if (rc == 0)
 		for (i = 0; i < __NUM_VXRS_LOW; i++)
-			*((__u64 *)(target->thread.fpu.vxrs + i) + 1) = vxrs[i];
+			target->thread.fpu.vxrs[i].low = vxrs[i];
 
 	return rc;
 }

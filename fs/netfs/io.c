@@ -23,7 +23,7 @@ static void netfs_clear_unread(struct netfs_io_subrequest *subreq)
 {
 	struct iov_iter iter;
 
-	iov_iter_xarray(&iter, READ, &subreq->rreq->mapping->i_pages,
+	iov_iter_xarray(&iter, ITER_DEST, &subreq->rreq->mapping->i_pages,
 			subreq->start + subreq->transferred,
 			subreq->len   - subreq->transferred);
 	iov_iter_zero(iov_iter_count(&iter), &iter);
@@ -49,7 +49,7 @@ static void netfs_read_from_cache(struct netfs_io_request *rreq,
 	struct iov_iter iter;
 
 	netfs_stat(&netfs_n_rh_read);
-	iov_iter_xarray(&iter, READ, &rreq->mapping->i_pages,
+	iov_iter_xarray(&iter, ITER_DEST, &rreq->mapping->i_pages,
 			subreq->start + subreq->transferred,
 			subreq->len   - subreq->transferred);
 
@@ -208,7 +208,7 @@ static void netfs_rreq_do_write_to_cache(struct netfs_io_request *rreq)
 			continue;
 		}
 
-		iov_iter_xarray(&iter, WRITE, &rreq->mapping->i_pages,
+		iov_iter_xarray(&iter, ITER_SOURCE, &rreq->mapping->i_pages,
 				subreq->start, subreq->len);
 
 		atomic_inc(&rreq->nr_copy_ops);

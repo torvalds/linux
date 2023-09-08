@@ -123,7 +123,7 @@
 		#size-cells = <2>;
 		ranges;
 
-		its: gic-its@6020000 {
+		its: msi-controller@6020000 {
 			compatible = "arm,gic-v3-its";
 			msi-controller;
 			reg = <0x0 0x6020000 0 0x20000>;
@@ -674,6 +674,7 @@
 			reg = <0 0x5000000 0 0x800000>;
 			#iommu-cells = <1>;
 			stream-match-mask = <0x7C00>;
+			dma-coherent;
 			#global-interrupts = <12>;
 				     // global secure fault
 			interrupts = <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>,

@@ -115,18 +115,13 @@ unsigned long __weak memory_block_size_bytes(void)
 }
 EXPORT_SYMBOL_GPL(memory_block_size_bytes);
 
-/*
- * Show the first physical section index (number) of this memory block.
- */
+/* Show the memory block ID, relative to the memory block size */
 static ssize_t phys_index_show(struct device *dev,
 			       struct device_attribute *attr, char *buf)
 {
 	struct memory_block *mem = to_memory_block(dev);
-	unsigned long phys_index;
 
-	phys_index = mem->start_section_nr / sections_per_block;
-
-	return sysfs_emit(buf, "%08lx\n", phys_index);
+	return sysfs_emit(buf, "%08lx\n", memory_block_id(mem->start_section_nr));
 }
 
 /*
@@ -175,6 +170,15 @@ int memory_notify(unsigned long val, void *v)
 	return blocking_notifier_call_chain(&memory_chain, val, v);
 }
 
+#if defined(CONFIG_MEMORY_FAILURE) && defined(CONFIG_MEMORY_HOTPLUG)
+static unsigned long memblk_nr_poison(struct memory_block *mem);
+#else
+static inline unsigned long memblk_nr_poison(struct memory_block *mem)
+{
+	return 0;
+}
+#endif
+
 static int memory_block_online(struct memory_block *mem)
 {
 	unsigned long start_pfn = section_nr_to_pfn(mem->start_section_nr);
@@ -182,6 +186,9 @@ static int memory_block_online(struct memory_block *mem)
 	unsigned long nr_vmemmap_pages = mem->nr_vmemmap_pages;
 	struct zone *zone;
 	int ret;
+
+	if (memblk_nr_poison(mem))
+		return -EHWPOISON;
 
 	zone = zone_for_pfn_range(mem->online_type, mem->nid, mem->group,
 				  start_pfn, nr_pages);
@@ -864,6 +871,7 @@ void remove_memory_block_devices(unsigned long start, unsigned long size)
 		mem = find_memory_block_by_id(block_id);
 		if (WARN_ON_ONCE(!mem))
 			continue;
+		num_poisoned_pages_sub(-1UL, memblk_nr_poison(mem));
 		unregister_memory_block_under_nodes(mem);
 		remove_memory_block(mem);
 	}
@@ -1164,3 +1172,28 @@ int walk_dynamic_memory_groups(int nid, walk_memory_groups_func_t func,
 	}
 	return ret;
 }
+
+#if defined(CONFIG_MEMORY_FAILURE) && defined(CONFIG_MEMORY_HOTPLUG)
+void memblk_nr_poison_inc(unsigned long pfn)
+{
+	const unsigned long block_id = pfn_to_block_id(pfn);
+	struct memory_block *mem = find_memory_block_by_id(block_id);
+
+	if (mem)
+		atomic_long_inc(&mem->nr_hwpoison);
+}
+
+void memblk_nr_poison_sub(unsigned long pfn, long i)
+{
+	const unsigned long block_id = pfn_to_block_id(pfn);
+	struct memory_block *mem = find_memory_block_by_id(block_id);
+
+	if (mem)
+		atomic_long_sub(i, &mem->nr_hwpoison);
+}
+
+static unsigned long memblk_nr_poison(struct memory_block *mem)
+{
+	return atomic_long_read(&mem->nr_hwpoison);
+}
+#endif

@@ -12,6 +12,8 @@
 #include <linux/crypto.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/key.h>
+#include <linux/key-type.h>
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/net.h>
@@ -19,6 +21,10 @@
 #include <linux/sched.h>
 #include <linux/sched/signal.h>
 #include <linux/security.h>
+#include <linux/string.h>
+#include <keys/user-type.h>
+#include <keys/trusted-type.h>
+#include <keys/encrypted-type.h>
 
 struct alg_type_list {
 	const struct af_alg_type *type;
@@ -222,6 +228,129 @@ out:
 	return err;
 }
 
+#ifdef CONFIG_KEYS
+
+static const u8 *key_data_ptr_user(const struct key *key,
+				   unsigned int *datalen)
+{
+	const struct user_key_payload *ukp;
+
+	ukp = user_key_payload_locked(key);
+	if (IS_ERR_OR_NULL(ukp))
+		return ERR_PTR(-EKEYREVOKED);
+
+	*datalen = key->datalen;
+
+	return ukp->data;
+}
+
+static const u8 *key_data_ptr_encrypted(const struct key *key,
+					unsigned int *datalen)
+{
+	const struct encrypted_key_payload *ekp;
+
+	ekp = dereference_key_locked(key);
+	if (IS_ERR_OR_NULL(ekp))
+		return ERR_PTR(-EKEYREVOKED);
+
+	*datalen = ekp->decrypted_datalen;
+
+	return ekp->decrypted_data;
+}
+
+static const u8 *key_data_ptr_trusted(const struct key *key,
+				      unsigned int *datalen)
+{
+	const struct trusted_key_payload *tkp;
+
+	tkp = dereference_key_locked(key);
+	if (IS_ERR_OR_NULL(tkp))
+		return ERR_PTR(-EKEYREVOKED);
+
+	*datalen = tkp->key_len;
+
+	return tkp->key;
+}
+
+static struct key *lookup_key(key_serial_t serial)
+{
+	key_ref_t key_ref;
+
+	key_ref = lookup_user_key(serial, 0, KEY_NEED_SEARCH);
+	if (IS_ERR(key_ref))
+		return ERR_CAST(key_ref);
+
+	return key_ref_to_ptr(key_ref);
+}
+
+static int alg_setkey_by_key_serial(struct alg_sock *ask, sockptr_t optval,
+				    unsigned int optlen)
+{
+	const struct af_alg_type *type = ask->type;
+	u8 *key_data = NULL;
+	unsigned int key_datalen;
+	key_serial_t serial;
+	struct key *key;
+	const u8 *ret;
+	int err;
+
+	if (optlen != sizeof(serial))
+		return -EINVAL;
+
+	if (copy_from_sockptr(&serial, optval, optlen))
+		return -EFAULT;
+
+	key = lookup_key(serial);
+	if (IS_ERR(key))
+		return PTR_ERR(key);
+
+	down_read(&key->sem);
+
+	ret = ERR_PTR(-ENOPROTOOPT);
+	if (!strcmp(key->type->name, "user") ||
+	    !strcmp(key->type->name, "logon")) {
+		ret = key_data_ptr_user(key, &key_datalen);
+	} else if (IS_REACHABLE(CONFIG_ENCRYPTED_KEYS) &&
+			   !strcmp(key->type->name, "encrypted")) {
+		ret = key_data_ptr_encrypted(key, &key_datalen);
+	} else if (IS_REACHABLE(CONFIG_TRUSTED_KEYS) &&
+			   !strcmp(key->type->name, "trusted")) {
+		ret = key_data_ptr_trusted(key, &key_datalen);
+	}
+
+	if (IS_ERR(ret)) {
+		up_read(&key->sem);
+		return PTR_ERR(ret);
+	}
+
+	key_data = sock_kmalloc(&ask->sk, key_datalen, GFP_KERNEL);
+	if (!key_data) {
+		up_read(&key->sem);
+		return -ENOMEM;
+	}
+
+	memcpy(key_data, ret, key_datalen);
+
+	up_read(&key->sem);
+
+	err = type->setkey(ask->private, key_data, key_datalen);
+
+	sock_kzfree_s(&ask->sk, key_data, key_datalen);
+
+	return err;
+}
+
+#else
+
+static inline int alg_setkey_by_key_serial(struct alg_sock *ask,
+					   sockptr_t optval,
+					   unsigned int optlen)
+{
+	return -ENOPROTOOPT;
+}
+
+#endif
+
 static int alg_setsockopt(struct socket *sock, int level, int optname,
 			  sockptr_t optval, unsigned int optlen)
 {
@@ -242,12 +371,16 @@ static int alg_setsockopt(struct socket *sock, int level, int optname,
 
 	switch (optname) {
 	case ALG_SET_KEY:
+	case ALG_SET_KEY_BY_KEY_SERIAL:
 		if (sock->state == SS_CONNECTED)
 			goto unlock;
 		if (!type->setkey)
 			goto unlock;
 
-		err = alg_setkey(sk, optval, optlen);
+		if (optname == ALG_SET_KEY_BY_KEY_SERIAL)
+			err = alg_setkey_by_key_serial(ask, optval, optlen);
+		else
+			err = alg_setkey(sk, optval, optlen);
 		break;
 	case ALG_SET_AEAD_AUTHSIZE:
 		if (sock->state == SS_CONNECTED)
@@ -1053,7 +1186,7 @@ EXPORT_SYMBOL_GPL(af_alg_free_resources);
 
 /**
  * af_alg_async_cb - AIO callback handler
- * @_req: async request info
+ * @data: async request completion data
  * @err: if non-zero, error result to be returned via ki_complete();
  *       otherwise return the AIO output length via ki_complete().
  *
@@ -1063,9 +1196,9 @@ EXPORT_SYMBOL_GPL(af_alg_free_resources);
  * The number of bytes to be generated with the AIO operation must be set
  * in areq->outlen before the AIO callback handler is invoked.
  */
-void af_alg_async_cb(struct crypto_async_request *_req, int err)
+void af_alg_async_cb(void *data, int err)
 {
-	struct af_alg_async_req *areq = _req->data;
+	struct af_alg_async_req *areq = data;
 	struct sock *sk = areq->sk;
 	struct kiocb *iocb = areq->iocb;
 	unsigned int resultlen;

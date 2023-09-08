@@ -39,7 +39,7 @@
 		interrupt-parent = <&tlmm>;
 		interrupts = <0 IRQ_TYPE_EDGE_FALLING>;
 
-		vcc-supply = <&pp3300_fp_tp>;
+		vdd-supply = <&pp3300_fp_tp>;
 		post-power-on-delay-ms = <100>;
 		hid-descr-addr = <0x0001>;
 
@@ -84,13 +84,7 @@
 };
 
 &en_pp3300_dx_edp {
-	pinmux {
-		pins = "gpio67";
-	};
-
-	pinconf {
-		pins = "gpio67";
-	};
+	pins = "gpio67";
 };
 
 /* PINCTRL - board-specific pinctrl */

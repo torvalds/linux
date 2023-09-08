@@ -2597,6 +2597,7 @@ static void ov5648_remove(struct i2c_client *client)
 	v4l2_ctrl_handler_free(&sensor->ctrls.handler);
 	mutex_destroy(&sensor->mutex);
 	media_entity_cleanup(&subdev->entity);
+	v4l2_fwnode_endpoint_free(&sensor->endpoint);
 }
 
 static const struct dev_pm_ops ov5648_pm_ops = {

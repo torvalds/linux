@@ -2203,7 +2203,7 @@ static struct attribute *myrb_shost_attrs[] = {
 
 ATTRIBUTE_GROUPS(myrb_shost);
 
-static struct scsi_host_template myrb_template = {
+static const struct scsi_host_template myrb_template = {
 	.module			= THIS_MODULE,
 	.name			= "DAC960",
 	.proc_name		= "myrb",

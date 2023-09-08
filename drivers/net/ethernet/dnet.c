@@ -550,10 +550,10 @@ static netdev_tx_t dnet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	skb_tx_timestamp(skb);
 
+	spin_unlock_irqrestore(&bp->lock, flags);
+
 	/* free the buffer */
 	dev_kfree_skb(skb);
-
-	spin_unlock_irqrestore(&bp->lock, flags);
 
 	return NETDEV_TX_OK;
 }

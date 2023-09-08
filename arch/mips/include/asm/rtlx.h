@@ -81,7 +81,6 @@ struct rtlx_channel {
 extern struct rtlx_info {
 	unsigned long id;
 	enum rtlx_state state;
-	int ap_int_pending;	/* Status of 0 or 1 for CONFIG_MIPS_CMP only */
 
 	struct rtlx_channel channel[RTLX_CHANNELS];
 } *rtlx;

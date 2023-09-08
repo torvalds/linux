@@ -12,7 +12,6 @@
 #include <nand.h>
 
 extern struct platform_device ls1x_uart_pdev;
-extern struct platform_device ls1x_cpufreq_pdev;
 extern struct platform_device ls1x_eth0_pdev;
 extern struct platform_device ls1x_eth1_pdev;
 extern struct platform_device ls1x_ehci_pdev;
@@ -21,7 +20,6 @@ extern struct platform_device ls1x_gpio1_pdev;
 extern struct platform_device ls1x_rtc_pdev;
 extern struct platform_device ls1x_wdt_pdev;
 
-void __init ls1x_clk_init(void);
 void __init ls1x_rtc_set_extclk(struct platform_device *pdev);
 void __init ls1x_serial_set_uartclk(struct platform_device *pdev);
 

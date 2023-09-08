@@ -208,7 +208,7 @@
 };
 
 &mdio0 {
-	status = "ok";
+	status = "okay";
 	phy0: ethernet-phy@0 {
 		reg = <0>;
 	};
@@ -284,7 +284,7 @@
 };
 
 &mdio1 {
-	status = "ok";
+	status = "okay";
 	phy24: ethernet-phy@24 {
 		reg = <0>;
 	};
@@ -360,7 +360,7 @@
 };
 
 &mdio3 {
-	status = "ok";
+	status = "okay";
 	phy64: ethernet-phy@64 {
 		reg = <28>;
 	};

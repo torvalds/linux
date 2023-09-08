@@ -79,6 +79,6 @@ u32 rtl92e_eeprom_read(struct net_device *dev, u32 addr)
 		ret = _rtl92e_eeprom_xfer(dev, (addr & 0x3F) | (0x6 << 6), 9);
 
 	rtl92e_writeb(dev, EPROM_CMD,
-		      (EPROM_CMD_NORMAL<<EPROM_CMD_OPERATING_MODE_SHIFT));
+		      (EPROM_CMD_NORMAL << EPROM_CMD_OPERATING_MODE_SHIFT));
 	return ret;
 }

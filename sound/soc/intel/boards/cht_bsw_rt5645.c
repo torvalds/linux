@@ -344,7 +344,7 @@ static int cht_codec_fixup(struct snd_soc_pcm_runtime *rtd,
 	struct snd_interval *channels = hw_param_interval(params,
 						SNDRV_PCM_HW_PARAM_CHANNELS);
 
-	/* The DSP will covert the FE rate to 48k, stereo, 24bits */
+	/* The DSP will convert the FE rate to 48k, stereo, 24bits */
 	rate->min = rate->max = 48000;
 	channels->min = channels->max = 2;
 
@@ -581,9 +581,9 @@ static int snd_cht_mc_probe(struct platform_device *pdev)
 	if (adev) {
 		snprintf(cht_rt5645_codec_name, sizeof(cht_rt5645_codec_name),
 			 "i2c-%s", acpi_dev_name(adev));
-		put_device(&adev->dev);
 		cht_dailink[dai_index].codecs->name = cht_rt5645_codec_name;
 	}
+	acpi_dev_put(adev);
 
 	/*
 	 * swap SSP0 if bytcr is detected

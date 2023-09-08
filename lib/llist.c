@@ -26,10 +26,10 @@
 bool llist_add_batch(struct llist_node *new_first, struct llist_node *new_last,
 		     struct llist_head *head)
 {
-	struct llist_node *first;
+	struct llist_node *first = READ_ONCE(head->first);
 
 	do {
-		new_last->next = first = READ_ONCE(head->first);
+		new_last->next = first;
 	} while (!try_cmpxchg(&head->first, &first, new_first));
 
 	return !first;

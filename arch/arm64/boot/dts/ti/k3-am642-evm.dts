@@ -325,6 +325,7 @@
 };
 
 &main_uart0 {
+	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&main_uart0_pins_default>;
 };
@@ -334,35 +335,8 @@
 	status = "reserved";
 };
 
-&main_uart2 {
-	status = "disabled";
-};
-
-&main_uart3 {
-	status = "disabled";
-};
-
-&main_uart4 {
-	status = "disabled";
-};
-
-&main_uart5 {
-	status = "disabled";
-};
-
-&main_uart6 {
-	status = "disabled";
-};
-
-&mcu_uart0 {
-	status = "disabled";
-};
-
-&mcu_uart1 {
-	status = "disabled";
-};
-
 &main_i2c1 {
+	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&main_i2c1_pins_default>;
 	clock-frequency = <400000>;
@@ -405,23 +379,8 @@
 	status = "reserved";
 };
 
-&mcu_i2c0 {
-	status = "disabled";
-};
-
-&mcu_i2c1 {
-	status = "disabled";
-};
-
-&mcu_spi0 {
-	status = "disabled";
-};
-
-&mcu_spi1 {
-	status = "disabled";
-};
-
 &main_spi0 {
+	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&main_spi0_pins_default>;
 	ti,pindir-d0-out-d1-in;
@@ -466,8 +425,7 @@
 
 &cpsw3g {
 	pinctrl-names = "default";
-	pinctrl-0 = <&mdio1_pins_default
-		     &rgmii1_pins_default
+	pinctrl-0 = <&rgmii1_pins_default
 		     &rgmii2_pins_default>;
 };
 
@@ -482,6 +440,10 @@
 };
 
 &cpsw3g_mdio {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&mdio1_pins_default>;
+
 	cpsw3g_phy0: ethernet-phy@0 {
 		reg = <0>;
 		ti,rx-internal-delay = <DP83867_RGMIIDCTL_2_00_NS>;
@@ -594,6 +556,7 @@
 };
 
 &pcie0_rc {
+	status = "okay";
 	reset-gpios = <&exp1 5 GPIO_ACTIVE_HIGH>;
 	phys = <&serdes0_pcie_link>;
 	phy-names = "pcie-phy";
@@ -604,83 +567,25 @@
 	phys = <&serdes0_pcie_link>;
 	phy-names = "pcie-phy";
 	num-lanes = <1>;
-	status = "disabled";
 };
 
 &ecap0 {
+	status = "okay";
 	/* PWM is available on Pin 1 of header J12 */
 	pinctrl-names = "default";
 	pinctrl-0 = <&main_ecap0_pins_default>;
 };
 
-&ecap1 {
-	status = "disabled";
-};
-
-&ecap2 {
-	status = "disabled";
-};
-
-&epwm0 {
-	status = "disabled";
-};
-
-&epwm1 {
-	status = "disabled";
-};
-
-&epwm2 {
-	status = "disabled";
-};
-
-&epwm3 {
-	status = "disabled";
-};
-
-&epwm4 {
-	status = "disabled";
-};
-
-&epwm5 {
-	status = "disabled";
-};
-
-&epwm6 {
-	status = "disabled";
-};
-
-&epwm7 {
-	status = "disabled";
-};
-
-&epwm8 {
-	status = "disabled";
-};
-
-&icssg0_mdio {
-	status = "disabled";
-};
-
-&icssg1_mdio {
-	status = "disabled";
-};
-
 &main_mcan0 {
+	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&main_mcan0_pins_default>;
 	phys = <&transceiver1>;
 };
 
 &main_mcan1 {
+	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&main_mcan1_pins_default>;
 	phys = <&transceiver2>;
-};
-
-&gpmc0 {
-	status = "disabled";
-};
-
-&elm0 {
-	status = "disabled";
 };
