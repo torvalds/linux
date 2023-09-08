@@ -2304,6 +2304,7 @@ int sja1105_static_config_reload(struct sja1105_private *priv,
 	int rc, i;
 	s64 now;
 
+	mutex_lock(&priv->fdb_lock);
 	mutex_lock(&priv->mgmt_lock);
 
 	mac = priv->static_config.tables[BLK_IDX_MAC_CONFIG].entries;
@@ -2418,6 +2419,7 @@ int sja1105_static_config_reload(struct sja1105_private *priv,
 		goto out;
 out:
 	mutex_unlock(&priv->mgmt_lock);
+	mutex_unlock(&priv->fdb_lock);
 
 	return rc;
 }
