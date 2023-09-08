@@ -708,14 +708,18 @@ void ufs_qcom_phy_set_tx_lane_enable(struct phy *generic_phy, u32 tx_lanes)
 }
 EXPORT_SYMBOL(ufs_qcom_phy_set_tx_lane_enable);
 
-void ufs_qcom_phy_save_controller_version(struct phy *generic_phy,
+int ufs_qcom_phy_save_controller_version(struct phy *generic_phy,
 					  u8 major, u16 minor, u16 step)
 {
 	struct ufs_qcom_phy *ufs_qcom_phy = get_ufs_qcom_phy(generic_phy);
 
+	if (!ufs_qcom_phy)
+		return -EPROBE_DEFER;
+
 	ufs_qcom_phy->host_ctrl_rev_major = major;
 	ufs_qcom_phy->host_ctrl_rev_minor = minor;
 	ufs_qcom_phy->host_ctrl_rev_step = step;
+	return 0;
 }
 EXPORT_SYMBOL(ufs_qcom_phy_save_controller_version);
 

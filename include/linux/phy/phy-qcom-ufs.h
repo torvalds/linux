@@ -16,7 +16,7 @@ void ufs_qcom_phy_dbg_register_dump(struct phy *generic_phy);
 void ufs_qcom_phy_dbg_register_save(struct phy *generic_phy);
 void ufs_qcom_phy_set_src_clk_h8_enter(struct phy *generic_phy);
 void ufs_qcom_phy_set_src_clk_h8_exit(struct phy *generic_phy);
-void ufs_qcom_phy_save_controller_version(struct phy *generic_phy,
+int ufs_qcom_phy_save_controller_version(struct phy *generic_phy,
 					u8 major, u16 minor, u16 step);
 
 #endif /* PHY_QCOM_UFS_H_ */

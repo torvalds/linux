@@ -3793,9 +3793,13 @@ static int ufs_qcom_init(struct ufs_hba *hba)
 					 &host->vdd_hba_reg_nb);
 
 	/* update phy revision information before calling phy_init() */
-
 	ufs_qcom_phy_save_controller_version(host->generic_phy,
 		host->hw_ver.major, host->hw_ver.minor, host->hw_ver.step);
+	if (err == -EPROBE_DEFER) {
+		pr_err("%s: phy device probe is not completed yet\n",
+		__func__);
+		goto out_variant_clear;
+	}
 
 	err = ufs_qcom_parse_reg_info(host, "qcom,vddp-ref-clk",
 				      &host->vddp_ref_clk);
