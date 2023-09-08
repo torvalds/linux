@@ -2527,22 +2527,22 @@ static void set_turbo_mode_for_cpu(struct isst_id *id, int status)
 	}
 
 	if (status) {
-		isst_display_result(id, outf, "turbo-mode", "enable", 0);
-	} else {
 		isst_display_result(id, outf, "turbo-mode", "disable", 0);
+	} else {
+		isst_display_result(id, outf, "turbo-mode", "enable", 0);
 	}
 }
 
 static void set_turbo_mode(int arg)
 {
-	int i, enable = arg;
+	int i, disable = arg;
 	struct isst_id id;
 
 	if (cmd_help) {
-		if (enable)
-			fprintf(stderr, "Set turbo mode enable\n");
-		else
+		if (disable)
 			fprintf(stderr, "Set turbo mode disable\n");
+		else
+			fprintf(stderr, "Set turbo mode enable\n");
 		exit(0);
 	}
 
@@ -2560,7 +2560,7 @@ static void set_turbo_mode(int arg)
 
 		if (online) {
 			set_isst_id(&id, i);
-			set_turbo_mode_for_cpu(&id, enable);
+			set_turbo_mode_for_cpu(&id, disable);
 		}
 
 	}
