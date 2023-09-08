@@ -1165,7 +1165,8 @@ static int aspeed_spi_do_calibration(struct aspeed_spi_chip *chip)
 			continue;
 
 		/* Set the timing */
-		tv = chip->ctl_val[ASPEED_SPI_READ] | ASPEED_SPI_HCLK_DIV(i);
+		tv = chip->ctl_val[ASPEED_SPI_READ] & data->hclk_mask;
+		tv |= ASPEED_SPI_HCLK_DIV(i);
 		writel(tv, chip->ctl);
 		dev_dbg(aspi->dev, "Trying HCLK/%d [%08x] ...", i, tv);
 		rc = data->calibrate(chip, i, golden_buf, test_buf);
