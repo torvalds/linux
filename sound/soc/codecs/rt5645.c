@@ -3269,13 +3269,17 @@ static int rt5645_component_set_jack(struct snd_soc_component *component,
 {
 	struct snd_soc_jack *mic_jack = NULL;
 	struct snd_soc_jack *btn_jack = NULL;
-	int *type = (int *)data;
+	int type;
 
-	if (*type & SND_JACK_MICROPHONE)
-		mic_jack = hs_jack;
-	if (*type & (SND_JACK_BTN_0 | SND_JACK_BTN_1 |
-		SND_JACK_BTN_2 | SND_JACK_BTN_3))
-		btn_jack = hs_jack;
+	if (hs_jack) {
+		type = *(int *)data;
+
+		if (type & SND_JACK_MICROPHONE)
+			mic_jack = hs_jack;
+		if (type & (SND_JACK_BTN_0 | SND_JACK_BTN_1 |
+			SND_JACK_BTN_2 | SND_JACK_BTN_3))
+			btn_jack = hs_jack;
+	}
 
 	return rt5645_set_jack_detect(component, hs_jack, mic_jack, btn_jack);
 }
