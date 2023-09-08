@@ -956,7 +956,8 @@ static int spansion_nor_late_init(struct spi_nor *nor)
 		nor->flags |= SNOR_F_4B_OPCODES;
 		/* No small sector erase for 4-byte command set */
 		nor->erase_opcode = SPINOR_OP_SE;
-		nor->mtd.erasesize = nor->info->sector_size;
+		nor->mtd.erasesize = nor->info->sector_size ?:
+			SPI_NOR_DEFAULT_SECTOR_SIZE;
 	}
 
 	if (mfr_flags & (USE_CLSR | USE_CLPEF)) {
