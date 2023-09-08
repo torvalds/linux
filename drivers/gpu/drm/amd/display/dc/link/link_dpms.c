@@ -2472,9 +2472,8 @@ void link_set_dpms_on(
 	 */
 	if (pipe_ctx->stream->timing.flags.DSC) {
 		if (dc_is_dp_signal(pipe_ctx->stream->signal) ||
-			dc_is_virtual_signal(pipe_ctx->stream->signal))
-		link_set_dsc_enable(pipe_ctx, true);
-
+		    dc_is_virtual_signal(pipe_ctx->stream->signal))
+			link_set_dsc_enable(pipe_ctx, true);
 	}
 
 	status = enable_link(state, pipe_ctx);
