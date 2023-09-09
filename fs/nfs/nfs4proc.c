@@ -585,6 +585,21 @@ wait_on_recovery:
 	return 0;
 }
 
+/*
+ * Track the number of NFS4ERR_DELAY related retransmissions and return
+ * EAGAIN if the 'softerr' mount option is set, and we've exceeded the limit
+ * set by 'nfs_delay_retrans'.
+ */
+static int nfs4_exception_should_retrans(const struct nfs_server *server,
+					 struct nfs4_exception *exception)
+{
+	if (server->flags & NFS_MOUNT_SOFTERR && nfs_delay_retrans >= 0) {
+		if (exception->retrans++ >= (unsigned short)nfs_delay_retrans)
+			return -EAGAIN;
+	}
+	return 0;
+}
+
 /* This is the error handling routine for processes that are allowed
  * to sleep.
  */
@@ -595,6 +610,11 @@ int nfs4_handle_exception(struct nfs_server *server, int errorcode, struct nfs4_
 
 	ret = nfs4_do_handle_exception(server, errorcode, exception);
 	if (exception->delay) {
+		int ret2 = nfs4_exception_should_retrans(server, exception);
+		if (ret2 < 0) {
+			exception->retry = 0;
+			return ret2;
+		}
 		ret = nfs4_delay(&exception->timeout,
 				exception->interruptible);
 		goto out_retry;
@@ -623,6 +643,11 @@ nfs4_async_handle_exception(struct rpc_task *task, struct nfs_server *server,
 
 	ret = nfs4_do_handle_exception(server, errorcode, exception);
 	if (exception->delay) {
+		int ret2 = nfs4_exception_should_retrans(server, exception);
+		if (ret2 < 0) {
+			exception->retry = 0;
+			return ret2;
+		}
 		rpc_delay(task, nfs4_update_delay(&exception->timeout));
 		goto out_retry;
 	}
