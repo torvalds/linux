@@ -53,16 +53,21 @@ static void guest_msr(struct msr_data *msr)
 		vector = rdmsr_safe(msr->idx, &msr_val);
 
 	if (msr->fault_expected)
-		GUEST_ASSERT_3(vector == GP_VECTOR, msr->idx, vector, GP_VECTOR);
+		__GUEST_ASSERT(vector == GP_VECTOR,
+			       "Expected #GP on %sMSR(0x%x), got vector '0x%x'",
+			       msr->idx, msr->write ? "WR" : "RD", vector);
 	else
-		GUEST_ASSERT_3(!vector, msr->idx, vector, 0);
+		__GUEST_ASSERT(!vector,
+			       "Expected success on %sMSR(0x%x), got vector '0x%x'",
+			       msr->idx, msr->write ? "WR" : "RD", vector);
 
 	if (vector || is_write_only_msr(msr->idx))
 		goto done;
 
 	if (msr->write)
-		GUEST_ASSERT_3(msr_val == msr->write_val, msr->idx,
-			       msr_val, msr->write_val);
+		__GUEST_ASSERT(!vector,
+			       "WRMSR(0x%x) to '0x%llx', RDMSR read '0x%llx'",
+			       msr->idx, msr->write_val, msr_val);
 
 	/* Invariant TSC bit appears when TSC invariant control MSR is written to */
 	if (msr->idx == HV_X64_MSR_TSC_INVARIANT_CONTROL) {
@@ -82,7 +87,7 @@ static void guest_hcall(vm_vaddr_t pgs_gpa, struct hcall_data *hcall)
 	u64 res, input, output;
 	uint8_t vector;
 
-	GUEST_ASSERT(hcall->control);
+	GUEST_ASSERT_NE(hcall->control, 0);
 
 	wrmsr(HV_X64_MSR_GUEST_OS_ID, HYPERV_LINUX_OS_ID);
 	wrmsr(HV_X64_MSR_HYPERCALL, pgs_gpa);
@@ -96,10 +101,14 @@ static void guest_hcall(vm_vaddr_t pgs_gpa, struct hcall_data *hcall)
 
 	vector = __hyperv_hypercall(hcall->control, input, output, &res);
 	if (hcall->ud_expected) {
-		GUEST_ASSERT_2(vector == UD_VECTOR, hcall->control, vector);
+		__GUEST_ASSERT(vector == UD_VECTOR,
+			       "Expected #UD for control '%u', got vector '0x%x'",
+			       hcall->control, vector);
 	} else {
-		GUEST_ASSERT_2(!vector, hcall->control, vector);
-		GUEST_ASSERT_2(res == hcall->expect, hcall->expect, res);
+		__GUEST_ASSERT(!vector,
+			       "Expected no exception for control '%u', got vector '0x%x'",
+			       hcall->control, vector);
+		GUEST_ASSERT_EQ(res, hcall->expect);
 	}
 
 	GUEST_DONE();
@@ -495,7 +504,7 @@ static void guest_test_msrs_access(void)
 
 		switch (get_ucall(vcpu, &uc)) {
 		case UCALL_ABORT:
-			REPORT_GUEST_ASSERT_3(uc, "MSR = %lx, arg1 = %lx, arg2 = %lx");
+			REPORT_GUEST_ASSERT(uc);
 			return;
 		case UCALL_DONE:
 			break;
@@ -665,7 +674,7 @@ static void guest_test_hcalls_access(void)
 
 		switch (get_ucall(vcpu, &uc)) {
 		case UCALL_ABORT:
-			REPORT_GUEST_ASSERT_2(uc, "arg1 = %lx, arg2 = %lx");
+			REPORT_GUEST_ASSERT(uc);
 			return;
 		case UCALL_DONE:
 			break;

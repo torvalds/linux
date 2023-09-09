@@ -243,26 +243,27 @@ int cs35l56_wait_for_firmware_boot(struct cs35l56_base *cs35l56_base)
 {
 	unsigned int reg;
 	unsigned int val;
-	int ret;
+	int read_ret, poll_ret;
 
 	if (cs35l56_base->rev < CS35L56_REVID_B0)
 		reg = CS35L56_DSP1_HALO_STATE_A1;
 	else
 		reg = CS35L56_DSP1_HALO_STATE;
 
-	ret = regmap_read_poll_timeout(cs35l56_base->regmap, reg,
-				       val,
-				       (val < 0xFFFF) && (val >= CS35L56_HALO_STATE_BOOT_DONE),
-				       CS35L56_HALO_STATE_POLL_US,
-				       CS35L56_HALO_STATE_TIMEOUT_US);
+	/*
+	 * This can't be a regmap_read_poll_timeout() because cs35l56 will NAK
+	 * I2C until it has booted which would terminate the poll
+	 */
+	poll_ret = read_poll_timeout(regmap_read, read_ret,
+				     (val < 0xFFFF) && (val >= CS35L56_HALO_STATE_BOOT_DONE),
+				     CS35L56_HALO_STATE_POLL_US,
+				     CS35L56_HALO_STATE_TIMEOUT_US,
+				     false,
+				     cs35l56_base->regmap, reg, &val);
 
-	if ((ret < 0) && (ret != -ETIMEDOUT)) {
-		dev_err(cs35l56_base->dev, "Failed to read HALO_STATE: %d\n", ret);
-		return ret;
-	}
-
-	if ((ret == -ETIMEDOUT) || (val != CS35L56_HALO_STATE_BOOT_DONE)) {
-		dev_err(cs35l56_base->dev, "Firmware boot fail: HALO_STATE=%#x\n", val);
+	if (poll_ret) {
+		dev_err(cs35l56_base->dev, "Firmware boot timed out(%d): HALO_STATE=%#x\n",
+			read_ret, val);
 		return -EIO;
 	}
 

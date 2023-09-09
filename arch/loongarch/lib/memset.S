@@ -16,6 +16,8 @@
 	bstrins.d \r0, \r0, 63, 32
 .endm
 
+.section .noinstr.text, "ax"
+
 SYM_FUNC_START(memset)
 	/*
 	 * Some CPUs support hardware unaligned access
@@ -23,9 +25,13 @@ SYM_FUNC_START(memset)
 	ALTERNATIVE	"b __memset_generic", \
 			"b __memset_fast", CPU_FEATURE_UAL
 SYM_FUNC_END(memset)
-_ASM_NOKPROBE(memset)
+SYM_FUNC_ALIAS(__memset, memset)
 
 EXPORT_SYMBOL(memset)
+EXPORT_SYMBOL(__memset)
+
+_ASM_NOKPROBE(memset)
+_ASM_NOKPROBE(__memset)
 
 /*
  * void *__memset_generic(void *s, int c, size_t n)

@@ -118,13 +118,6 @@ void output_thread_defines(void)
 	OFFSET(THREAD_CSRECFG, task_struct,
 	       thread.csr_ecfg);
 
-	OFFSET(THREAD_SCR0, task_struct, thread.scr0);
-	OFFSET(THREAD_SCR1, task_struct, thread.scr1);
-	OFFSET(THREAD_SCR2, task_struct, thread.scr2);
-	OFFSET(THREAD_SCR3, task_struct, thread.scr3);
-
-	OFFSET(THREAD_EFLAGS, task_struct, thread.eflags);
-
 	OFFSET(THREAD_FPU, task_struct, thread.fpu);
 
 	OFFSET(THREAD_BVADDR, task_struct, \
@@ -172,6 +165,17 @@ void output_thread_fpu_defines(void)
 
 	OFFSET(THREAD_FCSR, loongarch_fpu, fcsr);
 	OFFSET(THREAD_FCC,  loongarch_fpu, fcc);
+	OFFSET(THREAD_FTOP, loongarch_fpu, ftop);
+	BLANK();
+}
+
+void output_thread_lbt_defines(void)
+{
+	OFFSET(THREAD_SCR0,  loongarch_lbt, scr0);
+	OFFSET(THREAD_SCR1,  loongarch_lbt, scr1);
+	OFFSET(THREAD_SCR2,  loongarch_lbt, scr2);
+	OFFSET(THREAD_SCR3,  loongarch_lbt, scr3);
+	OFFSET(THREAD_EFLAGS, loongarch_lbt, eflags);
 	BLANK();
 }
 

@@ -22,7 +22,7 @@
 
 	.macro	EX insn, reg, src, offs
 .ex\@:	\insn	\reg, \src, \offs
-	_asm_extable .ex\@, fault
+	_asm_extable .ex\@, .L_fpu_fault
 	.endm
 
 	.macro sc_save_fp base
@@ -138,6 +138,13 @@
 	.macro sc_save_fcsr base, tmp0
 	movfcsr2gr	\tmp0, fcsr0
 	EX	st.w	\tmp0, \base, 0
+#if defined(CONFIG_CPU_HAS_LBT)
+	/* TM bit is always 0 if LBT not supported */
+	andi		\tmp0, \tmp0, FPU_CSR_TM
+	beqz		\tmp0, 1f
+	x86clrtm
+1:
+#endif
 	.endm
 
 	.macro sc_restore_fcsr base, tmp0
@@ -309,7 +316,7 @@ EXPORT_SYMBOL(_save_fp)
  */
 SYM_FUNC_START(_restore_fp)
 	fpu_restore_double	a0 t1		# clobbers t1
-	fpu_restore_csr		a0 t1
+	fpu_restore_csr		a0 t1 t2
 	fpu_restore_cc		a0 t1 t2	# clobbers t1, t2
 	jr			ra
 SYM_FUNC_END(_restore_fp)
@@ -514,7 +521,6 @@ SYM_FUNC_START(_restore_lasx_context)
 	jr	ra
 SYM_FUNC_END(_restore_lasx_context)
 
-SYM_FUNC_START(fault)
+.L_fpu_fault:
 	li.w	a0, -EFAULT				# failure
 	jr	ra
-SYM_FUNC_END(fault)

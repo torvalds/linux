@@ -311,6 +311,9 @@ void __init setup_arch(char **cmdline_p)
 
 	mem_reserve(__pa(_stext), __pa(_end));
 #ifdef CONFIG_XIP_KERNEL
+#ifdef CONFIG_VECTORS_ADDR
+	mem_reserve(__pa(_xip_text_start), __pa(_xip_text_end));
+#endif
 	mem_reserve(__pa(_xip_start), __pa(_xip_end));
 #endif
 

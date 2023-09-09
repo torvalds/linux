@@ -671,10 +671,6 @@ static ssize_t blkdev_write_iter(struct kiocb *iocb, struct iov_iter *from)
 		iov_iter_truncate(from, size);
 	}
 
-	ret = file_remove_privs(file);
-	if (ret)
-		return ret;
-
 	ret = file_update_time(file);
 	if (ret)
 		return ret;

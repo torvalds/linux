@@ -11,19 +11,19 @@ via sysfs
 product_name
 ------------
 
-.. kernel-doc:: drivers/gpu/drm/amd/amdgpu/amdgpu_device.c
+.. kernel-doc:: drivers/gpu/drm/amd/amdgpu/amdgpu_fru_eeprom.c
    :doc: product_name
 
 product_number
 --------------
 
-.. kernel-doc:: drivers/gpu/drm/amd/amdgpu/amdgpu_device.c
-   :doc: product_name
+.. kernel-doc:: drivers/gpu/drm/amd/amdgpu/amdgpu_fru_eeprom.c
+   :doc: product_number
 
 serial_number
 -------------
 
-.. kernel-doc:: drivers/gpu/drm/amd/amdgpu/amdgpu_device.c
+.. kernel-doc:: drivers/gpu/drm/amd/amdgpu/amdgpu_fru_eeprom.c
    :doc: serial_number
 
 unique_id

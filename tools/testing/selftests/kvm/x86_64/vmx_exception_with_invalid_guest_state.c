@@ -50,7 +50,7 @@ static void set_timer(void)
 	timer.it_value.tv_sec  = 0;
 	timer.it_value.tv_usec = 200;
 	timer.it_interval = timer.it_value;
-	ASSERT_EQ(setitimer(ITIMER_REAL, &timer, NULL), 0);
+	TEST_ASSERT_EQ(setitimer(ITIMER_REAL, &timer, NULL), 0);
 }
 
 static void set_or_clear_invalid_guest_state(struct kvm_vcpu *vcpu, bool set)

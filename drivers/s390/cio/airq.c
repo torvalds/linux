@@ -49,8 +49,6 @@ int register_adapter_interrupt(struct airq_struct *airq)
 			return -ENOMEM;
 		airq->flags |= AIRQ_PTR_ALLOCATED;
 	}
-	if (!airq->lsi_mask)
-		airq->lsi_mask = 0xff;
 	snprintf(dbf_txt, sizeof(dbf_txt), "rairq:%p", airq);
 	CIO_TRACE_EVENT(4, dbf_txt);
 	isc_register(airq->isc);
@@ -98,7 +96,7 @@ static irqreturn_t do_airq_interrupt(int irq, void *dummy)
 	head = &airq_lists[tpi_info->isc];
 	rcu_read_lock();
 	hlist_for_each_entry_rcu(airq, head, list)
-		if ((*airq->lsi_ptr & airq->lsi_mask) != 0)
+		if (*airq->lsi_ptr != 0)
 			airq->handler(airq, tpi_info);
 	rcu_read_unlock();
 
