@@ -378,7 +378,7 @@ static __init int x86_android_tablet_probe(struct platform_device *pdev)
 		pdata.buttons = buttons;
 		pdata.nbuttons = dev_info->gpio_button_count;
 
-		pdevs[pdev_count] = platform_device_register_data(NULL, "gpio-keys",
+		pdevs[pdev_count] = platform_device_register_data(&pdev->dev, "gpio-keys",
 								  PLATFORM_DEVID_AUTO,
 								  &pdata, sizeof(pdata));
 		if (IS_ERR(pdevs[pdev_count])) {
