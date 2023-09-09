@@ -156,4 +156,6 @@ static inline void efi_capsule_flush_cache_range(void *addr, int size)
 
 efi_status_t efi_handle_corrupted_x18(efi_status_t s, const char *f);
 
+void efi_icache_sync(unsigned long start, unsigned long end);
+
 #endif /* _ASM_EFI_H */
