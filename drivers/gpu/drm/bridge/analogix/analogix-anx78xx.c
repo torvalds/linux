@@ -1211,6 +1211,7 @@ static const u16 anx78xx_chipid_list[] = {
 	0x7808,
 	0x7812,
 	0x7814,
+	0x7816,
 	0x7818,
 };
 
@@ -1369,6 +1370,7 @@ static const struct of_device_id anx78xx_match_table[] = {
 	{ .compatible = "analogix,anx7808", .data = anx7808_i2c_addresses },
 	{ .compatible = "analogix,anx7812", .data = anx781x_i2c_addresses },
 	{ .compatible = "analogix,anx7814", .data = anx781x_i2c_addresses },
+	{ .compatible = "analogix,anx7816", .data = anx781x_i2c_addresses },
 	{ .compatible = "analogix,anx7818", .data = anx781x_i2c_addresses },
 	{ /* sentinel */ },
 };
