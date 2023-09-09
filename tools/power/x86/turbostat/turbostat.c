@@ -829,6 +829,7 @@ static const struct platform_data turbostat_pdata[] = {
 	{ INTEL_FAM6_TIGERLAKE, &cnl_features },
 	{ INTEL_FAM6_SAPPHIRERAPIDS_X, &spr_features },
 	{ INTEL_FAM6_EMERALDRAPIDS_X, &spr_features },
+	{ INTEL_FAM6_GRANITERAPIDS_X, &spr_features },
 	{ INTEL_FAM6_LAKEFIELD, &cnl_features },
 	{ INTEL_FAM6_ALDERLAKE, &adl_features },
 	{ INTEL_FAM6_ALDERLAKE_L, &adl_features },
