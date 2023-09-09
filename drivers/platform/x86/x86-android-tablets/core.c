@@ -12,7 +12,7 @@
 
 #include <linux/acpi.h>
 #include <linux/dmi.h>
-#include <linux/gpio/driver.h>
+#include <linux/gpio/consumer.h>
 #include <linux/gpio/machine.h>
 #include <linux/irq.h>
 #include <linux/module.h>
@@ -21,35 +21,39 @@
 #include <linux/string.h>
 
 #include "x86-android-tablets.h"
-/* For gpiochip_get_desc() which is EXPORT_SYMBOL_GPL() */
-#include "../../../gpio/gpiolib.h"
-#include "../../../gpio/gpiolib-acpi.h"
 
 static struct platform_device *x86_android_tablet_device;
 
-static int gpiochip_find_match_label(struct gpio_chip *gc, void *data)
+int x86_android_tablet_get_gpiod(const char *chip, int pin, const char *con_id,
+				 bool active_low, enum gpiod_flags dflags,
+				 struct gpio_desc **desc)
 {
-	return gc->label && !strcmp(gc->label, data);
-}
-
-int x86_android_tablet_get_gpiod(const char *label, int pin, struct gpio_desc **desc)
-{
+	struct gpiod_lookup_table *lookup;
 	struct gpio_desc *gpiod;
-	struct gpio_chip *chip;
 
-	chip = gpiochip_find((void *)label, gpiochip_find_match_label);
-	if (!chip) {
-		pr_err("error cannot find GPIO chip %s\n", label);
-		return -ENODEV;
-	}
+	lookup = kzalloc(struct_size(lookup, table, 2), GFP_KERNEL);
+	if (!lookup)
+		return -ENOMEM;
 
-	gpiod = gpiochip_get_desc(chip, pin);
+	lookup->dev_id = KBUILD_MODNAME;
+	lookup->table[0].key = chip;
+	lookup->table[0].chip_hwnum = pin;
+	lookup->table[0].con_id = con_id;
+	lookup->table[0].flags = active_low ? GPIO_ACTIVE_LOW : GPIO_ACTIVE_HIGH;
+
+	gpiod_add_lookup_table(lookup);
+	gpiod = devm_gpiod_get(&x86_android_tablet_device->dev, con_id, dflags);
+	gpiod_remove_lookup_table(lookup);
+	kfree(lookup);
+
 	if (IS_ERR(gpiod)) {
-		pr_err("error %ld getting GPIO %s %d\n", PTR_ERR(gpiod), label, pin);
+		pr_err("error %ld getting GPIO %s %d\n", PTR_ERR(gpiod), chip, pin);
 		return PTR_ERR(gpiod);
 	}
 
-	*desc = gpiod;
+	if (desc)
+		*desc = gpiod;
+
 	return 0;
 }
 
@@ -79,7 +83,8 @@ int x86_acpi_irq_helper_get(const struct x86_acpi_irq_data *data)
 		return irq;
 	case X86_ACPI_IRQ_TYPE_GPIOINT:
 		/* Like acpi_dev_gpio_irq_get(), but without parsing ACPI resources */
-		ret = x86_android_tablet_get_gpiod(data->chip, data->index, &gpiod);
+		ret = x86_android_tablet_get_gpiod(data->chip, data->index, data->con_id,
+						   false, GPIOD_ASIS, &gpiod);
 		if (ret)
 			return ret;
 
@@ -356,7 +361,9 @@ static __init int x86_android_tablet_probe(struct platform_device *pdev)
 
 		for (i = 0; i < dev_info->gpio_button_count; i++) {
 			ret = x86_android_tablet_get_gpiod(dev_info->gpio_button[i].chip,
-							   dev_info->gpio_button[i].pin, &gpiod);
+							   dev_info->gpio_button[i].pin,
+							   dev_info->gpio_button[i].button.desc,
+							   false, GPIOD_IN, &gpiod);
 			if (ret < 0) {
 				x86_android_tablet_remove(pdev);
 				return ret;
@@ -364,6 +371,8 @@ static __init int x86_android_tablet_probe(struct platform_device *pdev)
 
 			buttons[i] = dev_info->gpio_button[i].button;
 			buttons[i].gpio = desc_to_gpio(gpiod);
+			/* Release gpiod so that gpio-keys can request it */
+			devm_gpiod_put(&x86_android_tablet_device->dev, gpiod);
 		}
 
 		pdata.buttons = buttons;
