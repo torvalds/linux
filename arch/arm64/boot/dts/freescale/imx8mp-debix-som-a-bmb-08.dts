@@ -220,7 +220,7 @@
 		reg = <0x52>;
 		pagesize = <16>;
 		#address-cells = <1>;
-		#size-cells = <0>;
+		#size-cells = <1>;
 
 		/* MACs stored in ASCII */
 		ethmac1: mac-address@0 {
