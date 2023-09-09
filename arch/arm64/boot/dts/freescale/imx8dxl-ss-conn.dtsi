@@ -118,7 +118,7 @@
 };
 
 &fec1 {
-	compatible = "fsl,imx8qm-fec";
+	compatible = "fsl,imx8dxl-fec", "fsl,imx8qm-fec", "fsl,imx6sx-fec";
 	interrupts = <GIC_SPI 160 IRQ_TYPE_LEVEL_HIGH>,
 		     <GIC_SPI 158 IRQ_TYPE_LEVEL_HIGH>,
 		     <GIC_SPI 159 IRQ_TYPE_LEVEL_HIGH>,
