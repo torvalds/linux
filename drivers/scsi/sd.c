@@ -104,19 +104,7 @@ static void sd_config_discard(struct scsi_disk *, unsigned int);
 static void sd_config_write_same(struct scsi_disk *);
 static int  sd_revalidate_disk(struct gendisk *);
 static void sd_unlock_native_capacity(struct gendisk *disk);
-static int  sd_probe(struct device *);
-static int  sd_remove(struct device *);
 static void sd_shutdown(struct device *);
-static int sd_suspend_system(struct device *);
-static int sd_suspend_runtime(struct device *);
-static int sd_resume_system(struct device *);
-static int sd_resume_runtime(struct device *);
-static void sd_rescan(struct device *);
-static blk_status_t sd_init_command(struct scsi_cmnd *SCpnt);
-static void sd_uninit_command(struct scsi_cmnd *SCpnt);
-static int sd_done(struct scsi_cmnd *);
-static void sd_eh_reset(struct scsi_cmnd *);
-static int sd_eh_action(struct scsi_cmnd *, int);
 static void sd_read_capacity(struct scsi_disk *sdkp, unsigned char *buffer);
 static void scsi_disk_release(struct device *cdev);
 
@@ -590,33 +578,6 @@ static struct class sd_disk_class = {
 	.name		= "scsi_disk",
 	.dev_release	= scsi_disk_release,
 	.dev_groups	= sd_disk_groups,
-};
-
-static const struct dev_pm_ops sd_pm_ops = {
-	.suspend		= sd_suspend_system,
-	.resume			= sd_resume_system,
-	.poweroff		= sd_suspend_system,
-	.restore		= sd_resume_system,
-	.runtime_suspend	= sd_suspend_runtime,
-	.runtime_resume		= sd_resume_runtime,
-};
-
-static struct scsi_driver sd_template = {
-	.gendrv = {
-		.name		= "sd",
-		.owner		= THIS_MODULE,
-		.probe		= sd_probe,
-		.probe_type	= PROBE_PREFER_ASYNCHRONOUS,
-		.remove		= sd_remove,
-		.shutdown	= sd_shutdown,
-		.pm		= &sd_pm_ops,
-	},
-	.rescan			= sd_rescan,
-	.init_command		= sd_init_command,
-	.uninit_command		= sd_uninit_command,
-	.done			= sd_done,
-	.eh_action		= sd_eh_action,
-	.eh_reset		= sd_eh_reset,
 };
 
 /*
@@ -3928,6 +3889,33 @@ static int sd_resume_runtime(struct device *dev)
 
 	return sd_resume(dev);
 }
+
+static const struct dev_pm_ops sd_pm_ops = {
+	.suspend		= sd_suspend_system,
+	.resume			= sd_resume_system,
+	.poweroff		= sd_suspend_system,
+	.restore		= sd_resume_system,
+	.runtime_suspend	= sd_suspend_runtime,
+	.runtime_resume		= sd_resume_runtime,
+};
+
+static struct scsi_driver sd_template = {
+	.gendrv = {
+		.name		= "sd",
+		.owner		= THIS_MODULE,
+		.probe		= sd_probe,
+		.probe_type	= PROBE_PREFER_ASYNCHRONOUS,
+		.remove		= sd_remove,
+		.shutdown	= sd_shutdown,
+		.pm		= &sd_pm_ops,
+	},
+	.rescan			= sd_rescan,
+	.init_command		= sd_init_command,
+	.uninit_command		= sd_uninit_command,
+	.done			= sd_done,
+	.eh_action		= sd_eh_action,
+	.eh_reset		= sd_eh_reset,
+};
 
 /**
  *	init_sd - entry point for this driver (both when built in or when

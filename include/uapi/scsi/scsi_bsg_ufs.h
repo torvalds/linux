@@ -83,7 +83,7 @@ struct utp_upiu_header {
 			union {
 				__u8 tm_function;
 				__u8 query_function;
-			};
+			} __attribute__((packed));
 			__u8 response;
 			__u8 status;
 			__u8 ehs_length;

@@ -325,7 +325,7 @@ static void virtscsi_handle_param_change(struct virtio_scsi *vscsi,
 	/* Handle "Parameters changed", "Mode parameters changed", and
 	   "Capacity data has changed".  */
 	if (asc == 0x2a && (ascq == 0x00 || ascq == 0x01 || ascq == 0x09))
-		scsi_rescan_device(&sdev->sdev_gendev);
+		scsi_rescan_device(sdev);
 
 	scsi_device_put(sdev);
 }
