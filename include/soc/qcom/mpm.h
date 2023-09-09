@@ -9,7 +9,7 @@
 
 #include <linux/cpumask.h>
 
-#if IS_ENABLED(CONFIG_QCOM_MPM)
+#if IS_ENABLED(CONFIG_MPM_LEGACY)
 int msm_mpm_enter_sleep(struct cpumask *cpumask);
 #else
 static inline int msm_mpm_enter_sleep(struct cpumask *cpumask)
