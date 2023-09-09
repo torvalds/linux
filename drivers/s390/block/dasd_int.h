@@ -259,6 +259,10 @@ struct dasd_uid {
 	char vduit[33];
 };
 
+#define DASD_UID_STRLEN ( /* vendor */ 3 + 1 + /* serial    */ 14 + 1 +	\
+			  /* SSID   */ 4 + 1 + /* unit addr */ 2 + 1 +	\
+			  /* vduit */ 32 + 1)
+
 /*
  * PPRC Status data
  */
