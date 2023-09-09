@@ -219,6 +219,20 @@ static inline bool cap_ambient_invariant_ok(const struct cred *cred)
 }
 
 /**
+ * get_new_cred_many - Get references on a new set of credentials
+ * @cred: The new credentials to reference
+ * @nr: Number of references to acquire
+ *
+ * Get references on the specified set of new credentials.  The caller must
+ * release all acquired references.
+ */
+static inline struct cred *get_new_cred_many(struct cred *cred, int nr)
+{
+	atomic_add(nr, &cred->usage);
+	return cred;
+}
+
+/**
  * get_new_cred - Get a reference on a new set of credentials
  * @cred: The new credentials to reference
  *
@@ -227,16 +241,16 @@ static inline bool cap_ambient_invariant_ok(const struct cred *cred)
  */
 static inline struct cred *get_new_cred(struct cred *cred)
 {
-	atomic_inc(&cred->usage);
-	return cred;
+	return get_new_cred_many(cred, 1);
 }
 
 /**
- * get_cred - Get a reference on a set of credentials
+ * get_cred_many - Get references on a set of credentials
  * @cred: The credentials to reference
+ * @nr: Number of references to acquire
  *
- * Get a reference on the specified set of credentials.  The caller must
- * release the reference.  If %NULL is passed, it is returned with no action.
+ * Get references on the specified set of credentials.  The caller must release
+ * all acquired reference.  If %NULL is passed, it is returned with no action.
  *
  * This is used to deal with a committed set of credentials.  Although the
  * pointer is const, this will temporarily discard the const and increment the
@@ -244,14 +258,28 @@ static inline struct cred *get_new_cred(struct cred *cred)
  * accidental alteration of a set of credentials that should be considered
  * immutable.
  */
-static inline const struct cred *get_cred(const struct cred *cred)
+static inline const struct cred *get_cred_many(const struct cred *cred, int nr)
 {
 	struct cred *nonconst_cred = (struct cred *) cred;
 	if (!cred)
 		return cred;
 	validate_creds(cred);
 	nonconst_cred->non_rcu = 0;
-	return get_new_cred(nonconst_cred);
+	return get_new_cred_many(nonconst_cred, nr);
+}
+
+/*
+ * get_cred - Get a reference on a set of credentials
+ * @cred: The credentials to reference
+ *
+ * Get a reference on the specified set of credentials.  The caller must
+ * release the reference.  If %NULL is passed, it is returned with no action.
+ *
+ * This is used to deal with a committed set of credentials.
+ */
+static inline const struct cred *get_cred(const struct cred *cred)
+{
+	return get_cred_many(cred, 1);
 }
 
 static inline const struct cred *get_cred_rcu(const struct cred *cred)
@@ -269,6 +297,7 @@ static inline const struct cred *get_cred_rcu(const struct cred *cred)
 /**
  * put_cred - Release a reference to a set of credentials
  * @cred: The credentials to release
+ * @nr: Number of references to release
  *
  * Release a reference to a set of credentials, deleting them when the last ref
  * is released.  If %NULL is passed, nothing is done.
@@ -277,15 +306,27 @@ static inline const struct cred *get_cred_rcu(const struct cred *cred)
  * on task_struct are attached by const pointers to prevent accidental
  * alteration of otherwise immutable credential sets.
  */
-static inline void put_cred(const struct cred *_cred)
+static inline void put_cred_many(const struct cred *_cred, int nr)
 {
 	struct cred *cred = (struct cred *) _cred;
 
 	if (cred) {
 		validate_creds(cred);
-		if (atomic_dec_and_test(&(cred)->usage))
+		if (atomic_sub_and_test(nr, &cred->usage))
 			__put_cred(cred);
 	}
+}
+
+/*
+ * put_cred - Release a reference to a set of credentials
+ * @cred: The credentials to release
+ *
+ * Release a reference to a set of credentials, deleting them when the last ref
+ * is released.  If %NULL is passed, nothing is done.
+ */
+static inline void put_cred(const struct cred *cred)
+{
+	put_cred_many(cred, 1);
 }
 
 /**
