@@ -25,6 +25,8 @@
 #include "../../../gpio/gpiolib.h"
 #include "../../../gpio/gpiolib-acpi.h"
 
+static struct platform_device *x86_android_tablet_device;
+
 static int gpiochip_find_match_label(struct gpio_chip *gc, void *data)
 {
 	return gc->label && !strcmp(gc->label, data);
@@ -224,7 +226,7 @@ put_ctrl_adev:
 	return ret;
 }
 
-static void x86_android_tablet_cleanup(void)
+static void x86_android_tablet_remove(struct platform_device *pdev)
 {
 	int i;
 
@@ -255,7 +257,7 @@ static void x86_android_tablet_cleanup(void)
 	software_node_unregister(bat_swnode);
 }
 
-static __init int x86_android_tablet_init(void)
+static __init int x86_android_tablet_probe(struct platform_device *pdev)
 {
 	const struct x86_dev_info *dev_info;
 	const struct dmi_system_id *id;
@@ -266,6 +268,8 @@ static __init int x86_android_tablet_init(void)
 		return -ENODEV;
 
 	dev_info = id->driver_data;
+	/* Allow x86_android_tablet_device use before probe() exits */
+	x86_android_tablet_device = pdev;
 
 	/*
 	 * Since this runs from module_init() it cannot use -EPROBE_DEFER,
@@ -288,7 +292,7 @@ static __init int x86_android_tablet_init(void)
 	if (dev_info->init) {
 		ret = dev_info->init();
 		if (ret < 0) {
-			x86_android_tablet_cleanup();
+			x86_android_tablet_remove(pdev);
 			return ret;
 		}
 		exit_handler = dev_info->exit;
@@ -296,7 +300,7 @@ static __init int x86_android_tablet_init(void)
 
 	i2c_clients = kcalloc(dev_info->i2c_client_count, sizeof(*i2c_clients), GFP_KERNEL);
 	if (!i2c_clients) {
-		x86_android_tablet_cleanup();
+		x86_android_tablet_remove(pdev);
 		return -ENOMEM;
 	}
 
@@ -304,7 +308,7 @@ static __init int x86_android_tablet_init(void)
 	for (i = 0; i < i2c_client_count; i++) {
 		ret = x86_instantiate_i2c_client(dev_info, i);
 		if (ret < 0) {
-			x86_android_tablet_cleanup();
+			x86_android_tablet_remove(pdev);
 			return ret;
 		}
 	}
@@ -312,7 +316,7 @@ static __init int x86_android_tablet_init(void)
 	/* + 1 to make space for (optional) gpio_keys_button pdev */
 	pdevs = kcalloc(dev_info->pdev_count + 1, sizeof(*pdevs), GFP_KERNEL);
 	if (!pdevs) {
-		x86_android_tablet_cleanup();
+		x86_android_tablet_remove(pdev);
 		return -ENOMEM;
 	}
 
@@ -320,14 +324,14 @@ static __init int x86_android_tablet_init(void)
 	for (i = 0; i < pdev_count; i++) {
 		pdevs[i] = platform_device_register_full(&dev_info->pdev_info[i]);
 		if (IS_ERR(pdevs[i])) {
-			x86_android_tablet_cleanup();
+			x86_android_tablet_remove(pdev);
 			return PTR_ERR(pdevs[i]);
 		}
 	}
 
 	serdevs = kcalloc(dev_info->serdev_count, sizeof(*serdevs), GFP_KERNEL);
 	if (!serdevs) {
-		x86_android_tablet_cleanup();
+		x86_android_tablet_remove(pdev);
 		return -ENOMEM;
 	}
 
@@ -335,7 +339,7 @@ static __init int x86_android_tablet_init(void)
 	for (i = 0; i < serdev_count; i++) {
 		ret = x86_instantiate_serdev(&dev_info->serdev_info[i], i);
 		if (ret < 0) {
-			x86_android_tablet_cleanup();
+			x86_android_tablet_remove(pdev);
 			return ret;
 		}
 	}
@@ -346,7 +350,7 @@ static __init int x86_android_tablet_init(void)
 
 		buttons = kcalloc(dev_info->gpio_button_count, sizeof(*buttons), GFP_KERNEL);
 		if (!buttons) {
-			x86_android_tablet_cleanup();
+			x86_android_tablet_remove(pdev);
 			return -ENOMEM;
 		}
 
@@ -354,7 +358,7 @@ static __init int x86_android_tablet_init(void)
 			ret = x86_android_tablet_get_gpiod(dev_info->gpio_button[i].chip,
 							   dev_info->gpio_button[i].pin, &gpiod);
 			if (ret < 0) {
-				x86_android_tablet_cleanup();
+				x86_android_tablet_remove(pdev);
 				return ret;
 			}
 
@@ -369,7 +373,7 @@ static __init int x86_android_tablet_init(void)
 								  PLATFORM_DEVID_AUTO,
 								  &pdata, sizeof(pdata));
 		if (IS_ERR(pdevs[pdev_count])) {
-			x86_android_tablet_cleanup();
+			x86_android_tablet_remove(pdev);
 			return PTR_ERR(pdevs[pdev_count]);
 		}
 		pdev_count++;
@@ -378,8 +382,29 @@ static __init int x86_android_tablet_init(void)
 	return 0;
 }
 
+static struct platform_driver x86_android_tablet_driver = {
+	.driver = {
+		.name = KBUILD_MODNAME,
+	},
+	.remove_new = x86_android_tablet_remove,
+};
+
+static int __init x86_android_tablet_init(void)
+{
+	x86_android_tablet_device = platform_create_bundle(&x86_android_tablet_driver,
+						   x86_android_tablet_probe,
+						   NULL, 0, NULL, 0);
+
+	return PTR_ERR_OR_ZERO(x86_android_tablet_device);
+}
 module_init(x86_android_tablet_init);
-module_exit(x86_android_tablet_cleanup);
+
+static void __exit x86_android_tablet_exit(void)
+{
+	platform_device_unregister(x86_android_tablet_device);
+	platform_driver_unregister(&x86_android_tablet_driver);
+}
+module_exit(x86_android_tablet_exit);
 
 MODULE_AUTHOR("Hans de Goede <hdegoede@redhat.com>");
 MODULE_DESCRIPTION("X86 Android tablets DSDT fixups driver");
