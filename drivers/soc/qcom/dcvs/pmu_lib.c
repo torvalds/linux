@@ -35,6 +35,7 @@
 #define MAX_PMU_EVS	QCOM_PMU_MAX_EVS
 #define INVALID_ID	0xFF
 static void __iomem *pmu_base;
+static uint32_t phys_cpu[NR_CPUS];
 
 #if IS_ENABLED(CONFIG_QTI_SCMI_VENDOR_PROTOCOL)
 #include <linux/qcom_scmi_vendor.h>
@@ -519,7 +520,7 @@ static int configure_cpucp_map(cpumask_t mask)
 			    is_amu_valid(event->amu_id) || !event->pevent ||
 			    !cpumask_test_cpu(cpu, to_cpumask(&cpucp_map[cid].cpus)))
 				continue;
-			pmu_map[cpu][cid] = event->pevent->hw.idx;
+			pmu_map[phys_cpu[cpu]][cid] = event->pevent->hw.idx;
 		}
 	}
 #if IS_ENABLED(CONFIG_QTI_SCMI_VENDOR_PROTOCOL)
@@ -909,9 +910,17 @@ static void load_pmu_counters(void)
 	pr_info("Enabled all perf counters\n");
 }
 
+static void get_mpidr_cpu(void *cpu)
+{
+	u64 mpidr = read_cpuid_mpidr() & MPIDR_HWID_BITMASK;
+
+	*((uint32_t *)cpu) = MPIDR_AFFINITY_LEVEL(mpidr, 1);
+}
+
 int cpucp_pmu_init(struct scmi_device *sdev)
 {
 	int ret = 0;
+	uint32_t cpu, pcpu;
 
 	if (!sdev || !sdev->handle)
 		return -EINVAL;
@@ -927,6 +936,11 @@ int cpucp_pmu_init(struct scmi_device *sdev)
 		return ret;
 	}
 
+	for_each_possible_cpu(cpu) {
+		smp_call_function_single(cpu, get_mpidr_cpu,
+							 &pcpu, true);
+		phys_cpu[cpu] = pcpu;
+	}
 	/*
 	 * If communication with cpucp doesn't succeed here the device memory
 	 * will be de-allocated. Make ops NULL to avoid further scmi calls.
