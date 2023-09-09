@@ -505,11 +505,6 @@ static const struct x86_gpio_button peaq_c1010_button __initconst = {
 const struct x86_dev_info peaq_c1010_info __initconst = {
 	.gpio_button = &peaq_c1010_button,
 	.gpio_button_count = 1,
-	/*
-	 * Move the ACPI event handler used by the broken WMI interface out of
-	 * the way. This is the only event handler on INT33FC:00.
-	 */
-	.invalid_aei_gpiochip = "INT33FC:00",
 };
 
 /*
