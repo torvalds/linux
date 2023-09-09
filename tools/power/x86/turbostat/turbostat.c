@@ -612,6 +612,23 @@ static const struct platform_features cnl_features = {
 	.enable_tsc_tweak = 1,
 };
 
+static const struct platform_features adl_features = {
+	.has_msr_misc_feature_control = 1,
+	.has_msr_misc_pwr_mgmt = 1,
+	.has_nhm_msrs = 1,
+	.has_config_tdp = 1,
+	.bclk_freq = BCLK_100MHZ,
+	.supported_cstates = CC1 | CC6 | CC7 | PC2 | PC3 | PC6 | PC8 | PC10,
+	.cst_limit = CST_LIMIT_HSW,
+	.has_irtl_msrs = 1,
+	.has_msr_core_c1_res = 1,
+	.has_ext_cst_msrs = 1,
+	.trl_msrs = TRL_BASE,
+	.tcc_offset_bits = 6,
+	.rapl_msrs = RAPL_PKG_ALL | RAPL_CORE_ALL | RAPL_DRAM | RAPL_DRAM_PERF_STATUS | RAPL_GFX,
+	.enable_tsc_tweak = 1,
+};
+
 static const struct platform_features skx_features = {
 	.has_msr_misc_feature_control = 1,
 	.has_msr_misc_pwr_mgmt = 1,
@@ -812,11 +829,11 @@ static const struct platform_data turbostat_pdata[] = {
 	{ INTEL_FAM6_SAPPHIRERAPIDS_X, &spr_features },
 	{ INTEL_FAM6_EMERALDRAPIDS_X, &spr_features },
 	{ INTEL_FAM6_LAKEFIELD, &cnl_features },
-	{ INTEL_FAM6_ALDERLAKE, &cnl_features },
-	{ INTEL_FAM6_ALDERLAKE_L, &cnl_features },
-	{ INTEL_FAM6_RAPTORLAKE, &cnl_features },
-	{ INTEL_FAM6_RAPTORLAKE_P, &cnl_features },
-	{ INTEL_FAM6_RAPTORLAKE_S, &cnl_features },
+	{ INTEL_FAM6_ALDERLAKE, &adl_features },
+	{ INTEL_FAM6_ALDERLAKE_L, &adl_features },
+	{ INTEL_FAM6_RAPTORLAKE, &adl_features },
+	{ INTEL_FAM6_RAPTORLAKE_P, &adl_features },
+	{ INTEL_FAM6_RAPTORLAKE_S, &adl_features },
 	{ INTEL_FAM6_METEORLAKE, &cnl_features },
 	{ INTEL_FAM6_METEORLAKE_L, &cnl_features },
 	{ INTEL_FAM6_ATOM_SILVERMONT, &slv_features },
@@ -828,7 +845,7 @@ static const struct platform_data turbostat_pdata[] = {
 	{ INTEL_FAM6_ATOM_TREMONT_D, &tmtd_features },
 	{ INTEL_FAM6_ATOM_TREMONT, &tmt_features },
 	{ INTEL_FAM6_ATOM_TREMONT_L, &tmt_features },
-	{ INTEL_FAM6_ATOM_GRACEMONT, &cnl_features },
+	{ INTEL_FAM6_ATOM_GRACEMONT, &adl_features },
 	{ INTEL_FAM6_XEON_PHI_KNL, &knl_features },
 	{ INTEL_FAM6_XEON_PHI_KNM, &knl_features },
 	/*
