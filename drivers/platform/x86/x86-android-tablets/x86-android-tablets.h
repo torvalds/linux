@@ -66,7 +66,6 @@ struct x86_gpio_button {
 };
 
 struct x86_dev_info {
-	char *invalid_aei_gpiochip;
 	const char * const *modules;
 	const struct software_node *bat_swnode;
 	struct gpiod_lookup_table * const *gpiod_lookup_tables;
