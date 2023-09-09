@@ -16,22 +16,22 @@
 };
 
 &i2c0 {
-	compatible = "fsl,imx8dxl-lpi2c", "fsl,imx8qxp-lpi2c", "fsl,imx7ulp-lpi2c";
+	compatible = "fsl,imx8dxl-lpi2c", "fsl,imx7ulp-lpi2c";
 	interrupts = <GIC_SPI 222 IRQ_TYPE_LEVEL_HIGH>;
 };
 
 &i2c1 {
-	compatible = "fsl,imx8dxl-lpi2c", "fsl,imx8qxp-lpi2c", "fsl,imx7ulp-lpi2c";
+	compatible = "fsl,imx8dxl-lpi2c", "fsl,imx7ulp-lpi2c";
 	interrupts = <GIC_SPI 223 IRQ_TYPE_LEVEL_HIGH>;
 };
 
 &i2c2 {
-	compatible = "fsl,imx8qxp-lpi2c", "fsl,imx7ulp-lpi2c";
+	compatible = "fsl,imx8dxl-lpi2c", "fsl,imx7ulp-lpi2c";
 	interrupts = <GIC_SPI 224 IRQ_TYPE_LEVEL_HIGH>;
 };
 
 &i2c3 {
-	compatible = "fsl,imx8qxp-lpi2c", "fsl,imx7ulp-lpi2c";
+	compatible = "fsl,imx8dxl-lpi2c", "fsl,imx7ulp-lpi2c";
 	interrupts = <GIC_SPI 225 IRQ_TYPE_LEVEL_HIGH>;
 };
 
