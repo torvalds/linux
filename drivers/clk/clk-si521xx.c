@@ -279,7 +279,7 @@ si521xx_of_clk_get(struct of_phandle_args *clkspec, void *data)
 
 static int si521xx_probe(struct i2c_client *client)
 {
-	const u16 chip_info = (u16)(uintptr_t)device_get_match_data(&client->dev);
+	const u16 chip_info = (u16)(uintptr_t)i2c_get_match_data(client);
 	const struct clk_parent_data clk_parent_data = { .index = 0 };
 	struct si521xx *si;
 	unsigned char name[6] = "DIFF0";
