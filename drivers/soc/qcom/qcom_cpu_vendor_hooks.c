@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2021 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #define pr_fmt(fmt) "VendorHooks: " fmt
@@ -16,6 +16,7 @@
 #include <linux/atomic.h>
 #include <linux/sched/debug.h>
 #include <linux/io.h>
+#include <linux/syscore_ops.h>
 
 #include <soc/qcom/watchdog.h>
 
@@ -134,6 +135,13 @@ static void store_kaslr_offset(void)
 
 	iounmap(mem);
 }
+
+#if defined(CONFIG_HIBERNATION)
+static struct syscore_ops kaslr_offset_restore_syscore_ops = {
+	.resume = store_kaslr_offset,
+};
+#endif /* CONFIG_HIBERNATION */
+
 #else
 static void store_kaslr_offset(void) {}
 #endif /* CONFIG_RANDOMIZE_BASE */
@@ -143,6 +151,9 @@ static int cpu_vendor_hooks_driver_probe(struct platform_device *pdev)
 	int ret;
 
 	store_kaslr_offset();
+#ifdef CONFIG_HIBERNATION
+	register_syscore_ops(&kaslr_offset_restore_syscore_ops);
+#endif
 
 	ret = register_trace_android_vh_ipi_stop(trace_ipi_stop, NULL);
 	if (ret) {
