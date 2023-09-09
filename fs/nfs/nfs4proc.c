@@ -9646,6 +9646,9 @@ nfs4_layoutget_handle_exception(struct rpc_task *task,
 
 	nfs4_sequence_free_slot(&lgp->res.seq_res);
 
+	exception->state = NULL;
+	exception->stateid = NULL;
+
 	switch (nfs4err) {
 	case 0:
 		goto out;
@@ -9741,7 +9744,8 @@ static const struct rpc_call_ops nfs4_layoutget_call_ops = {
 };
 
 struct pnfs_layout_segment *
-nfs4_proc_layoutget(struct nfs4_layoutget *lgp, long *timeout)
+nfs4_proc_layoutget(struct nfs4_layoutget *lgp,
+		    struct nfs4_exception *exception)
 {
 	struct inode *inode = lgp->args.inode;
 	struct nfs_server *server = NFS_SERVER(inode);
@@ -9761,13 +9765,10 @@ nfs4_proc_layoutget(struct nfs4_layoutget *lgp, long *timeout)
 			 RPC_TASK_MOVEABLE,
 	};
 	struct pnfs_layout_segment *lseg = NULL;
-	struct nfs4_exception exception = {
-		.inode = inode,
-		.timeout = *timeout,
-	};
 	int status = 0;
 
 	nfs4_init_sequence(&lgp->args.seq_args, &lgp->res.seq_res, 0, 0);
+	exception->retry = 0;
 
 	task = rpc_run_task(&task_setup_data);
 	if (IS_ERR(task))
@@ -9778,11 +9779,12 @@ nfs4_proc_layoutget(struct nfs4_layoutget *lgp, long *timeout)
 		goto out;
 
 	if (task->tk_status < 0) {
-		status = nfs4_layoutget_handle_exception(task, lgp, &exception);
-		*timeout = exception.timeout;
+		exception->retry = 1;
+		status = nfs4_layoutget_handle_exception(task, lgp, exception);
 	} else if (lgp->res.layoutp->len == 0) {
+		exception->retry = 1;
 		status = -EAGAIN;
-		*timeout = nfs4_update_delay(&exception.timeout);
+		nfs4_update_delay(&exception->timeout);
 	} else
 		lseg = pnfs_layout_process(lgp);
 out:
