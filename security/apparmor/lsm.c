@@ -722,12 +722,27 @@ static int apparmor_sb_mount(const char *dev_name, const struct path *path,
 			error = aa_mount_change_type(current_cred(), label,
 						     path, flags);
 		else if (flags & MS_MOVE)
-			error = aa_move_mount(current_cred(), label, path,
-					      dev_name);
+			error = aa_move_mount_old(current_cred(), label, path,
+						  dev_name);
 		else
 			error = aa_new_mount(current_cred(), label, dev_name,
 					     path, type, flags, data);
 	}
+	__end_current_label_crit_section(label);
+
+	return error;
+}
+
+static int apparmor_move_mount(const struct path *from_path,
+			       const struct path *to_path)
+{
+	struct aa_label *label;
+	int error = 0;
+
+	label = __begin_current_label_crit_section();
+	if (!unconfined(label))
+		error = aa_move_mount(current_cred(), label, from_path,
+				      to_path);
 	__end_current_label_crit_section(label);
 
 	return error;
@@ -1376,6 +1391,7 @@ static struct security_hook_list apparmor_hooks[] __ro_after_init = {
 	LSM_HOOK_INIT(capget, apparmor_capget),
 	LSM_HOOK_INIT(capable, apparmor_capable),
 
+	LSM_HOOK_INIT(move_mount, apparmor_move_mount),
 	LSM_HOOK_INIT(sb_mount, apparmor_sb_mount),
 	LSM_HOOK_INIT(sb_umount, apparmor_sb_umount),
 	LSM_HOOK_INIT(sb_pivotroot, apparmor_sb_pivotroot),

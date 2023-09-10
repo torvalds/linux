@@ -38,9 +38,12 @@ int aa_mount_change_type(const struct cred *subj_cred,
 			 struct aa_label *label, const struct path *path,
 			 unsigned long flags);
 
+int aa_move_mount_old(const struct cred *subj_cred,
+		      struct aa_label *label, const struct path *path,
+		      const char *old_name);
 int aa_move_mount(const struct cred *subj_cred,
-		  struct aa_label *label, const struct path *path,
-		  const char *old_name);
+		  struct aa_label *label, const struct path *from_path,
+		  const struct path *to_path);
 
 int aa_new_mount(const struct cred *subj_cred,
 		 struct aa_label *label, const char *dev_name,

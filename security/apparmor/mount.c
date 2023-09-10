@@ -483,36 +483,46 @@ int aa_mount_change_type(const struct cred *subj_cred,
 }
 
 int aa_move_mount(const struct cred *subj_cred,
-		  struct aa_label *label, const struct path *path,
-		  const char *orig_name)
+		  struct aa_label *label, const struct path *from_path,
+		  const struct path *to_path)
 {
 	struct aa_profile *profile;
-	char *buffer = NULL, *old_buffer = NULL;
-	struct path old_path;
+	char *to_buffer = NULL, *from_buffer = NULL;
 	int error;
 
 	AA_BUG(!label);
-	AA_BUG(!path);
+	AA_BUG(!from_path);
+	AA_BUG(!to_path);
+
+	to_buffer = aa_get_buffer(false);
+	from_buffer = aa_get_buffer(false);
+	error = -ENOMEM;
+	if (!to_buffer || !from_buffer)
+		goto out;
+	error = fn_for_each_confined(label, profile,
+			match_mnt(subj_cred, profile, to_path, to_buffer,
+				  from_path, from_buffer,
+				  NULL, MS_MOVE, NULL, false));
+out:
+	aa_put_buffer(to_buffer);
+	aa_put_buffer(from_buffer);
+
+	return error;
+}
+
+int aa_move_mount_old(const struct cred *subj_cred, struct aa_label *label,
+		      const struct path *path, const char *orig_name)
+{
+	struct path old_path;
+	int error;
 
 	if (!orig_name || !*orig_name)
 		return -EINVAL;
-
 	error = kern_path(orig_name, LOOKUP_FOLLOW, &old_path);
 	if (error)
 		return error;
 
-	buffer = aa_get_buffer(false);
-	old_buffer = aa_get_buffer(false);
-	error = -ENOMEM;
-	if (!buffer || !old_buffer)
-		goto out;
-	error = fn_for_each_confined(label, profile,
-			match_mnt(subj_cred, profile, path, buffer, &old_path,
-				  old_buffer,
-				  NULL, MS_MOVE, NULL, false));
-out:
-	aa_put_buffer(buffer);
-	aa_put_buffer(old_buffer);
+	error = aa_move_mount(subj_cred, label, &old_path, path);
 	path_put(&old_path);
 
 	return error;
