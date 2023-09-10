@@ -429,6 +429,7 @@
 			tmu: tmu@44482000 {
 				compatible = "fsl,qoriq-tmu";
 				reg = <0x44482000 0x1000>;
+				interrupts = <GIC_SPI 83 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clk IMX93_CLK_TMC_GATE>;
 				little-endian;
 				fsl,tmu-range = <0x800000da 0x800000e9
