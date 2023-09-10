@@ -22,7 +22,7 @@ static void tui_helpline__push(const char *msg)
 
 	SLsmg_gotorc(SLtt_Screen_Rows - 1, 0);
 	SLsmg_set_color(0);
-	SLsmg_write_nstring((char *)msg, SLtt_Screen_Cols);
+	SLsmg_write_nstring(msg, SLtt_Screen_Cols);
 	SLsmg_refresh();
 	strlcpy(ui_helpline__current, msg, sz);
 }

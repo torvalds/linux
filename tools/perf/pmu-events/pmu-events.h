@@ -3,6 +3,7 @@
 #define PMU_EVENTS_H
 
 #include <stdbool.h>
+#include <stddef.h>
 
 struct perf_pmu;
 
@@ -77,9 +78,19 @@ typedef int (*pmu_metric_iter_fn)(const struct pmu_metric *pm,
 				  const struct pmu_metrics_table *table,
 				  void *data);
 
-int pmu_events_table_for_each_event(const struct pmu_events_table *table, pmu_event_iter_fn fn,
+int pmu_events_table__for_each_event(const struct pmu_events_table *table,
+				    struct perf_pmu *pmu,
+				    pmu_event_iter_fn fn,
 				    void *data);
-int pmu_metrics_table_for_each_metric(const struct pmu_metrics_table *table, pmu_metric_iter_fn fn,
+int pmu_events_table__find_event(const struct pmu_events_table *table,
+                                 struct perf_pmu *pmu,
+                                 const char *name,
+                                 pmu_event_iter_fn fn,
+				 void *data);
+size_t pmu_events_table__num_events(const struct pmu_events_table *table,
+				    struct perf_pmu *pmu);
+
+int pmu_metrics_table__for_each_metric(const struct pmu_metrics_table *table, pmu_metric_iter_fn fn,
 				     void *data);
 
 const struct pmu_events_table *perf_pmu__find_events_table(struct perf_pmu *pmu);

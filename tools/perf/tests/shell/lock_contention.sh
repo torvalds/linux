@@ -21,7 +21,7 @@ trap_cleanup() {
 trap trap_cleanup EXIT TERM INT
 
 check() {
-	if [ `id -u` != 0 ]; then
+	if [ "$(id -u)" != 0 ]; then
 		echo "[Skip] No root permission"
 		err=2
 		exit
@@ -157,10 +157,10 @@ test_lock_filter()
 	perf lock contention -i ${perfdata} -L tasklist_lock -q 2> ${result}
 
 	# find out the type of tasklist_lock
-	local type=$(head -1 "${result}" | awk '{ print $8 }' | sed -e 's/:.*//')
+	test_lock_filter_type=$(head -1 "${result}" | awk '{ print $8 }' | sed -e 's/:.*//')
 
-	if [ "$(grep -c -v "${type}" "${result}")" != "0" ]; then
-		echo "[Fail] Recorded result should not have non-${type} locks:" "$(cat "${result}")"
+	if [ "$(grep -c -v "${test_lock_filter_type}" "${result}")" != "0" ]; then
+		echo "[Fail] Recorded result should not have non-${test_lock_filter_type} locks:" "$(cat "${result}")"
 		err=1
 		exit
 	fi
@@ -170,8 +170,8 @@ test_lock_filter()
 	fi
 
 	perf lock con -a -b -L tasklist_lock -q -- perf bench sched messaging > /dev/null 2> ${result}
-	if [ "$(grep -c -v "${type}" "${result}")" != "0" ]; then
-		echo "[Fail] BPF result should not have non-${type} locks:" "$(cat "${result}")"
+	if [ "$(grep -c -v "${test_lock_filter_type}" "${result}")" != "0" ]; then
+		echo "[Fail] BPF result should not have non-${test_lock_filter_type} locks:" "$(cat "${result}")"
 		err=1
 		exit
 	fi
