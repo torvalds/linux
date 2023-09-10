@@ -371,7 +371,8 @@ static inline void bkey_init(struct bkey *k)
 	x(inode_v3,		29)			\
 	x(bucket_gens,		30)			\
 	x(snapshot_tree,	31)			\
-	x(logged_op_truncate,	32)
+	x(logged_op_truncate,	32)			\
+	x(logged_op_finsert,	33)
 
 enum bch_bkey_type {
 #define x(name, nr) KEY_TYPE_##name	= nr,
@@ -1192,6 +1193,23 @@ struct bch_logged_op_truncate {
 	__le32			pad;
 	__le64			inum;
 	__le64			new_i_size;
+};
+
+enum logged_op_finsert_state {
+	LOGGED_OP_FINSERT_start,
+	LOGGED_OP_FINSERT_shift_extents,
+	LOGGED_OP_FINSERT_finish,
+};
+
+struct bch_logged_op_finsert {
+	struct bch_val		v;
+	__u8			state;
+	__u8			pad[3];
+	__le32			subvol;
+	__le64			inum;
+	__le64			dst_offset;
+	__le64			src_offset;
+	__le64			pos;
 };
 
 /* Optional/variable size superblock sections: */
@@ -2262,7 +2280,8 @@ enum btree_id_flags {
 	x(deleted_inodes,	16,	BTREE_ID_SNAPSHOTS,			\
 	  BIT_ULL(KEY_TYPE_set))						\
 	x(logged_ops,		17,	0,					\
-	  BIT_ULL(KEY_TYPE_logged_op_truncate))
+	  BIT_ULL(KEY_TYPE_logged_op_truncate)|					\
+	  BIT_ULL(KEY_TYPE_logged_op_finsert))
 
 enum btree_id {
 #define x(name, nr, ...) BTREE_ID_##name = nr,

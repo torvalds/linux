@@ -293,6 +293,18 @@ int bch2_truncate(struct bch_fs *c, subvol_inum inum, u64 new_i_size, u64 *i_sec
 		__bch2_resume_logged_op_truncate(&trans, &op.k_i, i_sectors_delta));
 }
 
+/* finsert/fcollapse: */
+
+void bch2_logged_op_finsert_to_text(struct printbuf *out, struct bch_fs *c, struct bkey_s_c k)
+{
+	struct bkey_s_c_logged_op_finsert op = bkey_s_c_to_logged_op_finsert(k);
+
+	prt_printf(out, "subvol=%u",		le32_to_cpu(op.v->subvol));
+	prt_printf(out, " inum=%llu",		le64_to_cpu(op.v->inum));
+	prt_printf(out, " dst_offset=%lli",	le64_to_cpu(op.v->dst_offset));
+	prt_printf(out, " src_offset=%llu",	le64_to_cpu(op.v->src_offset));
+}
+
 static int adjust_i_size(struct btree_trans *trans, subvol_inum inum, u64 offset, s64 len)
 {
 	struct btree_iter iter;
@@ -327,145 +339,160 @@ err:
 	return ret;
 }
 
+static int __bch2_resume_logged_op_finsert(struct btree_trans *trans,
+					   struct bkey_i *op_k,
+					   u64 *i_sectors_delta)
+{
+	struct bch_fs *c = trans->c;
+	struct btree_iter iter;
+	struct bkey_i_logged_op_finsert *op = bkey_i_to_logged_op_finsert(op_k);
+	subvol_inum inum = { le32_to_cpu(op->v.subvol), le64_to_cpu(op->v.inum) };
+	u64 dst_offset = le64_to_cpu(op->v.dst_offset);
+	u64 src_offset = le64_to_cpu(op->v.src_offset);
+	s64 shift = dst_offset - src_offset;
+	u64 len = abs(shift);
+	u64 pos = le64_to_cpu(op->v.pos);
+	bool insert = shift > 0;
+	int ret = 0;
+
+	bch2_trans_iter_init(trans, &iter, BTREE_ID_extents,
+			     POS(inum.inum, 0),
+			     BTREE_ITER_INTENT);
+
+	switch (op->v.state) {
+case LOGGED_OP_FINSERT_start:
+	op->v.state = LOGGED_OP_FINSERT_shift_extents;
+
+	if (insert) {
+		ret = commit_do(trans, NULL, NULL, BTREE_INSERT_NOFAIL,
+				adjust_i_size(trans, inum, src_offset, len) ?:
+				bch2_logged_op_update(trans, &op->k_i));
+		if (ret)
+			goto err;
+	} else {
+		bch2_btree_iter_set_pos(&iter, POS(inum.inum, src_offset));
+
+		ret = bch2_fpunch_at(trans, &iter, inum, src_offset + len, i_sectors_delta);
+		if (ret && !bch2_err_matches(ret, BCH_ERR_transaction_restart))
+			goto err;
+
+		ret = commit_do(trans, NULL, NULL, BTREE_INSERT_NOFAIL,
+				bch2_logged_op_update(trans, &op->k_i));
+	}
+
+	fallthrough;
+case LOGGED_OP_FINSERT_shift_extents:
+	while (1) {
+		struct disk_reservation disk_res =
+			bch2_disk_reservation_init(c, 0);
+		struct bkey_i delete, *copy;
+		struct bkey_s_c k;
+		struct bpos src_pos = POS(inum.inum, src_offset);
+		u32 snapshot;
+
+		bch2_trans_begin(trans);
+
+		ret = bch2_subvolume_get_snapshot(trans, inum.subvol, &snapshot);
+		if (ret)
+			goto btree_err;
+
+		bch2_btree_iter_set_snapshot(&iter, snapshot);
+		bch2_btree_iter_set_pos(&iter, SPOS(inum.inum, pos, snapshot));
+
+		k = insert
+			? bch2_btree_iter_peek_prev(&iter)
+			: bch2_btree_iter_peek_upto(&iter, POS(inum.inum, U64_MAX));
+		if ((ret = bkey_err(k)))
+			goto btree_err;
+
+		if (!k.k ||
+		    k.k->p.inode != inum.inum ||
+		    bkey_le(k.k->p, POS(inum.inum, src_offset)))
+			break;
+
+		copy = bch2_bkey_make_mut_noupdate(trans, k);
+		if ((ret = PTR_ERR_OR_ZERO(copy)))
+			goto btree_err;
+
+		if (insert &&
+		    bkey_lt(bkey_start_pos(k.k), src_pos)) {
+			bch2_cut_front(src_pos, copy);
+
+			/* Splitting compressed extent? */
+			bch2_disk_reservation_add(c, &disk_res,
+					copy->k.size *
+					bch2_bkey_nr_ptrs_allocated(bkey_i_to_s_c(copy)),
+					BCH_DISK_RESERVATION_NOFAIL);
+		}
+
+		bkey_init(&delete.k);
+		delete.k.p = copy->k.p;
+		delete.k.p.snapshot = snapshot;
+		delete.k.size = copy->k.size;
+
+		copy->k.p.offset += shift;
+		copy->k.p.snapshot = snapshot;
+
+		op->v.pos = cpu_to_le64(insert ? bkey_start_offset(&delete.k) : delete.k.p.offset);
+
+		ret =   bch2_btree_insert_trans(trans, BTREE_ID_extents, &delete, 0) ?:
+			bch2_btree_insert_trans(trans, BTREE_ID_extents, copy, 0) ?:
+			bch2_logged_op_update(trans, &op->k_i) ?:
+			bch2_trans_commit(trans, &disk_res, NULL, BTREE_INSERT_NOFAIL);
+btree_err:
+		bch2_disk_reservation_put(c, &disk_res);
+
+		if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
+			continue;
+		if (ret)
+			goto err;
+
+		pos = le64_to_cpu(op->v.pos);
+	}
+
+	op->v.state = LOGGED_OP_FINSERT_finish;
+
+	if (!insert) {
+		ret = commit_do(trans, NULL, NULL, BTREE_INSERT_NOFAIL,
+				adjust_i_size(trans, inum, src_offset, shift) ?:
+				bch2_logged_op_update(trans, &op->k_i));
+	} else {
+		/* We need an inode update to update bi_journal_seq for fsync: */
+		ret = commit_do(trans, NULL, NULL, BTREE_INSERT_NOFAIL,
+				adjust_i_size(trans, inum, 0, 0) ?:
+				bch2_logged_op_update(trans, &op->k_i));
+	}
+
+	fallthrough;
+case LOGGED_OP_FINSERT_finish:
+	ret = ret;
+	}
+err:
+	bch2_logged_op_finish(trans, op_k);
+	bch2_trans_iter_exit(trans, &iter);
+	return ret;
+}
+
+int bch2_resume_logged_op_finsert(struct btree_trans *trans, struct bkey_i *op_k)
+{
+	return __bch2_resume_logged_op_finsert(trans, op_k, NULL);
+}
+
 int bch2_fcollapse_finsert(struct bch_fs *c, subvol_inum inum,
 			   u64 offset, u64 len, bool insert,
 			   s64 *i_sectors_delta)
 {
-	struct bkey_buf copy;
-	struct btree_trans trans;
-	struct btree_iter src = { NULL }, dst = { NULL }, del = { NULL };
+	struct bkey_i_logged_op_finsert op;
 	s64 shift = insert ? len : -len;
-	int ret = 0;
 
-	bch2_bkey_buf_init(&copy);
-	bch2_trans_init(&trans, c, 0, 1024);
+	bkey_logged_op_finsert_init(&op.k_i);
+	op.v.subvol	= cpu_to_le32(inum.subvol);
+	op.v.inum	= cpu_to_le64(inum.inum);
+	op.v.dst_offset	= cpu_to_le64(offset + shift);
+	op.v.src_offset	= cpu_to_le64(offset);
+	op.v.pos	= cpu_to_le64(insert ? U64_MAX : offset);
 
-	bch2_trans_iter_init(&trans, &src, BTREE_ID_extents,
-			     POS(inum.inum, U64_MAX),
-			     BTREE_ITER_INTENT);
-	bch2_trans_copy_iter(&dst, &src);
-	bch2_trans_copy_iter(&del, &src);
-
-	if (insert) {
-		ret = commit_do(&trans, NULL, NULL, BTREE_INSERT_NOFAIL,
-				adjust_i_size(&trans, inum, offset, len));
-		if (ret)
-			goto err;
-	} else {
-		bch2_btree_iter_set_pos(&src, POS(inum.inum, offset));
-
-		ret = bch2_fpunch_at(&trans, &src, inum, offset + len, i_sectors_delta);
-		if (ret && !bch2_err_matches(ret, BCH_ERR_transaction_restart))
-			goto err;
-
-		bch2_btree_iter_set_pos(&src, POS(inum.inum, offset + len));
-	}
-
-	while (ret == 0 || bch2_err_matches(ret, BCH_ERR_transaction_restart)) {
-		struct disk_reservation disk_res =
-			bch2_disk_reservation_init(c, 0);
-		struct bkey_i delete;
-		struct bkey_s_c k;
-		struct bpos next_pos;
-		struct bpos move_pos = POS(inum.inum, offset);
-		struct bpos atomic_end;
-		unsigned trigger_flags = 0;
-		u32 snapshot;
-
-		bch2_trans_begin(&trans);
-
-		ret = bch2_subvolume_get_snapshot(&trans, inum.subvol, &snapshot);
-		if (ret)
-			continue;
-
-		bch2_btree_iter_set_snapshot(&src, snapshot);
-		bch2_btree_iter_set_snapshot(&dst, snapshot);
-		bch2_btree_iter_set_snapshot(&del, snapshot);
-
-		bch2_trans_begin(&trans);
-
-		k = insert
-			? bch2_btree_iter_peek_prev(&src)
-			: bch2_btree_iter_peek_upto(&src, POS(inum.inum, U64_MAX));
-		if ((ret = bkey_err(k)))
-			continue;
-
-		if (!k.k || k.k->p.inode != inum.inum)
-			break;
-
-		if (insert &&
-		    bkey_le(k.k->p, POS(inum.inum, offset)))
-			break;
-reassemble:
-		bch2_bkey_buf_reassemble(&copy, c, k);
-
-		if (insert &&
-		    bkey_lt(bkey_start_pos(k.k), move_pos))
-			bch2_cut_front(move_pos, copy.k);
-
-		copy.k->k.p.offset += shift;
-		bch2_btree_iter_set_pos(&dst, bkey_start_pos(&copy.k->k));
-
-		ret = bch2_extent_atomic_end(&trans, &dst, copy.k, &atomic_end);
-		if (ret)
-			continue;
-
-		if (!bkey_eq(atomic_end, copy.k->k.p)) {
-			if (insert) {
-				move_pos = atomic_end;
-				move_pos.offset -= shift;
-				goto reassemble;
-			} else {
-				bch2_cut_back(atomic_end, copy.k);
-			}
-		}
-
-		bkey_init(&delete.k);
-		delete.k.p = copy.k->k.p;
-		delete.k.size = copy.k->k.size;
-		delete.k.p.offset -= shift;
-		bch2_btree_iter_set_pos(&del, bkey_start_pos(&delete.k));
-
-		next_pos = insert ? bkey_start_pos(&delete.k) : delete.k.p;
-
-		if (copy.k->k.size != k.k->size) {
-			/* We might end up splitting compressed extents: */
-			unsigned nr_ptrs =
-				bch2_bkey_nr_ptrs_allocated(bkey_i_to_s_c(copy.k));
-
-			ret = bch2_disk_reservation_get(c, &disk_res,
-					copy.k->k.size, nr_ptrs,
-					BCH_DISK_RESERVATION_NOFAIL);
-			BUG_ON(ret);
-		}
-
-		ret =   bch2_btree_iter_traverse(&del) ?:
-			bch2_trans_update(&trans, &del, &delete, trigger_flags) ?:
-			bch2_trans_update(&trans, &dst, copy.k, trigger_flags) ?:
-			bch2_trans_commit(&trans, &disk_res, NULL,
-					  BTREE_INSERT_NOFAIL);
-		bch2_disk_reservation_put(c, &disk_res);
-
-		if (!ret)
-			bch2_btree_iter_set_pos(&src, next_pos);
-	}
-
-	if (ret && !bch2_err_matches(ret, BCH_ERR_transaction_restart))
-		goto err;
-
-	if (!insert) {
-		ret = commit_do(&trans, NULL, NULL, BTREE_INSERT_NOFAIL,
-				adjust_i_size(&trans, inum, offset, -len));
-	} else {
-		/* We need an inode update to update bi_journal_seq for fsync: */
-		ret = commit_do(&trans, NULL, NULL, BTREE_INSERT_NOFAIL,
-				adjust_i_size(&trans, inum, 0, 0));
-	}
-err:
-	bch2_trans_iter_exit(&trans, &del);
-	bch2_trans_iter_exit(&trans, &dst);
-	bch2_trans_iter_exit(&trans, &src);
-	bch2_trans_exit(&trans);
-	bch2_bkey_buf_exit(&copy, c);
-	return ret;
+	return bch2_trans_run(c,
+		bch2_logged_op_start(&trans, &op.k_i) ?:
+		__bch2_resume_logged_op_finsert(&trans, &op.k_i, i_sectors_delta));
 }
