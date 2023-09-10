@@ -232,7 +232,7 @@ void bch2_verify_insert_pos(struct btree *b, struct bkey_packed *where,
 {
 	struct bset_tree *t = bch2_bkey_to_bset(b, where);
 	struct bkey_packed *prev = bch2_bkey_prev_all(b, t, where);
-	struct bkey_packed *next = (void *) (where->_data + clobber_u64s);
+	struct bkey_packed *next = (void *) ((u64 *) where->_data + clobber_u64s);
 	struct printbuf buf1 = PRINTBUF;
 	struct printbuf buf2 = PRINTBUF;
 #if 0
@@ -300,7 +300,8 @@ static unsigned bkey_float_byte_offset(unsigned idx)
 }
 
 struct ro_aux_tree {
-	struct bkey_float	f[0];
+	u8			nothing[0];
+	struct bkey_float	f[];
 };
 
 struct rw_aux_tree {
@@ -476,7 +477,7 @@ static struct bkey_packed *tree_to_prev_bkey(const struct btree *b,
 {
 	unsigned prev_u64s = ro_aux_tree_prev(b, t)[j];
 
-	return (void *) (tree_to_bkey(b, t, j)->_data - prev_u64s);
+	return (void *) ((u64 *) tree_to_bkey(b, t, j)->_data - prev_u64s);
 }
 
 static struct rw_aux_tree *rw_aux_tree(const struct btree *b,
@@ -1010,8 +1011,8 @@ void bch2_bset_insert(struct btree *b,
 		btree_keys_account_key_add(&b->nr, t - b->set, src);
 
 	if (src->u64s != clobber_u64s) {
-		u64 *src_p = where->_data + clobber_u64s;
-		u64 *dst_p = where->_data + src->u64s;
+		u64 *src_p = (u64 *) where->_data + clobber_u64s;
+		u64 *dst_p = (u64 *) where->_data + src->u64s;
 
 		EBUG_ON((int) le16_to_cpu(bset(b, t)->u64s) <
 			(int) clobber_u64s - src->u64s);
@@ -1037,7 +1038,7 @@ void bch2_bset_delete(struct btree *b,
 		      unsigned clobber_u64s)
 {
 	struct bset_tree *t = bset_tree_last(b);
-	u64 *src_p = where->_data + clobber_u64s;
+	u64 *src_p = (u64 *) where->_data + clobber_u64s;
 	u64 *dst_p = where->_data;
 
 	bch2_bset_verify_rw_aux_tree(b, t);

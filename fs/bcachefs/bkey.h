@@ -52,7 +52,7 @@ struct bkey_s {
 
 static inline struct bkey_i *bkey_next(struct bkey_i *k)
 {
-	return (struct bkey_i *) (k->_data + k->k.u64s);
+	return (struct bkey_i *) ((u64 *) k->_data + k->k.u64s);
 }
 
 #define bkey_val_u64s(_k)	((_k)->u64s - BKEY_U64s)
@@ -397,7 +397,7 @@ static inline void set_bkeyp_val_u64s(const struct bkey_format *format,
 }
 
 #define bkeyp_val(_format, _k)						\
-	 ((struct bch_val *) ((_k)->_data + bkeyp_key_u64s(_format, _k)))
+	 ((struct bch_val *) ((u64 *) (_k)->_data + bkeyp_key_u64s(_format, _k)))
 
 extern const struct bkey_format bch2_bkey_format_current;
 
@@ -732,7 +732,7 @@ static inline unsigned high_word_offset(const struct bkey_format *f)
 #error edit for your odd byteorder.
 #endif
 
-#define high_word(f, k)		((k)->_data + high_word_offset(f))
+#define high_word(f, k)		((u64 *) (k)->_data + high_word_offset(f))
 #define next_word(p)		nth_word(p, 1)
 #define prev_word(p)		nth_word(p, -1)
 

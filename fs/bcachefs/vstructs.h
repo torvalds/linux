@@ -41,11 +41,11 @@
 	(round_up(vstruct_bytes(_s), 512 << (_sector_block_bits)) >> 9)
 
 #define vstruct_next(_s)						\
-	((typeof(_s))			((_s)->_data + __vstruct_u64s(_s)))
+	((typeof(_s))			((u64 *) (_s)->_data + __vstruct_u64s(_s)))
 #define vstruct_last(_s)						\
-	((typeof(&(_s)->start[0]))	((_s)->_data + __vstruct_u64s(_s)))
+	((typeof(&(_s)->start[0]))	((u64 *) (_s)->_data + __vstruct_u64s(_s)))
 #define vstruct_end(_s)							\
-	((void *)			((_s)->_data + __vstruct_u64s(_s)))
+	((void *)			((u64 *) (_s)->_data + __vstruct_u64s(_s)))
 
 #define vstruct_for_each(_s, _i)					\
 	for (_i = (_s)->start;						\

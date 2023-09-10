@@ -723,7 +723,7 @@ struct bch_inode {
 	__le64			bi_hash_seed;
 	__le32			bi_flags;
 	__le16			bi_mode;
-	__u8			fields[0];
+	__u8			fields[];
 } __packed __aligned(8);
 
 struct bch_inode_v2 {
@@ -733,7 +733,7 @@ struct bch_inode_v2 {
 	__le64			bi_hash_seed;
 	__le64			bi_flags;
 	__le16			bi_mode;
-	__u8			fields[0];
+	__u8			fields[];
 } __packed __aligned(8);
 
 struct bch_inode_v3 {
@@ -745,7 +745,7 @@ struct bch_inode_v3 {
 	__le64			bi_sectors;
 	__le64			bi_size;
 	__le64			bi_version;
-	__u8			fields[0];
+	__u8			fields[];
 } __packed __aligned(8);
 
 #define INODEv3_FIELDS_START_INITIAL	6
@@ -1097,20 +1097,20 @@ struct bch_reflink_v {
 	struct bch_val		v;
 	__le64			refcount;
 	union bch_extent_entry	start[0];
-	__u64			_data[0];
+	__u64			_data[];
 } __packed __aligned(8);
 
 struct bch_indirect_inline_data {
 	struct bch_val		v;
 	__le64			refcount;
-	u8			data[0];
+	u8			data[];
 };
 
 /* Inline data */
 
 struct bch_inline_data {
 	struct bch_val		v;
-	u8			data[0];
+	u8			data[];
 };
 
 /* Subvolumes: */
@@ -1223,7 +1223,7 @@ enum bch_sb_field_type {
 
 struct bch_sb_field_journal {
 	struct bch_sb_field	field;
-	__le64			buckets[0];
+	__le64			buckets[];
 };
 
 struct bch_sb_field_journal_v2 {
@@ -1232,7 +1232,7 @@ struct bch_sb_field_journal_v2 {
 	struct bch_sb_field_journal_v2_entry {
 		__le64		start;
 		__le64		nr;
-	}			d[0];
+	}			d[];
 };
 
 /* BCH_SB_FIELD_members: */
@@ -1279,7 +1279,7 @@ enum bch_member_state {
 
 struct bch_sb_field_members {
 	struct bch_sb_field	field;
-	struct bch_member	members[0];
+	struct bch_member	members[];
 };
 
 /* BCH_SB_FIELD_crypt: */
@@ -1377,19 +1377,19 @@ static inline bool data_type_is_hidden(enum bch_data_type type)
 struct bch_replicas_entry_v0 {
 	__u8			data_type;
 	__u8			nr_devs;
-	__u8			devs[0];
+	__u8			devs[];
 } __packed;
 
 struct bch_sb_field_replicas_v0 {
 	struct bch_sb_field	field;
-	struct bch_replicas_entry_v0 entries[0];
+	struct bch_replicas_entry_v0 entries[];
 } __packed __aligned(8);
 
 struct bch_replicas_entry {
 	__u8			data_type;
 	__u8			nr_devs;
 	__u8			nr_required;
-	__u8			devs[0];
+	__u8			devs[];
 } __packed;
 
 #define replicas_entry_bytes(_i)					\
@@ -1397,7 +1397,7 @@ struct bch_replicas_entry {
 
 struct bch_sb_field_replicas {
 	struct bch_sb_field	field;
-	struct bch_replicas_entry entries[0];
+	struct bch_replicas_entry entries[];
 } __packed __aligned(8);
 
 /* BCH_SB_FIELD_quota: */
@@ -1432,7 +1432,7 @@ LE64_BITMASK(BCH_GROUP_PARENT,		struct bch_disk_group, flags[0], 6, 24)
 
 struct bch_sb_field_disk_groups {
 	struct bch_sb_field	field;
-	struct bch_disk_group	entries[0];
+	struct bch_disk_group	entries[];
 } __packed __aligned(8);
 
 /* BCH_SB_FIELD_counters */
@@ -1525,7 +1525,7 @@ enum bch_persistent_counters {
 
 struct bch_sb_field_counters {
 	struct bch_sb_field	field;
-	__le64			d[0];
+	__le64			d[];
 };
 
 /*
@@ -1539,10 +1539,8 @@ struct jset_entry {
 	__u8			type; /* designates what this jset holds */
 	__u8			pad[3];
 
-	union {
-		struct bkey_i	start[0];
-		__u64		_data[0];
-	};
+	struct bkey_i		start[0];
+	__u64			_data[];
 };
 
 struct bch_sb_field_clean {
@@ -1553,10 +1551,8 @@ struct bch_sb_field_clean {
 	__le16			_write_clock;
 	__le64			journal_seq;
 
-	union {
-		struct jset_entry start[0];
-		__u64		_data[0];
-	};
+	struct jset_entry	start[0];
+	__u64			_data[];
 };
 
 struct journal_seq_blacklist_entry {
@@ -1567,10 +1563,8 @@ struct journal_seq_blacklist_entry {
 struct bch_sb_field_journal_seq_blacklist {
 	struct bch_sb_field	field;
 
-	union {
-		struct journal_seq_blacklist_entry start[0];
-		__u64		_data[0];
-	};
+	struct journal_seq_blacklist_entry start[0];
+	__u64			_data[];
 };
 
 /* Superblock: */
@@ -1706,10 +1700,8 @@ struct bch_sb {
 
 	struct bch_sb_layout	layout;
 
-	union {
-		struct bch_sb_field start[0];
-		__le64		_data[0];
-	};
+	struct bch_sb_field	start[0];
+	__le64			_data[];
 } __packed __aligned(8);
 
 /*
@@ -2186,10 +2178,8 @@ struct jset {
 	__le64			last_seq;
 
 
-	union {
-		struct jset_entry start[0];
-		__u64		_data[0];
-	};
+	struct jset_entry	start[0];
+	__u64			_data[];
 } __packed __aligned(8);
 
 LE32_BITMASK(JSET_CSUM_TYPE,	struct jset, flags, 0, 4);
@@ -2294,10 +2284,8 @@ struct bset {
 	__le16			version;
 	__le16			u64s; /* count of d[] in u64s */
 
-	union {
-		struct bkey_packed start[0];
-		__u64		_data[0];
-	};
+	struct bkey_packed	start[0];
+	__u64			_data[];
 } __packed __aligned(8);
 
 LE32_BITMASK(BSET_CSUM_TYPE,	struct bset, flags, 0, 4);

@@ -9,14 +9,24 @@ struct sort_iter {
 
 	struct sort_iter_set {
 		struct bkey_packed *k, *end;
-	} data[MAX_BSETS + 1];
+	} data[];
 };
 
-static inline void sort_iter_init(struct sort_iter *iter, struct btree *b)
+static inline void sort_iter_init(struct sort_iter *iter, struct btree *b, unsigned size)
 {
 	iter->b = b;
 	iter->used = 0;
-	iter->size = ARRAY_SIZE(iter->data);
+	iter->size = size;
+}
+
+struct sort_iter_stack {
+	struct sort_iter	iter;
+	struct sort_iter_set	sets[MAX_BSETS + 1];
+};
+
+static inline void sort_iter_stack_init(struct sort_iter_stack *iter, struct btree *b)
+{
+	sort_iter_init(&iter->iter, b, ARRAY_SIZE(iter->sets));
 }
 
 static inline void sort_iter_add(struct sort_iter *iter,

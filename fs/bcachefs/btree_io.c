@@ -292,7 +292,7 @@ static void btree_node_sort(struct bch_fs *c, struct btree *b,
 			    bool filter_whiteouts)
 {
 	struct btree_node *out;
-	struct sort_iter sort_iter;
+	struct sort_iter_stack sort_iter;
 	struct bset_tree *t;
 	struct bset *start_bset = bset(b, &b->set[start_idx]);
 	bool used_mempool = false;
@@ -301,13 +301,13 @@ static void btree_node_sort(struct bch_fs *c, struct btree *b,
 	bool sorting_entire_node = start_idx == 0 &&
 		end_idx == b->nsets;
 
-	sort_iter_init(&sort_iter, b);
+	sort_iter_stack_init(&sort_iter, b);
 
 	for (t = b->set + start_idx;
 	     t < b->set + end_idx;
 	     t++) {
 		u64s += le16_to_cpu(bset(b, t)->u64s);
-		sort_iter_add(&sort_iter,
+		sort_iter_add(&sort_iter.iter,
 			      btree_bkey_first(b, t),
 			      btree_bkey_last(b, t));
 	}
@@ -320,7 +320,7 @@ static void btree_node_sort(struct bch_fs *c, struct btree *b,
 
 	start_time = local_clock();
 
-	u64s = bch2_sort_keys(out->keys.start, &sort_iter, filter_whiteouts);
+	u64s = bch2_sort_keys(out->keys.start, &sort_iter.iter, filter_whiteouts);
 
 	out->keys.u64s = cpu_to_le16(u64s);
 
@@ -918,8 +918,7 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct bch_dev *ca,
 	b->written = 0;
 
 	iter = mempool_alloc(&c->fill_iter, GFP_NOFS);
-	sort_iter_init(iter, b);
-	iter->size = (btree_blocks(c) + 1) * 2;
+	sort_iter_init(iter, b, (btree_blocks(c) + 1) * 2);
 
 	if (bch2_meta_read_fault("btree"))
 		btree_err(-BCH_ERR_btree_node_read_err_must_retry, c, ca, b, NULL,
@@ -1852,7 +1851,7 @@ void __bch2_btree_node_write(struct bch_fs *c, struct btree *b, unsigned flags)
 	struct bset *i;
 	struct btree_node *bn = NULL;
 	struct btree_node_entry *bne = NULL;
-	struct sort_iter sort_iter;
+	struct sort_iter_stack sort_iter;
 	struct nonce nonce;
 	unsigned bytes_to_write, sectors_to_write, bytes, u64s;
 	u64 seq = 0;
@@ -1925,7 +1924,7 @@ do_write:
 
 	bch2_sort_whiteouts(c, b);
 
-	sort_iter_init(&sort_iter, b);
+	sort_iter_stack_init(&sort_iter, b);
 
 	bytes = !b->written
 		? sizeof(struct btree_node)
@@ -1940,7 +1939,7 @@ do_write:
 			continue;
 
 		bytes += le16_to_cpu(i->u64s) * sizeof(u64);
-		sort_iter_add(&sort_iter,
+		sort_iter_add(&sort_iter.iter,
 			      btree_bkey_first(b, t),
 			      btree_bkey_last(b, t));
 		seq = max(seq, le64_to_cpu(i->journal_seq));
@@ -1969,14 +1968,14 @@ do_write:
 	i->journal_seq	= cpu_to_le64(seq);
 	i->u64s		= 0;
 
-	sort_iter_add(&sort_iter,
+	sort_iter_add(&sort_iter.iter,
 		      unwritten_whiteouts_start(c, b),
 		      unwritten_whiteouts_end(c, b));
 	SET_BSET_SEPARATE_WHITEOUTS(i, false);
 
 	b->whiteout_u64s = 0;
 
-	u64s = bch2_sort_keys(i->start, &sort_iter, false);
+	u64s = bch2_sort_keys(i->start, &sort_iter.iter, false);
 	le16_add_cpu(&i->u64s, u64s);
 
 	BUG_ON(!b->written && i->u64s != b->data->keys.u64s);

@@ -127,7 +127,7 @@ static void pack_state_finish(struct pack_state *state,
 			      struct bkey_packed *k)
 {
 	EBUG_ON(state->p <  k->_data);
-	EBUG_ON(state->p >= k->_data + state->format->key_u64s);
+	EBUG_ON(state->p >= (u64 *) k->_data + state->format->key_u64s);
 
 	*state->p = state->w;
 }
