@@ -1,0 +1,11 @@
+# Suspend to RAM seems to be broken on this machine
+.*suspend.*
+
+# GPU hangs, then the whole machine
+gem_eio.*
+
+# Whole machine hangs
+kms_flip@absolute-wf_vblank@a-edp1
+
+# This is generating kernel oops with divide error
+kms_plane_scaling@invalid-parameters

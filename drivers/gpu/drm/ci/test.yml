@@ -1,0 +1,335 @@
+.test-rules:
+  rules:
+    - if: '$FD_FARM == "offline" && $RUNNER_TAG =~ /^google-freedreno-/'
+      when: never
+    - if: '$COLLABORA_FARM == "offline" && $RUNNER_TAG =~ /^mesa-ci-x86-64-lava-/'
+      when: never
+    - !reference [.no_scheduled_pipelines-rules, rules]
+    - when: on_success
+
+.lava-test:
+  extends:
+    - .test-rules
+  script:
+    # Note: Build dir (and thus install) may be dirty due to GIT_STRATEGY
+    - rm -rf install
+    - tar -xf artifacts/install.tar
+    - mv install/* artifacts/.
+    # Override it with our lava-submit.sh script
+    - ./artifacts/lava-submit.sh
+
+.lava-igt:arm32:
+  extends:
+    - .lava-test:arm32
+  variables:
+    HWCI_TEST_SCRIPT: "/install/igt_runner.sh"
+    ARCH: "armhf"
+  dependencies:
+    - testing:arm32
+  needs:
+    - alpine/x86_64_lava_ssh_client
+    - kernel+rootfs_arm32
+    - debian/x86_64_build
+    - testing:arm32
+    - igt:arm32
+
+.lava-igt:arm64:
+  extends:
+    - .lava-test:arm64
+  variables:
+    HWCI_TEST_SCRIPT: "/install/igt_runner.sh"
+    ARCH: "arm64"
+  dependencies:
+    - testing:arm64
+  needs:
+    - alpine/x86_64_lava_ssh_client
+    - kernel+rootfs_arm64
+    - debian/x86_64_build
+    - testing:arm64
+    - igt:arm64
+
+.lava-igt:x86_64:
+  extends:
+    - .lava-test:x86_64
+  variables:
+    HWCI_TEST_SCRIPT: "/install/igt_runner.sh"
+    ARCH: "x86_64"
+  dependencies:
+    - testing:x86_64
+  needs:
+    - alpine/x86_64_lava_ssh_client
+    - kernel+rootfs_x86_64
+    - debian/x86_64_build
+    - testing:x86_64
+    - igt:x86_64
+
+.baremetal-igt-arm64:
+  extends:
+    - .baremetal-test-arm64
+    - .use-debian/arm64_test
+    - .test-rules
+  variables:
+    FDO_CI_CONCURRENT: 10
+    HWCI_TEST_SCRIPT: "/install/igt_runner.sh"
+    S3_ARTIFACT_NAME: "arm64/kernel-files"
+    BM_KERNEL: https://${PIPELINE_ARTIFACTS_BASE}/arm64/Image.gz
+    BM_CMDLINE: "ip=dhcp console=ttyMSM0,115200n8 $BM_KERNEL_EXTRA_ARGS root=/dev/nfs rw nfsrootdebug nfsroot=,tcp,nfsvers=4.2 init=/init $BM_KERNELARGS"
+  needs:
+    - debian/arm64_test
+    - job: testing:arm64
+      artifacts: false
+    - igt:arm64
+  tags:
+    - $RUNNER_TAG
+
+msm:sc7180:
+  extends:
+    - .lava-igt:arm64
+  stage: msm
+  parallel: 2
+  variables:
+    DRIVER_NAME: msm
+    DEVICE_TYPE: sc7180-trogdor-lazor-limozeen
+    DTB: sc7180-trogdor-lazor-limozeen-nots-r5
+    BOOT_METHOD: depthcharge
+    KERNEL_IMAGE_TYPE: ""
+    GPU_VERSION: sc7180
+    RUNNER_TAG: mesa-ci-x86-64-lava-sc7180-trogdor-lazor-limozeen
+
+msm:apq8016:
+  extends:
+    - .baremetal-igt-arm64
+  stage: msm
+  variables:
+    DRIVER_NAME: msm
+    BM_DTB: https://${PIPELINE_ARTIFACTS_BASE}/arm64/apq8016-sbc.dtb
+    GPU_VERSION: apq8016
+    BM_CMDLINE: "ip=dhcp console=ttyMSM0,115200n8 $BM_KERNEL_EXTRA_ARGS root=/dev/nfs rw nfsrootdebug nfsroot=,tcp,nfsvers=4.2 init=/init $BM_KERNELARGS"
+    RUNNER_TAG: google-freedreno-db410c
+  script:
+    - ./install/bare-metal/fastboot.sh
+  rules:
+    # TODO: current issue: it is not fiding the NFS root. Fix and remove this rule.
+    - when: never
+
+msm:apq8096:
+  extends:
+    - .baremetal-igt-arm64
+  stage: msm
+  variables:
+    DRIVER_NAME: msm
+    BM_KERNEL_EXTRA_ARGS: maxcpus=2
+    BM_DTB: https://${PIPELINE_ARTIFACTS_BASE}/arm64/apq8096-db820c.dtb
+    GPU_VERSION: apq8096
+    RUNNER_TAG: google-freedreno-db820c
+  script:
+    - ./install/bare-metal/fastboot.sh
+
+msm:sdm845:
+  extends:
+    - .baremetal-igt-arm64
+  stage: msm
+  parallel: 6
+  variables:
+    DRIVER_NAME: msm
+    BM_KERNEL: https://${PIPELINE_ARTIFACTS_BASE}/arm64/cheza-kernel
+    GPU_VERSION: sdm845
+    RUNNER_TAG: google-freedreno-cheza
+  script:
+    - ./install/bare-metal/cros-servo.sh
+
+rockchip:rk3288:
+  extends:
+    - .lava-igt:arm32
+  stage: rockchip
+  variables:
+    DRIVER_NAME: rockchip
+    DEVICE_TYPE: rk3288-veyron-jaq
+    DTB: ${DEVICE_TYPE}
+    BOOT_METHOD: depthcharge
+    KERNEL_IMAGE_TYPE: "zimage"
+    GPU_VERSION: rk3288
+    RUNNER_TAG: mesa-ci-x86-64-lava-rk3288-veyron-jaq
+
+rockchip:rk3399:
+  extends:
+    - .lava-igt:arm64
+  stage: rockchip
+  parallel: 3
+  variables:
+    DRIVER_NAME: rockchip
+    DEVICE_TYPE: rk3399-gru-kevin
+    DTB: ${DEVICE_TYPE}
+    BOOT_METHOD: depthcharge
+    KERNEL_IMAGE_TYPE: ""
+    GPU_VERSION: rk3399
+    RUNNER_TAG: mesa-ci-x86-64-lava-rk3399-gru-kevin
+
+.i915:
+  extends:
+    - .lava-igt:x86_64
+  stage: i915
+  variables:
+    DRIVER_NAME: i915
+    DTB: ""
+    BOOT_METHOD: depthcharge
+    KERNEL_IMAGE_TYPE: ""
+
+i915:apl:
+  extends:
+    - .i915
+  parallel: 12
+  variables:
+    DEVICE_TYPE: asus-C523NA-A20057-coral
+    GPU_VERSION: apl
+    RUNNER_TAG: mesa-ci-x86-64-lava-asus-C523NA-A20057-coral
+
+i915:glk:
+  extends:
+    - .i915
+  parallel: 5
+  variables:
+    DEVICE_TYPE: hp-x360-12b-ca0010nr-n4020-octopus
+    GPU_VERSION: glk
+    RUNNER_TAG: mesa-ci-x86-64-lava-hp-x360-12b-ca0010nr-n4020-octopus
+
+i915:amly:
+  extends:
+    - .i915
+  parallel: 8
+  variables:
+    DEVICE_TYPE: asus-C433TA-AJ0005-rammus
+    GPU_VERSION: amly
+    RUNNER_TAG: mesa-ci-x86-64-lava-asus-C433TA-AJ0005-rammus
+
+i915:kbl:
+  extends:
+    - .i915
+  parallel: 5
+  variables:
+    DEVICE_TYPE: hp-x360-14-G1-sona
+    GPU_VERSION: kbl
+    RUNNER_TAG: mesa-ci-x86-64-lava-hp-x360-14-G1-sona
+
+i915:whl:
+  extends:
+    - .i915
+  parallel: 8
+  variables:
+    DEVICE_TYPE: dell-latitude-5400-8665U-sarien
+    GPU_VERSION: whl
+    RUNNER_TAG: mesa-ci-x86-64-lava-dell-latitude-5400-8665U-sarien
+
+i915:cml:
+  extends:
+    - .i915
+  parallel: 6
+  variables:
+    DEVICE_TYPE: asus-C436FA-Flip-hatch
+    GPU_VERSION: cml
+    RUNNER_TAG: mesa-ci-x86-64-lava-asus-C436FA-flip-hatch
+
+i915:tgl:
+  extends:
+    - .i915
+  parallel: 6
+  variables:
+    DEVICE_TYPE: asus-cx9400-volteer
+    GPU_VERSION: tgl
+    RUNNER_TAG: mesa-ci-x86-64-lava-asus-cx9400-volteer
+
+.amdgpu:
+  extends:
+    - .lava-igt:x86_64
+  stage: amdgpu
+  variables:
+    DRIVER_NAME: amdgpu
+    DTB: ""
+    BOOT_METHOD: depthcharge
+    KERNEL_IMAGE_TYPE: ""
+
+amdgpu:stoney:
+  extends:
+    - .amdgpu
+  variables:
+    DEVICE_TYPE: hp-11A-G6-EE-grunt
+    GPU_VERSION: stoney
+    RUNNER_TAG: mesa-ci-x86-64-lava-hp-11A-G6-EE-grunt
+
+.mediatek:
+  extends:
+    - .lava-igt:arm64
+  stage: mediatek
+  variables:
+    DRIVER_NAME: mediatek
+    DTB: ${DEVICE_TYPE}
+    BOOT_METHOD: depthcharge
+    KERNEL_IMAGE_TYPE: ""
+
+mediatek:mt8173:
+  extends:
+    - .mediatek
+  variables:
+    DEVICE_TYPE: mt8173-elm-hana
+    GPU_VERSION: mt8173
+    RUNNER_TAG: mesa-ci-x86-64-lava-mt8173-elm-hana
+  rules:
+    # TODO: current issue: device is hanging. Fix and remove this rule.
+    - when: never
+
+mediatek:mt8183:
+  extends:
+    - .mediatek
+  variables:
+    DEVICE_TYPE: mt8183-kukui-jacuzzi-juniper-sku16
+    GPU_VERSION: mt8183
+    RUNNER_TAG: mesa-ci-x86-64-lava-mt8183-kukui-jacuzzi-juniper-sku16
+
+# drm-mtk doesn't even probe yet in mainline for mt8192
+.mediatek:mt8192:
+  extends:
+    - .mediatek
+  variables:
+    DEVICE_TYPE: mt8192-asurada-spherion-r0
+    GPU_VERSION: mt8192
+    RUNNER_TAG: mesa-ci-x86-64-lava-mt8192-asurada-spherion-r0
+
+.meson:
+  extends:
+    - .lava-igt:arm64
+  stage: meson
+  variables:
+    DRIVER_NAME: meson
+    DTB: ${DEVICE_TYPE}
+    BOOT_METHOD: u-boot
+    KERNEL_IMAGE_TYPE: "image"
+
+meson:g12b:
+  extends:
+    - .meson
+  variables:
+    DEVICE_TYPE: meson-g12b-a311d-khadas-vim3
+    GPU_VERSION: g12b
+    RUNNER_TAG: mesa-ci-x86-64-lava-meson-g12b-a311d-khadas-vim3
+
+virtio_gpu:none:
+  stage: virtio-gpu
+  variables:
+    CROSVM_GALLIUM_DRIVER: llvmpipe
+    DRIVER_NAME: virtio_gpu
+    GPU_VERSION: none
+  extends:
+    - .test-gl
+  tags:
+    - kvm
+  script:
+    - ln -sf $CI_PROJECT_DIR/install /install
+    - mv install/bzImage /lava-files/bzImage
+    - install/crosvm-runner.sh install/igt_runner.sh
+  needs:
+    - debian/x86_64_test-gl
+    - testing:x86_64
+    - igt:x86_64
+  rules:
+    # TODO: current issue: malloc(): corrupted top size. Fix and remove this rule.
+    - when: never
