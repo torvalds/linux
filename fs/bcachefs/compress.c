@@ -3,7 +3,6 @@
 #include "checksum.h"
 #include "compress.h"
 #include "extents.h"
-#include "io.h"
 #include "super-io.h"
 
 #include <linux/lz4.h>

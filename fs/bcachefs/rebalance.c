@@ -8,8 +8,6 @@
 #include "compress.h"
 #include "disk_groups.h"
 #include "errcode.h"
-#include "extents.h"
-#include "io.h"
 #include "move.h"
 #include "rebalance.h"
 #include "super-io.h"

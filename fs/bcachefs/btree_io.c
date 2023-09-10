@@ -14,7 +14,7 @@
 #include "debug.h"
 #include "error.h"
 #include "extents.h"
-#include "io.h"
+#include "io_write.h"
 #include "journal_reclaim.h"
 #include "journal_seq_blacklist.h"
 #include "recovery.h"

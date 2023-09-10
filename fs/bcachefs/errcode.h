@@ -249,4 +249,8 @@ static inline long bch2_err_class(long err)
 	return err < 0 ? __bch2_err_class(err) : err;
 }
 
+#define BLK_STS_REMOVED		((__force blk_status_t)128)
+
+const char *bch2_blk_status_to_str(blk_status_t);
+
 #endif /* _BCACHFES_ERRCODE_H */

@@ -2,6 +2,7 @@
 #ifndef _BCACHEFS_MOVE_H
 #define _BCACHEFS_MOVE_H
 
+#include "bcachefs_ioctl.h"
 #include "btree_iter.h"
 #include "buckets.h"
 #include "data_update.h"

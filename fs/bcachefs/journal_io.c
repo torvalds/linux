@@ -8,7 +8,6 @@
 #include "checksum.h"
 #include "disk_groups.h"
 #include "error.h"
-#include "io.h"
 #include "journal.h"
 #include "journal_io.h"
 #include "journal_reclaim.h"

@@ -35,7 +35,8 @@
 #include "fs-io-direct.h"
 #include "fsck.h"
 #include "inode.h"
-#include "io.h"
+#include "io_read.h"
+#include "io_write.h"
 #include "journal.h"
 #include "journal_reclaim.h"
 #include "journal_seq_blacklist.h"
@@ -483,7 +484,8 @@ static void __bch2_fs_free(struct bch_fs *c)
 	bch2_fs_fsio_exit(c);
 	bch2_fs_ec_exit(c);
 	bch2_fs_encryption_exit(c);
-	bch2_fs_io_exit(c);
+	bch2_fs_io_write_exit(c);
+	bch2_fs_io_read_exit(c);
 	bch2_fs_buckets_waiting_for_journal_exit(c);
 	bch2_fs_btree_interior_update_exit(c);
 	bch2_fs_btree_iter_exit(c);
@@ -848,7 +850,8 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 	    bch2_fs_buckets_waiting_for_journal_init(c) ?:
 	    bch2_fs_btree_write_buffer_init(c) ?:
 	    bch2_fs_subvolumes_init(c) ?:
-	    bch2_fs_io_init(c) ?:
+	    bch2_fs_io_read_init(c) ?:
+	    bch2_fs_io_write_init(c) ?:
 	    bch2_fs_nocow_locking_init(c) ?:
 	    bch2_fs_encryption_init(c) ?:
 	    bch2_fs_compress_init(c) ?:

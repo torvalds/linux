@@ -4,7 +4,7 @@
 #define _BCACHEFS_DATA_UPDATE_H
 
 #include "bkey_buf.h"
-#include "io_types.h"
+#include "io_write_types.h"
 
 struct moving_context;
 

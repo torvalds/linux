@@ -13,25 +13,17 @@
 #include "btree_write_buffer.h"
 #include "buckets.h"
 #include "clock.h"
-#include "disk_groups.h"
 #include "errcode.h"
 #include "error.h"
-#include "extents.h"
-#include "eytzinger.h"
-#include "io.h"
-#include "keylist.h"
 #include "lru.h"
 #include "move.h"
 #include "movinggc.h"
-#include "super-io.h"
 #include "trace.h"
 
-#include <linux/bsearch.h>
 #include <linux/freezer.h>
 #include <linux/kthread.h>
 #include <linux/math64.h>
 #include <linux/sched/task.h>
-#include <linux/sort.h>
 #include <linux/wait.h>
 
 struct buckets_in_flight {

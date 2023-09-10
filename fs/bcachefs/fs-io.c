@@ -3,6 +3,7 @@
 
 #include "bcachefs.h"
 #include "alloc_foreground.h"
+#include "bkey_buf.h"
 #include "btree_update.h"
 #include "buckets.h"
 #include "clock.h"
@@ -16,7 +17,7 @@
 #include "fsck.h"
 #include "inode.h"
 #include "journal.h"
-#include "io.h"
+#include "io_misc.h"
 #include "keylist.h"
 #include "quota.h"
 #include "reflink.h"

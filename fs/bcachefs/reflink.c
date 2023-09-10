@@ -5,9 +5,11 @@
 #include "buckets.h"
 #include "extents.h"
 #include "inode.h"
-#include "io.h"
+#include "io_misc.h"
+#include "io_write.h"
 #include "reflink.h"
 #include "subvolume.h"
+#include "super-io.h"
 
 #include <linux/sched/signal.h>
 

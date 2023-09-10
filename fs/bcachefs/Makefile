@@ -46,7 +46,9 @@ bcachefs-y		:=	\
 	fs-io-pagecache.o	\
 	fsck.o			\
 	inode.o			\
-	io.o			\
+	io_read.o		\
+	io_misc.o		\
+	io_write.o		\
 	journal.o		\
 	journal_io.o		\
 	journal_reclaim.o	\

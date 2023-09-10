@@ -6,7 +6,6 @@
 #include "disk_groups.h"
 #include "ec.h"
 #include "error.h"
-#include "io.h"
 #include "journal.h"
 #include "journal_sb.h"
 #include "journal_seq_blacklist.h"

@@ -61,3 +61,10 @@ int __bch2_err_class(int err)
 
 	return -err;
 }
+
+const char *bch2_blk_status_to_str(blk_status_t status)
+{
+	if (status == BLK_STS_REMOVED)
+		return "device removed";
+	return blk_status_to_str(status);
+}

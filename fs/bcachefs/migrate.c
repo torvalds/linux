@@ -10,7 +10,7 @@
 #include "buckets.h"
 #include "errcode.h"
 #include "extents.h"
-#include "io.h"
+#include "io_write.h"
 #include "journal.h"
 #include "keylist.h"
 #include "migrate.h"

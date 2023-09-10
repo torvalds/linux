@@ -25,7 +25,7 @@
 #include "disk_groups.h"
 #include "ec.h"
 #include "error.h"
-#include "io.h"
+#include "io_write.h"
 #include "journal.h"
 #include "movinggc.h"
 #include "nocow_locking.h"

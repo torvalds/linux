@@ -9,7 +9,7 @@
 #include "ec.h"
 #include "error.h"
 #include "extents.h"
-#include "io.h"
+#include "io_write.h"
 #include "keylist.h"
 #include "move.h"
 #include "nocow_locking.h"

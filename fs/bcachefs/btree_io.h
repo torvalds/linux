@@ -7,7 +7,7 @@
 #include "btree_locking.h"
 #include "checksum.h"
 #include "extents.h"
-#include "io_types.h"
+#include "io_write_types.h"
 
 struct bch_fs;
 struct btree_write;
