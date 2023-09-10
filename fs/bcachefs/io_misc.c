@@ -15,6 +15,7 @@
 #include "inode.h"
 #include "io_misc.h"
 #include "io_write.h"
+#include "logged_ops.h"
 #include "subvolume.h"
 
 /* Overwrites whatever was present with zeroes: */
@@ -217,6 +218,17 @@ int bch2_fpunch(struct bch_fs *c, subvol_inum inum, u64 start, u64 end,
 	return ret;
 }
 
+/* truncate: */
+
+void bch2_logged_op_truncate_to_text(struct printbuf *out, struct bch_fs *c, struct bkey_s_c k)
+{
+	struct bkey_s_c_logged_op_truncate op = bkey_s_c_to_logged_op_truncate(k);
+
+	prt_printf(out, "subvol=%u", le32_to_cpu(op.v->subvol));
+	prt_printf(out, " inum=%llu", le64_to_cpu(op.v->inum));
+	prt_printf(out, " new_i_size=%llu", le64_to_cpu(op.v->new_i_size));
+}
+
 static int truncate_set_isize(struct btree_trans *trans,
 			      subvol_inum inum,
 			      u64 new_i_size)
@@ -233,34 +245,52 @@ static int truncate_set_isize(struct btree_trans *trans,
 	return ret;
 }
 
-int bch2_truncate(struct bch_fs *c, subvol_inum inum, u64 new_i_size, u64 *i_sectors_delta)
+static int __bch2_resume_logged_op_truncate(struct btree_trans *trans,
+					    struct bkey_i *op_k,
+					    u64 *i_sectors_delta)
 {
-	struct btree_trans trans;
+	struct bch_fs *c = trans->c;
 	struct btree_iter fpunch_iter;
+	struct bkey_i_logged_op_truncate *op = bkey_i_to_logged_op_truncate(op_k);
+	subvol_inum inum = { le32_to_cpu(op->v.subvol), le64_to_cpu(op->v.inum) };
+	u64 new_i_size = le64_to_cpu(op->v.new_i_size);
 	int ret;
 
-	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 1024);
-	bch2_trans_iter_init(&trans, &fpunch_iter, BTREE_ID_extents,
+	ret = commit_do(trans, NULL, NULL, BTREE_INSERT_NOFAIL,
+			truncate_set_isize(trans, inum, new_i_size));
+	if (ret)
+		goto err;
+
+	bch2_trans_iter_init(trans, &fpunch_iter, BTREE_ID_extents,
 			     POS(inum.inum, round_up(new_i_size, block_bytes(c)) >> 9),
 			     BTREE_ITER_INTENT);
+	ret = bch2_fpunch_at(trans, &fpunch_iter, inum, U64_MAX, i_sectors_delta);
+	bch2_trans_iter_exit(trans, &fpunch_iter);
 
-	ret = commit_do(&trans, NULL, NULL, BTREE_INSERT_NOFAIL,
-			truncate_set_isize(&trans, inum, new_i_size));
-	if (ret)
-		goto err;
-
-	ret = bch2_fpunch_at(&trans, &fpunch_iter, inum, U64_MAX, i_sectors_delta);
 	if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
 		ret = 0;
-	if (ret)
-		goto err;
 err:
-	bch2_trans_iter_exit(&trans, &fpunch_iter);
-	bch2_trans_exit(&trans);
-
-	bch2_fs_fatal_err_on(ret, c, "%s: error truncating %u:%llu: %s",
-			    __func__, inum.subvol, inum.inum, bch2_err_str(ret));
+	bch2_logged_op_finish(trans, op_k);
 	return ret;
+}
+
+int bch2_resume_logged_op_truncate(struct btree_trans *trans, struct bkey_i *op_k)
+{
+	return __bch2_resume_logged_op_truncate(trans, op_k, NULL);
+}
+
+int bch2_truncate(struct bch_fs *c, subvol_inum inum, u64 new_i_size, u64 *i_sectors_delta)
+{
+	struct bkey_i_logged_op_truncate op;
+
+	bkey_logged_op_truncate_init(&op.k_i);
+	op.v.subvol	= cpu_to_le32(inum.subvol);
+	op.v.inum	= cpu_to_le64(inum.inum);
+	op.v.new_i_size	= cpu_to_le64(new_i_size);
+
+	return bch2_trans_run(c,
+		bch2_logged_op_start(&trans, &op.k_i) ?:
+		__bch2_resume_logged_op_truncate(&trans, &op.k_i, i_sectors_delta));
 }
 
 static int adjust_i_size(struct btree_trans *trans, subvol_inum inum, u64 offset, s64 len)

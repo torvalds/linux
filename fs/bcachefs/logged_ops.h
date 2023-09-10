@@ -4,7 +4,8 @@
 
 #include "bkey.h"
 
-#define BCH_LOGGED_OPS()
+#define BCH_LOGGED_OPS()			\
+	x(truncate)
 
 static inline int bch2_logged_op_update(struct btree_trans *trans, struct bkey_i *op)
 {

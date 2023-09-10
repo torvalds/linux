@@ -10,6 +10,7 @@
 #include "error.h"
 #include "extents.h"
 #include "inode.h"
+#include "io_misc.h"
 #include "lru.h"
 #include "quota.h"
 #include "reflink.h"

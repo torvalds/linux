@@ -370,7 +370,8 @@ static inline void bkey_init(struct bkey *k)
 	x(backpointer,		28)			\
 	x(inode_v3,		29)			\
 	x(bucket_gens,		30)			\
-	x(snapshot_tree,	31)
+	x(snapshot_tree,	31)			\
+	x(logged_op_truncate,	32)
 
 enum bch_bkey_type {
 #define x(name, nr) KEY_TYPE_##name	= nr,
@@ -847,8 +848,8 @@ enum {
 	__BCH_INODE_NODUMP		= 3,
 	__BCH_INODE_NOATIME		= 4,
 
-	__BCH_INODE_I_SIZE_DIRTY	= 5,
-	__BCH_INODE_I_SECTORS_DIRTY	= 6,
+	__BCH_INODE_I_SIZE_DIRTY	= 5, /* obsolete */
+	__BCH_INODE_I_SECTORS_DIRTY	= 6, /* obsolete */
 	__BCH_INODE_UNLINKED		= 7,
 	__BCH_INODE_BACKPTR_UNTRUSTED	= 8,
 
@@ -1182,6 +1183,16 @@ struct bch_lru {
 } __packed __aligned(8);
 
 #define LRU_ID_STRIPES		(1U << 16)
+
+/* Logged operations btree: */
+
+struct bch_logged_op_truncate {
+	struct bch_val		v;
+	__le32			subvol;
+	__le32			pad;
+	__le64			inum;
+	__le64			new_i_size;
+};
 
 /* Optional/variable size superblock sections: */
 
@@ -2251,7 +2262,7 @@ enum btree_id_flags {
 	x(deleted_inodes,	16,	BTREE_ID_SNAPSHOTS,			\
 	  BIT_ULL(KEY_TYPE_set))						\
 	x(logged_ops,		17,	0,					\
-	  0)
+	  BIT_ULL(KEY_TYPE_logged_op_truncate))
 
 enum btree_id {
 #define x(name, nr, ...) BTREE_ID_##name = nr,

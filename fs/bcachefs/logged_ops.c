@@ -4,6 +4,7 @@
 #include "bkey_buf.h"
 #include "btree_update.h"
 #include "error.h"
+#include "io_misc.h"
 #include "logged_ops.h"
 #include "super.h"
 
