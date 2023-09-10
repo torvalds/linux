@@ -10,6 +10,7 @@
  */
 #include <linux/clk.h>
 #include <linux/init.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/i2c.h>
@@ -1993,18 +1994,16 @@ static const struct i2c_device_id ov7670_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, ov7670_id);
 
-#if IS_ENABLED(CONFIG_OF)
 static const struct of_device_id ov7670_of_match[] = {
 	{ .compatible = "ovti,ov7670", &ov7670_devdata },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, ov7670_of_match);
-#endif
 
 static struct i2c_driver ov7670_driver = {
 	.driver = {
 		.name	= "ov7670",
-		.of_match_table = of_match_ptr(ov7670_of_match),
+		.of_match_table = ov7670_of_match,
 	},
 	.probe		= ov7670_probe,
 	.remove		= ov7670_remove,
