@@ -5,6 +5,7 @@
  * Copyright (C) 2013 Cogent Embedded, Inc.
  * Copyright (C) 2013 Renesas Solutions Corp.
  */
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/errno.h>
@@ -1584,7 +1585,6 @@ static const struct i2c_device_id adv7180_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, adv7180_id);
 
-#ifdef CONFIG_OF
 static const struct of_device_id adv7180_of_id[] = {
 	{ .compatible = "adi,adv7180", &adv7180_info },
 	{ .compatible = "adi,adv7180cp", &adv7180_info },
@@ -1600,13 +1600,12 @@ static const struct of_device_id adv7180_of_id[] = {
 	{}
 };
 MODULE_DEVICE_TABLE(of, adv7180_of_id);
-#endif
 
 static struct i2c_driver adv7180_driver = {
 	.driver = {
 		   .name = KBUILD_MODNAME,
 		   .pm = ADV7180_PM_OPS,
-		   .of_match_table = of_match_ptr(adv7180_of_id),
+		   .of_match_table = adv7180_of_id,
 		   },
 	.probe = adv7180_probe,
 	.remove = adv7180_remove,
