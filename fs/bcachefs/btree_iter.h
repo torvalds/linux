@@ -276,9 +276,11 @@ int bch2_trans_relock_notrace(struct btree_trans *);
 void bch2_trans_unlock(struct btree_trans *);
 bool bch2_trans_locked(struct btree_trans *);
 
-static inline bool trans_was_restarted(struct btree_trans *trans, u32 restart_count)
+static inline int trans_was_restarted(struct btree_trans *trans, u32 restart_count)
 {
-	return restart_count != trans->restart_count;
+	return restart_count != trans->restart_count
+		? -BCH_ERR_transaction_restart_nested
+		: 0;
 }
 
 void __noreturn bch2_trans_restart_error(struct btree_trans *, u32);
@@ -707,10 +709,7 @@ __bch2_btree_iter_peek_upto_and_restart(struct btree_trans *trans,
 	if (!_ret)							\
 		bch2_trans_verify_not_restarted(_trans, _restart_count);\
 									\
-	if (!_ret && trans_was_restarted(_trans, _orig_restart_count))	\
-		_ret = -BCH_ERR_transaction_restart_nested;		\
-									\
-	_ret;								\
+	_ret ?: trans_was_restarted(_trans, _restart_count);		\
 })
 
 #define for_each_btree_key2(_trans, _iter, _btree_id,			\

@@ -618,10 +618,7 @@ static int get_inodes_all_snapshots(struct btree_trans *trans,
 
 	w->first_this_inode = true;
 
-	if (trans_was_restarted(trans, restart_count))
-		return -BCH_ERR_transaction_restart_nested;
-
-	return 0;
+	return trans_was_restarted(trans, restart_count);
 }
 
 static struct inode_walker_entry *
@@ -1089,9 +1086,7 @@ static int check_i_sectors(struct btree_trans *trans, struct inode_walker *w)
 fsck_err:
 	if (ret)
 		bch_err_fn(c, ret);
-	if (!ret && trans_was_restarted(trans, restart_count))
-		ret = -BCH_ERR_transaction_restart_nested;
-	return ret;
+	return ret ?: trans_was_restarted(trans, restart_count);
 }
 
 struct extent_end {
@@ -1509,9 +1504,7 @@ static int check_subdir_count(struct btree_trans *trans, struct inode_walker *w)
 fsck_err:
 	if (ret)
 		bch_err_fn(c, ret);
-	if (!ret && trans_was_restarted(trans, restart_count))
-		ret = -BCH_ERR_transaction_restart_nested;
-	return ret;
+	return ret ?: trans_was_restarted(trans, restart_count);
 }
 
 static int check_dirent_target(struct btree_trans *trans,

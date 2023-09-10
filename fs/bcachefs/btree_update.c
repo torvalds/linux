@@ -777,9 +777,7 @@ err:
 	}
 	bch2_trans_iter_exit(trans, &iter);
 
-	if (!ret && trans_was_restarted(trans, restart_count))
-		ret = -BCH_ERR_transaction_restart_nested;
-	return ret;
+	return ret ?: trans_was_restarted(trans, restart_count);
 }
 
 /*

@@ -1637,6 +1637,7 @@ int bch2_propagate_key_to_snapshot_leaves(struct btree_trans *trans,
 {
 	struct bch_fs *c = trans->c;
 	struct bkey_buf sk;
+	u32 restart_count = trans->restart_count;
 	int ret;
 
 	bch2_bkey_buf_init(&sk);
@@ -1659,7 +1660,8 @@ int bch2_propagate_key_to_snapshot_leaves(struct btree_trans *trans,
 	}
 
 	bch2_bkey_buf_exit(&sk, c);
-	return ret;
+
+	return ret ?: trans_was_restarted(trans, restart_count);
 }
 
 int bch2_snapshots_read(struct bch_fs *c)
