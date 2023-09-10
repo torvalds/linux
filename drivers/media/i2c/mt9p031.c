@@ -15,6 +15,7 @@
 #include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/log2.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_graph.h>
@@ -1220,7 +1221,6 @@ static const struct i2c_device_id mt9p031_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, mt9p031_id);
 
-#if IS_ENABLED(CONFIG_OF)
 static const struct of_device_id mt9p031_of_match[] = {
 	{ .compatible = "aptina,mt9p006", .data = (void *)MEDIA_BUS_FMT_SGRBG12_1X12 },
 	{ .compatible = "aptina,mt9p031", .data = (void *)MEDIA_BUS_FMT_SGRBG12_1X12 },
@@ -1228,11 +1228,10 @@ static const struct of_device_id mt9p031_of_match[] = {
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, mt9p031_of_match);
-#endif
 
 static struct i2c_driver mt9p031_i2c_driver = {
 	.driver = {
-		.of_match_table = of_match_ptr(mt9p031_of_match),
+		.of_match_table = mt9p031_of_match,
 		.name = "mt9p031",
 	},
 	.probe          = mt9p031_probe,
