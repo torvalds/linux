@@ -186,11 +186,6 @@ MODULE_PARM_DESC(debug, "Debug level (0-1)");
 #define REG_HAECC7	0xaa	/* Hist AEC/AGC control 7 */
 #define REG_BD60MAX	0xab	/* 60hz banding step limit */
 
-enum ov7670_model {
-	MODEL_OV7670 = 0,
-	MODEL_OV7675,
-};
-
 struct ov7670_win_size {
 	int	width;
 	int	height;
@@ -1758,21 +1753,6 @@ static const struct v4l2_subdev_internal_ops ov7670_subdev_internal_ops = {
 
 /* ----------------------------------------------------------------------- */
 
-static const struct ov7670_devtype ov7670_devdata[] = {
-	[MODEL_OV7670] = {
-		.win_sizes = ov7670_win_sizes,
-		.n_win_sizes = ARRAY_SIZE(ov7670_win_sizes),
-		.set_framerate = ov7670_set_framerate_legacy,
-		.get_framerate = ov7670_get_framerate_legacy,
-	},
-	[MODEL_OV7675] = {
-		.win_sizes = ov7675_win_sizes,
-		.n_win_sizes = ARRAY_SIZE(ov7675_win_sizes),
-		.set_framerate = ov7675_set_framerate,
-		.get_framerate = ov7675_get_framerate,
-	},
-};
-
 static int ov7670_init_gpio(struct i2c_client *client, struct ov7670_info *info)
 {
 	info->pwdn_gpio = devm_gpiod_get_optional(&client->dev, "powerdown",
@@ -1833,7 +1813,6 @@ static int ov7670_parse_dt(struct device *dev,
 
 static int ov7670_probe(struct i2c_client *client)
 {
-	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct v4l2_fract tpf;
 	struct v4l2_subdev *sd;
 	struct ov7670_info *info;
@@ -1905,7 +1884,7 @@ static int ov7670_probe(struct i2c_client *client)
 	v4l_info(client, "chip found @ 0x%02x (%s)\n",
 			client->addr << 1, client->adapter->name);
 
-	info->devtype = &ov7670_devdata[id->driver_data];
+	info->devtype = i2c_get_match_data(client);
 	info->fmt = &ov7670_formats[0];
 	info->wsize = &info->devtype->win_sizes[0];
 
@@ -1993,17 +1972,31 @@ static void ov7670_remove(struct i2c_client *client)
 	media_entity_cleanup(&info->sd.entity);
 }
 
+static const struct ov7670_devtype ov7670_devdata = {
+	.win_sizes = ov7670_win_sizes,
+	.n_win_sizes = ARRAY_SIZE(ov7670_win_sizes),
+	.set_framerate = ov7670_set_framerate_legacy,
+	.get_framerate = ov7670_get_framerate_legacy,
+};
+
+static const struct ov7670_devtype ov7675_devdata = {
+	.win_sizes = ov7675_win_sizes,
+	.n_win_sizes = ARRAY_SIZE(ov7675_win_sizes),
+	.set_framerate = ov7675_set_framerate,
+	.get_framerate = ov7675_get_framerate,
+};
+
 static const struct i2c_device_id ov7670_id[] = {
-	{ "ov7670", MODEL_OV7670 },
-	{ "ov7675", MODEL_OV7675 },
-	{ }
+	{ "ov7670", (kernel_ulong_t)&ov7670_devdata },
+	{ "ov7675", (kernel_ulong_t)&ov7675_devdata },
+	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(i2c, ov7670_id);
 
 #if IS_ENABLED(CONFIG_OF)
 static const struct of_device_id ov7670_of_match[] = {
-	{ .compatible = "ovti,ov7670", },
-	{ /* sentinel */ },
+	{ .compatible = "ovti,ov7670", &ov7670_devdata },
+	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, ov7670_of_match);
 #endif
