@@ -680,7 +680,7 @@ err:
 		 */
 		bch2_trans_unlock(&trans);
 		btree_node_lock_nopath_nofail(&trans, &b->c, SIX_LOCK_intent);
-		mark_btree_node_locked(&trans, path, b->c.level, SIX_LOCK_intent);
+		mark_btree_node_locked(&trans, path, b->c.level, BTREE_NODE_INTENT_LOCKED);
 		path->l[b->c.level].lock_seq = six_lock_seq(&b->c.lock);
 		path->l[b->c.level].b = b;
 
@@ -1513,12 +1513,12 @@ static int btree_split(struct btree_update *as, struct btree_trans *trans,
 
 		path1 = get_unlocked_mut_path(trans, path->btree_id, n1->c.level, n1->key.k.p);
 		six_lock_increment(&n1->c.lock, SIX_LOCK_intent);
-		mark_btree_node_locked(trans, path1, n1->c.level, SIX_LOCK_intent);
+		mark_btree_node_locked(trans, path1, n1->c.level, BTREE_NODE_INTENT_LOCKED);
 		bch2_btree_path_level_init(trans, path1, n1);
 
 		path2 = get_unlocked_mut_path(trans, path->btree_id, n2->c.level, n2->key.k.p);
 		six_lock_increment(&n2->c.lock, SIX_LOCK_intent);
-		mark_btree_node_locked(trans, path2, n2->c.level, SIX_LOCK_intent);
+		mark_btree_node_locked(trans, path2, n2->c.level, BTREE_NODE_INTENT_LOCKED);
 		bch2_btree_path_level_init(trans, path2, n2);
 
 		/*
@@ -1539,7 +1539,7 @@ static int btree_split(struct btree_update *as, struct btree_trans *trans,
 			path2->locks_want++;
 			BUG_ON(btree_node_locked(path2, n3->c.level));
 			six_lock_increment(&n3->c.lock, SIX_LOCK_intent);
-			mark_btree_node_locked(trans, path2, n3->c.level, SIX_LOCK_intent);
+			mark_btree_node_locked(trans, path2, n3->c.level, BTREE_NODE_INTENT_LOCKED);
 			bch2_btree_path_level_init(trans, path2, n3);
 
 			n3->sib_u64s[0] = U16_MAX;
@@ -1563,7 +1563,7 @@ static int btree_split(struct btree_update *as, struct btree_trans *trans,
 
 		path1 = get_unlocked_mut_path(trans, path->btree_id, n1->c.level, n1->key.k.p);
 		six_lock_increment(&n1->c.lock, SIX_LOCK_intent);
-		mark_btree_node_locked(trans, path1, n1->c.level, SIX_LOCK_intent);
+		mark_btree_node_locked(trans, path1, n1->c.level, BTREE_NODE_INTENT_LOCKED);
 		bch2_btree_path_level_init(trans, path1, n1);
 
 		if (parent)
@@ -1890,7 +1890,7 @@ int __bch2_foreground_maybe_merge(struct btree_trans *trans,
 
 	new_path = get_unlocked_mut_path(trans, path->btree_id, n->c.level, n->key.k.p);
 	six_lock_increment(&n->c.lock, SIX_LOCK_intent);
-	mark_btree_node_locked(trans, new_path, n->c.level, SIX_LOCK_intent);
+	mark_btree_node_locked(trans, new_path, n->c.level, BTREE_NODE_INTENT_LOCKED);
 	bch2_btree_path_level_init(trans, new_path, n);
 
 	bkey_init(&delete.k);
@@ -1967,7 +1967,7 @@ int bch2_btree_node_rewrite(struct btree_trans *trans,
 
 	new_path = get_unlocked_mut_path(trans, iter->btree_id, n->c.level, n->key.k.p);
 	six_lock_increment(&n->c.lock, SIX_LOCK_intent);
-	mark_btree_node_locked(trans, new_path, n->c.level, SIX_LOCK_intent);
+	mark_btree_node_locked(trans, new_path, n->c.level, BTREE_NODE_INTENT_LOCKED);
 	bch2_btree_path_level_init(trans, new_path, n);
 
 	trace_and_count(c, btree_node_rewrite, c, b);

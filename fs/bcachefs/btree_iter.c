@@ -689,7 +689,7 @@ void bch2_trans_node_add(struct btree_trans *trans, struct btree *b)
 			if (t != BTREE_NODE_UNLOCKED) {
 				btree_node_unlock(trans, path, b->c.level);
 				six_lock_increment(&b->c.lock, (enum six_lock_type) t);
-				mark_btree_node_locked(trans, path, b->c.level, (enum six_lock_type) t);
+				mark_btree_node_locked(trans, path, b->c.level, t);
 			}
 
 			bch2_btree_path_level_init(trans, path, b);
@@ -764,7 +764,8 @@ static inline int btree_path_lock_root(struct btree_trans *trans,
 			for (i = path->level + 1; i < BTREE_MAX_DEPTH; i++)
 				path->l[i].b = NULL;
 
-			mark_btree_node_locked(trans, path, path->level, lock_type);
+			mark_btree_node_locked(trans, path, path->level,
+					       (enum btree_node_locked_type) lock_type);
 			bch2_btree_path_level_init(trans, path, b);
 			return 0;
 		}
@@ -936,7 +937,8 @@ static __always_inline int btree_path_down(struct btree_trans *trans,
 	if (btree_node_read_locked(path, level + 1))
 		btree_node_unlock(trans, path, level + 1);
 
-	mark_btree_node_locked(trans, path, level, lock_type);
+	mark_btree_node_locked(trans, path, level,
+			       (enum btree_node_locked_type) lock_type);
 	path->level = level;
 	bch2_btree_path_level_init(trans, path, b);
 

@@ -91,7 +91,7 @@ static inline void mark_btree_node_unlocked(struct btree_path *path,
 static inline void mark_btree_node_locked(struct btree_trans *trans,
 					  struct btree_path *path,
 					  unsigned level,
-					  enum six_lock_type type)
+					  enum btree_node_locked_type type)
 {
 	mark_btree_node_locked_noreset(path, level, (enum btree_node_locked_type) type);
 #ifdef CONFIG_BCACHEFS_LOCK_TIME_STATS
