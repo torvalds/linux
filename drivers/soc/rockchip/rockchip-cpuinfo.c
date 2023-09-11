@@ -241,6 +241,12 @@ static void rk3566_init(void)
 	rk356x_set_cpu_version();
 }
 
+static void rk3567_init(void)
+{
+	rockchip_soc_id = ROCKCHIP_SOC_RK3567;
+	rk356x_set_cpu_version();
+}
+
 static void rk3568_init(void)
 {
 	rockchip_soc_id = ROCKCHIP_SOC_RK3568;
@@ -273,6 +279,8 @@ int rockchip_soc_id_init(void)
 		rk3528_init();
 	}  else if (cpu_is_rk3566()) {
 		rk3566_init();
+	}  else if (cpu_is_rk3567()) {
+		rk3567_init();
 	} else if (cpu_is_rk3568()) {
 		rk3568_init();
 	} else if (cpu_is_px30()) {
