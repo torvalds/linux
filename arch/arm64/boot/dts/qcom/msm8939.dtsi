@@ -358,6 +358,7 @@
 			 */
 			reg = <0x0 0x86800000 0x0 0x5500000>;
 			no-map;
+			status = "disabled";
 		};
 
 		wcnss_mem: wcnss {
@@ -365,6 +366,7 @@
 			alignment = <0x0 0x100000>;
 			alloc-ranges = <0x0 0x86800000 0x0 0x8000000>;
 			no-map;
+			status = "disabled";
 		};
 
 		venus_mem: venus {
@@ -372,6 +374,7 @@
 			alignment = <0x0 0x100000>;
 			alloc-ranges = <0x0 0x86800000 0x0 0x8000000>;
 			no-map;
+			status = "disabled";
 		};
 
 		mba_mem: mba {
@@ -379,6 +382,7 @@
 			alignment = <0x0 0x100000>;
 			alloc-ranges = <0x0 0x86800000 0x0 0x8000000>;
 			no-map;
+			status = "disabled";
 		};
 	};
 

@@ -395,3 +395,7 @@
 &wcnss_iris {
 	compatible = "qcom,wcn3680";
 };
+
+&wcnss_mem {
+	status = "okay";
+};

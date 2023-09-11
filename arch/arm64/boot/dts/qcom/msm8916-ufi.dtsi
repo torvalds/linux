@@ -80,12 +80,17 @@
 	clocks = <&xo_board>, <&sleep_clk>, <0>, <0>, <0>, <0>, <0>;
 };
 
+&mba_mem {
+	status = "okay";
+};
+
 &mpss {
 	status = "okay";
 };
 
 &mpss_mem {
 	reg = <0x0 0x86800000 0x0 0x5500000>;
+	status = "okay";
 };
 
 &pm8916_usbin {
@@ -111,12 +116,20 @@
 	status = "okay";
 };
 
+&venus_mem {
+	status = "okay";
+};
+
 &wcnss {
 	status = "okay";
 };
 
 &wcnss_iris {
 	compatible = "qcom,wcn3620";
+};
+
+&wcnss_mem {
+	status = "okay";
 };
 
 &tlmm {

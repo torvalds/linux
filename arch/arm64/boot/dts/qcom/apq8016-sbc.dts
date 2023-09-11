@@ -242,6 +242,10 @@
 	status = "okay";
 };
 
+&mba_mem {
+	status = "okay";
+};
+
 &mdss {
 	status = "okay";
 };
@@ -255,6 +259,10 @@
 	status = "okay";
 
 	firmware-name = "qcom/apq8016/mba.mbn", "qcom/apq8016/modem.mbn";
+};
+
+&mpss_mem {
+	status = "okay";
 };
 
 &pm8916_codec {
@@ -370,6 +378,10 @@
 	status = "okay";
 };
 
+&venus_mem {
+	status = "okay";
+};
+
 &wcnss {
 	status = "okay";
 	firmware-name = "qcom/apq8016/wcnss.mbn";
@@ -381,6 +393,10 @@
 
 &wcnss_iris {
 	compatible = "qcom,wcn3620";
+};
+
+&wcnss_mem {
+	status = "okay";
 };
 
 /* Enable CoreSight */

@@ -91,3 +91,7 @@
 &wcnss_iris {
 	compatible = "qcom,wcn3660";
 };
+
+&wcnss_mem {
+	status = "okay";
+};

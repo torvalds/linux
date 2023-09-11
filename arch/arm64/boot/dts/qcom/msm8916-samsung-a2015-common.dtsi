@@ -292,6 +292,10 @@
 	status = "okay";
 };
 
+&venus_mem {
+	status = "okay";
+};
+
 &tlmm {
 	accel_int_default: accel-int-default-state {
 		pins = "gpio115";
