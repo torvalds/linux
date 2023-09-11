@@ -131,10 +131,10 @@ static notrace void s390_handle_damage(void)
 	 * Disable low address protection and make machine check new PSW a
 	 * disabled wait PSW. Any additional machine check cannot be handled.
 	 */
-	__ctl_store(cr0.val, 0, 0);
+	__local_ctl_store(cr0.val, 0, 0);
 	cr0_new = cr0;
 	cr0_new.lap = 0;
-	__ctl_load(cr0_new.val, 0, 0);
+	__local_ctl_load(cr0_new.val, 0, 0);
 	psw_save = S390_lowcore.mcck_new_psw;
 	psw_bits(S390_lowcore.mcck_new_psw).io = 0;
 	psw_bits(S390_lowcore.mcck_new_psw).ext = 0;
@@ -146,7 +146,7 @@ static notrace void s390_handle_damage(void)
 	 * values. This makes possible system dump analysis easier.
 	 */
 	S390_lowcore.mcck_new_psw = psw_save;
-	__ctl_load(cr0.val, 0, 0);
+	__local_ctl_load(cr0.val, 0, 0);
 	disabled_wait();
 	while (1);
 }
@@ -185,7 +185,7 @@ void s390_handle_mcck(void)
 		static int mchchk_wng_posted = 0;
 
 		/* Use single cpu clear, as we cannot handle smp here. */
-		__ctl_clear_bit(14, 24);	/* Disable WARNING MCH */
+		local_ctl_clear_bit(14, 24);	/* Disable WARNING MCH */
 		if (xchg(&mchchk_wng_posted, 1) == 0)
 			kill_cad_pid(SIGPWR, 1);
 	}
@@ -271,7 +271,7 @@ static int notrace s390_validate_registers(union mci mci)
 			kill_task = 1;
 		cr0.val = S390_lowcore.cregs_save_area[0];
 		cr0.afp = cr0.vx = 1;
-		__ctl_load(cr0.val, 0, 0);
+		__local_ctl_load(cr0.val, 0, 0);
 		asm volatile(
 			"	la	1,%0\n"
 			"	VLM	0,15,0,1\n"
@@ -279,7 +279,7 @@ static int notrace s390_validate_registers(union mci mci)
 			:
 			: "Q" (*(struct vx_array *)mcesa->vector_save_area)
 			: "1");
-		__ctl_load(S390_lowcore.cregs_save_area[0], 0, 0);
+		__local_ctl_load(S390_lowcore.cregs_save_area[0], 0, 0);
 	}
 	/* Validate access registers */
 	asm volatile(
@@ -505,9 +505,9 @@ NOKPROBE_SYMBOL(s390_do_machine_check);
 
 static int __init machine_check_init(void)
 {
-	ctl_set_bit(14, 25);	/* enable external damage MCH */
-	ctl_set_bit(14, 27);	/* enable system recovery MCH */
-	ctl_set_bit(14, 24);	/* enable warning MCH */
+	system_ctl_set_bit(14, 25);	/* enable external damage MCH */
+	system_ctl_set_bit(14, 27);	/* enable system recovery MCH */
+	system_ctl_set_bit(14, 24);	/* enable warning MCH */
 	return 0;
 }
 early_initcall(machine_check_init);

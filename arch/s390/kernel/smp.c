@@ -888,14 +888,14 @@ int __cpu_up(unsigned int cpu, struct task_struct *tidle)
 	 * Make sure global control register contents do not change
 	 * until new CPU has initialized control registers.
 	 */
-	ctlreg_lock();
+	system_ctlreg_lock();
 	pcpu_prepare_secondary(pcpu, cpu);
 	pcpu_attach_task(pcpu, tidle);
 	pcpu_start_fn(pcpu, smp_start_secondary, NULL);
 	/* Wait until cpu puts itself in the online & active maps */
 	while (!cpu_online(cpu))
 		cpu_relax();
-	ctlreg_unlock();
+	system_ctlreg_unlock();
 	return 0;
 }
 
@@ -922,11 +922,11 @@ int __cpu_disable(void)
 	/* Disable pseudo page faults on this cpu. */
 	pfault_fini();
 	/* Disable interrupt sources via control register. */
-	__ctl_store(cregs, 0, 15);
+	__local_ctl_store(cregs, 0, 15);
 	cregs[0]  &= ~0x0000ee70UL;	/* disable all external interrupts */
 	cregs[6]  &= ~0xff000000UL;	/* disable all I/O interrupts */
 	cregs[14] &= ~0x1f000000UL;	/* disable most machine checks */
-	__ctl_load(cregs, 0, 15);
+	__local_ctl_load(cregs, 0, 15);
 	clear_cpu_flag(CIF_NOHZ_DELAY);
 	return 0;
 }
@@ -968,10 +968,10 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 {
 	if (register_external_irq(EXT_IRQ_EMERGENCY_SIG, do_ext_call_interrupt))
 		panic("Couldn't request external interrupt 0x1201");
-	ctl_set_bit(0, 14);
+	system_ctl_set_bit(0, 14);
 	if (register_external_irq(EXT_IRQ_EXTERNAL_CALL, do_ext_call_interrupt))
 		panic("Couldn't request external interrupt 0x1202");
-	ctl_set_bit(0, 13);
+	system_ctl_set_bit(0, 13);
 }
 
 void __init smp_prepare_boot_cpu(void)

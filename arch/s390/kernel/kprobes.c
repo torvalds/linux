@@ -232,12 +232,12 @@ static void enable_singlestep(struct kprobe_ctlblk *kcb,
 	per_kprobe.end = ip;
 
 	/* Save control regs and psw mask */
-	__ctl_store(kcb->kprobe_saved_ctl, 9, 11);
+	__local_ctl_store(kcb->kprobe_saved_ctl, 9, 11);
 	kcb->kprobe_saved_imask = regs->psw.mask &
 		(PSW_MASK_PER | PSW_MASK_IO | PSW_MASK_EXT);
 
 	/* Set PER control regs, turns on single step for the given address */
-	__ctl_load(per_kprobe, 9, 11);
+	__local_ctl_load(per_kprobe, 9, 11);
 	regs->psw.mask |= PSW_MASK_PER;
 	regs->psw.mask &= ~(PSW_MASK_IO | PSW_MASK_EXT);
 	regs->psw.addr = ip;
@@ -249,7 +249,7 @@ static void disable_singlestep(struct kprobe_ctlblk *kcb,
 			       unsigned long ip)
 {
 	/* Restore control regs and psw mask, set new psw address */
-	__ctl_load(kcb->kprobe_saved_ctl, 9, 11);
+	__local_ctl_load(kcb->kprobe_saved_ctl, 9, 11);
 	regs->psw.mask &= ~PSW_MASK_PER;
 	regs->psw.mask |= kcb->kprobe_saved_imask;
 	regs->psw.addr = ip;

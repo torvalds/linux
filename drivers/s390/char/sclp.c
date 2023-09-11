@@ -732,10 +732,10 @@ sclp_sync_wait(void)
 	/* Enable service-signal interruption, disable timer interrupts */
 	old_tick = local_tick_disable();
 	trace_hardirqs_on();
-	__ctl_store(cr0, 0, 0);
+	__local_ctl_store(cr0, 0, 0);
 	cr0_sync = cr0 & ~CR0_IRQ_SUBCLASS_MASK;
 	cr0_sync |= 1UL << (63 - 54);
-	__ctl_load(cr0_sync, 0, 0);
+	__local_ctl_load(cr0_sync, 0, 0);
 	__arch_local_irq_stosm(0x01);
 	/* Loop until driver state indicates finished request */
 	while (sclp_running_state != sclp_running_state_idle) {
@@ -745,7 +745,7 @@ sclp_sync_wait(void)
 		cpu_relax();
 	}
 	local_irq_disable();
-	__ctl_load(cr0, 0, 0);
+	__local_ctl_load(cr0, 0, 0);
 	if (!irq_context)
 		_local_bh_enable();
 	local_tick_enable(old_tick);

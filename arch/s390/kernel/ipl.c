@@ -2381,7 +2381,7 @@ void s390_reset_system(void)
 	set_prefix(0);
 
 	/* Disable lowcore protection */
-	__ctl_clear_bit(0, 28);
+	local_ctl_clear_bit(0, 28);
 	diag_amode31_ops.diag308_reset();
 }
 

@@ -46,8 +46,8 @@ void update_cr_regs(struct task_struct *task)
 	union ctlreg2 cr2_old, cr2_new;
 	int cr0_changed, cr2_changed;
 
-	__ctl_store(cr0_old.val, 0, 0);
-	__ctl_store(cr2_old.val, 2, 2);
+	__local_ctl_store(cr0_old.val, 0, 0);
+	__local_ctl_store(cr2_old.val, 2, 2);
 	cr0_new = cr0_old;
 	cr2_new = cr2_old;
 	/* Take care of the enable/disable of transactional execution. */
@@ -75,9 +75,9 @@ void update_cr_regs(struct task_struct *task)
 	cr0_changed = cr0_new.val != cr0_old.val;
 	cr2_changed = cr2_new.val != cr2_old.val;
 	if (cr0_changed)
-		__ctl_load(cr0_new.val, 0, 0);
+		__local_ctl_load(cr0_new.val, 0, 0);
 	if (cr2_changed)
-		__ctl_load(cr2_new.val, 2, 2);
+		__local_ctl_load(cr2_new.val, 2, 2);
 	/* Copy user specified PER registers */
 	new.control = thread->per_user.control;
 	new.start = thread->per_user.start;
@@ -104,9 +104,9 @@ void update_cr_regs(struct task_struct *task)
 		return;
 	}
 	regs->psw.mask |= PSW_MASK_PER;
-	__ctl_store(old, 9, 11);
+	__local_ctl_store(old, 9, 11);
 	if (memcmp(&new, &old, sizeof(struct per_regs)) != 0)
-		__ctl_load(new, 9, 11);
+		__local_ctl_load(new, 9, 11);
 }
 
 void user_enable_single_step(struct task_struct *task)
@@ -1107,7 +1107,7 @@ static int s390_gs_cb_set(struct task_struct *target,
 		target->thread.gs_cb = data;
 	*target->thread.gs_cb = gs_cb;
 	if (target == current) {
-		__ctl_set_bit(2, 4);
+		local_ctl_set_bit(2, 4);
 		restore_gs_cb(target->thread.gs_cb);
 	}
 	preempt_enable();

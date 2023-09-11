@@ -32,11 +32,11 @@ void sclp_early_wait_irq(void)
 	psw_t psw_ext_save, psw_wait;
 	union ctlreg0 cr0, cr0_new;
 
-	__ctl_store(cr0.val, 0, 0);
+	__local_ctl_store(cr0.val, 0, 0);
 	cr0_new.val = cr0.val & ~CR0_IRQ_SUBCLASS_MASK;
 	cr0_new.lap = 0;
 	cr0_new.sssm = 1;
-	__ctl_load(cr0_new.val, 0, 0);
+	__local_ctl_load(cr0_new.val, 0, 0);
 
 	psw_ext_save = S390_lowcore.external_new_psw;
 	psw_mask = __extract_psw();
@@ -59,7 +59,7 @@ void sclp_early_wait_irq(void)
 	} while (S390_lowcore.ext_int_code != EXT_IRQ_SERVICE_SIG);
 
 	S390_lowcore.external_new_psw = psw_ext_save;
-	__ctl_load(cr0.val, 0, 0);
+	__local_ctl_load(cr0.val, 0, 0);
 }
 
 int sclp_early_cmd(sclp_cmdw_t cmd, void *sccb)

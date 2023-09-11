@@ -449,7 +449,7 @@ static void __init setup_lowcore(void)
 	lc->restart_fn = (unsigned long) do_restart;
 	lc->restart_data = 0;
 	lc->restart_source = -1U;
-	__ctl_store(lc->cregs_save_area, 0, 15);
+	__local_ctl_store(lc->cregs_save_area, 0, 15);
 	lc->spinlock_lockval = arch_spin_lockval(0);
 	lc->spinlock_index = 0;
 	arch_spin_lock_setup(0);
@@ -791,15 +791,15 @@ static void __init setup_cr(void)
 	__ctl_duct[4] = (unsigned long)__ctl_duald;
 
 	/* Update control registers CR2, CR5 and CR15 */
-	__ctl_store(cr2.val, 2, 2);
-	__ctl_store(cr5.val, 5, 5);
-	__ctl_store(cr15.val, 15, 15);
+	__local_ctl_store(cr2.val, 2, 2);
+	__local_ctl_store(cr5.val, 5, 5);
+	__local_ctl_store(cr15.val, 15, 15);
 	cr2.ducto = (unsigned long)__ctl_duct >> 6;
 	cr5.pasteo = (unsigned long)__ctl_duct >> 6;
 	cr15.lsea = (unsigned long)__ctl_linkage_stack >> 3;
-	__ctl_load(cr2.val, 2, 2);
-	__ctl_load(cr5.val, 5, 5);
-	__ctl_load(cr15.val, 15, 15);
+	__local_ctl_load(cr2.val, 2, 2);
+	__local_ctl_load(cr5.val, 5, 5);
+	__local_ctl_load(cr15.val, 15, 15);
 }
 
 /*

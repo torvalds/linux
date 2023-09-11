@@ -35,7 +35,7 @@
 
 #include <linux/bug.h>
 
-#define __ctl_load(array, low, high) do {				\
+#define __local_ctl_load(array, low, high) do {				\
 	struct addrtype {						\
 		char _[sizeof(array)];					\
 	};								\
@@ -53,7 +53,7 @@
 		: "memory");						\
 } while (0)
 
-#define __ctl_store(array, low, high) do {				\
+#define __local_ctl_store(array, low, high) do {			\
 	struct addrtype {						\
 		char _[sizeof(array)];					\
 	};								\
@@ -69,36 +69,36 @@
 		: [_low] "i" (low), [_high] "i" (high));		\
 } while (0)
 
-static __always_inline void __ctl_set_bit(unsigned int cr, unsigned int bit)
+static __always_inline void local_ctl_set_bit(unsigned int cr, unsigned int bit)
 {
 	unsigned long reg;
 
-	__ctl_store(reg, cr, cr);
+	__local_ctl_store(reg, cr, cr);
 	reg |= 1UL << bit;
-	__ctl_load(reg, cr, cr);
+	__local_ctl_load(reg, cr, cr);
 }
 
-static __always_inline void __ctl_clear_bit(unsigned int cr, unsigned int bit)
+static __always_inline void local_ctl_clear_bit(unsigned int cr, unsigned int bit)
 {
 	unsigned long reg;
 
-	__ctl_store(reg, cr, cr);
+	__local_ctl_store(reg, cr, cr);
 	reg &= ~(1UL << bit);
-	__ctl_load(reg, cr, cr);
+	__local_ctl_load(reg, cr, cr);
 }
 
-void ctlreg_lock(void);
-void ctlreg_unlock(void);
-void ctl_set_clear_bit(int cr, int bit, bool set);
+void system_ctlreg_lock(void);
+void system_ctlreg_unlock(void);
+void system_ctl_set_clear_bit(unsigned int cr, unsigned int bit, bool set);
 
-static inline void ctl_set_bit(int cr, int bit)
+static inline void system_ctl_set_bit(unsigned int cr, unsigned int bit)
 {
-	ctl_set_clear_bit(cr, bit, true);
+	system_ctl_set_clear_bit(cr, bit, true);
 }
 
-static inline void ctl_clear_bit(int cr, int bit)
+static inline void system_ctl_clear_bit(unsigned int cr, unsigned int bit)
 {
-	ctl_set_clear_bit(cr, bit, false);
+	system_ctl_set_clear_bit(cr, bit, false);
 }
 
 union ctlreg0 {

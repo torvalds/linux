@@ -19,8 +19,8 @@ void debug_user_asce(int exit)
 {
 	unsigned long cr1, cr7;
 
-	__ctl_store(cr1, 1, 1);
-	__ctl_store(cr7, 7, 7);
+	__local_ctl_store(cr1, 1, 1);
+	__local_ctl_store(cr7, 7, 7);
 	if (cr1 == S390_lowcore.kernel_asce && cr7 == S390_lowcore.user_asce)
 		return;
 	panic("incorrect ASCE on kernel %s\n"
