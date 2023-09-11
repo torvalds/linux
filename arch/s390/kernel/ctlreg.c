@@ -44,24 +44,30 @@ void __init system_ctlreg_init_save_area(struct lowcore *lc)
 	system_ctlreg_area_init = true;
 }
 
-struct ctl_bit_parms {
-	unsigned long orval;
+struct ctlreg_parms {
 	unsigned long andval;
+	unsigned long orval;
+	unsigned long val;
+	int request;
 	int cr;
 };
 
-static void ctl_bit_callback(void *info)
+static void ctlreg_callback(void *info)
 {
-	struct ctl_bit_parms *pp = info;
+	struct ctlreg_parms *pp = info;
 	struct ctlreg regs[16];
 
 	__local_ctl_store(0, 15, regs);
-	regs[pp->cr].val &= pp->andval;
-	regs[pp->cr].val |= pp->orval;
+	if (pp->request == CTLREG_LOAD) {
+		regs[pp->cr].val = pp->val;
+	} else {
+		regs[pp->cr].val &= pp->andval;
+		regs[pp->cr].val |= pp->orval;
+	}
 	__local_ctl_load(0, 15, regs);
 }
 
-static void system_ctl_bit_update(void *info)
+static void system_ctlreg_update(void *info)
 {
 	unsigned long flags;
 
@@ -71,30 +77,45 @@ static void system_ctl_bit_update(void *info)
 		 * since not everything might be setup.
 		 */
 		local_irq_save(flags);
-		ctl_bit_callback(info);
+		ctlreg_callback(info);
 		local_irq_restore(flags);
 	} else {
-		on_each_cpu(ctl_bit_callback, info, 1);
+		on_each_cpu(ctlreg_callback, info, 1);
 	}
 }
 
-void system_ctl_set_clear_bit(unsigned int cr, unsigned int bit, bool set)
+void system_ctlreg_modify(unsigned int cr, unsigned long data, int request)
 {
-	struct ctl_bit_parms pp = { .cr = cr, };
+	struct ctlreg_parms pp = { .cr = cr, .request = request, };
 	struct lowcore *abs_lc;
 
-	pp.orval  = set ? 1UL << bit : 0;
-	pp.andval = set ? -1UL : ~(1UL << bit);
+	switch (request) {
+	case CTLREG_SET_BIT:
+		pp.orval  = 1UL << data;
+		pp.andval = -1UL;
+		break;
+	case CTLREG_CLEAR_BIT:
+		pp.orval  = 0;
+		pp.andval = ~(1UL << data);
+		break;
+	case CTLREG_LOAD:
+		pp.val = data;
+		break;
+	}
 	if (system_ctlreg_area_init) {
 		system_ctlreg_lock();
 		abs_lc = get_abs_lowcore();
-		abs_lc->cregs_save_area[cr].val &= pp.andval;
-		abs_lc->cregs_save_area[cr].val |= pp.orval;
+		if (request == CTLREG_LOAD) {
+			abs_lc->cregs_save_area[cr].val = pp.val;
+		} else {
+			abs_lc->cregs_save_area[cr].val &= pp.andval;
+			abs_lc->cregs_save_area[cr].val |= pp.orval;
+		}
 		put_abs_lowcore(abs_lc);
-		system_ctl_bit_update(&pp);
+		system_ctlreg_update(&pp);
 		system_ctlreg_unlock();
 	} else {
-		system_ctl_bit_update(&pp);
+		system_ctlreg_update(&pp);
 	}
 }
-EXPORT_SYMBOL(system_ctl_set_clear_bit);
+EXPORT_SYMBOL(system_ctlreg_modify);

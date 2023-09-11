@@ -114,17 +114,28 @@ struct lowcore;
 
 void system_ctlreg_lock(void);
 void system_ctlreg_unlock(void);
-void system_ctl_set_clear_bit(unsigned int cr, unsigned int bit, bool set);
 void system_ctlreg_init_save_area(struct lowcore *lc);
+void system_ctlreg_modify(unsigned int cr, unsigned long data, int request);
+
+enum {
+	CTLREG_SET_BIT,
+	CTLREG_CLEAR_BIT,
+	CTLREG_LOAD,
+};
 
 static inline void system_ctl_set_bit(unsigned int cr, unsigned int bit)
 {
-	system_ctl_set_clear_bit(cr, bit, true);
+	system_ctlreg_modify(cr, bit, CTLREG_SET_BIT);
 }
 
 static inline void system_ctl_clear_bit(unsigned int cr, unsigned int bit)
 {
-	system_ctl_set_clear_bit(cr, bit, false);
+	system_ctlreg_modify(cr, bit, CTLREG_CLEAR_BIT);
+}
+
+static inline void system_ctl_load(unsigned int cr, struct ctlreg *reg)
+{
+	system_ctlreg_modify(cr, reg->val, CTLREG_LOAD);
 }
 
 union ctlreg0 {
