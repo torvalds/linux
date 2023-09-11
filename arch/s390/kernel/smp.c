@@ -37,6 +37,7 @@
 #include <linux/crash_dump.h>
 #include <linux/kprobes.h>
 #include <asm/asm-offsets.h>
+#include <asm/ctl_reg.h>
 #include <asm/pfault.h>
 #include <asm/diag.h>
 #include <asm/switch_to.h>
@@ -567,54 +568,6 @@ void arch_irq_work_raise(void)
 }
 #endif
 
-/*
- * parameter area for the set/clear control bit callbacks
- */
-struct ec_creg_mask_parms {
-	unsigned long orval;
-	unsigned long andval;
-	int cr;
-};
-
-/*
- * callback for setting/clearing control bits
- */
-static void smp_ctl_bit_callback(void *info)
-{
-	struct ec_creg_mask_parms *pp = info;
-	unsigned long cregs[16];
-
-	__ctl_store(cregs, 0, 15);
-	cregs[pp->cr] = (cregs[pp->cr] & pp->andval) | pp->orval;
-	__ctl_load(cregs, 0, 15);
-}
-
-static DEFINE_SPINLOCK(ctl_lock);
-
-void smp_ctl_set_clear_bit(int cr, int bit, bool set)
-{
-	struct ec_creg_mask_parms parms = { .cr = cr, };
-	struct lowcore *abs_lc;
-	u64 ctlreg;
-
-	if (set) {
-		parms.orval = 1UL << bit;
-		parms.andval = -1UL;
-	} else {
-		parms.orval = 0;
-		parms.andval = ~(1UL << bit);
-	}
-	spin_lock(&ctl_lock);
-	abs_lc = get_abs_lowcore();
-	ctlreg = abs_lc->cregs_save_area[cr];
-	ctlreg = (ctlreg & parms.andval) | parms.orval;
-	abs_lc->cregs_save_area[cr] = ctlreg;
-	put_abs_lowcore(abs_lc);
-	on_each_cpu(smp_ctl_bit_callback, &parms, 1);
-	spin_unlock(&ctl_lock);
-}
-EXPORT_SYMBOL(smp_ctl_set_clear_bit);
-
 #ifdef CONFIG_CRASH_DUMP
 
 int smp_store_status(int cpu)
@@ -935,14 +888,14 @@ int __cpu_up(unsigned int cpu, struct task_struct *tidle)
 	 * Make sure global control register contents do not change
 	 * until new CPU has initialized control registers.
 	 */
-	spin_lock(&ctl_lock);
+	ctlreg_lock();
 	pcpu_prepare_secondary(pcpu, cpu);
 	pcpu_attach_task(pcpu, tidle);
 	pcpu_start_fn(pcpu, smp_start_secondary, NULL);
 	/* Wait until cpu puts itself in the online & active maps */
 	while (!cpu_online(cpu))
 		cpu_relax();
-	spin_unlock(&ctl_lock);
+	ctlreg_unlock();
 	return 0;
 }
 

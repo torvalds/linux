@@ -12,6 +12,7 @@
 #include <linux/export.h>
 #include <linux/mm.h>
 #include <asm/asm-extable.h>
+#include <asm/ctl_reg.h>
 
 #ifdef CONFIG_DEBUG_ENTRY
 void debug_user_asce(int exit)
