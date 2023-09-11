@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2021, Linaro Ltd <loic.poulain@linaro.org> */
 
+#include <linux/bitmap.h>
 #include <linux/err.h>
 #include <linux/errno.h>
 #include <linux/debugfs.h>
@@ -395,7 +396,7 @@ static int __wwan_port_dev_assign_name(struct wwan_port *port, const char *fmt)
 	char buf[0x20];
 	int id;
 
-	idmap = (unsigned long *)get_zeroed_page(GFP_KERNEL);
+	idmap = bitmap_zalloc(max_ports, GFP_KERNEL);
 	if (!idmap)
 		return -ENOMEM;
 
@@ -414,7 +415,7 @@ static int __wwan_port_dev_assign_name(struct wwan_port *port, const char *fmt)
 
 	/* Allocate unique id */
 	id = find_first_zero_bit(idmap, max_ports);
-	free_page((unsigned long)idmap);
+	bitmap_free(idmap);
 
 	snprintf(buf, sizeof(buf), fmt, id);	/* Name generation */
 
