@@ -57,7 +57,7 @@ obj-$(CONFIG_VIDEO_ROCKCHIP_CIF)	+= rockchip/cif/
 obj-$(CONFIG_VIDEO_ROCKCHIP_RKISP1)	+= rockchip/isp1/
 obj-$(CONFIG_VIDEO_ROCKCHIP_ISP)	+= rockchip/isp/
 obj-$(CONFIG_VIDEO_ROCKCHIP_ISPP)	+= rockchip/ispp/
-obj-$(CONFIG_VIDEO_ROCKCHIP_HDMIRX)	+= rockchip/hdmirx/
+obj-$(CONFIG_VIDEO_ROCKCHIP_HDMIRX_CLASS) += rockchip/hdmirx/
 
 obj-y	+= omap/
 
