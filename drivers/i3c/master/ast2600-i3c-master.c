@@ -11,6 +11,7 @@
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/reset.h>
+#include <linux/bitfield.h>
 
 #include "dw-i3c-master.h"
 
@@ -48,6 +49,9 @@
 #define AST2600_DEFAULT_SDA_PULLUP_OHMS		2000
 
 #define DEV_ADDR_TABLE_IBI_PEC			BIT(11)
+
+#define DEVICE_CTRL				0x0
+#define DEV_CTRL_SLAVE_MDB			GENMASK(23, 16)
 
 struct ast2600_i3c {
 	struct dw_i3c_master dw;
@@ -177,6 +181,16 @@ static void ast2600_i3c_gen_internal_stop(struct dw_i3c_master *dw)
 			  SDA_IN_SW_MODE_VAL, SDA_IN_SW_MODE_VAL);
 }
 
+static void ast2600_i3c_set_ibi_mdb(struct dw_i3c_master *dw, u8 mdb)
+{
+	u32 reg;
+
+	reg = readl(dw->regs + DEVICE_CTRL);
+	reg &= ~DEV_CTRL_SLAVE_MDB;
+	reg |= FIELD_PREP(DEV_CTRL_SLAVE_MDB, mdb);
+	writel(reg, dw->regs + DEVICE_CTRL);
+}
+
 static const struct dw_i3c_platform_ops ast2600_i3c_ops = {
 	.init = ast2600_i3c_init,
 	.set_dat_ibi = ast2600_i3c_set_dat_ibi,
@@ -184,6 +198,7 @@ static const struct dw_i3c_platform_ops ast2600_i3c_ops = {
 	.exit_sw_mode = ast2600_i3c_exit_sw_mode,
 	.toggle_scl_in = ast2600_i3c_toggle_scl_in,
 	.gen_internal_stop = ast2600_i3c_gen_internal_stop,
+	.set_ibi_mdb = ast2600_i3c_set_ibi_mdb,
 };
 
 static int ast2600_i3c_probe(struct platform_device *pdev)
