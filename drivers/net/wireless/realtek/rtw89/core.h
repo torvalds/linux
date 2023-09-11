@@ -926,6 +926,12 @@ struct rtw89_port_reg {
 	u32 bcn_cnt_tmr;
 	u32 tsftr_l;
 	u32 tsftr_h;
+	u32 md_tsft;
+	u32 bss_color;
+	u32 mbssid;
+	u32 mbssid_drop;
+	u32 tsf_sync;
+	u32 hiq_win[RTW89_PORT_NUM];
 };
 
 struct rtw89_txwd_body {

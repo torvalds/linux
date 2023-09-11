@@ -3736,7 +3736,15 @@ static const struct rtw89_port_reg rtw_port_base = {
 	.tbtt_shift = R_AX_TBTT_SHIFT_P0,
 	.bcn_cnt_tmr = R_AX_BCN_CNT_TMR_P0,
 	.tsftr_l = R_AX_TSFTR_LOW_P0,
-	.tsftr_h = R_AX_TSFTR_HIGH_P0
+	.tsftr_h = R_AX_TSFTR_HIGH_P0,
+	.md_tsft = R_AX_MD_TSFT_STMP_CTL,
+	.bss_color = R_AX_PTCL_BSS_COLOR_0,
+	.mbssid = R_AX_MBSSID_CTRL,
+	.mbssid_drop = R_AX_MBSSID_DROP_0,
+	.tsf_sync = R_AX_PORT0_TSF_SYNC,
+	.hiq_win = {R_AX_P0MB_HGQ_WINDOW_CFG_0, R_AX_PORT_HGQ_WINDOW_CFG,
+		    R_AX_PORT_HGQ_WINDOW_CFG + 1, R_AX_PORT_HGQ_WINDOW_CFG + 2,
+		    R_AX_PORT_HGQ_WINDOW_CFG + 3},
 };
 
 #define BCN_INTERVAL 100
@@ -3868,16 +3876,12 @@ static void rtw89_mac_port_cfg_bcn_intv(struct rtw89_dev *rtwdev,
 static void rtw89_mac_port_cfg_hiq_win(struct rtw89_dev *rtwdev,
 				       struct rtw89_vif *rtwvif)
 {
-	static const u32 hiq_win_addr[RTW89_PORT_NUM] = {
-		R_AX_P0MB_HGQ_WINDOW_CFG_0, R_AX_PORT_HGQ_WINDOW_CFG,
-		R_AX_PORT_HGQ_WINDOW_CFG + 1, R_AX_PORT_HGQ_WINDOW_CFG + 2,
-		R_AX_PORT_HGQ_WINDOW_CFG + 3,
-	};
 	u8 win = rtwvif->net_type == RTW89_NET_TYPE_AP_MODE ? 16 : 0;
+	const struct rtw89_port_reg *p = &rtw_port_base;
 	u8 port = rtwvif->port;
 	u32 reg;
 
-	reg = rtw89_mac_reg_by_idx(rtwdev, hiq_win_addr[port], rtwvif->mac_idx);
+	reg = rtw89_mac_reg_by_idx(rtwdev, p->hiq_win[port], rtwvif->mac_idx);
 	rtw89_write8(rtwdev, reg, win);
 }
 
@@ -3888,7 +3892,7 @@ static void rtw89_mac_port_cfg_hiq_dtim(struct rtw89_dev *rtwdev,
 	const struct rtw89_port_reg *p = &rtw_port_base;
 	u32 addr;
 
-	addr = rtw89_mac_reg_by_idx(rtwdev, R_AX_MD_TSFT_STMP_CTL, rtwvif->mac_idx);
+	addr = rtw89_mac_reg_by_idx(rtwdev, p->md_tsft, rtwvif->mac_idx);
 	rtw89_write8_set(rtwdev, addr, B_AX_UPD_HGQMD | B_AX_UPD_TIMIE);
 
 	rtw89_write16_port_mask(rtwdev, rtwvif, p->dtim_ctrl, B_AX_DTIM_NUM_MASK,
@@ -3934,6 +3938,7 @@ static void rtw89_mac_port_cfg_tbtt_early(struct rtw89_dev *rtwdev,
 static void rtw89_mac_port_cfg_bss_color(struct rtw89_dev *rtwdev,
 					 struct rtw89_vif *rtwvif)
 {
+	const struct rtw89_port_reg *p = &rtw_port_base;
 	struct ieee80211_vif *vif = rtwvif_to_vif(rtwvif);
 	static const u32 masks[RTW89_PORT_NUM] = {
 		B_AX_BSS_COLOB_AX_PORT_0_MASK, B_AX_BSS_COLOB_AX_PORT_1_MASK,
@@ -3946,7 +3951,7 @@ static void rtw89_mac_port_cfg_bss_color(struct rtw89_dev *rtwdev,
 	u8 bss_color;
 
 	bss_color = vif->bss_conf.he_bss_color.color;
-	reg_base = port >= 4 ? R_AX_PTCL_BSS_COLOR_1 : R_AX_PTCL_BSS_COLOR_0;
+	reg_base = port >= 4 ? p->bss_color + 4 : p->bss_color;
 	reg = rtw89_mac_reg_by_idx(rtwdev, reg_base, rtwvif->mac_idx);
 	rtw89_write32_mask(rtwdev, reg, masks[port], bss_color);
 }
@@ -3954,6 +3959,7 @@ static void rtw89_mac_port_cfg_bss_color(struct rtw89_dev *rtwdev,
 static void rtw89_mac_port_cfg_mbssid(struct rtw89_dev *rtwdev,
 				      struct rtw89_vif *rtwvif)
 {
+	const struct rtw89_port_reg *p = &rtw_port_base;
 	u8 port = rtwvif->port;
 	u32 reg;
 
@@ -3961,7 +3967,7 @@ static void rtw89_mac_port_cfg_mbssid(struct rtw89_dev *rtwdev,
 		return;
 
 	if (port == 0) {
-		reg = rtw89_mac_reg_by_idx(rtwdev, R_AX_MBSSID_CTRL, rtwvif->mac_idx);
+		reg = rtw89_mac_reg_by_idx(rtwdev, p->mbssid, rtwvif->mac_idx);
 		rtw89_write32_clr(rtwdev, reg, B_AX_P0MB_ALL_MASK);
 	}
 }
@@ -3969,11 +3975,12 @@ static void rtw89_mac_port_cfg_mbssid(struct rtw89_dev *rtwdev,
 static void rtw89_mac_port_cfg_hiq_drop(struct rtw89_dev *rtwdev,
 					struct rtw89_vif *rtwvif)
 {
+	const struct rtw89_port_reg *p = &rtw_port_base;
 	u8 port = rtwvif->port;
 	u32 reg;
 	u32 val;
 
-	reg = rtw89_mac_reg_by_idx(rtwdev, R_AX_MBSSID_DROP_0, rtwvif->mac_idx);
+	reg = rtw89_mac_reg_by_idx(rtwdev, p->mbssid_drop, rtwvif->mac_idx);
 	val = rtw89_read32(rtwdev, reg);
 	val &= ~FIELD_PREP(B_AX_PORT_DROP_4_0_MASK, BIT(port));
 	if (port == 0)
@@ -4028,10 +4035,11 @@ void rtw89_mac_port_tsf_sync(struct rtw89_dev *rtwdev,
 			     struct rtw89_vif *rtwvif_src,
 			     u16 offset_tu)
 {
+	const struct rtw89_port_reg *p = &rtw_port_base;
 	u32 val, reg;
 
 	val = RTW89_PORT_OFFSET_TU_TO_32US(offset_tu);
-	reg = rtw89_mac_reg_by_idx(rtwdev, R_AX_PORT0_TSF_SYNC + rtwvif->port * 4,
+	reg = rtw89_mac_reg_by_idx(rtwdev, p->tsf_sync + rtwvif->port * 4,
 				   rtwvif->mac_idx);
 
 	rtw89_write32_mask(rtwdev, reg, B_AX_SYNC_PORT_SRC, rtwvif_src->port);
