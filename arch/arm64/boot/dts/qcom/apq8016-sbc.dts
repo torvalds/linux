@@ -362,6 +362,10 @@
 	extcon = <&usb_id>;
 };
 
+&venus {
+	status = "okay";
+};
+
 &wcnss {
 	status = "okay";
 	firmware-name = "qcom/apq8016/wcnss.mbn";

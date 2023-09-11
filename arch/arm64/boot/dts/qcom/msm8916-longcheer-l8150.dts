@@ -259,6 +259,10 @@
 	extcon = <&pm8916_usbin>;
 };
 
+&venus {
+	status = "okay";
+};
+
 &wcnss {
 	status = "okay";
 };

@@ -150,6 +150,10 @@
 	extcon = <&usb_id>;
 };
 
+&venus {
+	status = "okay";
+};
+
 &wcnss {
 	status = "okay";
 };
