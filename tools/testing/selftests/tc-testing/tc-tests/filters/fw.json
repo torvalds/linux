@@ -1351,5 +1351,54 @@
         "teardown": [
             "$TC qdisc del dev $DEV1 ingress"
         ]
+    },
+    {
+        "id": "e470",
+        "name": "Try to delete class referenced by fw after a replace",
+        "category": [
+            "filter",
+            "fw"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [
+            "$TC qdisc add dev $DEV1 parent root handle 10: drr",
+            "$TC class add dev $DEV1 parent root classid 1 drr",
+            "$TC filter add dev $DEV1 parent 10: handle 1 prio 1 fw classid 10:1 action ok",
+            "$TC filter replace dev $DEV1 parent 10: handle 1 prio 1 fw classid 10:1 action drop"
+        ],
+        "cmdUnderTest": "$TC class delete dev $DEV1 parent 10: classid 10:1",
+        "expExitCode": "2",
+        "verifyCmd": "$TC class show dev $DEV1",
+        "matchPattern": "class drr 10:1",
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DEV1 parent root drr"
+        ]
+    },
+    {
+        "id": "ec1a",
+        "name": "Replace fw classid with nil",
+        "category": [
+            "filter",
+            "fw"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [
+            "$TC qdisc add dev $DEV1 parent root handle 10: drr",
+            "$TC class add dev $DEV1 parent root classid 1 drr",
+            "$TC filter add dev $DEV1 parent 10: handle 1 prio 1 fw classid 10:1 action ok"
+        ],
+        "cmdUnderTest": "$TC filter replace dev $DEV1 parent 10: handle 1 prio 1 fw action drop",
+        "expExitCode": "0",
+        "verifyCmd": "$TC filter show dev $DEV1 parent 10:",
+        "matchPattern": "fw chain 0 handle 0x1",
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DEV1 parent root drr"
+        ]
     }
 ]
