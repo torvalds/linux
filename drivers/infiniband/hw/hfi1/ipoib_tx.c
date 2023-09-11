@@ -217,7 +217,7 @@ static int hfi1_ipoib_build_ulp_payload(struct ipoib_txreq *tx,
 		ret = sdma_txadd_page(dd,
 				      txreq,
 				      skb_frag_page(frag),
-				      frag->bv_offset,
+				      skb_frag_off(frag),
 				      skb_frag_size(frag),
 				      NULL, NULL, NULL);
 		if (unlikely(ret))
