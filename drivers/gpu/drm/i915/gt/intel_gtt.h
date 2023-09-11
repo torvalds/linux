@@ -35,9 +35,9 @@
 #define I915_GFP_ALLOW_FAIL (GFP_KERNEL | __GFP_RETRY_MAYFAIL | __GFP_NOWARN)
 
 #if IS_ENABLED(CONFIG_DRM_I915_TRACE_GTT)
-#define DBG(...) trace_printk(__VA_ARGS__)
+#define GTT_TRACE(...) trace_printk(__VA_ARGS__)
 #else
-#define DBG(...)
+#define GTT_TRACE(...)
 #endif
 
 #define NALLOC 3 /* 1 normal, 1 for concurrent threads, 1 for preallocation */
