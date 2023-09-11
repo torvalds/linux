@@ -1385,7 +1385,7 @@ int bch2_delete_dead_snapshots(struct bch_fs *c)
 	if (!test_bit(BCH_FS_STARTED, &c->flags)) {
 		ret = bch2_fs_read_write_early(c);
 		if (ret) {
-			bch_err(c, "error deleleting dead snapshots: error going rw: %s", bch2_err_str(ret));
+			bch_err_msg(c, ret, "error deleleting dead snapshots: error going rw");
 			return ret;
 		}
 	}
@@ -1401,7 +1401,7 @@ int bch2_delete_dead_snapshots(struct bch_fs *c)
 			NULL, NULL, 0,
 		bch2_delete_redundant_snapshot(&trans, &iter, k));
 	if (ret) {
-		bch_err(c, "error deleting redundant snapshots: %s", bch2_err_str(ret));
+		bch_err_msg(c, ret, "deleting redundant snapshots");
 		goto err;
 	}
 
@@ -1409,7 +1409,7 @@ int bch2_delete_dead_snapshots(struct bch_fs *c)
 			   POS_MIN, 0, k,
 		bch2_snapshot_set_equiv(&trans, k));
 	if (ret) {
-		bch_err(c, "error in bch2_snapshots_set_equiv: %s", bch2_err_str(ret));
+		bch_err_msg(c, ret, "in bch2_snapshots_set_equiv");
 		goto err;
 	}
 

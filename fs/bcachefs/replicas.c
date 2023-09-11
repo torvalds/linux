@@ -429,7 +429,7 @@ out:
 
 	return ret;
 err:
-	bch_err(c, "error adding replicas entry: %s", bch2_err_str(ret));
+	bch_err_msg(c, ret, "adding replicas entry");
 	goto out;
 }
 

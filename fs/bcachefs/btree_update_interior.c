@@ -2057,7 +2057,7 @@ static void async_btree_node_rewrite_work(struct work_struct *work)
 	ret = bch2_trans_do(c, NULL, NULL, 0,
 		      async_btree_node_rewrite_trans(&trans, a));
 	if (ret)
-		bch_err(c, "%s: error %s", __func__, bch2_err_str(ret));
+		bch_err_fn(c, ret);
 	bch2_write_ref_put(c, BCH_WRITE_REF_node_rewrite);
 	kfree(a);
 }
@@ -2096,8 +2096,7 @@ void bch2_btree_node_rewrite_async(struct bch_fs *c, struct btree *b)
 
 		ret = bch2_fs_read_write_early(c);
 		if (ret) {
-			bch_err(c, "%s: error going read-write: %s",
-				__func__, bch2_err_str(ret));
+			bch_err_msg(c, ret, "going read-write");
 			kfree(a);
 			return;
 		}

@@ -148,8 +148,7 @@ retry:
 			}
 
 			if (ret) {
-				bch_err(c, "Error updating btree node key: %s",
-					bch2_err_str(ret));
+				bch_err_msg(c, ret, "updating btree node key");
 				break;
 			}
 next:

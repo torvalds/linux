@@ -1483,7 +1483,7 @@ static int bch2_gc_alloc_done(struct bch_fs *c, bool metadata_only)
 			bch2_alloc_write_key(&trans, &iter, k, metadata_only));
 
 		if (ret < 0) {
-			bch_err(c, "error writing alloc info: %s", bch2_err_str(ret));
+			bch_err_fn(c, ret);
 			percpu_ref_put(&ca->ref);
 			break;
 		}
@@ -1548,7 +1548,7 @@ static int bch2_gc_alloc_start(struct bch_fs *c, bool metadata_only)
 	bch2_trans_exit(&trans);
 
 	if (ret)
-		bch_err(c, "error reading alloc info at gc start: %s", bch2_err_str(ret));
+		bch_err_fn(c, ret);
 
 	return ret;
 }
@@ -1998,7 +1998,7 @@ int bch2_gc_gens(struct bch_fs *c)
 					BTREE_INSERT_NOFAIL,
 				gc_btree_gens_key(&trans, &iter, k));
 			if (ret && !bch2_err_matches(ret, EROFS))
-				bch_err(c, "error recalculating oldest_gen: %s", bch2_err_str(ret));
+				bch_err_fn(c, ret);
 			if (ret)
 				goto err;
 		}
@@ -2011,7 +2011,7 @@ int bch2_gc_gens(struct bch_fs *c)
 			BTREE_INSERT_NOFAIL,
 		bch2_alloc_write_oldest_gen(&trans, &iter, k));
 	if (ret && !bch2_err_matches(ret, EROFS))
-		bch_err(c, "error writing oldest_gen: %s", bch2_err_str(ret));
+		bch_err_fn(c, ret);
 	if (ret)
 		goto err;
 
@@ -2083,7 +2083,7 @@ static int bch2_gc_thread(void *arg)
 		ret = bch2_gc_gens(c);
 #endif
 		if (ret < 0)
-			bch_err(c, "btree gc failed: %s", bch2_err_str(ret));
+			bch_err_fn(c, ret);
 
 		debug_check_no_locks_held();
 	}
@@ -2113,7 +2113,7 @@ int bch2_gc_thread_start(struct bch_fs *c)
 
 	p = kthread_create(bch2_gc_thread, c, "bch-gc/%s", c->name);
 	if (IS_ERR(p)) {
-		bch_err(c, "error creating gc thread: %s", bch2_err_str(PTR_ERR(p)));
+		bch_err_fn(c, PTR_ERR(p));
 		return PTR_ERR(p);
 	}
 

@@ -242,7 +242,7 @@ err:
 		ret = 0;
 
 	if (ret < 0 && !bch2_err_matches(ret, EROFS))
-		bch_err(c, "error from bch2_move_data() in copygc: %s", bch2_err_str(ret));
+		bch_err_msg(c, ret, "from bch2_move_data()");
 
 	moved = atomic64_read(&ctxt->stats->sectors_moved) - moved;
 	trace_and_count(c, copygc, c, moved, 0, 0, 0);
@@ -320,8 +320,7 @@ static int bch2_copygc_thread(void *arg)
 
 	ret = rhashtable_init(&move_buckets.table, &bch_move_bucket_params);
 	if (ret) {
-		bch_err(c, "error allocating copygc buckets in flight: %s",
-			bch2_err_str(ret));
+		bch_err_msg(c, ret, "allocating copygc buckets in flight");
 		return ret;
 	}
 
@@ -404,7 +403,7 @@ int bch2_copygc_start(struct bch_fs *c)
 	t = kthread_create(bch2_copygc_thread, c, "bch-copygc/%s", c->name);
 	ret = PTR_ERR_OR_ZERO(t);
 	if (ret) {
-		bch_err(c, "error creating copygc thread: %s", bch2_err_str(ret));
+		bch_err_msg(c, ret, "creating copygc thread");
 		return ret;
 	}
 

@@ -758,7 +758,7 @@ int bch2_journal_reclaim_start(struct journal *j)
 			   "bch-reclaim/%s", c->name);
 	ret = PTR_ERR_OR_ZERO(p);
 	if (ret) {
-		bch_err(c, "error creating journal reclaim thread: %s", bch2_err_str(ret));
+		bch_err_msg(c, ret, "creating journal reclaim thread");
 		return ret;
 	}
 

@@ -80,7 +80,7 @@ static int __snapshot_lookup_subvol(struct btree_trans *trans, u32 snapshot,
 	if (!ret)
 		*subvol = le32_to_cpu(s.subvol);
 	else if (bch2_err_matches(ret, ENOENT))
-		bch_err(trans->c, "snapshot %u not fonud", snapshot);
+		bch_err(trans->c, "snapshot %u not found", snapshot);
 	return ret;
 
 }
@@ -127,8 +127,7 @@ static int lookup_first_inode(struct btree_trans *trans, u64 inode_nr,
 	ret = bch2_inode_unpack(k, inode);
 err:
 	if (ret && !bch2_err_matches(ret, BCH_ERR_transaction_restart))
-		bch_err(trans->c, "error fetching inode %llu: %s",
-			inode_nr, bch2_err_str(ret));
+		bch_err_msg(trans->c, ret, "fetching inode %llu", inode_nr);
 	bch2_trans_iter_exit(trans, &iter);
 	return ret;
 }
@@ -154,8 +153,7 @@ static int __lookup_inode(struct btree_trans *trans, u64 inode_nr,
 		*snapshot = iter.pos.snapshot;
 err:
 	if (ret && !bch2_err_matches(ret, BCH_ERR_transaction_restart))
-		bch_err(trans->c, "error fetching inode %llu:%u: %s",
-			inode_nr, *snapshot, bch2_err_str(ret));
+		bch_err_msg(trans->c, ret, "fetching inode %llu:%u", inode_nr, *snapshot);
 	bch2_trans_iter_exit(trans, &iter);
 	return ret;
 }
@@ -206,17 +204,16 @@ static int __write_inode(struct btree_trans *trans,
 				BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE);
 }
 
-static int write_inode(struct btree_trans *trans,
-		       struct bch_inode_unpacked *inode,
-		       u32 snapshot)
+static int fsck_write_inode(struct btree_trans *trans,
+			    struct bch_inode_unpacked *inode,
+			    u32 snapshot)
 {
 	int ret = commit_do(trans, NULL, NULL,
 				  BTREE_INSERT_NOFAIL|
 				  BTREE_INSERT_LAZY_RW,
 				  __write_inode(trans, inode, snapshot));
 	if (ret)
-		bch_err(trans->c, "error in fsck: error updating inode: %s",
-			bch2_err_str(ret));
+		bch_err_fn(trans->c, ret);
 	return ret;
 }
 
@@ -278,7 +275,7 @@ static int lookup_lostfound(struct btree_trans *trans, u32 subvol,
 	}
 
 	if (ret && !bch2_err_matches(ret, BCH_ERR_transaction_restart))
-		bch_err(c, "error looking up lost+found: %s", bch2_err_str(ret));
+		bch_err_fn(c, ret);
 	if (ret)
 		return ret;
 
@@ -301,7 +298,7 @@ create_lostfound:
 				0, 0, S_IFDIR|0700, 0, NULL, NULL,
 				(subvol_inum) { }, 0);
 	if (ret && !bch2_err_matches(ret, BCH_ERR_transaction_restart))
-		bch_err(c, "error creating lost+found: %s", bch2_err_str(ret));
+		bch_err_msg(c, ret, "creating lost+found");
 	return ret;
 }
 
@@ -365,8 +362,7 @@ static int reattach_inode(struct btree_trans *trans,
 				  BTREE_INSERT_NOFAIL,
 			__reattach_inode(trans, inode, inode_snapshot));
 	if (ret) {
-		bch_err(trans->c, "error reattaching inode %llu: %s",
-			inode->bi_inum, bch2_err_str(ret));
+		bch_err_msg(trans->c, ret, "reattaching inode %llu", inode->bi_inum);
 		return ret;
 	}
 
@@ -819,7 +815,7 @@ bad_hash:
 		      bch2_bkey_val_to_text(&buf, c, hash_k), buf.buf))) {
 		ret = hash_redo_key(trans, desc, hash_info, k_iter, hash_k);
 		if (ret && !bch2_err_matches(ret, BCH_ERR_transaction_restart))
-			bch_err(c, "hash_redo_key err %s", bch2_err_str(ret));
+			bch_err_fn(c, ret);
 		if (ret)
 			return ret;
 		ret = -BCH_ERR_transaction_restart_nested;
@@ -883,7 +879,8 @@ static int check_inode(struct btree_trans *trans,
 
 		ret = __write_inode(trans, &u, iter->pos.snapshot);
 		if (ret) {
-			bch_err_msg(c, ret, "in fsck: error updating inode");
+			if (!bch2_err_matches(ret, BCH_ERR_transaction_restart))
+				bch_err_msg(c, ret, "in fsck updating inode");
 			return ret;
 		}
 
@@ -901,8 +898,7 @@ static int check_inode(struct btree_trans *trans,
 
 		ret = bch2_inode_rm_snapshot(trans, u.bi_inum, iter->pos.snapshot);
 		if (ret && !bch2_err_matches(ret, BCH_ERR_transaction_restart))
-			bch_err(c, "error in fsck: error while deleting inode: %s",
-				bch2_err_str(ret));
+			bch_err_msg(c, ret, "in fsck deleting inode");
 		return ret;
 	}
 
@@ -925,8 +921,7 @@ static int check_inode(struct btree_trans *trans,
 				POS(u.bi_inum, U64_MAX),
 				0, NULL);
 		if (ret && !bch2_err_matches(ret, BCH_ERR_transaction_restart))
-			bch_err(c, "error in fsck: error truncating inode: %s",
-				bch2_err_str(ret));
+			bch_err_msg(c, ret, "in fsck truncating inode");
 		if (ret)
 			return ret;
 
@@ -951,8 +946,7 @@ static int check_inode(struct btree_trans *trans,
 
 		sectors = bch2_count_inode_sectors(trans, u.bi_inum, iter->pos.snapshot);
 		if (sectors < 0) {
-			bch_err(c, "error in fsck: error recounting inode sectors: %s",
-				bch2_err_str(sectors));
+			bch_err_msg(c, sectors, "fsck recounting inode sectors");
 			return sectors;
 		}
 
@@ -971,13 +965,13 @@ static int check_inode(struct btree_trans *trans,
 	if (do_update) {
 		ret = __write_inode(trans, &u, iter->pos.snapshot);
 		if (ret) {
-			bch_err_msg(c, ret, "in fsck: error updating inode");
+			bch_err_msg(c, ret, "in fsck updating inode");
 			return ret;
 		}
 	}
 err:
 fsck_err:
-	if (ret)
+	if (ret && !bch2_err_matches(ret, BCH_ERR_transaction_restart))
 		bch_err_fn(c, ret);
 	return ret;
 }
@@ -1078,7 +1072,7 @@ static int check_i_sectors(struct btree_trans *trans, struct inode_walker *w)
 			    w->last_pos.inode, i->snapshot,
 			    i->inode.bi_sectors, i->count)) {
 			i->inode.bi_sectors = i->count;
-			ret = write_inode(trans, &i->inode, i->snapshot);
+			ret = fsck_write_inode(trans, &i->inode, i->snapshot);
 			if (ret)
 				break;
 		}
@@ -1496,7 +1490,7 @@ static int check_subdir_count(struct btree_trans *trans, struct inode_walker *w)
 				"directory %llu:%u with wrong i_nlink: got %u, should be %llu",
 				w->last_pos.inode, i->snapshot, i->inode.bi_nlink, i->count)) {
 			i->inode.bi_nlink = i->count;
-			ret = write_inode(trans, &i->inode, i->snapshot);
+			ret = fsck_write_inode(trans, &i->inode, i->snapshot);
 			if (ret)
 				break;
 		}
@@ -1923,7 +1917,7 @@ static int check_root_trans(struct btree_trans *trans)
 			__bch2_btree_insert(trans, BTREE_ID_subvolumes,
 					    &root_subvol.k_i, 0));
 		if (ret) {
-			bch_err(c, "error writing root subvol: %s", bch2_err_str(ret));
+			bch_err_msg(c, ret, "writing root subvol");
 			goto err;
 		}
 
@@ -1942,7 +1936,7 @@ static int check_root_trans(struct btree_trans *trans)
 
 		ret = __write_inode(trans, &root_inode, snapshot);
 		if (ret)
-			bch_err(c, "error writing root inode: %s", bch2_err_str(ret));
+			bch_err_msg(c, ret, "writing root inode");
 	}
 err:
 fsck_err:

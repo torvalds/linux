@@ -41,8 +41,7 @@ static int check_subvol(struct btree_trans *trans,
 
 		ret = bch2_subvolume_delete(trans, iter->pos.offset);
 		if (ret)
-			bch_err(c, "error deleting subvolume %llu: %s",
-				iter->pos.offset, bch2_err_str(ret));
+			bch_err_msg(c, ret, "deleting subvolume %llu", iter->pos.offset);
 		return ret ?: -BCH_ERR_transaction_restart_nested;
 	}
 
@@ -296,7 +295,7 @@ static void bch2_subvolume_wait_for_pagecache_and_delete(struct work_struct *wor
 		for (id = s.data; id < s.data + s.nr; id++) {
 			ret = bch2_trans_run(c, bch2_subvolume_delete(&trans, *id));
 			if (ret) {
-				bch_err(c, "error deleting subvolume %u: %s", *id, bch2_err_str(ret));
+				bch_err_msg(c, ret, "deleting subvolume %u", *id);
 				break;
 			}
 		}

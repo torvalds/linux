@@ -834,7 +834,7 @@ static int __bch2_set_nr_journal_buckets(struct bch_dev *ca, unsigned nr,
 						ca->mi.bucket_size));
 			if (ret) {
 				bch2_open_bucket_put(c, ob[nr_got]);
-				bch_err(c, "error marking new journal buckets: %s", bch2_err_str(ret));
+				bch_err_msg(c, ret, "marking new journal buckets");
 				break;
 			}
 

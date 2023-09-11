@@ -1931,7 +1931,7 @@ bkey_err:
 	bch2_trans_exit(&trans);
 
 	if (ret < 0) {
-		bch_err(ca, "error initializing free space: %s", bch2_err_str(ret));
+		bch_err_msg(ca, ret, "initializing free space");
 		return ret;
 	}
 

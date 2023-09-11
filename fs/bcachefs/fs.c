@@ -1890,7 +1890,7 @@ got_sb:
 	vinode = bch2_vfs_inode_get(c, BCACHEFS_ROOT_SUBVOL_INUM);
 	ret = PTR_ERR_OR_ZERO(vinode);
 	if (ret) {
-		bch_err(c, "error mounting: error getting root inode: %s", bch2_err_str(ret));
+		bch_err_msg(c, ret, "mounting: error getting root inode");
 		goto err_put_super;
 	}
 

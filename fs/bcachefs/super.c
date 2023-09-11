@@ -994,7 +994,7 @@ out:
 	up_write(&c->state_lock);
 	return ret;
 err:
-	bch_err(c, "error starting filesystem: %s", bch2_err_str(ret));
+	bch_err_msg(c, ret, "starting filesystem");
 	goto out;
 }
 
@@ -1459,7 +1459,7 @@ static int bch2_dev_remove_alloc(struct bch_fs *c, struct bch_dev *ca)
 		bch2_btree_delete_range(c, BTREE_ID_bucket_gens, start, end,
 					BTREE_TRIGGER_NORUN, NULL);
 	if (ret)
-		bch_err(c, "error removing dev alloc info: %s", bch2_err_str(ret));
+		bch_err_msg(c, ret, "removing dev alloc info");
 
 	return ret;
 }
@@ -1488,31 +1488,31 @@ int bch2_dev_remove(struct bch_fs *c, struct bch_dev *ca, int flags)
 
 	ret = bch2_dev_data_drop(c, ca->dev_idx, flags);
 	if (ret) {
-		bch_err(ca, "Remove failed: error dropping data: %s", bch2_err_str(ret));
+		bch_err_msg(ca, ret, "dropping data");
 		goto err;
 	}
 
 	ret = bch2_dev_remove_alloc(c, ca);
 	if (ret) {
-		bch_err(ca, "Remove failed, error deleting alloc info");
+		bch_err_msg(ca, ret, "deleting alloc info");
 		goto err;
 	}
 
 	ret = bch2_journal_flush_device_pins(&c->journal, ca->dev_idx);
 	if (ret) {
-		bch_err(ca, "Remove failed: error flushing journal: %s", bch2_err_str(ret));
+		bch_err_msg(ca, ret, "flushing journal");
 		goto err;
 	}
 
 	ret = bch2_journal_flush(&c->journal);
 	if (ret) {
-		bch_err(ca, "Remove failed, journal error");
+		bch_err(ca, "journal error");
 		goto err;
 	}
 
 	ret = bch2_replicas_gc2(c);
 	if (ret) {
-		bch_err(ca, "Remove failed: error from replicas gc: %s", bch2_err_str(ret));
+		bch_err_msg(ca, ret, "in replicas_gc2()");
 		goto err;
 	}
 
@@ -1587,7 +1587,7 @@ int bch2_dev_add(struct bch_fs *c, const char *path)
 
 	ret = bch2_read_super(path, &opts, &sb);
 	if (ret) {
-		bch_err(c, "device add error: error reading super: %s", bch2_err_str(ret));
+		bch_err_msg(c, ret, "reading super");
 		goto err;
 	}
 
@@ -1603,7 +1603,7 @@ int bch2_dev_add(struct bch_fs *c, const char *path)
 
 	ret = bch2_dev_may_add(sb.sb, c);
 	if (ret) {
-		bch_err(c, "device add error: %s", bch2_err_str(ret));
+		bch_err_fn(c, ret);
 		goto err;
 	}
 
@@ -1624,7 +1624,7 @@ int bch2_dev_add(struct bch_fs *c, const char *path)
 
 	ret = bch2_dev_journal_alloc(ca);
 	if (ret) {
-		bch_err(c, "device add error: journal alloc failed");
+		bch_err_msg(c, ret, "allocating journal");
 		goto err;
 	}
 
@@ -1633,7 +1633,7 @@ int bch2_dev_add(struct bch_fs *c, const char *path)
 
 	ret = bch2_sb_from_fs(c, ca);
 	if (ret) {
-		bch_err(c, "device add error: new device superblock too small");
+		bch_err_msg(c, ret, "setting up new superblock");
 		goto err_unlock;
 	}
 
@@ -1642,8 +1642,8 @@ int bch2_dev_add(struct bch_fs *c, const char *path)
 	if (!bch2_sb_resize_members(&ca->disk_sb,
 				le32_to_cpu(mi->field.u64s) +
 				sizeof(dev_mi) / sizeof(u64))) {
-		bch_err(c, "device add error: new device superblock too small");
 		ret = -BCH_ERR_ENOSPC_sb_members;
+		bch_err_msg(c, ret, "setting up new superblock");
 		goto err_unlock;
 	}
 
@@ -1655,8 +1655,8 @@ int bch2_dev_add(struct bch_fs *c, const char *path)
 		if (!bch2_dev_exists(c->disk_sb.sb, mi, dev_idx))
 			goto have_slot;
 no_slot:
-	bch_err(c, "device add error: already have maximum number of devices");
 	ret = -BCH_ERR_ENOSPC_sb_members;
+	bch_err_msg(c, ret, "setting up new superblock");
 	goto err_unlock;
 
 have_slot:
@@ -1666,8 +1666,8 @@ have_slot:
 
 	mi = bch2_sb_resize_members(&c->disk_sb, u64s);
 	if (!mi) {
-		bch_err(c, "device add error: no room in superblock for member info");
 		ret = -BCH_ERR_ENOSPC_sb_members;
+		bch_err_msg(c, ret, "setting up new superblock");
 		goto err_unlock;
 	}
 
@@ -1683,7 +1683,7 @@ have_slot:
 	if (BCH_MEMBER_GROUP(&dev_mi)) {
 		ret = __bch2_dev_group_set(c, ca, label.buf);
 		if (ret) {
-			bch_err(c, "device add error: error setting label");
+			bch_err_msg(c, ret, "creating new label");
 			goto err_unlock;
 		}
 	}
@@ -1695,13 +1695,13 @@ have_slot:
 
 	ret = bch2_trans_mark_dev_sb(c, ca);
 	if (ret) {
-		bch_err(c, "device add error: error marking new superblock: %s", bch2_err_str(ret));
+		bch_err_msg(c, ret, "marking new superblock");
 		goto err_late;
 	}
 
 	ret = bch2_fs_freespace_init(c);
 	if (ret) {
-		bch_err(c, "device add error: error initializing free space: %s", bch2_err_str(ret));
+		bch_err_msg(c, ret, "initializing free space");
 		goto err_late;
 	}
 
@@ -1751,7 +1751,7 @@ int bch2_dev_online(struct bch_fs *c, const char *path)
 
 	ret = bch2_dev_in_fs(c->disk_sb.sb, sb.sb);
 	if (ret) {
-		bch_err(c, "error bringing %s online: %s", path, bch2_err_str(ret));
+		bch_err_msg(c, ret, "bringing %s online", path);
 		goto err;
 	}
 
@@ -1763,8 +1763,7 @@ int bch2_dev_online(struct bch_fs *c, const char *path)
 
 	ret = bch2_trans_mark_dev_sb(c, ca);
 	if (ret) {
-		bch_err(c, "error bringing %s online: error from bch2_trans_mark_dev_sb: %s",
-			path, bch2_err_str(ret));
+		bch_err_msg(c, ret, "bringing %s online: error from bch2_trans_mark_dev_sb", path);
 		goto err;
 	}
 
@@ -1782,7 +1781,7 @@ int bch2_dev_online(struct bch_fs *c, const char *path)
 
 	ret = bch2_fs_freespace_init(c);
 	if (ret)
-		bch_err(c, "device add error: error initializing free space: %s", bch2_err_str(ret));
+		bch_err_msg(c, ret, "initializing free space");
 
 	up_write(&c->state_lock);
 	return 0;
@@ -1837,7 +1836,7 @@ int bch2_dev_resize(struct bch_fs *c, struct bch_dev *ca, u64 nbuckets)
 
 	ret = bch2_dev_buckets_resize(c, ca, nbuckets);
 	if (ret) {
-		bch_err(ca, "Resize error: %s", bch2_err_str(ret));
+		bch_err_msg(ca, ret, "resizing buckets");
 		goto err;
 	}
 
