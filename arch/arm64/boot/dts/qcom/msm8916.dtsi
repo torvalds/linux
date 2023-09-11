@@ -102,9 +102,11 @@
 			no-map;
 		};
 
-		mba_mem: mba@8ea00000 {
+		mba_mem: mba {
+			size = <0x0 0x100000>;
+			alignment = <0x0 0x100000>;
+			alloc-ranges = <0x0 0x86800000 0x0 0x8000000>;
 			no-map;
-			reg = <0 0x8ea00000 0 0x100000>;
 		};
 	};
 
