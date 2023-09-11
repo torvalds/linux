@@ -1464,6 +1464,10 @@ static void detect_cpu_boot_status(struct hl_device *hdev, u32 status)
 		dev_err(hdev->dev,
 			"Device boot progress - Stuck in preboot after security initialization\n");
 		break;
+	case CPU_BOOT_STATUS_FW_SHUTDOWN_PREP:
+		dev_err(hdev->dev,
+			"Device boot progress - Stuck in preparation for shutdown\n");
+		break;
 	default:
 		dev_err(hdev->dev,
 			"Device boot progress - Invalid or unexpected status code %d\n", status);
