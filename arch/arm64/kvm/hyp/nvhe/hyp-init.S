@@ -57,6 +57,7 @@ __do_hyp_init:
 	cmp	x0, #HVC_STUB_HCALL_NR
 	b.lo	__kvm_handle_stub_hvc
 
+	bic	x0, x0, #ARM_SMCCC_CALL_HINTS
 	mov	x3, #KVM_HOST_SMCCC_FUNC(__kvm_hyp_init)
 	cmp	x0, x3
 	b.eq	1f
