@@ -70,6 +70,7 @@ properties:
               - rockchip,rk3588-qos
               - rockchip,rv1126-qos
               - starfive,jh7100-sysmain
+              - ti,am654-dss-oldi-io-ctrl
 
           - const: syscon
 
