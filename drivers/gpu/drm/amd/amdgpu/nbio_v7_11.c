@@ -28,6 +28,14 @@
 #include "nbio/nbio_7_11_0_sh_mask.h"
 #include <uapi/linux/kfd_ioctl.h>
 
+static void nbio_v7_11_remap_hdp_registers(struct amdgpu_device *adev)
+{
+	WREG32_SOC15(NBIO, 0, regBIF_BX0_REMAP_HDP_MEM_FLUSH_CNTL,
+		     adev->rmmio_remap.reg_offset + KFD_MMIO_REMAP_HDP_MEM_FLUSH_CNTL);
+	WREG32_SOC15(NBIO, 0, regBIF_BX0_REMAP_HDP_REG_FLUSH_CNTL,
+		     adev->rmmio_remap.reg_offset + KFD_MMIO_REMAP_HDP_REG_FLUSH_CNTL);
+}
+
 static u32 nbio_v7_11_get_rev_id(struct amdgpu_device *adev)
 {
 	u32 tmp;
@@ -284,4 +292,5 @@ const struct amdgpu_nbio_funcs nbio_v7_11_funcs = {
 	.ih_doorbell_range = nbio_v7_11_ih_doorbell_range,
 	.ih_control = nbio_v7_11_ih_control,
 	.init_registers = nbio_v7_11_init_registers,
+	.remap_hdp_registers = nbio_v7_11_remap_hdp_registers,
 };
