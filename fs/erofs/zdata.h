@@ -94,11 +94,8 @@ struct z_erofs_pcluster {
 
 /* let's avoid the valid 32-bit kernel addresses */
 
-/* the chained workgroup has't submitted io (still open) */
+/* the end of a chain of pclusters */
 #define Z_EROFS_PCLUSTER_TAIL           ((void *)0x5F0ECAFE)
-/* the chained workgroup has already submitted io */
-#define Z_EROFS_PCLUSTER_TAIL_CLOSED    ((void *)0x5F0EDEAD)
-
 #define Z_EROFS_PCLUSTER_NIL            (NULL)
 
 struct z_erofs_decompressqueue {

@@ -6,6 +6,7 @@ load("//build/bazel_common_rules/dist:dist.bzl", "copy_to_dist_dir")
 load("//build/kernel/kleaf:common_kernels.bzl", "define_common_kernels")
 load(
     "//build/kernel/kleaf:kernel.bzl",
+    "checkpatch",
     "ddk_headers",
     "kernel_abi",
     "kernel_build",
@@ -39,6 +40,11 @@ _GKI_X86_64_MAKE_GOALS = [
     "bzImage",
     "modules",
 ]
+
+checkpatch(
+    name = "checkpatch",
+    checkpatch_pl = "scripts/checkpatch.pl",
+)
 
 write_file(
     name = "gki_system_dlkm_modules",
@@ -76,6 +82,7 @@ define_common_kernels(target_configs = {
         "kmi_symbol_list_strict_mode": True,
         "module_implicit_outs": COMMON_GKI_MODULES_LIST,
         "kmi_symbol_list": "android/abi_gki_aarch64",
+        "kmi_symbol_list_add_only": True,
         "additional_kmi_symbol_lists": [":aarch64_additional_kmi_symbol_lists"],
         "protected_exports_list": "android/abi_gki_protected_exports_aarch64",
         "protected_modules_list": "android/gki_aarch64_protected_modules",
@@ -90,6 +97,7 @@ define_common_kernels(target_configs = {
         "kmi_symbol_list_strict_mode": False,
         "module_implicit_outs": COMMON_GKI_MODULES_LIST,
         "kmi_symbol_list": "android/abi_gki_aarch64",
+        "kmi_symbol_list_add_only": True,
         "additional_kmi_symbol_lists": [":aarch64_additional_kmi_symbol_lists"],
         "protected_exports_list": "android/abi_gki_protected_exports_aarch64",
         "protected_modules_list": "android/gki_aarch64_protected_modules",

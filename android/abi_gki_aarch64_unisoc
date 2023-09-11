@@ -574,6 +574,8 @@
   skb_unlink
   sk_error_report
   sk_free
+  snd_ctl_find_id
+  snd_info_get_line
   snprintf
   sock_alloc_send_pskb
   sock_create_kern
@@ -714,6 +716,7 @@
   __traceiter_android_vh_get_thermal_zone_device
   __traceiter_android_vh_modify_thermal_request_freq
   __traceiter_android_vh_modify_thermal_target_freq
+  __traceiter_android_vh_regmap_update
   __traceiter_android_vh_scheduler_tick
   __traceiter_android_vh_thermal_power_cap
   __traceiter_android_vh_thermal_register
@@ -792,6 +795,7 @@
   __tracepoint_android_vh_get_thermal_zone_device
   __tracepoint_android_vh_modify_thermal_request_freq
   __tracepoint_android_vh_modify_thermal_target_freq
+  __tracepoint_android_vh_regmap_update
   __tracepoint_android_vh_scheduler_tick
   __tracepoint_android_vh_thermal_power_cap
   __tracepoint_android_vh_thermal_register
@@ -1576,6 +1580,11 @@
   spi_controller_suspend
   spi_finalize_current_transfer
 
+# required by sprd-audio-codec.ko
+  regulator_register
+  snd_pcm_rate_bit_to_rate
+  snd_pcm_rate_to_rate_bit
+
 # required by sprd-bc1p2.ko
   kthread_flush_worker
   __kthread_init_worker
@@ -1660,14 +1669,18 @@
   drm_poll
   drm_read
   drm_release
+  drm_send_event_timestamp_locked
   drm_vblank_init
   mipi_dsi_host_register
   mipi_dsi_host_unregister
+  mipi_dsi_set_maximum_return_packet_size
   of_drm_find_bridge
+  of_get_drm_display_mode
   of_graph_get_port_by_id
   of_graph_get_remote_node
   __platform_register_drivers
   platform_unregister_drivers
+  regmap_get_reg_stride
 
 # required by sprd-iommu.ko
   iommu_device_register
@@ -1758,6 +1771,9 @@
 # required by sprd_wdt.ko
   devm_watchdog_register_device
   watchdog_init_timeout
+
+# required by sprdbt_tty.ko
+  tty_port_link_device
 
 # required by sysdump.ko
   android_rvh_probe_register
