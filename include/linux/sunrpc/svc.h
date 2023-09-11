@@ -50,6 +50,8 @@ struct svc_pool {
 enum {
 	SP_TASK_PENDING,	/* still work to do even if no xprt is queued */
 	SP_CONGESTED,		/* all threads are busy, none idle */
+	SP_NEED_VICTIM,		/* One thread needs to agree to exit */
+	SP_VICTIM_REMAINS,	/* One thread needs to actually exit */
 };
 
 
@@ -259,7 +261,7 @@ enum {
 	RQ_DROPME,		/* drop current reply */
 	RQ_SPLICE_OK,		/* turned off in gss privacy to prevent
 				 * encrypting page cache pages */
-	RQ_VICTIM,		/* about to be shut down */
+	RQ_VICTIM,		/* Have agreed to shut down */
 	RQ_BUSY,		/* request is busy */
 	RQ_DATA,		/* request has data */
 };
@@ -297,6 +299,28 @@ static inline struct sockaddr_in6 *svc_daddr_in6(const struct svc_rqst *rqst)
 static inline struct sockaddr *svc_daddr(const struct svc_rqst *rqst)
 {
 	return (struct sockaddr *) &rqst->rq_daddr;
+}
+
+/**
+ * svc_thread_should_stop - check if this thread should stop
+ * @rqstp: the thread that might need to stop
+ *
+ * To stop an svc thread, the pool flags SP_NEED_VICTIM and SP_VICTIM_REMAINS
+ * are set.  The first thread which sees SP_NEED_VICTIM clears it, becoming
+ * the victim using this function.  It should then promptly call
+ * svc_exit_thread() to complete the process, clearing SP_VICTIM_REMAINS
+ * so the task waiting for a thread to exit can wake and continue.
+ *
+ * Return values:
+ *   %true: caller should invoke svc_exit_thread()
+ *   %false: caller should do nothing
+ */
+static inline bool svc_thread_should_stop(struct svc_rqst *rqstp)
+{
+	if (test_and_clear_bit(SP_NEED_VICTIM, &rqstp->rq_pool->sp_flags))
+		set_bit(RQ_VICTIM, &rqstp->rq_flags);
+
+	return test_bit(RQ_VICTIM, &rqstp->rq_flags);
 }
 
 struct svc_deferred_req {
