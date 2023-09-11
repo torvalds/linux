@@ -528,13 +528,16 @@ void bcmasp_netfilt_suspend(struct bcmasp_intf *intf)
 				  ASP_RX_FILTER_BLK_CTRL);
 }
 
-void bcmasp_netfilt_get_all_active(struct bcmasp_intf *intf, u32 *rule_locs,
-				   u32 *rule_cnt)
+int bcmasp_netfilt_get_all_active(struct bcmasp_intf *intf, u32 *rule_locs,
+				  u32 *rule_cnt)
 {
 	struct bcmasp_priv *priv = intf->parent;
 	int j = 0, i;
 
 	for (i = 0; i < NUM_NET_FILTERS; i++) {
+		if (j == *rule_cnt)
+			return -EMSGSIZE;
+
 		if (!priv->net_filters[i].claimed ||
 		    priv->net_filters[i].port != intf->port)
 			continue;
@@ -548,6 +551,8 @@ void bcmasp_netfilt_get_all_active(struct bcmasp_intf *intf, u32 *rule_locs,
 	}
 
 	*rule_cnt = j;
+
+	return 0;
 }
 
 int bcmasp_netfilt_get_active(struct bcmasp_intf *intf)
