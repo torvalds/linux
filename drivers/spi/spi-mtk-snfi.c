@@ -1255,7 +1255,7 @@ static bool mtk_snand_supports_op(struct spi_mem *mem,
 
 static int mtk_snand_adjust_op_size(struct spi_mem *mem, struct spi_mem_op *op)
 {
-	struct mtk_snand *ms = spi_controller_get_devdata(mem->spi->master);
+	struct mtk_snand *ms = spi_controller_get_devdata(mem->spi->controller);
 	// page ops transfer size must be exactly ((sector_size + spare_size) *
 	// nsectors). Limit the op size if the caller requests more than that.
 	// exec_op will read more than needed and discard the leftover if the
@@ -1282,7 +1282,7 @@ static int mtk_snand_adjust_op_size(struct spi_mem *mem, struct spi_mem_op *op)
 
 static int mtk_snand_exec_op(struct spi_mem *mem, const struct spi_mem_op *op)
 {
-	struct mtk_snand *ms = spi_controller_get_devdata(mem->spi->master);
+	struct mtk_snand *ms = spi_controller_get_devdata(mem->spi->controller);
 
 	dev_dbg(ms->dev, "OP %02x ADDR %08llX@%d:%u DATA %d:%u", op->cmd.opcode,
 		op->addr.val, op->addr.buswidth, op->addr.nbytes,
@@ -1382,7 +1382,7 @@ static int mtk_snand_probe(struct platform_device *pdev)
 	if (!dev_id)
 		return -EINVAL;
 
-	ctlr = devm_spi_alloc_master(&pdev->dev, sizeof(*ms));
+	ctlr = devm_spi_alloc_host(&pdev->dev, sizeof(*ms));
 	if (!ctlr)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, ctlr);
