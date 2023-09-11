@@ -19,10 +19,12 @@
 
 #define PWRC_ON		1
 #define PWRC_OFF	0
+#define PWRC_NO_PARENT	UINT_MAX
 
 struct meson_secure_pwrc_domain {
 	struct generic_pm_domain base;
 	unsigned int index;
+	unsigned int parent;
 	struct meson_secure_pwrc *pwrc;
 };
 
@@ -34,6 +36,7 @@ struct meson_secure_pwrc {
 
 struct meson_secure_pwrc_domain_desc {
 	unsigned int index;
+	unsigned int parent;
 	unsigned int flags;
 	char *name;
 	bool (*is_off)(struct meson_secure_pwrc_domain *pwrc_domain);
@@ -90,8 +93,19 @@ static int meson_secure_pwrc_on(struct generic_pm_domain *domain)
 {						\
 	.name = #__name,			\
 	.index = PWRC_##__name##_ID,		\
-	.is_off = pwrc_secure_is_off,	\
+	.is_off = pwrc_secure_is_off,		\
 	.flags = __flag,			\
+	.parent = PWRC_NO_PARENT,		\
+}
+
+#define TOP_PD(__name, __flag, __parent)	\
+[PWRC_##__name##_ID] =				\
+{						\
+	.name = #__name,			\
+	.index = PWRC_##__name##_ID,		\
+	.is_off = pwrc_secure_is_off,		\
+	.flags = __flag,			\
+	.parent = __parent,			\
 }
 
 static struct meson_secure_pwrc_domain_desc a1_pwrc_domains[] = {
@@ -202,6 +216,7 @@ static int meson_secure_pwrc_probe(struct platform_device *pdev)
 
 		dom->pwrc = pwrc;
 		dom->index = match->domains[i].index;
+		dom->parent = match->domains[i].parent;
 		dom->base.name = match->domains[i].name;
 		dom->base.flags = match->domains[i].flags;
 		dom->base.power_on = meson_secure_pwrc_on;
@@ -210,6 +225,15 @@ static int meson_secure_pwrc_probe(struct platform_device *pdev)
 		pm_genpd_init(&dom->base, NULL, match->domains[i].is_off(dom));
 
 		pwrc->xlate.domains[i] = &dom->base;
+	}
+
+	for (i = 0; i < match->count; i++) {
+		struct meson_secure_pwrc_domain *dom = pwrc->domains;
+
+		if (!match->domains[i].name || match->domains[i].parent == PWRC_NO_PARENT)
+			continue;
+
+		pm_genpd_add_subdomain(&dom[dom[i].parent].base, &dom[i].base);
 	}
 
 	return of_genpd_add_provider_onecell(pdev->dev.of_node, &pwrc->xlate);
