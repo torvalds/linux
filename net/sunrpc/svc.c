@@ -511,7 +511,6 @@ __svc_create(struct svc_program *prog, unsigned int bufsize, int npools,
 		lwq_init(&pool->sp_xprts);
 		INIT_LIST_HEAD(&pool->sp_all_threads);
 		init_llist_head(&pool->sp_idle_threads);
-		spin_lock_init(&pool->sp_lock);
 
 		percpu_counter_init(&pool->sp_messages_arrived, 0, GFP_KERNEL);
 		percpu_counter_init(&pool->sp_sockets_queued, 0, GFP_KERNEL);
@@ -682,9 +681,12 @@ svc_prepare_thread(struct svc_serv *serv, struct svc_pool *pool, int node)
 	spin_unlock_bh(&serv->sv_lock);
 
 	atomic_inc(&pool->sp_nrthreads);
-	spin_lock_bh(&pool->sp_lock);
+
+	/* Protected by whatever lock the service uses when calling
+	 * svc_set_num_threads()
+	 */
 	list_add_rcu(&rqstp->rq_all, &pool->sp_all_threads);
-	spin_unlock_bh(&pool->sp_lock);
+
 	return rqstp;
 }
 
@@ -922,9 +924,7 @@ svc_exit_thread(struct svc_rqst *rqstp)
 	struct svc_serv	*serv = rqstp->rq_server;
 	struct svc_pool	*pool = rqstp->rq_pool;
 
-	spin_lock_bh(&pool->sp_lock);
 	list_del_rcu(&rqstp->rq_all);
-	spin_unlock_bh(&pool->sp_lock);
 
 	atomic_dec(&pool->sp_nrthreads);
 
