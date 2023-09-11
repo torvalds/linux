@@ -1114,7 +1114,7 @@ static int s390_gs_cb_set(struct task_struct *target,
 		target->thread.gs_cb = data;
 	*target->thread.gs_cb = gs_cb;
 	if (target == current) {
-		local_ctl_set_bit(2, 4);
+		local_ctl_set_bit(2, CR2_GUARDED_STORAGE_BIT);
 		restore_gs_cb(target->thread.gs_cb);
 	}
 	preempt_enable();

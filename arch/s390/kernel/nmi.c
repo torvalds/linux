@@ -185,7 +185,7 @@ void s390_handle_mcck(void)
 		static int mchchk_wng_posted = 0;
 
 		/* Use single cpu clear, as we cannot handle smp here. */
-		local_ctl_clear_bit(14, 24);	/* Disable WARNING MCH */
+		local_ctl_clear_bit(14, CR14_WARNING_SUBMASK_BIT);
 		if (xchg(&mchchk_wng_posted, 1) == 0)
 			kill_cad_pid(SIGPWR, 1);
 	}
@@ -505,9 +505,9 @@ NOKPROBE_SYMBOL(s390_do_machine_check);
 
 static int __init machine_check_init(void)
 {
-	system_ctl_set_bit(14, 25);	/* enable external damage MCH */
-	system_ctl_set_bit(14, 27);	/* enable system recovery MCH */
-	system_ctl_set_bit(14, 24);	/* enable warning MCH */
+	system_ctl_set_bit(14, CR14_EXTERNAL_DAMAGE_SUBMASK_BIT);
+	system_ctl_set_bit(14, CR14_RECOVERY_SUBMASK_BIT);
+	system_ctl_set_bit(14, CR14_WARNING_SUBMASK_BIT);
 	return 0;
 }
 early_initcall(machine_check_init);
