@@ -4598,6 +4598,13 @@ static void intel_pmu_check_num_counters(int *num_counters,
 					 int *num_counters_fixed,
 					 u64 *intel_ctrl, u64 fixed_mask);
 
+static void intel_pmu_check_event_constraints(struct event_constraint *event_constraints,
+					      int num_counters,
+					      int num_counters_fixed,
+					      u64 intel_ctrl);
+
+static void intel_pmu_check_extra_regs(struct extra_reg *extra_regs);
+
 static inline bool intel_pmu_broken_perf_cap(void)
 {
 	/* The Perf Metric (Bit 15) is always cleared */
@@ -4618,12 +4625,6 @@ static void update_pmu_cap(struct x86_hybrid_pmu *pmu)
 			    &eax, &ebx, &ecx, &edx);
 		pmu->num_counters = fls(eax);
 		pmu->num_counters_fixed = fls(ebx);
-		intel_pmu_check_num_counters(&pmu->num_counters, &pmu->num_counters_fixed,
-					     &pmu->intel_ctrl, ebx);
-		pmu->max_pebs_events = min_t(unsigned, MAX_PEBS_EVENTS, pmu->num_counters);
-		pmu->unconstrained = (struct event_constraint)
-				     __EVENT_CONSTRAINT(0, (1ULL << pmu->num_counters) - 1,
-							0, pmu->num_counters, 0, 0);
 	}
 
 
@@ -4631,6 +4632,16 @@ static void update_pmu_cap(struct x86_hybrid_pmu *pmu)
 		/* Perf Metric (Bit 15) and PEBS via PT (Bit 16) are hybrid enumeration */
 		rdmsrl(MSR_IA32_PERF_CAPABILITIES, pmu->intel_cap.capabilities);
 	}
+}
+
+static void intel_pmu_check_hybrid_pmus(struct x86_hybrid_pmu *pmu)
+{
+	intel_pmu_check_num_counters(&pmu->num_counters, &pmu->num_counters_fixed,
+				     &pmu->intel_ctrl, (1ULL << pmu->num_counters_fixed) - 1);
+	pmu->max_pebs_events = min_t(unsigned, MAX_PEBS_EVENTS, pmu->num_counters);
+	pmu->unconstrained = (struct event_constraint)
+			     __EVENT_CONSTRAINT(0, (1ULL << pmu->num_counters) - 1,
+						0, pmu->num_counters, 0, 0);
 
 	if (pmu->intel_cap.perf_metrics)
 		pmu->intel_ctrl |= 1ULL << GLOBAL_CTRL_EN_PERF_METRICS;
@@ -4641,6 +4652,13 @@ static void update_pmu_cap(struct x86_hybrid_pmu *pmu)
 		pmu->pmu.capabilities |= PERF_PMU_CAP_AUX_OUTPUT;
 	else
 		pmu->pmu.capabilities |= ~PERF_PMU_CAP_AUX_OUTPUT;
+
+	intel_pmu_check_event_constraints(pmu->event_constraints,
+					  pmu->num_counters,
+					  pmu->num_counters_fixed,
+					  pmu->intel_ctrl);
+
+	intel_pmu_check_extra_regs(pmu->extra_regs);
 }
 
 static struct x86_hybrid_pmu *find_hybrid_pmu_for_cpu(void)
@@ -4695,6 +4713,8 @@ static bool init_hybrid_pmu(int cpu)
 
 	if (this_cpu_has(X86_FEATURE_ARCH_PERFMON_EXT))
 		update_pmu_cap(pmu);
+
+	intel_pmu_check_hybrid_pmus(pmu);
 
 	if (!check_hw_exists(&pmu->pmu, pmu->num_counters, pmu->num_counters_fixed))
 		return false;
@@ -5915,36 +5935,6 @@ static void intel_pmu_check_extra_regs(struct extra_reg *extra_regs)
 	}
 }
 
-static void intel_pmu_check_hybrid_pmus(u64 fixed_mask)
-{
-	struct x86_hybrid_pmu *pmu;
-	int i;
-
-	for (i = 0; i < x86_pmu.num_hybrid_pmus; i++) {
-		pmu = &x86_pmu.hybrid_pmu[i];
-
-		intel_pmu_check_num_counters(&pmu->num_counters,
-					     &pmu->num_counters_fixed,
-					     &pmu->intel_ctrl,
-					     fixed_mask);
-
-		if (pmu->intel_cap.perf_metrics) {
-			pmu->intel_ctrl |= 1ULL << GLOBAL_CTRL_EN_PERF_METRICS;
-			pmu->intel_ctrl |= INTEL_PMC_MSK_FIXED_SLOTS;
-		}
-
-		if (pmu->intel_cap.pebs_output_pt_available)
-			pmu->pmu.capabilities |= PERF_PMU_CAP_AUX_OUTPUT;
-
-		intel_pmu_check_event_constraints(pmu->event_constraints,
-						  pmu->num_counters,
-						  pmu->num_counters_fixed,
-						  pmu->intel_ctrl);
-
-		intel_pmu_check_extra_regs(pmu->extra_regs);
-	}
-}
-
 static const struct { enum hybrid_pmu_type id; char *name; } intel_hybrid_pmu_type_map[] __initconst = {
 	{ hybrid_small, "cpu_atom" },
 	{ hybrid_big, "cpu_core" },
@@ -6868,9 +6858,6 @@ __init int intel_pmu_init(void)
 
 	if (!is_hybrid() && x86_pmu.intel_cap.perf_metrics)
 		x86_pmu.intel_ctrl |= 1ULL << GLOBAL_CTRL_EN_PERF_METRICS;
-
-	if (is_hybrid() && !boot_cpu_has(X86_FEATURE_ARCH_PERFMON_EXT))
-		intel_pmu_check_hybrid_pmus((u64)fixed_mask);
 
 	if (x86_pmu.intel_cap.pebs_timing_info)
 		x86_pmu.flags |= PMU_FL_RETIRE_LATENCY;
