@@ -2313,8 +2313,13 @@ static const struct prueth_pdata am654_icssg_pdata = {
 	.quirk_10m_link_issue = 1,
 };
 
+static const struct prueth_pdata am64x_icssg_pdata = {
+	.fdqring_mode = K3_RINGACC_RING_MODE_RING,
+};
+
 static const struct of_device_id prueth_dt_match[] = {
 	{ .compatible = "ti,am654-icssg-prueth", .data = &am654_icssg_pdata },
+	{ .compatible = "ti,am642-icssg-prueth", .data = &am64x_icssg_pdata },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, prueth_dt_match);
