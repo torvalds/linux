@@ -722,51 +722,34 @@ rqst_should_sleep(struct svc_rqst *rqstp)
 	return true;
 }
 
-static struct svc_xprt *svc_get_next_xprt(struct svc_rqst *rqstp)
+static void svc_rqst_wait_for_work(struct svc_rqst *rqstp)
 {
-	struct svc_pool		*pool = rqstp->rq_pool;
+	struct svc_pool *pool = rqstp->rq_pool;
 
-	/* rq_xprt should be clear on entry */
-	WARN_ON_ONCE(rqstp->rq_xprt);
+	if (rqst_should_sleep(rqstp)) {
+		set_current_state(TASK_IDLE);
+		smp_mb__before_atomic();
+		clear_bit(SP_CONGESTED, &pool->sp_flags);
+		clear_bit(RQ_BUSY, &rqstp->rq_flags);
+		smp_mb__after_atomic();
 
-	rqstp->rq_xprt = svc_xprt_dequeue(pool);
-	if (rqstp->rq_xprt)
-		goto out_found;
+		/* Need to check should_sleep() again after
+		 * setting task state in case a wakeup happened
+		 * between testing and setting.
+		 */
+		if (rqst_should_sleep(rqstp)) {
+			schedule();
+		} else {
+			__set_current_state(TASK_RUNNING);
+			cond_resched();
+		}
 
-	set_current_state(TASK_IDLE);
-	smp_mb__before_atomic();
-	clear_bit(SP_CONGESTED, &pool->sp_flags);
-	clear_bit(RQ_BUSY, &rqstp->rq_flags);
-	smp_mb__after_atomic();
-
-	if (likely(rqst_should_sleep(rqstp)))
-		schedule();
-	else
-		__set_current_state(TASK_RUNNING);
-
+		set_bit(RQ_BUSY, &rqstp->rq_flags);
+		smp_mb__after_atomic();
+	} else {
+		cond_resched();
+	}
 	try_to_freeze();
-
-	set_bit(RQ_BUSY, &rqstp->rq_flags);
-	smp_mb__after_atomic();
-	clear_bit(SP_TASK_PENDING, &pool->sp_flags);
-	rqstp->rq_xprt = svc_xprt_dequeue(pool);
-	if (rqstp->rq_xprt)
-		goto out_found;
-
-	if (kthread_should_stop())
-		return NULL;
-	return NULL;
-out_found:
-	clear_bit(SP_TASK_PENDING, &pool->sp_flags);
-	/* Normally we will wait up to 5 seconds for any required
-	 * cache information to be provided.
-	 */
-	if (!test_bit(SP_CONGESTED, &pool->sp_flags))
-		rqstp->rq_chandle.thread_wait = 5*HZ;
-	else
-		rqstp->rq_chandle.thread_wait = 1*HZ;
-	trace_svc_xprt_dequeue(rqstp);
-	return rqstp->rq_xprt;
 }
 
 static void svc_add_new_temp_xprt(struct svc_serv *serv, struct svc_xprt *newxpt)
@@ -858,20 +841,33 @@ out:
  */
 void svc_recv(struct svc_rqst *rqstp)
 {
-	struct svc_xprt		*xprt = NULL;
+	struct svc_pool *pool = rqstp->rq_pool;
 
 	if (!svc_alloc_arg(rqstp))
 		return;
 
-	try_to_freeze();
-	cond_resched();
-	if (kthread_should_stop())
-		goto out;
+	svc_rqst_wait_for_work(rqstp);
 
-	xprt = svc_get_next_xprt(rqstp);
-	if (xprt)
+	clear_bit(SP_TASK_PENDING, &pool->sp_flags);
+
+	if (kthread_should_stop())
+		return;
+
+	rqstp->rq_xprt = svc_xprt_dequeue(pool);
+	if (rqstp->rq_xprt) {
+		struct svc_xprt *xprt = rqstp->rq_xprt;
+
+		/* Normally we will wait up to 5 seconds for any required
+		 * cache information to be provided.
+		 */
+		if (!test_bit(SP_CONGESTED, &pool->sp_flags))
+			rqstp->rq_chandle.thread_wait = 5 * HZ;
+		else
+			rqstp->rq_chandle.thread_wait = 1 * HZ;
+
+		trace_svc_xprt_dequeue(rqstp);
 		svc_handle_xprt(rqstp, xprt);
-out:
+	}
 }
 EXPORT_SYMBOL_GPL(svc_recv);
 
