@@ -9,11 +9,8 @@
 #define YYDEBUG 1
 
 #include <errno.h>
-#include <fnmatch.h>
-#include <stdio.h>
 #include <linux/compiler.h>
 #include <linux/types.h>
-#include <linux/zalloc.h>
 #include "pmu.h"
 #include "pmus.h"
 #include "evsel.h"
