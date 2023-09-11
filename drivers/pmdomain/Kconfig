@@ -5,5 +5,6 @@ source "drivers/pmdomain/actions/Kconfig"
 source "drivers/pmdomain/amlogic/Kconfig"
 source "drivers/pmdomain/apple/Kconfig"
 source "drivers/pmdomain/bcm/Kconfig"
+source "drivers/pmdomain/imx/Kconfig"
 
 endmenu
