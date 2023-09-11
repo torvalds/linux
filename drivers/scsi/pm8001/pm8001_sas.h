@@ -85,9 +85,6 @@ do {									\
 
 extern bool pm8001_use_msix;
 
-#define PM8001_READ_VPD
-
-
 #define IS_SPCV_12G(dev)	((dev->device == 0X8074)		\
 				|| (dev->device == 0X8076)		\
 				|| (dev->device == 0X8077)		\

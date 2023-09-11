@@ -64,6 +64,10 @@ static bool pm8001_use_tasklet = true;
 module_param_named(use_tasklet, pm8001_use_tasklet, bool, 0444);
 MODULE_PARM_DESC(zoned, "Use MSIX interrupts. Default: true");
 
+static bool pm8001_read_wwn = true;
+module_param_named(read_wwn, pm8001_read_wwn, bool, 0444);
+MODULE_PARM_DESC(zoned, "Get WWN from the controller. Default: true");
+
 static struct scsi_transport_template *pm8001_stt;
 static int pm8001_init_ccb_tag(struct pm8001_hba_info *);
 
@@ -683,19 +687,30 @@ static void  pm8001_post_sas_ha_init(struct Scsi_Host *shost,
  */
 static int pm8001_init_sas_add(struct pm8001_hba_info *pm8001_ha)
 {
-	u8 i, j;
-	u8 sas_add[8];
-#ifdef PM8001_READ_VPD
-	/* For new SPC controllers WWN is stored in flash vpd
-	*  For SPC/SPCve controllers WWN is stored in EEPROM
-	*  For Older SPC WWN is stored in NVMD
-	*/
 	DECLARE_COMPLETION_ONSTACK(completion);
 	struct pm8001_ioctl_payload payload;
+	unsigned long time_remaining;
+	u8 sas_add[8];
 	u16 deviceid;
 	int rc;
-	unsigned long time_remaining;
+	u8 i, j;
 
+	if (!pm8001_read_wwn) {
+		__be64 dev_sas_addr = cpu_to_be64(0x50010c600047f9d0ULL);
+
+		for (i = 0; i < pm8001_ha->chip->n_phy; i++)
+			memcpy(&pm8001_ha->phy[i].dev_sas_addr, &dev_sas_addr,
+			       SAS_ADDR_SIZE);
+		memcpy(pm8001_ha->sas_addr, &pm8001_ha->phy[0].dev_sas_addr,
+		       SAS_ADDR_SIZE);
+		return 0;
+	}
+
+	/*
+	 * For new SPC controllers WWN is stored in flash vpd. For SPC/SPCve
+	 * controllers WWN is stored in EEPROM. And for Older SPC WWN is stored
+	 * in NVMD.
+	 */
 	if (PM8001_CHIP_DISP->fatal_errors(pm8001_ha)) {
 		pm8001_dbg(pm8001_ha, FAIL, "controller is in fatal error state\n");
 		return -EIO;
@@ -769,16 +784,7 @@ static int pm8001_init_sas_add(struct pm8001_hba_info *pm8001_ha)
 			   pm8001_ha->phy[i].dev_sas_addr);
 	}
 	kfree(payload.func_specific);
-#else
-	for (i = 0; i < pm8001_ha->chip->n_phy; i++) {
-		pm8001_ha->phy[i].dev_sas_addr = 0x50010c600047f9d0ULL;
-		pm8001_ha->phy[i].dev_sas_addr =
-			cpu_to_be64((u64)
-				(*(u64 *)&pm8001_ha->phy[i].dev_sas_addr));
-	}
-	memcpy(pm8001_ha->sas_addr, &pm8001_ha->phy[0].dev_sas_addr,
-		SAS_ADDR_SIZE);
-#endif
+
 	return 0;
 }
 
@@ -788,12 +794,12 @@ static int pm8001_init_sas_add(struct pm8001_hba_info *pm8001_ha)
  */
 static int pm8001_get_phy_settings_info(struct pm8001_hba_info *pm8001_ha)
 {
-
-#ifdef PM8001_READ_VPD
-	/*OPTION ROM FLASH read for the SPC cards */
 	DECLARE_COMPLETION_ONSTACK(completion);
 	struct pm8001_ioctl_payload payload;
 	int rc;
+
+	if (!pm8001_read_wwn)
+		return 0;
 
 	pm8001_ha->nvmd_completion = &completion;
 	/* SAS ADDRESS read from flash / EEPROM */
@@ -813,7 +819,7 @@ static int pm8001_get_phy_settings_info(struct pm8001_hba_info *pm8001_ha)
 	wait_for_completion(&completion);
 	pm8001_set_phy_profile(pm8001_ha, sizeof(u8), payload.func_specific);
 	kfree(payload.func_specific);
-#endif
+
 	return 0;
 }
 
