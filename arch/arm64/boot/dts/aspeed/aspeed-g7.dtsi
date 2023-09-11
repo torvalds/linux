@@ -177,6 +177,7 @@
 				 <&cpu_clk ASPEED_RESET_SHA3>,
 				 <&cpu_clk ASPEED_RESET_SM3>,
 				 <&cpu_clk ASPEED_RESET_SM4>;
+			reset-names = "rsa", "sha3", "sm3", "sm4";
 			status = "disabled";
 		};
 
