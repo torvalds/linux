@@ -883,6 +883,7 @@ static int save_compressed_image(struct swap_map_handle *handle,
 				if (ret)
 					goto out_finish;
 			}
+			trace_android_vh_hibernate_save_cmp_len(data[thr].cmp_len + CMP_HEADER);
 		}
 
 		wait_event(crc->done, atomic_read(&crc->stop));
@@ -955,9 +956,20 @@ int swsusp_write(unsigned int flags)
 	struct snapshot_handle snapshot;
 	struct swsusp_info *header;
 	unsigned long pages;
-	int error;
+	int error = 0;
 
 	pages = snapshot_get_image_size();
+
+	/*
+	 * The memory allocated by this vendor hook is later freed as part of
+	 * PM_POST_HIBERNATION notifier call.
+	 */
+	trace_android_vh_hibernated_do_mem_alloc(pages, flags, &error);
+	if (error < 0) {
+		pr_err("Failed to allocate required memory\n");
+		return error;
+	}
+
 	error = get_swap_writer(&handle);
 	if (error) {
 		pr_err("Cannot get swap writer\n");
