@@ -475,6 +475,15 @@ found:
 	return buf;
 }
 
+static void
+mlx5vf_save_callback_complete(struct mlx5_vf_migration_file *migf,
+			      struct mlx5vf_async_data *async_data)
+{
+	kvfree(async_data->out);
+	complete(&migf->save_comp);
+	fput(migf->filp);
+}
+
 void mlx5vf_mig_file_cleanup_cb(struct work_struct *_work)
 {
 	struct mlx5vf_async_data *async_data = container_of(_work,
@@ -494,9 +503,7 @@ void mlx5vf_mig_file_cleanup_cb(struct work_struct *_work)
 		wake_up_interruptible(&migf->poll_wait);
 	}
 	mutex_unlock(&migf->lock);
-	kvfree(async_data->out);
-	complete(&migf->save_comp);
-	fput(migf->filp);
+	mlx5vf_save_callback_complete(migf, async_data);
 }
 
 static int add_buf_header(struct mlx5_vhca_data_buffer *header_buf,
@@ -560,13 +567,12 @@ static void mlx5vf_save_callback(int status, struct mlx5_async_work *context)
 		migf->state = async_data->last_chunk ?
 			MLX5_MIGF_STATE_COMPLETE : MLX5_MIGF_STATE_PRE_COPY;
 		wake_up_interruptible(&migf->poll_wait);
+		mlx5vf_save_callback_complete(migf, async_data);
+		return;
 	}
 
 err:
-	/*
-	 * The error and the cleanup flows can't run from an
-	 * interrupt context
-	 */
+	/* The error flow can't run from an interrupt context */
 	if (status == -EREMOTEIO)
 		status = MLX5_GET(save_vhca_state_out, async_data->out, status);
 	async_data->status = status;
