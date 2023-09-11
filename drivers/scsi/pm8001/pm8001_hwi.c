@@ -1188,13 +1188,14 @@ void pm8001_chip_iounmap(struct pm8001_hba_info *pm8001_ha)
 static void
 pm8001_chip_interrupt_enable(struct pm8001_hba_info *pm8001_ha, u8 vec)
 {
-#ifdef PM8001_USE_MSIX
-	pm8001_cw32(pm8001_ha, 0, MSIX_TABLE_BASE, MSIX_INTERRUPT_ENABLE);
-	pm8001_cw32(pm8001_ha, 0,  MSGU_ODCR, 1);
-#else
-	pm8001_cw32(pm8001_ha, 0, MSGU_ODMR, ODMR_CLEAR_ALL);
-	pm8001_cw32(pm8001_ha, 0, MSGU_ODCR, ODCR_CLEAR_ALL);
-#endif
+	if (pm8001_ha->use_msix) {
+		pm8001_cw32(pm8001_ha, 0, MSIX_TABLE_BASE,
+			    MSIX_INTERRUPT_ENABLE);
+		pm8001_cw32(pm8001_ha, 0,  MSGU_ODCR, 1);
+	} else {
+		pm8001_cw32(pm8001_ha, 0, MSGU_ODMR, ODMR_CLEAR_ALL);
+		pm8001_cw32(pm8001_ha, 0, MSGU_ODCR, ODCR_CLEAR_ALL);
+	}
 }
 
 /**
@@ -1205,11 +1206,11 @@ pm8001_chip_interrupt_enable(struct pm8001_hba_info *pm8001_ha, u8 vec)
 static void
 pm8001_chip_interrupt_disable(struct pm8001_hba_info *pm8001_ha, u8 vec)
 {
-#ifdef PM8001_USE_MSIX
-	pm8001_cw32(pm8001_ha, 0, MSIX_TABLE_BASE, MSIX_INTERRUPT_DISABLE);
-#else
-	pm8001_cw32(pm8001_ha, 0, MSGU_ODMR, ODMR_MASK_ALL);
-#endif
+	if (pm8001_ha->use_msix)
+		pm8001_cw32(pm8001_ha, 0, MSIX_TABLE_BASE,
+			    MSIX_INTERRUPT_DISABLE);
+	else
+		pm8001_cw32(pm8001_ha, 0, MSGU_ODMR, ODMR_MASK_ALL);
 }
 
 /**
@@ -4252,16 +4253,15 @@ static int pm8001_chip_phy_ctl_req(struct pm8001_hba_info *pm8001_ha,
 
 static u32 pm8001_chip_is_our_interrupt(struct pm8001_hba_info *pm8001_ha)
 {
-#ifdef PM8001_USE_MSIX
-	return 1;
-#else
 	u32 value;
+
+	if (pm8001_ha->use_msix)
+		return 1;
 
 	value = pm8001_cr32(pm8001_ha, 0, MSGU_ODR);
 	if (value)
 		return 1;
 	return 0;
-#endif
 }
 
 /**

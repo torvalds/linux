@@ -56,6 +56,10 @@ MODULE_PARM_DESC(link_rate, "Enable link rate.\n"
 		" 4: Link rate 6.0G\n"
 		" 8: Link rate 12.0G\n");
 
+bool pm8001_use_msix = true;
+module_param_named(use_msix, pm8001_use_msix, bool, 0444);
+MODULE_PARM_DESC(zoned, "Use MSIX interrupts. Default: true");
+
 static struct scsi_transport_template *pm8001_stt;
 static int pm8001_init_ccb_tag(struct pm8001_hba_info *);
 
@@ -961,7 +965,6 @@ static int pm8001_configure_phy_settings(struct pm8001_hba_info *pm8001_ha)
 	}
 }
 
-#ifdef PM8001_USE_MSIX
 /**
  * pm8001_setup_msix - enable MSI-X interrupt
  * @pm8001_ha: our ha struct.
@@ -1043,7 +1046,6 @@ static u32 pm8001_request_msix(struct pm8001_hba_info *pm8001_ha)
 
 	return rc;
 }
-#endif
 
 /**
  * pm8001_request_irq - register interrupt
@@ -1052,10 +1054,9 @@ static u32 pm8001_request_msix(struct pm8001_hba_info *pm8001_ha)
 static u32 pm8001_request_irq(struct pm8001_hba_info *pm8001_ha)
 {
 	struct pci_dev *pdev = pm8001_ha->pdev;
-#ifdef PM8001_USE_MSIX
 	int rc;
 
-	if (pci_find_capability(pdev, PCI_CAP_ID_MSIX)) {
+	if (pm8001_use_msix && pci_find_capability(pdev, PCI_CAP_ID_MSIX)) {
 		rc = pm8001_setup_msix(pm8001_ha);
 		if (rc) {
 			pm8001_dbg(pm8001_ha, FAIL,
@@ -1063,14 +1064,22 @@ static u32 pm8001_request_irq(struct pm8001_hba_info *pm8001_ha)
 			return rc;
 		}
 
-		if (pdev->msix_cap && pci_msi_enabled())
-			return pm8001_request_msix(pm8001_ha);
+		if (!pdev->msix_cap || !pci_msi_enabled())
+			goto use_intx;
+
+		rc = pm8001_request_msix(pm8001_ha);
+		if (rc)
+			return rc;
+
+		pm8001_ha->use_msix = true;
+
+		return 0;
 	}
 
+use_intx:
+	/* Initialize the INT-X interrupt */
 	pm8001_dbg(pm8001_ha, INIT, "MSIX not supported!!!\n");
-#endif
-
-	/* initialize the INT-X interrupt */
+	pm8001_ha->use_msix = false;
 	pm8001_ha->irq_vector[0].irq_id = 0;
 	pm8001_ha->irq_vector[0].drv_inst = pm8001_ha;
 
@@ -1081,20 +1090,22 @@ static u32 pm8001_request_irq(struct pm8001_hba_info *pm8001_ha)
 
 static void pm8001_free_irq(struct pm8001_hba_info *pm8001_ha)
 {
-#ifdef PM8001_USE_MSIX
 	struct pci_dev *pdev = pm8001_ha->pdev;
 	int i;
 
-	for (i = 0; i < pm8001_ha->number_of_intr; i++)
-		synchronize_irq(pci_irq_vector(pdev, i));
+	if (pm8001_ha->use_msix) {
+		for (i = 0; i < pm8001_ha->number_of_intr; i++)
+			synchronize_irq(pci_irq_vector(pdev, i));
 
-	for (i = 0; i < pm8001_ha->number_of_intr; i++)
-		free_irq(pci_irq_vector(pdev, i), &pm8001_ha->irq_vector[i]);
+		for (i = 0; i < pm8001_ha->number_of_intr; i++)
+			free_irq(pci_irq_vector(pdev, i), &pm8001_ha->irq_vector[i]);
 
-	pci_free_irq_vectors(pdev);
-#else
+		pci_free_irq_vectors(pdev);
+		return;
+	}
+
+	/* INT-X */
 	free_irq(pm8001_ha->irq, pm8001_ha->sas);
-#endif
 }
 
 /**
