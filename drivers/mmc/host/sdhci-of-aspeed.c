@@ -37,6 +37,7 @@
 #define ASPEED_SDC_CAP1_1_8V	       (0 * 32 + 26)
 /* SDIO{14,24} */
 #define ASPEED_SDC_CAP2_SDR104	       (1 * 32 + 1)
+#define ASPEED_SDC_CAP2_SDR50	       (1 * 32 + 0)
 
 #define PROBE_AFTER_ASSET_DEASSERT 0x1
 
@@ -51,6 +52,7 @@ struct aspeed_sdc {
 
 	spinlock_t lock;
 	void __iomem *regs;
+	u32 max_tap_delay_ps;
 };
 
 struct aspeed_sdhci_tap_param {
@@ -70,6 +72,8 @@ struct aspeed_sdhci_tap_desc {
 struct aspeed_sdhci_phase_desc {
 	struct aspeed_sdhci_tap_desc in;
 	struct aspeed_sdhci_tap_desc out;
+	bool non_uniform_delay;
+	u32 nr_taps;
 };
 
 struct aspeed_sdhci_pdata {
@@ -134,6 +138,7 @@ static void aspeed_sdc_configure_8bit_mode(struct aspeed_sdc *sdc,
 		info |= sdhci->width_mask;
 	else
 		info &= ~sdhci->width_mask;
+
 	writel(info, sdc->regs + ASPEED_SDC_INFO);
 	spin_unlock(&sdc->lock);
 }
@@ -170,42 +175,58 @@ aspeed_sdc_set_phase_taps(struct aspeed_sdc *sdc,
 
 #define PICOSECONDS_PER_SECOND		1000000000000ULL
 #define ASPEED_SDHCI_NR_TAPS		15
+
 /* Measured value with *handwave* environmentals and static loading */
-#define ASPEED_SDHCI_MAX_TAP_DELAY_PS	1253
 static int aspeed_sdhci_phase_to_tap(struct device *dev, unsigned long rate_hz,
-				     int phase_deg)
+				     bool invert, int phase_deg, bool non_uniform_delay, u32 nr_taps)
 {
 	u64 phase_period_ps;
 	u64 prop_delay_ps;
 	u64 clk_period_ps;
-	unsigned int tap;
-	u8 inverted;
+	u32 tap = 0;
+	struct aspeed_sdc *sdc = dev_get_drvdata(dev->parent);
 
-	phase_deg %= 360;
+	if (sdc->max_tap_delay_ps == 0)
+		return 0;
 
-	if (phase_deg >= 180) {
-		inverted = ASPEED_SDHCI_TAP_PARAM_INVERT_CLK;
-		phase_deg -= 180;
-		dev_dbg(dev,
-			"Inverting clock to reduce phase correction from %d to %d degrees\n",
-			phase_deg + 180, phase_deg);
-	} else {
-		inverted = 0;
+	prop_delay_ps = sdc->max_tap_delay_ps / nr_taps;
+	clk_period_ps = div_u64(PICOSECONDS_PER_SECOND, (u64)rate_hz);
+
+	/*
+	 * For ast2600, if clock phase degree is negative, clock signal is
+	 * output from falling edge first by default. Namely, clock signal
+	 * is leading to data signal by 180 degrees at least.
+	 */
+	if (invert) {
+		if (phase_deg >= 180)
+			phase_deg -= 180;
+		else
+			return -EINVAL;
 	}
 
-	prop_delay_ps = ASPEED_SDHCI_MAX_TAP_DELAY_PS / ASPEED_SDHCI_NR_TAPS;
-	clk_period_ps = div_u64(PICOSECONDS_PER_SECOND, (u64)rate_hz);
 	phase_period_ps = div_u64((u64)phase_deg * clk_period_ps, 360ULL);
 
-	tap = div_u64(phase_period_ps, prop_delay_ps);
+	/*
+	 * The delay cell is non-uniform for eMMC controller.
+	 * The time period of the first tap is two times of others.
+	 */
+	if (non_uniform_delay && phase_period_ps > prop_delay_ps * 2) {
+		phase_period_ps -= prop_delay_ps * 2;
+		tap++;
+	}
+
+	tap += div_u64(phase_period_ps, prop_delay_ps);
 	if (tap > ASPEED_SDHCI_NR_TAPS) {
 		dev_dbg(dev,
-			 "Requested out of range phase tap %d for %d degrees of phase compensation at %luHz, clamping to tap %d\n",
-			 tap, phase_deg, rate_hz, ASPEED_SDHCI_NR_TAPS);
+			"Requested out of range phase tap %d for %d degrees of phase compensation at %luHz, clamping to tap %d\n",
+			tap, phase_deg, rate_hz, ASPEED_SDHCI_NR_TAPS);
 		tap = ASPEED_SDHCI_NR_TAPS;
 	}
 
-	return inverted | tap;
+	if (invert)
+		tap |= ASPEED_SDHCI_TAP_PARAM_INVERT_CLK;
+
+	return tap;
 }
 
 static void
@@ -213,13 +234,32 @@ aspeed_sdhci_phases_to_taps(struct device *dev, unsigned long rate,
 			    const struct mmc_clk_phase *phases,
 			    struct aspeed_sdhci_tap_param *taps)
 {
+	int tmp_ret;
+	struct sdhci_host *host = dev->driver_data;
+	struct aspeed_sdhci *sdhci;
+
+	sdhci = sdhci_pltfm_priv(sdhci_priv(host));
 	taps->valid = phases->valid;
 
 	if (!phases->valid)
 		return;
 
-	taps->in = aspeed_sdhci_phase_to_tap(dev, rate, phases->in_deg);
-	taps->out = aspeed_sdhci_phase_to_tap(dev, rate, phases->out_deg);
+	tmp_ret = aspeed_sdhci_phase_to_tap(dev, rate, phases->inv_in_deg,
+					    phases->in_deg, sdhci->phase_desc->non_uniform_delay,
+					    sdhci->phase_desc->nr_taps);
+	if (tmp_ret < 0)
+		return;
+
+	taps->in = tmp_ret;
+
+	tmp_ret = aspeed_sdhci_phase_to_tap(dev, rate, phases->inv_out_deg,
+					    phases->out_deg, sdhci->phase_desc->non_uniform_delay,
+					    sdhci->phase_desc->nr_taps);
+	if (tmp_ret < 0)
+		return;
+
+	taps->out = tmp_ret;
+	taps->valid = phases->valid;
 }
 
 static void
@@ -307,9 +347,6 @@ static void aspeed_sdhci_set_clock(struct sdhci_host *host, unsigned int clock)
 
 static unsigned int aspeed_sdhci_get_max_clock(struct sdhci_host *host)
 {
-	if (host->mmc->f_max)
-		return host->mmc->f_max;
-
 	return sdhci_pltfm_clk_get_max_clock(host);
 }
 
@@ -542,16 +579,20 @@ static int aspeed_sdhci_probe(struct platform_device *pdev)
 	sdhci_get_of_property(pdev);
 
 	if (of_property_read_bool(np, "mmc-hs200-1_8v") ||
+	    of_property_read_bool(np, "sd-uhs-sdr50") ||
 	    of_property_read_bool(np, "sd-uhs-sdr104")) {
 		aspeed_sdc_set_slot_capability(host, dev->parent, ASPEED_SDC_CAP1_1_8V,
 					       true, slot);
+	}
+
+	if (of_property_read_bool(np, "sd-uhs-sdr50")) {
+		aspeed_sdc_set_slot_capability(host, dev->parent, ASPEED_SDC_CAP2_SDR50,
+					       true, slot);
+	}
+
+	if (of_property_read_bool(np, "sd-uhs-sdr104")) {
 		aspeed_sdc_set_slot_capability(host, dev->parent, ASPEED_SDC_CAP2_SDR104,
 					       true, slot);
-	} else {
-		aspeed_sdc_set_slot_capability(host, dev->parent, ASPEED_SDC_CAP1_1_8V,
-					       0, slot);
-		aspeed_sdc_set_slot_capability(host, dev->parent, ASPEED_SDC_CAP2_SDR104,
-					       0, slot);
 	}
 
 	pltfm_host->clk = devm_clk_get(&pdev->dev, NULL);
@@ -616,6 +657,8 @@ static const struct aspeed_sdhci_phase_desc ast2600_sdhci_phase[] = {
 			.enable_mask = ASPEED_SDC_S0_PHASE_OUT_EN,
 			.enable_value = 3,
 		},
+		.non_uniform_delay = false,
+		.nr_taps = 15,
 	},
 	/* SDHCI/Slot 1 */
 	[1] = {
@@ -629,6 +672,8 @@ static const struct aspeed_sdhci_phase_desc ast2600_sdhci_phase[] = {
 			.enable_mask = ASPEED_SDC_S1_PHASE_OUT_EN,
 			.enable_value = 3,
 		},
+		.non_uniform_delay = false,
+		.nr_taps = 15,
 	},
 };
 
@@ -640,11 +685,20 @@ static const struct aspeed_sdhci_phase_desc ast2600_emmc_phase[] = {
 			.enable_mask = ASPEED_SDC_S0_PHASE_IN_EN,
 			.enable_value = 1,
 		},
-	.out = {
+		.out = {
 			.tap_mask = ASPEED_SDC_S0_PHASE_OUT,
 			.enable_mask = ASPEED_SDC_S0_PHASE_OUT_EN,
 			.enable_value = 3,
 		},
+
+		/*
+		 * There are 15 taps recorded in AST2600 datasheet.
+		 * But, actually, the time period of the first tap
+		 * is two times of others. Thus, 16 tap is used to
+		 * emulate this situation.
+		 */
+		.non_uniform_delay = true,
+		.nr_taps = 16,
 	},
 };
 
@@ -734,6 +788,11 @@ static int aspeed_sdc_probe(struct platform_device *pdev)
 		ret = PTR_ERR(sdc->regs);
 		goto err_clk;
 	}
+
+	ret = of_property_read_u32(pdev->dev.of_node, "aspeed-max-tap-delay",
+				   &sdc->max_tap_delay_ps);
+	if (ret)
+		sdc->max_tap_delay_ps = 0;
 
 	dev_set_drvdata(&pdev->dev, sdc);
 
