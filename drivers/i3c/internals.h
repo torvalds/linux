@@ -27,5 +27,8 @@ int i3c_dev_request_ibi_locked(struct i3c_dev_desc *dev,
 			       const struct i3c_ibi_setup *req);
 void i3c_dev_free_ibi_locked(struct i3c_dev_desc *dev);
 int i3c_dev_generate_ibi_locked(struct i3c_dev_desc *dev, const u8 *data, int len);
+int i3c_dev_pending_read_notify_locked(struct i3c_dev_desc *dev,
+				       struct i3c_priv_xfer *pending_read,
+				       struct i3c_priv_xfer *ibi_notify);
 int i3c_dev_is_ibi_enabled_locked(struct i3c_dev_desc *dev);
 #endif /* I3C_INTERNAL_H */

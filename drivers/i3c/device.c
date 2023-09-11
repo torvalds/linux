@@ -74,6 +74,36 @@ int i3c_device_generate_ibi(struct i3c_device *dev, const u8 *data, int len)
 EXPORT_SYMBOL_GPL(i3c_device_generate_ibi);
 
 /**
+ * i3c_device_pending_read_notify() - Notify the bus master about the
+ *				      pending read data through IBI
+ *
+ * @dev: device with which the transfers should be done
+ * @pending_read: the transfer that conveys the pending read data
+ * @ibi_notify: the transfer that conveys the IBI with data (MDB)
+ *
+ * Initiate a private SDR transfer with @dev, then issue an IBI with
+ * data to notify the bus master that there is a pending read transfer.
+ *
+ * This function can sleep and thus cannot be called in atomic context.
+ *
+ * Return: 0 in case of success, a negative error core otherwise.
+ */
+int i3c_device_pending_read_notify(struct i3c_device *dev,
+				   struct i3c_priv_xfer *pending_read,
+				   struct i3c_priv_xfer *ibi_notify)
+{
+	int ret;
+
+	i3c_bus_normaluse_lock(dev->bus);
+	ret = i3c_dev_pending_read_notify_locked(dev->desc, pending_read,
+						 ibi_notify);
+	i3c_bus_normaluse_unlock(dev->bus);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(i3c_device_pending_read_notify);
+
+/**
  * i3c_device_is_ibi_enabled() - Query the In-Band Interrupt status
  *
  * @dev: target device
