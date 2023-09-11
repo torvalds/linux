@@ -106,6 +106,9 @@ struct dw_i3c_platform_ops {
 	void (*exit_sw_mode)(struct dw_i3c_master *i3c);
 	void (*toggle_scl_in)(struct dw_i3c_master *i3c, int count);
 	void (*gen_internal_stop)(struct dw_i3c_master *i3c);
+
+	/* For target mode, pending read notification */
+	void (*set_ibi_mdb)(struct dw_i3c_master *i3c, u8 mdb);
 };
 
 extern int dw_i3c_common_probe(struct dw_i3c_master *master,

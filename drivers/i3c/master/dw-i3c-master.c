@@ -1326,6 +1326,32 @@ static int dw_i3c_target_generate_ibi(struct i3c_dev_desc *dev, const u8 *data, 
 	return 0;
 }
 
+static int dw_i3c_target_pending_read_notify(struct i3c_dev_desc *dev,
+					     struct i3c_priv_xfer *pending_read,
+					     struct i3c_priv_xfer *ibi_notify)
+{
+	struct i3c_master_controller *m = i3c_dev_get_master(dev);
+	struct dw_i3c_master *master = to_dw_i3c_master(m);
+	u32 reg;
+	u8 mdb;
+
+	if (!pending_read || !ibi_notify)
+		return -EINVAL;
+
+	reg = readl(master->regs + SLV_EVENT_CTRL);
+	if ((reg & SLV_EVENT_CTRL_SIR_EN) == 0)
+		return -EPERM;
+
+	mdb = *(u8 *)ibi_notify->data.out;
+	master->platform_ops->set_ibi_mdb(master, mdb);
+
+	dw_i3c_target_priv_xfers(dev, ibi_notify, 1);
+	dw_i3c_target_priv_xfers(dev, pending_read, 1);
+	dw_i3c_target_generate_ibi(dev, NULL, 0);
+
+	return 0;
+}
+
 static bool dw_i3c_target_is_ibi_enabled(struct i3c_dev_desc *dev)
 {
 	struct i3c_master_controller *m = i3c_dev_get_master(dev);
@@ -1875,6 +1901,7 @@ static const struct i3c_target_ops dw_mipi_i3c_target_ops = {
 	.bus_cleanup = dw_i3c_target_bus_cleanup,
 	.priv_xfers = dw_i3c_target_priv_xfers,
 	.generate_ibi = dw_i3c_target_generate_ibi,
+	.pending_read_notify = dw_i3c_target_pending_read_notify,
 	.is_ibi_enabled = dw_i3c_target_is_ibi_enabled,
 };
 
@@ -1941,6 +1968,10 @@ static void dw_i3c_gen_internal_stop_nop(struct dw_i3c_master *i3c)
 {
 }
 
+static void dw_i3c_set_ibi_mdb_nop(struct dw_i3c_master *i3c, u8 mdb)
+{
+}
+
 static const struct dw_i3c_platform_ops dw_i3c_platform_ops_default = {
 	.init = dw_i3c_platform_init_nop,
 	.set_dat_ibi = dw_i3c_platform_set_dat_ibi_nop,
@@ -1948,6 +1979,7 @@ static const struct dw_i3c_platform_ops dw_i3c_platform_ops_default = {
 	.exit_sw_mode = dw_i3c_platform_exit_sw_mode_nop,
 	.toggle_scl_in = dw_i3c_toggle_scl_in_nop,
 	.gen_internal_stop = dw_i3c_gen_internal_stop_nop,
+	.set_ibi_mdb = dw_i3c_set_ibi_mdb_nop,
 };
 
 static int dw_i3c_of_populate_bus_timing(struct dw_i3c_master *master,
