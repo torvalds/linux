@@ -1807,6 +1807,20 @@ struct pipe_ctx *resource_get_opp_head(const struct pipe_ctx *pipe_ctx)
 	return opp_head;
 }
 
+struct pipe_ctx *resource_get_primary_dpp_pipe(const struct pipe_ctx *dpp_pipe)
+{
+	struct pipe_ctx *pri_dpp_pipe = (struct pipe_ctx *) dpp_pipe;
+
+	ASSERT(resource_is_pipe_type(dpp_pipe, DPP_PIPE));
+	while (pri_dpp_pipe->prev_odm_pipe)
+		pri_dpp_pipe = pri_dpp_pipe->prev_odm_pipe;
+	while (pri_dpp_pipe->top_pipe &&
+			pri_dpp_pipe->top_pipe->plane_state == pri_dpp_pipe->plane_state)
+		pri_dpp_pipe = pri_dpp_pipe->top_pipe;
+	return pri_dpp_pipe;
+}
+
+
 int resource_get_mpc_slice_index(const struct pipe_ctx *pipe_ctx)
 {
 	struct pipe_ctx *split_pipe = pipe_ctx->top_pipe;

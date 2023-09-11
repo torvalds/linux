@@ -410,6 +410,12 @@ struct pipe_ctx *resource_get_otg_master(const struct pipe_ctx *pipe_ctx);
 struct pipe_ctx *resource_get_opp_head(const struct pipe_ctx *pipe_ctx);
 
 /*
+ * Get the DPP pipe allocated for MPC slice 0 and ODM slice 0 of the plane
+ * associated with dpp_pipe.
+ */
+struct pipe_ctx *resource_get_primary_dpp_pipe(const struct pipe_ctx *dpp_pipe);
+
+/*
  * Get the MPC slice index counting from 0 from left most slice
  * For example, if a DPP pipe is used as a secondary pipe in MPCC combine, MPC
  * split index is greater than 0.
