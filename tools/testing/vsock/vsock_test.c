@@ -19,6 +19,7 @@
 #include <time.h>
 #include <sys/mman.h>
 #include <poll.h>
+#include <signal.h>
 
 #include "timeout.h"
 #include "control.h"
@@ -1170,6 +1171,133 @@ static void test_seqpacket_msg_peek_server(const struct test_opts *opts)
 	return test_msg_peek_server(opts, true);
 }
 
+static sig_atomic_t have_sigpipe;
+
+static void sigpipe(int signo)
+{
+	have_sigpipe = 1;
+}
+
+static void test_stream_check_sigpipe(int fd)
+{
+	ssize_t res;
+
+	have_sigpipe = 0;
+
+	res = send(fd, "A", 1, 0);
+	if (res != -1) {
+		fprintf(stderr, "expected send(2) failure, got %zi\n", res);
+		exit(EXIT_FAILURE);
+	}
+
+	if (!have_sigpipe) {
+		fprintf(stderr, "SIGPIPE expected\n");
+		exit(EXIT_FAILURE);
+	}
+
+	have_sigpipe = 0;
+
+	res = send(fd, "A", 1, MSG_NOSIGNAL);
+	if (res != -1) {
+		fprintf(stderr, "expected send(2) failure, got %zi\n", res);
+		exit(EXIT_FAILURE);
+	}
+
+	if (have_sigpipe) {
+		fprintf(stderr, "SIGPIPE not expected\n");
+		exit(EXIT_FAILURE);
+	}
+}
+
+static void test_stream_shutwr_client(const struct test_opts *opts)
+{
+	int fd;
+
+	struct sigaction act = {
+		.sa_handler = sigpipe,
+	};
+
+	sigaction(SIGPIPE, &act, NULL);
+
+	fd = vsock_stream_connect(opts->peer_cid, 1234);
+	if (fd < 0) {
+		perror("connect");
+		exit(EXIT_FAILURE);
+	}
+
+	if (shutdown(fd, SHUT_WR)) {
+		perror("shutdown");
+		exit(EXIT_FAILURE);
+	}
+
+	test_stream_check_sigpipe(fd);
+
+	control_writeln("CLIENTDONE");
+
+	close(fd);
+}
+
+static void test_stream_shutwr_server(const struct test_opts *opts)
+{
+	int fd;
+
+	fd = vsock_stream_accept(VMADDR_CID_ANY, 1234, NULL);
+	if (fd < 0) {
+		perror("accept");
+		exit(EXIT_FAILURE);
+	}
+
+	control_expectln("CLIENTDONE");
+
+	close(fd);
+}
+
+static void test_stream_shutrd_client(const struct test_opts *opts)
+{
+	int fd;
+
+	struct sigaction act = {
+		.sa_handler = sigpipe,
+	};
+
+	sigaction(SIGPIPE, &act, NULL);
+
+	fd = vsock_stream_connect(opts->peer_cid, 1234);
+	if (fd < 0) {
+		perror("connect");
+		exit(EXIT_FAILURE);
+	}
+
+	control_expectln("SHUTRDDONE");
+
+	test_stream_check_sigpipe(fd);
+
+	control_writeln("CLIENTDONE");
+
+	close(fd);
+}
+
+static void test_stream_shutrd_server(const struct test_opts *opts)
+{
+	int fd;
+
+	fd = vsock_stream_accept(VMADDR_CID_ANY, 1234, NULL);
+	if (fd < 0) {
+		perror("accept");
+		exit(EXIT_FAILURE);
+	}
+
+	if (shutdown(fd, SHUT_RD)) {
+		perror("shutdown");
+		exit(EXIT_FAILURE);
+	}
+
+	control_writeln("SHUTRDDONE");
+	control_expectln("CLIENTDONE");
+
+	close(fd);
+}
+
 static struct test_case test_cases[] = {
 	{
 		.name = "SOCK_STREAM connection reset",
@@ -1249,6 +1377,16 @@ static struct test_case test_cases[] = {
 		.name = "SOCK_SEQPACKET MSG_PEEK",
 		.run_client = test_seqpacket_msg_peek_client,
 		.run_server = test_seqpacket_msg_peek_server,
+	},
+	{
+		.name = "SOCK_STREAM SHUT_WR",
+		.run_client = test_stream_shutwr_client,
+		.run_server = test_stream_shutwr_server,
+	},
+	{
+		.name = "SOCK_STREAM SHUT_RD",
+		.run_client = test_stream_shutrd_client,
+		.run_server = test_stream_shutrd_server,
 	},
 	{},
 };
