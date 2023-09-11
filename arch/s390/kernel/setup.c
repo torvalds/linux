@@ -449,7 +449,6 @@ static void __init setup_lowcore(void)
 	lc->restart_fn = (unsigned long) do_restart;
 	lc->restart_data = 0;
 	lc->restart_source = -1U;
-	__local_ctl_store(0, 15, lc->cregs_save_area);
 	lc->spinlock_lockval = arch_spin_lockval(0);
 	lc->spinlock_index = 0;
 	arch_spin_lock_setup(0);
@@ -459,6 +458,7 @@ static void __init setup_lowcore(void)
 	lc->kernel_asce = S390_lowcore.kernel_asce;
 	lc->user_asce = S390_lowcore.user_asce;
 
+	system_ctlreg_init_save_area(lc);
 	abs_lc = get_abs_lowcore();
 	abs_lc->restart_stack = lc->restart_stack;
 	abs_lc->restart_fn = lc->restart_fn;
@@ -466,7 +466,6 @@ static void __init setup_lowcore(void)
 	abs_lc->restart_source = lc->restart_source;
 	abs_lc->restart_psw = lc->restart_psw;
 	abs_lc->restart_flags = RESTART_FLAG_CTLREGS;
-	memcpy(abs_lc->cregs_save_area, lc->cregs_save_area, sizeof(abs_lc->cregs_save_area));
 	abs_lc->program_new_psw = lc->program_new_psw;
 	abs_lc->mcesad = lc->mcesad;
 	put_abs_lowcore(abs_lc);

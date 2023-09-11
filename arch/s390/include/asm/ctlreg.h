@@ -110,9 +110,12 @@ static __always_inline void local_ctl_clear_bit(unsigned int cr, unsigned int bi
 	local_ctl_load(cr, &reg);
 }
 
+struct lowcore;
+
 void system_ctlreg_lock(void);
 void system_ctlreg_unlock(void);
 void system_ctl_set_clear_bit(unsigned int cr, unsigned int bit, bool set);
+void system_ctlreg_init_save_area(struct lowcore *lc);
 
 static inline void system_ctl_set_bit(unsigned int cr, unsigned int bit)
 {

@@ -4,6 +4,7 @@
  */
 
 #include <linux/spinlock.h>
+#include <linux/init.h>
 #include <linux/smp.h>
 #include <asm/abs_lowcore.h>
 #include <asm/ctlreg.h>
@@ -25,6 +26,16 @@ void system_ctlreg_unlock(void)
 	__releases(&system_ctl_lock)
 {
 	spin_unlock(&system_ctl_lock);
+}
+
+void __init system_ctlreg_init_save_area(struct lowcore *lc)
+{
+	struct lowcore *abs_lc;
+
+	abs_lc = get_abs_lowcore();
+	__local_ctl_store(0, 15, lc->cregs_save_area);
+	__local_ctl_store(0, 15, abs_lc->cregs_save_area);
+	put_abs_lowcore(abs_lc);
 }
 
 struct ctl_bit_parms {
