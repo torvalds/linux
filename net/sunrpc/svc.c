@@ -1544,24 +1544,20 @@ out_drop:
 }
 
 #if defined(CONFIG_SUNRPC_BACKCHANNEL)
-/*
- * Process a backchannel RPC request that arrived over an existing
- * outbound connection
+/**
+ * svc_process_bc - process a reverse-direction RPC request
+ * @req: RPC request to be used for client-side processing
+ * @rqstp: server-side execution context
+ *
  */
-int
-bc_svc_process(struct svc_serv *serv, struct rpc_rqst *req,
-	       struct svc_rqst *rqstp)
+void svc_process_bc(struct rpc_rqst *req, struct svc_rqst *rqstp)
 {
 	struct rpc_task *task;
 	int proc_error;
-	int error;
-
-	dprintk("svc: %s(%p)\n", __func__, req);
 
 	/* Build the svc_rqst used by the common processing routine */
 	rqstp->rq_xid = req->rq_xid;
 	rqstp->rq_prot = req->rq_xprt->prot;
-	rqstp->rq_server = serv;
 	rqstp->rq_bc_net = req->rq_xprt->xprt_net;
 
 	rqstp->rq_addrlen = sizeof(req->rq_xprt->addr);
@@ -1590,10 +1586,8 @@ bc_svc_process(struct svc_serv *serv, struct rpc_rqst *req,
 	 * been processed by the caller.
 	 */
 	svcxdr_init_decode(rqstp);
-	if (!xdr_inline_decode(&rqstp->rq_arg_stream, XDR_UNIT * 2)) {
-		error = -EINVAL;
-		goto out;
-	}
+	if (!xdr_inline_decode(&rqstp->rq_arg_stream, XDR_UNIT * 2))
+		return;
 
 	/* Parse and execute the bc call */
 	proc_error = svc_process_common(rqstp);
@@ -1602,26 +1596,18 @@ bc_svc_process(struct svc_serv *serv, struct rpc_rqst *req,
 	if (!proc_error) {
 		/* Processing error: drop the request */
 		xprt_free_bc_request(req);
-		error = -EINVAL;
-		goto out;
+		return;
 	}
 	/* Finally, send the reply synchronously */
 	memcpy(&req->rq_snd_buf, &rqstp->rq_res, sizeof(req->rq_snd_buf));
 	task = rpc_run_bc_task(req);
-	if (IS_ERR(task)) {
-		error = PTR_ERR(task);
-		goto out;
-	}
+	if (IS_ERR(task))
+		return;
 
 	WARN_ON_ONCE(atomic_read(&task->tk_count) != 1);
-	error = task->tk_status;
 	rpc_put_task(task);
-
-out:
-	dprintk("svc: %s(), error=%d\n", __func__, error);
-	return error;
 }
-EXPORT_SYMBOL_GPL(bc_svc_process);
+EXPORT_SYMBOL_GPL(svc_process_bc);
 #endif /* CONFIG_SUNRPC_BACKCHANNEL */
 
 /**

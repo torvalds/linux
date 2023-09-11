@@ -95,7 +95,6 @@ nfs41_callback_svc(void *vrqstp)
 	struct svc_rqst *rqstp = vrqstp;
 	struct svc_serv *serv = rqstp->rq_server;
 	struct rpc_rqst *req;
-	int error;
 	DEFINE_WAIT(wq);
 
 	set_freezable();
@@ -109,10 +108,7 @@ nfs41_callback_svc(void *vrqstp)
 			list_del(&req->rq_bc_list);
 			spin_unlock_bh(&serv->sv_cb_lock);
 			finish_wait(&serv->sv_cb_waitq, &wq);
-			dprintk("Invoking bc_svc_process()\n");
-			error = bc_svc_process(serv, req, rqstp);
-			dprintk("bc_svc_process() returned w/ error code= %d\n",
-				error);
+			svc_process_bc(req, rqstp);
 		} else {
 			spin_unlock_bh(&serv->sv_cb_lock);
 			if (!kthread_should_stop())
