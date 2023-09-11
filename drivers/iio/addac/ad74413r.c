@@ -442,10 +442,28 @@ static int ad74413r_set_channel_function(struct ad74413r_state *st,
 	int ret;
 
 	ret = regmap_update_bits(st->regmap,
+				 AD74413R_REG_CH_FUNC_SETUP_X(channel),
+				 AD74413R_CH_FUNC_SETUP_MASK,
+				 CH_FUNC_HIGH_IMPEDANCE);
+	if (ret)
+		return ret;
+
+	/* Set DAC code to 0 prior to changing channel function */
+	ret = ad74413r_set_channel_dac_code(st, channel, 0);
+	if (ret)
+		return ret;
+
+	/* Delay required before transition to new desired mode */
+	usleep_range(130, 150);
+
+	ret = regmap_update_bits(st->regmap,
 				  AD74413R_REG_CH_FUNC_SETUP_X(channel),
 				  AD74413R_CH_FUNC_SETUP_MASK, func);
 	if (ret)
 		return ret;
+
+	/* Delay required before updating the new DAC code */
+	usleep_range(150, 170);
 
 	if (func == CH_FUNC_CURRENT_INPUT_LOOP_POWER)
 		ret = regmap_set_bits(st->regmap,
