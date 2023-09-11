@@ -886,6 +886,19 @@
 			status = "disabled";
 		};
 
+		gpio0: gpio@14c0b000 {
+			#gpio-cells = <2>;
+			gpio-controller;
+			compatible = "aspeed,ast2700-gpio";
+			reg = <0x0 0x14c0b000 0x0 0x1000>;
+			interrupts-extended = <&intc2 18>;
+			gpio-ranges = <&pinctrl1 0 0 216>;
+			ngpios = <216>;
+			clocks = <&io_clk AST2700_IO_CLK_AHB>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
 		i2c: bus@14c0f000 {
 			compatible = "simple-bus";
 			#address-cells = <1>;
