@@ -118,6 +118,9 @@ int bch2_inode_create(struct btree_trans *, struct btree_iter *,
 
 int bch2_inode_rm(struct bch_fs *, subvol_inum);
 
+int bch2_inode_find_by_inum_nowarn_trans(struct btree_trans *,
+				  subvol_inum,
+				  struct bch_inode_unpacked *);
 int bch2_inode_find_by_inum_trans(struct btree_trans *, subvol_inum,
 				  struct bch_inode_unpacked *);
 int bch2_inode_find_by_inum(struct bch_fs *, subvol_inum,

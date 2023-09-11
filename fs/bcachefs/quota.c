@@ -572,7 +572,7 @@ static int bch2_fs_quota_read_inode(struct btree_trans *trans,
 	if (!s_t.master_subvol)
 		goto advance;
 
-	ret = bch2_inode_find_by_inum_trans(trans,
+	ret = bch2_inode_find_by_inum_nowarn_trans(trans,
 				(subvol_inum) {
 					le32_to_cpu(s_t.master_subvol),
 					k.k->p.offset,

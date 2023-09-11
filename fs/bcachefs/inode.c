@@ -318,7 +318,7 @@ int bch2_inode_unpack(struct bkey_s_c k,
 	return bch2_inode_unpack_slowpath(k, unpacked);
 }
 
-int bch2_inode_peek(struct btree_trans *trans,
+static int bch2_inode_peek_nowarn(struct btree_trans *trans,
 		    struct btree_iter *iter,
 		    struct bch_inode_unpacked *inode,
 		    subvol_inum inum, unsigned flags)
@@ -349,7 +349,17 @@ int bch2_inode_peek(struct btree_trans *trans,
 	return 0;
 err:
 	bch2_trans_iter_exit(trans, iter);
-	if (!bch2_err_matches(ret, BCH_ERR_transaction_restart))
+	return ret;
+}
+
+int bch2_inode_peek(struct btree_trans *trans,
+		    struct btree_iter *iter,
+		    struct bch_inode_unpacked *inode,
+		    subvol_inum inum, unsigned flags)
+{
+	int ret = bch2_inode_peek_nowarn(trans, iter, inode, inum, flags);
+
+	if (ret && !bch2_err_matches(ret, BCH_ERR_transaction_restart))
 		bch_err_msg(trans->c, ret, "looking up inum %u:%llu:", inum.subvol, inum.inum);
 	return ret;
 }
@@ -877,6 +887,19 @@ err:
 		goto retry;
 
 	bch2_trans_exit(&trans);
+	return ret;
+}
+
+int bch2_inode_find_by_inum_nowarn_trans(struct btree_trans *trans,
+				  subvol_inum inum,
+				  struct bch_inode_unpacked *inode)
+{
+	struct btree_iter iter;
+	int ret;
+
+	ret = bch2_inode_peek_nowarn(trans, &iter, inode, inum, 0);
+	if (!ret)
+		bch2_trans_iter_exit(trans, &iter);
 	return ret;
 }
 
