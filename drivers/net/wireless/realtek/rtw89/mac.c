@@ -3721,7 +3721,7 @@ int rtw89_mac_set_macid_pause(struct rtw89_dev *rtwdev, u8 macid, bool pause)
 	return 0;
 }
 
-static const struct rtw89_port_reg rtw_port_base = {
+static const struct rtw89_port_reg rtw89_port_base_ax = {
 	.port_cfg = R_AX_PORT_CFG_P0,
 	.tbtt_prohib = R_AX_TBTT_PROHIB_P0,
 	.bcn_area = R_AX_BCN_AREA_P0,
@@ -3759,8 +3759,9 @@ static const struct rtw89_port_reg rtw_port_base = {
 static void rtw89_mac_port_cfg_func_sw(struct rtw89_dev *rtwdev,
 				       struct rtw89_vif *rtwvif)
 {
+	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
+	const struct rtw89_port_reg *p = mac->port_base;
 	struct ieee80211_vif *vif = rtwvif_to_vif(rtwvif);
-	const struct rtw89_port_reg *p = &rtw_port_base;
 
 	if (!rtw89_read32_port_mask(rtwdev, rtwvif, p->port_cfg, B_AX_PORT_FUNC_EN))
 		return;
@@ -3781,7 +3782,8 @@ static void rtw89_mac_port_cfg_func_sw(struct rtw89_dev *rtwdev,
 static void rtw89_mac_port_cfg_tx_rpt(struct rtw89_dev *rtwdev,
 				      struct rtw89_vif *rtwvif, bool en)
 {
-	const struct rtw89_port_reg *p = &rtw_port_base;
+	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
+	const struct rtw89_port_reg *p = mac->port_base;
 
 	if (en)
 		rtw89_write32_port_set(rtwdev, rtwvif, p->port_cfg, B_AX_TXBCN_RPT_EN);
@@ -3792,7 +3794,8 @@ static void rtw89_mac_port_cfg_tx_rpt(struct rtw89_dev *rtwdev,
 static void rtw89_mac_port_cfg_rx_rpt(struct rtw89_dev *rtwdev,
 				      struct rtw89_vif *rtwvif, bool en)
 {
-	const struct rtw89_port_reg *p = &rtw_port_base;
+	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
+	const struct rtw89_port_reg *p = mac->port_base;
 
 	if (en)
 		rtw89_write32_port_set(rtwdev, rtwvif, p->port_cfg, B_AX_RXBCN_RPT_EN);
@@ -3803,7 +3806,8 @@ static void rtw89_mac_port_cfg_rx_rpt(struct rtw89_dev *rtwdev,
 static void rtw89_mac_port_cfg_net_type(struct rtw89_dev *rtwdev,
 					struct rtw89_vif *rtwvif)
 {
-	const struct rtw89_port_reg *p = &rtw_port_base;
+	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
+	const struct rtw89_port_reg *p = mac->port_base;
 
 	rtw89_write32_port_mask(rtwdev, rtwvif, p->port_cfg, B_AX_NET_TYPE_MASK,
 				rtwvif->net_type);
@@ -3812,7 +3816,8 @@ static void rtw89_mac_port_cfg_net_type(struct rtw89_dev *rtwdev,
 static void rtw89_mac_port_cfg_bcn_prct(struct rtw89_dev *rtwdev,
 					struct rtw89_vif *rtwvif)
 {
-	const struct rtw89_port_reg *p = &rtw_port_base;
+	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
+	const struct rtw89_port_reg *p = mac->port_base;
 	bool en = rtwvif->net_type != RTW89_NET_TYPE_NO_LINK;
 	u32 bits = B_AX_TBTT_PROHIB_EN | B_AX_BRK_SETUP;
 
@@ -3825,7 +3830,8 @@ static void rtw89_mac_port_cfg_bcn_prct(struct rtw89_dev *rtwdev,
 static void rtw89_mac_port_cfg_rx_sw(struct rtw89_dev *rtwdev,
 				     struct rtw89_vif *rtwvif)
 {
-	const struct rtw89_port_reg *p = &rtw_port_base;
+	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
+	const struct rtw89_port_reg *p = mac->port_base;
 	bool en = rtwvif->net_type == RTW89_NET_TYPE_INFRA ||
 		  rtwvif->net_type == RTW89_NET_TYPE_AD_HOC;
 	u32 bit = B_AX_RX_BSSID_FIT_EN;
@@ -3839,7 +3845,8 @@ static void rtw89_mac_port_cfg_rx_sw(struct rtw89_dev *rtwdev,
 static void rtw89_mac_port_cfg_rx_sync(struct rtw89_dev *rtwdev,
 				       struct rtw89_vif *rtwvif)
 {
-	const struct rtw89_port_reg *p = &rtw_port_base;
+	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
+	const struct rtw89_port_reg *p = mac->port_base;
 	bool en = rtwvif->net_type == RTW89_NET_TYPE_INFRA ||
 		  rtwvif->net_type == RTW89_NET_TYPE_AD_HOC;
 
@@ -3852,7 +3859,8 @@ static void rtw89_mac_port_cfg_rx_sync(struct rtw89_dev *rtwdev,
 static void rtw89_mac_port_cfg_tx_sw(struct rtw89_dev *rtwdev,
 				     struct rtw89_vif *rtwvif)
 {
-	const struct rtw89_port_reg *p = &rtw_port_base;
+	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
+	const struct rtw89_port_reg *p = mac->port_base;
 	bool en = rtwvif->net_type == RTW89_NET_TYPE_AP_MODE ||
 		  rtwvif->net_type == RTW89_NET_TYPE_AD_HOC;
 
@@ -3865,8 +3873,9 @@ static void rtw89_mac_port_cfg_tx_sw(struct rtw89_dev *rtwdev,
 static void rtw89_mac_port_cfg_bcn_intv(struct rtw89_dev *rtwdev,
 					struct rtw89_vif *rtwvif)
 {
+	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
+	const struct rtw89_port_reg *p = mac->port_base;
 	struct ieee80211_vif *vif = rtwvif_to_vif(rtwvif);
-	const struct rtw89_port_reg *p = &rtw_port_base;
 	u16 bcn_int = vif->bss_conf.beacon_int ? vif->bss_conf.beacon_int : BCN_INTERVAL;
 
 	rtw89_write32_port_mask(rtwdev, rtwvif, p->bcn_space, B_AX_BCN_SPACE_MASK,
@@ -3877,7 +3886,8 @@ static void rtw89_mac_port_cfg_hiq_win(struct rtw89_dev *rtwdev,
 				       struct rtw89_vif *rtwvif)
 {
 	u8 win = rtwvif->net_type == RTW89_NET_TYPE_AP_MODE ? 16 : 0;
-	const struct rtw89_port_reg *p = &rtw_port_base;
+	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
+	const struct rtw89_port_reg *p = mac->port_base;
 	u8 port = rtwvif->port;
 	u32 reg;
 
@@ -3888,8 +3898,9 @@ static void rtw89_mac_port_cfg_hiq_win(struct rtw89_dev *rtwdev,
 static void rtw89_mac_port_cfg_hiq_dtim(struct rtw89_dev *rtwdev,
 					struct rtw89_vif *rtwvif)
 {
+	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
+	const struct rtw89_port_reg *p = mac->port_base;
 	struct ieee80211_vif *vif = rtwvif_to_vif(rtwvif);
-	const struct rtw89_port_reg *p = &rtw_port_base;
 	u32 addr;
 
 	addr = rtw89_mac_reg_by_idx(rtwdev, p->md_tsft, rtwvif->mac_idx);
@@ -3902,7 +3913,8 @@ static void rtw89_mac_port_cfg_hiq_dtim(struct rtw89_dev *rtwdev,
 static void rtw89_mac_port_cfg_bcn_setup_time(struct rtw89_dev *rtwdev,
 					      struct rtw89_vif *rtwvif)
 {
-	const struct rtw89_port_reg *p = &rtw_port_base;
+	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
+	const struct rtw89_port_reg *p = mac->port_base;
 
 	rtw89_write32_port_mask(rtwdev, rtwvif, p->tbtt_prohib,
 				B_AX_TBTT_SETUP_MASK, BCN_SETUP_DEF);
@@ -3911,7 +3923,8 @@ static void rtw89_mac_port_cfg_bcn_setup_time(struct rtw89_dev *rtwdev,
 static void rtw89_mac_port_cfg_bcn_hold_time(struct rtw89_dev *rtwdev,
 					     struct rtw89_vif *rtwvif)
 {
-	const struct rtw89_port_reg *p = &rtw_port_base;
+	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
+	const struct rtw89_port_reg *p = mac->port_base;
 
 	rtw89_write32_port_mask(rtwdev, rtwvif, p->tbtt_prohib,
 				B_AX_TBTT_HOLD_MASK, BCN_HOLD_DEF);
@@ -3920,7 +3933,8 @@ static void rtw89_mac_port_cfg_bcn_hold_time(struct rtw89_dev *rtwdev,
 static void rtw89_mac_port_cfg_bcn_mask_area(struct rtw89_dev *rtwdev,
 					     struct rtw89_vif *rtwvif)
 {
-	const struct rtw89_port_reg *p = &rtw_port_base;
+	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
+	const struct rtw89_port_reg *p = mac->port_base;
 
 	rtw89_write32_port_mask(rtwdev, rtwvif, p->bcn_area,
 				B_AX_BCN_MSK_AREA_MASK, BCN_MASK_DEF);
@@ -3929,7 +3943,8 @@ static void rtw89_mac_port_cfg_bcn_mask_area(struct rtw89_dev *rtwdev,
 static void rtw89_mac_port_cfg_tbtt_early(struct rtw89_dev *rtwdev,
 					  struct rtw89_vif *rtwvif)
 {
-	const struct rtw89_port_reg *p = &rtw_port_base;
+	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
+	const struct rtw89_port_reg *p = mac->port_base;
 
 	rtw89_write16_port_mask(rtwdev, rtwvif, p->tbtt_early,
 				B_AX_TBTTERLY_MASK, TBTT_ERLY_DEF);
@@ -3938,7 +3953,8 @@ static void rtw89_mac_port_cfg_tbtt_early(struct rtw89_dev *rtwdev,
 static void rtw89_mac_port_cfg_bss_color(struct rtw89_dev *rtwdev,
 					 struct rtw89_vif *rtwvif)
 {
-	const struct rtw89_port_reg *p = &rtw_port_base;
+	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
+	const struct rtw89_port_reg *p = mac->port_base;
 	struct ieee80211_vif *vif = rtwvif_to_vif(rtwvif);
 	static const u32 masks[RTW89_PORT_NUM] = {
 		B_AX_BSS_COLOB_AX_PORT_0_MASK, B_AX_BSS_COLOB_AX_PORT_1_MASK,
@@ -3959,7 +3975,8 @@ static void rtw89_mac_port_cfg_bss_color(struct rtw89_dev *rtwdev,
 static void rtw89_mac_port_cfg_mbssid(struct rtw89_dev *rtwdev,
 				      struct rtw89_vif *rtwvif)
 {
-	const struct rtw89_port_reg *p = &rtw_port_base;
+	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
+	const struct rtw89_port_reg *p = mac->port_base;
 	u8 port = rtwvif->port;
 	u32 reg;
 
@@ -3975,7 +3992,8 @@ static void rtw89_mac_port_cfg_mbssid(struct rtw89_dev *rtwdev,
 static void rtw89_mac_port_cfg_hiq_drop(struct rtw89_dev *rtwdev,
 					struct rtw89_vif *rtwvif)
 {
-	const struct rtw89_port_reg *p = &rtw_port_base;
+	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
+	const struct rtw89_port_reg *p = mac->port_base;
 	u8 port = rtwvif->port;
 	u32 reg;
 	u32 val;
@@ -3991,7 +4009,8 @@ static void rtw89_mac_port_cfg_hiq_drop(struct rtw89_dev *rtwdev,
 static void rtw89_mac_port_cfg_func_en(struct rtw89_dev *rtwdev,
 				       struct rtw89_vif *rtwvif, bool enable)
 {
-	const struct rtw89_port_reg *p = &rtw_port_base;
+	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
+	const struct rtw89_port_reg *p = mac->port_base;
 
 	if (enable)
 		rtw89_write32_port_set(rtwdev, rtwvif, p->port_cfg,
@@ -4004,7 +4023,8 @@ static void rtw89_mac_port_cfg_func_en(struct rtw89_dev *rtwdev,
 static void rtw89_mac_port_cfg_bcn_early(struct rtw89_dev *rtwdev,
 					 struct rtw89_vif *rtwvif)
 {
-	const struct rtw89_port_reg *p = &rtw_port_base;
+	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
+	const struct rtw89_port_reg *p = mac->port_base;
 
 	rtw89_write32_port_mask(rtwdev, rtwvif, p->bcn_early, B_AX_BCNERLY_MASK,
 				BCN_ERLY_DEF);
@@ -4013,7 +4033,8 @@ static void rtw89_mac_port_cfg_bcn_early(struct rtw89_dev *rtwdev,
 static void rtw89_mac_port_cfg_tbtt_shift(struct rtw89_dev *rtwdev,
 					  struct rtw89_vif *rtwvif)
 {
-	const struct rtw89_port_reg *p = &rtw_port_base;
+	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
+	const struct rtw89_port_reg *p = mac->port_base;
 	u16 val;
 
 	if (rtwdev->chip->chip_id != RTL8852C)
@@ -4035,7 +4056,8 @@ void rtw89_mac_port_tsf_sync(struct rtw89_dev *rtwdev,
 			     struct rtw89_vif *rtwvif_src,
 			     u16 offset_tu)
 {
-	const struct rtw89_port_reg *p = &rtw_port_base;
+	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
+	const struct rtw89_port_reg *p = mac->port_base;
 	u32 val, reg;
 
 	val = RTW89_PORT_OFFSET_TU_TO_32US(offset_tu);
@@ -4177,7 +4199,8 @@ int rtw89_mac_port_update(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
 int rtw89_mac_port_get_tsf(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
 			   u64 *tsf)
 {
-	const struct rtw89_port_reg *p = &rtw_port_base;
+	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
+	const struct rtw89_port_reg *p = mac->port_base;
 	u32 tsf_low, tsf_high;
 	int ret;
 
@@ -5727,6 +5750,7 @@ const struct rtw89_mac_gen_def rtw89_mac_gen_ax = {
 	.indir_access_addr = R_AX_INDIR_ACCESS_ENTRY,
 	.mem_base_addrs = rtw89_mac_mem_base_addrs_ax,
 	.rx_fltr = R_AX_RX_FLTR_OPT,
+	.port_base = &rtw89_port_base_ax,
 
 	.disable_cpu = rtw89_mac_disable_cpu_ax,
 	.fwdl_enable_wcpu = rtw89_mac_enable_cpu_ax,

@@ -858,6 +858,7 @@ struct rtw89_mac_gen_def {
 	u32 indir_access_addr;
 	const u32 *mem_base_addrs;
 	u32 rx_fltr;
+	const struct rtw89_port_reg *port_base;
 
 	void (*disable_cpu)(struct rtw89_dev *rtwdev);
 	int (*fwdl_enable_wcpu)(struct rtw89_dev *rtwdev, u8 boot_reason,

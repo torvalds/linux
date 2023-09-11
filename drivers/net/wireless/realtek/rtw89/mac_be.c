@@ -30,6 +30,32 @@ static const u32 rtw89_mac_mem_base_addrs_be[RTW89_MAC_MEM_NUM] = {
 	[RTW89_MAC_MEM_WD_PAGE]		= WD_PAGE_BASE_ADDR_BE,
 };
 
+static const struct rtw89_port_reg rtw89_port_base_be = {
+	.port_cfg = R_BE_PORT_CFG_P0,
+	.tbtt_prohib = R_BE_TBTT_PROHIB_P0,
+	.bcn_area = R_BE_BCN_AREA_P0,
+	.bcn_early = R_BE_BCNERLYINT_CFG_P0,
+	.tbtt_early = R_BE_TBTTERLYINT_CFG_P0,
+	.tbtt_agg = R_BE_TBTT_AGG_P0,
+	.bcn_space = R_BE_BCN_SPACE_CFG_P0,
+	.bcn_forcetx = R_BE_BCN_FORCETX_P0,
+	.bcn_err_cnt = R_BE_BCN_ERR_CNT_P0,
+	.bcn_err_flag = R_BE_BCN_ERR_FLAG_P0,
+	.dtim_ctrl = R_BE_DTIM_CTRL_P0,
+	.tbtt_shift = R_BE_TBTT_SHIFT_P0,
+	.bcn_cnt_tmr = R_BE_BCN_CNT_TMR_P0,
+	.tsftr_l = R_BE_TSFTR_LOW_P0,
+	.tsftr_h = R_BE_TSFTR_HIGH_P0,
+	.md_tsft = R_BE_WMTX_MOREDATA_TSFT_STMP_CTL,
+	.bss_color = R_BE_PTCL_BSS_COLOR_0,
+	.mbssid = R_BE_MBSSID_CTRL,
+	.mbssid_drop = R_BE_MBSSID_DROP_0,
+	.tsf_sync = R_BE_PORT_0_TSF_SYNC,
+	.hiq_win = {R_BE_P0MB_HGQ_WINDOW_CFG_0, R_BE_PORT_HGQ_WINDOW_CFG,
+		    R_BE_PORT_HGQ_WINDOW_CFG + 1, R_BE_PORT_HGQ_WINDOW_CFG + 2,
+		    R_BE_PORT_HGQ_WINDOW_CFG + 3},
+};
+
 static void rtw89_mac_disable_cpu_be(struct rtw89_dev *rtwdev)
 {
 	u32 val32;
@@ -185,6 +211,7 @@ const struct rtw89_mac_gen_def rtw89_mac_gen_be = {
 	.indir_access_addr = R_BE_INDIR_ACCESS_ENTRY,
 	.mem_base_addrs = rtw89_mac_mem_base_addrs_be,
 	.rx_fltr = R_BE_RX_FLTR_OPT,
+	.port_base = &rtw89_port_base_be,
 
 	.disable_cpu = rtw89_mac_disable_cpu_be,
 	.fwdl_enable_wcpu = rtw89_mac_fwdl_enable_wcpu_be,
