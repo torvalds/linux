@@ -1,0 +1,32 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2023 Rockchip Electronics Co., Ltd.
+ */
+
+#include "rk3568.dtsi"
+
+&power {
+	pd_pipe@RK3568_PD_PIPE {
+		reg = <RK3568_PD_PIPE>;
+		clocks = <&cru PCLK_PIPE>;
+		pm_qos = <&qos_pcie2x1>,
+			 <&qos_usb3_0>,
+			 <&qos_usb3_1>;
+	};
+};
+
+/delete-node/ &can0;
+/delete-node/ &can1;
+/delete-node/ &can2;
+/delete-node/ &pcie30_phy_grf;
+/delete-node/ &pcie30phy;
+/delete-node/ &pcie3x1;
+/delete-node/ &pcie3x2;
+/delete-node/ &qos_pcie3x1;
+/delete-node/ &qos_pcie3x2;
+/delete-node/ &qos_sata0;
+/delete-node/ &qos_sata1;
+/delete-node/ &qos_sata2;
+/delete-node/ &sata0;
+/delete-node/ &sata1;
+/delete-node/ &sata2;
