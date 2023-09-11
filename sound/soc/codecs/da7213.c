@@ -1261,10 +1261,10 @@ static int da7213_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 
 	/* Set master/slave mode */
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBM_CFM:
+	case SND_SOC_DAIFMT_CBP_CFP:
 		da7213->master = true;
 		break;
-	case SND_SOC_DAIFMT_CBS_CFS:
+	case SND_SOC_DAIFMT_CBC_CFC:
 		da7213->master = false;
 		break;
 	default:
@@ -1293,8 +1293,8 @@ static int da7213_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 			return -EINVAL;
 		}
 		break;
-	case SND_SOC_DAI_FORMAT_DSP_A:
-	case SND_SOC_DAI_FORMAT_DSP_B:
+	case SND_SOC_DAIFMT_DSP_A:
+	case SND_SOC_DAIFMT_DSP_B:
 		/* The bclk is inverted wrt ASoC conventions */
 		switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
 		case SND_SOC_DAIFMT_NB_NF:
@@ -1331,12 +1331,12 @@ static int da7213_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 		dai_ctrl |= DA7213_DAI_FORMAT_RIGHT_J;
 		da7213->fmt = DA7213_DAI_FORMAT_RIGHT_J;
 		break;
-	case SND_SOC_DAI_FORMAT_DSP_A: /* L data MSB after FRM LRC */
+	case SND_SOC_DAIFMT_DSP_A: /* L data MSB after FRM LRC */
 		dai_ctrl |= DA7213_DAI_FORMAT_DSP;
 		dai_offset = 1;
 		da7213->fmt = DA7213_DAI_FORMAT_DSP;
 		break;
-	case SND_SOC_DAI_FORMAT_DSP_B: /* L data MSB during FRM LRC */
+	case SND_SOC_DAIFMT_DSP_B: /* L data MSB during FRM LRC */
 		dai_ctrl |= DA7213_DAI_FORMAT_DSP;
 		da7213->fmt = DA7213_DAI_FORMAT_DSP;
 		break;
