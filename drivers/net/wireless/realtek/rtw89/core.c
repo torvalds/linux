@@ -1235,6 +1235,26 @@ void rtw89_core_fill_txdesc_fwcmd_v1(struct rtw89_dev *rtwdev,
 }
 EXPORT_SYMBOL(rtw89_core_fill_txdesc_fwcmd_v1);
 
+static __le32 rtw89_build_txwd_fwcmd0_v2(struct rtw89_tx_desc_info *desc_info)
+{
+	u32 dword = FIELD_PREP(BE_RXD_RPKT_LEN_MASK, desc_info->pkt_size) |
+		    FIELD_PREP(BE_RXD_RPKT_TYPE_MASK, desc_info->fw_dl ?
+						      RTW89_CORE_RX_TYPE_FWDL :
+						      RTW89_CORE_RX_TYPE_H2C);
+
+	return cpu_to_le32(dword);
+}
+
+void rtw89_core_fill_txdesc_fwcmd_v2(struct rtw89_dev *rtwdev,
+				     struct rtw89_tx_desc_info *desc_info,
+				     void *txdesc)
+{
+	struct rtw89_rxdesc_short_v2 *txwd_v2 = (struct rtw89_rxdesc_short_v2 *)txdesc;
+
+	txwd_v2->dword0 = rtw89_build_txwd_fwcmd0_v2(desc_info);
+}
+EXPORT_SYMBOL(rtw89_core_fill_txdesc_fwcmd_v2);
+
 static int rtw89_core_rx_process_mac_ppdu(struct rtw89_dev *rtwdev,
 					  struct sk_buff *skb,
 					  struct rtw89_rx_phy_ppdu *phy_ppdu)
