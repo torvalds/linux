@@ -1823,12 +1823,11 @@ static inline bool sock_owned_by_user_nocheck(const struct sock *sk)
 
 static inline void sock_release_ownership(struct sock *sk)
 {
-	if (sock_owned_by_user_nocheck(sk)) {
-		sk->sk_lock.owned = 0;
+	DEBUG_NET_WARN_ON_ONCE(!sock_owned_by_user_nocheck(sk));
+	sk->sk_lock.owned = 0;
 
-		/* The sk_lock has mutex_unlock() semantics: */
-		mutex_release(&sk->sk_lock.dep_map, _RET_IP_);
-	}
+	/* The sk_lock has mutex_unlock() semantics: */
+	mutex_release(&sk->sk_lock.dep_map, _RET_IP_);
 }
 
 /* no reclassification while locks are held */
