@@ -274,6 +274,7 @@ static irqreturn_t pm8001_interrupt_handler_intx(int irq, void *dev_id)
 }
 
 static u32 pm8001_request_irq(struct pm8001_hba_info *pm8001_ha);
+static void pm8001_free_irq(struct pm8001_hba_info *pm8001_ha);
 
 /**
  * pm8001_alloc - initiate our hba structure and 6 DMAs area.
@@ -1057,6 +1058,24 @@ static u32 pm8001_request_irq(struct pm8001_hba_info *pm8001_ha)
 			   SHOST_TO_SAS_HA(pm8001_ha->shost));
 }
 
+static void pm8001_free_irq(struct pm8001_hba_info *pm8001_ha)
+{
+#ifdef PM8001_USE_MSIX
+	struct pci_dev *pdev = pm8001_ha->pdev;
+	int i;
+
+	for (i = 0; i < pm8001_ha->number_of_intr; i++)
+		synchronize_irq(pci_irq_vector(pdev, i));
+
+	for (i = 0; i < pm8001_ha->number_of_intr; i++)
+		free_irq(pci_irq_vector(pdev, i), &pm8001_ha->irq_vector[i]);
+
+	pci_free_irq_vectors(pdev);
+#else
+	free_irq(pm8001_ha->irq, pm8001_ha->sas);
+#endif
+}
+
 /**
  * pm8001_pci_probe - probe supported device
  * @pdev: pci device which kernel has been prepared for.
@@ -1252,24 +1271,17 @@ err_out:
 static void pm8001_pci_remove(struct pci_dev *pdev)
 {
 	struct sas_ha_struct *sha = pci_get_drvdata(pdev);
-	struct pm8001_hba_info *pm8001_ha;
+	struct pm8001_hba_info *pm8001_ha = sha->lldd_ha;
 	int i, j;
-	pm8001_ha = sha->lldd_ha;
+
 	sas_unregister_ha(sha);
 	sas_remove_host(pm8001_ha->shost);
 	list_del(&pm8001_ha->list);
 	PM8001_CHIP_DISP->interrupt_disable(pm8001_ha, 0xFF);
 	PM8001_CHIP_DISP->chip_soft_rst(pm8001_ha);
 
-#ifdef PM8001_USE_MSIX
-	for (i = 0; i < pm8001_ha->number_of_intr; i++)
-		synchronize_irq(pci_irq_vector(pdev, i));
-	for (i = 0; i < pm8001_ha->number_of_intr; i++)
-		free_irq(pci_irq_vector(pdev, i), &pm8001_ha->irq_vector[i]);
-	pci_free_irq_vectors(pdev);
-#else
-	free_irq(pm8001_ha->irq, sha);
-#endif
+	pm8001_free_irq(pm8001_ha);
+
 #ifdef PM8001_USE_TASKLET
 	/* For non-msix and msix interrupts */
 	if ((!pdev->msix_cap || !pci_msi_enabled()) ||
@@ -1309,7 +1321,8 @@ static int __maybe_unused pm8001_pci_suspend(struct device *dev)
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct sas_ha_struct *sha = pci_get_drvdata(pdev);
 	struct pm8001_hba_info *pm8001_ha = sha->lldd_ha;
-	int  i, j;
+	int j;
+
 	sas_suspend_ha(sha);
 	flush_workqueue(pm8001_wq);
 	scsi_block_requests(pm8001_ha->shost);
@@ -1319,15 +1332,9 @@ static int __maybe_unused pm8001_pci_suspend(struct device *dev)
 	}
 	PM8001_CHIP_DISP->interrupt_disable(pm8001_ha, 0xFF);
 	PM8001_CHIP_DISP->chip_soft_rst(pm8001_ha);
-#ifdef PM8001_USE_MSIX
-	for (i = 0; i < pm8001_ha->number_of_intr; i++)
-		synchronize_irq(pci_irq_vector(pdev, i));
-	for (i = 0; i < pm8001_ha->number_of_intr; i++)
-		free_irq(pci_irq_vector(pdev, i), &pm8001_ha->irq_vector[i]);
-	pci_free_irq_vectors(pdev);
-#else
-	free_irq(pm8001_ha->irq, sha);
-#endif
+
+	pm8001_free_irq(pm8001_ha);
+
 #ifdef PM8001_USE_TASKLET
 	/* For non-msix and msix interrupts */
 	if ((!pdev->msix_cap || !pci_msi_enabled()) ||
