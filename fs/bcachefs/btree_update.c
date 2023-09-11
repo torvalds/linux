@@ -466,11 +466,49 @@ bch2_trans_update_by_path(struct btree_trans *trans, struct btree_path *path,
 	return 0;
 }
 
+static noinline int bch2_trans_update_get_key_cache(struct btree_trans *trans,
+						    struct btree_iter *iter,
+						    struct btree_path *path)
+{
+	if (!iter->key_cache_path ||
+	    !iter->key_cache_path->should_be_locked ||
+	    !bpos_eq(iter->key_cache_path->pos, iter->pos)) {
+		struct bkey_cached *ck;
+		int ret;
+
+		if (!iter->key_cache_path)
+			iter->key_cache_path =
+				bch2_path_get(trans, path->btree_id, path->pos, 1, 0,
+					      BTREE_ITER_INTENT|
+					      BTREE_ITER_CACHED, _THIS_IP_);
+
+		iter->key_cache_path =
+			bch2_btree_path_set_pos(trans, iter->key_cache_path, path->pos,
+						iter->flags & BTREE_ITER_INTENT,
+						_THIS_IP_);
+
+		ret = bch2_btree_path_traverse(trans, iter->key_cache_path,
+					       BTREE_ITER_CACHED);
+		if (unlikely(ret))
+			return ret;
+
+		ck = (void *) iter->key_cache_path->l[0].b;
+
+		if (test_bit(BKEY_CACHED_DIRTY, &ck->flags)) {
+			trace_and_count(trans->c, trans_restart_key_cache_raced, trans, _RET_IP_);
+			return btree_trans_restart(trans, BCH_ERR_transaction_restart_key_cache_raced);
+		}
+
+		btree_path_set_should_be_locked(iter->key_cache_path);
+	}
+
+	return 0;
+}
+
 int __must_check bch2_trans_update(struct btree_trans *trans, struct btree_iter *iter,
 				   struct bkey_i *k, enum btree_update_flags flags)
 {
 	struct btree_path *path = iter->update_path ?: iter->path;
-	struct bkey_cached *ck;
 	int ret;
 
 	if (iter->flags & BTREE_ITER_IS_EXTENTS)
@@ -494,34 +532,9 @@ int __must_check bch2_trans_update(struct btree_trans *trans, struct btree_iter 
 	    !path->cached &&
 	    !path->level &&
 	    btree_id_cached(trans->c, path->btree_id)) {
-		if (!iter->key_cache_path ||
-		    !iter->key_cache_path->should_be_locked ||
-		    !bpos_eq(iter->key_cache_path->pos, k->k.p)) {
-			if (!iter->key_cache_path)
-				iter->key_cache_path =
-					bch2_path_get(trans, path->btree_id, path->pos, 1, 0,
-						      BTREE_ITER_INTENT|
-						      BTREE_ITER_CACHED, _THIS_IP_);
-
-			iter->key_cache_path =
-				bch2_btree_path_set_pos(trans, iter->key_cache_path, path->pos,
-							iter->flags & BTREE_ITER_INTENT,
-							_THIS_IP_);
-
-			ret = bch2_btree_path_traverse(trans, iter->key_cache_path,
-						       BTREE_ITER_CACHED);
-			if (unlikely(ret))
-				return ret;
-
-			ck = (void *) iter->key_cache_path->l[0].b;
-
-			if (test_bit(BKEY_CACHED_DIRTY, &ck->flags)) {
-				trace_and_count(trans->c, trans_restart_key_cache_raced, trans, _RET_IP_);
-				return btree_trans_restart(trans, BCH_ERR_transaction_restart_key_cache_raced);
-			}
-
-			btree_path_set_should_be_locked(iter->key_cache_path);
-		}
+		ret = bch2_trans_update_get_key_cache(trans, iter, path);
+		if (ret)
+			return ret;
 
 		path = iter->key_cache_path;
 	}
