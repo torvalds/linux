@@ -36,7 +36,7 @@
 
 #define DEVICE_ADDR			0x4
 #define DEV_ADDR_DYNAMIC_ADDR_VALID	BIT(31)
-#define DEV_ADDR_DYNAMIC(x)		(((x) << 16) & GENMASK(22, 16))
+#define DEV_ADDR_DYNAMIC		GENMASK(22, 16)
 
 #define HW_CAPABILITY			0x8
 #define COMMAND_QUEUE_PORT		0xc
@@ -170,7 +170,8 @@
 					INTR_RESP_READY_STAT |		\
 					INTR_IBI_UPDATED_STAT  |	\
 					INTR_TRANSFER_ERR_STAT |	\
-					INTR_CCC_UPDATED_STAT)
+					INTR_CCC_UPDATED_STAT |         \
+					INTR_DYN_ADDR_ASSGN_STAT)
 
 #define QUEUE_STATUS_LEVEL		0x4c
 #define QUEUE_STATUS_IBI_STATUS_CNT(x)	(((x) & GENMASK(28, 24)) >> 24)
@@ -974,7 +975,7 @@ static int dw_i3c_master_bus_init(struct i3c_master_controller *m)
 	if (ret < 0)
 		return ret;
 
-	writel(DEV_ADDR_DYNAMIC_ADDR_VALID | DEV_ADDR_DYNAMIC(ret),
+	writel(DEV_ADDR_DYNAMIC_ADDR_VALID | FIELD_PREP(DEV_ADDR_DYNAMIC, ret),
 	       master->regs + DEVICE_ADDR);
 
 	memset(&info, 0, sizeof(info));
@@ -1816,6 +1817,15 @@ static irqreturn_t dw_i3c_master_irq_handler(int irq, void *dev_id)
 	}
 
 	if (master->base.target) {
+		if (status & INTR_DYN_ADDR_ASSGN_STAT) {
+			u32 reg = readl(master->regs + DEVICE_ADDR);
+
+			master->base.this->info.dyn_addr =
+				FIELD_GET(DEV_ADDR_DYNAMIC, reg);
+			writel(INTR_DYN_ADDR_ASSGN_STAT,
+			       master->regs + INTR_STATUS);
+		}
+
 		if (status & INTR_CCC_UPDATED_STAT)
 			dw_i3c_target_handle_ccc_update(master);
 
