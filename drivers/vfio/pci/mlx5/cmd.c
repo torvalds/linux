@@ -261,6 +261,9 @@ void mlx5vf_cmd_set_migratable(struct mlx5vf_pci_core_device *mvdev,
 		mvdev->core_device.vdev.migration_flags |=
 			VFIO_MIGRATION_PRE_COPY;
 
+	if (MLX5_CAP_GEN_2(mvdev->mdev, migration_in_chunks))
+		mvdev->chunk_mode = 1;
+
 end:
 	mlx5_vf_put_core_dev(mvdev->mdev);
 }
