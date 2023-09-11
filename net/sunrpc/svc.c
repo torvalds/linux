@@ -510,7 +510,7 @@ __svc_create(struct svc_program *prog, unsigned int bufsize, int npools,
 		pool->sp_id = i;
 		INIT_LIST_HEAD(&pool->sp_sockets);
 		INIT_LIST_HEAD(&pool->sp_all_threads);
-		INIT_LIST_HEAD(&pool->sp_idle_threads);
+		init_llist_head(&pool->sp_idle_threads);
 		spin_lock_init(&pool->sp_lock);
 
 		percpu_counter_init(&pool->sp_messages_arrived, 0, GFP_KERNEL);
@@ -642,7 +642,7 @@ svc_rqst_alloc(struct svc_serv *serv, struct svc_pool *pool, int node)
 
 	folio_batch_init(&rqstp->rq_fbatch);
 
-	svc_thread_set_busy(rqstp);
+	init_llist_node(&rqstp->rq_idle);
 	rqstp->rq_server = serv;
 	rqstp->rq_pool = pool;
 
@@ -701,15 +701,15 @@ svc_prepare_thread(struct svc_serv *serv, struct svc_pool *pool, int node)
 void svc_pool_wake_idle_thread(struct svc_pool *pool)
 {
 	struct svc_rqst	*rqstp;
+	struct llist_node *ln;
 
 	rcu_read_lock();
 	spin_lock_bh(&pool->sp_lock);
-	rqstp = list_first_entry_or_null(&pool->sp_idle_threads,
-					 struct svc_rqst, rq_idle);
-	if (rqstp)
-		list_del_init(&rqstp->rq_idle);
+	ln = llist_del_first_init(&pool->sp_idle_threads);
 	spin_unlock_bh(&pool->sp_lock);
-	if (rqstp) {
+	if (ln) {
+		rqstp = llist_entry(ln, struct svc_rqst, rq_idle);
+
 		WRITE_ONCE(rqstp->rq_qtime, ktime_get());
 		wake_up_process(rqstp->rq_task);
 		rcu_read_unlock();

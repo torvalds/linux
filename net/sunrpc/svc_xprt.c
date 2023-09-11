@@ -715,10 +715,6 @@ rqst_should_sleep(struct svc_rqst *rqstp)
 	if (svc_thread_should_stop(rqstp))
 		return false;
 
-	/* are we freezing? */
-	if (freezing(current))
-		return false;
-
 #if defined(CONFIG_SUNRPC_BACKCHANNEL)
 	if (svc_is_backchannel(rqstp)) {
 		if (!list_empty(&rqstp->rq_server->sv_cb_list))
@@ -734,30 +730,26 @@ static void svc_rqst_wait_for_work(struct svc_rqst *rqstp)
 	struct svc_pool *pool = rqstp->rq_pool;
 
 	if (rqst_should_sleep(rqstp)) {
-		set_current_state(TASK_IDLE);
-		spin_lock_bh(&pool->sp_lock);
-		list_add(&rqstp->rq_idle, &pool->sp_idle_threads);
-		spin_unlock_bh(&pool->sp_lock);
+		set_current_state(TASK_IDLE | TASK_FREEZABLE);
+		llist_add(&rqstp->rq_idle, &pool->sp_idle_threads);
 
-		/* Need to check should_sleep() again after
-		 * setting task state in case a wakeup happened
-		 * between testing and setting.
+		if (unlikely(!rqst_should_sleep(rqstp)))
+			/* Work just became available.  This thread cannot simply
+			 * choose not to sleep as it *must* wait until removed.
+			 * So wake the first waiter - whether it is this
+			 * thread or some other, it will get the work done.
+			 */
+			svc_pool_wake_idle_thread(pool);
+
+		/* Since a thread cannot remove itself from an llist,
+		 * schedule until someone else removes @rqstp from
+		 * the idle list.
 		 */
-		if (rqst_should_sleep(rqstp)) {
+		while (!svc_thread_busy(rqstp)) {
 			schedule();
-		} else {
-			__set_current_state(TASK_RUNNING);
-			cond_resched();
+			set_current_state(TASK_IDLE | TASK_FREEZABLE);
 		}
-
-		/* We *must* be removed from the list before we can continue.
-		 * If we were woken, this is already done
-		 */
-		if (!svc_thread_busy(rqstp)) {
-			spin_lock_bh(&pool->sp_lock);
-			list_del_init(&rqstp->rq_idle);
-			spin_unlock_bh(&pool->sp_lock);
-		}
+		__set_current_state(TASK_RUNNING);
 	} else {
 		cond_resched();
 	}
@@ -870,9 +862,10 @@ void svc_recv(struct svc_rqst *rqstp)
 		struct svc_xprt *xprt = rqstp->rq_xprt;
 
 		/* Normally we will wait up to 5 seconds for any required
-		 * cache information to be provided.
+		 * cache information to be provided.  When there are no
+		 * idle threads, we reduce the wait time.
 		 */
-		if (!list_empty(&pool->sp_idle_threads))
+		if (pool->sp_idle_threads.first)
 			rqstp->rq_chandle.thread_wait = 5 * HZ;
 		else
 			rqstp->rq_chandle.thread_wait = 1 * HZ;
