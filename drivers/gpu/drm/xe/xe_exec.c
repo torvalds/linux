@@ -103,7 +103,11 @@ static int xe_exec_begin(struct drm_exec *exec, struct xe_vm *vm)
 	if (xe_vm_no_dma_fences(vm))
 		return 0;
 
-	err = xe_vm_lock_dma_resv(vm, exec, 1, true);
+	/*
+	 * 1 fence for job from exec plus a fence for each tile from a possible
+	 * rebind
+	 */
+	err = xe_vm_lock_dma_resv(vm, exec, 1 + vm->xe->info.tile_count, true);
 	if (err)
 		return err;
 

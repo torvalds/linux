@@ -519,8 +519,13 @@ static int xe_preempt_work_begin(struct drm_exec *exec, struct xe_vm *vm,
 	struct xe_vma *vma;
 	int err;
 
+	/*
+	 * 1 fence for each preempt fence plus a fence for each tile from a
+	 * possible rebind
+	 */
 	err = drm_exec_prepare_obj(exec, xe_vm_obj(vm),
-				   vm->preempt.num_exec_queues);
+				   vm->preempt.num_exec_queues +
+				   vm->xe->info.tile_count);
 	if (err)
 		return err;
 
