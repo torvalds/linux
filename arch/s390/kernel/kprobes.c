@@ -224,7 +224,14 @@ static void enable_singlestep(struct kprobe_ctlblk *kcb,
 			      struct pt_regs *regs,
 			      unsigned long ip)
 {
-	struct per_regs per_kprobe;
+	union {
+		unsigned long regs[3];
+		struct {
+			unsigned long control;
+			unsigned long start;
+			unsigned long end;
+		};
+	} per_kprobe;
 
 	/* Set up the PER control registers %cr9-%cr11 */
 	per_kprobe.control = PER_EVENT_IFETCH;
@@ -237,7 +244,7 @@ static void enable_singlestep(struct kprobe_ctlblk *kcb,
 		(PSW_MASK_PER | PSW_MASK_IO | PSW_MASK_EXT);
 
 	/* Set PER control regs, turns on single step for the given address */
-	__local_ctl_load(9, 11, per_kprobe);
+	__local_ctl_load(9, 11, per_kprobe.regs);
 	regs->psw.mask |= PSW_MASK_PER;
 	regs->psw.mask &= ~(PSW_MASK_IO | PSW_MASK_EXT);
 	regs->psw.addr = ip;

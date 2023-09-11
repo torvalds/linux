@@ -41,10 +41,17 @@ void update_cr_regs(struct task_struct *task)
 {
 	struct pt_regs *regs = task_pt_regs(task);
 	struct thread_struct *thread = &task->thread;
-	struct per_regs old, new;
 	union ctlreg0 cr0_old, cr0_new;
 	union ctlreg2 cr2_old, cr2_new;
 	int cr0_changed, cr2_changed;
+	union {
+		unsigned long regs[3];
+		struct {
+			unsigned long control;
+			unsigned long start;
+			unsigned long end;
+		};
+	} old, new;
 
 	local_ctl_store(0, &cr0_old.val);
 	local_ctl_store(2, &cr2_old.val);
@@ -104,9 +111,9 @@ void update_cr_regs(struct task_struct *task)
 		return;
 	}
 	regs->psw.mask |= PSW_MASK_PER;
-	__local_ctl_store(9, 11, old);
+	__local_ctl_store(9, 11, old.regs);
 	if (memcmp(&new, &old, sizeof(struct per_regs)) != 0)
-		__local_ctl_load(9, 11, new);
+		__local_ctl_load(9, 11, new.regs);
 }
 
 void user_enable_single_step(struct task_struct *task)
