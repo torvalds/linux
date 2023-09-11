@@ -246,6 +246,7 @@
 
 		intc: interrupt-controller@12100000 {
 			compatible = "simple-mfd";
+			reg = <0 0x12c10000 0 0x4000>;
 			#address-cells = <2>;
 			#size-cells = <2>;
 			ranges = <0x0 0x0 0x0 0x12100000 0x0 0x4000>;
@@ -318,7 +319,7 @@
 				#interrupt-cells = <1>;
 				interrupt-controller;
 				compatible = "aspeed,ast2700-intc-ic";
-				reg = <0x0 0x12101800 0x0 0x10>;
+				reg = <0x0 0x1800 0x0 0x10>;
 				interrupts = <GIC_SPI 136 IRQ_TYPE_LEVEL_HIGH>;
 			};
 		};
@@ -345,19 +346,17 @@
 			status = "disabled";
 		};
 
-		syscon: syscon@12c02000 {
+		syscon0: syscon@12c02000 {
 			compatible = "syscon", "simple-mfd";
 			reg = <0x0 0x12c02000 0x0 0x1000>;
-			ranges = <0x0 0x0 0x12c02000 0x1000>;
-			#address-cells = <1>;
-			#size-cells = <1>;
-			#clock-cells = <1>;
-			#reset-cells = <1>;
+			ranges = <0x0 0x0 0 0x12c02000 0 0x1000>;
+			#address-cells = <2>;
+			#size-cells = <2>;
 
 			scu_ic0: interrupt-controller@1D0 {
 				#interrupt-cells = <1>;
 				compatible = "aspeed,ast2700-scu-ic0";
-				reg = <0x1D0 0xc>;
+				reg = <0 0x1d0 0 0xc>;
 				interrupts = <GIC_SPI 97 IRQ_TYPE_LEVEL_HIGH>;
 				interrupt-controller;
 			};
@@ -365,22 +364,22 @@
 			scu_ic1: interrupt-controller@1E0 {
 				#interrupt-cells = <1>;
 				compatible = "aspeed,ast2700-scu-ic1";
-				reg = <0x1E0 0xc>;
+				reg = <0 0x1e0 0 0xc>;
 				interrupts = <GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>;
 				interrupt-controller;
 			};
-		};
 
-		cpu_clk: clock-controller@12c02200 {
-			compatible = "aspeed,ast2700_cpu-clk";
-			reg = <0 0x12c02200 0 0x200>;
-			#clock-cells = <1>;
-			#reset-cells = <1>;
-		};
+			cpu_clk: clock-controller@200 {
+				compatible = "aspeed,ast2700_cpu-clk";
+				reg = <0 0x200 0 0x200>;
+				#clock-cells = <1>;
+				#reset-cells = <1>;
+			};
 
-		pinctrl0: pinctrl@12c02400 {
-			compatible = "aspeed,ast2700-cpu-pinctrl";
-			reg = <0 0x12c02400 0 0x100>;
+			pinctrl0: pinctrl@400 {
+				compatible = "aspeed,ast2700-cpu-pinctrl";
+				reg = <0 0x400 0 0x100>;
+			};
 		};
 
 		pcie_config0: pcie_config@12c02960 {
@@ -409,7 +408,7 @@
 			interrupts-extended = <&gic GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>, <&scu_ic0 ASPEED_AST2700_SCU_IC0_PCIE_PERST_LO_TO_HI>;
 			interrupt-names = "mctp", "pcie";
 			resets = <&cpu_clk ASPEED_RESET_MCTP0>;
-			aspeed,scu = <&syscon>;
+			aspeed,scu = <&syscon0>;
 			aspeed,pcieh = <&pcie_config0>;
 			status = "disabled";
 		};
@@ -420,7 +419,7 @@
 			interrupts-extended = <&gic GIC_SPI 25 IRQ_TYPE_LEVEL_HIGH>, <&scu_ic1 ASPEED_AST2700_SCU_IC1_PCIE_RCRST_LO_TO_HI>;
 			interrupt-names = "mctp", "pcie";
 			resets = <&cpu_clk ASPEED_RESET_MCTP1>;
-			aspeed,scu = <&syscon>;
+			aspeed,scu = <&syscon0>;
 			aspeed,pcieh = <&pcie_config1>;
 			status = "disabled";
 		};
@@ -632,7 +631,7 @@
 			clock-names = "vclk", "eclk";
 			interrupts = <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>;
 			resets = <&cpu_clk ASPEED_RESET_VIDEO>;
-			aspeed,scu = <&syscon>;
+			aspeed,scu = <&syscon0>;
 			status = "disabled";
 		};
 
@@ -644,7 +643,7 @@
 			clock-names = "vclk", "eclk";
 			interrupts = <GIC_SPI 114 IRQ_TYPE_LEVEL_HIGH>;
 			resets = <&cpu_clk ASPEED_RESET_VIDEO>;
-			aspeed,scu = <&syscon>;
+			aspeed,scu = <&syscon0>;
 			status = "disabled";
 		};
 
@@ -657,7 +656,7 @@
 			interrupts-extended = <&gic GIC_SPI 5 IRQ_TYPE_LEVEL_HIGH>,
 					      <&scu_ic0 ASPEED_AST2700_SCU_IC0_PCIE_PERST_LO_TO_HI>;
 			aspeed,pcie-device = "bmc";
-			aspeed,scu = <&syscon>;
+			aspeed,scu = <&syscon0>;
 			status = "disabled";
 		};
 
@@ -670,7 +669,7 @@
 			interrupts-extended = <&gic GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>,
 					      <&scu_ic1 ASPEED_AST2700_SCU_IC1_PCIE_RCRST_LO_TO_HI>;
 			aspeed,pcie-device = "bmc";
-			aspeed,scu = <&syscon>;
+			aspeed,scu = <&syscon0>;
 			status = "disabled";
 		};
 	};
@@ -835,16 +834,24 @@
 			status = "disabled";
 		};
 
-		io_clk: clock-controller@14c02200 {
-			compatible = "aspeed,ast2700_io-clk";
-			reg = <0 0x14c02200 0 0x200>;
-			#clock-cells = <1>;
-			#reset-cells = <1>;
-		};
+		syscon1: syscon@14c02000 {
+			compatible = "syscon", "simple-mfd";
+			reg = <0x0 0x14c02000 0x0 0x1000>;
+			ranges = <0x0 0x0 0x0 0x14c02000 0x0 0x1000>;
+			#address-cells = <2>;
+			#size-cells = <2>;
 
-		pinctrl1: pinctrl@14c02400 {
-			compatible = "aspeed,ast2700-io-pinctrl";
-			reg = <0x0 0x14c02400 0x0 0x100>;
+			io_clk: clock-controller@200 {
+				compatible = "aspeed,ast2700_io-clk";
+				reg = <0 0x200 0 0x200>;
+				#clock-cells = <1>;
+				#reset-cells = <1>;
+			};
+
+			pinctrl1: pinctrl@400 {
+				compatible = "aspeed,ast2700-io-pinctrl";
+				reg = <0x0 0x400 0x0 0x100>;
+			};
 		};
 
 		espi0: espi@14c05000 {
