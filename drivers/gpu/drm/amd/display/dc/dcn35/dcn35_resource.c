@@ -205,16 +205,6 @@ enum dcn35_clk_src_array_id {
 	REG_STRUCT[id].reg_name = NBIO_BASE(regBIF_BX2_ ## reg_name ## _BASE_IDX) + \
 		regBIF_BX2_ ## reg_name
 
-/* MMHUB */
-#define MMHUB_BASE_INNER(seg) ctx->mmhub_reg_offsets[seg]
-
-#define MMHUB_BASE(seg) \
-	MMHUB_BASE_INNER(seg)
-
-#define MMHUB_SR(reg_name)\
-		REG_STRUCT.reg_name = MMHUB_BASE(reg ## reg_name ## _BASE_IDX) + \
-					reg ## reg_name
-
 #define bios_regs_init() \
 		( \
 		NBIO_SR(BIOS_SCRATCH_3),\
