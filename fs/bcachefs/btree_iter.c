@@ -2247,7 +2247,7 @@ struct bkey_s_c bch2_btree_iter_peek(struct btree_iter *iter)
 	struct bpos search_key = btree_iter_search_key(iter);
 	struct bkey_i *next_update;
 	struct bkey_s_c k;
-	int ret, cmp;
+	int ret;
 
 	EBUG_ON(iter->path->cached || iter->path->level);
 	bch2_btree_iter_verify(iter);
@@ -2336,13 +2336,9 @@ struct bkey_s_c bch2_btree_iter_peek(struct btree_iter *iter)
 	if (iter->flags & BTREE_ITER_FILTER_SNAPSHOTS)
 		iter->pos.snapshot = iter->snapshot;
 
-	cmp = bpos_cmp(k.k->p, iter->path->pos);
-	if (cmp) {
-		iter->path = bch2_btree_path_make_mut(trans, iter->path,
-					iter->flags & BTREE_ITER_INTENT);
-		iter->path->pos = k.k->p;
-		trans->paths_sorted = false;
-	}
+	iter->path = btree_path_set_pos(trans, iter->path, k.k->p,
+				iter->flags & BTREE_ITER_INTENT);
+	BUG_ON(!iter->path->nodes_locked);
 out:
 	iter->path->should_be_locked = true;
 
