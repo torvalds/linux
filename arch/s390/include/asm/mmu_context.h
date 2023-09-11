@@ -78,7 +78,7 @@ static inline void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *
 	if (next == &init_mm)
 		S390_lowcore.user_asce = s390_invalid_asce;
 	else
-		S390_lowcore.user_asce = next->context.asce;
+		S390_lowcore.user_asce.val = next->context.asce;
 	cpumask_set_cpu(cpu, &next->context.cpu_attach_mask);
 	/* Clear previous user-ASCE from CR7 */
 	local_ctl_load(7, &s390_invalid_asce);

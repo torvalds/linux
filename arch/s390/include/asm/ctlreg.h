@@ -35,6 +35,10 @@
 
 #include <linux/bug.h>
 
+struct ctlreg {
+	unsigned long val;
+};
+
 #define __local_ctl_load(low, high, array) do {				\
 	struct addrtype {						\
 		char _[sizeof(array)];					\
@@ -43,9 +47,9 @@
 	int _low = low;							\
 	int _esize;							\
 									\
-	_esize = (_high - _low + 1) * sizeof(unsigned long);		\
+	_esize = (_high - _low + 1) * sizeof(struct ctlreg);		\
 	BUILD_BUG_ON(sizeof(struct addrtype) != _esize);		\
-	typecheck(unsigned long, array[0]);				\
+	typecheck(struct ctlreg, array[0]);				\
 	asm volatile(							\
 		"	lctlg	%[_low],%[_high],%[_arr]\n"		\
 		:							\
@@ -62,16 +66,16 @@
 	int _low = low;							\
 	int _esize;							\
 									\
-	_esize = (_high - _low + 1) * sizeof(unsigned long);		\
+	_esize = (_high - _low + 1) * sizeof(struct ctlreg);		\
 	BUILD_BUG_ON(sizeof(struct addrtype) != _esize);		\
-	typecheck(unsigned long, array[0]);				\
+	typecheck(struct ctlreg, array[0]);				\
 	asm volatile(							\
 		"	stctg	%[_low],%[_high],%[_arr]\n"		\
 		: [_arr] "=Q" (*(struct addrtype *)(&array))		\
 		: [_low] "i" (low), [_high] "i" (high));		\
 } while (0)
 
-static __always_inline void local_ctl_load(unsigned int cr, unsigned long *reg)
+static __always_inline void local_ctl_load(unsigned int cr, struct ctlreg *reg)
 {
 	asm volatile(
 		"	lctlg	%[cr],%[cr],%[reg]\n"
@@ -80,7 +84,7 @@ static __always_inline void local_ctl_load(unsigned int cr, unsigned long *reg)
 		: "memory");
 }
 
-static __always_inline void local_ctl_store(unsigned int cr, unsigned long *reg)
+static __always_inline void local_ctl_store(unsigned int cr, struct ctlreg *reg)
 {
 	asm volatile(
 		"	stctg	%[cr],%[cr],%[reg]\n"
@@ -90,19 +94,19 @@ static __always_inline void local_ctl_store(unsigned int cr, unsigned long *reg)
 
 static __always_inline void local_ctl_set_bit(unsigned int cr, unsigned int bit)
 {
-	unsigned long reg;
+	struct ctlreg reg;
 
 	local_ctl_store(cr, &reg);
-	reg |= 1UL << bit;
+	reg.val |= 1UL << bit;
 	local_ctl_load(cr, &reg);
 }
 
 static __always_inline void local_ctl_clear_bit(unsigned int cr, unsigned int bit)
 {
-	unsigned long reg;
+	struct ctlreg reg;
 
 	local_ctl_store(cr, &reg);
-	reg &= ~(1UL << bit);
+	reg.val &= ~(1UL << bit);
 	local_ctl_load(cr, &reg);
 }
 
@@ -122,6 +126,7 @@ static inline void system_ctl_clear_bit(unsigned int cr, unsigned int bit)
 
 union ctlreg0 {
 	unsigned long val;
+	struct ctlreg reg;
 	struct {
 		unsigned long	   : 8;
 		unsigned long tcx  : 1;	/* Transactional-Execution control */
@@ -148,6 +153,7 @@ union ctlreg0 {
 
 union ctlreg2 {
 	unsigned long val;
+	struct ctlreg reg;
 	struct {
 		unsigned long	    : 33;
 		unsigned long ducto : 25;
@@ -161,6 +167,7 @@ union ctlreg2 {
 
 union ctlreg5 {
 	unsigned long val;
+	struct ctlreg reg;
 	struct {
 		unsigned long	    : 33;
 		unsigned long pasteo: 25;
@@ -170,6 +177,7 @@ union ctlreg5 {
 
 union ctlreg15 {
 	unsigned long val;
+	struct ctlreg reg;
 	struct {
 		unsigned long lsea  : 61;
 		unsigned long	    : 3;

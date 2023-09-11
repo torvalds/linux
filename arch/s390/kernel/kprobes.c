@@ -225,18 +225,18 @@ static void enable_singlestep(struct kprobe_ctlblk *kcb,
 			      unsigned long ip)
 {
 	union {
-		unsigned long regs[3];
+		struct ctlreg regs[3];
 		struct {
-			unsigned long control;
-			unsigned long start;
-			unsigned long end;
+			struct ctlreg control;
+			struct ctlreg start;
+			struct ctlreg end;
 		};
 	} per_kprobe;
 
 	/* Set up the PER control registers %cr9-%cr11 */
-	per_kprobe.control = PER_EVENT_IFETCH;
-	per_kprobe.start = ip;
-	per_kprobe.end = ip;
+	per_kprobe.control.val = PER_EVENT_IFETCH;
+	per_kprobe.start.val = ip;
+	per_kprobe.end.val = ip;
 
 	/* Save control regs and psw mask */
 	__local_ctl_store(9, 11, kcb->kprobe_saved_ctl);

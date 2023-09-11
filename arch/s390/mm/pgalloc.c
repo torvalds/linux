@@ -62,7 +62,7 @@ static void __crst_table_upgrade(void *arg)
 
 	/* change all active ASCEs to avoid the creation of new TLBs */
 	if (current->active_mm == mm) {
-		S390_lowcore.user_asce = mm->context.asce;
+		S390_lowcore.user_asce.val = mm->context.asce;
 		local_ctl_load(7, &S390_lowcore.user_asce);
 	}
 	__tlb_flush_local();

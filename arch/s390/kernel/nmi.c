@@ -131,10 +131,10 @@ static notrace void s390_handle_damage(void)
 	 * Disable low address protection and make machine check new PSW a
 	 * disabled wait PSW. Any additional machine check cannot be handled.
 	 */
-	local_ctl_store(0, &cr0.val);
+	local_ctl_store(0, &cr0.reg);
 	cr0_new = cr0;
 	cr0_new.lap = 0;
-	local_ctl_load(0, &cr0_new.val);
+	local_ctl_load(0, &cr0_new.reg);
 	psw_save = S390_lowcore.mcck_new_psw;
 	psw_bits(S390_lowcore.mcck_new_psw).io = 0;
 	psw_bits(S390_lowcore.mcck_new_psw).ext = 0;
@@ -146,7 +146,7 @@ static notrace void s390_handle_damage(void)
 	 * values. This makes possible system dump analysis easier.
 	 */
 	S390_lowcore.mcck_new_psw = psw_save;
-	local_ctl_load(0, &cr0.val);
+	local_ctl_load(0, &cr0.reg);
 	disabled_wait();
 	while (1);
 }
@@ -269,9 +269,9 @@ static int notrace s390_validate_registers(union mci mci)
 		 */
 		if (!mci.vr && !test_cpu_flag(CIF_MCCK_GUEST))
 			kill_task = 1;
-		cr0.val = S390_lowcore.cregs_save_area[0];
+		cr0.reg = S390_lowcore.cregs_save_area[0];
 		cr0.afp = cr0.vx = 1;
-		local_ctl_load(0, &cr0.val);
+		local_ctl_load(0, &cr0.reg);
 		asm volatile(
 			"	la	1,%0\n"
 			"	VLM	0,15,0,1\n"
@@ -290,7 +290,7 @@ static int notrace s390_validate_registers(union mci mci)
 	if (!mci.ar)
 		kill_task = 1;
 	/* Validate guarded storage registers */
-	cr2.val = S390_lowcore.cregs_save_area[2];
+	cr2.reg = S390_lowcore.cregs_save_area[2];
 	if (cr2.gse) {
 		if (!mci.gs) {
 			/*

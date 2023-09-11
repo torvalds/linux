@@ -706,8 +706,8 @@ void
 sclp_sync_wait(void)
 {
 	unsigned long long old_tick;
+	struct ctlreg cr0, cr0_sync;
 	unsigned long flags;
-	unsigned long cr0, cr0_sync;
 	static u64 sync_count;
 	u64 timeout;
 	int irq_context;
@@ -733,8 +733,8 @@ sclp_sync_wait(void)
 	old_tick = local_tick_disable();
 	trace_hardirqs_on();
 	local_ctl_store(0, &cr0);
-	cr0_sync = cr0 & ~CR0_IRQ_SUBCLASS_MASK;
-	cr0_sync |= 1UL << (63 - 54);
+	cr0_sync.val = cr0.val & ~CR0_IRQ_SUBCLASS_MASK;
+	cr0_sync.val |= 1UL << (63 - 54);
 	local_ctl_load(0, &cr0_sync);
 	__arch_local_irq_stosm(0x01);
 	/* Loop until driver state indicates finished request */

@@ -287,7 +287,7 @@ static int pt_dump_init(void)
 	 * kernel ASCE. We need this to keep the page table walker functions
 	 * from accessing non-existent entries.
 	 */
-	max_addr = (S390_lowcore.kernel_asce & _REGION_ENTRY_TYPE_MASK) >> 2;
+	max_addr = (S390_lowcore.kernel_asce.val & _REGION_ENTRY_TYPE_MASK) >> 2;
 	max_addr = 1UL << (max_addr * 11 + 31);
 	address_markers[IDENTITY_AFTER_END_NR].start_address = ident_map_size;
 	address_markers[AMODE31_START_NR].start_address = (unsigned long)__samode31;

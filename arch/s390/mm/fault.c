@@ -196,7 +196,7 @@ static void dump_fault_info(struct pt_regs *regs)
 	pr_cont("mode while using ");
 	switch (get_fault_type(regs)) {
 	case USER_FAULT:
-		asce = S390_lowcore.user_asce;
+		asce = S390_lowcore.user_asce.val;
 		pr_cont("user ");
 		break;
 	case GMAP_FAULT:
@@ -204,7 +204,7 @@ static void dump_fault_info(struct pt_regs *regs)
 		pr_cont("gmap ");
 		break;
 	case KERNEL_FAULT:
-		asce = S390_lowcore.kernel_asce;
+		asce = S390_lowcore.kernel_asce.val;
 		pr_cont("kernel ");
 		break;
 	default:

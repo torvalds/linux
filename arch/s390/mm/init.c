@@ -54,7 +54,7 @@
 pgd_t swapper_pg_dir[PTRS_PER_PGD] __section(".bss..swapper_pg_dir");
 pgd_t invalid_pg_dir[PTRS_PER_PGD] __section(".bss..invalid_pg_dir");
 
-unsigned long __bootdata_preserved(s390_invalid_asce);
+struct ctlreg __bootdata_preserved(s390_invalid_asce);
 
 unsigned long empty_zero_page, zero_page_mask;
 EXPORT_SYMBOL(empty_zero_page);

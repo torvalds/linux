@@ -12,7 +12,7 @@
 #include "decompressor.h"
 #include "boot.h"
 
-unsigned long __bootdata_preserved(s390_invalid_asce);
+struct ctlreg __bootdata_preserved(s390_invalid_asce);
 
 #ifdef CONFIG_PROC_FS
 atomic_long_t __bootdata_preserved(direct_pages_count[PG_DIRECT_MAP_MAX]);
@@ -422,7 +422,7 @@ void setup_vmem(unsigned long asce_limit)
 		asce_type = _REGION3_ENTRY_EMPTY;
 		asce_bits = _ASCE_TYPE_REGION3 | _ASCE_TABLE_LENGTH;
 	}
-	s390_invalid_asce = invalid_pg_dir | _ASCE_TYPE_REGION3 | _ASCE_TABLE_LENGTH;
+	s390_invalid_asce.val = invalid_pg_dir | _ASCE_TYPE_REGION3 | _ASCE_TABLE_LENGTH;
 
 	crst_table_init((unsigned long *)swapper_pg_dir, asce_type);
 	crst_table_init((unsigned long *)invalid_pg_dir, _REGION3_ENTRY_EMPTY);
@@ -443,12 +443,12 @@ void setup_vmem(unsigned long asce_limit)
 
 	kasan_populate_shadow();
 
-	S390_lowcore.kernel_asce = swapper_pg_dir | asce_bits;
+	S390_lowcore.kernel_asce.val = swapper_pg_dir | asce_bits;
 	S390_lowcore.user_asce = s390_invalid_asce;
 
 	local_ctl_load(1, &S390_lowcore.kernel_asce);
 	local_ctl_load(7, &S390_lowcore.user_asce);
 	local_ctl_load(13, &S390_lowcore.kernel_asce);
 
-	init_mm.context.asce = S390_lowcore.kernel_asce;
+	init_mm.context.asce = S390_lowcore.kernel_asce.val;
 }

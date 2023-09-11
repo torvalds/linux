@@ -910,7 +910,7 @@ early_param("possible_cpus", _setup_possible_cpus);
 
 int __cpu_disable(void)
 {
-	unsigned long cregs[16];
+	struct ctlreg cregs[16];
 	int cpu;
 
 	/* Handle possible pending IPIs */
@@ -923,9 +923,9 @@ int __cpu_disable(void)
 	pfault_fini();
 	/* Disable interrupt sources via control register. */
 	__local_ctl_store(0, 15, cregs);
-	cregs[0]  &= ~0x0000ee70UL;	/* disable all external interrupts */
-	cregs[6]  &= ~0xff000000UL;	/* disable all I/O interrupts */
-	cregs[14] &= ~0x1f000000UL;	/* disable most machine checks */
+	cregs[0].val  &= ~0x0000ee70UL;	/* disable all external interrupts */
+	cregs[6].val  &= ~0xff000000UL;	/* disable all I/O interrupts */
+	cregs[14].val &= ~0x1f000000UL;	/* disable most machine checks */
 	__local_ctl_load(0, 15, cregs);
 	clear_cpu_flag(CIF_NOHZ_DELAY);
 	return 0;
