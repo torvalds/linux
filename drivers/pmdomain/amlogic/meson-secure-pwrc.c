@@ -222,6 +222,9 @@ static int meson_secure_pwrc_probe(struct platform_device *pdev)
 		dom->base.power_on = meson_secure_pwrc_on;
 		dom->base.power_off = meson_secure_pwrc_off;
 
+		if (match->domains[i].is_off(dom) && (dom->base.flags & GENPD_FLAG_ALWAYS_ON))
+			meson_secure_pwrc_on(&dom->base);
+
 		pm_genpd_init(&dom->base, NULL, match->domains[i].is_off(dom));
 
 		pwrc->xlate.domains[i] = &dom->base;
