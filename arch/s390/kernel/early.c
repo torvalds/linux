@@ -216,7 +216,7 @@ static __init void detect_machine_facilities(void)
 {
 	if (test_facility(8)) {
 		S390_lowcore.machine_flags |= MACHINE_FLAG_EDAT1;
-		local_ctl_set_bit(0, 23);
+		system_ctl_set_bit(0, 23);
 	}
 	if (test_facility(78))
 		S390_lowcore.machine_flags |= MACHINE_FLAG_EDAT2;
@@ -224,13 +224,13 @@ static __init void detect_machine_facilities(void)
 		S390_lowcore.machine_flags |= MACHINE_FLAG_IDTE;
 	if (test_facility(50) && test_facility(73)) {
 		S390_lowcore.machine_flags |= MACHINE_FLAG_TE;
-		local_ctl_set_bit(0, 55);
+		system_ctl_set_bit(0, 55);
 	}
 	if (test_facility(51))
 		S390_lowcore.machine_flags |= MACHINE_FLAG_TLB_LC;
 	if (test_facility(129)) {
 		S390_lowcore.machine_flags |= MACHINE_FLAG_VX;
-		local_ctl_set_bit(0, 17);
+		system_ctl_set_bit(0, 17);
 	}
 	if (test_facility(130))
 		S390_lowcore.machine_flags |= MACHINE_FLAG_NX;
@@ -240,7 +240,7 @@ static __init void detect_machine_facilities(void)
 		/* Enabled signed clock comparator comparisons */
 		S390_lowcore.machine_flags |= MACHINE_FLAG_SCC;
 		clock_comparator_max = -1ULL >> 1;
-		local_ctl_set_bit(0, 53);
+		system_ctl_set_bit(0, 53);
 	}
 	if (IS_ENABLED(CONFIG_PCI) && test_facility(153)) {
 		S390_lowcore.machine_flags |= MACHINE_FLAG_PCI_MIO;
@@ -260,7 +260,7 @@ static inline void save_vector_registers(void)
 
 static inline void setup_low_address_protection(void)
 {
-	local_ctl_set_bit(0, 28);
+	system_ctl_set_bit(0, 28);
 }
 
 static inline void setup_access_registers(void)
@@ -273,7 +273,7 @@ static inline void setup_access_registers(void)
 static int __init disable_vector_extension(char *str)
 {
 	S390_lowcore.machine_flags &= ~MACHINE_FLAG_VX;
-	local_ctl_clear_bit(0, 17);
+	system_ctl_clear_bit(0, 17);
 	return 0;
 }
 early_param("novx", disable_vector_extension);
