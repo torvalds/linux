@@ -83,6 +83,13 @@ struct mlx5vf_async_data {
 	void *out;
 };
 
+struct mlx5vf_save_work_data {
+	struct mlx5_vf_migration_file *migf;
+	size_t next_required_umem_size;
+	struct work_struct work;
+	u8 chunk_num;
+};
+
 #define MAX_NUM_CHUNKS 2
 
 struct mlx5_vf_migration_file {
@@ -97,9 +104,12 @@ struct mlx5_vf_migration_file {
 	u32 record_tag;
 	u64 stop_copy_prep_size;
 	u64 pre_copy_initial_bytes;
+	size_t next_required_umem_size;
+	u8 num_ready_chunks;
 	/* Upon chunk mode preserve another set of buffers for stop_copy phase */
 	struct mlx5_vhca_data_buffer *buf[MAX_NUM_CHUNKS];
 	struct mlx5_vhca_data_buffer *buf_header[MAX_NUM_CHUNKS];
+	struct mlx5vf_save_work_data save_data[MAX_NUM_CHUNKS];
 	spinlock_t list_lock;
 	struct list_head buf_list;
 	struct list_head avail_list;
@@ -223,6 +233,8 @@ struct page *mlx5vf_get_migration_page(struct mlx5_vhca_data_buffer *buf,
 void mlx5vf_state_mutex_unlock(struct mlx5vf_pci_core_device *mvdev);
 void mlx5vf_disable_fds(struct mlx5vf_pci_core_device *mvdev);
 void mlx5vf_mig_file_cleanup_cb(struct work_struct *_work);
+void mlx5vf_mig_file_set_save_work(struct mlx5_vf_migration_file *migf,
+				   u8 chunk_num, size_t next_required_umem_size);
 int mlx5vf_start_page_tracker(struct vfio_device *vdev,
 		struct rb_root_cached *ranges, u32 nnodes, u64 *page_size);
 int mlx5vf_stop_page_tracker(struct vfio_device *vdev);

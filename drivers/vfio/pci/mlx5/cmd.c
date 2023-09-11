@@ -435,6 +435,7 @@ end:
 void mlx5vf_put_data_buffer(struct mlx5_vhca_data_buffer *buf)
 {
 	spin_lock_irq(&buf->migf->list_lock);
+	buf->stop_copy_chunk_num = 0;
 	list_add_tail(&buf->buf_elm, &buf->migf->avail_list);
 	spin_unlock_irq(&buf->migf->list_lock);
 }
@@ -551,6 +552,8 @@ static void mlx5vf_save_callback(int status, struct mlx5_async_work *context)
 			struct mlx5_vf_migration_file, async_data);
 
 	if (!status) {
+		size_t next_required_umem_size = 0;
+		bool stop_copy_last_chunk;
 		size_t image_size;
 		unsigned long flags;
 		bool initial_pre_copy = migf->state != MLX5_MIGF_STATE_PRE_COPY &&
@@ -558,6 +561,11 @@ static void mlx5vf_save_callback(int status, struct mlx5_async_work *context)
 
 		image_size = MLX5_GET(save_vhca_state_out, async_data->out,
 				      actual_image_size);
+		if (async_data->buf->stop_copy_chunk_num)
+			next_required_umem_size = MLX5_GET(save_vhca_state_out,
+					async_data->out, next_required_umem_size);
+		stop_copy_last_chunk = async_data->stop_copy_chunk &&
+				!next_required_umem_size;
 		if (async_data->header_buf) {
 			status = add_buf_header(async_data->header_buf, image_size,
 						initial_pre_copy);
@@ -569,12 +577,28 @@ static void mlx5vf_save_callback(int status, struct mlx5_async_work *context)
 		migf->max_pos += async_data->buf->length;
 		spin_lock_irqsave(&migf->list_lock, flags);
 		list_add_tail(&async_data->buf->buf_elm, &migf->buf_list);
+		if (async_data->buf->stop_copy_chunk_num) {
+			migf->num_ready_chunks++;
+			if (next_required_umem_size &&
+			    migf->num_ready_chunks >= MAX_NUM_CHUNKS) {
+				/* Delay the next SAVE till one chunk be consumed */
+				migf->next_required_umem_size = next_required_umem_size;
+				next_required_umem_size = 0;
+			}
+		}
 		spin_unlock_irqrestore(&migf->list_lock, flags);
-		if (initial_pre_copy)
+		if (initial_pre_copy) {
 			migf->pre_copy_initial_bytes += image_size;
-		migf->state = async_data->stop_copy_chunk ?
-			MLX5_MIGF_STATE_COMPLETE : MLX5_MIGF_STATE_PRE_COPY;
+			migf->state = MLX5_MIGF_STATE_PRE_COPY;
+		}
+		if (stop_copy_last_chunk)
+			migf->state = MLX5_MIGF_STATE_COMPLETE;
 		wake_up_interruptible(&migf->poll_wait);
+		if (next_required_umem_size)
+			mlx5vf_mig_file_set_save_work(migf,
+				/* Picking up the next chunk num */
+				(async_data->buf->stop_copy_chunk_num % MAX_NUM_CHUNKS) + 1,
+				next_required_umem_size);
 		mlx5vf_save_callback_complete(migf, async_data);
 		return;
 	}
@@ -632,10 +656,15 @@ int mlx5vf_cmd_save_vhca_state(struct mlx5vf_pci_core_device *mvdev,
 	}
 
 	if (MLX5VF_PRE_COPY_SUPP(mvdev)) {
-		if (async_data->stop_copy_chunk && migf->buf_header[0]) {
-			header_buf = migf->buf_header[0];
-			migf->buf_header[0] = NULL;
-		} else {
+		if (async_data->stop_copy_chunk) {
+			u8 header_idx = buf->stop_copy_chunk_num ?
+				buf->stop_copy_chunk_num - 1 : 0;
+
+			header_buf = migf->buf_header[header_idx];
+			migf->buf_header[header_idx] = NULL;
+		}
+
+		if (!header_buf) {
 			header_buf = mlx5vf_get_data_buffer(migf,
 				sizeof(struct mlx5_vf_migration_header), DMA_NONE);
 			if (IS_ERR(header_buf)) {

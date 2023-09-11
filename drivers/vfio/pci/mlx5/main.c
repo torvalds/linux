@@ -306,6 +306,73 @@ static void mlx5vf_mark_err(struct mlx5_vf_migration_file *migf)
 	wake_up_interruptible(&migf->poll_wait);
 }
 
+void mlx5vf_mig_file_set_save_work(struct mlx5_vf_migration_file *migf,
+				   u8 chunk_num, size_t next_required_umem_size)
+{
+	migf->save_data[chunk_num - 1].next_required_umem_size =
+			next_required_umem_size;
+	migf->save_data[chunk_num - 1].migf = migf;
+	get_file(migf->filp);
+	queue_work(migf->mvdev->cb_wq,
+		   &migf->save_data[chunk_num - 1].work);
+}
+
+static struct mlx5_vhca_data_buffer *
+mlx5vf_mig_file_get_stop_copy_buf(struct mlx5_vf_migration_file *migf,
+				  u8 index, size_t required_length)
+{
+	struct mlx5_vhca_data_buffer *buf = migf->buf[index];
+	u8 chunk_num;
+
+	WARN_ON(!buf);
+	chunk_num = buf->stop_copy_chunk_num;
+	buf->migf->buf[index] = NULL;
+	/* Checking whether the pre-allocated buffer can fit */
+	if (buf->allocated_length >= required_length)
+		return buf;
+
+	mlx5vf_put_data_buffer(buf);
+	buf = mlx5vf_get_data_buffer(buf->migf, required_length,
+				     DMA_FROM_DEVICE);
+	if (IS_ERR(buf))
+		return buf;
+
+	buf->stop_copy_chunk_num = chunk_num;
+	return buf;
+}
+
+static void mlx5vf_mig_file_save_work(struct work_struct *_work)
+{
+	struct mlx5vf_save_work_data *save_data = container_of(_work,
+		struct mlx5vf_save_work_data, work);
+	struct mlx5_vf_migration_file *migf = save_data->migf;
+	struct mlx5vf_pci_core_device *mvdev = migf->mvdev;
+	struct mlx5_vhca_data_buffer *buf;
+
+	mutex_lock(&mvdev->state_mutex);
+	if (migf->state == MLX5_MIGF_STATE_ERROR)
+		goto end;
+
+	buf = mlx5vf_mig_file_get_stop_copy_buf(migf,
+				save_data->chunk_num - 1,
+				save_data->next_required_umem_size);
+	if (IS_ERR(buf))
+		goto err;
+
+	if (mlx5vf_cmd_save_vhca_state(mvdev, migf, buf, true, false))
+		goto err_save;
+
+	goto end;
+
+err_save:
+	mlx5vf_put_data_buffer(buf);
+err:
+	mlx5vf_mark_err(migf);
+end:
+	mlx5vf_state_mutex_unlock(mvdev);
+	fput(migf->filp);
+}
+
 static int mlx5vf_add_stop_copy_header(struct mlx5_vf_migration_file *migf,
 				       bool track)
 {
@@ -400,6 +467,9 @@ static int mlx5vf_prep_stop_copy(struct mlx5vf_pci_core_device *mvdev,
 		if (mvdev->chunk_mode) {
 			migf->buf[i]->stop_copy_chunk_num = i + 1;
 			migf->buf_header[i]->stop_copy_chunk_num = i + 1;
+			INIT_WORK(&migf->save_data[i].work,
+				  mlx5vf_mig_file_save_work);
+			migf->save_data[i].chunk_num = i + 1;
 		}
 	}
 
@@ -548,16 +618,10 @@ static int mlx5vf_pci_save_device_inc_data(struct mlx5vf_pci_core_device *mvdev)
 	if (ret)
 		goto err;
 
-	/* Checking whether we have a matching pre-allocated buffer that can fit */
-	if (migf->buf[0]->allocated_length >= length) {
-		buf = migf->buf[0];
-		migf->buf[0] = NULL;
-	} else {
-		buf = mlx5vf_get_data_buffer(migf, length, DMA_FROM_DEVICE);
-		if (IS_ERR(buf)) {
-			ret = PTR_ERR(buf);
-			goto err;
-		}
+	buf = mlx5vf_mig_file_get_stop_copy_buf(migf, 0, length);
+	if (IS_ERR(buf)) {
+		ret = PTR_ERR(buf);
+		goto err;
 	}
 
 	ret = mlx5vf_cmd_save_vhca_state(mvdev, migf, buf, true, false);
