@@ -115,8 +115,8 @@ struct snd_soc_dai *snd_soc_card_get_codec_dai(struct snd_soc_card *card,
 	struct snd_soc_pcm_runtime *rtd;
 
 	for_each_card_rtds(card, rtd) {
-		if (!strcmp(asoc_rtd_to_codec(rtd, 0)->name, dai_name))
-			return asoc_rtd_to_codec(rtd, 0);
+		if (!strcmp(snd_soc_rtd_to_codec(rtd, 0)->name, dai_name))
+			return snd_soc_rtd_to_codec(rtd, 0);
 	}
 
 	return NULL;
