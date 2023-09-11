@@ -3,6 +3,8 @@
 #ifndef __ASPEED_RSSS_H__
 #define __ASPEED_RSSS_H__
 
+#include <linux/iopoll.h>
+#include <linux/reset.h>
 #include <crypto/scatterwalk.h>
 #include <crypto/internal/akcipher.h>
 #include <crypto/internal/hash.h>
@@ -154,6 +156,8 @@ struct aspeed_rsss_dev {
 	struct device			*dev;
 	int				irq;
 	struct clk			*clk;
+	struct reset_control		*reset_rsa;
+	struct reset_control		*reset_sha3;
 
 	struct crypto_engine		*crypt_engine_rsa;
 	struct crypto_engine		*crypt_engine_sha3;

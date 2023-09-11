@@ -123,6 +123,18 @@ static int aspeed_rsss_probe(struct platform_device *pdev)
 		return PTR_ERR(rsss_dev->clk);
 	}
 
+	rsss_dev->reset_rsa = devm_reset_control_get(dev, "rsa");
+	if (IS_ERR(rsss_dev->reset_rsa)) {
+		dev_err(dev, "Failed to get rsa reset\n");
+		return PTR_ERR(rsss_dev->reset_rsa);
+	}
+
+	rsss_dev->reset_sha3 = devm_reset_control_get(dev, "sha3");
+	if (IS_ERR(rsss_dev->reset_sha3)) {
+		dev_err(dev, "Failed to get sha3 reset\n");
+		return PTR_ERR(rsss_dev->reset_sha3);
+	}
+
 	rc = aspeed_rsss_rsa_init(rsss_dev);
 	if (rc)
 		goto clk_exit;

@@ -436,6 +436,12 @@ int aspeed_rsss_rsa_init(struct aspeed_rsss_dev *rsss_dev)
 	struct aspeed_engine_rsa *rsa_engine;
 	int rc;
 
+	rc = reset_control_deassert(rsss_dev->reset_rsa);
+	if (rc) {
+		dev_err(rsss_dev->dev, "Deassert RSA reset failed\n");
+		goto end;
+	}
+
 	rsa_engine = &rsss_dev->rsa_engine;
 
 	/* Initialize crypto hardware engine structure for RSA */
