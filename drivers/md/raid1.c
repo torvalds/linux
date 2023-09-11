@@ -1837,11 +1837,10 @@ static int raid1_remove_disk(struct mddev *mddev, struct md_rdev *rdev)
 	struct r1conf *conf = mddev->private;
 	int err = 0;
 	int number = rdev->raid_disk;
+	struct raid1_info *p = conf->mirrors + number;
 
 	if (unlikely(number >= conf->raid_disks))
 		goto abort;
-
-	struct raid1_info *p = conf->mirrors + number;
 
 	if (rdev != p->rdev)
 		p = conf->mirrors + conf->raid_disks + number;
