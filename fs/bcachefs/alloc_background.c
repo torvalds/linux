@@ -577,7 +577,7 @@ int bch2_bucket_gens_init(struct bch_fs *c)
 			ret = commit_do(&trans, NULL, NULL,
 					BTREE_INSERT_NOFAIL|
 					BTREE_INSERT_LAZY_RW,
-				__bch2_btree_insert(&trans, BTREE_ID_bucket_gens, &g.k_i, 0));
+				bch2_btree_insert_trans(&trans, BTREE_ID_bucket_gens, &g.k_i, 0));
 			if (ret)
 				break;
 			have_bucket_gens_key = false;
@@ -597,7 +597,7 @@ int bch2_bucket_gens_init(struct bch_fs *c)
 		ret = commit_do(&trans, NULL, NULL,
 				BTREE_INSERT_NOFAIL|
 				BTREE_INSERT_LAZY_RW,
-			__bch2_btree_insert(&trans, BTREE_ID_bucket_gens, &g.k_i, 0));
+			bch2_btree_insert_trans(&trans, BTREE_ID_bucket_gens, &g.k_i, 0));
 
 	bch2_trans_exit(&trans);
 
@@ -1911,7 +1911,7 @@ static int bch2_dev_freespace_init(struct bch_fs *c, struct bch_dev *ca,
 			freespace->k.p		= k.k->p;
 			freespace->k.size	= k.k->size;
 
-			ret = __bch2_btree_insert(&trans, BTREE_ID_freespace, freespace, 0) ?:
+			ret = bch2_btree_insert_trans(&trans, BTREE_ID_freespace, freespace, 0) ?:
 				bch2_trans_commit(&trans, NULL, NULL,
 						  BTREE_INSERT_LAZY_RW|
 						  BTREE_INSERT_NOFAIL);

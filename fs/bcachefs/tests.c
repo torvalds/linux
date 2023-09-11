@@ -622,7 +622,7 @@ static int rand_insert(struct bch_fs *c, u64 nr)
 		k.k.p.snapshot = U32_MAX;
 
 		ret = commit_do(&trans, NULL, NULL, 0,
-			__bch2_btree_insert(&trans, BTREE_ID_xattrs, &k.k_i, 0));
+			bch2_btree_insert_trans(&trans, BTREE_ID_xattrs, &k.k_i, 0));
 		if (ret)
 			break;
 	}
@@ -649,14 +649,14 @@ static int rand_insert_multi(struct bch_fs *c, u64 nr)
 		}
 
 		ret = commit_do(&trans, NULL, NULL, 0,
-			__bch2_btree_insert(&trans, BTREE_ID_xattrs, &k[0].k_i, 0) ?:
-			__bch2_btree_insert(&trans, BTREE_ID_xattrs, &k[1].k_i, 0) ?:
-			__bch2_btree_insert(&trans, BTREE_ID_xattrs, &k[2].k_i, 0) ?:
-			__bch2_btree_insert(&trans, BTREE_ID_xattrs, &k[3].k_i, 0) ?:
-			__bch2_btree_insert(&trans, BTREE_ID_xattrs, &k[4].k_i, 0) ?:
-			__bch2_btree_insert(&trans, BTREE_ID_xattrs, &k[5].k_i, 0) ?:
-			__bch2_btree_insert(&trans, BTREE_ID_xattrs, &k[6].k_i, 0) ?:
-			__bch2_btree_insert(&trans, BTREE_ID_xattrs, &k[7].k_i, 0));
+			bch2_btree_insert_trans(&trans, BTREE_ID_xattrs, &k[0].k_i, 0) ?:
+			bch2_btree_insert_trans(&trans, BTREE_ID_xattrs, &k[1].k_i, 0) ?:
+			bch2_btree_insert_trans(&trans, BTREE_ID_xattrs, &k[2].k_i, 0) ?:
+			bch2_btree_insert_trans(&trans, BTREE_ID_xattrs, &k[3].k_i, 0) ?:
+			bch2_btree_insert_trans(&trans, BTREE_ID_xattrs, &k[4].k_i, 0) ?:
+			bch2_btree_insert_trans(&trans, BTREE_ID_xattrs, &k[5].k_i, 0) ?:
+			bch2_btree_insert_trans(&trans, BTREE_ID_xattrs, &k[6].k_i, 0) ?:
+			bch2_btree_insert_trans(&trans, BTREE_ID_xattrs, &k[7].k_i, 0));
 		if (ret)
 			break;
 	}

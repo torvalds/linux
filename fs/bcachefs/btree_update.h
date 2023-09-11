@@ -62,7 +62,7 @@ int bch2_btree_delete_at_buffered(struct btree_trans *, enum btree_id, struct bp
 int bch2_btree_insert_nonextent(struct btree_trans *, enum btree_id,
 				struct bkey_i *, enum btree_update_flags);
 
-int __bch2_btree_insert(struct btree_trans *, enum btree_id, struct bkey_i *,
+int bch2_btree_insert_trans(struct btree_trans *, enum btree_id, struct bkey_i *,
 			enum btree_update_flags);
 int bch2_btree_insert(struct bch_fs *, enum btree_id, struct bkey_i *,
 		     struct disk_reservation *, u64 *, int flags);

@@ -1201,7 +1201,7 @@ not_found:
 		new->k.p		= bkey_start_pos(p.k);
 		new->k.p.offset += *idx - start;
 		bch2_key_resize(&new->k, next_idx - *idx);
-		ret = __bch2_btree_insert(trans, BTREE_ID_extents, &new->k_i,
+		ret = bch2_btree_insert_trans(trans, BTREE_ID_extents, &new->k_i,
 					  BTREE_TRIGGER_NORUN);
 	}
 

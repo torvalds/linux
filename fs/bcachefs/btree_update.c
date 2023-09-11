@@ -648,8 +648,8 @@ int bch2_btree_insert_nonextent(struct btree_trans *trans,
 	return ret;
 }
 
-int __bch2_btree_insert(struct btree_trans *trans, enum btree_id id,
-			struct bkey_i *k, enum btree_update_flags flags)
+int bch2_btree_insert_trans(struct btree_trans *trans, enum btree_id id,
+			    struct bkey_i *k, enum btree_update_flags flags)
 {
 	struct btree_iter iter;
 	int ret;
@@ -676,7 +676,7 @@ int bch2_btree_insert(struct bch_fs *c, enum btree_id id,
 		      u64 *journal_seq, int flags)
 {
 	return bch2_trans_do(c, disk_res, journal_seq, flags,
-			     __bch2_btree_insert(&trans, id, k, 0));
+			     bch2_btree_insert_trans(&trans, id, k, 0));
 }
 
 int bch2_btree_delete_extent_at(struct btree_trans *trans, struct btree_iter *iter,
