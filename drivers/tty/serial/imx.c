@@ -177,8 +177,6 @@
 enum imx_uart_type {
 	IMX1_UART,
 	IMX21_UART,
-	IMX53_UART,
-	IMX6Q_UART,
 };
 
 /* device type dependent stuff */
@@ -240,30 +238,26 @@ struct imx_port_ucrs {
 	unsigned int	ucr3;
 };
 
-static struct imx_uart_data imx_uart_devdata[] = {
-	[IMX1_UART] = {
-		.uts_reg = IMX1_UTS,
-		.devtype = IMX1_UART,
-	},
-	[IMX21_UART] = {
-		.uts_reg = IMX21_UTS,
-		.devtype = IMX21_UART,
-	},
-	[IMX53_UART] = {
-		.uts_reg = IMX21_UTS,
-		.devtype = IMX53_UART,
-	},
-	[IMX6Q_UART] = {
-		.uts_reg = IMX21_UTS,
-		.devtype = IMX6Q_UART,
-	},
+static const struct imx_uart_data imx_uart_imx1_devdata = {
+	.uts_reg = IMX1_UTS,
+	.devtype = IMX1_UART,
+};
+
+static const struct imx_uart_data imx_uart_imx21_devdata = {
+	.uts_reg = IMX21_UTS,
+	.devtype = IMX21_UART,
 };
 
 static const struct of_device_id imx_uart_dt_ids[] = {
-	{ .compatible = "fsl,imx6q-uart", .data = &imx_uart_devdata[IMX6Q_UART], },
-	{ .compatible = "fsl,imx53-uart", .data = &imx_uart_devdata[IMX53_UART], },
-	{ .compatible = "fsl,imx1-uart", .data = &imx_uart_devdata[IMX1_UART], },
-	{ .compatible = "fsl,imx21-uart", .data = &imx_uart_devdata[IMX21_UART], },
+	/*
+	 * For reasons unknown to me, some UART devices (e.g. imx6ul's) are
+	 * compatible to fsl,imx6q-uart, but not fsl,imx21-uart, while the
+	 * original imx6q's UART is compatible to fsl,imx21-uart. This driver
+	 * doesn't make any distinction between these two variants.
+	 */
+	{ .compatible = "fsl,imx6q-uart", .data = &imx_uart_imx21_devdata, },
+	{ .compatible = "fsl,imx1-uart", .data = &imx_uart_imx1_devdata, },
+	{ .compatible = "fsl,imx21-uart", .data = &imx_uart_imx21_devdata, },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, imx_uart_dt_ids);
