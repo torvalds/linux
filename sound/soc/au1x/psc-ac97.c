@@ -58,7 +58,7 @@ static struct au1xpsc_audio_data *au1xpsc_ac97_workdata;
 static inline struct au1xpsc_audio_data *ac97_to_pscdata(struct snd_ac97 *x)
 {
 	struct snd_soc_card *c = x->bus->card->private_data;
-	return snd_soc_dai_get_drvdata(c->asoc_rtd_to_cpu(rtd, 0));
+	return snd_soc_dai_get_drvdata(c->snd_soc_rtd_to_cpu(rtd, 0));
 }
 
 #else
