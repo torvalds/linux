@@ -26,6 +26,7 @@
 #include "pnfs.h"
 #include "filecache.h"
 #include "trace.h"
+#include "netlink.h"
 
 /*
  *	We have a single directory with several nodes in it.
@@ -1494,6 +1495,22 @@ static int create_proc_exports_entry(void)
 #endif
 
 unsigned int nfsd_net_id;
+
+int nfsd_nl_rpc_status_get_start(struct netlink_callback *cb)
+{
+	return 0;
+}
+
+int nfsd_nl_rpc_status_get_dumpit(struct sk_buff *skb,
+				  struct netlink_callback *cb)
+{
+	return 0;
+}
+
+int nfsd_nl_rpc_status_get_done(struct netlink_callback *cb)
+{
+	return 0;
+}
 
 /**
  * nfsd_net_init - Prepare the nfsd_net portion of a new net namespace
