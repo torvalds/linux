@@ -30,6 +30,7 @@ properties:
           - mediatek,mt8173-dsi
           - mediatek,mt8183-dsi
           - mediatek,mt8186-dsi
+          - mediatek,mt8188-dsi
       - items:
           - enum:
               - mediatek,mt6795-dsi
