@@ -149,11 +149,13 @@ static int aspeed_rsa_trigger(struct aspeed_rsss_dev *rsss_dev)
 		return -EINVAL;
 	}
 
-	memzero_explicit(rsa_engine->sram_data, SRAM_BLOCK_SIZE);
-
 	/* Set SRAM access control - CPU */
 	val = ast_rsss_read(rsss_dev, ASPEED_RSSS_CTRL);
 	ast_rsss_write(rsss_dev, val | SRAM_AHB_MODE_CPU, ASPEED_RSSS_CTRL);
+
+	memset_io(rsa_engine->sram_exp, 0, SRAM_BLOCK_SIZE);
+	memset_io(rsa_engine->sram_mod, 0, SRAM_BLOCK_SIZE);
+	memset_io(rsa_engine->sram_data, 0, SRAM_BLOCK_SIZE);
 
 	/* Copy source data to SRAM buffer */
 	aspeed_rsa_sg_copy_to_buffer(rsss_dev, rsa_engine->sram_data,
