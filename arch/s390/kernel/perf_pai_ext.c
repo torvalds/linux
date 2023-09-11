@@ -17,8 +17,7 @@
 #include <linux/export.h>
 #include <linux/io.h>
 #include <linux/perf_event.h>
-
-#include <asm/ctl_reg.h>
+#include <asm/ctlreg.h>
 #include <asm/pai.h>
 #include <asm/debug.h>
 

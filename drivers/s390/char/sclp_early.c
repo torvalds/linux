@@ -10,7 +10,7 @@
 
 #include <linux/errno.h>
 #include <linux/memblock.h>
-#include <asm/ctl_reg.h>
+#include <asm/ctlreg.h>
 #include <asm/sclp.h>
 #include <asm/ipl.h>
 #include <asm/setup.h>

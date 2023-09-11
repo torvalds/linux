@@ -22,13 +22,13 @@
 #include <linux/kvm_host.h>
 #include <linux/export.h>
 #include <asm/lowcore.h>
+#include <asm/ctlreg.h>
 #include <asm/smp.h>
 #include <asm/stp.h>
 #include <asm/cputime.h>
 #include <asm/nmi.h>
 #include <asm/crw.h>
 #include <asm/switch_to.h>
-#include <asm/ctl_reg.h>
 #include <asm/asm-offsets.h>
 #include <asm/pai.h>
 #include <asm/vx-insn.h>

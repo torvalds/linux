@@ -12,8 +12,8 @@
 #include <linux/kthread.h>
 #include <linux/init.h>
 #include <linux/wait.h>
+#include <asm/ctlreg.h>
 #include <asm/crw.h>
-#include <asm/ctl_reg.h>
 #include "ioasm.h"
 
 static DEFINE_MUTEX(crw_handler_mutex);

@@ -2,10 +2,10 @@
 #include <linux/sched/task.h>
 #include <linux/pgtable.h>
 #include <linux/kasan.h>
-#include <asm/ctl_reg.h>
 #include <asm/pgalloc.h>
 #include <asm/facility.h>
 #include <asm/sections.h>
+#include <asm/ctlreg.h>
 #include <asm/physmem_info.h>
 #include <asm/maccess.h>
 #include <asm/abs_lowcore.h>

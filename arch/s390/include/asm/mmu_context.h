@@ -12,7 +12,7 @@
 #include <linux/uaccess.h>
 #include <linux/mm_types.h>
 #include <asm/tlbflush.h>
-#include <asm/ctl_reg.h>
+#include <asm/ctlreg.h>
 #include <asm-generic/mm_hooks.h>
 
 #define init_new_context init_new_context

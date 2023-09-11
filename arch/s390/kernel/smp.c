@@ -37,7 +37,7 @@
 #include <linux/crash_dump.h>
 #include <linux/kprobes.h>
 #include <asm/asm-offsets.h>
-#include <asm/ctl_reg.h>
+#include <asm/ctlreg.h>
 #include <asm/pfault.h>
 #include <asm/diag.h>
 #include <asm/switch_to.h>

@@ -19,7 +19,7 @@
 #include <linux/mmzone.h>
 #include <linux/memory.h>
 #include <linux/module.h>
-#include <asm/ctl_reg.h>
+#include <asm/ctlreg.h>
 #include <asm/chpid.h>
 #include <asm/setup.h>
 #include <asm/page.h>

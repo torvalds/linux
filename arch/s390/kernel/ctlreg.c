@@ -6,7 +6,7 @@
 #include <linux/spinlock.h>
 #include <linux/smp.h>
 #include <asm/abs_lowcore.h>
-#include <asm/ctl_reg.h>
+#include <asm/ctlreg.h>
 
 /*
  * ctl_lock guards access to global control register contents which

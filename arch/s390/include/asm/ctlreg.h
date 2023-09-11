@@ -5,8 +5,8 @@
  * Author(s): Martin Schwidefsky <schwidefsky@de.ibm.com>
  */
 
-#ifndef __ASM_CTL_REG_H
-#define __ASM_CTL_REG_H
+#ifndef __ASM_S390_CTLREG_H
+#define __ASM_S390_CTLREG_H
 
 #include <linux/bits.h>
 
@@ -145,4 +145,4 @@ union ctlreg15 {
 };
 
 #endif /* __ASSEMBLY__ */
-#endif /* __ASM_CTL_REG_H */
+#endif /* __ASM_S390_CTLREG_H */
