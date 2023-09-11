@@ -107,9 +107,9 @@ struct aspeed_spi {
 	struct aspeed_spi_chip	 chips[ASPEED_SPI_MAX_NUM_CS];
 };
 
-static u32 aspeed_spi_get_io_mode(const struct spi_mem_op *op)
+static u32 aspeed_spi_get_io_mode(u8 buswidth)
 {
-	switch (op->data.buswidth) {
+	switch (buswidth) {
 	case 1:
 		return CTRL_IO_SINGLE_DATA;
 	case 2:
@@ -182,8 +182,13 @@ static int aspeed_spi_write_to_ahb(void __iomem *dst, const void *buf, size_t le
 	return 0;
 }
 
-static int aspeed_spi_send_cmd_addr(struct aspeed_spi_chip *chip, u8 addr_nbytes,
-				    u64 offset, u32 opcode)
+static void aspeed_spi_send_cmd(struct aspeed_spi_chip *chip, u8 opcode)
+{
+	aspeed_spi_write_to_ahb(chip->ahb_base, &opcode, 1);
+}
+
+static int aspeed_spi_send_addr(struct aspeed_spi_chip *chip, u8 addr_nbytes,
+				u64 offset)
 {
 	__be32 temp;
 	u32 cmdaddr;
@@ -191,20 +196,18 @@ static int aspeed_spi_send_cmd_addr(struct aspeed_spi_chip *chip, u8 addr_nbytes
 	switch (addr_nbytes) {
 	case 3:
 		cmdaddr = offset & 0xFFFFFF;
-		cmdaddr |= opcode << 24;
-
 		temp = cpu_to_be32(cmdaddr);
-		aspeed_spi_write_to_ahb(chip->ahb_base, &temp, 4);
+		aspeed_spi_write_to_ahb(chip->ahb_base, &temp, 3);
 		break;
 	case 4:
 		temp = cpu_to_be32(offset);
-		aspeed_spi_write_to_ahb(chip->ahb_base, &opcode, 1);
 		aspeed_spi_write_to_ahb(chip->ahb_base, &temp, 4);
 		break;
 	default:
 		WARN_ONCE(1, "Unexpected address width %u", addr_nbytes);
 		return -EOPNOTSUPP;
 	}
+
 	return 0;
 }
 
@@ -234,14 +237,19 @@ static ssize_t aspeed_spi_read_user(struct aspeed_spi_chip *chip,
 				    const struct spi_mem_op *op,
 				    u64 offset, size_t len, void *buf)
 {
-	int io_mode = aspeed_spi_get_io_mode(op);
+	int io_mode;
 	u8 dummy = 0xFF;
 	int i;
 	int ret;
 
 	aspeed_spi_start_user(chip);
 
-	ret = aspeed_spi_send_cmd_addr(chip, op->addr.nbytes, offset, op->cmd.opcode);
+	aspeed_spi_send_cmd(chip, op->cmd.opcode);
+
+	io_mode = aspeed_spi_get_io_mode(op->addr.buswidth);
+	aspeed_spi_set_io_mode(chip, io_mode);
+
+	ret = aspeed_spi_send_addr(chip, op->addr.nbytes, op->addr.val);
 	if (ret < 0)
 		return ret;
 
@@ -250,10 +258,12 @@ static ssize_t aspeed_spi_read_user(struct aspeed_spi_chip *chip,
 			aspeed_spi_write_to_ahb(chip->ahb_base, &dummy,	sizeof(dummy));
 	}
 
+	io_mode = aspeed_spi_get_io_mode(op->addr.buswidth);
 	aspeed_spi_set_io_mode(chip, io_mode);
 
 	aspeed_spi_read_from_ahb(buf, chip->ahb_base, len);
 	aspeed_spi_stop_user(chip);
+
 	return 0;
 }
 
@@ -261,16 +271,24 @@ static ssize_t aspeed_spi_write_user(struct aspeed_spi_chip *chip,
 				     const struct spi_mem_op *op)
 {
 	int ret;
-	int io_mode = aspeed_spi_get_io_mode(op);
+	int io_mode;
 
 	aspeed_spi_start_user(chip);
-	ret = aspeed_spi_send_cmd_addr(chip, op->addr.nbytes, op->addr.val, op->cmd.opcode);
+
+	aspeed_spi_send_cmd(chip, op->cmd.opcode);
+
+	io_mode = aspeed_spi_get_io_mode(op->addr.buswidth);
+	aspeed_spi_set_io_mode(chip, io_mode);
+	ret = aspeed_spi_send_addr(chip, op->addr.nbytes, op->addr.val);
 	if (ret < 0)
 		return ret;
 
+	io_mode = aspeed_spi_get_io_mode(op->addr.buswidth);
 	aspeed_spi_set_io_mode(chip, io_mode);
+
 	aspeed_spi_write_to_ahb(chip->ahb_base, op->data.buf.out, op->data.nbytes);
 	aspeed_spi_stop_user(chip);
+
 	return 0;
 }
 
@@ -700,7 +718,7 @@ static int aspeed_spi_dirmap_create(struct spi_mem_dirmap_desc *desc)
 
 	/* Define the default IO read settings */
 	ctl_val = readl(chip->ctl) & ~CTRL_IO_CMD_MASK;
-	ctl_val |= aspeed_spi_get_io_mode(op) |
+	ctl_val |= aspeed_spi_get_io_mode(op->data.buswidth) |
 		op->cmd.opcode << CTRL_COMMAND_SHIFT |
 		CTRL_IO_MODE_READ;
 
