@@ -6,6 +6,24 @@
 
 #include "../kselftest_harness.h"
 
+struct in6_addr in6addr_v4mapped_any = {
+	.s6_addr = {
+		0, 0, 0, 0,
+		0, 0, 0, 0,
+		0, 0, 255, 255,
+		0, 0, 0, 0
+	}
+};
+
+struct in6_addr in6addr_v4mapped_loopback = {
+	.s6_addr = {
+		0, 0, 0, 0,
+		0, 0, 0, 0,
+		0, 0, 255, 255,
+		127, 0, 0, 1
+	}
+};
+
 FIXTURE(bind_wildcard)
 {
 	struct sockaddr_in addr4;
@@ -33,6 +51,20 @@ FIXTURE_VARIANT_ADD(bind_wildcard, v4_any_v6_local)
 	.expected_errno = 0,
 };
 
+FIXTURE_VARIANT_ADD(bind_wildcard, v4_any_v6_v4mapped_any)
+{
+	.addr4_const = INADDR_ANY,
+	.addr6_const = &in6addr_v4mapped_any,
+	.expected_errno = EADDRINUSE,
+};
+
+FIXTURE_VARIANT_ADD(bind_wildcard, v4_any_v6_v4mapped_local)
+{
+	.addr4_const = INADDR_ANY,
+	.addr6_const = &in6addr_v4mapped_loopback,
+	.expected_errno = EADDRINUSE,
+};
+
 FIXTURE_VARIANT_ADD(bind_wildcard, v4_local_v6_any)
 {
 	.addr4_const = INADDR_LOOPBACK,
@@ -45,6 +77,20 @@ FIXTURE_VARIANT_ADD(bind_wildcard, v4_local_v6_local)
 	.addr4_const = INADDR_LOOPBACK,
 	.addr6_const = &in6addr_loopback,
 	.expected_errno = 0,
+};
+
+FIXTURE_VARIANT_ADD(bind_wildcard, v4_local_v6_v4mapped_any)
+{
+	.addr4_const = INADDR_LOOPBACK,
+	.addr6_const = &in6addr_v4mapped_any,
+	.expected_errno = EADDRINUSE,
+};
+
+FIXTURE_VARIANT_ADD(bind_wildcard, v4_local_v6_v4mapped_local)
+{
+	.addr4_const = INADDR_LOOPBACK,
+	.addr6_const = &in6addr_v4mapped_loopback,
+	.expected_errno = EADDRINUSE,
 };
 
 FIXTURE_SETUP(bind_wildcard)
