@@ -7,11 +7,25 @@
 #include <linux/poll.h>
 #include <linux/ptr_ring.h>
 #include <linux/workqueue.h>
+#include <linux/crc8.h>
 
 #include <linux/i3c/device.h>
 
+#define I3C_CRC8_POLYNOMIAL	0x07
+DECLARE_CRC8_TABLE(i3c_crc8_table);
+
 #define I3C_TARGET_MCTP_MINORS	32
 #define RX_RING_COUNT		16
+
+/*
+ * IBI Mandatory Data Byte
+ * https://www.mipi.org/mipi_i3c_mandatory_data_byte_values_public
+ *
+ * MCTP:
+ * bit[7:5] = 3'b101
+ * bit[4:0] = 5'h0E
+ */
+#define I3C_MCTP_MDB		0xae
 
 static struct class *i3c_target_mctp_class;
 static dev_t i3c_target_mctp_devt;
@@ -219,14 +233,33 @@ err_free:
 	return count;
 }
 
+static u8 *pec_append(u8 addr_rnw, u8 *buf, u8 len)
+{
+	u8 pec_v;
+
+	pec_v = crc8(i3c_crc8_table, &addr_rnw, 1, 0);
+	pec_v = crc8(i3c_crc8_table, buf, len, pec_v);
+	buf[len] = pec_v;
+
+	return buf;
+}
+
 static ssize_t i3c_target_mctp_write(struct file *file, const char __user *buf,
 				     size_t count, loff_t *ppos)
 {
 	struct mctp_client *client = file->private_data;
 	struct i3c_target_mctp *priv = client->priv;
-	struct i3c_priv_xfer xfers[1] = {};
+	struct i3c_priv_xfer xfers[2] = {};
+	struct i3c_device_info info;
 	u8 *tx_data;
+	u8 ibi_data[2] = { I3C_MCTP_MDB, 0 };
 	int ret;
+	bool ibi_enabled = i3c_device_is_ibi_enabled(priv->i3cdev);
+
+	if (!ibi_enabled) {
+		dev_warn(i3cdev_to_dev(priv->i3cdev), "IBI not enabled\n");
+		return count;
+	}
 
 	tx_data = kzalloc(count, GFP_KERNEL);
 	if (!tx_data)
@@ -237,21 +270,20 @@ static ssize_t i3c_target_mctp_write(struct file *file, const char __user *buf,
 		goto out_packet;
 	}
 
-	xfers[0].data.out = tx_data;
-	xfers[0].len = count;
+	i3c_device_get_info(priv->i3cdev, &info);
+	pec_append(info.dyn_addr << 1 | 0x1, ibi_data, 1);
+	xfers[0].data.out = ibi_data;
+	xfers[0].len = 2;
 
-	ret = i3c_device_do_priv_xfers(priv->i3cdev, xfers, ARRAY_SIZE(xfers));
+	xfers[1].data.out = tx_data;
+	xfers[1].len = count;
+
+	ret = i3c_device_pending_read_notify(priv->i3cdev, &xfers[1],
+					     &xfers[0]);
 	if (ret)
 		goto out_packet;
 	ret = count;
 
-	/*
-	 * TODO: Add support for IBI generation - it should be done only if IBI
-	 * are enabled (the Active Controller may disabled them using CCC for
-	 * that). Otherwise (if IBIs are disabled), we should make sure that when
-	 * Active Controller issues GETSTATUS CCC the return value indicates
-	 * that data is ready.
-	 */
 out_packet:
 	kfree(tx_data);
 	return ret;
@@ -327,6 +359,8 @@ static int i3c_target_mctp_probe(struct i3c_device *i3cdev)
 	i3cdev_set_drvdata(i3cdev, priv);
 
 	i3c_target_read_register(i3cdev, &i3c_target_mctp_rx_packet_setup);
+
+	crc8_populate_msb(i3c_crc8_table, I3C_CRC8_POLYNOMIAL);
 
 	return 0;
 err:
