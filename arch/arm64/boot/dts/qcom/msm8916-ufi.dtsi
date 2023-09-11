@@ -22,11 +22,6 @@
 			reg = <0x0 0x86800000 0x0 0x5500000>;
 			no-map;
 		};
-
-		gps_mem: gps@8bd00000 {
-			reg = <0x0 0x8bd00000 0x0 0x200000>;
-			no-map;
-		};
 	};
 
 	gpio-keys {
