@@ -585,8 +585,6 @@ void bch2_fs_free(struct bch_fs *c)
 {
 	unsigned i;
 
-	BUG_ON(!test_bit(BCH_FS_STOPPING, &c->flags));
-
 	mutex_lock(&bch_fs_list_lock);
 	list_del(&c->list);
 	mutex_unlock(&bch_fs_list_lock);
