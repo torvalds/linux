@@ -139,8 +139,8 @@ struct lowcore {
 	__u32	restart_flags;			/* 0x0384 */
 
 	/* Address space pointer. */
-	__u64	kernel_asce;			/* 0x0388 */
-	__u64	user_asce;			/* 0x0390 */
+	unsigned long kernel_asce;		/* 0x0388 */
+	unsigned long user_asce;		/* 0x0390 */
 
 	/*
 	 * The lpp and current_pid fields form a
@@ -199,7 +199,7 @@ struct lowcore {
 	__u32	clock_comp_save_area[2];	/* 0x1330 */
 	__u64	last_break_save_area;		/* 0x1338 */
 	__u32	access_regs_save_area[16];	/* 0x1340 */
-	__u64	cregs_save_area[16];		/* 0x1380 */
+	unsigned long cregs_save_area[16];	/* 0x1380 */
 	__u8	pad_0x1400[0x1500-0x1400];	/* 0x1400 */
 	/* Cryptography-counter designation */
 	__u64	ccd;				/* 0x1500 */

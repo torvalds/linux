@@ -90,18 +90,18 @@ static __always_inline void local_ctl_set_bit(unsigned int cr, unsigned int bit)
 {
 	unsigned long reg;
 
-	__local_ctl_store(reg, cr, cr);
+	local_ctl_store(cr, &reg);
 	reg |= 1UL << bit;
-	__local_ctl_load(reg, cr, cr);
+	local_ctl_load(cr, &reg);
 }
 
 static __always_inline void local_ctl_clear_bit(unsigned int cr, unsigned int bit)
 {
 	unsigned long reg;
 
-	__local_ctl_store(reg, cr, cr);
+	local_ctl_store(cr, &reg);
 	reg &= ~(1UL << bit);
-	__local_ctl_load(reg, cr, cr);
+	local_ctl_load(cr, &reg);
 }
 
 void system_ctlreg_lock(void);

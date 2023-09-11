@@ -46,8 +46,8 @@ void update_cr_regs(struct task_struct *task)
 	union ctlreg2 cr2_old, cr2_new;
 	int cr0_changed, cr2_changed;
 
-	__local_ctl_store(cr0_old.val, 0, 0);
-	__local_ctl_store(cr2_old.val, 2, 2);
+	local_ctl_store(0, &cr0_old.val);
+	local_ctl_store(2, &cr2_old.val);
 	cr0_new = cr0_old;
 	cr2_new = cr2_old;
 	/* Take care of the enable/disable of transactional execution. */
@@ -75,9 +75,9 @@ void update_cr_regs(struct task_struct *task)
 	cr0_changed = cr0_new.val != cr0_old.val;
 	cr2_changed = cr2_new.val != cr2_old.val;
 	if (cr0_changed)
-		__local_ctl_load(cr0_new.val, 0, 0);
+		local_ctl_load(0, &cr0_new.val);
 	if (cr2_changed)
-		__local_ctl_load(cr2_new.val, 2, 2);
+		local_ctl_load(2, &cr2_new.val);
 	/* Copy user specified PER registers */
 	new.control = thread->per_user.control;
 	new.start = thread->per_user.start;

@@ -81,7 +81,7 @@ static inline void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *
 		S390_lowcore.user_asce = next->context.asce;
 	cpumask_set_cpu(cpu, &next->context.cpu_attach_mask);
 	/* Clear previous user-ASCE from CR7 */
-	__local_ctl_load(s390_invalid_asce, 7, 7);
+	local_ctl_load(7, &s390_invalid_asce);
 	if (prev != next)
 		cpumask_clear_cpu(cpu, &prev->context.cpu_attach_mask);
 }
@@ -111,7 +111,7 @@ static inline void finish_arch_post_lock_switch(void)
 		__tlb_flush_mm_lazy(mm);
 		preempt_enable();
 	}
-	__local_ctl_load(S390_lowcore.user_asce, 7, 7);
+	local_ctl_load(7, &S390_lowcore.user_asce);
 }
 
 #define activate_mm activate_mm
@@ -120,7 +120,7 @@ static inline void activate_mm(struct mm_struct *prev,
 {
 	switch_mm(prev, next, current);
 	cpumask_set_cpu(smp_processor_id(), mm_cpumask(next));
-	__local_ctl_load(S390_lowcore.user_asce, 7, 7);
+	local_ctl_load(7, &S390_lowcore.user_asce);
 }
 
 #include <asm-generic/mmu_context.h>

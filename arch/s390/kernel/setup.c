@@ -791,15 +791,15 @@ static void __init setup_cr(void)
 	__ctl_duct[4] = (unsigned long)__ctl_duald;
 
 	/* Update control registers CR2, CR5 and CR15 */
-	__local_ctl_store(cr2.val, 2, 2);
-	__local_ctl_store(cr5.val, 5, 5);
-	__local_ctl_store(cr15.val, 15, 15);
+	local_ctl_store(2, &cr2.val);
+	local_ctl_store(5, &cr5.val);
+	local_ctl_store(15, &cr15.val);
 	cr2.ducto = (unsigned long)__ctl_duct >> 6;
 	cr5.pasteo = (unsigned long)__ctl_duct >> 6;
 	cr15.lsea = (unsigned long)__ctl_linkage_stack >> 3;
-	__local_ctl_load(cr2.val, 2, 2);
-	__local_ctl_load(cr5.val, 5, 5);
-	__local_ctl_load(cr15.val, 15, 15);
+	local_ctl_load(2, &cr2.val);
+	local_ctl_load(5, &cr5.val);
+	local_ctl_load(15, &cr15.val);
 }
 
 /*

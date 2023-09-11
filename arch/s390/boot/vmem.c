@@ -446,9 +446,9 @@ void setup_vmem(unsigned long asce_limit)
 	S390_lowcore.kernel_asce = swapper_pg_dir | asce_bits;
 	S390_lowcore.user_asce = s390_invalid_asce;
 
-	__local_ctl_load(S390_lowcore.kernel_asce, 1, 1);
-	__local_ctl_load(S390_lowcore.user_asce, 7, 7);
-	__local_ctl_load(S390_lowcore.kernel_asce, 13, 13);
+	local_ctl_load(1, &S390_lowcore.kernel_asce);
+	local_ctl_load(7, &S390_lowcore.user_asce);
+	local_ctl_load(13, &S390_lowcore.kernel_asce);
 
 	init_mm.context.asce = S390_lowcore.kernel_asce;
 }

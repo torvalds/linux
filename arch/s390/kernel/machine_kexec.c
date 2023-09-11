@@ -94,12 +94,12 @@ static noinline void __machine_kdump(void *image)
 	if (MACHINE_HAS_VX)
 		save_vx_regs((__vector128 *) mcesa->vector_save_area);
 	if (MACHINE_HAS_GS) {
-		__local_ctl_store(cr2_old.val, 2, 2);
+		local_ctl_store(2, &cr2_old.val);
 		cr2_new = cr2_old;
 		cr2_new.gse = 1;
-		__local_ctl_load(cr2_new.val, 2, 2);
+		local_ctl_load(2, &cr2_new.val);
 		save_gs_cb((struct gs_cb *) mcesa->guarded_storage_save_area);
-		__local_ctl_load(cr2_old.val, 2, 2);
+		local_ctl_load(2, &cr2_old.val);
 	}
 	/*
 	 * To create a good backchain for this CPU in the dump store_status
