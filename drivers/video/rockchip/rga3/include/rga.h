@@ -567,6 +567,12 @@ struct rga_img_info_t {
 	uint16_t enable;
 };
 
+struct rga_feature {
+	uint32_t global_alpha_en:1;
+	uint32_t full_csc_clip_en:1;
+	uint32_t user_close_fence:1;
+};
+
 struct rga_req {
 	/* (enum) process mode sel */
 	uint8_t render_mode;
@@ -689,10 +695,7 @@ struct rga_req {
 	uint8_t fg_global_alpha;
 	uint8_t bg_global_alpha;
 
-	struct {
-		uint32_t global_alpha_en:1;
-		uint32_t full_csc_clip_en:1;
-	} feature;
+	struct rga_feature feature;
 
 	struct rga_csc_clip full_csc_clip;
 

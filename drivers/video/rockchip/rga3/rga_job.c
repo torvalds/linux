@@ -536,12 +536,21 @@ static int rga_request_add_acquire_fence_callback(int acquire_fence_fd,
 		       __func__, acquire_fence_fd);
 		return -EINVAL;
 	}
-	/* close acquire fence fd */
+
+	if (!request->feature.user_close_fence) {
+		/* close acquire fence fd */
+#ifdef CONFIG_NO_GKI
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
-	close_fd(acquire_fence_fd);
+		close_fd(acquire_fence_fd);
 #else
-	ksys_close(acquire_fence_fd);
+		ksys_close(acquire_fence_fd);
 #endif
+#else
+		pr_err("Please update the driver to v1.2.28 to prevent acquire_fence_fd leaks.");
+		return -EFAULT;
+#endif
+	}
+
 
 	ret = rga_dma_fence_get_status(acquire_fence);
 	if (ret < 0) {
@@ -972,6 +981,7 @@ struct rga_request *rga_request_config(struct rga_user_request *user_request)
 	request->sync_mode = user_request->sync_mode;
 	request->mpi_config_flags = user_request->mpi_config_flags;
 	request->acquire_fence_fd = user_request->acquire_fence_fd;
+	request->feature = task_list[0].feature;
 
 	spin_unlock_irqrestore(&request->lock, flags);
 

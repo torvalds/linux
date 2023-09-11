@@ -86,8 +86,8 @@
 #define STR(x) STR_HELPER(x)
 
 #define DRIVER_MAJOR_VERISON		1
-#define DRIVER_MINOR_VERSION		2
-#define DRIVER_REVISION_VERSION		27
+#define DRIVER_MINOR_VERSION		3
+#define DRIVER_REVISION_VERSION		0
 #define DRIVER_PATCH_VERSION
 
 #define DRIVER_VERSION (STR(DRIVER_MAJOR_VERISON) "." STR(DRIVER_MINOR_VERSION) \
@@ -380,6 +380,7 @@ struct rga_request {
 	 */
 	struct mm_struct *current_mm;
 
+	struct rga_feature feature;
 	/* TODO: add some common work */
 };
 
