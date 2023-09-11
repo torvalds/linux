@@ -211,6 +211,14 @@ static struct event_constraint intel_slm_event_constraints[] __read_mostly =
 	EVENT_CONSTRAINT_END
 };
 
+static struct event_constraint intel_grt_event_constraints[] __read_mostly = {
+	FIXED_EVENT_CONSTRAINT(0x00c0, 0), /* INST_RETIRED.ANY */
+	FIXED_EVENT_CONSTRAINT(0x003c, 1), /* CPU_CLK_UNHALTED.CORE */
+	FIXED_EVENT_CONSTRAINT(0x0300, 2), /* pseudo CPU_CLK_UNHALTED.REF */
+	FIXED_EVENT_CONSTRAINT(0x013c, 2), /* CPU_CLK_UNHALTED.REF_TSC_P */
+	EVENT_CONSTRAINT_END
+};
+
 static struct event_constraint intel_skl_event_constraints[] = {
 	FIXED_EVENT_CONSTRAINT(0x00c0, 0),	/* INST_RETIRED.ANY */
 	FIXED_EVENT_CONSTRAINT(0x003c, 1),	/* CPU_CLK_UNHALTED.CORE */
@@ -314,6 +322,7 @@ static struct event_constraint intel_glc_event_constraints[] = {
 	FIXED_EVENT_CONSTRAINT(0x0100, 0),	/* INST_RETIRED.PREC_DIST */
 	FIXED_EVENT_CONSTRAINT(0x003c, 1),	/* CPU_CLK_UNHALTED.CORE */
 	FIXED_EVENT_CONSTRAINT(0x0300, 2),	/* CPU_CLK_UNHALTED.REF */
+	FIXED_EVENT_CONSTRAINT(0x013c, 2),	/* CPU_CLK_UNHALTED.REF_TSC_P */
 	FIXED_EVENT_CONSTRAINT(0x0400, 3),	/* SLOTS */
 	METRIC_EVENT_CONSTRAINT(INTEL_TD_METRIC_RETIRING, 0),
 	METRIC_EVENT_CONSTRAINT(INTEL_TD_METRIC_BAD_SPEC, 1),
@@ -5983,6 +5992,12 @@ static __always_inline int intel_pmu_init_hybrid(enum hybrid_pmu_type pmus)
 	return 0;
 }
 
+static __always_inline void intel_pmu_ref_cycles_ext(void)
+{
+	if (!(x86_pmu.events_maskl & (INTEL_PMC_MSK_FIXED_REF_CYCLES >> INTEL_PMC_IDX_FIXED)))
+		intel_perfmon_event_map[PERF_COUNT_HW_REF_CPU_CYCLES] = 0x013c;
+}
+
 static __always_inline void intel_pmu_init_glc(struct pmu *pmu)
 {
 	x86_pmu.late_ack = true;
@@ -6005,6 +6020,8 @@ static __always_inline void intel_pmu_init_glc(struct pmu *pmu)
 	memcpy(hybrid_var(pmu, hw_cache_extra_regs), glc_hw_cache_extra_regs, sizeof(hw_cache_extra_regs));
 	hybrid(pmu, event_constraints) = intel_glc_event_constraints;
 	hybrid(pmu, pebs_constraints) = intel_glc_pebs_event_constraints;
+
+	intel_pmu_ref_cycles_ext();
 }
 
 static __always_inline void intel_pmu_init_grt(struct pmu *pmu)
@@ -6021,9 +6038,11 @@ static __always_inline void intel_pmu_init_grt(struct pmu *pmu)
 	memcpy(hybrid_var(pmu, hw_cache_event_ids), glp_hw_cache_event_ids, sizeof(hw_cache_event_ids));
 	memcpy(hybrid_var(pmu, hw_cache_extra_regs), tnt_hw_cache_extra_regs, sizeof(hw_cache_extra_regs));
 	hybrid_var(pmu, hw_cache_event_ids)[C(ITLB)][C(OP_READ)][C(RESULT_ACCESS)] = -1;
-	hybrid(pmu, event_constraints) = intel_slm_event_constraints;
+	hybrid(pmu, event_constraints) = intel_grt_event_constraints;
 	hybrid(pmu, pebs_constraints) = intel_grt_pebs_event_constraints;
 	hybrid(pmu, extra_regs) = intel_grt_extra_regs;
+
+	intel_pmu_ref_cycles_ext();
 }
 
 __init int intel_pmu_init(void)
