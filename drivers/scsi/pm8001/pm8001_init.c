@@ -235,9 +235,25 @@ static void pm8001_init_tasklet(struct pm8001_hba_info *pm8001_ha)
 			     (unsigned long)&(pm8001_ha->irq_vector[i]));
 }
 
+static void pm8001_kill_tasklet(struct pm8001_hba_info *pm8001_ha)
+{
+	int i;
+
+	/* For non-msix and msix interrupts */
+	if ((!pm8001_ha->pdev->msix_cap || !pci_msi_enabled()) ||
+	    (pm8001_ha->chip_id == chip_8001)) {
+		tasklet_kill(&pm8001_ha->tasklet[0]);
+		return;
+	}
+
+	for (i = 0; i < PM8001_MAX_MSIX_VEC; i++)
+		tasklet_kill(&pm8001_ha->tasklet[i]);
+}
+
 #else
 
 static void pm8001_init_tasklet(struct pm8001_hba_info *pm8001_ha) {}
+static void pm8001_kill_tasklet(struct pm8001_hba_info *pm8001_ha) {}
 
 #endif
 
@@ -1283,7 +1299,7 @@ static void pm8001_pci_remove(struct pci_dev *pdev)
 {
 	struct sas_ha_struct *sha = pci_get_drvdata(pdev);
 	struct pm8001_hba_info *pm8001_ha = sha->lldd_ha;
-	int i, j;
+	int i;
 
 	sas_unregister_ha(sha);
 	sas_remove_host(pm8001_ha->shost);
@@ -1292,16 +1308,7 @@ static void pm8001_pci_remove(struct pci_dev *pdev)
 	PM8001_CHIP_DISP->chip_soft_rst(pm8001_ha);
 
 	pm8001_free_irq(pm8001_ha);
-
-#ifdef PM8001_USE_TASKLET
-	/* For non-msix and msix interrupts */
-	if ((!pdev->msix_cap || !pci_msi_enabled()) ||
-	    (pm8001_ha->chip_id == chip_8001))
-		tasklet_kill(&pm8001_ha->tasklet[0]);
-	else
-		for (j = 0; j < PM8001_MAX_MSIX_VEC; j++)
-			tasklet_kill(&pm8001_ha->tasklet[j]);
-#endif
+	pm8001_kill_tasklet(pm8001_ha);
 	scsi_host_put(pm8001_ha->shost);
 
 	for (i = 0; i < pm8001_ha->ccb_count; i++) {
@@ -1332,7 +1339,6 @@ static int __maybe_unused pm8001_pci_suspend(struct device *dev)
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct sas_ha_struct *sha = pci_get_drvdata(pdev);
 	struct pm8001_hba_info *pm8001_ha = sha->lldd_ha;
-	int j;
 
 	sas_suspend_ha(sha);
 	flush_workqueue(pm8001_wq);
@@ -1345,16 +1351,8 @@ static int __maybe_unused pm8001_pci_suspend(struct device *dev)
 	PM8001_CHIP_DISP->chip_soft_rst(pm8001_ha);
 
 	pm8001_free_irq(pm8001_ha);
+	pm8001_kill_tasklet(pm8001_ha);
 
-#ifdef PM8001_USE_TASKLET
-	/* For non-msix and msix interrupts */
-	if ((!pdev->msix_cap || !pci_msi_enabled()) ||
-	    (pm8001_ha->chip_id == chip_8001))
-		tasklet_kill(&pm8001_ha->tasklet[0]);
-	else
-		for (j = 0; j < PM8001_MAX_MSIX_VEC; j++)
-			tasklet_kill(&pm8001_ha->tasklet[j]);
-#endif
 	pm8001_info(pm8001_ha, "pdev=0x%p, slot=%s, entering "
 		      "suspended state\n", pdev,
 		      pm8001_ha->name);
