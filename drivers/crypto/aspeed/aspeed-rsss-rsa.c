@@ -80,11 +80,20 @@ static int aspeed_rsa_complete(struct aspeed_rsss_dev *rsss_dev, int err)
  * Copy Data to SRAM buffer for engine used.
  */
 static void aspeed_rsa_sg_copy_to_buffer(struct aspeed_rsss_dev *rsss_dev,
-					 u8 *buf, struct scatterlist *src,
+					 void __iomem *buf, struct scatterlist *src,
 					 size_t nbytes)
 {
-	RSSS_DBG(rsss_dev, "\n");
-	scatterwalk_map_and_copy(buf, src, 0, nbytes, 0);
+	static u8 data[SRAM_BLOCK_SIZE];
+	static u8 data_rev[SRAM_BLOCK_SIZE];
+
+	RSSS_DBG(rsss_dev, "src len:%zu\n", nbytes);
+
+	scatterwalk_map_and_copy(data, src, 0, nbytes, 0);
+
+	for (int i = 0; i < nbytes; i++)
+		data_rev[nbytes - i - 1] = data[i];
+
+	memcpy_toio(buf, data_rev, nbytes);
 }
 
 /*
@@ -94,22 +103,30 @@ static void aspeed_rsa_sg_copy_to_buffer(struct aspeed_rsss_dev *rsss_dev,
  * - mode 0 : Exponential
  * - mode 1 : Modulus
  */
-static int aspeed_rsa_ctx_copy(struct aspeed_rsss_dev *rsss_dev, void *buf,
-			       const void *xbuf, size_t nbytes,
+static int aspeed_rsa_ctx_copy(struct aspeed_rsss_dev *rsss_dev, void __iomem *dst,
+			       const u8 *src, size_t nbytes,
 			       enum aspeed_rsa_key_mode mode)
 {
-	int nbits;
+	static u8 data[SRAM_BLOCK_SIZE];
 
 	RSSS_DBG(rsss_dev, "nbytes:%zu, mode:%d\n", nbytes, mode);
 
 	if (nbytes > ASPEED_RSA_MAX_KEY_LEN)
 		return -ENOMEM;
 
-	nbits = nbytes * 8;
+	/* Remove leading zeros */
+	while (nbytes > 0 && src[0] == 0) {
+		src++;
+		nbytes--;
+		pr_info("remove leading zero, nbyte:%zu\n", nbytes);
+	}
 
-	memcpy(buf, xbuf, nbytes);
+	for (int i = 0; i < nbytes; i++)
+		data[nbytes - i - 1] = src[i];
 
-	return nbits;
+	memcpy_toio(dst, data, nbytes);
+
+	return nbytes * 8;
 }
 
 static int aspeed_rsa_transfer(struct aspeed_rsss_dev *rsss_dev)
@@ -117,6 +134,8 @@ static int aspeed_rsa_transfer(struct aspeed_rsss_dev *rsss_dev)
 	struct aspeed_engine_rsa *rsa_engine = &rsss_dev->rsa_engine;
 	struct akcipher_request *req = rsa_engine->req;
 	struct scatterlist *out_sg = req->dst;
+	static u8 data[SRAM_BLOCK_SIZE];
+	size_t nbytes = req->dst_len;
 	u32 val;
 
 	RSSS_DBG(rsss_dev, "\n");
@@ -125,9 +144,12 @@ static int aspeed_rsa_transfer(struct aspeed_rsss_dev *rsss_dev)
 	val = ast_rsss_read(rsss_dev, ASPEED_RSSS_CTRL);
 	ast_rsss_write(rsss_dev, val | SRAM_AHB_MODE_CPU, ASPEED_RSSS_CTRL);
 
-	scatterwalk_map_and_copy(rsa_engine->sram_data, out_sg, 0, req->dst_len, 1);
+	for (int i = 0; i < nbytes; i++)
+		data[nbytes - i - 1] = readb(rsa_engine->sram_data + i);
 
-	memzero_explicit(rsa_engine->sram_data, SRAM_BLOCK_SIZE);
+	scatterwalk_map_and_copy(data, out_sg, 0, nbytes, 1);
+
+	memset_io(rsa_engine->sram_data, 0, SRAM_BLOCK_SIZE);
 
 	return aspeed_rsa_complete(rsss_dev, 0);
 }
