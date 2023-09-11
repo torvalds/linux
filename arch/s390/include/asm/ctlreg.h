@@ -35,7 +35,7 @@
 
 #include <linux/bug.h>
 
-#define __local_ctl_load(array, low, high) do {				\
+#define __local_ctl_load(low, high, array) do {				\
 	struct addrtype {						\
 		char _[sizeof(array)];					\
 	};								\
@@ -53,7 +53,7 @@
 		: "memory");						\
 } while (0)
 
-#define __local_ctl_store(array, low, high) do {			\
+#define __local_ctl_store(low, high, array) do {			\
 	struct addrtype {						\
 		char _[sizeof(array)];					\
 	};								\

@@ -38,10 +38,10 @@ static void ctl_bit_callback(void *info)
 	struct ctl_bit_parms *pp = info;
 	unsigned long regs[16];
 
-	__local_ctl_store(regs, 0, 15);
+	__local_ctl_store(0, 15, regs);
 	regs[pp->cr] &= pp->andval;
 	regs[pp->cr] |= pp->orval;
-	__local_ctl_load(regs, 0, 15);
+	__local_ctl_load(0, 15, regs);
 }
 
 void system_ctl_set_clear_bit(unsigned int cr, unsigned int bit, bool set)

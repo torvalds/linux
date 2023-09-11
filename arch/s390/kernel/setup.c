@@ -449,7 +449,7 @@ static void __init setup_lowcore(void)
 	lc->restart_fn = (unsigned long) do_restart;
 	lc->restart_data = 0;
 	lc->restart_source = -1U;
-	__local_ctl_store(lc->cregs_save_area, 0, 15);
+	__local_ctl_store(0, 15, lc->cregs_save_area);
 	lc->spinlock_lockval = arch_spin_lockval(0);
 	lc->spinlock_index = 0;
 	arch_spin_lock_setup(0);

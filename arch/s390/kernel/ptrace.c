@@ -104,9 +104,9 @@ void update_cr_regs(struct task_struct *task)
 		return;
 	}
 	regs->psw.mask |= PSW_MASK_PER;
-	__local_ctl_store(old, 9, 11);
+	__local_ctl_store(9, 11, old);
 	if (memcmp(&new, &old, sizeof(struct per_regs)) != 0)
-		__local_ctl_load(new, 9, 11);
+		__local_ctl_load(9, 11, new);
 }
 
 void user_enable_single_step(struct task_struct *task)

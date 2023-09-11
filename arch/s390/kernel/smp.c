@@ -922,11 +922,11 @@ int __cpu_disable(void)
 	/* Disable pseudo page faults on this cpu. */
 	pfault_fini();
 	/* Disable interrupt sources via control register. */
-	__local_ctl_store(cregs, 0, 15);
+	__local_ctl_store(0, 15, cregs);
 	cregs[0]  &= ~0x0000ee70UL;	/* disable all external interrupts */
 	cregs[6]  &= ~0xff000000UL;	/* disable all I/O interrupts */
 	cregs[14] &= ~0x1f000000UL;	/* disable most machine checks */
-	__local_ctl_load(cregs, 0, 15);
+	__local_ctl_load(0, 15, cregs);
 	clear_cpu_flag(CIF_NOHZ_DELAY);
 	return 0;
 }
