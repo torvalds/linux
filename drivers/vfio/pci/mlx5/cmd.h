@@ -64,6 +64,7 @@ struct mlx5_vhca_data_buffer {
 	u32 mkey;
 	enum dma_data_direction dma_dir;
 	u8 dmaed:1;
+	u8 stop_copy_chunk_num;
 	struct list_head buf_elm;
 	struct mlx5_vf_migration_file *migf;
 	/* Optimize mlx5vf_get_migration_page() for sequential access */
@@ -82,6 +83,8 @@ struct mlx5vf_async_data {
 	void *out;
 };
 
+#define MAX_NUM_CHUNKS 2
+
 struct mlx5_vf_migration_file {
 	struct file *filp;
 	struct mutex lock;
@@ -94,8 +97,9 @@ struct mlx5_vf_migration_file {
 	u32 record_tag;
 	u64 stop_copy_prep_size;
 	u64 pre_copy_initial_bytes;
-	struct mlx5_vhca_data_buffer *buf;
-	struct mlx5_vhca_data_buffer *buf_header;
+	/* Upon chunk mode preserve another set of buffers for stop_copy phase */
+	struct mlx5_vhca_data_buffer *buf[MAX_NUM_CHUNKS];
+	struct mlx5_vhca_data_buffer *buf_header[MAX_NUM_CHUNKS];
 	spinlock_t list_lock;
 	struct list_head buf_list;
 	struct list_head avail_list;

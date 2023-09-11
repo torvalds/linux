@@ -632,9 +632,9 @@ int mlx5vf_cmd_save_vhca_state(struct mlx5vf_pci_core_device *mvdev,
 	}
 
 	if (MLX5VF_PRE_COPY_SUPP(mvdev)) {
-		if (async_data->stop_copy_chunk && migf->buf_header) {
-			header_buf = migf->buf_header;
-			migf->buf_header = NULL;
+		if (async_data->stop_copy_chunk && migf->buf_header[0]) {
+			header_buf = migf->buf_header[0];
+			migf->buf_header[0] = NULL;
 		} else {
 			header_buf = mlx5vf_get_data_buffer(migf,
 				sizeof(struct mlx5_vf_migration_header), DMA_NONE);
@@ -721,18 +721,21 @@ void mlx5vf_cmd_dealloc_pd(struct mlx5_vf_migration_file *migf)
 void mlx5fv_cmd_clean_migf_resources(struct mlx5_vf_migration_file *migf)
 {
 	struct mlx5_vhca_data_buffer *entry;
+	int i;
 
 	lockdep_assert_held(&migf->mvdev->state_mutex);
 	WARN_ON(migf->mvdev->mdev_detach);
 
-	if (migf->buf) {
-		mlx5vf_free_data_buffer(migf->buf);
-		migf->buf = NULL;
-	}
+	for (i = 0; i < MAX_NUM_CHUNKS; i++) {
+		if (migf->buf[i]) {
+			mlx5vf_free_data_buffer(migf->buf[i]);
+			migf->buf[i] = NULL;
+		}
 
-	if (migf->buf_header) {
-		mlx5vf_free_data_buffer(migf->buf_header);
-		migf->buf_header = NULL;
+		if (migf->buf_header[i]) {
+			mlx5vf_free_data_buffer(migf->buf_header[i]);
+			migf->buf_header[i] = NULL;
+		}
 	}
 
 	list_splice(&migf->avail_list, &migf->buf_list);
