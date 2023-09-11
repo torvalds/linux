@@ -45,6 +45,7 @@
 									\
 	_esize = (_high - _low + 1) * sizeof(unsigned long);		\
 	BUILD_BUG_ON(sizeof(struct addrtype) != _esize);		\
+	typecheck(unsigned long, array[0]);				\
 	asm volatile(							\
 		"	lctlg	%[_low],%[_high],%[_arr]\n"		\
 		:							\
@@ -63,6 +64,7 @@
 									\
 	_esize = (_high - _low + 1) * sizeof(unsigned long);		\
 	BUILD_BUG_ON(sizeof(struct addrtype) != _esize);		\
+	typecheck(unsigned long, array[0]);				\
 	asm volatile(							\
 		"	stctg	%[_low],%[_high],%[_arr]\n"		\
 		: [_arr] "=Q" (*(struct addrtype *)(&array))		\
