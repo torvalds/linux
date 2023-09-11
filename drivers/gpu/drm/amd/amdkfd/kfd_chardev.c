@@ -1021,7 +1021,7 @@ err_drm_file:
 
 bool kfd_dev_is_large_bar(struct kfd_node *dev)
 {
-	if (debug_largebar) {
+	if (dev->kfd->adev->debug_largebar) {
 		pr_debug("Simulate large-bar allocation on non large-bar machine\n");
 		return true;
 	}

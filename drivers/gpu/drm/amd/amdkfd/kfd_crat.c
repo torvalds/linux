@@ -2116,7 +2116,7 @@ static int kfd_create_vcrat_image_gpu(void *pcrat_image,
 	sub_type_hdr = (typeof(sub_type_hdr))((char *)sub_type_hdr +
 			sub_type_hdr->length);
 
-	if (debug_largebar)
+	if (kdev->adev->debug_largebar)
 		local_mem_info.local_mem_size_private = 0;
 
 	if (local_mem_info.local_mem_size_private == 0)
