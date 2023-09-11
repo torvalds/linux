@@ -356,7 +356,7 @@
 			 * alignment = <0x0 0x400000>;
 			 * alloc-ranges = <0x0 0x86800000 0x0 0x8000000>;
 			 */
-			reg = <0x0 0x86800000 0x0 0x5500000>;
+			reg = <0x0 0x86800000 0x0 0>; /* size is device-specific */
 			no-map;
 			status = "disabled";
 		};

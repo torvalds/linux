@@ -263,6 +263,7 @@
 
 &mpss_mem {
 	status = "okay";
+	reg = <0x0 0x86800000 0x0 0x2b00000>;
 };
 
 &pm8916_codec {
