@@ -218,6 +218,27 @@ static void pm8001_tasklet(unsigned long opaque)
 		BUG_ON(1);
 	PM8001_CHIP_DISP->isr(pm8001_ha, irq_vector->irq_id);
 }
+
+static void pm8001_init_tasklet(struct pm8001_hba_info *pm8001_ha)
+{
+	int i;
+
+	/*  Tasklet for non msi-x interrupt handler */
+	if ((!pm8001_ha->pdev->msix_cap || !pci_msi_enabled()) ||
+	    (pm8001_ha->chip_id == chip_8001)) {
+		tasklet_init(&pm8001_ha->tasklet[0], pm8001_tasklet,
+			     (unsigned long)&(pm8001_ha->irq_vector[0]));
+		return;
+	}
+	for (i = 0; i < PM8001_MAX_MSIX_VEC; i++)
+		tasklet_init(&pm8001_ha->tasklet[i], pm8001_tasklet,
+			     (unsigned long)&(pm8001_ha->irq_vector[i]));
+}
+
+#else
+
+static void pm8001_init_tasklet(struct pm8001_hba_info *pm8001_ha) {}
+
 #endif
 
 /**
@@ -512,7 +533,6 @@ static struct pm8001_hba_info *pm8001_pci_alloc(struct pci_dev *pdev,
 {
 	struct pm8001_hba_info *pm8001_ha;
 	struct sas_ha_struct *sha = SHOST_TO_SAS_HA(shost);
-	int j;
 
 	pm8001_ha = sha->lldd_ha;
 	if (!pm8001_ha)
@@ -543,17 +563,8 @@ static struct pm8001_hba_info *pm8001_pci_alloc(struct pci_dev *pdev,
 	else
 		pm8001_ha->iomb_size = IOMB_SIZE_SPC;
 
-#ifdef PM8001_USE_TASKLET
-	/* Tasklet for non msi-x interrupt handler */
-	if ((!pdev->msix_cap || !pci_msi_enabled())
-	    || (pm8001_ha->chip_id == chip_8001))
-		tasklet_init(&pm8001_ha->tasklet[0], pm8001_tasklet,
-			(unsigned long)&(pm8001_ha->irq_vector[0]));
-	else
-		for (j = 0; j < PM8001_MAX_MSIX_VEC; j++)
-			tasklet_init(&pm8001_ha->tasklet[j], pm8001_tasklet,
-				(unsigned long)&(pm8001_ha->irq_vector[j]));
-#endif
+	pm8001_init_tasklet(pm8001_ha);
+
 	if (pm8001_ioremap(pm8001_ha))
 		goto failed_pci_alloc;
 	if (!pm8001_alloc(pm8001_ha, ent))
@@ -1362,7 +1373,7 @@ static int __maybe_unused pm8001_pci_resume(struct device *dev)
 	struct sas_ha_struct *sha = pci_get_drvdata(pdev);
 	struct pm8001_hba_info *pm8001_ha;
 	int rc;
-	u8 i = 0, j;
+	u8 i = 0;
 	DECLARE_COMPLETION_ONSTACK(completion);
 
 	pm8001_ha = sha->lldd_ha;
@@ -1390,17 +1401,9 @@ static int __maybe_unused pm8001_pci_resume(struct device *dev)
 	rc = pm8001_request_irq(pm8001_ha);
 	if (rc)
 		goto err_out_disable;
-#ifdef PM8001_USE_TASKLET
-	/*  Tasklet for non msi-x interrupt handler */
-	if ((!pdev->msix_cap || !pci_msi_enabled()) ||
-	    (pm8001_ha->chip_id == chip_8001))
-		tasklet_init(&pm8001_ha->tasklet[0], pm8001_tasklet,
-			(unsigned long)&(pm8001_ha->irq_vector[0]));
-	else
-		for (j = 0; j < PM8001_MAX_MSIX_VEC; j++)
-			tasklet_init(&pm8001_ha->tasklet[j], pm8001_tasklet,
-				(unsigned long)&(pm8001_ha->irq_vector[j]));
-#endif
+
+	pm8001_init_tasklet(pm8001_ha);
+
 	PM8001_CHIP_DISP->interrupt_enable(pm8001_ha, 0);
 	if (pm8001_ha->chip_id != chip_8001) {
 		for (i = 1; i < pm8001_ha->number_of_intr; i++)
