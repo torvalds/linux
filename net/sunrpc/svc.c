@@ -719,7 +719,6 @@ void svc_pool_wake_idle_thread(struct svc_pool *pool)
 	}
 	rcu_read_unlock();
 
-	set_bit(SP_CONGESTED, &pool->sp_flags);
 }
 EXPORT_SYMBOL_GPL(svc_pool_wake_idle_thread);
 
