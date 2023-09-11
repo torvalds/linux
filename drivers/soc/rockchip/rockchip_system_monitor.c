@@ -1338,6 +1338,15 @@ int rockchip_monitor_check_rate_volt(struct monitor_dev_info *info)
 		rockchip_set_intermediate_rate(dev, opp_info, info->clk,
 					       old_rate, new_rate,
 					       true, is_set_clk);
+
+		if (old_volt > new_volt) {
+			ret = regulator_set_voltage(vdd_reg, new_volt, INT_MAX);
+			if (ret) {
+				dev_err(dev, "%s: failed to set volt: %lu\n",
+					__func__, new_volt);
+				goto restore_voltage;
+			}
+		}
 		if (info->regulator_count > 1) {
 			ret = regulator_set_voltage(mem_reg, new_mem_volt,
 						    INT_MAX);
@@ -1347,11 +1356,13 @@ int rockchip_monitor_check_rate_volt(struct monitor_dev_info *info)
 				goto restore_voltage;
 			}
 		}
-		ret = regulator_set_voltage(vdd_reg, new_volt, INT_MAX);
-		if (ret) {
-			dev_err(dev, "%s: failed to set volt: %lu\n",
-				__func__, new_volt);
-			goto restore_voltage;
+		if (old_volt <= new_volt) {
+			ret = regulator_set_voltage(vdd_reg, new_volt, INT_MAX);
+			if (ret) {
+				dev_err(dev, "%s: failed to set volt: %lu\n",
+					__func__, new_volt);
+				goto restore_voltage;
+			}
 		}
 		rockchip_set_read_margin(dev, opp_info, target_rm, is_set_rm);
 		if (is_set_clk && clk_set_rate(info->clk, new_rate)) {
@@ -1396,9 +1407,12 @@ restore_rm:
 	rockchip_get_read_margin(dev, opp_info, old_volt, &target_rm);
 	rockchip_set_read_margin(dev, opp_info, target_rm, is_set_rm);
 restore_voltage:
+	if (old_volt <= new_volt)
+		regulator_set_voltage(vdd_reg, old_volt, INT_MAX);
 	if (info->regulator_count > 1)
 		regulator_set_voltage(mem_reg, old_mem_volt, INT_MAX);
-	regulator_set_voltage(vdd_reg, old_volt, INT_MAX);
+	if (old_volt > new_volt)
+		regulator_set_voltage(vdd_reg, old_volt, INT_MAX);
 disable_clk:
 	rockchip_monitor_disable_opp_clk(dev, opp_info);
 unlock:
