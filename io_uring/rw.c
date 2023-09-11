@@ -388,8 +388,7 @@ static struct iovec *__io_import_iovec(int ddir, struct io_kiocb *req,
 	buf = u64_to_user_ptr(rw->addr);
 	sqe_len = rw->len;
 
-	if (opcode == IORING_OP_READ || opcode == IORING_OP_WRITE ||
-	    (req->flags & REQ_F_BUFFER_SELECT)) {
+	if (!io_issue_defs[opcode].vectored || req->flags & REQ_F_BUFFER_SELECT) {
 		if (io_do_buffer_select(req)) {
 			buf = io_buffer_select(req, &sqe_len, issue_flags);
 			if (!buf)
@@ -776,8 +775,11 @@ static int __io_read(struct io_kiocb *req, unsigned int issue_flags)
 
 	if (ret == -EAGAIN || (req->flags & REQ_F_REISSUE)) {
 		req->flags &= ~REQ_F_REISSUE;
-		/* if we can poll, just do that */
-		if (req->opcode == IORING_OP_READ && file_can_poll(req->file))
+		/*
+		 * If we can poll, just do that. For a vectored read, we'll
+		 * need to copy state first.
+		 */
+		if (file_can_poll(req->file) && !io_issue_defs[req->opcode].vectored)
 			return -EAGAIN;
 		/* IOPOLL retry should happen for io-wq threads */
 		if (!force_nonblock && !(req->ctx->flags & IORING_SETUP_IOPOLL))
