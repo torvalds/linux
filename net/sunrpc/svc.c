@@ -681,8 +681,8 @@ svc_prepare_thread(struct svc_serv *serv, struct svc_pool *pool, int node)
 	serv->sv_nrthreads += 1;
 	spin_unlock_bh(&serv->sv_lock);
 
+	atomic_inc(&pool->sp_nrthreads);
 	spin_lock_bh(&pool->sp_lock);
-	pool->sp_nrthreads++;
 	list_add_rcu(&rqstp->rq_all, &pool->sp_all_threads);
 	spin_unlock_bh(&pool->sp_lock);
 	return rqstp;
@@ -727,23 +727,24 @@ svc_pool_next(struct svc_serv *serv, struct svc_pool *pool, unsigned int *state)
 }
 
 static struct svc_pool *
-svc_pool_victim(struct svc_serv *serv, struct svc_pool *pool, unsigned int *state)
+svc_pool_victim(struct svc_serv *serv, struct svc_pool *target_pool,
+		unsigned int *state)
 {
+	struct svc_pool *pool;
 	unsigned int i;
 
+retry:
+	pool = target_pool;
+
 	if (pool != NULL) {
-		spin_lock_bh(&pool->sp_lock);
-		if (pool->sp_nrthreads)
+		if (atomic_inc_not_zero(&pool->sp_nrthreads))
 			goto found_pool;
-		spin_unlock_bh(&pool->sp_lock);
 		return NULL;
 	} else {
 		for (i = 0; i < serv->sv_nrpools; i++) {
 			pool = &serv->sv_pools[--(*state) % serv->sv_nrpools];
-			spin_lock_bh(&pool->sp_lock);
-			if (pool->sp_nrthreads)
+			if (atomic_inc_not_zero(&pool->sp_nrthreads))
 				goto found_pool;
-			spin_unlock_bh(&pool->sp_lock);
 		}
 		return NULL;
 	}
@@ -751,8 +752,12 @@ svc_pool_victim(struct svc_serv *serv, struct svc_pool *pool, unsigned int *stat
 found_pool:
 	set_bit(SP_VICTIM_REMAINS, &pool->sp_flags);
 	set_bit(SP_NEED_VICTIM, &pool->sp_flags);
-	spin_unlock_bh(&pool->sp_lock);
-	return pool;
+	if (!atomic_dec_and_test(&pool->sp_nrthreads))
+		return pool;
+	/* Nothing left in this pool any more */
+	clear_bit(SP_NEED_VICTIM, &pool->sp_flags);
+	clear_bit(SP_VICTIM_REMAINS, &pool->sp_flags);
+	goto retry;
 }
 
 static int
@@ -828,13 +833,10 @@ svc_stop_kthreads(struct svc_serv *serv, struct svc_pool *pool, int nrservs)
 int
 svc_set_num_threads(struct svc_serv *serv, struct svc_pool *pool, int nrservs)
 {
-	if (pool == NULL) {
+	if (!pool)
 		nrservs -= serv->sv_nrthreads;
-	} else {
-		spin_lock_bh(&pool->sp_lock);
-		nrservs -= pool->sp_nrthreads;
-		spin_unlock_bh(&pool->sp_lock);
-	}
+	else
+		nrservs -= atomic_read(&pool->sp_nrthreads);
 
 	if (nrservs > 0)
 		return svc_start_kthreads(serv, pool, nrservs);
@@ -921,9 +923,10 @@ svc_exit_thread(struct svc_rqst *rqstp)
 	struct svc_pool	*pool = rqstp->rq_pool;
 
 	spin_lock_bh(&pool->sp_lock);
-	pool->sp_nrthreads--;
 	list_del_rcu(&rqstp->rq_all);
 	spin_unlock_bh(&pool->sp_lock);
+
+	atomic_dec(&pool->sp_nrthreads);
 
 	spin_lock_bh(&serv->sv_lock);
 	serv->sv_nrthreads -= 1;
