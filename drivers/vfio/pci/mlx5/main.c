@@ -428,7 +428,7 @@ static long mlx5vf_precopy_ioctl(struct file *filp, unsigned int cmd,
 		 * As so, the other code below is safe with the proper locks.
 		 */
 		ret = mlx5vf_cmd_query_vhca_migration_state(mvdev, &inc_length,
-							    MLX5VF_QUERY_INC);
+							    NULL, MLX5VF_QUERY_INC);
 		if (ret)
 			goto err_state_unlock;
 	}
@@ -505,7 +505,7 @@ static int mlx5vf_pci_save_device_inc_data(struct mlx5vf_pci_core_device *mvdev)
 	if (migf->state == MLX5_MIGF_STATE_ERROR)
 		return -ENODEV;
 
-	ret = mlx5vf_cmd_query_vhca_migration_state(mvdev, &length,
+	ret = mlx5vf_cmd_query_vhca_migration_state(mvdev, &length, NULL,
 				MLX5VF_QUERY_INC | MLX5VF_QUERY_FINAL);
 	if (ret)
 		goto err;
@@ -574,7 +574,7 @@ mlx5vf_pci_save_device_data(struct mlx5vf_pci_core_device *mvdev, bool track)
 	INIT_LIST_HEAD(&migf->buf_list);
 	INIT_LIST_HEAD(&migf->avail_list);
 	spin_lock_init(&migf->list_lock);
-	ret = mlx5vf_cmd_query_vhca_migration_state(mvdev, &length, 0);
+	ret = mlx5vf_cmd_query_vhca_migration_state(mvdev, &length, NULL, 0);
 	if (ret)
 		goto out_pd;
 
@@ -1195,13 +1195,14 @@ static int mlx5vf_pci_get_data_size(struct vfio_device *vdev,
 	struct mlx5vf_pci_core_device *mvdev = container_of(
 		vdev, struct mlx5vf_pci_core_device, core_device.vdev);
 	size_t state_size;
+	u64 total_size;
 	int ret;
 
 	mutex_lock(&mvdev->state_mutex);
-	ret = mlx5vf_cmd_query_vhca_migration_state(mvdev,
-						    &state_size, 0);
+	ret = mlx5vf_cmd_query_vhca_migration_state(mvdev, &state_size,
+						    &total_size, 0);
 	if (!ret)
-		*stop_copy_length = state_size;
+		*stop_copy_length = total_size;
 	mlx5vf_state_mutex_unlock(mvdev);
 	return ret;
 }

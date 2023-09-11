@@ -86,7 +86,8 @@ int mlx5vf_cmd_resume_vhca(struct mlx5vf_pci_core_device *mvdev, u16 op_mod)
 }
 
 int mlx5vf_cmd_query_vhca_migration_state(struct mlx5vf_pci_core_device *mvdev,
-					  size_t *state_size, u8 query_flags)
+					  size_t *state_size, u64 *total_size,
+					  u8 query_flags)
 {
 	u32 out[MLX5_ST_SZ_DW(query_vhca_migration_state_out)] = {};
 	u32 in[MLX5_ST_SZ_DW(query_vhca_migration_state_in)] = {};
@@ -128,6 +129,7 @@ int mlx5vf_cmd_query_vhca_migration_state(struct mlx5vf_pci_core_device *mvdev,
 	MLX5_SET(query_vhca_migration_state_in, in, op_mod, 0);
 	MLX5_SET(query_vhca_migration_state_in, in, incremental,
 		 query_flags & MLX5VF_QUERY_INC);
+	MLX5_SET(query_vhca_migration_state_in, in, chunk, mvdev->chunk_mode);
 
 	ret = mlx5_cmd_exec_inout(mvdev->mdev, query_vhca_migration_state, in,
 				  out);
@@ -139,6 +141,11 @@ int mlx5vf_cmd_query_vhca_migration_state(struct mlx5vf_pci_core_device *mvdev,
 
 	*state_size = MLX5_GET(query_vhca_migration_state_out, out,
 			       required_umem_size);
+	if (total_size)
+		*total_size = mvdev->chunk_mode ?
+			MLX5_GET64(query_vhca_migration_state_out, out,
+				   remaining_total_size) : *state_size;
+
 	return 0;
 }
 
