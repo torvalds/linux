@@ -36,24 +36,37 @@
 #include <linux/bug.h>
 
 #define __ctl_load(array, low, high) do {				\
-	typedef struct { char _[sizeof(array)]; } addrtype;		\
+	struct addrtype {						\
+		char _[sizeof(array)];					\
+	};								\
+	int _high = high;						\
+	int _low = low;							\
+	int _esize;							\
 									\
-	BUILD_BUG_ON(sizeof(addrtype) != (high - low + 1) * sizeof(long));\
+	_esize = (_high - _low + 1) * sizeof(unsigned long);		\
+	BUILD_BUG_ON(sizeof(struct addrtype) != _esize);		\
 	asm volatile(							\
-		"	lctlg	%1,%2,%0\n"				\
+		"	lctlg	%[_low],%[_high],%[_arr]\n"		\
 		:							\
-		: "Q" (*(addrtype *)(&array)), "i" (low), "i" (high)	\
+		: [_arr] "Q" (*(struct addrtype *)(&array)),		\
+		  [_low] "i" (low), [_high] "i" (high)			\
 		: "memory");						\
 } while (0)
 
 #define __ctl_store(array, low, high) do {				\
-	typedef struct { char _[sizeof(array)]; } addrtype;		\
+	struct addrtype {						\
+		char _[sizeof(array)];					\
+	};								\
+	int _high = high;						\
+	int _low = low;							\
+	int _esize;							\
 									\
-	BUILD_BUG_ON(sizeof(addrtype) != (high - low + 1) * sizeof(long));\
+	_esize = (_high - _low + 1) * sizeof(unsigned long);		\
+	BUILD_BUG_ON(sizeof(struct addrtype) != _esize);		\
 	asm volatile(							\
-		"	stctg	%1,%2,%0\n"				\
-		: "=Q" (*(addrtype *)(&array))				\
-		: "i" (low), "i" (high));				\
+		"	stctg	%[_low],%[_high],%[_arr]\n"		\
+		: [_arr] "=Q" (*(struct addrtype *)(&array))		\
+		: [_low] "i" (low), [_high] "i" (high));		\
 } while (0)
 
 static __always_inline void __ctl_set_bit(unsigned int cr, unsigned int bit)
