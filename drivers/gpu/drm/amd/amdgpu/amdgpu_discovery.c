@@ -1191,6 +1191,7 @@ static void amdgpu_discovery_sysfs_fini(struct amdgpu_device *adev)
 
 static int amdgpu_discovery_reg_base_init(struct amdgpu_device *adev)
 {
+	uint8_t num_base_address, subrev, variant;
 	struct binary_header *bhdr;
 	struct ip_discovery_header *ihdr;
 	struct die_header *dhdr;
@@ -1199,7 +1200,6 @@ static int amdgpu_discovery_reg_base_init(struct amdgpu_device *adev)
 	uint16_t ip_offset;
 	uint16_t num_dies;
 	uint16_t num_ips;
-	uint8_t num_base_address;
 	int hw_ip;
 	int i, j, k;
 	int r;
@@ -1337,8 +1337,22 @@ static int amdgpu_discovery_reg_base_init(struct amdgpu_device *adev)
 					 * example.  On most chips there are multiple instances
 					 * with the same HWID.
 					 */
-					adev->ip_versions[hw_ip][ip->instance_number] =
-						IP_VERSION(ip->major, ip->minor, ip->revision);
+
+					if (ihdr->version < 3) {
+						subrev = 0;
+						variant = 0;
+					} else {
+						subrev = ip->sub_revision;
+						variant = ip->variant;
+					}
+
+					adev->ip_versions[hw_ip]
+							 [ip->instance_number] =
+						IP_VERSION_FULL(ip->major,
+								ip->minor,
+								ip->revision,
+								variant,
+								subrev);
 				}
 			}
 
