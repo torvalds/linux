@@ -449,7 +449,7 @@
 			status = "disabled";
 		};
 
-		pcie1_vuart0: serial@1a2c18200 {
+		pcie1_vuart0: serial@12c18200 {
 			compatible = "aspeed,ast2600-uart";
 			reg = <0x0 0x12c18200 0x0 0x40>;
 			interrupts = <GIC_SPI 93 IRQ_TYPE_LEVEL_HIGH>;
@@ -458,8 +458,9 @@
 			status = "disabled";
 		};
 
-		pcie1_vuart1: serial@1a2c18300 {
+		pcie1_vuart1: serial@12c18300 {
 			compatible = "aspeed,ast2600-uart";
+			reg = <0x0 0x12c18300 0x0 0x40>;
 			interrupts = <GIC_SPI 94 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cpu_clk AST2700_CPU_CLK_APB>;
 			virtual;
