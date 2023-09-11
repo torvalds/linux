@@ -1630,7 +1630,7 @@ struct rtable *rt_dst_alloc(struct net_device *dev,
 {
 	struct rtable *rt;
 
-	rt = dst_alloc(&ipv4_dst_ops, dev, 1, DST_OBSOLETE_FORCE_CHK,
+	rt = dst_alloc(&ipv4_dst_ops, dev, DST_OBSOLETE_FORCE_CHK,
 		       (noxfrm ? DST_NOXFRM : 0));
 
 	if (rt) {
@@ -1658,7 +1658,7 @@ struct rtable *rt_dst_clone(struct net_device *dev, struct rtable *rt)
 {
 	struct rtable *new_rt;
 
-	new_rt = dst_alloc(&ipv4_dst_ops, dev, 1, DST_OBSOLETE_FORCE_CHK,
+	new_rt = dst_alloc(&ipv4_dst_ops, dev, DST_OBSOLETE_FORCE_CHK,
 			   rt->dst.flags);
 
 	if (new_rt) {
@@ -2832,7 +2832,7 @@ struct dst_entry *ipv4_blackhole_route(struct net *net, struct dst_entry *dst_or
 	struct rtable *ort = (struct rtable *) dst_orig;
 	struct rtable *rt;
 
-	rt = dst_alloc(&ipv4_dst_blackhole_ops, NULL, 1, DST_OBSOLETE_DEAD, 0);
+	rt = dst_alloc(&ipv4_dst_blackhole_ops, NULL, DST_OBSOLETE_DEAD, 0);
 	if (rt) {
 		struct dst_entry *new = &rt->dst;
 
