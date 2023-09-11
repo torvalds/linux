@@ -79,6 +79,7 @@ struct fuse_submount_lookup {
 /** Container for data related to mapping to backing file */
 struct fuse_backing {
 	struct file *file;
+	struct cred *cred;
 
 	/** refcount */
 	refcount_t count;
@@ -897,6 +898,11 @@ struct fuse_conn {
 
 	/* New writepages go into this bucket */
 	struct fuse_sync_bucket __rcu *curr_bucket;
+
+#ifdef CONFIG_FUSE_PASSTHROUGH
+	/** IDR for backing files ids */
+	struct idr backing_files_map;
+#endif
 };
 
 /*
@@ -1409,5 +1415,9 @@ static inline struct fuse_backing *fuse_inode_backing_set(struct fuse_inode *fi,
 
 struct fuse_backing *fuse_backing_get(struct fuse_backing *fb);
 void fuse_backing_put(struct fuse_backing *fb);
+void fuse_backing_files_init(struct fuse_conn *fc);
+void fuse_backing_files_free(struct fuse_conn *fc);
+int fuse_backing_open(struct fuse_conn *fc, struct fuse_backing_map *map);
+int fuse_backing_close(struct fuse_conn *fc, int backing_id);
 
 #endif /* _FS_FUSE_I_H */
