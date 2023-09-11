@@ -17,13 +17,6 @@
 		stdout-path = "serial0";
 	};
 
-	reserved-memory {
-		mpss_mem: mpss@86800000 {
-			reg = <0x0 0x86800000 0x0 0x5500000>;
-			no-map;
-		};
-	};
-
 	gpio-keys {
 		compatible = "gpio-keys";
 
@@ -89,6 +82,10 @@
 
 &mpss {
 	status = "okay";
+};
+
+&mpss_mem {
+	reg = <0x0 0x86800000 0x0 0x5500000>;
 };
 
 &pm8916_usbin {
