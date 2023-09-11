@@ -97,7 +97,7 @@ static struct snd_soc_jack_pin card_headset_pins[] = {
 
 static int avs_es8336_codec_init(struct snd_soc_pcm_runtime *runtime)
 {
-	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(runtime, 0);
+	struct snd_soc_dai *codec_dai = snd_soc_rtd_to_codec(runtime, 0);
 	struct snd_soc_component *component = codec_dai->component;
 	struct snd_soc_card *card = runtime->card;
 	struct snd_soc_jack_pin *pins;
@@ -138,7 +138,7 @@ static int avs_es8336_codec_init(struct snd_soc_pcm_runtime *runtime)
 static void avs_es8336_codec_exit(struct snd_soc_pcm_runtime *runtime)
 {
 	struct avs_card_drvdata *data = snd_soc_card_get_drvdata(runtime->card);
-	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(runtime, 0);
+	struct snd_soc_dai *codec_dai = snd_soc_rtd_to_codec(runtime, 0);
 
 	snd_soc_component_set_jack(codec_dai->component, NULL, NULL);
 	gpiod_put(data->gpiod);
@@ -147,8 +147,8 @@ static void avs_es8336_codec_exit(struct snd_soc_pcm_runtime *runtime)
 static int avs_es8336_hw_params(struct snd_pcm_substream *substream,
 				struct snd_pcm_hw_params *params)
 {
-	struct snd_soc_pcm_runtime *runtime = asoc_substream_to_rtd(substream);
-	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(runtime, 0);
+	struct snd_soc_pcm_runtime *runtime = snd_soc_substream_to_rtd(substream);
+	struct snd_soc_dai *codec_dai = snd_soc_rtd_to_codec(runtime, 0);
 	int clk_freq;
 	int ret;
 
