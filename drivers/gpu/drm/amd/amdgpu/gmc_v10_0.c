@@ -145,7 +145,8 @@ static int gmc_v10_0_process_interrupt(struct amdgpu_device *adev,
 		 * the new fast GRBM interface.
 		 */
 		if ((entry->vmid_src == AMDGPU_GFXHUB(0)) &&
-		    (adev->ip_versions[GC_HWIP][0] < IP_VERSION(10, 3, 0)))
+		    (amdgpu_ip_version(adev, GC_HWIP, 0) <
+		     IP_VERSION(10, 3, 0)))
 			RREG32(hub->vm_l2_pro_fault_status);
 
 		status = RREG32(hub->vm_l2_pro_fault_status);
@@ -278,7 +279,7 @@ static void gmc_v10_0_flush_vm_hub(struct amdgpu_device *adev, uint32_t vmid,
 	 * to avoid a false ACK due to the new fast GRBM interface.
 	 */
 	if ((vmhub == AMDGPU_GFXHUB(0)) &&
-	    (adev->ip_versions[GC_HWIP][0] < IP_VERSION(10, 3, 0)))
+	    (amdgpu_ip_version(adev, GC_HWIP, 0) < IP_VERSION(10, 3, 0)))
 		RREG32_RLC_NO_KIQ(hub->vm_inv_eng0_req +
 				  hub->eng_distance * eng, hub_ip);
 
@@ -680,7 +681,7 @@ static void gmc_v10_0_set_gmc_funcs(struct amdgpu_device *adev)
 
 static void gmc_v10_0_set_umc_funcs(struct amdgpu_device *adev)
 {
-	switch (adev->ip_versions[UMC_HWIP][0]) {
+	switch (amdgpu_ip_version(adev, UMC_HWIP, 0)) {
 	case IP_VERSION(8, 7, 0):
 		adev->umc.max_ras_err_cnt_per_query = UMC_V8_7_TOTAL_CHANNEL_NUM;
 		adev->umc.channel_inst_num = UMC_V8_7_CHANNEL_INSTANCE_NUM;
@@ -697,7 +698,7 @@ static void gmc_v10_0_set_umc_funcs(struct amdgpu_device *adev)
 
 static void gmc_v10_0_set_mmhub_funcs(struct amdgpu_device *adev)
 {
-	switch (adev->ip_versions[MMHUB_HWIP][0]) {
+	switch (amdgpu_ip_version(adev, MMHUB_HWIP, 0)) {
 	case IP_VERSION(2, 3, 0):
 	case IP_VERSION(2, 4, 0):
 	case IP_VERSION(2, 4, 1):
@@ -711,7 +712,7 @@ static void gmc_v10_0_set_mmhub_funcs(struct amdgpu_device *adev)
 
 static void gmc_v10_0_set_gfxhub_funcs(struct amdgpu_device *adev)
 {
-	switch (adev->ip_versions[GC_HWIP][0]) {
+	switch (amdgpu_ip_version(adev, GC_HWIP, 0)) {
 	case IP_VERSION(10, 3, 0):
 	case IP_VERSION(10, 3, 2):
 	case IP_VERSION(10, 3, 1):
@@ -825,7 +826,7 @@ static int gmc_v10_0_mc_init(struct amdgpu_device *adev)
 
 	/* set the gart size */
 	if (amdgpu_gart_size == -1) {
-		switch (adev->ip_versions[GC_HWIP][0]) {
+		switch (amdgpu_ip_version(adev, GC_HWIP, 0)) {
 		default:
 			adev->gmc.gart_size = 512ULL << 20;
 			break;
@@ -892,7 +893,7 @@ static int gmc_v10_0_sw_init(void *handle)
 		adev->gmc.vram_vendor = vram_vendor;
 	}
 
-	switch (adev->ip_versions[GC_HWIP][0]) {
+	switch (amdgpu_ip_version(adev, GC_HWIP, 0)) {
 	case IP_VERSION(10, 3, 0):
 		adev->gmc.mall_size = 128 * 1024 * 1024;
 		break;
@@ -910,7 +911,7 @@ static int gmc_v10_0_sw_init(void *handle)
 		break;
 	}
 
-	switch (adev->ip_versions[GC_HWIP][0]) {
+	switch (amdgpu_ip_version(adev, GC_HWIP, 0)) {
 	case IP_VERSION(10, 1, 10):
 	case IP_VERSION(10, 1, 1):
 	case IP_VERSION(10, 1, 2):
@@ -1195,7 +1196,8 @@ static int gmc_v10_0_set_clockgating_state(void *handle,
 	 * is a new problem observed at DF 3.0.3, however with the same suspend sequence not
 	 * seen any issue on the DF 3.0.2 series platform.
 	 */
-	if (adev->in_s0ix && adev->ip_versions[DF_HWIP][0] > IP_VERSION(3, 0, 2)) {
+	if (adev->in_s0ix &&
+	    amdgpu_ip_version(adev, DF_HWIP, 0) > IP_VERSION(3, 0, 2)) {
 		dev_dbg(adev->dev, "keep mmhub clock gating being enabled for s0ix\n");
 		return 0;
 	}
@@ -1204,7 +1206,7 @@ static int gmc_v10_0_set_clockgating_state(void *handle,
 	if (r)
 		return r;
 
-	if (adev->ip_versions[ATHUB_HWIP][0] >= IP_VERSION(2, 1, 0))
+	if (amdgpu_ip_version(adev, ATHUB_HWIP, 0) >= IP_VERSION(2, 1, 0))
 		return athub_v2_1_set_clockgating(adev, state);
 	else
 		return athub_v2_0_set_clockgating(adev, state);
@@ -1214,13 +1216,13 @@ static void gmc_v10_0_get_clockgating_state(void *handle, u64 *flags)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	if (adev->ip_versions[GC_HWIP][0] == IP_VERSION(10, 1, 3) ||
-	    adev->ip_versions[GC_HWIP][0] == IP_VERSION(10, 1, 4))
+	if (amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(10, 1, 3) ||
+	    amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(10, 1, 4))
 		return;
 
 	adev->mmhub.funcs->get_clockgating(adev, flags);
 
-	if (adev->ip_versions[ATHUB_HWIP][0] >= IP_VERSION(2, 1, 0))
+	if (amdgpu_ip_version(adev, ATHUB_HWIP, 0) >= IP_VERSION(2, 1, 0))
 		athub_v2_1_get_clockgating(adev, flags);
 	else
 		athub_v2_0_get_clockgating(adev, flags);

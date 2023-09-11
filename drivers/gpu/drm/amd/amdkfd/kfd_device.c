@@ -65,7 +65,7 @@ static int kfd_resume(struct kfd_node *kfd);
 
 static void kfd_device_info_set_sdma_info(struct kfd_dev *kfd)
 {
-	uint32_t sdma_version = kfd->adev->ip_versions[SDMA0_HWIP][0];
+	uint32_t sdma_version = amdgpu_ip_version(kfd->adev, SDMA0_HWIP, 0);
 
 	switch (sdma_version) {
 	case IP_VERSION(4, 0, 0):/* VEGA10 */
@@ -282,7 +282,7 @@ struct kfd_dev *kgd2kfd_probe(struct amdgpu_device *adev, bool vf)
 			f2g = &gfx_v8_kfd2kgd;
 		break;
 	default:
-		switch (adev->ip_versions[GC_HWIP][0]) {
+		switch (amdgpu_ip_version(adev, GC_HWIP, 0)) {
 		/* Vega 10 */
 		case IP_VERSION(9, 0, 1):
 			gfx_target_version = 90000;
@@ -427,9 +427,11 @@ struct kfd_dev *kgd2kfd_probe(struct amdgpu_device *adev, bool vf)
 	}
 
 	if (!f2g) {
-		if (adev->ip_versions[GC_HWIP][0])
-			dev_err(kfd_device, "GC IP %06x %s not supported in kfd\n",
-				adev->ip_versions[GC_HWIP][0], vf ? "VF" : "");
+		if (amdgpu_ip_version(adev, GC_HWIP, 0))
+			dev_err(kfd_device,
+				"GC IP %06x %s not supported in kfd\n",
+				amdgpu_ip_version(adev, GC_HWIP, 0),
+				vf ? "VF" : "");
 		else
 			dev_err(kfd_device, "%s %s not supported in kfd\n",
 				amdgpu_asic_name[adev->asic_type], vf ? "VF" : "");

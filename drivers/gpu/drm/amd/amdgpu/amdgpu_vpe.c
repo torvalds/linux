@@ -123,7 +123,7 @@ static int vpe_early_init(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	struct amdgpu_vpe *vpe = &adev->vpe;
 
-	switch (adev->ip_versions[VPE_HWIP][0]) {
+	switch (amdgpu_ip_version(adev, VPE_HWIP, 0)) {
 	case IP_VERSION(6, 1, 0):
 		vpe_v6_1_set_funcs(vpe);
 		break;

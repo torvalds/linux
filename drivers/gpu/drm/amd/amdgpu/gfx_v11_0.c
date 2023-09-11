@@ -288,7 +288,7 @@ static void gfx_v11_0_set_kiq_pm4_funcs(struct amdgpu_device *adev)
 
 static void gfx_v11_0_init_golden_registers(struct amdgpu_device *adev)
 {
-	switch (adev->ip_versions[GC_HWIP][0]) {
+	switch (amdgpu_ip_version(adev, GC_HWIP, 0)) {
 	case IP_VERSION(11, 0, 1):
 	case IP_VERSION(11, 0, 4):
 		soc15_program_register_sequence(adev,
@@ -493,7 +493,7 @@ out:
 
 static void gfx_v11_0_check_fw_cp_gfx_shadow(struct amdgpu_device *adev)
 {
-	switch (adev->ip_versions[GC_HWIP][0]) {
+	switch (amdgpu_ip_version(adev, GC_HWIP, 0)) {
 	case IP_VERSION(11, 0, 0):
 	case IP_VERSION(11, 0, 2):
 	case IP_VERSION(11, 0, 3):
@@ -884,8 +884,7 @@ static const struct amdgpu_gfx_funcs gfx_v11_0_gfx_funcs = {
 
 static int gfx_v11_0_gpu_early_init(struct amdgpu_device *adev)
 {
-
-	switch (adev->ip_versions[GC_HWIP][0]) {
+	switch (amdgpu_ip_version(adev, GC_HWIP, 0)) {
 	case IP_VERSION(11, 0, 0):
 	case IP_VERSION(11, 0, 2):
 		adev->gfx.config.max_hw_contexts = 8;
@@ -1332,7 +1331,7 @@ static int gfx_v11_0_sw_init(void *handle)
 
 	adev->gfxhub.funcs->init(adev);
 
-	switch (adev->ip_versions[GC_HWIP][0]) {
+	switch (amdgpu_ip_version(adev, GC_HWIP, 0)) {
 	case IP_VERSION(11, 0, 0):
 	case IP_VERSION(11, 0, 2):
 	case IP_VERSION(11, 0, 3):
@@ -1364,8 +1363,8 @@ static int gfx_v11_0_sw_init(void *handle)
 	}
 
 	/* Enable CG flag in one VF mode for enabling RLC safe mode enter/exit */
-	if (adev->ip_versions[GC_HWIP][0] == IP_VERSION(11, 0, 3) &&
-		amdgpu_sriov_is_pp_one_vf(adev))
+	if (amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(11, 0, 3) &&
+	    amdgpu_sriov_is_pp_one_vf(adev))
 		adev->cg_flags = AMD_CG_SUPPORT_GFX_CGCG;
 
 	/* EOP Event */
@@ -2592,9 +2591,11 @@ static int gfx_v11_0_wait_for_rlc_autoload_complete(struct amdgpu_device *adev)
 	for (i = 0; i < adev->usec_timeout; i++) {
 		cp_status = RREG32_SOC15(GC, 0, regCP_STAT);
 
-		if (adev->ip_versions[GC_HWIP][0] == IP_VERSION(11, 0, 1) ||
-				adev->ip_versions[GC_HWIP][0] == IP_VERSION(11, 0, 4) ||
-				adev->ip_versions[GC_HWIP][0] == IP_VERSION(11, 5, 0))
+		if (amdgpu_ip_version(adev, GC_HWIP, 0) ==
+			    IP_VERSION(11, 0, 1) ||
+		    amdgpu_ip_version(adev, GC_HWIP, 0) ==
+			    IP_VERSION(11, 0, 4) ||
+		    amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(11, 5, 0))
 			bootload_status = RREG32_SOC15(GC, 0,
 					regRLC_RLCS_BOOTLOAD_STATUS_gc_11_0_1);
 		else
@@ -5025,7 +5026,7 @@ static void gfx_v11_cntl_power_gating(struct amdgpu_device *adev, bool enable)
 
 	// Program RLC_PG_DELAY3 for CGPG hysteresis
 	if (enable && (adev->pg_flags & AMD_PG_SUPPORT_GFX_PG)) {
-		switch (adev->ip_versions[GC_HWIP][0]) {
+		switch (amdgpu_ip_version(adev, GC_HWIP, 0)) {
 		case IP_VERSION(11, 0, 1):
 		case IP_VERSION(11, 0, 4):
 			WREG32_SOC15(GC, 0, regRLC_PG_DELAY_3, RLC_PG_DELAY_3_DEFAULT_GC_11_0_1);
@@ -5054,7 +5055,7 @@ static int gfx_v11_0_set_powergating_state(void *handle,
 	if (amdgpu_sriov_vf(adev))
 		return 0;
 
-	switch (adev->ip_versions[GC_HWIP][0]) {
+	switch (amdgpu_ip_version(adev, GC_HWIP, 0)) {
 	case IP_VERSION(11, 0, 0):
 	case IP_VERSION(11, 0, 2):
 	case IP_VERSION(11, 0, 3):
@@ -5086,7 +5087,7 @@ static int gfx_v11_0_set_clockgating_state(void *handle,
 	if (amdgpu_sriov_vf(adev))
 	        return 0;
 
-	switch (adev->ip_versions[GC_HWIP][0]) {
+	switch (amdgpu_ip_version(adev, GC_HWIP, 0)) {
 	case IP_VERSION(11, 0, 0):
 	case IP_VERSION(11, 0, 1):
 	case IP_VERSION(11, 0, 2):

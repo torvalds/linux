@@ -677,7 +677,7 @@ void kgd_gfx_v9_set_wave_launch_stall(struct amdgpu_device *adev,
 	int i;
 	uint32_t data = RREG32(SOC15_REG_OFFSET(GC, 0, mmSPI_GDBG_WAVE_CNTL));
 
-	if (adev->ip_versions[GC_HWIP][0] == IP_VERSION(9, 4, 1))
+	if (amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(9, 4, 1))
 		data = REG_SET_FIELD(data, SPI_GDBG_WAVE_CNTL, STALL_VMID,
 							stall ? 1 << vmid : 0);
 	else

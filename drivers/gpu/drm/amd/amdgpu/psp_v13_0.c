@@ -79,7 +79,7 @@ static int psp_v13_0_init_microcode(struct psp_context *psp)
 
 	amdgpu_ucode_ip_version_decode(adev, MP0_HWIP, ucode_prefix, sizeof(ucode_prefix));
 
-	switch (adev->ip_versions[MP0_HWIP][0]) {
+	switch (amdgpu_ip_version(adev, MP0_HWIP, 0)) {
 	case IP_VERSION(13, 0, 2):
 		err = psp_init_sos_microcode(psp, ucode_prefix);
 		if (err)
@@ -181,7 +181,7 @@ static int psp_v13_0_wait_for_bootloader_steady_state(struct psp_context *psp)
 {
 	struct amdgpu_device *adev = psp->adev;
 
-	if (adev->ip_versions[MP0_HWIP][0] == IP_VERSION(13, 0, 6)) {
+	if (amdgpu_ip_version(adev, MP0_HWIP, 0) == IP_VERSION(13, 0, 6)) {
 		psp_v13_0_wait_for_vmbx_ready(psp);
 
 		return psp_v13_0_wait_for_bootloader(psp);
@@ -728,7 +728,7 @@ static int psp_v13_0_fatal_error_recovery_quirk(struct psp_context *psp)
 {
 	struct amdgpu_device *adev = psp->adev;
 
-	if (adev->ip_versions[MP0_HWIP][0] == IP_VERSION(13, 0, 10)) {
+	if (amdgpu_ip_version(adev, MP0_HWIP, 0) == IP_VERSION(13, 0, 10)) {
 		uint32_t  reg_data;
 		/* MP1 fatal error: trigger PSP dram read to unhalt PSP
 		 * during MP1 triggered sync flood.

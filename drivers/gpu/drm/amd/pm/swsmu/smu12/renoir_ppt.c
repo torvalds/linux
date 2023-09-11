@@ -1198,8 +1198,12 @@ static int renoir_get_smu_metrics_data(struct smu_context *smu,
 		*value = metrics->AverageUvdActivity / 100;
 		break;
 	case METRICS_CURR_SOCKETPOWER:
-		if (((adev->ip_versions[MP1_HWIP][0] == IP_VERSION(12, 0, 1)) && (adev->pm.fw_version >= 0x40000f)) ||
-		((adev->ip_versions[MP1_HWIP][0] == IP_VERSION(12, 0, 0)) && (adev->pm.fw_version >= 0x373200)))
+		if (((amdgpu_ip_version(adev, MP1_HWIP, 0) ==
+		      IP_VERSION(12, 0, 1)) &&
+		     (adev->pm.fw_version >= 0x40000f)) ||
+		    ((amdgpu_ip_version(adev, MP1_HWIP, 0) ==
+		      IP_VERSION(12, 0, 0)) &&
+		     (adev->pm.fw_version >= 0x373200)))
 			*value = metrics->CurrentSocketPower << 8;
 		else
 			*value = (metrics->CurrentSocketPower << 8) / 1000;

@@ -73,12 +73,16 @@
 
 #define SMU_11_0_7_GFX_BUSY_THRESHOLD 15
 
-#define GET_PPTABLE_MEMBER(field, member) do {\
-	if (smu->adev->ip_versions[MP1_HWIP][0] == IP_VERSION(11, 0, 13))\
-		(*member) = (smu->smu_table.driver_pptable + offsetof(PPTable_beige_goby_t, field));\
-	else\
-		(*member) = (smu->smu_table.driver_pptable + offsetof(PPTable_t, field));\
-} while(0)
+#define GET_PPTABLE_MEMBER(field, member)                                    \
+	do {                                                                 \
+		if (amdgpu_ip_version(smu->adev, MP1_HWIP, 0) ==             \
+		    IP_VERSION(11, 0, 13))                                   \
+			(*member) = (smu->smu_table.driver_pptable +         \
+				     offsetof(PPTable_beige_goby_t, field)); \
+		else                                                         \
+			(*member) = (smu->smu_table.driver_pptable +         \
+				     offsetof(PPTable_t, field));            \
+	} while (0)
 
 /* STB FIFO depth is in 64bit units */
 #define SIENNA_CICHLID_STB_DEPTH_UNIT_BYTES 8
@@ -91,7 +95,7 @@
 
 static int get_table_size(struct smu_context *smu)
 {
-	if (smu->adev->ip_versions[MP1_HWIP][0] == IP_VERSION(11, 0, 13))
+	if (amdgpu_ip_version(smu->adev, MP1_HWIP, 0) == IP_VERSION(11, 0, 13))
 		return sizeof(PPTable_beige_goby_t);
 	else
 		return sizeof(PPTable_t);
@@ -309,7 +313,7 @@ sienna_cichlid_get_allowed_feature_mask(struct smu_context *smu,
 	}
 
 	if ((adev->pm.pp_feature & PP_GFX_DCS_MASK) &&
-	    (adev->ip_versions[MP1_HWIP][0] > IP_VERSION(11, 0, 7)) &&
+	    (amdgpu_ip_version(adev, MP1_HWIP, 0) > IP_VERSION(11, 0, 7)) &&
 	    !(adev->flags & AMD_IS_APU))
 		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_GFX_DCS_BIT);
 
@@ -434,7 +438,7 @@ static int sienna_cichlid_append_powerplay_table(struct smu_context *smu)
 	PPTable_beige_goby_t *ppt_beige_goby;
 	PPTable_t *ppt;
 
-	if (smu->adev->ip_versions[MP1_HWIP][0] == IP_VERSION(11, 0, 13))
+	if (amdgpu_ip_version(smu->adev, MP1_HWIP, 0) == IP_VERSION(11, 0, 13))
 		ppt_beige_goby = smu->smu_table.driver_pptable;
 	else
 		ppt = smu->smu_table.driver_pptable;
@@ -447,7 +451,7 @@ static int sienna_cichlid_append_powerplay_table(struct smu_context *smu)
 	if (ret)
 		return ret;
 
-	if (smu->adev->ip_versions[MP1_HWIP][0] == IP_VERSION(11, 0, 13))
+	if (amdgpu_ip_version(smu->adev, MP1_HWIP, 0) == IP_VERSION(11, 0, 13))
 		smu_memcpy_trailing(ppt_beige_goby, I2cControllers, BoardReserved,
 				    smc_dpm_table, I2cControllers);
 	else
@@ -725,7 +729,7 @@ static int sienna_cichlid_get_smu_metrics_data(struct smu_context *smu,
 	uint32_t apu_percent = 0;
 	uint32_t dgpu_percent = 0;
 
-	switch (smu->adev->ip_versions[MP1_HWIP][0]) {
+	switch (amdgpu_ip_version(smu->adev, MP1_HWIP, 0)) {
 	case IP_VERSION(11, 0, 7):
 		if (smu->smc_fw_version >= 0x3A4900)
 			use_metrics_v3 = true;
@@ -1385,8 +1389,9 @@ static int sienna_cichlid_print_clk_levels(struct smu_context *smu,
 		 * and onwards SMU firmwares.
 		 */
 		smu_cmn_get_smc_version(smu, NULL, &smu_version);
-		if ((adev->ip_versions[MP1_HWIP][0] == IP_VERSION(11, 0, 7)) &&
-		     (smu_version < 0x003a2900))
+		if ((amdgpu_ip_version(adev, MP1_HWIP, 0) ==
+		     IP_VERSION(11, 0, 7)) &&
+		    (smu_version < 0x003a2900))
 			break;
 
 		size += sysfs_emit_at(buf, size, "OD_VDDGFX_OFFSET:\n");
@@ -1494,7 +1499,7 @@ static int sienna_cichlid_populate_umd_state_clk(struct smu_context *smu)
 	pstate_table->socclk_pstate.min = soc_table->min;
 	pstate_table->socclk_pstate.peak = soc_table->max;
 
-	switch (adev->ip_versions[MP1_HWIP][0]) {
+	switch (amdgpu_ip_version(adev, MP1_HWIP, 0)) {
 	case IP_VERSION(11, 0, 7):
 	case IP_VERSION(11, 0, 11):
 		pstate_table->gfxclk_pstate.standard = SIENNA_CICHLID_UMD_PSTATE_PROFILING_GFXCLK;
@@ -1945,7 +1950,8 @@ static int sienna_cichlid_read_sensor(struct smu_context *smu,
 		*size = 4;
 		break;
 	case AMDGPU_PP_SENSOR_SS_APU_SHARE:
-		if (adev->ip_versions[MP1_HWIP][0] != IP_VERSION(11, 0, 7)) {
+		if (amdgpu_ip_version(adev, MP1_HWIP, 0) !=
+		    IP_VERSION(11, 0, 7)) {
 			ret = sienna_cichlid_get_smu_metrics_data(smu,
 						METRICS_SS_APU_SHARE, (uint32_t *)data);
 			*size = 4;
@@ -1954,7 +1960,8 @@ static int sienna_cichlid_read_sensor(struct smu_context *smu,
 		}
 		break;
 	case AMDGPU_PP_SENSOR_SS_DGPU_SHARE:
-		if (adev->ip_versions[MP1_HWIP][0] != IP_VERSION(11, 0, 7)) {
+		if (amdgpu_ip_version(adev, MP1_HWIP, 0) !=
+		    IP_VERSION(11, 0, 7)) {
 			ret = sienna_cichlid_get_smu_metrics_data(smu,
 						METRICS_SS_DGPU_SHARE, (uint32_t *)data);
 			*size = 4;
@@ -1978,7 +1985,7 @@ static void sienna_cichlid_get_unique_id(struct smu_context *smu)
 
 	/* Only supported as of version 0.58.83.0 and only on Sienna Cichlid */
 	if (smu->smc_fw_version < 0x3A5300 ||
-	    smu->adev->ip_versions[MP1_HWIP][0] != IP_VERSION(11, 0, 7))
+	    amdgpu_ip_version(smu->adev, MP1_HWIP, 0) != IP_VERSION(11, 0, 7))
 		return;
 
 	if (sienna_cichlid_get_smu_metrics_data(smu, METRICS_UNIQUE_ID_UPPER32, &upper32))
@@ -2148,8 +2155,8 @@ static void sienna_cichlid_dump_od_table(struct smu_context *smu,
 							od_table->UclkFmax);
 
 	smu_cmn_get_smc_version(smu, NULL, &smu_version);
-	if (!((adev->ip_versions[MP1_HWIP][0] == IP_VERSION(11, 0, 7)) &&
-	       (smu_version < 0x003a2900)))
+	if (!((amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(11, 0, 7)) &&
+	      (smu_version < 0x003a2900)))
 		dev_dbg(smu->adev->dev, "OD: VddGfxOffset: %d\n", od_table->VddGfxOffset);
 }
 
@@ -2381,8 +2388,9 @@ static int sienna_cichlid_od_edit_dpm_table(struct smu_context *smu,
 		 * and onwards SMU firmwares.
 		 */
 		smu_cmn_get_smc_version(smu, NULL, &smu_version);
-		if ((adev->ip_versions[MP1_HWIP][0] == IP_VERSION(11, 0, 7)) &&
-		     (smu_version < 0x003a2900)) {
+		if ((amdgpu_ip_version(adev, MP1_HWIP, 0) ==
+		     IP_VERSION(11, 0, 7)) &&
+		    (smu_version < 0x003a2900)) {
 			dev_err(smu->adev->dev, "OD GFX Voltage offset functionality is supported "
 						"only by 58.41.0 and onwards SMU firmwares!\n");
 			return -EOPNOTSUPP;
@@ -3105,7 +3113,8 @@ static void sienna_cichlid_dump_pptable(struct smu_context *smu)
 	PPTable_t *pptable = table_context->driver_pptable;
 	int i;
 
-	if (smu->adev->ip_versions[MP1_HWIP][0] == IP_VERSION(11, 0, 13)) {
+	if (amdgpu_ip_version(smu->adev, MP1_HWIP, 0) ==
+	    IP_VERSION(11, 0, 13)) {
 		beige_goby_dump_pptable(smu);
 		return;
 	}
@@ -3910,7 +3919,7 @@ static ssize_t sienna_cichlid_get_gpu_metrics(struct smu_context *smu,
 	uint16_t average_gfx_activity;
 	int ret = 0;
 
-	switch (smu->adev->ip_versions[MP1_HWIP][0]) {
+	switch (amdgpu_ip_version(smu->adev, MP1_HWIP, 0)) {
 	case IP_VERSION(11, 0, 7):
 		if (smu->smc_fw_version >= 0x3A4900)
 			use_metrics_v3 = true;
@@ -4026,8 +4035,10 @@ static ssize_t sienna_cichlid_get_gpu_metrics(struct smu_context *smu,
 	gpu_metrics->current_fan_speed = use_metrics_v3 ? metrics_v3->CurrFanSpeed :
 		use_metrics_v2 ? metrics_v2->CurrFanSpeed : metrics->CurrFanSpeed;
 
-	if (((adev->ip_versions[MP1_HWIP][0] == IP_VERSION(11, 0, 7)) && smu->smc_fw_version > 0x003A1E00) ||
-	      ((adev->ip_versions[MP1_HWIP][0] == IP_VERSION(11, 0, 11)) && smu->smc_fw_version > 0x00410400)) {
+	if (((amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(11, 0, 7)) &&
+	     smu->smc_fw_version > 0x003A1E00) ||
+	    ((amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(11, 0, 11)) &&
+	     smu->smc_fw_version > 0x00410400)) {
 		gpu_metrics->pcie_link_width = use_metrics_v3 ? metrics_v3->PcieWidth :
 			use_metrics_v2 ? metrics_v2->PcieWidth : metrics->PcieWidth;
 		gpu_metrics->pcie_link_speed = link_speed[use_metrics_v3 ? metrics_v3->PcieRate :
@@ -4253,7 +4264,7 @@ static int sienna_cichlid_get_default_config_table_settings(struct smu_context *
 	table->gfx_activity_average_tau = 10;
 	table->mem_activity_average_tau = 10;
 	table->socket_power_average_tau = 100;
-	if (adev->ip_versions[MP1_HWIP][0] != IP_VERSION(11, 0, 7))
+	if (amdgpu_ip_version(adev, MP1_HWIP, 0) != IP_VERSION(11, 0, 7))
 		table->apu_socket_power_average_tau = 100;
 
 	return 0;

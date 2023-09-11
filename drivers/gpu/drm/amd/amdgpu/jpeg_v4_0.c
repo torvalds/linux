@@ -831,7 +831,7 @@ static struct amdgpu_jpeg_ras jpeg_v4_0_ras = {
 
 static void jpeg_v4_0_set_ras_funcs(struct amdgpu_device *adev)
 {
-	switch (adev->ip_versions[JPEG_HWIP][0]) {
+	switch (amdgpu_ip_version(adev, JPEG_HWIP, 0)) {
 	case IP_VERSION(4, 0, 0):
 		adev->jpeg.ras = &jpeg_v4_0_ras;
 		break;

@@ -580,7 +580,7 @@ int amdgpu_umsch_mm_init_microcode(struct amdgpu_umsch_mm *umsch)
 	const char *fw_name = NULL;
 	int r;
 
-	switch (adev->ip_versions[VCN_HWIP][0]) {
+	switch (amdgpu_ip_version(adev, VCN_HWIP, 0)) {
 	case IP_VERSION(4, 0, 5):
 		fw_name = "amdgpu/umsch_mm_4_0_0.bin";
 		break;
@@ -757,7 +757,7 @@ static int umsch_mm_early_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	switch (adev->ip_versions[VCN_HWIP][0]) {
+	switch (amdgpu_ip_version(adev, VCN_HWIP, 0)) {
 	case IP_VERSION(4, 0, 5):
 		umsch_mm_v4_0_set_funcs(&adev->umsch_mm);
 		break;

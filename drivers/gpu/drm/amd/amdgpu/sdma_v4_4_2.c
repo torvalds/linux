@@ -132,7 +132,8 @@ static int sdma_v4_4_2_init_microcode(struct amdgpu_device *adev)
 	int ret, i;
 
 	for (i = 0; i < adev->sdma.num_instances; i++) {
-		if (adev->ip_versions[SDMA0_HWIP][0] == IP_VERSION(4, 4, 2)) {
+		if (amdgpu_ip_version(adev, SDMA0_HWIP, 0) ==
+		    IP_VERSION(4, 4, 2)) {
 			ret = amdgpu_sdma_init_microcode(adev, 0, true);
 			break;
 		} else {
@@ -1231,7 +1232,7 @@ static void sdma_v4_4_2_ring_emit_reg_wait(struct amdgpu_ring *ring, uint32_t re
 
 static bool sdma_v4_4_2_fw_support_paging_queue(struct amdgpu_device *adev)
 {
-	switch (adev->ip_versions[SDMA0_HWIP][0]) {
+	switch (amdgpu_ip_version(adev, SDMA0_HWIP, 0)) {
 	case IP_VERSION(4, 4, 2):
 		return false;
 	default:
@@ -1401,7 +1402,7 @@ static int sdma_v4_4_2_sw_fini(void *handle)
 			amdgpu_ring_fini(&adev->sdma.instance[i].page);
 	}
 
-	if (adev->ip_versions[SDMA0_HWIP][0] == IP_VERSION(4, 4, 2))
+	if (amdgpu_ip_version(adev, SDMA0_HWIP, 0) == IP_VERSION(4, 4, 2))
 		amdgpu_sdma_destroy_inst_ctx(adev, true);
 	else
 		amdgpu_sdma_destroy_inst_ctx(adev, false);

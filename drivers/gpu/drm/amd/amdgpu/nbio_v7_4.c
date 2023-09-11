@@ -347,7 +347,7 @@ static void nbio_v7_4_init_registers(struct amdgpu_device *adev)
 		adev->rmmio_remap.reg_offset = SOC15_REG_OFFSET(NBIO, 0,
 			mmBIF_BX_DEV0_EPF0_VF0_HDP_MEM_COHERENCY_FLUSH_CNTL) << 2;
 
-	if (adev->ip_versions[NBIO_HWIP][0] == IP_VERSION(7, 4, 4) &&
+	if (amdgpu_ip_version(adev, NBIO_HWIP, 0) == IP_VERSION(7, 4, 4) &&
 	    !amdgpu_sriov_vf(adev)) {
 		baco_cntl = RREG32_SOC15(NBIO, 0, mmBACO_CNTL);
 		if (baco_cntl &
@@ -702,7 +702,7 @@ static void nbio_v7_4_program_aspm(struct amdgpu_device *adev)
 #ifdef CONFIG_PCIEASPM
 	uint32_t def, data;
 
-	if (adev->ip_versions[NBIO_HWIP][0] == IP_VERSION(7, 4, 4))
+	if (amdgpu_ip_version(adev, NBIO_HWIP, 0) == IP_VERSION(7, 4, 4))
 		return;
 
 	def = data = RREG32_PCIE(smnPCIE_LC_CNTL);

@@ -501,18 +501,22 @@ static int amdgpu_hw_ip_info(struct amdgpu_device *adev,
 	if (adev->asic_type >= CHIP_VEGA10) {
 		switch (type) {
 		case AMD_IP_BLOCK_TYPE_GFX:
-			result->ip_discovery_version = adev->ip_versions[GC_HWIP][0];
+			result->ip_discovery_version =
+				amdgpu_ip_version(adev, GC_HWIP, 0);
 			break;
 		case AMD_IP_BLOCK_TYPE_SDMA:
-			result->ip_discovery_version = adev->ip_versions[SDMA0_HWIP][0];
+			result->ip_discovery_version =
+				amdgpu_ip_version(adev, SDMA0_HWIP, 0);
 			break;
 		case AMD_IP_BLOCK_TYPE_UVD:
 		case AMD_IP_BLOCK_TYPE_VCN:
 		case AMD_IP_BLOCK_TYPE_JPEG:
-			result->ip_discovery_version = adev->ip_versions[UVD_HWIP][0];
+			result->ip_discovery_version =
+				amdgpu_ip_version(adev, UVD_HWIP, 0);
 			break;
 		case AMD_IP_BLOCK_TYPE_VCE:
-			result->ip_discovery_version = adev->ip_versions[VCE_HWIP][0];
+			result->ip_discovery_version =
+				amdgpu_ip_version(adev, VCE_HWIP, 0);
 			break;
 		default:
 			result->ip_discovery_version = 0;

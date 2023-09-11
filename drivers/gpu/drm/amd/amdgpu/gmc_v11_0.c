@@ -588,7 +588,7 @@ static void gmc_v11_0_set_gmc_funcs(struct amdgpu_device *adev)
 
 static void gmc_v11_0_set_umc_funcs(struct amdgpu_device *adev)
 {
-	switch (adev->ip_versions[UMC_HWIP][0]) {
+	switch (amdgpu_ip_version(adev, UMC_HWIP, 0)) {
 	case IP_VERSION(8, 10, 0):
 		adev->umc.channel_inst_num = UMC_V8_10_CHANNEL_INSTANCE_NUM;
 		adev->umc.umc_inst_num = UMC_V8_10_UMC_INSTANCE_NUM;
@@ -611,7 +611,7 @@ static void gmc_v11_0_set_umc_funcs(struct amdgpu_device *adev)
 
 static void gmc_v11_0_set_mmhub_funcs(struct amdgpu_device *adev)
 {
-	switch (adev->ip_versions[MMHUB_HWIP][0]) {
+	switch (amdgpu_ip_version(adev, MMHUB_HWIP, 0)) {
 	case IP_VERSION(3, 0, 1):
 		adev->mmhub.funcs = &mmhub_v3_0_1_funcs;
 		break;
@@ -629,7 +629,7 @@ static void gmc_v11_0_set_mmhub_funcs(struct amdgpu_device *adev)
 
 static void gmc_v11_0_set_gfxhub_funcs(struct amdgpu_device *adev)
 {
-	switch (adev->ip_versions[GC_HWIP][0]) {
+	switch (amdgpu_ip_version(adev, GC_HWIP, 0)) {
 	case IP_VERSION(11, 0, 3):
 		adev->gfxhub.funcs = &gfxhub_v3_0_3_funcs;
 		break;
@@ -782,7 +782,7 @@ static int gmc_v11_0_sw_init(void *handle)
 	adev->gmc.vram_type = vram_type;
 	adev->gmc.vram_vendor = vram_vendor;
 
-	switch (adev->ip_versions[GC_HWIP][0]) {
+	switch (amdgpu_ip_version(adev, GC_HWIP, 0)) {
 	case IP_VERSION(11, 0, 0):
 	case IP_VERSION(11, 0, 1):
 	case IP_VERSION(11, 0, 2):

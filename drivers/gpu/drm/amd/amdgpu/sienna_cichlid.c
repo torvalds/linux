@@ -36,7 +36,7 @@ static bool sienna_cichlid_is_mode2_default(struct amdgpu_reset_control *reset_c
 #if 0
 	struct amdgpu_device *adev = (struct amdgpu_device *)reset_ctl->handle;
 
-	if (adev->ip_versions[MP1_HWIP][0] == IP_VERSION(11, 0, 7) &&
+	if (amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(11, 0, 7) &&
 	    adev->pm.fw_version >= 0x3a5500 && !amdgpu_sriov_vf(adev))
 		return true;
 #endif

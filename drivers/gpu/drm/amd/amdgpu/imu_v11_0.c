@@ -353,7 +353,7 @@ static void imu_v11_0_program_rlc_ram(struct amdgpu_device *adev)
 
 	WREG32_SOC15(GC, 0, regGFX_IMU_RLC_RAM_INDEX, 0x2);
 
-	switch (adev->ip_versions[GC_HWIP][0]) {
+	switch (amdgpu_ip_version(adev, GC_HWIP, 0)) {
 	case IP_VERSION(11, 0, 0):
 		program_imu_rlc_ram(adev, imu_rlc_ram_golden_11,
 				(const u32)ARRAY_SIZE(imu_rlc_ram_golden_11));

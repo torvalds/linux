@@ -338,7 +338,7 @@ const struct nbio_hdp_flush_reg nbio_v4_3_hdp_flush_reg = {
 
 static void nbio_v4_3_init_registers(struct amdgpu_device *adev)
 {
-	if (adev->ip_versions[NBIO_HWIP][0] == IP_VERSION(4, 3, 0)) {
+	if (amdgpu_ip_version(adev, NBIO_HWIP, 0) == IP_VERSION(4, 3, 0)) {
 		uint32_t data;
 
 		data = RREG32_SOC15(NBIO, 0, regRCC_DEV0_EPF2_STRAP2);
@@ -392,8 +392,8 @@ static void nbio_v4_3_program_aspm(struct amdgpu_device *adev)
 #ifdef CONFIG_PCIEASPM
 	uint32_t def, data;
 
-	if (!(adev->ip_versions[PCIE_HWIP][0] == IP_VERSION(7, 4, 0)) &&
-	      !(adev->ip_versions[PCIE_HWIP][0] == IP_VERSION(7, 6, 0)))
+	if (!(amdgpu_ip_version(adev, PCIE_HWIP, 0) == IP_VERSION(7, 4, 0)) &&
+	    !(amdgpu_ip_version(adev, PCIE_HWIP, 0) == IP_VERSION(7, 6, 0)))
 		return;
 
 	def = data = RREG32_SOC15(NBIO, 0, regPCIE_LC_CNTL);

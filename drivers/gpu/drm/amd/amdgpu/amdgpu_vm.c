@@ -885,12 +885,12 @@ int amdgpu_vm_update_range(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 	 * heavy-weight flush TLB unconditionally.
 	 */
 	flush_tlb |= adev->gmc.xgmi.num_physical_nodes &&
-		     adev->ip_versions[GC_HWIP][0] == IP_VERSION(9, 4, 0);
+		     amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(9, 4, 0);
 
 	/*
 	 * On GFX8 and older any 8 PTE block with a valid bit set enters the TLB
 	 */
-	flush_tlb |= adev->ip_versions[GC_HWIP][0] < IP_VERSION(9, 0, 0);
+	flush_tlb |= amdgpu_ip_version(adev, GC_HWIP, 0) < IP_VERSION(9, 0, 0);
 
 	memset(&params, 0, sizeof(params));
 	params.adev = adev;

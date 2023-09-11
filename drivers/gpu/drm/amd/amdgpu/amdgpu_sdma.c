@@ -251,8 +251,11 @@ int amdgpu_sdma_init_microcode(struct amdgpu_device *adev,
 				else {
 					/* Use a single copy per SDMA firmware type. PSP uses the same instance for all
 					 * groups of SDMAs */
-					if (adev->ip_versions[SDMA0_HWIP][0] == IP_VERSION(4, 4, 2) &&
-					    adev->firmware.load_type == AMDGPU_FW_LOAD_PSP &&
+					if (amdgpu_ip_version(adev, SDMA0_HWIP,
+							      0) ==
+						    IP_VERSION(4, 4, 2) &&
+					    adev->firmware.load_type ==
+						    AMDGPU_FW_LOAD_PSP &&
 					    adev->sdma.num_inst_per_aid == i) {
 						break;
 					}

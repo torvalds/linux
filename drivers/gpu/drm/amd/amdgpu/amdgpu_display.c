@@ -766,11 +766,13 @@ static int convert_tiling_flags_to_modifier(struct amdgpu_framebuffer *afb)
 			return -EINVAL;
 		}
 
-		if (adev->ip_versions[GC_HWIP][0] >= IP_VERSION(11, 0, 0))
+		if (amdgpu_ip_version(adev, GC_HWIP, 0) >= IP_VERSION(11, 0, 0))
 			version = AMD_FMT_MOD_TILE_VER_GFX11;
-		else if (adev->ip_versions[GC_HWIP][0] >= IP_VERSION(10, 3, 0))
+		else if (amdgpu_ip_version(adev, GC_HWIP, 0) >=
+			 IP_VERSION(10, 3, 0))
 			version = AMD_FMT_MOD_TILE_VER_GFX10_RBPLUS;
-		else if (adev->ip_versions[GC_HWIP][0] >= IP_VERSION(10, 0, 0))
+		else if (amdgpu_ip_version(adev, GC_HWIP, 0) >=
+			 IP_VERSION(10, 0, 0))
 			version = AMD_FMT_MOD_TILE_VER_GFX10;
 		else
 			version = AMD_FMT_MOD_TILE_VER_GFX9;
@@ -779,13 +781,15 @@ static int convert_tiling_flags_to_modifier(struct amdgpu_framebuffer *afb)
 		case 0: /* Z microtiling */
 			return -EINVAL;
 		case 1: /* S microtiling */
-			if (adev->ip_versions[GC_HWIP][0] < IP_VERSION(11, 0, 0)) {
+			if (amdgpu_ip_version(adev, GC_HWIP, 0) <
+			    IP_VERSION(11, 0, 0)) {
 				if (!has_xor)
 					version = AMD_FMT_MOD_TILE_VER_GFX9;
 			}
 			break;
 		case 2:
-			if (adev->ip_versions[GC_HWIP][0] < IP_VERSION(11, 0, 0)) {
+			if (amdgpu_ip_version(adev, GC_HWIP, 0) <
+			    IP_VERSION(11, 0, 0)) {
 				if (!has_xor && afb->base.format->cpp[0] != 4)
 					version = AMD_FMT_MOD_TILE_VER_GFX9;
 			}
@@ -838,10 +842,12 @@ static int convert_tiling_flags_to_modifier(struct amdgpu_framebuffer *afb)
 			u64 render_dcc_offset;
 
 			/* Enable constant encode on RAVEN2 and later. */
-			bool dcc_constant_encode = (adev->asic_type > CHIP_RAVEN ||
-						   (adev->asic_type == CHIP_RAVEN &&
-						    adev->external_rev_id >= 0x81)) &&
-						    adev->ip_versions[GC_HWIP][0] < IP_VERSION(11, 0, 0);
+			bool dcc_constant_encode =
+				(adev->asic_type > CHIP_RAVEN ||
+				 (adev->asic_type == CHIP_RAVEN &&
+				  adev->external_rev_id >= 0x81)) &&
+				amdgpu_ip_version(adev, GC_HWIP, 0) <
+					IP_VERSION(11, 0, 0);
 
 			int max_cblock_size = dcc_i64b ? AMD_FMT_MOD_DCC_BLOCK_64B :
 					      dcc_i128b ? AMD_FMT_MOD_DCC_BLOCK_128B :
@@ -878,7 +884,9 @@ static int convert_tiling_flags_to_modifier(struct amdgpu_framebuffer *afb)
 				if (adev->family >= AMDGPU_FAMILY_NV) {
 					int extra_pipe = 0;
 
-					if ((adev->ip_versions[GC_HWIP][0] >= IP_VERSION(10, 3, 0)) &&
+					if ((amdgpu_ip_version(adev, GC_HWIP,
+							       0) >=
+					     IP_VERSION(10, 3, 0)) &&
 					    pipes == packers && pipes > 1)
 						extra_pipe = 1;
 

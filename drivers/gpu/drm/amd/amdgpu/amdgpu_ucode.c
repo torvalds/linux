@@ -1119,7 +1119,7 @@ int amdgpu_ucode_init_bo(struct amdgpu_device *adev)
 static const char *amdgpu_ucode_legacy_naming(struct amdgpu_device *adev, int block_type)
 {
 	if (block_type == MP0_HWIP) {
-		switch (adev->ip_versions[MP0_HWIP][0]) {
+		switch (amdgpu_ip_version(adev, MP0_HWIP, 0)) {
 		case IP_VERSION(9, 0, 0):
 			switch (adev->asic_type) {
 			case CHIP_VEGA10:
@@ -1170,7 +1170,7 @@ static const char *amdgpu_ucode_legacy_naming(struct amdgpu_device *adev, int bl
 			return "yellow_carp";
 		}
 	} else if (block_type == MP1_HWIP) {
-		switch (adev->ip_versions[MP1_HWIP][0]) {
+		switch (amdgpu_ip_version(adev, MP1_HWIP, 0)) {
 		case IP_VERSION(9, 0, 0):
 		case IP_VERSION(10, 0, 0):
 		case IP_VERSION(10, 0, 1):
@@ -1196,7 +1196,7 @@ static const char *amdgpu_ucode_legacy_naming(struct amdgpu_device *adev, int bl
 			return "aldebaran_smc";
 		}
 	} else if (block_type == SDMA0_HWIP) {
-		switch (adev->ip_versions[SDMA0_HWIP][0]) {
+		switch (amdgpu_ip_version(adev, SDMA0_HWIP, 0)) {
 		case IP_VERSION(4, 0, 0):
 			return "vega10_sdma";
 		case IP_VERSION(4, 0, 1):
@@ -1240,7 +1240,7 @@ static const char *amdgpu_ucode_legacy_naming(struct amdgpu_device *adev, int bl
 			return "vangogh_sdma";
 		}
 	} else if (block_type == UVD_HWIP) {
-		switch (adev->ip_versions[UVD_HWIP][0]) {
+		switch (amdgpu_ip_version(adev, UVD_HWIP, 0)) {
 		case IP_VERSION(1, 0, 0):
 		case IP_VERSION(1, 0, 1):
 			if (adev->apu_flags & AMD_APU_IS_RAVEN2)
@@ -1265,7 +1265,8 @@ static const char *amdgpu_ucode_legacy_naming(struct amdgpu_device *adev, int bl
 		case IP_VERSION(3, 0, 0):
 		case IP_VERSION(3, 0, 64):
 		case IP_VERSION(3, 0, 192):
-			if (adev->ip_versions[GC_HWIP][0] == IP_VERSION(10, 3, 0))
+			if (amdgpu_ip_version(adev, GC_HWIP, 0) ==
+			    IP_VERSION(10, 3, 0))
 				return "sienna_cichlid_vcn";
 			return "navy_flounder_vcn";
 		case IP_VERSION(3, 0, 2):
@@ -1278,7 +1279,7 @@ static const char *amdgpu_ucode_legacy_naming(struct amdgpu_device *adev, int bl
 			return "yellow_carp_vcn";
 		}
 	} else if (block_type == GC_HWIP) {
-		switch (adev->ip_versions[GC_HWIP][0]) {
+		switch (amdgpu_ip_version(adev, GC_HWIP, 0)) {
 		case IP_VERSION(9, 0, 1):
 			return "vega10";
 		case IP_VERSION(9, 2, 1):
@@ -1331,7 +1332,7 @@ void amdgpu_ucode_ip_version_decode(struct amdgpu_device *adev, int block_type, 
 	int maj, min, rev;
 	char *ip_name;
 	const char *legacy;
-	uint32_t version = adev->ip_versions[block_type][0];
+	uint32_t version = amdgpu_ip_version(adev, block_type, 0);
 
 	legacy = amdgpu_ucode_legacy_naming(adev, block_type);
 	if (legacy) {

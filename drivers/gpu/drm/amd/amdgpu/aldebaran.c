@@ -35,7 +35,7 @@ static bool aldebaran_is_mode2_default(struct amdgpu_reset_control *reset_ctl)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)reset_ctl->handle;
 
-	if ((adev->ip_versions[MP1_HWIP][0] == IP_VERSION(13, 0, 2) &&
+	if ((amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(13, 0, 2) &&
 	     adev->gmc.xgmi.connected_to_cpu))
 		return true;
 
@@ -154,7 +154,7 @@ aldebaran_mode2_perform_reset(struct amdgpu_reset_control *reset_ctl,
 	if (reset_device_list == NULL)
 		return -EINVAL;
 
-	if (adev->ip_versions[MP1_HWIP][0] == IP_VERSION(13, 0, 2) &&
+	if (amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(13, 0, 2) &&
 	    reset_context->hive == NULL) {
 		/* Wrong context, return error */
 		return -EINVAL;
@@ -335,7 +335,7 @@ aldebaran_mode2_restore_hwcontext(struct amdgpu_reset_control *reset_ctl,
 	if (reset_device_list == NULL)
 		return -EINVAL;
 
-	if (reset_context->reset_req_dev->ip_versions[MP1_HWIP][0] ==
+	if (amdgpu_ip_version(reset_context->reset_req_dev, MP1_HWIP, 0) ==
 		    IP_VERSION(13, 0, 2) &&
 	    reset_context->hive == NULL) {
 		/* Wrong context, return error */

@@ -126,7 +126,7 @@ int amdgpu_vcn_sw_init(struct amdgpu_device *adev)
 	 * Hence, check for these versions here - notice this is
 	 * restricted to Vangogh (Deck's APU).
 	 */
-	if (adev->ip_versions[UVD_HWIP][0] == IP_VERSION(3, 0, 2)) {
+	if (amdgpu_ip_version(adev, UVD_HWIP, 0) == IP_VERSION(3, 0, 2)) {
 		const char *bios_ver = dmi_get_system_info(DMI_BIOS_VERSION);
 
 		if (bios_ver && (!strncmp("F7A0113", bios_ver, 7) ||
@@ -171,7 +171,7 @@ int amdgpu_vcn_sw_init(struct amdgpu_device *adev)
 	if (adev->firmware.load_type != AMDGPU_FW_LOAD_PSP)
 		bo_size += AMDGPU_GPU_PAGE_ALIGN(le32_to_cpu(hdr->ucode_size_bytes) + 8);
 
-	if (adev->ip_versions[UVD_HWIP][0] >= IP_VERSION(4, 0, 0)) {
+	if (amdgpu_ip_version(adev, UVD_HWIP, 0) >= IP_VERSION(4, 0, 0)) {
 		fw_shared_size = AMDGPU_GPU_PAGE_ALIGN(sizeof(struct amdgpu_vcn4_fw_shared));
 		log_offset = offsetof(struct amdgpu_vcn4_fw_shared, fw_log);
 	} else {
@@ -267,7 +267,7 @@ static bool amdgpu_vcn_using_unified_queue(struct amdgpu_ring *ring)
 	struct amdgpu_device *adev = ring->adev;
 	bool ret = false;
 
-	if (adev->ip_versions[UVD_HWIP][0] >= IP_VERSION(4, 0, 0))
+	if (amdgpu_ip_version(adev, UVD_HWIP, 0) >= IP_VERSION(4, 0, 0))
 		ret = true;
 
 	return ret;
@@ -998,7 +998,7 @@ int amdgpu_vcn_unified_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 	struct amdgpu_device *adev = ring->adev;
 	long r;
 
-	if (adev->ip_versions[UVD_HWIP][0] != IP_VERSION(4, 0, 3)) {
+	if (amdgpu_ip_version(adev, UVD_HWIP, 0) != IP_VERSION(4, 0, 3)) {
 		r = amdgpu_vcn_enc_ring_test_ib(ring, timeout);
 		if (r)
 			goto error;
@@ -1048,7 +1048,8 @@ void amdgpu_vcn_setup_ucode(struct amdgpu_device *adev)
 			adev->firmware.fw_size +=
 				ALIGN(le32_to_cpu(hdr->ucode_size_bytes), PAGE_SIZE);
 
-			if (adev->ip_versions[UVD_HWIP][0] == IP_VERSION(4, 0, 3))
+			if (amdgpu_ip_version(adev, UVD_HWIP, 0) ==
+			    IP_VERSION(4, 0, 3))
 				break;
 		}
 		dev_info(adev->dev, "Will use PSP to load VCN firmware\n");

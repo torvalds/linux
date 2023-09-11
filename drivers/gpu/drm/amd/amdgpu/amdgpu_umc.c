@@ -28,7 +28,7 @@ static int amdgpu_umc_convert_error_address(struct amdgpu_device *adev,
 				    struct ras_err_data *err_data, uint64_t err_addr,
 				    uint32_t ch_inst, uint32_t umc_inst)
 {
-	switch (adev->ip_versions[UMC_HWIP][0]) {
+	switch (amdgpu_ip_version(adev, UMC_HWIP, 0)) {
 	case IP_VERSION(6, 7, 0):
 		umc_v6_7_convert_error_address(adev,
 				err_data, err_addr, ch_inst, umc_inst);

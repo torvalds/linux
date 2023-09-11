@@ -51,7 +51,7 @@ static void hdp_v6_0_update_clock_gating(struct amdgpu_device *adev,
 				AMD_CG_SUPPORT_HDP_SD)))
 		return;
 
-	if (adev->ip_versions[HDP_HWIP][0] == IP_VERSION(6, 1, 0))
+	if (amdgpu_ip_version(adev, HDP_HWIP, 0) == IP_VERSION(6, 1, 0))
 		hdp_clk_cntl = RREG32_SOC15(HDP, 0, regHDP_CLK_CNTL_V6_1);
 	else
 		hdp_clk_cntl = RREG32_SOC15(HDP, 0, regHDP_CLK_CNTL);
@@ -61,7 +61,7 @@ static void hdp_v6_0_update_clock_gating(struct amdgpu_device *adev,
 	 * forced on IPH & RC clock */
 	hdp_clk_cntl = REG_SET_FIELD(hdp_clk_cntl, HDP_CLK_CNTL,
 				     RC_MEM_CLK_SOFT_OVERRIDE, 1);
-	if (adev->ip_versions[HDP_HWIP][0] == IP_VERSION(6, 1, 0))
+	if (amdgpu_ip_version(adev, HDP_HWIP, 0) == IP_VERSION(6, 1, 0))
 		WREG32_SOC15(HDP, 0, regHDP_CLK_CNTL_V6_1, hdp_clk_cntl);
 	else
 		WREG32_SOC15(HDP, 0, regHDP_CLK_CNTL, hdp_clk_cntl);
@@ -126,7 +126,7 @@ static void hdp_v6_0_update_clock_gating(struct amdgpu_device *adev,
 	/* disable IPH & RC clock override after clock/power mode changing */
 	hdp_clk_cntl = REG_SET_FIELD(hdp_clk_cntl, HDP_CLK_CNTL,
 				     RC_MEM_CLK_SOFT_OVERRIDE, 0);
-	if (adev->ip_versions[HDP_HWIP][0] == IP_VERSION(6, 1, 0))
+	if (amdgpu_ip_version(adev, HDP_HWIP, 0) == IP_VERSION(6, 1, 0))
 		WREG32_SOC15(HDP, 0, regHDP_CLK_CNTL_V6_1, hdp_clk_cntl);
 	else
 		WREG32_SOC15(HDP, 0, regHDP_CLK_CNTL, hdp_clk_cntl);

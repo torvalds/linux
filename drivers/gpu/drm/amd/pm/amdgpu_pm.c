@@ -2024,8 +2024,8 @@ static int default_attr_update(struct amdgpu_device *adev, struct amdgpu_device_
 			       uint32_t mask, enum amdgpu_device_attr_states *states)
 {
 	struct device_attribute *dev_attr = &attr->dev_attr;
-	uint32_t mp1_ver = adev->ip_versions[MP1_HWIP][0];
-	uint32_t gc_ver = adev->ip_versions[GC_HWIP][0];
+	uint32_t mp1_ver = amdgpu_ip_version(adev, MP1_HWIP, 0);
+	uint32_t gc_ver = amdgpu_ip_version(adev, GC_HWIP, 0);
 	const char *attr_name = dev_attr->attr.name;
 
 	if (!(attr->flags & mask)) {
@@ -2917,7 +2917,7 @@ static ssize_t amdgpu_hwmon_show_power_label(struct device *dev,
 					 char *buf)
 {
 	struct amdgpu_device *adev = dev_get_drvdata(dev);
-	uint32_t gc_ver = adev->ip_versions[GC_HWIP][0];
+	uint32_t gc_ver = amdgpu_ip_version(adev, GC_HWIP, 0);
 
 	if (gc_ver == IP_VERSION(10, 3, 1))
 		return sysfs_emit(buf, "%s\n",
@@ -3205,7 +3205,7 @@ static umode_t hwmon_attributes_visible(struct kobject *kobj,
 	struct device *dev = kobj_to_dev(kobj);
 	struct amdgpu_device *adev = dev_get_drvdata(dev);
 	umode_t effective_mode = attr->mode;
-	uint32_t gc_ver = adev->ip_versions[GC_HWIP][0];
+	uint32_t gc_ver = amdgpu_ip_version(adev, GC_HWIP, 0);
 	uint32_t tmp;
 
 	/* under multi-vf mode, the hwmon attributes are all not supported */
@@ -4158,8 +4158,8 @@ static void amdgpu_debugfs_prints_cpu_info(struct seq_file *m,
 
 static int amdgpu_debugfs_pm_info_pp(struct seq_file *m, struct amdgpu_device *adev)
 {
-	uint32_t mp1_ver = adev->ip_versions[MP1_HWIP][0];
-	uint32_t gc_ver = adev->ip_versions[GC_HWIP][0];
+	uint32_t mp1_ver = amdgpu_ip_version(adev, MP1_HWIP, 0);
+	uint32_t gc_ver = amdgpu_ip_version(adev, GC_HWIP, 0);
 	uint32_t value;
 	uint64_t value64 = 0;
 	uint32_t query = 0;

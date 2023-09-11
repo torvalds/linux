@@ -1246,14 +1246,13 @@ static struct amdgpu_sdma_ras sdma_v6_0_3_ras = {
 
 static void sdma_v6_0_set_ras_funcs(struct amdgpu_device *adev)
 {
-	switch (adev->ip_versions[SDMA0_HWIP][0]) {
+	switch (amdgpu_ip_version(adev, SDMA0_HWIP, 0)) {
 	case IP_VERSION(6, 0, 3):
 		adev->sdma.ras = &sdma_v6_0_3_ras;
 		break;
 	default:
 		break;
 	}
-
 }
 
 static int sdma_v6_0_early_init(void *handle)

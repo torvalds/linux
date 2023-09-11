@@ -707,7 +707,7 @@ void amdgpu_amdkfd_set_compute_idle(struct amdgpu_device *adev, bool idle)
 	/* Temporary workaround to fix issues observed in some
 	 * compute applications when GFXOFF is enabled on GFX11.
 	 */
-	if (IP_VERSION_MAJ(adev->ip_versions[GC_HWIP][0]) == 11) {
+	if (IP_VERSION_MAJ(amdgpu_ip_version(adev, GC_HWIP, 0)) == 11) {
 		pr_debug("GFXOFF is %s\n", idle ? "enabled" : "disabled");
 		amdgpu_gfx_off_ctrl(adev, idle);
 	}

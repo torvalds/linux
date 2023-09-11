@@ -68,7 +68,7 @@ int athub_v1_0_set_clockgating(struct amdgpu_device *adev,
 	if (amdgpu_sriov_vf(adev))
 		return 0;
 
-	switch (adev->ip_versions[ATHUB_HWIP][0]) {
+	switch (amdgpu_ip_version(adev, ATHUB_HWIP, 0)) {
 	case IP_VERSION(9, 0, 0):
 	case IP_VERSION(9, 1, 0):
 	case IP_VERSION(9, 2, 0):
