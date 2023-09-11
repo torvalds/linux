@@ -1277,8 +1277,8 @@ static int bch2_statfs(struct dentry *dentry, struct kstatfs *buf)
 	buf->f_type	= BCACHEFS_STATFS_MAGIC;
 	buf->f_bsize	= sb->s_blocksize;
 	buf->f_blocks	= usage.capacity >> shift;
-	buf->f_bfree	= avail_factor(usage.free) >> shift;
-	buf->f_bavail	= buf->f_bfree;
+	buf->f_bfree	= usage.free >> shift;
+	buf->f_bavail	= avail_factor(usage.free) >> shift;
 
 	buf->f_files	= usage.nr_inodes + avail_inodes;
 	buf->f_ffree	= avail_inodes;
