@@ -20,7 +20,7 @@ enum mlx5_vf_migf_state {
 	MLX5_MIGF_STATE_ERROR = 1,
 	MLX5_MIGF_STATE_PRE_COPY_ERROR,
 	MLX5_MIGF_STATE_PRE_COPY,
-	MLX5_MIGF_STATE_SAVE_LAST,
+	MLX5_MIGF_STATE_SAVE_STOP_COPY_CHUNK,
 	MLX5_MIGF_STATE_COMPLETE,
 };
 
@@ -78,7 +78,7 @@ struct mlx5vf_async_data {
 	struct mlx5_vhca_data_buffer *buf;
 	struct mlx5_vhca_data_buffer *header_buf;
 	int status;
-	u8 last_chunk:1;
+	u8 stop_copy_chunk:1;
 	void *out;
 };
 
