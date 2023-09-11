@@ -160,6 +160,41 @@ end:
 	return found ? buf : NULL;
 }
 
+static void mlx5vf_buf_read_done(struct mlx5_vhca_data_buffer *vhca_buf)
+{
+	struct mlx5_vf_migration_file *migf = vhca_buf->migf;
+
+	if (vhca_buf->stop_copy_chunk_num) {
+		bool is_header = vhca_buf->dma_dir == DMA_NONE;
+		u8 chunk_num = vhca_buf->stop_copy_chunk_num;
+		size_t next_required_umem_size = 0;
+
+		if (is_header)
+			migf->buf_header[chunk_num - 1] = vhca_buf;
+		else
+			migf->buf[chunk_num - 1] = vhca_buf;
+
+		spin_lock_irq(&migf->list_lock);
+		list_del_init(&vhca_buf->buf_elm);
+		if (!is_header) {
+			next_required_umem_size =
+				migf->next_required_umem_size;
+			migf->next_required_umem_size = 0;
+			migf->num_ready_chunks--;
+		}
+		spin_unlock_irq(&migf->list_lock);
+		if (next_required_umem_size)
+			mlx5vf_mig_file_set_save_work(migf, chunk_num,
+						      next_required_umem_size);
+		return;
+	}
+
+	spin_lock_irq(&migf->list_lock);
+	list_del_init(&vhca_buf->buf_elm);
+	list_add_tail(&vhca_buf->buf_elm, &vhca_buf->migf->avail_list);
+	spin_unlock_irq(&migf->list_lock);
+}
+
 static ssize_t mlx5vf_buf_read(struct mlx5_vhca_data_buffer *vhca_buf,
 			       char __user **buf, size_t *len, loff_t *pos)
 {
@@ -195,12 +230,8 @@ static ssize_t mlx5vf_buf_read(struct mlx5_vhca_data_buffer *vhca_buf,
 		copy_len -= page_len;
 	}
 
-	if (*pos >= vhca_buf->start_pos + vhca_buf->length) {
-		spin_lock_irq(&vhca_buf->migf->list_lock);
-		list_del_init(&vhca_buf->buf_elm);
-		list_add_tail(&vhca_buf->buf_elm, &vhca_buf->migf->avail_list);
-		spin_unlock_irq(&vhca_buf->migf->list_lock);
-	}
+	if (*pos >= vhca_buf->start_pos + vhca_buf->length)
+		mlx5vf_buf_read_done(vhca_buf);
 
 	return done;
 }
