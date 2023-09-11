@@ -291,6 +291,10 @@ static inline struct llist_node *llist_del_first_init(struct llist_head *head)
 		init_llist_node(n);
 	return n;
 }
+
+extern bool llist_del_first_this(struct llist_head *head,
+				 struct llist_node *this);
+
 struct llist_node *llist_reverse_order(struct llist_node *head);
 
 #endif /* LLIST_H */
