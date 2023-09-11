@@ -60,6 +60,10 @@ bool pm8001_use_msix = true;
 module_param_named(use_msix, pm8001_use_msix, bool, 0444);
 MODULE_PARM_DESC(zoned, "Use MSIX interrupts. Default: true");
 
+static bool pm8001_use_tasklet = true;
+module_param_named(use_tasklet, pm8001_use_tasklet, bool, 0444);
+MODULE_PARM_DESC(zoned, "Use MSIX interrupts. Default: true");
+
 static struct scsi_transport_template *pm8001_stt;
 static int pm8001_init_ccb_tag(struct pm8001_hba_info *);
 
@@ -204,8 +208,6 @@ static void pm8001_free(struct pm8001_hba_info *pm8001_ha)
 	kfree(pm8001_ha);
 }
 
-#ifdef PM8001_USE_TASKLET
-
 /**
  * pm8001_tasklet() - tasklet for 64 msi-x interrupt handler
  * @opaque: the passed general host adapter struct
@@ -213,19 +215,21 @@ static void pm8001_free(struct pm8001_hba_info *pm8001_ha)
  */
 static void pm8001_tasklet(unsigned long opaque)
 {
-	struct pm8001_hba_info *pm8001_ha;
-	struct isr_param *irq_vector;
+	struct isr_param *irq_vector = (struct isr_param *)opaque;
+	struct pm8001_hba_info *pm8001_ha = irq_vector->drv_inst;
 
-	irq_vector = (struct isr_param *)opaque;
-	pm8001_ha = irq_vector->drv_inst;
-	if (unlikely(!pm8001_ha))
-		BUG_ON(1);
+	if (WARN_ON_ONCE(!pm8001_ha))
+		return;
+
 	PM8001_CHIP_DISP->isr(pm8001_ha, irq_vector->irq_id);
 }
 
 static void pm8001_init_tasklet(struct pm8001_hba_info *pm8001_ha)
 {
 	int i;
+
+	if (!pm8001_use_tasklet)
+		return;
 
 	/*  Tasklet for non msi-x interrupt handler */
 	if ((!pm8001_ha->pdev->msix_cap || !pci_msi_enabled()) ||
@@ -243,6 +247,9 @@ static void pm8001_kill_tasklet(struct pm8001_hba_info *pm8001_ha)
 {
 	int i;
 
+	if (!pm8001_use_tasklet)
+		return;
+
 	/* For non-msix and msix interrupts */
 	if ((!pm8001_ha->pdev->msix_cap || !pci_msi_enabled()) ||
 	    (pm8001_ha->chip_id == chip_8001)) {
@@ -254,13 +261,6 @@ static void pm8001_kill_tasklet(struct pm8001_hba_info *pm8001_ha)
 		tasklet_kill(&pm8001_ha->tasklet[i]);
 }
 
-#else
-
-static void pm8001_init_tasklet(struct pm8001_hba_info *pm8001_ha) {}
-static void pm8001_kill_tasklet(struct pm8001_hba_info *pm8001_ha) {}
-
-#endif
-
 static irqreturn_t pm8001_handle_irq(struct pm8001_hba_info *pm8001_ha,
 				     int irq)
 {
@@ -270,12 +270,11 @@ static irqreturn_t pm8001_handle_irq(struct pm8001_hba_info *pm8001_ha,
 	if (!PM8001_CHIP_DISP->is_our_interrupt(pm8001_ha))
 		return IRQ_NONE;
 
-#ifdef PM8001_USE_TASKLET
+	if (!pm8001_use_tasklet)
+		return PM8001_CHIP_DISP->isr(pm8001_ha, irq);
+
 	tasklet_schedule(&pm8001_ha->tasklet[irq]);
 	return IRQ_HANDLED;
-#else
-	return PM8001_CHIP_DISP->isr(pm8001_ha, irq);
-#endif
 }
 
 /**
@@ -1537,6 +1536,9 @@ static struct pci_driver pm8001_pci_driver = {
 static int __init pm8001_init(void)
 {
 	int rc = -ENOMEM;
+
+	if (pm8001_use_tasklet && !pm8001_use_msix)
+		pm8001_use_tasklet = false;
 
 	pm8001_wq = alloc_workqueue("pm80xx", 0, 0);
 	if (!pm8001_wq)

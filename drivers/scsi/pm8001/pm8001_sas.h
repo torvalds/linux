@@ -85,7 +85,6 @@ do {									\
 
 extern bool pm8001_use_msix;
 
-#define PM8001_USE_TASKLET
 #define PM8001_READ_VPD
 
 
@@ -526,9 +525,7 @@ struct pm8001_hba_info {
 	int			number_of_intr;/*will be used in remove()*/
 	char			intr_drvname[PM8001_MAX_MSIX_VEC]
 				[PM8001_NAME_LENGTH+1+3+1];
-#ifdef PM8001_USE_TASKLET
 	struct tasklet_struct	tasklet[PM8001_MAX_MSIX_VEC];
-#endif
 	u32			logging_level;
 	u32			link_rate;
 	u32			fw_status;
