@@ -796,9 +796,9 @@ static void __init setup_cr(void)
 	cr2.ducto = (unsigned long)__ctl_duct >> 6;
 	cr5.pasteo = (unsigned long)__ctl_duct >> 6;
 	cr15.lsea = (unsigned long)__ctl_linkage_stack >> 3;
-	local_ctl_load(2, &cr2.reg);
-	local_ctl_load(5, &cr5.reg);
-	local_ctl_load(15, &cr15.reg);
+	system_ctl_load(2, &cr2.reg);
+	system_ctl_load(5, &cr5.reg);
+	system_ctl_load(15, &cr15.reg);
 }
 
 /*
