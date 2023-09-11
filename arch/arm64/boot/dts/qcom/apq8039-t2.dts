@@ -131,6 +131,10 @@
 	status = "okay";
 };
 
+&gpu {
+	status = "okay";
+};
+
 &lpass {
 	status = "okay";
 };
