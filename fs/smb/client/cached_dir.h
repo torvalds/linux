@@ -49,7 +49,7 @@ struct cached_fid {
 	struct cached_dirents dirents;
 };
 
-#define MAX_CACHED_FIDS 16
+/* default MAX_CACHED_FIDS is 16 */
 struct cached_fids {
 	/* Must be held when:
 	 * - accessing the cfids->entries list

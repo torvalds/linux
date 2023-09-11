@@ -1500,7 +1500,7 @@ static void mvumi_rescan_devices(struct mvumi_hba *mhba, int id)
 
 	sdev = scsi_device_lookup(mhba->shost, 0, id, 0);
 	if (sdev) {
-		scsi_rescan_device(&sdev->sdev_gendev);
+		scsi_rescan_device(sdev);
 		scsi_device_put(sdev);
 	}
 }
