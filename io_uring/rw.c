@@ -123,6 +123,22 @@ int io_prep_rw(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	return 0;
 }
 
+/*
+ * Multishot read is prepared just like a normal read/write request, only
+ * difference is that we set the MULTISHOT flag.
+ */
+int io_read_mshot_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
+{
+	int ret;
+
+	ret = io_prep_rw(req, sqe);
+	if (unlikely(ret))
+		return ret;
+
+	req->flags |= REQ_F_APOLL_MULTISHOT;
+	return 0;
+}
+
 void io_readv_writev_cleanup(struct io_kiocb *req)
 {
 	struct io_async_rw *io = req->async_data;
@@ -867,6 +883,57 @@ int io_read(struct io_kiocb *req, unsigned int issue_flags)
 		return kiocb_done(req, ret, issue_flags);
 
 	return ret;
+}
+
+int io_read_mshot(struct io_kiocb *req, unsigned int issue_flags)
+{
+	unsigned int cflags = 0;
+	int ret;
+
+	/*
+	 * Multishot MUST be used on a pollable file
+	 */
+	if (!file_can_poll(req->file))
+		return -EBADFD;
+
+	ret = __io_read(req, issue_flags);
+
+	/*
+	 * If we get -EAGAIN, recycle our buffer and just let normal poll
+	 * handling arm it.
+	 */
+	if (ret == -EAGAIN) {
+		io_kbuf_recycle(req, issue_flags);
+		return -EAGAIN;
+	}
+
+	/*
+	 * Any successful return value will keep the multishot read armed.
+	 */
+	if (ret > 0) {
+		/*
+		 * Put our buffer and post a CQE. If we fail to post a CQE, then
+		 * jump to the termination path. This request is then done.
+		 */
+		cflags = io_put_kbuf(req, issue_flags);
+
+		if (io_fill_cqe_req_aux(req,
+					issue_flags & IO_URING_F_COMPLETE_DEFER,
+					ret, cflags | IORING_CQE_F_MORE)) {
+			if (issue_flags & IO_URING_F_MULTISHOT)
+				return IOU_ISSUE_SKIP_COMPLETE;
+			return -EAGAIN;
+		}
+	}
+
+	/*
+	 * Either an error, or we've hit overflow posting the CQE. For any
+	 * multishot request, hitting overflow will terminate it.
+	 */
+	io_req_set_res(req, ret, cflags);
+	if (issue_flags & IO_URING_F_MULTISHOT)
+		return IOU_STOP_MULTISHOT;
+	return IOU_OK;
 }
 
 int io_write(struct io_kiocb *req, unsigned int issue_flags)
