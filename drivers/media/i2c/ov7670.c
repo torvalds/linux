@@ -217,9 +217,7 @@ struct ov7670_devtype {
 struct ov7670_format_struct;  /* coming later */
 struct ov7670_info {
 	struct v4l2_subdev sd;
-#if defined(CONFIG_MEDIA_CONTROLLER)
 	struct media_pad pad;
-#endif
 	struct v4l2_ctrl_handler hdl;
 	struct {
 		/* gain cluster */
@@ -1108,9 +1106,7 @@ static int ov7670_set_fmt(struct v4l2_subdev *sd,
 		struct v4l2_subdev_format *format)
 {
 	struct ov7670_info *info = to_state(sd);
-#ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
 	struct v4l2_mbus_framefmt *mbus_fmt;
-#endif
 	int ret;
 
 	if (format->pad)
@@ -1120,11 +1116,9 @@ static int ov7670_set_fmt(struct v4l2_subdev *sd,
 		ret = ov7670_try_fmt_internal(sd, &format->format, NULL, NULL);
 		if (ret)
 			return ret;
-#ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
 		mbus_fmt = v4l2_subdev_get_try_format(sd, sd_state,
 						      format->pad);
 		*mbus_fmt = format->format;
-#endif
 		return 0;
 	}
 
@@ -1148,18 +1142,12 @@ static int ov7670_get_fmt(struct v4l2_subdev *sd,
 			  struct v4l2_subdev_format *format)
 {
 	struct ov7670_info *info = to_state(sd);
-#ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
 	struct v4l2_mbus_framefmt *mbus_fmt;
-#endif
 
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
-#ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
 		mbus_fmt = v4l2_subdev_get_try_format(sd, sd_state, 0);
 		format->format = *mbus_fmt;
 		return 0;
-#else
-		return -EINVAL;
-#endif
 	} else {
 		format->format = info->format;
 	}
@@ -1720,7 +1708,6 @@ static void ov7670_get_default_format(struct v4l2_subdev *sd,
 	format->field = V4L2_FIELD_NONE;
 }
 
-#ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
 static int ov7670_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
 	struct v4l2_mbus_framefmt *format =
@@ -1730,7 +1717,6 @@ static int ov7670_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 
 	return 0;
 }
-#endif
 
 /* ----------------------------------------------------------------------- */
 
@@ -1766,11 +1752,9 @@ static const struct v4l2_subdev_ops ov7670_ops = {
 	.pad = &ov7670_pad_ops,
 };
 
-#ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
 static const struct v4l2_subdev_internal_ops ov7670_subdev_internal_ops = {
 	.open = ov7670_open,
 };
-#endif
 
 /* ----------------------------------------------------------------------- */
 
@@ -1861,10 +1845,8 @@ static int ov7670_probe(struct i2c_client *client)
 	sd = &info->sd;
 	v4l2_i2c_subdev_init(sd, client, &ov7670_ops);
 
-#ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
 	sd->internal_ops = &ov7670_subdev_internal_ops;
 	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE | V4L2_SUBDEV_FL_HAS_EVENTS;
-#endif
 
 	info->clock_speed = 30; /* default: a guess */
 
@@ -1977,13 +1959,11 @@ static int ov7670_probe(struct i2c_client *client)
 			       V4L2_EXPOSURE_MANUAL, false);
 	v4l2_ctrl_cluster(2, &info->saturation);
 
-#if defined(CONFIG_MEDIA_CONTROLLER)
 	info->pad.flags = MEDIA_PAD_FL_SOURCE;
 	info->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;
 	ret = media_entity_pads_init(&info->sd.entity, 1, &info->pad);
 	if (ret < 0)
 		goto hdl_free;
-#endif
 
 	v4l2_ctrl_handler_setup(&info->hdl);
 

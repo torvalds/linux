@@ -293,9 +293,7 @@ struct ov2640_win_size {
 
 struct ov2640_priv {
 	struct v4l2_subdev		subdev;
-#if defined(CONFIG_MEDIA_CONTROLLER)
 	struct media_pad pad;
-#endif
 	struct v4l2_ctrl_handler	hdl;
 	u32	cfmt_code;
 	struct clk			*clk;
@@ -922,13 +920,9 @@ static int ov2640_get_fmt(struct v4l2_subdev *sd,
 		return -EINVAL;
 
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
-#ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
 		mf = v4l2_subdev_get_try_format(sd, sd_state, 0);
 		format->format = *mf;
 		return 0;
-#else
-		return -EINVAL;
-#endif
 	}
 
 	mf->width	= priv->win->width;
@@ -1005,7 +999,6 @@ out:
 static int ov2640_init_cfg(struct v4l2_subdev *sd,
 			   struct v4l2_subdev_state *sd_state)
 {
-#ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
 	struct v4l2_mbus_framefmt *try_fmt =
 		v4l2_subdev_get_try_format(sd, sd_state, 0);
 	const struct ov2640_win_size *win =
@@ -1019,7 +1012,7 @@ static int ov2640_init_cfg(struct v4l2_subdev *sd,
 	try_fmt->ycbcr_enc = V4L2_YCBCR_ENC_DEFAULT;
 	try_fmt->quantization = V4L2_QUANTIZATION_DEFAULT;
 	try_fmt->xfer_func = V4L2_XFER_FUNC_DEFAULT;
-#endif
+
 	return 0;
 }
 
@@ -1236,13 +1229,11 @@ static int ov2640_probe(struct i2c_client *client)
 		ret = priv->hdl.error;
 		goto err_hdl;
 	}
-#if defined(CONFIG_MEDIA_CONTROLLER)
 	priv->pad.flags = MEDIA_PAD_FL_SOURCE;
 	priv->subdev.entity.function = MEDIA_ENT_F_CAM_SENSOR;
 	ret = media_entity_pads_init(&priv->subdev.entity, 1, &priv->pad);
 	if (ret < 0)
 		goto err_hdl;
-#endif
 
 	ret = ov2640_video_probe(client);
 	if (ret < 0)
