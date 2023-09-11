@@ -346,22 +346,38 @@
 		};
 
 		mpss_mem: mpss@86800000 {
+			/*
+			 * The memory region for the mpss firmware is generally
+			 * relocatable and could be allocated dynamically.
+			 * However, many firmware versions tend to fail when
+			 * loaded to some special addresses, so it is hard to
+			 * define reliable alloc-ranges.
+			 *
+			 * alignment = <0x0 0x400000>;
+			 * alloc-ranges = <0x0 0x86800000 0x0 0x8000000>;
+			 */
 			reg = <0x0 0x86800000 0x0 0x5500000>;
 			no-map;
 		};
 
-		wcnss_mem: wcnss@8bd00000 {
-			reg = <0x0 0x8bd00000 0x0 0x600000>;
+		wcnss_mem: wcnss {
+			size = <0x0 0x600000>;
+			alignment = <0x0 0x100000>;
+			alloc-ranges = <0x0 0x86800000 0x0 0x8000000>;
 			no-map;
 		};
 
-		venus_mem: venus@8c300000 {
-			reg = <0x0 0x8c300000 0x0 0x800000>;
+		venus_mem: venus {
+			size = <0x0 0x800000>;
+			alignment = <0x0 0x100000>;
+			alloc-ranges = <0x0 0x86800000 0x0 0x8000000>;
 			no-map;
 		};
 
-		mba_mem: mba@8cb00000 {
-			reg = <0x0 0x8cb00000 0x0 0x100000>;
+		mba_mem: mba {
+			size = <0x0 0x100000>;
+			alignment = <0x0 0x100000>;
+			alloc-ranges = <0x0 0x86800000 0x0 0x8000000>;
 			no-map;
 		};
 	};
