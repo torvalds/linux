@@ -3,9 +3,12 @@
  *	Copyright IBM Corp. 1999, 2023
  */
 
+#include <linux/irqflags.h>
 #include <linux/spinlock.h>
+#include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/smp.h>
+#include <linux/cache.h>
 #include <asm/abs_lowcore.h>
 #include <asm/ctlreg.h>
 
@@ -28,6 +31,8 @@ void system_ctlreg_unlock(void)
 	spin_unlock(&system_ctl_lock);
 }
 
+static bool system_ctlreg_area_init __ro_after_init;
+
 void __init system_ctlreg_init_save_area(struct lowcore *lc)
 {
 	struct lowcore *abs_lc;
@@ -36,6 +41,7 @@ void __init system_ctlreg_init_save_area(struct lowcore *lc)
 	__local_ctl_store(0, 15, lc->cregs_save_area);
 	__local_ctl_store(0, 15, abs_lc->cregs_save_area);
 	put_abs_lowcore(abs_lc);
+	system_ctlreg_area_init = true;
 }
 
 struct ctl_bit_parms {
@@ -55,6 +61,23 @@ static void ctl_bit_callback(void *info)
 	__local_ctl_load(0, 15, regs);
 }
 
+static void system_ctl_bit_update(void *info)
+{
+	unsigned long flags;
+
+	if (system_state == SYSTEM_BOOTING) {
+		/*
+		 * For very early calls do not call on_each_cpu()
+		 * since not everything might be setup.
+		 */
+		local_irq_save(flags);
+		ctl_bit_callback(info);
+		local_irq_restore(flags);
+	} else {
+		on_each_cpu(ctl_bit_callback, info, 1);
+	}
+}
+
 void system_ctl_set_clear_bit(unsigned int cr, unsigned int bit, bool set)
 {
 	struct ctl_bit_parms pp = { .cr = cr, };
@@ -62,12 +85,16 @@ void system_ctl_set_clear_bit(unsigned int cr, unsigned int bit, bool set)
 
 	pp.orval  = set ? 1UL << bit : 0;
 	pp.andval = set ? -1UL : ~(1UL << bit);
-	system_ctlreg_lock();
-	abs_lc = get_abs_lowcore();
-	abs_lc->cregs_save_area[cr].val &= pp.andval;
-	abs_lc->cregs_save_area[cr].val |= pp.orval;
-	put_abs_lowcore(abs_lc);
-	on_each_cpu(ctl_bit_callback, &pp, 1);
-	system_ctlreg_unlock();
+	if (system_ctlreg_area_init) {
+		system_ctlreg_lock();
+		abs_lc = get_abs_lowcore();
+		abs_lc->cregs_save_area[cr].val &= pp.andval;
+		abs_lc->cregs_save_area[cr].val |= pp.orval;
+		put_abs_lowcore(abs_lc);
+		system_ctl_bit_update(&pp);
+		system_ctlreg_unlock();
+	} else {
+		system_ctl_bit_update(&pp);
+	}
 }
 EXPORT_SYMBOL(system_ctl_set_clear_bit);
