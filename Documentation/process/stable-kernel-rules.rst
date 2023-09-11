@@ -101,6 +101,19 @@ comment:
      git cherry-pick fd21073
      git cherry-pick <this commit>
 
+   Note that for a patch series, you do not have to list as prerequisites the
+   patches present in the series itself. For example, if you have the following
+   patch series:
+
+   .. code-block:: none
+
+     patch1
+     patch2
+
+   where patch2 depends on patch1, you do not have to list patch1 as
+   prerequisite of patch2 if you have already marked patch1 for stable
+   inclusion.
+
  * For patches that may have kernel version prerequisites specify them using
    the following format in the sign-off area:
 
