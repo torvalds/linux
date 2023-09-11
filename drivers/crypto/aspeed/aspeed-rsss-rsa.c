@@ -462,6 +462,8 @@ int aspeed_rsss_rsa_init(struct aspeed_rsss_dev *rsss_dev)
 
 	dev_info(rsss_dev->dev, "Aspeed RSSS RSA initialized\n");
 
+	return 0;
+
 err_engine_rsa_start:
 	crypto_engine_exit(rsss_dev->crypt_engine_rsa);
 end:
