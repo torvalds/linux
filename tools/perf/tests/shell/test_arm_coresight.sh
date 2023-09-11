@@ -11,6 +11,19 @@
 
 glb_err=0
 
+cs_etm_dev_name() {
+	cs_etm_path=$(find  /sys/bus/event_source/devices/cs_etm/ -name cpu* -print -quit)
+	trcdevarch=$(cat ${cs_etm_path}/mgmt/trcdevarch)
+	archhver=$((($trcdevarch >> 12) & 0xf))
+	archpart=$(($trcdevarch & 0xfff))
+
+	if [ $archhver -eq 5 -a "$(printf "0x%X\n" $archpart)" = "0xA13" ] ; then
+		echo "ete"
+	else
+		echo "etm"
+	fi
+}
+
 skip_if_no_cs_etm_event() {
 	perf list | grep -q 'cs_etm//' && return 0
 
@@ -136,7 +149,7 @@ arm_cs_iterate_devices() {
 
 arm_cs_etm_traverse_path_test() {
 	# Iterate for every ETM device
-	for dev in /sys/bus/coresight/devices/etm*; do
+	for dev in /sys/bus/coresight/devices/$(cs_etm_dev_name)*; do
 
 		# Find the ETM device belonging to which CPU
 		cpu=`cat $dev/cpu`
