@@ -254,6 +254,7 @@ static void powerz_disconnect(struct usb_interface *intf)
 }
 
 static const struct usb_device_id powerz_id_table[] = {
+	{ USB_DEVICE_INTERFACE_NUMBER(0x5FC9, 0x0061, 0x00) },	/* ChargerLAB POWER-Z KM002C */
 	{ USB_DEVICE_INTERFACE_NUMBER(0x5FC9, 0x0063, 0x00) },	/* ChargerLAB POWER-Z KM003C */
 	{ }
 };
