@@ -2,5 +2,6 @@
 menu "PM Domains"
 
 source "drivers/pmdomain/actions/Kconfig"
+source "drivers/pmdomain/amlogic/Kconfig"
 
 endmenu
