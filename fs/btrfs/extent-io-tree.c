@@ -1640,6 +1640,37 @@ search:
 }
 
 /*
+ * Check if the single @bit exists in the given range.
+ */
+bool test_range_bit_exists(struct extent_io_tree *tree, u64 start, u64 end, u32 bit)
+{
+	struct extent_state *state = NULL;
+	bool bitset = false;
+
+	ASSERT(is_power_of_2(bit));
+
+	spin_lock(&tree->lock);
+	state = tree_search(tree, start);
+	while (state && start <= end) {
+		if (state->start > end)
+			break;
+
+		if (state->state & bit) {
+			bitset = true;
+			break;
+		}
+
+		/* If state->end is (u64)-1, start will overflow to 0 */
+		start = state->end + 1;
+		if (start > end || start == 0)
+			break;
+		state = next_state(state);
+	}
+	spin_unlock(&tree->lock);
+	return bitset;
+}
+
+/*
  * Search a range in the state tree for a given mask.  If 'filled' == 1, this
  * returns 1 only if every extent in the tree has the bits set.  Otherwise, 1
  * is returned if any bit in the range is found set.
