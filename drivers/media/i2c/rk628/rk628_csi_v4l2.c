@@ -26,6 +26,7 @@
 #include <linux/version.h>
 #include <linux/videodev2.h>
 #include <linux/workqueue.h>
+#include <linux/rk_hdmirx_class.h>
 #include <media/v4l2-controls_rockchip.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
@@ -132,6 +133,7 @@ struct rk628_csi {
 	struct rk628_combtxphy *txphy;
 	struct rk628_dsi dsi;
 	const struct rk628_plat_data *plat_data;
+	struct device *classdev;
 };
 
 struct rk628_csi_mode {
@@ -2112,6 +2114,36 @@ static const struct of_device_id rk628_csi_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, rk628_csi_of_match);
 
+static bool tx_5v_power_present(struct v4l2_subdev *sd);
+
+static ssize_t audio_rate_show(struct device *dev,
+			       struct device_attribute *attr, char *buf)
+{
+	struct rk628_csi *csi = dev_get_drvdata(dev);
+
+	return snprintf(buf, PAGE_SIZE, "%d", rk628_hdmirx_audio_fs(csi->audio_info));
+}
+
+static ssize_t audio_present_show(struct device *dev,
+				  struct device_attribute *attr, char *buf)
+{
+	struct rk628_csi *csi = dev_get_drvdata(dev);
+
+	return snprintf(buf, PAGE_SIZE, "%d",
+			tx_5v_power_present(&csi->sd) ?
+			rk628_hdmirx_audio_present(csi->audio_info) : 0);
+}
+
+static DEVICE_ATTR_RO(audio_rate);
+static DEVICE_ATTR_RO(audio_present);
+
+static struct attribute *rk628_attrs[] = {
+	&dev_attr_audio_rate.attr,
+	&dev_attr_audio_present.attr,
+	NULL
+};
+ATTRIBUTE_GROUPS(rk628);
+
 static int rk628_csi_probe(struct i2c_client *client,
 			  const struct i2c_device_id *id)
 {
@@ -2255,6 +2287,14 @@ static int rk628_csi_probe(struct i2c_client *client,
 		v4l2_err(sd, "v4l2 register subdev failed! err:%d\n", err);
 		goto err_hdl;
 	}
+
+	csi->classdev = device_create_with_groups(rk_hdmirx_class(),
+						  dev, MKDEV(0, 0),
+						  csi,
+						  rk628_groups,
+						  "rk628");
+	if (IS_ERR(csi->classdev))
+		goto err_hdl;
 
 	INIT_DELAYED_WORK(&csi->delayed_work_enable_hotplug,
 			rk628_csi_delayed_work_enable_hotplug);
