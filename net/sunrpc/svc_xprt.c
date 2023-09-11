@@ -705,7 +705,7 @@ svc_thread_should_sleep(struct svc_rqst *rqstp)
 
 #if defined(CONFIG_SUNRPC_BACKCHANNEL)
 	if (svc_is_backchannel(rqstp)) {
-		if (!list_empty(&rqstp->rq_server->sv_cb_list))
+		if (!lwq_empty(&rqstp->rq_server->sv_cb_list))
 			return false;
 	}
 #endif
@@ -878,18 +878,12 @@ void svc_recv(struct svc_rqst *rqstp)
 		struct svc_serv *serv = rqstp->rq_server;
 		struct rpc_rqst *req;
 
-		spin_lock_bh(&serv->sv_cb_lock);
-		req = list_first_entry_or_null(&serv->sv_cb_list,
-					       struct rpc_rqst, rq_bc_list);
+		req = lwq_dequeue(&serv->sv_cb_list,
+				  struct rpc_rqst, rq_bc_list);
 		if (req) {
-			list_del(&req->rq_bc_list);
-			spin_unlock_bh(&serv->sv_cb_lock);
 			svc_thread_wake_next(rqstp);
-
 			svc_process_bc(req, rqstp);
-			return;
 		}
-		spin_unlock_bh(&serv->sv_cb_lock);
 	}
 #endif
 }
