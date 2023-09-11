@@ -137,8 +137,8 @@
 #define DCN3_15_MAX_DET_SIZE 384
 #define DCN3_15_CRB_SEGMENT_SIZE_KB 64
 #define DCN3_15_MAX_DET_SEGS (DCN3_15_MAX_DET_SIZE / DCN3_15_CRB_SEGMENT_SIZE_KB)
-/* Minimum 2 extra segments need to be in compbuf and claimable to guarantee seamless mpo transitions */
-#define MIN_RESERVED_DET_SEGS 2
+/* Minimum 3 extra segments need to be in compbuf and claimable to guarantee seamless mpo transitions */
+#define MIN_RESERVED_DET_SEGS 3
 
 enum dcn31_clk_src_array_id {
 	DCN31_CLK_SRC_PLL0,

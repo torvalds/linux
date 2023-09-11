@@ -5420,3 +5420,20 @@ void dc_set_edp_power(const struct dc *dc, struct dc_link *edp_link,
 	edp_link->dc->link_srv->edp_set_panel_power(edp_link, powerOn);
 }
 
+/*
+ *****************************************************************************
+ * dc_get_power_profile_for_dc_state() - extracts power profile from dc state
+ *
+ * Called when DM wants to make power policy decisions based on dc_state
+ *
+ *****************************************************************************
+ */
+struct dc_power_profile dc_get_power_profile_for_dc_state(const struct dc_state *context)
+{
+	struct dc_power_profile profile = { 0 };
+
+	profile.power_level += !context->bw_ctx.bw.dcn.clk.p_state_change_support;
+
+	return profile;
+}
+
