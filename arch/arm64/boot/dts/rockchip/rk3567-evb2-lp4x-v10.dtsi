@@ -1,0 +1,648 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2020 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+/dts-v1/;
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/display/media-bus-format.h>
+#include <dt-bindings/pinctrl/rockchip.h>
+#include "rk3567.dtsi"
+#include "rk3568-evb.dtsi"
+
+/ {
+	model = "Rockchip RK3567 EVB2 LP4X V10 Board";
+	compatible = "rockchip,rk3567-evb2-lp4x-v10", "rockchip,rk3567";
+
+	vcc_camera: vcc-camera-regulator {
+		compatible = "regulator-fixed";
+		gpio = <&gpio0 RK_PC1 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&camera_pwr>;
+		regulator-name = "vcc_camera";
+		enable-active-high;
+		regulator-always-on;
+		regulator-boot-on;
+	};
+
+	vcc3v3_pcie: gpio-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc3v3_pcie";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		enable-active-high;
+		gpio = <&gpio0 RK_PC2 GPIO_ACTIVE_HIGH>;
+		startup-delay-us = <5000>;
+		vin-supply = <&dc_12v>;
+	};
+};
+
+&bt_sound {
+	status = "disabled";
+	simple-audio-card,cpu {
+		sound-dai = <&i2s2_2ch>;
+	};
+};
+
+&cpu0 {
+	cpu-supply = <&vdd_cpu_rk860>;
+};
+
+&bus_npu {
+	pvtm-supply = <&vdd_cpu_rk860>;
+};
+
+&combphy0_us {
+	status = "okay";
+};
+
+&combphy1_usq {
+	status = "okay";
+};
+
+&combphy2_psq {
+	status = "okay";
+};
+
+&csi2_dphy_hw {
+	status = "okay";
+};
+
+&csi2_dphy0 {
+	status = "okay";
+	/*
+	 * dphy0 only used for full mode,
+	 * full mode and split mode are mutually exclusive
+	 */
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			dphy0_in: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&gc8034_out>;
+				data-lanes = <1 2 3 4>;
+			};
+
+			mipi_in_ucam1: endpoint@2 {
+				reg = <2>;
+				remote-endpoint = <&ov5695_out>;
+				data-lanes = <1 2>;
+			};
+
+			mipi_in_ucam2: endpoint@3 {
+				reg = <3>;
+				remote-endpoint = <&gc5025_out>;
+				data-lanes = <1 2>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			dphy0_out: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&isp0_in_dphy0>;
+			};
+		};
+	};
+};
+
+&csi2_dphy1 {
+	status = "disabled";
+
+	/*
+	 * dphy1 only used for split mode,
+	 * can be used  concurrently  with dphy2
+	 * full mode and split mode are mutually exclusive
+	 */
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			dphy1_in: endpoint@1 {
+				reg = <1>;
+				//remote-endpoint = <&ov5695_out>;
+				data-lanes = <1 2>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			dphy1_out: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&isp0_in>;
+			};
+		};
+	};
+};
+
+&csi2_dphy2 {
+	status = "disabled";
+
+	/*
+	 * dphy2 only used for split mode,
+	 * can be used  concurrently  with dphy1
+	 * full mode and split mode are mutually exclusive
+	 */
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			dphy2_in: endpoint@1 {
+				reg = <1>;
+				//remote-endpoint = <&gc5025_out>;
+				data-lanes = <1 2>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			dphy2_out: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&mipi_csi2_input>;
+			};
+		};
+	};
+};
+
+/*
+ * video_phy0 needs to be enabled
+ * when dsi0 is enabled
+ */
+&dsi0 {
+	status = "okay";
+};
+
+&dsi0_in_vp0 {
+	status = "disabled";
+};
+
+&dsi0_in_vp1 {
+	status = "okay";
+};
+
+&dsi0_panel {
+	power-supply = <&vcc3v3_lcd0_n>;
+	reset-gpios = <&gpio3 RK_PA3 GPIO_ACTIVE_LOW>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&lcd0_rst_gpio>;
+};
+
+/*
+ * video_phy1 needs to be enabled
+ * when dsi1 is enabled
+ */
+&dsi1 {
+	status = "disabled";
+};
+
+&dsi1_in_vp0 {
+	status = "disabled";
+};
+
+&dsi1_in_vp1 {
+	status = "disabled";
+};
+
+&dsi1_panel {
+	power-supply = <&vcc3v3_lcd1_n>;
+	reset-gpios = <&gpio3 RK_PA4 GPIO_ACTIVE_LOW>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&lcd1_rst_gpio>;
+};
+
+&gmac1 {
+	phy-mode = "rgmii";
+	clock_in_out = "output";
+
+	snps,reset-gpio = <&gpio3 RK_PC2 GPIO_ACTIVE_LOW>;
+	snps,reset-active-low;
+	/* Reset time is 20ms, 100ms for rtl8211f */
+	snps,reset-delays-us = <0 20000 100000>;
+
+	assigned-clocks = <&cru SCLK_GMAC1_RX_TX>, <&cru SCLK_GMAC1>;
+	assigned-clock-parents = <&cru SCLK_GMAC1_RGMII_SPEED>, <&cru CLK_MAC1_2TOP>;
+	assigned-clock-rates = <0>, <125000000>;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&gmac1m1_miim
+		     &gmac1m1_tx_bus2
+		     &gmac1m1_rx_bus2
+		     &gmac1m1_rgmii_clk
+		     &gmac1m1_rgmii_bus>;
+
+	tx_delay = <0x4f>;
+	rx_delay = <0x25>;
+
+	phy-handle = <&rgmii_phy0>;
+	status = "okay";
+};
+
+&i2c0 {
+	vdd_cpu_rk860: rk8600@40{
+		compatible = "rockchip,rk8600";
+		reg = <0x40>;
+		vin-supply = <&vcc5v0_sys>;
+		regulator-compatible = "rk860x-reg";
+		regulator-name = "vdd_cpu";
+		regulator-min-microvolt = <712500>;
+		regulator-max-microvolt = <1390000>;
+		regulator-init-microvolt = <900000>;
+		regulator-ramp-delay = <2300>;
+		rockchip,suspend-voltage-selector = <1>;
+		regulator-boot-on;
+		regulator-always-on;
+		regulator-state-mem {
+			regulator-off-in-suspend;
+		};
+	};
+};
+
+&i2c2 {
+	status = "okay";
+	pinctrl-0 = <&i2c2m1_xfer>;
+
+	/* split mode: lane0/1 */
+	ov5695: ov5695@36 {
+		status = "okay";
+		compatible = "ovti,ov5695";
+		reg = <0x36>;
+		clocks = <&cru CLK_CIF_OUT>;
+		clock-names = "xvclk";
+		power-domains = <&power RK3568_PD_VI>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&cif_clk>;
+		reset-gpios = <&gpio3 RK_PA6 GPIO_ACTIVE_HIGH>;
+		pwdn-gpios = <&gpio4 RK_PB2 GPIO_ACTIVE_HIGH>;
+		/*power-gpios = <&gpio0 RK_PC1 GPIO_ACTIVE_HIGH>;*/
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "TongJu";
+		rockchip,camera-module-lens-name = "CHT842-MD";
+		port {
+			ov5695_out: endpoint {
+				remote-endpoint = <&mipi_in_ucam1>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
+
+	/* split mode: lane:2/3 */
+	gc5025: gc5025@37 {
+		status = "okay";
+		compatible = "galaxycore,gc5025";
+		reg = <0x37>;
+		clocks = <&pmucru CLK_WIFI>;
+		clock-names = "xvclk";
+		pinctrl-names = "default";
+		pinctrl-0 = <&refclk_pins>;
+		reset-gpios = <&gpio3 RK_PA5 GPIO_ACTIVE_LOW>;
+		pwdn-gpios = <&gpio3 RK_PB0 GPIO_ACTIVE_LOW>;
+		power-domains = <&power RK3568_PD_VI>;
+		/*power-gpios = <&gpio0 RK_PC1 GPIO_ACTIVE_HIGH>;*/
+		rockchip,camera-module-index = <1>;
+		rockchip,camera-module-facing = "front";
+		rockchip,camera-module-name = "TongJu";
+		rockchip,camera-module-lens-name = "CHT842-MD";
+		port {
+			gc5025_out: endpoint {
+				remote-endpoint = <&mipi_in_ucam2>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
+
+	/* full mode: lane0-3 */
+	gc8034: gc8034@37 {
+		compatible = "galaxycore,gc8034";
+		status = "okay";
+		reg = <0x37>;
+		clocks = <&cru CLK_CIF_OUT>;
+		clock-names = "xvclk";
+		power-domains = <&power RK3568_PD_VI>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&cif_clk>;
+		reset-gpios = <&gpio3 RK_PA6 GPIO_ACTIVE_LOW>;
+		pwdn-gpios = <&gpio4 RK_PB2 GPIO_ACTIVE_LOW>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "RK-CMK-8M-2-v1";
+		rockchip,camera-module-lens-name = "CK8401";
+		port {
+			gc8034_out: endpoint {
+				remote-endpoint = <&dphy0_in>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+	};
+};
+
+&i2c4 {
+	/* i2c4 sda conflict with camera pwdn */
+	status = "disabled";
+
+	/*
+	 * gc2145 needs to be disabled,
+	 * when gmac1 is enabled;
+	 * pinctrl conflicts;
+	 */
+	gc2145: gc2145@3c {
+		status = "disabled";
+		compatible = "galaxycore,gc2145";
+		reg = <0x3c>;
+		clocks = <&cru CLK_CIF_OUT>;
+		clock-names = "xvclk";
+		power-domains = <&power RK3568_PD_VI>;
+		pinctrl-names = "default";
+		/* conflict with gmac1m1_rgmii_pins & cif_clk*/
+		pinctrl-0 = <&cif_clk &cif_dvp_clk &cif_dvp_bus16>;
+
+		/*avdd-supply = <&vcc2v8_dvp>;*/
+		/*dovdd-supply = <&vcc1v8_dvp>;*/
+		/*dvdd-supply = <&vcc1v8_dvp>;*/
+
+		/*reset-gpios = <&gpio3 RK_PB5 GPIO_ACTIVE_LOW>;*/
+		pwdn-gpios = <&gpio4 RK_PA6 GPIO_ACTIVE_HIGH>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "CameraKing";
+		rockchip,camera-module-lens-name = "Largan";
+		port {
+			gc2145_out: endpoint {
+				remote-endpoint = <&dvp_in_bcam>;
+			};
+		};
+	};
+};
+
+&i2s2_2ch {
+	pinctrl-0 = <&i2s2m0_sclktx &i2s2m0_lrcktx &i2s2m0_sdi &i2s2m0_sdo>;
+	rockchip,bclk-fs = <32>;
+	status = "disabled";
+};
+
+&mdio1 {
+	rgmii_phy0: phy@0 {
+		compatible = "ethernet-phy-ieee802.3-c22";
+		reg = <0x0>;
+	};
+};
+
+
+
+/*
+ * power-supply should switche to vcc3v3_lcd1_n
+ * when mipi panel is connected to dsi1.
+ */
+&gt1x {
+	power-supply = <&vcc3v3_lcd0_n>;
+};
+
+&mipi_csi2 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi_csi2_input: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&dphy2_out>;
+				data-lanes = <1 2>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi_csi2_output: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&cif_mipi_in>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
+};
+
+&video_phy0 {
+	status = "okay";
+};
+
+&video_phy1 {
+	status = "disabled";
+};
+
+&pcie2x1 {
+	reset-gpios = <&gpio1 RK_PB2 GPIO_ACTIVE_HIGH>;
+	vpcie3v3-supply = <&vcc3v3_pcie>;
+	status = "okay";
+};
+
+&pinctrl {
+	cam {
+		camera_pwr: camera-pwr {
+			rockchip,pins =
+				/* camera power en */
+				<0 RK_PC1 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	sdio-pwrseq {
+		wifi_enable_h: wifi-enable-h {
+			rockchip,pins = <2 RK_PB1 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	wireless-wlan {
+		wifi_host_wake_irq: wifi-host-wake-irq {
+			rockchip,pins = <2 RK_PB2 RK_FUNC_GPIO &pcfg_pull_down>;
+		};
+	};
+
+	wireless-bluetooth {
+		uart1_gpios: uart1-gpios {
+			rockchip,pins = <2 RK_PB5 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	lcd0 {
+		lcd0_rst_gpio: lcd0-rst-gpio {
+			rockchip,pins = <3 RK_PA3 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	lcd1 {
+		lcd1_rst_gpio: lcd1-rst-gpio {
+			rockchip,pins = <3 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+};
+
+&rkcif {
+	status = "okay";
+};
+
+&rkcif_dvp {
+	status = "disabled";
+
+	port {
+		/* Parallel bus endpoint */
+		dvp_in_bcam: endpoint {
+			remote-endpoint = <&gc2145_out>;
+			bus-width = <8>;
+			vsync-active = <0>;
+			hsync-active = <1>;
+		};
+	};
+};
+
+&rkcif_mipi_lvds {
+	status = "okay";
+
+	port {
+		cif_mipi_in: endpoint {
+			remote-endpoint = <&mipi_csi2_output>;
+			data-lanes = <1 2>;
+		};
+	};
+};
+
+&rkcif_mmu {
+	status = "okay";
+};
+
+&rkisp {
+	status = "okay";
+};
+
+&rkisp_mmu {
+	status = "okay";
+};
+
+&rkisp_vir0 {
+	status = "okay";
+
+	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		isp0_in: endpoint@0 {
+			reg = <0>;
+			remote-endpoint = <&dphy1_out>;
+		};
+		isp0_in_dphy0: endpoint@1 {
+			reg = <1>;
+			remote-endpoint = <&dphy0_out>;
+		};
+	};
+};
+
+&route_dsi0 {
+	status = "okay";
+	connect = <&vp1_out_dsi0>;
+};
+
+&sdmmc2 {
+	status = "disabled";
+};
+
+&sdmmc1 {
+	max-frequency = <150000000>;
+	no-sd;
+	no-mmc;
+	bus-width = <4>;
+	disable-wp;
+	cap-sd-highspeed;
+	cap-sdio-irq;
+	keep-power-in-suspend;
+	mmc-pwrseq = <&sdio_pwrseq>;
+	non-removable;
+	pinctrl-names = "default";
+	pinctrl-0 = <&sdmmc1_bus4 &sdmmc1_cmd &sdmmc1_clk>;
+	sd-uhs-sdr104;
+	status = "okay";
+};
+
+&sdio_pwrseq {
+	reset-gpios = <&gpio2 RK_PB1 GPIO_ACTIVE_LOW>;
+};
+
+&spdif_8ch {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&spdifm1_tx>;
+};
+
+&uart1 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart1m0_xfer &uart1m0_ctsn>;
+};
+
+&vcc3v3_lcd0_n {
+	gpio = <&gpio0 RK_PC7 GPIO_ACTIVE_HIGH>;
+	enable-active-high;
+};
+
+&vcc3v3_lcd1_n {
+	gpio = <&gpio0 RK_PC5 GPIO_ACTIVE_HIGH>;
+	enable-active-high;
+};
+&wireless_wlan {
+	pinctrl-names = "default";
+	pinctrl-0 = <&wifi_host_wake_irq>;
+	WIFI,host_wake_irq = <&gpio2 RK_PB2 GPIO_ACTIVE_HIGH>;
+	WIFI,poweren_gpio = <&gpio2 RK_PB1 GPIO_ACTIVE_HIGH>;
+};
+
+&work_led {
+	gpios = <&gpio0 RK_PB7 GPIO_ACTIVE_HIGH>;
+};
+
+&wireless_bluetooth {
+	compatible = "bluetooth-platdata";
+	clocks = <&rk809 1>;
+	clock-names = "ext_clock";
+	//wifi-bt-power-toggle;
+	uart_rts_gpios = <&gpio2 RK_PB5 GPIO_ACTIVE_LOW>;
+	pinctrl-names = "default", "rts_gpio";
+	pinctrl-0 = <&uart1m0_rtsn>;
+	pinctrl-1 = <&uart1_gpios>;
+	BT,reset_gpio    = <&gpio2 RK_PB7 GPIO_ACTIVE_HIGH>;
+	BT,wake_gpio     = <&gpio2 RK_PC1 GPIO_ACTIVE_HIGH>;
+	BT,wake_host_irq = <&gpio2 RK_PC0 GPIO_ACTIVE_HIGH>;
+	status = "okay";
+};
