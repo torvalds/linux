@@ -357,6 +357,7 @@ spidev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	int			retval = 0;
 	struct spidev_data	*spidev;
 	struct spi_device	*spi;
+	struct spi_controller	*ctlr;
 	u32			tmp;
 	unsigned		n_ioc;
 	struct spi_ioc_transfer	*ioc;
@@ -376,6 +377,8 @@ spidev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		return -ESHUTDOWN;
 	}
 
+	ctlr = spi->controller;
+
 	/* use the buffer lock here for triple duty:
 	 *  - prevent I/O (from us) so calling spi_setup() is safe;
 	 *  - prevent concurrent SPI_IOC_WR_* from morphing
@@ -388,22 +391,15 @@ spidev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	/* read requests */
 	case SPI_IOC_RD_MODE:
 	case SPI_IOC_RD_MODE32:
-		tmp = spi->mode;
+		tmp = spi->mode & SPI_MODE_MASK;
 
-		{
-			struct spi_controller *ctlr = spi->controller;
-
-			if (ctlr->use_gpio_descriptors && ctlr->cs_gpiods &&
-			    ctlr->cs_gpiods[spi_get_chipselect(spi, 0)])
-				tmp &= ~SPI_CS_HIGH;
-		}
+		if (ctlr->use_gpio_descriptors && spi_get_csgpiod(spi, 0))
+			tmp &= ~SPI_CS_HIGH;
 
 		if (cmd == SPI_IOC_RD_MODE)
-			retval = put_user(tmp & SPI_MODE_MASK,
-					  (__u8 __user *)arg);
+			retval = put_user(tmp, (__u8 __user *)arg);
 		else
-			retval = put_user(tmp & SPI_MODE_MASK,
-					  (__u32 __user *)arg);
+			retval = put_user(tmp, (__u32 __user *)arg);
 		break;
 	case SPI_IOC_RD_LSB_FIRST:
 		retval = put_user((spi->mode & SPI_LSB_FIRST) ?  1 : 0,
@@ -424,7 +420,6 @@ spidev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		else
 			retval = get_user(tmp, (u32 __user *)arg);
 		if (retval == 0) {
-			struct spi_controller *ctlr = spi->controller;
 			u32	save = spi->mode;
 
 			if (tmp & ~SPI_MODE_MASK) {
@@ -432,8 +427,7 @@ spidev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 				break;
 			}
 
-			if (ctlr->use_gpio_descriptors && ctlr->cs_gpiods &&
-			    ctlr->cs_gpiods[spi_get_chipselect(spi, 0)])
+			if (ctlr->use_gpio_descriptors && spi_get_csgpiod(spi, 0))
 				tmp |= SPI_CS_HIGH;
 
 			tmp |= spi->mode & ~SPI_MODE_MASK;
