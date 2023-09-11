@@ -396,7 +396,7 @@
 };
 
 &spdifout {
-	pinctrl-0 = <&spdif_out_h_pins>;
+	pinctrl-0 = <&spdif_ao_out_pins>;
 	pinctrl-names = "default";
 	status = "okay";
 };
