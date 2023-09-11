@@ -247,13 +247,13 @@
 			compatible = "simple-mfd";
 			#address-cells = <2>;
 			#size-cells = <2>;
-			ranges = <0x0 0x12100000 0x0 0x12100000 0x0 0x4000>;
+			ranges = <0x0 0x0 0x0 0x12100000 0x0 0x4000>;
 
 			intc0: interrupt-controller@1000 {
 				#interrupt-cells = <1>;
 				interrupt-controller;
 				compatible = "aspeed,ast2700-intc-ic";
-				reg = <0x0 0x12101000 0x0 0x10>;
+				reg = <0x0 0x1000 0x0 0x10>;
 				interrupts = <GIC_SPI 128 IRQ_TYPE_LEVEL_HIGH>;
 			};
 
@@ -261,7 +261,7 @@
 				#interrupt-cells = <1>;
 				interrupt-controller;
 				compatible = "aspeed,ast2700-intc-ic";
-				reg = <0x0 0x12101100 0x0 0x10>;
+				reg = <0x0 0x1100 0x0 0x10>;
 				interrupts = <GIC_SPI 129 IRQ_TYPE_LEVEL_HIGH>;
 			};
 
@@ -269,7 +269,7 @@
 				#interrupt-cells = <1>;
 				interrupt-controller;
 				compatible = "aspeed,ast2700-intc-ic";
-				reg = <0x0 0x12101200 0x0 0x10>;
+				reg = <0x0 0x1200 0x0 0x10>;
 				interrupts = <GIC_SPI 130 IRQ_TYPE_LEVEL_HIGH>;
 			};
 
@@ -277,7 +277,7 @@
 				#interrupt-cells = <1>;
 				interrupt-controller;
 				compatible = "aspeed,ast2700-intc-ic";
-				reg = <0x0 0x12101300 0x0 0x10>;
+				reg = <0x0 0x1300 0x0 0x10>;
 				interrupts = <GIC_SPI 131 IRQ_TYPE_LEVEL_HIGH>;
 			};
 
@@ -285,7 +285,7 @@
 				#interrupt-cells = <1>;
 				interrupt-controller;
 				compatible = "aspeed,ast2700-intc-ic";
-				reg = <0x0 0x12101400 0x0 0x10>;
+				reg = <0x0 0x1400 0x0 0x10>;
 				interrupts = <GIC_SPI 132 IRQ_TYPE_LEVEL_HIGH>;
 			};
 
@@ -293,7 +293,7 @@
 				#interrupt-cells = <1>;
 				interrupt-controller;
 				compatible = "aspeed,ast2700-intc-ic";
-				reg = <0x0 0x12101500 0x0 0x10>;
+				reg = <0x0 0x1500 0x0 0x10>;
 				interrupts = <GIC_SPI 133 IRQ_TYPE_LEVEL_HIGH>;
 			};
 
@@ -301,7 +301,7 @@
 				#interrupt-cells = <1>;
 				interrupt-controller;
 				compatible = "aspeed,ast2700-intc-ic";
-				reg = <0x0 0x12101600 0x0 0x10>;
+				reg = <0x0 0x1600 0x0 0x10>;
 				interrupts = <GIC_SPI 134 IRQ_TYPE_LEVEL_HIGH>;
 			};
 
@@ -309,7 +309,7 @@
 				#interrupt-cells = <1>;
 				interrupt-controller;
 				compatible = "aspeed,ast2700-intc-ic";
-				reg = <0x0 0x12101700 0x0 0x10>;
+				reg = <0x0 0x1700 0x0 0x10>;
 				interrupts = <GIC_SPI 135 IRQ_TYPE_LEVEL_HIGH>;
 			};
 
