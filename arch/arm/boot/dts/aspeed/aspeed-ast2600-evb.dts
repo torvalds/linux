@@ -433,6 +433,18 @@
 	status = "okay";
 };
 
+&kcs1 {
+	kcs-io-addr = <0xca0>;
+	kcs-channel = <1>;
+	status = "okay";
+};
+
+&kcs2 {
+	kcs-io-addr = <0xca8>;
+	kcs-channel = <2>;
+	status = "okay";
+};
+
 &kcs3 {
 	status = "okay";
 	kcs-io-addr = <0xca2>;
@@ -446,6 +458,30 @@
 };
 
 &mbox {
+	status = "okay";
+};
+
+&pcie_kcs1 {
+	kcs-io-addr = <0x3a0>;
+	kcs-channel = <5>;
+	status = "okay";
+};
+
+&pcie_kcs2 {
+	kcs-io-addr = <0x3a8>;
+	kcs-channel = <6>;
+	status = "okay";
+};
+
+&pcie_kcs3 {
+	kcs-io-addr = <0x3a2>;
+	kcs-channel = <7>;
+	status = "okay";
+};
+
+&pcie_kcs4 {
+	kcs-io-addr = <0x3a4>;
+	kcs-channel = <8>;
 	status = "okay";
 };
 
