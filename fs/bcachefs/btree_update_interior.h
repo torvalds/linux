@@ -92,6 +92,10 @@ struct btree_update {
 	struct btree			*new_nodes[BTREE_UPDATE_NODES_MAX];
 	unsigned			nr_new_nodes;
 
+	struct btree			*old_nodes[BTREE_UPDATE_NODES_MAX];
+	__le64				old_nodes_seq[BTREE_UPDATE_NODES_MAX];
+	unsigned			nr_old_nodes;
+
 	open_bucket_idx_t		open_buckets[BTREE_UPDATE_NODES_MAX *
 						     BCH_REPLICAS_MAX];
 	open_bucket_idx_t		nr_open_buckets;

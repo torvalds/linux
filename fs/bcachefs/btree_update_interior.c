@@ -551,6 +551,22 @@ static void btree_update_nodes_written(struct btree_update *as)
 	BUG_ON(!journal_pin_active(&as->journal));
 
 	/*
+	 * Wait for any in flight writes to finish before we free the old nodes
+	 * on disk:
+	 */
+	for (i = 0; i < as->nr_old_nodes; i++) {
+		struct btree *old = as->old_nodes[i];
+		__le64 seq;
+
+		six_lock_read(&old->c.lock, NULL, NULL);
+		seq = old->data ? old->data->keys.seq : 0;
+		six_unlock_read(&old->c.lock);
+
+		if (seq == as->old_nodes_seq[i])
+			btree_node_wait_on_io(old);
+	}
+
+	/*
 	 * We did an update to a parent node where the pointers we added pointed
 	 * to child nodes that weren't written yet: now, the child nodes have
 	 * been written so we can write out the update to the interior node.
@@ -889,13 +905,9 @@ void bch2_btree_interior_update_will_free_node(struct btree_update *as,
 
 	btree_update_will_delete_key(as, &b->key);
 
-	/*
-	 * XXX: Waiting on io with btree node locks held, we don't want to be
-	 * doing this. We can't have btree writes happening after the space has
-	 * been freed, but we really only need to block before
-	 * btree_update_nodes_written_trans() happens.
-	 */
-	btree_node_wait_on_io(b);
+	as->old_nodes[as->nr_old_nodes] = b;
+	as->old_nodes_seq[as->nr_old_nodes] = b->data->keys.seq;
+	as->nr_old_nodes++;
 }
 
 void bch2_btree_update_done(struct btree_update *as)

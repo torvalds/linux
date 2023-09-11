@@ -1727,6 +1727,10 @@ void __bch2_btree_node_write(struct bch_fs *c, struct btree *b)
 			return;
 
 		if (old & (1 << BTREE_NODE_write_in_flight)) {
+			/*
+			 * XXX waiting on btree writes with btree locks held -
+			 * this can deadlock, and we hit the write error path
+			 */
 			btree_node_wait_on_io(b);
 			continue;
 		}
