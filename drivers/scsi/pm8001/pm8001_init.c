@@ -257,6 +257,23 @@ static void pm8001_kill_tasklet(struct pm8001_hba_info *pm8001_ha) {}
 
 #endif
 
+static irqreturn_t pm8001_handle_irq(struct pm8001_hba_info *pm8001_ha,
+				     int irq)
+{
+	if (unlikely(!pm8001_ha))
+		return IRQ_NONE;
+
+	if (!PM8001_CHIP_DISP->is_our_interrupt(pm8001_ha))
+		return IRQ_NONE;
+
+#ifdef PM8001_USE_TASKLET
+	tasklet_schedule(&pm8001_ha->tasklet[irq]);
+	return IRQ_HANDLED;
+#else
+	return PM8001_CHIP_DISP->isr(pm8001_ha, irq);
+#endif
+}
+
 /**
  * pm8001_interrupt_handler_msix - main MSIX interrupt handler.
  * It obtains the vector number and calls the equivalent bottom
@@ -267,22 +284,10 @@ static void pm8001_kill_tasklet(struct pm8001_hba_info *pm8001_ha) {}
  */
 static irqreturn_t pm8001_interrupt_handler_msix(int irq, void *opaque)
 {
-	struct isr_param *irq_vector;
-	struct pm8001_hba_info *pm8001_ha;
-	irqreturn_t ret = IRQ_HANDLED;
-	irq_vector = (struct isr_param *)opaque;
-	pm8001_ha = irq_vector->drv_inst;
+	struct isr_param *irq_vector = (struct isr_param *)opaque;
+	struct pm8001_hba_info *pm8001_ha = irq_vector->drv_inst;
 
-	if (unlikely(!pm8001_ha))
-		return IRQ_NONE;
-	if (!PM8001_CHIP_DISP->is_our_interrupt(pm8001_ha))
-		return IRQ_NONE;
-#ifdef PM8001_USE_TASKLET
-	tasklet_schedule(&pm8001_ha->tasklet[irq_vector->irq_id]);
-#else
-	ret = PM8001_CHIP_DISP->isr(pm8001_ha, irq_vector->irq_id);
-#endif
-	return ret;
+	return pm8001_handle_irq(pm8001_ha, irq_vector->irq_id);
 }
 
 /**
@@ -293,21 +298,10 @@ static irqreturn_t pm8001_interrupt_handler_msix(int irq, void *opaque)
 
 static irqreturn_t pm8001_interrupt_handler_intx(int irq, void *dev_id)
 {
-	struct pm8001_hba_info *pm8001_ha;
-	irqreturn_t ret = IRQ_HANDLED;
 	struct sas_ha_struct *sha = dev_id;
-	pm8001_ha = sha->lldd_ha;
-	if (unlikely(!pm8001_ha))
-		return IRQ_NONE;
-	if (!PM8001_CHIP_DISP->is_our_interrupt(pm8001_ha))
-		return IRQ_NONE;
+	struct pm8001_hba_info *pm8001_ha = sha->lldd_ha;
 
-#ifdef PM8001_USE_TASKLET
-	tasklet_schedule(&pm8001_ha->tasklet[0]);
-#else
-	ret = PM8001_CHIP_DISP->isr(pm8001_ha, 0);
-#endif
-	return ret;
+	return pm8001_handle_irq(pm8001_ha, 0);
 }
 
 static u32 pm8001_request_irq(struct pm8001_hba_info *pm8001_ha);
