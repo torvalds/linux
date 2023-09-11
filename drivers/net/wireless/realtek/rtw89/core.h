@@ -948,6 +948,17 @@ struct rtw89_txwd_body_v1 {
 	__le32 dword7;
 } __packed;
 
+struct rtw89_txwd_body_v2 {
+	__le32 dword0;
+	__le32 dword1;
+	__le32 dword2;
+	__le32 dword3;
+	__le32 dword4;
+	__le32 dword5;
+	__le32 dword6;
+	__le32 dword7;
+} __packed;
+
 struct rtw89_txwd_info {
 	__le32 dword0;
 	__le32 dword1;
@@ -955,6 +966,17 @@ struct rtw89_txwd_info {
 	__le32 dword3;
 	__le32 dword4;
 	__le32 dword5;
+} __packed;
+
+struct rtw89_txwd_info_v2 {
+	__le32 dword0;
+	__le32 dword1;
+	__le32 dword2;
+	__le32 dword3;
+	__le32 dword4;
+	__le32 dword5;
+	__le32 dword6;
+	__le32 dword7;
 } __packed;
 
 struct rtw89_rx_desc_info {
@@ -5475,6 +5497,9 @@ void rtw89_core_fill_txdesc(struct rtw89_dev *rtwdev,
 			    struct rtw89_tx_desc_info *desc_info,
 			    void *txdesc);
 void rtw89_core_fill_txdesc_v1(struct rtw89_dev *rtwdev,
+			       struct rtw89_tx_desc_info *desc_info,
+			       void *txdesc);
+void rtw89_core_fill_txdesc_v2(struct rtw89_dev *rtwdev,
 			       struct rtw89_tx_desc_info *desc_info,
 			       void *txdesc);
 void rtw89_core_fill_txdesc_fwcmd_v1(struct rtw89_dev *rtwdev,
