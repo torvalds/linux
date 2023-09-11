@@ -1172,15 +1172,15 @@ static u32 apseed_get_clk_div_ast2600(struct aspeed_spi_chip *chip,
  * Read timing compensation sequences
  */
 
-#define CALIBRATE_BUF_SIZE SZ_16K
-#define CALIBRATE_COUNT    2
+#define CALIBRATE_BUF_SIZE SZ_4K
+#define CALIBRATE_REPEAT_COUNT 2
 
 static bool aspeed_spi_check_reads(struct aspeed_spi_chip *chip,
 				   const u8 *golden_buf, u8 *test_buf)
 {
 	int i;
 
-	for (i = 0; i < CALIBRATE_COUNT; i++) {
+	for (i = 0; i < CALIBRATE_REPEAT_COUNT; i++) {
 		memcpy_fromio(test_buf, chip->ahb_base, CALIBRATE_BUF_SIZE);
 		if (memcmp(test_buf, golden_buf, CALIBRATE_BUF_SIZE) != 0) {
 #if defined(VERBOSE_DEBUG)
