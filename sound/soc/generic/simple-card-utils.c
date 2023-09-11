@@ -14,7 +14,7 @@
 #include <sound/pcm_params.h>
 #include <sound/simple_card_utils.h>
 
-static void asoc_simple_fixup_sample_fmt(struct asoc_simple_data *data,
+static void simple_fixup_sample_fmt(struct simple_util_data *data,
 					 struct snd_pcm_hw_params *params)
 {
 	int i;
@@ -43,7 +43,7 @@ static void asoc_simple_fixup_sample_fmt(struct asoc_simple_data *data,
 
 void simple_util_parse_convert(struct device_node *np,
 			       char *prefix,
-			       struct asoc_simple_data *data)
+			       struct simple_util_data *data)
 {
 	char prop[128];
 
@@ -65,13 +65,13 @@ void simple_util_parse_convert(struct device_node *np,
 EXPORT_SYMBOL_GPL(simple_util_parse_convert);
 
 /**
- * asoc_simple_is_convert_required() - Query if HW param conversion was requested
+ * simple_util_is_convert_required() - Query if HW param conversion was requested
  * @data: Link data.
  *
  * Returns true if any HW param conversion was requested for this DAI link with
  * any "convert-xxx" properties.
  */
-bool simple_util_is_convert_required(const struct asoc_simple_data *data)
+bool simple_util_is_convert_required(const struct simple_util_data *data)
 {
 	return data->convert_rate ||
 	       data->convert_channels ||
@@ -116,7 +116,7 @@ int simple_util_parse_daifmt(struct device *dev,
 EXPORT_SYMBOL_GPL(simple_util_parse_daifmt);
 
 int simple_util_parse_tdm_width_map(struct device *dev, struct device_node *np,
-				    struct asoc_simple_dai *dai)
+				    struct simple_util_dai *dai)
 {
 	u32 *array_values, *p;
 	int n, i, ret;
@@ -209,7 +209,7 @@ int simple_util_parse_card_name(struct snd_soc_card *card,
 }
 EXPORT_SYMBOL_GPL(simple_util_parse_card_name);
 
-static int asoc_simple_clk_enable(struct asoc_simple_dai *dai)
+static int simple_clk_enable(struct simple_util_dai *dai)
 {
 	if (dai)
 		return clk_prepare_enable(dai->clk);
@@ -217,7 +217,7 @@ static int asoc_simple_clk_enable(struct asoc_simple_dai *dai)
 	return 0;
 }
 
-static void asoc_simple_clk_disable(struct asoc_simple_dai *dai)
+static void simple_clk_disable(struct simple_util_dai *dai)
 {
 	if (dai)
 		clk_disable_unprepare(dai->clk);
@@ -225,7 +225,7 @@ static void asoc_simple_clk_disable(struct asoc_simple_dai *dai)
 
 int simple_util_parse_clk(struct device *dev,
 			  struct device_node *node,
-			  struct asoc_simple_dai *simple_dai,
+			  struct simple_util_dai *simple_dai,
 			  struct snd_soc_dai_link_component *dlc)
 {
 	struct clk *clk;
@@ -260,8 +260,8 @@ int simple_util_parse_clk(struct device *dev,
 }
 EXPORT_SYMBOL_GPL(simple_util_parse_clk);
 
-static int asoc_simple_check_fixed_sysclk(struct device *dev,
-					  struct asoc_simple_dai *dai,
+static int simple_check_fixed_sysclk(struct device *dev,
+					  struct simple_util_dai *dai,
 					  unsigned int *fixed_sysclk)
 {
 	if (dai->clk_fixed) {
@@ -278,28 +278,28 @@ static int asoc_simple_check_fixed_sysclk(struct device *dev,
 
 int simple_util_startup(struct snd_pcm_substream *substream)
 {
-	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
-	struct asoc_simple_priv *priv = snd_soc_card_get_drvdata(rtd->card);
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
+	struct simple_util_priv *priv = snd_soc_card_get_drvdata(rtd->card);
 	struct simple_dai_props *props = simple_priv_to_props(priv, rtd->num);
-	struct asoc_simple_dai *dai;
+	struct simple_util_dai *dai;
 	unsigned int fixed_sysclk = 0;
 	int i1, i2, i;
 	int ret;
 
 	for_each_prop_dai_cpu(props, i1, dai) {
-		ret = asoc_simple_clk_enable(dai);
+		ret = simple_clk_enable(dai);
 		if (ret)
 			goto cpu_err;
-		ret = asoc_simple_check_fixed_sysclk(rtd->dev, dai, &fixed_sysclk);
+		ret = simple_check_fixed_sysclk(rtd->dev, dai, &fixed_sysclk);
 		if (ret)
 			goto cpu_err;
 	}
 
 	for_each_prop_dai_codec(props, i2, dai) {
-		ret = asoc_simple_clk_enable(dai);
+		ret = simple_clk_enable(dai);
 		if (ret)
 			goto codec_err;
-		ret = asoc_simple_check_fixed_sysclk(rtd->dev, dai, &fixed_sysclk);
+		ret = simple_check_fixed_sysclk(rtd->dev, dai, &fixed_sysclk);
 		if (ret)
 			goto codec_err;
 	}
@@ -324,13 +324,13 @@ codec_err:
 	for_each_prop_dai_codec(props, i, dai) {
 		if (i >= i2)
 			break;
-		asoc_simple_clk_disable(dai);
+		simple_clk_disable(dai);
 	}
 cpu_err:
 	for_each_prop_dai_cpu(props, i, dai) {
 		if (i >= i1)
 			break;
-		asoc_simple_clk_disable(dai);
+		simple_clk_disable(dai);
 	}
 	return ret;
 }
@@ -338,35 +338,35 @@ EXPORT_SYMBOL_GPL(simple_util_startup);
 
 void simple_util_shutdown(struct snd_pcm_substream *substream)
 {
-	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
-	struct asoc_simple_priv *priv = snd_soc_card_get_drvdata(rtd->card);
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
+	struct simple_util_priv *priv = snd_soc_card_get_drvdata(rtd->card);
 	struct simple_dai_props *props = simple_priv_to_props(priv, rtd->num);
-	struct asoc_simple_dai *dai;
+	struct simple_util_dai *dai;
 	int i;
 
 	for_each_prop_dai_cpu(props, i, dai) {
-		struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(rtd, i);
+		struct snd_soc_dai *cpu_dai = snd_soc_rtd_to_cpu(rtd, i);
 
 		if (props->mclk_fs && !dai->clk_fixed && !snd_soc_dai_active(cpu_dai))
 			snd_soc_dai_set_sysclk(cpu_dai,
 					       0, 0, SND_SOC_CLOCK_OUT);
 
-		asoc_simple_clk_disable(dai);
+		simple_clk_disable(dai);
 	}
 	for_each_prop_dai_codec(props, i, dai) {
-		struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, i);
+		struct snd_soc_dai *codec_dai = snd_soc_rtd_to_codec(rtd, i);
 
 		if (props->mclk_fs && !dai->clk_fixed && !snd_soc_dai_active(codec_dai))
 			snd_soc_dai_set_sysclk(codec_dai,
 					       0, 0, SND_SOC_CLOCK_IN);
 
-		asoc_simple_clk_disable(dai);
+		simple_clk_disable(dai);
 	}
 }
 EXPORT_SYMBOL_GPL(simple_util_shutdown);
 
-static int asoc_simple_set_clk_rate(struct device *dev,
-				    struct asoc_simple_dai *simple_dai,
+static int simple_set_clk_rate(struct device *dev,
+				    struct simple_util_dai *simple_dai,
 				    unsigned long rate)
 {
 	if (!simple_dai)
@@ -386,8 +386,8 @@ static int asoc_simple_set_clk_rate(struct device *dev,
 	return clk_set_rate(simple_dai->clk, rate);
 }
 
-static int asoc_simple_set_tdm(struct snd_soc_dai *dai,
-				struct asoc_simple_dai *simple_dai,
+static int simple_set_tdm(struct snd_soc_dai *dai,
+				struct simple_util_dai *simple_dai,
 				struct snd_pcm_hw_params *params)
 {
 	int sample_bits = params_width(params);
@@ -427,10 +427,10 @@ static int asoc_simple_set_tdm(struct snd_soc_dai *dai,
 int simple_util_hw_params(struct snd_pcm_substream *substream,
 			  struct snd_pcm_hw_params *params)
 {
-	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
-	struct asoc_simple_dai *pdai;
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
+	struct simple_util_dai *pdai;
 	struct snd_soc_dai *sdai;
-	struct asoc_simple_priv *priv = snd_soc_card_get_drvdata(rtd->card);
+	struct simple_util_priv *priv = snd_soc_card_get_drvdata(rtd->card);
 	struct simple_dai_props *props = simple_priv_to_props(priv, rtd->num);
 	unsigned int mclk, mclk_fs = 0;
 	int i, ret;
@@ -443,13 +443,13 @@ int simple_util_hw_params(struct snd_pcm_substream *substream,
 		mclk = params_rate(params) * mclk_fs;
 
 		for_each_prop_dai_codec(props, i, pdai) {
-			ret = asoc_simple_set_clk_rate(rtd->dev, pdai, mclk);
+			ret = simple_set_clk_rate(rtd->dev, pdai, mclk);
 			if (ret < 0)
 				return ret;
 		}
 
 		for_each_prop_dai_cpu(props, i, pdai) {
-			ret = asoc_simple_set_clk_rate(rtd->dev, pdai, mclk);
+			ret = simple_set_clk_rate(rtd->dev, pdai, mclk);
 			if (ret < 0)
 				return ret;
 		}
@@ -479,15 +479,15 @@ int simple_util_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	for_each_prop_dai_codec(props, i, pdai) {
-		sdai = asoc_rtd_to_codec(rtd, i);
-		ret = asoc_simple_set_tdm(sdai, pdai, params);
+		sdai = snd_soc_rtd_to_codec(rtd, i);
+		ret = simple_set_tdm(sdai, pdai, params);
 		if (ret < 0)
 			return ret;
 	}
 
 	for_each_prop_dai_cpu(props, i, pdai) {
-		sdai = asoc_rtd_to_cpu(rtd, i);
-		ret = asoc_simple_set_tdm(sdai, pdai, params);
+		sdai = snd_soc_rtd_to_cpu(rtd, i);
+		ret = simple_set_tdm(sdai, pdai, params);
 		if (ret < 0)
 			return ret;
 	}
@@ -499,9 +499,9 @@ EXPORT_SYMBOL_GPL(simple_util_hw_params);
 int simple_util_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 				   struct snd_pcm_hw_params *params)
 {
-	struct asoc_simple_priv *priv = snd_soc_card_get_drvdata(rtd->card);
+	struct simple_util_priv *priv = snd_soc_card_get_drvdata(rtd->card);
 	struct simple_dai_props *dai_props = simple_priv_to_props(priv, rtd->num);
-	struct asoc_simple_data *data = &dai_props->adata;
+	struct simple_util_data *data = &dai_props->adata;
 	struct snd_interval *rate = hw_param_interval(params, SNDRV_PCM_HW_PARAM_RATE);
 	struct snd_interval *channels = hw_param_interval(params, SNDRV_PCM_HW_PARAM_CHANNELS);
 
@@ -514,14 +514,13 @@ int simple_util_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 		channels->max = data->convert_channels;
 
 	if (data->convert_sample_format)
-		asoc_simple_fixup_sample_fmt(data, params);
+		simple_fixup_sample_fmt(data, params);
 
 	return 0;
 }
 EXPORT_SYMBOL_GPL(simple_util_be_hw_params_fixup);
 
-static int asoc_simple_init_dai(struct snd_soc_dai *dai,
-				     struct asoc_simple_dai *simple_dai)
+static int simple_init_dai(struct snd_soc_dai *dai, struct simple_util_dai *simple_dai)
 {
 	int ret;
 
@@ -552,13 +551,13 @@ static int asoc_simple_init_dai(struct snd_soc_dai *dai,
 	return 0;
 }
 
-static inline int asoc_simple_component_is_codec(struct snd_soc_component *component)
+static inline int simple_component_is_codec(struct snd_soc_component *component)
 {
 	return component->driver->endianness;
 }
 
-static int asoc_simple_init_for_codec2codec(struct snd_soc_pcm_runtime *rtd,
-					    struct simple_dai_props *dai_props)
+static int simple_init_for_codec2codec(struct snd_soc_pcm_runtime *rtd,
+				       struct simple_dai_props *dai_props)
 {
 	struct snd_soc_dai_link *dai_link = rtd->dai_link;
 	struct snd_soc_component *component;
@@ -576,7 +575,7 @@ static int asoc_simple_init_for_codec2codec(struct snd_soc_pcm_runtime *rtd,
 
 	/* Only Codecs */
 	for_each_rtd_components(rtd, i, component) {
-		if (!asoc_simple_component_is_codec(component))
+		if (!simple_component_is_codec(component))
 			return 0;
 	}
 
@@ -611,23 +610,23 @@ static int asoc_simple_init_for_codec2codec(struct snd_soc_pcm_runtime *rtd,
 
 int simple_util_dai_init(struct snd_soc_pcm_runtime *rtd)
 {
-	struct asoc_simple_priv *priv = snd_soc_card_get_drvdata(rtd->card);
+	struct simple_util_priv *priv = snd_soc_card_get_drvdata(rtd->card);
 	struct simple_dai_props *props = simple_priv_to_props(priv, rtd->num);
-	struct asoc_simple_dai *dai;
+	struct simple_util_dai *dai;
 	int i, ret;
 
 	for_each_prop_dai_codec(props, i, dai) {
-		ret = asoc_simple_init_dai(asoc_rtd_to_codec(rtd, i), dai);
+		ret = simple_init_dai(snd_soc_rtd_to_codec(rtd, i), dai);
 		if (ret < 0)
 			return ret;
 	}
 	for_each_prop_dai_cpu(props, i, dai) {
-		ret = asoc_simple_init_dai(asoc_rtd_to_cpu(rtd, i), dai);
+		ret = simple_init_dai(snd_soc_rtd_to_cpu(rtd, i), dai);
 		if (ret < 0)
 			return ret;
 	}
 
-	ret = asoc_simple_init_for_codec2codec(rtd, props);
+	ret = simple_init_for_codec2codec(rtd, props);
 	if (ret < 0)
 		return ret;
 
@@ -738,7 +737,7 @@ int simple_util_parse_pin_switches(struct snd_soc_card *card,
 EXPORT_SYMBOL_GPL(simple_util_parse_pin_switches);
 
 int simple_util_init_jack(struct snd_soc_card *card,
-			  struct asoc_simple_jack *sjack,
+			  struct simple_util_jack *sjack,
 			  int is_hp, char *prefix,
 			  char *pin)
 {
@@ -795,7 +794,7 @@ int simple_util_init_jack(struct snd_soc_card *card,
 }
 EXPORT_SYMBOL_GPL(simple_util_init_jack);
 
-int simple_util_init_aux_jacks(struct asoc_simple_priv *priv, char *prefix)
+int simple_util_init_aux_jacks(struct simple_util_priv *priv, char *prefix)
 {
 	struct snd_soc_card *card = simple_priv_to_card(priv);
 	struct snd_soc_component *component;
@@ -844,14 +843,14 @@ int simple_util_init_aux_jacks(struct asoc_simple_priv *priv, char *prefix)
 }
 EXPORT_SYMBOL_GPL(simple_util_init_aux_jacks);
 
-int simple_util_init_priv(struct asoc_simple_priv *priv,
+int simple_util_init_priv(struct simple_util_priv *priv,
 			  struct link_info *li)
 {
 	struct snd_soc_card *card = simple_priv_to_card(priv);
 	struct device *dev = simple_priv_to_dev(priv);
 	struct snd_soc_dai_link *dai_link;
 	struct simple_dai_props *dai_props;
-	struct asoc_simple_dai *dais;
+	struct simple_util_dai *dais;
 	struct snd_soc_dai_link_component *dlcs;
 	struct snd_soc_codec_conf *cconf = NULL;
 	int i, dai_num = 0, dlc_num = 0, cnf_num = 0;
@@ -912,7 +911,7 @@ int simple_util_init_priv(struct asoc_simple_priv *priv,
 			dais += li->num[i].cpus;
 		} else {
 			/* DPCM Be's CPU = dummy */
-			dai_link[i].cpus	= &asoc_dummy_dlc;
+			dai_link[i].cpus	= &snd_soc_dummy_dlc;
 			dai_props[i].num.cpus	=
 			dai_link[i].num_cpus	= 1;
 		}
@@ -934,7 +933,7 @@ int simple_util_init_priv(struct asoc_simple_priv *priv,
 			}
 		} else {
 			/* DPCM Fe's Codec = dummy */
-			dai_link[i].codecs	= &asoc_dummy_dlc;
+			dai_link[i].codecs	= &snd_soc_dummy_dlc;
 			dai_props[i].num.codecs	=
 			dai_link[i].num_codecs	= 1;
 		}
@@ -962,7 +961,7 @@ int simple_util_remove(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = platform_get_drvdata(pdev);
 
-	asoc_simple_clean_reference(card);
+	simple_util_clean_reference(card);
 
 	return 0;
 }
@@ -970,14 +969,14 @@ EXPORT_SYMBOL_GPL(simple_util_remove);
 
 int graph_util_card_probe(struct snd_soc_card *card)
 {
-	struct asoc_simple_priv *priv = snd_soc_card_get_drvdata(card);
+	struct simple_util_priv *priv = snd_soc_card_get_drvdata(card);
 	int ret;
 
-	ret = asoc_simple_init_hp(card, &priv->hp_jack, NULL);
+	ret = simple_util_init_hp(card, &priv->hp_jack, NULL);
 	if (ret < 0)
 		return ret;
 
-	ret = asoc_simple_init_mic(card, &priv->mic_jack, NULL);
+	ret = simple_util_init_mic(card, &priv->mic_jack, NULL);
 	if (ret < 0)
 		return ret;
 
