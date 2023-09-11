@@ -124,6 +124,50 @@
 		#size-cells = <2>;
 		ranges;
 
+		vhuba2: usb-vhub@12011000 {
+			compatible = "aspeed,ast2700-usb-vhub";
+			reg = <0x0 0x12011000 0x0 0x350>;
+			interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cpu_clk AST2700_CPU_CLK_GATE_USB0CLK>;
+			aspeed,vhub-downstream-ports = <7>;
+			aspeed,vhub-generic-endpoints = <21>;
+			status = "disabled";
+		};
+
+		xhci0: usb@12030000 {
+			compatible = "aspeed,ast2700-xhci", "snps,dwc3";
+			reg = <0x0 0x12030000 0x0 0x10000>;
+			interrupts = <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>;
+			status = "disabled";
+		};
+
+		uhci: usb@12040000 {
+			compatible = "aspeed,ast2700-uhci", "generic-uhci";
+			reg = <0x0 0x12040000 0x0 0x100>;
+			interrupts = <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>;
+			#ports = <2>;
+			clocks = <&cpu_clk AST2700_CPU_CLK_GATE_USB0CLK>;
+			status = "disabled";
+		};
+
+		vhub2a: usb-vhub@12060000 {
+			compatible = "aspeed,ast2700-usb-vhub";
+			reg = <0x0 0x12060000 0x0 0x350>;
+			interrupts = <GIC_SPI 33 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cpu_clk AST2700_CPU_CLK_GATE_USB0CLK>;
+			aspeed,vhub-downstream-ports = <7>;
+			aspeed,vhub-generic-endpoints = <21>;
+			status = "disabled";
+		};
+
+		ehci0: usb@12061000 {
+			compatible = "aspeed,ast2700-ehci", "generic-ehci";
+			reg = <0x0 0x12061000 0x0 0x100>;
+			interrupts = <GIC_SPI 33 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cpu_clk AST2700_CPU_CLK_GATE_USB0CLK>;
+			status = "disabled";
+		};
+
 		rsss: crypto@12080000 {
 			compatible = "aspeed,ast2700-rsss";
 			reg = <0x0 0x12080000 0 0x1000>;
@@ -568,50 +612,6 @@
 		e2m_config1: e2m_config@12c22000 {
 			compatible = "syscon", "simple-mfd";
 			reg = <0 0x12c22000 0 0x200>;
-		};
-
-		vhuba2: usb-vhub@12011000 {
-			compatible = "aspeed,ast2700-usb-vhub";
-			reg = <0x0 0x12011000 0x0 0x350>;
-			interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&cpu_clk AST2700_CPU_CLK_GATE_USB0CLK>;
-			aspeed,vhub-downstream-ports = <7>;
-			aspeed,vhub-generic-endpoints = <21>;
-			status = "disabled";
-		};
-
-		vhub2a: usb-vhub@12060000 {
-			compatible = "aspeed,ast2700-usb-vhub";
-			reg = <0x0 0x12060000 0x0 0x350>;
-			interrupts = <GIC_SPI 33 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&cpu_clk AST2700_CPU_CLK_GATE_USB0CLK>;
-			aspeed,vhub-downstream-ports = <7>;
-			aspeed,vhub-generic-endpoints = <21>;
-			status = "disabled";
-		};
-
-		ehci0: usb@12061000 {
-			compatible = "aspeed,ast2700-ehci", "generic-ehci";
-			reg = <0x0 0x12061000 0x0 0x100>;
-			interrupts = <GIC_SPI 33 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&cpu_clk AST2700_CPU_CLK_GATE_USB0CLK>;
-			status = "disabled";
-		};
-
-		xhci0: usb@12030000 {
-			compatible = "aspeed,ast2700-xhci", "snps,dwc3";
-			reg = <0x0 0x12030000 0x0 0x10000>;
-			interrupts = <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>;
-			status = "disabled";
-		};
-
-		uhci: usb@12040000 {
-			compatible = "aspeed,ast2700-uhci", "generic-uhci";
-			reg = <0x0 0x12040000 0x0 0x100>;
-			interrupts = <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>;
-			#ports = <2>;
-			clocks = <&cpu_clk AST2700_CPU_CLK_GATE_USB0CLK>;
-			status = "disabled";
 		};
 
 		hace: crypto@12070000 {
