@@ -40,7 +40,7 @@ static const struct snd_soc_pcm_stream codec_params = {
 static int axg_card_tdm_be_hw_params(struct snd_pcm_substream *substream,
 				     struct snd_pcm_hw_params *params)
 {
-	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 	struct meson_card *priv = snd_soc_card_get_drvdata(rtd->card);
 	struct axg_dai_link_tdm_data *be =
 		(struct axg_dai_link_tdm_data *)priv->link_data[rtd->num];
@@ -72,10 +72,10 @@ static int axg_card_tdm_dai_init(struct snd_soc_pcm_runtime *rtd)
 		}
 	}
 
-	ret = axg_tdm_set_tdm_slots(asoc_rtd_to_cpu(rtd, 0), be->tx_mask, be->rx_mask,
+	ret = axg_tdm_set_tdm_slots(snd_soc_rtd_to_cpu(rtd, 0), be->tx_mask, be->rx_mask,
 				    be->slots, be->slot_width);
 	if (ret) {
-		dev_err(asoc_rtd_to_cpu(rtd, 0)->dev, "setting tdm link slots failed\n");
+		dev_err(snd_soc_rtd_to_cpu(rtd, 0)->dev, "setting tdm link slots failed\n");
 		return ret;
 	}
 
@@ -90,10 +90,10 @@ static int axg_card_tdm_dai_lb_init(struct snd_soc_pcm_runtime *rtd)
 	int ret;
 
 	/* The loopback rx_mask is the pad tx_mask */
-	ret = axg_tdm_set_tdm_slots(asoc_rtd_to_cpu(rtd, 0), NULL, be->tx_mask,
+	ret = axg_tdm_set_tdm_slots(snd_soc_rtd_to_cpu(rtd, 0), NULL, be->tx_mask,
 				    be->slots, be->slot_width);
 	if (ret) {
-		dev_err(asoc_rtd_to_cpu(rtd, 0)->dev, "setting tdm link slots failed\n");
+		dev_err(snd_soc_rtd_to_cpu(rtd, 0)->dev, "setting tdm link slots failed\n");
 		return ret;
 	}
 
@@ -125,7 +125,7 @@ static int axg_card_add_tdm_loopback(struct snd_soc_card *card,
 		return -ENOMEM;
 
 	lb->cpus = dlc;
-	lb->codecs = &asoc_dummy_dlc;
+	lb->codecs = &snd_soc_dummy_dlc;
 	lb->num_cpus = 1;
 	lb->num_codecs = 1;
 
