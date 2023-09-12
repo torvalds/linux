@@ -59,6 +59,8 @@
 		spi1 = &spi1;
 		spi2 = &spi2;
 		spi3 = &spi3;
+		lvds0 = &lvds;
+		lvds1 = &lvds1;
 	};
 
 	cpus {
@@ -806,6 +808,34 @@
 						reg = <2>;
 						remote-endpoint = <&vp2_out_lvds>;
 						status = "disabled";
+					};
+				};
+			};
+		};
+
+		lvds1: lvds1 {
+			compatible = "rockchip,rk3568-lvds";
+			phys = <&video_phy1>;
+			phy-names = "phy";
+			status = "disabled";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					lvds1_in_vp1: endpoint@0 {
+						reg = <0>;
+						remote-endpoint = <&vp1_out_lvds1>;
+					};
+
+					lvds1_in_vp2: endpoint@1 {
+						reg = <1>;
+						remote-endpoint = <&vp2_out_lvds1>;
 					};
 				};
 			};
@@ -1989,6 +2019,11 @@
 					reg = <4>;
 					remote-endpoint = <&lvds_in_vp1>;
 				};
+
+				vp1_out_lvds1: endpoint@5 {
+					reg = <5>;
+					remote-endpoint = <&lvds1_in_vp1>;
+				};
 			};
 
 			vp2: port@2 {
@@ -2005,6 +2040,11 @@
 				vp2_out_rgb: endpoint@1 {
 					reg = <1>;
 					remote-endpoint = <&rgb_in_vp2>;
+				};
+
+				vp2_out_lvds1: endpoint@2 {
+					reg = <2>;
+					remote-endpoint = <&lvds1_in_vp2>;
 				};
 			};
 		};
