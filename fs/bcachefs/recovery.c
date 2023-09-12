@@ -562,7 +562,7 @@ static void check_version_upgrade(struct bch_fs *c)
 			if ((recovery_passes & RECOVERY_PASS_ALL_FSCK) == RECOVERY_PASS_ALL_FSCK)
 				prt_str(&buf, "fsck required");
 			else {
-				prt_str(&buf, "running recovery passses: ");
+				prt_str(&buf, "running recovery passes: ");
 				prt_bitflags(&buf, bch2_recovery_passes, recovery_passes);
 			}
 

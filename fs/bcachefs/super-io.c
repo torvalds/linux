@@ -384,7 +384,7 @@ static int bch2_sb_validate(struct bch_sb_handle *disk_sb, struct printbuf *out,
 	}
 
 	if (bch2_is_zero(sb->uuid.b, sizeof(sb->uuid))) {
-		prt_printf(out, "Bad intenal UUID (got zeroes)");
+		prt_printf(out, "Bad internal UUID (got zeroes)");
 		return -BCH_ERR_invalid_sb_uuid;
 	}
 

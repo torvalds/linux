@@ -1495,7 +1495,7 @@ static void bch2_trans_update_max_paths(struct btree_trans *trans)
 static noinline void btree_path_overflow(struct btree_trans *trans)
 {
 	bch2_dump_trans_paths_updates(trans);
-	panic("trans path oveflow\n");
+	panic("trans path overflow\n");
 }
 
 static inline struct btree_path *btree_path_alloc(struct btree_trans *trans,
