@@ -415,6 +415,7 @@ static int aspeed_vuart_map_irq_polarity(u32 dt)
 static int aspeed_vuart_probe(struct platform_device *pdev)
 {
 	struct of_phandle_args sirq_polarity_sense_args;
+	struct device *dev = &pdev->dev;
 	struct uart_8250_port port;
 	struct aspeed_vuart *vuart;
 	struct device_node *np;
@@ -455,9 +456,8 @@ static int aspeed_vuart_probe(struct platform_device *pdev)
 	if (of_property_read_u32(np, "clock-frequency", &clk)) {
 		vuart->clk = devm_clk_get(&pdev->dev, NULL);
 		if (IS_ERR(vuart->clk)) {
-			dev_warn(&pdev->dev,
-				"clk or clock-frequency not defined\n");
-			rc = PTR_ERR(vuart->clk);
+			rc = dev_err_probe(dev, PTR_ERR(vuart->clk),
+					   "clk or clock-frequency not defined\n");
 			goto err_sysfs_remove;
 		}
 
@@ -533,7 +533,7 @@ static int aspeed_vuart_probe(struct platform_device *pdev)
 
 	rc = aspeed_vuart_set_lpc_address(vuart, prop);
 	if (rc < 0) {
-		dev_err(&pdev->dev, "invalid value in aspeed,lpc-io-reg property\n");
+		dev_err_probe(dev, rc, "invalid value in aspeed,lpc-io-reg property\n");
 		goto err_clk_disable;
 	}
 
@@ -545,14 +545,14 @@ static int aspeed_vuart_probe(struct platform_device *pdev)
 
 	rc = aspeed_vuart_set_sirq(vuart, sirq[0]);
 	if (rc < 0) {
-		dev_err(&pdev->dev, "invalid sirq number in aspeed,lpc-interrupts property\n");
+		dev_err_probe(dev, rc, "invalid sirq number in aspeed,lpc-interrupts property\n");
 		goto err_clk_disable;
 	}
 
 	sirq_polarity = aspeed_vuart_map_irq_polarity(sirq[1]);
 	if (sirq_polarity < 0) {
-		dev_err(&pdev->dev, "invalid sirq polarity in aspeed,lpc-interrupts property\n");
-		rc = sirq_polarity;
+		rc = dev_err_probe(dev, sirq_polarity,
+				   "invalid sirq polarity in aspeed,lpc-interrupts property\n");
 		goto err_clk_disable;
 	}
 
