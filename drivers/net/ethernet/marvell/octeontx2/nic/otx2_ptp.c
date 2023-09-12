@@ -175,7 +175,7 @@ static int ptp_set_thresh(struct otx2_ptp *ptp, u64 thresh)
 	return otx2_sync_mbox_msg(&ptp->nic->mbox);
 }
 
-static int ptp_extts_on(struct otx2_ptp *ptp, int on)
+static int ptp_pps_on(struct otx2_ptp *ptp, int on, u64 period)
 {
 	struct ptp_req *req;
 
@@ -186,8 +186,9 @@ static int ptp_extts_on(struct otx2_ptp *ptp, int on)
 	if (!req)
 		return -ENOMEM;
 
-	req->op = PTP_OP_EXTTS_ON;
-	req->extts_on = on;
+	req->op = PTP_OP_PPS_ON;
+	req->pps_on = on;
+	req->period = period;
 
 	return otx2_sync_mbox_msg(&ptp->nic->mbox);
 }
@@ -276,8 +277,8 @@ static int otx2_ptp_verify_pin(struct ptp_clock_info *ptp, unsigned int pin,
 	switch (func) {
 	case PTP_PF_NONE:
 	case PTP_PF_EXTTS:
-		break;
 	case PTP_PF_PEROUT:
+		break;
 	case PTP_PF_PHYSYNC:
 		return -1;
 	}
@@ -340,6 +341,7 @@ static int otx2_ptp_enable(struct ptp_clock_info *ptp_info,
 {
 	struct otx2_ptp *ptp = container_of(ptp_info, struct otx2_ptp,
 					    ptp_info);
+	u64 period = 0;
 	int pin;
 
 	if (!ptp->nic)
@@ -351,12 +353,24 @@ static int otx2_ptp_enable(struct ptp_clock_info *ptp_info,
 				   rq->extts.index);
 		if (pin < 0)
 			return -EBUSY;
-		if (on) {
-			ptp_extts_on(ptp, on);
+		if (on)
 			schedule_delayed_work(&ptp->extts_work, msecs_to_jiffies(200));
-		} else {
-			ptp_extts_on(ptp, on);
+		else
 			cancel_delayed_work_sync(&ptp->extts_work);
+
+		return 0;
+	case PTP_CLK_REQ_PEROUT:
+		if (rq->perout.flags)
+			return -EOPNOTSUPP;
+
+		if (rq->perout.index >= ptp_info->n_pins)
+			return -EINVAL;
+		if (on) {
+			period = rq->perout.period.sec * NSEC_PER_SEC +
+				 rq->perout.period.nsec;
+			ptp_pps_on(ptp, on, period);
+		} else {
+			ptp_pps_on(ptp, on, period);
 		}
 		return 0;
 	default:
@@ -411,6 +425,7 @@ int otx2_ptp_init(struct otx2_nic *pfvf)
 		.name           = "OcteonTX2 PTP",
 		.max_adj        = 1000000000ull,
 		.n_ext_ts       = 1,
+		.n_per_out      = 1,
 		.n_pins         = 1,
 		.pps            = 0,
 		.pin_config     = &ptp_ptr->extts_config,
