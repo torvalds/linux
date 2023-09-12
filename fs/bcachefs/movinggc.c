@@ -148,7 +148,7 @@ static int bch2_copygc_get_buckets(struct btree_trans *trans,
 	struct bch_fs *c = trans->c;
 	struct btree_iter iter;
 	struct bkey_s_c k;
-	size_t nr_to_get = max(16UL, buckets_in_flight->nr / 4);
+	size_t nr_to_get = max_t(size_t, 16U, buckets_in_flight->nr / 4);
 	size_t saw = 0, in_flight = 0, not_movable = 0, sectors = 0;
 	int ret;
 
