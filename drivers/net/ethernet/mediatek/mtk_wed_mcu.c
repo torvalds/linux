@@ -68,6 +68,9 @@ mtk_wed_update_rx_stats(struct mtk_wed_device *wed, struct sk_buff *skb)
 	struct mtk_wed_wo_rx_stats *stats;
 	int i;
 
+	if (!wed->wlan.update_wo_rx_stats)
+		return;
+
 	if (count * sizeof(*stats) > skb->len - sizeof(u32))
 		return;
 
