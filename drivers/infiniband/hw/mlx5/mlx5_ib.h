@@ -798,6 +798,7 @@ struct mlx5_mkey_cache {
 	struct dentry		*fs_root;
 	unsigned long		last_add;
 	struct delayed_work	remove_ent_dwork;
+	u8			disable: 1;
 };
 
 struct mlx5_ib_port_resources {
