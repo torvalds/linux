@@ -1175,12 +1175,23 @@ void tick_nohz_idle_enter(void)
 }
 
 /**
- * tick_nohz_irq_exit - update next tick event from interrupt exit
+ * tick_nohz_irq_exit - Notify the tick about IRQ exit
  *
- * When an interrupt fires while we are idle and it doesn't cause
- * a reschedule, it may still add, modify or delete a timer, enqueue
- * an RCU callback, etc...
- * So we need to re-calculate and reprogram the next tick event.
+ * A timer may have been added/modified/deleted either by the current IRQ,
+ * or by another place using this IRQ as a notification. This IRQ may have
+ * also updated the RCU callback list. These events may require a
+ * re-evaluation of the next tick. Depending on the context:
+ *
+ * 1) If the CPU is idle and no resched is pending, just proceed with idle
+ *    time accounting. The next tick will be re-evaluated on the next idle
+ *    loop iteration.
+ *
+ * 2) If the CPU is nohz_full:
+ *
+ *    2.1) If there is any tick dependency, restart the tick if stopped.
+ *
+ *    2.2) If there is no tick dependency, (re-)evaluate the next tick and
+ *         stop/update it accordingly.
  */
 void tick_nohz_irq_exit(void)
 {
@@ -1330,11 +1341,20 @@ static void tick_nohz_idle_update_tick(struct tick_sched *ts, ktime_t now)
 }
 
 /**
- * tick_nohz_idle_exit - restart the idle tick from the idle task
+ * tick_nohz_idle_exit - Update the tick upon idle task exit
  *
- * Restart the idle tick when the CPU is woken up from idle
- * This also exit the RCU extended quiescent state. The CPU
- * can use RCU again after this function is called.
+ * When the idle task exits, update the tick depending on the
+ * following situations:
+ *
+ * 1) If the CPU is not in nohz_full mode (most cases), then
+ *    restart the tick.
+ *
+ * 2) If the CPU is in nohz_full mode (corner case):
+ *   2.1) If the tick can be kept stopped (no tick dependencies)
+ *        then re-eavaluate the next tick and try to keep it stopped
+ *        as long as possible.
+ *   2.2) If the tick has dependencies, restart the tick.
+ *
  */
 void tick_nohz_idle_exit(void)
 {
@@ -1364,7 +1384,13 @@ void tick_nohz_idle_exit(void)
 }
 
 /*
- * The nohz low res interrupt handler
+ * In low-resolution mode, the tick handler must be implemented directly
+ * at the clockevent level. hrtimer can't be used instead because its
+ * infrastructure actually relies on the tick itself as a backend in
+ * low-resolution mode (see hrtimer_run_queues()).
+ *
+ * This low-resolution handler still makes use of some hrtimer APIs meanwhile
+ * for commodity with expiration calculation and forwarding.
  */
 static void tick_nohz_lowres_handler(struct clock_event_device *dev)
 {
