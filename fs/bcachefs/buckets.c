@@ -1300,7 +1300,7 @@ int bch2_trans_fs_usage_apply(struct btree_trans *trans,
 	static int warned_disk_usage = 0;
 	bool warn = false;
 	unsigned disk_res_sectors = trans->disk_res ? trans->disk_res->sectors : 0;
-	struct replicas_delta *d = deltas->d, *d2;
+	struct replicas_delta *d, *d2;
 	struct replicas_delta *top = (void *) deltas->d + deltas->used;
 	struct bch_fs_usage *dst;
 	s64 added = 0, should_not_have_added;

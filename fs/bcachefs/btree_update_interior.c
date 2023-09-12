@@ -143,7 +143,7 @@ static size_t btree_node_u64s_with_format(struct btree *b,
 }
 
 /**
- * btree_node_format_fits - check if we could rewrite node with a new format
+ * bch2_btree_node_format_fits - check if we could rewrite node with a new format
  *
  * This assumes all keys can pack with the new format -- it just checks if
  * the re-packed keys would fit inside the node itself.
