@@ -2264,11 +2264,13 @@ out:
  * To avoid blocking kernel daemons, such as lockd, that need to acquire POSIX
  * locks, the ->lock() interface may return asynchronously, before the lock has
  * been granted or denied by the underlying filesystem, if (and only if)
- * lm_grant is set. Callers expecting ->lock() to return asynchronously
- * will only use F_SETLK, not F_SETLKW; they will set FL_SLEEP if (and only if)
- * the request is for a blocking lock. When ->lock() does return asynchronously,
- * it must return FILE_LOCK_DEFERRED, and call ->lm_grant() when the lock
- * request completes.
+ * lm_grant is set. Additionally EXPORT_OP_ASYNC_LOCK in export_operations
+ * flags need to be set.
+ *
+ * Callers expecting ->lock() to return asynchronously will only use F_SETLK,
+ * not F_SETLKW; they will set FL_SLEEP if (and only if) the request is for a
+ * blocking lock. When ->lock() does return asynchronously, it must return
+ * FILE_LOCK_DEFERRED, and call ->lm_grant() when the lock request completes.
  * If the request is for non-blocking lock the file system should return
  * FILE_LOCK_DEFERRED then try to get the lock and call the callback routine
  * with the result. If the request timed out the callback routine will return a
