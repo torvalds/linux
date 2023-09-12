@@ -2286,6 +2286,7 @@ event_subsystem_dir(struct trace_array *tr, const char *name,
 {
 	struct event_subsystem *system, *iter;
 	struct trace_subsystem_dir *dir;
+	struct eventfs_file *ef;
 	int res;
 
 	/* First see if we did not already create this dir */
@@ -2318,13 +2319,14 @@ event_subsystem_dir(struct trace_array *tr, const char *name,
 	} else
 		__get_system(system);
 
-	dir->ef = eventfs_add_subsystem_dir(name, parent);
-	if (IS_ERR(dir->ef)) {
+	ef = eventfs_add_subsystem_dir(name, parent);
+	if (IS_ERR(ef)) {
 		pr_warn("Failed to create system directory %s\n", name);
 		__put_system(system);
 		goto out_free;
 	}
 
+	dir->ef = ef;
 	dir->tr = tr;
 	dir->ref_count = 1;
 	dir->nr_events = 1;
@@ -2404,6 +2406,7 @@ event_create_dir(struct dentry *parent, struct trace_event_file *file)
 	struct trace_event_call *call = file->event_call;
 	struct eventfs_file *ef_subsystem = NULL;
 	struct trace_array *tr = file->tr;
+	struct eventfs_file *ef;
 	const char *name;
 	int ret;
 
@@ -2420,11 +2423,13 @@ event_create_dir(struct dentry *parent, struct trace_event_file *file)
 		return -ENOMEM;
 
 	name = trace_event_name(call);
-	file->ef = eventfs_add_dir(name, ef_subsystem);
-	if (IS_ERR(file->ef)) {
+	ef = eventfs_add_dir(name, ef_subsystem);
+	if (IS_ERR(ef)) {
 		pr_warn("Could not create tracefs '%s' directory\n", name);
 		return -1;
 	}
+
+	file->ef = ef;
 
 	if (call->class->reg && !(call->flags & TRACE_EVENT_FL_IGNORE_ENABLE))
 		eventfs_add_file("enable", TRACE_MODE_WRITE, file->ef, file,
