@@ -12,7 +12,6 @@
 #include <linux/string.h>
 #include <linux/sys_soc.h>
 
-
 struct renesas_family {
 	const char name[16];
 	u32 reg;			/* CCCR or PRR, if not in DT */
@@ -88,7 +87,6 @@ static const struct renesas_family fam_shmobile __initconst __maybe_unused = {
 	.name	= "SH-Mobile",
 	.reg	= 0xe600101c,		/* CCCR (Common Chip Code Register) */
 };
-
 
 struct renesas_soc {
 	const struct renesas_family *family;
