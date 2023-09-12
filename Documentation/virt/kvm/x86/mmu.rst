@@ -229,10 +229,13 @@ Shadow pages contain the following information:
     can be calculated from the gfn field when used.  In addition, when
     role.direct is set, KVM does not track access permission for each of the
     gfn. See role.direct and gfn.
-  root_count:
-    A counter keeping track of how many hardware registers (guest cr3 or
-    pdptrs) are now pointing at the page.  While this counter is nonzero, the
-    page cannot be destroyed.  See role.invalid.
+  root_count / tdp_mmu_root_count:
+     root_count is a reference counter for root shadow pages in Shadow MMU.
+     vCPUs elevate the refcount when getting a shadow page that will be used as
+     a root page, i.e. page that will be loaded into hardware directly (CR3,
+     PDPTRs, nCR3 EPTP). Root pages cannot be destroyed while their refcount is
+     non-zero. See role.invalid. tdp_mmu_root_count is similar but exclusively
+     used in TDP MMU as an atomic refcount.
   parent_ptes:
     The reverse mapping for the pte/ptes pointing at this page's spt. If
     parent_ptes bit 0 is zero, only one spte points at this page and
