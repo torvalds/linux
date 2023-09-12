@@ -29,7 +29,13 @@ SECTIONS
 	.eh_frame_hdr	: { *(.eh_frame_hdr) }		:text	:eh_frame_hdr
 	.eh_frame	: { KEEP (*(.eh_frame)) }	:text
 
-	.rodata		: { *(.rodata .rodata.* .gnu.linkonce.r.*) }
+	.rodata		: {
+		*(.rodata .rodata.* .gnu.linkonce.r.*)
+		*(.got.plt) *(.got)
+		*(.data .data.* .gnu.linkonce.d.*)
+		*(.dynbss)
+		*(.bss .bss.* .gnu.linkonce.b.*)
+	}
 
 	/*
 	 * This linker script is used both with -r and with -shared.
@@ -43,13 +49,6 @@ SECTIONS
 	. = ALIGN(4);
 	.alternative : {
 		*(.alternative)
-	}
-
-	.data		: {
-		*(.got.plt) *(.got)
-		*(.data .data.* .gnu.linkonce.d.*)
-		*(.dynbss)
-		*(.bss .bss.* .gnu.linkonce.b.*)
 	}
 }
 
