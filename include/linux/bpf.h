@@ -3194,4 +3194,9 @@ static inline gfp_t bpf_memcg_flags(gfp_t flags)
 	return flags;
 }
 
+static inline bool bpf_is_subprog(const struct bpf_prog *prog)
+{
+	return prog->aux->func_idx != 0;
+}
+
 #endif /* _LINUX_BPF_H */

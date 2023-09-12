@@ -1049,7 +1049,7 @@ static int do_jit(struct bpf_prog *bpf_prog, int *addrs, u8 *image, u8 *rw_image
 
 	emit_prologue(&prog, bpf_prog->aux->stack_depth,
 		      bpf_prog_was_classic(bpf_prog), tail_call_reachable,
-		      bpf_prog->aux->func_idx != 0);
+		      bpf_is_subprog(bpf_prog));
 	push_callee_regs(&prog, callee_regs_used);
 
 	ilen = prog - temp;
