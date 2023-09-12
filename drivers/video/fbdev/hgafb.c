@@ -573,7 +573,7 @@ static int hgafb_probe(struct platform_device *pdev)
 	hga_fix.smem_start = (unsigned long)hga_vram;
 	hga_fix.smem_len = hga_vram_len;
 
-	info->flags = FBINFO_DEFAULT | FBINFO_HWACCEL_YPAN;
+	info->flags = FBINFO_HWACCEL_YPAN;
 	info->var = hga_default_var;
 	info->fix = hga_fix;
 	info->monspecs.hfmin = 0;

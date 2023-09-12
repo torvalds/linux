@@ -542,7 +542,7 @@ static int fsi_spi_probe(struct device *dev)
 		if (of_property_read_u32(np, "reg", &base))
 			continue;
 
-		ctlr = spi_alloc_master(dev, sizeof(*ctx));
+		ctlr = spi_alloc_host(dev, sizeof(*ctx));
 		if (!ctlr) {
 			of_node_put(np);
 			break;

@@ -16,6 +16,7 @@ Contents:
    altera/altera_tse
    amd/pds_core
    amd/pds_vdpa
+   amd/pds_vfio_pci
    aquantia/atlantic
    chelsio/cxgb
    cirrus/cs89x0

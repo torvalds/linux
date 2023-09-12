@@ -412,6 +412,88 @@ int link_aux_transfer_raw(struct ddc_service *ddc,
 	}
 }
 
+uint32_t link_get_fixed_vs_pe_retimer_write_address(struct dc_link *link)
+{
+	uint32_t vendor_lttpr_write_address = 0xF004F;
+	uint8_t offset;
+
+	switch (link->dpcd_caps.lttpr_caps.phy_repeater_cnt) {
+	case 0x80: // 1 lttpr repeater
+		offset =  1;
+		break;
+	case 0x40: // 2 lttpr repeaters
+		offset = 2;
+		break;
+	case 0x20: // 3 lttpr repeaters
+		offset = 3;
+		break;
+	case 0x10: // 4 lttpr repeaters
+		offset = 4;
+		break;
+	case 0x08: // 5 lttpr repeaters
+		offset = 5;
+		break;
+	case 0x04: // 6 lttpr repeaters
+		offset = 6;
+		break;
+	case 0x02: // 7 lttpr repeaters
+		offset = 7;
+		break;
+	case 0x01: // 8 lttpr repeaters
+		offset = 8;
+		break;
+	default:
+		offset = 0xFF;
+	}
+
+	if (offset != 0xFF) {
+		vendor_lttpr_write_address +=
+				((DP_REPEATER_CONFIGURATION_AND_STATUS_SIZE) * (offset - 1));
+	}
+	return vendor_lttpr_write_address;
+}
+
+uint32_t link_get_fixed_vs_pe_retimer_read_address(struct dc_link *link)
+{
+	return link_get_fixed_vs_pe_retimer_write_address(link) + 4;
+}
+
+bool link_configure_fixed_vs_pe_retimer(struct ddc_service *ddc, const uint8_t *data, uint32_t length)
+{
+	struct aux_payload write_payload = {
+		.i2c_over_aux = false,
+		.write = true,
+		.address = link_get_fixed_vs_pe_retimer_write_address(ddc->link),
+		.length = length,
+		.data = (uint8_t *) data,
+		.reply = NULL,
+		.mot = I2C_MOT_UNDEF,
+		.write_status_update = false,
+		.defer_delay = 0,
+	};
+
+	return link_aux_transfer_with_retries_no_mutex(ddc,
+			&write_payload);
+}
+
+bool link_query_fixed_vs_pe_retimer(struct ddc_service *ddc, uint8_t *data, uint32_t length)
+{
+	struct aux_payload read_payload = {
+		.i2c_over_aux = false,
+		.write = false,
+		.address = link_get_fixed_vs_pe_retimer_read_address(ddc->link),
+		.length = length,
+		.data = data,
+		.reply = NULL,
+		.mot = I2C_MOT_UNDEF,
+		.write_status_update = false,
+		.defer_delay = 0,
+	};
+
+	return link_aux_transfer_with_retries_no_mutex(ddc,
+			&read_payload);
+}
+
 bool link_aux_transfer_with_retries_no_mutex(struct ddc_service *ddc,
 		struct aux_payload *payload)
 {
@@ -427,7 +509,7 @@ bool try_to_configure_aux_timeout(struct ddc_service *ddc,
 
 	if ((ddc->link->chip_caps & EXT_DISPLAY_PATH_CAPS__DP_FIXED_VS_EN) &&
 			!ddc->link->dc->debug.disable_fixed_vs_aux_timeout_wa &&
-			ASICREV_IS_YELLOW_CARP(ddc->ctx->asic_id.hw_internal_rev)) {
+			ddc->ctx->dce_version == DCN_VERSION_3_1) {
 		/* Fixed VS workaround for AUX timeout */
 		const uint32_t fixed_vs_address = 0xF004F;
 		const uint8_t fixed_vs_data[4] = {0x1, 0x22, 0x63, 0xc};

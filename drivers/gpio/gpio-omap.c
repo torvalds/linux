@@ -22,7 +22,6 @@
 #include <linux/pm_runtime.h>
 #include <linux/pm.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/gpio/driver.h>
 #include <linux/bitops.h>
 #include <linux/platform_data/gpio-omap.h>
@@ -1413,11 +1412,8 @@ static int omap_gpio_probe(struct platform_device *pdev)
 	bank->dev = dev;
 
 	bank->irq = platform_get_irq(pdev, 0);
-	if (bank->irq <= 0) {
-		if (!bank->irq)
-			bank->irq = -ENXIO;
-		return dev_err_probe(dev, bank->irq, "can't get irq resource\n");
-	}
+	if (bank->irq < 0)
+		return bank->irq;
 
 	bank->chip.parent = dev;
 	bank->chip.owner = THIS_MODULE;

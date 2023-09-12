@@ -62,7 +62,7 @@ Deprecated properties:
  - ctrl-module : phandle of the control module used by PHY driver to power on
    the PHY.
 
-Recommended properies:
+Recommended properties:
  - syscon-phy-power : phandle/offset pair. Phandle to the system control
    module and the register offset to power on/off the PHY.
 

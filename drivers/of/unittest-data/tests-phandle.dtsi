@@ -8,7 +8,9 @@
 	testcase: testcase-data {
 		security-password = "password";
 		duplicate-name = "duplicate";
+
 		duplicate-name { };
+
 		phandle-tests {
 			provider0: provider0 {
 				#phandle-cells = <0>;

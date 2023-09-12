@@ -463,7 +463,7 @@ can request that a region of memory be mlocked by supplying the MAP_LOCKED flag
 to the mmap() call.  There is one important and subtle difference here, though.
 mmap() + mlock() will fail if the range cannot be faulted in (e.g. because
 mm_populate fails) and returns with ENOMEM while mmap(MAP_LOCKED) will not fail.
-The mmaped area will still have properties of the locked area - pages will not
+The mmapped area will still have properties of the locked area - pages will not
 get swapped out - but major page faults to fault memory in might still happen.
 
 Furthermore, any mmap() call or brk() call that expands the heap by a task

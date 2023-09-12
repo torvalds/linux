@@ -59,24 +59,16 @@ struct msm_fence_context;
 
 struct msm_gem_vma {
 	struct drm_mm_node node;
-	spinlock_t lock;
 	uint64_t iova;
 	struct msm_gem_address_space *aspace;
 	struct list_head list;    /* node in msm_gem_object::vmas */
 	bool mapped;
-	int inuse;
-	uint32_t fence_mask;
-	uint32_t fence[MSM_GPU_MAX_RINGS];
-	struct msm_fence_context *fctx[MSM_GPU_MAX_RINGS];
 };
 
 struct msm_gem_vma *msm_gem_vma_new(struct msm_gem_address_space *aspace);
 int msm_gem_vma_init(struct msm_gem_vma *vma, int size,
 		u64 range_start, u64 range_end);
-bool msm_gem_vma_inuse(struct msm_gem_vma *vma);
 void msm_gem_vma_purge(struct msm_gem_vma *vma);
-void msm_gem_vma_unpin(struct msm_gem_vma *vma);
-void msm_gem_vma_unpin_fenced(struct msm_gem_vma *vma, struct msm_fence_context *fctx);
 int msm_gem_vma_map(struct msm_gem_vma *vma, int prot, struct sg_table *sgt, int size);
 void msm_gem_vma_close(struct msm_gem_vma *vma);
 
@@ -142,6 +134,7 @@ int msm_gem_get_and_pin_iova(struct drm_gem_object *obj,
 		struct msm_gem_address_space *aspace, uint64_t *iova);
 void msm_gem_unpin_iova(struct drm_gem_object *obj,
 		struct msm_gem_address_space *aspace);
+void msm_gem_pin_obj_locked(struct drm_gem_object *obj);
 struct page **msm_gem_pin_pages(struct drm_gem_object *obj);
 void msm_gem_unpin_pages(struct drm_gem_object *obj);
 int msm_gem_dumb_create(struct drm_file *file, struct drm_device *dev,
@@ -297,15 +290,13 @@ struct msm_gem_submit {
 /* make sure these don't conflict w/ MSM_SUBMIT_BO_x */
 #define BO_VALID	0x8000	/* is current addr in cmdstream correct/valid? */
 #define BO_LOCKED	0x4000	/* obj lock is held */
-#define BO_OBJ_PINNED	0x2000	/* obj (pages) is pinned and on active list */
-#define BO_VMA_PINNED	0x1000	/* vma (virtual address) is pinned */
+#define BO_PINNED	0x2000	/* obj (pages) is pinned and on active list */
 		uint32_t flags;
 		union {
-			struct msm_gem_object *obj;
+			struct drm_gem_object *obj;
 			uint32_t handle;
 		};
 		uint64_t iova;
-		struct msm_gem_vma *vma;
 	} bos[];
 };
 

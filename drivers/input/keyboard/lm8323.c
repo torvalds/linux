@@ -556,6 +556,7 @@ static int init_pwm(struct lm8323_chip *lm, int id, struct device *dev,
 		    const char *name)
 {
 	struct lm8323_pwm *pwm;
+	int err;
 
 	BUG_ON(id > 3);
 
@@ -575,17 +576,17 @@ static int init_pwm(struct lm8323_chip *lm, int id, struct device *dev,
 		pwm->cdev.name = name;
 		pwm->cdev.brightness_set = lm8323_pwm_set_brightness;
 		pwm->cdev.groups = lm8323_pwm_groups;
-		if (led_classdev_register(dev, &pwm->cdev) < 0) {
-			dev_err(dev, "couldn't register PWM %d\n", id);
-			return -1;
+
+		err = devm_led_classdev_register(dev, &pwm->cdev);
+		if (err) {
+			dev_err(dev, "couldn't register PWM %d: %d\n", id, err);
+			return err;
 		}
 		pwm->enabled = true;
 	}
 
 	return 0;
 }
-
-static struct i2c_driver lm8323_i2c_driver;
 
 static ssize_t lm8323_show_disable(struct device *dev,
 				   struct device_attribute *attr, char *buf)
@@ -615,6 +616,12 @@ static ssize_t lm8323_set_disable(struct device *dev,
 }
 static DEVICE_ATTR(disable_kp, 0644, lm8323_show_disable, lm8323_set_disable);
 
+static struct attribute *lm8323_attrs[] = {
+	&dev_attr_disable_kp.attr,
+	NULL,
+};
+ATTRIBUTE_GROUPS(lm8323);
+
 static int lm8323_probe(struct i2c_client *client)
 {
 	struct lm8323_platform_data *pdata = dev_get_platdata(&client->dev);
@@ -642,12 +649,13 @@ static int lm8323_probe(struct i2c_client *client)
 		return -EINVAL;
 	}
 
-	lm = kzalloc(sizeof *lm, GFP_KERNEL);
-	idev = input_allocate_device();
-	if (!lm || !idev) {
-		err = -ENOMEM;
-		goto fail1;
-	}
+	lm = devm_kzalloc(&client->dev, sizeof(*lm), GFP_KERNEL);
+	if (!lm)
+		return -ENOMEM;
+
+	idev = devm_input_allocate_device(&client->dev);
+	if (!idev)
+		return -ENOMEM;
 
 	lm->client = client;
 	lm->idev = idev;
@@ -663,8 +671,10 @@ static int lm8323_probe(struct i2c_client *client)
 
 	lm8323_reset(lm);
 
-	/* Nothing's set up to service the IRQ yet, so just spin for max.
-	 * 100ms until we can configure. */
+	/*
+	 * Nothing's set up to service the IRQ yet, so just spin for max.
+	 * 100ms until we can configure.
+	 */
 	tmo = jiffies + msecs_to_jiffies(100);
 	while (lm8323_read(lm, LM8323_CMD_READ_INT, data, 1) == 1) {
 		if (data[0] & INT_NOINIT)
@@ -684,21 +694,17 @@ static int lm8323_probe(struct i2c_client *client)
 	/* If a true probe check the device */
 	if (lm8323_read_id(lm, data) != 0) {
 		dev_err(&client->dev, "device not found\n");
-		err = -ENODEV;
-		goto fail1;
+		return -ENODEV;
 	}
 
 	for (pwm = 0; pwm < LM8323_NUM_PWMS; pwm++) {
 		err = init_pwm(lm, pwm + 1, &client->dev,
 			       pdata->pwm_names[pwm]);
-		if (err < 0)
-			goto fail2;
+		if (err)
+			return err;
 	}
 
 	lm->kp_enabled = true;
-	err = device_create_file(&client->dev, &dev_attr_disable_kp);
-	if (err < 0)
-		goto fail2;
 
 	idev->name = pdata->name ? : "LM8323 keypad";
 	snprintf(lm->phys, sizeof(lm->phys),
@@ -719,14 +725,16 @@ static int lm8323_probe(struct i2c_client *client)
 	err = input_register_device(idev);
 	if (err) {
 		dev_dbg(&client->dev, "error registering input device\n");
-		goto fail3;
+		return err;
 	}
 
-	err = request_threaded_irq(client->irq, NULL, lm8323_irq,
-			  IRQF_TRIGGER_LOW|IRQF_ONESHOT, "lm8323", lm);
+	err = devm_request_threaded_irq(&client->dev, client->irq,
+					NULL, lm8323_irq,
+					IRQF_TRIGGER_LOW | IRQF_ONESHOT,
+					"lm8323", lm);
 	if (err) {
 		dev_err(&client->dev, "could not get IRQ %d\n", client->irq);
-		goto fail4;
+		return err;
 	}
 
 	i2c_set_clientdata(client, lm);
@@ -735,39 +743,6 @@ static int lm8323_probe(struct i2c_client *client)
 	enable_irq_wake(client->irq);
 
 	return 0;
-
-fail4:
-	input_unregister_device(idev);
-	idev = NULL;
-fail3:
-	device_remove_file(&client->dev, &dev_attr_disable_kp);
-fail2:
-	while (--pwm >= 0)
-		if (lm->pwm[pwm].enabled)
-			led_classdev_unregister(&lm->pwm[pwm].cdev);
-fail1:
-	input_free_device(idev);
-	kfree(lm);
-	return err;
-}
-
-static void lm8323_remove(struct i2c_client *client)
-{
-	struct lm8323_chip *lm = i2c_get_clientdata(client);
-	int i;
-
-	disable_irq_wake(client->irq);
-	free_irq(client->irq, lm);
-
-	input_unregister_device(lm->idev);
-
-	device_remove_file(&lm->client->dev, &dev_attr_disable_kp);
-
-	for (i = 0; i < 3; i++)
-		if (lm->pwm[i].enabled)
-			led_classdev_unregister(&lm->pwm[i].cdev);
-
-	kfree(lm);
 }
 
 /*
@@ -823,11 +798,11 @@ static const struct i2c_device_id lm8323_id[] = {
 
 static struct i2c_driver lm8323_i2c_driver = {
 	.driver = {
-		.name	= "lm8323",
-		.pm	= pm_sleep_ptr(&lm8323_pm_ops),
+		.name		= "lm8323",
+		.pm		= pm_sleep_ptr(&lm8323_pm_ops),
+		.dev_groups	= lm8323_groups,
 	},
 	.probe		= lm8323_probe,
-	.remove		= lm8323_remove,
 	.id_table	= lm8323_id,
 };
 MODULE_DEVICE_TABLE(i2c, lm8323_id);

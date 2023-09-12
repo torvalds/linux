@@ -257,12 +257,6 @@
 #define CLK_SCLK_MMC2			249
 
 /*
- * Total number of clocks of main CMU.
- * NOTE: Must be equal to last clock ID increased by one.
- */
-#define CLK_NR_CLKS			250
-
-/*
  * CMU DMC
  */
 
@@ -282,12 +276,6 @@
 #define CLK_DIV_DMC_PRE			18
 #define CLK_DIV_DMCP			19
 #define CLK_DIV_DMCD			20
-
-/*
- * Total number of clocks of main CMU.
- * NOTE: Must be equal to last clock ID increased by one.
- */
-#define NR_CLKS_DMC			21
 
 /*
  * CMU ISP
@@ -343,11 +331,5 @@
 #define CLK_SMMU_ISPCX			45
 #define CLK_ASYNCAXIM			46
 #define CLK_SCLK_MPWM_ISP		47
-
-/*
- * Total number of clocks of CMU_ISP.
- * NOTE: Must be equal to last clock ID increased by one.
- */
-#define NR_CLKS_ISP			48
 
 #endif /* _DT_BINDINGS_CLOCK_SAMSUNG_EXYNOS3250_CLOCK_H */

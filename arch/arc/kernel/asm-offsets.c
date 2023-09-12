@@ -20,13 +20,13 @@ int main(void)
 
 	BLANK();
 
-	DEFINE(THREAD_KSP, offsetof(struct thread_struct, ksp));
 	DEFINE(THREAD_CALLEE_REG, offsetof(struct thread_struct, callee_reg));
 	DEFINE(THREAD_FAULT_ADDR,
 	       offsetof(struct thread_struct, fault_address));
 
 	BLANK();
 
+	DEFINE(THREAD_INFO_KSP, offsetof(struct thread_info, ksp));
 	DEFINE(THREAD_INFO_FLAGS, offsetof(struct thread_info, flags));
 	DEFINE(THREAD_INFO_PREEMPT_COUNT,
 	       offsetof(struct thread_info, preempt_count));
@@ -46,7 +46,8 @@ int main(void)
 	BLANK();
 
 	DEFINE(PT_status32, offsetof(struct pt_regs, status32));
-	DEFINE(PT_event, offsetof(struct pt_regs, event));
+	DEFINE(PT_event, offsetof(struct pt_regs, ecr));
+	DEFINE(PT_bta, offsetof(struct pt_regs, bta));
 	DEFINE(PT_sp, offsetof(struct pt_regs, sp));
 	DEFINE(PT_r0, offsetof(struct pt_regs, r0));
 	DEFINE(PT_r1, offsetof(struct pt_regs, r1));
@@ -61,13 +62,9 @@ int main(void)
 	DEFINE(PT_r26, offsetof(struct pt_regs, r26));
 	DEFINE(PT_ret, offsetof(struct pt_regs, ret));
 	DEFINE(PT_blink, offsetof(struct pt_regs, blink));
+	OFFSET(PT_fp, pt_regs, fp);
 	DEFINE(PT_lpe, offsetof(struct pt_regs, lp_end));
 	DEFINE(PT_lpc, offsetof(struct pt_regs, lp_count));
-	DEFINE(PT_user_r25, offsetof(struct pt_regs, user_r25));
-
-	DEFINE(SZ_CALLEE_REGS, sizeof(struct callee_regs));
-	DEFINE(SZ_PT_REGS, sizeof(struct pt_regs));
-
 #ifdef CONFIG_ISA_ARCV2
 	OFFSET(PT_r12, pt_regs, r12);
 	OFFSET(PT_r30, pt_regs, r30);
@@ -79,6 +76,9 @@ int main(void)
 #ifdef CONFIG_ARC_DSP_SAVE_RESTORE_REGS
 	OFFSET(PT_DSP_CTRL, pt_regs, DSP_CTRL);
 #endif
+
+	DEFINE(SZ_CALLEE_REGS, sizeof(struct callee_regs));
+	DEFINE(SZ_PT_REGS, sizeof(struct pt_regs));
 
 	return 0;
 }

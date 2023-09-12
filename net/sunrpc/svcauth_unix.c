@@ -665,7 +665,7 @@ static struct group_info *unix_gid_find(kuid_t uid, struct svc_rqst *rqstp)
 	}
 }
 
-int
+enum svc_auth_status
 svcauth_unix_set_client(struct svc_rqst *rqstp)
 {
 	struct sockaddr_in *sin;
@@ -736,7 +736,6 @@ out:
 	rqstp->rq_auth_stat = rpc_auth_ok;
 	return SVC_OK;
 }
-
 EXPORT_SYMBOL_GPL(svcauth_unix_set_client);
 
 /**
@@ -751,7 +750,7 @@ EXPORT_SYMBOL_GPL(svcauth_unix_set_client);
  *
  * rqstp->rq_auth_stat is set as mandated by RFC 5531.
  */
-static int
+static enum svc_auth_status
 svcauth_null_accept(struct svc_rqst *rqstp)
 {
 	struct xdr_stream *xdr = &rqstp->rq_arg_stream;
@@ -828,7 +827,7 @@ struct auth_ops svcauth_null = {
  *
  * rqstp->rq_auth_stat is set as mandated by RFC 5531.
  */
-static int
+static enum svc_auth_status
 svcauth_tls_accept(struct svc_rqst *rqstp)
 {
 	struct xdr_stream *xdr = &rqstp->rq_arg_stream;
@@ -913,7 +912,7 @@ struct auth_ops svcauth_tls = {
  *
  * rqstp->rq_auth_stat is set as mandated by RFC 5531.
  */
-static int
+static enum svc_auth_status
 svcauth_unix_accept(struct svc_rqst *rqstp)
 {
 	struct xdr_stream *xdr = &rqstp->rq_arg_stream;

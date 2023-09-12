@@ -40,7 +40,7 @@
 	pinctrl-0 = <&i2c0_pins>;
 	status = "okay";
 
-	eeprom@53{
+	eeprom@53 {
 		compatible = "atmel,24c64";
 		reg = <0x53>;
 	};
@@ -95,11 +95,11 @@
 				reg = <0x00000000 0x00500000>;
 				label = "u-boot";
 			};
-			partition@500000{
+			partition@500000 {
 				reg = <0x00500000 0x00400000>;
 				label = "u-boot env";
 			};
-			partition@900000{
+			partition@900000 {
 				reg = <0x00900000 0x3F700000>;
 				label = "user";
 			};

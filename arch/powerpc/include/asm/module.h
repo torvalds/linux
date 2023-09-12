@@ -75,10 +75,6 @@ struct mod_arch_specific {
 #endif
 
 #ifdef CONFIG_DYNAMIC_FTRACE
-#    ifdef MODULE
-	asm(".section .ftrace.tramp,\"ax\",@nobits; .align 3; .previous");
-#    endif	/* MODULE */
-
 int module_trampoline_target(struct module *mod, unsigned long trampoline,
 			     unsigned long *target);
 int module_finalize_ftrace(struct module *mod, const Elf_Shdr *sechdrs);

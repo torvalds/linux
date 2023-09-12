@@ -27,21 +27,15 @@ static void ip30led_set(struct led_classdev *led_cdev,
 
 static int ip30led_create(struct platform_device *pdev, int num)
 {
-	struct resource *res;
 	struct ip30_led *data;
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, num);
-	if (!res)
-		return -EBUSY;
 
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
-	data->reg = devm_ioremap_resource(&pdev->dev, res);
+	data->reg = devm_platform_ioremap_resource(pdev, num);
 	if (IS_ERR(data->reg))
 		return PTR_ERR(data->reg);
-
 
 	switch (num) {
 	case IP30_LED_SYSTEM:

@@ -8,6 +8,7 @@
 #include "adf_cfg.h"
 #include "adf_common_drv.h"
 #include "adf_dbgfs.h"
+#include "adf_heartbeat.h"
 
 static LIST_HEAD(service_table);
 static DEFINE_MUTEX(service_lock);
@@ -129,6 +130,8 @@ static int adf_dev_init(struct adf_accel_dev *accel_dev)
 			return -EFAULT;
 	}
 
+	adf_heartbeat_init(accel_dev);
+
 	/*
 	 * Subservice initialisation is divided into two stages: init and start.
 	 * This is to facilitate any ordering dependencies between services
@@ -163,6 +166,7 @@ static int adf_dev_start(struct adf_accel_dev *accel_dev)
 	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
 	struct service_hndl *service;
 	struct list_head *list_itr;
+	int ret;
 
 	set_bit(ADF_STATUS_STARTING, &accel_dev->status);
 
@@ -177,6 +181,14 @@ static int adf_dev_start(struct adf_accel_dev *accel_dev)
 		return -EFAULT;
 	}
 
+	if (hw_data->measure_clock) {
+		ret = hw_data->measure_clock(accel_dev);
+		if (ret) {
+			dev_err(&GET_DEV(accel_dev), "Failed measure device clock\n");
+			return ret;
+		}
+	}
+
 	/* Set ssm watch dog timer */
 	if (hw_data->set_ssm_wdtimer)
 		hw_data->set_ssm_wdtimer(accel_dev);
@@ -186,6 +198,16 @@ static int adf_dev_start(struct adf_accel_dev *accel_dev)
 		dev_err(&GET_DEV(accel_dev), "Failed to configure Power Management\n");
 		return -EFAULT;
 	}
+
+	if (hw_data->start_timer) {
+		ret = hw_data->start_timer(accel_dev);
+		if (ret) {
+			dev_err(&GET_DEV(accel_dev), "Failed to start internal sync timer\n");
+			return ret;
+		}
+	}
+
+	adf_heartbeat_start(accel_dev);
 
 	list_for_each(list_itr, &service_table) {
 		service = list_entry(list_itr, struct service_hndl, list);
@@ -235,6 +257,7 @@ static int adf_dev_start(struct adf_accel_dev *accel_dev)
  */
 static void adf_dev_stop(struct adf_accel_dev *accel_dev)
 {
+	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
 	struct service_hndl *service;
 	struct list_head *list_itr;
 	bool wait = false;
@@ -269,6 +292,9 @@ static void adf_dev_stop(struct adf_accel_dev *accel_dev)
 			clear_bit(accel_dev->accel_id, service->start_status);
 		}
 	}
+
+	if (hw_data->stop_timer)
+		hw_data->stop_timer(accel_dev);
 
 	if (wait)
 		msleep(100);
@@ -325,6 +351,8 @@ static void adf_dev_shutdown(struct adf_accel_dev *accel_dev)
 		else
 			clear_bit(accel_dev->accel_id, service->init_status);
 	}
+
+	adf_heartbeat_shutdown(accel_dev);
 
 	hw_data->disable_iov(accel_dev);
 

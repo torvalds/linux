@@ -598,6 +598,9 @@ enum {
 
 	TCA_FLOWER_KEY_CFM,		/* nested */
 
+	TCA_FLOWER_KEY_SPI,		/* be32 */
+	TCA_FLOWER_KEY_SPI_MASK,	/* be32 */
+
 	__TCA_FLOWER_MAX,
 };
 

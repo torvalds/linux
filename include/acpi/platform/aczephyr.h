@@ -10,9 +10,6 @@
 #ifndef __ACZEPHYR_H__
 #define __ACZEPHYR_H__
 
-#define SEEK_SET FS_SEEK_SET
-#define SEEK_END FS_SEEK_END
-
 #define ACPI_MACHINE_WIDTH      64
 
 #define ACPI_NO_ERROR_MESSAGES

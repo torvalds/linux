@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- *  Copyright IBM Corp. 2001, 2022
+ *  Copyright IBM Corp. 2001, 2023
  *  Author(s): Robert Burroughs
  *	       Eric Rossman (edrossma@us.ibm.com)
  *
@@ -42,7 +42,7 @@ struct response_type {
 
 MODULE_AUTHOR("IBM Corporation");
 MODULE_DESCRIPTION("Cryptographic Coprocessor (message type 6), " \
-		   "Copyright IBM Corp. 2001, 2012");
+		   "Copyright IBM Corp. 2001, 2023");
 MODULE_LICENSE("GPL");
 
 struct function_and_rules_block {
@@ -1348,14 +1348,6 @@ out:
 /*
  * The crypto operations for a CEXxC card.
  */
-static struct zcrypt_ops zcrypt_msgtype6_norng_ops = {
-	.owner = THIS_MODULE,
-	.name = MSGTYPE06_NAME,
-	.variant = MSGTYPE06_VARIANT_NORNG,
-	.rsa_modexpo = zcrypt_msgtype6_modexpo,
-	.rsa_modexpo_crt = zcrypt_msgtype6_modexpo_crt,
-	.send_cprb = zcrypt_msgtype6_send_cprb,
-};
 
 static struct zcrypt_ops zcrypt_msgtype6_ops = {
 	.owner = THIS_MODULE,
@@ -1378,14 +1370,12 @@ static struct zcrypt_ops zcrypt_msgtype6_ep11_ops = {
 
 void __init zcrypt_msgtype6_init(void)
 {
-	zcrypt_msgtype_register(&zcrypt_msgtype6_norng_ops);
 	zcrypt_msgtype_register(&zcrypt_msgtype6_ops);
 	zcrypt_msgtype_register(&zcrypt_msgtype6_ep11_ops);
 }
 
 void __exit zcrypt_msgtype6_exit(void)
 {
-	zcrypt_msgtype_unregister(&zcrypt_msgtype6_norng_ops);
 	zcrypt_msgtype_unregister(&zcrypt_msgtype6_ops);
 	zcrypt_msgtype_unregister(&zcrypt_msgtype6_ep11_ops);
 }

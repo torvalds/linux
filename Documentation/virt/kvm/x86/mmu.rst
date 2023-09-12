@@ -245,7 +245,7 @@ Shadow pages contain the following information:
     unsynchronized children).
   unsync_child_bitmap:
     A bitmap indicating which sptes in spt point (directly or indirectly) at
-    pages that may be unsynchronized.  Used to quickly locate all unsychronized
+    pages that may be unsynchronized.  Used to quickly locate all unsynchronized
     pages reachable from a given page.
   clear_spte_count:
     Only present on 32-bit hosts, where a 64-bit spte cannot be written

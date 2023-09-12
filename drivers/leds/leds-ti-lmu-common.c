@@ -7,7 +7,7 @@
 
 #include <linux/bitops.h>
 #include <linux/err.h>
-#include <linux/of_device.h>
+#include <linux/property.h>
 
 #include <linux/leds-ti-lmu-common.h>
 

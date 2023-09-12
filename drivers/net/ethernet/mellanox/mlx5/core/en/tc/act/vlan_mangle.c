@@ -65,8 +65,10 @@ tc_act_parse_vlan_mangle(struct mlx5e_tc_act_parse_state *parse_state,
 	if (err)
 		return err;
 
-	if (ns_type == MLX5_FLOW_NAMESPACE_FDB)
+	if (ns_type == MLX5_FLOW_NAMESPACE_FDB) {
 		attr->esw_attr->split_count = attr->esw_attr->out_count;
+		parse_state->if_count = 0;
+	}
 
 	return 0;
 }

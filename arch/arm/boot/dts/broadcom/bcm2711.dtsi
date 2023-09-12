@@ -76,7 +76,7 @@
 			};
 		};
 
-		dma: dma@7e007000 {
+		dma: dma-controller@7e007000 {
 			compatible = "brcm,bcm2835-dma";
 			reg = <0x7e007000 0xb00>;
 			interrupts = <GIC_SPI 80 IRQ_TYPE_LEVEL_HIGH>,
@@ -278,7 +278,7 @@
 			clocks = <&clocks BCM2835_CLOCK_PWM>;
 			assigned-clocks = <&clocks BCM2835_CLOCK_PWM>;
 			assigned-clock-rates = <10000000>;
-			#pwm-cells = <2>;
+			#pwm-cells = <3>;
 			status = "disabled";
 		};
 

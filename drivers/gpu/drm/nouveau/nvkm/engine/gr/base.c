@@ -109,8 +109,7 @@ nvkm_gr_oclass_get(struct nvkm_oclass *oclass, int index)
 }
 
 static int
-nvkm_gr_cclass_new(struct nvkm_fifo_chan *chan,
-		   const struct nvkm_oclass *oclass,
+nvkm_gr_cclass_new(struct nvkm_chan *chan, const struct nvkm_oclass *oclass,
 		   struct nvkm_object **pobject)
 {
 	struct nvkm_gr *gr = nvkm_gr(oclass->engine);
@@ -124,6 +123,17 @@ nvkm_gr_intr(struct nvkm_engine *engine)
 {
 	struct nvkm_gr *gr = nvkm_gr(engine);
 	gr->func->intr(gr);
+}
+
+static int
+nvkm_gr_nonstall(struct nvkm_engine *engine)
+{
+	struct nvkm_gr *gr = nvkm_gr(engine);
+
+	if (gr->func->nonstall)
+		return gr->func->nonstall(gr);
+
+	return -EINVAL;
 }
 
 static int
@@ -178,6 +188,7 @@ nvkm_gr = {
 	.init = nvkm_gr_init,
 	.fini = nvkm_gr_fini,
 	.reset = nvkm_gr_reset,
+	.nonstall = nvkm_gr_nonstall,
 	.intr = nvkm_gr_intr,
 	.tile = nvkm_gr_tile,
 	.chsw_load = nvkm_gr_chsw_load,

@@ -204,6 +204,8 @@ extern unsigned long		nlmsvc_timeout;
 extern bool			nsm_use_hostnames;
 extern u32			nsm_local_state;
 
+extern struct timer_list	nlmsvc_retry;
+
 /*
  * Lockd client functions
  */
@@ -280,7 +282,7 @@ __be32		  nlmsvc_testlock(struct svc_rqst *, struct nlm_file *,
 			struct nlm_host *, struct nlm_lock *,
 			struct nlm_lock *, struct nlm_cookie *);
 __be32		  nlmsvc_cancel_blocked(struct net *net, struct nlm_file *, struct nlm_lock *);
-unsigned long	  nlmsvc_retry_blocked(void);
+void		  nlmsvc_retry_blocked(void);
 void		  nlmsvc_traverse_blocks(struct nlm_host *, struct nlm_file *,
 					nlm_host_match_fn_t match);
 void		  nlmsvc_grant_reply(struct nlm_cookie *, __be32);

@@ -275,7 +275,7 @@ static struct platform_driver ir_rx51_platform_driver = {
 	.resume		= ir_rx51_resume,
 	.driver		= {
 		.name	= KBUILD_MODNAME,
-		.of_match_table = of_match_ptr(ir_rx51_match),
+		.of_match_table = ir_rx51_match,
 	},
 };
 module_platform_driver(ir_rx51_platform_driver);

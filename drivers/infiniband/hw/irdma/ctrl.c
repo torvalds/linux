@@ -1061,6 +1061,9 @@ static int irdma_sc_alloc_stag(struct irdma_sc_dev *dev,
 	u64 hdr;
 	enum irdma_page_size page_size;
 
+	if (!info->total_len && !info->all_memory)
+		return -EINVAL;
+
 	if (info->page_size == 0x40000000)
 		page_size = IRDMA_PAGE_SIZE_1G;
 	else if (info->page_size == 0x200000)
@@ -1125,6 +1128,9 @@ static int irdma_sc_mr_reg_non_shared(struct irdma_sc_dev *dev,
 	bool remote_access;
 	u8 addr_type;
 	enum irdma_page_size page_size;
+
+	if (!info->total_len && !info->all_memory)
+		return -EINVAL;
 
 	if (info->page_size == 0x40000000)
 		page_size = IRDMA_PAGE_SIZE_1G;
@@ -1301,7 +1307,6 @@ int irdma_sc_mr_fast_register(struct irdma_sc_qp *qp,
 
 	sq_info.wr_id = info->wr_id;
 	sq_info.signaled = info->signaled;
-	sq_info.push_wqe = info->push_wqe;
 
 	wqe = irdma_qp_get_next_send_wqe(&qp->qp_uk, &wqe_idx,
 					 IRDMA_QP_WQE_MIN_QUANTA, 0, &sq_info);
@@ -1335,7 +1340,6 @@ int irdma_sc_mr_fast_register(struct irdma_sc_qp *qp,
 	      FIELD_PREP(IRDMAQPSQ_HPAGESIZE, page_size) |
 	      FIELD_PREP(IRDMAQPSQ_STAGRIGHTS, info->access_rights) |
 	      FIELD_PREP(IRDMAQPSQ_VABASEDTO, info->addr_type) |
-	      FIELD_PREP(IRDMAQPSQ_PUSHWQE, (sq_info.push_wqe ? 1 : 0)) |
 	      FIELD_PREP(IRDMAQPSQ_READFENCE, info->read_fence) |
 	      FIELD_PREP(IRDMAQPSQ_LOCALFENCE, info->local_fence) |
 	      FIELD_PREP(IRDMAQPSQ_SIGCOMPL, info->signaled) |
@@ -1346,13 +1350,9 @@ int irdma_sc_mr_fast_register(struct irdma_sc_qp *qp,
 
 	print_hex_dump_debug("WQE: FAST_REG WQE", DUMP_PREFIX_OFFSET, 16, 8,
 			     wqe, IRDMA_QP_WQE_MIN_SIZE, false);
-	if (sq_info.push_wqe) {
-		irdma_qp_push_wqe(&qp->qp_uk, wqe, IRDMA_QP_WQE_MIN_QUANTA,
-				  wqe_idx, post_sq);
-	} else {
-		if (post_sq)
-			irdma_uk_qp_post_wr(&qp->qp_uk);
-	}
+
+	if (post_sq)
+		irdma_uk_qp_post_wr(&qp->qp_uk);
 
 	return 0;
 }
@@ -4007,7 +4007,6 @@ int irdma_sc_get_next_aeqe(struct irdma_sc_aeq *aeq,
 {
 	u64 temp, compl_ctx;
 	__le64 *aeqe;
-	u16 wqe_idx;
 	u8 ae_src;
 	u8 polarity;
 
@@ -4027,7 +4026,7 @@ int irdma_sc_get_next_aeqe(struct irdma_sc_aeq *aeq,
 			     aeqe, 16, false);
 
 	ae_src = (u8)FIELD_GET(IRDMA_AEQE_AESRC, temp);
-	wqe_idx = (u16)FIELD_GET(IRDMA_AEQE_WQDESCIDX, temp);
+	info->wqe_idx = (u16)FIELD_GET(IRDMA_AEQE_WQDESCIDX, temp);
 	info->qp_cq_id = (u32)FIELD_GET(IRDMA_AEQE_QPCQID_LOW, temp) |
 			 ((u32)FIELD_GET(IRDMA_AEQE_QPCQID_HI, temp) << 18);
 	info->ae_id = (u16)FIELD_GET(IRDMA_AEQE_AECODE, temp);
@@ -4110,7 +4109,6 @@ int irdma_sc_get_next_aeqe(struct irdma_sc_aeq *aeq,
 	case IRDMA_AE_SOURCE_RQ_0011:
 		info->qp = true;
 		info->rq = true;
-		info->wqe_idx = wqe_idx;
 		info->compl_ctx = compl_ctx;
 		break;
 	case IRDMA_AE_SOURCE_CQ:
@@ -4124,7 +4122,6 @@ int irdma_sc_get_next_aeqe(struct irdma_sc_aeq *aeq,
 	case IRDMA_AE_SOURCE_SQ_0111:
 		info->qp = true;
 		info->sq = true;
-		info->wqe_idx = wqe_idx;
 		info->compl_ctx = compl_ctx;
 		break;
 	case IRDMA_AE_SOURCE_IN_RR_WR:

@@ -15,9 +15,9 @@
  *
  * 4/06/01 davidm	Tuned to make it perform well both for cached and uncached copies.
  */
+#include <linux/export.h>
 #include <asm/asmmacro.h>
 #include <asm/page.h>
-#include <asm/export.h>
 
 #define PIPE_DEPTH	3
 #define EPI		p[PIPE_DEPTH-1]

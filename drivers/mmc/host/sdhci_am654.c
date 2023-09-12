@@ -866,22 +866,22 @@ err_pltfm_free:
 	return ret;
 }
 
-static int sdhci_am654_remove(struct platform_device *pdev)
+static void sdhci_am654_remove(struct platform_device *pdev)
 {
 	struct sdhci_host *host = platform_get_drvdata(pdev);
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct device *dev = &pdev->dev;
 	int ret;
 
-	ret = pm_runtime_resume_and_get(&pdev->dev);
+	ret = pm_runtime_get_sync(dev);
 	if (ret < 0)
-		return ret;
+		dev_err(dev, "pm_runtime_get_sync() Failed\n");
 
 	sdhci_remove_host(host, true);
 	clk_disable_unprepare(pltfm_host->clk);
-	pm_runtime_disable(&pdev->dev);
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_disable(dev);
+	pm_runtime_put_noidle(dev);
 	sdhci_pltfm_free(pdev);
-	return 0;
 }
 
 #ifdef CONFIG_PM
@@ -993,7 +993,7 @@ static struct platform_driver sdhci_am654_driver = {
 		.of_match_table = sdhci_am654_of_match,
 	},
 	.probe = sdhci_am654_probe,
-	.remove = sdhci_am654_remove,
+	.remove_new = sdhci_am654_remove,
 };
 
 module_platform_driver(sdhci_am654_driver);

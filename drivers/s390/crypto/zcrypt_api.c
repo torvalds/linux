@@ -366,7 +366,6 @@ static int zcdn_create(const char *name)
 {
 	dev_t devt;
 	int i, rc = 0;
-	char nodename[ZCDN_MAX_NAME];
 	struct zcdn_device *zcdndev;
 
 	if (mutex_lock_interruptible(&ap_perms_mutex))
@@ -407,13 +406,11 @@ static int zcdn_create(const char *name)
 	zcdndev->device.devt = devt;
 	zcdndev->device.groups = zcdn_dev_attr_groups;
 	if (name[0])
-		strncpy(nodename, name, sizeof(nodename));
+		rc = dev_set_name(&zcdndev->device, "%s", name);
 	else
-		snprintf(nodename, sizeof(nodename),
-			 ZCRYPT_NAME "_%d", (int)MINOR(devt));
-	nodename[sizeof(nodename) - 1] = '\0';
-	if (dev_set_name(&zcdndev->device, nodename)) {
-		rc = -EINVAL;
+		rc = dev_set_name(&zcdndev->device, ZCRYPT_NAME "_%d", (int)MINOR(devt));
+	if (rc) {
+		kfree(zcdndev);
 		goto unlockout;
 	}
 	rc = device_register(&zcdndev->device);

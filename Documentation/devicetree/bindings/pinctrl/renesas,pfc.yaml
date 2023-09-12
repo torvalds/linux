@@ -107,7 +107,6 @@ additionalProperties:
         Client device subnodes use below standard properties.
 
       properties:
-        phandle: true
         function: true
         groups: true
         pins: true
@@ -127,9 +126,6 @@ additionalProperties:
       additionalProperties: false
 
     - type: object
-      properties:
-        phandle: true
-
       additionalProperties:
         $ref: "#/additionalProperties/anyOf/0"
 

@@ -369,13 +369,13 @@ static void n_hdlc_tty_wakeup(struct tty_struct *tty)
  * Called by tty low level driver when receive data is available. Data is
  * interpreted as one HDLC frame.
  */
-static void n_hdlc_tty_receive(struct tty_struct *tty, const __u8 *data,
-			       const char *flags, int count)
+static void n_hdlc_tty_receive(struct tty_struct *tty, const u8 *data,
+			       const u8 *flags, size_t count)
 {
 	register struct n_hdlc *n_hdlc = tty->disc_data;
 	register struct n_hdlc_buf *buf;
 
-	pr_debug("%s() called count=%d\n", __func__, count);
+	pr_debug("%s() called count=%zu\n", __func__, count);
 
 	if (count > maxframe) {
 		pr_debug("rx count>maxframesize, data discarded\n");
@@ -425,8 +425,8 @@ static void n_hdlc_tty_receive(struct tty_struct *tty, const __u8 *data,
  * Returns the number of bytes returned or error code.
  */
 static ssize_t n_hdlc_tty_read(struct tty_struct *tty, struct file *file,
-			   __u8 *kbuf, size_t nr,
-			   void **cookie, unsigned long offset)
+			       u8 *kbuf, size_t nr, void **cookie,
+			       unsigned long offset)
 {
 	struct n_hdlc *n_hdlc = tty->disc_data;
 	int ret = 0;
@@ -518,7 +518,7 @@ done_with_rbuf:
  * Returns the number of bytes written (or error code).
  */
 static ssize_t n_hdlc_tty_write(struct tty_struct *tty, struct file *file,
-			    const unsigned char *data, size_t count)
+				const u8 *data, size_t count)
 {
 	struct n_hdlc *n_hdlc = tty->disc_data;
 	int error = 0;

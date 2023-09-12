@@ -391,22 +391,6 @@ int rvu_mbox_handler_npc_get_field_hash_info(struct rvu *rvu,
 }
 
 /**
- *	rvu_npc_exact_mac2u64 - utility function to convert mac address to u64.
- *	@mac_addr: MAC address.
- *	Return: mdata for exact match table.
- */
-static u64 rvu_npc_exact_mac2u64(u8 *mac_addr)
-{
-	u64 mac = 0;
-	int index;
-
-	for (index = ETH_ALEN - 1; index >= 0; index--)
-		mac |= ((u64)*mac_addr++) << (8 * index);
-
-	return mac;
-}
-
-/**
  *	rvu_exact_prepare_mdata - Make mdata for mcam entry
  *	@mac: MAC address
  *	@chan: Channel number.
@@ -416,7 +400,7 @@ static u64 rvu_npc_exact_mac2u64(u8 *mac_addr)
  */
 static u64 rvu_exact_prepare_mdata(u8 *mac, u16 chan, u16 ctype, u64 mask)
 {
-	u64 ldata = rvu_npc_exact_mac2u64(mac);
+	u64 ldata = ether_addr_to_u64(mac);
 
 	/* Please note that mask is 48bit which excludes chan and ctype.
 	 * Increase mask bits if we need to include them as well.
@@ -604,7 +588,7 @@ static u64 rvu_exact_prepare_table_entry(struct rvu *rvu, bool enable,
 					 u8 ctype, u16 chan, u8 *mac_addr)
 
 {
-	u64 ldata = rvu_npc_exact_mac2u64(mac_addr);
+	u64 ldata = ether_addr_to_u64(mac_addr);
 
 	/* Enable or disable */
 	u64 mdata = FIELD_PREP(GENMASK_ULL(63, 63), enable ? 1 : 0);

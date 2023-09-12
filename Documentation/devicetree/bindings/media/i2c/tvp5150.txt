@@ -53,7 +53,7 @@ Optional Connector Properties:
 ==============================
 
 - sdtv-standards: Set the possible signals to which the hardware tries to lock
-                  instead of using the autodetection mechnism. Please look at
+                  instead of using the autodetection mechanism. Please look at
                   [1] for more information.
 
 [1] Documentation/devicetree/bindings/display/connector/analog-tv-connector.yaml.

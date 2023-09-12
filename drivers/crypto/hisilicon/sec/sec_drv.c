@@ -1107,8 +1107,8 @@ static int sec_queue_res_cfg(struct sec_queue *queue)
 	}
 	queue->task_irq = platform_get_irq(to_platform_device(dev),
 					   queue->queue_id * 2 + 1);
-	if (queue->task_irq <= 0) {
-		ret = -EINVAL;
+	if (queue->task_irq < 0) {
+		ret = queue->task_irq;
 		goto err_free_ring_db;
 	}
 

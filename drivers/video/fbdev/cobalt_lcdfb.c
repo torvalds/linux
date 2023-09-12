@@ -313,7 +313,6 @@ static int cobalt_lcdfb_probe(struct platform_device *dev)
 	info->fix.smem_len = info->screen_size;
 	info->pseudo_palette = NULL;
 	info->par = NULL;
-	info->flags = FBINFO_DEFAULT;
 
 	retval = register_framebuffer(info);
 	if (retval < 0) {

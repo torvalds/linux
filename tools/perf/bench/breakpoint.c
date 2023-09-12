@@ -47,6 +47,7 @@ struct breakpoint {
 static int breakpoint_setup(void *addr)
 {
 	struct perf_event_attr attr = { .size = 0, };
+	int fd;
 
 	attr.type = PERF_TYPE_BREAKPOINT;
 	attr.size = sizeof(attr);
@@ -56,7 +57,12 @@ static int breakpoint_setup(void *addr)
 	attr.bp_addr = (unsigned long)addr;
 	attr.bp_type = HW_BREAKPOINT_RW;
 	attr.bp_len = HW_BREAKPOINT_LEN_1;
-	return syscall(SYS_perf_event_open, &attr, 0, -1, -1, 0);
+	fd = syscall(SYS_perf_event_open, &attr, 0, -1, -1, 0);
+
+	if (fd < 0)
+		fd = -errno;
+
+	return fd;
 }
 
 static void *passive_thread(void *arg)
@@ -122,8 +128,14 @@ int bench_breakpoint_thread(int argc, const char **argv)
 
 	for (i = 0; i < thread_params.nbreakpoints; i++) {
 		breakpoints[i].fd = breakpoint_setup(&breakpoints[i].watched);
-		if (breakpoints[i].fd == -1)
+
+		if (breakpoints[i].fd < 0) {
+			if (breakpoints[i].fd == -ENODEV) {
+				printf("Skipping perf bench breakpoint thread: No hardware support\n");
+				return 0;
+			}
 			exit((perror("perf_event_open"), EXIT_FAILURE));
+		}
 	}
 	gettimeofday(&start, NULL);
 	for (i = 0; i < thread_params.nparallel; i++) {
@@ -196,8 +208,14 @@ int bench_breakpoint_enable(int argc, const char **argv)
 		exit(EXIT_FAILURE);
 	}
 	fd = breakpoint_setup(&watched);
-	if (fd == -1)
+
+	if (fd < 0) {
+		if (fd == -ENODEV) {
+			printf("Skipping perf bench breakpoint enable: No hardware support\n");
+			return 0;
+		}
 		exit((perror("perf_event_open"), EXIT_FAILURE));
+	}
 	nthreads = enable_params.npassive + enable_params.nactive;
 	threads = calloc(nthreads, sizeof(threads[0]));
 	if (!threads)

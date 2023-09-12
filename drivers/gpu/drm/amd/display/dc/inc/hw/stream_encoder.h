@@ -269,6 +269,7 @@ struct stream_encoder_funcs {
 		struct stream_encoder *enc, unsigned int pix_per_container);
 	void (*enable_fifo)(struct stream_encoder *enc);
 	void (*disable_fifo)(struct stream_encoder *enc);
+	void (*map_stream_to_link)(struct stream_encoder *enc, uint32_t stream_enc_inst, uint32_t link_enc_inst);
 };
 
 struct hpo_dp_stream_encoder_state {

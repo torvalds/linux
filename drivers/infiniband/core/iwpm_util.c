@@ -307,7 +307,7 @@ get_remote_info_exit:
 struct iwpm_nlmsg_request *iwpm_get_nlmsg_request(__u32 nlmsg_seq,
 					u8 nl_client, gfp_t gfp)
 {
-	struct iwpm_nlmsg_request *nlmsg_request = NULL;
+	struct iwpm_nlmsg_request *nlmsg_request;
 	unsigned long flags;
 
 	nlmsg_request = kzalloc(sizeof(struct iwpm_nlmsg_request), gfp);

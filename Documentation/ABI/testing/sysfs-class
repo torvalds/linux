@@ -1,5 +1,5 @@
 What:		/sys/class/
-Date:		Febuary 2006
+Date:		February 2006
 Contact:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 Description:
 		The /sys/class directory will consist of a group of

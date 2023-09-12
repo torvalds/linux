@@ -13,6 +13,7 @@
 #include <linux/regmap.h>
 #include <linux/delay.h>
 #include <linux/mfd/syscon.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <dt-bindings/phy/phy.h>
 

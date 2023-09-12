@@ -74,8 +74,8 @@ topology based on those information.  When the device is older and
 doesn't respond to the new UMP inquiries, the driver falls back and
 builds the topology based on Group Terminal Block (GTB) information
 from the USB descriptor.  Some device might be screwed up by the
-unexpected UMP command; in such a case, pass `midi2_probe=0` option to
-snd-usb-audio driver for skipping the UMP v1.1 inquiries.
+unexpected UMP command; in such a case, pass `midi2_ump_probe=0`
+option to snd-usb-audio driver for skipping the UMP v1.1 inquiries.
 
 When the MIDI 2.0 device is probed, the kernel creates a rawmidi
 device for each UMP Endpoint of the device.  Its device name is

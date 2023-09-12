@@ -30,7 +30,6 @@
 #include <linux/mfd/max77620.h>
 #include <linux/init.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
 

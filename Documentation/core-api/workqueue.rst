@@ -1,6 +1,6 @@
-====================================
-Concurrency Managed Workqueue (cmwq)
-====================================
+=========
+Workqueue
+=========
 
 :Date: September, 2010
 :Author: Tejun Heo <tj@kernel.org>
@@ -25,8 +25,8 @@ there is no work item left on the workqueue the worker becomes idle.
 When a new work item gets queued, the worker begins executing again.
 
 
-Why cmwq?
-=========
+Why Concurrency Managed Workqueue?
+==================================
 
 In the original wq implementation, a multi threaded (MT) wq had one
 worker thread per CPU and a single threaded (ST) wq had one worker
@@ -220,17 +220,16 @@ resources, scheduled and executed.
 ``max_active``
 --------------
 
-``@max_active`` determines the maximum number of execution contexts
-per CPU which can be assigned to the work items of a wq.  For example,
-with ``@max_active`` of 16, at most 16 work items of the wq can be
-executing at the same time per CPU.
+``@max_active`` determines the maximum number of execution contexts per
+CPU which can be assigned to the work items of a wq. For example, with
+``@max_active`` of 16, at most 16 work items of the wq can be executing
+at the same time per CPU. This is always a per-CPU attribute, even for
+unbound workqueues.
 
-Currently, for a bound wq, the maximum limit for ``@max_active`` is
-512 and the default value used when 0 is specified is 256.  For an
-unbound wq, the limit is higher of 512 and 4 *
-``num_possible_cpus()``.  These values are chosen sufficiently high
-such that they are not the limiting factor while providing protection
-in runaway cases.
+The maximum limit for ``@max_active`` is 512 and the default value used
+when 0 is specified is 256. These values are chosen sufficiently high
+such that they are not the limiting factor while providing protection in
+runaway cases.
 
 The number of active work items of a wq is usually regulated by the
 users of the wq, more specifically, by how many work items the users
@@ -348,27 +347,346 @@ Guidelines
   level of locality in wq operations and work item execution.
 
 
+Affinity Scopes
+===============
+
+An unbound workqueue groups CPUs according to its affinity scope to improve
+cache locality. For example, if a workqueue is using the default affinity
+scope of "cache", it will group CPUs according to last level cache
+boundaries. A work item queued on the workqueue will be assigned to a worker
+on one of the CPUs which share the last level cache with the issuing CPU.
+Once started, the worker may or may not be allowed to move outside the scope
+depending on the ``affinity_strict`` setting of the scope.
+
+Workqueue currently supports the following affinity scopes.
+
+``default``
+  Use the scope in module parameter ``workqueue.default_affinity_scope``
+  which is always set to one of the scopes below.
+
+``cpu``
+  CPUs are not grouped. A work item issued on one CPU is processed by a
+  worker on the same CPU. This makes unbound workqueues behave as per-cpu
+  workqueues without concurrency management.
+
+``smt``
+  CPUs are grouped according to SMT boundaries. This usually means that the
+  logical threads of each physical CPU core are grouped together.
+
+``cache``
+  CPUs are grouped according to cache boundaries. Which specific cache
+  boundary is used is determined by the arch code. L3 is used in a lot of
+  cases. This is the default affinity scope.
+
+``numa``
+  CPUs are grouped according to NUMA bounaries.
+
+``system``
+  All CPUs are put in the same group. Workqueue makes no effort to process a
+  work item on a CPU close to the issuing CPU.
+
+The default affinity scope can be changed with the module parameter
+``workqueue.default_affinity_scope`` and a specific workqueue's affinity
+scope can be changed using ``apply_workqueue_attrs()``.
+
+If ``WQ_SYSFS`` is set, the workqueue will have the following affinity scope
+related interface files under its ``/sys/devices/virtual/WQ_NAME/``
+directory.
+
+``affinity_scope``
+  Read to see the current affinity scope. Write to change.
+
+  When default is the current scope, reading this file will also show the
+  current effective scope in parentheses, for example, ``default (cache)``.
+
+``affinity_strict``
+  0 by default indicating that affinity scopes are not strict. When a work
+  item starts execution, workqueue makes a best-effort attempt to ensure
+  that the worker is inside its affinity scope, which is called
+  repatriation. Once started, the scheduler is free to move the worker
+  anywhere in the system as it sees fit. This enables benefiting from scope
+  locality while still being able to utilize other CPUs if necessary and
+  available.
+
+  If set to 1, all workers of the scope are guaranteed always to be in the
+  scope. This may be useful when crossing affinity scopes has other
+  implications, for example, in terms of power consumption or workload
+  isolation. Strict NUMA scope can also be used to match the workqueue
+  behavior of older kernels.
+
+
+Affinity Scopes and Performance
+===============================
+
+It'd be ideal if an unbound workqueue's behavior is optimal for vast
+majority of use cases without further tuning. Unfortunately, in the current
+kernel, there exists a pronounced trade-off between locality and utilization
+necessitating explicit configurations when workqueues are heavily used.
+
+Higher locality leads to higher efficiency where more work is performed for
+the same number of consumed CPU cycles. However, higher locality may also
+cause lower overall system utilization if the work items are not spread
+enough across the affinity scopes by the issuers. The following performance
+testing with dm-crypt clearly illustrates this trade-off.
+
+The tests are run on a CPU with 12-cores/24-threads split across four L3
+caches (AMD Ryzen 9 3900x). CPU clock boost is turned off for consistency.
+``/dev/dm-0`` is a dm-crypt device created on NVME SSD (Samsung 990 PRO) and
+opened with ``cryptsetup`` with default settings.
+
+
+Scenario 1: Enough issuers and work spread across the machine
+-------------------------------------------------------------
+
+The command used: ::
+
+  $ fio --filename=/dev/dm-0 --direct=1 --rw=randrw --bs=32k --ioengine=libaio \
+    --iodepth=64 --runtime=60 --numjobs=24 --time_based --group_reporting \
+    --name=iops-test-job --verify=sha512
+
+There are 24 issuers, each issuing 64 IOs concurrently. ``--verify=sha512``
+makes ``fio`` generate and read back the content each time which makes
+execution locality matter between the issuer and ``kcryptd``. The followings
+are the read bandwidths and CPU utilizations depending on different affinity
+scope settings on ``kcryptd`` measured over five runs. Bandwidths are in
+MiBps, and CPU util in percents.
+
+.. list-table::
+   :widths: 16 20 20
+   :header-rows: 1
+
+   * - Affinity
+     - Bandwidth (MiBps)
+     - CPU util (%)
+
+   * - system
+     - 1159.40 ±1.34
+     - 99.31 ±0.02
+
+   * - cache
+     - 1166.40 ±0.89
+     - 99.34 ±0.01
+
+   * - cache (strict)
+     - 1166.00 ±0.71
+     - 99.35 ±0.01
+
+With enough issuers spread across the system, there is no downside to
+"cache", strict or otherwise. All three configurations saturate the whole
+machine but the cache-affine ones outperform by 0.6% thanks to improved
+locality.
+
+
+Scenario 2: Fewer issuers, enough work for saturation
+-----------------------------------------------------
+
+The command used: ::
+
+  $ fio --filename=/dev/dm-0 --direct=1 --rw=randrw --bs=32k \
+    --ioengine=libaio --iodepth=64 --runtime=60 --numjobs=8 \
+    --time_based --group_reporting --name=iops-test-job --verify=sha512
+
+The only difference from the previous scenario is ``--numjobs=8``. There are
+a third of the issuers but is still enough total work to saturate the
+system.
+
+.. list-table::
+   :widths: 16 20 20
+   :header-rows: 1
+
+   * - Affinity
+     - Bandwidth (MiBps)
+     - CPU util (%)
+
+   * - system
+     - 1155.40 ±0.89
+     - 97.41 ±0.05
+
+   * - cache
+     - 1154.40 ±1.14
+     - 96.15 ±0.09
+
+   * - cache (strict)
+     - 1112.00 ±4.64
+     - 93.26 ±0.35
+
+This is more than enough work to saturate the system. Both "system" and
+"cache" are nearly saturating the machine but not fully. "cache" is using
+less CPU but the better efficiency puts it at the same bandwidth as
+"system".
+
+Eight issuers moving around over four L3 cache scope still allow "cache
+(strict)" to mostly saturate the machine but the loss of work conservation
+is now starting to hurt with 3.7% bandwidth loss.
+
+
+Scenario 3: Even fewer issuers, not enough work to saturate
+-----------------------------------------------------------
+
+The command used: ::
+
+  $ fio --filename=/dev/dm-0 --direct=1 --rw=randrw --bs=32k \
+    --ioengine=libaio --iodepth=64 --runtime=60 --numjobs=4 \
+    --time_based --group_reporting --name=iops-test-job --verify=sha512
+
+Again, the only difference is ``--numjobs=4``. With the number of issuers
+reduced to four, there now isn't enough work to saturate the whole system
+and the bandwidth becomes dependent on completion latencies.
+
+.. list-table::
+   :widths: 16 20 20
+   :header-rows: 1
+
+   * - Affinity
+     - Bandwidth (MiBps)
+     - CPU util (%)
+
+   * - system
+     - 993.60 ±1.82
+     - 75.49 ±0.06
+
+   * - cache
+     - 973.40 ±1.52
+     - 74.90 ±0.07
+
+   * - cache (strict)
+     - 828.20 ±4.49
+     - 66.84 ±0.29
+
+Now, the tradeoff between locality and utilization is clearer. "cache" shows
+2% bandwidth loss compared to "system" and "cache (struct)" whopping 20%.
+
+
+Conclusion and Recommendations
+------------------------------
+
+In the above experiments, the efficiency advantage of the "cache" affinity
+scope over "system" is, while consistent and noticeable, small. However, the
+impact is dependent on the distances between the scopes and may be more
+pronounced in processors with more complex topologies.
+
+While the loss of work-conservation in certain scenarios hurts, it is a lot
+better than "cache (strict)" and maximizing workqueue utilization is
+unlikely to be the common case anyway. As such, "cache" is the default
+affinity scope for unbound pools.
+
+* As there is no one option which is great for most cases, workqueue usages
+  that may consume a significant amount of CPU are recommended to configure
+  the workqueues using ``apply_workqueue_attrs()`` and/or enable
+  ``WQ_SYSFS``.
+
+* An unbound workqueue with strict "cpu" affinity scope behaves the same as
+  ``WQ_CPU_INTENSIVE`` per-cpu workqueue. There is no real advanage to the
+  latter and an unbound workqueue provides a lot more flexibility.
+
+* Affinity scopes are introduced in Linux v6.5. To emulate the previous
+  behavior, use strict "numa" affinity scope.
+
+* The loss of work-conservation in non-strict affinity scopes is likely
+  originating from the scheduler. There is no theoretical reason why the
+  kernel wouldn't be able to do the right thing and maintain
+  work-conservation in most cases. As such, it is possible that future
+  scheduler improvements may make most of these tunables unnecessary.
+
+
+Examining Configuration
+=======================
+
+Use tools/workqueue/wq_dump.py to examine unbound CPU affinity
+configuration, worker pools and how workqueues map to the pools: ::
+
+  $ tools/workqueue/wq_dump.py
+  Affinity Scopes
+  ===============
+  wq_unbound_cpumask=0000000f
+
+  CPU
+    nr_pods  4
+    pod_cpus [0]=00000001 [1]=00000002 [2]=00000004 [3]=00000008
+    pod_node [0]=0 [1]=0 [2]=1 [3]=1
+    cpu_pod  [0]=0 [1]=1 [2]=2 [3]=3
+
+  SMT
+    nr_pods  4
+    pod_cpus [0]=00000001 [1]=00000002 [2]=00000004 [3]=00000008
+    pod_node [0]=0 [1]=0 [2]=1 [3]=1
+    cpu_pod  [0]=0 [1]=1 [2]=2 [3]=3
+
+  CACHE (default)
+    nr_pods  2
+    pod_cpus [0]=00000003 [1]=0000000c
+    pod_node [0]=0 [1]=1
+    cpu_pod  [0]=0 [1]=0 [2]=1 [3]=1
+
+  NUMA
+    nr_pods  2
+    pod_cpus [0]=00000003 [1]=0000000c
+    pod_node [0]=0 [1]=1
+    cpu_pod  [0]=0 [1]=0 [2]=1 [3]=1
+
+  SYSTEM
+    nr_pods  1
+    pod_cpus [0]=0000000f
+    pod_node [0]=-1
+    cpu_pod  [0]=0 [1]=0 [2]=0 [3]=0
+
+  Worker Pools
+  ============
+  pool[00] ref= 1 nice=  0 idle/workers=  4/  4 cpu=  0
+  pool[01] ref= 1 nice=-20 idle/workers=  2/  2 cpu=  0
+  pool[02] ref= 1 nice=  0 idle/workers=  4/  4 cpu=  1
+  pool[03] ref= 1 nice=-20 idle/workers=  2/  2 cpu=  1
+  pool[04] ref= 1 nice=  0 idle/workers=  4/  4 cpu=  2
+  pool[05] ref= 1 nice=-20 idle/workers=  2/  2 cpu=  2
+  pool[06] ref= 1 nice=  0 idle/workers=  3/  3 cpu=  3
+  pool[07] ref= 1 nice=-20 idle/workers=  2/  2 cpu=  3
+  pool[08] ref=42 nice=  0 idle/workers=  6/  6 cpus=0000000f
+  pool[09] ref=28 nice=  0 idle/workers=  3/  3 cpus=00000003
+  pool[10] ref=28 nice=  0 idle/workers= 17/ 17 cpus=0000000c
+  pool[11] ref= 1 nice=-20 idle/workers=  1/  1 cpus=0000000f
+  pool[12] ref= 2 nice=-20 idle/workers=  1/  1 cpus=00000003
+  pool[13] ref= 2 nice=-20 idle/workers=  1/  1 cpus=0000000c
+
+  Workqueue CPU -> pool
+  =====================
+  [    workqueue \ CPU              0  1  2  3 dfl]
+  events                   percpu   0  2  4  6
+  events_highpri           percpu   1  3  5  7
+  events_long              percpu   0  2  4  6
+  events_unbound           unbound  9  9 10 10  8
+  events_freezable         percpu   0  2  4  6
+  events_power_efficient   percpu   0  2  4  6
+  events_freezable_power_  percpu   0  2  4  6
+  rcu_gp                   percpu   0  2  4  6
+  rcu_par_gp               percpu   0  2  4  6
+  slub_flushwq             percpu   0  2  4  6
+  netns                    ordered  8  8  8  8  8
+  ...
+
+See the command's help message for more info.
+
+
 Monitoring
 ==========
 
 Use tools/workqueue/wq_monitor.py to monitor workqueue operations: ::
 
   $ tools/workqueue/wq_monitor.py events
-                              total  infl  CPUtime  CPUhog  CMwake  mayday rescued
+                              total  infl  CPUtime  CPUhog CMW/RPR  mayday rescued
   events                      18545     0      6.1       0       5       -       -
   events_highpri                  8     0      0.0       0       0       -       -
   events_long                     3     0      0.0       0       0       -       -
-  events_unbound              38306     0      0.1       -       -       -       -
+  events_unbound              38306     0      0.1       -       7       -       -
   events_freezable                0     0      0.0       0       0       -       -
   events_power_efficient      29598     0      0.2       0       0       -       -
   events_freezable_power_        10     0      0.0       0       0       -       -
   sock_diag_events                0     0      0.0       0       0       -       -
 
-                              total  infl  CPUtime  CPUhog  CMwake  mayday rescued
+                              total  infl  CPUtime  CPUhog CMW/RPR  mayday rescued
   events                      18548     0      6.1       0       5       -       -
   events_highpri                  8     0      0.0       0       0       -       -
   events_long                     3     0      0.0       0       0       -       -
-  events_unbound              38322     0      0.1       -       -       -       -
+  events_unbound              38322     0      0.1       -       7       -       -
   events_freezable                0     0      0.0       0       0       -       -
   events_power_efficient      29603     0      0.2       0       0       -       -
   events_freezable_power_        10     0      0.0       0       0       -       -

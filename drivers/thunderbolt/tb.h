@@ -1333,7 +1333,7 @@ static inline bool usb4_port_device_is_offline(const struct usb4_port *usb4)
 void tb_check_quirks(struct tb_switch *sw);
 
 #ifdef CONFIG_ACPI
-void tb_acpi_add_links(struct tb_nhi *nhi);
+bool tb_acpi_add_links(struct tb_nhi *nhi);
 
 bool tb_acpi_is_native(void);
 bool tb_acpi_may_tunnel_usb3(void);
@@ -1346,7 +1346,7 @@ void tb_acpi_exit(void);
 int tb_acpi_power_on_retimers(struct tb_port *port);
 int tb_acpi_power_off_retimers(struct tb_port *port);
 #else
-static inline void tb_acpi_add_links(struct tb_nhi *nhi) { }
+static inline bool tb_acpi_add_links(struct tb_nhi *nhi) { return false; }
 
 static inline bool tb_acpi_is_native(void) { return true; }
 static inline bool tb_acpi_may_tunnel_usb3(void) { return true; }

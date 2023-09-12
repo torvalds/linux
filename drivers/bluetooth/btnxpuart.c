@@ -28,17 +28,34 @@
 #define BTNXPUART_FW_DOWNLOADING	2
 #define BTNXPUART_CHECK_BOOT_SIGNATURE	3
 #define BTNXPUART_SERDEV_OPEN		4
+#define BTNXPUART_IR_IN_PROGRESS	5
 
-#define FIRMWARE_W8987	"nxp/uartuart8987_bt.bin"
-#define FIRMWARE_W8997	"nxp/uartuart8997_bt_v4.bin"
-#define FIRMWARE_W9098	"nxp/uartuart9098_bt_v1.bin"
-#define FIRMWARE_IW416	"nxp/uartiw416_bt_v0.bin"
-#define FIRMWARE_IW612	"nxp/uartspi_n61x_v1.bin.se"
-#define FIRMWARE_HELPER	"nxp/helper_uart_3000000.bin"
+/* NXP HW err codes */
+#define BTNXPUART_IR_HW_ERR		0xb0
+
+#define FIRMWARE_W8987		"nxp/uartuart8987_bt.bin"
+#define FIRMWARE_W8997		"nxp/uartuart8997_bt_v4.bin"
+#define FIRMWARE_W9098		"nxp/uartuart9098_bt_v1.bin"
+#define FIRMWARE_IW416		"nxp/uartiw416_bt_v0.bin"
+#define FIRMWARE_IW612		"nxp/uartspi_n61x_v1.bin.se"
+#define FIRMWARE_IW624		"nxp/uartiw624_bt.bin"
+#define FIRMWARE_SECURE_IW624	"nxp/uartiw624_bt.bin.se"
+#define FIRMWARE_AW693		"nxp/uartaw693_bt.bin"
+#define FIRMWARE_SECURE_AW693	"nxp/uartaw693_bt.bin.se"
+#define FIRMWARE_HELPER		"nxp/helper_uart_3000000.bin"
 
 #define CHIP_ID_W9098		0x5c03
 #define CHIP_ID_IW416		0x7201
 #define CHIP_ID_IW612		0x7601
+#define CHIP_ID_IW624a		0x8000
+#define CHIP_ID_IW624c		0x8001
+#define CHIP_ID_AW693		0x8200
+
+#define FW_SECURE_MASK		0xc0
+#define FW_OPEN			0x00
+#define FW_AUTH_ILLEGAL		0x40
+#define FW_AUTH_PLAIN		0x80
+#define FW_AUTH_ENC		0xc0
 
 #define HCI_NXP_PRI_BAUDRATE	115200
 #define HCI_NXP_SEC_BAUDRATE	3000000
@@ -143,6 +160,7 @@ struct btnxpuart_dev {
 	u32 fw_v1_sent_bytes;
 	u32 fw_v3_offset_correction;
 	u32 fw_v1_expected_len;
+	u32 boot_reg_offset;
 	wait_queue_head_t fw_dnld_done_wait_q;
 	wait_queue_head_t check_boot_sign_wait_q;
 
@@ -366,39 +384,13 @@ static void ps_timeout_func(struct timer_list *t)
 	}
 }
 
-static int ps_init_work(struct hci_dev *hdev)
+static void ps_setup(struct hci_dev *hdev)
 {
 	struct btnxpuart_dev *nxpdev = hci_get_drvdata(hdev);
 	struct ps_data *psdata = &nxpdev->psdata;
 
-	psdata->h2c_ps_interval = PS_DEFAULT_TIMEOUT_PERIOD_MS;
-	psdata->ps_state = PS_STATE_AWAKE;
-	psdata->target_ps_mode = DEFAULT_PS_MODE;
 	psdata->hdev = hdev;
-	psdata->c2h_wakeupmode = BT_HOST_WAKEUP_METHOD_NONE;
-	psdata->c2h_wakeup_gpio = 0xff;
-
-	switch (DEFAULT_H2C_WAKEUP_MODE) {
-	case WAKEUP_METHOD_DTR:
-		psdata->h2c_wakeupmode = WAKEUP_METHOD_DTR;
-		break;
-	case WAKEUP_METHOD_BREAK:
-	default:
-		psdata->h2c_wakeupmode = WAKEUP_METHOD_BREAK;
-		break;
-	}
-	psdata->cur_psmode = PS_MODE_DISABLE;
-	psdata->cur_h2c_wakeupmode = WAKEUP_METHOD_INVALID;
 	INIT_WORK(&psdata->work, ps_work_func);
-
-	return 0;
-}
-
-static void ps_init_timer(struct hci_dev *hdev)
-{
-	struct btnxpuart_dev *nxpdev = hci_get_drvdata(hdev);
-	struct ps_data *psdata = &nxpdev->psdata;
-
 	timer_setup(&psdata->ps_timer, ps_timeout_func, 0);
 }
 
@@ -501,19 +493,31 @@ static void ps_init(struct hci_dev *hdev)
 	serdev_device_set_tiocm(nxpdev->serdev, TIOCM_RTS, 0);
 	usleep_range(5000, 10000);
 
-	switch (psdata->h2c_wakeupmode) {
+	psdata->ps_state = PS_STATE_AWAKE;
+	psdata->c2h_wakeupmode = BT_HOST_WAKEUP_METHOD_NONE;
+	psdata->c2h_wakeup_gpio = 0xff;
+
+	psdata->cur_h2c_wakeupmode = WAKEUP_METHOD_INVALID;
+	psdata->h2c_ps_interval = PS_DEFAULT_TIMEOUT_PERIOD_MS;
+	switch (DEFAULT_H2C_WAKEUP_MODE) {
 	case WAKEUP_METHOD_DTR:
+		psdata->h2c_wakeupmode = WAKEUP_METHOD_DTR;
 		serdev_device_set_tiocm(nxpdev->serdev, 0, TIOCM_DTR);
 		serdev_device_set_tiocm(nxpdev->serdev, TIOCM_DTR, 0);
 		break;
 	case WAKEUP_METHOD_BREAK:
 	default:
+		psdata->h2c_wakeupmode = WAKEUP_METHOD_BREAK;
 		serdev_device_break_ctl(nxpdev->serdev, -1);
 		usleep_range(5000, 10000);
 		serdev_device_break_ctl(nxpdev->serdev, 0);
 		usleep_range(5000, 10000);
 		break;
 	}
+
+	psdata->cur_psmode = PS_MODE_DISABLE;
+	psdata->target_ps_mode = DEFAULT_PS_MODE;
+
 	if (psdata->cur_h2c_wakeupmode != psdata->h2c_wakeupmode)
 		hci_cmd_sync_queue(hdev, send_wakeup_method_cmd, NULL, NULL);
 	if (psdata->cur_psmode != psdata->target_ps_mode)
@@ -529,6 +533,7 @@ static int nxp_download_firmware(struct hci_dev *hdev)
 	nxpdev->fw_dnld_v1_offset = 0;
 	nxpdev->fw_v1_sent_bytes = 0;
 	nxpdev->fw_v1_expected_len = HDR_LEN;
+	nxpdev->boot_reg_offset = 0;
 	nxpdev->fw_v3_offset_correction = 0;
 	nxpdev->baudrate_changed = false;
 	nxpdev->timeout_changed = false;
@@ -538,7 +543,7 @@ static int nxp_download_firmware(struct hci_dev *hdev)
 	serdev_device_set_flow_control(nxpdev->serdev, false);
 	nxpdev->current_baudrate = HCI_NXP_PRI_BAUDRATE;
 
-	/* Wait till FW is downloaded and CTS becomes low */
+	/* Wait till FW is downloaded */
 	err = wait_event_interruptible_timeout(nxpdev->fw_dnld_done_wait_q,
 					       !test_bit(BTNXPUART_FW_DOWNLOADING,
 							 &nxpdev->tx_state),
@@ -549,16 +554,11 @@ static int nxp_download_firmware(struct hci_dev *hdev)
 	}
 
 	serdev_device_set_flow_control(nxpdev->serdev, true);
-	err = serdev_device_wait_for_cts(nxpdev->serdev, 1, 60000);
-	if (err < 0) {
-		bt_dev_err(hdev, "CTS is still high. FW Download failed.");
-		return err;
-	}
 	release_firmware(nxpdev->fw);
 	memset(nxpdev->fw_name, 0, sizeof(nxpdev->fw_name));
 
 	/* Allow the downloaded FW to initialize */
-	usleep_range(800 * USEC_PER_MSEC, 1 * USEC_PER_SEC);
+	msleep(1200);
 
 	return 0;
 }
@@ -582,6 +582,12 @@ static bool nxp_fw_change_baudrate(struct hci_dev *hdev, u16 req_len)
 	struct btnxpuart_dev *nxpdev = hci_get_drvdata(hdev);
 	struct nxp_bootloader_cmd nxp_cmd5;
 	struct uart_config uart_config;
+	u32 clkdivaddr = CLKDIVADDR - nxpdev->boot_reg_offset;
+	u32 uartdivaddr = UARTDIVADDR - nxpdev->boot_reg_offset;
+	u32 uartmcraddr = UARTMCRADDR - nxpdev->boot_reg_offset;
+	u32 uartreinitaddr = UARTREINITADDR - nxpdev->boot_reg_offset;
+	u32 uarticraddr = UARTICRADDR - nxpdev->boot_reg_offset;
+	u32 uartfcraddr = UARTFCRADDR - nxpdev->boot_reg_offset;
 
 	if (req_len == sizeof(nxp_cmd5)) {
 		nxp_cmd5.header = __cpu_to_le32(5);
@@ -594,17 +600,17 @@ static bool nxp_fw_change_baudrate(struct hci_dev *hdev, u16 req_len)
 		serdev_device_write_buf(nxpdev->serdev, (u8 *)&nxp_cmd5, sizeof(nxp_cmd5));
 		nxpdev->fw_v3_offset_correction += req_len;
 	} else if (req_len == sizeof(uart_config)) {
-		uart_config.clkdiv.address = __cpu_to_le32(CLKDIVADDR);
+		uart_config.clkdiv.address = __cpu_to_le32(clkdivaddr);
 		uart_config.clkdiv.value = __cpu_to_le32(0x00c00000);
-		uart_config.uartdiv.address = __cpu_to_le32(UARTDIVADDR);
+		uart_config.uartdiv.address = __cpu_to_le32(uartdivaddr);
 		uart_config.uartdiv.value = __cpu_to_le32(1);
-		uart_config.mcr.address = __cpu_to_le32(UARTMCRADDR);
+		uart_config.mcr.address = __cpu_to_le32(uartmcraddr);
 		uart_config.mcr.value = __cpu_to_le32(MCR);
-		uart_config.re_init.address = __cpu_to_le32(UARTREINITADDR);
+		uart_config.re_init.address = __cpu_to_le32(uartreinitaddr);
 		uart_config.re_init.value = __cpu_to_le32(INIT);
-		uart_config.icr.address = __cpu_to_le32(UARTICRADDR);
+		uart_config.icr.address = __cpu_to_le32(uarticraddr);
 		uart_config.icr.value = __cpu_to_le32(ICR);
-		uart_config.fcr.address = __cpu_to_le32(UARTFCRADDR);
+		uart_config.fcr.address = __cpu_to_le32(uartfcraddr);
 		uart_config.fcr.value = __cpu_to_le32(FCR);
 		/* FW expects swapped CRC bytes */
 		uart_config.crc = __cpu_to_be32(crc32_be(0UL, (char *)&uart_config,
@@ -665,6 +671,9 @@ static int nxp_request_firmware(struct hci_dev *hdev, const char *fw_name)
 	struct btnxpuart_dev *nxpdev = hci_get_drvdata(hdev);
 	int err = 0;
 
+	if (!fw_name)
+		return -ENOENT;
+
 	if (!strlen(nxpdev->fw_name)) {
 		snprintf(nxpdev->fw_name, MAX_FW_FILE_NAME_LEN, "%s", fw_name);
 
@@ -690,7 +699,7 @@ static int nxp_recv_chip_ver_v1(struct hci_dev *hdev, struct sk_buff *skb)
 		goto free_skb;
 
 	chip_id = le16_to_cpu(req->chip_id ^ req->chip_id_comp);
-	if (chip_id == 0xffff) {
+	if (chip_id == 0xffff && nxpdev->fw_dnld_v1_offset) {
 		nxpdev->fw_dnld_v1_offset = 0;
 		nxpdev->fw_v1_sent_bytes = 0;
 		nxpdev->fw_v1_expected_len = HDR_LEN;
@@ -812,8 +821,10 @@ free_skb:
 	return 0;
 }
 
-static char *nxp_get_fw_name_from_chipid(struct hci_dev *hdev, u16 chipid)
+static char *nxp_get_fw_name_from_chipid(struct hci_dev *hdev, u16 chipid,
+					 u8 loader_ver)
 {
+	struct btnxpuart_dev *nxpdev = hci_get_drvdata(hdev);
 	char *fw_name = NULL;
 
 	switch (chipid) {
@@ -825,6 +836,24 @@ static char *nxp_get_fw_name_from_chipid(struct hci_dev *hdev, u16 chipid)
 		break;
 	case CHIP_ID_IW612:
 		fw_name = FIRMWARE_IW612;
+		break;
+	case CHIP_ID_IW624a:
+	case CHIP_ID_IW624c:
+		nxpdev->boot_reg_offset = 1;
+		if ((loader_ver & FW_SECURE_MASK) == FW_OPEN)
+			fw_name = FIRMWARE_IW624;
+		else if ((loader_ver & FW_SECURE_MASK) != FW_AUTH_ILLEGAL)
+			fw_name = FIRMWARE_SECURE_IW624;
+		else
+			bt_dev_err(hdev, "Illegal loader version %02x", loader_ver);
+		break;
+	case CHIP_ID_AW693:
+		if ((loader_ver & FW_SECURE_MASK) == FW_OPEN)
+			fw_name = FIRMWARE_AW693;
+		else if ((loader_ver & FW_SECURE_MASK) != FW_AUTH_ILLEGAL)
+			fw_name = FIRMWARE_SECURE_AW693;
+		else
+			bt_dev_err(hdev, "Illegal loader version %02x", loader_ver);
 		break;
 	default:
 		bt_dev_err(hdev, "Unknown chip signature %04x", chipid);
@@ -838,13 +867,15 @@ static int nxp_recv_chip_ver_v3(struct hci_dev *hdev, struct sk_buff *skb)
 	struct v3_start_ind *req = skb_pull_data(skb, sizeof(*req));
 	struct btnxpuart_dev *nxpdev = hci_get_drvdata(hdev);
 	u16 chip_id;
+	u8 loader_ver;
 
 	if (!process_boot_signature(nxpdev))
 		goto free_skb;
 
 	chip_id = le16_to_cpu(req->chip_id);
+	loader_ver = req->loader_ver;
 	if (!nxp_request_firmware(hdev, nxp_get_fw_name_from_chipid(hdev,
-								    chip_id)))
+								    chip_id, loader_ver)))
 		nxp_send_ack(NXP_ACK_V3, hdev);
 
 free_skb:
@@ -946,45 +977,13 @@ static int nxp_set_baudrate_cmd(struct hci_dev *hdev, void *data)
 	return 0;
 }
 
-static int nxp_set_ind_reset(struct hci_dev *hdev, void *data)
-{
-	struct btnxpuart_dev *nxpdev = hci_get_drvdata(hdev);
-	struct sk_buff *skb;
-	u8 *status;
-	u8 pcmd = 0;
-	int err = 0;
-
-	skb = nxp_drv_send_cmd(hdev, HCI_NXP_IND_RESET, 1, &pcmd);
-	if (IS_ERR(skb))
-		return PTR_ERR(skb);
-
-	status = skb_pull_data(skb, 1);
-	if (!status || *status)
-		goto free_skb;
-
-	set_bit(BTNXPUART_FW_DOWNLOADING, &nxpdev->tx_state);
-	err = nxp_download_firmware(hdev);
-	if (err < 0)
-		goto free_skb;
-	serdev_device_set_baudrate(nxpdev->serdev, nxpdev->fw_init_baudrate);
-	nxpdev->current_baudrate = nxpdev->fw_init_baudrate;
-	if (nxpdev->current_baudrate != HCI_NXP_SEC_BAUDRATE) {
-		nxpdev->new_baudrate = HCI_NXP_SEC_BAUDRATE;
-		nxp_set_baudrate_cmd(hdev, NULL);
-	}
-	hci_cmd_sync_queue(hdev, send_wakeup_method_cmd, NULL, NULL);
-	hci_cmd_sync_queue(hdev, send_ps_cmd, NULL, NULL);
-
-free_skb:
-	kfree_skb(skb);
-	return err;
-}
-
-/* NXP protocol */
 static int nxp_check_boot_sign(struct btnxpuart_dev *nxpdev)
 {
 	serdev_device_set_baudrate(nxpdev->serdev, HCI_NXP_PRI_BAUDRATE);
-	serdev_device_set_flow_control(nxpdev->serdev, true);
+	if (test_bit(BTNXPUART_IR_IN_PROGRESS, &nxpdev->tx_state))
+		serdev_device_set_flow_control(nxpdev->serdev, false);
+	else
+		serdev_device_set_flow_control(nxpdev->serdev, true);
 	set_bit(BTNXPUART_CHECK_BOOT_SIGNATURE, &nxpdev->tx_state);
 
 	return wait_event_interruptible_timeout(nxpdev->check_boot_sign_wait_q,
@@ -993,14 +992,28 @@ static int nxp_check_boot_sign(struct btnxpuart_dev *nxpdev)
 					       msecs_to_jiffies(1000));
 }
 
+static int nxp_set_ind_reset(struct hci_dev *hdev, void *data)
+{
+	static const u8 ir_hw_err[] = { HCI_EV_HARDWARE_ERROR,
+					0x01, BTNXPUART_IR_HW_ERR };
+	struct sk_buff *skb;
+
+	skb = bt_skb_alloc(3, GFP_ATOMIC);
+	if (!skb)
+		return -ENOMEM;
+
+	hci_skb_pkt_type(skb) = HCI_EVENT_PKT;
+	skb_put_data(skb, ir_hw_err, 3);
+
+	/* Inject Hardware Error to upper stack */
+	return hci_recv_frame(hdev, skb);
+}
+
+/* NXP protocol */
 static int nxp_setup(struct hci_dev *hdev)
 {
 	struct btnxpuart_dev *nxpdev = hci_get_drvdata(hdev);
 	int err = 0;
-
-	set_bit(BTNXPUART_FW_DOWNLOADING, &nxpdev->tx_state);
-	init_waitqueue_head(&nxpdev->fw_dnld_done_wait_q);
-	init_waitqueue_head(&nxpdev->check_boot_sign_wait_q);
 
 	if (nxp_check_boot_sign(nxpdev)) {
 		bt_dev_dbg(hdev, "Need FW Download.");
@@ -1012,10 +1025,6 @@ static int nxp_setup(struct hci_dev *hdev)
 		clear_bit(BTNXPUART_FW_DOWNLOADING, &nxpdev->tx_state);
 	}
 
-	device_property_read_u32(&nxpdev->serdev->dev, "fw-init-baudrate",
-				 &nxpdev->fw_init_baudrate);
-	if (!nxpdev->fw_init_baudrate)
-		nxpdev->fw_init_baudrate = FW_INIT_BAUDRATE;
 	serdev_device_set_baudrate(nxpdev->serdev, nxpdev->fw_init_baudrate);
 	nxpdev->current_baudrate = nxpdev->fw_init_baudrate;
 
@@ -1025,6 +1034,46 @@ static int nxp_setup(struct hci_dev *hdev)
 	}
 
 	ps_init(hdev);
+
+	if (test_and_clear_bit(BTNXPUART_IR_IN_PROGRESS, &nxpdev->tx_state))
+		hci_dev_clear_flag(hdev, HCI_SETUP);
+
+	return 0;
+}
+
+static void nxp_hw_err(struct hci_dev *hdev, u8 code)
+{
+	struct btnxpuart_dev *nxpdev = hci_get_drvdata(hdev);
+
+	switch (code) {
+	case BTNXPUART_IR_HW_ERR:
+		set_bit(BTNXPUART_IR_IN_PROGRESS, &nxpdev->tx_state);
+		hci_dev_set_flag(hdev, HCI_SETUP);
+		break;
+	default:
+		break;
+	}
+}
+
+static int nxp_shutdown(struct hci_dev *hdev)
+{
+	struct btnxpuart_dev *nxpdev = hci_get_drvdata(hdev);
+	struct sk_buff *skb;
+	u8 *status;
+	u8 pcmd = 0;
+
+	if (test_bit(BTNXPUART_IR_IN_PROGRESS, &nxpdev->tx_state)) {
+		skb = nxp_drv_send_cmd(hdev, HCI_NXP_IND_RESET, 1, &pcmd);
+		if (IS_ERR(skb))
+			return PTR_ERR(skb);
+
+		status = skb_pull_data(skb, 1);
+		if (status) {
+			serdev_device_set_flow_control(nxpdev->serdev, false);
+			set_bit(BTNXPUART_FW_DOWNLOADING, &nxpdev->tx_state);
+		}
+		kfree_skb(skb);
+	}
 
 	return 0;
 }
@@ -1233,7 +1282,8 @@ static int btnxpuart_receive_buf(struct serdev_device *serdev, const u8 *data,
 		nxpdev->rx_skb = NULL;
 		return err;
 	}
-	nxpdev->hdev->stat.byte_rx += count;
+	if (!is_fw_downloading(nxpdev))
+		nxpdev->hdev->stat.byte_rx += count;
 	return count;
 }
 
@@ -1266,6 +1316,16 @@ static int nxp_serdev_probe(struct serdev_device *serdev)
 	INIT_WORK(&nxpdev->tx_work, btnxpuart_tx_work);
 	skb_queue_head_init(&nxpdev->txq);
 
+	init_waitqueue_head(&nxpdev->fw_dnld_done_wait_q);
+	init_waitqueue_head(&nxpdev->check_boot_sign_wait_q);
+
+	device_property_read_u32(&nxpdev->serdev->dev, "fw-init-baudrate",
+				 &nxpdev->fw_init_baudrate);
+	if (!nxpdev->fw_init_baudrate)
+		nxpdev->fw_init_baudrate = FW_INIT_BAUDRATE;
+
+	set_bit(BTNXPUART_FW_DOWNLOADING, &nxpdev->tx_state);
+
 	crc8_populate_msb(crc8_table, POLYNOMIAL8);
 
 	/* Initialize and register HCI device */
@@ -1286,6 +1346,8 @@ static int nxp_serdev_probe(struct serdev_device *serdev)
 	hdev->flush = btnxpuart_flush;
 	hdev->setup = nxp_setup;
 	hdev->send  = nxp_enqueue;
+	hdev->hw_error = nxp_hw_err;
+	hdev->shutdown = nxp_shutdown;
 	SET_HCIDEV_DEV(hdev, &serdev->dev);
 
 	if (hci_register_dev(hdev) < 0) {
@@ -1294,8 +1356,7 @@ static int nxp_serdev_probe(struct serdev_device *serdev)
 		return -ENODEV;
 	}
 
-	ps_init_work(hdev);
-	ps_init_timer(hdev);
+	ps_setup(hdev);
 
 	return 0;
 }

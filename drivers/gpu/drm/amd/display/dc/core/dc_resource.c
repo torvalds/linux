@@ -45,6 +45,8 @@
 #include "link/hwss/link_hwss_dio.h"
 #include "link/hwss/link_hwss_dpia.h"
 #include "link/hwss/link_hwss_hpo_dp.h"
+#include "link/hwss/link_hwss_dio_fixed_vs_pe_retimer.h"
+#include "link/hwss/link_hwss_hpo_fixed_vs_pe_retimer_dp.h"
 
 #if defined(CONFIG_DRM_AMD_DC_SI)
 #include "dce60/dce60_resource.h"
@@ -69,8 +71,19 @@
 #include "../dcn32/dcn32_resource.h"
 #include "../dcn321/dcn321_resource.h"
 
+#define VISUAL_CONFIRM_BASE_DEFAULT 3
+#define VISUAL_CONFIRM_BASE_MIN 1
+#define VISUAL_CONFIRM_BASE_MAX 10
+/* we choose 240 because it is a common denominator of common v addressable
+ * such as 2160, 1440, 1200, 960. So we take 1/240 portion of v addressable as
+ * the visual confirm dpp offset height. So visual confirm height can stay
+ * relatively the same independent from timing used.
+ */
+#define VISUAL_CONFIRM_DPP_OFFSET_DENO 240
 
 #define DC_LOGGER_INIT(logger)
+
+#define UNABLE_TO_SPLIT -1
 
 enum dce_version resource_parse_asic_id(struct hw_asic_id asic_id)
 {
@@ -719,10 +732,10 @@ static inline void get_vp_scan_direction(
 		*flip_horz_scan_dir = !*flip_horz_scan_dir;
 }
 
-int get_num_mpc_splits(struct pipe_ctx *pipe)
+int resource_get_num_mpc_splits(const struct pipe_ctx *pipe)
 {
 	int mpc_split_count = 0;
-	struct pipe_ctx *other_pipe = pipe->bottom_pipe;
+	const struct pipe_ctx *other_pipe = pipe->bottom_pipe;
 
 	while (other_pipe && other_pipe->plane_state == pipe->plane_state) {
 		mpc_split_count++;
@@ -737,48 +750,46 @@ int get_num_mpc_splits(struct pipe_ctx *pipe)
 	return mpc_split_count;
 }
 
-int get_num_odm_splits(struct pipe_ctx *pipe)
+int resource_get_num_odm_splits(const struct pipe_ctx *pipe)
 {
 	int odm_split_count = 0;
-	struct pipe_ctx *next_pipe = pipe->next_odm_pipe;
-	while (next_pipe) {
+
+	pipe = resource_get_otg_master(pipe);
+
+	while (pipe->next_odm_pipe) {
 		odm_split_count++;
-		next_pipe = next_pipe->next_odm_pipe;
-	}
-	pipe = pipe->prev_odm_pipe;
-	while (pipe) {
-		odm_split_count++;
-		pipe = pipe->prev_odm_pipe;
+		pipe = pipe->next_odm_pipe;
 	}
 	return odm_split_count;
 }
 
-static void calculate_split_count_and_index(struct pipe_ctx *pipe_ctx, int *split_count, int *split_idx)
+static int get_odm_split_index(struct pipe_ctx *pipe_ctx)
 {
-	*split_count = get_num_odm_splits(pipe_ctx);
-	*split_idx = 0;
-	if (*split_count == 0) {
-		/*Check for mpc split*/
-		struct pipe_ctx *split_pipe = pipe_ctx->top_pipe;
+	int index = 0;
 
-		*split_count = get_num_mpc_splits(pipe_ctx);
-		while (split_pipe && split_pipe->plane_state == pipe_ctx->plane_state) {
-			(*split_idx)++;
-			split_pipe = split_pipe->top_pipe;
-		}
+	pipe_ctx = resource_get_opp_head(pipe_ctx);
+	if (!pipe_ctx)
+		return 0;
 
-		/* MPO window on right side of ODM split */
-		if (split_pipe && split_pipe->prev_odm_pipe && !pipe_ctx->prev_odm_pipe)
-			(*split_idx)++;
-	} else {
-		/*Get odm split index*/
-		struct pipe_ctx *split_pipe = pipe_ctx->prev_odm_pipe;
-
-		while (split_pipe) {
-			(*split_idx)++;
-			split_pipe = split_pipe->prev_odm_pipe;
-		}
+	while (pipe_ctx->prev_odm_pipe) {
+		index++;
+		pipe_ctx = pipe_ctx->prev_odm_pipe;
 	}
+
+	return index;
+}
+
+static int get_mpc_split_index(struct pipe_ctx *pipe_ctx)
+{
+	struct pipe_ctx *split_pipe = pipe_ctx->top_pipe;
+	int index = 0;
+
+	while (split_pipe && split_pipe->plane_state == pipe_ctx->plane_state) {
+		index++;
+		split_pipe = split_pipe->top_pipe;
+	}
+
+	return index;
 }
 
 /*
@@ -800,82 +811,366 @@ static void calculate_viewport_size(struct pipe_ctx *pipe_ctx)
 	}
 }
 
+static struct rect intersect_rec(const struct rect *r0, const struct rect *r1)
+{
+	struct rect rec;
+	int r0_x_end = r0->x + r0->width;
+	int r1_x_end = r1->x + r1->width;
+	int r0_y_end = r0->y + r0->height;
+	int r1_y_end = r1->y + r1->height;
+
+	rec.x = r0->x > r1->x ? r0->x : r1->x;
+	rec.width = r0_x_end > r1_x_end ? r1_x_end - rec.x : r0_x_end - rec.x;
+	rec.y = r0->y > r1->y ? r0->y : r1->y;
+	rec.height = r0_y_end > r1_y_end ? r1_y_end - rec.y : r0_y_end - rec.y;
+
+	/* in case that there is no intersection */
+	if (rec.width < 0 || rec.height < 0)
+		memset(&rec, 0, sizeof(rec));
+
+	return rec;
+}
+
+static struct rect shift_rec(const struct rect *rec_in, int x, int y)
+{
+	struct rect rec_out = *rec_in;
+
+	rec_out.x += x;
+	rec_out.y += y;
+
+	return rec_out;
+}
+
+static struct rect calculate_odm_slice_in_timing_active(struct pipe_ctx *pipe_ctx)
+{
+	const struct dc_stream_state *stream = pipe_ctx->stream;
+	int odm_slice_count = resource_get_num_odm_splits(pipe_ctx) + 1;
+	int odm_slice_idx = get_odm_split_index(pipe_ctx);
+	bool is_last_odm_slice = (odm_slice_idx + 1) == odm_slice_count;
+	int h_active = stream->timing.h_addressable +
+			stream->timing.h_border_left +
+			stream->timing.h_border_right;
+	int odm_slice_width = h_active / odm_slice_count;
+	struct rect odm_rec;
+
+	odm_rec.x = odm_slice_width * odm_slice_idx;
+	odm_rec.width = is_last_odm_slice ?
+			/* last slice width is the reminder of h_active */
+			h_active - odm_slice_width * (odm_slice_count - 1) :
+			/* odm slice width is the floor of h_active / count */
+			odm_slice_width;
+	odm_rec.y = 0;
+	odm_rec.height = stream->timing.v_addressable +
+			stream->timing.v_border_bottom +
+			stream->timing.v_border_top;
+
+	return odm_rec;
+}
+
+static struct rect calculate_plane_rec_in_timing_active(
+		struct pipe_ctx *pipe_ctx,
+		const struct rect *rec_in)
+{
+	/*
+	 * The following diagram shows an example where we map a 1920x1200
+	 * desktop to a 2560x1440 timing with a plane rect in the middle
+	 * of the screen. To map a plane rect from Stream Source to Timing
+	 * Active space, we first multiply stream scaling ratios (i.e 2304/1920
+	 * horizontal and 1440/1200 vertical) to the plane's x and y, then
+	 * we add stream destination offsets (i.e 128 horizontal, 0 vertical).
+	 * This will give us a plane rect's position in Timing Active. However
+	 * we have to remove the fractional. The rule is that we find left/right
+	 * and top/bottom positions and round the value to the adjacent integer.
+	 *
+	 * Stream Source Space
+	 * ------------
+	 *        __________________________________________________
+	 *       |Stream Source (1920 x 1200) ^                     |
+	 *       |                            y                     |
+	 *       |         <------- w --------|>                    |
+	 *       |          __________________V                     |
+	 *       |<-- x -->|Plane//////////////| ^                  |
+	 *       |         |(pre scale)////////| |                  |
+	 *       |         |///////////////////| |                  |
+	 *       |         |///////////////////| h                  |
+	 *       |         |///////////////////| |                  |
+	 *       |         |///////////////////| |                  |
+	 *       |         |///////////////////| V                  |
+	 *       |                                                  |
+	 *       |                                                  |
+	 *       |__________________________________________________|
+	 *
+	 *
+	 * Timing Active Space
+	 * ---------------------------------
+	 *
+	 *       Timing Active (2560 x 1440)
+	 *        __________________________________________________
+	 *       |*****|  Stteam Destination (2304 x 1440)    |*****|
+	 *       |*****|                                      |*****|
+	 *       |<128>|                                      |*****|
+	 *       |*****|     __________________               |*****|
+	 *       |*****|    |Plane/////////////|              |*****|
+	 *       |*****|    |(post scale)//////|              |*****|
+	 *       |*****|    |//////////////////|              |*****|
+	 *       |*****|    |//////////////////|              |*****|
+	 *       |*****|    |//////////////////|              |*****|
+	 *       |*****|    |//////////////////|              |*****|
+	 *       |*****|                                      |*****|
+	 *       |*****|                                      |*****|
+	 *       |*****|                                      |*****|
+	 *       |*****|______________________________________|*****|
+	 *
+	 * So the resulting formulas are shown below:
+	 *
+	 * recout_x = 128 + round(plane_x * 2304 / 1920)
+	 * recout_w = 128 + round((plane_x + plane_w) * 2304 / 1920) - recout_x
+	 * recout_y = 0 + round(plane_y * 1440 / 1280)
+	 * recout_h = 0 + round((plane_y + plane_h) * 1440 / 1200) - recout_y
+	 *
+	 * NOTE: fixed point division is not error free. To reduce errors
+	 * introduced by fixed point division, we divide only after
+	 * multiplication is complete.
+	 */
+	const struct dc_stream_state *stream = pipe_ctx->stream;
+	struct rect rec_out = {0};
+	struct fixed31_32 temp;
+
+	temp = dc_fixpt_from_fraction(rec_in->x * stream->dst.width,
+			stream->src.width);
+	rec_out.x = stream->dst.x + dc_fixpt_round(temp);
+
+	temp = dc_fixpt_from_fraction(
+			(rec_in->x + rec_in->width) * stream->dst.width,
+			stream->src.width);
+	rec_out.width = stream->dst.x + dc_fixpt_round(temp) - rec_out.x;
+
+	temp = dc_fixpt_from_fraction(rec_in->y * stream->dst.height,
+			stream->src.height);
+	rec_out.y = stream->dst.y + dc_fixpt_round(temp);
+
+	temp = dc_fixpt_from_fraction(
+			(rec_in->y + rec_in->height) * stream->dst.height,
+			stream->src.height);
+	rec_out.height = stream->dst.y + dc_fixpt_round(temp) - rec_out.y;
+
+	return rec_out;
+}
+
+static struct rect calculate_mpc_slice_in_timing_active(
+		struct pipe_ctx *pipe_ctx,
+		struct rect *plane_clip_rec)
+{
+	const struct dc_stream_state *stream = pipe_ctx->stream;
+	int mpc_slice_count = resource_get_num_mpc_splits(pipe_ctx) + 1;
+	int mpc_slice_idx = get_mpc_split_index(pipe_ctx);
+	int epimo = mpc_slice_count - plane_clip_rec->width % mpc_slice_count - 1;
+	struct rect mpc_rec;
+
+	mpc_rec.width = plane_clip_rec->width / mpc_slice_count;
+	mpc_rec.x = plane_clip_rec->x + mpc_rec.width * mpc_slice_idx;
+	mpc_rec.height = plane_clip_rec->height;
+	mpc_rec.y = plane_clip_rec->y;
+	ASSERT(mpc_slice_count == 1 ||
+			stream->view_format != VIEW_3D_FORMAT_SIDE_BY_SIDE ||
+			mpc_rec.width % 2 == 0);
+
+	/* extra pixels in the division remainder need to go to pipes after
+	 * the extra pixel index minus one(epimo) defined here as:
+	 */
+	if (mpc_slice_idx > epimo) {
+		mpc_rec.x += mpc_slice_idx - epimo - 1;
+		mpc_rec.width += 1;
+	}
+
+	if (stream->view_format == VIEW_3D_FORMAT_TOP_AND_BOTTOM) {
+		ASSERT(mpc_rec.height % 2 == 0);
+		mpc_rec.height /= 2;
+	}
+	return mpc_rec;
+}
+
+static void adjust_recout_for_visual_confirm(struct rect *recout,
+		struct pipe_ctx *pipe_ctx)
+{
+	struct dc *dc = pipe_ctx->stream->ctx->dc;
+	int dpp_offset, base_offset;
+
+	if (dc->debug.visual_confirm == VISUAL_CONFIRM_DISABLE)
+		return;
+
+	dpp_offset = pipe_ctx->stream->timing.v_addressable / VISUAL_CONFIRM_DPP_OFFSET_DENO;
+	dpp_offset *= pipe_ctx->plane_res.dpp->inst;
+
+	if ((dc->debug.visual_confirm_rect_height >= VISUAL_CONFIRM_BASE_MIN) &&
+			dc->debug.visual_confirm_rect_height <= VISUAL_CONFIRM_BASE_MAX)
+		base_offset = dc->debug.visual_confirm_rect_height;
+	else
+		base_offset = VISUAL_CONFIRM_BASE_DEFAULT;
+
+	recout->height -= base_offset;
+	recout->height -= dpp_offset;
+}
+
+/*
+ * The function maps a plane clip from Stream Source Space to ODM Slice Space
+ * and calculates the rec of the overlapping area of MPC slice of the plane
+ * clip, ODM slice associated with the pipe context and stream destination rec.
+ */
 static void calculate_recout(struct pipe_ctx *pipe_ctx)
 {
-	const struct dc_plane_state *plane_state = pipe_ctx->plane_state;
-	const struct dc_stream_state *stream = pipe_ctx->stream;
-	struct scaler_data *data = &pipe_ctx->plane_res.scl_data;
-	struct rect surf_clip = plane_state->clip_rect;
-	bool split_tb = stream->view_format == VIEW_3D_FORMAT_TOP_AND_BOTTOM;
-	int split_count, split_idx;
-
-	calculate_split_count_and_index(pipe_ctx, &split_count, &split_idx);
-	if (stream->view_format == VIEW_3D_FORMAT_SIDE_BY_SIDE)
-		split_idx = 0;
-
 	/*
-	 * Only the leftmost ODM pipe should be offset by a nonzero distance
+	 * A plane clip represents the desired plane size and position in Stream
+	 * Source Space. Stream Source is the destination where all planes are
+	 * blended (i.e. positioned, scaled and overlaid). It is a canvas where
+	 * all planes associated with the current stream are drawn together.
+	 * After Stream Source is completed, we will further scale and
+	 * reposition the entire canvas of the stream source to Stream
+	 * Destination in Timing Active Space. This could be due to display
+	 * overscan adjustment where we will need to rescale and reposition all
+	 * the planes so they can fit into a TV with overscan or downscale
+	 * upscale features such as GPU scaling or VSR.
+	 *
+	 * This two step blending is a virtual procedure in software. In
+	 * hardware there is no such thing as Stream Source. all planes are
+	 * blended once in Timing Active Space. Software virtualizes a Stream
+	 * Source space to decouple the math complicity so scaling param
+	 * calculation focuses on one step at a time.
+	 *
+	 * In the following two diagrams, user applied 10% overscan adjustment
+	 * so the Stream Source needs to be scaled down a little before mapping
+	 * to Timing Active Space. As a result the Plane Clip is also scaled
+	 * down by the same ratio, Plane Clip position (i.e. x and y) with
+	 * respect to Stream Source is also scaled down. To map it in Timing
+	 * Active Space additional x and y offsets from Stream Destination are
+	 * added to Plane Clip as well.
+	 *
+	 * Stream Source Space
+	 * ------------
+	 *        __________________________________________________
+	 *       |Stream Source (3840 x 2160) ^                     |
+	 *       |                            y                     |
+	 *       |                            |                     |
+	 *       |          __________________V                     |
+	 *       |<-- x -->|Plane Clip/////////|                    |
+	 *       |         |(pre scale)////////|                    |
+	 *       |         |///////////////////|                    |
+	 *       |         |///////////////////|                    |
+	 *       |         |///////////////////|                    |
+	 *       |         |///////////////////|                    |
+	 *       |         |///////////////////|                    |
+	 *       |                                                  |
+	 *       |                                                  |
+	 *       |__________________________________________________|
+	 *
+	 *
+	 * Timing Active Space (3840 x 2160)
+	 * ---------------------------------
+	 *
+	 *       Timing Active
+	 *        __________________________________________________
+	 *       | y_____________________________________________   |
+	 *       |x |Stream Destination (3456 x 1944)            |  |
+	 *       |  |                                            |  |
+	 *       |  |        __________________                  |  |
+	 *       |  |       |Plane Clip////////|                 |  |
+	 *       |  |       |(post scale)//////|                 |  |
+	 *       |  |       |//////////////////|                 |  |
+	 *       |  |       |//////////////////|                 |  |
+	 *       |  |       |//////////////////|                 |  |
+	 *       |  |       |//////////////////|                 |  |
+	 *       |  |                                            |  |
+	 *       |  |                                            |  |
+	 *       |  |____________________________________________|  |
+	 *       |__________________________________________________|
+	 *
+	 *
+	 * In Timing Active Space a plane clip could be further sliced into
+	 * pieces called MPC slices. Each Pipe Context is responsible for
+	 * processing only one MPC slice so the plane processing workload can be
+	 * distributed to multiple DPP Pipes. MPC slices could be blended
+	 * together to a single ODM slice. Each ODM slice is responsible for
+	 * processing a portion of Timing Active divided horizontally so the
+	 * output pixel processing workload can be distributed to multiple OPP
+	 * pipes. All ODM slices are mapped together in ODM block so all MPC
+	 * slices belong to different ODM slices could be pieced together to
+	 * form a single image in Timing Active. MPC slices must belong to
+	 * single ODM slice. If an MPC slice goes across ODM slice boundary, it
+	 * needs to be divided into two MPC slices one for each ODM slice.
+	 *
+	 * In the following diagram the output pixel processing workload is
+	 * divided horizontally into two ODM slices one for each OPP blend tree.
+	 * OPP0 blend tree is responsible for processing left half of Timing
+	 * Active, while OPP2 blend tree is responsible for processing right
+	 * half.
+	 *
+	 * The plane has two MPC slices. However since the right MPC slice goes
+	 * across ODM boundary, two DPP pipes are needed one for each OPP blend
+	 * tree. (i.e. DPP1 for OPP0 blend tree and DPP2 for OPP2 blend tree).
+	 *
+	 * Assuming that we have a Pipe Context associated with OPP0 and DPP1
+	 * working on processing the plane in the diagram. We want to know the
+	 * width and height of the shaded rectangle and its relative position
+	 * with respect to the ODM slice0. This is called the recout of the pipe
+	 * context.
+	 *
+	 * Planes can be at arbitrary size and position and there could be an
+	 * arbitrary number of MPC and ODM slices. The algorithm needs to take
+	 * all scenarios into account.
+	 *
+	 * Timing Active Space (3840 x 2160)
+	 * ---------------------------------
+	 *
+	 *       Timing Active
+	 *        __________________________________________________
+	 *       |OPP0(ODM slice0)^        |OPP2(ODM slice1)        |
+	 *       |                y        |                        |
+	 *       |                |  <- w ->                        |
+	 *       |           _____V________|____                    |
+	 *       |          |DPP0 ^  |DPP1 |DPP2|                   |
+	 *       |<------ x |-----|->|/////|    |                   |
+	 *       |          |     |  |/////|    |                   |
+	 *       |          |     h  |/////|    |                   |
+	 *       |          |     |  |/////|    |                   |
+	 *       |          |_____V__|/////|____|                   |
+	 *       |                         |                        |
+	 *       |                         |                        |
+	 *       |                         |                        |
+	 *       |_________________________|________________________|
+	 *
+	 *
 	 */
-	if (pipe_ctx->top_pipe && pipe_ctx->top_pipe->prev_odm_pipe && !pipe_ctx->prev_odm_pipe) {
-		/* MPO window on right side of ODM split */
-		data->recout.x = stream->dst.x + (surf_clip.x - stream->src.x - stream->src.width/2) *
-				stream->dst.width / stream->src.width;
-	} else if (!pipe_ctx->prev_odm_pipe || split_idx == split_count) {
-		data->recout.x = stream->dst.x;
-		if (stream->src.x < surf_clip.x)
-			data->recout.x += (surf_clip.x - stream->src.x) * stream->dst.width
-						/ stream->src.width;
-	} else
-		data->recout.x = 0;
+	struct rect plane_clip;
+	struct rect mpc_slice_of_plane_clip;
+	struct rect odm_slice;
+	struct rect overlapping_area;
 
-	if (stream->src.x > surf_clip.x)
-		surf_clip.width -= stream->src.x - surf_clip.x;
-	data->recout.width = surf_clip.width * stream->dst.width / stream->src.width;
-	if (data->recout.width + data->recout.x > stream->dst.x + stream->dst.width)
-		data->recout.width = stream->dst.x + stream->dst.width - data->recout.x;
-
-	data->recout.y = stream->dst.y;
-	if (stream->src.y < surf_clip.y)
-		data->recout.y += (surf_clip.y - stream->src.y) * stream->dst.height
-						/ stream->src.height;
-	else if (stream->src.y > surf_clip.y)
-		surf_clip.height -= stream->src.y - surf_clip.y;
-
-	data->recout.height = surf_clip.height * stream->dst.height / stream->src.height;
-	if (data->recout.height + data->recout.y > stream->dst.y + stream->dst.height)
-		data->recout.height = stream->dst.y + stream->dst.height - data->recout.y;
-
-	/* Handle h & v split */
-	if (split_tb) {
-		ASSERT(data->recout.height % 2 == 0);
-		data->recout.height /= 2;
-	} else if (split_count) {
-		if (!pipe_ctx->next_odm_pipe && !pipe_ctx->prev_odm_pipe) {
-			/* extra pixels in the division remainder need to go to pipes after
-			 * the extra pixel index minus one(epimo) defined here as:
-			 */
-			int epimo = split_count - data->recout.width % (split_count + 1);
-
-			data->recout.x += (data->recout.width / (split_count + 1)) * split_idx;
-			if (split_idx > epimo)
-				data->recout.x += split_idx - epimo - 1;
-			ASSERT(stream->view_format != VIEW_3D_FORMAT_SIDE_BY_SIDE || data->recout.width % 2 == 0);
-			data->recout.width = data->recout.width / (split_count + 1) + (split_idx > epimo ? 1 : 0);
-		} else {
-			/* odm */
-			if (split_idx == split_count) {
-				/* rightmost pipe is the remainder recout */
-				data->recout.width -= data->h_active * split_count - data->recout.x;
-
-				/* ODM combine cases with MPO we can get negative widths */
-				if (data->recout.width < 0)
-					data->recout.width = 0;
-
-				data->recout.x = 0;
-			} else
-				data->recout.width = data->h_active - data->recout.x;
-		}
+	plane_clip = calculate_plane_rec_in_timing_active(pipe_ctx,
+			&pipe_ctx->plane_state->clip_rect);
+	/* guard plane clip from drawing beyond stream dst here */
+	plane_clip = intersect_rec(&plane_clip,
+				&pipe_ctx->stream->dst);
+	mpc_slice_of_plane_clip = calculate_mpc_slice_in_timing_active(
+			pipe_ctx, &plane_clip);
+	odm_slice = calculate_odm_slice_in_timing_active(pipe_ctx);
+	overlapping_area = intersect_rec(&mpc_slice_of_plane_clip, &odm_slice);
+	if (overlapping_area.height > 0 &&
+			overlapping_area.width > 0) {
+		/* shift the overlapping area so it is with respect to current
+		 * ODM slice's position
+		 */
+		pipe_ctx->plane_res.scl_data.recout = shift_rec(
+				&overlapping_area,
+				-odm_slice.x, -odm_slice.y);
+		adjust_recout_for_visual_confirm(
+				&pipe_ctx->plane_res.scl_data.recout,
+				pipe_ctx);
+	} else {
+		/* if there is no overlap, zero recout */
+		memset(&pipe_ctx->plane_res.scl_data.recout, 0,
+				sizeof(struct rect));
 	}
+
 }
 
 static void calculate_scaling_ratios(struct pipe_ctx *pipe_ctx)
@@ -997,33 +1292,30 @@ static void calculate_init_and_vp(
 static void calculate_inits_and_viewports(struct pipe_ctx *pipe_ctx)
 {
 	const struct dc_plane_state *plane_state = pipe_ctx->plane_state;
-	const struct dc_stream_state *stream = pipe_ctx->stream;
 	struct scaler_data *data = &pipe_ctx->plane_res.scl_data;
 	struct rect src = plane_state->src_rect;
+	struct rect recout_dst_in_active_timing;
+	struct rect recout_clip_in_active_timing;
+	struct rect recout_clip_in_recout_dst;
+	struct rect overlap_in_active_timing;
+	struct rect odm_slice = calculate_odm_slice_in_timing_active(pipe_ctx);
 	int vpc_div = (data->format == PIXEL_FORMAT_420BPP8
 				|| data->format == PIXEL_FORMAT_420BPP10) ? 2 : 1;
-	int split_count, split_idx, ro_lb, ro_tb, recout_full_x, recout_full_y;
 	bool orthogonal_rotation, flip_vert_scan_dir, flip_horz_scan_dir;
 
-	calculate_split_count_and_index(pipe_ctx, &split_count, &split_idx);
-	/*
-	 * recout full is what the recout would have been if we didnt clip
-	 * the source plane at all. We only care about left(ro_lb) and top(ro_tb)
-	 * offsets of recout within recout full because those are the directions
-	 * we scan from and therefore the only ones that affect inits.
-	 */
-	recout_full_x = stream->dst.x + (plane_state->dst_rect.x - stream->src.x)
-			* stream->dst.width / stream->src.width;
-	recout_full_y = stream->dst.y + (plane_state->dst_rect.y - stream->src.y)
-			* stream->dst.height / stream->src.height;
-	if (pipe_ctx->prev_odm_pipe && split_idx)
-		ro_lb = data->h_active * split_idx - recout_full_x;
-	else if (pipe_ctx->top_pipe && pipe_ctx->top_pipe->prev_odm_pipe)
-		ro_lb = data->h_active * split_idx - recout_full_x + data->recout.x;
+	recout_clip_in_active_timing = shift_rec(
+			&data->recout, odm_slice.x, odm_slice.y);
+	recout_dst_in_active_timing = calculate_plane_rec_in_timing_active(
+			pipe_ctx, &plane_state->dst_rect);
+	overlap_in_active_timing = intersect_rec(&recout_clip_in_active_timing,
+			&recout_dst_in_active_timing);
+	if (overlap_in_active_timing.width > 0 &&
+			overlap_in_active_timing.height > 0)
+		recout_clip_in_recout_dst = shift_rec(&overlap_in_active_timing,
+				-recout_dst_in_active_timing.x,
+				-recout_dst_in_active_timing.y);
 	else
-		ro_lb = data->recout.x - recout_full_x;
-	ro_tb = data->recout.y - recout_full_y;
-	ASSERT(ro_lb >= 0 && ro_tb >= 0);
+		memset(&recout_clip_in_recout_dst, 0, sizeof(struct rect));
 
 	/*
 	 * Work in recout rotation since that requires less transformations
@@ -1042,7 +1334,7 @@ static void calculate_inits_and_viewports(struct pipe_ctx *pipe_ctx)
 
 	calculate_init_and_vp(
 			flip_horz_scan_dir,
-			ro_lb,
+			recout_clip_in_recout_dst.x,
 			data->recout.width,
 			src.width,
 			data->taps.h_taps,
@@ -1052,7 +1344,7 @@ static void calculate_inits_and_viewports(struct pipe_ctx *pipe_ctx)
 			&data->viewport.width);
 	calculate_init_and_vp(
 			flip_horz_scan_dir,
-			ro_lb,
+			recout_clip_in_recout_dst.x,
 			data->recout.width,
 			src.width / vpc_div,
 			data->taps.h_taps_c,
@@ -1062,7 +1354,7 @@ static void calculate_inits_and_viewports(struct pipe_ctx *pipe_ctx)
 			&data->viewport_c.width);
 	calculate_init_and_vp(
 			flip_vert_scan_dir,
-			ro_tb,
+			recout_clip_in_recout_dst.y,
 			data->recout.height,
 			src.height,
 			data->taps.v_taps,
@@ -1072,7 +1364,7 @@ static void calculate_inits_and_viewports(struct pipe_ctx *pipe_ctx)
 			&data->viewport.height);
 	calculate_init_and_vp(
 			flip_vert_scan_dir,
-			ro_tb,
+			recout_clip_in_recout_dst.y,
 			data->recout.height,
 			src.height / vpc_div,
 			data->taps.v_taps_c,
@@ -1097,6 +1389,7 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 {
 	const struct dc_plane_state *plane_state = pipe_ctx->plane_state;
 	struct dc_crtc_timing *timing = &pipe_ctx->stream->timing;
+	const struct rect odm_slice_rec = calculate_odm_slice_in_timing_active(pipe_ctx);
 	bool res = false;
 	DC_LOGGER_INIT(pipe_ctx->stream->ctx->logger);
 
@@ -1121,30 +1414,9 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 	pipe_ctx->stream->dst.y += timing->v_border_top;
 
 	/* Calculate H and V active size */
-	pipe_ctx->plane_res.scl_data.h_active = timing->h_addressable +
-			timing->h_border_left + timing->h_border_right;
-	pipe_ctx->plane_res.scl_data.v_active = timing->v_addressable +
-		timing->v_border_top + timing->v_border_bottom;
-	if (pipe_ctx->next_odm_pipe || pipe_ctx->prev_odm_pipe) {
-		pipe_ctx->plane_res.scl_data.h_active /= get_num_odm_splits(pipe_ctx) + 1;
+	pipe_ctx->plane_res.scl_data.h_active = odm_slice_rec.width;
+	pipe_ctx->plane_res.scl_data.v_active = odm_slice_rec.height;
 
-		DC_LOG_SCALER("%s pipe %d: next_odm_pipe:%d   prev_odm_pipe:%d\n",
-				__func__,
-				pipe_ctx->pipe_idx,
-				pipe_ctx->next_odm_pipe ? pipe_ctx->next_odm_pipe->pipe_idx : -1,
-				pipe_ctx->prev_odm_pipe ? pipe_ctx->prev_odm_pipe->pipe_idx : -1);
-	}	/* ODM + windows MPO, where window is on either right or left ODM half */
-	else if (pipe_ctx->top_pipe && (pipe_ctx->top_pipe->next_odm_pipe || pipe_ctx->top_pipe->prev_odm_pipe)) {
-
-		pipe_ctx->plane_res.scl_data.h_active /= get_num_odm_splits(pipe_ctx->top_pipe) + 1;
-
-		DC_LOG_SCALER("%s ODM + windows MPO: pipe:%d top_pipe:%d   top_pipe->next_odm_pipe:%d   top_pipe->prev_odm_pipe:%d\n",
-				__func__,
-				pipe_ctx->pipe_idx,
-				pipe_ctx->top_pipe->pipe_idx,
-				pipe_ctx->top_pipe->next_odm_pipe ? pipe_ctx->top_pipe->next_odm_pipe->pipe_idx : -1,
-				pipe_ctx->top_pipe->prev_odm_pipe ? pipe_ctx->top_pipe->prev_odm_pipe->pipe_idx : -1);
-	}
 	/* depends on h_active */
 	calculate_recout(pipe_ctx);
 	/* depends on pixel format */
@@ -1226,17 +1498,12 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 			pipe_ctx->plane_res.scl_data.recout.x += pipe_ctx->plane_res.scl_data.recout.width;
 	}
 
-	if (!pipe_ctx->stream->ctx->dc->config.enable_windowed_mpo_odm) {
-		if (pipe_ctx->plane_res.scl_data.viewport.height < MIN_VIEWPORT_SIZE ||
-				pipe_ctx->plane_res.scl_data.viewport.width < MIN_VIEWPORT_SIZE)
-			res = false;
-	} else {
-		/* Clamp minimum viewport size */
-		if (pipe_ctx->plane_res.scl_data.viewport.height < MIN_VIEWPORT_SIZE)
-			pipe_ctx->plane_res.scl_data.viewport.height = MIN_VIEWPORT_SIZE;
-		if (pipe_ctx->plane_res.scl_data.viewport.width < MIN_VIEWPORT_SIZE)
-			pipe_ctx->plane_res.scl_data.viewport.width = MIN_VIEWPORT_SIZE;
-	}
+	/* Clamp minimum viewport size */
+	if (pipe_ctx->plane_res.scl_data.viewport.height < MIN_VIEWPORT_SIZE)
+		pipe_ctx->plane_res.scl_data.viewport.height = MIN_VIEWPORT_SIZE;
+	if (pipe_ctx->plane_res.scl_data.viewport.width < MIN_VIEWPORT_SIZE)
+		pipe_ctx->plane_res.scl_data.viewport.width = MIN_VIEWPORT_SIZE;
+
 
 	DC_LOG_SCALER("%s pipe %d:\nViewport: height:%d width:%d x:%d y:%d  Recout: height:%d width:%d x:%d y:%d  HACTIVE:%d VACTIVE:%d\n"
 			"src_rect: height:%d width:%d x:%d y:%d  dst_rect: height:%d width:%d x:%d y:%d  clip_rect: height:%d width:%d x:%d y:%d\n",
@@ -1288,7 +1555,7 @@ enum dc_status resource_build_scaling_params_for_context(
 	return DC_OK;
 }
 
-struct pipe_ctx *find_idle_secondary_pipe(
+struct pipe_ctx *resource_find_free_secondary_pipe_legacy(
 		struct resource_context *res_ctx,
 		const struct resource_pool *pool,
 		const struct pipe_ctx *primary_pipe)
@@ -1348,28 +1615,175 @@ struct pipe_ctx *find_idle_secondary_pipe(
 	return secondary_pipe;
 }
 
-struct pipe_ctx *resource_get_head_pipe_for_stream(
+int resource_find_free_pipe_used_in_cur_mpc_blending_tree(
+		const struct resource_context *cur_res_ctx,
+		struct resource_context *new_res_ctx,
+		const struct pipe_ctx *cur_opp_head)
+{
+	const struct pipe_ctx *cur_sec_dpp = cur_opp_head->bottom_pipe;
+	struct pipe_ctx *new_pipe;
+	int free_pipe_idx = FREE_PIPE_INDEX_NOT_FOUND;
+
+	while (cur_sec_dpp) {
+		/* find a free pipe used in current opp blend tree,
+		 * this is to avoid MPO pipe switching to different opp blending
+		 * tree
+		 */
+		new_pipe = &new_res_ctx->pipe_ctx[cur_sec_dpp->pipe_idx];
+		if (resource_is_pipe_type(new_pipe, FREE_PIPE)) {
+			free_pipe_idx = cur_sec_dpp->pipe_idx;
+			break;
+		}
+		cur_sec_dpp = cur_sec_dpp->bottom_pipe;
+	}
+
+	return free_pipe_idx;
+}
+
+int recource_find_free_pipe_not_used_in_cur_res_ctx(
+		const struct resource_context *cur_res_ctx,
+		struct resource_context *new_res_ctx,
+		const struct resource_pool *pool)
+{
+	int free_pipe_idx = FREE_PIPE_INDEX_NOT_FOUND;
+	const struct pipe_ctx *new_pipe, *cur_pipe;
+	int i;
+
+	for (i = 0; i < pool->pipe_count; i++) {
+		cur_pipe = &cur_res_ctx->pipe_ctx[i];
+		new_pipe = &new_res_ctx->pipe_ctx[i];
+
+		if (resource_is_pipe_type(cur_pipe, FREE_PIPE) &&
+				resource_is_pipe_type(new_pipe, FREE_PIPE)) {
+			free_pipe_idx = i;
+			break;
+		}
+	}
+
+	return free_pipe_idx;
+}
+
+int resource_find_free_pipe_used_as_cur_sec_dpp_in_mpcc_combine(
+		const struct resource_context *cur_res_ctx,
+		struct resource_context *new_res_ctx,
+		const struct resource_pool *pool)
+{
+	int free_pipe_idx = FREE_PIPE_INDEX_NOT_FOUND;
+	const struct pipe_ctx *new_pipe, *cur_pipe;
+	int i;
+
+	for (i = 0; i < pool->pipe_count; i++) {
+		cur_pipe = &cur_res_ctx->pipe_ctx[i];
+		new_pipe = &new_res_ctx->pipe_ctx[i];
+
+		if (resource_is_pipe_type(cur_pipe, DPP_PIPE) &&
+				!resource_is_pipe_type(cur_pipe, OPP_HEAD) &&
+				resource_is_for_mpcc_combine(cur_pipe) &&
+				resource_is_pipe_type(new_pipe, FREE_PIPE)) {
+			free_pipe_idx = i;
+			break;
+		}
+	}
+
+	return free_pipe_idx;
+}
+
+int resource_find_any_free_pipe(struct resource_context *new_res_ctx,
+		const struct resource_pool *pool)
+{
+	int free_pipe_idx = FREE_PIPE_INDEX_NOT_FOUND;
+	const struct pipe_ctx *new_pipe;
+	int i;
+
+	for (i = 0; i < pool->pipe_count; i++) {
+		new_pipe = &new_res_ctx->pipe_ctx[i];
+
+		if (resource_is_pipe_type(new_pipe, FREE_PIPE)) {
+			free_pipe_idx = i;
+			break;
+		}
+	}
+
+	return free_pipe_idx;
+}
+
+bool resource_is_pipe_type(const struct pipe_ctx *pipe_ctx, enum pipe_type type)
+{
+#ifdef DBG
+	if (pipe_ctx->stream == NULL) {
+		/* a free pipe with dangling states */
+		ASSERT(!pipe_ctx->plane_state);
+		ASSERT(!pipe_ctx->prev_odm_pipe);
+		ASSERT(!pipe_ctx->next_odm_pipe);
+		ASSERT(!pipe_ctx->top_pipe);
+		ASSERT(!pipe_ctx->bottom_pipe);
+	} else if (pipe_ctx->top_pipe) {
+		/* a secondary DPP pipe must be signed to a plane */
+		ASSERT(pipe_ctx->plane_state)
+	}
+	/* Add more checks here to prevent corrupted pipe ctx. It is very hard
+	 * to debug this issue afterwards because we can't pinpoint the code
+	 * location causing inconsistent pipe context states.
+	 */
+#endif
+	switch (type) {
+	case OTG_MASTER:
+		return !pipe_ctx->prev_odm_pipe &&
+				!pipe_ctx->top_pipe &&
+				pipe_ctx->stream;
+	case OPP_HEAD:
+		return !pipe_ctx->top_pipe && pipe_ctx->stream;
+	case DPP_PIPE:
+		return pipe_ctx->plane_state && pipe_ctx->stream;
+	case FREE_PIPE:
+		return !pipe_ctx->plane_state && !pipe_ctx->stream;
+	default:
+		return false;
+	}
+}
+
+bool resource_is_for_mpcc_combine(const struct pipe_ctx *pipe_ctx)
+{
+	return resource_get_num_mpc_splits(pipe_ctx) > 0;
+}
+
+struct pipe_ctx *resource_get_otg_master_for_stream(
 		struct resource_context *res_ctx,
 		struct dc_stream_state *stream)
 {
 	int i;
 
 	for (i = 0; i < MAX_PIPES; i++) {
-		if (res_ctx->pipe_ctx[i].stream == stream
-				&& !res_ctx->pipe_ctx[i].top_pipe
-				&& !res_ctx->pipe_ctx[i].prev_odm_pipe)
+		if (res_ctx->pipe_ctx[i].stream == stream &&
+				resource_is_pipe_type(&res_ctx->pipe_ctx[i], OTG_MASTER))
 			return &res_ctx->pipe_ctx[i];
 	}
 	return NULL;
 }
 
-static struct pipe_ctx *resource_get_tail_pipe(
-		struct resource_context *res_ctx,
+struct pipe_ctx *resource_get_otg_master(const struct pipe_ctx *pipe_ctx)
+{
+	struct pipe_ctx *otg_master = resource_get_opp_head(pipe_ctx);
+
+	while (otg_master->prev_odm_pipe)
+		otg_master = otg_master->prev_odm_pipe;
+	return otg_master;
+}
+
+struct pipe_ctx *resource_get_opp_head(const struct pipe_ctx *pipe_ctx)
+{
+	struct pipe_ctx *opp_head = (struct pipe_ctx *) pipe_ctx;
+
+	ASSERT(!resource_is_pipe_type(opp_head, FREE_PIPE));
+	while (opp_head->top_pipe)
+		opp_head = opp_head->top_pipe;
+	return opp_head;
+}
+
+static struct pipe_ctx *get_tail_pipe(
 		struct pipe_ctx *head_pipe)
 {
-	struct pipe_ctx *tail_pipe;
-
-	tail_pipe = head_pipe->bottom_pipe;
+	struct pipe_ctx *tail_pipe = head_pipe->bottom_pipe;
 
 	while (tail_pipe) {
 		head_pipe = tail_pipe;
@@ -1377,44 +1791,6 @@ static struct pipe_ctx *resource_get_tail_pipe(
 	}
 
 	return head_pipe;
-}
-
-/*
- * A free_pipe for a stream is defined here as a pipe
- * that has no surface attached yet
- */
-static struct pipe_ctx *acquire_free_pipe_for_head(
-		struct dc_state *context,
-		const struct resource_pool *pool,
-		struct pipe_ctx *head_pipe)
-{
-	int i;
-	struct resource_context *res_ctx = &context->res_ctx;
-
-	if (!head_pipe->plane_state)
-		return head_pipe;
-
-	/* Re-use pipe already acquired for this stream if available*/
-	for (i = pool->pipe_count - 1; i >= 0; i--) {
-		if (res_ctx->pipe_ctx[i].stream == head_pipe->stream &&
-				!res_ctx->pipe_ctx[i].plane_state) {
-			return &res_ctx->pipe_ctx[i];
-		}
-	}
-
-	/*
-	 * At this point we have no re-useable pipe for this stream and we need
-	 * to acquire an idle one to satisfy the request
-	 */
-
-	if (!pool->funcs->acquire_idle_pipe_for_layer) {
-		if (!pool->funcs->acquire_idle_pipe_for_head_pipe_in_layer)
-			return NULL;
-		else
-			return pool->funcs->acquire_idle_pipe_for_head_pipe_in_layer(context, pool, head_pipe->stream, head_pipe);
-	}
-
-	return pool->funcs->acquire_idle_pipe_for_layer(context, pool, head_pipe->stream);
 }
 
 static int acquire_first_split_pipe(
@@ -1447,29 +1823,85 @@ static int acquire_first_split_pipe(
 
 			split_pipe->stream = stream;
 			return i;
-		} else if (split_pipe->prev_odm_pipe &&
-				split_pipe->prev_odm_pipe->plane_state == split_pipe->plane_state) {
-			split_pipe->prev_odm_pipe->next_odm_pipe = split_pipe->next_odm_pipe;
-			if (split_pipe->next_odm_pipe)
-				split_pipe->next_odm_pipe->prev_odm_pipe = split_pipe->prev_odm_pipe;
-
-			if (split_pipe->prev_odm_pipe->plane_state)
-				resource_build_scaling_params(split_pipe->prev_odm_pipe);
-
-			memset(split_pipe, 0, sizeof(*split_pipe));
-			split_pipe->stream_res.tg = pool->timing_generators[i];
-			split_pipe->plane_res.hubp = pool->hubps[i];
-			split_pipe->plane_res.ipp = pool->ipps[i];
-			split_pipe->plane_res.dpp = pool->dpps[i];
-			split_pipe->stream_res.opp = pool->opps[i];
-			split_pipe->plane_res.mpcc_inst = pool->dpps[i]->inst;
-			split_pipe->pipe_idx = i;
-
-			split_pipe->stream = stream;
-			return i;
 		}
 	}
-	return -1;
+	return UNABLE_TO_SPLIT;
+}
+
+static bool add_plane_to_opp_head_pipes(struct pipe_ctx *otg_master_pipe,
+		struct dc_plane_state *plane_state,
+		struct dc_state *context)
+{
+	struct pipe_ctx *opp_head_pipe = otg_master_pipe;
+
+	while (opp_head_pipe) {
+		if (opp_head_pipe->plane_state) {
+			ASSERT(0);
+			return false;
+		}
+		opp_head_pipe->plane_state = plane_state;
+		opp_head_pipe = opp_head_pipe->next_odm_pipe;
+	}
+
+	return true;
+}
+
+static void insert_secondary_dpp_pipe_with_plane(struct pipe_ctx *opp_head_pipe,
+		struct pipe_ctx *sec_pipe, struct dc_plane_state *plane_state)
+{
+	struct pipe_ctx *tail_pipe = get_tail_pipe(opp_head_pipe);
+
+	tail_pipe->bottom_pipe = sec_pipe;
+	sec_pipe->top_pipe = tail_pipe;
+	if (tail_pipe->prev_odm_pipe) {
+		ASSERT(tail_pipe->prev_odm_pipe->bottom_pipe);
+		sec_pipe->prev_odm_pipe = tail_pipe->prev_odm_pipe->bottom_pipe;
+		tail_pipe->prev_odm_pipe->bottom_pipe->next_odm_pipe = sec_pipe;
+	}
+	sec_pipe->plane_state = plane_state;
+}
+
+/* for each opp head pipe of an otg master pipe, acquire a secondary dpp pipe
+ * and add the plane. So the plane is added to all MPC blend trees associated
+ * with the otg master pipe.
+ */
+static bool acquire_secondary_dpp_pipes_and_add_plane(
+		struct pipe_ctx *otg_master_pipe,
+		struct dc_plane_state *plane_state,
+		struct dc_state *new_ctx,
+		struct dc_state *cur_ctx,
+		struct resource_pool *pool)
+{
+	struct pipe_ctx *opp_head_pipe, *sec_pipe;
+
+	if (!pool->funcs->acquire_free_pipe_as_secondary_dpp_pipe)
+		return false;
+
+	opp_head_pipe = otg_master_pipe;
+	while (opp_head_pipe) {
+		sec_pipe = pool->funcs->acquire_free_pipe_as_secondary_dpp_pipe(
+				cur_ctx,
+				new_ctx,
+				pool,
+				opp_head_pipe);
+		if (!sec_pipe) {
+			/* try tearing down MPCC combine */
+			int pipe_idx = acquire_first_split_pipe(
+					&new_ctx->res_ctx, pool,
+					otg_master_pipe->stream);
+
+			if (pipe_idx >= 0)
+				sec_pipe = &new_ctx->res_ctx.pipe_ctx[pipe_idx];
+		}
+
+		if (!sec_pipe)
+			return false;
+
+		insert_secondary_dpp_pipe_with_plane(opp_head_pipe, sec_pipe,
+				plane_state);
+		opp_head_pipe = opp_head_pipe->next_odm_pipe;
+	}
+	return true;
 }
 
 bool dc_add_plane_to_context(
@@ -1478,244 +1910,39 @@ bool dc_add_plane_to_context(
 		struct dc_plane_state *plane_state,
 		struct dc_state *context)
 {
-	int i;
 	struct resource_pool *pool = dc->res_pool;
-	struct pipe_ctx *head_pipe, *tail_pipe, *free_pipe;
+	struct pipe_ctx *otg_master_pipe;
 	struct dc_stream_status *stream_status = NULL;
-	struct pipe_ctx *prev_right_head = NULL;
-	struct pipe_ctx *free_right_pipe = NULL;
-	struct pipe_ctx *prev_left_head = NULL;
+	bool added = false;
 
-	DC_LOGGER_INIT(stream->ctx->logger);
-	for (i = 0; i < context->stream_count; i++)
-		if (context->streams[i] == stream) {
-			stream_status = &context->stream_status[i];
-			break;
-		}
+	stream_status = dc_stream_get_status_from_state(context, stream);
 	if (stream_status == NULL) {
 		dm_error("Existing stream not found; failed to attach surface!\n");
-		return false;
-	}
-
-
-	if (stream_status->plane_count == MAX_SURFACE_NUM) {
+		goto out;
+	} else if (stream_status->plane_count == MAX_SURFACE_NUM) {
 		dm_error("Surface: can not attach plane_state %p! Maximum is: %d\n",
 				plane_state, MAX_SURFACE_NUM);
-		return false;
+		goto out;
 	}
 
-	head_pipe = resource_get_head_pipe_for_stream(&context->res_ctx, stream);
-
-	if (!head_pipe) {
-		dm_error("Head pipe not found for stream_state %p !\n", stream);
-		return false;
+	otg_master_pipe = resource_get_otg_master_for_stream(
+			&context->res_ctx, stream);
+	if (otg_master_pipe->plane_state == NULL)
+		added = add_plane_to_opp_head_pipes(otg_master_pipe,
+				plane_state, context);
+	else
+		added = acquire_secondary_dpp_pipes_and_add_plane(
+				otg_master_pipe, plane_state, context,
+				dc->current_state, pool);
+	if (added) {
+		stream_status->plane_states[stream_status->plane_count] =
+				plane_state;
+		stream_status->plane_count++;
+		dc_plane_state_retain(plane_state);
 	}
 
-	/* retain new surface, but only once per stream */
-	dc_plane_state_retain(plane_state);
-
-	while (head_pipe) {
-		free_pipe = acquire_free_pipe_for_head(context, pool, head_pipe);
-
-		if (!free_pipe) {
-			int pipe_idx = acquire_first_split_pipe(&context->res_ctx, pool, stream);
-			if (pipe_idx >= 0)
-				free_pipe = &context->res_ctx.pipe_ctx[pipe_idx];
-		}
-
-		if (!free_pipe) {
-			dc_plane_state_release(plane_state);
-			return false;
-		}
-
-		free_pipe->plane_state = plane_state;
-
-		if (head_pipe != free_pipe) {
-			tail_pipe = resource_get_tail_pipe(&context->res_ctx, head_pipe);
-			ASSERT(tail_pipe);
-
-			/* ODM + window MPO, where MPO window is on right half only */
-			if (free_pipe->plane_state &&
-				(free_pipe->plane_state->clip_rect.x >= free_pipe->stream->src.x + free_pipe->stream->src.width/2) &&
-				tail_pipe->next_odm_pipe) {
-
-				/* For ODM + window MPO, in 3 plane case, if we already have a MPO window on
-				 *  the right side, then we will invalidate a 2nd one on the right side
-				 */
-				if (head_pipe->next_odm_pipe && tail_pipe->next_odm_pipe->bottom_pipe) {
-					dc_plane_state_release(plane_state);
-					return false;
-				}
-
-				DC_LOG_SCALER("%s - ODM + window MPO(right). free_pipe:%d  tail_pipe->next_odm_pipe:%d\n",
-						__func__,
-						free_pipe->pipe_idx,
-						tail_pipe->next_odm_pipe ? tail_pipe->next_odm_pipe->pipe_idx : -1);
-
-				/*
-				 * We want to avoid the case where the right side already has a pipe assigned to
-				 *  it and is different from free_pipe ( which would cause trigger a pipe
-				 *  reallocation ).
-				 * Check the old context to see if the right side already has a pipe allocated
-				 * - If not, continue to use free_pipe
-				 * - If the right side already has a pipe, use that pipe instead if its available
-				 */
-
-				/*
-				 * We also want to avoid the case where with three plane ( 2 MPO videos ), we have
-				 *  both videos on the left side so one of the videos is invalidated.  Then we
-				 *  move the invalidated video back to the right side.  If the order of the plane
-				 *  states is such that the right MPO plane is processed first, the free pipe
-				 *  selected by the head will be the left MPO pipe. But since there was no right
-				 *  MPO pipe, it will assign the free pipe to the right MPO pipe instead and
-				 *  a pipe reallocation will occur.
-				 * Check the old context to see if the left side already has a pipe allocated
-				 * - If not, continue to use free_pipe
-				 * - If the left side is already using this pipe, then pick another pipe for right
-				 */
-
-				prev_right_head = &dc->current_state->res_ctx.pipe_ctx[tail_pipe->next_odm_pipe->pipe_idx];
-				if ((prev_right_head->bottom_pipe) &&
-					(free_pipe->pipe_idx != prev_right_head->bottom_pipe->pipe_idx)) {
-					free_right_pipe = acquire_free_pipe_for_head(context, pool, tail_pipe->next_odm_pipe);
-				} else {
-					prev_left_head = &dc->current_state->res_ctx.pipe_ctx[head_pipe->pipe_idx];
-					if ((prev_left_head->bottom_pipe) &&
-						(free_pipe->pipe_idx == prev_left_head->bottom_pipe->pipe_idx)) {
-						free_right_pipe = acquire_free_pipe_for_head(context, pool, head_pipe);
-					}
-				}
-
-				if (free_right_pipe) {
-					free_pipe->stream = NULL;
-					memset(&free_pipe->stream_res, 0, sizeof(struct stream_resource));
-					memset(&free_pipe->plane_res, 0, sizeof(struct plane_resource));
-					free_pipe->plane_state = NULL;
-					free_pipe->pipe_idx = 0;
-					free_right_pipe->plane_state = plane_state;
-					free_pipe = free_right_pipe;
-				}
-
-				free_pipe->stream_res.tg = tail_pipe->next_odm_pipe->stream_res.tg;
-				free_pipe->stream_res.abm = tail_pipe->next_odm_pipe->stream_res.abm;
-				free_pipe->stream_res.opp = tail_pipe->next_odm_pipe->stream_res.opp;
-				free_pipe->stream_res.stream_enc = tail_pipe->next_odm_pipe->stream_res.stream_enc;
-				free_pipe->stream_res.audio = tail_pipe->next_odm_pipe->stream_res.audio;
-				free_pipe->clock_source = tail_pipe->next_odm_pipe->clock_source;
-
-				free_pipe->top_pipe = tail_pipe->next_odm_pipe;
-				tail_pipe->next_odm_pipe->bottom_pipe = free_pipe;
-			} else if (free_pipe->plane_state &&
-				(free_pipe->plane_state->clip_rect.x >= free_pipe->stream->src.x + free_pipe->stream->src.width/2)
-				&& head_pipe->next_odm_pipe) {
-
-				/* For ODM + window MPO, support 3 plane ( 2 MPO ) case.
-				 * Here we have a desktop ODM + left window MPO and a new MPO window appears
-				 *  on the right side only.  It fails the first case, because tail_pipe is the
-				 *  left window MPO, so it has no next_odm_pipe.  So in this scenario, we check
-				 *  for head_pipe->next_odm_pipe instead
-				 */
-				DC_LOG_SCALER("%s - ODM + win MPO (left) + win MPO (right). free_pipe:%d  head_pipe->next_odm:%d\n",
-						__func__,
-						free_pipe->pipe_idx,
-						head_pipe->next_odm_pipe ? head_pipe->next_odm_pipe->pipe_idx : -1);
-
-				/*
-				 * We want to avoid the case where the right side already has a pipe assigned to
-				 *  it and is different from free_pipe ( which would cause trigger a pipe
-				 *  reallocation ).
-				 * Check the old context to see if the right side already has a pipe allocated
-				 * - If not, continue to use free_pipe
-				 * - If the right side already has a pipe, use that pipe instead if its available
-				 */
-				prev_right_head = &dc->current_state->res_ctx.pipe_ctx[head_pipe->next_odm_pipe->pipe_idx];
-				if ((prev_right_head->bottom_pipe) &&
-					(free_pipe->pipe_idx != prev_right_head->bottom_pipe->pipe_idx)) {
-					free_right_pipe = acquire_free_pipe_for_head(context, pool, head_pipe->next_odm_pipe);
-					if (free_right_pipe) {
-						free_pipe->stream = NULL;
-						memset(&free_pipe->stream_res, 0, sizeof(struct stream_resource));
-						memset(&free_pipe->plane_res, 0, sizeof(struct plane_resource));
-						free_pipe->plane_state = NULL;
-						free_pipe->pipe_idx = 0;
-						free_right_pipe->plane_state = plane_state;
-						free_pipe = free_right_pipe;
-					}
-				}
-
-				free_pipe->stream_res.tg = head_pipe->next_odm_pipe->stream_res.tg;
-				free_pipe->stream_res.abm = head_pipe->next_odm_pipe->stream_res.abm;
-				free_pipe->stream_res.opp = head_pipe->next_odm_pipe->stream_res.opp;
-				free_pipe->stream_res.stream_enc = head_pipe->next_odm_pipe->stream_res.stream_enc;
-				free_pipe->stream_res.audio = head_pipe->next_odm_pipe->stream_res.audio;
-				free_pipe->clock_source = head_pipe->next_odm_pipe->clock_source;
-
-				free_pipe->top_pipe = head_pipe->next_odm_pipe;
-				head_pipe->next_odm_pipe->bottom_pipe = free_pipe;
-			} else {
-
-				/* For ODM + window MPO, in 3 plane case, if we already have a MPO window on
-				 *  the left side, then we will invalidate a 2nd one on the left side
-				 */
-				if (head_pipe->next_odm_pipe && tail_pipe->top_pipe) {
-					dc_plane_state_release(plane_state);
-					return false;
-				}
-
-				free_pipe->stream_res.tg = tail_pipe->stream_res.tg;
-				free_pipe->stream_res.abm = tail_pipe->stream_res.abm;
-				free_pipe->stream_res.opp = tail_pipe->stream_res.opp;
-				free_pipe->stream_res.stream_enc = tail_pipe->stream_res.stream_enc;
-				free_pipe->stream_res.audio = tail_pipe->stream_res.audio;
-				free_pipe->clock_source = tail_pipe->clock_source;
-
-				free_pipe->top_pipe = tail_pipe;
-				tail_pipe->bottom_pipe = free_pipe;
-
-				/* Connect MPO pipes together if MPO window is in the centre */
-				if (!(free_pipe->plane_state &&
-						(free_pipe->plane_state->clip_rect.x + free_pipe->plane_state->clip_rect.width <=
-						free_pipe->stream->src.x + free_pipe->stream->src.width/2))) {
-					if (!free_pipe->next_odm_pipe &&
-						tail_pipe->next_odm_pipe && tail_pipe->next_odm_pipe->bottom_pipe) {
-						free_pipe->next_odm_pipe = tail_pipe->next_odm_pipe->bottom_pipe;
-						tail_pipe->next_odm_pipe->bottom_pipe->prev_odm_pipe = free_pipe;
-					}
-					if (!free_pipe->prev_odm_pipe &&
-						tail_pipe->prev_odm_pipe && tail_pipe->prev_odm_pipe->bottom_pipe) {
-						free_pipe->prev_odm_pipe = tail_pipe->prev_odm_pipe->bottom_pipe;
-						tail_pipe->prev_odm_pipe->bottom_pipe->next_odm_pipe = free_pipe;
-					}
-				}
-			}
-		}
-
-		/* ODM + window MPO, where MPO window is on left half only */
-		if (free_pipe->plane_state &&
-			(free_pipe->plane_state->clip_rect.x + free_pipe->plane_state->clip_rect.width <=
-			free_pipe->stream->src.x + free_pipe->stream->src.width/2)) {
-			DC_LOG_SCALER("%s - ODM + window MPO(left). free_pipe:%d\n",
-					__func__,
-					free_pipe->pipe_idx);
-			break;
-		}
-		/* ODM + window MPO, where MPO window is on right half only */
-		if (free_pipe->plane_state &&
-			(free_pipe->plane_state->clip_rect.x >= free_pipe->stream->src.x + free_pipe->stream->src.width/2)) {
-			DC_LOG_SCALER("%s - ODM + window MPO(right). free_pipe:%d\n",
-					__func__,
-					free_pipe->pipe_idx);
-			break;
-		}
-
-		head_pipe = head_pipe->next_odm_pipe;
-	}
-	/* assign new surfaces*/
-	stream_status->plane_states[stream_status->plane_count] = plane_state;
-
-	stream_status->plane_count++;
-
-	return true;
+out:
+	return added;
 }
 
 bool dc_remove_plane_from_context(
@@ -2219,7 +2446,7 @@ enum dc_status dc_remove_stream_from_ctx(
 {
 	int i;
 	struct dc_context *dc_ctx = dc->ctx;
-	struct pipe_ctx *del_pipe = resource_get_head_pipe_for_stream(&new_ctx->res_ctx, stream);
+	struct pipe_ctx *del_pipe = resource_get_otg_master_for_stream(&new_ctx->res_ctx, stream);
 	struct pipe_ctx *odm_pipe;
 
 	if (!del_pipe) {
@@ -3473,7 +3700,7 @@ enum dc_status resource_map_clock_resources(
 {
 	/* acquire new resources */
 	const struct resource_pool *pool = dc->res_pool;
-	struct pipe_ctx *pipe_ctx = resource_get_head_pipe_for_stream(
+	struct pipe_ctx *pipe_ctx = resource_get_otg_master_for_stream(
 				&context->res_ctx, stream);
 
 	if (!pipe_ctx)
@@ -3863,10 +4090,7 @@ void reset_syncd_pipes_from_disabled_pipes(struct dc *dc,
 		pipe_ctx_old =	&dc->current_state->res_ctx.pipe_ctx[i];
 		pipe_ctx = &context->res_ctx.pipe_ctx[i];
 
-		if (!pipe_ctx_old->stream)
-			continue;
-
-		if (pipe_ctx_old->top_pipe || pipe_ctx_old->prev_odm_pipe)
+		if (!resource_is_pipe_type(pipe_ctx_old, OTG_MASTER))
 			continue;
 
 		if (!pipe_ctx->stream ||
@@ -3990,11 +4214,13 @@ const struct link_hwss *get_link_hwss(const struct dc_link *link,
 		 * with an hpo encoder. Or we can return a very dummy one that doesn't
 		 * do work for all functions
 		 */
-		return get_hpo_dp_link_hwss();
+		return (requires_fixed_vs_pe_retimer_hpo_link_hwss(link) ?
+				get_hpo_fixed_vs_pe_retimer_dp_link_hwss() : get_hpo_dp_link_hwss());
 	else if (can_use_dpia_link_hwss(link, link_res))
 		return get_dpia_link_hwss();
 	else if (can_use_dio_link_hwss(link, link_res))
-		return get_dio_link_hwss();
+		return (requires_fixed_vs_pe_retimer_dio_link_hwss(link)) ?
+				get_dio_fixed_vs_pe_retimer_link_hwss() : get_dio_link_hwss();
 	else
 		return get_virtual_link_hwss();
 }

@@ -141,7 +141,7 @@ patternProperties:
     maxItems: 16
     description:
       This is a list of channel IDs which should be disabled.
-      By default, all data received from ETDM pins will be outputed to
+      By default, all data received from ETDM pins will be outputted to
       memory. etdm in supports disable_out in direct mode(w/o interconn),
       so user can disable the specified channels by the property.
     uniqueItems: true

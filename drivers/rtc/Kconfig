@@ -904,9 +904,9 @@ config RTC_DRV_PCF2127
 	select REGMAP_SPI if SPI_MASTER
 	select WATCHDOG_CORE if WATCHDOG
 	help
-	  If you say yes here you get support for the NXP PCF2127/29 RTC
+	  If you say yes here you get support for the NXP PCF2127/29/31 RTC
 	  chips with integrated quartz crystal for industrial applications.
-	  Both chips also have watchdog timer and tamper switch detection
+	  These chips also have watchdog timer and tamper switch detection
 	  features.
 
 	  PCF2127 has an additional feature of 512 bytes battery backed
@@ -1196,6 +1196,7 @@ config RTC_DRV_MSM6242
 config RTC_DRV_BQ4802
 	tristate "TI BQ4802"
 	depends on HAS_IOMEM && HAS_IOPORT
+	depends on SPARC || COMPILE_TEST
 	help
 	  If you say Y here you will get support for the TI
 	  BQ4802 RTC chip.

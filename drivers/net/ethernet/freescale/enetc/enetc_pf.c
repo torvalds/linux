@@ -1402,7 +1402,7 @@ static void enetc_fixup_clear_rss_rfs(struct pci_dev *pdev)
 		return;
 
 	si = enetc_psi_create(pdev);
-	if (si)
+	if (!IS_ERR(si))
 		enetc_psi_destroy(pdev);
 }
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_FREESCALE, ENETC_DEV_ID_PF,

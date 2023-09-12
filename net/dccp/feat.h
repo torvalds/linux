@@ -105,7 +105,6 @@ extern int	     sysctl_dccp_rx_ccid;
 extern int	     sysctl_dccp_tx_ccid;
 
 int dccp_feat_init(struct sock *sk);
-void dccp_feat_initialise_sysctls(void);
 int dccp_feat_register_sp(struct sock *sk, u8 feat, u8 is_local,
 			  u8 const *list, u8 len);
 int dccp_feat_parse_options(struct sock *, struct dccp_request_sock *,

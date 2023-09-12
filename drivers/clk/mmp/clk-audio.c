@@ -55,6 +55,8 @@
 #define SSPA_AUD_PLL_CTRL1_DIV_OCLK_PATTERN_MASK (0x7ff << 0)
 #define SSPA_AUD_PLL_CTRL1_DIV_OCLK_PATTERN(x)	((x) << 0)
 
+#define CLK_AUDIO_NR_CLKS			3
+
 struct mmp2_audio_clk {
 	void __iomem *mmio_base;
 
@@ -336,7 +338,7 @@ static int register_clocks(struct mmp2_audio_clk *priv, struct device *dev)
 	priv->clk_data.hws[MMP2_CLK_AUDIO_SYSCLK] = &priv->sysclk_gate.hw;
 	priv->clk_data.hws[MMP2_CLK_AUDIO_SSPA0] = &priv->sspa0_gate.hw;
 	priv->clk_data.hws[MMP2_CLK_AUDIO_SSPA1] = &priv->sspa1_gate.hw;
-	priv->clk_data.num = MMP2_CLK_AUDIO_NR_CLKS;
+	priv->clk_data.num = CLK_AUDIO_NR_CLKS;
 
 	return of_clk_add_hw_provider(dev->of_node, of_clk_hw_onecell_get,
 				      &priv->clk_data);
@@ -349,7 +351,7 @@ static int mmp2_audio_clk_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(&pdev->dev,
 			    struct_size(priv, clk_data.hws,
-					MMP2_CLK_AUDIO_NR_CLKS),
+					CLK_AUDIO_NR_CLKS),
 			    GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;

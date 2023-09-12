@@ -75,7 +75,7 @@ static bool is_nl_msg_valid(unsigned int type, unsigned int op)
 	if (type >= RDMA_NL_NUM_CLIENTS)
 		return false;
 
-	return (op < max_num_ops[type]) ? true : false;
+	return op < max_num_ops[type];
 }
 
 static const struct rdma_nl_cbs *

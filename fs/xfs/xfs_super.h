@@ -100,4 +100,6 @@ extern struct workqueue_struct *xfs_discard_wq;
 
 #define XFS_M(sb)		((struct xfs_mount *)((sb)->s_fs_info))
 
+struct dentry *xfs_debugfs_mkdir(const char *name, struct dentry *parent);
+
 #endif	/* __XFS_SUPER_H__ */

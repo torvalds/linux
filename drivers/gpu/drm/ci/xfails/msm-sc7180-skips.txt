@@ -1,0 +1,23 @@
+# Suspend to RAM seems to be broken on this machine
+.*suspend.*
+
+# Test incorrectly assumes that CTM support implies gamma/degamma
+# LUT support.  None of the subtests handle the case of only having
+# CTM support
+kms_color.*
+
+# 4k@60 is not supported on this hw, but driver doesn't handle it
+# too gracefully.. https://gitlab.freedesktop.org/drm/msm/-/issues/15
+kms_bw@linear-tiling-.*-displays-3840x2160p
+
+# Until igt fix lands: https://patchwork.freedesktop.org/patch/493175/
+kms_bw@linear-tiling-2.*
+kms_bw@linear-tiling-3.*
+kms_bw@linear-tiling-4.*
+kms_bw@linear-tiling-5.*
+kms_bw@linear-tiling-6.*
+
+# igt fix posted: https://patchwork.freedesktop.org/patch/499926/
+# failure mode is flakey due to randomization but fails frequently
+# enough to be detected as a Crash or occasionally UnexpectedPass.
+kms_plane_multiple@atomic-pipe-A-tiling-none

@@ -367,15 +367,15 @@ out:
  * @fid:	file id of open file
  * @count:	read byte count
  * @pos:	file pos
+ * @rbuf:	read data buffer
  *
  * Return:	number of read bytes on success, otherwise error
  */
 int ksmbd_vfs_read(struct ksmbd_work *work, struct ksmbd_file *fp, size_t count,
-		   loff_t *pos)
+		   loff_t *pos, char *rbuf)
 {
 	struct file *filp = fp->filp;
 	ssize_t nbytes = 0;
-	char *rbuf = work->aux_payload_buf;
 	struct inode *inode = file_inode(filp);
 
 	if (S_ISDIR(inode->i_mode))
@@ -1659,7 +1659,8 @@ int ksmbd_vfs_fill_dentry_attrs(struct ksmbd_work *work,
 	u64 time;
 	int rc;
 
-	generic_fillattr(idmap, d_inode(dentry), ksmbd_kstat->kstat);
+	generic_fillattr(idmap, STATX_BASIC_STATS, d_inode(dentry),
+			 ksmbd_kstat->kstat);
 
 	time = ksmbd_UnixTimeToNT(ksmbd_kstat->kstat->ctime);
 	ksmbd_kstat->create_time = time;

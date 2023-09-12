@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright IBM Corp. 2006, 2021
+ * Copyright IBM Corp. 2006, 2023
  * Author(s): Cornelia Huck <cornelia.huck@de.ibm.com>
  *	      Martin Schwidefsky <schwidefsky@de.ibm.com>
  *	      Ralph Wuerthner <rwuerthn@de.ibm.com>
@@ -219,6 +219,15 @@ int ap_sb_available(void)
 }
 
 /*
+ * ap_is_se_guest(): Check for SE guest with AP pass-through support.
+ */
+bool ap_is_se_guest(void)
+{
+	return is_prot_virt_guest() && ap_sb_available();
+}
+EXPORT_SYMBOL(ap_is_se_guest);
+
+/*
  * ap_fetch_qci_info(): Fetch cryptographic config info
  *
  * Returns the ap configuration info fetched via PQAP(QCI).
@@ -387,23 +396,6 @@ static int ap_queue_info(ap_qid_t qid, int *q_type, unsigned int *q_fac,
 		*q_ml = tapq_info.ml;
 		*q_decfg = status.response_code == AP_RESPONSE_DECONFIGURED;
 		*q_cstop = status.response_code == AP_RESPONSE_CHECKSTOPPED;
-		switch (*q_type) {
-			/* For CEX2 and CEX3 the available functions
-			 * are not reflected by the facilities bits.
-			 * Instead it is coded into the type. So here
-			 * modify the function bits based on the type.
-			 */
-		case AP_DEVICE_TYPE_CEX2A:
-		case AP_DEVICE_TYPE_CEX3A:
-			*q_fac |= 0x08000000;
-			break;
-		case AP_DEVICE_TYPE_CEX2C:
-		case AP_DEVICE_TYPE_CEX3C:
-			*q_fac |= 0x10000000;
-			break;
-		default:
-			break;
-		}
 		return 1;
 	default:
 		/*
@@ -1678,8 +1670,8 @@ static int ap_get_compatible_type(ap_qid_t qid, int rawtype, unsigned int func)
 {
 	int comp_type = 0;
 
-	/* < CEX2A is not supported */
-	if (rawtype < AP_DEVICE_TYPE_CEX2A) {
+	/* < CEX4 is not supported */
+	if (rawtype < AP_DEVICE_TYPE_CEX4) {
 		AP_DBF_WARN("%s queue=%02x.%04x unsupported type %d\n",
 			    __func__, AP_QID_CARD(qid),
 			    AP_QID_QUEUE(qid), rawtype);
@@ -1701,7 +1693,7 @@ static int ap_get_compatible_type(ap_qid_t qid, int rawtype, unsigned int func)
 		apinfo.cat = AP_DEVICE_TYPE_CEX8;
 		status = ap_qact(qid, 0, &apinfo);
 		if (status.response_code == AP_RESPONSE_NORMAL &&
-		    apinfo.cat >= AP_DEVICE_TYPE_CEX2A &&
+		    apinfo.cat >= AP_DEVICE_TYPE_CEX4 &&
 		    apinfo.cat <= AP_DEVICE_TYPE_CEX8)
 			comp_type = apinfo.cat;
 	}

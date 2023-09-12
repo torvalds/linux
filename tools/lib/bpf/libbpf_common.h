@@ -70,4 +70,20 @@
 		};							    \
 	})
 
+/* Helper macro to clear and optionally reinitialize libbpf options struct
+ *
+ * Small helper macro to reset all fields and to reinitialize the common
+ * structure size member. Values provided by users in struct initializer-
+ * syntax as varargs can be provided as well to reinitialize options struct
+ * specific members.
+ */
+#define LIBBPF_OPTS_RESET(NAME, ...)					    \
+	do {								    \
+		memset(&NAME, 0, sizeof(NAME));				    \
+		NAME = (typeof(NAME)) {					    \
+			.sz = sizeof(NAME),				    \
+			__VA_ARGS__					    \
+		};							    \
+	} while (0)
+
 #endif /* __LIBBPF_LIBBPF_COMMON_H */

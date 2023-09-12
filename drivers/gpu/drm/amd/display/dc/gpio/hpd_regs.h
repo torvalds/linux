@@ -36,17 +36,17 @@
 #define ONE_MORE_5 6
 
 
-#define HPD_GPIO_REG_LIST_ENTRY(type,cd,id) \
+#define HPD_GPIO_REG_LIST_ENTRY(type, cd, id) \
 	.type ## _reg =  REG(DC_GPIO_HPD_## type),\
 	.type ## _mask =  DC_GPIO_HPD_ ## type ## __DC_GPIO_HPD ## id ## _ ## type ## _MASK,\
 	.type ## _shift = DC_GPIO_HPD_ ## type ## __DC_GPIO_HPD ## id ## _ ## type ## __SHIFT
 
 #define HPD_GPIO_REG_LIST(id) \
 	{\
-	HPD_GPIO_REG_LIST_ENTRY(MASK,cd,id),\
-	HPD_GPIO_REG_LIST_ENTRY(A,cd,id),\
-	HPD_GPIO_REG_LIST_ENTRY(EN,cd,id),\
-	HPD_GPIO_REG_LIST_ENTRY(Y,cd,id)\
+	HPD_GPIO_REG_LIST_ENTRY(MASK, cd, id),\
+	HPD_GPIO_REG_LIST_ENTRY(A, cd, id),\
+	HPD_GPIO_REG_LIST_ENTRY(EN, cd, id),\
+	HPD_GPIO_REG_LIST_ENTRY(Y, cd, id)\
 	}
 
 #define HPD_REG_LIST(id) \

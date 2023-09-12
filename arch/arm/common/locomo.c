@@ -350,19 +350,6 @@ static int locomo_resume(struct platform_device *dev)
 }
 #endif
 
-
-/**
- *	locomo_probe - probe for a single LoCoMo chip.
- *	@phys_addr: physical address of device.
- *
- *	Probe for a LoCoMo chip.  This must be called
- *	before any other locomo-specific code.
- *
- *	Returns:
- *	%-ENODEV	device not found.
- *	%-EBUSY		physical address already marked in-use.
- *	%0		successful.
- */
 static int
 __locomo_probe(struct device *me, struct resource *mem, int irq)
 {
@@ -479,6 +466,21 @@ static void __locomo_remove(struct locomo *lchip)
 	kfree(lchip);
 }
 
+/**
+ *	locomo_probe - probe for a single LoCoMo chip.
+ *	@dev: platform device
+ *
+ *	Probe for a LoCoMo chip.  This must be called
+ *	before any other locomo-specific code.
+ *
+ *	Returns:
+ *	* %-EINVAL	- device's IORESOURCE_MEM not found
+ *	* %-ENXIO	- could not allocate an IRQ for the device
+ *	* %-ENODEV	- device not found.
+ *	* %-EBUSY	- physical address already marked in-use.
+ *	* %-ENOMEM	- could not allocate or iomap memory.
+ *	* %0		- successful.
+ */
 static int locomo_probe(struct platform_device *dev)
 {
 	struct resource *mem;

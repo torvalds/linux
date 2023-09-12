@@ -27,7 +27,7 @@ description:
     as LPC firmware hub cycles, configuration of the LPC-to-AHB mapping, UART
     management and bus snoop configuration.
 
-  * A set of SuperIO[3] scratch registers enableing implementation of e.g. custom
+  * A set of SuperIO[3] scratch registers enabling implementation of e.g. custom
     hardware management protocols for handover between the host and baseboard
     management controller.
 

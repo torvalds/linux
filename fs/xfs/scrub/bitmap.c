@@ -301,55 +301,20 @@ xagb_bitmap_set_btblocks(
  * blocks going from the leaf towards the root.
  */
 int
-xbitmap_set_btcur_path(
-	struct xbitmap		*bitmap,
+xagb_bitmap_set_btcur_path(
+	struct xagb_bitmap	*bitmap,
 	struct xfs_btree_cur	*cur)
 {
-	struct xfs_buf		*bp;
-	xfs_fsblock_t		fsb;
 	int			i;
 	int			error;
 
 	for (i = 0; i < cur->bc_nlevels && cur->bc_levels[i].ptr == 1; i++) {
-		xfs_btree_get_block(cur, i, &bp);
-		if (!bp)
-			continue;
-		fsb = XFS_DADDR_TO_FSB(cur->bc_mp, xfs_buf_daddr(bp));
-		error = xbitmap_set(bitmap, fsb, 1);
+		error = xagb_bitmap_visit_btblock(cur, i, bitmap);
 		if (error)
 			return error;
 	}
 
 	return 0;
-}
-
-/* Collect a btree's block in the bitmap. */
-STATIC int
-xbitmap_collect_btblock(
-	struct xfs_btree_cur	*cur,
-	int			level,
-	void			*priv)
-{
-	struct xbitmap		*bitmap = priv;
-	struct xfs_buf		*bp;
-	xfs_fsblock_t		fsbno;
-
-	xfs_btree_get_block(cur, level, &bp);
-	if (!bp)
-		return 0;
-
-	fsbno = XFS_DADDR_TO_FSB(cur->bc_mp, xfs_buf_daddr(bp));
-	return xbitmap_set(bitmap, fsbno, 1);
-}
-
-/* Walk the btree and mark the bitmap wherever a btree block is found. */
-int
-xbitmap_set_btblocks(
-	struct xbitmap		*bitmap,
-	struct xfs_btree_cur	*cur)
-{
-	return xfs_btree_visit_blocks(cur, xbitmap_collect_btblock,
-			XFS_BTREE_VISIT_ALL, bitmap);
 }
 
 /* How many bits are set in this bitmap? */
@@ -383,43 +348,6 @@ xbitmap_walk(
 	}
 
 	return error;
-}
-
-struct xbitmap_walk_bits {
-	xbitmap_walk_bits_fn	fn;
-	void			*priv;
-};
-
-/* Walk all the bits in a run. */
-static int
-xbitmap_walk_bits_in_run(
-	uint64_t			start,
-	uint64_t			len,
-	void				*priv)
-{
-	struct xbitmap_walk_bits	*wb = priv;
-	uint64_t			i;
-	int				error = 0;
-
-	for (i = start; i < start + len; i++) {
-		error = wb->fn(i, wb->priv);
-		if (error)
-			break;
-	}
-
-	return error;
-}
-
-/* Call a function for every set bit in this bitmap. */
-int
-xbitmap_walk_bits(
-	struct xbitmap			*bitmap,
-	xbitmap_walk_bits_fn		fn,
-	void				*priv)
-{
-	struct xbitmap_walk_bits	wb = {.fn = fn, .priv = priv};
-
-	return xbitmap_walk(bitmap, xbitmap_walk_bits_in_run, &wb);
 }
 
 /* Does this bitmap have no bits set at all? */

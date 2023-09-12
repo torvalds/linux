@@ -42,7 +42,7 @@ properties:
   reg:
     items:
       - description: PVT common registers
-      - description: PVT temprature sensor registers
+      - description: PVT temperature sensor registers
       - description: PVT process detector registers
       - description: PVT voltage monitor registers
 

@@ -43,7 +43,7 @@ affs_get_toupper(struct super_block *sb)
  * Note: the dentry argument is the parent dentry.
  */
 static inline int
-__affs_hash_dentry(const struct dentry *dentry, struct qstr *qstr, toupper_t toupper, bool notruncate)
+__affs_hash_dentry(const struct dentry *dentry, struct qstr *qstr, toupper_t fn, bool notruncate)
 {
 	const u8 *name = qstr->name;
 	unsigned long hash;
@@ -57,7 +57,7 @@ __affs_hash_dentry(const struct dentry *dentry, struct qstr *qstr, toupper_t tou
 	hash = init_name_hash(dentry);
 	len = min(qstr->len, AFFSNAMEMAX);
 	for (; len > 0; name++, len--)
-		hash = partial_name_hash(toupper(*name), hash);
+		hash = partial_name_hash(fn(*name), hash);
 	qstr->hash = end_name_hash(hash);
 
 	return 0;
@@ -80,7 +80,7 @@ affs_intl_hash_dentry(const struct dentry *dentry, struct qstr *qstr)
 }
 
 static inline int __affs_compare_dentry(unsigned int len,
-		const char *str, const struct qstr *name, toupper_t toupper,
+		const char *str, const struct qstr *name, toupper_t fn,
 		bool notruncate)
 {
 	const u8 *aname = str;
@@ -106,7 +106,7 @@ static inline int __affs_compare_dentry(unsigned int len,
 		return 1;
 
 	for (; len > 0; len--)
-		if (toupper(*aname++) != toupper(*bname++))
+		if (fn(*aname++) != fn(*bname++))
 			return 1;
 
 	return 0;
@@ -135,7 +135,7 @@ affs_intl_compare_dentry(const struct dentry *dentry,
  */
 
 static inline int
-affs_match(struct dentry *dentry, const u8 *name2, toupper_t toupper)
+affs_match(struct dentry *dentry, const u8 *name2, toupper_t fn)
 {
 	const u8 *name = dentry->d_name.name;
 	int len = dentry->d_name.len;
@@ -148,7 +148,7 @@ affs_match(struct dentry *dentry, const u8 *name2, toupper_t toupper)
 		return 0;
 
 	for (name2++; len > 0; len--)
-		if (toupper(*name++) != toupper(*name2++))
+		if (fn(*name++) != fn(*name2++))
 			return 0;
 	return 1;
 }
@@ -156,12 +156,12 @@ affs_match(struct dentry *dentry, const u8 *name2, toupper_t toupper)
 int
 affs_hash_name(struct super_block *sb, const u8 *name, unsigned int len)
 {
-	toupper_t toupper = affs_get_toupper(sb);
+	toupper_t fn = affs_get_toupper(sb);
 	u32 hash;
 
 	hash = len = min(len, AFFSNAMEMAX);
 	for (; len > 0; len--)
-		hash = (hash * 13 + toupper(*name++)) & 0x7ff;
+		hash = (hash * 13 + fn(*name++)) & 0x7ff;
 
 	return hash % AFFS_SB(sb)->s_hashsize;
 }
@@ -171,7 +171,7 @@ affs_find_entry(struct inode *dir, struct dentry *dentry)
 {
 	struct super_block *sb = dir->i_sb;
 	struct buffer_head *bh;
-	toupper_t toupper = affs_get_toupper(sb);
+	toupper_t fn = affs_get_toupper(sb);
 	u32 key;
 
 	pr_debug("%s(\"%pd\")\n", __func__, dentry);
@@ -189,7 +189,7 @@ affs_find_entry(struct inode *dir, struct dentry *dentry)
 		bh = affs_bread(sb, key);
 		if (!bh)
 			return ERR_PTR(-EIO);
-		if (affs_match(dentry, AFFS_TAIL(sb, bh)->name, toupper))
+		if (affs_match(dentry, AFFS_TAIL(sb, bh)->name, fn))
 			return bh;
 		key = be32_to_cpu(AFFS_TAIL(sb, bh)->hash_chain);
 	}

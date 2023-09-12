@@ -105,15 +105,18 @@ run_one()
 		echo "# Warning: file $TEST is missing!"
 		echo "not ok $test_num $TEST_HDR_MSG"
 	else
+		if [ -x /usr/bin/stdbuf ]; then
+			stdbuf="/usr/bin/stdbuf --output=L "
+		fi
 		eval kselftest_cmd_args="\$${kselftest_cmd_args_ref:-}"
-		cmd="./$BASENAME_TEST $kselftest_cmd_args"
+		cmd="$stdbuf ./$BASENAME_TEST $kselftest_cmd_args"
 		if [ ! -x "$TEST" ]; then
 			echo "# Warning: file $TEST is not executable"
 
 			if [ $(head -n 1 "$TEST" | cut -c -2) = "#!" ]
 			then
 				interpreter=$(head -n 1 "$TEST" | cut -c 3-)
-				cmd="$interpreter ./$BASENAME_TEST"
+				cmd="$stdbuf $interpreter ./$BASENAME_TEST"
 			else
 				echo "not ok $test_num $TEST_HDR_MSG"
 				return

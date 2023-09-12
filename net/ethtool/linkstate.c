@@ -81,7 +81,7 @@ static int linkstate_get_link_ext_state(struct net_device *dev,
 
 static int linkstate_prepare_data(const struct ethnl_req_info *req_base,
 				  struct ethnl_reply_data *reply_base,
-				  struct genl_info *info)
+				  const struct genl_info *info)
 {
 	struct linkstate_reply_data *data = LINKSTATE_REPDATA(reply_base);
 	struct net_device *dev = reply_base->dev;

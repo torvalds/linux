@@ -22,7 +22,7 @@
 #include <asm/cell-regs.h>
 
 #include "ras.h"
-
+#include "pervasive.h"
 
 static void dump_fir(int cpu)
 {

@@ -528,7 +528,7 @@ static struct i2c_driver nb7vpq904m_driver = {
 		.name = "nb7vpq904m",
 		.of_match_table = nb7vpq904m_of_table,
 	},
-	.probe_new	= nb7vpq904m_probe,
+	.probe		= nb7vpq904m_probe,
 	.remove		= nb7vpq904m_remove,
 	.id_table	= nb7vpq904m_table,
 };

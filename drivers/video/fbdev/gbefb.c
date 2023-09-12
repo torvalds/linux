@@ -1194,7 +1194,6 @@ static int gbefb_probe(struct platform_device *p_dev)
 
 	info->fbops = &gbefb_ops;
 	info->pseudo_palette = pseudo_palette;
-	info->flags = FBINFO_DEFAULT;
 	info->screen_base = gbe_mem;
 	fb_alloc_cmap(&info->cmap, 256, 0);
 

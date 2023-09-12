@@ -1389,7 +1389,7 @@ bool radeon_atombios_get_ppll_ss_info(struct radeon_device *rdev,
 
 		num_indices = (size - sizeof(ATOM_COMMON_TABLE_HEADER)) /
 			sizeof(ATOM_SPREAD_SPECTRUM_ASSIGNMENT);
-		ss_assign = (struct _ATOM_SPREAD_SPECTRUM_ASSIGNMENT*)
+		ss_assign = (struct _ATOM_SPREAD_SPECTRUM_ASSIGNMENT *)
 			((u8 *)&ss_info->asSS_Info[0]);
 		for (i = 0; i < num_indices; i++) {
 			if (ss_assign->ucSS_Id == id) {
@@ -1402,7 +1402,7 @@ bool radeon_atombios_get_ppll_ss_info(struct radeon_device *rdev,
 				ss->refdiv = ss_assign->ucRecommendedRef_Div;
 				return true;
 			}
-			ss_assign = (struct _ATOM_SPREAD_SPECTRUM_ASSIGNMENT*)
+			ss_assign = (struct _ATOM_SPREAD_SPECTRUM_ASSIGNMENT *)
 				((u8 *)ss_assign + sizeof(struct _ATOM_SPREAD_SPECTRUM_ASSIGNMENT));
 		}
 	}
@@ -3406,7 +3406,7 @@ static ATOM_VOLTAGE_OBJECT_V2 *atom_lookup_voltage_object_v2(ATOM_VOLTAGE_OBJECT
 {
 	u32 size = le16_to_cpu(v2->sHeader.usStructureSize);
 	u32 offset = offsetof(ATOM_VOLTAGE_OBJECT_INFO_V2, asVoltageObj[0]);
-	u8 *start = (u8*)v2;
+	u8 *start = (u8 *)v2;
 
 	while (offset < size) {
 		ATOM_VOLTAGE_OBJECT_V2 *vo = (ATOM_VOLTAGE_OBJECT_V2 *)(start + offset);
@@ -3423,7 +3423,7 @@ static ATOM_VOLTAGE_OBJECT_V3 *atom_lookup_voltage_object_v3(ATOM_VOLTAGE_OBJECT
 {
 	u32 size = le16_to_cpu(v3->sHeader.usStructureSize);
 	u32 offset = offsetof(ATOM_VOLTAGE_OBJECT_INFO_V3_1, asVoltageObj[0]);
-	u8 *start = (u8*)v3;
+	u8 *start = (u8 *)v3;
 
 	while (offset < size) {
 		ATOM_VOLTAGE_OBJECT_V3 *vo = (ATOM_VOLTAGE_OBJECT_V3 *)(start + offset);

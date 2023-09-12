@@ -12,7 +12,7 @@
 #include <linux/err.h>
 #include <linux/clk.h>
 #include <linux/pm_runtime.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 
 /* EHRPWM registers and bits definitions */
 

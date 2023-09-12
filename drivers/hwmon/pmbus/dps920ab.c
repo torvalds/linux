@@ -9,7 +9,7 @@
 #include <linux/debugfs.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include "pmbus.h"
 
 struct dps920ab_data {

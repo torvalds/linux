@@ -108,7 +108,7 @@ static void arcv2_irq_unmask(struct irq_data *data)
 	write_aux_reg(AUX_IRQ_ENABLE, 1);
 }
 
-void arcv2_irq_enable(struct irq_data *data)
+static void arcv2_irq_enable(struct irq_data *data)
 {
 	/* set default priority */
 	write_aux_reg(AUX_IRQ_SELECT, data->hwirq);

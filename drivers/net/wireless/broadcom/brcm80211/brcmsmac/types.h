@@ -288,15 +288,6 @@ struct tx_status;
 struct d11rxhdr;
 struct txpwr_limits;
 
-/* iovar structure */
-struct brcmu_iovar {
-	const char *name;	/* name for lookup and display */
-	u16 varid;	/* id for switch */
-	u16 flags;	/* driver-specific flag bits */
-	u16 type;	/* base type of argument */
-	u16 minlen;	/* min length for buffer vars */
-};
-
 /* brcm_msg_level is a bit vector with defs in defs.h */
 extern u32 brcm_msg_level;
 

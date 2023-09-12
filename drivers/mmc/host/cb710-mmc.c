@@ -745,7 +745,7 @@ err_free_mmc:
 	return err;
 }
 
-static int cb710_mmc_exit(struct platform_device *pdev)
+static void cb710_mmc_exit(struct platform_device *pdev)
 {
 	struct cb710_slot *slot = cb710_pdev_to_slot(pdev);
 	struct mmc_host *mmc = cb710_slot_to_mmc(slot);
@@ -766,13 +766,12 @@ static int cb710_mmc_exit(struct platform_device *pdev)
 	tasklet_kill(&reader->finish_req_tasklet);
 
 	mmc_free_host(mmc);
-	return 0;
 }
 
 static struct platform_driver cb710_mmc_driver = {
 	.driver.name = "cb710-mmc",
 	.probe = cb710_mmc_init,
-	.remove = cb710_mmc_exit,
+	.remove_new = cb710_mmc_exit,
 #ifdef CONFIG_PM
 	.suspend = cb710_mmc_suspend,
 	.resume = cb710_mmc_resume,

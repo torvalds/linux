@@ -1109,6 +1109,6 @@ module_i2c_driver(imx208_i2c_driver);
 
 MODULE_AUTHOR("Yeh, Andy <andy.yeh@intel.com>");
 MODULE_AUTHOR("Chen, Ping-chung <ping-chung.chen@intel.com>");
-MODULE_AUTHOR("Shawn Tu <shawnx.tu@intel.com>");
+MODULE_AUTHOR("Shawn Tu");
 MODULE_DESCRIPTION("Sony IMX208 sensor driver");
 MODULE_LICENSE("GPL v2");

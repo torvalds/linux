@@ -15,6 +15,7 @@ if MD
 config BLK_DEV_MD
 	tristate "RAID support"
 	select BLOCK_HOLDER_DEPRECATED if SYSFS
+	select BUFFER_HEAD
 	# BLOCK_LEGACY_AUTOLOAD requirement should be removed
 	# after relevant mdadm enhancements - to make "names=yes"
 	# the default - are widely available.
@@ -49,6 +50,16 @@ config MD_AUTODETECT
 	  synchronisation steps that are part of this step.
 
 	  If unsure, say Y.
+
+config MD_BITMAP_FILE
+	bool "MD bitmap file support (deprecated)"
+	default y
+	help
+	  If you say Y here, support for write intent bitmaps in files on an
+	  external file system is enabled.  This is an alternative to the internal
+	  bitmaps near the MD superblock, and very problematic code that abuses
+	  various kernel APIs and can only work with files on a file system not
+	  actually sitting on the MD device.
 
 config MD_LINEAR
 	tristate "Linear (append) mode (deprecated)"

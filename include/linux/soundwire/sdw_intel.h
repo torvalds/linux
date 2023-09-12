@@ -428,4 +428,11 @@ struct sdw_intel_hw_ops {
 extern const struct sdw_intel_hw_ops sdw_intel_cnl_hw_ops;
 extern const struct sdw_intel_hw_ops sdw_intel_lnl_hw_ops;
 
+/*
+ * IDA min selected to allow for 5 unconstrained devices per link,
+ * and 6 system-unique Device Numbers for wake-capable devices.
+ */
+
+#define SDW_INTEL_DEV_NUM_IDA_MIN           6
+
 #endif

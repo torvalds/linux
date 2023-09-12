@@ -161,6 +161,7 @@
 	} while (0)
 
 #define AMDGPU_FW_SHARED_FLAG_0_UNIFIED_QUEUE (1 << 2)
+#define AMDGPU_FW_SHARED_FLAG_0_DRM_KEY_INJECT (1 << 4)
 #define AMDGPU_VCN_FW_SHARED_FLAG_0_RB	(1 << 6)
 #define AMDGPU_VCN_MULTI_QUEUE_FLAG	(1 << 8)
 #define AMDGPU_VCN_SW_RING_FLAG		(1 << 9)
@@ -179,6 +180,8 @@
 
 #define AMDGPU_VCN_SMU_DPM_INTERFACE_DGPU (0)
 #define AMDGPU_VCN_SMU_DPM_INTERFACE_APU (1)
+
+#define AMDGPU_DRM_KEY_INJECT_WORKAROUND_VCNFW_ASD_HANDSHAKING 2
 
 enum fw_queue_mode {
 	FW_QUEUE_RING_RESET = 1,
@@ -343,6 +346,11 @@ struct amdgpu_fw_shared_rb_setup {
 	uint32_t  reserved[6];
 };
 
+struct amdgpu_fw_shared_drm_key_wa {
+	uint8_t  method;
+	uint8_t  reserved[3];
+};
+
 struct amdgpu_vcn4_fw_shared {
 	uint32_t present_flag_0;
 	uint8_t pad[12];
@@ -352,6 +360,7 @@ struct amdgpu_vcn4_fw_shared {
 	uint8_t pad2[20];
 	struct amdgpu_fw_shared_rb_setup rb_setup;
 	struct amdgpu_fw_shared_smu_interface_info smu_dpm_interface;
+	struct amdgpu_fw_shared_drm_key_wa drm_key_wa;
 };
 
 struct amdgpu_vcn_fwlog {
@@ -413,5 +422,8 @@ int amdgpu_vcn_process_poison_irq(struct amdgpu_device *adev,
 int amdgpu_vcn_ras_late_init(struct amdgpu_device *adev,
 			struct ras_common_if *ras_block);
 int amdgpu_vcn_ras_sw_init(struct amdgpu_device *adev);
+
+int amdgpu_vcn_psp_update_sram(struct amdgpu_device *adev, int inst_idx,
+			       enum AMDGPU_UCODE_ID ucode_id);
 
 #endif

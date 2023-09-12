@@ -53,7 +53,6 @@ static const struct regmap_config mc13xxx_regmap_i2c_config = {
 
 static int mc13xxx_i2c_probe(struct i2c_client *client)
 {
-	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct mc13xxx *mc13xxx;
 	int ret;
 
@@ -73,13 +72,7 @@ static int mc13xxx_i2c_probe(struct i2c_client *client)
 		return ret;
 	}
 
-	if (client->dev.of_node) {
-		const struct of_device_id *of_id =
-			of_match_device(mc13xxx_dt_ids, &client->dev);
-		mc13xxx->variant = of_id->data;
-	} else {
-		mc13xxx->variant = (void *)id->driver_data;
-	}
+	mc13xxx->variant = i2c_get_match_data(client);
 
 	return mc13xxx_common_init(&client->dev);
 }

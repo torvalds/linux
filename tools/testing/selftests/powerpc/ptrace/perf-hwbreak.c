@@ -884,7 +884,7 @@ static int perf_hwbreak(void)
 {
 	srand ( time(NULL) );
 
-	SKIP_IF(!perf_breakpoint_supported());
+	SKIP_IF_MSG(!perf_breakpoint_supported(), "Perf breakpoints not supported");
 
 	return runtest();
 }

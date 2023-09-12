@@ -8,7 +8,6 @@
 #include <linux/gpio/driver.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/of_address.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
@@ -138,8 +137,6 @@ static int logicvc_gpio_probe(struct platform_device *pdev)
 	logicvc->chip.get = logicvc_gpio_get;
 	logicvc->chip.set = logicvc_gpio_set;
 	logicvc->chip.direction_output = logicvc_gpio_direction_output;
-
-	platform_set_drvdata(pdev, logicvc);
 
 	return devm_gpiochip_add_data(dev, &logicvc->chip, logicvc);
 }

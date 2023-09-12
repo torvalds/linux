@@ -378,7 +378,7 @@ The attributes defined are as follows.
   sequential zone files.  Failure to do so can result in write errors.
 * **max_active_seq_files**:  This attribute reports the maximum number of
   sequential zone files that are in an active state, that is, sequential zone
-  files that are partially writen (not empty nor full) or that have a zone that
+  files that are partially written (not empty nor full) or that have a zone that
   is explicitly open (which happens only if the *explicit-open* mount option is
   used).  This number is always equal to the maximum number of active zones that
   the device supports.  A value of 0 means that the mounted device has no limit

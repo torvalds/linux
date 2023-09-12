@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0-only or BSD-2-Clause
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
 %YAML 1.2
 ---
 $id: http://devicetree.org/schemas/display/msm/qcom,mdss.yaml#
@@ -11,7 +11,7 @@ maintainers:
   - Rob Clark <robdclark@gmail.com>
 
 description:
-  This is the bindings documentation for the Mobile Display Subsytem(MDSS) that
+  This is the bindings documentation for the Mobile Display Subsystem(MDSS) that
   encapsulates sub-blocks like MDP5, DSI, HDMI, eDP, etc.
 
 properties:

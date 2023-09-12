@@ -92,8 +92,9 @@ static irqreturn_t uart_clps711x_int_rx(int irq, void *dev_id)
 {
 	struct uart_port *port = dev_id;
 	struct clps711x_port *s = dev_get_drvdata(port->dev);
-	unsigned int status, flg;
+	unsigned int status;
 	u16 ch;
+	u8 flg;
 
 	for (;;) {
 		u32 sysflg = 0;
@@ -450,8 +451,7 @@ static int uart_clps711x_probe(struct platform_device *pdev)
 	if (IS_ERR(uart_clk))
 		return PTR_ERR(uart_clk);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	s->port.membase = devm_ioremap_resource(&pdev->dev, res);
+	s->port.membase = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(s->port.membase))
 		return PTR_ERR(s->port.membase);
 

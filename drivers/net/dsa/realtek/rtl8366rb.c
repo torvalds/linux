@@ -1049,6 +1049,32 @@ static enum dsa_tag_protocol rtl8366_get_tag_protocol(struct dsa_switch *ds,
 	return DSA_TAG_PROTO_RTL4_A;
 }
 
+static void rtl8366rb_phylink_get_caps(struct dsa_switch *ds, int port,
+				       struct phylink_config *config)
+{
+	unsigned long *interfaces = config->supported_interfaces;
+	struct realtek_priv *priv = ds->priv;
+
+	if (port == priv->cpu_port) {
+		__set_bit(PHY_INTERFACE_MODE_MII, interfaces);
+		__set_bit(PHY_INTERFACE_MODE_GMII, interfaces);
+		/* REVMII only supports 100M FD */
+		__set_bit(PHY_INTERFACE_MODE_REVMII, interfaces);
+		/* RGMII only supports 1G FD */
+		phy_interface_set_rgmii(interfaces);
+
+		config->mac_capabilities = MAC_1000 | MAC_100 |
+					   MAC_SYM_PAUSE;
+	} else {
+		/* RSGMII port, but we don't have that, and we don't
+		 * specify in DT, so phylib uses the default of GMII
+		 */
+		__set_bit(PHY_INTERFACE_MODE_GMII, interfaces);
+		config->mac_capabilities = MAC_1000 | MAC_100 | MAC_10 |
+					   MAC_SYM_PAUSE | MAC_ASYM_PAUSE;
+	}
+}
+
 static void
 rtl8366rb_mac_link_up(struct dsa_switch *ds, int port, unsigned int mode,
 		      phy_interface_t interface, struct phy_device *phydev,
@@ -1796,6 +1822,7 @@ static int rtl8366rb_detect(struct realtek_priv *priv)
 static const struct dsa_switch_ops rtl8366rb_switch_ops_smi = {
 	.get_tag_protocol = rtl8366_get_tag_protocol,
 	.setup = rtl8366rb_setup,
+	.phylink_get_caps = rtl8366rb_phylink_get_caps,
 	.phylink_mac_link_up = rtl8366rb_mac_link_up,
 	.phylink_mac_link_down = rtl8366rb_mac_link_down,
 	.get_strings = rtl8366_get_strings,
@@ -1821,6 +1848,7 @@ static const struct dsa_switch_ops rtl8366rb_switch_ops_mdio = {
 	.setup = rtl8366rb_setup,
 	.phy_read = rtl8366rb_dsa_phy_read,
 	.phy_write = rtl8366rb_dsa_phy_write,
+	.phylink_get_caps = rtl8366rb_phylink_get_caps,
 	.phylink_mac_link_up = rtl8366rb_mac_link_up,
 	.phylink_mac_link_down = rtl8366rb_mac_link_down,
 	.get_strings = rtl8366_get_strings,

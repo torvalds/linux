@@ -1,0 +1,135 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/i2c/i2c-arb-gpio-challenge.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: GPIO-based I2C Arbitration Using a Challenge & Response Mechanism
+
+maintainers:
+  - Doug Anderson <dianders@chromium.org>
+  - Peter Rosin <peda@axentia.se>
+
+description: |
+  This uses GPIO lines and a challenge & response mechanism to arbitrate who is
+  the master of an I2C bus in a multimaster situation.
+
+  In many cases using GPIOs to arbitrate is not needed and a design can use the
+  standard I2C multi-master rules.  Using GPIOs is generally useful in the case
+  where there is a device on the bus that has errata and/or bugs that makes
+  standard multimaster mode not feasible.
+
+  Note that this scheme works well enough but has some downsides:
+   * It is nonstandard (not using standard I2C multimaster)
+   * Having two masters on a bus in general makes it relatively hard to debug
+     problems (hard to tell if i2c issues were caused by one master, another,
+     or some device on the bus).
+
+  Algorithm:
+  All masters on the bus have a 'bus claim' line which is an output that the
+  others can see. These are all active low with pull-ups enabled.  We'll
+  describe these lines as:
+   * OUR_CLAIM: output from us signaling to other hosts that we want the bus
+   * THEIR_CLAIMS: output from others signaling that they want the bus
+
+  The basic algorithm is to assert your line when you want the bus, then make
+  sure that the other side doesn't want it also.  A detailed explanation is
+  best done with an example.
+
+  Let's say we want to claim the bus.  We:
+  1. Assert OUR_CLAIM.
+  2. Waits a little bit for the other sides to notice (slew time, say 10
+     microseconds).
+  3. Check THEIR_CLAIMS.  If none are asserted then the we have the bus and we
+     are done.
+  4. Otherwise, wait for a few milliseconds and see if THEIR_CLAIMS are released.
+  5. If not, back off, release the claim and wait for a few more milliseconds.
+  6. Go back to 1 (until retry time has expired).
+
+properties:
+  compatible:
+    const: i2c-arb-gpio-challenge
+
+  i2c-parent:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description:
+      The I2C bus that this multiplexer's master-side port is connected to.
+
+  our-claim-gpios:
+    maxItems: 1
+    description:
+      The GPIO that we use to claim the bus.
+
+  slew-delay-us:
+    default: 10
+    description:
+      Time to wait for a GPIO to go high.
+
+  their-claim-gpios:
+    minItems: 1
+    maxItems: 8
+    description:
+      The GPIOs that the other sides use to claim the bus.  Note that some
+      implementations may only support a single other master.
+
+  wait-free-us:
+    default: 50000
+    description:
+      We'll give up after this many microseconds.
+
+  wait-retry-us:
+    default: 3000
+    description:
+      We'll attempt another claim after this many microseconds.
+
+  i2c-arb:
+    type: object
+    $ref: /schemas/i2c/i2c-controller.yaml
+    unevaluatedProperties: false
+    description:
+      I2C arbitration bus node.
+
+required:
+  - compatible
+  - i2c-arb
+  - our-claim-gpios
+  - their-claim-gpios
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    i2c-arbitrator {
+        compatible = "i2c-arb-gpio-challenge";
+        i2c-parent = <&i2c_4>;
+
+        our-claim-gpios = <&gpf0 3 GPIO_ACTIVE_LOW>;
+        their-claim-gpios = <&gpe0 4 GPIO_ACTIVE_LOW>;
+        slew-delay-us = <10>;
+        wait-retry-us = <3000>;
+        wait-free-us = <50000>;
+
+        i2c-arb {
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            sbs-battery@b {
+                compatible = "sbs,sbs-battery";
+                reg = <0xb>;
+                sbs,poll-retry-count = <1>;
+            };
+
+            embedded-controller@1e {
+                compatible = "google,cros-ec-i2c";
+                reg = <0x1e>;
+                interrupts = <6 IRQ_TYPE_LEVEL_HIGH>;
+                interrupt-parent = <&gpx1>;
+                pinctrl-names = "default";
+                pinctrl-0 = <&ec_irq>;
+                wakeup-source;
+            };
+        };
+    };

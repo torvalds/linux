@@ -155,7 +155,7 @@ conflicting writes or track dirty data and needs to put the acquired folio if
 an error occurs after calling the helper.
 
 The helpers manage the read request, calling back into the network filesystem
-through the suppplied table of operations.  Waits will be performed as
+through the supplied table of operations.  Waits will be performed as
 necessary before returning for helpers that are meant to be synchronous.
 
 If an error occurs, the ->free_request() will be called to clean up the

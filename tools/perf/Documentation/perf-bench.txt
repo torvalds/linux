@@ -67,6 +67,9 @@ SUBSYSTEM
 'internals'::
 	Benchmark internal perf functionality.
 
+'uprobe'::
+	Benchmark overhead of uprobe + BPF.
+
 'all'::
 	All benchmark subsystems.
 

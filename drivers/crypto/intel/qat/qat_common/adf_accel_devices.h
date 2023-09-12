@@ -188,6 +188,11 @@ struct adf_hw_device_data {
 	int (*init_admin_comms)(struct adf_accel_dev *accel_dev);
 	void (*exit_admin_comms)(struct adf_accel_dev *accel_dev);
 	int (*send_admin_init)(struct adf_accel_dev *accel_dev);
+	int (*start_timer)(struct adf_accel_dev *accel_dev);
+	void (*stop_timer)(struct adf_accel_dev *accel_dev);
+	void (*check_hb_ctrs)(struct adf_accel_dev *accel_dev);
+	uint32_t (*get_hb_clock)(struct adf_hw_device_data *self);
+	int (*measure_clock)(struct adf_accel_dev *accel_dev);
 	int (*init_arb)(struct adf_accel_dev *accel_dev);
 	void (*exit_arb)(struct adf_accel_dev *accel_dev);
 	const u32 *(*get_arb_mapping)(struct adf_accel_dev *accel_dev);
@@ -229,6 +234,7 @@ struct adf_hw_device_data {
 	u8 num_accel;
 	u8 num_logical_accel;
 	u8 num_engines;
+	u32 num_hb_ctrs;
 };
 
 /* CSR write macro */
@@ -241,6 +247,11 @@ struct adf_hw_device_data {
 #define ADF_CFG_NUM_SERVICES	4
 #define ADF_SRV_TYPE_BIT_LEN	3
 #define ADF_SRV_TYPE_MASK	0x7
+#define ADF_AE_ADMIN_THREAD	7
+#define ADF_NUM_THREADS_PER_AE	8
+#define ADF_NUM_PKE_STRAND	2
+#define ADF_AE_STRAND0_THREAD	8
+#define ADF_AE_STRAND1_THREAD	9
 
 #define GET_DEV(accel_dev) ((accel_dev)->accel_pci_dev.pci_dev->dev)
 #define GET_BARS(accel_dev) ((accel_dev)->accel_pci_dev.pci_bars)
@@ -292,9 +303,12 @@ struct adf_accel_dev {
 	unsigned long status;
 	atomic_t ref_count;
 	struct dentry *debugfs_dir;
+	struct dentry *fw_cntr_dbgfile;
 	struct list_head list;
 	struct module *owner;
 	struct adf_accel_pci accel_pci_dev;
+	struct adf_timer *timer;
+	struct adf_heartbeat *heartbeat;
 	union {
 		struct {
 			/* protects VF2PF interrupts access */

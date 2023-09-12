@@ -96,7 +96,7 @@
 		vmon-slot-no = <1>;
 		imon-slot-no = <1>;
 
-		#sound-dai-cells = <1>;
+		#sound-dai-cells = <0>;
 	};
 
 	led-controller@45 {

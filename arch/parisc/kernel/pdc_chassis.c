@@ -31,6 +31,7 @@
 #include <asm/processor.h>
 #include <asm/pdc.h>
 #include <asm/pdcpat.h>
+#include <asm/led.h>
 
 #define PDC_CHASSIS_VER	"0.05"
 
@@ -234,6 +235,11 @@ int pdc_chassis_send_status(int message)
 		} else retval = -1;
 #endif /* CONFIG_64BIT */
 	}	/* if (pdc_chassis_enabled) */
+
+	/* if system has LCD display, update current string */
+	if (retval != -1 && IS_ENABLED(CONFIG_CHASSIS_LCD_LED))
+		lcd_print(NULL);
+
 #endif /* CONFIG_PDC_CHASSIS */
 	return retval;
 }

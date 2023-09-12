@@ -415,7 +415,7 @@ void drm_hdcp_update_content_protection(struct drm_connector *connector,
 		return;
 
 	state->content_protection = val;
-	drm_sysfs_connector_status_event(connector,
-				 dev->mode_config.content_protection_property);
+	drm_sysfs_connector_property_event(connector,
+					   dev->mode_config.content_protection_property);
 }
 EXPORT_SYMBOL(drm_hdcp_update_content_protection);

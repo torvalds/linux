@@ -71,7 +71,7 @@ in <asm/tcm.h>. Using this interface it is possible to:
 
 - Have the remaining TCM RAM added to a special
   allocation pool with gen_pool_create() and gen_pool_add()
-  and provice tcm_alloc() and tcm_free() for this
+  and provide tcm_alloc() and tcm_free() for this
   memory. Such a heap is great for things like saving
   device state when shutting off device power domains.
 
