@@ -95,7 +95,7 @@ class KernelFeat(Directive):
 
         lines = subprocess.check_output(args, cwd=os.path.dirname(doc.current_source)).decode('utf-8')
 
-        line_regex = re.compile("^\.\. FILE (\S+)$")
+        line_regex = re.compile(r"^\.\. FILE (\S+)$")
 
         out_lines = ""
 
