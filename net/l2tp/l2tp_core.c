@@ -1139,9 +1139,9 @@ static void l2tp_tunnel_destruct(struct sock *sk)
 	switch (tunnel->encap) {
 	case L2TP_ENCAPTYPE_UDP:
 		/* No longer an encapsulation socket. See net/ipv4/udp.c */
-		(udp_sk(sk))->encap_type = 0;
-		(udp_sk(sk))->encap_rcv = NULL;
-		(udp_sk(sk))->encap_destroy = NULL;
+		WRITE_ONCE(udp_sk(sk)->encap_type, 0);
+		udp_sk(sk)->encap_rcv = NULL;
+		udp_sk(sk)->encap_destroy = NULL;
 		break;
 	case L2TP_ENCAPTYPE_IP:
 		break;
