@@ -1095,6 +1095,17 @@ static void vcap_api_rule_add_keyvalue_test(struct kunit *test)
 	vcap_free_ckf(rule);
 }
 
+static void vcap_free_caf(struct vcap_rule *rule)
+{
+	struct vcap_client_actionfield *caf, *next_caf;
+
+	list_for_each_entry_safe(caf, next_caf,
+				 &rule->actionfields, ctrl.list) {
+		list_del(&caf->ctrl.list);
+		kfree(caf);
+	}
+}
+
 static void vcap_api_rule_add_actionvalue_test(struct kunit *test)
 {
 	struct vcap_admin admin = {
@@ -1120,6 +1131,7 @@ static void vcap_api_rule_add_actionvalue_test(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, VCAP_AF_POLICE_ENA, af->ctrl.action);
 	KUNIT_EXPECT_EQ(test, VCAP_FIELD_BIT, af->ctrl.type);
 	KUNIT_EXPECT_EQ(test, 0x0, af->data.u1.value);
+	vcap_free_caf(rule);
 
 	INIT_LIST_HEAD(&rule->actionfields);
 	ret = vcap_rule_add_action_bit(rule, VCAP_AF_POLICE_ENA, VCAP_BIT_1);
@@ -1131,6 +1143,7 @@ static void vcap_api_rule_add_actionvalue_test(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, VCAP_AF_POLICE_ENA, af->ctrl.action);
 	KUNIT_EXPECT_EQ(test, VCAP_FIELD_BIT, af->ctrl.type);
 	KUNIT_EXPECT_EQ(test, 0x1, af->data.u1.value);
+	vcap_free_caf(rule);
 
 	INIT_LIST_HEAD(&rule->actionfields);
 	ret = vcap_rule_add_action_bit(rule, VCAP_AF_POLICE_ENA, VCAP_BIT_ANY);
@@ -1142,6 +1155,7 @@ static void vcap_api_rule_add_actionvalue_test(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, VCAP_AF_POLICE_ENA, af->ctrl.action);
 	KUNIT_EXPECT_EQ(test, VCAP_FIELD_BIT, af->ctrl.type);
 	KUNIT_EXPECT_EQ(test, 0x0, af->data.u1.value);
+	vcap_free_caf(rule);
 
 	INIT_LIST_HEAD(&rule->actionfields);
 	ret = vcap_rule_add_action_u32(rule, VCAP_AF_TYPE, 0x98765432);
@@ -1153,6 +1167,7 @@ static void vcap_api_rule_add_actionvalue_test(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, VCAP_AF_TYPE, af->ctrl.action);
 	KUNIT_EXPECT_EQ(test, VCAP_FIELD_U32, af->ctrl.type);
 	KUNIT_EXPECT_EQ(test, 0x98765432, af->data.u32.value);
+	vcap_free_caf(rule);
 
 	INIT_LIST_HEAD(&rule->actionfields);
 	ret = vcap_rule_add_action_u32(rule, VCAP_AF_MASK_MODE, 0xaabbccdd);
@@ -1164,6 +1179,7 @@ static void vcap_api_rule_add_actionvalue_test(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, VCAP_AF_MASK_MODE, af->ctrl.action);
 	KUNIT_EXPECT_EQ(test, VCAP_FIELD_U32, af->ctrl.type);
 	KUNIT_EXPECT_EQ(test, 0xaabbccdd, af->data.u32.value);
+	vcap_free_caf(rule);
 }
 
 static void vcap_api_rule_find_keyset_basic_test(struct kunit *test)
