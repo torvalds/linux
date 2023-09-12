@@ -541,6 +541,22 @@ nlmsvc_lock(struct svc_rqst *rqstp, struct nlm_file *file,
 		goto out;
 	}
 
+	spin_lock(&nlm_blocked_lock);
+	/*
+	 * If this is a lock request for an already pending
+	 * lock request we return nlm_lck_blocked without calling
+	 * vfs_lock_file() again. Otherwise we have two pending
+	 * requests on the underlaying ->lock() implementation but
+	 * only one nlm_block to being granted by lm_grant().
+	 */
+	if (exportfs_lock_op_is_async(inode->i_sb->s_export_op) &&
+	    !list_empty(&block->b_list)) {
+		spin_unlock(&nlm_blocked_lock);
+		ret = nlm_lck_blocked;
+		goto out;
+	}
+	spin_unlock(&nlm_blocked_lock);
+
 	if (!wait)
 		lock->fl.fl_flags &= ~FL_SLEEP;
 	mode = lock_to_openmode(&lock->fl);
@@ -553,13 +569,6 @@ nlmsvc_lock(struct svc_rqst *rqstp, struct nlm_file *file,
 			ret = nlm_granted;
 			goto out;
 		case -EAGAIN:
-			/*
-			 * If this is a blocking request for an
-			 * already pending lock request then we need
-			 * to put it back on lockd's block list
-			 */
-			if (wait)
-				break;
 			ret = async_block ? nlm_lck_blocked : nlm_lck_denied;
 			goto out;
 		case FILE_LOCK_DEFERRED:
