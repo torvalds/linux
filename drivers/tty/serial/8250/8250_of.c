@@ -33,7 +33,8 @@ static int of_platform_serial_setup(struct platform_device *ofdev,
 			struct of_serial_info *info)
 {
 	struct resource resource;
-	struct device_node *np = ofdev->dev.of_node;
+	struct device *dev = &ofdev->dev;
+	struct device_node *np = dev->of_node;
 	struct uart_port *port = &up->port;
 	u32 clk, spd, prop;
 	int ret, irq;
@@ -48,10 +49,7 @@ static int of_platform_serial_setup(struct platform_device *ofdev,
 		/* Get clk rate through clk driver if present */
 		info->clk = devm_clk_get(&ofdev->dev, NULL);
 		if (IS_ERR(info->clk)) {
-			ret = PTR_ERR(info->clk);
-			if (ret != -EPROBE_DEFER)
-				dev_warn(&ofdev->dev,
-					 "failed to get clock: %d\n", ret);
+			ret = dev_err_probe(dev, PTR_ERR(info->clk), "failed to get clock\n");
 			goto err_pmruntime;
 		}
 
@@ -67,7 +65,7 @@ static int of_platform_serial_setup(struct platform_device *ofdev,
 
 	ret = of_address_to_resource(np, 0, &resource);
 	if (ret) {
-		dev_warn(&ofdev->dev, "invalid address\n");
+		dev_err_probe(dev, ret, "invalid address\n");
 		goto err_unprepare;
 	}
 
@@ -85,9 +83,8 @@ static int of_platform_serial_setup(struct platform_device *ofdev,
 		/* Check for shifted address mapping */
 		if (of_property_read_u32(np, "reg-offset", &prop) == 0) {
 			if (prop >= port->mapsize) {
-				dev_warn(&ofdev->dev, "reg-offset %u exceeds region size %pa\n",
-					 prop, &port->mapsize);
-				ret = -EINVAL;
+				ret = dev_err_probe(dev, -EINVAL, "reg-offset %u exceeds region size %pa\n",
+						    prop, &port->mapsize);
 				goto err_unprepare;
 			}
 
@@ -109,9 +106,8 @@ static int of_platform_serial_setup(struct platform_device *ofdev,
 					       UPIO_MEM32BE : UPIO_MEM32;
 				break;
 			default:
-				dev_warn(&ofdev->dev, "unsupported reg-io-width (%d)\n",
-					 prop);
-				ret = -EINVAL;
+				ret = dev_err_probe(dev, -EINVAL, "unsupported reg-io-width (%u)\n",
+						    prop);
 				goto err_unprepare;
 			}
 		}
