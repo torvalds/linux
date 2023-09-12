@@ -591,18 +591,19 @@ static void sprd_eic_unregister_notifier(void *data)
 static int sprd_eic_probe(struct platform_device *pdev)
 {
 	const struct sprd_eic_variant_data *pdata;
+	struct device *dev = &pdev->dev;
 	struct gpio_irq_chip *irq;
 	struct sprd_eic *sprd_eic;
 	struct resource *res;
 	int ret, i;
 
-	pdata = of_device_get_match_data(&pdev->dev);
+	pdata = of_device_get_match_data(dev);
 	if (!pdata) {
-		dev_err(&pdev->dev, "No matching driver data found.\n");
+		dev_err(dev, "No matching driver data found.\n");
 		return -EINVAL;
 	}
 
-	sprd_eic = devm_kzalloc(&pdev->dev, sizeof(*sprd_eic), GFP_KERNEL);
+	sprd_eic = devm_kzalloc(dev, sizeof(*sprd_eic), GFP_KERNEL);
 	if (!sprd_eic)
 		return -ENOMEM;
 
@@ -624,7 +625,7 @@ static int sprd_eic_probe(struct platform_device *pdev)
 		if (!res)
 			break;
 
-		sprd_eic->base[i] = devm_ioremap_resource(&pdev->dev, res);
+		sprd_eic->base[i] = devm_ioremap_resource(dev, res);
 		if (IS_ERR(sprd_eic->base[i]))
 			return PTR_ERR(sprd_eic->base[i]);
 	}
@@ -632,7 +633,7 @@ static int sprd_eic_probe(struct platform_device *pdev)
 	sprd_eic->chip.label = sprd_eic_label_name[sprd_eic->type];
 	sprd_eic->chip.ngpio = pdata->num_eics;
 	sprd_eic->chip.base = -1;
-	sprd_eic->chip.parent = &pdev->dev;
+	sprd_eic->chip.parent = dev;
 	sprd_eic->chip.direction_input = sprd_eic_direction_input;
 	switch (sprd_eic->type) {
 	case SPRD_EIC_DEBOUNCE:
@@ -659,9 +660,9 @@ static int sprd_eic_probe(struct platform_device *pdev)
 	irq->num_parents = 1;
 	irq->parents = &sprd_eic->irq;
 
-	ret = devm_gpiochip_add_data(&pdev->dev, &sprd_eic->chip, sprd_eic);
+	ret = devm_gpiochip_add_data(dev, &sprd_eic->chip, sprd_eic);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "Could not register gpiochip %d.\n", ret);
+		dev_err(dev, "Could not register gpiochip %d.\n", ret);
 		return ret;
 	}
 
@@ -669,11 +670,10 @@ static int sprd_eic_probe(struct platform_device *pdev)
 	ret = atomic_notifier_chain_register(&sprd_eic_irq_notifier,
 					     &sprd_eic->irq_nb);
 	if (ret)
-		return dev_err_probe(&pdev->dev, ret,
+		return dev_err_probe(dev, ret,
 				     "Failed to register with the interrupt notifier");
 
-	return devm_add_action_or_reset(&pdev->dev,
-					sprd_eic_unregister_notifier,
+	return devm_add_action_or_reset(dev, sprd_eic_unregister_notifier,
 					&sprd_eic->irq_nb);
 }
 
