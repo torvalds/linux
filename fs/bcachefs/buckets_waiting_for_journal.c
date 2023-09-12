@@ -133,7 +133,7 @@ retry_rehash:
 	b->t = n;
 	kvfree(t);
 
-	pr_debug("took %zu rehashes, table at %zu/%zu elements",
+	pr_debug("took %zu rehashes, table at %zu/%lu elements",
 		 nr_rehashes, nr_elements, 1UL << b->t->bits);
 out:
 	mutex_unlock(&b->lock);
