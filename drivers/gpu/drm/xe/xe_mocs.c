@@ -463,7 +463,7 @@ static unsigned int get_mocs_settings(struct xe_device *xe,
 	 * is still 0 at this point, we'll assume that it was omitted by
 	 * mistake in the switch statement above.
 	 */
-	XE_WARN_ON(info->unused_entries_index == 0);
+	xe_assert(xe, info->unused_entries_index != 0);
 
 	if (XE_WARN_ON(info->size > info->n_entries)) {
 		info->table = NULL;

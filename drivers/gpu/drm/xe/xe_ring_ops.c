@@ -212,6 +212,7 @@ static void __emit_job_gen12_simple(struct xe_sched_job *job, struct xe_lrc *lrc
 	u32 dw[MAX_JOB_SIZE_DW], i = 0;
 	u32 ppgtt_flag = get_ppgtt_flag(job);
 	struct xe_vm *vm = job->q->vm;
+	struct xe_gt *gt = job->q->gt;
 
 	if (vm && vm->batch_invalidate_tlb) {
 		dw[i++] = preparser_disable(true);
@@ -234,7 +235,7 @@ static void __emit_job_gen12_simple(struct xe_sched_job *job, struct xe_lrc *lrc
 
 	i = emit_user_interrupt(dw, i);
 
-	XE_WARN_ON(i > MAX_JOB_SIZE_DW);
+	xe_gt_assert(gt, i <= MAX_JOB_SIZE_DW);
 
 	xe_lrc_write_ring(lrc, dw, i * sizeof(*dw));
 }
@@ -294,7 +295,7 @@ static void __emit_job_gen12_video(struct xe_sched_job *job, struct xe_lrc *lrc,
 
 	i = emit_user_interrupt(dw, i);
 
-	XE_WARN_ON(i > MAX_JOB_SIZE_DW);
+	xe_gt_assert(gt, i <= MAX_JOB_SIZE_DW);
 
 	xe_lrc_write_ring(lrc, dw, i * sizeof(*dw));
 }
@@ -342,7 +343,7 @@ static void __emit_job_gen12_render_compute(struct xe_sched_job *job,
 
 	i = emit_user_interrupt(dw, i);
 
-	XE_WARN_ON(i > MAX_JOB_SIZE_DW);
+	xe_gt_assert(gt, i <= MAX_JOB_SIZE_DW);
 
 	xe_lrc_write_ring(lrc, dw, i * sizeof(*dw));
 }
@@ -372,14 +373,16 @@ static void emit_migration_job_gen12(struct xe_sched_job *job,
 
 	i = emit_user_interrupt(dw, i);
 
-	XE_WARN_ON(i > MAX_JOB_SIZE_DW);
+	xe_gt_assert(job->q->gt, i <= MAX_JOB_SIZE_DW);
 
 	xe_lrc_write_ring(lrc, dw, i * sizeof(*dw));
 }
 
 static void emit_job_gen12_gsc(struct xe_sched_job *job)
 {
-	XE_WARN_ON(job->q->width > 1); /* no parallel submission for GSCCS */
+	struct xe_gt *gt = job->q->gt;
+
+	xe_gt_assert(gt, job->q->width <= 1); /* no parallel submission for GSCCS */
 
 	__emit_job_gen12_simple(job, job->q->lrc,
 				job->batch_addr[0],

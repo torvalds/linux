@@ -44,11 +44,12 @@ guc_to_xe(struct xe_guc *guc)
 static u32 guc_bo_ggtt_addr(struct xe_guc *guc,
 			    struct xe_bo *bo)
 {
+	struct xe_device *xe = guc_to_xe(guc);
 	u32 addr = xe_bo_ggtt_addr(bo);
 
-	XE_WARN_ON(addr < xe_wopcm_size(guc_to_xe(guc)));
-	XE_WARN_ON(addr >= GUC_GGTT_TOP);
-	XE_WARN_ON(bo->size > GUC_GGTT_TOP - addr);
+	xe_assert(xe, addr >= xe_wopcm_size(guc_to_xe(guc)));
+	xe_assert(xe, addr < GUC_GGTT_TOP);
+	xe_assert(xe, bo->size <= GUC_GGTT_TOP - addr);
 
 	return addr;
 }
@@ -629,13 +630,13 @@ int xe_guc_mmio_send_recv(struct xe_guc *guc, const u32 *request,
 
 	BUILD_BUG_ON(VF_SW_FLAG_COUNT != MED_VF_SW_FLAG_COUNT);
 
-	XE_WARN_ON(guc->ct.enabled);
-	XE_WARN_ON(!len);
-	XE_WARN_ON(len > VF_SW_FLAG_COUNT);
-	XE_WARN_ON(len > MED_VF_SW_FLAG_COUNT);
-	XE_WARN_ON(FIELD_GET(GUC_HXG_MSG_0_ORIGIN, request[0]) !=
+	xe_assert(xe, !guc->ct.enabled);
+	xe_assert(xe, len);
+	xe_assert(xe, len <= VF_SW_FLAG_COUNT);
+	xe_assert(xe, len <= MED_VF_SW_FLAG_COUNT);
+	xe_assert(xe, FIELD_GET(GUC_HXG_MSG_0_ORIGIN, request[0]) ==
 		  GUC_HXG_ORIGIN_HOST);
-	XE_WARN_ON(FIELD_GET(GUC_HXG_MSG_0_TYPE, request[0]) !=
+	xe_assert(xe, FIELD_GET(GUC_HXG_MSG_0_TYPE, request[0]) ==
 		  GUC_HXG_TYPE_REQUEST);
 
 retry:
@@ -727,6 +728,7 @@ int xe_guc_mmio_send(struct xe_guc *guc, const u32 *request, u32 len)
 
 static int guc_self_cfg(struct xe_guc *guc, u16 key, u16 len, u64 val)
 {
+	struct xe_device *xe = guc_to_xe(guc);
 	u32 request[HOST2GUC_SELF_CFG_REQUEST_MSG_LEN] = {
 		FIELD_PREP(GUC_HXG_MSG_0_ORIGIN, GUC_HXG_ORIGIN_HOST) |
 		FIELD_PREP(GUC_HXG_MSG_0_TYPE, GUC_HXG_TYPE_REQUEST) |
@@ -741,8 +743,8 @@ static int guc_self_cfg(struct xe_guc *guc, u16 key, u16 len, u64 val)
 	};
 	int ret;
 
-	XE_WARN_ON(len > 2);
-	XE_WARN_ON(len == 1 && upper_32_bits(val));
+	xe_assert(xe, len <= 2);
+	xe_assert(xe, len != 1 || !upper_32_bits(val));
 
 	/* Self config must go over MMIO */
 	ret = xe_guc_mmio_send(guc, request, ARRAY_SIZE(request));

@@ -195,7 +195,7 @@ uc_fw_auto_select(struct xe_device *xe, struct xe_uc_fw *uc_fw)
 	u32 count;
 	int i;
 
-	XE_WARN_ON(uc_fw->type >= ARRAY_SIZE(blobs_all));
+	xe_assert(xe, uc_fw->type < ARRAY_SIZE(blobs_all));
 	entries = blobs_all[uc_fw->type].entries;
 	count = blobs_all[uc_fw->type].count;
 
@@ -224,8 +224,8 @@ size_t xe_uc_fw_copy_rsa(struct xe_uc_fw *uc_fw, void *dst, u32 max_len)
 	struct xe_device *xe = uc_fw_to_xe(uc_fw);
 	u32 size = min_t(u32, uc_fw->rsa_size, max_len);
 
-	XE_WARN_ON(size % 4);
-	XE_WARN_ON(!xe_uc_fw_is_available(uc_fw));
+	xe_assert(xe, !(size % 4));
+	xe_assert(xe, xe_uc_fw_is_available(uc_fw));
 
 	xe_map_memcpy_from(xe, dst, &uc_fw->bo->vmap,
 			   xe_uc_fw_rsa_offset(uc_fw), size);
@@ -249,8 +249,8 @@ static void guc_read_css_info(struct xe_uc_fw *uc_fw, struct uc_css_header *css)
 	struct xe_gt *gt = uc_fw_to_gt(uc_fw);
 	struct xe_guc *guc = &gt->uc.guc;
 
-	XE_WARN_ON(uc_fw->type != XE_UC_FW_TYPE_GUC);
-	XE_WARN_ON(uc_fw->major_ver_found < 70);
+	xe_gt_assert(gt, uc_fw->type == XE_UC_FW_TYPE_GUC);
+	xe_gt_assert(gt, uc_fw->major_ver_found >= 70);
 
 	if (uc_fw->major_ver_found > 70 || uc_fw->minor_ver_found >= 6) {
 		/* v70.6.0 adds CSS header support */
@@ -336,8 +336,8 @@ int xe_uc_fw_init(struct xe_uc_fw *uc_fw)
 	 * before we're looked at the HW caps to see if we have uc support
 	 */
 	BUILD_BUG_ON(XE_UC_FIRMWARE_UNINITIALIZED);
-	XE_WARN_ON(uc_fw->status);
-	XE_WARN_ON(uc_fw->path);
+	xe_assert(xe, !uc_fw->status);
+	xe_assert(xe, !uc_fw->path);
 
 	uc_fw_auto_select(xe, uc_fw);
 	xe_uc_fw_change_status(uc_fw, uc_fw->path ? *uc_fw->path ?
@@ -504,7 +504,7 @@ int xe_uc_fw_upload(struct xe_uc_fw *uc_fw, u32 offset, u32 dma_flags)
 	int err;
 
 	/* make sure the status was cleared the last time we reset the uc */
-	XE_WARN_ON(xe_uc_fw_is_loaded(uc_fw));
+	xe_assert(xe, !xe_uc_fw_is_loaded(uc_fw));
 
 	if (!xe_uc_fw_is_loadable(uc_fw))
 		return -ENOEXEC;

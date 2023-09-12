@@ -117,7 +117,7 @@ static int xe_exec_begin(struct drm_exec *exec, struct xe_vm *vm)
 	 * to a location where the GPU can access it).
 	 */
 	list_for_each_entry(vma, &vm->rebind_list, combined_links.rebind) {
-		XE_WARN_ON(xe_vma_is_null(vma));
+		xe_assert(vm->xe, !xe_vma_is_null(vma));
 
 		if (xe_vma_is_userptr(vma))
 			continue;

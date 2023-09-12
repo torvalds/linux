@@ -15,6 +15,7 @@
 #include "generated/xe_wa_oob.h"
 #include "regs/xe_gpu_commands.h"
 #include "tests/xe_test.h"
+#include "xe_assert.h"
 #include "xe_bb.h"
 #include "xe_bo.h"
 #include "xe_exec_queue.h"
@@ -172,7 +173,7 @@ static int xe_migrate_prepare_vm(struct xe_tile *tile, struct xe_migrate *m,
 	BUILD_BUG_ON(!(NUM_KERNEL_PDE & 1));
 
 	/* Need to be sure everything fits in the first PT, or create more */
-	XE_WARN_ON(m->batch_base_ofs + batch->size >= SZ_2M);
+	xe_tile_assert(tile, m->batch_base_ofs + batch->size < SZ_2M);
 
 	bo = xe_bo_create_pin_map(vm->xe, tile, vm,
 				  num_entries * XE_PAGE_SIZE,
@@ -206,7 +207,7 @@ static int xe_migrate_prepare_vm(struct xe_tile *tile, struct xe_migrate *m,
 	}
 
 	if (!IS_DGFX(xe)) {
-		XE_WARN_ON(xe->info.supports_usm);
+		xe_tile_assert(tile, !xe->info.supports_usm);
 
 		/* Write out batch too */
 		m->batch_base_ofs = NUM_PT_SLOTS * XE_PAGE_SIZE;
@@ -487,7 +488,7 @@ static void emit_pte(struct xe_migrate *m,
 				/* Is this a 64K PTE entry? */
 				if ((m->q->vm->flags & XE_VM_FLAG_64K) &&
 				    !(cur_ofs & (16 * 8 - 1))) {
-					XE_WARN_ON(!IS_ALIGNED(addr, SZ_64K));
+					xe_tile_assert(m->tile, IS_ALIGNED(addr, SZ_64K));
 					addr |= XE_PTE_PS64;
 				}
 
@@ -516,7 +517,7 @@ static void emit_copy_ccs(struct xe_gt *gt, struct xe_bb *bb,
 
 	num_ccs_blks = DIV_ROUND_UP(xe_device_ccs_bytes(gt_to_xe(gt), size),
 				    NUM_CCS_BYTES_PER_BLOCK);
-	XE_WARN_ON(num_ccs_blks > NUM_CCS_BLKS_PER_XFER);
+	xe_gt_assert(gt, num_ccs_blks <= NUM_CCS_BLKS_PER_XFER);
 	*cs++ = XY_CTRL_SURF_COPY_BLT |
 		(src_is_indirect ? 0x0 : 0x1) << SRC_ACCESS_TYPE_SHIFT |
 		(dst_is_indirect ? 0x0 : 0x1) << DST_ACCESS_TYPE_SHIFT |
@@ -536,9 +537,9 @@ static void emit_copy(struct xe_gt *gt, struct xe_bb *bb,
 		      u64 src_ofs, u64 dst_ofs, unsigned int size,
 		      unsigned int pitch)
 {
-	XE_WARN_ON(size / pitch > S16_MAX);
-	XE_WARN_ON(pitch / 4 > S16_MAX);
-	XE_WARN_ON(pitch > U16_MAX);
+	xe_gt_assert(gt, size / pitch <= S16_MAX);
+	xe_gt_assert(gt, pitch / 4 <= S16_MAX);
+	xe_gt_assert(gt, pitch <= U16_MAX);
 
 	bb->cs[bb->len++] = XY_FAST_COPY_BLT_CMD | (10 - 2);
 	bb->cs[bb->len++] = XY_FAST_COPY_BLT_DEPTH_32 | pitch;
@@ -598,7 +599,7 @@ static u32 xe_migrate_ccs_copy(struct xe_migrate *m,
 		 * At the moment, we don't support copying CCS metadata from
 		 * system to system.
 		 */
-		XE_WARN_ON(!src_is_vram && !dst_is_vram);
+		xe_gt_assert(gt, src_is_vram || dst_is_vram);
 
 		emit_copy_ccs(gt, bb, dst_ofs, dst_is_vram, src_ofs,
 			      src_is_vram, dst_size);
@@ -810,7 +811,7 @@ static void emit_clear_link_copy(struct xe_gt *gt, struct xe_bb *bb, u64 src_ofs
 	*cs++ = upper_32_bits(src_ofs);
 	*cs++ = FIELD_PREP(PVC_MS_MOCS_INDEX_MASK, mocs);
 
-	XE_WARN_ON(cs - bb->cs != len + bb->len);
+	xe_gt_assert(gt, cs - bb->cs == len + bb->len);
 
 	bb->len += len;
 }
@@ -848,7 +849,7 @@ static void emit_clear_main_copy(struct xe_gt *gt, struct xe_bb *bb,
 		*cs++ = 0;
 	}
 
-	XE_WARN_ON(cs - bb->cs != len + bb->len);
+	xe_gt_assert(gt, cs - bb->cs == len + bb->len);
 
 	bb->len += len;
 }
@@ -1021,9 +1022,9 @@ static void write_pgtable(struct xe_tile *tile, struct xe_bb *bb, u64 ppgtt_ofs,
 	 * PDE. This requires a BO that is almost vm->size big.
 	 *
 	 * This shouldn't be possible in practice.. might change when 16K
-	 * pages are used. Hence the XE_WARN_ON.
+	 * pages are used. Hence the assert.
 	 */
-	XE_WARN_ON(update->qwords > 0x1ff);
+	xe_tile_assert(tile, update->qwords <= 0x1ff);
 	if (!ppgtt_ofs) {
 		ppgtt_ofs = xe_migrate_vram_ofs(xe_bo_addr(update->pt_bo, 0,
 							   XE_PAGE_SIZE));
@@ -1213,7 +1214,7 @@ xe_migrate_update_pgtables(struct xe_migrate *m,
 	 * Worst case: Sum(2 * (each lower level page size) + (top level page size))
 	 * Should be reasonably bound..
 	 */
-	XE_WARN_ON(batch_size >= SZ_128K);
+	xe_tile_assert(tile, batch_size < SZ_128K);
 
 	bb = xe_bb_new(gt, batch_size, !q && xe->info.supports_usm);
 	if (IS_ERR(bb))
@@ -1223,7 +1224,7 @@ xe_migrate_update_pgtables(struct xe_migrate *m,
 	if (!IS_DGFX(xe)) {
 		ppgtt_ofs = NUM_KERNEL_PDE - 1;
 		if (q) {
-			XE_WARN_ON(num_updates > NUM_VMUSA_WRITES_PER_UNIT);
+			xe_tile_assert(tile, num_updates <= NUM_VMUSA_WRITES_PER_UNIT);
 
 			sa_bo = drm_suballoc_new(&m->vm_update_sa, 1,
 						 GFP_KERNEL, true, 0);
@@ -1252,7 +1253,7 @@ xe_migrate_update_pgtables(struct xe_migrate *m,
 		for (i = 0; i < num_updates; i++) {
 			struct xe_bo *pt_bo = updates[i].pt_bo;
 
-			XE_WARN_ON(pt_bo->size != SZ_4K);
+			xe_tile_assert(tile, pt_bo->size == SZ_4K);
 
 			addr = xe_pte_encode(pt_bo, 0, XE_CACHE_WB, 0);
 			bb->cs[bb->len++] = lower_32_bits(addr);

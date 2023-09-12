@@ -55,12 +55,12 @@ void xe_guc_log_print(struct xe_guc_log *log, struct drm_printer *p)
 	size_t size;
 	int i, j;
 
-	XE_WARN_ON(!log->bo);
+	xe_assert(xe, log->bo);
 
 	size = log->bo->size;
 
 #define DW_PER_READ		128
-	XE_WARN_ON(size % (DW_PER_READ * sizeof(u32)));
+	xe_assert(xe, !(size % (DW_PER_READ * sizeof(u32))));
 	for (i = 0; i < size / sizeof(u32); i += DW_PER_READ) {
 		u32 read[DW_PER_READ];
 

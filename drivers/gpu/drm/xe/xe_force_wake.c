@@ -45,7 +45,7 @@ void xe_force_wake_init_gt(struct xe_gt *gt, struct xe_force_wake *fw)
 	mutex_init(&fw->lock);
 
 	/* Assuming gen11+ so assert this assumption is correct */
-	XE_WARN_ON(GRAPHICS_VER(gt_to_xe(gt)) < 11);
+	xe_gt_assert(gt, GRAPHICS_VER(gt_to_xe(gt)) >= 11);
 
 	if (xe->info.graphics_verx100 >= 1270) {
 		domain_init(&fw->domains[XE_FW_DOMAIN_ID_GT],
@@ -67,7 +67,7 @@ void xe_force_wake_init_engines(struct xe_gt *gt, struct xe_force_wake *fw)
 	int i, j;
 
 	/* Assuming gen11+ so assert this assumption is correct */
-	XE_WARN_ON(GRAPHICS_VER(gt_to_xe(gt)) < 11);
+	xe_gt_assert(gt, GRAPHICS_VER(gt_to_xe(gt)) >= 11);
 
 	if (!xe_gt_is_media_type(gt))
 		domain_init(&fw->domains[XE_FW_DOMAIN_ID_RENDER],

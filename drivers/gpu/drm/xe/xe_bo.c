@@ -103,7 +103,7 @@ static bool xe_bo_is_user(struct xe_bo *bo)
 static struct xe_tile *
 mem_type_to_tile(struct xe_device *xe, u32 mem_type)
 {
-	XE_WARN_ON(mem_type != XE_PL_STOLEN && !mem_type_is_vram(mem_type));
+	xe_assert(xe, mem_type == XE_PL_STOLEN || mem_type_is_vram(mem_type));
 
 	return &xe->tiles[mem_type == XE_PL_STOLEN ? 0 : (mem_type - XE_PL_VRAM0)];
 }
@@ -142,7 +142,7 @@ static void add_vram(struct xe_device *xe, struct xe_bo *bo,
 	struct ttm_place place = { .mem_type = mem_type };
 	u64 io_size = tile->mem.vram.io_size;
 
-	XE_WARN_ON(!tile->mem.vram.usable_size);
+	xe_assert(xe, tile->mem.vram.usable_size);
 
 	/*
 	 * For eviction / restore on suspend / resume objects
@@ -544,10 +544,11 @@ static int xe_bo_move_dmabuf(struct ttm_buffer_object *ttm_bo,
 	struct dma_buf_attachment *attach = ttm_bo->base.import_attach;
 	struct xe_ttm_tt *xe_tt = container_of(ttm_bo->ttm, struct xe_ttm_tt,
 					       ttm);
+	struct xe_device *xe = ttm_to_xe_device(ttm_bo->bdev);
 	struct sg_table *sg;
 
-	XE_WARN_ON(!attach);
-	XE_WARN_ON(!ttm_bo->ttm);
+	xe_assert(xe, attach);
+	xe_assert(xe, ttm_bo->ttm);
 
 	if (new_res->mem_type == XE_PL_SYSTEM)
 		goto out;
@@ -709,8 +710,8 @@ static int xe_bo_move(struct ttm_buffer_object *ttm_bo, bool evict,
 	else if (mem_type_is_vram(old_mem_type))
 		tile = mem_type_to_tile(xe, old_mem_type);
 
-	XE_WARN_ON(!tile);
-	XE_WARN_ON(!tile->migrate);
+	xe_assert(xe, tile);
+	xe_tile_assert(tile, tile->migrate);
 
 	trace_xe_bo_move(bo);
 	xe_device_mem_access_get(xe);
@@ -740,7 +741,7 @@ static int xe_bo_move(struct ttm_buffer_object *ttm_bo, bool evict,
 					goto out;
 				}
 
-				XE_WARN_ON(new_mem->start !=
+				xe_assert(xe, new_mem->start ==
 					  bo->placements->fpfn);
 
 				iosys_map_set_vaddr_iomem(&bo->vmap, new_addr);
@@ -939,9 +940,10 @@ static void __xe_bo_vunmap(struct xe_bo *bo);
  */
 static bool xe_ttm_bo_lock_in_destructor(struct ttm_buffer_object *ttm_bo)
 {
+	struct xe_device *xe = ttm_to_xe_device(ttm_bo->bdev);
 	bool locked;
 
-	XE_WARN_ON(kref_read(&ttm_bo->kref));
+	xe_assert(xe, !kref_read(&ttm_bo->kref));
 
 	/*
 	 * We can typically only race with TTM trylocking under the
@@ -952,7 +954,7 @@ static bool xe_ttm_bo_lock_in_destructor(struct ttm_buffer_object *ttm_bo)
 	spin_lock(&ttm_bo->bdev->lru_lock);
 	locked = dma_resv_trylock(ttm_bo->base.resv);
 	spin_unlock(&ttm_bo->bdev->lru_lock);
-	XE_WARN_ON(!locked);
+	xe_assert(xe, locked);
 
 	return locked;
 }
@@ -968,7 +970,7 @@ static void xe_ttm_bo_release_notify(struct ttm_buffer_object *ttm_bo)
 		return;
 
 	bo = ttm_to_xe_bo(ttm_bo);
-	XE_WARN_ON(bo->created && kref_read(&ttm_bo->base.refcount));
+	xe_assert(xe_bo_device(bo), !(bo->created && kref_read(&ttm_bo->base.refcount)));
 
 	/*
 	 * Corner case where TTM fails to allocate memory and this BOs resv
@@ -1041,12 +1043,13 @@ struct ttm_device_funcs xe_ttm_funcs = {
 static void xe_ttm_bo_destroy(struct ttm_buffer_object *ttm_bo)
 {
 	struct xe_bo *bo = ttm_to_xe_bo(ttm_bo);
+	struct xe_device *xe = ttm_to_xe_device(ttm_bo->bdev);
 
 	if (bo->ttm.base.import_attach)
 		drm_prime_gem_destroy(&bo->ttm.base, NULL);
 	drm_gem_object_release(&bo->ttm.base);
 
-	WARN_ON(!list_empty(&bo->vmas));
+	xe_assert(xe, list_empty(&bo->vmas));
 
 	if (bo->ggtt_node.size)
 		xe_ggtt_remove_bo(bo->tile->mem.ggtt, bo);
@@ -1082,7 +1085,7 @@ static void xe_gem_object_close(struct drm_gem_object *obj,
 	struct xe_bo *bo = gem_to_xe_bo(obj);
 
 	if (bo->vm && !xe_vm_in_fault_mode(bo->vm)) {
-		XE_WARN_ON(!xe_bo_is_user(bo));
+		xe_assert(xe_bo_device(bo), xe_bo_is_user(bo));
 
 		xe_bo_lock(bo, false);
 		ttm_bo_set_bulk_move(&bo->ttm, NULL);
@@ -1198,7 +1201,7 @@ struct xe_bo *__xe_bo_create_locked(struct xe_device *xe, struct xe_bo *bo,
 	int err;
 
 	/* Only kernel objects should set GT */
-	XE_WARN_ON(tile && type != ttm_bo_type_kernel);
+	xe_assert(xe, !tile || type == ttm_bo_type_kernel);
 
 	if (XE_WARN_ON(!size)) {
 		xe_bo_free(bo);
@@ -1354,7 +1357,7 @@ xe_bo_create_locked_range(struct xe_device *xe,
 		if (!tile && flags & XE_BO_CREATE_STOLEN_BIT)
 			tile = xe_device_get_root_tile(xe);
 
-		XE_WARN_ON(!tile);
+		xe_assert(xe, tile);
 
 		if (flags & XE_BO_CREATE_STOLEN_BIT &&
 		    flags & XE_BO_FIXED_PLACEMENT_BIT) {
@@ -1485,8 +1488,8 @@ int xe_bo_pin_external(struct xe_bo *bo)
 	struct xe_device *xe = xe_bo_device(bo);
 	int err;
 
-	XE_WARN_ON(bo->vm);
-	XE_WARN_ON(!xe_bo_is_user(bo));
+	xe_assert(xe, !bo->vm);
+	xe_assert(xe, xe_bo_is_user(bo));
 
 	if (!xe_bo_is_pinned(bo)) {
 		err = xe_bo_validate(bo, NULL, false);
@@ -1518,20 +1521,20 @@ int xe_bo_pin(struct xe_bo *bo)
 	int err;
 
 	/* We currently don't expect user BO to be pinned */
-	XE_WARN_ON(xe_bo_is_user(bo));
+	xe_assert(xe, !xe_bo_is_user(bo));
 
 	/* Pinned object must be in GGTT or have pinned flag */
-	XE_WARN_ON(!(bo->flags & (XE_BO_CREATE_PINNED_BIT |
-				 XE_BO_CREATE_GGTT_BIT)));
+	xe_assert(xe, bo->flags & (XE_BO_CREATE_PINNED_BIT |
+				   XE_BO_CREATE_GGTT_BIT));
 
 	/*
 	 * No reason we can't support pinning imported dma-bufs we just don't
 	 * expect to pin an imported dma-buf.
 	 */
-	XE_WARN_ON(bo->ttm.base.import_attach);
+	xe_assert(xe, !bo->ttm.base.import_attach);
 
 	/* We only expect at most 1 pin */
-	XE_WARN_ON(xe_bo_is_pinned(bo));
+	xe_assert(xe, !xe_bo_is_pinned(bo));
 
 	err = xe_bo_validate(bo, NULL, false);
 	if (err)
@@ -1547,7 +1550,7 @@ int xe_bo_pin(struct xe_bo *bo)
 		struct ttm_place *place = &(bo->placements[0]);
 
 		if (mem_type_is_vram(place->mem_type)) {
-			XE_WARN_ON(!(place->flags & TTM_PL_FLAG_CONTIGUOUS));
+			xe_assert(xe, place->flags & TTM_PL_FLAG_CONTIGUOUS);
 
 			place->fpfn = (xe_bo_addr(bo, 0, PAGE_SIZE) -
 				       vram_region_gpu_offset(bo->ttm.resource)) >> PAGE_SHIFT;
@@ -1584,9 +1587,9 @@ void xe_bo_unpin_external(struct xe_bo *bo)
 {
 	struct xe_device *xe = xe_bo_device(bo);
 
-	XE_WARN_ON(bo->vm);
-	XE_WARN_ON(!xe_bo_is_pinned(bo));
-	XE_WARN_ON(!xe_bo_is_user(bo));
+	xe_assert(xe, !bo->vm);
+	xe_assert(xe, xe_bo_is_pinned(bo));
+	xe_assert(xe, xe_bo_is_user(bo));
 
 	if (bo->ttm.pin_count == 1 && !list_empty(&bo->pinned_link)) {
 		spin_lock(&xe->pinned.lock);
@@ -1607,15 +1610,15 @@ void xe_bo_unpin(struct xe_bo *bo)
 {
 	struct xe_device *xe = xe_bo_device(bo);
 
-	XE_WARN_ON(bo->ttm.base.import_attach);
-	XE_WARN_ON(!xe_bo_is_pinned(bo));
+	xe_assert(xe, !bo->ttm.base.import_attach);
+	xe_assert(xe, xe_bo_is_pinned(bo));
 
 	if (IS_DGFX(xe) && !(IS_ENABLED(CONFIG_DRM_XE_DEBUG) &&
 	    bo->flags & XE_BO_INTERNAL_TEST)) {
 		struct ttm_place *place = &(bo->placements[0]);
 
 		if (mem_type_is_vram(place->mem_type)) {
-			XE_WARN_ON(list_empty(&bo->pinned_link));
+			xe_assert(xe, !list_empty(&bo->pinned_link));
 
 			spin_lock(&xe->pinned.lock);
 			list_del_init(&bo->pinned_link);
@@ -1676,15 +1679,16 @@ bool xe_bo_is_xe_bo(struct ttm_buffer_object *bo)
  */
 dma_addr_t __xe_bo_addr(struct xe_bo *bo, u64 offset, size_t page_size)
 {
+	struct xe_device *xe = xe_bo_device(bo);
 	struct xe_res_cursor cur;
 	u64 page;
 
-	XE_WARN_ON(page_size > PAGE_SIZE);
+	xe_assert(xe, page_size <= PAGE_SIZE);
 	page = offset >> PAGE_SHIFT;
 	offset &= (PAGE_SIZE - 1);
 
 	if (!xe_bo_is_vram(bo) && !xe_bo_is_stolen(bo)) {
-		XE_WARN_ON(!bo->ttm.ttm);
+		xe_assert(xe, bo->ttm.ttm);
 
 		xe_res_first_sg(xe_bo_get_sg(bo), page << PAGE_SHIFT,
 				page_size, &cur);

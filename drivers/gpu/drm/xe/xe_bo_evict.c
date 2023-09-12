@@ -158,8 +158,8 @@ int xe_bo_restore_kernel(struct xe_device *xe)
 		 * We expect validate to trigger a move VRAM and our move code
 		 * should setup the iosys map.
 		 */
-		XE_WARN_ON(iosys_map_is_null(&bo->vmap));
-		XE_WARN_ON(!xe_bo_is_vram(bo));
+		xe_assert(xe, !iosys_map_is_null(&bo->vmap));
+		xe_assert(xe, xe_bo_is_vram(bo));
 
 		xe_bo_put(bo);
 

@@ -6,6 +6,7 @@
 #include "xe_huc.h"
 
 #include "regs/xe_guc_regs.h"
+#include "xe_assert.h"
 #include "xe_bo.h"
 #include "xe_device.h"
 #include "xe_force_wake.h"
@@ -72,7 +73,7 @@ int xe_huc_auth(struct xe_huc *huc)
 	if (xe_uc_fw_is_disabled(&huc->fw))
 		return 0;
 
-	XE_WARN_ON(xe_uc_fw_is_running(&huc->fw));
+	xe_assert(xe, !xe_uc_fw_is_running(&huc->fw));
 
 	if (!xe_uc_fw_is_loaded(&huc->fw))
 		return -ENOEXEC;

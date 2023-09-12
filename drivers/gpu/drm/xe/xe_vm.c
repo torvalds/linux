@@ -71,7 +71,7 @@ int xe_vma_userptr_pin_pages(struct xe_vma *vma)
 	bool read_only = xe_vma_read_only(vma);
 
 	lockdep_assert_held(&vm->lock);
-	XE_WARN_ON(!xe_vma_is_userptr(vma));
+	xe_assert(xe, xe_vma_is_userptr(vma));
 retry:
 	if (vma->gpuva.flags & XE_VMA_DESTROYED)
 		return 0;
@@ -260,7 +260,7 @@ static void arm_preempt_fences(struct xe_vm *vm, struct list_head *list)
 		struct dma_fence *fence;
 
 		link = list->next;
-		XE_WARN_ON(link == list);
+		xe_assert(vm->xe, link != list);
 
 		fence = xe_preempt_fence_arm(to_preempt_fence_from_link(link),
 					     q, q->compute.context,
@@ -338,7 +338,7 @@ int xe_vm_add_compute_exec_queue(struct xe_vm *vm, struct xe_exec_queue *q)
 	int err;
 	bool wait;
 
-	XE_WARN_ON(!xe_vm_in_compute_mode(vm));
+	xe_assert(vm->xe, xe_vm_in_compute_mode(vm));
 
 	down_write(&vm->lock);
 	drm_exec_init(&exec, DRM_EXEC_INTERRUPTIBLE_WAIT);
@@ -573,7 +573,7 @@ static void preempt_rebind_work_func(struct work_struct *w)
 	long wait;
 	int __maybe_unused tries = 0;
 
-	XE_WARN_ON(!xe_vm_in_compute_mode(vm));
+	xe_assert(vm->xe, xe_vm_in_compute_mode(vm));
 	trace_xe_vm_rebind_worker_enter(vm);
 
 	down_write(&vm->lock);
@@ -698,7 +698,7 @@ static bool vma_userptr_invalidate(struct mmu_interval_notifier *mni,
 	struct dma_fence *fence;
 	long err;
 
-	XE_WARN_ON(!xe_vma_is_userptr(vma));
+	xe_assert(vm->xe, xe_vma_is_userptr(vma));
 	trace_xe_vma_userptr_invalidate(vma);
 
 	if (!mmu_notifier_range_blockable(range))
@@ -839,7 +839,7 @@ struct dma_fence *xe_vm_rebind(struct xe_vm *vm, bool rebind_worker)
 	xe_vm_assert_held(vm);
 	list_for_each_entry_safe(vma, next, &vm->rebind_list,
 				 combined_links.rebind) {
-		XE_WARN_ON(!vma->tile_present);
+		xe_assert(vm->xe, vma->tile_present);
 
 		list_del_init(&vma->combined_links.rebind);
 		dma_fence_put(fence);
@@ -867,8 +867,8 @@ static struct xe_vma *xe_vma_create(struct xe_vm *vm,
 	struct xe_tile *tile;
 	u8 id;
 
-	XE_WARN_ON(start >= end);
-	XE_WARN_ON(end >= vm->size);
+	xe_assert(vm->xe, start < end);
+	xe_assert(vm->xe, end < vm->size);
 
 	if (!bo && !is_null)	/* userptr */
 		vma = kzalloc(sizeof(*vma), GFP_KERNEL);
@@ -1064,10 +1064,10 @@ static void xe_vma_destroy(struct xe_vma *vma, struct dma_fence *fence)
 	struct xe_vm *vm = xe_vma_vm(vma);
 
 	lockdep_assert_held_write(&vm->lock);
-	XE_WARN_ON(!list_empty(&vma->combined_links.destroy));
+	xe_assert(vm->xe, list_empty(&vma->combined_links.destroy));
 
 	if (xe_vma_is_userptr(vma)) {
-		XE_WARN_ON(!(vma->gpuva.flags & XE_VMA_DESTROYED));
+		xe_assert(vm->xe, vma->gpuva.flags & XE_VMA_DESTROYED);
 
 		spin_lock(&vm->userptr.invalidated_lock);
 		list_del(&vma->userptr.invalidate_link);
@@ -1160,7 +1160,7 @@ xe_vm_find_overlapping_vma(struct xe_vm *vm, u64 start, u64 range)
 	if (xe_vm_is_closed_or_banned(vm))
 		return NULL;
 
-	XE_WARN_ON(start + range > vm->size);
+	xe_assert(vm->xe, start + range <= vm->size);
 
 	gpuva = drm_gpuva_find_first(&vm->gpuvm, start, range);
 
@@ -1171,7 +1171,7 @@ static int xe_vm_insert_vma(struct xe_vm *vm, struct xe_vma *vma)
 {
 	int err;
 
-	XE_WARN_ON(xe_vma_vm(vma) != vm);
+	xe_assert(vm->xe, xe_vma_vm(vma) == vm);
 	lockdep_assert_held(&vm->lock);
 
 	err = drm_gpuva_insert(&vm->gpuvm, &vma->gpuva);
@@ -1182,7 +1182,7 @@ static int xe_vm_insert_vma(struct xe_vm *vm, struct xe_vma *vma)
 
 static void xe_vm_remove_vma(struct xe_vm *vm, struct xe_vma *vma)
 {
-	XE_WARN_ON(xe_vma_vm(vma) != vm);
+	xe_assert(vm->xe, xe_vma_vm(vma) == vm);
 	lockdep_assert_held(&vm->lock);
 
 	drm_gpuva_remove(&vma->gpuva);
@@ -1428,7 +1428,7 @@ void xe_vm_close_and_put(struct xe_vm *vm)
 	struct drm_gpuva *gpuva, *next;
 	u8 id;
 
-	XE_WARN_ON(vm->preempt.num_exec_queues);
+	xe_assert(xe, !vm->preempt.num_exec_queues);
 
 	xe_vm_close(vm);
 	flush_async_ops(vm);
@@ -1505,7 +1505,7 @@ void xe_vm_close_and_put(struct xe_vm *vm)
 	if (vm->async_ops.error_capture.addr)
 		wake_up_all(&vm->async_ops.error_capture.wq);
 
-	XE_WARN_ON(!list_empty(&vm->extobj.list));
+	xe_assert(xe, list_empty(&vm->extobj.list));
 	up_write(&vm->lock);
 
 	mutex_lock(&xe->usm.lock);
@@ -1531,7 +1531,7 @@ static void vm_destroy_work_func(struct work_struct *w)
 	void *lookup;
 
 	/* xe_vm_close_and_put was not called? */
-	XE_WARN_ON(vm->size);
+	xe_assert(xe, !vm->size);
 
 	if (!(vm->flags & XE_VM_FLAG_MIGRATION)) {
 		xe_device_mem_access_put(xe);
@@ -1539,7 +1539,7 @@ static void vm_destroy_work_func(struct work_struct *w)
 		if (xe->info.has_asid) {
 			mutex_lock(&xe->usm.lock);
 			lookup = xa_erase(&xe->usm.asid_to_vm, vm->usm.asid);
-			XE_WARN_ON(lookup != vm);
+			xe_assert(xe, lookup == vm);
 			mutex_unlock(&xe->usm.lock);
 		}
 	}
@@ -1802,7 +1802,7 @@ int xe_vm_async_fence_wait_start(struct dma_fence *fence)
 		struct async_op_fence *afence =
 			container_of(fence, struct async_op_fence, fence);
 
-		XE_WARN_ON(xe_vm_no_dma_fences(afence->vm));
+		xe_assert(afence->vm->xe, !xe_vm_no_dma_fences(afence->vm));
 
 		smp_rmb();
 		return wait_event_interruptible(afence->wq, afence->started);
@@ -1828,7 +1828,7 @@ static int __xe_vm_bind(struct xe_vm *vm, struct xe_vma *vma,
 	} else {
 		int i;
 
-		XE_WARN_ON(!xe_vm_in_fault_mode(vm));
+		xe_assert(vm->xe, xe_vm_in_fault_mode(vm));
 
 		fence = dma_fence_get_stub();
 		if (last_op) {
@@ -2110,7 +2110,7 @@ static int xe_vm_prefetch(struct xe_vm *vm, struct xe_vma *vma,
 {
 	int err;
 
-	XE_WARN_ON(region > ARRAY_SIZE(region_to_mem_type));
+	xe_assert(vm->xe, region <= ARRAY_SIZE(region_to_mem_type));
 
 	if (!xe_vma_has_no_bo(vma)) {
 		err = xe_bo_migrate(xe_vma_bo(vma), region_to_mem_type[region]);
@@ -2309,7 +2309,7 @@ vm_bind_ioctl_ops_create(struct xe_vm *vm, struct xe_bo *bo,
 		}
 		break;
 	case XE_VM_BIND_OP_UNMAP_ALL:
-		XE_WARN_ON(!bo);
+		xe_assert(vm->xe, bo);
 
 		err = xe_bo_lock(bo, true);
 		if (err)
@@ -2506,7 +2506,7 @@ static int vm_bind_ioctl_ops_parse(struct xe_vm *vm, struct xe_exec_queue *q,
 		struct xe_vma_op *op = gpuva_op_to_vma_op(__op);
 		bool first = list_empty(ops_list);
 
-		XE_WARN_ON(!first && !async);
+		xe_assert(vm->xe, first || async);
 
 		INIT_LIST_HEAD(&op->link);
 		list_add_tail(&op->link, ops_list);
@@ -3468,8 +3468,8 @@ int xe_vm_invalidate_vma(struct xe_vma *vma)
 	u8 id;
 	int ret;
 
-	XE_WARN_ON(!xe_vm_in_fault_mode(xe_vma_vm(vma)));
-	XE_WARN_ON(xe_vma_is_null(vma));
+	xe_assert(xe, xe_vm_in_fault_mode(xe_vma_vm(vma)));
+	xe_assert(xe, !xe_vma_is_null(vma));
 	trace_xe_vma_usm_invalidate(vma);
 
 	/* Check that we don't race with page-table updates */

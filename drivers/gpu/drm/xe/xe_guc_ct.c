@@ -135,7 +135,7 @@ int xe_guc_ct_init(struct xe_guc_ct *ct)
 	struct xe_bo *bo;
 	int err;
 
-	XE_WARN_ON(guc_ct_size() % PAGE_SIZE);
+	xe_assert(xe, !(guc_ct_size() % PAGE_SIZE));
 
 	mutex_init(&ct->lock);
 	spin_lock_init(&ct->fast_lock);
@@ -283,7 +283,7 @@ int xe_guc_ct_enable(struct xe_guc_ct *ct)
 	struct xe_device *xe = ct_to_xe(ct);
 	int err;
 
-	XE_WARN_ON(ct->enabled);
+	xe_assert(xe, !ct->enabled);
 
 	guc_ct_ctb_h2g_init(xe, &ct->ctbs.h2g, &ct->bo->vmap);
 	guc_ct_ctb_g2h_init(xe, &ct->ctbs.g2h, &ct->bo->vmap);
@@ -376,7 +376,7 @@ static void h2g_reserve_space(struct xe_guc_ct *ct, u32 cmd_len)
 
 static void __g2h_reserve_space(struct xe_guc_ct *ct, u32 g2h_len, u32 num_g2h)
 {
-	XE_WARN_ON(g2h_len > ct->ctbs.g2h.info.space);
+	xe_assert(ct_to_xe(ct), g2h_len <= ct->ctbs.g2h.info.space);
 
 	if (g2h_len) {
 		lockdep_assert_held(&ct->fast_lock);
@@ -389,8 +389,8 @@ static void __g2h_reserve_space(struct xe_guc_ct *ct, u32 g2h_len, u32 num_g2h)
 static void __g2h_release_space(struct xe_guc_ct *ct, u32 g2h_len)
 {
 	lockdep_assert_held(&ct->fast_lock);
-	XE_WARN_ON(ct->ctbs.g2h.info.space + g2h_len >
-		   ct->ctbs.g2h.info.size - ct->ctbs.g2h.info.resv_space);
+	xe_assert(ct_to_xe(ct), ct->ctbs.g2h.info.space + g2h_len <=
+		  ct->ctbs.g2h.info.size - ct->ctbs.g2h.info.resv_space);
 
 	ct->ctbs.g2h.info.space += g2h_len;
 	--ct->g2h_outstanding;
@@ -419,8 +419,8 @@ static int h2g_write(struct xe_guc_ct *ct, const u32 *action, u32 len,
 	full_len = len + GUC_CTB_HDR_LEN;
 
 	lockdep_assert_held(&ct->lock);
-	XE_WARN_ON(full_len > (GUC_CTB_MSG_MAX_LEN - GUC_CTB_HDR_LEN));
-	XE_WARN_ON(tail > h2g->info.size);
+	xe_assert(xe, full_len <= (GUC_CTB_MSG_MAX_LEN - GUC_CTB_HDR_LEN));
+	xe_assert(xe, tail <= h2g->info.size);
 
 	/* Command will wrap, zero fill (NOPs), return and check credits again */
 	if (tail + full_len > h2g->info.size) {
@@ -476,12 +476,13 @@ static int __guc_ct_send_locked(struct xe_guc_ct *ct, const u32 *action,
 				u32 len, u32 g2h_len, u32 num_g2h,
 				struct g2h_fence *g2h_fence)
 {
+	struct xe_device *xe = ct_to_xe(ct);
 	int ret;
 
-	XE_WARN_ON(g2h_len && g2h_fence);
-	XE_WARN_ON(num_g2h && g2h_fence);
-	XE_WARN_ON(g2h_len && !num_g2h);
-	XE_WARN_ON(!g2h_len && num_g2h);
+	xe_assert(xe, !g2h_len || !g2h_fence);
+	xe_assert(xe, !num_g2h || !g2h_fence);
+	xe_assert(xe, !g2h_len || num_g2h);
+	xe_assert(xe, g2h_len || !num_g2h);
 	lockdep_assert_held(&ct->lock);
 
 	if (unlikely(ct->ctbs.h2g.info.broken)) {
@@ -552,7 +553,7 @@ static int guc_ct_send_locked(struct xe_guc_ct *ct, const u32 *action, u32 len,
 	unsigned int sleep_period_ms = 1;
 	int ret;
 
-	XE_WARN_ON(g2h_len && g2h_fence);
+	xe_assert(ct_to_xe(ct), !g2h_len || !g2h_fence);
 	lockdep_assert_held(&ct->lock);
 	xe_device_assert_mem_access(ct_to_xe(ct));
 
@@ -622,7 +623,7 @@ static int guc_ct_send(struct xe_guc_ct *ct, const u32 *action, u32 len,
 {
 	int ret;
 
-	XE_WARN_ON(g2h_len && g2h_fence);
+	xe_assert(ct_to_xe(ct), !g2h_len || !g2h_fence);
 
 	mutex_lock(&ct->lock);
 	ret = guc_ct_send_locked(ct, action, len, g2h_len, num_g2h, g2h_fence);
@@ -798,7 +799,7 @@ static int parse_g2h_response(struct xe_guc_ct *ct, u32 *msg, u32 len)
 		return 0;
 	}
 
-	XE_WARN_ON(fence != g2h_fence->seqno);
+	xe_assert(xe, fence == g2h_fence->seqno);
 
 	if (type == GUC_HXG_TYPE_RESPONSE_FAILURE) {
 		g2h_fence->fail = true;

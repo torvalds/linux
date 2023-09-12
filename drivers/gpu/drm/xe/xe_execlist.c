@@ -12,6 +12,7 @@
 #include "regs/xe_gt_regs.h"
 #include "regs/xe_lrc_layout.h"
 #include "regs/xe_regs.h"
+#include "xe_assert.h"
 #include "xe_bo.h"
 #include "xe_device.h"
 #include "xe_exec_queue.h"
@@ -50,10 +51,10 @@ static void __start_lrc(struct xe_hw_engine *hwe, struct xe_lrc *lrc,
 	lrc_desc = xe_lrc_descriptor(lrc);
 
 	if (GRAPHICS_VERx100(xe) >= 1250) {
-		XE_WARN_ON(!FIELD_FIT(XEHP_SW_CTX_ID, ctx_id));
+		xe_gt_assert(hwe->gt, FIELD_FIT(XEHP_SW_CTX_ID, ctx_id));
 		lrc_desc |= FIELD_PREP(XEHP_SW_CTX_ID, ctx_id);
 	} else {
-		XE_WARN_ON(!FIELD_FIT(GEN11_SW_CTX_ID, ctx_id));
+		xe_gt_assert(hwe->gt, FIELD_FIT(GEN11_SW_CTX_ID, ctx_id));
 		lrc_desc |= FIELD_PREP(GEN11_SW_CTX_ID, ctx_id);
 	}
 
@@ -321,7 +322,7 @@ static int execlist_exec_queue_init(struct xe_exec_queue *q)
 	struct xe_device *xe = gt_to_xe(q->gt);
 	int err;
 
-	XE_WARN_ON(xe_device_guc_submission_enabled(xe));
+	xe_assert(xe, !xe_device_guc_submission_enabled(xe));
 
 	drm_info(&xe->drm, "Enabling execlist submission (GuC submission disabled)\n");
 
@@ -367,9 +368,10 @@ static void execlist_exec_queue_fini_async(struct work_struct *w)
 		container_of(w, struct xe_execlist_exec_queue, fini_async);
 	struct xe_exec_queue *q = ee->q;
 	struct xe_execlist_exec_queue *exl = q->execlist;
+	struct xe_device *xe = gt_to_xe(q->gt);
 	unsigned long flags;
 
-	XE_WARN_ON(xe_device_guc_submission_enabled(gt_to_xe(q->gt)));
+	xe_assert(xe, !xe_device_guc_submission_enabled(xe));
 
 	spin_lock_irqsave(&exl->port->lock, flags);
 	if (WARN_ON(exl->active_priority != XE_EXEC_QUEUE_PRIORITY_UNSET))
@@ -377,7 +379,7 @@ static void execlist_exec_queue_fini_async(struct work_struct *w)
 	spin_unlock_irqrestore(&exl->port->lock, flags);
 
 	if (q->flags & EXEC_QUEUE_FLAG_PERSISTENT)
-		xe_device_remove_persistent_exec_queues(gt_to_xe(q->gt), q);
+		xe_device_remove_persistent_exec_queues(xe, q);
 	drm_sched_entity_fini(&exl->entity);
 	drm_sched_fini(&exl->sched);
 	kfree(exl);

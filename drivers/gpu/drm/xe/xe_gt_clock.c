@@ -58,7 +58,7 @@ int xe_gt_clock_init(struct xe_gt *gt)
 	u32 freq = 0;
 
 	/* Assuming gen11+ so assert this assumption is correct */
-	XE_WARN_ON(GRAPHICS_VER(gt_to_xe(gt)) < 11);
+	xe_gt_assert(gt, GRAPHICS_VER(gt_to_xe(gt)) >= 11);
 
 	if (ctc_reg & CTC_SOURCE_DIVIDE_LOGIC) {
 		freq = read_reference_ts_freq(gt);

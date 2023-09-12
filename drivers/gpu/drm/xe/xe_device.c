@@ -394,7 +394,7 @@ bool xe_device_mem_access_get_if_ongoing(struct xe_device *xe)
 	if (active) {
 		int ref = atomic_inc_return(&xe->mem_access.ref);
 
-		XE_WARN_ON(ref == S32_MAX);
+		xe_assert(xe, ref != S32_MAX);
 	}
 
 	return active;
@@ -436,7 +436,7 @@ void xe_device_mem_access_get(struct xe_device *xe)
 	xe_pm_runtime_get(xe);
 	ref = atomic_inc_return(&xe->mem_access.ref);
 
-	XE_WARN_ON(ref == S32_MAX);
+	xe_assert(xe, ref != S32_MAX);
 
 }
 
@@ -450,5 +450,5 @@ void xe_device_mem_access_put(struct xe_device *xe)
 	ref = atomic_dec_return(&xe->mem_access.ref);
 	xe_pm_runtime_put(xe);
 
-	XE_WARN_ON(ref < 0);
+	xe_assert(xe, ref >= 0);
 }

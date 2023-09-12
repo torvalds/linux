@@ -116,7 +116,7 @@ static void set_offsets(u32 *regs,
 		*regs |= MI_LRI_LRM_CS_MMIO;
 		regs++;
 
-		XE_WARN_ON(!count);
+		xe_gt_assert(hwe->gt, count);
 		do {
 			u32 offset = 0;
 			u8 v;
@@ -608,7 +608,7 @@ static inline struct iosys_map __xe_lrc_##elem##_map(struct xe_lrc *lrc) \
 { \
 	struct iosys_map map = lrc->bo->vmap; \
 \
-	XE_WARN_ON(iosys_map_is_null(&map)); \
+	xe_assert(lrc_to_xe(lrc), !iosys_map_is_null(&map));  \
 	iosys_map_incr(&map, __xe_lrc_##elem##_offset(lrc)); \
 	return map; \
 } \
@@ -827,16 +827,17 @@ static void __xe_lrc_write_ring(struct xe_lrc *lrc, struct iosys_map ring,
 
 void xe_lrc_write_ring(struct xe_lrc *lrc, const void *data, size_t size)
 {
+	struct xe_device *xe = lrc_to_xe(lrc);
 	struct iosys_map ring;
 	u32 rhs;
 	size_t aligned_size;
 
-	XE_WARN_ON(!IS_ALIGNED(size, 4));
+	xe_assert(xe, IS_ALIGNED(size, 4));
 	aligned_size = ALIGN(size, 8);
 
 	ring = __xe_lrc_ring_map(lrc);
 
-	XE_WARN_ON(lrc->ring.tail >= lrc->ring.size);
+	xe_assert(xe, lrc->ring.tail < lrc->ring.size);
 	rhs = lrc->ring.size - lrc->ring.tail;
 	if (size > rhs) {
 		__xe_lrc_write_ring(lrc, ring, data, rhs);

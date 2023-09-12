@@ -6,8 +6,8 @@
 #ifndef _XE_FORCE_WAKE_H_
 #define _XE_FORCE_WAKE_H_
 
+#include "xe_assert.h"
 #include "xe_force_wake_types.h"
-#include "xe_macros.h"
 
 struct xe_gt;
 
@@ -24,7 +24,7 @@ static inline int
 xe_force_wake_ref(struct xe_force_wake *fw,
 		  enum xe_force_wake_domains domain)
 {
-	XE_WARN_ON(!domain);
+	xe_gt_assert(fw->gt, domain);
 	return fw->domains[ffs(domain) - 1].ref;
 }
 
@@ -32,7 +32,7 @@ static inline void
 xe_force_wake_assert_held(struct xe_force_wake *fw,
 			  enum xe_force_wake_domains domain)
 {
-	XE_WARN_ON(!(fw->awake_domains & domain));
+	xe_gt_assert(fw->gt, fw->awake_domains & domain);
 }
 
 #endif

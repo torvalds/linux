@@ -196,7 +196,7 @@ struct xe_pt *xe_pt_create(struct xe_vm *vm, struct xe_tile *tile,
 	pt->level = level;
 	pt->base.dir = level ? &as_xe_pt_dir(pt)->dir : NULL;
 
-	XE_WARN_ON(level > XE_VM_MAX_LEVEL);
+	xe_tile_assert(tile, level <= XE_VM_MAX_LEVEL);
 
 	return pt;
 
@@ -1004,7 +1004,7 @@ xe_pt_prepare_bind(struct xe_tile *tile, struct xe_vma *vma,
 	*num_entries = 0;
 	err = xe_pt_stage_bind(tile, vma, entries, num_entries);
 	if (!err)
-		XE_WARN_ON(!*num_entries);
+		xe_tile_assert(tile, *num_entries);
 	else /* abort! */
 		xe_pt_abort_bind(vma, entries, *num_entries);
 
@@ -1026,7 +1026,7 @@ static void xe_vm_dbg_print_entries(struct xe_device *xe,
 		u64 end;
 		u64 start;
 
-		XE_WARN_ON(entry->pt->is_compact);
+		xe_assert(xe, !entry->pt->is_compact);
 		start = entry->ofs * page_size;
 		end = start + page_size * entry->qwords;
 		vm_dbg(&xe->drm,
@@ -1276,7 +1276,7 @@ static int invalidation_fence_init(struct xe_gt *gt,
 		dma_fence_put(&ifence->base.base);	/* Creation ref */
 	}
 
-	XE_WARN_ON(ret && ret != -ENOENT);
+	xe_gt_assert(gt, !ret || ret == -ENOENT);
 
 	return ret && ret != -ENOENT ? ret : 0;
 }
@@ -1356,7 +1356,7 @@ __xe_pt_bind_vma(struct xe_tile *tile, struct xe_vma *vma, struct xe_exec_queue 
 	err = xe_pt_prepare_bind(tile, vma, entries, &num_entries, rebind);
 	if (err)
 		goto err;
-	XE_WARN_ON(num_entries > ARRAY_SIZE(entries));
+	xe_tile_assert(tile, num_entries <= ARRAY_SIZE(entries));
 
 	xe_vm_dbg_print_entries(tile_to_xe(tile), entries, num_entries);
 	xe_pt_calc_rfence_interval(vma, &bind_pt_update, entries,
@@ -1707,7 +1707,7 @@ __xe_pt_unbind_vma(struct xe_tile *tile, struct xe_vma *vma, struct xe_exec_queu
 	       xe_vma_start(vma), xe_vma_end(vma) - 1, q);
 
 	num_entries = xe_pt_stage_unbind(tile, vma, entries);
-	XE_WARN_ON(num_entries > ARRAY_SIZE(entries));
+	xe_tile_assert(tile, num_entries <= ARRAY_SIZE(entries));
 
 	xe_vm_dbg_print_entries(tile_to_xe(tile), entries, num_entries);
 	xe_pt_calc_rfence_interval(vma, &unbind_pt_update, entries,
@@ -1773,7 +1773,7 @@ __xe_pt_unbind_vma(struct xe_tile *tile, struct xe_vma *vma, struct xe_exec_queu
 		list_del_init(&vma->combined_links.rebind);
 
 	if (unbind_pt_update.locked) {
-		XE_WARN_ON(!xe_vma_is_userptr(vma));
+		xe_tile_assert(tile, xe_vma_is_userptr(vma));
 
 		if (!vma->tile_present) {
 			spin_lock(&vm->userptr.invalidated_lock);

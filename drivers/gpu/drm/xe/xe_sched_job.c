@@ -143,7 +143,7 @@ struct xe_sched_job *xe_sched_job_create(struct xe_exec_queue *q,
 
 		/* Sanity check */
 		for (j = 0; j < q->width; ++j)
-			XE_WARN_ON(cf->base.seqno != fences[j]->seqno);
+			xe_assert(job_to_xe(job), cf->base.seqno == fences[j]->seqno);
 
 		job->fence = &cf->base;
 	}

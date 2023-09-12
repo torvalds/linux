@@ -66,7 +66,7 @@ __xe_bb_create_job(struct xe_exec_queue *q, struct xe_bb *bb, u64 *addr)
 
 	bb->cs[bb->len++] = MI_BATCH_BUFFER_END;
 
-	WARN_ON(bb->len * 4 + bb_prefetch(q->gt) > size);
+	xe_gt_assert(q->gt, bb->len * 4 + bb_prefetch(q->gt) <= size);
 
 	xe_sa_bo_flush_write(bb->bo);
 
@@ -84,8 +84,8 @@ struct xe_sched_job *xe_bb_create_migration_job(struct xe_exec_queue *q,
 		4 * second_idx,
 	};
 
-	XE_WARN_ON(second_idx > bb->len);
-	XE_WARN_ON(!(q->vm->flags & XE_VM_FLAG_MIGRATION));
+	xe_gt_assert(q->gt, second_idx <= bb->len);
+	xe_gt_assert(q->gt, q->vm->flags & XE_VM_FLAG_MIGRATION);
 
 	return __xe_bb_create_job(q, bb, addr);
 }
@@ -95,7 +95,7 @@ struct xe_sched_job *xe_bb_create_job(struct xe_exec_queue *q,
 {
 	u64 addr = xe_sa_bo_gpu_addr(bb->bo);
 
-	XE_WARN_ON(q->vm && q->vm->flags & XE_VM_FLAG_MIGRATION);
+	xe_gt_assert(q->gt, !(q->vm && q->vm->flags & XE_VM_FLAG_MIGRATION));
 	return __xe_bb_create_job(q, bb, &addr);
 }
 

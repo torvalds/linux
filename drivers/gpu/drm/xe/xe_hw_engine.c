@@ -10,6 +10,7 @@
 #include "regs/xe_engine_regs.h"
 #include "regs/xe_gt_regs.h"
 #include "regs/xe_regs.h"
+#include "xe_assert.h"
 #include "xe_bo.h"
 #include "xe_device.h"
 #include "xe_execlist.h"
@@ -244,7 +245,7 @@ static void hw_engine_fini(struct drm_device *drm, void *arg)
 static void hw_engine_mmio_write32(struct xe_hw_engine *hwe, struct xe_reg reg,
 				   u32 val)
 {
-	XE_WARN_ON(reg.addr & hwe->mmio_base);
+	xe_gt_assert(hwe->gt, !(reg.addr & hwe->mmio_base));
 	xe_force_wake_assert_held(gt_to_fw(hwe->gt), hwe->domain);
 
 	reg.addr += hwe->mmio_base;
@@ -254,7 +255,7 @@ static void hw_engine_mmio_write32(struct xe_hw_engine *hwe, struct xe_reg reg,
 
 static u32 hw_engine_mmio_read32(struct xe_hw_engine *hwe, struct xe_reg reg)
 {
-	XE_WARN_ON(reg.addr & hwe->mmio_base);
+	xe_gt_assert(hwe->gt, !(reg.addr & hwe->mmio_base));
 	xe_force_wake_assert_held(gt_to_fw(hwe->gt), hwe->domain);
 
 	reg.addr += hwe->mmio_base;
@@ -374,7 +375,7 @@ static void hw_engine_init_early(struct xe_gt *gt, struct xe_hw_engine *hwe,
 
 	info = &engine_infos[id];
 
-	XE_WARN_ON(hwe->gt);
+	xe_gt_assert(gt, !hwe->gt);
 
 	hwe->gt = gt;
 	hwe->class = info->class;
@@ -415,8 +416,8 @@ static int hw_engine_init(struct xe_gt *gt, struct xe_hw_engine *hwe,
 	struct xe_tile *tile = gt_to_tile(gt);
 	int err;
 
-	XE_WARN_ON(id >= ARRAY_SIZE(engine_infos) || !engine_infos[id].name);
-	XE_WARN_ON(!(gt->info.engine_mask & BIT(id)));
+	xe_gt_assert(gt, id < ARRAY_SIZE(engine_infos) && engine_infos[id].name);
+	xe_gt_assert(gt, gt->info.engine_mask & BIT(id));
 
 	xe_reg_sr_apply_mmio(&hwe->reg_sr, gt);
 	xe_reg_sr_apply_whitelist(hwe);

@@ -162,7 +162,7 @@ int xe_uc_init_hw(struct xe_uc *uc)
 
 	/* We don't fail the driver load if HuC fails to auth, but let's warn */
 	ret = xe_huc_auth(&uc->huc);
-	XE_WARN_ON(ret);
+	xe_gt_assert(uc_to_gt(uc), !ret);
 
 	return 0;
 }
