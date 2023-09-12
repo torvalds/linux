@@ -6,6 +6,7 @@ bpf_loop                                 # attaches to __x64_sys_nanosleep
 cgrp_local_storage                       # prog_attach unexpected error: -524                                          (trampoline)
 dynptr/test_dynptr_skb_data
 dynptr/test_skb_readonly
+exceptions				 # JIT does not support calling kfunc bpf_throw				       (exceptions)
 fexit_sleep                              # fexit_skel_load fexit skeleton failed                                       (trampoline)
 get_stack_raw_tp                         # user_stack corrupted user stack                                             (no backchain userspace)
 iters/testmod_seq*                       # s390x doesn't support kfuncs in modules yet
