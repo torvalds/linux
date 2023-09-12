@@ -478,6 +478,9 @@ int do_ipv6_setsockopt(struct sock *sk, int level, int optname,
 		inet6_assign_bit(AUTOFLOWLABEL, sk, valbool);
 		inet6_set_bit(AUTOFLOWLABEL_SET, sk);
 		return 0;
+	case IPV6_DONTFRAG:
+		inet6_assign_bit(DONTFRAG, sk, valbool);
+		return 0;
 	}
 	if (needs_rtnl)
 		rtnl_lock();
@@ -970,10 +973,6 @@ done:
 			goto e_inval;
 		retv = __ip6_sock_set_addr_preferences(sk, val);
 		break;
-	case IPV6_DONTFRAG:
-		np->dontfrag = valbool;
-		retv = 0;
-		break;
 	case IPV6_RECVFRAGSIZE:
 		np->rxopt.bits.recvfragsize = valbool;
 		retv = 0;
@@ -1442,7 +1441,7 @@ int do_ipv6_getsockopt(struct sock *sk, int level, int optname,
 		break;
 
 	case IPV6_DONTFRAG:
-		val = np->dontfrag;
+		val = inet6_test_bit(DONTFRAG, sk);
 		break;
 
 	case IPV6_AUTOFLOWLABEL:

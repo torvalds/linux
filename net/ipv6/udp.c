@@ -1595,7 +1595,7 @@ back_from_confirm:
 
 do_append_data:
 	if (ipc6.dontfrag < 0)
-		ipc6.dontfrag = np->dontfrag;
+		ipc6.dontfrag = inet6_test_bit(DONTFRAG, sk);
 	up->len += ulen;
 	err = ip6_append_data(sk, getfrag, msg, ulen, sizeof(struct udphdr),
 			      &ipc6, fl6, (struct rt6_info *)dst,

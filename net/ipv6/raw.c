@@ -898,7 +898,7 @@ static int rawv6_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 		ipc6.hlimit = ip6_sk_dst_hoplimit(np, &fl6, dst);
 
 	if (ipc6.dontfrag < 0)
-		ipc6.dontfrag = np->dontfrag;
+		ipc6.dontfrag = inet6_test_bit(DONTFRAG, sk);
 
 	if (msg->msg_flags&MSG_CONFIRM)
 		goto do_confirm;

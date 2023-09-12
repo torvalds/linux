@@ -252,7 +252,6 @@ struct ipv6_pinfo {
 						 * 010: prefer public address
 						 * 100: prefer care-of address
 						 */
-				dontfrag:1,
 				rtalert_isolate:1;
 	__u8			min_hopcount;
 	__u8			tclass;
