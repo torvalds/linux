@@ -5457,6 +5457,24 @@ get_output_color_space(const struct dc_crtc_timing *dc_crtc_timing,
 	return color_space;
 }
 
+static enum display_content_type
+get_output_content_type(const struct drm_connector_state *connector_state)
+{
+	switch (connector_state->content_type) {
+	default:
+	case DRM_MODE_CONTENT_TYPE_NO_DATA:
+		return DISPLAY_CONTENT_TYPE_NO_DATA;
+	case DRM_MODE_CONTENT_TYPE_GRAPHICS:
+		return DISPLAY_CONTENT_TYPE_GRAPHICS;
+	case DRM_MODE_CONTENT_TYPE_PHOTO:
+		return DISPLAY_CONTENT_TYPE_PHOTO;
+	case DRM_MODE_CONTENT_TYPE_CINEMA:
+		return DISPLAY_CONTENT_TYPE_CINEMA;
+	case DRM_MODE_CONTENT_TYPE_GAME:
+		return DISPLAY_CONTENT_TYPE_GAME;
+	}
+}
+
 static bool adjust_colour_depth_from_display_info(
 	struct dc_crtc_timing *timing_out,
 	const struct drm_display_info *info)
@@ -5591,6 +5609,7 @@ static void fill_stream_properties_from_drm_display_mode(
 	}
 
 	stream->output_color_space = get_output_color_space(timing_out, connector_state);
+	stream->content_type = get_output_content_type(connector_state);
 }
 
 static void fill_audio_info(struct audio_info *audio_info,
@@ -6791,6 +6810,14 @@ amdgpu_dm_connector_atomic_check(struct drm_connector *conn,
 		new_crtc_state->mode_changed = true;
 	}
 
+	if (new_con_state->content_type != old_con_state->content_type) {
+		new_crtc_state = drm_atomic_get_crtc_state(state, crtc);
+		if (IS_ERR(new_crtc_state))
+			return PTR_ERR(new_crtc_state);
+
+		new_crtc_state->mode_changed = true;
+	}
+
 	if (!drm_connector_atomic_hdr_metadata_equal(old_con_state, new_con_state)) {
 		struct dc_info_packet hdr_infopacket;
 
@@ -7424,6 +7451,11 @@ void amdgpu_dm_connector_init_helper(struct amdgpu_display_manager *dm,
 	    (dc_is_dmcu_initialized(adev->dm.dc) || adev->dm.dc->ctx->dmub_srv)) {
 		drm_object_attach_property(&aconnector->base.base,
 				adev->mode_info.abm_level_property, 0);
+	}
+
+	if (connector_type == DRM_MODE_CONNECTOR_HDMIA) {
+		/* Content Type is currently only implemented for HDMI. */
+		drm_connector_attach_content_type_property(&aconnector->base);
 	}
 
 	if (connector_type == DRM_MODE_CONNECTOR_HDMIA) {

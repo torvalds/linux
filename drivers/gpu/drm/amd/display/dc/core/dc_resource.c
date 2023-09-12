@@ -3928,14 +3928,9 @@ static void set_avi_info_frame(
 	uint32_t pixel_encoding = 0;
 	enum scanning_type scan_type = SCANNING_TYPE_NODATA;
 	enum dc_aspect_ratio aspect = ASPECT_RATIO_NO_DATA;
-	bool itc = false;
-	uint8_t itc_value = 0;
-	uint8_t cn0_cn1 = 0;
-	unsigned int cn0_cn1_value = 0;
 	uint8_t *check_sum = NULL;
 	uint8_t byte_index = 0;
 	union hdmi_info_packet hdmi_info;
-	union display_content_support support = {0};
 	unsigned int vic = pipe_ctx->stream->timing.vic;
 	unsigned int rid = pipe_ctx->stream->timing.rid;
 	unsigned int fr_ind = pipe_ctx->stream->timing.fr_index;
@@ -4045,49 +4040,27 @@ static void set_avi_info_frame(
 	/* Active Format Aspect ratio - same as Picture Aspect Ratio. */
 	hdmi_info.bits.R0_R3 = ACTIVE_FORMAT_ASPECT_RATIO_SAME_AS_PICTURE;
 
-	/* TODO: un-hardcode cn0_cn1 and itc */
-
-	cn0_cn1 = 0;
-	cn0_cn1_value = 0;
-
-	itc = true;
-	itc_value = 1;
-
-	support = stream->content_support;
-
-	if (itc) {
-		if (!support.bits.valid_content_type) {
-			cn0_cn1_value = 0;
-		} else {
-			if (cn0_cn1 == DISPLAY_CONTENT_TYPE_GRAPHICS) {
-				if (support.bits.graphics_content == 1) {
-					cn0_cn1_value = 0;
-				}
-			} else if (cn0_cn1 == DISPLAY_CONTENT_TYPE_PHOTO) {
-				if (support.bits.photo_content == 1) {
-					cn0_cn1_value = 1;
-				} else {
-					cn0_cn1_value = 0;
-					itc_value = 0;
-				}
-			} else if (cn0_cn1 == DISPLAY_CONTENT_TYPE_CINEMA) {
-				if (support.bits.cinema_content == 1) {
-					cn0_cn1_value = 2;
-				} else {
-					cn0_cn1_value = 0;
-					itc_value = 0;
-				}
-			} else if (cn0_cn1 == DISPLAY_CONTENT_TYPE_GAME) {
-				if (support.bits.game_content == 1) {
-					cn0_cn1_value = 3;
-				} else {
-					cn0_cn1_value = 0;
-					itc_value = 0;
-				}
-			}
-		}
-		hdmi_info.bits.CN0_CN1 = cn0_cn1_value;
-		hdmi_info.bits.ITC = itc_value;
+	switch (stream->content_type) {
+	case DISPLAY_CONTENT_TYPE_NO_DATA:
+		hdmi_info.bits.CN0_CN1 = 0;
+		hdmi_info.bits.ITC = 0;
+		break;
+	case DISPLAY_CONTENT_TYPE_GRAPHICS:
+		hdmi_info.bits.CN0_CN1 = 0;
+		hdmi_info.bits.ITC = 1;
+		break;
+	case DISPLAY_CONTENT_TYPE_PHOTO:
+		hdmi_info.bits.CN0_CN1 = 1;
+		hdmi_info.bits.ITC = 1;
+		break;
+	case DISPLAY_CONTENT_TYPE_CINEMA:
+		hdmi_info.bits.CN0_CN1 = 2;
+		hdmi_info.bits.ITC = 1;
+		break;
+	case DISPLAY_CONTENT_TYPE_GAME:
+		hdmi_info.bits.CN0_CN1 = 3;
+		hdmi_info.bits.ITC = 1;
+		break;
 	}
 
 	if (stream->qs_bit == 1) {

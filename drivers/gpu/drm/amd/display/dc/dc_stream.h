@@ -212,6 +212,7 @@ struct dc_stream_state {
 	struct dc_csc_transform csc_color_matrix;
 
 	enum dc_color_space output_color_space;
+	enum display_content_type content_type;
 	enum dc_dither_option dither_option;
 
 	enum view_3d_format view_format;
