@@ -154,6 +154,47 @@ static int aspeed_rsa_transfer(struct aspeed_rsss_dev *rsss_dev)
 	return aspeed_rsa_complete(rsss_dev, 0);
 }
 
+static int aspeed_rsa_wait_complete(struct aspeed_rsss_dev *rsss_dev)
+{
+	struct aspeed_engine_rsa *rsa_engine = &rsss_dev->rsa_engine;
+	u32 sts;
+	int ret;
+
+	ret = readl_poll_timeout(rsss_dev->regs + ASPEED_RSA_ENG_STS, sts,
+				 ((sts & RSA_STS) == 0x0),
+				 ASPEED_RSSS_POLLING_TIME,
+				 ASPEED_RSSS_TIMEOUT * 10);
+	if (ret) {
+		dev_err(rsss_dev->dev, "RSA wrong engine status\n");
+		return -EIO;
+	}
+
+	ret = readl_poll_timeout(rsss_dev->regs + ASPEED_RSSS_INT_STS, sts,
+				 ((sts & RSA_INT_DONE) == RSA_INT_DONE),
+				 ASPEED_RSSS_POLLING_TIME,
+				 ASPEED_RSSS_TIMEOUT);
+	if (ret) {
+		dev_err(rsss_dev->dev, "RSA wrong interrupt status\n");
+		return -EIO;
+	}
+
+	ast_rsss_write(rsss_dev, sts, ASPEED_RSSS_INT_STS);
+
+	RSSS_DBG(rsss_dev, "irq sts:0x%x\n", sts);
+
+	if (sts & RSA_INT_DONE) {
+		/* Stop RSA engine */
+		ast_rsss_write(rsss_dev, 0, ASPEED_RSA_TRIGGER);
+
+		if (rsa_engine->flags & CRYPTO_FLAGS_BUSY)
+			tasklet_schedule(&rsa_engine->done_task);
+		else
+			dev_err(rsss_dev->dev, "RSA no active requests.\n");
+	}
+
+	return 0;
+}
+
 static int aspeed_rsa_trigger(struct aspeed_rsss_dev *rsss_dev)
 {
 	struct aspeed_engine_rsa *rsa_engine = &rsss_dev->rsa_engine;
@@ -219,7 +260,7 @@ static int aspeed_rsa_trigger(struct aspeed_rsss_dev *rsss_dev)
 	/* Trigger RSA engines */
 	ast_rsss_write(rsss_dev, RSA_TRIGGER, ASPEED_RSA_TRIGGER);
 
-	return 0;
+	return aspeed_rsa_wait_complete(rsss_dev);
 }
 
 static int aspeed_rsa_enc(struct akcipher_request *req)

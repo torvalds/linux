@@ -71,6 +71,8 @@
 #define RSA_E_BITS_LEN(x)		((x) << 16)
 #define RSA_M_BITS_LEN(x)		(x)
 
+#define RSA_STS				(BIT(0) | BIT(1))
+
 /* RSA SRAM */
 #define SRAM_OFFSET_EXP			0x0
 #define SRAM_OFFSET_MOD			0x400
@@ -108,6 +110,9 @@
 
 #define SHA_OP_UPDATE			1
 #define SHA_OP_FINAL			2
+
+#define ASPEED_RSSS_POLLING_TIME	100
+#define ASPEED_RSSS_TIMEOUT		100000	/* 100 ms */
 
 struct aspeed_rsss_dev;
 
