@@ -2127,7 +2127,25 @@ static int alpha_pll_trion_prepare(struct clk_hw *hw)
 
 static int alpha_pll_lucid_prepare(struct clk_hw *hw)
 {
-	return __alpha_pll_trion_prepare(hw, LUCID_PCAL_DONE);
+	struct clk_alpha_pll *pll = to_clk_alpha_pll(hw);
+	u32 val;
+	int ret;
+
+	ret = clk_prepare_regmap(hw);
+	if (ret)
+		return ret;
+
+	/* Return early if calibration is not needed. */
+	regmap_read(pll->clkr.regmap, PLL_MODE(pll), &val);
+	if (val & LUCID_PCAL_DONE)
+		return 0;
+
+	/* On/off to calibrate */
+	ret = clk_trion_pll_enable(hw);
+	if (!ret)
+		clk_trion_pll_disable(hw);
+
+	return ret;
 }
 
 static int __alpha_pll_trion_set_rate(struct clk_hw *hw, unsigned long rate,
@@ -2156,8 +2174,14 @@ static int __alpha_pll_trion_set_rate(struct clk_hw *hw, unsigned long rate,
 	/* Wait for 2 reference cycles before checking the ACK bit. */
 	udelay(1);
 	regmap_read(pll->clkr.regmap, PLL_MODE(pll), &val);
-	if (!(val & latch_ack)) {
-		pr_err("Lucid PLL latch failed. Output may be unstable!\n");
+	if (!(val & PLL_UPDATE_BYPASS)) {
+		ret = wait_for_pll_update(pll);
+		if (ret)
+			WARN_CLK(&pll->clkr.hw, 1, "PLL Update clear failed\n");
+		return ret;
+	} else if (!(val & latch_ack)) {
+		WARN_CLK(&pll->clkr.hw, 1,
+				"Lucid PLL latch failed. Output may be unstable!\n");
 		return -EINVAL;
 	}
 
