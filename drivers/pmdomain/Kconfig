@@ -8,5 +8,6 @@ source "drivers/pmdomain/bcm/Kconfig"
 source "drivers/pmdomain/imx/Kconfig"
 source "drivers/pmdomain/mediatek/Kconfig"
 source "drivers/pmdomain/qcom/Kconfig"
+source "drivers/pmdomain/renesas/Kconfig"
 
 endmenu
