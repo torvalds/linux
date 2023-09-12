@@ -12,6 +12,98 @@
 #include "wx_lib.h"
 #include "wx_hw.h"
 
+static int wx_phy_read_reg_mdi(struct mii_bus *bus, int phy_addr, int devnum, int regnum)
+{
+	struct wx *wx = bus->priv;
+	u32 command, val;
+	int ret;
+
+	/* setup and write the address cycle command */
+	command = WX_MSCA_RA(regnum) |
+		  WX_MSCA_PA(phy_addr) |
+		  WX_MSCA_DA(devnum);
+	wr32(wx, WX_MSCA, command);
+
+	command = WX_MSCC_CMD(WX_MSCA_CMD_READ) | WX_MSCC_BUSY;
+	if (wx->mac.type == wx_mac_em)
+		command |= WX_MDIO_CLK(6);
+	wr32(wx, WX_MSCC, command);
+
+	/* wait to complete */
+	ret = read_poll_timeout(rd32, val, !(val & WX_MSCC_BUSY), 1000,
+				100000, false, wx, WX_MSCC);
+	if (ret) {
+		wx_err(wx, "Mdio read c22 command did not complete.\n");
+		return ret;
+	}
+
+	return (u16)rd32(wx, WX_MSCC);
+}
+
+static int wx_phy_write_reg_mdi(struct mii_bus *bus, int phy_addr,
+				int devnum, int regnum, u16 value)
+{
+	struct wx *wx = bus->priv;
+	u32 command, val;
+	int ret;
+
+	/* setup and write the address cycle command */
+	command = WX_MSCA_RA(regnum) |
+		  WX_MSCA_PA(phy_addr) |
+		  WX_MSCA_DA(devnum);
+	wr32(wx, WX_MSCA, command);
+
+	command = value | WX_MSCC_CMD(WX_MSCA_CMD_WRITE) | WX_MSCC_BUSY;
+	if (wx->mac.type == wx_mac_em)
+		command |= WX_MDIO_CLK(6);
+	wr32(wx, WX_MSCC, command);
+
+	/* wait to complete */
+	ret = read_poll_timeout(rd32, val, !(val & WX_MSCC_BUSY), 1000,
+				100000, false, wx, WX_MSCC);
+	if (ret)
+		wx_err(wx, "Mdio write c22 command did not complete.\n");
+
+	return ret;
+}
+
+int wx_phy_read_reg_mdi_c22(struct mii_bus *bus, int phy_addr, int regnum)
+{
+	struct wx *wx = bus->priv;
+
+	wr32(wx, WX_MDIO_CLAUSE_SELECT, 0xF);
+	return wx_phy_read_reg_mdi(bus, phy_addr, 0, regnum);
+}
+EXPORT_SYMBOL(wx_phy_read_reg_mdi_c22);
+
+int wx_phy_write_reg_mdi_c22(struct mii_bus *bus, int phy_addr, int regnum, u16 value)
+{
+	struct wx *wx = bus->priv;
+
+	wr32(wx, WX_MDIO_CLAUSE_SELECT, 0xF);
+	return wx_phy_write_reg_mdi(bus, phy_addr, 0, regnum, value);
+}
+EXPORT_SYMBOL(wx_phy_write_reg_mdi_c22);
+
+int wx_phy_read_reg_mdi_c45(struct mii_bus *bus, int phy_addr, int devnum, int regnum)
+{
+	struct wx *wx = bus->priv;
+
+	wr32(wx, WX_MDIO_CLAUSE_SELECT, 0);
+	return wx_phy_read_reg_mdi(bus, phy_addr, devnum, regnum);
+}
+EXPORT_SYMBOL(wx_phy_read_reg_mdi_c45);
+
+int wx_phy_write_reg_mdi_c45(struct mii_bus *bus, int phy_addr,
+			     int devnum, int regnum, u16 value)
+{
+	struct wx *wx = bus->priv;
+
+	wr32(wx, WX_MDIO_CLAUSE_SELECT, 0);
+	return wx_phy_write_reg_mdi(bus, phy_addr, devnum, regnum, value);
+}
+EXPORT_SYMBOL(wx_phy_write_reg_mdi_c45);
+
 static void wx_intr_disable(struct wx *wx, u64 qmask)
 {
 	u32 mask;

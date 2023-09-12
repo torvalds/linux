@@ -251,6 +251,7 @@ enum WX_MSCA_CMD_value {
 #define WX_MSCC_SADDR                BIT(18)
 #define WX_MSCC_BUSY                 BIT(22)
 #define WX_MDIO_CLK(v)               FIELD_PREP(GENMASK(21, 19), v)
+#define WX_MDIO_CLAUSE_SELECT        0x11220
 #define WX_MMC_CONTROL               0x11800
 #define WX_MMC_CONTROL_RSTONRD       BIT(2) /* reset on read */
 
