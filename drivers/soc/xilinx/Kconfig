@@ -16,15 +16,6 @@ config ZYNQMP_POWER
 
 	  If in doubt, say N.
 
-config ZYNQMP_PM_DOMAINS
-	bool "Enable Zynq MPSoC generic PM domains"
-	default y
-	depends on PM && ZYNQMP_FIRMWARE
-	select PM_GENERIC_DOMAINS
-	help
-	  Say yes to enable device power management through PM domains
-	  If in doubt, say N.
-
 config XLNX_EVENT_MANAGER
 	bool "Enable Xilinx Event Management Driver"
 	depends on ZYNQMP_FIRMWARE
