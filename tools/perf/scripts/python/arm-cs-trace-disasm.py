@@ -45,8 +45,8 @@ parser = OptionParser(option_list=option_list)
 # Initialize global dicts and regular expression
 disasm_cache = dict()
 cpu_data = dict()
-disasm_re = re.compile("^\s*([0-9a-fA-F]+):")
-disasm_func_re = re.compile("^\s*([0-9a-fA-F]+)\s.*:")
+disasm_re = re.compile(r"^\s*([0-9a-fA-F]+):")
+disasm_func_re = re.compile(r"^\s*([0-9a-fA-F]+)\s.*:")
 cache_size = 64*1024
 
 glb_source_file_name	= None
