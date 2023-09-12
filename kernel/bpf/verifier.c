@@ -15115,20 +15115,18 @@ static int check_abnormal_return(struct bpf_verifier_env *env)
 #define MIN_BPF_FUNCINFO_SIZE	8
 #define MAX_FUNCINFO_REC_SIZE	252
 
-static int check_btf_func(struct bpf_verifier_env *env,
-			  const union bpf_attr *attr,
-			  bpfptr_t uattr)
+static int check_btf_func_early(struct bpf_verifier_env *env,
+				const union bpf_attr *attr,
+				bpfptr_t uattr)
 {
-	const struct btf_type *type, *func_proto, *ret_type;
-	u32 i, nfuncs, urec_size, min_size;
 	u32 krec_size = sizeof(struct bpf_func_info);
+	const struct btf_type *type, *func_proto;
+	u32 i, nfuncs, urec_size, min_size;
 	struct bpf_func_info *krecord;
-	struct bpf_func_info_aux *info_aux = NULL;
 	struct bpf_prog *prog;
 	const struct btf *btf;
-	bpfptr_t urecord;
 	u32 prev_offset = 0;
-	bool scalar_return;
+	bpfptr_t urecord;
 	int ret = -ENOMEM;
 
 	nfuncs = attr->func_info_cnt;
@@ -15136,11 +15134,6 @@ static int check_btf_func(struct bpf_verifier_env *env,
 		if (check_abnormal_return(env))
 			return -EINVAL;
 		return 0;
-	}
-
-	if (nfuncs != env->subprog_cnt) {
-		verbose(env, "number of funcs in func_info doesn't match number of subprogs\n");
-		return -EINVAL;
 	}
 
 	urec_size = attr->func_info_rec_size;
@@ -15160,9 +15153,6 @@ static int check_btf_func(struct bpf_verifier_env *env,
 	krecord = kvcalloc(nfuncs, krec_size, GFP_KERNEL | __GFP_NOWARN);
 	if (!krecord)
 		return -ENOMEM;
-	info_aux = kcalloc(nfuncs, sizeof(*info_aux), GFP_KERNEL | __GFP_NOWARN);
-	if (!info_aux)
-		goto err_free;
 
 	for (i = 0; i < nfuncs; i++) {
 		ret = bpf_check_uarg_tail_zero(urecord, krec_size, urec_size);
@@ -15201,11 +15191,6 @@ static int check_btf_func(struct bpf_verifier_env *env,
 			goto err_free;
 		}
 
-		if (env->subprog_info[i].start != krecord[i].insn_off) {
-			verbose(env, "func_info BTF section doesn't match subprog layout in BPF program\n");
-			goto err_free;
-		}
-
 		/* check type_id */
 		type = btf_type_by_id(btf, krecord[i].type_id);
 		if (!type || !btf_type_is_func(type)) {
@@ -15213,12 +15198,80 @@ static int check_btf_func(struct bpf_verifier_env *env,
 				krecord[i].type_id);
 			goto err_free;
 		}
-		info_aux[i].linkage = BTF_INFO_VLEN(type->info);
 
 		func_proto = btf_type_by_id(btf, type->type);
 		if (unlikely(!func_proto || !btf_type_is_func_proto(func_proto)))
 			/* btf_func_check() already verified it during BTF load */
 			goto err_free;
+
+		prev_offset = krecord[i].insn_off;
+		bpfptr_add(&urecord, urec_size);
+	}
+
+	prog->aux->func_info = krecord;
+	prog->aux->func_info_cnt = nfuncs;
+	return 0;
+
+err_free:
+	kvfree(krecord);
+	return ret;
+}
+
+static int check_btf_func(struct bpf_verifier_env *env,
+			  const union bpf_attr *attr,
+			  bpfptr_t uattr)
+{
+	const struct btf_type *type, *func_proto, *ret_type;
+	u32 i, nfuncs, urec_size, min_size;
+	u32 krec_size = sizeof(struct bpf_func_info);
+	struct bpf_func_info *krecord;
+	struct bpf_func_info_aux *info_aux = NULL;
+	struct bpf_prog *prog;
+	const struct btf *btf;
+	bpfptr_t urecord;
+	u32 prev_offset = 0;
+	bool scalar_return;
+	int ret = -ENOMEM;
+
+	nfuncs = attr->func_info_cnt;
+	if (!nfuncs) {
+		if (check_abnormal_return(env))
+			return -EINVAL;
+		return 0;
+	}
+	if (nfuncs != env->subprog_cnt) {
+		verbose(env, "number of funcs in func_info doesn't match number of subprogs\n");
+		return -EINVAL;
+	}
+
+	urec_size = attr->func_info_rec_size;
+
+	prog = env->prog;
+	btf = prog->aux->btf;
+
+	urecord = make_bpfptr(attr->func_info, uattr.is_kernel);
+	min_size = min_t(u32, krec_size, urec_size);
+
+	krecord = prog->aux->func_info;
+	info_aux = kcalloc(nfuncs, sizeof(*info_aux), GFP_KERNEL | __GFP_NOWARN);
+	if (!info_aux)
+		return -ENOMEM;
+
+	for (i = 0; i < nfuncs; i++) {
+		/* check insn_off */
+		ret = -EINVAL;
+
+		if (env->subprog_info[i].start != krecord[i].insn_off) {
+			verbose(env, "func_info BTF section doesn't match subprog layout in BPF program\n");
+			goto err_free;
+		}
+
+		/* Already checked type_id */
+		type = btf_type_by_id(btf, krecord[i].type_id);
+		info_aux[i].linkage = BTF_INFO_VLEN(type->info);
+		/* Already checked func_proto */
+		func_proto = btf_type_by_id(btf, type->type);
+
 		ret_type = btf_type_skip_modifiers(btf, func_proto->type, NULL);
 		scalar_return =
 			btf_type_is_small_int(ret_type) || btf_is_any_enum(ret_type);
@@ -15235,13 +15288,10 @@ static int check_btf_func(struct bpf_verifier_env *env,
 		bpfptr_add(&urecord, urec_size);
 	}
 
-	prog->aux->func_info = krecord;
-	prog->aux->func_info_cnt = nfuncs;
 	prog->aux->func_info_aux = info_aux;
 	return 0;
 
 err_free:
-	kvfree(krecord);
 	kfree(info_aux);
 	return ret;
 }
@@ -15459,9 +15509,9 @@ static int check_core_relo(struct bpf_verifier_env *env,
 	return err;
 }
 
-static int check_btf_info(struct bpf_verifier_env *env,
-			  const union bpf_attr *attr,
-			  bpfptr_t uattr)
+static int check_btf_info_early(struct bpf_verifier_env *env,
+				const union bpf_attr *attr,
+				bpfptr_t uattr)
 {
 	struct btf *btf;
 	int err;
@@ -15480,6 +15530,24 @@ static int check_btf_info(struct bpf_verifier_env *env,
 		return -EACCES;
 	}
 	env->prog->aux->btf = btf;
+
+	err = check_btf_func_early(env, attr, uattr);
+	if (err)
+		return err;
+	return 0;
+}
+
+static int check_btf_info(struct bpf_verifier_env *env,
+			  const union bpf_attr *attr,
+			  bpfptr_t uattr)
+{
+	int err;
+
+	if (!attr->func_info_cnt && !attr->line_info_cnt) {
+		if (check_abnormal_return(env))
+			return -EINVAL;
+		return 0;
+	}
 
 	err = check_btf_func(env, attr, uattr);
 	if (err)
@@ -19988,6 +20056,10 @@ int bpf_check(struct bpf_prog **prog, union bpf_attr *attr, bpfptr_t uattr, __u3
 				       GFP_USER);
 	ret = -ENOMEM;
 	if (!env->explored_states)
+		goto skip_full_check;
+
+	ret = check_btf_info_early(env, attr, uattr);
+	if (ret < 0)
 		goto skip_full_check;
 
 	ret = add_subprog_and_kfunc(env);
