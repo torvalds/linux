@@ -39,6 +39,7 @@ enum {
 	UDP_FLAGS_GRO_ENABLED,	/* Request GRO aggregation */
 	UDP_FLAGS_ACCEPT_FRAGLIST,
 	UDP_FLAGS_ACCEPT_L4,
+	UDP_FLAGS_ENCAP_ENABLED, /* This socket enabled encap */
 };
 
 struct udp_sock {
@@ -52,11 +53,7 @@ struct udp_sock {
 
 	int		 pending;	/* Any pending frames ? */
 	__u8		 encap_type;	/* Is this an Encapsulation socket? */
-	unsigned char	 encap_enabled:1; /* This socket enabled encap
-					   * processing; UDP tunnels and
-					   * different encapsulation layer set
-					   * this
-					   */
+
 /* indicator bits used by pcflag: */
 #define UDPLITE_BIT      0x1  		/* set by udplite proto init function */
 #define UDPLITE_SEND_CC  0x2  		/* set via udplite setsockopt         */
@@ -104,6 +101,8 @@ struct udp_sock {
 	test_bit(UDP_FLAGS_##nr, &udp_sk(sk)->udp_flags)
 #define udp_set_bit(nr, sk)			\
 	set_bit(UDP_FLAGS_##nr, &udp_sk(sk)->udp_flags)
+#define udp_test_and_set_bit(nr, sk)		\
+	test_and_set_bit(UDP_FLAGS_##nr, &udp_sk(sk)->udp_flags)
 #define udp_clear_bit(nr, sk)			\
 	clear_bit(UDP_FLAGS_##nr, &udp_sk(sk)->udp_flags)
 #define udp_assign_bit(nr, sk, val)		\
