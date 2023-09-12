@@ -12,5 +12,6 @@ source "drivers/pmdomain/renesas/Kconfig"
 source "drivers/pmdomain/rockchip/Kconfig"
 source "drivers/pmdomain/samsung/Kconfig"
 source "drivers/pmdomain/st/Kconfig"
+source "drivers/pmdomain/starfive/Kconfig"
 
 endmenu
