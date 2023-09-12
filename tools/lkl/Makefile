@@ -13,7 +13,10 @@ ifneq ($(silent),1)
   endif
 endif
 
-PREFIX   := /usr
+PREFIX := /usr
+BINDIR := $(PREFIX)/bin
+INCDIR := $(PREFIX)/include
+LIBDIR := $(PREFIX)/lib
 
 ifeq (,$(srctree))
   srctree := $(patsubst %/,%,$(dir $(shell pwd)))
@@ -119,20 +122,20 @@ clean-conf: clean
 
 headers_install: $(TARGETS)
 	$(call QUIET_INSTALL, headers) \
-	    install -d $(DESTDIR)$(PREFIX)/include ; \
+	    install -d $(DESTDIR)$(INCDIR) ; \
 	    install -m 644 include/lkl.h include/lkl_host.h $(OUTPUT)include/lkl_autoconf.h \
-	      include/lkl_config.h $(DESTDIR)$(PREFIX)/include ; \
-	    cp -r $(OUTPUT)include/lkl $(DESTDIR)$(PREFIX)/include
+	      include/lkl_config.h $(DESTDIR)$(INCDIR) ; \
+	    cp -r $(OUTPUT)include/lkl $(DESTDIR)$(INCDIR)
 
 libraries_install: $(libs-y:%=$(OUTPUT)%$(SOSUF)) $(OUTPUT)liblkl.a
 	$(call QUIET_INSTALL, libraries) \
-	    install -d $(DESTDIR)$(PREFIX)/lib ; \
-	    install -m 644 $^ $(DESTDIR)$(PREFIX)/lib
+	    install -d $(DESTDIR)$(LIBDIR) ; \
+	    install -m 644 $^ $(DESTDIR)$(LIBDIR)
 
 programs_install: $(progs-y:%=$(OUTPUT)%$(EXESUF))
 	$(call QUIET_INSTALL, programs) \
-	    install -d $(DESTDIR)$(PREFIX)/bin ; \
-	    install -m 755 $^ $(DESTDIR)$(PREFIX)/bin
+	    install -d $(DESTDIR)$(BINDIR) ; \
+	    install -m 755 $^ $(DESTDIR)$(BINDIR)
 
 install: headers_install libraries_install programs_install
 
