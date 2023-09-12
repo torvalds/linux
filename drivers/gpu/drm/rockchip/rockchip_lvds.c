@@ -646,7 +646,7 @@ static const struct rockchip_lvds_funcs rk3368_lvds_funcs = {
 	.disable = rk3368_lvds_disable,
 };
 
-static int __maybe_unused rockchip_secondary_lvds_probe(struct rockchip_lvds *lvds)
+static int rk3568_lvds_probe(struct rockchip_lvds *lvds)
 {
 	if (lvds->dual_channel) {
 		struct rockchip_lvds *secondary = NULL;
@@ -692,19 +692,37 @@ static const struct rockchip_lvds_funcs rk3562_lvds_funcs = {
 
 static void rk3568_lvds_enable(struct rockchip_lvds *lvds)
 {
-	regmap_write(lvds->grf, RK3568_GRF_VO_CON2,
-		     RK3568_LVDS0_MODE_EN(1) | RK3568_LVDS0_P2S_EN(1) |
-		     RK3568_LVDS0_DCLK_INV_SEL(1));
-	regmap_write(lvds->grf, RK3568_GRF_VO_CON0,
-		     RK3568_LVDS0_SELECT(lvds->format) | RK3568_LVDS0_MSBSEL(1));
+	if (lvds->id) {
+		regmap_write(lvds->grf, RK3568_GRF_VO_CON3,
+			     RK3568_LVDS1_MODE_EN(1) |
+			     RK3568_LVDS1_P2S_EN(1) |
+			     RK3568_LVDS1_DCLK_INV_SEL(1));
+		regmap_write(lvds->grf, RK3568_GRF_VO_CON0,
+			     RK3568_LVDS1_SELECT(lvds->format) |
+			     RK3568_LVDS1_MSBSEL(1));
+	} else {
+		regmap_write(lvds->grf, RK3568_GRF_VO_CON2,
+			     RK3568_LVDS0_MODE_EN(1) |
+			     RK3568_LVDS0_P2S_EN(1) |
+			     RK3568_LVDS0_DCLK_INV_SEL(1));
+		regmap_write(lvds->grf, RK3568_GRF_VO_CON0,
+			     RK3568_LVDS0_SELECT(lvds->format) |
+			     RK3568_LVDS0_MSBSEL(1));
+	}
 }
 
 static void rk3568_lvds_disable(struct rockchip_lvds *lvds)
 {
-	regmap_write(lvds->grf, RK3568_GRF_VO_CON2, RK3568_LVDS0_MODE_EN(0));
+	if (lvds->id)
+		regmap_write(lvds->grf, RK3568_GRF_VO_CON3,
+			     RK3568_LVDS1_MODE_EN(0));
+	else
+		regmap_write(lvds->grf, RK3568_GRF_VO_CON2,
+			     RK3568_LVDS0_MODE_EN(0));
 }
 
 static const struct rockchip_lvds_funcs rk3568_lvds_funcs = {
+	.probe = rk3568_lvds_probe,
 	.enable = rk3568_lvds_enable,
 	.disable = rk3568_lvds_disable,
 };
