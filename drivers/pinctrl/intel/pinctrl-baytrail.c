@@ -983,10 +983,17 @@ static int byt_pin_config_set(struct pinctrl_dev *pctl_dev,
 
 			break;
 		case PIN_CONFIG_INPUT_DEBOUNCE:
-			if (arg)
+			if (arg) {
 				conf |= BYT_DEBOUNCE_EN;
-			else
+			} else {
 				conf &= ~BYT_DEBOUNCE_EN;
+
+				/*
+				 * No need to update the pulse value.
+				 * Debounce is going to be disabled.
+				 */
+				break;
+			}
 
 			switch (arg) {
 			case 375:
