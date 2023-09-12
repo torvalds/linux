@@ -17,15 +17,13 @@
 
 #include "clk-aspeed.h"
 
-#define FPGA
 #define AST2700_CLK_25MHZ 25000000
 #define AST2700_CLK_24MHZ 24000000
 #define AST2700_CLK_192MHZ 192000000
 
-////////CPU Die
+/* CPU Die */
 #define AST2700_CPU_RESET_CTRL 0x00
 #define AST2700_CPU_RESET_CTRL2 0x20
-
 #define AST2700_CPU_CLK_STOP 0x40
 #define AST2700_CPU_CLK_SEL1 0x80
 #define AST2700_CPU_CLK_SEL2 0x84
@@ -39,7 +37,7 @@
 #define AST2700_CPU_CRT2CLK_PARAM 0x150
 #define AST2700_CPU_MPHYCLK_PARAM 0x160
 
-///// IO Die
+/* IO Die */
 #define AST2700_IO_CLK_STOP 0x40
 #define AST2700_IO_CLK_STOP2 0x60
 
@@ -422,16 +420,12 @@ static int ast2700_io_clk_init(struct platform_device *pdev)
 					      0, clk_base + AST2700_CPU_CLK_SEL2,
 					      20, 3, 0, ast2700_clk_div_table, &ast2700_clk_lock);
 
-#ifdef FPGA
-	hw = clk_hw_register_fixed_rate(dev, "io-apb", NULL, 0, 12000000);
-	clks[AST2700_IO_CLK_APB] = hw;
-#else
 	/* APB CLK = 100Mhz */
 	clks[AST2700_IO_CLK_APB] =
 		clk_hw_register_divider_table(dev, "io-apb", "io-hpll",
 					      0, clk_base + AST2700_CPU_CLK_SEL1,
 					      18, 3, 0, ast2700_pclk_div_table, &ast2700_clk_lock);
-#endif
+
 	//rmii
 	clks[AST2700_IO_CLK_RMII] =
 		clk_hw_register_divider_table(dev, "rmii", "io-hpll",
