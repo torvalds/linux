@@ -816,7 +816,8 @@ unwind:
 }
 
 static int rk_iommu_map(struct iommu_domain *domain, unsigned long _iova,
-			phys_addr_t paddr, size_t size, int prot, gfp_t gfp)
+			phys_addr_t paddr, size_t size, size_t count,
+			int prot, gfp_t gfp, size_t *mapped)
 {
 	struct rk_iommu_domain *rk_domain = to_rk_domain(domain);
 	unsigned long flags;
@@ -849,12 +850,14 @@ static int rk_iommu_map(struct iommu_domain *domain, unsigned long _iova,
 				paddr, size, prot);
 
 	spin_unlock_irqrestore(&rk_domain->dt_lock, flags);
+	if (!ret)
+		*mapped = size;
 
 	return ret;
 }
 
 static size_t rk_iommu_unmap(struct iommu_domain *domain, unsigned long _iova,
-			     size_t size, struct iommu_iotlb_gather *gather)
+			     size_t size, size_t count, struct iommu_iotlb_gather *gather)
 {
 	struct rk_iommu_domain *rk_domain = to_rk_domain(domain);
 	unsigned long flags;
@@ -1167,8 +1170,8 @@ static const struct iommu_ops rk_iommu_ops = {
 	.of_xlate = rk_iommu_of_xlate,
 	.default_domain_ops = &(const struct iommu_domain_ops) {
 		.attach_dev	= rk_iommu_attach_device,
-		.map		= rk_iommu_map,
-		.unmap		= rk_iommu_unmap,
+		.map_pages	= rk_iommu_map,
+		.unmap_pages	= rk_iommu_unmap,
 		.iova_to_phys	= rk_iommu_iova_to_phys,
 		.free		= rk_iommu_domain_free,
 	}
