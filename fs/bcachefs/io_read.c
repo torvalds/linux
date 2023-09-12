@@ -897,7 +897,6 @@ retry_pick:
 		pick.crc.uncompressed_size	= bvec_iter_sectors(iter);
 		pick.crc.offset			= 0;
 		pick.crc.live_size		= bvec_iter_sectors(iter);
-		offset_into_extent		= 0;
 	}
 get_bio:
 	if (rbio) {
