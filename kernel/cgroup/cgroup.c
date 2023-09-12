@@ -1731,8 +1731,10 @@ static int css_populate_dir(struct cgroup_subsys_state *css)
 					return ret;
 			}
 		} else {
-			cgroup_addrm_files(css, cgrp,
-					   cgroup1_base_files, true);
+			ret = cgroup_addrm_files(css, cgrp,
+						 cgroup1_base_files, true);
+			if (ret < 0)
+				return ret;
 		}
 	} else {
 		list_for_each_entry(cfts, &css->ss->cfts, node) {
