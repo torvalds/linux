@@ -162,4 +162,20 @@ extern void bpf_percpu_obj_drop_impl(void *kptr, void *meta) __ksym;
 /* Convenience macro to wrap over bpf_obj_drop_impl */
 #define bpf_percpu_obj_drop(kptr) bpf_percpu_obj_drop_impl(kptr, NULL)
 
+/* Description
+ *	Throw a BPF exception from the program, immediately terminating its
+ *	execution and unwinding the stack. The supplied 'cookie' parameter
+ *	will be the return value of the program when an exception is thrown.
+ *
+ *	Note that throwing an exception with lingering resources (locks,
+ *	references, etc.) will lead to a verification error.
+ *
+ *	Note that callbacks *cannot* call this helper.
+ * Returns
+ *	Never.
+ * Throws
+ *	An exception with the specified 'cookie' value.
+ */
+extern void bpf_throw(u64 cookie) __ksym;
+
 #endif
