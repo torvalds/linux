@@ -43,6 +43,8 @@ static const u32 imx8qm_clk_scu_rsrc_table[] = {
 	IMX_SC_R_FTM_0,
 	IMX_SC_R_FTM_1,
 	IMX_SC_R_CAN_0,
+	IMX_SC_R_CAN_1,
+	IMX_SC_R_CAN_2,
 	IMX_SC_R_GPU_0_PID0,
 	IMX_SC_R_GPU_1_PID0,
 	IMX_SC_R_PWM_0,
