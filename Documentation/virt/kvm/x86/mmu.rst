@@ -208,6 +208,16 @@ Shadow pages contain the following information:
     The page is not backed by a guest page table, but its first entry
     points to one.  This is set if NPT uses 5-level page tables (host
     CR4.LA57=1) and is shadowing L1's 4-level NPT (L1 CR4.LA57=0).
+  mmu_valid_gen:
+    The MMU generation of this page, used to fast zap of all MMU pages within a
+    VM without blocking vCPUs too long. Specifically, KVM updates the per-VM
+    valid MMU generation which causes the mismatch of mmu_valid_gen for each mmu
+    page. This makes all existing MMU pages obsolete. Obsolete pages can't be
+    used. Therefore, vCPUs must load a new, valid root before re-entering the
+    guest. The MMU generation is only ever '0' or '1'. Note, the TDP MMU doesn't
+    use this field as non-root TDP MMU pages are reachable only from their
+    owning root. Thus it suffices for TDP MMU to use role.invalid in root pages
+    to invalidate all MMU pages.
   gfn:
     Either the guest page table containing the translations shadowed by this
     page, or the base page frame for linear translations.  See role.direct.
