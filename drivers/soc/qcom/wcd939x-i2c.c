@@ -379,15 +379,15 @@ static int wcd_usbss_reset_routine(void)
 	/* Write 0xFF to WCD_USBSS_CPLDO_CTL2 */
 	regmap_update_bits(wcd_usbss_ctxt_->regmap, WCD_USBSS_CPLDO_CTL2, 0xFF, 0xFF);
 
-	/* If in non-audio mode, reset RCO. Else, notify codec */
-	if (!(wcd_usbss_ctxt_->cable_status & (BIT(WCD_USBSS_AATC) |
+	/* Set RCO_EN: WCD_USBSS_USB_SS_CNTL Bit<3> --> 0x0 --> 0x1 */
+	regmap_update_bits(wcd_usbss_ctxt_->regmap, WCD_USBSS_USB_SS_CNTL, 0x8, 0x0);
+	regmap_update_bits(wcd_usbss_ctxt_->regmap, WCD_USBSS_USB_SS_CNTL, 0x8, 0x8);
+
+	/* If in audio mode reset codec registers */
+	if ((wcd_usbss_ctxt_->cable_status & (BIT(WCD_USBSS_AATC) |
 					       BIT(WCD_USBSS_GND_MIC_SWAP_AATC) |
 					       BIT(WCD_USBSS_HSJ_CONNECT) |
-					       BIT(WCD_USBSS_GND_MIC_SWAP_HSJ)))) {
-		/* Set RCO_EN: WCD_USBSS_USB_SS_CNTL Bit<3> --> 0x0 --> 0x1 */
-		regmap_update_bits(wcd_usbss_ctxt_->regmap, WCD_USBSS_USB_SS_CNTL, 0x8, 0x0);
-		regmap_update_bits(wcd_usbss_ctxt_->regmap, WCD_USBSS_USB_SS_CNTL, 0x8, 0x8);
-	} else
+					       BIT(WCD_USBSS_GND_MIC_SWAP_HSJ))))
 		blocking_notifier_call_chain(&wcd_usbss_ctxt_->wcd_usbss_notifier,
 				WCD_USBSS_SURGE_RESET_EVENT, NULL);
 
