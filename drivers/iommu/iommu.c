@@ -2519,11 +2519,11 @@ static int __iommu_map(struct iommu_domain *domain, unsigned long iova,
 	phys_addr_t orig_paddr = paddr;
 	int ret = 0;
 
-	if (unlikely(!ops->map_pages || domain->pgsize_bitmap == 0UL))
-		return -ENODEV;
-
 	if (unlikely(!(domain->type & __IOMMU_DOMAIN_PAGING)))
 		return -EINVAL;
+
+	if (WARN_ON(!ops->map_pages || domain->pgsize_bitmap == 0UL))
+		return -ENODEV;
 
 	/* find out the minimum page size supported */
 	min_pagesz = 1 << __ffs(domain->pgsize_bitmap);
@@ -2602,10 +2602,10 @@ static size_t __iommu_unmap(struct iommu_domain *domain,
 	unsigned long orig_iova = iova;
 	unsigned int min_pagesz;
 
-	if (unlikely(!ops->unmap_pages || domain->pgsize_bitmap == 0UL))
+	if (unlikely(!(domain->type & __IOMMU_DOMAIN_PAGING)))
 		return 0;
 
-	if (unlikely(!(domain->type & __IOMMU_DOMAIN_PAGING)))
+	if (WARN_ON(!ops->unmap_pages || domain->pgsize_bitmap == 0UL))
 		return 0;
 
 	/* find out the minimum page size supported */
