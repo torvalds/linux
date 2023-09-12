@@ -1597,6 +1597,11 @@ static void vcap_api_rule_insert_in_order_test(struct kunit *test)
 	test_vcap_xn_rule_creator(test, 10000, VCAP_USER_QOS, 20, 400, 6, 774);
 	test_vcap_xn_rule_creator(test, 10000, VCAP_USER_QOS, 30, 300, 3, 771);
 	test_vcap_xn_rule_creator(test, 10000, VCAP_USER_QOS, 40, 200, 2, 768);
+
+	vcap_del_rule(&test_vctrl, &test_netdev, 200);
+	vcap_del_rule(&test_vctrl, &test_netdev, 300);
+	vcap_del_rule(&test_vctrl, &test_netdev, 400);
+	vcap_del_rule(&test_vctrl, &test_netdev, 500);
 }
 
 static void vcap_api_rule_insert_reverse_order_test(struct kunit *test)
@@ -1655,6 +1660,11 @@ static void vcap_api_rule_insert_reverse_order_test(struct kunit *test)
 		++idx;
 	}
 	KUNIT_EXPECT_EQ(test, 768, admin.last_used_addr);
+
+	vcap_del_rule(&test_vctrl, &test_netdev, 500);
+	vcap_del_rule(&test_vctrl, &test_netdev, 400);
+	vcap_del_rule(&test_vctrl, &test_netdev, 300);
+	vcap_del_rule(&test_vctrl, &test_netdev, 200);
 }
 
 static void vcap_api_rule_remove_at_end_test(struct kunit *test)
@@ -1855,6 +1865,9 @@ static void vcap_api_rule_remove_in_front_test(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, 786, test_init_start);
 	KUNIT_EXPECT_EQ(test, 8, test_init_count);
 	KUNIT_EXPECT_EQ(test, 794, admin.last_used_addr);
+
+	vcap_del_rule(&test_vctrl, &test_netdev, 200);
+	vcap_del_rule(&test_vctrl, &test_netdev, 300);
 }
 
 static struct kunit_case vcap_api_rule_remove_test_cases[] = {
