@@ -794,12 +794,12 @@ int run_pack(const struct runs_tree *run, CLST svcn, CLST len, u8 *run_buf,
 	     u32 run_buf_size, CLST *packed_vcns);
 int run_unpack(struct runs_tree *run, struct ntfs_sb_info *sbi, CLST ino,
 	       CLST svcn, CLST evcn, CLST vcn, const u8 *run_buf,
-	       u32 run_buf_size);
+	       int run_buf_size);
 
 #ifdef NTFS3_CHECK_FREE_CLST
 int run_unpack_ex(struct runs_tree *run, struct ntfs_sb_info *sbi, CLST ino,
 		  CLST svcn, CLST evcn, CLST vcn, const u8 *run_buf,
-		  u32 run_buf_size);
+		  int run_buf_size);
 #else
 #define run_unpack_ex run_unpack
 #endif

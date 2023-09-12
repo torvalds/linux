@@ -73,11 +73,25 @@ static inline void mmap_assert_write_locked(struct mm_struct *mm)
 }
 
 #ifdef CONFIG_PER_VMA_LOCK
+/*
+ * Drop all currently-held per-VMA locks.
+ * This is called from the mmap_lock implementation directly before releasing
+ * a write-locked mmap_lock (or downgrading it to read-locked).
+ * This should normally NOT be called manually from other places.
+ * If you want to call this manually anyway, keep in mind that this will release
+ * *all* VMA write locks, including ones from further up the stack.
+ */
 static inline void vma_end_write_all(struct mm_struct *mm)
 {
 	mmap_assert_write_locked(mm);
-	/* No races during update due to exclusive mmap_lock being held */
-	WRITE_ONCE(mm->mm_lock_seq, mm->mm_lock_seq + 1);
+	/*
+	 * Nobody can concurrently modify mm->mm_lock_seq due to exclusive
+	 * mmap_lock being held.
+	 * We need RELEASE semantics here to ensure that preceding stores into
+	 * the VMA take effect before we unlock it with this store.
+	 * Pairs with ACQUIRE semantics in vma_start_read().
+	 */
+	smp_store_release(&mm->mm_lock_seq, mm->mm_lock_seq + 1);
 }
 #else
 static inline void vma_end_write_all(struct mm_struct *mm) {}

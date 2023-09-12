@@ -682,21 +682,18 @@ struct vm_area_struct *find_vma(struct mm_struct *mm, unsigned long addr)
 EXPORT_SYMBOL(find_vma);
 
 /*
- * find a VMA
- * - we don't extend stack VMAs under NOMMU conditions
- */
-struct vm_area_struct *find_extend_vma(struct mm_struct *mm, unsigned long addr)
-{
-	return find_vma(mm, addr);
-}
-
-/*
  * expand a stack to a given address
  * - not supported under NOMMU conditions
  */
-int expand_stack(struct vm_area_struct *vma, unsigned long address)
+int expand_stack_locked(struct vm_area_struct *vma, unsigned long addr)
 {
 	return -ENOMEM;
+}
+
+struct vm_area_struct *expand_stack(struct mm_struct *mm, unsigned long addr)
+{
+	mmap_read_unlock(mm);
+	return NULL;
 }
 
 /*

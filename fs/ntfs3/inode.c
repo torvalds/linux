@@ -81,7 +81,7 @@ static struct inode *ntfs_read_mft(struct inode *inode,
 			 le16_to_cpu(ref->seq), le16_to_cpu(rec->seq));
 		goto out;
 	} else if (!is_rec_inuse(rec)) {
-		err = -EINVAL;
+		err = -ESTALE;
 		ntfs_err(sb, "Inode r=%x is not in use!", (u32)ino);
 		goto out;
 	}
@@ -92,8 +92,10 @@ static struct inode *ntfs_read_mft(struct inode *inode,
 		goto out;
 	}
 
-	if (!is_rec_base(rec))
-		goto Ok;
+	if (!is_rec_base(rec)) {
+		err = -EINVAL;
+		goto out;
+	}
 
 	/* Record should contain $I30 root. */
 	is_dir = rec->flags & RECORD_FLAG_DIR;
@@ -466,7 +468,6 @@ end_enum:
 		inode->i_flags |= S_NOSEC;
 	}
 
-Ok:
 	if (ino == MFT_REC_MFT && !sb->s_root)
 		sbi->mft.ni = NULL;
 
@@ -519,6 +520,9 @@ struct inode *ntfs_iget5(struct super_block *sb, const struct MFT_REF *ref,
 		/* Inode overlaps? */
 		_ntfs_bad_inode(inode);
 	}
+
+	if (IS_ERR(inode) && name)
+		ntfs_set_state(sb->s_fs_info, NTFS_DIRTY_ERROR);
 
 	return inode;
 }
@@ -1635,10 +1639,8 @@ out6:
 		ntfs_remove_reparse(sbi, IO_REPARSE_TAG_SYMLINK, &new_de->ref);
 
 out5:
-	if (S_ISDIR(mode) || run_is_empty(&ni->file.run))
-		goto out4;
-
-	run_deallocate(sbi, &ni->file.run, false);
+	if (!S_ISDIR(mode))
+		run_deallocate(sbi, &ni->file.run, false);
 
 out4:
 	clear_rec_inuse(rec);
