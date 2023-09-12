@@ -309,7 +309,7 @@ static int st_lsm6dso16is_set_odr(struct st_lsm6dso16is_sensor *sensor, u32 mhz)
 {
 	enum st_lsm6dso16is_sensor_id id = sensor->id;
 	struct st_lsm6dso16is_hw *hw = sensor->hw;
-	int val, err, odr, modr;
+	int val, err, odr = mhz / 1000, modr;
 
 	switch (id) {
 	case ST_LSM6DSO16IS_ID_EXT0:

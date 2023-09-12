@@ -580,7 +580,7 @@ st_lsm6dso16is_shub_read_oneshot(struct st_lsm6dso16is_sensor *sensor,
 				 struct iio_chan_spec const *ch, int *val)
 {
 	int err, delay, len = ch->scan_type.realbits >> 3;
-	u8 data[len];
+	u8 data[4];
 
 	err = st_lsm6dso16is_shub_set_enable(sensor, true);
 	if (err < 0)

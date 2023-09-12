@@ -13,6 +13,7 @@
 #include <linux/device.h>
 #include <linux/iio/iio.h>
 #include <linux/delay.h>
+#include <linux/of_device.h>
 #include <linux/regmap.h>
 #include <linux/bitfield.h>
 
@@ -189,7 +190,7 @@ enum st_lsm6dso16is_sensor_id {
 };
 
 /**
- * @enum st_lsm6dso_sensor_id
+ * @enum st_lsm6dso16is_sensor_id
  * @brief Sensor Table Identifier
  */
 static const enum st_lsm6dso16is_sensor_id st_lsm6dso16is_main_sensor_list[] = {
