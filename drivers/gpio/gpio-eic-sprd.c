@@ -580,6 +580,14 @@ static const struct irq_chip sprd_eic_irq = {
 	.flags		= IRQCHIP_SKIP_SET_WAKE | IRQCHIP_IMMUTABLE,
 	GPIOCHIP_IRQ_RESOURCE_HELPERS,
 };
+
+static void sprd_eic_unregister_notifier(void *data)
+{
+	struct notifier_block *nb = data;
+
+	atomic_notifier_chain_unregister(&sprd_eic_irq_notifier, nb);
+}
+
 static int sprd_eic_probe(struct platform_device *pdev)
 {
 	const struct sprd_eic_variant_data *pdata;
@@ -658,8 +666,15 @@ static int sprd_eic_probe(struct platform_device *pdev)
 	}
 
 	sprd_eic->irq_nb.notifier_call = sprd_eic_irq_notify;
-	return atomic_notifier_chain_register(&sprd_eic_irq_notifier,
-					      &sprd_eic->irq_nb);
+	ret = atomic_notifier_chain_register(&sprd_eic_irq_notifier,
+					     &sprd_eic->irq_nb);
+	if (ret)
+		return dev_err_probe(&pdev->dev, ret,
+				     "Failed to register with the interrupt notifier");
+
+	return devm_add_action_or_reset(&pdev->dev,
+					sprd_eic_unregister_notifier,
+					&sprd_eic->irq_nb);
 }
 
 static const struct of_device_id sprd_eic_of_match[] = {
