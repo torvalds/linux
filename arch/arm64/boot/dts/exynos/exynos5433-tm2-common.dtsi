@@ -1102,7 +1102,7 @@
 
 	te_irq: te-irq-pins {
 		samsung,pins = "gpf1-3";
-		samsung,pin-function = <0xf>;
+		samsung,pin-function = <EXYNOS_PIN_FUNC_EINT>;
 	};
 };
 
