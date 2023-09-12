@@ -270,7 +270,7 @@ void bch2_readahead(struct readahead_control *ractl)
 	struct bch_inode_info *inode = to_bch_ei(ractl->mapping->host);
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
 	struct bch_io_opts opts;
-	struct btree_trans trans;
+	struct btree_trans *trans = bch2_trans_get(c);
 	struct folio *folio;
 	struct readpages_iter readpages_iter;
 	int ret;
@@ -279,8 +279,6 @@ void bch2_readahead(struct readahead_control *ractl)
 
 	ret = readpages_iter_init(&readpages_iter, ractl);
 	BUG_ON(ret);
-
-	bch2_trans_init(&trans, c, 0, 0);
 
 	bch2_pagecache_add_get(inode);
 
@@ -300,31 +298,27 @@ void bch2_readahead(struct readahead_control *ractl)
 		rbio->bio.bi_end_io = bch2_readpages_end_io;
 		BUG_ON(!bio_add_folio(&rbio->bio, folio, folio_size(folio), 0));
 
-		bchfs_read(&trans, rbio, inode_inum(inode),
+		bchfs_read(trans, rbio, inode_inum(inode),
 			   &readpages_iter);
-		bch2_trans_unlock(&trans);
+		bch2_trans_unlock(trans);
 	}
 
 	bch2_pagecache_add_put(inode);
 
-	bch2_trans_exit(&trans);
+	bch2_trans_put(trans);
 	darray_exit(&readpages_iter.folios);
 }
 
 static void __bchfs_readfolio(struct bch_fs *c, struct bch_read_bio *rbio,
 			     subvol_inum inum, struct folio *folio)
 {
-	struct btree_trans trans;
-
 	bch2_folio_create(folio, __GFP_NOFAIL);
 
 	rbio->bio.bi_opf = REQ_OP_READ|REQ_SYNC;
 	rbio->bio.bi_iter.bi_sector = folio_sector(folio);
 	BUG_ON(!bio_add_folio(&rbio->bio, folio, folio_size(folio), 0));
 
-	bch2_trans_init(&trans, c, 0, 0);
-	bchfs_read(&trans, rbio, inum, NULL);
-	bch2_trans_exit(&trans);
+	bch2_trans_run(c, (bchfs_read(trans, rbio, inum, NULL), 0));
 }
 
 static void bch2_read_single_folio_end_io(struct bio *bio)

@@ -279,18 +279,16 @@ struct posix_acl *bch2_get_acl(struct mnt_idmap *idmap,
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
 	struct bch_hash_info hash = bch2_hash_info_init(c, &inode->ei_inode);
 	struct xattr_search_key search = X_SEARCH(acl_to_xattr_type(type), "", 0);
-	struct btree_trans trans;
+	struct btree_trans *trans = bch2_trans_get(c);
 	struct btree_iter iter = { NULL };
 	struct bkey_s_c_xattr xattr;
 	struct posix_acl *acl = NULL;
 	struct bkey_s_c k;
 	int ret;
-
-	bch2_trans_init(&trans, c, 0, 0);
 retry:
-	bch2_trans_begin(&trans);
+	bch2_trans_begin(trans);
 
-	ret = bch2_hash_lookup(&trans, &iter, bch2_xattr_hash_desc,
+	ret = bch2_hash_lookup(trans, &iter, bch2_xattr_hash_desc,
 			&hash, inode_inum(inode), &search, 0);
 	if (ret) {
 		if (!bch2_err_matches(ret, ENOENT))
@@ -306,7 +304,7 @@ retry:
 	}
 
 	xattr = bkey_s_c_to_xattr(k);
-	acl = bch2_acl_from_disk(&trans, xattr_val(xattr.v),
+	acl = bch2_acl_from_disk(trans, xattr_val(xattr.v),
 			le16_to_cpu(xattr.v->x_val_len));
 
 	if (!IS_ERR(acl))
@@ -315,8 +313,8 @@ out:
 	if (bch2_err_matches(PTR_ERR_OR_ZERO(acl), BCH_ERR_transaction_restart))
 		goto retry;
 
-	bch2_trans_iter_exit(&trans, &iter);
-	bch2_trans_exit(&trans);
+	bch2_trans_iter_exit(trans, &iter);
+	bch2_trans_put(trans);
 	return acl;
 }
 
@@ -356,7 +354,7 @@ int bch2_set_acl(struct mnt_idmap *idmap,
 {
 	struct bch_inode_info *inode = to_bch_ei(dentry->d_inode);
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
-	struct btree_trans trans;
+	struct btree_trans *trans = bch2_trans_get(c);
 	struct btree_iter inode_iter = { NULL };
 	struct bch_inode_unpacked inode_u;
 	struct posix_acl *acl;
@@ -364,12 +362,11 @@ int bch2_set_acl(struct mnt_idmap *idmap,
 	int ret;
 
 	mutex_lock(&inode->ei_update_lock);
-	bch2_trans_init(&trans, c, 0, 0);
 retry:
-	bch2_trans_begin(&trans);
+	bch2_trans_begin(trans);
 	acl = _acl;
 
-	ret = bch2_inode_peek(&trans, &inode_iter, &inode_u, inode_inum(inode),
+	ret = bch2_inode_peek(trans, &inode_iter, &inode_u, inode_inum(inode),
 			      BTREE_ITER_INTENT);
 	if (ret)
 		goto btree_err;
@@ -382,30 +379,30 @@ retry:
 			goto btree_err;
 	}
 
-	ret = bch2_set_acl_trans(&trans, inode_inum(inode), &inode_u, acl, type);
+	ret = bch2_set_acl_trans(trans, inode_inum(inode), &inode_u, acl, type);
 	if (ret)
 		goto btree_err;
 
 	inode_u.bi_ctime	= bch2_current_time(c);
 	inode_u.bi_mode		= mode;
 
-	ret =   bch2_inode_write(&trans, &inode_iter, &inode_u) ?:
-		bch2_trans_commit(&trans, NULL, NULL, 0);
+	ret =   bch2_inode_write(trans, &inode_iter, &inode_u) ?:
+		bch2_trans_commit(trans, NULL, NULL, 0);
 btree_err:
-	bch2_trans_iter_exit(&trans, &inode_iter);
+	bch2_trans_iter_exit(trans, &inode_iter);
 
 	if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
 		goto retry;
 	if (unlikely(ret))
 		goto err;
 
-	bch2_inode_update_after_write(&trans, inode, &inode_u,
+	bch2_inode_update_after_write(trans, inode, &inode_u,
 				      ATTR_CTIME|ATTR_MODE);
 
 	set_cached_acl(&inode->v, type, acl);
 err:
-	bch2_trans_exit(&trans);
 	mutex_unlock(&inode->ei_update_lock);
+	bch2_trans_put(trans);
 
 	return ret;
 }

@@ -834,7 +834,7 @@ static int __bch2_set_nr_journal_buckets(struct bch_dev *ca, unsigned nr,
 				break;
 
 			ret = bch2_trans_run(c,
-				bch2_trans_mark_metadata_bucket(&trans, ca,
+				bch2_trans_mark_metadata_bucket(trans, ca,
 						ob[nr_got]->bucket, BCH_DATA_journal,
 						ca->mi.bucket_size));
 			if (ret) {
@@ -915,7 +915,7 @@ err_unblock:
 	if (ret && !new_fs)
 		for (i = 0; i < nr_got; i++)
 			bch2_trans_run(c,
-				bch2_trans_mark_metadata_bucket(&trans, ca,
+				bch2_trans_mark_metadata_bucket(trans, ca,
 						bu[i], BCH_DATA_free, 0));
 err_free:
 	if (!new_fs)

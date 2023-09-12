@@ -182,7 +182,7 @@ static void __bch2_folio_set(struct folio *folio,
 int bch2_folio_set(struct bch_fs *c, subvol_inum inum,
 		   struct folio **fs, unsigned nr_folios)
 {
-	struct btree_trans trans;
+	struct btree_trans *trans;
 	struct btree_iter iter;
 	struct bkey_s_c k;
 	struct bch_folio *s;
@@ -204,15 +204,15 @@ int bch2_folio_set(struct bch_fs *c, subvol_inum inum,
 		return 0;
 
 	folio_idx = 0;
-	bch2_trans_init(&trans, c, 0, 0);
+	trans = bch2_trans_get(c);
 retry:
-	bch2_trans_begin(&trans);
+	bch2_trans_begin(trans);
 
-	ret = bch2_subvolume_get_snapshot(&trans, inum.subvol, &snapshot);
+	ret = bch2_subvolume_get_snapshot(trans, inum.subvol, &snapshot);
 	if (ret)
 		goto err;
 
-	for_each_btree_key_norestart(&trans, iter, BTREE_ID_extents,
+	for_each_btree_key_norestart(trans, iter, BTREE_ID_extents,
 			   SPOS(inum.inum, offset, snapshot),
 			   BTREE_ITER_SLOTS, k, ret) {
 		unsigned nr_ptrs = bch2_bkey_nr_ptrs_fully_allocated(k);
@@ -243,11 +243,11 @@ retry:
 	}
 
 	offset = iter.pos.offset;
-	bch2_trans_iter_exit(&trans, &iter);
+	bch2_trans_iter_exit(trans, &iter);
 err:
 	if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
 		goto retry;
-	bch2_trans_exit(&trans);
+	bch2_trans_put(trans);
 
 	return ret;
 }

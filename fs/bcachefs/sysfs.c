@@ -252,7 +252,7 @@ static size_t bch2_btree_cache_size(struct bch_fs *c)
 
 static int bch2_compression_stats_to_text(struct printbuf *out, struct bch_fs *c)
 {
-	struct btree_trans trans;
+	struct btree_trans *trans;
 	struct btree_iter iter;
 	struct bkey_s_c k;
 	enum btree_id id;
@@ -268,13 +268,13 @@ static int bch2_compression_stats_to_text(struct printbuf *out, struct bch_fs *c
 	if (!test_bit(BCH_FS_STARTED, &c->flags))
 		return -EPERM;
 
-	bch2_trans_init(&trans, c, 0, 0);
+	trans = bch2_trans_get(c);
 
 	for (id = 0; id < BTREE_ID_NR; id++) {
 		if (!btree_type_has_ptrs(id))
 			continue;
 
-		for_each_btree_key(&trans, iter, id, POS_MIN,
+		for_each_btree_key(trans, iter, id, POS_MIN,
 				   BTREE_ITER_ALL_SNAPSHOTS, k, ret) {
 			struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
 			const union bch_extent_entry *entry;
@@ -308,10 +308,10 @@ static int bch2_compression_stats_to_text(struct printbuf *out, struct bch_fs *c
 			else if (compressed)
 				nr_compressed_extents++;
 		}
-		bch2_trans_iter_exit(&trans, &iter);
+		bch2_trans_iter_exit(trans, &iter);
 	}
 
-	bch2_trans_exit(&trans);
+	bch2_trans_put(trans);
 
 	if (ret)
 		return ret;

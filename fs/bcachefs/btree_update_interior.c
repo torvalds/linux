@@ -597,12 +597,11 @@ static void btree_update_nodes_written(struct btree_update *as)
 {
 	struct bch_fs *c = as->c;
 	struct btree *b;
-	struct btree_trans trans;
+	struct btree_trans *trans = bch2_trans_get(c);
 	u64 journal_seq = 0;
 	unsigned i;
 	int ret;
 
-	bch2_trans_init(&trans, c, 0, 512);
 	/*
 	 * If we're already in an error state, it might be because a btree node
 	 * was never written, and we might be trying to free that same btree
@@ -623,7 +622,7 @@ static void btree_update_nodes_written(struct btree_update *as)
 
 		b = as->old_nodes[i];
 
-		btree_node_lock_nopath_nofail(&trans, &b->c, SIX_LOCK_read);
+		btree_node_lock_nopath_nofail(trans, &b->c, SIX_LOCK_read);
 		seq = b->data ? b->data->keys.seq : 0;
 		six_unlock_read(&b->c.lock);
 
@@ -645,13 +644,13 @@ static void btree_update_nodes_written(struct btree_update *as)
 	 * journal reclaim does btree updates when flushing bkey_cached entries,
 	 * which may require allocations as well.
 	 */
-	ret = commit_do(&trans, &as->disk_res, &journal_seq,
+	ret = commit_do(trans, &as->disk_res, &journal_seq,
 			BCH_WATERMARK_reclaim|
 			BTREE_INSERT_NOFAIL|
 			BTREE_INSERT_NOCHECK_RW|
 			BTREE_INSERT_JOURNAL_RECLAIM,
-			btree_update_nodes_written_trans(&trans, as));
-	bch2_trans_unlock(&trans);
+			btree_update_nodes_written_trans(trans, as));
+	bch2_trans_unlock(trans);
 
 	bch2_fs_fatal_err_on(ret && !bch2_journal_error(&c->journal), c,
 			     "%s(): error %s", __func__, bch2_err_str(ret));
@@ -660,7 +659,7 @@ err:
 		struct btree_path *path;
 
 		b = as->b;
-		path = get_unlocked_mut_path(&trans, as->btree_id, b->c.level, b->key.k.p);
+		path = get_unlocked_mut_path(trans, as->btree_id, b->c.level, b->key.k.p);
 		/*
 		 * @b is the node we did the final insert into:
 		 *
@@ -683,13 +682,13 @@ err:
 		 * we may rarely end up with a locked path besides the one we
 		 * have here:
 		 */
-		bch2_trans_unlock(&trans);
-		btree_node_lock_nopath_nofail(&trans, &b->c, SIX_LOCK_intent);
-		mark_btree_node_locked(&trans, path, b->c.level, BTREE_NODE_INTENT_LOCKED);
+		bch2_trans_unlock(trans);
+		btree_node_lock_nopath_nofail(trans, &b->c, SIX_LOCK_intent);
+		mark_btree_node_locked(trans, path, b->c.level, BTREE_NODE_INTENT_LOCKED);
 		path->l[b->c.level].lock_seq = six_lock_seq(&b->c.lock);
 		path->l[b->c.level].b = b;
 
-		bch2_btree_node_lock_write_nofail(&trans, path, &b->c);
+		bch2_btree_node_lock_write_nofail(trans, path, &b->c);
 
 		mutex_lock(&c->btree_interior_update_lock);
 
@@ -729,8 +728,8 @@ err:
 		six_unlock_write(&b->c.lock);
 
 		btree_node_write_if_need(c, b, SIX_LOCK_intent);
-		btree_node_unlock(&trans, path, b->c.level);
-		bch2_path_put(&trans, path, true);
+		btree_node_unlock(trans, path, b->c.level);
+		bch2_path_put(trans, path, true);
 	}
 
 	bch2_journal_pin_drop(&c->journal, &as->journal);
@@ -750,7 +749,7 @@ err:
 	for (i = 0; i < as->nr_new_nodes; i++) {
 		b = as->new_nodes[i];
 
-		btree_node_lock_nopath_nofail(&trans, &b->c, SIX_LOCK_read);
+		btree_node_lock_nopath_nofail(trans, &b->c, SIX_LOCK_read);
 		btree_node_write_if_need(c, b, SIX_LOCK_read);
 		six_unlock_read(&b->c.lock);
 	}
@@ -758,8 +757,8 @@ err:
 	for (i = 0; i < as->nr_open_buckets; i++)
 		bch2_open_bucket_put(c, c->open_buckets + as->open_buckets[i]);
 
-	bch2_btree_update_free(as, &trans);
-	bch2_trans_exit(&trans);
+	bch2_btree_update_free(as, trans);
+	bch2_trans_put(trans);
 }
 
 static void btree_interior_update_work(struct work_struct *work)
@@ -2049,7 +2048,7 @@ static void async_btree_node_rewrite_work(struct work_struct *work)
 	int ret;
 
 	ret = bch2_trans_do(c, NULL, NULL, 0,
-		      async_btree_node_rewrite_trans(&trans, a));
+		      async_btree_node_rewrite_trans(trans, a));
 	if (ret)
 		bch_err_fn(c, ret);
 	bch2_write_ref_put(c, BCH_WRITE_REF_node_rewrite);
@@ -2365,7 +2364,7 @@ static int __bch2_btree_root_alloc(struct btree_trans *trans, enum btree_id id)
 
 void bch2_btree_root_alloc(struct bch_fs *c, enum btree_id id)
 {
-	bch2_trans_run(c, __bch2_btree_root_alloc(&trans, id));
+	bch2_trans_run(c, __bch2_btree_root_alloc(trans, id));
 }
 
 void bch2_btree_updates_to_text(struct printbuf *out, struct bch_fs *c)

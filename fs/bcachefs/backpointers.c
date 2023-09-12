@@ -390,10 +390,10 @@ int bch2_check_btree_backpointers(struct bch_fs *c)
 	int ret;
 
 	ret = bch2_trans_run(c,
-		for_each_btree_key_commit(&trans, iter,
+		for_each_btree_key_commit(trans, iter,
 			BTREE_ID_backpointers, POS_MIN, 0, k,
 			NULL, NULL, BTREE_INSERT_LAZY_RW|BTREE_INSERT_NOFAIL,
-		  bch2_check_btree_backpointer(&trans, &iter, k)));
+		  bch2_check_btree_backpointer(trans, &iter, k)));
 	if (ret)
 		bch_err_fn(c, ret);
 	return ret;
@@ -723,13 +723,12 @@ static int bch2_get_alloc_in_memory_pos(struct btree_trans *trans,
 
 int bch2_check_extents_to_backpointers(struct bch_fs *c)
 {
-	struct btree_trans trans;
+	struct btree_trans *trans = bch2_trans_get(c);
 	struct bpos start = POS_MIN, end;
 	int ret;
 
-	bch2_trans_init(&trans, c, 0, 0);
 	while (1) {
-		ret = bch2_get_alloc_in_memory_pos(&trans, start, &end);
+		ret = bch2_get_alloc_in_memory_pos(trans, start, &end);
 		if (ret)
 			break;
 
@@ -749,13 +748,13 @@ int bch2_check_extents_to_backpointers(struct bch_fs *c)
 			printbuf_exit(&buf);
 		}
 
-		ret = bch2_check_extents_to_backpointers_pass(&trans, start, end);
+		ret = bch2_check_extents_to_backpointers_pass(trans, start, end);
 		if (ret || bpos_eq(end, SPOS_MAX))
 			break;
 
 		start = bpos_successor(end);
 	}
-	bch2_trans_exit(&trans);
+	bch2_trans_put(trans);
 
 	if (ret)
 		bch_err_fn(c, ret);
@@ -824,13 +823,12 @@ static int bch2_check_backpointers_to_extents_pass(struct btree_trans *trans,
 
 int bch2_check_backpointers_to_extents(struct bch_fs *c)
 {
-	struct btree_trans trans;
+	struct btree_trans *trans = bch2_trans_get(c);
 	struct bbpos start = (struct bbpos) { .btree = 0, .pos = POS_MIN, }, end;
 	int ret;
 
-	bch2_trans_init(&trans, c, 0, 0);
 	while (1) {
-		ret = bch2_get_btree_in_memory_pos(&trans,
+		ret = bch2_get_btree_in_memory_pos(trans,
 						   (1U << BTREE_ID_extents)|
 						   (1U << BTREE_ID_reflink),
 						   ~0,
@@ -856,13 +854,13 @@ int bch2_check_backpointers_to_extents(struct bch_fs *c)
 			printbuf_exit(&buf);
 		}
 
-		ret = bch2_check_backpointers_to_extents_pass(&trans, start, end);
+		ret = bch2_check_backpointers_to_extents_pass(trans, start, end);
 		if (ret || !bbpos_cmp(end, BBPOS_MAX))
 			break;
 
 		start = bbpos_successor(end);
 	}
-	bch2_trans_exit(&trans);
+	bch2_trans_put(trans);
 
 	if (ret)
 		bch_err_fn(c, ret);

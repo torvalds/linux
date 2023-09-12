@@ -300,7 +300,7 @@ void bch2_copygc_wait_to_text(struct printbuf *out, struct bch_fs *c)
 static int bch2_copygc_thread(void *arg)
 {
 	struct bch_fs *c = arg;
-	struct btree_trans trans;
+	struct btree_trans *trans;
 	struct moving_context ctxt;
 	struct bch_move_stats move_stats;
 	struct io_clock *clock = &c->io_clock[WRITE];
@@ -317,7 +317,7 @@ static int bch2_copygc_thread(void *arg)
 	}
 
 	set_freezable();
-	bch2_trans_init(&trans, c, 0, 0);
+	trans = bch2_trans_get(c);
 
 	bch2_move_stats_init(&move_stats, "copygc");
 	bch2_moving_ctxt_init(&ctxt, c, NULL, &move_stats,
@@ -325,16 +325,16 @@ static int bch2_copygc_thread(void *arg)
 			      false);
 
 	while (!ret && !kthread_should_stop()) {
-		bch2_trans_unlock(&trans);
+		bch2_trans_unlock(trans);
 		cond_resched();
 
 		if (!c->copy_gc_enabled) {
-			move_buckets_wait(&trans, &ctxt, &buckets, true);
+			move_buckets_wait(trans, &ctxt, &buckets, true);
 			kthread_wait_freezable(c->copy_gc_enabled);
 		}
 
 		if (unlikely(freezing(current))) {
-			move_buckets_wait(&trans, &ctxt, &buckets, true);
+			move_buckets_wait(trans, &ctxt, &buckets, true);
 			__refrigerator(false);
 			continue;
 		}
@@ -345,7 +345,7 @@ static int bch2_copygc_thread(void *arg)
 		if (wait > clock->max_slop) {
 			c->copygc_wait_at = last;
 			c->copygc_wait = last + wait;
-			move_buckets_wait(&trans, &ctxt, &buckets, true);
+			move_buckets_wait(trans, &ctxt, &buckets, true);
 			trace_and_count(c, copygc_wait, c, wait, last + wait);
 			bch2_kthread_io_clock_wait(clock, last + wait,
 					MAX_SCHEDULE_TIMEOUT);
@@ -355,15 +355,15 @@ static int bch2_copygc_thread(void *arg)
 		c->copygc_wait = 0;
 
 		c->copygc_running = true;
-		ret = bch2_copygc(&trans, &ctxt, &buckets);
+		ret = bch2_copygc(trans, &ctxt, &buckets);
 		c->copygc_running = false;
 
 		wake_up(&c->copygc_running_wq);
 	}
 
-	move_buckets_wait(&trans, &ctxt, &buckets, true);
+	move_buckets_wait(trans, &ctxt, &buckets, true);
 	rhashtable_destroy(&buckets.table);
-	bch2_trans_exit(&trans);
+	bch2_trans_put(trans);
 	bch2_moving_ctxt_exit(&ctxt);
 
 	return 0;

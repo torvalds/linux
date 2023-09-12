@@ -826,15 +826,13 @@ err:
 
 int bch2_inode_rm(struct bch_fs *c, subvol_inum inum)
 {
-	struct btree_trans trans;
+	struct btree_trans *trans = bch2_trans_get(c);
 	struct btree_iter iter = { NULL };
 	struct bkey_i_inode_generation delete;
 	struct bch_inode_unpacked inode_u;
 	struct bkey_s_c k;
 	u32 snapshot;
 	int ret;
-
-	bch2_trans_init(&trans, c, 0, 1024);
 
 	/*
 	 * If this was a directory, there shouldn't be any real dirents left -
@@ -844,19 +842,19 @@ int bch2_inode_rm(struct bch_fs *c, subvol_inum inum)
 	 * XXX: the dirent could ideally would delete whiteouts when they're no
 	 * longer needed
 	 */
-	ret   = bch2_inode_delete_keys(&trans, inum, BTREE_ID_extents) ?:
-		bch2_inode_delete_keys(&trans, inum, BTREE_ID_xattrs) ?:
-		bch2_inode_delete_keys(&trans, inum, BTREE_ID_dirents);
+	ret   = bch2_inode_delete_keys(trans, inum, BTREE_ID_extents) ?:
+		bch2_inode_delete_keys(trans, inum, BTREE_ID_xattrs) ?:
+		bch2_inode_delete_keys(trans, inum, BTREE_ID_dirents);
 	if (ret)
 		goto err;
 retry:
-	bch2_trans_begin(&trans);
+	bch2_trans_begin(trans);
 
-	ret = bch2_subvolume_get_snapshot(&trans, inum.subvol, &snapshot);
+	ret = bch2_subvolume_get_snapshot(trans, inum.subvol, &snapshot);
 	if (ret)
 		goto err;
 
-	k = bch2_bkey_get_iter(&trans, &iter, BTREE_ID_inodes,
+	k = bch2_bkey_get_iter(trans, &iter, BTREE_ID_inodes,
 			       SPOS(0, inum.inum, snapshot),
 			       BTREE_ITER_INTENT|BTREE_ITER_CACHED);
 	ret = bkey_err(k);
@@ -864,7 +862,7 @@ retry:
 		goto err;
 
 	if (!bkey_is_inode(k.k)) {
-		bch2_fs_inconsistent(trans.c,
+		bch2_fs_inconsistent(c,
 				     "inode %llu:%u not found when deleting",
 				     inum.inum, snapshot);
 		ret = -EIO;
@@ -877,15 +875,15 @@ retry:
 	delete.k.p = iter.pos;
 	delete.v.bi_generation = cpu_to_le32(inode_u.bi_generation + 1);
 
-	ret   = bch2_trans_update(&trans, &iter, &delete.k_i, 0) ?:
-		bch2_trans_commit(&trans, NULL, NULL,
+	ret   = bch2_trans_update(trans, &iter, &delete.k_i, 0) ?:
+		bch2_trans_commit(trans, NULL, NULL,
 				BTREE_INSERT_NOFAIL);
 err:
-	bch2_trans_iter_exit(&trans, &iter);
+	bch2_trans_iter_exit(trans, &iter);
 	if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
 		goto retry;
 
-	bch2_trans_exit(&trans);
+	bch2_trans_put(trans);
 	return ret;
 }
 
@@ -919,7 +917,7 @@ int bch2_inode_find_by_inum(struct bch_fs *c, subvol_inum inum,
 			    struct bch_inode_unpacked *inode)
 {
 	return bch2_trans_do(c, NULL, NULL, 0,
-		bch2_inode_find_by_inum_trans(&trans, inum, inode));
+		bch2_inode_find_by_inum_trans(trans, inum, inode));
 }
 
 int bch2_inode_nlink_inc(struct bch_inode_unpacked *bi)
@@ -1091,14 +1089,12 @@ delete:
 
 int bch2_delete_dead_inodes(struct bch_fs *c)
 {
-	struct btree_trans trans;
+	struct btree_trans *trans = bch2_trans_get(c);
 	struct btree_iter iter;
 	struct bkey_s_c k;
 	int ret;
 
-	bch2_trans_init(&trans, c, 0, 0);
-
-	ret = bch2_btree_write_buffer_flush_sync(&trans);
+	ret = bch2_btree_write_buffer_flush_sync(trans);
 	if (ret)
 		goto err;
 
@@ -1108,26 +1104,26 @@ int bch2_delete_dead_inodes(struct bch_fs *c)
 	 * but we can't retry because the btree write buffer won't have been
 	 * flushed and we'd spin:
 	 */
-	for_each_btree_key(&trans, iter, BTREE_ID_deleted_inodes, POS_MIN,
+	for_each_btree_key(trans, iter, BTREE_ID_deleted_inodes, POS_MIN,
 			   BTREE_ITER_PREFETCH|BTREE_ITER_ALL_SNAPSHOTS, k, ret) {
-		ret = lockrestart_do(&trans, may_delete_deleted_inode(&trans, k.k->p));
+		ret = lockrestart_do(trans, may_delete_deleted_inode(trans, k.k->p));
 		if (ret < 0)
 			break;
 
 		if (ret) {
 			if (!test_bit(BCH_FS_RW, &c->flags)) {
-				bch2_trans_unlock(&trans);
+				bch2_trans_unlock(trans);
 				bch2_fs_lazy_rw(c);
 			}
 
-			ret = bch2_inode_rm_snapshot(&trans, k.k->p.offset, k.k->p.snapshot);
+			ret = bch2_inode_rm_snapshot(trans, k.k->p.offset, k.k->p.snapshot);
 			if (ret && !bch2_err_matches(ret, BCH_ERR_transaction_restart))
 				break;
 		}
 	}
-	bch2_trans_iter_exit(&trans, &iter);
+	bch2_trans_iter_exit(trans, &iter);
 err:
-	bch2_trans_exit(&trans);
+	bch2_trans_put(trans);
 
 	return ret;
 }

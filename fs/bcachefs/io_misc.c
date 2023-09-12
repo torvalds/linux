@@ -198,19 +198,18 @@ int bch2_fpunch_at(struct btree_trans *trans, struct btree_iter *iter,
 int bch2_fpunch(struct bch_fs *c, subvol_inum inum, u64 start, u64 end,
 		s64 *i_sectors_delta)
 {
-	struct btree_trans trans;
+	struct btree_trans *trans = bch2_trans_get(c);
 	struct btree_iter iter;
 	int ret;
 
-	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 1024);
-	bch2_trans_iter_init(&trans, &iter, BTREE_ID_extents,
+	bch2_trans_iter_init(trans, &iter, BTREE_ID_extents,
 			     POS(inum.inum, start),
 			     BTREE_ITER_INTENT);
 
-	ret = bch2_fpunch_at(&trans, &iter, inum, end, i_sectors_delta);
+	ret = bch2_fpunch_at(trans, &iter, inum, end, i_sectors_delta);
 
-	bch2_trans_iter_exit(&trans, &iter);
-	bch2_trans_exit(&trans);
+	bch2_trans_iter_exit(trans, &iter);
+	bch2_trans_put(trans);
 
 	if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
 		ret = 0;
@@ -289,8 +288,8 @@ int bch2_truncate(struct bch_fs *c, subvol_inum inum, u64 new_i_size, u64 *i_sec
 	op.v.new_i_size	= cpu_to_le64(new_i_size);
 
 	return bch2_trans_run(c,
-		bch2_logged_op_start(&trans, &op.k_i) ?:
-		__bch2_resume_logged_op_truncate(&trans, &op.k_i, i_sectors_delta));
+		bch2_logged_op_start(trans, &op.k_i) ?:
+		__bch2_resume_logged_op_truncate(trans, &op.k_i, i_sectors_delta));
 }
 
 /* finsert/fcollapse: */
@@ -493,6 +492,6 @@ int bch2_fcollapse_finsert(struct bch_fs *c, subvol_inum inum,
 	op.v.pos	= cpu_to_le64(insert ? U64_MAX : offset);
 
 	return bch2_trans_run(c,
-		bch2_logged_op_start(&trans, &op.k_i) ?:
-		__bch2_resume_logged_op_finsert(&trans, &op.k_i, i_sectors_delta));
+		bch2_logged_op_start(trans, &op.k_i) ?:
+		__bch2_resume_logged_op_finsert(trans, &op.k_i, i_sectors_delta));
 }

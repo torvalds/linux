@@ -525,7 +525,7 @@ static int __bch2_move_data(struct moving_context *ctxt,
 	struct bch_fs *c = ctxt->c;
 	struct bch_io_opts io_opts = bch2_opts_to_inode_opts(c->opts);
 	struct bkey_buf sk;
-	struct btree_trans trans;
+	struct btree_trans *trans = bch2_trans_get(c);
 	struct btree_iter iter;
 	struct bkey_s_c k;
 	struct data_update_opts data_opts;
@@ -533,7 +533,6 @@ static int __bch2_move_data(struct moving_context *ctxt,
 	int ret = 0, ret2;
 
 	bch2_bkey_buf_init(&sk);
-	bch2_trans_init(&trans, c, 0, 0);
 
 	if (ctxt->stats) {
 		ctxt->stats->data_type	= BCH_DATA_user;
@@ -541,15 +540,15 @@ static int __bch2_move_data(struct moving_context *ctxt,
 		ctxt->stats->pos	= start;
 	}
 
-	bch2_trans_iter_init(&trans, &iter, btree_id, start,
+	bch2_trans_iter_init(trans, &iter, btree_id, start,
 			     BTREE_ITER_PREFETCH|
 			     BTREE_ITER_ALL_SNAPSHOTS);
 
 	if (ctxt->rate)
 		bch2_ratelimit_reset(ctxt->rate);
 
-	while (!move_ratelimit(&trans, ctxt)) {
-		bch2_trans_begin(&trans);
+	while (!move_ratelimit(trans, ctxt)) {
+		bch2_trans_begin(trans);
 
 		k = bch2_btree_iter_peek(&iter);
 		if (!k.k)
@@ -570,7 +569,7 @@ static int __bch2_move_data(struct moving_context *ctxt,
 		if (!bkey_extent_is_direct_data(k.k))
 			goto next_nondata;
 
-		ret = move_get_io_opts(&trans, &io_opts, k, &cur_inum);
+		ret = move_get_io_opts(trans, &io_opts, k, &cur_inum);
 		if (ret)
 			continue;
 
@@ -585,7 +584,7 @@ static int __bch2_move_data(struct moving_context *ctxt,
 		bch2_bkey_buf_reassemble(&sk, c, k);
 		k = bkey_i_to_s_c(sk.k);
 
-		ret2 = bch2_move_extent(&trans, &iter, ctxt, NULL,
+		ret2 = bch2_move_extent(trans, &iter, ctxt, NULL,
 					io_opts, btree_id, k, data_opts);
 		if (ret2) {
 			if (bch2_err_matches(ret2, BCH_ERR_transaction_restart))
@@ -593,7 +592,7 @@ static int __bch2_move_data(struct moving_context *ctxt,
 
 			if (ret2 == -ENOMEM) {
 				/* memory allocation failure, wait for some IO to finish */
-				bch2_move_ctxt_wait_for_io(ctxt, &trans);
+				bch2_move_ctxt_wait_for_io(ctxt, trans);
 				continue;
 			}
 
@@ -610,8 +609,8 @@ next_nondata:
 		bch2_btree_iter_advance(&iter);
 	}
 
-	bch2_trans_iter_exit(&trans, &iter);
-	bch2_trans_exit(&trans);
+	bch2_trans_iter_exit(trans, &iter);
+	bch2_trans_put(trans);
 	bch2_bkey_buf_exit(&sk, c);
 
 	return ret;
@@ -826,15 +825,14 @@ int bch2_evacuate_bucket(struct bch_fs *c,
 			 struct write_point_specifier wp,
 			 bool wait_on_copygc)
 {
-	struct btree_trans trans;
+	struct btree_trans *trans = bch2_trans_get(c);
 	struct moving_context ctxt;
 	int ret;
 
-	bch2_trans_init(&trans, c, 0, 0);
 	bch2_moving_ctxt_init(&ctxt, c, rate, stats, wp, wait_on_copygc);
-	ret = __bch2_evacuate_bucket(&trans, &ctxt, NULL, bucket, gen, data_opts);
+	ret = __bch2_evacuate_bucket(trans, &ctxt, NULL, bucket, gen, data_opts);
 	bch2_moving_ctxt_exit(&ctxt);
-	bch2_trans_exit(&trans);
+	bch2_trans_put(trans);
 
 	return ret;
 }
@@ -851,14 +849,13 @@ static int bch2_move_btree(struct bch_fs *c,
 {
 	bool kthread = (current->flags & PF_KTHREAD) != 0;
 	struct bch_io_opts io_opts = bch2_opts_to_inode_opts(c->opts);
-	struct btree_trans trans;
+	struct btree_trans *trans = bch2_trans_get(c);
 	struct btree_iter iter;
 	struct btree *b;
 	enum btree_id id;
 	struct data_update_opts data_opts;
 	int ret = 0;
 
-	bch2_trans_init(&trans, c, 0, 0);
 	progress_list_add(c, stats);
 
 	stats->data_type = BCH_DATA_btree;
@@ -871,11 +868,11 @@ static int bch2_move_btree(struct bch_fs *c,
 		if (!bch2_btree_id_root(c, id)->b)
 			continue;
 
-		bch2_trans_node_iter_init(&trans, &iter, id, POS_MIN, 0, 0,
+		bch2_trans_node_iter_init(trans, &iter, id, POS_MIN, 0, 0,
 					  BTREE_ITER_PREFETCH);
 retry:
 		ret = 0;
-		while (bch2_trans_begin(&trans),
+		while (bch2_trans_begin(trans),
 		       (b = bch2_btree_iter_peek_node(&iter)) &&
 		       !(ret = PTR_ERR_OR_ZERO(b))) {
 			if (kthread && kthread_should_stop())
@@ -890,7 +887,7 @@ retry:
 			if (!pred(c, arg, b, &io_opts, &data_opts))
 				goto next;
 
-			ret = bch2_btree_node_rewrite(&trans, &iter, b, 0) ?: ret;
+			ret = bch2_btree_node_rewrite(trans, &iter, b, 0) ?: ret;
 			if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
 				continue;
 			if (ret)
@@ -901,13 +898,13 @@ next:
 		if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
 			goto retry;
 
-		bch2_trans_iter_exit(&trans, &iter);
+		bch2_trans_iter_exit(trans, &iter);
 
 		if (kthread && kthread_should_stop())
 			break;
 	}
 
-	bch2_trans_exit(&trans);
+	bch2_trans_put(trans);
 
 	if (ret)
 		bch_err_fn(c, ret);

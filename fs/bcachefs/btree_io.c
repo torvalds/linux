@@ -1628,8 +1628,7 @@ err:
 int bch2_btree_root_read(struct bch_fs *c, enum btree_id id,
 			const struct bkey_i *k, unsigned level)
 {
-	return bch2_trans_run(c, __bch2_btree_root_read(&trans, id, k, level));
-
+	return bch2_trans_run(c, __bch2_btree_root_read(trans, id, k, level));
 }
 
 void bch2_btree_complete_write(struct bch_fs *c, struct btree *b,
@@ -1691,15 +1690,13 @@ static void __btree_node_write_done(struct bch_fs *c, struct btree *b)
 
 static void btree_node_write_done(struct bch_fs *c, struct btree *b)
 {
-	struct btree_trans trans;
+	struct btree_trans *trans = bch2_trans_get(c);
 
-	bch2_trans_init(&trans, c, 0, 0);
-
-	btree_node_lock_nopath_nofail(&trans, &b->c, SIX_LOCK_read);
+	btree_node_lock_nopath_nofail(trans, &b->c, SIX_LOCK_read);
 	__btree_node_write_done(c, b);
 	six_unlock_read(&b->c.lock);
 
-	bch2_trans_exit(&trans);
+	bch2_trans_put(trans);
 }
 
 static void btree_node_write_work(struct work_struct *work)
@@ -1728,7 +1725,7 @@ static void btree_node_write_work(struct work_struct *work)
 		}
 	} else {
 		ret = bch2_trans_do(c, NULL, NULL, 0,
-			bch2_btree_node_update_key_get_iter(&trans, b, &wbio->key,
+			bch2_btree_node_update_key_get_iter(trans, b, &wbio->key,
 					BCH_WATERMARK_reclaim|
 					BTREE_INSERT_JOURNAL_RECLAIM|
 					BTREE_INSERT_NOFAIL|

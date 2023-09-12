@@ -610,11 +610,11 @@ int bch2_check_snapshot_trees(struct bch_fs *c)
 	int ret;
 
 	ret = bch2_trans_run(c,
-		for_each_btree_key_commit(&trans, iter,
+		for_each_btree_key_commit(trans, iter,
 			BTREE_ID_snapshot_trees, POS_MIN,
 			BTREE_ITER_PREFETCH, k,
 			NULL, NULL, BTREE_INSERT_LAZY_RW|BTREE_INSERT_NOFAIL,
-		check_snapshot_tree(&trans, &iter, k)));
+		check_snapshot_tree(trans, &iter, k)));
 
 	if (ret)
 		bch_err(c, "error %i checking snapshot trees", ret);
@@ -883,11 +883,11 @@ int bch2_check_snapshots(struct bch_fs *c)
 	 * the parent's depth already be correct:
 	 */
 	ret = bch2_trans_run(c,
-		for_each_btree_key_reverse_commit(&trans, iter,
+		for_each_btree_key_reverse_commit(trans, iter,
 			BTREE_ID_snapshots, POS_MAX,
 			BTREE_ITER_PREFETCH, k,
 			NULL, NULL, BTREE_INSERT_LAZY_RW|BTREE_INSERT_NOFAIL,
-		check_snapshot(&trans, &iter, k)));
+		check_snapshot(trans, &iter, k)));
 	if (ret)
 		bch_err_fn(c, ret);
 	return ret;
@@ -1373,7 +1373,7 @@ static int bch2_fix_child_of_deleted_snapshot(struct btree_trans *trans,
 
 int bch2_delete_dead_snapshots(struct bch_fs *c)
 {
-	struct btree_trans trans;
+	struct btree_trans *trans;
 	struct btree_iter iter;
 	struct bkey_s_c k;
 	struct bkey_s_c_snapshot snap;
@@ -1390,30 +1390,30 @@ int bch2_delete_dead_snapshots(struct bch_fs *c)
 		}
 	}
 
-	bch2_trans_init(&trans, c, 0, 0);
+	trans = bch2_trans_get(c);
 
 	/*
 	 * For every snapshot node: If we have no live children and it's not
 	 * pointed to by a subvolume, delete it:
 	 */
-	ret = for_each_btree_key_commit(&trans, iter, BTREE_ID_snapshots,
+	ret = for_each_btree_key_commit(trans, iter, BTREE_ID_snapshots,
 			POS_MIN, 0, k,
 			NULL, NULL, 0,
-		bch2_delete_redundant_snapshot(&trans, &iter, k));
+		bch2_delete_redundant_snapshot(trans, &iter, k));
 	if (ret) {
 		bch_err_msg(c, ret, "deleting redundant snapshots");
 		goto err;
 	}
 
-	for_each_btree_key2(&trans, iter, BTREE_ID_snapshots,
+	for_each_btree_key2(trans, iter, BTREE_ID_snapshots,
 			   POS_MIN, 0, k,
-		bch2_snapshot_set_equiv(&trans, k));
+		bch2_snapshot_set_equiv(trans, k));
 	if (ret) {
 		bch_err_msg(c, ret, "in bch2_snapshots_set_equiv");
 		goto err;
 	}
 
-	for_each_btree_key(&trans, iter, BTREE_ID_snapshots,
+	for_each_btree_key(trans, iter, BTREE_ID_snapshots,
 			   POS_MIN, 0, k, ret) {
 		if (k.k->type != KEY_TYPE_snapshot)
 			continue;
@@ -1425,7 +1425,7 @@ int bch2_delete_dead_snapshots(struct bch_fs *c)
 				break;
 		}
 	}
-	bch2_trans_iter_exit(&trans, &iter);
+	bch2_trans_iter_exit(trans, &iter);
 
 	if (ret) {
 		bch_err_msg(c, ret, "walking snapshots");
@@ -1440,16 +1440,16 @@ int bch2_delete_dead_snapshots(struct bch_fs *c)
 		if (!btree_type_has_snapshots(id))
 			continue;
 
-		ret = for_each_btree_key_commit(&trans, iter,
+		ret = for_each_btree_key_commit(trans, iter,
 				id, POS_MIN,
 				BTREE_ITER_PREFETCH|BTREE_ITER_ALL_SNAPSHOTS, k,
 				&res, NULL, BTREE_INSERT_NOFAIL,
-			snapshot_delete_key(&trans, &iter, k, &deleted, &equiv_seen, &last_pos)) ?:
-		      for_each_btree_key_commit(&trans, iter,
+			snapshot_delete_key(trans, &iter, k, &deleted, &equiv_seen, &last_pos)) ?:
+		      for_each_btree_key_commit(trans, iter,
 				id, POS_MIN,
 				BTREE_ITER_PREFETCH|BTREE_ITER_ALL_SNAPSHOTS, k,
 				&res, NULL, BTREE_INSERT_NOFAIL,
-			move_key_to_correct_snapshot(&trans, &iter, k));
+			move_key_to_correct_snapshot(trans, &iter, k));
 
 		bch2_disk_reservation_put(c, &res);
 		darray_exit(&equiv_seen);
@@ -1460,7 +1460,7 @@ int bch2_delete_dead_snapshots(struct bch_fs *c)
 		}
 	}
 
-	for_each_btree_key(&trans, iter, BTREE_ID_snapshots,
+	for_each_btree_key(trans, iter, BTREE_ID_snapshots,
 			   POS_MIN, 0, k, ret) {
 		u32 snapshot = k.k->p.offset;
 		u32 equiv = bch2_snapshot_equiv(c, snapshot);
@@ -1468,23 +1468,23 @@ int bch2_delete_dead_snapshots(struct bch_fs *c)
 		if (equiv != snapshot)
 			snapshot_list_add(c, &deleted_interior, snapshot);
 	}
-	bch2_trans_iter_exit(&trans, &iter);
+	bch2_trans_iter_exit(trans, &iter);
 
 	/*
 	 * Fixing children of deleted snapshots can't be done completely
 	 * atomically, if we crash between here and when we delete the interior
 	 * nodes some depth fields will be off:
 	 */
-	ret = for_each_btree_key_commit(&trans, iter, BTREE_ID_snapshots, POS_MIN,
+	ret = for_each_btree_key_commit(trans, iter, BTREE_ID_snapshots, POS_MIN,
 				  BTREE_ITER_INTENT, k,
 				  NULL, NULL, BTREE_INSERT_NOFAIL,
-		bch2_fix_child_of_deleted_snapshot(&trans, &iter, k, &deleted_interior));
+		bch2_fix_child_of_deleted_snapshot(trans, &iter, k, &deleted_interior));
 	if (ret)
 		goto err;
 
 	darray_for_each(deleted, i) {
-		ret = commit_do(&trans, NULL, NULL, 0,
-			bch2_snapshot_node_delete(&trans, *i));
+		ret = commit_do(trans, NULL, NULL, 0,
+			bch2_snapshot_node_delete(trans, *i));
 		if (ret) {
 			bch_err_msg(c, ret, "deleting snapshot %u", *i);
 			goto err;
@@ -1492,8 +1492,8 @@ int bch2_delete_dead_snapshots(struct bch_fs *c)
 	}
 
 	darray_for_each(deleted_interior, i) {
-		ret = commit_do(&trans, NULL, NULL, 0,
-			bch2_snapshot_node_delete(&trans, *i));
+		ret = commit_do(trans, NULL, NULL, 0,
+			bch2_snapshot_node_delete(trans, *i));
 		if (ret) {
 			bch_err_msg(c, ret, "deleting snapshot %u", *i);
 			goto err;
@@ -1504,7 +1504,7 @@ int bch2_delete_dead_snapshots(struct bch_fs *c)
 err:
 	darray_exit(&deleted_interior);
 	darray_exit(&deleted);
-	bch2_trans_exit(&trans);
+	bch2_trans_put(trans);
 	if (ret)
 		bch_err_fn(c, ret);
 	return ret;
@@ -1671,11 +1671,11 @@ int bch2_snapshots_read(struct bch_fs *c)
 	int ret = 0;
 
 	ret = bch2_trans_run(c,
-		for_each_btree_key2(&trans, iter, BTREE_ID_snapshots,
+		for_each_btree_key2(trans, iter, BTREE_ID_snapshots,
 			   POS_MIN, 0, k,
-			bch2_mark_snapshot(&trans, BTREE_ID_snapshots, 0, bkey_s_c_null, k, 0) ?:
-			bch2_snapshot_set_equiv(&trans, k)) ?:
-		for_each_btree_key2(&trans, iter, BTREE_ID_snapshots,
+			bch2_mark_snapshot(trans, BTREE_ID_snapshots, 0, bkey_s_c_null, k, 0) ?:
+			bch2_snapshot_set_equiv(trans, k)) ?:
+		for_each_btree_key2(trans, iter, BTREE_ID_snapshots,
 			   POS_MIN, 0, k,
 			   (set_is_ancestor_bitmap(c, k.k->p.offset), 0)));
 	if (ret)

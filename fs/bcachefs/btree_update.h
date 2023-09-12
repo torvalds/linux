@@ -146,29 +146,16 @@ static inline int bch2_trans_commit(struct btree_trans *trans,
 	nested_lockrestart_do(_trans, _do ?: bch2_trans_commit(_trans, (_disk_res),\
 					(_journal_seq), (_flags)))
 
-#define bch2_trans_do(_c, _disk_res, _journal_seq, _flags, _do)		\
+#define bch2_trans_run(_c, _do)						\
 ({									\
-	struct btree_trans trans;					\
-	int _ret;							\
-									\
-	bch2_trans_init(&trans, (_c), 0, 0);				\
-	_ret = commit_do(&trans, _disk_res, _journal_seq, _flags, _do);	\
-	bch2_trans_exit(&trans);					\
-									\
+	struct btree_trans *trans = bch2_trans_get(_c);			\
+	int _ret = (_do);						\
+	bch2_trans_put(trans);						\
 	_ret;								\
 })
 
-#define bch2_trans_run(_c, _do)						\
-({									\
-	struct btree_trans trans;					\
-	int _ret;							\
-									\
-	bch2_trans_init(&trans, (_c), 0, 0);				\
-	_ret = (_do);							\
-	bch2_trans_exit(&trans);					\
-									\
-	_ret;								\
-})
+#define bch2_trans_do(_c, _disk_res, _journal_seq, _flags, _do)		\
+	bch2_trans_run(_c, commit_do(trans, _disk_res, _journal_seq, _flags, _do))
 
 #define trans_for_each_update(_trans, _i)				\
 	for ((_i) = (_trans)->updates;					\

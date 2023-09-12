@@ -165,7 +165,7 @@ static int bch2_journal_replay(struct bch_fs *c)
 				    (!k->allocated
 				     ? BTREE_INSERT_JOURNAL_REPLAY|BCH_WATERMARK_reclaim
 				     : 0),
-			     bch2_journal_replay_key(&trans, k));
+			     bch2_journal_replay_key(trans, k));
 		if (ret) {
 			bch_err(c, "journal replay: error while replaying key at btree %s level %u: %s",
 				bch2_btree_ids[k->btree_id], k->level, bch2_err_str(ret));
@@ -466,7 +466,7 @@ noinline_for_stack
 static int bch2_fs_upgrade_for_subvolumes(struct bch_fs *c)
 {
 	int ret = bch2_trans_do(c, NULL, NULL, BTREE_INSERT_LAZY_RW,
-				__bch2_fs_upgrade_for_subvolumes(&trans));
+				__bch2_fs_upgrade_for_subvolumes(trans));
 	if (ret)
 		bch_err_fn(c, ret);
 	return ret;
@@ -1013,7 +1013,7 @@ int bch2_fs_initialize(struct bch_fs *c)
 	bch2_inode_init_early(c, &lostfound_inode);
 
 	ret = bch2_trans_do(c, NULL, NULL, 0,
-		bch2_create_trans(&trans,
+		bch2_create_trans(trans,
 				  BCACHEFS_ROOT_SUBVOL_INUM,
 				  &root_inode, &lostfound_inode,
 				  &lostfound,

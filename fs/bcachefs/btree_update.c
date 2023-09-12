@@ -692,7 +692,7 @@ int bch2_btree_insert(struct bch_fs *c, enum btree_id id, struct bkey_i *k,
 		      struct disk_reservation *disk_res, int flags)
 {
 	return bch2_trans_do(c, disk_res, NULL, flags,
-			     bch2_btree_insert_trans(&trans, id, k, 0));
+			     bch2_btree_insert_trans(trans, id, k, 0));
 }
 
 int bch2_btree_delete_extent_at(struct btree_trans *trans, struct btree_iter *iter,
@@ -824,7 +824,7 @@ int bch2_btree_delete_range(struct bch_fs *c, enum btree_id id,
 			    u64 *journal_seq)
 {
 	int ret = bch2_trans_run(c,
-			bch2_btree_delete_range_trans(&trans, id, start, end,
+			bch2_btree_delete_range_trans(trans, id, start, end,
 						      update_flags, journal_seq));
 	if (ret == -BCH_ERR_transaction_restart_nested)
 		ret = 0;
@@ -898,7 +898,7 @@ __bch2_fs_log_msg(struct bch_fs *c, unsigned commit_flags, const char *fmt,
 	} else {
 		ret = bch2_trans_do(c, NULL, NULL,
 			BTREE_INSERT_LAZY_RW|commit_flags,
-			__bch2_trans_log_msg(&trans.extra_journal_entries, fmt, args));
+			__bch2_trans_log_msg(&trans->extra_journal_entries, fmt, args));
 	}
 
 	return ret;

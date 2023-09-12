@@ -452,8 +452,8 @@ struct btree_trans {
 	void			*mem;
 
 	u8			sorted[BTREE_ITER_MAX + 8];
-	struct btree_path	*paths;
-	struct btree_insert_entry *updates;
+	struct btree_path	paths[BTREE_ITER_MAX];
+	struct btree_insert_entry updates[BTREE_ITER_MAX];
 	struct btree_write_buffered_key *wb_updates;
 
 	/* update path: */

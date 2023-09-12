@@ -627,8 +627,8 @@ struct journal_keys {
 	size_t			size;
 };
 
-struct btree_path_buf {
-	struct btree_path	*path;
+struct btree_trans_buf {
+	struct btree_trans	*trans;
 };
 
 #define REPLICAS_DELTA_LIST_MAX	(1U << 16)
@@ -787,9 +787,9 @@ struct bch_fs {
 	/* btree_iter.c: */
 	struct seqmutex		btree_trans_lock;
 	struct list_head	btree_trans_list;
-	mempool_t		btree_paths_pool;
+	mempool_t		btree_trans_pool;
 	mempool_t		btree_trans_mem_pool;
-	struct btree_path_buf  __percpu	*btree_paths_bufs;
+	struct btree_trans_buf  __percpu	*btree_trans_bufs;
 
 	struct srcu_struct	btree_trans_barrier;
 	bool			btree_trans_barrier_initialized;

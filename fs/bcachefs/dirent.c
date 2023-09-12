@@ -479,21 +479,19 @@ u64 bch2_dirent_lookup(struct bch_fs *c, subvol_inum dir,
 		       const struct bch_hash_info *hash_info,
 		       const struct qstr *name, subvol_inum *inum)
 {
-	struct btree_trans trans;
+	struct btree_trans *trans = bch2_trans_get(c);
 	struct btree_iter iter;
 	int ret;
-
-	bch2_trans_init(&trans, c, 0, 0);
 retry:
-	bch2_trans_begin(&trans);
+	bch2_trans_begin(trans);
 
-	ret = __bch2_dirent_lookup_trans(&trans, &iter, dir, hash_info,
+	ret = __bch2_dirent_lookup_trans(trans, &iter, dir, hash_info,
 					  name, inum, 0);
 	if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
 		goto retry;
 	if (!ret)
-		bch2_trans_iter_exit(&trans, &iter);
-	bch2_trans_exit(&trans);
+		bch2_trans_iter_exit(trans, &iter);
+	bch2_trans_put(trans);
 	return ret;
 }
 
@@ -522,7 +520,7 @@ int bch2_empty_dir_trans(struct btree_trans *trans, subvol_inum dir)
 
 int bch2_readdir(struct bch_fs *c, subvol_inum inum, struct dir_context *ctx)
 {
-	struct btree_trans trans;
+	struct btree_trans *trans = bch2_trans_get(c);
 	struct btree_iter iter;
 	struct bkey_s_c k;
 	struct bkey_s_c_dirent dirent;
@@ -533,15 +531,14 @@ int bch2_readdir(struct bch_fs *c, subvol_inum inum, struct dir_context *ctx)
 	int ret;
 
 	bch2_bkey_buf_init(&sk);
-	bch2_trans_init(&trans, c, 0, 0);
 retry:
-	bch2_trans_begin(&trans);
+	bch2_trans_begin(trans);
 
-	ret = bch2_subvolume_get_snapshot(&trans, inum.subvol, &snapshot);
+	ret = bch2_subvolume_get_snapshot(trans, inum.subvol, &snapshot);
 	if (ret)
 		goto err;
 
-	for_each_btree_key_upto_norestart(&trans, iter, BTREE_ID_dirents,
+	for_each_btree_key_upto_norestart(trans, iter, BTREE_ID_dirents,
 			   SPOS(inum.inum, ctx->pos, snapshot),
 			   POS(inum.inum, U64_MAX), 0, k, ret) {
 		if (k.k->type != KEY_TYPE_dirent)
@@ -549,7 +546,7 @@ retry:
 
 		dirent = bkey_s_c_to_dirent(k);
 
-		ret = bch2_dirent_read_target(&trans, inum, dirent, &target);
+		ret = bch2_dirent_read_target(trans, inum, dirent, &target);
 		if (ret < 0)
 			break;
 		if (ret)
@@ -558,7 +555,7 @@ retry:
 		/* dir_emit() can fault and block: */
 		bch2_bkey_buf_reassemble(&sk, c, k);
 		dirent = bkey_i_to_s_c_dirent(sk.k);
-		bch2_trans_unlock(&trans);
+		bch2_trans_unlock(trans);
 
 		name = bch2_dirent_get_name(dirent);
 
@@ -574,16 +571,16 @@ retry:
 		 * read_target looks up subvolumes, we can overflow paths if the
 		 * directory has many subvolumes in it
 		 */
-		ret = btree_trans_too_many_iters(&trans);
+		ret = btree_trans_too_many_iters(trans);
 		if (ret)
 			break;
 	}
-	bch2_trans_iter_exit(&trans, &iter);
+	bch2_trans_iter_exit(trans, &iter);
 err:
 	if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
 		goto retry;
 
-	bch2_trans_exit(&trans);
+	bch2_trans_put(trans);
 	bch2_bkey_buf_exit(&sk, c);
 
 	return ret;

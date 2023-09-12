@@ -86,10 +86,10 @@ int bch2_check_subvols(struct bch_fs *c)
 	int ret;
 
 	ret = bch2_trans_run(c,
-		for_each_btree_key_commit(&trans, iter,
+		for_each_btree_key_commit(trans, iter,
 			BTREE_ID_subvolumes, POS_MIN, BTREE_ITER_PREFETCH, k,
 			NULL, NULL, BTREE_INSERT_LAZY_RW|BTREE_INSERT_NOFAIL,
-		check_subvol(&trans, &iter, k)));
+		check_subvol(trans, &iter, k)));
 	if (ret)
 		bch_err_fn(c, ret);
 	return ret;
@@ -293,7 +293,7 @@ static void bch2_subvolume_wait_for_pagecache_and_delete(struct work_struct *wor
 		bch2_evict_subvolume_inodes(c, &s);
 
 		for (id = s.data; id < s.data + s.nr; id++) {
-			ret = bch2_trans_run(c, bch2_subvolume_delete(&trans, *id));
+			ret = bch2_trans_run(c, bch2_subvolume_delete(trans, *id));
 			if (ret) {
 				bch_err_msg(c, ret, "deleting subvolume %u", *id);
 				break;

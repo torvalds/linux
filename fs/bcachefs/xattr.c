@@ -307,24 +307,22 @@ ssize_t bch2_xattr_list(struct dentry *dentry, char *buffer, size_t buffer_size)
 {
 	struct bch_fs *c = dentry->d_sb->s_fs_info;
 	struct bch_inode_info *inode = to_bch_ei(dentry->d_inode);
-	struct btree_trans trans;
+	struct btree_trans *trans = bch2_trans_get(c);
 	struct btree_iter iter;
 	struct bkey_s_c k;
 	struct xattr_buf buf = { .buf = buffer, .len = buffer_size };
 	u64 offset = 0, inum = inode->ei_inode.bi_inum;
 	u32 snapshot;
 	int ret;
-
-	bch2_trans_init(&trans, c, 0, 0);
 retry:
-	bch2_trans_begin(&trans);
+	bch2_trans_begin(trans);
 	iter = (struct btree_iter) { NULL };
 
-	ret = bch2_subvolume_get_snapshot(&trans, inode->ei_subvol, &snapshot);
+	ret = bch2_subvolume_get_snapshot(trans, inode->ei_subvol, &snapshot);
 	if (ret)
 		goto err;
 
-	for_each_btree_key_upto_norestart(&trans, iter, BTREE_ID_xattrs,
+	for_each_btree_key_upto_norestart(trans, iter, BTREE_ID_xattrs,
 			   SPOS(inum, offset, snapshot),
 			   POS(inum, U64_MAX), 0, k, ret) {
 		if (k.k->type != KEY_TYPE_xattr)
@@ -336,12 +334,12 @@ retry:
 	}
 
 	offset = iter.pos.offset;
-	bch2_trans_iter_exit(&trans, &iter);
+	bch2_trans_iter_exit(trans, &iter);
 err:
 	if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
 		goto retry;
 
-	bch2_trans_exit(&trans);
+	bch2_trans_put(trans);
 
 	if (ret)
 		goto out;
@@ -366,7 +364,7 @@ static int bch2_xattr_get_handler(const struct xattr_handler *handler,
 	struct bch_inode_info *inode = to_bch_ei(vinode);
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
 	int ret = bch2_trans_do(c, NULL, NULL, 0,
-		bch2_xattr_get_trans(&trans, inode, name, buffer, size, handler->flags));
+		bch2_xattr_get_trans(trans, inode, name, buffer, size, handler->flags));
 
 	return bch2_err_class(ret);
 }
@@ -381,18 +379,14 @@ static int bch2_xattr_set_handler(const struct xattr_handler *handler,
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
 	struct bch_hash_info hash = bch2_hash_info_init(c, &inode->ei_inode);
 	struct bch_inode_unpacked inode_u;
-	struct btree_trans trans;
 	int ret;
 
-	bch2_trans_init(&trans, c, 0, 0);
-
-	ret = commit_do(&trans, NULL, NULL, 0,
-			bch2_xattr_set(&trans, inode_inum(inode), &inode_u,
+	ret = bch2_trans_run(c,
+		commit_do(trans, NULL, NULL, 0,
+			bch2_xattr_set(trans, inode_inum(inode), &inode_u,
 				       &hash, name, value, size,
-				       handler->flags, flags));
-	if (!ret)
-		bch2_inode_update_after_write(&trans, inode, &inode_u, ATTR_CTIME);
-	bch2_trans_exit(&trans);
+				       handler->flags, flags)) ?:
+		(bch2_inode_update_after_write(trans, inode, &inode_u, ATTR_CTIME), 0));
 
 	return bch2_err_class(ret);
 }

@@ -599,7 +599,7 @@ advance:
 int bch2_fs_quota_read(struct bch_fs *c)
 {
 	struct bch_sb_field_quota *sb_quota;
-	struct btree_trans trans;
+	struct btree_trans *trans;
 	struct btree_iter iter;
 	struct bkey_s_c k;
 	int ret;
@@ -614,16 +614,16 @@ int bch2_fs_quota_read(struct bch_fs *c)
 	bch2_sb_quota_read(c);
 	mutex_unlock(&c->sb_lock);
 
-	bch2_trans_init(&trans, c, 0, 0);
+	trans = bch2_trans_get(c);
 
-	ret = for_each_btree_key2(&trans, iter, BTREE_ID_quotas,
+	ret = for_each_btree_key2(trans, iter, BTREE_ID_quotas,
 			POS_MIN, BTREE_ITER_PREFETCH, k,
 		__bch2_quota_set(c, k, NULL)) ?:
-	      for_each_btree_key2(&trans, iter, BTREE_ID_inodes,
+	      for_each_btree_key2(trans, iter, BTREE_ID_inodes,
 			POS_MIN, BTREE_ITER_PREFETCH|BTREE_ITER_ALL_SNAPSHOTS, k,
-		bch2_fs_quota_read_inode(&trans, &iter, k));
+		bch2_fs_quota_read_inode(trans, &iter, k));
 
-	bch2_trans_exit(&trans);
+	bch2_trans_put(trans);
 
 	if (ret)
 		bch_err_fn(c, ret);
@@ -956,7 +956,7 @@ static int bch2_set_quota(struct super_block *sb, struct kqid qid,
 	new_quota.k.p = POS(qid.type, from_kqid(&init_user_ns, qid));
 
 	ret = bch2_trans_do(c, NULL, NULL, 0,
-			    bch2_set_quota_trans(&trans, &new_quota, qdq)) ?:
+			    bch2_set_quota_trans(trans, &new_quota, qdq)) ?:
 		__bch2_quota_set(c, bkey_i_to_s_c(&new_quota.k_i), qdq);
 
 	return bch2_err_class(ret);

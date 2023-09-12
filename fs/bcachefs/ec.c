@@ -476,7 +476,7 @@ err:
 
 static int get_stripe_key(struct bch_fs *c, u64 idx, struct ec_stripe_buf *stripe)
 {
-	return bch2_trans_run(c, get_stripe_key_trans(&trans, idx, stripe));
+	return bch2_trans_run(c, get_stripe_key_trans(trans, idx, stripe));
 }
 
 /* recovery read path: */
@@ -788,11 +788,9 @@ static void ec_stripe_delete_work(struct work_struct *work)
 {
 	struct bch_fs *c =
 		container_of(work, struct bch_fs, ec_stripe_delete_work);
-	struct btree_trans trans;
+	struct btree_trans *trans = bch2_trans_get(c);
 	int ret;
 	u64 idx;
-
-	bch2_trans_init(&trans, c, 0, 0);
 
 	while (1) {
 		mutex_lock(&c->ec_stripes_heap_lock);
@@ -802,15 +800,15 @@ static void ec_stripe_delete_work(struct work_struct *work)
 		if (!idx)
 			break;
 
-		ret = commit_do(&trans, NULL, NULL, BTREE_INSERT_NOFAIL,
-				ec_stripe_delete(&trans, idx));
+		ret = commit_do(trans, NULL, NULL, BTREE_INSERT_NOFAIL,
+				ec_stripe_delete(trans, idx));
 		if (ret) {
 			bch_err_fn(c, ret);
 			break;
 		}
 	}
 
-	bch2_trans_exit(&trans);
+	bch2_trans_put(trans);
 
 	bch2_write_ref_put(c, BCH_WRITE_REF_stripe_delete);
 }
@@ -999,24 +997,22 @@ static int ec_stripe_update_bucket(struct btree_trans *trans, struct ec_stripe_b
 
 static int ec_stripe_update_extents(struct bch_fs *c, struct ec_stripe_buf *s)
 {
-	struct btree_trans trans;
+	struct btree_trans *trans = bch2_trans_get(c);
 	struct bch_stripe *v = &bkey_i_to_stripe(&s->key)->v;
 	unsigned i, nr_data = v->nr_blocks - v->nr_redundant;
 	int ret = 0;
 
-	bch2_trans_init(&trans, c, 0, 0);
-
-	ret = bch2_btree_write_buffer_flush(&trans);
+	ret = bch2_btree_write_buffer_flush(trans);
 	if (ret)
 		goto err;
 
 	for (i = 0; i < nr_data; i++) {
-		ret = ec_stripe_update_bucket(&trans, s, i);
+		ret = ec_stripe_update_bucket(trans, s, i);
 		if (ret)
 			break;
 	}
 err:
-	bch2_trans_exit(&trans);
+	bch2_trans_put(trans);
 
 	return ret;
 }
@@ -1124,7 +1120,7 @@ static void ec_stripe_create(struct ec_stripe_new *s)
 	ret = bch2_trans_do(c, &s->res, NULL,
 			    BTREE_INSERT_NOCHECK_RW|
 			    BTREE_INSERT_NOFAIL,
-			    ec_stripe_key_update(&trans,
+			    ec_stripe_key_update(trans,
 					bkey_i_to_stripe(&s->new_stripe.key),
 					!s->have_existing_stripe));
 	if (ret) {
@@ -1822,7 +1818,7 @@ void bch2_fs_ec_flush(struct bch_fs *c)
 
 int bch2_stripes_read(struct bch_fs *c)
 {
-	struct btree_trans trans;
+	struct btree_trans *trans = bch2_trans_get(c);
 	struct btree_iter iter;
 	struct bkey_s_c k;
 	const struct bch_stripe *s;
@@ -1830,9 +1826,7 @@ int bch2_stripes_read(struct bch_fs *c)
 	unsigned i;
 	int ret;
 
-	bch2_trans_init(&trans, c, 0, 0);
-
-	for_each_btree_key(&trans, iter, BTREE_ID_stripes, POS_MIN,
+	for_each_btree_key(trans, iter, BTREE_ID_stripes, POS_MIN,
 			   BTREE_ITER_PREFETCH, k, ret) {
 		if (k.k->type != KEY_TYPE_stripe)
 			continue;
@@ -1855,9 +1849,9 @@ int bch2_stripes_read(struct bch_fs *c)
 
 		bch2_stripes_heap_insert(c, m, k.k->p.offset);
 	}
-	bch2_trans_iter_exit(&trans, &iter);
+	bch2_trans_iter_exit(trans, &iter);
 
-	bch2_trans_exit(&trans);
+	bch2_trans_put(trans);
 
 	if (ret)
 		bch_err_fn(c, ret);

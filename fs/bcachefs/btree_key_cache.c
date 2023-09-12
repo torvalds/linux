@@ -704,13 +704,11 @@ int bch2_btree_key_cache_journal_flush(struct journal *j,
 	struct bkey_cached *ck =
 		container_of(pin, struct bkey_cached, journal);
 	struct bkey_cached_key key;
-	struct btree_trans trans;
+	struct btree_trans *trans = bch2_trans_get(c);
 	int srcu_idx = srcu_read_lock(&c->btree_trans_barrier);
 	int ret = 0;
 
-	bch2_trans_init(&trans, c, 0, 0);
-
-	btree_node_lock_nopath_nofail(&trans, &ck->c, SIX_LOCK_read);
+	btree_node_lock_nopath_nofail(trans, &ck->c, SIX_LOCK_read);
 	key = ck->key;
 
 	if (ck->journal.seq != seq ||
@@ -727,13 +725,13 @@ int bch2_btree_key_cache_journal_flush(struct journal *j,
 	}
 	six_unlock_read(&ck->c.lock);
 
-	ret = commit_do(&trans, NULL, NULL, 0,
-		btree_key_cache_flush_pos(&trans, key, seq,
+	ret = commit_do(trans, NULL, NULL, 0,
+		btree_key_cache_flush_pos(trans, key, seq,
 				BTREE_INSERT_JOURNAL_RECLAIM, false));
 unlock:
 	srcu_read_unlock(&c->btree_trans_barrier, srcu_idx);
 
-	bch2_trans_exit(&trans);
+	bch2_trans_put(trans);
 	return ret;
 }
 

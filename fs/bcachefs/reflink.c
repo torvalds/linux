@@ -253,7 +253,7 @@ s64 bch2_remap_range(struct bch_fs *c,
 		     u64 remap_sectors,
 		     u64 new_i_size, s64 *i_sectors_delta)
 {
-	struct btree_trans trans;
+	struct btree_trans *trans;
 	struct btree_iter dst_iter, src_iter;
 	struct bkey_s_c src_k;
 	struct bkey_buf new_dst, new_src;
@@ -275,11 +275,11 @@ s64 bch2_remap_range(struct bch_fs *c,
 
 	bch2_bkey_buf_init(&new_dst);
 	bch2_bkey_buf_init(&new_src);
-	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 4096);
+	trans = bch2_trans_get(c);
 
-	bch2_trans_iter_init(&trans, &src_iter, BTREE_ID_extents, src_start,
+	bch2_trans_iter_init(trans, &src_iter, BTREE_ID_extents, src_start,
 			     BTREE_ITER_INTENT);
-	bch2_trans_iter_init(&trans, &dst_iter, BTREE_ID_extents, dst_start,
+	bch2_trans_iter_init(trans, &dst_iter, BTREE_ID_extents, dst_start,
 			     BTREE_ITER_INTENT);
 
 	while ((ret == 0 ||
@@ -287,21 +287,21 @@ s64 bch2_remap_range(struct bch_fs *c,
 	       bkey_lt(dst_iter.pos, dst_end)) {
 		struct disk_reservation disk_res = { 0 };
 
-		bch2_trans_begin(&trans);
+		bch2_trans_begin(trans);
 
 		if (fatal_signal_pending(current)) {
 			ret = -EINTR;
 			break;
 		}
 
-		ret = bch2_subvolume_get_snapshot(&trans, src_inum.subvol,
+		ret = bch2_subvolume_get_snapshot(trans, src_inum.subvol,
 						  &src_snapshot);
 		if (ret)
 			continue;
 
 		bch2_btree_iter_set_snapshot(&src_iter, src_snapshot);
 
-		ret = bch2_subvolume_get_snapshot(&trans, dst_inum.subvol,
+		ret = bch2_subvolume_get_snapshot(trans, dst_inum.subvol,
 						  &dst_snapshot);
 		if (ret)
 			continue;
@@ -318,7 +318,7 @@ s64 bch2_remap_range(struct bch_fs *c,
 			continue;
 
 		if (bkey_lt(src_want, src_iter.pos)) {
-			ret = bch2_fpunch_at(&trans, &dst_iter, dst_inum,
+			ret = bch2_fpunch_at(trans, &dst_iter, dst_inum,
 					min(dst_end.offset,
 					    dst_iter.pos.offset +
 					    src_iter.pos.offset - src_want.offset),
@@ -332,7 +332,7 @@ s64 bch2_remap_range(struct bch_fs *c,
 			bch2_bkey_buf_reassemble(&new_src, c, src_k);
 			src_k = bkey_i_to_s_c(new_src.k);
 
-			ret = bch2_make_extent_indirect(&trans, &src_iter,
+			ret = bch2_make_extent_indirect(trans, &src_iter,
 						new_src.k);
 			if (ret)
 				continue;
@@ -360,14 +360,14 @@ s64 bch2_remap_range(struct bch_fs *c,
 				min(src_k.k->p.offset - src_want.offset,
 				    dst_end.offset - dst_iter.pos.offset));
 
-		ret = bch2_extent_update(&trans, dst_inum, &dst_iter,
+		ret = bch2_extent_update(trans, dst_inum, &dst_iter,
 					 new_dst.k, &disk_res,
 					 new_i_size, i_sectors_delta,
 					 true);
 		bch2_disk_reservation_put(c, &disk_res);
 	}
-	bch2_trans_iter_exit(&trans, &dst_iter);
-	bch2_trans_iter_exit(&trans, &src_iter);
+	bch2_trans_iter_exit(trans, &dst_iter);
+	bch2_trans_iter_exit(trans, &src_iter);
 
 	BUG_ON(!ret && !bkey_eq(dst_iter.pos, dst_end));
 	BUG_ON(bkey_gt(dst_iter.pos, dst_end));
@@ -379,23 +379,23 @@ s64 bch2_remap_range(struct bch_fs *c,
 		struct bch_inode_unpacked inode_u;
 		struct btree_iter inode_iter = { NULL };
 
-		bch2_trans_begin(&trans);
+		bch2_trans_begin(trans);
 
-		ret2 = bch2_inode_peek(&trans, &inode_iter, &inode_u,
+		ret2 = bch2_inode_peek(trans, &inode_iter, &inode_u,
 				       dst_inum, BTREE_ITER_INTENT);
 
 		if (!ret2 &&
 		    inode_u.bi_size < new_i_size) {
 			inode_u.bi_size = new_i_size;
-			ret2  = bch2_inode_write(&trans, &inode_iter, &inode_u) ?:
-				bch2_trans_commit(&trans, NULL, NULL,
+			ret2  = bch2_inode_write(trans, &inode_iter, &inode_u) ?:
+				bch2_trans_commit(trans, NULL, NULL,
 						  BTREE_INSERT_NOFAIL);
 		}
 
-		bch2_trans_iter_exit(&trans, &inode_iter);
+		bch2_trans_iter_exit(trans, &inode_iter);
 	} while (bch2_err_matches(ret2, BCH_ERR_transaction_restart));
 
-	bch2_trans_exit(&trans);
+	bch2_trans_put(trans);
 	bch2_bkey_buf_exit(&new_src, c);
 	bch2_bkey_buf_exit(&new_dst, c);
 

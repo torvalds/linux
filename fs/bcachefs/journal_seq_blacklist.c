@@ -250,20 +250,18 @@ void bch2_blacklist_entries_gc(struct work_struct *work)
 	struct journal_seq_blacklist_table *t;
 	struct bch_sb_field_journal_seq_blacklist *bl;
 	struct journal_seq_blacklist_entry *src, *dst;
-	struct btree_trans trans;
+	struct btree_trans *trans = bch2_trans_get(c);
 	unsigned i, nr, new_nr;
 	int ret;
-
-	bch2_trans_init(&trans, c, 0, 0);
 
 	for (i = 0; i < BTREE_ID_NR; i++) {
 		struct btree_iter iter;
 		struct btree *b;
 
-		bch2_trans_node_iter_init(&trans, &iter, i, POS_MIN,
+		bch2_trans_node_iter_init(trans, &iter, i, POS_MIN,
 					  0, 0, BTREE_ITER_PREFETCH);
 retry:
-		bch2_trans_begin(&trans);
+		bch2_trans_begin(trans);
 
 		b = bch2_btree_iter_peek_node(&iter);
 
@@ -275,10 +273,10 @@ retry:
 		if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
 			goto retry;
 
-		bch2_trans_iter_exit(&trans, &iter);
+		bch2_trans_iter_exit(trans, &iter);
 	}
 
-	bch2_trans_exit(&trans);
+	bch2_trans_put(trans);
 	if (ret)
 		return;
 

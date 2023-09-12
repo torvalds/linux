@@ -78,34 +78,32 @@ static int bch2_dev_usrdata_drop_key(struct btree_trans *trans,
 
 static int bch2_dev_usrdata_drop(struct bch_fs *c, unsigned dev_idx, int flags)
 {
-	struct btree_trans trans;
+	struct btree_trans *trans = bch2_trans_get(c);
 	struct btree_iter iter;
 	struct bkey_s_c k;
 	enum btree_id id;
 	int ret = 0;
 
-	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 0);
-
 	for (id = 0; id < BTREE_ID_NR; id++) {
 		if (!btree_type_has_ptrs(id))
 			continue;
 
-		ret = for_each_btree_key_commit(&trans, iter, id, POS_MIN,
+		ret = for_each_btree_key_commit(trans, iter, id, POS_MIN,
 				BTREE_ITER_PREFETCH|BTREE_ITER_ALL_SNAPSHOTS, k,
 				NULL, NULL, BTREE_INSERT_NOFAIL,
-			bch2_dev_usrdata_drop_key(&trans, &iter, k, dev_idx, flags));
+			bch2_dev_usrdata_drop_key(trans, &iter, k, dev_idx, flags));
 		if (ret)
 			break;
 	}
 
-	bch2_trans_exit(&trans);
+	bch2_trans_put(trans);
 
 	return ret;
 }
 
 static int bch2_dev_metadata_drop(struct bch_fs *c, unsigned dev_idx, int flags)
 {
-	struct btree_trans trans;
+	struct btree_trans *trans;
 	struct btree_iter iter;
 	struct closure cl;
 	struct btree *b;
@@ -117,16 +115,16 @@ static int bch2_dev_metadata_drop(struct bch_fs *c, unsigned dev_idx, int flags)
 	if (flags & BCH_FORCE_IF_METADATA_LOST)
 		return -EINVAL;
 
+	trans = bch2_trans_get(c);
 	bch2_bkey_buf_init(&k);
-	bch2_trans_init(&trans, c, 0, 0);
 	closure_init_stack(&cl);
 
 	for (id = 0; id < BTREE_ID_NR; id++) {
-		bch2_trans_node_iter_init(&trans, &iter, id, POS_MIN, 0, 0,
+		bch2_trans_node_iter_init(trans, &iter, id, POS_MIN, 0, 0,
 					  BTREE_ITER_PREFETCH);
 retry:
 		ret = 0;
-		while (bch2_trans_begin(&trans),
+		while (bch2_trans_begin(trans),
 		       (b = bch2_btree_iter_peek_node(&iter)) &&
 		       !(ret = PTR_ERR_OR_ZERO(b))) {
 			if (!bch2_bkey_has_device_c(bkey_i_to_s_c(&b->key), dev_idx))
@@ -141,7 +139,7 @@ retry:
 				break;
 			}
 
-			ret = bch2_btree_node_update_key(&trans, &iter, b, k.k, 0, false);
+			ret = bch2_btree_node_update_key(trans, &iter, b, k.k, 0, false);
 			if (bch2_err_matches(ret, BCH_ERR_transaction_restart)) {
 				ret = 0;
 				continue;
@@ -157,7 +155,7 @@ next:
 		if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
 			goto retry;
 
-		bch2_trans_iter_exit(&trans, &iter);
+		bch2_trans_iter_exit(trans, &iter);
 
 		if (ret)
 			goto err;
@@ -166,8 +164,8 @@ next:
 	bch2_btree_interior_updates_flush(c);
 	ret = 0;
 err:
-	bch2_trans_exit(&trans);
 	bch2_bkey_buf_exit(&k, c);
+	bch2_trans_put(trans);
 
 	BUG_ON(bch2_err_matches(ret, BCH_ERR_transaction_restart));
 

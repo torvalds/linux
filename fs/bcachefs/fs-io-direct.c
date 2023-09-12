@@ -234,23 +234,21 @@ static bool bch2_check_range_allocated(struct bch_fs *c, subvol_inum inum,
 				       u64 offset, u64 size,
 				       unsigned nr_replicas, bool compressed)
 {
-	struct btree_trans trans;
+	struct btree_trans *trans = bch2_trans_get(c);
 	struct btree_iter iter;
 	struct bkey_s_c k;
 	u64 end = offset + size;
 	u32 snapshot;
 	bool ret = true;
 	int err;
-
-	bch2_trans_init(&trans, c, 0, 0);
 retry:
-	bch2_trans_begin(&trans);
+	bch2_trans_begin(trans);
 
-	err = bch2_subvolume_get_snapshot(&trans, inum.subvol, &snapshot);
+	err = bch2_subvolume_get_snapshot(trans, inum.subvol, &snapshot);
 	if (err)
 		goto err;
 
-	for_each_btree_key_norestart(&trans, iter, BTREE_ID_extents,
+	for_each_btree_key_norestart(trans, iter, BTREE_ID_extents,
 			   SPOS(inum.inum, offset, snapshot),
 			   BTREE_ITER_SLOTS, k, err) {
 		if (bkey_ge(bkey_start_pos(k.k), POS(inum.inum, end)))
@@ -265,11 +263,11 @@ retry:
 	}
 
 	offset = iter.pos.offset;
-	bch2_trans_iter_exit(&trans, &iter);
+	bch2_trans_iter_exit(trans, &iter);
 err:
 	if (bch2_err_matches(err, BCH_ERR_transaction_restart))
 		goto retry;
-	bch2_trans_exit(&trans);
+	bch2_trans_put(trans);
 
 	return err ? false : ret;
 }

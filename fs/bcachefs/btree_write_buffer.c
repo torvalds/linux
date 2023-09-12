@@ -296,7 +296,7 @@ static int bch2_btree_write_buffer_journal_flush(struct journal *j,
 	mutex_lock(&wb->flush_lock);
 
 	return bch2_trans_run(c,
-			__bch2_btree_write_buffer_flush(&trans, BTREE_INSERT_NOCHECK_RW, true));
+			__bch2_btree_write_buffer_flush(trans, BTREE_INSERT_NOCHECK_RW, true));
 }
 
 static inline u64 btree_write_buffer_ref(int idx)
