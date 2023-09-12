@@ -139,7 +139,7 @@ static inline int do_encrypt(struct crypto_sync_skcipher *tfm,
 
 		for (i = 0; i < pages; i++) {
 			unsigned offset = offset_in_page(buf);
-			unsigned pg_len = min(len, PAGE_SIZE - offset);
+			unsigned pg_len = min_t(size_t, len, PAGE_SIZE - offset);
 
 			sg_set_page(sg + i, vmalloc_to_page(buf), pg_len, offset);
 			buf += pg_len;
