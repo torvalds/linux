@@ -270,6 +270,7 @@ enum {
 	INET_FLAGS_DEFER_CONNECT = 19,
 	INET_FLAGS_MC6_LOOP	= 20,
 	INET_FLAGS_RECVERR6_RFC4884 = 21,
+	INET_FLAGS_MC6_ALL	= 22,
 };
 
 /* cmsg flags for inet */

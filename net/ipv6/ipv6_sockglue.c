@@ -469,6 +469,11 @@ int do_ipv6_setsockopt(struct sock *sk, int level, int optname,
 			return -EINVAL;
 		inet6_assign_bit(RECVERR6_RFC4884, sk, valbool);
 		return 0;
+	case IPV6_MULTICAST_ALL:
+		if (optlen < sizeof(int))
+			return -EINVAL;
+		inet6_assign_bit(MC6_ALL, sk, valbool);
+		return 0;
 	}
 	if (needs_rtnl)
 		rtnl_lock();
@@ -890,13 +895,6 @@ done:
 			retv = ipv6_sock_ac_drop(sk, mreq.ipv6mr_ifindex, &mreq.ipv6mr_acaddr);
 		break;
 	}
-	case IPV6_MULTICAST_ALL:
-		if (optlen < sizeof(int))
-			goto e_inval;
-		np->mc_all = valbool;
-		retv = 0;
-		break;
-
 	case MCAST_JOIN_GROUP:
 	case MCAST_LEAVE_GROUP:
 		if (in_compat_syscall())
@@ -1372,7 +1370,7 @@ int do_ipv6_getsockopt(struct sock *sk, int level, int optname,
 		break;
 
 	case IPV6_MULTICAST_ALL:
-		val = np->mc_all;
+		val = inet6_test_bit(MC6_ALL, sk);
 		break;
 
 	case IPV6_UNICAST_IF:

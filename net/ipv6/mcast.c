@@ -642,7 +642,7 @@ bool inet6_mc_check(const struct sock *sk, const struct in6_addr *mc_addr,
 	}
 	if (!mc) {
 		rcu_read_unlock();
-		return np->mc_all;
+		return inet6_test_bit(MC6_ALL, sk);
 	}
 	psl = rcu_dereference(mc->sflist);
 	if (!psl) {
