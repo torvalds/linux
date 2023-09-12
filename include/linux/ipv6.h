@@ -246,11 +246,10 @@ struct ipv6_pinfo {
 	__u16			sndflow:1,
 				pmtudisc:3,
 				padding:1,	/* 1 bit hole */
-				srcprefs:3,	/* 001: prefer temporary address
+				srcprefs:3;	/* 001: prefer temporary address
 						 * 010: prefer public address
 						 * 100: prefer care-of address
 						 */
-				rtalert_isolate:1;
 	__u8			min_hopcount;
 	__u8			tclass;
 	__be32			rcv_flowinfo;
