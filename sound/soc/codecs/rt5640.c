@@ -2403,13 +2403,11 @@ static irqreturn_t rt5640_irq(int irq, void *data)
 	struct rt5640_priv *rt5640 = data;
 	int delay = 0;
 
-	if (rt5640->jd_src == RT5640_JD_SRC_HDA_HEADER) {
-		cancel_delayed_work_sync(&rt5640->jack_work);
+	if (rt5640->jd_src == RT5640_JD_SRC_HDA_HEADER)
 		delay = 100;
-	}
 
 	if (rt5640->jack)
-		queue_delayed_work(system_long_wq, &rt5640->jack_work, delay);
+		mod_delayed_work(system_long_wq, &rt5640->jack_work, delay);
 
 	return IRQ_HANDLED;
 }
