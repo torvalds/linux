@@ -226,6 +226,10 @@ static int aspeed_rsa_trigger(struct aspeed_rsss_dev *rsss_dev)
 
 	nm = aspeed_rsa_ctx_copy(rsss_dev, rsa_engine->sram_mod, ctx->n,
 				 ctx->n_sz, ASPEED_RSA_MOD_MODE);
+
+	/* Set dst len as modulus size */
+	req->dst_len = nm / 8;
+
 	if (ctx->enc) {
 		if (!ctx->e || !ctx->e_sz) {
 			dev_err(rsss_dev->dev, "%s: key e is not set\n",
