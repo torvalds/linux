@@ -92,17 +92,22 @@ smb2_hdr_assemble(struct smb2_hdr *shdr, __le16 smb2_cmd,
 	shdr->ProtocolId = SMB2_PROTO_NUMBER;
 	shdr->StructureSize = cpu_to_le16(64);
 	shdr->Command = smb2_cmd;
-	if (server->dialect >= SMB30_PROT_ID) {
-		/* After reconnect SMB3 must set ChannelSequence on subsequent reqs */
-		smb3_hdr = (struct smb3_hdr_req *)shdr;
-		/* if primary channel is not set yet, use default channel for chan sequence num */
-		if (SERVER_IS_CHAN(server))
-			smb3_hdr->ChannelSequence =
-				cpu_to_le16(server->primary_server->channel_sequence_num);
-		else
-			smb3_hdr->ChannelSequence = cpu_to_le16(server->channel_sequence_num);
-	}
+
 	if (server) {
+		/* After reconnect SMB3 must set ChannelSequence on subsequent reqs */
+		if (server->dialect >= SMB30_PROT_ID) {
+			smb3_hdr = (struct smb3_hdr_req *)shdr;
+			/*
+			 * if primary channel is not set yet, use default
+			 * channel for chan sequence num
+			 */
+			if (SERVER_IS_CHAN(server))
+				smb3_hdr->ChannelSequence =
+					cpu_to_le16(server->primary_server->channel_sequence_num);
+			else
+				smb3_hdr->ChannelSequence =
+					cpu_to_le16(server->channel_sequence_num);
+		}
 		spin_lock(&server->req_lock);
 		/* Request up to 10 credits but don't go over the limit. */
 		if (server->credits >= server->max_credits)
