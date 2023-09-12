@@ -692,14 +692,6 @@ struct rtllib_hdr_1addr {
 	u8 payload[];
 } __packed;
 
-struct rtllib_hdr_2addr {
-	__le16 frame_ctl;
-	__le16 duration_id;
-	u8 addr1[ETH_ALEN];
-	u8 addr2[ETH_ALEN];
-	u8 payload[];
-} __packed;
-
 struct rtllib_hdr_3addr {
 	__le16 frame_ctl;
 	__le16 duration_id;
@@ -1779,21 +1771,6 @@ static inline int rtllib_get_hdrlen(u16 fc)
 	}
 
 	return hdrlen;
-}
-
-static inline u8 *rtllib_get_payload(struct rtllib_hdr *hdr)
-{
-	switch (rtllib_get_hdrlen(le16_to_cpu(hdr->frame_ctl))) {
-	case RTLLIB_1ADDR_LEN:
-		return ((struct rtllib_hdr_1addr *)hdr)->payload;
-	case RTLLIB_2ADDR_LEN:
-		return ((struct rtllib_hdr_2addr *)hdr)->payload;
-	case RTLLIB_3ADDR_LEN:
-		return ((struct rtllib_hdr_3addr *)hdr)->payload;
-	case RTLLIB_4ADDR_LEN:
-		return ((struct rtllib_hdr_4addr *)hdr)->payload;
-	}
-	return NULL;
 }
 
 static inline int rtllib_is_ofdm_rate(u8 rate)
