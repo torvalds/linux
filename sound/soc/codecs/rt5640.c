@@ -2826,8 +2826,6 @@ static int rt5640_resume(struct snd_soc_component *component)
 	regcache_sync(rt5640->regmap);
 
 	if (rt5640->jack) {
-		enable_irq(rt5640->irq);
-
 		if (rt5640->jd_src == RT5640_JD_SRC_HDA_HEADER) {
 			snd_soc_component_update_bits(component,
 				RT5640_DUMMY2, 0x1100, 0x1100);
@@ -2854,6 +2852,7 @@ static int rt5640_resume(struct snd_soc_component *component)
 			}
 		}
 
+		enable_irq(rt5640->irq);
 		queue_delayed_work(system_long_wq, &rt5640->jack_work, 0);
 	}
 
