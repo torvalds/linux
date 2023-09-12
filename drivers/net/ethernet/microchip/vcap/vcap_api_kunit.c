@@ -243,10 +243,9 @@ static void vcap_test_api_init(struct vcap_admin *admin)
 }
 
 /* Helper function to create a rule of a specific size */
-static struct vcap_rule *
-test_vcap_xn_rule_creator(struct kunit *test, int cid, enum vcap_user user,
-			  u16 priority,
-			  int id, int size, int expected_addr)
+static void test_vcap_xn_rule_creator(struct kunit *test, int cid,
+				      enum vcap_user user, u16 priority,
+				      int id, int size, int expected_addr)
 {
 	struct vcap_rule *rule;
 	struct vcap_rule_internal *ri;
@@ -311,7 +310,7 @@ test_vcap_xn_rule_creator(struct kunit *test, int cid, enum vcap_user user,
 	ret = vcap_add_rule(rule);
 	KUNIT_EXPECT_EQ(test, 0, ret);
 	KUNIT_EXPECT_EQ(test, expected_addr, ri->addr);
-	return rule;
+	vcap_free_rule(rule);
 }
 
 /* Prepare testing rule deletion */
