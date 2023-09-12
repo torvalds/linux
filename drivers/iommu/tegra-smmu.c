@@ -764,7 +764,8 @@ __tegra_smmu_unmap(struct iommu_domain *domain, unsigned long iova,
 }
 
 static int tegra_smmu_map(struct iommu_domain *domain, unsigned long iova,
-			  phys_addr_t paddr, size_t size, int prot, gfp_t gfp)
+			  phys_addr_t paddr, size_t size, size_t count,
+			  int prot, gfp_t gfp, size_t *mapped)
 {
 	struct tegra_smmu_as *as = to_smmu_as(domain);
 	unsigned long flags;
@@ -774,11 +775,14 @@ static int tegra_smmu_map(struct iommu_domain *domain, unsigned long iova,
 	ret = __tegra_smmu_map(domain, iova, paddr, size, prot, gfp, &flags);
 	spin_unlock_irqrestore(&as->lock, flags);
 
+	if (!ret)
+		*mapped = size;
+
 	return ret;
 }
 
 static size_t tegra_smmu_unmap(struct iommu_domain *domain, unsigned long iova,
-			       size_t size, struct iommu_iotlb_gather *gather)
+			       size_t size, size_t count, struct iommu_iotlb_gather *gather)
 {
 	struct tegra_smmu_as *as = to_smmu_as(domain);
 	unsigned long flags;
@@ -995,8 +999,8 @@ static const struct iommu_ops tegra_smmu_ops = {
 	.pgsize_bitmap = SZ_4K,
 	.default_domain_ops = &(const struct iommu_domain_ops) {
 		.attach_dev	= tegra_smmu_attach_dev,
-		.map		= tegra_smmu_map,
-		.unmap		= tegra_smmu_unmap,
+		.map_pages	= tegra_smmu_map,
+		.unmap_pages	= tegra_smmu_unmap,
 		.iova_to_phys	= tegra_smmu_iova_to_phys,
 		.free		= tegra_smmu_domain_free,
 	}
