@@ -271,7 +271,8 @@ static int gic_irq_set_irqchip_state(struct irq_data *d,
 	u32 reg;
 
 #ifdef CONFIG_ROCKCHIP_AMP
-	if (rockchip_amp_check_amp_irq(gic_irq(d)))
+	if (which != IRQCHIP_STATE_PENDING &&
+	    rockchip_amp_check_amp_irq(gic_irq(d)))
 		return -EINVAL;
 #endif
 	switch (which) {
