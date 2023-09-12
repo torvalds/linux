@@ -236,15 +236,6 @@ void rtl92e_irq_enable(struct net_device *dev)
 	rtl92e_enable_irq(dev);
 }
 
-void rtl92e_irq_disable(struct net_device *dev)
-{
-	struct r8192_priv *priv = rtllib_priv(dev);
-
-	rtl92e_disable_irq(dev);
-
-	priv->irq_enabled = 0;
-}
-
 static void _rtl92e_set_chan(struct net_device *dev, short ch)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
