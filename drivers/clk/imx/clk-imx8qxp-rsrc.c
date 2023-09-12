@@ -54,7 +54,6 @@ static const u32 imx8qxp_clk_scu_rsrc_table[] = {
 	IMX_SC_R_SDHC_2,
 	IMX_SC_R_ENET_0,
 	IMX_SC_R_ENET_1,
-	IMX_SC_R_MLB_0,
 	IMX_SC_R_USB_2,
 	IMX_SC_R_NAND,
 	IMX_SC_R_LVDS_0,

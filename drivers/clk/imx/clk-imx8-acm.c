@@ -77,7 +77,7 @@ struct imx8_acm_priv {
 static const struct clk_parent_data imx8qm_aud_clk_sels[] = {
 	{ .fw_name = "aud_rec_clk0_lpcg_clk" },
 	{ .fw_name = "aud_rec_clk1_lpcg_clk" },
-	{ .fw_name = "mlb_clk" },
+	{ .fw_name = "dummy" },
 	{ .fw_name = "hdmi_rx_mclk" },
 	{ .fw_name = "ext_aud_mclk0" },
 	{ .fw_name = "ext_aud_mclk1" },
@@ -103,7 +103,7 @@ static const struct clk_parent_data imx8qm_aud_clk_sels[] = {
 static const struct clk_parent_data imx8qm_mclk_out_sels[] = {
 	{ .fw_name = "aud_rec_clk0_lpcg_clk" },
 	{ .fw_name = "aud_rec_clk1_lpcg_clk" },
-	{ .fw_name = "mlb_clk" },
+	{ .fw_name = "dummy" },
 	{ .fw_name = "hdmi_rx_mclk" },
 	{ .fw_name = "spdif0_rx" },
 	{ .fw_name = "spdif1_rx" },
@@ -122,7 +122,7 @@ static const struct clk_parent_data imx8qm_asrc_mux_clk_sels[] = {
 	{ .fw_name = "sai4_rx_bclk" },
 	{ .fw_name = "sai5_tx_bclk" },
 	{ .index = -1 },
-	{ .fw_name = "mlb_clk" },
+	{ .fw_name = "dummy" },
 
 };
 
