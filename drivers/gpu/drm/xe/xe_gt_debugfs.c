@@ -151,6 +151,7 @@ static const struct drm_info_list debugfs_list[] = {
 
 void xe_gt_debugfs_register(struct xe_gt *gt)
 {
+	struct xe_device *xe = gt_to_xe(gt);
 	struct drm_minor *minor = gt_to_xe(gt)->drm.primary;
 	struct dentry *root;
 	struct drm_info_list *local;
@@ -162,7 +163,7 @@ void xe_gt_debugfs_register(struct xe_gt *gt)
 	sprintf(name, "gt%d", gt->info.id);
 	root = debugfs_create_dir(name, minor->debugfs_root);
 	if (IS_ERR(root)) {
-		XE_WARN_ON("Create GT directory failed");
+		drm_warn(&xe->drm, "Create GT directory failed");
 		return;
 	}
 
@@ -172,7 +173,7 @@ void xe_gt_debugfs_register(struct xe_gt *gt)
 	 * passed in (e.g. can't define this on the stack).
 	 */
 #define DEBUGFS_SIZE	(ARRAY_SIZE(debugfs_list) * sizeof(struct drm_info_list))
-	local = drmm_kmalloc(&gt_to_xe(gt)->drm, DEBUGFS_SIZE, GFP_KERNEL);
+	local = drmm_kmalloc(&xe->drm, DEBUGFS_SIZE, GFP_KERNEL);
 	if (!local)
 		return;
 

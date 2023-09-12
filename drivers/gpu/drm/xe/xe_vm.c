@@ -1401,7 +1401,7 @@ static void vm_error_capture(struct xe_vm *vm, int err,
 	}
 
 	if (copy_to_user(address, &capture, sizeof(capture)))
-		XE_WARN_ON("Copy to user failed");
+		drm_warn(&vm->xe->drm, "Copy to user failed");
 
 	if (in_kthread) {
 		kthread_unuse_mm(vm->async_ops.error_capture.mm);
@@ -2176,7 +2176,7 @@ static int vm_bind_ioctl_lookup_vma(struct xe_vm *vm, struct xe_bo *bo,
 			return -ENODATA;
 		break;
 	default:
-		XE_WARN_ON("NOT POSSIBLE");
+		drm_warn(&xe->drm, "NOT POSSIBLE");
 		return -EINVAL;
 	}
 
@@ -2234,7 +2234,7 @@ static void print_op(struct xe_device *xe, struct drm_gpuva_op *op)
 		       (ULL)xe_vma_start(vma), (ULL)xe_vma_size(vma));
 		break;
 	default:
-		XE_WARN_ON("NOT POSSIBLE");
+		drm_warn(&xe->drm, "NOT POSSIBLE");
 	}
 }
 #else
@@ -2332,7 +2332,7 @@ vm_bind_ioctl_ops_create(struct xe_vm *vm, struct xe_bo *bo,
 		}
 		break;
 	default:
-		XE_WARN_ON("NOT POSSIBLE");
+		drm_warn(&vm->xe->drm, "NOT POSSIBLE");
 		ops = ERR_PTR(-EINVAL);
 	}
 
@@ -2463,7 +2463,7 @@ static int xe_vma_op_commit(struct xe_vm *vm, struct xe_vma_op *op)
 		op->flags |= XE_VMA_OP_COMMITTED;
 		break;
 	default:
-		XE_WARN_ON("NOT POSSIBLE");
+		drm_warn(&vm->xe->drm, "NOT POSSIBLE");
 	}
 
 	return err;
@@ -2619,7 +2619,7 @@ static int vm_bind_ioctl_ops_parse(struct xe_vm *vm, struct xe_exec_queue *q,
 			/* Nothing to do */
 			break;
 		default:
-			XE_WARN_ON("NOT POSSIBLE");
+			drm_warn(&vm->xe->drm, "NOT POSSIBLE");
 		}
 
 		last_op = op;
@@ -2734,7 +2734,7 @@ static int op_execute(struct drm_exec *exec, struct xe_vm *vm,
 				     op->flags & XE_VMA_OP_LAST);
 		break;
 	default:
-		XE_WARN_ON("NOT POSSIBLE");
+		drm_warn(&vm->xe->drm, "NOT POSSIBLE");
 	}
 
 	if (err)
@@ -2812,7 +2812,7 @@ static int xe_vma_op_execute(struct xe_vm *vm, struct xe_vma_op *op)
 					  op);
 		break;
 	default:
-		XE_WARN_ON("NOT POSSIBLE");
+		drm_warn(&vm->xe->drm, "NOT POSSIBLE");
 	}
 
 	return ret;
@@ -2893,7 +2893,7 @@ static void xe_vma_op_unwind(struct xe_vm *vm, struct xe_vma_op *op,
 		/* Nothing to do */
 		break;
 	default:
-		XE_WARN_ON("NOT POSSIBLE");
+		drm_warn(&vm->xe->drm, "NOT POSSIBLE");
 	}
 }
 
