@@ -4404,9 +4404,10 @@ void btrfs_mark_buffer_dirty(struct btrfs_trans_handle *trans,
 	ASSERT(trans->transid == fs_info->generation);
 	btrfs_assert_tree_write_locked(buf);
 	if (transid != fs_info->generation) {
-		WARN(1, KERN_CRIT "btrfs transid mismatch buffer %llu, found %llu running %llu\n",
-			buf->start, transid, fs_info->generation);
 		btrfs_abort_transaction(trans, -EUCLEAN);
+		btrfs_crit(fs_info,
+"dirty buffer transid mismatch, logical %llu found transid %llu running transid %llu",
+			   buf->start, transid, fs_info->generation);
 	}
 	set_extent_buffer_dirty(buf);
 }
