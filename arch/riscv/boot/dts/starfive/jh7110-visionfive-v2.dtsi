@@ -455,10 +455,9 @@
 		reset-gpios = <&gpio 31 GPIO_ACTIVE_HIGH>;
 	};
 
-
-	panel_10inch@20 {
-		compatible ="panel_10inch";
-		reg = <0x20>;
+	panel_radxa@19 {
+		compatible ="starfive_jadard";
+		reg = <0x19>;
 		reset-gpio = <&gpio 23 0>;
 		enable-gpio = <&gpio 22 0>;
 
@@ -468,20 +467,6 @@
 			};
 		};
 	};
-
-        panel_radxa@19 {
-                compatible ="starfive_jadard";
-                reg = <0x19>;
-                reset-gpio = <&gpio 23 0>;
-                enable-gpio = <&gpio 22 0>;
-
-                port {
-                        panel_out2: endpoint {
-                                remote-endpoint = <&dsi2_output>;
-                                };
-                };
-        };
-
 
 };
 
@@ -917,10 +902,7 @@
 				reg = <1>;
 				remote-endpoint = <&panel_out1>;
 			};
-			dsi2_output: endpoint@2 {
-				reg = <2>;
-				remote-endpoint = <&panel_out2>;
-			};
+
 		};
 
 		port@1{
