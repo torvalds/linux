@@ -573,7 +573,7 @@ static int insert_inline_extent(struct btrfs_trans_handle *trans,
 		kunmap_local(kaddr);
 		put_page(page);
 	}
-	btrfs_mark_buffer_dirty(leaf);
+	btrfs_mark_buffer_dirty(trans, leaf);
 	btrfs_release_path(path);
 
 	/*
@@ -2912,7 +2912,7 @@ static int insert_reserved_file_extent(struct btrfs_trans_handle *trans,
 			btrfs_item_ptr_offset(leaf, path->slots[0]),
 			sizeof(struct btrfs_file_extent_item));
 
-	btrfs_mark_buffer_dirty(leaf);
+	btrfs_mark_buffer_dirty(trans, leaf);
 	btrfs_release_path(path);
 
 	/*
@@ -3981,7 +3981,7 @@ static noinline int btrfs_update_inode_item(struct btrfs_trans_handle *trans,
 				    struct btrfs_inode_item);
 
 	fill_inode_item(trans, leaf, inode_item, &inode->vfs_inode);
-	btrfs_mark_buffer_dirty(leaf);
+	btrfs_mark_buffer_dirty(trans, leaf);
 	btrfs_set_inode_last_trans(trans, inode);
 	ret = 0;
 failed:
@@ -6311,7 +6311,7 @@ int btrfs_create_new_inode(struct btrfs_trans_handle *trans,
 		}
 	}
 
-	btrfs_mark_buffer_dirty(path->nodes[0]);
+	btrfs_mark_buffer_dirty(trans, path->nodes[0]);
 	/*
 	 * We don't need the path anymore, plus inheriting properties, adding
 	 * ACLs, security xattrs, orphan item or adding the link, will result in
@@ -9447,7 +9447,7 @@ static int btrfs_symlink(struct mnt_idmap *idmap, struct inode *dir,
 
 	ptr = btrfs_file_extent_inline_start(ei);
 	write_extent_buffer(leaf, symname, ptr, name_len);
-	btrfs_mark_buffer_dirty(leaf);
+	btrfs_mark_buffer_dirty(trans, leaf);
 	btrfs_free_path(path);
 
 	d_instantiate_new(dentry, inode);
