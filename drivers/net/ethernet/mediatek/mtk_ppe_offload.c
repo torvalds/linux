@@ -196,10 +196,10 @@ mtk_flow_set_output_device(struct mtk_eth *eth, struct mtk_foe_entry *foe,
 		if (mtk_is_netsys_v2_or_greater(eth)) {
 			switch (info.wdma_idx) {
 			case 0:
-				pse_port = 8;
+				pse_port = PSE_WDMA0_PORT;
 				break;
 			case 1:
-				pse_port = 9;
+				pse_port = PSE_WDMA1_PORT;
 				break;
 			default:
 				return -EINVAL;
