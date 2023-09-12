@@ -2582,6 +2582,32 @@ static void cleanup_clusters(struct list_head *head)
 	}
 }
 
+static inline void align_clusters(struct list_head *head)
+{
+	struct walt_sched_cluster *tmp;
+	struct list_head *cluster1 = head, *cluster2 = head;
+	unsigned long capacity1 = 0, capacity2 = 0;
+	int i = 0;
+
+	if (num_sched_clusters != 4)
+		return;
+
+	list_for_each_entry(tmp, head, list) {
+		if (i == 1) {
+			cluster1 = &tmp->list;
+			capacity1 = arch_scale_cpu_capacity(cluster_first_cpu(tmp));
+		}
+		if (i == 2) {
+			cluster2 = &tmp->list;
+			capacity2 = arch_scale_cpu_capacity(cluster_first_cpu(tmp));
+		}
+		i++;
+	}
+
+	if (capacity1 < capacity2)
+		list_swap(cluster1, cluster2);
+}
+
 static inline void assign_cluster_ids(struct list_head *head)
 {
 	struct walt_sched_cluster *cluster;
@@ -2590,19 +2616,6 @@ static inline void assign_cluster_ids(struct list_head *head)
 	list_for_each_entry(cluster, head, list) {
 		cluster->id = pos;
 		sched_cluster[pos++] = cluster;
-	}
-
-	if (pos == 4) {
-		if (arch_scale_cpu_capacity(
-					cpumask_first(&sched_cluster[1]->cpus)) <
-					arch_scale_cpu_capacity(
-					cpumask_first(&sched_cluster[2]->cpus))) {
-			cluster = sched_cluster[2];
-			sched_cluster[2] = sched_cluster[1];
-			sched_cluster[1] = cluster;
-			sched_cluster[1]->id = 1;
-			sched_cluster[2]->id = 2;
-		}
 	}
 
 	WARN_ON(pos > MAX_CLUSTERS);
@@ -2806,6 +2819,7 @@ static void walt_update_cluster_topology(void)
 		add_cluster(&cluster_cpus, &new_head);
 	}
 
+	align_clusters(&new_head);
 	assign_cluster_ids(&new_head);
 
 	list_for_each_entry(cluster, &new_head, list) {
