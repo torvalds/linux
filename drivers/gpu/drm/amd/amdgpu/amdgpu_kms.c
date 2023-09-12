@@ -518,6 +518,10 @@ static int amdgpu_hw_ip_info(struct amdgpu_device *adev,
 			result->ip_discovery_version =
 				amdgpu_ip_version(adev, VCE_HWIP, 0);
 			break;
+		case AMD_IP_BLOCK_TYPE_VPE:
+			result->ip_discovery_version =
+				amdgpu_ip_version(adev, VPE_HWIP, 0);
+			break;
 		default:
 			result->ip_discovery_version = 0;
 			break;
