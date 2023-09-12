@@ -526,7 +526,7 @@ int bch2_bucket_gens_invalid(const struct bch_fs *c, struct bkey_s_c k,
 			     struct printbuf *err)
 {
 	if (bkey_val_bytes(k.k) != sizeof(struct bch_bucket_gens)) {
-		prt_printf(err, "bad val size (%lu != %zu)",
+		prt_printf(err, "bad val size (%zu != %zu)",
 		       bkey_val_bytes(k.k), sizeof(struct bch_bucket_gens));
 		return -BCH_ERR_invalid_bkey;
 	}
