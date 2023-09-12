@@ -214,15 +214,8 @@ struct ipv6_pinfo {
 	__u32			frag_size;
 
 	s16			hop_limit;
+	u8			mcast_hops;
 
-#if defined(__BIG_ENDIAN_BITFIELD)
-	/* Packed in 16bits. */
-	__s16			mcast_hops:9;
-	__u16			__unused_2:7,
-#else
-	__u16			__unused_2:7;
-	__s16			mcast_hops:9;
-#endif
 	int			ucast_oif;
 	int			mcast_oif;
 

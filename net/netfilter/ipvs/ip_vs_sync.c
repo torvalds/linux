@@ -1322,7 +1322,7 @@ static void set_mcast_ttl(struct sock *sk, u_char ttl)
 		struct ipv6_pinfo *np = inet6_sk(sk);
 
 		/* IPV6_MULTICAST_HOPS */
-		np->mcast_hops = ttl;
+		WRITE_ONCE(np->mcast_hops, ttl);
 	}
 #endif
 	release_sock(sk);

@@ -431,6 +431,16 @@ int do_ipv6_setsockopt(struct sock *sk, int level, int optname,
 			return -EINVAL;
 		inet6_assign_bit(MC6_LOOP, sk, valbool);
 		return 0;
+	case IPV6_MULTICAST_HOPS:
+		if (sk->sk_type == SOCK_STREAM)
+			return retv;
+		if (optlen < sizeof(int))
+			return -EINVAL;
+		if (val > 255 || val < -1)
+			return -EINVAL;
+		WRITE_ONCE(np->mcast_hops,
+			   val == -1 ? IPV6_DEFAULT_MCASTHOPS : val);
+		return 0;
 	}
 	if (needs_rtnl)
 		rtnl_lock();
@@ -751,16 +761,6 @@ done:
 		break;
 	}
 
-	case IPV6_MULTICAST_HOPS:
-		if (sk->sk_type == SOCK_STREAM)
-			break;
-		if (optlen < sizeof(int))
-			goto e_inval;
-		if (val > 255 || val < -1)
-			goto e_inval;
-		np->mcast_hops = (val == -1 ? IPV6_DEFAULT_MCASTHOPS : val);
-		retv = 0;
-		break;
 
 	case IPV6_UNICAST_IF:
 	{
@@ -1180,7 +1180,8 @@ int do_ipv6_getsockopt(struct sock *sk, int level, int optname,
 				put_cmsg(&msg, SOL_IPV6, IPV6_PKTINFO, sizeof(src_info), &src_info);
 			}
 			if (np->rxopt.bits.rxhlim) {
-				int hlim = np->mcast_hops;
+				int hlim = READ_ONCE(np->mcast_hops);
+
 				put_cmsg(&msg, SOL_IPV6, IPV6_HOPLIMIT, sizeof(hlim), &hlim);
 			}
 			if (np->rxopt.bits.rxtclass) {
@@ -1197,7 +1198,8 @@ int do_ipv6_getsockopt(struct sock *sk, int level, int optname,
 				put_cmsg(&msg, SOL_IPV6, IPV6_2292PKTINFO, sizeof(src_info), &src_info);
 			}
 			if (np->rxopt.bits.rxohlim) {
-				int hlim = np->mcast_hops;
+				int hlim = READ_ONCE(np->mcast_hops);
+
 				put_cmsg(&msg, SOL_IPV6, IPV6_2292HOPLIMIT, sizeof(hlim), &hlim);
 			}
 			if (np->rxopt.bits.rxflow) {
@@ -1349,7 +1351,7 @@ int do_ipv6_getsockopt(struct sock *sk, int level, int optname,
 		if (optname == IPV6_UNICAST_HOPS)
 			val = READ_ONCE(np->hop_limit);
 		else
-			val = np->mcast_hops;
+			val = READ_ONCE(np->mcast_hops);
 
 		if (val < 0) {
 			rcu_read_lock();
