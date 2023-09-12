@@ -143,6 +143,10 @@
 	};
 };
 
+&cpufreq_hw {
+	/delete-property/ interrupts-extended; /* reference to lmh_cluster[01] */
+};
+
 &psci {
 	/delete-node/ power-domain-cpu0;
 	/delete-node/ power-domain-cpu1;
@@ -273,6 +277,14 @@
 	cpu-idle-states = <&BIG_CPU_SLEEP_0
 			   &BIG_CPU_SLEEP_1
 			   &CLUSTER_SLEEP_0>;
+};
+
+&lmh_cluster0 {
+	status = "disabled";
+};
+
+&lmh_cluster1 {
+	status = "disabled";
 };
 
 /*
