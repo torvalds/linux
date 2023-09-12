@@ -432,8 +432,6 @@ void intel_device_info_driver_create(struct drm_i915_private *i915,
 	runtime = RUNTIME_INFO(i915);
 	memcpy(runtime, &INTEL_INFO(i915)->__runtime, sizeof(*runtime));
 
-	intel_display_device_probe(i915);
-
 	runtime->device_id = device_id;
 }
 
