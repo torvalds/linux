@@ -305,11 +305,10 @@ static void ipv6_icmp_error_rfc4884(const struct sk_buff *skb,
 void ipv6_icmp_error(struct sock *sk, struct sk_buff *skb, int err,
 		     __be16 port, u32 info, u8 *payload)
 {
-	struct ipv6_pinfo *np  = inet6_sk(sk);
 	struct icmp6hdr *icmph = icmp6_hdr(skb);
 	struct sock_exterr_skb *serr;
 
-	if (!np->recverr)
+	if (!inet6_test_bit(RECVERR6, sk))
 		return;
 
 	skb = skb_clone(skb, GFP_ATOMIC);
@@ -344,12 +343,11 @@ EXPORT_SYMBOL_GPL(ipv6_icmp_error);
 
 void ipv6_local_error(struct sock *sk, int err, struct flowi6 *fl6, u32 info)
 {
-	const struct ipv6_pinfo *np = inet6_sk(sk);
 	struct sock_exterr_skb *serr;
 	struct ipv6hdr *iph;
 	struct sk_buff *skb;
 
-	if (!np->recverr)
+	if (!inet6_test_bit(RECVERR6, sk))
 		return;
 
 	skb = alloc_skb(sizeof(struct ipv6hdr), GFP_ATOMIC);

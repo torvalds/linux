@@ -619,7 +619,7 @@ int __udp6_lib_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 		goto out;
 	}
 
-	if (!np->recverr) {
+	if (!inet6_test_bit(RECVERR6, sk)) {
 		if (!harderr || sk->sk_state != TCP_ESTABLISHED)
 			goto out;
 	} else {
@@ -1283,7 +1283,7 @@ csum_partial:
 send:
 	err = ip6_send_skb(skb);
 	if (err) {
-		if (err == -ENOBUFS && !inet6_sk(sk)->recverr) {
+		if (err == -ENOBUFS && !inet6_test_bit(RECVERR6, sk)) {
 			UDP6_INC_STATS(sock_net(sk),
 				       UDP_MIB_SNDBUFERRORS, is_udplite);
 			err = 0;
@@ -1608,7 +1608,7 @@ do_append_data:
 		up->pending = 0;
 
 	if (err > 0)
-		err = np->recverr ? net_xmit_errno(err) : 0;
+		err = inet6_test_bit(RECVERR6, sk) ? net_xmit_errno(err) : 0;
 	release_sock(sk);
 
 out:

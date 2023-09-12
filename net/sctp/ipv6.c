@@ -128,7 +128,6 @@ static void sctp_v6_err_handle(struct sctp_transport *t, struct sk_buff *skb,
 {
 	struct sctp_association *asoc = t->asoc;
 	struct sock *sk = asoc->base.sk;
-	struct ipv6_pinfo *np;
 	int err = 0;
 
 	switch (type) {
@@ -149,9 +148,8 @@ static void sctp_v6_err_handle(struct sctp_transport *t, struct sk_buff *skb,
 		break;
 	}
 
-	np = inet6_sk(sk);
 	icmpv6_err_convert(type, code, &err);
-	if (!sock_owned_by_user(sk) && np->recverr) {
+	if (!sock_owned_by_user(sk) && inet6_test_bit(RECVERR6, sk)) {
 		sk->sk_err = err;
 		sk_error_report(sk);
 	} else {

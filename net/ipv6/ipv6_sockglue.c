@@ -481,6 +481,13 @@ int do_ipv6_setsockopt(struct sock *sk, int level, int optname,
 	case IPV6_DONTFRAG:
 		inet6_assign_bit(DONTFRAG, sk, valbool);
 		return 0;
+	case IPV6_RECVERR:
+		if (optlen < sizeof(int))
+			return -EINVAL;
+		inet6_assign_bit(RECVERR6, sk, valbool);
+		if (!val)
+			skb_errqueue_purge(&sk->sk_error_queue);
+		return 0;
 	}
 	if (needs_rtnl)
 		rtnl_lock();
@@ -943,14 +950,6 @@ done:
 		np->pmtudisc = val;
 		retv = 0;
 		break;
-	case IPV6_RECVERR:
-		if (optlen < sizeof(int))
-			goto e_inval;
-		np->recverr = valbool;
-		if (!val)
-			skb_errqueue_purge(&sk->sk_error_queue);
-		retv = 0;
-		break;
 	case IPV6_FLOWINFO_SEND:
 		if (optlen < sizeof(int))
 			goto e_inval;
@@ -1380,7 +1379,7 @@ int do_ipv6_getsockopt(struct sock *sk, int level, int optname,
 		break;
 
 	case IPV6_RECVERR:
-		val = np->recverr;
+		val = inet6_test_bit(RECVERR6, sk);
 		break;
 
 	case IPV6_FLOWINFO_SEND:

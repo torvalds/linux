@@ -581,7 +581,7 @@ void ping_err(struct sk_buff *skb, int offset, u32 info)
 	 *	4.1.3.3.
 	 */
 	if ((family == AF_INET && !inet_test_bit(RECVERR, sk)) ||
-	    (family == AF_INET6 && !inet6_sk(sk)->recverr)) {
+	    (family == AF_INET6 && !inet6_test_bit(RECVERR6, sk))) {
 		if (!harderr || sk->sk_state != TCP_ESTABLISHED)
 			goto out;
 	} else {

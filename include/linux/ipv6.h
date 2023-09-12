@@ -243,8 +243,7 @@ struct ipv6_pinfo {
 	} rxopt;
 
 	/* sockopt flags */
-	__u16			recverr:1,
-	                        sndflow:1,
+	__u16			sndflow:1,
 				repflow:1,
 				pmtudisc:3,
 				padding:1,	/* 1 bit hole */

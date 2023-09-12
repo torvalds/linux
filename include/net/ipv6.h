@@ -1303,9 +1303,7 @@ static inline int ip6_sock_set_v6only(struct sock *sk)
 
 static inline void ip6_sock_set_recverr(struct sock *sk)
 {
-	lock_sock(sk);
-	inet6_sk(sk)->recverr = true;
-	release_sock(sk);
+	inet6_set_bit(RECVERR6, sk);
 }
 
 static inline int __ip6_sock_set_addr_preferences(struct sock *sk, int val)
