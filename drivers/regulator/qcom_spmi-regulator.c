@@ -2168,6 +2168,29 @@ static const struct spmi_regulator_data pm8841_regulators[] = {
 	{ }
 };
 
+static const struct spmi_regulator_data pm8909_regulators[] = {
+	{ "s1", 0x1400, "vdd_s1", },
+	{ "s2", 0x1700, "vdd_s2", },
+	{ "l1", 0x4000, "vdd_l1", },
+	{ "l2", 0x4100, "vdd_l2_l5", },
+	{ "l3", 0x4200, "vdd_l3_l6_l10", },
+	{ "l4", 0x4300, "vdd_l4_l7", },
+	{ "l5", 0x4400, "vdd_l2_l5", },
+	{ "l6", 0x4500, "vdd_l3_l6_l10", },
+	{ "l7", 0x4600, "vdd_l4_l7", },
+	{ "l8", 0x4700, "vdd_l8_l11_l15_l18", },
+	{ "l9", 0x4800, "vdd_l9_l12_l14_l17", },
+	{ "l10", 0x4900, "vdd_l3_l6_l10", },
+	{ "l11", 0x4a00, "vdd_l8_l11_l15_l18", },
+	{ "l12", 0x4b00, "vdd_l9_l12_l14_l17", },
+	{ "l13", 0x4c00, "vdd_l13", },
+	{ "l14", 0x4d00, "vdd_l9_l12_l14_l17", },
+	{ "l15", 0x4e00, "vdd_l8_l11_l15_l18", },
+	{ "l17", 0x5000, "vdd_l9_l12_l14_l17", },
+	{ "l18", 0x5100, "vdd_l8_l11_l15_l18", },
+	{ }
+};
+
 static const struct spmi_regulator_data pm8916_regulators[] = {
 	{ "s1", 0x1400, "vdd_s1", },
 	{ "s2", 0x1700, "vdd_s2", },
@@ -2357,6 +2380,7 @@ static const struct of_device_id qcom_spmi_regulator_match[] = {
 	{ .compatible = "qcom,pm8005-regulators", .data = &pm8005_regulators },
 	{ .compatible = "qcom,pm8226-regulators", .data = &pm8226_regulators },
 	{ .compatible = "qcom,pm8841-regulators", .data = &pm8841_regulators },
+	{ .compatible = "qcom,pm8909-regulators", .data = &pm8909_regulators },
 	{ .compatible = "qcom,pm8916-regulators", .data = &pm8916_regulators },
 	{ .compatible = "qcom,pm8941-regulators", .data = &pm8941_regulators },
 	{ .compatible = "qcom,pm8950-regulators", .data = &pm8950_regulators },
