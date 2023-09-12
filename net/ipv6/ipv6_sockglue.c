@@ -441,6 +441,13 @@ int do_ipv6_setsockopt(struct sock *sk, int level, int optname,
 		WRITE_ONCE(np->mcast_hops,
 			   val == -1 ? IPV6_DEFAULT_MCASTHOPS : val);
 		return 0;
+	case IPV6_MTU:
+		if (optlen < sizeof(int))
+			return -EINVAL;
+		if (val && val < IPV6_MIN_MTU)
+			return -EINVAL;
+		WRITE_ONCE(np->frag_size, val);
+		return 0;
 	}
 	if (needs_rtnl)
 		rtnl_lock();
@@ -908,14 +915,6 @@ done:
 		if (val < IPV6_PMTUDISC_DONT || val > IPV6_PMTUDISC_OMIT)
 			goto e_inval;
 		np->pmtudisc = val;
-		retv = 0;
-		break;
-	case IPV6_MTU:
-		if (optlen < sizeof(int))
-			goto e_inval;
-		if (val && val < IPV6_MIN_MTU)
-			goto e_inval;
-		np->frag_size = val;
 		retv = 0;
 		break;
 	case IPV6_RECVERR:
