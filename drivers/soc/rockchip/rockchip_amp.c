@@ -15,6 +15,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/rockchip/rockchip_sip.h>
 #include <soc/rockchip/rockchip_amp.h>
+#include <linux/irqchip/arm-gic-common.h>
 
 #define RK_CPU_STATUS_OFF		0
 #define RK_CPU_STATUS_ON		1
@@ -24,6 +25,7 @@
 #define GPIO_BANK_NUM			16
 #define GPIO_GROUP_PRIO_MAX		3
 
+#define MAX_GIC_SPI_NUM (1020)
 #define AMP_GIC_DBG(fmt, arg...)	do { if (0) { pr_warn(fmt, ##arg); } } while (0)
 
 enum amp_cpu_ctrl_status {
@@ -55,26 +57,27 @@ static struct {
 struct amp_gpio_group_s {
 	u32 bank_id;
 	u32 prio;
-	u32 irq_aff[AMP_AFF_MAX_CPU];
+	u64 irq_aff[AMP_AFF_MAX_CPU];
 	u32 irq_id[AMP_AFF_MAX_CPU];
 	u32 en[AMP_AFF_MAX_CPU];
 };
 
 struct amp_irq_cfg_s {
+	u64 aff;
 	u32 prio;
 	u32 cpumask;
-	u32 aff;
 	int amp_flag;
-} irqs_cfg[1024];
+} irqs_cfg[MAX_GIC_SPI_NUM];
 
 static struct amp_gic_ctrl_s {
+	enum gic_type gic_version;
+	u32 spis_num;
 	struct {
 		u32 aff;
 		u32 cpumask;
 		u32 flag;
 	} aff_to_cpumask[AMP_AFF_MAX_CLUSTER][AMP_AFF_MAX_CPU];
-	struct amp_irq_cfg_s irqs_cfg[1024];
-	u32 validmask[1020 / 32 + 1];
+	struct amp_irq_cfg_s irqs_cfg[MAX_GIC_SPI_NUM];
 	struct amp_gpio_group_s gpio_grp[GPIO_BANK_NUM][GPIO_GROUP_PRIO_MAX];
 	u32 gpio_banks;
 } amp_ctrl;
@@ -275,7 +278,12 @@ u32 rockchip_amp_get_irq_cpumask(u32 irq)
 	return amp_ctrl.irqs_cfg[irq].cpumask;
 }
 
-static u32 amp_get_cpumask_bit(u32 aff)
+int rockchip_amp_need_init_amp_irq(u32 irq)
+{
+	return amp_ctrl.irqs_cfg[irq].amp_flag;
+}
+
+static u32 amp_get_cpumask_bit(u64 aff)
 {
 	u32 aff_cluster, aff_cpu;
 
@@ -285,18 +293,24 @@ static u32 amp_get_cpumask_bit(u32 aff)
 	if (aff_cpu >= AMP_AFF_MAX_CPU || aff_cluster >= AMP_AFF_MAX_CLUSTER)
 		return 0;
 
-	AMP_GIC_DBG("%s: aff:%d-%d: %x\n", __func__, aff_cluster, aff_cpu,
+	AMP_GIC_DBG("  %s: aff:%d-%d: %x\n", __func__, aff_cluster, aff_cpu,
 		    amp_ctrl.aff_to_cpumask[aff_cluster][aff_cpu].cpumask);
 
 	return amp_ctrl.aff_to_cpumask[aff_cluster][aff_cpu].cpumask;
+}
+
+u64 rockchip_amp_get_irq_aff(u32 irq)
+{
+	return amp_ctrl.irqs_cfg[irq].aff;
 }
 
 static int gic_amp_get_gpio_prio_group_info(struct device_node *np,
 					    struct amp_gic_ctrl_s *amp_ctrl,
 					    int prio_id)
 {
-	u32 gpio_bank, count0, count1, prio, irq_id, irq_aff;
-	int i;
+	u32 gpio_bank, prio, irq_id;
+	u64 irq_aff;
+	int i, count0, count1;
 	struct amp_gpio_group_s *gpio_grp;
 	struct amp_irq_cfg_s *irqs_cfg;
 
@@ -320,7 +334,7 @@ static int gic_amp_get_gpio_prio_group_info(struct device_node *np,
 		    __func__, gpio_bank, prio_id, prio);
 
 	count0 = of_property_count_u32_elems(np, "girq-id");
-	count1 = of_property_count_u32_elems(np, "girq-aff");
+	count1 = of_property_count_u64_elems(np, "girq-aff");
 
 	if (count0 != count1)
 		return -EINVAL;
@@ -330,7 +344,7 @@ static int gic_amp_get_gpio_prio_group_info(struct device_node *np,
 	for (i = 0; i < count0; i++) {
 		of_property_read_u32_index(np, "girq-id", i, &irq_id);
 		gpio_grp->irq_id[i] = irq_id;
-		of_property_read_u32_index(np, "girq-aff", i, &irq_aff);
+		of_property_read_u64_index(np, "girq-aff", i, &irq_aff);
 
 		gpio_grp->irq_aff[i] = irq_aff;
 
@@ -338,18 +352,24 @@ static int gic_amp_get_gpio_prio_group_info(struct device_node *np,
 
 		irqs_cfg = &amp_ctrl->irqs_cfg[irq_id];
 
-		AMP_GIC_DBG(" %s: group cpu-%d, irq-%d: prio-%x, aff-%x en-%d\n",
+		AMP_GIC_DBG(" %s: group cpu-%d, irq-%d: prio-%x, aff-%llx en-%d\n",
 			    __func__, i, gpio_grp->irq_id[i], gpio_grp->prio,
 			    gpio_grp->irq_aff[i], gpio_grp->en[i]);
 
 		if (gpio_grp->en[i]) {
 			irqs_cfg->prio = gpio_grp->prio;
 			irqs_cfg->aff = irq_aff;
-			irqs_cfg->cpumask = amp_get_cpumask_bit(irq_aff);
+			if (amp_ctrl->gic_version == GIC_V2) {
+				irqs_cfg->cpumask = amp_get_cpumask_bit(irq_aff);
+				if (!irqs_cfg->cpumask) {
+					pr_err(" %s: get cpumask error\n", __func__);
+					return -EINVAL;
+				}
+			}
 			irqs_cfg->amp_flag = 1;
 		}
 
-		AMP_GIC_DBG("  %s: irqs_cfg prio-%x aff-%x cpumaks-%x en-%d\n",
+		AMP_GIC_DBG("  %s: prio-%x aff-%llx cpumaks-%x flag-%d\n",
 			    __func__, irqs_cfg->prio, irqs_cfg->aff,
 			    irqs_cfg->cpumask, irqs_cfg->amp_flag);
 	}
@@ -404,33 +424,37 @@ static int amp_gic_get_cpumask(struct device_node *np, struct amp_gic_ctrl_s *am
 {
 	const struct property *prop;
 	int count, i;
-	u32 cluster, aff_cpu, aff, cpumask;
+	u32 cluster, aff_cpu;
+	u64 aff, cpumask;
 
+	if (amp_ctrl->gic_version != GIC_V2)
+		return 0;
 	prop = of_find_property(np, "amp-cpu-aff-maskbits", NULL);
+
 	if (!prop)
 		return -1;
 
 	if (!prop->value)
 		return -1;
 
-	count = of_property_count_u32_elems(np, "amp-cpu-aff-maskbits");
+	count = of_property_count_u64_elems(np, "amp-cpu-aff-maskbits");
 	if (count % 2)
 		return -1;
 
 	for (i = 0; i < count / 2; i++) {
-		of_property_read_u32_index(np, "amp-cpu-aff-maskbits",
+		of_property_read_u64_index(np, "amp-cpu-aff-maskbits",
 					   2 * i, &aff);
 		cluster = MPIDR_AFFINITY_LEVEL(aff, 1);
 		aff_cpu = MPIDR_AFFINITY_LEVEL(aff, 0);
 		amp_ctrl->aff_to_cpumask[cluster][aff_cpu].aff = aff;
 
-		of_property_read_u32_index(np, "amp-cpu-aff-maskbits",
+		of_property_read_u64_index(np, "amp-cpu-aff-maskbits",
 					   2 * i + 1, &cpumask);
 
-		amp_ctrl->aff_to_cpumask[cluster][aff_cpu].cpumask = cpumask;
+		amp_ctrl->aff_to_cpumask[cluster][aff_cpu].cpumask = (u32)cpumask;
 
-		AMP_GIC_DBG("cpumask: %d-%d: aff-%d cpumask-%d\n",
-			    cluster, aff_cpu, aff, cpumask);
+		AMP_GIC_DBG("cpumask: %d-%d: aff-%llx cpumask-%d\n",
+			    cluster, aff_cpu, aff, (u32)cpumask);
 
 		if (!cpumask)
 			return -1;
@@ -443,8 +467,9 @@ static void amp_gic_get_irqs_config(struct device_node *np,
 				    struct amp_gic_ctrl_s *amp_ctrl)
 {
 	const struct property *prop;
-	int count, i;
-	u32 irq, prio, aff;
+	u32 irq, i;
+	int count;
+	u64 aff, val, prio;
 
 	prop = of_find_property(np, "amp-irqs", NULL);
 	if (!prop)
@@ -453,30 +478,31 @@ static void amp_gic_get_irqs_config(struct device_node *np,
 	if (!prop->value)
 		return;
 
-	count = of_property_count_u32_elems(np, "amp-irqs");
+	count = of_property_count_u64_elems(np, "amp-irqs");
 
-	if (count < 0 || count % 3)
+	if (count % 3)
 		return;
 
 	for (i = 0; i < count / 3; i++) {
-		of_property_read_u32_index(np, "amp-irqs", 3 * i, &irq);
-
-		if (irq > 1020)
+		of_property_read_u64_index(np, "amp-irqs", 3 * i, &val);
+		irq = (u32)val;
+		if (irq > amp_ctrl->spis_num)
 			break;
 
-		of_property_read_u32_index(np, "amp-irqs", 3 * i + 1, &prio);
-		of_property_read_u32_index(np, "amp-irqs", 3 * i + 2, &aff);
+		of_property_read_u64_index(np, "amp-irqs", 3 * i + 1, &prio);
+		of_property_read_u64_index(np, "amp-irqs", 3 * i + 2, &aff);
 
-		AMP_GIC_DBG("%s: irq-%d aff-%d prio-%x\n",
+		AMP_GIC_DBG("%s: irq-%d aff-%llx prio-%llx\n",
 			    __func__, irq, aff, prio);
 
-		amp_ctrl->irqs_cfg[irq].prio = prio;
+		amp_ctrl->irqs_cfg[irq].prio = (u32)prio;
 		amp_ctrl->irqs_cfg[irq].aff = aff;
-		amp_ctrl->irqs_cfg[irq].cpumask = amp_get_cpumask_bit(aff);
-
-		if (!amp_ctrl->irqs_cfg[irq].cpumask) {
-			AMP_GIC_DBG("%s: get cpumask error\n", __func__);
-			break;
+		if (amp_ctrl->gic_version == GIC_V2) {
+			amp_ctrl->irqs_cfg[irq].cpumask = amp_get_cpumask_bit(aff);
+			if (!amp_ctrl->irqs_cfg[irq].cpumask) {
+				pr_err("%s: get cpumask error\n", __func__);
+				break;
+			}
 		}
 
 		if (!amp_ctrl->irqs_cfg[irq].aff &&
@@ -485,16 +511,19 @@ static void amp_gic_get_irqs_config(struct device_node *np,
 
 		amp_ctrl->irqs_cfg[irq].amp_flag = 1;
 
-		AMP_GIC_DBG("%s: irq-%d aff-%d cpumask-%d pri-%x\n",
+		AMP_GIC_DBG(" %s: irq-%d aff-%llx cpumask-%x pri-%x\n",
 			    __func__, irq, amp_ctrl->irqs_cfg[irq].aff,
 			    amp_ctrl->irqs_cfg[irq].cpumask,
 			    amp_ctrl->irqs_cfg[irq].prio);
 	}
 }
 
-void rockchip_amp_get_gic_info(void)
+void rockchip_amp_get_gic_info(u32 spis_num, enum gic_type gic_version)
 {
 	struct device_node *np;
+
+	amp_ctrl.spis_num = spis_num;
+	amp_ctrl.gic_version = gic_version;
 
 	np = of_find_node_by_name(NULL, "rockchip-amp");
 	if (!np)
@@ -504,6 +533,7 @@ void rockchip_amp_get_gic_info(void)
 		pr_err("%s: get amp gic cpu mask error\n", __func__);
 		goto exit;
 	}
+
 	gic_of_get_gpio_group(np, &amp_ctrl);
 	amp_gic_get_irqs_config(np, &amp_ctrl);
 
