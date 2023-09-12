@@ -4403,7 +4403,7 @@ void btrfs_mark_buffer_dirty(struct btrfs_trans_handle *trans,
 	/* This is an active transaction (its state < TRANS_STATE_UNBLOCKED). */
 	ASSERT(trans->transid == fs_info->generation);
 	btrfs_assert_tree_write_locked(buf);
-	if (transid != fs_info->generation) {
+	if (unlikely(transid != fs_info->generation)) {
 		btrfs_abort_transaction(trans, -EUCLEAN);
 		btrfs_crit(fs_info,
 "dirty buffer transid mismatch, logical %llu found transid %llu running transid %llu",
