@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2018-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2022, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #define pr_fmt(fmt) "%s:%s " fmt, KBUILD_MODNAME, __func__
@@ -141,14 +141,14 @@ struct bcl_device {
 	uint8_t				bcl_type;
 	void				*ipc_log;
 	bool				ibat_ccm_enabled;
+	bool				ibat_use_qg_adc;
+	bool				no_bit_shift;
 	uint32_t			ibat_ext_range_factor;
 	struct bcl_peripheral_data	param[BCL_TYPE_MAX];
 };
 
 static struct bcl_device *bcl_devices[MAX_PERPH_COUNT];
 static int bcl_device_ct;
-static bool ibat_use_qg_adc;
-static bool no_bit_shift;
 
 static int bcl_read_register(struct bcl_device *bcl_perph, int16_t reg_offset,
 				unsigned int *data)
@@ -196,13 +196,13 @@ static int bcl_write_register(struct bcl_device *bcl_perph,
 	return ret;
 }
 
-static void convert_adc_to_vbat_thresh_val(int *val)
+static void convert_adc_to_vbat_thresh_val(struct bcl_device *bcl_perph, int *val)
 {
 	/*
 	 * Threshold register can be bit shifted from ADC MSB.
 	 * So the scaling factor is half in those cases.
 	 */
-	if (no_bit_shift)
+	if (bcl_perph->no_bit_shift)
 		*val = (*val * BCL_VBAT_SCALING_UV) / 1000;
 	else
 		*val = (*val * BCL_VBAT_SCALING_UV) / 2000;
@@ -213,15 +213,15 @@ static void convert_adc_to_vbat_val(int *val)
 	*val = (*val * BCL_VBAT_SCALING_UV) / 1000;
 }
 
-static void convert_ibat_to_adc_val(int *val, int scaling_factor)
+static void convert_ibat_to_adc_val(struct bcl_device *bcl_perph, int *val, int scaling_factor)
 {
 	/*
 	 * Threshold register can be bit shifted from ADC MSB.
 	 * So the scaling factor is half in those cases.
 	 */
-	if (ibat_use_qg_adc)
+	if (bcl_perph->ibat_use_qg_adc)
 		*val = (int)div_s64(*val * 2000 * 2, scaling_factor);
-	else if (no_bit_shift)
+	else if (bcl_perph->no_bit_shift)
 		*val = (int)div_s64(*val * 1000 * bcl_ibat_ext_ranges[BCL_IBAT_RANGE_LVL0],
 				scaling_factor);
 	else
@@ -230,10 +230,10 @@ static void convert_ibat_to_adc_val(int *val, int scaling_factor)
 
 }
 
-static void convert_adc_to_ibat_val(int *val, int scaling_factor)
+static void convert_adc_to_ibat_val(struct bcl_device *bcl_perph, int *val, int scaling_factor)
 {
 	/* Scaling factor will be half if ibat_use_qg_adc is true */
-	if (ibat_use_qg_adc)
+	if (bcl_perph->ibat_use_qg_adc)
 		*val = (int)div_s64(*val * scaling_factor, 2 * 1000);
 	else
 		*val = (int)div_s64(*val * scaling_factor,
@@ -280,15 +280,15 @@ static int bcl_set_ibat(struct thermal_zone_device *tz, int low, int high)
 
 	ibat_ua = thresh_value;
 	if (bat_data->dev->ibat_ccm_enabled)
-		convert_ibat_to_adc_val(&thresh_value,
+		convert_ibat_to_adc_val(bat_data->dev, &thresh_value,
 				BCL_IBAT_CCM_SCALING_UA *
 				bat_data->dev->ibat_ext_range_factor);
 	else if (bat_data->dev->dig_major >= BCL_GEN3_MAJOR_REV)
-		convert_ibat_to_adc_val(&thresh_value,
+		convert_ibat_to_adc_val(bat_data->dev, &thresh_value,
 				BCL_IBAT_SCALING_REV4_UA *
 				bat_data->dev->ibat_ext_range_factor);
 	else
-		convert_ibat_to_adc_val(&thresh_value,
+		convert_ibat_to_adc_val(bat_data->dev, &thresh_value,
 				BCL_IBAT_SCALING_UA *
 				bat_data->dev->ibat_ext_range_factor);
 	val = (int8_t)thresh_value;
@@ -348,14 +348,14 @@ static int bcl_read_ibat(struct thermal_zone_device *tz, int *adc_value)
 		*adc_value = bat_data->last_val;
 	} else {
 		if (bat_data->dev->ibat_ccm_enabled)
-			convert_adc_to_ibat_val(adc_value,
+			convert_adc_to_ibat_val(bat_data->dev, adc_value,
 				BCL_IBAT_CCM_SCALING_UA * bat_data->dev->ibat_ext_range_factor);
 		else if (bat_data->dev->dig_major >= BCL_GEN3_MAJOR_REV)
-			convert_adc_to_ibat_val(adc_value,
+			convert_adc_to_ibat_val(bat_data->dev, adc_value,
 				BCL_IBAT_SCALING_REV4_UA *
 					bat_data->dev->ibat_ext_range_factor);
 		else
-			convert_adc_to_ibat_val(adc_value,
+			convert_adc_to_ibat_val(bat_data->dev, adc_value,
 				BCL_IBAT_SCALING_UA * bat_data->dev->ibat_ext_range_factor);
 		bat_data->last_val = *adc_value;
 	}
@@ -397,7 +397,7 @@ static int bcl_get_vbat_trip(struct thermal_zone_device *tzd,
 
 	if (addr == BCL_VBAT_ADC_LOW) {
 		*trip = val;
-		convert_adc_to_vbat_thresh_val(trip);
+		convert_adc_to_vbat_thresh_val(bat_data->dev, trip);
 		pr_debug("vbat trip: %d mV ADC:0x%02x\n", *trip, val);
 	} else {
 		*trip = BCL_VBAT_THRESH_BASE + val * 25;
@@ -652,9 +652,9 @@ static int bcl_get_devicetree_data(struct platform_device *pdev,
 		return -ENODEV;
 	}
 
-	ibat_use_qg_adc =  of_property_read_bool(dev_node,
+	bcl_perph->ibat_use_qg_adc =  of_property_read_bool(dev_node,
 				"qcom,ibat-use-qg-adc-5a");
-	no_bit_shift =  of_property_read_bool(dev_node,
+	bcl_perph->no_bit_shift =  of_property_read_bool(dev_node,
 				"qcom,pmic7-threshold");
 	bcl_perph->ibat_ccm_enabled =  of_property_read_bool(dev_node,
 						"qcom,ibat-ccm-hw-support");
