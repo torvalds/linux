@@ -11,6 +11,7 @@
 #include <linux/smp.h>
 #include <linux/bitops.h>
 #include <linux/cpu.h>
+#include <linux/workqueue.h>
 
 /* The anchor node sits above the top of the usable address space */
 #define IOVA_ANCHOR	~0UL
@@ -627,6 +628,8 @@ EXPORT_SYMBOL_GPL(reserve_iova);
  */
 #define IOVA_MAG_SIZE 127
 
+#define IOVA_DEPOT_DELAY msecs_to_jiffies(100)
+
 struct iova_magazine {
 	union {
 		unsigned long size;
@@ -644,8 +647,11 @@ struct iova_cpu_rcache {
 
 struct iova_rcache {
 	spinlock_t lock;
+	unsigned int depot_size;
 	struct iova_magazine *depot;
 	struct iova_cpu_rcache __percpu *cpu_rcaches;
+	struct iova_domain *iovad;
+	struct delayed_work work;
 };
 
 static struct iova_magazine *iova_magazine_alloc(gfp_t flags)
@@ -726,6 +732,7 @@ static struct iova_magazine *iova_depot_pop(struct iova_rcache *rcache)
 
 	rcache->depot = mag->next;
 	mag->size = IOVA_MAG_SIZE;
+	rcache->depot_size--;
 	return mag;
 }
 
@@ -733,6 +740,25 @@ static void iova_depot_push(struct iova_rcache *rcache, struct iova_magazine *ma
 {
 	mag->next = rcache->depot;
 	rcache->depot = mag;
+	rcache->depot_size++;
+}
+
+static void iova_depot_work_func(struct work_struct *work)
+{
+	struct iova_rcache *rcache = container_of(work, typeof(*rcache), work.work);
+	struct iova_magazine *mag = NULL;
+	unsigned long flags;
+
+	spin_lock_irqsave(&rcache->lock, flags);
+	if (rcache->depot_size > num_online_cpus())
+		mag = iova_depot_pop(rcache);
+	spin_unlock_irqrestore(&rcache->lock, flags);
+
+	if (mag) {
+		iova_magazine_free_pfns(mag, rcache->iovad);
+		iova_magazine_free(mag);
+		schedule_delayed_work(&rcache->work, IOVA_DEPOT_DELAY);
+	}
 }
 
 int iova_domain_init_rcaches(struct iova_domain *iovad)
@@ -752,6 +778,8 @@ int iova_domain_init_rcaches(struct iova_domain *iovad)
 
 		rcache = &iovad->rcaches[i];
 		spin_lock_init(&rcache->lock);
+		rcache->iovad = iovad;
+		INIT_DELAYED_WORK(&rcache->work, iova_depot_work_func);
 		rcache->cpu_rcaches = __alloc_percpu(sizeof(*cpu_rcache),
 						     cache_line_size());
 		if (!rcache->cpu_rcaches) {
@@ -812,6 +840,7 @@ static bool __iova_rcache_insert(struct iova_domain *iovad,
 			spin_lock(&rcache->lock);
 			iova_depot_push(rcache, cpu_rcache->loaded);
 			spin_unlock(&rcache->lock);
+			schedule_delayed_work(&rcache->work, IOVA_DEPOT_DELAY);
 
 			cpu_rcache->loaded = new_mag;
 			can_insert = true;
@@ -912,6 +941,7 @@ static void free_iova_rcaches(struct iova_domain *iovad)
 			iova_magazine_free(cpu_rcache->prev);
 		}
 		free_percpu(rcache->cpu_rcaches);
+		cancel_delayed_work_sync(&rcache->work);
 		while (rcache->depot)
 			iova_magazine_free(iova_depot_pop(rcache));
 	}
