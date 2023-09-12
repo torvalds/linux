@@ -218,11 +218,9 @@ struct ipv6_pinfo {
 #if defined(__BIG_ENDIAN_BITFIELD)
 	/* Packed in 16bits. */
 	__s16			mcast_hops:9;
-	__u16			__unused_2:6,
-				mc_loop:1;
+	__u16			__unused_2:7,
 #else
-	__u16			mc_loop:1,
-				__unused_2:6;
+	__u16			__unused_2:7;
 	__s16			mcast_hops:9;
 #endif
 	int			ucast_oif;
@@ -282,6 +280,18 @@ struct ipv6_pinfo {
 	struct sk_buff		*rxpmtu;
 	struct inet6_cork	cork;
 };
+
+/* We currently use available bits from inet_sk(sk)->inet_flags,
+ * this could change in the future.
+ */
+#define inet6_test_bit(nr, sk)			\
+	test_bit(INET_FLAGS_##nr, &inet_sk(sk)->inet_flags)
+#define inet6_set_bit(nr, sk)			\
+	set_bit(INET_FLAGS_##nr, &inet_sk(sk)->inet_flags)
+#define inet6_clear_bit(nr, sk)			\
+	clear_bit(INET_FLAGS_##nr, &inet_sk(sk)->inet_flags)
+#define inet6_assign_bit(nr, sk, val)		\
+	assign_bit(INET_FLAGS_##nr, &inet_sk(sk)->inet_flags, val)
 
 /* WARNING: don't change the layout of the members in {raw,udp,tcp}6_sock! */
 struct raw6_sock {

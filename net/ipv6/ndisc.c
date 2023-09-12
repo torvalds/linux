@@ -1996,7 +1996,7 @@ static int __net_init ndisc_net_init(struct net *net)
 	np = inet6_sk(sk);
 	np->hop_limit = 255;
 	/* Do not loopback ndisc messages */
-	np->mc_loop = 0;
+	inet6_clear_bit(MC6_LOOP, sk);
 
 	return 0;
 }

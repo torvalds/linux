@@ -424,6 +424,13 @@ int do_ipv6_setsockopt(struct sock *sk, int level, int optname,
 			return -EINVAL;
 		WRITE_ONCE(np->hop_limit, val);
 		return 0;
+	case IPV6_MULTICAST_LOOP:
+		if (optlen < sizeof(int))
+			return -EINVAL;
+		if (val != valbool)
+			return -EINVAL;
+		inet6_assign_bit(MC6_LOOP, sk, valbool);
+		return 0;
 	}
 	if (needs_rtnl)
 		rtnl_lock();
@@ -752,15 +759,6 @@ done:
 		if (val > 255 || val < -1)
 			goto e_inval;
 		np->mcast_hops = (val == -1 ? IPV6_DEFAULT_MCASTHOPS : val);
-		retv = 0;
-		break;
-
-	case IPV6_MULTICAST_LOOP:
-		if (optlen < sizeof(int))
-			goto e_inval;
-		if (val != valbool)
-			goto e_inval;
-		np->mc_loop = valbool;
 		retv = 0;
 		break;
 
@@ -1367,7 +1365,7 @@ int do_ipv6_getsockopt(struct sock *sk, int level, int optname,
 	}
 
 	case IPV6_MULTICAST_LOOP:
-		val = np->mc_loop;
+		val = inet6_test_bit(MC6_LOOP, sk);
 		break;
 
 	case IPV6_MULTICAST_IF:
