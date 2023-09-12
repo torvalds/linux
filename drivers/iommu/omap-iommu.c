@@ -1310,7 +1310,8 @@ static u32 iotlb_init_entry(struct iotlb_entry *e, u32 da, u32 pa, int pgsz)
 }
 
 static int omap_iommu_map(struct iommu_domain *domain, unsigned long da,
-			  phys_addr_t pa, size_t bytes, int prot, gfp_t gfp)
+			  phys_addr_t pa, size_t bytes, size_t count,
+			  int prot, gfp_t gfp, size_t *mapped)
 {
 	struct omap_iommu_domain *omap_domain = to_omap_domain(domain);
 	struct device *dev = omap_domain->dev;
@@ -1348,13 +1349,15 @@ static int omap_iommu_map(struct iommu_domain *domain, unsigned long da,
 			oiommu = iommu->iommu_dev;
 			iopgtable_clear_entry(oiommu, da);
 		}
+	} else {
+		*mapped = bytes;
 	}
 
 	return ret;
 }
 
 static size_t omap_iommu_unmap(struct iommu_domain *domain, unsigned long da,
-			       size_t size, struct iommu_iotlb_gather *gather)
+			       size_t size, size_t count, struct iommu_iotlb_gather *gather)
 {
 	struct omap_iommu_domain *omap_domain = to_omap_domain(domain);
 	struct device *dev = omap_domain->dev;
@@ -1730,8 +1733,8 @@ static const struct iommu_ops omap_iommu_ops = {
 	.pgsize_bitmap	= OMAP_IOMMU_PGSIZES,
 	.default_domain_ops = &(const struct iommu_domain_ops) {
 		.attach_dev	= omap_iommu_attach_dev,
-		.map		= omap_iommu_map,
-		.unmap		= omap_iommu_unmap,
+		.map_pages	= omap_iommu_map,
+		.unmap_pages	= omap_iommu_unmap,
 		.iova_to_phys	= omap_iommu_iova_to_phys,
 		.free		= omap_iommu_domain_free,
 	}
