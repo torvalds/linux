@@ -851,14 +851,10 @@ probe_gmdid_display(struct drm_i915_private *i915, u16 *ver, u16 *rel, u16 *step
 }
 
 static const struct intel_display_device_info *
-probe_display(struct drm_i915_private *i915, bool has_gmdid,
-	      u16 *gmdid_ver, u16 *gmdid_rel, u16 *gmdid_step)
+probe_display(struct drm_i915_private *i915)
 {
 	struct pci_dev *pdev = to_pci_dev(i915->drm.dev);
 	int i;
-
-	if (has_gmdid)
-		return probe_gmdid_display(i915, gmdid_ver, gmdid_rel, gmdid_step);
 
 	if (has_no_display(pdev)) {
 		drm_dbg_kms(&i915->drm, "Device doesn't have display\n");
@@ -878,11 +874,16 @@ probe_display(struct drm_i915_private *i915, bool has_gmdid,
 
 void intel_display_device_probe(struct drm_i915_private *i915)
 {
+	const struct intel_display_device_info *info;
 	u16 ver, rel, step;
 
-	/* Probe display support */
-	i915->display.info.__device_info = probe_display(i915, HAS_GMD_ID(i915),
-							 &ver, &rel, &step);
+	if (HAS_GMD_ID(i915))
+		info = probe_gmdid_display(i915, &ver, &rel, &step);
+	else
+		info = probe_display(i915);
+
+	i915->display.info.__device_info = info;
+
 	memcpy(DISPLAY_RUNTIME_INFO(i915),
 	       &DISPLAY_INFO(i915)->__runtime_defaults,
 	       sizeof(*DISPLAY_RUNTIME_INFO(i915)));
