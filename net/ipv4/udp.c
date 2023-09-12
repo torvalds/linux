@@ -2618,7 +2618,7 @@ void udp_destroy_sock(struct sock *sk)
 			if (encap_destroy)
 				encap_destroy(sk);
 		}
-		if (up->encap_enabled)
+		if (udp_test_bit(ENCAP_ENABLED, sk))
 			static_branch_dec(&udp_encap_needed_key);
 	}
 }
@@ -2685,9 +2685,7 @@ int udp_lib_setsockopt(struct sock *sk, int level, int optname,
 			fallthrough;
 		case UDP_ENCAP_L2TPINUDP:
 			up->encap_type = val;
-			lock_sock(sk);
-			udp_tunnel_encap_enable(sk->sk_socket);
-			release_sock(sk);
+			udp_tunnel_encap_enable(sk);
 			break;
 		default:
 			err = -ENOPROTOOPT;
@@ -2710,14 +2708,12 @@ int udp_lib_setsockopt(struct sock *sk, int level, int optname,
 		break;
 
 	case UDP_GRO:
-		lock_sock(sk);
 
 		/* when enabling GRO, accept the related GSO packet type */
 		if (valbool)
-			udp_tunnel_encap_enable(sk->sk_socket);
+			udp_tunnel_encap_enable(sk);
 		udp_assign_bit(GRO_ENABLED, sk, valbool);
 		udp_assign_bit(ACCEPT_L4, sk, valbool);
-		release_sock(sk);
 		break;
 
 	/*
