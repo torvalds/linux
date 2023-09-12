@@ -40,7 +40,7 @@
 
 #define PIXEL_RATE_WITH_375M_10BIT	(SC1346_LINK_FREQ_375 * 2 * \
 					SC1346_LANES / SC1346_BITS_PER_SAMPLE)
-#define SC1346_XVCLK_FREQ		24000000
+#define SC1346_XVCLK_FREQ		27000000
 
 #define CHIP_ID				0xda4d
 #define SC1346_REG_CHIP_ID		0x3107
@@ -160,26 +160,26 @@ struct sc1346 {
 #define to_sc1346(sd) container_of(sd, struct sc1346, subdev)
 
 /*
- * Xclk 24Mhz
+ * Xclk 27Mhz
  */
 static const struct regval sc1346_global_regs[] = {
 	{REG_NULL, 0x00},
 };
 
 /*
- * Xclk 24Mhz
+ * Xclk 27Mhz
  * max_framerate 30fps
- * mipi_datarate per lane 630Mbps, 2lane
+ * mipi_datarate per lane 371.25Mbps, 1lane
  */
-static const struct regval sc1346_linear_10_2560x1440_regs[] = {
+static const struct regval sc1346_linear_10_1280x720_regs[] = {
 	{0x0103, 0x01},
 	{0x0100, 0x00},
 	{0x36e9, 0x80},
 	{0x37f9, 0x80},
 	{0x301f, 0x01},
 	{0x3106, 0x05},
-	{0x320e, 0x04},
-	{0x320f, 0x65},
+	{0x320e, 0x02},
+	{0x320f, 0xee},
 	{0x3301, 0x06},
 	{0x3306, 0x50},
 	{0x3308, 0x0a},
@@ -277,9 +277,9 @@ static const struct sc1346_mode supported_modes[] = {
 		},
 		.exp_def = 0x0080,
 		.hts_def = 0x0250 * 2,
-		.vts_def = 0x0708,
+		.vts_def = 0x02ee,
 		.bus_fmt = MEDIA_BUS_FMT_SBGGR10_1X10,
-		.reg_list = sc1346_linear_10_2560x1440_regs,
+		.reg_list = sc1346_linear_10_1280x720_regs,
 		.hdr_mode = NO_HDR,
 		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_0,
 	}
@@ -913,7 +913,7 @@ static int __sc1346_power_on(struct sc1346 *sc1346)
 	}
 	ret = clk_set_rate(sc1346->xvclk, SC1346_XVCLK_FREQ);
 	if (ret < 0)
-		dev_warn(dev, "Failed to set xvclk rate (24MHz)\n");
+		dev_warn(dev, "Failed to set xvclk rate (27MHz)\n");
 	if (clk_get_rate(sc1346->xvclk) != SC1346_XVCLK_FREQ)
 		dev_warn(dev, "xvclk mismatched, modes are based on 24MHz\n");
 	ret = clk_prepare_enable(sc1346->xvclk);
