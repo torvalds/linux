@@ -79,8 +79,6 @@ static const u32 imx8qm_clk_scu_rsrc_table[] = {
 	IMX_SC_R_M4_0_I2C,
 	IMX_SC_R_M4_1_I2C,
 	IMX_SC_R_AUDIO_PLL_0,
-	IMX_SC_R_VPU_UART,
-	IMX_SC_R_VPUCORE,
 	IMX_SC_R_MIPI_0,
 	IMX_SC_R_MIPI_0_PWM_0,
 	IMX_SC_R_MIPI_0_I2C_0,
