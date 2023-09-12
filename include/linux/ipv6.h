@@ -243,13 +243,12 @@ struct ipv6_pinfo {
 	} rxopt;
 
 	/* sockopt flags */
-	__u16			sndflow:1,
-				pmtudisc:3,
-				padding:1,	/* 1 bit hole */
+	__u8			sndflow:1,
 				srcprefs:3;	/* 001: prefer temporary address
 						 * 010: prefer public address
 						 * 100: prefer care-of address
 						 */
+	__u8			pmtudisc;
 	__u8			min_hopcount;
 	__u8			tclass;
 	__be32			rcv_flowinfo;

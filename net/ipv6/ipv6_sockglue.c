@@ -493,6 +493,13 @@ int do_ipv6_setsockopt(struct sock *sk, int level, int optname,
 			return -EINVAL;
 		inet6_assign_bit(RTALERT_ISOLATE, sk, valbool);
 		return 0;
+	case IPV6_MTU_DISCOVER:
+		if (optlen < sizeof(int))
+			return -EINVAL;
+		if (val < IPV6_PMTUDISC_DONT || val > IPV6_PMTUDISC_OMIT)
+			return -EINVAL;
+		WRITE_ONCE(np->pmtudisc, val);
+		return 0;
 	}
 	if (needs_rtnl)
 		rtnl_lock();
@@ -941,14 +948,6 @@ done:
 			goto e_inval;
 		retv = ip6_ra_control(sk, val);
 		break;
-	case IPV6_MTU_DISCOVER:
-		if (optlen < sizeof(int))
-			goto e_inval;
-		if (val < IPV6_PMTUDISC_DONT || val > IPV6_PMTUDISC_OMIT)
-			goto e_inval;
-		np->pmtudisc = val;
-		retv = 0;
-		break;
 	case IPV6_FLOWINFO_SEND:
 		if (optlen < sizeof(int))
 			goto e_inval;
@@ -1374,7 +1373,7 @@ int do_ipv6_getsockopt(struct sock *sk, int level, int optname,
 		break;
 
 	case IPV6_MTU_DISCOVER:
-		val = np->pmtudisc;
+		val = READ_ONCE(np->pmtudisc);
 		break;
 
 	case IPV6_RECVERR:
