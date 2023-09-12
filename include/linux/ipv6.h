@@ -244,7 +244,6 @@ struct ipv6_pinfo {
 
 	/* sockopt flags */
 	__u16			sndflow:1,
-				repflow:1,
 				pmtudisc:3,
 				padding:1,	/* 1 bit hole */
 				srcprefs:3,	/* 001: prefer temporary address

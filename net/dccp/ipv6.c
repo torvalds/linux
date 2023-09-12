@@ -679,7 +679,7 @@ ipv6_pktoptions:
 			WRITE_ONCE(np->mcast_hops, ipv6_hdr(opt_skb)->hop_limit);
 		if (np->rxopt.bits.rxflow || np->rxopt.bits.rxtclass)
 			np->rcv_flowinfo = ip6_flowinfo(ipv6_hdr(opt_skb));
-		if (np->repflow)
+		if (inet6_test_bit(REPFLOW, sk))
 			np->flow_label = ip6_flowlabel(ipv6_hdr(opt_skb));
 		if (ipv6_opt_accepted(sk, opt_skb,
 				      &DCCP_SKB_CB(opt_skb)->header.h6)) {
