@@ -107,10 +107,10 @@ struct acpi_thermal_active {
 };
 
 struct acpi_thermal_trips {
-	struct acpi_thermal_trip critical;
-	struct acpi_thermal_trip hot;
 	struct acpi_thermal_passive passive;
 	struct acpi_thermal_active active[ACPI_THERMAL_MAX_ACTIVE];
+	bool critical_valid;
+	bool hot_valid;
 };
 
 struct acpi_thermal {
@@ -391,7 +391,7 @@ static void acpi_thermal_trips_update(struct acpi_thermal *tz, u32 event)
 					dev_name(&adev->dev), event, 0);
 }
 
-static void acpi_thermal_get_critical_trip(struct acpi_thermal *tz)
+static long acpi_thermal_get_critical_trip(struct acpi_thermal *tz)
 {
 	unsigned long long tmp;
 	acpi_status status;
@@ -420,34 +420,30 @@ static void acpi_thermal_get_critical_trip(struct acpi_thermal *tz)
 	}
 
 set:
-	tz->trips.critical.valid = true;
-	tz->trips.critical.temperature = tmp;
-	acpi_handle_debug(tz->device->handle, "Critical threshold [%lu]\n",
-			  tz->trips.critical.temperature);
-	return;
+	tz->trips.critical_valid = true;
+	acpi_handle_debug(tz->device->handle, "Critical threshold [%llu]\n", tmp);
+	return tmp;
 
 fail:
-	tz->trips.critical.valid = false;
-	tz->trips.critical.temperature = THERMAL_TEMP_INVALID;
+	tz->trips.critical_valid = false;
+	return THERMAL_TEMP_INVALID;
 }
 
-static void acpi_thermal_get_hot_trip(struct acpi_thermal *tz)
+static long acpi_thermal_get_hot_trip(struct acpi_thermal *tz)
 {
 	unsigned long long tmp;
 	acpi_status status;
 
 	status = acpi_evaluate_integer(tz->device->handle, "_HOT", NULL, &tmp);
 	if (ACPI_FAILURE(status)) {
-		tz->trips.hot.valid = false;
-		tz->trips.hot.temperature = THERMAL_TEMP_INVALID;
+		tz->trips.hot_valid = false;
 		acpi_handle_debug(tz->device->handle, "No hot threshold\n");
-		return;
+		return THERMAL_TEMP_INVALID;
 	}
 
-	tz->trips.hot.valid = true;
-	tz->trips.hot.temperature = tmp;
-	acpi_handle_debug(tz->device->handle, "Hot threshold [%lu]\n",
-			  tz->trips.hot.temperature);
+	tz->trips.hot_valid = true;
+	acpi_handle_debug(tz->device->handle, "Hot threshold [%llu]\n", tmp);
+	return tmp;
 }
 
 static int acpi_thermal_get_trip_points(struct acpi_thermal *tz)
@@ -455,16 +451,8 @@ static int acpi_thermal_get_trip_points(struct acpi_thermal *tz)
 	unsigned int count = 0;
 	int i;
 
-	acpi_thermal_get_critical_trip(tz);
-	acpi_thermal_get_hot_trip(tz);
 	/* Passive and active trip points (optional). */
 	__acpi_thermal_trips_update(tz, ACPI_TRIPS_INIT);
-
-	if (tz->trips.critical.valid)
-		count++;
-
-	if (tz->trips.hot.valid)
-		count++;
 
 	if (tz->trips.passive.trip.valid)
 		count++;
@@ -578,10 +566,10 @@ static int acpi_thermal_cooling_device_cb(struct thermal_zone_device *thermal,
 	int trip = -1;
 	int result = 0;
 
-	if (tz->trips.critical.valid)
+	if (tz->trips.critical_valid)
 		trip++;
 
-	if (tz->trips.hot.valid)
+	if (tz->trips.hot_valid)
 		trip++;
 
 	if (tz->trips.passive.trip.valid) {
@@ -803,10 +791,9 @@ static void acpi_thermal_aml_dependency_fix(struct acpi_thermal *tz)
  * The heuristic below should work for all ACPI thermal zones which have a
  * critical trip point with a value being a multiple of 0.5 degree Celsius.
  */
-static void acpi_thermal_guess_offset(struct acpi_thermal *tz)
+static void acpi_thermal_guess_offset(struct acpi_thermal *tz, long crit_temp)
 {
-	if (tz->trips.critical.valid &&
-	    (tz->trips.critical.temperature % 5) == 1)
+	if (tz->trips.critical_valid && crit_temp % 5 == 1)
 		tz->kelvin_offset = 273100;
 	else
 		tz->kelvin_offset = 273200;
@@ -843,6 +830,7 @@ static int acpi_thermal_add(struct acpi_device *device)
 	struct thermal_trip *trip;
 	struct acpi_thermal *tz;
 	unsigned int trip_count;
+	int crit_temp, hot_temp;
 	int passive_delay = 0;
 	int result;
 	int i;
@@ -864,6 +852,15 @@ static int acpi_thermal_add(struct acpi_device *device)
 
 	/* Get trip points [_CRT, _PSV, etc.] (required). */
 	trip_count = acpi_thermal_get_trip_points(tz);
+
+	crit_temp = acpi_thermal_get_critical_trip(tz);
+	if (tz->trips.critical_valid)
+		trip_count++;
+
+	hot_temp = acpi_thermal_get_hot_trip(tz);
+	if (tz->trips.hot_valid)
+		trip_count++;
+
 	if (!trip_count) {
 		pr_warn(FW_BUG "No valid trip points!\n");
 		result = -ENODEV;
@@ -885,7 +882,7 @@ static int acpi_thermal_add(struct acpi_device *device)
 	else
 		acpi_thermal_get_polling_frequency(tz);
 
-	acpi_thermal_guess_offset(tz);
+	acpi_thermal_guess_offset(tz, crit_temp);
 
 	trip = kcalloc(trip_count, sizeof(*trip), GFP_KERNEL);
 	if (!trip)
@@ -893,15 +890,15 @@ static int acpi_thermal_add(struct acpi_device *device)
 
 	tz->trip_table = trip;
 
-	if (tz->trips.critical.valid) {
+	if (tz->trips.critical_valid) {
 		trip->type = THERMAL_TRIP_CRITICAL;
-		trip->temperature = acpi_thermal_temp(tz, tz->trips.critical.temperature);
+		trip->temperature = acpi_thermal_temp(tz, crit_temp);
 		trip++;
 	}
 
-	if (tz->trips.hot.valid) {
+	if (tz->trips.hot_valid) {
 		trip->type = THERMAL_TRIP_HOT;
-		trip->temperature = acpi_thermal_temp(tz, tz->trips.hot.temperature);
+		trip->temperature = acpi_thermal_temp(tz, hot_temp);
 		trip++;
 	}
 
