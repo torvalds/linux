@@ -850,9 +850,9 @@ probe_gmdid_display(struct drm_i915_private *i915, u16 *ver, u16 *rel, u16 *step
 	return &no_display;
 }
 
-const struct intel_display_device_info *
-intel_display_device_probe(struct drm_i915_private *i915, bool has_gmdid,
-			   u16 *gmdid_ver, u16 *gmdid_rel, u16 *gmdid_step)
+static const struct intel_display_device_info *
+probe_display(struct drm_i915_private *i915, bool has_gmdid,
+	      u16 *gmdid_ver, u16 *gmdid_rel, u16 *gmdid_step)
 {
 	struct pci_dev *pdev = to_pci_dev(i915->drm.dev);
 	int i;
@@ -874,6 +874,24 @@ intel_display_device_probe(struct drm_i915_private *i915, bool has_gmdid,
 		pdev->device);
 
 	return &no_display;
+}
+
+void intel_display_device_probe(struct drm_i915_private *i915)
+{
+	u16 ver, rel, step;
+
+	/* Probe display support */
+	i915->display.info.__device_info = probe_display(i915, HAS_GMD_ID(i915),
+							 &ver, &rel, &step);
+	memcpy(DISPLAY_RUNTIME_INFO(i915),
+	       &DISPLAY_INFO(i915)->__runtime_defaults,
+	       sizeof(*DISPLAY_RUNTIME_INFO(i915)));
+
+	if (HAS_GMD_ID(i915)) {
+		DISPLAY_RUNTIME_INFO(i915)->ip.ver = ver;
+		DISPLAY_RUNTIME_INFO(i915)->ip.rel = rel;
+		DISPLAY_RUNTIME_INFO(i915)->ip.step = step;
+	}
 }
 
 void intel_display_device_info_runtime_init(struct drm_i915_private *i915)

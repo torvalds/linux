@@ -424,7 +424,6 @@ void intel_device_info_driver_create(struct drm_i915_private *i915,
 				     const struct intel_device_info *match_info)
 {
 	struct intel_runtime_info *runtime;
-	u16 ver, rel, step;
 
 	/* Setup INTEL_INFO() */
 	i915->__info = match_info;
@@ -433,18 +432,7 @@ void intel_device_info_driver_create(struct drm_i915_private *i915,
 	runtime = RUNTIME_INFO(i915);
 	memcpy(runtime, &INTEL_INFO(i915)->__runtime, sizeof(*runtime));
 
-	/* Probe display support */
-	i915->display.info.__device_info = intel_display_device_probe(i915, HAS_GMD_ID(i915),
-								      &ver, &rel, &step);
-	memcpy(DISPLAY_RUNTIME_INFO(i915),
-	       &DISPLAY_INFO(i915)->__runtime_defaults,
-	       sizeof(*DISPLAY_RUNTIME_INFO(i915)));
-
-	if (HAS_GMD_ID(i915)) {
-		DISPLAY_RUNTIME_INFO(i915)->ip.ver = ver;
-		DISPLAY_RUNTIME_INFO(i915)->ip.rel = rel;
-		DISPLAY_RUNTIME_INFO(i915)->ip.step = step;
-	}
+	intel_display_device_probe(i915);
 
 	runtime->device_id = device_id;
 }
