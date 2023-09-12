@@ -20,7 +20,6 @@
 #include <linux/mfd/max77686-private.h>
 #include <linux/err.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 
 static const struct mfd_cell max77686_devs[] = {
 	{ .name = "max77686-pmic", },

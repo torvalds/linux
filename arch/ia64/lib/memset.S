@@ -18,8 +18,8 @@
    Since a stf.spill f0 can store 16B in one go, we use this instruction
    to get peak speed when value = 0.  */
 
+#include <linux/export.h>
 #include <asm/asmmacro.h>
-#include <asm/export.h>
 #undef ret
 
 #define dest		in0

@@ -60,9 +60,9 @@
  *	to fetch the second-half of the L2 cache line into L1, and the tX words are copied in
  *	an order that avoids bank conflicts.
  */
+#include <linux/export.h>
 #include <asm/asmmacro.h>
 #include <asm/page.h>
-#include <asm/export.h>
 
 #define PREFETCH_DIST	8		// McKinley sustains 16 outstanding L2 misses (8 ld, 8 st)
 

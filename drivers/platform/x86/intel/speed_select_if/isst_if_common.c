@@ -335,8 +335,8 @@ static struct pci_dev *_isst_if_get_pci_dev(int cpu, int bus_no, int dev, int fn
 
 		node = dev_to_node(&_pci_dev->dev);
 		if (node == NUMA_NO_NODE) {
-			pr_info("Fail to get numa node for CPU:%d bus:%d dev:%d fn:%d\n",
-				cpu, bus_no, dev, fn);
+			pr_info_once("Fail to get numa node for CPU:%d bus:%d dev:%d fn:%d\n",
+				     cpu, bus_no, dev, fn);
 			continue;
 		}
 
@@ -720,7 +720,7 @@ static struct miscdevice isst_if_char_driver = {
 
 static const struct x86_cpu_id hpm_cpu_ids[] = {
 	X86_MATCH_INTEL_FAM6_MODEL(GRANITERAPIDS_X,	NULL),
-	X86_MATCH_INTEL_FAM6_MODEL(SIERRAFOREST_X,	NULL),
+	X86_MATCH_INTEL_FAM6_MODEL(ATOM_CRESTMONT_X,	NULL),
 	{}
 };
 

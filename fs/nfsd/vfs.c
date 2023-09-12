@@ -520,7 +520,7 @@ nfsd_setattr(struct svc_rqst *rqstp, struct svc_fh *fhp,
 
 	nfsd_sanitize_attrs(inode, iap);
 
-	if (check_guard && guardtime != inode->i_ctime.tv_sec)
+	if (check_guard && guardtime != inode_get_ctime(inode).tv_sec)
 		return nfserr_notsync;
 
 	/*
@@ -956,10 +956,13 @@ nfsd_splice_actor(struct pipe_inode_info *pipe, struct pipe_buffer *buf,
 	last_page = page + (offset + sd->len - 1) / PAGE_SIZE;
 	for (page += offset / PAGE_SIZE; page <= last_page; page++) {
 		/*
-		 * Skip page replacement when extending the contents
-		 * of the current page.
+		 * Skip page replacement when extending the contents of the
+		 * current page.  But note that we may get two zero_pages in a
+		 * row from shmem.
 		 */
-		if (page == *(rqstp->rq_next_page - 1))
+		if (page == *(rqstp->rq_next_page - 1) &&
+		    offset_in_page(rqstp->rq_res.page_base +
+				   rqstp->rq_res.page_len))
 			continue;
 		if (unlikely(!svc_rqst_replace_page(rqstp, page)))
 			return -EIO;
@@ -1537,7 +1540,9 @@ nfsd_create(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	dput(dchild);
 	if (err)
 		goto out_unlock;
-	fh_fill_pre_attrs(fhp);
+	err = fh_fill_pre_attrs(fhp);
+	if (err != nfs_ok)
+		goto out_unlock;
 	err = nfsd_create_locked(rqstp, fhp, attrs, type, rdev, resfhp);
 	fh_fill_post_attrs(fhp);
 out_unlock:
@@ -1632,13 +1637,16 @@ nfsd_symlink(struct svc_rqst *rqstp, struct svc_fh *fhp,
 		inode_unlock(dentry->d_inode);
 		goto out_drop_write;
 	}
-	fh_fill_pre_attrs(fhp);
+	err = fh_fill_pre_attrs(fhp);
+	if (err != nfs_ok)
+		goto out_unlock;
 	host_err = vfs_symlink(&nop_mnt_idmap, d_inode(dentry), dnew, path);
 	err = nfserrno(host_err);
 	cerr = fh_compose(resfhp, fhp->fh_export, dnew, fhp);
 	if (!err)
 		nfsd_create_setattr(rqstp, fhp, resfhp, attrs);
 	fh_fill_post_attrs(fhp);
+out_unlock:
 	inode_unlock(dentry->d_inode);
 	if (!err)
 		err = nfserrno(commit_metadata(fhp));
@@ -1700,7 +1708,9 @@ nfsd_link(struct svc_rqst *rqstp, struct svc_fh *ffhp,
 	err = nfserr_noent;
 	if (d_really_is_negative(dold))
 		goto out_dput;
-	fh_fill_pre_attrs(ffhp);
+	err = fh_fill_pre_attrs(ffhp);
+	if (err != nfs_ok)
+		goto out_dput;
 	host_err = vfs_link(dold, &nop_mnt_idmap, dirp, dnew, NULL);
 	fh_fill_post_attrs(ffhp);
 	inode_unlock(dirp);
@@ -1786,8 +1796,12 @@ retry:
 	}
 
 	trap = lock_rename(tdentry, fdentry);
-	fh_fill_pre_attrs(ffhp);
-	fh_fill_pre_attrs(tfhp);
+	err = fh_fill_pre_attrs(ffhp);
+	if (err != nfs_ok)
+		goto out_unlock;
+	err = fh_fill_pre_attrs(tfhp);
+	if (err != nfs_ok)
+		goto out_unlock;
 
 	odentry = lookup_one_len(fname, fdentry, flen);
 	host_err = PTR_ERR(odentry);
@@ -1854,6 +1868,7 @@ retry:
 		fh_fill_post_attrs(ffhp);
 		fh_fill_post_attrs(tfhp);
 	}
+out_unlock:
 	unlock_rename(tdentry, fdentry);
 	fh_drop_write(ffhp);
 
@@ -1913,12 +1928,14 @@ nfsd_unlink(struct svc_rqst *rqstp, struct svc_fh *fhp, int type,
 		goto out_unlock;
 	}
 	rinode = d_inode(rdentry);
-	ihold(rinode);
+	err = fh_fill_pre_attrs(fhp);
+	if (err != nfs_ok)
+		goto out_unlock;
 
+	ihold(rinode);
 	if (!type)
 		type = d_inode(rdentry)->i_mode & S_IFMT;
 
-	fh_fill_pre_attrs(fhp);
 	if (type != S_IFDIR) {
 		int retries;
 
@@ -2338,16 +2355,18 @@ nfsd_removexattr(struct svc_rqst *rqstp, struct svc_fh *fhp, char *name)
 		return nfserrno(ret);
 
 	inode_lock(fhp->fh_dentry->d_inode);
-	fh_fill_pre_attrs(fhp);
-
+	err = fh_fill_pre_attrs(fhp);
+	if (err != nfs_ok)
+		goto out_unlock;
 	ret = __vfs_removexattr_locked(&nop_mnt_idmap, fhp->fh_dentry,
 				       name, NULL);
-
+	err = nfsd_xattr_errno(ret);
 	fh_fill_post_attrs(fhp);
+out_unlock:
 	inode_unlock(fhp->fh_dentry->d_inode);
 	fh_drop_write(fhp);
 
-	return nfsd_xattr_errno(ret);
+	return err;
 }
 
 __be32
@@ -2365,15 +2384,17 @@ nfsd_setxattr(struct svc_rqst *rqstp, struct svc_fh *fhp, char *name,
 	if (ret)
 		return nfserrno(ret);
 	inode_lock(fhp->fh_dentry->d_inode);
-	fh_fill_pre_attrs(fhp);
-
-	ret = __vfs_setxattr_locked(&nop_mnt_idmap, fhp->fh_dentry, name, buf,
-				    len, flags, NULL);
+	err = fh_fill_pre_attrs(fhp);
+	if (err != nfs_ok)
+		goto out_unlock;
+	ret = __vfs_setxattr_locked(&nop_mnt_idmap, fhp->fh_dentry,
+				    name, buf, len, flags, NULL);
 	fh_fill_post_attrs(fhp);
+	err = nfsd_xattr_errno(ret);
+out_unlock:
 	inode_unlock(fhp->fh_dentry->d_inode);
 	fh_drop_write(fhp);
-
-	return nfsd_xattr_errno(ret);
+	return err;
 }
 #endif
 

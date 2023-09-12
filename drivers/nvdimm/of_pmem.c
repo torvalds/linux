@@ -2,11 +2,11 @@
 
 #define pr_fmt(fmt) "of_pmem: " fmt
 
-#include <linux/of_platform.h>
-#include <linux/of_address.h>
+#include <linux/of.h>
 #include <linux/libnvdimm.h>
 #include <linux/module.h>
 #include <linux/ioport.h>
+#include <linux/platform_device.h>
 #include <linux/slab.h>
 
 struct of_pmem_private {

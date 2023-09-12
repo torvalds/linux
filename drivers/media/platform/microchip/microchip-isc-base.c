@@ -1712,7 +1712,7 @@ static int isc_ctrl_init(struct isc_device *isc)
 
 static int isc_async_bound(struct v4l2_async_notifier *notifier,
 			   struct v4l2_subdev *subdev,
-			   struct v4l2_async_subdev *asd)
+			   struct v4l2_async_connection *asd)
 {
 	struct isc_device *isc = container_of(notifier->v4l2_dev,
 					      struct isc_device, v4l2_dev);
@@ -1741,7 +1741,7 @@ static int isc_async_bound(struct v4l2_async_notifier *notifier,
 
 static void isc_async_unbind(struct v4l2_async_notifier *notifier,
 			     struct v4l2_subdev *subdev,
-			     struct v4l2_async_subdev *asd)
+			     struct v4l2_async_connection *asd)
 {
 	struct isc_device *isc = container_of(notifier->v4l2_dev,
 					      struct isc_device, v4l2_dev);

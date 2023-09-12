@@ -605,7 +605,6 @@ static const struct net_device_ops efx_netdev_ops = {
 #endif
 	.ndo_get_phys_port_id   = efx_get_phys_port_id,
 	.ndo_get_phys_port_name	= efx_get_phys_port_name,
-	.ndo_setup_tc		= efx_setup_tc,
 #ifdef CONFIG_RFS_ACCEL
 	.ndo_rx_flow_steer	= efx_filter_rfs,
 #endif

@@ -39,15 +39,19 @@ struct svc_pool {
 	struct list_head	sp_all_threads;	/* all server threads */
 
 	/* statistics on pool operation */
+	struct percpu_counter	sp_messages_arrived;
 	struct percpu_counter	sp_sockets_queued;
 	struct percpu_counter	sp_threads_woken;
-	struct percpu_counter	sp_threads_timedout;
 
-#define	SP_TASK_PENDING		(0)		/* still work to do even if no
-						 * xprt is queued. */
-#define SP_CONGESTED		(1)
 	unsigned long		sp_flags;
 } ____cacheline_aligned_in_smp;
+
+/* bits for sp_flags */
+enum {
+	SP_TASK_PENDING,	/* still work to do even if no xprt is queued */
+	SP_CONGESTED,		/* all threads are busy, none idle */
+};
+
 
 /*
  * RPC service.
@@ -118,19 +122,6 @@ void svc_destroy(struct kref *);
 static inline void svc_put(struct svc_serv *serv)
 {
 	kref_put(&serv->sv_refcnt, svc_destroy);
-}
-
-/**
- * svc_put_not_last - decrement non-final reference count on SUNRPC serv
- * @serv:  the svc_serv to have count decremented
- *
- * Returns: %true is refcount was decremented.
- *
- * If the refcount is 1, it is not decremented and instead failure is reported.
- */
-static inline bool svc_put_not_last(struct svc_serv *serv)
-{
-	return refcount_dec_not_one(&serv->sv_refcnt.refcount);
 }
 
 /*
@@ -232,16 +223,6 @@ struct svc_rqst {
 	u32			rq_proc;	/* procedure number */
 	u32			rq_prot;	/* IP protocol */
 	int			rq_cachetype;	/* catering to nfsd */
-#define	RQ_SECURE	(0)			/* secure port */
-#define	RQ_LOCAL	(1)			/* local request */
-#define	RQ_USEDEFERRAL	(2)			/* use deferral */
-#define	RQ_DROPME	(3)			/* drop current reply */
-#define	RQ_SPLICE_OK	(4)			/* turned off in gss privacy
-						 * to prevent encrypting page
-						 * cache pages */
-#define	RQ_VICTIM	(5)			/* about to be shut down */
-#define	RQ_BUSY		(6)			/* request is busy */
-#define	RQ_DATA		(7)			/* request has data */
 	unsigned long		rq_flags;	/* flags field */
 	ktime_t			rq_qtime;	/* enqueue time */
 
@@ -265,12 +246,24 @@ struct svc_rqst {
 	/* Catering to nfsd */
 	struct auth_domain *	rq_client;	/* RPC peer info */
 	struct auth_domain *	rq_gssclient;	/* "gss/"-style peer info */
-	struct svc_cacherep *	rq_cacherep;	/* cache info */
 	struct task_struct	*rq_task;	/* service thread */
 	struct net		*rq_bc_net;	/* pointer to backchannel's
 						 * net namespace
 						 */
 	void **			rq_lease_breaker; /* The v4 client breaking a lease */
+};
+
+/* bits for rq_flags */
+enum {
+	RQ_SECURE,		/* secure port */
+	RQ_LOCAL,		/* local request */
+	RQ_USEDEFERRAL,		/* use deferral */
+	RQ_DROPME,		/* drop current reply */
+	RQ_SPLICE_OK,		/* turned off in gss privacy to prevent
+				 * encrypting page cache pages */
+	RQ_VICTIM,		/* about to be shut down */
+	RQ_BUSY,		/* request is busy */
+	RQ_DATA,		/* request has data */
 };
 
 #define SVC_NET(rqst) (rqst->rq_xprt ? rqst->rq_xprt->xpt_net : rqst->rq_bc_net)
@@ -344,7 +337,7 @@ struct svc_program {
 	char *			pg_name;	/* service name */
 	char *			pg_class;	/* class name: services sharing authentication */
 	struct svc_stat *	pg_stats;	/* rpc statistics */
-	int			(*pg_authenticate)(struct svc_rqst *);
+	enum svc_auth_status	(*pg_authenticate)(struct svc_rqst *rqstp);
 	__be32			(*pg_init_request)(struct svc_rqst *,
 						   const struct svc_program *,
 						   struct svc_process_info *);
@@ -427,6 +420,7 @@ int		   svc_register(const struct svc_serv *, struct net *, const int,
 
 void		   svc_wake_up(struct svc_serv *);
 void		   svc_reserve(struct svc_rqst *rqstp, int space);
+void		   svc_pool_wake_idle_thread(struct svc_pool *pool);
 struct svc_pool   *svc_pool_for_cpu(struct svc_serv *serv);
 char *		   svc_print_addr(struct svc_rqst *, char *, size_t);
 const char *	   svc_proc_name(const struct svc_rqst *rqstp);

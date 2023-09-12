@@ -69,7 +69,7 @@ Interpreting this circuit, when the LM70 SI/O line is High (or tristate
 and not grounded by the host via D7), the transistor conducts and switches
 the collector to zero, which is reflected on pin 13 of the DB25 parport
 connector.  When SI/O is Low (driven by the LM70 or the host) on the other
-hand, the transistor is cut off and the voltage tied to it's collector is
+hand, the transistor is cut off and the voltage tied to its collector is
 reflected on pin 13 as a High level.
 
 So: the getmiso inline routine in this driver takes this fact into account,

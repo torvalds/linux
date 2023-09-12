@@ -1,4 +1,4 @@
-* Currus Logic CLPS711X Framebuffer
+* Cirrus Logic CLPS711X Framebuffer
 
 Required properties:
 - compatible: Shall contain "cirrus,ep7209-fb".

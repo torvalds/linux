@@ -251,8 +251,8 @@ int pkt_session_unset_buffers(struct hfi_session_release_buffer_pkt *pkt,
 
 		pkt->extradata_size = 0;
 		pkt->shdr.hdr.size =
-			struct_size((struct hfi_session_set_buffers_pkt *)0,
-				    buffer_info, bd->num_buffers);
+			struct_size_t(struct hfi_session_set_buffers_pkt,
+				      buffer_info, bd->num_buffers);
 	}
 
 	pkt->response_req = bd->response_required;

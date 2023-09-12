@@ -8,7 +8,6 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/module.h>
-#include <linux/of_platform.h>
 #include <linux/printk.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -21,6 +20,7 @@
 #include <linux/sched.h>
 #include <linux/kthread.h>
 #include <linux/most.h>
+#include <linux/of.h>
 #include "hal.h"
 #include "errors.h"
 #include "sysfs.h"

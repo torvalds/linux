@@ -1599,8 +1599,8 @@ static void ntty_hangup(struct tty_struct *tty)
  * called when the userspace process writes to the tty (/dev/noz*).
  * Data is inserted into a fifo, which is then read and transferred to the modem.
  */
-static int ntty_write(struct tty_struct *tty, const unsigned char *buffer,
-		      int count)
+static ssize_t ntty_write(struct tty_struct *tty, const u8 *buffer,
+			  size_t count)
 {
 	int rval = -EINVAL;
 	struct nozomi *dc = get_dc_by_tty(tty);
@@ -1610,7 +1610,7 @@ static int ntty_write(struct tty_struct *tty, const unsigned char *buffer,
 	if (!dc || !port)
 		return -ENODEV;
 
-	rval = kfifo_in(&port->fifo_ul, (unsigned char *)buffer, count);
+	rval = kfifo_in(&port->fifo_ul, buffer, count);
 
 	spin_lock_irqsave(&dc->spin_mutex, flags);
 	/* CTS is only valid on the modem channel */

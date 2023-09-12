@@ -11,6 +11,7 @@
 #include <linux/netdevice.h>
 #include <linux/pci.h>
 #include <linux/u64_stats_sync.h>
+#include <net/xdp.h>
 
 #include "gve_desc.h"
 #include "gve_desc_dqo.h"
@@ -50,6 +51,26 @@
 #define GVE_XDP_ACTIONS 5
 
 #define GVE_GQ_TX_MIN_PKT_DESC_BYTES 182
+
+#define DQO_QPL_DEFAULT_TX_PAGES 512
+#define DQO_QPL_DEFAULT_RX_PAGES 2048
+
+/* Maximum TSO size supported on DQO */
+#define GVE_DQO_TX_MAX	0x3FFFF
+
+#define GVE_TX_BUF_SHIFT_DQO 11
+
+/* 2K buffers for DQO-QPL */
+#define GVE_TX_BUF_SIZE_DQO BIT(GVE_TX_BUF_SHIFT_DQO)
+#define GVE_TX_BUFS_PER_PAGE_DQO (PAGE_SIZE >> GVE_TX_BUF_SHIFT_DQO)
+#define GVE_MAX_TX_BUFS_PER_PKT (DIV_ROUND_UP(GVE_DQO_TX_MAX, GVE_TX_BUF_SIZE_DQO))
+
+/* If number of free/recyclable buffers are less than this threshold; driver
+ * allocs and uses a non-qpl page on the receive path of DQO QPL to free
+ * up buffers.
+ * Value is set big enough to post at least 3 64K LRO packet via 2K buffer to NIC.
+ */
+#define GVE_DQO_QPL_ONDEMAND_ALLOC_THRESHOLD 96
 
 /* Each slot in the desc ring has a 1:1 mapping to a slot in the data ring */
 struct gve_rx_desc_queue {
@@ -217,6 +238,15 @@ struct gve_rx_ring {
 			 * which cannot be reused yet.
 			 */
 			struct gve_index_list used_buf_states;
+
+			/* qpl assigned to this queue */
+			struct gve_queue_page_list *qpl;
+
+			/* index into queue page list */
+			u32 next_qpl_page_idx;
+
+			/* track number of used buffers */
+			u16 used_buf_states_cnt;
 		} dqo;
 	};
 
@@ -328,8 +358,14 @@ struct gve_tx_pending_packet_dqo {
 	 * All others correspond to `skb`'s frags and should be unmapped with
 	 * `dma_unmap_page`.
 	 */
-	DEFINE_DMA_UNMAP_ADDR(dma[MAX_SKB_FRAGS + 1]);
-	DEFINE_DMA_UNMAP_LEN(len[MAX_SKB_FRAGS + 1]);
+	union {
+		struct {
+			DEFINE_DMA_UNMAP_ADDR(dma[MAX_SKB_FRAGS + 1]);
+			DEFINE_DMA_UNMAP_LEN(len[MAX_SKB_FRAGS + 1]);
+		};
+		s16 tx_qpl_buf_ids[GVE_MAX_TX_BUFS_PER_PKT];
+	};
+
 	u16 num_bufs;
 
 	/* Linked list index to next element in the list, or -1 if none */
@@ -384,6 +420,32 @@ struct gve_tx_ring {
 			 * set.
 			 */
 			u32 last_re_idx;
+
+			/* free running number of packet buf descriptors posted */
+			u16 posted_packet_desc_cnt;
+			/* free running number of packet buf descriptors completed */
+			u16 completed_packet_desc_cnt;
+
+			/* QPL fields */
+			struct {
+			       /* Linked list of gve_tx_buf_dqo. Index into
+				* tx_qpl_buf_next, or -1 if empty.
+				*
+				* This is a consumer list owned by the TX path. When it
+				* runs out, the producer list is stolen from the
+				* completion handling path
+				* (dqo_compl.free_tx_qpl_buf_head).
+				*/
+				s16 free_tx_qpl_buf_head;
+
+			       /* Free running count of the number of QPL tx buffers
+				* allocated
+				*/
+				u32 alloc_tx_qpl_buf_cnt;
+
+				/* Cached value of `dqo_compl.free_tx_qpl_buf_cnt` */
+				u32 free_tx_qpl_buf_cnt;
+			};
 		} dqo_tx;
 	};
 
@@ -427,6 +489,24 @@ struct gve_tx_ring {
 			 * reached a specified timeout.
 			 */
 			struct gve_index_list timed_out_completions;
+
+			/* QPL fields */
+			struct {
+				/* Linked list of gve_tx_buf_dqo. Index into
+				 * tx_qpl_buf_next, or -1 if empty.
+				 *
+				 * This is the producer list, owned by the completion
+				 * handling path. When the consumer list
+				 * (dqo_tx.free_tx_qpl_buf_head) is runs out, this list
+				 * will be stolen.
+				 */
+				atomic_t free_tx_qpl_buf_head;
+
+				/* Free running count of the number of tx buffers
+				 * freed
+				 */
+				atomic_t free_tx_qpl_buf_cnt;
+			};
 		} dqo_compl;
 	} ____cacheline_aligned;
 	u64 pkt_done; /* free-running - total packets completed */
@@ -453,6 +533,21 @@ struct gve_tx_ring {
 			s16 num_pending_packets;
 
 			u32 complq_mask; /* complq size is complq_mask + 1 */
+
+			/* QPL fields */
+			struct {
+				/* qpl assigned to this queue */
+				struct gve_queue_page_list *qpl;
+
+				/* Each QPL page is divided into TX bounce buffers
+				 * of size GVE_TX_BUF_SIZE_DQO. tx_qpl_buf_next is
+				 * an array to manage linked lists of TX buffers.
+				 * An entry j at index i implies that j'th buffer
+				 * is next on the list after i
+				 */
+				s16 *tx_qpl_buf_next;
+				u32 num_tx_qpl_bufs;
+			};
 		} dqo;
 	} ____cacheline_aligned;
 	struct netdev_queue *netdev_txq;
@@ -531,6 +626,7 @@ enum gve_queue_format {
 	GVE_GQI_RDA_FORMAT		= 0x1,
 	GVE_GQI_QPL_FORMAT		= 0x2,
 	GVE_DQO_RDA_FORMAT		= 0x3,
+	GVE_DQO_QPL_FORMAT		= 0x4,
 };
 
 struct gve_priv {
@@ -550,7 +646,8 @@ struct gve_priv {
 	u16 num_event_counters;
 	u16 tx_desc_cnt; /* num desc per ring */
 	u16 rx_desc_cnt; /* num desc per ring */
-	u16 tx_pages_per_qpl; /* tx buffer length */
+	u16 tx_pages_per_qpl; /* Suggested number of pages per qpl for TX queues by NIC */
+	u16 rx_pages_per_qpl; /* Suggested number of pages per qpl for RX queues by NIC */
 	u16 rx_data_slot_cnt; /* rx buffer length */
 	u64 max_registered_pages;
 	u64 num_registered_pages; /* num pages registered with NIC */
@@ -808,11 +905,17 @@ static inline u32 gve_rx_idx_to_ntfy(struct gve_priv *priv, u32 queue_idx)
 	return (priv->num_ntfy_blks / 2) + queue_idx;
 }
 
+static inline bool gve_is_qpl(struct gve_priv *priv)
+{
+	return priv->queue_format == GVE_GQI_QPL_FORMAT ||
+		priv->queue_format == GVE_DQO_QPL_FORMAT;
+}
+
 /* Returns the number of tx queue page lists
  */
 static inline u32 gve_num_tx_qpls(struct gve_priv *priv)
 {
-	if (priv->queue_format != GVE_GQI_QPL_FORMAT)
+	if (!gve_is_qpl(priv))
 		return 0;
 
 	return priv->tx_cfg.num_queues + priv->num_xdp_queues;
@@ -832,7 +935,7 @@ static inline u32 gve_num_xdp_qpls(struct gve_priv *priv)
  */
 static inline u32 gve_num_rx_qpls(struct gve_priv *priv)
 {
-	if (priv->queue_format != GVE_GQI_QPL_FORMAT)
+	if (!gve_is_qpl(priv))
 		return 0;
 
 	return priv->rx_cfg.num_queues;
@@ -964,5 +1067,6 @@ void gve_handle_report_stats(struct gve_priv *priv);
 /* exported by ethtool.c */
 extern const struct ethtool_ops gve_ethtool_ops;
 /* needed by ethtool */
+extern char gve_driver_name[];
 extern const char gve_version_str[];
 #endif /* _GVE_H_ */

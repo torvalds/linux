@@ -2984,6 +2984,11 @@ nfsd4_encode_fattr(struct xdr_stream *xdr, struct svc_fh *fhp,
 		if (status)
 			goto out;
 	}
+	if (bmval0 & (FATTR4_WORD0_CHANGE | FATTR4_WORD0_SIZE)) {
+		status = nfsd4_deleg_getattr_conflict(rqstp, d_inode(dentry));
+		if (status)
+			goto out;
+	}
 
 	err = vfs_getattr(&path, &stat,
 			  STATX_BASIC_STATS | STATX_BTIME | STATX_CHANGE_COOKIE,
@@ -3973,17 +3978,20 @@ nfsd4_encode_open(struct nfsd4_compoundres *resp, __be32 nfserr,
 		nfserr = nfsd4_encode_stateid(xdr, &open->op_delegate_stateid);
 		if (nfserr)
 			return nfserr;
-		p = xdr_reserve_space(xdr, 32);
+
+		p = xdr_reserve_space(xdr, XDR_UNIT * 8);
 		if (!p)
 			return nfserr_resource;
 		*p++ = cpu_to_be32(open->op_recall);
 
 		/*
+		 * Always flush on close
+		 *
 		 * TODO: space_limit's in delegations
 		 */
 		*p++ = cpu_to_be32(NFS4_LIMIT_SIZE);
-		*p++ = cpu_to_be32(~(u32)0);
-		*p++ = cpu_to_be32(~(u32)0);
+		*p++ = xdr_zero;
+		*p++ = xdr_zero;
 
 		/*
 		 * TODO: ACE's in delegations
@@ -4678,20 +4686,17 @@ nfsd4_encode_getdeviceinfo(struct nfsd4_compoundres *resp, __be32 nfserr,
 
 	*p++ = cpu_to_be32(gdev->gd_layout_type);
 
-	/* If maxcount is 0 then just update notifications */
-	if (gdev->gd_maxcount != 0) {
-		ops = nfsd4_layout_ops[gdev->gd_layout_type];
-		nfserr = ops->encode_getdeviceinfo(xdr, gdev);
-		if (nfserr) {
-			/*
-			 * We don't bother to burden the layout drivers with
-			 * enforcing gd_maxcount, just tell the client to
-			 * come back with a bigger buffer if it's not enough.
-			 */
-			if (xdr->buf->len + 4 > gdev->gd_maxcount)
-				goto toosmall;
-			return nfserr;
-		}
+	ops = nfsd4_layout_ops[gdev->gd_layout_type];
+	nfserr = ops->encode_getdeviceinfo(xdr, gdev);
+	if (nfserr) {
+		/*
+		 * We don't bother to burden the layout drivers with
+		 * enforcing gd_maxcount, just tell the client to
+		 * come back with a bigger buffer if it's not enough.
+		 */
+		if (xdr->buf->len + 4 > gdev->gd_maxcount)
+			goto toosmall;
+		return nfserr;
 	}
 
 	if (gdev->gd_notify_types) {

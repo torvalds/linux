@@ -63,7 +63,7 @@ patternProperties:
     additionalProperties: false
     description:
       Two subnodes corresponding to SAI sub-block instances A et B
-      can be defined. Subnode can be omitted for unsused sub-block.
+      can be defined. Subnode can be omitted for unused sub-block.
 
     properties:
       compatible:

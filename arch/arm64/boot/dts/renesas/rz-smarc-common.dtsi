@@ -78,11 +78,11 @@
 	};
 };
 
-&audio_clk1{
+&audio_clk1 {
 	clock-frequency = <11289600>;
 };
 
-&audio_clk2{
+&audio_clk2 {
 	clock-frequency = <12288000>;
 };
 

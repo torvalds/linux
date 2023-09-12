@@ -372,7 +372,7 @@ mlx5e_txwqe_complete(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 		     const struct mlx5e_tx_attr *attr,
 		     const struct mlx5e_tx_wqe_attr *wqe_attr, u8 num_dma,
 		     struct mlx5e_tx_wqe_info *wi, struct mlx5_wqe_ctrl_seg *cseg,
-		     bool xmit_more)
+		     struct mlx5_wqe_eth_seg *eseg, bool xmit_more)
 {
 	struct mlx5_wq_cyc *wq = &sq->wq;
 	bool send_doorbell;
@@ -394,11 +394,16 @@ mlx5e_txwqe_complete(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 
 	mlx5e_tx_check_stop(sq);
 
-	if (unlikely(sq->ptpsq)) {
+	if (unlikely(sq->ptpsq &&
+		     (skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP))) {
+		u8 metadata_index = be32_to_cpu(eseg->flow_table_metadata);
+
 		mlx5e_skb_cb_hwtstamp_init(skb);
-		mlx5e_skb_fifo_push(&sq->ptpsq->skb_fifo, skb);
+		mlx5e_ptpsq_track_metadata(sq->ptpsq, metadata_index);
+		mlx5e_ptp_metadata_map_put(&sq->ptpsq->metadata_map, skb,
+					   metadata_index);
 		if (!netif_tx_queue_stopped(sq->txq) &&
-		    !mlx5e_skb_fifo_has_room(&sq->ptpsq->skb_fifo)) {
+		    mlx5e_ptpsq_metadata_freelist_empty(sq->ptpsq)) {
 			netif_tx_stop_queue(sq->txq);
 			sq->stats->stopped++;
 		}
@@ -483,13 +488,16 @@ mlx5e_sq_xmit_wqe(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 	if (unlikely(num_dma < 0))
 		goto err_drop;
 
-	mlx5e_txwqe_complete(sq, skb, attr, wqe_attr, num_dma, wi, cseg, xmit_more);
+	mlx5e_txwqe_complete(sq, skb, attr, wqe_attr, num_dma, wi, cseg, eseg, xmit_more);
 
 	return;
 
 err_drop:
 	stats->dropped++;
 	dev_kfree_skb_any(skb);
+	if (unlikely(sq->ptpsq && (skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP)))
+		mlx5e_ptp_metadata_fifo_push(&sq->ptpsq->metadata_freelist,
+					     be32_to_cpu(eseg->flow_table_metadata));
 	mlx5e_tx_flush(sq);
 }
 
@@ -645,9 +653,9 @@ void mlx5e_tx_mpwqe_ensure_complete(struct mlx5e_txqsq *sq)
 static void mlx5e_cqe_ts_id_eseg(struct mlx5e_ptpsq *ptpsq, struct sk_buff *skb,
 				 struct mlx5_wqe_eth_seg *eseg)
 {
-	if (ptpsq->ts_cqe_ctr_mask && unlikely(skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP))
-		eseg->flow_table_metadata = cpu_to_be32(ptpsq->skb_fifo_pc &
-							ptpsq->ts_cqe_ctr_mask);
+	if (unlikely(skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP))
+		eseg->flow_table_metadata =
+			cpu_to_be32(mlx5e_ptp_metadata_fifo_pop(&ptpsq->metadata_freelist));
 }
 
 static void mlx5e_txwqe_build_eseg(struct mlx5e_priv *priv, struct mlx5e_txqsq *sq,
@@ -766,7 +774,7 @@ void mlx5e_txqsq_wake(struct mlx5e_txqsq *sq)
 {
 	if (netif_tx_queue_stopped(sq->txq) &&
 	    mlx5e_wqc_has_room_for(&sq->wq, sq->cc, sq->pc, sq->stop_room) &&
-	    mlx5e_ptpsq_fifo_has_room(sq) &&
+	    !mlx5e_ptpsq_metadata_freelist_empty(sq->ptpsq) &&
 	    !test_bit(MLX5E_SQ_STATE_RECOVERING, &sq->state)) {
 		netif_tx_wake_queue(sq->txq);
 		sq->stats->wake++;
@@ -1031,7 +1039,7 @@ void mlx5i_sq_xmit(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 	if (unlikely(num_dma < 0))
 		goto err_drop;
 
-	mlx5e_txwqe_complete(sq, skb, &attr, &wqe_attr, num_dma, wi, cseg, xmit_more);
+	mlx5e_txwqe_complete(sq, skb, &attr, &wqe_attr, num_dma, wi, cseg, eseg, xmit_more);
 
 	return;
 

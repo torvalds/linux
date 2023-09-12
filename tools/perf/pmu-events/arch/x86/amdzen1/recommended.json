@@ -169,8 +169,9 @@
   },
   {
     "MetricName": "nps1_die_to_dram",
-    "BriefDescription": "Approximate: Combined DRAM B/bytes of all channels on a NPS1 node (die) (may need --metric-no-group)",
+    "BriefDescription": "Approximate: Combined DRAM B/bytes of all channels on a NPS1 node (die)",
     "MetricExpr": "dram_channel_data_controller_0 + dram_channel_data_controller_1 + dram_channel_data_controller_2 + dram_channel_data_controller_3 + dram_channel_data_controller_4 + dram_channel_data_controller_5 + dram_channel_data_controller_6 + dram_channel_data_controller_7",
+    "MetricConstraint": "NO_GROUP_EVENTS",
     "MetricGroup": "data_fabric",
     "PerPkg": "1",
     "ScaleUnit": "6.1e-5MiB"

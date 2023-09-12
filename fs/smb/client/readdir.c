@@ -143,6 +143,7 @@ static bool reparse_file_needs_reval(const struct cifs_fattr *fattr)
 	case IO_REPARSE_TAG_DFSR:
 	case IO_REPARSE_TAG_SYMLINK:
 	case IO_REPARSE_TAG_NFS:
+	case IO_REPARSE_TAG_MOUNT_POINT:
 	case 0:
 		return true;
 	}
@@ -163,29 +164,19 @@ cifs_fill_common_info(struct cifs_fattr *fattr, struct cifs_sb_info *cifs_sb)
 	 * TODO: go through all documented  reparse tags to see if we can
 	 * reasonably map some of them to directories vs. files vs. symlinks
 	 */
+	if ((fattr->cf_cifsattrs & ATTR_REPARSE) &&
+	    cifs_reparse_point_to_fattr(cifs_sb, fattr, fattr->cf_cifstag))
+		goto out_reparse;
+
 	if (fattr->cf_cifsattrs & ATTR_DIRECTORY) {
 		fattr->cf_mode = S_IFDIR | cifs_sb->ctx->dir_mode;
 		fattr->cf_dtype = DT_DIR;
-	} else if (fattr->cf_cifstag == IO_REPARSE_TAG_LX_SYMLINK) {
-		fattr->cf_mode |= S_IFLNK | cifs_sb->ctx->file_mode;
-		fattr->cf_dtype = DT_LNK;
-	} else if (fattr->cf_cifstag == IO_REPARSE_TAG_LX_FIFO) {
-		fattr->cf_mode |= S_IFIFO | cifs_sb->ctx->file_mode;
-		fattr->cf_dtype = DT_FIFO;
-	} else if (fattr->cf_cifstag == IO_REPARSE_TAG_AF_UNIX) {
-		fattr->cf_mode |= S_IFSOCK | cifs_sb->ctx->file_mode;
-		fattr->cf_dtype = DT_SOCK;
-	} else if (fattr->cf_cifstag == IO_REPARSE_TAG_LX_CHR) {
-		fattr->cf_mode |= S_IFCHR | cifs_sb->ctx->file_mode;
-		fattr->cf_dtype = DT_CHR;
-	} else if (fattr->cf_cifstag == IO_REPARSE_TAG_LX_BLK) {
-		fattr->cf_mode |= S_IFBLK | cifs_sb->ctx->file_mode;
-		fattr->cf_dtype = DT_BLK;
-	} else { /* TODO: should we mark some other reparse points (like DFSR) as directories? */
+	} else {
 		fattr->cf_mode = S_IFREG | cifs_sb->ctx->file_mode;
 		fattr->cf_dtype = DT_REG;
 	}
 
+out_reparse:
 	/*
 	 * We need to revalidate it further to make a decision about whether it
 	 * is a symbolic link, DFS referral or a reparse point with a direct

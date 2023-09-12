@@ -90,7 +90,7 @@ static int ls_recover(struct dlm_ls *ls, struct dlm_recover *rv)
 
 	dlm_set_recover_status(ls, DLM_RS_NODES);
 
-	error = dlm_recover_members_wait(ls);
+	error = dlm_recover_members_wait(ls, rv->seq);
 	if (error) {
 		log_rinfo(ls, "dlm_recover_members_wait error %d", error);
 		goto fail;
@@ -103,7 +103,7 @@ static int ls_recover(struct dlm_ls *ls, struct dlm_recover *rv)
 	 * nodes their master rsb names that hash to us.
 	 */
 
-	error = dlm_recover_directory(ls);
+	error = dlm_recover_directory(ls, rv->seq);
 	if (error) {
 		log_rinfo(ls, "dlm_recover_directory error %d", error);
 		goto fail;
@@ -111,7 +111,7 @@ static int ls_recover(struct dlm_ls *ls, struct dlm_recover *rv)
 
 	dlm_set_recover_status(ls, DLM_RS_DIR);
 
-	error = dlm_recover_directory_wait(ls);
+	error = dlm_recover_directory_wait(ls, rv->seq);
 	if (error) {
 		log_rinfo(ls, "dlm_recover_directory_wait error %d", error);
 		goto fail;
@@ -145,7 +145,7 @@ static int ls_recover(struct dlm_ls *ls, struct dlm_recover *rv)
 		 * departed nodes.
 		 */
 
-		error = dlm_recover_masters(ls);
+		error = dlm_recover_masters(ls, rv->seq);
 		if (error) {
 			log_rinfo(ls, "dlm_recover_masters error %d", error);
 			goto fail;
@@ -155,7 +155,7 @@ static int ls_recover(struct dlm_ls *ls, struct dlm_recover *rv)
 		 * Send our locks on remastered rsb's to the new masters.
 		 */
 
-		error = dlm_recover_locks(ls);
+		error = dlm_recover_locks(ls, rv->seq);
 		if (error) {
 			log_rinfo(ls, "dlm_recover_locks error %d", error);
 			goto fail;
@@ -163,7 +163,7 @@ static int ls_recover(struct dlm_ls *ls, struct dlm_recover *rv)
 
 		dlm_set_recover_status(ls, DLM_RS_LOCKS);
 
-		error = dlm_recover_locks_wait(ls);
+		error = dlm_recover_locks_wait(ls, rv->seq);
 		if (error) {
 			log_rinfo(ls, "dlm_recover_locks_wait error %d", error);
 			goto fail;
@@ -187,7 +187,7 @@ static int ls_recover(struct dlm_ls *ls, struct dlm_recover *rv)
 		 */
 		dlm_set_recover_status(ls, DLM_RS_LOCKS);
 
-		error = dlm_recover_locks_wait(ls);
+		error = dlm_recover_locks_wait(ls, rv->seq);
 		if (error) {
 			log_rinfo(ls, "dlm_recover_locks_wait error %d", error);
 			goto fail;
@@ -206,7 +206,7 @@ static int ls_recover(struct dlm_ls *ls, struct dlm_recover *rv)
 
 	dlm_set_recover_status(ls, DLM_RS_DONE);
 
-	error = dlm_recover_done_wait(ls);
+	error = dlm_recover_done_wait(ls, rv->seq);
 	if (error) {
 		log_rinfo(ls, "dlm_recover_done_wait error %d", error);
 		goto fail;

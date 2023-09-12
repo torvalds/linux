@@ -336,7 +336,7 @@ static void cx81801_hangup(struct tty_struct *tty)
 }
 
 /* Line discipline .receive_buf() */
-static void cx81801_receive(struct tty_struct *tty, const unsigned char *cp,
+static void cx81801_receive(struct tty_struct *tty, const u8 *cp,
 		const char *fp, int count)
 {
 	struct snd_soc_component *component = tty->disc_data;

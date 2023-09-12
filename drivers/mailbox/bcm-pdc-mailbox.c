@@ -694,7 +694,7 @@ pdc_receive(struct pdc_state *pdcs)
  * pdc_tx_list_sg_add() - Add the buffers in a scatterlist to the transmit
  * descriptors for a given SPU. The scatterlist buffers contain the data for a
  * SPU request message.
- * @spu_idx:   The index of the SPU to submit the request to, [0, max_spu)
+ * @pdcs:      PDC state for the SPU that will process this request
  * @sg:        Scatterlist whose buffers contain part of the SPU request
  *
  * If a scatterlist buffer is larger than PDC_DMA_BUF_MAX, multiple descriptors
@@ -861,7 +861,7 @@ static int pdc_rx_list_init(struct pdc_state *pdcs, struct scatterlist *dst_sg,
  * pdc_rx_list_sg_add() - Add the buffers in a scatterlist to the receive
  * descriptors for a given SPU. The caller must have already DMA mapped the
  * scatterlist.
- * @spu_idx:    Indicates which SPU the buffers are for
+ * @pdcs:       PDC state for the SPU that will process this request
  * @sg:         Scatterlist whose buffers are added to the receive ring
  *
  * If a receive buffer in the scatterlist is larger than PDC_DMA_BUF_MAX,
@@ -960,7 +960,7 @@ static irqreturn_t pdc_irq_handler(int irq, void *data)
 /**
  * pdc_tasklet_cb() - Tasklet callback that runs the deferred processing after
  * a DMA receive interrupt. Reenables the receive interrupt.
- * @data: PDC state structure
+ * @t: Pointer to the Altera sSGDMA channel structure
  */
 static void pdc_tasklet_cb(struct tasklet_struct *t)
 {
@@ -1566,19 +1566,13 @@ static int pdc_probe(struct platform_device *pdev)
 	if (err)
 		goto cleanup_ring_pool;
 
-	pdc_regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!pdc_regs) {
-		err = -ENODEV;
-		goto cleanup_ring_pool;
-	}
-	dev_dbg(dev, "PDC register region res.start = %pa, res.end = %pa",
-		&pdc_regs->start, &pdc_regs->end);
-
-	pdcs->pdc_reg_vbase = devm_ioremap_resource(&pdev->dev, pdc_regs);
+	pdcs->pdc_reg_vbase = devm_platform_get_and_ioremap_resource(pdev, 0, &pdc_regs);
 	if (IS_ERR(pdcs->pdc_reg_vbase)) {
 		err = PTR_ERR(pdcs->pdc_reg_vbase);
 		goto cleanup_ring_pool;
 	}
+	dev_dbg(dev, "PDC register region res.start = %pa, res.end = %pa",
+		&pdc_regs->start, &pdc_regs->end);
 
 	/* create rx buffer pool after dt read to know how big buffers are */
 	err = pdc_rx_buf_pool_create(pdcs);

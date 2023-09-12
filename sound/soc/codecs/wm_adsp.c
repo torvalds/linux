@@ -998,7 +998,7 @@ int wm_adsp2_preloader_put(struct snd_kcontrol *kcontrol,
 }
 EXPORT_SYMBOL_GPL(wm_adsp2_preloader_put);
 
-int wm_adsp_power_up(struct wm_adsp *dsp)
+int wm_adsp_power_up(struct wm_adsp *dsp, bool load_firmware)
 {
 	int ret = 0;
 	char *wmfw_filename = NULL;
@@ -1006,11 +1006,13 @@ int wm_adsp_power_up(struct wm_adsp *dsp)
 	char *coeff_filename = NULL;
 	const struct firmware *coeff_firmware = NULL;
 
-	ret = wm_adsp_request_firmware_files(dsp,
-					     &wmfw_firmware, &wmfw_filename,
-					     &coeff_firmware, &coeff_filename);
-	if (ret)
-		return ret;
+	if (load_firmware) {
+		ret = wm_adsp_request_firmware_files(dsp,
+						     &wmfw_firmware, &wmfw_filename,
+						     &coeff_firmware, &coeff_filename);
+		if (ret)
+			return ret;
+	}
 
 	ret = cs_dsp_power_up(&dsp->cs_dsp,
 			      wmfw_firmware, wmfw_filename,
@@ -1025,13 +1027,19 @@ int wm_adsp_power_up(struct wm_adsp *dsp)
 }
 EXPORT_SYMBOL_GPL(wm_adsp_power_up);
 
+void wm_adsp_power_down(struct wm_adsp *dsp)
+{
+	cs_dsp_power_down(&dsp->cs_dsp);
+}
+EXPORT_SYMBOL_GPL(wm_adsp_power_down);
+
 static void wm_adsp_boot_work(struct work_struct *work)
 {
 	struct wm_adsp *dsp = container_of(work,
 					   struct wm_adsp,
 					   boot_work);
 
-	wm_adsp_power_up(dsp);
+	wm_adsp_power_up(dsp, true);
 }
 
 int wm_adsp_early_event(struct snd_soc_dapm_widget *w,
@@ -1046,7 +1054,7 @@ int wm_adsp_early_event(struct snd_soc_dapm_widget *w,
 		queue_work(system_unbound_wq, &dsp->boot_work);
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
-		cs_dsp_power_down(&dsp->cs_dsp);
+		wm_adsp_power_down(dsp);
 		break;
 	default:
 		break;

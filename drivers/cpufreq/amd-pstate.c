@@ -1012,8 +1012,8 @@ static int amd_pstate_update_status(const char *buf, size_t size)
 	return 0;
 }
 
-static ssize_t show_status(struct kobject *kobj,
-			   struct kobj_attribute *attr, char *buf)
+static ssize_t status_show(struct device *dev,
+			   struct device_attribute *attr, char *buf)
 {
 	ssize_t ret;
 
@@ -1024,7 +1024,7 @@ static ssize_t show_status(struct kobject *kobj,
 	return ret;
 }
 
-static ssize_t store_status(struct kobject *a, struct kobj_attribute *b,
+static ssize_t status_store(struct device *a, struct device_attribute *b,
 			    const char *buf, size_t count)
 {
 	char *p = memchr(buf, '\n', count);
@@ -1043,7 +1043,7 @@ cpufreq_freq_attr_ro(amd_pstate_lowest_nonlinear_freq);
 cpufreq_freq_attr_ro(amd_pstate_highest_perf);
 cpufreq_freq_attr_rw(energy_performance_preference);
 cpufreq_freq_attr_ro(energy_performance_available_preferences);
-define_one_global_rw(status);
+static DEVICE_ATTR_RW(status);
 
 static struct freq_attr *amd_pstate_attr[] = {
 	&amd_pstate_max_freq,
@@ -1062,7 +1062,7 @@ static struct freq_attr *amd_pstate_epp_attr[] = {
 };
 
 static struct attribute *pstate_global_attributes[] = {
-	&status.attr,
+	&dev_attr_status.attr,
 	NULL
 };
 

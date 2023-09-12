@@ -153,6 +153,19 @@ static void *mmap_large_buffer(size_t need, size_t *allocated)
 	return buffer;
 }
 
+static uint32_t tcp_info_get_rcv_mss(int fd)
+{
+	socklen_t sz = sizeof(struct tcp_info);
+	struct tcp_info info;
+
+	if (getsockopt(fd, IPPROTO_TCP, TCP_INFO, &info, &sz)) {
+		fprintf(stderr, "Error fetching TCP_INFO\n");
+		return 0;
+	}
+
+	return info.tcpi_rcv_mss;
+}
+
 void *child_thread(void *arg)
 {
 	unsigned char digest[SHA256_DIGEST_LENGTH];
@@ -288,7 +301,7 @@ end:
 		total_usec = 1000000*ru.ru_utime.tv_sec + ru.ru_utime.tv_usec +
 			     1000000*ru.ru_stime.tv_sec + ru.ru_stime.tv_usec;
 		printf("received %lg MB (%lg %% mmap'ed) in %lg s, %lg Gbit\n"
-		       "  cpu usage user:%lg sys:%lg, %lg usec per MB, %lu c-switches\n",
+		       "  cpu usage user:%lg sys:%lg, %lg usec per MB, %lu c-switches, rcv_mss %u\n",
 				total / (1024.0 * 1024.0),
 				100.0*total_mmap/total,
 				(double)delta_usec / 1000000.0,
@@ -296,7 +309,8 @@ end:
 				(double)ru.ru_utime.tv_sec + (double)ru.ru_utime.tv_usec / 1000000.0,
 				(double)ru.ru_stime.tv_sec + (double)ru.ru_stime.tv_usec / 1000000.0,
 				(double)total_usec/mb,
-				ru.ru_nvcsw);
+				ru.ru_nvcsw,
+				tcp_info_get_rcv_mss(fd));
 	}
 error:
 	munmap(buffer, buffer_sz);

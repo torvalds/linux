@@ -21,7 +21,7 @@
 #include <linux/errno.h>
 #include <linux/rational.h>
 #include <linux/i2c.h>
-#include <linux/of_platform.h>
+#include <linux/of.h>
 #include <linux/platform_data/si5351.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>

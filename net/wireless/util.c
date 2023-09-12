@@ -580,6 +580,8 @@ int ieee80211_strip_8023_mesh_hdr(struct sk_buff *skb)
 		hdrlen += ETH_ALEN + 2;
 	else if (!pskb_may_pull(skb, hdrlen))
 		return -EINVAL;
+	else
+		payload.eth.h_proto = htons(skb->len - hdrlen);
 
 	mesh_addr = skb->data + sizeof(payload.eth) + ETH_ALEN;
 	switch (payload.flags & MESH_FLAGS_AE) {

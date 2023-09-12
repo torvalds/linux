@@ -263,7 +263,9 @@ static int pkey_clr2ep11key(const u8 *clrkey, size_t clrkeylen,
 
 	/* build a list of apqns suitable for ep11 keys with cpacf support */
 	rc = ep11_findcard2(&apqns, &nr_apqns, 0xFFFF, 0xFFFF,
-			    ZCRYPT_CEX7, EP11_API_V, NULL);
+			    ZCRYPT_CEX7,
+			    ap_is_se_guest() ? EP11_API_V6 : EP11_API_V4,
+			    NULL);
 	if (rc)
 		goto out;
 
@@ -272,7 +274,8 @@ static int pkey_clr2ep11key(const u8 *clrkey, size_t clrkeylen,
 		card = apqns[i] >> 16;
 		dom = apqns[i] & 0xFFFF;
 		rc = ep11_clr2keyblob(card, dom, clrkeylen * 8,
-				      0, clrkey, keybuf, keybuflen);
+				      0, clrkey, keybuf, keybuflen,
+				      PKEY_TYPE_EP11);
 		if (rc == 0)
 			break;
 	}
@@ -287,10 +290,9 @@ out:
 /*
  * Find card and transform EP11 secure key into protected key.
  */
-static int pkey_ep11key2pkey(const u8 *key, u8 *protkey,
-			     u32 *protkeylen, u32 *protkeytype)
+static int pkey_ep11key2pkey(const u8 *key, size_t keylen,
+			     u8 *protkey, u32 *protkeylen, u32 *protkeytype)
 {
-	struct ep11keyblob *kb = (struct ep11keyblob *)key;
 	u32 nr_apqns, *apqns = NULL;
 	u16 card, dom;
 	int i, rc;
@@ -299,7 +301,9 @@ static int pkey_ep11key2pkey(const u8 *key, u8 *protkey,
 
 	/* build a list of apqns suitable for this key */
 	rc = ep11_findcard2(&apqns, &nr_apqns, 0xFFFF, 0xFFFF,
-			    ZCRYPT_CEX7, EP11_API_V, kb->wkvp);
+			    ZCRYPT_CEX7,
+			    ap_is_se_guest() ? EP11_API_V6 : EP11_API_V4,
+			    ep11_kb_wkvp(key, keylen));
 	if (rc)
 		goto out;
 
@@ -307,7 +311,7 @@ static int pkey_ep11key2pkey(const u8 *key, u8 *protkey,
 	for (rc = -ENODEV, i = 0; i < nr_apqns; i++) {
 		card = apqns[i] >> 16;
 		dom = apqns[i] & 0xFFFF;
-		rc = ep11_kblob2protkey(card, dom, key, kb->head.len,
+		rc = ep11_kblob2protkey(card, dom, key, keylen,
 					protkey, protkeylen, protkeytype);
 		if (rc == 0)
 			break;
@@ -495,7 +499,7 @@ try_via_ep11:
 			      tmpbuf, &tmpbuflen);
 	if (rc)
 		goto failure;
-	rc = pkey_ep11key2pkey(tmpbuf,
+	rc = pkey_ep11key2pkey(tmpbuf, tmpbuflen,
 			       protkey, protkeylen, protkeytype);
 	if (!rc)
 		goto out;
@@ -611,7 +615,7 @@ static int pkey_nonccatok2pkey(const u8 *key, u32 keylen,
 		rc = ep11_check_aes_key(debug_info, 3, key, keylen, 1);
 		if (rc)
 			goto out;
-		rc = pkey_ep11key2pkey(key,
+		rc = pkey_ep11key2pkey(key, keylen,
 				       protkey, protkeylen, protkeytype);
 		break;
 	}
@@ -620,7 +624,7 @@ static int pkey_nonccatok2pkey(const u8 *key, u32 keylen,
 		rc = ep11_check_aes_key_with_hdr(debug_info, 3, key, keylen, 1);
 		if (rc)
 			goto out;
-		rc = pkey_ep11key2pkey(key + sizeof(struct ep11kblob_header),
+		rc = pkey_ep11key2pkey(key, keylen,
 				       protkey, protkeylen, protkeytype);
 		break;
 	default:
@@ -713,6 +717,11 @@ static int pkey_genseckey2(const struct pkey_apqn *apqns, size_t nr_apqns,
 		if (*keybufsize < MINEP11AESKEYBLOBSIZE)
 			return -EINVAL;
 		break;
+	case PKEY_TYPE_EP11_AES:
+		if (*keybufsize < (sizeof(struct ep11kblob_header) +
+				   MINEP11AESKEYBLOBSIZE))
+			return -EINVAL;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -729,9 +738,10 @@ static int pkey_genseckey2(const struct pkey_apqn *apqns, size_t nr_apqns,
 	for (i = 0, rc = -ENODEV; i < nr_apqns; i++) {
 		card = apqns[i].card;
 		dom = apqns[i].domain;
-		if (ktype == PKEY_TYPE_EP11) {
+		if (ktype == PKEY_TYPE_EP11 ||
+		    ktype == PKEY_TYPE_EP11_AES) {
 			rc = ep11_genaeskey(card, dom, ksize, kflags,
-					    keybuf, keybufsize);
+					    keybuf, keybufsize, ktype);
 		} else if (ktype == PKEY_TYPE_CCA_DATA) {
 			rc = cca_genseckey(card, dom, ksize, keybuf);
 			*keybufsize = (rc ? 0 : SECKEYBLOBSIZE);
@@ -769,6 +779,11 @@ static int pkey_clr2seckey2(const struct pkey_apqn *apqns, size_t nr_apqns,
 		if (*keybufsize < MINEP11AESKEYBLOBSIZE)
 			return -EINVAL;
 		break;
+	case PKEY_TYPE_EP11_AES:
+		if (*keybufsize < (sizeof(struct ep11kblob_header) +
+				   MINEP11AESKEYBLOBSIZE))
+			return -EINVAL;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -787,9 +802,11 @@ static int pkey_clr2seckey2(const struct pkey_apqn *apqns, size_t nr_apqns,
 	for (i = 0, rc = -ENODEV; i < nr_apqns; i++) {
 		card = apqns[i].card;
 		dom = apqns[i].domain;
-		if (ktype == PKEY_TYPE_EP11) {
+		if (ktype == PKEY_TYPE_EP11 ||
+		    ktype == PKEY_TYPE_EP11_AES) {
 			rc = ep11_clr2keyblob(card, dom, ksize, kflags,
-					      clrkey, keybuf, keybufsize);
+					      clrkey, keybuf, keybufsize,
+					      ktype);
 		} else if (ktype == PKEY_TYPE_CCA_DATA) {
 			rc = cca_clr2seckey(card, dom, ksize,
 					    clrkey, keybuf);
@@ -888,6 +905,7 @@ static int pkey_verifykey2(const u8 *key, size_t keylen,
 	} else if (hdr->type == TOKTYPE_NON_CCA &&
 		   hdr->version == TOKVER_EP11_AES) {
 		struct ep11keyblob *kb = (struct ep11keyblob *)key;
+		int api;
 
 		rc = ep11_check_aes_key(debug_info, 3, key, keylen, 1);
 		if (rc)
@@ -895,10 +913,12 @@ static int pkey_verifykey2(const u8 *key, size_t keylen,
 		if (ktype)
 			*ktype = PKEY_TYPE_EP11;
 		if (ksize)
-			*ksize = kb->head.keybitlen;
+			*ksize = kb->head.bitlen;
 
+		api = ap_is_se_guest() ? EP11_API_V6 : EP11_API_V4;
 		rc = ep11_findcard2(&_apqns, &_nr_apqns, *cardnr, *domain,
-				    ZCRYPT_CEX7, EP11_API_V, kb->wkvp);
+				    ZCRYPT_CEX7, api,
+				    ep11_kb_wkvp(key, keylen));
 		if (rc)
 			goto out;
 
@@ -908,6 +928,32 @@ static int pkey_verifykey2(const u8 *key, size_t keylen,
 		*cardnr = ((struct pkey_apqn *)_apqns)->card;
 		*domain = ((struct pkey_apqn *)_apqns)->domain;
 
+	} else if (hdr->type == TOKTYPE_NON_CCA &&
+		   hdr->version == TOKVER_EP11_AES_WITH_HEADER) {
+		struct ep11kblob_header *kh = (struct ep11kblob_header *)key;
+		int api;
+
+		rc = ep11_check_aes_key_with_hdr(debug_info, 3,
+						 key, keylen, 1);
+		if (rc)
+			goto out;
+		if (ktype)
+			*ktype = PKEY_TYPE_EP11_AES;
+		if (ksize)
+			*ksize = kh->bitlen;
+
+		api = ap_is_se_guest() ? EP11_API_V6 : EP11_API_V4;
+		rc = ep11_findcard2(&_apqns, &_nr_apqns, *cardnr, *domain,
+				    ZCRYPT_CEX7, api,
+				    ep11_kb_wkvp(key, keylen));
+		if (rc)
+			goto out;
+
+		if (flags)
+			*flags = PKEY_FLAGS_MATCH_CUR_MKVP;
+
+		*cardnr = ((struct pkey_apqn *)_apqns)->card;
+		*domain = ((struct pkey_apqn *)_apqns)->domain;
 	} else {
 		rc = -EINVAL;
 	}
@@ -949,9 +995,11 @@ static int pkey_keyblob2pkey2(const struct pkey_apqn *apqns, size_t nr_apqns,
 		}
 	} else if (hdr->type == TOKTYPE_NON_CCA) {
 		if (hdr->version == TOKVER_EP11_AES) {
-			if (keylen < sizeof(struct ep11keyblob))
-				return -EINVAL;
 			if (ep11_check_aes_key(debug_info, 3, key, keylen, 1))
+				return -EINVAL;
+		} else if (hdr->version == TOKVER_EP11_AES_WITH_HEADER) {
+			if (ep11_check_aes_key_with_hdr(debug_info, 3,
+							key, keylen, 1))
 				return -EINVAL;
 		} else {
 			return pkey_nonccatok2pkey(key, keylen,
@@ -980,10 +1028,7 @@ static int pkey_keyblob2pkey2(const struct pkey_apqn *apqns, size_t nr_apqns,
 						protkey, protkeylen,
 						protkeytype);
 		} else {
-			/* EP11 AES secure key blob */
-			struct ep11keyblob *kb = (struct ep11keyblob *)key;
-
-			rc = ep11_kblob2protkey(card, dom, key, kb->head.len,
+			rc = ep11_kblob2protkey(card, dom, key, keylen,
 						protkey, protkeylen,
 						protkeytype);
 		}
@@ -1018,7 +1063,7 @@ static int pkey_apqns4key(const u8 *key, size_t keylen, u32 flags,
 			return -EINVAL;
 		if (kb->attr & EP11_BLOB_PKEY_EXTRACTABLE) {
 			minhwtype = ZCRYPT_CEX7;
-			api = EP11_API_V;
+			api = ap_is_se_guest() ? EP11_API_V6 : EP11_API_V4;
 		}
 		rc = ep11_findcard2(&_apqns, &_nr_apqns, 0xFFFF, 0xFFFF,
 				    minhwtype, api, kb->wkvp);
@@ -1034,7 +1079,7 @@ static int pkey_apqns4key(const u8 *key, size_t keylen, u32 flags,
 			return -EINVAL;
 		if (kb->attr & EP11_BLOB_PKEY_EXTRACTABLE) {
 			minhwtype = ZCRYPT_CEX7;
-			api = EP11_API_V;
+			api = ap_is_se_guest() ? EP11_API_V6 : EP11_API_V4;
 		}
 		rc = ep11_findcard2(&_apqns, &_nr_apqns, 0xFFFF, 0xFFFF,
 				    minhwtype, api, kb->wkvp);
@@ -1144,11 +1189,13 @@ static int pkey_apqns4keytype(enum pkey_key_type ktype,
 		   ktype == PKEY_TYPE_EP11_AES ||
 		   ktype == PKEY_TYPE_EP11_ECC) {
 		u8 *wkvp = NULL;
+		int api;
 
 		if (flags & PKEY_FLAGS_MATCH_CUR_MKVP)
 			wkvp = cur_mkvp;
+		api = ap_is_se_guest() ? EP11_API_V6 : EP11_API_V4;
 		rc = ep11_findcard2(&_apqns, &_nr_apqns, 0xFFFF, 0xFFFF,
-				    ZCRYPT_CEX7, EP11_API_V, wkvp);
+				    ZCRYPT_CEX7, api, wkvp);
 		if (rc)
 			goto out;
 
@@ -1243,12 +1290,14 @@ static int pkey_keyblob2pkey3(const struct pkey_apqn *apqns, size_t nr_apqns,
 		     hdr->version == TOKVER_EP11_ECC_WITH_HEADER) &&
 		    is_ep11_keyblob(key + sizeof(struct ep11kblob_header)))
 			rc = ep11_kblob2protkey(card, dom, key, hdr->len,
-						protkey, protkeylen, protkeytype);
+						protkey, protkeylen,
+						protkeytype);
 		else if (hdr->type == TOKTYPE_NON_CCA &&
 			 hdr->version == TOKVER_EP11_AES &&
 			 is_ep11_keyblob(key))
 			rc = ep11_kblob2protkey(card, dom, key, hdr->len,
-						protkey, protkeylen, protkeytype);
+						protkey, protkeylen,
+						protkeytype);
 		else if (hdr->type == TOKTYPE_CCA_INTERNAL &&
 			 hdr->version == TOKVER_CCA_AES)
 			rc = cca_sec2protkey(card, dom, key, protkey,
@@ -1466,7 +1515,7 @@ static long pkey_unlocked_ioctl(struct file *filp, unsigned int cmd,
 		apqns = _copy_apqns_from_user(kgs.apqns, kgs.apqn_entries);
 		if (IS_ERR(apqns))
 			return PTR_ERR(apqns);
-		kkey = kmalloc(klen, GFP_KERNEL);
+		kkey = kzalloc(klen, GFP_KERNEL);
 		if (!kkey) {
 			kfree(apqns);
 			return -ENOMEM;
@@ -1508,7 +1557,7 @@ static long pkey_unlocked_ioctl(struct file *filp, unsigned int cmd,
 		apqns = _copy_apqns_from_user(kcs.apqns, kcs.apqn_entries);
 		if (IS_ERR(apqns))
 			return PTR_ERR(apqns);
-		kkey = kmalloc(klen, GFP_KERNEL);
+		kkey = kzalloc(klen, GFP_KERNEL);
 		if (!kkey) {
 			kfree(apqns);
 			return -ENOMEM;
@@ -2102,7 +2151,7 @@ static struct attribute_group ccacipher_attr_group = {
  * (i.e. off != 0 or count < key blob size) -EINVAL is returned.
  * This function and the sysfs attributes using it provide EP11 key blobs
  * padded to the upper limit of MAXEP11AESKEYBLOBSIZE which is currently
- * 320 bytes.
+ * 336 bytes.
  */
 static ssize_t pkey_ep11_aes_attr_read(enum pkey_key_size keybits,
 				       bool is_xts, char *buf, loff_t off,
@@ -2120,7 +2169,9 @@ static ssize_t pkey_ep11_aes_attr_read(enum pkey_key_size keybits,
 
 	/* build a list of apqns able to generate an cipher key */
 	rc = ep11_findcard2(&apqns, &nr_apqns, 0xFFFF, 0xFFFF,
-			    ZCRYPT_CEX7, EP11_API_V, NULL);
+			    ZCRYPT_CEX7,
+			    ap_is_se_guest() ? EP11_API_V6 : EP11_API_V4,
+			    NULL);
 	if (rc)
 		return rc;
 
@@ -2130,7 +2181,8 @@ static ssize_t pkey_ep11_aes_attr_read(enum pkey_key_size keybits,
 	for (i = 0, rc = -ENODEV; i < nr_apqns; i++) {
 		card = apqns[i] >> 16;
 		dom = apqns[i] & 0xFFFF;
-		rc = ep11_genaeskey(card, dom, keybits, 0, buf, &keysize);
+		rc = ep11_genaeskey(card, dom, keybits, 0, buf, &keysize,
+				    PKEY_TYPE_EP11_AES);
 		if (rc == 0)
 			break;
 	}
@@ -2140,7 +2192,8 @@ static ssize_t pkey_ep11_aes_attr_read(enum pkey_key_size keybits,
 	if (is_xts) {
 		keysize = MAXEP11AESKEYBLOBSIZE;
 		buf += MAXEP11AESKEYBLOBSIZE;
-		rc = ep11_genaeskey(card, dom, keybits, 0, buf, &keysize);
+		rc = ep11_genaeskey(card, dom, keybits, 0, buf, &keysize,
+				    PKEY_TYPE_EP11_AES);
 		if (rc == 0)
 			return 2 * MAXEP11AESKEYBLOBSIZE;
 	}

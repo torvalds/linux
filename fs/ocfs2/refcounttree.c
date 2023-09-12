@@ -3750,9 +3750,9 @@ static int ocfs2_change_ctime(struct inode *inode,
 		goto out_commit;
 	}
 
-	inode->i_ctime = current_time(inode);
-	di->i_ctime = cpu_to_le64(inode->i_ctime.tv_sec);
-	di->i_ctime_nsec = cpu_to_le32(inode->i_ctime.tv_nsec);
+	inode_set_ctime_current(inode);
+	di->i_ctime = cpu_to_le64(inode_get_ctime(inode).tv_sec);
+	di->i_ctime_nsec = cpu_to_le32(inode_get_ctime(inode).tv_nsec);
 
 	ocfs2_journal_dirty(handle, di_bh);
 
@@ -4073,10 +4073,10 @@ static int ocfs2_complete_reflink(struct inode *s_inode,
 		 * we want mtime to appear identical to the source and
 		 * update ctime.
 		 */
-		t_inode->i_ctime = current_time(t_inode);
+		inode_set_ctime_current(t_inode);
 
-		di->i_ctime = cpu_to_le64(t_inode->i_ctime.tv_sec);
-		di->i_ctime_nsec = cpu_to_le32(t_inode->i_ctime.tv_nsec);
+		di->i_ctime = cpu_to_le64(inode_get_ctime(t_inode).tv_sec);
+		di->i_ctime_nsec = cpu_to_le32(inode_get_ctime(t_inode).tv_nsec);
 
 		t_inode->i_mtime = s_inode->i_mtime;
 		di->i_mtime = s_di->i_mtime;
@@ -4456,7 +4456,7 @@ int ocfs2_reflink_update_dest(struct inode *dest,
 	if (newlen > i_size_read(dest))
 		i_size_write(dest, newlen);
 	spin_unlock(&OCFS2_I(dest)->ip_lock);
-	dest->i_ctime = dest->i_mtime = current_time(dest);
+	dest->i_mtime = inode_set_ctime_current(dest);
 
 	ret = ocfs2_mark_inode_dirty(handle, dest, d_bh);
 	if (ret) {

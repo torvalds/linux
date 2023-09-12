@@ -61,8 +61,8 @@ static int stmpe_24xx_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
 	return 0;
 }
 
-static void stmpe_24xx_pwm_disable(struct pwm_chip *chip,
-				   struct pwm_device *pwm)
+static int stmpe_24xx_pwm_disable(struct pwm_chip *chip,
+				  struct pwm_device *pwm)
 {
 	struct stmpe_pwm *stmpe_pwm = to_stmpe_pwm(chip);
 	u8 value;
@@ -72,17 +72,16 @@ static void stmpe_24xx_pwm_disable(struct pwm_chip *chip,
 	if (ret < 0) {
 		dev_err(chip->dev, "error reading PWM#%u control\n",
 			pwm->hwpwm);
-		return;
+		return ret;
 	}
 
 	value = ret & ~BIT(pwm->hwpwm);
 
 	ret = stmpe_reg_write(stmpe_pwm->stmpe, STMPE24XX_PWMCS, value);
-	if (ret) {
+	if (ret)
 		dev_err(chip->dev, "error writing PWM#%u control\n",
 			pwm->hwpwm);
-		return;
-	}
+	return ret;
 }
 
 /* STMPE 24xx PWM instructions */
@@ -111,7 +110,9 @@ static int stmpe_24xx_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 
 	/* Make sure we are disabled */
 	if (pwm_is_enabled(pwm)) {
-		stmpe_24xx_pwm_disable(chip, pwm);
+		ret = stmpe_24xx_pwm_disable(chip, pwm);
+		if (ret)
+			return ret;
 	} else {
 		/* Connect the PWM to the pin */
 		pin = pwm->hwpwm;
@@ -269,7 +270,7 @@ static int stmpe_24xx_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 
 	if (!state->enabled) {
 		if (pwm->state.enabled)
-			stmpe_24xx_pwm_disable(chip, pwm);
+			return stmpe_24xx_pwm_disable(chip, pwm);
 
 		return 0;
 	}

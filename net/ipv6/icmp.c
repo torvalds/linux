@@ -424,7 +424,10 @@ static struct net_device *icmp6_dev(const struct sk_buff *skb)
 	if (unlikely(dev->ifindex == LOOPBACK_IFINDEX || netif_is_l3_master(skb->dev))) {
 		const struct rt6_info *rt6 = skb_rt6_info(skb);
 
-		if (rt6)
+		/* The destination could be an external IP in Ext Hdr (SRv6, RPL, etc.),
+		 * and ip6_null_entry could be set to skb if no route is found.
+		 */
+		if (rt6 && rt6->rt6i_idev)
 			dev = rt6->rt6i_idev->dev;
 	}
 
@@ -1031,11 +1034,9 @@ drop_no_count:
 	return 0;
 }
 
-void icmpv6_flow_init(struct sock *sk, struct flowi6 *fl6,
-		      u8 type,
+void icmpv6_flow_init(const struct sock *sk, struct flowi6 *fl6, u8 type,
 		      const struct in6_addr *saddr,
-		      const struct in6_addr *daddr,
-		      int oif)
+		      const struct in6_addr *daddr, int oif)
 {
 	memset(fl6, 0, sizeof(*fl6));
 	fl6->saddr = *saddr;
@@ -1225,5 +1226,10 @@ struct ctl_table * __net_init ipv6_icmp_sysctl_init(struct net *net)
 		table[5].data = &net->ipv6.sysctl.icmpv6_error_anycast_as_unicast;
 	}
 	return table;
+}
+
+size_t ipv6_icmp_sysctl_table_size(void)
+{
+	return ARRAY_SIZE(ipv6_icmp_table_template);
 }
 #endif

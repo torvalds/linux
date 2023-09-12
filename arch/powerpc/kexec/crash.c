@@ -350,7 +350,7 @@ EXPORT_SYMBOL(crash_shutdown_unregister);
 
 void default_machine_crash_shutdown(struct pt_regs *regs)
 {
-	unsigned int i;
+	volatile unsigned int i;
 	int (*old_handler)(struct pt_regs *regs);
 
 	if (TRAP(regs) == INTERRUPT_SYSTEM_RESET)

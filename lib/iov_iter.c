@@ -566,24 +566,37 @@ size_t iov_iter_zero(size_t bytes, struct iov_iter *i)
 }
 EXPORT_SYMBOL(iov_iter_zero);
 
-size_t copy_page_from_iter_atomic(struct page *page, unsigned offset, size_t bytes,
-				  struct iov_iter *i)
+size_t copy_page_from_iter_atomic(struct page *page, size_t offset,
+		size_t bytes, struct iov_iter *i)
 {
-	char *kaddr = kmap_atomic(page), *p = kaddr + offset;
-	if (!page_copy_sane(page, offset, bytes)) {
-		kunmap_atomic(kaddr);
+	size_t n, copied = 0;
+
+	if (!page_copy_sane(page, offset, bytes))
 		return 0;
-	}
-	if (WARN_ON_ONCE(!i->data_source)) {
-		kunmap_atomic(kaddr);
+	if (WARN_ON_ONCE(!i->data_source))
 		return 0;
-	}
-	iterate_and_advance(i, bytes, base, len, off,
-		copyin(p + off, base, len),
-		memcpy_from_iter(i, p + off, base, len)
-	)
-	kunmap_atomic(kaddr);
-	return bytes;
+
+	do {
+		char *p;
+
+		n = bytes - copied;
+		if (PageHighMem(page)) {
+			page += offset / PAGE_SIZE;
+			offset %= PAGE_SIZE;
+			n = min_t(size_t, n, PAGE_SIZE - offset);
+		}
+
+		p = kmap_atomic(page) + offset;
+		iterate_and_advance(i, n, base, len, off,
+			copyin(p + off, base, len),
+			memcpy_from_iter(i, p + off, base, len)
+		)
+		kunmap_atomic(p);
+		copied += n;
+		offset += n;
+	} while (PageHighMem(page) && copied != bytes && n > 0);
+
+	return copied;
 }
 EXPORT_SYMBOL(copy_page_from_iter_atomic);
 
@@ -1349,7 +1362,7 @@ uaccess_end:
 	return ret;
 }
 
-static int copy_iovec_from_user(struct iovec *iov,
+static __noclone int copy_iovec_from_user(struct iovec *iov,
 		const struct iovec __user *uiov, unsigned long nr_segs)
 {
 	int ret = -EFAULT;
@@ -1544,6 +1557,7 @@ int import_ubuf(int rw, void __user *buf, size_t len, struct iov_iter *i)
 	iov_iter_ubuf(i, rw, buf, len);
 	return 0;
 }
+EXPORT_SYMBOL_GPL(import_ubuf);
 
 /**
  * iov_iter_restore() - Restore a &struct iov_iter to the same state as when
@@ -1640,14 +1654,14 @@ static ssize_t iov_iter_extract_bvec_pages(struct iov_iter *i,
 					   size_t *offset0)
 {
 	struct page **p, *page;
-	size_t skip = i->iov_offset, offset;
+	size_t skip = i->iov_offset, offset, size;
 	int k;
 
 	for (;;) {
 		if (i->nr_segs == 0)
 			return 0;
-		maxsize = min(maxsize, i->bvec->bv_len - skip);
-		if (maxsize)
+		size = min(maxsize, i->bvec->bv_len - skip);
+		if (size)
 			break;
 		i->iov_offset = 0;
 		i->nr_segs--;
@@ -1660,16 +1674,16 @@ static ssize_t iov_iter_extract_bvec_pages(struct iov_iter *i,
 	offset = skip % PAGE_SIZE;
 	*offset0 = offset;
 
-	maxpages = want_pages_array(pages, maxsize, offset, maxpages);
+	maxpages = want_pages_array(pages, size, offset, maxpages);
 	if (!maxpages)
 		return -ENOMEM;
 	p = *pages;
 	for (k = 0; k < maxpages; k++)
 		p[k] = page + k;
 
-	maxsize = min_t(size_t, maxsize, maxpages * PAGE_SIZE - offset);
-	iov_iter_advance(i, maxsize);
-	return maxsize;
+	size = min_t(size_t, size, maxpages * PAGE_SIZE - offset);
+	iov_iter_advance(i, size);
+	return size;
 }
 
 /*
@@ -1684,14 +1698,14 @@ static ssize_t iov_iter_extract_kvec_pages(struct iov_iter *i,
 {
 	struct page **p, *page;
 	const void *kaddr;
-	size_t skip = i->iov_offset, offset, len;
+	size_t skip = i->iov_offset, offset, len, size;
 	int k;
 
 	for (;;) {
 		if (i->nr_segs == 0)
 			return 0;
-		maxsize = min(maxsize, i->kvec->iov_len - skip);
-		if (maxsize)
+		size = min(maxsize, i->kvec->iov_len - skip);
+		if (size)
 			break;
 		i->iov_offset = 0;
 		i->nr_segs--;
@@ -1703,13 +1717,13 @@ static ssize_t iov_iter_extract_kvec_pages(struct iov_iter *i,
 	offset = (unsigned long)kaddr & ~PAGE_MASK;
 	*offset0 = offset;
 
-	maxpages = want_pages_array(pages, maxsize, offset, maxpages);
+	maxpages = want_pages_array(pages, size, offset, maxpages);
 	if (!maxpages)
 		return -ENOMEM;
 	p = *pages;
 
 	kaddr -= offset;
-	len = offset + maxsize;
+	len = offset + size;
 	for (k = 0; k < maxpages; k++) {
 		size_t seg = min_t(size_t, len, PAGE_SIZE);
 
@@ -1723,9 +1737,9 @@ static ssize_t iov_iter_extract_kvec_pages(struct iov_iter *i,
 		kaddr += PAGE_SIZE;
 	}
 
-	maxsize = min_t(size_t, maxsize, maxpages * PAGE_SIZE - offset);
-	iov_iter_advance(i, maxsize);
-	return maxsize;
+	size = min_t(size_t, size, maxpages * PAGE_SIZE - offset);
+	iov_iter_advance(i, size);
+	return size;
 }
 
 /*

@@ -236,7 +236,7 @@ static const struct regmap_config wm8728_regmap = {
 
 	.reg_defaults = wm8728_reg_defaults,
 	.num_reg_defaults = ARRAY_SIZE(wm8728_reg_defaults),
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 
 #if defined(CONFIG_SPI_MASTER)

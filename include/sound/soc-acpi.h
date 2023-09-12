@@ -9,6 +9,7 @@
 #include <linux/stddef.h>
 #include <linux/acpi.h>
 #include <linux/mod_devicetable.h>
+#include <linux/soundwire/sdw.h>
 
 struct snd_soc_acpi_package_context {
 	char *name;           /* package name */
@@ -150,6 +151,7 @@ struct snd_soc_acpi_link_adr {
  * all firmware/topology related fields.
  *
  * @id: ACPI ID (usually the codec's) used to find a matching machine driver.
+ * @uid: ACPI Unique ID, can be used to disambiguate matches.
  * @comp_ids: list of compatible audio codecs using the same machine driver,
  * firmware and topology
  * @link_mask: describes required board layout, e.g. for SoundWire.
@@ -207,5 +209,10 @@ static inline bool snd_soc_acpi_sof_parent(struct device *dev)
 	return dev->parent && dev->parent->driver && dev->parent->driver->name &&
 		!strncmp(dev->parent->driver->name, "sof-audio-acpi", strlen("sof-audio-acpi"));
 }
+
+bool snd_soc_acpi_sdw_link_slaves_found(struct device *dev,
+					const struct snd_soc_acpi_link_adr *link,
+					struct sdw_extended_slave_id *ids,
+					int num_slaves);
 
 #endif

@@ -1631,6 +1631,16 @@ static bool test__pmu_cpu_valid(void)
 	return !!perf_pmus__find("cpu");
 }
 
+static bool test__pmu_cpu_event_valid(void)
+{
+	struct perf_pmu *pmu = perf_pmus__find("cpu");
+
+	if (!pmu)
+		return false;
+
+	return perf_pmu__has_format(pmu, "event");
+}
+
 static bool test__intel_pt_valid(void)
 {
 	return !!perf_pmus__find("intel_pt");
@@ -2160,7 +2170,7 @@ static const struct evlist_test test__events[] = {
 
 static const struct evlist_test test__events_pmu[] = {
 	{
-		.name  = "cpu/config=10,config1,config2=3,period=1000/u",
+		.name  = "cpu/config=10,config1=1,config2=3,period=1000/u",
 		.valid = test__pmu_cpu_valid,
 		.check = test__checkevent_pmu,
 		/* 0 */
@@ -2179,7 +2189,7 @@ static const struct evlist_test test__events_pmu[] = {
 	},
 	{
 		.name  = "cpu/name='COMPLEX_CYCLES_NAME:orig=cycles,desc=chip-clock-ticks',period=0x1,event=0x2/ukp",
-		.valid = test__pmu_cpu_valid,
+		.valid = test__pmu_cpu_event_valid,
 		.check = test__checkevent_complex_name,
 		/* 3 */
 	},
@@ -2462,7 +2472,7 @@ static int test_term(const struct terms_test *t)
 
 	INIT_LIST_HEAD(&terms);
 
-	ret = parse_events_terms(&terms, t->str);
+	ret = parse_events_terms(&terms, t->str, /*input=*/ NULL);
 	if (ret) {
 		pr_debug("failed to parse terms '%s', err %d\n",
 			 t->str , ret);

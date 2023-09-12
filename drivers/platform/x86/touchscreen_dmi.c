@@ -26,6 +26,22 @@ struct ts_dmi_data {
 
 /* NOTE: Please keep all entries sorted alphabetically */
 
+static const struct property_entry archos_101_cesium_educ_props[] = {
+	PROPERTY_ENTRY_U32("touchscreen-size-x", 1850),
+	PROPERTY_ENTRY_U32("touchscreen-size-y", 1280),
+	PROPERTY_ENTRY_BOOL("touchscreen-inverted-y"),
+	PROPERTY_ENTRY_BOOL("touchscreen-swapped-x-y"),
+	PROPERTY_ENTRY_U32("silead,max-fingers", 10),
+	PROPERTY_ENTRY_BOOL("silead,home-button"),
+	PROPERTY_ENTRY_STRING("firmware-name", "gsl1680-archos-101-cesium-educ.fw"),
+	{ }
+};
+
+static const struct ts_dmi_data archos_101_cesium_educ_data = {
+	.acpi_name      = "MSSL1680:00",
+	.properties     = archos_101_cesium_educ_props,
+};
+
 static const struct property_entry chuwi_hi8_props[] = {
 	PROPERTY_ENTRY_U32("touchscreen-size-x", 1665),
 	PROPERTY_ENTRY_U32("touchscreen-size-y", 1140),
@@ -1047,6 +1063,13 @@ static const struct ts_dmi_data vinga_twizzle_j116_data = {
 
 /* NOTE: Please keep this table sorted alphabetically */
 const struct dmi_system_id touchscreen_dmi_table[] = {
+	{
+		/* Archos 101 Cesium Educ */
+		.driver_data = (void *)&archos_101_cesium_educ_data,
+		.matches = {
+			DMI_MATCH(DMI_PRODUCT_NAME, "ARCHOS 101 Cesium Educ"),
+		},
+	},
 	{
 		/* Chuwi Hi8 */
 		.driver_data = (void *)&chuwi_hi8_data,

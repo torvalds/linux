@@ -8,7 +8,9 @@
 #include <linux/interrupt.h>
 #include <linux/iopoll.h>
 #include <linux/acpi.h>
+#include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/of_platform.h>
 #include "emac.h"
 #include "emac-mac.h"
 #include "emac-sgmii.h"

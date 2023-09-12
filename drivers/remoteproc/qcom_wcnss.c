@@ -14,8 +14,8 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/io.h>
-#include <linux/of_address.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
+#include <linux/of_reserved_mem.h>
 #include <linux/platform_device.h>
 #include <linux/pm_domain.h>
 #include <linux/pm_runtime.h>
@@ -506,27 +506,25 @@ static int wcnss_request_irq(struct qcom_wcnss *wcnss,
 
 static int wcnss_alloc_memory_region(struct qcom_wcnss *wcnss)
 {
+	struct reserved_mem *rmem = NULL;
 	struct device_node *node;
-	struct resource r;
-	int ret;
 
 	node = of_parse_phandle(wcnss->dev->of_node, "memory-region", 0);
-	if (!node) {
-		dev_err(wcnss->dev, "no memory-region specified\n");
+	if (node)
+		rmem = of_reserved_mem_lookup(node);
+	of_node_put(node);
+
+	if (!rmem) {
+		dev_err(wcnss->dev, "unable to resolve memory-region\n");
 		return -EINVAL;
 	}
 
-	ret = of_address_to_resource(node, 0, &r);
-	of_node_put(node);
-	if (ret)
-		return ret;
-
-	wcnss->mem_phys = wcnss->mem_reloc = r.start;
-	wcnss->mem_size = resource_size(&r);
+	wcnss->mem_phys = wcnss->mem_reloc = rmem->base;
+	wcnss->mem_size = rmem->size;
 	wcnss->mem_region = devm_ioremap_wc(wcnss->dev, wcnss->mem_phys, wcnss->mem_size);
 	if (!wcnss->mem_region) {
 		dev_err(wcnss->dev, "unable to map memory region: %pa+%zx\n",
-			&r.start, wcnss->mem_size);
+			&rmem->base, wcnss->mem_size);
 		return -EBUSY;
 	}
 
@@ -538,7 +536,6 @@ static int wcnss_probe(struct platform_device *pdev)
 	const char *fw_name = WCNSS_FIRMWARE_NAME;
 	const struct wcnss_data *data;
 	struct qcom_wcnss *wcnss;
-	struct resource *res;
 	struct rproc *rproc;
 	void __iomem *mmio;
 	int ret;
@@ -576,8 +573,7 @@ static int wcnss_probe(struct platform_device *pdev)
 
 	mutex_init(&wcnss->iris_lock);
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "pmu");
-	mmio = devm_ioremap_resource(&pdev->dev, res);
+	mmio = devm_platform_ioremap_resource_byname(pdev, "pmu");
 	if (IS_ERR(mmio)) {
 		ret = PTR_ERR(mmio);
 		goto free_rproc;

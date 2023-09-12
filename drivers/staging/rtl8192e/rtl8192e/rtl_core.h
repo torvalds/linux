@@ -259,12 +259,6 @@ struct r8192_priv {
 	u8		polling_timer_on;
 
 	/**********************************************************/
-
-	enum card_type {
-		PCI, MINIPCI,
-		CARDBUS, USB
-	} card_type;
-
 	struct work_struct qos_activate;
 
 	short	promisc;
@@ -322,13 +316,11 @@ struct r8192_priv {
 
 	bool tx_pwr_data_read_from_eeprom;
 
-	u16 reg_chnl_plan;
 	u16 chnl_plan;
 	u8 hw_rf_off_action;
 
 	bool rf_change_in_progress;
 	bool set_rf_pwr_state_in_progress;
-	bool bdisable_nic;
 
 	u8 cck_pwr_enl;
 	u16 tssi_13dBm;

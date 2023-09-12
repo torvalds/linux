@@ -212,8 +212,8 @@ nvkm_intr(int irq, void *arg)
 		list_for_each_entry(intr, &device->intr.intr, head) {
 			for (leaf = 0; leaf < intr->leaves; leaf++) {
 				if (intr->stat[leaf]) {
-					nvkm_warn(intr->subdev, "intr%d: %08x\n",
-						  leaf, intr->stat[leaf]);
+					nvkm_debug(intr->subdev, "intr%d: %08x\n",
+						   leaf, intr->stat[leaf]);
 					nvkm_intr_block_locked(intr, leaf, intr->stat[leaf]);
 				}
 			}

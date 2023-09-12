@@ -15,7 +15,6 @@
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 
 #include "omap_l3_smx.h"
 
@@ -166,19 +165,10 @@ static irqreturn_t omap3_l3_app_irq(int irq, void *_l3)
 	irqreturn_t ret = IRQ_NONE;
 
 	int_type = irq == l3->app_irq ? L3_APPLICATION_ERROR : L3_DEBUG_ERROR;
-	if (!int_type) {
+	if (!int_type)
 		status = omap3_l3_readll(l3->rt, L3_SI_FLAG_STATUS_0);
-		/*
-		 * if we have a timeout error, there's nothing we can
-		 * do besides rebooting the board. So let's BUG on any
-		 * of such errors and handle the others. timeout error
-		 * is severe and not expected to occur.
-		 */
-		BUG_ON(status & L3_STATUS_0_TIMEOUT_MASK);
-	} else {
+	else
 		status = omap3_l3_readll(l3->rt, L3_SI_FLAG_STATUS_1);
-		/* No timeout error for debug sources */
-	}
 
 	/* identify the error source */
 	err_source = __ffs(status);
@@ -189,6 +179,14 @@ static irqreturn_t omap3_l3_app_irq(int irq, void *_l3)
 		error_addr = omap3_l3_readll(base, L3_ERROR_LOG_ADDR);
 		ret |= omap3_l3_block_irq(l3, error, error_addr);
 	}
+
+	/*
+	 * if we have a timeout error, there's nothing we can
+	 * do besides rebooting the board. So let's BUG on any
+	 * of such errors and handle the others. timeout error
+	 * is severe and not expected to occur.
+	 */
+	BUG_ON(!int_type && status & L3_STATUS_0_TIMEOUT_MASK);
 
 	/* Clear the status register */
 	clear = (L3_AGENT_STATUS_CLEAR_IA << int_type) |

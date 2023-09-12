@@ -276,9 +276,8 @@ static void amdgpu_perf_read(struct perf_event *event)
 	    (!pe->adev->df.funcs->pmc_get_count))
 		return;
 
+	prev = local64_read(&hwc->prev_count);
 	do {
-		prev = local64_read(&hwc->prev_count);
-
 		switch (hwc->config_base) {
 		case AMDGPU_PMU_EVENT_CONFIG_TYPE_DF:
 		case AMDGPU_PMU_EVENT_CONFIG_TYPE_XGMI:
@@ -289,7 +288,7 @@ static void amdgpu_perf_read(struct perf_event *event)
 			count = 0;
 			break;
 		}
-	} while (local64_cmpxchg(&hwc->prev_count, prev, count) != prev);
+	} while (!local64_try_cmpxchg(&hwc->prev_count, &prev, count));
 
 	local64_add(count - prev, &event->count);
 }

@@ -67,8 +67,6 @@ void qedi_trace_io(struct qedi_ctx *qedi, struct iscsi_task *task,
 int qedi_alloc_id(struct qedi_portid_tbl *id_tbl, u16 id);
 u16 qedi_alloc_new_id(struct qedi_portid_tbl *id_tbl);
 void qedi_free_id(struct qedi_portid_tbl *id_tbl, u16 id);
-int qedi_create_sysfs_ctx_attr(struct qedi_ctx *qedi);
-void qedi_remove_sysfs_ctx_attr(struct qedi_ctx *qedi);
 void qedi_clearsq(struct qedi_ctx *qedi,
 		  struct qedi_conn *qedi_conn,
 		  struct iscsi_task *task);

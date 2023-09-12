@@ -68,7 +68,7 @@ soc {
 			      "base_ssp0_clk",  "base_sdio_clk";
 	};
 
-	/* A user of CCU brach clocks */
+	/* A user of CCU branch clocks */
 	uart1: serial@40082000 {
 		...
 		clocks = <&ccu2 CLK_APB0_UART1>, <&ccu1 CLK_CPU_UART1>;

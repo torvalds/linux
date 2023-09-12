@@ -881,10 +881,18 @@ static int sve_set_common(struct task_struct *target,
 			break;
 		case ARM64_VEC_SME:
 			target->thread.svcr |= SVCR_SM_MASK;
+
+			/*
+			 * Disable traps and ensure there is SME storage but
+			 * preserve any currently set values in ZA/ZT.
+			 */
+			sme_alloc(target, false);
+			set_tsk_thread_flag(target, TIF_SME);
 			break;
 		default:
 			WARN_ON_ONCE(1);
-			return -EINVAL;
+			ret = -EINVAL;
+			goto out;
 		}
 
 		/*
@@ -932,11 +940,13 @@ static int sve_set_common(struct task_struct *target,
 	/*
 	 * Ensure target->thread.sve_state is up to date with target's
 	 * FPSIMD regs, so that a short copyin leaves trailing
-	 * registers unmodified.  Always enable SVE even if going into
-	 * streaming mode.
+	 * registers unmodified.  Only enable SVE if we are
+	 * configuring normal SVE, a system with streaming SVE may not
+	 * have normal SVE.
 	 */
 	fpsimd_sync_to_sve(target);
-	set_tsk_thread_flag(target, TIF_SVE);
+	if (type == ARM64_VEC_SVE)
+		set_tsk_thread_flag(target, TIF_SVE);
 	target->thread.fp_type = FP_STATE_SVE;
 
 	BUILD_BUG_ON(SVE_PT_SVE_OFFSET != sizeof(header));
@@ -1098,7 +1108,7 @@ static int za_set(struct task_struct *target,
 	}
 
 	/* Allocate/reinit ZA storage */
-	sme_alloc(target);
+	sme_alloc(target, true);
 	if (!target->thread.sme_state) {
 		ret = -ENOMEM;
 		goto out;
@@ -1168,8 +1178,13 @@ static int zt_set(struct task_struct *target,
 	if (!system_supports_sme2())
 		return -EINVAL;
 
+	/* Ensure SVE storage in case this is first use of SME */
+	sve_alloc(target, false);
+	if (!target->thread.sve_state)
+		return -ENOMEM;
+
 	if (!thread_za_enabled(&target->thread)) {
-		sme_alloc(target);
+		sme_alloc(target, true);
 		if (!target->thread.sme_state)
 			return -ENOMEM;
 	}
@@ -1177,8 +1192,12 @@ static int zt_set(struct task_struct *target,
 	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
 				 thread_zt_state(&target->thread),
 				 0, ZT_SIG_REG_BYTES);
-	if (ret == 0)
+	if (ret == 0) {
 		target->thread.svcr |= SVCR_ZA_MASK;
+		set_tsk_thread_flag(target, TIF_SME);
+	}
+
+	fpsimd_flush_task_state(target);
 
 	return ret;
 }

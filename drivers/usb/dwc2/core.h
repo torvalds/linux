@@ -1330,6 +1330,7 @@ irqreturn_t dwc2_handle_common_intr(int irq, void *dev);
 /* The device ID match table */
 extern const struct of_device_id dwc2_of_match_table[];
 extern const struct acpi_device_id dwc2_acpi_match[];
+extern const struct pci_device_id dwc2_pci_ids[];
 
 int dwc2_lowlevel_hw_enable(struct dwc2_hsotg *hsotg);
 int dwc2_lowlevel_hw_disable(struct dwc2_hsotg *hsotg);

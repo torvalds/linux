@@ -229,10 +229,9 @@ static inline struct crypto_aes_ctx *aes_ctx(void *raw_ctx)
 	return (struct crypto_aes_ctx *)ALIGN(addr, align);
 }
 
-static int aes_set_key_common(struct crypto_tfm *tfm, void *raw_ctx,
+static int aes_set_key_common(struct crypto_aes_ctx *ctx,
 			      const u8 *in_key, unsigned int key_len)
 {
-	struct crypto_aes_ctx *ctx = aes_ctx(raw_ctx);
 	int err;
 
 	if (key_len != AES_KEYSIZE_128 && key_len != AES_KEYSIZE_192 &&
@@ -253,7 +252,8 @@ static int aes_set_key_common(struct crypto_tfm *tfm, void *raw_ctx,
 static int aes_set_key(struct crypto_tfm *tfm, const u8 *in_key,
 		       unsigned int key_len)
 {
-	return aes_set_key_common(tfm, crypto_tfm_ctx(tfm), in_key, key_len);
+	return aes_set_key_common(aes_ctx(crypto_tfm_ctx(tfm)), in_key,
+				  key_len);
 }
 
 static void aesni_encrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
@@ -285,8 +285,7 @@ static void aesni_decrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
 static int aesni_skcipher_setkey(struct crypto_skcipher *tfm, const u8 *key,
 			         unsigned int len)
 {
-	return aes_set_key_common(crypto_skcipher_tfm(tfm),
-				  crypto_skcipher_ctx(tfm), key, len);
+	return aes_set_key_common(aes_ctx(crypto_skcipher_ctx(tfm)), key, len);
 }
 
 static int ecb_encrypt(struct skcipher_request *req)
@@ -627,8 +626,7 @@ static int common_rfc4106_set_key(struct crypto_aead *aead, const u8 *key,
 
 	memcpy(ctx->nonce, key + key_len, sizeof(ctx->nonce));
 
-	return aes_set_key_common(crypto_aead_tfm(aead),
-				  &ctx->aes_key_expanded, key, key_len) ?:
+	return aes_set_key_common(&ctx->aes_key_expanded, key, key_len) ?:
 	       rfc4106_set_hash_subkey(ctx->hash_subkey, key, key_len);
 }
 
@@ -893,14 +891,13 @@ static int xts_aesni_setkey(struct crypto_skcipher *tfm, const u8 *key,
 	keylen /= 2;
 
 	/* first half of xts-key is for crypt */
-	err = aes_set_key_common(crypto_skcipher_tfm(tfm), ctx->raw_crypt_ctx,
-				 key, keylen);
+	err = aes_set_key_common(aes_ctx(ctx->raw_crypt_ctx), key, keylen);
 	if (err)
 		return err;
 
 	/* second half of xts-key is for tweak */
-	return aes_set_key_common(crypto_skcipher_tfm(tfm), ctx->raw_tweak_ctx,
-				  key + keylen, keylen);
+	return aes_set_key_common(aes_ctx(ctx->raw_tweak_ctx), key + keylen,
+				  keylen);
 }
 
 static int xts_crypt(struct skcipher_request *req, bool encrypt)
@@ -1150,8 +1147,7 @@ static int generic_gcmaes_set_key(struct crypto_aead *aead, const u8 *key,
 {
 	struct generic_gcmaes_ctx *ctx = generic_gcmaes_ctx_get(aead);
 
-	return aes_set_key_common(crypto_aead_tfm(aead),
-				  &ctx->aes_key_expanded, key, key_len) ?:
+	return aes_set_key_common(&ctx->aes_key_expanded, key, key_len) ?:
 	       rfc4106_set_hash_subkey(ctx->hash_subkey, key, key_len);
 }
 

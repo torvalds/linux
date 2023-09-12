@@ -36,6 +36,15 @@ ga100_ce_intr(struct nvkm_inth *inth)
 }
 
 int
+ga100_ce_nonstall(struct nvkm_engine *engine)
+{
+	struct nvkm_subdev *subdev = &engine->subdev;
+	struct nvkm_device *device = subdev->device;
+
+	return nvkm_rd32(device, 0x104424 + (subdev->inst * 0x80)) & 0x00000fff;
+}
+
+int
 ga100_ce_fini(struct nvkm_engine *engine, bool suspend)
 {
 	nvkm_inth_block(&engine->subdev.inth);
@@ -67,6 +76,7 @@ ga100_ce = {
 	.oneinit = ga100_ce_oneinit,
 	.init = ga100_ce_init,
 	.fini = ga100_ce_fini,
+	.nonstall = ga100_ce_nonstall,
 	.cclass = &gv100_ce_cclass,
 	.sclass = {
 		{ -1, -1, AMPERE_DMA_COPY_A },

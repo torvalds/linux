@@ -10,8 +10,9 @@ struct ovl_config {
 	char *workdir;
 	bool default_permissions;
 	int redirect_mode;
+	int verity_mode;
 	bool index;
-	bool uuid;
+	int uuid;
 	bool nfs_export;
 	int xino;
 	bool metacopy;
@@ -81,6 +82,7 @@ struct ovl_fs {
 	const struct cred *creator_cred;
 	bool tmpfile;
 	bool noxattr;
+	bool nofh;
 	/* Did we take the inuse lock? */
 	bool upperdir_locked;
 	bool workdir_locked;
@@ -115,8 +117,13 @@ static inline struct mnt_idmap *ovl_upper_mnt_idmap(struct ovl_fs *ofs)
 	return mnt_idmap(ovl_upper_mnt(ofs));
 }
 
+extern struct file_system_type ovl_fs_type;
+
 static inline struct ovl_fs *OVL_FS(struct super_block *sb)
 {
+	if (IS_ENABLED(CONFIG_OVERLAY_FS_DEBUG))
+		WARN_ON_ONCE(sb->s_type != &ovl_fs_type);
+
 	return (struct ovl_fs *)sb->s_fs_info;
 }
 

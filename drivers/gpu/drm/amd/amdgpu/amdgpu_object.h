@@ -182,6 +182,8 @@ static inline unsigned amdgpu_mem_type_to_domain(u32 mem_type)
 		return AMDGPU_GEM_DOMAIN_GWS;
 	case AMDGPU_PL_OA:
 		return AMDGPU_GEM_DOMAIN_OA;
+	case AMDGPU_PL_DOORBELL:
+		return AMDGPU_GEM_DOMAIN_DOORBELL;
 	default:
 		break;
 	}

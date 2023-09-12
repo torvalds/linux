@@ -15,8 +15,7 @@
 #include <linux/platform_device.h>
 #include <linux/spi/spi.h>
 #include <linux/acpi.h>
-#include <linux/gpio.h>
-#include <linux/of_gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/mutex.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -1016,6 +1015,9 @@ static int rt5682_set_jack_detect(struct snd_soc_component *component,
 	struct rt5682_priv *rt5682 = snd_soc_component_get_drvdata(component);
 
 	rt5682->hs_jack = hs_jack;
+
+	if (rt5682->is_sdw && !rt5682->first_hw_init)
+		return 0;
 
 	if (!hs_jack) {
 		regmap_update_bits(rt5682->regmap, RT5682_IRQ_CTRL_2,
@@ -3091,9 +3093,6 @@ int rt5682_parse_dt(struct rt5682_priv *rt5682, struct device *dev)
 	device_property_read_u32(dev, "realtek,dmic-delay-ms",
 		&rt5682->pdata.dmic_delay);
 
-	rt5682->pdata.ldo1_en = of_get_named_gpio(dev->of_node,
-		"realtek,ldo1-en-gpios", 0);
-
 	if (device_property_read_string_array(dev, "clock-output-names",
 					      rt5682->pdata.dai_clk_names,
 					      RT5682_DAI_NUM_CLKS) < 0)
@@ -3107,6 +3106,20 @@ int rt5682_parse_dt(struct rt5682_priv *rt5682, struct device *dev)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(rt5682_parse_dt);
+
+int rt5682_get_ldo1(struct rt5682_priv *rt5682, struct device *dev)
+{
+	rt5682->ldo1_en = devm_gpiod_get_optional(dev,
+						  "realtek,ldo1-en",
+						  GPIOD_OUT_HIGH);
+	if (IS_ERR(rt5682->ldo1_en)) {
+		dev_err(dev, "Fail gpio request ldo1_en\n");
+		return PTR_ERR(rt5682->ldo1_en);
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(rt5682_get_ldo1);
 
 void rt5682_calibrate(struct rt5682_priv *rt5682)
 {

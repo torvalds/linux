@@ -63,7 +63,7 @@ void setup_udp_tunnel_sock(struct net *net, struct socket *sock,
 	struct sock *sk = sock->sk;
 
 	/* Disable multicast loopback */
-	inet_sk(sk)->mc_loop = 0;
+	inet_clear_bit(MC_LOOP, sk);
 
 	/* Enable CHECKSUM_UNNECESSARY to CHECKSUM_COMPLETE conversion */
 	inet_inc_convert_csum(sk);

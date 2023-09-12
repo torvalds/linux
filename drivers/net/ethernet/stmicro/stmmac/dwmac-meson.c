@@ -22,7 +22,7 @@ struct meson_dwmac {
 	void __iomem	*reg;
 };
 
-static void meson6_dwmac_fix_mac_speed(void *priv, unsigned int speed)
+static void meson6_dwmac_fix_mac_speed(void *priv, unsigned int speed, unsigned int mode)
 {
 	struct meson_dwmac *dwmac = priv;
 	unsigned int val;

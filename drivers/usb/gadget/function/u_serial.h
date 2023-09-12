@@ -71,8 +71,4 @@ void gserial_disconnect(struct gserial *);
 void gserial_suspend(struct gserial *p);
 void gserial_resume(struct gserial *p);
 
-/* functions are bound to configurations by a config or gadget driver */
-int gser_bind_config(struct usb_configuration *c, u8 port_num);
-int obex_bind_config(struct usb_configuration *c, u8 port_num);
-
 #endif /* __U_SERIAL_H */

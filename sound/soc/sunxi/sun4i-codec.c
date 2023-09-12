@@ -1252,9 +1252,12 @@ static int sun4i_codec_dai_probe(struct snd_soc_dai *dai)
 	return 0;
 }
 
+static const struct snd_soc_dai_ops dummy_dai_ops = {
+	.probe	= sun4i_codec_dai_probe,
+};
+
 static struct snd_soc_dai_driver dummy_cpu_dai = {
 	.name	= "sun4i-codec-cpu-dai",
-	.probe	= sun4i_codec_dai_probe,
 	.playback = {
 		.stream_name	= "Playback",
 		.channels_min	= 1,
@@ -1271,6 +1274,7 @@ static struct snd_soc_dai_driver dummy_cpu_dai = {
 		.formats 	= SUN4I_CODEC_FORMATS,
 		.sig_bits	= 24,
 	 },
+	.ops = &dummy_dai_ops,
 };
 
 static struct snd_soc_dai_link *sun4i_codec_create_link(struct device *dev,

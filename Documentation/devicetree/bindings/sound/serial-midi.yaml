@@ -20,7 +20,7 @@ description:
   parent serial device. If the standard MIDI baud of 31.25 kBaud is needed
   (as would be the case if interfacing with arbitrary external MIDI devices),
   configure the clocks of the parent serial device so that a requested baud of 38.4 kBaud
-  resuts in the standard MIDI baud rate, and set the 'current-speed' property to 38400 (default)
+  results in the standard MIDI baud rate, and set the 'current-speed' property to 38400 (default)
 
 properties:
   compatible:

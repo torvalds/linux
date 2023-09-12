@@ -42,7 +42,7 @@
 #include "dcn30/dcn30_hubp.h"
 #include "irq/dcn30/irq_service_dcn30.h"
 #include "dcn30/dcn30_dpp.h"
-#include "dcn30/dcn30_optc.h"
+#include "dcn301/dcn301_optc.h"
 #include "dcn20/dcn20_hwseq.h"
 #include "dcn30/dcn30_hwseq.h"
 #include "dce110/dce110_hw_sequencer.h"
@@ -855,7 +855,7 @@ static struct timing_generator *dcn301_timing_generator_create(
 	tgn10->tg_shift = &optc_shift;
 	tgn10->tg_mask = &optc_mask;
 
-	dcn30_timing_generator_init(tgn10);
+	dcn301_timing_generator_init(tgn10);
 
 	return &tgn10->base;
 }
@@ -1379,7 +1379,7 @@ static struct resource_funcs dcn301_res_pool_funcs = {
 	.calculate_wm_and_dlg = dcn301_calculate_wm_and_dlg,
 	.update_soc_for_wm_a = dcn30_update_soc_for_wm_a,
 	.populate_dml_pipes = dcn30_populate_dml_pipes_from_context,
-	.acquire_idle_pipe_for_layer = dcn20_acquire_idle_pipe_for_layer,
+	.acquire_free_pipe_as_secondary_dpp_pipe = dcn20_acquire_free_pipe_for_layer,
 	.add_stream_to_ctx = dcn30_add_stream_to_ctx,
 	.add_dsc_to_stream_resource = dcn20_add_dsc_to_stream_resource,
 	.remove_stream_from_ctx = dcn20_remove_stream_from_ctx,
@@ -1425,9 +1425,9 @@ static bool dcn301_resource_construct(
 	dc->caps.max_cursor_size = 256;
 	dc->caps.min_horizontal_blanking_period = 80;
 	dc->caps.dmdata_alloc_size = 2048;
-	dc->caps.max_slave_planes = 1;
-	dc->caps.max_slave_yuv_planes = 1;
-	dc->caps.max_slave_rgb_planes = 1;
+	dc->caps.max_slave_planes = 2;
+	dc->caps.max_slave_yuv_planes = 2;
+	dc->caps.max_slave_rgb_planes = 2;
 	dc->caps.is_apu = true;
 	dc->caps.post_blend_color_processing = true;
 	dc->caps.force_dp_tps4_for_cp2520 = true;

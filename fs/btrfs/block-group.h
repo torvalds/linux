@@ -70,6 +70,11 @@ enum btrfs_block_group_flags {
 	BLOCK_GROUP_FLAG_NEEDS_FREE_SPACE,
 	/* Indicate that the block group is placed on a sequential zone */
 	BLOCK_GROUP_FLAG_SEQUENTIAL_ZONE,
+	/*
+	 * Indicate that block group is in the list of new block groups of a
+	 * transaction.
+	 */
+	BLOCK_GROUP_FLAG_NEW,
 };
 
 enum btrfs_caching_type {
@@ -85,6 +90,8 @@ struct btrfs_caching_control {
 	wait_queue_head_t wait;
 	struct btrfs_work work;
 	struct btrfs_block_group *block_group;
+	/* Track progress of caching during allocation. */
+	atomic_t progress;
 	refcount_t count;
 };
 
@@ -284,8 +291,8 @@ int btrfs_cache_block_group(struct btrfs_block_group *cache, bool wait);
 void btrfs_put_caching_control(struct btrfs_caching_control *ctl);
 struct btrfs_caching_control *btrfs_get_caching_control(
 		struct btrfs_block_group *cache);
-u64 add_new_free_space(struct btrfs_block_group *block_group,
-		       u64 start, u64 end);
+int btrfs_add_new_free_space(struct btrfs_block_group *block_group,
+			     u64 start, u64 end, u64 *total_added_ret);
 struct btrfs_trans_handle *btrfs_start_trans_remove_block_group(
 				struct btrfs_fs_info *fs_info,
 				const u64 chunk_offset);

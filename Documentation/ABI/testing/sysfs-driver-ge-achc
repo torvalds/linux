@@ -5,7 +5,7 @@ Description:	Write 1 to this file to update the ACHC microcontroller
 		firmware via the EzPort interface. For this the kernel
 		will load "achc.bin" via the firmware API (so usually
 		from /lib/firmware). The write will block until the FW
-		has either been flashed successfully or an error occured.
+		has either been flashed successfully or an error occurred.
 
 What:		/sys/bus/spi/<dev>/reset
 Date:		Jul 2021

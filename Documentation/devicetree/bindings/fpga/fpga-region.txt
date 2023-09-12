@@ -63,7 +63,7 @@ FPGA Bridge
    will be disabled.
  * During Partial Reconfiguration of a specific region, that region's bridge
    will be used to gate the busses.  Traffic to other regions is not affected.
- * In some implementations, the FPGA Manager transparantly handles gating the
+ * In some implementations, the FPGA Manager transparently handles gating the
    buses, eliminating the need to show the hardware FPGA bridges in the
    device tree.
  * An FPGA image may create a set of reprogrammable regions, each having its
@@ -466,7 +466,7 @@ It is beyond the scope of this document to fully describe all the FPGA design
 constraints required to make partial reconfiguration work[1] [2] [3], but a few
 deserve quick mention.
 
-A persona must have boundary connections that line up with those of the partion
+A persona must have boundary connections that line up with those of the partition
 or region it is designed to go into.
 
 During programming, transactions through those connections must be stopped and

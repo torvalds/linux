@@ -143,8 +143,10 @@ properties:
       - arm,cortex-a78ae
       - arm,cortex-a78c
       - arm,cortex-a510
+      - arm,cortex-a520
       - arm,cortex-a710
       - arm,cortex-a715
+      - arm,cortex-a720
       - arm,cortex-m0
       - arm,cortex-m0+
       - arm,cortex-m1
@@ -158,6 +160,7 @@ properties:
       - arm,cortex-x1c
       - arm,cortex-x2
       - arm,cortex-x3
+      - arm,cortex-x4
       - arm,neoverse-e1
       - arm,neoverse-n1
       - arm,neoverse-n2

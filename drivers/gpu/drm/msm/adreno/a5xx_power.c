@@ -179,7 +179,7 @@ static void a540_lm_setup(struct msm_gpu *gpu)
 
 	/* The battery current limiter isn't enabled for A540 */
 	config = AGC_LM_CONFIG_BCL_DISABLED;
-	config |= adreno_gpu->rev.patchid << AGC_LM_CONFIG_GPU_VERSION_SHIFT;
+	config |= adreno_patchid(adreno_gpu) << AGC_LM_CONFIG_GPU_VERSION_SHIFT;
 
 	/* For now disable GPMU side throttling */
 	config |= AGC_LM_CONFIG_THROTTLE_DISABLE;

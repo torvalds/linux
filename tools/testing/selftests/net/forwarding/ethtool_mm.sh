@@ -258,11 +258,6 @@ h2_destroy()
 
 setup_prepare()
 {
-	check_ethtool_mm_support
-	check_tc_fp_support
-	require_command lldptool
-	bail_on_lldpad "autoconfigure the MAC Merge layer" "configure it manually"
-
 	h1=${NETIFS[p1]}
 	h2=${NETIFS[p2]}
 
@@ -277,6 +272,19 @@ cleanup()
 	h2_destroy
 	h1_destroy
 }
+
+check_ethtool_mm_support
+check_tc_fp_support
+require_command lldptool
+bail_on_lldpad "autoconfigure the MAC Merge layer" "configure it manually"
+
+for netif in ${NETIFS[@]}; do
+	ethtool --show-mm $netif 2>&1 &> /dev/null
+	if [[ $? -ne 0 ]]; then
+		echo "SKIP: $netif does not support MAC Merge"
+		exit $ksft_skip
+	fi
+done
 
 trap cleanup EXIT
 

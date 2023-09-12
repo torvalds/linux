@@ -25,7 +25,5 @@ void machine_shutdown(void);
 void machine_halt(void);
 void machine_power_off(void);
 
-extern void *zalloc_maybe_bootmem(size_t size, gfp_t mask);
-
 # endif /* __ASSEMBLY__ */
 #endif /* _ASM_MICROBLAZE_SETUP_H */

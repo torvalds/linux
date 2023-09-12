@@ -266,7 +266,7 @@ static struct platform_driver pm8916_wdt_driver = {
 	.probe = pm8916_wdt_probe,
 	.driver = {
 		.name = "pm8916-wdt",
-		.of_match_table = of_match_ptr(pm8916_wdt_id_table),
+		.of_match_table = pm8916_wdt_id_table,
 		.pm = &pm8916_wdt_pm_ops,
 	},
 };

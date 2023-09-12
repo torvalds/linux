@@ -13,7 +13,8 @@
 #include <linux/mtd/rawnand.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/mtd.h>
-#include <linux/of_platform.h>
+#include <linux/of.h>
+#include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/slab.h>
 #include <asm/fsl_lbc.h>
@@ -135,7 +136,7 @@ static int fun_exec_op(struct nand_chip *chip, const struct nand_operation *op,
 	unsigned int i;
 	int ret;
 
-	if (op->cs > NAND_MAX_CHIPS)
+	if (op->cs >= NAND_MAX_CHIPS)
 		return -EINVAL;
 
 	if (check_only)
@@ -172,8 +173,7 @@ static int fun_probe(struct platform_device *ofdev)
 	if (!fun)
 		return -ENOMEM;
 
-	io_res = platform_get_resource(ofdev, IORESOURCE_MEM, 0);
-	fun->io_base = devm_ioremap_resource(&ofdev->dev, io_res);
+	fun->io_base = devm_platform_get_and_ioremap_resource(ofdev, 0, &io_res);
 	if (IS_ERR(fun->io_base))
 		return PTR_ERR(fun->io_base);
 

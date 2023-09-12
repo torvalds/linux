@@ -501,7 +501,7 @@ static int mlx4_eq_int(struct mlx4_dev *dev, struct mlx4_eq *eq)
 	int port;
 	int slave = 0;
 	int ret;
-	u32 flr_slave;
+	int flr_slave;
 	u8 update_slave_state;
 	int i;
 	enum slave_port_gen_event gen_event;
@@ -606,8 +606,8 @@ static int mlx4_eq_int(struct mlx4_dev *dev, struct mlx4_eq *eq)
 			port = be32_to_cpu(eqe->event.port_change.port) >> 28;
 			slaves_port = mlx4_phys_to_slaves_pport(dev, port);
 			if (eqe->subtype == MLX4_PORT_CHANGE_SUBTYPE_DOWN) {
-				mlx4_dispatch_event(dev, MLX4_DEV_EVENT_PORT_DOWN,
-						    port);
+				mlx4_dispatch_event(
+					dev, MLX4_DEV_EVENT_PORT_DOWN, &port);
 				mlx4_priv(dev)->sense.do_sense_port[port] = 1;
 				if (!mlx4_is_master(dev))
 					break;
@@ -647,7 +647,8 @@ static int mlx4_eq_int(struct mlx4_dev *dev, struct mlx4_eq *eq)
 					}
 				}
 			} else {
-				mlx4_dispatch_event(dev, MLX4_DEV_EVENT_PORT_UP, port);
+				mlx4_dispatch_event(dev, MLX4_DEV_EVENT_PORT_UP,
+						    &port);
 
 				mlx4_priv(dev)->sense.do_sense_port[port] = 0;
 
@@ -758,7 +759,7 @@ static int mlx4_eq_int(struct mlx4_dev *dev, struct mlx4_eq *eq)
 			}
 			spin_unlock_irqrestore(&priv->mfunc.master.slave_state_lock, flags);
 			mlx4_dispatch_event(dev, MLX4_DEV_EVENT_SLAVE_SHUTDOWN,
-					    flr_slave);
+					    &flr_slave);
 			queue_work(priv->mfunc.master.comm_wq,
 				   &priv->mfunc.master.slave_flr_event_work);
 			break;
@@ -787,8 +788,8 @@ static int mlx4_eq_int(struct mlx4_dev *dev, struct mlx4_eq *eq)
 			break;
 
 		case MLX4_EVENT_TYPE_PORT_MNG_CHG_EVENT:
-			mlx4_dispatch_event(dev, MLX4_DEV_EVENT_PORT_MGMT_CHANGE,
-					    (unsigned long) eqe);
+			mlx4_dispatch_event(
+				dev, MLX4_DEV_EVENT_PORT_MGMT_CHANGE, eqe);
 			break;
 
 		case MLX4_EVENT_TYPE_RECOVERABLE_ERROR_EVENT:

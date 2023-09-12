@@ -232,5 +232,6 @@ int snd_dice_detect_mytek_formats(struct snd_dice *dice);
 int snd_dice_detect_presonus_formats(struct snd_dice *dice);
 int snd_dice_detect_harman_formats(struct snd_dice *dice);
 int snd_dice_detect_focusrite_pro40_tcd3070_formats(struct snd_dice *dice);
+int snd_dice_detect_weiss_formats(struct snd_dice *dice);
 
 #endif

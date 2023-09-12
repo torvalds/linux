@@ -184,6 +184,7 @@ static bool tomoyo_manage_by_non_root;
  *
  * Returns nothing.
  */
+__printf(3, 4)
 static void tomoyo_addprintf(char *buffer, int len, const char *fmt, ...)
 {
 	va_list args;

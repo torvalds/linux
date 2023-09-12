@@ -333,13 +333,13 @@ static int au1xpsc_ac97_probe(struct snd_soc_dai *dai)
 }
 
 static const struct snd_soc_dai_ops au1xpsc_ac97_dai_ops = {
+	.probe		= au1xpsc_ac97_probe,
 	.startup	= au1xpsc_ac97_startup,
 	.trigger	= au1xpsc_ac97_trigger,
 	.hw_params	= au1xpsc_ac97_hw_params,
 };
 
 static const struct snd_soc_dai_driver au1xpsc_ac97_dai_template = {
-	.probe			= au1xpsc_ac97_probe,
 	.playback = {
 		.rates		= AC97_RATES,
 		.formats	= AC97_FMTS,

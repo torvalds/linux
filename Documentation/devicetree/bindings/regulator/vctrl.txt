@@ -21,7 +21,7 @@ Optional properties:
 			  margin from the expected value for a given control
 			  voltage. On larger voltage decreases this can occur
 			  undesiredly since the output voltage does not adjust
-			  inmediately to changes in the control voltage. To
+			  immediately to changes in the control voltage. To
 			  avoid this situation the vctrl driver breaks down
 			  larger voltage decreases into multiple steps, where
 			  each step is within the OVP threshold.

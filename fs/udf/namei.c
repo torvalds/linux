@@ -365,7 +365,7 @@ static int udf_add_nondir(struct dentry *dentry, struct inode *inode)
 	*(__le32 *)((struct allocDescImpUse *)iter.fi.icb.impUse)->impUse =
 		cpu_to_le32(iinfo->i_unique & 0x00000000FFFFFFFFUL);
 	udf_fiiter_write_fi(&iter, NULL);
-	dir->i_ctime = dir->i_mtime = current_time(dir);
+	dir->i_mtime = inode_set_ctime_current(dir);
 	mark_inode_dirty(dir);
 	udf_fiiter_release(&iter);
 	udf_add_fid_counter(dir->i_sb, false, 1);
@@ -471,7 +471,7 @@ static int udf_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 	udf_fiiter_release(&iter);
 	udf_add_fid_counter(dir->i_sb, true, 1);
 	inc_nlink(dir);
-	dir->i_ctime = dir->i_mtime = current_time(dir);
+	dir->i_mtime = inode_set_ctime_current(dir);
 	mark_inode_dirty(dir);
 	d_instantiate_new(dentry, inode);
 
@@ -523,8 +523,8 @@ static int udf_rmdir(struct inode *dir, struct dentry *dentry)
 	inode->i_size = 0;
 	inode_dec_link_count(dir);
 	udf_add_fid_counter(dir->i_sb, true, -1);
-	inode->i_ctime = dir->i_ctime = dir->i_mtime =
-						current_time(inode);
+	dir->i_mtime = inode_set_ctime_to_ts(dir,
+					     inode_set_ctime_current(inode));
 	mark_inode_dirty(dir);
 	ret = 0;
 end_rmdir:
@@ -555,11 +555,11 @@ static int udf_unlink(struct inode *dir, struct dentry *dentry)
 		set_nlink(inode, 1);
 	}
 	udf_fiiter_delete_entry(&iter);
-	dir->i_ctime = dir->i_mtime = current_time(dir);
+	dir->i_mtime = inode_set_ctime_current(dir);
 	mark_inode_dirty(dir);
 	inode_dec_link_count(inode);
 	udf_add_fid_counter(dir->i_sb, false, -1);
-	inode->i_ctime = dir->i_ctime;
+	inode_set_ctime_to_ts(inode, inode_get_ctime(dir));
 	ret = 0;
 end_unlink:
 	udf_fiiter_release(&iter);
@@ -746,9 +746,9 @@ static int udf_link(struct dentry *old_dentry, struct inode *dir,
 
 	inc_nlink(inode);
 	udf_add_fid_counter(dir->i_sb, false, 1);
-	inode->i_ctime = current_time(inode);
+	inode_set_ctime_current(inode);
 	mark_inode_dirty(inode);
-	dir->i_ctime = dir->i_mtime = current_time(dir);
+	dir->i_mtime = inode_set_ctime_current(dir);
 	mark_inode_dirty(dir);
 	ihold(inode);
 	d_instantiate(dentry, inode);
@@ -833,7 +833,7 @@ static int udf_rename(struct mnt_idmap *idmap, struct inode *old_dir,
 	 * Like most other Unix systems, set the ctime for inodes on a
 	 * rename.
 	 */
-	old_inode->i_ctime = current_time(old_inode);
+	inode_set_ctime_current(old_inode);
 	mark_inode_dirty(old_inode);
 
 	/*
@@ -861,13 +861,13 @@ static int udf_rename(struct mnt_idmap *idmap, struct inode *old_dir,
 	}
 
 	if (new_inode) {
-		new_inode->i_ctime = current_time(new_inode);
+		inode_set_ctime_current(new_inode);
 		inode_dec_link_count(new_inode);
 		udf_add_fid_counter(old_dir->i_sb, S_ISDIR(new_inode->i_mode),
 				    -1);
 	}
-	old_dir->i_ctime = old_dir->i_mtime = current_time(old_dir);
-	new_dir->i_ctime = new_dir->i_mtime = current_time(new_dir);
+	old_dir->i_mtime = inode_set_ctime_current(old_dir);
+	new_dir->i_mtime = inode_set_ctime_current(new_dir);
 	mark_inode_dirty(old_dir);
 	mark_inode_dirty(new_dir);
 

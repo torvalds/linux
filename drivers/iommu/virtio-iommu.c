@@ -13,7 +13,7 @@
 #include <linux/interval_tree.h>
 #include <linux/iommu.h>
 #include <linux/module.h>
-#include <linux/of_platform.h>
+#include <linux/of.h>
 #include <linux/pci.h>
 #include <linux/virtio.h>
 #include <linux/virtio_config.h>

@@ -294,4 +294,5 @@ void hclgevf_reset_task_schedule(struct hclgevf_dev *hdev);
 void hclgevf_mbx_task_schedule(struct hclgevf_dev *hdev);
 void hclgevf_update_port_base_vlan_info(struct hclgevf_dev *hdev, u16 state,
 			struct hclge_mbx_port_base_vlan *port_base_vlan);
+struct hclgevf_dev *hclgevf_ae_get_hdev(struct hnae3_handle *handle);
 #endif

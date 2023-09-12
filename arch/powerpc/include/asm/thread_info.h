@@ -183,12 +183,8 @@ static inline bool test_thread_local_flags(unsigned int flags)
 #define clear_tsk_compat_task(tsk) do { } while (0)
 #endif
 
-#ifdef CONFIG_PPC64
-#ifdef CONFIG_CPU_BIG_ENDIAN
+#if defined(CONFIG_PPC64)
 #define is_elf2_task() (test_thread_flag(TIF_ELF2ABI))
-#else
-#define is_elf2_task() (1)
-#endif
 #else
 #define is_elf2_task() (0)
 #endif

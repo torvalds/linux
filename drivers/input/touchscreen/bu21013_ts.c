@@ -410,31 +410,32 @@ static int bu21013_probe(struct i2c_client *client)
 	struct input_dev *in_dev;
 	struct input_absinfo *info;
 	u32 max_x = 0, max_y = 0;
+	struct device *dev = &client->dev;
 	int error;
 
 	if (!i2c_check_functionality(client->adapter,
 				     I2C_FUNC_SMBUS_BYTE_DATA)) {
-		dev_err(&client->dev, "i2c smbus byte data not supported\n");
+		dev_err(dev, "i2c smbus byte data not supported\n");
 		return -EIO;
 	}
 
 	if (!client->irq) {
-		dev_err(&client->dev, "No IRQ set up\n");
+		dev_err(dev, "No IRQ set up\n");
 		return -EINVAL;
 	}
 
-	ts = devm_kzalloc(&client->dev, sizeof(*ts), GFP_KERNEL);
+	ts = devm_kzalloc(dev, sizeof(*ts), GFP_KERNEL);
 	if (!ts)
 		return -ENOMEM;
 
 	ts->client = client;
 
-	ts->x_flip = device_property_read_bool(&client->dev, "rohm,flip-x");
-	ts->y_flip = device_property_read_bool(&client->dev, "rohm,flip-y");
+	ts->x_flip = device_property_read_bool(dev, "rohm,flip-x");
+	ts->y_flip = device_property_read_bool(dev, "rohm,flip-y");
 
-	in_dev = devm_input_allocate_device(&client->dev);
+	in_dev = devm_input_allocate_device(dev);
 	if (!in_dev) {
-		dev_err(&client->dev, "device memory alloc failed\n");
+		dev_err(dev, "device memory alloc failed\n");
 		return -ENOMEM;
 	}
 	ts->in_dev = in_dev;
@@ -444,8 +445,8 @@ static int bu21013_probe(struct i2c_client *client)
 	in_dev->name = DRIVER_TP;
 	in_dev->id.bustype = BUS_I2C;
 
-	device_property_read_u32(&client->dev, "rohm,touch-max-x", &max_x);
-	device_property_read_u32(&client->dev, "rohm,touch-max-y", &max_y);
+	device_property_read_u32(dev, "rohm,touch-max-x", &max_x);
+	device_property_read_u32(dev, "rohm,touch-max-y", &max_y);
 
 	input_set_abs_params(in_dev, ABS_MT_POSITION_X, 0, max_x, 0, 0);
 	input_set_abs_params(in_dev, ABS_MT_POSITION_Y, 0, max_y, 0, 0);
@@ -454,14 +455,14 @@ static int bu21013_probe(struct i2c_client *client)
 
 	/* Adjust for the legacy "flip" properties, if present */
 	if (!ts->props.invert_x &&
-	    device_property_read_bool(&client->dev, "rohm,flip-x")) {
+	    device_property_read_bool(dev, "rohm,flip-x")) {
 		info = &in_dev->absinfo[ABS_MT_POSITION_X];
 		info->maximum -= info->minimum;
 		info->minimum = 0;
 	}
 
 	if (!ts->props.invert_y &&
-	    device_property_read_bool(&client->dev, "rohm,flip-y")) {
+	    device_property_read_bool(dev, "rohm,flip-y")) {
 		info = &in_dev->absinfo[ABS_MT_POSITION_Y];
 		info->maximum -= info->minimum;
 		info->minimum = 0;
@@ -471,55 +472,46 @@ static int bu21013_probe(struct i2c_client *client)
 				    INPUT_MT_DIRECT | INPUT_MT_TRACK |
 					INPUT_MT_DROP_UNUSED);
 	if (error) {
-		dev_err(&client->dev, "failed to initialize MT slots");
+		dev_err(dev, "failed to initialize MT slots");
 		return error;
 	}
 
-	ts->regulator = devm_regulator_get(&client->dev, "avdd");
+	ts->regulator = devm_regulator_get(dev, "avdd");
 	if (IS_ERR(ts->regulator)) {
-		dev_err(&client->dev, "regulator_get failed\n");
+		dev_err(dev, "regulator_get failed\n");
 		return PTR_ERR(ts->regulator);
 	}
 
 	error = regulator_enable(ts->regulator);
 	if (error) {
-		dev_err(&client->dev, "regulator enable failed\n");
+		dev_err(dev, "regulator enable failed\n");
 		return error;
 	}
 
-	error = devm_add_action_or_reset(&client->dev, bu21013_power_off, ts);
+	error = devm_add_action_or_reset(dev, bu21013_power_off, ts);
 	if (error) {
-		dev_err(&client->dev, "failed to install power off handler\n");
+		dev_err(dev, "failed to install power off handler\n");
 		return error;
 	}
 
 	/* Named "CS" on the chip, DT binding is "reset" */
-	ts->cs_gpiod = devm_gpiod_get(&client->dev, "reset", GPIOD_OUT_HIGH);
-	error = PTR_ERR_OR_ZERO(ts->cs_gpiod);
-	if (error) {
-		if (error != -EPROBE_DEFER)
-			dev_err(&client->dev, "failed to get CS GPIO\n");
-		return error;
-	}
+	ts->cs_gpiod = devm_gpiod_get(dev, "reset", GPIOD_OUT_HIGH);
+	if (IS_ERR(ts->cs_gpiod))
+		return dev_err_probe(dev, PTR_ERR(ts->cs_gpiod), "failed to get CS GPIO\n");
+
 	gpiod_set_consumer_name(ts->cs_gpiod, "BU21013 CS");
 
-	error = devm_add_action_or_reset(&client->dev,
-					 bu21013_disable_chip, ts);
+	error = devm_add_action_or_reset(dev, bu21013_disable_chip, ts);
 	if (error) {
-		dev_err(&client->dev,
-			"failed to install chip disable handler\n");
+		dev_err(dev, "failed to install chip disable handler\n");
 		return error;
 	}
 
 	/* Named "INT" on the chip, DT binding is "touch" */
-	ts->int_gpiod = devm_gpiod_get_optional(&client->dev,
-						"touch", GPIOD_IN);
+	ts->int_gpiod = devm_gpiod_get_optional(dev, "touch", GPIOD_IN);
 	error = PTR_ERR_OR_ZERO(ts->int_gpiod);
-	if (error) {
-		if (error != -EPROBE_DEFER)
-			dev_err(&client->dev, "failed to get INT GPIO\n");
-		return error;
-	}
+	if (error)
+		return dev_err_probe(dev, error, "failed to get INT GPIO\n");
 
 	if (ts->int_gpiod)
 		gpiod_set_consumer_name(ts->int_gpiod, "BU21013 INT");
@@ -527,22 +519,20 @@ static int bu21013_probe(struct i2c_client *client)
 	/* configure the touch panel controller */
 	error = bu21013_init_chip(ts);
 	if (error) {
-		dev_err(&client->dev, "error in bu21013 config\n");
+		dev_err(dev, "error in bu21013 config\n");
 		return error;
 	}
 
-	error = devm_request_threaded_irq(&client->dev, client->irq,
-					  NULL, bu21013_gpio_irq,
+	error = devm_request_threaded_irq(dev, client->irq, NULL, bu21013_gpio_irq,
 					  IRQF_ONESHOT, DRIVER_TP, ts);
 	if (error) {
-		dev_err(&client->dev, "request irq %d failed\n",
-			client->irq);
+		dev_err(dev, "request irq %d failed\n", client->irq);
 		return error;
 	}
 
 	error = input_register_device(in_dev);
 	if (error) {
-		dev_err(&client->dev, "failed to register input device\n");
+		dev_err(dev, "failed to register input device\n");
 		return error;
 	}
 

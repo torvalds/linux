@@ -142,7 +142,7 @@ int gfs2_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,
 
 	ret = __gfs2_set_acl(inode, acl, type);
 	if (!ret && mode != inode->i_mode) {
-		inode->i_ctime = current_time(inode);
+		inode_set_ctime_current(inode);
 		inode->i_mode = mode;
 		mark_inode_dirty(inode);
 	}

@@ -73,14 +73,13 @@ enum ATOM_VEGA20_ODSETTING_ID {
 };
 typedef enum ATOM_VEGA20_ODSETTING_ID ATOM_VEGA20_ODSETTING_ID;
 
-typedef struct _ATOM_VEGA20_OVERDRIVE8_RECORD
-{
+typedef struct _ATOM_VEGA20_OVERDRIVE8_RECORD {
   UCHAR ucODTableRevision;
   ULONG ODFeatureCount;
-  UCHAR ODFeatureCapabilities [ATOM_VEGA20_ODFEATURE_MAX_COUNT];   //OD feature support flags
+  UCHAR ODFeatureCapabilities[ATOM_VEGA20_ODFEATURE_MAX_COUNT];   //OD feature support flags
   ULONG ODSettingCount;
-  ULONG ODSettingsMax [ATOM_VEGA20_ODSETTING_MAX_COUNT];           //Upper Limit for each OD Setting
-  ULONG ODSettingsMin [ATOM_VEGA20_ODSETTING_MAX_COUNT];           //Lower Limit for each OD Setting
+  ULONG ODSettingsMax[ATOM_VEGA20_ODSETTING_MAX_COUNT];           //Upper Limit for each OD Setting
+  ULONG ODSettingsMin[ATOM_VEGA20_ODSETTING_MAX_COUNT];           //Lower Limit for each OD Setting
 } ATOM_VEGA20_OVERDRIVE8_RECORD;
 
 enum ATOM_VEGA20_PPCLOCK_ID {
@@ -99,16 +98,14 @@ enum ATOM_VEGA20_PPCLOCK_ID {
 };
 typedef enum ATOM_VEGA20_PPCLOCK_ID ATOM_VEGA20_PPCLOCK_ID;
 
-typedef struct _ATOM_VEGA20_POWER_SAVING_CLOCK_RECORD
-{
+typedef struct _ATOM_VEGA20_POWER_SAVING_CLOCK_RECORD {
   UCHAR ucTableRevision;
   ULONG PowerSavingClockCount;                                 // Count of PowerSavingClock Mode
-  ULONG PowerSavingClockMax  [ATOM_VEGA20_PPCLOCK_MAX_COUNT];      // PowerSavingClock Mode Clock Maximum array In MHz
-  ULONG PowerSavingClockMin  [ATOM_VEGA20_PPCLOCK_MAX_COUNT];      // PowerSavingClock Mode Clock Minimum array In MHz
+  ULONG PowerSavingClockMax[ATOM_VEGA20_PPCLOCK_MAX_COUNT];      // PowerSavingClock Mode Clock Maximum array In MHz
+  ULONG PowerSavingClockMin[ATOM_VEGA20_PPCLOCK_MAX_COUNT];      // PowerSavingClock Mode Clock Minimum array In MHz
 } ATOM_VEGA20_POWER_SAVING_CLOCK_RECORD;
 
-typedef struct _ATOM_VEGA20_POWERPLAYTABLE
-{
+typedef struct _ATOM_VEGA20_POWERPLAYTABLE {
       struct atom_common_table_header sHeader;
       UCHAR  ucTableRevision;
       USHORT usTableSize;

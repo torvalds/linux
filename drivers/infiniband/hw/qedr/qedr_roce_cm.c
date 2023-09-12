@@ -354,7 +354,6 @@ int qedr_create_gsi_qp(struct qedr_dev *dev, struct ib_qp_init_attr *attrs,
 	/* the GSI CQ is handled by the driver so remove it from the FW */
 	qedr_destroy_gsi_cq(dev, attrs);
 	dev->gsi_rqcq->cq_type = QEDR_CQ_TYPE_GSI;
-	dev->gsi_rqcq->cq_type = QEDR_CQ_TYPE_GSI;
 
 	DP_DEBUG(dev, QEDR_MSG_GSI, "created GSI QP %p\n", qp);
 

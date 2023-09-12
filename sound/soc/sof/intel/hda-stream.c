@@ -869,8 +869,8 @@ int hda_dsp_stream_init(struct snd_sof_dev *sdev)
 		return -ENOMEM;
 	}
 
-	/* create capture streams */
-	for (i = 0; i < num_capture; i++) {
+	/* create capture and playback streams */
+	for (i = 0; i < num_total; i++) {
 		struct sof_intel_hda_stream *hda_stream;
 
 		hda_stream = devm_kzalloc(sdev->dev, sizeof(*hda_stream),
@@ -909,68 +909,16 @@ int hda_dsp_stream_init(struct snd_sof_dev *sdev)
 		hstream->index = i;
 		sd_offset = SOF_STREAM_SD_OFFSET(hstream);
 		hstream->sd_addr = sdev->bar[HDA_DSP_HDA_BAR] + sd_offset;
-		hstream->stream_tag = i + 1;
 		hstream->opened = false;
 		hstream->running = false;
-		hstream->direction = SNDRV_PCM_STREAM_CAPTURE;
 
-		/* memory alloc for stream BDL */
-		ret = snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, &pci->dev,
-					  HDA_DSP_BDL_SIZE, &hstream->bdl);
-		if (ret < 0) {
-			dev_err(sdev->dev, "error: stream bdl dma alloc failed\n");
-			return -ENOMEM;
+		if (i < num_capture) {
+			hstream->stream_tag = i + 1;
+			hstream->direction = SNDRV_PCM_STREAM_CAPTURE;
+		} else {
+			hstream->stream_tag = i - num_capture + 1;
+			hstream->direction = SNDRV_PCM_STREAM_PLAYBACK;
 		}
-		hstream->posbuf = (__le32 *)(bus->posbuf.area +
-			(hstream->index) * 8);
-
-		list_add_tail(&hstream->list, &bus->stream_list);
-	}
-
-	/* create playback streams */
-	for (i = num_capture; i < num_total; i++) {
-		struct sof_intel_hda_stream *hda_stream;
-
-		hda_stream = devm_kzalloc(sdev->dev, sizeof(*hda_stream),
-					  GFP_KERNEL);
-		if (!hda_stream)
-			return -ENOMEM;
-
-		hda_stream->sdev = sdev;
-
-		hext_stream = &hda_stream->hext_stream;
-
-		if (sdev->bar[HDA_DSP_PP_BAR]) {
-			hext_stream->pphc_addr = sdev->bar[HDA_DSP_PP_BAR] +
-				SOF_HDA_PPHC_BASE + SOF_HDA_PPHC_INTERVAL * i;
-
-			hext_stream->pplc_addr = sdev->bar[HDA_DSP_PP_BAR] +
-				SOF_HDA_PPLC_BASE + SOF_HDA_PPLC_MULTI * num_total +
-				SOF_HDA_PPLC_INTERVAL * i;
-		}
-
-		hstream = &hext_stream->hstream;
-
-		/* do we support SPIB */
-		if (sdev->bar[HDA_DSP_SPIB_BAR]) {
-			hstream->spib_addr = sdev->bar[HDA_DSP_SPIB_BAR] +
-				SOF_HDA_SPIB_BASE + SOF_HDA_SPIB_INTERVAL * i +
-				SOF_HDA_SPIB_SPIB;
-
-			hstream->fifo_addr = sdev->bar[HDA_DSP_SPIB_BAR] +
-				SOF_HDA_SPIB_BASE + SOF_HDA_SPIB_INTERVAL * i +
-				SOF_HDA_SPIB_MAXFIFO;
-		}
-
-		hstream->bus = bus;
-		hstream->sd_int_sta_mask = 1 << i;
-		hstream->index = i;
-		sd_offset = SOF_STREAM_SD_OFFSET(hstream);
-		hstream->sd_addr = sdev->bar[HDA_DSP_HDA_BAR] + sd_offset;
-		hstream->stream_tag = i - num_capture + 1;
-		hstream->opened = false;
-		hstream->running = false;
-		hstream->direction = SNDRV_PCM_STREAM_PLAYBACK;
 
 		/* mem alloc for stream BDL */
 		ret = snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, &pci->dev,

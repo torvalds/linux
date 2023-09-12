@@ -9,7 +9,7 @@
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_platform.h>
+#include <linux/platform_device.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/pm_runtime.h>
 #include <linux/pm_opp.h>
@@ -69,7 +69,7 @@
 				 WR_FIFO_OVERRUN)
 #define QSPI_ALL_IRQS		(QSPI_ERR_IRQS | RESP_FIFO_RDY | \
 				 WR_FIFO_EMPTY | WR_FIFO_FULL | \
-				 TRANSACTION_DONE)
+				 TRANSACTION_DONE | DMA_CHAIN_DONE)
 
 #define PIO_XFER_CTRL		0x0014
 #define REQUEST_COUNT_MSK	0xffff
@@ -247,11 +247,11 @@ static void qcom_qspi_pio_xfer(struct qcom_qspi *ctrl)
 	qcom_qspi_pio_xfer_ctrl(ctrl);
 }
 
-static void qcom_qspi_handle_err(struct spi_master *master,
+static void qcom_qspi_handle_err(struct spi_controller *host,
 				 struct spi_message *msg)
 {
 	u32 int_status;
-	struct qcom_qspi *ctrl = spi_master_get_devdata(master);
+	struct qcom_qspi *ctrl = spi_controller_get_devdata(host);
 	unsigned long flags;
 	int i;
 
@@ -308,9 +308,11 @@ static int qcom_qspi_alloc_desc(struct qcom_qspi *ctrl, dma_addr_t dma_ptr,
 	dma_addr_t dma_cmd_desc;
 
 	/* allocate for dma cmd descriptor */
-	virt_cmd_desc = dma_pool_alloc(ctrl->dma_cmd_pool, GFP_KERNEL | __GFP_ZERO, &dma_cmd_desc);
-	if (!virt_cmd_desc)
-		return -ENOMEM;
+	virt_cmd_desc = dma_pool_alloc(ctrl->dma_cmd_pool, GFP_ATOMIC | __GFP_ZERO, &dma_cmd_desc);
+	if (!virt_cmd_desc) {
+		dev_warn_once(ctrl->dev, "Couldn't find memory for descriptor\n");
+		return -EAGAIN;
+	}
 
 	ctrl->virt_cmd_desc[ctrl->n_cmd_desc] = virt_cmd_desc;
 	ctrl->dma_cmd_desc[ctrl->n_cmd_desc] = dma_cmd_desc;
@@ -355,8 +357,20 @@ static int qcom_qspi_setup_dma_desc(struct qcom_qspi *ctrl,
 
 	for (i = 0; i < sgt->nents; i++) {
 		dma_ptr_sg = sg_dma_address(sgt->sgl + i);
+		dma_len_sg = sg_dma_len(sgt->sgl + i);
 		if (!IS_ALIGNED(dma_ptr_sg, QSPI_ALIGN_REQ)) {
 			dev_warn_once(ctrl->dev, "dma_address not aligned to %d\n", QSPI_ALIGN_REQ);
+			return -EAGAIN;
+		}
+		/*
+		 * When reading with DMA the controller writes to memory 1 word
+		 * at a time. If the length isn't a multiple of 4 bytes then
+		 * the controller can clobber the things later in memory.
+		 * Fallback to PIO to be safe.
+		 */
+		if (ctrl->xfer.dir == QSPI_READ && (dma_len_sg & 0x03)) {
+			dev_warn_once(ctrl->dev, "fallback to PIO for read of size %#010x\n",
+				      dma_len_sg);
 			return -EAGAIN;
 		}
 	}
@@ -397,11 +411,11 @@ static bool qcom_qspi_can_dma(struct spi_controller *ctlr,
 	return xfer->len > QSPI_MAX_BYTES_FIFO;
 }
 
-static int qcom_qspi_transfer_one(struct spi_master *master,
+static int qcom_qspi_transfer_one(struct spi_controller *host,
 				  struct spi_device *slv,
 				  struct spi_transfer *xfer)
 {
-	struct qcom_qspi *ctrl = spi_master_get_devdata(master);
+	struct qcom_qspi *ctrl = spi_controller_get_devdata(host);
 	int ret;
 	unsigned long speed_hz;
 	unsigned long flags;
@@ -429,7 +443,7 @@ static int qcom_qspi_transfer_one(struct spi_master *master,
 		ctrl->xfer.tx_buf = xfer->tx_buf;
 	}
 	ctrl->xfer.is_last = list_is_last(&xfer->transfer_list,
-					  &master->cur_msg->transfers);
+					  &host->cur_msg->transfers);
 	ctrl->xfer.rem_bytes = xfer->len;
 
 	if (xfer->rx_sg.nents || xfer->tx_sg.nents) {
@@ -441,8 +455,10 @@ static int qcom_qspi_transfer_one(struct spi_master *master,
 
 		ret = qcom_qspi_setup_dma_desc(ctrl, xfer);
 		if (ret != -EAGAIN) {
-			if (!ret)
+			if (!ret) {
+				dma_wmb();
 				qcom_qspi_dma_xfer(ctrl);
+			}
 			goto exit;
 		}
 		dev_warn_once(ctrl->dev, "DMA failure, falling back to PIO\n");
@@ -465,7 +481,7 @@ exit:
 	return 1;
 }
 
-static int qcom_qspi_prepare_message(struct spi_master *master,
+static int qcom_qspi_prepare_message(struct spi_controller *host,
 				     struct spi_message *message)
 {
 	u32 mstr_cfg;
@@ -474,7 +490,7 @@ static int qcom_qspi_prepare_message(struct spi_master *master,
 	int tx_data_delay = 1;
 	unsigned long flags;
 
-	ctrl = spi_master_get_devdata(master);
+	ctrl = spi_controller_get_devdata(host);
 	spin_lock_irqsave(&ctrl->lock, flags);
 
 	mstr_cfg = readl(ctrl->base + MSTR_CONFIG);
@@ -603,6 +619,9 @@ static irqreturn_t qcom_qspi_irq(int irq, void *dev_id)
 	int_status = readl(ctrl->base + MSTR_INT_STATUS);
 	writel(int_status, ctrl->base + MSTR_INT_STATUS);
 
+	/* Ignore disabled interrupts */
+	int_status &= readl(ctrl->base + MSTR_INT_EN);
+
 	/* PIO mode handling */
 	if (ctrl->xfer.dir == QSPI_WRITE) {
 		if (int_status & WR_FIFO_EMPTY)
@@ -647,22 +666,46 @@ static irqreturn_t qcom_qspi_irq(int irq, void *dev_id)
 	return ret;
 }
 
+static int qcom_qspi_adjust_op_size(struct spi_mem *mem, struct spi_mem_op *op)
+{
+	/*
+	 * If qcom_qspi_can_dma() is going to return false we don't need to
+	 * adjust anything.
+	 */
+	if (op->data.nbytes <= QSPI_MAX_BYTES_FIFO)
+		return 0;
+
+	/*
+	 * When reading, the transfer needs to be a multiple of 4 bytes so
+	 * shrink the transfer if that's not true. The caller will then do a
+	 * second transfer to finish things up.
+	 */
+	if (op->data.dir == SPI_MEM_DATA_IN && (op->data.nbytes & 0x3))
+		op->data.nbytes &= ~0x3;
+
+	return 0;
+}
+
+static const struct spi_controller_mem_ops qcom_qspi_mem_ops = {
+	.adjust_op_size = qcom_qspi_adjust_op_size,
+};
+
 static int qcom_qspi_probe(struct platform_device *pdev)
 {
 	int ret;
 	struct device *dev;
-	struct spi_master *master;
+	struct spi_controller *host;
 	struct qcom_qspi *ctrl;
 
 	dev = &pdev->dev;
 
-	master = devm_spi_alloc_master(dev, sizeof(*ctrl));
-	if (!master)
+	host = devm_spi_alloc_host(dev, sizeof(*ctrl));
+	if (!host)
 		return -ENOMEM;
 
-	platform_set_drvdata(pdev, master);
+	platform_set_drvdata(pdev, host);
 
-	ctrl = spi_master_get_devdata(master);
+	ctrl = spi_controller_get_devdata(host);
 
 	spin_lock_init(&ctrl->lock);
 	ctrl->dev = dev;
@@ -715,22 +758,23 @@ static int qcom_qspi_probe(struct platform_device *pdev)
 	if (ret)
 		return dev_err_probe(dev, ret, "could not set DMA mask\n");
 
-	master->max_speed_hz = 300000000;
-	master->max_dma_len = 65536; /* as per HPG */
-	master->dma_alignment = QSPI_ALIGN_REQ;
-	master->num_chipselect = QSPI_NUM_CS;
-	master->bus_num = -1;
-	master->dev.of_node = pdev->dev.of_node;
-	master->mode_bits = SPI_MODE_0 |
-			    SPI_TX_DUAL | SPI_RX_DUAL |
-			    SPI_TX_QUAD | SPI_RX_QUAD;
-	master->flags = SPI_MASTER_HALF_DUPLEX;
-	master->prepare_message = qcom_qspi_prepare_message;
-	master->transfer_one = qcom_qspi_transfer_one;
-	master->handle_err = qcom_qspi_handle_err;
+	host->max_speed_hz = 300000000;
+	host->max_dma_len = 65536; /* as per HPG */
+	host->dma_alignment = QSPI_ALIGN_REQ;
+	host->num_chipselect = QSPI_NUM_CS;
+	host->bus_num = -1;
+	host->dev.of_node = pdev->dev.of_node;
+	host->mode_bits = SPI_MODE_0 |
+			  SPI_TX_DUAL | SPI_RX_DUAL |
+			  SPI_TX_QUAD | SPI_RX_QUAD;
+	host->flags = SPI_CONTROLLER_HALF_DUPLEX;
+	host->prepare_message = qcom_qspi_prepare_message;
+	host->transfer_one = qcom_qspi_transfer_one;
+	host->handle_err = qcom_qspi_handle_err;
 	if (of_property_read_bool(pdev->dev.of_node, "iommus"))
-		master->can_dma = qcom_qspi_can_dma;
-	master->auto_runtime_pm = true;
+		host->can_dma = qcom_qspi_can_dma;
+	host->auto_runtime_pm = true;
+	host->mem_ops = &qcom_qspi_mem_ops;
 
 	ret = devm_pm_opp_set_clkname(&pdev->dev, "core");
 	if (ret)
@@ -750,7 +794,7 @@ static int qcom_qspi_probe(struct platform_device *pdev)
 	pm_runtime_set_autosuspend_delay(dev, 250);
 	pm_runtime_enable(dev);
 
-	ret = spi_register_master(master);
+	ret = spi_register_controller(host);
 	if (!ret)
 		return 0;
 
@@ -761,18 +805,18 @@ static int qcom_qspi_probe(struct platform_device *pdev)
 
 static void qcom_qspi_remove(struct platform_device *pdev)
 {
-	struct spi_master *master = platform_get_drvdata(pdev);
+	struct spi_controller *host = platform_get_drvdata(pdev);
 
 	/* Unregister _before_ disabling pm_runtime() so we stop transfers */
-	spi_unregister_master(master);
+	spi_unregister_controller(host);
 
 	pm_runtime_disable(&pdev->dev);
 }
 
 static int __maybe_unused qcom_qspi_runtime_suspend(struct device *dev)
 {
-	struct spi_master *master = dev_get_drvdata(dev);
-	struct qcom_qspi *ctrl = spi_master_get_devdata(master);
+	struct spi_controller *host = dev_get_drvdata(dev);
+	struct qcom_qspi *ctrl = spi_controller_get_devdata(host);
 	int ret;
 
 	/* Drop the performance state vote */
@@ -793,8 +837,8 @@ static int __maybe_unused qcom_qspi_runtime_suspend(struct device *dev)
 
 static int __maybe_unused qcom_qspi_runtime_resume(struct device *dev)
 {
-	struct spi_master *master = dev_get_drvdata(dev);
-	struct qcom_qspi *ctrl = spi_master_get_devdata(master);
+	struct spi_controller *host = dev_get_drvdata(dev);
+	struct qcom_qspi *ctrl = spi_controller_get_devdata(host);
 	int ret;
 
 	pinctrl_pm_select_default_state(dev);
@@ -815,30 +859,30 @@ static int __maybe_unused qcom_qspi_runtime_resume(struct device *dev)
 
 static int __maybe_unused qcom_qspi_suspend(struct device *dev)
 {
-	struct spi_master *master = dev_get_drvdata(dev);
+	struct spi_controller *host = dev_get_drvdata(dev);
 	int ret;
 
-	ret = spi_master_suspend(master);
+	ret = spi_controller_suspend(host);
 	if (ret)
 		return ret;
 
 	ret = pm_runtime_force_suspend(dev);
 	if (ret)
-		spi_master_resume(master);
+		spi_controller_resume(host);
 
 	return ret;
 }
 
 static int __maybe_unused qcom_qspi_resume(struct device *dev)
 {
-	struct spi_master *master = dev_get_drvdata(dev);
+	struct spi_controller *host = dev_get_drvdata(dev);
 	int ret;
 
 	ret = pm_runtime_force_resume(dev);
 	if (ret)
 		return ret;
 
-	ret = spi_master_resume(master);
+	ret = spi_controller_resume(host);
 	if (ret)
 		pm_runtime_force_suspend(dev);
 

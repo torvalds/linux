@@ -663,6 +663,7 @@ struct ocelot_ops {
 			      struct flow_stats *stats);
 	void (*cut_through_fwd)(struct ocelot *ocelot);
 	void (*tas_clock_adjust)(struct ocelot *ocelot);
+	void (*tas_guard_bands_update)(struct ocelot *ocelot, int port);
 	void (*update_stats)(struct ocelot *ocelot);
 };
 
@@ -863,11 +864,11 @@ struct ocelot {
 	struct mutex			stat_view_lock;
 	/* Lock for serializing access to the MAC table */
 	struct mutex			mact_lock;
-	/* Lock for serializing forwarding domain changes */
+	/* Lock for serializing forwarding domain changes, including the
+	 * configuration of the Time-Aware Shaper, MAC Merge layer and
+	 * cut-through forwarding, on which it depends
+	 */
 	struct mutex			fwd_domain_lock;
-
-	/* Lock for serializing Time-Aware Shaper changes */
-	struct mutex			tas_lock;
 
 	struct workqueue_struct		*owq;
 
@@ -1164,7 +1165,6 @@ int ocelot_port_get_mm(struct ocelot *ocelot, int port,
 		       struct ethtool_mm_state *state);
 int ocelot_port_mqprio(struct ocelot *ocelot, int port,
 		       struct tc_mqprio_qopt_offload *mqprio);
-void ocelot_port_update_preemptible_tcs(struct ocelot *ocelot, int port);
 
 #if IS_ENABLED(CONFIG_BRIDGE_MRP)
 int ocelot_mrp_add(struct ocelot *ocelot, int port,

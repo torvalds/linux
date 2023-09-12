@@ -158,7 +158,6 @@ int llc_conn_ev_p_tmr_exp(struct sock *sk, struct sk_buff *skb);
 int llc_conn_ev_ack_tmr_exp(struct sock *sk, struct sk_buff *skb);
 int llc_conn_ev_rej_tmr_exp(struct sock *sk, struct sk_buff *skb);
 int llc_conn_ev_busy_tmr_exp(struct sock *sk, struct sk_buff *skb);
-int llc_conn_ev_sendack_tmr_exp(struct sock *sk, struct sk_buff *skb);
 /* NOT_USED functions and their variations */
 int llc_conn_ev_rx_xxx_cmd_pbit_set_1(struct sock *sk, struct sk_buff *skb);
 int llc_conn_ev_rx_xxx_rsp_fbit_set_1(struct sock *sk, struct sk_buff *skb);

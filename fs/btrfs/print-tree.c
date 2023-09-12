@@ -95,8 +95,10 @@ static void print_extent_item(const struct extent_buffer *eb, int slot, int type
 	int ref_index = 0;
 
 	if (unlikely(item_size < sizeof(*ei))) {
-		btrfs_print_v0_err(eb->fs_info);
-		btrfs_handle_fs_error(eb->fs_info, -EINVAL, NULL);
+		btrfs_err(eb->fs_info,
+			  "unexpected extent item size, has %u expect >= %zu",
+			  item_size, sizeof(*ei));
+		btrfs_handle_fs_error(eb->fs_info, -EUCLEAN, NULL);
 	}
 
 	ei = btrfs_item_ptr(eb, slot, struct btrfs_extent_item);
@@ -290,10 +292,6 @@ void btrfs_print_leaf(const struct extent_buffer *l)
 			       btrfs_file_extent_offset(l, fi),
 			       btrfs_file_extent_num_bytes(l, fi),
 			       btrfs_file_extent_ram_bytes(l, fi));
-			break;
-		case BTRFS_EXTENT_REF_V0_KEY:
-			btrfs_print_v0_err(fs_info);
-			btrfs_handle_fs_error(fs_info, -EINVAL, NULL);
 			break;
 		case BTRFS_BLOCK_GROUP_ITEM_KEY:
 			bi = btrfs_item_ptr(l, i,

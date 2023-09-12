@@ -167,6 +167,11 @@
 	status = "okay";
 };
 
+/* Verdin CAN_2 */
+&mcu_mcan0 {
+	status = "okay";
+};
+
 /* Verdin UART_4 */
 &mcu_uart0 {
 	status = "okay";

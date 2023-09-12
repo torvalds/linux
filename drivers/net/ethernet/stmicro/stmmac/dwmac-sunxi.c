@@ -72,7 +72,7 @@ static void sun7i_gmac_exit(struct platform_device *pdev, void *priv)
 		regulator_disable(gmac->regulator);
 }
 
-static void sun7i_fix_speed(void *priv, unsigned int speed)
+static void sun7i_fix_speed(void *priv, unsigned int speed, unsigned int mode)
 {
 	struct sunxi_priv_data *gmac = priv;
 

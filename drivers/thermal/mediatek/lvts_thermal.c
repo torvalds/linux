@@ -13,7 +13,7 @@
 #include <linux/iopoll.h>
 #include <linux/kernel.h>
 #include <linux/nvmem-consumer.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/reset.h>
 #include <linux/thermal.h>
@@ -58,14 +58,19 @@
 #define LVTS_PROTTC(__base)		(__base + 0x00CC)
 #define LVTS_CLKEN(__base)		(__base + 0x00E4)
 
-#define LVTS_PERIOD_UNIT			((118 * 1000) / (256 * 38))
-#define LVTS_GROUP_INTERVAL			1
-#define LVTS_FILTER_INTERVAL		1
-#define LVTS_SENSOR_INTERVAL		1
-#define LVTS_HW_FILTER				0x2
+#define LVTS_PERIOD_UNIT			0
+#define LVTS_GROUP_INTERVAL			0
+#define LVTS_FILTER_INTERVAL		0
+#define LVTS_SENSOR_INTERVAL		0
+#define LVTS_HW_FILTER				0x0
 #define LVTS_TSSEL_CONF				0x13121110
 #define LVTS_CALSCALE_CONF			0x300
-#define LVTS_MONINT_CONF			0x9FBF7BDE
+#define LVTS_MONINT_CONF			0x8300318C
+
+#define LVTS_MONINT_OFFSET_SENSOR0		0xC
+#define LVTS_MONINT_OFFSET_SENSOR1		0x180
+#define LVTS_MONINT_OFFSET_SENSOR2		0x3000
+#define LVTS_MONINT_OFFSET_SENSOR3		0x3000000
 
 #define LVTS_INT_SENSOR0			0x0009001F
 #define LVTS_INT_SENSOR1			0x001203E0
@@ -81,7 +86,12 @@
 #define LVTS_MSR_IMMEDIATE_MODE		0
 #define LVTS_MSR_FILTERED_MODE		1
 
+#define LVTS_MSR_READ_TIMEOUT_US	400
+#define LVTS_MSR_READ_WAIT_US		(LVTS_MSR_READ_TIMEOUT_US / 2)
+
 #define LVTS_HW_SHUTDOWN_MT8195		105000
+
+#define LVTS_MINIMUM_THRESHOLD		20000
 
 static int golden_temp = LVTS_GOLDEN_TEMP_DEFAULT;
 static int coeff_b = LVTS_COEFF_B;
@@ -110,6 +120,8 @@ struct lvts_sensor {
 	void __iomem *base;
 	int id;
 	int dt_id;
+	int low_thresh;
+	int high_thresh;
 };
 
 struct lvts_ctrl {
@@ -119,6 +131,8 @@ struct lvts_ctrl {
 	int num_lvts_sensor;
 	int mode;
 	void __iomem *base;
+	int low_thresh;
+	int high_thresh;
 };
 
 struct lvts_domain {
@@ -190,7 +204,7 @@ static int lvts_debugfs_init(struct device *dev, struct lvts_domain *lvts_td)
 	int i;
 
 	lvts_td->dom_dentry = debugfs_create_dir(dev_name(dev), NULL);
-	if (!lvts_td->dom_dentry)
+	if (IS_ERR(lvts_td->dom_dentry))
 		return 0;
 
 	for (i = 0; i < lvts_td->num_lvts_ctrl; i++) {
@@ -257,6 +271,7 @@ static int lvts_get_temp(struct thermal_zone_device *tz, int *temp)
 	struct lvts_sensor *lvts_sensor = thermal_zone_device_priv(tz);
 	void __iomem *msr = lvts_sensor->msr;
 	u32 value;
+	int rc;
 
 	/*
 	 * Measurement registers:
@@ -269,7 +284,8 @@ static int lvts_get_temp(struct thermal_zone_device *tz, int *temp)
 	 * 16	: Valid temperature
 	 * 15-0	: Raw temperature
 	 */
-	value = readl(msr);
+	rc = readl_poll_timeout(msr, value, value & BIT(16),
+				LVTS_MSR_READ_WAIT_US, LVTS_MSR_READ_TIMEOUT_US);
 
 	/*
 	 * As the thermal zone temperature will read before the
@@ -282,7 +298,7 @@ static int lvts_get_temp(struct thermal_zone_device *tz, int *temp)
 	 * functionning temperature and directly jump to a system
 	 * shutdown.
 	 */
-	if (!(value & BIT(16)))
+	if (rc)
 		return -EAGAIN;
 
 	*temp = lvts_raw_to_temp(value & 0xFFFF);
@@ -290,32 +306,84 @@ static int lvts_get_temp(struct thermal_zone_device *tz, int *temp)
 	return 0;
 }
 
+static void lvts_update_irq_mask(struct lvts_ctrl *lvts_ctrl)
+{
+	u32 masks[] = {
+		LVTS_MONINT_OFFSET_SENSOR0,
+		LVTS_MONINT_OFFSET_SENSOR1,
+		LVTS_MONINT_OFFSET_SENSOR2,
+		LVTS_MONINT_OFFSET_SENSOR3,
+	};
+	u32 value = 0;
+	int i;
+
+	value = readl(LVTS_MONINT(lvts_ctrl->base));
+
+	for (i = 0; i < ARRAY_SIZE(masks); i++) {
+		if (lvts_ctrl->sensors[i].high_thresh == lvts_ctrl->high_thresh
+		    && lvts_ctrl->sensors[i].low_thresh == lvts_ctrl->low_thresh)
+			value |= masks[i];
+		else
+			value &= ~masks[i];
+	}
+
+	writel(value, LVTS_MONINT(lvts_ctrl->base));
+}
+
+static bool lvts_should_update_thresh(struct lvts_ctrl *lvts_ctrl, int high)
+{
+	int i;
+
+	if (high > lvts_ctrl->high_thresh)
+		return true;
+
+	for (i = 0; i < lvts_ctrl->num_lvts_sensor; i++)
+		if (lvts_ctrl->sensors[i].high_thresh == lvts_ctrl->high_thresh
+		    && lvts_ctrl->sensors[i].low_thresh == lvts_ctrl->low_thresh)
+			return false;
+
+	return true;
+}
+
 static int lvts_set_trips(struct thermal_zone_device *tz, int low, int high)
 {
 	struct lvts_sensor *lvts_sensor = thermal_zone_device_priv(tz);
+	struct lvts_ctrl *lvts_ctrl = container_of(lvts_sensor, struct lvts_ctrl, sensors[lvts_sensor->id]);
 	void __iomem *base = lvts_sensor->base;
-	u32 raw_low = lvts_temp_to_raw(low);
+	u32 raw_low = lvts_temp_to_raw(low != -INT_MAX ? low : LVTS_MINIMUM_THRESHOLD);
 	u32 raw_high = lvts_temp_to_raw(high);
+	bool should_update_thresh;
+
+	lvts_sensor->low_thresh = low;
+	lvts_sensor->high_thresh = high;
+
+	should_update_thresh = lvts_should_update_thresh(lvts_ctrl, high);
+	if (should_update_thresh) {
+		lvts_ctrl->high_thresh = high;
+		lvts_ctrl->low_thresh = low;
+	}
+	lvts_update_irq_mask(lvts_ctrl);
+
+	if (!should_update_thresh)
+		return 0;
 
 	/*
-	 * Hot to normal temperature threshold
+	 * Low offset temperature threshold
 	 *
-	 * LVTS_H2NTHRE
+	 * LVTS_OFFSETL
 	 *
 	 * Bits:
 	 *
 	 * 14-0 : Raw temperature for threshold
 	 */
-	if (low != -INT_MAX) {
-		pr_debug("%s: Setting low limit temperature interrupt: %d\n",
-			 thermal_zone_device_type(tz), low);
-		writel(raw_low, LVTS_H2NTHRE(base));
-	}
+	pr_debug("%s: Setting low limit temperature interrupt: %d\n",
+		 thermal_zone_device_type(tz), low);
+	writel(raw_low, LVTS_OFFSETL(base));
 
 	/*
-	 * Hot temperature threshold
+	 * High offset temperature threshold
 	 *
-	 * LVTS_HTHRE
+	 * LVTS_OFFSETH
 	 *
 	 * Bits:
 	 *
@@ -323,7 +391,7 @@ static int lvts_set_trips(struct thermal_zone_device *tz, int low, int high)
 	 */
 	pr_debug("%s: Setting high limit temperature interrupt: %d\n",
 		 thermal_zone_device_type(tz), high);
-	writel(raw_high, LVTS_HTHRE(base));
+	writel(raw_high, LVTS_OFFSETH(base));
 
 	return 0;
 }
@@ -451,7 +519,7 @@ static irqreturn_t lvts_irq_handler(int irq, void *data)
 
 	for (i = 0; i < lvts_td->num_lvts_ctrl; i++) {
 
-		aux = lvts_ctrl_irq_handler(lvts_td->lvts_ctrl);
+		aux = lvts_ctrl_irq_handler(&lvts_td->lvts_ctrl[i]);
 		if (aux != IRQ_HANDLED)
 			continue;
 
@@ -521,6 +589,9 @@ static int lvts_sensor_init(struct device *dev, struct lvts_ctrl *lvts_ctrl,
 		 */
 		lvts_sensor[i].msr = lvts_ctrl_data->mode == LVTS_MSR_IMMEDIATE_MODE ?
 			imm_regs[i] : msr_regs[i];
+
+		lvts_sensor[i].low_thresh = INT_MIN;
+		lvts_sensor[i].high_thresh = INT_MIN;
 	};
 
 	lvts_ctrl->num_lvts_sensor = lvts_ctrl_data->num_lvts_sensor;
@@ -688,6 +759,9 @@ static int lvts_ctrl_init(struct device *dev, struct lvts_domain *lvts_td,
 		 */
 		lvts_ctrl[i].hw_tshut_raw_temp =
 			lvts_temp_to_raw(lvts_data->lvts_ctrl[i].hw_tshut_temp);
+
+		lvts_ctrl[i].low_thresh = INT_MIN;
+		lvts_ctrl[i].high_thresh = INT_MIN;
 	}
 
 	/*
@@ -897,24 +971,6 @@ static int lvts_ctrl_configure(struct device *dev, struct lvts_ctrl *lvts_ctrl)
 	writel(value, LVTS_MSRCTL0(lvts_ctrl->base));
 
 	/*
-	 * LVTS_MSRCTL1 : Measurement control
-	 *
-	 * Bits:
-	 *
-	 * 9: Ignore MSRCTL0 config and do immediate measurement on sensor3
-	 * 6: Ignore MSRCTL0 config and do immediate measurement on sensor2
-	 * 5: Ignore MSRCTL0 config and do immediate measurement on sensor1
-	 * 4: Ignore MSRCTL0 config and do immediate measurement on sensor0
-	 *
-	 * That configuration will ignore the filtering and the delays
-	 * introduced below in MONCTL1 and MONCTL2
-	 */
-	if (lvts_ctrl->mode == LVTS_MSR_IMMEDIATE_MODE) {
-		value = BIT(9) | BIT(6) | BIT(5) | BIT(4);
-		writel(value, LVTS_MSRCTL1(lvts_ctrl->base));
-	}
-
-	/*
 	 * LVTS_MONCTL1 : Period unit and group interval configuration
 	 *
 	 * The clock source of LVTS thermal controller is 26MHz.
@@ -979,6 +1035,15 @@ static int lvts_ctrl_start(struct device *dev, struct lvts_ctrl *lvts_ctrl)
 	struct thermal_zone_device *tz;
 	u32 sensor_map = 0;
 	int i;
+	/*
+	 * Bitmaps to enable each sensor on immediate and filtered modes, as
+	 * described in MSRCTL1 and MONCTL0 registers below, respectively.
+	 */
+	u32 sensor_imm_bitmap[] = { BIT(4), BIT(5), BIT(6), BIT(9) };
+	u32 sensor_filt_bitmap[] = { BIT(0), BIT(1), BIT(2), BIT(3) };
+
+	u32 *sensor_bitmap = lvts_ctrl->mode == LVTS_MSR_IMMEDIATE_MODE ?
+			     sensor_imm_bitmap : sensor_filt_bitmap;
 
 	for (i = 0; i < lvts_ctrl->num_lvts_sensor; i++) {
 
@@ -1016,20 +1081,38 @@ static int lvts_ctrl_start(struct device *dev, struct lvts_ctrl *lvts_ctrl)
 		 * map, so we can enable the temperature monitoring in
 		 * the hardware thermal controller.
 		 */
-		sensor_map |= BIT(i);
+		sensor_map |= sensor_bitmap[i];
 	}
 
 	/*
-	 * Bits:
-	 *      9: Single point access flow
-	 *    0-3: Enable sensing point 0-3
-	 *
 	 * The initialization of the thermal zones give us
 	 * which sensor point to enable. If any thermal zone
 	 * was not described in the device tree, it won't be
 	 * enabled here in the sensor map.
 	 */
-	writel(sensor_map | BIT(9), LVTS_MONCTL0(lvts_ctrl->base));
+	if (lvts_ctrl->mode == LVTS_MSR_IMMEDIATE_MODE) {
+		/*
+		 * LVTS_MSRCTL1 : Measurement control
+		 *
+		 * Bits:
+		 *
+		 * 9: Ignore MSRCTL0 config and do immediate measurement on sensor3
+		 * 6: Ignore MSRCTL0 config and do immediate measurement on sensor2
+		 * 5: Ignore MSRCTL0 config and do immediate measurement on sensor1
+		 * 4: Ignore MSRCTL0 config and do immediate measurement on sensor0
+		 *
+		 * That configuration will ignore the filtering and the delays
+		 * introduced in MONCTL1 and MONCTL2
+		 */
+		writel(sensor_map, LVTS_MSRCTL1(lvts_ctrl->base));
+	} else {
+		/*
+		 * Bits:
+		 *      9: Single point access flow
+		 *    0-3: Enable sensing point 0-3
+		 */
+		writel(sensor_map | BIT(9), LVTS_MONCTL0(lvts_ctrl->base));
+	}
 
 	return 0;
 }
@@ -1138,7 +1221,7 @@ static int lvts_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
-		return dev_err_probe(dev, irq, "No irq resource\n");
+		return irq;
 
 	ret = lvts_domain_init(dev, lvts_td, lvts_data);
 	if (ret)

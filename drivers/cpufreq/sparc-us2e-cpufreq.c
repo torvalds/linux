@@ -269,7 +269,7 @@ static int us2e_freq_target(struct cpufreq_policy *policy, unsigned int index)
 	return smp_call_function_single(cpu, __us2e_freq_target, &index, 1);
 }
 
-static int __init us2e_freq_cpu_init(struct cpufreq_policy *policy)
+static int us2e_freq_cpu_init(struct cpufreq_policy *policy)
 {
 	unsigned int cpu = policy->cpu;
 	unsigned long clock_tick = sparc64_get_clock_tick(cpu) / 1000;

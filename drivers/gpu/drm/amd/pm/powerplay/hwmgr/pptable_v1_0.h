@@ -419,8 +419,7 @@ typedef struct _ATOM_Fiji_PowerTune_Table {
 	USHORT usReserved;
 } ATOM_Fiji_PowerTune_Table;
 
-typedef struct _ATOM_Polaris_PowerTune_Table
-{
+typedef struct _ATOM_Polaris_PowerTune_Table {
     UCHAR  ucRevId;
     USHORT usTDP;
     USHORT usConfigurableTDP;

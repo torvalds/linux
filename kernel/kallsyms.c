@@ -163,42 +163,36 @@ unsigned long kallsyms_sym_address(int idx)
 	return kallsyms_relative_base - 1 - kallsyms_offsets[idx];
 }
 
-static bool cleanup_symbol_name(char *s)
+static void cleanup_symbol_name(char *s)
 {
 	char *res;
 
 	if (!IS_ENABLED(CONFIG_LTO_CLANG))
-		return false;
+		return;
 
 	/*
 	 * LLVM appends various suffixes for local functions and variables that
 	 * must be promoted to global scope as part of LTO.  This can break
 	 * hooking of static functions with kprobes. '.' is not a valid
-	 * character in an identifier in C. Suffixes observed:
+	 * character in an identifier in C. Suffixes only in LLVM LTO observed:
 	 * - foo.llvm.[0-9a-f]+
-	 * - foo.[0-9a-f]+
 	 */
-	res = strchr(s, '.');
-	if (res) {
+	res = strstr(s, ".llvm.");
+	if (res)
 		*res = '\0';
-		return true;
-	}
 
-	return false;
+	return;
 }
 
 static int compare_symbol_name(const char *name, char *namebuf)
 {
-	int ret;
-
-	ret = strcmp(name, namebuf);
-	if (!ret)
-		return ret;
-
-	if (cleanup_symbol_name(namebuf) && !strcmp(name, namebuf))
-		return 0;
-
-	return ret;
+	/* The kallsyms_seqs_of_names is sorted based on names after
+	 * cleanup_symbol_name() (see scripts/kallsyms.c) if clang lto is enabled.
+	 * To ensure correct bisection in kallsyms_lookup_names(), do
+	 * cleanup_symbol_name(namebuf) before comparing name and namebuf.
+	 */
+	cleanup_symbol_name(namebuf);
+	return strcmp(name, namebuf);
 }
 
 static unsigned int get_symbol_seq(int index)

@@ -8,17 +8,9 @@
 **	(c) Copyright 2000 Ryan Bradetich
 **	(c) Copyright 2000 Hewlett-Packard Company
 **
-**
-**
 **  "Real Mode" operation refers to U2/Uturn chip operation.
 **  U2/Uturn were designed to perform coherency checks w/o using
 **  the I/O MMU - basically what x86 does.
-**
-**  Philipp Rumpf has a "Real Mode" driver for PCX-W machines at:
-**      CVSROOT=:pserver:anonymous@198.186.203.37:/cvsroot/linux-parisc
-**      cvs -z3 co linux/arch/parisc/kernel/dma-rm.c
-**
-**  I've rewritten his code to work under TPG's tree. See ccio-rm-dma.c.
 **
 **  Drawbacks of using Real Mode are:
 **	o outbound DMA is slower - U2 won't prefetch data (GSC+ XQL signal).
@@ -70,8 +62,6 @@
 /* depends on proc fs support. But costs CPU performance. */
 #undef CCIO_COLLECT_STATS
 #endif
-
-#include <asm/runway.h>		/* for proc_runway_root */
 
 #ifdef DEBUG_CCIO_INIT
 #define DBG_INIT(x...)  printk(x)
@@ -1567,10 +1557,15 @@ static int __init ccio_probe(struct parisc_device *dev)
 
 #ifdef CONFIG_PROC_FS
 	if (ioc_count == 0) {
-		proc_create_single(MODULE_NAME, 0, proc_runway_root,
+		struct proc_dir_entry *runway;
+
+		runway = proc_mkdir("bus/runway", NULL);
+		if (runway) {
+			proc_create_single(MODULE_NAME, 0, runway,
 				ccio_proc_info);
-		proc_create_single(MODULE_NAME"-bitmap", 0, proc_runway_root,
+			proc_create_single(MODULE_NAME"-bitmap", 0, runway,
 				ccio_proc_bitmap_info);
+		}
 	}
 #endif
 	ioc_count++;
@@ -1582,8 +1577,8 @@ static int __init ccio_probe(struct parisc_device *dev)
  *
  * Register this driver.
  */
-void __init ccio_init(void)
+static int __init ccio_init(void)
 {
-	register_parisc_driver(&ccio_driver);
+	return register_parisc_driver(&ccio_driver);
 }
-
+arch_initcall(ccio_init);

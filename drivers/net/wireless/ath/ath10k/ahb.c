@@ -5,7 +5,7 @@
  */
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
+#include <linux/platform_device.h>
 #include <linux/clk.h>
 #include <linux/reset.h>
 #include "core.h"
@@ -733,7 +733,7 @@ static int ath10k_ahb_probe(struct platform_device *pdev)
 	int ret;
 	struct ath10k_bus_params bus_params = {};
 
-	hw_rev = (enum ath10k_hw_rev)of_device_get_match_data(&pdev->dev);
+	hw_rev = (uintptr_t)of_device_get_match_data(&pdev->dev);
 	if (!hw_rev) {
 		dev_err(&pdev->dev, "OF data missing\n");
 		return -EINVAL;

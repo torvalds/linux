@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2020-2022 Intel Corporation
+ * Copyright (C) 2020-2023 Intel Corporation
  */
 #ifndef __iwl_trans_queue_tx_h__
 #define __iwl_trans_queue_tx_h__
@@ -38,7 +38,7 @@ static inline void iwl_wake_queue(struct iwl_trans *trans,
 static inline void *iwl_txq_get_tfd(struct iwl_trans *trans,
 				    struct iwl_txq *txq, int idx)
 {
-	if (trans->trans_cfg->use_tfh)
+	if (trans->trans_cfg->gen2)
 		idx = iwl_txq_get_cmd_index(txq, idx);
 
 	return (u8 *)txq->tfds + trans->txqs.tfd.size * idx;
@@ -131,17 +131,8 @@ struct iwl_tso_hdr_page *get_page_hdr(struct iwl_trans *trans, size_t len,
 				      struct sk_buff *skb);
 #endif
 static inline u8 iwl_txq_gen1_tfd_get_num_tbs(struct iwl_trans *trans,
-					      void *_tfd)
+					      struct iwl_tfd *tfd)
 {
-	struct iwl_tfd *tfd;
-
-	if (trans->trans_cfg->use_tfh) {
-		struct iwl_tfh_tfd *tfh_tfd = _tfd;
-
-		return le16_to_cpu(tfh_tfd->num_tbs) & 0x1f;
-	}
-
-	tfd = (struct iwl_tfd *)_tfd;
 	return tfd->num_tbs & 0x1f;
 }
 
@@ -151,7 +142,7 @@ static inline u16 iwl_txq_gen1_tfd_tb_get_len(struct iwl_trans *trans,
 	struct iwl_tfd *tfd;
 	struct iwl_tfd_tb *tb;
 
-	if (trans->trans_cfg->use_tfh) {
+	if (trans->trans_cfg->gen2) {
 		struct iwl_tfh_tfd *tfh_tfd = _tfd;
 		struct iwl_tfh_tb *tfh_tb = &tfh_tfd->tbs[idx];
 
@@ -162,6 +153,21 @@ static inline u16 iwl_txq_gen1_tfd_tb_get_len(struct iwl_trans *trans,
 	tb = &tfd->tbs[idx];
 
 	return le16_to_cpu(tb->hi_n_len) >> 4;
+}
+
+static inline void iwl_pcie_gen1_tfd_set_tb(struct iwl_trans *trans,
+					    struct iwl_tfd *tfd,
+					    u8 idx, dma_addr_t addr, u16 len)
+{
+	struct iwl_tfd_tb *tb = &tfd->tbs[idx];
+	u16 hi_n_len = len << 4;
+
+	put_unaligned_le32(addr, &tb->lo);
+	hi_n_len |= iwl_get_dma_hi_addr(addr);
+
+	tb->hi_n_len = cpu_to_le16(hi_n_len);
+
+	tfd->num_tbs = idx + 1;
 }
 
 void iwl_txq_gen1_tfd_unmap(struct iwl_trans *trans,

@@ -10,7 +10,6 @@
 #include <linux/clkdev.h>
 #include <linux/spinlock.h>
 #include <linux/of.h>
-#include <linux/of_platform.h>
 #include <linux/of_address.h>
 
 #include <lantiq_soc.h>

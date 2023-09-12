@@ -18,23 +18,36 @@
 #include <linux/net_tstamp.h>
 
 #define PHY_ID_TJA_1103			0x001BB010
-
-#define PMAPMD_B100T1_PMAPMD_CTL	0x0834
-#define B100T1_PMAPMD_CONFIG_EN		BIT(15)
-#define B100T1_PMAPMD_MASTER		BIT(14)
-#define MASTER_MODE			(B100T1_PMAPMD_CONFIG_EN | \
-					 B100T1_PMAPMD_MASTER)
-#define SLAVE_MODE			(B100T1_PMAPMD_CONFIG_EN)
+#define PHY_ID_TJA_1120			0x001BB031
 
 #define VEND1_DEVICE_CONTROL		0x0040
 #define DEVICE_CONTROL_RESET		BIT(15)
 #define DEVICE_CONTROL_CONFIG_GLOBAL_EN	BIT(14)
 #define DEVICE_CONTROL_CONFIG_ALL_EN	BIT(13)
 
+#define VEND1_DEVICE_CONFIG		0x0048
+
+#define TJA1120_VEND1_EXT_TS_MODE	0x1012
+
+#define TJA1120_GLOBAL_INFRA_IRQ_ACK	0x2C08
+#define TJA1120_GLOBAL_INFRA_IRQ_EN	0x2C0A
+#define TJA1120_GLOBAL_INFRA_IRQ_STATUS	0x2C0C
+#define TJA1120_DEV_BOOT_DONE		BIT(1)
+
+#define TJA1120_VEND1_PTP_TRIG_DATA_S	0x1070
+
+#define TJA1120_EGRESS_TS_DATA_S	0x9060
+#define TJA1120_EGRESS_TS_END		0x9067
+#define TJA1120_TS_VALID		BIT(0)
+#define TJA1120_MORE_TS			BIT(15)
+
 #define VEND1_PHY_IRQ_ACK		0x80A0
 #define VEND1_PHY_IRQ_EN		0x80A1
 #define VEND1_PHY_IRQ_STATUS		0x80A2
 #define PHY_IRQ_LINK_EVENT		BIT(1)
+
+#define VEND1_ALWAYS_ACCESSIBLE		0x801F
+#define FUSA_PASS			BIT(4)
 
 #define VEND1_PHY_CONTROL		0x8100
 #define PHY_CONFIG_EN			BIT(14)
@@ -43,15 +56,16 @@
 #define VEND1_PHY_CONFIG		0x8108
 #define PHY_CONFIG_AUTO			BIT(0)
 
+#define TJA1120_EPHY_RESETS		0x810A
+#define EPHY_PCS_RESET			BIT(3)
+
 #define VEND1_SIGNAL_QUALITY		0x8320
 #define SQI_VALID			BIT(14)
 #define SQI_MASK			GENMASK(2, 0)
 #define MAX_SQI				SQI_MASK
 
-#define VEND1_CABLE_TEST		0x8330
 #define CABLE_TEST_ENABLE		BIT(15)
 #define CABLE_TEST_START		BIT(14)
-#define CABLE_TEST_VALID		BIT(13)
 #define CABLE_TEST_OK			0x00
 #define CABLE_TEST_SHORTED		0x01
 #define CABLE_TEST_OPEN			0x02
@@ -62,6 +76,12 @@
 
 #define VEND1_PORT_ABILITIES		0x8046
 #define PTP_ABILITY			BIT(3)
+
+#define VEND1_PORT_FUNC_IRQ_EN		0x807A
+#define PTP_IRQS			BIT(3)
+
+#define VEND1_PTP_IRQ_ACK		0x9008
+#define EGR_TS_IRQ			BIT(1)
 
 #define VEND1_PORT_INFRA_CONTROL	0xAC00
 #define PORT_INFRA_CONTROL_EN		BIT(14)
@@ -85,12 +105,17 @@
 #define MII_BASIC_CONFIG_RMII		0x5
 #define MII_BASIC_CONFIG_MII		0x4
 
+#define VEND1_SYMBOL_ERROR_CNT_XTD	0x8351
+#define EXTENDED_CNT_EN			BIT(15)
+#define VEND1_MONITOR_STATUS		0xAC80
+#define MONITOR_RESET			BIT(15)
+#define VEND1_MONITOR_CONFIG		0xAC86
+#define LOST_FRAMES_CNT_EN		BIT(9)
+#define ALL_FRAMES_CNT_EN		BIT(8)
+
 #define VEND1_SYMBOL_ERROR_COUNTER	0x8350
 #define VEND1_LINK_DROP_COUNTER		0x8352
 #define VEND1_LINK_LOSSES_AND_FAILURES	0x8353
-#define VEND1_R_GOOD_FRAME_CNT		0xA950
-#define VEND1_R_BAD_FRAME_CNT		0xA952
-#define VEND1_R_RXER_FRAME_CNT		0xA954
 #define VEND1_RX_PREAMBLE_COUNT		0xAFCE
 #define VEND1_TX_PREAMBLE_COUNT		0xAFCF
 #define VEND1_RX_IPG_LENGTH		0xAFD0
@@ -99,80 +124,42 @@
 
 #define VEND1_PTP_CONFIG		0x1102
 #define EXT_TRG_EDGE			BIT(1)
-#define PPS_OUT_POL			BIT(2)
-#define PPS_OUT_EN			BIT(3)
 
-#define VEND1_LTC_LOAD_CTRL		0x1105
-#define READ_LTC			BIT(2)
-#define LOAD_LTC			BIT(0)
+#define TJA1120_SYNC_TRIG_FILTER	0x1010
+#define PTP_TRIG_RISE_TS		BIT(3)
+#define PTP_TRIG_FALLING_TS		BIT(2)
 
-#define VEND1_LTC_WR_NSEC_0		0x1106
-#define VEND1_LTC_WR_NSEC_1		0x1107
-#define VEND1_LTC_WR_SEC_0		0x1108
-#define VEND1_LTC_WR_SEC_1		0x1109
-
-#define VEND1_LTC_RD_NSEC_0		0x110A
-#define VEND1_LTC_RD_NSEC_1		0x110B
-#define VEND1_LTC_RD_SEC_0		0x110C
-#define VEND1_LTC_RD_SEC_1		0x110D
-
-#define VEND1_RATE_ADJ_SUBNS_0		0x110F
-#define VEND1_RATE_ADJ_SUBNS_1		0x1110
 #define CLK_RATE_ADJ_LD			BIT(15)
 #define CLK_RATE_ADJ_DIR		BIT(14)
 
-#define VEND1_HW_LTC_LOCK_CTRL		0x1115
-#define HW_LTC_LOCK_EN			BIT(0)
-
-#define VEND1_PTP_IRQ_EN		0x1131
-#define VEND1_PTP_IRQ_STATUS		0x1132
-#define PTP_IRQ_EGR_TS			BIT(0)
-
 #define VEND1_RX_TS_INSRT_CTRL		0x114D
-#define RX_TS_INSRT_MODE2		0x02
+#define TJA1103_RX_TS_INSRT_MODE2	0x02
+
+#define TJA1120_RX_TS_INSRT_CTRL	0x9012
+#define TJA1120_RX_TS_INSRT_EN		BIT(15)
+#define TJA1120_TS_INSRT_MODE		BIT(4)
 
 #define VEND1_EGR_RING_DATA_0		0x114E
-#define VEND1_EGR_RING_DATA_1_SEQ_ID	0x114F
-#define VEND1_EGR_RING_DATA_2_NSEC_15_0	0x1150
-#define VEND1_EGR_RING_DATA_3		0x1151
 #define VEND1_EGR_RING_CTRL		0x1154
 
-#define VEND1_EXT_TRG_TS_DATA_0		0x1121
-#define VEND1_EXT_TRG_TS_DATA_1		0x1122
-#define VEND1_EXT_TRG_TS_DATA_2		0x1123
-#define VEND1_EXT_TRG_TS_DATA_3		0x1124
-#define VEND1_EXT_TRG_TS_DATA_4		0x1125
-#define VEND1_EXT_TRG_TS_CTRL		0x1126
-
-#define RING_DATA_0_DOMAIN_NUMBER	GENMASK(7, 0)
-#define RING_DATA_0_MSG_TYPE		GENMASK(11, 8)
-#define RING_DATA_0_SEC_4_2		GENMASK(14, 2)
 #define RING_DATA_0_TS_VALID		BIT(15)
 
-#define RING_DATA_3_NSEC_29_16		GENMASK(13, 0)
-#define RING_DATA_3_SEC_1_0		GENMASK(15, 14)
-#define RING_DATA_5_SEC_16_5		GENMASK(15, 4)
 #define RING_DONE			BIT(0)
 
 #define TS_SEC_MASK			GENMASK(1, 0)
 
 #define VEND1_PORT_FUNC_ENABLES		0x8048
 #define PTP_ENABLE			BIT(3)
+#define PHY_TEST_ENABLE			BIT(0)
 
 #define VEND1_PORT_PTP_CONTROL		0x9000
 #define PORT_PTP_CONTROL_BYPASS		BIT(11)
 
-#define VEND1_PTP_CLK_PERIOD		0x1104
 #define PTP_CLK_PERIOD_100BT1		15ULL
+#define PTP_CLK_PERIOD_1000BT1		8ULL
 
-#define VEND1_EVENT_MSG_FILT		0x1148
 #define EVENT_MSG_FILT_ALL		0x0F
 #define EVENT_MSG_FILT_NONE		0x00
-
-#define VEND1_TX_PIPE_DLY_NS		0x1149
-#define VEND1_TX_PIPEDLY_SUBNS		0x114A
-#define VEND1_RX_PIPE_DLY_NS		0x114B
-#define VEND1_RX_PIPEDLY_SUBNS		0x114C
 
 #define VEND1_GPIO_FUNC_CONFIG_BASE	0x2C40
 #define GPIO_FUNC_EN			BIT(15)
@@ -191,14 +178,31 @@
 #define MAX_ID_PS			2260U
 #define DEFAULT_ID_PS			2000U
 
-#define PPM_TO_SUBNS_INC(ppb)	div_u64(GENMASK_ULL(31, 0) * (ppb) * \
-					PTP_CLK_PERIOD_100BT1, NSEC_PER_SEC)
+#define PPM_TO_SUBNS_INC(ppb, ptp_clk_period) div_u64(GENMASK_ULL(31, 0) * \
+	(ppb) * (ptp_clk_period), NSEC_PER_SEC)
 
 #define NXP_C45_SKB_CB(skb)	((struct nxp_c45_skb_cb *)(skb)->cb)
+
+struct nxp_c45_phy;
 
 struct nxp_c45_skb_cb {
 	struct ptp_header *header;
 	unsigned int type;
+};
+
+#define NXP_C45_REG_FIELD(_reg, _devad, _offset, _size)	\
+	((struct nxp_c45_reg_field) {			\
+		.reg = _reg,				\
+		.devad =  _devad,			\
+		.offset = _offset,			\
+		.size = _size,				\
+	})
+
+struct nxp_c45_reg_field {
+	u16 reg;
+	u8 devad;
+	u8 offset;
+	u8 size;
 };
 
 struct nxp_c45_hwts {
@@ -209,7 +213,76 @@ struct nxp_c45_hwts {
 	u8	msg_type;
 };
 
+struct nxp_c45_regmap {
+	/* PTP config regs. */
+	u16 vend1_ptp_clk_period;
+	u16 vend1_event_msg_filt;
+
+	/* LTC bits and regs. */
+	struct nxp_c45_reg_field ltc_read;
+	struct nxp_c45_reg_field ltc_write;
+	struct nxp_c45_reg_field ltc_lock_ctrl;
+	u16 vend1_ltc_wr_nsec_0;
+	u16 vend1_ltc_wr_nsec_1;
+	u16 vend1_ltc_wr_sec_0;
+	u16 vend1_ltc_wr_sec_1;
+	u16 vend1_ltc_rd_nsec_0;
+	u16 vend1_ltc_rd_nsec_1;
+	u16 vend1_ltc_rd_sec_0;
+	u16 vend1_ltc_rd_sec_1;
+	u16 vend1_rate_adj_subns_0;
+	u16 vend1_rate_adj_subns_1;
+
+	/* External trigger reg fields. */
+	struct nxp_c45_reg_field irq_egr_ts_en;
+	struct nxp_c45_reg_field irq_egr_ts_status;
+	struct nxp_c45_reg_field domain_number;
+	struct nxp_c45_reg_field msg_type;
+	struct nxp_c45_reg_field sequence_id;
+	struct nxp_c45_reg_field sec_1_0;
+	struct nxp_c45_reg_field sec_4_2;
+	struct nxp_c45_reg_field nsec_15_0;
+	struct nxp_c45_reg_field nsec_29_16;
+
+	/* PPS and EXT Trigger bits and regs. */
+	struct nxp_c45_reg_field pps_enable;
+	struct nxp_c45_reg_field pps_polarity;
+	u16 vend1_ext_trg_data_0;
+	u16 vend1_ext_trg_data_1;
+	u16 vend1_ext_trg_data_2;
+	u16 vend1_ext_trg_data_3;
+	u16 vend1_ext_trg_ctrl;
+
+	/* Cable test reg fields. */
+	u16 cable_test;
+	struct nxp_c45_reg_field cable_test_valid;
+	struct nxp_c45_reg_field cable_test_result;
+};
+
+struct nxp_c45_phy_stats {
+	const char	*name;
+	const struct nxp_c45_reg_field counter;
+};
+
+struct nxp_c45_phy_data {
+	const struct nxp_c45_regmap *regmap;
+	const struct nxp_c45_phy_stats *stats;
+	int n_stats;
+	u8 ptp_clk_period;
+	bool ext_ts_both_edges;
+	bool ack_ptp_irq;
+	void (*counters_enable)(struct phy_device *phydev);
+	bool (*get_egressts)(struct nxp_c45_phy *priv,
+			     struct nxp_c45_hwts *hwts);
+	bool (*get_extts)(struct nxp_c45_phy *priv, struct timespec64 *extts);
+	void (*ptp_init)(struct phy_device *phydev);
+	void (*ptp_enable)(struct phy_device *phydev, bool enable);
+	void (*nmi_handler)(struct phy_device *phydev,
+			    irqreturn_t *irq_status);
+};
+
 struct nxp_c45_phy {
+	const struct nxp_c45_phy_data *phy_data;
 	struct phy_device *phydev;
 	struct mii_timestamper mii_ts;
 	struct ptp_clock *ptp_clock;
@@ -227,13 +300,86 @@ struct nxp_c45_phy {
 	bool extts;
 };
 
-struct nxp_c45_phy_stats {
-	const char	*name;
-	u8		mmd;
-	u16		reg;
-	u8		off;
-	u16		mask;
-};
+static const
+struct nxp_c45_phy_data *nxp_c45_get_data(struct phy_device *phydev)
+{
+	return phydev->drv->driver_data;
+}
+
+static const
+struct nxp_c45_regmap *nxp_c45_get_regmap(struct phy_device *phydev)
+{
+	const struct nxp_c45_phy_data *phy_data = nxp_c45_get_data(phydev);
+
+	return phy_data->regmap;
+}
+
+static int nxp_c45_read_reg_field(struct phy_device *phydev,
+				  const struct nxp_c45_reg_field *reg_field)
+{
+	u16 mask;
+	int ret;
+
+	if (reg_field->size == 0) {
+		phydev_err(phydev, "Trying to read a reg field of size 0.\n");
+		return -EINVAL;
+	}
+
+	ret = phy_read_mmd(phydev, reg_field->devad, reg_field->reg);
+	if (ret < 0)
+		return ret;
+
+	mask = reg_field->size == 1 ? BIT(reg_field->offset) :
+		GENMASK(reg_field->offset + reg_field->size - 1,
+			reg_field->offset);
+	ret &= mask;
+	ret >>= reg_field->offset;
+
+	return ret;
+}
+
+static int nxp_c45_write_reg_field(struct phy_device *phydev,
+				   const struct nxp_c45_reg_field *reg_field,
+				   u16 val)
+{
+	u16 mask;
+	u16 set;
+
+	if (reg_field->size == 0) {
+		phydev_err(phydev, "Trying to write a reg field of size 0.\n");
+		return -EINVAL;
+	}
+
+	mask = reg_field->size == 1 ? BIT(reg_field->offset) :
+		GENMASK(reg_field->offset + reg_field->size - 1,
+			reg_field->offset);
+	set = val << reg_field->offset;
+
+	return phy_modify_mmd_changed(phydev, reg_field->devad,
+				      reg_field->reg, mask, set);
+}
+
+static int nxp_c45_set_reg_field(struct phy_device *phydev,
+				 const struct nxp_c45_reg_field *reg_field)
+{
+	if (reg_field->size != 1) {
+		phydev_err(phydev, "Trying to set a reg field of size different than 1.\n");
+		return -EINVAL;
+	}
+
+	return nxp_c45_write_reg_field(phydev, reg_field, 1);
+}
+
+static int nxp_c45_clear_reg_field(struct phy_device *phydev,
+				   const struct nxp_c45_reg_field *reg_field)
+{
+	if (reg_field->size != 1) {
+		phydev_err(phydev, "Trying to set a reg field of size different than 1.\n");
+		return -EINVAL;
+	}
+
+	return nxp_c45_write_reg_field(phydev, reg_field, 0);
+}
 
 static bool nxp_c45_poll_txts(struct phy_device *phydev)
 {
@@ -245,17 +391,17 @@ static int _nxp_c45_ptp_gettimex64(struct ptp_clock_info *ptp,
 				   struct ptp_system_timestamp *sts)
 {
 	struct nxp_c45_phy *priv = container_of(ptp, struct nxp_c45_phy, caps);
+	const struct nxp_c45_regmap *regmap = nxp_c45_get_regmap(priv->phydev);
 
-	phy_write_mmd(priv->phydev, MDIO_MMD_VEND1, VEND1_LTC_LOAD_CTRL,
-		      READ_LTC);
+	nxp_c45_set_reg_field(priv->phydev, &regmap->ltc_read);
 	ts->tv_nsec = phy_read_mmd(priv->phydev, MDIO_MMD_VEND1,
-				   VEND1_LTC_RD_NSEC_0);
+				   regmap->vend1_ltc_rd_nsec_0);
 	ts->tv_nsec |= phy_read_mmd(priv->phydev, MDIO_MMD_VEND1,
-				    VEND1_LTC_RD_NSEC_1) << 16;
+				    regmap->vend1_ltc_rd_nsec_1) << 16;
 	ts->tv_sec = phy_read_mmd(priv->phydev, MDIO_MMD_VEND1,
-				  VEND1_LTC_RD_SEC_0);
+				  regmap->vend1_ltc_rd_sec_0);
 	ts->tv_sec |= phy_read_mmd(priv->phydev, MDIO_MMD_VEND1,
-				   VEND1_LTC_RD_SEC_1) << 16;
+				   regmap->vend1_ltc_rd_sec_1) << 16;
 
 	return 0;
 }
@@ -277,17 +423,17 @@ static int _nxp_c45_ptp_settime64(struct ptp_clock_info *ptp,
 				  const struct timespec64 *ts)
 {
 	struct nxp_c45_phy *priv = container_of(ptp, struct nxp_c45_phy, caps);
+	const struct nxp_c45_regmap *regmap = nxp_c45_get_regmap(priv->phydev);
 
-	phy_write_mmd(priv->phydev, MDIO_MMD_VEND1, VEND1_LTC_WR_NSEC_0,
+	phy_write_mmd(priv->phydev, MDIO_MMD_VEND1, regmap->vend1_ltc_wr_nsec_0,
 		      ts->tv_nsec);
-	phy_write_mmd(priv->phydev, MDIO_MMD_VEND1, VEND1_LTC_WR_NSEC_1,
+	phy_write_mmd(priv->phydev, MDIO_MMD_VEND1, regmap->vend1_ltc_wr_nsec_1,
 		      ts->tv_nsec >> 16);
-	phy_write_mmd(priv->phydev, MDIO_MMD_VEND1, VEND1_LTC_WR_SEC_0,
+	phy_write_mmd(priv->phydev, MDIO_MMD_VEND1, regmap->vend1_ltc_wr_sec_0,
 		      ts->tv_sec);
-	phy_write_mmd(priv->phydev, MDIO_MMD_VEND1, VEND1_LTC_WR_SEC_1,
+	phy_write_mmd(priv->phydev, MDIO_MMD_VEND1, regmap->vend1_ltc_wr_sec_1,
 		      ts->tv_sec >> 16);
-	phy_write_mmd(priv->phydev, MDIO_MMD_VEND1, VEND1_LTC_LOAD_CTRL,
-		      LOAD_LTC);
+	nxp_c45_set_reg_field(priv->phydev, &regmap->ltc_write);
 
 	return 0;
 }
@@ -307,6 +453,8 @@ static int nxp_c45_ptp_settime64(struct ptp_clock_info *ptp,
 static int nxp_c45_ptp_adjfine(struct ptp_clock_info *ptp, long scaled_ppm)
 {
 	struct nxp_c45_phy *priv = container_of(ptp, struct nxp_c45_phy, caps);
+	const struct nxp_c45_phy_data *data = nxp_c45_get_data(priv->phydev);
+	const struct nxp_c45_regmap *regmap = data->regmap;
 	s32 ppb = scaled_ppm_to_ppb(scaled_ppm);
 	u64 subns_inc_val;
 	bool inc;
@@ -315,16 +463,18 @@ static int nxp_c45_ptp_adjfine(struct ptp_clock_info *ptp, long scaled_ppm)
 	inc = ppb >= 0;
 	ppb = abs(ppb);
 
-	subns_inc_val = PPM_TO_SUBNS_INC(ppb);
+	subns_inc_val = PPM_TO_SUBNS_INC(ppb, data->ptp_clk_period);
 
-	phy_write_mmd(priv->phydev, MDIO_MMD_VEND1, VEND1_RATE_ADJ_SUBNS_0,
+	phy_write_mmd(priv->phydev, MDIO_MMD_VEND1,
+		      regmap->vend1_rate_adj_subns_0,
 		      subns_inc_val);
 	subns_inc_val >>= 16;
 	subns_inc_val |= CLK_RATE_ADJ_LD;
 	if (inc)
 		subns_inc_val |= CLK_RATE_ADJ_DIR;
 
-	phy_write_mmd(priv->phydev, MDIO_MMD_VEND1, VEND1_RATE_ADJ_SUBNS_1,
+	phy_write_mmd(priv->phydev, MDIO_MMD_VEND1,
+		      regmap->vend1_rate_adj_subns_1,
 		      subns_inc_val);
 	mutex_unlock(&priv->ptp_lock);
 
@@ -365,19 +515,88 @@ static bool nxp_c45_match_ts(struct ptp_header *header,
 	       header->domain_number  == hwts->domain_number;
 }
 
-static void nxp_c45_get_extts(struct nxp_c45_phy *priv,
+static bool nxp_c45_get_extts(struct nxp_c45_phy *priv,
 			      struct timespec64 *extts)
 {
+	const struct nxp_c45_regmap *regmap = nxp_c45_get_regmap(priv->phydev);
+
 	extts->tv_nsec = phy_read_mmd(priv->phydev, MDIO_MMD_VEND1,
-				      VEND1_EXT_TRG_TS_DATA_0);
+				      regmap->vend1_ext_trg_data_0);
 	extts->tv_nsec |= phy_read_mmd(priv->phydev, MDIO_MMD_VEND1,
-				       VEND1_EXT_TRG_TS_DATA_1) << 16;
+				       regmap->vend1_ext_trg_data_1) << 16;
 	extts->tv_sec = phy_read_mmd(priv->phydev, MDIO_MMD_VEND1,
-				     VEND1_EXT_TRG_TS_DATA_2);
+				     regmap->vend1_ext_trg_data_2);
 	extts->tv_sec |= phy_read_mmd(priv->phydev, MDIO_MMD_VEND1,
-				      VEND1_EXT_TRG_TS_DATA_3) << 16;
-	phy_write_mmd(priv->phydev, MDIO_MMD_VEND1, VEND1_EXT_TRG_TS_CTRL,
-		      RING_DONE);
+				      regmap->vend1_ext_trg_data_3) << 16;
+	phy_write_mmd(priv->phydev, MDIO_MMD_VEND1,
+		      regmap->vend1_ext_trg_ctrl, RING_DONE);
+
+	return true;
+}
+
+static bool tja1120_extts_is_valid(struct phy_device *phydev)
+{
+	bool valid;
+	int reg;
+
+	reg = phy_read_mmd(phydev, MDIO_MMD_VEND1,
+			   TJA1120_VEND1_PTP_TRIG_DATA_S);
+	valid = !!(reg & TJA1120_TS_VALID);
+
+	return valid;
+}
+
+static bool tja1120_get_extts(struct nxp_c45_phy *priv,
+			      struct timespec64 *extts)
+{
+	const struct nxp_c45_regmap *regmap = nxp_c45_get_regmap(priv->phydev);
+	struct phy_device *phydev = priv->phydev;
+	bool more_ts;
+	bool valid;
+	u16 reg;
+
+	reg = phy_read_mmd(phydev, MDIO_MMD_VEND1,
+			   regmap->vend1_ext_trg_ctrl);
+	more_ts = !!(reg & TJA1120_MORE_TS);
+
+	valid = tja1120_extts_is_valid(phydev);
+	if (!valid) {
+		if (!more_ts)
+			goto tja1120_get_extts_out;
+
+		/* Bug workaround for TJA1120 engineering samples: move the new
+		 * timestamp from the FIFO to the buffer.
+		 */
+		phy_write_mmd(phydev, MDIO_MMD_VEND1,
+			      regmap->vend1_ext_trg_ctrl, RING_DONE);
+		valid = tja1120_extts_is_valid(phydev);
+		if (!valid)
+			goto tja1120_get_extts_out;
+	}
+
+	nxp_c45_get_extts(priv, extts);
+tja1120_get_extts_out:
+	return valid;
+}
+
+static void nxp_c45_read_egress_ts(struct nxp_c45_phy *priv,
+				   struct nxp_c45_hwts *hwts)
+{
+	const struct nxp_c45_regmap *regmap = nxp_c45_get_regmap(priv->phydev);
+	struct phy_device *phydev = priv->phydev;
+
+	hwts->domain_number =
+		nxp_c45_read_reg_field(phydev, &regmap->domain_number);
+	hwts->msg_type =
+		nxp_c45_read_reg_field(phydev, &regmap->msg_type);
+	hwts->sequence_id =
+		nxp_c45_read_reg_field(phydev, &regmap->sequence_id);
+	hwts->nsec =
+		nxp_c45_read_reg_field(phydev, &regmap->nsec_15_0);
+	hwts->nsec |=
+		nxp_c45_read_reg_field(phydev, &regmap->nsec_29_16) << 16;
+	hwts->sec = nxp_c45_read_reg_field(phydev, &regmap->sec_1_0);
+	hwts->sec |= nxp_c45_read_reg_field(phydev, &regmap->sec_4_2) << 2;
 }
 
 static bool nxp_c45_get_hwtxts(struct nxp_c45_phy *priv,
@@ -394,18 +613,52 @@ static bool nxp_c45_get_hwtxts(struct nxp_c45_phy *priv,
 	if (!valid)
 		goto nxp_c45_get_hwtxts_out;
 
-	hwts->domain_number = reg;
-	hwts->msg_type = (reg & RING_DATA_0_MSG_TYPE) >> 8;
-	hwts->sec = (reg & RING_DATA_0_SEC_4_2) >> 10;
-	hwts->sequence_id = phy_read_mmd(priv->phydev, MDIO_MMD_VEND1,
-					 VEND1_EGR_RING_DATA_1_SEQ_ID);
-	hwts->nsec = phy_read_mmd(priv->phydev, MDIO_MMD_VEND1,
-				  VEND1_EGR_RING_DATA_2_NSEC_15_0);
-	reg = phy_read_mmd(priv->phydev, MDIO_MMD_VEND1, VEND1_EGR_RING_DATA_3);
-	hwts->nsec |= (reg & RING_DATA_3_NSEC_29_16) << 16;
-	hwts->sec |= (reg & RING_DATA_3_SEC_1_0) >> 14;
-
+	nxp_c45_read_egress_ts(priv, hwts);
 nxp_c45_get_hwtxts_out:
+	mutex_unlock(&priv->ptp_lock);
+	return valid;
+}
+
+static bool tja1120_egress_ts_is_valid(struct phy_device *phydev)
+{
+	bool valid;
+	u16 reg;
+
+	reg = phy_read_mmd(phydev, MDIO_MMD_VEND1, TJA1120_EGRESS_TS_DATA_S);
+	valid = !!(reg & TJA1120_TS_VALID);
+
+	return valid;
+}
+
+static bool tja1120_get_hwtxts(struct nxp_c45_phy *priv,
+			       struct nxp_c45_hwts *hwts)
+{
+	struct phy_device *phydev = priv->phydev;
+	bool more_ts;
+	bool valid;
+	u16 reg;
+
+	mutex_lock(&priv->ptp_lock);
+	reg = phy_read_mmd(phydev, MDIO_MMD_VEND1, TJA1120_EGRESS_TS_END);
+	more_ts = !!(reg & TJA1120_MORE_TS);
+	valid = tja1120_egress_ts_is_valid(phydev);
+	if (!valid) {
+		if (!more_ts)
+			goto tja1120_get_hwtxts_out;
+
+		/* Bug workaround for TJA1120 engineering samples: move the
+		 * new timestamp from the FIFO to the buffer.
+		 */
+		phy_write_mmd(phydev, MDIO_MMD_VEND1,
+			      TJA1120_EGRESS_TS_END, TJA1120_TS_VALID);
+		valid = tja1120_egress_ts_is_valid(phydev);
+		if (!valid)
+			goto tja1120_get_hwtxts_out;
+	}
+	nxp_c45_read_egress_ts(priv, hwts);
+	phy_clear_bits_mmd(phydev, MDIO_MMD_VEND1, TJA1120_EGRESS_TS_DATA_S,
+			   TJA1120_TS_VALID);
+tja1120_get_hwtxts_out:
 	mutex_unlock(&priv->ptp_lock);
 	return valid;
 }
@@ -448,6 +701,7 @@ static void nxp_c45_process_txts(struct nxp_c45_phy *priv,
 static long nxp_c45_do_aux_work(struct ptp_clock_info *ptp)
 {
 	struct nxp_c45_phy *priv = container_of(ptp, struct nxp_c45_phy, caps);
+	const struct nxp_c45_phy_data *data = nxp_c45_get_data(priv->phydev);
 	bool poll_txts = nxp_c45_poll_txts(priv->phydev);
 	struct skb_shared_hwtstamps *shhwtstamps_rx;
 	struct ptp_clock_event event;
@@ -455,12 +709,12 @@ static long nxp_c45_do_aux_work(struct ptp_clock_info *ptp)
 	bool reschedule = false;
 	struct timespec64 ts;
 	struct sk_buff *skb;
-	bool txts_valid;
+	bool ts_valid;
 	u32 ts_raw;
 
 	while (!skb_queue_empty_lockless(&priv->tx_queue) && poll_txts) {
-		txts_valid = nxp_c45_get_hwtxts(priv, &hwts);
-		if (unlikely(!txts_valid)) {
+		ts_valid = data->get_egressts(priv, &hwts);
+		if (unlikely(!ts_valid)) {
 			/* Still more skbs in the queue */
 			reschedule = true;
 			break;
@@ -482,8 +736,8 @@ static long nxp_c45_do_aux_work(struct ptp_clock_info *ptp)
 	}
 
 	if (priv->extts) {
-		nxp_c45_get_extts(priv, &ts);
-		if (timespec64_compare(&ts, &priv->extts_ts) != 0) {
+		ts_valid = data->get_extts(priv, &ts);
+		if (ts_valid && timespec64_compare(&ts, &priv->extts_ts) != 0) {
 			priv->extts_ts = ts;
 			event.index = priv->extts_index;
 			event.type = PTP_CLOCK_EXTTS;
@@ -508,6 +762,7 @@ static void nxp_c45_gpio_config(struct nxp_c45_phy *priv,
 static int nxp_c45_perout_enable(struct nxp_c45_phy *priv,
 				 struct ptp_perout_request *perout, int on)
 {
+	const struct nxp_c45_regmap *regmap = nxp_c45_get_regmap(priv->phydev);
 	struct phy_device *phydev = priv->phydev;
 	int pin;
 
@@ -519,10 +774,10 @@ static int nxp_c45_perout_enable(struct nxp_c45_phy *priv,
 		return pin;
 
 	if (!on) {
-		phy_clear_bits_mmd(phydev, MDIO_MMD_VEND1, VEND1_PTP_CONFIG,
-				   PPS_OUT_EN);
-		phy_clear_bits_mmd(phydev, MDIO_MMD_VEND1, VEND1_PTP_CONFIG,
-				   PPS_OUT_POL);
+		nxp_c45_clear_reg_field(priv->phydev,
+					&regmap->pps_enable);
+		nxp_c45_clear_reg_field(priv->phydev,
+					&regmap->pps_polarity);
 
 		nxp_c45_gpio_config(priv, pin, GPIO_DISABLE);
 
@@ -551,23 +806,62 @@ static int nxp_c45_perout_enable(struct nxp_c45_phy *priv,
 		}
 
 		if (perout->phase.nsec == 0)
-			phy_clear_bits_mmd(phydev, MDIO_MMD_VEND1,
-					   VEND1_PTP_CONFIG, PPS_OUT_POL);
+			nxp_c45_clear_reg_field(priv->phydev,
+						&regmap->pps_polarity);
 		else
-			phy_set_bits_mmd(phydev, MDIO_MMD_VEND1,
-					 VEND1_PTP_CONFIG, PPS_OUT_POL);
+			nxp_c45_set_reg_field(priv->phydev,
+					      &regmap->pps_polarity);
 	}
 
 	nxp_c45_gpio_config(priv, pin, GPIO_PPS_OUT_CFG);
 
-	phy_set_bits_mmd(phydev, MDIO_MMD_VEND1, VEND1_PTP_CONFIG, PPS_OUT_EN);
+	nxp_c45_set_reg_field(priv->phydev, &regmap->pps_enable);
 
 	return 0;
+}
+
+static void nxp_c45_set_rising_or_falling(struct phy_device *phydev,
+					  struct ptp_extts_request *extts)
+{
+	if (extts->flags & PTP_RISING_EDGE)
+		phy_clear_bits_mmd(phydev, MDIO_MMD_VEND1,
+				   VEND1_PTP_CONFIG, EXT_TRG_EDGE);
+
+	if (extts->flags & PTP_FALLING_EDGE)
+		phy_set_bits_mmd(phydev, MDIO_MMD_VEND1,
+				 VEND1_PTP_CONFIG, EXT_TRG_EDGE);
+}
+
+static void nxp_c45_set_rising_and_falling(struct phy_device *phydev,
+					   struct ptp_extts_request *extts)
+{
+	/* PTP_EXTTS_REQUEST may have only the PTP_ENABLE_FEATURE flag set. In
+	 * this case external ts will be enabled on rising edge.
+	 */
+	if (extts->flags & PTP_RISING_EDGE ||
+	    extts->flags == PTP_ENABLE_FEATURE)
+		phy_set_bits_mmd(phydev, MDIO_MMD_VEND1,
+				 TJA1120_SYNC_TRIG_FILTER,
+				 PTP_TRIG_RISE_TS);
+	else
+		phy_clear_bits_mmd(phydev, MDIO_MMD_VEND1,
+				   TJA1120_SYNC_TRIG_FILTER,
+				   PTP_TRIG_RISE_TS);
+
+	if (extts->flags & PTP_FALLING_EDGE)
+		phy_set_bits_mmd(phydev, MDIO_MMD_VEND1,
+				 TJA1120_SYNC_TRIG_FILTER,
+				 PTP_TRIG_FALLING_TS);
+	else
+		phy_clear_bits_mmd(phydev, MDIO_MMD_VEND1,
+				   TJA1120_SYNC_TRIG_FILTER,
+				   PTP_TRIG_FALLING_TS);
 }
 
 static int nxp_c45_extts_enable(struct nxp_c45_phy *priv,
 				struct ptp_extts_request *extts, int on)
 {
+	const struct nxp_c45_phy_data *data = nxp_c45_get_data(priv->phydev);
 	int pin;
 
 	if (extts->flags & ~(PTP_ENABLE_FEATURE |
@@ -578,7 +872,8 @@ static int nxp_c45_extts_enable(struct nxp_c45_phy *priv,
 
 	/* Sampling on both edges is not supported */
 	if ((extts->flags & PTP_RISING_EDGE) &&
-	    (extts->flags & PTP_FALLING_EDGE))
+	    (extts->flags & PTP_FALLING_EDGE) &&
+	    !data->ext_ts_both_edges)
 		return -EOPNOTSUPP;
 
 	pin = ptp_find_pin(priv->ptp_clock, PTP_PF_EXTTS, extts->index);
@@ -592,13 +887,10 @@ static int nxp_c45_extts_enable(struct nxp_c45_phy *priv,
 		return 0;
 	}
 
-	if (extts->flags & PTP_RISING_EDGE)
-		phy_clear_bits_mmd(priv->phydev, MDIO_MMD_VEND1,
-				   VEND1_PTP_CONFIG, EXT_TRG_EDGE);
-
-	if (extts->flags & PTP_FALLING_EDGE)
-		phy_set_bits_mmd(priv->phydev, MDIO_MMD_VEND1,
-				 VEND1_PTP_CONFIG, EXT_TRG_EDGE);
+	if (data->ext_ts_both_edges)
+		nxp_c45_set_rising_and_falling(priv->phydev, extts);
+	else
+		nxp_c45_set_rising_or_falling(priv->phydev, extts);
 
 	nxp_c45_gpio_config(priv, pin, GPIO_EXTTS_OUT_CFG);
 	priv->extts = true;
@@ -735,6 +1027,7 @@ static int nxp_c45_hwtstamp(struct mii_timestamper *mii_ts,
 	struct nxp_c45_phy *priv = container_of(mii_ts, struct nxp_c45_phy,
 						mii_ts);
 	struct phy_device *phydev = priv->phydev;
+	const struct nxp_c45_phy_data *data;
 	struct hwtstamp_config cfg;
 
 	if (copy_from_user(&cfg, ifreq->ifr_data, sizeof(cfg)))
@@ -743,6 +1036,7 @@ static int nxp_c45_hwtstamp(struct mii_timestamper *mii_ts,
 	if (cfg.tx_type < 0 || cfg.tx_type > HWTSTAMP_TX_ON)
 		return -ERANGE;
 
+	data = nxp_c45_get_data(phydev);
 	priv->hwts_tx = cfg.tx_type;
 
 	switch (cfg.rx_filter) {
@@ -760,27 +1054,24 @@ static int nxp_c45_hwtstamp(struct mii_timestamper *mii_ts,
 	}
 
 	if (priv->hwts_rx || priv->hwts_tx) {
-		phy_write_mmd(phydev, MDIO_MMD_VEND1, VEND1_EVENT_MSG_FILT,
+		phy_write_mmd(phydev, MDIO_MMD_VEND1,
+			      data->regmap->vend1_event_msg_filt,
 			      EVENT_MSG_FILT_ALL);
-		phy_clear_bits_mmd(phydev, MDIO_MMD_VEND1,
-				   VEND1_PORT_PTP_CONTROL,
-				   PORT_PTP_CONTROL_BYPASS);
+		data->ptp_enable(phydev, true);
 	} else {
-		phy_write_mmd(phydev, MDIO_MMD_VEND1, VEND1_EVENT_MSG_FILT,
+		phy_write_mmd(phydev, MDIO_MMD_VEND1,
+			      data->regmap->vend1_event_msg_filt,
 			      EVENT_MSG_FILT_NONE);
-		phy_set_bits_mmd(phydev, MDIO_MMD_VEND1, VEND1_PORT_PTP_CONTROL,
-				 PORT_PTP_CONTROL_BYPASS);
+		data->ptp_enable(phydev, false);
 	}
 
 	if (nxp_c45_poll_txts(priv->phydev))
 		goto nxp_c45_no_ptp_irq;
 
 	if (priv->hwts_tx)
-		phy_set_bits_mmd(phydev, MDIO_MMD_VEND1,
-				 VEND1_PTP_IRQ_EN, PTP_IRQ_EGR_TS);
+		nxp_c45_set_reg_field(phydev, &data->regmap->irq_egr_ts_en);
 	else
-		phy_clear_bits_mmd(phydev, MDIO_MMD_VEND1,
-				   VEND1_PTP_IRQ_EN, PTP_IRQ_EGR_TS);
+		nxp_c45_clear_reg_field(phydev, &data->regmap->irq_egr_ts_en);
 
 nxp_c45_no_ptp_irq:
 	return copy_to_user(ifreq->ifr_data, &cfg, sizeof(cfg)) ? -EFAULT : 0;
@@ -805,63 +1096,100 @@ static int nxp_c45_ts_info(struct mii_timestamper *mii_ts,
 	return 0;
 }
 
-static const struct nxp_c45_phy_stats nxp_c45_hw_stats[] = {
-	{ "phy_symbol_error_cnt", MDIO_MMD_VEND1,
-		VEND1_SYMBOL_ERROR_COUNTER, 0, GENMASK(15, 0) },
-	{ "phy_link_status_drop_cnt", MDIO_MMD_VEND1,
-		VEND1_LINK_DROP_COUNTER, 8, GENMASK(13, 8) },
-	{ "phy_link_availability_drop_cnt", MDIO_MMD_VEND1,
-		VEND1_LINK_DROP_COUNTER, 0, GENMASK(5, 0) },
-	{ "phy_link_loss_cnt", MDIO_MMD_VEND1,
-		VEND1_LINK_LOSSES_AND_FAILURES, 10, GENMASK(15, 10) },
-	{ "phy_link_failure_cnt", MDIO_MMD_VEND1,
-		VEND1_LINK_LOSSES_AND_FAILURES, 0, GENMASK(9, 0) },
-	{ "r_good_frame_cnt", MDIO_MMD_VEND1,
-		VEND1_R_GOOD_FRAME_CNT, 0, GENMASK(15, 0) },
-	{ "r_bad_frame_cnt", MDIO_MMD_VEND1,
-		VEND1_R_BAD_FRAME_CNT, 0, GENMASK(15, 0) },
-	{ "r_rxer_frame_cnt", MDIO_MMD_VEND1,
-		VEND1_R_RXER_FRAME_CNT, 0, GENMASK(15, 0) },
-	{ "rx_preamble_count", MDIO_MMD_VEND1,
-		VEND1_RX_PREAMBLE_COUNT, 0, GENMASK(5, 0) },
-	{ "tx_preamble_count", MDIO_MMD_VEND1,
-		VEND1_TX_PREAMBLE_COUNT, 0, GENMASK(5, 0) },
-	{ "rx_ipg_length", MDIO_MMD_VEND1,
-		VEND1_RX_IPG_LENGTH, 0, GENMASK(8, 0) },
-	{ "tx_ipg_length", MDIO_MMD_VEND1,
-		VEND1_TX_IPG_LENGTH, 0, GENMASK(8, 0) },
+static const struct nxp_c45_phy_stats common_hw_stats[] = {
+	{ "phy_link_status_drop_cnt",
+		NXP_C45_REG_FIELD(0x8352, MDIO_MMD_VEND1, 8, 6), },
+	{ "phy_link_availability_drop_cnt",
+		NXP_C45_REG_FIELD(0x8352, MDIO_MMD_VEND1, 0, 6), },
+	{ "phy_link_loss_cnt",
+		NXP_C45_REG_FIELD(0x8353, MDIO_MMD_VEND1, 10, 6), },
+	{ "phy_link_failure_cnt",
+		NXP_C45_REG_FIELD(0x8353, MDIO_MMD_VEND1, 0, 10), },
+	{ "phy_symbol_error_cnt",
+		NXP_C45_REG_FIELD(0x8350, MDIO_MMD_VEND1, 0, 16) },
+};
+
+static const struct nxp_c45_phy_stats tja1103_hw_stats[] = {
+	{ "rx_preamble_count",
+		NXP_C45_REG_FIELD(0xAFCE, MDIO_MMD_VEND1, 0, 6), },
+	{ "tx_preamble_count",
+		NXP_C45_REG_FIELD(0xAFCF, MDIO_MMD_VEND1, 0, 6), },
+	{ "rx_ipg_length",
+		NXP_C45_REG_FIELD(0xAFD0, MDIO_MMD_VEND1, 0, 9), },
+	{ "tx_ipg_length",
+		NXP_C45_REG_FIELD(0xAFD1, MDIO_MMD_VEND1, 0, 9), },
+};
+
+static const struct nxp_c45_phy_stats tja1120_hw_stats[] = {
+	{ "phy_symbol_error_cnt_ext",
+		NXP_C45_REG_FIELD(0x8351, MDIO_MMD_VEND1, 0, 14) },
+	{ "tx_frames_xtd",
+		NXP_C45_REG_FIELD(0xACA1, MDIO_MMD_VEND1, 0, 8), },
+	{ "tx_frames",
+		NXP_C45_REG_FIELD(0xACA0, MDIO_MMD_VEND1, 0, 16), },
+	{ "rx_frames_xtd",
+		NXP_C45_REG_FIELD(0xACA3, MDIO_MMD_VEND1, 0, 8), },
+	{ "rx_frames",
+		NXP_C45_REG_FIELD(0xACA2, MDIO_MMD_VEND1, 0, 16), },
+	{ "tx_lost_frames_xtd",
+		NXP_C45_REG_FIELD(0xACA5, MDIO_MMD_VEND1, 0, 8), },
+	{ "tx_lost_frames",
+		NXP_C45_REG_FIELD(0xACA4, MDIO_MMD_VEND1, 0, 16), },
+	{ "rx_lost_frames_xtd",
+		NXP_C45_REG_FIELD(0xACA7, MDIO_MMD_VEND1, 0, 8), },
+	{ "rx_lost_frames",
+		NXP_C45_REG_FIELD(0xACA6, MDIO_MMD_VEND1, 0, 16), },
 };
 
 static int nxp_c45_get_sset_count(struct phy_device *phydev)
 {
-	return ARRAY_SIZE(nxp_c45_hw_stats);
+	const struct nxp_c45_phy_data *phy_data = nxp_c45_get_data(phydev);
+
+	return ARRAY_SIZE(common_hw_stats) + (phy_data ? phy_data->n_stats : 0);
 }
 
 static void nxp_c45_get_strings(struct phy_device *phydev, u8 *data)
 {
+	const struct nxp_c45_phy_data *phy_data = nxp_c45_get_data(phydev);
+	size_t count = nxp_c45_get_sset_count(phydev);
+	size_t idx;
 	size_t i;
 
-	for (i = 0; i < ARRAY_SIZE(nxp_c45_hw_stats); i++) {
-		strncpy(data + i * ETH_GSTRING_LEN,
-			nxp_c45_hw_stats[i].name, ETH_GSTRING_LEN);
+	for (i = 0; i < count; i++) {
+		if (i < ARRAY_SIZE(common_hw_stats)) {
+			strscpy(data + i * ETH_GSTRING_LEN,
+				common_hw_stats[i].name, ETH_GSTRING_LEN);
+			continue;
+		}
+		idx = i - ARRAY_SIZE(common_hw_stats);
+		strscpy(data + i * ETH_GSTRING_LEN,
+			phy_data->stats[idx].name, ETH_GSTRING_LEN);
 	}
 }
 
 static void nxp_c45_get_stats(struct phy_device *phydev,
 			      struct ethtool_stats *stats, u64 *data)
 {
+	const struct nxp_c45_phy_data *phy_data = nxp_c45_get_data(phydev);
+	size_t count = nxp_c45_get_sset_count(phydev);
+	const struct nxp_c45_reg_field *reg_field;
+	size_t idx;
 	size_t i;
 	int ret;
 
-	for (i = 0; i < ARRAY_SIZE(nxp_c45_hw_stats); i++) {
-		ret = phy_read_mmd(phydev, nxp_c45_hw_stats[i].mmd,
-				   nxp_c45_hw_stats[i].reg);
-		if (ret < 0) {
-			data[i] = U64_MAX;
+	for (i = 0; i < count; i++) {
+		if (i < ARRAY_SIZE(common_hw_stats)) {
+			reg_field = &common_hw_stats[i].counter;
 		} else {
-			data[i] = ret & nxp_c45_hw_stats[i].mask;
-			data[i] >>= nxp_c45_hw_stats[i].off;
+			idx = i - ARRAY_SIZE(common_hw_stats);
+			reg_field = &phy_data->stats[idx].counter;
 		}
+
+		ret = nxp_c45_read_reg_field(phydev, reg_field);
+		if (ret < 0)
+			data[i] = U64_MAX;
+		else
+			data[i] = ret;
 	}
 }
 
@@ -898,8 +1226,40 @@ static int nxp_c45_config_intr(struct phy_device *phydev)
 					  VEND1_PHY_IRQ_EN, PHY_IRQ_LINK_EVENT);
 }
 
+static int tja1103_config_intr(struct phy_device *phydev)
+{
+	int ret;
+
+	/* We can't disable the FUSA IRQ for TJA1103, but we can clean it up. */
+	ret = phy_write_mmd(phydev, MDIO_MMD_VEND1, VEND1_ALWAYS_ACCESSIBLE,
+			    FUSA_PASS);
+	if (ret)
+		return ret;
+
+	return nxp_c45_config_intr(phydev);
+}
+
+static int tja1120_config_intr(struct phy_device *phydev)
+{
+	int ret;
+
+	if (phydev->interrupts == PHY_INTERRUPT_ENABLED)
+		ret = phy_set_bits_mmd(phydev, MDIO_MMD_VEND1,
+				       TJA1120_GLOBAL_INFRA_IRQ_EN,
+				       TJA1120_DEV_BOOT_DONE);
+	else
+		ret = phy_clear_bits_mmd(phydev, MDIO_MMD_VEND1,
+					 TJA1120_GLOBAL_INFRA_IRQ_EN,
+					 TJA1120_DEV_BOOT_DONE);
+	if (ret)
+		return ret;
+
+	return nxp_c45_config_intr(phydev);
+}
+
 static irqreturn_t nxp_c45_handle_interrupt(struct phy_device *phydev)
 {
+	const struct nxp_c45_phy_data *data = nxp_c45_get_data(phydev);
 	struct nxp_c45_phy *priv = phydev->priv;
 	irqreturn_t ret = IRQ_NONE;
 	struct nxp_c45_hwts hwts;
@@ -913,17 +1273,22 @@ static irqreturn_t nxp_c45_handle_interrupt(struct phy_device *phydev)
 		ret = IRQ_HANDLED;
 	}
 
-	/* There is no need for ACK.
-	 * The irq signal will be asserted until the EGR TS FIFO will be
-	 * emptied.
-	 */
-	irq = phy_read_mmd(phydev, MDIO_MMD_VEND1, VEND1_PTP_IRQ_STATUS);
-	if (irq & PTP_IRQ_EGR_TS) {
-		while (nxp_c45_get_hwtxts(priv, &hwts))
+	irq = nxp_c45_read_reg_field(phydev, &data->regmap->irq_egr_ts_status);
+	if (irq) {
+		/* If ack_ptp_irq is false, the IRQ bit is self-clear and will
+		 * be cleared when the EGR TS FIFO is empty. Otherwise, the
+		 * IRQ bit should be cleared before reading the timestamp,
+		 */
+		if (data->ack_ptp_irq)
+			phy_write_mmd(phydev, MDIO_MMD_VEND1,
+				      VEND1_PTP_IRQ_ACK, EGR_TS_IRQ);
+		while (data->get_egressts(priv, &hwts))
 			nxp_c45_process_txts(priv, &hwts);
 
 		ret = IRQ_HANDLED;
 	}
+
+	data->nmi_handler(phydev, &ret);
 
 	return ret;
 }
@@ -945,24 +1310,30 @@ static int nxp_c45_soft_reset(struct phy_device *phydev)
 
 static int nxp_c45_cable_test_start(struct phy_device *phydev)
 {
-	return phy_write_mmd(phydev, MDIO_MMD_VEND1, VEND1_CABLE_TEST,
-			     CABLE_TEST_ENABLE | CABLE_TEST_START);
+	const struct nxp_c45_regmap *regmap = nxp_c45_get_regmap(phydev);
+
+	phy_set_bits_mmd(phydev, MDIO_MMD_VEND1,
+			 VEND1_PORT_FUNC_ENABLES, PHY_TEST_ENABLE);
+	return phy_set_bits_mmd(phydev, MDIO_MMD_VEND1, regmap->cable_test,
+				CABLE_TEST_ENABLE | CABLE_TEST_START);
 }
 
 static int nxp_c45_cable_test_get_status(struct phy_device *phydev,
 					 bool *finished)
 {
+	const struct nxp_c45_regmap *regmap = nxp_c45_get_regmap(phydev);
 	int ret;
 	u8 cable_test_result;
 
-	ret = phy_read_mmd(phydev, MDIO_MMD_VEND1, VEND1_CABLE_TEST);
-	if (!(ret & CABLE_TEST_VALID)) {
+	ret = nxp_c45_read_reg_field(phydev, &regmap->cable_test_valid);
+	if (!ret) {
 		*finished = false;
 		return 0;
 	}
 
 	*finished = true;
-	cable_test_result = ret & GENMASK(2, 0);
+	cable_test_result = nxp_c45_read_reg_field(phydev,
+						   &regmap->cable_test_result);
 
 	switch (cable_test_result) {
 	case CABLE_TEST_OK:
@@ -982,76 +1353,12 @@ static int nxp_c45_cable_test_get_status(struct phy_device *phydev,
 					ETHTOOL_A_CABLE_RESULT_CODE_UNSPEC);
 	}
 
-	phy_clear_bits_mmd(phydev, MDIO_MMD_VEND1, VEND1_CABLE_TEST,
+	phy_clear_bits_mmd(phydev, MDIO_MMD_VEND1, regmap->cable_test,
 			   CABLE_TEST_ENABLE);
+	phy_clear_bits_mmd(phydev, MDIO_MMD_VEND1,
+			   VEND1_PORT_FUNC_ENABLES, PHY_TEST_ENABLE);
 
 	return nxp_c45_start_op(phydev);
-}
-
-static int nxp_c45_setup_master_slave(struct phy_device *phydev)
-{
-	switch (phydev->master_slave_set) {
-	case MASTER_SLAVE_CFG_MASTER_FORCE:
-	case MASTER_SLAVE_CFG_MASTER_PREFERRED:
-		phy_write_mmd(phydev, MDIO_MMD_PMAPMD, PMAPMD_B100T1_PMAPMD_CTL,
-			      MASTER_MODE);
-		break;
-	case MASTER_SLAVE_CFG_SLAVE_PREFERRED:
-	case MASTER_SLAVE_CFG_SLAVE_FORCE:
-		phy_write_mmd(phydev, MDIO_MMD_PMAPMD, PMAPMD_B100T1_PMAPMD_CTL,
-			      SLAVE_MODE);
-		break;
-	case MASTER_SLAVE_CFG_UNKNOWN:
-	case MASTER_SLAVE_CFG_UNSUPPORTED:
-		return 0;
-	default:
-		phydev_warn(phydev, "Unsupported Master/Slave mode\n");
-		return -EOPNOTSUPP;
-	}
-
-	return 0;
-}
-
-static int nxp_c45_read_master_slave(struct phy_device *phydev)
-{
-	int reg;
-
-	phydev->master_slave_get = MASTER_SLAVE_CFG_UNKNOWN;
-	phydev->master_slave_state = MASTER_SLAVE_STATE_UNKNOWN;
-
-	reg = phy_read_mmd(phydev, MDIO_MMD_PMAPMD, PMAPMD_B100T1_PMAPMD_CTL);
-	if (reg < 0)
-		return reg;
-
-	if (reg & B100T1_PMAPMD_MASTER) {
-		phydev->master_slave_get = MASTER_SLAVE_CFG_MASTER_FORCE;
-		phydev->master_slave_state = MASTER_SLAVE_STATE_MASTER;
-	} else {
-		phydev->master_slave_get = MASTER_SLAVE_CFG_SLAVE_FORCE;
-		phydev->master_slave_state = MASTER_SLAVE_STATE_SLAVE;
-	}
-
-	return 0;
-}
-
-static int nxp_c45_config_aneg(struct phy_device *phydev)
-{
-	return nxp_c45_setup_master_slave(phydev);
-}
-
-static int nxp_c45_read_status(struct phy_device *phydev)
-{
-	int ret;
-
-	ret = genphy_c45_read_status(phydev);
-	if (ret)
-		return ret;
-
-	ret = nxp_c45_read_master_slave(phydev);
-	if (ret)
-		return ret;
-
-	return 0;
 }
 
 static int nxp_c45_get_sqi(struct phy_device *phydev)
@@ -1065,6 +1372,19 @@ static int nxp_c45_get_sqi(struct phy_device *phydev)
 	reg &= SQI_MASK;
 
 	return reg;
+}
+
+static void tja1120_link_change_notify(struct phy_device *phydev)
+{
+	/* Bug workaround for TJA1120 enegineering samples: fix egress
+	 * timestamps lost after link recovery.
+	 */
+	if (phydev->state == PHY_NOLINK) {
+		phy_set_bits_mmd(phydev, MDIO_MMD_VEND1,
+				 TJA1120_EPHY_RESETS, EPHY_PCS_RESET);
+		phy_clear_bits_mmd(phydev, MDIO_MMD_VEND1,
+				   TJA1120_EPHY_RESETS, EPHY_PCS_RESET);
+	}
 }
 
 static int nxp_c45_get_sqi_max(struct phy_device *phydev)
@@ -1085,6 +1405,28 @@ static int nxp_c45_check_delay(struct phy_device *phydev, u32 delay)
 	}
 
 	return 0;
+}
+
+static void nxp_c45_counters_enable(struct phy_device *phydev)
+{
+	const struct nxp_c45_phy_data *data = nxp_c45_get_data(phydev);
+
+	phy_set_bits_mmd(phydev, MDIO_MMD_VEND1, VEND1_LINK_DROP_COUNTER,
+			 COUNTER_EN);
+
+	data->counters_enable(phydev);
+}
+
+static void nxp_c45_ptp_init(struct phy_device *phydev)
+{
+	const struct nxp_c45_phy_data *data = nxp_c45_get_data(phydev);
+
+	phy_write_mmd(phydev, MDIO_MMD_VEND1,
+		      data->regmap->vend1_ptp_clk_period,
+		      data->ptp_clk_period);
+	nxp_c45_clear_reg_field(phydev, &data->regmap->ltc_lock_ctrl);
+
+	data->ptp_init(phydev);
 }
 
 static u64 nxp_c45_get_phase_shift(u64 phase_offset_raw)
@@ -1264,33 +1606,24 @@ static int nxp_c45_config_init(struct phy_device *phydev)
 	phy_set_bits_mmd(phydev, MDIO_MMD_VEND1, VEND1_PHY_CONFIG,
 			 PHY_CONFIG_AUTO);
 
-	phy_set_bits_mmd(phydev, MDIO_MMD_VEND1, VEND1_LINK_DROP_COUNTER,
-			 COUNTER_EN);
-	phy_set_bits_mmd(phydev, MDIO_MMD_VEND1, VEND1_RX_PREAMBLE_COUNT,
-			 COUNTER_EN);
-	phy_set_bits_mmd(phydev, MDIO_MMD_VEND1, VEND1_TX_PREAMBLE_COUNT,
-			 COUNTER_EN);
-	phy_set_bits_mmd(phydev, MDIO_MMD_VEND1, VEND1_RX_IPG_LENGTH,
-			 COUNTER_EN);
-	phy_set_bits_mmd(phydev, MDIO_MMD_VEND1, VEND1_TX_IPG_LENGTH,
-			 COUNTER_EN);
-
 	ret = nxp_c45_set_phy_mode(phydev);
 	if (ret)
 		return ret;
 
 	phydev->autoneg = AUTONEG_DISABLE;
 
-	phy_write_mmd(phydev, MDIO_MMD_VEND1, VEND1_PTP_CLK_PERIOD,
-		      PTP_CLK_PERIOD_100BT1);
-	phy_clear_bits_mmd(phydev, MDIO_MMD_VEND1, VEND1_HW_LTC_LOCK_CTRL,
-			   HW_LTC_LOCK_EN);
-	phy_write_mmd(phydev, MDIO_MMD_VEND1, VEND1_RX_TS_INSRT_CTRL,
-		      RX_TS_INSRT_MODE2);
-	phy_set_bits_mmd(phydev, MDIO_MMD_VEND1, VEND1_PORT_FUNC_ENABLES,
-			 PTP_ENABLE);
+	nxp_c45_counters_enable(phydev);
+	nxp_c45_ptp_init(phydev);
 
 	return nxp_c45_start_op(phydev);
+}
+
+static int nxp_c45_get_features(struct phy_device *phydev)
+{
+	linkmode_set_bit(ETHTOOL_LINK_MODE_TP_BIT, phydev->supported);
+	linkmode_set_bit(ETHTOOL_LINK_MODE_MII_BIT, phydev->supported);
+
+	return genphy_c45_pma_read_abilities(phydev);
 }
 
 static int nxp_c45_probe(struct phy_device *phydev)
@@ -1348,18 +1681,274 @@ static void nxp_c45_remove(struct phy_device *phydev)
 	skb_queue_purge(&priv->rx_queue);
 }
 
+static void tja1103_counters_enable(struct phy_device *phydev)
+{
+	phy_set_bits_mmd(phydev, MDIO_MMD_VEND1, VEND1_RX_PREAMBLE_COUNT,
+			 COUNTER_EN);
+	phy_set_bits_mmd(phydev, MDIO_MMD_VEND1, VEND1_TX_PREAMBLE_COUNT,
+			 COUNTER_EN);
+	phy_set_bits_mmd(phydev, MDIO_MMD_VEND1, VEND1_RX_IPG_LENGTH,
+			 COUNTER_EN);
+	phy_set_bits_mmd(phydev, MDIO_MMD_VEND1, VEND1_TX_IPG_LENGTH,
+			 COUNTER_EN);
+}
+
+static void tja1103_ptp_init(struct phy_device *phydev)
+{
+	phy_write_mmd(phydev, MDIO_MMD_VEND1, VEND1_RX_TS_INSRT_CTRL,
+		      TJA1103_RX_TS_INSRT_MODE2);
+	phy_set_bits_mmd(phydev, MDIO_MMD_VEND1, VEND1_PORT_FUNC_ENABLES,
+			 PTP_ENABLE);
+}
+
+static void tja1103_ptp_enable(struct phy_device *phydev, bool enable)
+{
+	if (enable)
+		phy_clear_bits_mmd(phydev, MDIO_MMD_VEND1,
+				   VEND1_PORT_PTP_CONTROL,
+				   PORT_PTP_CONTROL_BYPASS);
+	else
+		phy_set_bits_mmd(phydev, MDIO_MMD_VEND1,
+				 VEND1_PORT_PTP_CONTROL,
+				 PORT_PTP_CONTROL_BYPASS);
+}
+
+static void tja1103_nmi_handler(struct phy_device *phydev,
+				irqreturn_t *irq_status)
+{
+	int ret;
+
+	ret = phy_read_mmd(phydev, MDIO_MMD_VEND1,
+			   VEND1_ALWAYS_ACCESSIBLE);
+	if (ret & FUSA_PASS) {
+		phy_write_mmd(phydev, MDIO_MMD_VEND1,
+			      VEND1_ALWAYS_ACCESSIBLE,
+			      FUSA_PASS);
+		*irq_status = IRQ_HANDLED;
+	}
+}
+
+static const struct nxp_c45_regmap tja1103_regmap = {
+	.vend1_ptp_clk_period	= 0x1104,
+	.vend1_event_msg_filt	= 0x1148,
+	.pps_enable		=
+		NXP_C45_REG_FIELD(0x1102, MDIO_MMD_VEND1, 3, 1),
+	.pps_polarity		=
+		NXP_C45_REG_FIELD(0x1102, MDIO_MMD_VEND1, 2, 1),
+	.ltc_lock_ctrl		=
+		NXP_C45_REG_FIELD(0x1115, MDIO_MMD_VEND1, 0, 1),
+	.ltc_read		=
+		NXP_C45_REG_FIELD(0x1105, MDIO_MMD_VEND1, 2, 1),
+	.ltc_write		=
+		NXP_C45_REG_FIELD(0x1105, MDIO_MMD_VEND1, 0, 1),
+	.vend1_ltc_wr_nsec_0	= 0x1106,
+	.vend1_ltc_wr_nsec_1	= 0x1107,
+	.vend1_ltc_wr_sec_0	= 0x1108,
+	.vend1_ltc_wr_sec_1	= 0x1109,
+	.vend1_ltc_rd_nsec_0	= 0x110A,
+	.vend1_ltc_rd_nsec_1	= 0x110B,
+	.vend1_ltc_rd_sec_0	= 0x110C,
+	.vend1_ltc_rd_sec_1	= 0x110D,
+	.vend1_rate_adj_subns_0	= 0x110F,
+	.vend1_rate_adj_subns_1	= 0x1110,
+	.irq_egr_ts_en		=
+		NXP_C45_REG_FIELD(0x1131, MDIO_MMD_VEND1, 0, 1),
+	.irq_egr_ts_status	=
+		NXP_C45_REG_FIELD(0x1132, MDIO_MMD_VEND1, 0, 1),
+	.domain_number		=
+		NXP_C45_REG_FIELD(0x114E, MDIO_MMD_VEND1, 0, 8),
+	.msg_type		=
+		NXP_C45_REG_FIELD(0x114E, MDIO_MMD_VEND1, 8, 4),
+	.sequence_id		=
+		NXP_C45_REG_FIELD(0x114F, MDIO_MMD_VEND1, 0, 16),
+	.sec_1_0		=
+		NXP_C45_REG_FIELD(0x1151, MDIO_MMD_VEND1, 14, 2),
+	.sec_4_2		=
+		NXP_C45_REG_FIELD(0x114E, MDIO_MMD_VEND1, 12, 3),
+	.nsec_15_0		=
+		NXP_C45_REG_FIELD(0x1150, MDIO_MMD_VEND1, 0, 16),
+	.nsec_29_16		=
+		NXP_C45_REG_FIELD(0x1151, MDIO_MMD_VEND1, 0, 14),
+	.vend1_ext_trg_data_0	= 0x1121,
+	.vend1_ext_trg_data_1	= 0x1122,
+	.vend1_ext_trg_data_2	= 0x1123,
+	.vend1_ext_trg_data_3	= 0x1124,
+	.vend1_ext_trg_ctrl	= 0x1126,
+	.cable_test		= 0x8330,
+	.cable_test_valid	=
+		NXP_C45_REG_FIELD(0x8330, MDIO_MMD_VEND1, 13, 1),
+	.cable_test_result	=
+		NXP_C45_REG_FIELD(0x8330, MDIO_MMD_VEND1, 0, 3),
+};
+
+static const struct nxp_c45_phy_data tja1103_phy_data = {
+	.regmap = &tja1103_regmap,
+	.stats = tja1103_hw_stats,
+	.n_stats = ARRAY_SIZE(tja1103_hw_stats),
+	.ptp_clk_period = PTP_CLK_PERIOD_100BT1,
+	.ext_ts_both_edges = false,
+	.ack_ptp_irq = false,
+	.counters_enable = tja1103_counters_enable,
+	.get_egressts = nxp_c45_get_hwtxts,
+	.get_extts = nxp_c45_get_extts,
+	.ptp_init = tja1103_ptp_init,
+	.ptp_enable = tja1103_ptp_enable,
+	.nmi_handler = tja1103_nmi_handler,
+};
+
+static void tja1120_counters_enable(struct phy_device *phydev)
+{
+	phy_set_bits_mmd(phydev, MDIO_MMD_VEND1, VEND1_SYMBOL_ERROR_CNT_XTD,
+			 EXTENDED_CNT_EN);
+	phy_set_bits_mmd(phydev, MDIO_MMD_VEND1, VEND1_MONITOR_STATUS,
+			 MONITOR_RESET);
+	phy_set_bits_mmd(phydev, MDIO_MMD_VEND1, VEND1_MONITOR_CONFIG,
+			 ALL_FRAMES_CNT_EN | LOST_FRAMES_CNT_EN);
+}
+
+static void tja1120_ptp_init(struct phy_device *phydev)
+{
+	phy_write_mmd(phydev, MDIO_MMD_VEND1, TJA1120_RX_TS_INSRT_CTRL,
+		      TJA1120_RX_TS_INSRT_EN | TJA1120_TS_INSRT_MODE);
+	phy_write_mmd(phydev, MDIO_MMD_VEND1, TJA1120_VEND1_EXT_TS_MODE,
+		      TJA1120_TS_INSRT_MODE);
+	phy_set_bits_mmd(phydev, MDIO_MMD_VEND1, VEND1_DEVICE_CONFIG,
+			 PTP_ENABLE);
+}
+
+static void tja1120_ptp_enable(struct phy_device *phydev, bool enable)
+{
+	if (enable)
+		phy_set_bits_mmd(phydev, MDIO_MMD_VEND1,
+				 VEND1_PORT_FUNC_ENABLES,
+				 PTP_ENABLE);
+	else
+		phy_clear_bits_mmd(phydev, MDIO_MMD_VEND1,
+				   VEND1_PORT_FUNC_ENABLES,
+				   PTP_ENABLE);
+}
+
+static void tja1120_nmi_handler(struct phy_device *phydev,
+				irqreturn_t *irq_status)
+{
+	int ret;
+
+	ret = phy_read_mmd(phydev, MDIO_MMD_VEND1,
+			   TJA1120_GLOBAL_INFRA_IRQ_STATUS);
+	if (ret & TJA1120_DEV_BOOT_DONE) {
+		phy_write_mmd(phydev, MDIO_MMD_VEND1,
+			      TJA1120_GLOBAL_INFRA_IRQ_ACK,
+			      TJA1120_DEV_BOOT_DONE);
+		*irq_status = IRQ_HANDLED;
+	}
+}
+
+static const struct nxp_c45_regmap tja1120_regmap = {
+	.vend1_ptp_clk_period	= 0x1020,
+	.vend1_event_msg_filt	= 0x9010,
+	.pps_enable		=
+		NXP_C45_REG_FIELD(0x1006, MDIO_MMD_VEND1, 4, 1),
+	.pps_polarity		=
+		NXP_C45_REG_FIELD(0x1006, MDIO_MMD_VEND1, 5, 1),
+	.ltc_lock_ctrl		=
+		NXP_C45_REG_FIELD(0x1006, MDIO_MMD_VEND1, 2, 1),
+	.ltc_read		=
+		NXP_C45_REG_FIELD(0x1000, MDIO_MMD_VEND1, 1, 1),
+	.ltc_write		=
+		NXP_C45_REG_FIELD(0x1000, MDIO_MMD_VEND1, 2, 1),
+	.vend1_ltc_wr_nsec_0	= 0x1040,
+	.vend1_ltc_wr_nsec_1	= 0x1041,
+	.vend1_ltc_wr_sec_0	= 0x1042,
+	.vend1_ltc_wr_sec_1	= 0x1043,
+	.vend1_ltc_rd_nsec_0	= 0x1048,
+	.vend1_ltc_rd_nsec_1	= 0x1049,
+	.vend1_ltc_rd_sec_0	= 0x104A,
+	.vend1_ltc_rd_sec_1	= 0x104B,
+	.vend1_rate_adj_subns_0	= 0x1030,
+	.vend1_rate_adj_subns_1	= 0x1031,
+	.irq_egr_ts_en		=
+		NXP_C45_REG_FIELD(0x900A, MDIO_MMD_VEND1, 1, 1),
+	.irq_egr_ts_status	=
+		NXP_C45_REG_FIELD(0x900C, MDIO_MMD_VEND1, 1, 1),
+	.domain_number		=
+		NXP_C45_REG_FIELD(0x9061, MDIO_MMD_VEND1, 8, 8),
+	.msg_type		=
+		NXP_C45_REG_FIELD(0x9061, MDIO_MMD_VEND1, 4, 4),
+	.sequence_id		=
+		NXP_C45_REG_FIELD(0x9062, MDIO_MMD_VEND1, 0, 16),
+	.sec_1_0		=
+		NXP_C45_REG_FIELD(0x9065, MDIO_MMD_VEND1, 0, 2),
+	.sec_4_2		=
+		NXP_C45_REG_FIELD(0x9065, MDIO_MMD_VEND1, 2, 3),
+	.nsec_15_0		=
+		NXP_C45_REG_FIELD(0x9063, MDIO_MMD_VEND1, 0, 16),
+	.nsec_29_16		=
+		NXP_C45_REG_FIELD(0x9064, MDIO_MMD_VEND1, 0, 14),
+	.vend1_ext_trg_data_0	= 0x1071,
+	.vend1_ext_trg_data_1	= 0x1072,
+	.vend1_ext_trg_data_2	= 0x1073,
+	.vend1_ext_trg_data_3	= 0x1074,
+	.vend1_ext_trg_ctrl	= 0x1075,
+	.cable_test		= 0x8360,
+	.cable_test_valid	=
+		NXP_C45_REG_FIELD(0x8361, MDIO_MMD_VEND1, 15, 1),
+	.cable_test_result	=
+		NXP_C45_REG_FIELD(0x8361, MDIO_MMD_VEND1, 0, 3),
+};
+
+static const struct nxp_c45_phy_data tja1120_phy_data = {
+	.regmap = &tja1120_regmap,
+	.stats = tja1120_hw_stats,
+	.n_stats = ARRAY_SIZE(tja1120_hw_stats),
+	.ptp_clk_period = PTP_CLK_PERIOD_1000BT1,
+	.ext_ts_both_edges = true,
+	.ack_ptp_irq = true,
+	.counters_enable = tja1120_counters_enable,
+	.get_egressts = tja1120_get_hwtxts,
+	.get_extts = tja1120_get_extts,
+	.ptp_init = tja1120_ptp_init,
+	.ptp_enable = tja1120_ptp_enable,
+	.nmi_handler = tja1120_nmi_handler,
+};
+
 static struct phy_driver nxp_c45_driver[] = {
 	{
 		PHY_ID_MATCH_MODEL(PHY_ID_TJA_1103),
 		.name			= "NXP C45 TJA1103",
-		.features		= PHY_BASIC_T1_FEATURES,
+		.get_features		= nxp_c45_get_features,
+		.driver_data		= &tja1103_phy_data,
 		.probe			= nxp_c45_probe,
 		.soft_reset		= nxp_c45_soft_reset,
-		.config_aneg		= nxp_c45_config_aneg,
+		.config_aneg		= genphy_c45_config_aneg,
 		.config_init		= nxp_c45_config_init,
-		.config_intr		= nxp_c45_config_intr,
+		.config_intr		= tja1103_config_intr,
 		.handle_interrupt	= nxp_c45_handle_interrupt,
-		.read_status		= nxp_c45_read_status,
+		.read_status		= genphy_c45_read_status,
+		.suspend		= genphy_c45_pma_suspend,
+		.resume			= genphy_c45_pma_resume,
+		.get_sset_count		= nxp_c45_get_sset_count,
+		.get_strings		= nxp_c45_get_strings,
+		.get_stats		= nxp_c45_get_stats,
+		.cable_test_start	= nxp_c45_cable_test_start,
+		.cable_test_get_status	= nxp_c45_cable_test_get_status,
+		.set_loopback		= genphy_c45_loopback,
+		.get_sqi		= nxp_c45_get_sqi,
+		.get_sqi_max		= nxp_c45_get_sqi_max,
+		.remove			= nxp_c45_remove,
+	},
+	{
+		PHY_ID_MATCH_MODEL(PHY_ID_TJA_1120),
+		.name			= "NXP C45 TJA1120",
+		.get_features		= nxp_c45_get_features,
+		.driver_data		= &tja1120_phy_data,
+		.probe			= nxp_c45_probe,
+		.soft_reset		= nxp_c45_soft_reset,
+		.config_aneg		= genphy_c45_config_aneg,
+		.config_init		= nxp_c45_config_init,
+		.config_intr		= tja1120_config_intr,
+		.handle_interrupt	= nxp_c45_handle_interrupt,
+		.read_status		= genphy_c45_read_status,
+		.link_change_notify	= tja1120_link_change_notify,
 		.suspend		= genphy_c45_pma_suspend,
 		.resume			= genphy_c45_pma_resume,
 		.get_sset_count		= nxp_c45_get_sset_count,
@@ -1378,6 +1967,7 @@ module_phy_driver(nxp_c45_driver);
 
 static struct mdio_device_id __maybe_unused nxp_c45_tbl[] = {
 	{ PHY_ID_MATCH_MODEL(PHY_ID_TJA_1103) },
+	{ PHY_ID_MATCH_MODEL(PHY_ID_TJA_1120) },
 	{ /*sentinel*/ },
 };
 

@@ -628,7 +628,7 @@ static int wm8994_i2c_probe(struct i2c_client *i2c)
 	if (i2c->dev.of_node) {
 		of_id = of_match_device(wm8994_of_match, &i2c->dev);
 		if (of_id)
-			wm8994->type = (enum wm8994_type)of_id->data;
+			wm8994->type = (uintptr_t)of_id->data;
 	} else {
 		wm8994->type = id->driver_data;
 	}

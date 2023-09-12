@@ -20,12 +20,17 @@ description: |+
 
 properties:
   compatible:
-    enum:
-      - samsung,s3c2410-pwm             # 16-bit, S3C24xx
-      - samsung,s3c6400-pwm             # 32-bit, S3C64xx
-      - samsung,s5p6440-pwm             # 32-bit, S5P64x0
-      - samsung,s5pc100-pwm             # 32-bit, S5PC100, S5PV210, Exynos4210 rev0 SoCs
-      - samsung,exynos4210-pwm          # 32-bit, Exynos
+    oneOf:
+      - enum:
+          - samsung,s3c2410-pwm             # 16-bit, S3C24xx
+          - samsung,s3c6400-pwm             # 32-bit, S3C64xx
+          - samsung,s5p6440-pwm             # 32-bit, S5P64x0
+          - samsung,s5pc100-pwm             # 32-bit, S5PC100, S5PV210, Exynos4210 rev0 SoCs
+          - samsung,exynos4210-pwm          # 32-bit, Exynos
+      - items:
+          - enum:
+              - samsung,exynosautov9-pwm
+          - const: samsung,exynos4210-pwm
 
   reg:
     maxItems: 1

@@ -22,7 +22,7 @@ Documentation/filesystems/sysfs.rst 的中文翻譯
 中文版維護者： 傅煒 Fu Wei <tekkamanninja@gmail.com>
 中文版翻譯者： 傅煒 Fu Wei <tekkamanninja@gmail.com>
 中文版校譯者： 傅煒 Fu Wei <tekkamanninja@gmail.com>
-繁體中文版校譯者：胡皓文 Hu Haowen <src.res@email.cn>
+繁體中文版校譯者：胡皓文 Hu Haowen <src.res.211@gmail.com>
 
 
 以下爲正文

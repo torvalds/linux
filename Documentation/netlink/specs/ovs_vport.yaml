@@ -82,6 +82,10 @@ attribute-sets:
     enum-name: ovs-vport-attr
     attributes:
       -
+        name: unspec
+        type: unused
+        value: 0
+      -
         name: port-no
         type: u32
       -
@@ -121,9 +125,34 @@ operations:
   name-prefix: ovs-vport-cmd-
   list:
     -
+      name: new
+      doc: Create a new OVS vport
+      attribute-set: vport
+      fixed-header: ovs-header
+      do:
+        request:
+          attributes:
+            - name
+            - type
+            - upcall-pid
+            - dp-ifindex
+            - ifindex
+            - options
+    -
+      name: del
+      doc: Delete existing OVS vport from a data path
+      attribute-set: vport
+      fixed-header: ovs-header
+      do:
+        request:
+          attributes:
+            - dp-ifindex
+            - port-no
+            - type
+            - name
+    -
       name: get
       doc: Get / dump OVS vport configuration and state
-      value: 3
       attribute-set: vport
       fixed-header: ovs-header
       do: &vport-get-op

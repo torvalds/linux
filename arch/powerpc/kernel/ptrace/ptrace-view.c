@@ -716,69 +716,86 @@ int gpr32_get_common(struct task_struct *target,
 	return membuf_zero(&to, (ELF_NGREG - PT_REGS_COUNT) * sizeof(u32));
 }
 
-int gpr32_set_common(struct task_struct *target,
-		     const struct user_regset *regset,
-		     unsigned int pos, unsigned int count,
-		     const void *kbuf, const void __user *ubuf,
-		     unsigned long *regs)
+static int gpr32_set_common_kernel(struct task_struct *target,
+				   const struct user_regset *regset,
+				   unsigned int pos, unsigned int count,
+				   const void *kbuf, unsigned long *regs)
 {
 	const compat_ulong_t *k = kbuf;
+
+	pos /= sizeof(compat_ulong_t);
+	count /= sizeof(compat_ulong_t);
+
+	for (; count > 0 && pos < PT_MSR; --count)
+		regs[pos++] = *k++;
+
+	if (count > 0 && pos == PT_MSR) {
+		set_user_msr(target, *k++);
+		++pos;
+		--count;
+	}
+
+	for (; count > 0 && pos <= PT_MAX_PUT_REG; --count)
+		regs[pos++] = *k++;
+	for (; count > 0 && pos < PT_TRAP; --count, ++pos)
+		++k;
+
+	if (count > 0 && pos == PT_TRAP) {
+		set_user_trap(target, *k++);
+		++pos;
+		--count;
+	}
+
+	kbuf = k;
+	pos *= sizeof(compat_ulong_t);
+	count *= sizeof(compat_ulong_t);
+	user_regset_copyin_ignore(&pos, &count, &kbuf, NULL,
+				  (PT_TRAP + 1) * sizeof(compat_ulong_t), -1);
+	return 0;
+}
+
+static int gpr32_set_common_user(struct task_struct *target,
+				 const struct user_regset *regset,
+				 unsigned int pos, unsigned int count,
+				 const void __user *ubuf, unsigned long *regs)
+{
 	const compat_ulong_t __user *u = ubuf;
+	const void *kbuf = NULL;
 	compat_ulong_t reg;
 
-	if (!kbuf && !user_read_access_begin(u, count))
+	if (!user_read_access_begin(u, count))
 		return -EFAULT;
 
 	pos /= sizeof(reg);
 	count /= sizeof(reg);
 
-	if (kbuf)
-		for (; count > 0 && pos < PT_MSR; --count)
-			regs[pos++] = *k++;
-	else
-		for (; count > 0 && pos < PT_MSR; --count) {
-			unsafe_get_user(reg, u++, Efault);
-			regs[pos++] = reg;
-		}
-
+	for (; count > 0 && pos < PT_MSR; --count) {
+		unsafe_get_user(reg, u++, Efault);
+		regs[pos++] = reg;
+	}
 
 	if (count > 0 && pos == PT_MSR) {
-		if (kbuf)
-			reg = *k++;
-		else
-			unsafe_get_user(reg, u++, Efault);
+		unsafe_get_user(reg, u++, Efault);
 		set_user_msr(target, reg);
 		++pos;
 		--count;
 	}
 
-	if (kbuf) {
-		for (; count > 0 && pos <= PT_MAX_PUT_REG; --count)
-			regs[pos++] = *k++;
-		for (; count > 0 && pos < PT_TRAP; --count, ++pos)
-			++k;
-	} else {
-		for (; count > 0 && pos <= PT_MAX_PUT_REG; --count) {
-			unsafe_get_user(reg, u++, Efault);
-			regs[pos++] = reg;
-		}
-		for (; count > 0 && pos < PT_TRAP; --count, ++pos)
-			unsafe_get_user(reg, u++, Efault);
+	for (; count > 0 && pos <= PT_MAX_PUT_REG; --count) {
+		unsafe_get_user(reg, u++, Efault);
+		regs[pos++] = reg;
 	}
+	for (; count > 0 && pos < PT_TRAP; --count, ++pos)
+		unsafe_get_user(reg, u++, Efault);
 
 	if (count > 0 && pos == PT_TRAP) {
-		if (kbuf)
-			reg = *k++;
-		else
-			unsafe_get_user(reg, u++, Efault);
+		unsafe_get_user(reg, u++, Efault);
 		set_user_trap(target, reg);
 		++pos;
 		--count;
 	}
-	if (!kbuf)
-		user_read_access_end();
+	user_read_access_end();
 
-	kbuf = k;
 	ubuf = u;
 	pos *= sizeof(reg);
 	count *= sizeof(reg);
@@ -789,6 +806,18 @@ int gpr32_set_common(struct task_struct *target,
 Efault:
 	user_read_access_end();
 	return -EFAULT;
+}
+
+int gpr32_set_common(struct task_struct *target,
+		     const struct user_regset *regset,
+		     unsigned int pos, unsigned int count,
+		     const void *kbuf, const void __user *ubuf,
+		     unsigned long *regs)
+{
+	if (kbuf)
+		return gpr32_set_common_kernel(target, regset, pos, count, kbuf, regs);
+	else
+		return gpr32_set_common_user(target, regset, pos, count, ubuf, regs);
 }
 
 static int gpr32_get(struct task_struct *target,

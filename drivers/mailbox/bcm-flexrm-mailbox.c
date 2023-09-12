@@ -1501,16 +1501,12 @@ static int flexrm_mbox_probe(struct platform_device *pdev)
 	mbox->dev = dev;
 	platform_set_drvdata(pdev, mbox);
 
-	/* Get resource for registers */
-	iomem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	/* Get resource for registers and map registers of all rings */
+	mbox->regs = devm_platform_get_and_ioremap_resource(pdev, 0, &iomem);
 	if (!iomem || (resource_size(iomem) < RING_REGS_SIZE)) {
 		ret = -ENODEV;
 		goto fail;
-	}
-
-	/* Map registers of all rings */
-	mbox->regs = devm_ioremap_resource(&pdev->dev, iomem);
-	if (IS_ERR(mbox->regs)) {
+	} else if (IS_ERR(mbox->regs)) {
 		ret = PTR_ERR(mbox->regs);
 		goto fail;
 	}

@@ -183,24 +183,31 @@ static void mlx4_en_get_profile(struct mlx4_en_dev *mdev)
 	}
 }
 
-static void *mlx4_en_get_netdev(struct mlx4_dev *dev, void *ctx, u8 port)
+static int mlx4_en_event(struct notifier_block *this, unsigned long event,
+			 void *param)
 {
-	struct mlx4_en_dev *endev = ctx;
-
-	return endev->pndev[port];
-}
-
-static void mlx4_en_event(struct mlx4_dev *dev, void *endev_ptr,
-			  enum mlx4_dev_event event, unsigned long port)
-{
-	struct mlx4_en_dev *mdev = (struct mlx4_en_dev *) endev_ptr;
+	struct mlx4_en_dev *mdev =
+		container_of(this, struct mlx4_en_dev, mlx_nb);
+	struct mlx4_dev *dev = mdev->dev;
 	struct mlx4_en_priv *priv;
+	int port;
+
+	switch (event) {
+	case MLX4_DEV_EVENT_CATASTROPHIC_ERROR:
+	case MLX4_DEV_EVENT_PORT_MGMT_CHANGE:
+	case MLX4_DEV_EVENT_SLAVE_INIT:
+	case MLX4_DEV_EVENT_SLAVE_SHUTDOWN:
+		break;
+	default:
+		port = *(int *)param;
+		break;
+	}
 
 	switch (event) {
 	case MLX4_DEV_EVENT_PORT_UP:
 	case MLX4_DEV_EVENT_PORT_DOWN:
 		if (!mdev->pndev[port])
-			return;
+			return NOTIFY_DONE;
 		priv = netdev_priv(mdev->pndev[port]);
 		/* To prevent races, we poll the link state in a separate
 		  task rather than changing it here */
@@ -212,22 +219,29 @@ static void mlx4_en_event(struct mlx4_dev *dev, void *endev_ptr,
 		mlx4_err(mdev, "Internal error detected, restarting device\n");
 		break;
 
+	case MLX4_DEV_EVENT_PORT_MGMT_CHANGE:
 	case MLX4_DEV_EVENT_SLAVE_INIT:
 	case MLX4_DEV_EVENT_SLAVE_SHUTDOWN:
 		break;
 	default:
 		if (port < 1 || port > dev->caps.num_ports ||
 		    !mdev->pndev[port])
-			return;
-		mlx4_warn(mdev, "Unhandled event %d for port %d\n", event,
-			  (int) port);
+			return NOTIFY_DONE;
+		mlx4_warn(mdev, "Unhandled event %d for port %d\n", (int)event,
+			  port);
 	}
+
+	return NOTIFY_DONE;
 }
 
-static void mlx4_en_remove(struct mlx4_dev *dev, void *endev_ptr)
+static void mlx4_en_remove(struct auxiliary_device *adev)
 {
-	struct mlx4_en_dev *mdev = endev_ptr;
+	struct mlx4_adev *madev = container_of(adev, struct mlx4_adev, adev);
+	struct mlx4_dev *dev = madev->mdev;
+	struct mlx4_en_dev *mdev = auxiliary_get_drvdata(adev);
 	int i;
+
+	mlx4_unregister_event_notifier(dev, &mdev->mlx_nb);
 
 	mutex_lock(&mdev->state_lock);
 	mdev->device_up = false;
@@ -242,52 +256,41 @@ static void mlx4_en_remove(struct mlx4_dev *dev, void *endev_ptr)
 	iounmap(mdev->uar_map);
 	mlx4_uar_free(dev, &mdev->priv_uar);
 	mlx4_pd_free(dev, mdev->priv_pdn);
-	if (mdev->nb.notifier_call)
-		unregister_netdevice_notifier(&mdev->nb);
+	if (mdev->netdev_nb.notifier_call)
+		unregister_netdevice_notifier(&mdev->netdev_nb);
 	kfree(mdev);
 }
 
-static void mlx4_en_activate(struct mlx4_dev *dev, void *ctx)
+static int mlx4_en_probe(struct auxiliary_device *adev,
+			 const struct auxiliary_device_id *id)
 {
-	int i;
-	struct mlx4_en_dev *mdev = ctx;
-
-	/* Create a netdev for each port */
-	mlx4_foreach_port(i, dev, MLX4_PORT_TYPE_ETH) {
-		mlx4_info(mdev, "Activating port:%d\n", i);
-		if (mlx4_en_init_netdev(mdev, i, &mdev->profile.prof[i]))
-			mdev->pndev[i] = NULL;
-	}
-
-	/* register notifier */
-	mdev->nb.notifier_call = mlx4_en_netdev_event;
-	if (register_netdevice_notifier(&mdev->nb)) {
-		mdev->nb.notifier_call = NULL;
-		mlx4_err(mdev, "Failed to create notifier\n");
-	}
-}
-
-static void *mlx4_en_add(struct mlx4_dev *dev)
-{
+	struct mlx4_adev *madev = container_of(adev, struct mlx4_adev, adev);
+	struct mlx4_dev *dev = madev->mdev;
 	struct mlx4_en_dev *mdev;
-	int i;
+	int err, i;
 
 	printk_once(KERN_INFO "%s", mlx4_en_version);
 
 	mdev = kzalloc(sizeof(*mdev), GFP_KERNEL);
-	if (!mdev)
+	if (!mdev) {
+		err = -ENOMEM;
 		goto err_free_res;
+	}
 
-	if (mlx4_pd_alloc(dev, &mdev->priv_pdn))
+	err = mlx4_pd_alloc(dev, &mdev->priv_pdn);
+	if (err)
 		goto err_free_dev;
 
-	if (mlx4_uar_alloc(dev, &mdev->priv_uar))
+	err = mlx4_uar_alloc(dev, &mdev->priv_uar);
+	if (err)
 		goto err_pd;
 
 	mdev->uar_map = ioremap((phys_addr_t) mdev->priv_uar.pfn << PAGE_SHIFT,
 				PAGE_SIZE);
-	if (!mdev->uar_map)
+	if (!mdev->uar_map) {
+		err = -ENOMEM;
 		goto err_uar;
+	}
 	spin_lock_init(&mdev->uar_lock);
 
 	mdev->dev = dev;
@@ -299,13 +302,15 @@ static void *mlx4_en_add(struct mlx4_dev *dev)
 	if (!mdev->LSO_support)
 		mlx4_warn(mdev, "LSO not supported, please upgrade to later FW version to enable LSO\n");
 
-	if (mlx4_mr_alloc(mdev->dev, mdev->priv_pdn, 0, ~0ull,
-			 MLX4_PERM_LOCAL_WRITE |  MLX4_PERM_LOCAL_READ,
-			 0, 0, &mdev->mr)) {
+	err = mlx4_mr_alloc(mdev->dev, mdev->priv_pdn, 0, ~0ull,
+			    MLX4_PERM_LOCAL_WRITE | MLX4_PERM_LOCAL_READ, 0, 0,
+			    &mdev->mr);
+	if (err) {
 		mlx4_err(mdev, "Failed allocating memory region\n");
 		goto err_map;
 	}
-	if (mlx4_mr_enable(mdev->dev, &mdev->mr)) {
+	err = mlx4_mr_enable(mdev->dev, &mdev->mr);
+	if (err) {
 		mlx4_err(mdev, "Failed enabling memory region\n");
 		goto err_mr;
 	}
@@ -325,15 +330,39 @@ static void *mlx4_en_add(struct mlx4_dev *dev)
 	 * Note: we cannot use the shared workqueue because of deadlocks caused
 	 *       by the rtnl lock */
 	mdev->workqueue = create_singlethread_workqueue("mlx4_en");
-	if (!mdev->workqueue)
+	if (!mdev->workqueue) {
+		err = -ENOMEM;
 		goto err_mr;
+	}
 
 	/* At this stage all non-port specific tasks are complete:
 	 * mark the card state as up */
 	mutex_init(&mdev->state_lock);
 	mdev->device_up = true;
 
-	return mdev;
+	/* register mlx4 core notifier */
+	mdev->mlx_nb.notifier_call = mlx4_en_event;
+	err = mlx4_register_event_notifier(dev, &mdev->mlx_nb);
+	WARN(err, "failed to register mlx4 event notifier (%d)", err);
+
+	/* Setup ports */
+
+	/* Create a netdev for each port */
+	mlx4_foreach_port(i, dev, MLX4_PORT_TYPE_ETH) {
+		mlx4_info(mdev, "Activating port:%d\n", i);
+		if (mlx4_en_init_netdev(mdev, i, &mdev->profile.prof[i]))
+			mdev->pndev[i] = NULL;
+	}
+
+	/* register netdev notifier */
+	mdev->netdev_nb.notifier_call = mlx4_en_netdev_event;
+	if (register_netdevice_notifier(&mdev->netdev_nb)) {
+		mdev->netdev_nb.notifier_call = NULL;
+		mlx4_err(mdev, "Failed to create netdev notifier\n");
+	}
+
+	auxiliary_set_drvdata(adev, mdev);
+	return 0;
 
 err_mr:
 	(void) mlx4_mr_free(dev, &mdev->mr);
@@ -347,16 +376,24 @@ err_pd:
 err_free_dev:
 	kfree(mdev);
 err_free_res:
-	return NULL;
+	return err;
 }
 
-static struct mlx4_interface mlx4_en_interface = {
-	.add		= mlx4_en_add,
-	.remove		= mlx4_en_remove,
-	.event		= mlx4_en_event,
-	.get_dev	= mlx4_en_get_netdev,
+static const struct auxiliary_device_id mlx4_en_id_table[] = {
+	{ .name = MLX4_ADEV_NAME ".eth" },
+	{},
+};
+
+MODULE_DEVICE_TABLE(auxiliary, mlx4_en_id_table);
+
+static struct mlx4_adrv mlx4_en_adrv = {
+	.adrv = {
+		.name	= "eth",
+		.probe	= mlx4_en_probe,
+		.remove	= mlx4_en_remove,
+		.id_table = mlx4_en_id_table,
+	},
 	.protocol	= MLX4_PROT_ETH,
-	.activate	= mlx4_en_activate,
 };
 
 static void mlx4_en_verify_params(void)
@@ -385,12 +422,12 @@ static int __init mlx4_en_init(void)
 	mlx4_en_verify_params();
 	mlx4_en_init_ptys2ethtool_map();
 
-	return mlx4_register_interface(&mlx4_en_interface);
+	return mlx4_register_auxiliary_driver(&mlx4_en_adrv);
 }
 
 static void __exit mlx4_en_cleanup(void)
 {
-	mlx4_unregister_interface(&mlx4_en_interface);
+	mlx4_unregister_auxiliary_driver(&mlx4_en_adrv);
 }
 
 module_init(mlx4_en_init);

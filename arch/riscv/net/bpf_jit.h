@@ -68,8 +68,9 @@ static inline bool is_creg(u8 reg)
 struct rv_jit_context {
 	struct bpf_prog *prog;
 	u16 *insns;		/* RV insns */
+	u16 *ro_insns;
 	int ninsns;
-	int body_len;
+	int prologue_len;
 	int epilogue_offset;
 	int *offset;		/* BPF to RV */
 	int nexentries;
@@ -85,7 +86,9 @@ static inline int ninsns_rvoff(int ninsns)
 
 struct rv_jit_data {
 	struct bpf_binary_header *header;
+	struct bpf_binary_header *ro_header;
 	u8 *image;
+	u8 *ro_image;
 	struct rv_jit_context ctx;
 };
 
@@ -216,8 +219,8 @@ static inline int rv_offset(int insn, int off, struct rv_jit_context *ctx)
 	int from, to;
 
 	off++; /* BPF branch is from PC+1, RV is from PC */
-	from = (insn > 0) ? ctx->offset[insn - 1] : 0;
-	to = (insn + off > 0) ? ctx->offset[insn + off - 1] : 0;
+	from = (insn > 0) ? ctx->offset[insn - 1] : ctx->prologue_len;
+	to = (insn + off > 0) ? ctx->offset[insn + off - 1] : ctx->prologue_len;
 	return ninsns_rvoff(to - from);
 }
 
@@ -431,9 +434,19 @@ static inline u32 rv_mulhu(u8 rd, u8 rs1, u8 rs2)
 	return rv_r_insn(1, rs2, rs1, 3, rd, 0x33);
 }
 
+static inline u32 rv_div(u8 rd, u8 rs1, u8 rs2)
+{
+	return rv_r_insn(1, rs2, rs1, 4, rd, 0x33);
+}
+
 static inline u32 rv_divu(u8 rd, u8 rs1, u8 rs2)
 {
 	return rv_r_insn(1, rs2, rs1, 5, rd, 0x33);
+}
+
+static inline u32 rv_rem(u8 rd, u8 rs1, u8 rs2)
+{
+	return rv_r_insn(1, rs2, rs1, 6, rd, 0x33);
 }
 
 static inline u32 rv_remu(u8 rd, u8 rs1, u8 rs2)
@@ -499,6 +512,16 @@ static inline u32 rv_bge(u8 rs1, u8 rs2, u16 imm12_1)
 static inline u32 rv_ble(u8 rs1, u8 rs2, u16 imm12_1)
 {
 	return rv_bge(rs2, rs1, imm12_1);
+}
+
+static inline u32 rv_lb(u8 rd, u16 imm11_0, u8 rs1)
+{
+	return rv_i_insn(imm11_0, rs1, 0, rd, 0x03);
+}
+
+static inline u32 rv_lh(u8 rd, u16 imm11_0, u8 rs1)
+{
+	return rv_i_insn(imm11_0, rs1, 1, rd, 0x03);
 }
 
 static inline u32 rv_lw(u8 rd, u16 imm11_0, u8 rs1)
@@ -766,9 +789,19 @@ static inline u32 rv_mulw(u8 rd, u8 rs1, u8 rs2)
 	return rv_r_insn(1, rs2, rs1, 0, rd, 0x3b);
 }
 
+static inline u32 rv_divw(u8 rd, u8 rs1, u8 rs2)
+{
+	return rv_r_insn(1, rs2, rs1, 4, rd, 0x3b);
+}
+
 static inline u32 rv_divuw(u8 rd, u8 rs1, u8 rs2)
 {
 	return rv_r_insn(1, rs2, rs1, 5, rd, 0x3b);
+}
+
+static inline u32 rv_remw(u8 rd, u8 rs1, u8 rs2)
+{
+	return rv_r_insn(1, rs2, rs1, 6, rd, 0x3b);
 }
 
 static inline u32 rv_remuw(u8 rd, u8 rs1, u8 rs2)

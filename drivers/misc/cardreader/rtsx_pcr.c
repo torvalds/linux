@@ -1326,8 +1326,11 @@ static int rtsx_pci_init_hw(struct rtsx_pcr *pcr)
 			return err;
 	}
 
-	if (pcr->aspm_mode == ASPM_MODE_REG)
+	if (pcr->aspm_mode == ASPM_MODE_REG) {
 		rtsx_pci_write_register(pcr, ASPM_FORCE_CTL, 0x30, 0x30);
+		rtsx_pci_write_register(pcr, PETXCFG,
+				FORCE_CLKREQ_DELINK_MASK, FORCE_CLKREQ_HIGH);
+	}
 
 	/* No CD interrupt if probing driver with card inserted.
 	 * So we need to initialize pcr->card_exist here.

@@ -874,14 +874,12 @@ static int dsi_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int dsi_remove(struct platform_device *pdev)
+static void dsi_remove(struct platform_device *pdev)
 {
 	struct dsi_data *data = platform_get_drvdata(pdev);
 	struct dw_dsi *dsi = &data->dsi;
 
 	mipi_dsi_host_unregister(&dsi->host);
-
-	return 0;
 }
 
 static const struct of_device_id dsi_of_match[] = {
@@ -892,7 +890,7 @@ MODULE_DEVICE_TABLE(of, dsi_of_match);
 
 static struct platform_driver dsi_driver = {
 	.probe = dsi_probe,
-	.remove = dsi_remove,
+	.remove_new = dsi_remove,
 	.driver = {
 		.name = "dw-dsi",
 		.of_match_table = dsi_of_match,

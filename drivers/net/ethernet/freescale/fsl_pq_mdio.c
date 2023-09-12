@@ -12,6 +12,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/platform_device.h>
 #include <linux/string.h>
 #include <linux/errno.h>
 #include <linux/slab.h>
@@ -511,7 +512,7 @@ error:
 }
 
 
-static int fsl_pq_mdio_remove(struct platform_device *pdev)
+static void fsl_pq_mdio_remove(struct platform_device *pdev)
 {
 	struct device *device = &pdev->dev;
 	struct mii_bus *bus = dev_get_drvdata(device);
@@ -521,8 +522,6 @@ static int fsl_pq_mdio_remove(struct platform_device *pdev)
 
 	iounmap(priv->map);
 	mdiobus_free(bus);
-
-	return 0;
 }
 
 static struct platform_driver fsl_pq_mdio_driver = {
@@ -531,7 +530,7 @@ static struct platform_driver fsl_pq_mdio_driver = {
 		.of_match_table = fsl_pq_mdio_match,
 	},
 	.probe = fsl_pq_mdio_probe,
-	.remove = fsl_pq_mdio_remove,
+	.remove_new = fsl_pq_mdio_remove,
 };
 
 module_platform_driver(fsl_pq_mdio_driver);

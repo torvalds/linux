@@ -1715,14 +1715,14 @@ static void arcmsr_shutdown(struct pci_dev *pdev)
 	arcmsr_flush_adapter_cache(acb);
 }
 
-static int arcmsr_module_init(void)
+static int __init arcmsr_module_init(void)
 {
 	int error = 0;
 	error = pci_register_driver(&arcmsr_pci_driver);
 	return error;
 }
 
-static void arcmsr_module_exit(void)
+static void __exit arcmsr_module_exit(void)
 {
 	pci_unregister_driver(&arcmsr_pci_driver);
 }

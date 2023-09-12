@@ -17,7 +17,8 @@
 #include <linux/fb.h>
 #include <linux/mm.h>
 #include <linux/uaccess.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
+#include <linux/platform_device.h>
 
 #include <asm/io.h>
 #include <asm/fbio.h>
@@ -533,7 +534,7 @@ static int cg14_probe(struct platform_device *op)
 	par->mode = MDI_8_PIX;
 	par->ramsize = (is_8mb ? 0x800000 : 0x400000);
 
-	info->flags = FBINFO_DEFAULT | FBINFO_HWACCEL_YPAN;
+	info->flags = FBINFO_HWACCEL_YPAN;
 	info->fbops = &cg14_ops;
 
 	__cg14_reset(par);

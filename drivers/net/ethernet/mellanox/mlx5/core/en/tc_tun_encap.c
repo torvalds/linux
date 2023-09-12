@@ -1030,9 +1030,6 @@ int mlx5e_tc_tun_encap_dests_set(struct mlx5e_priv *priv,
 	int out_index;
 	int err = 0;
 
-	if (!mlx5e_is_eswitch_flow(flow))
-		return 0;
-
 	parse_attr = attr->parse_attr;
 	esw_attr = attr->esw_attr;
 	*vf_tun = false;
@@ -1464,10 +1461,12 @@ static void mlx5e_invalidate_encap(struct mlx5e_priv *priv,
 		attr = mlx5e_tc_get_encap_attr(flow);
 		esw_attr = attr->esw_attr;
 
-		if (flow_flag_test(flow, SLOW))
+		if (flow_flag_test(flow, SLOW)) {
 			mlx5e_tc_unoffload_from_slow_path(esw, flow);
-		else
+		} else {
 			mlx5e_tc_unoffload_fdb_rules(esw, flow, flow->attr);
+			mlx5e_tc_unoffload_flow_post_acts(flow);
+		}
 
 		mlx5e_tc_detach_mod_hdr(priv, flow, attr);
 		attr->modify_hdr = NULL;

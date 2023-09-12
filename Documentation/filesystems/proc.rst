@@ -461,6 +461,7 @@ Memory Area, or VMA) there is a series of lines such as the following::
     Private_Dirty:         0 kB
     Referenced:          892 kB
     Anonymous:             0 kB
+    KSM:                   0 kB
     LazyFree:              0 kB
     AnonHugePages:         0 kB
     ShmemPmdMapped:        0 kB
@@ -501,18 +502,21 @@ accessed.
 a mapping associated with a file may contain anonymous pages: when MAP_PRIVATE
 and a page is modified, the file page is replaced by a private anonymous copy.
 
+"KSM" reports how many of the pages are KSM pages. Note that KSM-placed zeropages
+are not included, only actual KSM pages.
+
 "LazyFree" shows the amount of memory which is marked by madvise(MADV_FREE).
 The memory isn't freed immediately with madvise(). It's freed in memory
 pressure if the memory is clean. Please note that the printed value might
 be lower than the real value due to optimizations used in the current
 implementation. If this is not desirable please file a bug report.
 
-"AnonHugePages" shows the ammount of memory backed by transparent hugepage.
+"AnonHugePages" shows the amount of memory backed by transparent hugepage.
 
-"ShmemPmdMapped" shows the ammount of shared (shmem/tmpfs) memory backed by
+"ShmemPmdMapped" shows the amount of shared (shmem/tmpfs) memory backed by
 huge pages.
 
-"Shared_Hugetlb" and "Private_Hugetlb" show the ammounts of memory backed by
+"Shared_Hugetlb" and "Private_Hugetlb" show the amounts of memory backed by
 hugetlbfs page which is *not* counted in "RSS" or "PSS" field for historical
 reasons. And these are not included in {Shared,Private}_{Clean,Dirty} field.
 
@@ -561,11 +565,12 @@ encoded manner. The codes are the following:
     mm    mixed map area
     hg    huge page advise flag
     nh    no huge page advise flag
-    mg    mergable advise flag
+    mg    mergeable advise flag
     bt    arm64 BTI guarded page
     mt    arm64 MTE allocation tags are enabled
     um    userfaultfd missing tracking
     uw    userfaultfd wr-protect tracking
+    ss    shadow stack page
     ==    =======================================
 
 Note that there is no guarantee that every flag and associated mnemonic will
@@ -1081,7 +1086,7 @@ Writeback
 AnonPages
               Non-file backed pages mapped into userspace page tables
 Mapped
-              files which have been mmaped, such as libraries
+              files which have been mmapped, such as libraries
 Shmem
               Total memory used by shared memory (shmem) and tmpfs
 KReclaimable
@@ -2229,7 +2234,7 @@ are not related to tasks.
 Chapter 5: Filesystem behavior
 ==============================
 
-Originally, before the advent of pid namepsace, procfs was a global file
+Originally, before the advent of pid namespace, procfs was a global file
 system. It means that there was only one procfs instance in the system.
 
 When pid namespace was added, a separate procfs instance was mounted in

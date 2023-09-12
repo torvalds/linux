@@ -104,7 +104,7 @@ static inline int huge_pte_dirty(pte_t pte)
 
 static inline pte_t huge_pte_mkwrite(pte_t pte)
 {
-	return pte_mkwrite(pte);
+	return pte_mkwrite_novma(pte);
 }
 
 static inline pte_t huge_pte_mkdirty(pte_t pte)

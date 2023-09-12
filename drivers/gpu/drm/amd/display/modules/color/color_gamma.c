@@ -359,7 +359,7 @@ static struct fixed31_32 translate_from_linear_space(
 		scratch_1 = dc_fixpt_add(one, args->a3);
 		/* In the first region (first 16 points) and in the
 		 * region delimited by START/END we calculate with
-		 * full precision to avoid error accumulation. 
+		 * full precision to avoid error accumulation.
 		 */
 		if ((cal_buffer->buffer_index >= PRECISE_LUT_REGION_START &&
 			cal_buffer->buffer_index <= PRECISE_LUT_REGION_END) ||
@@ -379,8 +379,7 @@ static struct fixed31_32 translate_from_linear_space(
 		scratch_1 = dc_fixpt_sub(scratch_1, args->a2);
 
 		return scratch_1;
-	}
-	else
+	} else
 		return dc_fixpt_mul(args->arg, args->a1);
 }
 

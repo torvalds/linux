@@ -103,7 +103,7 @@ static vm_fault_t ext2_dax_fault(struct vm_fault *vmf)
 	}
 	filemap_invalidate_lock_shared(inode->i_mapping);
 
-	ret = dax_iomap_fault(vmf, PE_SIZE_PTE, NULL, NULL, &ext2_iomap_ops);
+	ret = dax_iomap_fault(vmf, 0, NULL, NULL, &ext2_iomap_ops);
 
 	filemap_invalidate_unlock_shared(inode->i_mapping);
 	if (write)

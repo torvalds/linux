@@ -191,8 +191,7 @@ static void rt722_sdca_jack_detect_handler(struct work_struct *work)
 		return;
 
 	/* SDW_SCP_SDCA_INT_SDCA_6 is used for jack detection */
-	if (rt722->scp_sdca_stat1 & SDW_SCP_SDCA_INT_SDCA_6 ||
-		rt722->scp_sdca_stat1 & SDW_SCP_SDCA_INT_SDCA_0) {
+	if (rt722->scp_sdca_stat1 & SDW_SCP_SDCA_INT_SDCA_6) {
 		ret = rt722_sdca_headset_detect(rt722);
 		if (ret < 0)
 			return;

@@ -110,11 +110,13 @@ struct seccomp_knotif {
  * @flags: The flags for the new file descriptor. At the moment, only O_CLOEXEC
  *         is allowed.
  * @ioctl_flags: The flags used for the seccomp_addfd ioctl.
+ * @setfd: whether or not SECCOMP_ADDFD_FLAG_SETFD was set during notify_addfd
  * @ret: The return value of the installing process. It is set to the fd num
  *       upon success (>= 0).
  * @completion: Indicates that the installing process has completed fd
  *              installation, or gone away (either due to successful
  *              reply, or signal)
+ * @list: list_head for chaining seccomp_kaddfd together.
  *
  */
 struct seccomp_kaddfd {
@@ -138,14 +140,17 @@ struct seccomp_kaddfd {
  * structure is fairly large, we store the notification-specific stuff in a
  * separate structure.
  *
- * @request: A semaphore that users of this notification can wait on for
- *           changes. Actual reads and writes are still controlled with
- *           filter->notify_lock.
+ * @requests: A semaphore that users of this notification can wait on for
+ *            changes. Actual reads and writes are still controlled with
+ *            filter->notify_lock.
+ * @flags: A set of SECCOMP_USER_NOTIF_FD_* flags.
  * @next_id: The id of the next request.
  * @notifications: A list of struct seccomp_knotif elements.
  */
+
 struct notification {
-	struct semaphore request;
+	atomic_t requests;
+	u32 flags;
 	u64 next_id;
 	struct list_head notifications;
 };
@@ -555,6 +560,8 @@ static void __seccomp_filter_release(struct seccomp_filter *orig)
  *			    drop its reference count, and notify
  *			    about unused filters
  *
+ * @tsk: task the filter should be released from.
+ *
  * This function should only be called when the task is exiting as
  * it detaches it from its filter tree. As such, READ_ONCE() and
  * barriers are not needed here, as would normally be needed.
@@ -573,6 +580,8 @@ void seccomp_filter_release(struct task_struct *tsk)
 
 /**
  * seccomp_sync_threads: sets all threads to use current's filter
+ *
+ * @flags: SECCOMP_FILTER_FLAG_* flags to set during sync.
  *
  * Expects sighand and cred_guard_mutex locks to be held, and for
  * seccomp_can_sync_threads() to have returned success already
@@ -1116,8 +1125,11 @@ static int seccomp_do_user_notification(int this_syscall,
 	list_add_tail(&n.list, &match->notif->notifications);
 	INIT_LIST_HEAD(&n.addfd);
 
-	up(&match->notif->request);
-	wake_up_poll(&match->wqh, EPOLLIN | EPOLLRDNORM);
+	atomic_inc(&match->notif->requests);
+	if (match->notif->flags & SECCOMP_USER_NOTIF_FD_SYNC_WAKE_UP)
+		wake_up_poll_on_current_cpu(&match->wqh, EPOLLIN | EPOLLRDNORM);
+	else
+		wake_up_poll(&match->wqh, EPOLLIN | EPOLLRDNORM);
 
 	/*
 	 * This is where we wait for a reply from userspace.
@@ -1450,6 +1462,37 @@ find_notification(struct seccomp_filter *filter, u64 id)
 	return NULL;
 }
 
+static int recv_wake_function(wait_queue_entry_t *wait, unsigned int mode, int sync,
+				  void *key)
+{
+	/* Avoid a wakeup if event not interesting for us. */
+	if (key && !(key_to_poll(key) & (EPOLLIN | EPOLLERR)))
+		return 0;
+	return autoremove_wake_function(wait, mode, sync, key);
+}
+
+static int recv_wait_event(struct seccomp_filter *filter)
+{
+	DEFINE_WAIT_FUNC(wait, recv_wake_function);
+	int ret;
+
+	if (atomic_dec_if_positive(&filter->notif->requests) >= 0)
+		return 0;
+
+	for (;;) {
+		ret = prepare_to_wait_event(&filter->wqh, &wait, TASK_INTERRUPTIBLE);
+
+		if (atomic_dec_if_positive(&filter->notif->requests) >= 0)
+			break;
+
+		if (ret)
+			return ret;
+
+		schedule();
+	}
+	finish_wait(&filter->wqh, &wait);
+	return 0;
+}
 
 static long seccomp_notify_recv(struct seccomp_filter *filter,
 				void __user *buf)
@@ -1467,7 +1510,7 @@ static long seccomp_notify_recv(struct seccomp_filter *filter,
 
 	memset(&unotif, 0, sizeof(unotif));
 
-	ret = down_interruptible(&filter->notif->request);
+	ret = recv_wait_event(filter);
 	if (ret < 0)
 		return ret;
 
@@ -1515,7 +1558,8 @@ out:
 			if (should_sleep_killable(filter, knotif))
 				complete(&knotif->ready);
 			knotif->state = SECCOMP_NOTIFY_INIT;
-			up(&filter->notif->request);
+			atomic_inc(&filter->notif->requests);
+			wake_up_poll(&filter->wqh, EPOLLIN | EPOLLRDNORM);
 		}
 		mutex_unlock(&filter->notify_lock);
 	}
@@ -1561,7 +1605,10 @@ static long seccomp_notify_send(struct seccomp_filter *filter,
 	knotif->error = resp.error;
 	knotif->val = resp.val;
 	knotif->flags = resp.flags;
-	complete(&knotif->ready);
+	if (filter->notif->flags & SECCOMP_USER_NOTIF_FD_SYNC_WAKE_UP)
+		complete_on_current_cpu(&knotif->ready);
+	else
+		complete(&knotif->ready);
 out:
 	mutex_unlock(&filter->notify_lock);
 	return ret;
@@ -1589,6 +1636,22 @@ static long seccomp_notify_id_valid(struct seccomp_filter *filter,
 
 	mutex_unlock(&filter->notify_lock);
 	return ret;
+}
+
+static long seccomp_notify_set_flags(struct seccomp_filter *filter,
+				    unsigned long flags)
+{
+	long ret;
+
+	if (flags & ~SECCOMP_USER_NOTIF_FD_SYNC_WAKE_UP)
+		return -EINVAL;
+
+	ret = mutex_lock_interruptible(&filter->notify_lock);
+	if (ret < 0)
+		return ret;
+	filter->notif->flags = flags;
+	mutex_unlock(&filter->notify_lock);
+	return 0;
 }
 
 static long seccomp_notify_addfd(struct seccomp_filter *filter,
@@ -1720,6 +1783,8 @@ static long seccomp_notify_ioctl(struct file *file, unsigned int cmd,
 	case SECCOMP_IOCTL_NOTIF_ID_VALID_WRONG_DIR:
 	case SECCOMP_IOCTL_NOTIF_ID_VALID:
 		return seccomp_notify_id_valid(filter, buf);
+	case SECCOMP_IOCTL_NOTIF_SET_FLAGS:
+		return seccomp_notify_set_flags(filter, arg);
 	}
 
 	/* Extensible Argument ioctls */
@@ -1777,7 +1842,6 @@ static struct file *init_listener(struct seccomp_filter *filter)
 	if (!filter->notif)
 		goto out;
 
-	sema_init(&filter->notif->request, 0);
 	filter->notif->next_id = get_random_u64();
 	INIT_LIST_HEAD(&filter->notif->notifications);
 

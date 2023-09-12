@@ -776,7 +776,7 @@ static int bpf_core_calc_field_relo(const char *prog_name,
 		break;
 	case BPF_CORE_FIELD_SIGNED:
 		*val = (btf_is_any_enum(mt) && BTF_INFO_KFLAG(mt->info)) ||
-		       (btf_int_encoding(mt) & BTF_INT_SIGNED);
+		       (btf_is_int(mt) && (btf_int_encoding(mt) & BTF_INT_SIGNED));
 		if (validate)
 			*validate = true; /* signedness is never ambiguous */
 		break;

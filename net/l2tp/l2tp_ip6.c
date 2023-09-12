@@ -36,9 +36,6 @@ struct l2tp_ip6_sock {
 	u32			conn_id;
 	u32			peer_conn_id;
 
-	/* ipv6_pinfo has to be the last member of l2tp_ip6_sock, see
-	 * inet6_sk_generic
-	 */
 	struct ipv6_pinfo	inet6;
 };
 
@@ -519,7 +516,7 @@ static int l2tp_ip6_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 	/* Get and verify the address */
 	memset(&fl6, 0, sizeof(fl6));
 
-	fl6.flowi6_mark = sk->sk_mark;
+	fl6.flowi6_mark = READ_ONCE(sk->sk_mark);
 	fl6.flowi6_uid = sk->sk_uid;
 
 	ipcm6_init(&ipc6);
@@ -730,6 +727,7 @@ static struct proto l2tp_ip6_prot = {
 	.hash		   = l2tp_ip6_hash,
 	.unhash		   = l2tp_ip6_unhash,
 	.obj_size	   = sizeof(struct l2tp_ip6_sock),
+	.ipv6_pinfo_offset = offsetof(struct l2tp_ip6_sock, inet6),
 };
 
 static const struct proto_ops l2tp_ip6_ops = {

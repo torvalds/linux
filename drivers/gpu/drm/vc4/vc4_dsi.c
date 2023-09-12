@@ -25,8 +25,9 @@
 #include <linux/dma-mapping.h>
 #include <linux/dmaengine.h>
 #include <linux/io.h>
+#include <linux/of.h>
 #include <linux/of_address.h>
-#include <linux/of_platform.h>
+#include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 
 #include <drm/drm_atomic_helper.h>
@@ -1825,20 +1826,18 @@ static int vc4_dsi_dev_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int vc4_dsi_dev_remove(struct platform_device *pdev)
+static void vc4_dsi_dev_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct vc4_dsi *dsi = dev_get_drvdata(dev);
 
 	mipi_dsi_host_unregister(&dsi->dsi_host);
 	vc4_dsi_put(dsi);
-
-	return 0;
 }
 
 struct platform_driver vc4_dsi_driver = {
 	.probe = vc4_dsi_dev_probe,
-	.remove = vc4_dsi_dev_remove,
+	.remove_new = vc4_dsi_dev_remove,
 	.driver = {
 		.name = "vc4_dsi",
 		.of_match_table = vc4_dsi_dt_match,

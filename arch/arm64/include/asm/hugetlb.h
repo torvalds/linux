@@ -10,6 +10,7 @@
 #ifndef __ASM_HUGETLB_H
 #define __ASM_HUGETLB_H
 
+#include <asm/cacheflush.h>
 #include <asm/page.h>
 
 #ifdef CONFIG_ARCH_ENABLE_HUGEPAGE_MIGRATION
@@ -59,5 +60,20 @@ extern void huge_ptep_modify_prot_commit(struct vm_area_struct *vma,
 					 pte_t old_pte, pte_t new_pte);
 
 #include <asm-generic/hugetlb.h>
+
+#define __HAVE_ARCH_FLUSH_HUGETLB_TLB_RANGE
+static inline void flush_hugetlb_tlb_range(struct vm_area_struct *vma,
+					   unsigned long start,
+					   unsigned long end)
+{
+	unsigned long stride = huge_page_size(hstate_vma(vma));
+
+	if (stride == PMD_SIZE)
+		__flush_tlb_range(vma, start, end, stride, false, 2);
+	else if (stride == PUD_SIZE)
+		__flush_tlb_range(vma, start, end, stride, false, 1);
+	else
+		__flush_tlb_range(vma, start, end, PAGE_SIZE, false, 0);
+}
 
 #endif /* __ASM_HUGETLB_H */
