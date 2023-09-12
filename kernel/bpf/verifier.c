@@ -15126,8 +15126,8 @@ static int check_cfg(struct bpf_verifier_env *env)
 {
 	int insn_cnt = env->prog->len;
 	int *insn_stack, *insn_state;
-	int ret = 0;
-	int i;
+	int ex_insn_beg, i, ret = 0;
+	bool ex_done = false;
 
 	insn_state = env->cfg.insn_state = kvcalloc(insn_cnt, sizeof(int), GFP_KERNEL);
 	if (!insn_state)
@@ -15143,6 +15143,7 @@ static int check_cfg(struct bpf_verifier_env *env)
 	insn_stack[0] = 0; /* 0 is the first instruction */
 	env->cfg.cur_stack = 1;
 
+walk_cfg:
 	while (env->cfg.cur_stack > 0) {
 		int t = insn_stack[env->cfg.cur_stack - 1];
 
@@ -15167,6 +15168,16 @@ static int check_cfg(struct bpf_verifier_env *env)
 		verbose(env, "pop stack internal bug\n");
 		ret = -EFAULT;
 		goto err_free;
+	}
+
+	if (env->exception_callback_subprog && !ex_done) {
+		ex_insn_beg = env->subprog_info[env->exception_callback_subprog].start;
+
+		insn_state[ex_insn_beg] = DISCOVERED;
+		insn_stack[0] = ex_insn_beg;
+		env->cfg.cur_stack = 1;
+		ex_done = true;
+		goto walk_cfg;
 	}
 
 	for (i = 0; i < insn_cnt; i++) {
