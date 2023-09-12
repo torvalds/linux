@@ -183,8 +183,7 @@ int bch2_sb_disk_groups_to_cpu(struct bch_fs *c)
 
 	for (i = 0; i < c->disk_sb.sb->nr_devices; i++) {
 		struct bch_member *m = mi->members + i;
-		struct bch_disk_group_cpu *dst =
-			&cpu_g->entries[BCH_MEMBER_GROUP(m)];
+		struct bch_disk_group_cpu *dst;
 
 		if (!bch2_member_exists(m))
 			continue;
