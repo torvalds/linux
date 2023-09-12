@@ -2900,7 +2900,7 @@ static int aspeed_i3c_probe(struct platform_device *pdev)
 		return PTR_ERR(master->core_clk);
 
 	master->core_rst = devm_reset_control_get_optional_exclusive(&pdev->dev,
-								    "core_rst");
+								    NULL);
 	if (IS_ERR(master->core_rst))
 		return PTR_ERR(master->core_rst);
 
