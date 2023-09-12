@@ -32,6 +32,8 @@ ALL_TESTS="
 
 devdummy="test-dummy0"
 VERBOSE=0
+PAUSE=no
+PAUSE_ON_FAIL=no
 
 # Kselftest framework requirement - SKIP code is 4.
 ksft_skip=4
@@ -112,6 +114,17 @@ end_test()
 {
 	echo "$*"
 	[ "${VERBOSE}" = "1" ] && echo
+
+	if [[ $ret -ne 0 ]] && [[ "${PAUSE_ON_FAIL}" = "yes" ]]; then
+		echo "Hit enter to continue"
+		read a
+	fi;
+
+	if [ "${PAUSE}" = "yes" ]; then
+		echo "Hit enter to continue"
+		read a
+	fi
+
 }
 
 
@@ -286,8 +299,8 @@ kci_test_addrlft()
 	sleep 5
 	run_cmd_grep "10.23.11." ip addr show dev "$devdummy"
 	if [ $? -eq 0 ]; then
-		end_test "FAIL: preferred_lft addresses remaining"
 		check_err 1
+		end_test "FAIL: preferred_lft addresses remaining"
 		return
 	fi
 
@@ -779,8 +792,8 @@ kci_test_ipsec_offload()
 	# does offload show up in ip output
 	lines=`ip x s list | grep -c "crypto offload parameters: dev $dev dir"`
 	if [ $lines -ne 2 ] ; then
-		end_test "FAIL: ipsec_offload SA offload missing from list output"
 		check_err 1
+		end_test "FAIL: ipsec_offload SA offload missing from list output"
 	fi
 
 	# use ping to exercise the Tx path
@@ -806,8 +819,8 @@ EOF
 	ip x p flush
 	lines=`grep -c "SA count=0" $sysfsf`
 	if [ $lines -ne 1 ] ; then
-		end_test "FAIL: ipsec_offload SA not removed from driver"
 		check_err 1
+		end_test "FAIL: ipsec_offload SA not removed from driver"
 	fi
 
 	# clean up any leftovers
@@ -1254,6 +1267,8 @@ usage: ${0##*/} OPTS
         -t <test>   Test(s) to run (default: all)
                     (options: $(echo $ALL_TESTS))
         -v          Verbose mode (show commands and output)
+        -P          Pause after every test
+        -p          Pause after every failing test before cleanup (for debugging)
 EOF
 }
 
@@ -1271,14 +1286,18 @@ for x in ip tc;do
 	fi
 done
 
-while getopts t:hv o; do
+while getopts t:hvpP o; do
 	case $o in
 		t) TESTS=$OPTARG;;
 		v) VERBOSE=1;;
+		p) PAUSE_ON_FAIL=yes;;
+		P) PAUSE=yes;;
 		h) usage; exit 0;;
 		*) usage; exit 1;;
 	esac
 done
+
+[ $PAUSE = "yes" ] && PAUSE_ON_FAIL="no"
 
 kci_test_rtnl
 
