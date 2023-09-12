@@ -16,6 +16,7 @@
 #include <asm/set_memory.h>
 #include <asm/nospec-branch.h>
 #include <asm/text-patching.h>
+#include <asm/unwind.h>
 
 static u8 *emit_code(u8 *ptr, u32 bytes, unsigned int len)
 {
@@ -2932,4 +2933,31 @@ void bpf_jit_free(struct bpf_prog *prog)
 	}
 
 	bpf_prog_unlock_free(prog);
+}
+
+bool bpf_jit_supports_exceptions(void)
+{
+	/* We unwind through both kernel frames (starting from within bpf_throw
+	 * call) and BPF frames. Therefore we require one of ORC or FP unwinder
+	 * to be enabled to walk kernel frames and reach BPF frames in the stack
+	 * trace.
+	 */
+	return IS_ENABLED(CONFIG_UNWINDER_ORC) || IS_ENABLED(CONFIG_UNWINDER_FRAME_POINTER);
+}
+
+void arch_bpf_stack_walk(bool (*consume_fn)(void *cookie, u64 ip, u64 sp, u64 bp), void *cookie)
+{
+#if defined(CONFIG_UNWINDER_ORC) || defined(CONFIG_UNWINDER_FRAME_POINTER)
+	struct unwind_state state;
+	unsigned long addr;
+
+	for (unwind_start(&state, current, NULL, NULL); !unwind_done(&state);
+	     unwind_next_frame(&state)) {
+		addr = unwind_get_return_address(&state);
+		if (!addr || !consume_fn(cookie, (u64)addr, (u64)state.sp, (u64)state.bp))
+			break;
+	}
+	return;
+#endif
+	WARN(1, "verification of programs using bpf_throw should have failed\n");
 }
