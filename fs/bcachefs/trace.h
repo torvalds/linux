@@ -137,6 +137,25 @@ DEFINE_EVENT(bio, read_promote,
 	TP_ARGS(bio)
 );
 
+TRACE_EVENT(read_nopromote,
+	TP_PROTO(struct bch_fs *c, int ret),
+	TP_ARGS(c, ret),
+
+	TP_STRUCT__entry(
+		__field(dev_t,		dev		)
+		__array(char,		ret, 32		)
+	),
+
+	TP_fast_assign(
+		__entry->dev		= c->dev;
+		strscpy(__entry->ret, bch2_err_str(ret), sizeof(__entry->ret));
+	),
+
+	TP_printk("%d,%d ret %s",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->ret)
+);
+
 DEFINE_EVENT(bio, read_bounce,
 	TP_PROTO(struct bio *bio),
 	TP_ARGS(bio)

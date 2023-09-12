@@ -87,33 +87,30 @@ static const struct rhashtable_params bch_promote_params = {
 	.key_len	= sizeof(struct bpos),
 };
 
-static inline bool should_promote(struct bch_fs *c, struct bkey_s_c k,
+static inline int should_promote(struct bch_fs *c, struct bkey_s_c k,
 				  struct bpos pos,
 				  struct bch_io_opts opts,
 				  unsigned flags)
 {
-	if (!(flags & BCH_READ_MAY_PROMOTE))
-		return false;
+	BUG_ON(!opts.promote_target);
 
-	if (!opts.promote_target)
-		return false;
+	if (!(flags & BCH_READ_MAY_PROMOTE))
+		return -BCH_ERR_nopromote_may_not;
 
 	if (bch2_bkey_has_target(c, k, opts.promote_target))
-		return false;
+		return -BCH_ERR_nopromote_already_promoted;
 
 	if (bkey_extent_is_unwritten(k))
-		return false;
+		return -BCH_ERR_nopromote_unwritten;
 
-	if (bch2_target_congested(c, opts.promote_target)) {
-		/* XXX trace this */
-		return false;
-	}
+	if (bch2_target_congested(c, opts.promote_target))
+		return -BCH_ERR_nopromote_congested;
 
 	if (rhashtable_lookup_fast(&c->promote_table, &pos,
 				   bch_promote_params))
-		return false;
+		return -BCH_ERR_nopromote_in_flight;
 
-	return true;
+	return 0;
 }
 
 static void promote_free(struct bch_fs *c, struct promote_op *op)
@@ -264,21 +261,28 @@ static struct promote_op *promote_alloc(struct btree_trans *trans,
 		? bkey_start_pos(k.k)
 		: POS(k.k->p.inode, iter.bi_sector);
 	struct promote_op *promote;
+	int ret;
 
-	if (!should_promote(c, k, pos, opts, flags))
-		return NULL;
+	ret = should_promote(c, k, pos, opts, flags);
+	if (ret)
+		goto nopromote;
 
 	promote = __promote_alloc(trans,
 				  k.k->type == KEY_TYPE_reflink_v
 				  ? BTREE_ID_reflink
 				  : BTREE_ID_extents,
 				  k, pos, pick, opts, sectors, rbio);
-	if (!promote)
-		return NULL;
+	if (!promote) {
+		ret = -BCH_ERR_nopromote_enomem;
+		goto nopromote;
+	}
 
 	*bounce		= true;
 	*read_full	= promote_full;
 	return promote;
+nopromote:
+	trace_read_nopromote(c, ret);
+	return NULL;
 }
 
 /* Read */

@@ -218,7 +218,14 @@
 	x(BCH_ERR_btree_node_read_err,	btree_node_read_err_want_retry)		\
 	x(BCH_ERR_btree_node_read_err,	btree_node_read_err_must_retry)		\
 	x(BCH_ERR_btree_node_read_err,	btree_node_read_err_bad_node)		\
-	x(BCH_ERR_btree_node_read_err,	btree_node_read_err_incompatible)
+	x(BCH_ERR_btree_node_read_err,	btree_node_read_err_incompatible)	\
+	x(0,				nopromote)				\
+	x(BCH_ERR_nopromote,		nopromote_may_not)			\
+	x(BCH_ERR_nopromote,		nopromote_already_promoted)		\
+	x(BCH_ERR_nopromote,		nopromote_unwritten)			\
+	x(BCH_ERR_nopromote,		nopromote_congested)			\
+	x(BCH_ERR_nopromote,		nopromote_in_flight)			\
+	x(BCH_ERR_nopromote,		nopromote_enomem)
 
 enum bch_errcode {
 	BCH_ERR_START		= 2048,
