@@ -1723,15 +1723,6 @@ static void bios_parser_set_scratch_critical_state(
 	bios_set_scratch_critical_state(dcb, state);
 }
 
-struct atom_dig_transmitter_info_header_v5_3 {
-    struct atom_common_table_header table_header;
-    uint16_t dpphy_hdmi_settings_offset;
-    uint16_t dpphy_dvi_settings_offset;
-    uint16_t dpphy_dp_setting_table_offset;
-    uint16_t uniphy_xbar_settings_v2_table_offset;
-    uint16_t dpphy_internal_reg_overide_offset;
-};
-
 static enum bp_result bios_parser_get_firmware_info(
 	struct dc_bios *dcb,
 	struct dc_firmware_info *info)

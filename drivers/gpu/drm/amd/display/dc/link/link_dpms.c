@@ -38,7 +38,6 @@
 #include "link_dpms.h"
 #include "link_hwss.h"
 #include "link_validation.h"
-#include "accessories/link_fpga.h"
 #include "accessories/link_dp_trace.h"
 #include "protocols/link_dpcd.h"
 #include "protocols/link_ddc.h"
