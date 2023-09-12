@@ -448,6 +448,20 @@ int do_ipv6_setsockopt(struct sock *sk, int level, int optname,
 			return -EINVAL;
 		WRITE_ONCE(np->frag_size, val);
 		return 0;
+	case IPV6_MINHOPCOUNT:
+		if (optlen < sizeof(int))
+			return -EINVAL;
+		if (val < 0 || val > 255)
+			return -EINVAL;
+
+		if (val)
+			static_branch_enable(&ip6_min_hopcount);
+
+		/* tcp_v6_err() and tcp_v6_rcv() might read min_hopcount
+		 * while we are changing it.
+		 */
+		WRITE_ONCE(np->min_hopcount, val);
+		return 0;
 	}
 	if (needs_rtnl)
 		rtnl_lock();
@@ -947,21 +961,6 @@ done:
 			goto e_inval;
 		retv = __ip6_sock_set_addr_preferences(sk, val);
 		break;
-	case IPV6_MINHOPCOUNT:
-		if (optlen < sizeof(int))
-			goto e_inval;
-		if (val < 0 || val > 255)
-			goto e_inval;
-
-		if (val)
-			static_branch_enable(&ip6_min_hopcount);
-
-		/* tcp_v6_err() and tcp_v6_rcv() might read min_hopcount
-		 * while we are changing it.
-		 */
-		WRITE_ONCE(np->min_hopcount, val);
-		retv = 0;
-		break;
 	case IPV6_DONTFRAG:
 		np->dontfrag = valbool;
 		retv = 0;
@@ -1443,7 +1442,7 @@ int do_ipv6_getsockopt(struct sock *sk, int level, int optname,
 		break;
 
 	case IPV6_MINHOPCOUNT:
-		val = np->min_hopcount;
+		val = READ_ONCE(np->min_hopcount);
 		break;
 
 	case IPV6_DONTFRAG:
