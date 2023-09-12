@@ -2624,6 +2624,7 @@ static void rt5640_enable_hda_jack_detect(
 		rt5640->irq = -ENXIO;
 		return;
 	}
+	rt5640->irq_requested = true;
 
 	/* sync initial jack state */
 	queue_delayed_work(system_long_wq, &rt5640->jack_work, 0);
