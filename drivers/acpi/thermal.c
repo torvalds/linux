@@ -846,38 +846,6 @@ static void acpi_thermal_aml_dependency_fix(struct acpi_thermal *tz)
 	acpi_evaluate_integer(handle, "_TMP", NULL, &value);
 }
 
-static int acpi_thermal_get_info(struct acpi_thermal *tz)
-{
-	int result;
-
-	if (!tz)
-		return -EINVAL;
-
-	acpi_thermal_aml_dependency_fix(tz);
-
-	/* Get trip points [_CRT, _PSV, etc.] (required) */
-	result = acpi_thermal_get_trip_points(tz);
-	if (result)
-		return result;
-
-	/* Get temperature [_TMP] (required) */
-	result = acpi_thermal_get_temperature(tz);
-	if (result)
-		return result;
-
-	/* Set the cooling mode [_SCP] to active cooling (default) */
-	acpi_execute_simple_method(tz->device->handle, "_SCP",
-				   ACPI_THERMAL_MODE_ACTIVE);
-
-	/* Get default polling frequency [_TZP] (optional) */
-	if (tzp)
-		tz->polling_frequency = tzp;
-	else
-		acpi_thermal_get_polling_frequency(tz);
-
-	return 0;
-}
-
 /*
  * The exact offset between Kelvin and degree Celsius is 273.15. However ACPI
  * handles temperature values with a single decimal place. As a consequence,
@@ -940,9 +908,27 @@ static int acpi_thermal_add(struct acpi_device *device)
 	strcpy(acpi_device_class(device), ACPI_THERMAL_CLASS);
 	device->driver_data = tz;
 
-	result = acpi_thermal_get_info(tz);
+	acpi_thermal_aml_dependency_fix(tz);
+
+	/* Get trip points [_CRT, _PSV, etc.] (required). */
+	result = acpi_thermal_get_trip_points(tz);
 	if (result)
 		goto free_memory;
+
+	/* Get temperature [_TMP] (required). */
+	result = acpi_thermal_get_temperature(tz);
+	if (result)
+		goto free_memory;
+
+	/* Set the cooling mode [_SCP] to active cooling. */
+	acpi_execute_simple_method(tz->device->handle, "_SCP",
+				   ACPI_THERMAL_MODE_ACTIVE);
+
+	/* Determine the default polling frequency [_TZP]. */
+	if (tzp)
+		tz->polling_frequency = tzp;
+	else
+		acpi_thermal_get_polling_frequency(tz);
 
 	acpi_thermal_guess_offset(tz);
 
