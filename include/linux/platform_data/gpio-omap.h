@@ -144,9 +144,6 @@
 
 #define OMAP_MAX_GPIO_LINES		192
 
-#define OMAP_MPUIO(nr)		(OMAP_MAX_GPIO_LINES + (nr))
-#define OMAP_GPIO_IS_MPUIO(nr)	((nr) >= OMAP_MAX_GPIO_LINES)
-
 #ifndef __ASSEMBLER__
 struct omap_gpio_reg_offs {
 	u16 revision;
