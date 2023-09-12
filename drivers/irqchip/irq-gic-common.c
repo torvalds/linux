@@ -122,7 +122,7 @@ void gic_dist_config(void __iomem *base, int gic_irqs,
 
 		amp_pri = 0;
 		for (j = 0; j < 4; j++) {
-			if (rockchip_amp_check_amp_irq(i + j)) {
+			if (rockchip_amp_need_init_amp_irq(i + j)) {
 				amp_pri |= rockchip_amp_get_irq_prio(i + j) <<
 					   (j * 8);
 			} else {
