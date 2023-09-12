@@ -3837,6 +3837,158 @@ void security_d_instantiate(struct dentry *dentry, struct inode *inode)
 }
 EXPORT_SYMBOL(security_d_instantiate);
 
+/*
+ * Please keep this in sync with it's counterpart in security/lsm_syscalls.c
+ */
+
+/**
+ * security_getselfattr - Read an LSM attribute of the current process.
+ * @attr: which attribute to return
+ * @uctx: the user-space destination for the information, or NULL
+ * @size: pointer to the size of space available to receive the data
+ * @flags: special handling options. LSM_FLAG_SINGLE indicates that only
+ * attributes associated with the LSM identified in the passed @ctx be
+ * reported.
+ *
+ * A NULL value for @uctx can be used to get both the number of attributes
+ * and the size of the data.
+ *
+ * Returns the number of attributes found on success, negative value
+ * on error. @size is reset to the total size of the data.
+ * If @size is insufficient to contain the data -E2BIG is returned.
+ */
+int security_getselfattr(unsigned int attr, struct lsm_ctx __user *uctx,
+			 size_t __user *size, u32 flags)
+{
+	struct security_hook_list *hp;
+	struct lsm_ctx lctx = { .id = LSM_ID_UNDEF, };
+	u8 __user *base = (u8 __user *)uctx;
+	size_t total = 0;
+	size_t entrysize;
+	size_t left;
+	bool toobig = false;
+	bool single = false;
+	int count = 0;
+	int rc;
+
+	if (attr == LSM_ATTR_UNDEF)
+		return -EINVAL;
+	if (size == NULL)
+		return -EINVAL;
+	if (get_user(left, size))
+		return -EFAULT;
+
+	if (flags) {
+		/*
+		 * Only flag supported is LSM_FLAG_SINGLE
+		 */
+		if (flags != LSM_FLAG_SINGLE)
+			return -EINVAL;
+		if (uctx && copy_from_user(&lctx, uctx, sizeof(lctx)))
+			return -EFAULT;
+		/*
+		 * If the LSM ID isn't specified it is an error.
+		 */
+		if (lctx.id == LSM_ID_UNDEF)
+			return -EINVAL;
+		single = true;
+	}
+
+	/*
+	 * In the usual case gather all the data from the LSMs.
+	 * In the single case only get the data from the LSM specified.
+	 */
+	hlist_for_each_entry(hp, &security_hook_heads.getselfattr, list) {
+		if (single && lctx.id != hp->lsmid->id)
+			continue;
+		entrysize = left;
+		if (base)
+			uctx = (struct lsm_ctx __user *)(base + total);
+		rc = hp->hook.getselfattr(attr, uctx, &entrysize, flags);
+		if (rc == -EOPNOTSUPP) {
+			rc = 0;
+			continue;
+		}
+		if (rc == -E2BIG) {
+			toobig = true;
+			left = 0;
+		} else if (rc < 0)
+			return rc;
+		else
+			left -= entrysize;
+
+		total += entrysize;
+		count += rc;
+		if (single)
+			break;
+	}
+	if (put_user(total, size))
+		return -EFAULT;
+	if (toobig)
+		return -E2BIG;
+	if (count == 0)
+		return LSM_RET_DEFAULT(getselfattr);
+	return count;
+}
+
+/*
+ * Please keep this in sync with it's counterpart in security/lsm_syscalls.c
+ */
+
+/**
+ * security_setselfattr - Set an LSM attribute on the current process.
+ * @attr: which attribute to set
+ * @uctx: the user-space source for the information
+ * @size: the size of the data
+ * @flags: reserved for future use, must be 0
+ *
+ * Set an LSM attribute for the current process. The LSM, attribute
+ * and new value are included in @uctx.
+ *
+ * Returns 0 on success, -EINVAL if the input is inconsistent, -EFAULT
+ * if the user buffer is inaccessible, E2BIG if size is too big, or an
+ * LSM specific failure.
+ */
+int security_setselfattr(unsigned int attr, struct lsm_ctx __user *uctx,
+			 size_t size, u32 flags)
+{
+	struct security_hook_list *hp;
+	struct lsm_ctx *lctx;
+	int rc = LSM_RET_DEFAULT(setselfattr);
+
+	if (flags)
+		return -EINVAL;
+	if (size < sizeof(*lctx))
+		return -EINVAL;
+	if (size > PAGE_SIZE)
+		return -E2BIG;
+
+	lctx = kmalloc(size, GFP_KERNEL);
+	if (lctx == NULL)
+		return -ENOMEM;
+
+	if (copy_from_user(lctx, uctx, size)) {
+		rc = -EFAULT;
+		goto free_out;
+	}
+
+	if (size < lctx->len || size < lctx->ctx_len + sizeof(*lctx) ||
+	    lctx->len < lctx->ctx_len + sizeof(*lctx)) {
+		rc = -EINVAL;
+		goto free_out;
+	}
+
+	hlist_for_each_entry(hp, &security_hook_heads.setselfattr, list)
+		if ((hp->lsmid->id) == lctx->id) {
+			rc = hp->hook.setselfattr(attr, lctx, size, flags);
+			break;
+		}
+
+free_out:
+	kfree(lctx);
+	return rc;
+}
+
 /**
  * security_getprocattr() - Read an attribute for a task
  * @p: the task

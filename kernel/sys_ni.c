@@ -171,6 +171,8 @@ COND_SYSCALL(landlock_add_rule);
 COND_SYSCALL(landlock_restrict_self);
 COND_SYSCALL(fadvise64_64);
 COND_SYSCALL_COMPAT(fadvise64_64);
+COND_SYSCALL(lsm_get_self_attr);
+COND_SYSCALL(lsm_set_self_attr);
 
 /* CONFIG_MMU only */
 COND_SYSCALL(swapon);
