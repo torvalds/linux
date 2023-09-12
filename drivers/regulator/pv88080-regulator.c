@@ -5,6 +5,7 @@
 
 #include <linux/err.h>
 #include <linux/i2c.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/init.h>
@@ -26,11 +27,6 @@ enum {
 	PV88080_ID_BUCK2,
 	PV88080_ID_BUCK3,
 	PV88080_ID_HVBUCK,
-};
-
-enum pv88080_types {
-	TYPE_PV88080_AA,
-	TYPE_PV88080_BA,
 };
 
 struct pv88080_regulator {
@@ -195,16 +191,6 @@ static const struct pv88080_compatible_regmap pv88080_ba_regs = {
 	.hvbuck_enable_mask       = PV88080_HVBUCK_EN,
 	.hvbuck_vsel_mask		  = PV88080_VHVBUCK_MASK,
 };
-
-#ifdef CONFIG_OF
-static const struct of_device_id pv88080_dt_ids[] = {
-	{ .compatible = "pvs,pv88080",    .data = (void *)TYPE_PV88080_AA },
-	{ .compatible = "pvs,pv88080-aa", .data = (void *)TYPE_PV88080_AA },
-	{ .compatible = "pvs,pv88080-ba", .data = (void *)TYPE_PV88080_BA },
-	{},
-};
-MODULE_DEVICE_TABLE(of, pv88080_dt_ids);
-#endif
 
 static unsigned int pv88080_buck_get_mode(struct regulator_dev *rdev)
 {
@@ -376,11 +362,9 @@ error_i2c:
  */
 static int pv88080_i2c_probe(struct i2c_client *i2c)
 {
-	const struct i2c_device_id *id = i2c_client_get_device_id(i2c);
 	struct regulator_init_data *init_data = dev_get_platdata(&i2c->dev);
 	struct pv88080 *chip;
 	const struct pv88080_compatible_regmap *regmap_config;
-	const struct of_device_id *match;
 	struct regulator_config config = { };
 	int i, error, ret;
 	unsigned int conf2, conf5;
@@ -398,16 +382,9 @@ static int pv88080_i2c_probe(struct i2c_client *i2c)
 		return error;
 	}
 
-	if (i2c->dev.of_node) {
-		match = of_match_node(pv88080_dt_ids, i2c->dev.of_node);
-		if (!match) {
-			dev_err(chip->dev, "Failed to get of_match_node\n");
-			return -EINVAL;
-		}
-		chip->type = (unsigned long)match->data;
-	} else {
-		chip->type = id->driver_data;
-	}
+	chip->regmap_config = i2c_get_match_data(i2c);
+	if (!chip->regmap_config)
+		return -ENODEV;
 
 	i2c_set_clientdata(i2c, chip);
 
@@ -450,15 +427,6 @@ static int pv88080_i2c_probe(struct i2c_client *i2c)
 		}
 	} else {
 		dev_warn(chip->dev, "No IRQ configured\n");
-	}
-
-	switch (chip->type) {
-	case TYPE_PV88080_AA:
-		chip->regmap_config = &pv88080_aa_regs;
-		break;
-	case TYPE_PV88080_BA:
-		chip->regmap_config = &pv88080_ba_regs;
-		break;
 	}
 
 	regmap_config = chip->regmap_config;
@@ -546,11 +514,19 @@ static int pv88080_i2c_probe(struct i2c_client *i2c)
 	return 0;
 }
 
+static const struct of_device_id pv88080_dt_ids[] = {
+	{ .compatible = "pvs,pv88080",    .data = &pv88080_aa_regs },
+	{ .compatible = "pvs,pv88080-aa", .data = &pv88080_aa_regs },
+	{ .compatible = "pvs,pv88080-ba", .data = &pv88080_ba_regs },
+	{}
+};
+MODULE_DEVICE_TABLE(of, pv88080_dt_ids);
+
 static const struct i2c_device_id pv88080_i2c_id[] = {
-	{ "pv88080",    TYPE_PV88080_AA },
-	{ "pv88080-aa", TYPE_PV88080_AA },
-	{ "pv88080-ba", TYPE_PV88080_BA },
-	{},
+	{ "pv88080",    (kernel_ulong_t)&pv88080_aa_regs },
+	{ "pv88080-aa", (kernel_ulong_t)&pv88080_aa_regs },
+	{ "pv88080-ba", (kernel_ulong_t)&pv88080_ba_regs },
+	{}
 };
 MODULE_DEVICE_TABLE(i2c, pv88080_i2c_id);
 
@@ -558,7 +534,7 @@ static struct i2c_driver pv88080_regulator_driver = {
 	.driver = {
 		.name = "pv88080",
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
-		.of_match_table = of_match_ptr(pv88080_dt_ids),
+		.of_match_table = pv88080_dt_ids,
 	},
 	.probe = pv88080_i2c_probe,
 	.id_table = pv88080_i2c_id,
