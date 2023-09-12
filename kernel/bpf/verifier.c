@@ -2457,6 +2457,68 @@ static int add_subprog(struct bpf_verifier_env *env, int off)
 	return env->subprog_cnt - 1;
 }
 
+static int bpf_find_exception_callback_insn_off(struct bpf_verifier_env *env)
+{
+	struct bpf_prog_aux *aux = env->prog->aux;
+	struct btf *btf = aux->btf;
+	const struct btf_type *t;
+	u32 main_btf_id, id;
+	const char *name;
+	int ret, i;
+
+	/* Non-zero func_info_cnt implies valid btf */
+	if (!aux->func_info_cnt)
+		return 0;
+	main_btf_id = aux->func_info[0].type_id;
+
+	t = btf_type_by_id(btf, main_btf_id);
+	if (!t) {
+		verbose(env, "invalid btf id for main subprog in func_info\n");
+		return -EINVAL;
+	}
+
+	name = btf_find_decl_tag_value(btf, t, -1, "exception_callback:");
+	if (IS_ERR(name)) {
+		ret = PTR_ERR(name);
+		/* If there is no tag present, there is no exception callback */
+		if (ret == -ENOENT)
+			ret = 0;
+		else if (ret == -EEXIST)
+			verbose(env, "multiple exception callback tags for main subprog\n");
+		return ret;
+	}
+
+	ret = btf_find_by_name_kind(btf, name, BTF_KIND_FUNC);
+	if (ret < 0) {
+		verbose(env, "exception callback '%s' could not be found in BTF\n", name);
+		return ret;
+	}
+	id = ret;
+	t = btf_type_by_id(btf, id);
+	if (btf_func_linkage(t) != BTF_FUNC_GLOBAL) {
+		verbose(env, "exception callback '%s' must have global linkage\n", name);
+		return -EINVAL;
+	}
+	ret = 0;
+	for (i = 0; i < aux->func_info_cnt; i++) {
+		if (aux->func_info[i].type_id != id)
+			continue;
+		ret = aux->func_info[i].insn_off;
+		/* Further func_info and subprog checks will also happen
+		 * later, so assume this is the right insn_off for now.
+		 */
+		if (!ret) {
+			verbose(env, "invalid exception callback insn_off in func_info: 0\n");
+			ret = -EINVAL;
+		}
+	}
+	if (!ret) {
+		verbose(env, "exception callback type id not found in func_info\n");
+		ret = -EINVAL;
+	}
+	return ret;
+}
+
 #define MAX_KFUNC_DESCS 256
 #define MAX_KFUNC_BTFS	256
 
@@ -2796,8 +2858,8 @@ bpf_jit_find_kfunc_model(const struct bpf_prog *prog,
 static int add_subprog_and_kfunc(struct bpf_verifier_env *env)
 {
 	struct bpf_subprog_info *subprog = env->subprog_info;
+	int i, ret, insn_cnt = env->prog->len, ex_cb_insn;
 	struct bpf_insn *insn = env->prog->insnsi;
-	int i, ret, insn_cnt = env->prog->len;
 
 	/* Add entry function. */
 	ret = add_subprog(env, 0);
@@ -2821,6 +2883,26 @@ static int add_subprog_and_kfunc(struct bpf_verifier_env *env)
 
 		if (ret < 0)
 			return ret;
+	}
+
+	ret = bpf_find_exception_callback_insn_off(env);
+	if (ret < 0)
+		return ret;
+	ex_cb_insn = ret;
+
+	/* If ex_cb_insn > 0, this means that the main program has a subprog
+	 * marked using BTF decl tag to serve as the exception callback.
+	 */
+	if (ex_cb_insn) {
+		ret = add_subprog(env, ex_cb_insn);
+		if (ret < 0)
+			return ret;
+		for (i = 1; i < env->subprog_cnt; i++) {
+			if (env->subprog_info[i].start != ex_cb_insn)
+				continue;
+			env->exception_callback_subprog = i;
+			break;
+		}
 	}
 
 	/* Add a fake 'exit' subprog which could simplify subprog iteration
@@ -5707,6 +5789,10 @@ continue_func:
 			/* async callbacks don't increase bpf prog stack size unless called directly */
 			if (!bpf_pseudo_call(insn + i))
 				continue;
+			if (subprog[sidx].is_exception_cb) {
+				verbose(env, "insn %d cannot call exception cb directly\n", i);
+				return -EINVAL;
+			}
 		}
 		i = next_insn;
 		idx = sidx;
@@ -5728,8 +5814,13 @@ continue_func:
 	 * tail call counter throughout bpf2bpf calls combined with tailcalls
 	 */
 	if (tail_call_reachable)
-		for (j = 0; j < frame; j++)
+		for (j = 0; j < frame; j++) {
+			if (subprog[ret_prog[j]].is_exception_cb) {
+				verbose(env, "cannot tail call within exception cb\n");
+				return -EINVAL;
+			}
 			subprog[ret_prog[j]].tail_call_reachable = true;
+		}
 	if (subprog[0].tail_call_reachable)
 		env->prog->aux->tail_call_reachable = true;
 
@@ -14630,7 +14721,7 @@ static int check_return_code(struct bpf_verifier_env *env)
 	const bool is_subprog = frame->subprogno;
 
 	/* LSM and struct_ops func-ptr's return type could be "void" */
-	if (!is_subprog) {
+	if (!is_subprog || frame->in_exception_callback_fn) {
 		switch (prog_type) {
 		case BPF_PROG_TYPE_LSM:
 			if (prog->expected_attach_type == BPF_LSM_CGROUP)
@@ -14678,7 +14769,7 @@ static int check_return_code(struct bpf_verifier_env *env)
 		return 0;
 	}
 
-	if (is_subprog) {
+	if (is_subprog && !frame->in_exception_callback_fn) {
 		if (reg->type != SCALAR_VALUE) {
 			verbose(env, "At subprogram exit the register R0 is not a scalar value (%s)\n",
 				reg_type_str(env, reg->type));
@@ -19334,7 +19425,7 @@ static void free_states(struct bpf_verifier_env *env)
 	}
 }
 
-static int do_check_common(struct bpf_verifier_env *env, int subprog)
+static int do_check_common(struct bpf_verifier_env *env, int subprog, bool is_ex_cb)
 {
 	bool pop_log = !(env->log.level & BPF_LOG_LEVEL2);
 	struct bpf_verifier_state *state;
@@ -19365,7 +19456,7 @@ static int do_check_common(struct bpf_verifier_env *env, int subprog)
 
 	regs = state->frame[state->curframe]->regs;
 	if (subprog || env->prog->type == BPF_PROG_TYPE_EXT) {
-		ret = btf_prepare_func_args(env, subprog, regs);
+		ret = btf_prepare_func_args(env, subprog, regs, is_ex_cb);
 		if (ret)
 			goto out;
 		for (i = BPF_REG_1; i <= BPF_REG_5; i++) {
@@ -19380,6 +19471,12 @@ static int do_check_common(struct bpf_verifier_env *env, int subprog)
 				regs[i].mem_size = mem_size;
 				regs[i].id = ++env->id_gen;
 			}
+		}
+		if (is_ex_cb) {
+			state->frame[0]->in_exception_callback_fn = true;
+			env->subprog_info[subprog].is_cb = true;
+			env->subprog_info[subprog].is_async_cb = true;
+			env->subprog_info[subprog].is_exception_cb = true;
 		}
 	} else {
 		/* 1st arg to a function */
@@ -19445,7 +19542,7 @@ static int do_check_subprogs(struct bpf_verifier_env *env)
 			continue;
 		env->insn_idx = env->subprog_info[i].start;
 		WARN_ON_ONCE(env->insn_idx == 0);
-		ret = do_check_common(env, i);
+		ret = do_check_common(env, i, env->exception_callback_subprog == i);
 		if (ret) {
 			return ret;
 		} else if (env->log.level & BPF_LOG_LEVEL) {
@@ -19462,7 +19559,7 @@ static int do_check_main(struct bpf_verifier_env *env)
 	int ret;
 
 	env->insn_idx = 0;
-	ret = do_check_common(env, 0);
+	ret = do_check_common(env, 0, false);
 	if (!ret)
 		env->prog->aux->stack_depth = env->subprog_info[0].stack_depth;
 	return ret;

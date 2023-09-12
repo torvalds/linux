@@ -165,7 +165,16 @@ extern void bpf_percpu_obj_drop_impl(void *kptr, void *meta) __ksym;
 /* Description
  *	Throw a BPF exception from the program, immediately terminating its
  *	execution and unwinding the stack. The supplied 'cookie' parameter
- *	will be the return value of the program when an exception is thrown.
+ *	will be the return value of the program when an exception is thrown,
+ *	and the default exception callback is used. Otherwise, if an exception
+ *	callback is set using the '__exception_cb(callback)' declaration tag
+ *	on the main program, the 'cookie' parameter will be the callback's only
+ *	input argument.
+ *
+ *	Thus, in case of default exception callback, 'cookie' is subjected to
+ *	constraints on the program's return value (as with R0 on exit).
+ *	Otherwise, the return value of the marked exception callback will be
+ *	subjected to the same checks.
  *
  *	Note that throwing an exception with lingering resources (locks,
  *	references, etc.) will lead to a verification error.
@@ -177,5 +186,25 @@ extern void bpf_percpu_obj_drop_impl(void *kptr, void *meta) __ksym;
  *	An exception with the specified 'cookie' value.
  */
 extern void bpf_throw(u64 cookie) __ksym;
+
+/* This macro must be used to mark the exception callback corresponding to the
+ * main program. For example:
+ *
+ * int exception_cb(u64 cookie) {
+ *	return cookie;
+ * }
+ *
+ * SEC("tc")
+ * __exception_cb(exception_cb)
+ * int main_prog(struct __sk_buff *ctx) {
+ *	...
+ *	return TC_ACT_OK;
+ * }
+ *
+ * Here, exception callback for the main program will be 'exception_cb'. Note
+ * that this attribute can only be used once, and multiple exception callbacks
+ * specified for the main program will lead to verification error.
+ */
+#define __exception_cb(name) __attribute__((btf_decl_tag("exception_callback:" #name)))
 
 #endif

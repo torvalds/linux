@@ -2422,9 +2422,11 @@ int btf_check_subprog_arg_match(struct bpf_verifier_env *env, int subprog,
 int btf_check_subprog_call(struct bpf_verifier_env *env, int subprog,
 			   struct bpf_reg_state *regs);
 int btf_prepare_func_args(struct bpf_verifier_env *env, int subprog,
-			  struct bpf_reg_state *reg);
+			  struct bpf_reg_state *reg, bool is_ex_cb);
 int btf_check_type_match(struct bpf_verifier_log *log, const struct bpf_prog *prog,
 			 struct btf *btf, const struct btf_type *t);
+const char *btf_find_decl_tag_value(const struct btf *btf, const struct btf_type *pt,
+				    int comp_idx, const char *tag_key);
 
 struct bpf_prog *bpf_prog_by_id(u32 id);
 struct bpf_link *bpf_link_by_id(u32 id);

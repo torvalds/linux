@@ -3310,10 +3310,10 @@ static int btf_find_kptr(const struct btf *btf, const struct btf_type *t,
 	return BTF_FIELD_FOUND;
 }
 
-static const char *btf_find_decl_tag_value(const struct btf *btf,
-					   const struct btf_type *pt,
-					   int comp_idx, const char *tag_key)
+const char *btf_find_decl_tag_value(const struct btf *btf, const struct btf_type *pt,
+				    int comp_idx, const char *tag_key)
 {
+	const char *value = NULL;
 	int i;
 
 	for (i = 1; i < btf_nr_types(btf); i++) {
@@ -3327,9 +3327,14 @@ static const char *btf_find_decl_tag_value(const struct btf *btf,
 			continue;
 		if (strncmp(__btf_name_by_offset(btf, t->name_off), tag_key, len))
 			continue;
-		return __btf_name_by_offset(btf, t->name_off) + len;
+		/* Prevent duplicate entries for same type */
+		if (value)
+			return ERR_PTR(-EEXIST);
+		value = __btf_name_by_offset(btf, t->name_off) + len;
 	}
-	return NULL;
+	if (!value)
+		return ERR_PTR(-ENOENT);
+	return value;
 }
 
 static int
@@ -3347,7 +3352,7 @@ btf_find_graph_root(const struct btf *btf, const struct btf_type *pt,
 	if (t->size != sz)
 		return BTF_FIELD_IGNORE;
 	value_type = btf_find_decl_tag_value(btf, pt, comp_idx, "contains:");
-	if (!value_type)
+	if (IS_ERR(value_type))
 		return -EINVAL;
 	node_field_name = strstr(value_type, ":");
 	if (!node_field_name)
@@ -6954,7 +6959,7 @@ int btf_check_subprog_call(struct bpf_verifier_env *env, int subprog,
  * (either PTR_TO_CTX or SCALAR_VALUE).
  */
 int btf_prepare_func_args(struct bpf_verifier_env *env, int subprog,
-			  struct bpf_reg_state *regs)
+			  struct bpf_reg_state *regs, bool is_ex_cb)
 {
 	struct bpf_verifier_log *log = &env->log;
 	struct bpf_prog *prog = env->prog;
@@ -7011,7 +7016,7 @@ int btf_prepare_func_args(struct bpf_verifier_env *env, int subprog,
 			tname, nargs, MAX_BPF_FUNC_REG_ARGS);
 		return -EINVAL;
 	}
-	/* check that function returns int */
+	/* check that function returns int, exception cb also requires this */
 	t = btf_type_by_id(btf, t->type);
 	while (btf_type_is_modifier(t))
 		t = btf_type_by_id(btf, t->type);
@@ -7058,6 +7063,14 @@ int btf_prepare_func_args(struct bpf_verifier_env *env, int subprog,
 		}
 		bpf_log(log, "Arg#%d type %s in %s() is not supported yet.\n",
 			i, btf_type_str(t), tname);
+		return -EINVAL;
+	}
+	/* We have already ensured that the callback returns an integer, just
+	 * like all global subprogs. We need to determine it only has a single
+	 * scalar argument.
+	 */
+	if (is_ex_cb && (nargs != 1 || regs[BPF_REG_1].type != SCALAR_VALUE)) {
+		bpf_log(log, "exception cb only supports single integer argument\n");
 		return -EINVAL;
 	}
 	return 0;
