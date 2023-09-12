@@ -22,6 +22,7 @@ struct i915_vma {
 	struct drm_mm_node node;
 };
 
+#define i915_ggtt_clear_scanout(bo) do { } while (0)
 
 static inline u32 i915_ggtt_offset(const struct i915_vma *vma)
 {
