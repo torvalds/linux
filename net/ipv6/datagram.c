@@ -332,7 +332,7 @@ void ipv6_icmp_error(struct sock *sk, struct sk_buff *skb, int err,
 
 	__skb_pull(skb, payload - skb->data);
 
-	if (inet6_sk(sk)->recverr_rfc4884)
+	if (inet6_test_bit(RECVERR6_RFC4884, sk))
 		ipv6_icmp_error_rfc4884(skb, &serr->ee.ee_rfc4884);
 
 	skb_reset_transport_header(skb);

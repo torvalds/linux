@@ -256,7 +256,6 @@ struct ipv6_pinfo {
 				autoflowlabel:1,
 				autoflowlabel_set:1,
 				mc_all:1,
-				recverr_rfc4884:1,
 				rtalert_isolate:1;
 	__u8			min_hopcount;
 	__u8			tclass;

@@ -462,6 +462,13 @@ int do_ipv6_setsockopt(struct sock *sk, int level, int optname,
 		 */
 		WRITE_ONCE(np->min_hopcount, val);
 		return 0;
+	case IPV6_RECVERR_RFC4884:
+		if (optlen < sizeof(int))
+			return -EINVAL;
+		if (val < 0 || val > 1)
+			return -EINVAL;
+		inet6_assign_bit(RECVERR6_RFC4884, sk, valbool);
+		return 0;
 	}
 	if (needs_rtnl)
 		rtnl_lock();
@@ -974,14 +981,6 @@ done:
 		np->rxopt.bits.recvfragsize = valbool;
 		retv = 0;
 		break;
-	case IPV6_RECVERR_RFC4884:
-		if (optlen < sizeof(int))
-			goto e_inval;
-		if (val < 0 || val > 1)
-			goto e_inval;
-		np->recverr_rfc4884 = valbool;
-		retv = 0;
-		break;
 	}
 
 unlock:
@@ -1462,7 +1461,7 @@ int do_ipv6_getsockopt(struct sock *sk, int level, int optname,
 		break;
 
 	case IPV6_RECVERR_RFC4884:
-		val = np->recverr_rfc4884;
+		val = inet6_test_bit(RECVERR6_RFC4884, sk);
 		break;
 
 	default:
