@@ -241,8 +241,8 @@ static int __bch2_truncate_folio(struct bch_inode_info *inode,
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
 	struct address_space *mapping = inode->v.i_mapping;
 	struct bch_folio *s;
-	unsigned start_offset = start & (PAGE_SIZE - 1);
-	unsigned end_offset = ((end - 1) & (PAGE_SIZE - 1)) + 1;
+	unsigned start_offset;
+	unsigned end_offset;
 	unsigned i;
 	struct folio *folio;
 	s64 i_sectors_delta = 0;
