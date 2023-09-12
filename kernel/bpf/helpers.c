@@ -2490,6 +2490,7 @@ __bpf_kfunc void bpf_throw(u64 cookie)
 	 */
 	kasan_unpoison_task_stack_below((void *)ctx.sp);
 	ctx.aux->bpf_exception_cb(cookie, ctx.sp, ctx.bp);
+	WARN(1, "A call to BPF exception callback should never return\n");
 }
 
 __diag_pop();
