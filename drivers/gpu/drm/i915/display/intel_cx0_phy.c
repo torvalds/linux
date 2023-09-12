@@ -29,8 +29,6 @@
 #define INTEL_CX0_LANE1		BIT(1)
 #define INTEL_CX0_BOTH_LANES	(INTEL_CX0_LANE1 | INTEL_CX0_LANE0)
 
-#define INTEL_CX0_MSGBUS_TIMER_BUMPED_VAL	0x200
-
 bool intel_is_c10phy(struct drm_i915_private *i915, enum phy phy)
 {
 	if (DISPLAY_VER_FULL(i915) == IP_VER(14, 0) && phy < PHY_C)
@@ -73,19 +71,38 @@ assert_dc_off(struct drm_i915_private *i915)
 	drm_WARN_ON(&i915->drm, !enabled);
 }
 
+static void intel_cx0_program_msgbus_timer(struct intel_encoder *encoder)
+{
+	int lane;
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+
+	for_each_cx0_lane_in_mask(INTEL_CX0_BOTH_LANES, lane)
+		intel_de_rmw(i915,
+			     XELPDP_PORT_MSGBUS_TIMER(encoder->port, lane),
+			     XELPDP_PORT_MSGBUS_TIMER_VAL_MASK,
+			     XELPDP_PORT_MSGBUS_TIMER_VAL);
+}
+
 /*
  * Prepare HW for CX0 phy transactions.
  *
  * It is required that PSR and DC5/6 are disabled before any CX0 message
  * bus transaction is executed.
+ *
+ * We also do the msgbus timer programming here to ensure that the timer
+ * is already programmed before any access to the msgbus.
  */
 static intel_wakeref_t intel_cx0_phy_transaction_begin(struct intel_encoder *encoder)
 {
+	intel_wakeref_t wakeref;
 	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 
 	intel_psr_pause(intel_dp);
-	return intel_display_power_get(i915, POWER_DOMAIN_DC_OFF);
+	wakeref = intel_display_power_get(i915, POWER_DOMAIN_DC_OFF);
+	intel_cx0_program_msgbus_timer(encoder);
+
+	return wakeref;
 }
 
 static void intel_cx0_phy_transaction_end(struct intel_encoder *encoder, intel_wakeref_t wakeref)
@@ -121,42 +138,6 @@ static void intel_cx0_bus_reset(struct drm_i915_private *i915, enum port port, i
 	intel_clear_response_ready_flag(i915, port, lane);
 }
 
-/*
- * Check if there was a timeout detected by the hardware in the message bus
- * and bump the threshold if so.
- */
-static void intel_cx0_bus_check_and_bump_timer(struct drm_i915_private *i915,
-					       enum port port, int lane)
-{
-	enum phy phy = intel_port_to_phy(i915, port);
-	i915_reg_t reg;
-	u32 val;
-	u32 timer_val;
-
-	reg = XELPDP_PORT_MSGBUS_TIMER(port, lane);
-	val = intel_de_read(i915, reg);
-
-	if (!(val & XELPDP_PORT_MSGBUS_TIMER_TIMED_OUT)) {
-		drm_warn(&i915->drm,
-			 "PHY %c lane %d: hardware did not detect a timeout\n",
-			 phy_name(phy), lane);
-		return;
-	}
-
-	timer_val = REG_FIELD_GET(XELPDP_PORT_MSGBUS_TIMER_VAL_MASK, val);
-
-	if (timer_val == INTEL_CX0_MSGBUS_TIMER_BUMPED_VAL)
-		return;
-
-	val &= ~XELPDP_PORT_MSGBUS_TIMER_VAL_MASK;
-	val |= XELPDP_PORT_MSGBUS_TIMER_VAL(INTEL_CX0_MSGBUS_TIMER_BUMPED_VAL);
-
-	drm_dbg_kms(&i915->drm,
-		    "PHY %c lane %d: increasing msgbus timer threshold to %#x\n",
-		    phy_name(phy), lane, INTEL_CX0_MSGBUS_TIMER_BUMPED_VAL);
-	intel_de_write(i915, reg, val);
-}
-
 static int intel_cx0_wait_for_ack(struct drm_i915_private *i915, enum port port,
 				  int command, int lane, u32 *val)
 {
@@ -170,7 +151,13 @@ static int intel_cx0_wait_for_ack(struct drm_i915_private *i915, enum port port,
 					 XELPDP_MSGBUS_TIMEOUT_SLOW, val)) {
 		drm_dbg_kms(&i915->drm, "PHY %c Timeout waiting for message ACK. Status: 0x%x\n",
 			    phy_name(phy), *val);
-		intel_cx0_bus_check_and_bump_timer(i915, port, lane);
+
+		if (!(intel_de_read(i915, XELPDP_PORT_MSGBUS_TIMER(port, lane)) &
+		      XELPDP_PORT_MSGBUS_TIMER_TIMED_OUT))
+			drm_dbg_kms(&i915->drm,
+				    "PHY %c Hardware did not detect a timeout\n",
+				    phy_name(phy));
+
 		intel_cx0_bus_reset(i915, port, lane);
 		return -ETIMEDOUT;
 	}
@@ -2737,39 +2724,45 @@ static void intel_cx0pll_enable(struct intel_encoder *encoder,
 	intel_cx0_powerdown_change_sequence(i915, encoder->port, INTEL_CX0_BOTH_LANES,
 					    CX0_P2_STATE_READY);
 
-	/* 4. Program PHY internal PLL internal registers. */
+	/*
+	 * 4. Program PORT_MSGBUS_TIMER register's Message Bus Timer field to 0xA000.
+	 *    (This is done inside intel_cx0_phy_transaction_begin(), since we would need
+	 *    the right timer thresholds for readouts too.)
+	 */
+
+	/* 5. Program PHY internal PLL internal registers. */
 	if (intel_is_c10phy(i915, phy))
 		intel_c10_pll_program(i915, crtc_state, encoder);
 	else
 		intel_c20_pll_program(i915, crtc_state, encoder);
 
 	/*
-	 * 5. Program the enabled and disabled owned PHY lane
+	 * 6. Program the enabled and disabled owned PHY lane
 	 * transmitters over message bus
 	 */
 	intel_cx0_program_phy_lane(i915, encoder, crtc_state->lane_count, lane_reversal);
 
 	/*
-	 * 6. Follow the Display Voltage Frequency Switching - Sequence
+	 * 7. Follow the Display Voltage Frequency Switching - Sequence
 	 * Before Frequency Change. We handle this step in bxt_set_cdclk().
 	 */
 
 	/*
-	 * 7. Program DDI_CLK_VALFREQ to match intended DDI
+	 * 8. Program DDI_CLK_VALFREQ to match intended DDI
 	 * clock frequency.
 	 */
 	intel_de_write(i915, DDI_CLK_VALFREQ(encoder->port),
 		       crtc_state->port_clock);
 
 	/*
-	 * 8. Set PORT_CLOCK_CTL register PCLK PLL Request
+	 * 9. Set PORT_CLOCK_CTL register PCLK PLL Request
 	 * LN<Lane for maxPCLK> to "1" to enable PLL.
 	 */
 	intel_de_rmw(i915, XELPDP_PORT_CLOCK_CTL(encoder->port),
 		     intel_cx0_get_pclk_pll_request(INTEL_CX0_BOTH_LANES),
 		     intel_cx0_get_pclk_pll_request(maxpclk_lane));
 
-	/* 9. Poll on PORT_CLOCK_CTL PCLK PLL Ack LN<Lane for maxPCLK> == "1". */
+	/* 10. Poll on PORT_CLOCK_CTL PCLK PLL Ack LN<Lane for maxPCLK> == "1". */
 	if (__intel_de_wait_for_register(i915, XELPDP_PORT_CLOCK_CTL(encoder->port),
 					 intel_cx0_get_pclk_pll_ack(INTEL_CX0_BOTH_LANES),
 					 intel_cx0_get_pclk_pll_ack(maxpclk_lane),
@@ -2778,7 +2771,7 @@ static void intel_cx0pll_enable(struct intel_encoder *encoder,
 			 phy_name(phy), XELPDP_PCLK_PLL_ENABLE_TIMEOUT_US);
 
 	/*
-	 * 10. Follow the Display Voltage Frequency Switching Sequence After
+	 * 11. Follow the Display Voltage Frequency Switching Sequence After
 	 * Frequency Change. We handle this step in bxt_set_cdclk().
 	 */
 
