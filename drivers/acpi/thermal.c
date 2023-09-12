@@ -43,17 +43,13 @@
 #define ACPI_THERMAL_MAX_ACTIVE		10
 #define ACPI_THERMAL_MAX_LIMIT_STR_LEN	65
 
-#define ACPI_TRIPS_CRITICAL	BIT(0)
-#define ACPI_TRIPS_HOT		BIT(1)
-#define ACPI_TRIPS_PASSIVE	BIT(2)
-#define ACPI_TRIPS_ACTIVE	BIT(3)
-#define ACPI_TRIPS_DEVICES	BIT(4)
+#define ACPI_TRIPS_PASSIVE	BIT(0)
+#define ACPI_TRIPS_ACTIVE	BIT(1)
+#define ACPI_TRIPS_DEVICES	BIT(2)
 
 #define ACPI_TRIPS_THRESHOLDS	(ACPI_TRIPS_PASSIVE | ACPI_TRIPS_ACTIVE)
 
-#define ACPI_TRIPS_INIT		(ACPI_TRIPS_CRITICAL | ACPI_TRIPS_HOT | \
-				 ACPI_TRIPS_PASSIVE | ACPI_TRIPS_ACTIVE | \
-				 ACPI_TRIPS_DEVICES)
+#define ACPI_TRIPS_INIT		(ACPI_TRIPS_THRESHOLDS | ACPI_TRIPS_DEVICES)
 
 /*
  * This exception is thrown out in two cases:
@@ -195,62 +191,6 @@ static void __acpi_thermal_trips_update(struct acpi_thermal *tz, int flag)
 	struct acpi_handle_list devices;
 	bool valid = false;
 	int i;
-
-	/* Critical Shutdown */
-	if (flag & ACPI_TRIPS_CRITICAL) {
-		status = acpi_evaluate_integer(tz->device->handle, "_CRT", NULL, &tmp);
-		tz->trips.critical.temperature = tmp;
-		/*
-		 * Treat freezing temperatures as invalid as well; some
-		 * BIOSes return really low values and cause reboots at startup.
-		 * Below zero (Celsius) values clearly aren't right for sure..
-		 * ... so lets discard those as invalid.
-		 */
-		if (ACPI_FAILURE(status)) {
-			tz->trips.critical.valid = false;
-			acpi_handle_debug(tz->device->handle,
-					  "No critical threshold\n");
-		} else if (tmp <= 2732) {
-			pr_info(FW_BUG "Invalid critical threshold (%llu)\n", tmp);
-			tz->trips.critical.valid = false;
-		} else {
-			tz->trips.critical.valid = true;
-			acpi_handle_debug(tz->device->handle,
-					  "Found critical threshold [%lu]\n",
-					  tz->trips.critical.temperature);
-		}
-		if (tz->trips.critical.valid) {
-			if (crt == -1) {
-				tz->trips.critical.valid = false;
-			} else if (crt > 0) {
-				unsigned long crt_k = celsius_to_deci_kelvin(crt);
-
-				/*
-				 * Allow override critical threshold
-				 */
-				if (crt_k > tz->trips.critical.temperature)
-					pr_info("Critical threshold %d C\n", crt);
-
-				tz->trips.critical.temperature = crt_k;
-			}
-		}
-	}
-
-	/* Critical Sleep (optional) */
-	if (flag & ACPI_TRIPS_HOT) {
-		status = acpi_evaluate_integer(tz->device->handle, "_HOT", NULL, &tmp);
-		if (ACPI_FAILURE(status)) {
-			tz->trips.hot.valid = false;
-			acpi_handle_debug(tz->device->handle,
-					  "No hot threshold\n");
-		} else {
-			tz->trips.hot.temperature = tmp;
-			tz->trips.hot.valid = true;
-			acpi_handle_debug(tz->device->handle,
-					  "Found hot threshold [%lu]\n",
-					  tz->trips.hot.temperature);
-		}
-	}
 
 	/* Passive (optional) */
 	if (((flag & ACPI_TRIPS_PASSIVE) && tz->trips.passive.trip.valid) ||
@@ -451,11 +391,73 @@ static void acpi_thermal_trips_update(struct acpi_thermal *tz, u32 event)
 					dev_name(&adev->dev), event, 0);
 }
 
+static void acpi_thermal_get_critical_trip(struct acpi_thermal *tz)
+{
+	unsigned long long tmp;
+	acpi_status status;
+
+	if (crt > 0) {
+		tmp = celsius_to_deci_kelvin(crt);
+		goto set;
+	}
+	if (crt == -1) {
+		acpi_handle_debug(tz->device->handle, "Critical threshold disabled\n");
+		goto fail;
+	}
+
+	status = acpi_evaluate_integer(tz->device->handle, "_CRT", NULL, &tmp);
+	if (ACPI_FAILURE(status)) {
+		acpi_handle_debug(tz->device->handle, "No critical threshold\n");
+		goto fail;
+	}
+	if (tmp <= 2732) {
+		/*
+		 * Below zero (Celsius) values clearly aren't right for sure,
+		 * so discard them as invalid.
+		 */
+		pr_info(FW_BUG "Invalid critical threshold (%llu)\n", tmp);
+		goto fail;
+	}
+
+set:
+	tz->trips.critical.valid = true;
+	tz->trips.critical.temperature = tmp;
+	acpi_handle_debug(tz->device->handle, "Critical threshold [%lu]\n",
+			  tz->trips.critical.temperature);
+	return;
+
+fail:
+	tz->trips.critical.valid = false;
+	tz->trips.critical.temperature = THERMAL_TEMP_INVALID;
+}
+
+static void acpi_thermal_get_hot_trip(struct acpi_thermal *tz)
+{
+	unsigned long long tmp;
+	acpi_status status;
+
+	status = acpi_evaluate_integer(tz->device->handle, "_HOT", NULL, &tmp);
+	if (ACPI_FAILURE(status)) {
+		tz->trips.hot.valid = false;
+		tz->trips.hot.temperature = THERMAL_TEMP_INVALID;
+		acpi_handle_debug(tz->device->handle, "No hot threshold\n");
+		return;
+	}
+
+	tz->trips.hot.valid = true;
+	tz->trips.hot.temperature = tmp;
+	acpi_handle_debug(tz->device->handle, "Hot threshold [%lu]\n",
+			  tz->trips.hot.temperature);
+}
+
 static int acpi_thermal_get_trip_points(struct acpi_thermal *tz)
 {
 	bool valid;
 	int i;
 
+	acpi_thermal_get_critical_trip(tz);
+	acpi_thermal_get_hot_trip(tz);
+	/* Passive and active trip points (optional). */
 	__acpi_thermal_trips_update(tz, ACPI_TRIPS_INIT);
 
 	valid = tz->trips.critical.valid |
