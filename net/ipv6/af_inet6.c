@@ -537,7 +537,7 @@ int inet6_getname(struct socket *sock, struct sockaddr *uaddr,
 		}
 		sin->sin6_port = inet->inet_dport;
 		sin->sin6_addr = sk->sk_v6_daddr;
-		if (np->sndflow)
+		if (inet6_test_bit(SNDFLOW, sk))
 			sin->sin6_flowinfo = np->flow_label;
 		BPF_CGROUP_RUN_SA_PROG(sk, (struct sockaddr *)sin,
 				       CGROUP_INET6_GETPEERNAME);

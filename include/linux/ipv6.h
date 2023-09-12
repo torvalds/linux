@@ -243,8 +243,7 @@ struct ipv6_pinfo {
 	} rxopt;
 
 	/* sockopt flags */
-	__u8			sndflow:1,
-				srcprefs:3;	/* 001: prefer temporary address
+	__u8			srcprefs:3;	/* 001: prefer temporary address
 						 * 010: prefer public address
 						 * 100: prefer care-of address
 						 */

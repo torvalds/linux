@@ -80,7 +80,8 @@ int ip6_datagram_dst_update(struct sock *sk, bool fix_sk_saddr)
 	struct flowi6 fl6;
 	int err = 0;
 
-	if (np->sndflow && (np->flow_label & IPV6_FLOWLABEL_MASK)) {
+	if (inet6_test_bit(SNDFLOW, sk) &&
+	    (np->flow_label & IPV6_FLOWLABEL_MASK)) {
 		flowlabel = fl6_sock_lookup(sk, np->flow_label);
 		if (IS_ERR(flowlabel))
 			return -EINVAL;
@@ -163,7 +164,7 @@ int __ip6_datagram_connect(struct sock *sk, struct sockaddr *uaddr,
 	if (usin->sin6_family != AF_INET6)
 		return -EAFNOSUPPORT;
 
-	if (np->sndflow)
+	if (inet6_test_bit(SNDFLOW, sk))
 		fl6_flowlabel = usin->sin6_flowinfo & IPV6_FLOWINFO_MASK;
 
 	if (ipv6_addr_any(&usin->sin6_addr)) {
@@ -491,7 +492,7 @@ int ipv6_recv_error(struct sock *sk, struct msghdr *msg, int len, int *addr_len)
 			const struct ipv6hdr *ip6h = container_of((struct in6_addr *)(nh + serr->addr_offset),
 								  struct ipv6hdr, daddr);
 			sin->sin6_addr = ip6h->daddr;
-			if (np->sndflow)
+			if (inet6_test_bit(SNDFLOW, sk))
 				sin->sin6_flowinfo = ip6_flowinfo(ip6h);
 			sin->sin6_scope_id =
 				ipv6_iface_scope_id(&sin->sin6_addr,

@@ -296,7 +296,8 @@ static void sctp_v6_get_dst(struct sctp_transport *t, union sctp_addr *saddr,
 	if (t->flowlabel & SCTP_FLOWLABEL_SET_MASK)
 		fl6->flowlabel = htonl(t->flowlabel & SCTP_FLOWLABEL_VAL_MASK);
 
-	if (np->sndflow && (fl6->flowlabel & IPV6_FLOWLABEL_MASK)) {
+	if (inet6_test_bit(SNDFLOW, sk) &&
+	    (fl6->flowlabel & IPV6_FLOWLABEL_MASK)) {
 		struct ip6_flowlabel *flowlabel;
 
 		flowlabel = fl6_sock_lookup(sk, fl6->flowlabel);

@@ -795,7 +795,7 @@ static int rawv6_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 			return -EINVAL;
 
 		daddr = &sin6->sin6_addr;
-		if (np->sndflow) {
+		if (inet6_test_bit(SNDFLOW, sk)) {
 			fl6.flowlabel = sin6->sin6_flowinfo&IPV6_FLOWINFO_MASK;
 			if (fl6.flowlabel&IPV6_FLOWLABEL_MASK) {
 				flowlabel = fl6_sock_lookup(sk, fl6.flowlabel);
