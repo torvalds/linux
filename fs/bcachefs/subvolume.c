@@ -98,7 +98,7 @@ int bch2_check_subvols(struct bch_fs *c)
 /* Subvolumes: */
 
 int bch2_subvolume_invalid(const struct bch_fs *c, struct bkey_s_c k,
-			   unsigned flags, struct printbuf *err)
+			   enum bkey_invalid_flags flags, struct printbuf *err)
 {
 	if (bkey_lt(k.k->p, SUBVOL_POS_MIN) ||
 	    bkey_gt(k.k->p, SUBVOL_POS_MAX)) {

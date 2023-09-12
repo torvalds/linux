@@ -26,7 +26,7 @@ const char * const bch2_bkey_types[] = {
 };
 
 static int deleted_key_invalid(const struct bch_fs *c, struct bkey_s_c k,
-			       unsigned flags, struct printbuf *err)
+			       enum bkey_invalid_flags flags, struct printbuf *err)
 {
 	return 0;
 }
@@ -40,7 +40,7 @@ static int deleted_key_invalid(const struct bch_fs *c, struct bkey_s_c k,
 })
 
 static int empty_val_key_invalid(const struct bch_fs *c, struct bkey_s_c k,
-				 unsigned flags, struct printbuf *err)
+				 enum bkey_invalid_flags flags, struct printbuf *err)
 {
 	if (bkey_val_bytes(k.k)) {
 		prt_printf(err, "incorrect value size (%zu != 0)",
@@ -56,7 +56,7 @@ static int empty_val_key_invalid(const struct bch_fs *c, struct bkey_s_c k,
 })
 
 static int key_type_cookie_invalid(const struct bch_fs *c, struct bkey_s_c k,
-				   unsigned flags, struct printbuf *err)
+				   enum bkey_invalid_flags flags, struct printbuf *err)
 {
 	return 0;
 }
@@ -71,7 +71,7 @@ static int key_type_cookie_invalid(const struct bch_fs *c, struct bkey_s_c k,
 })
 
 static int key_type_inline_data_invalid(const struct bch_fs *c, struct bkey_s_c k,
-					unsigned flags, struct printbuf *err)
+					enum bkey_invalid_flags flags, struct printbuf *err)
 {
 	return 0;
 }
@@ -92,7 +92,7 @@ static void key_type_inline_data_to_text(struct printbuf *out, struct bch_fs *c,
 })
 
 static int key_type_set_invalid(const struct bch_fs *c, struct bkey_s_c k,
-				unsigned flags, struct printbuf *err)
+				enum bkey_invalid_flags flags, struct printbuf *err)
 {
 	if (bkey_val_bytes(k.k)) {
 		prt_printf(err, "incorrect value size (%zu != %zu)",
