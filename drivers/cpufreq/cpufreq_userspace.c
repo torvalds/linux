@@ -15,9 +15,8 @@
 #include <linux/mutex.h>
 #include <linux/slab.h>
 
-static DEFINE_PER_CPU(unsigned int, cpu_is_managed);
-
 struct userspace_policy {
+	unsigned int is_managed;
 	unsigned int setspeed;
 	struct mutex mutex;
 };
@@ -37,7 +36,7 @@ static int cpufreq_set(struct cpufreq_policy *policy, unsigned int freq)
 	pr_debug("cpufreq_set for cpu %u, freq %u kHz\n", policy->cpu, freq);
 
 	mutex_lock(&userspace->mutex);
-	if (!per_cpu(cpu_is_managed, policy->cpu))
+	if (!userspace->is_managed)
 		goto err;
 
 	userspace->setspeed = freq;
@@ -85,7 +84,7 @@ static int cpufreq_userspace_policy_start(struct cpufreq_policy *policy)
 	pr_debug("started managing cpu %u\n", policy->cpu);
 
 	mutex_lock(&userspace->mutex);
-	per_cpu(cpu_is_managed, policy->cpu) = 1;
+	userspace->is_managed = 1;
 	userspace->setspeed = policy->cur;
 	mutex_unlock(&userspace->mutex);
 	return 0;
@@ -98,7 +97,7 @@ static void cpufreq_userspace_policy_stop(struct cpufreq_policy *policy)
 	pr_debug("managing cpu %u stopped\n", policy->cpu);
 
 	mutex_lock(&userspace->mutex);
-	per_cpu(cpu_is_managed, policy->cpu) = 0;
+	userspace->is_managed = 0;
 	userspace->setspeed = 0;
 	mutex_unlock(&userspace->mutex);
 }
