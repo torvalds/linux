@@ -786,7 +786,6 @@ static int bch2_quota_set_info(struct super_block *sb, int type,
 {
 	struct bch_fs *c = sb->s_fs_info;
 	struct bch_sb_field_quota *sb_quota;
-	struct bch_memquota_type *q;
 	int ret = 0;
 
 	if (0) {
@@ -809,8 +808,6 @@ static int bch2_quota_set_info(struct super_block *sb, int type,
 	if (info->i_fieldmask &
 	    ~(QC_SPC_TIMER|QC_INO_TIMER|QC_SPC_WARNS|QC_INO_WARNS))
 		return -EINVAL;
-
-	q = &c->quotas[type];
 
 	mutex_lock(&c->sb_lock);
 	sb_quota = bch2_sb_get_or_create_quota(&c->disk_sb);
