@@ -539,3 +539,6 @@
 450 	nospu	set_mempolicy_home_node		sys_set_mempolicy_home_node
 451	common	cachestat			sys_cachestat
 452	common	fchmodat2			sys_fchmodat2
+453	common	lsm_get_self_attr		sys_lsm_get_self_attr
+454	common	lsm_set_self_attr		sys_lsm_set_self_attr
+455	common	lsm_list_modules		sys_lsm_list_modules

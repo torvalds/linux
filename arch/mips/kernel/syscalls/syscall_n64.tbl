@@ -371,3 +371,6 @@
 454	n64	futex_wake			sys_futex_wake
 455	n64	futex_wait			sys_futex_wait
 456	n64	futex_requeue			sys_futex_requeue
+457	n64	lsm_get_self_attr		sys_lsm_get_self_attr
+458	n64	lsm_set_self_attr		sys_lsm_set_self_attr
+459	n64	lsm_list_modules		sys_lsm_list_modules
