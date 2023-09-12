@@ -207,4 +207,247 @@ extern void bpf_throw(u64 cookie) __ksym;
  */
 #define __exception_cb(name) __attribute__((btf_decl_tag("exception_callback:" #name)))
 
+#define __bpf_assert_signed(x) _Generic((x), \
+    unsigned long: 0,       \
+    unsigned long long: 0,  \
+    signed long: 1,         \
+    signed long long: 1     \
+)
+
+#define __bpf_assert_check(LHS, op, RHS)								 \
+	_Static_assert(sizeof(&(LHS)), "1st argument must be an lvalue expression");			 \
+	_Static_assert(sizeof(LHS) == 8, "Only 8-byte integers are supported\n");			 \
+	_Static_assert(__builtin_constant_p(__bpf_assert_signed(LHS)), "internal static assert");	 \
+	_Static_assert(__builtin_constant_p((RHS)), "2nd argument must be a constant expression")
+
+#define __bpf_assert(LHS, op, cons, RHS, VAL)							\
+	({											\
+		(void)bpf_throw;								\
+		asm volatile ("if %[lhs] " op " %[rhs] goto +2; r1 = %[value]; call bpf_throw"	\
+			       : : [lhs] "r"(LHS), [rhs] cons(RHS), [value] "ri"(VAL) : );	\
+	})
+
+#define __bpf_assert_op_sign(LHS, op, cons, RHS, VAL, supp_sign)			\
+	({										\
+		__bpf_assert_check(LHS, op, RHS);					\
+		if (__bpf_assert_signed(LHS) && !(supp_sign))				\
+			__bpf_assert(LHS, "s" #op, cons, RHS, VAL);			\
+		else									\
+			__bpf_assert(LHS, #op, cons, RHS, VAL);				\
+	 })
+
+#define __bpf_assert_op(LHS, op, RHS, VAL, supp_sign)					\
+	({										\
+		if (sizeof(typeof(RHS)) == 8) {						\
+			const typeof(RHS) rhs_var = (RHS);				\
+			__bpf_assert_op_sign(LHS, op, "r", rhs_var, VAL, supp_sign);	\
+		} else {								\
+			__bpf_assert_op_sign(LHS, op, "i", RHS, VAL, supp_sign);	\
+		}									\
+	 })
+
+/* Description
+ *	Assert that a conditional expression is true.
+ * Returns
+ *	Void.
+ * Throws
+ *	An exception with the value zero when the assertion fails.
+ */
+#define bpf_assert(cond) if (!(cond)) bpf_throw(0);
+
+/* Description
+ *	Assert that a conditional expression is true.
+ * Returns
+ *	Void.
+ * Throws
+ *	An exception with the specified value when the assertion fails.
+ */
+#define bpf_assert_with(cond, value) if (!(cond)) bpf_throw(value);
+
+/* Description
+ *	Assert that LHS is equal to RHS. This statement updates the known value
+ *	of LHS during verification. Note that RHS must be a constant value, and
+ *	must fit within the data type of LHS.
+ * Returns
+ *	Void.
+ * Throws
+ *	An exception with the value zero when the assertion fails.
+ */
+#define bpf_assert_eq(LHS, RHS)						\
+	({								\
+		barrier_var(LHS);					\
+		__bpf_assert_op(LHS, ==, RHS, 0, true);			\
+	})
+
+/* Description
+ *	Assert that LHS is equal to RHS. This statement updates the known value
+ *	of LHS during verification. Note that RHS must be a constant value, and
+ *	must fit within the data type of LHS.
+ * Returns
+ *	Void.
+ * Throws
+ *	An exception with the specified value when the assertion fails.
+ */
+#define bpf_assert_eq_with(LHS, RHS, value)				\
+	({								\
+		barrier_var(LHS);					\
+		__bpf_assert_op(LHS, ==, RHS, value, true);		\
+	})
+
+/* Description
+ *	Assert that LHS is less than RHS. This statement updates the known
+ *	bounds of LHS during verification. Note that RHS must be a constant
+ *	value, and must fit within the data type of LHS.
+ * Returns
+ *	Void.
+ * Throws
+ *	An exception with the value zero when the assertion fails.
+ */
+#define bpf_assert_lt(LHS, RHS)						\
+	({								\
+		barrier_var(LHS);					\
+		__bpf_assert_op(LHS, <, RHS, 0, false);			\
+	})
+
+/* Description
+ *	Assert that LHS is less than RHS. This statement updates the known
+ *	bounds of LHS during verification. Note that RHS must be a constant
+ *	value, and must fit within the data type of LHS.
+ * Returns
+ *	Void.
+ * Throws
+ *	An exception with the specified value when the assertion fails.
+ */
+#define bpf_assert_lt_with(LHS, RHS, value)				\
+	({								\
+		barrier_var(LHS);					\
+		__bpf_assert_op(LHS, <, RHS, value, false);		\
+	})
+
+/* Description
+ *	Assert that LHS is greater than RHS. This statement updates the known
+ *	bounds of LHS during verification. Note that RHS must be a constant
+ *	value, and must fit within the data type of LHS.
+ * Returns
+ *	Void.
+ * Throws
+ *	An exception with the value zero when the assertion fails.
+ */
+#define bpf_assert_gt(LHS, RHS)						\
+	({								\
+		barrier_var(LHS);					\
+		__bpf_assert_op(LHS, >, RHS, 0, false);			\
+	})
+
+/* Description
+ *	Assert that LHS is greater than RHS. This statement updates the known
+ *	bounds of LHS during verification. Note that RHS must be a constant
+ *	value, and must fit within the data type of LHS.
+ * Returns
+ *	Void.
+ * Throws
+ *	An exception with the specified value when the assertion fails.
+ */
+#define bpf_assert_gt_with(LHS, RHS, value)				\
+	({								\
+		barrier_var(LHS);					\
+		__bpf_assert_op(LHS, >, RHS, value, false);		\
+	})
+
+/* Description
+ *	Assert that LHS is less than or equal to RHS. This statement updates the
+ *	known bounds of LHS during verification. Note that RHS must be a
+ *	constant value, and must fit within the data type of LHS.
+ * Returns
+ *	Void.
+ * Throws
+ *	An exception with the value zero when the assertion fails.
+ */
+#define bpf_assert_le(LHS, RHS)						\
+	({								\
+		barrier_var(LHS);					\
+		__bpf_assert_op(LHS, <=, RHS, 0, false);		\
+	})
+
+/* Description
+ *	Assert that LHS is less than or equal to RHS. This statement updates the
+ *	known bounds of LHS during verification. Note that RHS must be a
+ *	constant value, and must fit within the data type of LHS.
+ * Returns
+ *	Void.
+ * Throws
+ *	An exception with the specified value when the assertion fails.
+ */
+#define bpf_assert_le_with(LHS, RHS, value)				\
+	({								\
+		barrier_var(LHS);					\
+		__bpf_assert_op(LHS, <=, RHS, value, false);		\
+	})
+
+/* Description
+ *	Assert that LHS is greater than or equal to RHS. This statement updates
+ *	the known bounds of LHS during verification. Note that RHS must be a
+ *	constant value, and must fit within the data type of LHS.
+ * Returns
+ *	Void.
+ * Throws
+ *	An exception with the value zero when the assertion fails.
+ */
+#define bpf_assert_ge(LHS, RHS)						\
+	({								\
+		barrier_var(LHS);					\
+		__bpf_assert_op(LHS, >=, RHS, 0, false);		\
+	})
+
+/* Description
+ *	Assert that LHS is greater than or equal to RHS. This statement updates
+ *	the known bounds of LHS during verification. Note that RHS must be a
+ *	constant value, and must fit within the data type of LHS.
+ * Returns
+ *	Void.
+ * Throws
+ *	An exception with the specified value when the assertion fails.
+ */
+#define bpf_assert_ge_with(LHS, RHS, value)				\
+	({								\
+		barrier_var(LHS);					\
+		__bpf_assert_op(LHS, >=, RHS, value, false);		\
+	})
+
+/* Description
+ *	Assert that LHS is in the range [BEG, END] (inclusive of both). This
+ *	statement updates the known bounds of LHS during verification. Note
+ *	that both BEG and END must be constant values, and must fit within the
+ *	data type of LHS.
+ * Returns
+ *	Void.
+ * Throws
+ *	An exception with the value zero when the assertion fails.
+ */
+#define bpf_assert_range(LHS, BEG, END)					\
+	({								\
+		_Static_assert(BEG <= END, "BEG must be <= END");	\
+		barrier_var(LHS);					\
+		__bpf_assert_op(LHS, >=, BEG, 0, false);		\
+		__bpf_assert_op(LHS, <=, END, 0, false);		\
+	})
+
+/* Description
+ *	Assert that LHS is in the range [BEG, END] (inclusive of both). This
+ *	statement updates the known bounds of LHS during verification. Note
+ *	that both BEG and END must be constant values, and must fit within the
+ *	data type of LHS.
+ * Returns
+ *	Void.
+ * Throws
+ *	An exception with the specified value when the assertion fails.
+ */
+#define bpf_assert_range_with(LHS, BEG, END, value)			\
+	({								\
+		_Static_assert(BEG <= END, "BEG must be <= END");	\
+		barrier_var(LHS);					\
+		__bpf_assert_op(LHS, >=, BEG, value, false);		\
+		__bpf_assert_op(LHS, <=, END, value, false);		\
+	})
+
 #endif
