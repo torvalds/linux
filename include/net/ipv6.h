@@ -916,7 +916,7 @@ static inline int ip6_sk_dst_hoplimit(struct ipv6_pinfo *np, struct flowi6 *fl6,
 	if (ipv6_addr_is_multicast(&fl6->daddr))
 		hlimit = np->mcast_hops;
 	else
-		hlimit = np->hop_limit;
+		hlimit = READ_ONCE(np->hop_limit);
 	if (hlimit < 0)
 		hlimit = ip6_dst_hoplimit(dst);
 	return hlimit;

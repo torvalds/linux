@@ -213,17 +213,7 @@ struct ipv6_pinfo {
 	__be32			flow_label;
 	__u32			frag_size;
 
-	/*
-	 * Packed in 16bits.
-	 * Omit one shift by putting the signed field at MSB.
-	 */
-#if defined(__BIG_ENDIAN_BITFIELD)
-	__s16			hop_limit:9;
-	__u16			__unused_1:7;
-#else
-	__u16			__unused_1:7;
-	__s16			hop_limit:9;
-#endif
+	s16			hop_limit;
 
 #if defined(__BIG_ENDIAN_BITFIELD)
 	/* Packed in 16bits. */
