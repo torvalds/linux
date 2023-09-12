@@ -1403,18 +1403,16 @@ static void tick_nohz_lowres_handler(struct clock_event_device *dev)
 	tick_sched_do_timer(ts, now);
 	tick_sched_handle(ts, regs);
 
-	if (unlikely(ts->tick_stopped)) {
-		/*
-		 * The clockevent device is not reprogrammed, so change the
-		 * clock event device to ONESHOT_STOPPED to avoid spurious
-		 * interrupts on devices which might not be truly one shot.
-		 */
-		tick_program_event(KTIME_MAX, 1);
-		return;
+	/*
+	 * In dynticks mode, tick reprogram is deferred:
+	 * - to the idle task if in dynticks-idle
+	 * - to IRQ exit if in full-dynticks.
+	 */
+	if (likely(!ts->tick_stopped)) {
+		hrtimer_forward(&ts->sched_timer, now, TICK_NSEC);
+		tick_program_event(hrtimer_get_expires(&ts->sched_timer), 1);
 	}
 
-	hrtimer_forward(&ts->sched_timer, now, TICK_NSEC);
-	tick_program_event(hrtimer_get_expires(&ts->sched_timer), 1);
 }
 
 static inline void tick_nohz_activate(struct tick_sched *ts, int mode)
@@ -1519,7 +1517,11 @@ static enum hrtimer_restart tick_nohz_highres_handler(struct hrtimer *timer)
 	else
 		ts->next_tick = 0;
 
-	/* No need to reprogram if we are in idle or full dynticks mode */
+	/*
+	 * In dynticks mode, tick reprogram is deferred:
+	 * - to the idle task if in dynticks-idle
+	 * - to IRQ exit if in full-dynticks.
+	 */
 	if (unlikely(ts->tick_stopped))
 		return HRTIMER_NORESTART;
 
