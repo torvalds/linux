@@ -120,8 +120,7 @@ static inline void bch2_inode_pack_inlined(struct bkey_inode_buf *packed,
 	if (IS_ENABLED(CONFIG_BCACHEFS_DEBUG)) {
 		struct bch_inode_unpacked unpacked;
 
-		int ret = bch2_inode_unpack(bkey_i_to_s_c(&packed->inode.k_i),
-					   &unpacked);
+		ret = bch2_inode_unpack(bkey_i_to_s_c(&packed->inode.k_i), &unpacked);
 		BUG_ON(ret);
 		BUG_ON(unpacked.bi_inum		!= inode->bi_inum);
 		BUG_ON(unpacked.bi_hash_seed	!= inode->bi_hash_seed);

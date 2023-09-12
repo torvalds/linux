@@ -681,15 +681,17 @@ int bch2_btree_insert_trans(struct btree_trans *trans, enum btree_id id,
  * bch2_btree_insert - insert keys into the extent btree
  * @c:			pointer to struct bch_fs
  * @id:			btree to insert into
- * @insert_keys:	list of keys to insert
- * @hook:		insert callback
+ * @k:			key to insert
+ * @disk_res:		must be non-NULL whenever inserting or potentially
+ *			splitting data extents
+ * @flags:		transaction commit flags
+ *
+ * Returns:		0 on success, error code on failure
  */
-int bch2_btree_insert(struct bch_fs *c, enum btree_id id,
-		      struct bkey_i *k,
-		      struct disk_reservation *disk_res,
-		      u64 *journal_seq, int flags)
+int bch2_btree_insert(struct bch_fs *c, enum btree_id id, struct bkey_i *k,
+		      struct disk_reservation *disk_res, int flags)
 {
-	return bch2_trans_do(c, disk_res, journal_seq, flags,
+	return bch2_trans_do(c, disk_res, NULL, flags,
 			     bch2_btree_insert_trans(&trans, id, k, 0));
 }
 
@@ -847,6 +849,7 @@ int bch2_btree_bit_mod(struct btree_trans *trans, enum btree_id btree,
 	return bch2_trans_update_buffered(trans, btree, k);
 }
 
+__printf(2, 0)
 static int __bch2_trans_log_msg(darray_u64 *entries, const char *fmt, va_list args)
 {
 	struct printbuf buf = PRINTBUF;
@@ -883,6 +886,7 @@ err:
 	return ret;
 }
 
+__printf(3, 0)
 static int
 __bch2_fs_log_msg(struct bch_fs *c, unsigned commit_flags, const char *fmt,
 		  va_list args)
@@ -900,6 +904,7 @@ __bch2_fs_log_msg(struct bch_fs *c, unsigned commit_flags, const char *fmt,
 	return ret;
 }
 
+__printf(2, 3)
 int bch2_fs_log_msg(struct bch_fs *c, const char *fmt, ...)
 {
 	va_list args;
@@ -915,6 +920,7 @@ int bch2_fs_log_msg(struct bch_fs *c, const char *fmt, ...)
  * Use for logging messages during recovery to enable reserved space and avoid
  * blocking.
  */
+__printf(2, 3)
 int bch2_journal_log_msg(struct bch_fs *c, const char *fmt, ...)
 {
 	va_list args;

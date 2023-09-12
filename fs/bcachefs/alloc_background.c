@@ -1200,15 +1200,15 @@ int bch2_check_alloc_hole_bucket_gens(struct btree_trans *trans,
 		}
 
 		if (need_update) {
-			struct bkey_i *k = bch2_trans_kmalloc(trans, sizeof(g));
+			struct bkey_i *u = bch2_trans_kmalloc(trans, sizeof(g));
 
-			ret = PTR_ERR_OR_ZERO(k);
+			ret = PTR_ERR_OR_ZERO(u);
 			if (ret)
 				goto err;
 
-			memcpy(k, &g, sizeof(g));
+			memcpy(u, &g, sizeof(g));
 
-			ret = bch2_trans_update(trans, bucket_gens_iter, k, 0);
+			ret = bch2_trans_update(trans, bucket_gens_iter, u, 0);
 			if (ret)
 				goto err;
 		}
@@ -1354,15 +1354,14 @@ int bch2_check_bucket_gens_key(struct btree_trans *trans,
 		}
 
 	if (need_update) {
-		struct bkey_i *k;
+		struct bkey_i *u = bch2_trans_kmalloc(trans, sizeof(g));
 
-		k = bch2_trans_kmalloc(trans, sizeof(g));
-		ret = PTR_ERR_OR_ZERO(k);
+		ret = PTR_ERR_OR_ZERO(u);
 		if (ret)
 			goto out;
 
-		memcpy(k, &g, sizeof(g));
-		ret = bch2_trans_update(trans, iter, k, 0);
+		memcpy(u, &g, sizeof(g));
+		ret = bch2_trans_update(trans, iter, u, 0);
 	}
 out:
 fsck_err:

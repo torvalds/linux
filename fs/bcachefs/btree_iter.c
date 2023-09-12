@@ -488,7 +488,6 @@ fixup_done:
 	if (!bch2_btree_node_iter_end(node_iter) &&
 	    iter_current_key_modified &&
 	    b->c.level) {
-		struct bset_tree *t;
 		struct bkey_packed *k, *k2, *p;
 
 		k = bch2_btree_node_iter_peek_all(node_iter, b);
@@ -2048,8 +2047,12 @@ out:
 }
 
 /**
- * bch2_btree_iter_peek: returns first key greater than or equal to iterator's
- * current position
+ * bch2_btree_iter_peek_upto() - returns first key greater than or equal to
+ * iterator's current position
+ * @iter:	iterator to peek from
+ * @end:	search limit: returns keys less than or equal to @end
+ *
+ * Returns:	key if found, or an error extractable with bkey_err().
  */
 struct bkey_s_c bch2_btree_iter_peek_upto(struct btree_iter *iter, struct bpos end)
 {
@@ -2186,10 +2189,13 @@ end:
 }
 
 /**
- * bch2_btree_iter_peek_all_levels: returns the first key greater than or equal
- * to iterator's current position, returning keys from every level of the btree.
- * For keys at different levels of the btree that compare equal, the key from
- * the lower level (leaf) is returned first.
+ * bch2_btree_iter_peek_all_levels() - returns the first key greater than or
+ * equal to iterator's current position, returning keys from every level of the
+ * btree. For keys at different levels of the btree that compare equal, the key
+ * from the lower level (leaf) is returned first.
+ * @iter:	iterator to peek from
+ *
+ * Returns:	key if found, or an error extractable with bkey_err().
  */
 struct bkey_s_c bch2_btree_iter_peek_all_levels(struct btree_iter *iter)
 {
@@ -2280,8 +2286,11 @@ out_no_locked:
 }
 
 /**
- * bch2_btree_iter_next: returns first key greater than iterator's current
+ * bch2_btree_iter_next() - returns first key greater than iterator's current
  * position
+ * @iter:	iterator to peek from
+ *
+ * Returns:	key if found, or an error extractable with bkey_err().
  */
 struct bkey_s_c bch2_btree_iter_next(struct btree_iter *iter)
 {
@@ -2292,8 +2301,11 @@ struct bkey_s_c bch2_btree_iter_next(struct btree_iter *iter)
 }
 
 /**
- * bch2_btree_iter_peek_prev: returns first key less than or equal to
+ * bch2_btree_iter_peek_prev() - returns first key less than or equal to
  * iterator's current position
+ * @iter:	iterator to peek from
+ *
+ * Returns:	key if found, or an error extractable with bkey_err().
  */
 struct bkey_s_c bch2_btree_iter_peek_prev(struct btree_iter *iter)
 {
@@ -2416,8 +2428,11 @@ out_no_locked:
 }
 
 /**
- * bch2_btree_iter_prev: returns first key less than iterator's current
+ * bch2_btree_iter_prev() - returns first key less than iterator's current
  * position
+ * @iter:	iterator to peek from
+ *
+ * Returns:	key if found, or an error extractable with bkey_err().
  */
 struct bkey_s_c bch2_btree_iter_prev(struct btree_iter *iter)
 {
@@ -2831,6 +2846,8 @@ static noinline void bch2_trans_reset_srcu_lock(struct btree_trans *trans)
 /**
  * bch2_trans_begin() - reset a transaction after a interrupted attempt
  * @trans: transaction to reset
+ *
+ * Returns:	current restart counter, to be used with trans_was_restarted()
  *
  * While iterating over nodes or updating nodes a attempt to lock a btree node
  * may return BCH_ERR_transaction_restart when the trylock fails. When this

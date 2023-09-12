@@ -489,7 +489,8 @@ static noinline int bch2_write_drop_io_error_ptrs(struct bch_write_op *op)
 }
 
 /**
- * bch_write_index - after a write, update index to point to new data
+ * __bch2_write_index - after a write, update index to point to new data
+ * @op:		bch_write_op to process
  */
 static void __bch2_write_index(struct bch_write_op *op)
 {
@@ -526,10 +527,10 @@ static void __bch2_write_index(struct bch_write_op *op)
 		op->written += sectors_start - keylist_sectors(keys);
 
 		if (ret && !bch2_err_matches(ret, EROFS)) {
-			struct bkey_i *k = bch2_keylist_front(&op->insert_keys);
+			struct bkey_i *insert = bch2_keylist_front(&op->insert_keys);
 
 			bch_err_inum_offset_ratelimited(c,
-				k->k.p.inode, k->k.p.offset << 9,
+				insert->k.p.inode, insert->k.p.offset << 9,
 				"write error while doing btree update: %s",
 				bch2_err_str(ret));
 		}
@@ -1179,10 +1180,10 @@ static void bch2_nocow_write_convert_unwritten(struct bch_write_op *op)
 		}));
 
 		if (ret && !bch2_err_matches(ret, EROFS)) {
-			struct bkey_i *k = bch2_keylist_front(&op->insert_keys);
+			struct bkey_i *insert = bch2_keylist_front(&op->insert_keys);
 
 			bch_err_inum_offset_ratelimited(c,
-				k->k.p.inode, k->k.p.offset << 9,
+				insert->k.p.inode, insert->k.p.offset << 9,
 				"write error while doing btree update: %s",
 				bch2_err_str(ret));
 		}
@@ -1546,7 +1547,8 @@ err:
 }
 
 /**
- * bch_write - handle a write to a cache device or flash only volume
+ * bch2_write() - handle a write to a cache device or flash only volume
+ * @cl:		&bch_write_op->cl
  *
  * This is the starting point for any data to end up in a cache device; it could
  * be from a normal write, or a writeback write, or a write to a flash only

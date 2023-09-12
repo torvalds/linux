@@ -566,8 +566,8 @@ static int bch2_check_fix_ptrs(struct btree_trans *trans, enum btree_id btree_id
 			       struct bkey_s_c *k)
 {
 	struct bch_fs *c = trans->c;
-	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(*k);
-	const union bch_extent_entry *entry;
+	struct bkey_ptrs_c ptrs_c = bch2_bkey_ptrs_c(*k);
+	const union bch_extent_entry *entry_c;
 	struct extent_ptr_decoded p = { 0 };
 	bool do_update = false;
 	struct printbuf buf = PRINTBUF;
@@ -577,10 +577,10 @@ static int bch2_check_fix_ptrs(struct btree_trans *trans, enum btree_id btree_id
 	 * XXX
 	 * use check_bucket_ref here
 	 */
-	bkey_for_each_ptr_decode(k->k, ptrs, p, entry) {
+	bkey_for_each_ptr_decode(k->k, ptrs_c, p, entry_c) {
 		struct bch_dev *ca = bch_dev_bkey_exists(c, p.ptr.dev);
 		struct bucket *g = PTR_GC_BUCKET(ca, &p.ptr);
-		enum bch_data_type data_type = bch2_bkey_ptr_data_type(*k, &entry->ptr);
+		enum bch_data_type data_type = bch2_bkey_ptr_data_type(*k, &entry_c->ptr);
 
 		if (!g->gen_valid &&
 		    (c->opts.reconstruct_alloc ||
@@ -1217,14 +1217,6 @@ static int bch2_gc_done(struct bch_fs *c,
 	     fsck_err(c, _msg ": got %llu, should be %llu"		\
 		      , ##__VA_ARGS__, dst->_f, src->_f)))		\
 		dst->_f = src->_f
-#define copy_stripe_field(_f, _msg, ...)				\
-	if (dst->_f != src->_f &&					\
-	    (!verify ||							\
-	     fsck_err(c, "stripe %zu has wrong "_msg			\
-		      ": got %u, should be %u",				\
-		      iter.pos, ##__VA_ARGS__,				\
-		      dst->_f, src->_f)))				\
-		dst->_f = src->_f
 #define copy_dev_field(_f, _msg, ...)					\
 	copy_field(_f, "dev %u has wrong " _msg, dev, ##__VA_ARGS__)
 #define copy_fs_field(_f, _msg, ...)					\
@@ -1776,6 +1768,12 @@ static void bch2_gc_stripes_reset(struct bch_fs *c, bool metadata_only)
 /**
  * bch2_gc - walk _all_ references to buckets, and recompute them:
  *
+ * @c:			filesystem object
+ * @initial:		are we in recovery?
+ * @metadata_only:	are we just checking metadata references, or everything?
+ *
+ * Returns: 0 on success, or standard errcode on failure
+ *
  * Order matters here:
  *  - Concurrent GC relies on the fact that we have a total ordering for
  *    everything that GC walks - see  gc_will_visit_node(),
@@ -1985,11 +1983,9 @@ int bch2_gc_gens(struct bch_fs *c)
 
 	for (i = 0; i < BTREE_ID_NR; i++)
 		if (btree_type_has_ptrs(i)) {
-			struct btree_iter iter;
-			struct bkey_s_c k;
-
 			c->gc_gens_btree = i;
 			c->gc_gens_pos = POS_MIN;
+
 			ret = for_each_btree_key_commit(&trans, iter, i,
 					POS_MIN,
 					BTREE_ITER_PREFETCH|BTREE_ITER_ALL_SNAPSHOTS,

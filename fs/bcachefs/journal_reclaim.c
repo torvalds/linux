@@ -292,7 +292,6 @@ void bch2_journal_do_discards(struct journal *j)
 
 static void bch2_journal_reclaim_fast(struct journal *j)
 {
-	struct journal_entry_pin_list temp;
 	bool popped = false;
 
 	lockdep_assert_held(&j->lock);
@@ -303,7 +302,7 @@ static void bch2_journal_reclaim_fast(struct journal *j)
 	 */
 	while (!fifo_empty(&j->pin) &&
 	       !atomic_read(&fifo_peek_front(&j->pin).count)) {
-		fifo_pop(&j->pin, temp);
+		j->pin.front++;
 		popped = true;
 	}
 
@@ -419,6 +418,8 @@ void bch2_journal_pin_set(struct journal *j, u64 seq,
 
 /**
  * bch2_journal_pin_flush: ensure journal pin callback is no longer running
+ * @j:		journal object
+ * @pin:	pin to flush
  */
 void bch2_journal_pin_flush(struct journal *j, struct journal_entry_pin *pin)
 {
@@ -579,7 +580,11 @@ static u64 journal_seq_to_flush(struct journal *j)
 }
 
 /**
- * bch2_journal_reclaim - free up journal buckets
+ * __bch2_journal_reclaim - free up journal buckets
+ * @j:		journal object
+ * @direct:	direct or background reclaim?
+ * @kicked:	requested to run since we last ran?
+ * Returns:	0 on success, or -EIO if the journal has been shutdown
  *
  * Background journal reclaim writes out btree nodes. It should be run
  * early enough so that we never completely run out of journal buckets.

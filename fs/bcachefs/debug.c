@@ -153,10 +153,8 @@ void __bch2_btree_verify(struct bch_fs *c, struct btree *b)
 	BUG_ON(b->nsets != 1);
 
 	for (k = inmemory->start; k != vstruct_last(inmemory); k = bkey_p_next(k))
-		if (k->type == KEY_TYPE_btree_ptr_v2) {
-			struct bch_btree_ptr_v2 *v = (void *) bkeyp_val(&b->format, k);
-			v->mem_ptr = 0;
-		}
+		if (k->type == KEY_TYPE_btree_ptr_v2)
+			((struct bch_btree_ptr_v2 *) bkeyp_val(&b->format, k))->mem_ptr = 0;
 
 	v = c->verify_data;
 	bkey_copy(&v->key, &b->key);

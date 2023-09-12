@@ -351,7 +351,6 @@ static int bch2_check_btree_backpointer(struct btree_trans *trans, struct btree_
 {
 	struct bch_fs *c = trans->c;
 	struct btree_iter alloc_iter = { NULL };
-	struct bch_dev *ca;
 	struct bkey_s_c alloc_k;
 	struct printbuf buf = PRINTBUF;
 	int ret = 0;
@@ -362,8 +361,6 @@ static int bch2_check_btree_backpointer(struct btree_trans *trans, struct btree_
 		ret = bch2_btree_delete_at(trans, bp_iter, 0);
 		goto out;
 	}
-
-	ca = bch_dev_bkey_exists(c, k.k->p.inode);
 
 	alloc_k = bch2_bkey_get_iter(trans, &alloc_iter, BTREE_ID_alloc,
 				     bp_pos_to_bucket(c, k.k->p), 0);
@@ -629,7 +626,7 @@ static int bch2_check_extents_to_backpointers_pass(struct btree_trans *trans,
 	struct bch_fs *c = trans->c;
 	struct btree_iter iter;
 	enum btree_id btree_id;
-	struct bpos_level last_flushed = { UINT_MAX };
+	struct bpos_level last_flushed = { UINT_MAX, POS_MIN };
 	int ret = 0;
 
 	for (btree_id = 0; btree_id < btree_id_nr_alive(c); btree_id++) {

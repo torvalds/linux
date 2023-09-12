@@ -13,10 +13,9 @@
 
 /**
  * bch2_varint_encode - encode a variable length integer
- * @out - destination to encode to
- * @v	- unsigned integer to encode
- *
- * Returns the size in bytes of the encoded integer - at most 9 bytes
+ * @out:	destination to encode to
+ * @v:		unsigned integer to encode
+ * Returns:	size in bytes of the encoded integer - at most 9 bytes
  */
 int bch2_varint_encode(u8 *out, u64 v)
 {
@@ -40,11 +39,10 @@ int bch2_varint_encode(u8 *out, u64 v)
 
 /**
  * bch2_varint_decode - encode a variable length integer
- * @in	- varint to decode
- * @end	- end of buffer to decode from
- * @out	- on success, decoded integer
- *
- * Returns the size in bytes of the decoded integer - or -1 on failure (would
+ * @in:		varint to decode
+ * @end:	end of buffer to decode from
+ * @out:	on success, decoded integer
+ * Returns:	size in bytes of the decoded integer - or -1 on failure (would
  * have read past the end of the buffer)
  */
 int bch2_varint_decode(const u8 *in, const u8 *end, u64 *out)
@@ -73,6 +71,9 @@ int bch2_varint_decode(const u8 *in, const u8 *end, u64 *out)
 
 /**
  * bch2_varint_encode_fast - fast version of bch2_varint_encode
+ * @out:	destination to encode to
+ * @v:		unsigned integer to encode
+ * Returns:	size in bytes of the encoded integer - at most 9 bytes
  *
  * This version assumes it's always safe to write 8 bytes to @out, even if the
  * encoded integer would be smaller.
@@ -96,6 +97,11 @@ int bch2_varint_encode_fast(u8 *out, u64 v)
 
 /**
  * bch2_varint_decode_fast - fast version of bch2_varint_decode
+ * @in:		varint to decode
+ * @end:	end of buffer to decode from
+ * @out:	on success, decoded integer
+ * Returns:	size in bytes of the decoded integer - or -1 on failure (would
+ * have read past the end of the buffer)
  *
  * This version assumes that it is safe to read at most 8 bytes past the end of
  * @end (we still return an error if the varint extends past @end).

@@ -588,8 +588,13 @@ out:
 
 /**
  * bch2_journal_flush_seq_async - wait for a journal entry to be written
+ * @j:		journal object
+ * @seq:	seq to flush
+ * @parent:	closure object to wait with
+ * Returns:	1 if @seq has already been flushed, 0 if @seq is being flushed,
+ *		-EIO if @seq will never be flushed
  *
- * like bch2_journal_wait_on_seq, except that it triggers a write immediately if
+ * Like bch2_journal_wait_on_seq, except that it triggers a write immediately if
  * necessary
  */
 int bch2_journal_flush_seq_async(struct journal *j, u64 seq,
@@ -944,7 +949,7 @@ int bch2_set_nr_journal_buckets(struct bch_fs *c, struct bch_dev *ca,
 		goto unlock;
 
 	while (ja->nr < nr) {
-		struct disk_reservation disk_res = { 0, 0 };
+		struct disk_reservation disk_res = { 0, 0, 0 };
 
 		/*
 		 * note: journal buckets aren't really counted as _sectors_ used yet, so

@@ -570,7 +570,6 @@ void bch2_fs_compress_exit(struct bch_fs *c)
 static int __bch2_fs_compress_init(struct bch_fs *c, u64 features)
 {
 	size_t decompress_workspace_size = 0;
-	bool decompress_workspace_needed;
 	ZSTD_parameters params = zstd_get_params(zstd_max_clevel(),
 						 c->opts.encoded_extent_max);
 	struct {
@@ -580,7 +579,8 @@ static int __bch2_fs_compress_init(struct bch_fs *c, u64 features)
 		size_t				decompress_workspace;
 	} compression_types[] = {
 		{ BCH_FEATURE_lz4, BCH_COMPRESSION_TYPE_lz4,
-			max_t(size_t, LZ4_MEM_COMPRESS, LZ4HC_MEM_COMPRESS) },
+			max_t(size_t, LZ4_MEM_COMPRESS, LZ4HC_MEM_COMPRESS),
+			0 },
 		{ BCH_FEATURE_gzip, BCH_COMPRESSION_TYPE_gzip,
 			zlib_deflate_workspacesize(MAX_WBITS, DEF_MEM_LEVEL),
 			zlib_inflate_workspacesize(), },
@@ -618,9 +618,6 @@ static int __bch2_fs_compress_init(struct bch_fs *c, u64 features)
 
 		if (!(features & (1 << i->feature)))
 			continue;
-
-		if (i->decompress_workspace)
-			decompress_workspace_needed = true;
 
 		if (mempool_initialized(&c->compress_workspace[i->type]))
 			continue;

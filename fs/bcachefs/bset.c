@@ -172,10 +172,10 @@ static void bch2_btree_node_iter_next_check(struct btree_node_iter *_iter,
 		printk(KERN_ERR "iter was:");
 
 		btree_node_iter_for_each(_iter, set) {
-			struct bkey_packed *k = __btree_node_offset_to_key(b, set->k);
-			struct bset_tree *t = bch2_bkey_to_bset(b, k);
+			struct bkey_packed *k2 = __btree_node_offset_to_key(b, set->k);
+			struct bset_tree *t = bch2_bkey_to_bset(b, k2);
 			printk(" [%zi %zi]", t - b->set,
-			       k->_data - bset(b, t)->_data);
+			       k2->_data - bset(b, t)->_data);
 		}
 		panic("\n");
 	}
@@ -1269,8 +1269,12 @@ static void btree_node_iter_init_pack_failed(struct btree_node_iter *iter,
 }
 
 /**
- * bch_btree_node_iter_init - initialize a btree node iterator, starting from a
+ * bch2_btree_node_iter_init - initialize a btree node iterator, starting from a
  * given position
+ *
+ * @iter:	iterator to initialize
+ * @b:		btree node to search
+ * @search:	search key
  *
  * Main entry point to the lookup code for individual btree nodes:
  *

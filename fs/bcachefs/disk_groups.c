@@ -32,21 +32,21 @@ static int bch2_sb_disk_groups_validate(struct bch_sb *sb,
 
 	for (i = 0; i < sb->nr_devices; i++) {
 		struct bch_member *m = mi->members + i;
-		unsigned g;
+		unsigned group_id;
 
 		if (!BCH_MEMBER_GROUP(m))
 			continue;
 
-		g = BCH_MEMBER_GROUP(m) - 1;
+		group_id = BCH_MEMBER_GROUP(m) - 1;
 
-		if (g >= nr_groups) {
+		if (group_id >= nr_groups) {
 			prt_printf(err, "disk %u has invalid label %u (have %u)",
-			       i, g, nr_groups);
+				   i, group_id, nr_groups);
 			return -BCH_ERR_invalid_sb_disk_groups;
 		}
 
-		if (BCH_GROUP_DELETED(&groups->entries[g])) {
-			prt_printf(err, "disk %u has deleted label %u", i, g);
+		if (BCH_GROUP_DELETED(&groups->entries[group_id])) {
+			prt_printf(err, "disk %u has deleted label %u", i, group_id);
 			return -BCH_ERR_invalid_sb_disk_groups;
 		}
 	}

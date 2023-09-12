@@ -423,15 +423,9 @@ static int bch2_initialize_subvolumes(struct bch_fs *c)
 	root_volume.v.snapshot	= cpu_to_le32(U32_MAX);
 	root_volume.v.inode	= cpu_to_le64(BCACHEFS_ROOT_INO);
 
-	ret =   bch2_btree_insert(c, BTREE_ID_snapshot_trees,
-				  &root_tree.k_i,
-				  NULL, NULL, 0) ?:
-		bch2_btree_insert(c, BTREE_ID_snapshots,
-				  &root_snapshot.k_i,
-				  NULL, NULL, 0) ?:
-		bch2_btree_insert(c, BTREE_ID_subvolumes,
-				  &root_volume.k_i,
-				  NULL, NULL, 0);
+	ret =   bch2_btree_insert(c, BTREE_ID_snapshot_trees,	&root_tree.k_i, NULL, 0) ?:
+		bch2_btree_insert(c, BTREE_ID_snapshots,	&root_snapshot.k_i, NULL, 0) ?:
+		bch2_btree_insert(c, BTREE_ID_subvolumes,	&root_volume.k_i, NULL, 0);
 	if (ret)
 		bch_err_fn(c, ret);
 	return ret;
@@ -1010,9 +1004,7 @@ int bch2_fs_initialize(struct bch_fs *c)
 	bch2_inode_pack(&packed_inode, &root_inode);
 	packed_inode.inode.k.p.snapshot = U32_MAX;
 
-	ret = bch2_btree_insert(c, BTREE_ID_inodes,
-				&packed_inode.inode.k_i,
-				NULL, NULL, 0);
+	ret = bch2_btree_insert(c, BTREE_ID_inodes, &packed_inode.inode.k_i, NULL, 0);
 	if (ret) {
 		bch_err_msg(c, ret, "creating root directory");
 		goto err;

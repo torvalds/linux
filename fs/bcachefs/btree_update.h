@@ -66,7 +66,7 @@ int bch2_btree_insert_nonextent(struct btree_trans *, enum btree_id,
 int bch2_btree_insert_trans(struct btree_trans *, enum btree_id, struct bkey_i *,
 			enum btree_update_flags);
 int bch2_btree_insert(struct bch_fs *, enum btree_id, struct bkey_i *,
-		     struct disk_reservation *, u64 *, int flags);
+		     struct disk_reservation *, int flags);
 
 int bch2_btree_delete_range_trans(struct btree_trans *, enum btree_id,
 				  struct bpos, struct bpos, unsigned, u64 *);
@@ -115,8 +115,8 @@ void bch2_trans_commit_hook(struct btree_trans *,
 			    struct btree_trans_commit_hook *);
 int __bch2_trans_commit(struct btree_trans *, unsigned);
 
-int bch2_fs_log_msg(struct bch_fs *, const char *, ...);
-int bch2_journal_log_msg(struct bch_fs *, const char *, ...);
+__printf(2, 3) int bch2_fs_log_msg(struct bch_fs *, const char *, ...);
+__printf(2, 3) int bch2_journal_log_msg(struct bch_fs *, const char *, ...);
 
 /**
  * bch2_trans_commit - insert keys at given iterator positions

@@ -246,9 +246,9 @@ struct bch_sb_field *bch2_sb_field_resize(struct bch_sb_handle *sb,
 		/* XXX: we're not checking that offline device have enough space */
 
 		for_each_online_member(ca, c, i) {
-			struct bch_sb_handle *sb = &ca->disk_sb;
+			struct bch_sb_handle *dev_sb = &ca->disk_sb;
 
-			if (bch2_sb_realloc(sb, le32_to_cpu(sb->sb->u64s) + d)) {
+			if (bch2_sb_realloc(dev_sb, le32_to_cpu(dev_sb->sb->u64s) + d)) {
 				percpu_ref_put(&ca->ref);
 				return NULL;
 			}

@@ -49,10 +49,6 @@ static void trace_move_extent_fail2(struct data_update *m,
 	if (insert) {
 		i = 0;
 		bkey_for_each_ptr_decode(old.k, bch2_bkey_ptrs_c(old), p, entry) {
-			struct bkey_s new_s;
-			new_s.k = (void *) new.k;
-			new_s.v = (void *) new.v;
-
 			if (((1U << i) & m->data_opts.rewrite_ptrs) &&
 			    (ptr = bch2_extent_has_ptr(old, p, bkey_i_to_s(insert))) &&
 			    !ptr->cached)

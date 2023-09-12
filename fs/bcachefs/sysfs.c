@@ -113,10 +113,6 @@ do {									\
 		prt_human_readable_s64(out, val);			\
 } while (0)
 
-#define var_printf(_var, fmt)	sysfs_printf(_var, fmt, var(_var))
-#define var_print(_var)		sysfs_print(_var, var(_var))
-#define var_hprint(_var)	sysfs_hprint(_var, var(_var))
-
 #define sysfs_strtoul(file, var)					\
 do {									\
 	if (attr == &sysfs_ ## file)					\
@@ -138,30 +134,6 @@ do {									\
 		return _r;						\
 	_v;								\
 })
-
-#define strtoul_restrict_or_return(cp, min, max)			\
-({									\
-	unsigned long __v = 0;						\
-	int _r = strtoul_safe_restrict(cp, __v, min, max);		\
-	if (_r)								\
-		return _r;						\
-	__v;								\
-})
-
-#define strtoi_h_or_return(cp)						\
-({									\
-	u64 _v;								\
-	int _r = strtoi_h(cp, &_v);					\
-	if (_r)								\
-		return _r;						\
-	_v;								\
-})
-
-#define sysfs_hatoi(file, var)						\
-do {									\
-	if (attr == &sysfs_ ## file)					\
-		return strtoi_h(buf, &var) ?: (ssize_t) size;		\
-} while (0)
 
 write_attribute(trigger_gc);
 write_attribute(trigger_discards);
@@ -291,7 +263,7 @@ static int bch2_compression_stats_to_text(struct printbuf *out, struct bch_fs *c
 	    incompressible_sectors = 0,
 	    compressed_sectors_compressed = 0,
 	    compressed_sectors_uncompressed = 0;
-	int ret;
+	int ret = 0;
 
 	if (!test_bit(BCH_FS_STARTED, &c->flags))
 		return -EPERM;

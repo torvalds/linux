@@ -435,7 +435,7 @@ static int __bch2_fs_read_write(struct bch_fs *c, bool early)
 #ifndef BCH_WRITE_REF_DEBUG
 	percpu_ref_reinit(&c->writes);
 #else
-	for (unsigned i = 0; i < BCH_WRITE_REF_NR; i++) {
+	for (i = 0; i < BCH_WRITE_REF_NR; i++) {
 		BUG_ON(atomic_long_read(&c->writes[i]));
 		atomic_long_inc(&c->writes[i]);
 	}

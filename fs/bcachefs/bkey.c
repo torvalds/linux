@@ -308,9 +308,14 @@ struct bpos __bkey_unpack_pos(const struct bkey_format *format,
 
 /**
  * bch2_bkey_pack_key -- pack just the key, not the value
+ * @out:	packed result
+ * @in:		key to pack
+ * @format:	format of packed result
+ *
+ * Returns: true on success, false on failure
  */
 bool bch2_bkey_pack_key(struct bkey_packed *out, const struct bkey *in,
-		   const struct bkey_format *format)
+			const struct bkey_format *format)
 {
 	struct pack_state state = pack_state_init(format, out);
 	u64 *w = out->_data;
@@ -336,9 +341,12 @@ bool bch2_bkey_pack_key(struct bkey_packed *out, const struct bkey *in,
 
 /**
  * bch2_bkey_unpack -- unpack the key and the value
+ * @b:		btree node of @src key (for packed format)
+ * @dst:	unpacked result
+ * @src:	packed input
  */
 void bch2_bkey_unpack(const struct btree *b, struct bkey_i *dst,
-		 const struct bkey_packed *src)
+		      const struct bkey_packed *src)
 {
 	__bkey_unpack_key(b, &dst->k, src);
 
@@ -349,19 +357,24 @@ void bch2_bkey_unpack(const struct btree *b, struct bkey_i *dst,
 
 /**
  * bch2_bkey_pack -- pack the key and the value
+ * @dst:	packed result
+ * @src:	unpacked input
+ * @format:	format of packed result
+ *
+ * Returns: true on success, false on failure
  */
-bool bch2_bkey_pack(struct bkey_packed *out, const struct bkey_i *in,
-	       const struct bkey_format *format)
+bool bch2_bkey_pack(struct bkey_packed *dst, const struct bkey_i *src,
+		    const struct bkey_format *format)
 {
 	struct bkey_packed tmp;
 
-	if (!bch2_bkey_pack_key(&tmp, &in->k, format))
+	if (!bch2_bkey_pack_key(&tmp, &src->k, format))
 		return false;
 
-	memmove_u64s((u64 *) out + format->key_u64s,
-		     &in->v,
-		     bkey_val_u64s(&in->k));
-	memcpy_u64s_small(out, &tmp, format->key_u64s);
+	memmove_u64s((u64 *) dst + format->key_u64s,
+		     &src->v,
+		     bkey_val_u64s(&src->k));
+	memcpy_u64s_small(dst, &tmp, format->key_u64s);
 
 	return true;
 }

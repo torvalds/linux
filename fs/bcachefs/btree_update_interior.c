@@ -145,8 +145,13 @@ static size_t btree_node_u64s_with_format(struct btree *b,
 /**
  * bch2_btree_node_format_fits - check if we could rewrite node with a new format
  *
- * This assumes all keys can pack with the new format -- it just checks if
- * the re-packed keys would fit inside the node itself.
+ * @c:		filesystem handle
+ * @b:		btree node to rewrite
+ * @new_f:	bkey format to translate keys to
+ *
+ * Returns: true if all re-packed keys will be able to fit in a new node.
+ *
+ * Assumes all keys will successfully pack with the new format.
  */
 bool bch2_btree_node_format_fits(struct bch_fs *c, struct btree *b,
 				 struct bkey_format *new_f)
@@ -244,7 +249,7 @@ static struct btree *__bch2_btree_node_alloc(struct btree_trans *trans,
 	struct write_point *wp;
 	struct btree *b;
 	BKEY_PADDED_ONSTACK(k, BKEY_BTREE_PTR_VAL_U64s_MAX) tmp;
-	struct open_buckets ob = { .nr = 0 };
+	struct open_buckets obs = { .nr = 0 };
 	struct bch_devs_list devs_have = (struct bch_devs_list) { 0 };
 	enum bch_watermark watermark = flags & BCH_WATERMARK_MASK;
 	unsigned nr_reserve = watermark > BCH_WATERMARK_reclaim
@@ -257,7 +262,7 @@ static struct btree *__bch2_btree_node_alloc(struct btree_trans *trans,
 		struct btree_alloc *a =
 			&c->btree_reserve_cache[--c->btree_reserve_cache_nr];
 
-		ob = a->ob;
+		obs = a->ob;
 		bkey_copy(&tmp.k, &a->k);
 		mutex_unlock(&c->btree_reserve_cache_lock);
 		goto mem_alloc;
@@ -292,7 +297,7 @@ retry:
 	bkey_btree_ptr_v2_init(&tmp.k);
 	bch2_alloc_sectors_append_ptrs(c, wp, &tmp.k, btree_sectors(c), false);
 
-	bch2_open_bucket_get(c, wp, &ob);
+	bch2_open_bucket_get(c, wp, &obs);
 	bch2_alloc_sectors_done(c, wp);
 mem_alloc:
 	b = bch2_btree_node_mem_alloc(trans, interior_node);
@@ -304,7 +309,7 @@ mem_alloc:
 	BUG_ON(b->ob.nr);
 
 	bkey_copy(&b->key, &tmp.k);
-	b->ob = ob;
+	b->ob = obs;
 
 	return b;
 }
@@ -697,15 +702,15 @@ err:
 		 * btree_interior_update_lock:
 		 */
 		if (as->b == b) {
-			struct bset *i = btree_bset_last(b);
-
 			BUG_ON(!b->c.level);
 			BUG_ON(!btree_node_dirty(b));
 
 			if (!ret) {
-				i->journal_seq = cpu_to_le64(
+				struct bset *last = btree_bset_last(b);
+
+				last->journal_seq = cpu_to_le64(
 							     max(journal_seq,
-								 le64_to_cpu(i->journal_seq)));
+								 le64_to_cpu(last->journal_seq)));
 
 				bch2_btree_add_journal_pin(c, b, journal_seq);
 			} else {
@@ -1216,18 +1221,6 @@ static void bch2_btree_set_root_inmem(struct bch_fs *c, struct btree *b)
 	bch2_recalc_btree_reserve(c);
 }
 
-/**
- * bch_btree_set_root - update the root in memory and on disk
- *
- * To ensure forward progress, the current task must not be holding any
- * btree node write locks. However, you must hold an intent lock on the
- * old root.
- *
- * Note: This allocates a journal entry but doesn't add any keys to
- * it.  All the btree roots are part of every journal write, so there
- * is nothing new to be done.  This just guarantees that there is a
- * journal write.
- */
 static void bch2_btree_set_root(struct btree_update *as,
 				struct btree_trans *trans,
 				struct btree_path *path,
@@ -1341,12 +1334,12 @@ __bch2_btree_insert_keys_interior(struct btree_update *as,
 		;
 
 	while (!bch2_keylist_empty(keys)) {
-		struct bkey_i *k = bch2_keylist_front(keys);
+		insert = bch2_keylist_front(keys);
 
-		if (bpos_gt(k->k.p, b->key.k.p))
+		if (bpos_gt(insert->k.p, b->key.k.p))
 			break;
 
-		bch2_insert_fixup_btree_ptr(as, trans, path, b, &node_iter, k);
+		bch2_insert_fixup_btree_ptr(as, trans, path, b, &node_iter, insert);
 		bch2_keylist_pop_front(keys);
 	}
 }
@@ -1661,12 +1654,16 @@ bch2_btree_insert_keys_interior(struct btree_update *as,
 }
 
 /**
- * bch_btree_insert_node - insert bkeys into a given btree node
+ * bch2_btree_insert_node - insert bkeys into a given btree node
  *
- * @iter:		btree iterator
+ * @as:			btree_update object
+ * @trans:		btree_trans object
+ * @path:		path that points to current node
+ * @b:			node to insert keys into
  * @keys:		list of keys to insert
- * @hook:		insert callback
- * @persistent:		if not null, @persistent will wait on journal write
+ * @flags:		transaction commit flags
+ *
+ * Returns: 0 on success, typically transaction restart error on failure
  *
  * Inserts as many keys as it can into a given btree node, splitting it if full.
  * If a split occurred, this function will return early. This can only happen
@@ -1934,9 +1931,6 @@ err_free_update:
 	goto out;
 }
 
-/**
- * bch_btree_node_rewrite - Rewrite/move a btree node
- */
 int bch2_btree_node_rewrite(struct btree_trans *trans,
 			    struct btree_iter *iter,
 			    struct btree *b,

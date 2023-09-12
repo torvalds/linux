@@ -724,7 +724,6 @@ int __bch2_evacuate_bucket(struct btree_trans *trans,
 
 		if (!bp.level) {
 			const struct bch_extent_ptr *ptr;
-			struct bkey_s_c k;
 			unsigned i = 0;
 
 			k = bch2_backpointer_get_key(trans, &iter, bp_pos, bp, 0);

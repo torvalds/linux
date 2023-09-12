@@ -776,12 +776,12 @@ static inline void __move_gap(void *array, size_t element_size,
 
 #define bubble_sort(_base, _nr, _cmp)					\
 do {									\
-	ssize_t _i, _end;						\
+	ssize_t _i, _last;						\
 	bool _swapped = true;						\
 									\
-	for (_end = (ssize_t) (_nr) - 1; _end > 0 && _swapped; --_end) {\
+	for (_last= (ssize_t) (_nr) - 1; _last > 0 && _swapped; --_last) {\
 		_swapped = false;					\
-		for (_i = 0; _i < _end; _i++)				\
+		for (_i = 0; _i < _last; _i++)				\
 			if (_cmp((_base)[_i], (_base)[_i + 1]) > 0) {	\
 				swap((_base)[_i], (_base)[_i + 1]);	\
 				_swapped = true;			\

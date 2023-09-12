@@ -29,7 +29,6 @@ static void do_six_unlock_type(struct six_lock *lock, enum six_lock_type type);
 #define SIX_LOCK_HELD_intent		(1U << 26)
 #define SIX_LOCK_HELD_write		(1U << 27)
 #define SIX_LOCK_WAITING_read		(1U << (28 + SIX_LOCK_read))
-#define SIX_LOCK_WAITING_intent		(1U << (28 + SIX_LOCK_intent))
 #define SIX_LOCK_WAITING_write		(1U << (28 + SIX_LOCK_write))
 #define SIX_LOCK_NOSPIN			(1U << 31)
 

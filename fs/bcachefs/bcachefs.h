@@ -371,7 +371,7 @@ BCH_DEBUG_PARAMS()
 #undef BCH_DEBUG_PARAM
 
 #ifndef CONFIG_BCACHEFS_DEBUG
-#define BCH_DEBUG_PARAM(name, description) static const bool bch2_##name;
+#define BCH_DEBUG_PARAM(name, description) static const __maybe_unused bool bch2_##name;
 BCH_DEBUG_PARAMS_DEBUG()
 #undef BCH_DEBUG_PARAM
 #endif

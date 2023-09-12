@@ -91,6 +91,9 @@ void bch2_reflink_v_to_text(struct printbuf *out, struct bch_fs *c,
 	bch2_bkey_ptrs_to_text(out, c, k);
 }
 
+#if 0
+Currently disabled, needs to be debugged:
+
 bool bch2_reflink_v_merge(struct bch_fs *c, struct bkey_s _l, struct bkey_s_c _r)
 {
 	struct bkey_s_reflink_v   l = bkey_s_to_reflink_v(_l);
@@ -98,6 +101,7 @@ bool bch2_reflink_v_merge(struct bch_fs *c, struct bkey_s _l, struct bkey_s_c _r
 
 	return l.v->refcount == r.v->refcount && bch2_extent_merge(c, _l, _r);
 }
+#endif
 
 int bch2_trans_mark_reflink_v(struct btree_trans *trans,
 			      enum btree_id btree_id, unsigned level,

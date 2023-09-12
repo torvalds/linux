@@ -336,7 +336,7 @@ static void btree_node_sort(struct bch_fs *c, struct btree *b,
 	start_bset->journal_seq = cpu_to_le64(seq);
 
 	if (sorting_entire_node) {
-		unsigned u64s = le16_to_cpu(out->keys.u64s);
+		u64s = le16_to_cpu(out->keys.u64s);
 
 		BUG_ON(bytes != btree_bytes(c));
 
@@ -409,8 +409,6 @@ void bch2_btree_sort_into(struct bch_fs *c,
 
 	bch2_verify_btree_nr_keys(dst);
 }
-
-#define SORT_CRIT	(4096 / sizeof(u64))
 
 /*
  * We're about to add another bset to the btree node, so if there's currently
@@ -542,6 +540,7 @@ static void btree_err_msg(struct printbuf *out, struct bch_fs *c,
 	prt_str(out, ": ");
 }
 
+__printf(8, 9)
 static int __btree_err(int ret,
 		       struct bch_fs *c,
 		       struct bch_dev *ca,
@@ -622,9 +621,6 @@ __cold
 void bch2_btree_node_drop_keys_outside_node(struct btree *b)
 {
 	struct bset_tree *t;
-	struct bkey_s_c k;
-	struct bkey unpacked;
-	struct btree_node_iter iter;
 
 	for_each_bset(b, t) {
 		struct bset *i = bset(b, t);
@@ -660,6 +656,9 @@ void bch2_btree_node_drop_keys_outside_node(struct btree *b)
 	bch2_bset_set_no_aux_tree(b, b->set);
 	bch2_btree_build_aux_trees(b);
 
+	struct bkey_s_c k;
+	struct bkey unpacked;
+	struct btree_node_iter iter;
 	for_each_btree_node_key_unpack(b, k, &iter, &unpacked) {
 		BUG_ON(bpos_lt(k.k->p, b->data->min_key));
 		BUG_ON(bpos_gt(k.k->p, b->data->max_key));
@@ -908,7 +907,6 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct bch_dev *ca,
 	bool updated_range = b->key.k.type == KEY_TYPE_btree_ptr_v2 &&
 		BTREE_PTR_RANGE_UPDATED(&bkey_i_to_btree_ptr_v2(&b->key)->v);
 	unsigned u64s;
-	unsigned blacklisted_written, nonblacklisted_written = 0;
 	unsigned ptr_written = btree_ptr_sectors_written(&b->key);
 	struct printbuf buf = PRINTBUF;
 	int ret = 0, retry_read = 0, write = READ;
@@ -1042,8 +1040,6 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct bch_dev *ca,
 		sort_iter_add(iter,
 			      vstruct_idx(i, 0),
 			      vstruct_last(i));
-
-		nonblacklisted_written = b->written;
 	}
 
 	if (ptr_written) {
@@ -1061,18 +1057,6 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct bch_dev *ca,
 								      true),
 				     -BCH_ERR_btree_node_read_err_want_retry, c, ca, b, NULL,
 				     "found bset signature after last bset");
-
-		/*
-		 * Blacklisted bsets are those that were written after the most recent
-		 * (flush) journal write. Since there wasn't a flush, they may not have
-		 * made it to all devices - which means we shouldn't write new bsets
-		 * after them, as that could leave a gap and then reads from that device
-		 * wouldn't find all the bsets in that btree node - which means it's
-		 * important that we start writing new bsets after the most recent _non_
-		 * blacklisted bset:
-		 */
-		blacklisted_written = b->written;
-		b->written = nonblacklisted_written;
 	}
 
 	sorted = btree_bounce_alloc(c, btree_bytes(c), &used_mempool);
@@ -1140,9 +1124,9 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct bch_dev *ca,
 	btree_node_reset_sib_u64s(b);
 
 	bkey_for_each_ptr(bch2_bkey_ptrs(bkey_i_to_s(&b->key)), ptr) {
-		struct bch_dev *ca = bch_dev_bkey_exists(c, ptr->dev);
+		struct bch_dev *ca2 = bch_dev_bkey_exists(c, ptr->dev);
 
-		if (ca->mi.state != BCH_MEMBER_STATE_rw)
+		if (ca2->mi.state != BCH_MEMBER_STATE_rw)
 			set_btree_node_need_rewrite(b);
 	}
 
@@ -1224,19 +1208,17 @@ start:
 	bch2_time_stats_update(&c->times[BCH_TIME_btree_node_read],
 			       rb->start_time);
 	bio_put(&rb->bio);
-	printbuf_exit(&buf);
 
 	if (saw_error && !btree_node_read_error(b)) {
-		struct printbuf buf = PRINTBUF;
-
+		printbuf_reset(&buf);
 		bch2_bpos_to_text(&buf, b->key.k.p);
 		bch_info(c, "%s: rewriting btree node at btree=%s level=%u %s due to error",
 			 __func__, bch2_btree_ids[b->c.btree_id], b->c.level, buf.buf);
-		printbuf_exit(&buf);
 
 		bch2_btree_node_rewrite_async(c, b);
 	}
 
+	printbuf_exit(&buf);
 	clear_btree_node_read_in_flight(b);
 	wake_up_bit(&b->flags, BTREE_NODE_read_in_flight);
 }

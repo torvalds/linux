@@ -81,8 +81,10 @@ void bch2_prt_printf(struct printbuf *out, const char *fmt, ...)
 }
 
 /**
- * printbuf_str - returns printbuf's buf as a C string, guaranteed to be null
- * terminated
+ * bch2_printbuf_str() - returns printbuf's buf as a C string, guaranteed to be
+ * null terminated
+ * @buf:	printbuf to terminate
+ * Returns:	Printbuf contents, as a nul terminated C string
  */
 const char *bch2_printbuf_str(const struct printbuf *buf)
 {
@@ -97,8 +99,9 @@ const char *bch2_printbuf_str(const struct printbuf *buf)
 }
 
 /**
- * printbuf_exit - exit a printbuf, freeing memory it owns and poisoning it
+ * bch2_printbuf_exit() - exit a printbuf, freeing memory it owns and poisoning it
  * against accidental use.
+ * @buf:	printbuf to exit
  */
 void bch2_printbuf_exit(struct printbuf *buf)
 {
@@ -120,7 +123,7 @@ void bch2_printbuf_tabstop_pop(struct printbuf *buf)
 }
 
 /*
- * printbuf_tabstop_set - add a tabstop, n spaces from the previous tabstop
+ * bch2_printbuf_tabstop_set() - add a tabstop, n spaces from the previous tabstop
  *
  * @buf: printbuf to control
  * @spaces: number of spaces from previous tabpstop
@@ -144,7 +147,7 @@ int bch2_printbuf_tabstop_push(struct printbuf *buf, unsigned spaces)
 }
 
 /**
- * printbuf_indent_add - add to the current indent level
+ * bch2_printbuf_indent_add() - add to the current indent level
  *
  * @buf: printbuf to control
  * @spaces: number of spaces to add to the current indent level
@@ -164,7 +167,7 @@ void bch2_printbuf_indent_add(struct printbuf *buf, unsigned spaces)
 }
 
 /**
- * printbuf_indent_sub - subtract from the current indent level
+ * bch2_printbuf_indent_sub() - subtract from the current indent level
  *
  * @buf: printbuf to control
  * @spaces: number of spaces to subtract from the current indent level
@@ -227,9 +230,8 @@ static void __prt_tab(struct printbuf *out)
 }
 
 /**
- * prt_tab - Advance printbuf to the next tabstop
- *
- * @buf: printbuf to control
+ * bch2_prt_tab() - Advance printbuf to the next tabstop
+ * @out:	printbuf to control
  *
  * Advance output to the next tabstop by printing spaces.
  */
@@ -267,7 +269,7 @@ static void __prt_tab_rjust(struct printbuf *buf)
 }
 
 /**
- * prt_tab_rjust - Advance printbuf to the next tabstop, right justifying
+ * bch2_prt_tab_rjust - Advance printbuf to the next tabstop, right justifying
  * previous output
  *
  * @buf: printbuf to control
@@ -284,11 +286,11 @@ void bch2_prt_tab_rjust(struct printbuf *buf)
 }
 
 /**
- * prt_bytes_indented - Print an array of chars, handling embedded control characters
+ * bch2_prt_bytes_indented() - Print an array of chars, handling embedded control characters
  *
- * @out: printbuf to output to
- * @str: string to print
- * @count: number of bytes to print
+ * @out:	output printbuf
+ * @str:	string to print
+ * @count:	number of bytes to print
  *
  * The following contol characters are handled as so:
  *   \n: prt_newline	newline that obeys current indent level
@@ -335,32 +337,38 @@ void bch2_prt_bytes_indented(struct printbuf *out, const char *str, unsigned cou
 }
 
 /**
- * prt_human_readable_u64 - Print out a u64 in human readable units
+ * bch2_prt_human_readable_u64() - Print out a u64 in human readable units
+ * @out:	output printbuf
+ * @v:		integer to print
  *
- * Units of 2^10 (default) or 10^3 are controlled via @buf->si_units
+ * Units of 2^10 (default) or 10^3 are controlled via @out->si_units
  */
-void bch2_prt_human_readable_u64(struct printbuf *buf, u64 v)
+void bch2_prt_human_readable_u64(struct printbuf *out, u64 v)
 {
-	bch2_printbuf_make_room(buf, 10);
-	buf->pos += string_get_size(v, 1, !buf->si_units,
-				    buf->buf + buf->pos,
-				    printbuf_remaining_size(buf));
+	bch2_printbuf_make_room(out, 10);
+	out->pos += string_get_size(v, 1, !out->si_units,
+				    out->buf + out->pos,
+				    printbuf_remaining_size(out));
 }
 
 /**
- * prt_human_readable_s64 - Print out a s64 in human readable units
+ * bch2_prt_human_readable_s64() - Print out a s64 in human readable units
+ * @out:	output printbuf
+ * @v:		integer to print
  *
- * Units of 2^10 (default) or 10^3 are controlled via @buf->si_units
+ * Units of 2^10 (default) or 10^3 are controlled via @out->si_units
  */
-void bch2_prt_human_readable_s64(struct printbuf *buf, s64 v)
+void bch2_prt_human_readable_s64(struct printbuf *out, s64 v)
 {
 	if (v < 0)
-		prt_char(buf, '-');
-	bch2_prt_human_readable_u64(buf, abs(v));
+		prt_char(out, '-');
+	bch2_prt_human_readable_u64(out, abs(v));
 }
 
 /**
- * prt_units_u64 - Print out a u64 according to printbuf unit options
+ * bch2_prt_units_u64() - Print out a u64 according to printbuf unit options
+ * @out:	output printbuf
+ * @v:		integer to print
  *
  * Units are either raw (default), or human reabable units (controlled via
  * @buf->human_readable_units)
@@ -374,7 +382,9 @@ void bch2_prt_units_u64(struct printbuf *out, u64 v)
 }
 
 /**
- * prt_units_s64 - Print out a s64 according to printbuf unit options
+ * bch2_prt_units_s64() - Print out a s64 according to printbuf unit options
+ * @out:	output printbuf
+ * @v:		integer to print
  *
  * Units are either raw (default), or human reabable units (controlled via
  * @buf->human_readable_units)

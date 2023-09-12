@@ -83,8 +83,8 @@ typedef uuid_t __uuid_t;
 #endif
 
 #define BITMASK(name, type, field, offset, end)				\
-static const unsigned	name##_OFFSET = offset;				\
-static const unsigned	name##_BITS = (end - offset);			\
+static const __maybe_unused unsigned	name##_OFFSET = offset;		\
+static const __maybe_unused unsigned	name##_BITS = (end - offset);	\
 									\
 static inline __u64 name(const type *k)					\
 {									\
@@ -98,9 +98,9 @@ static inline void SET_##name(type *k, __u64 v)				\
 }
 
 #define LE_BITMASK(_bits, name, type, field, offset, end)		\
-static const unsigned	name##_OFFSET = offset;				\
-static const unsigned	name##_BITS = (end - offset);			\
-static const __u##_bits	name##_MAX = (1ULL << (end - offset)) - 1;	\
+static const __maybe_unused unsigned	name##_OFFSET = offset;		\
+static const __maybe_unused unsigned	name##_BITS = (end - offset);	\
+static const __maybe_unused __u##_bits	name##_MAX = (1ULL << (end - offset)) - 1;\
 									\
 static inline __u64 name(const type *k)					\
 {									\
@@ -1668,7 +1668,8 @@ enum bcachefs_metadata_version {
 	bcachefs_metadata_version_max
 };
 
-static const unsigned bcachefs_metadata_required_upgrade_below = bcachefs_metadata_version_major_minor;
+static const __maybe_unused
+unsigned bcachefs_metadata_required_upgrade_below = bcachefs_metadata_version_major_minor;
 
 #define bcachefs_metadata_version_current	(bcachefs_metadata_version_max - 1)
 
@@ -1975,7 +1976,7 @@ enum bch_csum_type {
 	BCH_CSUM_NR
 };
 
-static const unsigned bch_crc_bytes[] = {
+static const __maybe_unused unsigned bch_crc_bytes[] = {
 	[BCH_CSUM_none]				= 0,
 	[BCH_CSUM_crc32c_nonzero]		= 4,
 	[BCH_CSUM_crc32c]			= 4,

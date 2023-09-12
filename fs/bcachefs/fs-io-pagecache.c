@@ -14,7 +14,7 @@
 int bch2_filemap_get_contig_folios_d(struct address_space *mapping,
 				     loff_t start, u64 end,
 				     int fgp_flags, gfp_t gfp,
-				     folios *folios)
+				     folios *fs)
 {
 	struct folio *f;
 	u64 pos = start;
@@ -24,7 +24,7 @@ int bch2_filemap_get_contig_folios_d(struct address_space *mapping,
 		if ((u64) pos >= (u64) start + (1ULL << 20))
 			fgp_flags &= ~FGP_CREAT;
 
-		ret = darray_make_room_gfp(folios, 1, gfp & GFP_KERNEL);
+		ret = darray_make_room_gfp(fs, 1, gfp & GFP_KERNEL);
 		if (ret)
 			break;
 
@@ -32,16 +32,16 @@ int bch2_filemap_get_contig_folios_d(struct address_space *mapping,
 		if (IS_ERR_OR_NULL(f))
 			break;
 
-		BUG_ON(folios->nr && folio_pos(f) != pos);
+		BUG_ON(fs->nr && folio_pos(f) != pos);
 
 		pos = folio_end_pos(f);
-		darray_push(folios, f);
+		darray_push(fs, f);
 	}
 
-	if (!folios->nr && !ret && (fgp_flags & FGP_CREAT))
+	if (!fs->nr && !ret && (fgp_flags & FGP_CREAT))
 		ret = -ENOMEM;
 
-	return folios->nr ? 0 : ret;
+	return fs->nr ? 0 : ret;
 }
 
 /* pagecache_block must be held */
@@ -73,12 +73,15 @@ int bch2_write_invalidate_inode_pages_range(struct address_space *mapping,
 	return ret;
 }
 
+#if 0
+/* Useful for debug tracing: */
 static const char * const bch2_folio_sector_states[] = {
 #define x(n)	#n,
 	BCH_FOLIO_SECTOR_STATE()
 #undef x
 	NULL
 };
+#endif
 
 static inline enum bch_folio_sector_state
 folio_sector_dirty(enum bch_folio_sector_state state)
@@ -177,20 +180,20 @@ static void __bch2_folio_set(struct folio *folio,
  * extents btree:
  */
 int bch2_folio_set(struct bch_fs *c, subvol_inum inum,
-		   struct folio **folios, unsigned nr_folios)
+		   struct folio **fs, unsigned nr_folios)
 {
 	struct btree_trans trans;
 	struct btree_iter iter;
 	struct bkey_s_c k;
 	struct bch_folio *s;
-	u64 offset = folio_sector(folios[0]);
+	u64 offset = folio_sector(fs[0]);
 	unsigned folio_idx;
 	u32 snapshot;
 	bool need_set = false;
 	int ret;
 
 	for (folio_idx = 0; folio_idx < nr_folios; folio_idx++) {
-		s = bch2_folio_create(folios[folio_idx], GFP_KERNEL);
+		s = bch2_folio_create(fs[folio_idx], GFP_KERNEL);
 		if (!s)
 			return -ENOMEM;
 
@@ -216,7 +219,7 @@ retry:
 		unsigned state = bkey_to_sector_state(k);
 
 		while (folio_idx < nr_folios) {
-			struct folio *folio = folios[folio_idx];
+			struct folio *folio = fs[folio_idx];
 			u64 folio_start	= folio_sector(folio);
 			u64 folio_end	= folio_end_sector(folio);
 			unsigned folio_offset = max(bkey_start_offset(k.k), folio_start) -

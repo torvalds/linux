@@ -12,8 +12,6 @@ static const char * const bch2_errcode_strs[] = {
 	NULL
 };
 
-#define BCH_ERR_0	0
-
 static unsigned bch2_errcode_parents[] = {
 #define x(class, err) [BCH_ERR_##err - BCH_ERR_START] = class,
 	BCH_ERRCODES()

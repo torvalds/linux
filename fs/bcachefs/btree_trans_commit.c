@@ -214,7 +214,11 @@ inline void bch2_btree_add_journal_pin(struct bch_fs *c,
 }
 
 /**
- * btree_insert_key - insert a key one key into a leaf node
+ * bch2_btree_insert_key_leaf() - insert a key one key into a leaf node
+ * @trans:		btree transaction object
+ * @path:		path pointing to @insert's pos
+ * @insert:		key to insert
+ * @journal_seq:	sequence number of journal reservation
  */
 inline void bch2_btree_insert_key_leaf(struct btree_trans *trans,
 				       struct btree_path *path,
@@ -555,7 +559,6 @@ bch2_trans_commit_write_locked(struct btree_trans *trans, unsigned flags,
 	struct btree_write_buffered_key *wb;
 	struct btree_trans_commit_hook *h;
 	unsigned u64s = 0;
-	bool marking = false;
 	int ret;
 
 	if (race_fault()) {
@@ -584,9 +587,6 @@ bch2_trans_commit_write_locked(struct btree_trans *trans, unsigned flags,
 			*stopped_at = i;
 			return ret;
 		}
-
-		if (btree_node_type_needs_gc(i->bkey_type))
-			marking = true;
 	}
 
 	if (trans->nr_wb_updates &&

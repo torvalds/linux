@@ -5,7 +5,7 @@
 /* Inode flags: */
 
 /* bcachefs inode flags -> vfs inode flags: */
-static const unsigned bch_flags_to_vfs[] = {
+static const __maybe_unused unsigned bch_flags_to_vfs[] = {
 	[__BCH_INODE_SYNC]	= S_SYNC,
 	[__BCH_INODE_IMMUTABLE]	= S_IMMUTABLE,
 	[__BCH_INODE_APPEND]	= S_APPEND,
@@ -13,7 +13,7 @@ static const unsigned bch_flags_to_vfs[] = {
 };
 
 /* bcachefs inode flags -> FS_IOC_GETFLAGS: */
-static const unsigned bch_flags_to_uflags[] = {
+static const __maybe_unused unsigned bch_flags_to_uflags[] = {
 	[__BCH_INODE_SYNC]	= FS_SYNC_FL,
 	[__BCH_INODE_IMMUTABLE]	= FS_IMMUTABLE_FL,
 	[__BCH_INODE_APPEND]	= FS_APPEND_FL,
@@ -22,7 +22,7 @@ static const unsigned bch_flags_to_uflags[] = {
 };
 
 /* bcachefs inode flags -> FS_IOC_FSGETXATTR: */
-static const unsigned bch_flags_to_xflags[] = {
+static const __maybe_unused unsigned bch_flags_to_xflags[] = {
 	[__BCH_INODE_SYNC]	= FS_XFLAG_SYNC,
 	[__BCH_INODE_IMMUTABLE]	= FS_XFLAG_IMMUTABLE,
 	[__BCH_INODE_APPEND]	= FS_XFLAG_APPEND,

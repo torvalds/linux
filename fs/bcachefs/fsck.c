@@ -471,7 +471,12 @@ static int snapshots_seen_update(struct bch_fs *c, struct snapshots_seen *s,
  * key_visible_in_snapshot - returns true if @id is a descendent of @ancestor,
  * and @ancestor hasn't been overwritten in @seen
  *
- * That is, returns whether key in @ancestor snapshot is visible in @id snapshot
+ * @c:		filesystem handle
+ * @seen:	list of snapshot ids already seen at current position
+ * @id:		descendent snapshot id
+ * @ancestor:	ancestor snapshot id
+ *
+ * Returns:	whether key in @ancestor snapshot is visible in @id snapshot
  */
 static bool key_visible_in_snapshot(struct bch_fs *c, struct snapshots_seen *seen,
 				    u32 id, u32 ancestor)
@@ -516,14 +521,16 @@ static bool key_visible_in_snapshot(struct bch_fs *c, struct snapshots_seen *see
  * snapshot id @dst, test whether there is some snapshot in which @dst is
  * visible.
  *
- * This assumes we're visiting @src keys in natural key order.
+ * @c:		filesystem handle
+ * @s:		list of snapshot IDs already seen at @src
+ * @src:	snapshot ID of src key
+ * @dst:	snapshot ID of dst key
+ * Returns:	true if there is some snapshot in which @dst is visible
  *
- * @s	- list of snapshot IDs already seen at @src
- * @src	- snapshot ID of src key
- * @dst	- snapshot ID of dst key
+ * Assumes we're visiting @src keys in natural key order
  */
-static int ref_visible(struct bch_fs *c, struct snapshots_seen *s,
-		       u32 src, u32 dst)
+static bool ref_visible(struct bch_fs *c, struct snapshots_seen *s,
+			u32 src, u32 dst)
 {
 	return dst <= src
 		? key_visible_in_snapshot(c, s, dst, src)

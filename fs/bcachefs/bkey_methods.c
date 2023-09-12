@@ -369,7 +369,6 @@ void __bch2_bkey_compat(unsigned level, enum btree_id btree_id,
 {
 	const struct bkey_ops *ops;
 	struct bkey uk;
-	struct bkey_s u;
 	unsigned nr_compat = 5;
 	int i;
 
@@ -434,7 +433,9 @@ void __bch2_bkey_compat(unsigned level, enum btree_id btree_id,
 		}
 
 		break;
-	case 4:
+	case 4: {
+		struct bkey_s u;
+
 		if (!bkey_packed(k)) {
 			u = bkey_i_to_s(packed_to_bkey(k));
 		} else {
@@ -451,6 +452,7 @@ void __bch2_bkey_compat(unsigned level, enum btree_id btree_id,
 		if (ops->compat)
 			ops->compat(btree_id, version, big_endian, write, u);
 		break;
+	}
 	default:
 		BUG();
 	}

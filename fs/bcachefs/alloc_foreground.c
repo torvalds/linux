@@ -502,9 +502,14 @@ again:
 }
 
 /**
- * bch_bucket_alloc - allocate a single bucket from a specific device
+ * bch2_bucket_alloc_trans - allocate a single bucket from a specific device
+ * @trans:	transaction object
+ * @ca:		device to allocate from
+ * @watermark:	how important is this allocation?
+ * @cl:		if not NULL, closure to be used to wait if buckets not available
+ * @usage:	for secondarily also returning the current device usage
  *
- * Returns index of bucket on success, 0 on failure
+ * Returns:	an open_bucket on success, or an ERR_PTR() on failure.
  */
 static struct open_bucket *bch2_bucket_alloc_trans(struct btree_trans *trans,
 				      struct bch_dev *ca,
@@ -775,7 +780,6 @@ static int bucket_alloc_from_stripe(struct btree_trans *trans,
 	struct dev_alloc_list devs_sorted;
 	struct ec_stripe_head *h;
 	struct open_bucket *ob;
-	struct bch_dev *ca;
 	unsigned i, ec_idx;
 	int ret = 0;
 
@@ -805,8 +809,6 @@ static int bucket_alloc_from_stripe(struct btree_trans *trans,
 		}
 	goto out_put_head;
 got_bucket:
-	ca = bch_dev_bkey_exists(c, ob->dev);
-
 	ob->ec_idx	= ec_idx;
 	ob->ec		= h->s;
 	ec_stripe_new_get(h->s, STRIPE_REF_io);
@@ -1032,10 +1034,13 @@ static int open_bucket_add_buckets(struct btree_trans *trans,
 
 /**
  * should_drop_bucket - check if this is open_bucket should go away
+ * @ob:		open_bucket to predicate on
+ * @c:		filesystem handle
  * @ca:		if set, we're killing buckets for a particular device
  * @ec:		if true, we're shutting down erasure coding and killing all ec
  *		open_buckets
  *		otherwise, return true
+ * Returns: true if we should kill this open_bucket
  *
  * We're killing open_buckets because we're shutting down a device, erasure
  * coding, or the entire filesystem - check if this open_bucket matches:

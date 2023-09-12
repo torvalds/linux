@@ -507,18 +507,18 @@ static int bch2_snapshot_tree_master_subvol(struct btree_trans *trans,
 	bch2_trans_iter_exit(trans, &iter);
 
 	if (!ret && !found) {
-		struct bkey_i_subvolume *s;
+		struct bkey_i_subvolume *u;
 
 		*subvol_id = bch2_snapshot_tree_oldest_subvol(c, snapshot_root);
 
-		s = bch2_bkey_get_mut_typed(trans, &iter,
+		u = bch2_bkey_get_mut_typed(trans, &iter,
 					    BTREE_ID_subvolumes, POS(0, *subvol_id),
 					    0, subvolume);
-		ret = PTR_ERR_OR_ZERO(s);
+		ret = PTR_ERR_OR_ZERO(u);
 		if (ret)
 			return ret;
 
-		SET_BCH_SUBVOLUME_SNAP(&s->v, false);
+		SET_BCH_SUBVOLUME_SNAP(&u->v, false);
 	}
 
 	return ret;
@@ -930,7 +930,7 @@ static inline void normalize_snapshot_child_pointers(struct bch_snapshot *s)
 		swap(s->children[0], s->children[1]);
 }
 
-int bch2_snapshot_node_delete(struct btree_trans *trans, u32 id)
+static int bch2_snapshot_node_delete(struct btree_trans *trans, u32 id)
 {
 	struct bch_fs *c = trans->c;
 	struct btree_iter iter, p_iter = (struct btree_iter) { NULL };

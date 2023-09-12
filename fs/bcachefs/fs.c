@@ -1661,7 +1661,7 @@ static int bch2_remount(struct super_block *sb, int *flags, char *data)
 		up_write(&c->state_lock);
 	}
 
-	if (opts.errors >= 0)
+	if (opt_defined(opts, errors))
 		c->opts.errors = opts.errors;
 err:
 	return bch2_err_class(ret);

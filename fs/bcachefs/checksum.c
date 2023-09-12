@@ -366,11 +366,11 @@ struct bch_csum bch2_checksum_merge(unsigned type, struct bch_csum a,
 	BUG_ON(!bch2_checksum_mergeable(type));
 
 	while (b_len) {
-		unsigned b = min_t(unsigned, b_len, PAGE_SIZE);
+		unsigned page_len = min_t(unsigned, b_len, PAGE_SIZE);
 
 		bch2_checksum_update(&state,
-				page_address(ZERO_PAGE(0)), b);
-		b_len -= b;
+				page_address(ZERO_PAGE(0)), page_len);
+		b_len -= page_len;
 	}
 	a.lo = (__le64 __force) bch2_checksum_final(&state);
 	a.lo ^= b.lo;
@@ -395,9 +395,9 @@ int bch2_rechecksum_bio(struct bch_fs *c, struct bio *bio,
 		unsigned			csum_type;
 		struct bch_csum			csum;
 	} splits[3] = {
-		{ crc_a, len_a, new_csum_type },
-		{ crc_b, len_b, new_csum_type },
-		{ NULL,	 bio_sectors(bio) - len_a - len_b, new_csum_type },
+		{ crc_a, len_a, new_csum_type, { 0 }},
+		{ crc_b, len_b, new_csum_type, { 0 } },
+		{ NULL,	 bio_sectors(bio) - len_a - len_b, new_csum_type, { 0 } },
 	}, *i;
 	bool mergeable = crc_old.csum_type == new_csum_type &&
 		bch2_checksum_mergeable(new_csum_type);

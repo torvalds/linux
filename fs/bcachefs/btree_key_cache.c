@@ -242,8 +242,6 @@ bkey_cached_alloc(struct btree_trans *trans, struct btree_path *path,
 	}
 
 	if (ck) {
-		int ret;
-
 		ret = btree_node_lock_nopath(trans, &ck->c, SIX_LOCK_intent, _THIS_IP_);
 		if (unlikely(ret)) {
 			bkey_cached_move_to_freelist(bc, ck);

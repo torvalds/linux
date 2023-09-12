@@ -885,7 +885,7 @@ retry:
 	}
 
 	if (unlikely(need_relock)) {
-		int ret = bch2_trans_relock(trans) ?:
+		ret = bch2_trans_relock(trans) ?:
 			bch2_btree_path_relock_intent(trans, path);
 		if (ret) {
 			six_unlock_type(&b->c.lock, lock_type);
@@ -916,11 +916,20 @@ retry:
 }
 
 /**
- * bch_btree_node_get - find a btree node in the cache and lock it, reading it
+ * bch2_btree_node_get - find a btree node in the cache and lock it, reading it
  * in from disk if necessary.
+ *
+ * @trans:	btree transaction object
+ * @path:	btree_path being traversed
+ * @k:		pointer to btree node (generally KEY_TYPE_btree_ptr_v2)
+ * @level:	level of btree node being looked up (0 == leaf node)
+ * @lock_type:	SIX_LOCK_read or SIX_LOCK_intent
+ * @trace_ip:	ip of caller of btree iterator code (i.e. caller of bch2_btree_iter_peek())
  *
  * The btree node will have either a read or a write lock held, depending on
  * the @write parameter.
+ *
+ * Returns: btree node or ERR_PTR()
  */
 struct btree *bch2_btree_node_get(struct btree_trans *trans, struct btree_path *path,
 				  const struct bkey_i *k, unsigned level,
@@ -979,7 +988,7 @@ struct btree *bch2_btree_node_get(struct btree_trans *trans, struct btree_path *
 		 * relock it specifically:
 		 */
 		if (trans) {
-			int ret = bch2_trans_relock(trans) ?:
+			ret = bch2_trans_relock(trans) ?:
 				bch2_btree_path_relock_intent(trans, path);
 			if (ret) {
 				BUG_ON(!trans->restarted);

@@ -469,7 +469,7 @@ struct bch_opts {
 #undef x
 };
 
-static const struct bch_opts bch2_opts_default = {
+static const __maybe_unused struct bch_opts bch2_opts_default = {
 #define x(_name, _bits, _mode, _type, _sb_opt, _default, ...)		\
 	._name##_defined = true,					\
 	._name = _default,						\
