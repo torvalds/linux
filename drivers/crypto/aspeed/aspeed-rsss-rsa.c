@@ -114,17 +114,19 @@ static int aspeed_rsa_ctx_copy(struct aspeed_rsss_dev *rsss_dev, void __iomem *d
 	if (nbytes > ASPEED_RSA_MAX_KEY_LEN)
 		return -ENOMEM;
 
+	memset(data, 0, SRAM_BLOCK_SIZE);
+
 	/* Remove leading zeros */
 	while (nbytes > 0 && src[0] == 0) {
 		src++;
 		nbytes--;
-		pr_info("remove leading zero, nbyte:%zu\n", nbytes);
 	}
 
 	for (int i = 0; i < nbytes; i++)
 		data[nbytes - i - 1] = src[i];
 
-	memcpy_toio(dst, data, nbytes);
+	/* align 8 bytes */
+	memcpy_toio(dst, data, (nbytes + 7) & ~(8 - 1));
 
 	return nbytes * 8;
 }
@@ -138,7 +140,7 @@ static int aspeed_rsa_transfer(struct aspeed_rsss_dev *rsss_dev)
 	size_t nbytes = req->dst_len;
 	u32 val;
 
-	RSSS_DBG(rsss_dev, "\n");
+	RSSS_DBG(rsss_dev, "nbytes:%zu\n", nbytes);
 
 	/* Set SRAM access control - CPU */
 	val = ast_rsss_read(rsss_dev, ASPEED_RSSS_CTRL);
@@ -203,6 +205,8 @@ static int aspeed_rsa_trigger(struct aspeed_rsss_dev *rsss_dev)
 	struct aspeed_rsa_ctx *ctx;
 	int ne, nm;
 	u32 val;
+
+	RSSS_DBG(rsss_dev, "\n");
 
 	cipher = crypto_akcipher_reqtfm(req);
 	ctx = akcipher_tfm_ctx(cipher);
