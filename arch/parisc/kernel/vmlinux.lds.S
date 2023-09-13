@@ -154,6 +154,7 @@ SECTIONS
 	}
 
 	/* End of data section */
+	. = ALIGN(PAGE_SIZE);
 	_edata = .;
 
 	/* BSS */
