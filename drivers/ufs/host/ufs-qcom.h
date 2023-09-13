@@ -610,7 +610,7 @@ struct ufs_qcom_host {
 	struct ufs_qcom_ber_hist ber_hist[UFS_QCOM_BER_MODE_MAX];
 	struct list_head regs_list_head;
 	bool ber_th_exceeded;
-
+	bool irq_affinity_support;
 	bool esi_enabled;
 
 	bool bypass_pbl_rst_wa;
