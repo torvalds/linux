@@ -224,8 +224,11 @@ extern int max_possible_cluster_id;
 extern unsigned int __read_mostly sched_init_task_load_windows;
 extern unsigned int __read_mostly sched_load_granule;
 
-extern unsigned int sysctl_sched_idle_enough;
-extern unsigned int sysctl_sched_cluster_util_thres_pct;
+#define SCHED_IDLE_ENOUGH_DEFAULT 30
+#define SCHED_CLUSTER_UTIL_THRES_PCT_DEFAULT 40
+
+extern unsigned int sysctl_sched_idle_enough_clust[MAX_CLUSTERS];
+extern unsigned int sysctl_sched_cluster_util_thres_pct_clust[MAX_CLUSTERS];
 
 /* 1ms default for 20ms window size scaled to 1024 */
 extern unsigned int sysctl_sched_min_task_util_for_boost;
@@ -1058,9 +1061,9 @@ static inline int walt_find_and_choose_cluster_packing_cpu(int start_cpu, struct
 	int packing_cpu;
 
 	/* if idle_enough feature is not enabled */
-	if (!sysctl_sched_idle_enough)
+	if (!sysctl_sched_idle_enough_clust[cluster->id])
 		return -1;
-	if (!sysctl_sched_cluster_util_thres_pct)
+	if (!sysctl_sched_cluster_util_thres_pct_clust[cluster->id])
 		return -1;
 
 	/* find all unhalted active cpus */
@@ -1085,15 +1088,16 @@ static inline int walt_find_and_choose_cluster_packing_cpu(int start_cpu, struct
 		return -1;
 
 	/* if cluster util is high */
-	if (sched_get_cluster_util_pct(cluster) >= sysctl_sched_cluster_util_thres_pct)
+	if (sched_get_cluster_util_pct(cluster) >=
+	    sysctl_sched_cluster_util_thres_pct_clust[cluster->id])
 		return -1;
 
 	/* if cpu utilization is high */
-	if (cpu_util(packing_cpu) >= sysctl_sched_idle_enough)
+	if (cpu_util(packing_cpu) >= sysctl_sched_idle_enough_clust[cluster->id])
 		return -1;
 
 	/* don't pack big tasks */
-	if (task_util(p) >= sysctl_sched_idle_enough)
+	if (task_util(p) >= sysctl_sched_idle_enough_clust[cluster->id])
 		return -1;
 
 	if (task_reject_partialhalt_cpu(p, packing_cpu))

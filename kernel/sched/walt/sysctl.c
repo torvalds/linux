@@ -74,8 +74,10 @@ unsigned int sysctl_sched_skip_sp_newly_idle_lb = 1;
 unsigned int sysctl_sched_hyst_min_coloc_ns = 80000000;
 unsigned int sysctl_sched_asymcap_boost;
 unsigned int sysctl_sched_long_running_rt_task_ms;
-unsigned int sysctl_sched_idle_enough;
-unsigned int sysctl_sched_cluster_util_thres_pct;
+unsigned int sysctl_sched_idle_enough = SCHED_IDLE_ENOUGH_DEFAULT;
+unsigned int sysctl_sched_cluster_util_thres_pct = SCHED_CLUSTER_UTIL_THRES_PCT_DEFAULT;
+unsigned int sysctl_sched_idle_enough_clust[MAX_CLUSTERS];
+unsigned int sysctl_sched_cluster_util_thres_pct_clust[MAX_CLUSTERS];
 unsigned int sysctl_ed_boost_pct;
 unsigned int sysctl_em_inflate_pct = 100;
 unsigned int sysctl_em_inflate_thres = 1024;
@@ -684,6 +686,95 @@ int sched_fmax_cap_handler(struct ctl_table *table, int write,
 	}
 unlock_mutex:
 	mutex_unlock(&mutex);
+	return ret;
+}
+
+static DEFINE_MUTEX(idle_enough_mutex);
+
+int sched_idle_enough_handler(struct ctl_table *table, int write,
+			      void __user *buffer, size_t *lenp,
+			      loff_t *ppos)
+{
+	int ret, i;
+
+	mutex_lock(&idle_enough_mutex);
+
+	ret = proc_douintvec_minmax(table, write, buffer, lenp, ppos);
+	if (ret)
+		goto unlock_mutex;
+
+	/* update all per-cluster entries to match what was written */
+	for (i = 0; i < MAX_CLUSTERS; i++)
+		sysctl_sched_idle_enough_clust[i] = sysctl_sched_idle_enough;
+
+unlock_mutex:
+	mutex_unlock(&idle_enough_mutex);
+
+	return ret;
+}
+
+int sched_idle_enough_clust_handler(struct ctl_table *table, int write,
+				    void __user *buffer, size_t *lenp,
+				    loff_t *ppos)
+{
+	int ret;
+
+	mutex_lock(&idle_enough_mutex);
+
+	ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
+	if (ret)
+		goto unlock_mutex;
+
+	/* update the single-entry to match the first cluster updated here */
+	sysctl_sched_idle_enough = sysctl_sched_idle_enough_clust[0];
+
+unlock_mutex:
+	mutex_unlock(&idle_enough_mutex);
+
+	return ret;
+}
+
+static DEFINE_MUTEX(util_thres_mutex);
+
+int sched_cluster_util_thres_pct_handler(struct ctl_table *table, int write,
+					 void __user *buffer, size_t *lenp,
+					 loff_t *ppos)
+{
+	int ret, i;
+
+	mutex_lock(&util_thres_mutex);
+
+	ret = proc_douintvec_minmax(table, write, buffer, lenp, ppos);
+	if (ret)
+		goto unlock_mutex;
+
+	/* update all per-cluster entries to match what was written */
+	for (i = 0; i < MAX_CLUSTERS; i++)
+		sysctl_sched_cluster_util_thres_pct_clust[i] = sysctl_sched_cluster_util_thres_pct;
+
+unlock_mutex:
+	mutex_unlock(&util_thres_mutex);
+
+	return ret;
+}
+
+int sched_cluster_util_thres_pct_clust_handler(struct ctl_table *table, int write,
+					       void __user *buffer, size_t *lenp,
+					       loff_t *ppos)
+{
+	int ret;
+
+	mutex_lock(&util_thres_mutex);
+
+	ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
+	if (ret)
+		goto unlock_mutex;
+
+	/* update the single-entry to match the first cluster updated here */
+	sysctl_sched_cluster_util_thres_pct = sysctl_sched_cluster_util_thres_pct_clust[0];
+
+unlock_mutex:
+	mutex_unlock(&util_thres_mutex);
 
 	return ret;
 }
@@ -1138,7 +1229,16 @@ struct ctl_table walt_table[] = {
 		.data		= &sysctl_sched_cluster_util_thres_pct,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= proc_douintvec_minmax,
+		.proc_handler	= sched_cluster_util_thres_pct_handler,
+		.extra1		= SYSCTL_ZERO,
+		.extra2		= SYSCTL_INT_MAX,
+	},
+	{
+		.procname	= "sched_cluster_util_thres_pct_clust",
+		.data		= &sysctl_sched_cluster_util_thres_pct_clust,
+		.maxlen		= sizeof(unsigned int) * MAX_CLUSTERS,
+		.mode		= 0644,
+		.proc_handler	= sched_cluster_util_thres_pct_clust_handler,
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= SYSCTL_INT_MAX,
 	},
@@ -1147,7 +1247,16 @@ struct ctl_table walt_table[] = {
 		.data		= &sysctl_sched_idle_enough,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= proc_douintvec_minmax,
+		.proc_handler	= sched_idle_enough_handler,
+		.extra1		= SYSCTL_ZERO,
+		.extra2		= SYSCTL_INT_MAX,
+	},
+	{
+		.procname	= "sched_idle_enough_clust",
+		.data		= &sysctl_sched_idle_enough_clust,
+		.maxlen		= sizeof(unsigned int) * MAX_CLUSTERS,
+		.mode		= 0644,
+		.proc_handler	= sched_idle_enough_clust_handler,
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= SYSCTL_INT_MAX,
 	},
@@ -1304,6 +1413,8 @@ void walt_tunables(void)
 	for (i = 0; i < MAX_CLUSTERS; i++) {
 		sysctl_fmax_cap[i] = FREQ_QOS_MAX_DEFAULT_VALUE;
 		high_perf_cluster_freq_cap[i] = FREQ_QOS_MAX_DEFAULT_VALUE;
+		sysctl_sched_idle_enough_clust[i] = SCHED_IDLE_ENOUGH_DEFAULT;
+		sysctl_sched_cluster_util_thres_pct_clust[i] = SCHED_CLUSTER_UTIL_THRES_PCT_DEFAULT;
 	}
 
 	for (i = 0; i < MAX_FREQ_CAP; i++) {
