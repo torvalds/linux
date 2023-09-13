@@ -389,7 +389,7 @@ EXPORT_SYMBOL_GPL(crypto_shoot_alg);
 struct crypto_tfm *__crypto_alloc_tfmgfp(struct crypto_alg *alg, u32 type,
 					 u32 mask, gfp_t gfp)
 {
-	struct crypto_tfm *tfm = NULL;
+	struct crypto_tfm *tfm;
 	unsigned int tfm_size;
 	int err = -ENOMEM;
 
