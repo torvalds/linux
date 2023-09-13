@@ -192,6 +192,7 @@ struct dma_trx_obj {
 	void				(*config_dma_func)(struct dma_table *table);
 	int				(*get_dma_status)(struct dma_trx_obj *obj, u8 chn, enum dma_dir dir);
 	int				(*cb)(struct dma_trx_obj *obj, u32 chn, enum dma_dir dir);
+	void				(*dma_debug)(struct dma_trx_obj *obj, struct dma_table *table);
 	ktime_t				begin;
 	ktime_t				end;
 	u64				cache_time_total;
