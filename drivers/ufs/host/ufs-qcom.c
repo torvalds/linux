@@ -5346,6 +5346,52 @@ static ssize_t ber_th_exceeded_show(struct device *dev,
 
 static DEVICE_ATTR_RO(ber_th_exceeded);
 
+static ssize_t irq_affinity_support_store(struct device *dev,
+		struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	struct ufs_hba *hba = dev_get_drvdata(dev);
+	struct ufs_qcom_host *host = ufshcd_get_variant(hba);
+	bool value;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EACCES;
+
+	if (kstrtobool(buf, &value))
+		return -EINVAL;
+
+	/* if current irq_affinity_support is same as requested one, don't proceed */
+	if (value == host->irq_affinity_support)
+		goto out;
+
+	/* if perf-mask is not set, don't proceed */
+	if (!host->perf_mask.bits[0])
+		goto out;
+
+	host->irq_affinity_support = !!value;
+	/* Reset cpu affinity accordingly */
+	if (host->irq_affinity_support)
+		ufs_qcom_set_affinity_hint(hba, true);
+	else
+		ufs_qcom_set_affinity_hint(hba, false);
+
+	return count;
+
+out:
+	return -EINVAL;
+}
+
+static ssize_t irq_affinity_support_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct ufs_hba *hba = dev_get_drvdata(dev);
+	struct ufs_qcom_host *host = ufshcd_get_variant(hba);
+
+	return scnprintf(buf, PAGE_SIZE, "%d\n", !!host->irq_affinity_support);
+}
+
+static DEVICE_ATTR_RW(irq_affinity_support);
+
 static struct attribute *ufs_qcom_sysfs_attrs[] = {
 	&dev_attr_err_state.attr,
 	&dev_attr_power_mode.attr,
@@ -5356,6 +5402,7 @@ static struct attribute *ufs_qcom_sysfs_attrs[] = {
 	&dev_attr_crash_on_err.attr,
 	&dev_attr_hibern8_count.attr,
 	&dev_attr_ber_th_exceeded.attr,
+	&dev_attr_irq_affinity_support.attr,
 	NULL
 };
 
