@@ -1155,6 +1155,9 @@ struct vma_prepare {
 	struct vm_area_struct *remove2;
 };
 
+void __meminit __init_single_page(struct page *page, unsigned long pfn,
+				unsigned long zone, int nid);
+
 /* shrinker related functions */
 unsigned long shrink_slab(gfp_t gfp_mask, int nid, struct mem_cgroup *memcg,
 			  int priority);
