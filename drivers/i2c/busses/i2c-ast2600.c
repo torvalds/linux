@@ -51,11 +51,8 @@
 #define AST2600_GLOBAL_INIT				\
 			(AST2600_I2CG_CTRL_NEW_REG |	\
 			AST2600_I2CG_CTRL_NEW_CLK_DIV)
-#ifdef CONFIG_MACH_ASPEED_G7	/*ast2700 FPGA*/
-#define I2CCG_DIV_CTRL 0x16060100
-#else
+
 #define I2CCG_DIV_CTRL 0xC6411208
-#endif
 
 /* 0x00 : I2CC Master/Slave Function Control Register  */
 #define AST2600_I2CC_FUN_CTRL		0x00
