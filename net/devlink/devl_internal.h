@@ -17,6 +17,8 @@
 
 #include "netlink_gen.h"
 
+struct devlink_rel;
+
 #define DEVLINK_REGISTERED XA_MARK_1
 
 #define DEVLINK_RELOAD_STATS_ARRAY_SIZE \
@@ -55,6 +57,7 @@ struct devlink {
 	u8 reload_failed:1;
 	refcount_t refcount;
 	struct rcu_work rwork;
+	struct devlink_rel *rel;
 	char priv[] __aligned(NETDEV_ALIGN);
 };
 
@@ -91,6 +94,20 @@ static inline bool devl_is_registered(struct devlink *devlink)
 	devl_assert_locked(devlink);
 	return xa_get_mark(&devlinks, devlink->index, DEVLINK_REGISTERED);
 }
+
+typedef void devlink_rel_notify_cb_t(struct devlink *devlink, u32 obj_index);
+typedef void devlink_rel_cleanup_cb_t(struct devlink *devlink, u32 obj_index,
+				      u32 rel_index);
+
+void devlink_rel_nested_in_clear(u32 rel_index);
+int devlink_rel_nested_in_add(u32 *rel_index, u32 devlink_index,
+			      u32 obj_index, devlink_rel_notify_cb_t *notify_cb,
+			      devlink_rel_cleanup_cb_t *cleanup_cb,
+			      struct devlink *devlink);
+void devlink_rel_nested_in_notify(struct devlink *devlink);
+int devlink_rel_devlink_handle_put(struct sk_buff *msg, struct devlink *devlink,
+				   u32 rel_index, int attrtype,
+				   bool *msg_updated);
 
 /* Netlink */
 #define DEVLINK_NL_FLAG_NEED_PORT		BIT(0)

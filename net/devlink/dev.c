@@ -372,6 +372,7 @@ static void devlink_reload_netns_change(struct devlink *devlink,
 	devlink_notify_unregister(devlink);
 	write_pnet(&devlink->_net, dest_net);
 	devlink_notify_register(devlink);
+	devlink_rel_nested_in_notify(devlink);
 }
 
 int devlink_reload(struct devlink *devlink, struct net *dest_net,
