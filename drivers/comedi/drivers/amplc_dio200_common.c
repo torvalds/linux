@@ -86,6 +86,8 @@ struct dio200_subdev_intr {
 	unsigned int active:1;
 };
 
+#ifdef CONFIG_HAS_IOPORT
+
 static unsigned char dio200___read8(struct comedi_device *dev,
 				    unsigned int offset)
 {
@@ -119,6 +121,34 @@ static void dio200___write32(struct comedi_device *dev,
 	else
 		outl(val, dev->iobase + offset);
 }
+
+#else /* CONFIG_HAS_IOPORT */
+
+static unsigned char dio200___read8(struct comedi_device *dev,
+				    unsigned int offset)
+{
+	return readb(dev->mmio + offset);
+}
+
+static void dio200___write8(struct comedi_device *dev,
+			    unsigned int offset, unsigned char val)
+{
+	writeb(val, dev->mmio + offset);
+}
+
+static unsigned int dio200___read32(struct comedi_device *dev,
+				    unsigned int offset)
+{
+	return readl(dev->mmio + offset);
+}
+
+static void dio200___write32(struct comedi_device *dev,
+			     unsigned int offset, unsigned int val)
+{
+	writel(val, dev->mmio + offset);
+}
+
+#endif /* CONFIG_HAS_IOPORT */
 
 static unsigned char dio200_read8(struct comedi_device *dev,
 				  unsigned int offset)
@@ -802,6 +832,12 @@ int amplc_dio200_common_attach(struct comedi_device *dev, unsigned int irq,
 	struct comedi_subdevice *s;
 	unsigned int n;
 	int ret;
+
+	if (!IS_ENABLED(CONFIG_HAS_IOPORT) && !dev->mmio) {
+		dev_err(dev->class_dev,
+			"error! need I/O port support\n");
+		return -ENXIO;
+	}
 
 	ret = comedi_alloc_subdevices(dev, board->n_subdevs);
 	if (ret)
