@@ -130,7 +130,7 @@ void __init config_bvme6000(void)
 }
 
 
-irqreturn_t bvme6000_abort_int (int irq, void *dev_id)
+static irqreturn_t bvme6000_abort_int(int irq, void *dev_id)
 {
         unsigned long *new = (unsigned long *)vectors;
         unsigned long *old = (unsigned long *)0xf8000000;
