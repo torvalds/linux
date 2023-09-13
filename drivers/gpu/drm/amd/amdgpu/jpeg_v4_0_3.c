@@ -360,10 +360,8 @@ static int jpeg_v4_0_3_hw_fini(void *handle)
 
 	cancel_delayed_work_sync(&adev->jpeg.idle_work);
 
-	if (!amdgpu_sriov_vf(adev)) {
-		if (adev->jpeg.cur_state != AMD_PG_STATE_GATE)
-			ret = jpeg_v4_0_3_set_powergating_state(adev, AMD_PG_STATE_GATE);
-	}
+	if (adev->jpeg.cur_state != AMD_PG_STATE_GATE)
+		ret = jpeg_v4_0_3_set_powergating_state(adev, AMD_PG_STATE_GATE);
 
 	return ret;
 }
@@ -949,6 +947,11 @@ static int jpeg_v4_0_3_set_powergating_state(void *handle,
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	int ret;
+
+	if (amdgpu_sriov_vf(adev)) {
+		adev->jpeg.cur_state = AMD_PG_STATE_UNGATE;
+		return 0;
+	}
 
 	if (state == adev->jpeg.cur_state)
 		return 0;
