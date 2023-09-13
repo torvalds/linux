@@ -233,7 +233,7 @@ static void ggtt_invalidate_gt_tlb(struct xe_gt *gt)
 		xe_gt_assert(gt, seqno > 0);
 		if (seqno > 0)
 			xe_gt_tlb_invalidation_wait(gt, seqno);
-	} else if (xe_device_guc_submission_enabled(gt_to_xe(gt))) {
+	} else if (xe_device_uc_enabled(gt_to_xe(gt))) {
 		struct xe_device *xe = gt_to_xe(gt);
 
 		if (xe->info.platform == XE_PVC) {

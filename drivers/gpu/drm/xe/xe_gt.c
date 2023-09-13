@@ -549,7 +549,7 @@ static int gt_reset(struct xe_gt *gt)
 	int err;
 
 	/* We only support GT resets with GuC submission */
-	if (!xe_device_guc_submission_enabled(gt_to_xe(gt)))
+	if (!xe_device_uc_enabled(gt_to_xe(gt)))
 		return -ENODEV;
 
 	xe_gt_info(gt, "reset started\n");
@@ -642,7 +642,7 @@ int xe_gt_suspend(struct xe_gt *gt)
 	int err;
 
 	/* For now suspend/resume is only allowed with GuC */
-	if (!xe_device_guc_submission_enabled(gt_to_xe(gt)))
+	if (!xe_device_uc_enabled(gt_to_xe(gt)))
 		return -ENODEV;
 
 	xe_gt_sanitize(gt);

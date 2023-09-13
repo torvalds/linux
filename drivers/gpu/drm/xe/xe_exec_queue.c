@@ -585,7 +585,7 @@ static u32 calc_validate_logical_mask(struct xe_device *xe, struct xe_gt *gt,
 	u16 gt_id;
 	u32 return_mask = 0, prev_mask;
 
-	if (XE_IOCTL_DBG(xe, !xe_device_guc_submission_enabled(xe) &&
+	if (XE_IOCTL_DBG(xe, !xe_device_uc_enabled(xe) &&
 			 len > 1))
 		return 0;
 

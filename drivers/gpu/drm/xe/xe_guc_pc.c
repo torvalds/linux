@@ -816,7 +816,7 @@ int xe_guc_pc_start(struct xe_guc_pc *pc)
 	u32 size = PAGE_ALIGN(sizeof(struct slpc_shared_data));
 	int ret;
 
-	xe_gt_assert(gt, xe_device_guc_submission_enabled(xe));
+	xe_gt_assert(gt, xe_device_uc_enabled(xe));
 
 	xe_device_mem_access_get(pc_to_xe(pc));
 
