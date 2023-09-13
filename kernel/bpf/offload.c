@@ -845,7 +845,7 @@ void *bpf_dev_bound_resolve_kfunc(struct bpf_prog *prog, u32 func_id)
 	if (!ops)
 		goto out;
 
-#define XDP_METADATA_KFUNC(name, _, xmo) \
+#define XDP_METADATA_KFUNC(name, _, __, xmo) \
 	if (func_id == bpf_xdp_metadata_kfunc_id(name)) p = ops->xmo;
 	XDP_METADATA_KFUNC_xxx
 #undef XDP_METADATA_KFUNC

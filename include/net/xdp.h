@@ -386,19 +386,22 @@ void xdp_attachment_setup(struct xdp_attachment_info *info,
 /* Define the relationship between xdp-rx-metadata kfunc and
  * various other entities:
  * - xdp_rx_metadata enum
+ * - netdev netlink enum (Documentation/netlink/specs/netdev.yaml)
  * - kfunc name
  * - xdp_metadata_ops field
  */
 #define XDP_METADATA_KFUNC_xxx	\
 	XDP_METADATA_KFUNC(XDP_METADATA_KFUNC_RX_TIMESTAMP, \
+			   NETDEV_XDP_RX_METADATA_TIMESTAMP, \
 			   bpf_xdp_metadata_rx_timestamp, \
 			   xmo_rx_timestamp) \
 	XDP_METADATA_KFUNC(XDP_METADATA_KFUNC_RX_HASH, \
+			   NETDEV_XDP_RX_METADATA_HASH, \
 			   bpf_xdp_metadata_rx_hash, \
 			   xmo_rx_hash) \
 
 enum xdp_rx_metadata {
-#define XDP_METADATA_KFUNC(name, _, __) name,
+#define XDP_METADATA_KFUNC(name, _, __, ___) name,
 XDP_METADATA_KFUNC_xxx
 #undef XDP_METADATA_KFUNC
 MAX_XDP_METADATA_KFUNC,
