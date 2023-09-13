@@ -69,6 +69,7 @@
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Kent Overstreet <kent.overstreet@gmail.com>");
+MODULE_DESCRIPTION("bcachefs filesystem");
 
 #define KTYPE(type)							\
 static const struct attribute_group type ## _group = {			\
