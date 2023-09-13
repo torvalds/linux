@@ -38,6 +38,8 @@ struct subdev_8255_private {
 		  unsigned long context);
 };
 
+#ifdef CONFIG_HAS_IOPORT
+
 static int subdev_8255_io(struct comedi_device *dev,
 			  int dir, int port, int data, unsigned long regbase)
 {
@@ -47,6 +49,8 @@ static int subdev_8255_io(struct comedi_device *dev,
 	}
 	return inb(dev->iobase + regbase + port);
 }
+
+#endif /* CONFIG_HAS_IOPORT */
 
 static int subdev_8255_mmio(struct comedi_device *dev,
 			    int dir, int port, int data, unsigned long regbase)
@@ -169,6 +173,8 @@ static int __subdev_8255_init(struct comedi_device *dev,
 	return 0;
 }
 
+#ifdef CONFIG_HAS_IOPORT
+
 /**
  * subdev_8255_io_init - initialize DIO subdevice for driving I/O mapped 8255
  * @dev: comedi device owning subdevice
@@ -185,6 +191,8 @@ int subdev_8255_io_init(struct comedi_device *dev, struct comedi_subdevice *s,
 	return __subdev_8255_init(dev, s, subdev_8255_io, regbase);
 }
 EXPORT_SYMBOL_GPL(subdev_8255_io_init);
+
+#endif	/* CONFIG_HAS_IOPORT */
 
 /**
  * subdev_8255_mm_init - initialize DIO subdevice for driving mmio-mapped 8255
