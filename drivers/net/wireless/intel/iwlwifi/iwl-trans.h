@@ -839,6 +839,7 @@ struct iwl_pc_data {
  * @dump_file_name_ext_valid: dump file name extension if valid or not
  * @num_pc: number of program counter for cpu
  * @pc_data: details of the program counter
+ * @yoyo_bin_loaded: tells if a yoyo debug file has been loaded
  */
 struct iwl_trans_debug {
 	u8 n_dest_reg;
@@ -880,6 +881,7 @@ struct iwl_trans_debug {
 	bool dump_file_name_ext_valid;
 	u32 num_pc;
 	struct iwl_pc_data *pc_data;
+	bool yoyo_bin_loaded;
 };
 
 struct iwl_dma_ptr {
