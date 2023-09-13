@@ -2071,15 +2071,18 @@ static void update_history(struct rq *rq, struct task_struct *p,
 	wts->sum = 0;
 	avg = div64_u64(sum, RAVG_HIST_SIZE);
 
-	if (sysctl_sched_window_stats_policy == WINDOW_STATS_RECENT) {
+	switch (sysctl_sched_window_stats_policy) {
+	case WINDOW_STATS_RECENT:
 		demand = runtime;
-	} else if (sysctl_sched_window_stats_policy == WINDOW_STATS_MAX) {
+		break;
+	case WINDOW_STATS_MAX:
 		demand = max;
-	} else {
-		if (sysctl_sched_window_stats_policy == WINDOW_STATS_AVG)
-			demand = avg;
-		else
-			demand = max(avg, runtime);
+		break;
+	case WINDOW_STATS_AVG:
+		demand = avg;
+		break;
+	default:
+		demand = max(avg, runtime);
 	}
 
 	if ((demand == runtime) && (wts->high_util_history >= RAMP_UP_THRES)) {
