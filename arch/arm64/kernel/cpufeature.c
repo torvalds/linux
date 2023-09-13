@@ -611,12 +611,6 @@ static const struct arm64_ftr_bits ftr_id_dfr1[] = {
 	ARM64_FTR_END,
 };
 
-static const struct arm64_ftr_bits ftr_smcr[] = {
-	ARM64_FTR_BITS(FTR_HIDDEN, FTR_NONSTRICT, FTR_LOWER_SAFE,
-		SMCR_ELx_LEN_SHIFT, SMCR_ELx_LEN_WIDTH, 0),	/* LEN */
-	ARM64_FTR_END,
-};
-
 /*
  * Common ftr bits for a 32bit register with all hidden, strict
  * attributes, with 4bit feature fields and a default safe value of
@@ -728,9 +722,6 @@ static const struct __ftr_reg_entry {
 			       &id_aa64mmfr1_override),
 	ARM64_FTR_REG(SYS_ID_AA64MMFR2_EL1, ftr_id_aa64mmfr2),
 	ARM64_FTR_REG(SYS_ID_AA64MMFR3_EL1, ftr_id_aa64mmfr3),
-
-	/* Op1 = 0, CRn = 1, CRm = 2 */
-	ARM64_FTR_REG(SYS_SMCR_EL1, ftr_smcr),
 
 	/* Op1 = 1, CRn = 0, CRm = 0 */
 	ARM64_FTR_REG(SYS_GMID_EL1, ftr_gmid),
@@ -1039,14 +1030,14 @@ void __init init_cpu_features(struct cpuinfo_arm64 *info)
 
 	if (IS_ENABLED(CONFIG_ARM64_SME) &&
 	    id_aa64pfr1_sme(read_sanitised_ftr_reg(SYS_ID_AA64PFR1_EL1))) {
-		info->reg_smcr = read_smcr_features();
+		sme_kernel_enable(NULL);
+
 		/*
 		 * We mask out SMPS since even if the hardware
 		 * supports priorities the kernel does not at present
 		 * and we block access to them.
 		 */
 		info->reg_smidr = read_cpuid(SMIDR_EL1) & ~SMIDR_EL1_SMPS;
-		init_cpu_ftr_reg(SYS_SMCR_EL1, info->reg_smcr);
 		vec_init_vq_map(ARM64_VEC_SME);
 	}
 
@@ -1292,15 +1283,14 @@ void update_cpu_features(int cpu,
 
 	if (IS_ENABLED(CONFIG_ARM64_SME) &&
 	    id_aa64pfr1_sme(read_sanitised_ftr_reg(SYS_ID_AA64PFR1_EL1))) {
-		info->reg_smcr = read_smcr_features();
+		sme_kernel_enable(NULL);
+
 		/*
 		 * We mask out SMPS since even if the hardware
 		 * supports priorities the kernel does not at present
 		 * and we block access to them.
 		 */
 		info->reg_smidr = read_cpuid(SMIDR_EL1) & ~SMIDR_EL1_SMPS;
-		taint |= check_update_ftr_reg(SYS_SMCR_EL1, cpu,
-					info->reg_smcr, boot->reg_smcr);
 
 		/* Probe vector lengths */
 		if (!system_capabilities_finalized())
@@ -3152,19 +3142,11 @@ static void verify_sve_features(void)
 
 static void verify_sme_features(void)
 {
-	u64 safe_smcr = read_sanitised_ftr_reg(SYS_SMCR_EL1);
-	u64 smcr = read_smcr_features();
-
-	unsigned int safe_len = safe_smcr & SMCR_ELx_LEN_MASK;
-	unsigned int len = smcr & SMCR_ELx_LEN_MASK;
-
-	if (len < safe_len || vec_verify_vq_map(ARM64_VEC_SME)) {
+	if (vec_verify_vq_map(ARM64_VEC_SME)) {
 		pr_crit("CPU%d: SME: vector length support mismatch\n",
 			smp_processor_id());
 		cpu_die_early();
 	}
-
-	/* Add checks on other SMCR bits here if necessary */
 }
 
 static void verify_hyp_capabilities(void)
