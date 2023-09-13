@@ -5,6 +5,8 @@
 #include <asm/traps.h>
 #include <asm/apollohw.h>
 
+#include "apollo.h"
+
 static unsigned int apollo_irq_startup(struct irq_data *data)
 {
 	unsigned int irq = data->irq;

@@ -17,6 +17,8 @@
 #include <asm/machdep.h>
 #include <asm/config.h>
 
+#include "apollo.h"
+
 u_long sio01_physaddr;
 u_long sio23_physaddr;
 u_long rtc_physaddr;
@@ -27,7 +29,6 @@ u_long timer_physaddr;
 u_long apollo_model;
 
 extern void dn_sched_init(void);
-extern void dn_init_IRQ(void);
 extern int dn_dummy_hwclk(int, struct rtc_time *);
 static void dn_dummy_reset(void);
 #ifdef CONFIG_HEARTBEAT
