@@ -3003,7 +3003,9 @@ void __sk_flush_backlog(struct sock *sk)
 	__release_sock(sk);
 
 	if (sk->sk_prot->release_cb)
-		sk->sk_prot->release_cb(sk);
+		INDIRECT_CALL_INET_1(sk->sk_prot->release_cb,
+				     tcp_release_cb, sk);
+
 	spin_unlock_bh(&sk->sk_lock.slock);
 }
 EXPORT_SYMBOL_GPL(__sk_flush_backlog);
@@ -3523,7 +3525,8 @@ void release_sock(struct sock *sk)
 		__release_sock(sk);
 
 	if (sk->sk_prot->release_cb)
-		sk->sk_prot->release_cb(sk);
+		INDIRECT_CALL_INET_1(sk->sk_prot->release_cb,
+				     tcp_release_cb, sk);
 
 	sock_release_ownership(sk);
 	if (waitqueue_active(&sk->sk_lock.wq))
