@@ -24,6 +24,7 @@
 #include "i915_gpu_error.h"
 #include "i915_reg_defs.h"
 #include "i915_utils.h"
+#include "intel_gt_types.h"
 #include "intel_step.h"
 #include "intel_uc_fw.h"
 #include "intel_uncore.h"
