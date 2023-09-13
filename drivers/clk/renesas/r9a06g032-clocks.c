@@ -109,6 +109,7 @@ enum gate_type {
  *             must be in ascending order, zero for unused
  * @div:       divisor for fixed-factor clock
  * @mul:       multiplier for fixed-factor clock
+ * @dual:      substructure for dual clock gates
  * @group:     UART group, 0=UART0/1/2, 1=UART3/4/5/6/7
  * @sel:       select either g1/r1 or g2/r2 as clock source
  * @g1:        1st source gate (clock enable/disable)
