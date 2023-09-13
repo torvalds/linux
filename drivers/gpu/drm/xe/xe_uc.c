@@ -31,9 +31,10 @@ int xe_uc_init(struct xe_uc *uc)
 {
 	int ret;
 
-	/* GuC submission not enabled, nothing to do */
-	if (!xe_device_uc_enabled(uc_to_xe(uc)))
-		return 0;
+	/*
+	 * We call the GuC/HuC init functions even if GuC submission is off to
+	 * correctly move our tracking of the FW state to "disabled".
+	 */
 
 	ret = xe_guc_init(&uc->guc);
 	if (ret)
@@ -42,6 +43,9 @@ int xe_uc_init(struct xe_uc *uc)
 	ret = xe_huc_init(&uc->huc);
 	if (ret)
 		goto err;
+
+	if (!xe_device_uc_enabled(uc_to_xe(uc)))
+		return 0;
 
 	ret = xe_wopcm_init(&uc->wopcm);
 	if (ret)

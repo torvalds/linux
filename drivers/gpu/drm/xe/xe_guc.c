@@ -242,6 +242,9 @@ int xe_guc_init(struct xe_guc *guc)
 	if (ret)
 		goto out;
 
+	if (!xe_uc_fw_is_enabled(&guc->fw))
+		return 0;
+
 	ret = xe_guc_log_init(&guc->log);
 	if (ret)
 		goto out;

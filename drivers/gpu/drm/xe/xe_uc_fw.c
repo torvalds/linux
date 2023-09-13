@@ -340,17 +340,19 @@ int xe_uc_fw_init(struct xe_uc_fw *uc_fw)
 	xe_assert(xe, !uc_fw->path);
 
 	uc_fw_auto_select(xe, uc_fw);
-	xe_uc_fw_change_status(uc_fw, uc_fw->path ? *uc_fw->path ?
+	xe_uc_fw_change_status(uc_fw, uc_fw->path ?
 			       XE_UC_FIRMWARE_SELECTED :
-			       XE_UC_FIRMWARE_DISABLED :
 			       XE_UC_FIRMWARE_NOT_SUPPORTED);
 
-	/* Transform no huc in the list into firmware disabled */
-	if (uc_fw->type == XE_UC_FW_TYPE_HUC && !xe_uc_fw_is_supported(uc_fw)) {
+	if (!xe_uc_fw_is_supported(uc_fw))
+		return 0;
+
+	if (!xe_device_uc_enabled(xe)) {
 		xe_uc_fw_change_status(uc_fw, XE_UC_FIRMWARE_DISABLED);
-		err = -ENOPKG;
-		return err;
+		drm_dbg(&xe->drm, "%s disabled", xe_uc_fw_type_repr(uc_fw->type));
+		return 0;
 	}
+
 	err = request_firmware(&fw, uc_fw->path, dev);
 	if (err)
 		goto fail;

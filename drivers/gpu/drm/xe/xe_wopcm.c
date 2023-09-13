@@ -139,8 +139,7 @@ static int __wopcm_init_regs(struct xe_device *xe, struct xe_gt *gt,
 {
 	u32 base = wopcm->guc.base;
 	u32 size = wopcm->guc.size;
-	u32 huc_agent = xe_uc_fw_is_disabled(&gt->uc.huc.fw) ? 0 :
-		HUC_LOADING_AGENT_GUC;
+	u32 huc_agent = xe_uc_fw_is_available(&gt->uc.huc.fw) ? HUC_LOADING_AGENT_GUC : 0;
 	u32 mask;
 	int err;
 
