@@ -187,11 +187,15 @@ struct iwl_prph_scratch_ctrl_cfg {
  * struct iwl_prph_scratch - peripheral scratch mapping
  * @ctrl_cfg: control and configuration of prph scratch
  * @dram: firmware images addresses in DRAM
+ * @fseq_override: FSEQ override parameters
+ * @step_analog_params: STEP analog calibration values
  * @reserved: reserved
  */
 struct iwl_prph_scratch {
 	struct iwl_prph_scratch_ctrl_cfg ctrl_cfg;
-	__le32 reserved[10];
+	__le32 fseq_override;
+	__le32 step_analog_params;
+	__le32 reserved[8];
 	struct iwl_context_info_dram dram;
 } __packed; /* PERIPH_SCRATCH_S */
 
