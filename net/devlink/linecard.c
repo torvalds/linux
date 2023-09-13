@@ -65,32 +65,6 @@ devlink_linecard_get_from_info(struct devlink *devlink, struct genl_info *info)
 	return devlink_linecard_get_from_attrs(devlink, info->attrs);
 }
 
-static int devlink_nl_put_nested_handle(struct sk_buff *msg, struct net *net,
-					struct devlink *devlink)
-{
-	struct nlattr *nested_attr;
-
-	nested_attr = nla_nest_start(msg, DEVLINK_ATTR_NESTED_DEVLINK);
-	if (!nested_attr)
-		return -EMSGSIZE;
-	if (devlink_nl_put_handle(msg, devlink))
-		goto nla_put_failure;
-	if (!net_eq(net, devlink_net(devlink))) {
-		int id = peernet2id_alloc(net, devlink_net(devlink),
-					  GFP_KERNEL);
-
-		if (nla_put_s32(msg, DEVLINK_ATTR_NETNS_ID, id))
-			return -EMSGSIZE;
-	}
-
-	nla_nest_end(msg, nested_attr);
-	return 0;
-
-nla_put_failure:
-	nla_nest_cancel(msg, nested_attr);
-	return -EMSGSIZE;
-}
-
 struct devlink_linecard_type {
 	const char *type;
 	const void *priv;
