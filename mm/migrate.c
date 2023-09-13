@@ -2062,7 +2062,6 @@ static int add_page_for_migration(struct mm_struct *mm, const void __user *p,
 	struct page *page;
 	struct folio *folio;
 	int err;
-	bool isolated;
 
 	mmap_read_lock(mm);
 	addr = (unsigned long)untagged_addr_remote(mm, p);
@@ -2095,15 +2094,13 @@ static int add_page_for_migration(struct mm_struct *mm, const void __user *p,
 	if (page_mapcount(page) > 1 && !migrate_all)
 		goto out_putfolio;
 
+	err = -EBUSY;
 	if (folio_test_hugetlb(folio)) {
-		isolated = isolate_hugetlb(folio, pagelist);
-		err = isolated ? 1 : -EBUSY;
+		if (isolate_hugetlb(folio, pagelist))
+			err = 1;
 	} else {
-		isolated = folio_isolate_lru(folio);
-		if (!isolated) {
-			err = -EBUSY;
+		if (!folio_isolate_lru(folio))
 			goto out_putfolio;
-		}
 
 		err = 1;
 		list_add_tail(&folio->lru, pagelist);
