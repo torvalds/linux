@@ -51,6 +51,8 @@
 #include <asm/ucontext.h>
 #include <asm/cacheflush.h>
 
+#include "signal.h"
+
 #ifdef CONFIG_MMU
 
 /*
