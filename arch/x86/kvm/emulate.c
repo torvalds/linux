@@ -701,7 +701,7 @@ static __always_inline int __linearize(struct x86_emulate_ctxt *ctxt,
 	*max_size = 0;
 	switch (mode) {
 	case X86EMUL_MODE_PROT64:
-		*linear = la;
+		*linear = la = ctxt->ops->get_untagged_addr(ctxt, la, flags);
 		va_bits = ctxt_virt_addr_bits(ctxt);
 		if (!__is_canonical_address(la, va_bits))
 			goto bad;
