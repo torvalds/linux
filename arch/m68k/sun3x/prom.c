@@ -30,7 +30,7 @@ struct linux_romvec *romvec;
 e_vector *sun3x_prom_vbr;
 
 /* Handle returning to the prom */
-void sun3x_halt(void)
+static void sun3x_halt(void)
 {
 	unsigned long flags;
 
