@@ -1713,19 +1713,20 @@ mtk_wed_irq_set_mask(struct mtk_wed_device *dev, u32 mask)
 int mtk_wed_flow_add(int index)
 {
 	struct mtk_wed_hw *hw = hw_list[index];
-	int ret;
+	int ret = 0;
 
-	if (!hw || !hw->wed_dev)
-		return -ENODEV;
+	mutex_lock(&hw_lock);
+
+	if (!hw || !hw->wed_dev) {
+		ret = -ENODEV;
+		goto out;
+	}
+
+	if (!hw->wed_dev->wlan.offload_enable)
+		goto out;
 
 	if (hw->num_flows) {
 		hw->num_flows++;
-		return 0;
-	}
-
-	mutex_lock(&hw_lock);
-	if (!hw->wed_dev) {
-		ret = -ENODEV;
 		goto out;
 	}
 
@@ -1744,14 +1745,15 @@ void mtk_wed_flow_remove(int index)
 {
 	struct mtk_wed_hw *hw = hw_list[index];
 
-	if (!hw)
-		return;
+	mutex_lock(&hw_lock);
+
+	if (!hw || !hw->wed_dev)
+		goto out;
+
+	if (!hw->wed_dev->wlan.offload_disable)
+		goto out;
 
 	if (--hw->num_flows)
-		return;
-
-	mutex_lock(&hw_lock);
-	if (!hw->wed_dev)
 		goto out;
 
 	hw->wed_dev->wlan.offload_disable(hw->wed_dev);
