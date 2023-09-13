@@ -208,6 +208,7 @@ static inline void flush_tlb_range (struct vm_area_struct *vma,
 	next:
 		start += SUN3_PMEG_SIZE;
 	}
+	sun3_put_context(oldctx);
 }
 
 static inline void flush_tlb_kernel_range(unsigned long start, unsigned long end)
