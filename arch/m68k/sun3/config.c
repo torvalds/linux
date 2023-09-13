@@ -32,6 +32,7 @@
 #include <asm/irq.h>
 #include <asm/sections.h>
 #include <asm/sun3ints.h>
+#include <asm/config.h>
 
 char sun3_reserved_pmeg[SUN3_PMEGS_NUM];
 
