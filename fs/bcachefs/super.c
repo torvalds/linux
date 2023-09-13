@@ -1613,10 +1613,8 @@ int bch2_dev_add(struct bch_fs *c, const char *path)
 	bch2_dev_usage_init(ca);
 
 	ret = __bch2_dev_attach_bdev(ca, &sb);
-	if (ret) {
-		bch2_dev_free(ca);
+	if (ret)
 		goto err;
-	}
 
 	ret = bch2_dev_journal_alloc(ca);
 	if (ret) {
