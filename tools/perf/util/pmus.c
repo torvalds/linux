@@ -10,6 +10,7 @@
 #include <pthread.h>
 #include <string.h>
 #include <unistd.h>
+#include "cpumap.h"
 #include "debug.h"
 #include "evsel.h"
 #include "pmus.h"
@@ -268,7 +269,7 @@ struct perf_pmu *perf_pmus__scan_core(struct perf_pmu *pmu)
 {
 	if (!pmu) {
 		pmu_read_sysfs(/*core_only=*/true);
-		pmu = list_prepare_entry(pmu, &core_pmus, list);
+		return list_first_entry_or_null(&core_pmus, typeof(*pmu), list);
 	}
 	list_for_each_entry_continue(pmu, &core_pmus, list)
 		return pmu;
@@ -591,4 +592,21 @@ struct perf_pmu *evsel__find_pmu(const struct evsel *evsel)
 		((struct evsel *)evsel)->pmu = pmu;
 	}
 	return pmu;
+}
+
+struct perf_pmu *perf_pmus__find_core_pmu(void)
+{
+	struct perf_pmu *pmu = NULL;
+
+	while ((pmu = perf_pmus__scan_core(pmu))) {
+		/*
+		 * The cpumap should cover all CPUs. Otherwise, some CPUs may
+		 * not support some events or have different event IDs.
+		 */
+		if (RC_CHK_ACCESS(pmu->cpus)->nr != cpu__max_cpu().cpu)
+			return NULL;
+
+		return pmu;
+	}
+	return NULL;
 }
