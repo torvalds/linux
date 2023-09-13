@@ -483,7 +483,7 @@ static int devlink_nl_port_fill(struct sk_buff *msg,
 		goto nla_put_failure;
 	if (devlink_port->linecard &&
 	    nla_put_u32(msg, DEVLINK_ATTR_LINECARD_INDEX,
-			devlink_port->linecard->index))
+			devlink_linecard_index(devlink_port->linecard)))
 		goto nla_put_failure;
 
 	genlmsg_end(msg, hdr);
@@ -1420,7 +1420,7 @@ static int __devlink_port_phys_port_name_get(struct devlink_port *devlink_port,
 	case DEVLINK_PORT_FLAVOUR_PHYSICAL:
 		if (devlink_port->linecard)
 			n = snprintf(name, len, "l%u",
-				     devlink_port->linecard->index);
+				     devlink_linecard_index(devlink_port->linecard));
 		if (n < len)
 			n += snprintf(name + n, len - n, "p%u",
 				      attrs->phys.port_number);

@@ -6,6 +6,25 @@
 
 #include "devl_internal.h"
 
+struct devlink_linecard {
+	struct list_head list;
+	struct devlink *devlink;
+	unsigned int index;
+	const struct devlink_linecard_ops *ops;
+	void *priv;
+	enum devlink_linecard_state state;
+	struct mutex state_lock; /* Protects state */
+	const char *type;
+	struct devlink_linecard_type *types;
+	unsigned int types_count;
+	struct devlink *nested_devlink;
+};
+
+unsigned int devlink_linecard_index(struct devlink_linecard *linecard)
+{
+	return linecard->index;
+}
+
 static struct devlink_linecard *
 devlink_linecard_get_by_index(struct devlink *devlink,
 			      unsigned int linecard_index)
