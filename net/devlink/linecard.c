@@ -65,7 +65,8 @@ devlink_linecard_get_from_info(struct devlink *devlink, struct genl_info *info)
 	return devlink_linecard_get_from_attrs(devlink, info->attrs);
 }
 
-static int devlink_nl_put_nested_handle(struct sk_buff *msg, struct devlink *devlink)
+static int devlink_nl_put_nested_handle(struct sk_buff *msg, struct net *net,
+					struct devlink *devlink)
 {
 	struct nlattr *nested_attr;
 
@@ -74,6 +75,13 @@ static int devlink_nl_put_nested_handle(struct sk_buff *msg, struct devlink *dev
 		return -EMSGSIZE;
 	if (devlink_nl_put_handle(msg, devlink))
 		goto nla_put_failure;
+	if (!net_eq(net, devlink_net(devlink))) {
+		int id = peernet2id_alloc(net, devlink_net(devlink),
+					  GFP_KERNEL);
+
+		if (nla_put_s32(msg, DEVLINK_ATTR_NETNS_ID, id))
+			return -EMSGSIZE;
+	}
 
 	nla_nest_end(msg, nested_attr);
 	return 0;
@@ -131,7 +139,8 @@ static int devlink_nl_linecard_fill(struct sk_buff *msg,
 	}
 
 	if (linecard->nested_devlink &&
-	    devlink_nl_put_nested_handle(msg, linecard->nested_devlink))
+	    devlink_nl_put_nested_handle(msg, devlink_net(devlink),
+					 linecard->nested_devlink))
 		goto nla_put_failure;
 
 	genlmsg_end(msg, hdr);
