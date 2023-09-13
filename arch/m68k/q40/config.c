@@ -36,15 +36,13 @@
 #include <asm/q40_master.h>
 #include <asm/config.h>
 
-extern void q40_init_IRQ(void);
+#include "q40.h"
+
 static void q40_get_model(char *model);
-extern void q40_sched_init(void);
 
 static int q40_hwclk(int, struct rtc_time *);
 static int q40_get_rtc_pll(struct rtc_pll_info *pll);
 static int q40_set_rtc_pll(struct rtc_pll_info *pll);
-
-extern void q40_mksound(unsigned int /*freq*/, unsigned int /*ticks*/);
 
 static void q40_mem_console_write(struct console *co, const char *b,
 				  unsigned int count);
