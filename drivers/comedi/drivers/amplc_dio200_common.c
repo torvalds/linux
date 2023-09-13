@@ -149,9 +149,9 @@ static unsigned int dio200_subdev_8254_offset(struct comedi_device *dev,
 
 	/* get the offset that was passed to comedi_8254_*_init() */
 	if (dev->mmio)
-		offset = i8254->mmio - dev->mmio;
+		offset = (void __iomem *)i8254->context - dev->mmio;
 	else
-		offset = i8254->iobase - dev->iobase;
+		offset = i8254->context - dev->iobase;
 
 	/* remove the shift that was added for PCIe boards */
 	if (board->is_pcie)
