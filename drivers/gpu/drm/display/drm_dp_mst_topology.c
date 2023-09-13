@@ -3341,7 +3341,8 @@ int drm_dp_add_payload_part1(struct drm_dp_mst_topology_mgr *mgr,
 		(!allocate || ret < 0) ? DRM_DP_MST_PAYLOAD_ALLOCATION_LOCAL :
 								DRM_DP_MST_PAYLOAD_ALLOCATION_DFP;
 
-	drm_dp_mst_topology_put_port(port);
+	if (port)
+		drm_dp_mst_topology_put_port(port);
 
 	return ret;
 }
