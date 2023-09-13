@@ -83,7 +83,7 @@ static void __init display_system_type(unsigned char machtype)
 	prom_halt();
 }
 
-void sun3_get_model(unsigned char* model)
+void sun3_get_model(char *model)
 {
 	register int i;
 
