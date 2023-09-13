@@ -27,6 +27,16 @@ int xe_guc_log_level = 5;
 module_param_named(guc_log_level, xe_guc_log_level, int, 0600);
 MODULE_PARM_DESC(guc_log_level, "GuC firmware logging level (0=disable, 1..5=enable with verbosity min..max)");
 
+char *xe_guc_firmware_path;
+module_param_named_unsafe(guc_firmware_path, xe_guc_firmware_path, charp, 0400);
+MODULE_PARM_DESC(guc_firmware_path,
+		 "GuC firmware path to use instead of the default one");
+
+char *xe_huc_firmware_path;
+module_param_named_unsafe(huc_firmware_path, xe_huc_firmware_path, charp, 0400);
+MODULE_PARM_DESC(huc_firmware_path,
+		 "HuC firmware path to use instead of the default one - empty string disables");
+
 char *xe_param_force_probe = CONFIG_DRM_XE_FORCE_PROBE;
 module_param_named_unsafe(force_probe, xe_param_force_probe, charp, 0400);
 MODULE_PARM_DESC(force_probe,

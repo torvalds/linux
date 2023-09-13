@@ -15,6 +15,7 @@
 #include "xe_gt.h"
 #include "xe_map.h"
 #include "xe_mmio.h"
+#include "xe_module.h"
 #include "xe_uc_fw.h"
 
 /*
@@ -210,6 +211,30 @@ uc_fw_auto_select(struct xe_device *xe, struct xe_uc_fw *uc_fw)
 	}
 }
 
+static void
+uc_fw_override(struct xe_uc_fw *uc_fw)
+{
+	char *path_override = NULL;
+
+	/* empty string disables, but it's not allowed for GuC */
+	switch (uc_fw->type) {
+	case XE_UC_FW_TYPE_GUC:
+		if (xe_guc_firmware_path && *xe_guc_firmware_path)
+			path_override = xe_guc_firmware_path;
+		break;
+	case XE_UC_FW_TYPE_HUC:
+		path_override = xe_huc_firmware_path;
+		break;
+	default:
+		break;
+	}
+
+	if (path_override) {
+		uc_fw->path = path_override;
+		uc_fw->user_overridden = true;
+	}
+}
+
 /**
  * xe_uc_fw_copy_rsa - copy fw RSA to buffer
  *
@@ -347,7 +372,10 @@ int xe_uc_fw_init(struct xe_uc_fw *uc_fw)
 	if (!xe_uc_fw_is_supported(uc_fw))
 		return 0;
 
-	if (!xe_device_uc_enabled(xe)) {
+	uc_fw_override(uc_fw);
+
+	/* an empty path means the firmware is disabled */
+	if (!xe_device_uc_enabled(xe) || !(*uc_fw->path)) {
 		xe_uc_fw_change_status(uc_fw, XE_UC_FIRMWARE_DISABLED);
 		drm_dbg(&xe->drm, "%s disabled", xe_uc_fw_type_repr(uc_fw->type));
 		return 0;
