@@ -776,11 +776,6 @@ char *perf_pmu__getcpuid(struct perf_pmu *pmu)
 	return cpuid;
 }
 
-__weak const struct pmu_events_table *pmu_events_table__find(void)
-{
-	return perf_pmu__find_events_table(NULL);
-}
-
 __weak const struct pmu_metrics_table *pmu_metrics_table__find(void)
 {
 	return perf_pmu__find_metrics_table(NULL);

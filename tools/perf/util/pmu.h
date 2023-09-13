@@ -238,7 +238,6 @@ void pmu_add_cpu_aliases_table(struct perf_pmu *pmu,
 			       const struct pmu_events_table *table);
 
 char *perf_pmu__getcpuid(struct perf_pmu *pmu);
-const struct pmu_events_table *pmu_events_table__find(void);
 const struct pmu_metrics_table *pmu_metrics_table__find(void);
 
 int perf_pmu__convert_scale(const char *scale, char **end, double *sval);
