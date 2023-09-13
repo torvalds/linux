@@ -556,14 +556,14 @@ static int dio200_subdev_8254_init(struct comedi_device *dev,
 	}
 
 	if (dev->mmio) {
-		i8254 = comedi_8254_mm_init(dev->mmio + offset,
-					    0, I8254_IO8, regshift);
+		i8254 = comedi_8254_mm_alloc(dev->mmio + offset,
+					     0, I8254_IO8, regshift);
 	} else {
-		i8254 = comedi_8254_init(dev->iobase + offset,
-					 0, I8254_IO8, regshift);
+		i8254 = comedi_8254_io_alloc(dev->iobase + offset,
+					     0, I8254_IO8, regshift);
 	}
-	if (!i8254)
-		return -ENOMEM;
+	if (IS_ERR(i8254))
+		return PTR_ERR(i8254);
 
 	comedi_8254_subdevice_init(s, i8254);
 

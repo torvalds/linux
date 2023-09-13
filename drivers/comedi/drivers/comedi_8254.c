@@ -24,14 +24,17 @@
  *
  * This module provides the following basic functions:
  *
- * comedi_8254_init() / comedi_8254_mm_init()
+ * comedi_8254_io_alloc() / comedi_8254_mm_alloc()
  *	Initializes this module to access the 8254 registers. The _mm version
- *	sets up the module for MMIO register access the other for PIO access.
- *	The pointer returned from these functions is normally stored in the
- *	comedi_device dev->pacer and will be freed by the comedi core during
- *	the driver (*detach). If a driver has multiple 8254 devices, they need
- *	to be stored in the drivers private data and freed when the driver is
- *	detached.
+ *	sets up the module for MMIO register access; the _io version sets it
+ *	up for PIO access.  These functions return a pointer to a struct
+ *	comedi_8254 on success, or an ERR_PTR value on failure.  The pointer
+ *	returned from these functions is normally stored in the comedi_device
+ *	dev->pacer and will be freed by the comedi core during the driver
+ *	(*detach). If a driver has multiple 8254 devices, they need to be
+ *	stored in the drivers private data and freed when the driver is
+ *	detached.  If the ERR_PTR value is stored, code should check the
+ *	pointer value with !IS_ERR(pointer) before freeing.
  *
  *	NOTE: The counters are reset by setting them to I8254_MODE0 as part of
  *	this initialization.
@@ -621,14 +624,14 @@ static struct comedi_8254 *__i8254_init(comedi_8254_iocb_fn *iocb,
 	/* sanity check that the iosize is valid */
 	if (!(iosize == I8254_IO8 || iosize == I8254_IO16 ||
 	      iosize == I8254_IO32))
-		return NULL;
+		return ERR_PTR(-EINVAL);
 
 	if (!iocb)
-		return NULL;
+		return ERR_PTR(-EINVAL);
 
 	i8254 = kzalloc(sizeof(*i8254), GFP_KERNEL);
 	if (!i8254)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	i8254->iocb	= iocb;
 	i8254->context	= context;
@@ -646,17 +649,19 @@ static struct comedi_8254 *__i8254_init(comedi_8254_iocb_fn *iocb,
 }
 
 /**
- * comedi_8254_init - allocate and initialize the 8254 device for pio access
+ * comedi_8254_io_alloc - allocate and initialize the 8254 device for pio access
  * @iobase:	port I/O base address
  * @osc_base:	base time of the counter in ns
  *		OPTIONAL - only used by comedi_8254_cascade_ns_to_timer()
  * @iosize:	I/O register size
  * @regshift:	register gap shift
+ *
+ * Return: A pointer to a struct comedi_8254 or an ERR_PTR value.
  */
-struct comedi_8254 *comedi_8254_init(unsigned long iobase,
-				     unsigned int osc_base,
-				     unsigned int iosize,
-				     unsigned int regshift)
+struct comedi_8254 *comedi_8254_io_alloc(unsigned long iobase,
+					 unsigned int osc_base,
+					 unsigned int iosize,
+					 unsigned int regshift)
 {
 	comedi_8254_iocb_fn *iocb;
 
@@ -671,24 +676,26 @@ struct comedi_8254 *comedi_8254_init(unsigned long iobase,
 		iocb = i8254_io32_cb;
 		break;
 	default:
-		return NULL;
+		return ERR_PTR(-EINVAL);
 	}
 	return __i8254_init(iocb, iobase, osc_base, iosize, regshift);
 }
-EXPORT_SYMBOL_GPL(comedi_8254_init);
+EXPORT_SYMBOL_GPL(comedi_8254_io_alloc);
 
 /**
- * comedi_8254_mm_init - allocate and initialize the 8254 device for mmio access
+ * comedi_8254_mm_alloc - allocate and initialize the 8254 device for mmio access
  * @mmio:	memory mapped I/O base address
  * @osc_base:	base time of the counter in ns
  *		OPTIONAL - only used by comedi_8254_cascade_ns_to_timer()
  * @iosize:	I/O register size
  * @regshift:	register gap shift
+ *
+ * Return: A pointer to a struct comedi_8254 or an ERR_PTR value.
  */
-struct comedi_8254 *comedi_8254_mm_init(void __iomem *mmio,
-					unsigned int osc_base,
-					unsigned int iosize,
-					unsigned int regshift)
+struct comedi_8254 *comedi_8254_mm_alloc(void __iomem *mmio,
+					 unsigned int osc_base,
+					 unsigned int iosize,
+					 unsigned int regshift)
 {
 	comedi_8254_iocb_fn *iocb;
 
@@ -703,11 +710,11 @@ struct comedi_8254 *comedi_8254_mm_init(void __iomem *mmio,
 		iocb = i8254_mmio32_cb;
 		break;
 	default:
-		return NULL;
+		return ERR_PTR(-EINVAL);
 	}
 	return __i8254_init(iocb, (unsigned long)mmio, osc_base, iosize, regshift);
 }
-EXPORT_SYMBOL_GPL(comedi_8254_mm_init);
+EXPORT_SYMBOL_GPL(comedi_8254_mm_alloc);
 
 static int __init comedi_8254_module_init(void)
 {

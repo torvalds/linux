@@ -2475,10 +2475,10 @@ static int pci230_auto_attach(struct comedi_device *dev,
 			dev->irq = pci_dev->irq;
 	}
 
-	dev->pacer = comedi_8254_init(dev->iobase + PCI230_Z2_CT_BASE,
-				      0, I8254_IO8, 0);
-	if (!dev->pacer)
-		return -ENOMEM;
+	dev->pacer = comedi_8254_io_alloc(dev->iobase + PCI230_Z2_CT_BASE,
+					  0, I8254_IO8, 0);
+	if (IS_ERR(dev->pacer))
+		return PTR_ERR(dev->pacer);
 
 	rc = comedi_alloc_subdevices(dev, 3);
 	if (rc)

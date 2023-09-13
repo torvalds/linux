@@ -1222,24 +1222,24 @@ int labpc_common_attach(struct comedi_device *dev,
 	}
 
 	if (dev->mmio) {
-		dev->pacer = comedi_8254_mm_init(dev->mmio + COUNTER_B_BASE_REG,
-						 I8254_OSC_BASE_2MHZ,
-						 I8254_IO8, 0);
-		devpriv->counter = comedi_8254_mm_init(dev->mmio +
-						       COUNTER_A_BASE_REG,
-						       I8254_OSC_BASE_2MHZ,
-						       I8254_IO8, 0);
+		dev->pacer =
+		    comedi_8254_mm_alloc(dev->mmio + COUNTER_B_BASE_REG,
+					 I8254_OSC_BASE_2MHZ, I8254_IO8, 0);
+		devpriv->counter =
+		    comedi_8254_mm_alloc(dev->mmio + COUNTER_A_BASE_REG,
+					 I8254_OSC_BASE_2MHZ, I8254_IO8, 0);
 	} else {
-		dev->pacer = comedi_8254_init(dev->iobase + COUNTER_B_BASE_REG,
-					      I8254_OSC_BASE_2MHZ,
-					      I8254_IO8, 0);
-		devpriv->counter = comedi_8254_init(dev->iobase +
-						    COUNTER_A_BASE_REG,
-						    I8254_OSC_BASE_2MHZ,
-						    I8254_IO8, 0);
+		dev->pacer =
+		    comedi_8254_io_alloc(dev->iobase + COUNTER_B_BASE_REG,
+					 I8254_OSC_BASE_2MHZ, I8254_IO8, 0);
+		devpriv->counter =
+		    comedi_8254_io_alloc(dev->iobase + COUNTER_A_BASE_REG,
+					 I8254_OSC_BASE_2MHZ, I8254_IO8, 0);
 	}
-	if (!dev->pacer || !devpriv->counter)
-		return -ENOMEM;
+	if (IS_ERR(dev->pacer))
+		return PTR_ERR(dev->pacer);
+	if (IS_ERR(devpriv->counter))
+		return PTR_ERR(devpriv->counter);
 
 	ret = comedi_alloc_subdevices(dev, 5);
 	if (ret)
@@ -1341,8 +1341,10 @@ void labpc_common_detach(struct comedi_device *dev)
 {
 	struct labpc_private *devpriv = dev->private;
 
-	if (devpriv)
-		kfree(devpriv->counter);
+	if (devpriv) {
+		if (!IS_ERR(devpriv->counter))
+			kfree(devpriv->counter);
+	}
 }
 EXPORT_SYMBOL_GPL(labpc_common_detach);
 

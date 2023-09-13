@@ -136,13 +136,13 @@ void comedi_8254_set_busy(struct comedi_8254 *i8254,
 void comedi_8254_subdevice_init(struct comedi_subdevice *s,
 				struct comedi_8254 *i8254);
 
-struct comedi_8254 *comedi_8254_init(unsigned long iobase,
-				     unsigned int osc_base,
-				     unsigned int iosize,
-				     unsigned int regshift);
-struct comedi_8254 *comedi_8254_mm_init(void __iomem *mmio,
-					unsigned int osc_base,
-					unsigned int iosize,
-					unsigned int regshift);
+struct comedi_8254 *comedi_8254_io_alloc(unsigned long iobase,
+					 unsigned int osc_base,
+					 unsigned int iosize,
+					 unsigned int regshift);
+struct comedi_8254 *comedi_8254_mm_alloc(void __iomem *mmio,
+					 unsigned int osc_base,
+					 unsigned int iosize,
+					 unsigned int regshift);
 
 #endif	/* _COMEDI_8254_H */
