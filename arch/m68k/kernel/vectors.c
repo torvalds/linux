@@ -28,6 +28,8 @@
 #include <asm/fpu.h>
 #include <asm/traps.h>
 
+#include "vectors.h"
+
 /* assembler routines */
 asmlinkage void system_call(void);
 asmlinkage void buserr(void);
