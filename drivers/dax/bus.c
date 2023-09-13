@@ -103,7 +103,7 @@ static ssize_t do_id_store(struct device_driver *drv, const char *buf,
 		if (action == ID_ADD) {
 			dax_id = kzalloc(sizeof(*dax_id), GFP_KERNEL);
 			if (dax_id) {
-				strncpy(dax_id->dev_name, buf, DAX_NAME_LEN);
+				strscpy(dax_id->dev_name, buf, DAX_NAME_LEN);
 				list_add(&dax_id->list, &dax_drv->ids);
 			} else
 				rc = -ENOMEM;
