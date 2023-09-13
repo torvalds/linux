@@ -1259,6 +1259,7 @@ void blk_mq_start_request(struct request *rq)
 
 	blk_add_timer(rq);
 	WRITE_ONCE(rq->state, MQ_RQ_IN_FLIGHT);
+	rq->mq_hctx->tags->rqs[rq->tag] = rq;
 
 #ifdef CONFIG_BLK_DEV_INTEGRITY
 	if (blk_integrity_rq(rq) && req_op(rq) == REQ_OP_WRITE)
