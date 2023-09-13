@@ -110,6 +110,7 @@
 #include "amdgpu_ras.h"
 #include "amdgpu_xcp.h"
 #include "amdgpu_seq64.h"
+#include "amdgpu_reg_state.h"
 
 #define MAX_GPU_INSTANCE		64
 
@@ -612,6 +613,10 @@ struct amdgpu_asic_funcs {
 				  const struct amdgpu_video_codecs **codecs);
 	/* encode "> 32bits" smn addressing */
 	u64 (*encode_ext_smn_addressing)(int ext_id);
+
+	ssize_t (*get_reg_state)(struct amdgpu_device *adev,
+				 enum amdgpu_reg_state reg_state, void *buf,
+				 size_t max_size);
 };
 
 /*
