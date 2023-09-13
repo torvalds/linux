@@ -50,10 +50,10 @@
 #define RSA_INT_DONE			BIT(0)
 
 /* RSSS interrupt enable */
-#define RSA_INT_EN			BIT(3)
-#define SHA3_INT_EN			BIT(2)
-#define SM3_INT_EN			BIT(1)
-#define SM4_INT_EN			BIT(0)
+#define SM4_INT_EN			BIT(3)
+#define SM3_INT_EN			BIT(2)
+#define SHA3_INT_EN			BIT(1)
+#define RSA_INT_EN			BIT(0)
 
 /* RSSS generic control */
 #define RSA_OPERATION			(BIT(18) | BIT(19))

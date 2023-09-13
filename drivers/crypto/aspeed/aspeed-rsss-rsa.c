@@ -156,6 +156,7 @@ static int aspeed_rsa_transfer(struct aspeed_rsss_dev *rsss_dev)
 	return aspeed_rsa_complete(rsss_dev, 0);
 }
 
+#ifdef RSSS_RSA_POLLING_MODE
 static int aspeed_rsa_wait_complete(struct aspeed_rsss_dev *rsss_dev)
 {
 	struct aspeed_engine_rsa *rsa_engine = &rsss_dev->rsa_engine;
@@ -196,6 +197,7 @@ static int aspeed_rsa_wait_complete(struct aspeed_rsss_dev *rsss_dev)
 
 	return 0;
 }
+#endif
 
 static int aspeed_rsa_trigger(struct aspeed_rsss_dev *rsss_dev)
 {
@@ -268,7 +270,11 @@ static int aspeed_rsa_trigger(struct aspeed_rsss_dev *rsss_dev)
 	/* Trigger RSA engines */
 	ast_rsss_write(rsss_dev, RSA_TRIGGER, ASPEED_RSA_TRIGGER);
 
+#ifdef RSSS_RSA_POLLING_MODE
 	return aspeed_rsa_wait_complete(rsss_dev);
+#else
+	return 0;
+#endif
 }
 
 static int aspeed_rsa_enc(struct akcipher_request *req)
