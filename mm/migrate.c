@@ -249,7 +249,7 @@ static bool remove_migration_pte(struct folio *folio,
 
 			pte = arch_make_huge_pte(pte, shift, vma->vm_flags);
 			if (folio_test_anon(folio))
-				hugepage_add_anon_rmap(new, vma, pvmw.address,
+				hugepage_add_anon_rmap(folio, vma, pvmw.address,
 						       rmap_flags);
 			else
 				page_dup_file_rmap(new, true);
