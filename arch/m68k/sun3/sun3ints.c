@@ -17,7 +17,7 @@
 #include <asm/irq_regs.h>
 #include <linux/seq_file.h>
 
-extern void sun3_leds (unsigned char);
+#include "sun3.h"
 
 void sun3_disable_interrupts(void)
 {

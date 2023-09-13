@@ -17,6 +17,7 @@
 #include <asm/intersil.h>
 #include <asm/machdep.h>
 
+#include "sun3.h"
 
 /* bits to set for start/run of the intersil */
 #define STOP_VAL (INTERSIL_STOP | INTERSIL_INT_ENABLE | INTERSIL_24H_MODE)

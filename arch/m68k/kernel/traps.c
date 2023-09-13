@@ -364,7 +364,7 @@ disable_wb:
 #if defined(CONFIG_SUN3)
 #include <asm/sun3mmu.h>
 
-extern int mmu_emu_handle_fault (unsigned long, int, int);
+#include "../sun3/sun3.h"
 
 /* sun3 version of bus_error030 */
 

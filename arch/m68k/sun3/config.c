@@ -35,11 +35,11 @@
 #include <asm/sun3ints.h>
 #include <asm/config.h>
 
+#include "sun3.h"
+
 char sun3_reserved_pmeg[SUN3_PMEGS_NUM];
 
 static void sun3_sched_init(void);
-extern void sun3_get_model (char* model);
-extern int sun3_hwclk(int set, struct rtc_time *t);
 
 volatile char* clock_va;
 extern unsigned long availmem;

@@ -27,6 +27,7 @@
 #include <asm/mmu_context.h>
 #include <asm/dvma.h>
 
+#include "sun3.h"
 
 #undef DEBUG_MMU_EMU
 #define DEBUG_PROM_MAPS

@@ -17,6 +17,8 @@
 #include <asm/idprom.h>
 #include <asm/machines.h>  /* Fun with Sun released architectures. */
 
+#include "sun3.h"
+
 struct idprom *idprom;
 EXPORT_SYMBOL(idprom);
 
