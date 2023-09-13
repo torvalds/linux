@@ -676,7 +676,7 @@ struct ieee80211_if_mesh {
 	struct timer_list mesh_path_root_timer;
 
 	unsigned long wrkq_flags;
-	unsigned long mbss_changed;
+	unsigned long mbss_changed[64 / BITS_PER_LONG];
 
 	bool userspace_handles_dfs;
 
