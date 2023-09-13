@@ -647,7 +647,7 @@ void nitrox_get_hwinfo(struct nitrox_device *ndev)
 		 ndev->hw.revision_id);
 
 	/* copy partname */
-	strncpy(ndev->hw.partname, name, sizeof(ndev->hw.partname));
+	strscpy(ndev->hw.partname, name, sizeof(ndev->hw.partname));
 }
 
 void enable_pf2vf_mbox_interrupts(struct nitrox_device *ndev)
