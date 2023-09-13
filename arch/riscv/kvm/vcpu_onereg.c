@@ -34,6 +34,7 @@ static const unsigned long kvm_isa_ext_arr[] = {
 	[KVM_RISCV_ISA_EXT_M] = RISCV_ISA_EXT_m,
 	[KVM_RISCV_ISA_EXT_V] = RISCV_ISA_EXT_v,
 	/* Multi letter extensions (alphabetically sorted) */
+	KVM_ISA_EXT_ARR(SMSTATEEN),
 	KVM_ISA_EXT_ARR(SSAIA),
 	KVM_ISA_EXT_ARR(SSTC),
 	KVM_ISA_EXT_ARR(SVINVAL),
@@ -80,11 +81,11 @@ static bool kvm_riscv_vcpu_isa_enable_allowed(unsigned long ext)
 static bool kvm_riscv_vcpu_isa_disable_allowed(unsigned long ext)
 {
 	switch (ext) {
+	/* Extensions which don't have any mechanism to disable */
 	case KVM_RISCV_ISA_EXT_A:
 	case KVM_RISCV_ISA_EXT_C:
 	case KVM_RISCV_ISA_EXT_I:
 	case KVM_RISCV_ISA_EXT_M:
-	case KVM_RISCV_ISA_EXT_SSAIA:
 	case KVM_RISCV_ISA_EXT_SSTC:
 	case KVM_RISCV_ISA_EXT_SVINVAL:
 	case KVM_RISCV_ISA_EXT_SVNAPOT:
@@ -97,6 +98,9 @@ static bool kvm_riscv_vcpu_isa_disable_allowed(unsigned long ext)
 	case KVM_RISCV_ISA_EXT_ZIHINTPAUSE:
 	case KVM_RISCV_ISA_EXT_ZIHPM:
 		return false;
+	/* Extensions which can be disabled using Smstateen */
+	case KVM_RISCV_ISA_EXT_SSAIA:
+		return riscv_has_extension_unlikely(RISCV_ISA_EXT_SMSTATEEN);
 	default:
 		break;
 	}
