@@ -4,7 +4,6 @@
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/tty.h>
-#include <linux/console.h>
 #include <linux/rtc.h>
 #include <linux/vt_kern.h>
 #include <linux/interrupt.h>
@@ -106,27 +105,6 @@ static void __init dn_setup_model(void)
 	}
 
 
-}
-
-int dn_serial_console_wait_key(struct console *co) {
-
-	while(!(sio01.srb_csrb & 1))
-		barrier();
-	return sio01.rhrb_thrb;
-}
-
-void dn_serial_console_write (struct console *co, const char *str,unsigned int count)
-{
-   while(count--) {
-	if (*str == '\n') {
-	sio01.rhrb_thrb = (unsigned char)'\r';
-	while (!(sio01.srb_csrb & 0x4))
-                ;
-	}
-    sio01.rhrb_thrb = (unsigned char)*str++;
-    while (!(sio01.srb_csrb & 0x4))
-            ;
-  }
 }
 
 void dn_serial_print (const char *str)
@@ -234,12 +212,6 @@ void dn_dummy_reset(void) {
   dn_serial_print("The end !\n");
 
   for(;;);
-
-}
-
-void dn_dummy_waitbut(void) {
-
-  dn_serial_print("waitbut\n");
 
 }
 
