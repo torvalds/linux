@@ -1199,7 +1199,7 @@ void page_add_anon_rmap(struct page *page, struct vm_area_struct *vma,
 	atomic_t *mapped = &folio->_nr_pages_mapped;
 	int nr = 0, nr_pmdmapped = 0;
 	bool compound = flags & RMAP_COMPOUND;
-	bool first = true;
+	bool first;
 
 	/* Is page being mapped by PTE? Is this its first map to be added? */
 	if (likely(!compound)) {
@@ -1228,9 +1228,6 @@ void page_add_anon_rmap(struct page *page, struct vm_area_struct *vma,
 		}
 	}
 
-	VM_BUG_ON_PAGE(!first && (flags & RMAP_EXCLUSIVE), page);
-	VM_BUG_ON_PAGE(!first && PageAnonExclusive(page), page);
-
 	if (nr_pmdmapped)
 		__lruvec_stat_mod_folio(folio, NR_ANON_THPS, nr_pmdmapped);
 	if (nr)
@@ -1252,6 +1249,10 @@ void page_add_anon_rmap(struct page *page, struct vm_area_struct *vma,
 	}
 	if (flags & RMAP_EXCLUSIVE)
 		SetPageAnonExclusive(page);
+	/* While PTE-mapping a THP we have a PMD and a PTE mapping. */
+	VM_WARN_ON_FOLIO((atomic_read(&page->_mapcount) > 0 ||
+			  (folio_test_large(folio) && folio_entire_mapcount(folio) > 1)) &&
+			 PageAnonExclusive(page), folio);
 
 	mlock_vma_folio(folio, vma, compound);
 }
@@ -2545,15 +2546,14 @@ void hugepage_add_anon_rmap(struct page *page, struct vm_area_struct *vma,
 			    unsigned long address, rmap_t flags)
 {
 	struct folio *folio = page_folio(page);
-	int first;
 
 	VM_WARN_ON_FOLIO(!folio_test_anon(folio), folio);
 
-	first = atomic_inc_and_test(&folio->_entire_mapcount);
-	VM_BUG_ON_PAGE(!first && (flags & RMAP_EXCLUSIVE), page);
-	VM_BUG_ON_PAGE(!first && PageAnonExclusive(page), page);
+	atomic_inc(&folio->_entire_mapcount);
 	if (flags & RMAP_EXCLUSIVE)
 		SetPageAnonExclusive(page);
+	VM_WARN_ON_FOLIO(folio_entire_mapcount(folio) > 1 &&
+			 PageAnonExclusive(page), folio);
 }
 
 void hugepage_add_new_anon_rmap(struct folio *folio,
