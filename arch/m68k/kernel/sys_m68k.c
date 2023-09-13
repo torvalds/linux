@@ -27,6 +27,7 @@
 #include <asm/cachectl.h>
 #include <asm/traps.h>
 #include <asm/page.h>
+#include <asm/syscalls.h>
 #include <asm/unistd.h>
 #include <asm/cacheflush.h>
 
