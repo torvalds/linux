@@ -2096,10 +2096,8 @@ static int add_page_for_migration(struct mm_struct *mm, const void __user *p,
 		goto out_putfolio;
 
 	if (folio_test_hugetlb(folio)) {
-		if (PageHead(page)) {
-			isolated = isolate_hugetlb(folio, pagelist);
-			err = isolated ? 1 : -EBUSY;
-		}
+		isolated = isolate_hugetlb(folio, pagelist);
+		err = isolated ? 1 : -EBUSY;
 	} else {
 		isolated = folio_isolate_lru(folio);
 		if (!isolated) {
