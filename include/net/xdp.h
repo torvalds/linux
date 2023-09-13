@@ -383,14 +383,22 @@ void xdp_attachment_setup(struct xdp_attachment_info *info,
 
 #define DEV_MAP_BULK_SIZE XDP_BULK_QUEUE_SIZE
 
+/* Define the relationship between xdp-rx-metadata kfunc and
+ * various other entities:
+ * - xdp_rx_metadata enum
+ * - kfunc name
+ * - xdp_metadata_ops field
+ */
 #define XDP_METADATA_KFUNC_xxx	\
 	XDP_METADATA_KFUNC(XDP_METADATA_KFUNC_RX_TIMESTAMP, \
-			   bpf_xdp_metadata_rx_timestamp) \
+			   bpf_xdp_metadata_rx_timestamp, \
+			   xmo_rx_timestamp) \
 	XDP_METADATA_KFUNC(XDP_METADATA_KFUNC_RX_HASH, \
-			   bpf_xdp_metadata_rx_hash) \
+			   bpf_xdp_metadata_rx_hash, \
+			   xmo_rx_hash) \
 
-enum {
-#define XDP_METADATA_KFUNC(name, _) name,
+enum xdp_rx_metadata {
+#define XDP_METADATA_KFUNC(name, _, __) name,
 XDP_METADATA_KFUNC_xxx
 #undef XDP_METADATA_KFUNC
 MAX_XDP_METADATA_KFUNC,
