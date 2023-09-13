@@ -125,7 +125,15 @@ struct nfs4_cb_fattr {
 	/* from CB_GETATTR reply */
 	u64 ncf_cb_change;
 	u64 ncf_cb_fsize;
+
+	unsigned long ncf_cb_flags;
+	bool ncf_file_modified;
+	u64 ncf_initial_cinfo;
+	u64 ncf_cur_fsize;
 };
+
+/* bits for ncf_cb_flags */
+#define	CB_GETATTR_BUSY		0
 
 /*
  * Represents a delegation stateid. The nfs4_client holds references to these
@@ -748,5 +756,6 @@ static inline bool try_to_expire_client(struct nfs4_client *clp)
 }
 
 extern __be32 nfsd4_deleg_getattr_conflict(struct svc_rqst *rqstp,
-				struct inode *inode);
+		struct inode *inode, bool *file_modified, u64 *size);
+extern void nfs4_cb_getattr(struct nfs4_cb_fattr *ncf);
 #endif   /* NFSD4_STATE_H */
