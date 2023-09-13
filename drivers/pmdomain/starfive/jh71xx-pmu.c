@@ -2,7 +2,7 @@
 /*
  * StarFive JH71XX PMU (Power Management Unit) Controller Driver
  *
- * Copyright (C) 2022 StarFive Technology Co., Ltd.
+ * Copyright (C) 2022-2023 StarFive Technology Co., Ltd.
  */
 
 #include <linux/interrupt.h>
@@ -22,6 +22,9 @@
 #define JH71XX_PMU_CURR_POWER_MODE	0x80
 #define JH71XX_PMU_EVENT_STATUS		0x88
 #define JH71XX_PMU_INT_STATUS		0x8C
+
+/* aon pmu register offset */
+#define JH71XX_AON_PMU_SWITCH		0x00
 
 /* sw encourage cfg */
 #define JH71XX_PMU_SW_ENCOURAGE_EN_LO	0x05
@@ -155,6 +158,26 @@ static int jh7110_pmu_set_state(struct jh71xx_pmu_dev *pmd, u32 mask, bool on)
 			pmd->genpd.name, on ? "on" : "off");
 		return -ETIMEDOUT;
 	}
+
+	return 0;
+}
+
+static int jh7110_aon_pmu_set_state(struct jh71xx_pmu_dev *pmd, u32 mask, bool on)
+{
+	struct jh71xx_pmu *pmu = pmd->pmu;
+	unsigned long flags;
+	u32 val;
+
+	spin_lock_irqsave(&pmu->lock, flags);
+	val = readl(pmu->base + JH71XX_AON_PMU_SWITCH);
+
+	if (on)
+		val |= mask;
+	else
+		val &= ~mask;
+
+	writel(val, pmu->base + JH71XX_AON_PMU_SWITCH);
+	spin_unlock_irqrestore(&pmu->lock, flags);
 
 	return 0;
 }
@@ -316,10 +339,12 @@ static int jh71xx_pmu_probe(struct platform_device *pdev)
 	if (!match_data)
 		return -EINVAL;
 
-	ret = match_data->pmu_parse_irq(pdev, pmu);
-	if (ret) {
-		dev_err(dev, "failed to parse irq\n");
-		return ret;
+	if (match_data->pmu_parse_irq) {
+		ret = match_data->pmu_parse_irq(pdev, pmu);
+		if (ret) {
+			dev_err(dev, "failed to parse irq\n");
+			return ret;
+		}
 	}
 
 	pmu->genpd = devm_kcalloc(dev, match_data->num_domains,
@@ -393,10 +418,31 @@ static const struct jh71xx_pmu_match_data jh7110_pmu = {
 	.pmu_set_state = jh7110_pmu_set_state,
 };
 
+static const struct jh71xx_domain_info jh7110_aon_power_domains[] = {
+	[JH7110_PD_DPHY_TX] = {
+		.name = "DPHY-TX",
+		.bit = 30,
+	},
+	[JH7110_PD_DPHY_RX] = {
+		.name = "DPHY-RX",
+		.bit = 31,
+	},
+};
+
+static const struct jh71xx_pmu_match_data jh7110_aon_pmu = {
+	.num_domains = ARRAY_SIZE(jh7110_aon_power_domains),
+	.domain_info = jh7110_aon_power_domains,
+	.pmu_status = JH71XX_AON_PMU_SWITCH,
+	.pmu_set_state = jh7110_aon_pmu_set_state,
+};
+
 static const struct of_device_id jh71xx_pmu_of_match[] = {
 	{
 		.compatible = "starfive,jh7110-pmu",
 		.data = (void *)&jh7110_pmu,
+	}, {
+		.compatible = "starfive,jh7110-aon-syscon",
+		.data = (void *)&jh7110_aon_pmu,
 	}, {
 		/* sentinel */
 	}
@@ -413,5 +459,6 @@ static struct platform_driver jh71xx_pmu_driver = {
 builtin_platform_driver(jh71xx_pmu_driver);
 
 MODULE_AUTHOR("Walker Chen <walker.chen@starfivetech.com>");
+MODULE_AUTHOR("Changhuang Liang <changhuang.liang@starfivetech.com>");
 MODULE_DESCRIPTION("StarFive JH71XX PMU Driver");
 MODULE_LICENSE("GPL");
