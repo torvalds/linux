@@ -583,6 +583,7 @@ static int iwl_run_unified_mvm_ucode(struct iwl_mvm *mvm)
 	static const u16 init_complete[] = {
 		INIT_COMPLETE_NOTIF,
 	};
+	u32 sb_cfg;
 	int ret;
 
 	if (mvm->trans->cfg->tx_with_siso_diversity)
@@ -591,6 +592,12 @@ static int iwl_run_unified_mvm_ucode(struct iwl_mvm *mvm)
 	lockdep_assert_held(&mvm->mutex);
 
 	mvm->rfkill_safe_init_done = false;
+
+	sb_cfg = iwl_read_umac_prph(mvm->trans, SB_MODIFY_CFG_FLAG);
+	/* if needed, we'll reset this on our way out later */
+	mvm->pldr_sync = !(sb_cfg & SB_CFG_RESIDES_IN_OTP_MASK);
+	if (mvm->pldr_sync && iwl_mei_pldr_req())
+		return -EBUSY;
 
 	iwl_init_notification_wait(&mvm->notif_wait,
 				   &init_wait,
@@ -605,6 +612,13 @@ static int iwl_run_unified_mvm_ucode(struct iwl_mvm *mvm)
 	ret = iwl_mvm_load_ucode_wait_alive(mvm, IWL_UCODE_REGULAR);
 	if (ret) {
 		IWL_ERR(mvm, "Failed to start RT ucode: %d\n", ret);
+
+		/* if we needed reset then fail here, but notify and remove */
+		if (mvm->pldr_sync) {
+			iwl_mei_alive_notif(false);
+			iwl_trans_pcie_remove(mvm->trans, true);
+		}
+
 		goto error;
 	}
 	iwl_dbg_tlv_time_point(&mvm->fwrt, IWL_FW_INI_TIME_POINT_AFTER_ALIVE,
@@ -1502,18 +1516,12 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 	struct ieee80211_channel *chan;
 	struct cfg80211_chan_def chandef;
 	struct ieee80211_supported_band *sband = NULL;
-	u32 sb_cfg;
 
 	lockdep_assert_held(&mvm->mutex);
 
 	ret = iwl_trans_start_hw(mvm->trans);
 	if (ret)
 		return ret;
-
-	sb_cfg = iwl_read_umac_prph(mvm->trans, SB_MODIFY_CFG_FLAG);
-	mvm->pldr_sync = !(sb_cfg & SB_CFG_RESIDES_IN_OTP_MASK);
-	if (mvm->pldr_sync && iwl_mei_pldr_req())
-		return -EBUSY;
 
 	ret = iwl_mvm_load_rt_fw(mvm);
 	if (ret) {
