@@ -42,6 +42,7 @@
 #include <asm/tlbflush.h>
 
 #include "traps.h"
+#include "../mm/fault.h"
 
 static const char *vec_names[] = {
 	[VEC_RESETSP]	= "RESET SP",
@@ -126,10 +127,6 @@ static const char *space_names[] = {
 };
 
 void die_if_kernel(char *,struct pt_regs *,int);
-asmlinkage int do_page_fault(struct pt_regs *regs, unsigned long address,
-                             unsigned long error_code);
-int send_fault_sig(struct pt_regs *regs);
-
 asmlinkage void trap_c(struct frame *fp);
 
 #if defined (CONFIG_M68060)
