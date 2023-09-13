@@ -184,6 +184,8 @@ static const char *iommu_domain_type_str(unsigned int t)
 	case IOMMU_DOMAIN_DMA:
 	case IOMMU_DOMAIN_DMA_FQ:
 		return "Translated";
+	case IOMMU_DOMAIN_PLATFORM:
+		return "Platform";
 	default:
 		return "Unknown";
 	}
@@ -1751,6 +1753,17 @@ iommu_group_alloc_default_domain(struct iommu_group *group, int req_type)
 	struct iommu_domain *dom;
 
 	lockdep_assert_held(&group->mutex);
+
+	/*
+	 * Allow legacy drivers to specify the domain that will be the default
+	 * domain. This should always be either an IDENTITY/BLOCKED/PLATFORM
+	 * domain. Do not use in new drivers.
+	 */
+	if (bus->iommu_ops->default_domain) {
+		if (req_type)
+			return ERR_PTR(-EINVAL);
+		return bus->iommu_ops->default_domain;
+	}
 
 	if (req_type)
 		return __iommu_group_alloc_default_domain(bus, group, req_type);
