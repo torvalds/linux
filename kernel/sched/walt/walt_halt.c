@@ -280,6 +280,8 @@ void restrict_cpus_and_freq(struct cpumask *cpus)
 				FREQ_QOS_MAX_DEFAULT_VALUE;
 		}
 	}
+
+	update_fmax_cap_capacities(PARTIAL_HALT_CAP);
 }
 
 struct task_struct *walt_drain_thread;

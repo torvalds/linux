@@ -4394,7 +4394,7 @@ static inline void irq_work_restrict_to_mig_clusters(cpumask_t *lock_cpus)
 	}
 }
 
-static void update_cpu_capacity_helper(int cpu)
+void update_cpu_capacity_helper(int cpu)
 {
 	unsigned long fmax_capacity = arch_scale_cpu_capacity(cpu);
 	unsigned long thermal_pressure = arch_scale_thermal_pressure(cpu);
@@ -4438,29 +4438,6 @@ static void android_rvh_update_cpu_capacity(void *unused, int cpu, unsigned long
 	*capacity = max((int)(cpu_rq(cpu)->cpu_capacity_orig - rt_pressure), 0);
 }
 
-static inline bool has_internal_freq_limit_changed(struct walt_sched_cluster *cluster)
-{
-	unsigned int internal_freq;
-	int i;
-
-	internal_freq = cluster->walt_internal_freq_limit;
-
-	cluster->walt_internal_freq_limit = cluster->max_freq;
-	for (i = 0; i < MAX_FREQ_CAP; i++)
-		cluster->walt_internal_freq_limit = min(fmax_cap[i][cluster->id],
-					     cluster->walt_internal_freq_limit);
-	return cluster->walt_internal_freq_limit != internal_freq;
-}
-
-static void update_smart_fmax_capacity(struct walt_sched_cluster *cluster)
-{
-	unsigned long fmax_capacity = arch_scale_cpu_capacity(cpumask_first(&cluster->cpus));
-
-	cluster->smart_fmax_cap = mult_frac(fmax_capacity,
-			fmax_cap[SMART_FMAX_CAP][cluster->id],
-						 cluster->max_possible_freq);
-}
-
 DEFINE_PER_CPU(u32, wakeup_ctr);
 /**
  * walt_irq_work() - perform walt irq work for rollover and migration
@@ -4479,7 +4456,6 @@ static void walt_irq_work(struct irq_work *irq_work)
 	bool is_migration = false, is_asym_migration = false, is_shared_rail_migration = false;
 	u32 wakeup_ctr_sum = 0;
 	bool found_topapp = false;
-	struct walt_sched_cluster *cluster;
 
 	if (irq_work == &walt_migration_irq_work)
 		is_migration = true;
@@ -4525,14 +4501,6 @@ static void walt_irq_work(struct irq_work *irq_work)
 			wakeup_ctr_sum += per_cpu(wakeup_ctr, cpu);
 			per_cpu(wakeup_ctr, cpu) = 0;
 		}
-
-		for_each_sched_cluster(cluster) {
-			if (has_internal_freq_limit_changed(cluster)) {
-				update_smart_fmax_capacity(cluster);
-				for_each_cpu(cpu, &cluster->cpus)
-					update_cpu_capacity_helper(cpu);
-			}
-		}
 	}
 
 	for_each_cpu(cpu, &lock_cpus)
@@ -4553,6 +4521,7 @@ void walt_rotation_checkpoint(int nr_big)
 {
 	int i;
 	bool prev = walt_rotation_enabled;
+
 	if (!hmp_capable())
 		return;
 
@@ -4569,6 +4538,8 @@ void walt_rotation_checkpoint(int nr_big)
 		else if (!walt_rotation_enabled && prev)
 			fmax_cap[HIGH_PERF_CAP][i] = FREQ_QOS_MAX_DEFAULT_VALUE;
 	}
+
+	update_fmax_cap_capacities(HIGH_PERF_CAP);
 }
 
 #define WAKEUP_CTR_THRESH 50
@@ -4625,6 +4596,8 @@ void fmax_uncap_checkpoint(int nr_big, u64 window_start, u32 wakeup_ctr_sum)
 			fmax_cap[SMART_FMAX_CAP][i] = sysctl_fmax_cap[i];
 		fmax_uncap_timestamp = 0;
 	}
+
+	update_fmax_cap_capacities(SMART_FMAX_CAP);
 
 	trace_sched_fmax_uncap(nr_big, window_start, wakeup_ctr_sum,
 			fmax_uncap_load_detected, fmax_uncap_timestamp);

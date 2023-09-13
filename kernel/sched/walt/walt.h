@@ -1107,6 +1107,46 @@ static inline int walt_find_and_choose_cluster_packing_cpu(int start_cpu, struct
 	return packing_cpu;
 }
 
+extern void update_cpu_capacity_helper(int cpu);
+
+static inline bool has_internal_freq_limit_changed(struct walt_sched_cluster *cluster)
+{
+	unsigned int internal_freq;
+	int i;
+
+	internal_freq = cluster->walt_internal_freq_limit;
+
+	cluster->walt_internal_freq_limit = cluster->max_freq;
+	for (i = 0; i < MAX_FREQ_CAP; i++)
+		cluster->walt_internal_freq_limit = min(fmax_cap[i][cluster->id],
+					     cluster->walt_internal_freq_limit);
+	return cluster->walt_internal_freq_limit != internal_freq;
+}
+
+static inline void update_smart_fmax_capacity(struct walt_sched_cluster *cluster)
+{
+	unsigned long fmax_capacity = arch_scale_cpu_capacity(cpumask_first(&cluster->cpus));
+
+	cluster->smart_fmax_cap = mult_frac(fmax_capacity,
+			fmax_cap[SMART_FMAX_CAP][cluster->id],
+						 cluster->max_possible_freq);
+}
+
+static inline void update_fmax_cap_capacities(int type)
+{
+	struct walt_sched_cluster *cluster;
+	int cpu;
+
+	for_each_sched_cluster(cluster) {
+		if (has_internal_freq_limit_changed(cluster)) {
+			if (type == SMART_FMAX_CAP)
+				update_smart_fmax_capacity(cluster);
+			for_each_cpu(cpu, &cluster->cpus)
+				update_cpu_capacity_helper(cpu);
+		}
+	}
+}
+
 extern int add_pipeline(struct walt_task_struct *wts);
 extern int remove_pipeline(struct walt_task_struct *wts);
 
