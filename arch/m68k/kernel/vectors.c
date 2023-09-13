@@ -17,6 +17,7 @@
 /*
  * Sets up all exception vectors
  */
+#include <linux/cpu.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/linkage.h>
