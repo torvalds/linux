@@ -81,19 +81,6 @@ static const struct clk_div_table ast2700_rmii_div_table[] = {
 	{ 0 }
 };
 
-/* Division of PCLK */
-static const struct clk_div_table ast2700_pclk_div_table[] = {
-	{ 0x0, 2 },
-	{ 0x1, 4 },
-	{ 0x2, 6 },
-	{ 0x3, 8 },
-	{ 0x4, 10 },
-	{ 0x5, 12 },
-	{ 0x6, 14 },
-	{ 0x7, 16 },
-	{ 0 }
-};
-
 /* Division of HCLK/SDIO/MAC/apll_divn CLK */
 static const struct clk_div_table ast2700_clk_div_table[] = {
 	{ 0x0, 2 },
@@ -104,6 +91,19 @@ static const struct clk_div_table ast2700_clk_div_table[] = {
 	{ 0x5, 6 },
 	{ 0x6, 7 },
 	{ 0x7, 8 },
+	{ 0 }
+};
+
+/* Division of PCLK/EMMC CLK */
+static const struct clk_div_table ast2700_clk_div_table2[] = {
+	{ 0x0, 2 },
+	{ 0x1, 4 },
+	{ 0x2, 6 },
+	{ 0x3, 8 },
+	{ 0x4, 10 },
+	{ 0x5, 12 },
+	{ 0x6, 14 },
+	{ 0x7, 16 },
 	{ 0 }
 };
 
@@ -424,7 +424,7 @@ static int ast2700_io_clk_init(struct platform_device *pdev)
 	clks[AST2700_IO_CLK_APB] =
 		clk_hw_register_divider_table(dev, "io-apb", "io-hpll",
 					      0, clk_base + AST2700_CPU_CLK_SEL1,
-					      18, 3, 0, ast2700_pclk_div_table, &ast2700_clk_lock);
+					      18, 3, 0, ast2700_clk_div_table2, &ast2700_clk_lock);
 
 	//rmii
 	clks[AST2700_IO_CLK_RMII] =
@@ -960,8 +960,14 @@ static int ast2700_cpu_clk_init(struct platform_device *pdev)
 					     0, clk_base + AST2700_CPU_CLK_STOP,
 					     26, 0, &ast2700_clk_lock);
 
+	clks[AST2700_CPU_CLK_EMMC] =
+		clk_hw_register_divider_table(dev, "emmcclk", "mpll",
+					      0, clk_base + AST2700_CPU_CLK_SEL1,
+					      12, 3, 0, ast2700_clk_div_table2,
+					      &ast2700_clk_lock);
+
 	clks[AST2700_CPU_CLK_GATE_EMMCCLK] =
-		ast2700_clk_hw_register_gate(NULL, "emmcclk", NULL,
+		ast2700_clk_hw_register_gate(NULL, "emmcclk-gate", "emmcclk",
 					     0, clk_base + AST2700_CPU_CLK_STOP,
 					     27, 0, &ast2700_clk_lock);
 
