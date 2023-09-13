@@ -86,6 +86,40 @@ struct dio200_subdev_intr {
 	unsigned int active:1;
 };
 
+static unsigned char dio200___read8(struct comedi_device *dev,
+				    unsigned int offset)
+{
+	if (dev->mmio)
+		return readb(dev->mmio + offset);
+	return inb(dev->iobase + offset);
+}
+
+static void dio200___write8(struct comedi_device *dev,
+			    unsigned int offset, unsigned char val)
+{
+	if (dev->mmio)
+		writeb(val, dev->mmio + offset);
+	else
+		outb(val, dev->iobase + offset);
+}
+
+static unsigned int dio200___read32(struct comedi_device *dev,
+				    unsigned int offset)
+{
+	if (dev->mmio)
+		return readl(dev->mmio + offset);
+	return inl(dev->iobase + offset);
+}
+
+static void dio200___write32(struct comedi_device *dev,
+			     unsigned int offset, unsigned int val)
+{
+	if (dev->mmio)
+		writel(val, dev->mmio + offset);
+	else
+		outl(val, dev->iobase + offset);
+}
+
 static unsigned char dio200_read8(struct comedi_device *dev,
 				  unsigned int offset)
 {
@@ -94,9 +128,7 @@ static unsigned char dio200_read8(struct comedi_device *dev,
 	if (board->is_pcie)
 		offset <<= 3;
 
-	if (dev->mmio)
-		return readb(dev->mmio + offset);
-	return inb(dev->iobase + offset);
+	return dio200___read8(dev, offset);
 }
 
 static void dio200_write8(struct comedi_device *dev,
@@ -107,10 +139,7 @@ static void dio200_write8(struct comedi_device *dev,
 	if (board->is_pcie)
 		offset <<= 3;
 
-	if (dev->mmio)
-		writeb(val, dev->mmio + offset);
-	else
-		outb(val, dev->iobase + offset);
+	dio200___write8(dev, offset, val);
 }
 
 static unsigned int dio200_read32(struct comedi_device *dev,
@@ -121,9 +150,7 @@ static unsigned int dio200_read32(struct comedi_device *dev,
 	if (board->is_pcie)
 		offset <<= 3;
 
-	if (dev->mmio)
-		return readl(dev->mmio + offset);
-	return inl(dev->iobase + offset);
+	return dio200___read32(dev, offset);
 }
 
 static void dio200_write32(struct comedi_device *dev,
@@ -134,10 +161,7 @@ static void dio200_write32(struct comedi_device *dev,
 	if (board->is_pcie)
 		offset <<= 3;
 
-	if (dev->mmio)
-		writel(val, dev->mmio + offset);
-	else
-		outl(val, dev->iobase + offset);
+	dio200___write32(dev, offset, val);
 }
 
 static unsigned int dio200_subdev_8254_offset(struct comedi_device *dev,
