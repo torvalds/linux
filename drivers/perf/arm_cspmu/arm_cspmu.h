@@ -107,6 +107,9 @@ struct arm_cspmu_impl_ops {
 	/* Set event filter */
 	void (*set_ev_filter)(struct arm_cspmu *cspmu,
 			      struct hw_perf_event *hwc, u32 filter);
+	/* Implementation specific event validation */
+	int (*validate_event)(struct arm_cspmu *cspmu,
+			      struct perf_event *event);
 	/* Hide/show unsupported events */
 	umode_t (*event_attr_is_visible)(struct kobject *kobj,
 					 struct attribute *attr, int unused);
