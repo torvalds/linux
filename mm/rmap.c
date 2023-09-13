@@ -1122,27 +1122,25 @@ void page_move_anon_rmap(struct page *page, struct vm_area_struct *vma)
 }
 
 /**
- * __page_set_anon_rmap - set up new anonymous rmap
- * @folio:	Folio which contains page.
- * @page:	Page to add to rmap.
- * @vma:	VM area to add page to.
+ * __folio_set_anon - set up a new anonymous rmap for a folio
+ * @folio:	The folio to set up the new anonymous rmap for.
+ * @vma:	VM area to add the folio to.
  * @address:	User virtual address of the mapping
- * @exclusive:	the page is exclusively owned by the current process
+ * @exclusive:	Whether the folio is exclusive to the process.
  */
-static void __page_set_anon_rmap(struct folio *folio, struct page *page,
-	struct vm_area_struct *vma, unsigned long address, int exclusive)
+static void __folio_set_anon(struct folio *folio, struct vm_area_struct *vma,
+			     unsigned long address, bool exclusive)
 {
 	struct anon_vma *anon_vma = vma->anon_vma;
 
 	BUG_ON(!anon_vma);
 
 	if (folio_test_anon(folio))
-		goto out;
+		return;
 
 	/*
-	 * If the page isn't exclusively mapped into this vma,
-	 * we must use the _oldest_ possible anon_vma for the
-	 * page mapping!
+	 * If the folio isn't exclusive to this vma, we must use the _oldest_
+	 * possible anon_vma for the folio mapping!
 	 */
 	if (!exclusive)
 		anon_vma = anon_vma->root;
@@ -1156,9 +1154,6 @@ static void __page_set_anon_rmap(struct folio *folio, struct page *page,
 	anon_vma = (void *) anon_vma + PAGE_MAPPING_ANON;
 	WRITE_ONCE(folio->mapping, (struct address_space *) anon_vma);
 	folio->index = linear_page_index(vma, address);
-out:
-	if (exclusive)
-		SetPageAnonExclusive(page);
 }
 
 /**
@@ -1246,11 +1241,13 @@ void page_add_anon_rmap(struct page *page, struct vm_area_struct *vma,
 
 	if (likely(!folio_test_ksm(folio))) {
 		if (first)
-			__page_set_anon_rmap(folio, page, vma, address,
-					     !!(flags & RMAP_EXCLUSIVE));
+			__folio_set_anon(folio, vma, address,
+					 !!(flags & RMAP_EXCLUSIVE));
 		else
 			__page_check_anon_rmap(folio, page, vma, address);
 	}
+	if (flags & RMAP_EXCLUSIVE)
+		SetPageAnonExclusive(page);
 
 	mlock_vma_folio(folio, vma, compound);
 }
@@ -1289,7 +1286,8 @@ void folio_add_new_anon_rmap(struct folio *folio, struct vm_area_struct *vma,
 	}
 
 	__lruvec_stat_mod_folio(folio, NR_ANON_MAPPED, nr);
-	__page_set_anon_rmap(folio, &folio->page, vma, address, 1);
+	__folio_set_anon(folio, vma, address, true);
+	SetPageAnonExclusive(&folio->page);
 }
 
 /**
@@ -2552,8 +2550,10 @@ void hugepage_add_anon_rmap(struct page *page, struct vm_area_struct *vma,
 	VM_BUG_ON_PAGE(!first && (flags & RMAP_EXCLUSIVE), page);
 	VM_BUG_ON_PAGE(!first && PageAnonExclusive(page), page);
 	if (first)
-		__page_set_anon_rmap(folio, page, vma, address,
-				     !!(flags & RMAP_EXCLUSIVE));
+		__folio_set_anon(folio, vma, address,
+				 !!(flags & RMAP_EXCLUSIVE));
+	if (flags & RMAP_EXCLUSIVE)
+		SetPageAnonExclusive(page);
 }
 
 void hugepage_add_new_anon_rmap(struct folio *folio,
@@ -2563,6 +2563,7 @@ void hugepage_add_new_anon_rmap(struct folio *folio,
 	/* increment count (starts at -1) */
 	atomic_set(&folio->_entire_mapcount, 0);
 	folio_clear_hugetlb_restore_reserve(folio);
-	__page_set_anon_rmap(folio, &folio->page, vma, address, 1);
+	__folio_set_anon(folio, vma, address, true);
+	SetPageAnonExclusive(&folio->page);
 }
 #endif /* CONFIG_HUGETLB_PAGE */
