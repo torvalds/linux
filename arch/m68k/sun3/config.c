@@ -17,6 +17,7 @@
 #include <linux/init.h>
 #include <linux/memblock.h>
 #include <linux/platform_device.h>
+#include <linux/linkage.h>
 
 #include <asm/oplib.h>
 #include <asm/setup.h>
@@ -49,7 +50,7 @@ static void sun3_get_hardware_list(struct seq_file *m)
 	seq_printf(m, "PROM Revision:\t%s\n", romvec->pv_monid);
 }
 
-void __init sun3_init(void)
+asmlinkage void __init sun3_init(void)
 {
 	unsigned char enable_register;
 	int i;
