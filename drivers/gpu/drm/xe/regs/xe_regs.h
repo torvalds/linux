@@ -69,6 +69,9 @@
 #define GU_CNTL					XE_REG(0x101010)
 #define   LMEM_INIT				REG_BIT(7)
 
+#define XEHP_CLOCK_GATE_DIS			XE_REG(0x101014)
+#define   SGSI_SIDECLK_DIS			REG_BIT(17)
+
 #define GGC					XE_REG(0x108040)
 #define   GMS_MASK				REG_GENMASK(15, 8)
 #define   GGMS_MASK				REG_GENMASK(7, 6)

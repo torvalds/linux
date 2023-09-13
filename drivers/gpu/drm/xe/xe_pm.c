@@ -19,6 +19,7 @@
 #include "xe_guc.h"
 #include "xe_irq.h"
 #include "xe_pcode.h"
+#include "xe_wa.h"
 
 /**
  * DOC: Xe Power Management
@@ -79,9 +80,13 @@ int xe_pm_suspend(struct xe_device *xe)
  */
 int xe_pm_resume(struct xe_device *xe)
 {
+	struct xe_tile *tile;
 	struct xe_gt *gt;
 	u8 id;
 	int err;
+
+	for_each_tile(tile, xe, id)
+		xe_wa_apply_tile_workarounds(tile);
 
 	for_each_gt(gt, xe, id) {
 		err = xe_pcode_init(gt);

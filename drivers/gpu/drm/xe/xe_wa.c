@@ -753,3 +753,23 @@ void xe_wa_dump(struct xe_gt *gt, struct drm_printer *p)
 		if (oob_was[idx].name)
 			drm_printf_indent(p, 1, "%s\n", oob_was[idx].name);
 }
+
+/*
+ * Apply tile (non-GT, non-display) workarounds.  Think very carefully before
+ * adding anything to this function; most workarounds should be implemented
+ * elsewhere.  The programming here is primarily for sgunit/soc workarounds,
+ * which are relatively rare.  Since the registers these workarounds target are
+ * outside the GT, they should only need to be applied once at device
+ * probe/resume; they will not lose their values on any kind of GT or engine
+ * reset.
+ *
+ * TODO:  We may want to move this over to xe_rtp in the future once we have
+ * enough workarounds to justify the work.
+ */
+void xe_wa_apply_tile_workarounds(struct xe_tile *tile)
+{
+	struct xe_gt *mmio = tile->primary_gt;
+
+	if (XE_WA(mmio, 22010954014))
+		xe_mmio_rmw32(mmio, XEHP_CLOCK_GATE_DIS, 0, SGSI_SIDECLK_DIS);
+}
