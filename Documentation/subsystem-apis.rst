@@ -35,6 +35,7 @@ Human interfaces
    sound/index
    gpu/index
    fb/index
+   leds/index
 
 Networking interfaces
 ---------------------
@@ -70,7 +71,6 @@ Storage interfaces
    fpga/index
    i2c/index
    iio/index
-   leds/index
    pcmcia/index
    spi/index
    w1/index
