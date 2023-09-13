@@ -3440,8 +3440,10 @@ static int em_invlpg(struct x86_emulate_ctxt *ctxt)
 {
 	int rc;
 	ulong linear;
+	unsigned int max_size;
 
-	rc = linearize(ctxt, ctxt->src.addr.mem, 1, false, &linear);
+	rc = __linearize(ctxt, ctxt->src.addr.mem, &max_size, 1, ctxt->mode,
+			 &linear, X86EMUL_F_INVLPG);
 	if (rc == X86EMUL_CONTINUE)
 		ctxt->ops->invlpg(ctxt, linear);
 	/* Disable writeback. */
