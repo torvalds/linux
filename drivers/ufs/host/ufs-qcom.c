@@ -4997,9 +4997,7 @@ static int ufs_qcom_config_esi(struct ufs_hba *hba)
 			break;
 		}
 
-		/* dev_cmd queue does not worth esi affinity */
-		if (desc->msi_index)
-			ufs_qcom_set_esi_affinity_hint(hba, desc->irq);
+		ufs_qcom_set_esi_affinity_hint(hba, desc->irq);
 	}
 	ufs_qcom_msi_unlock_descs(hba);
 
