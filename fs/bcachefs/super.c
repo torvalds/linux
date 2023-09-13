@@ -1605,7 +1605,6 @@ int bch2_dev_add(struct bch_fs *c, const char *path)
 
 	ca = __bch2_dev_alloc(c, &dev_mi);
 	if (!ca) {
-		bch2_free_super(&sb);
 		ret = -ENOMEM;
 		goto err;
 	}
