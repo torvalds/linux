@@ -2803,9 +2803,6 @@ int ata_eh_reset(struct ata_link *link, int classify,
 		slave->eh_info.serror = 0;
 	spin_unlock_irqrestore(link->ap->lock, flags);
 
-	if (ata_port_is_frozen(ap))
-		ata_eh_thaw_port(ap);
-
 	/*
 	 * Make sure onlineness and classification result correspond.
 	 * Hotplug could have happened during reset and some
