@@ -7311,6 +7311,11 @@ static int __ath12k_mac_register(struct ath12k *ar)
 
 	ar->hw->wiphy->interface_modes = ab->hw_params->interface_modes;
 
+	if (ar->hw->wiphy->bands[NL80211_BAND_2GHZ] &&
+	    ar->hw->wiphy->bands[NL80211_BAND_5GHZ] &&
+	    ar->hw->wiphy->bands[NL80211_BAND_6GHZ])
+		ieee80211_hw_set(ar->hw, SINGLE_SCAN_ON_ALL_BANDS);
+
 	ieee80211_hw_set(ar->hw, SIGNAL_DBM);
 	ieee80211_hw_set(ar->hw, SUPPORTS_PS);
 	ieee80211_hw_set(ar->hw, SUPPORTS_DYNAMIC_PS);
