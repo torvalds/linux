@@ -12,6 +12,8 @@
 #define _COMEDI_8254_H
 
 #include <linux/types.h>
+#include <linux/errno.h>
+#include <linux/err.h>
 
 struct comedi_device;
 struct comedi_insn;
@@ -136,10 +138,21 @@ void comedi_8254_set_busy(struct comedi_8254 *i8254,
 void comedi_8254_subdevice_init(struct comedi_subdevice *s,
 				struct comedi_8254 *i8254);
 
+#ifdef CONFIG_HAS_IOPORT
 struct comedi_8254 *comedi_8254_io_alloc(unsigned long iobase,
 					 unsigned int osc_base,
 					 unsigned int iosize,
 					 unsigned int regshift);
+#else
+static inline struct comedi_8254 *comedi_8254_io_alloc(unsigned long iobase,
+						       unsigned int osc_base,
+						       unsigned int iosize,
+						       unsigned int regshift)
+{
+	return ERR_PTR(-ENXIO);
+}
+#endif
+
 struct comedi_8254 *comedi_8254_mm_alloc(void __iomem *mmio,
 					 unsigned int osc_base,
 					 unsigned int iosize,

@@ -122,6 +122,8 @@
 #include <linux/comedi/comedidev.h>
 #include <linux/comedi/comedi_8254.h>
 
+#ifdef CONFIG_HAS_IOPORT
+
 static unsigned int i8254_io8_cb(struct comedi_8254 *i8254, int dir,
 				unsigned int reg, unsigned int val)
 {
@@ -163,6 +165,8 @@ static unsigned int i8254_io32_cb(struct comedi_8254 *i8254, int dir,
 		return inl(iobase + reg_offset);
 	}
 }
+
+#endif	/* CONFIG_HAS_IOPORT */
 
 static unsigned int i8254_mmio8_cb(struct comedi_8254 *i8254, int dir,
 				   unsigned int reg, unsigned int val)
@@ -648,6 +652,8 @@ static struct comedi_8254 *__i8254_init(comedi_8254_iocb_fn *iocb,
 	return i8254;
 }
 
+#ifdef CONFIG_HAS_IOPORT
+
 /**
  * comedi_8254_io_alloc - allocate and initialize the 8254 device for pio access
  * @iobase:	port I/O base address
@@ -681,6 +687,8 @@ struct comedi_8254 *comedi_8254_io_alloc(unsigned long iobase,
 	return __i8254_init(iocb, iobase, osc_base, iosize, regshift);
 }
 EXPORT_SYMBOL_GPL(comedi_8254_io_alloc);
+
+#endif	/* CONFIG_HAS_IOPORT */
 
 /**
  * comedi_8254_mm_alloc - allocate and initialize the 8254 device for mmio access
