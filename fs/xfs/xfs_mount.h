@@ -60,6 +60,7 @@ struct xfs_error_cfg {
  * Per-cpu deferred inode inactivation GC lists.
  */
 struct xfs_inodegc {
+	struct xfs_mount	*mp;
 	struct llist_head	list;
 	struct delayed_work	work;
 	int			error;
@@ -67,9 +68,7 @@ struct xfs_inodegc {
 	/* approximate count of inodes in the list */
 	unsigned int		items;
 	unsigned int		shrinker_hits;
-#if defined(DEBUG) || defined(XFS_WARN)
 	unsigned int		cpu;
-#endif
 };
 
 /*
@@ -98,7 +97,6 @@ typedef struct xfs_mount {
 	xfs_buftarg_t		*m_ddev_targp;	/* saves taking the address */
 	xfs_buftarg_t		*m_logdev_targp;/* ptr to log device */
 	xfs_buftarg_t		*m_rtdev_targp;	/* ptr to rt device */
-	struct list_head	m_mount_list;	/* global mount list */
 	void __percpu		*m_inodegc;	/* percpu inodegc structures */
 
 	/*
@@ -249,6 +247,9 @@ typedef struct xfs_mount {
 	unsigned int		*m_errortag;
 	struct xfs_kobj		m_errortag_kobj;
 #endif
+
+	/* cpus that have inodes queued for inactivation */
+	struct cpumask		m_inodegc_cpumask;
 } xfs_mount_t;
 
 #define M_IGEO(mp)		(&(mp)->m_ino_geo)
