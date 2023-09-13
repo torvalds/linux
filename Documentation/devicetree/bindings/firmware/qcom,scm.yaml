@@ -56,6 +56,7 @@ properties:
           - qcom,scm-sm6125
           - qcom,scm-sm6350
           - qcom,scm-sm6375
+          - qcom,scm-sm7150
           - qcom,scm-sm8150
           - qcom,scm-sm8250
           - qcom,scm-sm8350
