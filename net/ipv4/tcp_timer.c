@@ -394,7 +394,7 @@ static void tcp_probe_timer(struct sock *sk)
 		if (user_timeout &&
 		    (s32)(tcp_jiffies32 - icsk->icsk_probes_tstamp) >=
 		     msecs_to_jiffies(user_timeout))
-		goto abort;
+			goto abort;
 	}
 	max_probes = READ_ONCE(sock_net(sk)->ipv4.sysctl_tcp_retries2);
 	if (sock_flag(sk, SOCK_DEAD)) {
