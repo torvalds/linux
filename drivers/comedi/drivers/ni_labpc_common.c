@@ -78,6 +78,9 @@ static const struct comedi_lrange range_labpc_ao = {
  * functions that do inb/outb and readb/writeb so we can use
  * function pointers to decide which to use
  */
+
+#ifdef CONFIG_HAS_IOPORT
+
 static unsigned int labpc_inb(struct comedi_device *dev, unsigned long reg)
 {
 	return inb(dev->iobase + reg);
@@ -88,6 +91,8 @@ static void labpc_outb(struct comedi_device *dev,
 {
 	outb(byte, dev->iobase + reg);
 }
+
+#endif	/* CONFIG_HAS_IOPORT */
 
 static unsigned int labpc_readb(struct comedi_device *dev, unsigned long reg)
 {
@@ -1200,8 +1205,12 @@ int labpc_common_attach(struct comedi_device *dev,
 		devpriv->read_byte = labpc_readb;
 		devpriv->write_byte = labpc_writeb;
 	} else {
+#ifdef CONFIG_HAS_IOPORT
 		devpriv->read_byte = labpc_inb;
 		devpriv->write_byte = labpc_outb;
+#else
+		return -ENXIO;
+#endif
 	}
 
 	/* initialize board's command registers */
