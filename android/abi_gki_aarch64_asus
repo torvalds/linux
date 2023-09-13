@@ -1,0 +1,8 @@
+[abi_symbol_list]
+# aura sync
+  hid_unregister_driver
+  hid_hw_raw_request
+  hid_open_report
+  hid_hw_start
+  hid_hw_stop
+  __hid_register_driver
