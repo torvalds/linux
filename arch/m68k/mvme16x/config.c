@@ -208,7 +208,6 @@ static void __init mvme16x_init_IRQ (void)
 void mvme16x_cons_write(struct console *co, const char *str, unsigned count)
 {
 	volatile unsigned char *base_addr = (u_char *)CD2401_ADDR;
-	volatile u_char sink;
 	u_char ier;
 	int port;
 	u_char do_lf = 0;
@@ -229,7 +228,7 @@ void mvme16x_cons_write(struct console *co, const char *str, unsigned count)
 		if (in_8(PCCSCCTICR) & 0x20)
 		{
 			/* We have a Tx int. Acknowledge it */
-			sink = in_8(PCCTPIACKR);
+			in_8(PCCTPIACKR);
 			if ((base_addr[CyLICR] >> 2) == port) {
 				if (i == count) {
 					/* Last char of string is now output */
