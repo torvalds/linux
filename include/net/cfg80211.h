@@ -5744,7 +5744,7 @@ void wiphy_delayed_work_cancel(struct wiphy *wiphy,
 			       struct wiphy_delayed_work *dwork);
 
 /**
- * wiphy_delayed work_flush - flush previously queued delayed work
+ * wiphy_delayed_work_flush - flush previously queued delayed work
  * @wiphy: the wiphy, for debug purposes
  * @work: the work to flush
  *
