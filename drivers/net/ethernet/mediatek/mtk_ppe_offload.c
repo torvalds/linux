@@ -214,9 +214,11 @@ mtk_flow_set_output_device(struct mtk_eth *eth, struct mtk_foe_entry *foe,
 	dsa_port = mtk_flow_get_dsa_port(&dev);
 
 	if (dev == eth->netdev[0])
-		pse_port = 1;
+		pse_port = PSE_GDM1_PORT;
 	else if (dev == eth->netdev[1])
-		pse_port = 2;
+		pse_port = PSE_GDM2_PORT;
+	else if (dev == eth->netdev[2])
+		pse_port = PSE_GDM3_PORT;
 	else
 		return -EOPNOTSUPP;
 

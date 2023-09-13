@@ -266,6 +266,8 @@ struct sja1105_private {
 	 * the switch doesn't confuse them with one another.
 	 */
 	struct mutex mgmt_lock;
+	/* Serializes accesses to the FDB */
+	struct mutex fdb_lock;
 	/* PTP two-step TX timestamp ID, and its serialization lock */
 	spinlock_t ts_id_lock;
 	u8 ts_id;
