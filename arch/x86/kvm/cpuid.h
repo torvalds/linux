@@ -279,4 +279,9 @@ static __always_inline bool guest_can_use(struct kvm_vcpu *vcpu,
 			vcpu->arch.governed_features.enabled);
 }
 
+static inline bool kvm_vcpu_is_legal_cr3(struct kvm_vcpu *vcpu, unsigned long cr3)
+{
+	return kvm_vcpu_is_legal_gpa(vcpu, cr3);
+}
+
 #endif
