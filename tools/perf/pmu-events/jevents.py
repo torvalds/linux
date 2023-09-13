@@ -991,7 +991,7 @@ const struct pmu_events_table *perf_pmu__find_events_table(struct perf_pmu *pmu)
                 }
         }
         free(cpuid);
-        if (!pmu)
+        if (!pmu || !table)
                 return table;
 
         for (i = 0; i < table->num_pmus; i++) {
