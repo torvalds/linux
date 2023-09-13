@@ -426,6 +426,8 @@ __blk_mq_alloc_requests_batch(struct blk_mq_alloc_data *data)
 		rq_list_add(data->cached_rq, rq);
 		nr++;
 	}
+	if (!(data->rq_flags & RQF_SCHED_TAGS))
+		blk_mq_add_active_requests(data->hctx, nr);
 	/* caller already holds a reference, add for remainder */
 	percpu_ref_get_many(&data->q->q_usage_counter, nr - 1);
 	data->nr_tags -= nr;
@@ -510,6 +512,8 @@ retry:
 		goto retry;
 	}
 
+	if (!(data->rq_flags & RQF_SCHED_TAGS))
+		blk_mq_inc_active_requests(data->hctx);
 	rq = blk_mq_rq_ctx_init(data, blk_mq_tags_from_data(data), tag);
 	blk_mq_rq_time_init(rq, alloc_time_ns);
 	return rq;
@@ -669,6 +673,8 @@ struct request *blk_mq_alloc_request_hctx(struct request_queue *q,
 	tag = blk_mq_get_tag(&data);
 	if (tag == BLK_MQ_NO_TAG)
 		goto out_queue_exit;
+	if (!(data.rq_flags & RQF_SCHED_TAGS))
+		blk_mq_inc_active_requests(data.hctx);
 	rq = blk_mq_rq_ctx_init(&data, blk_mq_tags_from_data(&data), tag);
 	blk_mq_rq_time_init(rq, alloc_time_ns);
 	rq->__data_len = 0;
@@ -708,11 +714,10 @@ static void __blk_mq_free_request(struct request *rq)
 	blk_pm_mark_last_busy(rq);
 	rq->mq_hctx = NULL;
 
-	if (rq->rq_flags & RQF_MQ_INFLIGHT)
-		__blk_mq_dec_active_requests(hctx);
-
-	if (rq->tag != BLK_MQ_NO_TAG)
+	if (rq->tag != BLK_MQ_NO_TAG) {
+		blk_mq_dec_active_requests(hctx);
 		blk_mq_put_tag(hctx->tags, ctx, rq->tag);
+	}
 	if (sched_tag != BLK_MQ_NO_TAG)
 		blk_mq_put_tag(hctx->sched_tags, ctx, sched_tag);
 	blk_mq_sched_restart(hctx);
@@ -1065,8 +1070,7 @@ static inline void blk_mq_flush_tag_batch(struct blk_mq_hw_ctx *hctx,
 	 * All requests should have been marked as RQF_MQ_INFLIGHT, so
 	 * update hctx->nr_active in batch
 	 */
-	if (hctx->flags & BLK_MQ_F_TAG_QUEUE_SHARED)
-		__blk_mq_sub_active_requests(hctx, nr_tags);
+	blk_mq_sub_active_requests(hctx, nr_tags);
 
 	blk_mq_put_tags(hctx->tags, tag_array, nr_tags);
 	percpu_ref_put_many(&q->q_usage_counter, nr_tags);
@@ -1748,7 +1752,7 @@ struct request *blk_mq_dequeue_from_ctx(struct blk_mq_hw_ctx *hctx,
 	return data.rq;
 }
 
-static bool __blk_mq_alloc_driver_tag(struct request *rq)
+bool __blk_mq_alloc_driver_tag(struct request *rq)
 {
 	struct sbitmap_queue *bt = &rq->mq_hctx->tags->bitmap_tags;
 	unsigned int tag_offset = rq->mq_hctx->tags->nr_reserved_tags;
@@ -1769,20 +1773,7 @@ static bool __blk_mq_alloc_driver_tag(struct request *rq)
 		return false;
 
 	rq->tag = tag + tag_offset;
-	return true;
-}
-
-bool __blk_mq_get_driver_tag(struct blk_mq_hw_ctx *hctx, struct request *rq)
-{
-	if (rq->tag == BLK_MQ_NO_TAG && !__blk_mq_alloc_driver_tag(rq))
-		return false;
-
-	if ((hctx->flags & BLK_MQ_F_TAG_QUEUE_SHARED) &&
-			!(rq->rq_flags & RQF_MQ_INFLIGHT)) {
-		rq->rq_flags |= RQF_MQ_INFLIGHT;
-		__blk_mq_inc_active_requests(hctx);
-	}
-	hctx->tags->rqs[rq->tag] = rq;
+	blk_mq_inc_active_requests(rq->mq_hctx);
 	return true;
 }
 
