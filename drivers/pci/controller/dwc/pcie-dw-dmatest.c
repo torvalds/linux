@@ -3,8 +3,6 @@
  * Copyright (c) 2022 Rockchip Electronics Co., Ltd.
  */
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
 #include <linux/init.h>
 #include <linux/ktime.h>
 #include <linux/module.h>
@@ -14,8 +12,9 @@
 #include <linux/slab.h>
 #include <linux/sched.h>
 #include <linux/kthread.h>
+#include <linux/delay.h>
+#include <linux/dma-mapping.h>
 
-#include "pcie-designware.h"
 #include "pcie-dw-dmatest.h"
 #include "../rockchip-pcie-dma.h"
 
@@ -35,12 +34,12 @@ static unsigned int rw_test = 3;
 module_param(rw_test, uint, 0644);
 MODULE_PARM_DESC(rw_test, "Read/Write test, 1-read 2-write 3-both(default 3)");
 
-static unsigned int bus_addr = 0x3c000000;
-module_param(bus_addr, uint, 0644);
+static unsigned long bus_addr = 0x3c000000;
+module_param(bus_addr, ulong, 0644);
 MODULE_PARM_DESC(bus_addr, "Dmatest chn0 bus_addr(remote), chn1 add offset 0x100000, (default 0x3c000000)");
 
-static unsigned int local_addr = 0x3c000000;
-module_param(local_addr, uint, 0644);
+static unsigned long local_addr = 0x3c000000;
+module_param(local_addr, ulong, 0644);
 MODULE_PARM_DESC(local_addr, "Dmatest chn0 local_addr(local), chn1 add offset 0x100000, (default 0x3c000000)");
 
 static unsigned int test_dev;
@@ -51,7 +50,7 @@ static bool is_rc = true;
 module_param_named(is_rc, is_rc, bool, 0644);
 MODULE_PARM_DESC(is_rc, "Test port is rc(default true)");
 
-#define PCIE_DW_MISC_DMATEST_DEV_MAX 5
+#define PCIE_DW_MISC_DMATEST_DEV_MAX	8
 
 #define PCIE_DMA_CHANEL_MAX_NUM		2
 
@@ -64,6 +63,9 @@ struct pcie_dw_dmatest_dev {
 
 	struct mutex rd_lock[PCIE_DMA_CHANEL_MAX_NUM];	/* Corresponding to each read DMA channel */
 	struct mutex wr_lock[PCIE_DMA_CHANEL_MAX_NUM];	/* Corresponding to each write DMA channel */
+
+	struct dma_table rd_tbl_buf[PCIE_DMA_CHANEL_MAX_NUM];
+	struct dma_table wr_tbl_buf[PCIE_DMA_CHANEL_MAX_NUM];
 };
 
 static struct pcie_dw_dmatest_dev s_dmatest_dev[PCIE_DW_MISC_DMATEST_DEV_MAX];
@@ -83,19 +85,36 @@ static void pcie_dw_dmatest_show(void)
 	dev_info(s_dmatest_dev[test_dev].obj->dev, " is current test_dev\n");
 }
 
-static int rk_pcie_dma_wait_for_finised(struct dma_trx_obj *obj, struct dma_table *table)
+static int rk_pcie_dma_wait_for_finished(struct dma_trx_obj *obj, struct dma_table *table)
 {
-	int ret;
+	int ret = 0, timeout_us, i;
 
-	do {
+	timeout_us = table->buf_size / 100 + 1000; /* 100MB/s for redundant calculate */
+
+	for (i = 0; i < timeout_us; i++) {
 		ret = obj->get_dma_status(obj, table->chn, table->dir);
-	} while (!ret);
+		if (ret == 1) {
+			ret = 0;
+			break;
+		} else if (ret < 0) {
+			ret = -EFAULT;
+			break;
+		}
+		udelay(1);
+	}
+
+	if (i >= timeout_us || ret) {
+		dev_err(obj->dev, "%s timeout\n", __func__);
+		if (obj->dma_debug)
+			obj->dma_debug(obj, table);
+		return -EFAULT;
+	}
 
 	return ret;
 }
 
 static int rk_pcie_ep_dma_frombus(struct pcie_dw_dmatest_dev *dmatest_dev, u32 chn,
-				  u32 local_paddr, u32 bus_paddr, u32 size)
+				  u64 local_paddr, u64 bus_paddr, u32 size)
 {
 	struct dma_table *table;
 	struct dma_trx_obj *obj = dmatest_dev->obj;
@@ -104,11 +123,11 @@ static int rk_pcie_ep_dma_frombus(struct pcie_dw_dmatest_dev *dmatest_dev, u32 c
 	if (chn >= PCIE_DMA_CHANEL_MAX_NUM)
 		return -1;
 
-	table = kzalloc(sizeof(struct dma_table), GFP_KERNEL);
-	if (!table)
-		return -ENOMEM;
-
 	mutex_lock(&dmatest_dev->rd_lock[chn]);
+
+	table = &dmatest_dev->rd_tbl_buf[chn];
+	memset(table, 0, sizeof(struct dma_table));
+
 	if (dmatest_dev->irq_en)
 		reinit_completion(&dmatest_dev->rd_done[chn]);
 
@@ -128,17 +147,15 @@ static int rk_pcie_ep_dma_frombus(struct pcie_dw_dmatest_dev *dmatest_dev, u32 c
 		else if (ret == 0)
 			dev_err(obj->dev, "%s timed out\n", __func__);
 	} else {
-		ret = rk_pcie_dma_wait_for_finised(obj, table);
+		ret = rk_pcie_dma_wait_for_finished(obj, table);
 	}
 	mutex_unlock(&dmatest_dev->rd_lock[chn]);
-
-	kfree(table);
 
 	return ret;
 }
 
 static int rk_pcie_ep_dma_tobus(struct pcie_dw_dmatest_dev *dmatest_dev, u32 chn,
-				u32 bus_paddr, u32 local_paddr, u32 size)
+				u64 bus_paddr, u64 local_paddr, u32 size)
 {
 	struct dma_table *table;
 	struct dma_trx_obj *obj = dmatest_dev->obj;
@@ -147,11 +164,11 @@ static int rk_pcie_ep_dma_tobus(struct pcie_dw_dmatest_dev *dmatest_dev, u32 chn
 	if (chn >= PCIE_DMA_CHANEL_MAX_NUM)
 		return -1;
 
-	table = kzalloc(sizeof(struct dma_table), GFP_KERNEL);
-	if (!table)
-		return -ENOMEM;
-
 	mutex_lock(&dmatest_dev->wr_lock[chn]);
+
+	table = &dmatest_dev->wr_tbl_buf[chn];
+	memset(table, 0, sizeof(struct dma_table));
+
 	if (dmatest_dev->irq_en)
 		reinit_completion(&dmatest_dev->wr_done[chn]);
 
@@ -171,23 +188,21 @@ static int rk_pcie_ep_dma_tobus(struct pcie_dw_dmatest_dev *dmatest_dev, u32 chn
 		else if (ret == 0)
 			dev_err(obj->dev, "%s timed out\n", __func__);
 	} else {
-		ret = rk_pcie_dma_wait_for_finised(obj, table);
+		ret = rk_pcie_dma_wait_for_finished(obj, table);
 	}
 	mutex_unlock(&dmatest_dev->wr_lock[chn]);
-
-	kfree(table);
 
 	return ret;
 }
 
 static int rk_pcie_rc_dma_frombus(struct pcie_dw_dmatest_dev *dmatest_dev, u32 chn,
-				  u32 local_paddr, u32 bus_paddr, u32 size)
+				  u64 local_paddr, u64 bus_paddr, u32 size)
 {
 	return rk_pcie_ep_dma_tobus(dmatest_dev, chn, local_paddr, bus_paddr, size);
 }
 
 static int rk_pcie_rc_dma_tobus(struct pcie_dw_dmatest_dev *dmatest_dev, u32 chn,
-				u32 bus_paddr, u32 local_paddr, u32 size)
+				u64 bus_paddr, u64 local_paddr, u32 size)
 {
 	return rk_pcie_ep_dma_frombus(dmatest_dev, chn, bus_paddr, local_paddr, size);
 }
@@ -237,8 +252,29 @@ struct dma_trx_obj *pcie_dw_dmatest_register(struct device *dev, bool irq_en)
 	return obj;
 }
 
+void pcie_dw_dmatest_unregister(struct dma_trx_obj *obj)
+{
+	cur_dmatest_dev = 0;
+}
+
+int pcie_dw_rc_dma_frombus(struct dma_trx_obj *obj, u32 chn,
+				  u64 local_paddr, u64 bus_paddr, u32 size)
+{
+	struct pcie_dw_dmatest_dev *dmatest_dev = obj->priv;
+
+	return rk_pcie_ep_dma_tobus(dmatest_dev, chn, local_paddr, bus_paddr, size);
+}
+
+int pcie_dw_rc_dma_tobus(struct dma_trx_obj *obj, u32 chn,
+				u64 bus_paddr, u64 local_paddr, u32 size)
+{
+	struct pcie_dw_dmatest_dev *dmatest_dev = obj->priv;
+
+	return rk_pcie_ep_dma_frombus(dmatest_dev, chn, bus_paddr, local_paddr, size);
+}
+
 static int dma_test(struct pcie_dw_dmatest_dev *dmatest_dev, u32 chn,
-		    u32 bus_paddr, u32 local_paddr, u32 size, u32 loop, u8 rd_en, u8 wr_en)
+		    u64 bus_paddr, u64 local_paddr, u32 size, u32 loop, u8 rd_en, u8 wr_en)
 {
 	ktime_t start_time;
 	ktime_t end_time;
