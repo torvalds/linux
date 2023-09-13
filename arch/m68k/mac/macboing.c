@@ -16,6 +16,8 @@
 #include <asm/macintosh.h>
 #include <asm/mac_asc.h>
 
+#include "mac.h"
+
 static int mac_asc_inited;
 /*
  * dumb triangular wave table

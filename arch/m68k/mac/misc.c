@@ -25,6 +25,8 @@
 
 #include <asm/machdep.h>
 
+#include "mac.h"
+
 /*
  * Offset between Unix time (1970-based) and Mac time (1904-based). Cuda and PMU
  * times wrap in 2040. If we need to handle later times, the read_time functions

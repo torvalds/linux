@@ -38,6 +38,8 @@
 #include <asm/mac_psc.h>
 #include <asm/mac_oss.h>
 
+#include "mac.h"
+
 volatile __u8 *via1, *via2;
 int rbv_present;
 int via_alt_mapping;
