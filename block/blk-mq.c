@@ -1066,10 +1066,6 @@ static inline void blk_mq_flush_tag_batch(struct blk_mq_hw_ctx *hctx,
 {
 	struct request_queue *q = hctx->queue;
 
-	/*
-	 * All requests should have been marked as RQF_MQ_INFLIGHT, so
-	 * update hctx->nr_active in batch
-	 */
 	blk_mq_sub_active_requests(hctx, nr_tags);
 
 	blk_mq_put_tags(hctx->tags, tag_array, nr_tags);
