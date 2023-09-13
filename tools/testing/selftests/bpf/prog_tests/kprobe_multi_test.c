@@ -454,7 +454,7 @@ cleanup:
 	}
 }
 
-void test_attach_override(void)
+static void test_attach_override(void)
 {
 	struct kprobe_multi_override *skel = NULL;
 	struct bpf_link *link = NULL;
