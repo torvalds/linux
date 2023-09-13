@@ -430,6 +430,7 @@ struct devlink *devlink_alloc_ns(const struct devlink_ops *ops,
 	xa_init_flags(&devlink->ports, XA_FLAGS_ALLOC);
 	xa_init_flags(&devlink->params, XA_FLAGS_ALLOC);
 	xa_init_flags(&devlink->snapshot_ids, XA_FLAGS_ALLOC);
+	xa_init_flags(&devlink->nested_rels, XA_FLAGS_ALLOC);
 	write_pnet(&devlink->_net, net);
 	INIT_LIST_HEAD(&devlink->rate_list);
 	INIT_LIST_HEAD(&devlink->linecard_list);
@@ -476,6 +477,7 @@ void devlink_free(struct devlink *devlink)
 	WARN_ON(!list_empty(&devlink->linecard_list));
 	WARN_ON(!xa_empty(&devlink->ports));
 
+	xa_destroy(&devlink->nested_rels);
 	xa_destroy(&devlink->snapshot_ids);
 	xa_destroy(&devlink->params);
 	xa_destroy(&devlink->ports);

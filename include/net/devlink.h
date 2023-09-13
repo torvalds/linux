@@ -1921,6 +1921,8 @@ devlink_health_reporter_state_update(struct devlink_health_reporter *reporter,
 void
 devlink_health_reporter_recovery_done(struct devlink_health_reporter *reporter);
 
+int devl_nested_devlink_set(struct devlink *devlink,
+			    struct devlink *nested_devlink);
 bool devlink_is_reload_failed(const struct devlink *devlink);
 void devlink_remote_reload_actions_performed(struct devlink *devlink,
 					     enum devlink_reload_limit limit,
