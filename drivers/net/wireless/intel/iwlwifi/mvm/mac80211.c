@@ -498,7 +498,7 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 		ARRAY_SIZE(iwl_mvm_iface_combinations);
 
 	hw->wiphy->max_remain_on_channel_duration = 10000;
-	hw->max_listen_interval = IWL_CONN_MAX_LISTEN_INTERVAL;
+	hw->max_listen_interval = IWL_MVM_CONN_LISTEN_INTERVAL;
 
 	/* Extract MAC address */
 	memcpy(mvm->addresses[0].addr, mvm->nvm_data->hw_addr, ETH_ALEN);
