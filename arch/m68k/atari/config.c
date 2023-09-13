@@ -880,7 +880,7 @@ static const struct resource atari_falconide_rsrc[] __initconst = {
 	DEFINE_RES_MEM(FALCON_IDE_BASE + 0x38, 2),
 };
 
-int __init atari_platform_init(void)
+static int __init atari_platform_init(void)
 {
 	struct platform_device *pdev;
 	int rv = 0;
