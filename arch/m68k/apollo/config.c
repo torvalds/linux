@@ -29,7 +29,7 @@ u_long apollo_model;
 extern void dn_sched_init(void);
 extern void dn_init_IRQ(void);
 extern int dn_dummy_hwclk(int, struct rtc_time *);
-extern void dn_dummy_reset(void);
+static void dn_dummy_reset(void);
 #ifdef CONFIG_HEARTBEAT
 static void dn_heartbeat(int on);
 #endif
@@ -107,7 +107,7 @@ static void __init dn_setup_model(void)
 
 }
 
-void dn_serial_print (const char *str)
+static void dn_serial_print(const char *str)
 {
     while (*str) {
         if (*str == '\n') {
@@ -207,8 +207,8 @@ int dn_dummy_hwclk(int op, struct rtc_time *t) {
 
 }
 
-void dn_dummy_reset(void) {
-
+static void dn_dummy_reset(void)
+{
   dn_serial_print("The end !\n");
 
   for(;;);
