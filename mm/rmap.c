@@ -1135,9 +1135,6 @@ static void __folio_set_anon(struct folio *folio, struct vm_area_struct *vma,
 
 	BUG_ON(!anon_vma);
 
-	if (folio_test_anon(folio))
-		return;
-
 	/*
 	 * If the folio isn't exclusive to this vma, we must use the _oldest_
 	 * possible anon_vma for the folio mapping!
@@ -1239,12 +1236,12 @@ void page_add_anon_rmap(struct page *page, struct vm_area_struct *vma,
 	if (nr)
 		__lruvec_stat_mod_folio(folio, NR_ANON_MAPPED, nr);
 
-	if (likely(!folio_test_ksm(folio))) {
-		if (first)
-			__folio_set_anon(folio, vma, address,
-					 !!(flags & RMAP_EXCLUSIVE));
-		else
-			__page_check_anon_rmap(folio, page, vma, address);
+	if (unlikely(!folio_test_anon(folio))) {
+		VM_WARN_ON_FOLIO(!folio_test_locked(folio), folio);
+		__folio_set_anon(folio, vma, address,
+				 !!(flags & RMAP_EXCLUSIVE));
+	} else if (likely(!folio_test_ksm(folio))) {
+		__page_check_anon_rmap(folio, page, vma, address);
 	}
 	if (flags & RMAP_EXCLUSIVE)
 		SetPageAnonExclusive(page);
@@ -2541,17 +2538,13 @@ void hugepage_add_anon_rmap(struct page *page, struct vm_area_struct *vma,
 			    unsigned long address, rmap_t flags)
 {
 	struct folio *folio = page_folio(page);
-	struct anon_vma *anon_vma = vma->anon_vma;
 	int first;
 
-	BUG_ON(!folio_test_locked(folio));
-	BUG_ON(!anon_vma);
+	VM_WARN_ON_FOLIO(!folio_test_anon(folio), folio);
+
 	first = atomic_inc_and_test(&folio->_entire_mapcount);
 	VM_BUG_ON_PAGE(!first && (flags & RMAP_EXCLUSIVE), page);
 	VM_BUG_ON_PAGE(!first && PageAnonExclusive(page), page);
-	if (first)
-		__folio_set_anon(folio, vma, address,
-				 !!(flags & RMAP_EXCLUSIVE));
 	if (flags & RMAP_EXCLUSIVE)
 		SetPageAnonExclusive(page);
 }
