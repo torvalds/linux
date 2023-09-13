@@ -1246,7 +1246,7 @@ static int bch2_gc_done(struct bch_fs *c,
 			copy_dev_field(d[i].sectors,	"%s sectors", bch2_data_types[i]);
 			copy_dev_field(d[i].fragmented,	"%s fragmented", bch2_data_types[i]);
 		}
-	};
+	}
 
 	{
 		unsigned nr = fs_usage_u64s(c);
@@ -1518,7 +1518,7 @@ static int bch2_gc_alloc_start(struct bch_fs *c, bool metadata_only)
 		buckets->first_bucket	= ca->mi.first_bucket;
 		buckets->nbuckets	= ca->mi.nbuckets;
 		rcu_assign_pointer(ca->buckets_gc, buckets);
-	};
+	}
 
 	bch2_trans_init(&trans, c, 0, 0);
 
@@ -1572,7 +1572,7 @@ static void bch2_gc_alloc_reset(struct bch_fs *c, bool metadata_only)
 			g->dirty_sectors = 0;
 			g->cached_sectors = 0;
 		}
-	};
+	}
 }
 
 static int bch2_gc_write_reflink_key(struct btree_trans *trans,

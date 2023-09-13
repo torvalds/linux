@@ -43,7 +43,7 @@ static void bch2_sb_counters_to_text(struct printbuf *out, struct bch_sb *sb,
 		prt_tab(out);
 		prt_printf(out, "%llu", le64_to_cpu(ctrs->d[i]));
 		prt_newline(out);
-	};
+	}
 };
 
 int bch2_sb_counters_to_cpu(struct bch_fs *c)
