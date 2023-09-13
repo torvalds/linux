@@ -56,10 +56,9 @@ void nfprint(const char *fmt, ...)
 {
 	static char buf[256];
 	va_list ap;
-	int n;
 
 	va_start(ap, fmt);
-	n = vsnprintf(buf, 256, fmt, ap);
+	vsnprintf(buf, 256, fmt, ap);
 	nf_call(nf_get_id("NF_STDERR"), virt_to_phys(buf));
 	va_end(ap);
 }
