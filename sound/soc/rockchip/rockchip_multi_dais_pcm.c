@@ -685,6 +685,9 @@ int snd_dmaengine_mpcm_register(struct rk_mdais_dev *mdais)
 	if (!pcm)
 		return -ENOMEM;
 
+#ifdef CONFIG_DEBUG_FS
+	pcm->component.debugfs_prefix = "dma";
+#endif
 	pcm->mdais = mdais;
 	for (i = 0; i < num; i++) {
 		child = mdais->dais[i].dev;
