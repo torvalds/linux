@@ -23,15 +23,6 @@ static int mac_asc_inited;
 static __u8 mac_asc_wave_tab[ 0x800 ];
 
 /*
- * Alan's original sine table; needs interpolating to 0x800
- * (hint: interpolate or hardwire [0 -> Pi/2[, it's symmetric)
- */
-static const signed char sine_data[] = {
-	0,  39,  75,  103,  121,  127,  121,  103,  75,  39,
-	0, -39, -75, -103, -121, -127, -121, -103, -75, -39
-};
-
-/*
  * where the ASC hides ...
  */
 static volatile __u8* mac_asc_regs = ( void* )0x50F14000;
