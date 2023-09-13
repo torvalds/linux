@@ -27,7 +27,7 @@ volatile char *clock_va;
 
 extern void sun3_get_model(char *model);
 
-void sun3_leds(unsigned int i)
+void sun3_leds(unsigned char byte)
 {
 
 }
