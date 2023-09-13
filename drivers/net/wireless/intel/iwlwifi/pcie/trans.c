@@ -2288,6 +2288,8 @@ out:
 static int iwl_trans_pcie_read_mem(struct iwl_trans *trans, u32 addr,
 				   void *buf, int dwords)
 {
+#define IWL_MAX_HW_ERRS 5
+	unsigned int num_consec_hw_errors = 0;
 	int offs = 0;
 	u32 *vals = buf;
 
@@ -2303,6 +2305,17 @@ static int iwl_trans_pcie_read_mem(struct iwl_trans *trans, u32 addr,
 			while (offs < dwords) {
 				vals[offs] = iwl_read32(trans,
 							HBUS_TARG_MEM_RDAT);
+
+				if (iwl_trans_is_hw_error_value(vals[offs]))
+					num_consec_hw_errors++;
+				else
+					num_consec_hw_errors = 0;
+
+				if (num_consec_hw_errors >= IWL_MAX_HW_ERRS) {
+					iwl_trans_release_nic_access(trans);
+					return -EIO;
+				}
+
 				offs++;
 
 				if (time_after(jiffies, end)) {
