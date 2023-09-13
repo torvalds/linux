@@ -199,7 +199,7 @@ static const struct resource sun3_scsi_rsrc[] __initconst = {
 	},
 };
 
-int __init sun3_platform_init(void)
+static int __init sun3_platform_init(void)
 {
 	switch (idprom->id_machtype) {
 	case SM_SUN3 | SM_3_160:
