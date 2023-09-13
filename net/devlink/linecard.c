@@ -114,7 +114,8 @@ static int devlink_nl_linecard_fill(struct sk_buff *msg,
 
 	if (linecard->nested_devlink &&
 	    devlink_nl_put_nested_handle(msg, devlink_net(devlink),
-					 linecard->nested_devlink))
+					 linecard->nested_devlink,
+					 DEVLINK_ATTR_NESTED_DEVLINK))
 		goto nla_put_failure;
 
 	genlmsg_end(msg, hdr);

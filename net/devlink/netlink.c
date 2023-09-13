@@ -83,11 +83,11 @@ static const struct nla_policy devlink_nl_policy[DEVLINK_ATTR_MAX + 1] = {
 };
 
 int devlink_nl_put_nested_handle(struct sk_buff *msg, struct net *net,
-				 struct devlink *devlink)
+				 struct devlink *devlink, int attrtype)
 {
 	struct nlattr *nested_attr;
 
-	nested_attr = nla_nest_start(msg, DEVLINK_ATTR_NESTED_DEVLINK);
+	nested_attr = nla_nest_start(msg, attrtype);
 	if (!nested_attr)
 		return -EMSGSIZE;
 	if (devlink_nl_put_handle(msg, devlink))
