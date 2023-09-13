@@ -71,6 +71,7 @@
 
 /* JEDEC-assigned JEP106 identification code */
 #define ARM_CSPMU_IMPL_ID_NVIDIA	0x36B
+#define ARM_CSPMU_IMPL_ID_AMPERE	0xA16
 
 struct arm_cspmu;
 

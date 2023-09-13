@@ -383,6 +383,14 @@ static struct arm_cspmu_impl_match impl_match[] = {
 		.module		= NULL,
 		.impl_init_ops	= NULL,
 	},
+	{
+		.module_name	= "ampere_cspmu",
+		.pmiidr_val	= ARM_CSPMU_IMPL_ID_AMPERE,
+		.pmiidr_mask	= ARM_CSPMU_PMIIDR_IMPLEMENTER,
+		.module		= NULL,
+		.impl_init_ops	= NULL,
+	},
+
 	{0}
 };
 

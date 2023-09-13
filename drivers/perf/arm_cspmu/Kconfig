@@ -17,3 +17,13 @@ config NVIDIA_CORESIGHT_PMU_ARCH_SYSTEM_PMU
 	help
 	  Provides NVIDIA specific attributes for performance monitoring unit
 	  (PMU) devices based on ARM CoreSight PMU architecture.
+
+config AMPERE_CORESIGHT_PMU_ARCH_SYSTEM_PMU
+       tristate "Ampere Coresight Architecture PMU"
+       depends on  ARM_CORESIGHT_PMU_ARCH_SYSTEM_PMU
+	help
+	  Provides Ampere specific attributes for performance monitoring unit
+	  (PMU) devices based on ARM CoreSight PMU architecture.
+
+	  In the first phase, the driver enables support on MCU PMU used in
+	  AmpereOne SoC family.
