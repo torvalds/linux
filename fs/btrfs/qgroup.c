@@ -146,16 +146,6 @@ struct btrfs_qgroup_list {
 	struct btrfs_qgroup *member;
 };
 
-static inline u64 qgroup_to_aux(struct btrfs_qgroup *qg)
-{
-	return (u64)(uintptr_t)qg;
-}
-
-static inline struct btrfs_qgroup* unode_aux_to_qgroup(struct ulist_node *n)
-{
-	return (struct btrfs_qgroup *)(uintptr_t)n->aux;
-}
-
 static int
 qgroup_rescan_init(struct btrfs_fs_info *fs_info, u64 progress_objectid,
 		   int init_flags);
