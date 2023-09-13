@@ -23,7 +23,9 @@
 #define MAX_CPUS  4096
 
 // FIXME: These should come from system headers
+#ifndef bool
 typedef char bool;
+#endif
 typedef int pid_t;
 typedef long long int __s64;
 typedef __s64 time64_t;
