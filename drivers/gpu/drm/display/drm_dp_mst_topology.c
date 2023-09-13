@@ -3332,8 +3332,8 @@ int drm_dp_add_payload_part1(struct drm_dp_mst_topology_mgr *mgr,
 
 	ret = drm_dp_create_payload_at_dfp(mgr, payload);
 	if (ret < 0) {
-		drm_warn(mgr->dev, "Failed to create MST payload for port %p: %d\n",
-			 payload->port, ret);
+		drm_dbg_kms(mgr->dev, "Failed to create MST payload for port %p: %d\n",
+			    payload->port, ret);
 		goto put_port;
 	}
 
