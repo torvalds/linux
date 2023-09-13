@@ -276,6 +276,10 @@ static __always_inline bool guest_can_use(struct kvm_vcpu *vcpu,
 
 static inline bool kvm_vcpu_is_legal_cr3(struct kvm_vcpu *vcpu, unsigned long cr3)
 {
+	if (kvm_cpu_cap_has(X86_FEATURE_LAM) &&
+	    guest_cpuid_has(vcpu, X86_FEATURE_LAM))
+		cr3 &= ~(X86_CR3_LAM_U48 | X86_CR3_LAM_U57);
+
 	return kvm_vcpu_is_legal_gpa(vcpu, cr3);
 }
 

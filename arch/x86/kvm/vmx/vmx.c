@@ -3400,7 +3400,8 @@ static void vmx_load_mmu_pgd(struct kvm_vcpu *vcpu, hpa_t root_hpa,
 			update_guest_cr3 = false;
 		vmx_ept_load_pdptrs(vcpu);
 	} else {
-		guest_cr3 = root_hpa | kvm_get_active_pcid(vcpu);
+		guest_cr3 = root_hpa | kvm_get_active_pcid(vcpu) |
+			    kvm_get_active_cr3_lam_bits(vcpu);
 	}
 
 	if (update_guest_cr3)
@@ -8218,6 +8219,7 @@ static void vmx_vm_destroy(struct kvm *kvm)
 gva_t vmx_get_untagged_addr(struct kvm_vcpu *vcpu, gva_t gva, unsigned int flags)
 {
 	int lam_bit;
+	unsigned long cr3_bits;
 
 	if (flags & (X86EMUL_F_FETCH | X86EMUL_F_IMPLICIT | X86EMUL_F_INVLPG))
 		return gva;
@@ -8230,8 +8232,12 @@ gva_t vmx_get_untagged_addr(struct kvm_vcpu *vcpu, gva_t gva, unsigned int flags
 	 * or a supervisor address.
 	 */
 	if (!(gva & BIT_ULL(63))) {
-		/* KVM doesn't yet virtualize LAM_U{48,57}. */
-		return gva;
+		cr3_bits = kvm_get_active_cr3_lam_bits(vcpu);
+		if (!(cr3_bits & (X86_CR3_LAM_U57 | X86_CR3_LAM_U48)))
+			return gva;
+
+		/* LAM_U48 is ignored if LAM_U57 is set. */
+		lam_bit = cr3_bits & X86_CR3_LAM_U57 ? 56 : 47;
 	} else {
 		if (!kvm_is_cr4_bit_set(vcpu, X86_CR4_LAM_SUP))
 			return gva;
