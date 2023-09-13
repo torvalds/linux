@@ -491,6 +491,13 @@ static int check_obj_size(struct bpf_mem_cache *c, unsigned int idx)
 	struct llist_node *first;
 	unsigned int obj_size;
 
+	/* For per-cpu allocator, the size of free objects in free list doesn't
+	 * match with unit_size and now there is no way to get the size of
+	 * per-cpu pointer saved in free object, so just skip the checking.
+	 */
+	if (c->percpu_size)
+		return 0;
+
 	first = c->free_llist.first;
 	if (!first)
 		return 0;
