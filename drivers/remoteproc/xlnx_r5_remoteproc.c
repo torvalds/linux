@@ -75,11 +75,19 @@ struct mbox_info {
  * Hardcoded TCM bank values. This will be removed once TCM bindings are
  * accepted for system-dt specifications and upstreamed in linux kernel
  */
-static const struct mem_bank_data zynqmp_tcm_banks[] = {
+static const struct mem_bank_data zynqmp_tcm_banks_split[] = {
 	{0xffe00000UL, 0x10000UL, PD_R5_0_ATCM, "atcm0"}, /* TCM 64KB each */
 	{0xffe20000UL, 0x10000UL, PD_R5_0_BTCM, "btcm0"},
 	{0xffe90000UL, 0x10000UL, PD_R5_1_ATCM, "atcm1"},
 	{0xffeb0000UL, 0x10000UL, PD_R5_1_BTCM, "btcm1"},
+};
+
+/* In lockstep mode cluster combines each 64KB TCM and makes 128KB TCM */
+static const struct mem_bank_data zynqmp_tcm_banks_lockstep[] = {
+	{0xffe00000UL, 0x20000UL, PD_R5_0_ATCM, "atcm0"}, /* TCM 128KB each */
+	{0xffe20000UL, 0x20000UL, PD_R5_0_BTCM, "btcm0"},
+	{0, 0, PD_R5_1_ATCM, ""},
+	{0, 0, PD_R5_1_BTCM, ""},
 };
 
 /**
@@ -650,14 +658,11 @@ static int add_tcm_carveout_lockstep_mode(struct rproc *rproc)
 	/*
 	 * In lockstep mode, TCM is contiguous memory block
 	 * However, each TCM block still needs to be enabled individually.
-	 * So, Enable each TCM block individually, but add their size
-	 * to create contiguous memory region.
+	 * So, Enable each TCM block individually.
+	 * Although ATCM and BTCM is contiguous memory block, add two separate
+	 * carveouts for both.
 	 */
-	bank_addr = r5_core->tcm_banks[0]->addr;
-	bank_name = r5_core->tcm_banks[0]->bank_name;
-
 	for (i = 0; i < num_banks; i++) {
-		bank_size += r5_core->tcm_banks[i]->size;
 		pm_domain_id = r5_core->tcm_banks[i]->pm_domain_id;
 
 		/* Turn on each TCM bank individually */
@@ -668,23 +673,31 @@ static int add_tcm_carveout_lockstep_mode(struct rproc *rproc)
 			dev_err(dev, "failed to turn on TCM 0x%x", pm_domain_id);
 			goto release_tcm_lockstep;
 		}
+
+		bank_size = r5_core->tcm_banks[i]->size;
+		if (bank_size == 0)
+			continue;
+
+		bank_addr = r5_core->tcm_banks[i]->addr;
+		bank_name = r5_core->tcm_banks[i]->bank_name;
+
+		/* Register TCM address range, TCM map and unmap functions */
+		rproc_mem = rproc_mem_entry_init(dev, NULL, bank_addr,
+						 bank_size, bank_addr,
+						 tcm_mem_map, tcm_mem_unmap,
+						 bank_name);
+		if (!rproc_mem) {
+			ret = -ENOMEM;
+			zynqmp_pm_release_node(pm_domain_id);
+			goto release_tcm_lockstep;
+		}
+
+		/* If registration is success, add carveouts */
+		rproc_add_carveout(rproc, rproc_mem);
+
+		dev_dbg(dev, "TCM add carveout lockstep mode %s addr=0x%llx, size=0x%lx",
+			bank_name, bank_addr, bank_size);
 	}
-
-	dev_dbg(dev, "TCM add carveout lockstep mode %s addr=0x%llx, size=0x%lx",
-		bank_name, bank_addr, bank_size);
-
-	/* Register TCM address range, TCM map and unmap functions */
-	rproc_mem = rproc_mem_entry_init(dev, NULL, bank_addr,
-					 bank_size, bank_addr,
-					 tcm_mem_map, tcm_mem_unmap,
-					 bank_name);
-	if (!rproc_mem) {
-		ret = -ENOMEM;
-		goto release_tcm_lockstep;
-	}
-
-	/* If registration is success, add carveouts */
-	rproc_add_carveout(rproc, rproc_mem);
 
 	return 0;
 
@@ -895,12 +908,19 @@ free_rproc:
  */
 static int zynqmp_r5_get_tcm_node(struct zynqmp_r5_cluster *cluster)
 {
+	const struct mem_bank_data *zynqmp_tcm_banks;
 	struct device *dev = cluster->dev;
 	struct zynqmp_r5_core *r5_core;
 	int tcm_bank_count, tcm_node;
 	int i, j;
 
-	tcm_bank_count = ARRAY_SIZE(zynqmp_tcm_banks);
+	if (cluster->mode == SPLIT_MODE) {
+		zynqmp_tcm_banks = zynqmp_tcm_banks_split;
+		tcm_bank_count = ARRAY_SIZE(zynqmp_tcm_banks_split);
+	} else {
+		zynqmp_tcm_banks = zynqmp_tcm_banks_lockstep;
+		tcm_bank_count = ARRAY_SIZE(zynqmp_tcm_banks_lockstep);
+	}
 
 	/* count per core tcm banks */
 	tcm_bank_count = tcm_bank_count / cluster->core_count;
