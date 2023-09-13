@@ -148,8 +148,7 @@ static inline unsigned long kvm_get_active_pcid(struct kvm_vcpu *vcpu)
 
 static inline unsigned long kvm_get_active_cr3_lam_bits(struct kvm_vcpu *vcpu)
 {
-	if (!kvm_cpu_cap_has(X86_FEATURE_LAM) ||
-	    !guest_cpuid_has(vcpu, X86_FEATURE_LAM))
+	if (!guest_can_use(vcpu, X86_FEATURE_LAM))
 		return 0;
 
 	return kvm_read_cr3(vcpu) & (X86_CR3_LAM_U48 | X86_CR3_LAM_U57);
