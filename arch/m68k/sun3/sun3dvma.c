@@ -193,9 +193,7 @@ static inline int free_baddr(unsigned long baddr)
 	unsigned long len;
 	struct hole *hole;
 	struct list_head *cur;
-	unsigned long orig_baddr;
 
-	orig_baddr = baddr;
 	len = dvma_entry_use(baddr);
 	dvma_entry_use(baddr) = 0;
 	baddr &= DVMA_PAGE_MASK;
