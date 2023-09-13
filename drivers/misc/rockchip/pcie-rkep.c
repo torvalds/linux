@@ -19,10 +19,15 @@
 #include <linux/mutex.h>
 #include <linux/ctype.h>
 #include <linux/of.h>
+#include <linux/interrupt.h>
+
 #include <uapi/linux/rk-pcie-ep.h>
 
 #include "../../pci/controller/rockchip-pcie-dma.h"
 #include "../../pci/controller/dwc/pcie-dw-dmatest.h"
+#if IS_MODULE(CONFIG_PCIE_FUNC_RKEP) && IS_ENABLED(CONFIG_PCIE_DW_DMATEST)
+#include "../../pci/controller/dwc/pcie-dw-dmatest.c"
+#endif
 
 #define DRV_NAME "pcie-rkep"
 
@@ -56,6 +61,7 @@ static DEFINE_MUTEX(rkep_mutex);
 #define PCIE_DMA_WR_INT_STATUS		0x4c
 #define PCIE_DMA_WR_INT_MASK		0x54
 #define PCIE_DMA_WR_INT_CLEAR		0x58
+#define PCIE_DMA_WR_ERR_STATUS		0x5c
 
 #define PCIE_DMA_RD_ENB			0x2c
 #define PCIE_DMA_RD_CTRL_LO		0x300
@@ -71,6 +77,8 @@ static DEFINE_MUTEX(rkep_mutex);
 #define PCIE_DMA_RD_INT_STATUS		0xa0
 #define PCIE_DMA_RD_INT_MASK		0xa8
 #define PCIE_DMA_RD_INT_CLEAR		0xac
+#define PCIE_DMA_RD_ERR_STATUS_LOW	0xb8
+#define PCIE_DMA_RD_ERR_STATUS_HIGH	0xbc
 
 #define PCIE_DMA_CHANEL_MAX_NUM		2
 
@@ -102,6 +110,18 @@ struct pcie_rkep {
 	struct page *user_pages; /* Allocated physical memory for user space */
 	struct fasync_struct *async;
 };
+
+static int rkep_ep_dma_xfer(struct pcie_rkep *pcie_rkep, struct pcie_ep_dma_block_req *dma)
+{
+	int ret;
+
+	if (dma->wr)
+		ret = pcie_dw_rc_dma_tobus(pcie_rkep->dma_obj, dma->chn, dma->block.bus_paddr, dma->block.local_paddr, dma->block.size);
+	else
+		ret = pcie_dw_rc_dma_frombus(pcie_rkep->dma_obj, dma->chn, dma->block.local_paddr, dma->block.bus_paddr, dma->block.size);
+
+	return ret;
+}
 
 static int pcie_rkep_fasync(int fd, struct file *file, int mode)
 {
@@ -245,6 +265,7 @@ static long pcie_rkep_ioctl(struct file *file, unsigned int cmd, unsigned long a
 	struct miscdevice *miscdev = file->private_data;
 	struct pcie_rkep *pcie_rkep = container_of(miscdev, struct pcie_rkep, dev);
 	struct pcie_ep_dma_cache_cfg cfg;
+	struct pcie_ep_dma_block_req dma;
 	void __user *uarg = (void __user *)args;
 	int ret;
 	u64 addr;
@@ -265,7 +286,8 @@ static long pcie_rkep_ioctl(struct file *file, unsigned int cmd, unsigned long a
 	case PCIE_DMA_CACHE_INVALIDE:
 		ret = copy_from_user(&cfg, uarg, sizeof(cfg));
 		if (ret) {
-			dev_err(&pcie_rkep->pdev->dev, "failed to get copy from\n");
+			dev_err(&pcie_rkep->pdev->dev,
+				"failed to get invalid cfg copy from userspace\n");
 			return -EFAULT;
 		}
 		dma_sync_single_for_cpu(&pcie_rkep->pdev->dev, cfg.addr, cfg.size, DMA_FROM_DEVICE);
@@ -273,12 +295,24 @@ static long pcie_rkep_ioctl(struct file *file, unsigned int cmd, unsigned long a
 	case PCIE_DMA_CACHE_FLUSH:
 		ret = copy_from_user(&cfg, uarg, sizeof(cfg));
 		if (ret) {
-			dev_err(&pcie_rkep->pdev->dev, "failed to get copy from\n");
+			dev_err(&pcie_rkep->pdev->dev,
+				"failed to get flush cfg copy from userspace\n");
 			return -EFAULT;
 		}
 		dma_sync_single_for_device(&pcie_rkep->pdev->dev, cfg.addr, cfg.size,
 					   DMA_TO_DEVICE);
 		break;
+	case PCIE_EP_DMA_XFER_BLOCK:
+		ret = copy_from_user(&dma, uarg, sizeof(dma));
+		if (ret) {
+			dev_err(&pcie_rkep->pdev->dev, "failed to get dma_data copy from userspace\n");
+			return -EFAULT;
+		}
+		ret = rkep_ep_dma_xfer(pcie_rkep, &dma);
+		if (ret) {
+			dev_err(&pcie_rkep->pdev->dev, "failed to transfer dma, ret=%d\n", ret);
+			return -EFAULT;
+		}
 	default:
 		break;
 	}
@@ -308,6 +342,48 @@ static inline u32 pcie_rkep_readl_dbi(struct pcie_rkep *pcie_rkep, u32 reg)
 	return readl(pcie_rkep->bar4 + reg);
 }
 
+static void pcie_rkep_dma_debug(struct dma_trx_obj *obj, struct dma_table *table)
+{
+	struct pci_dev *pdev = container_of(obj->dev, struct pci_dev, dev);
+	struct pcie_rkep *pcie_rkep = pci_get_drvdata(pdev);
+	unsigned int ctr_off = table->chn * 0x200;
+
+	dev_err(&pdev->dev, "chnl=%x\n", table->start.chnl);
+	dev_err(&pdev->dev, "%s\n", table->dir == DMA_FROM_BUS ? "udma read" : "udma write");
+	dev_err(&pdev->dev, "src=0x%x %x\n", table->ctx_reg.sarptrhi, table->ctx_reg.sarptrlo);
+	dev_err(&pdev->dev, "dst=0x%x %x\n", table->ctx_reg.darptrhi, table->ctx_reg.darptrlo);
+	dev_err(&pdev->dev, "xfersize=%x\n", table->ctx_reg.xfersize);
+
+	if (table->dir == DMA_FROM_BUS) {
+		dev_err(&pdev->dev, "reg[0x%x] PCIE_DMA_RD_INT_MASK = %x\n", PCIE_DMA_RD_INT_MASK, pcie_rkep_readl_dbi(pcie_rkep, PCIE_DMA_OFFSET + PCIE_DMA_RD_INT_MASK));
+		dev_err(&pdev->dev, "reg[0x%x] PCIE_DMA_RD_ENB = %x\n", PCIE_DMA_RD_ENB, pcie_rkep_readl_dbi(pcie_rkep, PCIE_DMA_OFFSET + PCIE_DMA_RD_ENB));
+		dev_err(&pdev->dev, "reg[0x%x] PCIE_DMA_RD_CTRL_LO = %x\n", ctr_off + PCIE_DMA_RD_CTRL_LO, pcie_rkep_readl_dbi(pcie_rkep, PCIE_DMA_OFFSET + ctr_off + PCIE_DMA_RD_CTRL_LO));
+		dev_err(&pdev->dev, "reg[0x%x] PCIE_DMA_RD_CTRL_HI = %x\n", ctr_off + PCIE_DMA_RD_CTRL_HI,  pcie_rkep_readl_dbi(pcie_rkep, PCIE_DMA_OFFSET + ctr_off + PCIE_DMA_RD_CTRL_HI));
+		dev_err(&pdev->dev, "reg[0x%x] PCIE_DMA_RD_XFERSIZE = %x\n", ctr_off + PCIE_DMA_RD_XFERSIZE,  pcie_rkep_readl_dbi(pcie_rkep, PCIE_DMA_OFFSET + ctr_off + PCIE_DMA_RD_XFERSIZE));
+		dev_err(&pdev->dev, "reg[0x%x] PCIE_DMA_RD_SAR_PTR_LO = %x\n", ctr_off + PCIE_DMA_RD_SAR_PTR_LO,  pcie_rkep_readl_dbi(pcie_rkep, PCIE_DMA_OFFSET + ctr_off + PCIE_DMA_RD_SAR_PTR_LO));
+		dev_err(&pdev->dev, "reg[0x%x] PCIE_DMA_RD_SAR_PTR_HI = %x\n", ctr_off + PCIE_DMA_RD_SAR_PTR_HI,  pcie_rkep_readl_dbi(pcie_rkep, PCIE_DMA_OFFSET + ctr_off + PCIE_DMA_RD_SAR_PTR_HI));
+		dev_err(&pdev->dev, "reg[0x%x] PCIE_DMA_RD_DAR_PTR_LO = %x\n", ctr_off + PCIE_DMA_RD_DAR_PTR_LO,  pcie_rkep_readl_dbi(pcie_rkep, PCIE_DMA_OFFSET + ctr_off + PCIE_DMA_RD_DAR_PTR_LO));
+		dev_err(&pdev->dev, "reg[0x%x] PCIE_DMA_RD_DAR_PTR_HI = %x\n", ctr_off + PCIE_DMA_RD_DAR_PTR_HI,  pcie_rkep_readl_dbi(pcie_rkep, PCIE_DMA_OFFSET + ctr_off + PCIE_DMA_RD_DAR_PTR_HI));
+		dev_err(&pdev->dev, "reg[0x%x] PCIE_DMA_RD_DOORBELL = %x\n", PCIE_DMA_RD_DOORBELL, pcie_rkep_readl_dbi(pcie_rkep, PCIE_DMA_OFFSET + PCIE_DMA_RD_DOORBELL));
+		dev_err(&pdev->dev, "reg[0x%x] PCIE_DMA_RD_INT_STATUS = %x\n", PCIE_DMA_RD_INT_STATUS, pcie_rkep_readl_dbi(pcie_rkep, PCIE_DMA_OFFSET + PCIE_DMA_RD_INT_STATUS));
+		dev_err(&pdev->dev, "reg[0x%x] PCIE_DMA_RD_ERR_STATUS_LOW = %x\n", PCIE_DMA_RD_ERR_STATUS_LOW, pcie_rkep_readl_dbi(pcie_rkep, PCIE_DMA_OFFSET + PCIE_DMA_RD_ERR_STATUS_LOW));
+		dev_err(&pdev->dev, "reg[0x%x] PCIE_DMA_RD_ERR_STATUS_HIGH = %x\n", PCIE_DMA_RD_ERR_STATUS_HIGH, pcie_rkep_readl_dbi(pcie_rkep, PCIE_DMA_OFFSET + PCIE_DMA_RD_ERR_STATUS_HIGH));
+	} else {
+		dev_err(&pdev->dev, "reg[0x%x] PCIE_DMA_WR_INT_MASK = %x\n", PCIE_DMA_WR_INT_MASK, pcie_rkep_readl_dbi(pcie_rkep, PCIE_DMA_OFFSET + PCIE_DMA_WR_INT_MASK));
+		dev_err(&pdev->dev, "reg[0x%x] PCIE_DMA_WR_ENB = %x\n", PCIE_DMA_WR_ENB, pcie_rkep_readl_dbi(pcie_rkep, PCIE_DMA_OFFSET + PCIE_DMA_WR_ENB));
+		dev_err(&pdev->dev, "reg[0x%x] PCIE_DMA_WR_CTRL_LO = %x\n", ctr_off + PCIE_DMA_WR_CTRL_LO, pcie_rkep_readl_dbi(pcie_rkep, PCIE_DMA_OFFSET + ctr_off + PCIE_DMA_WR_CTRL_LO));
+		dev_err(&pdev->dev, "reg[0x%x] PCIE_DMA_WR_CTRL_HI = %x\n", ctr_off + PCIE_DMA_WR_CTRL_HI,  pcie_rkep_readl_dbi(pcie_rkep, PCIE_DMA_OFFSET + ctr_off + PCIE_DMA_WR_CTRL_HI));
+		dev_err(&pdev->dev, "reg[0x%x] PCIE_DMA_WR_XFERSIZE = %x\n", ctr_off + PCIE_DMA_WR_XFERSIZE,  pcie_rkep_readl_dbi(pcie_rkep, PCIE_DMA_OFFSET + ctr_off + PCIE_DMA_WR_XFERSIZE));
+		dev_err(&pdev->dev, "reg[0x%x] PCIE_DMA_WR_SAR_PTR_LO = %x\n", ctr_off + PCIE_DMA_WR_SAR_PTR_LO,  pcie_rkep_readl_dbi(pcie_rkep, PCIE_DMA_OFFSET + ctr_off + PCIE_DMA_WR_SAR_PTR_LO));
+		dev_err(&pdev->dev, "reg[0x%x] PCIE_DMA_WR_SAR_PTR_HI = %x\n", ctr_off + PCIE_DMA_WR_SAR_PTR_HI,  pcie_rkep_readl_dbi(pcie_rkep, PCIE_DMA_OFFSET + ctr_off + PCIE_DMA_WR_SAR_PTR_HI));
+		dev_err(&pdev->dev, "reg[0x%x] PCIE_DMA_WR_DAR_PTR_LO = %x\n", ctr_off + PCIE_DMA_WR_DAR_PTR_LO,  pcie_rkep_readl_dbi(pcie_rkep, PCIE_DMA_OFFSET + ctr_off + PCIE_DMA_WR_DAR_PTR_LO));
+		dev_err(&pdev->dev, "reg[0x%x] PCIE_DMA_WR_DAR_PTR_HI = %x\n", ctr_off + PCIE_DMA_WR_DAR_PTR_HI,  pcie_rkep_readl_dbi(pcie_rkep, PCIE_DMA_OFFSET + ctr_off + PCIE_DMA_WR_DAR_PTR_HI));
+		dev_err(&pdev->dev, "reg[0x%x] PCIE_DMA_WR_DOORBELL = %x\n", PCIE_DMA_WR_DOORBELL, pcie_rkep_readl_dbi(pcie_rkep, PCIE_DMA_OFFSET + PCIE_DMA_WR_DOORBELL));
+		dev_err(&pdev->dev, "reg[0x%x] PCIE_DMA_WR_INT_STATUS = %x\n", PCIE_DMA_WR_INT_STATUS, pcie_rkep_readl_dbi(pcie_rkep, PCIE_DMA_OFFSET + PCIE_DMA_WR_INT_STATUS));
+		dev_err(&pdev->dev, "reg[0x%x] PCIE_DMA_WR_ERR_STATUS = %x\n", PCIE_DMA_WR_ERR_STATUS, pcie_rkep_readl_dbi(pcie_rkep, PCIE_DMA_OFFSET + PCIE_DMA_WR_ERR_STATUS));
+	}
+}
+
 static void pcie_rkep_start_dma_rd(struct dma_trx_obj *obj, struct dma_table *cur, int ctr_off)
 {
 	struct pci_dev *pdev = container_of(obj->dev, struct pci_dev, dev);
@@ -331,6 +407,7 @@ static void pcie_rkep_start_dma_rd(struct dma_trx_obj *obj, struct dma_table *cu
 			     cur->ctx_reg.darptrhi);
 	pcie_rkep_writel_dbi(pcie_rkep, PCIE_DMA_OFFSET + PCIE_DMA_RD_DOORBELL,
 			     cur->start.asdword);
+	// pcie_rkep_dma_debug(obj, cur);
 }
 
 static void pcie_rkep_start_dma_wr(struct dma_trx_obj *obj, struct dma_table *cur, int ctr_off)
@@ -358,6 +435,7 @@ static void pcie_rkep_start_dma_wr(struct dma_trx_obj *obj, struct dma_table *cu
 			     cur->weilo.asdword);
 	pcie_rkep_writel_dbi(pcie_rkep, PCIE_DMA_OFFSET + PCIE_DMA_WR_DOORBELL,
 			     cur->start.asdword);
+	// pcie_rkep_dma_debug(obj, cur);
 }
 
 static void pcie_rkep_start_dma_dwc(struct dma_trx_obj *obj, struct dma_table *table)
@@ -637,7 +715,7 @@ static int rkep_loadfile(struct device *dev, char *path, void __iomem *bar, int 
 	dev_info(dev, "%s file %s size %lld to %p\n", __func__, path, size, bar + pos);
 
 	offset = 0;
-	kernel_read(p_file, bar + pos, size, &offset);
+	kernel_read(p_file, (void *)bar + pos, (size_t)size, (loff_t *)&offset);
 
 	dev_info(dev, "kernel_read size %lld from %s to %p\n", size, path, bar + pos);
 
@@ -674,6 +752,7 @@ static int pcie_rkep_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	struct pcie_rkep *pcie_rkep;
 	u8 *name;
 	u16 val;
+	bool dmatest_irq = false;
 
 	pcie_rkep = devm_kzalloc(&pdev->dev, sizeof(*pcie_rkep), GFP_KERNEL);
 	if (!pcie_rkep)
@@ -742,7 +821,7 @@ static int pcie_rkep_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (ret)
 		goto err_register_irq;
 
-	pcie_rkep->dma_obj = pcie_dw_dmatest_register(&pdev->dev, true);
+	pcie_rkep->dma_obj = pcie_dw_dmatest_register(&pdev->dev, dmatest_irq);
 	if (IS_ERR(pcie_rkep->dma_obj)) {
 		dev_err(&pcie_rkep->pdev->dev, "failed to prepare dmatest\n");
 		ret = -EINVAL;
@@ -753,7 +832,14 @@ static int pcie_rkep_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		pcie_rkep->dma_obj->start_dma_func = pcie_rkep_start_dma_dwc;
 		pcie_rkep->dma_obj->config_dma_func = pcie_rkep_config_dma_dwc;
 		pcie_rkep->dma_obj->get_dma_status = pcie_rkep_get_dma_status;
+		pcie_rkep->dma_obj->dma_debug = pcie_rkep_dma_debug;
+		if (!dmatest_irq) {
+			pcie_rkep_writel_dbi(pcie_rkep, PCIE_DMA_OFFSET + PCIE_DMA_WR_INT_MASK, 0xffffffff);
+			pcie_rkep_writel_dbi(pcie_rkep, PCIE_DMA_OFFSET + PCIE_DMA_RD_INT_MASK, 0xffffffff);
+		}
 	}
+
+
 
 #if IS_ENABLED(CONFIG_PCIE_FUNC_RKEP_USERPAGES)
 	pcie_rkep->user_pages =
@@ -761,6 +847,8 @@ static int pcie_rkep_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (!pcie_rkep->user_pages) {
 		dev_err(&pcie_rkep->pdev->dev, "failed to allocate contiguous pages\n");
 		ret = -EINVAL;
+		if (pcie_rkep->dma_obj)
+			pcie_dw_dmatest_unregister(pcie_rkep->dma_obj);
 		goto err_register_obj;
 	}
 	dev_err(&pdev->dev, "successfully allocate continuouse buffer for userspace\n");
@@ -810,6 +898,9 @@ static void pcie_rkep_remove(struct pci_dev *pdev)
 {
 	struct pcie_rkep *pcie_rkep = pci_get_drvdata(pdev);
 	int i;
+
+	if (pcie_rkep->dma_obj)
+		pcie_dw_dmatest_unregister(pcie_rkep->dma_obj);
 
 	device_remove_file(&pdev->dev, &dev_attr_rkep);
 #if IS_ENABLED(CONFIG_PCIE_FUNC_RKEP_USERPAGES)
