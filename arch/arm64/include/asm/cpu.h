@@ -64,9 +64,6 @@ struct cpuinfo_arm64 {
 
 	struct cpuinfo_32bit	aarch32;
 
-	/* pseudo-ZCR for recording maximum ZCR_EL1 LEN value: */
-	u64		reg_zcr;
-
 	/* pseudo-SMCR for recording maximum SMCR_EL1 LEN value: */
 	u64		reg_smcr;
 };
