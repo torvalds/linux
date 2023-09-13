@@ -2740,4 +2740,6 @@ int iwl_mvm_set_hw_timestamp(struct ieee80211_hw *hw,
 			     struct ieee80211_vif *vif,
 			     struct cfg80211_set_hw_timestamp *hwts);
 int iwl_mvm_update_mu_groups(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
+bool iwl_mvm_enable_fils(struct iwl_mvm *mvm,
+			 struct ieee80211_chanctx_conf *ctx);
 #endif /* __IWL_MVM_H__ */
