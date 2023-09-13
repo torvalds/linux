@@ -429,7 +429,7 @@ int das08_common_attach(struct comedi_device *dev, unsigned long iobase)
 	s = &dev->subdevices[4];
 	/* 8255 */
 	if (board->i8255_offset != 0) {
-		ret = subdev_8255_init(dev, s, NULL, board->i8255_offset);
+		ret = subdev_8255_io_init(dev, s, board->i8255_offset);
 		if (ret)
 			return ret;
 	} else {

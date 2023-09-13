@@ -1145,7 +1145,7 @@ static int das16_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	/* 8255 Digital I/O subdevice */
 	if (board->has_8255) {
 		s = &dev->subdevices[4];
-		ret = subdev_8255_init(dev, s, NULL, board->i8255_offset);
+		ret = subdev_8255_io_init(dev, s, board->i8255_offset);
 		if (ret)
 			return ret;
 	}

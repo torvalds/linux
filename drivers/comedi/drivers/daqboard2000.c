@@ -738,8 +738,8 @@ static int db2k_auto_attach(struct comedi_device *dev, unsigned long context)
 		return result;
 
 	s = &dev->subdevices[2];
-	return subdev_8255_init(dev, s, db2k_8255_cb,
-				DB2K_REG_DIO_P2_EXP_IO_8_BIT);
+	return subdev_8255_cb_init(dev, s, db2k_8255_cb,
+				   DB2K_REG_DIO_P2_EXP_IO_8_BIT);
 }
 
 static void db2k_detach(struct comedi_device *dev)

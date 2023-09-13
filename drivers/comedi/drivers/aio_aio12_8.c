@@ -247,7 +247,7 @@ static int aio_aio12_8_attach(struct comedi_device *dev,
 
 	/* Digital I/O subdevice (8255) */
 	s = &dev->subdevices[2];
-	ret = subdev_8255_init(dev, s, NULL, AIO12_8_8255_BASE_REG);
+	ret = subdev_8255_io_init(dev, s, AIO12_8_8255_BASE_REG);
 	if (ret)
 		return ret;
 

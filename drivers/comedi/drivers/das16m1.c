@@ -583,7 +583,7 @@ static int das16m1_attach(struct comedi_device *dev,
 
 	/* Digital I/O subdevice (8255) */
 	s = &dev->subdevices[3];
-	ret = subdev_8255_init(dev, s, NULL, DAS16M1_8255_IOBASE);
+	ret = subdev_8255_io_init(dev, s, DAS16M1_8255_IOBASE);
 	if (ret)
 		return ret;
 
