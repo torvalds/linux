@@ -322,6 +322,22 @@ If the vertical resolution is an odd number of tiles, the last row of
 tiles is stored in linear order. The layouts of the luma and chroma
 planes are identical.
 
+.. _nv12mt:
+
+.. kernel-figure:: nv12mt.svg
+    :alt:    nv12mt.svg
+    :align:  center
+
+    V4L2_PIX_FMT_NV12MT macroblock Z shape memory layout
+
+.. _nv12mt_ex:
+
+.. kernel-figure:: nv12mt_example.svg
+    :alt:    nv12mt_example.svg
+    :align:  center
+
+    Example V4L2_PIX_FMT_NV12MT memory layout of tiles
+
 ``V4L2_PIX_FMT_NV12_4L4`` stores pixels in 4x4 tiles, and stores
 tiles linearly in memory. The line stride and image height must be
 aligned to a multiple of 4. The layouts of the luma and chroma planes are
@@ -368,22 +384,6 @@ in 16x16 tiles. The line stride must be aligned to a multiple of 16 and the
 image height must be aligned to a multiple of 32. The number of luma and chroma
 tiles are identical, even though the tile size differ. The image is formed of
 two non-contiguous planes.
-
-.. _nv12mt:
-
-.. kernel-figure:: nv12mt.svg
-    :alt:    nv12mt.svg
-    :align:  center
-
-    V4L2_PIX_FMT_NV12MT macroblock Z shape memory layout
-
-.. _nv12mt_ex:
-
-.. kernel-figure:: nv12mt_example.svg
-    :alt:    nv12mt_example.svg
-    :align:  center
-
-    Example V4L2_PIX_FMT_NV12MT memory layout of tiles
 
 .. _V4L2-PIX-FMT-NV15-4L4:
 
