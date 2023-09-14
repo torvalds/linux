@@ -23,16 +23,19 @@
 
 enum {
 	P_XO,
+	P_GPLL0,
 	P_APSS_PLL_EARLY,
 };
 
 static const struct clk_parent_data parents_apcs_alias0_clk_src[] = {
 	{ .fw_name = "xo" },
+	{ .fw_name = "gpll0" },
 	{ .fw_name = "pll" },
 };
 
 static const struct parent_map parents_apcs_alias0_clk_src_map[] = {
 	{ P_XO, 0 },
+	{ P_GPLL0, 4 },
 	{ P_APSS_PLL_EARLY, 5 },
 };
 
