@@ -1036,7 +1036,7 @@ static int btrfs_decompress_bio(struct compressed_bio *cb)
 int btrfs_decompress(int type, const u8 *data_in, struct page *dest_page,
 		     unsigned long dest_pgoff, size_t srclen, size_t destlen)
 {
-	struct btrfs_fs_info *fs_info = btrfs_sb(dest_page->mapping->host->i_sb);
+	struct btrfs_fs_info *fs_info = page_to_fs_info(dest_page);
 	struct list_head *workspace;
 	const u32 sectorsize = fs_info->sectorsize;
 	int ret;
