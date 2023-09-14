@@ -60,8 +60,8 @@ static ssize_t state_store(struct device *dev, struct device_attribute *attr,
 		}
 
 		ret = adf_dev_down(accel_dev, true);
-		if (ret < 0)
-			return -EINVAL;
+		if (ret)
+			return ret;
 
 		break;
 	case DEV_UP:
