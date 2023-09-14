@@ -332,6 +332,8 @@ static void meson_encoder_hdmi_hpd_notify(struct drm_bridge *bridge,
 			return;
 
 		cec_notifier_set_phys_addr_from_edid(encoder_hdmi->cec_notifier, edid);
+
+		kfree(edid);
 	} else
 		cec_notifier_phys_addr_invalidate(encoder_hdmi->cec_notifier);
 }
