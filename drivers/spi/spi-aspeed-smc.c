@@ -253,11 +253,12 @@ static ssize_t aspeed_spi_read_user(struct aspeed_spi_chip *chip,
 		return ret;
 
 	if (op->dummy.buswidth && op->dummy.nbytes) {
-		for (i = 0; i < op->dummy.nbytes / op->dummy.buswidth; i++)
-			aspeed_spi_write_to_ahb(chip->ahb_base, &dummy,	sizeof(dummy));
+		for (i = 0; i < op->dummy.nbytes; i++)
+			aspeed_spi_write_to_ahb(chip->ahb_base,
+						&dummy,	sizeof(dummy));
 	}
 
-	io_mode = aspeed_spi_get_io_mode(op->addr.buswidth);
+	io_mode = aspeed_spi_get_io_mode(op->data.buswidth);
 	aspeed_spi_set_io_mode(chip, io_mode);
 	aspeed_spi_read_from_ahb(buf, chip->ahb_base, len);
 
@@ -282,7 +283,7 @@ static ssize_t aspeed_spi_write_user(struct aspeed_spi_chip *chip,
 	if (ret < 0)
 		return ret;
 
-	io_mode = aspeed_spi_get_io_mode(op->addr.buswidth);
+	io_mode = aspeed_spi_get_io_mode(op->data.buswidth);
 	aspeed_spi_set_io_mode(chip, io_mode);
 	aspeed_spi_write_to_ahb(chip->ahb_base, op->data.buf.out, op->data.nbytes);
 
