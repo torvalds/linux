@@ -482,9 +482,9 @@ static void qcom_geni_serial_console_write(struct console *co, const char *s,
 
 	uport = &port->uport;
 	if (oops_in_progress)
-		locked = spin_trylock_irqsave(&uport->lock, flags);
+		locked = uart_port_trylock_irqsave(uport, &flags);
 	else
-		spin_lock_irqsave(&uport->lock, flags);
+		uart_port_lock_irqsave(uport, &flags);
 
 	geni_status = readl(uport->membase + SE_GENI_STATUS);
 
@@ -520,7 +520,7 @@ static void qcom_geni_serial_console_write(struct console *co, const char *s,
 		qcom_geni_serial_setup_tx(uport, port->tx_remaining);
 
 	if (locked)
-		spin_unlock_irqrestore(&uport->lock, flags);
+		uart_port_unlock_irqrestore(uport, flags);
 }
 
 static void handle_rx_console(struct uart_port *uport, u32 bytes, bool drop)
@@ -970,7 +970,7 @@ static irqreturn_t qcom_geni_serial_isr(int isr, void *dev)
 	if (uport->suspended)
 		return IRQ_NONE;
 
-	spin_lock(&uport->lock);
+	uart_port_lock(uport);
 
 	m_irq_status = readl(uport->membase + SE_GENI_M_IRQ_STATUS);
 	s_irq_status = readl(uport->membase + SE_GENI_S_IRQ_STATUS);
