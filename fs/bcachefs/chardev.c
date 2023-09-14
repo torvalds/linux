@@ -421,7 +421,7 @@ static long bch2_ioctl_fs_usage(struct bch_fs *c,
 	if (get_user(replica_entries_bytes, &user_arg->replica_entries_bytes))
 		return -EFAULT;
 
-	arg = kzalloc(sizeof(*arg) + replica_entries_bytes, GFP_KERNEL);
+	arg = kzalloc(size_add(sizeof(*arg), replica_entries_bytes), GFP_KERNEL);
 	if (!arg)
 		return -ENOMEM;
 
