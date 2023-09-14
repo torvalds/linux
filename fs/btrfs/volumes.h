@@ -390,12 +390,11 @@ struct btrfs_fs_devices {
 
 struct btrfs_io_stripe {
 	struct btrfs_device *dev;
-	union {
-		/* Block mapping */
-		u64 physical;
-		/* For the endio handler */
-		struct btrfs_io_context *bioc;
-	};
+	/* Block mapping. */
+	u64 physical;
+	u64 length;
+	/* For the endio handler. */
+	struct btrfs_io_context *bioc;
 };
 
 struct btrfs_discard_stripe {
@@ -427,6 +426,11 @@ struct btrfs_io_context {
 	struct bio *orig_bio;
 	atomic_t error;
 	u16 max_errors;
+
+	u64 logical;
+	u64 size;
+	/* Raid stripe tree ordered entry. */
+	struct list_head rst_ordered_entry;
 
 	/*
 	 * The total number of stripes, including the extra duplicated

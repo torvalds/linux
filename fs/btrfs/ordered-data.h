@@ -151,6 +151,8 @@ struct btrfs_ordered_extent {
 	struct completion completion;
 	struct btrfs_work flush_work;
 	struct list_head work_list;
+
+	struct list_head bioc_list;
 };
 
 static inline void
