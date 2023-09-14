@@ -4,7 +4,6 @@
 
 #include "btree_iter.h"
 #include "journal.h"
-#include "journal.h"
 
 struct bch_fs;
 struct btree;
