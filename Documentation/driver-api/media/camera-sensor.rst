@@ -13,7 +13,7 @@ Handling clocks
 
 Camera sensors have an internal clock tree including a PLL and a number of
 divisors. The clock tree is generally configured by the driver based on a few
-input parameters that are specific to the hardware:: the external clock frequency
+input parameters that are specific to the hardware: the external clock frequency
 and the link frequency. The two parameters generally are obtained from system
 firmware. **No other frequencies should be used in any circumstances.**
 
@@ -123,7 +123,7 @@ Power management
 Always use runtime PM to manage the power states of your device. Camera sensor
 drivers are in no way special in this respect: they are responsible for
 controlling the power state of the device they otherwise control as well. In
-general, the device must be powered on at least when its registers are being
+general, the device shall be powered on at least when its registers are being
 accessed and when it is streaming.
 
 Existing camera sensor drivers may rely on the old
