@@ -149,9 +149,10 @@ static long bch2_global_ioctl(unsigned cmd, void __user *arg)
 static long bch2_ioctl_query_uuid(struct bch_fs *c,
 			struct bch_ioctl_query_uuid __user *user_arg)
 {
-	return copy_to_user(&user_arg->uuid,
-			    &c->sb.user_uuid,
-			    sizeof(c->sb.user_uuid));
+	if (copy_to_user(&user_arg->uuid, &c->sb.user_uuid,
+			 sizeof(c->sb.user_uuid)))
+		return -EFAULT;
+	return 0;
 }
 
 #if 0
@@ -338,7 +339,10 @@ static ssize_t bch2_data_job_read(struct file *file, char __user *buf,
 	if (len < sizeof(e))
 		return -EINVAL;
 
-	return copy_to_user(buf, &e, sizeof(e)) ?: sizeof(e);
+	if (copy_to_user(buf, &e, sizeof(e)))
+		return -EFAULT;
+
+	return sizeof(e);
 }
 
 static const struct file_operations bcachefs_data_ops = {
@@ -466,9 +470,11 @@ static long bch2_ioctl_fs_usage(struct bch_fs *c,
 	percpu_up_read(&c->mark_lock);
 	kfree(src);
 
-	if (!ret)
-		ret = copy_to_user(user_arg, arg,
-			sizeof(*arg) + arg->replica_entries_bytes);
+	if (ret)
+		goto err;
+	if (copy_to_user(user_arg, arg,
+			 sizeof(*arg) + arg->replica_entries_bytes))
+		ret = -EFAULT;
 err:
 	kfree(arg);
 	return ret;
@@ -513,7 +519,10 @@ static long bch2_ioctl_dev_usage(struct bch_fs *c,
 
 	percpu_ref_put(&ca->ref);
 
-	return copy_to_user(user_arg, &arg, sizeof(arg));
+	if (copy_to_user(user_arg, &arg, sizeof(arg)))
+		return -EFAULT;
+
+	return 0;
 }
 
 static long bch2_ioctl_read_super(struct bch_fs *c,
@@ -550,8 +559,9 @@ static long bch2_ioctl_read_super(struct bch_fs *c,
 		goto err;
 	}
 
-	ret = copy_to_user((void __user *)(unsigned long)arg.sb,
-			   sb, vstruct_bytes(sb));
+	if (copy_to_user((void __user *)(unsigned long)arg.sb, sb,
+			 vstruct_bytes(sb)))
+		ret = -EFAULT;
 err:
 	if (!IS_ERR_OR_NULL(ca))
 		percpu_ref_put(&ca->ref);
