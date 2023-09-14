@@ -214,7 +214,7 @@ int lzo_compress_pages(struct list_head *ws, struct address_space *mapping,
 		unsigned long *total_in, unsigned long *total_out)
 {
 	struct workspace *workspace = list_entry(ws, struct workspace, list);
-	const u32 sectorsize = btrfs_sb(mapping->host->i_sb)->sectorsize;
+	const u32 sectorsize = inode_to_fs_info(mapping->host)->sectorsize;
 	struct page *page_in = NULL;
 	char *sizes_ptr;
 	const unsigned long max_nr_page = *out_pages;
