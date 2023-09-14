@@ -603,7 +603,11 @@ qla2xxx_msix_rsp_q_hs(int irq, void *dev_id);
 fc_port_t *qla2x00_find_fcport_by_loopid(scsi_qla_host_t *, uint16_t);
 fc_port_t *qla2x00_find_fcport_by_wwpn(scsi_qla_host_t *, u8 *, u8);
 fc_port_t *qla2x00_find_fcport_by_nportid(scsi_qla_host_t *, port_id_t *, u8);
-void __qla_consume_iocb(struct scsi_qla_host *vha, void **pkt, struct rsp_que **rsp);
+void qla24xx_queue_purex_item(scsi_qla_host_t *, struct purex_item *,
+			      void (*process_item)(struct scsi_qla_host *,
+			      struct purex_item *));
+void __qla_consume_iocb(struct scsi_qla_host *, void **, struct rsp_que **);
+void qla2xxx_process_purls_iocb(void **pkt, struct rsp_que **rsp);
 
 /*
  * Global Function Prototypes in qla_sup.c source file.
@@ -666,9 +670,11 @@ extern int qla2xxx_get_vpd_field(scsi_qla_host_t *, char *, char *, size_t);
 extern void qla2xxx_flash_npiv_conf(scsi_qla_host_t *);
 extern int qla24xx_read_fcp_prio_cfg(scsi_qla_host_t *);
 extern int qla2x00_mailbox_passthru(struct bsg_job *bsg_job);
-int __qla_copy_purex_to_buffer(struct scsi_qla_host *vha, void **pkt,
-	struct rsp_que **rsp, u8 *buf, u32 buf_len);
-
+int qla2x00_sys_ld_info(struct bsg_job *bsg_job);
+int __qla_copy_purex_to_buffer(struct scsi_qla_host *, void **,
+	struct rsp_que **, u8 *, u32);
+struct purex_item *qla27xx_copy_multiple_pkt(struct scsi_qla_host *vha,
+	void **pkt, struct rsp_que **rsp, bool is_purls, bool byte_order);
 int qla_mailbox_passthru(scsi_qla_host_t *vha, uint16_t *mbx_in,
 			 uint16_t *mbx_out);
 

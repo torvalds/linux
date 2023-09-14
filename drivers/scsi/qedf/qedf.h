@@ -548,7 +548,6 @@ extern void qedf_get_generic_tlv_data(void *dev, struct qed_generic_tlvs *data);
 extern void qedf_wq_grcdump(struct work_struct *work);
 void qedf_stag_change_work(struct work_struct *work);
 void qedf_ctx_soft_reset(struct fc_lport *lport);
-extern void qedf_board_disable_work(struct work_struct *work);
 extern void qedf_schedule_hw_err_handler(void *dev,
 		enum qed_hw_err_type err_type);
 

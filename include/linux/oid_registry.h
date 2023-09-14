@@ -67,6 +67,7 @@ enum OID {
 	OID_msOutlookExpress,		/* 1.3.6.1.4.1.311.16.4 */
 
 	OID_ntlmssp,			/* 1.3.6.1.4.1.311.2.2.10 */
+	OID_negoex,			/* 1.3.6.1.4.1.311.2.2.30 */
 
 	OID_spnego,			/* 1.3.6.1.5.5.2 */
 

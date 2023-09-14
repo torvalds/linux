@@ -437,6 +437,24 @@ static void nbio_v7_9_init_registers(struct amdgpu_device *adev)
 			XCC_DOORBELL_FENCE__SHUB_SLV_MODE_MASK);
 
 	}
+
+	if (!amdgpu_sriov_vf(adev)) {
+		u32 baco_cntl;
+		for_each_inst(i, adev->aid_mask) {
+			baco_cntl = RREG32_SOC15(NBIO, i, regBIF_BX0_BACO_CNTL);
+			if (baco_cntl & (BIF_BX0_BACO_CNTL__BACO_DUMMY_EN_MASK |
+					 BIF_BX0_BACO_CNTL__BACO_EN_MASK)) {
+				baco_cntl &= ~(
+					BIF_BX0_BACO_CNTL__BACO_DUMMY_EN_MASK |
+					BIF_BX0_BACO_CNTL__BACO_EN_MASK);
+				dev_dbg(adev->dev,
+					"Unsetting baco dummy mode %x",
+					baco_cntl);
+				WREG32_SOC15(NBIO, i, regBIF_BX0_BACO_CNTL,
+					     baco_cntl);
+			}
+		}
+	}
 }
 
 static u64 nbio_v7_9_get_pcie_replay_count(struct amdgpu_device *adev)

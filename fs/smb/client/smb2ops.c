@@ -2683,6 +2683,7 @@ smb2_queryfs(const unsigned int xid, struct cifs_tcon *tcon,
 		smb2_copy_fs_info_to_kstatfs(info, buf);
 
 qfs_exit:
+	trace_smb3_qfs_done(xid, tcon->tid, tcon->ses->Suid, tcon->tree_name, rc);
 	free_rsp_buf(buftype, rsp_iov.iov_base);
 	return rc;
 }

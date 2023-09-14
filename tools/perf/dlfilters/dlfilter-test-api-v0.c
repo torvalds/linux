@@ -254,6 +254,30 @@ static int check_addr_al(void *ctx)
 	return 0;
 }
 
+static int check_address_al(void *ctx, const struct perf_dlfilter_sample *sample)
+{
+	struct perf_dlfilter_al address_al;
+	const struct perf_dlfilter_al *al;
+
+	al = perf_dlfilter_fns.resolve_ip(ctx);
+	if (!al)
+		return test_fail("resolve_ip() failed");
+
+	address_al.size = sizeof(address_al);
+	if (perf_dlfilter_fns.resolve_address(ctx, sample->ip, &address_al))
+		return test_fail("resolve_address() failed");
+
+	CHECK(address_al.sym && al->sym);
+	CHECK(!strcmp(address_al.sym, al->sym));
+	CHECK(address_al.addr == al->addr);
+	CHECK(address_al.sym_start == al->sym_start);
+	CHECK(address_al.sym_end == al->sym_end);
+	CHECK(address_al.dso && al->dso);
+	CHECK(!strcmp(address_al.dso, al->dso));
+
+	return 0;
+}
+
 static int check_attr(void *ctx)
 {
 	struct perf_event_attr *attr = perf_dlfilter_fns.attr(ctx);
@@ -290,7 +314,7 @@ static int do_checks(void *data, const struct perf_dlfilter_sample *sample, void
 	if (early && !d->do_early)
 		return 0;
 
-	if (check_al(ctx) || check_addr_al(ctx))
+	if (check_al(ctx) || check_addr_al(ctx) || check_address_al(ctx, sample))
 		return -1;
 
 	if (early)

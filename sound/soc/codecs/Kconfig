@@ -1968,11 +1968,15 @@ config SND_SOC_UDA1380
 	tristate
 	depends on I2C
 
+config SND_SOC_WCD_CLASSH
+	tristate
+
 config SND_SOC_WCD9335
 	tristate "WCD9335 Codec"
 	depends on SLIMBUS
 	select REGMAP_SLIMBUS
 	select REGMAP_IRQ
+	select SND_SOC_WCD_CLASSH
 	help
 	  The WCD9335 is a standalone Hi-Fi audio CODEC IC, supports
 	  Qualcomm Technologies, Inc. (QTI) multimedia solutions,
@@ -1987,6 +1991,7 @@ config SND_SOC_WCD934X
 	depends on SLIMBUS
 	select REGMAP_IRQ
 	select REGMAP_SLIMBUS
+	select SND_SOC_WCD_CLASSH
 	select SND_SOC_WCD_MBHC
 	depends on MFD_WCD934X || COMPILE_TEST
 	help
@@ -1997,6 +2002,7 @@ config SND_SOC_WCD938X
 	depends on SND_SOC_WCD938X_SDW
 	tristate
 	depends on SOUNDWIRE || !SOUNDWIRE
+	select SND_SOC_WCD_CLASSH
 
 config SND_SOC_WCD938X_SDW
 	tristate "WCD9380/WCD9385 Codec - SDW"

@@ -560,7 +560,7 @@ char *build_id_cache__cachedir(const char *sbuild_id, const char *name,
 			       struct nsinfo *nsi, bool is_kallsyms,
 			       bool is_vdso)
 {
-	char *realname = (char *)name, *filename;
+	char *realname = NULL, *filename;
 	bool slash = is_kallsyms || is_vdso;
 
 	if (!slash)
@@ -571,9 +571,7 @@ char *build_id_cache__cachedir(const char *sbuild_id, const char *name,
 		     sbuild_id ? "/" : "", sbuild_id ?: "") < 0)
 		filename = NULL;
 
-	if (!slash)
-		free(realname);
-
+	free(realname);
 	return filename;
 }
 

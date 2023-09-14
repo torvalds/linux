@@ -37,7 +37,7 @@ struct perf_mem_event * __weak perf_mem_events__ptr(int i)
 	return &perf_mem_events[i];
 }
 
-char * __weak perf_mem_events__name(int i, char *pmu_name  __maybe_unused)
+const char * __weak perf_mem_events__name(int i, const char *pmu_name  __maybe_unused)
 {
 	struct perf_mem_event *e = perf_mem_events__ptr(i);
 
@@ -53,7 +53,7 @@ char * __weak perf_mem_events__name(int i, char *pmu_name  __maybe_unused)
 		return mem_loads_name;
 	}
 
-	return (char *)e->name;
+	return e->name;
 }
 
 __weak bool is_mem_loads_aux_event(struct evsel *leader __maybe_unused)
@@ -186,7 +186,6 @@ int perf_mem_events__record_args(const char **rec_argv, int *argv_nr,
 	int i = *argv_nr, k = 0;
 	struct perf_mem_event *e;
 	struct perf_pmu *pmu;
-	char *s;
 
 	for (int j = 0; j < PERF_MEM_EVENTS__MAX; j++) {
 		e = perf_mem_events__ptr(j);
@@ -209,15 +208,16 @@ int perf_mem_events__record_args(const char **rec_argv, int *argv_nr,
 			}
 
 			while ((pmu = perf_pmus__scan(pmu)) != NULL) {
+				const char *s = perf_mem_events__name(j, pmu->name);
+
 				rec_argv[i++] = "-e";
-				s = perf_mem_events__name(j, pmu->name);
 				if (s) {
-					s = strdup(s);
-					if (!s)
+					char *copy = strdup(s);
+					if (!copy)
 						return -1;
 
-					rec_argv[i++] = s;
-					rec_tmp[k++] = s;
+					rec_argv[i++] = copy;
+					rec_tmp[k++] = copy;
 				}
 			}
 		}

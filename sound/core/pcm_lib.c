@@ -1992,8 +1992,8 @@ static int default_write_copy(struct snd_pcm_substream *substream,
 			      int channel, unsigned long hwoff,
 			      struct iov_iter *iter, unsigned long bytes)
 {
-	if (!copy_from_iter(get_dma_ptr(substream->runtime, channel, hwoff),
-			    bytes, iter))
+	if (copy_from_iter(get_dma_ptr(substream->runtime, channel, hwoff),
+			   bytes, iter) != bytes)
 		return -EFAULT;
 	return 0;
 }
@@ -2025,8 +2025,8 @@ static int default_read_copy(struct snd_pcm_substream *substream,
 			     int channel, unsigned long hwoff,
 			     struct iov_iter *iter, unsigned long bytes)
 {
-	if (!copy_to_iter(get_dma_ptr(substream->runtime, channel, hwoff),
-			  bytes, iter))
+	if (copy_to_iter(get_dma_ptr(substream->runtime, channel, hwoff),
+			 bytes, iter) != bytes)
 		return -EFAULT;
 	return 0;
 }

@@ -173,16 +173,6 @@ static int tasdevice_get_profile_id(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static int tasdevice_hda_clamp(int val, int max)
-{
-	if (val > max)
-		val = max;
-
-	if (val < 0)
-		val = 0;
-	return val;
-}
-
 static int tasdevice_set_profile_id(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
@@ -191,7 +181,7 @@ static int tasdevice_set_profile_id(struct snd_kcontrol *kcontrol,
 	int max = tas_priv->rcabin.ncfgs - 1;
 	int val, ret = 0;
 
-	val = tasdevice_hda_clamp(nr_profile, max);
+	val = clamp(nr_profile, 0, max);
 
 	if (tas_priv->rcabin.profile_cfg_id != val) {
 		tas_priv->rcabin.profile_cfg_id = val;
@@ -248,7 +238,7 @@ static int tasdevice_program_put(struct snd_kcontrol *kcontrol,
 	int max = tas_fw->nr_programs - 1;
 	int val, ret = 0;
 
-	val = tasdevice_hda_clamp(nr_program, max);
+	val = clamp(nr_program, 0, max);
 
 	if (tas_priv->cur_prog != val) {
 		tas_priv->cur_prog = val;
@@ -277,7 +267,7 @@ static int tasdevice_config_put(struct snd_kcontrol *kcontrol,
 	int max = tas_fw->nr_configurations - 1;
 	int val, ret = 0;
 
-	val = tasdevice_hda_clamp(nr_config, max);
+	val = clamp(nr_config, 0, max);
 
 	if (tas_priv->cur_conf != val) {
 		tas_priv->cur_conf = val;

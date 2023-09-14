@@ -109,6 +109,7 @@ enum psp_reg_prog_id {
 
 struct psp_funcs {
 	int (*init_microcode)(struct psp_context *psp);
+	int (*wait_for_bootloader)(struct psp_context *psp);
 	int (*bootloader_load_kdb)(struct psp_context *psp);
 	int (*bootloader_load_spl)(struct psp_context *psp);
 	int (*bootloader_load_sysdrv)(struct psp_context *psp);
@@ -532,5 +533,7 @@ void psp_copy_fw(struct psp_context *psp, uint8_t *start_addr, uint32_t bin_size
 int psp_spatial_partition(struct psp_context *psp, int mode);
 
 int is_psp_fw_valid(struct psp_bin_desc bin);
+
+int amdgpu_psp_wait_for_bootloader(struct amdgpu_device *adev);
 
 #endif

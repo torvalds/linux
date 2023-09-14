@@ -2205,7 +2205,8 @@ static int cs42l43_codec_probe(struct platform_device *pdev)
 	// Don't use devm as we need to get against the MFD device
 	priv->mclk = clk_get_optional(cs42l43->dev, "mclk");
 	if (IS_ERR(priv->mclk)) {
-		dev_err_probe(priv->dev, PTR_ERR(priv->mclk), "Failed to get mclk\n");
+		ret = PTR_ERR(priv->mclk);
+		dev_err_probe(priv->dev, ret, "Failed to get mclk\n");
 		goto err_pm;
 	}
 

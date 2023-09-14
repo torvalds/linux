@@ -36,7 +36,9 @@
 #include <asm/break.h>
 #include <asm/cpu.h>
 #include <asm/fpu.h>
+#include <asm/lbt.h>
 #include <asm/inst.h>
+#include <asm/kgdb.h>
 #include <asm/loongarch.h>
 #include <asm/mmu_context.h>
 #include <asm/pgtable.h>
@@ -702,6 +704,11 @@ asmlinkage void noinstr do_bp(struct pt_regs *regs)
 	 * pertain to them.
 	 */
 	switch (bcode) {
+	case BRK_KDB:
+		if (kgdb_breakpoint_handler(regs))
+			goto out;
+		else
+			break;
 	case BRK_KPROBE_BP:
 		if (kprobe_breakpoint_handler(regs))
 			goto out;
@@ -768,6 +775,9 @@ asmlinkage void noinstr do_watch(struct pt_regs *regs)
 #ifndef CONFIG_HAVE_HW_BREAKPOINT
 	pr_warn("Hardware watch point handler not implemented!\n");
 #else
+	if (kgdb_breakpoint_handler(regs))
+		goto out;
+
 	if (test_tsk_thread_flag(current, TIF_SINGLESTEP)) {
 		int llbit = (csr_read32(LOONGARCH_CSR_LLBCTL) & 0x1);
 		unsigned long pc = instruction_pointer(regs);
@@ -966,13 +976,47 @@ out:
 	irqentry_exit(regs, state);
 }
 
+static void init_restore_lbt(void)
+{
+	if (!thread_lbt_context_live()) {
+		/* First time LBT context user */
+		init_lbt();
+		set_thread_flag(TIF_LBT_CTX_LIVE);
+	} else {
+		if (!is_lbt_owner())
+			own_lbt_inatomic(1);
+	}
+
+	BUG_ON(!is_lbt_enabled());
+}
+
 asmlinkage void noinstr do_lbt(struct pt_regs *regs)
 {
 	irqentry_state_t state = irqentry_enter(regs);
 
-	local_irq_enable();
-	force_sig(SIGILL);
-	local_irq_disable();
+	/*
+	 * BTD (Binary Translation Disable exception) can be triggered
+	 * during FP save/restore if TM (Top Mode) is on, which may
+	 * cause irq_enable during 'switch_to'. To avoid this situation
+	 * (including the user using 'MOVGR2GCSR' to turn on TM, which
+	 * will not trigger the BTE), we need to check PRMD first.
+	 */
+	if (regs->csr_prmd & CSR_PRMD_PIE)
+		local_irq_enable();
+
+	if (!cpu_has_lbt) {
+		force_sig(SIGILL);
+		goto out;
+	}
+	BUG_ON(is_lbt_enabled());
+
+	preempt_disable();
+	init_restore_lbt();
+	preempt_enable();
+
+out:
+	if (regs->csr_prmd & CSR_PRMD_PIE)
+		local_irq_disable();
 
 	irqentry_exit(regs, state);
 }

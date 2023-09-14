@@ -1,272 +1,303 @@
 [
     {
-        "ArchStdEvent": "FRONTEND_BOUND",
-        "MetricExpr": "((stall_slot_frontend) if (#slots - 5) else (stall_slot_frontend - cpu_cycles)) / (#slots * cpu_cycles)"
+        "ArchStdEvent": "backend_bound",
+        "MetricExpr": "(100 * ((STALL_SLOT_BACKEND / (CPU_CYCLES * #slots)) - ((BR_MIS_PRED * 3) / CPU_CYCLES)))"
     },
     {
-        "ArchStdEvent": "BAD_SPECULATION",
-        "MetricExpr": "(1 - op_retired / op_spec) * (1 - (stall_slot if (#slots - 5) else (stall_slot - cpu_cycles)) / (#slots * cpu_cycles))"
+        "MetricName": "backend_stalled_cycles",
+        "MetricExpr": "((STALL_BACKEND / CPU_CYCLES) * 100)",
+        "BriefDescription": "This metric is the percentage of cycles that were stalled due to resource constraints in the backend unit of the processor.",
+        "MetricGroup": "Cycle_Accounting",
+        "ScaleUnit": "1percent of cycles"
     },
     {
-        "ArchStdEvent": "RETIRING",
-        "MetricExpr": "(op_retired / op_spec) * (1 - (stall_slot if (#slots - 5) else (stall_slot - cpu_cycles)) / (#slots * cpu_cycles))"
+        "ArchStdEvent": "bad_speculation",
+        "MetricExpr": "(100 * (((1 - (OP_RETIRED / OP_SPEC)) * (1 - (((STALL_SLOT) if (strcmp_cpuid_str(0x410fd493) | strcmp_cpuid_str(0x410fd490) ^ 1) else (STALL_SLOT - CPU_CYCLES)) / (CPU_CYCLES * #slots)))) + ((BR_MIS_PRED * 4) / CPU_CYCLES)))"
     },
     {
-        "ArchStdEvent": "BACKEND_BOUND"
+        "MetricName": "branch_misprediction_ratio",
+        "MetricExpr": "(BR_MIS_PRED_RETIRED / BR_RETIRED)",
+        "BriefDescription": "This metric measures the ratio of branches mispredicted to the total number of branches architecturally executed. This gives an indication of the effectiveness of the branch prediction unit.",
+        "MetricGroup": "Miss_Ratio;Branch_Effectiveness",
+        "ScaleUnit": "1per branch"
     },
     {
-        "MetricExpr": "L1D_TLB_REFILL / L1D_TLB",
-        "BriefDescription": "The rate of L1D TLB refill to the overall L1D TLB lookups",
-        "MetricGroup": "TLB",
-        "MetricName": "l1d_tlb_miss_rate",
-        "ScaleUnit": "100%"
+        "MetricName": "branch_mpki",
+        "MetricExpr": "((BR_MIS_PRED_RETIRED / INST_RETIRED) * 1000)",
+        "BriefDescription": "This metric measures the number of branch mispredictions per thousand instructions executed.",
+        "MetricGroup": "MPKI;Branch_Effectiveness",
+        "ScaleUnit": "1MPKI"
     },
     {
-        "MetricExpr": "L1I_TLB_REFILL / L1I_TLB",
-        "BriefDescription": "The rate of L1I TLB refill to the overall L1I TLB lookups",
-        "MetricGroup": "TLB",
-        "MetricName": "l1i_tlb_miss_rate",
-        "ScaleUnit": "100%"
+        "MetricName": "branch_percentage",
+        "MetricExpr": "(((BR_IMMED_SPEC + BR_INDIRECT_SPEC) / INST_SPEC) * 100)",
+        "BriefDescription": "This metric measures branch operations as a percentage of operations speculatively executed.",
+        "MetricGroup": "Operation_Mix",
+        "ScaleUnit": "1percent of operations"
     },
     {
-        "MetricExpr": "L2D_TLB_REFILL / L2D_TLB",
-        "BriefDescription": "The rate of L2D TLB refill to the overall L2D TLB lookups",
-        "MetricGroup": "TLB",
-        "MetricName": "l2_tlb_miss_rate",
-        "ScaleUnit": "100%"
+        "MetricName": "crypto_percentage",
+        "MetricExpr": "((CRYPTO_SPEC / INST_SPEC) * 100)",
+        "BriefDescription": "This metric measures crypto operations as a percentage of operations speculatively executed.",
+        "MetricGroup": "Operation_Mix",
+        "ScaleUnit": "1percent of operations"
     },
     {
-        "MetricExpr": "DTLB_WALK / INST_RETIRED * 1000",
-        "BriefDescription": "The rate of TLB Walks per kilo instructions for data accesses",
-        "MetricGroup": "TLB",
         "MetricName": "dtlb_mpki",
+        "MetricExpr": "((DTLB_WALK / INST_RETIRED) * 1000)",
+        "BriefDescription": "This metric measures the number of data TLB Walks per thousand instructions executed.",
+        "MetricGroup": "MPKI;DTLB_Effectiveness",
         "ScaleUnit": "1MPKI"
     },
     {
-        "MetricExpr": "DTLB_WALK / L1D_TLB",
-        "BriefDescription": "The rate of DTLB Walks to the overall L1D TLB lookups",
-        "MetricGroup": "TLB",
-        "MetricName": "dtlb_walk_rate",
-        "ScaleUnit": "100%"
+        "MetricName": "dtlb_walk_ratio",
+        "MetricExpr": "(DTLB_WALK / L1D_TLB)",
+        "BriefDescription": "This metric measures the ratio of data TLB Walks to the total number of data TLB accesses. This gives an indication of the effectiveness of the data TLB accesses.",
+        "MetricGroup": "Miss_Ratio;DTLB_Effectiveness",
+        "ScaleUnit": "1per TLB access"
     },
     {
-        "MetricExpr": "ITLB_WALK / INST_RETIRED * 1000",
-        "BriefDescription": "The rate of TLB Walks per kilo instructions for instruction accesses",
-        "MetricGroup": "TLB",
+        "ArchStdEvent": "frontend_bound",
+        "MetricExpr": "(100 * ((((STALL_SLOT_FRONTEND) if (strcmp_cpuid_str(0x410fd493) | strcmp_cpuid_str(0x410fd490) ^ 1) else (STALL_SLOT_FRONTEND - CPU_CYCLES)) / (CPU_CYCLES * #slots)) - (BR_MIS_PRED / CPU_CYCLES)))"
+    },
+    {
+        "MetricName": "frontend_stalled_cycles",
+        "MetricExpr": "((STALL_FRONTEND / CPU_CYCLES) * 100)",
+        "BriefDescription": "This metric is the percentage of cycles that were stalled due to resource constraints in the frontend unit of the processor.",
+        "MetricGroup": "Cycle_Accounting",
+        "ScaleUnit": "1percent of cycles"
+    },
+    {
+        "MetricName": "integer_dp_percentage",
+        "MetricExpr": "((DP_SPEC / INST_SPEC) * 100)",
+        "BriefDescription": "This metric measures scalar integer operations as a percentage of operations speculatively executed.",
+        "MetricGroup": "Operation_Mix",
+        "ScaleUnit": "1percent of operations"
+    },
+    {
+        "MetricName": "ipc",
+        "MetricExpr": "(INST_RETIRED / CPU_CYCLES)",
+        "BriefDescription": "This metric measures the number of instructions retired per cycle.",
+        "MetricGroup": "General",
+        "ScaleUnit": "1per cycle"
+    },
+    {
         "MetricName": "itlb_mpki",
+        "MetricExpr": "((ITLB_WALK / INST_RETIRED) * 1000)",
+        "BriefDescription": "This metric measures the number of instruction TLB Walks per thousand instructions executed.",
+        "MetricGroup": "MPKI;ITLB_Effectiveness",
         "ScaleUnit": "1MPKI"
     },
     {
-        "MetricExpr": "ITLB_WALK / L1I_TLB",
-        "BriefDescription": "The rate of ITLB Walks to the overall L1I TLB lookups",
-        "MetricGroup": "TLB",
-        "MetricName": "itlb_walk_rate",
-        "ScaleUnit": "100%"
+        "MetricName": "itlb_walk_ratio",
+        "MetricExpr": "(ITLB_WALK / L1I_TLB)",
+        "BriefDescription": "This metric measures the ratio of instruction TLB Walks to the total number of instruction TLB accesses. This gives an indication of the effectiveness of the instruction TLB accesses.",
+        "MetricGroup": "Miss_Ratio;ITLB_Effectiveness",
+        "ScaleUnit": "1per TLB access"
     },
     {
-        "MetricExpr": "L1I_CACHE_REFILL / INST_RETIRED * 1000",
-        "BriefDescription": "The rate of L1 I-Cache misses per kilo instructions",
-        "MetricGroup": "Cache",
-        "MetricName": "l1i_cache_mpki",
-        "ScaleUnit": "1MPKI"
+        "MetricName": "l1d_cache_miss_ratio",
+        "MetricExpr": "(L1D_CACHE_REFILL / L1D_CACHE)",
+        "BriefDescription": "This metric measures the ratio of level 1 data cache accesses missed to the total number of level 1 data cache accesses. This gives an indication of the effectiveness of the level 1 data cache.",
+        "MetricGroup": "Miss_Ratio;L1D_Cache_Effectiveness",
+        "ScaleUnit": "1per cache access"
     },
     {
-        "MetricExpr": "L1I_CACHE_REFILL / L1I_CACHE",
-        "BriefDescription": "The rate of L1 I-Cache misses to the overall L1 I-Cache",
-        "MetricGroup": "Cache",
-        "MetricName": "l1i_cache_miss_rate",
-        "ScaleUnit": "100%"
-    },
-    {
-        "MetricExpr": "L1D_CACHE_REFILL / INST_RETIRED * 1000",
-        "BriefDescription": "The rate of L1 D-Cache misses per kilo instructions",
-        "MetricGroup": "Cache",
         "MetricName": "l1d_cache_mpki",
+        "MetricExpr": "((L1D_CACHE_REFILL / INST_RETIRED) * 1000)",
+        "BriefDescription": "This metric measures the number of level 1 data cache accesses missed per thousand instructions executed.",
+        "MetricGroup": "MPKI;L1D_Cache_Effectiveness",
         "ScaleUnit": "1MPKI"
     },
     {
-        "MetricExpr": "L1D_CACHE_REFILL / L1D_CACHE",
-        "BriefDescription": "The rate of L1 D-Cache misses to the overall L1 D-Cache",
-        "MetricGroup": "Cache",
-        "MetricName": "l1d_cache_miss_rate",
-        "ScaleUnit": "100%"
+        "MetricName": "l1d_tlb_miss_ratio",
+        "MetricExpr": "(L1D_TLB_REFILL / L1D_TLB)",
+        "BriefDescription": "This metric measures the ratio of level 1 data TLB accesses missed to the total number of level 1 data TLB accesses. This gives an indication of the effectiveness of the level 1 data TLB.",
+        "MetricGroup": "Miss_Ratio;DTLB_Effectiveness",
+        "ScaleUnit": "1per TLB access"
     },
     {
-        "MetricExpr": "L2D_CACHE_REFILL / INST_RETIRED * 1000",
-        "BriefDescription": "The rate of L2 D-Cache misses per kilo instructions",
-        "MetricGroup": "Cache",
-        "MetricName": "l2d_cache_mpki",
+        "MetricName": "l1d_tlb_mpki",
+        "MetricExpr": "((L1D_TLB_REFILL / INST_RETIRED) * 1000)",
+        "BriefDescription": "This metric measures the number of level 1 instruction TLB accesses missed per thousand instructions executed.",
+        "MetricGroup": "MPKI;DTLB_Effectiveness",
         "ScaleUnit": "1MPKI"
     },
     {
-        "MetricExpr": "L2D_CACHE_REFILL / L2D_CACHE",
-        "BriefDescription": "The rate of L2 D-Cache misses to the overall L2 D-Cache",
-        "MetricGroup": "Cache",
-        "MetricName": "l2d_cache_miss_rate",
-        "ScaleUnit": "100%"
+        "MetricName": "l1i_cache_miss_ratio",
+        "MetricExpr": "(L1I_CACHE_REFILL / L1I_CACHE)",
+        "BriefDescription": "This metric measures the ratio of level 1 instruction cache accesses missed to the total number of level 1 instruction cache accesses. This gives an indication of the effectiveness of the level 1 instruction cache.",
+        "MetricGroup": "Miss_Ratio;L1I_Cache_Effectiveness",
+        "ScaleUnit": "1per cache access"
+    },
+    {
+        "MetricName": "l1i_cache_mpki",
+        "MetricExpr": "((L1I_CACHE_REFILL / INST_RETIRED) * 1000)",
+        "BriefDescription": "This metric measures the number of level 1 instruction cache accesses missed per thousand instructions executed.",
+        "MetricGroup": "MPKI;L1I_Cache_Effectiveness",
+        "ScaleUnit": "1MPKI"
+    },
+    {
+        "MetricName": "l1i_tlb_miss_ratio",
+        "MetricExpr": "(L1I_TLB_REFILL / L1I_TLB)",
+        "BriefDescription": "This metric measures the ratio of level 1 instruction TLB accesses missed to the total number of level 1 instruction TLB accesses. This gives an indication of the effectiveness of the level 1 instruction TLB.",
+        "MetricGroup": "Miss_Ratio;ITLB_Effectiveness",
+        "ScaleUnit": "1per TLB access"
+    },
+    {
+        "MetricName": "l1i_tlb_mpki",
+        "MetricExpr": "((L1I_TLB_REFILL / INST_RETIRED) * 1000)",
+        "BriefDescription": "This metric measures the number of level 1 instruction TLB accesses missed per thousand instructions executed.",
+        "MetricGroup": "MPKI;ITLB_Effectiveness",
+        "ScaleUnit": "1MPKI"
+    },
+    {
+        "MetricName": "l2_cache_miss_ratio",
+        "MetricExpr": "(L2D_CACHE_REFILL / L2D_CACHE)",
+        "BriefDescription": "This metric measures the ratio of level 2 cache accesses missed to the total number of level 2 cache accesses. This gives an indication of the effectiveness of the level 2 cache, which is a unified cache that stores both data and instruction. Note that cache accesses in this cache are either data memory access or instruction fetch as this is a unified cache.",
+        "MetricGroup": "Miss_Ratio;L2_Cache_Effectiveness",
+        "ScaleUnit": "1per cache access"
+    },
+    {
+        "MetricName": "l2_cache_mpki",
+        "MetricExpr": "((L2D_CACHE_REFILL / INST_RETIRED) * 1000)",
+        "BriefDescription": "This metric measures the number of level 2 unified cache accesses missed per thousand instructions executed. Note that cache accesses in this cache are either data memory access or instruction fetch as this is a unified cache.",
+        "MetricGroup": "MPKI;L2_Cache_Effectiveness",
+        "ScaleUnit": "1MPKI"
+    },
+    {
+        "MetricName": "l2_tlb_miss_ratio",
+        "MetricExpr": "(L2D_TLB_REFILL / L2D_TLB)",
+        "BriefDescription": "This metric measures the ratio of level 2 unified TLB accesses missed to the total number of level 2 unified TLB accesses. This gives an indication of the effectiveness of the level 2 TLB.",
+        "MetricGroup": "Miss_Ratio;ITLB_Effectiveness;DTLB_Effectiveness",
+        "ScaleUnit": "1per TLB access"
+    },
+    {
+        "MetricName": "l2_tlb_mpki",
+        "MetricExpr": "((L2D_TLB_REFILL / INST_RETIRED) * 1000)",
+        "BriefDescription": "This metric measures the number of level 2 unified TLB accesses missed per thousand instructions executed.",
+        "MetricGroup": "MPKI;ITLB_Effectiveness;DTLB_Effectiveness",
+        "ScaleUnit": "1MPKI"
+    },
+    {
+        "MetricName": "ll_cache_read_hit_ratio",
+        "MetricExpr": "((LL_CACHE_RD - LL_CACHE_MISS_RD) / LL_CACHE_RD)",
+        "BriefDescription": "This metric measures the ratio of last level cache read accesses hit in the cache to the total number of last level cache accesses. This gives an indication of the effectiveness of the last level cache for read traffic. Note that cache accesses in this cache are either data memory access or instruction fetch as this is a system level cache.",
+        "MetricGroup": "LL_Cache_Effectiveness",
+        "ScaleUnit": "1per cache access"
+    },
+    {
+        "MetricName": "ll_cache_read_miss_ratio",
+        "MetricExpr": "(LL_CACHE_MISS_RD / LL_CACHE_RD)",
+        "BriefDescription": "This metric measures the ratio of last level cache read accesses missed to the total number of last level cache accesses. This gives an indication of the effectiveness of the last level cache for read traffic. Note that cache accesses in this cache are either data memory access or instruction fetch as this is a system level cache.",
+        "MetricGroup": "Miss_Ratio;LL_Cache_Effectiveness",
+        "ScaleUnit": "1per cache access"
+    },
+    {
+        "MetricName": "ll_cache_read_mpki",
+        "MetricExpr": "((LL_CACHE_MISS_RD / INST_RETIRED) * 1000)",
+        "BriefDescription": "This metric measures the number of last level cache read accesses missed per thousand instructions executed.",
+        "MetricGroup": "MPKI;LL_Cache_Effectiveness",
+        "ScaleUnit": "1MPKI"
+    },
+    {
+        "MetricName": "load_percentage",
+        "MetricExpr": "((LD_SPEC / INST_SPEC) * 100)",
+        "BriefDescription": "This metric measures load operations as a percentage of operations speculatively executed.",
+        "MetricGroup": "Operation_Mix",
+        "ScaleUnit": "1percent of operations"
+    },
+    {
+        "ArchStdEvent": "retiring",
+        "MetricExpr": "(100 * ((OP_RETIRED / OP_SPEC) * (1 - (((STALL_SLOT) if (strcmp_cpuid_str(0x410fd493) | strcmp_cpuid_str(0x410fd490) ^ 1) else (STALL_SLOT - CPU_CYCLES)) / (CPU_CYCLES * #slots)))))"
+    },
+    {
+        "MetricName": "scalar_fp_percentage",
+        "MetricExpr": "((VFP_SPEC / INST_SPEC) * 100)",
+        "BriefDescription": "This metric measures scalar floating point operations as a percentage of operations speculatively executed.",
+        "MetricGroup": "Operation_Mix",
+        "ScaleUnit": "1percent of operations"
+    },
+    {
+        "MetricName": "simd_percentage",
+        "MetricExpr": "((ASE_SPEC / INST_SPEC) * 100)",
+        "BriefDescription": "This metric measures advanced SIMD operations as a percentage of total operations speculatively executed.",
+        "MetricGroup": "Operation_Mix",
+        "ScaleUnit": "1percent of operations"
+    },
+    {
+        "MetricName": "store_percentage",
+        "MetricExpr": "((ST_SPEC / INST_SPEC) * 100)",
+        "BriefDescription": "This metric measures store operations as a percentage of operations speculatively executed.",
+        "MetricGroup": "Operation_Mix",
+        "ScaleUnit": "1percent of operations"
     },
     {
         "MetricExpr": "L3D_CACHE_REFILL / INST_RETIRED * 1000",
         "BriefDescription": "The rate of L3 D-Cache misses per kilo instructions",
-        "MetricGroup": "Cache",
+        "MetricGroup": "MPKI;L3_Cache_Effectiveness",
         "MetricName": "l3d_cache_mpki",
         "ScaleUnit": "1MPKI"
     },
     {
         "MetricExpr": "L3D_CACHE_REFILL / L3D_CACHE",
         "BriefDescription": "The rate of L3 D-Cache misses to the overall L3 D-Cache",
-        "MetricGroup": "Cache",
+        "MetricGroup": "Miss_Ratio;L3_Cache_Effectiveness",
         "MetricName": "l3d_cache_miss_rate",
         "ScaleUnit": "100%"
     },
     {
-        "MetricExpr": "LL_CACHE_MISS_RD / INST_RETIRED * 1000",
-        "BriefDescription": "The rate of LL Cache read misses per kilo instructions",
-        "MetricGroup": "Cache",
-        "MetricName": "ll_cache_read_mpki",
-        "ScaleUnit": "1MPKI"
-    },
-    {
-        "MetricExpr": "LL_CACHE_MISS_RD / LL_CACHE_RD",
-        "BriefDescription": "The rate of LL Cache read misses to the overall LL Cache read",
-        "MetricGroup": "Cache",
-        "MetricName": "ll_cache_read_miss_rate",
-        "ScaleUnit": "100%"
-    },
-    {
-        "MetricExpr": "(LL_CACHE_RD - LL_CACHE_MISS_RD) / LL_CACHE_RD",
-        "BriefDescription": "The rate of LL Cache read hit to the overall LL Cache read",
-        "MetricGroup": "Cache",
-        "MetricName": "ll_cache_read_hit_rate",
-        "ScaleUnit": "100%"
-    },
-    {
-        "MetricExpr": "BR_MIS_PRED_RETIRED / INST_RETIRED * 1000",
-        "BriefDescription": "The rate of branches mis-predicted per kilo instructions",
-        "MetricGroup": "Branch",
-        "MetricName": "branch_mpki",
-        "ScaleUnit": "1MPKI"
-    },
-    {
         "MetricExpr": "BR_RETIRED / INST_RETIRED * 1000",
         "BriefDescription": "The rate of branches retired per kilo instructions",
-        "MetricGroup": "Branch",
+        "MetricGroup": "MPKI;Branch_Effectiveness",
         "MetricName": "branch_pki",
         "ScaleUnit": "1PKI"
     },
     {
-        "MetricExpr": "BR_MIS_PRED_RETIRED / BR_RETIRED",
-        "BriefDescription": "The rate of branches mis-predited to the overall branches",
-        "MetricGroup": "Branch",
-        "MetricName": "branch_miss_pred_rate",
-        "ScaleUnit": "100%"
-    },
-    {
-        "MetricExpr": "instructions / CPU_CYCLES",
-        "BriefDescription": "The average number of instructions executed for each cycle.",
-        "MetricGroup": "PEutilization",
-        "MetricName": "ipc"
-    },
-    {
-        "MetricExpr": "ipc / 5",
-        "BriefDescription": "IPC percentage of peak. The peak of IPC is 5.",
-        "MetricGroup": "PEutilization",
+        "MetricExpr": "ipc / #slots",
+        "BriefDescription": "IPC percentage of peak. The peak of IPC is the number of slots.",
+        "MetricGroup": "General",
         "MetricName": "ipc_rate",
         "ScaleUnit": "100%"
     },
     {
-        "MetricExpr": "INST_RETIRED / CPU_CYCLES",
-        "BriefDescription": "Architecturally executed Instructions Per Cycle (IPC)",
-        "MetricGroup": "PEutilization",
-        "MetricName": "retired_ipc"
-    },
-    {
         "MetricExpr": "INST_SPEC / CPU_CYCLES",
         "BriefDescription": "Speculatively executed Instructions Per Cycle (IPC)",
-        "MetricGroup": "PEutilization",
+        "MetricGroup": "General",
         "MetricName": "spec_ipc"
     },
     {
         "MetricExpr": "OP_RETIRED / OP_SPEC",
         "BriefDescription": "Of all the micro-operations issued, what percentage are retired(committed)",
-        "MetricGroup": "PEutilization",
+        "MetricGroup": "General",
         "MetricName": "retired_rate",
         "ScaleUnit": "100%"
     },
     {
         "MetricExpr": "1 - OP_RETIRED / OP_SPEC",
         "BriefDescription": "Of all the micro-operations issued, what percentage are not retired(committed)",
-        "MetricGroup": "PEutilization",
+        "MetricGroup": "General",
         "MetricName": "wasted_rate",
         "ScaleUnit": "100%"
     },
     {
-        "MetricExpr": "OP_RETIRED / OP_SPEC * (1 - (STALL_SLOT if (#slots - 5) else (STALL_SLOT - CPU_CYCLES)) / (#slots * CPU_CYCLES))",
-        "BriefDescription": "The truly effective ratio of micro-operations executed by the CPU, which means that misprediction and stall are not included",
-        "MetricGroup": "PEutilization",
-        "MetricName": "cpu_utilization",
-        "ScaleUnit": "100%"
-    },
-    {
-        "MetricExpr": "LD_SPEC / INST_SPEC",
-        "BriefDescription": "The rate of load instructions speculatively executed to overall instructions speclatively executed",
-        "MetricGroup": "InstructionMix",
-        "MetricName": "load_spec_rate",
-        "ScaleUnit": "100%"
-    },
-    {
-        "MetricExpr": "ST_SPEC / INST_SPEC",
-        "BriefDescription": "The rate of store instructions speculatively executed to overall instructions speclatively executed",
-        "MetricGroup": "InstructionMix",
-        "MetricName": "store_spec_rate",
-        "ScaleUnit": "100%"
-    },
-    {
-        "MetricExpr": "DP_SPEC / INST_SPEC",
-        "BriefDescription": "The rate of integer data-processing instructions speculatively executed to overall instructions speclatively executed",
-        "MetricGroup": "InstructionMix",
-        "MetricName": "data_process_spec_rate",
-        "ScaleUnit": "100%"
-    },
-    {
-        "MetricExpr": "ASE_SPEC / INST_SPEC",
-        "BriefDescription": "The rate of advanced SIMD instructions speculatively executed to overall instructions speclatively executed",
-        "MetricGroup": "InstructionMix",
-        "MetricName": "advanced_simd_spec_rate",
-        "ScaleUnit": "100%"
-    },
-    {
-        "MetricExpr": "VFP_SPEC / INST_SPEC",
-        "BriefDescription": "The rate of floating point instructions speculatively executed to overall instructions speclatively executed",
-        "MetricGroup": "InstructionMix",
-        "MetricName": "float_point_spec_rate",
-        "ScaleUnit": "100%"
-    },
-    {
-        "MetricExpr": "CRYPTO_SPEC / INST_SPEC",
-        "BriefDescription": "The rate of crypto instructions speculatively executed to overall instructions speclatively executed",
-        "MetricGroup": "InstructionMix",
-        "MetricName": "crypto_spec_rate",
-        "ScaleUnit": "100%"
-    },
-    {
         "MetricExpr": "BR_IMMED_SPEC / INST_SPEC",
-        "BriefDescription": "The rate of branch immediate instructions speculatively executed to overall instructions speclatively executed",
-        "MetricGroup": "InstructionMix",
+        "BriefDescription": "The rate of branch immediate instructions speculatively executed to overall instructions speculatively executed",
+        "MetricGroup": "Operation_Mix",
         "MetricName": "branch_immed_spec_rate",
         "ScaleUnit": "100%"
     },
     {
         "MetricExpr": "BR_RETURN_SPEC / INST_SPEC",
-        "BriefDescription": "The rate of procedure return instructions speculatively executed to overall instructions speclatively executed",
-        "MetricGroup": "InstructionMix",
+        "BriefDescription": "The rate of procedure return instructions speculatively executed to overall instructions speculatively executed",
+        "MetricGroup": "Operation_Mix",
         "MetricName": "branch_return_spec_rate",
         "ScaleUnit": "100%"
     },
     {
         "MetricExpr": "BR_INDIRECT_SPEC / INST_SPEC",
-        "BriefDescription": "The rate of indirect branch instructions speculatively executed to overall instructions speclatively executed",
-        "MetricGroup": "InstructionMix",
+        "BriefDescription": "The rate of indirect branch instructions speculatively executed to overall instructions speculatively executed",
+        "MetricGroup": "Operation_Mix",
         "MetricName": "branch_indirect_spec_rate",
         "ScaleUnit": "100%"
     }

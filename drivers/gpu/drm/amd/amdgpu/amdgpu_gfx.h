@@ -241,6 +241,9 @@ struct amdgpu_gfx_config {
 	uint32_t gc_gl1c_per_sa;
 	uint32_t gc_gl1c_size_per_instance;
 	uint32_t gc_gl2c_per_gpu;
+	uint32_t gc_tcp_size_per_cu;
+	uint32_t gc_num_cu_per_sqc;
+	uint32_t gc_tcc_size;
 };
 
 struct amdgpu_cu_info {

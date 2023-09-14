@@ -4752,7 +4752,7 @@ void ata_scsi_dev_rescan(struct work_struct *work)
 			}
 
 			spin_unlock_irqrestore(ap->lock, flags);
-			scsi_rescan_device(&(sdev->sdev_gendev));
+			scsi_rescan_device(sdev);
 			scsi_device_put(sdev);
 			spin_lock_irqsave(ap->lock, flags);
 		}
