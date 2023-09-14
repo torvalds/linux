@@ -1611,7 +1611,7 @@ static void gmc_v9_0_vram_gtt_location(struct amdgpu_device *adev,
 		amdgpu_gmc_sysvm_location(adev, mc);
 	} else {
 		amdgpu_gmc_vram_location(adev, mc, base);
-		amdgpu_gmc_gart_location(adev, mc);
+		amdgpu_gmc_gart_location(adev, mc, AMDGPU_GART_PLACEMENT_BEST_FIT);
 		if (!amdgpu_sriov_vf(adev))
 			amdgpu_gmc_agp_location(adev, mc);
 	}

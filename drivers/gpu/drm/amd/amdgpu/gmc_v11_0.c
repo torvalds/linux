@@ -634,7 +634,7 @@ static void gmc_v11_0_vram_gtt_location(struct amdgpu_device *adev,
 	base = adev->mmhub.funcs->get_fb_location(adev);
 
 	amdgpu_gmc_vram_location(adev, &adev->gmc, base);
-	amdgpu_gmc_gart_location(adev, mc);
+	amdgpu_gmc_gart_location(adev, mc, AMDGPU_GART_PLACEMENT_BEST_FIT);
 	if (!amdgpu_sriov_vf(adev) ||
 	    (amdgpu_ip_version(adev, GC_HWIP, 0) < IP_VERSION(11, 5, 0)))
 		amdgpu_gmc_agp_location(adev, mc);

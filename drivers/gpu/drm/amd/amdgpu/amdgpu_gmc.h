@@ -199,6 +199,12 @@ struct amdgpu_mem_partition_info {
 
 #define INVALID_PFN    -1
 
+enum amdgpu_gart_placement {
+	AMDGPU_GART_PLACEMENT_BEST_FIT = 0,
+	AMDGPU_GART_PLACEMENT_HIGH,
+	AMDGPU_GART_PLACEMENT_LOW,
+};
+
 struct amdgpu_gmc {
 	/* FB's physical address in MMIO space (for CPU to
 	 * map FB). This is different compared to the agp/
@@ -391,7 +397,8 @@ void amdgpu_gmc_sysvm_location(struct amdgpu_device *adev, struct amdgpu_gmc *mc
 void amdgpu_gmc_vram_location(struct amdgpu_device *adev, struct amdgpu_gmc *mc,
 			      u64 base);
 void amdgpu_gmc_gart_location(struct amdgpu_device *adev,
-			      struct amdgpu_gmc *mc);
+			      struct amdgpu_gmc *mc,
+			      enum amdgpu_gart_placement gart_placement);
 void amdgpu_gmc_agp_location(struct amdgpu_device *adev,
 			     struct amdgpu_gmc *mc);
 void amdgpu_gmc_set_agp_default(struct amdgpu_device *adev,

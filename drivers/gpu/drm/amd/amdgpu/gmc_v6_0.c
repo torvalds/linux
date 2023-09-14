@@ -212,7 +212,7 @@ static void gmc_v6_0_vram_gtt_location(struct amdgpu_device *adev,
 	base <<= 24;
 
 	amdgpu_gmc_vram_location(adev, mc, base);
-	amdgpu_gmc_gart_location(adev, mc);
+	amdgpu_gmc_gart_location(adev, mc, AMDGPU_GART_PLACEMENT_BEST_FIT);
 }
 
 static void gmc_v6_0_mc_program(struct amdgpu_device *adev)
