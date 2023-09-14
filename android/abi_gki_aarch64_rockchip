@@ -1247,6 +1247,47 @@
   usb_submit_urb
   __usecs_to_jiffies
   usleep_range_state
+  v4l2_ctrl_find
+  v4l2_ctrl_g_ctrl
+  v4l2_ctrl_g_ctrl_int64
+  v4l2_ctrl_handler_free
+  v4l2_ctrl_handler_init_class
+  __v4l2_ctrl_handler_setup
+  v4l2_ctrl_handler_setup
+  __v4l2_ctrl_modify_range
+  v4l2_ctrl_new_custom
+  v4l2_ctrl_new_int_menu
+  v4l2_ctrl_new_std
+  v4l2_ctrl_new_std_menu
+  v4l2_ctrl_new_std_menu_items
+  __v4l2_ctrl_s_ctrl
+  __v4l2_ctrl_s_ctrl_int64
+  v4l2_ctrl_subdev_subscribe_event
+  v4l2_device_register
+  v4l2_device_register_subdev
+  __v4l2_device_register_subdev_nodes
+  v4l2_device_unregister
+  v4l2_device_unregister_subdev
+  v4l2_enum_dv_timings_cap
+  v4l2_event_queue
+  v4l2_event_subdev_unsubscribe
+  v4l2_event_subscribe
+  v4l2_event_unsubscribe
+  v4l2_fh_open
+  v4l2_i2c_subdev_init
+  v4l2_match_dv_timings
+  v4l2_pipeline_link_notify
+  v4l2_pipeline_pm_get
+  v4l2_pipeline_pm_put
+  v4l2_print_dv_timings
+  v4l2_querymenu
+  v4l2_src_change_event_subdev_subscribe
+  v4l2_subdev_call_wrappers
+  v4l2_subdev_init
+  v4l2_subdev_link_validate
+  v4l2_subdev_notify_event
+  v4l2_type_names
+  v4l2_valid_dv_timings
   vb2_buffer_done
   vb2_dma_contig_memops
   vb2_fop_mmap
@@ -1269,6 +1310,13 @@
   vb2_queue_release
   vb2_vmalloc_memops
   vfree
+  video_devdata
+  video_device_pipeline_start
+  video_device_pipeline_stop
+  video_device_release_empty
+  video_ioctl2
+  __video_register_device
+  video_unregister_device
   vmalloc
   vmap
   vm_get_page_prot
@@ -1728,6 +1776,9 @@
   tcpm_unregister_port
   tcpm_vbus_change
 
+# required by gc2145.ko
+  v4l2_ctrl_subdev_log_status
+
 # required by gpio-regulator.ko
   gpiod_count
 
@@ -2147,6 +2198,17 @@
 
 # required by rockchip-cpufreq.ko
   cpufreq_unregister_notifier
+
+# required by rockchip-hdmirx.ko
+  cec_s_phys_addr
+  cpu_latency_qos_remove_request
+  device_create_with_groups
+  of_reserved_mem_device_release
+  v4l2_ctrl_log_status
+  v4l2_ctrl_subscribe_event
+  v4l2_find_dv_timings_cap
+  v4l2_src_change_event_subscribe
+  vb2_fop_read
 
 # required by rockchip-rng.ko
   devm_of_iomap
