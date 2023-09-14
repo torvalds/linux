@@ -884,10 +884,10 @@ int kvmppc_xive_attach_escalation(struct kvm_vcpu *vcpu, u8 prio,
 	}
 
 	if (single_escalation)
-		name = kasprintf(GFP_KERNEL, "kvm-%d-%d",
+		name = kasprintf(GFP_KERNEL, "kvm-%lld-%d",
 				 vcpu->kvm->arch.lpid, xc->server_num);
 	else
-		name = kasprintf(GFP_KERNEL, "kvm-%d-%d-%d",
+		name = kasprintf(GFP_KERNEL, "kvm-%lld-%d-%d",
 				 vcpu->kvm->arch.lpid, xc->server_num, prio);
 	if (!name) {
 		pr_err("Failed to allocate escalation irq name for queue %d of VCPU %d\n",
