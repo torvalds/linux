@@ -2056,7 +2056,7 @@ rb_insert_pages(struct ring_buffer_per_cpu *cpu_buffer)
 	retries = 10;
 	success = false;
 	while (retries--) {
-		struct list_head *head_page, *prev_page, *r;
+		struct list_head *head_page, *prev_page;
 		struct list_head *last_page, *first_page;
 		struct list_head *head_page_with_bit;
 		struct buffer_page *hpage = rb_set_head_page(cpu_buffer);
@@ -2075,9 +2075,9 @@ rb_insert_pages(struct ring_buffer_per_cpu *cpu_buffer)
 		last_page->next = head_page_with_bit;
 		first_page->prev = prev_page;
 
-		r = cmpxchg(&prev_page->next, head_page_with_bit, first_page);
-
-		if (r == head_page_with_bit) {
+		/* caution: head_page_with_bit gets updated on cmpxchg failure */
+		if (try_cmpxchg(&prev_page->next,
+				&head_page_with_bit, first_page)) {
 			/*
 			 * yay, we replaced the page pointer to our new list,
 			 * now, we just have to update to head page's prev
