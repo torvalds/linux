@@ -947,36 +947,42 @@ static bool is_pkt_valid(struct pkt *pkt, void *buffer, u64 addr, u32 len)
 	return true;
 }
 
-static void kick_tx(struct xsk_socket_info *xsk)
+static int kick_tx(struct xsk_socket_info *xsk)
 {
 	int ret;
 
 	ret = sendto(xsk_socket__fd(xsk->xsk), NULL, 0, MSG_DONTWAIT, NULL, 0);
 	if (ret >= 0)
-		return;
+		return TEST_PASS;
 	if (errno == ENOBUFS || errno == EAGAIN || errno == EBUSY || errno == ENETDOWN) {
 		usleep(100);
-		return;
+		return TEST_PASS;
 	}
-	exit_with_error(errno);
+	return TEST_FAILURE;
 }
 
-static void kick_rx(struct xsk_socket_info *xsk)
+static int kick_rx(struct xsk_socket_info *xsk)
 {
 	int ret;
 
 	ret = recvfrom(xsk_socket__fd(xsk->xsk), NULL, 0, MSG_DONTWAIT, NULL, NULL);
 	if (ret < 0)
-		exit_with_error(errno);
+		return TEST_FAILURE;
+
+	return TEST_PASS;
 }
 
 static int complete_pkts(struct xsk_socket_info *xsk, int batch_size)
 {
 	unsigned int rcvd;
 	u32 idx;
+	int ret;
 
-	if (xsk_ring_prod__needs_wakeup(&xsk->tx))
-		kick_tx(xsk);
+	if (xsk_ring_prod__needs_wakeup(&xsk->tx)) {
+		ret = kick_tx(xsk);
+		if (ret)
+			return TEST_FAILURE;
+	}
 
 	rcvd = xsk_ring_cons__peek(&xsk->umem->cq, batch_size, &idx);
 	if (rcvd) {
@@ -1024,11 +1030,14 @@ static int receive_pkts(struct test_spec *test, struct pollfd *fds)
 			return TEST_FAILURE;
 		}
 
-		kick_rx(xsk);
+		ret = kick_rx(xsk);
+		if (ret)
+			return TEST_FAILURE;
+
 		if (ifobj->use_poll) {
 			ret = poll(fds, 1, POLL_TMOUT);
 			if (ret < 0)
-				exit_with_error(errno);
+				return TEST_FAILURE;
 
 			if (!ret) {
 				if (!is_umem_valid(test->ifobj_tx))
@@ -1049,12 +1058,10 @@ static int receive_pkts(struct test_spec *test, struct pollfd *fds)
 		if (ifobj->use_fill_ring) {
 			ret = xsk_ring_prod__reserve(&umem->fq, rcvd, &idx_fq);
 			while (ret != rcvd) {
-				if (ret < 0)
-					exit_with_error(-ret);
 				if (xsk_ring_prod__needs_wakeup(&umem->fq)) {
 					ret = poll(fds, 1, POLL_TMOUT);
 					if (ret < 0)
-						exit_with_error(errno);
+						return TEST_FAILURE;
 				}
 				ret = xsk_ring_prod__reserve(&umem->fq, rcvd, &idx_fq);
 			}
@@ -1138,7 +1145,9 @@ static int __send_pkts(struct ifobject *ifobject, struct pollfd *fds, bool timeo
 	buffer_len = pkt_get_buffer_len(umem, pkt_stream->max_pkt_len);
 	/* pkts_in_flight might be negative if many invalid packets are sent */
 	if (pkts_in_flight >= (int)((umem_size(umem) - BATCH_SIZE * buffer_len) / buffer_len)) {
-		kick_tx(xsk);
+		ret = kick_tx(xsk);
+		if (ret)
+			return TEST_FAILURE;
 		return TEST_CONTINUE;
 	}
 
@@ -1321,7 +1330,9 @@ static int validate_rx_dropped(struct ifobject *ifobject)
 	struct xdp_statistics stats;
 	int err;
 
-	kick_rx(ifobject->xsk);
+	err = kick_rx(ifobject->xsk);
+	if (err)
+		return TEST_FAILURE;
 
 	err = get_xsk_stats(xsk, &stats);
 	if (err)
@@ -1347,7 +1358,9 @@ static int validate_rx_full(struct ifobject *ifobject)
 	int err;
 
 	usleep(1000);
-	kick_rx(ifobject->xsk);
+	err = kick_rx(ifobject->xsk);
+	if (err)
+		return TEST_FAILURE;
 
 	err = get_xsk_stats(xsk, &stats);
 	if (err)
@@ -1366,7 +1379,9 @@ static int validate_fill_empty(struct ifobject *ifobject)
 	int err;
 
 	usleep(1000);
-	kick_rx(ifobject->xsk);
+	err = kick_rx(ifobject->xsk);
+	if (err)
+		return TEST_FAILURE;
 
 	err = get_xsk_stats(xsk, &stats);
 	if (err)
@@ -1775,7 +1790,7 @@ static int testapp_bidirectional(struct test_spec *test)
 	return res;
 }
 
-static void swap_xsk_resources(struct ifobject *ifobj_tx, struct ifobject *ifobj_rx)
+static int swap_xsk_resources(struct ifobject *ifobj_tx, struct ifobject *ifobj_rx)
 {
 	int ret;
 
@@ -1786,7 +1801,9 @@ static void swap_xsk_resources(struct ifobject *ifobj_tx, struct ifobject *ifobj
 
 	ret = xsk_update_xskmap(ifobj_rx->xskmap, ifobj_rx->xsk->xsk);
 	if (ret)
-		exit_with_error(errno);
+		return TEST_FAILURE;
+
+	return TEST_PASS;
 }
 
 static int testapp_xdp_prog_cleanup(struct test_spec *test)
@@ -1796,7 +1813,8 @@ static int testapp_xdp_prog_cleanup(struct test_spec *test)
 	if (testapp_validate_traffic(test))
 		return TEST_FAILURE;
 
-	swap_xsk_resources(test->ifobj_tx, test->ifobj_rx);
+	if (swap_xsk_resources(test->ifobj_tx, test->ifobj_rx))
+		return TEST_FAILURE;
 	return testapp_validate_traffic(test);
 }
 
@@ -1997,11 +2015,15 @@ static int testapp_xdp_metadata_copy(struct test_spec *test)
 	test->ifobj_rx->use_metadata = true;
 
 	data_map = bpf_object__find_map_by_name(skel_rx->obj, "xsk_xdp_.bss");
-	if (!data_map || !bpf_map__is_internal(data_map))
-		exit_with_error(ENOMEM);
+	if (!data_map || !bpf_map__is_internal(data_map)) {
+		ksft_print_msg("Error: could not find bss section of XDP program\n");
+		return TEST_FAILURE;
+	}
 
-	if (bpf_map_update_elem(bpf_map__fd(data_map), &key, &count, BPF_ANY))
-		exit_with_error(errno);
+	if (bpf_map_update_elem(bpf_map__fd(data_map), &key, &count, BPF_ANY)) {
+		ksft_print_msg("Error: could not update count element\n");
+		return TEST_FAILURE;
+	}
 
 	return testapp_validate_traffic(test);
 }
