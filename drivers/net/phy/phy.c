@@ -1489,14 +1489,15 @@ void phy_state_machine(struct work_struct *work)
 		break;
 	}
 
+	if (needs_aneg) {
+		err = _phy_start_aneg(phydev);
+		func = &_phy_start_aneg;
+	}
+
 	mutex_unlock(&phydev->lock);
 
-	if (needs_aneg) {
-		err = phy_start_aneg(phydev);
-		func = &phy_start_aneg;
-	} else if (do_suspend) {
+	if (do_suspend)
 		phy_suspend(phydev);
-	}
 
 	if (err == -ENODEV)
 		return;
