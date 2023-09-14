@@ -65,6 +65,12 @@ config SND_SOC_ROCKCHIP_SAI
 	  Rockchip SAI Controller. The Controller supports up to maximum of
 	  128 channels each for play and record.
 
+config SND_SOC_ROCKCHIP_SAI_VERBOSE
+	bool "Rockchip SAI Verbose Controls"
+	depends on SND_SOC_ROCKCHIP_SAI
+	help
+	  Say Y if you want to export much more controls and info for SAI.
+
 config SND_SOC_ROCKCHIP_SPDIF
 	tristate "Rockchip SPDIF Device Driver"
 	depends on CLKDEV_LOOKUP && SND_SOC_ROCKCHIP

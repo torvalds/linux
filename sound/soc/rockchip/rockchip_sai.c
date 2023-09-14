@@ -869,8 +869,8 @@ static const char * const lpx_text[] = {
 	"From SDO0", "From SDO1", "From SDO2", "From SDO3" };
 
 static const char * const lps_text[] = { "Disable", "Enable" };
-static const char * const sync_out_text[] = { "External", "Internal" };
-static const char * const sync_in_text[] = { "External", "Internal" };
+static const char * const sync_out_text[] = { "From CRU", "From IO" };
+static const char * const sync_in_text[] = { "From IO", "From Sync Port" };
 
 static const char * const rpaths_text[] = {
 	"From SDI0", "From SDI1", "From SDI2", "From SDI3" };
@@ -933,8 +933,8 @@ static SOC_ENUM_SINGLE_DECL(tpath2_enum, SAI_PATH_SEL, 4, tpaths_text);
 static SOC_ENUM_SINGLE_DECL(tpath1_enum, SAI_PATH_SEL, 2, tpaths_text);
 static SOC_ENUM_SINGLE_DECL(tpath0_enum, SAI_PATH_SEL, 0, tpaths_text);
 
-static int rockchip_sai_fpw_get(struct snd_kcontrol *kcontrol,
-				struct snd_ctl_elem_value *ucontrol)
+static int __maybe_unused rockchip_sai_fpw_get(struct snd_kcontrol *kcontrol,
+					       struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
 	struct rk_sai_dev *sai = snd_soc_component_get_drvdata(component);
@@ -944,8 +944,8 @@ static int rockchip_sai_fpw_get(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static int rockchip_sai_fpw_put(struct snd_kcontrol *kcontrol,
-				struct snd_ctl_elem_value *ucontrol)
+static int __maybe_unused rockchip_sai_fpw_put(struct snd_kcontrol *kcontrol,
+					       struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
 	struct rk_sai_dev *sai = snd_soc_component_get_drvdata(component);
@@ -960,8 +960,8 @@ static int rockchip_sai_fpw_put(struct snd_kcontrol *kcontrol,
 	return 1;
 }
 
-static int rockchip_sai_fw_ratio_get(struct snd_kcontrol *kcontrol,
-				     struct snd_ctl_elem_value *ucontrol)
+static int __maybe_unused rockchip_sai_fw_ratio_get(struct snd_kcontrol *kcontrol,
+						    struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
 	struct rk_sai_dev *sai = snd_soc_component_get_drvdata(component);
@@ -971,8 +971,8 @@ static int rockchip_sai_fw_ratio_get(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static int rockchip_sai_fw_ratio_put(struct snd_kcontrol *kcontrol,
-				     struct snd_ctl_elem_value *ucontrol)
+static int __maybe_unused rockchip_sai_fw_ratio_put(struct snd_kcontrol *kcontrol,
+						    struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
 	struct rk_sai_dev *sai = snd_soc_component_get_drvdata(component);
@@ -1040,8 +1040,8 @@ static int rockchip_sai_rx_lanes_put(struct snd_kcontrol *kcontrol,
 	return 1;
 }
 
-static int rockchip_sai_mss_get(struct snd_kcontrol *kcontrol,
-				struct snd_ctl_elem_value *ucontrol)
+static int __maybe_unused rockchip_sai_mss_get(struct snd_kcontrol *kcontrol,
+					       struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
 	struct rk_sai_dev *sai = snd_soc_component_get_drvdata(component);
@@ -1051,8 +1051,8 @@ static int rockchip_sai_mss_get(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static int rockchip_sai_mss_put(struct snd_kcontrol *kcontrol,
-				struct snd_ctl_elem_value *ucontrol)
+static int __maybe_unused rockchip_sai_mss_put(struct snd_kcontrol *kcontrol,
+					       struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
 	struct rk_sai_dev *sai = snd_soc_component_get_drvdata(component);
@@ -1188,21 +1188,17 @@ static int rockchip_sai_wr_wait_time_put(struct snd_kcontrol *kcontrol,
 	.info = rockchip_sai_wait_time_info,			\
 	.get = xhandler_get, .put = xhandler_put }
 
-static DECLARE_TLV_DB_SCALE(fs_shift_tlv, 0, 8192, 0);
+static __maybe_unused DECLARE_TLV_DB_SCALE(fs_shift_tlv, 0, 8192, 0);
 
 static const struct snd_kcontrol_new rockchip_sai_controls[] = {
-
+#ifdef CONFIG_SND_SOC_ROCKCHIP_SAI_VERBOSE
 	SOC_ENUM("Transmit Edge Shift", tsft_enum),
-	SOC_ENUM_EXT("Transmit SDOx Select", tx_lanes_enum,
-		     rockchip_sai_tx_lanes_get, rockchip_sai_tx_lanes_put),
 	SOC_ENUM("Transmit Store Justified Mode", tsjm_enum),
 	SOC_ENUM("Transmit First Bit Mode", tfbm_enum),
 	SOC_ENUM("Transmit Valid Data Justified", tvdj_enum),
 	SOC_ENUM("Transmit Slot Bit Width", tsbw_enum),
 
 	SOC_ENUM("Receive Edge Shift", rsft_enum),
-	SOC_ENUM_EXT("Receive SDIx Select", rx_lanes_enum,
-		     rockchip_sai_rx_lanes_get, rockchip_sai_rx_lanes_put),
 	SOC_ENUM("Receive Store Justified Mode", rsjm_enum),
 	SOC_ENUM("Receive First Bit Mode", rfbm_enum),
 	SOC_ENUM("Receive Valid Data Justified", rvdj_enum),
@@ -1214,15 +1210,24 @@ static const struct snd_kcontrol_new rockchip_sai_controls[] = {
 	SOC_ENUM_EXT("Frame Width Ratio", fw_ratio_enum,
 		     rockchip_sai_fw_ratio_get, rockchip_sai_fw_ratio_put),
 
+	SOC_ENUM_EXT("Master Slave Mode Select", mss_switch,
+		     rockchip_sai_mss_get, rockchip_sai_mss_put),
+	SOC_ENUM("Sclk Polarity", sp_switch),
+	SOC_ENUM("Frame Sync Polarity", fp_switch),
+
+	SOC_SINGLE_TLV("Transmit Frame Shift Select", SAI_TX_SHIFT,
+		       0, 8192, 0, fs_shift_tlv),
+	SOC_SINGLE_TLV("Receive Frame Shift Select", SAI_RX_SHIFT,
+		       0, 8192, 0, fs_shift_tlv),
+#endif
+	SOC_ENUM_EXT("Transmit SDOx Select", tx_lanes_enum,
+		     rockchip_sai_tx_lanes_get, rockchip_sai_tx_lanes_put),
+	SOC_ENUM_EXT("Receive SDIx Select", rx_lanes_enum,
+		     rockchip_sai_rx_lanes_get, rockchip_sai_rx_lanes_put),
 	SOC_SINGLE_TLV("Receive Mono Slot Select", SAI_MONO_CR,
 		       2, 128, 0, rmss_tlv),
 	SOC_ENUM("Receive Mono Switch", rmono_switch),
 	SOC_ENUM("Transmit Mono Switch", tmono_switch),
-
-	SOC_ENUM_EXT("Master / Slave Mode Select", mss_switch,
-		     rockchip_sai_mss_get, rockchip_sai_mss_put),
-	SOC_ENUM("Sclk Polarity", sp_switch),
-	SOC_ENUM("Frame Sync Polarity", fp_switch),
 
 	SOC_ENUM("SDI3 Loopback Src Select", lp3_enum),
 	SOC_ENUM("SDI2 Loopback Src Select", lp2_enum),
@@ -1242,11 +1247,6 @@ static const struct snd_kcontrol_new rockchip_sai_controls[] = {
 	SOC_ENUM("Transmit PATH2 Sink Select", tpath2_enum),
 	SOC_ENUM("Transmit PATH1 Sink Select", tpath1_enum),
 	SOC_ENUM("Transmit PATH0 Sink Select", tpath0_enum),
-
-	SOC_SINGLE_TLV("Transmit Frame Shift Select", SAI_TX_SHIFT,
-		       0, 8192, 0, fs_shift_tlv),
-	SOC_SINGLE_TLV("Receive Frame Shift Select", SAI_RX_SHIFT,
-		       0, 8192, 0, fs_shift_tlv),
 
 	SOC_SINGLE_BOOL_EXT("Clk Auto Switch", 0,
 			    rockchip_sai_clk_auto_get,
