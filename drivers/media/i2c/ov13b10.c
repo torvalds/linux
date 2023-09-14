@@ -650,9 +650,6 @@ struct ov13b10 {
 	/* Mutex for serialized access */
 	struct mutex mutex;
 
-	/* Streaming on/off */
-	bool streaming;
-
 	/* True if the device has been identified */
 	bool identified;
 };
@@ -1235,7 +1232,6 @@ static int ov13b10_set_stream(struct v4l2_subdev *sd, int enable)
 		pm_runtime_put(&client->dev);
 	}
 
-	ov13b->streaming = enable;
 	mutex_unlock(&ov13b->mutex);
 
 	return ret;
@@ -1250,12 +1246,6 @@ err_unlock:
 
 static int ov13b10_suspend(struct device *dev)
 {
-	struct v4l2_subdev *sd = dev_get_drvdata(dev);
-	struct ov13b10 *ov13b = to_ov13b10(sd);
-
-	if (ov13b->streaming)
-		ov13b10_stop_streaming(ov13b);
-
 	ov13b10_power_off(dev);
 
 	return 0;
@@ -1263,29 +1253,7 @@ static int ov13b10_suspend(struct device *dev)
 
 static int ov13b10_resume(struct device *dev)
 {
-	struct v4l2_subdev *sd = dev_get_drvdata(dev);
-	struct ov13b10 *ov13b = to_ov13b10(sd);
-	int ret;
-
-	ret = ov13b10_power_on(dev);
-	if (ret)
-		goto pm_fail;
-
-	if (ov13b->streaming) {
-		ret = ov13b10_start_streaming(ov13b);
-		if (ret)
-			goto stop_streaming;
-	}
-
-	return 0;
-
-stop_streaming:
-	ov13b10_stop_streaming(ov13b);
-	ov13b10_power_off(dev);
-pm_fail:
-	ov13b->streaming = false;
-
-	return ret;
+	return ov13b10_power_on(dev);
 }
 
 static const struct v4l2_subdev_video_ops ov13b10_video_ops = {
