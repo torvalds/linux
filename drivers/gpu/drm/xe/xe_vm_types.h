@@ -17,7 +17,6 @@
 #include "xe_pt_types.h"
 #include "xe_range_fence.h"
 
-struct async_op_fence;
 struct xe_bo;
 struct xe_sync_entry;
 struct xe_vm;
@@ -156,7 +155,7 @@ struct xe_vm {
 	 */
 #define XE_VM_FLAG_64K			BIT(0)
 #define XE_VM_FLAG_COMPUTE_MODE		BIT(1)
-#define XE_VM_FLAG_ASYNC_BIND_OPS	BIT(2)
+#define XE_VM_FLAG_ASYNC_DEFAULT	BIT(2)
 #define XE_VM_FLAG_MIGRATION		BIT(3)
 #define XE_VM_FLAG_SCRATCH_PAGE		BIT(4)
 #define XE_VM_FLAG_FAULT_MODE		BIT(5)
@@ -394,10 +393,6 @@ struct xe_vma_op {
 	u32 num_syncs;
 	/** @link: async operation link */
 	struct list_head link;
-	/**
-	 * @fence: async operation fence, signaled on last operation complete
-	 */
-	struct async_op_fence *fence;
 	/** @tile_mask: gt mask for this operation */
 	u8 tile_mask;
 	/** @flags: operation flags */

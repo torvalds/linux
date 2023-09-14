@@ -621,7 +621,10 @@ int xe_exec_queue_create_ioctl(struct drm_device *dev, void *data,
 	if (XE_IOCTL_DBG(xe, eci[0].gt_id >= xe->info.gt_count))
 		return -EINVAL;
 
-	if (eci[0].engine_class == DRM_XE_ENGINE_CLASS_VM_BIND) {
+	if (eci[0].engine_class >= DRM_XE_ENGINE_CLASS_VM_BIND_ASYNC) {
+		bool sync = eci[0].engine_class ==
+			DRM_XE_ENGINE_CLASS_VM_BIND_SYNC;
+
 		for_each_gt(gt, xe, id) {
 			struct xe_exec_queue *new;
 
@@ -647,6 +650,8 @@ int xe_exec_queue_create_ioctl(struct drm_device *dev, void *data,
 						   args->width, hwe,
 						   EXEC_QUEUE_FLAG_PERSISTENT |
 						   EXEC_QUEUE_FLAG_VM |
+						   (sync ? 0 :
+						    EXEC_QUEUE_FLAG_VM_ASYNC) |
 						   (id ?
 						    EXEC_QUEUE_FLAG_BIND_ENGINE_CHILD :
 						    0));

@@ -196,27 +196,6 @@ int xe_exec_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 		}
 	}
 
-	/*
-	 * We can't install a job into the VM dma-resv shared slot before an
-	 * async VM bind passed in as a fence without the risk of deadlocking as
-	 * the bind can trigger an eviction which in turn depends on anything in
-	 * the VM dma-resv shared slots. Not an ideal solution, but we wait for
-	 * all dependent async VM binds to start (install correct fences into
-	 * dma-resv slots) before moving forward.
-	 */
-	if (!xe_vm_no_dma_fences(vm) &&
-	    vm->flags & XE_VM_FLAG_ASYNC_BIND_OPS) {
-		for (i = 0; i < args->num_syncs; i++) {
-			struct dma_fence *fence = syncs[i].fence;
-
-			if (fence) {
-				err = xe_vm_async_fence_wait_start(fence);
-				if (err)
-					goto err_syncs;
-			}
-		}
-	}
-
 retry:
 	if (!xe_vm_no_dma_fences(vm) && xe_vm_userptr_check_repin(vm)) {
 		err = down_write_killable(&vm->lock);
@@ -228,28 +207,6 @@ retry:
 	}
 	if (err)
 		goto err_syncs;
-
-	/* We don't allow execs while the VM is in error state */
-	if (vm->async_ops.error) {
-		err = vm->async_ops.error;
-		goto err_unlock_list;
-	}
-
-	/*
-	 * Extreme corner where we exit a VM error state with a munmap style VM
-	 * unbind inflight which requires a rebind. In this case the rebind
-	 * needs to install some fences into the dma-resv slots. The worker to
-	 * do this queued, let that worker make progress by dropping vm->lock,
-	 * flushing the worker and retrying the exec.
-	 */
-	if (vm->async_ops.munmap_rebind_inflight) {
-		if (write_locked)
-			up_write(&vm->lock);
-		else
-			up_read(&vm->lock);
-		flush_work(&vm->async_ops.work);
-		goto retry;
-	}
 
 	if (write_locked) {
 		err = xe_vm_userptr_pin(vm);

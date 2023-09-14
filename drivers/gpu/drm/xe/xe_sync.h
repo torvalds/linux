@@ -19,7 +19,7 @@ int xe_sync_entry_parse(struct xe_device *xe, struct xe_file *xef,
 int xe_sync_entry_wait(struct xe_sync_entry *sync);
 int xe_sync_entry_add_deps(struct xe_sync_entry *sync,
 			   struct xe_sched_job *job);
-bool xe_sync_entry_signal(struct xe_sync_entry *sync,
+void xe_sync_entry_signal(struct xe_sync_entry *sync,
 			  struct xe_sched_job *job,
 			  struct dma_fence *fence);
 void xe_sync_entry_cleanup(struct xe_sync_entry *sync);

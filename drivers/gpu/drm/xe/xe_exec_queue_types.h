@@ -77,6 +77,8 @@ struct xe_exec_queue {
 #define EXEC_QUEUE_FLAG_VM			BIT(4)
 /* child of VM queue for multi-tile VM jobs */
 #define EXEC_QUEUE_FLAG_BIND_ENGINE_CHILD	BIT(5)
+/* VM jobs for this queue are asynchronous */
+#define EXEC_QUEUE_FLAG_VM_ASYNC		BIT(6)
 
 	/**
 	 * @flags: flags for this exec queue, should statically setup aside from ban
