@@ -1433,13 +1433,9 @@ static void dcn20_detect_pipe_changes(struct pipe_ctx *old_pipe, struct pipe_ctx
 	}
 
 	/* Detect top pipe only changes */
-	if (!new_pipe->top_pipe && !new_pipe->prev_odm_pipe) {
+	if (resource_is_pipe_type(new_pipe, OTG_MASTER)) {
 		/* Detect odm changes */
-		if ((old_pipe->next_odm_pipe && new_pipe->next_odm_pipe
-			&& old_pipe->next_odm_pipe->pipe_idx != new_pipe->next_odm_pipe->pipe_idx)
-				|| (!old_pipe->next_odm_pipe && new_pipe->next_odm_pipe)
-				|| (old_pipe->next_odm_pipe && !new_pipe->next_odm_pipe)
-				|| old_pipe->stream_res.opp != new_pipe->stream_res.opp)
+		if (resource_is_odm_topology_changed(new_pipe, old_pipe))
 			new_pipe->update_flags.bits.odm = 1;
 
 		/* Detect global sync changes */

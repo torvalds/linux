@@ -447,6 +447,16 @@ int resource_get_odm_slice_index(const struct pipe_ctx *opp_head);
 bool resource_is_pipe_topology_changed(const struct dc_state *state_a,
 		const struct dc_state *state_b);
 
+/*
+ * determine if the two OTG master pipes have the same ODM topology
+ * return
+ * false - if pipes passed in are not OTG masters or ODM topology is
+ * changed.
+ * true - otherwise
+ */
+bool resource_is_odm_topology_changed(const struct pipe_ctx *otg_master_a,
+		const struct pipe_ctx *otg_master_b);
+
 /* log the pipe topology update in state */
 void resource_log_pipe_topology_update(struct dc *dc, struct dc_state *state);
 

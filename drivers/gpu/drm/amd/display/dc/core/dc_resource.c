@@ -1927,6 +1927,29 @@ bool resource_is_pipe_topology_changed(const struct dc_state *state_a,
 	return false;
 }
 
+bool resource_is_odm_topology_changed(const struct pipe_ctx *otg_master_a,
+		const struct pipe_ctx *otg_master_b)
+{
+	const struct pipe_ctx *opp_head_a = otg_master_a;
+	const struct pipe_ctx *opp_head_b = otg_master_b;
+
+	if (!resource_is_pipe_type(otg_master_a, OTG_MASTER) ||
+			!resource_is_pipe_type(otg_master_b, OTG_MASTER))
+		return true;
+
+	while (opp_head_a && opp_head_b) {
+		if (opp_head_a->stream_res.opp != opp_head_b->stream_res.opp)
+			return true;
+		if ((opp_head_a->next_odm_pipe && !opp_head_b->next_odm_pipe) ||
+				(!opp_head_a->next_odm_pipe && opp_head_b->next_odm_pipe))
+			return true;
+		opp_head_a = opp_head_a->next_odm_pipe;
+		opp_head_b = opp_head_b->next_odm_pipe;
+	}
+
+	return false;
+}
+
 /*
  * Sample log:
  *    pipe topology update
