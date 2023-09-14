@@ -202,11 +202,10 @@ void symbols__fixup_duplicate(struct rb_root_cached *symbols)
 		curr = rb_entry(nd, struct symbol, rb_node);
 again:
 		nd = rb_next(&curr->rb_node);
-		next = rb_entry(nd, struct symbol, rb_node);
-
 		if (!nd)
 			break;
 
+		next = rb_entry(nd, struct symbol, rb_node);
 		if (curr->start != next->start)
 			continue;
 
