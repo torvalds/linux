@@ -73,6 +73,9 @@
 /* Holds the block group items for extent tree v2. */
 #define BTRFS_BLOCK_GROUP_TREE_OBJECTID 11ULL
 
+/* Tracks RAID stripes in block groups. */
+#define BTRFS_RAID_STRIPE_TREE_OBJECTID 12ULL
+
 /* device stats in the device tree */
 #define BTRFS_DEV_STATS_OBJECTID 0ULL
 
@@ -260,6 +263,8 @@
 #define BTRFS_DEV_EXTENT_KEY	204
 #define BTRFS_DEV_ITEM_KEY	216
 #define BTRFS_CHUNK_ITEM_KEY	228
+
+#define BTRFS_RAID_STRIPE_KEY	230
 
 /*
  * Records the overall state of the qgroups.
@@ -717,6 +722,30 @@ struct btrfs_free_space_header {
 	__le64 generation;
 	__le64 num_entries;
 	__le64 num_bitmaps;
+} __attribute__ ((__packed__));
+
+struct btrfs_raid_stride {
+	/* The id of device this raid extent lives on. */
+	__le64 devid;
+	/* The physical location on disk. */
+	__le64 physical;
+} __attribute__ ((__packed__));
+
+/* The stripe_extent::encoding, 1:1 mapping of enum btrfs_raid_types. */
+#define BTRFS_STRIPE_RAID0	1
+#define BTRFS_STRIPE_RAID1	2
+#define BTRFS_STRIPE_DUP	3
+#define BTRFS_STRIPE_RAID10	4
+#define BTRFS_STRIPE_RAID5	5
+#define BTRFS_STRIPE_RAID6	6
+#define BTRFS_STRIPE_RAID1C3	7
+#define BTRFS_STRIPE_RAID1C4	8
+
+struct btrfs_stripe_extent {
+	__u8 encoding;
+	__u8 reserved[7];
+	/* An array of raid strides this stripe is composed of. */
+	struct btrfs_raid_stride strides[];
 } __attribute__ ((__packed__));
 
 #define BTRFS_HEADER_FLAG_WRITTEN	(1ULL << 0)
