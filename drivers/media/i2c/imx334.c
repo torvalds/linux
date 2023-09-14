@@ -138,7 +138,6 @@ struct imx334_mode {
  * @mutex: Mutex for serializing sensor controls
  * @menu_skip_mask: Menu skip mask for link_freq_ctrl
  * @cur_code: current selected format code
- * @streaming: Flag indicating streaming state
  */
 struct imx334 {
 	struct device *dev;
@@ -161,7 +160,6 @@ struct imx334 {
 	struct mutex mutex;
 	unsigned long menu_skip_mask;
 	u32 cur_code;
-	bool streaming;
 };
 
 static const s64 link_freq[] = {
@@ -1051,11 +1049,6 @@ static int imx334_set_stream(struct v4l2_subdev *sd, int enable)
 
 	mutex_lock(&imx334->mutex);
 
-	if (imx334->streaming == enable) {
-		mutex_unlock(&imx334->mutex);
-		return 0;
-	}
-
 	if (enable) {
 		ret = pm_runtime_resume_and_get(imx334->dev);
 		if (ret < 0)
@@ -1068,8 +1061,6 @@ static int imx334_set_stream(struct v4l2_subdev *sd, int enable)
 		imx334_stop_streaming(imx334);
 		pm_runtime_put(imx334->dev);
 	}
-
-	imx334->streaming = enable;
 
 	mutex_unlock(&imx334->mutex);
 
