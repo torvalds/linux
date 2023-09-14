@@ -6,6 +6,11 @@
 #ifndef BTRFS_RAID_STRIPE_TREE_H
 #define BTRFS_RAID_STRIPE_TREE_H
 
+#define BTRFS_RST_SUPP_BLOCK_GROUP_MASK    (BTRFS_BLOCK_GROUP_DUP |		\
+					    BTRFS_BLOCK_GROUP_RAID1_MASK |	\
+					    BTRFS_BLOCK_GROUP_RAID0 |		\
+					    BTRFS_BLOCK_GROUP_RAID10)
+
 struct btrfs_io_context;
 struct btrfs_io_stripe;
 struct btrfs_ordered_extent;
@@ -30,7 +35,7 @@ static inline bool btrfs_need_stripe_tree_update(struct btrfs_fs_info *fs_info,
 	if (type != BTRFS_BLOCK_GROUP_DATA)
 		return false;
 
-	if (profile & BTRFS_BLOCK_GROUP_RAID1_MASK)
+	if (profile & BTRFS_RST_SUPP_BLOCK_GROUP_MASK)
 		return true;
 
 	return false;
