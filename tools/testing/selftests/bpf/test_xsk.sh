@@ -73,17 +73,21 @@
 #
 # Run test suite for physical device in loopback mode
 #   sudo ./test_xsk.sh -i IFACE
+#
+# Run test suite in a specific mode only [skb,drv,zc]
+#   sudo ./test_xsk.sh -m MODE
 
 . xsk_prereqs.sh
 
 ETH=""
 
-while getopts "vi:d" flag
+while getopts "vi:dm:" flag
 do
 	case "${flag}" in
 		v) verbose=1;;
 		d) debug=1;;
 		i) ETH=${OPTARG};;
+		m) MODE=${OPTARG};;
 	esac
 done
 
@@ -151,6 +155,10 @@ fi
 
 if [[ $verbose -eq 1 ]]; then
 	ARGS+="-v "
+fi
+
+if [ -n "$MODE" ]; then
+	ARGS+="-m ${MODE} "
 fi
 
 retval=$?

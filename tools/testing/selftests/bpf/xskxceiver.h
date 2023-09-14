@@ -63,7 +63,7 @@ enum test_mode {
 	TEST_MODE_SKB,
 	TEST_MODE_DRV,
 	TEST_MODE_ZC,
-	TEST_MODE_MAX
+	TEST_MODE_ALL
 };
 
 enum test_type {
@@ -97,8 +97,6 @@ enum test_type {
 	TEST_TYPE_TOO_MANY_FRAGS,
 	TEST_TYPE_MAX
 };
-
-static bool opt_verbose;
 
 struct xsk_umem_info {
 	struct xsk_ring_prod fq;

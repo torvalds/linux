@@ -107,6 +107,9 @@
 static const char *MAC1 = "\x00\x0A\x56\x9E\xEE\x62";
 static const char *MAC2 = "\x00\x0A\x56\x9E\xEE\x61";
 
+static bool opt_verbose;
+static enum test_mode opt_mode = TEST_MODE_ALL;
+
 static void __exit_with_error(int error, const char *file, const char *func, int line)
 {
 	ksft_test_result_fail("[%s:%s:%i]: ERROR: %d/\"%s\"\n", file, func, line, error,
@@ -310,17 +313,19 @@ static struct option long_options[] = {
 	{"interface", required_argument, 0, 'i'},
 	{"busy-poll", no_argument, 0, 'b'},
 	{"verbose", no_argument, 0, 'v'},
+	{"mode", required_argument, 0, 'm'},
 	{0, 0, 0, 0}
 };
 
 static void usage(const char *prog)
 {
 	const char *str =
-		"  Usage: %s [OPTIONS]\n"
+		"  Usage: xskxceiver [OPTIONS]\n"
 		"  Options:\n"
 		"  -i, --interface      Use interface\n"
 		"  -v, --verbose        Verbose output\n"
-		"  -b, --busy-poll      Enable busy poll\n";
+		"  -b, --busy-poll      Enable busy poll\n"
+		"  -m, --mode           Run only mode skb, drv, or zc\n";
 
 	ksft_print_msg(str, prog);
 }
@@ -342,7 +347,7 @@ static void parse_command_line(struct ifobject *ifobj_tx, struct ifobject *ifobj
 	opterr = 0;
 
 	for (;;) {
-		c = getopt_long(argc, argv, "i:vb", long_options, &option_index);
+		c = getopt_long(argc, argv, "i:vbm:", long_options, &option_index);
 		if (c == -1)
 			break;
 
@@ -370,6 +375,18 @@ static void parse_command_line(struct ifobject *ifobj_tx, struct ifobject *ifobj
 		case 'b':
 			ifobj_tx->busy_poll = true;
 			ifobj_rx->busy_poll = true;
+			break;
+		case 'm':
+			if (!strncmp("skb", optarg, strlen(optarg))) {
+				opt_mode = TEST_MODE_SKB;
+			} else if (!strncmp("drv", optarg, strlen(optarg))) {
+				opt_mode = TEST_MODE_DRV;
+			} else if (!strncmp("zc", optarg, strlen(optarg))) {
+				opt_mode = TEST_MODE_ZC;
+			} else {
+				usage(basename(argv[0]));
+				ksft_exit_xfail();
+			}
 			break;
 		default:
 			usage(basename(argv[0]));
@@ -2365,9 +2382,25 @@ int main(int argc, char **argv)
 	test.tx_pkt_stream_default = tx_pkt_stream_default;
 	test.rx_pkt_stream_default = rx_pkt_stream_default;
 
-	ksft_set_plan(modes * TEST_TYPE_MAX);
+	if (opt_mode == TEST_MODE_ALL) {
+		ksft_set_plan(modes * TEST_TYPE_MAX);
+	} else {
+		if (opt_mode == TEST_MODE_DRV && modes <= TEST_MODE_DRV) {
+			ksft_print_msg("Error: XDP_DRV mode not supported.\n");
+			ksft_exit_xfail();
+		}
+		if (opt_mode == TEST_MODE_ZC && modes <= TEST_MODE_ZC) {
+			ksft_print_msg("Error: zero-copy mode not supported.\n");
+			ksft_exit_xfail();
+		}
+
+		ksft_set_plan(TEST_TYPE_MAX);
+	}
 
 	for (i = 0; i < modes; i++) {
+		if (opt_mode != TEST_MODE_ALL && i != opt_mode)
+			continue;
+
 		for (j = 0; j < TEST_TYPE_MAX; j++) {
 			test_spec_init(&test, ifobj_tx, ifobj_rx, i);
 			run_pkt_test(&test, i, j);
