@@ -1354,82 +1354,6 @@ void phy_free_interrupt(struct phy_device *phydev)
 EXPORT_SYMBOL(phy_free_interrupt);
 
 /**
- * phy_stop - Bring down the PHY link, and stop checking the status
- * @phydev: target phy_device struct
- */
-void phy_stop(struct phy_device *phydev)
-{
-	struct net_device *dev = phydev->attached_dev;
-	enum phy_state old_state;
-
-	if (!phy_is_started(phydev) && phydev->state != PHY_DOWN &&
-	    phydev->state != PHY_ERROR) {
-		WARN(1, "called from state %s\n",
-		     phy_state_to_str(phydev->state));
-		return;
-	}
-
-	mutex_lock(&phydev->lock);
-	old_state = phydev->state;
-
-	if (phydev->state == PHY_CABLETEST) {
-		phy_abort_cable_test(phydev);
-		netif_testing_off(dev);
-	}
-
-	if (phydev->sfp_bus)
-		sfp_upstream_stop(phydev->sfp_bus);
-
-	phydev->state = PHY_HALTED;
-	phy_process_state_change(phydev, old_state);
-
-	mutex_unlock(&phydev->lock);
-
-	phy_state_machine(&phydev->state_queue.work);
-	phy_stop_machine(phydev);
-
-	/* Cannot call flush_scheduled_work() here as desired because
-	 * of rtnl_lock(), but PHY_HALTED shall guarantee irq handler
-	 * will not reenable interrupts.
-	 */
-}
-EXPORT_SYMBOL(phy_stop);
-
-/**
- * phy_start - start or restart a PHY device
- * @phydev: target phy_device struct
- *
- * Description: Indicates the attached device's readiness to
- *   handle PHY-related work.  Used during startup to start the
- *   PHY, and after a call to phy_stop() to resume operation.
- *   Also used to indicate the MDIO bus has cleared an error
- *   condition.
- */
-void phy_start(struct phy_device *phydev)
-{
-	mutex_lock(&phydev->lock);
-
-	if (phydev->state != PHY_READY && phydev->state != PHY_HALTED) {
-		WARN(1, "called from state %s\n",
-		     phy_state_to_str(phydev->state));
-		goto out;
-	}
-
-	if (phydev->sfp_bus)
-		sfp_upstream_start(phydev->sfp_bus);
-
-	/* if phy was suspended, bring the physical link up again */
-	__phy_resume(phydev);
-
-	phydev->state = PHY_UP;
-
-	phy_start_machine(phydev);
-out:
-	mutex_unlock(&phydev->lock);
-}
-EXPORT_SYMBOL(phy_start);
-
-/**
  * phy_state_machine - Handle the state machine
  * @work: work_struct that describes the work to be done
  */
@@ -1519,6 +1443,82 @@ void phy_state_machine(struct work_struct *work)
 	if (do_suspend)
 		phy_suspend(phydev);
 }
+
+/**
+ * phy_stop - Bring down the PHY link, and stop checking the status
+ * @phydev: target phy_device struct
+ */
+void phy_stop(struct phy_device *phydev)
+{
+	struct net_device *dev = phydev->attached_dev;
+	enum phy_state old_state;
+
+	if (!phy_is_started(phydev) && phydev->state != PHY_DOWN &&
+	    phydev->state != PHY_ERROR) {
+		WARN(1, "called from state %s\n",
+		     phy_state_to_str(phydev->state));
+		return;
+	}
+
+	mutex_lock(&phydev->lock);
+	old_state = phydev->state;
+
+	if (phydev->state == PHY_CABLETEST) {
+		phy_abort_cable_test(phydev);
+		netif_testing_off(dev);
+	}
+
+	if (phydev->sfp_bus)
+		sfp_upstream_stop(phydev->sfp_bus);
+
+	phydev->state = PHY_HALTED;
+	phy_process_state_change(phydev, old_state);
+
+	mutex_unlock(&phydev->lock);
+
+	phy_state_machine(&phydev->state_queue.work);
+	phy_stop_machine(phydev);
+
+	/* Cannot call flush_scheduled_work() here as desired because
+	 * of rtnl_lock(), but PHY_HALTED shall guarantee irq handler
+	 * will not reenable interrupts.
+	 */
+}
+EXPORT_SYMBOL(phy_stop);
+
+/**
+ * phy_start - start or restart a PHY device
+ * @phydev: target phy_device struct
+ *
+ * Description: Indicates the attached device's readiness to
+ *   handle PHY-related work.  Used during startup to start the
+ *   PHY, and after a call to phy_stop() to resume operation.
+ *   Also used to indicate the MDIO bus has cleared an error
+ *   condition.
+ */
+void phy_start(struct phy_device *phydev)
+{
+	mutex_lock(&phydev->lock);
+
+	if (phydev->state != PHY_READY && phydev->state != PHY_HALTED) {
+		WARN(1, "called from state %s\n",
+		     phy_state_to_str(phydev->state));
+		goto out;
+	}
+
+	if (phydev->sfp_bus)
+		sfp_upstream_start(phydev->sfp_bus);
+
+	/* if phy was suspended, bring the physical link up again */
+	__phy_resume(phydev);
+
+	phydev->state = PHY_UP;
+
+	phy_start_machine(phydev);
+out:
+	mutex_unlock(&phydev->lock);
+}
+EXPORT_SYMBOL(phy_start);
 
 /**
  * phy_mac_interrupt - MAC says the link has changed
