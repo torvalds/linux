@@ -79,6 +79,7 @@ enum pds_core_status_code {
 	PDS_RC_EVFID	= 31,	/* VF ID does not exist */
 	PDS_RC_BAD_FW	= 32,	/* FW file is invalid or corrupted */
 	PDS_RC_ECLIENT	= 33,   /* No such client id */
+	PDS_RC_BAD_PCI	= 255,  /* Broken PCI when reading status */
 };
 
 /**
