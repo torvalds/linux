@@ -2062,6 +2062,9 @@ config ARCH_SUPPORTS_CRASH_DUMP
 config ARCH_SUPPORTS_CRASH_HOTPLUG
 	def_bool y
 
+config ARCH_HAS_GENERIC_CRASHKERNEL_RESERVATION
+	def_bool CRASH_CORE
+
 config PHYSICAL_START
 	hex "Physical address where the kernel is loaded" if (EXPERT || CRASH_DUMP)
 	default "0x1000000"
