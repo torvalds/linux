@@ -35,6 +35,7 @@
 #include "relocation.h"
 #include "scrub.h"
 #include "super.h"
+#include "raid-stripe-tree.h"
 
 #define BTRFS_BLOCK_GROUP_STRIPE_MASK	(BTRFS_BLOCK_GROUP_RAID0 | \
 					 BTRFS_BLOCK_GROUP_RAID10 | \
@@ -6231,12 +6232,20 @@ static u64 btrfs_max_io_len(struct map_lookup *map, enum btrfs_map_op op,
 	return U64_MAX;
 }
 
-static void set_io_stripe(struct btrfs_io_stripe *dst, const struct map_lookup *map,
-			  u32 stripe_index, u64 stripe_offset, u32 stripe_nr)
+static int set_io_stripe(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
+			 u64 logical, u64 *length, struct btrfs_io_stripe *dst,
+			 struct map_lookup *map, u32 stripe_index,
+			 u64 stripe_offset, u64 stripe_nr)
 {
 	dst->dev = map->stripes[stripe_index].dev;
+
+	if (op == BTRFS_MAP_READ && btrfs_need_stripe_tree_update(fs_info, map->type))
+		return btrfs_get_raid_extent_offset(fs_info, logical, length,
+						    map->type, stripe_index, dst);
+
 	dst->physical = map->stripes[stripe_index].physical +
 			stripe_offset + btrfs_stripe_nr_to_offset(stripe_nr);
+	return 0;
 }
 
 /*
@@ -6445,11 +6454,11 @@ int btrfs_map_block(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
 	 */
 	if (smap && num_alloc_stripes == 1 &&
 	    !((map->type & BTRFS_BLOCK_GROUP_RAID56_MASK) && mirror_num > 1)) {
-		set_io_stripe(smap, map, stripe_index, stripe_offset, stripe_nr);
+		ret = set_io_stripe(fs_info, op, logical, length, smap, map,
+				    stripe_index, stripe_offset, stripe_nr);
 		if (mirror_num_ret)
 			*mirror_num_ret = mirror_num;
 		*bioc_ret = NULL;
-		ret = 0;
 		goto out;
 	}
 
@@ -6479,20 +6488,33 @@ int btrfs_map_block(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
 		 */
 		bioc->full_stripe_logical = em->start +
 			btrfs_stripe_nr_to_offset(stripe_nr * data_stripes);
-		for (i = 0; i < num_stripes; i++)
-			set_io_stripe(&bioc->stripes[i], map,
-				      (i + stripe_nr) % num_stripes,
-				      stripe_offset, stripe_nr);
+		for (int i = 0; i < num_stripes; i++) {
+			ret = set_io_stripe(fs_info, op, logical, length,
+					    &bioc->stripes[i], map,
+					    (i + stripe_nr) % num_stripes,
+					    stripe_offset, stripe_nr);
+			if (ret < 0)
+				break;
+		}
 	} else {
 		/*
 		 * For all other non-RAID56 profiles, just copy the target
 		 * stripe into the bioc.
 		 */
 		for (i = 0; i < num_stripes; i++) {
-			set_io_stripe(&bioc->stripes[i], map, stripe_index,
-				      stripe_offset, stripe_nr);
+			ret = set_io_stripe(fs_info, op, logical, length,
+					    &bioc->stripes[i], map, stripe_index,
+					    stripe_offset, stripe_nr);
+			if (ret < 0)
+				break;
 			stripe_index++;
 		}
+	}
+
+	if (ret) {
+		*bioc_ret = NULL;
+		btrfs_put_bioc(bioc);
+		goto out;
 	}
 
 	if (op != BTRFS_MAP_READ)

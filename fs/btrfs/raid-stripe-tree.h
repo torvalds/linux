@@ -12,6 +12,9 @@ struct btrfs_ordered_extent;
 struct btrfs_trans_handle;
 
 int btrfs_delete_raid_extent(struct btrfs_trans_handle *trans, u64 start, u64 length);
+int btrfs_get_raid_extent_offset(struct btrfs_fs_info *fs_info,
+				 u64 logical, u64 *length, u64 map_type,
+				 u32 stripe_index, struct btrfs_io_stripe *stripe);
 int btrfs_insert_raid_extent(struct btrfs_trans_handle *trans,
 			     struct btrfs_ordered_extent *ordered_extent);
 
@@ -31,6 +34,12 @@ static inline bool btrfs_need_stripe_tree_update(struct btrfs_fs_info *fs_info,
 		return true;
 
 	return false;
+}
+
+static inline int btrfs_num_raid_stripes(u32 item_size)
+{
+	return (item_size - offsetof(struct btrfs_stripe_extent, strides)) /
+		sizeof(struct btrfs_raid_stride);
 }
 
 #endif

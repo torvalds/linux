@@ -142,3 +142,120 @@ int btrfs_insert_raid_extent(struct btrfs_trans_handle *trans,
 
 	return ret;
 }
+
+int btrfs_get_raid_extent_offset(struct btrfs_fs_info *fs_info,
+				 u64 logical, u64 *length, u64 map_type,
+				 u32 stripe_index, struct btrfs_io_stripe *stripe)
+{
+	struct btrfs_root *stripe_root = fs_info->stripe_root;
+	struct btrfs_stripe_extent *stripe_extent;
+	struct btrfs_key stripe_key;
+	struct btrfs_key found_key;
+	struct btrfs_path *path;
+	struct extent_buffer *leaf;
+	const u64 end = logical + *length;
+	int num_stripes;
+	u8 encoding;
+	u64 offset;
+	u64 found_logical;
+	u64 found_length;
+	u64 found_end;
+	int slot;
+	int ret;
+
+	stripe_key.objectid = logical;
+	stripe_key.type = BTRFS_RAID_STRIPE_KEY;
+	stripe_key.offset = 0;
+
+	path = btrfs_alloc_path();
+	if (!path)
+		return -ENOMEM;
+
+	ret = btrfs_search_slot(NULL, stripe_root, &stripe_key, path, 0, 0);
+	if (ret < 0)
+		goto free_path;
+	if (ret) {
+		if (path->slots[0] != 0)
+			path->slots[0]--;
+	}
+
+	while (1) {
+		leaf = path->nodes[0];
+		slot = path->slots[0];
+
+		btrfs_item_key_to_cpu(leaf, &found_key, slot);
+		found_logical = found_key.objectid;
+		found_length = found_key.offset;
+		found_end = found_logical + found_length;
+
+		if (found_logical > end) {
+			ret = -ENOENT;
+			goto out;
+		}
+
+		if (in_range(logical, found_logical, found_length))
+			break;
+
+		ret = btrfs_next_item(stripe_root, path);
+		if (ret)
+			goto out;
+	}
+
+	offset = logical - found_logical;
+
+	/*
+	 * If we have a logically contiguous, but physically non-continuous
+	 * range, we need to split the bio. Record the length after which we
+	 * must split the bio.
+	 */
+	if (end > found_end)
+		*length -= end - found_end;
+
+	num_stripes = btrfs_num_raid_stripes(btrfs_item_size(leaf, slot));
+	stripe_extent = btrfs_item_ptr(leaf, slot, struct btrfs_stripe_extent);
+	encoding = btrfs_stripe_extent_encoding(leaf, stripe_extent);
+
+	if (encoding != btrfs_bg_flags_to_raid_index(map_type)) {
+		ret = -EUCLEAN;
+		btrfs_handle_fs_error(fs_info, ret,
+				      "on-disk stripe encoding %d doesn't match RAID index %d",
+				      encoding,
+				      btrfs_bg_flags_to_raid_index(map_type));
+		goto out;
+	}
+
+	for (int i = 0; i < num_stripes; i++) {
+		struct btrfs_raid_stride *stride = &stripe_extent->strides[i];
+		u64 devid = btrfs_raid_stride_devid(leaf, stride);
+		u64 physical = btrfs_raid_stride_physical(leaf, stride);
+
+		if (devid != stripe->dev->devid)
+			continue;
+
+		if ((map_type & BTRFS_BLOCK_GROUP_DUP) && stripe_index != i)
+			continue;
+
+		stripe->physical = physical + offset;
+
+		ret = 0;
+		goto free_path;
+	}
+
+	/* If we're here, we haven't found the requested devid in the stripe. */
+	ret = -ENOENT;
+out:
+	if (ret > 0)
+		ret = -ENOENT;
+	if (ret && ret != -EIO) {
+		if (IS_ENABLED(CONFIG_BTRFS_DEBUG))
+			btrfs_print_tree(leaf, 1);
+		btrfs_err(fs_info,
+		"cannot find raid-stripe for logical [%llu, %llu] devid %llu, profile %s",
+			  logical, logical + *length, stripe->dev->devid,
+			  btrfs_bg_type_to_raid_name(map_type));
+	}
+free_path:
+	btrfs_free_path(path);
+
+	return ret;
+}
