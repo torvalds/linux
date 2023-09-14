@@ -1103,9 +1103,6 @@ static int ov08d10_set_stream(struct v4l2_subdev *sd, int enable)
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int ret = 0;
 
-	if (ov08d10->streaming == enable)
-		return 0;
-
 	mutex_lock(&ov08d10->mutex);
 	if (enable) {
 		ret = pm_runtime_resume_and_get(&client->dev);
