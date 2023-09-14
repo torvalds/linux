@@ -578,6 +578,18 @@ err_out:
 	pdsc_teardown(pdsc, PDSC_TEARDOWN_RECOVERY);
 }
 
+static void pdsc_check_pci_health(struct pdsc *pdsc)
+{
+	u8 fw_status = ioread8(&pdsc->info_regs->fw_status);
+
+	/* is PCI broken? */
+	if (fw_status != PDS_RC_BAD_PCI)
+		return;
+
+	pdsc_reset_prepare(pdsc->pdev);
+	pdsc_reset_done(pdsc->pdev);
+}
+
 void pdsc_health_thread(struct work_struct *work)
 {
 	struct pdsc *pdsc = container_of(work, struct pdsc, health_work);
@@ -603,6 +615,8 @@ void pdsc_health_thread(struct work_struct *work)
 		if (!healthy)
 			pdsc_fw_down(pdsc);
 	}
+
+	pdsc_check_pci_health(pdsc);
 
 	pdsc->fw_generation = pdsc->fw_status & PDS_CORE_FW_STS_F_GENERATION;
 

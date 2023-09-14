@@ -283,6 +283,9 @@ int pdsc_devcmd_reset(struct pdsc *pdsc);
 int pdsc_dev_reinit(struct pdsc *pdsc);
 int pdsc_dev_init(struct pdsc *pdsc);
 
+void pdsc_reset_prepare(struct pci_dev *pdev);
+void pdsc_reset_done(struct pci_dev *pdev);
+
 int pdsc_intr_alloc(struct pdsc *pdsc, char *name,
 		    irq_handler_t handler, void *data);
 void pdsc_intr_free(struct pdsc *pdsc, int index);

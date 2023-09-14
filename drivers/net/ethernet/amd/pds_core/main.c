@@ -445,7 +445,7 @@ static void pdsc_remove(struct pci_dev *pdev)
 	devlink_free(dl);
 }
 
-static void pdsc_reset_prepare(struct pci_dev *pdev)
+void pdsc_reset_prepare(struct pci_dev *pdev)
 {
 	struct pdsc *pdsc = pci_get_drvdata(pdev);
 
@@ -457,7 +457,7 @@ static void pdsc_reset_prepare(struct pci_dev *pdev)
 	pci_disable_device(pdev);
 }
 
-static void pdsc_reset_done(struct pci_dev *pdev)
+void pdsc_reset_done(struct pci_dev *pdev)
 {
 	struct pdsc *pdsc = pci_get_drvdata(pdev);
 	struct device *dev = pdsc->dev;
