@@ -154,7 +154,6 @@ struct ov5693_device {
 		unsigned int inc_y_odd;
 		unsigned int vts;
 	} mode;
-	bool streaming;
 
 	struct v4l2_subdev sd;
 	struct media_pad pad;
@@ -995,8 +994,6 @@ static int ov5693_s_stream(struct v4l2_subdev *sd, int enable)
 	}
 	if (ret)
 		goto err_power_down;
-
-	ov5693->streaming = !!enable;
 
 	if (!enable)
 		pm_runtime_put(ov5693->dev);
