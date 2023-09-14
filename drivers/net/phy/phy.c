@@ -1353,33 +1353,27 @@ void phy_free_interrupt(struct phy_device *phydev)
 }
 EXPORT_SYMBOL(phy_free_interrupt);
 
-/**
- * phy_state_machine - Handle the state machine
- * @work: work_struct that describes the work to be done
- */
-void phy_state_machine(struct work_struct *work)
+enum phy_state_work {
+	PHY_STATE_WORK_NONE,
+	PHY_STATE_WORK_ANEG,
+	PHY_STATE_WORK_SUSPEND,
+};
+
+static enum phy_state_work _phy_state_machine(struct phy_device *phydev)
 {
-	struct delayed_work *dwork = to_delayed_work(work);
-	struct phy_device *phydev =
-			container_of(dwork, struct phy_device, state_queue);
+	enum phy_state_work state_work = PHY_STATE_WORK_NONE;
 	struct net_device *dev = phydev->attached_dev;
-	bool needs_aneg = false, do_suspend = false;
-	enum phy_state old_state;
+	enum phy_state old_state = phydev->state;
 	const void *func = NULL;
 	bool finished = false;
 	int err = 0;
-
-	mutex_lock(&phydev->lock);
-
-	old_state = phydev->state;
 
 	switch (phydev->state) {
 	case PHY_DOWN:
 	case PHY_READY:
 		break;
 	case PHY_UP:
-		needs_aneg = true;
-
+		state_work = PHY_STATE_WORK_ANEG;
 		break;
 	case PHY_NOLINK:
 	case PHY_RUNNING:
@@ -1391,7 +1385,7 @@ void phy_state_machine(struct work_struct *work)
 		if (err) {
 			phy_abort_cable_test(phydev);
 			netif_testing_off(dev);
-			needs_aneg = true;
+			state_work = PHY_STATE_WORK_ANEG;
 			phydev->state = PHY_UP;
 			break;
 		}
@@ -1399,7 +1393,7 @@ void phy_state_machine(struct work_struct *work)
 		if (finished) {
 			ethnl_cable_test_finished(phydev);
 			netif_testing_off(dev);
-			needs_aneg = true;
+			state_work = PHY_STATE_WORK_ANEG;
 			phydev->state = PHY_UP;
 		}
 		break;
@@ -1409,19 +1403,17 @@ void phy_state_machine(struct work_struct *work)
 			phydev->link = 0;
 			phy_link_down(phydev);
 		}
-		do_suspend = true;
+		state_work = PHY_STATE_WORK_SUSPEND;
 		break;
 	}
 
-	if (needs_aneg) {
+	if (state_work == PHY_STATE_WORK_ANEG) {
 		err = _phy_start_aneg(phydev);
 		func = &_phy_start_aneg;
 	}
 
-	if (err == -ENODEV) {
-		mutex_unlock(&phydev->lock);
-		return;
-	}
+	if (err == -ENODEV)
+		return state_work;
 
 	if (err < 0)
 		phy_error_precise(phydev, func, err);
@@ -1438,10 +1430,34 @@ void phy_state_machine(struct work_struct *work)
 	 */
 	if (phy_polling_mode(phydev) && phy_is_started(phydev))
 		phy_queue_state_machine(phydev, PHY_STATE_TIME);
+
+	return state_work;
+}
+
+/* unlocked part of the PHY state machine */
+static void _phy_state_machine_post_work(struct phy_device *phydev,
+					 enum phy_state_work state_work)
+{
+	if (state_work == PHY_STATE_WORK_SUSPEND)
+		phy_suspend(phydev);
+}
+
+/**
+ * phy_state_machine - Handle the state machine
+ * @work: work_struct that describes the work to be done
+ */
+void phy_state_machine(struct work_struct *work)
+{
+	struct delayed_work *dwork = to_delayed_work(work);
+	struct phy_device *phydev =
+			container_of(dwork, struct phy_device, state_queue);
+	enum phy_state_work state_work;
+
+	mutex_lock(&phydev->lock);
+	state_work = _phy_state_machine(phydev);
 	mutex_unlock(&phydev->lock);
 
-	if (do_suspend)
-		phy_suspend(phydev);
+	_phy_state_machine_post_work(phydev, state_work);
 }
 
 /**
