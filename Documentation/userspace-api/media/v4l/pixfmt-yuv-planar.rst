@@ -295,8 +295,6 @@ of the luma plane.
 .. _V4L2-PIX-FMT-NV12-32L32:
 .. _V4L2-PIX-FMT-NV12M-8L128:
 .. _V4L2-PIX-FMT-NV12-8L128:
-.. _V4L2-PIX-FMT-NV12M-10BE-8L128:
-.. _V4L2-PIX-FMT-NV12-10BE-8L128:
 .. _V4L2-PIX-FMT-MM21:
 
 Tiled NV12
@@ -361,6 +359,25 @@ The layouts of the luma and chroma planes are identical.
 ``V4L2_PIX_FMT_NV12_8L128`` is similar to ``V4L2_PIX_FMT_NV12M_8L128`` but stores
 two planes in one memory.
 
+``V4L2_PIX_FMT_MM21`` store luma pixel in 16x32 tiles, and chroma pixels
+in 16x16 tiles. The line stride must be aligned to a multiple of 16 and the
+image height must be aligned to a multiple of 32. The number of luma and chroma
+tiles are identical, even though the tile size differ. The image is formed of
+two non-contiguous planes.
+
+
+.. _V4L2-PIX-FMT-NV15-4L4:
+.. _V4L2-PIX-FMT-NV12M-10BE-8L128:
+.. _V4L2-PIX-FMT-NV12-10BE-8L128:
+
+Tiled NV15
+----------
+
+``V4L2_PIX_FMT_NV15_4L4`` Semi-planar 10-bit YUV 4:2:0 formats, using 4x4 tiling.
+All components are packed without any padding between each other.
+As a side-effect, each group of 4 components are stored over 5 bytes
+(YYYY or UVUV = 4 * 10 bits = 40 bits = 5 bytes).
+
 ``V4L2_PIX_FMT_NV12M_10BE_8L128`` is similar to ``V4L2_PIX_FMT_NV12M`` but stores
 10 bits pixels in 2D 8x128 tiles, and stores tiles linearly in memory.
 the data is arranged in big endian order.
@@ -379,21 +396,6 @@ byte 4: Y3(bits 7-0)
 ``V4L2_PIX_FMT_NV12_10BE_8L128`` is similar to ``V4L2_PIX_FMT_NV12M_10BE_8L128`` but stores
 two planes in one memory.
 
-``V4L2_PIX_FMT_MM21`` store luma pixel in 16x32 tiles, and chroma pixels
-in 16x16 tiles. The line stride must be aligned to a multiple of 16 and the
-image height must be aligned to a multiple of 32. The number of luma and chroma
-tiles are identical, even though the tile size differ. The image is formed of
-two non-contiguous planes.
-
-.. _V4L2-PIX-FMT-NV15-4L4:
-
-Tiled NV15
-----------
-
-Semi-planar 10-bit YUV 4:2:0 formats, using 4x4 tiling.
-All components are packed without any padding between each other.
-As a side-effect, each group of 4 components are stored over 5 bytes
-(YYYY or UVUV = 4 * 10 bits = 40 bits = 5 bytes).
 
 .. _V4L2-PIX-FMT-NV16:
 .. _V4L2-PIX-FMT-NV61:
