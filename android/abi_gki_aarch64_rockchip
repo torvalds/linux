@@ -998,6 +998,19 @@
   schedule
   schedule_timeout
   scnprintf
+  __sdhci_add_host
+  sdhci_cleanup_host
+  sdhci_enable_clk
+  sdhci_get_property
+  sdhci_pltfm_clk_get_max_clock
+  sdhci_pltfm_free
+  sdhci_pltfm_init
+  sdhci_reset
+  sdhci_resume_host
+  sdhci_set_bus_width
+  sdhci_set_clock
+  sdhci_setup_host
+  sdhci_suspend_host
   seq_lseek
   seq_printf
   seq_putc
@@ -1264,6 +1277,26 @@
   _raw_read_unlock_bh
   sched_set_fifo_low
   sched_set_normal
+  sdio_claim_host
+  sdio_disable_func
+  sdio_enable_func
+  sdio_f0_readb
+  sdio_f0_writeb
+  sdio_get_host_pm_caps
+  sdio_memcpy_fromio
+  sdio_memcpy_toio
+  sdio_readb
+  sdio_readl
+  sdio_readsb
+  sdio_readw
+  sdio_register_driver
+  sdio_release_host
+  sdio_set_block_size
+  sdio_set_host_pm_flags
+  sdio_unregister_driver
+  sdio_writeb
+  sdio_writel
+  sdio_writew
   set_cpus_allowed_ptr
   __skb_pad
   sock_wfree
@@ -2243,6 +2276,24 @@
 
 # required by rtc-rk808.ko
   rtc_update_irq
+
+# required by sdhci-of-arasan.ko
+  sdhci_add_host
+  sdhci_cqe_disable
+  sdhci_cqe_enable
+  sdhci_cqe_irq
+  sdhci_dumpregs
+  sdhci_execute_tuning
+  sdhci_pltfm_unregister
+  sdhci_set_power_and_bus_voltage
+  sdhci_set_uhs_signaling
+
+# required by sdhci-of-dwcmshc.ko
+  devm_clk_bulk_get_optional
+  dma_get_required_mask
+  sdhci_adma_write_desc
+  sdhci_remove_host
+  sdhci_request
 
 # required by sg.ko
   blk_execute_rq_nowait
