@@ -737,10 +737,6 @@ endmenu
 
 menu "Bus options"
 
-config SUPERHYWAY
-	tristate "SuperHyway Bus support"
-	depends on CPU_SUBTYPE_SH4_202
-
 config MAPLE
 	bool "Maple Bus support"
 	depends on SH_DREAMCAST
