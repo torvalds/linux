@@ -65,6 +65,12 @@ struct xe_exec_queue {
 	/** @fence_irq: fence IRQ used to signal job completion */
 	struct xe_hw_fence_irq *fence_irq;
 
+	/**
+	 * @last_fence: last fence on engine, protected by vm->lock in write
+	 * mode if bind engine
+	 */
+	struct dma_fence *last_fence;
+
 /* queue no longer allowed to submit */
 #define EXEC_QUEUE_FLAG_BANNED			BIT(0)
 /* queue used for kernel submission only */

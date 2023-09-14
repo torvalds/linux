@@ -61,4 +61,11 @@ int xe_exec_queue_get_property_ioctl(struct drm_device *dev, void *data,
 				     struct drm_file *file);
 enum xe_exec_queue_priority xe_exec_queue_device_get_max_priority(struct xe_device *xe);
 
+void xe_exec_queue_last_fence_put(struct xe_exec_queue *e, struct xe_vm *vm);
+void xe_exec_queue_last_fence_put_unlocked(struct xe_exec_queue *e);
+struct dma_fence *xe_exec_queue_last_fence_get(struct xe_exec_queue *e,
+					       struct xe_vm *vm);
+void xe_exec_queue_last_fence_set(struct xe_exec_queue *e, struct xe_vm *vm,
+				  struct dma_fence *fence);
+
 #endif

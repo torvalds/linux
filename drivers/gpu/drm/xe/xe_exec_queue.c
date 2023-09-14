@@ -156,6 +156,7 @@ void xe_exec_queue_destroy(struct kref *ref)
 	struct xe_exec_queue *q = container_of(ref, struct xe_exec_queue, refcount);
 	struct xe_exec_queue *eq, *next;
 
+	xe_exec_queue_last_fence_put_unlocked(q);
 	if (!(q->flags & EXEC_QUEUE_FLAG_BIND_ENGINE_CHILD)) {
 		list_for_each_entry_safe(eq, next, &q->multi_gt_list,
 					 multi_gt_link)
@@ -915,4 +916,78 @@ out:
 	xe_exec_queue_put(q);
 
 	return ret;
+}
+
+static void xe_exec_queue_last_fence_lockdep_assert(struct xe_exec_queue *q,
+						    struct xe_vm *vm)
+{
+	lockdep_assert_held_write(&vm->lock);
+}
+
+/**
+ * xe_exec_queue_last_fence_put() - Drop ref to last fence
+ * @q: The exec queue
+ * @vm: The VM the engine does a bind or exec for
+ */
+void xe_exec_queue_last_fence_put(struct xe_exec_queue *q, struct xe_vm *vm)
+{
+	xe_exec_queue_last_fence_lockdep_assert(q, vm);
+
+	if (q->last_fence) {
+		dma_fence_put(q->last_fence);
+		q->last_fence = NULL;
+	}
+}
+
+/**
+ * xe_exec_queue_last_fence_put_unlocked() - Drop ref to last fence unlocked
+ * @q: The exec queue
+ *
+ * Only safe to be called from xe_exec_queue_destroy().
+ */
+void xe_exec_queue_last_fence_put_unlocked(struct xe_exec_queue *q)
+{
+	if (q->last_fence) {
+		dma_fence_put(q->last_fence);
+		q->last_fence = NULL;
+	}
+}
+
+/**
+ * xe_exec_queue_last_fence_get() - Get last fence
+ * @q: The exec queue
+ * @vm: The VM the engine does a bind or exec for
+ *
+ * Get last fence, does not take a ref
+ *
+ * Returns: last fence if not signaled, dma fence stub if signaled
+ */
+struct dma_fence *xe_exec_queue_last_fence_get(struct xe_exec_queue *q,
+					       struct xe_vm *vm)
+{
+	xe_exec_queue_last_fence_lockdep_assert(q, vm);
+
+	if (q->last_fence &&
+	    test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &q->last_fence->flags))
+		xe_exec_queue_last_fence_put(q, vm);
+
+	return q->last_fence ? q->last_fence : dma_fence_get_stub();
+}
+
+/**
+ * xe_exec_queue_last_fence_set() - Set last fence
+ * @q: The exec queue
+ * @vm: The VM the engine does a bind or exec for
+ * @fence: The fence
+ *
+ * Set the last fence for the engine. Increases reference count for fence, when
+ * closing engine xe_exec_queue_last_fence_put should be called.
+ */
+void xe_exec_queue_last_fence_set(struct xe_exec_queue *q, struct xe_vm *vm,
+				  struct dma_fence *fence)
+{
+	xe_exec_queue_last_fence_lockdep_assert(q, vm);
+
+	xe_exec_queue_last_fence_put(q, vm);
+	q->last_fence = dma_fence_get(fence);
 }

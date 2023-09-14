@@ -1524,6 +1524,13 @@ void xe_vm_close_and_put(struct xe_vm *vm)
 	if (xe_vm_in_compute_mode(vm))
 		flush_work(&vm->preempt.rebind_work);
 
+	down_write(&vm->lock);
+	for_each_tile(tile, xe, id) {
+		if (vm->q[id])
+			xe_exec_queue_last_fence_put(vm->q[id], vm);
+	}
+	up_write(&vm->lock);
+
 	for_each_tile(tile, xe, id) {
 		if (vm->q[id]) {
 			xe_exec_queue_kill(vm->q[id]);
@@ -1665,16 +1672,23 @@ u64 xe_vm_pdp4_descriptor(struct xe_vm *vm, struct xe_tile *tile)
 					 tile_to_xe(tile)->pat.idx[XE_CACHE_WB]);
 }
 
+static struct xe_exec_queue *
+to_wait_exec_queue(struct xe_vm *vm, struct xe_exec_queue *q)
+{
+	return q ? q : vm->q[0];
+}
+
 static struct dma_fence *
 xe_vm_unbind_vma(struct xe_vma *vma, struct xe_exec_queue *q,
 		 struct xe_sync_entry *syncs, u32 num_syncs,
 		 bool first_op, bool last_op)
 {
+	struct xe_vm *vm = xe_vma_vm(vma);
+	struct xe_exec_queue *wait_exec_queue = to_wait_exec_queue(vm, q);
 	struct xe_tile *tile;
 	struct dma_fence *fence = NULL;
 	struct dma_fence **fences = NULL;
 	struct dma_fence_array *cf = NULL;
-	struct xe_vm *vm = xe_vma_vm(vma);
 	int cur_fence = 0, i;
 	int number_tiles = hweight8(vma->tile_present);
 	int err;
@@ -1727,7 +1741,8 @@ next:
 					     cf ? &cf->base : fence);
 	}
 
-	return cf ? &cf->base : !fence ? dma_fence_get_stub() : fence;
+	return cf ? &cf->base : !fence ?
+		xe_exec_queue_last_fence_get(wait_exec_queue, vm) : fence;
 
 err_fences:
 	if (fences) {
@@ -1826,6 +1841,7 @@ static int __xe_vm_bind(struct xe_vm *vm, struct xe_vma *vma,
 			bool last_op)
 {
 	struct dma_fence *fence;
+	struct xe_exec_queue *wait_exec_queue = to_wait_exec_queue(vm, q);
 
 	xe_vm_assert_held(vm);
 
@@ -1839,13 +1855,15 @@ static int __xe_vm_bind(struct xe_vm *vm, struct xe_vma *vma,
 
 		xe_assert(vm->xe, xe_vm_in_fault_mode(vm));
 
-		fence = dma_fence_get_stub();
+		fence = xe_exec_queue_last_fence_get(wait_exec_queue, vm);
 		if (last_op) {
 			for (i = 0; i < num_syncs; i++)
 				xe_sync_entry_signal(&syncs[i], NULL, fence);
 		}
 	}
 
+	if (last_op)
+		xe_exec_queue_last_fence_set(wait_exec_queue, vm, fence);
 	if (last_op && xe_vm_sync_mode(vm, q))
 		dma_fence_wait(fence, true);
 	dma_fence_put(fence);
@@ -1878,6 +1896,7 @@ static int xe_vm_unbind(struct xe_vm *vm, struct xe_vma *vma,
 			u32 num_syncs, bool first_op, bool last_op)
 {
 	struct dma_fence *fence;
+	struct xe_exec_queue *wait_exec_queue = to_wait_exec_queue(vm, q);
 
 	xe_vm_assert_held(vm);
 	xe_bo_assert_held(xe_vma_bo(vma));
@@ -1887,6 +1906,8 @@ static int xe_vm_unbind(struct xe_vm *vm, struct xe_vma *vma,
 		return PTR_ERR(fence);
 
 	xe_vma_destroy(vma, fence);
+	if (last_op)
+		xe_exec_queue_last_fence_set(wait_exec_queue, vm, fence);
 	if (last_op && xe_vm_sync_mode(vm, q))
 		dma_fence_wait(fence, true);
 	dma_fence_put(fence);
@@ -2036,6 +2057,7 @@ static int xe_vm_prefetch(struct xe_vm *vm, struct xe_vma *vma,
 			  struct xe_sync_entry *syncs, u32 num_syncs,
 			  bool first_op, bool last_op)
 {
+	struct xe_exec_queue *wait_exec_queue = to_wait_exec_queue(vm, q);
 	int err;
 
 	xe_assert(vm->xe, region <= ARRAY_SIZE(region_to_mem_type));
@@ -2054,9 +2076,12 @@ static int xe_vm_prefetch(struct xe_vm *vm, struct xe_vma *vma,
 
 		/* Nothing to do, signal fences now */
 		if (last_op) {
-			for (i = 0; i < num_syncs; i++)
-				xe_sync_entry_signal(&syncs[i], NULL,
-						     dma_fence_get_stub());
+			for (i = 0; i < num_syncs; i++) {
+				struct dma_fence *fence =
+					xe_exec_queue_last_fence_get(wait_exec_queue, vm);
+
+				xe_sync_entry_signal(&syncs[i], NULL, fence);
+			}
 		}
 
 		return 0;
@@ -3108,8 +3133,12 @@ int xe_vm_bind_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 unwind_ops:
 	vm_bind_ioctl_ops_unwind(vm, ops, args->num_binds);
 free_syncs:
-	for (i = 0; err == -ENODATA && i < num_syncs; i++)
-		xe_sync_entry_signal(&syncs[i], NULL, dma_fence_get_stub());
+	for (i = 0; err == -ENODATA && i < num_syncs; i++) {
+		struct dma_fence *fence =
+			xe_exec_queue_last_fence_get(to_wait_exec_queue(vm, q), vm);
+
+		xe_sync_entry_signal(&syncs[i], NULL, fence);
+	}
 	while (num_syncs--)
 		xe_sync_entry_cleanup(&syncs[num_syncs]);
 
