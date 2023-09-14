@@ -440,13 +440,6 @@ int adf_dev_down(struct adf_accel_dev *accel_dev, bool reconfig)
 
 	mutex_lock(&accel_dev->state_lock);
 
-	if (!adf_dev_started(accel_dev)) {
-		dev_info(&GET_DEV(accel_dev), "Device qat_dev%d already down\n",
-			 accel_dev->accel_id);
-		ret = -EINVAL;
-		goto out;
-	}
-
 	if (reconfig) {
 		ret = adf_dev_shutdown_cache_cfg(accel_dev);
 		goto out;
