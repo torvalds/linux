@@ -1607,9 +1607,6 @@ static int hi846_set_stream(struct v4l2_subdev *sd, int enable)
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int ret = 0;
 
-	if (hi846->streaming == enable)
-		return 0;
-
 	mutex_lock(&hi846->mutex);
 
 	if (enable) {
