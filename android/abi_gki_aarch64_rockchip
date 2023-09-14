@@ -523,6 +523,18 @@
   hdmi_drm_infoframe_pack
   hdmi_infoframe_pack
   hdmi_vendor_infoframe_pack
+  hid_debug
+  hid_hw_close
+  hid_hw_open
+  hid_hw_output_report
+  hid_hw_raw_request
+  hid_hw_request
+  hid_hw_start
+  hid_hw_stop
+  hid_open_report
+  __hid_register_driver
+  hid_unregister_driver
+  hid_validate_values
   hrtimer_cancel
   hrtimer_forward
   hrtimer_init
@@ -1201,6 +1213,32 @@
   usb_hcd_link_urb_to_ep
   usb_hcd_resume_root_hub
   usb_hcd_unlink_urb_from_ep
+  usb_hid_driver
+  usbnet_change_mtu
+  usbnet_defer_kevent
+  usbnet_disconnect
+  usbnet_get_drvinfo
+  usbnet_get_endpoints
+  usbnet_get_link
+  usbnet_get_link_ksettings_mii
+  usbnet_get_msglevel
+  usbnet_link_change
+  usbnet_nway_reset
+  usbnet_open
+  usbnet_probe
+  usbnet_read_cmd
+  usbnet_read_cmd_nopm
+  usbnet_resume
+  usbnet_set_link_ksettings_mii
+  usbnet_set_msglevel
+  usbnet_skb_return
+  usbnet_start_xmit
+  usbnet_stop
+  usbnet_suspend
+  usbnet_tx_timeout
+  usbnet_write_cmd
+  usbnet_write_cmd_async
+  usbnet_write_cmd_nopm
   usb_put_hcd
   usb_register_dev
   usb_register_driver
@@ -1677,6 +1715,19 @@
   ip_send_check
   of_get_phy_mode
 
+# required by fusb302.ko
+  extcon_get_extcon_dev
+  fwnode_create_software_node
+  kthread_create_worker
+  kthread_destroy_worker
+  tcpm_cc_change
+  tcpm_pd_hard_reset
+  tcpm_pd_receive
+  tcpm_pd_transmit_complete
+  tcpm_register_port
+  tcpm_unregister_port
+  tcpm_vbus_change
+
 # required by gpio-regulator.ko
   gpiod_count
 
@@ -1696,6 +1747,20 @@
   irq_get_domain_generic_chip
   of_pinctrl_get
 
+# required by hid-alps.ko
+  input_alloc_absinfo
+  input_mt_sync_frame
+
+# required by hid-holtek-kbd.ko
+  usb_ifnum_to_if
+
+# required by hid-primax.ko
+  hid_report_raw_event
+
+# required by hid-thrustmaster.ko
+  usb_interrupt_msg
+  usb_kill_urb
+
 # required by i2c-dev.ko
   bus_register_notifier
   bus_unregister_notifier
@@ -1707,6 +1772,15 @@
 # required by i2c-gpio.ko
   desc_to_gpio
   i2c_bit_add_numbered_bus
+
+# required by i2c-hid.ko
+  hid_add_device
+  hid_allocate_device
+  hid_destroy_device
+  hid_driver_reset_resume
+  hid_driver_suspend
+  hid_input_report
+  hid_parse_report
 
 # required by i2c-mux.ko
   __i2c_transfer
