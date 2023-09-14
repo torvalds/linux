@@ -184,7 +184,7 @@ static irqreturn_t mctrl_gpio_irq_handle(int irq, void *context)
 
 	mctrl_gpio_get(gpios, &mctrl);
 
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 
 	mctrl_diff = mctrl ^ gpios->mctrl_prev;
 	gpios->mctrl_prev = mctrl;
@@ -205,7 +205,7 @@ static irqreturn_t mctrl_gpio_irq_handle(int irq, void *context)
 		wake_up_interruptible(&port->state->port.delta_msr_wait);
 	}
 
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 
 	return IRQ_HANDLED;
 }
