@@ -1004,6 +1004,8 @@ void ksz9477_port_setup(struct ksz_device *dev, int port, bool cpu_port)
 	/* clear pending interrupts */
 	if (dev->info->internal_phy[port])
 		ksz_pread16(dev, port, REG_PORT_PHY_INT_ENABLE, &data16);
+
+	ksz9477_port_acl_init(dev, port);
 }
 
 void ksz9477_config_cpu_port(struct dsa_switch *ds)

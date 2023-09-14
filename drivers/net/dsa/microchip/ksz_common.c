@@ -2627,6 +2627,23 @@ void ksz_port_stp_state_set(struct dsa_switch *ds, int port, u8 state)
 	ksz_update_port_member(dev, port);
 }
 
+static void ksz_port_teardown(struct dsa_switch *ds, int port)
+{
+	struct ksz_device *dev = ds->priv;
+
+	switch (dev->chip_id) {
+	case KSZ8563_CHIP_ID:
+	case KSZ9477_CHIP_ID:
+	case KSZ9563_CHIP_ID:
+	case KSZ9567_CHIP_ID:
+	case KSZ9893_CHIP_ID:
+	case KSZ9896_CHIP_ID:
+	case KSZ9897_CHIP_ID:
+		if (dsa_is_user_port(ds, port))
+			ksz9477_port_acl_free(dev, port);
+	}
+}
+
 static int ksz_port_pre_bridge_flags(struct dsa_switch *ds, int port,
 				     struct switchdev_brport_flags flags,
 				     struct netlink_ext_ack *extack)
@@ -3172,6 +3189,44 @@ static int ksz_switch_detect(struct ksz_device *dev)
 	return 0;
 }
 
+static int ksz_cls_flower_add(struct dsa_switch *ds, int port,
+			      struct flow_cls_offload *cls, bool ingress)
+{
+	struct ksz_device *dev = ds->priv;
+
+	switch (dev->chip_id) {
+	case KSZ8563_CHIP_ID:
+	case KSZ9477_CHIP_ID:
+	case KSZ9563_CHIP_ID:
+	case KSZ9567_CHIP_ID:
+	case KSZ9893_CHIP_ID:
+	case KSZ9896_CHIP_ID:
+	case KSZ9897_CHIP_ID:
+		return ksz9477_cls_flower_add(ds, port, cls, ingress);
+	}
+
+	return -EOPNOTSUPP;
+}
+
+static int ksz_cls_flower_del(struct dsa_switch *ds, int port,
+			      struct flow_cls_offload *cls, bool ingress)
+{
+	struct ksz_device *dev = ds->priv;
+
+	switch (dev->chip_id) {
+	case KSZ8563_CHIP_ID:
+	case KSZ9477_CHIP_ID:
+	case KSZ9563_CHIP_ID:
+	case KSZ9567_CHIP_ID:
+	case KSZ9893_CHIP_ID:
+	case KSZ9896_CHIP_ID:
+	case KSZ9897_CHIP_ID:
+		return ksz9477_cls_flower_del(ds, port, cls, ingress);
+	}
+
+	return -EOPNOTSUPP;
+}
+
 /* Bandwidth is calculated by idle slope/transmission speed. Then the Bandwidth
  * is converted to Hex-decimal using the successive multiplication method. On
  * every step, integer part is taken and decimal part is carry forwarded.
@@ -3504,6 +3559,7 @@ static const struct dsa_switch_ops ksz_switch_ops = {
 	.port_bridge_join	= ksz_port_bridge_join,
 	.port_bridge_leave	= ksz_port_bridge_leave,
 	.port_stp_state_set	= ksz_port_stp_state_set,
+	.port_teardown		= ksz_port_teardown,
 	.port_pre_bridge_flags	= ksz_port_pre_bridge_flags,
 	.port_bridge_flags	= ksz_port_bridge_flags,
 	.port_fast_age		= ksz_port_fast_age,
@@ -3526,6 +3582,8 @@ static const struct dsa_switch_ops ksz_switch_ops = {
 	.port_hwtstamp_set	= ksz_hwtstamp_set,
 	.port_txtstamp		= ksz_port_txtstamp,
 	.port_rxtstamp		= ksz_port_rxtstamp,
+	.cls_flower_add		= ksz_cls_flower_add,
+	.cls_flower_del		= ksz_cls_flower_del,
 	.port_setup_tc		= ksz_setup_tc,
 	.get_mac_eee		= ksz_get_mac_eee,
 	.set_mac_eee		= ksz_set_mac_eee,

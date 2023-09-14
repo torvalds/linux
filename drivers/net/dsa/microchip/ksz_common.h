@@ -117,6 +117,7 @@ struct ksz_port {
 	u32 rgmii_tx_val;
 	u32 rgmii_rx_val;
 	struct ksz_device *ksz_dev;
+	void *acl_priv;
 	struct ksz_irq pirq;
 	u8 num;
 #if IS_ENABLED(CONFIG_NET_DSA_MICROCHIP_KSZ_PTP)
