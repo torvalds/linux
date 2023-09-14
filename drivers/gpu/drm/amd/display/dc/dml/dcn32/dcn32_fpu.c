@@ -1086,6 +1086,7 @@ struct pipe_slice_table {
 	int odm_combine_count;
 
 	struct {
+		struct pipe_ctx *pri_pipe;
 		struct dc_plane_state *plane;
 		int slice_count;
 	} mpc_combines[MAX_SURFACES];
@@ -1113,12 +1114,14 @@ static void update_slice_table_for_stream(struct pipe_slice_table *table,
 }
 
 static void update_slice_table_for_plane(struct pipe_slice_table *table,
-		struct dc_plane_state *plane, int diff)
+		struct pipe_ctx *dpp_pipe, struct dc_plane_state *plane, int diff)
 {
 	int i;
+	struct pipe_ctx *pri_dpp_pipe = resource_get_primary_dpp_pipe(dpp_pipe);
 
 	for (i = 0; i < table->mpc_combine_count; i++) {
-		if (table->mpc_combines[i].plane == plane) {
+		if (table->mpc_combines[i].plane == plane &&
+				table->mpc_combines[i].pri_pipe == pri_dpp_pipe) {
 			table->mpc_combines[i].slice_count += diff;
 			break;
 		}
@@ -1127,6 +1130,7 @@ static void update_slice_table_for_plane(struct pipe_slice_table *table,
 	if (i == table->mpc_combine_count) {
 		table->mpc_combine_count++;
 		table->mpc_combines[i].plane = plane;
+		table->mpc_combines[i].pri_pipe = pri_dpp_pipe;
 		table->mpc_combines[i].slice_count = diff;
 	}
 }
@@ -1154,7 +1158,7 @@ static void init_pipe_slice_table_from_context(
 				&context->res_ctx, dpp_pipes);
 		for (j = 0; j < count; j++)
 			if (dpp_pipes[j]->plane_state)
-				update_slice_table_for_plane(table,
+				update_slice_table_for_plane(table, dpp_pipes[j],
 						dpp_pipes[j]->plane_state, 1);
 	}
 }
@@ -1205,7 +1209,7 @@ static bool update_pipe_slice_table_with_split_flags(
 				/* merging DPP pipe of the first ODM slice means
 				 * reducing MPC slice count by 1
 				 */
-				update_slice_table_for_plane(table, pipe->plane_state, -1);
+				update_slice_table_for_plane(table, pipe, pipe->plane_state, -1);
 			updated = true;
 		}
 
@@ -1216,8 +1220,8 @@ static bool update_pipe_slice_table_with_split_flags(
 				update_slice_table_for_stream(
 						table, pipe->stream, split[i] - 1);
 			else if (!odm && resource_is_pipe_type(pipe, DPP_PIPE))
-				update_slice_table_for_plane(
-						table, pipe->plane_state, split[i] - 1);
+				update_slice_table_for_plane(table, pipe,
+						pipe->plane_state, split[i] - 1);
 			updated = true;
 		}
 	}
