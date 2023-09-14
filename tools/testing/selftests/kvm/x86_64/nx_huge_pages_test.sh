@@ -4,7 +4,6 @@
 # Wrapper script which performs setup and cleanup for nx_huge_pages_test.
 # Makes use of root privileges to set up huge pages and KVM module parameters.
 #
-# tools/testing/selftests/kvm/nx_huge_page_test.sh
 # Copyright (C) 2022, Google LLC.
 
 set -e
