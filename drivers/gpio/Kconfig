@@ -984,6 +984,14 @@ config GPIO_MC9S08DZ60
 	help
 	  Select this to enable the MC9S08DZ60 GPIO driver
 
+config GPIO_NCA9539
+	tristate "NCA9539 I2C GPIO expander"
+	depends on I2C || COMPILE_TEST
+	select REGMAP_I2C
+	help
+	  Say yes here to support the NCA9539 series of I2C Expanders.
+	  GPIO expanders used for additional digital outputs or inputs.
+
 config GPIO_PCA953X
 	tristate "PCA95[357]x, PCA9698, TCA64xx, and MAX7310 I/O ports"
 	select REGMAP_I2C
