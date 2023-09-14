@@ -21,6 +21,8 @@
 
 #include "hash.h"
 
+#define CRYPTO_ALG_TYPE_AHASH_MASK	0x0000000e
+
 static const struct crypto_type crypto_ahash_type;
 
 struct ahash_request_priv {
