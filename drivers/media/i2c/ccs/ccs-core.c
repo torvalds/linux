@@ -3152,42 +3152,6 @@ static const struct v4l2_subdev_internal_ops ccs_internal_ops = {
  * I2C Driver
  */
 
-static int __maybe_unused ccs_suspend(struct device *dev)
-{
-	struct i2c_client *client = to_i2c_client(dev);
-	struct v4l2_subdev *subdev = i2c_get_clientdata(client);
-	struct ccs_sensor *sensor = to_ccs_sensor(subdev);
-	bool streaming = sensor->streaming;
-	int rval;
-
-	rval = pm_runtime_resume_and_get(dev);
-	if (rval < 0)
-		return rval;
-
-	if (sensor->streaming)
-		ccs_stop_streaming(sensor);
-
-	/* save state for resume */
-	sensor->streaming = streaming;
-
-	return 0;
-}
-
-static int __maybe_unused ccs_resume(struct device *dev)
-{
-	struct i2c_client *client = to_i2c_client(dev);
-	struct v4l2_subdev *subdev = i2c_get_clientdata(client);
-	struct ccs_sensor *sensor = to_ccs_sensor(subdev);
-	int rval = 0;
-
-	pm_runtime_put(dev);
-
-	if (sensor->streaming)
-		rval = ccs_start_streaming(sensor);
-
-	return rval;
-}
-
 static int ccs_get_hwconfig(struct ccs_sensor *sensor, struct device *dev)
 {
 	struct ccs_hwconfig *hwcfg = &sensor->hwcfg;
@@ -3720,7 +3684,6 @@ static const struct of_device_id ccs_of_table[] = {
 MODULE_DEVICE_TABLE(of, ccs_of_table);
 
 static const struct dev_pm_ops ccs_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(ccs_suspend, ccs_resume)
 	SET_RUNTIME_PM_OPS(ccs_power_off, ccs_power_on, NULL)
 };
 
