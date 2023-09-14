@@ -215,17 +215,6 @@ struct xe_vm {
 		struct work_struct work;
 		/** @lock: protects list of pending async VM ops and fences */
 		spinlock_t lock;
-		/** @error_capture: error capture state */
-		struct {
-			/** @mm: user MM */
-			struct mm_struct *mm;
-			/**
-			 * @addr: user pointer to copy error capture state too
-			 */
-			u64 addr;
-			/** @wq: user fence wait queue for VM errors */
-			wait_queue_head_t wq;
-		} error_capture;
 		/** @fence: fence state */
 		struct {
 			/** @context: context of async fence */

@@ -1621,9 +1621,6 @@ void xe_vm_close_and_put(struct xe_vm *vm)
 		xe_vma_destroy_unlocked(vma);
 	}
 
-	if (vm->async_ops.error_capture.addr)
-		wake_up_all(&vm->async_ops.error_capture.wq);
-
 	xe_assert(xe, list_empty(&vm->extobj.list));
 	up_write(&vm->lock);
 
