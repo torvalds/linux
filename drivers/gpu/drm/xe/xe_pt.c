@@ -7,6 +7,7 @@
 
 #include "xe_bo.h"
 #include "xe_device.h"
+#include "xe_drm_client.h"
 #include "xe_gt.h"
 #include "xe_gt_tlb_invalidation.h"
 #include "xe_migrate.h"
@@ -196,6 +197,8 @@ struct xe_pt *xe_pt_create(struct xe_vm *vm, struct xe_tile *tile,
 	pt->level = level;
 	pt->base.dir = level ? &as_xe_pt_dir(pt)->dir : NULL;
 
+	if (vm->xef)
+		xe_drm_client_add_bo(vm->xef->client, pt->bo);
 	xe_tile_assert(tile, level <= XE_VM_MAX_LEVEL);
 
 	return pt;
