@@ -14,6 +14,63 @@
 #include "misc.h"
 #include "print-tree.h"
 
+int btrfs_delete_raid_extent(struct btrfs_trans_handle *trans, u64 start, u64 length)
+{
+	struct btrfs_fs_info *fs_info = trans->fs_info;
+	struct btrfs_root *stripe_root = fs_info->stripe_root;
+	struct btrfs_path *path;
+	struct btrfs_key key;
+	struct extent_buffer *leaf;
+	u64 found_start;
+	u64 found_end;
+	u64 end = start + length;
+	int slot;
+	int ret;
+
+	if (!stripe_root)
+		return 0;
+
+	path = btrfs_alloc_path();
+	if (!path)
+		return -ENOMEM;
+
+	while (1) {
+		key.objectid = start;
+		key.type = BTRFS_RAID_STRIPE_KEY;
+		key.offset = length;
+
+		ret = btrfs_search_slot(trans, stripe_root, &key, path, -1, 1);
+		if (ret < 0)
+			break;
+		if (ret > 0) {
+			ret = 0;
+			if (path->slots[0] == 0)
+				break;
+			path->slots[0]--;
+		}
+
+		leaf = path->nodes[0];
+		slot = path->slots[0];
+		btrfs_item_key_to_cpu(leaf, &key, slot);
+		found_start = key.objectid;
+		found_end = found_start + key.offset;
+
+		/* That stripe ends before we start, we're done. */
+		if (found_end <= start)
+			break;
+
+		ASSERT(found_start >= start && found_end <= end);
+		ret = btrfs_del_item(trans, stripe_root, path);
+		if (ret)
+			break;
+
+		btrfs_release_path(path);
+	}
+
+	btrfs_free_path(path);
+	return ret;
+}
+
 static int btrfs_insert_one_raid_extent(struct btrfs_trans_handle *trans,
 					struct btrfs_io_context *bioc)
 {

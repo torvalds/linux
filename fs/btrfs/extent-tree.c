@@ -2857,6 +2857,12 @@ static int do_free_extent_accounting(struct btrfs_trans_handle *trans,
 			btrfs_abort_transaction(trans, ret);
 			return ret;
 		}
+
+		ret = btrfs_delete_raid_extent(trans, bytenr, num_bytes);
+		if (ret) {
+			btrfs_abort_transaction(trans, ret);
+			return ret;
+		}
 	}
 
 	ret = add_to_free_space_tree(trans, bytenr, num_bytes);
