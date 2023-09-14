@@ -339,9 +339,6 @@ struct ov2740 {
 	/* To serialize asynchronus callbacks */
 	struct mutex mutex;
 
-	/* Streaming on/off */
-	bool streaming;
-
 	/* NVM data inforamtion */
 	struct nvm_data *nvm;
 
@@ -813,44 +810,8 @@ static int ov2740_set_stream(struct v4l2_subdev *sd, int enable)
 		pm_runtime_put(&client->dev);
 	}
 
-	ov2740->streaming = enable;
 	mutex_unlock(&ov2740->mutex);
 
-	return ret;
-}
-
-static int ov2740_suspend(struct device *dev)
-{
-	struct v4l2_subdev *sd = dev_get_drvdata(dev);
-	struct ov2740 *ov2740 = to_ov2740(sd);
-
-	mutex_lock(&ov2740->mutex);
-	if (ov2740->streaming)
-		ov2740_stop_streaming(ov2740);
-
-	mutex_unlock(&ov2740->mutex);
-
-	return 0;
-}
-
-static int ov2740_resume(struct device *dev)
-{
-	struct v4l2_subdev *sd = dev_get_drvdata(dev);
-	struct ov2740 *ov2740 = to_ov2740(sd);
-	int ret = 0;
-
-	mutex_lock(&ov2740->mutex);
-	if (!ov2740->streaming)
-		goto exit;
-
-	ret = ov2740_start_streaming(ov2740);
-	if (ret) {
-		ov2740->streaming = false;
-		ov2740_stop_streaming(ov2740);
-	}
-
-exit:
-	mutex_unlock(&ov2740->mutex);
 	return ret;
 }
 
@@ -1197,8 +1158,6 @@ probe_error_v4l2_ctrl_handler_free:
 	return ret;
 }
 
-static DEFINE_SIMPLE_DEV_PM_OPS(ov2740_pm_ops, ov2740_suspend, ov2740_resume);
-
 static const struct acpi_device_id ov2740_acpi_ids[] = {
 	{"INT3474"},
 	{}
@@ -1209,7 +1168,6 @@ MODULE_DEVICE_TABLE(acpi, ov2740_acpi_ids);
 static struct i2c_driver ov2740_i2c_driver = {
 	.driver = {
 		.name = "ov2740",
-		.pm = pm_sleep_ptr(&ov2740_pm_ops),
 		.acpi_match_table = ov2740_acpi_ids,
 	},
 	.probe = ov2740_probe,
