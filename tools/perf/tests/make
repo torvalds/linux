@@ -138,6 +138,7 @@ endif
 run += make_python_perf_so
 run += make_debug
 run += make_nondistro
+run += make_extra_tests
 run += make_no_bpf_skel
 run += make_gen_vmlinux_h
 run += make_no_libperl
