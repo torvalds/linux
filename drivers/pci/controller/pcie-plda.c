@@ -843,10 +843,9 @@ static void plda_pcie_hw_init(struct plda_pcie *pcie)
 	plda_pcie_setup_windows(pcie);
 
 	/* Ensure that PERST has been asserted for at least 100 ms */
-	msleep(300);
+	msleep(100);
 	if (pcie->reset_gpio)
 		gpiod_set_value_cansleep(pcie->reset_gpio, 0);
-
 }
 
 static int plda_pcie_is_link_up(struct plda_pcie *pcie)
@@ -947,8 +946,13 @@ static int plda_pcie_probe(struct platform_device *pdev)
 
 	plda_pcie_hw_init(pcie);
 
-	if (plda_pcie_is_link_up(pcie) == PLDA_LINK_DOWN)
-		goto release;
+	if (plda_pcie_is_link_up(pcie) == PLDA_LINK_UP) {
+		/* As the requirement in PCIe base spec r6.0, system (<=5GT/s) must
+		 * wait a minimum of 100 ms following exit from a conventional reset
+		 * before sending a configuration request to the device.
+		 */
+		msleep(100);
+	}
 
 	if (IS_ENABLED(CONFIG_PCI_MSI)) {
 		ret = plda_pcie_enable_msi(pcie, bus);
