@@ -5954,7 +5954,7 @@ void wiphy_delayed_work_cancel(struct wiphy *wiphy,
 /**
  * wiphy_delayed_work_flush - flush previously queued delayed work
  * @wiphy: the wiphy, for debug purposes
- * @work: the work to flush
+ * @dwork: the delayed work to flush
  *
  * Flush the work (i.e. run it if pending). This must be called
  * under the wiphy mutex acquired by wiphy_lock().
