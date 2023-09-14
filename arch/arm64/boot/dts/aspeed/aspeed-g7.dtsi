@@ -203,29 +203,6 @@
 			};
 		};
 
-		sdio_controller: sdc@14080000 {
-			compatible = "aspeed,ast2600-sd-controller";
-			reg = <0 0x14080000 0 0x100>;
-			#address-cells = <2>;
-			#size-cells = <2>;
-			ranges = <0 0 0 0x14080000 0 0x10000>;
-			clocks = <&io_clk AST2700_IO_CLK_GATE_SDCLK>;
-			resets = <&io_clk ASPEED_RESET_SD>;
-			status = "disable";
-
-			sdhci: sdhci@14080100 {
-				compatible = "aspeed,ast2600-sdhci", "sdhci";
-				reg = <0 0x100 0 0x100>;
-				sdhci,auto-cmd12;
-				interrupt-parent = <&intc5>;
-				interrupts-extended = <&intc5 1>;
-				clocks = <&io_clk AST2700_IO_CLK_GATE_SDCLK>;
-				pinctrl-names = "default";
-				pinctrl-0 = <&pinctrl_sd_default>;
-				status = "disable";
-			};
-		};
-
 		ufs_controller: cnr@12c08000 {
 			compatible = "aspeed,ast2700-ufscnr";
 			reg = <0 0x12c08000 0 0x100>;
@@ -833,6 +810,29 @@
 			clocks = <&io_clk AST2700_IO_CLK_GATE_MAC2CLK>;
 			resets = <&io_clk ASPEED_RESET_MAC2>;
 			status = "disabled";
+		};
+
+		sdio_controller: sdc@14080000 {
+			compatible = "aspeed,ast2600-sd-controller";
+			reg = <0 0x14080000 0 0x100>;
+			#address-cells = <2>;
+			#size-cells = <2>;
+			ranges = <0 0 0 0x14080000 0 0x10000>;
+			clocks = <&io_clk AST2700_IO_CLK_GATE_SDCLK>;
+			resets = <&io_clk ASPEED_RESET_SD>;
+			status = "disable";
+
+			sdhci: sdhci@14080100 {
+				compatible = "aspeed,ast2600-sdhci", "sdhci";
+				reg = <0 0x100 0 0x100>;
+				sdhci,auto-cmd12;
+				interrupt-parent = <&intc5>;
+				interrupts-extended = <&intc5 1>;
+				clocks = <&io_clk AST2700_IO_CLK_GATE_SDCLK>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_sd_default>;
+				status = "disable";
+			};
 		};
 
 		syscon1: syscon@14c02000 {
