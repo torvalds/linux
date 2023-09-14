@@ -110,6 +110,7 @@ static const char *MAC2 = "\x00\x0A\x56\x9E\xEE\x61";
 static bool opt_verbose;
 static bool opt_print_tests;
 static enum test_mode opt_mode = TEST_MODE_ALL;
+static u32 opt_run_test = RUN_ALL_TESTS;
 
 static void __exit_with_error(int error, const char *file, const char *func, int line)
 {
@@ -316,10 +317,11 @@ static struct option long_options[] = {
 	{"verbose", no_argument, 0, 'v'},
 	{"mode", required_argument, 0, 'm'},
 	{"list", no_argument, 0, 'l'},
+	{"test", required_argument, 0, 't'},
 	{0, 0, 0, 0}
 };
 
-static void usage(const char *prog)
+static void print_usage(char **argv)
 {
 	const char *str =
 		"  Usage: xskxceiver [OPTIONS]\n"
@@ -328,9 +330,11 @@ static void usage(const char *prog)
 		"  -v, --verbose        Verbose output\n"
 		"  -b, --busy-poll      Enable busy poll\n"
 		"  -m, --mode           Run only mode skb, drv, or zc\n"
-		"  -l, --list           List all available tests\n";
+		"  -l, --list           List all available tests\n"
+		"  -t, --test           Run a specific test. Enter number from -l option.\n";
 
-	ksft_print_msg(str, prog);
+	ksft_print_msg(str, basename(argv[0]));
+	ksft_exit_xfail();
 }
 
 static bool validate_interface(struct ifobject *ifobj)
@@ -350,7 +354,7 @@ static void parse_command_line(struct ifobject *ifobj_tx, struct ifobject *ifobj
 	opterr = 0;
 
 	for (;;) {
-		c = getopt_long(argc, argv, "i:vbm:l", long_options, &option_index);
+		c = getopt_long(argc, argv, "i:vbm:lt:", long_options, &option_index);
 		if (c == -1)
 			break;
 
@@ -380,23 +384,26 @@ static void parse_command_line(struct ifobject *ifobj_tx, struct ifobject *ifobj
 			ifobj_rx->busy_poll = true;
 			break;
 		case 'm':
-			if (!strncmp("skb", optarg, strlen(optarg))) {
+			if (!strncmp("skb", optarg, strlen(optarg)))
 				opt_mode = TEST_MODE_SKB;
-			} else if (!strncmp("drv", optarg, strlen(optarg))) {
+			else if (!strncmp("drv", optarg, strlen(optarg)))
 				opt_mode = TEST_MODE_DRV;
-			} else if (!strncmp("zc", optarg, strlen(optarg))) {
+			else if (!strncmp("zc", optarg, strlen(optarg)))
 				opt_mode = TEST_MODE_ZC;
-			} else {
-				usage(basename(argv[0]));
-				ksft_exit_xfail();
-			}
+			else
+				print_usage(argv);
 			break;
 		case 'l':
 			opt_print_tests = true;
 			break;
+		case 't':
+			errno = 0;
+			opt_run_test = strtol(optarg, NULL, 0);
+			if (errno)
+				print_usage(argv);
+			break;
 		default:
-			usage(basename(argv[0]));
-			ksft_exit_xfail();
+			print_usage(argv);
 		}
 	}
 }
@@ -2327,8 +2334,8 @@ int main(int argc, char **argv)
 	struct pkt_stream *rx_pkt_stream_default;
 	struct pkt_stream *tx_pkt_stream_default;
 	struct ifobject *ifobj_tx, *ifobj_rx;
+	u32 i, j, failed_tests = 0, nb_tests;
 	int modes = TEST_MODE_SKB + 1;
-	u32 i, j, failed_tests = 0;
 	struct test_spec test;
 	bool shared_netdev;
 
@@ -2350,15 +2357,17 @@ int main(int argc, char **argv)
 		print_tests();
 		ksft_exit_xpass();
 	}
+	if (opt_run_test != RUN_ALL_TESTS && opt_run_test >= ARRAY_SIZE(tests)) {
+		ksft_print_msg("Error: test %u does not exist.\n", opt_run_test);
+		ksft_exit_xfail();
+	}
 
 	shared_netdev = (ifobj_tx->ifindex == ifobj_rx->ifindex);
 	ifobj_tx->shared_umem = shared_netdev;
 	ifobj_rx->shared_umem = shared_netdev;
 
-	if (!validate_interface(ifobj_tx) || !validate_interface(ifobj_rx)) {
-		usage(basename(argv[0]));
-		ksft_exit_xfail();
-	}
+	if (!validate_interface(ifobj_tx) || !validate_interface(ifobj_rx))
+		print_usage(argv);
 
 	if (is_xdp_supported(ifobj_tx->ifindex)) {
 		modes++;
@@ -2377,8 +2386,12 @@ int main(int argc, char **argv)
 	test.tx_pkt_stream_default = tx_pkt_stream_default;
 	test.rx_pkt_stream_default = rx_pkt_stream_default;
 
+	if (opt_run_test == RUN_ALL_TESTS)
+		nb_tests = ARRAY_SIZE(tests);
+	else
+		nb_tests = 1;
 	if (opt_mode == TEST_MODE_ALL) {
-		ksft_set_plan(modes * ARRAY_SIZE(tests));
+		ksft_set_plan(modes * nb_tests);
 	} else {
 		if (opt_mode == TEST_MODE_DRV && modes <= TEST_MODE_DRV) {
 			ksft_print_msg("Error: XDP_DRV mode not supported.\n");
@@ -2389,7 +2402,7 @@ int main(int argc, char **argv)
 			ksft_exit_xfail();
 		}
 
-		ksft_set_plan(ARRAY_SIZE(tests));
+		ksft_set_plan(nb_tests);
 	}
 
 	for (i = 0; i < modes; i++) {
@@ -2397,6 +2410,9 @@ int main(int argc, char **argv)
 			continue;
 
 		for (j = 0; j < ARRAY_SIZE(tests); j++) {
+			if (opt_run_test != RUN_ALL_TESTS && j != opt_run_test)
+				continue;
+
 			test_spec_init(&test, ifobj_tx, ifobj_rx, i, &tests[j]);
 			run_pkt_test(&test);
 			usleep(USLEEP_MAX);
