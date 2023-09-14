@@ -11,6 +11,7 @@
 #include <adf_gen4_pm.h>
 #include <adf_gen4_timer.h>
 #include "adf_4xxx_hw_data.h"
+#include "adf_cfg_services.h"
 #include "icp_qat_hw.h"
 
 enum adf_fw_objs {
@@ -100,30 +101,6 @@ static struct adf_hw_device_class adf_4xxx_class = {
 	.instances = 0,
 };
 
-enum dev_services {
-	SVC_CY = 0,
-	SVC_CY2,
-	SVC_DC,
-	SVC_SYM,
-	SVC_ASYM,
-	SVC_DC_ASYM,
-	SVC_ASYM_DC,
-	SVC_DC_SYM,
-	SVC_SYM_DC,
-};
-
-static const char *const dev_cfg_services[] = {
-	[SVC_CY] = ADF_CFG_CY,
-	[SVC_CY2] = ADF_CFG_ASYM_SYM,
-	[SVC_DC] = ADF_CFG_DC,
-	[SVC_SYM] = ADF_CFG_SYM,
-	[SVC_ASYM] = ADF_CFG_ASYM,
-	[SVC_DC_ASYM] = ADF_CFG_DC_ASYM,
-	[SVC_ASYM_DC] = ADF_CFG_ASYM_DC,
-	[SVC_DC_SYM] = ADF_CFG_DC_SYM,
-	[SVC_SYM_DC] = ADF_CFG_SYM_DC,
-};
-
 static int get_service_enabled(struct adf_accel_dev *accel_dev)
 {
 	char services[ADF_CFG_MAX_VAL_LEN_IN_BYTES] = {0};
@@ -137,7 +114,7 @@ static int get_service_enabled(struct adf_accel_dev *accel_dev)
 		return ret;
 	}
 
-	ret = match_string(dev_cfg_services, ARRAY_SIZE(dev_cfg_services),
+	ret = match_string(adf_cfg_services, ARRAY_SIZE(adf_cfg_services),
 			   services);
 	if (ret < 0)
 		dev_err(&GET_DEV(accel_dev),
