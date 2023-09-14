@@ -32,10 +32,11 @@ can rely on this frequency being used.
 Devicetree
 ~~~~~~~~~~
 
-The currently preferred way to achieve this is using ``assigned-clocks``,
-``assigned-clock-parents`` and ``assigned-clock-rates`` properties. See
-``Documentation/devicetree/bindings/clock/clock-bindings.txt`` for more
-information. The driver then gets the frequency using ``clk_get_rate()``.
+The preferred way to achieve this is using ``assigned-clocks``,
+``assigned-clock-parents`` and ``assigned-clock-rates`` properties. See the
+`clock device tree bindings <https://github.com/devicetree-org/dt-schema/blob/main/dtschema/schemas/clock/clock.yaml>`_
+for more information. The driver then gets the frequency using
+``clk_get_rate()``.
 
 This approach has the drawback that there's no guarantee that the frequency
 hasn't been modified directly or indirectly by another driver, or supported by
