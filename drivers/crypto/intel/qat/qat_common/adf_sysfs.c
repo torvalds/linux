@@ -5,6 +5,7 @@
 #include <linux/pci.h>
 #include "adf_accel_devices.h"
 #include "adf_cfg.h"
+#include "adf_cfg_services.h"
 #include "adf_common_drv.h"
 
 static const char * const state_operations[] = {
@@ -84,18 +85,6 @@ static ssize_t state_store(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
-static const char * const services_operations[] = {
-	ADF_CFG_CY,
-	ADF_CFG_DC,
-	ADF_CFG_SYM,
-	ADF_CFG_ASYM,
-	ADF_CFG_ASYM_SYM,
-	ADF_CFG_ASYM_DC,
-	ADF_CFG_DC_ASYM,
-	ADF_CFG_SYM_DC,
-	ADF_CFG_DC_SYM,
-};
-
 static ssize_t cfg_services_show(struct device *dev, struct device_attribute *attr,
 				 char *buf)
 {
@@ -130,7 +119,7 @@ static ssize_t cfg_services_store(struct device *dev, struct device_attribute *a
 	struct adf_accel_dev *accel_dev;
 	int ret;
 
-	ret = sysfs_match_string(services_operations, buf);
+	ret = sysfs_match_string(adf_cfg_services, buf);
 	if (ret < 0)
 		return ret;
 
@@ -144,7 +133,7 @@ static ssize_t cfg_services_store(struct device *dev, struct device_attribute *a
 		return -EINVAL;
 	}
 
-	ret = adf_sysfs_update_dev_config(accel_dev, services_operations[ret]);
+	ret = adf_sysfs_update_dev_config(accel_dev, adf_cfg_services[ret]);
 	if (ret < 0)
 		return ret;
 
