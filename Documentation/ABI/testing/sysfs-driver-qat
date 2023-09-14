@@ -29,6 +29,8 @@ Description:	(RW) Reports the current configuration of the QAT device.
 		  services
 		* asym;sym: identical to sym;asym
 		* dc: the device is configured for running compression services
+		* dcc: identical to dc but enables the dc chaining feature,
+		  hash then compression. If this is not required chose dc
 		* sym: the device is configured for running symmetric crypto
 		  services
 		* asym: the device is configured for running asymmetric crypto
