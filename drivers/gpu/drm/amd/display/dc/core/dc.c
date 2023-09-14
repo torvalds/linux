@@ -3507,7 +3507,7 @@ static void wait_for_outstanding_hw_updates(struct dc *dc, const struct dc_state
  */
 	int pipe_idx;
 	int opp_inst;
-	int opp_count = dc->res_pool->pipe_count;
+	int opp_count = dc->res_pool->res_cap->num_opp;
 	struct hubp *hubp;
 	int mpcc_inst;
 	const struct pipe_ctx *pipe_ctx;
