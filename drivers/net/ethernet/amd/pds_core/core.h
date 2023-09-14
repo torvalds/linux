@@ -309,4 +309,8 @@ irqreturn_t pdsc_adminq_isr(int irq, void *data);
 
 int pdsc_firmware_update(struct pdsc *pdsc, const struct firmware *fw,
 			 struct netlink_ext_ack *extack);
+
+void pdsc_fw_down(struct pdsc *pdsc);
+void pdsc_fw_up(struct pdsc *pdsc);
+
 #endif /* _PDSC_H_ */
