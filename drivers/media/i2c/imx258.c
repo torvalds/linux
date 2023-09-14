@@ -1035,10 +1035,6 @@ static int imx258_set_stream(struct v4l2_subdev *sd, int enable)
 	int ret = 0;
 
 	mutex_lock(&imx258->mutex);
-	if (imx258->streaming == enable) {
-		mutex_unlock(&imx258->mutex);
-		return 0;
-	}
 
 	if (enable) {
 		ret = pm_runtime_resume_and_get(&client->dev);
