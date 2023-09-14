@@ -630,8 +630,8 @@ static int ssd130x_fb_blit_rect(struct drm_framebuffer *fb,
 	return ret;
 }
 
-static int ssd130x_primary_plane_helper_atomic_check(struct drm_plane *plane,
-						     struct drm_atomic_state *state)
+static int ssd130x_primary_plane_atomic_check(struct drm_plane *plane,
+					      struct drm_atomic_state *state)
 {
 	struct drm_device *drm = plane->dev;
 	struct ssd130x_device *ssd130x = drm_to_ssd130x(drm);
@@ -667,8 +667,8 @@ static int ssd130x_primary_plane_helper_atomic_check(struct drm_plane *plane,
 	return 0;
 }
 
-static void ssd130x_primary_plane_helper_atomic_update(struct drm_plane *plane,
-						       struct drm_atomic_state *state)
+static void ssd130x_primary_plane_atomic_update(struct drm_plane *plane,
+						struct drm_atomic_state *state)
 {
 	struct drm_plane_state *plane_state = drm_atomic_get_new_plane_state(state, plane);
 	struct drm_plane_state *old_plane_state = drm_atomic_get_old_plane_state(state, plane);
@@ -701,8 +701,8 @@ static void ssd130x_primary_plane_helper_atomic_update(struct drm_plane *plane,
 	drm_dev_exit(idx);
 }
 
-static void ssd130x_primary_plane_helper_atomic_disable(struct drm_plane *plane,
-							struct drm_atomic_state *state)
+static void ssd130x_primary_plane_atomic_disable(struct drm_plane *plane,
+						 struct drm_atomic_state *state)
 {
 	struct drm_device *drm = plane->dev;
 	struct ssd130x_device *ssd130x = drm_to_ssd130x(drm);
@@ -777,9 +777,9 @@ static void ssd130x_primary_plane_destroy_state(struct drm_plane *plane,
 
 static const struct drm_plane_helper_funcs ssd130x_primary_plane_helper_funcs = {
 	DRM_GEM_SHADOW_PLANE_HELPER_FUNCS,
-	.atomic_check = ssd130x_primary_plane_helper_atomic_check,
-	.atomic_update = ssd130x_primary_plane_helper_atomic_update,
-	.atomic_disable = ssd130x_primary_plane_helper_atomic_disable,
+	.atomic_check = ssd130x_primary_plane_atomic_check,
+	.atomic_update = ssd130x_primary_plane_atomic_update,
+	.atomic_disable = ssd130x_primary_plane_atomic_disable,
 };
 
 static const struct drm_plane_funcs ssd130x_primary_plane_funcs = {
@@ -791,8 +791,8 @@ static const struct drm_plane_funcs ssd130x_primary_plane_funcs = {
 	.destroy = drm_plane_cleanup,
 };
 
-static enum drm_mode_status ssd130x_crtc_helper_mode_valid(struct drm_crtc *crtc,
-							   const struct drm_display_mode *mode)
+static enum drm_mode_status ssd130x_crtc_mode_valid(struct drm_crtc *crtc,
+						    const struct drm_display_mode *mode)
 {
 	struct ssd130x_device *ssd130x = drm_to_ssd130x(crtc->dev);
 
@@ -807,8 +807,8 @@ static enum drm_mode_status ssd130x_crtc_helper_mode_valid(struct drm_crtc *crtc
 	return MODE_OK;
 }
 
-static int ssd130x_crtc_helper_atomic_check(struct drm_crtc *crtc,
-					    struct drm_atomic_state *state)
+static int ssd130x_crtc_atomic_check(struct drm_crtc *crtc,
+				     struct drm_atomic_state *state)
 {
 	struct drm_device *drm = crtc->dev;
 	struct ssd130x_device *ssd130x = drm_to_ssd130x(drm);
@@ -882,8 +882,8 @@ static void ssd130x_crtc_destroy_state(struct drm_crtc *crtc,
  * the screen in the primary plane's atomic_disable function.
  */
 static const struct drm_crtc_helper_funcs ssd130x_crtc_helper_funcs = {
-	.mode_valid = ssd130x_crtc_helper_mode_valid,
-	.atomic_check = ssd130x_crtc_helper_atomic_check,
+	.mode_valid = ssd130x_crtc_mode_valid,
+	.atomic_check = ssd130x_crtc_atomic_check,
 };
 
 static const struct drm_crtc_funcs ssd130x_crtc_funcs = {
@@ -895,8 +895,8 @@ static const struct drm_crtc_funcs ssd130x_crtc_funcs = {
 	.atomic_destroy_state = ssd130x_crtc_destroy_state,
 };
 
-static void ssd130x_encoder_helper_atomic_enable(struct drm_encoder *encoder,
-						 struct drm_atomic_state *state)
+static void ssd130x_encoder_atomic_enable(struct drm_encoder *encoder,
+					  struct drm_atomic_state *state)
 {
 	struct drm_device *drm = encoder->dev;
 	struct ssd130x_device *ssd130x = drm_to_ssd130x(drm);
@@ -921,8 +921,8 @@ power_off:
 	return;
 }
 
-static void ssd130x_encoder_helper_atomic_disable(struct drm_encoder *encoder,
-						  struct drm_atomic_state *state)
+static void ssd130x_encoder_atomic_disable(struct drm_encoder *encoder,
+					   struct drm_atomic_state *state)
 {
 	struct drm_device *drm = encoder->dev;
 	struct ssd130x_device *ssd130x = drm_to_ssd130x(drm);
@@ -935,15 +935,15 @@ static void ssd130x_encoder_helper_atomic_disable(struct drm_encoder *encoder,
 }
 
 static const struct drm_encoder_helper_funcs ssd130x_encoder_helper_funcs = {
-	.atomic_enable = ssd130x_encoder_helper_atomic_enable,
-	.atomic_disable = ssd130x_encoder_helper_atomic_disable,
+	.atomic_enable = ssd130x_encoder_atomic_enable,
+	.atomic_disable = ssd130x_encoder_atomic_disable,
 };
 
 static const struct drm_encoder_funcs ssd130x_encoder_funcs = {
 	.destroy = drm_encoder_cleanup,
 };
 
-static int ssd130x_connector_helper_get_modes(struct drm_connector *connector)
+static int ssd130x_connector_get_modes(struct drm_connector *connector)
 {
 	struct ssd130x_device *ssd130x = drm_to_ssd130x(connector->dev);
 	struct drm_display_mode *mode;
@@ -963,7 +963,7 @@ static int ssd130x_connector_helper_get_modes(struct drm_connector *connector)
 }
 
 static const struct drm_connector_helper_funcs ssd130x_connector_helper_funcs = {
-	.get_modes = ssd130x_connector_helper_get_modes,
+	.get_modes = ssd130x_connector_get_modes,
 };
 
 static const struct drm_connector_funcs ssd130x_connector_funcs = {
