@@ -16,6 +16,7 @@ def define_pitti():
         "drivers/mailbox/qcom-ipcc.ko",
         "drivers/pinctrl/qcom/pinctrl-msm.ko",
         "drivers/pinctrl/qcom/pinctrl-pitti.ko",
+        "drivers/regulator/stub-regulator.ko",
         "drivers/soc/qcom/smem.ko",
         "drivers/soc/qcom/socinfo.ko",
     ]
