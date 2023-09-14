@@ -34,7 +34,7 @@
 #define MAX_INTERFACES 2
 #define MAX_INTERFACE_NAME_CHARS 16
 #define MAX_SOCKETS 2
-#define MAX_TEST_NAME_SIZE 32
+#define MAX_TEST_NAME_SIZE 48
 #define MAX_TEARDOWN_ITER 10
 #define PKT_HDR_SIZE (sizeof(struct ethhdr) + 2) /* Just to align the data in the packet */
 #define MIN_PKT_SIZE 64
@@ -64,38 +64,6 @@ enum test_mode {
 	TEST_MODE_DRV,
 	TEST_MODE_ZC,
 	TEST_MODE_ALL
-};
-
-enum test_type {
-	TEST_TYPE_RUN_TO_COMPLETION,
-	TEST_TYPE_RUN_TO_COMPLETION_2K_FRAME,
-	TEST_TYPE_RUN_TO_COMPLETION_SINGLE_PKT,
-	TEST_TYPE_RX_POLL,
-	TEST_TYPE_TX_POLL,
-	TEST_TYPE_POLL_RXQ_TMOUT,
-	TEST_TYPE_POLL_TXQ_TMOUT,
-	TEST_TYPE_UNALIGNED,
-	TEST_TYPE_ALIGNED_INV_DESC,
-	TEST_TYPE_ALIGNED_INV_DESC_2K_FRAME,
-	TEST_TYPE_UNALIGNED_INV_DESC,
-	TEST_TYPE_UNALIGNED_INV_DESC_4K1_FRAME,
-	TEST_TYPE_HEADROOM,
-	TEST_TYPE_TEARDOWN,
-	TEST_TYPE_BIDI,
-	TEST_TYPE_STATS_RX_DROPPED,
-	TEST_TYPE_STATS_TX_INVALID_DESCS,
-	TEST_TYPE_STATS_RX_FULL,
-	TEST_TYPE_STATS_FILL_EMPTY,
-	TEST_TYPE_BPF_RES,
-	TEST_TYPE_XDP_DROP_HALF,
-	TEST_TYPE_XDP_METADATA_COUNT,
-	TEST_TYPE_XDP_METADATA_COUNT_MB,
-	TEST_TYPE_RUN_TO_COMPLETION_MB,
-	TEST_TYPE_UNALIGNED_MB,
-	TEST_TYPE_ALIGNED_INV_DESC_MB,
-	TEST_TYPE_UNALIGNED_INV_DESC_MB,
-	TEST_TYPE_TOO_MANY_FRAGS,
-	TEST_TYPE_MAX
 };
 
 struct xsk_umem_info {
@@ -137,8 +105,10 @@ struct pkt_stream {
 };
 
 struct ifobject;
+struct test_spec;
 typedef int (*validation_func_t)(struct ifobject *ifobj);
 typedef void *(*thread_func_t)(void *arg);
+typedef int (*test_func_t)(struct test_spec *test);
 
 struct ifobject {
 	char ifname[MAX_INTERFACE_NAME_CHARS];
@@ -180,6 +150,7 @@ struct test_spec {
 	struct bpf_program *xdp_prog_tx;
 	struct bpf_map *xskmap_rx;
 	struct bpf_map *xskmap_tx;
+	test_func_t test_func;
 	int mtu;
 	u16 total_steps;
 	u16 current_step;
