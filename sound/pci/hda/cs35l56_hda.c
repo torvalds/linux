@@ -218,7 +218,7 @@ static int cs35l56_hda_posture_get(struct snd_kcontrol *kcontrol,
 
 	ucontrol->value.integer.value[0] = pos;
 
-	return ret;
+	return 0;
 }
 
 static int cs35l56_hda_posture_put(struct snd_kcontrol *kcontrol,
