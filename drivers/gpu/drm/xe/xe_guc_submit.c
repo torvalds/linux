@@ -247,10 +247,28 @@ int xe_guc_submit_init(struct xe_guc *guc)
 	return 0;
 }
 
+static void __release_guc_id(struct xe_guc *guc, struct xe_exec_queue *q, u32 xa_count)
+{
+	int i;
+
+	lockdep_assert_held(&guc->submission_state.lock);
+
+	for (i = 0; i < xa_count; ++i)
+		xa_erase(&guc->submission_state.exec_queue_lookup, q->guc->id + i);
+
+	if (xe_exec_queue_is_parallel(q))
+		bitmap_release_region(guc->submission_state.guc_ids_bitmap,
+				      q->guc->id - GUC_ID_START_MLRC,
+				      order_base_2(q->width));
+	else
+		ida_simple_remove(&guc->submission_state.guc_ids, q->guc->id);
+}
+
 static int alloc_guc_id(struct xe_guc *guc, struct xe_exec_queue *q)
 {
 	int ret;
 	void *ptr;
+	int i;
 
 	/*
 	 * Must use GFP_NOWAIT as this lock is in the dma fence signalling path,
@@ -277,30 +295,27 @@ static int alloc_guc_id(struct xe_guc *guc, struct xe_exec_queue *q)
 	if (xe_exec_queue_is_parallel(q))
 		q->guc->id += GUC_ID_START_MLRC;
 
-	ptr = xa_store(&guc->submission_state.exec_queue_lookup,
-		       q->guc->id, q, GFP_NOWAIT);
-	if (IS_ERR(ptr)) {
-		ret = PTR_ERR(ptr);
-		goto err_release;
+	for (i = 0; i < q->width; ++i) {
+		ptr = xa_store(&guc->submission_state.exec_queue_lookup,
+			       q->guc->id + i, q, GFP_NOWAIT);
+		if (IS_ERR(ptr)) {
+			ret = PTR_ERR(ptr);
+			goto err_release;
+		}
 	}
 
 	return 0;
 
 err_release:
-	ida_simple_remove(&guc->submission_state.guc_ids, q->guc->id);
+	__release_guc_id(guc, q, i);
+
 	return ret;
 }
 
 static void release_guc_id(struct xe_guc *guc, struct xe_exec_queue *q)
 {
 	mutex_lock(&guc->submission_state.lock);
-	xa_erase(&guc->submission_state.exec_queue_lookup, q->guc->id);
-	if (xe_exec_queue_is_parallel(q))
-		bitmap_release_region(guc->submission_state.guc_ids_bitmap,
-				      q->guc->id - GUC_ID_START_MLRC,
-				      order_base_2(q->width));
-	else
-		ida_simple_remove(&guc->submission_state.guc_ids, q->guc->id);
+	__release_guc_id(guc, q, q->width);
 	mutex_unlock(&guc->submission_state.lock);
 }
 
@@ -1489,7 +1504,8 @@ g2h_exec_queue_lookup(struct xe_guc *guc, u32 guc_id)
 		return NULL;
 	}
 
-	xe_assert(xe, q->guc->id == guc_id);
+	xe_assert(xe, guc_id >= q->guc->id);
+	xe_assert(xe, guc_id < (q->guc->id + q->width));
 
 	return q;
 }
