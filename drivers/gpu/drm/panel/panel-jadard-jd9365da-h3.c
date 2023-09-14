@@ -29,6 +29,15 @@
 #include <video/display_timing.h>
 #include <video/videomode.h>
 
+
+//accel sc7a20
+#include <linux/iio/iio.h>
+#include <linux/iio/sysfs.h>
+#include <linux/iio/trigger.h>
+#include <linux/iio/common/st_sensors_i2c.h>
+#include <linux/iio/common/st_sensors.h>
+//#include "st_accel.h"
+
 #define DSI_DRIVER_NAME "starfive-dri"
 
 enum cmd_type {
@@ -79,6 +88,7 @@ struct jadard {
 	struct gpio_desc *reset;
 	struct gpio_desc *enable;
 	bool enable_initialized;
+	int choosemode;
 };
 
 static inline struct jadard *panel_to_jadard(struct drm_panel *panel)
@@ -140,38 +150,42 @@ static int jadard_enable(struct drm_panel *panel)
 	if (jadard->enable_initialized == true)
 		return 0;
 
-	for (i = 0; i < desc->num_init_cmds; i++) {
-		const struct jadard_init_cmd *cmd = &desc->init_cmds[i];
+	if(jadard->choosemode == 0) {//8inch
 
-		switch (cmd->type) {
-		case CMD_TYPE_DELAY:
-			msleep(cmd->data[0]);
-			err = 0;
-			break;
-		case CMD_TYPE_DCS:
-			err = mipi_dsi_dcs_write(dsi, cmd->data[0],
-						 cmd->len <= 1 ? NULL : &cmd->data[1],
-						 cmd->len - 1);
-			break;
-		default:
-			err = -EINVAL;
+		for (i = 0; i < desc->num_init_cmds; i++) {
+			const struct jadard_init_cmd *cmd = &desc->init_cmds[i];
+
+			switch (cmd->type) {
+			case CMD_TYPE_DELAY:
+				msleep(cmd->data[0]);
+				err = 0;
+				break;
+			case CMD_TYPE_DCS:
+				err = mipi_dsi_dcs_write(dsi, cmd->data[0],
+							 cmd->len <= 1 ? NULL : &cmd->data[1],
+							 cmd->len - 1);
+				break;
+			default:
+				err = -EINVAL;
+			}
+
+			if (err < 0) {
+				DRM_DEV_ERROR(dev, "failed to write CMD#0x%x\n", cmd->data[0]);
+				return err;
+			}
+
 		}
 
-		if (err < 0) {
-			DRM_DEV_ERROR(dev, "failed to write CMD#0x%x\n", cmd->data[0]);
-			return err;
-		}
+		err = mipi_dsi_dcs_exit_sleep_mode(dsi);
+		if (err < 0)
+			DRM_DEV_ERROR(dev, "failed to exit sleep mode ret = %d\n", err);
+		msleep(120);
 
+		err =  mipi_dsi_dcs_set_display_on(dsi);
+		if (err < 0)
+			DRM_DEV_ERROR(dev, "failed to set display on ret = %d\n", err);
 	}
 
-	err = mipi_dsi_dcs_exit_sleep_mode(dsi);
-	if (err < 0)
-		DRM_DEV_ERROR(dev, "failed to exit sleep mode ret = %d\n", err);
-	msleep(120);
-
-	err =  mipi_dsi_dcs_set_display_on(dsi);
-	if (err < 0)
-		DRM_DEV_ERROR(dev, "failed to set display on ret = %d\n", err);
 	jadard->enable_initialized = true ;
 
 	return 0;
@@ -182,15 +196,16 @@ static int jadard_disable(struct drm_panel *panel)
 	struct device *dev = panel->dev;
 	struct jadard *jadard = panel_to_jadard(panel);
 	int ret;
+	if(jadard->choosemode == 0) {//8inch
+		ret = mipi_dsi_dcs_set_display_off(jadard->dsi);
+		if (ret < 0)
+			DRM_DEV_ERROR(dev, "failed to set display off: %d\n", ret);
 
-	ret = mipi_dsi_dcs_set_display_off(jadard->dsi);
-	if (ret < 0)
-		DRM_DEV_ERROR(dev, "failed to set display off: %d\n", ret);
+		ret = mipi_dsi_dcs_enter_sleep_mode(jadard->dsi);
+		if (ret < 0)
+			DRM_DEV_ERROR(dev, "failed to enter sleep mode: %d\n", ret);
 
-	ret = mipi_dsi_dcs_enter_sleep_mode(jadard->dsi);
-	if (ret < 0)
-		DRM_DEV_ERROR(dev, "failed to enter sleep mode: %d\n", ret);
-
+	}
 	jadard->enable_initialized = false;
 
 	return 0;
@@ -463,7 +478,8 @@ static const struct jadard_init_cmd cz101b4001_init_cmds[] = {
 	_INIT_CMD_DELAY(120),
 };
 
-static const struct display_timing jadard_timing = {
+static const struct display_timing jadard_timing[] = {
+	{
 	.pixelclock = { 79200000, 79200000, 79200000 },
 	.hactive = { 800, 800, 800 },
 	.hfront_porch = {  356, 356, 356 },
@@ -474,9 +490,24 @@ static const struct display_timing jadard_timing = {
 	.vback_porch = { 20, 20, 20 },
 	.vsync_len = { 9, 9, 9 },
 	.flags = DISPLAY_FLAGS_DE_LOW,
+	},
+	{
+	 .pixelclock = { 148500000, 148500000, 148500000 },
+	 .hactive = { 1200, 1200, 1200 },
+	 .hfront_porch = {	246, 246, 246 },
+	 .hback_porch = { 5, 5, 5 },
+	 .hsync_len = { 5, 5, 5 },
+	 .vactive = { 1920, 1920, 1920 },
+	 .vfront_porch = { 84, 84, 84 },
+	 .vback_porch = { 20, 20, 20 },
+	 .vsync_len = { 16, 16, 16 },
+	 .flags = DISPLAY_FLAGS_DE_LOW,
+	},
+	{}
 };
 
-static const struct jadard_panel_desc cz101b4001_desc = {
+static const struct jadard_panel_desc cz101b4001_desc[] = {
+	{
 	.mode = {
 		.clock		= 79200,
 
@@ -498,8 +529,36 @@ static const struct jadard_panel_desc cz101b4001_desc = {
 	.format = MIPI_DSI_FMT_RGB888,
 	.init_cmds = cz101b4001_init_cmds,
 	.num_init_cmds = ARRAY_SIZE(cz101b4001_init_cmds),
-	.timings = &jadard_timing,
+	.timings = &jadard_timing[0],
 	.num_timings = 1,
+	},
+	{
+	.mode = {
+		 .clock 	 = 148500,
+
+		 .hdisplay	 = 1200,
+		 .hsync_start	 = 1200 + 246,
+		 .hsync_end  = 1200 + 246 + 5,
+		 .htotal	 = 1200 + 246 + 5 + 5,
+
+		 .vdisplay	 = 1920,
+		 .vsync_start	 = 1920 + 84,
+		 .vsync_end  = 1920 + 84 + 20,
+		 .vtotal	 = 1920 + 84+ 20 + 16,
+
+		 .width_mm	 = 62,
+		 .height_mm  = 110,
+		 .type		 = DRM_MODE_TYPE_DRIVER | DRM_MODE_TYPE_PREFERRED,
+	 },
+	 .lanes = 4,
+	 .format = MIPI_DSI_FMT_RGB888,
+	 .init_cmds = cz101b4001_init_cmds,//no
+	 .num_init_cmds = ARRAY_SIZE(cz101b4001_init_cmds),//no
+	 //.timings = &starfive_timing,
+	 .timings = &jadard_timing[1],
+	 .num_timings = 1,
+	},
+	{}
 };
 
 static int panel_probe(struct i2c_client *client, const struct i2c_device_id *id)
@@ -511,10 +570,16 @@ static int panel_probe(struct i2c_client *client, const struct i2c_device_id *id
 	struct device_node *endpoint, *dsi_host_node;
 	struct mipi_dsi_host *host;
 	struct device *dev = &client->dev;
-	int ret = 0;
+
+	const struct st_sensor_settings *settings;
+	struct st_sensor_data *adata;
+	struct iio_dev *indio_dev;
+	int err; u8 mode = 1;int ret = 0;
+
+
 	struct mipi_dsi_device_info info = {
 		.type = DSI_DRIVER_NAME,
-		.channel = 2, //0,
+		.channel = 1, //0,
 		.node = NULL,
 	};
 
@@ -527,7 +592,8 @@ static int panel_probe(struct i2c_client *client, const struct i2c_device_id *id
 	jd_panel = devm_kzalloc(&client->dev, sizeof(struct jadard), GFP_KERNEL);
 	if (!jd_panel )
 		return -ENOMEM;
-	desc = of_device_get_match_data(dev);
+
+	desc = &cz101b4001_desc[0];//use 8inch parameter to pre config dsi and phy
 
 	jd_panel ->client = client;
 	i2c_set_clientdata(client, jd_panel);
@@ -549,8 +615,12 @@ static int panel_probe(struct i2c_client *client, const struct i2c_device_id *id
 	/*use i2c read to detect whether the panel has connected */
 	ret = jadard_i2c_read(client, 0x00, &reg_value);
 	if (ret < 0)
+	{
+		dev_info(dev, "no 4lane connect!!!!\n");
 		return -ENODEV;
-
+	}
+	dev_info(dev, "==4lane panel!!! maybe 8inch==\n");
+	jd_panel->choosemode = 0;
 	endpoint = of_graph_get_next_endpoint(dev->of_node, NULL);
 	if (!endpoint)
 		return -ENODEV;
@@ -586,6 +656,65 @@ static int panel_probe(struct i2c_client *client, const struct i2c_device_id *id
 	}
 
 	mipi_dsi_set_drvdata(jd_panel->dsi, jd_panel);
+
+	//radxa 10inch connect detect
+	gpiod_direction_output(jd_panel->enable, 0);
+	gpiod_set_value(jd_panel->enable, 1);
+	mdelay(100);
+
+	gpiod_direction_output(jd_panel->reset, 0);
+	mdelay(100);
+	gpiod_set_value(jd_panel->reset, 1);
+	mdelay(100);
+	gpiod_set_value(jd_panel->reset, 0);
+	mdelay(100);
+	gpiod_set_value(jd_panel->reset, 1);
+	mdelay(150);
+
+	jd_panel->dsi->mode_flags &= ~MIPI_DSI_MODE_LPM;
+	if(jd_panel->dsi)
+	{
+		//use this command to detect the connected status
+		err = mipi_dsi_dcs_get_power_mode(jd_panel->dsi, &mode);
+		dev_info(dev,"dsi command return %d, mode %d\n", err, mode);
+		if(err == -EIO){
+			dev_info(dev, "raxda 10 inch detected\n");
+			jd_panel->choosemode = 1;
+			desc = &cz101b4001_desc[1];//choose 1200x1920 mode
+			jd_panel->desc = desc;
+			jd_panel->dsi->hs_rate = 980000000;//after this, dsi and phy will config again
+		}else{
+			dev_info(dev, "4lane is radxa 8inch\n");
+			jd_panel->dsi->hs_rate = 490000000;
+		}
+	}
+	jd_panel->dsi->mode_flags |= MIPI_DSI_MODE_LPM;
+
+	//acceleroter SC7A20
+	dev_info(dev, "probe sc7a20 begin\n");
+	settings = st_accel_get_settings("sc7a20");
+	if (!settings) {
+		dev_err(&client->dev, "device name %s not recognized.\n",
+			client->name);
+		return -ENODEV;
+	}
+
+	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*adata));
+	if (!indio_dev)
+		return -ENOMEM;
+
+	adata = iio_priv(indio_dev);
+	adata->sensor_settings = (struct st_sensor_settings *)settings;
+
+	ret = st_sensors_i2c_configure(indio_dev, client);
+	if (ret < 0)
+		return ret;
+
+	ret = st_sensors_power_enable(indio_dev);
+	if (ret)
+		return ret;
+	st_accel_common_probe(indio_dev);
+	dev_info(dev, "probe sc7a20 end\n");
 
 	return 0;
 error:
@@ -642,7 +771,7 @@ static int jadard_dsi_probe(struct mipi_dsi_device *dsi)
 	dsi->mode_flags = MIPI_DSI_MODE_LPM | MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_SYNC_PULSE ;
 	dsi->format = MIPI_DSI_FMT_RGB888;
 	dsi->lanes = 4;
-	dsi->channel = 2;
+	dsi->channel = 1;
 	dsi->hs_rate = 490000000;
 
 	ret = mipi_dsi_attach(dsi);

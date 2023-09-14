@@ -748,17 +748,15 @@ static int cdns_dsi_mode2cfg(struct cdns_dsi *dsi,
 					 bpp, DSI_HFP_FRAME_OVERHEAD);
 	//dpi to dsi transfer can not match , reconfig those parms for waveshare
 	//for taobao old mipi panel .should change here : hsa 36 , hbp 108, hfp 288
-	if (output->dev->channel == 0) {//seeed
+	if (mode->vdisplay == 480) {//seeed
 		dsi_cfg->hsa = 117-DSI_HSA_FRAME_OVERHEAD;
 		dsi_cfg->hbp = 115-DSI_HBP_FRAME_OVERHEAD;
 		dsi_cfg->hfp = 209-DSI_HFP_FRAME_OVERHEAD;
-	} else if (output->dev->channel == 2){//raxda 8 inch config
+	} else if (mode->vdisplay == 1280) {//8inch
 		dsi_cfg->hsa = 45-DSI_HSA_FRAME_OVERHEAD;
 		dsi_cfg->hbp = 134-DSI_HBP_FRAME_OVERHEAD;
 		dsi_cfg->hfp = 356-DSI_HFP_FRAME_OVERHEAD;
-
-	}
-	else if (output->dev->channel == 1){//raxda 10 inch config
+	} else if (mode->vdisplay == 1920) {//10inch
 		dsi_cfg->hsa = 405-DSI_HSA_FRAME_OVERHEAD;
 		dsi_cfg->hbp = 403-DSI_HBP_FRAME_OVERHEAD;
 		dsi_cfg->hfp = 396-DSI_HFP_FRAME_OVERHEAD;
@@ -843,11 +841,11 @@ static int cdns_dsi_check_conf(struct cdns_dsi *dsi,
 
 	//phy_cfg->hs_clk_rate = output->phy_opts.mipi_dphy.hs_clk_rate;
 
-	if (output->dev->channel == 0) {
+	if (mode->vdisplay == 480) {
 		phy_cfg->hs_clk_rate = 750000000;//seeed
-	} else if (output->dev->channel == 2){
+	} else if (mode->vdisplay == 1280) {
 		phy_cfg->hs_clk_rate = 490000000;//8 inch
-	} else if (output->dev->channel == 1){
+	} else if (mode->vdisplay == 1920) {
 		phy_cfg->hs_clk_rate = 980000000;//10 inch
 	}
 
