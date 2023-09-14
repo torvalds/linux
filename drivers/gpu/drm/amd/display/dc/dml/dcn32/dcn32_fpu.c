@@ -2187,6 +2187,7 @@ bool dcn32_internal_validate_bw(struct dc *dc,
 					vba->VoltageLevel = i;
 					vlevel = i;
 					flags_valid = true;
+					break;
 				}
 			}
 
