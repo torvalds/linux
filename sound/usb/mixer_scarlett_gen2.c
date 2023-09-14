@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- *   Focusrite Scarlett Gen 2/3 and Clarett+ Driver for ALSA
+ *   Focusrite Scarlett Gen 2/3 and Clarett USB/Clarett+ Driver for ALSA
  *
  *   Supported models:
  *   - 6i6/18i8/18i20 Gen 2
  *   - Solo/2i2/4i4/8i6/18i8/18i20 Gen 3
+ *   - Clarett 8Pre USB
  *   - Clarett+ 8Pre
  *
- *   Copyright (c) 2018-2022 by Geoffrey D. Bennett <g at b4.vu>
+ *   Copyright (c) 2018-2023 by Geoffrey D. Bennett <g at b4.vu>
  *   Copyright (c) 2020-2021 by Vladimir Sadovnikov <sadko4u@gmail.com>
  *   Copyright (c) 2022 by Christian Colglazier <christian@cacolglazier.com>
  *
@@ -55,6 +56,9 @@
  *
  * Support for Clarett+ 8Pre added in Aug 2022 by Christian
  * Colglazier.
+ *
+ * Support for Clarett 8Pre USB added in Sep 2023 (thanks to Philippe
+ * Perrot for confirmation).
  *
  * This ALSA mixer gives access to (model-dependent):
  *  - input, output, mixer-matrix muxes
@@ -899,7 +903,8 @@ static const struct scarlett2_device_entry scarlett2_devices[] = {
 	{ USB_ID(0x1235, 0x8214), &s18i8_gen3_info },
 	{ USB_ID(0x1235, 0x8215), &s18i20_gen3_info },
 
-	/* Supported Clarett+ devices */
+	/* Supported Clarett USB/Clarett+ devices */
+	{ USB_ID(0x1235, 0x8208), &clarett_8pre_info },
 	{ USB_ID(0x1235, 0x820c), &clarett_8pre_info },
 
 	/* End of list */
