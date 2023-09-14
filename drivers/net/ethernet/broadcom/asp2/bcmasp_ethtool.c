@@ -335,7 +335,7 @@ static int bcmasp_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd,
 		err = bcmasp_flow_get(intf, cmd);
 		break;
 	case ETHTOOL_GRXCLSRLALL:
-		bcmasp_netfilt_get_all_active(intf, rule_locs, &cmd->rule_cnt);
+		err = bcmasp_netfilt_get_all_active(intf, rule_locs, &cmd->rule_cnt);
 		cmd->data = NUM_NET_FILTERS;
 		break;
 	default:
