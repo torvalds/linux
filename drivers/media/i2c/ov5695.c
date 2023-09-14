@@ -108,7 +108,6 @@ struct ov5695 {
 	struct v4l2_ctrl	*vblank;
 	struct v4l2_ctrl	*test_pattern;
 	struct mutex		mutex;
-	bool			streaming;
 	const struct ov5695_mode *cur_mode;
 };
 
@@ -935,9 +934,6 @@ static int ov5695_s_stream(struct v4l2_subdev *sd, int on)
 	int ret = 0;
 
 	mutex_lock(&ov5695->mutex);
-	on = !!on;
-	if (on == ov5695->streaming)
-		goto unlock_and_return;
 
 	if (on) {
 		ret = pm_runtime_resume_and_get(&client->dev);
@@ -954,8 +950,6 @@ static int ov5695_s_stream(struct v4l2_subdev *sd, int on)
 		__ov5695_stop_stream(ov5695);
 		pm_runtime_put(&client->dev);
 	}
-
-	ov5695->streaming = on;
 
 unlock_and_return:
 	mutex_unlock(&ov5695->mutex);
