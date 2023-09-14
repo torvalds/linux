@@ -244,13 +244,19 @@ static struct buffer_head *__ext4_sb_bread_gfp(struct super_block *sb,
 struct buffer_head *ext4_sb_bread(struct super_block *sb, sector_t block,
 				   blk_opf_t op_flags)
 {
-	return __ext4_sb_bread_gfp(sb, block, op_flags, __GFP_MOVABLE);
+	gfp_t gfp = mapping_gfp_constraint(sb->s_bdev->bd_inode->i_mapping,
+			~__GFP_FS) | __GFP_MOVABLE;
+
+	return __ext4_sb_bread_gfp(sb, block, op_flags, gfp);
 }
 
 struct buffer_head *ext4_sb_bread_unmovable(struct super_block *sb,
 					    sector_t block)
 {
-	return __ext4_sb_bread_gfp(sb, block, 0, 0);
+	gfp_t gfp = mapping_gfp_constraint(sb->s_bdev->bd_inode->i_mapping,
+			~__GFP_FS);
+
+	return __ext4_sb_bread_gfp(sb, block, 0, gfp);
 }
 
 void ext4_sb_breadahead_unmovable(struct super_block *sb, sector_t block)
