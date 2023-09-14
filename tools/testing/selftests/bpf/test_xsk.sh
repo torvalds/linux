@@ -82,12 +82,15 @@
 #
 # Run a specific test from the test suite
 #   sudo ./test_xsk.sh -t TEST_NAME
+#
+# Display the available command line options
+#   ./test_xsk.sh -h
 
 . xsk_prereqs.sh
 
 ETH=""
 
-while getopts "vi:dm:lt:" flag
+while getopts "vi:dm:lt:h" flag
 do
 	case "${flag}" in
 		v) verbose=1;;
@@ -96,6 +99,7 @@ do
 		m) MODE=${OPTARG};;
 		l) list=1;;
 		t) TEST=${OPTARG};;
+		h) help=1;;
 	esac
 done
 
@@ -145,6 +149,11 @@ setup_vethPairs() {
 
 if [[ $list -eq 1 ]]; then
         ./${XSKOBJ} -l
+        exit
+fi
+
+if [[ $help -eq 1 ]]; then
+	./${XSKOBJ}
         exit
 fi
 
