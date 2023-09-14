@@ -308,4 +308,8 @@ rkisp_unite_clear_bits(struct rkisp_device *dev, u32 reg, u32 mask,
 		rkisp_next_clear_bits(dev, reg, mask, is_direct);
 }
 
+static inline bool rkisp_link_sensor(u32 isp_inp)
+{
+	return isp_inp & (INP_CSI | INP_DVP | INP_LVDS);
+}
 #endif
