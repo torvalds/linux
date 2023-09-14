@@ -852,7 +852,7 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 	    bch2_fs_compress_init(c) ?:
 	    bch2_fs_ec_init(c) ?:
 	    bch2_fs_fsio_init(c) ?:
-	    bch2_fs_fs_io_buffered_init(c);
+	    bch2_fs_fs_io_buffered_init(c) ?:
 	    bch2_fs_fs_io_direct_init(c);
 	if (ret)
 		goto err;
