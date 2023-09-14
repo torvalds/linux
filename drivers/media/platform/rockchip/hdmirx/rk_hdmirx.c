@@ -530,6 +530,16 @@ static int hdmirx_g_dv_timings(struct file *file, void *_fh,
 	struct v4l2_device *v4l2_dev = &hdmirx_dev->v4l2_dev;
 	u32 dma_cfg1;
 
+	if (port_no_link(hdmirx_dev)) {
+		v4l2_err(v4l2_dev, "%s port has no link!\n", __func__);
+		return -ENOLINK;
+	}
+
+	if (signal_not_lock(hdmirx_dev)) {
+		v4l2_err(v4l2_dev, "%s signal is not locked!\n", __func__);
+		return -ENOLCK;
+	}
+
 	*timings = hdmirx_dev->timings;
 	dma_cfg1 = hdmirx_readl(hdmirx_dev, DMA_CONFIG1);
 	v4l2_dbg(1, debug, v4l2_dev, "%s: pix_fmt: %s, DMA_CONFIG1:%#x\n",
@@ -1558,7 +1568,7 @@ static int hdmirx_wait_lock_and_get_timing(struct rk_hdmirx_dev *hdmirx_dev)
 	}
 
 	hdmirx_reset_dma(hdmirx_dev);
-	usleep_range(200*1000, 200*1010);
+	usleep_range(500*1000, 500*1010);
 	hdmirx_format_change(hdmirx_dev);
 
 	return 0;
