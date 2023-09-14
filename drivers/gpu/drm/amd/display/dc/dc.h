@@ -420,7 +420,7 @@ struct dc_config {
 	int sdpif_request_limit_words_per_umc;
 	bool use_old_fixed_vs_sequence;
 	bool dc_mode_clk_limit_support;
-	bool DisableMinDispClkODM;
+	bool EnableMinDispClkODM;
 	bool enable_auto_dpm_test_logs;
 };
 
