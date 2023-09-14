@@ -775,9 +775,6 @@ static int imx214_s_stream(struct v4l2_subdev *subdev, int enable)
 	struct imx214 *imx214 = to_imx214(subdev);
 	int ret;
 
-	if (imx214->streaming == enable)
-		return 0;
-
 	if (enable) {
 		ret = pm_runtime_resume_and_get(imx214->dev);
 		if (ret < 0)
