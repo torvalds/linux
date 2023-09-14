@@ -1494,15 +1494,11 @@ void phy_state_machine(struct work_struct *work)
 		func = &_phy_start_aneg;
 	}
 
-	mutex_unlock(&phydev->lock);
-
-	if (do_suspend)
-		phy_suspend(phydev);
-
-	if (err == -ENODEV)
+	if (err == -ENODEV) {
+		mutex_unlock(&phydev->lock);
 		return;
+	}
 
-	mutex_lock(&phydev->lock);
 	if (err < 0)
 		phy_error_precise(phydev, func, err);
 
@@ -1519,6 +1515,9 @@ void phy_state_machine(struct work_struct *work)
 	if (phy_polling_mode(phydev) && phy_is_started(phydev))
 		phy_queue_state_machine(phydev, PHY_STATE_TIME);
 	mutex_unlock(&phydev->lock);
+
+	if (do_suspend)
+		phy_suspend(phydev);
 }
 
 /**
