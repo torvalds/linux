@@ -35,6 +35,7 @@ def define_autogvm():
         "drivers/irqchip/qcom-pdc.ko",
         "drivers/mailbox/msm_qmp.ko",
         "drivers/mfd/qcom-spmi-pmic.ko",
+        "drivers/misc/qseecom_proxy.ko",
         "drivers/mmc/host/cqhci.ko",
         "drivers/mmc/host/sdhci-msm.ko",
         "drivers/net/net_failover.ko",
