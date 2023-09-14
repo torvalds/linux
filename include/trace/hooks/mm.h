@@ -356,6 +356,9 @@ DECLARE_HOOK(android_vh_compact_finished,
 DECLARE_HOOK(android_vh_madvise_cold_or_pageout_abort,
 	TP_PROTO(struct vm_area_struct *vma, bool *abort_madvise),
 	TP_ARGS(vma, abort_madvise));
+DECLARE_HOOK(android_vh_skip_swapcache,
+	TP_PROTO(swp_entry_t entry, bool *skip),
+	TP_ARGS(entry, skip));
 /* macro versions of hooks are no longer required */
 
 #endif /* _TRACE_HOOK_MM_H */
