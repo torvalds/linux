@@ -108,6 +108,7 @@ static const char *MAC1 = "\x00\x0A\x56\x9E\xEE\x62";
 static const char *MAC2 = "\x00\x0A\x56\x9E\xEE\x61";
 
 static bool opt_verbose;
+static bool opt_print_tests;
 static enum test_mode opt_mode = TEST_MODE_ALL;
 
 static void __exit_with_error(int error, const char *file, const char *func, int line)
@@ -314,6 +315,7 @@ static struct option long_options[] = {
 	{"busy-poll", no_argument, 0, 'b'},
 	{"verbose", no_argument, 0, 'v'},
 	{"mode", required_argument, 0, 'm'},
+	{"list", no_argument, 0, 'l'},
 	{0, 0, 0, 0}
 };
 
@@ -325,7 +327,8 @@ static void usage(const char *prog)
 		"  -i, --interface      Use interface\n"
 		"  -v, --verbose        Verbose output\n"
 		"  -b, --busy-poll      Enable busy poll\n"
-		"  -m, --mode           Run only mode skb, drv, or zc\n";
+		"  -m, --mode           Run only mode skb, drv, or zc\n"
+		"  -l, --list           List all available tests\n";
 
 	ksft_print_msg(str, prog);
 }
@@ -347,7 +350,7 @@ static void parse_command_line(struct ifobject *ifobj_tx, struct ifobject *ifobj
 	opterr = 0;
 
 	for (;;) {
-		c = getopt_long(argc, argv, "i:vbm:", long_options, &option_index);
+		c = getopt_long(argc, argv, "i:vbm:l", long_options, &option_index);
 		if (c == -1)
 			break;
 
@@ -387,6 +390,9 @@ static void parse_command_line(struct ifobject *ifobj_tx, struct ifobject *ifobj
 				usage(basename(argv[0]));
 				ksft_exit_xfail();
 			}
+			break;
+		case 'l':
+			opt_print_tests = true;
 			break;
 		default:
 			usage(basename(argv[0]));
@@ -2307,6 +2313,15 @@ static const struct test_spec tests[] = {
 	{.name = "TOO_MANY_FRAGS", .test_func = testapp_too_many_frags},
 };
 
+static void print_tests(void)
+{
+	u32 i;
+
+	printf("Tests:\n");
+	for (i = 0; i < ARRAY_SIZE(tests); i++)
+		printf("%u: %s\n", i, tests[i].name);
+}
+
 int main(int argc, char **argv)
 {
 	struct pkt_stream *rx_pkt_stream_default;
@@ -2330,6 +2345,11 @@ int main(int argc, char **argv)
 	setlocale(LC_ALL, "");
 
 	parse_command_line(ifobj_tx, ifobj_rx, argc, argv);
+
+	if (opt_print_tests) {
+		print_tests();
+		ksft_exit_xpass();
+	}
 
 	shared_netdev = (ifobj_tx->ifindex == ifobj_rx->ifindex);
 	ifobj_tx->shared_umem = shared_netdev;

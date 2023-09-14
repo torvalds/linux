@@ -76,18 +76,22 @@
 #
 # Run test suite in a specific mode only [skb,drv,zc]
 #   sudo ./test_xsk.sh -m MODE
+#
+# List available tests
+#   ./test_xsk.sh -l
 
 . xsk_prereqs.sh
 
 ETH=""
 
-while getopts "vi:dm:" flag
+while getopts "vi:dm:l" flag
 do
 	case "${flag}" in
 		v) verbose=1;;
 		d) debug=1;;
 		i) ETH=${OPTARG};;
 		m) MODE=${OPTARG};;
+		l) list=1;;
 	esac
 done
 
@@ -135,6 +139,11 @@ setup_vethPairs() {
 	ip link set ${VETH0} up
 }
 
+if [[ $list -eq 1 ]]; then
+        ./${XSKOBJ} -l
+        exit
+fi
+
 if [ ! -z $ETH ]; then
 	VETH0=${ETH}
 	VETH1=${ETH}
@@ -181,6 +190,10 @@ if [ -z $ETH ]; then
 	cleanup_exit ${VETH0} ${VETH1}
 else
 	cleanup_iface ${ETH} ${MTU}
+fi
+
+if [[ $list -eq 1 ]]; then
+    exit
 fi
 
 TEST_NAME="XSK_SELFTESTS_${VETH0}_BUSY_POLL"
