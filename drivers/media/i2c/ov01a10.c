@@ -672,8 +672,6 @@ static int ov01a10_set_stream(struct v4l2_subdev *sd, int enable)
 	int ret = 0;
 
 	state = v4l2_subdev_lock_and_get_active_state(sd);
-	if (ov01a10->streaming == enable)
-		goto unlock;
 
 	if (enable) {
 		ret = pm_runtime_resume_and_get(&client->dev);
