@@ -1893,9 +1893,9 @@ static int ccs_pm_get_init(struct ccs_sensor *sensor)
 	 * relies at the returned value to detect if the device was already
 	 * active or not.
 	 */
-	rval = pm_runtime_get_sync(&client->dev);
-	if (rval < 0)
-		goto error;
+	rval = pm_runtime_resume_and_get(&client->dev);
+	if (rval)
+		return rval;
 
 	/* Device was already active, so don't set controls */
 	if (rval == 1)

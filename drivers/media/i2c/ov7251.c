@@ -1340,9 +1340,11 @@ static int ov7251_s_stream(struct v4l2_subdev *subdev, int enable)
 	mutex_lock(&ov7251->lock);
 
 	if (enable) {
-		ret = pm_runtime_get_sync(ov7251->dev);
-		if (ret < 0)
-			goto err_power_down;
+		ret = pm_runtime_resume_and_get(ov7251->dev);
+		if (ret) {
+			mutex_unlock(&ov7251->lock);
+			return ret;
+		}
 
 		ret = ov7251_pll_configure(ov7251);
 		if (ret) {

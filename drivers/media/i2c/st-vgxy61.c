@@ -1170,14 +1170,9 @@ static int vgxy61_stream_enable(struct vgxy61_dev *sensor)
 	if (ret)
 		return ret;
 
-	ret = pm_runtime_get_sync(&client->dev);
-	if (ret < 0) {
-		pm_runtime_put_autosuspend(&client->dev);
+	ret = pm_runtime_resume_and_get(&client->dev);
+	if (ret)
 		return ret;
-	}
-
-	/* pm_runtime_get_sync() can return 1 as a valid return code */
-	ret = 0;
 
 	vgxy61_write_reg(sensor, VGXY61_REG_FORMAT_CTRL,
 			 get_bpp_by_code(sensor->fmt.code), &ret);

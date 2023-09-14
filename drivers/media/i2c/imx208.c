@@ -720,9 +720,11 @@ static int imx208_set_stream(struct v4l2_subdev *sd, int enable)
 	}
 
 	if (enable) {
-		ret = pm_runtime_get_sync(&client->dev);
-		if (ret < 0)
-			goto err_rpm_put;
+		ret = pm_runtime_resume_and_get(&client->dev);
+		if (ret) {
+			mutex_unlock(&imx208->imx208_mx);
+			return ret;
+		}
 
 		/*
 		 * Apply default & customized values
@@ -819,11 +821,9 @@ static int imx208_read_otp(struct imx208 *imx208)
 	if (imx208->otp_read)
 		goto out_unlock;
 
-	ret = pm_runtime_get_sync(&client->dev);
-	if (ret < 0) {
-		pm_runtime_put_noidle(&client->dev);
+	ret = pm_runtime_resume_and_get(&client->dev);
+	if (ret)
 		goto out_unlock;
-	}
 
 	ret = imx208_identify_module(imx208);
 	if (ret)
