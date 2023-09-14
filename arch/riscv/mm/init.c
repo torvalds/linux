@@ -1388,7 +1388,7 @@ static void __init reserve_crashkernel(void)
 	}
 
 	ret = parse_crashkernel(cmdline, memblock_phys_mem_size(),
-				&crash_size, &crash_base);
+				&crash_size, &crash_base, NULL, NULL);
 	if (ret == -ENOENT) {
 		/* Fallback to crashkernel=X,[high,low] */
 		ret = parse_crashkernel_high(cmdline, 0, &crash_size, &crash_base);
