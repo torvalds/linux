@@ -23,6 +23,8 @@
 #define DAIS_DRV_NAME		"rockchip-mdais"
 #define RK3308_GRF_SOC_CON2	0x308
 
+#define SOUND_NAME_PREFIX	"sound-name-prefix"
+
 static inline struct rk_mdais_dev *to_info(struct snd_soc_dai *dai)
 {
 	return snd_soc_dai_get_drvdata(dai);
@@ -220,13 +222,16 @@ static int rockchip_mdais_tdm_slot(struct snd_soc_dai *dai,
 static int rockchip_mdais_dai_probe(struct snd_soc_dai *dai)
 {
 	struct rk_mdais_dev *mdais = to_info(dai);
+	struct snd_soc_component *comp;
 	struct snd_soc_dai *child;
+	const char *str;
 	int ret, i = 0;
 
 	for (i = 0; i < mdais->num_dais; i++) {
 		child = mdais->dais[i].dai;
+		comp = child->component;
 		if (!child->probed && child->driver->probe) {
-			child->component->card = dai->component->card;
+			comp->card = dai->component->card;
 			ret = child->driver->probe(child);
 			if (ret < 0) {
 				dev_err(child->dev,
@@ -234,6 +239,21 @@ static int rockchip_mdais_dai_probe(struct snd_soc_dai *dai)
 					child->name, ret);
 				return ret;
 			}
+
+			if (!comp->name_prefix) {
+				ret = device_property_read_string(child->dev,
+								  SOUND_NAME_PREFIX, &str);
+				if (!ret)
+					comp->name_prefix = str;
+			}
+
+			ret = snd_soc_add_component_controls(comp,
+							     comp->driver->controls,
+							     comp->driver->num_controls);
+			if (ret)
+				dev_err(dai->dev, "%s: Failed to add controls, should add '%s' in DT\n",
+					dev_name(child->dev), SOUND_NAME_PREFIX);
+
 			dai->probed = 1;
 		}
 	}
