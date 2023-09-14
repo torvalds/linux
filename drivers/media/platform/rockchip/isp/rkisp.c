@@ -3412,6 +3412,55 @@ static int rkisp_get_info(struct rkisp_device *dev, struct rkisp_isp_info *info)
 	return 0;
 }
 
+static int rkisp_set_work_mode_by_vicap(struct rkisp_device *isp_dev,
+					struct rkisp_vicap_mode *vicap_mode)
+{
+	struct rkisp_hw_dev *hw = isp_dev->hw_dev;
+	int rd_mode = isp_dev->rd_mode;
+
+	if (vicap_mode->rdbk_mode == RKISP_VICAP_ONLINE) {
+		if (!hw->is_single)
+			return -EINVAL;
+		/* switch to online mode for single sensor */
+		switch (rd_mode) {
+		case HDR_RDBK_FRAME3:
+			isp_dev->rd_mode = HDR_LINEX3_DDR;
+			break;
+		case HDR_RDBK_FRAME2:
+			isp_dev->rd_mode = HDR_LINEX2_DDR;
+			break;
+		default:
+			isp_dev->rd_mode = HDR_NORMAL;
+		}
+	} else if (vicap_mode->rdbk_mode == RKISP_VICAP_RDBK_AUTO) {
+		/* switch to readback mode */
+		switch (rd_mode) {
+		case HDR_LINEX3_DDR:
+			isp_dev->rd_mode = HDR_RDBK_FRAME3;
+			break;
+		case HDR_LINEX2_DDR:
+			isp_dev->rd_mode = HDR_RDBK_FRAME2;
+			break;
+		default:
+			isp_dev->rd_mode = HDR_RDBK_FRAME1;
+		}
+	} else {
+		return -EINVAL;
+	}
+	isp_dev->hdr.op_mode = isp_dev->rd_mode;
+	if (rd_mode != isp_dev->rd_mode && hw->cur_dev_id == isp_dev->dev_id) {
+		rkisp_unite_write(isp_dev, CSI2RX_CTRL0,
+				  SW_IBUF_OP_MODE(isp_dev->rd_mode), true);
+		if (IS_HDR_RDBK(isp_dev->rd_mode))
+			rkisp_unite_set_bits(isp_dev, CTRL_SWS_CFG, 0,
+					     SW_MPIP_DROP_FRM_DIS, true);
+		else
+			rkisp_unite_clear_bits(isp_dev, CTRL_SWS_CFG,
+					       SW_MPIP_DROP_FRM_DIS, true);
+	}
+	return 0;
+}
+
 static long rkisp_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
 	struct rkisp_device *isp_dev = sd_to_isp_dev(sd);
@@ -3542,6 +3591,9 @@ static long rkisp_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 			if (isp_dev->hw_dev->monitor.state & ISP_CIF_RESET)
 				isp_dev->hw_dev->monitor.state &= ~ISP_CIF_RESET;
 		}
+		break;
+	case RKISP_VICAP_CMD_MODE:
+		ret = rkisp_set_work_mode_by_vicap(isp_dev, arg);
 		break;
 	default:
 		ret = -ENOIOCTLCMD;
