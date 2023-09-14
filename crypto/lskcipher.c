@@ -536,12 +536,18 @@ struct lskcipher_instance *lskcipher_alloc_instance_simple(
 	u32 mask;
 	struct lskcipher_instance *inst;
 	struct crypto_lskcipher_spawn *spawn;
+	char ecb_name[CRYPTO_MAX_ALG_NAME];
 	struct lskcipher_alg *cipher_alg;
+	const char *cipher_name;
 	int err;
 
 	err = crypto_check_attr_type(tb, CRYPTO_ALG_TYPE_LSKCIPHER, &mask);
 	if (err)
 		return ERR_PTR(err);
+
+	cipher_name = crypto_attr_alg_name(tb[1]);
+	if (IS_ERR(cipher_name))
+		return ERR_CAST(cipher_name);
 
 	inst = kzalloc(sizeof(*inst) + sizeof(*spawn), GFP_KERNEL);
 	if (!inst)
@@ -550,9 +556,23 @@ struct lskcipher_instance *lskcipher_alloc_instance_simple(
 	spawn = lskcipher_instance_ctx(inst);
 	err = crypto_grab_lskcipher(spawn,
 				    lskcipher_crypto_instance(inst),
-				    crypto_attr_alg_name(tb[1]), 0, mask);
+				    cipher_name, 0, mask);
+
+	ecb_name[0] = 0;
+	if (err == -ENOENT && !!memcmp(tmpl->name, "ecb", 4)) {
+		err = -ENAMETOOLONG;
+		if (snprintf(ecb_name, CRYPTO_MAX_ALG_NAME, "ecb(%s)",
+			     cipher_name) >= CRYPTO_MAX_ALG_NAME)
+			goto err_free_inst;
+
+		err = crypto_grab_lskcipher(spawn,
+					    lskcipher_crypto_instance(inst),
+					    ecb_name, 0, mask);
+	}
+
 	if (err)
 		goto err_free_inst;
+
 	cipher_alg = crypto_lskcipher_spawn_alg(spawn);
 
 	err = crypto_inst_setname(lskcipher_crypto_instance(inst), tmpl->name,
@@ -560,10 +580,37 @@ struct lskcipher_instance *lskcipher_alloc_instance_simple(
 	if (err)
 		goto err_free_inst;
 
-	/* Don't allow nesting. */
-	err = -ELOOP;
-	if ((cipher_alg->co.base.cra_flags & CRYPTO_ALG_INSTANCE))
-		goto err_free_inst;
+	if (ecb_name[0]) {
+		int len;
+
+		len = strscpy(ecb_name, &cipher_alg->co.base.cra_name[4],
+			      sizeof(ecb_name));
+		if (len < 2)
+			goto err_free_inst;
+
+		if (ecb_name[len - 1] != ')')
+			goto err_free_inst;
+
+		ecb_name[len - 1] = 0;
+
+		err = -ENAMETOOLONG;
+		if (snprintf(inst->alg.co.base.cra_name, CRYPTO_MAX_ALG_NAME,
+			     "%s(%s)", tmpl->name, ecb_name) >=
+		    CRYPTO_MAX_ALG_NAME)
+			goto err_free_inst;
+
+		if (strcmp(ecb_name, cipher_name) &&
+		    snprintf(inst->alg.co.base.cra_driver_name,
+			     CRYPTO_MAX_ALG_NAME,
+			     "%s(%s)", tmpl->name, cipher_name) >=
+		    CRYPTO_MAX_ALG_NAME)
+			goto err_free_inst;
+	} else {
+		/* Don't allow nesting. */
+		err = -ELOOP;
+		if ((cipher_alg->co.base.cra_flags & CRYPTO_ALG_INSTANCE))
+			goto err_free_inst;
+	}
 
 	err = -EINVAL;
 	if (cipher_alg->co.ivsize)
