@@ -20,6 +20,10 @@
 #define MAX_FIFO_SIZE	32 /* max fifo size in frames */
 #define SND_DMAENGINE_MPCM_DRV_NAME "snd_dmaengine_mpcm"
 
+static unsigned int prealloc_buffer_size_kbytes = 512;
+module_param(prealloc_buffer_size_kbytes, uint, 0444);
+MODULE_PARM_DESC(prealloc_buffer_size_kbytes, "Preallocate DMA buffer size (KB).");
+
 struct dmaengine_mpcm {
 	struct rk_mdais_dev *mdais;
 	struct dma_chan *tx_chans[MAX_DAIS];
@@ -563,7 +567,7 @@ static int dmaengine_mpcm_new(struct snd_soc_component *component, struct snd_so
 	size_t max_buffer_size;
 	unsigned int i;
 
-	prealloc_buffer_size = 512 * 1024;
+	prealloc_buffer_size = prealloc_buffer_size_kbytes * 1024;
 	max_buffer_size = SIZE_MAX;
 
 	for (i = SNDRV_PCM_STREAM_PLAYBACK; i <= SNDRV_PCM_STREAM_CAPTURE; i++) {
