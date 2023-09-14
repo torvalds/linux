@@ -361,10 +361,9 @@ DECLARE_CRC8_TABLE(i3c_crc8_table);
 #define MAX_GROUPS			(1 << 4)
 #define MAX_DEVS_IN_GROUP		(1 << 3)
 #define ALL_DEVS_IN_GROUP_ARE_FREE	((1 << MAX_DEVS_IN_GROUP) - 1)
-#define ADDR_GRP_SHIFT			3
-#define ADDR_GRP_MASK			GENMASK(6, ADDR_GRP_SHIFT)
-#define ADDR_GRP(x)			(((x) & ADDR_GRP_MASK) >> ADDR_GRP_SHIFT)
-#define ADDR_HID_MASK			GENMASK(ADDR_GRP_SHIFT - 1, 0)
+#define ADDR_GRP_MASK			GENMASK(6, 3)
+#define ADDR_GRP(x)			(((x) & ADDR_GRP_MASK) >> 3)
+#define ADDR_HID_MASK			GENMASK(2, 0)
 #define ADDR_HID(x)			((x) & ADDR_HID_MASK)
 
 struct aspeed_i3c_master_caps {
@@ -1682,7 +1681,7 @@ static int aspeed_i3c_master_daa(struct i3c_master_controller *m)
 	struct aspeed_i3c_xfer *xfer;
 	struct aspeed_i3c_cmd *cmd;
 	u32 olddevs, newdevs, dat;
-	u8 p, last_addr = 0, last_grp = 0;
+	u8 p, last_addr = 0;
 	int ret, pos, ndevs;
 
 	olddevs = ~(master->free_pos);
@@ -1693,7 +1692,7 @@ static int aspeed_i3c_master_daa(struct i3c_master_controller *m)
 		if (olddevs & BIT(pos))
 			continue;
 
-		ret = i3c_master_get_free_addr(m, (last_grp + 1) << ADDR_GRP_SHIFT);
+		ret = i3c_master_get_free_addr(m, last_addr + 1);
 		if (ret < 0)
 			break;
 
@@ -1702,7 +1701,6 @@ static int aspeed_i3c_master_daa(struct i3c_master_controller *m)
 		master->addrs[pos] = ret;
 		p = even_parity(ret);
 		last_addr = ret;
-		last_grp = ADDR_GRP(last_addr);
 
 		dat = readl(master->regs +
 			    DEV_ADDR_TABLE_LOC(master->datstartaddr, pos));
