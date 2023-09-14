@@ -118,7 +118,6 @@ struct ov7740 {
 	struct v4l2_ctrl *contrast;
 
 	struct mutex mutex;	/* To serialize asynchronus callbacks */
-	bool streaming;		/* Streaming on/off */
 
 	struct gpio_desc *resetb_gpio;
 	struct gpio_desc *pwdn_gpio;
@@ -616,10 +615,6 @@ static int ov7740_set_stream(struct v4l2_subdev *sd, int enable)
 	int ret = 0;
 
 	mutex_lock(&ov7740->mutex);
-	if (ov7740->streaming == enable) {
-		mutex_unlock(&ov7740->mutex);
-		return 0;
-	}
 
 	if (enable) {
 		ret = pm_runtime_resume_and_get(&client->dev);
@@ -632,8 +627,6 @@ static int ov7740_set_stream(struct v4l2_subdev *sd, int enable)
 	} else {
 		pm_runtime_put(&client->dev);
 	}
-
-	ov7740->streaming = enable;
 
 	mutex_unlock(&ov7740->mutex);
 	return ret;
