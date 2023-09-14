@@ -362,12 +362,11 @@ static inline struct buffer_head *__getblk(struct block_device *bdev,
 	return bdev_getblk(bdev, block, size, gfp);
 }
 
-static inline struct buffer_head *
-sb_getblk(struct super_block *sb, sector_t block)
+static inline struct buffer_head *sb_getblk(struct super_block *sb,
+		sector_t block)
 {
-	return __getblk_gfp(sb->s_bdev, block, sb->s_blocksize, __GFP_MOVABLE);
+	return __getblk(sb->s_bdev, block, sb->s_blocksize);
 }
-
 
 static inline struct buffer_head *
 sb_getblk_gfp(struct super_block *sb, sector_t block, gfp_t gfp)
