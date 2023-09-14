@@ -333,12 +333,14 @@ static void i8xx_fbc_program_cfb(struct intel_fbc *fbc)
 {
 	struct drm_i915_private *i915 = fbc->i915;
 
-	GEM_BUG_ON(range_overflows_end_t(u64, i915_gem_stolen_area_address(i915),
-					 i915_gem_stolen_node_offset(&fbc->compressed_fb),
-					 U32_MAX));
-	GEM_BUG_ON(range_overflows_end_t(u64, i915_gem_stolen_area_address(i915),
-					 i915_gem_stolen_node_offset(&fbc->compressed_llb),
-					 U32_MAX));
+	drm_WARN_ON(&i915->drm,
+		    range_overflows_end_t(u64, i915_gem_stolen_area_address(i915),
+					  i915_gem_stolen_node_offset(&fbc->compressed_fb),
+					  U32_MAX));
+	drm_WARN_ON(&i915->drm,
+		    range_overflows_end_t(u64, i915_gem_stolen_area_address(i915),
+					  i915_gem_stolen_node_offset(&fbc->compressed_llb),
+					  U32_MAX));
 	intel_de_write(i915, FBC_CFB_BASE,
 		       i915_gem_stolen_node_address(i915, &fbc->compressed_fb));
 	intel_de_write(i915, FBC_LL_BASE,
