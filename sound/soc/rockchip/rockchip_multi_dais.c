@@ -403,9 +403,9 @@ static int rockchip_mdais_dai_prepare(struct platform_device *pdev,
 		.probe = rockchip_mdais_dai_probe,
 		.playback = {
 			.stream_name = "Playback",
-			.channels_min = 2,
-			.channels_max = 32,
-			.rates = SNDRV_PCM_RATE_8000_192000,
+			.channels_min = 1,
+			.channels_max = 512,
+			.rates = SNDRV_PCM_RATE_8000_384000,
 			.formats = (SNDRV_PCM_FMTBIT_S8 |
 				    SNDRV_PCM_FMTBIT_S16_LE |
 				    SNDRV_PCM_FMTBIT_S20_3LE |
@@ -414,9 +414,9 @@ static int rockchip_mdais_dai_prepare(struct platform_device *pdev,
 		},
 		.capture = {
 			.stream_name = "Capture",
-			.channels_min = 2,
-			.channels_max = 32,
-			.rates = SNDRV_PCM_RATE_8000_192000,
+			.channels_min = 1,
+			.channels_max = 512,
+			.rates = SNDRV_PCM_RATE_8000_384000,
 			.formats = (SNDRV_PCM_FMTBIT_S8 |
 				    SNDRV_PCM_FMTBIT_S16_LE |
 				    SNDRV_PCM_FMTBIT_S20_3LE |
