@@ -46,22 +46,48 @@ are required to ensure reliability.
 Power management
 ----------------
 
-Always use runtime PM to manage the power states of your device. Camera sensor
-drivers are in no way special in this respect: they are responsible for
-controlling the power state of the device they otherwise control as well. In
-general, the device shall be powered on at least when its registers are being
-accessed and when it is streaming.
+Camera sensors are used in conjunction with other devices to form a camera
+pipeline. They must obey the rules listed herein to ensure coherent power
+management over the pipeline.
 
-Existing camera sensor drivers may rely on the old
-struct v4l2_subdev_core_ops->s_power() callback for bridge or ISP drivers to
-manage their power state. This is however **deprecated**. If you feel you need
-to begin calling an s_power from an ISP or a bridge driver, instead please add
-runtime PM support to the sensor driver you are using. Likewise, new drivers
-should not use s_power.
+Camera sensor drivers are responsible for controlling the power state of the
+device they otherwise control as well. They shall use runtime PM to manage
+power states. Runtime PM shall be enabled at probe time and disabled at remove
+time. Drivers should enable runtime PM autosuspend.
 
-Please see examples in e.g. ``drivers/media/i2c/ov8856.c`` and
-``drivers/media/i2c/ccs/ccs-core.c``. The two drivers work in both ACPI
-and DT based systems.
+The runtime PM handlers shall handle clocks, regulators, GPIOs, and other
+system resources required to power the sensor up and down. For drivers that
+don't use any of those resources (such as drivers that support ACPI systems
+only), the runtime PM handlers may be left unimplemented.
+
+In general, the device shall be powered on at least when its registers are
+being accessed and when it is streaming. Drivers should use
+``pm_runtime_resume_and_get()`` when starting streaming and
+``pm_runtime_put()`` or ``pm_runtime_put_autosuspend()`` when stopping
+streaming. They may power the device up at probe time (for example to read
+identification registers), but should not keep it powered unconditionally after
+probe.
+
+At system suspend time, the whole camera pipeline must stop streaming, and
+restart when the system is resumed. This requires coordination between the
+camera sensor and the rest of the camera pipeline. Bridge drivers are
+responsible for this coordination, and instruct camera sensors to stop and
+restart streaming by calling the appropriate subdev operations
+(``.s_stream()``, ``.enable_streams()`` or ``.disable_streams()``). Camera
+sensor drivers shall therefore **not** keep track of the streaming state to
+stop streaming in the PM suspend handler and restart it in the resume handler.
+Drivers should in general not implement the system PM handlers.
+
+Camera sensor drivers shall **not** implement the subdev ``.s_power()``
+operation, as it is deprecated. While this operation is implemented in some
+existing drivers as they predate the deprecation, new drivers shall use runtime
+PM instead. If you feel you need to begin calling ``.s_power()`` from an ISP or
+a bridge driver, instead add runtime PM support to the sensor driver you are
+using and drop its ``.s_power()`` handler.
+
+See examples of runtime PM handling in e.g. ``drivers/media/i2c/ov8856.c`` and
+``drivers/media/i2c/ccs/ccs-core.c``. The two drivers work in both ACPI and DT
+based systems.
 
 Control framework
 ~~~~~~~~~~~~~~~~~
