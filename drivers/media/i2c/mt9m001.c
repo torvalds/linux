@@ -93,7 +93,6 @@ struct mt9m001 {
 		struct v4l2_ctrl *autoexposure;
 		struct v4l2_ctrl *exposure;
 	};
-	bool streaming;
 	struct mutex mutex;
 	struct v4l2_rect rect;	/* Sensor window */
 	struct clk *clk;
@@ -213,9 +212,6 @@ static int mt9m001_s_stream(struct v4l2_subdev *sd, int enable)
 
 	mutex_lock(&mt9m001->mutex);
 
-	if (mt9m001->streaming == enable)
-		goto done;
-
 	if (enable) {
 		ret = pm_runtime_resume_and_get(&client->dev);
 		if (ret < 0)
@@ -239,8 +235,6 @@ static int mt9m001_s_stream(struct v4l2_subdev *sd, int enable)
 		pm_runtime_put(&client->dev);
 	}
 
-	mt9m001->streaming = enable;
-done:
 	mutex_unlock(&mt9m001->mutex);
 
 	return 0;
