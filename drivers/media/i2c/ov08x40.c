@@ -2915,10 +2915,6 @@ static int ov08x40_set_stream(struct v4l2_subdev *sd, int enable)
 	int ret = 0;
 
 	mutex_lock(&ov08x->mutex);
-	if (ov08x->streaming == enable) {
-		mutex_unlock(&ov08x->mutex);
-		return 0;
-	}
 
 	if (enable) {
 		ret = pm_runtime_resume_and_get(&client->dev);
