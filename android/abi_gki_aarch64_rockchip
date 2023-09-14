@@ -105,6 +105,28 @@
   cpus_read_unlock
   crc16
   crc32_le
+  crypto_aead_decrypt
+  crypto_aead_encrypt
+  crypto_aead_setauthsize
+  crypto_aead_setkey
+  crypto_ahash_final
+  crypto_ahash_setkey
+  crypto_alloc_aead
+  crypto_alloc_ahash
+  crypto_alloc_shash
+  crypto_alloc_skcipher
+  crypto_cipher_encrypt_one
+  crypto_destroy_tfm
+  __crypto_memneq
+  crypto_register_aead
+  crypto_register_template
+  crypto_shash_update
+  crypto_skcipher_decrypt
+  crypto_skcipher_encrypt
+  crypto_skcipher_setkey
+  crypto_unregister_aead
+  crypto_unregister_template
+  __crypto_xor
   csum_partial
   _ctype
   default_llseek
@@ -1916,6 +1938,29 @@
 # required by rk860x-regulator.ko
   regulator_suspend_enable
 
+# required by rk_crypto.ko
+  crypto_ahash_digest
+  crypto_ahash_finup
+  crypto_dequeue_request
+  crypto_enqueue_request
+  crypto_init_queue
+  crypto_register_ahash
+  crypto_register_akcipher
+  crypto_register_skcipher
+  crypto_req_done
+  crypto_unregister_ahash
+  crypto_unregister_akcipher
+  crypto_unregister_skcipher
+  des_expand_key
+  rsa_parse_priv_key
+  rsa_parse_pub_key
+  scatterwalk_ffwd
+  sg_copy_from_buffer
+  sg_copy_to_buffer
+  sg_nents_for_len
+  sg_pcopy_from_buffer
+  sg_pcopy_to_buffer
+
 # required by rk_fiq_debugger.ko
   console_lock
   console_unlock
@@ -2198,6 +2243,14 @@
   scsi_register_interface
   sdev_prefix_printk
 
+# required by sha1-ce.ko
+  crypto_register_shash
+  crypto_sha1_finup
+  crypto_sha1_update
+  crypto_unregister_shash
+  fpsimd_context_busy
+  irq_stat
+
 # required by sii902x.ko
   hdmi_avi_infoframe_pack
 
@@ -2452,6 +2505,10 @@
 # required by trancevibrator.ko
   usb_get_dev
   usb_put_dev
+
+# required by twofish_generic.ko
+  crypto_register_alg
+  crypto_unregister_alg
 
 # required by usblp.ko
   add_wait_queue
