@@ -279,6 +279,7 @@ int adf_gen4_dev_config(struct adf_accel_dev *accel_dev)
 		ret = adf_crypto_dev_config(accel_dev);
 		break;
 	case SVC_DC:
+	case SVC_DCC:
 		ret = adf_comp_dev_config(accel_dev);
 		break;
 	default:
