@@ -171,6 +171,11 @@ int btrfs_get_raid_extent_offset(struct btrfs_fs_info *fs_info,
 	if (!path)
 		return -ENOMEM;
 
+	if (stripe->is_scrub) {
+		path->skip_locking = 1;
+		path->search_commit_root = 1;
+	}
+
 	ret = btrfs_search_slot(NULL, stripe_root, &stripe_key, path, 0, 0);
 	if (ret < 0)
 		goto free_path;
@@ -246,7 +251,7 @@ int btrfs_get_raid_extent_offset(struct btrfs_fs_info *fs_info,
 out:
 	if (ret > 0)
 		ret = -ENOENT;
-	if (ret && ret != -EIO) {
+	if (ret && ret != -EIO && !stripe->is_scrub) {
 		if (IS_ENABLED(CONFIG_BTRFS_DEBUG))
 			btrfs_print_tree(leaf, 1);
 		btrfs_err(fs_info,

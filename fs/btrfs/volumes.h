@@ -393,6 +393,7 @@ struct btrfs_io_stripe {
 	/* Block mapping. */
 	u64 physical;
 	u64 length;
+	bool is_scrub;
 	/* For the endio handler. */
 	struct btrfs_io_context *bioc;
 };
