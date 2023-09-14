@@ -44,6 +44,20 @@
   cdev_device_add
   cdev_device_del
   cdev_init
+  cec_allocate_adapter
+  cec_delete_adapter
+  cec_fill_conn_info_from_drm
+  cec_notifier_cec_adap_register
+  cec_notifier_cec_adap_unregister
+  cec_notifier_conn_register
+  cec_notifier_conn_unregister
+  cec_notifier_set_phys_addr
+  cec_notifier_set_phys_addr_from_edid
+  cec_queue_pin_hpd_event
+  cec_received_msg_ts
+  cec_register_adapter
+  cec_transmit_attempt_done_ts
+  cec_unregister_adapter
   __check_object_size
   __class_create
   class_create_file_ns
@@ -1387,6 +1401,25 @@
 # required by bq25890_charger.ko
   devm_regmap_field_bulk_alloc
   power_supply_get_property_from_supplier
+
+# required by cdc-wdm.ko
+  cdc_parse_cdc_header
+  usb_poison_urb
+  usb_unpoison_urb
+
+# required by cdc_mbim.ko
+  cdc_ncm_bind_common
+  cdc_ncm_change_mtu
+  cdc_ncm_fill_tx_frame
+  cdc_ncm_rx_verify_ndp16
+  cdc_ncm_rx_verify_nth16
+  cdc_ncm_select_altsetting
+  cdc_ncm_unbind
+  in6_dev_finish_destroy
+  __ipv6_addr_type
+  ipv6_stub
+  usb_match_id
+  __vlan_find_dev_deep_rcu
 
 # required by cfg80211.ko
   bpf_trace_run10
