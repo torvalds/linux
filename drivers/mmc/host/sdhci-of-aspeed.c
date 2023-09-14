@@ -288,61 +288,10 @@ aspeed_sdhci_configure_phase(struct sdhci_host *host, unsigned long rate)
 
 static void aspeed_sdhci_set_clock(struct sdhci_host *host, unsigned int clock)
 {
-#if defined(CONFIG_MACH_ASPEED_G6) || defined(CONFIG_MACH_ASPEED_G7)
 	if (clock >= 50000000)
 		aspeed_sdhci_configure_phase(host, clock);
 
 	sdhci_set_clock(host, clock);
-#else
-	struct sdhci_pltfm_host *pltfm_host;
-	unsigned long parent, bus;
-	struct aspeed_sdhci *sdhci;
-	int div;
-	u16 clk;
-
-	pltfm_host = sdhci_priv(host);
-	sdhci = sdhci_pltfm_priv(pltfm_host);
-
-	parent = clk_get_rate(pltfm_host->clk);
-
-	sdhci_writew(host, 0, SDHCI_CLOCK_CONTROL);
-
-	if (clock == 0)
-		return;
-
-	if (WARN_ON(clock > host->max_clk))
-		clock = host->max_clk;
-
-	/*
-	 * Regarding the AST2600:
-	 *
-	 * If (EMMC12C[7:6], EMMC12C[15:8] == 0) then
-	 *   period of SDCLK = period of SDMCLK.
-	 *
-	 * If (EMMC12C[7:6], EMMC12C[15:8] != 0) then
-	 *   period of SDCLK = period of SDMCLK * 2 * (EMMC12C[7:6], EMMC[15:8])
-	 *
-	 * If you keep EMMC12C[7:6] = 0 and EMMC12C[15:8] as one-hot,
-	 * 0x1/0x2/0x4/etc, you will find it is compatible to AST2400 or AST2500
-	 *
-	 * Keep the one-hot behaviour for backwards compatibility except for
-	 * supporting the value 0 in (EMMC12C[7:6], EMMC12C[15:8]), and capture
-	 * the 0-value capability in clk_div_start.
-	 */
-	for (div = sdhci->pdata->clk_div_start; div < 256; div *= 2) {
-		bus = parent / div;
-		if (bus <= clock)
-			break;
-	}
-
-	div >>= 1;
-
-	clk = div << SDHCI_DIVIDER_SHIFT;
-
-	aspeed_sdhci_configure_phase(host, bus);
-
-	sdhci_enable_clk(host, clk);
-#endif
 }
 
 static unsigned int aspeed_sdhci_get_max_clock(struct sdhci_host *host)
