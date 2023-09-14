@@ -59,6 +59,9 @@ int btrfs_delete_raid_extent(struct btrfs_trans_handle *trans, u64 start, u64 le
 		if (found_end <= start)
 			break;
 
+		trace_btrfs_raid_extent_delete(fs_info, start, end,
+					       found_start, found_end);
+
 		ASSERT(found_start >= start && found_end <= end);
 		ret = btrfs_del_item(trans, stripe_root, path);
 		if (ret)
@@ -90,6 +93,8 @@ static int btrfs_insert_one_raid_extent(struct btrfs_trans_handle *trans,
 		return -ENOMEM;
 	}
 
+	trace_btrfs_insert_one_raid_extent(fs_info, bioc->logical, bioc->size,
+					   num_stripes);
 	btrfs_set_stack_stripe_extent_encoding(stripe_extent, encoding);
 	for (int i = 0; i < num_stripes; i++) {
 		u64 devid = bioc->stripes[i].dev->devid;
@@ -241,6 +246,9 @@ int btrfs_get_raid_extent_offset(struct btrfs_fs_info *fs_info,
 			continue;
 
 		stripe->physical = physical + offset;
+
+		trace_btrfs_get_raid_extent_offset(fs_info, logical, *length,
+						   stripe->physical, devid);
 
 		ret = 0;
 		goto free_path;

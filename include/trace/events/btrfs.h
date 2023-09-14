@@ -2497,6 +2497,82 @@ DEFINE_EVENT(btrfs_raid56_bio, raid56_write,
 	TP_ARGS(rbio, bio, trace_info)
 );
 
+TRACE_EVENT(btrfs_insert_one_raid_extent,
+
+	TP_PROTO(const struct btrfs_fs_info *fs_info, u64 logical, u64 length,
+		 int num_stripes),
+
+	TP_ARGS(fs_info, logical, length, num_stripes),
+
+	TP_STRUCT__entry_btrfs(
+		__field(	u64,	logical		)
+		__field(	u64,	length		)
+		__field(	int,	num_stripes	)
+	),
+
+	TP_fast_assign_btrfs(fs_info,
+		__entry->logical	= logical;
+		__entry->length		= length;
+		__entry->num_stripes	= num_stripes;
+	),
+
+	TP_printk_btrfs("logical=%llu length=%llu num_stripes=%d",
+			__entry->logical, __entry->length,
+			__entry->num_stripes)
+);
+
+TRACE_EVENT(btrfs_raid_extent_delete,
+
+	TP_PROTO(const struct btrfs_fs_info *fs_info, u64 start, u64 end,
+		 u64 found_start, u64 found_end),
+
+	TP_ARGS(fs_info, start, end, found_start, found_end),
+
+	TP_STRUCT__entry_btrfs(
+		__field(	u64,	start		)
+		__field(	u64,	end		)
+		__field(	u64,	found_start	)
+		__field(	u64,	found_end	)
+	),
+
+	TP_fast_assign_btrfs(fs_info,
+		__entry->start		= start;
+		__entry->end		= end;
+		__entry->found_start	= found_start;
+		__entry->found_end	= found_end;
+	),
+
+	TP_printk_btrfs("start=%llu end=%llu found_start=%llu found_end=%llu",
+			__entry->start, __entry->end, __entry->found_start,
+			__entry->found_end)
+);
+
+TRACE_EVENT(btrfs_get_raid_extent_offset,
+
+	TP_PROTO(const struct btrfs_fs_info *fs_info, u64 logical, u64 length,
+		 u64 physical, u64 devid),
+
+	TP_ARGS(fs_info, logical, length, physical, devid),
+
+	TP_STRUCT__entry_btrfs(
+		__field(	u64,	logical		)
+		__field(	u64,	length		)
+		__field(	u64,	physical	)
+		__field(	u64,	devid		)
+	),
+
+	TP_fast_assign_btrfs(fs_info,
+		__entry->logical	= logical;
+		__entry->length		= length;
+		__entry->physical	= physical;
+		__entry->devid		= devid;
+	),
+
+	TP_printk_btrfs("logical=%llu length=%llu physical=%llu devid=%llu",
+			__entry->logical, __entry->length, __entry->physical,
+			__entry->devid)
+);
+
 #endif /* _TRACE_BTRFS_H */
 
 /* This part must be outside protection */
