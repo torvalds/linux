@@ -1506,6 +1506,7 @@ void phy_state_machine(struct work_struct *work)
 	if (err < 0)
 		phy_error_precise(phydev, func, err);
 
+	mutex_lock(&phydev->lock);
 	phy_process_state_change(phydev, old_state);
 
 	/* Only re-schedule a PHY state machine change if we are polling the
@@ -1516,7 +1517,6 @@ void phy_state_machine(struct work_struct *work)
 	 * state machine would be pointless and possibly error prone when
 	 * called from phy_disconnect() synchronously.
 	 */
-	mutex_lock(&phydev->lock);
 	if (phy_polling_mode(phydev) && phy_is_started(phydev))
 		phy_queue_state_machine(phydev, PHY_STATE_TIME);
 	mutex_unlock(&phydev->lock);
