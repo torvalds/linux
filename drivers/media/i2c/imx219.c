@@ -980,9 +980,6 @@ static int imx219_set_stream(struct v4l2_subdev *sd, int enable)
 
 	state = v4l2_subdev_lock_and_get_active_state(sd);
 
-	if (imx219->streaming == enable)
-		goto unlock;
-
 	if (enable) {
 		/*
 		 * Apply default & customized values
