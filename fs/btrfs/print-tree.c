@@ -9,6 +9,8 @@
 #include "print-tree.h"
 #include "accessors.h"
 #include "tree-checker.h"
+#include "volumes.h"
+#include "raid-stripe-tree.h"
 
 struct root_name_map {
 	u64 id;
@@ -28,6 +30,7 @@ static const struct root_name_map root_map[] = {
 	{ BTRFS_FREE_SPACE_TREE_OBJECTID,	"FREE_SPACE_TREE"	},
 	{ BTRFS_BLOCK_GROUP_TREE_OBJECTID,	"BLOCK_GROUP_TREE"	},
 	{ BTRFS_DATA_RELOC_TREE_OBJECTID,	"DATA_RELOC_TREE"	},
+	{ BTRFS_RAID_STRIPE_TREE_OBJECTID,	"RAID_STRIPE_TREE"	},
 };
 
 const char *btrfs_root_name(const struct btrfs_key *key, char *buf)
@@ -189,6 +192,22 @@ static void print_uuid_item(const struct extent_buffer *l, unsigned long offset,
 	}
 }
 
+static void print_raid_stripe_key(const struct extent_buffer *eb, u32 item_size,
+				  struct btrfs_stripe_extent *stripe)
+{
+	const int num_stripes = btrfs_num_raid_stripes(item_size);
+	const u8 encoding = btrfs_stripe_extent_encoding(eb, stripe);
+
+	pr_info("\t\t\tencoding: %s\n",
+		(encoding && encoding < BTRFS_NR_RAID_TYPES) ?
+		btrfs_raid_array[encoding].raid_name : "unknown");
+
+	for (int i = 0; i < num_stripes; i++)
+		pr_info("\t\t\tstride %d devid %llu physical %llu\n",
+			i, btrfs_raid_stride_devid(eb, &stripe->strides[i]),
+			btrfs_raid_stride_physical(eb, &stripe->strides[i]));
+}
+
 /*
  * Helper to output refs and locking status of extent buffer.  Useful to debug
  * race condition related problems.
@@ -348,6 +367,10 @@ void btrfs_print_leaf(const struct extent_buffer *l)
 		case BTRFS_UUID_KEY_RECEIVED_SUBVOL:
 			print_uuid_item(l, btrfs_item_ptr_offset(l, i),
 					btrfs_item_size(l, i));
+			break;
+		case BTRFS_RAID_STRIPE_KEY:
+			print_raid_stripe_key(l, btrfs_item_size(l, i),
+				btrfs_item_ptr(l, i, struct btrfs_stripe_extent));
 			break;
 		}
 	}
