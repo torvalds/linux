@@ -250,6 +250,11 @@ properties:
           - const: mediatek,mt8365
       - items:
           - enum:
+              - mediatek,mt8395-evk
+          - const: mediatek,mt8395
+          - const: mediatek,mt8195
+      - items:
+          - enum:
               - mediatek,mt8516-pumpkin
           - const: mediatek,mt8516
 
