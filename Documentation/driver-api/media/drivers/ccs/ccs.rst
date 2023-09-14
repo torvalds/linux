@@ -78,6 +78,14 @@ For SMIA (non-++) compliant devices the static data file name is
 vvvv or vv denotes MIPI and SMIA manufacturer IDs respectively, mmmm model ID
 and rrrr or rr revision number.
 
+CCS tools
+~~~~~~~~~
+
+`CCS tools <https://github.com/MIPI-Alliance/ccs-tools/>`_ is a set of
+tools for working with CCS static data files. CCS tools includes a
+definition of the human-readable CCS static data YAML format and includes a
+program to convert it to a binary.
+
 Register definition generator
 -----------------------------
 
