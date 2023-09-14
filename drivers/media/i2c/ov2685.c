@@ -91,7 +91,6 @@ struct ov2685 {
 	struct gpio_desc	*reset_gpio;
 	struct regulator_bulk_data supplies[OV2685_NUM_SUPPLIES];
 
-	bool			streaming;
 	struct mutex		mutex;
 	struct v4l2_subdev	subdev;
 	struct media_pad	pad;
@@ -513,10 +512,6 @@ static int ov2685_s_stream(struct v4l2_subdev *sd, int on)
 
 	mutex_lock(&ov2685->mutex);
 
-	on = !!on;
-	if (on == ov2685->streaming)
-		goto unlock_and_return;
-
 	if (on) {
 		ret = pm_runtime_resume_and_get(&ov2685->client->dev);
 		if (ret < 0)
@@ -538,8 +533,6 @@ static int ov2685_s_stream(struct v4l2_subdev *sd, int on)
 				OV2685_REG_VALUE_08BIT, SC_CTRL_MODE_STANDBY);
 		pm_runtime_put(&ov2685->client->dev);
 	}
-
-	ov2685->streaming = on;
 
 unlock_and_return:
 	mutex_unlock(&ov2685->mutex);
