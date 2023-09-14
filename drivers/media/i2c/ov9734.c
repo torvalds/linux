@@ -660,10 +660,6 @@ static int ov9734_set_stream(struct v4l2_subdev *sd, int enable)
 	int ret = 0;
 
 	mutex_lock(&ov9734->mutex);
-	if (ov9734->streaming == enable) {
-		mutex_unlock(&ov9734->mutex);
-		return 0;
-	}
 
 	if (enable) {
 		ret = pm_runtime_resume_and_get(&client->dev);
