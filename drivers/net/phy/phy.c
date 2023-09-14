@@ -1467,6 +1467,7 @@ void phy_state_machine(struct work_struct *work)
 void phy_stop(struct phy_device *phydev)
 {
 	struct net_device *dev = phydev->attached_dev;
+	enum phy_state_work state_work;
 	enum phy_state old_state;
 
 	if (!phy_is_started(phydev) && phydev->state != PHY_DOWN &&
@@ -1490,9 +1491,10 @@ void phy_stop(struct phy_device *phydev)
 	phydev->state = PHY_HALTED;
 	phy_process_state_change(phydev, old_state);
 
+	state_work = _phy_state_machine(phydev);
 	mutex_unlock(&phydev->lock);
 
-	phy_state_machine(&phydev->state_queue.work);
+	_phy_state_machine_post_work(phydev, state_work);
 	phy_stop_machine(phydev);
 
 	/* Cannot call flush_scheduled_work() here as desired because
