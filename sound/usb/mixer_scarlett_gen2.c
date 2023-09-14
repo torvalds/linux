@@ -145,11 +145,11 @@
 
 #include "mixer_scarlett_gen2.h"
 
-/* device_setup value to enable */
-#define SCARLETT2_ENABLE 0x01
-
 /* device_setup value to allow turning MSD mode back on */
 #define SCARLETT2_MSD_ENABLE 0x02
+
+/* device_setup value to disable this mixer driver */
+#define SCARLETT2_DISABLE 0x04
 
 /* some gui mixers can't handle negative ctl values */
 #define SCARLETT2_VOLUME_BIAS 127
@@ -4237,19 +4237,20 @@ int snd_scarlett_gen2_init(struct usb_mixer_interface *mixer)
 	if (!mixer->protocol)
 		return 0;
 
-	if (!(chip->setup & SCARLETT2_ENABLE)) {
+	if (chip->setup & SCARLETT2_DISABLE) {
 		usb_audio_info(chip,
-			"Focusrite Scarlett Gen 2/3 Mixer Driver disabled; "
-			"use options snd_usb_audio vid=0x%04x pid=0x%04x "
-			"device_setup=1 to enable and report any issues "
-			"to g@b4.vu",
+			"Focusrite Scarlett Gen 2/3 Mixer Driver disabled "
+			"by modprobe options (snd_usb_audio "
+			"vid=0x%04x pid=0x%04x device_setup=%d)\n",
 			USB_ID_VENDOR(chip->usb_id),
-			USB_ID_PRODUCT(chip->usb_id));
+			USB_ID_PRODUCT(chip->usb_id),
+			SCARLETT2_DISABLE);
 		return 0;
 	}
 
 	usb_audio_info(chip,
-		"Focusrite Scarlett Gen 2/3 Mixer Driver enabled pid=0x%04x",
+		"Focusrite Scarlett Gen 2/3 Mixer Driver enabled (pid=0x%04x); "
+		"report any issues to g@b4.vu",
 		USB_ID_PRODUCT(chip->usb_id));
 
 	err = snd_scarlett_gen2_controls_create(mixer);
