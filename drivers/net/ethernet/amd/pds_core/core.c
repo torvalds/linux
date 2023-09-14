@@ -445,12 +445,13 @@ int pdsc_setup(struct pdsc *pdsc, bool init)
 		goto err_out_teardown;
 
 	/* Set up the VIFs */
-	err = pdsc_viftypes_init(pdsc);
-	if (err)
-		goto err_out_teardown;
+	if (init) {
+		err = pdsc_viftypes_init(pdsc);
+		if (err)
+			goto err_out_teardown;
 
-	if (init)
 		pdsc_debugfs_add_viftype(pdsc);
+	}
 
 	clear_bit(PDSC_S_FW_DEAD, &pdsc->state);
 	return 0;
@@ -469,8 +470,10 @@ void pdsc_teardown(struct pdsc *pdsc, bool removing)
 	pdsc_qcq_free(pdsc, &pdsc->notifyqcq);
 	pdsc_qcq_free(pdsc, &pdsc->adminqcq);
 
-	kfree(pdsc->viftype_status);
-	pdsc->viftype_status = NULL;
+	if (removing) {
+		kfree(pdsc->viftype_status);
+		pdsc->viftype_status = NULL;
+	}
 
 	if (pdsc->intr_info) {
 		for (i = 0; i < pdsc->nintrs; i++)
