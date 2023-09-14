@@ -1231,9 +1231,7 @@ static void phy_error_precise(struct phy_device *phydev,
 			      const void *func, int err)
 {
 	WARN(1, "%pS: returned: %d\n", func, err);
-	mutex_lock(&phydev->lock);
 	phy_process_error(phydev);
-	mutex_unlock(&phydev->lock);
 }
 
 /**
@@ -1503,10 +1501,10 @@ void phy_state_machine(struct work_struct *work)
 	if (err == -ENODEV)
 		return;
 
+	mutex_lock(&phydev->lock);
 	if (err < 0)
 		phy_error_precise(phydev, func, err);
 
-	mutex_lock(&phydev->lock);
 	phy_process_state_change(phydev, old_state);
 
 	/* Only re-schedule a PHY state machine change if we are polling the
