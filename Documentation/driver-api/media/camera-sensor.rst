@@ -43,6 +43,41 @@ hasn't been modified directly or indirectly by another driver, or supported by
 the board's clock tree to begin with. Changes to the Common Clock Framework API
 are required to ensure reliability.
 
+Power management
+----------------
+
+Always use runtime PM to manage the power states of your device. Camera sensor
+drivers are in no way special in this respect: they are responsible for
+controlling the power state of the device they otherwise control as well. In
+general, the device shall be powered on at least when its registers are being
+accessed and when it is streaming.
+
+Existing camera sensor drivers may rely on the old
+struct v4l2_subdev_core_ops->s_power() callback for bridge or ISP drivers to
+manage their power state. This is however **deprecated**. If you feel you need
+to begin calling an s_power from an ISP or a bridge driver, instead please add
+runtime PM support to the sensor driver you are using. Likewise, new drivers
+should not use s_power.
+
+Please see examples in e.g. ``drivers/media/i2c/ov8856.c`` and
+``drivers/media/i2c/ccs/ccs-core.c``. The two drivers work in both ACPI
+and DT based systems.
+
+Control framework
+~~~~~~~~~~~~~~~~~
+
+``v4l2_ctrl_handler_setup()`` function may not be used in the device's runtime
+PM ``runtime_resume`` callback, as it has no way to figure out the power state
+of the device. This is because the power state of the device is only changed
+after the power state transition has taken place. The ``s_ctrl`` callback can be
+used to obtain device's power state after the power state transition:
+
+.. c:function:: int pm_runtime_get_if_in_use(struct device *dev);
+
+The function returns a non-zero value if it succeeded getting the power count or
+runtime PM was disabled, in either of which cases the driver may proceed to
+access the device.
+
 Frame size
 ----------
 
@@ -117,41 +152,6 @@ level interface natively, generally use the concept of frame interval (or frame
 rate) on device level in firmware or hardware. This means lower level controls
 implemented by raw cameras may not be used on uAPI (or even kAPI) to control the
 frame interval on these devices.
-
-Power management
-----------------
-
-Always use runtime PM to manage the power states of your device. Camera sensor
-drivers are in no way special in this respect: they are responsible for
-controlling the power state of the device they otherwise control as well. In
-general, the device shall be powered on at least when its registers are being
-accessed and when it is streaming.
-
-Existing camera sensor drivers may rely on the old
-struct v4l2_subdev_core_ops->s_power() callback for bridge or ISP drivers to
-manage their power state. This is however **deprecated**. If you feel you need
-to begin calling an s_power from an ISP or a bridge driver, instead please add
-runtime PM support to the sensor driver you are using. Likewise, new drivers
-should not use s_power.
-
-Please see examples in e.g. ``drivers/media/i2c/ov8856.c`` and
-``drivers/media/i2c/ccs/ccs-core.c``. The two drivers work in both ACPI
-and DT based systems.
-
-Control framework
-~~~~~~~~~~~~~~~~~
-
-``v4l2_ctrl_handler_setup()`` function may not be used in the device's runtime
-PM ``runtime_resume`` callback, as it has no way to figure out the power state
-of the device. This is because the power state of the device is only changed
-after the power state transition has taken place. The ``s_ctrl`` callback can be
-used to obtain device's power state after the power state transition:
-
-.. c:function:: int pm_runtime_get_if_in_use(struct device *dev);
-
-The function returns a non-zero value if it succeeded getting the power count or
-runtime PM was disabled, in either of which cases the driver may proceed to
-access the device.
 
 Rotation, orientation and flipping
 ----------------------------------
