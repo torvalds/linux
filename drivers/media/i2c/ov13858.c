@@ -1467,10 +1467,6 @@ static int ov13858_set_stream(struct v4l2_subdev *sd, int enable)
 	int ret = 0;
 
 	mutex_lock(&ov13858->mutex);
-	if (ov13858->streaming == enable) {
-		mutex_unlock(&ov13858->mutex);
-		return 0;
-	}
 
 	if (enable) {
 		ret = pm_runtime_resume_and_get(&client->dev);
