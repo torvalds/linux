@@ -88,6 +88,7 @@ static unsigned char iv[IV_SIZE];
 static uint8_t *compressed_blk_array;
 static int blk_array_pos;
 static unsigned long nr_pages;
+static void *auth_slot;
 
 static void init_sg(struct scatterlist *sg, void *data, unsigned int size)
 {
@@ -341,6 +342,27 @@ static void save_auth_and_params_to_disk(struct work_struct *work)
 	 */
 	params_slot = alloc_swapdev_block(root_swap_dev);
 
+	if (auth_slot) {
+		*(int *)auth_slot = params_slot + 1;
+
+		/* Currently bootloader code does the following to
+		 * calculate the authentication slot index.
+		 * authslot = NrMetaPages + NrCopyPages + NrSwapMapPages +
+		 * HDR_SWP_INFO_NUM_PAGES;
+		 *
+		 * However, with compression enabled, we cannot apply the
+		 * above logic to get the authentication slot. So this
+		 * data should be provided to the BL for decryption to work.
+		 *
+		 * In the current implementation, BL doesn't make use of
+		 * the swap_map_pages for restoring the hibernation image. So these pages
+		 * could be used for other purposes. Use this to store the
+		 * authentication slot number. This data will be stored at index as
+		 * that of the first swap_map_page.
+		 */
+		write_page(auth_slot, 1, &hb);
+	}
+
 	authpage = authslot_start;
 	while (authslot_count < authpage_count) {
 		cur_slot = alloc_swapdev_block(root_swap_dev);
@@ -500,6 +522,11 @@ static void cleanup_cmp_blk_array(void)
 		kvfree((void *)compressed_blk_array);
 		compressed_blk_array = NULL;
 	}
+	if (auth_slot) {
+		free_page((unsigned long)auth_slot);
+		auth_slot = NULL;
+
+	}
 }
 
 static int hibernate_pm_notifier(struct notifier_block *nb,
@@ -608,8 +635,17 @@ static void hibernated_do_mem_alloc(void *data, unsigned long pages,
 		size = get_size_of_compression_block_array(pages);
 
 		compressed_blk_array = kvzalloc(size, GFP_KERNEL);
-		if (!compressed_blk_array)
+		if (!compressed_blk_array) {
 			*ret = -ENOMEM;
+			return;
+		}
+
+		/* Allocate memory to hold authentication slot start */
+		auth_slot = (void *)get_zeroed_page(GFP_KERNEL);
+		if (!auth_slot) {
+			pr_err("Failed to allocate page for storing authentication tag slot number\n");
+			*ret = -ENOMEM;
+		}
 	}
 }
 
