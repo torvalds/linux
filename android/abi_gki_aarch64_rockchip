@@ -139,6 +139,13 @@
   dev_driver_string
   _dev_err
   dev_err_probe
+  devfreq_add_governor
+  devfreq_recommended_opp
+  devfreq_register_opp_notifier
+  devfreq_remove_governor
+  devfreq_resume_device
+  devfreq_suspend_device
+  devfreq_unregister_opp_notifier
   dev_fwnode
   dev_get_regmap
   dev_get_tstats64
@@ -1998,11 +2005,35 @@
   vmf_insert_mixed
   vm_insert_page
 
+# required by rockchip-cpufreq.ko
+  cpufreq_unregister_notifier
+
 # required by rockchip-rng.ko
   devm_of_iomap
 
 # required by rockchip_bus.ko
   cpu_topology
+
+# required by rockchip_dmc.ko
+  cpufreq_cpu_put
+  cpufreq_quick_get
+  devfreq_event_disable_edev
+  devfreq_event_enable_edev
+  devfreq_event_get_edev_by_phandle
+  devfreq_event_get_edev_count
+  devfreq_event_get_event
+  devfreq_monitor_resume
+  devfreq_monitor_start
+  devfreq_monitor_stop
+  devfreq_monitor_suspend
+  devfreq_update_interval
+  devm_devfreq_register_opp_notifier
+  dev_pm_opp_add
+  input_close_device
+  input_open_device
+  input_register_handle
+  input_register_handler
+  input_unregister_handle
 
 # required by rockchip_dmc_common.ko
   down_write_trylock
