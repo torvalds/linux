@@ -2266,6 +2266,7 @@
 			     &i2s0m0_sdo2
 			     &i2s0m0_sdo3>;
 		#sound-dai-cells = <0>;
+		sound-name-prefix = "SAI0";
 		status = "disabled";
 	};
 
@@ -2293,6 +2294,7 @@
 			     &i2s1m0_sdo2
 			     &i2s1m0_sdo3>;
 		#sound-dai-cells = <0>;
+		sound-name-prefix = "SAI1";
 		status = "disabled";
 	};
 
@@ -2314,6 +2316,7 @@
 			     &i2s2m0_sdi
 			     &i2s2m0_sdo>;
 		#sound-dai-cells = <0>;
+		sound-name-prefix = "SAI2";
 		status = "disabled";
 	};
 
