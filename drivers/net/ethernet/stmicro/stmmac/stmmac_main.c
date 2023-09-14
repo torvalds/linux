@@ -1165,7 +1165,7 @@ static int stmmac_init_phy(struct net_device *dev)
 			return -ENODEV;
 		}
 		ret = phylink_connect_phy(priv->phylink, priv->phydev);
-		if (phy_intr_en) {
+		if (priv->plat->phy_intr_en_extn_stm) {
 			priv->phydev->irq = PHY_MAC_INTERRUPT;
 			priv->phydev->interrupts =  PHY_INTERRUPT_ENABLED;
 
@@ -4729,9 +4729,9 @@ static int stmmac_xdp_xmit_xdpf(struct stmmac_priv *priv, int queue,
 		tx_desc = tx_q->dma_tx + entry;
 
 	if (dma_map) {
-		dma_addr = dma_map_single(priv->device, xdpf->data,
+		dma_addr = dma_map_single(GET_MEM_PDEV_DEV, xdpf->data,
 					  xdpf->len, DMA_TO_DEVICE);
-		if (dma_mapping_error(priv->device, dma_addr))
+		if (dma_mapping_error(GET_MEM_PDEV_DEV, dma_addr))
 			return STMMAC_XDP_CONSUMED;
 
 		tx_q->tx_skbuff_dma[entry].buf_type = STMMAC_TXBUF_T_XDP_NDO;
@@ -4740,7 +4740,7 @@ static int stmmac_xdp_xmit_xdpf(struct stmmac_priv *priv, int queue,
 
 		dma_addr = page_pool_get_dma_addr(page) + sizeof(*xdpf) +
 			   xdpf->headroom;
-		dma_sync_single_for_device(priv->device, dma_addr,
+		dma_sync_single_for_device(GET_MEM_PDEV_DEV, dma_addr,
 					   xdpf->len, DMA_BIDIRECTIONAL);
 
 		tx_q->tx_skbuff_dma[entry].buf_type = STMMAC_TXBUF_T_XDP_TX;
@@ -5315,7 +5315,7 @@ read_again:
 		if (!skb) {
 			unsigned int pre_len, sync_len;
 
-			dma_sync_single_for_cpu(priv->device, buf->addr,
+			dma_sync_single_for_cpu(GET_MEM_PDEV_DEV, buf->addr,
 						buf1_len, dma_dir);
 
 			xdp_init_buff(&xdp, buf_sz, &rx_q->xdp_rxq);
@@ -5383,7 +5383,7 @@ read_again:
 			page_pool_recycle_direct(rx_q->page_pool, buf->page);
 			buf->page = NULL;
 		} else if (buf1_len) {
-			dma_sync_single_for_cpu(priv->device, buf->addr,
+			dma_sync_single_for_cpu(GET_MEM_PDEV_DEV, buf->addr,
 						buf1_len, dma_dir);
 			skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags,
 					buf->page, buf->page_offset, buf1_len,
@@ -5395,7 +5395,7 @@ read_again:
 		}
 
 		if (buf2_len) {
-			dma_sync_single_for_cpu(priv->device, buf->sec_addr,
+			dma_sync_single_for_cpu(GET_MEM_PDEV_DEV, buf->sec_addr,
 						buf2_len, dma_dir);
 			skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags,
 					buf->sec_page, 0, buf2_len,

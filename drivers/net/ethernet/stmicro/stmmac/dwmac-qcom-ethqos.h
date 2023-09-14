@@ -18,6 +18,12 @@
 #define SDC4_STATUS			0x14
 #define SDCC_USR_CTL			0x18
 #define RGMII_IO_MACRO_CONFIG2		0x1C
+#define EMAC_HW_NONE 0
+#define EMAC_HW_v2_1_1 0x20010001
+#define EMAC_HW_v2_1_2 0x20010002
+#define EMAC_HW_v2_3_0 0x20030000
+#define EMAC_HW_v2_3_1 0x20030001
+#define EMAC_HW_vMAX 9
 
 struct ethqos_emac_por {
 	unsigned int offset;
@@ -56,4 +62,5 @@ int ethqos_init_reqgulators(struct qcom_ethqos *ethqos);
 void ethqos_disable_regulators(struct qcom_ethqos *ethqos);
 int ethqos_init_gpio(struct qcom_ethqos *ethqos);
 void ethqos_free_gpios(struct qcom_ethqos *ethqos);
+void *qcom_ethqos_get_priv(struct qcom_ethqos *ethqos);
 #endif
