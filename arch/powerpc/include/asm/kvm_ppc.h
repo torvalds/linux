@@ -615,6 +615,42 @@ static inline bool kvmhv_on_pseries(void)
 {
 	return false;
 }
+
+#endif
+
+#ifndef CONFIG_PPC_BOOK3S
+
+static inline bool kvmhv_is_nestedv2(void)
+{
+	return false;
+}
+
+static inline bool kvmhv_is_nestedv1(void)
+{
+	return false;
+}
+
+static inline int kvmhv_nestedv2_reload_ptregs(struct kvm_vcpu *vcpu,
+					       struct pt_regs *regs)
+{
+	return 0;
+}
+static inline int kvmhv_nestedv2_mark_dirty_ptregs(struct kvm_vcpu *vcpu,
+						   struct pt_regs *regs)
+{
+	return 0;
+}
+
+static inline int kvmhv_nestedv2_mark_dirty(struct kvm_vcpu *vcpu, u16 iden)
+{
+	return 0;
+}
+
+static inline int kvmhv_nestedv2_cached_reload(struct kvm_vcpu *vcpu, u16 iden)
+{
+	return 0;
+}
+
 #endif
 
 #ifdef CONFIG_KVM_XICS
@@ -939,27 +975,32 @@ static inline void kvmppc_set_##reg(struct kvm_vcpu *vcpu, ulong val)	\
 	mtspr(bookehv_spr, val);						\
 }									\
 
-#define KVMPPC_VCPU_SHARED_REGS_ACCESSOR_GET(reg, size)			\
+#define KVMPPC_VCPU_SHARED_REGS_ACCESSOR_GET(reg, size, iden)		\
 static inline u##size kvmppc_get_##reg(struct kvm_vcpu *vcpu)		\
 {									\
+	if (iden)							\
+		WARN_ON(kvmhv_nestedv2_cached_reload(vcpu, iden) < 0);	\
 	if (kvmppc_shared_big_endian(vcpu))				\
 	       return be##size##_to_cpu(vcpu->arch.shared->reg);	\
 	else								\
 	       return le##size##_to_cpu(vcpu->arch.shared->reg);	\
 }									\
 
-#define KVMPPC_VCPU_SHARED_REGS_ACCESSOR_SET(reg, size)			\
+#define KVMPPC_VCPU_SHARED_REGS_ACCESSOR_SET(reg, size, iden)		\
 static inline void kvmppc_set_##reg(struct kvm_vcpu *vcpu, u##size val)	\
 {									\
 	if (kvmppc_shared_big_endian(vcpu))				\
 	       vcpu->arch.shared->reg = cpu_to_be##size(val);		\
 	else								\
 	       vcpu->arch.shared->reg = cpu_to_le##size(val);		\
+									\
+	if (iden)							\
+		kvmhv_nestedv2_mark_dirty(vcpu, iden);			\
 }									\
 
-#define KVMPPC_VCPU_SHARED_REGS_ACCESSOR(reg, size)			\
-	KVMPPC_VCPU_SHARED_REGS_ACCESSOR_GET(reg, size)			\
-	KVMPPC_VCPU_SHARED_REGS_ACCESSOR_SET(reg, size)			\
+#define KVMPPC_VCPU_SHARED_REGS_ACCESSOR(reg, size, iden)		\
+	KVMPPC_VCPU_SHARED_REGS_ACCESSOR_GET(reg, size, iden)		\
+	KVMPPC_VCPU_SHARED_REGS_ACCESSOR_SET(reg, size, iden)		\
 
 #define KVMPPC_BOOKE_HV_SPRNG_ACCESSOR(reg, bookehv_spr)		\
 	KVMPPC_BOOKE_HV_SPRNG_ACCESSOR_GET(reg, bookehv_spr)		\
@@ -967,39 +1008,40 @@ static inline void kvmppc_set_##reg(struct kvm_vcpu *vcpu, u##size val)	\
 
 #ifdef CONFIG_KVM_BOOKE_HV
 
-#define KVMPPC_BOOKE_HV_SPRNG_OR_VCPU_SHARED_REGS_ACCESSOR(reg, size, bookehv_spr)	\
+#define KVMPPC_BOOKE_HV_SPRNG_OR_VCPU_SHARED_REGS_ACCESSOR(reg, size, bookehv_spr, iden)	\
 	KVMPPC_BOOKE_HV_SPRNG_ACCESSOR(reg, bookehv_spr)		\
 
 #else
 
-#define KVMPPC_BOOKE_HV_SPRNG_OR_VCPU_SHARED_REGS_ACCESSOR(reg, size, bookehv_spr)	\
-	KVMPPC_VCPU_SHARED_REGS_ACCESSOR(reg, size)			\
+#define KVMPPC_BOOKE_HV_SPRNG_OR_VCPU_SHARED_REGS_ACCESSOR(reg, size, bookehv_spr, iden)	\
+	KVMPPC_VCPU_SHARED_REGS_ACCESSOR(reg, size, iden)		\
 
 #endif
 
-KVMPPC_VCPU_SHARED_REGS_ACCESSOR(critical, 64)
-KVMPPC_BOOKE_HV_SPRNG_OR_VCPU_SHARED_REGS_ACCESSOR(sprg0, 64, SPRN_GSPRG0)
-KVMPPC_BOOKE_HV_SPRNG_OR_VCPU_SHARED_REGS_ACCESSOR(sprg1, 64, SPRN_GSPRG1)
-KVMPPC_BOOKE_HV_SPRNG_OR_VCPU_SHARED_REGS_ACCESSOR(sprg2, 64, SPRN_GSPRG2)
-KVMPPC_BOOKE_HV_SPRNG_OR_VCPU_SHARED_REGS_ACCESSOR(sprg3, 64, SPRN_GSPRG3)
-KVMPPC_BOOKE_HV_SPRNG_OR_VCPU_SHARED_REGS_ACCESSOR(srr0, 64, SPRN_GSRR0)
-KVMPPC_BOOKE_HV_SPRNG_OR_VCPU_SHARED_REGS_ACCESSOR(srr1, 64, SPRN_GSRR1)
-KVMPPC_BOOKE_HV_SPRNG_OR_VCPU_SHARED_REGS_ACCESSOR(dar, 64, SPRN_GDEAR)
-KVMPPC_BOOKE_HV_SPRNG_OR_VCPU_SHARED_REGS_ACCESSOR(esr, 64, SPRN_GESR)
-KVMPPC_VCPU_SHARED_REGS_ACCESSOR_GET(msr, 64)
+KVMPPC_VCPU_SHARED_REGS_ACCESSOR(critical, 64, 0)
+KVMPPC_BOOKE_HV_SPRNG_OR_VCPU_SHARED_REGS_ACCESSOR(sprg0, 64, SPRN_GSPRG0, KVMPPC_GSID_SPRG0)
+KVMPPC_BOOKE_HV_SPRNG_OR_VCPU_SHARED_REGS_ACCESSOR(sprg1, 64, SPRN_GSPRG1, KVMPPC_GSID_SPRG1)
+KVMPPC_BOOKE_HV_SPRNG_OR_VCPU_SHARED_REGS_ACCESSOR(sprg2, 64, SPRN_GSPRG2, KVMPPC_GSID_SPRG2)
+KVMPPC_BOOKE_HV_SPRNG_OR_VCPU_SHARED_REGS_ACCESSOR(sprg3, 64, SPRN_GSPRG3, KVMPPC_GSID_SPRG3)
+KVMPPC_BOOKE_HV_SPRNG_OR_VCPU_SHARED_REGS_ACCESSOR(srr0, 64, SPRN_GSRR0, KVMPPC_GSID_SRR0)
+KVMPPC_BOOKE_HV_SPRNG_OR_VCPU_SHARED_REGS_ACCESSOR(srr1, 64, SPRN_GSRR1, KVMPPC_GSID_SRR1)
+KVMPPC_BOOKE_HV_SPRNG_OR_VCPU_SHARED_REGS_ACCESSOR(dar, 64, SPRN_GDEAR, KVMPPC_GSID_DAR)
+KVMPPC_BOOKE_HV_SPRNG_OR_VCPU_SHARED_REGS_ACCESSOR(esr, 64, SPRN_GESR, 0)
+KVMPPC_VCPU_SHARED_REGS_ACCESSOR_GET(msr, 64, KVMPPC_GSID_MSR)
 static inline void kvmppc_set_msr_fast(struct kvm_vcpu *vcpu, u64 val)
 {
 	if (kvmppc_shared_big_endian(vcpu))
 	       vcpu->arch.shared->msr = cpu_to_be64(val);
 	else
 	       vcpu->arch.shared->msr = cpu_to_le64(val);
+	kvmhv_nestedv2_mark_dirty(vcpu, KVMPPC_GSID_MSR);
 }
-KVMPPC_VCPU_SHARED_REGS_ACCESSOR(dsisr, 32)
-KVMPPC_VCPU_SHARED_REGS_ACCESSOR(int_pending, 32)
-KVMPPC_VCPU_SHARED_REGS_ACCESSOR(sprg4, 64)
-KVMPPC_VCPU_SHARED_REGS_ACCESSOR(sprg5, 64)
-KVMPPC_VCPU_SHARED_REGS_ACCESSOR(sprg6, 64)
-KVMPPC_VCPU_SHARED_REGS_ACCESSOR(sprg7, 64)
+KVMPPC_VCPU_SHARED_REGS_ACCESSOR(dsisr, 32, KVMPPC_GSID_DSISR)
+KVMPPC_VCPU_SHARED_REGS_ACCESSOR(int_pending, 32, 0)
+KVMPPC_VCPU_SHARED_REGS_ACCESSOR(sprg4, 64, 0)
+KVMPPC_VCPU_SHARED_REGS_ACCESSOR(sprg5, 64, 0)
+KVMPPC_VCPU_SHARED_REGS_ACCESSOR(sprg6, 64, 0)
+KVMPPC_VCPU_SHARED_REGS_ACCESSOR(sprg7, 64, 0)
 
 static inline u32 kvmppc_get_sr(struct kvm_vcpu *vcpu, int nr)
 {

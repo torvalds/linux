@@ -393,7 +393,7 @@ static void kvmppc_set_pvr_hv(struct kvm_vcpu *vcpu, u32 pvr)
 
 static int kvmppc_set_arch_compat(struct kvm_vcpu *vcpu, u32 arch_compat)
 {
-	unsigned long host_pcr_bit = 0, guest_pcr_bit = 0;
+	unsigned long host_pcr_bit = 0, guest_pcr_bit = 0, cap = 0;
 	struct kvmppc_vcore *vc = vcpu->arch.vcore;
 
 	/* We can (emulate) our own architecture version and anything older */
@@ -424,9 +424,11 @@ static int kvmppc_set_arch_compat(struct kvm_vcpu *vcpu, u32 arch_compat)
 			break;
 		case PVR_ARCH_300:
 			guest_pcr_bit = PCR_ARCH_300;
+			cap = H_GUEST_CAP_POWER9;
 			break;
 		case PVR_ARCH_31:
 			guest_pcr_bit = PCR_ARCH_31;
+			cap = H_GUEST_CAP_POWER10;
 			break;
 		default:
 			return -EINVAL;
@@ -437,8 +439,14 @@ static int kvmppc_set_arch_compat(struct kvm_vcpu *vcpu, u32 arch_compat)
 	if (guest_pcr_bit > host_pcr_bit)
 		return -EINVAL;
 
+	if (kvmhv_on_pseries() && kvmhv_is_nestedv2()) {
+		if (!(cap & nested_capabilities))
+			return -EINVAL;
+	}
+
 	spin_lock(&vc->lock);
 	vc->arch_compat = arch_compat;
+	kvmhv_nestedv2_mark_dirty(vcpu, KVMPPC_GSID_LOGICAL_PVR);
 	/*
 	 * Set all PCR bits for which guest_pcr_bit <= bit < host_pcr_bit
 	 * Also set all reserved PCR bits
@@ -2187,6 +2195,7 @@ static void kvmppc_set_lpcr(struct kvm_vcpu *vcpu, u64 new_lpcr,
 	}
 
 	vc->lpcr = new_lpcr;
+	kvmhv_nestedv2_mark_dirty(vcpu, KVMPPC_GSID_LPCR);
 
 	spin_unlock(&vc->lock);
 }
@@ -2927,8 +2936,14 @@ static int kvmppc_core_vcpu_create_hv(struct kvm_vcpu *vcpu)
 	vcpu->arch.shared_big_endian = false;
 #endif
 #endif
-	kvmppc_set_mmcr_hv(vcpu, 0, MMCR0_FC);
 
+	if (kvmhv_is_nestedv2()) {
+		err = kvmhv_nestedv2_vcpu_create(vcpu, &vcpu->arch.nestedv2_io);
+		if (err < 0)
+			return err;
+	}
+
+	kvmppc_set_mmcr_hv(vcpu, 0, MMCR0_FC);
 	if (cpu_has_feature(CPU_FTR_ARCH_31)) {
 		kvmppc_set_mmcr_hv(vcpu, 0, kvmppc_get_mmcr_hv(vcpu, 0) | MMCR0_PMCCEXT);
 		kvmppc_set_mmcra_hv(vcpu, MMCRA_BHRB_DISABLE);
@@ -3084,6 +3099,8 @@ static void kvmppc_core_vcpu_free_hv(struct kvm_vcpu *vcpu)
 	unpin_vpa(vcpu->kvm, &vcpu->arch.slb_shadow);
 	unpin_vpa(vcpu->kvm, &vcpu->arch.vpa);
 	spin_unlock(&vcpu->arch.vpa_update_lock);
+	if (kvmhv_is_nestedv2())
+		kvmhv_nestedv2_vcpu_free(vcpu, &vcpu->arch.nestedv2_io);
 }
 
 static int kvmppc_core_check_requests_hv(struct kvm_vcpu *vcpu)
@@ -4048,6 +4065,55 @@ static void vcpu_vpa_increment_dispatch(struct kvm_vcpu *vcpu)
 	}
 }
 
+static int kvmhv_vcpu_entry_nestedv2(struct kvm_vcpu *vcpu, u64 time_limit,
+				     unsigned long lpcr, u64 *tb)
+{
+	struct kvmhv_nestedv2_io *io;
+	unsigned long msr, i;
+	int trap;
+	long rc;
+
+	io = &vcpu->arch.nestedv2_io;
+
+	msr = mfmsr();
+	kvmppc_msr_hard_disable_set_facilities(vcpu, msr);
+	if (lazy_irq_pending())
+		return 0;
+
+	rc = kvmhv_nestedv2_flush_vcpu(vcpu, time_limit);
+	if (rc < 0)
+		return -EINVAL;
+
+	accumulate_time(vcpu, &vcpu->arch.in_guest);
+	rc = plpar_guest_run_vcpu(0, vcpu->kvm->arch.lpid, vcpu->vcpu_id,
+				  &trap, &i);
+
+	if (rc != H_SUCCESS) {
+		pr_err("KVM Guest Run VCPU hcall failed\n");
+		if (rc == H_INVALID_ELEMENT_ID)
+			pr_err("KVM: Guest Run VCPU invalid element id at %ld\n", i);
+		else if (rc == H_INVALID_ELEMENT_SIZE)
+			pr_err("KVM: Guest Run VCPU invalid element size at %ld\n", i);
+		else if (rc == H_INVALID_ELEMENT_VALUE)
+			pr_err("KVM: Guest Run VCPU invalid element value at %ld\n", i);
+		return -EINVAL;
+	}
+	accumulate_time(vcpu, &vcpu->arch.guest_exit);
+
+	*tb = mftb();
+	kvmppc_gsm_reset(io->vcpu_message);
+	kvmppc_gsm_reset(io->vcore_message);
+	kvmppc_gsbm_zero(&io->valids);
+
+	rc = kvmhv_nestedv2_parse_output(vcpu);
+	if (rc < 0)
+		return -EINVAL;
+
+	timer_rearm_host_dec(*tb);
+
+	return trap;
+}
+
 /* call our hypervisor to load up HV regs and go */
 static int kvmhv_vcpu_entry_p9_nested(struct kvm_vcpu *vcpu, u64 time_limit, unsigned long lpcr, u64 *tb)
 {
@@ -4165,7 +4231,10 @@ static int kvmhv_p9_guest_entry(struct kvm_vcpu *vcpu, u64 time_limit,
 	vcpu_vpa_increment_dispatch(vcpu);
 
 	if (kvmhv_on_pseries()) {
-		trap = kvmhv_vcpu_entry_p9_nested(vcpu, time_limit, lpcr, tb);
+		if (kvmhv_is_nestedv1())
+			trap = kvmhv_vcpu_entry_p9_nested(vcpu, time_limit, lpcr, tb);
+		else
+			trap = kvmhv_vcpu_entry_nestedv2(vcpu, time_limit, lpcr, tb);
 
 		/* H_CEDE has to be handled now, not later */
 		if (trap == BOOK3S_INTERRUPT_SYSCALL && !nested &&
@@ -5145,6 +5214,14 @@ void kvmppc_update_lpcr(struct kvm *kvm, unsigned long lpcr, unsigned long mask)
 		if (++cores_done >= kvm->arch.online_vcores)
 			break;
 	}
+
+	if (kvmhv_is_nestedv2()) {
+		struct kvm_vcpu *vcpu;
+
+		kvm_for_each_vcpu(i, vcpu, kvm) {
+			kvmhv_nestedv2_mark_dirty(vcpu, KVMPPC_GSID_LPCR);
+		}
+	}
 }
 
 void kvmppc_setup_partition_table(struct kvm *kvm)
@@ -5411,14 +5488,42 @@ static int kvmppc_core_init_vm_hv(struct kvm *kvm)
 
 	/* Allocate the guest's logical partition ID */
 
-	lpid = kvmppc_alloc_lpid();
-	if ((long)lpid < 0)
-		return -ENOMEM;
-	kvm->arch.lpid = lpid;
+	if (!kvmhv_is_nestedv2()) {
+		lpid = kvmppc_alloc_lpid();
+		if ((long)lpid < 0)
+			return -ENOMEM;
+		kvm->arch.lpid = lpid;
+	}
 
 	kvmppc_alloc_host_rm_ops();
 
 	kvmhv_vm_nested_init(kvm);
+
+	if (kvmhv_is_nestedv2()) {
+		long rc;
+		unsigned long guest_id;
+
+		rc = plpar_guest_create(0, &guest_id);
+
+		if (rc != H_SUCCESS)
+			pr_err("KVM: Create Guest hcall failed, rc=%ld\n", rc);
+
+		switch (rc) {
+		case H_PARAMETER:
+		case H_FUNCTION:
+		case H_STATE:
+			return -EINVAL;
+		case H_NOT_ENOUGH_RESOURCES:
+		case H_ABORTED:
+			return -ENOMEM;
+		case H_AUTHORITY:
+			return -EPERM;
+		case H_NOT_AVAILABLE:
+			return -EBUSY;
+		}
+		kvm->arch.lpid = guest_id;
+	}
+
 
 	/*
 	 * Since we don't flush the TLB when tearing down a VM,
@@ -5489,7 +5594,10 @@ static int kvmppc_core_init_vm_hv(struct kvm *kvm)
 			lpcr |= LPCR_HAIL;
 		ret = kvmppc_init_vm_radix(kvm);
 		if (ret) {
-			kvmppc_free_lpid(kvm->arch.lpid);
+			if (kvmhv_is_nestedv2())
+				plpar_guest_delete(0, kvm->arch.lpid);
+			else
+				kvmppc_free_lpid(kvm->arch.lpid);
 			return ret;
 		}
 		kvmppc_setup_partition_table(kvm);
@@ -5579,10 +5687,14 @@ static void kvmppc_core_destroy_vm_hv(struct kvm *kvm)
 		kvm->arch.process_table = 0;
 		if (kvm->arch.secure_guest)
 			uv_svm_terminate(kvm->arch.lpid);
-		kvmhv_set_ptbl_entry(kvm->arch.lpid, 0, 0);
+		if (!kvmhv_is_nestedv2())
+			kvmhv_set_ptbl_entry(kvm->arch.lpid, 0, 0);
 	}
 
-	kvmppc_free_lpid(kvm->arch.lpid);
+	if (kvmhv_is_nestedv2())
+		plpar_guest_delete(0, kvm->arch.lpid);
+	else
+		kvmppc_free_lpid(kvm->arch.lpid);
 
 	kvmppc_free_pimap(kvm);
 }
@@ -5993,6 +6105,8 @@ static int kvmhv_enable_nested(struct kvm *kvm)
 	if (!cpu_has_feature(CPU_FTR_ARCH_300))
 		return -ENODEV;
 	if (!radix_enabled())
+		return -ENODEV;
+	if (kvmhv_is_nestedv2())
 		return -ENODEV;
 
 	/* kvm == NULL means the caller is testing if the capability exists */

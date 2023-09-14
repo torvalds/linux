@@ -5,6 +5,7 @@
 #ifndef _ASM_POWERPC_GUEST_STATE_BUFFER_H
 #define _ASM_POWERPC_GUEST_STATE_BUFFER_H
 
+#include "asm/hvcall.h"
 #include <linux/gfp.h>
 #include <linux/bitmap.h>
 #include <asm/plpar_wrappers.h>
@@ -313,6 +314,8 @@ struct kvmppc_gs_buff *kvmppc_gsb_new(size_t size, unsigned long guest_id,
 				      unsigned long vcpu_id, gfp_t flags);
 void kvmppc_gsb_free(struct kvmppc_gs_buff *gsb);
 void *kvmppc_gsb_put(struct kvmppc_gs_buff *gsb, size_t size);
+int kvmppc_gsb_send(struct kvmppc_gs_buff *gsb, unsigned long flags);
+int kvmppc_gsb_recv(struct kvmppc_gs_buff *gsb, unsigned long flags);
 
 /**
  * kvmppc_gsb_header() - the header of a guest state buffer
@@ -899,6 +902,94 @@ static inline void kvmppc_gsm_include_all(struct kvmppc_gs_msg *gsm)
 static inline void kvmppc_gsm_reset(struct kvmppc_gs_msg *gsm)
 {
 	kvmppc_gsbm_zero(&gsm->bitmap);
+}
+
+/**
+ * kvmppc_gsb_receive_data - flexibly update values from a guest state buffer
+ * @gsb: guest state buffer
+ * @gsm: guest state message
+ *
+ * Requests updated values for the guest state values included in the guest
+ * state message. The guest state message will then deserialize the guest state
+ * buffer.
+ */
+static inline int kvmppc_gsb_receive_data(struct kvmppc_gs_buff *gsb,
+					  struct kvmppc_gs_msg *gsm)
+{
+	int rc;
+
+	kvmppc_gsb_reset(gsb);
+	rc = kvmppc_gsm_fill_info(gsm, gsb);
+	if (rc < 0)
+		return rc;
+
+	rc = kvmppc_gsb_recv(gsb, gsm->flags);
+	if (rc < 0)
+		return rc;
+
+	rc = kvmppc_gsm_refresh_info(gsm, gsb);
+	if (rc < 0)
+		return rc;
+	return 0;
+}
+
+/**
+ * kvmppc_gsb_recv - receive a single guest state ID
+ * @gsb: guest state buffer
+ * @gsm: guest state message
+ * @iden: guest state identity
+ */
+static inline int kvmppc_gsb_receive_datum(struct kvmppc_gs_buff *gsb,
+					   struct kvmppc_gs_msg *gsm, u16 iden)
+{
+	int rc;
+
+	kvmppc_gsm_include(gsm, iden);
+	rc = kvmppc_gsb_receive_data(gsb, gsm);
+	if (rc < 0)
+		return rc;
+	kvmppc_gsm_reset(gsm);
+	return 0;
+}
+
+/**
+ * kvmppc_gsb_send_data - flexibly send values from a guest state buffer
+ * @gsb: guest state buffer
+ * @gsm: guest state message
+ *
+ * Sends the guest state values included in the guest state message.
+ */
+static inline int kvmppc_gsb_send_data(struct kvmppc_gs_buff *gsb,
+				       struct kvmppc_gs_msg *gsm)
+{
+	int rc;
+
+	kvmppc_gsb_reset(gsb);
+	rc = kvmppc_gsm_fill_info(gsm, gsb);
+	if (rc < 0)
+		return rc;
+	rc = kvmppc_gsb_send(gsb, gsm->flags);
+
+	return rc;
+}
+
+/**
+ * kvmppc_gsb_recv - send a single guest state ID
+ * @gsb: guest state buffer
+ * @gsm: guest state message
+ * @iden: guest state identity
+ */
+static inline int kvmppc_gsb_send_datum(struct kvmppc_gs_buff *gsb,
+					struct kvmppc_gs_msg *gsm, u16 iden)
+{
+	int rc;
+
+	kvmppc_gsm_include(gsm, iden);
+	rc = kvmppc_gsb_send_data(gsb, gsm);
+	if (rc < 0)
+		return rc;
+	kvmppc_gsm_reset(gsm);
+	return 0;
 }
 
 #endif /* _ASM_POWERPC_GUEST_STATE_BUFFER_H */
