@@ -611,8 +611,8 @@
 			compatible = "qcom,ipq6018-apcs-apps-global";
 			reg = <0x0 0x0b111000 0x0 0x1000>;
 			#clock-cells = <1>;
-			clocks = <&a53pll>, <&xo>;
-			clock-names = "pll", "xo";
+			clocks = <&a53pll>, <&xo>, <&gcc GPLL0>;
+			clock-names = "pll", "xo", "gpll0";
 			#mbox-cells = <1>;
 		};
 
