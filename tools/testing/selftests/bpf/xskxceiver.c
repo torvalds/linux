@@ -1872,13 +1872,14 @@ static int testapp_single_pkt(struct test_spec *test)
 {
 	struct pkt pkts[] = {{0, MIN_PKT_SIZE, 0, true}};
 
+	test_spec_set_name(test, "SEND_RECEIVE_SINGLE_PKT");
 	pkt_stream_generate_custom(test, pkts, ARRAY_SIZE(pkts));
 	return testapp_validate_traffic(test);
 }
 
 static int testapp_multi_buffer(struct test_spec *test)
 {
-	test_spec_set_name(test, "RUN_TO_COMPLETION_9K_PACKETS");
+	test_spec_set_name(test, "SEND_RECEIVE_9K_PACKETS");
 	test->mtu = MAX_ETH_JUMBO_SIZE;
 	pkt_stream_replace(test, DEFAULT_PKT_CNT, MAX_ETH_JUMBO_SIZE);
 
@@ -1983,7 +1984,7 @@ static int testapp_xdp_drop(struct test_spec *test)
 	return testapp_validate_traffic(test);
 }
 
-static int testapp_xdp_metadata_count(struct test_spec *test)
+static int testapp_xdp_metadata_copy(struct test_spec *test)
 {
 	struct xsk_xdp_progs *skel_rx = test->ifobj_rx->xdp_progs;
 	struct xsk_xdp_progs *skel_tx = test->ifobj_tx->xdp_progs;
@@ -2133,6 +2134,105 @@ static void init_iface(struct ifobject *ifobj, const char *dst_mac, const char *
 	}
 }
 
+static int testapp_send_receive(struct test_spec *test)
+{
+	test_spec_set_name(test, "SEND_RECEIVE");
+	return testapp_validate_traffic(test);
+}
+
+static int testapp_send_receive_2k_frame(struct test_spec *test)
+{
+	test_spec_set_name(test, "SEND_RECEIVE_2K_FRAME_SIZE");
+	test->ifobj_tx->umem->frame_size = 2048;
+	test->ifobj_rx->umem->frame_size = 2048;
+	pkt_stream_replace(test, DEFAULT_PKT_CNT, MIN_PKT_SIZE);
+	return testapp_validate_traffic(test);
+}
+
+static int testapp_poll_rx(struct test_spec *test)
+{
+	test->ifobj_rx->use_poll = true;
+	test_spec_set_name(test, "POLL_RX");
+	return testapp_validate_traffic(test);
+}
+
+static int testapp_poll_tx(struct test_spec *test)
+{
+	test->ifobj_tx->use_poll = true;
+	test_spec_set_name(test, "POLL_TX");
+	return testapp_validate_traffic(test);
+}
+
+static int testapp_aligned_inv_desc(struct test_spec *test)
+{
+	test_spec_set_name(test, "ALIGNED_INV_DESC");
+	return testapp_invalid_desc(test);
+}
+
+static int testapp_aligned_inv_desc_2k_frame(struct test_spec *test)
+{
+	test_spec_set_name(test, "ALIGNED_INV_DESC_2K_FRAME_SIZE");
+	test->ifobj_tx->umem->frame_size = 2048;
+	test->ifobj_rx->umem->frame_size = 2048;
+	return testapp_invalid_desc(test);
+}
+
+static int testapp_unaligned_inv_desc(struct test_spec *test)
+{
+	test_spec_set_name(test, "UNALIGNED_INV_DESC");
+	test->ifobj_tx->umem->unaligned_mode = true;
+	test->ifobj_rx->umem->unaligned_mode = true;
+	return testapp_invalid_desc(test);
+}
+
+static int testapp_unaligned_inv_desc_4001_frame(struct test_spec *test)
+{
+	u64 page_size, umem_size;
+
+	test_spec_set_name(test, "UNALIGNED_INV_DESC_4K1_FRAME_SIZE");
+	/* Odd frame size so the UMEM doesn't end near a page boundary. */
+	test->ifobj_tx->umem->frame_size = 4001;
+	test->ifobj_rx->umem->frame_size = 4001;
+	test->ifobj_tx->umem->unaligned_mode = true;
+	test->ifobj_rx->umem->unaligned_mode = true;
+	/* This test exists to test descriptors that staddle the end of
+	 * the UMEM but not a page.
+	 */
+	page_size = sysconf(_SC_PAGESIZE);
+	umem_size = test->ifobj_tx->umem->num_frames * test->ifobj_tx->umem->frame_size;
+	assert(umem_size % page_size > MIN_PKT_SIZE);
+	assert(umem_size % page_size < page_size - MIN_PKT_SIZE);
+
+	return testapp_invalid_desc(test);
+}
+
+static int testapp_aligned_inv_desc_mb(struct test_spec *test)
+{
+	test_spec_set_name(test, "ALIGNED_INV_DESC_MULTI_BUFF");
+	return testapp_invalid_desc_mb(test);
+}
+
+static int testapp_unaligned_inv_desc_mb(struct test_spec *test)
+{
+	test_spec_set_name(test, "UNALIGNED_INV_DESC_MULTI_BUFF");
+	test->ifobj_tx->umem->unaligned_mode = true;
+	test->ifobj_rx->umem->unaligned_mode = true;
+	return testapp_invalid_desc_mb(test);
+}
+
+static int testapp_xdp_metadata(struct test_spec *test)
+{
+	test_spec_set_name(test, "XDP_METADATA_COPY");
+	return testapp_xdp_metadata_copy(test);
+}
+
+static int testapp_xdp_metadata_mb(struct test_spec *test)
+{
+	test_spec_set_name(test, "XDP_METADATA_COPY_MULTI_BUFF");
+	test->mtu = MAX_ETH_JUMBO_SIZE;
+	return testapp_xdp_metadata_copy(test);
+}
+
 static void run_pkt_test(struct test_spec *test, enum test_mode mode, enum test_type type)
 {
 	int ret = TEST_SKIP;
@@ -2160,32 +2260,22 @@ static void run_pkt_test(struct test_spec *test, enum test_mode mode, enum test_
 		ret = testapp_bpf_res(test);
 		break;
 	case TEST_TYPE_RUN_TO_COMPLETION:
-		test_spec_set_name(test, "RUN_TO_COMPLETION");
-		ret = testapp_validate_traffic(test);
+		ret = testapp_send_receive(test);
 		break;
 	case TEST_TYPE_RUN_TO_COMPLETION_MB:
 		ret = testapp_multi_buffer(test);
 		break;
 	case TEST_TYPE_RUN_TO_COMPLETION_SINGLE_PKT:
-		test_spec_set_name(test, "RUN_TO_COMPLETION_SINGLE_PKT");
 		ret = testapp_single_pkt(test);
 		break;
 	case TEST_TYPE_RUN_TO_COMPLETION_2K_FRAME:
-		test_spec_set_name(test, "RUN_TO_COMPLETION_2K_FRAME_SIZE");
-		test->ifobj_tx->umem->frame_size = 2048;
-		test->ifobj_rx->umem->frame_size = 2048;
-		pkt_stream_replace(test, DEFAULT_PKT_CNT, MIN_PKT_SIZE);
-		ret = testapp_validate_traffic(test);
+		ret = testapp_send_receive_2k_frame(test);
 		break;
 	case TEST_TYPE_RX_POLL:
-		test->ifobj_rx->use_poll = true;
-		test_spec_set_name(test, "POLL_RX");
-		ret = testapp_validate_traffic(test);
+		ret = testapp_poll_rx(test);
 		break;
 	case TEST_TYPE_TX_POLL:
-		test->ifobj_tx->use_poll = true;
-		test_spec_set_name(test, "POLL_TX");
-		ret = testapp_validate_traffic(test);
+		ret = testapp_poll_tx(test);
 		break;
 	case TEST_TYPE_POLL_TXQ_TMOUT:
 		ret = testapp_poll_txq_tmout(test);
@@ -2194,49 +2284,22 @@ static void run_pkt_test(struct test_spec *test, enum test_mode mode, enum test_
 		ret = testapp_poll_rxq_tmout(test);
 		break;
 	case TEST_TYPE_ALIGNED_INV_DESC:
-		test_spec_set_name(test, "ALIGNED_INV_DESC");
-		ret = testapp_invalid_desc(test);
+		ret = testapp_aligned_inv_desc(test);
 		break;
 	case TEST_TYPE_ALIGNED_INV_DESC_2K_FRAME:
-		test_spec_set_name(test, "ALIGNED_INV_DESC_2K_FRAME_SIZE");
-		test->ifobj_tx->umem->frame_size = 2048;
-		test->ifobj_rx->umem->frame_size = 2048;
-		ret = testapp_invalid_desc(test);
+		ret = testapp_aligned_inv_desc_2k_frame(test);
 		break;
 	case TEST_TYPE_UNALIGNED_INV_DESC:
-		test_spec_set_name(test, "UNALIGNED_INV_DESC");
-		test->ifobj_tx->umem->unaligned_mode = true;
-		test->ifobj_rx->umem->unaligned_mode = true;
-		ret = testapp_invalid_desc(test);
+		ret = testapp_unaligned_inv_desc(test);
 		break;
-	case TEST_TYPE_UNALIGNED_INV_DESC_4K1_FRAME: {
-		u64 page_size, umem_size;
-
-		test_spec_set_name(test, "UNALIGNED_INV_DESC_4K1_FRAME_SIZE");
-		/* Odd frame size so the UMEM doesn't end near a page boundary. */
-		test->ifobj_tx->umem->frame_size = 4001;
-		test->ifobj_rx->umem->frame_size = 4001;
-		test->ifobj_tx->umem->unaligned_mode = true;
-		test->ifobj_rx->umem->unaligned_mode = true;
-		/* This test exists to test descriptors that staddle the end of
-		 * the UMEM but not a page.
-		 */
-		page_size = sysconf(_SC_PAGESIZE);
-		umem_size = test->ifobj_tx->umem->num_frames * test->ifobj_tx->umem->frame_size;
-		assert(umem_size % page_size > MIN_PKT_SIZE);
-		assert(umem_size % page_size < page_size - MIN_PKT_SIZE);
-		ret = testapp_invalid_desc(test);
+	case TEST_TYPE_UNALIGNED_INV_DESC_4K1_FRAME:
+		ret = testapp_unaligned_inv_desc_4001_frame(test);
 		break;
-	}
 	case TEST_TYPE_ALIGNED_INV_DESC_MB:
-		test_spec_set_name(test, "ALIGNED_INV_DESC_MULTI_BUFF");
-		ret = testapp_invalid_desc_mb(test);
+		ret = testapp_aligned_inv_desc_mb(test);
 		break;
 	case TEST_TYPE_UNALIGNED_INV_DESC_MB:
-		test_spec_set_name(test, "UNALIGNED_INV_DESC_MULTI_BUFF");
-		test->ifobj_tx->umem->unaligned_mode = true;
-		test->ifobj_rx->umem->unaligned_mode = true;
-		ret = testapp_invalid_desc_mb(test);
+		ret = testapp_unaligned_inv_desc_mb(test);
 		break;
 	case TEST_TYPE_UNALIGNED:
 		ret = testapp_unaligned(test);
@@ -2251,13 +2314,10 @@ static void run_pkt_test(struct test_spec *test, enum test_mode mode, enum test_
 		ret = testapp_xdp_drop(test);
 		break;
 	case TEST_TYPE_XDP_METADATA_COUNT:
-		test_spec_set_name(test, "XDP_METADATA_COUNT");
-		ret = testapp_xdp_metadata_count(test);
+		ret = testapp_xdp_metadata(test);
 		break;
 	case TEST_TYPE_XDP_METADATA_COUNT_MB:
-		test_spec_set_name(test, "XDP_METADATA_COUNT_MULTI_BUFF");
-		test->mtu = MAX_ETH_JUMBO_SIZE;
-		ret = testapp_xdp_metadata_count(test);
+		ret = testapp_xdp_metadata_mb(test);
 		break;
 	case TEST_TYPE_TOO_MANY_FRAGS:
 		ret = testapp_too_many_frags(test);
