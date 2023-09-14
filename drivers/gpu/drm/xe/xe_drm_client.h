@@ -39,5 +39,7 @@ struct xe_drm_client *xe_drm_client_alloc(void);
 static inline struct xe_drm_client *
 xe_drm_client_get(struct xe_drm_client *client);
 static inline void xe_drm_client_put(struct xe_drm_client *client);
-
+#ifdef CONFIG_PROC_FS
+void xe_drm_client_fdinfo(struct drm_printer *p, struct drm_file *file);
+#endif
 #endif

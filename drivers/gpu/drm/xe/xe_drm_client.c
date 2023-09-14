@@ -50,3 +50,20 @@ void __xe_drm_client_free(struct kref *kref)
 
 	kfree(client);
 }
+
+#ifdef CONFIG_PROC_FS
+/**
+ * xe_drm_client_fdinfo() - Callback for fdinfo interface
+ * @p: The drm_printer ptr
+ * @file: The drm_file ptr
+ *
+ * This is callabck for drm fdinfo interface. Register this callback
+ * in drm driver ops for show_fdinfo.
+ *
+ * Return: void
+ */
+void xe_drm_client_fdinfo(struct drm_printer *p, struct drm_file *file)
+{
+	/* show_meminfo() will be developed here */
+}
+#endif
