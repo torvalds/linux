@@ -2471,8 +2471,6 @@ static int ov5670_set_stream(struct v4l2_subdev *sd, int enable)
 	int ret = 0;
 
 	mutex_lock(&ov5670->mutex);
-	if (ov5670->streaming == enable)
-		goto unlock_and_return;
 
 	if (enable) {
 		ret = pm_runtime_resume_and_get(&client->dev);
