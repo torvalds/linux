@@ -217,6 +217,18 @@ static inline void crypto_free_aead(struct crypto_aead *tfm)
 	crypto_destroy_tfm(tfm, crypto_aead_tfm(tfm));
 }
 
+/**
+ * crypto_has_aead() - Search for the availability of an aead.
+ * @alg_name: is the cra_name / name or cra_driver_name / driver name of the
+ *	      aead
+ * @type: specifies the type of the aead
+ * @mask: specifies the mask for the aead
+ *
+ * Return: true when the aead is known to the kernel crypto API; false
+ *	   otherwise
+ */
+int crypto_has_aead(const char *alg_name, u32 type, u32 mask);
+
 static inline const char *crypto_aead_driver_name(struct crypto_aead *tfm)
 {
 	return crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm));
