@@ -483,6 +483,29 @@ KVMPPC_BOOK3S_VCPU_ACCESSOR(bescr, 64)
 KVMPPC_BOOK3S_VCPU_ACCESSOR(ic, 64)
 KVMPPC_BOOK3S_VCPU_ACCESSOR(vrsave, 64)
 
+
+#define KVMPPC_BOOK3S_VCORE_ACCESSOR_SET(reg, size)			\
+static inline void kvmppc_set_##reg(struct kvm_vcpu *vcpu, u##size val)	\
+{									\
+	vcpu->arch.vcore->reg = val;					\
+}
+
+#define KVMPPC_BOOK3S_VCORE_ACCESSOR_GET(reg, size)			\
+static inline u##size kvmppc_get_##reg(struct kvm_vcpu *vcpu)		\
+{									\
+	return vcpu->arch.vcore->reg;					\
+}
+
+#define KVMPPC_BOOK3S_VCORE_ACCESSOR(reg, size)				\
+	KVMPPC_BOOK3S_VCORE_ACCESSOR_SET(reg, size)			\
+	KVMPPC_BOOK3S_VCORE_ACCESSOR_GET(reg, size)			\
+
+
+KVMPPC_BOOK3S_VCORE_ACCESSOR(vtb, 64)
+KVMPPC_BOOK3S_VCORE_ACCESSOR(tb_offset, 64)
+KVMPPC_BOOK3S_VCORE_ACCESSOR_GET(arch_compat, 32)
+KVMPPC_BOOK3S_VCORE_ACCESSOR_GET(lpcr, 64)
+
 static inline u64 kvmppc_get_dec_expires(struct kvm_vcpu *vcpu)
 {
 	return vcpu->arch.dec_expires;
@@ -496,7 +519,7 @@ static inline void kvmppc_set_dec_expires(struct kvm_vcpu *vcpu, u64 val)
 /* Expiry time of vcpu DEC relative to host TB */
 static inline u64 kvmppc_dec_expires_host_tb(struct kvm_vcpu *vcpu)
 {
-	return kvmppc_get_dec_expires(vcpu) - vcpu->arch.vcore->tb_offset;
+	return kvmppc_get_dec_expires(vcpu) - kvmppc_get_tb_offset(vcpu);
 }
 
 static inline bool is_kvmppc_resume_guest(int r)
