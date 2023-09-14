@@ -296,7 +296,7 @@ static int lt9611uxc_connector_get_modes(struct drm_connector *connector)
 	unsigned int count;
 	struct edid *edid;
 
-	edid = lt9611uxc->bridge.funcs->get_edid(&lt9611uxc->bridge, connector);
+	edid = drm_bridge_get_edid(&lt9611uxc->bridge, connector);
 	drm_connector_update_edid_property(connector, edid);
 	count = drm_add_edid_modes(connector, edid);
 	kfree(edid);
