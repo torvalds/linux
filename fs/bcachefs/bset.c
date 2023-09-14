@@ -1189,7 +1189,7 @@ struct bkey_packed *__bch2_bset_search(struct btree *b,
 	case BSET_RO_AUX_TREE:
 		return bset_search_tree(b, t, search, lossy_packed_search);
 	default:
-		unreachable();
+		BUG();
 	}
 }
 

@@ -240,7 +240,7 @@ static inline void ec_stripe_new_put(struct bch_fs *c, struct ec_stripe_new *s,
 			bch2_ec_do_stripe_creates(c);
 			break;
 		default:
-			unreachable();
+			BUG();
 		}
 }
 
