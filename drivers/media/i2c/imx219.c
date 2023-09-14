@@ -479,9 +479,6 @@ struct imx219 {
 	/* Current mode */
 	const struct imx219_mode *mode;
 
-	/* Streaming on/off */
-	bool streaming;
-
 	/* Two or Four lanes */
 	u8 lanes;
 };
@@ -992,8 +989,6 @@ static int imx219_set_stream(struct v4l2_subdev *sd, int enable)
 		imx219_stop_streaming(imx219);
 	}
 
-	imx219->streaming = enable;
-
 unlock:
 	v4l2_subdev_unlock_state(state);
 	return ret;
@@ -1043,41 +1038,6 @@ static int imx219_power_off(struct device *dev)
 	clk_disable_unprepare(imx219->xclk);
 
 	return 0;
-}
-
-static int __maybe_unused imx219_suspend(struct device *dev)
-{
-	struct v4l2_subdev *sd = dev_get_drvdata(dev);
-	struct imx219 *imx219 = to_imx219(sd);
-
-	if (imx219->streaming)
-		imx219_stop_streaming(imx219);
-
-	return 0;
-}
-
-static int __maybe_unused imx219_resume(struct device *dev)
-{
-	struct v4l2_subdev *sd = dev_get_drvdata(dev);
-	struct imx219 *imx219 = to_imx219(sd);
-	struct v4l2_subdev_state *state;
-	int ret;
-
-	if (imx219->streaming) {
-		state = v4l2_subdev_lock_and_get_active_state(sd);
-		ret = imx219_start_streaming(imx219, state);
-		v4l2_subdev_unlock_state(state);
-		if (ret)
-			goto error;
-	}
-
-	return 0;
-
-error:
-	imx219_stop_streaming(imx219);
-	imx219->streaming = false;
-
-	return ret;
 }
 
 static int imx219_get_regulators(struct imx219 *imx219)
@@ -1465,7 +1425,6 @@ static const struct of_device_id imx219_dt_ids[] = {
 MODULE_DEVICE_TABLE(of, imx219_dt_ids);
 
 static const struct dev_pm_ops imx219_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(imx219_suspend, imx219_resume)
 	SET_RUNTIME_PM_OPS(imx219_power_off, imx219_power_on, NULL)
 };
 
