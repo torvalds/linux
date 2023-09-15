@@ -23,12 +23,12 @@
 #include "../common/soc-intel-quirks.h"
 #include "hda_dsp_common.h"
 #include "sof_maxim_common.h"
+#include "sof_ssp_common.h"
 
 #define NAME_SIZE 32
 
 #define SOF_CS42L42_SSP_CODEC(quirk)		((quirk) & GENMASK(2, 0))
 #define SOF_CS42L42_SSP_CODEC_MASK		(GENMASK(2, 0))
-#define SOF_SPEAKER_AMP_PRESENT			BIT(3)
 #define SOF_CS42L42_SSP_AMP_SHIFT		4
 #define SOF_CS42L42_SSP_AMP_MASK		(GENMASK(6, 4))
 #define SOF_CS42L42_SSP_AMP(quirk)	\
@@ -46,8 +46,6 @@
 #define SOF_CS42L42_SSP_BT_MASK			(GENMASK(28, 26))
 #define SOF_CS42L42_SSP_BT(quirk)	\
 	(((quirk) << SOF_CS42L42_SSP_BT_SHIFT) & SOF_CS42L42_SSP_BT_MASK)
-#define SOF_MAX98357A_SPEAKER_AMP_PRESENT	BIT(29)
-#define SOF_MAX98360A_SPEAKER_AMP_PRESENT	BIT(30)
 
 enum {
 	LINK_NONE = 0,
@@ -83,6 +81,8 @@ struct sof_card_private {
 	struct snd_soc_jack headset_jack;
 	struct list_head hdmi_pcm_list;
 	bool common_hdmi_codec_drv;
+	enum sof_ssp_codec codec_type;
+	enum sof_ssp_codec amp_type;
 };
 
 static int sof_hdmi_init(struct snd_soc_pcm_runtime *rtd)
@@ -299,12 +299,13 @@ static struct snd_soc_dai_link_component dmic_component[] = {
 static int create_spk_amp_dai_links(struct device *dev,
 				    struct snd_soc_dai_link *links,
 				    struct snd_soc_dai_link_component *cpus,
-				    int *id, int ssp_amp)
+				    int *id, enum sof_ssp_codec amp_type,
+				    int ssp_amp)
 {
 	int ret = 0;
 
 	/* speaker amp */
-	if (!(sof_cs42l42_quirk & SOF_SPEAKER_AMP_PRESENT))
+	if (amp_type == CODEC_NONE)
 		return 0;
 
 	links[*id].name = devm_kasprintf(dev, GFP_KERNEL, "SSP%d-Codec",
@@ -316,14 +317,16 @@ static int create_spk_amp_dai_links(struct device *dev,
 
 	links[*id].id = *id;
 
-	if (sof_cs42l42_quirk & SOF_MAX98357A_SPEAKER_AMP_PRESENT) {
+	switch (amp_type) {
+	case CODEC_MAX98357A:
 		max_98357a_dai_link(&links[*id]);
-	} else if (sof_cs42l42_quirk & SOF_MAX98360A_SPEAKER_AMP_PRESENT) {
+		break;
+	case CODEC_MAX98360A:
 		max_98360a_dai_link(&links[*id]);
-	} else {
-		dev_err(dev, "no amp defined\n");
-		ret = -EINVAL;
-		goto devm_err;
+		break;
+	default:
+		dev_err(dev, "invalid amp type %d\n", amp_type);
+		return -EINVAL;
 	}
 
 	links[*id].platforms = platform_component;
@@ -528,12 +531,10 @@ devm_err:
 	return -ENOMEM;
 }
 
-static struct snd_soc_dai_link *sof_card_dai_links_create(struct device *dev,
-							  int ssp_codec,
-							  int ssp_amp,
-							  int ssp_bt,
-							  int dmic_be_num,
-							  int hdmi_num)
+static struct snd_soc_dai_link *
+sof_card_dai_links_create(struct device *dev, enum sof_ssp_codec amp_type,
+			  int ssp_codec, int ssp_amp, int ssp_bt,
+			  int dmic_be_num, int hdmi_num)
 {
 	struct snd_soc_dai_link_component *cpus;
 	struct snd_soc_dai_link *links;
@@ -561,7 +562,8 @@ static struct snd_soc_dai_link *sof_card_dai_links_create(struct device *dev,
 			}
 			break;
 		case LINK_SPK:
-			ret = create_spk_amp_dai_links(dev, links, cpus, &id, ssp_amp);
+			ret = create_spk_amp_dai_links(dev, links, cpus, &id,
+						       amp_type, ssp_amp);
 			if (ret < 0) {
 				dev_err(dev, "fail to create spk amp dai links, ret %d\n",
 					ret);
@@ -624,6 +626,9 @@ static int sof_audio_probe(struct platform_device *pdev)
 
 	mach = pdev->dev.platform_data;
 
+	ctx->codec_type = sof_ssp_detect_codec_type(&pdev->dev);
+	ctx->amp_type = sof_ssp_detect_amp_type(&pdev->dev);
+
 	if (soc_intel_is_glk()) {
 		dmic_be_num = 1;
 		hdmi_num = 3;
@@ -649,13 +654,14 @@ static int sof_audio_probe(struct platform_device *pdev)
 	/* compute number of dai links */
 	sof_audio_card_cs42l42.num_links = 1 + dmic_be_num + hdmi_num;
 
-	if (sof_cs42l42_quirk & SOF_SPEAKER_AMP_PRESENT)
+	if (ctx->amp_type != CODEC_NONE)
 		sof_audio_card_cs42l42.num_links++;
 	if (sof_cs42l42_quirk & SOF_BT_OFFLOAD_PRESENT)
 		sof_audio_card_cs42l42.num_links++;
 
-	dai_links = sof_card_dai_links_create(&pdev->dev, ssp_codec, ssp_amp,
-					      ssp_bt, dmic_be_num, hdmi_num);
+	dai_links = sof_card_dai_links_create(&pdev->dev, ctx->amp_type,
+					      ssp_codec, ssp_amp, ssp_bt,
+					      dmic_be_num, hdmi_num);
 	if (!dai_links)
 		return -ENOMEM;
 
@@ -683,24 +689,18 @@ static const struct platform_device_id board_ids[] = {
 	{
 		.name = "glk_cs4242_mx98357a",
 		.driver_data = (kernel_ulong_t)(SOF_CS42L42_SSP_CODEC(2) |
-					SOF_SPEAKER_AMP_PRESENT |
-					SOF_MAX98357A_SPEAKER_AMP_PRESENT |
 					SOF_CS42L42_SSP_AMP(1)) |
 					SOF_CS42L42_DAILINK(LINK_SPK, LINK_HP, LINK_DMIC, LINK_HDMI, LINK_NONE),
 	},
 	{
 		.name = "jsl_cs4242_mx98360a",
 		.driver_data = (kernel_ulong_t)(SOF_CS42L42_SSP_CODEC(0) |
-					SOF_SPEAKER_AMP_PRESENT |
-					SOF_MAX98360A_SPEAKER_AMP_PRESENT |
 					SOF_CS42L42_SSP_AMP(1)) |
 					SOF_CS42L42_DAILINK(LINK_HP, LINK_DMIC, LINK_HDMI, LINK_SPK, LINK_NONE),
 	},
 	{
 		.name = "adl_mx98360a_cs4242",
 		.driver_data = (kernel_ulong_t)(SOF_CS42L42_SSP_CODEC(0) |
-				SOF_SPEAKER_AMP_PRESENT |
-				SOF_MAX98360A_SPEAKER_AMP_PRESENT |
 				SOF_CS42L42_SSP_AMP(1) |
 				SOF_CS42L42_NUM_HDMIDEV(4) |
 				SOF_BT_OFFLOAD_PRESENT |
@@ -727,3 +727,4 @@ MODULE_AUTHOR("Brent Lu <brent.lu@intel.com>");
 MODULE_LICENSE("GPL");
 MODULE_IMPORT_NS(SND_SOC_INTEL_HDA_DSP_COMMON);
 MODULE_IMPORT_NS(SND_SOC_INTEL_SOF_MAXIM_COMMON);
+MODULE_IMPORT_NS(SND_SOC_INTEL_SOF_SSP_COMMON);

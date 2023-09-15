@@ -514,6 +514,7 @@ config SND_SOC_INTEL_SOF_CS42L42_MACH
 	select SND_SOC_HDAC_HDMI
 	select SND_SOC_INTEL_HDA_DSP_COMMON
 	select SND_SOC_INTEL_SOF_MAXIM_COMMON
+	select SND_SOC_INTEL_SOF_SSP_COMMON
 	help
 	   This adds support for ASoC machine driver for SOF platforms
 	   with cs42l42 codec.
