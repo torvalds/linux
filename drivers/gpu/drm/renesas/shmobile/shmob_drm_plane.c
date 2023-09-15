@@ -184,8 +184,8 @@ shmob_drm_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 
 	format = shmob_drm_format_info(fb->format->format);
 	if (format == NULL) {
-		dev_dbg(sdev->dev, "update_plane: unsupported format %08x\n",
-			fb->format->format);
+		dev_dbg(sdev->dev, "update_plane: unsupported format %p4cc\n",
+			&fb->format->format);
 		return -EINVAL;
 	}
 
