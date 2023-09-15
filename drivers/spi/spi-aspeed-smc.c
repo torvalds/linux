@@ -196,7 +196,7 @@ static int aspeed_spi_send_addr(struct aspeed_spi_chip *chip, u8 addr_nbytes,
 	switch (addr_nbytes) {
 	case 3:
 		cmdaddr = offset & 0xFFFFFF;
-		temp = cpu_to_be32(cmdaddr);
+		temp = cpu_to_be32(cmdaddr) >> 8;
 		aspeed_spi_write_to_ahb(chip->ahb_base, &temp, 3);
 		break;
 	case 4:
