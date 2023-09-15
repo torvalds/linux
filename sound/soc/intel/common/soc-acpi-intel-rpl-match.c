@@ -403,6 +403,13 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_rpl_machines[] = {
 		.sof_tplg_filename = "sof-rpl-rt1019-rt5682.tplg",
 	},
 	{
+		.comp_ids = &rpl_rt5682_hp,
+		.drv_name = "rpl_rt5682_c1_h02",
+		.machine_quirk = snd_soc_acpi_codec_list,
+		.quirk_data = &rpl_lt6911_hdmi,
+		.sof_tplg_filename = "sof-rpl-rt5682-ssp1-hdmi-ssp02.tplg",
+	},
+	{
 		.comp_ids = &rpl_essx_83x6,
 		.drv_name = "rpl_es83x6_c1_h02",
 		.machine_quirk = snd_soc_acpi_codec_list,
