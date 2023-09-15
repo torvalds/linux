@@ -1102,14 +1102,14 @@ int amdgpu_ras_reset_error_status(struct amdgpu_device *adev,
 {
 	struct amdgpu_ras_block_object *block_obj = amdgpu_ras_get_ras_block(adev, block, 0);
 
-	if (!amdgpu_ras_is_supported(adev, block))
-		return -EINVAL;
-
-	if (!block_obj || !block_obj->hw_ops)   {
+	if (!block_obj || !block_obj->hw_ops) {
 		dev_dbg_once(adev->dev, "%s doesn't config RAS function\n",
 			     ras_block_str(block));
-		return -EINVAL;
+		return 0;
 	}
+
+	if (!amdgpu_ras_is_supported(adev, block))
+		return 0;
 
 	if (block_obj->hw_ops->reset_ras_error_count)
 		block_obj->hw_ops->reset_ras_error_count(adev);
