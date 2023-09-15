@@ -215,7 +215,10 @@ static int shmob_drm_plane_disable(struct drm_plane *plane,
 
 	splane->format = NULL;
 
+	lcdc_write(sdev, LDBCR, LDBCR_UPC(splane->index));
 	lcdc_write(sdev, LDBnBSIFR(splane->index), 0);
+	lcdc_write(sdev, LDBCR,
+		   LDBCR_UPF(splane->index) | LDBCR_UPD(splane->index));
 	return 0;
 }
 
