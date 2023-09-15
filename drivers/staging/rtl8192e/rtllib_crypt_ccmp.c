@@ -92,8 +92,7 @@ static int ccmp_init_iv_and_aad(struct ieee80211_hdr *hdr,
 	int a4_included, qc_included;
 
 	fc = le16_to_cpu(hdr->frame_control);
-	a4_included = ((fc & (RTLLIB_FCTL_TODS | RTLLIB_FCTL_FROMDS)) ==
-		       (RTLLIB_FCTL_TODS | RTLLIB_FCTL_FROMDS));
+	a4_included = ieee80211_has_a4(hdr->frame_control);
 
 	qc_included = ((WLAN_FC_GET_TYPE(fc) == RTLLIB_FTYPE_DATA) &&
 		       (WLAN_FC_GET_STYPE(fc) & 0x80));

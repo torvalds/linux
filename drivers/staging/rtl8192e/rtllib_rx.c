@@ -97,7 +97,7 @@ rtllib_frag_cache_get(struct rtllib_device *ieee,
 	struct ieee80211_qos_hdr_4addr *hdr_4addrqos;
 	u8 tid;
 
-	if (((fc & RTLLIB_FCTL_DSTODS) == RTLLIB_FCTL_DSTODS) &&
+	if (ieee80211_has_a4(hdr->frame_control) &&
 	    RTLLIB_QOS_HAS_SEQ(fc)) {
 		hdr_4addrqos = (struct ieee80211_qos_hdr_4addr *)hdr;
 		tid = le16_to_cpu(hdr_4addrqos->qos_ctrl) & RTLLIB_QCTL_TID;
@@ -166,7 +166,7 @@ static int rtllib_frag_cache_invalidate(struct rtllib_device *ieee,
 	struct ieee80211_qos_hdr_4addr *hdr_4addrqos;
 	u8 tid;
 
-	if (((fc & RTLLIB_FCTL_DSTODS) == RTLLIB_FCTL_DSTODS) &&
+	if (ieee80211_has_a4(hdr->frame_control) &&
 	    RTLLIB_QOS_HAS_SEQ(fc)) {
 		hdr_4addrqos = (struct ieee80211_qos_hdr_4addr *)hdr;
 		tid = le16_to_cpu(hdr_4addrqos->qos_ctrl) & RTLLIB_QCTL_TID;
@@ -359,7 +359,7 @@ static int is_duplicate_packet(struct rtllib_device *ieee,
 	struct ieee80211_qos_hdr_4addr *hdr_4addrqos;
 	u8 tid;
 
-	if (((fc & RTLLIB_FCTL_DSTODS) == RTLLIB_FCTL_DSTODS) &&
+	if (ieee80211_has_a4(header->frame_control) &&
 	    RTLLIB_QOS_HAS_SEQ(fc)) {
 		hdr_4addrqos = (struct ieee80211_qos_hdr_4addr *)header;
 		tid = le16_to_cpu(hdr_4addrqos->qos_ctrl) & RTLLIB_QCTL_TID;
@@ -968,16 +968,16 @@ static void rtllib_rx_extract_addr(struct rtllib_device *ieee,
 	}
 }
 
-static int rtllib_rx_data_filter(struct rtllib_device *ieee, u16 fc,
+static int rtllib_rx_data_filter(struct rtllib_device *ieee, struct ieee80211_hdr *hdr,
 				 u8 *dst, u8 *src, u8 *bssid, u8 *addr2)
 {
 	u8 type, stype;
-
+	u16 fc = le16_to_cpu(hdr->frame_control);
 	type = WLAN_FC_GET_TYPE(fc);
 	stype = WLAN_FC_GET_STYPE(fc);
 
 	/* Filter frames from different BSS */
-	if (((fc & RTLLIB_FCTL_DSTODS) != RTLLIB_FCTL_DSTODS) &&
+	if (ieee80211_has_a4(hdr->frame_control) &&
 	    !ether_addr_equal(ieee->current_network.bssid, bssid) &&
 	    !is_zero_ether_addr(ieee->current_network.bssid)) {
 		return -1;
@@ -1341,7 +1341,7 @@ static int rtllib_rx_InfraAdhoc(struct rtllib_device *ieee, struct sk_buff *skb,
 	rtllib_rx_extract_addr(ieee, hdr, dst, src, bssid);
 
 	/* Filter Data frames */
-	ret = rtllib_rx_data_filter(ieee, fc, dst, src, bssid, hdr->addr2);
+	ret = rtllib_rx_data_filter(ieee, hdr, dst, src, bssid, hdr->addr2);
 	if (ret < 0)
 		goto rx_dropped;
 
