@@ -8,6 +8,7 @@
  */
 
 #include <linux/clk.h>
+#include <linux/media-bus-format.h>
 #include <linux/pm_runtime.h>
 
 #include <drm/drm_crtc.h>
@@ -39,20 +40,55 @@
  * CRTC
  */
 
+static const struct {
+	u32 fmt;
+	u32 ldmt1r;
+} shmob_drm_bus_fmts[] = {
+	{ MEDIA_BUS_FMT_RGB888_3X8,	 LDMT1R_MIFTYP_RGB8 },
+	{ MEDIA_BUS_FMT_RGB666_2X9_BE,	 LDMT1R_MIFTYP_RGB9 },
+	{ MEDIA_BUS_FMT_RGB888_2X12_BE,	 LDMT1R_MIFTYP_RGB12A },
+	{ MEDIA_BUS_FMT_RGB444_1X12,	 LDMT1R_MIFTYP_RGB12B },
+	{ MEDIA_BUS_FMT_RGB565_1X16,	 LDMT1R_MIFTYP_RGB16 },
+	{ MEDIA_BUS_FMT_RGB666_1X18,	 LDMT1R_MIFTYP_RGB18 },
+	{ MEDIA_BUS_FMT_RGB888_1X24,	 LDMT1R_MIFTYP_RGB24 },
+	{ MEDIA_BUS_FMT_UYVY8_1X16,	 LDMT1R_MIFTYP_YCBCR },
+};
+
 static void shmob_drm_crtc_setup_geometry(struct shmob_drm_crtc *scrtc)
 {
 	struct drm_crtc *crtc = &scrtc->crtc;
 	struct shmob_drm_device *sdev = to_shmob_device(crtc->dev);
-	enum display_flags dpy_flags = sdev->connector.mode->flags;
+	const struct drm_display_info *info = &sdev->connector->display_info;
 	const struct drm_display_mode *mode = &crtc->mode;
+	unsigned int i;
 	u32 value;
 
-	value = sdev->ldmt1r
-	      | ((mode->flags & DRM_MODE_FLAG_PVSYNC) ? 0 : LDMT1R_VPOL)
-	      | ((mode->flags & DRM_MODE_FLAG_PHSYNC) ? 0 : LDMT1R_HPOL)
-	      | ((dpy_flags & DISPLAY_FLAGS_PIXDATA_POSEDGE) ? LDMT1R_DWPOL : 0)
-	      | ((dpy_flags & DISPLAY_FLAGS_DE_LOW) ? LDMT1R_DIPOL : 0);
+	if (!info->num_bus_formats || !info->bus_formats) {
+		dev_warn(sdev->dev, "No bus format reported, using RGB888\n");
+		value = LDMT1R_MIFTYP_RGB24;
+	} else {
+		for (i = 0; i < ARRAY_SIZE(shmob_drm_bus_fmts); i++) {
+			if (shmob_drm_bus_fmts[i].fmt == info->bus_formats[0])
+				break;
+		}
+		if (i < ARRAY_SIZE(shmob_drm_bus_fmts)) {
+			value = shmob_drm_bus_fmts[i].ldmt1r;
+		} else {
+			dev_warn(sdev->dev,
+				 "unsupported bus format 0x%x, using RGB888\n",
+				 info->bus_formats[0]);
+			value = LDMT1R_MIFTYP_RGB24;
+		}
+	}
 
+	if (info->bus_flags & DRM_BUS_FLAG_PIXDATA_DRIVE_POSEDGE)
+		value |= LDMT1R_DWPOL;
+	if (info->bus_flags & DRM_BUS_FLAG_DE_LOW)
+		value |= LDMT1R_DIPOL;
+	if (mode->flags & DRM_MODE_FLAG_NVSYNC)
+		value |= LDMT1R_VPOL;
+	if (mode->flags & DRM_MODE_FLAG_NHSYNC)
+		value |= LDMT1R_HPOL;
 	lcdc_write(sdev, LDMT1R, value);
 
 	value = ((mode->hdisplay / 8) << 16)			/* HDCN */
@@ -479,7 +515,7 @@ static bool shmob_drm_encoder_mode_fixup(struct drm_encoder *encoder,
 {
 	struct drm_device *dev = encoder->dev;
 	struct shmob_drm_device *sdev = to_shmob_device(dev);
-	struct drm_connector *connector = &sdev->connector.connector;
+	struct drm_connector *connector = sdev->connector;
 	const struct drm_display_mode *panel_mode;
 
 	if (list_empty(&connector->modes)) {
@@ -581,6 +617,8 @@ static void shmob_drm_connector_destroy(struct drm_connector *connector)
 {
 	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
+
+	kfree(connector);
 }
 
 static const struct drm_connector_funcs connector_funcs = {
@@ -589,25 +627,73 @@ static const struct drm_connector_funcs connector_funcs = {
 	.destroy = shmob_drm_connector_destroy,
 };
 
-int shmob_drm_connector_create(struct shmob_drm_device *sdev,
-			       struct drm_encoder *encoder)
+static struct drm_connector *
+shmob_drm_connector_init(struct shmob_drm_device *sdev,
+			 struct drm_encoder *encoder)
 {
-	struct shmob_drm_connector *scon = &sdev->connector;
-	struct drm_connector *connector = &scon->connector;
+	u32 bus_fmt = sdev->pdata->iface.bus_fmt;
+	struct shmob_drm_connector *scon;
+	struct drm_connector *connector;
+	struct drm_display_info *info;
+	unsigned int i;
 	int ret;
 
+	for (i = 0; i < ARRAY_SIZE(shmob_drm_bus_fmts); i++) {
+		if (shmob_drm_bus_fmts[i].fmt == bus_fmt)
+			break;
+	}
+	if (i == ARRAY_SIZE(shmob_drm_bus_fmts)) {
+		dev_err(sdev->dev, "unsupported bus format 0x%x\n", bus_fmt);
+		return ERR_PTR(-EINVAL);
+	}
+
+	scon = kzalloc(sizeof(*scon), GFP_KERNEL);
+	if (!scon)
+		return ERR_PTR(-ENOMEM);
+
+	connector = &scon->connector;
 	scon->encoder = encoder;
 	scon->mode = &sdev->pdata->panel.mode;
 
-	connector->display_info.width_mm = sdev->pdata->panel.width_mm;
-	connector->display_info.height_mm = sdev->pdata->panel.height_mm;
+	info = &connector->display_info;
+	info->width_mm = sdev->pdata->panel.width_mm;
+	info->height_mm = sdev->pdata->panel.height_mm;
+
+	if (scon->mode->flags & DISPLAY_FLAGS_PIXDATA_POSEDGE)
+		info->bus_flags |= DRM_BUS_FLAG_PIXDATA_DRIVE_POSEDGE;
+	if (scon->mode->flags & DISPLAY_FLAGS_DE_LOW)
+		info->bus_flags |= DRM_BUS_FLAG_DE_LOW;
+
+	ret = drm_display_info_set_bus_formats(info, &bus_fmt, 1);
+	if (ret < 0) {
+		kfree(scon);
+		return ERR_PTR(ret);
+	}
 
 	ret = drm_connector_init(&sdev->ddev, connector, &connector_funcs,
 				 DRM_MODE_CONNECTOR_DPI);
-	if (ret < 0)
-		return ret;
+	if (ret < 0) {
+		kfree(scon);
+		return ERR_PTR(ret);
+	}
 
 	drm_connector_helper_add(connector, &connector_helper_funcs);
+
+	return connector;
+}
+
+int shmob_drm_connector_create(struct shmob_drm_device *sdev,
+			       struct drm_encoder *encoder)
+{
+	struct drm_connector *connector;
+	int ret;
+
+	connector = shmob_drm_connector_init(sdev, encoder);
+	if (IS_ERR(connector)) {
+		dev_err(sdev->dev, "failed to created connector: %pe\n",
+			connector);
+		return PTR_ERR(connector);
+	}
 
 	ret = drm_connector_attach_encoder(connector, encoder);
 	if (ret < 0)
@@ -616,6 +702,8 @@ int shmob_drm_connector_create(struct shmob_drm_device *sdev,
 	drm_helper_connector_dpms(connector, DRM_MODE_DPMS_OFF);
 	drm_object_property_set_value(&connector->base,
 		sdev->ddev.mode_config.dpms_property, DRM_MODE_DPMS_OFF);
+
+	sdev->connector = connector;
 
 	return 0;
 

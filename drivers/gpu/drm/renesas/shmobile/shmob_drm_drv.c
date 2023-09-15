@@ -9,7 +9,6 @@
 
 #include <linux/clk.h>
 #include <linux/io.h>
-#include <linux/media-bus-format.h>
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
@@ -32,35 +31,6 @@
 /* -----------------------------------------------------------------------------
  * Hardware initialization
  */
-
-static int shmob_drm_init_interface(struct shmob_drm_device *sdev)
-{
-	static const struct {
-		u32 fmt;
-		u32 ldmt1r;
-	} bus_fmts[] = {
-		{ MEDIA_BUS_FMT_RGB888_3X8,	 LDMT1R_MIFTYP_RGB8 },
-		{ MEDIA_BUS_FMT_RGB666_2X9_BE,	 LDMT1R_MIFTYP_RGB9 },
-		{ MEDIA_BUS_FMT_RGB888_2X12_BE,	 LDMT1R_MIFTYP_RGB12A },
-		{ MEDIA_BUS_FMT_RGB444_1X12,	 LDMT1R_MIFTYP_RGB12B },
-		{ MEDIA_BUS_FMT_RGB565_1X16,	 LDMT1R_MIFTYP_RGB16 },
-		{ MEDIA_BUS_FMT_RGB666_1X18,	 LDMT1R_MIFTYP_RGB18 },
-		{ MEDIA_BUS_FMT_RGB888_1X24,	 LDMT1R_MIFTYP_RGB24 },
-		{ MEDIA_BUS_FMT_UYVY8_1X16,	 LDMT1R_MIFTYP_YCBCR },
-	};
-	unsigned int i;
-
-	for (i = 0; i < ARRAY_SIZE(bus_fmts); i++) {
-		if (bus_fmts[i].fmt == sdev->pdata->iface.bus_fmt) {
-			sdev->ldmt1r = bus_fmts[i].ldmt1r;
-			return 0;
-		}
-	}
-
-	dev_err(sdev->dev, "unsupported bus format 0x%x\n",
-		sdev->pdata->iface.bus_fmt);
-	return -EINVAL;
-}
 
 static int shmob_drm_setup_clocks(struct shmob_drm_device *sdev,
 				  enum shmob_drm_clk_source clksrc)
@@ -244,10 +214,6 @@ static int shmob_drm_probe(struct platform_device *pdev)
 
 	ret = devm_pm_runtime_enable(&pdev->dev);
 	if (ret)
-		return ret;
-
-	ret = shmob_drm_init_interface(sdev);
-	if (ret < 0)
 		return ret;
 
 	ret = shmob_drm_modeset_init(sdev);

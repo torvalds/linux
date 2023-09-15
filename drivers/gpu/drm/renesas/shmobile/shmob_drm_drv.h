@@ -27,7 +27,6 @@ struct shmob_drm_device {
 	void __iomem *mmio;
 	struct clk *clock;
 	u32 lddckr;
-	u32 ldmt1r;
 
 	unsigned int irq;
 	spinlock_t irq_lock;		/* Protects hardware LDINTR register */
@@ -36,7 +35,7 @@ struct shmob_drm_device {
 
 	struct shmob_drm_crtc crtc;
 	struct drm_encoder encoder;
-	struct shmob_drm_connector connector;
+	struct drm_connector *connector;
 };
 
 static inline struct shmob_drm_device *to_shmob_device(struct drm_device *dev)
