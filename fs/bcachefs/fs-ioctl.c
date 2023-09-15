@@ -122,7 +122,10 @@ static int bch2_ioc_fsgetxattr(struct bch_inode_info *inode,
 
 	fa.fsx_projid = inode->ei_qid.q[QTYP_PRJ];
 
-	return copy_to_user(arg, &fa, sizeof(fa));
+	if (copy_to_user(arg, &fa, sizeof(fa)))
+		return -EFAULT;
+
+	return 0;
 }
 
 static int fssetxattr_inode_update_fn(struct btree_trans *trans,
