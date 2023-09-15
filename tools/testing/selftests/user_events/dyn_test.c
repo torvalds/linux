@@ -144,13 +144,16 @@ do { \
 
 FIXTURE(user) {
 	int check;
+	bool umount;
 };
 
 FIXTURE_SETUP(user) {
-	USER_EVENT_FIXTURE_SETUP(return);
+	USER_EVENT_FIXTURE_SETUP(return, self->umount);
 }
 
 FIXTURE_TEARDOWN(user) {
+	USER_EVENT_FIXTURE_TEARDOWN(self->umount);
+
 	wait_for_delete();
 }
 
