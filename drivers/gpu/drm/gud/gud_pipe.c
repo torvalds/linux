@@ -503,7 +503,7 @@ int gud_pipe_check(struct drm_simple_display_pipe *pipe,
 		return -ENOENT;
 
 	len = struct_size(req, properties,
-			  GUD_PROPERTIES_MAX_NUM + GUD_CONNECTOR_PROPERTIES_MAX_NUM);
+			  size_add(GUD_PROPERTIES_MAX_NUM, GUD_CONNECTOR_PROPERTIES_MAX_NUM));
 	req = kzalloc(len, GFP_KERNEL);
 	if (!req)
 		return -ENOMEM;
