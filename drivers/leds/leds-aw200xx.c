@@ -112,7 +112,7 @@ struct aw200xx {
 	struct mutex mutex;
 	u32 num_leds;
 	u32 display_rows;
-	struct aw200xx_led leds[];
+	struct aw200xx_led leds[] __counted_by(num_leds);
 };
 
 static ssize_t dim_show(struct device *dev, struct device_attribute *devattr,
