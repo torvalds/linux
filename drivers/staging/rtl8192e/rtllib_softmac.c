@@ -741,7 +741,7 @@ rtllib_authentication_req(struct rtllib_network *beacon,
 
 	auth->header.frame_control = cpu_to_le16(IEEE80211_STYPE_AUTH);
 	if (challengelen)
-		auth->header.frame_control |= cpu_to_le16(RTLLIB_FCTL_WEP);
+		auth->header.frame_control |= cpu_to_le16(IEEE80211_FCTL_PROTECTED);
 
 	auth->header.duration_id = cpu_to_le16(0x013a);
 	ether_addr_copy(auth->header.addr1, beacon->bssid);
@@ -927,8 +927,8 @@ static struct sk_buff *rtllib_null_func(struct rtllib_device *ieee, short pwr)
 	ether_addr_copy(hdr->addr3, ieee->current_network.bssid);
 
 	hdr->frame_control = cpu_to_le16(RTLLIB_FTYPE_DATA |
-		IEEE80211_STYPE_NULLFUNC | RTLLIB_FCTL_TODS |
-		(pwr ? RTLLIB_FCTL_PM : 0));
+		IEEE80211_STYPE_NULLFUNC | IEEE80211_FCTL_TODS |
+		(pwr ? IEEE80211_FCTL_PM : 0));
 
 	return skb;
 }
@@ -951,7 +951,7 @@ static struct sk_buff *rtllib_pspoll_func(struct rtllib_device *ieee)
 
 	hdr->aid = cpu_to_le16(ieee->assoc_id | 0xc000);
 	hdr->frame_control = cpu_to_le16(RTLLIB_FTYPE_CTL | IEEE80211_STYPE_PSPOLL |
-			 RTLLIB_FCTL_PM);
+			 IEEE80211_FCTL_PM);
 
 	return skb;
 }

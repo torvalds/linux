@@ -655,7 +655,7 @@ static int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 		bytes = skb->len + SNAP_SIZE + sizeof(u16);
 
 		if (encrypt)
-			fc = RTLLIB_FTYPE_DATA | RTLLIB_FCTL_WEP;
+			fc = RTLLIB_FTYPE_DATA | IEEE80211_FCTL_PROTECTED;
 		else
 			fc = RTLLIB_FTYPE_DATA;
 
@@ -665,7 +665,7 @@ static int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 			fc |= IEEE80211_STYPE_DATA;
 
 		if (ieee->iw_mode == IW_MODE_INFRA) {
-			fc |= RTLLIB_FCTL_TODS;
+			fc |= IEEE80211_FCTL_TODS;
 			/* To DS: Addr1 = BSSID, Addr2 = SA,
 			 * Addr3 = DA
 			 */
@@ -799,7 +799,7 @@ static int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 			 */
 			if (i != nr_frags - 1) {
 				frag_hdr->frame_control = cpu_to_le16(fc |
-								  RTLLIB_FCTL_MOREFRAGS);
+								  IEEE80211_FCTL_MOREFRAGS);
 				bytes = bytes_per_frag;
 
 			} else {

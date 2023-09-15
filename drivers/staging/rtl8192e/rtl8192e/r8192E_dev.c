@@ -1578,8 +1578,8 @@ static void _rtl92e_translate_rx_signal_stats(struct net_device *dev,
 	bpacket_match_bssid =
 		((type != RTLLIB_FTYPE_CTL) &&
 		 ether_addr_equal(priv->rtllib->current_network.bssid,
-				  (fc & RTLLIB_FCTL_TODS) ? hdr->addr1 :
-				  (fc & RTLLIB_FCTL_FROMDS) ? hdr->addr2 :
+				  (fc & IEEE80211_FCTL_TODS) ? hdr->addr1 :
+				  (fc & IEEE80211_FCTL_FROMDS) ? hdr->addr2 :
 				  hdr->addr3) &&
 		 (!pstats->bHwError) && (!pstats->bCRC) && (!pstats->bICV));
 	bpacket_toself = bpacket_match_bssid &&		/* check this */

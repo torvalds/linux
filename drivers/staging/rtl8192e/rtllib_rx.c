@@ -243,13 +243,13 @@ static int rtllib_is_eapol_frame(struct rtllib_device *ieee,
 	fc = le16_to_cpu(hdr->frame_control);
 
 	/* check that the frame is unicast frame to us */
-	if ((fc & (RTLLIB_FCTL_TODS | RTLLIB_FCTL_FROMDS)) ==
-	    RTLLIB_FCTL_TODS &&
+	if ((fc & (IEEE80211_FCTL_TODS | IEEE80211_FCTL_FROMDS)) ==
+	    IEEE80211_FCTL_TODS &&
 	    memcmp(hdr->addr1, dev->dev_addr, ETH_ALEN) == 0 &&
 	    memcmp(hdr->addr3, dev->dev_addr, ETH_ALEN) == 0) {
 		/* ToDS frame with own addr BSSID and DA */
-	} else if ((fc & (RTLLIB_FCTL_TODS | RTLLIB_FCTL_FROMDS)) ==
-		   RTLLIB_FCTL_FROMDS &&
+	} else if ((fc & (IEEE80211_FCTL_TODS | IEEE80211_FCTL_FROMDS)) ==
+		   IEEE80211_FCTL_FROMDS &&
 		   memcmp(hdr->addr1, dev->dev_addr, ETH_ALEN) == 0) {
 		/* FromDS frame with own addr as DA */
 	} else {
@@ -944,18 +944,18 @@ static void rtllib_rx_extract_addr(struct rtllib_device *ieee,
 {
 	u16 fc = le16_to_cpu(hdr->frame_control);
 
-	switch (fc & (RTLLIB_FCTL_FROMDS | RTLLIB_FCTL_TODS)) {
-	case RTLLIB_FCTL_FROMDS:
+	switch (fc & (IEEE80211_FCTL_FROMDS | IEEE80211_FCTL_TODS)) {
+	case IEEE80211_FCTL_FROMDS:
 		ether_addr_copy(dst, hdr->addr1);
 		ether_addr_copy(src, hdr->addr3);
 		ether_addr_copy(bssid, hdr->addr2);
 		break;
-	case RTLLIB_FCTL_TODS:
+	case IEEE80211_FCTL_TODS:
 		ether_addr_copy(dst, hdr->addr3);
 		ether_addr_copy(src, hdr->addr2);
 		ether_addr_copy(bssid, hdr->addr1);
 		break;
-	case RTLLIB_FCTL_FROMDS | RTLLIB_FCTL_TODS:
+	case IEEE80211_FCTL_FROMDS | IEEE80211_FCTL_TODS:
 		ether_addr_copy(dst, hdr->addr3);
 		ether_addr_copy(src, hdr->addr4);
 		ether_addr_copy(bssid, ieee->current_network.bssid);
@@ -986,7 +986,7 @@ static int rtllib_rx_data_filter(struct rtllib_device *ieee, struct ieee80211_hd
 	/* Filter packets sent by an STA that will be forwarded by AP */
 	if (ieee->intel_promiscuous_md_info.promiscuous_on  &&
 		ieee->intel_promiscuous_md_info.fltr_src_sta_frame) {
-		if ((fc & RTLLIB_FCTL_TODS) && !(fc & RTLLIB_FCTL_FROMDS) &&
+		if ((fc & IEEE80211_FCTL_TODS) && !(fc & IEEE80211_FCTL_FROMDS) &&
 		    !ether_addr_equal(dst, ieee->current_network.bssid) &&
 		    ether_addr_equal(bssid, ieee->current_network.bssid)) {
 			return -1;
@@ -1041,7 +1041,7 @@ static int rtllib_rx_get_crypt(struct rtllib_device *ieee, struct sk_buff *skb,
 		      (*crypt)->ops->decrypt_mpdu == NULL))
 		*crypt = NULL;
 
-	if (!*crypt && (fc & RTLLIB_FCTL_WEP)) {
+	if (!*crypt && (fc & IEEE80211_FCTL_PROTECTED)) {
 		/* This seems to be triggered by some (multicast?)
 		 * frames from other than current BSS, so just drop the
 		 * frames silently instead of filling system log with
@@ -1076,13 +1076,13 @@ static int rtllib_rx_decrypt(struct rtllib_device *ieee, struct sk_buff *skb,
 		ieee->need_sw_enc = 0;
 
 	keyidx = rtllib_rx_frame_decrypt(ieee, skb, crypt);
-	if ((fc & RTLLIB_FCTL_WEP) && (keyidx < 0)) {
+	if ((fc & IEEE80211_FCTL_PROTECTED) && (keyidx < 0)) {
 		netdev_info(ieee->dev, "%s: decrypt frame error\n", __func__);
 		return -1;
 	}
 
 	hdr = (struct ieee80211_hdr *)skb->data;
-	if ((frag != 0 || (fc & RTLLIB_FCTL_MOREFRAGS))) {
+	if ((frag != 0 || (fc & IEEE80211_FCTL_MOREFRAGS))) {
 		int flen;
 		struct sk_buff *frag_skb = rtllib_frag_cache_get(ieee, hdr);
 
@@ -1091,7 +1091,7 @@ static int rtllib_rx_decrypt(struct rtllib_device *ieee, struct sk_buff *skb,
 		if (!frag_skb) {
 			netdev_dbg(ieee->dev,
 				   "Rx cannot get skb from fragment cache (morefrag=%d seq=%u frag=%u)\n",
-				   (fc & RTLLIB_FCTL_MOREFRAGS) != 0,
+				   (fc & IEEE80211_FCTL_MOREFRAGS) != 0,
 				   WLAN_GET_SEQ_SEQ(sc), frag);
 			return -1;
 		}
@@ -1121,7 +1121,7 @@ static int rtllib_rx_decrypt(struct rtllib_device *ieee, struct sk_buff *skb,
 		dev_kfree_skb_any(skb);
 		skb = NULL;
 
-		if (fc & RTLLIB_FCTL_MOREFRAGS) {
+		if (fc & IEEE80211_FCTL_MOREFRAGS) {
 			/* more fragments expected - leave the skb in fragment
 			 * cache for now; it will be delivered to upper layers
 			 * after all fragments have been received
@@ -1140,14 +1140,14 @@ static int rtllib_rx_decrypt(struct rtllib_device *ieee, struct sk_buff *skb,
 	/* skb: hdr + (possible reassembled) full MSDU payload; possibly still
 	 * encrypted/authenticated
 	 */
-	if ((fc & RTLLIB_FCTL_WEP) &&
+	if ((fc & IEEE80211_FCTL_PROTECTED) &&
 		rtllib_rx_frame_decrypt_msdu(ieee, skb, keyidx, crypt)) {
 		netdev_info(ieee->dev, "%s: ==>decrypt msdu error\n", __func__);
 		return -1;
 	}
 
 	hdr = (struct ieee80211_hdr *)skb->data;
-	if (crypt && !(fc & RTLLIB_FCTL_WEP) && !ieee->open_wep) {
+	if (crypt && !(fc & IEEE80211_FCTL_PROTECTED) && !ieee->open_wep) {
 		if (/*ieee->ieee802_1x &&*/
 		    rtllib_is_eapol_frame(ieee, skb, hdrlen)) {
 			/* pass unencrypted EAPOL frames even if encryption is
@@ -1166,7 +1166,7 @@ static int rtllib_rx_decrypt(struct rtllib_device *ieee, struct sk_buff *skb,
 		}
 	}
 
-	if (crypt && !(fc & RTLLIB_FCTL_WEP) &&
+	if (crypt && !(fc & IEEE80211_FCTL_PROTECTED) &&
 	    rtllib_is_eapol_frame(ieee, skb, hdrlen)) {
 		struct eapol *eap = (struct eapol *)(skb->data + 24);
 
@@ -1174,7 +1174,7 @@ static int rtllib_rx_decrypt(struct rtllib_device *ieee, struct sk_buff *skb,
 			   eap_get_type(eap->type));
 	}
 
-	if (crypt && !(fc & RTLLIB_FCTL_WEP) && !ieee->open_wep &&
+	if (crypt && !(fc & IEEE80211_FCTL_PROTECTED) && !ieee->open_wep &&
 	    !rtllib_is_eapol_frame(ieee, skb, hdrlen)) {
 		netdev_dbg(ieee->dev,
 			   "dropped unencrypted RX data frame from %pM (drop_unencrypted=1)\n",

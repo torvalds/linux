@@ -469,16 +469,16 @@ static void michael_mic_hdr(struct sk_buff *skb, u8 *hdr)
 
 	hdr11 = (struct ieee80211_hdr *)skb->data;
 	switch (le16_to_cpu(hdr11->frame_control) &
-		(RTLLIB_FCTL_FROMDS | RTLLIB_FCTL_TODS)) {
-	case RTLLIB_FCTL_TODS:
+		(IEEE80211_FCTL_FROMDS | IEEE80211_FCTL_TODS)) {
+	case IEEE80211_FCTL_TODS:
 		ether_addr_copy(hdr, hdr11->addr3); /* DA */
 		ether_addr_copy(hdr + ETH_ALEN, hdr11->addr2); /* SA */
 		break;
-	case RTLLIB_FCTL_FROMDS:
+	case IEEE80211_FCTL_FROMDS:
 		ether_addr_copy(hdr, hdr11->addr1); /* DA */
 		ether_addr_copy(hdr + ETH_ALEN, hdr11->addr3); /* SA */
 		break;
-	case RTLLIB_FCTL_FROMDS | RTLLIB_FCTL_TODS:
+	case IEEE80211_FCTL_FROMDS | IEEE80211_FCTL_TODS:
 		ether_addr_copy(hdr, hdr11->addr3); /* DA */
 		ether_addr_copy(hdr + ETH_ALEN, hdr11->addr4); /* SA */
 		break;
