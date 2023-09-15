@@ -13,6 +13,7 @@
 #include <linux/platform_device.h>
 #include <sound/soc.h>
 #include <sound/soc-acpi.h>
+#include <sound/sof.h>
 #include "../../codecs/da7219.h"
 #include "hda_dsp_common.h"
 #include "sof_maxim_common.h"
@@ -22,6 +23,9 @@
  */
 #define SOF_MAX98360A_SPEAKER_AMP_PRESENT	BIT(0)
 #define SOF_MAX98373_SPEAKER_AMP_PRESENT	BIT(1)
+
+/* Board Quirks */
+#define SOF_DA7219_JSL_BOARD			BIT(2)
 
 #define DIALOG_CODEC_DAI	"da7219-hifi"
 
@@ -35,6 +39,8 @@ struct card_private {
 	struct snd_soc_jack headset_jack;
 	struct list_head hdmi_pcm_list;
 	struct snd_soc_jack hdmi[3];
+
+	unsigned int pll_bypass:1;
 };
 
 static int platform_clock_control(struct snd_soc_dapm_widget *w,
@@ -42,9 +48,14 @@ static int platform_clock_control(struct snd_soc_dapm_widget *w,
 {
 	struct snd_soc_dapm_context *dapm = w->dapm;
 	struct snd_soc_card *card = dapm->card;
+	struct card_private *ctx = snd_soc_card_get_drvdata(card);
 	struct snd_soc_dai *codec_dai;
 	int ret = 0;
 
+	if (ctx->pll_bypass)
+		return ret;
+
+	/* PLL SRM mode */
 	codec_dai = snd_soc_card_get_codec_dai(card, DIALOG_CODEC_DAI);
 	if (!codec_dai) {
 		dev_err(card->dev, "Codec dai not found; Unable to set/unset codec pll\n");
@@ -57,6 +68,8 @@ static int platform_clock_control(struct snd_soc_dapm_widget *w,
 		if (ret)
 			dev_err(card->dev, "failed to stop PLL: %d\n", ret);
 	} else if (SND_SOC_DAPM_EVENT_ON(event)) {
+		dev_dbg(card->dev, "pll srm mode\n");
+
 		ret = snd_soc_dai_set_pll(codec_dai, 0, DA7219_SYSCLK_PLL_SRM,
 					  0, DA7219_PLL_FREQ_OUT_98304);
 		if (ret)
@@ -124,14 +137,36 @@ static int da7219_codec_init(struct snd_soc_pcm_runtime *rtd)
 	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);
 	struct snd_soc_component *component = codec_dai->component;
 	struct snd_soc_jack *jack = &ctx->headset_jack;
-	int ret;
+	int mclk_rate, ret;
 
-	/* Configure sysclk for codec */
-	ret = snd_soc_dai_set_sysclk(codec_dai, DA7219_CLKSRC_MCLK, 24000000,
+	mclk_rate = sof_dai_get_mclk(rtd);
+	if (mclk_rate <= 0) {
+		dev_err(rtd->dev, "invalid mclk freq %d\n", mclk_rate);
+		return -EINVAL;
+	}
+
+	ret = snd_soc_dai_set_sysclk(codec_dai, DA7219_CLKSRC_MCLK, mclk_rate,
 				     SND_SOC_CLOCK_IN);
 	if (ret) {
-		dev_err(rtd->dev, "can't set codec sysclk configuration\n");
+		dev_err(rtd->dev, "fail to set sysclk, ret %d\n", ret);
 		return ret;
+	}
+
+	/*
+	 * Use PLL bypass mode if MCLK is available, be sure to set the
+	 * frequency of MCLK to 12.288 or 24.576MHz on topology side.
+	 */
+	if (mclk_rate == 12288000 || mclk_rate == 24576000) {
+		/* PLL bypass mode */
+		dev_dbg(rtd->dev, "pll bypass mode, mclk rate %d\n", mclk_rate);
+
+		ret = snd_soc_dai_set_pll(codec_dai, 0, DA7219_SYSCLK_MCLK, 0, 0);
+		if (ret) {
+			dev_err(rtd->dev, "fail to set pll, ret %d\n", ret);
+			return ret;
+		}
+
+		ctx->pll_bypass = 1;
 	}
 
 	/*
@@ -238,6 +273,11 @@ SND_SOC_DAILINK_DEF(ssp0_codec,
 SND_SOC_DAILINK_DEF(ssp1_pin,
 	DAILINK_COMP_ARRAY(COMP_CPU("SSP1 Pin")));
 
+SND_SOC_DAILINK_DEF(ssp2_pin,
+	DAILINK_COMP_ARRAY(COMP_CPU("SSP2 Pin")));
+SND_SOC_DAILINK_DEF(dummy_codec,
+	DAILINK_COMP_ARRAY(COMP_CODEC("snd-soc-dummy", "snd-soc-dummy-dai")));
+
 SND_SOC_DAILINK_DEF(dmic_pin,
 	DAILINK_COMP_ARRAY(COMP_CPU("DMIC01 Pin")));
 SND_SOC_DAILINK_DEF(dmic_codec,
@@ -261,10 +301,15 @@ SND_SOC_DAILINK_DEF(idisp3_pin,
 SND_SOC_DAILINK_DEF(idisp3_codec,
 	DAILINK_COMP_ARRAY(COMP_CODEC("ehdaudio0D2", "intel-hdmi-hifi3")));
 
+SND_SOC_DAILINK_DEF(idisp4_pin,
+	DAILINK_COMP_ARRAY(COMP_CPU("iDisp4 Pin")));
+SND_SOC_DAILINK_DEF(idisp4_codec,
+	DAILINK_COMP_ARRAY(COMP_CODEC("ehdaudio0D2", "intel-hdmi-hifi4")));
+
 SND_SOC_DAILINK_DEF(platform, /* subject to be overridden during probe */
 	DAILINK_COMP_ARRAY(COMP_PLATFORM("0000:00:1f.3")));
 
-static struct snd_soc_dai_link dais[] = {
+static struct snd_soc_dai_link jsl_dais[] = {
 	/* Back End DAI links */
 	{
 		.name = "SSP1-Codec",
@@ -327,11 +372,88 @@ static struct snd_soc_dai_link dais[] = {
 	}
 };
 
+static struct snd_soc_dai_link adl_dais[] = {
+	/* Back End DAI links */
+	{
+		.name = "SSP0-Codec",
+		.id = 0,
+		.no_pcm = 1,
+		.init = da7219_codec_init,
+		.ignore_pmdown_time = 1,
+		.dpcm_playback = 1,
+		.dpcm_capture = 1,
+		SND_SOC_DAILINK_REG(ssp0_pin, ssp0_codec, platform),
+	},
+	{
+		.name = "dmic01",
+		.id = 1,
+		.ignore_suspend = 1,
+		.dpcm_capture = 1,
+		.no_pcm = 1,
+		SND_SOC_DAILINK_REG(dmic_pin, dmic_codec, platform),
+	},
+	{
+		.name = "dmic16k",
+		.id = 2,
+		.ignore_suspend = 1,
+		.dpcm_capture = 1,
+		.no_pcm = 1,
+		SND_SOC_DAILINK_REG(dmic16k_pin, dmic_codec, platform),
+	},
+	{
+		.name = "iDisp1",
+		.id = 3,
+		.init = hdmi_init,
+		.dpcm_playback = 1,
+		.no_pcm = 1,
+		SND_SOC_DAILINK_REG(idisp1_pin, idisp1_codec, platform),
+	},
+	{
+		.name = "iDisp2",
+		.id = 4,
+		.init = hdmi_init,
+		.dpcm_playback = 1,
+		.no_pcm = 1,
+		SND_SOC_DAILINK_REG(idisp2_pin, idisp2_codec, platform),
+	},
+	{
+		.name = "iDisp3",
+		.id = 5,
+		.init = hdmi_init,
+		.dpcm_playback = 1,
+		.no_pcm = 1,
+		SND_SOC_DAILINK_REG(idisp3_pin, idisp3_codec, platform),
+	},
+	{
+		.name = "iDisp4",
+		.id = 6,
+		.init = hdmi_init,
+		.dpcm_playback = 1,
+		.no_pcm = 1,
+		SND_SOC_DAILINK_REG(idisp4_pin, idisp4_codec, platform),
+	},
+	{
+		.name = "SSP1-Codec",
+		.id = 7,
+		.no_pcm = 1,
+		.dpcm_playback = 1,
+		/* feedback stream or firmware-generated echo reference */
+		.dpcm_capture = 1,
+		SND_SOC_DAILINK_REG(ssp1_pin, max_98373_components, platform),
+	},
+	{
+		.name = "SSP2-BT",
+		.id = 8,
+		.no_pcm = 1,
+		.dpcm_playback = 1,
+		.dpcm_capture = 1,
+		SND_SOC_DAILINK_REG(ssp2_pin, dummy_codec, platform),
+	},
+};
+
 static struct snd_soc_card card_da7219 = {
 	.name = "da7219", /* the sof- prefix is added by the core */
 	.owner = THIS_MODULE,
-	.dai_link = dais,
-	.num_links = ARRAY_SIZE(dais),
 	.controls = controls,
 	.num_controls = ARRAY_SIZE(controls),
 	.dapm_widgets = widgets,
@@ -345,9 +467,10 @@ static struct snd_soc_card card_da7219 = {
 static int audio_probe(struct platform_device *pdev)
 {
 	struct snd_soc_acpi_mach *mach = pdev->dev.platform_data;
+	struct snd_soc_dai_link *dai_links;
 	struct card_private *ctx;
 	unsigned long board_quirk = 0;
-	int ret;
+	int ret, amp_idx;
 
 	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
@@ -356,27 +479,48 @@ static int audio_probe(struct platform_device *pdev)
 	if (pdev->id_entry && pdev->id_entry->driver_data)
 		board_quirk = (unsigned long)pdev->id_entry->driver_data;
 
-	/* backward-compatible with existing devices */
-	if (board_quirk & SOF_MAX98360A_SPEAKER_AMP_PRESENT)
-		card_da7219.name = devm_kstrdup(&pdev->dev, "da7219max98360a",
-						GFP_KERNEL);
-	else if (board_quirk & SOF_MAX98373_SPEAKER_AMP_PRESENT)
-		card_da7219.name = devm_kstrdup(&pdev->dev, "da7219max",
-						GFP_KERNEL);
+	if (board_quirk & SOF_DA7219_JSL_BOARD) {
+		/* backward-compatible with existing devices */
+		if (board_quirk & SOF_MAX98360A_SPEAKER_AMP_PRESENT)
+			card_da7219.name = devm_kstrdup(&pdev->dev,
+							"da7219max98360a",
+							GFP_KERNEL);
+		else if (board_quirk & SOF_MAX98373_SPEAKER_AMP_PRESENT)
+			card_da7219.name = devm_kstrdup(&pdev->dev, "da7219max",
+							GFP_KERNEL);
+
+		dai_links = jsl_dais;
+		amp_idx = 0;
+
+		card_da7219.num_links = ARRAY_SIZE(jsl_dais);
+	} else {
+		dai_links = adl_dais;
+		amp_idx = 7;
+
+		card_da7219.num_links = ARRAY_SIZE(adl_dais);
+	}
 
 	dev_dbg(&pdev->dev, "board_quirk = %lx\n", board_quirk);
 
 	/* speaker amp */
 	if (board_quirk & SOF_MAX98360A_SPEAKER_AMP_PRESENT) {
-		max_98360a_dai_link(&dais[0]);
+		max_98360a_dai_link(&dai_links[amp_idx]);
 	} else if (board_quirk & SOF_MAX98373_SPEAKER_AMP_PRESENT) {
-		dais[0].codecs = max_98373_components;
-		dais[0].num_codecs = ARRAY_SIZE(max_98373_components);
-		dais[0].init = max_98373_spk_codec_init;
-		dais[0].ops = &max98373_ops; /* use local ops */
+		dai_links[amp_idx].codecs = max_98373_components;
+		dai_links[amp_idx].num_codecs = ARRAY_SIZE(max_98373_components);
+		dai_links[amp_idx].init = max_98373_spk_codec_init;
+		if (board_quirk & SOF_DA7219_JSL_BOARD) {
+			dai_links[amp_idx].ops = &max98373_ops; /* use local ops */
+		} else {
+			/* TBD: implement the amp for later platform */
+			dev_err(&pdev->dev, "max98373 not support yet\n");
+			return -EINVAL;
+		}
 
 		max_98373_set_codec_conf(&card_da7219);
 	}
+
+	card_da7219.dai_link = dai_links;
 
 	INIT_LIST_HEAD(&ctx->hdmi_pcm_list);
 
@@ -395,10 +539,16 @@ static int audio_probe(struct platform_device *pdev)
 static const struct platform_device_id board_ids[] = {
 	{
 		.name = "sof_da7219_mx98373",
-		.driver_data = (kernel_ulong_t)(SOF_MAX98373_SPEAKER_AMP_PRESENT),
+		.driver_data = (kernel_ulong_t)(SOF_MAX98373_SPEAKER_AMP_PRESENT |
+					SOF_DA7219_JSL_BOARD),
 	},
 	{
 		.name = "sof_da7219_mx98360a",
+		.driver_data = (kernel_ulong_t)(SOF_MAX98360A_SPEAKER_AMP_PRESENT |
+					SOF_DA7219_JSL_BOARD),
+	},
+	{
+		.name = "adl_mx98360_da7219",
 		.driver_data = (kernel_ulong_t)(SOF_MAX98360A_SPEAKER_AMP_PRESENT),
 	},
 	{ }
