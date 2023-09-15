@@ -244,6 +244,8 @@ struct PPTable_t {
 };
 
 #define SMUQ10_TO_UINT(x) ((x) >> 10)
+#define SMUQ10_FRAC(x) ((x) & 0x3ff)
+#define SMUQ10_ROUND(x) ((SMUQ10_TO_UINT(x)) + ((SMUQ10_FRAC(x)) >= 0x200))
 
 struct smu_v13_0_6_dpm_map {
 	enum smu_clk_type clk_type;
@@ -389,25 +391,25 @@ static int smu_v13_0_6_setup_driver_pptable(struct smu_context *smu)
 			return -ETIME;
 
 		pptable->MaxSocketPowerLimit =
-			SMUQ10_TO_UINT(metrics->MaxSocketPowerLimit);
+			SMUQ10_ROUND(metrics->MaxSocketPowerLimit);
 		pptable->MaxGfxclkFrequency =
-			SMUQ10_TO_UINT(metrics->MaxGfxclkFrequency);
+			SMUQ10_ROUND(metrics->MaxGfxclkFrequency);
 		pptable->MinGfxclkFrequency =
-			SMUQ10_TO_UINT(metrics->MinGfxclkFrequency);
+			SMUQ10_ROUND(metrics->MinGfxclkFrequency);
 
 		for (i = 0; i < 4; ++i) {
 			pptable->FclkFrequencyTable[i] =
-				SMUQ10_TO_UINT(metrics->FclkFrequencyTable[i]);
+				SMUQ10_ROUND(metrics->FclkFrequencyTable[i]);
 			pptable->UclkFrequencyTable[i] =
-				SMUQ10_TO_UINT(metrics->UclkFrequencyTable[i]);
-			pptable->SocclkFrequencyTable[i] = SMUQ10_TO_UINT(
+				SMUQ10_ROUND(metrics->UclkFrequencyTable[i]);
+			pptable->SocclkFrequencyTable[i] = SMUQ10_ROUND(
 				metrics->SocclkFrequencyTable[i]);
 			pptable->VclkFrequencyTable[i] =
-				SMUQ10_TO_UINT(metrics->VclkFrequencyTable[i]);
+				SMUQ10_ROUND(metrics->VclkFrequencyTable[i]);
 			pptable->DclkFrequencyTable[i] =
-				SMUQ10_TO_UINT(metrics->DclkFrequencyTable[i]);
+				SMUQ10_ROUND(metrics->DclkFrequencyTable[i]);
 			pptable->LclkFrequencyTable[i] =
-				SMUQ10_TO_UINT(metrics->LclkFrequencyTable[i]);
+				SMUQ10_ROUND(metrics->LclkFrequencyTable[i]);
 		}
 
 		/* use AID0 serial number by default */
@@ -730,50 +732,50 @@ static int smu_v13_0_6_get_smu_metrics_data(struct smu_context *smu,
 		smu_cmn_get_smc_version(smu, NULL, &smu_version);
 		if (smu_version >= 0x552F00) {
 			xcc_id = GET_INST(GC, 0);
-			*value = SMUQ10_TO_UINT(metrics->GfxclkFrequency[xcc_id]);
+			*value = SMUQ10_ROUND(metrics->GfxclkFrequency[xcc_id]);
 		} else {
 			*value = 0;
 		}
 		break;
 	case METRICS_CURR_SOCCLK:
 	case METRICS_AVERAGE_SOCCLK:
-		*value = SMUQ10_TO_UINT(metrics->SocclkFrequency[0]);
+		*value = SMUQ10_ROUND(metrics->SocclkFrequency[0]);
 		break;
 	case METRICS_CURR_UCLK:
 	case METRICS_AVERAGE_UCLK:
-		*value = SMUQ10_TO_UINT(metrics->UclkFrequency);
+		*value = SMUQ10_ROUND(metrics->UclkFrequency);
 		break;
 	case METRICS_CURR_VCLK:
-		*value = SMUQ10_TO_UINT(metrics->VclkFrequency[0]);
+		*value = SMUQ10_ROUND(metrics->VclkFrequency[0]);
 		break;
 	case METRICS_CURR_DCLK:
-		*value = SMUQ10_TO_UINT(metrics->DclkFrequency[0]);
+		*value = SMUQ10_ROUND(metrics->DclkFrequency[0]);
 		break;
 	case METRICS_CURR_FCLK:
-		*value = SMUQ10_TO_UINT(metrics->FclkFrequency);
+		*value = SMUQ10_ROUND(metrics->FclkFrequency);
 		break;
 	case METRICS_AVERAGE_GFXACTIVITY:
-		*value = SMUQ10_TO_UINT(metrics->SocketGfxBusy);
+		*value = SMUQ10_ROUND(metrics->SocketGfxBusy);
 		break;
 	case METRICS_AVERAGE_MEMACTIVITY:
-		*value = SMUQ10_TO_UINT(metrics->DramBandwidthUtilization);
+		*value = SMUQ10_ROUND(metrics->DramBandwidthUtilization);
 		break;
 	case METRICS_CURR_SOCKETPOWER:
-		*value = SMUQ10_TO_UINT(metrics->SocketPower) << 8;
+		*value = SMUQ10_ROUND(metrics->SocketPower) << 8;
 		break;
 	case METRICS_TEMPERATURE_HOTSPOT:
-		*value = SMUQ10_TO_UINT(metrics->MaxSocketTemperature) *
+		*value = SMUQ10_ROUND(metrics->MaxSocketTemperature) *
 			 SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
 		break;
 	case METRICS_TEMPERATURE_MEM:
-		*value = SMUQ10_TO_UINT(metrics->MaxHbmTemperature) *
+		*value = SMUQ10_ROUND(metrics->MaxHbmTemperature) *
 			 SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
 		break;
 	/* This is the max of all VRs and not just SOC VR.
 	 * No need to define another data type for the same.
 	 */
 	case METRICS_TEMPERATURE_VRSOC:
-		*value = SMUQ10_TO_UINT(metrics->MaxVrTemperature) *
+		*value = SMUQ10_ROUND(metrics->MaxVrTemperature) *
 			 SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
 		break;
 	default:
@@ -1996,33 +1998,33 @@ static ssize_t smu_v13_0_6_get_gpu_metrics(struct smu_context *smu, void **table
 	smu_cmn_init_soft_gpu_metrics(gpu_metrics, 1, 3);
 
 	gpu_metrics->temperature_hotspot =
-		SMUQ10_TO_UINT(metrics->MaxSocketTemperature);
+		SMUQ10_ROUND(metrics->MaxSocketTemperature);
 	/* Individual HBM stack temperature is not reported */
 	gpu_metrics->temperature_mem =
-		SMUQ10_TO_UINT(metrics->MaxHbmTemperature);
+		SMUQ10_ROUND(metrics->MaxHbmTemperature);
 	/* Reports max temperature of all voltage rails */
 	gpu_metrics->temperature_vrsoc =
-		SMUQ10_TO_UINT(metrics->MaxVrTemperature);
+		SMUQ10_ROUND(metrics->MaxVrTemperature);
 
 	gpu_metrics->average_gfx_activity =
-		SMUQ10_TO_UINT(metrics->SocketGfxBusy);
+		SMUQ10_ROUND(metrics->SocketGfxBusy);
 	gpu_metrics->average_umc_activity =
-		SMUQ10_TO_UINT(metrics->DramBandwidthUtilization);
+		SMUQ10_ROUND(metrics->DramBandwidthUtilization);
 
 	gpu_metrics->average_socket_power =
-		SMUQ10_TO_UINT(metrics->SocketPower);
+		SMUQ10_ROUND(metrics->SocketPower);
 	/* Energy counter reported in 15.259uJ (2^-16) units */
 	gpu_metrics->energy_accumulator = metrics->SocketEnergyAcc;
 
 	gpu_metrics->current_gfxclk =
-		SMUQ10_TO_UINT(metrics->GfxclkFrequency[xcc0]);
+		SMUQ10_ROUND(metrics->GfxclkFrequency[xcc0]);
 	gpu_metrics->current_socclk =
-		SMUQ10_TO_UINT(metrics->SocclkFrequency[inst0]);
-	gpu_metrics->current_uclk = SMUQ10_TO_UINT(metrics->UclkFrequency);
+		SMUQ10_ROUND(metrics->SocclkFrequency[inst0]);
+	gpu_metrics->current_uclk = SMUQ10_ROUND(metrics->UclkFrequency);
 	gpu_metrics->current_vclk0 =
-		SMUQ10_TO_UINT(metrics->VclkFrequency[inst0]);
+		SMUQ10_ROUND(metrics->VclkFrequency[inst0]);
 	gpu_metrics->current_dclk0 =
-		SMUQ10_TO_UINT(metrics->DclkFrequency[inst0]);
+		SMUQ10_ROUND(metrics->DclkFrequency[inst0]);
 
 	gpu_metrics->average_gfxclk_frequency = gpu_metrics->current_gfxclk;
 	gpu_metrics->average_socclk_frequency = gpu_metrics->current_socclk;
@@ -2047,9 +2049,9 @@ static ssize_t smu_v13_0_6_get_gpu_metrics(struct smu_context *smu, void **table
 	gpu_metrics->system_clock_counter = ktime_get_boottime_ns();
 
 	gpu_metrics->gfx_activity_acc =
-		SMUQ10_TO_UINT(metrics->SocketGfxBusyAcc);
+		SMUQ10_ROUND(metrics->SocketGfxBusyAcc);
 	gpu_metrics->mem_activity_acc =
-		SMUQ10_TO_UINT(metrics->DramBandwidthUtilizationAcc);
+		SMUQ10_ROUND(metrics->DramBandwidthUtilizationAcc);
 
 	gpu_metrics->firmware_timestamp = metrics->Timestamp;
 
