@@ -273,7 +273,7 @@ softmac_ps_mgmt_xmit(struct sk_buff *skb,
 	type = WLAN_FC_GET_TYPE(fc);
 	stype = WLAN_FC_GET_STYPE(fc);
 
-	if (stype != RTLLIB_STYPE_PSPOLL)
+	if (stype != IEEE80211_STYPE_PSPOLL)
 		tcb_desc->queue_index = MGNT_QUEUE;
 	else
 		tcb_desc->queue_index = HIGH_QUEUE;
@@ -927,7 +927,7 @@ static struct sk_buff *rtllib_null_func(struct rtllib_device *ieee, short pwr)
 	ether_addr_copy(hdr->addr3, ieee->current_network.bssid);
 
 	hdr->frame_control = cpu_to_le16(RTLLIB_FTYPE_DATA |
-		RTLLIB_STYPE_NULLFUNC | RTLLIB_FCTL_TODS |
+		IEEE80211_STYPE_NULLFUNC | RTLLIB_FCTL_TODS |
 		(pwr ? RTLLIB_FCTL_PM : 0));
 
 	return skb;
@@ -950,7 +950,7 @@ static struct sk_buff *rtllib_pspoll_func(struct rtllib_device *ieee)
 	ether_addr_copy(hdr->ta, ieee->dev->dev_addr);
 
 	hdr->aid = cpu_to_le16(ieee->assoc_id | 0xc000);
-	hdr->frame_control = cpu_to_le16(RTLLIB_FTYPE_CTL | RTLLIB_STYPE_PSPOLL |
+	hdr->frame_control = cpu_to_le16(RTLLIB_FTYPE_CTL | IEEE80211_STYPE_PSPOLL |
 			 RTLLIB_FCTL_PM);
 
 	return skb;

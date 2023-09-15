@@ -660,9 +660,9 @@ static int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 			fc = RTLLIB_FTYPE_DATA;
 
 		if (qos_activated)
-			fc |= RTLLIB_STYPE_QOS_DATA;
+			fc |= IEEE80211_STYPE_QOS_DATA;
 		else
-			fc |= RTLLIB_STYPE_DATA;
+			fc |= IEEE80211_STYPE_DATA;
 
 		if (ieee->iw_mode == IW_MODE_INFRA) {
 			fc |= RTLLIB_FCTL_TODS;

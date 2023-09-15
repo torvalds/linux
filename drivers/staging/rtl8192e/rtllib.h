@@ -350,21 +350,6 @@ enum rt_op_mode {
 #define RTLLIB_FTYPE_CTL		0x0004
 #define RTLLIB_FTYPE_DATA		0x0008
 
-/* control */
-#define RTLLIB_STYPE_PSPOLL		0x00A0
-#define RTLLIB_STYPE_RTS		0x00B0
-#define RTLLIB_STYPE_CTS		0x00C0
-#define RTLLIB_STYPE_ACK		0x00D0
-
-/* data */
-#define RTLLIB_STYPE_DATA		0x0000
-#define RTLLIB_STYPE_DATA_CFACK	0x0010
-#define RTLLIB_STYPE_DATA_CFPOLL	0x0020
-#define RTLLIB_STYPE_DATA_CFACKPOLL	0x0030
-#define RTLLIB_STYPE_NULLFUNC	0x0040
-#define RTLLIB_STYPE_QOS_DATA	0x0080
-#define RTLLIB_STYPE_QOS_NULL	0x00C0
-
 #define RTLLIB_SCTL_FRAG		0x000F
 #define RTLLIB_SCTL_SEQ		0xFFF0
 
@@ -375,8 +360,8 @@ enum rt_op_mode {
 #define IsDataFrame(pdu)	(((pdu[0] & 0x0C) == 0x08) ? true : false)
 #define	IsLegacyDataFrame(pdu)	(IsDataFrame(pdu) && (!(pdu[0]&FC_QOS_BIT)))
 #define IsQoSDataFrame(pframe)			\
-	((*(u16 *)pframe&(RTLLIB_STYPE_QOS_DATA|RTLLIB_FTYPE_DATA)) ==	\
-	(RTLLIB_STYPE_QOS_DATA|RTLLIB_FTYPE_DATA))
+	((*(u16 *)pframe&(IEEE80211_STYPE_QOS_DATA|RTLLIB_FTYPE_DATA)) ==	\
+	(IEEE80211_STYPE_QOS_DATA|RTLLIB_FTYPE_DATA))
 #define Frame_Order(pframe)     (*(u16 *)pframe&RTLLIB_FCTL_ORDER)
 #define SN_LESS(a, b)		(((a-b)&0x800) != 0)
 #define SN_EQUAL(a, b)	(a == b)
@@ -1647,8 +1632,8 @@ static inline int rtllib_get_hdrlen(u16 fc)
 		break;
 	case RTLLIB_FTYPE_CTL:
 		switch (WLAN_FC_GET_STYPE(fc)) {
-		case RTLLIB_STYPE_CTS:
-		case RTLLIB_STYPE_ACK:
+		case IEEE80211_STYPE_CTS:
+		case IEEE80211_STYPE_ACK:
 			hdrlen = RTLLIB_1ADDR_LEN;
 			break;
 		default:
