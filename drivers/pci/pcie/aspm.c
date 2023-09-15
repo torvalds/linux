@@ -21,6 +21,8 @@
 #include <linux/slab.h>
 #include <linux/jiffies.h>
 #include <linux/delay.h>
+#include <linux/time.h>
+
 #include "../pci.h"
 
 #ifdef MODULE_PARAM_PREFIX
@@ -272,7 +274,7 @@ static u32 calc_l0s_latency(u32 lnkcap)
 	u32 encoding = FIELD_GET(PCI_EXP_LNKCAP_L0SEL, lnkcap);
 
 	if (encoding == 0x7)
-		return (5 * 1000);	/* > 4us */
+		return 5 * NSEC_PER_USEC;	/* > 4us */
 	return (64 << encoding);
 }
 
@@ -290,8 +292,8 @@ static u32 calc_l1_latency(u32 lnkcap)
 	u32 encoding = FIELD_GET(PCI_EXP_LNKCAP_L1EL, lnkcap);
 
 	if (encoding == 0x7)
-		return (65 * 1000);	/* > 64us */
-	return (1000 << encoding);
+		return 65 * NSEC_PER_USEC;	/* > 64us */
+	return NSEC_PER_USEC << encoding;
 }
 
 /* Convert L1 acceptable latency encoding to ns */
@@ -299,7 +301,7 @@ static u32 calc_l1_acceptable(u32 encoding)
 {
 	if (encoding == 0x7)
 		return U32_MAX;
-	return (1000 << encoding);
+	return NSEC_PER_USEC << encoding;
 }
 
 /* Convert L1SS T_pwr encoding to usec */
@@ -327,7 +329,7 @@ static u32 calc_l12_pwron(struct pci_dev *pdev, u32 scale, u32 val)
  */
 static void encode_l12_threshold(u32 threshold_us, u32 *scale, u32 *value)
 {
-	u64 threshold_ns = (u64) threshold_us * 1000;
+	u64 threshold_ns = (u64)threshold_us * NSEC_PER_USEC;
 
 	/*
 	 * LTR_L1.2_THRESHOLD_Value ("value") is a 10-bit field with max
@@ -419,7 +421,7 @@ static void pcie_aspm_check_latency(struct pci_dev *endpoint)
 		if ((link->aspm_capable & ASPM_STATE_L1) &&
 		    (latency + l1_switch_latency > acceptable_l1))
 			link->aspm_capable &= ~ASPM_STATE_L1;
-		l1_switch_latency += 1000;
+		l1_switch_latency += NSEC_PER_USEC;
 
 		link = link->parent;
 	}
