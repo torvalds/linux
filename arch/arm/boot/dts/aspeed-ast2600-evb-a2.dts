@@ -8,8 +8,7 @@
 };
 
 &fmc {
-	/delete-property/ fmc-spi-user-mode;
-	spi-dma-write;
+	fmc-spi-dma-write;
 	low-spi-clk-write;
 	status = "okay";
 
@@ -36,8 +35,7 @@
 };
 
 &spi1 {
-	/delete-property/ fmc-spi-user-mode;
-	spi-dma-write;
+	fmc-spi-dma-write;
 	low-spi-clk-write;
 	status = "okay";
 
@@ -57,8 +55,7 @@
 };
 
 &spi2 {
-	/delete-property/ fmc-spi-user-mode;
-	spi-dma-write;
+	fmc-spi-dma-write;
 	low-spi-clk-write;
 	status = "okay";
 
