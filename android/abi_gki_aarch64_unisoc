@@ -1913,6 +1913,8 @@
 # required by trusty-log.ko
   vm_map_ram
   vm_unmap_ram
+# required by sprd_time_sync_cp.ko
+  pvclock_gtod_register_notifier
 
 # required by trusty-pm.ko
   unregister_syscore_ops
