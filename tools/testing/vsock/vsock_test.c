@@ -1003,6 +1003,7 @@ static void test_stream_virtio_skb_merge_client(const struct test_opts *opts)
 
 static void test_stream_virtio_skb_merge_server(const struct test_opts *opts)
 {
+	size_t read = 0, to_read;
 	unsigned char buf[64];
 	int fd;
 
@@ -1015,14 +1016,21 @@ static void test_stream_virtio_skb_merge_server(const struct test_opts *opts)
 	control_expectln("SEND0");
 
 	/* Read skbuff partially. */
-	recv_buf(fd, buf, 2, 0, 2);
+	to_read = 2;
+	recv_buf(fd, buf + read, to_read, 0, to_read);
+	read += to_read;
 
 	control_writeln("REPLY0");
 	control_expectln("SEND1");
 
-	recv_buf(fd, buf + 2, 8, 0, 8);
+	/* Read the rest of both buffers */
+	to_read = strlen(HELLO_STR WORLD_STR) - read;
+	recv_buf(fd, buf + read, to_read, 0, to_read);
+	read += to_read;
 
-	recv_buf(fd, buf, sizeof(buf) - 8 - 2, MSG_DONTWAIT, -EAGAIN);
+	/* No more bytes should be there */
+	to_read = sizeof(buf) - read;
+	recv_buf(fd, buf + read, to_read, MSG_DONTWAIT, -EAGAIN);
 
 	if (memcmp(buf, HELLO_STR WORLD_STR, strlen(HELLO_STR WORLD_STR))) {
 		fprintf(stderr, "pattern mismatch\n");
