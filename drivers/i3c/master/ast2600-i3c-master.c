@@ -1041,22 +1041,35 @@ out:
 static void aspeed_i3c_master_demux_ibis(struct aspeed_i3c_master *master)
 {
 	u32 nibi, status;
-	int i;
+	int i, ret;
 	u8 addr;
 
 	nibi = readl(master->regs + QUEUE_STATUS_LEVEL);
 	nibi = QUEUE_STATUS_IBI_STATUS_CNT(nibi);
 	if (!nibi)
 		return;
+	/*
+	 * Make sure that the function does not manage a queue number that
+	 * surpasses the tolerance level for the IBI buffer. Failing to
+	 * address this situation properly could lead to a bus hang.
+	 */
+	if (nibi > 16) {
+		dev_err(master->dev,
+			"The nibi %d surpasses the tolerance level for the IBI buffer\n",
+			nibi);
+		goto ibi_fifo_clear;
+	}
 
 	for (i = 0; i < nibi; i++) {
 		status = readl(master->regs + IBI_QUEUE_STATUS);
 		addr = IBI_QUEUE_IBI_ADDR(status);
 
 		/* FIXME: how to handle the unrecognized slave? */
-		if (status & IBI_QUEUE_STATUS_RSP_NACK)
+		if (status & IBI_QUEUE_STATUS_RSP_NACK) {
 			pr_warn_once("ibi from unrecognized slave %02x\n",
 				     addr);
+			goto ibi_fifo_clear;
+		}
 
 		if (IBI_TYPE_SIR(status))
 			aspeed_i3c_master_sir_handler(master, status);
@@ -1067,6 +1080,15 @@ static void aspeed_i3c_master_demux_ibis(struct aspeed_i3c_master *master)
 		if (IBI_TYPE_MR(status))
 			pr_info("get mr from %02x\n", addr);
 	}
+	return;
+ibi_fifo_clear:
+	dev_err(master->dev, "Clear the ibi fifo try to avoid the bus hang\n");
+	aspeed_i3c_master_enter_halt(master, true);
+	ret = aspeed_i3c_master_reset_ctrl(master, RESET_CTRL_IBI_QUEUE);
+	if (ret)
+		dev_err(master->dev,
+			"Waiting for reset of IBI queue to complete TIMEOUT");
+	aspeed_i3c_master_resume(master);
 }
 
 static void aspeed_i3c_master_end_xfer_locked(struct aspeed_i3c_master *master, u32 isr)
