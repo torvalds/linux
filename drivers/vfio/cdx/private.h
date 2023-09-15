@@ -23,6 +23,8 @@ struct vfio_cdx_region {
 struct vfio_cdx_device {
 	struct vfio_device	vdev;
 	struct vfio_cdx_region	*regions;
+	u32			flags;
+#define BME_SUPPORT BIT(0)
 };
 
 #endif /* VFIO_CDX_PRIVATE_H */
