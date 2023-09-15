@@ -9,6 +9,7 @@
 
 #include <linux/bitfield.h>
 #include <linux/kernel.h>
+#include <linux/limits.h>
 #include <linux/math.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -279,7 +280,7 @@ static u32 calc_l0s_latency(u32 lnkcap)
 static u32 calc_l0s_acceptable(u32 encoding)
 {
 	if (encoding == 0x7)
-		return -1U;
+		return U32_MAX;
 	return (64 << encoding);
 }
 
@@ -297,7 +298,7 @@ static u32 calc_l1_latency(u32 lnkcap)
 static u32 calc_l1_acceptable(u32 encoding)
 {
 	if (encoding == 0x7)
-		return -1U;
+		return U32_MAX;
 	return (1000 << encoding);
 }
 
