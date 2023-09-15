@@ -180,7 +180,6 @@ static int shmob_drm_probe(struct platform_device *pdev)
 	struct shmob_drm_platform_data *pdata = pdev->dev.platform_data;
 	struct shmob_drm_device *sdev;
 	struct drm_device *ddev;
-	unsigned int i;
 	int ret;
 
 	if (pdata == NULL) {
@@ -220,14 +219,6 @@ static int shmob_drm_probe(struct platform_device *pdev)
 	if (ret < 0)
 		return dev_err_probe(&pdev->dev, ret,
 				     "failed to initialize mode setting\n");
-
-	for (i = 0; i < 4; ++i) {
-		ret = shmob_drm_plane_create(sdev, i);
-		if (ret < 0) {
-			dev_err(&pdev->dev, "failed to create plane %u\n", i);
-			goto err_modeset_cleanup;
-		}
-	}
 
 	ret = drm_vblank_init(ddev, 1);
 	if (ret < 0) {
