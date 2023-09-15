@@ -226,6 +226,12 @@ static void sveaes_sigill(void)
 	asm volatile(".inst 0x4522e400" : : : "z0");
 }
 
+static void sveb16b16_sigill(void)
+{
+	/* BFADD ZA.H[W0, 0], {Z0.H-Z1.H} */
+	asm volatile(".inst 0xC1E41C00" : : : );
+}
+
 static void svepmull_sigill(void)
 {
 	/* PMULLB Z0.Q, Z0.D, Z0.D */
@@ -492,6 +498,13 @@ static const struct hwcap_data {
 		.hwcap_bit = HWCAP2_SVEAES,
 		.cpuinfo = "sveaes",
 		.sigill_fn = sveaes_sigill,
+	},
+	{
+		.name = "SVE2 B16B16",
+		.at_hwcap = AT_HWCAP2,
+		.hwcap_bit = HWCAP2_SVE_B16B16,
+		.cpuinfo = "sveb16b16",
+		.sigill_fn = sveb16b16_sigill,
 	},
 	{
 		.name = "SVE2 PMULL",
