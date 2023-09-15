@@ -23,6 +23,7 @@
 #include "hda_dsp_common.h"
 #include "sof_realtek_common.h"
 #include "sof_maxim_common.h"
+#include "sof_nuvoton_common.h"
 #include "sof_ssp_common.h"
 
 #define NAME_SIZE 32
@@ -336,13 +337,6 @@ static struct snd_soc_dai_link_component rt1019p_component[] = {
 	}
 };
 
-static struct snd_soc_dai_link_component nau8318_components[] = {
-	{
-		.name = "NVTN2012:00",
-		.dai_name = "nau8315-hifi",
-	}
-};
-
 static struct snd_soc_dai_link *
 sof_card_dai_links_create(struct device *dev, enum sof_ssp_codec amp_type,
 			  int ssp_codec, int ssp_amp, int dmic_be_num,
@@ -478,9 +472,7 @@ sof_card_dai_links_create(struct device *dev, enum sof_ssp_codec amp_type,
 			links[id].ops = &max_98373_ops;
 			break;
 		case CODEC_NAU8318:
-			links[id].codecs = nau8318_components;
-			links[id].num_codecs = ARRAY_SIZE(nau8318_components);
-			links[id].init = speaker_codec_init;
+			nau8318_set_dai_link(&links[id]);
 			break;
 		case CODEC_RT1015P:
 			sof_rt1015p_dai_link(&links[id]);
@@ -715,5 +707,6 @@ MODULE_AUTHOR("Brent Lu <brent.lu@intel.com>");
 MODULE_LICENSE("GPL");
 MODULE_IMPORT_NS(SND_SOC_INTEL_HDA_DSP_COMMON);
 MODULE_IMPORT_NS(SND_SOC_INTEL_SOF_MAXIM_COMMON);
+MODULE_IMPORT_NS(SND_SOC_INTEL_SOF_NUVOTON_COMMON);
 MODULE_IMPORT_NS(SND_SOC_INTEL_SOF_REALTEK_COMMON);
 MODULE_IMPORT_NS(SND_SOC_INTEL_SOF_SSP_COMMON);
