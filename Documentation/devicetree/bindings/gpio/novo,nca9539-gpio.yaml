@@ -1,0 +1,80 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/gpio/novo,nca9539-gpio.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Novosense I2C GPIO controller
+
+maintainers:
+  - Cody Xie <cody.xie@rock-chips.com>
+
+description: |
+  This controller is A GPIO expander with I2C interface and one interrupt pin.
+
+properties:
+  compatible:
+    const: novo,nca9539-gpio
+
+  reg:
+    items:
+      - description: the I2C address containing the GPIO controller registers.
+
+  gpio-controller: true
+
+  '#gpio-cells':
+    const: 2
+
+  ngpios:
+    minimum: 0
+    maximum: 32
+
+  interrupt-controller: true
+
+  '#interrupt-cells':
+    const: 2
+
+  interrupts:
+    maxItems: 1
+
+  vdd-supply:
+    - description: the regulator for the VDD supplier.
+
+required:
+  - compatible
+  - reg
+  - "#gpio-cells"
+  - gpio-controller
+  - vdd-supply
+
+additionalProperties: false
+
+dependencies:
+  interrupt-controller: [ interrupts ]
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    / {
+	  nca9539_vdd: nca9539-vdd {
+		compatible = "regulator-fixed";
+		regulator-name = "nca9539_vdd";
+		enable-active-high;
+		regulator-boot-on;
+		regulator-always-on;
+	  };
+	};
+
+    nca9539_gpio: gpio@74 {
+		compatible = "novo,nca9539-gpio";
+        reg = <0x74>;
+        gpio-controller;
+        #gpio-cells = <2>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		vdd-supply = <&nca9539_vdd>;
+    };
+
+
+...
