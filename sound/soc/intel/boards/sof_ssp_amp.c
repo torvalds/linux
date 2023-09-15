@@ -21,6 +21,7 @@
 #include "hda_dsp_common.h"
 #include "sof_realtek_common.h"
 #include "sof_cirrus_common.h"
+#include "sof_ssp_common.h"
 
 #define NAME_SIZE 32
 
@@ -59,10 +60,6 @@
 #define SOF_BT_OFFLOAD_SSP(quirk)	\
 	(((quirk) << SOF_BT_OFFLOAD_SSP_SHIFT) & SOF_BT_OFFLOAD_SSP_MASK)
 
-/* Speaker amplifiers */
-#define SOF_RT1308_SPEAKER_AMP_PRESENT		BIT(21)
-#define SOF_CS35L41_SPEAKER_AMP_PRESENT		BIT(22)
-
 /* Default: SSP2  */
 static unsigned long sof_ssp_amp_quirk = SOF_AMPLIFIER_SSP(2);
 
@@ -77,6 +74,7 @@ struct sof_card_private {
 	struct list_head hdmi_pcm_list;
 	bool common_hdmi_codec_drv;
 	bool idisp_codec;
+	enum sof_ssp_codec amp_type;
 };
 
 static const struct dmi_system_id chromebook_platforms[] = {
@@ -188,16 +186,22 @@ static int sof_hdmi_init(struct snd_soc_pcm_runtime *rtd)
 
 #define IDISP_CODEC_MASK	0x4
 
-static struct snd_soc_dai_link *sof_card_dai_links_create(struct device *dev,
-							  int ssp_codec,
-							  int dmic_be_num,
-							  int hdmi_num,
-							  bool idisp_codec)
+/* BE ID defined in sof-tgl-rt1308-hdmi-ssp.m4 */
+#define HDMI_IN_BE_ID		0
+#define SPK_BE_ID		2
+#define DMIC01_BE_ID		3
+#define INTEL_HDMI_BE_ID	5
+
+static struct snd_soc_dai_link *
+sof_card_dai_links_create(struct device *dev, enum sof_ssp_codec amp_type,
+			  int ssp_codec, int dmic_be_num, int hdmi_num,
+			  bool idisp_codec)
 {
 	struct snd_soc_dai_link_component *idisp_components;
 	struct snd_soc_dai_link_component *cpus;
 	struct snd_soc_dai_link *links;
 	int i, id = 0;
+	bool fixed_be = false;
 
 	links = devm_kcalloc(dev, sof_ssp_amp_card.num_links,
 					sizeof(struct snd_soc_dai_link), GFP_KERNEL);
@@ -210,6 +214,9 @@ static struct snd_soc_dai_link *sof_card_dai_links_create(struct device *dev,
 	if (sof_ssp_amp_quirk & SOF_SSP_HDMI_CAPTURE_PRESENT) {
 		int num_of_hdmi_ssp = (sof_ssp_amp_quirk & SOF_NO_OF_HDMI_CAPTURE_SSP_MASK) >>
 				SOF_NO_OF_HDMI_CAPTURE_SSP_SHIFT;
+
+		/* the topology supports HDMI-IN uses fixed BE ID for DAI links */
+		fixed_be = true;
 
 		for (i = 1; i <= num_of_hdmi_ssp; i++) {
 			int port = (i == 1 ? (sof_ssp_amp_quirk & SOF_HDMI_CAPTURE_1_SSP_MASK) >>
@@ -225,7 +232,7 @@ static struct snd_soc_dai_link *sof_card_dai_links_create(struct device *dev,
 			links[id].name = devm_kasprintf(dev, GFP_KERNEL, "SSP%d-HDMI", port);
 			if (!links[id].name)
 				return NULL;
-			links[id].id = id;
+			links[id].id = fixed_be ? (HDMI_IN_BE_ID + i - 1) : id;
 			links[id].codecs = &asoc_dummy_dlc;
 			links[id].num_codecs = 1;
 			links[id].platforms = platform_component;
@@ -238,29 +245,39 @@ static struct snd_soc_dai_link *sof_card_dai_links_create(struct device *dev,
 	}
 
 	/* codec SSP */
-	links[id].name = devm_kasprintf(dev, GFP_KERNEL, "SSP%d-Codec", ssp_codec);
-	if (!links[id].name)
-		return NULL;
+	if (amp_type != CODEC_NONE) {
+		links[id].name = devm_kasprintf(dev, GFP_KERNEL, "SSP%d-Codec", ssp_codec);
+		if (!links[id].name)
+			return NULL;
 
-	links[id].id = id;
-	if (sof_ssp_amp_quirk & SOF_RT1308_SPEAKER_AMP_PRESENT) {
-		sof_rt1308_dai_link(&links[id]);
-	} else if (sof_ssp_amp_quirk & SOF_CS35L41_SPEAKER_AMP_PRESENT) {
-		cs35l41_set_dai_link(&links[id]);
+		links[id].id = fixed_be ? SPK_BE_ID : id;
+
+		switch (amp_type) {
+		case CODEC_CS35L41:
+			cs35l41_set_dai_link(&links[id]);
+			break;
+		case CODEC_RT1308:
+			sof_rt1308_dai_link(&links[id]);
+			break;
+		default:
+			dev_err(dev, "invalid amp type %d\n", amp_type);
+			return NULL;
+		}
+
+		links[id].platforms = platform_component;
+		links[id].num_platforms = ARRAY_SIZE(platform_component);
+		links[id].dpcm_playback = 1;
+		/* feedback from amplifier or firmware-generated echo reference */
+		links[id].dpcm_capture = 1;
+		links[id].no_pcm = 1;
+		links[id].cpus = &cpus[id];
+		links[id].num_cpus = 1;
+		links[id].cpus->dai_name = devm_kasprintf(dev, GFP_KERNEL, "SSP%d Pin", ssp_codec);
+		if (!links[id].cpus->dai_name)
+			return NULL;
+
+		id++;
 	}
-	links[id].platforms = platform_component;
-	links[id].num_platforms = ARRAY_SIZE(platform_component);
-	links[id].dpcm_playback = 1;
-	/* feedback from amplifier or firmware-generated echo reference */
-	links[id].dpcm_capture = 1;
-	links[id].no_pcm = 1;
-	links[id].cpus = &cpus[id];
-	links[id].num_cpus = 1;
-	links[id].cpus->dai_name = devm_kasprintf(dev, GFP_KERNEL, "SSP%d Pin", ssp_codec);
-	if (!links[id].cpus->dai_name)
-		return NULL;
-
-	id++;
 
 	/* dmic */
 	if (dmic_be_num > 0) {
@@ -278,7 +295,7 @@ static struct snd_soc_dai_link *sof_card_dai_links_create(struct device *dev,
 	}
 
 	for (i = 0; i < dmic_be_num; i++) {
-		links[id].id = id;
+		links[id].id = fixed_be ? (DMIC01_BE_ID + i) : id;
 		links[id].num_cpus = 1;
 		links[id].codecs = dmic_component;
 		links[id].num_codecs = ARRAY_SIZE(dmic_component);
@@ -307,7 +324,7 @@ static struct snd_soc_dai_link *sof_card_dai_links_create(struct device *dev,
 			if (!links[id].name)
 				goto devm_err;
 
-			links[id].id = id;
+			links[id].id = fixed_be ? (INTEL_HDMI_BE_ID + i - 1) : id;
 			links[id].cpus = &cpus[id];
 			links[id].num_cpus = 1;
 			links[id].cpus->dai_name = devm_kasprintf(dev, GFP_KERNEL,
@@ -385,13 +402,18 @@ static int sof_ssp_amp_probe(struct platform_device *pdev)
 
 	mach = pdev->dev.platform_data;
 
+	ctx->amp_type = sof_ssp_detect_amp_type(&pdev->dev);
+
 	if (dmi_check_system(chromebook_platforms) || mach->mach_params.dmic_num > 0)
 		dmic_be_num = 2;
 
 	ssp_codec = sof_ssp_amp_quirk & SOF_AMPLIFIER_SSP_MASK;
 
 	/* set number of dai links */
-	sof_ssp_amp_card.num_links = 1 + dmic_be_num;
+	sof_ssp_amp_card.num_links = dmic_be_num;
+
+	if (ctx->amp_type != CODEC_NONE)
+		sof_ssp_amp_card.num_links++;
 
 	if (sof_ssp_amp_quirk & SOF_SSP_HDMI_CAPTURE_PRESENT)
 		sof_ssp_amp_card.num_links += (sof_ssp_amp_quirk & SOF_NO_OF_HDMI_CAPTURE_SSP_MASK) >>
@@ -413,15 +435,26 @@ static int sof_ssp_amp_probe(struct platform_device *pdev)
 	if (sof_ssp_amp_quirk & SOF_SSP_BT_OFFLOAD_PRESENT)
 		sof_ssp_amp_card.num_links++;
 
-	dai_links = sof_card_dai_links_create(&pdev->dev, ssp_codec, dmic_be_num, hdmi_num, ctx->idisp_codec);
+	dai_links = sof_card_dai_links_create(&pdev->dev, ctx->amp_type,
+					      ssp_codec, dmic_be_num, hdmi_num,
+					      ctx->idisp_codec);
 	if (!dai_links)
 		return -ENOMEM;
 
 	sof_ssp_amp_card.dai_link = dai_links;
 
 	/* update codec_conf */
-	if (sof_ssp_amp_quirk & SOF_CS35L41_SPEAKER_AMP_PRESENT) {
+	switch (ctx->amp_type) {
+	case CODEC_CS35L41:
 		cs35l41_set_codec_conf(&sof_ssp_amp_card);
+		break;
+	case CODEC_NONE:
+	case CODEC_RT1308:
+		/* no codec conf required */
+		break;
+	default:
+		dev_err(&pdev->dev, "invalid amp type %d\n", ctx->amp_type);
+		return -EINVAL;
 	}
 
 	INIT_LIST_HEAD(&ctx->hdmi_pcm_list);
@@ -451,8 +484,7 @@ static const struct platform_device_id board_ids[] = {
 					SOF_NO_OF_HDMI_CAPTURE_SSP(2) |
 					SOF_HDMI_CAPTURE_1_SSP(1) |
 					SOF_HDMI_CAPTURE_2_SSP(5) |
-					SOF_SSP_HDMI_CAPTURE_PRESENT |
-					SOF_RT1308_SPEAKER_AMP_PRESENT),
+					SOF_SSP_HDMI_CAPTURE_PRESENT),
 	},
 	{
 		.name = "adl_cs35l41",
@@ -460,8 +492,7 @@ static const struct platform_device_id board_ids[] = {
 					SOF_NO_OF_HDMI_PLAYBACK(4) |
 					SOF_HDMI_PLAYBACK_PRESENT |
 					SOF_BT_OFFLOAD_SSP(2) |
-					SOF_SSP_BT_OFFLOAD_PRESENT |
-					SOF_CS35L41_SPEAKER_AMP_PRESENT),
+					SOF_SSP_BT_OFFLOAD_PRESENT),
 	},
 	{
 		.name = "adl_lt6911_hdmi_ssp",
@@ -502,3 +533,4 @@ MODULE_LICENSE("GPL");
 MODULE_IMPORT_NS(SND_SOC_INTEL_HDA_DSP_COMMON);
 MODULE_IMPORT_NS(SND_SOC_INTEL_SOF_REALTEK_COMMON);
 MODULE_IMPORT_NS(SND_SOC_INTEL_SOF_CIRRUS_COMMON);
+MODULE_IMPORT_NS(SND_SOC_INTEL_SOF_SSP_COMMON);
