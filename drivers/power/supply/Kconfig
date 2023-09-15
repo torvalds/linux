@@ -629,6 +629,17 @@ config CHARGER_QCOM_SMBB
 	  documentation for more detail.  The base name for this driver is
 	  'pm8941_charger'.
 
+config BATTERY_PM8916_BMS_VM
+	tristate "Qualcomm PM8916 BMS-VM support"
+	depends on MFD_SPMI_PMIC || COMPILE_TEST
+	help
+	  Say Y to add support for Voltage Mode BMS block found in some
+	  Qualcomm PMICs such as PM8916. This hardware block provides
+	  battery voltage monitoring for the system.
+
+	  To compile this driver as module, choose M here: the
+	  module will be called pm8916_bms_vm.
+
 config CHARGER_BQ2415X
 	tristate "TI BQ2415x battery charger driver"
 	depends on I2C
