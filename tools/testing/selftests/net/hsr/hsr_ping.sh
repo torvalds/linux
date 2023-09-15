@@ -203,7 +203,9 @@ do_complete_ping_test()
 
 setup_hsr_interfaces()
 {
-	echo "INFO: preparing interfaces."
+	local HSRv="$1"
+
+	echo "INFO: preparing interfaces for HSRv${HSRv}."
 # Three HSR nodes. Each node has one link to each of its neighbour, two links in total.
 #
 #    ns1eth1 ----- ns2eth1
@@ -219,10 +221,10 @@ setup_hsr_interfaces()
 	ip link add ns1eth2 netns "$ns1" type veth peer name ns3eth1 netns "$ns3"
 	ip link add ns3eth2 netns "$ns3" type veth peer name ns2eth2 netns "$ns2"
 
-	# HSRv0.
-	ip -net "$ns1" link add name hsr1 type hsr slave1 ns1eth1 slave2 ns1eth2 supervision 45 version 0 proto 0
-	ip -net "$ns2" link add name hsr2 type hsr slave1 ns2eth1 slave2 ns2eth2 supervision 45 version 0 proto 0
-	ip -net "$ns3" link add name hsr3 type hsr slave1 ns3eth1 slave2 ns3eth2 supervision 45 version 0 proto 0
+	# HSRv0/1
+	ip -net "$ns1" link add name hsr1 type hsr slave1 ns1eth1 slave2 ns1eth2 supervision 45 version $HSRv proto 0
+	ip -net "$ns2" link add name hsr2 type hsr slave1 ns2eth1 slave2 ns2eth2 supervision 45 version $HSRv proto 0
+	ip -net "$ns3" link add name hsr3 type hsr slave1 ns3eth1 slave2 ns3eth2 supervision 45 version $HSRv proto 0
 
 	# IP for HSR
 	ip -net "$ns1" addr add 100.64.0.1/24 dev hsr1
@@ -259,7 +261,16 @@ for i in "$ns1" "$ns2" "$ns3" ;do
 	ip -net $i link set lo up
 done
 
-setup_hsr_interfaces
+setup_hsr_interfaces 0
+do_complete_ping_test
+cleanup
+
+for i in "$ns1" "$ns2" "$ns3" ;do
+	ip netns add $i || exit $ksft_skip
+	ip -net $i link set lo up
+done
+
+setup_hsr_interfaces 1
 do_complete_ping_test
 
 exit $ret
