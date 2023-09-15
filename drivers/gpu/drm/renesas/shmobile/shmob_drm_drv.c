@@ -215,16 +215,16 @@ static int shmob_drm_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
+	ret = drm_vblank_init(ddev, 1);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "failed to initialize vblank\n");
+		return ret;
+	}
+
 	ret = shmob_drm_modeset_init(sdev);
 	if (ret < 0)
 		return dev_err_probe(&pdev->dev, ret,
 				     "failed to initialize mode setting\n");
-
-	ret = drm_vblank_init(ddev, 1);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "failed to initialize vblank\n");
-		goto err_modeset_cleanup;
-	}
 
 	ret = platform_get_irq(pdev, 0);
 	if (ret < 0)
