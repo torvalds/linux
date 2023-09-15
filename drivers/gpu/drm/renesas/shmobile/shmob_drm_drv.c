@@ -74,15 +74,15 @@ static int shmob_drm_setup_clocks(struct shmob_drm_device *sdev,
 
 	switch (clksrc) {
 	case SHMOB_DRM_CLK_BUS:
-		clkname = "bus_clk";
+		clkname = "fck";
 		sdev->lddckr = LDDCKR_ICKSEL_BUS;
 		break;
 	case SHMOB_DRM_CLK_PERIPHERAL:
-		clkname = "peripheral_clk";
+		clkname = "media";
 		sdev->lddckr = LDDCKR_ICKSEL_MIPI;
 		break;
 	case SHMOB_DRM_CLK_EXTERNAL:
-		clkname = NULL;
+		clkname = "lclk";
 		sdev->lddckr = LDDCKR_ICKSEL_HDMI;
 		break;
 	default:
