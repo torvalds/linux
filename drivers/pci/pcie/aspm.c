@@ -18,6 +18,7 @@
 #include <linux/errno.h>
 #include <linux/pm.h>
 #include <linux/init.h>
+#include <linux/printk.h>
 #include <linux/slab.h>
 #include <linux/time.h>
 
@@ -1367,10 +1368,10 @@ static int __init pcie_aspm_disable(char *str)
 		aspm_policy = POLICY_DEFAULT;
 		aspm_disabled = 1;
 		aspm_support_enabled = false;
-		printk(KERN_INFO "PCIe ASPM is disabled\n");
+		pr_info("PCIe ASPM is disabled\n");
 	} else if (!strcmp(str, "force")) {
 		aspm_force = 1;
-		printk(KERN_INFO "PCIe ASPM is forcibly enabled\n");
+		pr_info("PCIe ASPM is forcibly enabled\n");
 	}
 	return 1;
 }
