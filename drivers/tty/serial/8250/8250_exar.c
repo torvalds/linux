@@ -18,7 +18,6 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/tty.h>
-#include <linux/8250_pci.h>
 #include <linux/delay.h>
 
 #include <asm/byteorder.h>
