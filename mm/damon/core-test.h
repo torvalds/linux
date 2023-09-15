@@ -94,6 +94,7 @@ static void damon_test_aggregate(struct kunit *test)
 		for (ir = 0; ir < 3; ir++) {
 			r = damon_new_region(saddr[it][ir], eaddr[it][ir]);
 			r->nr_accesses = accesses[it][ir];
+			r->nr_accesses_bp = accesses[it][ir] * 10000;
 			damon_add_region(r, t);
 		}
 		it++;
@@ -147,9 +148,11 @@ static void damon_test_merge_two(struct kunit *test)
 	t = damon_new_target();
 	r = damon_new_region(0, 100);
 	r->nr_accesses = 10;
+	r->nr_accesses_bp = 100000;
 	damon_add_region(r, t);
 	r2 = damon_new_region(100, 300);
 	r2->nr_accesses = 20;
+	r2->nr_accesses_bp = 200000;
 	damon_add_region(r2, t);
 
 	damon_merge_two_regions(t, r, r2);
@@ -196,6 +199,7 @@ static void damon_test_merge_regions_of(struct kunit *test)
 	for (i = 0; i < ARRAY_SIZE(sa); i++) {
 		r = damon_new_region(sa[i], ea[i]);
 		r->nr_accesses = nrs[i];
+		r->nr_accesses_bp = nrs[i] * 10000;
 		damon_add_region(r, t);
 	}
 
@@ -297,6 +301,7 @@ static void damon_test_update_monitoring_result(struct kunit *test)
 	struct damon_region *r = damon_new_region(3, 7);
 
 	r->nr_accesses = 15;
+	r->nr_accesses_bp = 150000;
 	r->age = 20;
 
 	new_attrs = (struct damon_attrs){
