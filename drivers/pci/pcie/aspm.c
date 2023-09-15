@@ -335,27 +335,27 @@ static void encode_l12_threshold(u32 threshold_us, u32 *scale, u32 *value)
 	 * LTR_L1.2_THRESHOLD_Value ("value") is a 10-bit field with max
 	 * value of 0x3ff.
 	 */
-	if (threshold_ns <= 0x3ff * 1) {
+	if (threshold_ns <= 1 * FIELD_MAX(PCI_L1SS_CTL1_LTR_L12_TH_VALUE)) {
 		*scale = 0;		/* Value times 1ns */
 		*value = threshold_ns;
-	} else if (threshold_ns <= 0x3ff * 32) {
+	} else if (threshold_ns <= 32 * FIELD_MAX(PCI_L1SS_CTL1_LTR_L12_TH_VALUE)) {
 		*scale = 1;		/* Value times 32ns */
 		*value = roundup(threshold_ns, 32) / 32;
-	} else if (threshold_ns <= 0x3ff * 1024) {
+	} else if (threshold_ns <= 1024 * FIELD_MAX(PCI_L1SS_CTL1_LTR_L12_TH_VALUE)) {
 		*scale = 2;		/* Value times 1024ns */
 		*value = roundup(threshold_ns, 1024) / 1024;
-	} else if (threshold_ns <= 0x3ff * 32768) {
+	} else if (threshold_ns <= 32768 * FIELD_MAX(PCI_L1SS_CTL1_LTR_L12_TH_VALUE)) {
 		*scale = 3;		/* Value times 32768ns */
 		*value = roundup(threshold_ns, 32768) / 32768;
-	} else if (threshold_ns <= 0x3ff * 1048576) {
+	} else if (threshold_ns <= 1048576 * FIELD_MAX(PCI_L1SS_CTL1_LTR_L12_TH_VALUE)) {
 		*scale = 4;		/* Value times 1048576ns */
 		*value = roundup(threshold_ns, 1048576) / 1048576;
-	} else if (threshold_ns <= 0x3ff * (u64) 33554432) {
+	} else if (threshold_ns <= (u64)33554432 * FIELD_MAX(PCI_L1SS_CTL1_LTR_L12_TH_VALUE)) {
 		*scale = 5;		/* Value times 33554432ns */
 		*value = roundup(threshold_ns, 33554432) / 33554432;
 	} else {
 		*scale = 5;
-		*value = 0x3ff;		/* Max representable value */
+		*value = FIELD_MAX(PCI_L1SS_CTL1_LTR_L12_TH_VALUE);
 	}
 }
 
