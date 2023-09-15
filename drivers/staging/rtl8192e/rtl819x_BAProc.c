@@ -68,7 +68,7 @@ static struct sk_buff *rtllib_ADDBA(struct rtllib_device *ieee, u8 *Dst,
 				    u16 StatusCode, u8 type)
 {
 	struct sk_buff *skb = NULL;
-	struct rtllib_hdr_3addr *BAReq = NULL;
+	struct ieee80211_hdr_3addr *BAReq = NULL;
 	u8 *tag = NULL;
 	u16 len = ieee->tx_headroom + 9;
 
@@ -79,21 +79,21 @@ static struct sk_buff *rtllib_ADDBA(struct rtllib_device *ieee, u8 *Dst,
 		netdev_warn(ieee->dev, "pBA is NULL\n");
 		return NULL;
 	}
-	skb = dev_alloc_skb(len + sizeof(struct rtllib_hdr_3addr));
+	skb = dev_alloc_skb(len + sizeof(struct ieee80211_hdr_3addr));
 	if (!skb)
 		return NULL;
 
-	memset(skb->data, 0, sizeof(struct rtllib_hdr_3addr));
+	memset(skb->data, 0, sizeof(struct ieee80211_hdr_3addr));
 
 	skb_reserve(skb, ieee->tx_headroom);
 
-	BAReq = skb_put(skb, sizeof(struct rtllib_hdr_3addr));
+	BAReq = skb_put(skb, sizeof(struct ieee80211_hdr_3addr));
 
 	ether_addr_copy(BAReq->addr1, Dst);
 	ether_addr_copy(BAReq->addr2, ieee->dev->dev_addr);
 
 	ether_addr_copy(BAReq->addr3, ieee->current_network.bssid);
-	BAReq->frame_ctl = cpu_to_le16(RTLLIB_STYPE_MANAGE_ACT);
+	BAReq->frame_control = cpu_to_le16(RTLLIB_STYPE_MANAGE_ACT);
 
 	tag = skb_put(skb, 9);
 	*tag++ = ACT_CAT_BA;
@@ -129,7 +129,7 @@ static struct sk_buff *rtllib_DELBA(struct rtllib_device *ieee, u8 *dst,
 {
 	union delba_param_set DelbaParamSet;
 	struct sk_buff *skb = NULL;
-	struct rtllib_hdr_3addr *Delba = NULL;
+	struct ieee80211_hdr_3addr *Delba = NULL;
 	u8 *tag = NULL;
 	u16 len = 6 + ieee->tx_headroom;
 
@@ -142,18 +142,18 @@ static struct sk_buff *rtllib_DELBA(struct rtllib_device *ieee, u8 *dst,
 	DelbaParamSet.field.initiator = (TxRxSelect == TX_DIR) ? 1 : 0;
 	DelbaParamSet.field.tid	= pBA->ba_param_set.field.tid;
 
-	skb = dev_alloc_skb(len + sizeof(struct rtllib_hdr_3addr));
+	skb = dev_alloc_skb(len + sizeof(struct ieee80211_hdr_3addr));
 	if (!skb)
 		return NULL;
 
 	skb_reserve(skb, ieee->tx_headroom);
 
-	Delba = skb_put(skb, sizeof(struct rtllib_hdr_3addr));
+	Delba = skb_put(skb, sizeof(struct ieee80211_hdr_3addr));
 
 	ether_addr_copy(Delba->addr1, dst);
 	ether_addr_copy(Delba->addr2, ieee->dev->dev_addr);
 	ether_addr_copy(Delba->addr3, ieee->current_network.bssid);
-	Delba->frame_ctl = cpu_to_le16(RTLLIB_STYPE_MANAGE_ACT);
+	Delba->frame_control = cpu_to_le16(RTLLIB_STYPE_MANAGE_ACT);
 
 	tag = skb_put(skb, 6);
 
@@ -213,7 +213,7 @@ static void rtllib_send_DELBA(struct rtllib_device *ieee, u8 *dst,
 
 int rtllib_rx_ADDBAReq(struct rtllib_device *ieee, struct sk_buff *skb)
 {
-	struct rtllib_hdr_3addr *req = NULL;
+	struct ieee80211_hdr_3addr *req = NULL;
 	u16 rc = 0;
 	u8 *dst = NULL, *pDialogToken = NULL, *tag = NULL;
 	struct ba_record *pBA = NULL;
@@ -222,10 +222,10 @@ int rtllib_rx_ADDBAReq(struct rtllib_device *ieee, struct sk_buff *skb)
 	union sequence_control *pBaStartSeqCtrl = NULL;
 	struct rx_ts_record *ts = NULL;
 
-	if (skb->len < sizeof(struct rtllib_hdr_3addr) + 9) {
+	if (skb->len < sizeof(struct ieee80211_hdr_3addr) + 9) {
 		netdev_warn(ieee->dev, "Invalid skb len in BAREQ(%d / %d)\n",
 			    (int)skb->len,
-			    (int)(sizeof(struct rtllib_hdr_3addr) + 9));
+			    (int)(sizeof(struct ieee80211_hdr_3addr) + 9));
 		return -1;
 	}
 
@@ -234,10 +234,10 @@ int rtllib_rx_ADDBAReq(struct rtllib_device *ieee, struct sk_buff *skb)
 			     skb->data, skb->len);
 #endif
 
-	req = (struct rtllib_hdr_3addr *)skb->data;
+	req = (struct ieee80211_hdr_3addr *)skb->data;
 	tag = (u8 *)req;
 	dst = (u8 *)(&req->addr2[0]);
-	tag += sizeof(struct rtllib_hdr_3addr);
+	tag += sizeof(struct ieee80211_hdr_3addr);
 	pDialogToken = tag + 2;
 	pBaParamSet = (union ba_param_set *)(tag + 3);
 	pBaTimeoutVal = (u16 *)(tag + 5);
@@ -302,7 +302,7 @@ OnADDBAReq_Fail:
 
 int rtllib_rx_ADDBARsp(struct rtllib_device *ieee, struct sk_buff *skb)
 {
-	struct rtllib_hdr_3addr *rsp = NULL;
+	struct ieee80211_hdr_3addr *rsp = NULL;
 	struct ba_record *pPendingBA, *pAdmittedBA;
 	struct tx_ts_record *pTS = NULL;
 	u8 *dst = NULL, *pDialogToken = NULL, *tag = NULL;
@@ -310,16 +310,16 @@ int rtllib_rx_ADDBARsp(struct rtllib_device *ieee, struct sk_buff *skb)
 	union ba_param_set *pBaParamSet = NULL;
 	u16			ReasonCode;
 
-	if (skb->len < sizeof(struct rtllib_hdr_3addr) + 9) {
+	if (skb->len < sizeof(struct ieee80211_hdr_3addr) + 9) {
 		netdev_warn(ieee->dev, "Invalid skb len in BARSP(%d / %d)\n",
 			    (int)skb->len,
-			    (int)(sizeof(struct rtllib_hdr_3addr) + 9));
+			    (int)(sizeof(struct ieee80211_hdr_3addr) + 9));
 		return -1;
 	}
-	rsp = (struct rtllib_hdr_3addr *)skb->data;
+	rsp = (struct ieee80211_hdr_3addr *)skb->data;
 	tag = (u8 *)rsp;
 	dst = (u8 *)(&rsp->addr2[0]);
-	tag += sizeof(struct rtllib_hdr_3addr);
+	tag += sizeof(struct ieee80211_hdr_3addr);
 	pDialogToken = tag + 2;
 	pStatusCode = (u16 *)(tag + 3);
 	pBaParamSet = (union ba_param_set *)(tag + 5);
@@ -401,14 +401,14 @@ OnADDBARsp_Reject:
 
 int rtllib_rx_DELBA(struct rtllib_device *ieee, struct sk_buff *skb)
 {
-	struct rtllib_hdr_3addr *delba = NULL;
+	struct ieee80211_hdr_3addr *delba = NULL;
 	union delba_param_set *pDelBaParamSet = NULL;
 	u8 *dst = NULL;
 
-	if (skb->len < sizeof(struct rtllib_hdr_3addr) + 6) {
+	if (skb->len < sizeof(struct ieee80211_hdr_3addr) + 6) {
 		netdev_warn(ieee->dev, "Invalid skb len in DELBA(%d / %d)\n",
 			    (int)skb->len,
-			    (int)(sizeof(struct rtllib_hdr_3addr) + 6));
+			    (int)(sizeof(struct ieee80211_hdr_3addr) + 6));
 		return -1;
 	}
 
@@ -425,9 +425,9 @@ int rtllib_rx_DELBA(struct rtllib_device *ieee, struct sk_buff *skb)
 	print_hex_dump_bytes("%s: ", DUMP_PREFIX_NONE, skb->data,
 			     __func__, skb->len);
 #endif
-	delba = (struct rtllib_hdr_3addr *)skb->data;
+	delba = (struct ieee80211_hdr_3addr *)skb->data;
 	dst = (u8 *)(&delba->addr2[0]);
-	pDelBaParamSet = (union delba_param_set *)&delba->payload[2];
+	pDelBaParamSet = (union delba_param_set *)&delba->seq_ctrl + 2;
 
 	if (pDelBaParamSet->field.initiator == 1) {
 		struct rx_ts_record *ts;
