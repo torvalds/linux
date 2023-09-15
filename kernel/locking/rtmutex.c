@@ -327,6 +327,11 @@ static __always_inline bool unlock_rt_mutex_safe(struct rt_mutex_base *lock,
 static __always_inline int __waiter_prio(struct task_struct *task)
 {
 	int prio = task->prio;
+	int waiter_prio = 0;
+
+	trace_android_vh_rtmutex_waiter_prio(task, &waiter_prio);
+	if (waiter_prio > 0)
+		return waiter_prio;
 
 	if (!rt_prio(prio))
 		return DEFAULT_PRIO;
@@ -1151,6 +1156,7 @@ static int __sched task_blocks_on_rt_mutex(struct rt_mutex_base *lock,
 	if (owner == task && !(build_ww_mutex() && ww_ctx))
 		return -EDEADLK;
 
+	trace_android_vh_task_blocks_on_rtmutex(lock, waiter, task, ww_ctx, &chwalk);
 	raw_spin_lock(&task->pi_lock);
 	waiter->task = task;
 	waiter->lock = lock;

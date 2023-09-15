@@ -86,6 +86,7 @@
   tcf_exts_validate
   tcf_queue_work
   __traceiter_android_rvh_post_init_entity_util_avg
+  __traceiter_android_rvh_rtmutex_force_update
   __traceiter_android_vh_account_process_tick_gran
   __traceiter_android_vh_account_task_time
   __traceiter_android_vh_do_futex
@@ -99,11 +100,6 @@
   __traceiter_android_vh_record_pcpu_rwsem_starttime
   __traceiter_android_vh_record_rtmutex_lock_starttime
   __traceiter_android_vh_record_rwsem_lock_starttime
-  __tracepoint_android_vh_record_mutex_lock_starttime
-  __tracepoint_android_vh_record_pcpu_rwsem_starttime
-  __tracepoint_android_vh_record_rtmutex_lock_starttime
-  __tracepoint_android_vh_record_rwsem_lock_starttime
-  __trace_puts
   __traceiter_android_vh_alter_mutex_list_add
   __traceiter_android_vh_binder_free_proc
   __traceiter_android_vh_binder_has_work_ilocked
@@ -121,8 +117,11 @@
   __traceiter_android_vh_binder_thread_release
   __traceiter_android_vh_binder_wait_for_work
   __traceiter_android_vh_cgroup_set_task
+  __traceiter_android_vh_check_folio_look_around_ref
   __traceiter_android_vh_dup_task_struct
   __traceiter_android_vh_exit_signal
+  __traceiter_android_vh_look_around
+  __traceiter_android_vh_look_around_migrate_folio
   __traceiter_android_vh_mem_cgroup_id_remove
   __traceiter_android_vh_mem_cgroup_css_offline
   __traceiter_android_vh_mem_cgroup_css_online
@@ -136,6 +135,7 @@
   __traceiter_android_vh_cleanup_old_buffers_bypass
   __traceiter_android_vh_dm_bufio_shrink_scan_bypass
   __traceiter_android_vh_mutex_unlock_slowpath
+  __traceiter_android_vh_rtmutex_waiter_prio
   __traceiter_android_vh_rwsem_can_spin_on_owner
   __traceiter_android_vh_rwsem_opt_spin_finish
   __traceiter_android_vh_rwsem_opt_spin_start
@@ -143,6 +143,7 @@
   __traceiter_android_vh_sched_stat_runtime_rt
   __traceiter_android_vh_shrink_node_memcgs
   __traceiter_android_vh_sync_txn_recvd
+  __traceiter_android_vh_task_blocks_on_rtmutex
   __traceiter_block_bio_queue
   __traceiter_block_getrq
   __traceiter_block_rq_complete
@@ -156,7 +157,9 @@
   __traceiter_sched_stat_wait
   __traceiter_sched_waking
   __traceiter_task_rename
+  __traceiter_android_vh_test_clear_look_around_ref
   __tracepoint_android_rvh_post_init_entity_util_avg
+  __tracepoint_android_rvh_rtmutex_force_update
   __tracepoint_android_vh_account_process_tick_gran
   __tracepoint_android_vh_account_task_time
   __tracepoint_android_vh_alter_mutex_list_add
@@ -176,6 +179,7 @@
   __tracepoint_android_vh_binder_thread_release
   __tracepoint_android_vh_binder_wait_for_work
   __tracepoint_android_vh_cgroup_set_task
+  __tracepoint_android_vh_check_folio_look_around_ref
   __tracepoint_android_vh_do_futex
   __tracepoint_android_vh_dup_task_struct
   __tracepoint_android_vh_exit_signal
@@ -191,6 +195,8 @@
   __tracepoint_android_vh_futex_wake_traverse_plist
   __tracepoint_android_vh_futex_wake_up_q_finish
   __tracepoint_android_vh_irqtime_account_process_tick
+  __tracepoint_android_vh_look_around
+  __tracepoint_android_vh_look_around_migrate_folio
   __tracepoint_android_vh_mutex_can_spin_on_owner
   __tracepoint_android_vh_mutex_opt_spin_finish
   __tracepoint_android_vh_mutex_opt_spin_start
@@ -198,6 +204,11 @@
   __tracepoint_android_vh_cleanup_old_buffers_bypass
   __tracepoint_android_vh_dm_bufio_shrink_scan_bypass
   __tracepoint_android_vh_mutex_unlock_slowpath
+  __tracepoint_android_vh_record_mutex_lock_starttime
+  __tracepoint_android_vh_record_pcpu_rwsem_starttime
+  __tracepoint_android_vh_record_rtmutex_lock_starttime
+  __tracepoint_android_vh_record_rwsem_lock_starttime
+  __tracepoint_android_vh_rtmutex_waiter_prio
   __tracepoint_android_vh_rwsem_can_spin_on_owner
   __tracepoint_android_vh_rwsem_opt_spin_finish
   __tracepoint_android_vh_rwsem_opt_spin_start
@@ -205,6 +216,8 @@
   __tracepoint_android_vh_sched_stat_runtime_rt
   __tracepoint_android_vh_shrink_node_memcgs
   __tracepoint_android_vh_sync_txn_recvd
+  __tracepoint_android_vh_task_blocks_on_rtmutex
+  __tracepoint_android_vh_test_clear_look_around_ref
   __tracepoint_block_bio_queue
   __tracepoint_block_getrq
   __tracepoint_block_rq_complete
@@ -218,6 +231,7 @@
   __tracepoint_sched_stat_wait
   __tracepoint_sched_waking
   __tracepoint_task_rename
+  __trace_puts
   try_to_free_mem_cgroup_pages
   typec_mux_get_drvdata
   unregister_memory_notifier
@@ -227,3 +241,4 @@
   wait_for_completion_killable_timeout
   wakeup_source_remove
   wq_worker_comm
+  zero_pfn

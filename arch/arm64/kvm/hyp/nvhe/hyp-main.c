@@ -39,7 +39,12 @@ static bool (*default_trap_handler)(struct kvm_cpu_context *host_ctxt);
 
 int __pkvm_register_host_smc_handler(bool (*cb)(struct kvm_cpu_context *))
 {
-	return cmpxchg(&default_host_smc_handler, NULL, cb) ? -EBUSY : 0;
+	/*
+	 * Paired with smp_load_acquire(&default_host_smc_handler) in
+	 * handle_host_smc(). Ensure memory stores happening during a pKVM module
+	 * init are observed before executing the callback.
+	 */
+	return cmpxchg_release(&default_host_smc_handler, NULL, cb) ? -EBUSY : 0;
 }
 
 int __pkvm_register_default_trap_handler(bool (*cb)(struct kvm_cpu_context *))
@@ -1376,7 +1381,7 @@ static void handle_host_smc(struct kvm_cpu_context *host_ctxt)
 	handled = kvm_host_psci_handler(host_ctxt);
 	if (!handled)
 		handled = kvm_host_ffa_handler(host_ctxt);
-	if (!handled && READ_ONCE(default_host_smc_handler))
+	if (!handled && smp_load_acquire(&default_host_smc_handler))
 		handled = default_host_smc_handler(host_ctxt);
 	if (!handled)
 		__kvm_hyp_host_forward_smc(host_ctxt);

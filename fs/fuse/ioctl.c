@@ -353,6 +353,15 @@ long fuse_ioctl_common(struct file *file, unsigned int cmd,
 	if (fuse_is_bad(inode))
 		return -EIO;
 
+#ifdef CONFIG_FUSE_BPF
+	{
+		struct fuse_file *ff = file->private_data;
+
+		/* TODO - this is simply passthrough, not a proper BPF filter */
+		if (ff->backing_file)
+			return fuse_backing_ioctl(file, cmd, arg, flags);
+	}
+#endif
 	return fuse_do_ioctl(file, cmd, arg, flags);
 }
 

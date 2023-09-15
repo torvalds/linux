@@ -485,8 +485,8 @@ static void do_fault(struct work_struct *work)
 	flags |= FAULT_FLAG_REMOTE;
 
 	mmap_read_lock(mm);
-	vma = find_extend_vma(mm, address);
-	if (!vma || address < vma->vm_start)
+	vma = vma_lookup(mm, address);
+	if (!vma)
 		/* failed to get a vma in the right range */
 		goto out;
 

@@ -7043,15 +7043,17 @@ void rt_mutex_setprio(struct task_struct *p, struct task_struct *pi_task)
 	const struct sched_class *prev_class;
 	struct rq_flags rf;
 	struct rq *rq;
+	int update = 0;
 
 	trace_android_rvh_rtmutex_prepare_setprio(p, pi_task);
 	/* XXX used to be waiter->prio, not waiter->task->prio */
 	prio = __rt_effective_prio(pi_task, p->normal_prio);
 
+	trace_android_rvh_rtmutex_force_update(p, pi_task, &update);
 	/*
 	 * If nothing changed; bail early.
 	 */
-	if (p->pi_top_task == pi_task && prio == p->prio && !dl_prio(prio))
+	if (!update && p->pi_top_task == pi_task && prio == p->prio && !dl_prio(prio))
 		return;
 
 	rq = __task_rq_lock(p, &rf);
@@ -7071,7 +7073,7 @@ void rt_mutex_setprio(struct task_struct *p, struct task_struct *pi_task)
 	/*
 	 * For FIFO/RR we only need to set prio, if that matches we're done.
 	 */
-	if (prio == p->prio && !dl_prio(prio))
+	if (!update && prio == p->prio && !dl_prio(prio))
 		goto out_unlock;
 
 	/*
@@ -8446,6 +8448,11 @@ static void do_sched_yield(void)
 {
 	struct rq_flags rf;
 	struct rq *rq;
+	long skip = 0;
+
+	trace_android_rvh_before_do_sched_yield(&skip);
+	if (skip)
+		return;
 
 	rq = this_rq_lock_irq(&rf);
 

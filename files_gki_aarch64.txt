@@ -4136,6 +4136,7 @@ include/trace/events/cma.h
 include/trace/events/compaction.h
 include/trace/events/cpuhp.h
 include/trace/events/devfreq.h
+include/trace/events/devlink.h
 include/trace/events/dma_fence.h
 include/trace/events/erofs.h
 include/trace/events/error_report.h
@@ -5665,6 +5666,7 @@ net/core/dev.c
 net/core/dev.h
 net/core/dev_addr_lists.c
 net/core/dev_ioctl.c
+net/core/devlink.c
 net/core/dst.c
 net/core/dst_cache.c
 net/core/fib_notifier.c
