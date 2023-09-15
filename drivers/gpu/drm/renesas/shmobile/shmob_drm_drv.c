@@ -16,6 +16,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
 
+#include <drm/drm_crtc_helper.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_fbdev_generic.h>
 #include <drm/drm_gem_dma_helper.h>
@@ -172,6 +173,7 @@ static void shmob_drm_remove(struct platform_device *pdev)
 	struct drm_device *ddev = &sdev->ddev;
 
 	drm_dev_unregister(ddev);
+	drm_helper_force_disable_all(ddev);
 	drm_kms_helper_poll_fini(ddev);
 }
 
