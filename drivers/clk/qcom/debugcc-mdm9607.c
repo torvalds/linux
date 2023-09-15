@@ -118,6 +118,7 @@ static const char *const gcc_debug_mux_parent_names[] = {
 	"gcc_usb_hs_phy_cfg_ahb_clk",
 	"measure_only_bimc_clk",
 	"measure_only_pcnoc_clk",
+	"measure_only_qpic_clk",
 };
 
 static int gcc_debug_mux_sels[] = {
@@ -181,6 +182,7 @@ static int gcc_debug_mux_sels[] = {
 	0x64,		/* gcc_usb_hs_phy_cfg_ahb_clk */
 	0x155,		/* measure_only_bimc_clk */
 	0x8,		/* measure_only_pcnoc_clk */
+	0x78,		/* measure_only_qpic_clk */
 };
 
 static struct clk_debug_mux gcc_debug_mux = {
@@ -232,10 +234,19 @@ static struct clk_dummy measure_only_apcs_clk = {
 	},
 };
 
+static struct clk_dummy measure_only_qpic_clk = {
+	.rrate = 1000,
+	.hw.init = &(struct clk_init_data){
+		.name = "measure_only_qpic_clk",
+		.ops = &clk_dummy_ops,
+	},
+};
+
 static struct clk_hw *debugcc_mdm9607_hws[] = {
 	&measure_only_bimc_clk.hw,
 	&measure_only_pcnoc_clk.hw,
 	&measure_only_apcs_clk.hw,
+	&measure_only_qpic_clk.hw,
 };
 
 static const struct of_device_id clk_debug_match_table[] = {
