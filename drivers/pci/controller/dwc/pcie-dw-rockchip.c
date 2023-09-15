@@ -1682,7 +1682,7 @@ static struct irq_chip rk_pcie_legacy_irq_chip = {
 static int rk_pcie_intx_map(struct irq_domain *domain, unsigned int irq,
 			    irq_hw_number_t hwirq)
 {
-	irq_set_chip_and_handler(irq, &rk_pcie_legacy_irq_chip, handle_simple_irq);
+	irq_set_chip_and_handler(irq, &rk_pcie_legacy_irq_chip, handle_level_irq);
 	irq_set_chip_data(irq, domain->host_data);
 
 	return 0;
