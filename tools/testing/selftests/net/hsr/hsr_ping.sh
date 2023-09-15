@@ -197,7 +197,7 @@ do
 		break
 	fi
 	sleep 1
-	let WAIT = WAIT - 1
+	let "WAIT = WAIT - 1"
 done
 
 # Just a safety delay in case the above check didn't handle it.
