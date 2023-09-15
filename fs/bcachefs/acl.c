@@ -417,7 +417,7 @@ int bch2_acl_chmod(struct btree_trans *trans, subvol_inum inum,
 	struct btree_iter iter;
 	struct bkey_s_c_xattr xattr;
 	struct bkey_i_xattr *new;
-	struct posix_acl *acl;
+	struct posix_acl *acl = NULL;
 	struct bkey_s_c k;
 	int ret;
 
