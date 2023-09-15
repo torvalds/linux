@@ -5048,10 +5048,12 @@ static int amdgpu_reset_reg_dumps(struct amdgpu_device *adev)
 
 	lockdep_assert_held(&adev->reset_domain->sem);
 
-	for (i = 0; i < adev->num_regs; i++) {
-		adev->reset_dump_reg_value[i] = RREG32(adev->reset_dump_reg_list[i]);
-		trace_amdgpu_reset_reg_dumps(adev->reset_dump_reg_list[i],
-					     adev->reset_dump_reg_value[i]);
+	for (i = 0; i < adev->reset_info.num_regs; i++) {
+		adev->reset_info.reset_dump_reg_value[i] =
+			RREG32(adev->reset_info.reset_dump_reg_list[i]);
+
+		trace_amdgpu_reset_reg_dumps(adev->reset_info.reset_dump_reg_list[i],
+					     adev->reset_info.reset_dump_reg_value[i]);
 	}
 
 	return 0;
@@ -5089,13 +5091,13 @@ static ssize_t amdgpu_devcoredump_read(char *buffer, loff_t offset,
 
 	if (coredump->reset_vram_lost)
 		drm_printf(&p, "VRAM is lost due to GPU reset!\n");
-	if (coredump->adev->num_regs) {
+	if (coredump->adev->reset_info.num_regs) {
 		drm_printf(&p, "AMDGPU register dumps:\nOffset:     Value:\n");
 
-		for (i = 0; i < coredump->adev->num_regs; i++)
+		for (i = 0; i < coredump->adev->reset_info.num_regs; i++)
 			drm_printf(&p, "0x%08x: 0x%08x\n",
-				   coredump->adev->reset_dump_reg_list[i],
-				   coredump->adev->reset_dump_reg_value[i]);
+				   coredump->adev->reset_info.reset_dump_reg_list[i],
+				   coredump->adev->reset_info.reset_dump_reg_value[i]);
 	}
 
 	return count - iter.remain;
