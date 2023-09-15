@@ -1592,35 +1592,6 @@ TRACE_EVENT(update_cpu_capacity,
 			__entry->rq_cpu_capacity_orig)
 );
 
-TRACE_EVENT(sched_qos_freq_request,
-
-	TP_PROTO(int cpu, s32 max_freq, enum qos_clients client, int ret,
-		enum qos_request_type type),
-
-	TP_ARGS(cpu, max_freq, client, ret, type),
-
-	TP_STRUCT__entry(
-		__field(int, cpu)
-		__field(s32, max_freq)
-		__field(int, client)
-		__field(int, ret)
-		__field(int, type)
-	),
-
-	TP_fast_assign(
-		__entry->cpu = cpu;
-		__entry->max_freq = max_freq;
-		__entry->client = client;
-		__entry->ret = ret;
-		__entry->type = type;
-	),
-
-	TP_printk("cpu=%d max_freq=%d client=%d ret=%d type=%d",
-			__entry->cpu, __entry->max_freq,
-			__entry->client, __entry->ret,
-			__entry->type)
-);
-
 TRACE_EVENT(sched_fmax_uncap,
 
 	TP_PROTO(int nr_big, u64 window_start, u32 wakeup_ctr_sum, bool fmax_uncap_load_detected,

@@ -53,20 +53,6 @@ enum task_event {
 	IRQ_UPDATE	= 5,
 };
 
-enum qos_clients {
-	QOS_PARTIAL_HALT,
-	QOS_FMAX_CAP,
-	QOS_HIGH_PERF_CAP,
-
-	/* add new clients above this line */
-	MAX_QOS_CLIENT
-};
-
-enum qos_request_type {
-	MIN_REQUEST,
-	MAX_REQUEST,
-};
-
 /* Note: this need to be in sync with migrate_type_names array */
 enum migrate_types {
 	GROUP_TO_RQ,
@@ -181,6 +167,7 @@ struct walt_sched_cluster {
 	unsigned int		cur_freq;
 	unsigned int		max_possible_freq;
 	unsigned int		max_freq;
+	unsigned int		walt_internal_freq_limit;
 	u64			aggr_grp_load;
 	unsigned long		util_to_cost[1024];
 };
@@ -384,6 +371,9 @@ extern cpumask_t cpus_for_pipeline;
 #define CPUFREQ_REASON_SUH		0x200
 #define CPUFREQ_REASON_ADAPTIVE_LOW	0x400
 #define CPUFREQ_REASON_ADAPTIVE_HIGH	0x800
+#define CPUFREQ_REASON_SMART_FMAX_CAP	0x1000
+#define CPUFREQ_REASON_HIGH_PERF_CAP	0x2000
+#define CPUFREQ_REASON_PARTIAL_HALT_CAP	0x4000
 
 enum sched_boost_policy {
 	SCHED_BOOST_NONE,
@@ -852,8 +842,6 @@ extern int walt_find_energy_efficient_cpu(struct task_struct *p, int prev_cpu,
 					int sync, int sibling_count_hint);
 extern int walt_find_cluster_packing_cpu(int start_cpu);
 extern bool walt_choose_packing_cpu(int packing_cpu, struct task_struct *p);
-extern void add_freq_qos_request(struct cpumask max_freq_cpus, s32 max_freq,
-		enum qos_clients client, enum qos_request_type type);
 
 static inline unsigned int cpu_max_possible_freq(int cpu)
 {
