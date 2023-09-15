@@ -495,7 +495,7 @@ static void intel_crtc_vblank_evade_scanlines(struct intel_atomic_state *state,
 	if (crtc->mode_flags & I915_MODE_FLAG_VRR) {
 		/* timing changes should happen with VRR disabled */
 		drm_WARN_ON(state->base.dev, intel_crtc_needs_modeset(new_crtc_state) ||
-			    new_crtc_state->update_m_n);
+			    new_crtc_state->update_m_n || new_crtc_state->update_lrr);
 
 		if (intel_vrr_is_push_sent(crtc_state))
 			*vblank_start = intel_vrr_vmin_vblank_start(crtc_state);
@@ -511,10 +511,11 @@ static void intel_crtc_vblank_evade_scanlines(struct intel_atomic_state *state,
 	*max = *vblank_start - 1;
 
 	/*
-	 * M/N is double buffered on the transcoder's undelayed vblank,
-	 * so with seamless M/N we must evade both vblanks.
+	 * M/N and TRANS_VTOTAL are double buffered on the transcoder's
+	 * undelayed vblank, so with seamless M/N and LRR we must evade
+	 * both vblanks.
 	 */
-	if (new_crtc_state->update_m_n)
+	if (new_crtc_state->update_m_n || new_crtc_state->update_lrr)
 		*min -= adjusted_mode->crtc_vblank_start - adjusted_mode->crtc_vdisplay;
 }
 

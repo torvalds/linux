@@ -120,8 +120,13 @@ intel_vrr_compute_config(struct intel_crtc_state *crtc_state,
 	if (adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE)
 		return;
 
-	if (!intel_vrr_is_in_range(connector, drm_mode_vrefresh(adjusted_mode)))
+	crtc_state->vrr.in_range =
+		intel_vrr_is_in_range(connector, drm_mode_vrefresh(adjusted_mode));
+	if (!crtc_state->vrr.in_range)
 		return;
+
+	if (HAS_LRR(i915))
+		crtc_state->update_lrr = true;
 
 	vmin = DIV_ROUND_UP(adjusted_mode->crtc_clock * 1000,
 			    adjusted_mode->crtc_htotal * info->monitor_range.max_vfreq);
