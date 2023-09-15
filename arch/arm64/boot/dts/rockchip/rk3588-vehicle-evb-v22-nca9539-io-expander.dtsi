@@ -1,0 +1,36 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2023 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+/ {
+	nca9539_vdd: nca9539-vdd3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "nca9539_vdd";
+		regulator-boot-on;
+		regulator-always-on;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		startup-delay-us = <20>; // NCA9539 POR
+		vin-supply = <&vcc_3v3_s0>;
+	};
+
+};
+
+&i2c5 {
+	clock-frequency = <400000>;
+	status = "okay";
+
+	nca9539_gpio: gpio@74 {
+		status = "okay";
+		compatible = "novo,nca9539-gpio";
+		reg = <0x74>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		ngpios = <16>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		vdd-supply = <&nca9539_vdd>;
+	};
+};
