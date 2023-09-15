@@ -1629,7 +1629,7 @@ static void top_print_header(struct perf_kwork *kwork __maybe_unused)
 
 		     PRINT_CPU_USAGE_WIDTH, "%CPU",
 		     PRINT_RUNTIME_HEADER_WIDTH + RPINT_DECIMAL_WIDTH, "RUNTIME",
-		     PRINT_TASK_NAME_WIDTH, "COMMMAND");
+		     PRINT_TASK_NAME_WIDTH, "COMMAND");
 	printf("\n ");
 	print_separator(ret);
 }
