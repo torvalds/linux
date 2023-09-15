@@ -117,7 +117,7 @@ kwork_class_bpf_supported_list[KWORK_CLASS_MAX] = {
 
 static bool valid_kwork_class_type(enum kwork_class_type type)
 {
-	return type >= 0 && type < KWORK_CLASS_MAX ? true : false;
+	return type >= 0 && type < KWORK_CLASS_MAX;
 }
 
 static int setup_filters(struct perf_kwork *kwork)
