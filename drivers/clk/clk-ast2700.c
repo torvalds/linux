@@ -1,26 +1,19 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright ASPEED Technology
 
-#define pr_fmt(fmt) "clk-ast2600: " fmt
-
 #include <linux/clk-provider.h>
-
-#include <linux/mfd/syscon.h>
 #include <linux/of_address.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
-
 #include <dt-bindings/clock/aspeed,ast2700-clk.h>
 #include <dt-bindings/reset/aspeed,ast2700-reset.h>
-
 #include "clk-aspeed.h"
 
 #define AST2700_CLK_25MHZ 25000000
 #define AST2700_CLK_24MHZ 24000000
 #define AST2700_CLK_192MHZ 192000000
-
 /* CPU Die */
 #define AST2700_CPU_RESET_CTRL 0x00
 #define AST2700_CPU_RESET_CTRL2 0x20
@@ -40,12 +33,10 @@
 /* IO Die */
 #define AST2700_IO_CLK_STOP 0x40
 #define AST2700_IO_CLK_STOP2 0x60
-
 #define AST2700_IO_CLK_SEL1 0x80
 #define AST2700_IO_CLK_SEL2 0x84
 #define UXCLK_MASK GENMASK(1, 0)
 #define HUXCLK_MASK GENMASK(4, 3)
-
 #define AST2700_IO_HPLL_PARAM 0x100
 #define AST2700_IO_APLL_PARAM 0x110
 #define AST2700_IO_DPLL_PARAM 0x120
