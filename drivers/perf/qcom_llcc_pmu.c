@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2017-2020, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/of.h>
@@ -16,6 +16,7 @@
 #include <linux/spinlock.h>
 #include <linux/ktime.h>
 #include <soc/qcom/qcom_llcc_pmu.h>
+static uint32_t phys_cpu[NR_CPUS];
 
 enum llcc_pmu_version {
 	LLCC_PMU_VER1 = 1,
@@ -64,6 +65,7 @@ EXPORT_SYMBOL(qcom_llcc_pmu_hw_type);
 static void mon_disable(int cpu)
 {
 	u32 reg;
+	cpu = phys_cpu[cpu];
 
 	if (!llccpmu->ver) {
 		pr_err("LLCCPMU version not correct\n");
@@ -84,8 +86,11 @@ static void mon_disable(int cpu)
 
 static void mon_clear(int cpu)
 {
-	int clear_bit = CLEAR_POS + cpu;
+	int clear_bit;
 	u32 reg;
+
+	cpu = phys_cpu[cpu];
+	clear_bit = CLEAR_POS + cpu;
 
 	if (!llccpmu->ver) {
 		pr_err("LLCCPMU version not correct\n");
@@ -109,6 +114,7 @@ static void mon_clear(int cpu)
 static void mon_enable(int cpu)
 {
 	u32 reg;
+	cpu = phys_cpu[cpu];
 
 	if (!llccpmu->ver) {
 		pr_err("LLCCPMU version not correct\n");
@@ -130,6 +136,7 @@ static void mon_enable(int cpu)
 static unsigned long read_cnt(int cpu)
 {
 	unsigned long value;
+	cpu = phys_cpu[cpu];
 
 	if (!llccpmu->ver) {
 		pr_err("LLCCPMU version not correct\n");
@@ -254,10 +261,18 @@ static void qcom_llcc_event_del(struct perf_event *event, int flags)
 	raw_spin_unlock(&users_lock);
 }
 
+static void get_mpidr_cpu(void *cpu)
+{
+	u64 mpidr = read_cpuid_mpidr() & MPIDR_HWID_BITMASK;
+
+	*((uint32_t *)cpu) = MPIDR_AFFINITY_LEVEL(mpidr, 1);
+}
+
 static int qcom_llcc_pmu_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 	int ret;
+	uint32_t cpu, pcpu;
 
 	if (llccpmu) {
 		dev_err(&pdev->dev, "Only one LLCC PMU allowed!\n");
@@ -299,6 +314,12 @@ static int qcom_llcc_pmu_probe(struct platform_device *pdev)
 	ret = perf_pmu_register(&llccpmu->pmu, "llcc-pmu", -1);
 	if (ret < 0)
 		dev_err(&pdev->dev, "Failed to register LLCC PMU (%d)\n", ret);
+
+	for_each_possible_cpu(cpu) {
+		smp_call_function_single(cpu, get_mpidr_cpu,
+							 &pcpu, true);
+		phys_cpu[cpu] = pcpu;
+	}
 
 	dev_info(&pdev->dev, "Registered llcc_pmu, type: %d\n",
 		 llccpmu->pmu.type);
