@@ -193,7 +193,7 @@ u_memcpya(uint64_t user, unsigned int nmemb, unsigned int size)
 	size_t bytes;
 
 	if (unlikely(check_mul_overflow(nmemb, size, &bytes)))
-		return NULL;
+		return ERR_PTR(-EOVERFLOW);
 	return vmemdup_user(userptr, bytes);
 }
 
