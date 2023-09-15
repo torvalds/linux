@@ -16,6 +16,5 @@ struct shmob_drm_device;
 struct drm_plane *shmob_drm_plane_create(struct shmob_drm_device *sdev,
 					 enum drm_plane_type type,
 					 unsigned int index);
-void shmob_drm_plane_setup(struct drm_plane *plane);
 
 #endif /* __SHMOB_DRM_PLANE_H__ */

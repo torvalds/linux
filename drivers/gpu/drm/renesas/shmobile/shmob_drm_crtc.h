@@ -29,9 +29,6 @@ struct shmob_drm_crtc {
 	wait_queue_head_t flip_wait;
 	int dpms;
 
-	const struct shmob_drm_format_info *format;
-	unsigned long dma[2];
-	unsigned int line_size;
 	bool started;
 };
 

@@ -11,6 +11,9 @@
 #include <linux/media-bus-format.h>
 #include <linux/pm_runtime.h>
 
+#include <drm/drm_atomic_helper.h>
+#include <drm/drm_atomic_state_helper.h>
+#include <drm/drm_atomic_uapi.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_dma_helper.h>
@@ -199,20 +202,14 @@ static void shmob_drm_crtc_start(struct shmob_drm_crtc *scrtc)
 	struct drm_crtc *crtc = &scrtc->base;
 	struct shmob_drm_device *sdev = to_shmob_device(crtc->dev);
 	const struct shmob_drm_interface_data *idata = &sdev->pdata->iface;
-	const struct shmob_drm_format_info *format;
-	struct drm_device *dev = &sdev->ddev;
-	struct drm_plane *plane;
+	struct device *dev = sdev->dev;
 	u32 value;
 	int ret;
 
 	if (scrtc->started)
 		return;
 
-	format = shmob_drm_format_info(crtc->primary->fb->format->format);
-	if (WARN_ON(format == NULL))
-		return;
-
-	ret = pm_runtime_resume_and_get(sdev->dev);
+	ret = pm_runtime_resume_and_get(dev);
 	if (ret)
 		return;
 
@@ -249,22 +246,7 @@ static void shmob_drm_crtc_start(struct shmob_drm_crtc *scrtc)
 	/* Setup geometry, format, frame buffer memory and operation mode. */
 	shmob_drm_crtc_setup_geometry(scrtc);
 
-	/* TODO: Handle YUV colorspaces. Hardcode REC709 for now. */
-	lcdc_write(sdev, LDDFR, format->lddfr | LDDFR_CF1);
-	lcdc_write(sdev, LDMLSR, scrtc->line_size);
-	lcdc_write(sdev, LDSA1R, scrtc->dma[0]);
-	if (shmob_drm_format_is_yuv(format))
-		lcdc_write(sdev, LDSA2R, scrtc->dma[1]);
 	lcdc_write(sdev, LDSM1R, 0);
-
-	/* Word and long word swap. */
-	lcdc_write(sdev, LDDDSR, format->ldddsr);
-
-	/* Setup planes. */
-	drm_for_each_legacy_plane(plane, dev) {
-		if (plane->crtc == crtc)
-			shmob_drm_plane_setup(plane);
-	}
 
 	/* Enable the display output. */
 	lcdc_write(sdev, LDCNT1R, LDCNT1R_DE);
@@ -317,42 +299,6 @@ void shmob_drm_crtc_resume(struct shmob_drm_crtc *scrtc)
 	shmob_drm_crtc_start(scrtc);
 }
 
-static void shmob_drm_crtc_compute_base(struct shmob_drm_crtc *scrtc,
-					int x, int y)
-{
-	struct drm_crtc *crtc = &scrtc->base;
-	struct drm_framebuffer *fb = crtc->primary->fb;
-	struct drm_gem_dma_object *gem;
-	unsigned int bpp;
-
-	bpp = shmob_drm_format_is_yuv(scrtc->format) ? 8 : scrtc->format->bpp;
-	gem = drm_fb_dma_get_gem_obj(fb, 0);
-	scrtc->dma[0] = gem->dma_addr + fb->offsets[0]
-		      + y * fb->pitches[0] + x * bpp / 8;
-
-	if (shmob_drm_format_is_yuv(scrtc->format)) {
-		bpp = scrtc->format->bpp - 8;
-		gem = drm_fb_dma_get_gem_obj(fb, 1);
-		scrtc->dma[1] = gem->dma_addr + fb->offsets[1]
-			      + y / (bpp == 4 ? 2 : 1) * fb->pitches[1]
-			      + x * (bpp == 16 ? 2 : 1);
-	}
-}
-
-static void shmob_drm_crtc_update_base(struct shmob_drm_crtc *scrtc)
-{
-	struct drm_crtc *crtc = &scrtc->base;
-	struct shmob_drm_device *sdev = to_shmob_device(crtc->dev);
-
-	shmob_drm_crtc_compute_base(scrtc, crtc->x, crtc->y);
-
-	lcdc_write_mirror(sdev, LDSA1R, scrtc->dma[0]);
-	if (shmob_drm_format_is_yuv(scrtc->format))
-		lcdc_write_mirror(sdev, LDSA2R, scrtc->dma[1]);
-
-	lcdc_write(sdev, LDRCNTR, lcdc_read(sdev, LDRCNTR) ^ LDRCNTR_MRS);
-}
-
 static inline struct shmob_drm_crtc *to_shmob_crtc(struct drm_crtc *crtc)
 {
 	return container_of(crtc, struct shmob_drm_crtc, base);
@@ -378,50 +324,45 @@ static void shmob_drm_crtc_mode_prepare(struct drm_crtc *crtc)
 	shmob_drm_crtc_dpms(crtc, DRM_MODE_DPMS_OFF);
 }
 
-static int shmob_drm_crtc_mode_set(struct drm_crtc *crtc,
-				   struct drm_display_mode *mode,
-				   struct drm_display_mode *adjusted_mode,
-				   int x, int y,
-				   struct drm_framebuffer *old_fb)
-{
-	struct shmob_drm_device *sdev = to_shmob_device(crtc->dev);
-	struct shmob_drm_crtc *scrtc = to_shmob_crtc(crtc);
-	const struct shmob_drm_format_info *format;
-
-	format = shmob_drm_format_info(crtc->primary->fb->format->format);
-	if (format == NULL) {
-		dev_dbg(sdev->dev, "mode_set: unsupported format %p4cc\n",
-			&crtc->primary->fb->format->format);
-		return -EINVAL;
-	}
-
-	scrtc->format = format;
-	scrtc->line_size = crtc->primary->fb->pitches[0];
-
-	shmob_drm_crtc_compute_base(scrtc, x, y);
-
-	return 0;
-}
-
 static void shmob_drm_crtc_mode_commit(struct drm_crtc *crtc)
 {
 	shmob_drm_crtc_dpms(crtc, DRM_MODE_DPMS_ON);
 }
 
-static int shmob_drm_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
-					struct drm_framebuffer *old_fb)
+static int shmob_drm_crtc_atomic_check(struct drm_crtc *crtc,
+				       struct drm_atomic_state *state)
 {
-	shmob_drm_crtc_update_base(to_shmob_crtc(crtc));
-
 	return 0;
+}
+
+static void shmob_drm_crtc_atomic_begin(struct drm_crtc *crtc,
+					struct drm_atomic_state *state)
+{
+}
+
+static void shmob_drm_crtc_atomic_flush(struct drm_crtc *crtc,
+					struct drm_atomic_state *state)
+{
+	struct drm_pending_vblank_event *event;
+	struct drm_device *dev = crtc->dev;
+	unsigned long flags;
+
+	if (crtc->state->event) {
+		spin_lock_irqsave(&dev->event_lock, flags);
+		event = crtc->state->event;
+		crtc->state->event = NULL;
+		drm_crtc_send_vblank_event(crtc, event);
+		spin_unlock_irqrestore(&dev->event_lock, flags);
+	}
 }
 
 static const struct drm_crtc_helper_funcs crtc_helper_funcs = {
 	.dpms = shmob_drm_crtc_dpms,
 	.prepare = shmob_drm_crtc_mode_prepare,
 	.commit = shmob_drm_crtc_mode_commit,
-	.mode_set = shmob_drm_crtc_mode_set,
-	.mode_set_base = shmob_drm_crtc_mode_set_base,
+	.atomic_check = shmob_drm_crtc_atomic_check,
+	.atomic_begin = shmob_drm_crtc_atomic_begin,
+	.atomic_flush = shmob_drm_crtc_atomic_flush,
 };
 
 static int shmob_drm_crtc_page_flip(struct drm_crtc *crtc,
@@ -441,8 +382,7 @@ static int shmob_drm_crtc_page_flip(struct drm_crtc *crtc,
 	}
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 
-	crtc->primary->fb = fb;
-	shmob_drm_crtc_update_base(scrtc);
+	drm_atomic_set_fb_for_plane(crtc->primary->state, fb);
 
 	if (event) {
 		event->pipe = 0;
@@ -489,9 +429,12 @@ static void shmob_drm_disable_vblank(struct drm_crtc *crtc)
 }
 
 static const struct drm_crtc_funcs crtc_funcs = {
+	.reset = drm_atomic_helper_crtc_reset,
 	.destroy = drm_crtc_cleanup,
-	.set_config = drm_crtc_helper_set_config,
+	.set_config = drm_atomic_helper_set_config,
 	.page_flip = shmob_drm_crtc_page_flip,
+	.atomic_duplicate_state = drm_atomic_helper_crtc_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_crtc_destroy_state,
 	.enable_vblank = shmob_drm_enable_vblank,
 	.disable_vblank = shmob_drm_disable_vblank,
 };
@@ -627,8 +570,11 @@ static void shmob_drm_connector_destroy(struct drm_connector *connector)
 
 static const struct drm_connector_funcs connector_funcs = {
 	.dpms = drm_helper_connector_dpms,
+	.reset = drm_atomic_helper_connector_reset,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.destroy = shmob_drm_connector_destroy,
+	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 };
 
 static struct drm_connector *
