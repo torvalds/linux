@@ -157,7 +157,7 @@ struct sched_avg_stats *sched_get_nr_running_avg(void)
 done:
 	return &stats[0];
 }
-EXPORT_SYMBOL(sched_get_nr_running_avg);
+EXPORT_SYMBOL_GPL(sched_get_nr_running_avg);
 
 void sched_update_hyst_times(void)
 {
@@ -335,4 +335,4 @@ int sched_lpm_disallowed_time(int cpu, u64 *timeout)
 
 	return INT_MAX; /* don't care */
 }
-EXPORT_SYMBOL(sched_lpm_disallowed_time);
+EXPORT_SYMBOL_GPL(sched_lpm_disallowed_time);

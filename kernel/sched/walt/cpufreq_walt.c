@@ -309,6 +309,13 @@ static unsigned int get_next_freq(struct waltgov_policy *wg_policy,
 		}
 	}
 
+	if (freq > fmax_cap[SMART_FMAX_CAP][cluster->id])
+		freq = fmax_cap[SMART_FMAX_CAP][cluster->id];
+	if (freq > fmax_cap[HIGH_PERF_CAP][cluster->id])
+		freq = fmax_cap[HIGH_PERF_CAP][cluster->id];
+	if (freq > fmax_cap[PARTIAL_HALT_CAP][cluster->id])
+		freq = fmax_cap[PARTIAL_HALT_CAP][cluster->id];
+
 	if (wg_policy->cached_raw_freq && freq == wg_policy->cached_raw_freq &&
 		!wg_policy->need_freq_update) {
 		final_freq = 0;
@@ -770,7 +777,7 @@ int cpufreq_walt_set_adaptive_freq(unsigned int cpu, unsigned int adaptive_low_f
 
 	return -EINVAL;
 }
-EXPORT_SYMBOL(cpufreq_walt_set_adaptive_freq);
+EXPORT_SYMBOL_GPL(cpufreq_walt_set_adaptive_freq);
 
 /**
  * cpufreq_walt_get_adaptive_freq() - get the waltgov adaptive freq for cpu
@@ -799,7 +806,7 @@ int cpufreq_walt_get_adaptive_freq(unsigned int cpu, unsigned int *adaptive_low_
 
 	return -EINVAL;
 }
-EXPORT_SYMBOL(cpufreq_walt_get_adaptive_freq);
+EXPORT_SYMBOL_GPL(cpufreq_walt_get_adaptive_freq);
 
 /**
  * cpufreq_walt_reset_adaptive_freq() - reset the waltgov adaptive freq for cpu
@@ -822,7 +829,7 @@ int cpufreq_walt_reset_adaptive_freq(unsigned int cpu)
 
 	return 0;
 }
-EXPORT_SYMBOL(cpufreq_walt_reset_adaptive_freq);
+EXPORT_SYMBOL_GPL(cpufreq_walt_reset_adaptive_freq);
 
 #define WALTGOV_ATTR_RW(_name)						\
 static struct governor_attr _name =					\

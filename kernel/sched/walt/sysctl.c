@@ -86,6 +86,7 @@ unsigned int sysctl_sched_sbt_pause_cpus;
 unsigned int sysctl_sched_sbt_delay_windows;
 unsigned int high_perf_cluster_freq_cap[MAX_CLUSTERS];
 unsigned int sysctl_sched_pipeline_cpus;
+unsigned int fmax_cap[MAX_FREQ_CAP][MAX_CLUSTERS];
 
 /* range is [1 .. INT_MAX] */
 static int sysctl_task_read_pid = 1;
@@ -1259,7 +1260,7 @@ struct ctl_table walt_base_table[] = {
 
 void walt_tunables(void)
 {
-	int i;
+	int i, j;
 
 	for (i = 0; i < MAX_MARGIN_LEVELS; i++) {
 		sysctl_sched_capacity_margin_up_pct[i] = 95; /* ~5% margin */
@@ -1303,5 +1304,10 @@ void walt_tunables(void)
 	for (i = 0; i < MAX_CLUSTERS; i++) {
 		sysctl_fmax_cap[i] = FREQ_QOS_MAX_DEFAULT_VALUE;
 		high_perf_cluster_freq_cap[i] = FREQ_QOS_MAX_DEFAULT_VALUE;
+	}
+
+	for (i = 0; i < MAX_FREQ_CAP; i++) {
+		for (j = 0; j < MAX_CLUSTERS; j++)
+			fmax_cap[i][j] = FREQ_QOS_MAX_DEFAULT_VALUE;
 	}
 }

@@ -1227,19 +1227,19 @@ int core_ctl_set_boost(bool boost)
 
 	return ret;
 }
-EXPORT_SYMBOL(core_ctl_set_boost);
+EXPORT_SYMBOL_GPL(core_ctl_set_boost);
 
 void core_ctl_notifier_register(struct notifier_block *n)
 {
 	atomic_notifier_chain_register(&core_ctl_notifier, n);
 }
-EXPORT_SYMBOL(core_ctl_notifier_register);
+EXPORT_SYMBOL_GPL(core_ctl_notifier_register);
 
 void core_ctl_notifier_unregister(struct notifier_block *n)
 {
 	atomic_notifier_chain_unregister(&core_ctl_notifier, n);
 }
-EXPORT_SYMBOL(core_ctl_notifier_unregister);
+EXPORT_SYMBOL_GPL(core_ctl_notifier_unregister);
 
 static void core_ctl_call_notifier(void)
 {

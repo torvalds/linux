@@ -79,6 +79,13 @@ enum pipeline_types {
 	MAX_PIPELINE_TYPES,
 };
 
+enum freq_caps {
+	PARTIAL_HALT_CAP,
+	SMART_FMAX_CAP,
+	HIGH_PERF_CAP,
+	MAX_FREQ_CAP,
+};
+
 #define WALT_LOW_LATENCY_PROCFS		BIT(0)
 #define WALT_LOW_LATENCY_BINDER		BIT(1)
 #define WALT_LOW_LATENCY_PIPELINE	BIT(2)
@@ -278,6 +285,7 @@ extern unsigned int sysctl_panic_on_walt_bug;
 extern unsigned int sysctl_max_freq_partial_halt;
 extern unsigned int sysctl_fmax_cap[MAX_CLUSTERS];
 extern unsigned int high_perf_cluster_freq_cap[MAX_CLUSTERS];
+extern unsigned int fmax_cap[MAX_FREQ_CAP][MAX_CLUSTERS];
 extern int sched_dynamic_tp_handler(struct ctl_table *table, int write,
 			void __user *buffer, size_t *lenp, loff_t *ppos);
 

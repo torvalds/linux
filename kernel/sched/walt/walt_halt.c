@@ -272,10 +272,16 @@ void restrict_cpus_and_freq(struct cpumask *cpus)
 			!cpumask_intersects(cpus, cpu_halt_mask) &&
 			is_state1()) {
 		max_freq_val = (s32)sysctl_max_freq_partial_halt;
+		for_each_cpu(cpu, cpus)
+			fmax_cap[PARTIAL_HALT_CAP][cpu_cluster(cpu)->id] =
+				sysctl_max_freq_partial_halt;
 	} else {
 		max_freq_val = FREQ_QOS_MAX_DEFAULT_VALUE;
-		for_each_cpu(cpu, cpus)
+		for_each_cpu(cpu, cpus) {
 			cpumask_or(&restrict_cpus, &restrict_cpus, &(cpu_cluster(cpu)->cpus));
+			fmax_cap[PARTIAL_HALT_CAP][cpu_cluster(cpu)->id] =
+				FREQ_QOS_MAX_DEFAULT_VALUE;
+		}
 	}
 
 	add_freq_qos_request(restrict_cpus, max_freq_val, QOS_PARTIAL_HALT, MAX_REQUEST);
@@ -431,7 +437,7 @@ int walt_pause_cpus(struct cpumask *cpus, enum pause_client client)
 		return -EAGAIN;
 	return walt_halt_cpus(cpus, client, HALT);
 }
-EXPORT_SYMBOL(walt_pause_cpus);
+EXPORT_SYMBOL_GPL(walt_pause_cpus);
 
 int walt_partial_pause_cpus(struct cpumask *cpus, enum pause_client client)
 {
@@ -439,7 +445,7 @@ int walt_partial_pause_cpus(struct cpumask *cpus, enum pause_client client)
 		return -EAGAIN;
 	return walt_halt_cpus(cpus, client, PARTIAL_HALT);
 }
-EXPORT_SYMBOL(walt_partial_pause_cpus);
+EXPORT_SYMBOL_GPL(walt_partial_pause_cpus);
 
 /* cpus will be modified */
 static int walt_start_cpus(struct cpumask *cpus, enum pause_client client, enum pause_type type)
@@ -475,7 +481,7 @@ int walt_resume_cpus(struct cpumask *cpus, enum pause_client client)
 		return -EAGAIN;
 	return walt_start_cpus(cpus, client, HALT);
 }
-EXPORT_SYMBOL(walt_resume_cpus);
+EXPORT_SYMBOL_GPL(walt_resume_cpus);
 
 int walt_partial_resume_cpus(struct cpumask *cpus, enum pause_client client)
 {
@@ -483,7 +489,7 @@ int walt_partial_resume_cpus(struct cpumask *cpus, enum pause_client client)
 		return -EAGAIN;
 	return walt_start_cpus(cpus, client, PARTIAL_HALT);
 }
-EXPORT_SYMBOL(walt_partial_resume_cpus);
+EXPORT_SYMBOL_GPL(walt_partial_resume_cpus);
 
 /* return true if the requested client has fully halted one of the cpus */
 bool cpus_halted_by_client(struct cpumask *cpus, enum pause_client client)
