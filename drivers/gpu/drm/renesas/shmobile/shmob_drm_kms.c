@@ -27,53 +27,73 @@ static const struct shmob_drm_format_info shmob_drm_format_infos[] = {
 	{
 		.fourcc = DRM_FORMAT_RGB565,
 		.bpp = 16,
-		.yuv = false,
 		.lddfr = LDDFR_PKF_RGB16,
+		.ldddsr = LDDDSR_LS | LDDDSR_WS,
+		.ldbbsifr = LDBBSIFR_AL_1 | LDBBSIFR_SWPL | LDBBSIFR_SWPW |
+			    LDBBSIFR_RY | LDBBSIFR_RPKF_RGB16,
 	}, {
 		.fourcc = DRM_FORMAT_RGB888,
 		.bpp = 24,
-		.yuv = false,
 		.lddfr = LDDFR_PKF_RGB24,
+		.ldddsr = LDDDSR_LS | LDDDSR_WS | LDDDSR_BS,
+		.ldbbsifr = LDBBSIFR_AL_1 | LDBBSIFR_SWPL | LDBBSIFR_SWPW |
+			    LDBBSIFR_SWPB | LDBBSIFR_RY | LDBBSIFR_RPKF_RGB24,
 	}, {
 		.fourcc = DRM_FORMAT_ARGB8888,
 		.bpp = 32,
-		.yuv = false,
 		.lddfr = LDDFR_PKF_ARGB32,
+		.ldddsr = LDDDSR_LS,
+		.ldbbsifr = LDBBSIFR_AL_PK | LDBBSIFR_SWPL | LDBBSIFR_RY |
+			    LDBBSIFR_RPKF_ARGB32,
 	}, {
 		.fourcc = DRM_FORMAT_XRGB8888,
 		.bpp = 32,
-		.yuv = false,
 		.lddfr = LDDFR_PKF_ARGB32,
+		.ldddsr = LDDDSR_LS,
+		.ldbbsifr = LDBBSIFR_AL_1 | LDBBSIFR_SWPL | LDBBSIFR_RY |
+			    LDBBSIFR_RPKF_ARGB32,
 	}, {
 		.fourcc = DRM_FORMAT_NV12,
 		.bpp = 12,
-		.yuv = true,
 		.lddfr = LDDFR_CC | LDDFR_YF_420,
+		.ldddsr = LDDDSR_LS | LDDDSR_WS | LDDDSR_BS,
+		.ldbbsifr = LDBBSIFR_AL_1 | LDBBSIFR_SWPL | LDBBSIFR_SWPW |
+			    LDBBSIFR_SWPB | LDBBSIFR_CHRR_420,
 	}, {
 		.fourcc = DRM_FORMAT_NV21,
 		.bpp = 12,
-		.yuv = true,
 		.lddfr = LDDFR_CC | LDDFR_YF_420,
+		.ldddsr = LDDDSR_LS | LDDDSR_WS,
+		.ldbbsifr = LDBBSIFR_AL_1 | LDBBSIFR_SWPL | LDBBSIFR_SWPW |
+			    LDBBSIFR_CHRR_420,
 	}, {
 		.fourcc = DRM_FORMAT_NV16,
 		.bpp = 16,
-		.yuv = true,
 		.lddfr = LDDFR_CC | LDDFR_YF_422,
+		.ldddsr = LDDDSR_LS | LDDDSR_WS | LDDDSR_BS,
+		.ldbbsifr = LDBBSIFR_AL_1 | LDBBSIFR_SWPL | LDBBSIFR_SWPW |
+			    LDBBSIFR_SWPB | LDBBSIFR_CHRR_422,
 	}, {
 		.fourcc = DRM_FORMAT_NV61,
 		.bpp = 16,
-		.yuv = true,
 		.lddfr = LDDFR_CC | LDDFR_YF_422,
+		.ldddsr = LDDDSR_LS | LDDDSR_WS,
+		.ldbbsifr = LDBBSIFR_AL_1 | LDBBSIFR_SWPL | LDBBSIFR_SWPW |
+			    LDBBSIFR_CHRR_422,
 	}, {
 		.fourcc = DRM_FORMAT_NV24,
 		.bpp = 24,
-		.yuv = true,
 		.lddfr = LDDFR_CC | LDDFR_YF_444,
+		.ldddsr = LDDDSR_LS | LDDDSR_WS | LDDDSR_BS,
+		.ldbbsifr = LDBBSIFR_AL_1 | LDBBSIFR_SWPL | LDBBSIFR_SWPW |
+			    LDBBSIFR_SWPB | LDBBSIFR_CHRR_444,
 	}, {
 		.fourcc = DRM_FORMAT_NV42,
 		.bpp = 24,
-		.yuv = true,
 		.lddfr = LDDFR_CC | LDDFR_YF_444,
+		.ldddsr = LDDDSR_LS | LDDDSR_WS,
+		.ldbbsifr = LDBBSIFR_AL_1 | LDBBSIFR_SWPL | LDBBSIFR_SWPW |
+			    LDBBSIFR_CHRR_444,
 	},
 };
 
@@ -112,7 +132,7 @@ shmob_drm_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 		return ERR_PTR(-EINVAL);
 	}
 
-	if (format->yuv) {
+	if (shmob_drm_format_is_yuv(format)) {
 		unsigned int chroma_cpp = format->bpp == 24 ? 2 : 1;
 
 		if (mode_cmd->pitches[1] != mode_cmd->pitches[0] * chroma_cpp) {

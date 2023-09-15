@@ -43,12 +43,12 @@ static void shmob_drm_plane_compute_base(struct shmob_drm_plane *splane,
 	struct drm_gem_dma_object *gem;
 	unsigned int bpp;
 
-	bpp = splane->format->yuv ? 8 : splane->format->bpp;
+	bpp = shmob_drm_format_is_yuv(splane->format) ? 8 : splane->format->bpp;
 	gem = drm_fb_dma_get_gem_obj(fb, 0);
 	splane->dma[0] = gem->dma_addr + fb->offsets[0]
 		       + y * fb->pitches[0] + x * bpp / 8;
 
-	if (splane->format->yuv) {
+	if (shmob_drm_format_is_yuv(splane->format)) {
 		bpp = splane->format->bpp - 8;
 		gem = drm_fb_dma_get_gem_obj(fb, 1);
 		splane->dma[1] = gem->dma_addr + fb->offsets[1]
@@ -64,54 +64,8 @@ static void __shmob_drm_plane_setup(struct shmob_drm_plane *splane,
 	u32 format;
 
 	/* TODO: Support ROP3 mode */
-	format = LDBBSIFR_EN | (splane->alpha << LDBBSIFR_LAY_SHIFT);
-
-	switch (splane->format->fourcc) {
-	case DRM_FORMAT_RGB565:
-	case DRM_FORMAT_NV21:
-	case DRM_FORMAT_NV61:
-	case DRM_FORMAT_NV42:
-		format |= LDBBSIFR_SWPL | LDBBSIFR_SWPW;
-		break;
-	case DRM_FORMAT_RGB888:
-	case DRM_FORMAT_NV12:
-	case DRM_FORMAT_NV16:
-	case DRM_FORMAT_NV24:
-		format |= LDBBSIFR_SWPL | LDBBSIFR_SWPW | LDBBSIFR_SWPB;
-		break;
-	case DRM_FORMAT_ARGB8888:
-	case DRM_FORMAT_XRGB8888:
-	default:
-		format |= LDBBSIFR_SWPL;
-		break;
-	}
-
-	switch (splane->format->fourcc) {
-	case DRM_FORMAT_RGB565:
-		format |= LDBBSIFR_AL_1 | LDBBSIFR_RY | LDBBSIFR_RPKF_RGB16;
-		break;
-	case DRM_FORMAT_RGB888:
-		format |= LDBBSIFR_AL_1 | LDBBSIFR_RY | LDBBSIFR_RPKF_RGB24;
-		break;
-	case DRM_FORMAT_ARGB8888:
-		format |= LDBBSIFR_AL_PK | LDBBSIFR_RY | LDBBSIFR_RPKF_ARGB32;
-		break;
-	case DRM_FORMAT_XRGB8888:
-		format |= LDBBSIFR_AL_1 | LDBBSIFR_RY | LDBBSIFR_RPKF_ARGB32;
-		break;
-	case DRM_FORMAT_NV12:
-	case DRM_FORMAT_NV21:
-		format |= LDBBSIFR_AL_1 | LDBBSIFR_CHRR_420;
-		break;
-	case DRM_FORMAT_NV16:
-	case DRM_FORMAT_NV61:
-		format |= LDBBSIFR_AL_1 | LDBBSIFR_CHRR_422;
-		break;
-	case DRM_FORMAT_NV24:
-	case DRM_FORMAT_NV42:
-		format |= LDBBSIFR_AL_1 | LDBBSIFR_CHRR_444;
-		break;
-	}
+	format = LDBBSIFR_EN | (splane->alpha << LDBBSIFR_LAY_SHIFT) |
+		 splane->format->ldbbsifr;
 
 #define plane_reg_dump(sdev, splane, reg) \
 	dev_dbg(sdev->ddev->dev, "%s(%u): %s 0x%08x 0x%08x\n", __func__, \
@@ -144,7 +98,7 @@ static void __shmob_drm_plane_setup(struct shmob_drm_plane *splane,
 	shmob_drm_plane_compute_base(splane, fb, splane->src_x, splane->src_y);
 
 	lcdc_write(sdev, LDBnBSAYR(splane->index), splane->dma[0]);
-	if (splane->format->yuv)
+	if (shmob_drm_format_is_yuv(splane->format))
 		lcdc_write(sdev, LDBnBSACR(splane->index), splane->dma[1]);
 
 	lcdc_write(sdev, LDBCR,

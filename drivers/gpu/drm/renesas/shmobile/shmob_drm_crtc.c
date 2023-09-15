@@ -191,31 +191,12 @@ static void shmob_drm_crtc_start(struct shmob_drm_crtc *scrtc)
 	lcdc_write(sdev, LDDFR, format->lddfr | LDDFR_CF1);
 	lcdc_write(sdev, LDMLSR, scrtc->line_size);
 	lcdc_write(sdev, LDSA1R, scrtc->dma[0]);
-	if (format->yuv)
+	if (shmob_drm_format_is_yuv(format))
 		lcdc_write(sdev, LDSA2R, scrtc->dma[1]);
 	lcdc_write(sdev, LDSM1R, 0);
 
 	/* Word and long word swap. */
-	switch (format->fourcc) {
-	case DRM_FORMAT_RGB565:
-	case DRM_FORMAT_NV21:
-	case DRM_FORMAT_NV61:
-	case DRM_FORMAT_NV42:
-		value = LDDDSR_LS | LDDDSR_WS;
-		break;
-	case DRM_FORMAT_RGB888:
-	case DRM_FORMAT_NV12:
-	case DRM_FORMAT_NV16:
-	case DRM_FORMAT_NV24:
-		value = LDDDSR_LS | LDDDSR_WS | LDDDSR_BS;
-		break;
-	case DRM_FORMAT_ARGB8888:
-	case DRM_FORMAT_XRGB8888:
-	default:
-		value = LDDDSR_LS;
-		break;
-	}
-	lcdc_write(sdev, LDDDSR, value);
+	lcdc_write(sdev, LDDDSR, format->ldddsr);
 
 	/* Setup planes. */
 	drm_for_each_legacy_plane(plane, dev) {
@@ -271,12 +252,12 @@ static void shmob_drm_crtc_compute_base(struct shmob_drm_crtc *scrtc,
 	struct drm_gem_dma_object *gem;
 	unsigned int bpp;
 
-	bpp = scrtc->format->yuv ? 8 : scrtc->format->bpp;
+	bpp = shmob_drm_format_is_yuv(scrtc->format) ? 8 : scrtc->format->bpp;
 	gem = drm_fb_dma_get_gem_obj(fb, 0);
 	scrtc->dma[0] = gem->dma_addr + fb->offsets[0]
 		      + y * fb->pitches[0] + x * bpp / 8;
 
-	if (scrtc->format->yuv) {
+	if (shmob_drm_format_is_yuv(scrtc->format)) {
 		bpp = scrtc->format->bpp - 8;
 		gem = drm_fb_dma_get_gem_obj(fb, 1);
 		scrtc->dma[1] = gem->dma_addr + fb->offsets[1]
@@ -293,7 +274,7 @@ static void shmob_drm_crtc_update_base(struct shmob_drm_crtc *scrtc)
 	shmob_drm_crtc_compute_base(scrtc, crtc->x, crtc->y);
 
 	lcdc_write_mirror(sdev, LDSA1R, scrtc->dma[0]);
-	if (scrtc->format->yuv)
+	if (shmob_drm_format_is_yuv(scrtc->format))
 		lcdc_write_mirror(sdev, LDSA2R, scrtc->dma[1]);
 
 	lcdc_write(sdev, LDRCNTR, lcdc_read(sdev, LDRCNTR) ^ LDRCNTR_MRS);
