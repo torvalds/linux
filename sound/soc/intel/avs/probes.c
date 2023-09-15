@@ -249,12 +249,16 @@ static int avs_probe_compr_copy(struct snd_soc_component *comp, struct snd_compr
 	return count;
 }
 
-static const struct snd_soc_cdai_ops avs_probe_dai_ops = {
+static const struct snd_soc_cdai_ops avs_probe_cdai_ops = {
 	.startup = avs_probe_compr_open,
 	.shutdown = avs_probe_compr_free,
 	.set_params = avs_probe_compr_set_params,
 	.trigger = avs_probe_compr_trigger,
 	.pointer = avs_probe_compr_pointer,
+};
+
+static const struct snd_soc_dai_ops avs_probe_dai_ops = {
+	.compress_new = snd_soc_new_compress,
 };
 
 static const struct snd_compress_ops avs_probe_compress_ops = {
@@ -264,8 +268,8 @@ static const struct snd_compress_ops avs_probe_compress_ops = {
 static struct snd_soc_dai_driver probe_cpu_dais[] = {
 {
 	.name = "Probe Extraction CPU DAI",
-	.compress_new = snd_soc_new_compress,
-	.cops = &avs_probe_dai_ops,
+	.cops = &avs_probe_cdai_ops,
+	.ops  = &avs_probe_dai_ops,
 	.capture = {
 		.stream_name = "Probe Extraction",
 		.channels_min = 1,

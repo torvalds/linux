@@ -18,7 +18,6 @@
 #include <linux/delay.h>
 #include <linux/rtc.h>
 #include <linux/slab.h>
-#include <linux/of_device.h>
 #include <linux/of.h>
 #include <linux/stmp_device.h>
 #include <linux/stmp3xxx_rtc_wdt.h>

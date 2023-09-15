@@ -23,7 +23,7 @@ Required properties:
 - altr,tlb-num-ways: Specifies the number of set-associativity ways in the TLB.
 - altr,tlb-num-entries: Specifies the number of entries in the TLB.
 - altr,tlb-ptr-sz: Specifies size of TLB pointer.
-- altr,has-mul: Specifies CPU hardware multipy support, should be 1.
+- altr,has-mul: Specifies CPU hardware multiply support, should be 1.
 - altr,has-mmu: Specifies CPU support MMU support, should be 1.
 - altr,has-initda: Specifies CPU support initda instruction, should be 1.
 - altr,reset-addr: Specifies CPU reset address

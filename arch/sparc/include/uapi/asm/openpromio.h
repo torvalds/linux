@@ -10,10 +10,9 @@
  * were chosen to be exactly equal to the SunOS equivalents.
  */
 
-struct openpromio
-{
+struct openpromio {
 	unsigned int oprom_size;	/* Actual size of the oprom_array. */
-	char	oprom_array[1];		/* Holds property names and values. */
+	char	oprom_array[];		/* Holds property names and values. */
 };
 
 #define	OPROMMAXPARAM	4096		/* Maximum size of oprom_array. */

@@ -116,8 +116,28 @@
 #define ACP63_SDW0_DMA_MAX_STREAMS	6
 #define ACP63_SDW1_DMA_MAX_STREAMS	2
 #define ACP_P1_AUDIO_TX_THRESHOLD	6
+
+/*
+ * Below entries describes SDW0 instance DMA stream id and DMA irq bit mapping
+ * in ACP_EXTENAL_INTR_CNTL register.
+ * Stream id		IRQ Bit
+ * 0 (SDW0_AUDIO0_TX)	28
+ * 1 (SDW0_AUDIO1_TX)	26
+ * 2 (SDW0_AUDIO2_TX)	24
+ * 3 (SDW0_AUDIO0_RX)	27
+ * 4 (SDW0_AUDIO1_RX)	25
+ * 5 (SDW0_AUDIO2_RX)	23
+ */
 #define SDW0_DMA_TX_IRQ_MASK(i)	(ACP_AUDIO0_TX_THRESHOLD - (2 * (i)))
-#define SDW0_DMA_RX_IRQ_MASK(i)	(ACP_AUDIO0_RX_THRESHOLD - (2 * (i)))
+#define SDW0_DMA_RX_IRQ_MASK(i)	(ACP_AUDIO0_RX_THRESHOLD - (2 * ((i) - 3)))
+
+/*
+ * Below entries describes SDW1 instance DMA stream id and DMA irq bit mapping
+ * in ACP_EXTENAL_INTR_CNTL1 register.
+ * Stream id		IRQ Bit
+ * 0 (SDW1_AUDIO1_TX)	6
+ * 1 (SDW1_AUDIO1_RX)	5
+ */
 #define SDW1_DMA_IRQ_MASK(i)	(ACP_P1_AUDIO_TX_THRESHOLD - (i))
 
 #define ACP_DELAY_US		5

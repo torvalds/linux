@@ -83,12 +83,26 @@
 #define PPSMC_MSG_GetMinGfxDpmFreq                  0x32
 #define PPSMC_MSG_GetMaxGfxDpmFreq                  0x33
 #define PPSMC_MSG_PrepareForDriverUnload            0x34
-#define PPSMC_Message_Count                         0x35
+#define PPSMC_MSG_ReadThrottlerLimit                0x35
+#define PPSMC_MSG_QueryValidMcaCount                0x36
+#define PPSMC_MSG_McaBankDumpDW                     0x37
+#define PPSMC_MSG_GetCTFLimit                       0x38
+#define PPSMC_Message_Count                         0x39
 
 //PPSMC Reset Types for driver msg argument
 #define PPSMC_RESET_TYPE_DRIVER_MODE_1_RESET        0x1
 #define PPSMC_RESET_TYPE_DRIVER_MODE_2_RESET	      0x2
 #define PPSMC_RESET_TYPE_DRIVER_MODE_3_RESET        0x3
+
+//PPSMC Reset Types for driver msg argument
+#define PPSMC_THROTTLING_LIMIT_TYPE_SOCKET          0x1
+#define PPSMC_THROTTLING_LIMIT_TYPE_HBM             0x2
+
+//CTF/Throttle Limit types
+#define PPSMC_AID_THM_TYPE                          0x1
+#define PPSMC_CCD_THM_TYPE                          0x2
+#define PPSMC_XCD_THM_TYPE                          0x3
+#define PPSMC_HBM_THM_TYPE                          0x4
 
 typedef uint32_t PPSMC_Result;
 typedef uint32_t PPSMC_MSG;

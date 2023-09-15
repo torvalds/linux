@@ -292,6 +292,7 @@ extern long __start___barrier_nospec_fixup, __stop___barrier_nospec_fixup;
 extern long __start__btb_flush_fixup, __stop__btb_flush_fixup;
 
 void apply_feature_fixups(void);
+void update_mmu_feature_fixups(unsigned long mask);
 void setup_feature_keys(void);
 #endif
 

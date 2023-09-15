@@ -22,7 +22,7 @@
 #include "coresight-priv.h"
 #include "coresight-cti.h"
 
-/**
+/*
  * CTI devices can be associated with a PE, or be connected to CoreSight
  * hardware. We have a list of all CTIs irrespective of CPU bound or
  * otherwise.

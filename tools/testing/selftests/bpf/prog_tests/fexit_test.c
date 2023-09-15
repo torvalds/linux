@@ -2,8 +2,9 @@
 /* Copyright (c) 2019 Facebook */
 #include <test_progs.h>
 #include "fexit_test.lskel.h"
+#include "fexit_many_args.skel.h"
 
-static int fexit_test(struct fexit_test_lskel *fexit_skel)
+static int fexit_test_common(struct fexit_test_lskel *fexit_skel)
 {
 	int err, prog_fd, i;
 	int link_fd;
@@ -37,7 +38,7 @@ static int fexit_test(struct fexit_test_lskel *fexit_skel)
 	return 0;
 }
 
-void test_fexit_test(void)
+static void fexit_test(void)
 {
 	struct fexit_test_lskel *fexit_skel = NULL;
 	int err;
@@ -46,13 +47,47 @@ void test_fexit_test(void)
 	if (!ASSERT_OK_PTR(fexit_skel, "fexit_skel_load"))
 		goto cleanup;
 
-	err = fexit_test(fexit_skel);
+	err = fexit_test_common(fexit_skel);
 	if (!ASSERT_OK(err, "fexit_first_attach"))
 		goto cleanup;
 
-	err = fexit_test(fexit_skel);
+	err = fexit_test_common(fexit_skel);
 	ASSERT_OK(err, "fexit_second_attach");
 
 cleanup:
 	fexit_test_lskel__destroy(fexit_skel);
+}
+
+static void fexit_many_args(void)
+{
+	struct fexit_many_args *fexit_skel = NULL;
+	int err;
+
+	fexit_skel = fexit_many_args__open_and_load();
+	if (!ASSERT_OK_PTR(fexit_skel, "fexit_many_args_skel_load"))
+		goto cleanup;
+
+	err = fexit_many_args__attach(fexit_skel);
+	if (!ASSERT_OK(err, "fexit_many_args_attach"))
+		goto cleanup;
+
+	ASSERT_OK(trigger_module_test_read(1), "trigger_read");
+
+	ASSERT_EQ(fexit_skel->bss->test1_result, 1,
+		  "fexit_many_args_result1");
+	ASSERT_EQ(fexit_skel->bss->test2_result, 1,
+		  "fexit_many_args_result2");
+	ASSERT_EQ(fexit_skel->bss->test3_result, 1,
+		  "fexit_many_args_result3");
+
+cleanup:
+	fexit_many_args__destroy(fexit_skel);
+}
+
+void test_fexit_test(void)
+{
+	if (test__start_subtest("fexit"))
+		fexit_test();
+	if (test__start_subtest("fexit_many_args"))
+		fexit_many_args();
 }

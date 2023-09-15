@@ -15,9 +15,12 @@ Flip Buffer Management
 ======================
 
 .. kernel-doc:: drivers/tty/tty_buffer.c
-   :identifiers: tty_prepare_flip_string tty_insert_flip_string_fixed_flag
-           tty_insert_flip_string_flags __tty_insert_flip_char
+   :identifiers: tty_prepare_flip_string
            tty_flip_buffer_push tty_ldisc_receive_buf
+
+.. kernel-doc:: include/linux/tty_flip.h
+   :identifiers: tty_insert_flip_string_fixed_flag tty_insert_flip_string_flags
+           tty_insert_flip_char
 
 ----
 

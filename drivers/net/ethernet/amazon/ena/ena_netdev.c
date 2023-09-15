@@ -3267,7 +3267,7 @@ static void ena_config_host_info(struct ena_com_dev *ena_dev, struct pci_dev *pd
 
 	host_info = ena_dev->host_attr.host_info;
 
-	host_info->bdf = (pdev->bus->number << 8) | pdev->devfn;
+	host_info->bdf = pci_dev_id(pdev);
 	host_info->os_type = ENA_ADMIN_OS_LINUX;
 	host_info->kernel_ver = LINUX_VERSION_CODE;
 	strscpy(host_info->kernel_ver_str, utsname()->version,

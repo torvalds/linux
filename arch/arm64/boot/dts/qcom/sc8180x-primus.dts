@@ -50,6 +50,84 @@
 		};
 	};
 
+	pmic-glink {
+		compatible = "qcom,sc8180x-pmic-glink", "qcom,pmic-glink";
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		connector@0 {
+			compatible = "usb-c-connector";
+			reg = <0>;
+			power-role = "dual";
+			data-role = "dual";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+
+					pmic_glink_con0_hs: endpoint {
+						remote-endpoint = <&usb_prim_role_switch>;
+					};
+				};
+
+				port@1 {
+					reg = <1>;
+
+					pmic_glink_con0_ss: endpoint {
+						remote-endpoint = <&usb_prim_qmpphy_out>;
+					};
+				};
+
+				port@2 {
+					reg = <2>;
+
+					pmic_glink_con0_sbu: endpoint {
+						remote-endpoint = <&usbprim_sbu_mux>;
+					};
+				};
+			};
+		};
+
+		connector@1 {
+			compatible = "usb-c-connector";
+			reg = <1>;
+			power-role = "dual";
+			data-role = "dual";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				port@0 {
+					reg = <0>;
+
+					pmic_glink_con1_hs: endpoint {
+						remote-endpoint = <&usb_sec_role_switch>;
+					};
+				};
+
+				port@1 {
+					reg = <1>;
+
+					pmic_glink_con1_ss: endpoint {
+						remote-endpoint = <&usb_sec_qmpphy_out>;
+					};
+				};
+
+				port@2 {
+					reg = <2>;
+
+					pmic_glink_con1_sbu: endpoint {
+						remote-endpoint = <&usbsec_sbu_mux>;
+					};
+				};
+			};
+		};
+	};
+
 	reserved-memory {
 		rmtfs_mem: rmtfs-region@85500000 {
 			compatible = "qcom,rmtfs-mem";
@@ -142,6 +220,44 @@
 		regulator-boot-on;
 
 		vin-supply = <&vph_pwr>;
+	};
+
+	usbprim-sbu-mux {
+		compatible = "pericom,pi3usb102", "gpio-sbu-mux";
+
+		enable-gpios = <&tlmm 152 GPIO_ACTIVE_LOW>;
+		select-gpios = <&tlmm 100 GPIO_ACTIVE_HIGH>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&usbprim_sbu_default>;
+
+		mode-switch;
+		orientation-switch;
+
+		port {
+			usbprim_sbu_mux: endpoint {
+				remote-endpoint = <&pmic_glink_con0_sbu>;
+			};
+		};
+	};
+
+	usbsec-sbu-mux {
+		compatible = "pericom,pi3usb102", "gpio-sbu-mux";
+
+		enable-gpios = <&tlmm 188 GPIO_ACTIVE_LOW>;
+		select-gpios = <&tlmm 187 GPIO_ACTIVE_HIGH>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&usbsec_sbu_default>;
+
+		mode-switch;
+		orientation-switch;
+
+		port {
+			usbsec_sbu_mux: endpoint {
+				remote-endpoint = <&pmic_glink_con1_sbu>;
+			};
+		};
 	};
 };
 
@@ -363,6 +479,24 @@
 	status = "okay";
 };
 
+&mdss_dp0 {
+	status = "okay";
+};
+
+&mdss_dp0_out {
+	data-lanes = <0 1>;
+	remote-endpoint = <&usb_prim_qmpphy_dp_in>;
+};
+
+&mdss_dp1 {
+	status = "okay";
+};
+
+&mdss_dp1_out {
+	data-lanes = <0 1>;
+	remote-endpoint = <&usb_sec_qmpphy_dp_in>;
+};
+
 &mdss_edp {
 	data-lanes = <0 1 2 3>;
 
@@ -377,11 +511,9 @@
 
 			backlight = <&backlight>;
 
-			ports {
-				port {
-					auo_b133han05_in: endpoint {
-						remote-endpoint = <&mdss_edp_out>;
-					};
+			port {
+				auo_b133han05_in: endpoint {
+					remote-endpoint = <&mdss_edp_out>;
 				};
 			};
 		};
@@ -496,6 +628,8 @@
 	vdda-phy-supply = <&vreg_l3c_1p2>;
 	vdda-pll-supply = <&vreg_l5e_0p88>;
 
+	orientation-switch;
+
 	status = "okay";
 };
 
@@ -505,6 +639,18 @@
 
 &usb_prim_dwc3 {
 	dr_mode = "host";
+};
+
+&usb_prim_qmpphy_dp_in {
+	remote-endpoint = <&mdss_dp0_out>;
+};
+
+&usb_prim_qmpphy_out {
+	remote-endpoint = <&pmic_glink_con0_ss>;
+};
+
+&usb_prim_role_switch {
+	remote-endpoint = <&pmic_glink_con0_hs>;
 };
 
 &usb_sec_hsphy {
@@ -519,7 +665,21 @@
 	vdda-phy-supply = <&vreg_l3c_1p2>;
 	vdda-pll-supply = <&vreg_l5e_0p88>;
 
+	orientation-switch;
+
 	status = "okay";
+};
+
+&usb_sec_qmpphy_dp_in {
+	remote-endpoint = <&mdss_dp1_out>;
+};
+
+&usb_sec_qmpphy_out {
+	remote-endpoint = <&pmic_glink_con1_ss>;
+};
+
+&usb_sec_role_switch {
+	remote-endpoint = <&pmic_glink_con1_hs>;
 };
 
 &usb_sec {
@@ -582,7 +742,6 @@
 		pins = "gpio121";
 		function = "gpio";
 
-		input-enable;
 		bias-disable;
 	};
 
@@ -592,7 +751,6 @@
 			function = "gpio";
 
 			bias-pull-up;
-			intput-enable;
 		};
 
 		kp-disable-pins {
@@ -635,13 +793,46 @@
 		};
 	};
 
+	usbprim_sbu_default: usbprim-sbu-state {
+		oe-n-pins {
+			pins = "gpio152";
+			function = "gpio";
+			bias-disable;
+			drive-strength = <16>;
+			output-high;
+		};
+
+		sel-pins {
+			pins = "gpio100";
+			function = "gpio";
+			bias-disable;
+			drive-strength = <16>;
+		};
+	};
+
+	usbsec_sbu_default: usbsec-sbu-state {
+		oe-n-pins {
+			pins = "gpio188";
+			function = "gpio";
+			bias-disable;
+			drive-strength = <16>;
+			output-high;
+		};
+
+		sel-pins {
+			pins = "gpio187";
+			function = "gpio";
+			bias-disable;
+			drive-strength = <16>;
+		};
+	};
+
 	tp_int_active_state: tp-int-active-state {
 		tp-int-pins {
 			pins = "gpio24";
 			function = "gpio";
 
 			bias-disable;
-			input-enable;
 		};
 
 		tp-close-n-pins {
@@ -649,7 +840,6 @@
 			function = "gpio";
 
 			bias-disable;
-			input-enable;
 		};
 	};
 
@@ -658,7 +848,6 @@
 			pins = "gpio122";
 			function = "gpio";
 
-			input-enable;
 			bias-disable;
 		};
 

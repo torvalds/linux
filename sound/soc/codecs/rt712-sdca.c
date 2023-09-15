@@ -453,6 +453,9 @@ static int rt712_sdca_set_jack_detect(struct snd_soc_component *component,
 
 	rt712->hs_jack = hs_jack;
 
+	if (!rt712->first_hw_init)
+		return 0;
+
 	ret = pm_runtime_resume_and_get(component->dev);
 	if (ret < 0) {
 		if (ret != -EACCES) {
@@ -960,6 +963,9 @@ static int rt712_sdca_probe(struct snd_soc_component *component)
 	rt712_sdca_parse_dt(rt712, &rt712->slave->dev);
 	rt712->component = component;
 
+	if (!rt712->first_hw_init)
+		return 0;
+
 	ret = pm_runtime_resume(component->dev);
 	if (ret < 0 && ret != -EACCES)
 		return ret;
@@ -1183,6 +1189,9 @@ int rt712_sdca_init(struct device *dev, struct regmap *regmap,
 	rt712->regmap = regmap;
 	rt712->mbq_regmap = mbq_regmap;
 
+	regcache_cache_only(rt712->regmap, true);
+	regcache_cache_only(rt712->mbq_regmap, true);
+
 	mutex_init(&rt712->calibrate_mutex);
 	mutex_init(&rt712->disable_irq_lock);
 
@@ -1207,10 +1216,27 @@ int rt712_sdca_init(struct device *dev, struct regmap *regmap,
 	else
 		ret =  devm_snd_soc_register_component(dev,
 				&soc_sdca_dev_rt712, rt712_sdca_dai, 1);
+	if (ret < 0)
+		return ret;
 
-	dev_dbg(&slave->dev, "%s\n", __func__);
+	/* set autosuspend parameters */
+	pm_runtime_set_autosuspend_delay(dev, 3000);
+	pm_runtime_use_autosuspend(dev);
 
-	return ret;
+	/* make sure the device does not suspend immediately */
+	pm_runtime_mark_last_busy(dev);
+
+	pm_runtime_enable(dev);
+
+	/* important note: the device is NOT tagged as 'active' and will remain
+	 * 'suspended' until the hardware is enumerated/initialized. This is required
+	 * to make sure the ASoC framework use of pm_runtime_get_sync() does not silently
+	 * fail with -EACCESS because of race conditions between card creation and enumeration
+	 */
+
+	dev_dbg(dev, "%s\n", __func__);
+
+	return 0;
 }
 
 int rt712_sdca_io_init(struct device *dev, struct sdw_slave *slave)
@@ -1224,27 +1250,18 @@ int rt712_sdca_io_init(struct device *dev, struct sdw_slave *slave)
 	if (rt712->hw_init)
 		return 0;
 
+	regcache_cache_only(rt712->regmap, false);
+	regcache_cache_only(rt712->mbq_regmap, false);
 	if (rt712->first_hw_init) {
-		regcache_cache_only(rt712->regmap, false);
 		regcache_cache_bypass(rt712->regmap, true);
-		regcache_cache_only(rt712->mbq_regmap, false);
 		regcache_cache_bypass(rt712->mbq_regmap, true);
 	} else {
 		/*
-		 * PM runtime is only enabled when a Slave reports as Attached
+		 *  PM runtime status is marked as 'active' only when a Slave reports as Attached
 		 */
-
-		/* set autosuspend parameters */
-		pm_runtime_set_autosuspend_delay(&slave->dev, 3000);
-		pm_runtime_use_autosuspend(&slave->dev);
 
 		/* update count of parent 'active' children */
 		pm_runtime_set_active(&slave->dev);
-
-		/* make sure the device does not suspend immediately */
-		pm_runtime_mark_last_busy(&slave->dev);
-
-		pm_runtime_enable(&slave->dev);
 	}
 
 	pm_runtime_get_noresume(&slave->dev);

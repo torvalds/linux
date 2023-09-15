@@ -209,7 +209,7 @@ will require extra work due to the application tag.
       sector must be set, and the bio should have all data pages
       added.  It is up to the caller to ensure that the bio does not
       change while I/O is in progress.
-      Complete bio with error if prepare failed for some reson.
+      Complete bio with error if prepare failed for some reason.
 
 
 5.3 Passing Existing Integrity Metadata

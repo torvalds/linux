@@ -469,8 +469,8 @@ static int iavf_client_setup_qvlist(struct iavf_info *ldev,
 	}
 
 	v_qvlist_info = (struct virtchnl_rdma_qvlist_info *)qvlist_info;
-	msg_size = struct_size(v_qvlist_info, qv_info,
-			       v_qvlist_info->num_vectors - 1);
+	msg_size = virtchnl_struct_size(v_qvlist_info, qv_info,
+					v_qvlist_info->num_vectors);
 
 	adapter->client_pending |= BIT(VIRTCHNL_OP_CONFIG_RDMA_IRQ_MAP);
 	err = iavf_aq_send_msg_to_pf(&adapter->hw,

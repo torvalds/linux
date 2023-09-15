@@ -1892,7 +1892,7 @@ static const struct v4l2_subdev_internal_ops csi_internal_ops = {
 
 static int imx_csi_notify_bound(struct v4l2_async_notifier *notifier,
 				struct v4l2_subdev *sd,
-				struct v4l2_async_subdev *asd)
+				struct v4l2_async_connection *asd)
 {
 	struct csi_priv *priv = notifier_to_dev(notifier);
 	struct media_pad *sink = &priv->sd.entity.pads[CSI_SINK_PAD];
@@ -1913,12 +1913,12 @@ static const struct v4l2_async_notifier_operations csi_notify_ops = {
 
 static int imx_csi_async_register(struct csi_priv *priv)
 {
-	struct v4l2_async_subdev *asd = NULL;
+	struct v4l2_async_connection *asd = NULL;
 	struct fwnode_handle *ep;
 	unsigned int port;
 	int ret;
 
-	v4l2_async_nf_init(&priv->notifier);
+	v4l2_async_subdev_nf_init(&priv->notifier, &priv->sd);
 
 	/* get this CSI's port id */
 	ret = fwnode_property_read_u32(dev_fwnode(priv->dev), "reg", &port);
@@ -1930,7 +1930,7 @@ static int imx_csi_async_register(struct csi_priv *priv)
 					     FWNODE_GRAPH_ENDPOINT_NEXT);
 	if (ep) {
 		asd = v4l2_async_nf_add_fwnode_remote(&priv->notifier, ep,
-						      struct v4l2_async_subdev);
+						      struct v4l2_async_connection);
 
 		fwnode_handle_put(ep);
 
@@ -1944,7 +1944,7 @@ static int imx_csi_async_register(struct csi_priv *priv)
 
 	priv->notifier.ops = &csi_notify_ops;
 
-	ret = v4l2_async_subdev_nf_register(&priv->sd, &priv->notifier);
+	ret = v4l2_async_nf_register(&priv->notifier);
 	if (ret)
 		return ret;
 

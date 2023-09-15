@@ -1133,9 +1133,9 @@ void kgd_gfx_v9_program_trap_handler_settings(struct amdgpu_device *adev,
 	 * Program TBA registers
 	 */
 	WREG32_SOC15(GC, GET_INST(GC, inst), mmSQ_SHADER_TBA_LO,
-                        lower_32_bits(tba_addr >> 8));
+			lower_32_bits(tba_addr >> 8));
 	WREG32_SOC15(GC, GET_INST(GC, inst), mmSQ_SHADER_TBA_HI,
-                        upper_32_bits(tba_addr >> 8));
+			upper_32_bits(tba_addr >> 8));
 
 	/*
 	 * Program TMA registers

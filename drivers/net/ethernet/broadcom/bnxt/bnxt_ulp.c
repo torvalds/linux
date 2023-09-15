@@ -345,7 +345,7 @@ static void bnxt_set_edev_info(struct bnxt_en_dev *edev, struct bnxt *bp)
 	edev->hw_ring_stats_size = bp->hw_ring_stats_size;
 	edev->pf_port_id = bp->pf.port_id;
 	edev->en_state = bp->state;
-
+	edev->bar0 = bp->bar0;
 	edev->ulp_tbl->msix_requested = bnxt_get_ulp_msix_num(bp);
 }
 

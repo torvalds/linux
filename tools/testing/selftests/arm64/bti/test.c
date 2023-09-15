@@ -17,7 +17,6 @@
 typedef struct ucontext ucontext_t;
 
 #include "btitest.h"
-#include "compiler.h"
 #include "signal.h"
 
 #define EXPECTED_TESTS 18

@@ -23,6 +23,10 @@
 #define DRIVER_DATE "20230117"
 
 #define PCI_DEVICE_ID_MTL   0x7d1d
+#define PCI_DEVICE_ID_LNL   0x643e
+
+#define IVPU_HW_37XX	37
+#define IVPU_HW_40XX	40
 
 #define IVPU_GLOBAL_CONTEXT_MMU_SSID 0
 /* SSID 1 is used by the VPU to represent invalid context */
@@ -76,6 +80,7 @@ struct ivpu_wa_table {
 	bool clear_runtime_mem;
 	bool d3hot_after_power_off;
 	bool interrupt_clear_with_0;
+	bool disable_clock_relinquish;
 };
 
 struct ivpu_hw_info;
@@ -146,11 +151,6 @@ void ivpu_file_priv_put(struct ivpu_file_priv **link);
 int ivpu_boot(struct ivpu_device *vdev);
 int ivpu_shutdown(struct ivpu_device *vdev);
 
-static inline bool ivpu_is_mtl(struct ivpu_device *vdev)
-{
-	return to_pci_dev(vdev->drm.dev)->device == PCI_DEVICE_ID_MTL;
-}
-
 static inline u8 ivpu_revision(struct ivpu_device *vdev)
 {
 	return to_pci_dev(vdev->drm.dev)->revision;
@@ -159,6 +159,19 @@ static inline u8 ivpu_revision(struct ivpu_device *vdev)
 static inline u16 ivpu_device_id(struct ivpu_device *vdev)
 {
 	return to_pci_dev(vdev->drm.dev)->device;
+}
+
+static inline int ivpu_hw_gen(struct ivpu_device *vdev)
+{
+	switch (ivpu_device_id(vdev)) {
+	case PCI_DEVICE_ID_MTL:
+		return IVPU_HW_37XX;
+	case PCI_DEVICE_ID_LNL:
+		return IVPU_HW_40XX;
+	default:
+		ivpu_err(vdev, "Unknown VPU device\n");
+		return 0;
+	}
 }
 
 static inline struct ivpu_device *to_ivpu_device(struct drm_device *dev)

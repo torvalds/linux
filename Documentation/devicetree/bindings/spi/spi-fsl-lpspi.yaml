@@ -63,6 +63,9 @@ properties:
     maximum: 2
     default: 1
 
+  power-domains:
+    maxItems: 1
+
 required:
   - compatible
   - reg

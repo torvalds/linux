@@ -25,6 +25,8 @@
 #include <asm/cpuinfo.h>
 #include <asm/time.h>
 
+irqreturn_t __irq_entry timer_interrupt(struct pt_regs *regs);
+
 /* Test the timer ticks to count, used in sync routine */
 inline void openrisc_timer_set(unsigned long count)
 {

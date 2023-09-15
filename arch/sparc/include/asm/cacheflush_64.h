@@ -35,20 +35,23 @@ void flush_icache_range(unsigned long start, unsigned long end);
 void __flush_icache_page(unsigned long);
 
 void __flush_dcache_page(void *addr, int flush_icache);
-void flush_dcache_page_impl(struct page *page);
+void flush_dcache_folio_impl(struct folio *folio);
 #ifdef CONFIG_SMP
-void smp_flush_dcache_page_impl(struct page *page, int cpu);
-void flush_dcache_page_all(struct mm_struct *mm, struct page *page);
+void smp_flush_dcache_folio_impl(struct folio *folio, int cpu);
+void flush_dcache_folio_all(struct mm_struct *mm, struct folio *folio);
 #else
-#define smp_flush_dcache_page_impl(page,cpu) flush_dcache_page_impl(page)
-#define flush_dcache_page_all(mm,page) flush_dcache_page_impl(page)
+#define smp_flush_dcache_folio_impl(folio, cpu) flush_dcache_folio_impl(folio)
+#define flush_dcache_folio_all(mm, folio) flush_dcache_folio_impl(folio)
 #endif
 
 void __flush_dcache_range(unsigned long start, unsigned long end);
 #define ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE 1
-void flush_dcache_page(struct page *page);
-
-#define flush_icache_page(vma, pg)	do { } while(0)
+void flush_dcache_folio(struct folio *folio);
+#define flush_dcache_folio flush_dcache_folio
+static inline void flush_dcache_page(struct page *page)
+{
+	flush_dcache_folio(page_folio(page));
+}
 
 void flush_ptrace_access(struct vm_area_struct *, struct page *,
 			 unsigned long uaddr, void *kaddr,

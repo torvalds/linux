@@ -66,7 +66,7 @@ properties:
 
   mediatek,bled-ocp-shutdown:
     description: |
-      Enable the backlight shutdown when OCP level triggerred.
+      Enable the backlight shutdown when OCP level triggered.
     type: boolean
 
   mediatek,bled-ocp-microamp:

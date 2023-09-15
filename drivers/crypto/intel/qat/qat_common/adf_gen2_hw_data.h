@@ -145,6 +145,9 @@ do { \
 #define ADF_GEN2_CERRSSMSH(i)		((i) * 0x4000 + 0x10)
 #define ADF_GEN2_ERRSSMSH_EN		BIT(3)
 
+/* Number of heartbeat counter pairs */
+#define ADF_NUM_HB_CNT_PER_AE ADF_NUM_THREADS_PER_AE
+
 /* Interrupts */
 #define ADF_GEN2_SMIAPF0_MASK_OFFSET    (0x3A000 + 0x28)
 #define ADF_GEN2_SMIAPF1_MASK_OFFSET    (0x3A000 + 0x30)

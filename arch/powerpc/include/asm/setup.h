@@ -8,7 +8,6 @@
 extern void ppc_printk_progress(char *s, unsigned short hex);
 
 extern unsigned long long memory_limit;
-extern void *zalloc_maybe_bootmem(size_t size, gfp_t mask);
 
 struct device_node;
 

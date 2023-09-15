@@ -30,7 +30,7 @@
 #include <linux/sys_soc.h>
 
 #include <net/switchdev.h>
-#include <net/page_pool.h>
+#include <net/page_pool/helpers.h>
 #include <net/pkt_cls.h>
 #include <net/devlink.h>
 

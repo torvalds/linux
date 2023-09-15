@@ -51,12 +51,11 @@ acpi_cmos_rtc_space_handler(u32 function, acpi_physical_address address,
 	return AE_OK;
 }
 
-static int acpi_install_cmos_rtc_space_handler(struct acpi_device *adev,
-		const struct acpi_device_id *id)
+int acpi_install_cmos_rtc_space_handler(acpi_handle handle)
 {
 	acpi_status status;
 
-	status = acpi_install_address_space_handler(adev->handle,
+	status = acpi_install_address_space_handler(handle,
 			ACPI_ADR_SPACE_CMOS,
 			&acpi_cmos_rtc_space_handler,
 			NULL, NULL);
@@ -67,18 +66,30 @@ static int acpi_install_cmos_rtc_space_handler(struct acpi_device *adev,
 
 	return 1;
 }
+EXPORT_SYMBOL_GPL(acpi_install_cmos_rtc_space_handler);
 
-static void acpi_remove_cmos_rtc_space_handler(struct acpi_device *adev)
+void acpi_remove_cmos_rtc_space_handler(acpi_handle handle)
 {
-	if (ACPI_FAILURE(acpi_remove_address_space_handler(adev->handle,
+	if (ACPI_FAILURE(acpi_remove_address_space_handler(handle,
 			ACPI_ADR_SPACE_CMOS, &acpi_cmos_rtc_space_handler)))
 		pr_err("Error removing CMOS-RTC region handler\n");
+}
+EXPORT_SYMBOL_GPL(acpi_remove_cmos_rtc_space_handler);
+
+static int acpi_cmos_rtc_attach_handler(struct acpi_device *adev, const struct acpi_device_id *id)
+{
+	return acpi_install_cmos_rtc_space_handler(adev->handle);
+}
+
+static void acpi_cmos_rtc_detach_handler(struct acpi_device *adev)
+{
+	acpi_remove_cmos_rtc_space_handler(adev->handle);
 }
 
 static struct acpi_scan_handler cmos_rtc_handler = {
 	.ids = acpi_cmos_rtc_ids,
-	.attach = acpi_install_cmos_rtc_space_handler,
-	.detach = acpi_remove_cmos_rtc_space_handler,
+	.attach = acpi_cmos_rtc_attach_handler,
+	.detach = acpi_cmos_rtc_detach_handler,
 };
 
 void __init acpi_cmos_rtc_init(void)

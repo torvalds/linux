@@ -245,7 +245,7 @@ SGX will likely become unusable because the memory available to SGX is
 limited. However, while this may be fatal to SGX, the rest of the kernel
 is unlikely to be impacted and should continue to work.
 
-As a result, when this happpens, user should stop running any new
+As a result, when this happens, user should stop running any new
 SGX workloads, (or just any new workloads), and migrate all valuable
 workloads. Although a machine reboot can recover all EPC memory, the bug
 should be reported to Linux developers.

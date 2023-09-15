@@ -1,0 +1,33 @@
+#!/usr/bin/make -f
+# SPDX-License-Identifier: GPL-2.0-only
+
+include debian/rules.vars
+
+srctree ?= .
+
+ifneq (,$(filter-out parallel=1,$(filter parallel=%,$(DEB_BUILD_OPTIONS))))
+    NUMJOBS = $(patsubst parallel=%,%,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
+    MAKEFLAGS += -j$(NUMJOBS)
+endif
+
+.PHONY: binary binary-indep binary-arch
+binary: binary-arch binary-indep
+binary-indep: build-indep
+binary-arch: build-arch
+	$(MAKE) -f $(srctree)/Makefile ARCH=$(ARCH) \
+	KERNELRELEASE=$(KERNELRELEASE) \
+	run-command KBUILD_RUN_COMMAND=+$(srctree)/scripts/package/builddeb
+
+.PHONY: build build-indep build-arch
+build: build-arch build-indep
+build-indep:
+build-arch:
+	$(MAKE) -f $(srctree)/Makefile ARCH=$(ARCH) \
+	KERNELRELEASE=$(KERNELRELEASE) \
+	$(shell $(srctree)/scripts/package/deb-build-option) \
+	olddefconfig all
+
+.PHONY: clean
+clean:
+	rm -rf debian/files debian/linux-*
+	$(MAKE) -f $(srctree)/Makefile ARCH=$(ARCH) clean

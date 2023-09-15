@@ -5,7 +5,7 @@
 # Carsten Haitzler <carsten.haitzler@arm.com>, 2021
 
 TEST="asm_pure_loop"
-. $(dirname $0)/../lib/coresight.sh
+. "$(dirname $0)"/../lib/coresight.sh
 ARGS=""
 DATV="out"
 DATA="$DATD/perf-$TEST-$DATV.data"

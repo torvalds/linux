@@ -123,7 +123,7 @@ static int i2c_writereg(struct i2c_adapter *i2c, u8 id, u8 reg, u8 val)
 
 static int ciintf_read_attribute_mem(struct dvb_ca_en50221 *ca, int slot, int address)
 {
-	struct budget_av *budget_av = (struct budget_av *) ca->data;
+	struct budget_av *budget_av = ca->data;
 	int result;
 
 	if (slot != 0)
@@ -142,7 +142,7 @@ static int ciintf_read_attribute_mem(struct dvb_ca_en50221 *ca, int slot, int ad
 
 static int ciintf_write_attribute_mem(struct dvb_ca_en50221 *ca, int slot, int address, u8 value)
 {
-	struct budget_av *budget_av = (struct budget_av *) ca->data;
+	struct budget_av *budget_av = ca->data;
 	int result;
 
 	if (slot != 0)
@@ -161,7 +161,7 @@ static int ciintf_write_attribute_mem(struct dvb_ca_en50221 *ca, int slot, int a
 
 static int ciintf_read_cam_control(struct dvb_ca_en50221 *ca, int slot, u8 address)
 {
-	struct budget_av *budget_av = (struct budget_av *) ca->data;
+	struct budget_av *budget_av = ca->data;
 	int result;
 
 	if (slot != 0)
@@ -181,7 +181,7 @@ static int ciintf_read_cam_control(struct dvb_ca_en50221 *ca, int slot, u8 addre
 
 static int ciintf_write_cam_control(struct dvb_ca_en50221 *ca, int slot, u8 address, u8 value)
 {
-	struct budget_av *budget_av = (struct budget_av *) ca->data;
+	struct budget_av *budget_av = ca->data;
 	int result;
 
 	if (slot != 0)
@@ -200,7 +200,7 @@ static int ciintf_write_cam_control(struct dvb_ca_en50221 *ca, int slot, u8 addr
 
 static int ciintf_slot_reset(struct dvb_ca_en50221 *ca, int slot)
 {
-	struct budget_av *budget_av = (struct budget_av *) ca->data;
+	struct budget_av *budget_av = ca->data;
 	struct saa7146_dev *saa = budget_av->budget.dev;
 
 	if (slot != 0)
@@ -229,7 +229,7 @@ static int ciintf_slot_reset(struct dvb_ca_en50221 *ca, int slot)
 
 static int ciintf_slot_shutdown(struct dvb_ca_en50221 *ca, int slot)
 {
-	struct budget_av *budget_av = (struct budget_av *) ca->data;
+	struct budget_av *budget_av = ca->data;
 	struct saa7146_dev *saa = budget_av->budget.dev;
 
 	if (slot != 0)
@@ -245,7 +245,7 @@ static int ciintf_slot_shutdown(struct dvb_ca_en50221 *ca, int slot)
 
 static int ciintf_slot_ts_enable(struct dvb_ca_en50221 *ca, int slot)
 {
-	struct budget_av *budget_av = (struct budget_av *) ca->data;
+	struct budget_av *budget_av = ca->data;
 	struct saa7146_dev *saa = budget_av->budget.dev;
 
 	if (slot != 0)
@@ -260,7 +260,7 @@ static int ciintf_slot_ts_enable(struct dvb_ca_en50221 *ca, int slot)
 
 static int ciintf_poll_slot_status(struct dvb_ca_en50221 *ca, int slot, int open)
 {
-	struct budget_av *budget_av = (struct budget_av *) ca->data;
+	struct budget_av *budget_av = ca->data;
 	struct saa7146_dev *saa = budget_av->budget.dev;
 	int result;
 
@@ -491,7 +491,7 @@ static int philips_su1278_ty_ci_tuner_set_params(struct dvb_frontend *fe)
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	u32 div;
 	u8 buf[4];
-	struct budget *budget = (struct budget *) fe->dvb->priv;
+	struct budget *budget = fe->dvb->priv;
 	struct i2c_msg msg = {.addr = 0x61,.flags = 0,.buf = buf,.len = sizeof(buf) };
 
 	if ((c->frequency < 950000) || (c->frequency > 2150000))
@@ -604,7 +604,7 @@ static const struct stv0299_config cinergy_1200s_1894_0010_config = {
 static int philips_cu1216_tuner_set_params(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
-	struct budget *budget = (struct budget *) fe->dvb->priv;
+	struct budget *budget = fe->dvb->priv;
 	u8 buf[6];
 	struct i2c_msg msg = {.addr = 0x60,.flags = 0,.buf = buf,.len = sizeof(buf) };
 	int i;
@@ -668,7 +668,7 @@ static struct tda10023_config philips_cu1216_tda10023_config = {
 
 static int philips_tu1216_tuner_init(struct dvb_frontend *fe)
 {
-	struct budget *budget = (struct budget *) fe->dvb->priv;
+	struct budget *budget = fe->dvb->priv;
 	static u8 tu1216_init[] = { 0x0b, 0xf5, 0x85, 0xab };
 	struct i2c_msg tuner_msg = {.addr = 0x60,.flags = 0,.buf = tu1216_init,.len = sizeof(tu1216_init) };
 
@@ -685,7 +685,7 @@ static int philips_tu1216_tuner_init(struct dvb_frontend *fe)
 static int philips_tu1216_tuner_set_params(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
-	struct budget *budget = (struct budget *) fe->dvb->priv;
+	struct budget *budget = fe->dvb->priv;
 	u8 tuner_buf[4];
 	struct i2c_msg tuner_msg = {.addr = 0x60,.flags = 0,.buf = tuner_buf,.len =
 			sizeof(tuner_buf) };
@@ -769,7 +769,7 @@ static int philips_tu1216_tuner_set_params(struct dvb_frontend *fe)
 static int philips_tu1216_request_firmware(struct dvb_frontend *fe,
 					   const struct firmware **fw, char *name)
 {
-	struct budget *budget = (struct budget *) fe->dvb->priv;
+	struct budget *budget = fe->dvb->priv;
 
 	return request_firmware(fw, name, &budget->dev->pci->dev);
 }
@@ -1353,7 +1353,7 @@ static void frontend_init(struct budget_av *budget_av)
 
 static void budget_av_irq(struct saa7146_dev *dev, u32 * isr)
 {
-	struct budget_av *budget_av = (struct budget_av *) dev->ext_priv;
+	struct budget_av *budget_av = dev->ext_priv;
 
 	dprintk(8, "dev: %p, budget_av: %p\n", dev, budget_av);
 
@@ -1363,7 +1363,7 @@ static void budget_av_irq(struct saa7146_dev *dev, u32 * isr)
 
 static int budget_av_detach(struct saa7146_dev *dev)
 {
-	struct budget_av *budget_av = (struct budget_av *) dev->ext_priv;
+	struct budget_av *budget_av = dev->ext_priv;
 	int err;
 
 	dprintk(2, "dev: %p\n", dev);
@@ -1412,7 +1412,7 @@ static int vidioc_enum_input(struct file *file, void *fh, struct v4l2_input *i)
 static int vidioc_g_input(struct file *file, void *fh, unsigned int *i)
 {
 	struct saa7146_dev *dev = video_drvdata(file);
-	struct budget_av *budget_av = (struct budget_av *)dev->ext_priv;
+	struct budget_av *budget_av = dev->ext_priv;
 
 	*i = budget_av->cur_input;
 
@@ -1423,7 +1423,7 @@ static int vidioc_g_input(struct file *file, void *fh, unsigned int *i)
 static int vidioc_s_input(struct file *file, void *fh, unsigned int input)
 {
 	struct saa7146_dev *dev = video_drvdata(file);
-	struct budget_av *budget_av = (struct budget_av *)dev->ext_priv;
+	struct budget_av *budget_av = dev->ext_priv;
 
 	dprintk(1, "VIDIOC_S_INPUT %d\n", input);
 	return saa7113_setinput(budget_av, input);

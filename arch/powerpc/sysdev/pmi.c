@@ -16,11 +16,11 @@
 #include <linux/completion.h>
 #include <linux/spinlock.h>
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/workqueue.h>
 #include <linux/of_address.h>
-#include <linux/of_device.h>
 #include <linux/of_irq.h>
-#include <linux/of_platform.h>
+#include <linux/platform_device.h>
 
 #include <asm/io.h>
 #include <asm/pmi.h>

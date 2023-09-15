@@ -1339,15 +1339,13 @@ error_splat_super:
 void nfs_kill_super(struct super_block *s)
 {
 	struct nfs_server *server = NFS_SB(s);
-	dev_t dev = s->s_dev;
 
 	nfs_sysfs_move_sb_to_server(server);
-	generic_shutdown_super(s);
+	kill_anon_super(s);
 
 	nfs_fscache_release_super_cookie(s);
 
 	nfs_free_server(server);
-	free_anon_bdev(dev);
 }
 EXPORT_SYMBOL_GPL(nfs_kill_super);
 

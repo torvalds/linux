@@ -1,9 +1,9 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
+#include <linux/export.h>
 #include <asm/asm-offsets.h>
 #include <asm/cache.h>
 #include <asm/code-patching-asm.h>
 #include <asm/exception-64s.h>
-#include <asm/export.h>
 #include <asm/kvm_asm.h>
 #include <asm/kvm_book3s_asm.h>
 #include <asm/mmu.h>

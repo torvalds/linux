@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /* Copyright (c) 2020 Mellanox Technologies */
 
-#include <net/page_pool.h>
 #include "en/txrx.h"
 #include "en/params.h"
 #include "en/trap.h"
@@ -128,7 +127,7 @@ static void mlx5e_build_trap_params(struct mlx5_core_dev *mdev,
 
 static struct mlx5e_trap *mlx5e_open_trap(struct mlx5e_priv *priv)
 {
-	int cpu = cpumask_first(mlx5_comp_irq_get_affinity_mask(priv->mdev, 0));
+	int cpu = mlx5_comp_vector_get_cpu(priv->mdev, 0);
 	struct net_device *netdev = priv->netdev;
 	struct mlx5e_trap *t;
 	int err;

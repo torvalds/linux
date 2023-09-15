@@ -876,17 +876,12 @@ static int uart_num_counter;
 
 static int mvebu_uart_probe(struct platform_device *pdev)
 {
-	struct resource *reg = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	const struct of_device_id *match = of_match_device(mvebu_uart_of_match,
 							   &pdev->dev);
 	struct uart_port *port;
 	struct mvebu_uart *mvuart;
+	struct resource *reg;
 	int id, irq;
-
-	if (!reg) {
-		dev_err(&pdev->dev, "no registers defined\n");
-		return -EINVAL;
-	}
 
 	/* Assume that all UART ports have a DT alias or none has */
 	id = of_alias_get_id(pdev->dev.of_node, "serial");
@@ -922,11 +917,11 @@ static int mvebu_uart_probe(struct platform_device *pdev)
 	 */
 	port->irq        = 0;
 	port->irqflags   = 0;
-	port->mapbase    = reg->start;
 
-	port->membase = devm_ioremap_resource(&pdev->dev, reg);
+	port->membase = devm_platform_get_and_ioremap_resource(pdev, 0, &reg);
 	if (IS_ERR(port->membase))
 		return PTR_ERR(port->membase);
+	port->mapbase    = reg->start;
 
 	mvuart = devm_kzalloc(&pdev->dev, sizeof(struct mvebu_uart),
 			      GFP_KERNEL);

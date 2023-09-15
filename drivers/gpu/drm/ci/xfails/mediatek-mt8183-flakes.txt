@@ -1,0 +1,14 @@
+core_setmaster_vs_auth
+kms_bw@linear-tiling-1-displays-1920x1080p
+kms_bw@linear-tiling-1-displays-3840x2160p
+kms_bw@linear-tiling-3-displays-1920x1080p
+kms_cursor_legacy@cursor-vs-flip-atomic
+kms_plane_scaling@invalid-num-scalers
+kms_plane_scaling@planes-upscale-20x20
+kms_plane_scaling@planes-upscale-20x20-downscale-factor-0-5
+kms_plane_scaling@upscale-with-modifier-20x20
+kms_plane_scaling@upscale-with-pixel-format-20x20
+kms_prop_blob@invalid-set-prop-any
+kms_properties@get_properties-sanity-atomic
+kms_properties@plane-properties-atomic
+kms_properties@plane-properties-legacy

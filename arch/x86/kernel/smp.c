@@ -135,7 +135,7 @@ static int smp_stop_nmi_callback(unsigned int val, struct pt_regs *regs)
  */
 DEFINE_IDTENTRY_SYSVEC(sysvec_reboot)
 {
-	ack_APIC_irq();
+	apic_eoi();
 	cpu_emergency_disable_virtualization();
 	stop_this_cpu(NULL);
 }
@@ -237,7 +237,7 @@ static void native_stop_other_cpus(int wait)
 			pr_emerg("Shutting down cpus with NMI\n");
 
 			for_each_cpu(cpu, &cpus_stop_mask)
-				apic->send_IPI(cpu, NMI_VECTOR);
+				__apic_send_IPI(cpu, NMI_VECTOR);
 		}
 		/*
 		 * Don't wait longer than 10 ms if the caller didn't
@@ -268,7 +268,7 @@ done:
  */
 DEFINE_IDTENTRY_SYSVEC_SIMPLE(sysvec_reschedule_ipi)
 {
-	ack_APIC_irq();
+	apic_eoi();
 	trace_reschedule_entry(RESCHEDULE_VECTOR);
 	inc_irq_stat(irq_resched_count);
 	scheduler_ipi();
@@ -277,7 +277,7 @@ DEFINE_IDTENTRY_SYSVEC_SIMPLE(sysvec_reschedule_ipi)
 
 DEFINE_IDTENTRY_SYSVEC(sysvec_call_function)
 {
-	ack_APIC_irq();
+	apic_eoi();
 	trace_call_function_entry(CALL_FUNCTION_VECTOR);
 	inc_irq_stat(irq_call_count);
 	generic_smp_call_function_interrupt();
@@ -286,7 +286,7 @@ DEFINE_IDTENTRY_SYSVEC(sysvec_call_function)
 
 DEFINE_IDTENTRY_SYSVEC(sysvec_call_function_single)
 {
-	ack_APIC_irq();
+	apic_eoi();
 	trace_call_function_single_entry(CALL_FUNCTION_SINGLE_VECTOR);
 	inc_irq_stat(irq_call_count);
 	generic_smp_call_function_single_interrupt();

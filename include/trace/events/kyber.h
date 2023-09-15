@@ -31,8 +31,8 @@ TRACE_EVENT(kyber_latency,
 
 	TP_fast_assign(
 		__entry->dev		= dev;
-		strlcpy(__entry->domain, domain, sizeof(__entry->domain));
-		strlcpy(__entry->type, type, sizeof(__entry->type));
+		strscpy(__entry->domain, domain, sizeof(__entry->domain));
+		strscpy(__entry->type, type, sizeof(__entry->type));
 		__entry->percentile	= percentile;
 		__entry->numerator	= numerator;
 		__entry->denominator	= denominator;
@@ -59,7 +59,7 @@ TRACE_EVENT(kyber_adjust,
 
 	TP_fast_assign(
 		__entry->dev		= dev;
-		strlcpy(__entry->domain, domain, sizeof(__entry->domain));
+		strscpy(__entry->domain, domain, sizeof(__entry->domain));
 		__entry->depth		= depth;
 	),
 
@@ -81,7 +81,7 @@ TRACE_EVENT(kyber_throttled,
 
 	TP_fast_assign(
 		__entry->dev		= dev;
-		strlcpy(__entry->domain, domain, sizeof(__entry->domain));
+		strscpy(__entry->domain, domain, sizeof(__entry->domain));
 	),
 
 	TP_printk("%d,%d %s", MAJOR(__entry->dev), MINOR(__entry->dev),

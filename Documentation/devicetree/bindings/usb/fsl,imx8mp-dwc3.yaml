@@ -52,7 +52,7 @@ properties:
   fsl,permanently-attached:
     type: boolean
     description:
-      Indicates if the device atached to a downstream port is
+      Indicates if the device attached to a downstream port is
       permanently attached.
 
   fsl,disable-port-power-control:

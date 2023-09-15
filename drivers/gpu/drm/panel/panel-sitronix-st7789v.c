@@ -118,6 +118,9 @@ struct st7789_panel_info {
 	u32 bus_format;
 	u32 bus_flags;
 	bool invert_mode;
+	bool partial_mode;
+	u16 partial_start;
+	u16 partial_end;
 };
 
 struct st7789v {
@@ -126,6 +129,7 @@ struct st7789v {
 	struct spi_device *spi;
 	struct gpio_desc *reset;
 	struct regulator *power;
+	enum drm_panel_orientation orientation;
 };
 
 enum st7789v_prefix {
@@ -275,6 +279,21 @@ static const struct drm_display_mode et028013dma_mode = {
 	.flags = DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC,
 };
 
+static const struct drm_display_mode jt240mhqs_hwt_ek_e3_mode = {
+	.clock = 6000,
+	.hdisplay = 240,
+	.hsync_start = 240 + 28,
+	.hsync_end = 240 + 28 + 10,
+	.htotal = 240 + 28 + 10 + 10,
+	.vdisplay = 280,
+	.vsync_start = 280 + 8,
+	.vsync_end = 280 + 8 + 4,
+	.vtotal = 280 + 8 + 4 + 4,
+	.width_mm = 43,
+	.height_mm = 37,
+	.flags = DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC,
+};
+
 static const struct st7789_panel_info default_panel = {
 	.mode = &default_mode,
 	.invert_mode = true,
@@ -297,6 +316,17 @@ static const struct st7789_panel_info et028013dma_panel = {
 	.bus_format = MEDIA_BUS_FMT_RGB666_1X18,
 	.bus_flags = DRM_BUS_FLAG_DE_HIGH |
 		     DRM_BUS_FLAG_PIXDATA_SAMPLE_POSEDGE,
+};
+
+static const struct st7789_panel_info jt240mhqs_hwt_ek_e3_panel = {
+	.mode = &jt240mhqs_hwt_ek_e3_mode,
+	.invert_mode = true,
+	.bus_format = MEDIA_BUS_FMT_RGB666_1X18,
+	.bus_flags = DRM_BUS_FLAG_DE_HIGH |
+		     DRM_BUS_FLAG_PIXDATA_SAMPLE_NEGEDGE,
+	.partial_mode = true,
+	.partial_start = 38,
+	.partial_end = 318,
 };
 
 static int st7789v_get_modes(struct drm_panel *panel,
@@ -325,14 +355,32 @@ static int st7789v_get_modes(struct drm_panel *panel,
 	drm_display_info_set_bus_formats(&connector->display_info,
 					 &ctx->info->bus_format, 1);
 
+	/*
+	 * TODO: Remove once all drm drivers call
+	 * drm_connector_set_orientation_from_panel()
+	 */
+	drm_connector_set_panel_orientation(connector, ctx->orientation);
+
 	return 1;
+}
+
+static enum drm_panel_orientation st7789v_get_orientation(struct drm_panel *p)
+{
+	struct st7789v *ctx = panel_to_st7789v(p);
+
+	return ctx->orientation;
 }
 
 static int st7789v_prepare(struct drm_panel *panel)
 {
 	struct st7789v *ctx = panel_to_st7789v(panel);
-	u8 pixel_fmt, polarity;
+	u8 mode, pixel_fmt, polarity;
 	int ret;
+
+	if (!ctx->info->partial_mode)
+		mode = ST7789V_RGBCTRL_WO;
+	else
+		mode = 0;
 
 	switch (ctx->info->bus_format) {
 	case MEDIA_BUS_FMT_RGB666_1X18:
@@ -473,6 +521,37 @@ static int st7789v_prepare(struct drm_panel *panel)
 						MIPI_DCS_EXIT_INVERT_MODE));
 	}
 
+	if (ctx->info->partial_mode) {
+		u8 area_data[4] = {
+			(ctx->info->partial_start >> 8) & 0xff,
+			(ctx->info->partial_start >> 0) & 0xff,
+			((ctx->info->partial_end - 1) >> 8) & 0xff,
+			((ctx->info->partial_end - 1) >> 0) & 0xff,
+		};
+
+		/* Caution: if userspace ever pushes a mode different from the
+		 * expected one (i.e., the one advertised by get_modes), we'll
+		 * add margins.
+		 */
+
+		ST7789V_TEST(ret, st7789v_write_command(
+					  ctx, MIPI_DCS_ENTER_PARTIAL_MODE));
+
+		ST7789V_TEST(ret, st7789v_write_command(
+					  ctx, MIPI_DCS_SET_PAGE_ADDRESS));
+		ST7789V_TEST(ret, st7789v_write_data(ctx, area_data[0]));
+		ST7789V_TEST(ret, st7789v_write_data(ctx, area_data[1]));
+		ST7789V_TEST(ret, st7789v_write_data(ctx, area_data[2]));
+		ST7789V_TEST(ret, st7789v_write_data(ctx, area_data[3]));
+
+		ST7789V_TEST(ret, st7789v_write_command(
+					  ctx, MIPI_DCS_SET_PARTIAL_ROWS));
+		ST7789V_TEST(ret, st7789v_write_data(ctx, area_data[0]));
+		ST7789V_TEST(ret, st7789v_write_data(ctx, area_data[1]));
+		ST7789V_TEST(ret, st7789v_write_data(ctx, area_data[2]));
+		ST7789V_TEST(ret, st7789v_write_data(ctx, area_data[3]));
+	}
+
 	ST7789V_TEST(ret, st7789v_write_command(ctx, ST7789V_RAMCTRL_CMD));
 	ST7789V_TEST(ret, st7789v_write_data(ctx, ST7789V_RAMCTRL_DM_RGB |
 					     ST7789V_RAMCTRL_RM_RGB));
@@ -480,7 +559,7 @@ static int st7789v_prepare(struct drm_panel *panel)
 					     ST7789V_RAMCTRL_MAGIC));
 
 	ST7789V_TEST(ret, st7789v_write_command(ctx, ST7789V_RGBCTRL_CMD));
-	ST7789V_TEST(ret, st7789v_write_data(ctx, ST7789V_RGBCTRL_WO |
+	ST7789V_TEST(ret, st7789v_write_data(ctx, mode |
 					     ST7789V_RGBCTRL_RCM(2) |
 					     polarity));
 	ST7789V_TEST(ret, st7789v_write_data(ctx, ST7789V_RGBCTRL_VBP(8)));
@@ -519,11 +598,12 @@ static int st7789v_unprepare(struct drm_panel *panel)
 }
 
 static const struct drm_panel_funcs st7789v_drm_funcs = {
-	.disable	= st7789v_disable,
-	.enable		= st7789v_enable,
-	.get_modes	= st7789v_get_modes,
-	.prepare	= st7789v_prepare,
-	.unprepare	= st7789v_unprepare,
+	.disable = st7789v_disable,
+	.enable	= st7789v_enable,
+	.get_modes = st7789v_get_modes,
+	.get_orientation = st7789v_get_orientation,
+	.prepare = st7789v_prepare,
+	.unprepare = st7789v_unprepare,
 };
 
 static int st7789v_probe(struct spi_device *spi)
@@ -563,6 +643,8 @@ static int st7789v_probe(struct spi_device *spi)
 	if (ret)
 		return dev_err_probe(dev, ret, "Failed to get backlight\n");
 
+	of_drm_get_panel_orientation(spi->dev.of_node, &ctx->orientation);
+
 	drm_panel_add(&ctx->panel);
 
 	return 0;
@@ -579,6 +661,7 @@ static const struct spi_device_id st7789v_spi_id[] = {
 	{ "st7789v", (unsigned long) &default_panel },
 	{ "t28cp45tn89-v17", (unsigned long) &t28cp45tn89_panel },
 	{ "et028013dma", (unsigned long) &et028013dma_panel },
+	{ "jt240mhqs-hwt-ek-e3", (unsigned long) &jt240mhqs_hwt_ek_e3_panel },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, st7789v_spi_id);
@@ -587,6 +670,8 @@ static const struct of_device_id st7789v_of_match[] = {
 	{ .compatible = "sitronix,st7789v", .data = &default_panel },
 	{ .compatible = "inanbo,t28cp45tn89-v17", .data = &t28cp45tn89_panel },
 	{ .compatible = "edt,et028013dma", .data = &et028013dma_panel },
+	{ .compatible = "jasonic,jt240mhqs-hwt-ek-e3",
+	  .data = &jt240mhqs_hwt_ek_e3_panel },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, st7789v_of_match);

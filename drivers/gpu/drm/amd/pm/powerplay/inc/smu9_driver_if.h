@@ -178,20 +178,20 @@ typedef struct {
   uint8_t      padding8_2[2];
 
   /* SOC Frequencies */
-  PllSetting_t GfxclkLevel        [NUM_GFXCLK_DPM_LEVELS];
+  PllSetting_t GfxclkLevel[NUM_GFXCLK_DPM_LEVELS];
 
-  uint8_t      SocclkDid          [NUM_SOCCLK_DPM_LEVELS];          /* DID */
-  uint8_t      SocDpmVoltageIndex [NUM_SOCCLK_DPM_LEVELS];
+  uint8_t      SocclkDid[NUM_SOCCLK_DPM_LEVELS];          /* DID */
+  uint8_t      SocDpmVoltageIndex[NUM_SOCCLK_DPM_LEVELS];
 
-  uint8_t      VclkDid            [NUM_UVD_DPM_LEVELS];            /* DID */
-  uint8_t      DclkDid            [NUM_UVD_DPM_LEVELS];            /* DID */
-  uint8_t      UvdDpmVoltageIndex [NUM_UVD_DPM_LEVELS];
+  uint8_t      VclkDid[NUM_UVD_DPM_LEVELS];            /* DID */
+  uint8_t      DclkDid[NUM_UVD_DPM_LEVELS];            /* DID */
+  uint8_t      UvdDpmVoltageIndex[NUM_UVD_DPM_LEVELS];
 
-  uint8_t      EclkDid            [NUM_VCE_DPM_LEVELS];            /* DID */
-  uint8_t      VceDpmVoltageIndex [NUM_VCE_DPM_LEVELS];
+  uint8_t      EclkDid[NUM_VCE_DPM_LEVELS];            /* DID */
+  uint8_t      VceDpmVoltageIndex[NUM_VCE_DPM_LEVELS];
 
-  uint8_t      Mp0clkDid          [NUM_MP0CLK_DPM_LEVELS];          /* DID */
-  uint8_t      Mp0DpmVoltageIndex [NUM_MP0CLK_DPM_LEVELS];
+  uint8_t      Mp0clkDid[NUM_MP0CLK_DPM_LEVELS];          /* DID */
+  uint8_t      Mp0DpmVoltageIndex[NUM_MP0CLK_DPM_LEVELS];
 
   DisplayClockTable_t DisplayClockTable[DSPCLK_COUNT][NUM_DSPCLK_LEVELS];
   QuadraticInt_t      DisplayClock2Gfxclk[DSPCLK_COUNT];

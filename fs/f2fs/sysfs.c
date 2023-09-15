@@ -356,6 +356,16 @@ static ssize_t f2fs_sbi_show(struct f2fs_attr *a,
 	if (!strcmp(a->attr.name, "revoked_atomic_block"))
 		return sysfs_emit(buf, "%llu\n", sbi->revoked_atomic_block);
 
+#ifdef CONFIG_F2FS_STAT_FS
+	if (!strcmp(a->attr.name, "cp_foreground_calls"))
+		return sysfs_emit(buf, "%d\n",
+				atomic_read(&sbi->cp_call_count[TOTAL_CALL]) -
+				atomic_read(&sbi->cp_call_count[BACKGROUND]));
+	if (!strcmp(a->attr.name, "cp_background_calls"))
+		return sysfs_emit(buf, "%d\n",
+				atomic_read(&sbi->cp_call_count[BACKGROUND]));
+#endif
+
 	ui = (unsigned int *)(ptr + a->offset);
 
 	return sysfs_emit(buf, "%u\n", *ui);
@@ -972,10 +982,10 @@ F2FS_SBI_GENERAL_RO_ATTR(unusable_blocks_per_sec);
 
 /* STAT_INFO ATTR */
 #ifdef CONFIG_F2FS_STAT_FS
-STAT_INFO_RO_ATTR(cp_foreground_calls, cp_count);
-STAT_INFO_RO_ATTR(cp_background_calls, bg_cp_count);
-STAT_INFO_RO_ATTR(gc_foreground_calls, call_count);
-STAT_INFO_RO_ATTR(gc_background_calls, bg_gc);
+STAT_INFO_RO_ATTR(cp_foreground_calls, cp_call_count[FOREGROUND]);
+STAT_INFO_RO_ATTR(cp_background_calls, cp_call_count[BACKGROUND]);
+STAT_INFO_RO_ATTR(gc_foreground_calls, gc_call_count[FOREGROUND]);
+STAT_INFO_RO_ATTR(gc_background_calls, gc_call_count[BACKGROUND]);
 #endif
 
 /* FAULT_INFO ATTR */

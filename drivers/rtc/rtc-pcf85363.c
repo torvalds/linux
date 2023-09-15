@@ -15,7 +15,6 @@
 #include <linux/errno.h>
 #include <linux/bcd.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/regmap.h>
 
 /*
@@ -403,6 +402,7 @@ static int pcf85363_probe(struct i2c_client *client)
 		},
 	};
 	int ret, i, err;
+	bool wakeup_source;
 
 	if (data)
 		config = data;
@@ -432,25 +432,36 @@ static int pcf85363_probe(struct i2c_client *client)
 	pcf85363->rtc->ops = &rtc_ops;
 	pcf85363->rtc->range_min = RTC_TIMESTAMP_BEGIN_2000;
 	pcf85363->rtc->range_max = RTC_TIMESTAMP_END_2099;
-	clear_bit(RTC_FEATURE_ALARM, pcf85363->rtc->features);
+
+	wakeup_source = device_property_read_bool(&client->dev,
+						  "wakeup-source");
+	if (client->irq > 0 || wakeup_source) {
+		regmap_write(pcf85363->regmap, CTRL_FLAGS, 0);
+		regmap_update_bits(pcf85363->regmap, CTRL_PIN_IO,
+				   PIN_IO_INTA_OUT, PIN_IO_INTAPM);
+	}
 
 	if (client->irq > 0) {
 		unsigned long irqflags = IRQF_TRIGGER_LOW;
 
 		if (dev_fwnode(&client->dev))
 			irqflags = 0;
-
-		regmap_write(pcf85363->regmap, CTRL_FLAGS, 0);
-		regmap_update_bits(pcf85363->regmap, CTRL_PIN_IO,
-				   PIN_IO_INTA_OUT, PIN_IO_INTAPM);
 		ret = devm_request_threaded_irq(&client->dev, client->irq,
 						NULL, pcf85363_rtc_handle_irq,
 						irqflags | IRQF_ONESHOT,
 						"pcf85363", client);
-		if (ret)
-			dev_warn(&client->dev, "unable to request IRQ, alarms disabled\n");
-		else
-			set_bit(RTC_FEATURE_ALARM, pcf85363->rtc->features);
+		if (ret) {
+			dev_warn(&client->dev,
+				 "unable to request IRQ, alarms disabled\n");
+			client->irq = 0;
+		}
+	}
+
+	if (client->irq > 0 || wakeup_source) {
+		device_init_wakeup(&client->dev, true);
+		set_bit(RTC_FEATURE_ALARM, pcf85363->rtc->features);
+	} else {
+		clear_bit(RTC_FEATURE_ALARM, pcf85363->rtc->features);
 	}
 
 	ret = devm_rtc_register_device(pcf85363->rtc);

@@ -171,8 +171,10 @@ static void ip_cmsg_recv_dstaddr(struct msghdr *msg, struct sk_buff *skb)
 void ip_cmsg_recv_offset(struct msghdr *msg, struct sock *sk,
 			 struct sk_buff *skb, int tlen, int offset)
 {
-	struct inet_sock *inet = inet_sk(sk);
-	unsigned int flags = inet->cmsg_flags;
+	unsigned long flags = inet_cmsg_flags(inet_sk(sk));
+
+	if (!flags)
+		return;
 
 	/* Ordered by supposed usage frequency */
 	if (flags & IP_CMSG_PKTINFO) {
@@ -431,7 +433,7 @@ void ip_icmp_error(struct sock *sk, struct sk_buff *skb, int err,
 	serr->port = port;
 
 	if (skb_pull(skb, payload - skb->data)) {
-		if (inet_sk(sk)->recverr_rfc4884)
+		if (inet_test_bit(RECVERR_RFC4884, sk))
 			ipv4_icmp_error_rfc4884(skb, &serr->ee.ee_rfc4884);
 
 		skb_reset_transport_header(skb);
@@ -444,12 +446,11 @@ EXPORT_SYMBOL_GPL(ip_icmp_error);
 
 void ip_local_error(struct sock *sk, int err, __be32 daddr, __be16 port, u32 info)
 {
-	struct inet_sock *inet = inet_sk(sk);
 	struct sock_exterr_skb *serr;
 	struct iphdr *iph;
 	struct sk_buff *skb;
 
-	if (!inet->recverr)
+	if (!inet_test_bit(RECVERR, sk))
 		return;
 
 	skb = alloc_skb(sizeof(struct iphdr), GFP_ATOMIC);
@@ -510,7 +511,7 @@ static bool ipv4_datagram_support_cmsg(const struct sock *sk,
 	 * or without payload (SOF_TIMESTAMPING_OPT_TSONLY).
 	 */
 	info = PKTINFO_SKB_CB(skb);
-	if (!(sk->sk_tsflags & SOF_TIMESTAMPING_OPT_CMSG) ||
+	if (!(READ_ONCE(sk->sk_tsflags) & SOF_TIMESTAMPING_OPT_CMSG) ||
 	    !info->ipi_ifindex)
 		return false;
 
@@ -568,7 +569,7 @@ int ip_recv_error(struct sock *sk, struct msghdr *msg, int len, int *addr_len)
 	if (ipv4_datagram_support_cmsg(sk, skb, serr->ee.ee_origin)) {
 		sin->sin_family = AF_INET;
 		sin->sin_addr.s_addr = ip_hdr(skb)->saddr;
-		if (inet_sk(sk)->cmsg_flags)
+		if (inet_cmsg_flags(inet_sk(sk)))
 			ip_cmsg_recv(msg, skb);
 	}
 
@@ -592,7 +593,7 @@ void __ip_sock_set_tos(struct sock *sk, int val)
 	}
 	if (inet_sk(sk)->tos != val) {
 		inet_sk(sk)->tos = val;
-		sk->sk_priority = rt_tos2priority(val);
+		WRITE_ONCE(sk->sk_priority, rt_tos2priority(val));
 		sk_dst_reset(sk);
 	}
 }
@@ -607,17 +608,13 @@ EXPORT_SYMBOL(ip_sock_set_tos);
 
 void ip_sock_set_freebind(struct sock *sk)
 {
-	lock_sock(sk);
-	inet_sk(sk)->freebind = true;
-	release_sock(sk);
+	inet_set_bit(FREEBIND, sk);
 }
 EXPORT_SYMBOL(ip_sock_set_freebind);
 
 void ip_sock_set_recverr(struct sock *sk)
 {
-	lock_sock(sk);
-	inet_sk(sk)->recverr = true;
-	release_sock(sk);
+	inet_set_bit(RECVERR, sk);
 }
 EXPORT_SYMBOL(ip_sock_set_recverr);
 
@@ -634,9 +631,7 @@ EXPORT_SYMBOL(ip_sock_set_mtu_discover);
 
 void ip_sock_set_pktinfo(struct sock *sk)
 {
-	lock_sock(sk);
-	inet_sk(sk)->cmsg_flags |= IP_CMSG_PKTINFO;
-	release_sock(sk);
+	inet_set_bit(PKTINFO, sk);
 }
 EXPORT_SYMBOL(ip_sock_set_pktinfo);
 
@@ -950,6 +945,102 @@ int do_ip_setsockopt(struct sock *sk, int level, int optname,
 	if (ip_mroute_opt(optname))
 		return ip_mroute_setsockopt(sk, optname, optval, optlen);
 
+	/* Handle options that can be set without locking the socket. */
+	switch (optname) {
+	case IP_PKTINFO:
+		inet_assign_bit(PKTINFO, sk, val);
+		return 0;
+	case IP_RECVTTL:
+		inet_assign_bit(TTL, sk, val);
+		return 0;
+	case IP_RECVTOS:
+		inet_assign_bit(TOS, sk, val);
+		return 0;
+	case IP_RECVOPTS:
+		inet_assign_bit(RECVOPTS, sk, val);
+		return 0;
+	case IP_RETOPTS:
+		inet_assign_bit(RETOPTS, sk, val);
+		return 0;
+	case IP_PASSSEC:
+		inet_assign_bit(PASSSEC, sk, val);
+		return 0;
+	case IP_RECVORIGDSTADDR:
+		inet_assign_bit(ORIGDSTADDR, sk, val);
+		return 0;
+	case IP_RECVFRAGSIZE:
+		if (sk->sk_type != SOCK_RAW && sk->sk_type != SOCK_DGRAM)
+			return -EINVAL;
+		inet_assign_bit(RECVFRAGSIZE, sk, val);
+		return 0;
+	case IP_RECVERR:
+		inet_assign_bit(RECVERR, sk, val);
+		if (!val)
+			skb_errqueue_purge(&sk->sk_error_queue);
+		return 0;
+	case IP_RECVERR_RFC4884:
+		if (val < 0 || val > 1)
+			return -EINVAL;
+		inet_assign_bit(RECVERR_RFC4884, sk, val);
+		return 0;
+	case IP_FREEBIND:
+		if (optlen < 1)
+			return -EINVAL;
+		inet_assign_bit(FREEBIND, sk, val);
+		return 0;
+	case IP_HDRINCL:
+		if (sk->sk_type != SOCK_RAW)
+			return -ENOPROTOOPT;
+		inet_assign_bit(HDRINCL, sk, val);
+		return 0;
+	case IP_MULTICAST_LOOP:
+		if (optlen < 1)
+			return -EINVAL;
+		inet_assign_bit(MC_LOOP, sk, val);
+		return 0;
+	case IP_MULTICAST_ALL:
+		if (optlen < 1)
+			return -EINVAL;
+		if (val != 0 && val != 1)
+			return -EINVAL;
+		inet_assign_bit(MC_ALL, sk, val);
+		return 0;
+	case IP_TRANSPARENT:
+		if (!!val && !sockopt_ns_capable(sock_net(sk)->user_ns, CAP_NET_RAW) &&
+		    !sockopt_ns_capable(sock_net(sk)->user_ns, CAP_NET_ADMIN))
+			return -EPERM;
+		if (optlen < 1)
+			return -EINVAL;
+		inet_assign_bit(TRANSPARENT, sk, val);
+		return 0;
+	case IP_NODEFRAG:
+		if (sk->sk_type != SOCK_RAW)
+			return -ENOPROTOOPT;
+		inet_assign_bit(NODEFRAG, sk, val);
+		return 0;
+	case IP_BIND_ADDRESS_NO_PORT:
+		inet_assign_bit(BIND_ADDRESS_NO_PORT, sk, val);
+		return 0;
+	case IP_TTL:
+		if (optlen < 1)
+			return -EINVAL;
+		if (val != -1 && (val < 1 || val > 255))
+			return -EINVAL;
+		WRITE_ONCE(inet->uc_ttl, val);
+		return 0;
+	case IP_MINTTL:
+		if (optlen < 1)
+			return -EINVAL;
+		if (val < 0 || val > 255)
+			return -EINVAL;
+
+		if (val)
+			static_branch_enable(&ip4_min_ttl);
+
+		WRITE_ONCE(inet->min_ttl, val);
+		return 0;
+	}
+
 	err = 0;
 	if (needs_rtnl)
 		rtnl_lock();
@@ -967,7 +1058,7 @@ int do_ip_setsockopt(struct sock *sk, int level, int optname,
 			break;
 		old = rcu_dereference_protected(inet->inet_opt,
 						lockdep_sock_is_held(sk));
-		if (inet->is_icsk) {
+		if (inet_test_bit(IS_ICSK, sk)) {
 			struct inet_connection_sock *icsk = inet_csk(sk);
 #if IS_ENABLED(CONFIG_IPV6)
 			if (sk->sk_family == PF_INET ||
@@ -989,110 +1080,26 @@ int do_ip_setsockopt(struct sock *sk, int level, int optname,
 			kfree_rcu(old, rcu);
 		break;
 	}
-	case IP_PKTINFO:
-		if (val)
-			inet->cmsg_flags |= IP_CMSG_PKTINFO;
-		else
-			inet->cmsg_flags &= ~IP_CMSG_PKTINFO;
-		break;
-	case IP_RECVTTL:
-		if (val)
-			inet->cmsg_flags |=  IP_CMSG_TTL;
-		else
-			inet->cmsg_flags &= ~IP_CMSG_TTL;
-		break;
-	case IP_RECVTOS:
-		if (val)
-			inet->cmsg_flags |=  IP_CMSG_TOS;
-		else
-			inet->cmsg_flags &= ~IP_CMSG_TOS;
-		break;
-	case IP_RECVOPTS:
-		if (val)
-			inet->cmsg_flags |=  IP_CMSG_RECVOPTS;
-		else
-			inet->cmsg_flags &= ~IP_CMSG_RECVOPTS;
-		break;
-	case IP_RETOPTS:
-		if (val)
-			inet->cmsg_flags |= IP_CMSG_RETOPTS;
-		else
-			inet->cmsg_flags &= ~IP_CMSG_RETOPTS;
-		break;
-	case IP_PASSSEC:
-		if (val)
-			inet->cmsg_flags |= IP_CMSG_PASSSEC;
-		else
-			inet->cmsg_flags &= ~IP_CMSG_PASSSEC;
-		break;
-	case IP_RECVORIGDSTADDR:
-		if (val)
-			inet->cmsg_flags |= IP_CMSG_ORIGDSTADDR;
-		else
-			inet->cmsg_flags &= ~IP_CMSG_ORIGDSTADDR;
-		break;
 	case IP_CHECKSUM:
 		if (val) {
-			if (!(inet->cmsg_flags & IP_CMSG_CHECKSUM)) {
+			if (!(inet_test_bit(CHECKSUM, sk))) {
 				inet_inc_convert_csum(sk);
-				inet->cmsg_flags |= IP_CMSG_CHECKSUM;
+				inet_set_bit(CHECKSUM, sk);
 			}
 		} else {
-			if (inet->cmsg_flags & IP_CMSG_CHECKSUM) {
+			if (inet_test_bit(CHECKSUM, sk)) {
 				inet_dec_convert_csum(sk);
-				inet->cmsg_flags &= ~IP_CMSG_CHECKSUM;
+				inet_clear_bit(CHECKSUM, sk);
 			}
 		}
-		break;
-	case IP_RECVFRAGSIZE:
-		if (sk->sk_type != SOCK_RAW && sk->sk_type != SOCK_DGRAM)
-			goto e_inval;
-		if (val)
-			inet->cmsg_flags |= IP_CMSG_RECVFRAGSIZE;
-		else
-			inet->cmsg_flags &= ~IP_CMSG_RECVFRAGSIZE;
 		break;
 	case IP_TOS:	/* This sets both TOS and Precedence */
 		__ip_sock_set_tos(sk, val);
-		break;
-	case IP_TTL:
-		if (optlen < 1)
-			goto e_inval;
-		if (val != -1 && (val < 1 || val > 255))
-			goto e_inval;
-		inet->uc_ttl = val;
-		break;
-	case IP_HDRINCL:
-		if (sk->sk_type != SOCK_RAW) {
-			err = -ENOPROTOOPT;
-			break;
-		}
-		inet->hdrincl = val ? 1 : 0;
-		break;
-	case IP_NODEFRAG:
-		if (sk->sk_type != SOCK_RAW) {
-			err = -ENOPROTOOPT;
-			break;
-		}
-		inet->nodefrag = val ? 1 : 0;
-		break;
-	case IP_BIND_ADDRESS_NO_PORT:
-		inet->bind_address_no_port = val ? 1 : 0;
 		break;
 	case IP_MTU_DISCOVER:
 		if (val < IP_PMTUDISC_DONT || val > IP_PMTUDISC_OMIT)
 			goto e_inval;
 		inet->pmtudisc = val;
-		break;
-	case IP_RECVERR:
-		inet->recverr = !!val;
-		if (!val)
-			skb_queue_purge(&sk->sk_error_queue);
-		break;
-	case IP_RECVERR_RFC4884:
-		if (val < 0 || val > 1)
-			goto e_inval;
-		inet->recverr_rfc4884 = !!val;
 		break;
 	case IP_MULTICAST_TTL:
 		if (sk->sk_type == SOCK_STREAM)
@@ -1104,11 +1111,6 @@ int do_ip_setsockopt(struct sock *sk, int level, int optname,
 		if (val < 0 || val > 255)
 			goto e_inval;
 		inet->mc_ttl = val;
-		break;
-	case IP_MULTICAST_LOOP:
-		if (optlen < 1)
-			goto e_inval;
-		inet->mc_loop = !!val;
 		break;
 	case IP_UNICAST_IF:
 	{
@@ -1214,7 +1216,7 @@ int do_ip_setsockopt(struct sock *sk, int level, int optname,
 		struct ip_mreqn mreq;
 
 		err = -EPROTO;
-		if (inet_sk(sk)->is_icsk)
+		if (inet_test_bit(IS_ICSK, sk))
 			break;
 
 		if (optlen < sizeof(struct ip_mreq))
@@ -1325,52 +1327,12 @@ int do_ip_setsockopt(struct sock *sk, int level, int optname,
 		else
 			err = ip_set_mcast_msfilter(sk, optval, optlen);
 		break;
-	case IP_MULTICAST_ALL:
-		if (optlen < 1)
-			goto e_inval;
-		if (val != 0 && val != 1)
-			goto e_inval;
-		inet->mc_all = val;
-		break;
-
-	case IP_FREEBIND:
-		if (optlen < 1)
-			goto e_inval;
-		inet->freebind = !!val;
-		break;
-
 	case IP_IPSEC_POLICY:
 	case IP_XFRM_POLICY:
 		err = -EPERM;
 		if (!sockopt_ns_capable(sock_net(sk)->user_ns, CAP_NET_ADMIN))
 			break;
 		err = xfrm_user_policy(sk, optname, optval, optlen);
-		break;
-
-	case IP_TRANSPARENT:
-		if (!!val && !sockopt_ns_capable(sock_net(sk)->user_ns, CAP_NET_RAW) &&
-		    !sockopt_ns_capable(sock_net(sk)->user_ns, CAP_NET_ADMIN)) {
-			err = -EPERM;
-			break;
-		}
-		if (optlen < 1)
-			goto e_inval;
-		inet->transparent = !!val;
-		break;
-
-	case IP_MINTTL:
-		if (optlen < 1)
-			goto e_inval;
-		if (val < 0 || val > 255)
-			goto e_inval;
-
-		if (val)
-			static_branch_enable(&ip4_min_ttl);
-
-		/* tcp_v4_err() and tcp_v4_rcv() might read min_ttl
-		 * while we are changint it.
-		 */
-		WRITE_ONCE(inet->min_ttl, val);
 		break;
 
 	case IP_LOCAL_PORT_RANGE:
@@ -1415,7 +1377,7 @@ e_inval:
 void ipv4_pktinfo_prepare(const struct sock *sk, struct sk_buff *skb)
 {
 	struct in_pktinfo *pktinfo = PKTINFO_SKB_CB(skb);
-	bool prepare = (inet_sk(sk)->cmsg_flags & IP_CMSG_PKTINFO) ||
+	bool prepare = inet_test_bit(PKTINFO, sk) ||
 		       ipv6_sk_rxinfo(sk);
 
 	if (prepare && skb_rtable(skb)) {
@@ -1566,6 +1528,72 @@ int do_ip_getsockopt(struct sock *sk, int level, int optname,
 	if (len < 0)
 		return -EINVAL;
 
+	/* Handle options that can be read without locking the socket. */
+	switch (optname) {
+	case IP_PKTINFO:
+		val = inet_test_bit(PKTINFO, sk);
+		goto copyval;
+	case IP_RECVTTL:
+		val = inet_test_bit(TTL, sk);
+		goto copyval;
+	case IP_RECVTOS:
+		val = inet_test_bit(TOS, sk);
+		goto copyval;
+	case IP_RECVOPTS:
+		val = inet_test_bit(RECVOPTS, sk);
+		goto copyval;
+	case IP_RETOPTS:
+		val = inet_test_bit(RETOPTS, sk);
+		goto copyval;
+	case IP_PASSSEC:
+		val = inet_test_bit(PASSSEC, sk);
+		goto copyval;
+	case IP_RECVORIGDSTADDR:
+		val = inet_test_bit(ORIGDSTADDR, sk);
+		goto copyval;
+	case IP_CHECKSUM:
+		val = inet_test_bit(CHECKSUM, sk);
+		goto copyval;
+	case IP_RECVFRAGSIZE:
+		val = inet_test_bit(RECVFRAGSIZE, sk);
+		goto copyval;
+	case IP_RECVERR:
+		val = inet_test_bit(RECVERR, sk);
+		goto copyval;
+	case IP_RECVERR_RFC4884:
+		val = inet_test_bit(RECVERR_RFC4884, sk);
+		goto copyval;
+	case IP_FREEBIND:
+		val = inet_test_bit(FREEBIND, sk);
+		goto copyval;
+	case IP_HDRINCL:
+		val = inet_test_bit(HDRINCL, sk);
+		goto copyval;
+	case IP_MULTICAST_LOOP:
+		val = inet_test_bit(MC_LOOP, sk);
+		goto copyval;
+	case IP_MULTICAST_ALL:
+		val = inet_test_bit(MC_ALL, sk);
+		goto copyval;
+	case IP_TRANSPARENT:
+		val = inet_test_bit(TRANSPARENT, sk);
+		goto copyval;
+	case IP_NODEFRAG:
+		val = inet_test_bit(NODEFRAG, sk);
+		goto copyval;
+	case IP_BIND_ADDRESS_NO_PORT:
+		val = inet_test_bit(BIND_ADDRESS_NO_PORT, sk);
+		goto copyval;
+	case IP_TTL:
+		val = READ_ONCE(inet->uc_ttl);
+		if (val < 0)
+			val = READ_ONCE(sock_net(sk)->ipv4.sysctl_ip_default_ttl);
+		goto copyval;
+	case IP_MINTTL:
+		val = READ_ONCE(inet->min_ttl);
+		goto copyval;
+	}
+
 	if (needs_rtnl)
 		rtnl_lock();
 	sockopt_lock_sock(sk);
@@ -1600,52 +1628,8 @@ int do_ip_getsockopt(struct sock *sk, int level, int optname,
 			return -EFAULT;
 		return 0;
 	}
-	case IP_PKTINFO:
-		val = (inet->cmsg_flags & IP_CMSG_PKTINFO) != 0;
-		break;
-	case IP_RECVTTL:
-		val = (inet->cmsg_flags & IP_CMSG_TTL) != 0;
-		break;
-	case IP_RECVTOS:
-		val = (inet->cmsg_flags & IP_CMSG_TOS) != 0;
-		break;
-	case IP_RECVOPTS:
-		val = (inet->cmsg_flags & IP_CMSG_RECVOPTS) != 0;
-		break;
-	case IP_RETOPTS:
-		val = (inet->cmsg_flags & IP_CMSG_RETOPTS) != 0;
-		break;
-	case IP_PASSSEC:
-		val = (inet->cmsg_flags & IP_CMSG_PASSSEC) != 0;
-		break;
-	case IP_RECVORIGDSTADDR:
-		val = (inet->cmsg_flags & IP_CMSG_ORIGDSTADDR) != 0;
-		break;
-	case IP_CHECKSUM:
-		val = (inet->cmsg_flags & IP_CMSG_CHECKSUM) != 0;
-		break;
-	case IP_RECVFRAGSIZE:
-		val = (inet->cmsg_flags & IP_CMSG_RECVFRAGSIZE) != 0;
-		break;
 	case IP_TOS:
 		val = inet->tos;
-		break;
-	case IP_TTL:
-	{
-		struct net *net = sock_net(sk);
-		val = (inet->uc_ttl == -1 ?
-		       READ_ONCE(net->ipv4.sysctl_ip_default_ttl) :
-		       inet->uc_ttl);
-		break;
-	}
-	case IP_HDRINCL:
-		val = inet->hdrincl;
-		break;
-	case IP_NODEFRAG:
-		val = inet->nodefrag;
-		break;
-	case IP_BIND_ADDRESS_NO_PORT:
-		val = inet->bind_address_no_port;
 		break;
 	case IP_MTU_DISCOVER:
 		val = inet->pmtudisc;
@@ -1665,17 +1649,8 @@ int do_ip_getsockopt(struct sock *sk, int level, int optname,
 		}
 		break;
 	}
-	case IP_RECVERR:
-		val = inet->recverr;
-		break;
-	case IP_RECVERR_RFC4884:
-		val = inet->recverr_rfc4884;
-		break;
 	case IP_MULTICAST_TTL:
 		val = inet->mc_ttl;
-		break;
-	case IP_MULTICAST_LOOP:
-		val = inet->mc_loop;
 		break;
 	case IP_UNICAST_IF:
 		val = (__force int)htonl((__u32) inet->uc_index);
@@ -1715,9 +1690,6 @@ int do_ip_getsockopt(struct sock *sk, int level, int optname,
 		else
 			err = ip_get_mcast_msfilter(sk, optval, optlen, len);
 		goto out;
-	case IP_MULTICAST_ALL:
-		val = inet->mc_all;
-		break;
 	case IP_PKTOPTIONS:
 	{
 		struct msghdr msg;
@@ -1737,7 +1709,7 @@ int do_ip_getsockopt(struct sock *sk, int level, int optname,
 		msg.msg_controllen = len;
 		msg.msg_flags = in_compat_syscall() ? MSG_CMSG_COMPAT : 0;
 
-		if (inet->cmsg_flags & IP_CMSG_PKTINFO) {
+		if (inet_test_bit(PKTINFO, sk)) {
 			struct in_pktinfo info;
 
 			info.ipi_addr.s_addr = inet->inet_rcv_saddr;
@@ -1745,26 +1717,17 @@ int do_ip_getsockopt(struct sock *sk, int level, int optname,
 			info.ipi_ifindex = inet->mc_index;
 			put_cmsg(&msg, SOL_IP, IP_PKTINFO, sizeof(info), &info);
 		}
-		if (inet->cmsg_flags & IP_CMSG_TTL) {
+		if (inet_test_bit(TTL, sk)) {
 			int hlim = inet->mc_ttl;
 			put_cmsg(&msg, SOL_IP, IP_TTL, sizeof(hlim), &hlim);
 		}
-		if (inet->cmsg_flags & IP_CMSG_TOS) {
+		if (inet_test_bit(TOS, sk)) {
 			int tos = inet->rcv_tos;
 			put_cmsg(&msg, SOL_IP, IP_TOS, sizeof(tos), &tos);
 		}
 		len -= msg.msg_controllen;
 		return copy_to_sockptr(optlen, &len, sizeof(int));
 	}
-	case IP_FREEBIND:
-		val = inet->freebind;
-		break;
-	case IP_TRANSPARENT:
-		val = inet->transparent;
-		break;
-	case IP_MINTTL:
-		val = inet->min_ttl;
-		break;
 	case IP_LOCAL_PORT_RANGE:
 		val = inet->local_port_range.hi << 16 | inet->local_port_range.lo;
 		break;
@@ -1776,7 +1739,7 @@ int do_ip_getsockopt(struct sock *sk, int level, int optname,
 		return -ENOPROTOOPT;
 	}
 	sockopt_release_sock(sk);
-
+copyval:
 	if (len < sizeof(int) && len > 0 && val >= 0 && val <= 255) {
 		unsigned char ucval = (unsigned char)val;
 		len = 1;

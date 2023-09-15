@@ -95,12 +95,17 @@ SYM_CODE_START(kernel_entry)			# kernel entry point
 	PTR_LI		sp, (_THREAD_SIZE - PT_SIZE)
 	PTR_ADD		sp, sp, tp
 	set_saved_sp	sp, t0, t1
-#endif
 
-	/* relocate_kernel() returns the new kernel entry point */
-	jr		a0
-	ASM_BUG()
+	/* Jump to the new kernel: new_pc = current_pc + random_offset */
+	pcaddi		t0, 0
+	add.d		t0, t0, a0
+	jirl		zero, t0, 0xc
+#endif /* CONFIG_RANDOMIZE_BASE */
 
+#endif /* CONFIG_RELOCATABLE */
+
+#ifdef CONFIG_KASAN
+	bl		kasan_early_init
 #endif
 
 	bl		start_kernel

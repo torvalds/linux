@@ -15,7 +15,6 @@
 #include <linux/i2c.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/property.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
@@ -62,7 +61,7 @@ static const struct chip_desc chips[] = {
 
 static bool ltc4306_is_volatile_reg(struct device *dev, unsigned int reg)
 {
-	return (reg == LTC_REG_CONFIG) ? true : false;
+	return reg == LTC_REG_CONFIG;
 }
 
 static const struct regmap_config ltc4306_regmap_config = {

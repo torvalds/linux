@@ -59,7 +59,7 @@ description: >
   ..
   31 ........................ X
 
-  The BCM3380 Level 1 / Level 2 interrrupt controller shows up in various forms
+  The BCM3380 Level 1 / Level 2 interrupt controller shows up in various forms
   on many BCM338x/BCM63xx chipsets. It has the following properties:
 
   - outputs a single interrupt signal to its interrupt controller parent

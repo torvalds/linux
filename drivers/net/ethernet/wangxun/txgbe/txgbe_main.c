@@ -301,6 +301,49 @@ static void txgbe_down(struct wx *wx)
 }
 
 /**
+ *  txgbe_init_type_code - Initialize the shared code
+ *  @wx: pointer to hardware structure
+ **/
+static void txgbe_init_type_code(struct wx *wx)
+{
+	u8 device_type = wx->subsystem_device_id & 0xF0;
+
+	switch (wx->device_id) {
+	case TXGBE_DEV_ID_SP1000:
+	case TXGBE_DEV_ID_WX1820:
+		wx->mac.type = wx_mac_sp;
+		break;
+	default:
+		wx->mac.type = wx_mac_unknown;
+		break;
+	}
+
+	switch (device_type) {
+	case TXGBE_ID_SFP:
+		wx->media_type = sp_media_fiber;
+		break;
+	case TXGBE_ID_XAUI:
+	case TXGBE_ID_SGMII:
+		wx->media_type = sp_media_copper;
+		break;
+	case TXGBE_ID_KR_KX_KX4:
+	case TXGBE_ID_MAC_XAUI:
+	case TXGBE_ID_MAC_SGMII:
+		wx->media_type = sp_media_backplane;
+		break;
+	case TXGBE_ID_SFI_XAUI:
+		if (wx->bus.func == 0)
+			wx->media_type = sp_media_fiber;
+		else
+			wx->media_type = sp_media_copper;
+		break;
+	default:
+		wx->media_type = sp_media_unknown;
+		break;
+	}
+}
+
+/**
  * txgbe_sw_init - Initialize general software structures (struct wx)
  * @wx: board private structure to initialize
  **/
@@ -324,15 +367,7 @@ static int txgbe_sw_init(struct wx *wx)
 		return err;
 	}
 
-	switch (wx->device_id) {
-	case TXGBE_DEV_ID_SP1000:
-	case TXGBE_DEV_ID_WX1820:
-		wx->mac.type = wx_mac_sp;
-		break;
-	default:
-		wx->mac.type = wx_mac_unknown;
-		break;
-	}
+	txgbe_init_type_code(wx);
 
 	/* Set common capability flags and settings */
 	wx->max_q_vectors = TXGBE_MAX_MSIX_VECTORS;
@@ -662,6 +697,9 @@ static int txgbe_probe(struct pci_dev *pdev,
 		snprintf(wx->eeprom_id, sizeof(wx->eeprom_id),
 			 "0x%08x", etrack_id);
 	}
+
+	if (etrack_id < 0x20010)
+		dev_warn(&pdev->dev, "Please upgrade the firmware to 0x20010 or above.\n");
 
 	txgbe = devm_kzalloc(&pdev->dev, sizeof(*txgbe), GFP_KERNEL);
 	if (!txgbe) {

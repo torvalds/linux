@@ -259,7 +259,7 @@ static const struct of_device_id tve200_of_match[] = {
 static struct platform_driver tve200_driver = {
 	.driver = {
 		.name           = "tve200",
-		.of_match_table = of_match_ptr(tve200_of_match),
+		.of_match_table = tve200_of_match,
 	},
 	.probe = tve200_probe,
 	.remove_new = tve200_remove,

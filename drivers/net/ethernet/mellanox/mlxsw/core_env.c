@@ -32,6 +32,7 @@ struct mlxsw_env {
 	const struct mlxsw_bus_info *bus_info;
 	u8 max_module_count; /* Maximum number of modules per-slot. */
 	u8 num_of_slots; /* Including the main board. */
+	u8 max_eeprom_len; /* Maximum module EEPROM transaction length. */
 	struct mutex line_cards_lock; /* Protects line cards. */
 	struct mlxsw_env_line_card *line_cards[];
 };
@@ -111,7 +112,7 @@ mlxsw_env_validate_cable_ident(struct mlxsw_core *core, u8 slot_index, int id,
 	if (err)
 		return err;
 
-	mlxsw_reg_mcia_pack(mcia_pl, slot_index, id, 0,
+	mlxsw_reg_mcia_pack(mcia_pl, slot_index, id,
 			    MLXSW_REG_MCIA_PAGE0_LO_OFF, 0, 1,
 			    MLXSW_REG_MCIA_I2C_ADDR_LOW);
 	err = mlxsw_reg_query(core, MLXSW_REG(mcia), mcia_pl);
@@ -146,6 +147,7 @@ mlxsw_env_query_module_eeprom(struct mlxsw_core *mlxsw_core, u8 slot_index,
 			      int module, u16 offset, u16 size, void *data,
 			      bool qsfp, unsigned int *p_read_size)
 {
+	struct mlxsw_env *mlxsw_env = mlxsw_core_env(mlxsw_core);
 	char mcia_pl[MLXSW_REG_MCIA_LEN];
 	char *eeprom_tmp;
 	u16 i2c_addr;
@@ -153,11 +155,7 @@ mlxsw_env_query_module_eeprom(struct mlxsw_core *mlxsw_core, u8 slot_index,
 	int status;
 	int err;
 
-	/* MCIA register accepts buffer size <= 48. Page of size 128 should be
-	 * read by chunks of size 48, 48, 32. Align the size of the last chunk
-	 * to avoid reading after the end of the page.
-	 */
-	size = min_t(u16, size, MLXSW_REG_MCIA_EEPROM_SIZE);
+	size = min_t(u16, size, mlxsw_env->max_eeprom_len);
 
 	if (offset < MLXSW_REG_MCIA_EEPROM_PAGE_LENGTH &&
 	    offset + size > MLXSW_REG_MCIA_EEPROM_PAGE_LENGTH)
@@ -188,7 +186,7 @@ mlxsw_env_query_module_eeprom(struct mlxsw_core *mlxsw_core, u8 slot_index,
 		}
 	}
 
-	mlxsw_reg_mcia_pack(mcia_pl, slot_index, module, 0, page, offset, size,
+	mlxsw_reg_mcia_pack(mcia_pl, slot_index, module, page, offset, size,
 			    i2c_addr);
 
 	err = mlxsw_reg_query(mlxsw_core, MLXSW_REG(mcia), mcia_pl);
@@ -266,12 +264,12 @@ mlxsw_env_module_temp_thresholds_get(struct mlxsw_core *core, u8 slot_index,
 			page = MLXSW_REG_MCIA_TH_PAGE_CMIS_NUM;
 		else
 			page = MLXSW_REG_MCIA_TH_PAGE_NUM;
-		mlxsw_reg_mcia_pack(mcia_pl, slot_index, module, 0, page,
+		mlxsw_reg_mcia_pack(mcia_pl, slot_index, module, page,
 				    MLXSW_REG_MCIA_TH_PAGE_OFF + off,
 				    MLXSW_REG_MCIA_TH_ITEM_SIZE,
 				    MLXSW_REG_MCIA_I2C_ADDR_LOW);
 	} else {
-		mlxsw_reg_mcia_pack(mcia_pl, slot_index, module, 0,
+		mlxsw_reg_mcia_pack(mcia_pl, slot_index, module,
 				    MLXSW_REG_MCIA_PAGE0_LO,
 				    off, MLXSW_REG_MCIA_TH_ITEM_SIZE,
 				    MLXSW_REG_MCIA_I2C_ADDR_HIGH);
@@ -489,9 +487,9 @@ mlxsw_env_get_module_eeprom_by_page(struct mlxsw_core *mlxsw_core,
 		u8 size;
 
 		size = min_t(u8, page->length - bytes_read,
-			     MLXSW_REG_MCIA_EEPROM_SIZE);
+			     mlxsw_env->max_eeprom_len);
 
-		mlxsw_reg_mcia_pack(mcia_pl, slot_index, module, 0, page->page,
+		mlxsw_reg_mcia_pack(mcia_pl, slot_index, module, page->page,
 				    device_addr + bytes_read, size,
 				    page->i2c_address);
 		mlxsw_reg_mcia_bank_number_set(mcia_pl, page->bank);
@@ -1359,6 +1357,26 @@ static struct mlxsw_linecards_event_ops mlxsw_env_event_ops = {
 	.got_inactive = mlxsw_env_got_inactive,
 };
 
+static int mlxsw_env_max_module_eeprom_len_query(struct mlxsw_env *mlxsw_env)
+{
+	char mcam_pl[MLXSW_REG_MCAM_LEN];
+	bool mcia_128b_supported;
+	int err;
+
+	mlxsw_reg_mcam_pack(mcam_pl,
+			    MLXSW_REG_MCAM_FEATURE_GROUP_ENHANCED_FEATURES);
+	err = mlxsw_reg_query(mlxsw_env->core, MLXSW_REG(mcam), mcam_pl);
+	if (err)
+		return err;
+
+	mlxsw_reg_mcam_unpack(mcam_pl, MLXSW_REG_MCAM_MCIA_128B,
+			      &mcia_128b_supported);
+
+	mlxsw_env->max_eeprom_len = mcia_128b_supported ? 128 : 48;
+
+	return 0;
+}
+
 int mlxsw_env_init(struct mlxsw_core *mlxsw_core,
 		   const struct mlxsw_bus_info *bus_info,
 		   struct mlxsw_env **p_env)
@@ -1427,10 +1445,15 @@ int mlxsw_env_init(struct mlxsw_core *mlxsw_core,
 	if (err)
 		goto err_type_set;
 
+	err = mlxsw_env_max_module_eeprom_len_query(env);
+	if (err)
+		goto err_eeprom_len_query;
+
 	env->line_cards[0]->active = true;
 
 	return 0;
 
+err_eeprom_len_query:
 err_type_set:
 	mlxsw_env_module_event_disable(env, 0);
 err_mlxsw_env_module_event_enable:

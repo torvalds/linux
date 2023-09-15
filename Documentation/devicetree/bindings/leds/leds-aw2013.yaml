@@ -20,8 +20,19 @@ properties:
   reg:
     maxItems: 1
 
+  interrupts:
+    maxItems: 1
+    description: Open-drain, low active interrupt pin "INTN".
+      Used to report completion of operations (power up, LED breath effects).
+
   vcc-supply:
     description: Regulator providing power to the "VCC" pin.
+
+  vio-supply:
+    description: Regulator providing power for pull-up of the I/O lines.
+      "VIO1" in the typical application circuit example of the datasheet.
+      Note that this regulator does not directly connect to AW2013, but is
+      needed for the correct operation of the interrupt and I2C lines.
 
   "#address-cells":
     const: 1
@@ -52,6 +63,7 @@ additionalProperties: false
 examples:
   - |
     #include <dt-bindings/gpio/gpio.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
     #include <dt-bindings/leds/common.h>
 
     i2c {
@@ -61,6 +73,7 @@ examples:
         led-controller@45 {
             compatible = "awinic,aw2013";
             reg = <0x45>;
+            interrupts = <42 IRQ_TYPE_LEVEL_LOW>;
             #address-cells = <1>;
             #size-cells = <0>;
 

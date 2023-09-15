@@ -7,7 +7,7 @@
 #include <linux/ulpi/regs.h>
 #include <linux/clk.h>
 #include <linux/regulator/consumer.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/phy/phy.h>
 #include <linux/reset.h>
 #include <linux/extcon.h>

@@ -24,7 +24,7 @@ const struct nla_policy ethnl_wol_get_policy[] = {
 
 static int wol_prepare_data(const struct ethnl_req_info *req_base,
 			    struct ethnl_reply_data *reply_base,
-			    struct genl_info *info)
+			    const struct genl_info *info)
 {
 	struct wol_reply_data *data = WOL_REPDATA(reply_base);
 	struct net_device *dev = reply_base->dev;
@@ -39,7 +39,8 @@ static int wol_prepare_data(const struct ethnl_req_info *req_base,
 	dev->ethtool_ops->get_wol(dev, &data->wol);
 	ethnl_ops_complete(dev);
 	/* do not include password in notifications */
-	data->show_sopass = info && (data->wol.supported & WAKE_MAGICSECURE);
+	data->show_sopass = !genl_info_is_ntf(info) &&
+		(data->wol.supported & WAKE_MAGICSECURE);
 
 	return 0;
 }

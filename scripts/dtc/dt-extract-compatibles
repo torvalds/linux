@@ -25,8 +25,8 @@ def parse_of_declare_macros(data):
 def parse_of_device_id(data):
 	""" Find all compatible strings in of_device_id structs """
 	compat_list = []
-	for m in re.finditer(r'of_device_id\s+[a-zA-Z0-9_]+\[\]\s*=\s*({.*?);', data):
-		compat_list += re.findall(r'\.compatible\s+=\s+"([a-zA-Z0-9_\-,]+)"', m[1])
+	for m in re.finditer(r'of_device_id(\s+\S+)?\s+\S+\[\](\s+\S+)?\s*=\s*({.*?);', data):
+		compat_list += re.findall(r'\.compatible\s+=\s+"(\S+)"', m[3])
 
 	return compat_list
 

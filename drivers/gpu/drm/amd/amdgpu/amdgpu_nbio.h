@@ -99,6 +99,9 @@ struct amdgpu_nbio_funcs {
 	int (*get_compute_partition_mode)(struct amdgpu_device *adev);
 	u32 (*get_memory_partition_mode)(struct amdgpu_device *adev,
 					 u32 *supp_modes);
+	u64 (*get_pcie_replay_count)(struct amdgpu_device *adev);
+	void (*get_pcie_usage)(struct amdgpu_device *adev, uint64_t *count0,
+					uint64_t *count1);
 };
 
 struct amdgpu_nbio {
@@ -111,5 +114,8 @@ struct amdgpu_nbio {
 };
 
 int amdgpu_nbio_ras_sw_init(struct amdgpu_device *adev);
+void amdgpu_nbio_get_pcie_usage(struct amdgpu_device *adev, uint64_t *count0, uint64_t *count1);
 int amdgpu_nbio_ras_late_init(struct amdgpu_device *adev, struct ras_common_if *ras_block);
+u64 amdgpu_nbio_get_pcie_replay_count(struct amdgpu_device *adev);
+
 #endif

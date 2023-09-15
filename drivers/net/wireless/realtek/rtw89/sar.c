@@ -2,8 +2,15 @@
 /* Copyright(c) 2019-2020  Realtek Corporation
  */
 
+#include "acpi.h"
 #include "debug.h"
+#include "phy.h"
+#include "reg.h"
 #include "sar.h"
+
+#define RTW89_TAS_FACTOR 2 /* unit: 0.25 dBm */
+#define RTW89_TAS_DPR_GAP (1 << RTW89_TAS_FACTOR)
+#define RTW89_TAS_DELTA (2 << RTW89_TAS_FACTOR)
 
 static enum rtw89_sar_subband rtw89_sar_get_subband(struct rtw89_dev *rtwdev,
 						    u32 center_freq)
@@ -78,17 +85,15 @@ static const struct rtw89_sar_span rtw89_sar_overlapping_6ghz[] = {
 	RTW89_DECL_SAR_6GHZ_SPAN(6885, SUBBAND_7_H, SUBBAND_8),
 };
 
-static int rtw89_query_sar_config_common(struct rtw89_dev *rtwdev, s32 *cfg)
+static int rtw89_query_sar_config_common(struct rtw89_dev *rtwdev,
+					 u32 center_freq, s32 *cfg)
 {
 	struct rtw89_sar_cfg_common *rtwsar = &rtwdev->sar.cfg_common;
-	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
-	enum rtw89_band band = chan->band_type;
-	u32 center_freq = chan->freq;
 	const struct rtw89_sar_span *span = NULL;
 	enum rtw89_sar_subband subband_l, subband_h;
 	int idx;
 
-	if (band == RTW89_BAND_6G) {
+	if (center_freq >= RTW89_SAR_6GHZ_SPAN_HEAD) {
 		idx = RTW89_SAR_6GHZ_SPAN_IDX(center_freq);
 		/* To decrease size of rtw89_sar_overlapping_6ghz[],
 		 * RTW89_SAR_6GHZ_SPAN_IDX() truncates the leading NULLs
@@ -108,8 +113,8 @@ static int rtw89_query_sar_config_common(struct rtw89_dev *rtwdev, s32 *cfg)
 	}
 
 	rtw89_debug(rtwdev, RTW89_DBG_SAR,
-		    "for {band %u, center_freq %u}, SAR subband: {%u, %u}\n",
-		    band, center_freq, subband_l, subband_h);
+		    "center_freq %u: SAR subband {%u, %u}\n",
+		    center_freq, subband_l, subband_h);
 
 	if (!rtwsar->set[subband_l] && !rtwsar->set[subband_h])
 		return -ENODATA;
@@ -157,11 +162,35 @@ static s8 rtw89_txpwr_sar_to_mac(struct rtw89_dev *rtwdev, u8 fct, s32 cfg)
 			   RTW89_SAR_TXPWR_MAC_MAX);
 }
 
-s8 rtw89_query_sar(struct rtw89_dev *rtwdev)
+static s8 rtw89_txpwr_tas_to_sar(const struct rtw89_sar_handler *sar_hdl,
+				 s8 cfg)
+{
+	const u8 fct = sar_hdl->txpwr_factor_sar;
+
+	if (fct > RTW89_TAS_FACTOR)
+		return cfg << (fct - RTW89_TAS_FACTOR);
+	else
+		return cfg >> (RTW89_TAS_FACTOR - fct);
+}
+
+static s8 rtw89_txpwr_sar_to_tas(const struct rtw89_sar_handler *sar_hdl,
+				 s8 cfg)
+{
+	const u8 fct = sar_hdl->txpwr_factor_sar;
+
+	if (fct > RTW89_TAS_FACTOR)
+		return cfg >> (fct - RTW89_TAS_FACTOR);
+	else
+		return cfg << (RTW89_TAS_FACTOR - fct);
+}
+
+s8 rtw89_query_sar(struct rtw89_dev *rtwdev, u32 center_freq)
 {
 	const enum rtw89_sar_sources src = rtwdev->sar.src;
 	/* its members are protected by rtw89_sar_set_src() */
 	const struct rtw89_sar_handler *sar_hdl = &rtw89_sar_handlers[src];
+	struct rtw89_tas_info *tas = &rtwdev->tas;
+	s8 delta;
 	int ret;
 	s32 cfg;
 	u8 fct;
@@ -171,16 +200,30 @@ s8 rtw89_query_sar(struct rtw89_dev *rtwdev)
 	if (src == RTW89_SAR_SOURCE_NONE)
 		return RTW89_SAR_TXPWR_MAC_MAX;
 
-	ret = sar_hdl->query_sar_config(rtwdev, &cfg);
+	ret = sar_hdl->query_sar_config(rtwdev, center_freq, &cfg);
 	if (ret)
 		return RTW89_SAR_TXPWR_MAC_MAX;
+
+	if (tas->enable) {
+		switch (tas->state) {
+		case RTW89_TAS_STATE_DPR_OFF:
+			return RTW89_SAR_TXPWR_MAC_MAX;
+		case RTW89_TAS_STATE_DPR_ON:
+			delta = rtw89_txpwr_tas_to_sar(sar_hdl, tas->delta);
+			cfg -= delta;
+			break;
+		case RTW89_TAS_STATE_DPR_FORBID:
+		default:
+			break;
+		}
+	}
 
 	fct = sar_hdl->txpwr_factor_sar;
 
 	return rtw89_txpwr_sar_to_mac(rtwdev, fct, cfg);
 }
 
-void rtw89_print_sar(struct seq_file *m, struct rtw89_dev *rtwdev)
+void rtw89_print_sar(struct seq_file *m, struct rtw89_dev *rtwdev, u32 center_freq)
 {
 	const enum rtw89_sar_sources src = rtwdev->sar.src;
 	/* its members are protected by rtw89_sar_set_src() */
@@ -199,7 +242,7 @@ void rtw89_print_sar(struct seq_file *m, struct rtw89_dev *rtwdev)
 
 	seq_printf(m, "source: %d (%s)\n", src, sar_hdl->descr_sar_source);
 
-	ret = sar_hdl->query_sar_config(rtwdev, &cfg);
+	ret = sar_hdl->query_sar_config(rtwdev, center_freq, &cfg);
 	if (ret) {
 		seq_printf(m, "config: return code: %d\n", ret);
 		seq_printf(m, "assign: max setting: %d (unit: 1/%lu dBm)\n",
@@ -210,6 +253,19 @@ void rtw89_print_sar(struct seq_file *m, struct rtw89_dev *rtwdev)
 	fct = sar_hdl->txpwr_factor_sar;
 
 	seq_printf(m, "config: %d (unit: 1/%lu dBm)\n", cfg, BIT(fct));
+}
+
+void rtw89_print_tas(struct seq_file *m, struct rtw89_dev *rtwdev)
+{
+	struct rtw89_tas_info *tas = &rtwdev->tas;
+
+	if (!tas->enable) {
+		seq_puts(m, "no TAS is applied\n");
+		return;
+	}
+
+	seq_printf(m, "DPR gap: %d\n", tas->dpr_gap);
+	seq_printf(m, "TAS delta: %d\n", tas->delta);
 }
 
 static int rtw89_apply_sar_common(struct rtw89_dev *rtwdev,
@@ -291,4 +347,146 @@ int rtw89_ops_set_sar_specs(struct ieee80211_hw *hw,
 	}
 
 	return rtw89_apply_sar_common(rtwdev, &sar_common);
+}
+
+static void rtw89_tas_state_update(struct rtw89_dev *rtwdev)
+{
+	const enum rtw89_sar_sources src = rtwdev->sar.src;
+	/* its members are protected by rtw89_sar_set_src() */
+	const struct rtw89_sar_handler *sar_hdl = &rtw89_sar_handlers[src];
+	struct rtw89_tas_info *tas = &rtwdev->tas;
+	s32 txpwr_avg = tas->total_txpwr / RTW89_TAS_MAX_WINDOW / PERCENT;
+	s32 dpr_on_threshold, dpr_off_threshold, cfg;
+	enum rtw89_tas_state state = tas->state;
+	const struct rtw89_chan *chan;
+	int ret;
+
+	lockdep_assert_held(&rtwdev->mutex);
+
+	if (src == RTW89_SAR_SOURCE_NONE)
+		return;
+
+	chan = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
+	ret = sar_hdl->query_sar_config(rtwdev, chan->freq, &cfg);
+	if (ret)
+		return;
+
+	cfg = rtw89_txpwr_sar_to_tas(sar_hdl, cfg);
+
+	if (tas->delta >= cfg) {
+		rtw89_debug(rtwdev, RTW89_DBG_SAR,
+			    "TAS delta exceed SAR limit\n");
+		state = RTW89_TAS_STATE_DPR_FORBID;
+		goto out;
+	}
+
+	dpr_on_threshold = cfg;
+	dpr_off_threshold = cfg - tas->dpr_gap;
+	rtw89_debug(rtwdev, RTW89_DBG_SAR,
+		    "DPR_ON thold: %d, DPR_OFF thold: %d, txpwr_avg: %d\n",
+		    dpr_on_threshold, dpr_off_threshold, txpwr_avg);
+
+	if (txpwr_avg >= dpr_on_threshold)
+		state = RTW89_TAS_STATE_DPR_ON;
+	else if (txpwr_avg < dpr_off_threshold)
+		state = RTW89_TAS_STATE_DPR_OFF;
+
+out:
+	if (tas->state == state)
+		return;
+
+	rtw89_debug(rtwdev, RTW89_DBG_SAR,
+		    "TAS old state: %d, new state: %d\n", tas->state, state);
+	tas->state = state;
+	rtw89_core_set_chip_txpwr(rtwdev);
+}
+
+void rtw89_tas_init(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_tas_info *tas = &rtwdev->tas;
+	int ret;
+	u8 val;
+
+	ret = rtw89_acpi_evaluate_dsm(rtwdev, RTW89_ACPI_DSM_FUNC_TAS_EN, &val);
+	if (ret) {
+		rtw89_debug(rtwdev, RTW89_DBG_SAR,
+			    "acpi: cannot get TAS: %d\n", ret);
+		return;
+	}
+
+	switch (val) {
+	case 0:
+		tas->enable = false;
+		break;
+	case 1:
+		tas->enable = true;
+		break;
+	default:
+		break;
+	}
+
+	if (!tas->enable) {
+		rtw89_debug(rtwdev, RTW89_DBG_SAR, "TAS not enable\n");
+		return;
+	}
+
+	tas->dpr_gap = RTW89_TAS_DPR_GAP;
+	tas->delta = RTW89_TAS_DELTA;
+}
+
+void rtw89_tas_reset(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_tas_info *tas = &rtwdev->tas;
+
+	if (!tas->enable)
+		return;
+
+	memset(&tas->txpwr_history, 0, sizeof(tas->txpwr_history));
+	tas->total_txpwr = 0;
+	tas->cur_idx = 0;
+	tas->state = RTW89_TAS_STATE_DPR_OFF;
+}
+
+static const struct rtw89_reg_def txpwr_regs[] = {
+	{R_PATH0_TXPWR, B_PATH0_TXPWR},
+	{R_PATH1_TXPWR, B_PATH1_TXPWR},
+};
+
+void rtw89_tas_track(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_env_monitor_info *env = &rtwdev->env_monitor;
+	const enum rtw89_sar_sources src = rtwdev->sar.src;
+	u8 max_nss_num = rtwdev->chip->rf_path_num;
+	struct rtw89_tas_info *tas = &rtwdev->tas;
+	s16 tmp, txpwr, instant_txpwr = 0;
+	u32 val;
+	int i;
+
+	if (!tas->enable || src == RTW89_SAR_SOURCE_NONE)
+		return;
+
+	if (env->ccx_watchdog_result != RTW89_PHY_ENV_MON_IFS_CLM)
+		return;
+
+	for (i = 0; i < max_nss_num; i++) {
+		val = rtw89_phy_read32_mask(rtwdev, txpwr_regs[i].addr,
+					    txpwr_regs[i].mask);
+		tmp = sign_extend32(val, 8);
+		if (tmp <= 0)
+			return;
+		instant_txpwr += tmp;
+	}
+
+	instant_txpwr /= max_nss_num;
+	/* in unit of 0.25 dBm multiply by percentage */
+	txpwr = instant_txpwr * env->ifs_clm_tx_ratio;
+	tas->total_txpwr += txpwr - tas->txpwr_history[tas->cur_idx];
+	tas->txpwr_history[tas->cur_idx] = txpwr;
+	rtw89_debug(rtwdev, RTW89_DBG_SAR,
+		    "instant_txpwr: %d, tx_ratio: %d, txpwr: %d\n",
+		    instant_txpwr, env->ifs_clm_tx_ratio, txpwr);
+
+	tas->cur_idx = (tas->cur_idx + 1) % RTW89_TAS_MAX_WINDOW;
+
+	rtw89_tas_state_update(rtwdev);
 }

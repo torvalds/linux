@@ -37,6 +37,7 @@
 #include <linux/ktime.h>
 #include <asm/byteorder.h>
 #include <linux/torture.h>
+#include <linux/sched/rt.h>
 #include "rcu/rcu.h"
 
 MODULE_LICENSE("GPL");
@@ -53,6 +54,9 @@ module_param(verbose_sleep_frequency, int, 0444);
 
 static int verbose_sleep_duration = 1;
 module_param(verbose_sleep_duration, int, 0444);
+
+static int random_shuffle;
+module_param(random_shuffle, int, 0444);
 
 static char *torture_type;
 static int verbose;
@@ -88,8 +92,8 @@ int torture_hrtimeout_ns(ktime_t baset_ns, u32 fuzzt_ns, struct torture_random_s
 	ktime_t hto = baset_ns;
 
 	if (trsp)
-		hto += (torture_random(trsp) >> 3) % fuzzt_ns;
-	set_current_state(TASK_UNINTERRUPTIBLE);
+		hto += torture_random(trsp) % fuzzt_ns;
+	set_current_state(TASK_IDLE);
 	return schedule_hrtimeout(&hto, HRTIMER_MODE_REL);
 }
 EXPORT_SYMBOL_GPL(torture_hrtimeout_ns);
@@ -350,22 +354,22 @@ torture_onoff(void *arg)
 
 	if (onoff_holdoff > 0) {
 		VERBOSE_TOROUT_STRING("torture_onoff begin holdoff");
-		schedule_timeout_interruptible(onoff_holdoff);
+		torture_hrtimeout_jiffies(onoff_holdoff, &rand);
 		VERBOSE_TOROUT_STRING("torture_onoff end holdoff");
 	}
 	while (!torture_must_stop()) {
 		if (disable_onoff_at_boot && !rcu_inkernel_boot_has_ended()) {
-			schedule_timeout_interruptible(HZ / 10);
+			torture_hrtimeout_jiffies(HZ / 10, &rand);
 			continue;
 		}
-		cpu = (torture_random(&rand) >> 4) % (maxcpu + 1);
+		cpu = torture_random(&rand) % (maxcpu + 1);
 		if (!torture_offline(cpu,
 				     &n_offline_attempts, &n_offline_successes,
 				     &sum_offline, &min_offline, &max_offline))
 			torture_online(cpu,
 				       &n_online_attempts, &n_online_successes,
 				       &sum_online, &min_online, &max_online);
-		schedule_timeout_interruptible(onoff_interval);
+		torture_hrtimeout_jiffies(onoff_interval, &rand);
 	}
 
 stop:
@@ -518,6 +522,7 @@ static void torture_shuffle_task_unregister_all(void)
  */
 static void torture_shuffle_tasks(void)
 {
+	DEFINE_TORTURE_RANDOM(rand);
 	struct shuffle_task *stp;
 
 	cpumask_setall(shuffle_tmp_mask);
@@ -537,8 +542,10 @@ static void torture_shuffle_tasks(void)
 		cpumask_clear_cpu(shuffle_idle_cpu, shuffle_tmp_mask);
 
 	mutex_lock(&shuffle_task_mutex);
-	list_for_each_entry(stp, &shuffle_task_list, st_l)
-		set_cpus_allowed_ptr(stp->st_t, shuffle_tmp_mask);
+	list_for_each_entry(stp, &shuffle_task_list, st_l) {
+		if (!random_shuffle || torture_random(&rand) & 0x1)
+			set_cpus_allowed_ptr(stp->st_t, shuffle_tmp_mask);
+	}
 	mutex_unlock(&shuffle_task_mutex);
 
 	cpus_read_unlock();
@@ -550,9 +557,11 @@ static void torture_shuffle_tasks(void)
  */
 static int torture_shuffle(void *arg)
 {
+	DEFINE_TORTURE_RANDOM(rand);
+
 	VERBOSE_TOROUT_STRING("torture_shuffle task started");
 	do {
-		schedule_timeout_interruptible(shuffle_interval);
+		torture_hrtimeout_jiffies(shuffle_interval, &rand);
 		torture_shuffle_tasks();
 		torture_shutdown_absorb("torture_shuffle");
 	} while (!torture_must_stop());
@@ -728,12 +737,12 @@ bool stutter_wait(const char *title)
 	cond_resched_tasks_rcu_qs();
 	spt = READ_ONCE(stutter_pause_test);
 	for (; spt; spt = READ_ONCE(stutter_pause_test)) {
-		if (!ret) {
+		if (!ret && !rt_task(current)) {
 			sched_set_normal(current, MAX_NICE);
 			ret = true;
 		}
 		if (spt == 1) {
-			schedule_timeout_interruptible(1);
+			torture_hrtimeout_jiffies(1, NULL);
 		} else if (spt == 2) {
 			while (READ_ONCE(stutter_pause_test)) {
 				if (!(i++ & 0xffff))
@@ -741,7 +750,7 @@ bool stutter_wait(const char *title)
 				cond_resched();
 			}
 		} else {
-			schedule_timeout_interruptible(round_jiffies_relative(HZ));
+			torture_hrtimeout_jiffies(round_jiffies_relative(HZ), NULL);
 		}
 		torture_shutdown_absorb(title);
 	}
@@ -926,7 +935,7 @@ EXPORT_SYMBOL_GPL(torture_kthread_stopping);
  * it starts, you will need to open-code your own.
  */
 int _torture_create_kthread(int (*fn)(void *arg), void *arg, char *s, char *m,
-			    char *f, struct task_struct **tp)
+			    char *f, struct task_struct **tp, void (*cbf)(struct task_struct *tp))
 {
 	int ret = 0;
 
@@ -938,6 +947,10 @@ int _torture_create_kthread(int (*fn)(void *arg), void *arg, char *s, char *m,
 		*tp = NULL;
 		return ret;
 	}
+
+	if (cbf)
+		cbf(*tp);
+
 	wake_up_process(*tp);  // Process is sleeping, so ordering provided.
 	torture_shuffle_task_register(*tp);
 	return ret;

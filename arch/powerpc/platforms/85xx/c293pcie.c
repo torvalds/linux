@@ -7,8 +7,7 @@
 
 #include <linux/stddef.h>
 #include <linux/kernel.h>
-#include <linux/of_fdt.h>
-#include <linux/of_platform.h>
+#include <linux/of.h>
 
 #include <asm/machdep.h>
 #include <asm/udbg.h>

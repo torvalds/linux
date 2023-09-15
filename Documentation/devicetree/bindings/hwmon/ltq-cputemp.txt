@@ -1,4 +1,4 @@
-Lantiq cpu temperatur sensor
+Lantiq cpu temperature sensor
 
 Requires node properties:
 - compatible value :

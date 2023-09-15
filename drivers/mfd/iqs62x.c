@@ -27,7 +27,7 @@
 #include <linux/mfd/iqs62x.h>
 #include <linux/module.h>
 #include <linux/notifier.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/property.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>

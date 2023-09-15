@@ -180,6 +180,9 @@ void nfs_fscache_init_inode(struct inode *inode)
 					       &auxdata,      /* aux_data */
 					       sizeof(auxdata),
 					       i_size_read(inode));
+
+	if (netfs_inode(inode)->cache)
+		mapping_set_release_always(inode->i_mapping);
 }
 
 /*

@@ -1102,7 +1102,7 @@ static int pxa2xx_spi_transfer_one(struct spi_controller *controller,
 		}
 	}
 
-	if (spi_controller_is_slave(controller)) {
+	if (spi_controller_is_target(controller)) {
 		while (drv_data->write(drv_data))
 			;
 		if (drv_data->gpiod_ready) {
@@ -1121,7 +1121,7 @@ static int pxa2xx_spi_transfer_one(struct spi_controller *controller,
 	return 1;
 }
 
-static int pxa2xx_spi_slave_abort(struct spi_controller *controller)
+static int pxa2xx_spi_target_abort(struct spi_controller *controller)
 {
 	struct driver_data *drv_data = spi_controller_get_devdata(controller);
 
@@ -1199,7 +1199,7 @@ static int setup(struct spi_device *spi)
 		break;
 	default:
 		tx_hi_thres = 0;
-		if (spi_controller_is_slave(drv_data->controller)) {
+		if (spi_controller_is_target(drv_data->controller)) {
 			tx_thres = 1;
 			rx_thres = 2;
 		} else {
@@ -1248,7 +1248,7 @@ static int setup(struct spi_device *spi)
 	}
 
 	chip->cr1 = 0;
-	if (spi_controller_is_slave(drv_data->controller)) {
+	if (spi_controller_is_target(drv_data->controller)) {
 		chip->cr1 |= SSCR1_SCFR;
 		chip->cr1 |= SSCR1_SCLKDIR;
 		chip->cr1 |= SSCR1_SFRMDIR;
@@ -1344,7 +1344,7 @@ pxa2xx_spi_init_pdata(struct platform_device *pdev)
 
 	match = device_get_match_data(dev);
 	if (match)
-		type = (enum pxa_ssp_type)match;
+		type = (uintptr_t)match;
 	else if (is_lpss_priv) {
 		u32 value;
 
@@ -1395,7 +1395,7 @@ pxa2xx_spi_init_pdata(struct platform_device *pdev)
 	else
 		ssp->port_id = uid;
 
-	pdata->is_slave = device_property_read_bool(dev, "spi-slave");
+	pdata->is_target = device_property_read_bool(dev, "spi-slave");
 	pdata->num_chipselect = 1;
 	pdata->enable_dma = true;
 	pdata->dma_burst_size = 1;
@@ -1461,10 +1461,10 @@ static int pxa2xx_spi_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	if (platform_info->is_slave)
-		controller = devm_spi_alloc_slave(dev, sizeof(*drv_data));
+	if (platform_info->is_target)
+		controller = devm_spi_alloc_target(dev, sizeof(*drv_data));
 	else
-		controller = devm_spi_alloc_master(dev, sizeof(*drv_data));
+		controller = devm_spi_alloc_host(dev, sizeof(*drv_data));
 
 	if (!controller) {
 		dev_err(&pdev->dev, "cannot alloc spi_controller\n");
@@ -1487,7 +1487,7 @@ static int pxa2xx_spi_probe(struct platform_device *pdev)
 	controller->setup = setup;
 	controller->set_cs = pxa2xx_spi_set_cs;
 	controller->transfer_one = pxa2xx_spi_transfer_one;
-	controller->slave_abort = pxa2xx_spi_slave_abort;
+	controller->target_abort = pxa2xx_spi_target_abort;
 	controller->handle_err = pxa2xx_spi_handle_err;
 	controller->unprepare_transfer_hardware = pxa2xx_spi_unprepare_transfer;
 	controller->fw_translate_cs = pxa2xx_spi_fw_translate_cs;
@@ -1579,7 +1579,7 @@ static int pxa2xx_spi_probe(struct platform_device *pdev)
 		break;
 	default:
 
-		if (spi_controller_is_slave(controller)) {
+		if (spi_controller_is_target(controller)) {
 			tmp = SSCR1_SCFR |
 			      SSCR1_SCLKDIR |
 			      SSCR1_SFRMDIR |
@@ -1592,7 +1592,7 @@ static int pxa2xx_spi_probe(struct platform_device *pdev)
 		}
 		pxa2xx_spi_write(drv_data, SSCR1, tmp);
 		tmp = SSCR0_Motorola | SSCR0_DataSize(8);
-		if (!spi_controller_is_slave(controller))
+		if (!spi_controller_is_target(controller))
 			tmp |= SSCR0_SCR(2);
 		pxa2xx_spi_write(drv_data, SSCR0, tmp);
 		break;
@@ -1620,7 +1620,7 @@ static int pxa2xx_spi_probe(struct platform_device *pdev)
 	controller->num_chipselect = platform_info->num_chipselect;
 	controller->use_gpio_descriptors = true;
 
-	if (platform_info->is_slave) {
+	if (platform_info->is_target) {
 		drv_data->gpiod_ready = devm_gpiod_get_optional(dev,
 						"ready", GPIOD_OUT_LOW);
 		if (IS_ERR(drv_data->gpiod_ready)) {

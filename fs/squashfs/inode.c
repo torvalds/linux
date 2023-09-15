@@ -61,7 +61,7 @@ static int squashfs_new_inode(struct super_block *sb, struct inode *inode,
 	inode->i_ino = le32_to_cpu(sqsh_ino->inode_number);
 	inode->i_mtime.tv_sec = le32_to_cpu(sqsh_ino->mtime);
 	inode->i_atime.tv_sec = inode->i_mtime.tv_sec;
-	inode->i_ctime.tv_sec = inode->i_mtime.tv_sec;
+	inode_set_ctime(inode, inode->i_mtime.tv_sec, 0);
 	inode->i_mode = le16_to_cpu(sqsh_ino->mode);
 	inode->i_size = 0;
 

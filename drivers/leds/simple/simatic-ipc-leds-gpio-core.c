@@ -57,6 +57,7 @@ int simatic_ipc_leds_gpio_probe(struct platform_device *pdev,
 	switch (plat->devmode) {
 	case SIMATIC_IPC_DEVICE_127E:
 	case SIMATIC_IPC_DEVICE_227G:
+	case SIMATIC_IPC_DEVICE_BX_21A:
 		break;
 	default:
 		return -ENODEV;
@@ -71,6 +72,9 @@ int simatic_ipc_leds_gpio_probe(struct platform_device *pdev,
 		err = PTR_ERR(simatic_leds_pdev);
 		goto out;
 	}
+
+	if (!table_extra)
+		return 0;
 
 	table_extra->dev_id = dev_name(dev);
 	gpiod_add_lookup_table(table_extra);

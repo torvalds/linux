@@ -71,8 +71,7 @@ static bool dc_stream_construct(struct dc_stream_state *stream,
 
 	/* Copy audio modes */
 	/* TODO - Remove this translation */
-	for (i = 0; i < (dc_sink_data->edid_caps.audio_mode_count); i++)
-	{
+	for (i = 0; i < (dc_sink_data->edid_caps.audio_mode_count); i++) {
 		stream->audio_info.modes[i].channel_count = dc_sink_data->edid_caps.audio_modes[i].channel_count;
 		stream->audio_info.modes[i].format_code = dc_sink_data->edid_caps.audio_modes[i].format_code;
 		stream->audio_info.modes[i].sample_rates.all = dc_sink_data->edid_caps.audio_modes[i].sample_rate;
@@ -322,7 +321,7 @@ static bool is_subvp_high_refresh_candidate(struct dc_stream_state *stream)
 	 * remain in HW cursor mode if there's no cursor update which will
 	 * then cause corruption.
 	 */
-	if ((refresh_rate >= 120 && refresh_rate <= 165 &&
+	if ((refresh_rate >= 120 && refresh_rate <= 175 &&
 			stream->timing.v_addressable >= 1440 &&
 			stream->timing.v_addressable <= 2160) &&
 			(dc->current_state->stream_count > 1 ||

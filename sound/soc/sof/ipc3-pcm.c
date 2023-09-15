@@ -309,6 +309,23 @@ static int sof_ipc3_pcm_dai_link_fixup(struct snd_soc_pcm_runtime *rtd,
 		channels->min = private->dai_config->afe.channels;
 		channels->max = private->dai_config->afe.channels;
 
+		snd_mask_none(fmt);
+
+		switch (private->dai_config->afe.format) {
+		case SOF_IPC_FRAME_S16_LE:
+			snd_mask_set_format(fmt, SNDRV_PCM_FORMAT_S16_LE);
+			break;
+		case SOF_IPC_FRAME_S24_4LE:
+			snd_mask_set_format(fmt, SNDRV_PCM_FORMAT_S24_LE);
+			break;
+		case SOF_IPC_FRAME_S32_LE:
+			snd_mask_set_format(fmt, SNDRV_PCM_FORMAT_S32_LE);
+			break;
+		default:
+			dev_err(component->dev, "Not available format!\n");
+			return -EINVAL;
+		}
+
 		dev_dbg(component->dev, "rate_min: %d rate_max: %d\n", rate->min, rate->max);
 		dev_dbg(component->dev, "channels_min: %d channels_max: %d\n",
 			channels->min, channels->max);

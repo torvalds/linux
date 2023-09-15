@@ -129,10 +129,10 @@ static void del_chan(struct pppox_sock *sock)
 	spin_unlock(&chan_lock);
 }
 
-static struct rtable *pptp_route_output(struct pppox_sock *po,
+static struct rtable *pptp_route_output(const struct pppox_sock *po,
 					struct flowi4 *fl4)
 {
-	struct sock *sk = &po->sk;
+	const struct sock *sk = &po->sk;
 	struct net *net;
 
 	net = sock_net(sk);
@@ -148,7 +148,7 @@ static struct rtable *pptp_route_output(struct pppox_sock *po,
 
 static int pptp_xmit(struct ppp_channel *chan, struct sk_buff *skb)
 {
-	struct sock *sk = (struct sock *) chan->private;
+	struct sock *sk = chan->private;
 	struct pppox_sock *po = pppox_sk(sk);
 	struct net *net = sock_net(sk);
 	struct pptp_opt *opt = &po->proto.pptp;
@@ -575,7 +575,7 @@ out:
 static int pptp_ppp_ioctl(struct ppp_channel *chan, unsigned int cmd,
 	unsigned long arg)
 {
-	struct sock *sk = (struct sock *) chan->private;
+	struct sock *sk = chan->private;
 	struct pppox_sock *po = pppox_sk(sk);
 	struct pptp_opt *opt = &po->proto.pptp;
 	void __user *argp = (void __user *)arg;

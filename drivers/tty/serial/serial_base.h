@@ -16,6 +16,7 @@ struct device;
 
 struct serial_ctrl_device {
 	struct device dev;
+	struct ida port_ida;
 };
 
 struct serial_port_device {

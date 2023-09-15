@@ -1011,6 +1011,7 @@ struct rswitch_private {
 	struct rswitch_etha etha[RSWITCH_NUM_PORTS];
 	struct rswitch_mfwd mfwd;
 
+	bool etha_no_runtime_change;
 	bool gwca_halt;
 };
 

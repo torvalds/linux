@@ -32,6 +32,18 @@ config CROS_EC_MKBP_PROXIMITY
 	  To compile this driver as a module, choose M here: the
 	  module will be called cros_ec_mkbp_proximity.
 
+config IRSD200
+	tristate "Murata IRS-D200 PIR sensor"
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	select REGMAP_I2C
+	depends on I2C
+	help
+	  Say Y here to build a driver for the Murata IRS-D200 PIR sensor.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called irsd200.
+
 config ISL29501
 	tristate "Intersil ISL29501 Time Of Flight sensor"
 	depends on I2C

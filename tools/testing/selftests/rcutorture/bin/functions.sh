@@ -45,7 +45,7 @@ checkarg () {
 configfrag_boot_params () {
 	if test -r "$2.boot"
 	then
-		echo $1 `grep -v '^#' "$2.boot" | tr '\012' ' '`
+		echo `grep -v '^#' "$2.boot" | tr '\012' ' '` $1
 	else
 		echo $1
 	fi

@@ -185,10 +185,10 @@ PROPERTIES
 	with distinct functionality.
 
 	The first register range describes the CoreNet Debug Controller
-	functionalty to perform transaction and transaction attribute matches.
+	functionality to perform transaction and transaction attribute matches.
 
 	The second register range describes the CoreNet Debug Controller
-	functionalty to trigger event notifications and debug traces.
+	functionality to trigger event notifications and debug traces.
 
 EXAMPLE
 		dcsr-corenet {

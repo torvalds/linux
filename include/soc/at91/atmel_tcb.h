@@ -77,9 +77,6 @@ struct atmel_tc {
 	bool			allocated;
 };
 
-extern struct atmel_tc *atmel_tc_alloc(unsigned block);
-extern void atmel_tc_free(struct atmel_tc *tc);
-
 /* platform-specific ATMEL_TC_TIMER_CLOCKx divisors (0 means 32KiHz) */
 extern const u8 atmel_tc_divisors[5];
 

@@ -17,7 +17,6 @@
 #include <linux/mfd/core.h>
 #include <linux/mfd/max8925.h>
 #include <linux/of.h>
-#include <linux/of_platform.h>
 
 static const struct resource bk_resources[] = {
 	{ 0x84, 0x84, "mode control", IORESOURCE_REG, },

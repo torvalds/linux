@@ -196,6 +196,10 @@ struct snd_sof_dsp_ops sof_acp_common_ops = {
 	.dbg_dump		= amd_sof_dump,
 	.debugfs_add_region_item = snd_sof_debugfs_add_region_item_iomem,
 	.dsp_arch_ops = &sof_xtensa_arch_ops,
+
+	/* probe client device registation */
+	.register_ipc_clients = acp_probes_register,
+	.unregister_ipc_clients = acp_probes_unregister,
 };
 EXPORT_SYMBOL_NS(sof_acp_common_ops, SND_SOC_SOF_AMD_COMMON);
 

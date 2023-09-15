@@ -252,7 +252,7 @@ static inline int agp_mode_mercury(void __iomem *hpa) {
 ** fixup_irq is to initialize PCI IRQ line support and
 ** virtualize pcidev->irq value. To be called by pci_fixup_bus().
 */
-extern void *iosapic_register(unsigned long hpa);
+extern void *iosapic_register(unsigned long hpa, void __iomem *vaddr);
 extern int iosapic_fixup_irq(void *obj, struct pci_dev *pcidev);
 
 #define LBA_FUNC_ID	0x0000	/* function id */

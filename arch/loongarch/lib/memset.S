@@ -3,11 +3,11 @@
  * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
  */
 
+#include <linux/export.h>
 #include <asm/alternative-asm.h>
 #include <asm/asm.h>
 #include <asm/asmmacro.h>
 #include <asm/cpu.h>
-#include <asm/export.h>
 #include <asm/regdef.h>
 
 .macro fill_to_64 r0
@@ -16,6 +16,8 @@
 	bstrins.d \r0, \r0, 63, 32
 .endm
 
+.section .noinstr.text, "ax"
+
 SYM_FUNC_START(memset)
 	/*
 	 * Some CPUs support hardware unaligned access
@@ -23,9 +25,13 @@ SYM_FUNC_START(memset)
 	ALTERNATIVE	"b __memset_generic", \
 			"b __memset_fast", CPU_FEATURE_UAL
 SYM_FUNC_END(memset)
-_ASM_NOKPROBE(memset)
+SYM_FUNC_ALIAS(__memset, memset)
 
 EXPORT_SYMBOL(memset)
+EXPORT_SYMBOL(__memset)
+
+_ASM_NOKPROBE(memset)
+_ASM_NOKPROBE(__memset)
 
 /*
  * void *__memset_generic(void *s, int c, size_t n)

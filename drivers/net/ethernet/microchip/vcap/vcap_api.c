@@ -2396,7 +2396,7 @@ struct vcap_rule *vcap_decode_rule(struct vcap_rule_internal *elem)
 
 	ri = vcap_dup_rule(elem, elem->state == VCAP_RS_DISABLED);
 	if (IS_ERR(ri))
-		return ERR_PTR(PTR_ERR(ri));
+		return ERR_CAST(ri);
 
 	if (ri->state == VCAP_RS_DISABLED)
 		goto out;
@@ -2429,7 +2429,7 @@ struct vcap_rule *vcap_get_rule(struct vcap_control *vctrl, u32 id)
 
 	elem = vcap_get_locked_rule(vctrl, id);
 	if (!elem)
-		return NULL;
+		return ERR_PTR(-ENOENT);
 
 	rule = vcap_decode_rule(elem);
 	mutex_unlock(&elem->admin->lock);

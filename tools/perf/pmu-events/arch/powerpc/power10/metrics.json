@@ -16,133 +16,139 @@
         "BriefDescription": "Average cycles per completed instruction when dispatch was stalled for any reason",
         "MetricExpr": "PM_DISP_STALL_CYC / PM_RUN_INST_CMPL",
         "MetricGroup": "CPI;CPI_STALL_RATIO",
-        "MetricName": "DISPATCHED_CPI"
+        "MetricName": "DISPATCH_STALL_CPI"
     },
     {
         "BriefDescription": "Average cycles per completed instruction when dispatch was stalled because there was a flush",
         "MetricExpr": "PM_DISP_STALL_FLUSH / PM_RUN_INST_CMPL",
         "MetricGroup": "CPI",
-        "MetricName": "DISPATCHED_FLUSH_CPI"
+        "MetricName": "DISPATCH_STALL_FLUSH_CPI"
+    },
+    {
+        "BriefDescription": "Average cycles per completed instruction when dispatch was stalled because Fetch was being held,  so there was nothing in the pipeline for this thread",
+        "MetricExpr": "PM_DISP_STALL_FETCH / PM_RUN_INST_CMPL",
+        "MetricGroup": "CPI",
+        "MetricName": "DISPATCH_STALL_FETCH_CPI"
     },
     {
         "BriefDescription": "Average cycles per completed instruction when dispatch was stalled because the MMU was handling a translation miss",
         "MetricExpr": "PM_DISP_STALL_TRANSLATION / PM_RUN_INST_CMPL",
         "MetricGroup": "CPI",
-        "MetricName": "DISPATCHED_TRANSLATION_CPI"
+        "MetricName": "DISPATCH_STALL_TRANSLATION_CPI"
     },
     {
         "BriefDescription": "Average cycles per completed instruction when dispatch was stalled waiting to resolve an instruction ERAT miss",
         "MetricExpr": "PM_DISP_STALL_IERAT_ONLY_MISS / PM_RUN_INST_CMPL",
         "MetricGroup": "CPI",
-        "MetricName": "DISPATCHED_IERAT_ONLY_MISS_CPI"
+        "MetricName": "DISPATCH_STALL_IERAT_ONLY_MISS_CPI"
     },
     {
         "BriefDescription": "Average cycles per completed instruction when dispatch was stalled waiting to resolve an instruction TLB miss",
         "MetricExpr": "PM_DISP_STALL_ITLB_MISS / PM_RUN_INST_CMPL",
         "MetricGroup": "CPI",
-        "MetricName": "DISPATCHED_ITLB_MISS_CPI"
+        "MetricName": "DISPATCH_STALL_ITLB_MISS_CPI"
     },
     {
         "BriefDescription": "Average cycles per completed instruction when dispatch was stalled due to an icache miss",
         "MetricExpr": "PM_DISP_STALL_IC_MISS / PM_RUN_INST_CMPL",
         "MetricGroup": "CPI",
-        "MetricName": "DISPATCHED_IC_MISS_CPI"
+        "MetricName": "DISPATCH_STALL_IC_MISS_CPI"
     },
     {
         "BriefDescription": "Average cycles per completed instruction when dispatch was stalled while the instruction was fetched from the local L2",
         "MetricExpr": "PM_DISP_STALL_IC_L2 / PM_RUN_INST_CMPL",
         "MetricGroup": "CPI",
-        "MetricName": "DISPATCHED_IC_L2_CPI"
+        "MetricName": "DISPATCH_STALL_IC_L2_CPI"
     },
     {
         "BriefDescription": "Average cycles per completed instruction when dispatch was stalled while the instruction was fetched from the local L3",
         "MetricExpr": "PM_DISP_STALL_IC_L3 / PM_RUN_INST_CMPL",
         "MetricGroup": "CPI",
-        "MetricName": "DISPATCHED_IC_L3_CPI"
+        "MetricName": "DISPATCH_STALL_IC_L3_CPI"
     },
     {
         "BriefDescription": "Average cycles per completed instruction when dispatch was stalled while the instruction was fetched from any source beyond the local L3",
         "MetricExpr": "PM_DISP_STALL_IC_L3MISS / PM_RUN_INST_CMPL",
         "MetricGroup": "CPI",
-        "MetricName": "DISPATCHED_IC_L3MISS_CPI"
+        "MetricName": "DISPATCH_STALL_IC_L3MISS_CPI"
     },
     {
         "BriefDescription": "Average cycles per completed instruction when dispatch was stalled due to an icache miss after a branch mispredict",
         "MetricExpr": "PM_DISP_STALL_BR_MPRED_ICMISS / PM_RUN_INST_CMPL",
         "MetricGroup": "CPI",
-        "MetricName": "DISPATCHED_BR_MPRED_ICMISS_CPI"
+        "MetricName": "DISPATCH_STALL_BR_MPRED_ICMISS_CPI"
     },
     {
         "BriefDescription": "Average cycles per completed instruction when dispatch was stalled while instruction was fetched from the local L2 after suffering a branch mispredict",
         "MetricExpr": "PM_DISP_STALL_BR_MPRED_IC_L2 / PM_RUN_INST_CMPL",
         "MetricGroup": "CPI",
-        "MetricName": "DISPATCHED_BR_MPRED_IC_L2_CPI"
+        "MetricName": "DISPATCH_STALL_BR_MPRED_IC_L2_CPI"
     },
     {
         "BriefDescription": "Average cycles per completed instruction when dispatch was stalled while instruction was fetched from the local L3 after suffering a branch mispredict",
         "MetricExpr": "PM_DISP_STALL_BR_MPRED_IC_L3 / PM_RUN_INST_CMPL",
         "MetricGroup": "CPI",
-        "MetricName": "DISPATCHED_BR_MPRED_IC_L3_CPI"
+        "MetricName": "DISPATCH_STALL_BR_MPRED_IC_L3_CPI"
     },
     {
         "BriefDescription": "Average cycles per completed instruction when dispatch was stalled while instruction was fetched from any source beyond the local L3 after suffering a branch mispredict",
         "MetricExpr": "PM_DISP_STALL_BR_MPRED_IC_L3MISS / PM_RUN_INST_CMPL",
         "MetricGroup": "CPI",
-        "MetricName": "DISPATCHED_BR_MPRED_IC_L3MISS_CPI"
+        "MetricName": "DISPATCH_STALL_BR_MPRED_IC_L3MISS_CPI"
     },
     {
         "BriefDescription": "Average cycles per completed instruction when dispatch was stalled due to a branch mispredict",
         "MetricExpr": "PM_DISP_STALL_BR_MPRED / PM_RUN_INST_CMPL",
         "MetricGroup": "CPI",
-        "MetricName": "DISPATCHED_BR_MPRED_CPI"
+        "MetricName": "DISPATCH_STALL_BR_MPRED_CPI"
     },
     {
         "BriefDescription": "Average cycles per completed instruction when the NTC instruction was held at dispatch for any reason",
         "MetricExpr": "PM_DISP_STALL_HELD_CYC / PM_RUN_INST_CMPL",
         "MetricGroup": "CPI",
-        "MetricName": "DISPATCHED_HELD_CPI"
+        "MetricName": "DISPATCH_STALL_HELD_CPI"
     },
     {
         "BriefDescription": "Average cycles per completed instruction when the NTC instruction was held at dispatch because of a synchronizing instruction that requires the ICT to be empty before dispatch",
         "MetricExpr": "PM_DISP_STALL_HELD_SYNC_CYC / PM_RUN_INST_CMPL",
         "MetricGroup": "CPI",
-        "MetricName": "DISP_HELD_STALL_SYNC_CPI"
+        "MetricName": "DISPATCH_STALL_HELD_SYNC_CPI"
     },
     {
         "BriefDescription": "Average cycles per completed instruction when the NTC instruction was held at dispatch while waiting on the scoreboard",
         "MetricExpr": "PM_DISP_STALL_HELD_SCOREBOARD_CYC / PM_RUN_INST_CMPL",
         "MetricGroup": "CPI",
-        "MetricName": "DISP_HELD_STALL_SCOREBOARD_CPI"
+        "MetricName": "DISPATCH_STALL_HELD_SCOREBOARD_CPI"
     },
     {
         "BriefDescription": "Average cycles per completed instruction when the NTC instruction was held at dispatch due to issue queue full",
         "MetricExpr": "PM_DISP_STALL_HELD_ISSQ_FULL_CYC / PM_RUN_INST_CMPL",
         "MetricGroup": "CPI",
-        "MetricName": "DISP_HELD_STALL_ISSQ_FULL_CPI"
+        "MetricName": "DISPATCH_STALL_HELD_ISSQ_FULL_CPI"
     },
     {
         "BriefDescription": "Average cycles per completed instruction when the NTC instruction was held at dispatch because the mapper/SRB was full",
         "MetricExpr": "PM_DISP_STALL_HELD_RENAME_CYC / PM_RUN_INST_CMPL",
         "MetricGroup": "CPI",
-        "MetricName": "DISPATCHED_HELD_RENAME_CPI"
+        "MetricName": "DISPATCH_STALL_HELD_RENAME_CPI"
     },
     {
         "BriefDescription": "Average cycles per completed instruction when the NTC instruction was held at dispatch because the STF mapper/SRB was full",
         "MetricExpr": "PM_DISP_STALL_HELD_STF_MAPPER_CYC / PM_RUN_INST_CMPL",
         "MetricGroup": "CPI",
-        "MetricName": "DISPATCHED_HELD_STF_MAPPER_CPI"
+        "MetricName": "DISPATCH_STALL_HELD_STF_MAPPER_CPI"
     },
     {
         "BriefDescription": "Average cycles per completed instruction when the NTC instruction was held at dispatch because the XVFC mapper/SRB was full",
         "MetricExpr": "PM_DISP_STALL_HELD_XVFC_MAPPER_CYC / PM_RUN_INST_CMPL",
         "MetricGroup": "CPI",
-        "MetricName": "DISPATCHED_HELD_XVFC_MAPPER_CPI"
+        "MetricName": "DISPATCH_STALL_HELD_XVFC_MAPPER_CPI"
     },
     {
         "BriefDescription": "Average cycles per completed instruction when the NTC instruction was held at dispatch for any other reason",
         "MetricExpr": "PM_DISP_STALL_HELD_OTHER_CYC / PM_RUN_INST_CMPL",
         "MetricGroup": "CPI",
-        "MetricName": "DISPATCHED_HELD_OTHER_CPI"
+        "MetricName": "DISPATCH_STALL_HELD_OTHER_CPI"
     },
     {
         "BriefDescription": "Average cycles per completed instruction when the NTC instruction has been dispatched but not issued for any reason",
@@ -352,13 +358,13 @@
         "BriefDescription": "Average cycles per completed instruction when dispatch was stalled because fetch was being held, so there was nothing in the pipeline for this thread",
         "MetricExpr": "PM_DISP_STALL_FETCH / PM_RUN_INST_CMPL",
         "MetricGroup": "CPI",
-        "MetricName": "DISPATCHED_FETCH_CPI"
+        "MetricName": "DISPATCH_STALL_FETCH_CPI"
     },
     {
         "BriefDescription": "Average cycles per completed instruction when the NTC instruction was held at dispatch because of power management",
         "MetricExpr": "PM_DISP_STALL_HELD_HALT_CYC / PM_RUN_INST_CMPL",
         "MetricGroup": "CPI",
-        "MetricName": "DISPATCHED_HELD_HALT_CPI"
+        "MetricName": "DISPATCH_STALL_HELD_HALT_CPI"
     },
     {
         "BriefDescription": "Percentage of flushes per completed instruction",
@@ -392,6 +398,13 @@
         "MetricExpr": "PM_LD_MISS_L1 / PM_RUN_INST_CMPL * 100",
         "MetricGroup": "Others",
         "MetricName": "L1_LD_MISS_RATE",
+        "ScaleUnit": "1%"
+    },
+    {
+        "BriefDescription": "Percentage of completed instructions that were stores that missed the L1",
+        "MetricExpr": "PM_ST_MISS_L1 * 100 / PM_RUN_INST_CMPL",
+        "MetricGroup": "Others",
+        "MetricName": "L1_ST_MISS_RATE",
         "ScaleUnit": "1%"
     },
     {
@@ -454,12 +467,6 @@
         "MetricName": "LOADS_PER_INST"
     },
     {
-        "BriefDescription": "Average number of finished stores per completed instruction",
-        "MetricExpr": "PM_ST_FIN / PM_RUN_INST_CMPL",
-        "MetricGroup": "General",
-        "MetricName": "STORES_PER_INST"
-    },
-    {
         "BriefDescription": "Percentage of demand loads that reloaded from beyond the L2 per completed instruction",
         "MetricExpr": "PM_DATA_FROM_L2MISS / PM_RUN_INST_CMPL * 100",
         "MetricGroup": "dL1_Reloads",
@@ -471,6 +478,13 @@
         "MetricExpr": "PM_DATA_FROM_L3MISS / PM_RUN_INST_CMPL * 100",
         "MetricGroup": "dL1_Reloads",
         "MetricName": "DL1_RELOAD_FROM_L3_MISS_RATE",
+        "ScaleUnit": "1%"
+    },
+    {
+        "BriefDescription": "Percentage of ITLB misses per completed run instruction",
+        "MetricExpr": "PM_ITLB_MISS / PM_RUN_INST_CMPL * 100",
+        "MetricGroup": "General",
+        "MetricName": "ITLB_MISS_RATE",
         "ScaleUnit": "1%"
     },
     {
@@ -566,7 +580,7 @@
         "BriefDescription": "Average number of STCX instructions finshed per completed instruction",
         "MetricExpr": "PM_STCX_FIN / PM_RUN_INST_CMPL",
         "MetricGroup": "General",
-        "MetricName": "STXC_PER_INST"
+        "MetricName": "STCX_PER_INST"
     },
     {
         "BriefDescription": "Average number of LARX instructions finshed per completed instruction",
@@ -629,6 +643,13 @@
         "ScaleUnit": "1%"
     },
     {
+        "BriefDescription": "Percentage of DERAT misses with 1G page size per completed run instruction",
+        "MetricExpr": "PM_DERAT_MISS_1G * 100 / PM_RUN_INST_CMPL",
+        "MetricGroup": "Translation",
+        "MetricName": "DERAT_1G_MISS_RATE",
+        "ScaleUnit": "1%"
+    },
+    {
         "BriefDescription": "DERAT miss ratio for 4K page size",
         "MetricExpr": "PM_DERAT_MISS_4K / PM_DERAT_MISS",
         "MetricGroup": "Translation",
@@ -645,6 +666,12 @@
         "MetricExpr": "PM_DERAT_MISS_16M / PM_DERAT_MISS",
         "MetricGroup": "Translation",
         "MetricName": "DERAT_16M_MISS_RATIO"
+    },
+    {
+        "BriefDescription": "DERAT miss ratio for 1G page size",
+        "MetricExpr": "PM_DERAT_MISS_1G / PM_DERAT_MISS",
+        "MetricGroup": "Translation",
+        "MetricName": "DERAT_1G_MISS_RATIO"
     },
     {
         "BriefDescription": "DERAT miss ratio for 64K page size",

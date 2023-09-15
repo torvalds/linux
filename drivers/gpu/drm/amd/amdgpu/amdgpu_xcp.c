@@ -239,8 +239,13 @@ static int amdgpu_xcp_dev_alloc(struct amdgpu_device *adev)
 
 	for (i = 1; i < MAX_XCP; i++) {
 		ret = amdgpu_xcp_drm_dev_alloc(&p_ddev);
-		if (ret)
+		if (ret == -ENOSPC) {
+			dev_warn(adev->dev,
+			"Skip xcp node #%d when out of drm node resource.", i);
+			return 0;
+		} else if (ret) {
 			return ret;
+		}
 
 		/* Redirect all IOCTLs to the primary device */
 		adev->xcp_mgr->xcp[i].rdev = p_ddev->render->dev;
@@ -328,6 +333,9 @@ int amdgpu_xcp_dev_register(struct amdgpu_device *adev,
 		return 0;
 
 	for (i = 1; i < MAX_XCP; i++) {
+		if (!adev->xcp_mgr->xcp[i].ddev)
+			break;
+
 		ret = drm_dev_register(adev->xcp_mgr->xcp[i].ddev, ent->driver_data);
 		if (ret)
 			return ret;
@@ -345,6 +353,9 @@ void amdgpu_xcp_dev_unplug(struct amdgpu_device *adev)
 		return;
 
 	for (i = 1; i < MAX_XCP; i++) {
+		if (!adev->xcp_mgr->xcp[i].ddev)
+			break;
+
 		p_ddev = adev->xcp_mgr->xcp[i].ddev;
 		drm_dev_unplug(p_ddev);
 		p_ddev->render->dev = adev->xcp_mgr->xcp[i].rdev;

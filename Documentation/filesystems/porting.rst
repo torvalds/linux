@@ -177,7 +177,7 @@ settles down a bit.
 **mandatory**
 
 s_export_op is now required for exporting a filesystem.
-isofs, ext2, ext3, resierfs, fat
+isofs, ext2, ext3, reiserfs, fat
 can be used as examples of very different filesystems.
 
 ---
@@ -470,7 +470,7 @@ has been taken to VFS and filesystems need to provide a non-NULL
 **mandatory**
 
 If you implement your own ->llseek() you must handle SEEK_HOLE and
-SEEK_DATA.  You can hanle this by returning -EINVAL, but it would be nicer to
+SEEK_DATA.  You can handle this by returning -EINVAL, but it would be nicer to
 support it in some way.  The generic handler assumes that the entire file is
 data and there is a virtual hole at the end of the file.  So if the provided
 offset is less than i_size and SEEK_DATA is specified, return the same offset.
@@ -517,7 +517,7 @@ The witch is dead!  Well, 2/3 of it, anyway.  ->d_revalidate() and
 
 ->create() doesn't take ``struct nameidata *``; unlike the previous
 two, it gets "is it an O_EXCL or equivalent?" boolean argument.  Note that
-local filesystems can ignore tha argument - they are guaranteed that the
+local filesystems can ignore this argument - they are guaranteed that the
 object doesn't exist.  It's remote/distributed ones that might care...
 
 ---
@@ -537,7 +537,7 @@ vfs_readdir() is gone; switch to iterate_dir() instead
 
 **mandatory**
 
-->readdir() is gone now; switch to ->iterate()
+->readdir() is gone now; switch to ->iterate_shared()
 
 **mandatory**
 
@@ -693,24 +693,19 @@ parallel now.
 
 ---
 
-**recommended**
+**mandatory**
 
-->iterate_shared() is added; it's a parallel variant of ->iterate().
+->iterate_shared() is added.
 Exclusion on struct file level is still provided (as well as that
 between it and lseek on the same struct file), but if your directory
 has been opened several times, you can get these called in parallel.
 Exclusion between that method and all directory-modifying ones is
 still provided, of course.
 
-Often enough ->iterate() can serve as ->iterate_shared() without any
-changes - it is a read-only operation, after all.  If you have any
-per-inode or per-dentry in-core data structures modified by ->iterate(),
-you might need something to serialize the access to them.  If you
-do dcache pre-seeding, you'll need to switch to d_alloc_parallel() for
-that; look for in-tree examples.
-
-Old method is only used if the new one is absent; eventually it will
-be removed.  Switch while you still can; the old one won't stay.
+If you have any per-inode or per-dentry in-core data structures modified
+by ->iterate_shared(), you might need something to serialize the access
+to them.  If you do dcache pre-seeding, you'll need to switch to
+d_alloc_parallel() for that; look for in-tree examples.
 
 ---
 
@@ -930,9 +925,9 @@ should be done by looking at FMODE_LSEEK in file->f_mode.
 filldir_t (readdir callbacks) calling conventions have changed.  Instead of
 returning 0 or -E... it returns bool now.  false means "no more" (as -E... used
 to) and true - "keep going" (as 0 in old calling conventions).  Rationale:
-callers never looked at specific -E... values anyway.  ->iterate() and
-->iterate_shared() instance require no changes at all, all filldir_t ones in
-the tree converted.
+callers never looked at specific -E... values anyway. -> iterate_shared()
+instances require no changes at all, all filldir_t ones in the tree
+converted.
 
 ---
 
@@ -943,3 +938,14 @@ file pointer instead of struct dentry pointer.  d_tmpfile() is similarly
 changed to simplify callers.  The passed file is in a non-open state and on
 success must be opened before returning (e.g. by calling
 finish_open_simple()).
+
+---
+
+**mandatory**
+
+Calling convention for ->huge_fault has changed.  It now takes a page
+order instead of an enum page_entry_size, and it may be called without the
+mmap_lock held.  All in-tree users have been audited and do not seem to
+depend on the mmap_lock being held, but out of tree users should verify
+for themselves.  If they do need it, they can return VM_FAULT_RETRY to
+be called with the mmap_lock held.

@@ -83,20 +83,15 @@ static struct acp_card_drvdata sof_rt5682s_hs_rt1019_data = {
 	.tdm_mode = false,
 };
 
-static const struct snd_kcontrol_new acp_controls[] = {
-	SOC_DAPM_PIN_SWITCH("Headphone Jack"),
-	SOC_DAPM_PIN_SWITCH("Headset Mic"),
-	SOC_DAPM_PIN_SWITCH("Spk"),
-	SOC_DAPM_PIN_SWITCH("Left Spk"),
-	SOC_DAPM_PIN_SWITCH("Right Spk"),
-};
-
-static const struct snd_soc_dapm_widget acp_widgets[] = {
-	SND_SOC_DAPM_HP("Headphone Jack", NULL),
-	SND_SOC_DAPM_MIC("Headset Mic", NULL),
-	SND_SOC_DAPM_SPK("Spk", NULL),
-	SND_SOC_DAPM_SPK("Left Spk", NULL),
-	SND_SOC_DAPM_SPK("Right Spk", NULL),
+static struct acp_card_drvdata sof_nau8821_max98388_data = {
+	.hs_cpu_id = I2S_SP,
+	.amp_cpu_id = I2S_HS,
+	.dmic_cpu_id = NONE,
+	.hs_codec_id = NAU8821,
+	.amp_codec_id = MAX98388,
+	.dmic_codec_id = NONE,
+	.soc_mclk = true,
+	.tdm_mode = false,
 };
 
 static int acp_sof_probe(struct platform_device *pdev)
@@ -117,11 +112,8 @@ static int acp_sof_probe(struct platform_device *pdev)
 	card->dev = dev;
 	card->owner = THIS_MODULE;
 	card->name = pdev->id_entry->name;
-	card->dapm_widgets = acp_widgets;
-	card->num_dapm_widgets = ARRAY_SIZE(acp_widgets);
-	card->controls = acp_controls;
-	card->num_controls = ARRAY_SIZE(acp_controls);
 	card->drvdata = (struct acp_card_drvdata *)pdev->id_entry->driver_data;
+	/* Widgets and controls added per-codec in acp-mach-common.c */
 
 	acp_card_drvdata = card->drvdata;
 	dmi_id = dmi_first_match(acp_quirk_table);
@@ -166,6 +158,10 @@ static const struct platform_device_id board_ids[] = {
 		.name = "rt5682s-hs-rt1019",
 		.driver_data = (kernel_ulong_t)&sof_rt5682s_hs_rt1019_data
 	},
+	{
+		.name = "nau8821-max",
+		.driver_data = (kernel_ulong_t)&sof_nau8821_max98388_data
+	},
 	{ }
 };
 static struct platform_driver acp_asoc_audio = {
@@ -187,4 +183,5 @@ MODULE_ALIAS("platform:rt5682s-max");
 MODULE_ALIAS("platform:rt5682s-rt1019");
 MODULE_ALIAS("platform:nau8825-max");
 MODULE_ALIAS("platform:rt5682s-hs-rt1019");
+MODULE_ALIAS("platform:nau8821-max");
 MODULE_LICENSE("GPL v2");

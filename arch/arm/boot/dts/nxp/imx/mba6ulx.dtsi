@@ -277,10 +277,9 @@
 		reg = <0x41>;
 		interrupts = <21 IRQ_TYPE_EDGE_FALLING>;
 		interrupt-parent = <&gpio4>;
-		interrupt-controller;
 		status = "disabled";
 
-		stmpe_touchscreen {
+		touchscreen {
 			compatible = "st,stmpe-ts";
 			st,adc-freq = <1>;      /* 3.25 MHz ADC clock speed */
 			st,ave-ctrl = <3>;      /* 8 sample average control */

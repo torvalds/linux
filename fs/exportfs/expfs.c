@@ -315,7 +315,7 @@ static int get_name(const struct path *path, char *name, struct dentry *child)
 		goto out;
 
 	error = -EINVAL;
-	if (!file->f_op->iterate && !file->f_op->iterate_shared)
+	if (!file->f_op->iterate_shared)
 		goto out_close;
 
 	buffer.sequence = 0;
@@ -386,6 +386,7 @@ static int export_encode_fh(struct inode *inode, struct fid *fid,
  * @inode:   the object to encode
  * @fid:     where to store the file handle fragment
  * @max_len: maximum length to store there
+ * @parent:  parent directory inode, if wanted
  * @flags:   properties of the requested file handle
  *
  * Returns an enum fid_type or a negative errno.

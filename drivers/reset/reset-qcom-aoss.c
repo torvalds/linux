@@ -8,7 +8,7 @@
 #include <linux/reset-controller.h>
 #include <linux/delay.h>
 #include <linux/io.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <dt-bindings/reset/qcom,sdm845-aoss.h>
 
 struct qcom_aoss_reset_map {

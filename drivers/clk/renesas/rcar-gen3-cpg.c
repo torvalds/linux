@@ -264,11 +264,13 @@ static const struct clk_ops cpg_z_clk_ops = {
 	.set_rate = cpg_z_clk_set_rate,
 };
 
-static struct clk * __init cpg_z_clk_register(const char *name,
+static struct clk * __init __cpg_z_clk_register(const char *name,
 					      const char *parent_name,
 					      void __iomem *reg,
 					      unsigned int div,
-					      unsigned int offset)
+					      unsigned int offset,
+					      unsigned int fcr,
+					      unsigned int flags)
 {
 	struct clk_init_data init = {};
 	struct cpg_z_clk *zclk;
@@ -280,11 +282,11 @@ static struct clk * __init cpg_z_clk_register(const char *name,
 
 	init.name = name;
 	init.ops = &cpg_z_clk_ops;
-	init.flags = CLK_SET_RATE_PARENT;
+	init.flags = flags;
 	init.parent_names = &parent_name;
 	init.num_parents = 1;
 
-	zclk->reg = reg + CPG_FRQCRC;
+	zclk->reg = reg + fcr;
 	zclk->kick_reg = reg + CPG_FRQCRB;
 	zclk->hw.init = &init;
 	zclk->mask = GENMASK(offset + 4, offset);
@@ -299,6 +301,27 @@ static struct clk * __init cpg_z_clk_register(const char *name,
 	zclk->max_rate = clk_hw_get_rate(clk_hw_get_parent(&zclk->hw)) /
 			 zclk->fixed_div;
 	return clk;
+}
+
+static struct clk * __init cpg_z_clk_register(const char *name,
+					      const char *parent_name,
+					      void __iomem *reg,
+					      unsigned int div,
+					      unsigned int offset)
+{
+	return __cpg_z_clk_register(name, parent_name, reg, div, offset,
+				    CPG_FRQCRC, CLK_SET_RATE_PARENT);
+}
+
+static struct clk * __init cpg_zg_clk_register(const char *name,
+					       const char *parent_name,
+					       void __iomem *reg,
+					       unsigned int div,
+					       unsigned int offset)
+{
+	return __cpg_z_clk_register(name, parent_name, reg, div, offset,
+				    CPG_FRQCRB, 0);
+
 }
 
 static const struct clk_div_table cpg_rpcsrc_div_table[] = {
@@ -437,6 +460,10 @@ struct clk * __init rcar_gen3_cpg_clk_register(struct device *dev,
 	case CLK_TYPE_GEN3_Z:
 		return cpg_z_clk_register(core->name, __clk_get_name(parent),
 					  base, core->div, core->offset);
+
+	case CLK_TYPE_GEN3_ZG:
+		return cpg_zg_clk_register(core->name, __clk_get_name(parent),
+					   base, core->div, core->offset);
 
 	case CLK_TYPE_GEN3_OSC:
 		/*

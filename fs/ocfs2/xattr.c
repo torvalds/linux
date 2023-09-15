@@ -3421,9 +3421,9 @@ static int __ocfs2_xattr_set_handle(struct inode *inode,
 			goto out;
 		}
 
-		inode->i_ctime = current_time(inode);
-		di->i_ctime = cpu_to_le64(inode->i_ctime.tv_sec);
-		di->i_ctime_nsec = cpu_to_le32(inode->i_ctime.tv_nsec);
+		inode_set_ctime_current(inode);
+		di->i_ctime = cpu_to_le64(inode_get_ctime(inode).tv_sec);
+		di->i_ctime_nsec = cpu_to_le32(inode_get_ctime(inode).tv_nsec);
 		ocfs2_journal_dirty(ctxt->handle, xis->inode_bh);
 	}
 out:

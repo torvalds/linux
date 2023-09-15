@@ -368,17 +368,20 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 		goto err_create_queue;
 	}
 
-	if (q && p_doorbell_offset_in_process)
+	if (q && p_doorbell_offset_in_process) {
 		/* Return the doorbell offset within the doorbell page
 		 * to the caller so it can be passed up to user mode
 		 * (in bytes).
-		 * There are always 1024 doorbells per process, so in case
-		 * of 8-byte doorbells, there are two doorbell pages per
-		 * process.
+		 * relative doorbell index = Absolute doorbell index -
+		 * absolute index of first doorbell in the page.
 		 */
-		*p_doorbell_offset_in_process =
-			(q->properties.doorbell_off * sizeof(uint32_t)) &
-			(kfd_doorbell_process_slice(dev->kfd) - 1);
+		uint32_t first_db_index = amdgpu_doorbell_index_on_bar(pdd->dev->adev,
+								       pdd->qpd.proc_doorbells,
+								       0);
+
+		*p_doorbell_offset_in_process = (q->properties.doorbell_off
+						- first_db_index) * sizeof(uint32_t);
+	}
 
 	pr_debug("PQM After DQM create queue\n");
 
@@ -930,12 +933,6 @@ int kfd_criu_restore_queue(struct kfd_process *p,
 	if (!pdd) {
 		pr_err("Failed to get pdd\n");
 		ret = -EINVAL;
-		goto exit;
-	}
-
-	if (!pdd->doorbell_index &&
-	    kfd_alloc_process_doorbells(pdd->dev->kfd, &pdd->doorbell_index) < 0) {
-		ret = -ENOMEM;
 		goto exit;
 	}
 

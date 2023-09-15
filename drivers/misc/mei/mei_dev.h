@@ -512,6 +512,7 @@ struct mei_dev_timeouts {
  * @fw_ver : FW versions
  *
  * @fw_f_fw_ver_supported : fw feature: fw version supported
+ * @fw_ver_received : fw version received
  *
  * @me_clients_rwsem: rw lock over me_clients list
  * @me_clients  : list of FW clients
@@ -604,6 +605,7 @@ struct mei_device {
 	struct mei_fw_version fw_ver[MEI_MAX_FW_VER_BLOCKS];
 
 	unsigned int fw_f_fw_ver_supported:1;
+	unsigned int fw_ver_received:1;
 
 	struct rw_semaphore me_clients_rwsem;
 	struct list_head me_clients;

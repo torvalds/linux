@@ -274,6 +274,7 @@ config IR_MCEUSB
 config IR_MESON
 	tristate "Amlogic Meson IR remote receiver"
 	depends on ARCH_MESON || COMPILE_TEST
+	select REGMAP_MMIO
 	help
 	   Say Y if you want to use the IR remote receiver available
 	   on Amlogic Meson SoCs.

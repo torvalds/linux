@@ -1468,7 +1468,6 @@ static int ast_udc_probe(struct platform_device *pdev)
 	enum usb_device_speed max_speed;
 	struct device *dev = &pdev->dev;
 	struct ast_udc_dev *udc;
-	struct resource *res;
 	int rc;
 
 	udc = devm_kzalloc(&pdev->dev, sizeof(struct ast_udc_dev), GFP_KERNEL);
@@ -1484,8 +1483,7 @@ static int ast_udc_probe(struct platform_device *pdev)
 	udc->gadget.name = "aspeed-udc";
 	udc->gadget.dev.init_name = "gadget";
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	udc->reg = devm_ioremap_resource(&pdev->dev, res);
+	udc->reg = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(udc->reg)) {
 		dev_err(&pdev->dev, "Failed to map resources\n");
 		return PTR_ERR(udc->reg);

@@ -269,10 +269,10 @@ bool pipe_is_unprivileged_user(void);
 
 /* for F_SETPIPE_SZ and F_GETPIPE_SZ */
 int pipe_resize_ring(struct pipe_inode_info *pipe, unsigned int nr_slots);
-long pipe_fcntl(struct file *, unsigned int, unsigned long arg);
+long pipe_fcntl(struct file *, unsigned int, unsigned int arg);
 struct pipe_inode_info *get_pipe_info(struct file *file, bool for_splice);
 
 int create_pipe_files(struct file **, int);
-unsigned int round_pipe_size(unsigned long size);
+unsigned int round_pipe_size(unsigned int size);
 
 #endif

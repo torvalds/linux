@@ -12,8 +12,7 @@
 #include "common.h"
 #include "descs_com.h"
 
-static int ndesc_get_tx_status(struct net_device_stats *stats,
-			       struct stmmac_extra_stats *x,
+static int ndesc_get_tx_status(struct stmmac_extra_stats *x,
 			       struct dma_desc *p, void __iomem *ioaddr)
 {
 	unsigned int tdes0 = le32_to_cpu(p->des0);
@@ -31,15 +30,12 @@ static int ndesc_get_tx_status(struct net_device_stats *stats,
 	if (unlikely(tdes0 & TDES0_ERROR_SUMMARY)) {
 		if (unlikely(tdes0 & TDES0_UNDERFLOW_ERROR)) {
 			x->tx_underflow++;
-			stats->tx_fifo_errors++;
 		}
 		if (unlikely(tdes0 & TDES0_NO_CARRIER)) {
 			x->tx_carrier++;
-			stats->tx_carrier_errors++;
 		}
 		if (unlikely(tdes0 & TDES0_LOSS_CARRIER)) {
 			x->tx_losscarrier++;
-			stats->tx_carrier_errors++;
 		}
 		if (unlikely((tdes0 & TDES0_EXCESSIVE_DEFERRAL) ||
 			     (tdes0 & TDES0_EXCESSIVE_COLLISIONS) ||
@@ -47,7 +43,7 @@ static int ndesc_get_tx_status(struct net_device_stats *stats,
 			unsigned int collisions;
 
 			collisions = (tdes0 & TDES0_COLLISION_COUNT_MASK) >> 3;
-			stats->collisions += collisions;
+			x->tx_collision += collisions;
 		}
 		ret = tx_err;
 	}
@@ -70,8 +66,7 @@ static int ndesc_get_tx_len(struct dma_desc *p)
  * and, if required, updates the multicast statistics.
  * In case of success, it returns good_frame because the GMAC device
  * is supposed to be able to compute the csum in HW. */
-static int ndesc_get_rx_status(struct net_device_stats *stats,
-			       struct stmmac_extra_stats *x,
+static int ndesc_get_rx_status(struct stmmac_extra_stats *x,
 			       struct dma_desc *p)
 {
 	int ret = good_frame;
@@ -81,7 +76,7 @@ static int ndesc_get_rx_status(struct net_device_stats *stats,
 		return dma_own;
 
 	if (unlikely(!(rdes0 & RDES0_LAST_DESCRIPTOR))) {
-		stats->rx_length_errors++;
+		x->rx_length++;
 		return discard_frame;
 	}
 
@@ -96,11 +91,9 @@ static int ndesc_get_rx_status(struct net_device_stats *stats,
 			x->ipc_csum_error++;
 		if (unlikely(rdes0 & RDES0_COLLISION)) {
 			x->rx_collision++;
-			stats->collisions++;
 		}
 		if (unlikely(rdes0 & RDES0_CRC_ERROR)) {
 			x->rx_crc_errors++;
-			stats->rx_crc_errors++;
 		}
 		ret = discard_frame;
 	}

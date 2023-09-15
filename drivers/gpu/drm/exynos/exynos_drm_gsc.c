@@ -1426,6 +1426,6 @@ struct platform_driver gsc_driver = {
 		.name	= "exynos-drm-gsc",
 		.owner	= THIS_MODULE,
 		.pm	= &gsc_pm_ops,
-		.of_match_table = of_match_ptr(exynos_drm_gsc_of_match),
+		.of_match_table = exynos_drm_gsc_of_match,
 	},
 };

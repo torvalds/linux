@@ -88,6 +88,11 @@ data bandwidth::
     -e ali_drw_27080/hif_rmw/ \
     -e ali_drw_27080/cycle/ -- sleep 10
 
+Example usage of counting all memory read/write bandwidth by metric::
+
+  perf stat -M ddr_read_bandwidth.all -- sleep 10
+  perf stat -M ddr_write_bandwidth.all -- sleep 10
+
 The average DRAM bandwidth can be calculated as follows:
 
 - Read Bandwidth =  perf_hif_rd * DDRC_WIDTH * DDRC_Freq / DDRC_Cycle

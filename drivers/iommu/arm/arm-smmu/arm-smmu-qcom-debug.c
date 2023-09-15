@@ -3,7 +3,7 @@
  * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
-#include <linux/of_device.h>
+#include <linux/device.h>
 #include <linux/firmware/qcom/qcom_scm.h>
 #include <linux/ratelimit.h>
 

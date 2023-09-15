@@ -10,7 +10,7 @@ Required properties:
   "source" for I2C source (parent) clock,
   "enable" for I2C module enable clock.
 - clocks: Should contain a clock specifier for each entry in clock-names.
-- clock-frequency: Constains desired I2C bus clock frequency in Hz.
+- clock-frequency: Contains desired I2C bus clock frequency in Hz.
 - #address-cells: Should be 1 to describe address cells for I2C device address.
 - #size-cells: Should be 0 means no size cell for I2C device address.
 

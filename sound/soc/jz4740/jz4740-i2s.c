@@ -328,6 +328,7 @@ static int jz4740_i2s_dai_probe(struct snd_soc_dai *dai)
 }
 
 static const struct snd_soc_dai_ops jz4740_i2s_dai_ops = {
+	.probe = jz4740_i2s_dai_probe,
 	.startup = jz4740_i2s_startup,
 	.shutdown = jz4740_i2s_shutdown,
 	.trigger = jz4740_i2s_trigger,
@@ -341,7 +342,6 @@ static const struct snd_soc_dai_ops jz4740_i2s_dai_ops = {
 			 SNDRV_PCM_FMTBIT_S24_LE)
 
 static struct snd_soc_dai_driver jz4740_i2s_dai = {
-	.probe = jz4740_i2s_dai_probe,
 	.playback = {
 		.channels_min = 1,
 		.channels_max = 2,
@@ -384,7 +384,6 @@ static const struct i2s_soc_info x1000_i2s_soc_info = {
 };
 
 static struct snd_soc_dai_driver jz4770_i2s_dai = {
-	.probe = jz4740_i2s_dai_probe,
 	.playback = {
 		.channels_min = 1,
 		.channels_max = 2,

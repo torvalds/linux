@@ -29,7 +29,6 @@
 #define MAX_USB_MINORS	256
 static const struct file_operations *usb_minors[MAX_USB_MINORS];
 static DECLARE_RWSEM(minor_rwsem);
-static DEFINE_MUTEX(init_usb_class_mutex);
 
 static int usb_open(struct inode *inode, struct file *file)
 {
@@ -57,11 +56,6 @@ static const struct file_operations usb_fops = {
 	.llseek =	noop_llseek,
 };
 
-static struct usb_class {
-	struct kref kref;
-	struct class *class;
-} *usb_class;
-
 static char *usb_devnode(const struct device *dev, umode_t *mode)
 {
 	struct usb_class_driver *drv;
@@ -72,50 +66,10 @@ static char *usb_devnode(const struct device *dev, umode_t *mode)
 	return drv->devnode(dev, mode);
 }
 
-static int init_usb_class(void)
-{
-	int result = 0;
-
-	if (usb_class != NULL) {
-		kref_get(&usb_class->kref);
-		goto exit;
-	}
-
-	usb_class = kmalloc(sizeof(*usb_class), GFP_KERNEL);
-	if (!usb_class) {
-		result = -ENOMEM;
-		goto exit;
-	}
-
-	kref_init(&usb_class->kref);
-	usb_class->class = class_create("usbmisc");
-	if (IS_ERR(usb_class->class)) {
-		result = PTR_ERR(usb_class->class);
-		printk(KERN_ERR "class_create failed for usb devices\n");
-		kfree(usb_class);
-		usb_class = NULL;
-		goto exit;
-	}
-	usb_class->class->devnode = usb_devnode;
-
-exit:
-	return result;
-}
-
-static void release_usb_class(struct kref *kref)
-{
-	/* Ok, we cheat as we know we only have one usb_class */
-	class_destroy(usb_class->class);
-	kfree(usb_class);
-	usb_class = NULL;
-}
-
-static void destroy_usb_class(void)
-{
-	mutex_lock(&init_usb_class_mutex);
-	kref_put(&usb_class->kref, release_usb_class);
-	mutex_unlock(&init_usb_class_mutex);
-}
+const struct class usbmisc_class = {
+	.name		= "usbmisc",
+	.devnode	= usb_devnode,
+};
 
 int usb_major_init(void)
 {
@@ -156,7 +110,7 @@ void usb_major_cleanup(void)
 int usb_register_dev(struct usb_interface *intf,
 		     struct usb_class_driver *class_driver)
 {
-	int retval;
+	int retval = 0;
 	int minor_base = class_driver->minor_base;
 	int minor;
 	char name[20];
@@ -174,13 +128,6 @@ int usb_register_dev(struct usb_interface *intf,
 		return -EINVAL;
 	if (intf->minor >= 0)
 		return -EADDRINUSE;
-
-	mutex_lock(&init_usb_class_mutex);
-	retval = init_usb_class();
-	mutex_unlock(&init_usb_class_mutex);
-
-	if (retval)
-		return retval;
 
 	dev_dbg(&intf->dev, "looking for a minor, starting at %d\n", minor_base);
 
@@ -200,7 +147,7 @@ int usb_register_dev(struct usb_interface *intf,
 
 	/* create a usb class device for this usb interface */
 	snprintf(name, sizeof(name), class_driver->name, minor - minor_base);
-	intf->usb_dev = device_create(usb_class->class, &intf->dev,
+	intf->usb_dev = device_create(&usbmisc_class, &intf->dev,
 				      MKDEV(USB_MAJOR, minor), class_driver,
 				      "%s", kbasename(name));
 	if (IS_ERR(intf->usb_dev)) {
@@ -234,7 +181,7 @@ void usb_deregister_dev(struct usb_interface *intf,
 		return;
 
 	dev_dbg(&intf->dev, "removing %d minor\n", intf->minor);
-	device_destroy(usb_class->class, MKDEV(USB_MAJOR, intf->minor));
+	device_destroy(&usbmisc_class, MKDEV(USB_MAJOR, intf->minor));
 
 	down_write(&minor_rwsem);
 	usb_minors[intf->minor] = NULL;
@@ -242,6 +189,5 @@ void usb_deregister_dev(struct usb_interface *intf,
 
 	intf->usb_dev = NULL;
 	intf->minor = -1;
-	destroy_usb_class();
 }
 EXPORT_SYMBOL_GPL(usb_deregister_dev);

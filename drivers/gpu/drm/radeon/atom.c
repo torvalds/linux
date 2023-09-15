@@ -163,13 +163,9 @@ static uint32_t atom_iio_execute(struct atom_context *ctx, int base,
 			    ~((0xFFFFFFFF >> (32 - CU8(base + 1))) <<
 			      CU8(base + 3));
 			temp |=
-			    ((ctx->
-			      io_attr >> CU8(base + 2)) & (0xFFFFFFFF >> (32 -
-									  CU8
-									  (base
-									   +
-									   1))))
-			    << CU8(base + 3);
+			    ((ctx->io_attr >> CU8(base + 2)) &
+			     (0xFFFFFFFF >> (32 - CU8(base + 1)))) <<
+			     CU8(base + 3);
 			base += 4;
 			break;
 		case ATOM_IIO_END:

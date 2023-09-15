@@ -58,14 +58,14 @@ properties:
     deprecated: true
     description:
       Name of the hwmod associated with the GPIO. Needed on some legacy OMAP
-      SoCs which have not been converted to the ti,sysc interconnect hierarachy.
+      SoCs which have not been converted to the ti,sysc interconnect hierarchy.
 
   ti,no-reset-on-init:
     $ref: /schemas/types.yaml#/definitions/flag
     deprecated: true
     description:
       Do not reset on init. Used with ti,hwmods on some legacy OMAP SoCs which
-      have not been converted to the ti,sysc interconnect hierarachy.
+      have not been converted to the ti,sysc interconnect hierarchy.
 
 patternProperties:
   "^(.+-hog(-[0-9]+)?)$":

@@ -206,13 +206,6 @@ static void __update_mqd(struct mqd_manager *mm, void *mqd,
 	q->is_active = QUEUE_IS_ACTIVE(*q);
 }
 
-static void update_mqd(struct mqd_manager *mm, void *mqd,
-			struct queue_properties *q,
-			struct mqd_update_info *minfo)
-{
-	__update_mqd(mm, mqd, q, minfo, 1);
-}
-
 static uint32_t read_doorbell_id(void *mqd)
 {
 	struct cik_mqd *m = (struct cik_mqd *)mqd;
@@ -220,9 +213,9 @@ static uint32_t read_doorbell_id(void *mqd)
 	return m->queue_doorbell_id0;
 }
 
-static void update_mqd_hawaii(struct mqd_manager *mm, void *mqd,
-			struct queue_properties *q,
-			struct mqd_update_info *minfo)
+static void update_mqd(struct mqd_manager *mm, void *mqd,
+		       struct queue_properties *q,
+		       struct mqd_update_info *minfo)
 {
 	__update_mqd(mm, mqd, q, minfo, 0);
 }
@@ -387,7 +380,6 @@ static int debugfs_show_mqd_sdma(struct seq_file *m, void *data)
 
 #endif
 
-
 struct mqd_manager *mqd_manager_init_cik(enum KFD_MQD_TYPE type,
 		struct kfd_node *dev)
 {
@@ -468,18 +460,5 @@ struct mqd_manager *mqd_manager_init_cik(enum KFD_MQD_TYPE type,
 		return NULL;
 	}
 
-	return mqd;
-}
-
-struct mqd_manager *mqd_manager_init_cik_hawaii(enum KFD_MQD_TYPE type,
-			struct kfd_node *dev)
-{
-	struct mqd_manager *mqd;
-
-	mqd = mqd_manager_init_cik(type, dev);
-	if (!mqd)
-		return NULL;
-	if (type == KFD_MQD_TYPE_CP)
-		mqd->update_mqd = update_mqd_hawaii;
 	return mqd;
 }

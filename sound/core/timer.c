@@ -2301,7 +2301,7 @@ static void snd_timer_free_all(void)
 		snd_timer_free(timer);
 }
 
-static struct device timer_dev;
+static struct device *timer_dev;
 
 /*
  *  ENTRY functions
@@ -2311,8 +2311,10 @@ static int __init alsa_timer_init(void)
 {
 	int err;
 
-	snd_device_initialize(&timer_dev, NULL);
-	dev_set_name(&timer_dev, "timer");
+	err = snd_device_alloc(&timer_dev, NULL);
+	if (err < 0)
+		return err;
+	dev_set_name(timer_dev, "timer");
 
 #ifdef SNDRV_OSS_INFO_DEV_TIMERS
 	snd_oss_info_register(SNDRV_OSS_INFO_DEV_TIMERS, SNDRV_CARDS - 1,
@@ -2326,7 +2328,7 @@ static int __init alsa_timer_init(void)
 	}
 
 	err = snd_register_device(SNDRV_DEVICE_TYPE_TIMER, NULL, 0,
-				  &snd_timer_f_ops, NULL, &timer_dev);
+				  &snd_timer_f_ops, NULL, timer_dev);
 	if (err < 0) {
 		pr_err("ALSA: unable to register timer device (%i)\n", err);
 		snd_timer_free_all();
@@ -2337,15 +2339,15 @@ static int __init alsa_timer_init(void)
 	return 0;
 
 put_timer:
-	put_device(&timer_dev);
+	put_device(timer_dev);
 	return err;
 }
 
 static void __exit alsa_timer_exit(void)
 {
-	snd_unregister_device(&timer_dev);
+	snd_unregister_device(timer_dev);
 	snd_timer_free_all();
-	put_device(&timer_dev);
+	put_device(timer_dev);
 	snd_timer_proc_done();
 #ifdef SNDRV_OSS_INFO_DEV_TIMERS
 	snd_oss_info_unregister(SNDRV_OSS_INFO_DEV_TIMERS, SNDRV_CARDS - 1);

@@ -12,6 +12,7 @@
 #include <linux/of.h>
 #include <linux/of_fdt.h>
 #include <asm/mach_desc.h>
+#include <asm/serial.h>
 
 #ifdef CONFIG_SERIAL_EARLYCON
 

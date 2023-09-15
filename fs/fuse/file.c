@@ -19,7 +19,6 @@
 #include <linux/uio.h>
 #include <linux/fs.h>
 #include <linux/filelock.h>
-#include <linux/file.h>
 
 static int fuse_send_open(struct fuse_mount *fm, u64 nodeid,
 			  unsigned int open_flags, int opcode,
@@ -479,36 +478,48 @@ static void fuse_sync_writes(struct inode *inode)
 	fuse_release_nowrite(inode);
 }
 
-struct fuse_flush_args {
-	struct fuse_args args;
-	struct fuse_flush_in inarg;
-	struct work_struct work;
-	struct file *file;
-};
-
-static int fuse_do_flush(struct fuse_flush_args *fa)
+static int fuse_flush(struct file *file, fl_owner_t id)
 {
-	int err;
-	struct inode *inode = file_inode(fa->file);
+	struct inode *inode = file_inode(file);
 	struct fuse_mount *fm = get_fuse_mount(inode);
+	struct fuse_file *ff = file->private_data;
+	struct fuse_flush_in inarg;
+	FUSE_ARGS(args);
+	int err;
+
+	if (fuse_is_bad(inode))
+		return -EIO;
+
+	if (ff->open_flags & FOPEN_NOFLUSH && !fm->fc->writeback_cache)
+		return 0;
 
 	err = write_inode_now(inode, 1);
 	if (err)
-		goto out;
+		return err;
 
 	inode_lock(inode);
 	fuse_sync_writes(inode);
 	inode_unlock(inode);
 
-	err = filemap_check_errors(fa->file->f_mapping);
+	err = filemap_check_errors(file->f_mapping);
 	if (err)
-		goto out;
+		return err;
 
 	err = 0;
 	if (fm->fc->no_flush)
 		goto inval_attr_out;
 
-	err = fuse_simple_request(fm, &fa->args);
+	memset(&inarg, 0, sizeof(inarg));
+	inarg.fh = ff->fh;
+	inarg.lock_owner = fuse_lock_owner_id(fm->fc, id);
+	args.opcode = FUSE_FLUSH;
+	args.nodeid = get_node_id(inode);
+	args.in_numargs = 1;
+	args.in_args[0].size = sizeof(inarg);
+	args.in_args[0].value = &inarg;
+	args.force = true;
+
+	err = fuse_simple_request(fm, &args);
 	if (err == -ENOSYS) {
 		fm->fc->no_flush = 1;
 		err = 0;
@@ -521,55 +532,7 @@ inval_attr_out:
 	 */
 	if (!err && fm->fc->writeback_cache)
 		fuse_invalidate_attr_mask(inode, STATX_BLOCKS);
-
-out:
-	fput(fa->file);
-	kfree(fa);
 	return err;
-}
-
-static void fuse_flush_async(struct work_struct *work)
-{
-	struct fuse_flush_args *fa = container_of(work, typeof(*fa), work);
-
-	fuse_do_flush(fa);
-}
-
-static int fuse_flush(struct file *file, fl_owner_t id)
-{
-	struct fuse_flush_args *fa;
-	struct inode *inode = file_inode(file);
-	struct fuse_mount *fm = get_fuse_mount(inode);
-	struct fuse_file *ff = file->private_data;
-
-	if (fuse_is_bad(inode))
-		return -EIO;
-
-	if (ff->open_flags & FOPEN_NOFLUSH && !fm->fc->writeback_cache)
-		return 0;
-
-	fa = kzalloc(sizeof(*fa), GFP_KERNEL);
-	if (!fa)
-		return -ENOMEM;
-
-	fa->inarg.fh = ff->fh;
-	fa->inarg.lock_owner = fuse_lock_owner_id(fm->fc, id);
-	fa->args.opcode = FUSE_FLUSH;
-	fa->args.nodeid = get_node_id(inode);
-	fa->args.in_numargs = 1;
-	fa->args.in_args[0].size = sizeof(fa->inarg);
-	fa->args.in_args[0].value = &fa->inarg;
-	fa->args.force = true;
-	fa->file = get_file(file);
-
-	/* Don't wait if the task is exiting */
-	if (current->flags & PF_EXITING) {
-		INIT_WORK(&fa->work, fuse_flush_async);
-		schedule_work(&fa->work);
-		return 0;
-	}
-
-	return fuse_do_flush(fa);
 }
 
 int fuse_fsync_common(struct file *file, loff_t start, loff_t end,
@@ -1465,7 +1428,8 @@ ssize_t fuse_direct_io(struct fuse_io_priv *io, struct iov_iter *iter,
 	int write = flags & FUSE_DIO_WRITE;
 	int cuse = flags & FUSE_DIO_CUSE;
 	struct file *file = io->iocb->ki_filp;
-	struct inode *inode = file->f_mapping->host;
+	struct address_space *mapping = file->f_mapping;
+	struct inode *inode = mapping->host;
 	struct fuse_file *ff = file->private_data;
 	struct fuse_conn *fc = ff->fm->fc;
 	size_t nmax = write ? fc->max_write : fc->max_read;
@@ -1477,18 +1441,34 @@ ssize_t fuse_direct_io(struct fuse_io_priv *io, struct iov_iter *iter,
 	int err = 0;
 	struct fuse_io_args *ia;
 	unsigned int max_pages;
+	bool fopen_direct_io = ff->open_flags & FOPEN_DIRECT_IO;
 
 	max_pages = iov_iter_npages(iter, fc->max_pages);
 	ia = fuse_io_alloc(io, max_pages);
 	if (!ia)
 		return -ENOMEM;
 
+	if (fopen_direct_io && fc->direct_io_relax) {
+		res = filemap_write_and_wait_range(mapping, pos, pos + count - 1);
+		if (res) {
+			fuse_io_free(ia);
+			return res;
+		}
+	}
 	if (!cuse && fuse_range_is_writeback(inode, idx_from, idx_to)) {
 		if (!write)
 			inode_lock(inode);
 		fuse_sync_writes(inode);
 		if (!write)
 			inode_unlock(inode);
+	}
+
+	if (fopen_direct_io && write) {
+		res = invalidate_inode_pages2_range(mapping, idx_from, idx_to);
+		if (res) {
+			fuse_io_free(ia);
+			return res;
+		}
 	}
 
 	io->should_dirty = !write && user_backed_iter(iter);
@@ -2478,14 +2458,17 @@ static const struct vm_operations_struct fuse_file_vm_ops = {
 static int fuse_file_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	struct fuse_file *ff = file->private_data;
+	struct fuse_conn *fc = ff->fm->fc;
 
 	/* DAX mmap is superior to direct_io mmap */
 	if (FUSE_IS_DAX(file_inode(file)))
 		return fuse_dax_mmap(file, vma);
 
 	if (ff->open_flags & FOPEN_DIRECT_IO) {
-		/* Can't provide the coherency needed for MAP_SHARED */
-		if (vma->vm_flags & VM_MAYSHARE)
+		/* Can't provide the coherency needed for MAP_SHARED
+		 * if FUSE_DIRECT_IO_RELAX isn't set.
+		 */
+		if ((vma->vm_flags & VM_MAYSHARE) && !fc->direct_io_relax)
 			return -ENODEV;
 
 		invalidate_inode_pages2(file->f_mapping);

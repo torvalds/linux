@@ -81,6 +81,8 @@ static const struct of_device_id ti_j721e_ufs_of_match[] = {
 	{ },
 };
 
+MODULE_DEVICE_TABLE(of, ti_j721e_ufs_of_match);
+
 static struct platform_driver ti_j721e_ufs_driver = {
 	.probe	= ti_j721e_ufs_probe,
 	.remove	= ti_j721e_ufs_remove,

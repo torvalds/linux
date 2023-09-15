@@ -150,16 +150,7 @@ static inline resource_size_t p2_size(struct pci_dev *dev)
 
 static int find_cxl_vsec(struct pci_dev *dev)
 {
-	int vsec = 0;
-	u16 val;
-
-	while ((vsec = pci_find_next_ext_capability(dev, vsec, PCI_EXT_CAP_ID_VNDR))) {
-		pci_read_config_word(dev, vsec + 0x4, &val);
-		if (val == CXL_PCI_VSEC_ID)
-			return vsec;
-	}
-	return 0;
-
+	return pci_find_vsec_capability(dev, PCI_VENDOR_ID_IBM, CXL_PCI_VSEC_ID);
 }
 
 static void dump_cxl_config_space(struct pci_dev *dev)

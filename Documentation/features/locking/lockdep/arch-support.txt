@@ -19,7 +19,7 @@
     |        mips: |  ok  |
     |       nios2: | TODO |
     |    openrisc: |  ok  |
-    |      parisc: | TODO |
+    |      parisc: |  ok  |
     |     powerpc: |  ok  |
     |       riscv: |  ok  |
     |        s390: |  ok  |

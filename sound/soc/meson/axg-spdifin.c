@@ -267,6 +267,8 @@ static int axg_spdifin_dai_remove(struct snd_soc_dai *dai)
 }
 
 static const struct snd_soc_dai_ops axg_spdifin_ops = {
+	.probe		= axg_spdifin_dai_probe,
+	.remove		= axg_spdifin_dai_remove,
 	.prepare	= axg_spdifin_prepare,
 	.startup	= axg_spdifin_startup,
 	.shutdown	= axg_spdifin_shutdown,
@@ -429,8 +431,6 @@ axg_spdifin_get_dai_drv(struct device *dev, struct axg_spdifin *priv)
 
 	drv->name = "SPDIF Input";
 	drv->ops = &axg_spdifin_ops;
-	drv->probe = axg_spdifin_dai_probe;
-	drv->remove = axg_spdifin_dai_remove;
 	drv->capture.stream_name = "Capture";
 	drv->capture.channels_min = 1;
 	drv->capture.channels_max = 2;

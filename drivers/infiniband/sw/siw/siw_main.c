@@ -75,8 +75,7 @@ static int siw_device_register(struct siw_device *sdev, const char *name)
 		return rv;
 	}
 
-	siw_dbg(base_dev, "HWaddr=%pM\n", sdev->netdev->dev_addr);
-
+	siw_dbg(base_dev, "HWaddr=%pM\n", sdev->raw_gid);
 	return 0;
 }
 
@@ -86,29 +85,6 @@ static void siw_device_cleanup(struct ib_device *base_dev)
 
 	xa_destroy(&sdev->qp_xa);
 	xa_destroy(&sdev->mem_xa);
-}
-
-static int siw_create_tx_threads(void)
-{
-	int cpu, assigned = 0;
-
-	for_each_online_cpu(cpu) {
-		/* Skip HT cores */
-		if (cpu % cpumask_weight(topology_sibling_cpumask(cpu)))
-			continue;
-
-		siw_tx_thread[cpu] =
-			kthread_run_on_cpu(siw_run_sq,
-					   (unsigned long *)(long)cpu,
-					   cpu, "siw_tx/%u");
-		if (IS_ERR(siw_tx_thread[cpu])) {
-			siw_tx_thread[cpu] = NULL;
-			continue;
-		}
-
-		assigned++;
-	}
-	return assigned;
 }
 
 static int siw_dev_qualified(struct net_device *netdev)
@@ -313,24 +289,19 @@ static struct siw_device *siw_device_create(struct net_device *netdev)
 		return NULL;
 
 	base_dev = &sdev->base_dev;
-
 	sdev->netdev = netdev;
 
-	if (netdev->type != ARPHRD_LOOPBACK && netdev->type != ARPHRD_NONE) {
-		addrconf_addr_eui48((unsigned char *)&base_dev->node_guid,
-				    netdev->dev_addr);
+	if (netdev->addr_len) {
+		memcpy(sdev->raw_gid, netdev->dev_addr,
+		       min_t(unsigned int, netdev->addr_len, ETH_ALEN));
 	} else {
 		/*
-		 * This device does not have a HW address,
-		 * but connection mangagement lib expects gid != 0
+		 * This device does not have a HW address, but
+		 * connection mangagement requires a unique gid.
 		 */
-		size_t len = min_t(size_t, strlen(base_dev->name), 6);
-		char addr[6] = { };
-
-		memcpy(addr, base_dev->name, len);
-		addrconf_addr_eui48((unsigned char *)&base_dev->node_guid,
-				    addr);
+		eth_random_addr(sdev->raw_gid);
 	}
+	addrconf_addr_eui48((u8 *)&base_dev->node_guid, sdev->raw_gid);
 
 	base_dev->uverbs_cmd_mask |= BIT_ULL(IB_USER_VERBS_CMD_POST_SEND);
 
@@ -535,7 +506,6 @@ static struct rdma_link_ops siw_link_ops = {
 static __init int siw_init_module(void)
 {
 	int rv;
-	int nr_cpu;
 
 	if (SENDPAGE_THRESH < SIW_MAX_INLINE) {
 		pr_info("siw: sendpage threshold too small: %u\n",
@@ -580,12 +550,8 @@ static __init int siw_init_module(void)
 	return 0;
 
 out_error:
-	for (nr_cpu = 0; nr_cpu < nr_cpu_ids; nr_cpu++) {
-		if (siw_tx_thread[nr_cpu]) {
-			siw_stop_tx_thread(nr_cpu);
-			siw_tx_thread[nr_cpu] = NULL;
-		}
-	}
+	siw_stop_tx_threads();
+
 	if (siw_crypto_shash)
 		crypto_free_shash(siw_crypto_shash);
 
@@ -599,14 +565,8 @@ out_error:
 
 static void __exit siw_exit_module(void)
 {
-	int cpu;
+	siw_stop_tx_threads();
 
-	for_each_possible_cpu(cpu) {
-		if (siw_tx_thread[cpu]) {
-			siw_stop_tx_thread(cpu);
-			siw_tx_thread[cpu] = NULL;
-		}
-	}
 	unregister_netdevice_notifier(&siw_netdev_nb);
 	rdma_link_unregister(&siw_link_ops);
 	ib_unregister_driver(RDMA_DRIVER_SIW);

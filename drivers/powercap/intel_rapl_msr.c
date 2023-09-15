@@ -34,28 +34,32 @@ static struct rapl_if_priv *rapl_msr_priv;
 
 static struct rapl_if_priv rapl_msr_priv_intel = {
 	.type = RAPL_IF_MSR,
-	.reg_unit = MSR_RAPL_POWER_UNIT,
-	.regs[RAPL_DOMAIN_PACKAGE] = {
-		MSR_PKG_POWER_LIMIT, MSR_PKG_ENERGY_STATUS, MSR_PKG_PERF_STATUS, 0, MSR_PKG_POWER_INFO },
-	.regs[RAPL_DOMAIN_PP0] = {
-		MSR_PP0_POWER_LIMIT, MSR_PP0_ENERGY_STATUS, 0, MSR_PP0_POLICY, 0 },
-	.regs[RAPL_DOMAIN_PP1] = {
-		MSR_PP1_POWER_LIMIT, MSR_PP1_ENERGY_STATUS, 0, MSR_PP1_POLICY, 0 },
-	.regs[RAPL_DOMAIN_DRAM] = {
-		MSR_DRAM_POWER_LIMIT, MSR_DRAM_ENERGY_STATUS, MSR_DRAM_PERF_STATUS, 0, MSR_DRAM_POWER_INFO },
-	.regs[RAPL_DOMAIN_PLATFORM] = {
-		MSR_PLATFORM_POWER_LIMIT, MSR_PLATFORM_ENERGY_STATUS, 0, 0, 0},
+	.reg_unit.msr = MSR_RAPL_POWER_UNIT,
+	.regs[RAPL_DOMAIN_PACKAGE][RAPL_DOMAIN_REG_LIMIT].msr	= MSR_PKG_POWER_LIMIT,
+	.regs[RAPL_DOMAIN_PACKAGE][RAPL_DOMAIN_REG_STATUS].msr	= MSR_PKG_ENERGY_STATUS,
+	.regs[RAPL_DOMAIN_PACKAGE][RAPL_DOMAIN_REG_PERF].msr	= MSR_PKG_PERF_STATUS,
+	.regs[RAPL_DOMAIN_PACKAGE][RAPL_DOMAIN_REG_INFO].msr	= MSR_PKG_POWER_INFO,
+	.regs[RAPL_DOMAIN_PP0][RAPL_DOMAIN_REG_LIMIT].msr	= MSR_PP0_POWER_LIMIT,
+	.regs[RAPL_DOMAIN_PP0][RAPL_DOMAIN_REG_STATUS].msr	= MSR_PP0_ENERGY_STATUS,
+	.regs[RAPL_DOMAIN_PP0][RAPL_DOMAIN_REG_POLICY].msr	= MSR_PP0_POLICY,
+	.regs[RAPL_DOMAIN_PP1][RAPL_DOMAIN_REG_LIMIT].msr	= MSR_PP1_POWER_LIMIT,
+	.regs[RAPL_DOMAIN_PP1][RAPL_DOMAIN_REG_STATUS].msr	= MSR_PP1_ENERGY_STATUS,
+	.regs[RAPL_DOMAIN_PP1][RAPL_DOMAIN_REG_POLICY].msr	= MSR_PP1_POLICY,
+	.regs[RAPL_DOMAIN_DRAM][RAPL_DOMAIN_REG_LIMIT].msr	= MSR_DRAM_POWER_LIMIT,
+	.regs[RAPL_DOMAIN_DRAM][RAPL_DOMAIN_REG_STATUS].msr	= MSR_DRAM_ENERGY_STATUS,
+	.regs[RAPL_DOMAIN_DRAM][RAPL_DOMAIN_REG_PERF].msr	= MSR_DRAM_PERF_STATUS,
+	.regs[RAPL_DOMAIN_DRAM][RAPL_DOMAIN_REG_INFO].msr	= MSR_DRAM_POWER_INFO,
+	.regs[RAPL_DOMAIN_PLATFORM][RAPL_DOMAIN_REG_LIMIT].msr	= MSR_PLATFORM_POWER_LIMIT,
+	.regs[RAPL_DOMAIN_PLATFORM][RAPL_DOMAIN_REG_STATUS].msr	= MSR_PLATFORM_ENERGY_STATUS,
 	.limits[RAPL_DOMAIN_PACKAGE] = BIT(POWER_LIMIT2),
 	.limits[RAPL_DOMAIN_PLATFORM] = BIT(POWER_LIMIT2),
 };
 
 static struct rapl_if_priv rapl_msr_priv_amd = {
 	.type = RAPL_IF_MSR,
-	.reg_unit = MSR_AMD_RAPL_POWER_UNIT,
-	.regs[RAPL_DOMAIN_PACKAGE] = {
-		0, MSR_AMD_PKG_ENERGY_STATUS, 0, 0, 0 },
-	.regs[RAPL_DOMAIN_PP0] = {
-		0, MSR_AMD_CORE_ENERGY_STATUS, 0, 0, 0 },
+	.reg_unit.msr = MSR_AMD_RAPL_POWER_UNIT,
+	.regs[RAPL_DOMAIN_PACKAGE][RAPL_DOMAIN_REG_STATUS].msr	= MSR_AMD_PKG_ENERGY_STATUS,
+	.regs[RAPL_DOMAIN_PP0][RAPL_DOMAIN_REG_STATUS].msr	= MSR_AMD_CORE_ENERGY_STATUS,
 };
 
 /* Handles CPU hotplug on multi-socket systems.
@@ -99,10 +103,8 @@ static int rapl_cpu_down_prep(unsigned int cpu)
 
 static int rapl_msr_read_raw(int cpu, struct reg_action *ra)
 {
-	u32 msr = (u32)ra->reg;
-
-	if (rdmsrl_safe_on_cpu(cpu, msr, &ra->value)) {
-		pr_debug("failed to read msr 0x%x on cpu %d\n", msr, cpu);
+	if (rdmsrl_safe_on_cpu(cpu, ra->reg.msr, &ra->value)) {
+		pr_debug("failed to read msr 0x%x on cpu %d\n", ra->reg.msr, cpu);
 		return -EIO;
 	}
 	ra->value &= ra->mask;
@@ -112,17 +114,16 @@ static int rapl_msr_read_raw(int cpu, struct reg_action *ra)
 static void rapl_msr_update_func(void *info)
 {
 	struct reg_action *ra = info;
-	u32 msr = (u32)ra->reg;
 	u64 val;
 
-	ra->err = rdmsrl_safe(msr, &val);
+	ra->err = rdmsrl_safe(ra->reg.msr, &val);
 	if (ra->err)
 		return;
 
 	val &= ~ra->mask;
 	val |= ra->value;
 
-	ra->err = wrmsrl_safe(msr, val);
+	ra->err = wrmsrl_safe(ra->reg.msr, val);
 }
 
 static int rapl_msr_write_raw(int cpu, struct reg_action *ra)
@@ -141,7 +142,7 @@ static const struct x86_cpu_id pl4_support_ids[] = {
 	X86_MATCH_INTEL_FAM6_MODEL(TIGERLAKE_L, NULL),
 	X86_MATCH_INTEL_FAM6_MODEL(ALDERLAKE, NULL),
 	X86_MATCH_INTEL_FAM6_MODEL(ALDERLAKE_L, NULL),
-	X86_MATCH_INTEL_FAM6_MODEL(ALDERLAKE_N, NULL),
+	X86_MATCH_INTEL_FAM6_MODEL(ATOM_GRACEMONT, NULL),
 	X86_MATCH_INTEL_FAM6_MODEL(RAPTORLAKE, NULL),
 	X86_MATCH_INTEL_FAM6_MODEL(RAPTORLAKE_P, NULL),
 	X86_MATCH_INTEL_FAM6_MODEL(METEORLAKE, NULL),
@@ -171,7 +172,7 @@ static int rapl_msr_probe(struct platform_device *pdev)
 
 	if (id) {
 		rapl_msr_priv->limits[RAPL_DOMAIN_PACKAGE] |= BIT(POWER_LIMIT4);
-		rapl_msr_priv->regs[RAPL_DOMAIN_PACKAGE][RAPL_DOMAIN_REG_PL4] =
+		rapl_msr_priv->regs[RAPL_DOMAIN_PACKAGE][RAPL_DOMAIN_REG_PL4].msr =
 			MSR_VR_CURRENT_CONFIG;
 		pr_info("PL4 support detected.\n");
 	}

@@ -10,6 +10,7 @@
 #include <linux/input.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
+#include <linux/pm_wakeirq.h>
 #include <linux/workqueue.h>
 #include <linux/regmap.h>
 #include <linux/of.h>
@@ -250,6 +251,14 @@ static int da9063_onkey_probe(struct platform_device *pdev)
 			"Failed to request IRQ %d: %d\n", irq, error);
 		return error;
 	}
+
+	error = dev_pm_set_wake_irq(&pdev->dev, irq);
+	if (error)
+		dev_warn(&pdev->dev,
+			 "Failed to set IRQ %d as a wake IRQ: %d\n",
+			 irq, error);
+	else
+		device_init_wakeup(&pdev->dev, true);
 
 	error = input_register_device(onkey->input);
 	if (error) {

@@ -37,7 +37,7 @@ static int smp_execute_task_sg(struct domain_device *dev,
 	int res, retry;
 	struct sas_task *task = NULL;
 	struct sas_internal *i =
-		to_sas_internal(dev->port->ha->core.shost->transportt);
+		to_sas_internal(dev->port->ha->shost->transportt);
 	struct sas_ha_struct *ha = dev->port->ha;
 
 	pm_runtime_get_sync(ha->dev);

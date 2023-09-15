@@ -43,7 +43,6 @@ struct ionic_rx_filter *ionic_rx_filter_by_addr(struct ionic_lif *lif, const u8 
 struct ionic_rx_filter *ionic_rx_filter_rxsteer(struct ionic_lif *lif);
 void ionic_rx_filter_sync(struct ionic_lif *lif);
 int ionic_lif_list_addr(struct ionic_lif *lif, const u8 *addr, bool mode);
-int ionic_rx_filters_need_sync(struct ionic_lif *lif);
 int ionic_lif_vlan_add(struct ionic_lif *lif, const u16 vid);
 int ionic_lif_vlan_del(struct ionic_lif *lif, const u16 vid);
 

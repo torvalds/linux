@@ -1,20 +1,18 @@
 [
     {
-        "ArchStdEvent": "CPU_CYCLES"
+        "ArchStdEvent": "BUS_ACCESS",
+        "PublicDescription": "Counts memory transactions issued by the CPU to the external bus, including snoop requests and snoop responses. Each beat of data is counted individually."
     },
     {
-        "ArchStdEvent": "BUS_ACCESS"
+        "ArchStdEvent": "BUS_CYCLES",
+        "PublicDescription": "Counts bus cycles in the CPU. Bus cycles represent a clock cycle in which a transaction could be sent or received on the interface from the CPU to the external bus. Since that interface is driven at the same clock speed as the CPU, this event is a duplicate of CPU_CYCLES."
     },
     {
-        "ArchStdEvent": "BUS_CYCLES"
+        "ArchStdEvent": "BUS_ACCESS_RD",
+        "PublicDescription": "Counts memory read transactions seen on the external bus. Each beat of data is counted individually."
     },
     {
-        "ArchStdEvent": "BUS_ACCESS_RD"
-    },
-    {
-        "ArchStdEvent": "BUS_ACCESS_WR"
-    },
-    {
-        "ArchStdEvent": "CNT_CYCLES"
+        "ArchStdEvent": "BUS_ACCESS_WR",
+        "PublicDescription": "Counts memory write transactions seen on the external bus. Each beat of data is counted individually."
     }
 ]

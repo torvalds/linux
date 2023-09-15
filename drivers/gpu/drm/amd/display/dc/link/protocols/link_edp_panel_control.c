@@ -34,8 +34,12 @@
 #include "dm_helpers.h"
 #include "dal_asic_id.h"
 #include "dce/dmub_psr.h"
+#include "dc/dc_dmub_srv.h"
+#include "dce/dmub_replay.h"
 #include "abm.h"
 #define DC_LOGGER_INIT(logger)
+
+#define DP_SINK_PR_ENABLE_AND_CONFIGURATION		0x37B
 
 /* Travis */
 static const uint8_t DP_VGA_LVDS_CONVERTER_ID_2[] = "sivarT";
@@ -823,6 +827,167 @@ bool edp_set_sink_vtotal_in_psr_active(const struct dc_link *link, uint16_t psr_
 		return false;
 
 	psr->funcs->psr_set_sink_vtotal_in_psr_active(psr, psr_vtotal_idle, psr_vtotal_su);
+
+	return true;
+}
+
+bool edp_set_replay_allow_active(struct dc_link *link, const bool *allow_active,
+	bool wait, bool force_static, const unsigned int *power_opts)
+{
+	struct dc  *dc = link->ctx->dc;
+	struct dmub_replay *replay = dc->res_pool->replay;
+	unsigned int panel_inst;
+
+	if (replay == NULL && force_static)
+		return false;
+
+	if (!dc_get_edp_link_panel_inst(dc, link, &panel_inst))
+		return false;
+
+	/* Set power optimization flag */
+	if (power_opts && link->replay_settings.replay_power_opt_active != *power_opts) {
+		if (link->replay_settings.replay_feature_enabled && replay->funcs->replay_set_power_opt) {
+			replay->funcs->replay_set_power_opt(replay, *power_opts, panel_inst);
+			link->replay_settings.replay_power_opt_active = *power_opts;
+		}
+	}
+
+	/* Activate or deactivate Replay */
+	if (allow_active && link->replay_settings.replay_allow_active != *allow_active) {
+		// TODO: Handle mux change case if force_static is set
+		// If force_static is set, just change the replay_allow_active state directly
+		if (replay != NULL && link->replay_settings.replay_feature_enabled)
+			replay->funcs->replay_enable(replay, *allow_active, wait, panel_inst);
+		link->replay_settings.replay_allow_active = *allow_active;
+	}
+
+	return true;
+}
+
+bool edp_get_replay_state(const struct dc_link *link, uint64_t *state)
+{
+	struct dc  *dc = link->ctx->dc;
+	struct dmub_replay *replay = dc->res_pool->replay;
+	unsigned int panel_inst;
+	enum replay_state pr_state = REPLAY_STATE_0;
+
+	if (!dc_get_edp_link_panel_inst(dc, link, &panel_inst))
+		return false;
+
+	if (replay != NULL && link->replay_settings.replay_feature_enabled)
+		replay->funcs->replay_get_state(replay, &pr_state, panel_inst);
+	*state = pr_state;
+
+	return true;
+}
+
+bool edp_setup_replay(struct dc_link *link, const struct dc_stream_state *stream)
+{
+	/* To-do: Setup Replay */
+	struct dc *dc = link->ctx->dc;
+	struct dmub_replay *replay = dc->res_pool->replay;
+	int i;
+	unsigned int panel_inst;
+	struct replay_context replay_context = { 0 };
+	unsigned int lineTimeInNs = 0;
+
+
+	union replay_enable_and_configuration replay_config;
+
+	union dpcd_alpm_configuration alpm_config;
+
+	replay_context.controllerId = CONTROLLER_ID_UNDEFINED;
+
+	if (!link)
+		return false;
+
+	if (!replay)
+		return false;
+
+	if (!dc_get_edp_link_panel_inst(dc, link, &panel_inst))
+		return false;
+
+	replay_context.aux_inst = link->ddc->ddc_pin->hw_info.ddc_channel;
+	replay_context.digbe_inst = link->link_enc->transmitter;
+	replay_context.digfe_inst = link->link_enc->preferred_engine;
+
+	for (i = 0; i < MAX_PIPES; i++) {
+		if (dc->current_state->res_ctx.pipe_ctx[i].stream
+				== stream) {
+			/* dmcu -1 for all controller id values,
+			 * therefore +1 here
+			 */
+			replay_context.controllerId =
+				dc->current_state->res_ctx.pipe_ctx[i].stream_res.tg->inst + 1;
+			break;
+		}
+	}
+
+	lineTimeInNs =
+		((stream->timing.h_total * 1000000) /
+			(stream->timing.pix_clk_100hz / 10)) + 1;
+
+	replay_context.line_time_in_ns = lineTimeInNs;
+
+	if (replay)
+		link->replay_settings.replay_feature_enabled =
+			replay->funcs->replay_copy_settings(replay, link, &replay_context, panel_inst);
+	if (link->replay_settings.replay_feature_enabled) {
+
+		replay_config.bits.FREESYNC_PANEL_REPLAY_MODE = 1;
+		replay_config.bits.TIMING_DESYNC_ERROR_VERIFICATION =
+			link->replay_settings.config.replay_timing_sync_supported;
+		replay_config.bits.STATE_TRANSITION_ERROR_DETECTION = 1;
+		dm_helpers_dp_write_dpcd(link->ctx, link,
+			DP_SINK_PR_ENABLE_AND_CONFIGURATION,
+			(uint8_t *)&(replay_config.raw), sizeof(uint8_t));
+
+		memset(&alpm_config, 0, sizeof(alpm_config));
+		alpm_config.bits.ENABLE = 1;
+		dm_helpers_dp_write_dpcd(
+			link->ctx,
+			link,
+			DP_RECEIVER_ALPM_CONFIG,
+			&alpm_config.raw,
+			sizeof(alpm_config.raw));
+	}
+	return true;
+}
+
+bool edp_set_coasting_vtotal(struct dc_link *link, uint16_t coasting_vtotal)
+{
+	struct dc *dc = link->ctx->dc;
+	struct dmub_replay *replay = dc->res_pool->replay;
+	unsigned int panel_inst;
+
+	if (!replay)
+		return false;
+
+	if (!dc_get_edp_link_panel_inst(dc, link, &panel_inst))
+		return false;
+
+	if (coasting_vtotal && link->replay_settings.coasting_vtotal != coasting_vtotal) {
+		replay->funcs->replay_set_coasting_vtotal(replay, coasting_vtotal, panel_inst);
+		link->replay_settings.coasting_vtotal = coasting_vtotal;
+	}
+
+	return true;
+}
+
+bool edp_replay_residency(const struct dc_link *link,
+	unsigned int *residency, const bool is_start, const bool is_alpm)
+{
+	struct dc  *dc = link->ctx->dc;
+	struct dmub_replay *replay = dc->res_pool->replay;
+	unsigned int panel_inst;
+
+	if (!dc_get_edp_link_panel_inst(dc, link, &panel_inst))
+		return false;
+
+	if (replay != NULL && link->replay_settings.replay_feature_enabled)
+		replay->funcs->replay_residency(replay, panel_inst, residency, is_start, is_alpm);
+	else
+		*residency = 0;
 
 	return true;
 }

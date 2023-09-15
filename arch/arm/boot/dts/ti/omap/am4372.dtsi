@@ -70,32 +70,37 @@
 		compatible = "operating-points-v2-ti-cpu";
 		syscon = <&scm_conf>;
 
-		opp50-300000000 {
+		opp-50-300000000 {
+			/* OPP50 */
 			opp-hz = /bits/ 64 <300000000>;
 			opp-microvolt = <950000 931000 969000>;
 			opp-supported-hw = <0xFF 0x01>;
 			opp-suspend;
 		};
 
-		opp100-600000000 {
+		opp-100-600000000 {
+			/* OPP100 */
 			opp-hz = /bits/ 64 <600000000>;
 			opp-microvolt = <1100000 1078000 1122000>;
 			opp-supported-hw = <0xFF 0x04>;
 		};
 
-		opp120-720000000 {
+		opp-120-720000000 {
+			/* OPP120 */
 			opp-hz = /bits/ 64 <720000000>;
 			opp-microvolt = <1200000 1176000 1224000>;
 			opp-supported-hw = <0xFF 0x08>;
 		};
 
-		oppturbo-800000000 {
+		opp-800000000{
+			/* OPP Turbo */
 			opp-hz = /bits/ 64 <800000000>;
 			opp-microvolt = <1260000 1234800 1285200>;
 			opp-supported-hw = <0xFF 0x10>;
 		};
 
-		oppnitro-1000000000 {
+		opp-1000000000 {
+			/* OPP Nitro */
 			opp-hz = /bits/ 64 <1000000000>;
 			opp-microvolt = <1325000 1298500 1351500>;
 			opp-supported-hw = <0xFF 0x20>;

@@ -139,3 +139,10 @@ unsigned int dcn32_smu_set_hard_min_by_freq(struct clk_mgr_internal *clk_mgr, ui
 
 	return response;
 }
+
+void dcn32_smu_wait_for_dmub_ack_mclk(struct clk_mgr_internal *clk_mgr, bool enable)
+{
+	smu_print("PMFW to wait for DMCUB ack for MCLK : %d\n", enable);
+
+	dcn32_smu_send_msg_with_param(clk_mgr, 0x14, enable ? 1 : 0, NULL);
+}

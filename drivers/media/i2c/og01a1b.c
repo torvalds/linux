@@ -1121,6 +1121,6 @@ static struct i2c_driver og01a1b_i2c_driver = {
 
 module_i2c_driver(og01a1b_i2c_driver);
 
-MODULE_AUTHOR("Shawn Tu <shawnx.tu@intel.com>");
+MODULE_AUTHOR("Shawn Tu");
 MODULE_DESCRIPTION("OmniVision OG01A1B sensor driver");
 MODULE_LICENSE("GPL v2");

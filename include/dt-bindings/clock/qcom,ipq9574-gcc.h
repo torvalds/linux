@@ -214,4 +214,6 @@
 #define GCC_CRYPTO_CLK					205
 #define GCC_CRYPTO_AXI_CLK				206
 #define GCC_CRYPTO_AHB_CLK				207
+#define GCC_USB0_PIPE_CLK				208
+#define GCC_USB0_SLEEP_CLK				209
 #endif

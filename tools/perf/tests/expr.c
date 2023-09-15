@@ -70,7 +70,7 @@ static int test__expr(struct test_suite *t __maybe_unused, int subtest __maybe_u
 {
 	struct expr_id_data *val_ptr;
 	const char *p;
-	double val, num_cpus, num_cores, num_dies, num_packages;
+	double val, num_cpus_online, num_cpus, num_cores, num_dies, num_packages;
 	int ret;
 	struct expr_parse_ctx *ctx;
 	bool is_intel = false;
@@ -227,7 +227,10 @@ static int test__expr(struct test_suite *t __maybe_unused, int subtest __maybe_u
 
 	/* Test toplogy constants appear well ordered. */
 	expr__ctx_clear(ctx);
+	TEST_ASSERT_VAL("#num_cpus_online",
+			expr__parse(&num_cpus_online, ctx, "#num_cpus_online") == 0);
 	TEST_ASSERT_VAL("#num_cpus", expr__parse(&num_cpus, ctx, "#num_cpus") == 0);
+	TEST_ASSERT_VAL("#num_cpus >= #num_cpus_online", num_cpus >= num_cpus_online);
 	TEST_ASSERT_VAL("#num_cores", expr__parse(&num_cores, ctx, "#num_cores") == 0);
 	TEST_ASSERT_VAL("#num_cpus >= #num_cores", num_cpus >= num_cores);
 	TEST_ASSERT_VAL("#num_dies", expr__parse(&num_dies, ctx, "#num_dies") == 0);

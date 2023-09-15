@@ -77,6 +77,10 @@ mlx5_esw_bridge_rep_vport_num_vhca_id_get(struct net_device *dev, struct mlx5_es
 		return NULL;
 
 	priv = netdev_priv(dev);
+
+	if (!priv->mdev->priv.eswitch->br_offloads)
+		return NULL;
+
 	rpriv = priv->ppriv;
 	*vport_num = rpriv->rep->vport;
 	*esw_owner_vhca_id = MLX5_CAP_GEN(priv->mdev, vhca_id);

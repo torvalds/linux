@@ -5,6 +5,7 @@
 
 #define pr_fmt(fmt)		KBUILD_MODNAME ": " fmt
 
+#include <linux/delay.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/libps2.h>
@@ -118,13 +119,18 @@ static psmouse_ret_t psmouse_smbus_process_byte(struct psmouse *psmouse)
 	return PSMOUSE_FULL_PACKET;
 }
 
+static void psmouse_activate_smbus_mode(struct psmouse_smbus_dev *smbdev)
+{
+	if (smbdev->need_deactivate) {
+		psmouse_deactivate(smbdev->psmouse);
+		/* Give the device time to switch into SMBus mode */
+		msleep(30);
+	}
+}
+
 static int psmouse_smbus_reconnect(struct psmouse *psmouse)
 {
-	struct psmouse_smbus_dev *smbdev = psmouse->private;
-
-	if (smbdev->need_deactivate)
-		psmouse_deactivate(psmouse);
-
+	psmouse_activate_smbus_mode(psmouse->private);
 	return 0;
 }
 
@@ -257,8 +263,7 @@ int psmouse_smbus_init(struct psmouse *psmouse,
 		}
 	}
 
-	if (need_deactivate)
-		psmouse_deactivate(psmouse);
+	psmouse_activate_smbus_mode(smbdev);
 
 	psmouse->private = smbdev;
 	psmouse->protocol_handler = psmouse_smbus_process_byte;

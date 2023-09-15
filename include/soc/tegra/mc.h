@@ -175,6 +175,9 @@ struct tegra_mc_icc_ops {
 	int (*get_bw)(struct icc_node *node, u32 *avg, u32 *peak);
 };
 
+struct icc_node *tegra_mc_icc_xlate(struct of_phandle_args *spec, void *data);
+extern const struct tegra_mc_icc_ops tegra_mc_icc_ops;
+
 struct tegra_mc_ops {
 	/*
 	 * @probe: Callback to set up SoC-specific bits of the memory controller. This is called

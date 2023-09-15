@@ -22,7 +22,7 @@ Description:
 		Long Life:
 			Customized charge rate for last longer battery life.
 			On Wilco device this mode is pre-configured in the factory
-			through EC's private PID. Swiching to a different mode will
+			through EC's private PID. Switching to a different mode will
 			be denied by Wilco EC when Long Life mode is enabled.
 
 What:		/sys/class/power_supply/wilco-charger/charge_control_start_threshold

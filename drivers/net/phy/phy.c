@@ -456,6 +456,40 @@ int phy_do_ioctl_running(struct net_device *dev, struct ifreq *ifr, int cmd)
 EXPORT_SYMBOL(phy_do_ioctl_running);
 
 /**
+ * __phy_hwtstamp_get - Get hardware timestamping configuration from PHY
+ *
+ * @phydev: the PHY device structure
+ * @config: structure holding the timestamping configuration
+ *
+ * Query the PHY device for its current hardware timestamping configuration.
+ */
+int __phy_hwtstamp_get(struct phy_device *phydev,
+		       struct kernel_hwtstamp_config *config)
+{
+	if (!phydev)
+		return -ENODEV;
+
+	return phy_mii_ioctl(phydev, config->ifr, SIOCGHWTSTAMP);
+}
+
+/**
+ * __phy_hwtstamp_set - Modify PHY hardware timestamping configuration
+ *
+ * @phydev: the PHY device structure
+ * @config: structure holding the timestamping configuration
+ * @extack: netlink extended ack structure, for error reporting
+ */
+int __phy_hwtstamp_set(struct phy_device *phydev,
+		       struct kernel_hwtstamp_config *config,
+		       struct netlink_ext_ack *extack)
+{
+	if (!phydev)
+		return -ENODEV;
+
+	return phy_mii_ioctl(phydev, config->ifr, SIOCSHWTSTAMP);
+}
+
+/**
  * phy_queue_state_machine - Trigger the state machine to run soon
  *
  * @phydev: the phy_device struct
@@ -1184,9 +1218,11 @@ void phy_stop_machine(struct phy_device *phydev)
 
 static void phy_process_error(struct phy_device *phydev)
 {
-	mutex_lock(&phydev->lock);
+	/* phydev->lock must be held for the state change to be safe */
+	if (!mutex_is_locked(&phydev->lock))
+		phydev_err(phydev, "PHY-device data unsafe context\n");
+
 	phydev->state = PHY_ERROR;
-	mutex_unlock(&phydev->lock);
 
 	phy_trigger_machine(phydev);
 }
@@ -1195,7 +1231,9 @@ static void phy_error_precise(struct phy_device *phydev,
 			      const void *func, int err)
 {
 	WARN(1, "%pS: returned: %d\n", func, err);
+	mutex_lock(&phydev->lock);
 	phy_process_error(phydev);
+	mutex_unlock(&phydev->lock);
 }
 
 /**
@@ -1204,8 +1242,7 @@ static void phy_error_precise(struct phy_device *phydev,
  *
  * Moves the PHY to the ERROR state in response to a read
  * or write error, and tells the controller the link is down.
- * Must not be called from interrupt context, or while the
- * phydev->lock is held.
+ * Must be called with phydev->lock held.
  */
 void phy_error(struct phy_device *phydev)
 {

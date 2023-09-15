@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /*
- * Copyright IBM Corp. 2006, 2019
+ * Copyright IBM Corp. 2006, 2023
  * Author(s): Cornelia Huck <cornelia.huck@de.ibm.com>
  *	      Martin Schwidefsky <schwidefsky@de.ibm.com>
  *	      Ralph Wuerthner <rwuerthn@de.ibm.com>
@@ -67,15 +67,8 @@ static inline int ap_test_bit(unsigned int *ptr, unsigned int nr)
 #define AP_RESPONSE_INVALID_DOMAIN	     0x42
 
 /*
- * Known device types
+ * Supported AP device types
  */
-#define AP_DEVICE_TYPE_PCICC	3
-#define AP_DEVICE_TYPE_PCICA	4
-#define AP_DEVICE_TYPE_PCIXCC	5
-#define AP_DEVICE_TYPE_CEX2A	6
-#define AP_DEVICE_TYPE_CEX2C	7
-#define AP_DEVICE_TYPE_CEX3A	8
-#define AP_DEVICE_TYPE_CEX3C	9
 #define AP_DEVICE_TYPE_CEX4	10
 #define AP_DEVICE_TYPE_CEX5	11
 #define AP_DEVICE_TYPE_CEX6	12
@@ -272,14 +265,6 @@ static inline void ap_release_message(struct ap_message *ap_msg)
 	kfree_sensitive(ap_msg->private);
 }
 
-/*
- * Note: don't use ap_send/ap_recv after using ap_queue_message
- * for the first time. Otherwise the ap message queue will get
- * confused.
- */
-int ap_send(ap_qid_t qid, unsigned long psmid, void *msg, size_t msglen);
-int ap_recv(ap_qid_t qid, unsigned long *psmid, void *msg, size_t msglen);
-
 enum ap_sm_wait ap_sm_event(struct ap_queue *aq, enum ap_sm_event event);
 enum ap_sm_wait ap_sm_event_loop(struct ap_queue *aq, enum ap_sm_event event);
 
@@ -289,6 +274,7 @@ void ap_flush_queue(struct ap_queue *aq);
 
 void *ap_airq_ptr(void);
 int ap_sb_available(void);
+bool ap_is_se_guest(void);
 void ap_wait(enum ap_sm_wait wait);
 void ap_request_timeout(struct timer_list *t);
 void ap_bus_force_rescan(void);

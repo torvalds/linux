@@ -87,6 +87,17 @@ const char *const bpf_alu_string[16] = {
 	[BPF_END >> 4]  = "endian",
 };
 
+static const char *const bpf_alu_sign_string[16] = {
+	[BPF_DIV >> 4]  = "s/=",
+	[BPF_MOD >> 4]  = "s%=",
+};
+
+static const char *const bpf_movsx_string[4] = {
+	[0] = "(s8)",
+	[1] = "(s16)",
+	[3] = "(s32)",
+};
+
 static const char *const bpf_atomic_alu_string[16] = {
 	[BPF_ADD >> 4]  = "add",
 	[BPF_AND >> 4]  = "and",
@@ -99,6 +110,12 @@ static const char *const bpf_ldst_string[] = {
 	[BPF_H >> 3]  = "u16",
 	[BPF_B >> 3]  = "u8",
 	[BPF_DW >> 3] = "u64",
+};
+
+static const char *const bpf_ldsx_string[] = {
+	[BPF_W >> 3]  = "s32",
+	[BPF_H >> 3]  = "s16",
+	[BPF_B >> 3]  = "s8",
 };
 
 static const char *const bpf_jmp_string[16] = {
@@ -128,6 +145,27 @@ static void print_bpf_end_insn(bpf_insn_print_t verbose,
 		insn->imm, insn->dst_reg);
 }
 
+static void print_bpf_bswap_insn(bpf_insn_print_t verbose,
+			       void *private_data,
+			       const struct bpf_insn *insn)
+{
+	verbose(private_data, "(%02x) r%d = bswap%d r%d\n",
+		insn->code, insn->dst_reg,
+		insn->imm, insn->dst_reg);
+}
+
+static bool is_sdiv_smod(const struct bpf_insn *insn)
+{
+	return (BPF_OP(insn->code)  == BPF_DIV || BPF_OP(insn->code) == BPF_MOD) &&
+	       insn->off == 1;
+}
+
+static bool is_movsx(const struct bpf_insn *insn)
+{
+	return BPF_OP(insn->code) == BPF_MOV &&
+	       (insn->off == 8 || insn->off == 16 || insn->off == 32);
+}
+
 void print_bpf_insn(const struct bpf_insn_cbs *cbs,
 		    const struct bpf_insn *insn,
 		    bool allow_ptr_leaks)
@@ -138,7 +176,7 @@ void print_bpf_insn(const struct bpf_insn_cbs *cbs,
 	if (class == BPF_ALU || class == BPF_ALU64) {
 		if (BPF_OP(insn->code) == BPF_END) {
 			if (class == BPF_ALU64)
-				verbose(cbs->private_data, "BUG_alu64_%02x\n", insn->code);
+				print_bpf_bswap_insn(verbose, cbs->private_data, insn);
 			else
 				print_bpf_end_insn(verbose, cbs->private_data, insn);
 		} else if (BPF_OP(insn->code) == BPF_NEG) {
@@ -147,17 +185,20 @@ void print_bpf_insn(const struct bpf_insn_cbs *cbs,
 				insn->dst_reg, class == BPF_ALU ? 'w' : 'r',
 				insn->dst_reg);
 		} else if (BPF_SRC(insn->code) == BPF_X) {
-			verbose(cbs->private_data, "(%02x) %c%d %s %c%d\n",
+			verbose(cbs->private_data, "(%02x) %c%d %s %s%c%d\n",
 				insn->code, class == BPF_ALU ? 'w' : 'r',
 				insn->dst_reg,
-				bpf_alu_string[BPF_OP(insn->code) >> 4],
+				is_sdiv_smod(insn) ? bpf_alu_sign_string[BPF_OP(insn->code) >> 4]
+						   : bpf_alu_string[BPF_OP(insn->code) >> 4],
+				is_movsx(insn) ? bpf_movsx_string[(insn->off >> 3) - 1] : "",
 				class == BPF_ALU ? 'w' : 'r',
 				insn->src_reg);
 		} else {
 			verbose(cbs->private_data, "(%02x) %c%d %s %d\n",
 				insn->code, class == BPF_ALU ? 'w' : 'r',
 				insn->dst_reg,
-				bpf_alu_string[BPF_OP(insn->code) >> 4],
+				is_sdiv_smod(insn) ? bpf_alu_sign_string[BPF_OP(insn->code) >> 4]
+						   : bpf_alu_string[BPF_OP(insn->code) >> 4],
 				insn->imm);
 		}
 	} else if (class == BPF_STX) {
@@ -218,13 +259,15 @@ void print_bpf_insn(const struct bpf_insn_cbs *cbs,
 			verbose(cbs->private_data, "BUG_st_%02x\n", insn->code);
 		}
 	} else if (class == BPF_LDX) {
-		if (BPF_MODE(insn->code) != BPF_MEM) {
+		if (BPF_MODE(insn->code) != BPF_MEM && BPF_MODE(insn->code) != BPF_MEMSX) {
 			verbose(cbs->private_data, "BUG_ldx_%02x\n", insn->code);
 			return;
 		}
 		verbose(cbs->private_data, "(%02x) r%d = *(%s *)(r%d %+d)\n",
 			insn->code, insn->dst_reg,
-			bpf_ldst_string[BPF_SIZE(insn->code) >> 3],
+			BPF_MODE(insn->code) == BPF_MEM ?
+				 bpf_ldst_string[BPF_SIZE(insn->code) >> 3] :
+				 bpf_ldsx_string[BPF_SIZE(insn->code) >> 3],
 			insn->src_reg, insn->off);
 	} else if (class == BPF_LD) {
 		if (BPF_MODE(insn->code) == BPF_ABS) {
@@ -279,6 +322,9 @@ void print_bpf_insn(const struct bpf_insn_cbs *cbs,
 		} else if (insn->code == (BPF_JMP | BPF_JA)) {
 			verbose(cbs->private_data, "(%02x) goto pc%+d\n",
 				insn->code, insn->off);
+		} else if (insn->code == (BPF_JMP32 | BPF_JA)) {
+			verbose(cbs->private_data, "(%02x) gotol pc%+d\n",
+				insn->code, insn->imm);
 		} else if (insn->code == (BPF_JMP | BPF_EXIT)) {
 			verbose(cbs->private_data, "(%02x) exit\n", insn->code);
 		} else if (BPF_SRC(insn->code) == BPF_X) {

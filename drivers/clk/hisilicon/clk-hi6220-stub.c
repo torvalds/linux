@@ -14,7 +14,7 @@
 #include <linux/mfd/syscon.h>
 #include <linux/mailbox_client.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
+#include <linux/platform_device.h>
 #include <linux/regmap.h>
 
 /* Stub clocks id */

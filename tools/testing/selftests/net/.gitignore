@@ -15,6 +15,7 @@ ip_local_port_range
 ipsec
 ipv6_flowlabel
 ipv6_flowlabel_mgr
+log.txt
 msg_zerocopy
 nettest
 psock_fanout
@@ -45,6 +46,7 @@ test_unix_oob
 timestamping
 tls
 toeplitz
+tools
 tun
 txring_overwrite
 txtimestamp

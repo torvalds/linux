@@ -157,12 +157,10 @@ conn_subsys: bus@5b000000 {
 
 		usbotg3_cdns3: usb@5b120000 {
 			compatible = "cdns,usb3";
-			reg = <0x5b130000 0x10000>,     /* memory area for HOST registers */
-			      <0x5b140000 0x10000>,   /* memory area for DEVICE registers */
-			      <0x5b120000 0x10000>;   /* memory area for OTG/DRD registers */
-			reg-names = "xhci", "dev", "otg";
-			#address-cells = <1>;
-			#size-cells = <1>;
+			reg = <0x5b120000 0x10000>,   /* memory area for OTG/DRD registers */
+			      <0x5b130000 0x10000>,   /* memory area for HOST registers */
+			      <0x5b140000 0x10000>;   /* memory area for DEVICE registers */
+			reg-names = "otg", "xhci", "dev";
 			interrupt-parent = <&gic>;
 			interrupts = <GIC_SPI 271 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 271 IRQ_TYPE_LEVEL_HIGH>,

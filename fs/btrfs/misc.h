@@ -8,8 +8,6 @@
 #include <linux/math64.h>
 #include <linux/rbtree.h>
 
-#define in_range(b, first, len) ((b) >= (first) && (b) < (first) + (len))
-
 /*
  * Enumerate bits using enum autoincrement. Define the @name as the n-th bit.
  */

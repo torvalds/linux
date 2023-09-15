@@ -44,6 +44,7 @@ struct perf_pmu_test_pmu {
 
 static const struct perf_pmu_test_event bp_l1_btb_correct = {
 	.event = {
+		.pmu = "default_core",
 		.name = "bp_l1_btb_correct",
 		.event = "event=0x8a",
 		.desc = "L1 BTB Correction",
@@ -55,6 +56,7 @@ static const struct perf_pmu_test_event bp_l1_btb_correct = {
 
 static const struct perf_pmu_test_event bp_l2_btb_correct = {
 	.event = {
+		.pmu = "default_core",
 		.name = "bp_l2_btb_correct",
 		.event = "event=0x8b",
 		.desc = "L2 BTB Correction",
@@ -66,6 +68,7 @@ static const struct perf_pmu_test_event bp_l2_btb_correct = {
 
 static const struct perf_pmu_test_event segment_reg_loads_any = {
 	.event = {
+		.pmu = "default_core",
 		.name = "segment_reg_loads.any",
 		.event = "event=0x6,period=200000,umask=0x80",
 		.desc = "Number of segment register loads",
@@ -77,6 +80,7 @@ static const struct perf_pmu_test_event segment_reg_loads_any = {
 
 static const struct perf_pmu_test_event dispatch_blocked_any = {
 	.event = {
+		.pmu = "default_core",
 		.name = "dispatch_blocked.any",
 		.event = "event=0x9,period=200000,umask=0x20",
 		.desc = "Memory cluster signals to block micro-op dispatch for any reason",
@@ -88,6 +92,7 @@ static const struct perf_pmu_test_event dispatch_blocked_any = {
 
 static const struct perf_pmu_test_event eist_trans = {
 	.event = {
+		.pmu = "default_core",
 		.name = "eist_trans",
 		.event = "event=0x3a,period=200000,umask=0x0",
 		.desc = "Number of Enhanced Intel SpeedStep(R) Technology (EIST) transitions",
@@ -99,6 +104,7 @@ static const struct perf_pmu_test_event eist_trans = {
 
 static const struct perf_pmu_test_event l3_cache_rd = {
 	.event = {
+		.pmu = "default_core",
 		.name = "l3_cache_rd",
 		.event = "event=0x40",
 		.desc = "L3 cache access, read",
@@ -123,7 +129,7 @@ static const struct perf_pmu_test_event uncore_hisi_ddrc_flux_wcmd = {
 	.event = {
 		.name = "uncore_hisi_ddrc.flux_wcmd",
 		.event = "event=0x2",
-		.desc = "DDRC write commands. Unit: hisi_sccl,ddrc ",
+		.desc = "DDRC write commands",
 		.topic = "uncore",
 		.long_desc = "DDRC write commands",
 		.pmu = "hisi_sccl,ddrc",
@@ -137,7 +143,7 @@ static const struct perf_pmu_test_event unc_cbo_xsnp_response_miss_eviction = {
 	.event = {
 		.name = "unc_cbo_xsnp_response.miss_eviction",
 		.event = "event=0x22,umask=0x81",
-		.desc = "A cross-core snoop resulted from L3 Eviction which misses in some processor core. Unit: uncore_cbox ",
+		.desc = "A cross-core snoop resulted from L3 Eviction which misses in some processor core",
 		.topic = "uncore",
 		.long_desc = "A cross-core snoop resulted from L3 Eviction which misses in some processor core",
 		.pmu = "uncore_cbox",
@@ -151,7 +157,7 @@ static const struct perf_pmu_test_event uncore_hyphen = {
 	.event = {
 		.name = "event-hyphen",
 		.event = "event=0xe0,umask=0x00",
-		.desc = "UNC_CBO_HYPHEN. Unit: uncore_cbox ",
+		.desc = "UNC_CBO_HYPHEN",
 		.topic = "uncore",
 		.long_desc = "UNC_CBO_HYPHEN",
 		.pmu = "uncore_cbox",
@@ -165,7 +171,7 @@ static const struct perf_pmu_test_event uncore_two_hyph = {
 	.event = {
 		.name = "event-two-hyph",
 		.event = "event=0xc0,umask=0x00",
-		.desc = "UNC_CBO_TWO_HYPH. Unit: uncore_cbox ",
+		.desc = "UNC_CBO_TWO_HYPH",
 		.topic = "uncore",
 		.long_desc = "UNC_CBO_TWO_HYPH",
 		.pmu = "uncore_cbox",
@@ -179,7 +185,7 @@ static const struct perf_pmu_test_event uncore_hisi_l3c_rd_hit_cpipe = {
 	.event = {
 		.name = "uncore_hisi_l3c.rd_hit_cpipe",
 		.event = "event=0x7",
-		.desc = "Total read hits. Unit: hisi_sccl,l3c ",
+		.desc = "Total read hits",
 		.topic = "uncore",
 		.long_desc = "Total read hits",
 		.pmu = "hisi_sccl,l3c",
@@ -193,7 +199,7 @@ static const struct perf_pmu_test_event uncore_imc_free_running_cache_miss = {
 	.event = {
 		.name = "uncore_imc_free_running.cache_miss",
 		.event = "event=0x12",
-		.desc = "Total cache misses. Unit: uncore_imc_free_running ",
+		.desc = "Total cache misses",
 		.topic = "uncore",
 		.long_desc = "Total cache misses",
 		.pmu = "uncore_imc_free_running",
@@ -207,7 +213,7 @@ static const struct perf_pmu_test_event uncore_imc_cache_hits = {
 	.event = {
 		.name = "uncore_imc.cache_hits",
 		.event = "event=0x34",
-		.desc = "Total cache hits. Unit: uncore_imc ",
+		.desc = "Total cache hits",
 		.topic = "uncore",
 		.long_desc = "Total cache hits",
 		.pmu = "uncore_imc",
@@ -232,13 +238,13 @@ static const struct perf_pmu_test_event sys_ddr_pmu_write_cycles = {
 	.event = {
 		.name = "sys_ddr_pmu.write_cycles",
 		.event = "event=0x2b",
-		.desc = "ddr write-cycles event. Unit: uncore_sys_ddr_pmu ",
+		.desc = "ddr write-cycles event",
 		.topic = "uncore",
 		.pmu = "uncore_sys_ddr_pmu",
 		.compat = "v8",
 	},
 	.alias_str = "event=0x2b",
-	.alias_long_desc = "ddr write-cycles event. Unit: uncore_sys_ddr_pmu ",
+	.alias_long_desc = "ddr write-cycles event",
 	.matching_pmu = "uncore_sys_ddr_pmu",
 };
 
@@ -246,13 +252,13 @@ static const struct perf_pmu_test_event sys_ccn_pmu_read_cycles = {
 	.event = {
 		.name = "sys_ccn_pmu.read_cycles",
 		.event = "config=0x2c",
-		.desc = "ccn read-cycles event. Unit: uncore_sys_ccn_pmu ",
+		.desc = "ccn read-cycles event",
 		.topic = "uncore",
 		.pmu = "uncore_sys_ccn_pmu",
 		.compat = "0x01",
 	},
 	.alias_str = "config=0x2c",
-	.alias_long_desc = "ccn read-cycles event. Unit: uncore_sys_ccn_pmu ",
+	.alias_long_desc = "ccn read-cycles event",
 	.matching_pmu = "uncore_sys_ccn_pmu",
 };
 
@@ -341,7 +347,7 @@ static int compare_pmu_events(const struct pmu_event *e1, const struct pmu_event
 	return 0;
 }
 
-static int compare_alias_to_test_event(struct perf_pmu_alias *alias,
+static int compare_alias_to_test_event(struct pmu_event_info *alias,
 				struct perf_pmu_test_event const *test_event,
 				char const *pmu_name)
 {
@@ -385,8 +391,8 @@ static int compare_alias_to_test_event(struct perf_pmu_alias *alias,
 		return -1;
 	}
 
-
-	if (!is_same(alias->pmu_name, test_event->event.pmu)) {
+	if (!is_same(alias->pmu_name, test_event->event.pmu) &&
+	    !is_same(alias->pmu_name, "default_core")) {
 		pr_debug("testing aliases PMU %s: mismatched pmu_name, %s vs %s\n",
 			  pmu_name, alias->pmu_name, test_event->event.pmu);
 		return -1;
@@ -403,7 +409,7 @@ static int test__pmu_event_table_core_callback(const struct pmu_event *pe,
 	struct perf_pmu_test_event const **test_event_table;
 	bool found = false;
 
-	if (pe->pmu)
+	if (strcmp(pe->pmu, "default_core"))
 		test_event_table = &uncore_events[0];
 	else
 		test_event_table = &core_events[0];
@@ -477,12 +483,14 @@ static int test__pmu_event_table(struct test_suite *test __maybe_unused,
 	if (!table || !sys_event_table)
 		return -1;
 
-	err = pmu_events_table_for_each_event(table, test__pmu_event_table_core_callback,
+	err = pmu_events_table__for_each_event(table, /*pmu=*/ NULL,
+					      test__pmu_event_table_core_callback,
 					      &map_events);
 	if (err)
 		return err;
 
-	err = pmu_events_table_for_each_event(sys_event_table, test__pmu_event_table_sys_callback,
+	err = pmu_events_table__for_each_event(sys_event_table, /*pmu=*/ NULL,
+					      test__pmu_event_table_sys_callback,
 					      &map_events);
 	if (err)
 		return err;
@@ -496,26 +504,30 @@ static int test__pmu_event_table(struct test_suite *test __maybe_unused,
 	return 0;
 }
 
-static struct perf_pmu_alias *find_alias(const char *test_event, struct list_head *aliases)
+struct test_core_pmu_event_aliases_cb_args {
+	struct perf_pmu_test_event const *test_event;
+	int *count;
+};
+
+static int test_core_pmu_event_aliases_cb(void *state, struct pmu_event_info *alias)
 {
-	struct perf_pmu_alias *alias;
+	struct test_core_pmu_event_aliases_cb_args *args = state;
 
-	list_for_each_entry(alias, aliases, list)
-		if (!strcmp(test_event, alias->name))
-			return alias;
-
-	return NULL;
+	if (compare_alias_to_test_event(alias, args->test_event, alias->pmu->name))
+		return -1;
+	(*args->count)++;
+	pr_debug2("testing aliases core PMU %s: matched event %s\n",
+		alias->pmu_name, alias->name);
+	return 0;
 }
 
 /* Verify aliases are as expected */
-static int __test_core_pmu_event_aliases(char *pmu_name, int *count)
+static int __test_core_pmu_event_aliases(const char *pmu_name, int *count)
 {
 	struct perf_pmu_test_event const **test_event_table;
 	struct perf_pmu *pmu;
-	LIST_HEAD(aliases);
 	int res = 0;
 	const struct pmu_events_table *table = find_core_events_table("testarch", "testcpu");
-	struct perf_pmu_alias *a, *tmp;
 
 	if (!table)
 		return -1;
@@ -526,37 +538,40 @@ static int __test_core_pmu_event_aliases(char *pmu_name, int *count)
 	if (!pmu)
 		return -1;
 
-	pmu->name = pmu_name;
+	INIT_LIST_HEAD(&pmu->format);
+	INIT_LIST_HEAD(&pmu->aliases);
+	INIT_LIST_HEAD(&pmu->caps);
+	INIT_LIST_HEAD(&pmu->list);
+	pmu->name = strdup(pmu_name);
+	pmu->is_core = true;
 
-	pmu_add_cpu_aliases_table(&aliases, pmu, table);
+	pmu->events_table = table;
+	pmu_add_cpu_aliases_table(pmu, table);
+	pmu->cpu_aliases_added = true;
+	pmu->sysfs_aliases_loaded = true;
 
+	res = pmu_events_table__find_event(table, pmu, "bp_l1_btb_correct", NULL, NULL);
+	if (res != 0) {
+		pr_debug("Missing test event in test architecture");
+		return res;
+	}
 	for (; *test_event_table; test_event_table++) {
-		struct perf_pmu_test_event const *test_event = *test_event_table;
-		struct pmu_event const *event = &test_event->event;
-		struct perf_pmu_alias *alias = find_alias(event->name, &aliases);
+		struct perf_pmu_test_event test_event = **test_event_table;
+		struct pmu_event const *event = &test_event.event;
+		struct test_core_pmu_event_aliases_cb_args args = {
+			.test_event = &test_event,
+			.count = count,
+		};
+		int err;
 
-		if (!alias) {
-			pr_debug("testing aliases core PMU %s: no alias, alias_table->name=%s\n",
-				  pmu_name, event->name);
-			res = -1;
-			break;
-		}
-
-		if (compare_alias_to_test_event(alias, test_event, pmu_name)) {
-			res = -1;
-			break;
-		}
-
-		(*count)++;
-		pr_debug2("testing aliases core PMU %s: matched event %s\n",
-			  pmu_name, alias->name);
+		test_event.event.pmu = pmu_name;
+		err = perf_pmu__find_event(pmu, event->name, &args,
+					   test_core_pmu_event_aliases_cb);
+		if (err)
+			res = err;
 	}
+	perf_pmu__delete(pmu);
 
-	list_for_each_entry_safe(a, tmp, &aliases, list) {
-		list_del(&a->list);
-		perf_pmu_free_alias(a);
-	}
-	free(pmu);
 	return res;
 }
 
@@ -566,20 +581,20 @@ static int __test_uncore_pmu_event_aliases(struct perf_pmu_test_pmu *test_pmu)
 	struct perf_pmu_test_event const **table;
 	struct perf_pmu *pmu = &test_pmu->pmu;
 	const char *pmu_name = pmu->name;
-	struct perf_pmu_alias *a, *tmp, *alias;
 	const struct pmu_events_table *events_table;
-	LIST_HEAD(aliases);
 	int res = 0;
 
 	events_table = find_core_events_table("testarch", "testcpu");
 	if (!events_table)
 		return -1;
-	pmu_add_cpu_aliases_table(&aliases, pmu, events_table);
-	pmu_add_sys_aliases(&aliases, pmu);
+	pmu->events_table = events_table;
+	pmu_add_cpu_aliases_table(pmu, events_table);
+	pmu->cpu_aliases_added = true;
+	pmu->sysfs_aliases_loaded = true;
+	pmu_add_sys_aliases(pmu);
 
 	/* Count how many aliases we generated */
-	list_for_each_entry(alias, &aliases, list)
-		alias_count++;
+	alias_count = perf_pmu__num_events(pmu);
 
 	/* Count how many aliases we expect from the known table */
 	for (table = &test_pmu->aliases[0]; *table; table++)
@@ -588,33 +603,25 @@ static int __test_uncore_pmu_event_aliases(struct perf_pmu_test_pmu *test_pmu)
 	if (alias_count != to_match_count) {
 		pr_debug("testing aliases uncore PMU %s: mismatch expected aliases (%d) vs found (%d)\n",
 			 pmu_name, to_match_count, alias_count);
-		res = -1;
-		goto out;
+		return -1;
 	}
 
-	list_for_each_entry(alias, &aliases, list) {
-		bool matched = false;
+	for (table = &test_pmu->aliases[0]; *table; table++) {
+		struct perf_pmu_test_event test_event = **table;
+		struct pmu_event const *event = &test_event.event;
+		int err;
+		struct test_core_pmu_event_aliases_cb_args args = {
+			.test_event = &test_event,
+			.count = &matched_count,
+		};
 
-		for (table = &test_pmu->aliases[0]; *table; table++) {
-			struct perf_pmu_test_event const *test_event = *table;
-			struct pmu_event const *event = &test_event->event;
-
-			if (!strcmp(event->name, alias->name)) {
-				if (compare_alias_to_test_event(alias,
-							test_event,
-							pmu_name)) {
-					continue;
-				}
-				matched = true;
-				matched_count++;
-			}
-		}
-
-		if (matched == false) {
+		err = perf_pmu__find_event(pmu, event->name, &args,
+					   test_core_pmu_event_aliases_cb);
+		if (err) {
+			res = err;
 			pr_debug("testing aliases uncore PMU %s: could not match alias %s\n",
-				 pmu_name, alias->name);
-			res = -1;
-			goto out;
+				 pmu_name, event->name);
+			return -1;
 		}
 	}
 
@@ -623,19 +630,13 @@ static int __test_uncore_pmu_event_aliases(struct perf_pmu_test_pmu *test_pmu)
 			 pmu_name, matched_count, alias_count);
 		res = -1;
 	}
-
-out:
-	list_for_each_entry_safe(a, tmp, &aliases, list) {
-		list_del(&a->list);
-		perf_pmu_free_alias(a);
-	}
 	return res;
 }
 
 static struct perf_pmu_test_pmu test_pmus[] = {
 	{
 		.pmu = {
-			.name = (char *)"hisi_sccl1_ddrc2",
+			.name = "hisi_sccl1_ddrc2",
 			.is_uncore = 1,
 		},
 		.aliases = {
@@ -644,7 +645,7 @@ static struct perf_pmu_test_pmu test_pmus[] = {
 	},
 	{
 		.pmu = {
-			.name = (char *)"uncore_cbox_0",
+			.name = "uncore_cbox_0",
 			.is_uncore = 1,
 		},
 		.aliases = {
@@ -655,7 +656,7 @@ static struct perf_pmu_test_pmu test_pmus[] = {
 	},
 	{
 		.pmu = {
-			.name = (char *)"hisi_sccl3_l3c7",
+			.name = "hisi_sccl3_l3c7",
 			.is_uncore = 1,
 		},
 		.aliases = {
@@ -664,7 +665,7 @@ static struct perf_pmu_test_pmu test_pmus[] = {
 	},
 	{
 		.pmu = {
-			.name = (char *)"uncore_imc_free_running_0",
+			.name = "uncore_imc_free_running_0",
 			.is_uncore = 1,
 		},
 		.aliases = {
@@ -673,7 +674,7 @@ static struct perf_pmu_test_pmu test_pmus[] = {
 	},
 	{
 		.pmu = {
-			.name = (char *)"uncore_imc_0",
+			.name = "uncore_imc_0",
 			.is_uncore = 1,
 		},
 		.aliases = {
@@ -682,9 +683,9 @@ static struct perf_pmu_test_pmu test_pmus[] = {
 	},
 	{
 		.pmu = {
-			.name = (char *)"uncore_sys_ddr_pmu0",
+			.name = "uncore_sys_ddr_pmu0",
 			.is_uncore = 1,
-			.id = (char *)"v8",
+			.id = "v8",
 		},
 		.aliases = {
 			&sys_ddr_pmu_write_cycles,
@@ -692,9 +693,9 @@ static struct perf_pmu_test_pmu test_pmus[] = {
 	},
 	{
 		.pmu = {
-			.name = (char *)"uncore_sys_ccn_pmu4",
+			.name = "uncore_sys_ccn_pmu4",
 			.is_uncore = 1,
-			.id = (char *)"0x01",
+			.id = "0x01",
 		},
 		.aliases = {
 			&sys_ccn_pmu_read_cycles,
@@ -732,8 +733,13 @@ static int test__aliases(struct test_suite *test __maybe_unused,
 	}
 
 	for (i = 0; i < ARRAY_SIZE(test_pmus); i++) {
-		int res = __test_uncore_pmu_event_aliases(&test_pmus[i]);
+		int res;
 
+		INIT_LIST_HEAD(&test_pmus[i].pmu.format);
+		INIT_LIST_HEAD(&test_pmus[i].pmu.aliases);
+		INIT_LIST_HEAD(&test_pmus[i].pmu.caps);
+
+		res = __test_uncore_pmu_event_aliases(&test_pmus[i]);
 		if (res)
 			return res;
 	}

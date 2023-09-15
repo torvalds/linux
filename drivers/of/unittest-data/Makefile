@@ -32,7 +32,9 @@ obj-$(CONFIG_OF_OVERLAY) += overlay.dtbo.o \
 			    overlay_gpio_02b.dtbo.o \
 			    overlay_gpio_03.dtbo.o \
 			    overlay_gpio_04a.dtbo.o \
-			    overlay_gpio_04b.dtbo.o
+			    overlay_gpio_04b.dtbo.o \
+			    overlay_pci_node.dtbo.o \
+			    overlay_bad_unresolved.dtbo.o
 
 # enable creation of __symbols__ node
 DTC_FLAGS_overlay += -@

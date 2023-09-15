@@ -6,7 +6,7 @@
 #include <linux/kernel.h>
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/reset-controller.h>
@@ -90,8 +90,8 @@ static int hi3660_reset_probe(struct platform_device *pdev)
 							  "hisi,rst-syscon");
 	}
 	if (IS_ERR(rc->map)) {
-		dev_err(dev, "failed to get hisilicon,rst-syscon\n");
-		return PTR_ERR(rc->map);
+		return dev_err_probe(dev, PTR_ERR(rc->map),
+			"failed to get hisilicon,rst-syscon\n");
 	}
 
 	rc->rst.ops = &hi3660_reset_ops,

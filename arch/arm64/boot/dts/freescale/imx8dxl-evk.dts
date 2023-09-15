@@ -362,7 +362,6 @@
 };
 
 &lpspi3 {
-	fsl,spi-num-chipselects = <1>;
 	fsl,spi-only-use-cs1-sel;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_lpspi3>;

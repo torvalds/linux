@@ -13,9 +13,9 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
-#include <linux/of_device.h>
 #include <linux/thermal.h>
 
 #define HI6220_TEMP0_LAG			(0x0)

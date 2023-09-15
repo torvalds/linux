@@ -31,21 +31,21 @@
 /****************************** new register headers */
 /*** following in header */
 
-#define DDC_GPIO_REG_LIST_ENTRY(type,cd,id) \
+#define DDC_GPIO_REG_LIST_ENTRY(type, cd, id) \
 	.type ## _reg =   REG(DC_GPIO_DDC ## id ## _ ## type),\
 	.type ## _mask =  DC_GPIO_DDC ## id ## _ ## type ## __DC_GPIO_DDC ## id ## cd ## _ ## type ## _MASK,\
 	.type ## _shift = DC_GPIO_DDC ## id ## _ ## type ## __DC_GPIO_DDC ## id ## cd ## _ ## type ## __SHIFT
 
-#define DDC_GPIO_REG_LIST(cd,id) \
+#define DDC_GPIO_REG_LIST(cd, id) \
 	{\
-	DDC_GPIO_REG_LIST_ENTRY(MASK,cd,id),\
-	DDC_GPIO_REG_LIST_ENTRY(A,cd,id),\
-	DDC_GPIO_REG_LIST_ENTRY(EN,cd,id),\
-	DDC_GPIO_REG_LIST_ENTRY(Y,cd,id)\
+	DDC_GPIO_REG_LIST_ENTRY(MASK, cd, id),\
+	DDC_GPIO_REG_LIST_ENTRY(A, cd, id),\
+	DDC_GPIO_REG_LIST_ENTRY(EN, cd, id),\
+	DDC_GPIO_REG_LIST_ENTRY(Y, cd, id)\
 	}
 
-#define DDC_REG_LIST(cd,id) \
-	DDC_GPIO_REG_LIST(cd,id),\
+#define DDC_REG_LIST(cd, id) \
+	DDC_GPIO_REG_LIST(cd, id),\
 	.ddc_setup = REG(DC_I2C_DDC ## id ## _SETUP)
 
 	#define DDC_REG_LIST_DCN2(cd, id) \
@@ -54,34 +54,34 @@
 	.phy_aux_cntl = REG(PHY_AUX_CNTL), \
 	.dc_gpio_aux_ctrl_5 = REG(DC_GPIO_AUX_CTRL_5)
 
-#define DDC_GPIO_VGA_REG_LIST_ENTRY(type,cd)\
+#define DDC_GPIO_VGA_REG_LIST_ENTRY(type, cd)\
 	.type ## _reg =   REG(DC_GPIO_DDCVGA_ ## type),\
 	.type ## _mask =  DC_GPIO_DDCVGA_ ## type ## __DC_GPIO_DDCVGA ## cd ## _ ## type ## _MASK,\
 	.type ## _shift = DC_GPIO_DDCVGA_ ## type ## __DC_GPIO_DDCVGA ## cd ## _ ## type ## __SHIFT
 
 #define DDC_GPIO_VGA_REG_LIST(cd) \
 	{\
-	DDC_GPIO_VGA_REG_LIST_ENTRY(MASK,cd),\
-	DDC_GPIO_VGA_REG_LIST_ENTRY(A,cd),\
-	DDC_GPIO_VGA_REG_LIST_ENTRY(EN,cd),\
-	DDC_GPIO_VGA_REG_LIST_ENTRY(Y,cd)\
+	DDC_GPIO_VGA_REG_LIST_ENTRY(MASK, cd),\
+	DDC_GPIO_VGA_REG_LIST_ENTRY(A, cd),\
+	DDC_GPIO_VGA_REG_LIST_ENTRY(EN, cd),\
+	DDC_GPIO_VGA_REG_LIST_ENTRY(Y, cd)\
 	}
 
 #define DDC_VGA_REG_LIST(cd) \
 	DDC_GPIO_VGA_REG_LIST(cd),\
 	.ddc_setup = mmDC_I2C_DDCVGA_SETUP
 
-#define DDC_GPIO_I2C_REG_LIST_ENTRY(type,cd) \
+#define DDC_GPIO_I2C_REG_LIST_ENTRY(type, cd) \
 	.type ## _reg =   REG(DC_GPIO_I2CPAD_ ## type),\
 	.type ## _mask =  DC_GPIO_I2CPAD_ ## type ## __DC_GPIO_ ## cd ## _ ## type ## _MASK,\
 	.type ## _shift = DC_GPIO_I2CPAD_ ## type ## __DC_GPIO_ ## cd ## _ ## type ## __SHIFT
 
 #define DDC_GPIO_I2C_REG_LIST(cd) \
 	{\
-	DDC_GPIO_I2C_REG_LIST_ENTRY(MASK,cd),\
-	DDC_GPIO_I2C_REG_LIST_ENTRY(A,cd),\
-	DDC_GPIO_I2C_REG_LIST_ENTRY(EN,cd),\
-	DDC_GPIO_I2C_REG_LIST_ENTRY(Y,cd)\
+	DDC_GPIO_I2C_REG_LIST_ENTRY(MASK, cd),\
+	DDC_GPIO_I2C_REG_LIST_ENTRY(A, cd),\
+	DDC_GPIO_I2C_REG_LIST_ENTRY(EN, cd),\
+	DDC_GPIO_I2C_REG_LIST_ENTRY(Y, cd)\
 	}
 
 #define DDC_I2C_REG_LIST(cd) \
@@ -150,12 +150,12 @@ struct ddc_sh_mask {
 
 #define ddc_data_regs(id) \
 {\
-	DDC_REG_LIST(DATA,id)\
+	DDC_REG_LIST(DATA, id)\
 }
 
 #define ddc_clk_regs(id) \
 {\
-	DDC_REG_LIST(CLK,id)\
+	DDC_REG_LIST(CLK, id)\
 }
 
 #define ddc_vga_data_regs \

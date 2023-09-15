@@ -282,7 +282,6 @@ out_rq:
 static int gsc_fw_load_prepare(struct intel_gsc_uc *gsc)
 {
 	struct intel_gt *gt = gsc_uc_to_gt(gsc);
-	struct drm_i915_private *i915 = gt->i915;
 	void *src;
 
 	if (!gsc->local)
@@ -292,17 +291,13 @@ static int gsc_fw_load_prepare(struct intel_gsc_uc *gsc)
 		return -ENOSPC;
 
 	src = i915_gem_object_pin_map_unlocked(gsc->fw.obj,
-					       i915_coherent_map_type(i915, gsc->fw.obj, true));
+					       intel_gt_coherent_map_type(gt, gsc->fw.obj, true));
 	if (IS_ERR(src))
 		return PTR_ERR(src);
 
 	memcpy_toio(gsc->local_vaddr, src, gsc->fw.size);
 	memset_io(gsc->local_vaddr + gsc->fw.size, 0, gsc->local->size - gsc->fw.size);
 
-	/*
-	 * Wa_22016122933: Making sure the data in dst is
-	 * visible to GSC right away
-	 */
 	intel_guc_write_barrier(&gt->uc.guc);
 
 	i915_gem_object_unpin_map(gsc->fw.obj);

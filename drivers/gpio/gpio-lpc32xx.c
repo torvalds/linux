@@ -525,17 +525,15 @@ static int lpc32xx_gpio_probe(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_OF
 static const struct of_device_id lpc32xx_gpio_of_match[] = {
 	{ .compatible = "nxp,lpc3220-gpio", },
 	{ },
 };
-#endif
 
 static struct platform_driver lpc32xx_gpio_driver = {
 	.driver		= {
 		.name	= "lpc32xx-gpio",
-		.of_match_table = of_match_ptr(lpc32xx_gpio_of_match),
+		.of_match_table = lpc32xx_gpio_of_match,
 	},
 	.probe		= lpc32xx_gpio_probe,
 };

@@ -323,6 +323,7 @@
 		power-domains = <&k3_pds 115 TI_SCI_PD_EXCLUSIVE>;
 		clocks = <&k3_clks 115 0>;
 		clock-names = "gpio";
+		status = "disabled";
 	};
 
 	wkup_gpio1: gpio@42100000 {
@@ -339,6 +340,7 @@
 		power-domains = <&k3_pds 116 TI_SCI_PD_EXCLUSIVE>;
 		clocks = <&k3_clks 116 0>;
 		clock-names = "gpio";
+		status = "disabled";
 	};
 
 	wkup_i2c0: i2c@42120000 {
@@ -440,7 +442,7 @@
 		status = "disabled";
 	};
 
-	mcu_navss: bus@28380000{
+	mcu_navss: bus@28380000 {
 		compatible = "simple-mfd";
 		#address-cells = <2>;
 		#size-cells = <2>;
@@ -455,8 +457,9 @@
 			reg = <0x0 0x2b800000 0x0 0x400000>,
 			      <0x0 0x2b000000 0x0 0x400000>,
 			      <0x0 0x28590000 0x0 0x100>,
-			      <0x0 0x2a500000 0x0 0x40000>;
-			reg-names = "rt", "fifos", "proxy_gcfg", "proxy_target";
+			      <0x0 0x2a500000 0x0 0x40000>,
+			      <0x0 0x28440000 0x0 0x40000>;
+			reg-names = "rt", "fifos", "proxy_gcfg", "proxy_target", "cfg";
 			ti,num-rings = <286>;
 			ti,sci-rm-range-gp-rings = <0x1>;
 			ti,sci = <&sms>;

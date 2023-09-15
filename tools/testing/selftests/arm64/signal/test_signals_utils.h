@@ -8,6 +8,8 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <linux/compiler.h>
+
 #include "test_signals.h"
 
 int test_init(struct tdescr *td);
@@ -60,13 +62,25 @@ static __always_inline bool get_current_context(struct tdescr *td,
 						size_t dest_sz)
 {
 	static volatile bool seen_already;
+	int i;
+	char *uc = (char *)dest_uc;
 
 	assert(td && dest_uc);
 	/* it's a genuine invocation..reinit */
 	seen_already = 0;
 	td->live_uc_valid = 0;
 	td->live_sz = dest_sz;
-	memset(dest_uc, 0x00, td->live_sz);
+
+	/*
+	 * This is a memset() but we don't want the compiler to
+	 * optimise it into either instructions or a library call
+	 * which might be incompatible with streaming mode.
+	 */
+	for (i = 0; i < td->live_sz; i++) {
+		uc[i] = 0;
+		OPTIMIZER_HIDE_VAR(uc[0]);
+	}
+
 	td->live_uc = dest_uc;
 	/*
 	 * Grab ucontext_t triggering a SIGTRAP.
@@ -102,6 +116,17 @@ static __always_inline bool get_current_context(struct tdescr *td,
 		      : "+m" (*dest_uc)
 		      :
 		      : "memory");
+
+	/*
+	 * If we were grabbing a streaming mode context then we may
+	 * have entered streaming mode behind the system's back and
+	 * libc or compiler generated code might decide to do
+	 * something invalid in streaming mode, or potentially even
+	 * the state of ZA.  Issue a SMSTOP to exit both now we have
+	 * grabbed the state.
+	 */
+	if (td->feats_supported & FEAT_SME)
+		asm volatile("msr S0_3_C4_C6_3, xzr");
 
 	/*
 	 * If we get here with seen_already==1 it implies the td->live_uc
