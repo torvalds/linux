@@ -134,7 +134,7 @@ journal_error_check_stuck(struct journal *j, int error, unsigned flags)
 
 /* journal entry close/open: */
 
-void __bch2_journal_buf_put(struct journal *j)
+void bch2_journal_buf_put_final(struct journal *j)
 {
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
 
