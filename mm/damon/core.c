@@ -1549,6 +1549,46 @@ int damon_set_region_biggest_system_ram_default(struct damon_target *t,
 	return damon_set_regions(t, &addr_range, 1);
 }
 
+/*
+ * damon_moving_sum() - Calculate an inferred moving sum value.
+ * @mvsum:	Inferred sum of the last @len_window values.
+ * @nomvsum:	Non-moving sum of the last discrete @len_window window values.
+ * @len_window:	The number of last values to take care of.
+ * @new_value:	New value that will be added to the pseudo moving sum.
+ *
+ * Moving sum (moving average * window size) is good for handling noise, but
+ * the cost of keeping past values can be high for arbitrary window size.  This
+ * function implements a lightweight pseudo moving sum function that doesn't
+ * keep the past window values.
+ *
+ * It simply assumes there was no noise in the past, and get the no-noise
+ * assumed past value to drop from @nomvsum and @len_window.  @nomvsum is a
+ * non-moving sum of the last window.  For example, if @len_window is 10 and we
+ * have 25 values, @nomvsum is the sum of the 11th to 20th values of the 25
+ * values.  Hence, this function simply drops @nomvsum / @len_window from
+ * given @mvsum and add @new_value.
+ *
+ * For example, if @len_window is 10 and @nomvsum is 50, the last 10 values for
+ * the last window could be vary, e.g., 0, 10, 0, 10, 0, 10, 0, 0, 0, 20.  For
+ * calculating next moving sum with a new value, we should drop 0 from 50 and
+ * add the new value.  However, this function assumes it got value 5 for each
+ * of the last ten times.  Based on the assumption, when the next value is
+ * measured, it drops the assumed past value, 5 from the current sum, and add
+ * the new value to get the updated pseduo-moving average.
+ *
+ * This means the value could have errors, but the errors will be disappeared
+ * for every @len_window aligned calls.  For example, if @len_window is 10, the
+ * pseudo moving sum with 11th value to 19th value would have an error.  But
+ * the sum with 20th value will not have the error.
+ *
+ * Return: Pseudo-moving average after getting the @new_value.
+ */
+unsigned int damon_moving_sum(unsigned int mvsum, unsigned int nomvsum,
+		unsigned int len_window, unsigned int new_value)
+{
+	return mvsum - nomvsum / len_window + new_value;
+}
+
 /**
  * damon_update_region_access_rate() - Update the access rate of a region.
  * @r:		The DAMON region to update for its access check result.
