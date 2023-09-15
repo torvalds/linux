@@ -672,13 +672,6 @@ enum rtllib_mfie {
  * information to determine what type of underlying data type is actually
  * stored in the data.
  */
-struct rtllib_pspoll_hdr {
-	__le16 frame_ctl;
-	__le16 aid;
-	u8 bssid[ETH_ALEN];
-	u8 ta[ETH_ALEN];
-} __packed;
-
 struct rtllib_info_element {
 	u8 id;
 	u8 len;

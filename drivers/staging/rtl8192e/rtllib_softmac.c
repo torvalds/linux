@@ -936,21 +936,21 @@ static struct sk_buff *rtllib_null_func(struct rtllib_device *ieee, short pwr)
 static struct sk_buff *rtllib_pspoll_func(struct rtllib_device *ieee)
 {
 	struct sk_buff *skb;
-	struct rtllib_pspoll_hdr *hdr;
+	struct ieee80211_pspoll *hdr;
 
-	skb = dev_alloc_skb(sizeof(struct rtllib_pspoll_hdr) + ieee->tx_headroom);
+	skb = dev_alloc_skb(sizeof(struct ieee80211_pspoll) + ieee->tx_headroom);
 	if (!skb)
 		return NULL;
 
 	skb_reserve(skb, ieee->tx_headroom);
 
-	hdr = skb_put(skb, sizeof(struct rtllib_pspoll_hdr));
+	hdr = skb_put(skb, sizeof(struct ieee80211_pspoll));
 
 	ether_addr_copy(hdr->bssid, ieee->current_network.bssid);
 	ether_addr_copy(hdr->ta, ieee->dev->dev_addr);
 
 	hdr->aid = cpu_to_le16(ieee->assoc_id | 0xc000);
-	hdr->frame_ctl = cpu_to_le16(RTLLIB_FTYPE_CTL | RTLLIB_STYPE_PSPOLL |
+	hdr->frame_control = cpu_to_le16(RTLLIB_FTYPE_CTL | RTLLIB_STYPE_PSPOLL |
 			 RTLLIB_FCTL_PM);
 
 	return skb;
