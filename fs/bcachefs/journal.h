@@ -268,16 +268,26 @@ static inline union journal_res_state journal_state_buf_put(struct journal *j, u
 	return s;
 }
 
-void bch2_journal_buf_put_final(struct journal *);
+void bch2_journal_buf_put_final(struct journal *, u64, bool);
 
-static inline void bch2_journal_buf_put(struct journal *j, unsigned idx)
+static inline void __bch2_journal_buf_put(struct journal *j, unsigned idx, u64 seq)
+{
+	union journal_res_state s;
+
+	s = journal_state_buf_put(j, idx);
+	if (!journal_state_count(s, idx))
+		bch2_journal_buf_put_final(j, seq, idx == s.unwritten_idx);
+}
+
+static inline void bch2_journal_buf_put(struct journal *j, unsigned idx, u64 seq)
 {
 	union journal_res_state s;
 
 	s = journal_state_buf_put(j, idx);
 	if (!journal_state_count(s, idx)) {
-		if (idx == s.unwritten_idx)
-			bch2_journal_buf_put_final(j);
+		spin_lock(&j->lock);
+		bch2_journal_buf_put_final(j, seq, idx == s.unwritten_idx);
+		spin_unlock(&j->lock);
 	}
 }
 
@@ -298,7 +308,7 @@ static inline void bch2_journal_res_put(struct journal *j,
 				       BCH_JSET_ENTRY_btree_keys,
 				       0, 0, 0);
 
-	bch2_journal_buf_put(j, res->idx);
+	bch2_journal_buf_put(j, res->idx, res->seq);
 
 	res->ref = 0;
 }

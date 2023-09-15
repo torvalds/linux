@@ -132,13 +132,21 @@ journal_error_check_stuck(struct journal *j, int error, unsigned flags)
 	return stuck;
 }
 
-/* journal entry close/open: */
-
-void bch2_journal_buf_put_final(struct journal *j)
+/*
+ * Final processing when the last reference of a journal buffer has been
+ * dropped. Drop the pin list reference acquired at journal entry open and write
+ * the buffer, if requested.
+ */
+void bch2_journal_buf_put_final(struct journal *j, u64 seq, bool write)
 {
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
 
-	closure_call(&j->io, bch2_journal_write, c->io_complete_wq, NULL);
+	lockdep_assert_held(&j->lock);
+
+	if (__bch2_journal_pin_put(j, seq))
+		bch2_journal_reclaim_fast(j);
+	if (write)
+		closure_call(&j->io, bch2_journal_write, c->io_complete_wq, NULL);
 }
 
 /*
@@ -204,14 +212,11 @@ static void __journal_entry_close(struct journal *j, unsigned closed_val)
 	buf->data->last_seq	= cpu_to_le64(buf->last_seq);
 	BUG_ON(buf->last_seq > le64_to_cpu(buf->data->seq));
 
-	if (__bch2_journal_pin_put(j, le64_to_cpu(buf->data->seq)))
-		bch2_journal_reclaim_fast(j);
-
 	cancel_delayed_work(&j->write_work);
 
 	bch2_journal_space_available(j);
 
-	bch2_journal_buf_put(j, old.idx);
+	__bch2_journal_buf_put(j, old.idx, le64_to_cpu(buf->data->seq));
 }
 
 void bch2_journal_halt(struct journal *j)
