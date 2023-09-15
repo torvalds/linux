@@ -23,12 +23,12 @@
 #include "hda_dsp_common.h"
 #include "sof_realtek_common.h"
 #include "sof_maxim_common.h"
+#include "sof_ssp_common.h"
 
 #define NAME_SIZE 32
 
 #define SOF_NAU8825_SSP_CODEC(quirk)		((quirk) & GENMASK(2, 0))
 #define SOF_NAU8825_SSP_CODEC_MASK		(GENMASK(2, 0))
-#define SOF_SPEAKER_AMP_PRESENT		BIT(3)
 #define SOF_NAU8825_SSP_AMP_SHIFT		4
 #define SOF_NAU8825_SSP_AMP_MASK		(GENMASK(6, 4))
 #define SOF_NAU8825_SSP_AMP(quirk)	\
@@ -44,11 +44,6 @@
 #define SOF_BT_OFFLOAD_SSP(quirk)	\
 	(((quirk) << SOF_BT_OFFLOAD_SSP_SHIFT) & SOF_BT_OFFLOAD_SSP_MASK)
 #define SOF_SSP_BT_OFFLOAD_PRESENT		BIT(13)
-#define SOF_RT1019P_SPEAKER_AMP_PRESENT	BIT(14)
-#define SOF_MAX98373_SPEAKER_AMP_PRESENT	BIT(15)
-#define SOF_MAX98360A_SPEAKER_AMP_PRESENT	BIT(16)
-#define SOF_RT1015P_SPEAKER_AMP_PRESENT	BIT(17)
-#define SOF_NAU8318_SPEAKER_AMP_PRESENT	BIT(18)
 
 static unsigned long sof_nau8825_quirk = SOF_NAU8825_SSP_CODEC(0);
 
@@ -62,6 +57,8 @@ struct sof_card_private {
 	struct clk *mclk;
 	struct snd_soc_jack sof_headset;
 	struct list_head hdmi_pcm_list;
+	enum sof_ssp_codec codec_type;
+	enum sof_ssp_codec amp_type;
 };
 
 static int sof_hdmi_init(struct snd_soc_pcm_runtime *rtd)
@@ -192,7 +189,7 @@ static int sof_card_late_probe(struct snd_soc_card *card)
 	struct sof_hdmi_pcm *pcm;
 	int err;
 
-	if (sof_nau8825_quirk & SOF_MAX98373_SPEAKER_AMP_PRESENT) {
+	if (ctx->amp_type == CODEC_MAX98373) {
 		/* Disable Left and Right Spk pin after boot */
 		snd_soc_dapm_disable_pin(dapm, "Left Spk");
 		snd_soc_dapm_disable_pin(dapm, "Right Spk");
@@ -346,11 +343,10 @@ static struct snd_soc_dai_link_component nau8318_components[] = {
 	}
 };
 
-static struct snd_soc_dai_link *sof_card_dai_links_create(struct device *dev,
-							  int ssp_codec,
-							  int ssp_amp,
-							  int dmic_be_num,
-							  int hdmi_num)
+static struct snd_soc_dai_link *
+sof_card_dai_links_create(struct device *dev, enum sof_ssp_codec amp_type,
+			  int ssp_codec, int ssp_amp, int dmic_be_num,
+			  int hdmi_num)
 {
 	struct snd_soc_dai_link_component *idisp_components;
 	struct snd_soc_dai_link_component *cpus;
@@ -463,35 +459,40 @@ static struct snd_soc_dai_link *sof_card_dai_links_create(struct device *dev,
 	}
 
 	/* speaker amp */
-	if (sof_nau8825_quirk & SOF_SPEAKER_AMP_PRESENT) {
+	if (amp_type != CODEC_NONE) {
 		links[id].name = devm_kasprintf(dev, GFP_KERNEL,
 						"SSP%d-Codec", ssp_amp);
 		if (!links[id].name)
 			goto devm_err;
 
 		links[id].id = id;
-		if (sof_nau8825_quirk & SOF_RT1019P_SPEAKER_AMP_PRESENT) {
-			links[id].codecs = rt1019p_component;
-			links[id].num_codecs = ARRAY_SIZE(rt1019p_component);
-			links[id].init = speaker_codec_init;
-		} else if (sof_nau8825_quirk &
-				SOF_MAX98373_SPEAKER_AMP_PRESENT) {
+
+		switch (amp_type) {
+		case CODEC_MAX98360A:
+			max_98360a_dai_link(&links[id]);
+			break;
+		case CODEC_MAX98373:
 			links[id].codecs = max_98373_components;
 			links[id].num_codecs = ARRAY_SIZE(max_98373_components);
 			links[id].init = max_98373_spk_codec_init;
 			links[id].ops = &max_98373_ops;
-		} else if (sof_nau8825_quirk &
-				SOF_MAX98360A_SPEAKER_AMP_PRESENT) {
-			max_98360a_dai_link(&links[id]);
-		} else if (sof_nau8825_quirk & SOF_RT1015P_SPEAKER_AMP_PRESENT) {
-			sof_rt1015p_dai_link(&links[id]);
-		} else if (sof_nau8825_quirk &
-				SOF_NAU8318_SPEAKER_AMP_PRESENT) {
+			break;
+		case CODEC_NAU8318:
 			links[id].codecs = nau8318_components;
 			links[id].num_codecs = ARRAY_SIZE(nau8318_components);
 			links[id].init = speaker_codec_init;
-		} else {
-			goto devm_err;
+			break;
+		case CODEC_RT1015P:
+			sof_rt1015p_dai_link(&links[id]);
+			break;
+		case CODEC_RT1019P:
+			links[id].codecs = rt1019p_component;
+			links[id].num_codecs = ARRAY_SIZE(rt1019p_component);
+			links[id].init = speaker_codec_init;
+			break;
+		default:
+			dev_err(dev, "invalid amp type %d\n", amp_type);
+			return NULL;
 		}
 
 		links[id].platforms = platform_component;
@@ -557,11 +558,8 @@ static int sof_audio_probe(struct platform_device *pdev)
 
 	mach = pdev->dev.platform_data;
 
-	/* A speaker amp might not be present when the quirk claims one is.
-	 * Detect this via whether the machine driver match includes quirk_data.
-	 */
-	if ((sof_nau8825_quirk & SOF_SPEAKER_AMP_PRESENT) && !mach->quirk_data)
-		sof_nau8825_quirk &= ~SOF_SPEAKER_AMP_PRESENT;
+	ctx->codec_type = sof_ssp_detect_codec_type(&pdev->dev);
+	ctx->amp_type = sof_ssp_detect_amp_type(&pdev->dev);
 
 	dev_dbg(&pdev->dev, "sof_nau8825_quirk = %lx\n", sof_nau8825_quirk);
 
@@ -581,23 +579,38 @@ static int sof_audio_probe(struct platform_device *pdev)
 	/* compute number of dai links */
 	sof_audio_card_nau8825.num_links = 1 + dmic_be_num + hdmi_num;
 
-	if (sof_nau8825_quirk & SOF_SPEAKER_AMP_PRESENT)
+	if (ctx->amp_type != CODEC_NONE)
 		sof_audio_card_nau8825.num_links++;
-
-	if (sof_nau8825_quirk & SOF_MAX98373_SPEAKER_AMP_PRESENT)
-		max_98373_set_codec_conf(&sof_audio_card_nau8825);
-	else if (sof_nau8825_quirk & SOF_RT1015P_SPEAKER_AMP_PRESENT)
-		sof_rt1015p_codec_conf(&sof_audio_card_nau8825);
 
 	if (sof_nau8825_quirk & SOF_SSP_BT_OFFLOAD_PRESENT)
 		sof_audio_card_nau8825.num_links++;
 
-	dai_links = sof_card_dai_links_create(&pdev->dev, ssp_codec, ssp_amp,
-					      dmic_be_num, hdmi_num);
+	dai_links = sof_card_dai_links_create(&pdev->dev, ctx->amp_type,
+					      ssp_codec, ssp_amp, dmic_be_num,
+					      hdmi_num);
 	if (!dai_links)
 		return -ENOMEM;
 
 	sof_audio_card_nau8825.dai_link = dai_links;
+
+	/* update codec_conf */
+	switch (ctx->amp_type) {
+	case CODEC_MAX98373:
+		max_98373_set_codec_conf(&sof_audio_card_nau8825);
+		break;
+	case CODEC_RT1015P:
+		sof_rt1015p_codec_conf(&sof_audio_card_nau8825);
+		break;
+	case CODEC_NONE:
+	case CODEC_MAX98360A:
+	case CODEC_NAU8318:
+	case CODEC_RT1019P:
+		/* no codec conf required */
+		break;
+	default:
+		dev_err(&pdev->dev, "invalid amp type %d\n", ctx->amp_type);
+		return -EINVAL;
+	}
 
 	INIT_LIST_HEAD(&ctx->hdmi_pcm_list);
 
@@ -627,16 +640,12 @@ static const struct platform_device_id board_ids[] = {
 	{
 		.name = "adl_rt1019p_8825",
 		.driver_data = (kernel_ulong_t)(SOF_NAU8825_SSP_CODEC(0) |
-					SOF_SPEAKER_AMP_PRESENT |
-					SOF_RT1019P_SPEAKER_AMP_PRESENT |
 					SOF_NAU8825_SSP_AMP(2) |
 					SOF_NAU8825_NUM_HDMIDEV(4)),
 	},
 	{
 		.name = "adl_max98373_8825",
 		.driver_data = (kernel_ulong_t)(SOF_NAU8825_SSP_CODEC(0) |
-					SOF_SPEAKER_AMP_PRESENT |
-					SOF_MAX98373_SPEAKER_AMP_PRESENT |
 					SOF_NAU8825_SSP_AMP(1) |
 					SOF_NAU8825_NUM_HDMIDEV(4) |
 					SOF_BT_OFFLOAD_SSP(2) |
@@ -646,8 +655,6 @@ static const struct platform_device_id board_ids[] = {
 		/* The limitation of length of char array, shorten the name */
 		.name = "adl_mx98360a_8825",
 		.driver_data = (kernel_ulong_t)(SOF_NAU8825_SSP_CODEC(0) |
-					SOF_SPEAKER_AMP_PRESENT |
-					SOF_MAX98360A_SPEAKER_AMP_PRESENT |
 					SOF_NAU8825_SSP_AMP(1) |
 					SOF_NAU8825_NUM_HDMIDEV(4) |
 					SOF_BT_OFFLOAD_SSP(2) |
@@ -657,8 +664,6 @@ static const struct platform_device_id board_ids[] = {
 	{
 		.name = "adl_rt1015p_8825",
 		.driver_data = (kernel_ulong_t)(SOF_NAU8825_SSP_CODEC(0) |
-					SOF_SPEAKER_AMP_PRESENT |
-					SOF_RT1015P_SPEAKER_AMP_PRESENT |
 					SOF_NAU8825_SSP_AMP(1) |
 					SOF_NAU8825_NUM_HDMIDEV(4) |
 					SOF_BT_OFFLOAD_SSP(2) |
@@ -667,8 +672,6 @@ static const struct platform_device_id board_ids[] = {
 	{
 		.name = "adl_nau8318_8825",
 		.driver_data = (kernel_ulong_t)(SOF_NAU8825_SSP_CODEC(0) |
-					SOF_SPEAKER_AMP_PRESENT |
-					SOF_NAU8318_SPEAKER_AMP_PRESENT |
 					SOF_NAU8825_SSP_AMP(1) |
 					SOF_NAU8825_NUM_HDMIDEV(4) |
 					SOF_BT_OFFLOAD_SSP(2) |
@@ -677,8 +680,6 @@ static const struct platform_device_id board_ids[] = {
 	{
 		.name = "rpl_max98373_8825",
 		.driver_data = (kernel_ulong_t)(SOF_NAU8825_SSP_CODEC(0) |
-					SOF_SPEAKER_AMP_PRESENT |
-					SOF_MAX98373_SPEAKER_AMP_PRESENT |
 					SOF_NAU8825_SSP_AMP(1) |
 					SOF_NAU8825_NUM_HDMIDEV(4) |
 					SOF_BT_OFFLOAD_SSP(2) |
@@ -687,8 +688,6 @@ static const struct platform_device_id board_ids[] = {
 	{
 		.name = "rpl_nau8318_8825",
 		.driver_data = (kernel_ulong_t)(SOF_NAU8825_SSP_CODEC(0) |
-					SOF_SPEAKER_AMP_PRESENT |
-					SOF_NAU8318_SPEAKER_AMP_PRESENT |
 					SOF_NAU8825_SSP_AMP(1) |
 					SOF_NAU8825_NUM_HDMIDEV(4) |
 					SOF_BT_OFFLOAD_SSP(2) |
@@ -712,7 +711,9 @@ module_platform_driver(sof_audio)
 MODULE_DESCRIPTION("SOF Audio Machine driver for NAU8825");
 MODULE_AUTHOR("David Lin <ctlin0@nuvoton.com>");
 MODULE_AUTHOR("Mac Chiang <mac.chiang@intel.com>");
+MODULE_AUTHOR("Brent Lu <brent.lu@intel.com>");
 MODULE_LICENSE("GPL");
 MODULE_IMPORT_NS(SND_SOC_INTEL_HDA_DSP_COMMON);
 MODULE_IMPORT_NS(SND_SOC_INTEL_SOF_MAXIM_COMMON);
 MODULE_IMPORT_NS(SND_SOC_INTEL_SOF_REALTEK_COMMON);
+MODULE_IMPORT_NS(SND_SOC_INTEL_SOF_SSP_COMMON);
