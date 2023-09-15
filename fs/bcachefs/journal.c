@@ -204,7 +204,8 @@ static void __journal_entry_close(struct journal *j, unsigned closed_val)
 	buf->data->last_seq	= cpu_to_le64(buf->last_seq);
 	BUG_ON(buf->last_seq > le64_to_cpu(buf->data->seq));
 
-	__bch2_journal_pin_put(j, le64_to_cpu(buf->data->seq));
+	if (__bch2_journal_pin_put(j, le64_to_cpu(buf->data->seq)))
+		bch2_journal_reclaim_fast(j);
 
 	cancel_delayed_work(&j->write_work);
 

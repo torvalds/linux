@@ -290,7 +290,7 @@ void bch2_journal_do_discards(struct journal *j)
  * entry, holding it open to ensure it gets replayed during recovery:
  */
 
-static void bch2_journal_reclaim_fast(struct journal *j)
+void bch2_journal_reclaim_fast(struct journal *j)
 {
 	bool popped = false;
 
@@ -310,19 +310,16 @@ static void bch2_journal_reclaim_fast(struct journal *j)
 		bch2_journal_space_available(j);
 }
 
-void __bch2_journal_pin_put(struct journal *j, u64 seq)
+bool __bch2_journal_pin_put(struct journal *j, u64 seq)
 {
 	struct journal_entry_pin_list *pin_list = journal_seq_pin(j, seq);
 
-	if (atomic_dec_and_test(&pin_list->count))
-		bch2_journal_reclaim_fast(j);
+	return atomic_dec_and_test(&pin_list->count);
 }
 
 void bch2_journal_pin_put(struct journal *j, u64 seq)
 {
-	struct journal_entry_pin_list *pin_list = journal_seq_pin(j, seq);
-
-	if (atomic_dec_and_test(&pin_list->count)) {
+	if (__bch2_journal_pin_put(j, seq)) {
 		spin_lock(&j->lock);
 		bch2_journal_reclaim_fast(j);
 		spin_unlock(&j->lock);

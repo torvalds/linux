@@ -31,7 +31,8 @@ journal_seq_pin(struct journal *j, u64 seq)
 	return &j->pin.data[seq & j->pin.mask];
 }
 
-void __bch2_journal_pin_put(struct journal *, u64);
+void bch2_journal_reclaim_fast(struct journal *);
+bool __bch2_journal_pin_put(struct journal *, u64);
 void bch2_journal_pin_put(struct journal *, u64);
 void bch2_journal_pin_drop(struct journal *, struct journal_entry_pin *);
 
