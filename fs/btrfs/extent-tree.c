@@ -2566,9 +2566,6 @@ int btrfs_pin_extent(struct btrfs_trans_handle *trans,
 	return 0;
 }
 
-/*
- * this function must be called within transaction
- */
 int btrfs_pin_extent_for_log_replay(struct btrfs_trans_handle *trans,
 				    const struct extent_buffer *eb)
 {
