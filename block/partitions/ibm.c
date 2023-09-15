@@ -124,8 +124,6 @@ static int find_label(struct parsed_partitions *state,
 			break;
 		}
 	}
-	if (!found)
-		memset(label, 0, sizeof(*label));
 
 	return found;
 }
