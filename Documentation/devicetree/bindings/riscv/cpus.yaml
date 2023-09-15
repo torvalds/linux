@@ -91,6 +91,7 @@ properties:
 
   interrupt-controller:
     type: object
+    additionalProperties: false
     description: Describes the CPU's local interrupt controller
 
     properties:
