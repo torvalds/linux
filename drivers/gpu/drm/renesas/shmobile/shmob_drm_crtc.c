@@ -460,6 +460,12 @@ static const uint32_t modeset_formats[] = {
 	DRM_FORMAT_RGB888,
 	DRM_FORMAT_ARGB8888,
 	DRM_FORMAT_XRGB8888,
+	DRM_FORMAT_NV12,
+	DRM_FORMAT_NV21,
+	DRM_FORMAT_NV16,
+	DRM_FORMAT_NV61,
+	DRM_FORMAT_NV24,
+	DRM_FORMAT_NV42,
 };
 
 static const struct drm_plane_funcs primary_plane_funcs = {
