@@ -354,6 +354,11 @@ properties:
           - const: mediatek,mt8365
       - items:
           - enum:
+              - mediatek,mt8390-evk
+          - const: mediatek,mt8390
+          - const: mediatek,mt8188
+      - items:
+          - enum:
               - mediatek,mt8395-evk
               - radxa,nio-12l
           - const: mediatek,mt8395
