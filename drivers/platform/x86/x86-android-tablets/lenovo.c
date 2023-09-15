@@ -436,7 +436,7 @@ static int __init lenovo_yoga_tab2_830_1050_init_touchscreen(void)
 
 	/* Use PMIC GPIO 10 bootstrap pin to differentiate 830 vs 1050 */
 	ret = x86_android_tablet_get_gpiod("gpio_crystalcove", 10, "yoga_bootstrap",
-					   false, GPIOD_IN, &gpiod);
+					   false, GPIOD_ASIS, &gpiod);
 	if (ret)
 		return ret;
 
