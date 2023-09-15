@@ -585,9 +585,6 @@ static int shmob_drm_connector_get_modes(struct drm_connector *connector)
 	drm_mode_set_name(mode);
 	drm_mode_probed_add(connector, mode);
 
-	connector->display_info.width_mm = sdev->pdata->panel.width_mm;
-	connector->display_info.height_mm = sdev->pdata->panel.height_mm;
-
 	return 1;
 }
 
