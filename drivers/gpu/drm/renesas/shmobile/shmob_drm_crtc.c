@@ -598,7 +598,7 @@ int shmob_drm_encoder_create(struct shmob_drm_device *sdev)
 	encoder->possible_crtcs = 1;
 
 	ret = drm_simple_encoder_init(sdev->ddev, encoder,
-				      DRM_MODE_ENCODER_LVDS);
+				      DRM_MODE_ENCODER_DPI);
 	if (ret < 0)
 		return ret;
 
@@ -684,7 +684,7 @@ int shmob_drm_connector_create(struct shmob_drm_device *sdev,
 	connector->display_info.height_mm = sdev->pdata->panel.height_mm;
 
 	ret = drm_connector_init(sdev->ddev, connector, &connector_funcs,
-				 DRM_MODE_CONNECTOR_LVDS);
+				 DRM_MODE_CONNECTOR_DPI);
 	if (ret < 0)
 		return ret;
 
