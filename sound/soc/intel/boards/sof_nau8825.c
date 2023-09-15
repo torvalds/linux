@@ -214,19 +214,11 @@ static const struct snd_kcontrol_new sof_controls[] = {
 	SOC_DAPM_PIN_SWITCH("Right Spk"),
 };
 
-static const struct snd_kcontrol_new speaker_controls[] = {
-	SOC_DAPM_PIN_SWITCH("Spk"),
-};
-
 static const struct snd_soc_dapm_widget sof_widgets[] = {
 	SND_SOC_DAPM_HP("Headphone Jack", NULL),
 	SND_SOC_DAPM_MIC("Headset Mic", NULL),
 	SND_SOC_DAPM_SPK("Left Spk", NULL),
 	SND_SOC_DAPM_SPK("Right Spk", NULL),
-};
-
-static const struct snd_soc_dapm_widget speaker_widgets[] = {
-	SND_SOC_DAPM_SPK("Spk", NULL),
 };
 
 static const struct snd_soc_dapm_widget dmic_widgets[] = {
@@ -242,43 +234,10 @@ static const struct snd_soc_dapm_route sof_map[] = {
 	{ "MIC", NULL, "Headset Mic" },
 };
 
-static const struct snd_soc_dapm_route speaker_map[] = {
-	/* speaker */
-	{ "Spk", NULL, "Speaker" },
-};
-
 static const struct snd_soc_dapm_route dmic_map[] = {
 	/* digital mics */
 	{"DMic", NULL, "SoC DMIC"},
 };
-
-static int speaker_codec_init(struct snd_soc_pcm_runtime *rtd)
-{
-	struct snd_soc_card *card = rtd->card;
-	int ret;
-
-	ret = snd_soc_dapm_new_controls(&card->dapm, speaker_widgets,
-					ARRAY_SIZE(speaker_widgets));
-	if (ret) {
-		dev_err(rtd->dev, "unable to add dapm controls, ret %d\n", ret);
-		/* Don't need to add routes if widget addition failed */
-		return ret;
-	}
-
-	ret = snd_soc_add_card_controls(card, speaker_controls,
-					ARRAY_SIZE(speaker_controls));
-	if (ret) {
-		dev_err(rtd->dev, "unable to add card controls, ret %d\n", ret);
-		return ret;
-	}
-
-	ret = snd_soc_dapm_add_routes(&card->dapm, speaker_map,
-				      ARRAY_SIZE(speaker_map));
-
-	if (ret)
-		dev_err(rtd->dev, "Speaker map addition failed: %d\n", ret);
-	return ret;
-}
 
 static int dmic_init(struct snd_soc_pcm_runtime *rtd)
 {
@@ -327,13 +286,6 @@ static struct snd_soc_dai_link_component dmic_component[] = {
 	{
 		.name = "dmic-codec",
 		.dai_name = "dmic-hifi",
-	}
-};
-
-static struct snd_soc_dai_link_component rt1019p_component[] = {
-	{
-		.name = "RTL1019:00",
-		.dai_name = "HiFi",
 	}
 };
 
@@ -478,9 +430,7 @@ sof_card_dai_links_create(struct device *dev, enum sof_ssp_codec amp_type,
 			sof_rt1015p_dai_link(&links[id]);
 			break;
 		case CODEC_RT1019P:
-			links[id].codecs = rt1019p_component;
-			links[id].num_codecs = ARRAY_SIZE(rt1019p_component);
-			links[id].init = speaker_codec_init;
+			sof_rt1019p_dai_link(&links[id]);
 			break;
 		default:
 			dev_err(dev, "invalid amp type %d\n", amp_type);
