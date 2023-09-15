@@ -695,6 +695,9 @@ static int ma35d1serial_probe(struct platform_device *pdev)
 
 	up->port.iobase = res_mem->start;
 	up->port.membase = ioremap(up->port.iobase, MA35_UART_REG_SIZE);
+	if (!up->port.membase)
+		return -ENOMEM;
+
 	up->port.ops = &ma35d1serial_ops;
 
 	spin_lock_init(&up->port.lock);
