@@ -262,7 +262,6 @@ static void test_msg_peek_client(const struct test_opts *opts,
 				 bool seqpacket)
 {
 	unsigned char buf[MSG_PEEK_BUF_LEN];
-	ssize_t send_size;
 	int fd;
 	int i;
 
@@ -281,17 +280,7 @@ static void test_msg_peek_client(const struct test_opts *opts,
 
 	control_expectln("SRVREADY");
 
-	send_size = send(fd, buf, sizeof(buf), 0);
-
-	if (send_size < 0) {
-		perror("send");
-		exit(EXIT_FAILURE);
-	}
-
-	if (send_size != sizeof(buf)) {
-		fprintf(stderr, "Invalid send size %zi\n", send_size);
-		exit(EXIT_FAILURE);
-	}
+	send_buf(fd, buf, sizeof(buf), 0, sizeof(buf));
 
 	close(fd);
 }
@@ -386,7 +375,6 @@ static void test_seqpacket_msg_bounds_client(const struct test_opts *opts)
 	msg_count = SOCK_BUF_SIZE / MAX_MSG_SIZE;
 
 	for (int i = 0; i < msg_count; i++) {
-		ssize_t send_size;
 		size_t buf_size;
 		int flags;
 		void *buf;
@@ -414,17 +402,7 @@ static void test_seqpacket_msg_bounds_client(const struct test_opts *opts)
 			flags = 0;
 		}
 
-		send_size = send(fd, buf, buf_size, flags);
-
-		if (send_size < 0) {
-			perror("send");
-			exit(EXIT_FAILURE);
-		}
-
-		if (send_size != buf_size) {
-			fprintf(stderr, "Invalid send size\n");
-			exit(EXIT_FAILURE);
-		}
+		send_buf(fd, buf, buf_size, flags, buf_size);
 
 		/*
 		 * Hash sum is computed at both client and server in
@@ -525,10 +503,7 @@ static void test_seqpacket_msg_trunc_client(const struct test_opts *opts)
 		exit(EXIT_FAILURE);
 	}
 
-	if (send(fd, buf, sizeof(buf), 0) != sizeof(buf)) {
-		perror("send failed");
-		exit(EXIT_FAILURE);
-	}
+	send_buf(fd, buf, sizeof(buf), 0, sizeof(buf));
 
 	control_writeln("SENDDONE");
 	close(fd);
@@ -650,7 +625,6 @@ static void test_seqpacket_timeout_server(const struct test_opts *opts)
 static void test_seqpacket_bigmsg_client(const struct test_opts *opts)
 {
 	unsigned long sock_buf_size;
-	ssize_t send_size;
 	socklen_t len;
 	void *data;
 	int fd;
@@ -677,18 +651,7 @@ static void test_seqpacket_bigmsg_client(const struct test_opts *opts)
 		exit(EXIT_FAILURE);
 	}
 
-	send_size = send(fd, data, sock_buf_size, 0);
-	if (send_size != -1) {
-		fprintf(stderr, "expected 'send(2)' failure, got %zi\n",
-			send_size);
-		exit(EXIT_FAILURE);
-	}
-
-	if (errno != EMSGSIZE) {
-		fprintf(stderr, "expected EMSGSIZE in 'errno', got %i\n",
-			errno);
-		exit(EXIT_FAILURE);
-	}
+	send_buf(fd, data, sock_buf_size, 0, -EMSGSIZE);
 
 	control_writeln("CLISENT");
 
@@ -742,15 +705,9 @@ static void test_seqpacket_invalid_rec_buffer_client(const struct test_opts *opt
 	memset(buf1, BUF_PATTERN_1, buf_size);
 	memset(buf2, BUF_PATTERN_2, buf_size);
 
-	if (send(fd, buf1, buf_size, 0) != buf_size) {
-		perror("send failed");
-		exit(EXIT_FAILURE);
-	}
+	send_buf(fd, buf1, buf_size, 0, buf_size);
 
-	if (send(fd, buf2, buf_size, 0) != buf_size) {
-		perror("send failed");
-		exit(EXIT_FAILURE);
-	}
+	send_buf(fd, buf2, buf_size, 0, buf_size);
 
 	close(fd);
 }
@@ -973,7 +930,6 @@ static void test_inv_buf_client(const struct test_opts *opts, bool stream)
 static void test_inv_buf_server(const struct test_opts *opts, bool stream)
 {
 	unsigned char data[INV_BUF_TEST_DATA_LEN] = {0};
-	ssize_t res;
 	int fd;
 
 	if (stream)
@@ -986,11 +942,7 @@ static void test_inv_buf_server(const struct test_opts *opts, bool stream)
 		exit(EXIT_FAILURE);
 	}
 
-	res = send(fd, data, sizeof(data), 0);
-	if (res != sizeof(data)) {
-		fprintf(stderr, "unexpected send(2) result %zi\n", res);
-		exit(EXIT_FAILURE);
-	}
+	send_buf(fd, data, sizeof(data), 0, sizeof(data));
 
 	control_writeln("SENDDONE");
 
@@ -1024,7 +976,6 @@ static void test_seqpacket_inv_buf_server(const struct test_opts *opts)
 
 static void test_stream_virtio_skb_merge_client(const struct test_opts *opts)
 {
-	ssize_t res;
 	int fd;
 
 	fd = vsock_stream_connect(opts->peer_cid, 1234);
@@ -1034,22 +985,14 @@ static void test_stream_virtio_skb_merge_client(const struct test_opts *opts)
 	}
 
 	/* Send first skbuff. */
-	res = send(fd, HELLO_STR, strlen(HELLO_STR), 0);
-	if (res != strlen(HELLO_STR)) {
-		fprintf(stderr, "unexpected send(2) result %zi\n", res);
-		exit(EXIT_FAILURE);
-	}
+	send_buf(fd, HELLO_STR, strlen(HELLO_STR), 0, strlen(HELLO_STR));
 
 	control_writeln("SEND0");
 	/* Peer reads part of first skbuff. */
 	control_expectln("REPLY0");
 
 	/* Send second skbuff, it will be appended to the first. */
-	res = send(fd, WORLD_STR, strlen(WORLD_STR), 0);
-	if (res != strlen(WORLD_STR)) {
-		fprintf(stderr, "unexpected send(2) result %zi\n", res);
-		exit(EXIT_FAILURE);
-	}
+	send_buf(fd, WORLD_STR, strlen(WORLD_STR), 0, strlen(WORLD_STR));
 
 	control_writeln("SEND1");
 	/* Peer reads merged skbuff packet. */
