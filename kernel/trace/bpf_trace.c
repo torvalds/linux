@@ -3223,8 +3223,10 @@ int bpf_uprobe_multi_link_attach(const union bpf_attr *attr, struct bpf_prog *pr
 		rcu_read_lock();
 		task = get_pid_task(find_vpid(pid), PIDTYPE_PID);
 		rcu_read_unlock();
-		if (!task)
+		if (!task) {
+			err = -ESRCH;
 			goto error_path_put;
+		}
 	}
 
 	err = -ENOMEM;
