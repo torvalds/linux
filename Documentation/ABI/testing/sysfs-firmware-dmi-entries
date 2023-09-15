@@ -2,7 +2,7 @@ What:		/sys/firmware/dmi/entries/
 Date:		February 2011
 Contact:	Mike Waychison <mikew@google.com>
 Description:
-		Many machines' firmware (x86 and ia64) export DMI /
+		Many machines' firmware (x86 and arm64) export DMI /
 		SMBIOS tables to the operating system.  Getting at this
 		information is often valuable to userland, especially in
 		cases where there are OEM extensions used.

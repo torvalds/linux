@@ -1725,9 +1725,6 @@ static int cpu_up(unsigned int cpu, enum cpuhp_state target)
 	if (!cpu_possible(cpu)) {
 		pr_err("can't online cpu %d because it is not configured as may-hotadd at boot time\n",
 		       cpu);
-#if defined(CONFIG_IA64)
-		pr_err("please check additional_cpus= boot parameter\n");
-#endif
 		return -EINVAL;
 	}
 

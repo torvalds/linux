@@ -33,7 +33,7 @@ used to expose persistent memory, other performance-differentiated memory and
 reserved memory regions as ordinary system RAM to Linux.
 
 Linux only supports memory hot(un)plug on selected 64 bit architectures, such as
-x86_64, arm64, ppc64, s390x and ia64.
+x86_64, arm64, ppc64 and s390x.
 
 Memory Hot(Un)Plug Granularity
 ------------------------------

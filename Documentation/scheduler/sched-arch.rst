@@ -10,7 +10,7 @@ Context switch
 By default, the switch_to arch function is called with the runqueue
 locked. This is usually not a problem unless switch_to may need to
 take the runqueue lock. This is usually due to a wake up operation in
-the context switch. See arch/ia64/include/asm/switch_to.h for an example.
+the context switch.
 
 To request the scheduler call switch_to with the runqueue unlocked,
 you must `#define __ARCH_WANT_UNLOCKED_CTXSW` in a header file
@@ -67,8 +67,6 @@ Possible arch/ problems
 =======================
 
 Possible arch problems I found (and either tried to fix or didn't):
-
-ia64 - is safe_halt call racy vs interrupts? (does it sleep?) (See #4a)
 
 sparc - IRQs on at this point(?), change local_irq_save to _disable.
       - TODO: needs secondary CPUs to disable preempt (See #1)

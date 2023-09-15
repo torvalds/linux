@@ -31,10 +31,6 @@
 #include <linux/uaccess.h>
 #include <linux/security.h>
 
-#ifdef CONFIG_IA64
-# include <linux/efi.h>
-#endif
-
 #define DEVMEM_MINOR	1
 #define DEVPORT_MINOR	4
 
@@ -277,13 +273,6 @@ int __weak phys_mem_access_prot_allowed(struct file *file,
 #ifdef pgprot_noncached
 static int uncached_access(struct file *file, phys_addr_t addr)
 {
-#if defined(CONFIG_IA64)
-	/*
-	 * On ia64, we ignore O_DSYNC because we cannot tolerate memory
-	 * attribute aliases.
-	 */
-	return !(efi_mem_attributes(addr) & EFI_MEMORY_WB);
-#else
 	/*
 	 * Accessing memory above the top the kernel knows about or through a
 	 * file pointer
@@ -292,7 +281,6 @@ static int uncached_access(struct file *file, phys_addr_t addr)
 	if (file->f_flags & O_DSYNC)
 		return 1;
 	return addr >= __pa(high_memory);
-#endif
 }
 #endif
 

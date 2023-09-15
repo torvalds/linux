@@ -1449,7 +1449,7 @@
 			See comment before function elanfreq_setup() in
 			arch/x86/kernel/cpu/cpufreq/elanfreq.c.
 
-	elfcorehdr=[size[KMG]@]offset[KMG] [IA64,PPC,SH,X86,S390]
+	elfcorehdr=[size[KMG]@]offset[KMG] [PPC,SH,X86,S390]
 			Specifies physical address of start of kernel core
 			image elf header and optionally the size. Generally
 			kexec loader will pass this option to capture kernel.
@@ -1511,12 +1511,6 @@
 
 	floppy=		[HW]
 			See Documentation/admin-guide/blockdev/floppy.rst.
-
-	force_pal_cache_flush
-			[IA-64] Avoid check_sal_cache_flush which may hang on
-			buggy SAL_CACHE_FLUSH implementations. Using this
-			parameter will force ia64_sal_cache_flush to call
-			ia64_pal_cache_flush instead of SAL_CACHE_FLUSH.
 
 	forcepae	[X86-32]
 			Forcefully enable Physical Address Extension (PAE).

@@ -259,7 +259,7 @@ void acpi_table_print_madt_entry (struct acpi_subtable_header *madt);
 /* the following numa functions are architecture-dependent */
 void acpi_numa_slit_init (struct acpi_table_slit *slit);
 
-#if defined(CONFIG_X86) || defined(CONFIG_IA64) || defined(CONFIG_LOONGARCH)
+#if defined(CONFIG_X86) || defined(CONFIG_LOONGARCH)
 void acpi_numa_processor_affinity_init (struct acpi_srat_cpu_affinity *pa);
 #else
 static inline void
@@ -1114,14 +1114,7 @@ static inline int acpi_get_lps0_constraint(struct device *dev)
 	return ACPI_STATE_UNKNOWN;
 }
 #endif /* CONFIG_SUSPEND && CONFIG_X86 */
-#ifndef CONFIG_IA64
 void arch_reserve_mem_area(acpi_physical_address addr, size_t size);
-#else
-static inline void arch_reserve_mem_area(acpi_physical_address addr,
-					  size_t size)
-{
-}
-#endif /* CONFIG_X86 */
 #else
 #define acpi_os_set_prepare_sleep(func, pm1a_ctrl, pm1b_ctrl) do { } while (0)
 #endif
