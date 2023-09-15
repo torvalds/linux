@@ -86,7 +86,7 @@ static irqreturn_t shmob_drm_irq(int irq, void *arg)
 	spin_unlock_irqrestore(&sdev->irq_lock, flags);
 
 	if (status & LDINTR_VES) {
-		drm_handle_vblank(dev, 0);
+		drm_crtc_handle_vblank(&sdev->crtc.base);
 		shmob_drm_crtc_finish_page_flip(&sdev->crtc);
 	}
 
