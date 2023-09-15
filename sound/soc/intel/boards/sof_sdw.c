@@ -20,8 +20,6 @@ static int quirk_override = -1;
 module_param_named(quirk, quirk_override, int, 0444);
 MODULE_PARM_DESC(quirk, "Board-specific quirk override");
 
-#define INC_ID(BE, LINK)	do { (BE)++; (LINK)++; } while (0)
-
 static void log_quirks(struct device *dev)
 {
 	if (SOF_JACK_JDSRC(sof_sdw_quirk))
@@ -1089,14 +1087,14 @@ static int get_dailink_info(struct device *dev,
 }
 
 static void init_dai_link(struct device *dev, struct snd_soc_dai_link *dai_links,
-			  int be_id, char *name, int playback, int capture,
+			  int *be_id, char *name, int playback, int capture,
 			  struct snd_soc_dai_link_component *cpus, int cpus_num,
 			  struct snd_soc_dai_link_component *codecs, int codecs_num,
 			  int (*init)(struct snd_soc_pcm_runtime *rtd),
 			  const struct snd_soc_ops *ops)
 {
-	dev_dbg(dev, "create dai link %s, id %d\n", name, be_id);
-	dai_links->id = be_id;
+	dev_dbg(dev, "create dai link %s, id %d\n", name, *be_id);
+	dai_links->id = (*be_id)++;
 	dai_links->name = name;
 	dai_links->platforms = platform_component;
 	dai_links->num_platforms = ARRAY_SIZE(platform_component);
@@ -1112,7 +1110,7 @@ static void init_dai_link(struct device *dev, struct snd_soc_dai_link *dai_links
 }
 
 static int init_simple_dai_link(struct device *dev, struct snd_soc_dai_link *dai_links,
-				int be_id, char *name, int playback, int capture,
+				int *be_id, char *name, int playback, int capture,
 				const char *cpu_dai_name,
 				const char *codec_name, const char *codec_dai_name,
 				int (*init)(struct snd_soc_pcm_runtime *rtd),
@@ -1484,7 +1482,7 @@ static int create_sdw_dailink(struct snd_soc_card *card, int *link_index,
 		playback = (stream == SNDRV_PCM_STREAM_PLAYBACK);
 		capture = (stream == SNDRV_PCM_STREAM_CAPTURE);
 
-		init_dai_link(dev, dai_links + *link_index, (*be_id)++, name,
+		init_dai_link(dev, dai_links + *link_index, be_id, name,
 			      playback, capture, cpus, cpu_dai_num, codecs, codec_num,
 			      NULL, &sdw_ops);
 
@@ -1674,7 +1672,7 @@ SSP:
 		playback = info->dais[0].direction[SNDRV_PCM_STREAM_PLAYBACK];
 		capture = info->dais[0].direction[SNDRV_PCM_STREAM_CAPTURE];
 
-		ret = init_simple_dai_link(dev, dai_links + link_index, be_id, name,
+		ret = init_simple_dai_link(dev, dai_links + link_index, &be_id, name,
 					   playback, capture, cpu_dai_name,
 					   codec_name, info->dais[0].dai_name,
 					   NULL, info->ops);
@@ -1685,7 +1683,7 @@ SSP:
 		if (ret < 0)
 			return ret;
 
-		INC_ID(be_id, link_index);
+		link_index++;
 	}
 
 DMIC:
@@ -1696,16 +1694,16 @@ DMIC:
 			goto HDMI;
 		}
 
-		ret = init_simple_dai_link(dev, dai_links + link_index, be_id, "dmic01",
+		ret = init_simple_dai_link(dev, dai_links + link_index, &be_id, "dmic01",
 					   0, 1, // DMIC only supports capture
 					   "DMIC01 Pin", "dmic-codec", "dmic-hifi",
 					   sof_sdw_dmic_init, NULL);
 		if (ret)
 			return ret;
 
-		INC_ID(be_id, link_index);
+		link_index++;
 
-		ret = init_simple_dai_link(dev, dai_links + link_index, be_id, "dmic16k",
+		ret = init_simple_dai_link(dev, dai_links + link_index, &be_id, "dmic16k",
 					   0, 1, // DMIC only supports capture
 					   "DMIC16k Pin", "dmic-codec", "dmic-hifi",
 					   /* don't call sof_sdw_dmic_init() twice */
@@ -1713,7 +1711,7 @@ DMIC:
 		if (ret)
 			return ret;
 
-		INC_ID(be_id, link_index);
+		link_index++;
 	}
 
 HDMI:
@@ -1731,14 +1729,14 @@ HDMI:
 			codec_dai_name = "snd-soc-dummy-dai";
 		}
 
-		ret = init_simple_dai_link(dev, dai_links + link_index, be_id, name,
+		ret = init_simple_dai_link(dev, dai_links + link_index, &be_id, name,
 					   1, 0, // HDMI only supports playback
 					   cpu_dai_name, codec_name, codec_dai_name,
 					   sof_sdw_hdmi_init, NULL);
 		if (ret)
 			return ret;
 
-		INC_ID(be_id, link_index);
+		link_index++;
 	}
 
 	if (sof_sdw_quirk & SOF_SSP_BT_OFFLOAD_PRESENT) {
@@ -1748,7 +1746,7 @@ HDMI:
 		name = devm_kasprintf(dev, GFP_KERNEL, "SSP%d-BT", port);
 		cpu_dai_name = devm_kasprintf(dev, GFP_KERNEL, "SSP%d Pin", port);
 
-		ret = init_simple_dai_link(dev, dai_links + link_index, be_id, name,
+		ret = init_simple_dai_link(dev, dai_links + link_index, &be_id, name,
 					   1, 1, cpu_dai_name, asoc_dummy_dlc.name,
 					   asoc_dummy_dlc.dai_name, NULL, NULL);
 		if (ret)
