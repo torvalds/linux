@@ -302,7 +302,6 @@ static void test_msg_peek_server(const struct test_opts *opts,
 	unsigned char buf_half[MSG_PEEK_BUF_LEN / 2];
 	unsigned char buf_normal[MSG_PEEK_BUF_LEN];
 	unsigned char buf_peek[MSG_PEEK_BUF_LEN];
-	ssize_t res;
 	int fd;
 
 	if (seqpacket)
@@ -316,34 +315,16 @@ static void test_msg_peek_server(const struct test_opts *opts,
 	}
 
 	/* Peek from empty socket. */
-	res = recv(fd, buf_peek, sizeof(buf_peek), MSG_PEEK | MSG_DONTWAIT);
-	if (res != -1) {
-		fprintf(stderr, "expected recv(2) failure, got %zi\n", res);
-		exit(EXIT_FAILURE);
-	}
-
-	if (errno != EAGAIN) {
-		perror("EAGAIN expected");
-		exit(EXIT_FAILURE);
-	}
+	recv_buf(fd, buf_peek, sizeof(buf_peek), MSG_PEEK | MSG_DONTWAIT,
+		 -EAGAIN);
 
 	control_writeln("SRVREADY");
 
 	/* Peek part of data. */
-	res = recv(fd, buf_half, sizeof(buf_half), MSG_PEEK);
-	if (res != sizeof(buf_half)) {
-		fprintf(stderr, "recv(2) + MSG_PEEK, expected %zu, got %zi\n",
-			sizeof(buf_half), res);
-		exit(EXIT_FAILURE);
-	}
+	recv_buf(fd, buf_half, sizeof(buf_half), MSG_PEEK, sizeof(buf_half));
 
 	/* Peek whole data. */
-	res = recv(fd, buf_peek, sizeof(buf_peek), MSG_PEEK);
-	if (res != sizeof(buf_peek)) {
-		fprintf(stderr, "recv(2) + MSG_PEEK, expected %zu, got %zi\n",
-			sizeof(buf_peek), res);
-		exit(EXIT_FAILURE);
-	}
+	recv_buf(fd, buf_peek, sizeof(buf_peek), MSG_PEEK, sizeof(buf_peek));
 
 	/* Compare partial and full peek. */
 	if (memcmp(buf_half, buf_peek, sizeof(buf_half))) {
@@ -356,22 +337,11 @@ static void test_msg_peek_server(const struct test_opts *opts,
 		 * so check it with MSG_PEEK. We must get length
 		 * of the message.
 		 */
-		res = recv(fd, buf_half, sizeof(buf_half), MSG_PEEK |
-			   MSG_TRUNC);
-		if (res != sizeof(buf_peek)) {
-			fprintf(stderr,
-				"recv(2) + MSG_PEEK | MSG_TRUNC, exp %zu, got %zi\n",
-				sizeof(buf_half), res);
-			exit(EXIT_FAILURE);
-		}
+		recv_buf(fd, buf_half, sizeof(buf_half), MSG_PEEK | MSG_TRUNC,
+			 sizeof(buf_peek));
 	}
 
-	res = recv(fd, buf_normal, sizeof(buf_normal), 0);
-	if (res != sizeof(buf_normal)) {
-		fprintf(stderr, "recv(2), expected %zu, got %zi\n",
-			sizeof(buf_normal), res);
-		exit(EXIT_FAILURE);
-	}
+	recv_buf(fd, buf_normal, sizeof(buf_normal), 0, sizeof(buf_normal));
 
 	/* Compare full peek and normal read. */
 	if (memcmp(buf_peek, buf_normal, sizeof(buf_peek))) {
@@ -901,7 +871,6 @@ static void test_stream_poll_rcvlowat_client(const struct test_opts *opts)
 	unsigned long lowat_val = RCVLOWAT_BUF_SIZE;
 	char buf[RCVLOWAT_BUF_SIZE];
 	struct pollfd fds;
-	ssize_t read_res;
 	short poll_flags;
 	int fd;
 
@@ -956,12 +925,7 @@ static void test_stream_poll_rcvlowat_client(const struct test_opts *opts)
 	/* Use MSG_DONTWAIT, if call is going to wait, EAGAIN
 	 * will be returned.
 	 */
-	read_res = recv(fd, buf, sizeof(buf), MSG_DONTWAIT);
-	if (read_res != RCVLOWAT_BUF_SIZE) {
-		fprintf(stderr, "Unexpected recv result %zi\n",
-			read_res);
-		exit(EXIT_FAILURE);
-	}
+	recv_buf(fd, buf, sizeof(buf), MSG_DONTWAIT, RCVLOWAT_BUF_SIZE);
 
 	control_writeln("POLLDONE");
 
@@ -973,7 +937,7 @@ static void test_stream_poll_rcvlowat_client(const struct test_opts *opts)
 static void test_inv_buf_client(const struct test_opts *opts, bool stream)
 {
 	unsigned char data[INV_BUF_TEST_DATA_LEN] = {0};
-	ssize_t ret;
+	ssize_t expected_ret;
 	int fd;
 
 	if (stream)
@@ -989,38 +953,17 @@ static void test_inv_buf_client(const struct test_opts *opts, bool stream)
 	control_expectln("SENDDONE");
 
 	/* Use invalid buffer here. */
-	ret = recv(fd, NULL, sizeof(data), 0);
-	if (ret != -1) {
-		fprintf(stderr, "expected recv(2) failure, got %zi\n", ret);
-		exit(EXIT_FAILURE);
-	}
-
-	if (errno != EFAULT) {
-		fprintf(stderr, "unexpected recv(2) errno %d\n", errno);
-		exit(EXIT_FAILURE);
-	}
-
-	ret = recv(fd, data, sizeof(data), MSG_DONTWAIT);
+	recv_buf(fd, NULL, sizeof(data), 0, -EFAULT);
 
 	if (stream) {
 		/* For SOCK_STREAM we must continue reading. */
-		if (ret != sizeof(data)) {
-			fprintf(stderr, "expected recv(2) success, got %zi\n", ret);
-			exit(EXIT_FAILURE);
-		}
-		/* Don't check errno in case of success. */
+		expected_ret = sizeof(data);
 	} else {
 		/* For SOCK_SEQPACKET socket's queue must be empty. */
-		if (ret != -1) {
-			fprintf(stderr, "expected recv(2) failure, got %zi\n", ret);
-			exit(EXIT_FAILURE);
-		}
-
-		if (errno != EAGAIN) {
-			fprintf(stderr, "unexpected recv(2) errno %d\n", errno);
-			exit(EXIT_FAILURE);
-		}
+		expected_ret = -EAGAIN;
 	}
+
+	recv_buf(fd, data, sizeof(data), MSG_DONTWAIT, expected_ret);
 
 	control_writeln("DONE");
 
@@ -1118,7 +1061,6 @@ static void test_stream_virtio_skb_merge_client(const struct test_opts *opts)
 static void test_stream_virtio_skb_merge_server(const struct test_opts *opts)
 {
 	unsigned char buf[64];
-	ssize_t res;
 	int fd;
 
 	fd = vsock_stream_accept(VMADDR_CID_ANY, 1234, NULL);
@@ -1130,26 +1072,14 @@ static void test_stream_virtio_skb_merge_server(const struct test_opts *opts)
 	control_expectln("SEND0");
 
 	/* Read skbuff partially. */
-	res = recv(fd, buf, 2, 0);
-	if (res != 2) {
-		fprintf(stderr, "expected recv(2) returns 2 bytes, got %zi\n", res);
-		exit(EXIT_FAILURE);
-	}
+	recv_buf(fd, buf, 2, 0, 2);
 
 	control_writeln("REPLY0");
 	control_expectln("SEND1");
 
-	res = recv(fd, buf + 2, sizeof(buf) - 2, 0);
-	if (res != 8) {
-		fprintf(stderr, "expected recv(2) returns 8 bytes, got %zi\n", res);
-		exit(EXIT_FAILURE);
-	}
+	recv_buf(fd, buf + 2, 8, 0, 8);
 
-	res = recv(fd, buf, sizeof(buf) - 8 - 2, MSG_DONTWAIT);
-	if (res != -1) {
-		fprintf(stderr, "expected recv(2) failure, got %zi\n", res);
-		exit(EXIT_FAILURE);
-	}
+	recv_buf(fd, buf, sizeof(buf) - 8 - 2, MSG_DONTWAIT, -EAGAIN);
 
 	if (memcmp(buf, HELLO_STR WORLD_STR, strlen(HELLO_STR WORLD_STR))) {
 		fprintf(stderr, "pattern mismatch\n");
