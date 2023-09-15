@@ -803,6 +803,38 @@ static const struct dmi_system_id video_detect_dmi_table[] = {
 	 */
 	{
 	 .callback = video_detect_force_vendor,
+	 /* Lenovo Yoga Book X90F / X90L */
+	 .matches = {
+		DMI_EXACT_MATCH(DMI_SYS_VENDOR, "Intel Corporation"),
+		DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "CHERRYVIEW D1 PLATFORM"),
+		DMI_EXACT_MATCH(DMI_PRODUCT_VERSION, "YETI-11"),
+		},
+	},
+	{
+	 .callback = video_detect_force_vendor,
+	 /*
+	  * Lenovo Yoga Tablet 2 830F/L or 1050F/L (The 8" and 10"
+	  * Lenovo Yoga Tablet 2 use the same mainboard)
+	  */
+	 .matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "Intel Corp."),
+		DMI_MATCH(DMI_PRODUCT_NAME, "VALLEYVIEW C0 PLATFORM"),
+		DMI_MATCH(DMI_BOARD_NAME, "BYT-T FFD8"),
+		/* Partial match on beginning of BIOS version */
+		DMI_MATCH(DMI_BIOS_VERSION, "BLADE_21"),
+		},
+	},
+	{
+	 .callback = video_detect_force_vendor,
+	 /* Lenovo Yoga Tab 3 Pro YT3-X90F */
+	 .matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "Intel Corporation"),
+		DMI_MATCH(DMI_PRODUCT_NAME, "CHERRYVIEW D1 PLATFORM"),
+		DMI_MATCH(DMI_PRODUCT_VERSION, "Blade3-10A-001"),
+		},
+	},
+	{
+	 .callback = video_detect_force_vendor,
 	 /* Xiaomi Mi Pad 2 */
 	 .matches = {
 		DMI_MATCH(DMI_SYS_VENDOR, "Xiaomi Inc"),
