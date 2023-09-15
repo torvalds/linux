@@ -61,6 +61,10 @@ static sector_t cchhb2blk(struct vtoc_cchhb *ptr, struct hd_geometry *geo)
 		ptr->b;
 }
 
+/* Volume Label Type/ID Length */
+#define DASD_VOL_TYPE_LEN	4
+#define DASD_VOL_ID_LEN		6
+
 /* Volume Label Types */
 #define DASD_VOLLBL_TYPE_VOL1 0
 #define DASD_VOLLBL_TYPE_LNX1 1
@@ -91,7 +95,7 @@ static int get_label_by_type(const char *type)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(dasd_vollabels); i++) {
-		if (!memcmp(type, dasd_vollabels[i].type, 4))
+		if (!memcmp(type, dasd_vollabels[i].type, DASD_VOL_TYPE_LEN))
 			return dasd_vollabels[i].idx;
 	}
 
@@ -138,19 +142,19 @@ static int find_label(struct parsed_partitions *state,
 		if (data == NULL)
 			continue;
 		memcpy(label, data, sizeof(*label));
-		memcpy(type, data, 4);
-		EBCASC(type, 4);
+		memcpy(type, data, DASD_VOL_TYPE_LEN);
+		EBCASC(type, DASD_VOL_TYPE_LEN);
 		put_dev_sector(sect);
 		switch (get_label_by_type(type)) {
 		case DASD_VOLLBL_TYPE_VOL1:
-			memcpy(name, label->vol.volid, 6);
-			EBCASC(name, 6);
+			memcpy(name, label->vol.volid, DASD_VOL_ID_LEN);
+			EBCASC(name, DASD_VOL_ID_LEN);
 			*labelsect = testsect[i];
 			return 1;
 		case DASD_VOLLBL_TYPE_LNX1:
 		case DASD_VOLLBL_TYPE_CMS1:
-			memcpy(name, label->lnx.volid, 6);
-			EBCASC(name, 6);
+			memcpy(name, label->lnx.volid, DASD_VOL_ID_LEN);
+			EBCASC(name, DASD_VOL_ID_LEN);
 			*labelsect = testsect[i];
 			return 1;
 		default:
@@ -328,8 +332,8 @@ int ibm_partition(struct parsed_partitions *state)
 	sector_t nr_sectors;
 	dasd_information2_t *info;
 	struct hd_geometry *geo;
-	char type[5] = {0,};
-	char name[7] = {0,};
+	char type[DASD_VOL_TYPE_LEN + 1] = "";
+	char name[DASD_VOL_ID_LEN + 1] = "";
 	sector_t labelsect;
 	union label_t *label;
 
