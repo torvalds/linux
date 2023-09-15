@@ -1369,9 +1369,9 @@ static int snd_sof_get_nhlt_endpoint_data(struct snd_sof_dev *sdev, struct snd_s
 }
 #endif
 
-static bool sof_ipc4_copier_is_single_format(struct snd_sof_dev *sdev,
-					     struct sof_ipc4_pin_format *pin_fmts,
-					     u32 pin_fmts_size)
+bool sof_ipc4_copier_is_single_format(struct snd_sof_dev *sdev,
+				      struct sof_ipc4_pin_format *pin_fmts,
+				      u32 pin_fmts_size)
 {
 	struct sof_ipc4_audio_format *fmt;
 	u32 valid_bits;
@@ -1380,7 +1380,7 @@ static bool sof_ipc4_copier_is_single_format(struct snd_sof_dev *sdev,
 	fmt = &pin_fmts[0].audio_fmt;
 	valid_bits = SOF_IPC4_AUDIO_FORMAT_CFG_V_BIT_DEPTH(fmt->fmt_cfg);
 
-	/* check if all output formats in topology are the same */
+	/* check if all formats in topology are the same */
 	for (i = 1; i < pin_fmts_size; i++) {
 		u32 _valid_bits;
 
