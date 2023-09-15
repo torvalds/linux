@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright(c) 2020 Intel Corporation. All rights reserved. */
+#include <linux/platform_device.h>
 #include <linux/memregion.h>
 #include <linux/workqueue.h>
 #include <linux/debugfs.h>
@@ -1463,7 +1464,11 @@ retry:
 		struct cxl_dport *dport;
 		struct cxl_port *port;
 
-		if (!dport_dev)
+		/*
+		 * The terminal "grandparent" in PCI is NULL and @platform_bus
+		 * for platform devices
+		 */
+		if (!dport_dev || dport_dev == &platform_bus)
 			return 0;
 
 		uport_dev = dport_dev->parent;
