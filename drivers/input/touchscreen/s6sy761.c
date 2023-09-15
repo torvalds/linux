@@ -323,7 +323,7 @@ static int s6sy761_power_on(struct s6sy761_data *sdata)
 
 	/* for some reasons the device might be stuck in the bootloader */
 	if (ret != S6SY761_BS_APPLICATION)
-		return -ENODEV;
+		dev_warn(&sdata->client->dev, "Unknown status: %d\n", ret);
 
 	/* enable touch functionality */
 	ret = i2c_smbus_write_word_data(sdata->client,
@@ -372,7 +372,7 @@ static int s6sy761_hw_init(struct s6sy761_data *sdata,
 	if (ret < 0)
 		return ret;
 	else if (ret != S6SY761_FW_OK)
-		return -ENODEV;
+		dev_warn(&sdata->client->dev, "Unknown status: %d\n", ret);
 
 	return 0;
 }
