@@ -2483,7 +2483,7 @@ static inline void rtllib_process_probe_response(
 	short renew;
 	struct rtllib_network *network = kzalloc(sizeof(struct rtllib_network),
 						 GFP_ATOMIC);
-	__le16 frame_ctl = beacon->header.frame_ctl;
+	__le16 frame_ctl = beacon->header.frame_control;
 
 	if (!network)
 		return;

@@ -685,16 +685,6 @@ struct rtllib_hdr {
 	u8 payload[];
 } __packed;
 
-struct rtllib_hdr_3addr {
-	__le16 frame_ctl;
-	__le16 duration_id;
-	u8 addr1[ETH_ALEN];
-	u8 addr2[ETH_ALEN];
-	u8 addr3[ETH_ALEN];
-	__le16 seq_ctl;
-	u8 payload[];
-} __packed;
-
 struct rtllib_hdr_4addr {
 	__le16 frame_ctl;
 	__le16 duration_id;
@@ -736,7 +726,7 @@ struct rtllib_info_element {
 } __packed;
 
 struct rtllib_authentication {
-	struct rtllib_hdr_3addr header;
+	struct ieee80211_hdr_3addr header;
 	__le16 algorithm;
 	__le16 transaction;
 	__le16 status;
@@ -745,23 +735,23 @@ struct rtllib_authentication {
 } __packed;
 
 struct rtllib_disauth {
-	struct rtllib_hdr_3addr header;
+	struct ieee80211_hdr_3addr header;
 	__le16 reason;
 } __packed;
 
 struct rtllib_disassoc {
-	struct rtllib_hdr_3addr header;
+	struct ieee80211_hdr_3addr header;
 	__le16 reason;
 } __packed;
 
 struct rtllib_probe_request {
-	struct rtllib_hdr_3addr header;
+	struct ieee80211_hdr_3addr header;
 	/* SSID, supported rates */
 	struct rtllib_info_element info_element[];
 } __packed;
 
 struct rtllib_probe_response {
-	struct rtllib_hdr_3addr header;
+	struct ieee80211_hdr_3addr header;
 	u32 time_stamp[2];
 	__le16 beacon_interval;
 	__le16 capability;
@@ -775,7 +765,7 @@ struct rtllib_probe_response {
 #define rtllib_beacon rtllib_probe_response
 
 struct rtllib_assoc_request_frame {
-	struct rtllib_hdr_3addr header;
+	struct ieee80211_hdr_3addr header;
 	__le16 capability;
 	__le16 listen_interval;
 	/* SSID, supported rates, RSN */
@@ -783,7 +773,7 @@ struct rtllib_assoc_request_frame {
 } __packed;
 
 struct rtllib_assoc_response_frame {
-	struct rtllib_hdr_3addr header;
+	struct ieee80211_hdr_3addr header;
 	__le16 capability;
 	__le16 status;
 	__le16 aid;
