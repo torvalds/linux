@@ -1470,7 +1470,7 @@ static short _rtl92e_tx(struct net_device *dev, struct sk_buff *skb)
 	struct cb_desc *tcb_desc = (struct cb_desc *)(skb->cb +
 				    MAX_DEV_ADDR_SIZE);
 	struct tx_desc *pdesc = NULL;
-	struct rtllib_hdr_1addr *header = NULL;
+	struct ieee80211_hdr *header = NULL;
 	u8 *pda_addr = NULL;
 	int   idx;
 	u32 fwinfo_size = 0;
@@ -1479,7 +1479,7 @@ static short _rtl92e_tx(struct net_device *dev, struct sk_buff *skb)
 
 	fwinfo_size = sizeof(struct tx_fwinfo_8190pci);
 
-	header = (struct rtllib_hdr_1addr *)(((u8 *)skb->data) + fwinfo_size);
+	header = (struct ieee80211_hdr *)(((u8 *)skb->data) + fwinfo_size);
 	pda_addr = header->addr1;
 
 	if (!is_broadcast_ether_addr(pda_addr) && !is_multicast_ether_addr(pda_addr))
@@ -1725,7 +1725,7 @@ void rtl92e_copy_mpdu_stats(struct rtllib_rx_stats *psrc_stats,
 static void _rtl92e_rx_normal(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
-	struct rtllib_hdr_1addr *rtllib_hdr = NULL;
+	struct ieee80211_hdr *rtllib_hdr = NULL;
 	bool unicast_packet = false;
 	u32 skb_len = 0;
 	int rx_queue_idx = RX_MPDU_QUEUE;
@@ -1764,7 +1764,7 @@ static void _rtl92e_rx_normal(struct net_device *dev)
 		skb_reserve(skb, stats.RxDrvInfoSize +
 			stats.RxBufShift);
 		skb_trim(skb, skb->len - S_CRC_LEN);
-		rtllib_hdr = (struct rtllib_hdr_1addr *)skb->data;
+		rtllib_hdr = (struct ieee80211_hdr *)skb->data;
 		if (!is_multicast_ether_addr(rtllib_hdr->addr1)) {
 			/* unicast packet */
 			unicast_packet = true;

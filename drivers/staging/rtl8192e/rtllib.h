@@ -685,13 +685,6 @@ struct rtllib_hdr {
 	u8 payload[];
 } __packed;
 
-struct rtllib_hdr_1addr {
-	__le16 frame_ctl;
-	__le16 duration_id;
-	u8 addr1[ETH_ALEN];
-	u8 payload[];
-} __packed;
-
 struct rtllib_hdr_3addr {
 	__le16 frame_ctl;
 	__le16 duration_id;
