@@ -95,7 +95,7 @@ static int shmob_drm_setup_clocks(struct shmob_drm_device *sdev,
 static irqreturn_t shmob_drm_irq(int irq, void *arg)
 {
 	struct drm_device *dev = arg;
-	struct shmob_drm_device *sdev = dev->dev_private;
+	struct shmob_drm_device *sdev = to_shmob_device(dev);
 	unsigned long flags;
 	u32 status;
 
@@ -242,8 +242,6 @@ static int shmob_drm_probe(struct platform_device *pdev)
 	ret = shmob_drm_init_interface(sdev);
 	if (ret < 0)
 		return ret;
-
-	ddev->dev_private = sdev;
 
 	ret = shmob_drm_modeset_init(sdev);
 	if (ret < 0)

@@ -63,7 +63,7 @@ static void shmob_drm_plane_compute_base(struct shmob_drm_plane *splane,
 static void __shmob_drm_plane_setup(struct shmob_drm_plane *splane,
 				    struct drm_framebuffer *fb)
 {
-	struct shmob_drm_device *sdev = splane->plane.dev->dev_private;
+	struct shmob_drm_device *sdev = to_shmob_device(splane->plane.dev);
 	u32 format;
 
 	/* TODO: Support ROP3 mode */
@@ -135,8 +135,8 @@ shmob_drm_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 		       uint32_t src_w, uint32_t src_h,
 		       struct drm_modeset_acquire_ctx *ctx)
 {
+	struct shmob_drm_device *sdev = to_shmob_device(plane->dev);
 	struct shmob_drm_plane *splane = to_shmob_plane(plane);
-	struct shmob_drm_device *sdev = plane->dev->dev_private;
 	const struct shmob_drm_format_info *format;
 
 	format = shmob_drm_format_info(fb->format->format);
@@ -167,8 +167,8 @@ shmob_drm_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 static int shmob_drm_plane_disable(struct drm_plane *plane,
 				   struct drm_modeset_acquire_ctx *ctx)
 {
+	struct shmob_drm_device *sdev = to_shmob_device(plane->dev);
 	struct shmob_drm_plane *splane = to_shmob_plane(plane);
-	struct shmob_drm_device *sdev = plane->dev->dev_private;
 
 	splane->format = NULL;
 

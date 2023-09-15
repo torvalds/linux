@@ -39,4 +39,9 @@ struct shmob_drm_device {
 	struct shmob_drm_connector connector;
 };
 
+static inline struct shmob_drm_device *to_shmob_device(struct drm_device *dev)
+{
+	return container_of(dev, struct shmob_drm_device, ddev);
+}
+
 #endif /* __SHMOB_DRM_DRV_H__ */
