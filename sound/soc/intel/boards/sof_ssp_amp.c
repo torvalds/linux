@@ -186,6 +186,12 @@ static int sof_hdmi_init(struct snd_soc_pcm_runtime *rtd)
 
 #define IDISP_CODEC_MASK	0x4
 
+/* BE ID defined in sof-tgl-rt1308-hdmi-ssp.m4 */
+#define HDMI_IN_BE_ID		0
+#define SPK_BE_ID		2
+#define DMIC01_BE_ID		3
+#define INTEL_HDMI_BE_ID	5
+
 static struct snd_soc_dai_link *
 sof_card_dai_links_create(struct device *dev, enum sof_ssp_codec amp_type,
 			  int ssp_codec, int dmic_be_num, int hdmi_num,
@@ -195,6 +201,7 @@ sof_card_dai_links_create(struct device *dev, enum sof_ssp_codec amp_type,
 	struct snd_soc_dai_link_component *cpus;
 	struct snd_soc_dai_link *links;
 	int i, id = 0;
+	bool fixed_be = false;
 
 	links = devm_kcalloc(dev, sof_ssp_amp_card.num_links,
 					sizeof(struct snd_soc_dai_link), GFP_KERNEL);
@@ -207,6 +214,9 @@ sof_card_dai_links_create(struct device *dev, enum sof_ssp_codec amp_type,
 	if (sof_ssp_amp_quirk & SOF_SSP_HDMI_CAPTURE_PRESENT) {
 		int num_of_hdmi_ssp = (sof_ssp_amp_quirk & SOF_NO_OF_HDMI_CAPTURE_SSP_MASK) >>
 				SOF_NO_OF_HDMI_CAPTURE_SSP_SHIFT;
+
+		/* the topology supports HDMI-IN uses fixed BE ID for DAI links */
+		fixed_be = true;
 
 		for (i = 1; i <= num_of_hdmi_ssp; i++) {
 			int port = (i == 1 ? (sof_ssp_amp_quirk & SOF_HDMI_CAPTURE_1_SSP_MASK) >>
@@ -222,7 +232,7 @@ sof_card_dai_links_create(struct device *dev, enum sof_ssp_codec amp_type,
 			links[id].name = devm_kasprintf(dev, GFP_KERNEL, "SSP%d-HDMI", port);
 			if (!links[id].name)
 				return NULL;
-			links[id].id = id;
+			links[id].id = fixed_be ? (HDMI_IN_BE_ID + i - 1) : id;
 			links[id].codecs = &asoc_dummy_dlc;
 			links[id].num_codecs = 1;
 			links[id].platforms = platform_component;
@@ -235,37 +245,39 @@ sof_card_dai_links_create(struct device *dev, enum sof_ssp_codec amp_type,
 	}
 
 	/* codec SSP */
-	links[id].name = devm_kasprintf(dev, GFP_KERNEL, "SSP%d-Codec", ssp_codec);
-	if (!links[id].name)
-		return NULL;
+	if (amp_type != CODEC_NONE) {
+		links[id].name = devm_kasprintf(dev, GFP_KERNEL, "SSP%d-Codec", ssp_codec);
+		if (!links[id].name)
+			return NULL;
 
-	links[id].id = id;
+		links[id].id = fixed_be ? SPK_BE_ID : id;
 
-	switch (amp_type) {
-	case CODEC_CS35L41:
-		cs35l41_set_dai_link(&links[id]);
-		break;
-	case CODEC_RT1308:
-		sof_rt1308_dai_link(&links[id]);
-		break;
-	default:
-		dev_err(dev, "invalid amp type %d\n", amp_type);
-		return NULL;
+		switch (amp_type) {
+		case CODEC_CS35L41:
+			cs35l41_set_dai_link(&links[id]);
+			break;
+		case CODEC_RT1308:
+			sof_rt1308_dai_link(&links[id]);
+			break;
+		default:
+			dev_err(dev, "invalid amp type %d\n", amp_type);
+			return NULL;
+		}
+
+		links[id].platforms = platform_component;
+		links[id].num_platforms = ARRAY_SIZE(platform_component);
+		links[id].dpcm_playback = 1;
+		/* feedback from amplifier or firmware-generated echo reference */
+		links[id].dpcm_capture = 1;
+		links[id].no_pcm = 1;
+		links[id].cpus = &cpus[id];
+		links[id].num_cpus = 1;
+		links[id].cpus->dai_name = devm_kasprintf(dev, GFP_KERNEL, "SSP%d Pin", ssp_codec);
+		if (!links[id].cpus->dai_name)
+			return NULL;
+
+		id++;
 	}
-
-	links[id].platforms = platform_component;
-	links[id].num_platforms = ARRAY_SIZE(platform_component);
-	links[id].dpcm_playback = 1;
-	/* feedback from amplifier or firmware-generated echo reference */
-	links[id].dpcm_capture = 1;
-	links[id].no_pcm = 1;
-	links[id].cpus = &cpus[id];
-	links[id].num_cpus = 1;
-	links[id].cpus->dai_name = devm_kasprintf(dev, GFP_KERNEL, "SSP%d Pin", ssp_codec);
-	if (!links[id].cpus->dai_name)
-		return NULL;
-
-	id++;
 
 	/* dmic */
 	if (dmic_be_num > 0) {
@@ -283,7 +295,7 @@ sof_card_dai_links_create(struct device *dev, enum sof_ssp_codec amp_type,
 	}
 
 	for (i = 0; i < dmic_be_num; i++) {
-		links[id].id = id;
+		links[id].id = fixed_be ? (DMIC01_BE_ID + i) : id;
 		links[id].num_cpus = 1;
 		links[id].codecs = dmic_component;
 		links[id].num_codecs = ARRAY_SIZE(dmic_component);
@@ -312,7 +324,7 @@ sof_card_dai_links_create(struct device *dev, enum sof_ssp_codec amp_type,
 			if (!links[id].name)
 				goto devm_err;
 
-			links[id].id = id;
+			links[id].id = fixed_be ? (INTEL_HDMI_BE_ID + i - 1) : id;
 			links[id].cpus = &cpus[id];
 			links[id].num_cpus = 1;
 			links[id].cpus->dai_name = devm_kasprintf(dev, GFP_KERNEL,
@@ -398,7 +410,10 @@ static int sof_ssp_amp_probe(struct platform_device *pdev)
 	ssp_codec = sof_ssp_amp_quirk & SOF_AMPLIFIER_SSP_MASK;
 
 	/* set number of dai links */
-	sof_ssp_amp_card.num_links = 1 + dmic_be_num;
+	sof_ssp_amp_card.num_links = dmic_be_num;
+
+	if (ctx->amp_type != CODEC_NONE)
+		sof_ssp_amp_card.num_links++;
 
 	if (sof_ssp_amp_quirk & SOF_SSP_HDMI_CAPTURE_PRESENT)
 		sof_ssp_amp_card.num_links += (sof_ssp_amp_quirk & SOF_NO_OF_HDMI_CAPTURE_SSP_MASK) >>
