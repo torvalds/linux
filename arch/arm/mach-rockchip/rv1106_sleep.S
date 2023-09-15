@@ -13,6 +13,9 @@
 #define RV1106_PMUGRF_SOC_CON4		0xff020010
 #define RV1106_CRU_GLB_SRST_FST		0xff3b0c08
 
+#define RV1106_CRU_GLB_RST_CON_ADDR	0xff3b0c10
+#define CRU_FST_RST_PMU_VAL		0x000c000c
+
 #if RV1106_SLEEP_DEBUG
 /********************* console used for sleep.S ******************************/
 #define UART_REG_DLL	(0x00)
@@ -96,6 +99,11 @@ ENTRY(rockchip_slp_cpu_resume)
 	ldr	r0, =RV1106_PMUGRF_OS_REG10
 	ldr	r1, =RV1106_GPIO0_INT_ST
 	ldr	r1, [r1]
+	str	r1, [r0]
+
+	/* enable first reset trigger pmu reset */
+	ldr	r0, =RV1106_CRU_GLB_RST_CON_ADDR
+	ldr	r1, =CRU_FST_RST_PMU_VAL
 	str	r1, [r0]
 
 	/* clear pmu reset hold */
