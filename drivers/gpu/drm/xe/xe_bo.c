@@ -456,7 +456,7 @@ static int xe_bo_trigger_rebind(struct xe_device *xe, struct xe_bo *bo,
 
 	dma_resv_assert_held(bo->ttm.base.resv);
 
-	if (!xe_device_in_fault_mode(xe) && !list_empty(&bo->vmas)) {
+	if (!list_empty(&bo->ttm.base.gpuva.list)) {
 		dma_resv_iter_begin(&cursor, bo->ttm.base.resv,
 				    DMA_RESV_USAGE_BOOKKEEP);
 		dma_resv_for_each_fence_unlocked(&cursor, fence)
@@ -1049,7 +1049,7 @@ static void xe_ttm_bo_destroy(struct ttm_buffer_object *ttm_bo)
 		drm_prime_gem_destroy(&bo->ttm.base, NULL);
 	drm_gem_object_release(&bo->ttm.base);
 
-	xe_assert(xe, list_empty(&bo->vmas));
+	xe_assert(xe, list_empty(&ttm_bo->base.gpuva.list));
 
 	if (bo->ggtt_node.size)
 		xe_ggtt_remove_bo(bo->tile->mem.ggtt, bo);
@@ -1232,7 +1232,6 @@ struct xe_bo *__xe_bo_create_locked(struct xe_device *xe, struct xe_bo *bo,
 	bo->props.preferred_gt = XE_BO_PROPS_INVALID;
 	bo->props.preferred_mem_type = XE_BO_PROPS_INVALID;
 	bo->ttm.priority = DRM_XE_VMA_PRIORITY_NORMAL;
-	INIT_LIST_HEAD(&bo->vmas);
 	INIT_LIST_HEAD(&bo->pinned_link);
 
 	drm_gem_private_object_init(&xe->drm, &bo->ttm.base, size);

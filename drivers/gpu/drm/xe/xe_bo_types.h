@@ -31,8 +31,6 @@ struct xe_bo {
 	struct xe_vm *vm;
 	/** @tile: Tile this BO is attached to (kernel BO only) */
 	struct xe_tile *tile;
-	/** @vmas: List of VMAs for this BO */
-	struct list_head vmas;
 	/** @placements: valid placements for this BO */
 	struct ttm_place placements[XE_BO_MAX_PLACEMENTS];
 	/** @placement: current placement for this BO */
