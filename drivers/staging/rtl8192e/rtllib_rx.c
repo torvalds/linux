@@ -94,13 +94,13 @@ rtllib_frag_cache_get(struct rtllib_device *ieee,
 	unsigned int seq = WLAN_GET_SEQ_SEQ(sc);
 	struct rtllib_frag_entry *entry;
 	struct ieee80211_qos_hdr *hdr_3addrqos;
-	struct rtllib_hdr_4addrqos *hdr_4addrqos;
+	struct ieee80211_qos_hdr_4addr *hdr_4addrqos;
 	u8 tid;
 
 	if (((fc & RTLLIB_FCTL_DSTODS) == RTLLIB_FCTL_DSTODS) &&
 	    RTLLIB_QOS_HAS_SEQ(fc)) {
-		hdr_4addrqos = (struct rtllib_hdr_4addrqos *)hdr;
-		tid = le16_to_cpu(hdr_4addrqos->qos_ctl) & RTLLIB_QCTL_TID;
+		hdr_4addrqos = (struct ieee80211_qos_hdr_4addr *)hdr;
+		tid = le16_to_cpu(hdr_4addrqos->qos_ctrl) & RTLLIB_QCTL_TID;
 		tid = UP2AC(tid);
 		tid++;
 	} else if (RTLLIB_QOS_HAS_SEQ(fc)) {
@@ -163,13 +163,13 @@ static int rtllib_frag_cache_invalidate(struct rtllib_device *ieee,
 	unsigned int seq = WLAN_GET_SEQ_SEQ(sc);
 	struct rtllib_frag_entry *entry;
 	struct ieee80211_qos_hdr *hdr_3addrqos;
-	struct rtllib_hdr_4addrqos *hdr_4addrqos;
+	struct ieee80211_qos_hdr_4addr *hdr_4addrqos;
 	u8 tid;
 
 	if (((fc & RTLLIB_FCTL_DSTODS) == RTLLIB_FCTL_DSTODS) &&
 	    RTLLIB_QOS_HAS_SEQ(fc)) {
-		hdr_4addrqos = (struct rtllib_hdr_4addrqos *)hdr;
-		tid = le16_to_cpu(hdr_4addrqos->qos_ctl) & RTLLIB_QCTL_TID;
+		hdr_4addrqos = (struct ieee80211_qos_hdr_4addr *)hdr;
+		tid = le16_to_cpu(hdr_4addrqos->qos_ctrl) & RTLLIB_QCTL_TID;
 		tid = UP2AC(tid);
 		tid++;
 	} else if (RTLLIB_QOS_HAS_SEQ(fc)) {
@@ -356,13 +356,13 @@ static int is_duplicate_packet(struct rtllib_device *ieee,
 	u16 *last_seq, *last_frag;
 	unsigned long *last_time;
 	struct ieee80211_qos_hdr *hdr_3addrqos;
-	struct rtllib_hdr_4addrqos *hdr_4addrqos;
+	struct ieee80211_qos_hdr_4addr *hdr_4addrqos;
 	u8 tid;
 
 	if (((fc & RTLLIB_FCTL_DSTODS) == RTLLIB_FCTL_DSTODS) &&
 	    RTLLIB_QOS_HAS_SEQ(fc)) {
-		hdr_4addrqos = (struct rtllib_hdr_4addrqos *)header;
-		tid = le16_to_cpu(hdr_4addrqos->qos_ctl) & RTLLIB_QCTL_TID;
+		hdr_4addrqos = (struct ieee80211_qos_hdr_4addr *)header;
+		tid = le16_to_cpu(hdr_4addrqos->qos_ctrl) & RTLLIB_QCTL_TID;
 		tid = UP2AC(tid);
 		tid++;
 	} else if (RTLLIB_QOS_HAS_SEQ(fc)) {
