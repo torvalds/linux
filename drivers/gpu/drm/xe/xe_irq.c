@@ -592,11 +592,7 @@ int xe_irq_install(struct xe_device *xe)
 
 	xe_irq_postinstall(xe);
 
-	err = drmm_add_action_or_reset(&xe->drm, irq_uninstall, xe);
-	if (err)
-		return err;
-
-	return err;
+	return drmm_add_action_or_reset(&xe->drm, irq_uninstall, xe);
 }
 
 void xe_irq_shutdown(struct xe_device *xe)
