@@ -229,14 +229,6 @@ static const struct dmi_system_id video_detect_dmi_table[] = {
 		DMI_MATCH(DMI_BOARD_NAME, "NC210/NC110"),
 		},
 	},
-	{
-	 .callback = video_detect_force_vendor,
-	 /* Xiaomi Mi Pad 2 */
-	 .matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "Xiaomi Inc"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "Mipad2"),
-		},
-	},
 
 	/*
 	 * Models which should use the vendor backlight interface,
@@ -797,6 +789,24 @@ static const struct dmi_system_id video_detect_dmi_table[] = {
 	 .matches = {
 		DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
 		DMI_MATCH(DMI_PRODUCT_NAME, "Vostro 15 3535"),
+		},
+	},
+
+	/*
+	 * x86 android tablets which directly control the backlight through
+	 * an external backlight controller, typically TI's LP8557.
+	 * The backlight is directly controlled by the lp855x driver on these.
+	 * This setup means that neither i915's native nor acpi_video backlight
+	 * control works. Add a "vendor" quirk to disable both. Note these
+	 * devices do not use vendor control in the typical meaning of
+	 * vendor specific SMBIOS or ACPI calls being used.
+	 */
+	{
+	 .callback = video_detect_force_vendor,
+	 /* Xiaomi Mi Pad 2 */
+	 .matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "Xiaomi Inc"),
+		DMI_MATCH(DMI_PRODUCT_NAME, "Mipad2"),
 		},
 	},
 	{ },
