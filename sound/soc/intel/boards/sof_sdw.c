@@ -22,11 +22,6 @@ MODULE_PARM_DESC(quirk, "Board-specific quirk override");
 
 #define INC_ID(BE, CPU, LINK)	do { (BE)++; (CPU)++; (LINK)++; } while (0)
 
-#define SDW_MAX_LINKS		4
-
-/* To store SDW Pin index for each SoundWire link */
-static unsigned int sdw_pin_index[SDW_MAX_LINKS];
-
 static void log_quirks(struct device *dev)
 {
 	if (SOF_JACK_JDSRC(sof_sdw_quirk))
@@ -1331,6 +1326,7 @@ static int create_sdw_dailink(struct snd_soc_card *card, int *link_index,
 			      int adr_index,
 			      int dai_index)
 {
+	struct mc_private *ctx = snd_soc_card_get_drvdata(card);
 	struct device *dev = card->dev;
 	const struct snd_soc_acpi_link_adr *adr_link_next;
 	struct snd_soc_dai_link_component *codecs;
@@ -1452,7 +1448,7 @@ static int create_sdw_dailink(struct snd_soc_card *card, int *link_index,
 		for (k = 0; k < cpu_dai_num; k++) {
 			cpu_name = devm_kasprintf(dev, GFP_KERNEL,
 						  "SDW%d Pin%d", cpu_dai_id[k],
-						  sdw_pin_index[cpu_dai_id[k]]++);
+						  ctx->sdw_pin_index[cpu_dai_id[k]]++);
 			if (!cpu_name)
 				return -ENOMEM;
 
@@ -1600,7 +1596,7 @@ static int sof_card_dai_links_create(struct snd_soc_card *card)
 		goto SSP;
 
 	for (i = 0; i < SDW_MAX_LINKS; i++)
-		sdw_pin_index[i] = SDW_INTEL_BIDIR_PDI_BASE;
+		ctx->sdw_pin_index[i] = SDW_INTEL_BIDIR_PDI_BASE;
 
 	for (; adr_link->num_adr; adr_link++) {
 		/*

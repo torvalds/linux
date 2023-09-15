@@ -24,6 +24,8 @@
 #define SDW_MAX_CPU_DAIS 16
 #define SDW_INTEL_BIDIR_PDI_BASE 2
 
+#define SDW_MAX_LINKS		4
+
 /* 8 combinations with 4 links + unused group 0 */
 #define SDW_MAX_GROUPS 9
 
@@ -97,6 +99,8 @@ struct mc_private {
 	struct snd_soc_jack sdw_headset;
 	struct device *headset_codec_dev; /* only one headset per card */
 	struct device *amp_dev1, *amp_dev2;
+	/* To store SDW Pin index for each SoundWire link */
+	unsigned int sdw_pin_index[SDW_MAX_LINKS];
 };
 
 extern unsigned long sof_sdw_quirk;
