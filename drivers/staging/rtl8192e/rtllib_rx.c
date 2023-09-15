@@ -93,7 +93,7 @@ rtllib_frag_cache_get(struct rtllib_device *ieee,
 	unsigned int frag = WLAN_GET_SEQ_FRAG(sc);
 	unsigned int seq = WLAN_GET_SEQ_SEQ(sc);
 	struct rtllib_frag_entry *entry;
-	struct rtllib_hdr_3addrqos *hdr_3addrqos;
+	struct ieee80211_qos_hdr *hdr_3addrqos;
 	struct rtllib_hdr_4addrqos *hdr_4addrqos;
 	u8 tid;
 
@@ -104,8 +104,8 @@ rtllib_frag_cache_get(struct rtllib_device *ieee,
 		tid = UP2AC(tid);
 		tid++;
 	} else if (RTLLIB_QOS_HAS_SEQ(fc)) {
-		hdr_3addrqos = (struct rtllib_hdr_3addrqos *)hdr;
-		tid = le16_to_cpu(hdr_3addrqos->qos_ctl) & RTLLIB_QCTL_TID;
+		hdr_3addrqos = (struct ieee80211_qos_hdr *)hdr;
+		tid = le16_to_cpu(hdr_3addrqos->qos_ctrl) & RTLLIB_QCTL_TID;
 		tid = UP2AC(tid);
 		tid++;
 	} else {
@@ -162,7 +162,7 @@ static int rtllib_frag_cache_invalidate(struct rtllib_device *ieee,
 	u16 sc = le16_to_cpu(hdr->seq_ctrl);
 	unsigned int seq = WLAN_GET_SEQ_SEQ(sc);
 	struct rtllib_frag_entry *entry;
-	struct rtllib_hdr_3addrqos *hdr_3addrqos;
+	struct ieee80211_qos_hdr *hdr_3addrqos;
 	struct rtllib_hdr_4addrqos *hdr_4addrqos;
 	u8 tid;
 
@@ -173,8 +173,8 @@ static int rtllib_frag_cache_invalidate(struct rtllib_device *ieee,
 		tid = UP2AC(tid);
 		tid++;
 	} else if (RTLLIB_QOS_HAS_SEQ(fc)) {
-		hdr_3addrqos = (struct rtllib_hdr_3addrqos *)hdr;
-		tid = le16_to_cpu(hdr_3addrqos->qos_ctl) & RTLLIB_QCTL_TID;
+		hdr_3addrqos = (struct ieee80211_qos_hdr *)hdr;
+		tid = le16_to_cpu(hdr_3addrqos->qos_ctrl) & RTLLIB_QCTL_TID;
 		tid = UP2AC(tid);
 		tid++;
 	} else {
@@ -355,7 +355,7 @@ static int is_duplicate_packet(struct rtllib_device *ieee,
 	u16 frag = WLAN_GET_SEQ_FRAG(sc);
 	u16 *last_seq, *last_frag;
 	unsigned long *last_time;
-	struct rtllib_hdr_3addrqos *hdr_3addrqos;
+	struct ieee80211_qos_hdr *hdr_3addrqos;
 	struct rtllib_hdr_4addrqos *hdr_4addrqos;
 	u8 tid;
 
@@ -366,8 +366,8 @@ static int is_duplicate_packet(struct rtllib_device *ieee,
 		tid = UP2AC(tid);
 		tid++;
 	} else if (RTLLIB_QOS_HAS_SEQ(fc)) {
-		hdr_3addrqos = (struct rtllib_hdr_3addrqos *)header;
-		tid = le16_to_cpu(hdr_3addrqos->qos_ctl) & RTLLIB_QCTL_TID;
+		hdr_3addrqos = (struct ieee80211_qos_hdr *)header;
+		tid = le16_to_cpu(hdr_3addrqos->qos_ctrl) & RTLLIB_QCTL_TID;
 		tid = UP2AC(tid);
 		tid++;
 	} else {
