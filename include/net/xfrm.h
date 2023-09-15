@@ -2166,7 +2166,7 @@ static inline bool xfrm6_local_dontfrag(const struct sock *sk)
 
 	proto = sk->sk_protocol;
 	if (proto == IPPROTO_UDP || proto == IPPROTO_RAW)
-		return inet6_sk(sk)->dontfrag;
+		return inet6_test_bit(DONTFRAG, sk);
 
 	return false;
 }

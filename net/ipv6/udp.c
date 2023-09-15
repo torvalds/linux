@@ -598,7 +598,7 @@ int __udp6_lib_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 		if (!ip6_sk_accept_pmtu(sk))
 			goto out;
 		ip6_sk_update_pmtu(skb, sk, info);
-		if (np->pmtudisc != IPV6_PMTUDISC_DONT)
+		if (READ_ONCE(np->pmtudisc) != IPV6_PMTUDISC_DONT)
 			harderr = 1;
 	}
 	if (type == NDISC_REDIRECT) {
@@ -619,7 +619,7 @@ int __udp6_lib_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 		goto out;
 	}
 
-	if (!np->recverr) {
+	if (!inet6_test_bit(RECVERR6, sk)) {
 		if (!harderr || sk->sk_state != TCP_ESTABLISHED)
 			goto out;
 	} else {
@@ -1283,7 +1283,7 @@ csum_partial:
 send:
 	err = ip6_send_skb(skb);
 	if (err) {
-		if (err == -ENOBUFS && !inet6_sk(sk)->recverr) {
+		if (err == -ENOBUFS && !inet6_test_bit(RECVERR6, sk)) {
 			UDP6_INC_STATS(sock_net(sk),
 				       UDP_MIB_SNDBUFERRORS, is_udplite);
 			err = 0;
@@ -1429,7 +1429,7 @@ do_udp_sendmsg:
 		fl6->fl6_dport = sin6->sin6_port;
 		daddr = &sin6->sin6_addr;
 
-		if (np->sndflow) {
+		if (inet6_test_bit(SNDFLOW, sk)) {
 			fl6->flowlabel = sin6->sin6_flowinfo&IPV6_FLOWINFO_MASK;
 			if (fl6->flowlabel & IPV6_FLOWLABEL_MASK) {
 				flowlabel = fl6_sock_lookup(sk, fl6->flowlabel);
@@ -1595,7 +1595,7 @@ back_from_confirm:
 
 do_append_data:
 	if (ipc6.dontfrag < 0)
-		ipc6.dontfrag = np->dontfrag;
+		ipc6.dontfrag = inet6_test_bit(DONTFRAG, sk);
 	up->len += ulen;
 	err = ip6_append_data(sk, getfrag, msg, ulen, sizeof(struct udphdr),
 			      &ipc6, fl6, (struct rt6_info *)dst,
@@ -1608,7 +1608,7 @@ do_append_data:
 		up->pending = 0;
 
 	if (err > 0)
-		err = np->recverr ? net_xmit_errno(err) : 0;
+		err = inet6_test_bit(RECVERR6, sk) ? net_xmit_errno(err) : 0;
 	release_sock(sk);
 
 out:

@@ -266,7 +266,7 @@ static inline unsigned int ip6_skb_dst_mtu(const struct sk_buff *skb)
 	const struct dst_entry *dst = skb_dst(skb);
 	unsigned int mtu;
 
-	if (np && np->pmtudisc >= IPV6_PMTUDISC_PROBE) {
+	if (np && READ_ONCE(np->pmtudisc) >= IPV6_PMTUDISC_PROBE) {
 		mtu = READ_ONCE(dst->dev->mtu);
 		mtu -= lwtunnel_headroom(dst->lwtstate, mtu);
 	} else {
@@ -277,14 +277,18 @@ static inline unsigned int ip6_skb_dst_mtu(const struct sk_buff *skb)
 
 static inline bool ip6_sk_accept_pmtu(const struct sock *sk)
 {
-	return inet6_sk(sk)->pmtudisc != IPV6_PMTUDISC_INTERFACE &&
-	       inet6_sk(sk)->pmtudisc != IPV6_PMTUDISC_OMIT;
+	u8 pmtudisc = READ_ONCE(inet6_sk(sk)->pmtudisc);
+
+	return pmtudisc != IPV6_PMTUDISC_INTERFACE &&
+	       pmtudisc != IPV6_PMTUDISC_OMIT;
 }
 
 static inline bool ip6_sk_ignore_df(const struct sock *sk)
 {
-	return inet6_sk(sk)->pmtudisc < IPV6_PMTUDISC_DO ||
-	       inet6_sk(sk)->pmtudisc == IPV6_PMTUDISC_OMIT;
+	u8 pmtudisc = READ_ONCE(inet6_sk(sk)->pmtudisc);
+
+	return pmtudisc < IPV6_PMTUDISC_DO ||
+	       pmtudisc == IPV6_PMTUDISC_OMIT;
 }
 
 static inline const struct in6_addr *rt6_nexthop(const struct rt6_info *rt,

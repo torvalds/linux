@@ -588,7 +588,7 @@ void icmp6_send(struct sk_buff *skb, u8 type, u8 code, __u32 info,
 	else if (!fl6.flowi6_oif)
 		fl6.flowi6_oif = np->ucast_oif;
 
-	ipcm6_init_sk(&ipc6, np);
+	ipcm6_init_sk(&ipc6, sk);
 	ipc6.sockc.mark = mark;
 	fl6.flowlabel = ip6_make_flowinfo(ipc6.tclass, fl6.flowlabel);
 
@@ -791,7 +791,7 @@ static enum skb_drop_reason icmpv6_echo_reply(struct sk_buff *skb)
 	msg.offset = 0;
 	msg.type = type;
 
-	ipcm6_init_sk(&ipc6, np);
+	ipcm6_init_sk(&ipc6, sk);
 	ipc6.hlimit = ip6_sk_dst_hoplimit(np, &fl6, dst);
 	ipc6.tclass = ipv6_get_dsfield(ipv6_hdr(skb));
 	ipc6.sockc.mark = mark;

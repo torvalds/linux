@@ -759,7 +759,7 @@ out:
 	return ret;
 }
 
-bool sk_mc_loop(struct sock *sk)
+bool sk_mc_loop(const struct sock *sk)
 {
 	if (dev_recursion_level())
 		return false;
@@ -771,7 +771,7 @@ bool sk_mc_loop(struct sock *sk)
 		return inet_test_bit(MC_LOOP, sk);
 #if IS_ENABLED(CONFIG_IPV6)
 	case AF_INET6:
-		return inet6_sk(sk)->mc_loop;
+		return inet6_test_bit(MC6_LOOP, sk);
 #endif
 	}
 	WARN_ON_ONCE(1);

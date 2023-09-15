@@ -500,7 +500,7 @@ void ndisc_send_skb(struct sk_buff *skb, const struct in6_addr *daddr,
 					      csum_partial(icmp6h,
 							   skb->len, 0));
 
-	ip6_nd_hdr(skb, saddr, daddr, inet6_sk(sk)->hop_limit, skb->len);
+	ip6_nd_hdr(skb, saddr, daddr, READ_ONCE(inet6_sk(sk)->hop_limit), skb->len);
 
 	rcu_read_lock();
 	idev = __in6_dev_get(dst->dev);
@@ -1996,7 +1996,7 @@ static int __net_init ndisc_net_init(struct net *net)
 	np = inet6_sk(sk);
 	np->hop_limit = 255;
 	/* Do not loopback ndisc messages */
-	np->mc_loop = 0;
+	inet6_clear_bit(MC6_LOOP, sk);
 
 	return 0;
 }

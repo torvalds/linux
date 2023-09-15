@@ -2238,7 +2238,7 @@ static inline void sock_confirm_neigh(struct sk_buff *skb, struct neighbour *n)
 	}
 }
 
-bool sk_mc_loop(struct sock *sk);
+bool sk_mc_loop(const struct sock *sk);
 
 static inline bool sk_can_gso(const struct sock *sk)
 {
