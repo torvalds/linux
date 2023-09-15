@@ -3,7 +3,7 @@ Aspeed GPIO controller Device Tree Bindings
 
 Required properties:
 - compatible		: Either "aspeed,ast2400-gpio", "aspeed,ast2500-gpio",
-					or "aspeed,ast2600-gpio".
+					"aspeed,ast2600-gpio", or "aspeed,ast2700-gpio".
 
 - #gpio-cells 		: Should be two
 			  - First cell is the GPIO line number
