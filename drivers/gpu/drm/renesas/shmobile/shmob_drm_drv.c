@@ -196,7 +196,6 @@ static void shmob_drm_remove(struct platform_device *pdev)
 
 	drm_dev_unregister(ddev);
 	drm_kms_helper_poll_fini(ddev);
-	free_irq(sdev->irq, ddev);
 	drm_dev_put(ddev);
 }
 
@@ -277,8 +276,8 @@ static int shmob_drm_probe(struct platform_device *pdev)
 		goto err_modeset_cleanup;
 	sdev->irq = ret;
 
-	ret = request_irq(sdev->irq, shmob_drm_irq, 0, ddev->driver->name,
-			  ddev);
+	ret = devm_request_irq(&pdev->dev, sdev->irq, shmob_drm_irq, 0,
+			       ddev->driver->name, ddev);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to install IRQ handler\n");
 		goto err_modeset_cleanup;
@@ -290,14 +289,12 @@ static int shmob_drm_probe(struct platform_device *pdev)
 	 */
 	ret = drm_dev_register(ddev, 0);
 	if (ret < 0)
-		goto err_irq_uninstall;
+		goto err_modeset_cleanup;
 
 	drm_fbdev_generic_setup(ddev, 16);
 
 	return 0;
 
-err_irq_uninstall:
-	free_irq(sdev->irq, ddev);
 err_modeset_cleanup:
 	drm_kms_helper_poll_fini(ddev);
 err_free_drm_dev:
