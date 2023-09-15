@@ -853,7 +853,7 @@ static int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 				ieee->seq_ctrl[0]++;
 		}
 	} else {
-		if (unlikely(skb->len < sizeof(struct rtllib_hdr_3addr))) {
+		if (unlikely(skb->len < sizeof(struct ieee80211_hdr_3addr))) {
 			netdev_warn(ieee->dev, "skb too small (%d).\n",
 				    skb->len);
 			goto success;
