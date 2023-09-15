@@ -1013,8 +1013,6 @@ static int msm_init_cm_dll(struct sdhci_host *host,
 				| CORE_LOW_FREQ_MODE), host->ioaddr +
 				msm_offset->core_dll_config_2);
 		}
-		/* wait for 5us before enabling DLL clock */
-		udelay(5);
 	}
 
 	/*
@@ -1026,18 +1024,6 @@ static int msm_init_cm_dll(struct sdhci_host *host,
 			msm_offset->core_dll_config) |
 			(msm_host->dll_hsr->dll_config & 0xffff)),
 			host->ioaddr + msm_offset->core_dll_config);
-	}
-
-	/*
-	 * Configure DLL user control register to enable DLL status.
-	 * This setting is applicable to SDCC v5.1 onwards only.
-	 */
-	if (msm_host->uses_tassadar_dll) {
-		u32 config;
-		config = DLL_USR_CTL_POR_VAL | FINE_TUNE_MODE_EN |
-			ENABLE_DLL_LOCK_STATUS | BIAS_OK_SIGNAL;
-		writel_relaxed(config, host->ioaddr +
-				msm_offset->core_dll_usr_ctl);
 	}
 
 	/* Step 11 - Wait for 52us */
