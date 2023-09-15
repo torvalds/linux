@@ -621,6 +621,7 @@ config SND_SOC_INTEL_SOF_DA7219_MACH
 	select SND_SOC_MAX98373_I2C
 	select SND_SOC_DMIC
 	select SND_SOC_INTEL_SOF_MAXIM_COMMON
+	select SND_SOC_INTEL_SOF_SSP_COMMON
 	help
 	  This adds support for ASoC machine driver for SOF platforms
 	  with Dialog DA7219 I2S audio codec.

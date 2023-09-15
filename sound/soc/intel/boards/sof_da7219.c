@@ -17,12 +17,7 @@
 #include "../../codecs/da7219.h"
 #include "hda_dsp_common.h"
 #include "sof_maxim_common.h"
-
-/* Speaker amp type
- * TBD: use ssp-common module for type detection
- */
-#define SOF_MAX98360A_SPEAKER_AMP_PRESENT	BIT(0)
-#define SOF_MAX98373_SPEAKER_AMP_PRESENT	BIT(1)
+#include "sof_ssp_common.h"
 
 /* Board Quirks */
 #define SOF_DA7219_JSL_BOARD			BIT(2)
@@ -39,6 +34,8 @@ struct card_private {
 	struct snd_soc_jack headset_jack;
 	struct list_head hdmi_pcm_list;
 	struct snd_soc_jack hdmi[3];
+	enum sof_ssp_codec codec_type;
+	enum sof_ssp_codec amp_type;
 
 	unsigned int pll_bypass:1;
 };
@@ -479,15 +476,24 @@ static int audio_probe(struct platform_device *pdev)
 	if (pdev->id_entry && pdev->id_entry->driver_data)
 		board_quirk = (unsigned long)pdev->id_entry->driver_data;
 
+	ctx->codec_type = sof_ssp_detect_codec_type(&pdev->dev);
+	ctx->amp_type = sof_ssp_detect_amp_type(&pdev->dev);
+
 	if (board_quirk & SOF_DA7219_JSL_BOARD) {
 		/* backward-compatible with existing devices */
-		if (board_quirk & SOF_MAX98360A_SPEAKER_AMP_PRESENT)
+		switch (ctx->amp_type) {
+		case CODEC_MAX98360A:
 			card_da7219.name = devm_kstrdup(&pdev->dev,
 							"da7219max98360a",
 							GFP_KERNEL);
-		else if (board_quirk & SOF_MAX98373_SPEAKER_AMP_PRESENT)
+			break;
+		case CODEC_MAX98373:
 			card_da7219.name = devm_kstrdup(&pdev->dev, "da7219max",
 							GFP_KERNEL);
+			break;
+		default:
+			break;
+		}
 
 		dai_links = jsl_dais;
 		amp_idx = 0;
@@ -503,9 +509,11 @@ static int audio_probe(struct platform_device *pdev)
 	dev_dbg(&pdev->dev, "board_quirk = %lx\n", board_quirk);
 
 	/* speaker amp */
-	if (board_quirk & SOF_MAX98360A_SPEAKER_AMP_PRESENT) {
+	switch (ctx->amp_type) {
+	case CODEC_MAX98360A:
 		max_98360a_dai_link(&dai_links[amp_idx]);
-	} else if (board_quirk & SOF_MAX98373_SPEAKER_AMP_PRESENT) {
+		break;
+	case CODEC_MAX98373:
 		dai_links[amp_idx].codecs = max_98373_components;
 		dai_links[amp_idx].num_codecs = ARRAY_SIZE(max_98373_components);
 		dai_links[amp_idx].init = max_98373_spk_codec_init;
@@ -518,6 +526,10 @@ static int audio_probe(struct platform_device *pdev)
 		}
 
 		max_98373_set_codec_conf(&card_da7219);
+		break;
+	default:
+		dev_err(&pdev->dev, "invalid amp type %d\n", ctx->amp_type);
+		return -EINVAL;
 	}
 
 	card_da7219.dai_link = dai_links;
@@ -538,18 +550,16 @@ static int audio_probe(struct platform_device *pdev)
 
 static const struct platform_device_id board_ids[] = {
 	{
-		.name = "sof_da7219_mx98373",
-		.driver_data = (kernel_ulong_t)(SOF_MAX98373_SPEAKER_AMP_PRESENT |
-					SOF_DA7219_JSL_BOARD),
+		.name = "jsl_mx98373_da7219",
+		.driver_data = (kernel_ulong_t)(SOF_DA7219_JSL_BOARD),
 	},
 	{
-		.name = "sof_da7219_mx98360a",
-		.driver_data = (kernel_ulong_t)(SOF_MAX98360A_SPEAKER_AMP_PRESENT |
-					SOF_DA7219_JSL_BOARD),
+		.name = "jsl_mx98360_da7219",
+		.driver_data = (kernel_ulong_t)(SOF_DA7219_JSL_BOARD),
 	},
 	{
 		.name = "adl_mx98360_da7219",
-		.driver_data = (kernel_ulong_t)(SOF_MAX98360A_SPEAKER_AMP_PRESENT),
+		/* no quirk needed for this board */
 	},
 	{ }
 };
@@ -572,3 +582,4 @@ MODULE_AUTHOR("Brent Lu <brent.lu@intel.com>");
 MODULE_LICENSE("GPL v2");
 MODULE_IMPORT_NS(SND_SOC_INTEL_HDA_DSP_COMMON);
 MODULE_IMPORT_NS(SND_SOC_INTEL_SOF_MAXIM_COMMON);
+MODULE_IMPORT_NS(SND_SOC_INTEL_SOF_SSP_COMMON);
