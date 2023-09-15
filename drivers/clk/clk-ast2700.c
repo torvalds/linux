@@ -342,8 +342,8 @@ static const char *const cpu_uartclk_sel[] = {
 };
 
 static const char *const uartclk_sel[] = {
-	"uxclk",
-	"huxclk",
+	"uartxclk",
+	"huartxclk",
 };
 
 static const char *const uxclk_sel[] = {
@@ -403,7 +403,7 @@ static int ast2700_io_clk_init(struct platform_device *pdev)
 				    0, 2, 0, &ast2700_clk_lock);
 
 	val = readl(clk_base + AST2700_IO_UXCLK_CTRL);
-	clks[AST2700_IO_CLK_UARTCLK] = ast2700_calc_uclk("uartclk", val);
+	clks[AST2700_IO_CLK_UARTX] = ast2700_calc_uclk("uartxclk", val);
 
 	/* huxclk mux selection */
 	clks[AST2700_IO_CLK_HUXCLK] =
@@ -412,7 +412,7 @@ static int ast2700_io_clk_init(struct platform_device *pdev)
 				    3, 2, 0, &ast2700_clk_lock);
 
 	val = readl(clk_base + AST2700_IO_HUXCLK_CTRL);
-	clks[AST2700_IO_CLK_HUARTCLK] = ast2700_calc_huclk("huartclk", val);
+	clks[AST2700_IO_CLK_HUARTX] = ast2700_calc_huclk("huartxclk", val);
 
 	/* AHB CLK = 200Mhz */
 	clks[AST2700_IO_CLK_AHB] =
