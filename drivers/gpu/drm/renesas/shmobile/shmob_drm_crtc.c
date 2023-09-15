@@ -55,24 +55,6 @@ static void shmob_drm_crtc_setup_geometry(struct shmob_drm_crtc *scrtc)
 	      | ((idata->flags & SHMOB_DRM_IFACE_FL_DWCNT) ? LDMT1R_DWCNT : 0);
 	lcdc_write(sdev, LDMT1R, value);
 
-	if (idata->interface >= SHMOB_DRM_IFACE_SYS8A &&
-	    idata->interface <= SHMOB_DRM_IFACE_SYS24) {
-		/* Setup SYS bus. */
-		value = (idata->sys.cs_setup << LDMT2R_CSUP_SHIFT)
-		      | (idata->sys.vsync_active_high ? LDMT2R_RSV : 0)
-		      | (idata->sys.vsync_dir_input ? LDMT2R_VSEL : 0)
-		      | (idata->sys.write_setup << LDMT2R_WCSC_SHIFT)
-		      | (idata->sys.write_cycle << LDMT2R_WCEC_SHIFT)
-		      | (idata->sys.write_strobe << LDMT2R_WCLW_SHIFT);
-		lcdc_write(sdev, LDMT2R, value);
-
-		value = (idata->sys.read_latch << LDMT3R_RDLC_SHIFT)
-		      | (idata->sys.read_setup << LDMT3R_RCSC_SHIFT)
-		      | (idata->sys.read_cycle << LDMT3R_RCEC_SHIFT)
-		      | (idata->sys.read_strobe << LDMT3R_RCLW_SHIFT);
-		lcdc_write(sdev, LDMT3R, value);
-	}
-
 	value = ((mode->hdisplay / 8) << 16)			/* HDCN */
 	      | (mode->htotal / 8);				/* HTCN */
 	lcdc_write(sdev, LDHCNR, value);
@@ -179,8 +161,6 @@ static void shmob_drm_crtc_start(struct shmob_drm_crtc *scrtc)
 	lcdc_write(sdev, LDDCKR, value);
 	lcdc_write(sdev, LDDCKSTPR, 0);
 	lcdc_wait_bit(sdev, LDDCKSTPR, ~0, 0);
-
-	/* TODO: Setup SYS panel */
 
 	/* Setup geometry, format, frame buffer memory and operation mode. */
 	shmob_drm_crtc_setup_geometry(scrtc);
