@@ -517,11 +517,14 @@ static int sof_ipc4_pcm_dai_link_fixup(struct snd_soc_pcm_runtime *rtd,
 {
 	struct snd_soc_component *component = snd_soc_rtdcom_lookup(rtd, SOF_AUDIO_PCM_DRV_NAME);
 	struct snd_sof_dai *dai = snd_sof_find_dai(component, rtd->dai_link->name);
+	struct snd_mask *fmt = hw_param_mask(params, SNDRV_PCM_HW_PARAM_FORMAT);
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(component);
 	struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(rtd, 0);
+	struct sof_ipc4_audio_format *ipc4_fmt;
 	struct sof_ipc4_copier *ipc4_copier;
-	bool use_chain_dma = false;
-	int dir;
+	bool single_fmt = false;
+	u32 valid_bits = 0;
+	int dir, ret;
 
 	if (!dai) {
 		dev_err(component->dev, "%s: No DAI found with name %s\n", __func__,
@@ -540,21 +543,57 @@ static int sof_ipc4_pcm_dai_link_fixup(struct snd_soc_pcm_runtime *rtd,
 		struct snd_soc_dapm_widget *w = snd_soc_dai_get_widget(cpu_dai, dir);
 
 		if (w) {
+			struct sof_ipc4_available_audio_format *available_fmt =
+				&ipc4_copier->available_fmt;
 			struct snd_sof_widget *swidget = w->dobj.private;
 			struct snd_sof_widget *pipe_widget = swidget->spipe->pipe_widget;
 			struct sof_ipc4_pipeline *pipeline = pipe_widget->private;
 
+			/* Chain DMA does not use copiers, so no fixup needed */
 			if (pipeline->use_chain_dma)
-				use_chain_dma = true;
+				return 0;
+
+			if (dir == SNDRV_PCM_STREAM_PLAYBACK) {
+				if (sof_ipc4_copier_is_single_format(sdev,
+					available_fmt->output_pin_fmts,
+					available_fmt->num_output_formats)) {
+					ipc4_fmt = &available_fmt->output_pin_fmts->audio_fmt;
+					single_fmt = true;
+				}
+			} else {
+				if (sof_ipc4_copier_is_single_format(sdev,
+					available_fmt->input_pin_fmts,
+					available_fmt->num_input_formats)) {
+					ipc4_fmt = &available_fmt->input_pin_fmts->audio_fmt;
+					single_fmt = true;
+				}
+			}
 		}
 	}
 
-	/* Chain DMA does not use copiers, so no fixup needed */
-	if (!use_chain_dma) {
-		int ret = sof_ipc4_pcm_dai_link_fixup_rate(sdev, params, ipc4_copier);
+	ret = sof_ipc4_pcm_dai_link_fixup_rate(sdev, params, ipc4_copier);
+	if (ret)
+		return ret;
 
-		if (ret)
-			return ret;
+	if (single_fmt) {
+		snd_mask_none(fmt);
+		valid_bits = SOF_IPC4_AUDIO_FORMAT_CFG_V_BIT_DEPTH(ipc4_fmt->fmt_cfg);
+		dev_dbg(component->dev, "Set %s to %d bit format\n", dai->name, valid_bits);
+	}
+
+	/* Set format if it is specified */
+	switch (valid_bits) {
+	case 16:
+		snd_mask_set_format(fmt, SNDRV_PCM_FORMAT_S16_LE);
+		break;
+	case 24:
+		snd_mask_set_format(fmt, SNDRV_PCM_FORMAT_S24_LE);
+		break;
+	case 32:
+		snd_mask_set_format(fmt, SNDRV_PCM_FORMAT_S32_LE);
+		break;
+	default:
+		break;
 	}
 
 	switch (ipc4_copier->dai_type) {
