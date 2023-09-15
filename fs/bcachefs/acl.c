@@ -427,9 +427,10 @@ int bch2_acl_chmod(struct btree_trans *trans, subvol_inum inum,
 		return bch2_err_matches(ret, ENOENT) ? 0 : ret;
 
 	k = bch2_btree_iter_peek_slot(&iter);
-	xattr = bkey_s_c_to_xattr(k);
+	ret = bkey_err(k);
 	if (ret)
 		goto err;
+	xattr = bkey_s_c_to_xattr(k);
 
 	acl = bch2_acl_from_disk(trans, xattr_val(xattr.v),
 			le16_to_cpu(xattr.v->x_val_len));
