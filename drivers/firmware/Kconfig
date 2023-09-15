@@ -229,6 +229,7 @@ config QCOM_SCM_DOWNLOAD_MODE_DEFAULT
 config QCOM_QSEECOM
 	bool "Qualcomm QSEECOM interface driver"
 	depends on QCOM_SCM=y
+	select AUXILIARY_BUS
 	help
 	  Various Qualcomm SoCs have a Secure Execution Environment (SEE) running
 	  in the Trust Zone. This module provides an interface to that via the
