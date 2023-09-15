@@ -99,6 +99,10 @@ static int sof_ipc4_check_reply_status(struct snd_sof_dev *sdev, u32 status)
 
 to_errno:
 	switch (status) {
+	case 2:
+	case 15:
+		ret = -EOPNOTSUPP;
+		break;
 	case 8:
 	case 11:
 	case 105 ... 109:
