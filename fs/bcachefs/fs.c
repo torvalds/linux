@@ -1716,6 +1716,35 @@ static void bch2_put_super(struct super_block *sb)
 	__bch2_fs_stop(c);
 }
 
+/*
+ * bcachefs doesn't currently integrate intwrite freeze protection but the
+ * internal write references serve the same purpose. Therefore reuse the
+ * read-only transition code to perform the quiesce. The caveat is that we don't
+ * currently have the ability to block tasks that want a write reference while
+ * the superblock is frozen. This is fine for now, but we should either add
+ * blocking support or find a way to integrate sb_start_intwrite() and friends.
+ */
+static int bch2_freeze(struct super_block *sb)
+{
+	struct bch_fs *c = sb->s_fs_info;
+
+	down_write(&c->state_lock);
+	bch2_fs_read_only(c);
+	up_write(&c->state_lock);
+	return 0;
+}
+
+static int bch2_unfreeze(struct super_block *sb)
+{
+	struct bch_fs *c = sb->s_fs_info;
+	int ret;
+
+	down_write(&c->state_lock);
+	ret = bch2_fs_read_write(c);
+	up_write(&c->state_lock);
+	return ret;
+}
+
 static const struct super_operations bch_super_operations = {
 	.alloc_inode	= bch2_alloc_inode,
 	.destroy_inode	= bch2_destroy_inode,
@@ -1727,10 +1756,8 @@ static const struct super_operations bch_super_operations = {
 	.show_options	= bch2_show_options,
 	.remount_fs	= bch2_remount,
 	.put_super	= bch2_put_super,
-#if 0
 	.freeze_fs	= bch2_freeze,
 	.unfreeze_fs	= bch2_unfreeze,
-#endif
 };
 
 static int bch2_set_super(struct super_block *s, void *data)
