@@ -142,7 +142,7 @@ static int create_gpio_led(const struct gpio_led *template,
 
 struct gpio_leds_priv {
 	int num_leds;
-	struct gpio_led_data leds[];
+	struct gpio_led_data leds[] __counted_by(num_leds);
 };
 
 static struct gpio_leds_priv *gpio_leds_create(struct platform_device *pdev)
