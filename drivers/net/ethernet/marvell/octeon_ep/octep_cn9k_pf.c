@@ -16,9 +16,6 @@
 #define CTRL_MBOX_MAX_PF	128
 #define CTRL_MBOX_SZ		((size_t)(0x400000 / CTRL_MBOX_MAX_PF))
 
-#define FW_HB_INTERVAL_IN_SECS		1
-#define FW_HB_MISS_COUNT		10
-
 /* Names of Hardware non-queue generic interrupts */
 static char *cn93_non_ioq_msix_names[] = {
 	"epf_ire_rint",
@@ -250,12 +247,11 @@ static void octep_init_config_cn93_pf(struct octep_device *oct)
 		link = PCI_DEVFN(PCI_SLOT(oct->pdev->devfn), link);
 	}
 	conf->ctrl_mbox_cfg.barmem_addr = (void __iomem *)oct->mmio[2].hw_addr +
-					   (0x400000ull * 7) +
+					   CN93_PEM_BAR4_INDEX_OFFSET +
 					   (link * CTRL_MBOX_SZ);
 
-	conf->hb_interval = FW_HB_INTERVAL_IN_SECS;
-	conf->max_hb_miss_cnt = FW_HB_MISS_COUNT;
-
+	conf->fw_info.hb_interval = OCTEP_DEFAULT_FW_HB_INTERVAL;
+	conf->fw_info.hb_miss_count = OCTEP_DEFAULT_FW_HB_MISS_COUNT;
 }
 
 /* Setup registers for a hardware Tx Queue  */

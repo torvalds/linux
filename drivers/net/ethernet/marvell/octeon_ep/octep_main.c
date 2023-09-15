@@ -918,9 +918,9 @@ static void octep_hb_timeout_task(struct work_struct *work)
 	int miss_cnt;
 
 	miss_cnt = atomic_inc_return(&oct->hb_miss_cnt);
-	if (miss_cnt < oct->conf->max_hb_miss_cnt) {
+	if (miss_cnt < oct->conf->fw_info.hb_miss_count) {
 		queue_delayed_work(octep_wq, &oct->hb_task,
-				   msecs_to_jiffies(oct->conf->hb_interval * 1000));
+				   msecs_to_jiffies(oct->conf->fw_info.hb_interval));
 		return;
 	}
 
@@ -1013,8 +1013,7 @@ int octep_device_setup(struct octep_device *oct)
 
 	atomic_set(&oct->hb_miss_cnt, 0);
 	INIT_DELAYED_WORK(&oct->hb_task, octep_hb_timeout_task);
-	queue_delayed_work(octep_wq, &oct->hb_task,
-			   msecs_to_jiffies(oct->conf->hb_interval * 1000));
+
 	return 0;
 
 unsupported_dev:
@@ -1143,6 +1142,15 @@ static int octep_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		dev_err(&pdev->dev, "Device setup failed\n");
 		goto err_octep_config;
 	}
+
+	octep_ctrl_net_get_info(octep_dev, OCTEP_CTRL_NET_INVALID_VFID,
+				&octep_dev->conf->fw_info);
+	dev_info(&octep_dev->pdev->dev, "Heartbeat interval %u msecs Heartbeat miss count %u\n",
+		 octep_dev->conf->fw_info.hb_interval,
+		 octep_dev->conf->fw_info.hb_miss_count);
+	queue_delayed_work(octep_wq, &octep_dev->hb_task,
+			   msecs_to_jiffies(octep_dev->conf->fw_info.hb_interval));
+
 	INIT_WORK(&octep_dev->tx_timeout_task, octep_tx_timeout_task);
 	INIT_WORK(&octep_dev->ctrl_mbox_task, octep_ctrl_mbox_task);
 	INIT_DELAYED_WORK(&octep_dev->intr_poll_task, octep_intr_poll_task);

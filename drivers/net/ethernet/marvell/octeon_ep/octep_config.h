@@ -49,6 +49,11 @@
 /* Default MTU */
 #define OCTEP_DEFAULT_MTU    1500
 
+/* pf heartbeat interval in milliseconds */
+#define OCTEP_DEFAULT_FW_HB_INTERVAL           1000
+/* pf heartbeat miss count */
+#define OCTEP_DEFAULT_FW_HB_MISS_COUNT         20
+
 /* Macros to get octeon config params */
 #define CFG_GET_IQ_CFG(cfg)             ((cfg)->iq)
 #define CFG_GET_IQ_NUM_DESC(cfg)        ((cfg)->iq.num_descs)
@@ -181,6 +186,16 @@ struct octep_ctrl_mbox_config {
 	void __iomem *barmem_addr;
 };
 
+/* Info from firmware */
+struct octep_fw_info {
+	/* interface pkind */
+	u16 pkind;
+	/* heartbeat interval in milliseconds */
+	u16 hb_interval;
+	/* heartbeat miss count */
+	u16 hb_miss_count;
+};
+
 /* Data Structure to hold configuration limits and active config */
 struct octep_config {
 	/* Input Queue attributes. */
@@ -201,10 +216,7 @@ struct octep_config {
 	/* ctrl mbox config */
 	struct octep_ctrl_mbox_config ctrl_mbox_cfg;
 
-	/* Configured maximum heartbeat miss count */
-	u32 max_hb_miss_cnt;
-
-	/* Configured firmware heartbeat interval in secs */
-	u32 hb_interval;
+	/* fw info */
+	struct octep_fw_info fw_info;
 };
 #endif /* _OCTEP_CONFIG_H_ */
