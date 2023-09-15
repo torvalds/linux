@@ -1,3 +1,6 @@
 [abi_symbol_list]
+  swp_swap_info
+  __traceiter_android_vh_skip_swapcache
   __traceiter_android_vh_tune_mmap_readaround
+  __tracepoint_android_vh_skip_swapcache
   __tracepoint_android_vh_tune_mmap_readaround
