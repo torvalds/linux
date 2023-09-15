@@ -35,7 +35,7 @@ struct shmob_drm_device {
 	struct drm_device *ddev;
 
 	struct shmob_drm_crtc crtc;
-	struct shmob_drm_encoder encoder;
+	struct drm_encoder encoder;
 	struct shmob_drm_connector connector;
 };
 

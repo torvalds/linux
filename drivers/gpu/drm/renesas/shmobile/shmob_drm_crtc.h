@@ -14,7 +14,6 @@
 #include <drm/drm_connector.h>
 #include <drm/drm_encoder.h>
 
-struct backlight_device;
 struct drm_pending_vblank_event;
 struct shmob_drm_device;
 struct shmob_drm_format_info;
@@ -31,16 +30,9 @@ struct shmob_drm_crtc {
 	bool started;
 };
 
-struct shmob_drm_encoder {
-	struct drm_encoder encoder;
-	int dpms;
-};
-
 struct shmob_drm_connector {
 	struct drm_connector connector;
 	struct drm_encoder *encoder;
-
-	struct backlight_device *backlight;
 };
 
 int shmob_drm_crtc_create(struct shmob_drm_device *sdev);

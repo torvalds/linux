@@ -7,7 +7,6 @@
  * Laurent Pinchart (laurent.pinchart@ideasonboard.com)
  */
 
-#include <linux/backlight.h>
 #include <linux/clk.h>
 #include <linux/pm_runtime.h>
 
@@ -24,7 +23,6 @@
 #include <drm/drm_simple_kms_helper.h>
 #include <drm/drm_vblank.h>
 
-#include "shmob_drm_backlight.h"
 #include "shmob_drm_crtc.h"
 #include "shmob_drm_drv.h"
 #include "shmob_drm_kms.h"
@@ -487,21 +485,9 @@ int shmob_drm_crtc_create(struct shmob_drm_device *sdev)
  * Encoder
  */
 
-#define to_shmob_encoder(e) \
-	container_of(e, struct shmob_drm_encoder, encoder)
-
 static void shmob_drm_encoder_dpms(struct drm_encoder *encoder, int mode)
 {
-	struct shmob_drm_encoder *senc = to_shmob_encoder(encoder);
-	struct shmob_drm_device *sdev = encoder->dev->dev_private;
-	struct shmob_drm_connector *scon = &sdev->connector;
-
-	if (senc->dpms == mode)
-		return;
-
-	shmob_drm_backlight_dpms(scon, mode);
-
-	senc->dpms = mode;
+	/* No-op, everything is handled in the CRTC code. */
 }
 
 static bool shmob_drm_encoder_mode_fixup(struct drm_encoder *encoder,
@@ -553,10 +539,8 @@ static const struct drm_encoder_helper_funcs encoder_helper_funcs = {
 
 int shmob_drm_encoder_create(struct shmob_drm_device *sdev)
 {
-	struct drm_encoder *encoder = &sdev->encoder.encoder;
+	struct drm_encoder *encoder = &sdev->encoder;
 	int ret;
-
-	sdev->encoder.dpms = DRM_MODE_DPMS_OFF;
 
 	encoder->possible_crtcs = 1;
 
@@ -622,9 +606,6 @@ static const struct drm_connector_helper_funcs connector_helper_funcs = {
 
 static void shmob_drm_connector_destroy(struct drm_connector *connector)
 {
-	struct shmob_drm_connector *scon = to_shmob_connector(connector);
-
-	shmob_drm_backlight_exit(scon);
 	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
 }
@@ -653,13 +634,9 @@ int shmob_drm_connector_create(struct shmob_drm_device *sdev,
 
 	drm_connector_helper_add(connector, &connector_helper_funcs);
 
-	ret = shmob_drm_backlight_init(&sdev->connector);
-	if (ret < 0)
-		goto err_cleanup;
-
 	ret = drm_connector_attach_encoder(connector, encoder);
 	if (ret < 0)
-		goto err_backlight;
+		goto error;
 
 	drm_helper_connector_dpms(connector, DRM_MODE_DPMS_OFF);
 	drm_object_property_set_value(&connector->base,
@@ -667,9 +644,7 @@ int shmob_drm_connector_create(struct shmob_drm_device *sdev,
 
 	return 0;
 
-err_backlight:
-	shmob_drm_backlight_exit(&sdev->connector);
-err_cleanup:
+error:
 	drm_connector_cleanup(connector);
 	return ret;
 }

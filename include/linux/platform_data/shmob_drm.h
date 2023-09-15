@@ -40,13 +40,6 @@ enum shmob_drm_interface {
 	SHMOB_DRM_IFACE_SYS24,		/* 24bpp */
 };
 
-struct shmob_drm_backlight_data {
-	const char *name;
-	int max_brightness;
-	int (*get_brightness)(void);
-	int (*set_brightness)(int brightness);
-};
-
 struct shmob_drm_panel_data {
 	unsigned int width_mm;		/* Panel width in mm */
 	unsigned int height_mm;		/* Panel height in mm */
@@ -83,7 +76,6 @@ struct shmob_drm_platform_data {
 	enum shmob_drm_clk_source clk_source;
 	struct shmob_drm_interface_data iface;
 	struct shmob_drm_panel_data panel;
-	struct shmob_drm_backlight_data backlight;
 };
 
 #endif /* __SHMOB_DRM_H__ */
