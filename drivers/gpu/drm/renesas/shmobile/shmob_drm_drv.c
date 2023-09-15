@@ -67,7 +67,7 @@ static int shmob_drm_init_interface(struct shmob_drm_device *sdev)
 }
 
 static int shmob_drm_setup_clocks(struct shmob_drm_device *sdev,
-					    enum shmob_drm_clk_source clksrc)
+				  enum shmob_drm_clk_source clksrc)
 {
 	struct clk *clk;
 	char *clkname;
