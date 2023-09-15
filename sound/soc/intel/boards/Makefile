@@ -96,5 +96,8 @@ obj-$(CONFIG_SND_SOC_INTEL_SOF_REALTEK_COMMON) += snd-soc-intel-sof-realtek-comm
 snd-soc-intel-sof-cirrus-common-objs += sof_cirrus_common.o
 obj-$(CONFIG_SND_SOC_INTEL_SOF_CIRRUS_COMMON) += snd-soc-intel-sof-cirrus-common.o
 
+snd-soc-intel-sof-nuvoton-common-objs += sof_nuvoton_common.o
+obj-$(CONFIG_SND_SOC_INTEL_SOF_NUVOTON_COMMON) += snd-soc-intel-sof-nuvoton-common.o
+
 snd-soc-intel-sof-ssp-common-objs += sof_ssp_common.o
 obj-$(CONFIG_SND_SOC_INTEL_SOF_SSP_COMMON) += snd-soc-intel-sof-ssp-common.o
