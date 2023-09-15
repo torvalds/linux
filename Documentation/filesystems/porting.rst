@@ -949,3 +949,29 @@ mmap_lock held.  All in-tree users have been audited and do not seem to
 depend on the mmap_lock being held, but out of tree users should verify
 for themselves.  If they do need it, they can return VM_FAULT_RETRY to
 be called with the mmap_lock held.
+
+---
+
+**mandatory**
+
+The order of opening block devices and matching or creating superblocks has
+changed.
+
+The old logic opened block devices first and then tried to find a
+suitable superblock to reuse based on the block device pointer.
+
+The new logic tries to find a suitable superblock first based on the device
+number, and opening the block device afterwards.
+
+Since opening block devices cannot happen under s_umount because of lock
+ordering requirements s_umount is now dropped while opening block devices and
+reacquired before calling fill_super().
+
+In the old logic concurrent mounters would find the superblock on the list of
+superblocks for the filesystem type. Since the first opener of the block device
+would hold s_umount they would wait until the superblock became either born or
+was discarded due to initialization failure.
+
+Since the new logic drops s_umount concurrent mounters could grab s_umount and
+would spin. Instead they are now made to wait using an explicit wait-wake
+mechanism without having to hold s_umount.
