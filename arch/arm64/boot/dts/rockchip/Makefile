@@ -204,6 +204,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-evb1-lp4-v10-linux.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-evb1-lp4-v10-linux-amp.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-evb1-lp4-v10-linux-ipc.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-evb1-lp4-v10-lt6911uxe.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-evb1-lp4-v10-rk628-hdmi2csi.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-evb2-lp4-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-evb2-lp4-v10-edp.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-evb2-lp4-v10-edp2dp.dtb
