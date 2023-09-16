@@ -17,7 +17,7 @@ sample_period=4000
 # PERF_SAMPLE_PERIOD
 # + PERF_SAMPLE_CPU added by -C 0
 sample_type=391
-read_format=4
+read_format=4|20
 disabled=0
 inherit=1
 pinned=0
