@@ -3,6 +3,7 @@
  * internal.h - printk internal definitions
  */
 #include <linux/percpu.h>
+#include <linux/console.h>
 
 #if defined(CONFIG_PRINTK) && defined(CONFIG_SYSCTL)
 void __init printk_sysctl_init(void);
@@ -61,6 +62,10 @@ void defer_console_output(void);
 
 u16 printk_parse_prefix(const char *text, int *level,
 			enum printk_info_flags *flags);
+
+void nbcon_init(struct console *con);
+void nbcon_cleanup(struct console *con);
+
 #else
 
 #define PRINTK_PREFIX_MAX	0
@@ -76,6 +81,9 @@ u16 printk_parse_prefix(const char *text, int *level,
 #define printk_safe_exit_irqrestore(flags) local_irq_restore(flags)
 
 static inline bool printk_percpu_data_ready(void) { return false; }
+static inline void nbcon_init(struct console *con) { }
+static inline void nbcon_cleanup(struct console *con) { }
+
 #endif /* CONFIG_PRINTK */
 
 /**

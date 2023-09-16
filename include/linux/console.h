@@ -156,6 +156,8 @@ static inline int con_debug_leave(void)
  *			/dev/kmesg which requires a larger output buffer.
  * @CON_SUSPENDED:	Indicates if a console is suspended. If true, the
  *			printing callbacks must not be called.
+ * @CON_NBCON:		Console can operate outside of the legacy style console_lock
+ *			constraints.
  */
 enum cons_flags {
 	CON_PRINTBUFFER		= BIT(0),
@@ -166,7 +168,31 @@ enum cons_flags {
 	CON_BRL			= BIT(5),
 	CON_EXTENDED		= BIT(6),
 	CON_SUSPENDED		= BIT(7),
+	CON_NBCON		= BIT(8),
 };
+
+/**
+ * struct nbcon_state - console state for nbcon consoles
+ * @atom:	Compound of the state fields for atomic operations
+ *
+ * To be used for reading and preparing of the value stored in the nbcon
+ * state variable @console::nbcon_state.
+ */
+struct nbcon_state {
+	union {
+		unsigned int	atom;
+		struct {
+		};
+	};
+};
+
+/*
+ * The nbcon_state struct is used to easily create and interpret values that
+ * are stored in the @console::nbcon_state variable. Ensure this struct stays
+ * within the size boundaries of the atomic variable's underlying type in
+ * order to avoid any accidental truncation.
+ */
+static_assert(sizeof(struct nbcon_state) <= sizeof(int));
 
 /**
  * struct console - The console descriptor structure
@@ -187,6 +213,8 @@ enum cons_flags {
  * @dropped:		Number of unreported dropped ringbuffer records
  * @data:		Driver private data
  * @node:		hlist node for the console list
+ *
+ * @nbcon_state:	State for nbcon consoles
  */
 struct console {
 	char			name[16];
@@ -206,6 +234,9 @@ struct console {
 	unsigned long		dropped;
 	void			*data;
 	struct hlist_node	node;
+
+	/* nbcon console specific members */
+	atomic_t		__private nbcon_state;
 };
 
 #ifdef CONFIG_LOCKDEP
