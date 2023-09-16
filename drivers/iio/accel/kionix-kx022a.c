@@ -150,6 +150,117 @@ static const struct regmap_config kx022a_regmap_config = {
 	.cache_type = REGCACHE_RBTREE,
 };
 
+/* Regmap configs kx132 */
+static const struct regmap_range kx132_volatile_ranges[] = {
+	{
+		.range_min = KX132_REG_XADP_L,
+		.range_max = KX132_REG_COTR,
+	}, {
+		.range_min = KX132_REG_TSCP,
+		.range_max = KX132_REG_INT_REL,
+	}, {
+		/* The reset bit will be cleared by sensor */
+		.range_min = KX132_REG_CNTL2,
+		.range_max = KX132_REG_CNTL2,
+	}, {
+		.range_min = KX132_REG_CNTL5,
+		.range_max = KX132_REG_CNTL5,
+	}, {
+		.range_min = KX132_REG_BUF_STATUS_1,
+		.range_max = KX132_REG_BUF_READ,
+	},
+};
+
+static const struct regmap_access_table kx132_volatile_regs = {
+	.yes_ranges = &kx132_volatile_ranges[0],
+	.n_yes_ranges = ARRAY_SIZE(kx132_volatile_ranges),
+};
+
+static const struct regmap_range kx132_precious_ranges[] = {
+	{
+		.range_min = KX132_REG_INT_REL,
+		.range_max = KX132_REG_INT_REL,
+	},
+};
+
+static const struct regmap_access_table kx132_precious_regs = {
+	.yes_ranges = &kx132_precious_ranges[0],
+	.n_yes_ranges = ARRAY_SIZE(kx132_precious_ranges),
+};
+
+static const struct regmap_range kx132_read_only_ranges[] = {
+	{
+		.range_min = KX132_REG_XADP_L,
+		.range_max = KX132_REG_INT_REL,
+	}, {
+		.range_min = KX132_REG_BUF_STATUS_1,
+		.range_max = KX132_REG_BUF_STATUS_2,
+	}, {
+		.range_min = KX132_REG_BUF_READ,
+		.range_max = KX132_REG_BUF_READ,
+	}, {
+		/* Kionix reserved registers: should not be written */
+		.range_min = 0x28,
+		.range_max = 0x28,
+	}, {
+		.range_min = 0x35,
+		.range_max = 0x36,
+	}, {
+		.range_min = 0x3c,
+		.range_max = 0x48,
+	}, {
+		.range_min = 0x4e,
+		.range_max = 0x5c,
+	}, {
+		.range_min = 0x77,
+		.range_max = 0x7f,
+	},
+};
+
+static const struct regmap_access_table kx132_ro_regs = {
+	.no_ranges = &kx132_read_only_ranges[0],
+	.n_no_ranges = ARRAY_SIZE(kx132_read_only_ranges),
+};
+
+static const struct regmap_range kx132_write_only_ranges[] = {
+	{
+		.range_min = KX132_REG_SELF_TEST,
+		.range_max = KX132_REG_SELF_TEST,
+	}, {
+		.range_min = KX132_REG_BUF_CLEAR,
+		.range_max = KX132_REG_BUF_CLEAR,
+	},
+};
+
+static const struct regmap_access_table kx132_wo_regs = {
+	.no_ranges = &kx132_write_only_ranges[0],
+	.n_no_ranges = ARRAY_SIZE(kx132_write_only_ranges),
+};
+
+static const struct regmap_range kx132_noinc_read_ranges[] = {
+	{
+		.range_min = KX132_REG_BUF_READ,
+		.range_max = KX132_REG_BUF_READ,
+	},
+};
+
+static const struct regmap_access_table kx132_nir_regs = {
+	.yes_ranges = &kx132_noinc_read_ranges[0],
+	.n_yes_ranges = ARRAY_SIZE(kx132_noinc_read_ranges),
+};
+
+static const struct regmap_config kx132_regmap_config = {
+	.reg_bits = 8,
+	.val_bits = 8,
+	.volatile_table = &kx132_volatile_regs,
+	.rd_table = &kx132_wo_regs,
+	.wr_table = &kx132_ro_regs,
+	.rd_noinc_table = &kx132_nir_regs,
+	.precious_table = &kx132_precious_regs,
+	.max_register = KX132_MAX_REGISTER,
+	.cache_type = REGCACHE_RBTREE,
+};
+
 struct kx022a_data {
 	struct regmap *regmap;
 	const struct kx022a_chip_info *chip_info;
@@ -236,6 +347,13 @@ static const struct iio_chan_spec kx022a_channels[] = {
 	KX022A_ACCEL_CHAN(X, KX022A_REG_XOUT_L, 0),
 	KX022A_ACCEL_CHAN(Y, KX022A_REG_YOUT_L, 1),
 	KX022A_ACCEL_CHAN(Z, KX022A_REG_ZOUT_L, 2),
+	IIO_CHAN_SOFT_TIMESTAMP(3),
+};
+
+static const struct iio_chan_spec kx132_channels[] = {
+	KX022A_ACCEL_CHAN(X, KX132_REG_XOUT_L, 0),
+	KX022A_ACCEL_CHAN(Y, KX132_REG_YOUT_L, 1),
+	KX022A_ACCEL_CHAN(Z, KX132_REG_ZOUT_L, 2),
 	IIO_CHAN_SOFT_TIMESTAMP(3),
 };
 
@@ -597,6 +715,26 @@ static int kx022a_get_fifo_bytes_available(struct kx022a_data *data)
 
 	if (fifo_bytes == KX022A_FIFO_FULL_VALUE)
 		return KX022A_FIFO_MAX_BYTES;
+
+	return fifo_bytes;
+}
+
+static int kx132_get_fifo_bytes_available(struct kx022a_data *data)
+{
+	__le16 buf_status;
+	int ret, fifo_bytes;
+
+	ret = regmap_bulk_read(data->regmap, data->chip_info->buf_status1,
+			       &buf_status, sizeof(buf_status));
+	if (ret) {
+		dev_err(data->dev, "Error reading buffer status\n");
+		return ret;
+	}
+
+	fifo_bytes = le16_to_cpu(buf_status);
+	fifo_bytes &= data->chip_info->buf_smp_lvl_mask;
+	fifo_bytes = min((unsigned int)fifo_bytes, data->chip_info->fifo_length *
+			 KX022A_FIFO_SAMPLES_SIZE_BYTES);
 
 	return fifo_bytes;
 }
@@ -1023,6 +1161,32 @@ const struct kx022a_chip_info kx022a_chip_info = {
 	.get_fifo_bytes_available	= kx022a_get_fifo_bytes_available,
 };
 EXPORT_SYMBOL_NS_GPL(kx022a_chip_info, IIO_KX022A);
+
+const struct kx022a_chip_info kx132_chip_info = {
+	.name			  = "kx132-1211",
+	.regmap_config		  = &kx132_regmap_config,
+	.channels		  = kx132_channels,
+	.num_channels		  = ARRAY_SIZE(kx132_channels),
+	.fifo_length		  = KX132_FIFO_LENGTH,
+	.who			  = KX132_REG_WHO,
+	.id			  = KX132_ID,
+	.cntl			  = KX132_REG_CNTL,
+	.cntl2			  = KX132_REG_CNTL2,
+	.odcntl			  = KX132_REG_ODCNTL,
+	.buf_cntl1		  = KX132_REG_BUF_CNTL1,
+	.buf_cntl2		  = KX132_REG_BUF_CNTL2,
+	.buf_clear		  = KX132_REG_BUF_CLEAR,
+	.buf_status1		  = KX132_REG_BUF_STATUS_1,
+	.buf_smp_lvl_mask	  = KX132_MASK_BUF_SMP_LVL,
+	.buf_read		  = KX132_REG_BUF_READ,
+	.inc1			  = KX132_REG_INC1,
+	.inc4			  = KX132_REG_INC4,
+	.inc5			  = KX132_REG_INC5,
+	.inc6			  = KX132_REG_INC6,
+	.xout_l			  = KX132_REG_XOUT_L,
+	.get_fifo_bytes_available = kx132_get_fifo_bytes_available,
+};
+EXPORT_SYMBOL_NS_GPL(kx132_chip_info, IIO_KX022A);
 
 int kx022a_probe_internal(struct device *dev, const struct kx022a_chip_info *chip_info)
 {
