@@ -1570,13 +1570,15 @@ static int hgsl_ioctl_get_shadowts_mem(struct file *filep, unsigned long arg)
 
 	dma_buf = ctxt->shadow_ts_node.dma_buf;
 	if (dma_buf) {
+		/* increase reference count before install fd. */
+		get_dma_buf(dma_buf);
 		params.fd = dma_buf_fd(dma_buf, O_CLOEXEC);
 		if (params.fd < 0) {
 			LOGE("dma buf to fd failed\n");
 			ret = -ENOMEM;
+			dma_buf_put(dma_buf);
 			goto out;
 		}
-		get_dma_buf(dma_buf);
 	}
 
 	if (copy_to_user(USRPTR(arg), &params, sizeof(params))) {
@@ -2047,14 +2049,16 @@ static int hgsl_ioctl_mem_alloc(struct file *filep, unsigned long arg)
 	if (ret)
 		goto out;
 
+	/* increase reference count before install fd. */
+	get_dma_buf(mem_node->dma_buf);
 	params.fd = dma_buf_fd(mem_node->dma_buf, O_CLOEXEC);
 
 	if (params.fd < 0) {
 		LOGE("dma_buf_fd failed, size 0x%x", mem_node->memdesc.size);
 		ret = -EINVAL;
+		dma_buf_put(mem_node->dma_buf);
 		goto out;
 	}
-	get_dma_buf(mem_node->dma_buf);
 
 	if (copy_to_user(USRPTR(arg), &params, sizeof(params))) {
 		ret = -EFAULT;
