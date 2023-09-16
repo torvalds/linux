@@ -55,10 +55,10 @@ MODULE_PARM_DESC(debug, "debug level (0-3)");
 #define EDID_BLOCK_SIZE			128
 
 #define RK628_CSI_LINK_FREQ_LOW		350000000
-#define RK628_CSI_LINK_FREQ_HIGH	400000000
+#define RK628_CSI_LINK_FREQ_HIGH	600000000
 #define RK628_CSI_PIXEL_RATE_LOW	400000000
 #define RK628_CSI_PIXEL_RATE_HIGH	600000000
-#define MIPI_DATARATE_MBPS_LOW		750
+#define MIPI_DATARATE_MBPS_LOW		700
 #define MIPI_DATARATE_MBPS_HIGH		1250
 
 #define POLL_INTERVAL_MS		1000
@@ -127,6 +127,7 @@ struct rk628_csi {
 	bool hpd_output_inverted;
 	bool avi_rcv_rdy;
 	bool vid_ints_en;
+	bool continues_clk;
 	struct rk628_hdcp hdcp;
 	bool i2s_enable_default;
 	HAUDINFO audio_info;
@@ -154,7 +155,7 @@ static const struct v4l2_dv_timings_cap rk628_csi_timings_cap = {
 	.type = V4L2_DV_BT_656_1120,
 	/* keep this initialization for compatibility with GCC < 4.4.6 */
 	.reserved = { 0 },
-	V4L2_INIT_BT_TIMINGS(1, 10000, 1, 10000, 0, 400000000,
+	V4L2_INIT_BT_TIMINGS(1, 10000, 1, 10000, 0, 600000000,
 			V4L2_DV_BT_STD_CEA861 | V4L2_DV_BT_STD_DMT |
 			V4L2_DV_BT_STD_GTF | V4L2_DV_BT_STD_CVT,
 			V4L2_DV_BT_CAP_PROGRESSIVE | V4L2_DV_BT_CAP_INTERLACED |
@@ -196,6 +197,17 @@ static u8 edid_init_data[] = {
 	0x16, 0x20, 0x58, 0x2C, 0x25, 0x00, 0xC0, 0x6C,
 	0x00, 0x00, 0x00, 0x18, 0x00, 0x00, 0x00, 0x00,
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xC1,
+};
+
+static struct rkmodule_csi_dphy_param rk3588_dcphy_param = {
+	.vendor = PHY_VENDOR_SAMSUNG,
+	.lp_vol_ref = 0,
+	.lp_hys_sw = {3, 0, 0, 0},
+	.lp_escclk_pol_sel = {1, 0, 0, 0},
+	.skew_data_cal_clk = {0, 3, 3, 3},
+	.clk_hs_term_sel = 2,
+	.data_hs_term_sel = {2, 2, 2, 2},
+	.reserved = {0},
 };
 
 static const struct rk628_csi_mode supported_modes[] = {
@@ -875,7 +887,16 @@ static void rk628_csi_set_csi(struct v4l2_subdev *sd)
 			BYPASS_SELECT(1));
 	rk628_i2c_write(csi->rk628, CSITX_CONFIG_DONE, CONFIG_DONE_IMD);
 	rk628_i2c_write(csi->rk628, CSITX_SYS_CTRL2, VOP_WHOLE_FRM_EN | VSYNC_ENABLE);
-	rk628_i2c_update_bits(csi->rk628, CSITX_SYS_CTRL3_IMD,
+	if (csi->continues_clk)
+		rk628_i2c_update_bits(csi->rk628, CSITX_SYS_CTRL3_IMD,
+			CONT_MODE_CLK_CLR_MASK |
+			CONT_MODE_CLK_SET_MASK |
+			NON_CONTINUOUS_MODE_MASK,
+			CONT_MODE_CLK_CLR(0) |
+			CONT_MODE_CLK_SET(1) |
+			NON_CONTINUOUS_MODE(0));
+	else
+		rk628_i2c_update_bits(csi->rk628, CSITX_SYS_CTRL3_IMD,
 			CONT_MODE_CLK_CLR_MASK |
 			CONT_MODE_CLK_SET_MASK |
 			NON_CONTINUOUS_MODE_MASK,
@@ -1530,6 +1551,25 @@ static int rk628_csi_get_fmt(struct v4l2_subdev *sd,
 		V4L2_FIELD_INTERLACED : V4L2_FIELD_NONE;
 	mutex_unlock(&csi->confctl_mutex);
 
+	if (((csi->timings.bt.width == 3840) && (csi->timings.bt.height == 2160)) ||
+		csi->csi_lanes_in_use <= 2) {
+		v4l2_dbg(1, debug, sd,
+			"%s res wxh:%dx%d, link freq:%llu, pixrate:%u\n",
+			__func__, csi->timings.bt.width, csi->timings.bt.height,
+			link_freq_menu_items[1], RK628_CSI_PIXEL_RATE_HIGH);
+		__v4l2_ctrl_s_ctrl(csi->link_freq, 1);
+		__v4l2_ctrl_s_ctrl_int64(csi->pixel_rate,
+			RK628_CSI_PIXEL_RATE_HIGH);
+	} else {
+		v4l2_dbg(1, debug, sd,
+			"%s res wxh:%dx%d, link freq:%llu, pixrate:%u\n",
+			__func__, csi->timings.bt.width, csi->timings.bt.height,
+			link_freq_menu_items[0], RK628_CSI_PIXEL_RATE_LOW);
+		__v4l2_ctrl_s_ctrl(csi->link_freq, 0);
+		__v4l2_ctrl_s_ctrl_int64(csi->pixel_rate,
+			RK628_CSI_PIXEL_RATE_LOW);
+	}
+
 	v4l2_dbg(1, debug, sd, "%s: fmt code:%d, w:%d, h:%d, field code:%d\n",
 			__func__, format->format.code, format->format.width,
 			format->format.height, format->format.field);
@@ -1602,24 +1642,6 @@ static int rk628_csi_set_fmt(struct v4l2_subdev *sd,
 	csi->mbus_fmt_code = format->format.code;
 	mode = rk628_csi_find_best_fit(format);
 	csi->cur_mode = mode;
-
-	if ((mode->width == 3840) && (mode->height == 2160)) {
-		v4l2_dbg(1, debug, sd,
-			"%s res wxh:%dx%d, link freq:%llu, pixrate:%u\n",
-			__func__, mode->width, mode->height,
-			link_freq_menu_items[1], RK628_CSI_PIXEL_RATE_HIGH);
-		__v4l2_ctrl_s_ctrl(csi->link_freq, 1);
-		__v4l2_ctrl_s_ctrl_int64(csi->pixel_rate,
-			RK628_CSI_PIXEL_RATE_HIGH);
-	} else {
-		v4l2_dbg(1, debug, sd,
-			"%s res wxh:%dx%d, link freq:%llu, pixrate:%u\n",
-			__func__, mode->width, mode->height,
-			link_freq_menu_items[0], RK628_CSI_PIXEL_RATE_LOW);
-		__v4l2_ctrl_s_ctrl(csi->link_freq, 0);
-		__v4l2_ctrl_s_ctrl_int64(csi->pixel_rate,
-			RK628_CSI_PIXEL_RATE_LOW);
-	}
 
 	enable_stream(sd, false);
 
@@ -1766,6 +1788,7 @@ static long rk628_csi_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
 	struct rk628_csi *csi = to_csi(sd);
 	long ret = 0;
+	struct rkmodule_csi_dphy_param *dphy_param;
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
@@ -1773,6 +1796,20 @@ static long rk628_csi_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		break;
 	case RKMODULE_GET_HDMI_MODE:
 		*(int *)arg = RKMODULE_HDMIIN_MODE;
+		break;
+	case RKMODULE_SET_CSI_DPHY_PARAM:
+		dphy_param = (struct rkmodule_csi_dphy_param *)arg;
+		if (dphy_param->vendor == PHY_VENDOR_SAMSUNG)
+			rk3588_dcphy_param = *dphy_param;
+		v4l2_dbg(1, debug, sd,
+			"sensor set dphy param\n");
+		break;
+	case RKMODULE_GET_CSI_DPHY_PARAM:
+		dphy_param = (struct rkmodule_csi_dphy_param *)arg;
+		*dphy_param = rk3588_dcphy_param;
+
+		v4l2_dbg(1, debug, sd,
+			"sensor get dphy param\n");
 		break;
 	default:
 		ret = -ENOIOCTLCMD;
@@ -1802,6 +1839,10 @@ static int mipi_dphy_power_on(struct rk628_csi *csi)
 	rk628_txphy_set_bus_width(csi->rk628, bus_width);
 	rk628_txphy_set_mode(csi->rk628, PHY_MODE_VIDEO_MIPI);
 
+	if (csi->lane_mbps == MIPI_DATARATE_MBPS_HIGH)
+		mipi_dphy_init_hsmanual(csi->rk628, true);
+	else
+		mipi_dphy_init_hsmanual(csi->rk628, false);
 	mipi_dphy_init_hsfreqrange(csi->rk628, csi->lane_mbps);
 	usleep_range(1500, 2000);
 	rk628_txphy_power_on(csi->rk628);
@@ -1832,6 +1873,7 @@ static long rk628_csi_compat_ioctl32(struct v4l2_subdev *sd,
 	struct rkmodule_inf *inf;
 	long ret;
 	int *seq;
+	struct rkmodule_csi_dphy_param *dphy_param;
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
@@ -1863,6 +1905,35 @@ static long rk628_csi_compat_ioctl32(struct v4l2_subdev *sd,
 				ret = -EFAULT;
 		}
 		kfree(seq);
+		break;
+	case RKMODULE_SET_CSI_DPHY_PARAM:
+		dphy_param = kzalloc(sizeof(*dphy_param), GFP_KERNEL);
+		if (!dphy_param) {
+			ret = -ENOMEM;
+			return ret;
+		}
+
+		ret = copy_from_user(dphy_param, up, sizeof(*dphy_param));
+		if (!ret)
+			ret = rk628_csi_ioctl(sd, cmd, dphy_param);
+		else
+			ret = -EFAULT;
+		kfree(dphy_param);
+		break;
+	case RKMODULE_GET_CSI_DPHY_PARAM:
+		dphy_param = kzalloc(sizeof(*dphy_param), GFP_KERNEL);
+		if (!dphy_param) {
+			ret = -ENOMEM;
+			return ret;
+		}
+
+		ret = rk628_csi_ioctl(sd, cmd, dphy_param);
+		if (!ret) {
+			ret = copy_to_user(up, dphy_param, sizeof(*dphy_param));
+			if (ret)
+				ret = -EFAULT;
+		}
+		kfree(dphy_param);
 		break;
 	default:
 		ret = -ENOIOCTLCMD;
@@ -1973,6 +2044,7 @@ static int rk628_csi_probe_of(struct rk628_csi *csi)
 	int ret = -EINVAL;
 	bool hdcp1x_enable = false, i2s_enable_default = false;
 	bool scaler_en = false;
+	bool continues_clk = false;
 
 	csi->soc_24M = devm_clk_get(dev, "soc_24M");
 	if (csi->soc_24M == ERR_PTR(-ENOENT))
@@ -2045,6 +2117,9 @@ static int rk628_csi_probe_of(struct rk628_csi *csi)
 	if (of_property_read_bool(dev->of_node, "scaler-en"))
 		scaler_en = true;
 
+	if (of_property_read_bool(dev->of_node, "continues-clk"))
+		continues_clk = true;
+
 	ep = of_graph_get_next_endpoint(dev->of_node, NULL);
 	if (!ep) {
 		dev_err(dev, "missing endpoint node\n");
@@ -2070,6 +2145,7 @@ static int rk628_csi_probe_of(struct rk628_csi *csi)
 	csi->scaler_en = scaler_en;
 	if (csi->scaler_en)
 		csi->timings = dst_timing;
+	csi->continues_clk = continues_clk;
 
 	csi->rxphy_pwron = false;
 	csi->txphy_pwron = false;

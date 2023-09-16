@@ -18,6 +18,9 @@
 
 /* Test Code: 0x44 (HS RX Control of Lane 0) */
 #define HSFREQRANGE(x)			UPDATE(x, 6, 1)
+#define HSTX(x)				UPDATE(x, 6, 0)
+#define HSZERO(x)			UPDATE(x, 5, 0)
+#define HSPOST(x)			UPDATE(x, 4, 0)
 
 static inline void testif_testclk_assert(struct rk628 *rk628)
 {
@@ -187,6 +190,40 @@ static inline void mipi_dphy_init_hsfreqrange(struct rk628 *rk628, int lane_mbps
 
 	hsfreqrange = hsfreqrange_table[index].hsfreqrange;
 	testif_write(rk628, 0x44, HSFREQRANGE(hsfreqrange));
+}
+
+static void __maybe_unused mipi_dphy_init_hsmanual(struct rk628 *rk628, bool manual)
+{
+	if (manual) {
+		//config mipi timing when mipi freq is 1250Mbps
+		testif_write(rk628, 0x71, HSTX(0x4a) | BIT(7));
+		usleep_range(1500, 2000);
+		testif_write(rk628, 0x72, HSZERO(0xf) | BIT(6));
+		usleep_range(1500, 2000);
+		testif_write(rk628, 0x73, HSTX(0x5d) | BIT(7));
+		usleep_range(1500, 2000);
+		testif_write(rk628, 0x61, HSTX(0x3a) | BIT(7));
+		usleep_range(1500, 2000);
+		testif_write(rk628, 0x62, HSZERO(0x3a) | BIT(6));
+		usleep_range(1500, 2000);
+		testif_write(rk628, 0x63, HSTX(0x5a) | BIT(7));
+		usleep_range(1500, 2000);
+		testif_write(rk628, 0x65, HSPOST(0x1f) | BIT(5));
+	} else {
+		testif_write(rk628, 0x71, 0);
+		usleep_range(1500, 2000);
+		testif_write(rk628, 0x72, 0);
+		usleep_range(1500, 2000);
+		testif_write(rk628, 0x73, 0);
+		usleep_range(1500, 2000);
+		testif_write(rk628, 0x61, 0);
+		usleep_range(1500, 2000);
+		testif_write(rk628, 0x62, 0);
+		usleep_range(1500, 2000);
+		testif_write(rk628, 0x63, 0);
+		usleep_range(1500, 2000);
+		testif_write(rk628, 0x65, 0);
+	}
 }
 
 static inline int mipi_dphy_reset(struct rk628 *rk628)
