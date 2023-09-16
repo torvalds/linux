@@ -86,6 +86,8 @@ static inline void nbcon_cleanup(struct console *con) { }
 
 #endif /* CONFIG_PRINTK */
 
+extern struct printk_buffers printk_shared_pbufs;
+
 /**
  * struct printk_buffers - Buffers to read/format/output printk messages.
  * @outbuf:	After formatting, contains text to output.
