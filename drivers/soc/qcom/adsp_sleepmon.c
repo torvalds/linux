@@ -1266,19 +1266,11 @@ static int adspsleepmon_worker(void *data)
 					g_adspsleepmon.backup_lpm_timestamp +
 					curr_timestamp;
 
-			if (!g_adspsleepmon.timer_event && g_adspsleepmon.suspend_event) {
-				/*
-				 * Check if we have elapsed enough duration
-				 * to make a decision if it is not timer
-				 * event
-				 */
-				if (elapsed_time <
-					(g_adspsleepmon.lpm_wait_time *
-					ADSPSLEEPMON_SYS_CLK_TICKS_PER_SEC)) {
-					mutex_unlock(&g_adspsleepmon.lock);
-					g_adspsleepmon.suspend_event = false;
-					continue;
-				}
+			/* Check elapsed time for both suspend and timer events */
+			if (elapsed_time <
+				(g_adspsleepmon.lpm_wait_time *
+				ADSPSLEEPMON_SYS_CLK_TICKS_PER_SEC)) {
+				goto TIME_NOT_ELAPSED;
 			}
 
 			sleepmon_lpm_exception_check(curr_timestamp, elapsed_time);
@@ -1297,26 +1289,17 @@ static int adspsleepmon_worker(void *data)
 						g_adspsleepmon.backup_lpi_timestamp +
 						curr_timestamp;
 
-			if (!g_adspsleepmon.timer_event && g_adspsleepmon.suspend_event) {
-				/*
-				 * Check if we have elapsed enough duration
-				 * to make a decision if it is not timer
-				 * event
-				 */
 
-
-				if (elapsed_time <
-					(g_adspsleepmon.lpi_wait_time *
-					ADSPSLEEPMON_SYS_CLK_TICKS_PER_SEC)) {
-					mutex_unlock(&g_adspsleepmon.lock);
-					g_adspsleepmon.suspend_event = false;
-					continue;
-				}
+			/* Check elapsed time for both suspend and timer events */
+			if (elapsed_time <
+				(g_adspsleepmon.lpi_wait_time *
+				ADSPSLEEPMON_SYS_CLK_TICKS_PER_SEC)) {
+				goto TIME_NOT_ELAPSED;
 			}
 
 			sleepmon_lpi_exception_check(curr_timestamp, elapsed_time);
 		}
-
+TIME_NOT_ELAPSED:
 		if (g_adspsleepmon.timer_event) {
 			g_adspsleepmon.timer_event = false;
 			g_adspsleepmon.timer_pending = false;
