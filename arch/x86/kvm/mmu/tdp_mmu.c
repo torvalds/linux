@@ -12,18 +12,10 @@
 #include <trace/events/kvm.h>
 
 /* Initializes the TDP MMU for the VM, if enabled. */
-int kvm_mmu_init_tdp_mmu(struct kvm *kvm)
+void kvm_mmu_init_tdp_mmu(struct kvm *kvm)
 {
-	struct workqueue_struct *wq;
-
-	wq = alloc_workqueue("kvm", WQ_UNBOUND|WQ_MEM_RECLAIM|WQ_CPU_INTENSIVE, 0);
-	if (!wq)
-		return -ENOMEM;
-
 	INIT_LIST_HEAD(&kvm->arch.tdp_mmu_roots);
 	spin_lock_init(&kvm->arch.tdp_mmu_pages_lock);
-	kvm->arch.tdp_mmu_zap_wq = wq;
-	return 1;
 }
 
 /* Arbitrarily returns true so that this may be used in if statements. */
@@ -46,20 +38,15 @@ void kvm_mmu_uninit_tdp_mmu(struct kvm *kvm)
 	 * ultimately frees all roots.
 	 */
 	kvm_tdp_mmu_invalidate_all_roots(kvm);
-
-	/*
-	 * Destroying a workqueue also first flushes the workqueue, i.e. no
-	 * need to invoke kvm_tdp_mmu_zap_invalidated_roots().
-	 */
-	destroy_workqueue(kvm->arch.tdp_mmu_zap_wq);
+	kvm_tdp_mmu_zap_invalidated_roots(kvm);
 
 	WARN_ON(atomic64_read(&kvm->arch.tdp_mmu_pages));
 	WARN_ON(!list_empty(&kvm->arch.tdp_mmu_roots));
 
 	/*
 	 * Ensure that all the outstanding RCU callbacks to free shadow pages
-	 * can run before the VM is torn down.  Work items on tdp_mmu_zap_wq
-	 * can call kvm_tdp_mmu_put_root and create new callbacks.
+	 * can run before the VM is torn down.  Putting the last reference to
+	 * zapped roots will create new callbacks.
 	 */
 	rcu_barrier();
 }
@@ -84,46 +71,6 @@ static void tdp_mmu_free_sp_rcu_callback(struct rcu_head *head)
 					       rcu_head);
 
 	tdp_mmu_free_sp(sp);
-}
-
-static void tdp_mmu_zap_root(struct kvm *kvm, struct kvm_mmu_page *root,
-			     bool shared);
-
-static void tdp_mmu_zap_root_work(struct work_struct *work)
-{
-	struct kvm_mmu_page *root = container_of(work, struct kvm_mmu_page,
-						 tdp_mmu_async_work);
-	struct kvm *kvm = root->tdp_mmu_async_data;
-
-	read_lock(&kvm->mmu_lock);
-
-	/*
-	 * A TLB flush is not necessary as KVM performs a local TLB flush when
-	 * allocating a new root (see kvm_mmu_load()), and when migrating vCPU
-	 * to a different pCPU.  Note, the local TLB flush on reuse also
-	 * invalidates any paging-structure-cache entries, i.e. TLB entries for
-	 * intermediate paging structures, that may be zapped, as such entries
-	 * are associated with the ASID on both VMX and SVM.
-	 */
-	tdp_mmu_zap_root(kvm, root, true);
-
-	/*
-	 * Drop the refcount using kvm_tdp_mmu_put_root() to test its logic for
-	 * avoiding an infinite loop.  By design, the root is reachable while
-	 * it's being asynchronously zapped, thus a different task can put its
-	 * last reference, i.e. flowing through kvm_tdp_mmu_put_root() for an
-	 * asynchronously zapped root is unavoidable.
-	 */
-	kvm_tdp_mmu_put_root(kvm, root, true);
-
-	read_unlock(&kvm->mmu_lock);
-}
-
-static void tdp_mmu_schedule_zap_root(struct kvm *kvm, struct kvm_mmu_page *root)
-{
-	root->tdp_mmu_async_data = kvm;
-	INIT_WORK(&root->tdp_mmu_async_work, tdp_mmu_zap_root_work);
-	queue_work(kvm->arch.tdp_mmu_zap_wq, &root->tdp_mmu_async_work);
 }
 
 void kvm_tdp_mmu_put_root(struct kvm *kvm, struct kvm_mmu_page *root,
@@ -211,11 +158,11 @@ static struct kvm_mmu_page *tdp_mmu_next_root(struct kvm *kvm,
 #define for_each_valid_tdp_mmu_root_yield_safe(_kvm, _root, _as_id, _shared)	\
 	__for_each_tdp_mmu_root_yield_safe(_kvm, _root, _as_id, _shared, true)
 
-#define for_each_tdp_mmu_root_yield_safe(_kvm, _root)			\
-	for (_root = tdp_mmu_next_root(_kvm, NULL, false, false);		\
+#define for_each_tdp_mmu_root_yield_safe(_kvm, _root, _shared)			\
+	for (_root = tdp_mmu_next_root(_kvm, NULL, _shared, false);		\
 	     _root;								\
-	     _root = tdp_mmu_next_root(_kvm, _root, false, false))		\
-		if (!kvm_lockdep_assert_mmu_lock_held(_kvm, false)) {		\
+	     _root = tdp_mmu_next_root(_kvm, _root, _shared, false))		\
+		if (!kvm_lockdep_assert_mmu_lock_held(_kvm, _shared)) {		\
 		} else
 
 /*
@@ -296,7 +243,7 @@ hpa_t kvm_tdp_mmu_get_vcpu_root_hpa(struct kvm_vcpu *vcpu)
 	 * by a memslot update or by the destruction of the VM.  Initialize the
 	 * refcount to two; one reference for the vCPU, and one reference for
 	 * the TDP MMU itself, which is held until the root is invalidated and
-	 * is ultimately put by tdp_mmu_zap_root_work().
+	 * is ultimately put by kvm_tdp_mmu_zap_invalidated_roots().
 	 */
 	refcount_set(&root->tdp_mmu_root_count, 2);
 
@@ -885,7 +832,7 @@ bool kvm_tdp_mmu_zap_leafs(struct kvm *kvm, gfn_t start, gfn_t end, bool flush)
 {
 	struct kvm_mmu_page *root;
 
-	for_each_tdp_mmu_root_yield_safe(kvm, root)
+	for_each_tdp_mmu_root_yield_safe(kvm, root, false)
 		flush = tdp_mmu_zap_leafs(kvm, root, start, end, true, flush);
 
 	return flush;
@@ -907,7 +854,7 @@ void kvm_tdp_mmu_zap_all(struct kvm *kvm)
 	 * is being destroyed or the userspace VMM has exited.  In both cases,
 	 * KVM_RUN is unreachable, i.e. no vCPUs will ever service the request.
 	 */
-	for_each_tdp_mmu_root_yield_safe(kvm, root)
+	for_each_tdp_mmu_root_yield_safe(kvm, root, false)
 		tdp_mmu_zap_root(kvm, root, false);
 }
 
@@ -917,18 +864,47 @@ void kvm_tdp_mmu_zap_all(struct kvm *kvm)
  */
 void kvm_tdp_mmu_zap_invalidated_roots(struct kvm *kvm)
 {
-	flush_workqueue(kvm->arch.tdp_mmu_zap_wq);
+	struct kvm_mmu_page *root;
+
+	read_lock(&kvm->mmu_lock);
+
+	for_each_tdp_mmu_root_yield_safe(kvm, root, true) {
+		if (!root->tdp_mmu_scheduled_root_to_zap)
+			continue;
+
+		root->tdp_mmu_scheduled_root_to_zap = false;
+		KVM_BUG_ON(!root->role.invalid, kvm);
+
+		/*
+		 * A TLB flush is not necessary as KVM performs a local TLB
+		 * flush when allocating a new root (see kvm_mmu_load()), and
+		 * when migrating a vCPU to a different pCPU.  Note, the local
+		 * TLB flush on reuse also invalidates paging-structure-cache
+		 * entries, i.e. TLB entries for intermediate paging structures,
+		 * that may be zapped, as such entries are associated with the
+		 * ASID on both VMX and SVM.
+		 */
+		tdp_mmu_zap_root(kvm, root, true);
+
+		/*
+		 * The referenced needs to be put *after* zapping the root, as
+		 * the root must be reachable by mmu_notifiers while it's being
+		 * zapped
+		 */
+		kvm_tdp_mmu_put_root(kvm, root, true);
+	}
+
+	read_unlock(&kvm->mmu_lock);
 }
 
 /*
  * Mark each TDP MMU root as invalid to prevent vCPUs from reusing a root that
  * is about to be zapped, e.g. in response to a memslots update.  The actual
- * zapping is performed asynchronously.  Using a separate workqueue makes it
- * easy to ensure that the destruction is performed before the "fast zap"
- * completes, without keeping a separate list of invalidated roots; the list is
- * effectively the list of work items in the workqueue.
+ * zapping is done separately so that it happens with mmu_lock with read,
+ * whereas invalidating roots must be done with mmu_lock held for write (unless
+ * the VM is being destroyed).
  *
- * Note, the asynchronous worker is gifted the TDP MMU's reference.
+ * Note, kvm_tdp_mmu_zap_invalidated_roots() is gifted the TDP MMU's reference.
  * See kvm_tdp_mmu_get_vcpu_root_hpa().
  */
 void kvm_tdp_mmu_invalidate_all_roots(struct kvm *kvm)
@@ -953,19 +929,20 @@ void kvm_tdp_mmu_invalidate_all_roots(struct kvm *kvm)
 	/*
 	 * As above, mmu_lock isn't held when destroying the VM!  There can't
 	 * be other references to @kvm, i.e. nothing else can invalidate roots
-	 * or be consuming roots, but walking the list of roots does need to be
-	 * guarded against roots being deleted by the asynchronous zap worker.
+	 * or get/put references to roots.
 	 */
-	rcu_read_lock();
-
-	list_for_each_entry_rcu(root, &kvm->arch.tdp_mmu_roots, link) {
+	list_for_each_entry(root, &kvm->arch.tdp_mmu_roots, link) {
+		/*
+		 * Note, invalid roots can outlive a memslot update!  Invalid
+		 * roots must be *zapped* before the memslot update completes,
+		 * but a different task can acquire a reference and keep the
+		 * root alive after its been zapped.
+		 */
 		if (!root->role.invalid) {
+			root->tdp_mmu_scheduled_root_to_zap = true;
 			root->role.invalid = true;
-			tdp_mmu_schedule_zap_root(kvm, root);
 		}
 	}
-
-	rcu_read_unlock();
 }
 
 /*
