@@ -76,6 +76,8 @@
 
 struct device;
 
+struct kx022a_data;
+
 /**
  * struct kx022a_chip_info - Kionix accelerometer chip specific information
  *
@@ -99,6 +101,9 @@ struct device;
  * @inc5:			interrupt control register 5
  * @inc6:			interrupt control register 6
  * @xout_l:			x-axis output least significant byte
+ * @get_fifo_bytes_available:	function pointer to get amount of acceleration
+ *				data bytes currently stored in the sensor's FIFO
+ *				buffer
  */
 struct kx022a_chip_info {
 	const char *name;
@@ -121,6 +126,7 @@ struct kx022a_chip_info {
 	u8 inc5;
 	u8 inc6;
 	u8 xout_l;
+	int (*get_fifo_bytes_available)(struct kx022a_data *);
 };
 
 int kx022a_probe_internal(struct device *dev, const struct kx022a_chip_info *chip_info);
