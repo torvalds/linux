@@ -37,6 +37,9 @@ properties:
   "#interrupt-cells":
     const: 1
 
+  "#clock-cells":
+    const: 1
+
 additionalProperties: false
 
 required:
