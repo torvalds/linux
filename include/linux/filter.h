@@ -954,6 +954,8 @@ bool bpf_jit_needs_zext(void);
 bool bpf_jit_supports_subprog_tailcalls(void);
 bool bpf_jit_supports_kfunc_call(void);
 bool bpf_jit_supports_far_kfunc_call(void);
+bool bpf_jit_supports_exceptions(void);
+void arch_bpf_stack_walk(bool (*consume_fn)(void *cookie, u64 ip, u64 sp, u64 bp), void *cookie);
 bool bpf_helper_changes_pkt_data(void *func);
 
 static inline bool bpf_dump_raw_ok(const struct cred *cred)
@@ -1169,6 +1171,7 @@ const char *__bpf_address_lookup(unsigned long addr, unsigned long *size,
 bool is_bpf_text_address(unsigned long addr);
 int bpf_get_kallsym(unsigned int symnum, unsigned long *value, char *type,
 		    char *sym);
+struct bpf_prog *bpf_prog_ksym_find(unsigned long addr);
 
 static inline const char *
 bpf_address_lookup(unsigned long addr, unsigned long *size,
@@ -1234,6 +1237,11 @@ static inline int bpf_get_kallsym(unsigned int symnum, unsigned long *value,
 				  char *type, char *sym)
 {
 	return -ERANGE;
+}
+
+static inline struct bpf_prog *bpf_prog_ksym_find(unsigned long addr)
+{
+	return NULL;
 }
 
 static inline const char *

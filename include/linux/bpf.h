@@ -1389,6 +1389,7 @@ struct bpf_prog_aux {
 	u32 stack_depth;
 	u32 id;
 	u32 func_cnt; /* used by non-func prog as the number of func progs */
+	u32 real_func_cnt; /* includes hidden progs, only used for JIT and freeing progs */
 	u32 func_idx; /* 0 for non-func prog, the index in func array for func prog */
 	u32 attach_btf_id; /* in-kernel BTF type id to attach to */
 	u32 ctx_arg_info_size;
@@ -1409,6 +1410,8 @@ struct bpf_prog_aux {
 	bool sleepable;
 	bool tail_call_reachable;
 	bool xdp_has_frags;
+	bool exception_cb;
+	bool exception_boundary;
 	/* BTF_KIND_FUNC_PROTO for valid attach_btf_id */
 	const struct btf_type *attach_func_proto;
 	/* function name for valid attach_btf_id */
@@ -1431,6 +1434,7 @@ struct bpf_prog_aux {
 	int cgroup_atype; /* enum cgroup_bpf_attach_type */
 	struct bpf_map *cgroup_storage[MAX_BPF_CGROUP_STORAGE_TYPE];
 	char name[BPF_OBJ_NAME_LEN];
+	unsigned int (*bpf_exception_cb)(u64 cookie, u64 sp, u64 bp);
 #ifdef CONFIG_SECURITY
 	void *security;
 #endif
@@ -2418,9 +2422,11 @@ int btf_check_subprog_arg_match(struct bpf_verifier_env *env, int subprog,
 int btf_check_subprog_call(struct bpf_verifier_env *env, int subprog,
 			   struct bpf_reg_state *regs);
 int btf_prepare_func_args(struct bpf_verifier_env *env, int subprog,
-			  struct bpf_reg_state *reg);
+			  struct bpf_reg_state *reg, bool is_ex_cb);
 int btf_check_type_match(struct bpf_verifier_log *log, const struct bpf_prog *prog,
 			 struct btf *btf, const struct btf_type *t);
+const char *btf_find_decl_tag_value(const struct btf *btf, const struct btf_type *pt,
+				    int comp_idx, const char *tag_key);
 
 struct bpf_prog *bpf_prog_by_id(u32 id);
 struct bpf_link *bpf_link_by_id(u32 id);
@@ -3192,6 +3198,11 @@ static inline gfp_t bpf_memcg_flags(gfp_t flags)
 	if (memcg_bpf_enabled())
 		return flags | __GFP_ACCOUNT;
 	return flags;
+}
+
+static inline bool bpf_is_subprog(const struct bpf_prog *prog)
+{
+	return prog->aux->func_idx != 0;
 }
 
 #endif /* _LINUX_BPF_H */
