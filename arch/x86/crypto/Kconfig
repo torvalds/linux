@@ -189,7 +189,7 @@ config CRYPTO_SERPENT_AVX2_X86_64
 	  Processes 16 blocks in parallel.
 
 config CRYPTO_SM4_AESNI_AVX_X86_64
-	tristate "Ciphers: SM4 with modes: ECB, CBC, CFB, CTR (AES-NI/AVX)"
+	tristate "Ciphers: SM4 with modes: ECB, CBC, CTR (AES-NI/AVX)"
 	depends on X86 && 64BIT
 	select CRYPTO_SKCIPHER
 	select CRYPTO_SIMD
@@ -197,7 +197,7 @@ config CRYPTO_SM4_AESNI_AVX_X86_64
 	select CRYPTO_SM4
 	help
 	  Length-preserving ciphers: SM4 cipher algorithms
-	  (OSCCA GB/T 32907-2016) with ECB, CBC, CFB, and CTR modes
+	  (OSCCA GB/T 32907-2016) with ECB, CBC, and CTR modes
 
 	  Architecture: x86_64 using:
 	  - AES-NI (AES New Instructions)
@@ -210,7 +210,7 @@ config CRYPTO_SM4_AESNI_AVX_X86_64
 	  If unsure, say N.
 
 config CRYPTO_SM4_AESNI_AVX2_X86_64
-	tristate "Ciphers: SM4 with modes: ECB, CBC, CFB, CTR (AES-NI/AVX2)"
+	tristate "Ciphers: SM4 with modes: ECB, CBC, CTR (AES-NI/AVX2)"
 	depends on X86 && 64BIT
 	select CRYPTO_SKCIPHER
 	select CRYPTO_SIMD
@@ -219,7 +219,7 @@ config CRYPTO_SM4_AESNI_AVX2_X86_64
 	select CRYPTO_SM4_AESNI_AVX_X86_64
 	help
 	  Length-preserving ciphers: SM4 cipher algorithms
-	  (OSCCA GB/T 32907-2016) with ECB, CBC, CFB, and CTR modes
+	  (OSCCA GB/T 32907-2016) with ECB, CBC, and CTR modes
 
 	  Architecture: x86_64 using:
 	  - AES-NI (AES New Instructions)
