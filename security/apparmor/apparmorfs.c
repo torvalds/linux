@@ -1615,11 +1615,6 @@ static char *gen_symlink_name(int depth, const char *dirname, const char *fname)
 	return buffer;
 }
 
-static void rawdata_link_cb(void *arg)
-{
-	kfree(arg);
-}
-
 static const char *rawdata_get_link_base(struct dentry *dentry,
 					 struct inode *inode,
 					 struct delayed_call *done,
@@ -1643,7 +1638,7 @@ static const char *rawdata_get_link_base(struct dentry *dentry,
 	if (IS_ERR(target))
 		return target;
 
-	set_delayed_call(done, rawdata_link_cb, target);
+	set_delayed_call(done, kfree_link, target);
 
 	return target;
 }
