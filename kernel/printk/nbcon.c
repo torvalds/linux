@@ -5,6 +5,7 @@
 #include <linux/kernel.h>
 #include <linux/console.h>
 #include <linux/delay.h>
+#include <linux/slab.h>
 #include "internal.h"
 /*
  * Printk console printing implementation for consoles which does not depend
@@ -69,6 +70,10 @@
  *   3) Unsafe hostile takeover allows to take over the lock even when the
  *      console is an unsafe state. It is used only in panic() by the final
  *      attempt to flush consoles in a try and hope mode.
+ *
+ *      Note that separate record buffers are used in panic(). As a result,
+ *      the messages can be read and formatted without any risk even after
+ *      using the hostile takeover in unsafe state.
  *
  * The release function simply clears the 'prio' field.
  *
@@ -459,6 +464,8 @@ static int nbcon_context_try_acquire_hostile(struct nbcon_context *ctxt,
 	return 0;
 }
 
+static struct printk_buffers panic_nbcon_pbufs;
+
 /**
  * nbcon_context_try_acquire - Try to acquire nbcon console
  * @ctxt:	The context of the caller
@@ -473,6 +480,7 @@ static int nbcon_context_try_acquire_hostile(struct nbcon_context *ctxt,
 __maybe_unused
 static bool nbcon_context_try_acquire(struct nbcon_context *ctxt)
 {
+	unsigned int cpu = smp_processor_id();
 	struct console *con = ctxt->console;
 	struct nbcon_state cur;
 	int err;
@@ -491,7 +499,18 @@ try_again:
 
 	err = nbcon_context_try_acquire_hostile(ctxt, &cur);
 out:
-	return !err;
+	if (err)
+		return false;
+
+	/* Acquire succeeded. */
+
+	/* Assign the appropriate buffer for this context. */
+	if (atomic_read(&panic_cpu) == cpu)
+		ctxt->pbufs = &panic_nbcon_pbufs;
+	else
+		ctxt->pbufs = con->pbufs;
+
+	return true;
 }
 
 static bool nbcon_owner_matches(struct nbcon_state *cur, int expected_cpu,
@@ -530,7 +549,7 @@ static void nbcon_context_release(struct nbcon_context *ctxt)
 
 	do {
 		if (!nbcon_owner_matches(&cur, cpu, ctxt->prio))
-			return;
+			break;
 
 		new.atom = cur.atom;
 		new.prio = NBCON_PRIO_NONE;
@@ -542,26 +561,70 @@ static void nbcon_context_release(struct nbcon_context *ctxt)
 		new.unsafe |= cur.unsafe_takeover;
 
 	} while (!nbcon_state_try_cmpxchg(con, &cur, &new));
+
+	ctxt->pbufs = NULL;
+}
+
+/**
+ * nbcon_alloc - Allocate buffers needed by the nbcon console
+ * @con:	Console to allocate buffers for
+ *
+ * Return:	True on success. False otherwise and the console cannot
+ *		be used.
+ *
+ * This is not part of nbcon_init() because buffer allocation must
+ * be performed earlier in the console registration process.
+ */
+bool nbcon_alloc(struct console *con)
+{
+	if (con->flags & CON_BOOT) {
+		/*
+		 * Boot console printing is synchronized with legacy console
+		 * printing, so boot consoles can share the same global printk
+		 * buffers.
+		 */
+		con->pbufs = &printk_shared_pbufs;
+	} else {
+		con->pbufs = kmalloc(sizeof(*con->pbufs), GFP_KERNEL);
+		if (!con->pbufs) {
+			con_printk(KERN_ERR, con, "failed to allocate printing buffer\n");
+			return false;
+		}
+	}
+
+	return true;
 }
 
 /**
  * nbcon_init - Initialize the nbcon console specific data
  * @con:	Console to initialize
+ *
+ * nbcon_alloc() *must* be called and succeed before this function
+ * is called.
  */
 void nbcon_init(struct console *con)
 {
 	struct nbcon_state state = { };
 
+	/* nbcon_alloc() must have been called and successful! */
+	BUG_ON(!con->pbufs);
+
 	nbcon_state_set(con, &state);
 }
 
 /**
- * nbcon_cleanup - Cleanup the nbcon console specific data
- * @con:	Console to cleanup
+ * nbcon_free - Free and cleanup the nbcon console specific data
+ * @con:	Console to free/cleanup nbcon data
  */
-void nbcon_cleanup(struct console *con)
+void nbcon_free(struct console *con)
 {
 	struct nbcon_state state = { };
 
 	nbcon_state_set(con, &state);
+
+	/* Boot consoles share global printk buffers. */
+	if (!(con->flags & CON_BOOT))
+		kfree(con->pbufs);
+
+	con->pbufs = NULL;
 }

@@ -13,6 +13,12 @@ int devkmsg_sysctl_set_loglvl(struct ctl_table *table, int write,
 #define printk_sysctl_init() do { } while (0)
 #endif
 
+#define con_printk(lvl, con, fmt, ...)				\
+	printk(lvl pr_fmt("%s%sconsole [%s%d] " fmt),		\
+		(con->flags & CON_NBCON) ? "" : "legacy ",	\
+		(con->flags & CON_BOOT) ? "boot" : "",		\
+		con->name, con->index, ##__VA_ARGS__)
+
 #ifdef CONFIG_PRINTK
 
 #ifdef CONFIG_PRINTK_CALLER
@@ -63,8 +69,9 @@ void defer_console_output(void);
 u16 printk_parse_prefix(const char *text, int *level,
 			enum printk_info_flags *flags);
 
+bool nbcon_alloc(struct console *con);
 void nbcon_init(struct console *con);
-void nbcon_cleanup(struct console *con);
+void nbcon_free(struct console *con);
 
 #else
 
@@ -81,8 +88,9 @@ void nbcon_cleanup(struct console *con);
 #define printk_safe_exit_irqrestore(flags) local_irq_restore(flags)
 
 static inline bool printk_percpu_data_ready(void) { return false; }
+static inline bool nbcon_alloc(struct console *con) { return false; }
 static inline void nbcon_init(struct console *con) { }
-static inline void nbcon_cleanup(struct console *con) { }
+static inline void nbcon_free(struct console *con) { }
 
 #endif /* CONFIG_PRINTK */
 
