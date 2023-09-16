@@ -364,9 +364,10 @@ virtio_transport_stream_do_peek(struct vsock_sock *vsk,
 		spin_unlock_bh(&vvs->rx_lock);
 
 		/* sk_lock is held by caller so no one else can dequeue.
-		 * Unlock rx_lock since memcpy_to_msg() may sleep.
+		 * Unlock rx_lock since skb_copy_datagram_iter() may sleep.
 		 */
-		err = memcpy_to_msg(msg, skb->data, bytes);
+		err = skb_copy_datagram_iter(skb, VIRTIO_VSOCK_SKB_CB(skb)->offset,
+					     &msg->msg_iter, bytes);
 		if (err)
 			goto out;
 
@@ -410,25 +411,27 @@ virtio_transport_stream_do_dequeue(struct vsock_sock *vsk,
 	while (total < len && !skb_queue_empty(&vvs->rx_queue)) {
 		skb = skb_peek(&vvs->rx_queue);
 
-		bytes = len - total;
-		if (bytes > skb->len)
-			bytes = skb->len;
+		bytes = min_t(size_t, len - total,
+			      skb->len - VIRTIO_VSOCK_SKB_CB(skb)->offset);
 
 		/* sk_lock is held by caller so no one else can dequeue.
-		 * Unlock rx_lock since memcpy_to_msg() may sleep.
+		 * Unlock rx_lock since skb_copy_datagram_iter() may sleep.
 		 */
 		spin_unlock_bh(&vvs->rx_lock);
 
-		err = memcpy_to_msg(msg, skb->data, bytes);
+		err = skb_copy_datagram_iter(skb,
+					     VIRTIO_VSOCK_SKB_CB(skb)->offset,
+					     &msg->msg_iter, bytes);
 		if (err)
 			goto out;
 
 		spin_lock_bh(&vvs->rx_lock);
 
 		total += bytes;
-		skb_pull(skb, bytes);
 
-		if (skb->len == 0) {
+		VIRTIO_VSOCK_SKB_CB(skb)->offset += bytes;
+
+		if (skb->len == VIRTIO_VSOCK_SKB_CB(skb)->offset) {
 			u32 pkt_len = le32_to_cpu(virtio_vsock_hdr(skb)->len);
 
 			virtio_transport_dec_rx_pkt(vvs, pkt_len);
@@ -492,9 +495,10 @@ virtio_transport_seqpacket_do_peek(struct vsock_sock *vsk,
 			spin_unlock_bh(&vvs->rx_lock);
 
 			/* sk_lock is held by caller so no one else can dequeue.
-			 * Unlock rx_lock since memcpy_to_msg() may sleep.
+			 * Unlock rx_lock since skb_copy_datagram_iter() may sleep.
 			 */
-			err = memcpy_to_msg(msg, skb->data, bytes);
+			err = skb_copy_datagram_iter(skb, VIRTIO_VSOCK_SKB_CB(skb)->offset,
+						     &msg->msg_iter, bytes);
 			if (err)
 				return err;
 
@@ -553,11 +557,13 @@ static int virtio_transport_seqpacket_do_dequeue(struct vsock_sock *vsk,
 				int err;
 
 				/* sk_lock is held by caller so no one else can dequeue.
-				 * Unlock rx_lock since memcpy_to_msg() may sleep.
+				 * Unlock rx_lock since skb_copy_datagram_iter() may sleep.
 				 */
 				spin_unlock_bh(&vvs->rx_lock);
 
-				err = memcpy_to_msg(msg, skb->data, bytes_to_copy);
+				err = skb_copy_datagram_iter(skb, 0,
+							     &msg->msg_iter,
+							     bytes_to_copy);
 				if (err) {
 					/* Copy of message failed. Rest of
 					 * fragments will be freed without copy.
