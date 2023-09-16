@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2019-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 #include "hab.h"
 #include "hab_qvm.h"
@@ -37,9 +37,10 @@ static int hab_shmem_probe(struct platform_device *pdev)
 	int ret = 0;
 
 	/* hab in one GVM will not have pchans more than one VM could allowed */
-	if (qvm_priv_info.probe_cnt >= hab_driver.ndevices) {
-		pr_info("no more channel, current %d, maximum %d\n",
-			qvm_priv_info.probe_cnt, hab_driver.ndevices);
+	if (qvm_priv_info.probe_cnt >= min(hab_driver.ndevices, qvm_priv_info.setting_size)) {
+		pr_err("no more channel, current %d, maximum %d\n",
+			qvm_priv_info.probe_cnt,
+			min(hab_driver.ndevices, qvm_priv_info.setting_size));
 		return -ENODEV;
 	}
 
@@ -66,8 +67,8 @@ static int hab_shmem_probe(struct platform_device *pdev)
 	qvm_priv_info.pchan_settings[qvm_priv_info.probe_cnt].factory_addr
 			= (unsigned long)((uintptr_t)shmem_base);
 
-	pr_debug("pchan idx %d, hab irq=%d shmem_base=%pK, mem %pK\n",
-			 qvm_priv_info.probe_cnt, irq, shmem_base, mem);
+	pr_debug("pchan idx %d, hab irq=%d shmem_base=%pK, mem %pK, mem->start %pK\n",
+			 qvm_priv_info.probe_cnt, irq, shmem_base, mem, mem->start);
 
 	qvm_priv_info.probe_cnt++;
 
