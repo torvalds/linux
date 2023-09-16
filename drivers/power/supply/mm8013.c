@@ -17,13 +17,21 @@
  #define MM8013_FLAG_OTC		BIT(15)
  #define MM8013_FLAG_OTD		BIT(14)
  #define MM8013_FLAG_BATHI		BIT(13)
+ #define MM8013_FLAG_BATLOW		BIT(12)
+ #define MM8013_FLAG_CHG_INH		BIT(11)
  #define MM8013_FLAG_FC			BIT(9)
  #define MM8013_FLAG_CHG		BIT(8)
+ #define MM8013_FLAG_OCC		BIT(6)
+ #define MM8013_FLAG_ODC		BIT(5)
+ #define MM8013_FLAG_OT			BIT(4)
+ #define MM8013_FLAG_UT			BIT(3)
  #define MM8013_FLAG_DSG		BIT(0)
 #define REG_FULL_CHARGE_CAPACITY	0x0e
+#define REG_NOMINAL_CHARGE_CAPACITY	0x0c
 #define REG_AVERAGE_CURRENT		0x14
 #define REG_AVERAGE_TIME_TO_EMPTY	0x16
 #define REG_AVERAGE_TIME_TO_FULL	0x18
+#define REG_MAX_LOAD_CURRENT		0x1e
 #define REG_CYCLE_COUNT			0x2a
 #define REG_STATE_OF_CHARGE		0x2c
 #define REG_DESIGN_CAPACITY		0x3c
@@ -63,8 +71,11 @@ static int mm8013_checkdevice(struct mm8013_chip *chip)
 
 static enum power_supply_property mm8013_battery_props[] = {
 	POWER_SUPPLY_PROP_CAPACITY,
+	POWER_SUPPLY_PROP_CHARGE_BEHAVIOUR,
 	POWER_SUPPLY_PROP_CHARGE_FULL,
 	POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN,
+	POWER_SUPPLY_PROP_CHARGE_NOW,
+	POWER_SUPPLY_PROP_CURRENT_MAX,
 	POWER_SUPPLY_PROP_CURRENT_NOW,
 	POWER_SUPPLY_PROP_CYCLE_COUNT,
 	POWER_SUPPLY_PROP_HEALTH,
@@ -92,6 +103,16 @@ static int mm8013_get_property(struct power_supply *psy,
 
 		val->intval = regval;
 		break;
+	case POWER_SUPPLY_PROP_CHARGE_BEHAVIOUR:
+		ret = regmap_read(chip->regmap, REG_FLAGS, &regval);
+		if (ret < 0)
+			return ret;
+
+		if (regval & MM8013_FLAG_CHG_INH)
+			val->intval = POWER_SUPPLY_CHARGE_BEHAVIOUR_INHIBIT_CHARGE;
+		else
+			val->intval = POWER_SUPPLY_CHARGE_BEHAVIOUR_AUTO;
+		break;
 	case POWER_SUPPLY_PROP_CHARGE_FULL:
 		ret = regmap_read(chip->regmap, REG_FULL_CHARGE_CAPACITY, &regval);
 		if (ret < 0)
@@ -105,6 +126,20 @@ static int mm8013_get_property(struct power_supply *psy,
 			return ret;
 
 		val->intval = 1000 * regval;
+		break;
+	case POWER_SUPPLY_PROP_CHARGE_NOW:
+		ret = regmap_read(chip->regmap, REG_NOMINAL_CHARGE_CAPACITY, &regval);
+		if (ret < 0)
+			return ret;
+
+		val->intval = 1000 * regval;
+		break;
+	case POWER_SUPPLY_PROP_CURRENT_MAX:
+		ret = regmap_read(chip->regmap, REG_MAX_LOAD_CURRENT, &regval);
+		if (ret < 0)
+			return ret;
+
+		val->intval = -1000 * (s16)regval;
 		break;
 	case POWER_SUPPLY_PROP_CURRENT_NOW:
 		ret = regmap_read(chip->regmap, REG_AVERAGE_CURRENT, &regval);
@@ -125,9 +160,15 @@ static int mm8013_get_property(struct power_supply *psy,
 		if (ret < 0)
 			return ret;
 
-		if (regval & MM8013_FLAG_BATHI)
+		if (regval & MM8013_FLAG_UT)
+			val->intval = POWER_SUPPLY_HEALTH_COLD;
+		else if (regval & (MM8013_FLAG_ODC | MM8013_FLAG_OCC))
+			val->intval = POWER_SUPPLY_HEALTH_OVERCURRENT;
+		else if (regval & (MM8013_FLAG_BATLOW))
+			val->intval = POWER_SUPPLY_HEALTH_UNSPEC_FAILURE;
+		else if (regval & MM8013_FLAG_BATHI)
 			val->intval = POWER_SUPPLY_HEALTH_OVERVOLTAGE;
-		else if (regval & (MM8013_FLAG_OTD | MM8013_FLAG_OTC))
+		else if (regval & (MM8013_FLAG_OT | MM8013_FLAG_OTD | MM8013_FLAG_OTC))
 			val->intval = POWER_SUPPLY_HEALTH_OVERHEAT;
 		else
 			val->intval = POWER_SUPPLY_HEALTH_GOOD;
