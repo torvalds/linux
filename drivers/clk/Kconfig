@@ -277,6 +277,15 @@ config COMMON_CLK_S2MPS11
 	  clock. These multi-function devices have two (S2MPS14) or three
 	  (S2MPS11, S5M8767) fixed-rate oscillators, clocked at 32KHz each.
 
+config CLK_TWL
+	tristate "Clock driver for the TWL PMIC family"
+	depends on TWL4030_CORE
+	help
+	  Enable support for controlling the clock resources on TWL family
+	  PMICs. These devices have some 32K clock outputs which can be
+	  controlled by software. For now, only the TWL6032 clocks are
+	  supported.
+
 config CLK_TWL6040
 	tristate "External McPDM functional clock from twl6040"
 	depends on TWL6040_CORE
