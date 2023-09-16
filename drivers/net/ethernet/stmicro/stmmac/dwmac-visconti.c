@@ -256,8 +256,7 @@ remove:
 
 static void visconti_eth_dwmac_remove(struct platform_device *pdev)
 {
-	stmmac_pltfr_remove_no_dt(pdev);
-
+	stmmac_pltfr_remove(pdev);
 	visconti_eth_clock_remove(pdev);
 }
 
