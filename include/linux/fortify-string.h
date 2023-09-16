@@ -643,7 +643,7 @@ __FORTIFY_INLINE bool fortify_memcpy_chk(__kernel_size_t size,
 				     __q_size_field, #op),		\
 		  #op ": detected field-spanning write (size %zu) of single %s (size %zu)\n", \
 		  __fortify_size,					\
-		  "field \"" #p "\" at " __FILE__ ":" __stringify(__LINE__), \
+		  "field \"" #p "\" at " FILE_LINE,			\
 		  __p_size_field);					\
 	__underlying_##op(p, q, __fortify_size);			\
 })
