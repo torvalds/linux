@@ -2093,10 +2093,6 @@ static int spi_stop_queue(struct spi_controller *ctlr)
 
 	spin_unlock_irqrestore(&ctlr->queue_lock, flags);
 
-	if (ret) {
-		dev_warn(&ctlr->dev, "could not stop message queue\n");
-		return ret;
-	}
 	return ret;
 }
 
