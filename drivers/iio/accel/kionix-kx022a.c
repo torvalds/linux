@@ -341,7 +341,6 @@ static int kx022a_turn_on_off_unlocked(struct kx022a_data *data, bool on)
 		dev_err(data->dev, "Turn %s fail %d\n", str_on_off(on), ret);
 
 	return ret;
-
 }
 
 static int kx022a_turn_off_lock(struct kx022a_data *data)
@@ -1109,7 +1108,6 @@ int kx022a_probe_internal(struct device *dev)
 					IRQF_ONESHOT, name, idev);
 	if (ret)
 		return dev_err_probe(data->dev, ret, "Could not request IRQ\n");
-
 
 	ret = devm_iio_trigger_register(dev, indio_trig);
 	if (ret)
