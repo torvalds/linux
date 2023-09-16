@@ -2535,6 +2535,8 @@ static struct walt_sched_cluster init_cluster = {
 	.cur_freq		= 1,
 	.max_possible_freq	= 1,
 	.aggr_grp_load		= 0,
+	.found_ts		= 0,
+	.smart_fmax_cap		= 1,
 };
 
 static void init_clusters(void)
@@ -2574,7 +2576,9 @@ static struct walt_sched_cluster *alloc_new_cluster(const struct cpumask *cpus)
 	cluster->max_possible_freq	=	1;
 
 	raw_spin_lock_init(&cluster->load_lock);
-	cluster->cpus = *cpus;
+	cluster->cpus			= *cpus;
+	cluster->found_ts		= 0;
+	cluster->smart_fmax_cap		= 1;
 
 	return cluster;
 }
@@ -4390,7 +4394,7 @@ static inline void irq_work_restrict_to_mig_clusters(cpumask_t *lock_cpus)
 	}
 }
 
-static void update_cpu_capacity_helper(int cpu)
+void update_cpu_capacity_helper(int cpu)
 {
 	unsigned long fmax_capacity = arch_scale_cpu_capacity(cpu);
 	unsigned long thermal_pressure = arch_scale_thermal_pressure(cpu);
@@ -4432,23 +4436,6 @@ static void android_rvh_update_cpu_capacity(void *unused, int cpu, unsigned long
 
 	update_cpu_capacity_helper(cpu);
 	*capacity = max((int)(cpu_rq(cpu)->cpu_capacity_orig - rt_pressure), 0);
-}
-
-static inline bool has_internal_freq_limit_changed(int cpu)
-{
-	unsigned int internal_freq;
-	struct walt_sched_cluster *cluster;
-	int i;
-
-	cluster = cpu_cluster(cpu);
-	internal_freq = cluster->walt_internal_freq_limit;
-
-	cluster->walt_internal_freq_limit = cluster->max_freq;
-	for (i = 0; i < MAX_FREQ_CAP; i++)
-		cluster->walt_internal_freq_limit = min(fmax_cap[i][cluster->id],
-					     cluster->walt_internal_freq_limit);
-
-	return cluster->walt_internal_freq_limit != internal_freq;
 }
 
 DEFINE_PER_CPU(u32, wakeup_ctr);
@@ -4513,9 +4500,6 @@ static void walt_irq_work(struct irq_work *irq_work)
 		for_each_cpu(cpu, cpu_online_mask) {
 			wakeup_ctr_sum += per_cpu(wakeup_ctr, cpu);
 			per_cpu(wakeup_ctr, cpu) = 0;
-
-			if (has_internal_freq_limit_changed(cpu))
-				update_cpu_capacity_helper(cpu);
 		}
 	}
 
@@ -4537,6 +4521,7 @@ void walt_rotation_checkpoint(int nr_big)
 {
 	int i;
 	bool prev = walt_rotation_enabled;
+
 	if (!hmp_capable())
 		return;
 
@@ -4553,10 +4538,41 @@ void walt_rotation_checkpoint(int nr_big)
 		else if (!walt_rotation_enabled && prev)
 			fmax_cap[HIGH_PERF_CAP][i] = FREQ_QOS_MAX_DEFAULT_VALUE;
 	}
+
+	update_fmax_cap_capacities(HIGH_PERF_CAP);
 }
 
 #define WAKEUP_CTR_THRESH 50
 #define FMAX_CAP_HYSTERESIS 1000000000
+#define UTIL_THRES 90
+#define UNCAP_THRES 300000000
+bool thres_based_uncap(u64 window_start)
+{
+	struct walt_sched_cluster *cluster;
+	int cpu, i = 0;
+	struct walt_rq *wrq;
+
+	for (i = 0; i < num_sched_clusters; i++) {
+		bool cluster_high_load = false;
+
+		cluster = sched_cluster[i];
+
+		for_each_cpu(cpu, &cluster->cpus) {
+			wrq = &per_cpu(walt_rq, cpu);
+			if (wrq->util >= mult_frac(UTIL_THRES, cluster->smart_fmax_cap, 100)) {
+				cluster_high_load = true;
+				if (!cluster->found_ts)
+					cluster->found_ts = window_start;
+				else if ((window_start - cluster->found_ts) >= UNCAP_THRES)
+					return true;
+			}
+		}
+		if (!cluster_high_load)
+			cluster->found_ts = 0;
+	}
+
+	return false;
+}
 
 void fmax_uncap_checkpoint(int nr_big, u64 window_start, u32 wakeup_ctr_sum)
 {
@@ -4565,7 +4581,9 @@ void fmax_uncap_checkpoint(int nr_big, u64 window_start, u32 wakeup_ctr_sum)
 	int i;
 
 	fmax_uncap_load_detected = (nr_big >= 7 && wakeup_ctr_sum < WAKEUP_CTR_THRESH) ||
-		is_full_throttle_boost() || is_storage_boost();
+			is_full_throttle_boost() ||
+			is_storage_boost() ||
+			thres_based_uncap(window_start);
 
 	if (fmax_uncap_load_detected) {
 		if (!fmax_uncap_timestamp)
@@ -4578,6 +4596,8 @@ void fmax_uncap_checkpoint(int nr_big, u64 window_start, u32 wakeup_ctr_sum)
 			fmax_cap[SMART_FMAX_CAP][i] = sysctl_fmax_cap[i];
 		fmax_uncap_timestamp = 0;
 	}
+
+	update_fmax_cap_capacities(SMART_FMAX_CAP);
 
 	trace_sched_fmax_uncap(nr_big, window_start, wakeup_ctr_sum,
 			fmax_uncap_load_detected, fmax_uncap_timestamp);
