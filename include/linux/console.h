@@ -175,13 +175,29 @@ enum cons_flags {
  * struct nbcon_state - console state for nbcon consoles
  * @atom:	Compound of the state fields for atomic operations
  *
+ * @req_prio:		The priority of a handover request
+ * @prio:		The priority of the current owner
+ * @unsafe:		Console is busy in a non takeover region
+ * @unsafe_takeover:	A hostile takeover in an unsafe state happened in the
+ *			past. The console cannot be safe until re-initialized.
+ * @cpu:		The CPU on which the owner runs
+ *
  * To be used for reading and preparing of the value stored in the nbcon
  * state variable @console::nbcon_state.
+ *
+ * The @prio and @req_prio fields are particularly important to allow
+ * spin-waiting to timeout and give up without the risk of a waiter being
+ * assigned the lock after giving up.
  */
 struct nbcon_state {
 	union {
 		unsigned int	atom;
 		struct {
+			unsigned int prio		:  2;
+			unsigned int req_prio		:  2;
+			unsigned int unsafe		:  1;
+			unsigned int unsafe_takeover	:  1;
+			unsigned int cpu		: 24;
 		};
 	};
 };
@@ -193,6 +209,46 @@ struct nbcon_state {
  * order to avoid any accidental truncation.
  */
 static_assert(sizeof(struct nbcon_state) <= sizeof(int));
+
+/**
+ * nbcon_prio - console owner priority for nbcon consoles
+ * @NBCON_PRIO_NONE:		Unused
+ * @NBCON_PRIO_NORMAL:		Normal (non-emergency) usage
+ * @NBCON_PRIO_EMERGENCY:	Emergency output (WARN/OOPS...)
+ * @NBCON_PRIO_PANIC:		Panic output
+ * @NBCON_PRIO_MAX:		The number of priority levels
+ *
+ * A higher priority context can takeover the console when it is
+ * in the safe state. The final attempt to flush consoles in panic()
+ * can be allowed to do so even in an unsafe state (Hope and pray).
+ */
+enum nbcon_prio {
+	NBCON_PRIO_NONE = 0,
+	NBCON_PRIO_NORMAL,
+	NBCON_PRIO_EMERGENCY,
+	NBCON_PRIO_PANIC,
+	NBCON_PRIO_MAX,
+};
+
+struct console;
+
+/**
+ * struct nbcon_context - Context for console acquire/release
+ * @console:			The associated console
+ * @spinwait_max_us:		Limit for spin-wait acquire
+ * @prio:			Priority of the context
+ * @allow_unsafe_takeover:	Allow performing takeover even if unsafe. Can
+ *				be used only with NBCON_PRIO_PANIC @prio. It
+ *				might cause a system freeze when the console
+ *				is used later.
+ */
+struct nbcon_context {
+	/* members set by caller */
+	struct console		*console;
+	unsigned int		spinwait_max_us;
+	enum nbcon_prio		prio;
+	unsigned int		allow_unsafe_takeover	: 1;
+};
 
 /**
  * struct console - The console descriptor structure
