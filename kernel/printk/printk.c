@@ -494,7 +494,7 @@ _DEFINE_PRINTKRB(printk_rb_static, CONFIG_LOG_BUF_SHIFT - PRB_AVGBITS,
 
 static struct printk_ringbuffer printk_rb_dynamic;
 
-static struct printk_ringbuffer *prb = &printk_rb_static;
+struct printk_ringbuffer *prb = &printk_rb_static;
 
 /*
  * We cannot access per-CPU data (e.g. per-CPU flush irq_work) before
@@ -3168,6 +3168,7 @@ void console_flush_on_panic(enum con_flush_mode mode)
 
 	if (mode == CONSOLE_REPLAY_ALL) {
 		struct console *c;
+		short flags;
 		int cookie;
 		u64 seq;
 
@@ -3175,11 +3176,17 @@ void console_flush_on_panic(enum con_flush_mode mode)
 
 		cookie = console_srcu_read_lock();
 		for_each_console_srcu(c) {
-			/*
-			 * This is an unsynchronized assignment, but the
-			 * kernel is in "hope and pray" mode anyway.
-			 */
-			c->seq = seq;
+			flags = console_srcu_read_flags(c);
+
+			if (flags & CON_NBCON) {
+				nbcon_seq_force(c, seq);
+			} else {
+				/*
+				 * This is an unsynchronized assignment. On
+				 * panic legacy consoles are only best effort.
+				 */
+				c->seq = seq;
+			}
 		}
 		console_srcu_read_unlock(cookie);
 	}
@@ -3750,6 +3757,7 @@ static bool __pr_flush(struct console *con, int timeout_ms, bool reset_on_progre
 	struct console *c;
 	u64 last_diff = 0;
 	u64 printk_seq;
+	short flags;
 	int cookie;
 	u64 diff;
 	u64 seq;
@@ -3771,6 +3779,9 @@ static bool __pr_flush(struct console *con, int timeout_ms, bool reset_on_progre
 		for_each_console_srcu(c) {
 			if (con && con != c)
 				continue;
+
+			flags = console_srcu_read_flags(c);
+
 			/*
 			 * If consoles are not usable, it cannot be expected
 			 * that they make forward progress, so only increment
@@ -3778,7 +3789,13 @@ static bool __pr_flush(struct console *con, int timeout_ms, bool reset_on_progre
 			 */
 			if (!console_is_usable(c))
 				continue;
-			printk_seq = c->seq;
+
+			if (flags & CON_NBCON) {
+				printk_seq = nbcon_seq_read(c);
+			} else {
+				printk_seq = c->seq;
+			}
+
 			if (printk_seq < seq)
 				diff += seq - printk_seq;
 		}

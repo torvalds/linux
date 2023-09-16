@@ -140,6 +140,101 @@ static inline bool nbcon_state_try_cmpxchg(struct console *con, struct nbcon_sta
 	return atomic_try_cmpxchg(&ACCESS_PRIVATE(con, nbcon_state), &cur->atom, new->atom);
 }
 
+#ifdef CONFIG_64BIT
+
+#define __seq_to_nbcon_seq(seq) (seq)
+#define __nbcon_seq_to_seq(seq) (seq)
+
+#else /* CONFIG_64BIT */
+
+#define __seq_to_nbcon_seq(seq) ((u32)seq)
+
+static inline u64 __nbcon_seq_to_seq(u32 nbcon_seq)
+{
+	u64 seq;
+	u64 rb_next_seq;
+
+	/*
+	 * The provided sequence is only the lower 32 bits of the ringbuffer
+	 * sequence. It needs to be expanded to 64bit. Get the next sequence
+	 * number from the ringbuffer and fold it.
+	 *
+	 * Having a 32bit representation in the console is sufficient.
+	 * If a console ever gets more than 2^31 records behind
+	 * the ringbuffer then this is the least of the problems.
+	 *
+	 * Also the access to the ring buffer is always safe.
+	 */
+	rb_next_seq = prb_next_seq(prb);
+	seq = rb_next_seq - ((u32)rb_next_seq - nbcon_seq);
+
+	return seq;
+}
+
+#endif /* CONFIG_64BIT */
+
+/**
+ * nbcon_seq_read - Read the current console sequence
+ * @con:	Console to read the sequence of
+ *
+ * Return:	Sequence number of the next record to print on @con.
+ */
+u64 nbcon_seq_read(struct console *con)
+{
+	unsigned long nbcon_seq = atomic_long_read(&ACCESS_PRIVATE(con, nbcon_seq));
+
+	return __nbcon_seq_to_seq(nbcon_seq);
+}
+
+/**
+ * nbcon_seq_force - Force console sequence to a specific value
+ * @con:	Console to work on
+ * @seq:	Sequence number value to set
+ *
+ * Only to be used during init (before registration) or in extreme situations
+ * (such as panic with CONSOLE_REPLAY_ALL).
+ */
+void nbcon_seq_force(struct console *con, u64 seq)
+{
+	/*
+	 * If the specified record no longer exists, the oldest available record
+	 * is chosen. This is especially important on 32bit systems because only
+	 * the lower 32 bits of the sequence number are stored. The upper 32 bits
+	 * are derived from the sequence numbers available in the ringbuffer.
+	 */
+	u64 valid_seq = max_t(u64, seq, prb_first_valid_seq(prb));
+
+	atomic_long_set(&ACCESS_PRIVATE(con, nbcon_seq), __seq_to_nbcon_seq(valid_seq));
+
+	/* Clear con->seq since nbcon consoles use con->nbcon_seq instead. */
+	con->seq = 0;
+}
+
+/**
+ * nbcon_seq_try_update - Try to update the console sequence number
+ * @ctxt:	Pointer to an acquire context that contains
+ *		all information about the acquire mode
+ * @new_seq:	The new sequence number to set
+ *
+ * @ctxt->seq is updated to the new value of @con::nbcon_seq (expanded to
+ * the 64bit value). This could be a different value than @new_seq if
+ * nbcon_seq_force() was used or the current context no longer owns the
+ * console. In the later case, it will stop printing anyway.
+ */
+__maybe_unused
+static void nbcon_seq_try_update(struct nbcon_context *ctxt, u64 new_seq)
+{
+	unsigned long nbcon_seq = __seq_to_nbcon_seq(ctxt->seq);
+	struct console *con = ctxt->console;
+
+	if (atomic_long_try_cmpxchg(&ACCESS_PRIVATE(con, nbcon_seq), &nbcon_seq,
+				    __seq_to_nbcon_seq(new_seq))) {
+		ctxt->seq = new_seq;
+	} else {
+		ctxt->seq = nbcon_seq_read(con);
+	}
+}
+
 /**
  * nbcon_context_try_acquire_direct - Try to acquire directly
  * @ctxt:	The context of the caller
@@ -510,6 +605,9 @@ out:
 	else
 		ctxt->pbufs = con->pbufs;
 
+	/* Set the record sequence for this context to print. */
+	ctxt->seq = nbcon_seq_read(ctxt->console);
+
 	return true;
 }
 
@@ -722,6 +820,8 @@ bool nbcon_alloc(struct console *con)
  *
  * nbcon_alloc() *must* be called and succeed before this function
  * is called.
+ *
+ * This function expects that the legacy @con->seq has been set.
  */
 void nbcon_init(struct console *con)
 {
@@ -730,6 +830,7 @@ void nbcon_init(struct console *con)
 	/* nbcon_alloc() must have been called and successful! */
 	BUG_ON(!con->pbufs);
 
+	nbcon_seq_force(con, con->seq);
 	nbcon_state_set(con, &state);
 }
 
