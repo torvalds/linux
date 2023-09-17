@@ -3845,15 +3845,13 @@ static struct clk_branch gcc_vfe_tbu_clk = {
 
 static struct gdsc usb30_gdsc = {
 	.gdscr = 0x3f078,
+	.cxcs = (unsigned int []){ 0x3f000 },
+	.cxc_count = 1,
 	.pd = {
 		.name = "usb30_gdsc",
+		.flags = GENPD_FLAG_ACTIVE_WAKEUP,
 	},
 	.pwrsts = PWRSTS_OFF_ON,
-	/*
-	 * FIXME: dwc3 usb gadget cannot resume after GDSC power off
-	 * dwc3 7000000.dwc3: failed to enable ep0out
-	 */
-	.flags = ALWAYS_ON,
 };
 
 static struct gdsc venus_gdsc = {
@@ -3931,13 +3929,13 @@ static struct gdsc oxili_gx_gdsc = {
 	.gdscr = 0x5901c,
 	.parent = &oxili_cx_gdsc.pd,
 	.clamp_io_ctrl = 0x5b00c,
-	.cxcs = (unsigned int []){ 0x59000, 0x59024 },
-	.cxc_count = 2,
+	.cxcs = (unsigned int []){ 0x59034 },
+	.cxc_count = 1,
 	.pd = {
 		.name = "oxili_gx_gdsc",
 	},
 	.pwrsts = PWRSTS_OFF_ON,
-	.flags = CLAMP_IO,
+	.flags = CLAMP_IO | NO_RET_PERIPH,
 };
 
 static struct gdsc cpp_gdsc = {
@@ -3947,7 +3945,6 @@ static struct gdsc cpp_gdsc = {
 	.pd = {
 		.name = "cpp_gdsc",
 	},
-	.flags = ALWAYS_ON,
 	.pwrsts = PWRSTS_OFF_ON,
 };
 
