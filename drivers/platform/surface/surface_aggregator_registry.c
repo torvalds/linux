@@ -418,19 +418,18 @@ static int ssam_platform_hub_probe(struct platform_device *pdev)
 	return status;
 }
 
-static int ssam_platform_hub_remove(struct platform_device *pdev)
+static void ssam_platform_hub_remove(struct platform_device *pdev)
 {
 	const struct software_node **nodes = platform_get_drvdata(pdev);
 
 	ssam_remove_clients(&pdev->dev);
 	set_secondary_fwnode(&pdev->dev, NULL);
 	software_node_unregister_node_group(nodes);
-	return 0;
 }
 
 static struct platform_driver ssam_platform_hub_driver = {
 	.probe = ssam_platform_hub_probe,
-	.remove = ssam_platform_hub_remove,
+	.remove_new = ssam_platform_hub_remove,
 	.driver = {
 		.name = "surface_aggregator_platform_hub",
 		.acpi_match_table = ssam_platform_hub_match,
