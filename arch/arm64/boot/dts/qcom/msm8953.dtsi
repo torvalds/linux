@@ -2219,7 +2219,7 @@
 
 			assigned-clocks = <&gcc GCC_USB30_MOCK_UTMI_CLK>,
 					  <&gcc GCC_USB30_MASTER_CLK>;
-			assigned-clock-rates = <19200000>, <133330000>;
+			assigned-clock-rates = <19200000>, <80000000>;
 
 			interconnects = <&pcnoc MAS_USB3 RPM_ALWAYS_TAG &bimc SLV_EBI RPM_ALWAYS_TAG>,
 					<&bimc MAS_APPS_PROC RPM_ACTIVE_TAG &pcnoc SLV_USB3 RPM_ACTIVE_TAG>;
