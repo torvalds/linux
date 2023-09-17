@@ -131,18 +131,20 @@ REPORT  ?= awk '/\[OK\][\r]*$$/{p++} /\[FAIL\][\r]*$$/{if (!f) printf("\n"); f++
 
 help:
 	@echo "Supported targets under selftests/nolibc:"
-	@echo "  all          call the \"run\" target below"
-	@echo "  help         this help"
-	@echo "  sysroot      create the nolibc sysroot here (uses \$$ARCH)"
-	@echo "  nolibc-test  build the executable (uses \$$CC and \$$CROSS_COMPILE)"
-	@echo "  libc-test    build an executable using the compiler's default libc instead"
-	@echo "  run-user     runs the executable under QEMU (uses \$$XARCH, \$$TEST)"
-	@echo "  initramfs    prepare the initramfs with nolibc-test"
-	@echo "  defconfig    create a fresh new default config (uses \$$XARCH)"
-	@echo "  kernel       (re)build the kernel with the initramfs (uses \$$XARCH)"
-	@echo "  run          runs the kernel in QEMU after building it (uses \$$XARCH, \$$TEST)"
-	@echo "  rerun        runs a previously prebuilt kernel in QEMU (uses \$$XARCH, \$$TEST)"
-	@echo "  clean        clean the sysroot, initramfs, build and output files"
+	@echo "  all               call the \"run\" target below"
+	@echo "  help              this help"
+	@echo "  sysroot           create the nolibc sysroot here (uses \$$ARCH)"
+	@echo "  nolibc-test       build the executable (uses \$$CC and \$$CROSS_COMPILE)"
+	@echo "  libc-test         build an executable using the compiler's default libc instead"
+	@echo "  run-user          runs the executable under QEMU (uses \$$XARCH, \$$TEST)"
+	@echo "  initramfs.cpio    prepare the initramfs archive with nolibc-test"
+	@echo "  initramfs         prepare the initramfs tree with nolibc-test"
+	@echo "  defconfig         create a fresh new default config (uses \$$XARCH)"
+	@echo "  kernel            (re)build the kernel (uses \$$XARCH)"
+	@echo "  kernel-standalone (re)build the kernel with the initramfs (uses \$$XARCH)"
+	@echo "  run               runs the kernel in QEMU after building it (uses \$$XARCH, \$$TEST)"
+	@echo "  rerun             runs a previously prebuilt kernel in QEMU (uses \$$XARCH, \$$TEST)"
+	@echo "  clean             clean the sysroot, initramfs, build and output files"
 	@echo ""
 	@echo "The output file is \"run.out\". Test ranges may be passed using \$$TEST."
 	@echo ""
@@ -195,6 +197,9 @@ run-user: nolibc-test
 	$(Q)qemu-$(QEMU_ARCH) ./nolibc-test > "$(CURDIR)/run.out" || :
 	$(Q)$(REPORT) $(CURDIR)/run.out
 
+initramfs.cpio: kernel nolibc-test
+	$(QUIET_GEN)echo 'file /init nolibc-test 755 0 0' | $(srctree)/usr/gen_init_cpio - > initramfs.cpio
+
 initramfs: nolibc-test
 	$(QUIET_MKDIR)mkdir -p initramfs
 	$(call QUIET_INSTALL, initramfs/init)
@@ -203,17 +208,20 @@ initramfs: nolibc-test
 defconfig:
 	$(Q)$(MAKE) -C $(srctree) ARCH=$(ARCH) CC=$(CC) CROSS_COMPILE=$(CROSS_COMPILE) mrproper $(DEFCONFIG) prepare
 
-kernel: initramfs
+kernel:
+	$(Q)$(MAKE) -C $(srctree) ARCH=$(ARCH) CC=$(CC) CROSS_COMPILE=$(CROSS_COMPILE) $(IMAGE_NAME)
+
+kernel-standalone: initramfs
 	$(Q)$(MAKE) -C $(srctree) ARCH=$(ARCH) CC=$(CC) CROSS_COMPILE=$(CROSS_COMPILE) $(IMAGE_NAME) CONFIG_INITRAMFS_SOURCE=$(CURDIR)/initramfs
 
 # run the tests after building the kernel
-run: kernel
-	$(Q)qemu-system-$(QEMU_ARCH) -display none -no-reboot -kernel "$(srctree)/$(IMAGE)" -serial stdio $(QEMU_ARGS) > "$(CURDIR)/run.out"
+run: kernel initramfs.cpio
+	$(Q)qemu-system-$(QEMU_ARCH) -display none -no-reboot -kernel "$(srctree)/$(IMAGE)" -initrd initramfs.cpio -serial stdio $(QEMU_ARGS) > "$(CURDIR)/run.out"
 	$(Q)$(REPORT) $(CURDIR)/run.out
 
 # re-run the tests from an existing kernel
 rerun:
-	$(Q)qemu-system-$(QEMU_ARCH) -display none -no-reboot -kernel "$(srctree)/$(IMAGE)" -serial stdio $(QEMU_ARGS) > "$(CURDIR)/run.out"
+	$(Q)qemu-system-$(QEMU_ARCH) -display none -no-reboot -kernel "$(srctree)/$(IMAGE)" -initrd initramfs.cpio -serial stdio $(QEMU_ARGS) > "$(CURDIR)/run.out"
 	$(Q)$(REPORT) $(CURDIR)/run.out
 
 # report with existing test log
@@ -227,6 +235,8 @@ clean:
 	$(Q)rm -f nolibc-test
 	$(call QUIET_CLEAN, libc-test)
 	$(Q)rm -f libc-test
+	$(call QUIET_CLEAN, initramfs.cpio)
+	$(Q)rm -rf initramfs.cpio
 	$(call QUIET_CLEAN, initramfs)
 	$(Q)rm -rf initramfs
 	$(call QUIET_CLEAN, run.out)
