@@ -425,13 +425,12 @@ static int ufs_sprd_probe(struct platform_device *pdev)
 	return err;
 }
 
-static int ufs_sprd_remove(struct platform_device *pdev)
+static void ufs_sprd_remove(struct platform_device *pdev)
 {
 	struct ufs_hba *hba =  platform_get_drvdata(pdev);
 
 	pm_runtime_get_sync(&(pdev)->dev);
 	ufshcd_remove(hba);
-	return 0;
 }
 
 static const struct dev_pm_ops ufs_sprd_pm_ops = {
@@ -443,7 +442,7 @@ static const struct dev_pm_ops ufs_sprd_pm_ops = {
 
 static struct platform_driver ufs_sprd_pltform = {
 	.probe = ufs_sprd_probe,
-	.remove = ufs_sprd_remove,
+	.remove_new = ufs_sprd_remove,
 	.driver = {
 		.name = "ufshcd-sprd",
 		.pm = &ufs_sprd_pm_ops,

@@ -1605,7 +1605,7 @@ static int exynos_ufs_probe(struct platform_device *pdev)
 	return err;
 }
 
-static int exynos_ufs_remove(struct platform_device *pdev)
+static void exynos_ufs_remove(struct platform_device *pdev)
 {
 	struct ufs_hba *hba =  platform_get_drvdata(pdev);
 	struct exynos_ufs *ufs = ufshcd_get_variant(hba);
@@ -1615,8 +1615,6 @@ static int exynos_ufs_remove(struct platform_device *pdev)
 
 	phy_power_off(ufs->phy);
 	phy_exit(ufs->phy);
-
-	return 0;
 }
 
 static struct exynos_ufs_uic_attr exynos7_uic_attr = {
@@ -1756,7 +1754,7 @@ static const struct dev_pm_ops exynos_ufs_pm_ops = {
 
 static struct platform_driver exynos_ufs_pltform = {
 	.probe	= exynos_ufs_probe,
-	.remove	= exynos_ufs_remove,
+	.remove_new = exynos_ufs_remove,
 	.driver	= {
 		.name	= "exynos-ufshc",
 		.pm	= &exynos_ufs_pm_ops,

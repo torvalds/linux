@@ -65,13 +65,11 @@ disable_pm:
 	return ret;
 }
 
-static int ti_j721e_ufs_remove(struct platform_device *pdev)
+static void ti_j721e_ufs_remove(struct platform_device *pdev)
 {
 	of_platform_depopulate(&pdev->dev);
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
-
-	return 0;
 }
 
 static const struct of_device_id ti_j721e_ufs_of_match[] = {
@@ -85,7 +83,7 @@ MODULE_DEVICE_TABLE(of, ti_j721e_ufs_of_match);
 
 static struct platform_driver ti_j721e_ufs_driver = {
 	.probe	= ti_j721e_ufs_probe,
-	.remove	= ti_j721e_ufs_remove,
+	.remove_new = ti_j721e_ufs_remove,
 	.driver	= {
 		.name   = "ti-j721e-ufs",
 		.of_match_table = ti_j721e_ufs_of_match,
