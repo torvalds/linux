@@ -86,10 +86,8 @@ static gh_vpm_grp_set_cb_t gh_vpm_grp_set_fn;
 static gh_vpm_grp_reset_cb_t gh_vpm_grp_reset_fn;
 static gh_all_res_populated_cb_t gh_all_res_populated_fn;
 
-static DEFINE_MUTEX(gh_rm_call_idr_lock);
 static DEFINE_MUTEX(gh_virtio_mmio_fn_lock);
 static DEFINE_IDR(gh_rm_call_idr);
-static DEFINE_MUTEX(gh_rm_send_lock);
 
 static struct device_node *gh_rm_intc;
 static struct irq_domain *gh_rm_irq_domain;
