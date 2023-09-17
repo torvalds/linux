@@ -48,7 +48,7 @@ static void verify_map(int map_id)
 static int test(char *filename, int nr_tests)
 {
 	int map0_fds[nr_tests], map1_fds[nr_tests], fd, i, j = 0;
-	struct bpf_link *links[nr_tests * 4];
+	struct bpf_link **links = NULL;
 	struct bpf_object *objs[nr_tests];
 	struct bpf_program *prog;
 
@@ -58,6 +58,19 @@ static int test(char *filename, int nr_tests)
 			fprintf(stderr, "opening BPF object file failed\n");
 			objs[i] = NULL;
 			goto cleanup;
+		}
+
+		/* One-time initialization */
+		if (!links) {
+			int nr_progs = 0;
+
+			bpf_object__for_each_program(prog, objs[i])
+				nr_progs += 1;
+
+			links = calloc(nr_progs * nr_tests, sizeof(struct bpf_link *));
+
+			if (!links)
+				goto cleanup;
 		}
 
 		/* load BPF program */
@@ -107,8 +120,12 @@ static int test(char *filename, int nr_tests)
 	}
 
 cleanup:
-	for (j--; j >= 0; j--)
-		bpf_link__destroy(links[j]);
+	if (links) {
+		for (j--; j >= 0; j--)
+			bpf_link__destroy(links[j]);
+
+		free(links);
+	}
 
 	for (i--; i >= 0; i--)
 		bpf_object__close(objs[i]);
