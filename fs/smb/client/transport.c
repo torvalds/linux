@@ -18,7 +18,7 @@
 #include <linux/bvec.h>
 #include <linux/highmem.h>
 #include <linux/uaccess.h>
-#include <asm/processor.h>
+#include <linux/processor.h>
 #include <linux/mempool.h>
 #include <linux/sched/signal.h>
 #include <linux/task_io_accounting_ops.h>
