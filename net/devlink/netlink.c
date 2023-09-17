@@ -82,6 +82,32 @@ static const struct nla_policy devlink_nl_policy[DEVLINK_ATTR_MAX + 1] = {
 	[DEVLINK_ATTR_REGION_DIRECT] = { .type = NLA_FLAG },
 };
 
+int devlink_nl_put_nested_handle(struct sk_buff *msg, struct net *net,
+				 struct devlink *devlink, int attrtype)
+{
+	struct nlattr *nested_attr;
+
+	nested_attr = nla_nest_start(msg, attrtype);
+	if (!nested_attr)
+		return -EMSGSIZE;
+	if (devlink_nl_put_handle(msg, devlink))
+		goto nla_put_failure;
+	if (!net_eq(net, devlink_net(devlink))) {
+		int id = peernet2id_alloc(net, devlink_net(devlink),
+					  GFP_KERNEL);
+
+		if (nla_put_s32(msg, DEVLINK_ATTR_NETNS_ID, id))
+			return -EMSGSIZE;
+	}
+
+	nla_nest_end(msg, nested_attr);
+	return 0;
+
+nla_put_failure:
+	nla_nest_cancel(msg, nested_attr);
+	return -EMSGSIZE;
+}
+
 int devlink_nl_msg_reply_and_new(struct sk_buff **msg, struct genl_info *info)
 {
 	int err;
