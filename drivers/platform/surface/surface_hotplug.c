@@ -183,7 +183,7 @@ static int shps_setup_irq(struct platform_device *pdev, enum shps_irq_type type)
 	return 0;
 }
 
-static int surface_hotplug_remove(struct platform_device *pdev)
+static void surface_hotplug_remove(struct platform_device *pdev)
 {
 	struct shps_device *sdev = platform_get_drvdata(pdev);
 	int i;
@@ -195,8 +195,6 @@ static int surface_hotplug_remove(struct platform_device *pdev)
 
 		mutex_destroy(&sdev->lock[i]);
 	}
-
-	return 0;
 }
 
 static int surface_hotplug_probe(struct platform_device *pdev)
@@ -261,7 +259,7 @@ MODULE_DEVICE_TABLE(acpi, surface_hotplug_acpi_match);
 
 static struct platform_driver surface_hotplug_driver = {
 	.probe = surface_hotplug_probe,
-	.remove = surface_hotplug_remove,
+	.remove_new = surface_hotplug_remove,
 	.driver = {
 		.name = "surface_hotplug",
 		.acpi_match_table = surface_hotplug_acpi_match,
