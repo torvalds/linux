@@ -2220,7 +2220,7 @@ call_connect_status(struct rpc_task *task)
 			}
 			xprt_switch_put(xps);
 			if (!task->tk_xprt)
-				return;
+				goto out;
 		}
 		goto out_retry;
 	case -ENOBUFS:
@@ -2235,6 +2235,7 @@ out_next:
 out_retry:
 	/* Check for timeouts before looping back to call_bind */
 	task->tk_action = call_bind;
+out:
 	rpc_check_timeout(task);
 }
 
