@@ -56,7 +56,6 @@ static u64 sched_clock_last;
 static bool walt_clock_suspended;
 
 static bool use_cycle_counter;
-static DEFINE_MUTEX(cluster_lock);
 static u64 walt_load_reported_window;
 
 static struct irq_work walt_cpufreq_irq_work;
