@@ -330,12 +330,11 @@ static int sc27xx_led_probe(struct platform_device *pdev)
 	return err;
 }
 
-static int sc27xx_led_remove(struct platform_device *pdev)
+static void sc27xx_led_remove(struct platform_device *pdev)
 {
 	struct sc27xx_led_priv *priv = platform_get_drvdata(pdev);
 
 	mutex_destroy(&priv->lock);
-	return 0;
 }
 
 static const struct of_device_id sc27xx_led_of_match[] = {
@@ -350,7 +349,7 @@ static struct platform_driver sc27xx_led_driver = {
 		.of_match_table = sc27xx_led_of_match,
 	},
 	.probe = sc27xx_led_probe,
-	.remove = sc27xx_led_remove,
+	.remove_new = sc27xx_led_remove,
 };
 
 module_platform_driver(sc27xx_led_driver);
