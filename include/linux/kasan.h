@@ -285,8 +285,10 @@ static inline bool kasan_check_byte(const void *address)
 
 #if defined(CONFIG_KASAN) && defined(CONFIG_KASAN_STACK)
 void kasan_unpoison_task_stack(struct task_struct *task);
+asmlinkage void kasan_unpoison_task_stack_below(const void *watermark);
 #else
 static inline void kasan_unpoison_task_stack(struct task_struct *task) {}
+static inline void kasan_unpoison_task_stack_below(const void *watermark) {}
 #endif
 
 #ifdef CONFIG_KASAN_GENERIC
