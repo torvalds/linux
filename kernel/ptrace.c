@@ -386,71 +386,9 @@ static int check_ptrace_options(unsigned long data)
 	return 0;
 }
 
-static int ptrace_attach(struct task_struct *task, long request,
-			 unsigned long addr,
-			 unsigned long flags)
+static inline void ptrace_set_stopped(struct task_struct *task)
 {
-	bool seize = (request == PTRACE_SEIZE);
-	int retval;
-
-	retval = -EIO;
-	if (seize) {
-		if (addr != 0)
-			goto out;
-		/*
-		 * This duplicates the check in check_ptrace_options() because
-		 * ptrace_attach() and ptrace_setoptions() have historically
-		 * used different error codes for unknown ptrace options.
-		 */
-		if (flags & ~(unsigned long)PTRACE_O_MASK)
-			goto out;
-		retval = check_ptrace_options(flags);
-		if (retval)
-			return retval;
-		flags = PT_PTRACED | PT_SEIZED | (flags << PT_OPT_FLAG_SHIFT);
-	} else {
-		flags = PT_PTRACED;
-	}
-
-	audit_ptrace(task);
-
-	retval = -EPERM;
-	if (unlikely(task->flags & PF_KTHREAD))
-		goto out;
-	if (same_thread_group(task, current))
-		goto out;
-
-	/*
-	 * Protect exec's credential calculations against our interference;
-	 * SUID, SGID and LSM creds get determined differently
-	 * under ptrace.
-	 */
-	retval = -ERESTARTNOINTR;
-	if (mutex_lock_interruptible(&task->signal->cred_guard_mutex))
-		goto out;
-
-	task_lock(task);
-	retval = __ptrace_may_access(task, PTRACE_MODE_ATTACH_REALCREDS);
-	task_unlock(task);
-	if (retval)
-		goto unlock_creds;
-
-	write_lock_irq(&tasklist_lock);
-	retval = -EPERM;
-	if (unlikely(task->exit_state))
-		goto unlock_tasklist;
-	if (task->ptrace)
-		goto unlock_tasklist;
-
-	task->ptrace = flags;
-
-	ptrace_link(task, current);
-
-	/* SEIZE doesn't trap tracee on attach */
-	if (!seize)
-		send_sig_info(SIGSTOP, SEND_SIG_PRIV, task);
-
-	spin_lock(&task->sighand->siglock);
+	guard(spinlock)(&task->sighand->siglock);
 
 	/*
 	 * If the task is already STOPPED, set JOBCTL_TRAP_STOP and
@@ -474,28 +412,84 @@ static int ptrace_attach(struct task_struct *task, long request,
 		task->jobctl &= ~JOBCTL_STOPPED;
 		signal_wake_up_state(task, __TASK_STOPPED);
 	}
+}
 
-	spin_unlock(&task->sighand->siglock);
+static int ptrace_attach(struct task_struct *task, long request,
+			 unsigned long addr,
+			 unsigned long flags)
+{
+	bool seize = (request == PTRACE_SEIZE);
+	int retval;
 
-	retval = 0;
-unlock_tasklist:
-	write_unlock_irq(&tasklist_lock);
-unlock_creds:
-	mutex_unlock(&task->signal->cred_guard_mutex);
-out:
-	if (!retval) {
+	if (seize) {
+		if (addr != 0)
+			return -EIO;
 		/*
-		 * We do not bother to change retval or clear JOBCTL_TRAPPING
-		 * if wait_on_bit() was interrupted by SIGKILL. The tracer will
-		 * not return to user-mode, it will exit and clear this bit in
-		 * __ptrace_unlink() if it wasn't already cleared by the tracee;
-		 * and until then nobody can ptrace this task.
+		 * This duplicates the check in check_ptrace_options() because
+		 * ptrace_attach() and ptrace_setoptions() have historically
+		 * used different error codes for unknown ptrace options.
 		 */
-		wait_on_bit(&task->jobctl, JOBCTL_TRAPPING_BIT, TASK_KILLABLE);
-		proc_ptrace_connector(task, PTRACE_ATTACH);
+		if (flags & ~(unsigned long)PTRACE_O_MASK)
+			return -EIO;
+
+		retval = check_ptrace_options(flags);
+		if (retval)
+			return retval;
+		flags = PT_PTRACED | PT_SEIZED | (flags << PT_OPT_FLAG_SHIFT);
+	} else {
+		flags = PT_PTRACED;
 	}
 
-	return retval;
+	audit_ptrace(task);
+
+	if (unlikely(task->flags & PF_KTHREAD))
+		return -EPERM;
+	if (same_thread_group(task, current))
+		return -EPERM;
+
+	/*
+	 * Protect exec's credential calculations against our interference;
+	 * SUID, SGID and LSM creds get determined differently
+	 * under ptrace.
+	 */
+	scoped_cond_guard (mutex_intr, return -ERESTARTNOINTR,
+			   &task->signal->cred_guard_mutex) {
+
+		scoped_guard (task_lock, task) {
+			retval = __ptrace_may_access(task, PTRACE_MODE_ATTACH_REALCREDS);
+			if (retval)
+				return retval;
+		}
+
+		scoped_guard (write_lock_irq, &tasklist_lock) {
+			if (unlikely(task->exit_state))
+				return -EPERM;
+			if (task->ptrace)
+				return -EPERM;
+
+			task->ptrace = flags;
+
+			ptrace_link(task, current);
+
+			/* SEIZE doesn't trap tracee on attach */
+			if (!seize)
+				send_sig_info(SIGSTOP, SEND_SIG_PRIV, task);
+
+			ptrace_set_stopped(task);
+		}
+	}
+
+	/*
+	 * We do not bother to change retval or clear JOBCTL_TRAPPING
+	 * if wait_on_bit() was interrupted by SIGKILL. The tracer will
+	 * not return to user-mode, it will exit and clear this bit in
+	 * __ptrace_unlink() if it wasn't already cleared by the tracee;
+	 * and until then nobody can ptrace this task.
+	 */
+	wait_on_bit(&task->jobctl, JOBCTL_TRAPPING_BIT, TASK_KILLABLE);
+	proc_ptrace_connector(task, PTRACE_ATTACH);
+
+	return 0;
 }
 
 /**
