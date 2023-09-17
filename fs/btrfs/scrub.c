@@ -896,7 +896,7 @@ static void scrub_stripe_report_errors(struct scrub_ctx *sctx,
 		ASSERT(stripe->mirror_num >= 1);
 		ret = btrfs_map_block(fs_info, BTRFS_MAP_GET_READ_MIRRORS,
 				      stripe->logical, &mapped_len, &bioc,
-				      NULL, NULL, 1);
+				      NULL, NULL);
 		/*
 		 * If we failed, dev will be NULL, and later detailed reports
 		 * will just be skipped.
@@ -1951,7 +1951,7 @@ static int scrub_raid56_parity_stripe(struct scrub_ctx *sctx,
 
 	btrfs_bio_counter_inc_blocked(fs_info);
 	ret = btrfs_map_block(fs_info, BTRFS_MAP_WRITE, full_stripe_start,
-			      &length, &bioc, NULL, NULL, 1);
+			      &length, &bioc, NULL, NULL);
 	if (ret < 0) {
 		btrfs_put_bioc(bioc);
 		btrfs_bio_counter_dec(fs_info);

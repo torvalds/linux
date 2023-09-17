@@ -1887,7 +1887,7 @@ static int read_zone_info(struct btrfs_fs_info *fs_info, u64 logical,
 	int i, ret;
 
 	ret = btrfs_map_block(fs_info, BTRFS_MAP_GET_READ_MIRRORS, logical,
-			      &mapped_length, &bioc, NULL, NULL, 1);
+			      &mapped_length, &bioc, NULL, NULL);
 	if (ret || !bioc || mapped_length < PAGE_SIZE) {
 		ret = -EIO;
 		goto out_put_bioc;
