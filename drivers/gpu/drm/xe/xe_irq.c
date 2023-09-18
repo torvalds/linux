@@ -582,16 +582,16 @@ int xe_irq_install(struct xe_device *xe)
 
 	xe_irq_reset(xe);
 
-	err = pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_MSI);
+	err = pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_MSI | PCI_IRQ_MSIX);
 	if (err < 0) {
-		drm_err(&xe->drm, "MSI: Failed to enable support %d\n", err);
+		drm_err(&xe->drm, "MSI/MSIX: Failed to enable support %d\n", err);
 		return err;
 	}
 
 	irq = pci_irq_vector(pdev, 0);
 	err = request_irq(irq, irq_handler, IRQF_SHARED, DRIVER_NAME, xe);
 	if (err < 0) {
-		drm_err(&xe->drm, "Failed to request MSI IRQ %d\n", err);
+		drm_err(&xe->drm, "Failed to request MSI/MSIX IRQ %d\n", err);
 		goto free_pci_irq_vectors;
 	}
 
