@@ -155,14 +155,12 @@ err_out_free_mdiobus:
 	return ret;
 }
 
-static int moxart_mdio_remove(struct platform_device *pdev)
+static void moxart_mdio_remove(struct platform_device *pdev)
 {
 	struct mii_bus *bus = platform_get_drvdata(pdev);
 
 	mdiobus_unregister(bus);
 	mdiobus_free(bus);
-
-	return 0;
 }
 
 static const struct of_device_id moxart_mdio_dt_ids[] = {
@@ -173,7 +171,7 @@ MODULE_DEVICE_TABLE(of, moxart_mdio_dt_ids);
 
 static struct platform_driver moxart_mdio_driver = {
 	.probe = moxart_mdio_probe,
-	.remove = moxart_mdio_remove,
+	.remove_new = moxart_mdio_remove,
 	.driver = {
 		.name = "moxart-mdio",
 		.of_match_table = moxart_mdio_dt_ids,
