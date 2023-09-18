@@ -579,16 +579,14 @@ int xe_irq_install(struct xe_device *xe)
 		return -EINVAL;
 	}
 
-	xe->irq.enabled = true;
-
 	xe_irq_reset(xe);
 
 	err = request_irq(irq, irq_handler,
 			  IRQF_SHARED, DRIVER_NAME, xe);
-	if (err < 0) {
-		xe->irq.enabled = false;
+	if (err < 0)
 		return err;
-	}
+
+	xe->irq.enabled = true;
 
 	xe_irq_postinstall(xe);
 
