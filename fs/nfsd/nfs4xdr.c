@@ -3025,6 +3025,12 @@ static __be32 nfsd4_encode_fattr4_change(struct xdr_stream *xdr,
 	return nfsd4_encode_changeid4(xdr, c);
 }
 
+static __be32 nfsd4_encode_fattr4_size(struct xdr_stream *xdr,
+				       const struct nfsd4_fattr_args *args)
+{
+	return nfsd4_encode_uint64_t(xdr, args->size);
+}
+
 /*
  * Note: @fhp can be NULL; in this case, we might have to compose the filehandle
  * ourselves.
@@ -3175,10 +3181,9 @@ nfsd4_encode_fattr(struct xdr_stream *xdr, struct svc_fh *fhp,
 			goto out;
 	}
 	if (bmval0 & FATTR4_WORD0_SIZE) {
-		p = xdr_reserve_space(xdr, 8);
-		if (!p)
-			goto out_resource;
-		p = xdr_encode_hyper(p, args.size);
+		status = nfsd4_encode_fattr4_size(xdr, &args);
+		if (status != nfs_ok)
+			goto out;
 	}
 	if (bmval0 & FATTR4_WORD0_LINK_SUPPORT) {
 		status = nfsd4_encode_fattr4__true(xdr, &args);
