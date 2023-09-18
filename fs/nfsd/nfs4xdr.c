@@ -2783,16 +2783,29 @@ static __be32 nfsd4_encode_fs_locations(struct xdr_stream *xdr,
 	return 0;
 }
 
-static inline __be32
-nfsd4_encode_aclname(struct xdr_stream *xdr, struct svc_rqst *rqstp,
-		     struct nfs4_ace *ace)
+static __be32 nfsd4_encode_nfsace4(struct xdr_stream *xdr, struct svc_rqst *rqstp,
+				   struct nfs4_ace *ace)
 {
+	__be32 status;
+
+	/* type */
+	status = nfsd4_encode_acetype4(xdr, ace->type);
+	if (status != nfs_ok)
+		return nfserr_resource;
+	/* flag */
+	status = nfsd4_encode_aceflag4(xdr, ace->flag);
+	if (status != nfs_ok)
+		return nfserr_resource;
+	/* access mask */
+	status = nfsd4_encode_acemask4(xdr, ace->access_mask & NFS4_ACE_MASK_ALL);
+	if (status != nfs_ok)
+		return nfserr_resource;
+	/* who */
 	if (ace->whotype != NFS4_ACL_WHO_NAMED)
 		return nfs4_acl_write_who(xdr, ace->whotype);
-	else if (ace->flag & NFS4_ACE_IDENTIFIER_GROUP)
+	if (ace->flag & NFS4_ACE_IDENTIFIER_GROUP)
 		return nfsd4_encode_group(xdr, rqstp, ace->who_gid);
-	else
-		return nfsd4_encode_user(xdr, rqstp, ace->who_uid);
+	return nfsd4_encode_user(xdr, rqstp, ace->who_uid);
 }
 
 static inline __be32
@@ -3294,15 +3307,8 @@ nfsd4_encode_fattr(struct xdr_stream *xdr, struct svc_fh *fhp,
 		*p++ = cpu_to_be32(args.acl->naces);
 
 		for (ace = args.acl->aces; ace < args.acl->aces + args.acl->naces; ace++) {
-			p = xdr_reserve_space(xdr, 4*3);
-			if (!p)
-				goto out_resource;
-			*p++ = cpu_to_be32(ace->type);
-			*p++ = cpu_to_be32(ace->flag);
-			*p++ = cpu_to_be32(ace->access_mask &
-							NFS4_ACE_MASK_ALL);
-			status = nfsd4_encode_aclname(xdr, rqstp, ace);
-			if (status)
+			status = nfsd4_encode_nfsace4(xdr, args.rqstp, ace);
+			if (status != nfs_ok)
 				goto out;
 		}
 	}
