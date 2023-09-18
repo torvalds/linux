@@ -132,8 +132,6 @@
 	status = "okay";
 	spi_flash: flash@0 { /* MT25QU512A */
 		compatible = "jedec,spi-nor"; /* 64MB */
-		#address-cells = <1>;
-		#size-cells = <1>;
 		reg = <0>;
 		spi-tx-bus-width = <4>;
 		spi-rx-bus-width = <4>;
