@@ -445,12 +445,13 @@ int pdsc_setup(struct pdsc *pdsc, bool init)
 		goto err_out_teardown;
 
 	/* Set up the VIFs */
-	err = pdsc_viftypes_init(pdsc);
-	if (err)
-		goto err_out_teardown;
+	if (init) {
+		err = pdsc_viftypes_init(pdsc);
+		if (err)
+			goto err_out_teardown;
 
-	if (init)
 		pdsc_debugfs_add_viftype(pdsc);
+	}
 
 	clear_bit(PDSC_S_FW_DEAD, &pdsc->state);
 	return 0;
@@ -469,8 +470,10 @@ void pdsc_teardown(struct pdsc *pdsc, bool removing)
 	pdsc_qcq_free(pdsc, &pdsc->notifyqcq);
 	pdsc_qcq_free(pdsc, &pdsc->adminqcq);
 
-	kfree(pdsc->viftype_status);
-	pdsc->viftype_status = NULL;
+	if (removing) {
+		kfree(pdsc->viftype_status);
+		pdsc->viftype_status = NULL;
+	}
 
 	if (pdsc->intr_info) {
 		for (i = 0; i < pdsc->nintrs; i++)
@@ -512,7 +515,7 @@ void pdsc_stop(struct pdsc *pdsc)
 					   PDS_CORE_INTR_MASK_SET);
 }
 
-static void pdsc_fw_down(struct pdsc *pdsc)
+void pdsc_fw_down(struct pdsc *pdsc)
 {
 	union pds_core_notifyq_comp reset_event = {
 		.reset.ecode = cpu_to_le16(PDS_EVENT_RESET),
@@ -520,9 +523,12 @@ static void pdsc_fw_down(struct pdsc *pdsc)
 	};
 
 	if (test_and_set_bit(PDSC_S_FW_DEAD, &pdsc->state)) {
-		dev_err(pdsc->dev, "%s: already happening\n", __func__);
+		dev_warn(pdsc->dev, "%s: already happening\n", __func__);
 		return;
 	}
+
+	if (pdsc->pdev->is_virtfn)
+		return;
 
 	/* Notify clients of fw_down */
 	if (pdsc->fw_reporter)
@@ -533,7 +539,7 @@ static void pdsc_fw_down(struct pdsc *pdsc)
 	pdsc_teardown(pdsc, PDSC_TEARDOWN_RECOVERY);
 }
 
-static void pdsc_fw_up(struct pdsc *pdsc)
+void pdsc_fw_up(struct pdsc *pdsc)
 {
 	union pds_core_notifyq_comp reset_event = {
 		.reset.ecode = cpu_to_le16(PDS_EVENT_RESET),
@@ -543,6 +549,11 @@ static void pdsc_fw_up(struct pdsc *pdsc)
 
 	if (!test_bit(PDSC_S_FW_DEAD, &pdsc->state)) {
 		dev_err(pdsc->dev, "%s: fw not dead\n", __func__);
+		return;
+	}
+
+	if (pdsc->pdev->is_virtfn) {
+		clear_bit(PDSC_S_FW_DEAD, &pdsc->state);
 		return;
 	}
 
@@ -565,6 +576,18 @@ static void pdsc_fw_up(struct pdsc *pdsc)
 
 err_out:
 	pdsc_teardown(pdsc, PDSC_TEARDOWN_RECOVERY);
+}
+
+static void pdsc_check_pci_health(struct pdsc *pdsc)
+{
+	u8 fw_status = ioread8(&pdsc->info_regs->fw_status);
+
+	/* is PCI broken? */
+	if (fw_status != PDS_RC_BAD_PCI)
+		return;
+
+	pdsc_reset_prepare(pdsc->pdev);
+	pdsc_reset_done(pdsc->pdev);
 }
 
 void pdsc_health_thread(struct work_struct *work)
@@ -592,6 +615,8 @@ void pdsc_health_thread(struct work_struct *work)
 		if (!healthy)
 			pdsc_fw_down(pdsc);
 	}
+
+	pdsc_check_pci_health(pdsc);
 
 	pdsc->fw_generation = pdsc->fw_status & PDS_CORE_FW_STS_F_GENERATION;
 
