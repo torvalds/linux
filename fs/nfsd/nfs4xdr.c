@@ -3137,6 +3137,12 @@ static __be32 nfsd4_encode_fattr4_filehandle(struct xdr_stream *xdr,
 	return nfsd4_encode_nfs_fh4(xdr, &args->fhp->fh_handle);
 }
 
+static __be32 nfsd4_encode_fattr4_fileid(struct xdr_stream *xdr,
+					 const struct nfsd4_fattr_args *args)
+{
+	return nfsd4_encode_uint64_t(xdr, args->stat.ino);
+}
+
 /*
  * Note: @fhp can be NULL; in this case, we might have to compose the filehandle
  * ourselves.
@@ -3361,10 +3367,9 @@ nfsd4_encode_fattr(struct xdr_stream *xdr, struct svc_fh *fhp,
 			goto out;
 	}
 	if (bmval0 & FATTR4_WORD0_FILEID) {
-		p = xdr_reserve_space(xdr, 8);
-		if (!p)
-			goto out_resource;
-		p = xdr_encode_hyper(p, args.stat.ino);
+		status = nfsd4_encode_fattr4_fileid(xdr, &args);
+		if (status != nfs_ok)
+			goto out;
 	}
 	if (bmval0 & FATTR4_WORD0_FILES_AVAIL) {
 		p = xdr_reserve_space(xdr, 8);
