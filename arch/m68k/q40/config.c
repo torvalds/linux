@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  arch/m68k/q40/config.c
  *
@@ -6,10 +7,6 @@
  * originally based on:
  *
  *  linux/bvme/config.c
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file README.legal in the main directory of this archive
- * for more details.
  */
 
 #include <linux/errno.h>
