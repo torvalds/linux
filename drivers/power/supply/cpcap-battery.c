@@ -1151,7 +1151,7 @@ static int cpcap_battery_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int cpcap_battery_remove(struct platform_device *pdev)
+static void cpcap_battery_remove(struct platform_device *pdev)
 {
 	struct cpcap_battery_ddata *ddata = platform_get_drvdata(pdev);
 	int error;
@@ -1161,8 +1161,6 @@ static int cpcap_battery_remove(struct platform_device *pdev)
 				   0xffff, 0);
 	if (error)
 		dev_err(&pdev->dev, "could not disable: %i\n", error);
-
-	return 0;
 }
 
 static struct platform_driver cpcap_battery_driver = {
@@ -1171,7 +1169,7 @@ static struct platform_driver cpcap_battery_driver = {
 		.of_match_table = of_match_ptr(cpcap_battery_id_table),
 	},
 	.probe	= cpcap_battery_probe,
-	.remove = cpcap_battery_remove,
+	.remove_new = cpcap_battery_remove,
 };
 module_platform_driver(cpcap_battery_driver);
 
