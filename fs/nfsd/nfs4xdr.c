@@ -3151,6 +3151,14 @@ static __be32 nfsd4_encode_fattr4_fs_locations(struct xdr_stream *xdr,
 	return nfsd4_encode_fs_locations4(xdr, args->rqstp, args->exp);
 }
 
+static __be32 nfsd4_encode_fattr4_maxfilesize(struct xdr_stream *xdr,
+					      const struct nfsd4_fattr_args *args)
+{
+	struct super_block *sb = args->exp->ex_path.mnt->mnt_sb;
+
+	return nfsd4_encode_uint64_t(xdr, sb->s_maxbytes);
+}
+
 /*
  * Note: @fhp can be NULL; in this case, we might have to compose the filehandle
  * ourselves.
@@ -3405,10 +3413,9 @@ nfsd4_encode_fattr(struct xdr_stream *xdr, struct svc_fh *fhp,
 			goto out;
 	}
 	if (bmval0 & FATTR4_WORD0_MAXFILESIZE) {
-		p = xdr_reserve_space(xdr, 8);
-		if (!p)
-			goto out_resource;
-		p = xdr_encode_hyper(p, exp->ex_path.mnt->mnt_sb->s_maxbytes);
+		status = nfsd4_encode_fattr4_maxfilesize(xdr, &args);
+		if (status != nfs_ok)
+			goto out;
 	}
 	if (bmval0 & FATTR4_WORD0_MAXLINK) {
 		p = xdr_reserve_space(xdr, 4);
