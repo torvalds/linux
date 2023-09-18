@@ -284,7 +284,7 @@ tu102_fifo_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 	       struct nvkm_fifo **pfifo)
 {
 	if (nvkm_gsp_rm(device->gsp))
-		return -ENODEV;
+		return r535_fifo_new(&tu102_fifo, device, type, inst, pfifo);
 
 	return nvkm_fifo_new_(&tu102_fifo, device, type, inst, pfifo);
 }

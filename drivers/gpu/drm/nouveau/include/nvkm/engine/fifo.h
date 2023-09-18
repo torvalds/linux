@@ -4,6 +4,7 @@
 #include <core/engine.h>
 #include <core/object.h>
 #include <core/event.h>
+#include <subdev/gsp.h>
 struct nvkm_fault_data;
 
 #define NVKM_FIFO_ENGN_NR 16
@@ -34,6 +35,14 @@ struct nvkm_chan {
 	spinlock_t lock;
 	atomic_t blocked;
 	atomic_t errored;
+
+	struct {
+		struct nvkm_gsp_object object;
+		struct {
+			dma_addr_t addr;
+			void *ptr;
+		} mthdbuf;
+	} rm;
 
 	struct list_head cctxs;
 	struct list_head head;
@@ -70,6 +79,10 @@ struct nvkm_fifo {
 		struct mutex mutex;
 		struct list_head list;
 	} userd;
+
+	struct {
+		u32 mthdbuf_size;
+	} rm;
 
 	spinlock_t lock;
 	struct mutex mutex;

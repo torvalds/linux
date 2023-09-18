@@ -104,6 +104,15 @@ typedef struct rpc_post_event_v17_00
     NvU8       eventData[];
 } rpc_post_event_v17_00;
 
+typedef struct rpc_rc_triggered_v17_02
+{
+    NvU32      nv2080EngineType;
+    NvU32      chid;
+    NvU32      exceptType;
+    NvU32      scope;
+    NvU16      partitionAttributionId;
+} rpc_rc_triggered_v17_02;
+
 typedef struct rpc_os_error_log_v17_00
 {
     NvU32      exceptType;

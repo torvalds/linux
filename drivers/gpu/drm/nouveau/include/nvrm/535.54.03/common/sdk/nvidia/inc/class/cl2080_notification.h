@@ -30,6 +30,26 @@
 
 #define NV2080_NOTIFIERS_DP_IRQ                                    (7)
 
+#define NV2080_ENGINE_TYPE_GRAPHICS                   (0x00000001)
+#define NV2080_ENGINE_TYPE_GR0                        NV2080_ENGINE_TYPE_GRAPHICS
+
+#define NV2080_ENGINE_TYPE_COPY0                      (0x00000009)
+
+#define NV2080_ENGINE_TYPE_BSP                        (0x00000013)
+#define NV2080_ENGINE_TYPE_NVDEC0                     NV2080_ENGINE_TYPE_BSP
+
+#define NV2080_ENGINE_TYPE_MSENC                      (0x0000001b)
+#define NV2080_ENGINE_TYPE_NVENC0                      NV2080_ENGINE_TYPE_MSENC  /* Mutually exclusive alias */
+
+#define NV2080_ENGINE_TYPE_SW                         (0x00000022)
+
+#define NV2080_ENGINE_TYPE_SEC2                       (0x00000026)
+
+#define NV2080_ENGINE_TYPE_NVJPG                      (0x0000002b)
+#define NV2080_ENGINE_TYPE_NVJPEG0                     NV2080_ENGINE_TYPE_NVJPG
+
+#define NV2080_ENGINE_TYPE_OFA                        (0x00000033)
+
 typedef struct {
     NvU32 plugDisplayMask;
     NvU32 unplugDisplayMask;

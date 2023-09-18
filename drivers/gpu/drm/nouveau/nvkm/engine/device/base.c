@@ -2760,6 +2760,7 @@ nv192_chipset = {
 	.vfn      = { 0x00000001, ga100_vfn_new },
 	.disp     = { 0x00000001, ad102_disp_new },
 	.dma      = { 0x00000001, gv100_dma_new },
+	.fifo     = { 0x00000001, ga102_fifo_new },
 	.sec2     = { 0x00000001, ga102_sec2_new },
 };
 
@@ -2779,6 +2780,7 @@ nv193_chipset = {
 	.vfn      = { 0x00000001, ga100_vfn_new },
 	.disp     = { 0x00000001, ad102_disp_new },
 	.dma      = { 0x00000001, gv100_dma_new },
+	.fifo     = { 0x00000001, ga102_fifo_new },
 	.sec2     = { 0x00000001, ga102_sec2_new },
 };
 
@@ -2798,6 +2800,7 @@ nv194_chipset = {
 	.vfn      = { 0x00000001, ga100_vfn_new },
 	.disp     = { 0x00000001, ad102_disp_new },
 	.dma      = { 0x00000001, gv100_dma_new },
+	.fifo     = { 0x00000001, ga102_fifo_new },
 	.sec2     = { 0x00000001, ga102_sec2_new },
 };
 
@@ -2817,6 +2820,7 @@ nv196_chipset = {
 	.vfn      = { 0x00000001, ga100_vfn_new },
 	.disp     = { 0x00000001, ad102_disp_new },
 	.dma      = { 0x00000001, gv100_dma_new },
+	.fifo     = { 0x00000001, ga102_fifo_new },
 	.sec2     = { 0x00000001, ga102_sec2_new },
 };
 
@@ -2836,6 +2840,7 @@ nv197_chipset = {
 	.vfn      = { 0x00000001, ga100_vfn_new },
 	.disp     = { 0x00000001, ad102_disp_new },
 	.dma      = { 0x00000001, gv100_dma_new },
+	.fifo     = { 0x00000001, ga102_fifo_new },
 	.sec2     = { 0x00000001, ga102_sec2_new },
 };
 

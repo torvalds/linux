@@ -60,6 +60,8 @@ struct nvkm_fifo_func {
 	} chan;
 };
 
+int r535_fifo_new(const struct nvkm_fifo_func *, struct nvkm_device *, enum nvkm_subdev_type, int,
+		  struct nvkm_fifo **);
 int nvkm_fifo_new_(const struct nvkm_fifo_func *, struct nvkm_device *, enum nvkm_subdev_type, int,
 		   struct nvkm_fifo **);
 

@@ -24,6 +24,7 @@
 #include <core/pci.h>
 #include <subdev/timer.h>
 #include <subdev/vfn.h>
+#include <engine/fifo/chan.h>
 #include <engine/sec2.h>
 
 #include <nvfw/fw.h>
@@ -1227,6 +1228,33 @@ r535_gsp_msg_os_error_log(void *priv, u32 fn, void *repv, u32 repc)
 }
 
 static int
+r535_gsp_msg_rc_triggered(void *priv, u32 fn, void *repv, u32 repc)
+{
+	rpc_rc_triggered_v17_02 *msg = repv;
+	struct nvkm_gsp *gsp = priv;
+	struct nvkm_subdev *subdev = &gsp->subdev;
+	struct nvkm_chan *chan;
+	unsigned long flags;
+
+	if (WARN_ON(repc < sizeof(*msg)))
+		return -EINVAL;
+
+	nvkm_error(subdev, "rc engn:%08x chid:%d type:%d scope:%d part:%d\n",
+		   msg->nv2080EngineType, msg->chid, msg->exceptType, msg->scope,
+		   msg->partitionAttributionId);
+
+	chan = nvkm_chan_get_chid(&subdev->device->fifo->engine, msg->chid / 8, &flags);
+	if (!chan) {
+		nvkm_error(subdev, "rc chid:%d not found!\n", msg->chid);
+		return 0;
+	}
+
+	nvkm_chan_error(chan, false);
+	nvkm_chan_put(&chan, flags);
+	return 0;
+}
+
+static int
 r535_gsp_msg_mmu_fault_queued(void *priv, u32 fn, void *repv, u32 repc)
 {
 	struct nvkm_gsp *gsp = priv;
@@ -2001,6 +2029,8 @@ r535_gsp_oneinit(struct nvkm_gsp *gsp)
 	r535_gsp_msg_ntfy_add(gsp, NV_VGPU_MSG_EVENT_GSP_RUN_CPU_SEQUENCER,
 			      r535_gsp_msg_run_cpu_sequencer, gsp);
 	r535_gsp_msg_ntfy_add(gsp, NV_VGPU_MSG_EVENT_POST_EVENT, r535_gsp_msg_post_event, gsp);
+	r535_gsp_msg_ntfy_add(gsp, NV_VGPU_MSG_EVENT_RC_TRIGGERED,
+			      r535_gsp_msg_rc_triggered, gsp);
 	r535_gsp_msg_ntfy_add(gsp, NV_VGPU_MSG_EVENT_MMU_FAULT_QUEUED,
 			      r535_gsp_msg_mmu_fault_queued, gsp);
 	r535_gsp_msg_ntfy_add(gsp, NV_VGPU_MSG_EVENT_OS_ERROR_LOG, r535_gsp_msg_os_error_log, gsp);
