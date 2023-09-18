@@ -39,15 +39,9 @@ ga102_gsp = {
 	.flcn = &ga102_gsp_flcn,
 };
 
-static int
-ga102_gsp_nofw(struct nvkm_gsp *gsp, int ver, const struct nvkm_gsp_fwif *fwif)
-{
-	return 0;
-}
-
 static struct nvkm_gsp_fwif
 ga102_gsps[] = {
-	{ -1, ga102_gsp_nofw, &ga102_gsp },
+	{ -1, gv100_gsp_nofw, &ga102_gsp },
 	{}
 };
 
