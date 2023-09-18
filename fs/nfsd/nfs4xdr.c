@@ -3072,6 +3072,12 @@ static __be32 nfsd4_encode_fattr4_lease_time(struct xdr_stream *xdr,
 	return nfsd4_encode_nfs_lease4(xdr, nn->nfsd4_lease);
 }
 
+static __be32 nfsd4_encode_fattr4_rdattr_error(struct xdr_stream *xdr,
+					       const struct nfsd4_fattr_args *args)
+{
+	return nfsd4_encode_uint32_t(xdr, args->rdattr_err);
+}
+
 /*
  * Note: @fhp can be NULL; in this case, we might have to compose the filehandle
  * ourselves.
@@ -3256,10 +3262,9 @@ nfsd4_encode_fattr(struct xdr_stream *xdr, struct svc_fh *fhp,
 			goto out;
 	}
 	if (bmval0 & FATTR4_WORD0_RDATTR_ERROR) {
-		p = xdr_reserve_space(xdr, 4);
-		if (!p)
-			goto out_resource;
-		*p++ = cpu_to_be32(args.rdattr_err);
+		status = nfsd4_encode_fattr4_rdattr_error(xdr, &args);
+		if (status != nfs_ok)
+			goto out;
 	}
 	if (bmval0 & FATTR4_WORD0_ACL) {
 		struct nfs4_ace *ace;
