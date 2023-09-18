@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Red Hat Inc.
+ * Copyright 2023 Red Hat Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,32 +21,30 @@
  */
 #include "priv.h"
 
-#include <subdev/gsp.h>
-
-#include <nvif/class.h>
-
-static const struct nvkm_intr_data
-ga100_vfn_intrs[] = {
-	{ NVKM_ENGINE_DISP    , 0, 4, 0x04000000, true },
-	{ NVKM_SUBDEV_GPIO    , 0, 4, 0x00200000, true },
-	{ NVKM_SUBDEV_I2C     , 0, 4, 0x00200000, true },
-	{ NVKM_SUBDEV_PRIVRING, 0, 4, 0x40000000, true },
-	{}
-};
-
-static const struct nvkm_vfn_func
-ga100_vfn = {
-	.intr = &tu102_vfn_intr,
-	.intrs = ga100_vfn_intrs,
-	.user = { 0x030000, 0x010000, { -1, -1, AMPERE_USERMODE_A } },
-};
+static void
+r535_vfn_dtor(struct nvkm_vfn *vfn)
+{
+	kfree(vfn->func);
+}
 
 int
-ga100_vfn_new(struct nvkm_device *device,
-	      enum nvkm_subdev_type type, int inst, struct nvkm_vfn **pvfn)
+r535_vfn_new(const struct nvkm_vfn_func *hw,
+	     struct nvkm_device *device, enum nvkm_subdev_type type, int inst, u32 addr,
+	     struct nvkm_vfn **pvfn)
 {
-	if (nvkm_gsp_rm(device->gsp))
-		return r535_vfn_new(&ga100_vfn, device, type, inst, 0xb80000, pvfn);
+	struct nvkm_vfn_func *rm;
+	int ret;
 
-	return nvkm_vfn_new_(&ga100_vfn, device, type, inst, 0xb80000, pvfn);
+	if (!(rm = kzalloc(sizeof(*rm), GFP_KERNEL)))
+		return -ENOMEM;
+
+	rm->dtor = r535_vfn_dtor;
+	rm->intr = hw->intr;
+	rm->user = hw->user;
+
+	ret = nvkm_vfn_new_(rm, device, type, inst, addr, pvfn);
+	if (ret)
+		kfree(rm);
+
+	return ret;
 }
