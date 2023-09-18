@@ -214,7 +214,10 @@ long elf_find_func_offset(Elf *elf, const char *binary_path, const char *name)
 
 			if (ret > 0) {
 				/* handle multiple matches */
-				if (last_bind != STB_WEAK && cur_bind != STB_WEAK) {
+				if (elf_sym_offset(sym) == ret) {
+					/* same offset, no problem */
+					continue;
+				} else if (last_bind != STB_WEAK && cur_bind != STB_WEAK) {
 					/* Only accept one non-weak bind. */
 					pr_warn("elf: ambiguous match for '%s', '%s' in '%s'\n",
 						sym->name, name, binary_path);
