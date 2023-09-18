@@ -25,6 +25,11 @@ struct mtk_wed_soc_data {
 	u32 wdma_desc_size;
 };
 
+struct mtk_wed_amsdu {
+	void *txd;
+	dma_addr_t txd_phy;
+};
+
 struct mtk_wed_hw {
 	const struct mtk_wed_soc_data *soc;
 	struct device_node *node;
@@ -38,6 +43,7 @@ struct mtk_wed_hw {
 	struct dentry *debugfs_dir;
 	struct mtk_wed_device *wed_dev;
 	struct mtk_wed_wo *wed_wo;
+	struct mtk_wed_amsdu *wed_amsdu;
 	u32 pcie_base;
 	u32 debugfs_reg;
 	u32 num_flows;
@@ -52,6 +58,7 @@ struct mtk_wdma_info {
 	u8 queue;
 	u16 wcid;
 	u8 bss;
+	u8 amsdu;
 };
 
 #ifdef CONFIG_NET_MEDIATEK_SOC_WED

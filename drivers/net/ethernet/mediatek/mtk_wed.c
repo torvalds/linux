@@ -30,6 +30,8 @@
 #define MTK_WED_RX_PAGE_BUF_PER_PAGE	(PAGE_SIZE / 128)
 #define MTK_WED_RX_RING_SIZE		1536
 #define MTK_WED_RX_PG_BM_CNT		8192
+#define MTK_WED_AMSDU_BUF_SIZE		(PAGE_SIZE << 4)
+#define MTK_WED_AMSDU_NPAGES		32
 
 #define MTK_WED_TX_RING_SIZE		2048
 #define MTK_WED_WDMA_RING_SIZE		1024
@@ -171,6 +173,23 @@ mtk_wdma_rx_reset(struct mtk_wed_device *dev)
 	}
 
 	return ret;
+}
+
+static u32
+mtk_wed_check_busy(struct mtk_wed_device *dev, u32 reg, u32 mask)
+{
+	return !!(wed_r32(dev, reg) & mask);
+}
+
+static int
+mtk_wed_poll_busy(struct mtk_wed_device *dev, u32 reg, u32 mask)
+{
+	int sleep = 15000;
+	int timeout = 100 * sleep;
+	u32 val;
+
+	return read_poll_timeout(mtk_wed_check_busy, val, !val, sleep,
+				 timeout, false, dev, reg, mask);
 }
 
 static void
@@ -333,6 +352,118 @@ mtk_wed_assign(struct mtk_wed_device *dev)
 out:
 	hw->wed_dev = dev;
 	return hw;
+}
+
+static int
+mtk_wed_amsdu_buffer_alloc(struct mtk_wed_device *dev)
+{
+	struct mtk_wed_hw *hw = dev->hw;
+	struct mtk_wed_amsdu *wed_amsdu;
+	int i;
+
+	if (!mtk_wed_is_v3_or_greater(hw))
+		return 0;
+
+	wed_amsdu = devm_kcalloc(hw->dev, MTK_WED_AMSDU_NPAGES,
+				 sizeof(*wed_amsdu), GFP_KERNEL);
+	if (!wed_amsdu)
+		return -ENOMEM;
+
+	for (i = 0; i < MTK_WED_AMSDU_NPAGES; i++) {
+		void *ptr;
+
+		/* each segment is 64K */
+		ptr = (void *)__get_free_pages(GFP_KERNEL | __GFP_NOWARN |
+					       __GFP_ZERO | __GFP_COMP |
+					       GFP_DMA32,
+					       get_order(MTK_WED_AMSDU_BUF_SIZE));
+		if (!ptr)
+			goto error;
+
+		wed_amsdu[i].txd = ptr;
+		wed_amsdu[i].txd_phy = dma_map_single(hw->dev, ptr,
+						      MTK_WED_AMSDU_BUF_SIZE,
+						      DMA_TO_DEVICE);
+		if (dma_mapping_error(hw->dev, wed_amsdu[i].txd_phy))
+			goto error;
+	}
+	dev->hw->wed_amsdu = wed_amsdu;
+
+	return 0;
+
+error:
+	for (i--; i >= 0; i--)
+		dma_unmap_single(hw->dev, wed_amsdu[i].txd_phy,
+				 MTK_WED_AMSDU_BUF_SIZE, DMA_TO_DEVICE);
+	return -ENOMEM;
+}
+
+static void
+mtk_wed_amsdu_free_buffer(struct mtk_wed_device *dev)
+{
+	struct mtk_wed_amsdu *wed_amsdu = dev->hw->wed_amsdu;
+	int i;
+
+	if (!wed_amsdu)
+		return;
+
+	for (i = 0; i < MTK_WED_AMSDU_NPAGES; i++) {
+		dma_unmap_single(dev->hw->dev, wed_amsdu[i].txd_phy,
+				 MTK_WED_AMSDU_BUF_SIZE, DMA_TO_DEVICE);
+		free_pages((unsigned long)wed_amsdu[i].txd,
+			   get_order(MTK_WED_AMSDU_BUF_SIZE));
+	}
+}
+
+static int
+mtk_wed_amsdu_init(struct mtk_wed_device *dev)
+{
+	struct mtk_wed_amsdu *wed_amsdu = dev->hw->wed_amsdu;
+	int i, ret;
+
+	if (!wed_amsdu)
+		return 0;
+
+	for (i = 0; i < MTK_WED_AMSDU_NPAGES; i++)
+		wed_w32(dev, MTK_WED_AMSDU_HIFTXD_BASE_L(i),
+			wed_amsdu[i].txd_phy);
+
+	/* init all sta parameter */
+	wed_w32(dev, MTK_WED_AMSDU_STA_INFO_INIT, MTK_WED_AMSDU_STA_RMVL |
+		MTK_WED_AMSDU_STA_WTBL_HDRT_MODE |
+		FIELD_PREP(MTK_WED_AMSDU_STA_MAX_AMSDU_LEN,
+			   dev->wlan.amsdu_max_len >> 8) |
+		FIELD_PREP(MTK_WED_AMSDU_STA_MAX_AMSDU_NUM,
+			   dev->wlan.amsdu_max_subframes));
+
+	wed_w32(dev, MTK_WED_AMSDU_STA_INFO, MTK_WED_AMSDU_STA_INFO_DO_INIT);
+
+	ret = mtk_wed_poll_busy(dev, MTK_WED_AMSDU_STA_INFO,
+				MTK_WED_AMSDU_STA_INFO_DO_INIT);
+	if (ret) {
+		dev_err(dev->hw->dev, "amsdu initialization failed\n");
+		return ret;
+	}
+
+	/* init partial amsdu offload txd src */
+	wed_set(dev, MTK_WED_AMSDU_HIFTXD_CFG,
+		FIELD_PREP(MTK_WED_AMSDU_HIFTXD_SRC, dev->hw->index));
+
+	/* init qmem */
+	wed_set(dev, MTK_WED_AMSDU_PSE, MTK_WED_AMSDU_PSE_RESET);
+	ret = mtk_wed_poll_busy(dev, MTK_WED_MON_AMSDU_QMEM_STS1, BIT(29));
+	if (ret) {
+		pr_info("%s: amsdu qmem initialization failed\n", __func__);
+		return ret;
+	}
+
+	/* eagle E1 PCIE1 tx ring 22 flow control issue */
+	if (dev->wlan.id == 0x7991)
+		wed_clr(dev, MTK_WED_AMSDU_FIFO, MTK_WED_AMSDU_IS_PRIOR0_RING);
+
+	wed_set(dev, MTK_WED_CTRL, MTK_WED_CTRL_TX_AMSDU_EN);
+
+	return 0;
 }
 
 static int
@@ -709,6 +840,7 @@ __mtk_wed_detach(struct mtk_wed_device *dev)
 
 	mtk_wdma_rx_reset(dev);
 	mtk_wed_reset(dev, MTK_WED_RESET_WED);
+	mtk_wed_amsdu_free_buffer(dev);
 	mtk_wed_free_tx_buffer(dev);
 	mtk_wed_free_tx_rings(dev);
 
@@ -1127,23 +1259,6 @@ mtk_wed_ring_reset(struct mtk_wed_ring *ring, int size, bool tx)
 		desc->buf1 = 0;
 		desc->info = 0;
 	}
-}
-
-static u32
-mtk_wed_check_busy(struct mtk_wed_device *dev, u32 reg, u32 mask)
-{
-	return !!(wed_r32(dev, reg) & mask);
-}
-
-static int
-mtk_wed_poll_busy(struct mtk_wed_device *dev, u32 reg, u32 mask)
-{
-	int sleep = 15000;
-	int timeout = 100 * sleep;
-	u32 val;
-
-	return read_poll_timeout(mtk_wed_check_busy, val, !val, sleep,
-				 timeout, false, dev, reg, mask);
 }
 
 static int
@@ -1692,6 +1807,7 @@ mtk_wed_start(struct mtk_wed_device *dev, u32 irq_mask)
 	}
 
 	mtk_wed_set_512_support(dev, dev->wlan.wcid_512);
+	mtk_wed_amsdu_init(dev);
 
 	mtk_wed_dma_enable(dev);
 	dev->running = true;
@@ -1745,6 +1861,10 @@ mtk_wed_attach(struct mtk_wed_device *dev)
 		mtk_eth_set_dma_device(hw->eth, hw->dev);
 
 	ret = mtk_wed_tx_buffer_alloc(dev);
+	if (ret)
+		goto out;
+
+	ret = mtk_wed_amsdu_buffer_alloc(dev);
 	if (ret)
 		goto out;
 

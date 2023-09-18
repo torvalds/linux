@@ -128,6 +128,7 @@ struct mtk_wed_device {
 		enum mtk_wed_bus_tye bus_type;
 		void __iomem *base;
 		u32 phy_base;
+		u32 id;
 
 		u32 wpdma_phys;
 		u32 wpdma_int;
@@ -146,10 +147,12 @@ struct mtk_wed_device {
 		unsigned int rx_nbuf;
 		unsigned int rx_npkt;
 		unsigned int rx_size;
+		unsigned int amsdu_max_len;
 
 		u8 tx_tbit[MTK_WED_TX_QUEUES];
 		u8 rx_tbit[MTK_WED_RX_QUEUES];
 		u8 txfree_tbit;
+		u8 amsdu_max_subframes;
 
 		u32 (*init_buf)(void *ptr, dma_addr_t phys, int token_id);
 		int (*offload_enable)(struct mtk_wed_device *wed);
@@ -220,6 +223,15 @@ static inline bool mtk_wed_get_rx_capa(struct mtk_wed_device *dev)
 		return dev->wlan.hw_rro;
 
 	return dev->version != 1;
+#else
+	return false;
+#endif
+}
+
+static inline bool mtk_wed_is_amsdu_supported(struct mtk_wed_device *dev)
+{
+#ifdef CONFIG_NET_MEDIATEK_SOC_WED
+	return dev->version == 3;
 #else
 	return false;
 #endif
