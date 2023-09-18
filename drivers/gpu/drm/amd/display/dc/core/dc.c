@@ -1853,7 +1853,7 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 	if (dc->hwss.subvp_pipe_control_lock)
 		dc->hwss.subvp_pipe_control_lock(dc, context, true, true, NULL, subvp_prev_use);
 
-	if (dc->debug.enable_double_buffered_dsc_pg_support)
+	if (dc->hwss.update_dsc_pg)
 		dc->hwss.update_dsc_pg(dc, context, false);
 
 	disable_dangling_plane(dc, context);
@@ -1960,7 +1960,7 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 		dc->hwss.optimize_bandwidth(dc, context);
 	}
 
-	if (dc->debug.enable_double_buffered_dsc_pg_support)
+	if (dc->hwss.update_dsc_pg)
 		dc->hwss.update_dsc_pg(dc, context, true);
 
 	if (dc->ctx->dce_version >= DCE_VERSION_MAX)
@@ -2207,7 +2207,7 @@ void dc_post_update_surfaces_to_stream(struct dc *dc)
 
 		dc->hwss.optimize_bandwidth(dc, context);
 
-		if (dc->debug.enable_double_buffered_dsc_pg_support)
+		if (dc->hwss.update_dsc_pg)
 			dc->hwss.update_dsc_pg(dc, context, true);
 	}
 
@@ -3565,7 +3565,7 @@ static void commit_planes_for_stream(struct dc *dc,
 		if (get_seamless_boot_stream_count(context) == 0)
 			dc->hwss.prepare_bandwidth(dc, context);
 
-		if (dc->debug.enable_double_buffered_dsc_pg_support)
+		if (dc->hwss.update_dsc_pg)
 			dc->hwss.update_dsc_pg(dc, context, false);
 
 		context_clock_trace(dc, context);
