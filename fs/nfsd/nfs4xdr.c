@@ -3031,6 +3031,39 @@ static __be32 nfsd4_encode_fattr4_size(struct xdr_stream *xdr,
 	return nfsd4_encode_uint64_t(xdr, args->size);
 }
 
+static __be32 nfsd4_encode_fattr4_fsid(struct xdr_stream *xdr,
+				       const struct nfsd4_fattr_args *args)
+{
+	__be32 *p;
+
+	p = xdr_reserve_space(xdr, XDR_UNIT * 2 + XDR_UNIT * 2);
+	if (!p)
+		return nfserr_resource;
+
+	if (unlikely(args->exp->ex_fslocs.migrated)) {
+		p = xdr_encode_hyper(p, NFS4_REFERRAL_FSID_MAJOR);
+		xdr_encode_hyper(p, NFS4_REFERRAL_FSID_MINOR);
+		return nfs_ok;
+	}
+	switch (fsid_source(args->fhp)) {
+	case FSIDSOURCE_FSID:
+		p = xdr_encode_hyper(p, (u64)args->exp->ex_fsid);
+		xdr_encode_hyper(p, (u64)0);
+		break;
+	case FSIDSOURCE_DEV:
+		*p++ = xdr_zero;
+		*p++ = cpu_to_be32(MAJOR(args->stat.dev));
+		*p++ = xdr_zero;
+		*p   = cpu_to_be32(MINOR(args->stat.dev));
+		break;
+	case FSIDSOURCE_UUID:
+		xdr_encode_opaque_fixed(p, args->exp->ex_uuid, EX_UUID_LEN);
+		break;
+	}
+
+	return nfs_ok;
+}
+
 /*
  * Note: @fhp can be NULL; in this case, we might have to compose the filehandle
  * ourselves.
@@ -3201,28 +3234,9 @@ nfsd4_encode_fattr(struct xdr_stream *xdr, struct svc_fh *fhp,
 			goto out;
 	}
 	if (bmval0 & FATTR4_WORD0_FSID) {
-		p = xdr_reserve_space(xdr, 16);
-		if (!p)
-			goto out_resource;
-		if (exp->ex_fslocs.migrated) {
-			p = xdr_encode_hyper(p, NFS4_REFERRAL_FSID_MAJOR);
-			p = xdr_encode_hyper(p, NFS4_REFERRAL_FSID_MINOR);
-		} else switch (fsid_source(args.fhp)) {
-		case FSIDSOURCE_FSID:
-			p = xdr_encode_hyper(p, (u64)exp->ex_fsid);
-			p = xdr_encode_hyper(p, (u64)0);
-			break;
-		case FSIDSOURCE_DEV:
-			*p++ = cpu_to_be32(0);
-			*p++ = cpu_to_be32(MAJOR(args.stat.dev));
-			*p++ = cpu_to_be32(0);
-			*p++ = cpu_to_be32(MINOR(args.stat.dev));
-			break;
-		case FSIDSOURCE_UUID:
-			p = xdr_encode_opaque_fixed(p, exp->ex_uuid,
-								EX_UUID_LEN);
-			break;
-		}
+		status = nfsd4_encode_fattr4_fsid(xdr, &args);
+		if (status != nfs_ok)
+			goto out;
 	}
 	if (bmval0 & FATTR4_WORD0_UNIQUE_HANDLES) {
 		status = nfsd4_encode_fattr4__false(xdr, &args);
