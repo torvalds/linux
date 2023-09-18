@@ -21,6 +21,7 @@
  */
 #include "priv.h"
 
+#include <subdev/gsp.h>
 #include <subdev/vfn.h>
 
 #include <nvif/class.h>
@@ -88,5 +89,8 @@ int
 ga100_ce_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 	     struct nvkm_engine **pengine)
 {
+	if (nvkm_gsp_rm(device->gsp))
+		return -ENODEV;
+
 	return nvkm_engine_new_(&ga100_ce, device, type, inst, true, pengine);
 }
