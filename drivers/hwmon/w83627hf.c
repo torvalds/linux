@@ -1828,7 +1828,7 @@ static int w83627hf_probe(struct platform_device *pdev)
 	return err;
 }
 
-static int w83627hf_remove(struct platform_device *pdev)
+static void w83627hf_remove(struct platform_device *pdev)
 {
 	struct w83627hf_data *data = platform_get_drvdata(pdev);
 
@@ -1836,8 +1836,6 @@ static int w83627hf_remove(struct platform_device *pdev)
 
 	sysfs_remove_group(&pdev->dev.kobj, &w83627hf_group);
 	sysfs_remove_group(&pdev->dev.kobj, &w83627hf_group_opt);
-
-	return 0;
 }
 
 static struct platform_driver w83627hf_driver = {
@@ -1846,7 +1844,7 @@ static struct platform_driver w83627hf_driver = {
 		.pm	= W83627HF_DEV_PM_OPS,
 	},
 	.probe		= w83627hf_probe,
-	.remove		= w83627hf_remove,
+	.remove_new	= w83627hf_remove,
 };
 
 static int __init w83627hf_find(int sioaddr, unsigned short *addr,
