@@ -15,17 +15,30 @@
 #define OMNIA_BOARD_LEDS	12
 #define OMNIA_LED_NUM_CHANNELS	3
 
-#define CMD_LED_MODE		3
-#define CMD_LED_MODE_LED(l)	((l) & 0x0f)
-#define CMD_LED_MODE_USER	0x10
+/* MCU controller commands at I2C address 0x2a */
+#define OMNIA_MCU_I2C_ADDR		0x2a
 
-#define CMD_LED_STATE		4
-#define CMD_LED_STATE_LED(l)	((l) & 0x0f)
-#define CMD_LED_STATE_ON	0x10
+#define CMD_GET_STATUS_WORD		0x01
+#define STS_FEATURES_SUPPORTED		BIT(2)
 
-#define CMD_LED_COLOR		5
-#define CMD_LED_SET_BRIGHTNESS	7
-#define CMD_LED_GET_BRIGHTNESS	8
+#define CMD_GET_FEATURES		0x10
+#define FEAT_LED_GAMMA_CORRECTION	BIT(5)
+
+/* LED controller commands at I2C address 0x2b */
+#define CMD_LED_MODE			0x03
+#define CMD_LED_MODE_LED(l)		((l) & 0x0f)
+#define CMD_LED_MODE_USER		0x10
+
+#define CMD_LED_STATE			0x04
+#define CMD_LED_STATE_LED(l)		((l) & 0x0f)
+#define CMD_LED_STATE_ON		0x10
+
+#define CMD_LED_COLOR			0x05
+#define CMD_LED_SET_BRIGHTNESS		0x07
+#define CMD_LED_GET_BRIGHTNESS		0x08
+
+#define CMD_SET_GAMMA_CORRECTION	0x30
+#define CMD_GET_GAMMA_CORRECTION	0x31
 
 struct omnia_led {
 	struct led_classdev_mc mc_cdev;
@@ -40,6 +53,7 @@ struct omnia_led {
 struct omnia_leds {
 	struct i2c_client *client;
 	struct mutex lock;
+	bool has_gamma_correction;
 	struct omnia_led leds[];
 };
 
@@ -50,28 +64,40 @@ static int omnia_cmd_write_u8(const struct i2c_client *client, u8 cmd, u8 val)
 	return i2c_master_send(client, buf, sizeof(buf));
 }
 
-static int omnia_cmd_read_u8(const struct i2c_client *client, u8 cmd)
+static int omnia_cmd_read_raw(struct i2c_adapter *adapter, u8 addr, u8 cmd,
+			      void *reply, size_t len)
 {
 	struct i2c_msg msgs[2];
-	u8 reply;
 	int ret;
 
-	msgs[0].addr = client->addr;
+	msgs[0].addr = addr;
 	msgs[0].flags = 0;
 	msgs[0].len = 1;
 	msgs[0].buf = &cmd;
-	msgs[1].addr = client->addr;
+	msgs[1].addr = addr;
 	msgs[1].flags = I2C_M_RD;
-	msgs[1].len = 1;
-	msgs[1].buf = &reply;
+	msgs[1].len = len;
+	msgs[1].buf = reply;
 
-	ret = i2c_transfer(client->adapter, msgs, ARRAY_SIZE(msgs));
+	ret = i2c_transfer(adapter, msgs, ARRAY_SIZE(msgs));
 	if (likely(ret == ARRAY_SIZE(msgs)))
-		return reply;
+		return len;
 	else if (ret < 0)
 		return ret;
 	else
 		return -EIO;
+}
+
+static int omnia_cmd_read_u8(const struct i2c_client *client, u8 cmd)
+{
+	u8 reply;
+	int ret;
+
+	ret = omnia_cmd_read_raw(client->adapter, client->addr, cmd, &reply, 1);
+	if (ret < 0)
+		return ret;
+
+	return reply;
 }
 
 static int omnia_led_send_color_cmd(const struct i2c_client *client,
@@ -352,11 +378,73 @@ static ssize_t brightness_store(struct device *dev, struct device_attribute *a,
 }
 static DEVICE_ATTR_RW(brightness);
 
+static ssize_t gamma_correction_show(struct device *dev,
+				     struct device_attribute *a, char *buf)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct omnia_leds *leds = i2c_get_clientdata(client);
+	int ret;
+
+	if (leds->has_gamma_correction) {
+		ret = omnia_cmd_read_u8(client, CMD_GET_GAMMA_CORRECTION);
+		if (ret < 0)
+			return ret;
+	} else {
+		ret = 0;
+	}
+
+	return sysfs_emit(buf, "%d\n", !!ret);
+}
+
+static ssize_t gamma_correction_store(struct device *dev,
+				      struct device_attribute *a,
+				      const char *buf, size_t count)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct omnia_leds *leds = i2c_get_clientdata(client);
+	bool val;
+	int ret;
+
+	if (!leds->has_gamma_correction)
+		return -EOPNOTSUPP;
+
+	if (kstrtobool(buf, &val) < 0)
+		return -EINVAL;
+
+	ret = omnia_cmd_write_u8(client, CMD_SET_GAMMA_CORRECTION, val);
+
+	return ret < 0 ? ret : count;
+}
+static DEVICE_ATTR_RW(gamma_correction);
+
 static struct attribute *omnia_led_controller_attrs[] = {
 	&dev_attr_brightness.attr,
+	&dev_attr_gamma_correction.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(omnia_led_controller);
+
+static int omnia_mcu_get_features(const struct i2c_client *client)
+{
+	u16 reply;
+	int err;
+
+	err = omnia_cmd_read_raw(client->adapter, OMNIA_MCU_I2C_ADDR,
+				 CMD_GET_STATUS_WORD, &reply, sizeof(reply));
+	if (err < 0)
+		return err;
+
+	/* Check whether MCU firmware supports the CMD_GET_FEAUTRES command */
+	if (!(le16_to_cpu(reply) & STS_FEATURES_SUPPORTED))
+		return 0;
+
+	err = omnia_cmd_read_raw(client->adapter, OMNIA_MCU_I2C_ADDR,
+				 CMD_GET_FEATURES, &reply, sizeof(reply));
+	if (err < 0)
+		return err;
+
+	return le16_to_cpu(reply);
+}
 
 static int omnia_leds_probe(struct i2c_client *client)
 {
@@ -381,6 +469,21 @@ static int omnia_leds_probe(struct i2c_client *client)
 
 	leds->client = client;
 	i2c_set_clientdata(client, leds);
+
+	ret = omnia_mcu_get_features(client);
+	if (ret < 0) {
+		dev_err(dev, "Cannot determine MCU supported features: %d\n",
+			ret);
+		return ret;
+	}
+
+	leds->has_gamma_correction = ret & FEAT_LED_GAMMA_CORRECTION;
+	if (!leds->has_gamma_correction) {
+		dev_info(dev,
+			 "Your board's MCU firmware does not support the LED gamma correction feature.\n");
+		dev_info(dev,
+			 "Consider upgrading MCU firmware with the omnia-mcutool utility.\n");
+	}
 
 	mutex_init(&leds->lock);
 
