@@ -1902,7 +1902,7 @@ out:
 /*
  * exit func, stops hardware and unregisters netdevice
  */
-static int bcm_enet_remove(struct platform_device *pdev)
+static void bcm_enet_remove(struct platform_device *pdev)
 {
 	struct bcm_enet_priv *priv;
 	struct net_device *dev;
@@ -1932,12 +1932,11 @@ static int bcm_enet_remove(struct platform_device *pdev)
 	clk_disable_unprepare(priv->mac_clk);
 
 	free_netdev(dev);
-	return 0;
 }
 
 static struct platform_driver bcm63xx_enet_driver = {
 	.probe	= bcm_enet_probe,
-	.remove	= bcm_enet_remove,
+	.remove_new = bcm_enet_remove,
 	.driver	= {
 		.name	= "bcm63xx_enet",
 	},
@@ -2739,7 +2738,7 @@ out:
 
 
 /* exit func, stops hardware and unregisters netdevice */
-static int bcm_enetsw_remove(struct platform_device *pdev)
+static void bcm_enetsw_remove(struct platform_device *pdev)
 {
 	struct bcm_enet_priv *priv;
 	struct net_device *dev;
@@ -2752,12 +2751,11 @@ static int bcm_enetsw_remove(struct platform_device *pdev)
 	clk_disable_unprepare(priv->mac_clk);
 
 	free_netdev(dev);
-	return 0;
 }
 
 static struct platform_driver bcm63xx_enetsw_driver = {
 	.probe	= bcm_enetsw_probe,
-	.remove	= bcm_enetsw_remove,
+	.remove_new = bcm_enetsw_remove,
 	.driver	= {
 		.name	= "bcm63xx_enetsw",
 	},

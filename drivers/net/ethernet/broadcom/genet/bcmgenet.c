@@ -4164,7 +4164,7 @@ err:
 	return err;
 }
 
-static int bcmgenet_remove(struct platform_device *pdev)
+static void bcmgenet_remove(struct platform_device *pdev)
 {
 	struct bcmgenet_priv *priv = dev_to_priv(&pdev->dev);
 
@@ -4172,8 +4172,6 @@ static int bcmgenet_remove(struct platform_device *pdev)
 	unregister_netdev(priv->dev);
 	bcmgenet_mii_exit(priv->dev);
 	free_netdev(priv->dev);
-
-	return 0;
 }
 
 static void bcmgenet_shutdown(struct platform_device *pdev)
@@ -4352,7 +4350,7 @@ MODULE_DEVICE_TABLE(acpi, genet_acpi_match);
 
 static struct platform_driver bcmgenet_driver = {
 	.probe	= bcmgenet_probe,
-	.remove	= bcmgenet_remove,
+	.remove_new = bcmgenet_remove,
 	.shutdown = bcmgenet_shutdown,
 	.driver	= {
 		.name	= "bcmgenet",

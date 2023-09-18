@@ -2648,7 +2648,7 @@ err_free_netdev:
 	return ret;
 }
 
-static int bcm_sysport_remove(struct platform_device *pdev)
+static void bcm_sysport_remove(struct platform_device *pdev)
 {
 	struct net_device *dev = dev_get_drvdata(&pdev->dev);
 	struct bcm_sysport_priv *priv = netdev_priv(dev);
@@ -2663,8 +2663,6 @@ static int bcm_sysport_remove(struct platform_device *pdev)
 		of_phy_deregister_fixed_link(dn);
 	free_netdev(dev);
 	dev_set_drvdata(&pdev->dev, NULL);
-
-	return 0;
 }
 
 static int bcm_sysport_suspend_to_wol(struct bcm_sysport_priv *priv)
@@ -2901,7 +2899,7 @@ static SIMPLE_DEV_PM_OPS(bcm_sysport_pm_ops,
 
 static struct platform_driver bcm_sysport_driver = {
 	.probe	= bcm_sysport_probe,
-	.remove	= bcm_sysport_remove,
+	.remove_new = bcm_sysport_remove,
 	.driver =  {
 		.name = "brcm-systemport",
 		.of_match_table = bcm_sysport_of_match,
