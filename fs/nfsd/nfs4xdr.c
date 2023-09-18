@@ -2927,6 +2927,7 @@ out_resource:
 struct nfsd4_fattr_args {
 	struct svc_rqst		*rqstp;
 	struct svc_fh		*fhp;
+	struct svc_export	*exp;
 	struct dentry		*dentry;
 	struct kstat		stat;
 	struct kstatfs		statfs;
@@ -3002,6 +3003,17 @@ static __be32 nfsd4_encode_fattr4_type(struct xdr_stream *xdr,
 	return nfs_ok;
 }
 
+static __be32 nfsd4_encode_fattr4_fh_expire_type(struct xdr_stream *xdr,
+						 const struct nfsd4_fattr_args *args)
+{
+	u32 mask;
+
+	mask = NFS4_FH_PERSISTENT;
+	if (!(args->exp->ex_flags & NFSEXP_NOSUBTREECHECK))
+		mask |= NFS4_FH_VOL_RENAME;
+	return nfsd4_encode_uint32_t(xdr, mask);
+}
+
 /*
  * Note: @fhp can be NULL; in this case, we might have to compose the filehandle
  * ourselves.
@@ -3041,6 +3053,7 @@ nfsd4_encode_fattr(struct xdr_stream *xdr, struct svc_fh *fhp,
 	BUG_ON(!nfsd_attrs_supported(minorversion, bmval));
 
 	args.rqstp = rqstp;
+	args.exp = exp;
 	args.dentry = dentry;
 
 	args.rdattr_err = 0;
@@ -3141,14 +3154,9 @@ nfsd4_encode_fattr(struct xdr_stream *xdr, struct svc_fh *fhp,
 			goto out;
 	}
 	if (bmval0 & FATTR4_WORD0_FH_EXPIRE_TYPE) {
-		p = xdr_reserve_space(xdr, 4);
-		if (!p)
-			goto out_resource;
-		if (exp->ex_flags & NFSEXP_NOSUBTREECHECK)
-			*p++ = cpu_to_be32(NFS4_FH_PERSISTENT);
-		else
-			*p++ = cpu_to_be32(NFS4_FH_PERSISTENT|
-						NFS4_FH_VOL_RENAME);
+		status = nfsd4_encode_fattr4_fh_expire_type(xdr, &args);
+		if (status != nfs_ok)
+			goto out;
 	}
 	if (bmval0 & FATTR4_WORD0_CHANGE) {
 		p = xdr_reserve_space(xdr, 8);
