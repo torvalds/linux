@@ -670,9 +670,6 @@ static int xe_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	pci_set_master(pdev);
 
-	if (pci_enable_msi(pdev) < 0)
-		drm_dbg(&xe->drm, "can't enable MSI");
-
 	err = xe_info_init(xe, desc, subplatform_desc);
 	if (err)
 		goto err_pci_disable;

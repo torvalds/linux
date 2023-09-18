@@ -555,23 +555,24 @@ static void irq_uninstall(struct drm_device *drm, void *arg)
 {
 	struct xe_device *xe = arg;
 	struct pci_dev *pdev = to_pci_dev(xe->drm.dev);
-	int irq = pdev->irq;
+	int irq;
 
 	if (!xe->irq.enabled)
 		return;
 
 	xe->irq.enabled = false;
 	xe_irq_reset(xe);
+
+	irq = pci_irq_vector(pdev, 0);
 	free_irq(irq, xe);
-	if (pdev->msi_enabled)
-		pci_disable_msi(pdev);
+	pci_free_irq_vectors(pdev);
 }
 
 int xe_irq_install(struct xe_device *xe)
 {
-	int irq = to_pci_dev(xe->drm.dev)->irq;
+	struct pci_dev *pdev = to_pci_dev(xe->drm.dev);
 	irq_handler_t irq_handler;
-	int err;
+	int err, irq;
 
 	irq_handler = xe_irq_handler(xe);
 	if (!irq_handler) {
@@ -581,16 +582,35 @@ int xe_irq_install(struct xe_device *xe)
 
 	xe_irq_reset(xe);
 
-	err = request_irq(irq, irq_handler,
-			  IRQF_SHARED, DRIVER_NAME, xe);
-	if (err < 0)
+	err = pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_MSI);
+	if (err < 0) {
+		drm_err(&xe->drm, "MSI: Failed to enable support %d\n", err);
 		return err;
+	}
+
+	irq = pci_irq_vector(pdev, 0);
+	err = request_irq(irq, irq_handler, IRQF_SHARED, DRIVER_NAME, xe);
+	if (err < 0) {
+		drm_err(&xe->drm, "Failed to request MSI IRQ %d\n", err);
+		goto free_pci_irq_vectors;
+	}
 
 	xe->irq.enabled = true;
 
 	xe_irq_postinstall(xe);
 
-	return drmm_add_action_or_reset(&xe->drm, irq_uninstall, xe);
+	err = drmm_add_action_or_reset(&xe->drm, irq_uninstall, xe);
+	if (err)
+		goto free_irq_handler;
+
+	return 0;
+
+free_irq_handler:
+	free_irq(irq, xe);
+free_pci_irq_vectors:
+	pci_free_irq_vectors(pdev);
+
+	return err;
 }
 
 void xe_irq_shutdown(struct xe_device *xe)
