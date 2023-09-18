@@ -158,7 +158,24 @@ struct nvkm_gsp {
 		void *(*rm_ctrl_get)(struct nvkm_gsp_object *, u32 cmd, u32 argc);
 		void *(*rm_ctrl_push)(struct nvkm_gsp_object *, void *argv, u32 repc);
 		void (*rm_ctrl_done)(struct nvkm_gsp_object *, void *repv);
+
+		void *(*rm_alloc_get)(struct nvkm_gsp_object *, u32 oclass, u32 argc);
+		void *(*rm_alloc_push)(struct nvkm_gsp_object *, void *argv, u32 repc);
+		void (*rm_alloc_done)(struct nvkm_gsp_object *, void *repv);
+
+		int (*rm_free)(struct nvkm_gsp_object *);
+
+		int (*client_ctor)(struct nvkm_gsp *, struct nvkm_gsp_client *);
+		void (*client_dtor)(struct nvkm_gsp_client *);
+
+		int (*device_ctor)(struct nvkm_gsp_client *, struct nvkm_gsp_device *);
+		void (*device_dtor)(struct nvkm_gsp_device *);
 	} *rm;
+
+	struct {
+		struct mutex mutex;;
+		struct idr idr;
+	} client_id;
 };
 
 static inline bool
@@ -245,6 +262,120 @@ static inline void
 nvkm_gsp_rm_ctrl_done(struct nvkm_gsp_object *object, void *repv)
 {
 	object->client->gsp->rm->rm_ctrl_done(object, repv);
+}
+
+static inline void *
+nvkm_gsp_rm_alloc_get(struct nvkm_gsp_object *parent, u32 handle, u32 oclass, u32 argc,
+		      struct nvkm_gsp_object *object)
+{
+	struct nvkm_gsp_client *client = parent->client;
+	struct nvkm_gsp *gsp = client->gsp;
+	void *argv;
+
+	object->client = parent->client;
+	object->parent = parent;
+	object->handle = handle;
+
+	argv = gsp->rm->rm_alloc_get(object, oclass, argc);
+	if (IS_ERR_OR_NULL(argv)) {
+		object->client = NULL;
+		return argv;
+	}
+
+	return argv;
+}
+
+static inline void *
+nvkm_gsp_rm_alloc_push(struct nvkm_gsp_object *object, void *argv, u32 repc)
+{
+	void *repv = object->client->gsp->rm->rm_alloc_push(object, argv, repc);
+
+	if (IS_ERR(repv))
+		object->client = NULL;
+
+	return repv;
+}
+
+static inline int
+nvkm_gsp_rm_alloc_wr(struct nvkm_gsp_object *object, void *argv)
+{
+	void *repv = nvkm_gsp_rm_alloc_push(object, argv, 0);
+
+	if (IS_ERR(repv))
+		return PTR_ERR(repv);
+
+	return 0;
+}
+
+static inline void
+nvkm_gsp_rm_alloc_done(struct nvkm_gsp_object *object, void *repv)
+{
+	object->client->gsp->rm->rm_alloc_done(object, repv);
+}
+
+static inline int
+nvkm_gsp_rm_alloc(struct nvkm_gsp_object *parent, u32 handle, u32 oclass, u32 argc,
+		  struct nvkm_gsp_object *object)
+{
+	void *argv = nvkm_gsp_rm_alloc_get(parent, handle, oclass, argc, object);
+
+	if (IS_ERR_OR_NULL(argv))
+		return argv ? PTR_ERR(argv) : -EIO;
+
+	return nvkm_gsp_rm_alloc_wr(object, argv);
+}
+
+static inline int
+nvkm_gsp_rm_free(struct nvkm_gsp_object *object)
+{
+	if (object->client)
+		return object->client->gsp->rm->rm_free(object);
+
+	return 0;
+}
+
+static inline int
+nvkm_gsp_client_ctor(struct nvkm_gsp *gsp, struct nvkm_gsp_client *client)
+{
+	if (WARN_ON(!gsp->rm))
+		return -ENOSYS;
+
+	return gsp->rm->client_ctor(gsp, client);
+}
+
+static inline void
+nvkm_gsp_client_dtor(struct nvkm_gsp_client *client)
+{
+	if (client->gsp)
+		client->gsp->rm->client_dtor(client);
+}
+
+static inline int
+nvkm_gsp_device_ctor(struct nvkm_gsp_client *client, struct nvkm_gsp_device *device)
+{
+	return client->gsp->rm->device_ctor(client, device);
+}
+
+static inline void
+nvkm_gsp_device_dtor(struct nvkm_gsp_device *device)
+{
+	if (device->object.client)
+		device->object.client->gsp->rm->device_dtor(device);
+}
+
+static inline int
+nvkm_gsp_client_device_ctor(struct nvkm_gsp *gsp,
+			    struct nvkm_gsp_client *client, struct nvkm_gsp_device *device)
+{
+	int ret = nvkm_gsp_client_ctor(gsp, client);
+
+	if (ret == 0) {
+		ret = nvkm_gsp_device_ctor(client, device);
+		if (ret)
+			nvkm_gsp_client_dtor(client);
+	}
+
+	return ret;
 }
 
 int gv100_gsp_new(struct nvkm_device *, enum nvkm_subdev_type, int, struct nvkm_gsp **);

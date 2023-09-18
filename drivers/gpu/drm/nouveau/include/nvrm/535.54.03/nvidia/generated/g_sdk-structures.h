@@ -1,6 +1,5 @@
-#ifndef __src_nvidia_generated_g_rpc_structures_h__
-#define __src_nvidia_generated_g_rpc_structures_h__
-#include <nvrm/535.54.03/nvidia/generated/g_sdk-structures.h>
+#ifndef __src_nvidia_generated_g_sdk_structures_h__
+#define __src_nvidia_generated_g_sdk_structures_h__
 
 /* Excerpt of RM headers from https://github.com/NVIDIA/open-gpu-kernel-modules/tree/535.54.03 */
 
@@ -27,56 +26,12 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-typedef struct rpc_free_v03_00
+typedef struct NVOS00_PARAMETERS_v03_00
 {
-    NVOS00_PARAMETERS_v03_00 params;
-} rpc_free_v03_00;
-
-typedef struct rpc_unloading_guest_driver_v1F_07
-{
-    NvBool     bInPMTransition;
-    NvBool     bGc6Entering;
-    NvU32      newLevel;
-} rpc_unloading_guest_driver_v1F_07;
-
-typedef struct rpc_gsp_rm_alloc_v03_00
-{
-    NvHandle   hClient;
-    NvHandle   hParent;
-    NvHandle   hObject;
-    NvU32      hClass;
-    NvU32      status;
-    NvU32      paramsSize;
-    NvU32      flags;
-    NvU8       reserved[4];
-    NvU8       params[];
-} rpc_gsp_rm_alloc_v03_00;
-
-typedef struct rpc_gsp_rm_control_v03_00
-{
-    NvHandle   hClient;
-    NvHandle   hObject;
-    NvU32      cmd;
-    NvU32      status;
-    NvU32      paramsSize;
-    NvU32      flags;
-    NvU8       params[];
-} rpc_gsp_rm_control_v03_00;
-
-typedef struct rpc_run_cpu_sequencer_v17_00
-{
-    NvU32      bufferSizeDWord;
-    NvU32      cmdIndex;
-    NvU32      regSaveArea[8];
-    NvU32      commandBuffer[];
-} rpc_run_cpu_sequencer_v17_00;
-
-typedef struct rpc_os_error_log_v17_00
-{
-    NvU32      exceptType;
-    NvU32      runlistId;
-    NvU32      chid;
-    char       errString[0x100];
-} rpc_os_error_log_v17_00;
+    NvHandle   hRoot;
+    NvHandle   hObjectParent;
+    NvHandle   hObjectOld;
+    NvV32      status;
+} NVOS00_PARAMETERS_v03_00;
 
 #endif

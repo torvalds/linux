@@ -28,6 +28,9 @@
 #include <nvfw/fw.h>
 
 #include <nvrm/nvtypes.h>
+#include <nvrm/535.54.03/common/sdk/nvidia/inc/class/cl0000.h>
+#include <nvrm/535.54.03/common/sdk/nvidia/inc/class/cl0080.h>
+#include <nvrm/535.54.03/common/sdk/nvidia/inc/class/cl2080.h>
 #include <nvrm/535.54.03/common/sdk/nvidia/inc/ctrl/ctrl2080/ctrl2080gpu.h>
 #include <nvrm/535.54.03/common/shared/msgq/inc/msgq/msgq_priv.h>
 #include <nvrm/535.54.03/common/uproc/os/common/include/libos_init_args.h>
@@ -355,6 +358,169 @@ r535_gsp_rpc_send(struct nvkm_gsp *gsp, void *argv, bool wait, u32 repc)
 }
 
 static void
+r535_gsp_device_dtor(struct nvkm_gsp_device *device)
+{
+	nvkm_gsp_rm_free(&device->subdevice);
+	nvkm_gsp_rm_free(&device->object);
+}
+
+static int
+r535_gsp_subdevice_ctor(struct nvkm_gsp_device *device)
+{
+	NV2080_ALLOC_PARAMETERS *args;
+
+	return nvkm_gsp_rm_alloc(&device->object, 0x5d1d0000, NV20_SUBDEVICE_0, sizeof(*args),
+				 &device->subdevice);
+}
+
+static int
+r535_gsp_device_ctor(struct nvkm_gsp_client *client, struct nvkm_gsp_device *device)
+{
+	NV0080_ALLOC_PARAMETERS *args;
+	int ret;
+
+	args = nvkm_gsp_rm_alloc_get(&client->object, 0xde1d0000, NV01_DEVICE_0, sizeof(*args),
+				     &device->object);
+	if (IS_ERR(args))
+		return PTR_ERR(args);
+
+	args->hClientShare = client->object.handle;
+
+	ret = nvkm_gsp_rm_alloc_wr(&device->object, args);
+	if (ret)
+		return ret;
+
+	ret = r535_gsp_subdevice_ctor(device);
+	if (ret)
+		nvkm_gsp_rm_free(&device->object);
+
+	return ret;
+}
+
+static void
+r535_gsp_client_dtor(struct nvkm_gsp_client *client)
+{
+	struct nvkm_gsp *gsp = client->gsp;
+
+	nvkm_gsp_rm_free(&client->object);
+
+	mutex_lock(&gsp->client_id.mutex);
+	idr_remove(&gsp->client_id.idr, client->object.handle & 0xffff);
+	mutex_unlock(&gsp->client_id.mutex);
+
+	client->gsp = NULL;
+}
+
+static int
+r535_gsp_client_ctor(struct nvkm_gsp *gsp, struct nvkm_gsp_client *client)
+{
+	NV0000_ALLOC_PARAMETERS *args;
+	int ret;
+
+	mutex_lock(&gsp->client_id.mutex);
+	ret = idr_alloc(&gsp->client_id.idr, client, 0, 0xffff + 1, GFP_KERNEL);
+	mutex_unlock(&gsp->client_id.mutex);
+	if (ret < 0)
+		return ret;
+
+	client->gsp = gsp;
+	client->object.client = client;
+
+	args = nvkm_gsp_rm_alloc_get(&client->object, 0xc1d00000 | ret, NV01_ROOT, sizeof(*args),
+				     &client->object);
+	if (IS_ERR(args)) {
+		r535_gsp_client_dtor(client);
+		return ret;
+	}
+
+	args->hClient = client->object.handle;
+	args->processID = ~0;
+
+	ret = nvkm_gsp_rm_alloc_wr(&client->object, args);
+	if (ret) {
+		r535_gsp_client_dtor(client);
+		return ret;
+	}
+
+	return 0;
+}
+
+static int
+r535_gsp_rpc_rm_free(struct nvkm_gsp_object *object)
+{
+	struct nvkm_gsp_client *client = object->client;
+	struct nvkm_gsp *gsp = client->gsp;
+	rpc_free_v03_00 *rpc;
+
+	nvkm_debug(&gsp->subdev, "cli:0x%08x obj:0x%08x free\n",
+		   client->object.handle, object->handle);
+
+	rpc = nvkm_gsp_rpc_get(gsp, NV_VGPU_MSG_FUNCTION_FREE, sizeof(*rpc));
+	if (WARN_ON(IS_ERR_OR_NULL(rpc)))
+		return -EIO;
+
+	rpc->params.hRoot = client->object.handle;
+	rpc->params.hObjectParent = 0;
+	rpc->params.hObjectOld = object->handle;
+	return nvkm_gsp_rpc_wr(gsp, rpc, true);
+}
+
+static void
+r535_gsp_rpc_rm_alloc_done(struct nvkm_gsp_object *object, void *repv)
+{
+	rpc_gsp_rm_alloc_v03_00 *rpc = container_of(repv, typeof(*rpc), params);
+
+	nvkm_gsp_rpc_done(object->client->gsp, rpc);
+}
+
+static void *
+r535_gsp_rpc_rm_alloc_push(struct nvkm_gsp_object *object, void *argv, u32 repc)
+{
+	rpc_gsp_rm_alloc_v03_00 *rpc = container_of(argv, typeof(*rpc), params);
+	struct nvkm_gsp *gsp = object->client->gsp;
+	void *ret;
+
+	rpc = nvkm_gsp_rpc_push(gsp, rpc, true, sizeof(*rpc) + repc);
+	if (IS_ERR_OR_NULL(rpc))
+		return rpc;
+
+	if (rpc->status) {
+		nvkm_error(&gsp->subdev, "RM_ALLOC: 0x%x\n", rpc->status);
+		ret = ERR_PTR(-EINVAL);
+	} else {
+		ret = repc ? rpc->params : NULL;
+	}
+
+	if (IS_ERR_OR_NULL(ret))
+		nvkm_gsp_rpc_done(gsp, rpc);
+
+	return ret;
+}
+
+static void *
+r535_gsp_rpc_rm_alloc_get(struct nvkm_gsp_object *object, u32 oclass, u32 argc)
+{
+	struct nvkm_gsp_client *client = object->client;
+	struct nvkm_gsp *gsp = client->gsp;
+	rpc_gsp_rm_alloc_v03_00 *rpc;
+
+	nvkm_debug(&gsp->subdev, "cli:0x%08x obj:0x%08x new obj:0x%08x cls:0x%08x argc:%d\n",
+		   client->object.handle, object->parent->handle, object->handle, oclass, argc);
+
+	rpc = nvkm_gsp_rpc_get(gsp, NV_VGPU_MSG_FUNCTION_GSP_RM_ALLOC, sizeof(*rpc) + argc);
+	if (IS_ERR(rpc))
+		return rpc;
+
+	rpc->hClient = client->object.handle;
+	rpc->hParent = object->parent->handle;
+	rpc->hObject = object->handle;
+	rpc->hClass = oclass;
+	rpc->status = 0;
+	rpc->paramsSize = argc;
+	return rpc->params;
+}
+
+static void
 r535_gsp_rpc_rm_ctrl_done(struct nvkm_gsp_object *object, void *repv)
 {
 	rpc_gsp_rm_control_v03_00 *rpc = container_of(repv, typeof(*rpc), params);
@@ -509,6 +675,18 @@ r535_gsp_rm = {
 	.rm_ctrl_get = r535_gsp_rpc_rm_ctrl_get,
 	.rm_ctrl_push = r535_gsp_rpc_rm_ctrl_push,
 	.rm_ctrl_done = r535_gsp_rpc_rm_ctrl_done,
+
+	.rm_alloc_get = r535_gsp_rpc_rm_alloc_get,
+	.rm_alloc_push = r535_gsp_rpc_rm_alloc_push,
+	.rm_alloc_done = r535_gsp_rpc_rm_alloc_done,
+
+	.rm_free = r535_gsp_rpc_rm_free,
+
+	.client_ctor = r535_gsp_client_ctor,
+	.client_dtor = r535_gsp_client_dtor,
+
+	.device_ctor = r535_gsp_device_ctor,
+	.device_dtor = r535_gsp_device_dtor,
 };
 
 static int
@@ -1473,6 +1651,9 @@ r535_gsp_dtor_fws(struct nvkm_gsp *gsp)
 void
 r535_gsp_dtor(struct nvkm_gsp *gsp)
 {
+	idr_destroy(&gsp->client_id.idr);
+	mutex_destroy(&gsp->client_id.mutex);
+
 	nvkm_gsp_radix3_dtor(gsp, &gsp->radix3);
 	nvkm_gsp_mem_dtor(gsp, &gsp->sig);
 	nvkm_firmware_dtor(&gsp->fw);
@@ -1601,6 +1782,9 @@ r535_gsp_oneinit(struct nvkm_gsp *gsp)
 
 	nvkm_falcon_wr32(&gsp->falcon, 0x040, lower_32_bits(gsp->libos.addr));
 	nvkm_falcon_wr32(&gsp->falcon, 0x044, upper_32_bits(gsp->libos.addr));
+
+	mutex_init(&gsp->client_id.mutex);
+	idr_init(&gsp->client_id.idr);
 	return 0;
 }
 
