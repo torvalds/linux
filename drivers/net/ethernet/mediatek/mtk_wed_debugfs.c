@@ -151,7 +151,7 @@ DEFINE_SHOW_ATTRIBUTE(wed_txinfo);
 static int
 wed_rxinfo_show(struct seq_file *s, void *data)
 {
-	static const struct reg_dump regs[] = {
+	static const struct reg_dump regs_common[] = {
 		DUMP_STR("WPDMA RX"),
 		DUMP_WPDMA_RX_RING(0),
 		DUMP_WPDMA_RX_RING(1),
@@ -169,7 +169,7 @@ wed_rxinfo_show(struct seq_file *s, void *data)
 		DUMP_WED_RING(WED_RING_RX_DATA(0)),
 		DUMP_WED_RING(WED_RING_RX_DATA(1)),
 
-		DUMP_STR("WED RRO"),
+		DUMP_STR("WED WO RRO"),
 		DUMP_WED_RRO_RING(WED_RROQM_MIOD_CTRL0),
 		DUMP_WED(WED_RROQM_MID_MIB),
 		DUMP_WED(WED_RROQM_MOD_MIB),
@@ -179,17 +179,6 @@ wed_rxinfo_show(struct seq_file *s, void *data)
 		DUMP_WED(WED_RROQM_FDBK_ENQ_MIB),
 		DUMP_WED(WED_RROQM_FDBK_ANC_MIB),
 		DUMP_WED(WED_RROQM_FDBK_ANC2H_MIB),
-
-		DUMP_STR("WED Route QM"),
-		DUMP_WED(WED_RTQM_R2H_MIB(0)),
-		DUMP_WED(WED_RTQM_R2Q_MIB(0)),
-		DUMP_WED(WED_RTQM_Q2H_MIB(0)),
-		DUMP_WED(WED_RTQM_R2H_MIB(1)),
-		DUMP_WED(WED_RTQM_R2Q_MIB(1)),
-		DUMP_WED(WED_RTQM_Q2H_MIB(1)),
-		DUMP_WED(WED_RTQM_Q2N_MIB),
-		DUMP_WED(WED_RTQM_Q2B_MIB),
-		DUMP_WED(WED_RTQM_PFDBK_MIB),
 
 		DUMP_STR("WED WDMA TX"),
 		DUMP_WED(WED_WDMA_TX_MIB),
@@ -211,11 +200,25 @@ wed_rxinfo_show(struct seq_file *s, void *data)
 		DUMP_WED(WED_RX_BM_INTF),
 		DUMP_WED(WED_RX_BM_ERR_STS),
 	};
+	static const struct reg_dump regs_wed_v2[] = {
+		DUMP_STR("WED Route QM"),
+		DUMP_WED(WED_RTQM_R2H_MIB(0)),
+		DUMP_WED(WED_RTQM_R2Q_MIB(0)),
+		DUMP_WED(WED_RTQM_Q2H_MIB(0)),
+		DUMP_WED(WED_RTQM_R2H_MIB(1)),
+		DUMP_WED(WED_RTQM_R2Q_MIB(1)),
+		DUMP_WED(WED_RTQM_Q2H_MIB(1)),
+		DUMP_WED(WED_RTQM_Q2N_MIB),
+		DUMP_WED(WED_RTQM_Q2B_MIB),
+		DUMP_WED(WED_RTQM_PFDBK_MIB),
+	};
 	struct mtk_wed_hw *hw = s->private;
 	struct mtk_wed_device *dev = hw->wed_dev;
 
-	if (dev)
-		dump_wed_regs(s, dev, regs, ARRAY_SIZE(regs));
+	if (dev) {
+		dump_wed_regs(s, dev, regs_common, ARRAY_SIZE(regs_common));
+		dump_wed_regs(s, dev, regs_wed_v2, ARRAY_SIZE(regs_wed_v2));
+	}
 
 	return 0;
 }
