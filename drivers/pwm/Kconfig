@@ -407,7 +407,7 @@ config PWM_MEDIATEK
 
 config PWM_MICROCHIP_CORE
 	tristate "Microchip corePWM PWM support"
-	depends on SOC_MICROCHIP_POLARFIRE || COMPILE_TEST
+	depends on ARCH_MICROCHIP_POLARFIRE || COMPILE_TEST
 	depends on HAS_IOMEM && OF
 	help
 	  PWM driver for Microchip FPGA soft IP core.
