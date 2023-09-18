@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Red Hat Inc.
+ * Copyright 2023 Red Hat Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,29 +19,32 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-#include "gf100.h"
-#include "ram.h"
+#include "priv.h"
 
-#include <subdev/gsp.h>
-
-static const struct nvkm_fb_func
-ga100_fb = {
-	.dtor = gf100_fb_dtor,
-	.oneinit = gf100_fb_oneinit,
-	.init = gm200_fb_init,
-	.init_page = gv100_fb_init_page,
-	.init_unkn = gp100_fb_init_unkn,
-	.sysmem.flush_page_init = gf100_fb_sysmem_flush_page_init,
-	.vidmem.size = gp102_fb_vidmem_size,
-	.ram_new = gp102_ram_new,
-	.default_bigpage = 16,
-};
+static void *
+r535_fb_dtor(struct nvkm_fb *fb)
+{
+	kfree(fb->func);
+	return fb;
+}
 
 int
-ga100_fb_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst, struct nvkm_fb **pfb)
+r535_fb_new(const struct nvkm_fb_func *hw,
+	    struct nvkm_device *device, enum nvkm_subdev_type type, int inst, struct nvkm_fb **pfb)
 {
-	if (nvkm_gsp_rm(device->gsp))
-		return r535_fb_new(&ga100_fb, device, type, inst, pfb);
+	struct nvkm_fb_func *rm;
+	int ret;
 
-	return gf100_fb_new_(&ga100_fb, device, type, inst, pfb);
+	if (!(rm = kzalloc(sizeof(*rm), GFP_KERNEL)))
+		return -ENOMEM;
+
+	rm->dtor = r535_fb_dtor;
+	rm->sysmem.flush_page_init = hw->sysmem.flush_page_init;
+	rm->vidmem.size = hw->vidmem.size;
+
+	ret = nvkm_fb_new_(rm, device, type, inst, pfb);
+	if (ret)
+		kfree(rm);
+
+	return ret;
 }
