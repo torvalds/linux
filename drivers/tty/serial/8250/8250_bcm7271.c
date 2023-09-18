@@ -984,10 +984,9 @@ static int brcmuart_probe(struct platform_device *pdev)
 	}
 
 	/* We should have just the uart base registers or all the registers */
-	if (x != 1 && x != REGS_MAX) {
-		dev_warn(dev, "%s registers not specified\n", reg_names[x]);
-		return -EINVAL;
-	}
+	if (x != 1 && x != REGS_MAX)
+		return dev_err_probe(dev, -EINVAL, "%s registers not specified\n",
+				     reg_names[x]);
 
 	/* if the DMA registers were specified, try to enable DMA */
 	if (x > REGS_DMA_RX) {
@@ -1034,8 +1033,7 @@ static int brcmuart_probe(struct platform_device *pdev)
 	}
 
 	if (clk_rate == 0) {
-		dev_err(dev, "clock-frequency or clk not defined\n");
-		ret = -EINVAL;
+		ret = dev_err_probe(dev, -EINVAL, "clock-frequency or clk not defined\n");
 		goto err_clk_disable;
 	}
 
@@ -1093,7 +1091,7 @@ static int brcmuart_probe(struct platform_device *pdev)
 
 	ret = serial8250_register_8250_port(&up);
 	if (ret < 0) {
-		dev_err(dev, "unable to register 8250 port\n");
+		dev_err_probe(dev, ret, "unable to register 8250 port\n");
 		goto err;
 	}
 	priv->line = ret;
@@ -1102,14 +1100,13 @@ static int brcmuart_probe(struct platform_device *pdev)
 	if (priv->dma_enabled) {
 		dma_irq = platform_get_irq_byname(pdev,  "dma");
 		if (dma_irq < 0) {
-			ret = dma_irq;
-			dev_err(dev, "no IRQ resource info\n");
+			ret = dev_err_probe(dev, dma_irq, "no IRQ resource info\n");
 			goto err1;
 		}
 		ret = devm_request_irq(dev, dma_irq, brcmuart_isr,
 				IRQF_SHARED, "uart DMA irq", &new_port->port);
 		if (ret) {
-			dev_err(dev, "unable to register IRQ handler\n");
+			dev_err_probe(dev, ret, "unable to register IRQ handler\n");
 			goto err1;
 		}
 	}
