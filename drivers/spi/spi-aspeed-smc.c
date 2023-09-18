@@ -1034,6 +1034,9 @@ static u64 aspeed_spi_segment_ast2700_end(struct aspeed_spi *aspi,
 static u32 aspeed_spi_segment_ast2700_reg(struct aspeed_spi *aspi,
 					  u64 start, u64 end)
 {
+	if (start == end)
+		return 0;
+
 	return (u32)((((start) >> 16) & 0xffff) |
 		     ((end + 1) & 0xffff0000));
 }
@@ -1337,7 +1340,7 @@ no_calib:
 
 	/* Nothing found ? */
 	if (best_div < 0) {
-		dev_warn(aspi->dev, "No good frequency, using dumb slow");
+		dev_warn(aspi->dev, "No good frequency\n");
 		if (data->get_clk_div)
 			clk_div_config = data->get_clk_div(chip, max_freq);
 	} else {
