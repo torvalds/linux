@@ -52,6 +52,8 @@ struct nvkm_chan *nvkm_chan_get_chid(struct nvkm_engine *, int id, unsigned long
 struct nvkm_chan *nvkm_chan_get_inst(struct nvkm_engine *, u64 inst, unsigned long *irqflags);
 void nvkm_chan_put(struct nvkm_chan **, unsigned long irqflags);
 
+struct nvkm_chan *nvkm_uchan_chan(struct nvkm_object *);
+
 struct nvkm_fifo {
 	const struct nvkm_fifo_func *func;
 	struct nvkm_engine engine;

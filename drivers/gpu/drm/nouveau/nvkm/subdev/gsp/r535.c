@@ -851,6 +851,10 @@ r535_gsp_intr_get_table(struct nvkm_gsp *gsp)
 			type = NVKM_ENGINE_DISP;
 			inst = 0;
 			break;
+		case MC_ENGINE_IDX_CE0 ... MC_ENGINE_IDX_CE9:
+			type = NVKM_ENGINE_CE;
+			inst = ctrl->table[i].engineIdx - MC_ENGINE_IDX_CE0;
+			break;
 		default:
 			continue;
 		}

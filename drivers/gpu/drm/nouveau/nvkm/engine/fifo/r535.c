@@ -331,6 +331,22 @@ static const struct nvkm_cgrp_func
 r535_cgrp = {
 };
 
+static int
+r535_engn_nonstall(struct nvkm_engn *engn)
+{
+	struct nvkm_subdev *subdev = &engn->engine->subdev;
+	int ret;
+
+	ret = nvkm_gsp_intr_nonstall(subdev->device->gsp, subdev->type, subdev->inst);
+	WARN_ON(ret < 0);
+	return ret;
+}
+
+static const struct nvkm_engn_func
+r535_ce = {
+	.nonstall = r535_engn_nonstall,
+};
+
 static void
 r535_runl_allow(struct nvkm_runl *runl, u32 engm)
 {
@@ -458,6 +474,9 @@ r535_fifo_runl_ctor(struct nvkm_fifo *fifo)
 		}
 
 		switch (type) {
+		case NVKM_ENGINE_CE:
+			engn = nvkm_runl_add(runl, nv2080, &r535_ce, type, inst);
+			break;
 		case NVKM_ENGINE_SW:
 			continue;
 		default:

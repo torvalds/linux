@@ -1,10 +1,10 @@
-#ifndef __src_nvidia_inc_kernel_gpu_intr_engine_idx_h__
-#define __src_nvidia_inc_kernel_gpu_intr_engine_idx_h__
+#ifndef __src_common_sdk_nvidia_inc_class_clc0b5sw_h__
+#define __src_common_sdk_nvidia_inc_class_clc0b5sw_h__
 
 /* Excerpt of RM headers from https://github.com/NVIDIA/open-gpu-kernel-modules/tree/535.54.03 */
 
 /*
- * SPDX-FileCopyrightText: Copyright (c) 1993-2023 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-FileCopyrightText: Copyright (c) 2014-2022 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: MIT
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -26,12 +26,9 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-#define MC_ENGINE_IDX_DISP                          2
-
-#define MC_ENGINE_IDX_CE0                           15
-
-#define MC_ENGINE_IDX_CE9                           24
-
-#define MC_ENGINE_IDX_GSP                           49
+typedef struct NVC0B5_ALLOCATION_PARAMETERS {
+    NvU32 version;
+    NvU32 engineType;
+} NVC0B5_ALLOCATION_PARAMETERS;
 
 #endif
