@@ -3078,6 +3078,17 @@ static __be32 nfsd4_encode_fattr4_rdattr_error(struct xdr_stream *xdr,
 	return nfsd4_encode_uint32_t(xdr, args->rdattr_err);
 }
 
+static __be32 nfsd4_encode_fattr4_aclsupport(struct xdr_stream *xdr,
+					     const struct nfsd4_fattr_args *args)
+{
+	u32 mask;
+
+	mask = 0;
+	if (IS_POSIXACL(d_inode(args->dentry)))
+		mask = ACL4_SUPPORT_ALLOW_ACL | ACL4_SUPPORT_DENY_ACL;
+	return nfsd4_encode_uint32_t(xdr, mask);
+}
+
 /*
  * Note: @fhp can be NULL; in this case, we might have to compose the filehandle
  * ourselves.
@@ -3297,11 +3308,9 @@ nfsd4_encode_fattr(struct xdr_stream *xdr, struct svc_fh *fhp,
 	}
 out_acl:
 	if (bmval0 & FATTR4_WORD0_ACLSUPPORT) {
-		p = xdr_reserve_space(xdr, 4);
-		if (!p)
-			goto out_resource;
-		*p++ = cpu_to_be32(IS_POSIXACL(dentry->d_inode) ?
-			ACL4_SUPPORT_ALLOW_ACL|ACL4_SUPPORT_DENY_ACL : 0);
+		status = nfsd4_encode_fattr4_aclsupport(xdr, &args);
+		if (status != nfs_ok)
+			goto out;
 	}
 	if (bmval0 & FATTR4_WORD0_CANSETTIME) {
 		status = nfsd4_encode_fattr4__true(xdr, &args);
