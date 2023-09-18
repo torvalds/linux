@@ -3249,6 +3249,12 @@ static __be32 nfsd4_encode_fattr4_space_total(struct xdr_stream *xdr,
 	return nfsd4_encode_uint64_t(xdr, total);
 }
 
+static __be32 nfsd4_encode_fattr4_space_used(struct xdr_stream *xdr,
+					     const struct nfsd4_fattr_args *args)
+{
+	return nfsd4_encode_uint64_t(xdr, (u64)args->stat.blocks << 9);
+}
+
 /*
  * Note: @fhp can be NULL; in this case, we might have to compose the filehandle
  * ourselves.
@@ -3267,7 +3273,6 @@ nfsd4_encode_fattr(struct xdr_stream *xdr, struct svc_fh *fhp,
 	__be32 *p, *attrlen_p;
 	int starting_len = xdr->buf->len;
 	int attrlen_offset;
-	u64 dummy64;
 	__be32 status;
 	int err;
 #ifdef CONFIG_NFSD_V4_SECURITY_LABEL
@@ -3573,11 +3578,9 @@ nfsd4_encode_fattr(struct xdr_stream *xdr, struct svc_fh *fhp,
 			goto out;
 	}
 	if (bmval1 & FATTR4_WORD1_SPACE_USED) {
-		p = xdr_reserve_space(xdr, 8);
-		if (!p)
-			goto out_resource;
-		dummy64 = (u64)args.stat.blocks << 9;
-		p = xdr_encode_hyper(p, dummy64);
+		status = nfsd4_encode_fattr4_space_used(xdr, &args);
+		if (status != nfs_ok)
+			goto out;
 	}
 	if (bmval1 & FATTR4_WORD1_TIME_ACCESS) {
 		status = nfsd4_encode_nfstime4(xdr, &args.stat.atime);
