@@ -3165,6 +3165,12 @@ static __be32 nfsd4_encode_fattr4_maxlink(struct xdr_stream *xdr,
 	return nfsd4_encode_uint32_t(xdr, 255);
 }
 
+static __be32 nfsd4_encode_fattr4_maxname(struct xdr_stream *xdr,
+					  const struct nfsd4_fattr_args *args)
+{
+	return nfsd4_encode_uint32_t(xdr, args->statfs.f_namelen);
+}
+
 /*
  * Note: @fhp can be NULL; in this case, we might have to compose the filehandle
  * ourselves.
@@ -3429,10 +3435,9 @@ nfsd4_encode_fattr(struct xdr_stream *xdr, struct svc_fh *fhp,
 			goto out;
 	}
 	if (bmval0 & FATTR4_WORD0_MAXNAME) {
-		p = xdr_reserve_space(xdr, 4);
-		if (!p)
-			goto out_resource;
-		*p++ = cpu_to_be32(args.statfs.f_namelen);
+		status = nfsd4_encode_fattr4_maxname(xdr, &args);
+		if (status != nfs_ok)
+			goto out;
 	}
 	if (bmval0 & FATTR4_WORD0_MAXREAD) {
 		p = xdr_reserve_space(xdr, 8);
