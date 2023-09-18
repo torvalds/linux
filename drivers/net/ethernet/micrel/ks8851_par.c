@@ -327,11 +327,9 @@ static int ks8851_probe_par(struct platform_device *pdev)
 	return ks8851_probe_common(netdev, dev, msg_enable);
 }
 
-static int ks8851_remove_par(struct platform_device *pdev)
+static void ks8851_remove_par(struct platform_device *pdev)
 {
 	ks8851_remove_common(&pdev->dev);
-
-	return 0;
 }
 
 static const struct of_device_id ks8851_match_table[] = {
@@ -347,7 +345,7 @@ static struct platform_driver ks8851_driver = {
 		.pm = &ks8851_pm_ops,
 	},
 	.probe = ks8851_probe_par,
-	.remove = ks8851_remove_par,
+	.remove_new = ks8851_remove_par,
 };
 module_platform_driver(ks8851_driver);
 
