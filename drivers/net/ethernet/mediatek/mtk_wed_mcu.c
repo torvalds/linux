@@ -234,19 +234,13 @@ int mtk_wed_mcu_msg_update(struct mtk_wed_device *dev, int id, void *data,
 }
 
 static int
-mtk_wed_get_memory_region(struct mtk_wed_wo *wo,
+mtk_wed_get_memory_region(struct mtk_wed_hw *hw, int index,
 			  struct mtk_wed_wo_memory_region *region)
 {
 	struct reserved_mem *rmem;
 	struct device_node *np;
-	int index;
 
-	index = of_property_match_string(wo->hw->node, "memory-region-names",
-					 region->name);
-	if (index < 0)
-		return index;
-
-	np = of_parse_phandle(wo->hw->node, "memory-region", index);
+	np = of_parse_phandle(hw->node, "memory-region", index);
 	if (!np)
 		return -ENODEV;
 
@@ -258,7 +252,7 @@ mtk_wed_get_memory_region(struct mtk_wed_wo *wo,
 
 	region->phy_addr = rmem->base;
 	region->size = rmem->size;
-	region->addr = devm_ioremap(wo->hw->dev, region->phy_addr, region->size);
+	region->addr = devm_ioremap(hw->dev, region->phy_addr, region->size);
 
 	return !region->addr ? -EINVAL : 0;
 }
@@ -270,6 +264,9 @@ mtk_wed_mcu_run_firmware(struct mtk_wed_wo *wo, const struct firmware *fw,
 	const u8 *first_region_ptr, *region_ptr, *trailer_ptr, *ptr = fw->data;
 	const struct mtk_wed_fw_trailer *trailer;
 	const struct mtk_wed_fw_region *fw_region;
+
+	if (!region->phy_addr || !region->size)
+		return 0;
 
 	trailer_ptr = fw->data + fw->size - sizeof(*trailer);
 	trailer = (const struct mtk_wed_fw_trailer *)trailer_ptr;
@@ -318,7 +315,13 @@ mtk_wed_mcu_load_firmware(struct mtk_wed_wo *wo)
 
 	/* load firmware region metadata */
 	for (i = 0; i < ARRAY_SIZE(mem_region); i++) {
-		ret = mtk_wed_get_memory_region(wo, &mem_region[i]);
+		int index = of_property_match_string(wo->hw->node,
+						     "memory-region-names",
+						     mem_region[i].name);
+		if (index < 0)
+			continue;
+
+		ret = mtk_wed_get_memory_region(wo->hw, index, &mem_region[i]);
 		if (ret)
 			return ret;
 	}
