@@ -2483,13 +2483,28 @@ static void mainunit_2_int_handler(struct rk_hdmirx_dev *hdmirx_dev,
 	hdmirx_writel(hdmirx_dev, MAINUNIT_2_INT_FORCE, 0x0);
 }
 
+/*
+ * In the normal preview, some scenarios will trigger the change interrupt
+ * by mistake, and the trigger source of the interrupt needs to be detected
+ * to avoid the problem.
+ */
 static void pkt_0_int_handler(struct rk_hdmirx_dev *hdmirx_dev,
 		int status, bool *handled)
 {
 	struct v4l2_device *v4l2_dev = &hdmirx_dev->v4l2_dev;
+	u32 pre_fmt_fourcc = hdmirx_dev->cur_fmt_fourcc;
+	u32 pre_color_range = hdmirx_dev->cur_color_range;
+	u32 pre_color_space = hdmirx_dev->cur_color_space;
 
 	if ((status & PKTDEC_AVIIF_CHG_IRQ)) {
-		process_signal_change(hdmirx_dev);
+		hdmirx_get_color_range(hdmirx_dev);
+		hdmirx_get_color_space(hdmirx_dev);
+		hdmirx_get_pix_fmt(hdmirx_dev);
+		if (hdmirx_dev->cur_fmt_fourcc != pre_fmt_fourcc ||
+		    hdmirx_dev->cur_color_range != pre_color_range ||
+		    hdmirx_dev->cur_color_space != pre_color_space) {
+			process_signal_change(hdmirx_dev);
+		}
 		v4l2_dbg(2, debug, v4l2_dev, "%s: ptk0_st:%#x\n",
 				__func__, status);
 		*handled = true;
