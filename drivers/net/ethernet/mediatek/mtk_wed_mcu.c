@@ -16,14 +16,30 @@
 #include "mtk_wed_wo.h"
 #include "mtk_wed.h"
 
+static struct mtk_wed_wo_memory_region mem_region[] = {
+	[MTK_WED_WO_REGION_EMI] = {
+		.name = "wo-emi",
+	},
+	[MTK_WED_WO_REGION_ILM] = {
+		.name = "wo-ilm",
+	},
+	[MTK_WED_WO_REGION_DATA] = {
+		.name = "wo-data",
+		.shared = true,
+	},
+	[MTK_WED_WO_REGION_BOOT] = {
+		.name = "wo-boot",
+	},
+};
+
 static u32 wo_r32(struct mtk_wed_wo *wo, u32 reg)
 {
-	return readl(wo->boot.addr + reg);
+	return readl(mem_region[MTK_WED_WO_REGION_BOOT].addr + reg);
 }
 
 static void wo_w32(struct mtk_wed_wo *wo, u32 reg, u32 val)
 {
-	writel(val, wo->boot.addr + reg);
+	writel(val, mem_region[MTK_WED_WO_REGION_BOOT].addr + reg);
 }
 
 static struct sk_buff *
@@ -294,18 +310,6 @@ next:
 static int
 mtk_wed_mcu_load_firmware(struct mtk_wed_wo *wo)
 {
-	static struct mtk_wed_wo_memory_region mem_region[] = {
-		[MTK_WED_WO_REGION_EMI] = {
-			.name = "wo-emi",
-		},
-		[MTK_WED_WO_REGION_ILM] = {
-			.name = "wo-ilm",
-		},
-		[MTK_WED_WO_REGION_DATA] = {
-			.name = "wo-data",
-			.shared = true,
-		},
-	};
 	const struct mtk_wed_fw_trailer *trailer;
 	const struct firmware *fw;
 	const char *fw_name;
@@ -318,11 +322,6 @@ mtk_wed_mcu_load_firmware(struct mtk_wed_wo *wo)
 		if (ret)
 			return ret;
 	}
-
-	wo->boot.name = "wo-boot";
-	ret = mtk_wed_get_memory_region(wo, &wo->boot);
-	if (ret)
-		return ret;
 
 	/* set dummy cr */
 	wed_w32(wo->hw->wed_dev, MTK_WED_SCR0 + 4 * MTK_WED_DUMMY_CR_FWDL,
