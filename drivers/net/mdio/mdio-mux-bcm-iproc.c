@@ -287,15 +287,13 @@ out_clk:
 	return rc;
 }
 
-static int mdio_mux_iproc_remove(struct platform_device *pdev)
+static void mdio_mux_iproc_remove(struct platform_device *pdev)
 {
 	struct iproc_mdiomux_desc *md = platform_get_drvdata(pdev);
 
 	mdio_mux_uninit(md->mux_handle);
 	mdiobus_unregister(md->mii_bus);
 	clk_disable_unprepare(md->core_clk);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -342,7 +340,7 @@ static struct platform_driver mdiomux_iproc_driver = {
 		.pm		= &mdio_mux_iproc_pm_ops,
 	},
 	.probe		= mdio_mux_iproc_probe,
-	.remove		= mdio_mux_iproc_remove,
+	.remove_new	= mdio_mux_iproc_remove,
 };
 
 module_platform_driver(mdiomux_iproc_driver);
