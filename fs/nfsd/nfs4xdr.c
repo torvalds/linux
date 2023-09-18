@@ -2784,25 +2784,6 @@ static __be32 nfsd4_encode_nfsace4(struct xdr_stream *xdr, struct svc_rqst *rqst
 	return nfsd4_encode_user(xdr, rqstp, ace->who_uid);
 }
 
-static inline __be32
-nfsd4_encode_layout_types(struct xdr_stream *xdr, u32 layout_types)
-{
-	__be32		*p;
-	unsigned long	i = hweight_long(layout_types);
-
-	p = xdr_reserve_space(xdr, 4 + 4 * i);
-	if (!p)
-		return nfserr_resource;
-
-	*p++ = cpu_to_be32(i);
-
-	for (i = LAYOUT_NFSV4_1_FILES; i < LAYOUT_TYPE_MAX; ++i)
-		if (layout_types & (1 << i))
-			*p++ = cpu_to_be32(i);
-
-	return 0;
-}
-
 #define WORD0_ABSENT_FS_ATTRS (FATTR4_WORD0_FS_LOCATIONS | FATTR4_WORD0_FSID | \
 			      FATTR4_WORD0_RDATTR_ERROR)
 #define WORD1_ABSENT_FS_ATTRS FATTR4_WORD1_MOUNTED_ON_FILEID
@@ -3313,6 +3294,24 @@ static __be32 nfsd4_encode_fattr4_fs_layout_types(struct xdr_stream *xdr,
 	return nfs_ok;
 }
 
+static __be32 nfsd4_encode_fattr4_layout_types(struct xdr_stream *xdr,
+					       const struct nfsd4_fattr_args *args)
+{
+	unsigned long mask = args->exp->ex_layout_types;
+	int i;
+
+	/* Hamming weight of @mask is the number of layout types to return */
+	if (xdr_stream_encode_u32(xdr, hweight_long(mask)) != XDR_UNIT)
+		return nfserr_resource;
+	for (i = LAYOUT_NFSV4_1_FILES; i < LAYOUT_TYPE_MAX; ++i)
+		if (mask & BIT(i)) {
+			/* layouttype4 */
+			if (xdr_stream_encode_u32(xdr, i) != XDR_UNIT)
+				return nfserr_resource;
+		}
+	return nfs_ok;
+}
+
 #endif
 
 /*
@@ -3681,7 +3680,7 @@ nfsd4_encode_fattr(struct xdr_stream *xdr, struct svc_fh *fhp,
 	}
 
 	if (bmval2 & FATTR4_WORD2_LAYOUT_TYPES) {
-		status = nfsd4_encode_layout_types(xdr, exp->ex_layout_types);
+		status = nfsd4_encode_fattr4_layout_types(xdr, &args);
 		if (status)
 			goto out;
 	}
