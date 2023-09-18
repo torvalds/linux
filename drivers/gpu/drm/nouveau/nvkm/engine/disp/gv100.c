@@ -1115,7 +1115,7 @@ gv100_disp_intr(struct nvkm_disp *disp)
 }
 
 void
-gv100_disp_fini(struct nvkm_disp *disp)
+gv100_disp_fini(struct nvkm_disp *disp, bool suspend)
 {
 	struct nvkm_device *device = disp->engine.subdev.device;
 	nvkm_wr32(device, 0x611db0, 0x00000000);

@@ -105,7 +105,7 @@ nvkm_disp_fini(struct nvkm_engine *engine, bool suspend)
 	struct nvkm_outp *outp;
 
 	if (disp->func->fini)
-		disp->func->fini(disp);
+		disp->func->fini(disp, suspend);
 
 	list_for_each_entry(outp, &disp->outps, head) {
 		if (outp->func->fini)
@@ -207,6 +207,9 @@ nvkm_disp_dtor(struct nvkm_engine *engine)
 		head = list_first_entry(&disp->heads, typeof(*head), head);
 		nvkm_head_del(&head);
 	}
+
+	if (disp->func->dtor)
+		disp->func->dtor(disp);
 
 	return data;
 }
