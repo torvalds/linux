@@ -222,9 +222,9 @@
 				label = "Secure OS Storage";
 				reg = <0x2280000 0x20000>; /* 128KB */
 			};
-			partition@22A0000 {
+			partition@22a0000 {
 				label = "User";
-				reg = <0x22A0000 0x1d60000>; /* 29.375 MB */
+				reg = <0x22a0000 0x1d60000>; /* 29.375 MB */
 			};
 		};
 	};
