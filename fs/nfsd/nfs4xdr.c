@@ -2530,6 +2530,12 @@ nfsd4_decode_compound(struct nfsd4_compoundargs *argp)
 	return true;
 }
 
+static __be32 nfsd4_encode_nfs_fh4(struct xdr_stream *xdr,
+				   struct knfsd_fh *fh_handle)
+{
+	return nfsd4_encode_opaque(xdr, fh_handle->fh_raw, fh_handle->fh_size);
+}
+
 static __be32 nfsd4_encode_nfstime4(struct xdr_stream *xdr,
 				    struct timespec64 *tv)
 {
@@ -3125,6 +3131,12 @@ static __be32 nfsd4_encode_fattr4_acl(struct xdr_stream *xdr,
 	return nfs_ok;
 }
 
+static __be32 nfsd4_encode_fattr4_filehandle(struct xdr_stream *xdr,
+					     const struct nfsd4_fattr_args *args)
+{
+	return nfsd4_encode_nfs_fh4(xdr, &args->fhp->fh_handle);
+}
+
 /*
  * Note: @fhp can be NULL; in this case, we might have to compose the filehandle
  * ourselves.
@@ -3344,11 +3356,9 @@ nfsd4_encode_fattr(struct xdr_stream *xdr, struct svc_fh *fhp,
 			goto out;
 	}
 	if (bmval0 & FATTR4_WORD0_FILEHANDLE) {
-		p = xdr_reserve_space(xdr, args.fhp->fh_handle.fh_size + 4);
-		if (!p)
-			goto out_resource;
-		p = xdr_encode_opaque(p, &args.fhp->fh_handle.fh_raw,
-					args.fhp->fh_handle.fh_size);
+		status = nfsd4_encode_fattr4_filehandle(xdr, &args);
+		if (status != nfs_ok)
+			goto out;
 	}
 	if (bmval0 & FATTR4_WORD0_FILEID) {
 		p = xdr_reserve_space(xdr, 8);
@@ -3933,18 +3943,11 @@ static __be32
 nfsd4_encode_getfh(struct nfsd4_compoundres *resp, __be32 nfserr,
 		   union nfsd4_op_u *u)
 {
-	struct svc_fh **fhpp = &u->getfh;
 	struct xdr_stream *xdr = resp->xdr;
-	struct svc_fh *fhp = *fhpp;
-	unsigned int len;
-	__be32 *p;
+	struct svc_fh *fhp = u->getfh;
 
-	len = fhp->fh_handle.fh_size;
-	p = xdr_reserve_space(xdr, len + 4);
-	if (!p)
-		return nfserr_resource;
-	p = xdr_encode_opaque(p, &fhp->fh_handle.fh_raw, len);
-	return 0;
+	/* object */
+	return nfsd4_encode_nfs_fh4(xdr, &fhp->fh_handle);
 }
 
 /*
