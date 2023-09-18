@@ -2903,6 +2903,15 @@ struct nfsd4_fattr_args {
 	bool			ignore_crossmnt;
 };
 
+typedef __be32(*nfsd4_enc_attr)(struct xdr_stream *xdr,
+				const struct nfsd4_fattr_args *args);
+
+static __be32 nfsd4_encode_fattr4__noop(struct xdr_stream *xdr,
+					const struct nfsd4_fattr_args *args)
+{
+	return nfs_ok;
+}
+
 static __be32 nfsd4_encode_fattr4__true(struct xdr_stream *xdr,
 					const struct nfsd4_fattr_args *args)
 {
@@ -3355,6 +3364,108 @@ static __be32 nfsd4_encode_fattr4_xattr_support(struct xdr_stream *xdr,
 	return nfsd4_encode_bool(xdr, err == 0);
 }
 
+static const nfsd4_enc_attr nfsd4_enc_fattr4_encode_ops[] = {
+	[FATTR4_SUPPORTED_ATTRS]	= nfsd4_encode_fattr4_supported_attrs,
+	[FATTR4_TYPE]			= nfsd4_encode_fattr4_type,
+	[FATTR4_FH_EXPIRE_TYPE]		= nfsd4_encode_fattr4_fh_expire_type,
+	[FATTR4_CHANGE]			= nfsd4_encode_fattr4_change,
+	[FATTR4_SIZE]			= nfsd4_encode_fattr4_size,
+	[FATTR4_LINK_SUPPORT]		= nfsd4_encode_fattr4__true,
+	[FATTR4_SYMLINK_SUPPORT]	= nfsd4_encode_fattr4__true,
+	[FATTR4_NAMED_ATTR]		= nfsd4_encode_fattr4__false,
+	[FATTR4_FSID]			= nfsd4_encode_fattr4_fsid,
+	[FATTR4_UNIQUE_HANDLES]		= nfsd4_encode_fattr4__true,
+	[FATTR4_LEASE_TIME]		= nfsd4_encode_fattr4_lease_time,
+	[FATTR4_RDATTR_ERROR]		= nfsd4_encode_fattr4_rdattr_error,
+	[FATTR4_ACL]			= nfsd4_encode_fattr4_acl,
+	[FATTR4_ACLSUPPORT]		= nfsd4_encode_fattr4_aclsupport,
+	[FATTR4_ARCHIVE]		= nfsd4_encode_fattr4__noop,
+	[FATTR4_CANSETTIME]		= nfsd4_encode_fattr4__true,
+	[FATTR4_CASE_INSENSITIVE]	= nfsd4_encode_fattr4__false,
+	[FATTR4_CASE_PRESERVING]	= nfsd4_encode_fattr4__true,
+	[FATTR4_CHOWN_RESTRICTED]	= nfsd4_encode_fattr4__true,
+	[FATTR4_FILEHANDLE]		= nfsd4_encode_fattr4_filehandle,
+	[FATTR4_FILEID]			= nfsd4_encode_fattr4_fileid,
+	[FATTR4_FILES_AVAIL]		= nfsd4_encode_fattr4_files_avail,
+	[FATTR4_FILES_FREE]		= nfsd4_encode_fattr4_files_free,
+	[FATTR4_FILES_TOTAL]		= nfsd4_encode_fattr4_files_total,
+	[FATTR4_FS_LOCATIONS]		= nfsd4_encode_fattr4_fs_locations,
+	[FATTR4_HIDDEN]			= nfsd4_encode_fattr4__noop,
+	[FATTR4_HOMOGENEOUS]		= nfsd4_encode_fattr4__true,
+	[FATTR4_MAXFILESIZE]		= nfsd4_encode_fattr4_maxfilesize,
+	[FATTR4_MAXLINK]		= nfsd4_encode_fattr4_maxlink,
+	[FATTR4_MAXNAME]		= nfsd4_encode_fattr4_maxname,
+	[FATTR4_MAXREAD]		= nfsd4_encode_fattr4_maxread,
+	[FATTR4_MAXWRITE]		= nfsd4_encode_fattr4_maxwrite,
+	[FATTR4_MIMETYPE]		= nfsd4_encode_fattr4__noop,
+	[FATTR4_MODE]			= nfsd4_encode_fattr4_mode,
+	[FATTR4_NO_TRUNC]		= nfsd4_encode_fattr4__true,
+	[FATTR4_NUMLINKS]		= nfsd4_encode_fattr4_numlinks,
+	[FATTR4_OWNER]			= nfsd4_encode_fattr4_owner,
+	[FATTR4_OWNER_GROUP]		= nfsd4_encode_fattr4_owner_group,
+	[FATTR4_QUOTA_AVAIL_HARD]	= nfsd4_encode_fattr4__noop,
+	[FATTR4_QUOTA_AVAIL_SOFT]	= nfsd4_encode_fattr4__noop,
+	[FATTR4_QUOTA_USED]		= nfsd4_encode_fattr4__noop,
+	[FATTR4_RAWDEV]			= nfsd4_encode_fattr4_rawdev,
+	[FATTR4_SPACE_AVAIL]		= nfsd4_encode_fattr4_space_avail,
+	[FATTR4_SPACE_FREE]		= nfsd4_encode_fattr4_space_free,
+	[FATTR4_SPACE_TOTAL]		= nfsd4_encode_fattr4_space_total,
+	[FATTR4_SPACE_USED]		= nfsd4_encode_fattr4_space_used,
+	[FATTR4_SYSTEM]			= nfsd4_encode_fattr4__noop,
+	[FATTR4_TIME_ACCESS]		= nfsd4_encode_fattr4_time_access,
+	[FATTR4_TIME_ACCESS_SET]	= nfsd4_encode_fattr4__noop,
+	[FATTR4_TIME_BACKUP]		= nfsd4_encode_fattr4__noop,
+	[FATTR4_TIME_CREATE]		= nfsd4_encode_fattr4_time_create,
+	[FATTR4_TIME_DELTA]		= nfsd4_encode_fattr4_time_delta,
+	[FATTR4_TIME_METADATA]		= nfsd4_encode_fattr4_time_metadata,
+	[FATTR4_TIME_MODIFY]		= nfsd4_encode_fattr4_time_modify,
+	[FATTR4_TIME_MODIFY_SET]	= nfsd4_encode_fattr4__noop,
+	[FATTR4_MOUNTED_ON_FILEID]	= nfsd4_encode_fattr4_mounted_on_fileid,
+	[FATTR4_DIR_NOTIF_DELAY]	= nfsd4_encode_fattr4__noop,
+	[FATTR4_DIRENT_NOTIF_DELAY]	= nfsd4_encode_fattr4__noop,
+	[FATTR4_DACL]			= nfsd4_encode_fattr4__noop,
+	[FATTR4_SACL]			= nfsd4_encode_fattr4__noop,
+	[FATTR4_CHANGE_POLICY]		= nfsd4_encode_fattr4__noop,
+	[FATTR4_FS_STATUS]		= nfsd4_encode_fattr4__noop,
+
+#ifdef CONFIG_NFSD_PNFS
+	[FATTR4_FS_LAYOUT_TYPES]	= nfsd4_encode_fattr4_fs_layout_types,
+	[FATTR4_LAYOUT_HINT]		= nfsd4_encode_fattr4__noop,
+	[FATTR4_LAYOUT_TYPES]		= nfsd4_encode_fattr4_layout_types,
+	[FATTR4_LAYOUT_BLKSIZE]		= nfsd4_encode_fattr4_layout_blksize,
+	[FATTR4_LAYOUT_ALIGNMENT]	= nfsd4_encode_fattr4__noop,
+#else
+	[FATTR4_FS_LAYOUT_TYPES]	= nfsd4_encode_fattr4__noop,
+	[FATTR4_LAYOUT_HINT]		= nfsd4_encode_fattr4__noop,
+	[FATTR4_LAYOUT_TYPES]		= nfsd4_encode_fattr4__noop,
+	[FATTR4_LAYOUT_BLKSIZE]		= nfsd4_encode_fattr4__noop,
+	[FATTR4_LAYOUT_ALIGNMENT]	= nfsd4_encode_fattr4__noop,
+#endif
+
+	[FATTR4_FS_LOCATIONS_INFO]	= nfsd4_encode_fattr4__noop,
+	[FATTR4_MDSTHRESHOLD]		= nfsd4_encode_fattr4__noop,
+	[FATTR4_RETENTION_GET]		= nfsd4_encode_fattr4__noop,
+	[FATTR4_RETENTION_SET]		= nfsd4_encode_fattr4__noop,
+	[FATTR4_RETENTEVT_GET]		= nfsd4_encode_fattr4__noop,
+	[FATTR4_RETENTEVT_SET]		= nfsd4_encode_fattr4__noop,
+	[FATTR4_RETENTION_HOLD]		= nfsd4_encode_fattr4__noop,
+	[FATTR4_MODE_SET_MASKED]	= nfsd4_encode_fattr4__noop,
+	[FATTR4_SUPPATTR_EXCLCREAT]	= nfsd4_encode_fattr4_suppattr_exclcreat,
+	[FATTR4_FS_CHARSET_CAP]		= nfsd4_encode_fattr4__noop,
+	[FATTR4_CLONE_BLKSIZE]		= nfsd4_encode_fattr4__noop,
+	[FATTR4_SPACE_FREED]		= nfsd4_encode_fattr4__noop,
+	[FATTR4_CHANGE_ATTR_TYPE]	= nfsd4_encode_fattr4__noop,
+
+#ifdef CONFIG_NFSD_V4_SECURITY_LABEL
+	[FATTR4_SEC_LABEL]		= nfsd4_encode_fattr4_sec_label,
+#else
+	[FATTR4_SEC_LABEL]		= nfsd4_encode_fattr4__noop,
+#endif
+
+	[FATTR4_MODE_UMASK]		= nfsd4_encode_fattr4__noop,
+	[FATTR4_XATTR_SUPPORT]		= nfsd4_encode_fattr4_xattr_support,
+};
+
 /*
  * Note: @fhp can be NULL; in this case, we might have to compose the filehandle
  * ourselves.
@@ -3362,13 +3473,10 @@ static __be32 nfsd4_encode_fattr4_xattr_support(struct xdr_stream *xdr,
 static __be32
 nfsd4_encode_fattr(struct xdr_stream *xdr, struct svc_fh *fhp,
 		struct svc_export *exp,
-		struct dentry *dentry, u32 *bmval,
+		struct dentry *dentry, const u32 *bmval,
 		struct svc_rqst *rqstp, int ignore_crossmnt)
 {
 	struct nfsd4_fattr_args args;
-	u32 bmval0 = bmval[0];
-	u32 bmval1 = bmval[1];
-	u32 bmval2 = bmval[2];
 	struct svc_fh *tempfh = NULL;
 	int starting_len = xdr->buf->len;
 	__be32 *attrlen_p, status;
@@ -3380,26 +3488,39 @@ nfsd4_encode_fattr(struct xdr_stream *xdr, struct svc_fh *fhp,
 		.mnt	= exp->ex_path.mnt,
 		.dentry	= dentry,
 	};
+	union {
+		u32		attrmask[3];
+		unsigned long	mask[2];
+	} u;
 	bool file_modified;
+	unsigned long bit;
 	u64 size = 0;
 
-	BUG_ON(bmval1 & NFSD_WRITEONLY_ATTRS_WORD1);
-	BUG_ON(!nfsd_attrs_supported(minorversion, bmval));
+	WARN_ON_ONCE(bmval[1] & NFSD_WRITEONLY_ATTRS_WORD1);
+	WARN_ON_ONCE(!nfsd_attrs_supported(minorversion, bmval));
 
 	args.rqstp = rqstp;
 	args.exp = exp;
 	args.dentry = dentry;
 	args.ignore_crossmnt = (ignore_crossmnt != 0);
 
+	/*
+	 * Make a local copy of the attribute bitmap that can be modified.
+	 */
+	memset(&u, 0, sizeof(u));
+	u.attrmask[0] = bmval[0];
+	u.attrmask[1] = bmval[1];
+	u.attrmask[2] = bmval[2];
+
 	args.rdattr_err = 0;
 	if (exp->ex_fslocs.migrated) {
-		status = fattr_handle_absent_fs(&bmval0, &bmval1, &bmval2,
-						&args.rdattr_err);
+		status = fattr_handle_absent_fs(&u.attrmask[0], &u.attrmask[1],
+						&u.attrmask[2], &args.rdattr_err);
 		if (status)
 			goto out;
 	}
 	args.size = 0;
-	if (bmval0 & (FATTR4_WORD0_CHANGE | FATTR4_WORD0_SIZE)) {
+	if (u.attrmask[0] & (FATTR4_WORD0_CHANGE | FATTR4_WORD0_SIZE)) {
 		status = nfsd4_deleg_getattr_conflict(rqstp, d_inode(dentry),
 						      &file_modified, &size);
 		if (status)
@@ -3415,16 +3536,17 @@ nfsd4_encode_fattr(struct xdr_stream *xdr, struct svc_fh *fhp,
 
 	if (!(args.stat.result_mask & STATX_BTIME))
 		/* underlying FS does not offer btime so we can't share it */
-		bmval1 &= ~FATTR4_WORD1_TIME_CREATE;
-	if ((bmval0 & (FATTR4_WORD0_FILES_AVAIL | FATTR4_WORD0_FILES_FREE |
+		u.attrmask[1] &= ~FATTR4_WORD1_TIME_CREATE;
+	if ((u.attrmask[0] & (FATTR4_WORD0_FILES_AVAIL | FATTR4_WORD0_FILES_FREE |
 			FATTR4_WORD0_FILES_TOTAL | FATTR4_WORD0_MAXNAME)) ||
-	    (bmval1 & (FATTR4_WORD1_SPACE_AVAIL | FATTR4_WORD1_SPACE_FREE |
+	    (u.attrmask[1] & (FATTR4_WORD1_SPACE_AVAIL | FATTR4_WORD1_SPACE_FREE |
 		       FATTR4_WORD1_SPACE_TOTAL))) {
 		err = vfs_statfs(&path, &args.statfs);
 		if (err)
 			goto out_nfserr;
 	}
-	if ((bmval0 & (FATTR4_WORD0_FILEHANDLE | FATTR4_WORD0_FSID)) && !fhp) {
+	if ((u.attrmask[0] & (FATTR4_WORD0_FILEHANDLE | FATTR4_WORD0_FSID)) &&
+	    !fhp) {
 		tempfh = kmalloc(sizeof(struct svc_fh), GFP_KERNEL);
 		status = nfserr_jukebox;
 		if (!tempfh)
@@ -3438,10 +3560,10 @@ nfsd4_encode_fattr(struct xdr_stream *xdr, struct svc_fh *fhp,
 		args.fhp = fhp;
 
 	args.acl = NULL;
-	if (bmval0 & FATTR4_WORD0_ACL) {
+	if (u.attrmask[0] & FATTR4_WORD0_ACL) {
 		err = nfsd4_get_nfs4_acl(rqstp, dentry, &args.acl);
 		if (err == -EOPNOTSUPP)
-			bmval0 &= ~FATTR4_WORD0_ACL;
+			u.attrmask[0] &= ~FATTR4_WORD0_ACL;
 		else if (err == -EINVAL) {
 			status = nfserr_attrnotsupp;
 			goto out;
@@ -3453,24 +3575,25 @@ nfsd4_encode_fattr(struct xdr_stream *xdr, struct svc_fh *fhp,
 
 #ifdef CONFIG_NFSD_V4_SECURITY_LABEL
 	args.context = NULL;
-	if ((bmval2 & FATTR4_WORD2_SECURITY_LABEL) ||
-	     bmval0 & FATTR4_WORD0_SUPPORTED_ATTRS) {
+	if ((u.attrmask[2] & FATTR4_WORD2_SECURITY_LABEL) ||
+	     u.attrmask[0] & FATTR4_WORD0_SUPPORTED_ATTRS) {
 		if (exp->ex_flags & NFSEXP_SECURITY_LABEL)
 			err = security_inode_getsecctx(d_inode(dentry),
 						&args.context, &args.contextlen);
 		else
 			err = -EOPNOTSUPP;
 		args.contextsupport = (err == 0);
-		if (bmval2 & FATTR4_WORD2_SECURITY_LABEL) {
+		if (u.attrmask[2] & FATTR4_WORD2_SECURITY_LABEL) {
 			if (err == -EOPNOTSUPP)
-				bmval2 &= ~FATTR4_WORD2_SECURITY_LABEL;
+				u.attrmask[2] &= ~FATTR4_WORD2_SECURITY_LABEL;
 			else if (err)
 				goto out_nfserr;
 		}
 	}
 #endif /* CONFIG_NFSD_V4_SECURITY_LABEL */
 
-	status = nfsd4_encode_bitmap4(xdr, bmval0, bmval1, bmval2);
+	status = nfsd4_encode_bitmap4(xdr, u.attrmask[0],
+				      u.attrmask[1], u.attrmask[2]);
 	if (status)
 		goto out;
 
@@ -3478,276 +3601,12 @@ nfsd4_encode_fattr(struct xdr_stream *xdr, struct svc_fh *fhp,
 	attrlen_p = xdr_reserve_space(xdr, XDR_UNIT);
 	if (!attrlen_p)
 		goto out_resource;
-
-	if (bmval0 & FATTR4_WORD0_SUPPORTED_ATTRS) {
-		status = nfsd4_encode_fattr4_supported_attrs(xdr, &args);
+	for_each_set_bit(bit, (const unsigned long *)&u.mask,
+			 ARRAY_SIZE(nfsd4_enc_fattr4_encode_ops)) {
+		status = nfsd4_enc_fattr4_encode_ops[bit](xdr, &args);
 		if (status != nfs_ok)
 			goto out;
 	}
-	if (bmval0 & FATTR4_WORD0_TYPE) {
-		status = nfsd4_encode_fattr4_type(xdr, &args);
-		if (status != nfs_ok)
-			goto out;
-	}
-	if (bmval0 & FATTR4_WORD0_FH_EXPIRE_TYPE) {
-		status = nfsd4_encode_fattr4_fh_expire_type(xdr, &args);
-		if (status != nfs_ok)
-			goto out;
-	}
-	if (bmval0 & FATTR4_WORD0_CHANGE) {
-		status = nfsd4_encode_fattr4_change(xdr, &args);
-		if (status != nfs_ok)
-			goto out;
-	}
-	if (bmval0 & FATTR4_WORD0_SIZE) {
-		status = nfsd4_encode_fattr4_size(xdr, &args);
-		if (status != nfs_ok)
-			goto out;
-	}
-	if (bmval0 & FATTR4_WORD0_LINK_SUPPORT) {
-		status = nfsd4_encode_fattr4__true(xdr, &args);
-		if (status != nfs_ok)
-			goto out;
-	}
-	if (bmval0 & FATTR4_WORD0_SYMLINK_SUPPORT) {
-		status = nfsd4_encode_fattr4__true(xdr, &args);
-		if (status != nfs_ok)
-			goto out;
-	}
-	if (bmval0 & FATTR4_WORD0_NAMED_ATTR) {
-		status = nfsd4_encode_fattr4__false(xdr, &args);
-		if (status != nfs_ok)
-			goto out;
-	}
-	if (bmval0 & FATTR4_WORD0_FSID) {
-		status = nfsd4_encode_fattr4_fsid(xdr, &args);
-		if (status != nfs_ok)
-			goto out;
-	}
-	if (bmval0 & FATTR4_WORD0_UNIQUE_HANDLES) {
-		status = nfsd4_encode_fattr4__false(xdr, &args);
-		if (status != nfs_ok)
-			goto out;
-	}
-	if (bmval0 & FATTR4_WORD0_LEASE_TIME) {
-		status = nfsd4_encode_fattr4_lease_time(xdr, &args);
-		if (status != nfs_ok)
-			goto out;
-	}
-	if (bmval0 & FATTR4_WORD0_RDATTR_ERROR) {
-		status = nfsd4_encode_fattr4_rdattr_error(xdr, &args);
-		if (status != nfs_ok)
-			goto out;
-	}
-	if (bmval0 & FATTR4_WORD0_ACL) {
-		status = nfsd4_encode_fattr4_acl(xdr, &args);
-		if (status)
-			goto out;
-	}
-	if (bmval0 & FATTR4_WORD0_ACLSUPPORT) {
-		status = nfsd4_encode_fattr4_aclsupport(xdr, &args);
-		if (status != nfs_ok)
-			goto out;
-	}
-	if (bmval0 & FATTR4_WORD0_CANSETTIME) {
-		status = nfsd4_encode_fattr4__true(xdr, &args);
-		if (status != nfs_ok)
-			goto out;
-	}
-	if (bmval0 & FATTR4_WORD0_CASE_INSENSITIVE) {
-		status = nfsd4_encode_fattr4__false(xdr, &args);
-		if (status != nfs_ok)
-			goto out;
-	}
-	if (bmval0 & FATTR4_WORD0_CASE_PRESERVING) {
-		status = nfsd4_encode_fattr4__true(xdr, &args);
-		if (status != nfs_ok)
-			goto out;
-	}
-	if (bmval0 & FATTR4_WORD0_CHOWN_RESTRICTED) {
-		status = nfsd4_encode_fattr4__true(xdr, &args);
-		if (status != nfs_ok)
-			goto out;
-	}
-	if (bmval0 & FATTR4_WORD0_FILEHANDLE) {
-		status = nfsd4_encode_fattr4_filehandle(xdr, &args);
-		if (status != nfs_ok)
-			goto out;
-	}
-	if (bmval0 & FATTR4_WORD0_FILEID) {
-		status = nfsd4_encode_fattr4_fileid(xdr, &args);
-		if (status != nfs_ok)
-			goto out;
-	}
-	if (bmval0 & FATTR4_WORD0_FILES_AVAIL) {
-		status = nfsd4_encode_fattr4_files_avail(xdr, &args);
-		if (status != nfs_ok)
-			goto out;
-	}
-	if (bmval0 & FATTR4_WORD0_FILES_FREE) {
-		status = nfsd4_encode_fattr4_files_free(xdr, &args);
-		if (status != nfs_ok)
-			goto out;
-	}
-	if (bmval0 & FATTR4_WORD0_FILES_TOTAL) {
-		status = nfsd4_encode_fattr4_files_total(xdr, &args);
-		if (status != nfs_ok)
-			goto out;
-	}
-	if (bmval0 & FATTR4_WORD0_FS_LOCATIONS) {
-		status = nfsd4_encode_fattr4_fs_locations(xdr, &args);
-		if (status != nfs_ok)
-			goto out;
-	}
-	if (bmval0 & FATTR4_WORD0_HOMOGENEOUS) {
-		status = nfsd4_encode_fattr4__true(xdr, &args);
-		if (status != nfs_ok)
-			goto out;
-	}
-	if (bmval0 & FATTR4_WORD0_MAXFILESIZE) {
-		status = nfsd4_encode_fattr4_maxfilesize(xdr, &args);
-		if (status != nfs_ok)
-			goto out;
-	}
-	if (bmval0 & FATTR4_WORD0_MAXLINK) {
-		status = nfsd4_encode_fattr4_maxlink(xdr, &args);
-		if (status != nfs_ok)
-			goto out;
-	}
-	if (bmval0 & FATTR4_WORD0_MAXNAME) {
-		status = nfsd4_encode_fattr4_maxname(xdr, &args);
-		if (status != nfs_ok)
-			goto out;
-	}
-	if (bmval0 & FATTR4_WORD0_MAXREAD) {
-		status = nfsd4_encode_fattr4_maxread(xdr, &args);
-		if (status != nfs_ok)
-			goto out;
-	}
-	if (bmval0 & FATTR4_WORD0_MAXWRITE) {
-		status = nfsd4_encode_fattr4_maxwrite(xdr, &args);
-		if (status != nfs_ok)
-			goto out;
-	}
-	if (bmval1 & FATTR4_WORD1_MODE) {
-		status = nfsd4_encode_fattr4_mode(xdr, &args);
-		if (status != nfs_ok)
-			goto out;
-	}
-	if (bmval1 & FATTR4_WORD1_NO_TRUNC) {
-		status = nfsd4_encode_fattr4__true(xdr, &args);
-		if (status != nfs_ok)
-			goto out;
-	}
-	if (bmval1 & FATTR4_WORD1_NUMLINKS) {
-		status = nfsd4_encode_fattr4_numlinks(xdr, &args);
-		if (status != nfs_ok)
-			goto out;
-	}
-	if (bmval1 & FATTR4_WORD1_OWNER) {
-		status = nfsd4_encode_fattr4_owner(xdr, &args);
-		if (status != nfs_ok)
-			goto out;
-	}
-	if (bmval1 & FATTR4_WORD1_OWNER_GROUP) {
-		status = nfsd4_encode_fattr4_owner_group(xdr, &args);
-		if (status != nfs_ok)
-			goto out;
-	}
-	if (bmval1 & FATTR4_WORD1_RAWDEV) {
-		status = nfsd4_encode_fattr4_rawdev(xdr, &args);
-		if (status != nfs_ok)
-			goto out;
-	}
-	if (bmval1 & FATTR4_WORD1_SPACE_AVAIL) {
-		status = nfsd4_encode_fattr4_space_avail(xdr, &args);
-		if (status != nfs_ok)
-			goto out;
-	}
-	if (bmval1 & FATTR4_WORD1_SPACE_FREE) {
-		status = nfsd4_encode_fattr4_space_free(xdr, &args);
-		if (status != nfs_ok)
-			goto out;
-	}
-	if (bmval1 & FATTR4_WORD1_SPACE_TOTAL) {
-		status = nfsd4_encode_fattr4_space_total(xdr, &args);
-		if (status != nfs_ok)
-			goto out;
-	}
-	if (bmval1 & FATTR4_WORD1_SPACE_USED) {
-		status = nfsd4_encode_fattr4_space_used(xdr, &args);
-		if (status != nfs_ok)
-			goto out;
-	}
-	if (bmval1 & FATTR4_WORD1_TIME_ACCESS) {
-		status = nfsd4_encode_fattr4_time_access(xdr, &args);
-		if (status)
-			goto out;
-	}
-	if (bmval1 & FATTR4_WORD1_TIME_CREATE) {
-		status = nfsd4_encode_fattr4_time_create(xdr, &args);
-		if (status)
-			goto out;
-	}
-	if (bmval1 & FATTR4_WORD1_TIME_DELTA) {
-		status = nfsd4_encode_fattr4_time_delta(xdr, &args);
-		if (status != nfs_ok)
-			goto out;
-	}
-	if (bmval1 & FATTR4_WORD1_TIME_METADATA) {
-		status = nfsd4_encode_fattr4_time_metadata(xdr, &args);
-		if (status)
-			goto out;
-	}
-	if (bmval1 & FATTR4_WORD1_TIME_MODIFY) {
-		status = nfsd4_encode_fattr4_time_modify(xdr, &args);
-		if (status)
-			goto out;
-	}
-	if (bmval1 & FATTR4_WORD1_MOUNTED_ON_FILEID) {
-		status = nfsd4_encode_fattr4_mounted_on_fileid(xdr, &args);
-		if (status != nfs_ok)
-			goto out;
-	}
-#ifdef CONFIG_NFSD_PNFS
-	if (bmval1 & FATTR4_WORD1_FS_LAYOUT_TYPES) {
-		status = nfsd4_encode_fattr4_fs_layout_types(xdr, &args);
-		if (status)
-			goto out;
-	}
-
-	if (bmval2 & FATTR4_WORD2_LAYOUT_TYPES) {
-		status = nfsd4_encode_fattr4_layout_types(xdr, &args);
-		if (status)
-			goto out;
-	}
-
-	if (bmval2 & FATTR4_WORD2_LAYOUT_BLKSIZE) {
-		status = nfsd4_encode_fattr4_layout_blksize(xdr, &args);
-		if (status != nfs_ok)
-			goto out;
-	}
-#endif /* CONFIG_NFSD_PNFS */
-	if (bmval2 & FATTR4_WORD2_SUPPATTR_EXCLCREAT) {
-		status = nfsd4_encode_fattr4_suppattr_exclcreat(xdr, &args);
-		if (status)
-			goto out;
-	}
-
-#ifdef CONFIG_NFSD_V4_SECURITY_LABEL
-	if (bmval2 & FATTR4_WORD2_SECURITY_LABEL) {
-		status = nfsd4_encode_fattr4_sec_label(xdr, &args);
-		if (status)
-			goto out;
-	}
-#endif
-
-	if (bmval2 & FATTR4_WORD2_XATTR_SUPPORT) {
-		status = nfsd4_encode_fattr4_xattr_support(xdr, &args);
-		if (status != nfs_ok)
-			goto out;
-	}
-
 	*attrlen_p = cpu_to_be32(xdr->buf->len - attrlen_offset - XDR_UNIT);
 	status = nfs_ok;
 
