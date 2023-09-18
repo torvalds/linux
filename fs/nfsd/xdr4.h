@@ -90,6 +90,8 @@ nfsd4_encode_uint32_t(struct xdr_stream *xdr, u32 val)
 	return nfs_ok;
 }
 
+#define nfsd4_encode_nfs_lease4(x, v)	nfsd4_encode_uint32_t(x, v)
+
 /**
  * nfsd4_encode_uint64_t - Encode an XDR uint64_t type result
  * @xdr: target XDR stream

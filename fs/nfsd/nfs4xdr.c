@@ -3064,6 +3064,14 @@ static __be32 nfsd4_encode_fattr4_fsid(struct xdr_stream *xdr,
 	return nfs_ok;
 }
 
+static __be32 nfsd4_encode_fattr4_lease_time(struct xdr_stream *xdr,
+					     const struct nfsd4_fattr_args *args)
+{
+	struct nfsd_net *nn = net_generic(SVC_NET(args->rqstp), nfsd_net_id);
+
+	return nfsd4_encode_nfs_lease4(xdr, nn->nfsd4_lease);
+}
+
 /*
  * Note: @fhp can be NULL; in this case, we might have to compose the filehandle
  * ourselves.
@@ -3095,7 +3103,6 @@ nfsd4_encode_fattr(struct xdr_stream *xdr, struct svc_fh *fhp,
 		.mnt	= exp->ex_path.mnt,
 		.dentry	= dentry,
 	};
-	struct nfsd_net *nn = net_generic(SVC_NET(rqstp), nfsd_net_id);
 	bool file_modified;
 	u64 size = 0;
 
@@ -3244,10 +3251,9 @@ nfsd4_encode_fattr(struct xdr_stream *xdr, struct svc_fh *fhp,
 			goto out;
 	}
 	if (bmval0 & FATTR4_WORD0_LEASE_TIME) {
-		p = xdr_reserve_space(xdr, 4);
-		if (!p)
-			goto out_resource;
-		*p++ = cpu_to_be32(nn->nfsd4_lease);
+		status = nfsd4_encode_fattr4_lease_time(xdr, &args);
+		if (status != nfs_ok)
+			goto out;
 	}
 	if (bmval0 & FATTR4_WORD0_RDATTR_ERROR) {
 		p = xdr_reserve_space(xdr, 4);
