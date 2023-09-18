@@ -422,7 +422,7 @@ free_pagelist:
 static int
 mtk_wed_rx_buffer_alloc(struct mtk_wed_device *dev)
 {
-	struct mtk_rxbm_desc *desc;
+	struct mtk_wed_bm_desc *desc;
 	dma_addr_t desc_phys;
 
 	dev->rx_buf_ring.size = dev->wlan.rx_nbuf;
@@ -442,7 +442,7 @@ mtk_wed_rx_buffer_alloc(struct mtk_wed_device *dev)
 static void
 mtk_wed_free_rx_buffer(struct mtk_wed_device *dev)
 {
-	struct mtk_rxbm_desc *desc = dev->rx_buf_ring.desc;
+	struct mtk_wed_bm_desc *desc = dev->rx_buf_ring.desc;
 
 	if (!desc)
 		return;
