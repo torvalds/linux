@@ -3312,6 +3312,12 @@ static __be32 nfsd4_encode_fattr4_layout_types(struct xdr_stream *xdr,
 	return nfs_ok;
 }
 
+static __be32 nfsd4_encode_fattr4_layout_blksize(struct xdr_stream *xdr,
+						 const struct nfsd4_fattr_args *args)
+{
+	return nfsd4_encode_uint32_t(xdr, args->stat.blksize);
+}
+
 #endif
 
 /*
@@ -3686,10 +3692,9 @@ nfsd4_encode_fattr(struct xdr_stream *xdr, struct svc_fh *fhp,
 	}
 
 	if (bmval2 & FATTR4_WORD2_LAYOUT_BLKSIZE) {
-		p = xdr_reserve_space(xdr, 4);
-		if (!p)
-			goto out_resource;
-		*p++ = cpu_to_be32(args.stat.blksize);
+		status = nfsd4_encode_fattr4_layout_blksize(xdr, &args);
+		if (status != nfs_ok)
+			goto out;
 	}
 #endif /* CONFIG_NFSD_PNFS */
 	if (bmval2 & FATTR4_WORD2_SUPPATTR_EXCLCREAT) {
