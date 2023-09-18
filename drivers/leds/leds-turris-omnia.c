@@ -31,7 +31,7 @@ struct omnia_led {
 	struct led_classdev_mc mc_cdev;
 	struct mc_subled subled_info[OMNIA_LED_NUM_CHANNELS];
 	u8 cached_channels[OMNIA_LED_NUM_CHANNELS];
-	bool on;
+	bool on, hwtrig;
 	int reg;
 };
 
@@ -120,12 +120,14 @@ static int omnia_led_brightness_set_blocking(struct led_classdev *cdev,
 
 	/*
 	 * Only recalculate RGB brightnesses from intensities if brightness is
-	 * non-zero. Otherwise we won't be using them and we can save ourselves
-	 * some software divisions (Omnia's CPU does not implement the division
-	 * instruction).
+	 * non-zero (if it is zero and the LED is in HW blinking mode, we use
+	 * max_brightness as brightness). Otherwise we won't be using them and
+	 * we can save ourselves some software divisions (Omnia's CPU does not
+	 * implement the division instruction).
 	 */
-	if (brightness) {
-		led_mc_calc_color_components(mc_cdev, brightness);
+	if (brightness || led->hwtrig) {
+		led_mc_calc_color_components(mc_cdev, brightness ?:
+						      cdev->max_brightness);
 
 		/*
 		 * Send color command only if brightness is non-zero and the RGB
@@ -135,8 +137,11 @@ static int omnia_led_brightness_set_blocking(struct led_classdev *cdev,
 			err = omnia_led_send_color_cmd(leds->client, led);
 	}
 
-	/* Send on/off state change only if (bool)brightness changed */
-	if (!err && !brightness != !led->on) {
+	/*
+	 * Send on/off state change only if (bool)brightness changed and the LED
+	 * is not being blinked by HW.
+	 */
+	if (!err && !led->hwtrig && !brightness != !led->on) {
 		u8 state = CMD_LED_STATE_LED(led->reg);
 
 		if (brightness)
@@ -151,6 +156,71 @@ static int omnia_led_brightness_set_blocking(struct led_classdev *cdev,
 
 	return err;
 }
+
+static struct led_hw_trigger_type omnia_hw_trigger_type;
+
+static int omnia_hwtrig_activate(struct led_classdev *cdev)
+{
+	struct led_classdev_mc *mc_cdev = lcdev_to_mccdev(cdev);
+	struct omnia_leds *leds = dev_get_drvdata(cdev->dev->parent);
+	struct omnia_led *led = to_omnia_led(mc_cdev);
+	int err = 0;
+
+	mutex_lock(&leds->lock);
+
+	if (!led->on) {
+		/*
+		 * If the LED is off (brightness was set to 0), the last
+		 * configured color was not necessarily sent to the MCU.
+		 * Recompute with max_brightness and send if needed.
+		 */
+		led_mc_calc_color_components(mc_cdev, cdev->max_brightness);
+
+		if (omnia_led_channels_changed(led))
+			err = omnia_led_send_color_cmd(leds->client, led);
+	}
+
+	if (!err) {
+		/* Put the LED into MCU controlled mode */
+		err = omnia_cmd_write_u8(leds->client, CMD_LED_MODE,
+					 CMD_LED_MODE_LED(led->reg));
+		if (!err)
+			led->hwtrig = true;
+	}
+
+	mutex_unlock(&leds->lock);
+
+	return err;
+}
+
+static void omnia_hwtrig_deactivate(struct led_classdev *cdev)
+{
+	struct omnia_leds *leds = dev_get_drvdata(cdev->dev->parent);
+	struct omnia_led *led = to_omnia_led(lcdev_to_mccdev(cdev));
+	int err;
+
+	mutex_lock(&leds->lock);
+
+	led->hwtrig = false;
+
+	/* Put the LED into software mode */
+	err = omnia_cmd_write_u8(leds->client, CMD_LED_MODE,
+				 CMD_LED_MODE_LED(led->reg) |
+				 CMD_LED_MODE_USER);
+
+	mutex_unlock(&leds->lock);
+
+	if (err < 0)
+		dev_err(cdev->dev, "Cannot put LED to software mode: %i\n",
+			err);
+}
+
+static struct led_trigger omnia_hw_trigger = {
+	.name		= "omnia-mcu",
+	.activate	= omnia_hwtrig_activate,
+	.deactivate	= omnia_hwtrig_deactivate,
+	.trigger_type	= &omnia_hw_trigger_type,
+};
 
 static int omnia_led_register(struct i2c_client *client, struct omnia_led *led,
 			      struct device_node *np)
@@ -195,6 +265,12 @@ static int omnia_led_register(struct i2c_client *client, struct omnia_led *led,
 	cdev = &led->mc_cdev.led_cdev;
 	cdev->max_brightness = 255;
 	cdev->brightness_set_blocking = omnia_led_brightness_set_blocking;
+	cdev->trigger_type = &omnia_hw_trigger_type;
+	/*
+	 * Use the omnia-mcu trigger as the default trigger. It may be rewritten
+	 * by LED class from the linux,default-trigger property.
+	 */
+	cdev->default_trigger = omnia_hw_trigger.name;
 
 	/* put the LED into software mode */
 	ret = omnia_cmd_write_u8(client, CMD_LED_MODE,
@@ -307,6 +383,12 @@ static int omnia_leds_probe(struct i2c_client *client)
 	i2c_set_clientdata(client, leds);
 
 	mutex_init(&leds->lock);
+
+	ret = devm_led_trigger_register(dev, &omnia_hw_trigger);
+	if (ret < 0) {
+		dev_err(dev, "Cannot register private LED trigger: %d\n", ret);
+		return ret;
+	}
 
 	led = &leds->leds[0];
 	for_each_available_child_of_node(np, child) {
