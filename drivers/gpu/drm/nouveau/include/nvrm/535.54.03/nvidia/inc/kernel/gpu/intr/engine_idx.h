@@ -32,6 +32,10 @@
 
 #define MC_ENGINE_IDX_CE9                           24
 
+#define MC_ENGINE_IDX_MSENC                         38
+
+#define MC_ENGINE_IDX_MSENC2                        40
+
 #define MC_ENGINE_IDX_GSP                           49
 
 #define MC_ENGINE_IDX_BSP                           64

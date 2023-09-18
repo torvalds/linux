@@ -231,6 +231,10 @@
 #define AMPERE_DMA_COPY_A                                            0x0000c6b5
 #define AMPERE_DMA_COPY_B                                            0x0000c7b5
 
+#define NVC4B7_VIDEO_ENCODER                                         0x0000c4b7
+#define NVC7B7_VIDEO_ENCODER                                         0x0000c7b7
+#define NVC9B7_VIDEO_ENCODER                                         0x0000c9b7
+
 #define FERMI_DECOMPRESS                                             0x000090b8
 
 #define NV50_COMPUTE                                                 0x000050c0

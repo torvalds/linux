@@ -596,6 +596,7 @@ r535_fifo_runl_ctor(struct nvkm_fifo *fifo)
 			engn = nvkm_runl_add(runl, nv2080, &r535_gr, type, inst);
 			break;
 		case NVKM_ENGINE_NVDEC:
+		case NVKM_ENGINE_NVENC:
 			engn = nvkm_runl_add(runl, nv2080, &r535_flcn, type, inst);
 			break;
 		case NVKM_ENGINE_SW:

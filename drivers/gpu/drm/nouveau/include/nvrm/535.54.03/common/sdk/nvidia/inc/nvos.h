@@ -114,6 +114,13 @@ typedef struct
 
 typedef struct
 {
+    NvU32 size;
+    NvU32 prohibitMultipleInstances;  // Prohibit multiple allocations of MSENC?
+    NvU32 engineInstance;             // Select MSENC/NVENC0 or NVENC1 or NVENC2
+} NV_MSENC_ALLOCATION_PARAMETERS;
+
+typedef struct
+{
     NvU32   index;
     NvV32   flags;
     NvU64   vaSize NV_ALIGN_BYTES(8);
