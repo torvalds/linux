@@ -4,7 +4,7 @@
 # where
 #	MIDR	Processor version
 #		Variant[23:20] and Revision [3:0] should be zero.
-#	Version could be used to track version of of JSON file
+#	Version could be used to track version of JSON file
 #		but currently unused.
 #	JSON/file/pathname is the path to JSON file, relative
 #		to tools/perf/pmu-events/arch/arm64/.
