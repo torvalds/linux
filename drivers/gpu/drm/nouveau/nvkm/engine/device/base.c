@@ -2753,6 +2753,7 @@ nv192_chipset = {
 	.gsp      = { 0x00000001, ad102_gsp_new },
 	.pci      = { 0x00000001, gp100_pci_new },
 	.timer    = { 0x00000001, gk20a_timer_new },
+	.vfn      = { 0x00000001, ga100_vfn_new },
 	.sec2     = { 0x00000001, ga102_sec2_new },
 };
 
@@ -2765,6 +2766,7 @@ nv193_chipset = {
 	.gsp      = { 0x00000001, ad102_gsp_new },
 	.pci      = { 0x00000001, gp100_pci_new },
 	.timer    = { 0x00000001, gk20a_timer_new },
+	.vfn      = { 0x00000001, ga100_vfn_new },
 	.sec2     = { 0x00000001, ga102_sec2_new },
 };
 
@@ -2777,6 +2779,7 @@ nv194_chipset = {
 	.gsp      = { 0x00000001, ad102_gsp_new },
 	.pci      = { 0x00000001, gp100_pci_new },
 	.timer    = { 0x00000001, gk20a_timer_new },
+	.vfn      = { 0x00000001, ga100_vfn_new },
 	.sec2     = { 0x00000001, ga102_sec2_new },
 };
 
@@ -2789,6 +2792,7 @@ nv196_chipset = {
 	.gsp      = { 0x00000001, ad102_gsp_new },
 	.pci      = { 0x00000001, gp100_pci_new },
 	.timer    = { 0x00000001, gk20a_timer_new },
+	.vfn      = { 0x00000001, ga100_vfn_new },
 	.sec2     = { 0x00000001, ga102_sec2_new },
 };
 
@@ -2801,6 +2805,7 @@ nv197_chipset = {
 	.gsp      = { 0x00000001, ad102_gsp_new },
 	.pci      = { 0x00000001, gp100_pci_new },
 	.timer    = { 0x00000001, gk20a_timer_new },
+	.vfn      = { 0x00000001, ga100_vfn_new },
 	.sec2     = { 0x00000001, ga102_sec2_new },
 };
 

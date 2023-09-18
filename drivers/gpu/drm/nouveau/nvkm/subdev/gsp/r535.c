@@ -23,6 +23,7 @@
 
 #include <core/pci.h>
 #include <subdev/timer.h>
+#include <subdev/vfn.h>
 #include <engine/sec2.h>
 
 #include <nvfw/fw.h>
@@ -32,6 +33,7 @@
 #include <nvrm/535.54.03/common/sdk/nvidia/inc/class/cl0080.h>
 #include <nvrm/535.54.03/common/sdk/nvidia/inc/class/cl2080.h>
 #include <nvrm/535.54.03/common/sdk/nvidia/inc/ctrl/ctrl2080/ctrl2080gpu.h>
+#include <nvrm/535.54.03/common/sdk/nvidia/inc/ctrl/ctrl2080/ctrl2080internal.h>
 #include <nvrm/535.54.03/common/shared/msgq/inc/msgq/msgq_priv.h>
 #include <nvrm/535.54.03/common/uproc/os/common/include/libos_init_args.h>
 #include <nvrm/535.54.03/nvidia/arch/nvalloc/common/inc/gsp/gsp_fw_sr_meta.h>
@@ -43,6 +45,7 @@
 #include <nvrm/535.54.03/nvidia/inc/kernel/gpu/gsp/gsp_fw_heap.h>
 #include <nvrm/535.54.03/nvidia/inc/kernel/gpu/gsp/gsp_init_args.h>
 #include <nvrm/535.54.03/nvidia/inc/kernel/gpu/gsp/gsp_static_config.h>
+#include <nvrm/535.54.03/nvidia/inc/kernel/gpu/intr/engine_idx.h>
 #include <nvrm/535.54.03/nvidia/kernel/inc/vgpu/rpc_global_enums.h>
 
 #include <linux/acpi.h>
@@ -689,6 +692,97 @@ r535_gsp_rm = {
 	.device_dtor = r535_gsp_device_dtor,
 };
 
+static void
+r535_gsp_msgq_work(struct work_struct *work)
+{
+	struct nvkm_gsp *gsp = container_of(work, typeof(*gsp), msgq.work);
+
+	mutex_lock(&gsp->cmdq.mutex);
+	if (*gsp->msgq.rptr != *gsp->msgq.wptr)
+		r535_gsp_msg_recv(gsp, 0, 0);
+	mutex_unlock(&gsp->cmdq.mutex);
+}
+
+static irqreturn_t
+r535_gsp_intr(struct nvkm_inth *inth)
+{
+	struct nvkm_gsp *gsp = container_of(inth, typeof(*gsp), subdev.inth);
+	struct nvkm_subdev *subdev = &gsp->subdev;
+	u32 intr = nvkm_falcon_rd32(&gsp->falcon, 0x0008);
+	u32 inte = nvkm_falcon_rd32(&gsp->falcon, gsp->falcon.func->addr2 +
+						  gsp->falcon.func->riscv_irqmask);
+	u32 stat = intr & inte;
+
+	if (!stat) {
+		nvkm_debug(subdev, "inte %08x %08x\n", intr, inte);
+		return IRQ_NONE;
+	}
+
+	if (stat & 0x00000040) {
+		nvkm_falcon_wr32(&gsp->falcon, 0x004, 0x00000040);
+		schedule_work(&gsp->msgq.work);
+		stat &= ~0x00000040;
+	}
+
+	if (stat) {
+		nvkm_error(subdev, "intr %08x\n", stat);
+		nvkm_falcon_wr32(&gsp->falcon, 0x014, stat);
+		nvkm_falcon_wr32(&gsp->falcon, 0x004, stat);
+	}
+
+	nvkm_falcon_intr_retrigger(&gsp->falcon);
+	return IRQ_HANDLED;
+}
+
+static int
+r535_gsp_intr_get_table(struct nvkm_gsp *gsp)
+{
+	NV2080_CTRL_INTERNAL_INTR_GET_KERNEL_TABLE_PARAMS *ctrl;
+	int ret = 0;
+
+	ctrl = nvkm_gsp_rm_ctrl_get(&gsp->internal.device.subdevice,
+				    NV2080_CTRL_CMD_INTERNAL_INTR_GET_KERNEL_TABLE, sizeof(*ctrl));
+	if (IS_ERR(ctrl))
+		return PTR_ERR(ctrl);
+
+	ctrl = nvkm_gsp_rm_ctrl_push(&gsp->internal.device.subdevice, ctrl, sizeof(*ctrl));
+	if (WARN_ON(IS_ERR(ctrl)))
+		return PTR_ERR(ctrl);
+
+	for (unsigned i = 0; i < ctrl->tableLen; i++) {
+		enum nvkm_subdev_type type;
+		int inst;
+
+		nvkm_debug(&gsp->subdev,
+			   "%2d: engineIdx %3d pmcIntrMask %08x stall %08x nonStall %08x\n", i,
+			   ctrl->table[i].engineIdx, ctrl->table[i].pmcIntrMask,
+			   ctrl->table[i].vectorStall, ctrl->table[i].vectorNonStall);
+
+		switch (ctrl->table[i].engineIdx) {
+		case MC_ENGINE_IDX_GSP:
+			type = NVKM_SUBDEV_GSP;
+			inst = 0;
+			break;
+		default:
+			continue;
+		}
+
+		if (WARN_ON(gsp->intr_nr == ARRAY_SIZE(gsp->intr))) {
+			ret = -ENOSPC;
+			break;
+		}
+
+		gsp->intr[gsp->intr_nr].type = type;
+		gsp->intr[gsp->intr_nr].inst = inst;
+		gsp->intr[gsp->intr_nr].stall = ctrl->table[i].vectorStall;
+		gsp->intr[gsp->intr_nr].nonstall = ctrl->table[i].vectorNonStall;
+		gsp->intr_nr++;
+	}
+
+	nvkm_gsp_rm_ctrl_done(&gsp->internal.device.subdevice, ctrl);
+	return ret;
+}
+
 static int
 r535_gsp_rpc_get_gsp_static_info(struct nvkm_gsp *gsp)
 {
@@ -718,12 +812,30 @@ r535_gsp_rpc_get_gsp_static_info(struct nvkm_gsp *gsp)
 static int
 r535_gsp_postinit(struct nvkm_gsp *gsp)
 {
+	struct nvkm_device *device = gsp->subdev.device;
 	int ret;
 
 	ret = r535_gsp_rpc_get_gsp_static_info(gsp);
 	if (WARN_ON(ret))
 		return ret;
 
+	INIT_WORK(&gsp->msgq.work, r535_gsp_msgq_work);
+
+	ret = r535_gsp_intr_get_table(gsp);
+	if (WARN_ON(ret))
+		return ret;
+
+	ret = nvkm_gsp_intr_stall(gsp, gsp->subdev.type, gsp->subdev.inst);
+	if (WARN_ON(ret < 0))
+		return ret;
+
+	ret = nvkm_inth_add(&device->vfn->intr, ret, NVKM_INTR_PRIO_NORMAL, &gsp->subdev,
+			    r535_gsp_intr, &gsp->subdev.inth);
+	if (WARN_ON(ret))
+		return ret;
+
+	nvkm_inth_allow(&gsp->subdev.inth);
+	nvkm_wr32(device, 0x110004, 0x00000040);
 	return ret;
 }
 

@@ -25,6 +25,13 @@
 #include <subdev/timer.h>
 #include <subdev/top.h>
 
+void
+nvkm_falcon_intr_retrigger(struct nvkm_falcon *falcon)
+{
+	if (falcon->func->intr_retrigger)
+		falcon->func->intr_retrigger(falcon);
+}
+
 bool
 nvkm_falcon_riscv_active(struct nvkm_falcon *falcon)
 {

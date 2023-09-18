@@ -62,6 +62,7 @@ struct nvkm_falcon_func {
 	int (*enable)(struct nvkm_falcon *);
 	int (*select)(struct nvkm_falcon *);
 	u32 addr2;
+	u32 riscv_irqmask;
 	bool reset_pmc;
 	int (*reset_eng)(struct nvkm_falcon *);
 	int (*reset_prep)(struct nvkm_falcon *);
@@ -88,6 +89,7 @@ struct nvkm_falcon_func {
 	} cmdq, msgq;
 
 	bool (*riscv_active)(struct nvkm_falcon *);
+	void (*intr_retrigger)(struct nvkm_falcon *);
 
 	struct {
 		u32 *data;

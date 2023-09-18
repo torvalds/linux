@@ -49,6 +49,7 @@ int nvkm_falcon_pio_rd(struct nvkm_falcon *, u8 port, enum nvkm_falcon_mem type,
 int nvkm_falcon_dma_wr(struct nvkm_falcon *, const u8 *img, u64 dma_addr, u32 dma_base,
 		       enum nvkm_falcon_mem mem_type, u32 mem_base, int len, bool sec);
 bool nvkm_falcon_riscv_active(struct nvkm_falcon *);
+void nvkm_falcon_intr_retrigger(struct nvkm_falcon *);
 
 int gm200_flcn_reset_wait_mem_scrubbing(struct nvkm_falcon *);
 int gm200_flcn_disable(struct nvkm_falcon *);
@@ -63,6 +64,8 @@ int gp102_flcn_reset_eng(struct nvkm_falcon *);
 extern const struct nvkm_falcon_func_pio gp102_flcn_emem_pio;
 
 bool tu102_flcn_riscv_active(struct nvkm_falcon *);
+
+void ga100_flcn_intr_retrigger(struct nvkm_falcon *);
 
 int ga102_flcn_select(struct nvkm_falcon *);
 int ga102_flcn_reset_prep(struct nvkm_falcon *);

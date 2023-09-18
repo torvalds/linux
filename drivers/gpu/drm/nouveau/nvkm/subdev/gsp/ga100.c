@@ -21,9 +21,26 @@
  */
 #include "priv.h"
 
+static const struct nvkm_falcon_func
+ga100_gsp_flcn = {
+	.disable = gm200_flcn_disable,
+	.enable = gm200_flcn_enable,
+	.addr2 = 0x1000,
+	.riscv_irqmask = 0x2b4,
+	.reset_eng = gp102_flcn_reset_eng,
+	.reset_wait_mem_scrubbing = gm200_flcn_reset_wait_mem_scrubbing,
+	.bind_inst = gm200_flcn_bind_inst,
+	.bind_stat = gm200_flcn_bind_stat,
+	.bind_intr = true,
+	.imem_pio = &gm200_flcn_imem_pio,
+	.dmem_pio = &gm200_flcn_dmem_pio,
+	.riscv_active = tu102_flcn_riscv_active,
+	.intr_retrigger = ga100_flcn_intr_retrigger,
+};
+
 static const struct nvkm_gsp_func
 ga100_gsp_r535_54_03 = {
-	.flcn = &tu102_gsp_flcn,
+	.flcn = &ga100_gsp_flcn,
 	.fwsec = &tu102_gsp_fwsec,
 
 	.sig_section = ".fwsignature_ga100",

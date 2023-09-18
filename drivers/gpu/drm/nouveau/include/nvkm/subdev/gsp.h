@@ -128,6 +128,7 @@ struct nvkm_gsp {
 			void *priv;
 		} ntfy[16];
 		int ntfy_nr;
+		struct work_struct work;
 	} msgq;
 
 	bool running;
@@ -149,6 +150,14 @@ struct nvkm_gsp {
 			struct nvkm_gsp_object subdevice;
 		} device;
 	} internal;
+
+	struct {
+		enum nvkm_subdev_type type;
+		int inst;
+		u32 stall;
+		u32 nonstall;
+	} intr[32];
+	int intr_nr;
 
 	const struct nvkm_gsp_rm {
 		void *(*rpc_get)(struct nvkm_gsp *, u32 fn, u32 argc);
@@ -377,6 +386,9 @@ nvkm_gsp_client_device_ctor(struct nvkm_gsp *gsp,
 
 	return ret;
 }
+
+int nvkm_gsp_intr_stall(struct nvkm_gsp *, enum nvkm_subdev_type, int);
+int nvkm_gsp_intr_nonstall(struct nvkm_gsp *, enum nvkm_subdev_type, int);
 
 int gv100_gsp_new(struct nvkm_device *, enum nvkm_subdev_type, int, struct nvkm_gsp **);
 int tu102_gsp_new(struct nvkm_device *, enum nvkm_subdev_type, int, struct nvkm_gsp **);

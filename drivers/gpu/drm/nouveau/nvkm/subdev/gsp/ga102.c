@@ -139,12 +139,14 @@ ga102_gsp_flcn = {
 	.enable = gm200_flcn_enable,
 	.select = ga102_flcn_select,
 	.addr2 = 0x1000,
+	.riscv_irqmask = 0x528,
 	.reset_eng = gp102_flcn_reset_eng,
 	.reset_prep = ga102_flcn_reset_prep,
 	.reset_wait_mem_scrubbing = ga102_flcn_reset_wait_mem_scrubbing,
 	.imem_dma = &ga102_flcn_dma,
 	.dmem_dma = &ga102_flcn_dma,
 	.riscv_active = ga102_flcn_riscv_active,
+	.intr_retrigger = ga100_flcn_intr_retrigger,
 };
 
 static const struct nvkm_gsp_func

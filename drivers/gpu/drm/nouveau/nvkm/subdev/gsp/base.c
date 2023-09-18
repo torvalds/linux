@@ -21,6 +21,36 @@
  */
 #include "priv.h"
 
+int
+nvkm_gsp_intr_nonstall(struct nvkm_gsp *gsp, enum nvkm_subdev_type type, int inst)
+{
+	for (int i = 0; i < gsp->intr_nr; i++) {
+		if (gsp->intr[i].type == type && gsp->intr[i].inst == inst) {
+			if (gsp->intr[i].nonstall != ~0)
+				return gsp->intr[i].nonstall;
+
+			return -EINVAL;
+		}
+	}
+
+	return -ENOENT;
+}
+
+int
+nvkm_gsp_intr_stall(struct nvkm_gsp *gsp, enum nvkm_subdev_type type, int inst)
+{
+	for (int i = 0; i < gsp->intr_nr; i++) {
+		if (gsp->intr[i].type == type && gsp->intr[i].inst == inst) {
+			if (gsp->intr[i].stall != ~0)
+				return gsp->intr[i].stall;
+
+			return -EINVAL;
+		}
+	}
+
+	return -ENOENT;
+}
+
 static int
 nvkm_gsp_fini(struct nvkm_subdev *subdev, bool suspend)
 {
