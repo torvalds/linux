@@ -2792,20 +2792,6 @@ static __be32 nfsd4_encode_fs_locations(struct xdr_stream *xdr,
 	return 0;
 }
 
-static u32 nfs4_file_type(umode_t mode)
-{
-	switch (mode & S_IFMT) {
-	case S_IFIFO:	return NF4FIFO;
-	case S_IFCHR:	return NF4CHR;
-	case S_IFDIR:	return NF4DIR;
-	case S_IFBLK:	return NF4BLK;
-	case S_IFLNK:	return NF4LNK;
-	case S_IFREG:	return NF4REG;
-	case S_IFSOCK:	return NF4SOCK;
-	default:	return NF4BAD;
-	}
-}
-
 static inline __be32
 nfsd4_encode_aclname(struct xdr_stream *xdr, struct svc_rqst *rqstp,
 		     struct nfs4_ace *ace)
@@ -2978,6 +2964,44 @@ static __be32 nfsd4_encode_fattr4_supported_attrs(struct xdr_stream *xdr,
 	return nfsd4_encode_bitmap4(xdr, supp[0], supp[1], supp[2]);
 }
 
+static __be32 nfsd4_encode_fattr4_type(struct xdr_stream *xdr,
+				       const struct nfsd4_fattr_args *args)
+{
+	__be32 *p;
+
+	p = xdr_reserve_space(xdr, XDR_UNIT);
+	if (!p)
+		return nfserr_resource;
+
+	switch (args->stat.mode & S_IFMT) {
+	case S_IFIFO:
+		*p = cpu_to_be32(NF4FIFO);
+		break;
+	case S_IFCHR:
+		*p = cpu_to_be32(NF4CHR);
+		break;
+	case S_IFDIR:
+		*p = cpu_to_be32(NF4DIR);
+		break;
+	case S_IFBLK:
+		*p = cpu_to_be32(NF4BLK);
+		break;
+	case S_IFLNK:
+		*p = cpu_to_be32(NF4LNK);
+		break;
+	case S_IFREG:
+		*p = cpu_to_be32(NF4REG);
+		break;
+	case S_IFSOCK:
+		*p = cpu_to_be32(NF4SOCK);
+		break;
+	default:
+		return nfserr_serverfault;
+	}
+
+	return nfs_ok;
+}
+
 /*
  * Note: @fhp can be NULL; in this case, we might have to compose the filehandle
  * ourselves.
@@ -2996,7 +3020,6 @@ nfsd4_encode_fattr(struct xdr_stream *xdr, struct svc_fh *fhp,
 	__be32 *p, *attrlen_p;
 	int starting_len = xdr->buf->len;
 	int attrlen_offset;
-	u32 dummy;
 	u64 dummy64;
 	__be32 status;
 	int err;
@@ -3113,15 +3136,9 @@ nfsd4_encode_fattr(struct xdr_stream *xdr, struct svc_fh *fhp,
 			goto out;
 	}
 	if (bmval0 & FATTR4_WORD0_TYPE) {
-		p = xdr_reserve_space(xdr, 4);
-		if (!p)
-			goto out_resource;
-		dummy = nfs4_file_type(args.stat.mode);
-		if (dummy == NF4BAD) {
-			status = nfserr_serverfault;
+		status = nfsd4_encode_fattr4_type(xdr, &args);
+		if (status != nfs_ok)
 			goto out;
-		}
-		*p++ = cpu_to_be32(dummy);
 	}
 	if (bmval0 & FATTR4_WORD0_FH_EXPIRE_TYPE) {
 		p = xdr_reserve_space(xdr, 4);
