@@ -30,6 +30,8 @@
 struct omnia_led {
 	struct led_classdev_mc mc_cdev;
 	struct mc_subled subled_info[OMNIA_LED_NUM_CHANNELS];
+	u8 cached_channels[OMNIA_LED_NUM_CHANNELS];
+	bool on;
 	int reg;
 };
 
@@ -72,36 +74,82 @@ static int omnia_cmd_read_u8(const struct i2c_client *client, u8 cmd)
 		return -EIO;
 }
 
+static int omnia_led_send_color_cmd(const struct i2c_client *client,
+				    struct omnia_led *led)
+{
+	char cmd[5];
+	int ret;
+
+	cmd[0] = CMD_LED_COLOR;
+	cmd[1] = led->reg;
+	cmd[2] = led->subled_info[0].brightness;
+	cmd[3] = led->subled_info[1].brightness;
+	cmd[4] = led->subled_info[2].brightness;
+
+	/* Send the color change command */
+	ret = i2c_master_send(client, cmd, 5);
+	if (ret < 0)
+		return ret;
+
+	/* Cache the RGB channel brightnesses */
+	for (int i = 0; i < OMNIA_LED_NUM_CHANNELS; ++i)
+		led->cached_channels[i] = led->subled_info[i].brightness;
+
+	return 0;
+}
+
+/* Determine if the computed RGB channels are different from the cached ones */
+static bool omnia_led_channels_changed(struct omnia_led *led)
+{
+	for (int i = 0; i < OMNIA_LED_NUM_CHANNELS; ++i)
+		if (led->subled_info[i].brightness != led->cached_channels[i])
+			return true;
+
+	return false;
+}
+
 static int omnia_led_brightness_set_blocking(struct led_classdev *cdev,
 					     enum led_brightness brightness)
 {
 	struct led_classdev_mc *mc_cdev = lcdev_to_mccdev(cdev);
 	struct omnia_leds *leds = dev_get_drvdata(cdev->dev->parent);
 	struct omnia_led *led = to_omnia_led(mc_cdev);
-	u8 buf[5], state;
-	int ret;
+	int err = 0;
 
 	mutex_lock(&leds->lock);
 
-	led_mc_calc_color_components(&led->mc_cdev, brightness);
+	/*
+	 * Only recalculate RGB brightnesses from intensities if brightness is
+	 * non-zero. Otherwise we won't be using them and we can save ourselves
+	 * some software divisions (Omnia's CPU does not implement the division
+	 * instruction).
+	 */
+	if (brightness) {
+		led_mc_calc_color_components(mc_cdev, brightness);
 
-	buf[0] = CMD_LED_COLOR;
-	buf[1] = led->reg;
-	buf[2] = mc_cdev->subled_info[0].brightness;
-	buf[3] = mc_cdev->subled_info[1].brightness;
-	buf[4] = mc_cdev->subled_info[2].brightness;
+		/*
+		 * Send color command only if brightness is non-zero and the RGB
+		 * channel brightnesses changed.
+		 */
+		if (omnia_led_channels_changed(led))
+			err = omnia_led_send_color_cmd(leds->client, led);
+	}
 
-	state = CMD_LED_STATE_LED(led->reg);
-	if (buf[2] || buf[3] || buf[4])
-		state |= CMD_LED_STATE_ON;
+	/* Send on/off state change only if (bool)brightness changed */
+	if (!err && !brightness != !led->on) {
+		u8 state = CMD_LED_STATE_LED(led->reg);
 
-	ret = omnia_cmd_write_u8(leds->client, CMD_LED_STATE, state);
-	if (ret >= 0 && (state & CMD_LED_STATE_ON))
-		ret = i2c_master_send(leds->client, buf, 5);
+		if (brightness)
+			state |= CMD_LED_STATE_ON;
+
+		err = omnia_cmd_write_u8(leds->client, CMD_LED_STATE, state);
+		if (!err)
+			led->on = !!brightness;
+	}
 
 	mutex_unlock(&leds->lock);
 
-	return ret;
+	return err;
 }
 
 static int omnia_led_register(struct i2c_client *client, struct omnia_led *led,
@@ -129,11 +177,15 @@ static int omnia_led_register(struct i2c_client *client, struct omnia_led *led,
 	}
 
 	led->subled_info[0].color_index = LED_COLOR_ID_RED;
-	led->subled_info[0].channel = 0;
 	led->subled_info[1].color_index = LED_COLOR_ID_GREEN;
-	led->subled_info[1].channel = 1;
 	led->subled_info[2].color_index = LED_COLOR_ID_BLUE;
-	led->subled_info[2].channel = 2;
+
+	/* Initial color is white */
+	for (int i = 0; i < OMNIA_LED_NUM_CHANNELS; ++i) {
+		led->subled_info[i].intensity = 255;
+		led->subled_info[i].brightness = 255;
+		led->subled_info[i].channel = i;
+	}
 
 	led->mc_cdev.subled_info = led->subled_info;
 	led->mc_cdev.num_colors = OMNIA_LED_NUM_CHANNELS;
@@ -159,6 +211,14 @@ static int omnia_led_register(struct i2c_client *client, struct omnia_led *led,
 				 CMD_LED_STATE_LED(led->reg));
 	if (ret < 0) {
 		dev_err(dev, "Cannot set LED %pOF brightness: %i\n", np, ret);
+		return ret;
+	}
+
+	/* Set initial color and cache it */
+	ret = omnia_led_send_color_cmd(client, led);
+	if (ret < 0) {
+		dev_err(dev, "Cannot set LED %pOF initial color: %i\n", np,
+			ret);
 		return ret;
 	}
 
