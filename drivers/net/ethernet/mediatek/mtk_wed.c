@@ -586,22 +586,15 @@ mtk_wed_set_512_support(struct mtk_wed_device *dev, bool enable)
 	}
 }
 
-#define MTK_WFMDA_RX_DMA_EN	BIT(2)
-static void
-mtk_wed_check_wfdma_rx_fill(struct mtk_wed_device *dev, int idx)
+static int
+mtk_wed_check_wfdma_rx_fill(struct mtk_wed_device *dev,
+			    struct mtk_wed_ring *ring)
 {
-	u32 val;
 	int i;
 
-	if (!(dev->rx_ring[idx].flags & MTK_WED_RING_CONFIGURED))
-		return; /* queue is not configured by mt76 */
-
 	for (i = 0; i < 3; i++) {
-		u32 cur_idx;
+		u32 cur_idx = readl(ring->wpdma + MTK_WED_RING_OFS_CPU_IDX);
 
-		cur_idx = wed_r32(dev,
-				  MTK_WED_WPDMA_RING_RX_DATA(idx) +
-				  MTK_WED_RING_OFS_CPU_IDX);
 		if (cur_idx == MTK_WED_RX_RING_SIZE - 1)
 			break;
 
@@ -610,12 +603,10 @@ mtk_wed_check_wfdma_rx_fill(struct mtk_wed_device *dev, int idx)
 
 	if (i == 3) {
 		dev_err(dev->hw->dev, "rx dma enable failed\n");
-		return;
+		return -ETIMEDOUT;
 	}
 
-	val = wifi_r32(dev, dev->wlan.wpdma_rx_glo - dev->wlan.phy_base) |
-	      MTK_WFMDA_RX_DMA_EN;
-	wifi_w32(dev, dev->wlan.wpdma_rx_glo - dev->wlan.phy_base, val);
+	return 0;
 }
 
 static void
@@ -1546,6 +1537,7 @@ mtk_wed_configure_irq(struct mtk_wed_device *dev, u32 irq_mask)
 	wed_w32(dev, MTK_WED_INT_MASK, irq_mask);
 }
 
+#define MTK_WFMDA_RX_DMA_EN	BIT(2)
 static void
 mtk_wed_dma_enable(struct mtk_wed_device *dev)
 {
@@ -1633,8 +1625,26 @@ mtk_wed_dma_enable(struct mtk_wed_device *dev)
 		wdma_set(dev, MTK_WDMA_WRBK_TX_CFG, MTK_WDMA_WRBK_TX_CFG_WRBK_EN);
 	}
 
-	for (i = 0; i < MTK_WED_RX_QUEUES; i++)
-		mtk_wed_check_wfdma_rx_fill(dev, i);
+	for (i = 0; i < MTK_WED_RX_QUEUES; i++) {
+		struct mtk_wed_ring *ring = &dev->rx_ring[i];
+		u32 val;
+
+		if (!(ring->flags & MTK_WED_RING_CONFIGURED))
+			continue; /* queue is not configured by mt76 */
+
+		if (mtk_wed_check_wfdma_rx_fill(dev, ring)) {
+			dev_err(dev->hw->dev,
+				"rx_ring(%d) dma enable failed\n", i);
+			continue;
+		}
+
+		val = wifi_r32(dev,
+			       dev->wlan.wpdma_rx_glo -
+			       dev->wlan.phy_base) | MTK_WFMDA_RX_DMA_EN;
+		wifi_w32(dev,
+			 dev->wlan.wpdma_rx_glo - dev->wlan.phy_base,
+			 val);
+	}
 }
 
 static void
