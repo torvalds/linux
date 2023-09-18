@@ -3102,6 +3102,29 @@ static __be32 nfsd4_encode_fattr4_aclsupport(struct xdr_stream *xdr,
 	return nfsd4_encode_uint32_t(xdr, mask);
 }
 
+static __be32 nfsd4_encode_fattr4_acl(struct xdr_stream *xdr,
+				      const struct nfsd4_fattr_args *args)
+{
+	struct nfs4_acl *acl = args->acl;
+	struct nfs4_ace *ace;
+	__be32 status;
+
+	/* nfsace4<> */
+	if (!acl) {
+		if (xdr_stream_encode_u32(xdr, 0) != XDR_UNIT)
+			return nfserr_resource;
+	} else {
+		if (xdr_stream_encode_u32(xdr, acl->naces) != XDR_UNIT)
+			return nfserr_resource;
+		for (ace = acl->aces; ace < acl->aces + acl->naces; ace++) {
+			status = nfsd4_encode_nfsace4(xdr, args->rqstp, ace);
+			if (status != nfs_ok)
+				return status;
+		}
+	}
+	return nfs_ok;
+}
+
 /*
  * Note: @fhp can be NULL; in this case, we might have to compose the filehandle
  * ourselves.
@@ -3291,28 +3314,10 @@ nfsd4_encode_fattr(struct xdr_stream *xdr, struct svc_fh *fhp,
 			goto out;
 	}
 	if (bmval0 & FATTR4_WORD0_ACL) {
-		struct nfs4_ace *ace;
-
-		if (args.acl == NULL) {
-			p = xdr_reserve_space(xdr, 4);
-			if (!p)
-				goto out_resource;
-
-			*p++ = cpu_to_be32(0);
-			goto out_acl;
-		}
-		p = xdr_reserve_space(xdr, 4);
-		if (!p)
-			goto out_resource;
-		*p++ = cpu_to_be32(args.acl->naces);
-
-		for (ace = args.acl->aces; ace < args.acl->aces + args.acl->naces; ace++) {
-			status = nfsd4_encode_nfsace4(xdr, args.rqstp, ace);
-			if (status != nfs_ok)
-				goto out;
-		}
+		status = nfsd4_encode_fattr4_acl(xdr, &args);
+		if (status)
+			goto out;
 	}
-out_acl:
 	if (bmval0 & FATTR4_WORD0_ACLSUPPORT) {
 		status = nfsd4_encode_fattr4_aclsupport(xdr, &args);
 		if (status != nfs_ok)
