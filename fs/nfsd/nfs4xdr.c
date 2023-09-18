@@ -2894,6 +2894,10 @@ struct nfsd4_fattr_args {
 	struct kstatfs		statfs;
 	struct nfs4_acl		*acl;
 	u64			size;
+#ifdef CONFIG_NFSD_V4_SECURITY_LABEL
+	void			*context;
+	int			contextlen;
+#endif
 	u32			rdattr_err;
 	bool			contextsupport;
 	bool			ignore_crossmnt;
@@ -3334,6 +3338,15 @@ static __be32 nfsd4_encode_fattr4_suppattr_exclcreat(struct xdr_stream *xdr,
 	return nfsd4_encode_bitmap4(xdr, supp[0], supp[1], supp[2]);
 }
 
+#ifdef CONFIG_NFSD_V4_SECURITY_LABEL
+static __be32 nfsd4_encode_fattr4_sec_label(struct xdr_stream *xdr,
+					    const struct nfsd4_fattr_args *args)
+{
+	return nfsd4_encode_security_label(xdr, args->rqstp,
+					   args->context, args->contextlen);
+}
+#endif
+
 /*
  * Note: @fhp can be NULL; in this case, we might have to compose the filehandle
  * ourselves.
@@ -3354,10 +3367,6 @@ nfsd4_encode_fattr(struct xdr_stream *xdr, struct svc_fh *fhp,
 	int attrlen_offset;
 	__be32 status;
 	int err;
-#ifdef CONFIG_NFSD_V4_SECURITY_LABEL
-	void *context = NULL;
-	int contextlen;
-#endif
 	struct nfsd4_compoundres *resp = rqstp->rq_resp;
 	u32 minorversion = resp->cstate.minorversion;
 	struct path path = {
@@ -3436,11 +3445,12 @@ nfsd4_encode_fattr(struct xdr_stream *xdr, struct svc_fh *fhp,
 	args.contextsupport = false;
 
 #ifdef CONFIG_NFSD_V4_SECURITY_LABEL
+	args.context = NULL;
 	if ((bmval2 & FATTR4_WORD2_SECURITY_LABEL) ||
 	     bmval0 & FATTR4_WORD0_SUPPORTED_ATTRS) {
 		if (exp->ex_flags & NFSEXP_SECURITY_LABEL)
 			err = security_inode_getsecctx(d_inode(dentry),
-						&context, &contextlen);
+						&args.context, &args.contextlen);
 		else
 			err = -EOPNOTSUPP;
 		args.contextsupport = (err == 0);
@@ -3719,8 +3729,7 @@ nfsd4_encode_fattr(struct xdr_stream *xdr, struct svc_fh *fhp,
 
 #ifdef CONFIG_NFSD_V4_SECURITY_LABEL
 	if (bmval2 & FATTR4_WORD2_SECURITY_LABEL) {
-		status = nfsd4_encode_security_label(xdr, rqstp, context,
-								contextlen);
+		status = nfsd4_encode_fattr4_sec_label(xdr, &args);
 		if (status)
 			goto out;
 	}
@@ -3739,8 +3748,8 @@ nfsd4_encode_fattr(struct xdr_stream *xdr, struct svc_fh *fhp,
 
 out:
 #ifdef CONFIG_NFSD_V4_SECURITY_LABEL
-	if (context)
-		security_release_secctx(context, contextlen);
+	if (args.context)
+		security_release_secctx(args.context, args.contextlen);
 #endif /* CONFIG_NFSD_V4_SECURITY_LABEL */
 	kfree(args.acl);
 	if (tempfh) {
