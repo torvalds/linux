@@ -640,11 +640,13 @@ static int __iomap_write_begin(const struct iomap_iter *iter, loff_t pos,
 	size_t poff, plen;
 
 	/*
-	 * If the write completely overlaps the current folio, then
+	 * If the write or zeroing completely overlaps the current folio, then
 	 * entire folio will be dirtied so there is no need for
 	 * per-block state tracking structures to be attached to this folio.
+	 * For the unshare case, we must read in the ondisk contents because we
+	 * are not changing pagecache contents.
 	 */
-	if (pos <= folio_pos(folio) &&
+	if (!(iter->flags & IOMAP_UNSHARE) && pos <= folio_pos(folio) &&
 	    pos + len >= folio_pos(folio) + folio_size(folio))
 		return 0;
 
