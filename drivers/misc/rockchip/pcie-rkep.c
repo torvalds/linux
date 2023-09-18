@@ -815,7 +815,12 @@ static void pcie_rkep_remove(struct pci_dev *pdev)
 #if IS_ENABLED(CONFIG_PCIE_FUNC_RKEP_USERPAGES)
 	free_contig_range(page_to_pfn(pcie_rkep->user_pages), RKEP_USER_MEM_SIZE >> PAGE_SHIFT);
 #endif
-	pci_iounmap(pdev, pcie_rkep->bar0);
+	if (pcie_rkep->bar0)
+		pci_iounmap(pdev, pcie_rkep->bar0);
+	if (pcie_rkep->bar2)
+		pci_iounmap(pdev, pcie_rkep->bar2);
+	if (pcie_rkep->bar4)
+		pci_iounmap(pdev, pcie_rkep->bar4);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
 	misc_deregister(&pcie_rkep->dev);
