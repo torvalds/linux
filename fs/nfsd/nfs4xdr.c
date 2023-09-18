@@ -2536,16 +2536,16 @@ static __be32 nfsd4_encode_nfs_fh4(struct xdr_stream *xdr,
 	return nfsd4_encode_opaque(xdr, fh_handle->fh_raw, fh_handle->fh_size);
 }
 
+/* This is a frequently-encoded type; open-coded for speed */
 static __be32 nfsd4_encode_nfstime4(struct xdr_stream *xdr,
-				    struct timespec64 *tv)
+				    const struct timespec64 *tv)
 {
 	__be32 *p;
 
 	p = xdr_reserve_space(xdr, XDR_UNIT * 3);
 	if (!p)
 		return nfserr_resource;
-
-	p = xdr_encode_hyper(p, (s64)tv->tv_sec);
+	p = xdr_encode_hyper(p, tv->tv_sec);
 	*p = cpu_to_be32(tv->tv_nsec);
 	return nfs_ok;
 }
@@ -3255,6 +3255,12 @@ static __be32 nfsd4_encode_fattr4_space_used(struct xdr_stream *xdr,
 	return nfsd4_encode_uint64_t(xdr, (u64)args->stat.blocks << 9);
 }
 
+static __be32 nfsd4_encode_fattr4_time_access(struct xdr_stream *xdr,
+					      const struct nfsd4_fattr_args *args)
+{
+	return nfsd4_encode_nfstime4(xdr, &args->stat.atime);
+}
+
 /*
  * Note: @fhp can be NULL; in this case, we might have to compose the filehandle
  * ourselves.
@@ -3583,7 +3589,7 @@ nfsd4_encode_fattr(struct xdr_stream *xdr, struct svc_fh *fhp,
 			goto out;
 	}
 	if (bmval1 & FATTR4_WORD1_TIME_ACCESS) {
-		status = nfsd4_encode_nfstime4(xdr, &args.stat.atime);
+		status = nfsd4_encode_fattr4_time_access(xdr, &args);
 		if (status)
 			goto out;
 	}
