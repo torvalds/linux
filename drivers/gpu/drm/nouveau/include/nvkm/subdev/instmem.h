@@ -8,6 +8,8 @@ struct nvkm_instmem {
 	const struct nvkm_instmem_func *func;
 	struct nvkm_subdev subdev;
 
+	bool suspend;
+
 	spinlock_t lock;
 	struct list_head list;
 	struct list_head boot;
