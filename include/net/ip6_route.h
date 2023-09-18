@@ -53,13 +53,12 @@ struct route_info {
  */
 static inline int rt6_srcprefs2flags(unsigned int srcprefs)
 {
-	/* No need to bitmask because srcprefs have only 3 bits. */
-	return srcprefs << 3;
+	return (srcprefs & IPV6_PREFER_SRC_MASK) << 3;
 }
 
 static inline unsigned int rt6_flags2srcprefs(int flags)
 {
-	return (flags >> 3) & 7;
+	return (flags >> 3) & IPV6_PREFER_SRC_MASK;
 }
 
 static inline bool rt6_need_strict(const struct in6_addr *daddr)

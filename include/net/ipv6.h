@@ -1306,10 +1306,13 @@ static inline void ip6_sock_set_recverr(struct sock *sk)
 	inet6_set_bit(RECVERR6, sk);
 }
 
-static inline int __ip6_sock_set_addr_preferences(struct sock *sk, int val)
+#define IPV6_PREFER_SRC_MASK (IPV6_PREFER_SRC_TMP | IPV6_PREFER_SRC_PUBLIC | \
+			      IPV6_PREFER_SRC_COA)
+
+static inline int ip6_sock_set_addr_preferences(struct sock *sk, int val)
 {
+	unsigned int prefmask = ~IPV6_PREFER_SRC_MASK;
 	unsigned int pref = 0;
-	unsigned int prefmask = ~0;
 
 	/* check PUBLIC/TMP/PUBTMP_DEFAULT conflicts */
 	switch (val & (IPV6_PREFER_SRC_PUBLIC |
@@ -1359,18 +1362,9 @@ static inline int __ip6_sock_set_addr_preferences(struct sock *sk, int val)
 		return -EINVAL;
 	}
 
-	inet6_sk(sk)->srcprefs = (inet6_sk(sk)->srcprefs & prefmask) | pref;
+	WRITE_ONCE(inet6_sk(sk)->srcprefs,
+		   (READ_ONCE(inet6_sk(sk)->srcprefs) & prefmask) | pref);
 	return 0;
-}
-
-static inline int ip6_sock_set_addr_preferences(struct sock *sk, int val)
-{
-	int ret;
-
-	lock_sock(sk);
-	ret = __ip6_sock_set_addr_preferences(sk, val);
-	release_sock(sk);
-	return ret;
 }
 
 static inline void ip6_sock_set_recvpktinfo(struct sock *sk)

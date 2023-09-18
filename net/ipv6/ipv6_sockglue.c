@@ -505,6 +505,10 @@ int do_ipv6_setsockopt(struct sock *sk, int level, int optname,
 			return -EINVAL;
 		inet6_assign_bit(SNDFLOW, sk, valbool);
 		return 0;
+	case IPV6_ADDR_PREFERENCES:
+		if (optlen < sizeof(int))
+			return -EINVAL;
+		return ip6_sock_set_addr_preferences(sk, val);
 	}
 	if (needs_rtnl)
 		rtnl_lock();
@@ -964,11 +968,6 @@ done:
 		retv = xfrm_user_policy(sk, optname, optval, optlen);
 		break;
 
-	case IPV6_ADDR_PREFERENCES:
-		if (optlen < sizeof(int))
-			goto e_inval;
-		retv = __ip6_sock_set_addr_preferences(sk, val);
-		break;
 	case IPV6_RECVFRAGSIZE:
 		np->rxopt.bits.recvfragsize = valbool;
 		retv = 0;
@@ -1415,23 +1414,25 @@ int do_ipv6_getsockopt(struct sock *sk, int level, int optname,
 	}
 
 	case IPV6_ADDR_PREFERENCES:
+		{
+		u8 srcprefs = READ_ONCE(np->srcprefs);
 		val = 0;
 
-		if (np->srcprefs & IPV6_PREFER_SRC_TMP)
+		if (srcprefs & IPV6_PREFER_SRC_TMP)
 			val |= IPV6_PREFER_SRC_TMP;
-		else if (np->srcprefs & IPV6_PREFER_SRC_PUBLIC)
+		else if (srcprefs & IPV6_PREFER_SRC_PUBLIC)
 			val |= IPV6_PREFER_SRC_PUBLIC;
 		else {
 			/* XXX: should we return system default? */
 			val |= IPV6_PREFER_SRC_PUBTMP_DEFAULT;
 		}
 
-		if (np->srcprefs & IPV6_PREFER_SRC_COA)
+		if (srcprefs & IPV6_PREFER_SRC_COA)
 			val |= IPV6_PREFER_SRC_COA;
 		else
 			val |= IPV6_PREFER_SRC_HOME;
 		break;
-
+		}
 	case IPV6_MINHOPCOUNT:
 		val = READ_ONCE(np->min_hopcount);
 		break;
