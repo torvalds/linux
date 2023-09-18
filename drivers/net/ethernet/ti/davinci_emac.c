@@ -2002,7 +2002,7 @@ err_free_netdev:
  * Called when removing the device driver. We disable clock usage and release
  * the resources taken up by the driver and unregister network device
  */
-static int davinci_emac_remove(struct platform_device *pdev)
+static void davinci_emac_remove(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct emac_priv *priv = netdev_priv(ndev);
@@ -2022,8 +2022,6 @@ static int davinci_emac_remove(struct platform_device *pdev)
 	if (of_phy_is_fixed_link(np))
 		of_phy_deregister_fixed_link(np);
 	free_netdev(ndev);
-
-	return 0;
 }
 
 static int davinci_emac_suspend(struct device *dev)
@@ -2076,7 +2074,7 @@ static struct platform_driver davinci_emac_driver = {
 		.of_match_table = davinci_emac_of_match,
 	},
 	.probe = davinci_emac_probe,
-	.remove = davinci_emac_remove,
+	.remove_new = davinci_emac_remove,
 };
 
 /**
