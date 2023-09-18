@@ -76,6 +76,11 @@ struct mtk_wed_wo_rx_stats {
 	__le32 rx_drop_cnt;
 };
 
+struct mtk_wed_buf {
+	void *p;
+	dma_addr_t phy_addr;
+};
+
 struct mtk_wed_device {
 #ifdef CONFIG_NET_MEDIATEK_SOC_WED
 	const struct mtk_wed_ops *ops;
@@ -97,7 +102,7 @@ struct mtk_wed_device {
 
 	struct {
 		int size;
-		void **pages;
+		struct mtk_wed_buf *pages;
 		struct mtk_wdma_desc *desc;
 		dma_addr_t desc_phys;
 	} tx_buf_ring;
