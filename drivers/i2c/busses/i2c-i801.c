@@ -1847,16 +1847,11 @@ static struct pci_driver i801_driver = {
 	},
 };
 
-static int __init i2c_i801_init(void)
+static int __init i2c_i801_init(struct pci_driver *drv)
 {
 	if (dmi_name_in_vendors("FUJITSU"))
 		input_apanel_init();
-	return pci_register_driver(&i801_driver);
-}
-
-static void __exit i2c_i801_exit(void)
-{
-	pci_unregister_driver(&i801_driver);
+	return pci_register_driver(drv);
 }
 
 MODULE_AUTHOR("Mark D. Studebaker <mdsxyz123@yahoo.com>");
@@ -1864,5 +1859,4 @@ MODULE_AUTHOR("Jean Delvare <jdelvare@suse.de>");
 MODULE_DESCRIPTION("I801 SMBus driver");
 MODULE_LICENSE("GPL");
 
-module_init(i2c_i801_init);
-module_exit(i2c_i801_exit);
+module_driver(i801_driver, i2c_i801_init, pci_unregister_driver);
