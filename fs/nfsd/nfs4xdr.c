@@ -3347,6 +3347,14 @@ static __be32 nfsd4_encode_fattr4_sec_label(struct xdr_stream *xdr,
 }
 #endif
 
+static __be32 nfsd4_encode_fattr4_xattr_support(struct xdr_stream *xdr,
+						const struct nfsd4_fattr_args *args)
+{
+	int err = xattr_supports_user_prefix(d_inode(args->dentry));
+
+	return nfsd4_encode_bool(xdr, err == 0);
+}
+
 /*
  * Note: @fhp can be NULL; in this case, we might have to compose the filehandle
  * ourselves.
@@ -3362,10 +3370,9 @@ nfsd4_encode_fattr(struct xdr_stream *xdr, struct svc_fh *fhp,
 	u32 bmval1 = bmval[1];
 	u32 bmval2 = bmval[2];
 	struct svc_fh *tempfh = NULL;
-	__be32 *p, *attrlen_p;
 	int starting_len = xdr->buf->len;
+	__be32 *attrlen_p, status;
 	int attrlen_offset;
-	__be32 status;
 	int err;
 	struct nfsd4_compoundres *resp = rqstp->rq_resp;
 	u32 minorversion = resp->cstate.minorversion;
@@ -3736,11 +3743,9 @@ nfsd4_encode_fattr(struct xdr_stream *xdr, struct svc_fh *fhp,
 #endif
 
 	if (bmval2 & FATTR4_WORD2_XATTR_SUPPORT) {
-		p = xdr_reserve_space(xdr, 4);
-		if (!p)
-			goto out_resource;
-		err = xattr_supports_user_prefix(d_inode(dentry));
-		*p++ = cpu_to_be32(err == 0);
+		status = nfsd4_encode_fattr4_xattr_support(xdr, &args);
+		if (status != nfs_ok)
+			goto out;
 	}
 
 	*attrlen_p = cpu_to_be32(xdr->buf->len - attrlen_offset - XDR_UNIT);
