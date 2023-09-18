@@ -801,7 +801,7 @@ static inline int thunderstrike_led_create(struct thunderstrike *ts)
 	led->name = devm_kasprintf(&ts->base.hdev->dev, GFP_KERNEL,
 				   "thunderstrike%d:blue:led", ts->id);
 	led->max_brightness = 1;
-	led->flags = LED_CORE_SUSPENDRESUME;
+	led->flags = LED_CORE_SUSPENDRESUME | LED_RETAIN_AT_SHUTDOWN;
 	led->brightness_get = &thunderstrike_led_get_brightness;
 	led->brightness_set = &thunderstrike_led_set_brightness;
 
@@ -1076,6 +1076,7 @@ err_stop:
 err_haptics:
 	if (ts->haptics_dev)
 		input_unregister_device(ts->haptics_dev);
+	led_classdev_unregister(&ts->led_dev);
 	return ret;
 }
 
