@@ -616,6 +616,9 @@ struct ufs_qcom_host {
 	bool bypass_pbl_rst_wa;
 	atomic_t cqhp_update_pending;
 	struct notifier_block ufs_qcom_panic_nb;
+
+	bool broken_ahit_wa;
+	unsigned long active_cmds;
 };
 
 static inline u32
