@@ -123,12 +123,13 @@ static void test_bpf_nf_ct(int mode)
 	ASSERT_EQ(skel->data->test_snat_addr, 0, "Test for source natting");
 	ASSERT_EQ(skel->data->test_dnat_addr, 0, "Test for destination natting");
 end:
-	if (srv_client_fd != -1)
-		close(srv_client_fd);
 	if (client_fd != -1)
 		close(client_fd);
+	if (srv_client_fd != -1)
+		close(srv_client_fd);
 	if (srv_fd != -1)
 		close(srv_fd);
+
 	snprintf(cmd, sizeof(cmd), iptables, "-D");
 	system(cmd);
 	test_bpf_nf__destroy(skel);

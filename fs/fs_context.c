@@ -315,10 +315,31 @@ struct fs_context *fs_context_for_reconfigure(struct dentry *dentry,
 }
 EXPORT_SYMBOL(fs_context_for_reconfigure);
 
+/**
+ * fs_context_for_submount: allocate a new fs_context for a submount
+ * @type: file_system_type of the new context
+ * @reference: reference dentry from which to copy relevant info
+ *
+ * Allocate a new fs_context suitable for a submount. This also ensures that
+ * the fc->security object is inherited from @reference (if needed).
+ */
 struct fs_context *fs_context_for_submount(struct file_system_type *type,
 					   struct dentry *reference)
 {
-	return alloc_fs_context(type, reference, 0, 0, FS_CONTEXT_FOR_SUBMOUNT);
+	struct fs_context *fc;
+	int ret;
+
+	fc = alloc_fs_context(type, reference, 0, 0, FS_CONTEXT_FOR_SUBMOUNT);
+	if (IS_ERR(fc))
+		return fc;
+
+	ret = security_fs_context_submount(fc, reference->d_sb);
+	if (ret) {
+		put_fs_context(fc);
+		return ERR_PTR(ret);
+	}
+
+	return fc;
 }
 EXPORT_SYMBOL(fs_context_for_submount);
 

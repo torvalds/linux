@@ -46,6 +46,7 @@ enum imx_pll14xx_type {
 enum imx_pllv4_type {
 	IMX_PLLV4_IMX7ULP,
 	IMX_PLLV4_IMX8ULP,
+	IMX_PLLV4_IMX8ULP_1GHZ,
 };
 
 enum imx_pfdv2_type {
