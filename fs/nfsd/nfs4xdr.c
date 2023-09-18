@@ -2561,31 +2561,6 @@ static __be32 nfsd4_encode_specdata4(struct xdr_stream *xdr,
 	return nfsd4_encode_uint32_t(xdr, minor);
 }
 
-/*
- * ctime (in NFSv4, time_metadata) is not writeable, and the client
- * doesn't really care what resolution could theoretically be stored by
- * the filesystem.
- *
- * The client cares how close together changes can be while still
- * guaranteeing ctime changes.  For most filesystems (which have
- * timestamps with nanosecond fields) that is limited by the resolution
- * of the time returned from current_time() (which I'm assuming to be
- * 1/HZ).
- */
-static __be32 *encode_time_delta(__be32 *p, struct inode *inode)
-{
-	struct timespec64 ts;
-	u32 ns;
-
-	ns = max_t(u32, NSEC_PER_SEC/HZ, inode->i_sb->s_time_gran);
-	ts = ns_to_timespec64(ns);
-
-	p = xdr_encode_hyper(p, ts.tv_sec);
-	*p++ = cpu_to_be32(ts.tv_nsec);
-
-	return p;
-}
-
 static __be32
 nfsd4_encode_change_info4(struct xdr_stream *xdr, const struct nfsd4_change_info *c)
 {
@@ -3268,6 +3243,27 @@ static __be32 nfsd4_encode_fattr4_time_create(struct xdr_stream *xdr,
 }
 
 /*
+ * ctime (in NFSv4, time_metadata) is not writeable, and the client
+ * doesn't really care what resolution could theoretically be stored by
+ * the filesystem.
+ *
+ * The client cares how close together changes can be while still
+ * guaranteeing ctime changes.  For most filesystems (which have
+ * timestamps with nanosecond fields) that is limited by the resolution
+ * of the time returned from current_time() (which I'm assuming to be
+ * 1/HZ).
+ */
+static __be32 nfsd4_encode_fattr4_time_delta(struct xdr_stream *xdr,
+					     const struct nfsd4_fattr_args *args)
+{
+	const struct inode *inode = d_inode(args->dentry);
+	u32 ns = max_t(u32, NSEC_PER_SEC/HZ, inode->i_sb->s_time_gran);
+	struct timespec64 ts = ns_to_timespec64(ns);
+
+	return nfsd4_encode_nfstime4(xdr, &ts);
+}
+
+/*
  * Note: @fhp can be NULL; in this case, we might have to compose the filehandle
  * ourselves.
  */
@@ -3605,10 +3601,9 @@ nfsd4_encode_fattr(struct xdr_stream *xdr, struct svc_fh *fhp,
 			goto out;
 	}
 	if (bmval1 & FATTR4_WORD1_TIME_DELTA) {
-		p = xdr_reserve_space(xdr, 12);
-		if (!p)
-			goto out_resource;
-		p = encode_time_delta(p, d_inode(dentry));
+		status = nfsd4_encode_fattr4_time_delta(xdr, &args);
+		if (status != nfs_ok)
+			goto out;
 	}
 	if (bmval1 & FATTR4_WORD1_TIME_METADATA) {
 		status = nfsd4_encode_nfstime4(xdr, &args.stat.ctime);
