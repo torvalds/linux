@@ -3269,6 +3269,12 @@ static __be32 nfsd4_encode_fattr4_time_metadata(struct xdr_stream *xdr,
 	return nfsd4_encode_nfstime4(xdr, &args->stat.ctime);
 }
 
+static __be32 nfsd4_encode_fattr4_time_modify(struct xdr_stream *xdr,
+					      const struct nfsd4_fattr_args *args)
+{
+	return nfsd4_encode_nfstime4(xdr, &args->stat.mtime);
+}
+
 /*
  * Note: @fhp can be NULL; in this case, we might have to compose the filehandle
  * ourselves.
@@ -3617,7 +3623,7 @@ nfsd4_encode_fattr(struct xdr_stream *xdr, struct svc_fh *fhp,
 			goto out;
 	}
 	if (bmval1 & FATTR4_WORD1_TIME_MODIFY) {
-		status = nfsd4_encode_nfstime4(xdr, &args.stat.mtime);
+		status = nfsd4_encode_fattr4_time_modify(xdr, &args);
 		if (status)
 			goto out;
 	}
