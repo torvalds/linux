@@ -3,12 +3,15 @@
  * Copyright (c) 2023 Rockchip Electronics Co., Ltd.
  */
 
+#include <dt-bindings/soc/rockchip-amp.h>
+
 / {
 	rockchip_amp: rockchip-amp {
-		compatible = "rockchip,mcu-amp";
+		compatible = "rockchip,amp";
 		clocks = <&cru HCLK_PMU_CM0_ROOT>, <&cru FCLK_PMU_CM0_CORE>,
 			<&cru CLK_PMU_CM0_RTC>, <&cru PCLK_PMUCM0_INTMUX>,
 			<&cru SCLK_UART5>, <&cru PCLK_UART5>,
+			<&cru PCLK_BUSTIMER0>, <&cru CLK_BUSTIMER4>, <&cru CLK_BUSTIMER5>,
 			<&cru PCLK_BUSTIMER1>, <&cru CLK_BUSTIMER10>, <&cru CLK_BUSTIMER11>;
 
 		pinctrl-names = "default";
@@ -21,6 +24,12 @@
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges;
+
+		/* remote amp core address */
+		amp_shmem_reserved: amp-shmem@7800000 {
+			reg = <0x0 0x7800000 0x0 0x400000>;
+			no-map;
+		};
 
 		/* mcu address */
 		mcu_reserved: mcu@8200000 {
