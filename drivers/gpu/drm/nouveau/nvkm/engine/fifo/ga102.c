@@ -21,6 +21,8 @@
  */
 #include "priv.h"
 
+#include <subdev/gsp.h>
+
 #include <nvif/class.h>
 
 static const struct nvkm_fifo_func
@@ -41,5 +43,8 @@ int
 ga102_fifo_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 	       struct nvkm_fifo **pfifo)
 {
+	if (nvkm_gsp_rm(device->gsp))
+		return -ENODEV;
+
 	return nvkm_fifo_new_(&ga102_fifo, device, type, inst, pfifo);
 }

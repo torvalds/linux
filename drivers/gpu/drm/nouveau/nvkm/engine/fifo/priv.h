@@ -13,6 +13,8 @@ struct nvkm_runq;
 struct nvkm_vctx;
 
 struct nvkm_fifo_func {
+	void (*dtor)(struct nvkm_fifo *);
+
 	int (*chid_nr)(struct nvkm_fifo *);
 	int (*chid_ctor)(struct nvkm_fifo *, int nr);
 	int (*runq_nr)(struct nvkm_fifo *);
