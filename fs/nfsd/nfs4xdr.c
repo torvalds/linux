@@ -3293,6 +3293,28 @@ static __be32 nfsd4_encode_fattr4_mounted_on_fileid(struct xdr_stream *xdr,
 	return nfsd4_encode_uint64_t(xdr, ino);
 }
 
+#ifdef CONFIG_NFSD_PNFS
+
+static __be32 nfsd4_encode_fattr4_fs_layout_types(struct xdr_stream *xdr,
+						  const struct nfsd4_fattr_args *args)
+{
+	unsigned long mask = args->exp->ex_layout_types;
+	int i;
+
+	/* Hamming weight of @mask is the number of layout types to return */
+	if (xdr_stream_encode_u32(xdr, hweight_long(mask)) != XDR_UNIT)
+		return nfserr_resource;
+	for (i = LAYOUT_NFSV4_1_FILES; i < LAYOUT_TYPE_MAX; ++i)
+		if (mask & BIT(i)) {
+			/* layouttype4 */
+			if (xdr_stream_encode_u32(xdr, i) != XDR_UNIT)
+				return nfserr_resource;
+		}
+	return nfs_ok;
+}
+
+#endif
+
 /*
  * Note: @fhp can be NULL; in this case, we might have to compose the filehandle
  * ourselves.
@@ -3653,7 +3675,7 @@ nfsd4_encode_fattr(struct xdr_stream *xdr, struct svc_fh *fhp,
 	}
 #ifdef CONFIG_NFSD_PNFS
 	if (bmval1 & FATTR4_WORD1_FS_LAYOUT_TYPES) {
-		status = nfsd4_encode_layout_types(xdr, exp->ex_layout_types);
+		status = nfsd4_encode_fattr4_fs_layout_types(xdr, &args);
 		if (status)
 			goto out;
 	}
