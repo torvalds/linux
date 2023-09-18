@@ -432,7 +432,7 @@ nv50_instmem_new(struct nvkm_device *device, enum nvkm_subdev_type type, int ins
 		 struct nvkm_instmem **pimem)
 {
 	if (nvkm_gsp_rm(device->gsp))
-		return -ENODEV;
+		return r535_instmem_new(&nv50_instmem, device, type, inst, pimem);
 
 	return nv50_instmem_new_(&nv50_instmem, device, type, inst, pimem);
 }

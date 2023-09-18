@@ -97,7 +97,7 @@ tu102_bar_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 	      struct nvkm_bar **pbar)
 {
 	if (nvkm_gsp_rm(device->gsp))
-		return -ENODEV;
+		return r535_bar_new_(&tu102_bar, device, type, inst, pbar);
 
 	return gf100_bar_new_(&tu102_bar, device, type, inst, pbar);
 }

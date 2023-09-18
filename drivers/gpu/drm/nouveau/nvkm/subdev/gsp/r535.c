@@ -787,6 +787,7 @@ static int
 r535_gsp_rpc_get_gsp_static_info(struct nvkm_gsp *gsp)
 {
 	GspStaticConfigInfo *rpc;
+	int last_usable = -1;
 
 	rpc = nvkm_gsp_rpc_rd(gsp, NV_VGPU_MSG_FUNCTION_GET_GSP_STATIC_INFO, sizeof(*rpc));
 	if (IS_ERR(rpc))
@@ -804,6 +805,38 @@ r535_gsp_rpc_get_gsp_static_info(struct nvkm_gsp *gsp)
 	gsp->internal.device.subdevice.client = &gsp->internal.client;
 	gsp->internal.device.subdevice.parent = &gsp->internal.device.object;
 	gsp->internal.device.subdevice.handle = rpc->hInternalSubdevice;
+
+	gsp->bar.rm_bar1_pdb = rpc->bar1PdeBase;
+	gsp->bar.rm_bar2_pdb = rpc->bar2PdeBase;
+
+	for (int i = 0; i < rpc->fbRegionInfoParams.numFBRegions; i++) {
+		NV2080_CTRL_CMD_FB_GET_FB_REGION_FB_REGION_INFO *reg =
+			&rpc->fbRegionInfoParams.fbRegion[i];
+
+		nvkm_debug(&gsp->subdev, "fb region %d: "
+			   "%016llx-%016llx rsvd:%016llx perf:%08x comp:%d iso:%d prot:%d\n", i,
+			   reg->base, reg->limit, reg->reserved, reg->performance,
+			   reg->supportCompressed, reg->supportISO, reg->bProtected);
+
+		if (!reg->reserved && !reg->bProtected) {
+			if (reg->supportCompressed && reg->supportISO &&
+			    !WARN_ON_ONCE(gsp->fb.region_nr >= ARRAY_SIZE(gsp->fb.region))) {
+					const u64 size = (reg->limit + 1) - reg->base;
+
+					gsp->fb.region[gsp->fb.region_nr].addr = reg->base;
+					gsp->fb.region[gsp->fb.region_nr].size = size;
+					gsp->fb.region_nr++;
+			}
+
+			last_usable = i;
+		}
+	}
+
+	if (last_usable >= 0) {
+		u32 rsvd_base = rpc->fbRegionInfoParams.fbRegion[last_usable].limit + 1;
+
+		gsp->fb.rsvd_size = gsp->fb.heap.addr - rsvd_base;
+	}
 
 	nvkm_gsp_rpc_done(gsp, rpc);
 	return 0;
@@ -1103,6 +1136,18 @@ r535_gsp_msg_os_error_log(void *priv, u32 fn, void *repv, u32 repc)
 		return -EINVAL;
 
 	nvkm_error(subdev, "Xid:%d %s\n", msg->exceptType, msg->errString);
+	return 0;
+}
+
+static int
+r535_gsp_msg_mmu_fault_queued(void *priv, u32 fn, void *repv, u32 repc)
+{
+	struct nvkm_gsp *gsp = priv;
+	struct nvkm_subdev *subdev = &gsp->subdev;
+
+	WARN_ON(repc != 0);
+
+	nvkm_error(subdev, "mmu fault queued\n");
 	return 0;
 }
 
@@ -1827,6 +1872,8 @@ r535_gsp_oneinit(struct nvkm_gsp *gsp)
 
 	r535_gsp_msg_ntfy_add(gsp, NV_VGPU_MSG_EVENT_GSP_RUN_CPU_SEQUENCER,
 			      r535_gsp_msg_run_cpu_sequencer, gsp);
+	r535_gsp_msg_ntfy_add(gsp, NV_VGPU_MSG_EVENT_MMU_FAULT_QUEUED,
+			      r535_gsp_msg_mmu_fault_queued, gsp);
 	r535_gsp_msg_ntfy_add(gsp, NV_VGPU_MSG_EVENT_OS_ERROR_LOG, r535_gsp_msg_os_error_log, gsp);
 
 	ret = r535_gsp_rm_boot_ctor(gsp);

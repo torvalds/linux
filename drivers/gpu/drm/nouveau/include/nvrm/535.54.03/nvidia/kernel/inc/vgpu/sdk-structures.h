@@ -1,10 +1,10 @@
-#ifndef __src_nvidia_kernel_inc_vgpu_rpc_headers_h__
-#define __src_nvidia_kernel_inc_vgpu_rpc_headers_h__
+#ifndef __src_nvidia_kernel_inc_vgpu_sdk_structures_h__
+#define __src_nvidia_kernel_inc_vgpu_sdk_structures_h__
 
 /* Excerpt of RM headers from https://github.com/NVIDIA/open-gpu-kernel-modules/tree/535.54.03 */
 
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2017-2022 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2022 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: MIT
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -26,26 +26,15 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-#define MAX_GPC_COUNT           32
-
-typedef enum
+struct pte_desc
 {
-    NV_RPC_UPDATE_PDE_BAR_1,
-    NV_RPC_UPDATE_PDE_BAR_2,
-    NV_RPC_UPDATE_PDE_BAR_INVALID,
-} NV_RPC_UPDATE_PDE_BAR_TYPE;
-
-typedef struct VIRTUAL_DISPLAY_GET_MAX_RESOLUTION_PARAMS 
-{
-    NvU32 headIndex;
-    NvU32 maxHResolution;
-    NvU32 maxVResolution;
-} VIRTUAL_DISPLAY_GET_MAX_RESOLUTION_PARAMS;
-
-typedef struct VIRTUAL_DISPLAY_GET_NUM_HEADS_PARAMS 
-{
-    NvU32 numHeads;
-    NvU32 maxNumHeads;
-} VIRTUAL_DISPLAY_GET_NUM_HEADS_PARAMS;
+    NvU32 idr:2;
+    NvU32 reserved1:14;
+    NvU32 length:16;
+    union {
+        NvU64 pte; // PTE when IDR==0; PDE when IDR > 0
+        NvU64 pde; // PTE when IDR==0; PDE when IDR > 0
+    } pte_pde[]  NV_ALIGN_BYTES(8); // PTE when IDR==0; PDE when IDR > 0
+};
 
 #endif

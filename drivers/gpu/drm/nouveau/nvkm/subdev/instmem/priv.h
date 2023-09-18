@@ -28,6 +28,9 @@ void nvkm_instmem_boot(struct nvkm_instmem *);
 int nv04_instmem_suspend(struct nvkm_instmem *);
 void nv04_instmem_resume(struct nvkm_instmem *);
 
+int r535_instmem_new(const struct nvkm_instmem_func *,
+		     struct nvkm_device *, enum nvkm_subdev_type, int, struct nvkm_instmem **);
+
 #include <core/memory.h>
 
 struct nvkm_instobj {

@@ -20,6 +20,42 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 #include "priv.h"
+#include "ram.h"
+
+#include <subdev/gsp.h>
+
+static const struct nvkm_ram_func
+r535_fb_ram = {
+};
+
+static int
+r535_fb_ram_new(struct nvkm_fb *fb, struct nvkm_ram **pram)
+{
+	struct nvkm_gsp *gsp = fb->subdev.device->gsp;
+	struct nvkm_ram *ram;
+	int ret;
+
+	if (!(ram = *pram = kzalloc(sizeof(*ram), GFP_KERNEL)))
+		return -ENOMEM;
+
+	ram->func = &r535_fb_ram;
+	ram->fb = fb;
+	ram->type = NVKM_RAM_TYPE_UNKNOWN; /*TODO: pull this from GSP. */
+	ram->size = gsp->fb.size;
+	ram->stolen = false;
+	mutex_init(&ram->mutex);
+
+	for (int i = 0; i < gsp->fb.region_nr; i++) {
+		ret = nvkm_mm_init(&ram->vram, NVKM_RAM_MM_NORMAL,
+				   gsp->fb.region[i].addr >> NVKM_RAM_MM_SHIFT,
+				   gsp->fb.region[i].size >> NVKM_RAM_MM_SHIFT,
+				   1);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
 
 static void *
 r535_fb_dtor(struct nvkm_fb *fb)
@@ -41,6 +77,7 @@ r535_fb_new(const struct nvkm_fb_func *hw,
 	rm->dtor = r535_fb_dtor;
 	rm->sysmem.flush_page_init = hw->sysmem.flush_page_init;
 	rm->vidmem.size = hw->vidmem.size;
+	rm->ram_new = r535_fb_ram_new;
 
 	ret = nvkm_fb_new_(rm, device, type, inst, pfb);
 	if (ret)

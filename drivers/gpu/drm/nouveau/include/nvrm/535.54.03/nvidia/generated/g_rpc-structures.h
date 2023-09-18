@@ -1,6 +1,7 @@
 #ifndef __src_nvidia_generated_g_rpc_structures_h__
 #define __src_nvidia_generated_g_rpc_structures_h__
 #include <nvrm/535.54.03/nvidia/generated/g_sdk-structures.h>
+#include <nvrm/535.54.03/nvidia/kernel/inc/vgpu/sdk-structures.h>
 
 /* Excerpt of RM headers from https://github.com/NVIDIA/open-gpu-kernel-modules/tree/535.54.03 */
 
@@ -27,6 +28,20 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
+typedef struct rpc_alloc_memory_v13_01
+{
+    NvHandle   hClient;
+    NvHandle   hDevice;
+    NvHandle   hMemory;
+    NvU32      hClass;
+    NvU32      flags;
+    NvU32      pteAdjust;
+    NvU32      format;
+    NvU64      length NV_ALIGN_BYTES(8);
+    NvU32      pageCount;
+    struct pte_desc pteDesc;
+} rpc_alloc_memory_v13_01;
+
 typedef struct rpc_free_v03_00
 {
     NVOS00_PARAMETERS_v03_00 params;
@@ -38,6 +53,11 @@ typedef struct rpc_unloading_guest_driver_v1F_07
     NvBool     bGc6Entering;
     NvU32      newLevel;
 } rpc_unloading_guest_driver_v1F_07;
+
+typedef struct rpc_update_bar_pde_v15_00
+{
+    UpdateBarPde_v15_00 info;
+} rpc_update_bar_pde_v15_00;
 
 typedef struct rpc_gsp_rm_alloc_v03_00
 {

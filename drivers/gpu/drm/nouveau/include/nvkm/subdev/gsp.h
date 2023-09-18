@@ -65,6 +65,13 @@ struct nvkm_gsp {
 		} heap;
 		u64 addr;
 		u64 size;
+
+		struct {
+			u64 addr;
+			u64 size;
+		} region[16];
+		int region_nr;
+		u32 rsvd_size;
 	} fb;
 
 	struct {
@@ -158,6 +165,11 @@ struct nvkm_gsp {
 		u32 nonstall;
 	} intr[32];
 	int intr_nr;
+
+	struct {
+		u64 rm_bar1_pdb;
+		u64 rm_bar2_pdb;
+	} bar;
 
 	const struct nvkm_gsp_rm {
 		void *(*rpc_get)(struct nvkm_gsp *, u32 fn, u32 argc);

@@ -1,10 +1,10 @@
-#ifndef __src_nvidia_kernel_inc_vgpu_rpc_headers_h__
-#define __src_nvidia_kernel_inc_vgpu_rpc_headers_h__
+#ifndef __src_nvidia_generated_g_fbsr_nvoc_h__
+#define __src_nvidia_generated_g_fbsr_nvoc_h__
 
 /* Excerpt of RM headers from https://github.com/NVIDIA/open-gpu-kernel-modules/tree/535.54.03 */
 
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2017-2022 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-FileCopyrightText: Copyright (c) 2009-2021 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: MIT
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -26,26 +26,6 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-#define MAX_GPC_COUNT           32
-
-typedef enum
-{
-    NV_RPC_UPDATE_PDE_BAR_1,
-    NV_RPC_UPDATE_PDE_BAR_2,
-    NV_RPC_UPDATE_PDE_BAR_INVALID,
-} NV_RPC_UPDATE_PDE_BAR_TYPE;
-
-typedef struct VIRTUAL_DISPLAY_GET_MAX_RESOLUTION_PARAMS 
-{
-    NvU32 headIndex;
-    NvU32 maxHResolution;
-    NvU32 maxVResolution;
-} VIRTUAL_DISPLAY_GET_MAX_RESOLUTION_PARAMS;
-
-typedef struct VIRTUAL_DISPLAY_GET_NUM_HEADS_PARAMS 
-{
-    NvU32 numHeads;
-    NvU32 maxNumHeads;
-} VIRTUAL_DISPLAY_GET_NUM_HEADS_PARAMS;
+#define FBSR_TYPE_DMA                                 4   // Copy using DMA. Fastest.
 
 #endif
