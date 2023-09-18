@@ -45,6 +45,8 @@
 enum scpsys_bus_prot_flags {
 	BUS_PROT_REG_UPDATE = BIT(1),
 	BUS_PROT_IGNORE_CLR_ACK = BIT(2),
+	BUS_PROT_COMPONENT_INFRA = BIT(4),
+	BUS_PROT_COMPONENT_SMI = BIT(5),
 };
 
 #define _BUS_PROT(_set_clr_mask, _set, _clr, _sta_mask, _sta, _flags) {	\
@@ -56,17 +58,19 @@ enum scpsys_bus_prot_flags {
 		.flags = _flags					\
 	}
 
-#define BUS_PROT_WR(_mask, _set, _clr, _sta)			\
-		_BUS_PROT(_mask, _set, _clr, _mask, _sta, 0)
+#define BUS_PROT_WR(_hwip, _mask, _set, _clr, _sta) \
+		_BUS_PROT(_mask, _set, _clr, _mask, _sta, BUS_PROT_COMPONENT_##_hwip)
 
-#define BUS_PROT_WR_IGN(_mask, _set, _clr, _sta)		\
-		_BUS_PROT(_mask, _set, _clr, _mask, _sta, BUS_PROT_IGNORE_CLR_ACK)
+#define BUS_PROT_WR_IGN(_hwip, _mask, _set, _clr, _sta) \
+		_BUS_PROT(_mask, _set, _clr, _mask, _sta, \
+			  BUS_PROT_COMPONENT_##_hwip | BUS_PROT_IGNORE_CLR_ACK)
 
-#define BUS_PROT_UPDATE(_mask, _set, _clr, _sta)		\
-		_BUS_PROT(_mask, _set, _clr, _mask, _sta, BUS_PROT_REG_UPDATE)
+#define BUS_PROT_UPDATE(_hwip, _mask, _set, _clr, _sta) \
+		_BUS_PROT(_mask, _set, _clr, _mask, _sta, \
+			  BUS_PROT_COMPONENT_##_hwip | BUS_PROT_REG_UPDATE)
 
-#define BUS_PROT_UPDATE_TOPAXI(_mask)				\
-		BUS_PROT_UPDATE(_mask,				\
+#define BUS_PROT_INFRA_UPDATE_TOPAXI(_mask)			\
+		BUS_PROT_UPDATE(INFRA, _mask,			\
 				INFRA_TOPAXI_PROTECTEN,		\
 				INFRA_TOPAXI_PROTECTEN,		\
 				INFRA_TOPAXI_PROTECTSTA1)
@@ -90,8 +94,7 @@ struct scpsys_bus_prot_data {
  * @ext_buck_iso_offs: The offset for external buck isolation
  * @ext_buck_iso_mask: The mask for external buck isolation
  * @caps: The flag for active wake-up action.
- * @bp_infracfg: bus protection for infracfg subsystem
- * @bp_smi: bus protection for smi subsystem
+ * @bp_cfg: bus protection configuration for any subsystem
  */
 struct scpsys_domain_data {
 	const char *name;
@@ -102,8 +105,7 @@ struct scpsys_domain_data {
 	int ext_buck_iso_offs;
 	u32 ext_buck_iso_mask;
 	u8 caps;
-	const struct scpsys_bus_prot_data bp_infracfg[SPM_MAX_BUS_PROT_DATA];
-	const struct scpsys_bus_prot_data bp_smi[SPM_MAX_BUS_PROT_DATA];
+	const struct scpsys_bus_prot_data bp_cfg[SPM_MAX_BUS_PROT_DATA];
 	int pwr_sta_offs;
 	int pwr_sta2nd_offs;
 };

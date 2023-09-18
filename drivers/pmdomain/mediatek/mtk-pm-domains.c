@@ -118,9 +118,19 @@ static int scpsys_sram_disable(struct scpsys_domain *pd)
 					MTK_POLL_TIMEOUT);
 }
 
-static int scpsys_bus_protect_clear(const struct scpsys_bus_prot_data *bpd,
-				    struct regmap *regmap)
+static struct regmap *scpsys_bus_protect_get_regmap(struct scpsys_domain *pd,
+						    const struct scpsys_bus_prot_data *bpd)
 {
+	if (bpd->flags & BUS_PROT_COMPONENT_SMI)
+		return pd->smi;
+	else
+		return pd->infracfg;
+}
+
+static int scpsys_bus_protect_clear(struct scpsys_domain *pd,
+				    const struct scpsys_bus_prot_data *bpd)
+{
+	struct regmap *regmap = scpsys_bus_protect_get_regmap(pd, bpd);
 	u32 sta_mask = bpd->bus_prot_sta_mask;
 	u32 val;
 
@@ -137,9 +147,10 @@ static int scpsys_bus_protect_clear(const struct scpsys_bus_prot_data *bpd,
 					MTK_POLL_DELAY_US, MTK_POLL_TIMEOUT);
 }
 
-static int scpsys_bus_protect_set(const struct scpsys_bus_prot_data *bpd,
-				  struct regmap *regmap)
+static int scpsys_bus_protect_set(struct scpsys_domain *pd,
+				  const struct scpsys_bus_prot_data *bpd)
 {
+	struct regmap *regmap = scpsys_bus_protect_get_regmap(pd, bpd);
 	u32 sta_mask = bpd->bus_prot_sta_mask;
 	u32 val;
 
@@ -153,43 +164,16 @@ static int scpsys_bus_protect_set(const struct scpsys_bus_prot_data *bpd,
 					MTK_POLL_DELAY_US, MTK_POLL_TIMEOUT);
 }
 
-static int _scpsys_bus_protect_enable(const struct scpsys_bus_prot_data *bpd, struct regmap *regmap)
-{
-	int i, ret;
-
-	for (i = 0; i < SPM_MAX_BUS_PROT_DATA; i++) {
-		if (!bpd[i].bus_prot_set_clr_mask)
-			break;
-
-		ret = scpsys_bus_protect_set(&bpd[i], regmap);
-		if (ret)
-			return ret;
-	}
-
-	return 0;
-}
-
 static int scpsys_bus_protect_enable(struct scpsys_domain *pd)
 {
-	int ret;
+	for (int i = 0; i < SPM_MAX_BUS_PROT_DATA; i++) {
+		const struct scpsys_bus_prot_data *bpd = &pd->data->bp_cfg[i];
+		int ret;
 
-	ret = _scpsys_bus_protect_enable(pd->data->bp_infracfg, pd->infracfg);
-	if (ret)
-		return ret;
+		if (!bpd->bus_prot_set_clr_mask)
+			break;
 
-	return _scpsys_bus_protect_enable(pd->data->bp_smi, pd->smi);
-}
-
-static int _scpsys_bus_protect_disable(const struct scpsys_bus_prot_data *bpd,
-				       struct regmap *regmap)
-{
-	int i, ret;
-
-	for (i = SPM_MAX_BUS_PROT_DATA - 1; i >= 0; i--) {
-		if (!bpd[i].bus_prot_set_clr_mask)
-			continue;
-
-		ret = scpsys_bus_protect_clear(&bpd[i], regmap);
+		ret = scpsys_bus_protect_set(pd, bpd);
 		if (ret)
 			return ret;
 	}
@@ -199,13 +183,19 @@ static int _scpsys_bus_protect_disable(const struct scpsys_bus_prot_data *bpd,
 
 static int scpsys_bus_protect_disable(struct scpsys_domain *pd)
 {
-	int ret;
+	for (int i = SPM_MAX_BUS_PROT_DATA - 1; i >= 0; i--) {
+		const struct scpsys_bus_prot_data *bpd = &pd->data->bp_cfg[i];
+		int ret;
 
-	ret = _scpsys_bus_protect_disable(pd->data->bp_smi, pd->smi);
-	if (ret)
-		return ret;
+		if (!bpd->bus_prot_set_clr_mask)
+			continue;
 
-	return _scpsys_bus_protect_disable(pd->data->bp_infracfg, pd->infracfg);
+		ret = scpsys_bus_protect_clear(pd, bpd);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
 }
 
 static int scpsys_regulator_enable(struct regulator *supply)
