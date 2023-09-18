@@ -9,6 +9,8 @@
 #include <linux/regmap.h>
 #include <linux/netdevice.h>
 
+#include "mtk_wed_regs.h"
+
 struct mtk_eth;
 struct mtk_wed_wo;
 
@@ -19,6 +21,7 @@ struct mtk_wed_soc_data {
 		u32 reset_idx_tx_mask;
 		u32 reset_idx_rx_mask;
 	} regmap;
+	u32 tx_ring_desc_size;
 	u32 wdma_desc_size;
 };
 
@@ -35,6 +38,7 @@ struct mtk_wed_hw {
 	struct dentry *debugfs_dir;
 	struct mtk_wed_device *wed_dev;
 	struct mtk_wed_wo *wed_wo;
+	u32 pcie_base;
 	u32 debugfs_reg;
 	u32 num_flows;
 	u8 version;
@@ -59,6 +63,16 @@ static inline bool mtk_wed_is_v1(struct mtk_wed_hw *hw)
 static inline bool mtk_wed_is_v2(struct mtk_wed_hw *hw)
 {
 	return hw->version == 2;
+}
+
+static inline bool mtk_wed_is_v3(struct mtk_wed_hw *hw)
+{
+	return hw->version == 3;
+}
+
+static inline bool mtk_wed_is_v3_or_greater(struct mtk_wed_hw *hw)
+{
+	return hw->version > 2;
 }
 
 static inline void
@@ -141,6 +155,21 @@ wpdma_txfree_w32(struct mtk_wed_device *dev, u32 reg, u32 val)
 		return;
 
 	writel(val, dev->txfree_ring.wpdma + reg);
+}
+
+static inline u32 mtk_wed_get_pcie_base(struct mtk_wed_device *dev)
+{
+	if (!mtk_wed_is_v3_or_greater(dev->hw))
+		return MTK_WED_PCIE_BASE;
+
+	switch (dev->hw->index) {
+	case 1:
+		return MTK_WED_PCIE_BASE1;
+	case 2:
+		return MTK_WED_PCIE_BASE2;
+	default:
+		return MTK_WED_PCIE_BASE0;
+	}
 }
 
 void mtk_wed_add_hw(struct device_node *np, struct mtk_eth *eth,

@@ -138,6 +138,8 @@ struct mtk_wed_device {
 		u32 wpdma_rx;
 
 		bool wcid_512;
+		bool hw_rro;
+		bool msi;
 
 		u16 token_start;
 		unsigned int nbuf;
@@ -211,10 +213,12 @@ mtk_wed_device_attach(struct mtk_wed_device *dev)
 	return ret;
 }
 
-static inline bool
-mtk_wed_get_rx_capa(struct mtk_wed_device *dev)
+static inline bool mtk_wed_get_rx_capa(struct mtk_wed_device *dev)
 {
 #ifdef CONFIG_NET_MEDIATEK_SOC_WED
+	if (dev->version == 3)
+		return dev->wlan.hw_rro;
+
 	return dev->version != 1;
 #else
 	return false;

@@ -331,10 +331,22 @@ mtk_wed_mcu_load_firmware(struct mtk_wed_wo *wo)
 		wo->hw->index + 1);
 
 	/* load firmware */
-	if (of_device_is_compatible(wo->hw->node, "mediatek,mt7981-wed"))
-		fw_name = MT7981_FIRMWARE_WO;
-	else
-		fw_name = wo->hw->index ? MT7986_FIRMWARE_WO1 : MT7986_FIRMWARE_WO0;
+	switch (wo->hw->version) {
+	case 2:
+		if (of_device_is_compatible(wo->hw->node,
+					    "mediatek,mt7981-wed"))
+			fw_name = MT7981_FIRMWARE_WO;
+		else
+			fw_name = wo->hw->index ? MT7986_FIRMWARE_WO1
+						: MT7986_FIRMWARE_WO0;
+		break;
+	case 3:
+		fw_name = wo->hw->index ? MT7988_FIRMWARE_WO1
+					: MT7988_FIRMWARE_WO0;
+		break;
+	default:
+		return -EINVAL;
+	}
 
 	ret = request_firmware(&fw, fw_name, wo->hw->dev);
 	if (ret)
@@ -355,15 +367,16 @@ mtk_wed_mcu_load_firmware(struct mtk_wed_wo *wo)
 	}
 
 	/* set the start address */
-	boot_cr = wo->hw->index ? MTK_WO_MCU_CFG_LS_WA_BOOT_ADDR_ADDR
-				: MTK_WO_MCU_CFG_LS_WM_BOOT_ADDR_ADDR;
+	if (!mtk_wed_is_v3_or_greater(wo->hw) && wo->hw->index)
+		boot_cr = MTK_WO_MCU_CFG_LS_WA_BOOT_ADDR_ADDR;
+	else
+		boot_cr = MTK_WO_MCU_CFG_LS_WM_BOOT_ADDR_ADDR;
 	wo_w32(wo, boot_cr, mem_region[MTK_WED_WO_REGION_EMI].phy_addr >> 16);
 	/* wo firmware reset */
 	wo_w32(wo, MTK_WO_MCU_CFG_LS_WF_MCCR_CLR_ADDR, 0xc00);
 
-	val = wo_r32(wo, MTK_WO_MCU_CFG_LS_WF_MCU_CFG_WM_WA_ADDR);
-	val |= wo->hw->index ? MTK_WO_MCU_CFG_LS_WF_WM_WA_WA_CPU_RSTB_MASK
-			     : MTK_WO_MCU_CFG_LS_WF_WM_WA_WM_CPU_RSTB_MASK;
+	val = wo_r32(wo, MTK_WO_MCU_CFG_LS_WF_MCU_CFG_WM_WA_ADDR) |
+	      MTK_WO_MCU_CFG_LS_WF_WM_WA_WM_CPU_RSTB_MASK;
 	wo_w32(wo, MTK_WO_MCU_CFG_LS_WF_MCU_CFG_WM_WA_ADDR, val);
 out:
 	release_firmware(fw);
@@ -398,3 +411,5 @@ int mtk_wed_mcu_init(struct mtk_wed_wo *wo)
 MODULE_FIRMWARE(MT7981_FIRMWARE_WO);
 MODULE_FIRMWARE(MT7986_FIRMWARE_WO0);
 MODULE_FIRMWARE(MT7986_FIRMWARE_WO1);
+MODULE_FIRMWARE(MT7988_FIRMWARE_WO0);
+MODULE_FIRMWARE(MT7988_FIRMWARE_WO1);

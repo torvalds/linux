@@ -201,6 +201,9 @@ mtk_flow_set_output_device(struct mtk_eth *eth, struct mtk_foe_entry *foe,
 			case 1:
 				pse_port = PSE_WDMA1_PORT;
 				break;
+			case 2:
+				pse_port = PSE_WDMA2_PORT;
+				break;
 			default:
 				return -EINVAL;
 			}
