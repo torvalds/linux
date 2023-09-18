@@ -1422,11 +1422,8 @@ static int mcp3564_probe(struct spi_device *spi)
 	struct mcp3564_state *adc;
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*adc));
-	if (!indio_dev) {
-		dev_err_probe(&indio_dev->dev, PTR_ERR(indio_dev),
-			      "Can't allocate iio device\n");
+	if (!indio_dev)
 		return -ENOMEM;
-	}
 
 	adc = iio_priv(indio_dev);
 	adc->spi = spi;
