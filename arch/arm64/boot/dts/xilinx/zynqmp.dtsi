@@ -129,7 +129,7 @@
 		};
 	};
 
-	zynqmp_ipi: zynqmp_ipi {
+	zynqmp_ipi: zynqmp-ipi {
 		bootph-all;
 		compatible = "xlnx,zynqmp-ipi-mailbox";
 		interrupt-parent = <&gic>;
@@ -194,12 +194,12 @@
 				mbox-names = "tx", "rx";
 			};
 
-			nvmem_firmware {
+			nvmem-firmware {
 				compatible = "xlnx,zynqmp-nvmem-fw";
 				#address-cells = <1>;
 				#size-cells = <1>;
 
-				soc_revision: soc_revision@0 {
+				soc_revision: soc-revision@0 {
 					reg = <0x0 0x4>;
 				};
 			};
