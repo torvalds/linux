@@ -21,6 +21,8 @@
  */
 #include "priv.h"
 
+#include <subdev/gsp.h>
+
 static void
 ga100_mc_device_disable(struct nvkm_mc *mc, u32 mask)
 {
@@ -72,5 +74,8 @@ ga100_mc = {
 int
 ga100_mc_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst, struct nvkm_mc **pmc)
 {
+	if (nvkm_gsp_rm(device->gsp))
+		return -ENODEV;
+
 	return nvkm_mc_new_(&ga100_mc, device, type, inst, pmc);
 }
