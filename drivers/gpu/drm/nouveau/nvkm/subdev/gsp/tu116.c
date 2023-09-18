@@ -21,8 +21,30 @@
  */
 #include "priv.h"
 
+static const struct nvkm_gsp_func
+tu116_gsp_r535_54_03 = {
+	.flcn = &tu102_gsp_flcn,
+	.fwsec = &tu102_gsp_fwsec,
+
+	.sig_section = ".fwsignature_tu11x",
+
+	.wpr_heap.base_size = 8 << 20,
+	.wpr_heap.min_size = 64 << 20,
+
+	.booter.ctor = tu102_gsp_booter_ctor,
+
+	.dtor = r535_gsp_dtor,
+	.oneinit = tu102_gsp_oneinit,
+	.init = r535_gsp_init,
+	.fini = r535_gsp_fini,
+	.reset = tu102_gsp_reset,
+
+	.rm = &r535_gsp_rm,
+};
+
 static struct nvkm_gsp_fwif
 tu116_gsps[] = {
+	{  0,  r535_gsp_load, &tu116_gsp_r535_54_03, "535.54.03" },
 	{ -1, gv100_gsp_nofw, &gv100_gsp },
 	{}
 };

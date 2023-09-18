@@ -2744,6 +2744,66 @@ nv177_chipset = {
 	.sec2     = { 0x00000001, ga102_sec2_new },
 };
 
+static const struct nvkm_device_chip
+nv192_chipset = {
+	.name = "AD102",
+	.bios     = { 0x00000001, nvkm_bios_new },
+	.devinit  = { 0x00000001, ga100_devinit_new },
+	.fb       = { 0x00000001, ga102_fb_new },
+	.gsp      = { 0x00000001, ad102_gsp_new },
+	.pci      = { 0x00000001, gp100_pci_new },
+	.timer    = { 0x00000001, gk20a_timer_new },
+	.sec2     = { 0x00000001, ga102_sec2_new },
+};
+
+static const struct nvkm_device_chip
+nv193_chipset = {
+	.name = "AD103",
+	.bios     = { 0x00000001, nvkm_bios_new },
+	.devinit  = { 0x00000001, ga100_devinit_new },
+	.fb       = { 0x00000001, ga102_fb_new },
+	.gsp      = { 0x00000001, ad102_gsp_new },
+	.pci      = { 0x00000001, gp100_pci_new },
+	.timer    = { 0x00000001, gk20a_timer_new },
+	.sec2     = { 0x00000001, ga102_sec2_new },
+};
+
+static const struct nvkm_device_chip
+nv194_chipset = {
+	.name = "AD104",
+	.bios     = { 0x00000001, nvkm_bios_new },
+	.devinit  = { 0x00000001, ga100_devinit_new },
+	.fb       = { 0x00000001, ga102_fb_new },
+	.gsp      = { 0x00000001, ad102_gsp_new },
+	.pci      = { 0x00000001, gp100_pci_new },
+	.timer    = { 0x00000001, gk20a_timer_new },
+	.sec2     = { 0x00000001, ga102_sec2_new },
+};
+
+static const struct nvkm_device_chip
+nv196_chipset = {
+	.name = "AD106",
+	.bios     = { 0x00000001, nvkm_bios_new },
+	.devinit  = { 0x00000001, ga100_devinit_new },
+	.fb       = { 0x00000001, ga102_fb_new },
+	.gsp      = { 0x00000001, ad102_gsp_new },
+	.pci      = { 0x00000001, gp100_pci_new },
+	.timer    = { 0x00000001, gk20a_timer_new },
+	.sec2     = { 0x00000001, ga102_sec2_new },
+};
+
+static const struct nvkm_device_chip
+nv197_chipset = {
+	.name = "AD107",
+	.bios     = { 0x00000001, nvkm_bios_new },
+	.devinit  = { 0x00000001, ga100_devinit_new },
+	.fb       = { 0x00000001, ga102_fb_new },
+	.gsp      = { 0x00000001, ad102_gsp_new },
+	.pci      = { 0x00000001, gp100_pci_new },
+	.timer    = { 0x00000001, gk20a_timer_new },
+	.sec2     = { 0x00000001, ga102_sec2_new },
+};
+
 struct nvkm_subdev *
 nvkm_device_subdev(struct nvkm_device *device, int type, int inst)
 {
@@ -3062,6 +3122,7 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 			case 0x140: device->card_type = GV100; break;
 			case 0x160: device->card_type = TU100; break;
 			case 0x170: device->card_type = GA100; break;
+			case 0x190: device->card_type = AD100; break;
 			default:
 				break;
 			}
@@ -3164,6 +3225,11 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 		case 0x174: device->chip = &nv174_chipset; break;
 		case 0x176: device->chip = &nv176_chipset; break;
 		case 0x177: device->chip = &nv177_chipset; break;
+		case 0x192: device->chip = &nv192_chipset; break;
+		case 0x193: device->chip = &nv193_chipset; break;
+		case 0x194: device->chip = &nv194_chipset; break;
+		case 0x196: device->chip = &nv196_chipset; break;
+		case 0x197: device->chip = &nv197_chipset; break;
 		default:
 			if (nvkm_boolopt(device->cfgopt, "NvEnableUnsupportedChipsets", false)) {
 				switch (device->chipset) {

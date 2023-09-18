@@ -1,0 +1,1561 @@
+/*
+ * Copyright 2023 Red Hat Inc.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
+ * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+ * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ */
+#include "priv.h"
+
+#include <core/pci.h>
+#include <subdev/timer.h>
+#include <engine/sec2.h>
+
+#include <nvfw/fw.h>
+
+#include <nvrm/nvtypes.h>
+#include <nvrm/535.54.03/common/sdk/nvidia/inc/ctrl/ctrl2080/ctrl2080gpu.h>
+#include <nvrm/535.54.03/common/shared/msgq/inc/msgq/msgq_priv.h>
+#include <nvrm/535.54.03/common/uproc/os/common/include/libos_init_args.h>
+#include <nvrm/535.54.03/nvidia/arch/nvalloc/common/inc/gsp/gsp_fw_sr_meta.h>
+#include <nvrm/535.54.03/nvidia/arch/nvalloc/common/inc/gsp/gsp_fw_wpr_meta.h>
+#include <nvrm/535.54.03/nvidia/arch/nvalloc/common/inc/rmRiscvUcode.h>
+#include <nvrm/535.54.03/nvidia/arch/nvalloc/common/inc/rmgspseq.h>
+#include <nvrm/535.54.03/nvidia/generated/g_os_nvoc.h>
+#include <nvrm/535.54.03/nvidia/generated/g_rpc-structures.h>
+#include <nvrm/535.54.03/nvidia/inc/kernel/gpu/gsp/gsp_fw_heap.h>
+#include <nvrm/535.54.03/nvidia/inc/kernel/gpu/gsp/gsp_init_args.h>
+#include <nvrm/535.54.03/nvidia/inc/kernel/gpu/gsp/gsp_static_config.h>
+#include <nvrm/535.54.03/nvidia/kernel/inc/vgpu/rpc_global_enums.h>
+
+#include <linux/acpi.h>
+
+struct r535_gsp_msg {
+	u32 checksum;
+	u32 sequence;
+	u8  data[];
+};
+
+static void *
+r535_gsp_msgq_wait(struct nvkm_gsp *gsp, u32 repc, u32 *prepc, int *ptime)
+{
+	struct r535_gsp_msg *mqe;
+	u32 size, rptr = *gsp->msgq.rptr;
+	int used;
+	u8 *msg;
+	u32 len;
+
+	size = DIV_ROUND_UP(sizeof(*mqe) + repc, GSP_PAGE_SIZE);
+	if (WARN_ON(!size || size >= gsp->msgq.cnt))
+		return ERR_PTR(-EINVAL);
+
+	do {
+		u32 wptr = *gsp->msgq.wptr;
+
+		used = wptr + gsp->msgq.cnt - rptr;
+		if (used >= gsp->msgq.cnt)
+			used -= gsp->msgq.cnt;
+		if (used >= size)
+			break;
+
+		usleep_range(1, 2);
+	} while (--(*ptime));
+
+	if (WARN_ON(!*ptime))
+		return ERR_PTR(-ETIMEDOUT);
+
+	mqe = (void *)((u8 *)gsp->shm.msgq.ptr + 0x1000 + rptr * 0x1000);
+
+	if (prepc) {
+		*prepc = (used * GSP_PAGE_SIZE) - sizeof(*mqe);
+		return mqe->data;
+	}
+
+	msg = kvmalloc(repc, GFP_KERNEL);
+	if (!msg)
+		return ERR_PTR(-ENOMEM);
+
+	len = ((gsp->msgq.cnt - rptr) * GSP_PAGE_SIZE) - sizeof(*mqe);
+	len = min_t(u32, repc, len);
+	memcpy(msg, mqe->data, len);
+
+	rptr += DIV_ROUND_UP(len, GSP_PAGE_SIZE);
+	if (rptr == gsp->msgq.cnt)
+		rptr = 0;
+
+	repc -= len;
+
+	if (repc) {
+		mqe = (void *)((u8 *)gsp->shm.msgq.ptr + 0x1000 + 0 * 0x1000);
+		memcpy(msg + len, mqe, repc);
+
+		rptr += DIV_ROUND_UP(repc, GSP_PAGE_SIZE);
+	}
+
+	mb();
+	(*gsp->msgq.rptr) = rptr;
+	return msg;
+}
+
+static void *
+r535_gsp_msgq_recv(struct nvkm_gsp *gsp, u32 repc, int *ptime)
+{
+	return r535_gsp_msgq_wait(gsp, repc, NULL, ptime);
+}
+
+static int
+r535_gsp_cmdq_push(struct nvkm_gsp *gsp, void *argv)
+{
+	struct r535_gsp_msg *cmd = container_of(argv, typeof(*cmd), data);
+	struct r535_gsp_msg *cqe;
+	u32 argc = cmd->checksum;
+	u64 *ptr = (void *)cmd;
+	u64 *end = (void *)cmd->data + argc;
+	u64 csum = 0;
+	int free, time = 1000000;
+	u32 wptr, size;
+	u32 off = 0;
+
+	cmd->checksum = 0;
+	cmd->sequence = gsp->cmdq.seq++;
+	while (ptr < end)
+		csum ^= *ptr++;
+
+	cmd->checksum = upper_32_bits(csum) ^ lower_32_bits(csum);
+
+	argc = sizeof(*cmd) + argc;
+	wptr = *gsp->cmdq.wptr;
+	do {
+		do {
+			free = *gsp->cmdq.rptr + gsp->cmdq.cnt - wptr - 1;
+			if (free >= gsp->cmdq.cnt)
+				free -= gsp->cmdq.cnt;
+			if (free >= 1)
+				break;
+
+			usleep_range(1, 2);
+		} while(--time);
+
+		if (WARN_ON(!time)) {
+			kvfree(cmd);
+			return -ETIMEDOUT;
+		}
+
+		cqe = (void *)((u8 *)gsp->shm.cmdq.ptr + 0x1000 + wptr * 0x1000);
+		size = min_t(u32, argc, (gsp->cmdq.cnt - wptr) * GSP_PAGE_SIZE);
+		memcpy(cqe, (u8 *)cmd + off, size);
+
+		wptr += DIV_ROUND_UP(size, 0x1000);
+		if (wptr == gsp->cmdq.cnt)
+			wptr = 0;
+
+		off  += size;
+		argc -= size;
+	} while(argc);
+
+	nvkm_trace(&gsp->subdev, "cmdq: wptr %d\n", wptr);
+	wmb();
+	(*gsp->cmdq.wptr) = wptr;
+	mb();
+
+	nvkm_falcon_wr32(&gsp->falcon, 0xc00, 0x00000000);
+
+	kvfree(cmd);
+	return 0;
+}
+
+static void *
+r535_gsp_cmdq_get(struct nvkm_gsp *gsp, u32 argc)
+{
+	struct r535_gsp_msg *cmd;
+
+	cmd = kvzalloc(sizeof(*cmd) + argc, GFP_KERNEL);
+	if (!cmd)
+		return ERR_PTR(-ENOMEM);
+
+	cmd->checksum = argc;
+	return cmd->data;
+}
+
+struct nvfw_gsp_rpc {
+	u32 header_version;
+	u32 signature;
+	u32 length;
+	u32 function;
+	u32 rpc_result;
+	u32 rpc_result_private;
+	u32 sequence;
+	union {
+		u32 spare;
+		u32 cpuRmGfid;
+	};
+	u8  data[];
+};
+
+static void
+r535_gsp_msg_done(struct nvkm_gsp *gsp, struct nvfw_gsp_rpc *msg)
+{
+	kvfree(msg);
+}
+
+static void
+r535_gsp_msg_dump(struct nvkm_gsp *gsp, struct nvfw_gsp_rpc *msg, int lvl)
+{
+	if (gsp->subdev.debug >= lvl) {
+		nvkm_printk__(&gsp->subdev, lvl, info,
+			      "msg fn:%d len:0x%x/0x%zx res:0x%x resp:0x%x\n",
+			      msg->function, msg->length, msg->length - sizeof(*msg),
+			      msg->rpc_result, msg->rpc_result_private);
+		print_hex_dump(KERN_INFO, "msg: ", DUMP_PREFIX_OFFSET, 16, 1,
+			       msg->data, msg->length - sizeof(*msg), true);
+	}
+}
+
+static struct nvfw_gsp_rpc *
+r535_gsp_msg_recv(struct nvkm_gsp *gsp, int fn, u32 repc)
+{
+	struct nvkm_subdev *subdev = &gsp->subdev;
+	struct nvfw_gsp_rpc *msg;
+	int time = 4000000, i;
+	u32 size;
+
+retry:
+	msg = r535_gsp_msgq_wait(gsp, sizeof(*msg), &size, &time);
+	if (IS_ERR_OR_NULL(msg))
+		return msg;
+
+	msg = r535_gsp_msgq_recv(gsp, msg->length, &time);
+	if (IS_ERR_OR_NULL(msg))
+		return msg;
+
+	if (msg->rpc_result) {
+		r535_gsp_msg_dump(gsp, msg, NV_DBG_ERROR);
+		r535_gsp_msg_done(gsp, msg);
+		return ERR_PTR(-EINVAL);
+	}
+
+	r535_gsp_msg_dump(gsp, msg, NV_DBG_TRACE);
+
+	if (fn && msg->function == fn) {
+		if (repc) {
+			if (msg->length < sizeof(*msg) + repc) {
+				nvkm_error(subdev, "msg len %d < %zd\n",
+					   msg->length, sizeof(*msg) + repc);
+				r535_gsp_msg_dump(gsp, msg, NV_DBG_ERROR);
+				r535_gsp_msg_done(gsp, msg);
+				return ERR_PTR(-EIO);
+			}
+
+			return msg;
+		}
+
+		r535_gsp_msg_done(gsp, msg);
+		return NULL;
+	}
+
+	for (i = 0; i < gsp->msgq.ntfy_nr; i++) {
+		struct nvkm_gsp_msgq_ntfy *ntfy = &gsp->msgq.ntfy[i];
+
+		if (ntfy->fn == msg->function) {
+			ntfy->func(ntfy->priv, ntfy->fn, msg->data, msg->length - sizeof(*msg));
+			break;
+		}
+	}
+
+	if (i == gsp->msgq.ntfy_nr)
+		r535_gsp_msg_dump(gsp, msg, NV_DBG_WARN);
+
+	r535_gsp_msg_done(gsp, msg);
+	if (fn)
+		goto retry;
+
+	if (*gsp->msgq.rptr != *gsp->msgq.wptr)
+		goto retry;
+
+	return NULL;
+}
+
+static int
+r535_gsp_msg_ntfy_add(struct nvkm_gsp *gsp, u32 fn, nvkm_gsp_msg_ntfy_func func, void *priv)
+{
+	int ret = 0;
+
+	mutex_lock(&gsp->msgq.mutex);
+	if (WARN_ON(gsp->msgq.ntfy_nr >= ARRAY_SIZE(gsp->msgq.ntfy))) {
+		ret = -ENOSPC;
+	} else {
+		gsp->msgq.ntfy[gsp->msgq.ntfy_nr].fn = fn;
+		gsp->msgq.ntfy[gsp->msgq.ntfy_nr].func = func;
+		gsp->msgq.ntfy[gsp->msgq.ntfy_nr].priv = priv;
+		gsp->msgq.ntfy_nr++;
+	}
+	mutex_unlock(&gsp->msgq.mutex);
+	return ret;
+}
+
+static int
+r535_gsp_rpc_poll(struct nvkm_gsp *gsp, u32 fn)
+{
+	void *repv;
+
+	mutex_lock(&gsp->cmdq.mutex);
+	repv = r535_gsp_msg_recv(gsp, fn, 0);
+	mutex_unlock(&gsp->cmdq.mutex);
+	if (IS_ERR(repv))
+		return PTR_ERR(repv);
+
+	return 0;
+}
+
+static void *
+r535_gsp_rpc_send(struct nvkm_gsp *gsp, void *argv, bool wait, u32 repc)
+{
+	struct nvfw_gsp_rpc *rpc = container_of(argv, typeof(*rpc), data);
+	struct nvfw_gsp_rpc *msg;
+	u32 fn = rpc->function;
+	void *repv = NULL;
+	int ret;
+
+	if (gsp->subdev.debug >= NV_DBG_TRACE) {
+		nvkm_trace(&gsp->subdev, "rpc fn:%d len:0x%x/0x%zx\n", rpc->function,
+			   rpc->length, rpc->length - sizeof(*rpc));
+		print_hex_dump(KERN_INFO, "rpc: ", DUMP_PREFIX_OFFSET, 16, 1,
+			       rpc->data, rpc->length - sizeof(*rpc), true);
+	}
+
+	ret = r535_gsp_cmdq_push(gsp, rpc);
+	if (ret) {
+		mutex_unlock(&gsp->cmdq.mutex);
+		return ERR_PTR(ret);
+	}
+
+	if (wait) {
+		msg = r535_gsp_msg_recv(gsp, fn, repc);
+		if (!IS_ERR_OR_NULL(msg))
+			repv = msg->data;
+		else
+			repv = msg;
+	}
+
+	return repv;
+}
+
+static void
+r535_gsp_rpc_done(struct nvkm_gsp *gsp, void *repv)
+{
+	struct nvfw_gsp_rpc *rpc = container_of(repv, typeof(*rpc), data);
+
+	r535_gsp_msg_done(gsp, rpc);
+}
+
+static void *
+r535_gsp_rpc_get(struct nvkm_gsp *gsp, u32 fn, u32 argc)
+{
+	struct nvfw_gsp_rpc *rpc;
+
+	rpc = r535_gsp_cmdq_get(gsp, ALIGN(sizeof(*rpc) + argc, sizeof(u64)));
+	if (!rpc)
+		return NULL;
+
+	rpc->header_version = 0x03000000;
+	rpc->signature = ('V' << 24) | ('R' << 16) | ('P' << 8) | 'C';
+	rpc->function = fn;
+	rpc->rpc_result = 0xffffffff;
+	rpc->rpc_result_private = 0xffffffff;
+	rpc->length = sizeof(*rpc) + argc;
+	return rpc->data;
+}
+
+static void *
+r535_gsp_rpc_push(struct nvkm_gsp *gsp, void *argv, bool wait, u32 repc)
+{
+	struct nvfw_gsp_rpc *rpc = container_of(argv, typeof(*rpc), data);
+	struct r535_gsp_msg *cmd = container_of((void *)rpc, typeof(*cmd), data);
+	const u32 max_msg_size = (16 * 0x1000) - sizeof(struct r535_gsp_msg);
+	const u32 max_rpc_size = max_msg_size - sizeof(*rpc);
+	u32 rpc_size = rpc->length - sizeof(*rpc);
+	void *repv;
+
+	mutex_lock(&gsp->cmdq.mutex);
+	if (rpc_size > max_rpc_size) {
+		const u32 fn = rpc->function;
+
+		/* Adjust length, and send initial RPC. */
+		rpc->length = sizeof(*rpc) + max_rpc_size;
+		cmd->checksum = rpc->length;
+
+		repv = r535_gsp_rpc_send(gsp, argv, false, 0);
+		if (IS_ERR(repv))
+			goto done;
+
+		argv += max_rpc_size;
+		rpc_size -= max_rpc_size;
+
+		/* Remaining chunks sent as CONTINUATION_RECORD RPCs. */
+		while (rpc_size) {
+			u32 size = min(rpc_size, max_rpc_size);
+			void *next;
+
+			next = r535_gsp_rpc_get(gsp, NV_VGPU_MSG_FUNCTION_CONTINUATION_RECORD, size);
+			if (IS_ERR(next)) {
+				repv = next;
+				goto done;
+			}
+
+			memcpy(next, argv, size);
+
+			repv = r535_gsp_rpc_send(gsp, next, false, 0);
+			if (IS_ERR(repv))
+				goto done;
+
+			argv += size;
+			rpc_size -= size;
+		}
+
+		/* Wait for reply. */
+		if (wait) {
+			rpc = r535_gsp_msg_recv(gsp, fn, repc);
+			if (!IS_ERR_OR_NULL(rpc))
+				repv = rpc->data;
+			else
+				repv = rpc;
+		} else {
+			repv = NULL;
+		}
+	} else {
+		repv = r535_gsp_rpc_send(gsp, argv, wait, repc);
+	}
+
+done:
+	mutex_unlock(&gsp->cmdq.mutex);
+	return repv;
+}
+
+const struct nvkm_gsp_rm
+r535_gsp_rm = {
+	.rpc_get = r535_gsp_rpc_get,
+	.rpc_push = r535_gsp_rpc_push,
+	.rpc_done = r535_gsp_rpc_done,
+};
+
+static int
+r535_gsp_rpc_unloading_guest_driver(struct nvkm_gsp *gsp, bool suspend)
+{
+	rpc_unloading_guest_driver_v1F_07 *rpc;
+
+	rpc = nvkm_gsp_rpc_get(gsp, NV_VGPU_MSG_FUNCTION_UNLOADING_GUEST_DRIVER, sizeof(*rpc));
+	if (IS_ERR(rpc))
+		return PTR_ERR(rpc);
+
+	if (suspend) {
+		rpc->bInPMTransition = 1;
+		rpc->bGc6Entering = 0;
+		rpc->newLevel = NV2080_CTRL_GPU_SET_POWER_STATE_GPU_LEVEL_3;
+	} else {
+		rpc->bInPMTransition = 0;
+		rpc->bGc6Entering = 0;
+		rpc->newLevel = NV2080_CTRL_GPU_SET_POWER_STATE_GPU_LEVEL_0;
+	}
+
+	return nvkm_gsp_rpc_wr(gsp, rpc, true);
+}
+
+static int
+r535_gsp_rpc_set_registry(struct nvkm_gsp *gsp)
+{
+	PACKED_REGISTRY_TABLE *rpc;
+	char *strings;
+
+	rpc = nvkm_gsp_rpc_get(gsp, NV_VGPU_MSG_FUNCTION_SET_REGISTRY,
+			       sizeof(*rpc) + sizeof(rpc->entries[0]) + 1);
+	if (IS_ERR(rpc))
+		return PTR_ERR(rpc);
+
+	rpc->size = sizeof(*rpc);
+	rpc->numEntries = 1;
+	rpc->entries[0].nameOffset = offsetof(typeof(*rpc), entries[1]);
+	rpc->entries[0].type = 1;
+	rpc->entries[0].data = 0;
+	rpc->entries[0].length = 4;
+
+	strings = (char *)&rpc->entries[1];
+	strings[0] = '\0';
+
+	return nvkm_gsp_rpc_wr(gsp, rpc, false);
+}
+
+#if defined(CONFIG_ACPI) && defined(CONFIG_X86)
+static void
+r535_gsp_acpi_caps(acpi_handle handle, CAPS_METHOD_DATA *caps)
+{
+	const guid_t NVOP_DSM_GUID =
+		GUID_INIT(0xA486D8F8, 0x0BDA, 0x471B,
+			  0xA7, 0x2B, 0x60, 0x42, 0xA6, 0xB5, 0xBE, 0xE0);
+	u64 NVOP_DSM_REV = 0x00000100;
+	union acpi_object argv4 = {
+		.buffer.type    = ACPI_TYPE_BUFFER,
+		.buffer.length  = 4,
+		.buffer.pointer = kmalloc(argv4.buffer.length, GFP_KERNEL),
+	}, *obj;
+
+	caps->status = 0xffff;
+
+	if (!acpi_check_dsm(handle, &NVOP_DSM_GUID, NVOP_DSM_REV, BIT_ULL(0x1a)))
+		return;
+
+	obj = acpi_evaluate_dsm(handle, &NVOP_DSM_GUID, NVOP_DSM_REV, 0x1a, &argv4);
+	if (!obj)
+		return;
+
+	printk(KERN_ERR "nvop: obj type %d\n", obj->type);
+	printk(KERN_ERR "nvop: obj len %d\n", obj->buffer.length);
+
+	if (WARN_ON(obj->type != ACPI_TYPE_BUFFER) ||
+	    WARN_ON(obj->buffer.length != 4))
+		return;
+
+	caps->status = 0;
+	caps->optimusCaps = *(u32 *)obj->buffer.pointer;
+	printk(KERN_ERR "nvop: caps %08x\n", caps->optimusCaps);
+
+	ACPI_FREE(obj);
+
+	kfree(argv4.buffer.pointer);
+}
+
+static void
+r535_gsp_acpi_jt(acpi_handle handle, JT_METHOD_DATA *jt)
+{
+	const guid_t JT_DSM_GUID =
+		GUID_INIT(0xCBECA351L, 0x067B, 0x4924,
+			  0x9C, 0xBD, 0xB4, 0x6B, 0x00, 0xB8, 0x6F, 0x34);
+	u64 JT_DSM_REV = 0x00000103;
+	u32 caps;
+	union acpi_object argv4 = {
+		.buffer.type    = ACPI_TYPE_BUFFER,
+		.buffer.length  = sizeof(caps),
+		.buffer.pointer = kmalloc(argv4.buffer.length, GFP_KERNEL),
+	}, *obj;
+
+	jt->status = 0xffff;
+
+	obj = acpi_evaluate_dsm(handle, &JT_DSM_GUID, JT_DSM_REV, 0x1, &argv4);
+	if (!obj)
+		return;
+
+	printk(KERN_ERR "jt: obj type %d\n", obj->type);
+	printk(KERN_ERR "jt: obj len %d\n", obj->buffer.length);
+
+	if (WARN_ON(obj->type != ACPI_TYPE_BUFFER) ||
+	    WARN_ON(obj->buffer.length != 4))
+		return;
+
+	jt->status = 0;
+	jt->jtCaps = *(u32 *)obj->buffer.pointer;
+	jt->jtRevId = (jt->jtCaps & 0xfff00000) >> 20;
+	jt->bSBIOSCaps = 0;
+	printk(KERN_ERR "jt: caps %08x rev:%04x\n", jt->jtCaps, jt->jtRevId);
+
+	ACPI_FREE(obj);
+
+	kfree(argv4.buffer.pointer);
+}
+
+static void
+r535_gsp_acpi_mux_id(acpi_handle handle, u32 id, MUX_METHOD_DATA_ELEMENT *mode,
+						 MUX_METHOD_DATA_ELEMENT *part)
+{
+	acpi_handle iter = NULL, handle_mux;
+	acpi_status status;
+	unsigned long long value;
+
+	mode->status = 0xffff;
+	part->status = 0xffff;
+
+	do {
+		status = acpi_get_next_object(ACPI_TYPE_DEVICE, handle, iter, &iter);
+		if (ACPI_FAILURE(status) || !iter)
+			return;
+
+		status = acpi_evaluate_integer(iter, "_ADR", NULL, &value);
+		if (ACPI_FAILURE(status) || value != id)
+			continue;
+
+		handle_mux = iter;
+	} while (!handle_mux);
+
+	if (!handle_mux)
+		return;
+
+	status = acpi_evaluate_integer(handle_mux, "MXDM", NULL, &value);
+	if (ACPI_SUCCESS(status)) {
+		mode->acpiId = id;
+		mode->mode   = value;
+		mode->status = 0;
+	}
+
+	status = acpi_evaluate_integer(handle_mux, "MXDS", NULL, &value);
+	if (ACPI_SUCCESS(status)) {
+		part->acpiId = id;
+		part->mode   = value;
+		part->status = 0;
+	}
+}
+
+static void
+r535_gsp_acpi_mux(acpi_handle handle, DOD_METHOD_DATA *dod, MUX_METHOD_DATA *mux)
+{
+	mux->tableLen = dod->acpiIdListLen / sizeof(dod->acpiIdList[0]);
+
+	for (int i = 0; i < mux->tableLen; i++) {
+		r535_gsp_acpi_mux_id(handle, dod->acpiIdList[i], &mux->acpiIdMuxModeTable[i],
+								 &mux->acpiIdMuxPartTable[i]);
+	}
+}
+
+static void
+r535_gsp_acpi_dod(acpi_handle handle, DOD_METHOD_DATA *dod)
+{
+	acpi_status status;
+	struct acpi_buffer output = { ACPI_ALLOCATE_BUFFER, NULL };
+	union acpi_object *_DOD;
+
+	dod->status = 0xffff;
+
+	status = acpi_evaluate_object(handle, "_DOD", NULL, &output);
+	if (ACPI_FAILURE(status))
+		return;
+
+	_DOD = output.pointer;
+
+	if (WARN_ON(_DOD->type != ACPI_TYPE_PACKAGE) ||
+	    WARN_ON(_DOD->package.count > ARRAY_SIZE(dod->acpiIdList)))
+		return;
+
+	for (int i = 0; i < _DOD->package.count; i++) {
+		if (WARN_ON(_DOD->package.elements[i].type != ACPI_TYPE_INTEGER))
+			return;
+
+		dod->acpiIdList[i] = _DOD->package.elements[i].integer.value;
+		dod->acpiIdListLen += sizeof(dod->acpiIdList[0]);
+	}
+
+	printk(KERN_ERR "_DOD: ok! len:%d\n", dod->acpiIdListLen);
+	dod->status = 0;
+}
+#endif
+
+static void
+r535_gsp_acpi_info(struct nvkm_gsp *gsp, ACPI_METHOD_DATA *acpi)
+{
+#if defined(CONFIG_ACPI) && defined(CONFIG_X86)
+	acpi_handle handle = ACPI_HANDLE(gsp->subdev.device->dev);
+
+	if (!handle)
+		return;
+
+	acpi->bValid = 1;
+
+	r535_gsp_acpi_dod(handle, &acpi->dodMethodData);
+	if (acpi->dodMethodData.status == 0)
+		r535_gsp_acpi_mux(handle, &acpi->dodMethodData, &acpi->muxMethodData);
+
+	r535_gsp_acpi_jt(handle, &acpi->jtMethodData);
+	r535_gsp_acpi_caps(handle, &acpi->capsMethodData);
+#endif
+}
+
+static int
+r535_gsp_rpc_set_system_info(struct nvkm_gsp *gsp)
+{
+	struct nvkm_device *device = gsp->subdev.device;
+	struct nvkm_device_pci *pdev = container_of(device, typeof(*pdev), device);
+	GspSystemInfo *info;
+
+	if (WARN_ON(device->type == NVKM_DEVICE_TEGRA))
+		return -ENOSYS;
+
+	info = nvkm_gsp_rpc_get(gsp, NV_VGPU_MSG_FUNCTION_GSP_SET_SYSTEM_INFO, sizeof(*info));
+	if (IS_ERR(info))
+		return PTR_ERR(info);
+
+	info->gpuPhysAddr = device->func->resource_addr(device, 0);
+	info->gpuPhysFbAddr = device->func->resource_addr(device, 1);
+	info->gpuPhysInstAddr = device->func->resource_addr(device, 3);
+	info->nvDomainBusDeviceFunc = pci_dev_id(pdev->pdev);
+	info->maxUserVa = TASK_SIZE;
+	info->pciConfigMirrorBase = 0x088000;
+	info->pciConfigMirrorSize = 0x001000;
+	r535_gsp_acpi_info(gsp, &info->acpiMethodData);
+
+	return nvkm_gsp_rpc_wr(gsp, info, false);
+}
+
+static int
+r535_gsp_msg_os_error_log(void *priv, u32 fn, void *repv, u32 repc)
+{
+	struct nvkm_gsp *gsp = priv;
+	struct nvkm_subdev *subdev = &gsp->subdev;
+	rpc_os_error_log_v17_00 *msg = repv;
+
+	if (WARN_ON(repc < sizeof(*msg)))
+		return -EINVAL;
+
+	nvkm_error(subdev, "Xid:%d %s\n", msg->exceptType, msg->errString);
+	return 0;
+}
+
+static int
+r535_gsp_msg_run_cpu_sequencer(void *priv, u32 fn, void *repv, u32 repc)
+{
+	struct nvkm_gsp *gsp = priv;
+	struct nvkm_subdev *subdev = &gsp->subdev;
+	struct nvkm_device *device = subdev->device;
+	rpc_run_cpu_sequencer_v17_00 *seq = repv;
+	int ptr = 0, ret;
+
+	nvkm_debug(subdev, "seq: %08x %08x\n", seq->bufferSizeDWord, seq->cmdIndex);
+
+	while (ptr < seq->cmdIndex) {
+		GSP_SEQUENCER_BUFFER_CMD *cmd = (void *)&seq->commandBuffer[ptr];
+
+		ptr += 1;
+		ptr += GSP_SEQUENCER_PAYLOAD_SIZE_DWORDS(cmd->opCode);
+
+		switch (cmd->opCode) {
+		case GSP_SEQ_BUF_OPCODE_REG_WRITE: {
+			u32 addr = cmd->payload.regWrite.addr;
+			u32 data = cmd->payload.regWrite.val;
+
+			nvkm_trace(subdev, "seq wr32 %06x %08x\n", addr, data);
+			nvkm_wr32(device, addr, data);
+		}
+			break;
+		case GSP_SEQ_BUF_OPCODE_REG_MODIFY: {
+			u32 addr = cmd->payload.regModify.addr;
+			u32 mask = cmd->payload.regModify.mask;
+			u32 data = cmd->payload.regModify.val;
+
+			nvkm_trace(subdev, "seq mask %06x %08x %08x\n", addr, mask, data);
+			nvkm_mask(device, addr, mask, data);
+		}
+			break;
+		case GSP_SEQ_BUF_OPCODE_REG_POLL: {
+			u32 addr = cmd->payload.regPoll.addr;
+			u32 mask = cmd->payload.regPoll.mask;
+			u32 data = cmd->payload.regPoll.val;
+			u32 usec = cmd->payload.regPoll.timeout ?: 4000000;
+			//u32 error = cmd->payload.regPoll.error;
+
+			nvkm_trace(subdev, "seq poll %06x %08x %08x %d\n", addr, mask, data, usec);
+			nvkm_rd32(device, addr);
+			nvkm_usec(device, usec,
+				if ((nvkm_rd32(device, addr) & mask) == data)
+					break;
+			);
+		}
+			break;
+		case GSP_SEQ_BUF_OPCODE_DELAY_US: {
+			u32 usec = cmd->payload.delayUs.val;
+
+			nvkm_trace(subdev, "seq usec %d\n", usec);
+			udelay(usec);
+		}
+			break;
+		case GSP_SEQ_BUF_OPCODE_REG_STORE: {
+			u32 addr = cmd->payload.regStore.addr;
+			u32 slot = cmd->payload.regStore.index;
+
+			seq->regSaveArea[slot] = nvkm_rd32(device, addr);
+			nvkm_trace(subdev, "seq save %08x -> %d: %08x\n", addr, slot,
+				   seq->regSaveArea[slot]);
+		}
+			break;
+		case GSP_SEQ_BUF_OPCODE_CORE_RESET:
+			nvkm_trace(subdev, "seq core reset\n");
+			nvkm_falcon_reset(&gsp->falcon);
+			nvkm_falcon_mask(&gsp->falcon, 0x624, 0x00000080, 0x00000080);
+			nvkm_falcon_wr32(&gsp->falcon, 0x10c, 0x00000000);
+			break;
+		case GSP_SEQ_BUF_OPCODE_CORE_START:
+			nvkm_trace(subdev, "seq core start\n");
+			if (nvkm_falcon_rd32(&gsp->falcon, 0x100) & 0x00000040)
+				nvkm_falcon_wr32(&gsp->falcon, 0x130, 0x00000002);
+			else
+				nvkm_falcon_wr32(&gsp->falcon, 0x100, 0x00000002);
+			break;
+		case GSP_SEQ_BUF_OPCODE_CORE_WAIT_FOR_HALT:
+			nvkm_trace(subdev, "seq core wait halt\n");
+			nvkm_msec(device, 2000,
+				if (nvkm_falcon_rd32(&gsp->falcon, 0x100) & 0x00000010)
+					break;
+			);
+			break;
+		case GSP_SEQ_BUF_OPCODE_CORE_RESUME: {
+			struct nvkm_sec2 *sec2 = device->sec2;
+			u32 mbox0;
+
+			nvkm_trace(subdev, "seq core resume\n");
+
+			ret = gsp->func->reset(gsp);
+			if (WARN_ON(ret))
+				return ret;
+
+			nvkm_falcon_wr32(&gsp->falcon, 0x040, lower_32_bits(gsp->libos.addr));
+			nvkm_falcon_wr32(&gsp->falcon, 0x044, upper_32_bits(gsp->libos.addr));
+
+			nvkm_falcon_start(&sec2->falcon);
+
+			if (nvkm_msec(device, 2000,
+				if (nvkm_rd32(device, 0x1180f8) & 0x04000000)
+					break;
+			) < 0)
+				return -ETIMEDOUT;
+
+			mbox0 = nvkm_falcon_rd32(&sec2->falcon, 0x040);
+			if (WARN_ON(mbox0)) {
+				nvkm_error(&gsp->subdev, "seq core resume sec2: 0x%x\n", mbox0);
+				return -EIO;
+			}
+
+			nvkm_falcon_wr32(&gsp->falcon, 0x080, gsp->boot.app_version);
+
+			if (WARN_ON(!nvkm_falcon_riscv_active(&gsp->falcon)))
+				return -EIO;
+		}
+			break;
+		default:
+			nvkm_error(subdev, "unknown sequencer opcode %08x\n", cmd->opCode);
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
+static void
+nvkm_gsp_mem_dtor(struct nvkm_gsp *gsp, struct nvkm_gsp_mem *mem)
+{
+	if (mem->data) {
+		dma_free_coherent(gsp->subdev.device->dev, mem->size, mem->data, mem->addr);
+		mem->data = NULL;
+	}
+}
+
+static int
+nvkm_gsp_mem_ctor(struct nvkm_gsp *gsp, u32 size, struct nvkm_gsp_mem *mem)
+{
+	mem->size = size;
+	mem->data = dma_alloc_coherent(gsp->subdev.device->dev, size, &mem->addr, GFP_KERNEL);
+	if (WARN_ON(!mem->data))
+		return -ENOMEM;
+
+	return 0;
+}
+
+
+static int
+r535_gsp_booter_unload(struct nvkm_gsp *gsp, u32 mbox0, u32 mbox1)
+{
+	struct nvkm_subdev *subdev = &gsp->subdev;
+	struct nvkm_device *device = subdev->device;
+	u32 wpr2_hi;
+	int ret;
+
+	wpr2_hi = nvkm_rd32(device, 0x1fa828);
+	if (!wpr2_hi) {
+		nvkm_debug(subdev, "WPR2 not set - skipping booter unload\n");
+		return 0;
+	}
+
+	ret = nvkm_falcon_fw_boot(&gsp->booter.unload, &gsp->subdev, true, &mbox0, &mbox1, 0, 0);
+	if (WARN_ON(ret))
+		return ret;
+
+	wpr2_hi = nvkm_rd32(device, 0x1fa828);
+	if (WARN_ON(wpr2_hi))
+		return -EIO;
+
+	return 0;
+}
+
+static int
+r535_gsp_booter_load(struct nvkm_gsp *gsp, u32 mbox0, u32 mbox1)
+{
+	int ret;
+
+	ret = nvkm_falcon_fw_boot(&gsp->booter.load, &gsp->subdev, true, &mbox0, &mbox1, 0, 0);
+	if (ret)
+		return ret;
+
+	nvkm_falcon_wr32(&gsp->falcon, 0x080, gsp->boot.app_version);
+
+	if (WARN_ON(!nvkm_falcon_riscv_active(&gsp->falcon)))
+		return -EIO;
+
+	return 0;
+}
+
+static int
+r535_gsp_wpr_meta_init(struct nvkm_gsp *gsp)
+{
+	GspFwWprMeta *meta;
+	int ret;
+
+	ret = nvkm_gsp_mem_ctor(gsp, 0x1000, &gsp->wpr_meta);
+	if (ret)
+		return ret;
+
+	meta = gsp->wpr_meta.data;
+
+	meta->magic = GSP_FW_WPR_META_MAGIC;
+	meta->revision = GSP_FW_WPR_META_REVISION;
+
+	meta->sysmemAddrOfRadix3Elf = gsp->radix3.mem[0].addr;
+	meta->sizeOfRadix3Elf = gsp->fb.wpr2.elf.size;
+
+	meta->sysmemAddrOfBootloader = gsp->boot.fw.addr;
+	meta->sizeOfBootloader = gsp->boot.fw.size;
+	meta->bootloaderCodeOffset = gsp->boot.code_offset;
+	meta->bootloaderDataOffset = gsp->boot.data_offset;
+	meta->bootloaderManifestOffset = gsp->boot.manifest_offset;
+
+	meta->sysmemAddrOfSignature = gsp->sig.addr;
+	meta->sizeOfSignature = gsp->sig.size;
+
+	meta->gspFwRsvdStart = gsp->fb.heap.addr;
+	meta->nonWprHeapOffset = gsp->fb.heap.addr;
+	meta->nonWprHeapSize = gsp->fb.heap.size;
+	meta->gspFwWprStart = gsp->fb.wpr2.addr;
+	meta->gspFwHeapOffset = gsp->fb.wpr2.heap.addr;
+	meta->gspFwHeapSize = gsp->fb.wpr2.heap.size;
+	meta->gspFwOffset = gsp->fb.wpr2.elf.addr;
+	meta->bootBinOffset = gsp->fb.wpr2.boot.addr;
+	meta->frtsOffset = gsp->fb.wpr2.frts.addr;
+	meta->frtsSize = gsp->fb.wpr2.frts.size;
+	meta->gspFwWprEnd = ALIGN_DOWN(gsp->fb.bios.vga_workspace.addr, 0x20000);
+	meta->fbSize = gsp->fb.size;
+	meta->vgaWorkspaceOffset = gsp->fb.bios.vga_workspace.addr;
+	meta->vgaWorkspaceSize = gsp->fb.bios.vga_workspace.size;
+	meta->bootCount = 0;
+	meta->partitionRpcAddr = 0;
+	meta->partitionRpcRequestOffset = 0;
+	meta->partitionRpcReplyOffset = 0;
+	meta->verified = 0;
+	return 0;
+}
+
+static int
+r535_gsp_shared_init(struct nvkm_gsp *gsp)
+{
+	struct {
+		msgqTxHeader tx;
+		msgqRxHeader rx;
+	} *cmdq, *msgq;
+	int ret, i;
+
+	gsp->shm.cmdq.size = 0x40000;
+	gsp->shm.msgq.size = 0x40000;
+
+	gsp->shm.ptes.nr  = (gsp->shm.cmdq.size + gsp->shm.msgq.size) >> GSP_PAGE_SHIFT;
+	gsp->shm.ptes.nr += DIV_ROUND_UP(gsp->shm.ptes.nr * sizeof(u64), GSP_PAGE_SIZE);
+	gsp->shm.ptes.size = ALIGN(gsp->shm.ptes.nr * sizeof(u64), GSP_PAGE_SIZE);
+
+	ret = nvkm_gsp_mem_ctor(gsp, gsp->shm.ptes.size +
+				     gsp->shm.cmdq.size +
+				     gsp->shm.msgq.size,
+				&gsp->shm.mem);
+	if (ret)
+		return ret;
+
+	gsp->shm.ptes.ptr = gsp->shm.mem.data;
+	gsp->shm.cmdq.ptr = (u8 *)gsp->shm.ptes.ptr + gsp->shm.ptes.size;
+	gsp->shm.msgq.ptr = (u8 *)gsp->shm.cmdq.ptr + gsp->shm.cmdq.size;
+
+	for (i = 0; i < gsp->shm.ptes.nr; i++)
+		gsp->shm.ptes.ptr[i] = gsp->shm.mem.addr + (i << GSP_PAGE_SHIFT);
+
+	cmdq = gsp->shm.cmdq.ptr;
+	cmdq->tx.version = 0;
+	cmdq->tx.size = gsp->shm.cmdq.size;
+	cmdq->tx.entryOff = GSP_PAGE_SIZE;
+	cmdq->tx.msgSize = GSP_PAGE_SIZE;
+	cmdq->tx.msgCount = (cmdq->tx.size - cmdq->tx.entryOff) / cmdq->tx.msgSize;
+	cmdq->tx.writePtr = 0;
+	cmdq->tx.flags = 1;
+	cmdq->tx.rxHdrOff = offsetof(typeof(*cmdq), rx.readPtr);
+
+	msgq = gsp->shm.msgq.ptr;
+
+	gsp->cmdq.cnt = cmdq->tx.msgCount;
+	gsp->cmdq.wptr = &cmdq->tx.writePtr;
+	gsp->cmdq.rptr = &msgq->rx.readPtr;
+	gsp->msgq.cnt = cmdq->tx.msgCount;
+	gsp->msgq.wptr = &msgq->tx.writePtr;
+	gsp->msgq.rptr = &cmdq->rx.readPtr;
+	return 0;
+}
+
+static int
+r535_gsp_rmargs_init(struct nvkm_gsp *gsp, bool resume)
+{
+	GSP_ARGUMENTS_CACHED *args;
+	int ret;
+
+	if (!resume) {
+		ret = r535_gsp_shared_init(gsp);
+		if (ret)
+			return ret;
+
+		ret = nvkm_gsp_mem_ctor(gsp, 0x1000, &gsp->rmargs);
+		if (ret)
+			return ret;
+	}
+
+	args = gsp->rmargs.data;
+	args->messageQueueInitArguments.sharedMemPhysAddr = gsp->shm.mem.addr;
+	args->messageQueueInitArguments.pageTableEntryCount = gsp->shm.ptes.nr;
+	args->messageQueueInitArguments.cmdQueueOffset =
+		(u8 *)gsp->shm.cmdq.ptr - (u8 *)gsp->shm.mem.data;
+	args->messageQueueInitArguments.statQueueOffset =
+		(u8 *)gsp->shm.msgq.ptr - (u8 *)gsp->shm.mem.data;
+
+	if (!resume) {
+		args->srInitArguments.oldLevel = 0;
+		args->srInitArguments.flags = 0;
+		args->srInitArguments.bInPMTransition = 0;
+	} else {
+		args->srInitArguments.oldLevel = NV2080_CTRL_GPU_SET_POWER_STATE_GPU_LEVEL_3;
+		args->srInitArguments.flags = 0;
+		args->srInitArguments.bInPMTransition = 1;
+	}
+
+	return 0;
+}
+
+static inline u64
+r535_gsp_libos_id8(const char *name)
+{
+	u64 id = 0;
+
+	for (int i = 0; i < sizeof(id) && *name; i++, name++)
+		id = (id << 8) | *name;
+
+	return id;
+}
+
+static void create_pte_array(u64 *ptes, dma_addr_t addr, size_t size)
+{
+	unsigned int num_pages = DIV_ROUND_UP_ULL(size, GSP_PAGE_SIZE);
+	unsigned int i;
+
+	for (i = 0; i < num_pages; i++)
+		ptes[i] = (u64)addr + (i << GSP_PAGE_SHIFT);
+}
+
+static int
+r535_gsp_libos_init(struct nvkm_gsp *gsp)
+{
+	LibosMemoryRegionInitArgument *args;
+	int ret;
+
+	ret = nvkm_gsp_mem_ctor(gsp, 0x1000, &gsp->libos);
+	if (ret)
+		return ret;
+
+	args = gsp->libos.data;
+
+	ret = nvkm_gsp_mem_ctor(gsp, 0x10000, &gsp->loginit);
+	if (ret)
+		return ret;
+
+	args[0].id8  = r535_gsp_libos_id8("LOGINIT");
+	args[0].pa   = gsp->loginit.addr;
+	args[0].size = gsp->loginit.size;
+	args[0].kind = LIBOS_MEMORY_REGION_CONTIGUOUS;
+	args[0].loc  = LIBOS_MEMORY_REGION_LOC_SYSMEM;
+	create_pte_array(gsp->loginit.data + sizeof(u64), gsp->loginit.addr, gsp->loginit.size);
+
+	ret = nvkm_gsp_mem_ctor(gsp, 0x10000, &gsp->logintr);
+	if (ret)
+		return ret;
+
+	args[1].id8  = r535_gsp_libos_id8("LOGINTR");
+	args[1].pa   = gsp->logintr.addr;
+	args[1].size = gsp->logintr.size;
+	args[1].kind = LIBOS_MEMORY_REGION_CONTIGUOUS;
+	args[1].loc  = LIBOS_MEMORY_REGION_LOC_SYSMEM;
+	create_pte_array(gsp->logintr.data + sizeof(u64), gsp->logintr.addr, gsp->logintr.size);
+
+	ret = nvkm_gsp_mem_ctor(gsp, 0x10000, &gsp->logrm);
+	if (ret)
+		return ret;
+
+	args[2].id8  = r535_gsp_libos_id8("LOGRM");
+	args[2].pa   = gsp->logrm.addr;
+	args[2].size = gsp->logrm.size;
+	args[2].kind = LIBOS_MEMORY_REGION_CONTIGUOUS;
+	args[2].loc  = LIBOS_MEMORY_REGION_LOC_SYSMEM;
+	create_pte_array(gsp->logrm.data + sizeof(u64), gsp->logrm.addr, gsp->logrm.size);
+
+	ret = r535_gsp_rmargs_init(gsp, false);
+	if (ret)
+		return ret;
+
+	args[3].id8  = r535_gsp_libos_id8("RMARGS");
+	args[3].pa   = gsp->rmargs.addr;
+	args[3].size = gsp->rmargs.size;
+	args[3].kind = LIBOS_MEMORY_REGION_CONTIGUOUS;
+	args[3].loc  = LIBOS_MEMORY_REGION_LOC_SYSMEM;
+	return 0;
+}
+
+void
+nvkm_gsp_sg_free(struct nvkm_device *device, struct sg_table *sgt)
+{
+	struct scatterlist *sgl;
+	int i;
+
+	dma_unmap_sgtable(device->dev, sgt, DMA_BIDIRECTIONAL, 0);
+
+	for_each_sgtable_sg(sgt, sgl, i) {
+		struct page *page = sg_page(sgl);
+
+		__free_page(page);
+	}
+
+	sg_free_table(sgt);
+}
+
+int
+nvkm_gsp_sg(struct nvkm_device *device, u64 size, struct sg_table *sgt)
+{
+	const u64 pages = DIV_ROUND_UP(size, PAGE_SIZE);
+	struct scatterlist *sgl;
+	int ret, i;
+
+	ret = sg_alloc_table(sgt, pages, GFP_KERNEL);
+	if (ret)
+		return ret;
+
+	for_each_sgtable_sg(sgt, sgl, i) {
+		struct page *page = alloc_page(GFP_KERNEL);
+
+		if (!page) {
+			nvkm_gsp_sg_free(device, sgt);
+			return -ENOMEM;
+		}
+
+		sg_set_page(sgl, page, PAGE_SIZE, 0);
+	}
+
+	ret = dma_map_sgtable(device->dev, sgt, DMA_BIDIRECTIONAL, 0);
+	if (ret)
+		nvkm_gsp_sg_free(device, sgt);
+
+	return ret;
+}
+
+static void
+nvkm_gsp_radix3_dtor(struct nvkm_gsp *gsp, struct nvkm_gsp_radix3 *rx3)
+{
+	for (int i = ARRAY_SIZE(rx3->mem) - 1; i >= 0; i--)
+		nvkm_gsp_mem_dtor(gsp, &rx3->mem[i]);
+}
+
+static int
+nvkm_gsp_radix3_sg(struct nvkm_device *device, struct sg_table *sgt, u64 size,
+		   struct nvkm_gsp_radix3 *rx3)
+{
+	u64 addr;
+
+	for (int i = ARRAY_SIZE(rx3->mem) - 1; i >= 0; i--) {
+		u64 *ptes;
+		int idx;
+
+		rx3->mem[i].size = ALIGN((size / GSP_PAGE_SIZE) * sizeof(u64), GSP_PAGE_SIZE);
+		rx3->mem[i].data = dma_alloc_coherent(device->dev, rx3->mem[i].size,
+						      &rx3->mem[i].addr, GFP_KERNEL);
+		if (WARN_ON(!rx3->mem[i].data))
+			return -ENOMEM;
+
+		ptes = rx3->mem[i].data;
+		if (i == 2) {
+			struct scatterlist *sgl;
+
+			for_each_sgtable_dma_sg(sgt, sgl, idx) {
+				for (int j = 0; j < sg_dma_len(sgl) / GSP_PAGE_SIZE; j++)
+					*ptes++ = sg_dma_address(sgl) + (GSP_PAGE_SIZE * j);
+			}
+		} else {
+			for (int j = 0; j < size / GSP_PAGE_SIZE; j++)
+				*ptes++ = addr + GSP_PAGE_SIZE * j;
+		}
+
+		size = rx3->mem[i].size;
+		addr = rx3->mem[i].addr;
+	}
+
+	return 0;
+}
+
+int
+r535_gsp_fini(struct nvkm_gsp *gsp, bool suspend)
+{
+	u32 mbox0 = 0xff, mbox1 = 0xff;
+	int ret;
+
+	if (!gsp->running)
+		return 0;
+
+	if (suspend) {
+		GspFwWprMeta *meta = gsp->wpr_meta.data;
+		u64 len = meta->gspFwWprEnd - meta->gspFwWprStart;
+		GspFwSRMeta *sr;
+
+		ret = nvkm_gsp_sg(gsp->subdev.device, len, &gsp->sr.sgt);
+		if (ret)
+			return ret;
+
+		ret = nvkm_gsp_radix3_sg(gsp->subdev.device, &gsp->sr.sgt, len, &gsp->sr.radix3);
+		if (ret)
+			return ret;
+
+		ret = nvkm_gsp_mem_ctor(gsp, sizeof(*sr), &gsp->sr.meta);
+		if (ret)
+			return ret;
+
+		sr = gsp->sr.meta.data;
+		sr->magic = GSP_FW_SR_META_MAGIC;
+		sr->revision = GSP_FW_SR_META_REVISION;
+		sr->sysmemAddrOfSuspendResumeData = gsp->sr.radix3.mem[0].addr;
+		sr->sizeOfSuspendResumeData = len;
+
+		mbox0 = lower_32_bits(gsp->sr.meta.addr);
+		mbox1 = upper_32_bits(gsp->sr.meta.addr);
+	}
+
+	ret = r535_gsp_rpc_unloading_guest_driver(gsp, suspend);
+	if (WARN_ON(ret))
+		return ret;
+
+	nvkm_msec(gsp->subdev.device, 2000,
+		if (nvkm_falcon_rd32(&gsp->falcon, 0x040) & 0x80000000)
+			break;
+	);
+
+	nvkm_falcon_reset(&gsp->falcon);
+
+	ret = nvkm_gsp_fwsec_sb(gsp);
+	WARN_ON(ret);
+
+	ret = r535_gsp_booter_unload(gsp, mbox0, mbox1);
+	WARN_ON(ret);
+
+	gsp->running = false;
+	return 0;
+}
+
+int
+r535_gsp_init(struct nvkm_gsp *gsp)
+{
+	u32 mbox0, mbox1;
+	int ret;
+
+	if (!gsp->sr.meta.data) {
+		mbox0 = lower_32_bits(gsp->wpr_meta.addr);
+		mbox1 = upper_32_bits(gsp->wpr_meta.addr);
+	} else {
+		r535_gsp_rmargs_init(gsp, true);
+
+		mbox0 = lower_32_bits(gsp->sr.meta.addr);
+		mbox1 = upper_32_bits(gsp->sr.meta.addr);
+	}
+
+	/* Execute booter to handle (eventually...) booting GSP-RM. */
+	ret = r535_gsp_booter_load(gsp, mbox0, mbox1);
+	if (WARN_ON(ret))
+		goto done;
+
+	ret = r535_gsp_rpc_poll(gsp, NV_VGPU_MSG_EVENT_GSP_INIT_DONE);
+	if (ret)
+		goto done;
+
+	gsp->running = true;
+
+done:
+	if (gsp->sr.meta.data) {
+		nvkm_gsp_mem_dtor(gsp, &gsp->sr.meta);
+		nvkm_gsp_radix3_dtor(gsp, &gsp->sr.radix3);
+		nvkm_gsp_sg_free(gsp->subdev.device, &gsp->sr.sgt);
+	}
+
+	return ret;
+}
+
+static int
+r535_gsp_rm_boot_ctor(struct nvkm_gsp *gsp)
+{
+	const struct firmware *fw = gsp->fws.bl;
+	const struct nvfw_bin_hdr *hdr;
+	RM_RISCV_UCODE_DESC *desc;
+	int ret;
+
+	hdr = nvfw_bin_hdr(&gsp->subdev, fw->data);
+	desc = (void *)fw->data + hdr->header_offset;
+
+	ret = nvkm_gsp_mem_ctor(gsp, hdr->data_size, &gsp->boot.fw);
+	if (ret)
+		return ret;
+
+	memcpy(gsp->boot.fw.data, fw->data + hdr->data_offset, hdr->data_size);
+
+	gsp->boot.code_offset = desc->monitorCodeOffset;
+	gsp->boot.data_offset = desc->monitorDataOffset;
+	gsp->boot.manifest_offset = desc->manifestOffset;
+	gsp->boot.app_version = desc->appVersion;
+	return 0;
+}
+
+static const struct nvkm_firmware_func
+r535_gsp_fw = {
+	.type = NVKM_FIRMWARE_IMG_SGT,
+};
+
+static int
+r535_gsp_elf_section(struct nvkm_gsp *gsp, const char *name, const u8 **pdata, u64 *psize)
+{
+	const u8 *img = gsp->fws.rm->data;
+	const struct elf64_hdr *ehdr = (const struct elf64_hdr *)img;
+	const struct elf64_shdr *shdr = (const struct elf64_shdr *)&img[ehdr->e_shoff];
+	const char *names = &img[shdr[ehdr->e_shstrndx].sh_offset];
+
+	for (int i = 0; i < ehdr->e_shnum; i++, shdr++) {
+		if (!strcmp(&names[shdr->sh_name], name)) {
+			*pdata = &img[shdr->sh_offset];
+			*psize = shdr->sh_size;
+			return 0;
+		}
+	}
+
+	nvkm_error(&gsp->subdev, "section '%s' not found\n", name);
+	return -ENOENT;
+}
+
+static void
+r535_gsp_dtor_fws(struct nvkm_gsp *gsp)
+{
+	nvkm_firmware_put(gsp->fws.bl);
+	gsp->fws.bl = NULL;
+	nvkm_firmware_put(gsp->fws.booter.unload);
+	gsp->fws.booter.unload = NULL;
+	nvkm_firmware_put(gsp->fws.booter.load);
+	gsp->fws.booter.load = NULL;
+	nvkm_firmware_put(gsp->fws.rm);
+	gsp->fws.rm = NULL;
+}
+
+void
+r535_gsp_dtor(struct nvkm_gsp *gsp)
+{
+	nvkm_gsp_radix3_dtor(gsp, &gsp->radix3);
+	nvkm_gsp_mem_dtor(gsp, &gsp->sig);
+	nvkm_firmware_dtor(&gsp->fw);
+
+	nvkm_falcon_fw_dtor(&gsp->booter.unload);
+	nvkm_falcon_fw_dtor(&gsp->booter.load);
+
+	mutex_destroy(&gsp->msgq.mutex);
+	mutex_destroy(&gsp->cmdq.mutex);
+
+	r535_gsp_dtor_fws(gsp);
+}
+
+int
+r535_gsp_oneinit(struct nvkm_gsp *gsp)
+{
+	struct nvkm_device *device = gsp->subdev.device;
+	const u8 *data;
+	u64 size;
+	int ret;
+
+	mutex_init(&gsp->cmdq.mutex);
+	mutex_init(&gsp->msgq.mutex);
+
+	ret = gsp->func->booter.ctor(gsp, "booter-load", gsp->fws.booter.load,
+				     &device->sec2->falcon, &gsp->booter.load);
+	if (ret)
+		return ret;
+
+	ret = gsp->func->booter.ctor(gsp, "booter-unload", gsp->fws.booter.unload,
+				     &device->sec2->falcon, &gsp->booter.unload);
+	if (ret)
+		return ret;
+
+	/* Load GSP firmware from ELF image into DMA-accessible memory. */
+	ret = r535_gsp_elf_section(gsp, ".fwimage", &data, &size);
+	if (ret)
+		return ret;
+
+	ret = nvkm_firmware_ctor(&r535_gsp_fw, "gsp-rm", device, data, size, &gsp->fw);
+	if (ret)
+		return ret;
+
+	/* Load relevant signature from ELF image. */
+	ret = r535_gsp_elf_section(gsp, gsp->func->sig_section, &data, &size);
+	if (ret)
+		return ret;
+
+	ret = nvkm_gsp_mem_ctor(gsp, ALIGN(size, 256), &gsp->sig);
+	if (ret)
+		return ret;
+
+	memcpy(gsp->sig.data, data, size);
+
+	/* Build radix3 page table for ELF image. */
+	ret = nvkm_gsp_radix3_sg(device, &gsp->fw.mem.sgt, gsp->fw.len, &gsp->radix3);
+	if (ret)
+		return ret;
+
+	r535_gsp_msg_ntfy_add(gsp, NV_VGPU_MSG_EVENT_GSP_RUN_CPU_SEQUENCER,
+			      r535_gsp_msg_run_cpu_sequencer, gsp);
+	r535_gsp_msg_ntfy_add(gsp, NV_VGPU_MSG_EVENT_OS_ERROR_LOG, r535_gsp_msg_os_error_log, gsp);
+
+	ret = r535_gsp_rm_boot_ctor(gsp);
+	if (ret)
+		return ret;
+
+	/* Release FW images - we've copied them to DMA buffers now. */
+	r535_gsp_dtor_fws(gsp);
+
+	/* Calculate FB layout. */
+	gsp->fb.wpr2.frts.size = 0x100000;
+	gsp->fb.wpr2.frts.addr = ALIGN_DOWN(gsp->fb.bios.addr, 0x20000) - gsp->fb.wpr2.frts.size;
+
+	gsp->fb.wpr2.boot.size = gsp->boot.fw.size;
+	gsp->fb.wpr2.boot.addr = ALIGN_DOWN(gsp->fb.wpr2.frts.addr - gsp->fb.wpr2.boot.size, 0x1000);
+
+	gsp->fb.wpr2.elf.size = gsp->fw.len;
+	gsp->fb.wpr2.elf.addr = ALIGN_DOWN(gsp->fb.wpr2.boot.addr - gsp->fb.wpr2.elf.size, 0x10000);
+
+	{
+		u32 fb_size_gb = DIV_ROUND_UP_ULL(gsp->fb.size, 1 << 30);
+
+		gsp->fb.wpr2.heap.size =
+			gsp->func->wpr_heap.os_carveout_size +
+			gsp->func->wpr_heap.base_size +
+			ALIGN(GSP_FW_HEAP_PARAM_SIZE_PER_GB_FB * fb_size_gb, 1 << 20) +
+			ALIGN(GSP_FW_HEAP_PARAM_CLIENT_ALLOC_SIZE, 1 << 20);
+
+		gsp->fb.wpr2.heap.size = max(gsp->fb.wpr2.heap.size, gsp->func->wpr_heap.min_size);
+	}
+
+	gsp->fb.wpr2.heap.addr = ALIGN_DOWN(gsp->fb.wpr2.elf.addr - gsp->fb.wpr2.heap.size, 0x100000);
+	gsp->fb.wpr2.heap.size = ALIGN_DOWN(gsp->fb.wpr2.elf.addr - gsp->fb.wpr2.heap.addr, 0x100000);
+
+	gsp->fb.wpr2.addr = ALIGN_DOWN(gsp->fb.wpr2.heap.addr - sizeof(GspFwWprMeta), 0x100000);
+	gsp->fb.wpr2.size = gsp->fb.wpr2.frts.addr + gsp->fb.wpr2.frts.size - gsp->fb.wpr2.addr;
+
+	gsp->fb.heap.size = 0x100000;
+	gsp->fb.heap.addr = gsp->fb.wpr2.addr - gsp->fb.heap.size;
+
+	ret = nvkm_gsp_fwsec_frts(gsp);
+	if (WARN_ON(ret))
+		return ret;
+
+	ret = r535_gsp_libos_init(gsp);
+	if (WARN_ON(ret))
+		return ret;
+
+	ret = r535_gsp_wpr_meta_init(gsp);
+	if (WARN_ON(ret))
+		return ret;
+
+	ret = r535_gsp_rpc_set_system_info(gsp);
+	if (WARN_ON(ret))
+		return ret;
+
+	ret = r535_gsp_rpc_set_registry(gsp);
+	if (WARN_ON(ret))
+		return ret;
+
+	/* Reset GSP into RISC-V mode. */
+	ret = gsp->func->reset(gsp);
+	if (WARN_ON(ret))
+		return ret;
+
+	nvkm_falcon_wr32(&gsp->falcon, 0x040, lower_32_bits(gsp->libos.addr));
+	nvkm_falcon_wr32(&gsp->falcon, 0x044, upper_32_bits(gsp->libos.addr));
+	return 0;
+}
+
+static int
+r535_gsp_load_fw(struct nvkm_gsp *gsp, const char *name, const char *ver,
+		 const struct firmware **pfw)
+{
+	char fwname[64];
+
+	snprintf(fwname, sizeof(fwname), "gsp/%s-%s", name, ver);
+	return nvkm_firmware_get(&gsp->subdev, fwname, 0, pfw);
+}
+
+int
+r535_gsp_load(struct nvkm_gsp *gsp, int ver, const struct nvkm_gsp_fwif *fwif)
+{
+	struct nvkm_subdev *subdev = &gsp->subdev;
+	int ret;
+
+	if (!nvkm_boolopt(subdev->device->cfgopt, "NvGspRm", fwif->enable))
+		return -EINVAL;
+
+	if ((ret = r535_gsp_load_fw(gsp, "gsp", fwif->ver, &gsp->fws.rm)) ||
+	    (ret = r535_gsp_load_fw(gsp, "booter_load", fwif->ver, &gsp->fws.booter.load)) ||
+	    (ret = r535_gsp_load_fw(gsp, "booter_unload", fwif->ver, &gsp->fws.booter.unload)) ||
+	    (ret = r535_gsp_load_fw(gsp, "bootloader", fwif->ver, &gsp->fws.bl))) {
+		r535_gsp_dtor_fws(gsp);
+		return ret;
+	}
+
+	return 0;
+}
+
+#define NVKM_GSP_FIRMWARE(chip)                                  \
+MODULE_FIRMWARE("nvidia/"#chip"/gsp/booter_load-535.54.03.bin");   \
+MODULE_FIRMWARE("nvidia/"#chip"/gsp/booter_unload-535.54.03.bin"); \
+MODULE_FIRMWARE("nvidia/"#chip"/gsp/bootloader-535.54.03.bin");    \
+MODULE_FIRMWARE("nvidia/"#chip"/gsp/gsp-535.54.03.bin")
+
+NVKM_GSP_FIRMWARE(tu102);
+NVKM_GSP_FIRMWARE(tu104);
+NVKM_GSP_FIRMWARE(tu106);
+
+NVKM_GSP_FIRMWARE(tu116);
+NVKM_GSP_FIRMWARE(tu117);
+
+NVKM_GSP_FIRMWARE(ga100);
+
+NVKM_GSP_FIRMWARE(ga102);
+NVKM_GSP_FIRMWARE(ga103);
+NVKM_GSP_FIRMWARE(ga104);
+NVKM_GSP_FIRMWARE(ga106);
+NVKM_GSP_FIRMWARE(ga107);
+
+NVKM_GSP_FIRMWARE(ad102);
+NVKM_GSP_FIRMWARE(ad103);
+NVKM_GSP_FIRMWARE(ad104);
+NVKM_GSP_FIRMWARE(ad106);
+NVKM_GSP_FIRMWARE(ad107);

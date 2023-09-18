@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 Red Hat Inc.
+ * Copyright 2023 Red Hat Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,36 +22,36 @@
 #include "priv.h"
 
 static const struct nvkm_gsp_func
-ga100_gsp_r535_54_03 = {
-	.flcn = &tu102_gsp_flcn,
-	.fwsec = &tu102_gsp_fwsec,
+ad102_gsp_r535_54_03 = {
+	.flcn = &ga102_gsp_flcn,
+	.fwsec = &ga102_gsp_fwsec,
 
-	.sig_section = ".fwsignature_ga100",
+	.sig_section = ".fwsignature_ad10x",
 
+	.wpr_heap.os_carveout_size = 20 << 20,
 	.wpr_heap.base_size = 8 << 20,
-	.wpr_heap.min_size = 64 << 20,
+	.wpr_heap.min_size = 84 << 20,
 
-	.booter.ctor = tu102_gsp_booter_ctor,
+	.booter.ctor = ga102_gsp_booter_ctor,
 
 	.dtor = r535_gsp_dtor,
 	.oneinit = tu102_gsp_oneinit,
 	.init = r535_gsp_init,
 	.fini = r535_gsp_fini,
-	.reset = tu102_gsp_reset,
+	.reset = ga102_gsp_reset,
 
 	.rm = &r535_gsp_rm,
 };
 
 static struct nvkm_gsp_fwif
-ga100_gsps[] = {
-	{  0,  r535_gsp_load, &ga100_gsp_r535_54_03, "535.54.03" },
-	{ -1, gv100_gsp_nofw, &gv100_gsp },
+ad102_gsps[] = {
+	{ 0, r535_gsp_load, &ad102_gsp_r535_54_03, "535.54.03", true },
 	{}
 };
 
 int
-ga100_gsp_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
+ad102_gsp_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 	      struct nvkm_gsp **pgsp)
 {
-	return nvkm_gsp_new_(ga100_gsps, device, type, inst, pgsp);
+	return nvkm_gsp_new_(ad102_gsps, device, type, inst, pgsp);
 }

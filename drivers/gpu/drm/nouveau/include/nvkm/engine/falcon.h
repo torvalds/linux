@@ -87,6 +87,8 @@ struct nvkm_falcon_func {
 		u32 stride;
 	} cmdq, msgq;
 
+	bool (*riscv_active)(struct nvkm_falcon *);
+
 	struct {
 		u32 *data;
 		u32  size;

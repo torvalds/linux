@@ -25,6 +25,15 @@
 #include <subdev/timer.h>
 #include <subdev/top.h>
 
+bool
+nvkm_falcon_riscv_active(struct nvkm_falcon *falcon)
+{
+	if (!falcon->func->riscv_active)
+		return false;
+
+	return falcon->func->riscv_active(falcon);
+}
+
 static const struct nvkm_falcon_func_dma *
 nvkm_falcon_dma(struct nvkm_falcon *falcon, enum nvkm_falcon_mem *mem_type, u32 *mem_base)
 {

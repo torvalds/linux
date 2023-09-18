@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 Red Hat Inc.
+ * Copyright 2023 Red Hat Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,37 +21,8 @@
  */
 #include "priv.h"
 
-static const struct nvkm_gsp_func
-ga100_gsp_r535_54_03 = {
-	.flcn = &tu102_gsp_flcn,
-	.fwsec = &tu102_gsp_fwsec,
-
-	.sig_section = ".fwsignature_ga100",
-
-	.wpr_heap.base_size = 8 << 20,
-	.wpr_heap.min_size = 64 << 20,
-
-	.booter.ctor = tu102_gsp_booter_ctor,
-
-	.dtor = r535_gsp_dtor,
-	.oneinit = tu102_gsp_oneinit,
-	.init = r535_gsp_init,
-	.fini = r535_gsp_fini,
-	.reset = tu102_gsp_reset,
-
-	.rm = &r535_gsp_rm,
-};
-
-static struct nvkm_gsp_fwif
-ga100_gsps[] = {
-	{  0,  r535_gsp_load, &ga100_gsp_r535_54_03, "535.54.03" },
-	{ -1, gv100_gsp_nofw, &gv100_gsp },
-	{}
-};
-
-int
-ga100_gsp_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
-	      struct nvkm_gsp **pgsp)
+bool
+tu102_flcn_riscv_active(struct nvkm_falcon *falcon)
 {
-	return nvkm_gsp_new_(ga100_gsps, device, type, inst, pgsp);
+	return (nvkm_falcon_rd32(falcon, falcon->addr2 + 0x240) & 0x00000001) != 0;
 }
