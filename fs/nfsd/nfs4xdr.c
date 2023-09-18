@@ -2530,17 +2530,6 @@ nfsd4_decode_compound(struct nfsd4_compoundargs *argp)
 	return true;
 }
 
-static __be32 *encode_change(__be32 *p, struct kstat *stat, struct inode *inode,
-			     struct svc_export *exp)
-{
-	if (exp->ex_flags & NFSEXP_V4ROOT) {
-		*p++ = cpu_to_be32(convert_to_wallclock(exp->cd->flush_time));
-		*p++ = 0;
-	} else
-		p = xdr_encode_hyper(p, nfsd4_change_attribute(stat, inode));
-	return p;
-}
-
 static __be32 nfsd4_encode_nfstime4(struct xdr_stream *xdr,
 				    struct timespec64 *tv)
 {
@@ -2581,15 +2570,17 @@ static __be32 *encode_time_delta(__be32 *p, struct inode *inode)
 }
 
 static __be32
-nfsd4_encode_change_info4(struct xdr_stream *xdr, struct nfsd4_change_info *c)
+nfsd4_encode_change_info4(struct xdr_stream *xdr, const struct nfsd4_change_info *c)
 {
-	if (xdr_stream_encode_bool(xdr, c->atomic) < 0)
-		return nfserr_resource;
-	if (xdr_stream_encode_u64(xdr, c->before_change) < 0)
-		return nfserr_resource;
-	if (xdr_stream_encode_u64(xdr, c->after_change) < 0)
-		return nfserr_resource;
-	return nfs_ok;
+	__be32 status;
+
+	status = nfsd4_encode_bool(xdr, c->atomic);
+	if (status != nfs_ok)
+		return status;
+	status = nfsd4_encode_changeid4(xdr, c->before_change);
+	if (status != nfs_ok)
+		return status;
+	return nfsd4_encode_changeid4(xdr, c->after_change);
 }
 
 /* Encode as an array of strings the string given with components
@@ -3014,6 +3005,26 @@ static __be32 nfsd4_encode_fattr4_fh_expire_type(struct xdr_stream *xdr,
 	return nfsd4_encode_uint32_t(xdr, mask);
 }
 
+static __be32 nfsd4_encode_fattr4_change(struct xdr_stream *xdr,
+					 const struct nfsd4_fattr_args *args)
+{
+	const struct svc_export *exp = args->exp;
+	u64 c;
+
+	if (unlikely(exp->ex_flags & NFSEXP_V4ROOT)) {
+		u32 flush_time = convert_to_wallclock(exp->cd->flush_time);
+
+		if (xdr_stream_encode_u32(xdr, flush_time) != XDR_UNIT)
+			return nfserr_resource;
+		if (xdr_stream_encode_u32(xdr, 0) != XDR_UNIT)
+			return nfserr_resource;
+		return nfs_ok;
+	}
+
+	c = nfsd4_change_attribute(&args->stat, d_inode(args->dentry));
+	return nfsd4_encode_changeid4(xdr, c);
+}
+
 /*
  * Note: @fhp can be NULL; in this case, we might have to compose the filehandle
  * ourselves.
@@ -3159,10 +3170,9 @@ nfsd4_encode_fattr(struct xdr_stream *xdr, struct svc_fh *fhp,
 			goto out;
 	}
 	if (bmval0 & FATTR4_WORD0_CHANGE) {
-		p = xdr_reserve_space(xdr, 8);
-		if (!p)
-			goto out_resource;
-		p = encode_change(p, &args.stat, d_inode(dentry), exp);
+		status = nfsd4_encode_fattr4_change(xdr, &args);
+		if (status != nfs_ok)
+			goto out;
 	}
 	if (bmval0 & FATTR4_WORD0_SIZE) {
 		p = xdr_reserve_space(xdr, 8);

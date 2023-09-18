@@ -110,6 +110,8 @@ nfsd4_encode_uint64_t(struct xdr_stream *xdr, u64 val)
 	return nfs_ok;
 }
 
+#define nfsd4_encode_changeid4(x, v)	nfsd4_encode_uint64_t(x, v)
+
 /**
  * nfsd4_encode_opaque_fixed - Encode a fixed-length XDR opaque type result
  * @xdr: target XDR stream
