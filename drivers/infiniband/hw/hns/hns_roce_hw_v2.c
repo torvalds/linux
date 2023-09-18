@@ -5272,6 +5272,30 @@ out:
 	return ret;
 }
 
+static int hns_roce_v2_query_srqc(struct hns_roce_dev *hr_dev, u32 srqn,
+				 void *buffer)
+{
+	struct hns_roce_srq_context *context;
+	struct hns_roce_cmd_mailbox *mailbox;
+	int ret;
+
+	mailbox = hns_roce_alloc_cmd_mailbox(hr_dev);
+	if (IS_ERR(mailbox))
+		return PTR_ERR(mailbox);
+
+	context = mailbox->buf;
+	ret = hns_roce_cmd_mbox(hr_dev, 0, mailbox->dma, HNS_ROCE_CMD_QUERY_SRQC,
+				srqn);
+	if (ret)
+		goto out;
+
+	memcpy(buffer, context, sizeof(*context));
+
+out:
+	hns_roce_free_cmd_mailbox(hr_dev, mailbox);
+	return ret;
+}
+
 static u8 get_qp_timeout_attr(struct hns_roce_dev *hr_dev,
 			      struct hns_roce_v2_qp_context *context)
 {
@@ -6632,6 +6656,7 @@ static const struct hns_roce_hw hns_roce_hw_v2 = {
 	.query_cqc = hns_roce_v2_query_cqc,
 	.query_qpc = hns_roce_v2_query_qpc,
 	.query_mpt = hns_roce_v2_query_mpt,
+	.query_srqc = hns_roce_v2_query_srqc,
 	.query_hw_counter = hns_roce_hw_v2_query_counter,
 	.hns_roce_dev_ops = &hns_roce_v2_dev_ops,
 	.hns_roce_dev_srq_ops = &hns_roce_v2_dev_srq_ops,

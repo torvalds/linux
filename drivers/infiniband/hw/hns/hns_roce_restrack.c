@@ -160,3 +160,52 @@ int hns_roce_fill_res_mr_entry_raw(struct sk_buff *msg, struct ib_mr *ib_mr)
 
 	return ret;
 }
+
+int hns_roce_fill_res_srq_entry(struct sk_buff *msg, struct ib_srq *ib_srq)
+{
+	struct hns_roce_srq *hr_srq = to_hr_srq(ib_srq);
+	struct nlattr *table_attr;
+
+	table_attr = nla_nest_start(msg, RDMA_NLDEV_ATTR_DRIVER);
+	if (!table_attr)
+		return -EMSGSIZE;
+
+	if (rdma_nl_put_driver_u32_hex(msg, "srqn", hr_srq->srqn))
+		goto err;
+
+	if (rdma_nl_put_driver_u32_hex(msg, "wqe_cnt", hr_srq->wqe_cnt))
+		goto err;
+
+	if (rdma_nl_put_driver_u32_hex(msg, "max_gs", hr_srq->max_gs))
+		goto err;
+
+	if (rdma_nl_put_driver_u32_hex(msg, "xrcdn", hr_srq->xrcdn))
+		goto err;
+
+	nla_nest_end(msg, table_attr);
+
+	return 0;
+
+err:
+	nla_nest_cancel(msg, table_attr);
+	return -EMSGSIZE;
+}
+
+int hns_roce_fill_res_srq_entry_raw(struct sk_buff *msg, struct ib_srq *ib_srq)
+{
+	struct hns_roce_dev *hr_dev = to_hr_dev(ib_srq->device);
+	struct hns_roce_srq *hr_srq = to_hr_srq(ib_srq);
+	struct hns_roce_srq_context context;
+	int ret;
+
+	if (!hr_dev->hw->query_srqc)
+		return -EINVAL;
+
+	ret = hr_dev->hw->query_srqc(hr_dev, hr_srq->srqn, &context);
+	if (ret)
+		return ret;
+
+	ret = nla_put(msg, RDMA_NLDEV_ATTR_RES_RAW, sizeof(context), &context);
+
+	return ret;
+}
