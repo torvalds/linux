@@ -3225,6 +3225,14 @@ static __be32 nfsd4_encode_fattr4_rawdev(struct xdr_stream *xdr,
 				      MINOR(args->stat.rdev));
 }
 
+static __be32 nfsd4_encode_fattr4_space_avail(struct xdr_stream *xdr,
+					      const struct nfsd4_fattr_args *args)
+{
+	u64 avail = (u64)args->statfs.f_bavail * (u64)args->statfs.f_bsize;
+
+	return nfsd4_encode_uint64_t(xdr, avail);
+}
+
 /*
  * Note: @fhp can be NULL; in this case, we might have to compose the filehandle
  * ourselves.
@@ -3534,11 +3542,9 @@ nfsd4_encode_fattr(struct xdr_stream *xdr, struct svc_fh *fhp,
 			goto out;
 	}
 	if (bmval1 & FATTR4_WORD1_SPACE_AVAIL) {
-		p = xdr_reserve_space(xdr, 8);
-		if (!p)
-			goto out_resource;
-		dummy64 = (u64)args.statfs.f_bavail * (u64)args.statfs.f_bsize;
-		p = xdr_encode_hyper(p, dummy64);
+		status = nfsd4_encode_fattr4_space_avail(xdr, &args);
+		if (status != nfs_ok)
+			goto out;
 	}
 	if (bmval1 & FATTR4_WORD1_SPACE_FREE) {
 		p = xdr_reserve_space(xdr, 8);
