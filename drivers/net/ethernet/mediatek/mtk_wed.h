@@ -40,6 +40,16 @@ struct mtk_wdma_info {
 };
 
 #ifdef CONFIG_NET_MEDIATEK_SOC_WED
+static inline bool mtk_wed_is_v1(struct mtk_wed_hw *hw)
+{
+	return hw->version == 1;
+}
+
+static inline bool mtk_wed_is_v2(struct mtk_wed_hw *hw)
+{
+	return hw->version == 2;
+}
+
 static inline void
 wed_w32(struct mtk_wed_device *dev, u32 reg, u32 val)
 {
