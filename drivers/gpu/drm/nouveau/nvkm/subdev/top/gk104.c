@@ -23,6 +23,8 @@
  */
 #include "priv.h"
 
+#include <subdev/gsp.h>
+
 static int
 gk104_top_parse(struct nvkm_top *top)
 {
@@ -115,5 +117,8 @@ int
 gk104_top_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 	      struct nvkm_top **ptop)
 {
+	if (nvkm_gsp_rm(device->gsp))
+		return -ENODEV;
+
 	return nvkm_top_new_(&gk104_top, device, type, inst, ptop);
 }
