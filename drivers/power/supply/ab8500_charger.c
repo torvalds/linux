@@ -3679,7 +3679,7 @@ remove_ab8500_bm:
 	return ret;
 }
 
-static int ab8500_charger_remove(struct platform_device *pdev)
+static void ab8500_charger_remove(struct platform_device *pdev)
 {
 	struct ab8500_charger *di = platform_get_drvdata(pdev);
 
@@ -3688,8 +3688,6 @@ static int ab8500_charger_remove(struct platform_device *pdev)
 	usb_unregister_notifier(di->usb_phy, &di->nb);
 	ab8500_bm_of_remove(di->usb_chg.psy, di->bm);
 	usb_put_phy(di->usb_phy);
-
-	return 0;
 }
 
 static SIMPLE_DEV_PM_OPS(ab8500_charger_pm_ops, ab8500_charger_suspend, ab8500_charger_resume);
@@ -3702,7 +3700,7 @@ MODULE_DEVICE_TABLE(of, ab8500_charger_match);
 
 static struct platform_driver ab8500_charger_driver = {
 	.probe = ab8500_charger_probe,
-	.remove = ab8500_charger_remove,
+	.remove_new = ab8500_charger_remove,
 	.driver = {
 		.name = "ab8500-charger",
 		.of_match_table = ab8500_charger_match,
