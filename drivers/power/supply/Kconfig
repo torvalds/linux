@@ -643,6 +643,7 @@ config BATTERY_PM8916_BMS_VM
 config CHARGER_PM8916_LBC
 	tristate "Qualcomm PM8916 Linear Battery Charger support"
 	depends on MFD_SPMI_PMIC || COMPILE_TEST
+	depends on EXTCON || !EXTCON
 	help
 	  Say Y here to add support for Linear Battery Charger block
 	  found in some Qualcomm PMICs such as PM8916. This hardware
