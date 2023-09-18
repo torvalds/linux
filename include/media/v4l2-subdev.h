@@ -446,7 +446,9 @@ enum v4l2_subdev_pre_streamon_flags {
  * @s_stream: start (enabled == 1) or stop (enabled == 0) streaming on the
  *	sub-device. Failure on stop will remove any resources acquired in
  *	streaming start, while the error code is still returned by the driver.
- *	Also see call_s_stream wrapper in v4l2-subdev.c.
+ *	The caller shall track the subdev state, and shall not start or stop an
+ *	already started or stopped subdev. Also see call_s_stream wrapper in
+ *	v4l2-subdev.c.
  *
  * @g_pixelaspect: callback to return the pixelaspect ratio.
  *
