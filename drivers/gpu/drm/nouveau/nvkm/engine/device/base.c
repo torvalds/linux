@@ -2426,7 +2426,7 @@ nv162_chipset = {
 	.dma      = { 0x00000001, gv100_dma_new },
 	.fifo     = { 0x00000001, tu102_fifo_new },
 	.gr       = { 0x00000001, tu102_gr_new },
-	.nvdec    = { 0x00000001, gm107_nvdec_new },
+	.nvdec    = { 0x00000001, tu102_nvdec_new },
 	.nvenc    = { 0x00000001, gm107_nvenc_new },
 	.sec2     = { 0x00000001, tu102_sec2_new },
 };
@@ -2461,7 +2461,7 @@ nv164_chipset = {
 	.dma      = { 0x00000001, gv100_dma_new },
 	.fifo     = { 0x00000001, tu102_fifo_new },
 	.gr       = { 0x00000001, tu102_gr_new },
-	.nvdec    = { 0x00000003, gm107_nvdec_new },
+	.nvdec    = { 0x00000003, tu102_nvdec_new },
 	.nvenc    = { 0x00000001, gm107_nvenc_new },
 	.sec2     = { 0x00000001, tu102_sec2_new },
 };
@@ -2496,7 +2496,7 @@ nv166_chipset = {
 	.dma      = { 0x00000001, gv100_dma_new },
 	.fifo     = { 0x00000001, tu102_fifo_new },
 	.gr       = { 0x00000001, tu102_gr_new },
-	.nvdec    = { 0x00000007, gm107_nvdec_new },
+	.nvdec    = { 0x00000007, tu102_nvdec_new },
 	.nvenc    = { 0x00000001, gm107_nvenc_new },
 	.sec2     = { 0x00000001, tu102_sec2_new },
 };
@@ -2531,7 +2531,7 @@ nv167_chipset = {
 	.dma      = { 0x00000001, gv100_dma_new },
 	.fifo     = { 0x00000001, tu102_fifo_new },
 	.gr       = { 0x00000001, tu102_gr_new },
-	.nvdec    = { 0x00000001, gm107_nvdec_new },
+	.nvdec    = { 0x00000001, tu102_nvdec_new },
 	.nvenc    = { 0x00000001, gm107_nvenc_new },
 	.sec2     = { 0x00000001, tu102_sec2_new },
 };
@@ -2566,7 +2566,7 @@ nv168_chipset = {
 	.dma      = { 0x00000001, gv100_dma_new },
 	.fifo     = { 0x00000001, tu102_fifo_new },
 	.gr       = { 0x00000001, tu102_gr_new },
-	.nvdec    = { 0x00000001, gm107_nvdec_new },
+	.nvdec    = { 0x00000001, tu102_nvdec_new },
 	.nvenc    = { 0x00000001, gm107_nvenc_new },
 	.sec2     = { 0x00000001, tu102_sec2_new },
 };
@@ -2620,7 +2620,7 @@ nv172_chipset = {
 	.dma      = { 0x00000001, gv100_dma_new },
 	.fifo     = { 0x00000001, ga102_fifo_new },
 	.gr       = { 0x00000001, ga102_gr_new },
-	.nvdec    = { 0x00000001, ga102_nvdec_new },
+	.nvdec    = { 0x00000003, ga102_nvdec_new },
 	.sec2     = { 0x00000001, ga102_sec2_new },
 };
 
@@ -2650,7 +2650,7 @@ nv173_chipset = {
 	.dma      = { 0x00000001, gv100_dma_new },
 	.fifo     = { 0x00000001, ga102_fifo_new },
 	.gr       = { 0x00000001, ga102_gr_new },
-	.nvdec    = { 0x00000001, ga102_nvdec_new },
+	.nvdec    = { 0x00000003, ga102_nvdec_new },
 	.sec2     = { 0x00000001, ga102_sec2_new },
 };
 
@@ -2680,7 +2680,7 @@ nv174_chipset = {
 	.dma      = { 0x00000001, gv100_dma_new },
 	.fifo     = { 0x00000001, ga102_fifo_new },
 	.gr       = { 0x00000001, ga102_gr_new },
-	.nvdec    = { 0x00000001, ga102_nvdec_new },
+	.nvdec    = { 0x00000003, ga102_nvdec_new },
 	.sec2     = { 0x00000001, ga102_sec2_new },
 };
 
@@ -2710,7 +2710,7 @@ nv176_chipset = {
 	.dma      = { 0x00000001, gv100_dma_new },
 	.fifo     = { 0x00000001, ga102_fifo_new },
 	.gr       = { 0x00000001, ga102_gr_new },
-	.nvdec    = { 0x00000001, ga102_nvdec_new },
+	.nvdec    = { 0x00000003, ga102_nvdec_new },
 	.sec2     = { 0x00000001, ga102_sec2_new },
 };
 
@@ -2740,7 +2740,7 @@ nv177_chipset = {
 	.dma      = { 0x00000001, gv100_dma_new },
 	.fifo     = { 0x00000001, ga102_fifo_new },
 	.gr       = { 0x00000001, ga102_gr_new },
-	.nvdec    = { 0x00000001, ga102_nvdec_new },
+	.nvdec    = { 0x00000003, ga102_nvdec_new },
 	.sec2     = { 0x00000001, ga102_sec2_new },
 };
 
