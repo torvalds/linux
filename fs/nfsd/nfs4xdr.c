@@ -2906,12 +2906,12 @@ static int nfsd4_get_mounted_on_ino(struct svc_export *exp, u64 *pino)
 }
 
 static __be32
-nfsd4_encode_bitmap(struct xdr_stream *xdr, u32 bmval0, u32 bmval1, u32 bmval2)
+nfsd4_encode_bitmap4(struct xdr_stream *xdr, u32 bmval0, u32 bmval1, u32 bmval2)
 {
 	__be32 *p;
 
 	if (bmval2) {
-		p = xdr_reserve_space(xdr, 16);
+		p = xdr_reserve_space(xdr, XDR_UNIT * 4);
 		if (!p)
 			goto out_resource;
 		*p++ = cpu_to_be32(3);
@@ -2919,21 +2919,21 @@ nfsd4_encode_bitmap(struct xdr_stream *xdr, u32 bmval0, u32 bmval1, u32 bmval2)
 		*p++ = cpu_to_be32(bmval1);
 		*p++ = cpu_to_be32(bmval2);
 	} else if (bmval1) {
-		p = xdr_reserve_space(xdr, 12);
+		p = xdr_reserve_space(xdr, XDR_UNIT * 3);
 		if (!p)
 			goto out_resource;
 		*p++ = cpu_to_be32(2);
 		*p++ = cpu_to_be32(bmval0);
 		*p++ = cpu_to_be32(bmval1);
 	} else {
-		p = xdr_reserve_space(xdr, 8);
+		p = xdr_reserve_space(xdr, XDR_UNIT * 2);
 		if (!p)
 			goto out_resource;
 		*p++ = cpu_to_be32(1);
 		*p++ = cpu_to_be32(bmval0);
 	}
 
-	return 0;
+	return nfs_ok;
 out_resource:
 	return nfserr_resource;
 }
@@ -3049,7 +3049,7 @@ nfsd4_encode_fattr(struct xdr_stream *xdr, struct svc_fh *fhp,
 	}
 #endif /* CONFIG_NFSD_V4_SECURITY_LABEL */
 
-	status = nfsd4_encode_bitmap(xdr, bmval0, bmval1, bmval2);
+	status = nfsd4_encode_bitmap4(xdr, bmval0, bmval1, bmval2);
 	if (status)
 		goto out;
 
@@ -3449,7 +3449,7 @@ out_acl:
 		supp[1] &= NFSD_SUPPATTR_EXCLCREAT_WORD1;
 		supp[2] &= NFSD_SUPPATTR_EXCLCREAT_WORD2;
 
-		status = nfsd4_encode_bitmap(xdr, supp[0], supp[1], supp[2]);
+		status = nfsd4_encode_bitmap4(xdr, supp[0], supp[1], supp[2]);
 		if (status)
 			goto out;
 	}
@@ -3808,11 +3808,13 @@ nfsd4_encode_create(struct nfsd4_compoundres *resp, __be32 nfserr,
 	struct nfsd4_create *create = &u->create;
 	struct xdr_stream *xdr = resp->xdr;
 
+	/* cinfo */
 	nfserr = nfsd4_encode_change_info4(xdr, &create->cr_cinfo);
 	if (nfserr)
 		return nfserr;
-	return nfsd4_encode_bitmap(xdr, create->cr_bmval[0],
-			create->cr_bmval[1], create->cr_bmval[2]);
+	/* attrset */
+	return nfsd4_encode_bitmap4(xdr, create->cr_bmval[0],
+				    create->cr_bmval[1], create->cr_bmval[2]);
 }
 
 static __be32
@@ -3950,8 +3952,8 @@ nfsd4_encode_open(struct nfsd4_compoundres *resp, __be32 nfserr,
 	if (xdr_stream_encode_u32(xdr, open->op_rflags) < 0)
 		return nfserr_resource;
 
-	nfserr = nfsd4_encode_bitmap(xdr, open->op_bmval[0], open->op_bmval[1],
-					open->op_bmval[2]);
+	nfserr = nfsd4_encode_bitmap4(xdr, open->op_bmval[0],
+				      open->op_bmval[1], open->op_bmval[2]);
 	if (nfserr)
 		return nfserr;
 
@@ -4535,14 +4537,14 @@ nfsd4_encode_exchange_id(struct nfsd4_compoundres *resp, __be32 nfserr,
 		break;
 	case SP4_MACH_CRED:
 		/* spo_must_enforce bitmap: */
-		nfserr = nfsd4_encode_bitmap(xdr,
+		nfserr = nfsd4_encode_bitmap4(xdr,
 					exid->spo_must_enforce[0],
 					exid->spo_must_enforce[1],
 					exid->spo_must_enforce[2]);
 		if (nfserr)
 			return nfserr;
 		/* spo_must_allow bitmap: */
-		nfserr = nfsd4_encode_bitmap(xdr,
+		nfserr = nfsd4_encode_bitmap4(xdr,
 					exid->spo_must_allow[0],
 					exid->spo_must_allow[1],
 					exid->spo_must_allow[2]);
