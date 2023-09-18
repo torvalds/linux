@@ -441,7 +441,7 @@ static int mcf8390_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int mcf8390_remove(struct platform_device *pdev)
+static void mcf8390_remove(struct platform_device *pdev)
 {
 	struct net_device *dev = platform_get_drvdata(pdev);
 	struct resource *mem;
@@ -450,7 +450,6 @@ static int mcf8390_remove(struct platform_device *pdev)
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	release_mem_region(mem->start, resource_size(mem));
 	free_netdev(dev);
-	return 0;
 }
 
 static struct platform_driver mcf8390_drv = {
@@ -458,7 +457,7 @@ static struct platform_driver mcf8390_drv = {
 		.name	= "mcf8390",
 	},
 	.probe		= mcf8390_probe,
-	.remove		= mcf8390_remove,
+	.remove_new	= mcf8390_remove,
 };
 
 module_platform_driver(mcf8390_drv);
