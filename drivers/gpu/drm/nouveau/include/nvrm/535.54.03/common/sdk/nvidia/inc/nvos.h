@@ -107,6 +107,13 @@ typedef struct
 
 typedef struct
 {
+    NvU32 size;
+    NvU32 prohibitMultipleInstances;
+    NvU32 engineInstance;               // Select NVDEC0 or NVDEC1 or NVDEC2
+} NV_BSP_ALLOCATION_PARAMETERS;
+
+typedef struct
+{
     NvU32   index;
     NvV32   flags;
     NvU64   vaSize NV_ALIGN_BYTES(8);

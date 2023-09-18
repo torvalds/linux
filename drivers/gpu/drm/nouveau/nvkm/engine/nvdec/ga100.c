@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Red Hat Inc.
+ * Copyright 2023 Red Hat Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,48 +26,19 @@
 #include <nvif/class.h>
 
 static const struct nvkm_engine_func
-ga102_nvdec_gsp = {
+ga100_nvdec = {
 	.sclass = {
-		{ -1, -1, NVC7B0_VIDEO_DECODER },
+		{ -1, -1, NVC6B0_VIDEO_DECODER },
 		{}
 	}
 };
 
-static const struct nvkm_falcon_func
-ga102_nvdec_flcn = {
-	.disable = gm200_flcn_disable,
-	.enable = gm200_flcn_enable,
-	.addr2 = 0x1c00,
-	.reset_pmc = true,
-	.reset_prep = ga102_flcn_reset_prep,
-	.reset_wait_mem_scrubbing = ga102_flcn_reset_wait_mem_scrubbing,
-	.imem_dma = &ga102_flcn_dma,
-	.dmem_dma = &ga102_flcn_dma,
-};
-
-static const struct nvkm_nvdec_func
-ga102_nvdec = {
-	.flcn = &ga102_nvdec_flcn,
-};
-
-static int
-ga102_nvdec_nofw(struct nvkm_nvdec *nvdec, int ver, const struct nvkm_nvdec_fwif *fwif)
-{
-	return 0;
-}
-
-static const struct nvkm_nvdec_fwif
-ga102_nvdec_fwif[] = {
-	{ -1, ga102_nvdec_nofw, &ga102_nvdec },
-	{}
-};
-
 int
-ga102_nvdec_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
+ga100_nvdec_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 		struct nvkm_nvdec **pnvdec)
 {
 	if (nvkm_gsp_rm(device->gsp))
-		return r535_nvdec_new(&ga102_nvdec_gsp, device, type, inst, pnvdec);
+		return r535_nvdec_new(&ga100_nvdec, device, type, inst, pnvdec);
 
-	return nvkm_nvdec_new_(ga102_nvdec_fwif, device, type, inst, 0x848000, pnvdec);
+	return -ENODEV;
 }

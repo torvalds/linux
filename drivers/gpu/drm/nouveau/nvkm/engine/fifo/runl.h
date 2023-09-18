@@ -29,6 +29,11 @@ struct nvkm_engn {
 
 	int fault;
 
+	struct {
+		u32 desc;
+		u32 size;
+	} rm;
+
 	struct list_head head;
 };
 

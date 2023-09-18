@@ -38,6 +38,8 @@
 #include <nvrm/535.54.03/common/sdk/nvidia/inc/class/cl2080_notification.h>
 #include <nvrm/535.54.03/common/sdk/nvidia/inc/ctrl/ctrl2080/ctrl2080ce.h>
 #include <nvrm/535.54.03/common/sdk/nvidia/inc/ctrl/ctrl2080/ctrl2080fifo.h>
+#include <nvrm/535.54.03/common/sdk/nvidia/inc/ctrl/ctrl2080/ctrl2080gpu.h>
+#include <nvrm/535.54.03/common/sdk/nvidia/inc/ctrl/ctrl2080/ctrl2080internal.h>
 #include <nvrm/535.54.03/common/sdk/nvidia/inc/ctrl/ctrla06f/ctrla06fgpfifo.h>
 #include <nvrm/535.54.03/nvidia/generated/g_kernel_channel_nvoc.h>
 #include <nvrm/535.54.03/nvidia/generated/g_kernel_fifo_nvoc.h>
@@ -378,6 +380,58 @@ r535_gr = {
 	.ctor2 = r535_gr_ctor,
 };
 
+static int
+r535_flcn_bind(struct nvkm_engn *engn, struct nvkm_vctx *vctx, struct nvkm_chan *chan)
+{
+	struct nvkm_gsp_client *client = &chan->vmm->rm.client;
+	NV2080_CTRL_GPU_PROMOTE_CTX_PARAMS *ctrl;
+
+	ctrl = nvkm_gsp_rm_ctrl_get(&chan->vmm->rm.device.subdevice,
+				    NV2080_CTRL_CMD_GPU_PROMOTE_CTX, sizeof(*ctrl));
+	if (IS_ERR(ctrl))
+		return PTR_ERR(ctrl);
+
+	ctrl->hClient = client->object.handle;
+	ctrl->hObject = chan->rm.object.handle;
+	ctrl->hChanClient = client->object.handle;
+	ctrl->virtAddress = vctx->vma->addr;
+	ctrl->size = vctx->inst->size;
+	ctrl->engineType = engn->id;
+	ctrl->ChID = chan->id;
+
+	return nvkm_gsp_rm_ctrl_wr(&chan->vmm->rm.device.subdevice, ctrl);
+}
+
+static int
+r535_flcn_ctor(struct nvkm_engn *engn, struct nvkm_vctx *vctx, struct nvkm_chan *chan)
+{
+	int ret;
+
+	if (WARN_ON(!engn->rm.size))
+		return -EINVAL;
+
+	ret = nvkm_gpuobj_new(engn->engine->subdev.device, engn->rm.size, 0, true, NULL,
+			      &vctx->inst);
+	if (ret)
+		return ret;
+
+	ret = nvkm_vmm_get(vctx->vmm, 12, vctx->inst->size, &vctx->vma);
+	if (ret)
+		return ret;
+
+	ret = nvkm_memory_map(vctx->inst, 0, vctx->vmm, vctx->vma, NULL, 0);
+	if (ret)
+		return ret;
+
+	return r535_flcn_bind(engn, vctx, chan);
+}
+
+static const struct nvkm_engn_func
+r535_flcn = {
+	.nonstall = r535_engn_nonstall,
+	.ctor2 = r535_flcn_ctor,
+};
+
 static void
 r535_runl_allow(struct nvkm_runl *runl, u32 engm)
 {
@@ -448,6 +502,36 @@ r535_fifo_engn_type(RM_ENGINE_TYPE rm, enum nvkm_subdev_type *ptype)
 }
 
 static int
+r535_fifo_ectx_size(struct nvkm_fifo *fifo)
+{
+	NV2080_CTRL_INTERNAL_GET_CONSTRUCTED_FALCON_INFO_PARAMS *ctrl;
+	struct nvkm_gsp *gsp = fifo->engine.subdev.device->gsp;
+	struct nvkm_runl *runl;
+	struct nvkm_engn *engn;
+
+	ctrl = nvkm_gsp_rm_ctrl_rd(&gsp->internal.device.subdevice,
+				   NV2080_CTRL_CMD_INTERNAL_GET_CONSTRUCTED_FALCON_INFO,
+				   sizeof(*ctrl));
+	if (WARN_ON(IS_ERR(ctrl)))
+		return PTR_ERR(ctrl);
+
+	for (int i = 0; i < ctrl->numConstructedFalcons; i++) {
+		nvkm_runl_foreach(runl, fifo) {
+			nvkm_runl_foreach_engn(engn, runl) {
+				if (engn->rm.desc == ctrl->constructedFalconsTable[i].engDesc) {
+					engn->rm.size =
+						ctrl->constructedFalconsTable[i].ctxBufferSize;
+					break;
+				}
+			}
+		}
+	}
+
+	nvkm_gsp_rm_ctrl_done(&gsp->internal.device.subdevice, ctrl);
+	return 0;
+}
+
+static int
 r535_fifo_runl_ctor(struct nvkm_fifo *fifo)
 {
 	struct nvkm_subdev *subdev = &fifo->engine.subdev;
@@ -511,6 +595,9 @@ r535_fifo_runl_ctor(struct nvkm_fifo *fifo)
 		case NVKM_ENGINE_GR:
 			engn = nvkm_runl_add(runl, nv2080, &r535_gr, type, inst);
 			break;
+		case NVKM_ENGINE_NVDEC:
+			engn = nvkm_runl_add(runl, nv2080, &r535_flcn, type, inst);
+			break;
 		case NVKM_ENGINE_SW:
 			continue;
 		default:
@@ -522,6 +609,8 @@ r535_fifo_runl_ctor(struct nvkm_fifo *fifo)
 			nvkm_runl_del(runl);
 			continue;
 		}
+
+		engn->rm.desc = ctrl->entries[i].engineData[ENGINE_INFO_TYPE_ENG_DESC];
 	}
 
 	nvkm_gsp_rm_ctrl_done(&gsp->internal.device.subdevice, ctrl);
@@ -540,7 +629,7 @@ r535_fifo_runl_ctor(struct nvkm_fifo *fifo)
 		nvkm_gsp_rm_ctrl_done(&gsp->internal.device.subdevice, ctrl);
 	}
 
-	return 0;
+	return r535_fifo_ectx_size(fifo);
 }
 
 static void

@@ -198,6 +198,11 @@
 
 #define NV74_BSP                                                     0x000074b0
 
+#define NVC4B0_VIDEO_DECODER                                         0x0000c4b0
+#define NVC6B0_VIDEO_DECODER                                         0x0000c6b0
+#define NVC7B0_VIDEO_DECODER                                         0x0000c7b0
+#define NVC9B0_VIDEO_DECODER                                         0x0000c9b0
+
 #define GT212_MSVLD                                                  0x000085b1
 #define IGT21A_MSVLD                                                 0x000086b1
 #define G98_MSVLD                                                    0x000088b1

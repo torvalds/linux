@@ -859,6 +859,10 @@ r535_gsp_intr_get_table(struct nvkm_gsp *gsp)
 			type = NVKM_ENGINE_GR;
 			inst = 0;
 			break;
+		case MC_ENGINE_IDX_NVDEC0 ... MC_ENGINE_IDX_NVDEC7:
+			type = NVKM_ENGINE_NVDEC;
+			inst = ctrl->table[i].engineIdx - MC_ENGINE_IDX_NVDEC0;
+			break;
 		default:
 			continue;
 		}

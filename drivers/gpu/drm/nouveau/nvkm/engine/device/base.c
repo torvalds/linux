@@ -2592,6 +2592,7 @@ nv170_chipset = {
 	.vfn      = { 0x00000001, ga100_vfn_new },
 	.ce       = { 0x000003ff, ga100_ce_new },
 	.fifo     = { 0x00000001, ga100_fifo_new },
+	.nvdec    = { 0x0000001f, ga100_nvdec_new },
 };
 
 static const struct nvkm_device_chip
@@ -2763,6 +2764,7 @@ nv192_chipset = {
 	.dma      = { 0x00000001, gv100_dma_new },
 	.fifo     = { 0x00000001, ga102_fifo_new },
 	.gr       = { 0x00000001, ad102_gr_new },
+	.nvdec    = { 0x0000000f, ad102_nvdec_new },
 	.sec2     = { 0x00000001, ga102_sec2_new },
 };
 
@@ -2785,6 +2787,7 @@ nv193_chipset = {
 	.dma      = { 0x00000001, gv100_dma_new },
 	.fifo     = { 0x00000001, ga102_fifo_new },
 	.gr       = { 0x00000001, ad102_gr_new },
+	.nvdec    = { 0x0000000f, ad102_nvdec_new },
 	.sec2     = { 0x00000001, ga102_sec2_new },
 };
 
@@ -2807,6 +2810,7 @@ nv194_chipset = {
 	.dma      = { 0x00000001, gv100_dma_new },
 	.fifo     = { 0x00000001, ga102_fifo_new },
 	.gr       = { 0x00000001, ad102_gr_new },
+	.nvdec    = { 0x0000000f, ad102_nvdec_new },
 	.sec2     = { 0x00000001, ga102_sec2_new },
 };
 
@@ -2829,6 +2833,7 @@ nv196_chipset = {
 	.dma      = { 0x00000001, gv100_dma_new },
 	.fifo     = { 0x00000001, ga102_fifo_new },
 	.gr       = { 0x00000001, ad102_gr_new },
+	.nvdec    = { 0x0000000f, ad102_nvdec_new },
 	.sec2     = { 0x00000001, ga102_sec2_new },
 };
 
@@ -2851,6 +2856,7 @@ nv197_chipset = {
 	.dma      = { 0x00000001, gv100_dma_new },
 	.fifo     = { 0x00000001, ga102_fifo_new },
 	.gr       = { 0x00000001, ad102_gr_new },
+	.nvdec    = { 0x0000000f, ad102_nvdec_new },
 	.sec2     = { 0x00000001, ga102_sec2_new },
 };
 

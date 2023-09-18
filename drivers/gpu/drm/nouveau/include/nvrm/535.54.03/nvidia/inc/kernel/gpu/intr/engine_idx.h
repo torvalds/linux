@@ -34,6 +34,12 @@
 
 #define MC_ENGINE_IDX_GSP                           49
 
+#define MC_ENGINE_IDX_BSP                           64
+#define MC_ENGINE_IDX_NVDEC                         MC_ENGINE_IDX_BSP
+#define MC_ENGINE_IDX_NVDEC0                        MC_ENGINE_IDX_NVDEC
+
+#define MC_ENGINE_IDX_NVDEC7                        71
+
 #define MC_ENGINE_IDX_GR                            82
 #define MC_ENGINE_IDX_GR0                           MC_ENGINE_IDX_GR
 
