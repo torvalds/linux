@@ -1261,7 +1261,7 @@ cleanup_ports:
 	return err;
 }
 
-static int lan966x_remove(struct platform_device *pdev)
+static void lan966x_remove(struct platform_device *pdev)
 {
 	struct lan966x *lan966x = platform_get_drvdata(pdev);
 
@@ -1280,13 +1280,11 @@ static int lan966x_remove(struct platform_device *pdev)
 	lan966x_ptp_deinit(lan966x);
 
 	debugfs_remove_recursive(lan966x->debugfs_root);
-
-	return 0;
 }
 
 static struct platform_driver lan966x_driver = {
 	.probe = lan966x_probe,
-	.remove = lan966x_remove,
+	.remove_new = lan966x_remove,
 	.driver = {
 		.name = "lan966x-switch",
 		.of_match_table = lan966x_match,
