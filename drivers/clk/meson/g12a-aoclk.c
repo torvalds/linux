@@ -14,10 +14,12 @@
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include "meson-aoclk.h"
-#include "g12a-aoclk.h"
 
 #include "clk-regmap.h"
 #include "clk-dualdiv.h"
+
+#include <dt-bindings/clock/g12a-aoclkc.h>
+#include <dt-bindings/reset/g12a-aoclkc.h>
 
 /*
  * AO Configuration Clock registers offsets
@@ -411,39 +413,36 @@ static struct clk_regmap *g12a_aoclk_regmap[] = {
 	&g12a_aoclk_saradc_gate,
 };
 
-static const struct clk_hw_onecell_data g12a_aoclk_onecell_data = {
-	.hws = {
-		[CLKID_AO_AHB]		= &g12a_aoclk_ahb.hw,
-		[CLKID_AO_IR_IN]	= &g12a_aoclk_ir_in.hw,
-		[CLKID_AO_I2C_M0]	= &g12a_aoclk_i2c_m0.hw,
-		[CLKID_AO_I2C_S0]	= &g12a_aoclk_i2c_s0.hw,
-		[CLKID_AO_UART]		= &g12a_aoclk_uart.hw,
-		[CLKID_AO_PROD_I2C]	= &g12a_aoclk_prod_i2c.hw,
-		[CLKID_AO_UART2]	= &g12a_aoclk_uart2.hw,
-		[CLKID_AO_IR_OUT]	= &g12a_aoclk_ir_out.hw,
-		[CLKID_AO_SAR_ADC]	= &g12a_aoclk_saradc.hw,
-		[CLKID_AO_MAILBOX]	= &g12a_aoclk_mailbox.hw,
-		[CLKID_AO_M3]		= &g12a_aoclk_m3.hw,
-		[CLKID_AO_AHB_SRAM]	= &g12a_aoclk_ahb_sram.hw,
-		[CLKID_AO_RTI]		= &g12a_aoclk_rti.hw,
-		[CLKID_AO_M4_FCLK]	= &g12a_aoclk_m4_fclk.hw,
-		[CLKID_AO_M4_HCLK]	= &g12a_aoclk_m4_hclk.hw,
-		[CLKID_AO_CLK81]	= &g12a_aoclk_clk81.hw,
-		[CLKID_AO_SAR_ADC_SEL]	= &g12a_aoclk_saradc_mux.hw,
-		[CLKID_AO_SAR_ADC_DIV]	= &g12a_aoclk_saradc_div.hw,
-		[CLKID_AO_SAR_ADC_CLK]	= &g12a_aoclk_saradc_gate.hw,
-		[CLKID_AO_CTS_OSCIN]	= &g12a_aoclk_cts_oscin.hw,
-		[CLKID_AO_32K_PRE]	= &g12a_aoclk_32k_by_oscin_pre.hw,
-		[CLKID_AO_32K_DIV]	= &g12a_aoclk_32k_by_oscin_div.hw,
-		[CLKID_AO_32K_SEL]	= &g12a_aoclk_32k_by_oscin_sel.hw,
-		[CLKID_AO_32K]		= &g12a_aoclk_32k_by_oscin.hw,
-		[CLKID_AO_CEC_PRE]	= &g12a_aoclk_cec_pre.hw,
-		[CLKID_AO_CEC_DIV]	= &g12a_aoclk_cec_div.hw,
-		[CLKID_AO_CEC_SEL]	= &g12a_aoclk_cec_sel.hw,
-		[CLKID_AO_CEC]		= &g12a_aoclk_cec.hw,
-		[CLKID_AO_CTS_RTC_OSCIN] = &g12a_aoclk_cts_rtc_oscin.hw,
-	},
-	.num = NR_CLKS,
+static struct clk_hw *g12a_aoclk_hw_clks[] = {
+	[CLKID_AO_AHB]		= &g12a_aoclk_ahb.hw,
+	[CLKID_AO_IR_IN]	= &g12a_aoclk_ir_in.hw,
+	[CLKID_AO_I2C_M0]	= &g12a_aoclk_i2c_m0.hw,
+	[CLKID_AO_I2C_S0]	= &g12a_aoclk_i2c_s0.hw,
+	[CLKID_AO_UART]		= &g12a_aoclk_uart.hw,
+	[CLKID_AO_PROD_I2C]	= &g12a_aoclk_prod_i2c.hw,
+	[CLKID_AO_UART2]	= &g12a_aoclk_uart2.hw,
+	[CLKID_AO_IR_OUT]	= &g12a_aoclk_ir_out.hw,
+	[CLKID_AO_SAR_ADC]	= &g12a_aoclk_saradc.hw,
+	[CLKID_AO_MAILBOX]	= &g12a_aoclk_mailbox.hw,
+	[CLKID_AO_M3]		= &g12a_aoclk_m3.hw,
+	[CLKID_AO_AHB_SRAM]	= &g12a_aoclk_ahb_sram.hw,
+	[CLKID_AO_RTI]		= &g12a_aoclk_rti.hw,
+	[CLKID_AO_M4_FCLK]	= &g12a_aoclk_m4_fclk.hw,
+	[CLKID_AO_M4_HCLK]	= &g12a_aoclk_m4_hclk.hw,
+	[CLKID_AO_CLK81]	= &g12a_aoclk_clk81.hw,
+	[CLKID_AO_SAR_ADC_SEL]	= &g12a_aoclk_saradc_mux.hw,
+	[CLKID_AO_SAR_ADC_DIV]	= &g12a_aoclk_saradc_div.hw,
+	[CLKID_AO_SAR_ADC_CLK]	= &g12a_aoclk_saradc_gate.hw,
+	[CLKID_AO_CTS_OSCIN]	= &g12a_aoclk_cts_oscin.hw,
+	[CLKID_AO_32K_PRE]	= &g12a_aoclk_32k_by_oscin_pre.hw,
+	[CLKID_AO_32K_DIV]	= &g12a_aoclk_32k_by_oscin_div.hw,
+	[CLKID_AO_32K_SEL]	= &g12a_aoclk_32k_by_oscin_sel.hw,
+	[CLKID_AO_32K]		= &g12a_aoclk_32k_by_oscin.hw,
+	[CLKID_AO_CEC_PRE]	= &g12a_aoclk_cec_pre.hw,
+	[CLKID_AO_CEC_DIV]	= &g12a_aoclk_cec_div.hw,
+	[CLKID_AO_CEC_SEL]	= &g12a_aoclk_cec_sel.hw,
+	[CLKID_AO_CEC]		= &g12a_aoclk_cec.hw,
+	[CLKID_AO_CTS_RTC_OSCIN] = &g12a_aoclk_cts_rtc_oscin.hw,
 };
 
 static const struct meson_aoclk_data g12a_aoclkc_data = {
@@ -452,7 +451,10 @@ static const struct meson_aoclk_data g12a_aoclkc_data = {
 	.reset		= g12a_aoclk_reset,
 	.num_clks	= ARRAY_SIZE(g12a_aoclk_regmap),
 	.clks		= g12a_aoclk_regmap,
-	.hw_data	= &g12a_aoclk_onecell_data,
+	.hw_clks	= {
+		.hws	= g12a_aoclk_hw_clks,
+		.num	= ARRAY_SIZE(g12a_aoclk_hw_clks),
+	},
 };
 
 static const struct of_device_id g12a_aoclkc_match_table[] = {

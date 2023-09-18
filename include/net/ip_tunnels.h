@@ -52,6 +52,7 @@ struct ip_tunnel_key {
 	u8			tos;		/* TOS for IPv4, TC for IPv6 */
 	u8			ttl;		/* TTL for IPv4, HL for IPv6 */
 	__be32			label;		/* Flow Label for IPv6 */
+	u32			nhid;
 	__be16			tp_src;
 	__be16			tp_dst;
 	__u8			flow_flags;
@@ -482,15 +483,14 @@ static inline void iptunnel_xmit_stats(struct net_device *dev, int pkt_len)
 		u64_stats_inc(&tstats->tx_packets);
 		u64_stats_update_end(&tstats->syncp);
 		put_cpu_ptr(tstats);
-	} else {
-		struct net_device_stats *err_stats = &dev->stats;
+		return;
+	}
 
-		if (pkt_len < 0) {
-			err_stats->tx_errors++;
-			err_stats->tx_aborted_errors++;
-		} else {
-			err_stats->tx_dropped++;
-		}
+	if (pkt_len < 0) {
+		DEV_STATS_INC(dev, tx_errors);
+		DEV_STATS_INC(dev, tx_aborted_errors);
+	} else {
+		DEV_STATS_INC(dev, tx_dropped);
 	}
 }
 

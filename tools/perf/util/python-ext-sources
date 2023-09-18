@@ -40,3 +40,12 @@ util/rwsem.c
 util/hashmap.c
 util/perf_regs.c
 util/fncache.c
+util/perf-regs-arch/perf_regs_aarch64.c
+util/perf-regs-arch/perf_regs_arm.c
+util/perf-regs-arch/perf_regs_csky.c
+util/perf-regs-arch/perf_regs_loongarch.c
+util/perf-regs-arch/perf_regs_mips.c
+util/perf-regs-arch/perf_regs_powerpc.c
+util/perf-regs-arch/perf_regs_riscv.c
+util/perf-regs-arch/perf_regs_s390.c
+util/perf-regs-arch/perf_regs_x86.c

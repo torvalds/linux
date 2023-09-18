@@ -36,8 +36,6 @@
  */
 
 
-#define in_range(b, first, len)	((b) >= (first) && (b) <= (first) + (len) - 1)
-
 struct ext2_group_desc * ext2_get_group_desc(struct super_block * sb,
 					     unsigned int block_group,
 					     struct buffer_head ** bh)
@@ -474,8 +472,8 @@ void ext2_discard_reservation(struct inode *inode)
  * @block:		start physical block to free
  * @count:		number of blocks to free
  */
-void ext2_free_blocks (struct inode * inode, unsigned long block,
-		       unsigned long count)
+void ext2_free_blocks(struct inode * inode, ext2_fsblk_t block,
+		      unsigned long count)
 {
 	struct buffer_head *bitmap_bh = NULL;
 	struct buffer_head * bh2;
@@ -718,36 +716,34 @@ fail_access:
 }
 
 /**
- * 	find_next_reservable_window():
- *		find a reservable space within the given range.
- *		It does not allocate the reservation window for now:
- *		alloc_new_reservation() will do the work later.
+ * find_next_reservable_window - Find a reservable space within the given range.
+ * @search_head: The list to search.
+ * @my_rsv: The reservation we're currently using.
+ * @sb: The super block.
+ * @start_block: The first block we consider to start the real search from
+ * @last_block: The maximum block number that our goal reservable space
+ *	could start from.
  *
- * 	@search_head: the head of the searching list;
- *		This is not necessarily the list head of the whole filesystem
+ * It does not allocate the reservation window: alloc_new_reservation()
+ * will do the work later.
  *
- *		We have both head and start_block to assist the search
- *		for the reservable space. The list starts from head,
- *		but we will shift to the place where start_block is,
- *		then start from there, when looking for a reservable space.
+ * We search the given range, rather than the whole reservation double
+ * linked list, (start_block, last_block) to find a free region that is
+ * of my size and has not been reserved.
  *
- *	@sb: the super block.
+ * @search_head is not necessarily the list head of the whole filesystem.
+ * We have both head and @start_block to assist the search for the
+ * reservable space. The list starts from head, but we will shift to
+ * the place where start_block is, then start from there, when looking
+ * for a reservable space.
  *
- * 	@start_block: the first block we consider to start the real search from
+ * @last_block is normally the last block in this group. The search will end
+ * when we found the start of next possible reservable space is out
+ * of this boundary.  This could handle the cross boundary reservation
+ * window request.
  *
- * 	@last_block:
- *		the maximum block number that our goal reservable space
- *		could start from. This is normally the last block in this
- *		group. The search will end when we found the start of next
- *		possible reservable space is out of this boundary.
- *		This could handle the cross boundary reservation window
- *		request.
- *
- * 	basically we search from the given range, rather than the whole
- * 	reservation double linked list, (start_block, last_block)
- * 	to find a free region that is of my size and has not
- * 	been reserved.
- *
+ * Return: -1 if we could not find a range of sufficient size.  If we could,
+ * return 0 and fill in @my_rsv with the range information.
  */
 static int find_next_reservable_window(
 				struct ext2_reserve_window_node *search_head,
@@ -835,41 +831,34 @@ static int find_next_reservable_window(
 }
 
 /**
- * 	alloc_new_reservation()--allocate a new reservation window
+ * alloc_new_reservation - Allocate a new reservation window.
+ * @my_rsv: The reservation we're currently using.
+ * @grp_goal: The goal block relative to the start of the group.
+ * @sb: The super block.
+ * @group: The group we are trying to allocate in.
+ * @bitmap_bh: The block group block bitmap.
  *
- *		To make a new reservation, we search part of the filesystem
- *		reservation list (the list that inside the group). We try to
- *		allocate a new reservation window near the allocation goal,
- *		or the beginning of the group, if there is no goal.
+ * To make a new reservation, we search part of the filesystem reservation
+ * list (the list inside the group). We try to allocate a new
+ * reservation window near @grp_goal, or the beginning of the
+ * group, if @grp_goal is negative.
  *
- *		We first find a reservable space after the goal, then from
- *		there, we check the bitmap for the first free block after
- *		it. If there is no free block until the end of group, then the
- *		whole group is full, we failed. Otherwise, check if the free
- *		block is inside the expected reservable space, if so, we
- *		succeed.
- *		If the first free block is outside the reservable space, then
- *		start from the first free block, we search for next available
- *		space, and go on.
+ * We first find a reservable space after the goal, then from there,
+ * we check the bitmap for the first free block after it. If there is
+ * no free block until the end of group, then the whole group is full,
+ * we failed. Otherwise, check if the free block is inside the expected
+ * reservable space, if so, we succeed.
  *
- *	on succeed, a new reservation will be found and inserted into the list
- *	It contains at least one free block, and it does not overlap with other
- *	reservation windows.
+ * If the first free block is outside the reservable space, then start
+ * from the first free block, we search for next available space, and
+ * go on.
  *
- *	failed: we failed to find a reservation window in this group
+ * on succeed, a new reservation will be found and inserted into the
+ * list. It contains at least one free block, and it does not overlap
+ * with other reservation windows.
  *
- *	@my_rsv: the reservation
- *
- *	@grp_goal: The goal (group-relative).  It is where the search for a
- *		free reservable space should start from.
- *		if we have a goal(goal >0 ), then start from there,
- *		no goal(goal = -1), we start from the first block
- *		of the group.
- *
- *	@sb: the super block
- *	@group: the group we are trying to allocate in
- *	@bitmap_bh: the block group block bitmap
- *
+ * Return: 0 on success, -1 if we failed to find a reservation window
+ * in this group
  */
 static int alloc_new_reservation(struct ext2_reserve_window_node *my_rsv,
 		ext2_grpblk_t grp_goal, struct super_block *sb,
@@ -1133,8 +1122,13 @@ ext2_try_to_allocate_with_rsv(struct super_block *sb, unsigned int group,
 
 		if ((my_rsv->rsv_start > group_last_block) ||
 				(my_rsv->rsv_end < group_first_block)) {
+			ext2_error(sb, __func__,
+				   "Reservation out of group %u range goal %d fsb[%lu,%lu] rsv[%lu, %lu]",
+				   group, grp_goal, group_first_block,
+				   group_last_block, my_rsv->rsv_start,
+				   my_rsv->rsv_end);
 			rsv_window_dump(&EXT2_SB(sb)->s_rsv_window_root, 1);
-			BUG();
+			return -1;
 		}
 		ret = ext2_try_to_allocate(sb, group, bitmap_bh, grp_goal,
 					   &num, &my_rsv->rsv_window);
@@ -1195,6 +1189,7 @@ int ext2_data_block_valid(struct ext2_sb_info *sbi, ext2_fsblk_t start_blk,
  * @goal:		given target block(filesystem wide)
  * @count:		target number of blocks to allocate
  * @errp:		error code
+ * @flags:		allocate flags
  *
  * ext2_new_blocks uses a goal block to assist allocation.  If the goal is
  * free, or there is a free block within 32 blocks of the goal, that block
@@ -1204,7 +1199,7 @@ int ext2_data_block_valid(struct ext2_sb_info *sbi, ext2_fsblk_t start_blk,
  * This function also updates quota and i_blocks field.
  */
 ext2_fsblk_t ext2_new_blocks(struct inode *inode, ext2_fsblk_t goal,
-		    unsigned long *count, int *errp)
+		    unsigned long *count, int *errp, unsigned int flags)
 {
 	struct buffer_head *bitmap_bh = NULL;
 	struct buffer_head *gdp_bh;
@@ -1243,15 +1238,15 @@ ext2_fsblk_t ext2_new_blocks(struct inode *inode, ext2_fsblk_t goal,
 	es = EXT2_SB(sb)->s_es;
 	ext2_debug("goal=%lu.\n", goal);
 	/*
-	 * Allocate a block from reservation only when
-	 * filesystem is mounted with reservation(default,-o reservation), and
-	 * it's a regular file, and
-	 * the desired window size is greater than 0 (One could use ioctl
-	 * command EXT2_IOC_SETRSVSZ to set the window size to 0 to turn off
-	 * reservation on that particular file)
+	 * Allocate a block from reservation only when the filesystem is
+	 * mounted with reservation(default,-o reservation), and it's a regular
+	 * file, and the desired window size is greater than 0 (One could use
+	 * ioctl command EXT2_IOC_SETRSVSZ to set the window size to 0 to turn
+	 * off reservation on that particular file). Also do not use the
+	 * reservation window if the caller asked us not to do it.
 	 */
 	block_i = EXT2_I(inode)->i_block_alloc_info;
-	if (block_i) {
+	if (!(flags & EXT2_ALLOC_NORESERVE) && block_i) {
 		windowsz = block_i->rsv_window_node.rsv_goal_size;
 		if (windowsz > 0)
 			my_rsv = &block_i->rsv_window_node;
@@ -1429,13 +1424,6 @@ out:
 	}
 	brelse(bitmap_bh);
 	return 0;
-}
-
-ext2_fsblk_t ext2_new_block(struct inode *inode, unsigned long goal, int *errp)
-{
-	unsigned long count = 1;
-
-	return ext2_new_blocks(inode, goal, &count, errp);
 }
 
 #ifdef EXT2FS_DEBUG

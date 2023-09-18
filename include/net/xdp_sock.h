@@ -52,6 +52,7 @@ struct xdp_sock {
 	struct xsk_buff_pool *pool;
 	u16 queue_id;
 	bool zc;
+	bool sg;
 	enum {
 		XSK_READY = 0,
 		XSK_BOUND,
@@ -66,6 +67,12 @@ struct xdp_sock {
 	/* Statistics */
 	u64 rx_dropped;
 	u64 rx_queue_full;
+
+	/* When __xsk_generic_xmit() must return before it sees the EOP descriptor for the current
+	 * packet, the partially built skb is saved here so that packet building can resume in next
+	 * call of __xsk_generic_xmit().
+	 */
+	struct sk_buff *skb;
 
 	struct list_head map_list;
 	/* Protects map_list */

@@ -56,7 +56,7 @@ properties:
     description: >
       A list of integer pairs, where each pair represent the dtest line the
       particular channel should be connected to and the flags denoting how the
-      value should be outputed, as defined in the datasheet. The number of
+      value should be outputted, as defined in the datasheet. The number of
       pairs should be the same as the number of channels.
     items:
       items:

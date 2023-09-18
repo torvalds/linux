@@ -5,10 +5,10 @@ Required properties:
 - reg: Address and length of the register set for the device
 - interrupts: Should contain the SXGBE interrupts
   These interrupts are ordered by fixed and follows variable
-  trasmit DMA interrupts, receive DMA interrupts and lpi interrupt.
+  transmit DMA interrupts, receive DMA interrupts and lpi interrupt.
   index 0 - this is fixed common interrupt of SXGBE and it is always
   available.
-  index 1 to 25 - 8 variable trasmit interrupts, variable 16 receive interrupts
+  index 1 to 25 - 8 variable transmit interrupts, variable 16 receive interrupts
   and 1 optional lpi interrupt.
 - phy-mode: String, operation mode of the PHY interface.
   Supported values are: "sgmii", "xgmii".

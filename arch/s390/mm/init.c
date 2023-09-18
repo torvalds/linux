@@ -98,7 +98,7 @@ void __init paging_init(void)
 	sparse_init();
 	zone_dma_bits = 31;
 	memset(max_zone_pfns, 0, sizeof(max_zone_pfns));
-	max_zone_pfns[ZONE_DMA] = PFN_DOWN(MAX_DMA_ADDRESS);
+	max_zone_pfns[ZONE_DMA] = virt_to_pfn(MAX_DMA_ADDRESS);
 	max_zone_pfns[ZONE_NORMAL] = max_low_pfn;
 	free_area_init(max_zone_pfns);
 }
@@ -107,7 +107,7 @@ void mark_rodata_ro(void)
 {
 	unsigned long size = __end_ro_after_init - __start_ro_after_init;
 
-	set_memory_ro((unsigned long)__start_ro_after_init, size >> PAGE_SHIFT);
+	__set_memory_ro(__start_ro_after_init, __end_ro_after_init);
 	pr_info("Write protected read-only-after-init data: %luk\n", size >> 10);
 	debug_checkwx();
 }

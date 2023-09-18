@@ -601,7 +601,6 @@ static int leo_probe(struct platform_device *op)
 	    !info->screen_base)
 		goto out_unmap_regs;
 
-	info->flags = FBINFO_DEFAULT;
 	info->fbops = &leo_ops;
 	info->pseudo_palette = par->clut_data;
 

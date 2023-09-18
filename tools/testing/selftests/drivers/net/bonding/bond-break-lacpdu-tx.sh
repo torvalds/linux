@@ -57,8 +57,8 @@ ip link add name veth2-bond type veth peer name veth2-end
 
 # add ports
 ip link set fbond master fab-br0
-ip link set veth1-bond down master fbond
-ip link set veth2-bond down master fbond
+ip link set veth1-bond master fbond
+ip link set veth2-bond master fbond
 
 # bring up
 ip link set veth1-end up

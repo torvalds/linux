@@ -56,7 +56,7 @@
 #define D2H_INT_RESUME_ACK			BIT(12)
 #define D2H_INT_SUSPEND_ACK_AP			BIT(13)
 #define D2H_INT_RESUME_ACK_AP			BIT(14)
-#define D2H_INT_ASYNC_SAP_HK			BIT(15)
+#define D2H_INT_ASYNC_AP_HK			BIT(15)
 #define D2H_INT_ASYNC_MD_HK			BIT(16)
 
 /* Register base */

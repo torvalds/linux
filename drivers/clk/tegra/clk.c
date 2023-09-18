@@ -9,12 +9,12 @@
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
+#include <linux/of_platform.h>
 #include <linux/clk/tegra.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/reset-controller.h>
-#include <linux/string.h>
+#include <linux/string_helpers.h>
 
 #include <soc/tegra/fuse.h>
 
@@ -384,11 +384,9 @@ static struct device_node *tegra_clk_get_of_node(struct clk_hw *hw)
 	struct device_node *np;
 	char *node_name;
 
-	node_name = kstrdup(hw->init->name, GFP_KERNEL);
+	node_name = kstrdup_and_replace(hw->init->name, '_', '-', GFP_KERNEL);
 	if (!node_name)
 		return NULL;
-
-	strreplace(node_name, '_', '-');
 
 	for_each_child_of_node(tegra_car_np, np) {
 		if (!strcmp(np->name, node_name))

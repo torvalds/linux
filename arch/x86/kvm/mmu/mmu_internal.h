@@ -6,18 +6,10 @@
 #include <linux/kvm_host.h>
 #include <asm/kvm_host.h>
 
-#undef MMU_DEBUG
-
-#ifdef MMU_DEBUG
-extern bool dbg;
-
-#define pgprintk(x...) do { if (dbg) printk(x); } while (0)
-#define rmap_printk(fmt, args...) do { if (dbg) printk("%s: " fmt, __func__, ## args); } while (0)
-#define MMU_WARN_ON(x) WARN_ON(x)
+#ifdef CONFIG_KVM_PROVE_MMU
+#define KVM_MMU_WARN_ON(x) WARN_ON_ONCE(x)
 #else
-#define pgprintk(x...) do { } while (0)
-#define rmap_printk(x...) do { } while (0)
-#define MMU_WARN_ON(x) do { } while (0)
+#define KVM_MMU_WARN_ON(x) BUILD_BUG_ON_INVALID(x)
 #endif
 
 /* Page table builder macros common to shadow (host) PTEs and guest PTEs. */
@@ -43,6 +35,16 @@ extern bool dbg;
  */
 #define INVALID_PAE_ROOT	0
 #define IS_VALID_PAE_ROOT(x)	(!!(x))
+
+static inline hpa_t kvm_mmu_get_dummy_root(void)
+{
+	return my_zero_pfn(0) << PAGE_SHIFT;
+}
+
+static inline bool kvm_mmu_is_dummy_root(hpa_t shadow_page)
+{
+	return is_zero_pfn(shadow_page >> PAGE_SHIFT);
+}
 
 typedef u64 __rcu *tdp_ptep_t;
 
@@ -169,9 +171,6 @@ void kvm_mmu_gfn_allow_lpage(const struct kvm_memory_slot *slot, gfn_t gfn);
 bool kvm_mmu_slot_gfn_write_protect(struct kvm *kvm,
 				    struct kvm_memory_slot *slot, u64 gfn,
 				    int min_level);
-
-void kvm_flush_remote_tlbs_range(struct kvm *kvm, gfn_t start_gfn,
-				 gfn_t nr_pages);
 
 /* Flush the given page (huge or not) of guest memory. */
 static inline void kvm_flush_remote_tlbs_gfn(struct kvm *kvm, gfn_t gfn, int level)

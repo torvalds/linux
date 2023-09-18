@@ -336,7 +336,7 @@ struct cdns_mhdp_bridge_state {
 };
 
 struct cdns_mhdp_platform_info {
-	const struct drm_bridge_timings *timings;
+	const u32 *input_bus_flags;
 	const struct mhdp_platform_ops *ops;
 };
 

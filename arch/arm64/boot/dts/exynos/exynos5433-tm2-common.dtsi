@@ -137,7 +137,6 @@
 			/* Receiver */
 			"RCV", "HPOUT3L",
 			"RCV", "HPOUT3R";
-		status = "okay";
 	};
 };
 

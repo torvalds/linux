@@ -70,7 +70,7 @@ static int mt8173_max98090_init(struct snd_soc_pcm_runtime *runtime)
 	struct snd_soc_component *component = asoc_rtd_to_codec(runtime, 0)->component;
 
 	/* enable jack detection */
-	ret = snd_soc_card_jack_new_pins(card, "Headphone", SND_JACK_HEADPHONE,
+	ret = snd_soc_card_jack_new_pins(card, "Headphone", SND_JACK_HEADSET,
 					 &mt8173_max98090_jack,
 					 mt8173_max98090_jack_pins,
 					 ARRAY_SIZE(mt8173_max98090_jack_pins));

@@ -98,7 +98,10 @@ static ssize_t status_show(struct gfs2_sbd *sdp, char *buf)
 		     "sd_log_flush_head:        %d\n"
 		     "sd_log_flush_tail:        %d\n"
 		     "sd_log_blks_reserved:     %d\n"
-		     "sd_log_revokes_available: %d\n",
+		     "sd_log_revokes_available: %d\n"
+		     "sd_log_pinned:            %d\n"
+		     "sd_log_thresh1:           %d\n"
+		     "sd_log_thresh2:           %d\n",
 		     test_bit(SDF_JOURNAL_CHECKED, &f),
 		     test_bit(SDF_JOURNAL_LIVE, &f),
 		     (sdp->sd_jdesc ? sdp->sd_jdesc->jd_jid : 0),
@@ -118,7 +121,7 @@ static ssize_t status_show(struct gfs2_sbd *sdp, char *buf)
 		     test_bit(SDF_WITHDRAW_IN_PROG, &f),
 		     test_bit(SDF_REMOTE_WITHDRAW, &f),
 		     test_bit(SDF_WITHDRAW_RECOVERY, &f),
-		     test_bit(SDF_DEACTIVATING, &f),
+		     test_bit(SDF_KILL, &f),
 		     sdp->sd_log_error,
 		     rwsem_is_locked(&sdp->sd_log_flush_lock),
 		     sdp->sd_log_num_revoke,
@@ -128,7 +131,10 @@ static ssize_t status_show(struct gfs2_sbd *sdp, char *buf)
 		     sdp->sd_log_flush_head,
 		     sdp->sd_log_flush_tail,
 		     sdp->sd_log_blks_reserved,
-		     atomic_read(&sdp->sd_log_revokes_available));
+		     atomic_read(&sdp->sd_log_revokes_available),
+		     atomic_read(&sdp->sd_log_pinned),
+		     atomic_read(&sdp->sd_log_thresh1),
+		     atomic_read(&sdp->sd_log_thresh2));
 	return s;
 }
 
@@ -168,10 +174,10 @@ static ssize_t freeze_store(struct gfs2_sbd *sdp, const char *buf, size_t len)
 
 	switch (n) {
 	case 0:
-		error = thaw_super(sdp->sd_vfs);
+		error = thaw_super(sdp->sd_vfs, FREEZE_HOLDER_USERSPACE);
 		break;
 	case 1:
-		error = freeze_super(sdp->sd_vfs);
+		error = freeze_super(sdp->sd_vfs, FREEZE_HOLDER_USERSPACE);
 		break;
 	default:
 		return -EINVAL;

@@ -245,6 +245,8 @@ int drm_syncobj_wait_ioctl(struct drm_device *dev, void *data,
 			   struct drm_file *file_private);
 int drm_syncobj_timeline_wait_ioctl(struct drm_device *dev, void *data,
 				    struct drm_file *file_private);
+int drm_syncobj_eventfd_ioctl(struct drm_device *dev, void *data,
+			      struct drm_file *file_private);
 int drm_syncobj_reset_ioctl(struct drm_device *dev, void *data,
 			    struct drm_file *file_private);
 int drm_syncobj_signal_ioctl(struct drm_device *dev, void *data,

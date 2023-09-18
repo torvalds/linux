@@ -31,11 +31,11 @@
 #include <linux/types.h>
 #include <linux/bitmap.h>
 #include <linux/dma-fence.h>
+#include "amdgpu_irq.h"
+#include "amdgpu_gfx.h"
 
 struct pci_dev;
 struct amdgpu_device;
-
-#define KGD_MAX_QUEUES 128
 
 struct kfd_dev;
 struct kgd_mem;
@@ -68,7 +68,7 @@ struct kfd_cu_info {
 	uint32_t wave_front_size;
 	uint32_t max_scratch_slots_per_cu;
 	uint32_t lds_size;
-	uint32_t cu_bitmap[4][4];
+	uint32_t cu_bitmap[AMDGPU_MAX_GC_INSTANCES][4][4];
 };
 
 /* For getting GPU local memory information from KGD */
@@ -315,11 +315,13 @@ struct kfd2kgd_calls {
 					uint32_t watch_address_mask,
 					uint32_t watch_id,
 					uint32_t watch_mode,
-					uint32_t debug_vmid);
+					uint32_t debug_vmid,
+					uint32_t inst);
 	uint32_t (*clear_address_watch)(struct amdgpu_device *adev,
 			uint32_t watch_id);
 	void (*get_iq_wait_times)(struct amdgpu_device *adev,
-			uint32_t *wait_times);
+			uint32_t *wait_times,
+			uint32_t inst);
 	void (*build_grace_period_packet_info)(struct amdgpu_device *adev,
 			uint32_t wait_times,
 			uint32_t grace_period,

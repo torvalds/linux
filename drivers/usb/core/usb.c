@@ -25,6 +25,7 @@
 
 #include <linux/module.h>
 #include <linux/moduleparam.h>
+#include <linux/of.h>
 #include <linux/string.h>
 #include <linux/bitops.h>
 #include <linux/slab.h>
@@ -601,14 +602,6 @@ struct device_type usb_device_type = {
 #endif
 };
 
-
-/* Returns 1 if @usb_bus is WUSB, 0 otherwise */
-static unsigned usb_bus_is_wusb(struct usb_bus *bus)
-{
-	struct usb_hcd *hcd = bus_to_hcd(bus);
-	return hcd->wireless;
-}
-
 static bool usb_dev_authorized(struct usb_device *dev, struct usb_hcd *hcd)
 {
 	struct usb_hub *hub;
@@ -652,7 +645,6 @@ struct usb_device *usb_alloc_dev(struct usb_device *parent,
 {
 	struct usb_device *dev;
 	struct usb_hcd *usb_hcd = bus_to_hcd(bus);
-	unsigned root_hub = 0;
 	unsigned raw_port = port1;
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
@@ -702,7 +694,6 @@ struct usb_device *usb_alloc_dev(struct usb_device *parent,
 		dev->dev.parent = bus->controller;
 		device_set_of_node_from_dev(&dev->dev, bus->sysdev);
 		dev_set_name(&dev->dev, "usb%d", bus->busnum);
-		root_hub = 1;
 	} else {
 		/* match any labeling on the hubs; it's one-based */
 		if (parent->devpath[0] == '0') {
@@ -748,9 +739,6 @@ struct usb_device *usb_alloc_dev(struct usb_device *parent,
 #endif
 
 	dev->authorized = usb_dev_authorized(dev, usb_hcd);
-	if (!root_hub)
-		dev->wusb = usb_bus_is_wusb(bus) ? 1 : 0;
-
 	return dev;
 }
 EXPORT_SYMBOL_GPL(usb_alloc_dev);
@@ -1101,6 +1089,9 @@ static int __init usb_init(void)
 	retval = usb_major_init();
 	if (retval)
 		goto major_init_failed;
+	retval = class_register(&usbmisc_class);
+	if (retval)
+		goto class_register_failed;
 	retval = usb_register(&usbfs_driver);
 	if (retval)
 		goto driver_register_failed;
@@ -1120,6 +1111,8 @@ hub_init_failed:
 usb_devio_init_failed:
 	usb_deregister(&usbfs_driver);
 driver_register_failed:
+	class_unregister(&usbmisc_class);
+class_register_failed:
 	usb_major_cleanup();
 major_init_failed:
 	bus_unregister_notifier(&usb_bus_type, &usb_bus_nb);
@@ -1147,6 +1140,7 @@ static void __exit usb_exit(void)
 	usb_deregister(&usbfs_driver);
 	usb_devio_cleanup();
 	usb_hub_cleanup();
+	class_unregister(&usbmisc_class);
 	bus_unregister_notifier(&usb_bus_type, &usb_bus_nb);
 	bus_unregister(&usb_bus_type);
 	usb_acpi_unregister();

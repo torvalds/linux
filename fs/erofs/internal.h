@@ -151,6 +151,7 @@ struct erofs_sb_info {
 	u32 xattr_prefix_start;
 	u8 xattr_prefix_count;
 	struct erofs_xattr_prefix_item *xattr_prefixes;
+	unsigned int xattr_filter_reserved;
 #endif
 	u16 device_id_mask;	/* valid bits of device id to be used */
 
@@ -251,6 +252,7 @@ EROFS_FEATURE_FUNCS(fragments, incompat, INCOMPAT_FRAGMENTS)
 EROFS_FEATURE_FUNCS(dedupe, incompat, INCOMPAT_DEDUPE)
 EROFS_FEATURE_FUNCS(xattr_prefixes, incompat, INCOMPAT_XATTR_PREFIXES)
 EROFS_FEATURE_FUNCS(sb_chksum, compat, COMPAT_SB_CHKSUM)
+EROFS_FEATURE_FUNCS(xattr_filter, compat, COMPAT_XATTR_FILTER)
 
 /* atomic flag definitions */
 #define EROFS_I_EA_INITED_BIT	0
@@ -270,6 +272,7 @@ struct erofs_inode {
 	unsigned char inode_isize;
 	unsigned int xattr_isize;
 
+	unsigned int xattr_name_filter;
 	unsigned int xattr_shared_count;
 	unsigned int *xattr_shared_xattrs;
 
@@ -518,6 +521,26 @@ static inline int z_erofs_load_lzma_config(struct super_block *sb,
 	return 0;
 }
 #endif	/* !CONFIG_EROFS_FS_ZIP_LZMA */
+
+#ifdef CONFIG_EROFS_FS_ZIP_DEFLATE
+int __init z_erofs_deflate_init(void);
+void z_erofs_deflate_exit(void);
+int z_erofs_load_deflate_config(struct super_block *sb,
+				struct erofs_super_block *dsb,
+				struct z_erofs_deflate_cfgs *dfl, int size);
+#else
+static inline int z_erofs_deflate_init(void) { return 0; }
+static inline int z_erofs_deflate_exit(void) { return 0; }
+static inline int z_erofs_load_deflate_config(struct super_block *sb,
+			struct erofs_super_block *dsb,
+			struct z_erofs_deflate_cfgs *dfl, int size) {
+	if (dfl) {
+		erofs_err(sb, "deflate algorithm isn't enabled");
+		return -EINVAL;
+	}
+	return 0;
+}
+#endif	/* !CONFIG_EROFS_FS_ZIP_DEFLATE */
 
 #ifdef CONFIG_EROFS_FS_ONDEMAND
 int erofs_fscache_register_fs(struct super_block *sb);

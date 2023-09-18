@@ -197,9 +197,19 @@ static inline bool is_mt7916(struct mt76_dev *dev)
 	return mt76_chip(dev) == 0x7906;
 }
 
+static inline bool is_mt7981(struct mt76_dev *dev)
+{
+	return mt76_chip(dev) == 0x7981;
+}
+
 static inline bool is_mt7986(struct mt76_dev *dev)
 {
 	return mt76_chip(dev) == 0x7986;
+}
+
+static inline bool is_mt798x(struct mt76_dev *dev)
+{
+	return is_mt7981(dev) || is_mt7986(dev);
 }
 
 static inline bool is_mt7996(struct mt76_dev *dev)
@@ -409,5 +419,13 @@ int mt76_connac2_mac_fill_rx_rate(struct mt76_dev *dev,
 				  struct mt76_rx_status *status,
 				  struct ieee80211_supported_band *sband,
 				  __le32 *rxv, u8 *mode);
+void mt76_connac2_tx_check_aggr(struct ieee80211_sta *sta, __le32 *txwi);
+void mt76_connac2_txwi_free(struct mt76_dev *dev, struct mt76_txwi_cache *t,
+			    struct ieee80211_sta *sta,
+			    struct list_head *free_list);
+void mt76_connac2_tx_token_put(struct mt76_dev *dev);
 
+/* connac3 */
+void mt76_connac3_mac_decode_he_radiotap(struct sk_buff *skb, __le32 *rxv,
+					 u8 mode);
 #endif /* __MT76_CONNAC_H */

@@ -6,7 +6,7 @@ communicating in English you can also ask the Chinese maintainer for
 help.  Contact the Chinese maintainer if this translation is outdated
 or if there is a problem with the translation.
 
-Traditional Chinese maintainer: Hu Haowen <src.res@email.cn>
+Traditional Chinese maintainer: Hu Haowen <src.res.211@gmail.com>
 ---------------------------------------------------------------------
 Documentation/dev-tools/sparse.rst 的繁體中文翻譯
 
@@ -14,8 +14,8 @@ Documentation/dev-tools/sparse.rst 的繁體中文翻譯
 交流有困難的話，也可以向繁體中文版維護者求助。如果本翻譯更新不及時或
 者翻譯存在問題，請聯繫繁體中文版維護者。
 
-繁體中文版維護者： 胡皓文 Hu Haowen <src.res@email.cn>
-繁體中文版翻譯者： 胡皓文 Hu Haowen <src.res@email.cn>
+繁體中文版維護者： 胡皓文 Hu Haowen <src.res.211@gmail.com>
+繁體中文版翻譯者： 胡皓文 Hu Haowen <src.res.211@gmail.com>
 
 以下爲正文
 ---------------------------------------------------------------------
@@ -66,11 +66,11 @@ __bitwise"類型。
 
 你可以從 Sparse 的主頁獲取最新的發布版本：
 
-	http://www.kernel.org/pub/linux/kernel/people/josh/sparse/
+	https://www.kernel.org/pub/software/devel/sparse/dist/
 
 或者，你也可以使用 git 克隆最新的 sparse 開發版本：
 
-	git://git.kernel.org/pub/scm/linux/kernel/git/josh/sparse.git
+        git://git.kernel.org/pub/scm/devel/sparse/sparse.git
 
 一旦你下載了源碼，只要以普通用戶身份運行：
 

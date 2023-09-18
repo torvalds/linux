@@ -277,6 +277,8 @@ struct ice_hw_common_caps {
 	u8 dcb;
 	u8 ieee_1588;
 	u8 rdma;
+	u8 roce_lag;
+	u8 sriov_lag;
 
 	bool nvm_update_pending_nvm;
 	bool nvm_update_pending_orom;
@@ -1033,14 +1035,15 @@ enum ice_sw_fwd_act_type {
 	ICE_FWD_TO_Q,
 	ICE_FWD_TO_QGRP,
 	ICE_DROP_PACKET,
+	ICE_NOP,
 	ICE_INVAL_ACT
 };
 
 struct ice_aq_get_set_rss_lut_params {
-	u16 vsi_handle;		/* software VSI handle */
-	u16 lut_size;		/* size of the LUT buffer */
-	u8 lut_type;		/* type of the LUT (i.e. VSI, PF, Global) */
 	u8 *lut;		/* input RSS LUT for set and output RSS LUT for get */
+	enum ice_lut_size lut_size; /* size of the LUT buffer */
+	enum ice_lut_type lut_type; /* type of the LUT (i.e. VSI, PF, Global) */
+	u16 vsi_handle;		/* software VSI handle */
 	u8 global_lut_id;	/* only valid when lut_type is global */
 };
 
@@ -1141,9 +1144,6 @@ struct ice_aq_get_set_rss_lut_params {
 #define ICE_FW_API_LINK_OVERRIDE_PATCH		2
 
 #define ICE_SR_WORDS_IN_1KB		512
-
-/* Hash redirection LUT for VSI - maximum array size */
-#define ICE_VSIQF_HLUT_ARRAY_SIZE	((VSIQF_HLUT_MAX_INDEX + 1) * 4)
 
 /* AQ API version for LLDP_FILTER_CONTROL */
 #define ICE_FW_API_LLDP_FLTR_MAJ	1

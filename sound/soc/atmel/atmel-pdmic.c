@@ -690,7 +690,7 @@ unregister_codec:
 static struct platform_driver atmel_pdmic_driver = {
 	.driver	= {
 		.name		= "atmel-pdmic",
-		.of_match_table	= of_match_ptr(atmel_pdmic_of_match),
+		.of_match_table	= atmel_pdmic_of_match,
 		.pm		= &snd_soc_pm_ops,
 	},
 	.probe	= atmel_pdmic_probe,

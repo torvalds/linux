@@ -382,7 +382,6 @@ ath5k_configure_filter(struct ieee80211_hw *hw, unsigned int changed_flags,
 	mfilt[1] = multicast >> 32;
 
 	/* Only deal with supported flags */
-	changed_flags &= SUPPORTED_FIF_FLAGS;
 	*new_flags &= SUPPORTED_FIF_FLAGS;
 
 	/* If HW detects any phy or radar errors, leave those filters on.

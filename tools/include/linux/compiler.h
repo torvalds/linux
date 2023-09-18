@@ -42,6 +42,18 @@
 # define __always_inline	inline __attribute__((always_inline))
 #endif
 
+#ifndef __always_unused
+#define __always_unused __attribute__((__unused__))
+#endif
+
+#ifndef __noreturn
+#define __noreturn __attribute__((__noreturn__))
+#endif
+
+#ifndef unreachable
+#define unreachable() __builtin_unreachable()
+#endif
+
 #ifndef noinline
 #define noinline
 #endif
@@ -189,5 +201,11 @@ static __always_inline void __write_once_size(volatile void *p, void *res, int s
 /* Indirect macros required for expanded argument pasting, eg. __LINE__. */
 #define ___PASTE(a, b) a##b
 #define __PASTE(a, b) ___PASTE(a, b)
+
+#ifndef OPTIMIZER_HIDE_VAR
+/* Make the optimizer believe the variable can be manipulated arbitrarily. */
+#define OPTIMIZER_HIDE_VAR(var)						\
+	__asm__ ("" : "=r" (var) : "0" (var))
+#endif
 
 #endif /* _TOOLS_LINUX_COMPILER_H */

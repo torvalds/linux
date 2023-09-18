@@ -15,7 +15,7 @@ struct nvkm_sw_chan_sclass {
 };
 
 struct nvkm_sw_func {
-	int (*chan_new)(struct nvkm_sw *, struct nvkm_fifo_chan *,
+	int (*chan_new)(struct nvkm_sw *, struct nvkm_chan *,
 			const struct nvkm_oclass *, struct nvkm_object **);
 	const struct nvkm_sw_chan_sclass sclass[];
 };

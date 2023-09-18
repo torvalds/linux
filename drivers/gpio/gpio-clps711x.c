@@ -67,7 +67,7 @@ static int clps711x_gpio_probe(struct platform_device *pdev)
 	return devm_gpiochip_add_data(&pdev->dev, gc, NULL);
 }
 
-static const struct of_device_id __maybe_unused clps711x_gpio_ids[] = {
+static const struct of_device_id clps711x_gpio_ids[] = {
 	{ .compatible = "cirrus,ep7209-gpio" },
 	{ }
 };
@@ -76,7 +76,7 @@ MODULE_DEVICE_TABLE(of, clps711x_gpio_ids);
 static struct platform_driver clps711x_gpio_driver = {
 	.driver	= {
 		.name		= "clps711x-gpio",
-		.of_match_table	= of_match_ptr(clps711x_gpio_ids),
+		.of_match_table	= clps711x_gpio_ids,
 	},
 	.probe	= clps711x_gpio_probe,
 };

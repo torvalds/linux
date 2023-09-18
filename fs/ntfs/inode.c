@@ -654,7 +654,7 @@ static int ntfs_read_locked_inode(struct inode *vi)
 	 * always changes, when mtime is changed. ctime can be changed on its
 	 * own, mtime is then not changed, e.g. when a file is renamed.
 	 */
-	vi->i_ctime = ntfs2utc(si->last_mft_change_time);
+	inode_set_ctime_to_ts(vi, ntfs2utc(si->last_mft_change_time));
 	/*
 	 * Last access to the data within the file. Not changed during a rename
 	 * for example but changed whenever the file is written to.
@@ -1218,7 +1218,7 @@ static int ntfs_read_locked_attr_inode(struct inode *base_vi, struct inode *vi)
 	vi->i_gid	= base_vi->i_gid;
 	set_nlink(vi, base_vi->i_nlink);
 	vi->i_mtime	= base_vi->i_mtime;
-	vi->i_ctime	= base_vi->i_ctime;
+	inode_set_ctime_to_ts(vi, inode_get_ctime(base_vi));
 	vi->i_atime	= base_vi->i_atime;
 	vi->i_generation = ni->seq_no = base_ni->seq_no;
 
@@ -1484,7 +1484,7 @@ static int ntfs_read_locked_index_inode(struct inode *base_vi, struct inode *vi)
 	vi->i_gid	= base_vi->i_gid;
 	set_nlink(vi, base_vi->i_nlink);
 	vi->i_mtime	= base_vi->i_mtime;
-	vi->i_ctime	= base_vi->i_ctime;
+	inode_set_ctime_to_ts(vi, inode_get_ctime(base_vi));
 	vi->i_atime	= base_vi->i_atime;
 	vi->i_generation = ni->seq_no = base_ni->seq_no;
 	/* Set inode type to zero but preserve permissions. */
@@ -2804,13 +2804,14 @@ done:
 	 */
 	if (!IS_NOCMTIME(VFS_I(base_ni)) && !IS_RDONLY(VFS_I(base_ni))) {
 		struct timespec64 now = current_time(VFS_I(base_ni));
+		struct timespec64 ctime = inode_get_ctime(VFS_I(base_ni));
 		int sync_it = 0;
 
 		if (!timespec64_equal(&VFS_I(base_ni)->i_mtime, &now) ||
-		    !timespec64_equal(&VFS_I(base_ni)->i_ctime, &now))
+		    !timespec64_equal(&ctime, &now))
 			sync_it = 1;
+		inode_set_ctime_to_ts(VFS_I(base_ni), now);
 		VFS_I(base_ni)->i_mtime = now;
-		VFS_I(base_ni)->i_ctime = now;
 
 		if (sync_it)
 			mark_inode_dirty_sync(VFS_I(base_ni));
@@ -2928,7 +2929,7 @@ int ntfs_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 	if (ia_valid & ATTR_MTIME)
 		vi->i_mtime = attr->ia_mtime;
 	if (ia_valid & ATTR_CTIME)
-		vi->i_ctime = attr->ia_ctime;
+		inode_set_ctime_to_ts(vi, attr->ia_ctime);
 	mark_inode_dirty(vi);
 out:
 	return err;
@@ -3004,7 +3005,7 @@ int __ntfs_write_inode(struct inode *vi, int sync)
 		si->last_data_change_time = nt;
 		modified = true;
 	}
-	nt = utc2ntfs(vi->i_ctime);
+	nt = utc2ntfs(inode_get_ctime(vi));
 	if (si->last_mft_change_time != nt) {
 		ntfs_debug("Updating ctime for inode 0x%lx: old = 0x%llx, "
 				"new = 0x%llx", vi->i_ino, (long long)

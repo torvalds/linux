@@ -20,7 +20,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/sched.h>
 #include <linux/time.h>
@@ -431,7 +430,6 @@ static void i2c_lpc2k_remove(struct platform_device *dev)
 	i2c_del_adapter(&i2c->adap);
 }
 
-#ifdef CONFIG_PM
 static int i2c_lpc2k_suspend(struct device *dev)
 {
 	struct lpc2k_i2c *i2c = dev_get_drvdata(dev);
@@ -456,11 +454,6 @@ static const struct dev_pm_ops i2c_lpc2k_dev_pm_ops = {
 	.resume_noirq = i2c_lpc2k_resume,
 };
 
-#define I2C_LPC2K_DEV_PM_OPS (&i2c_lpc2k_dev_pm_ops)
-#else
-#define I2C_LPC2K_DEV_PM_OPS NULL
-#endif
-
 static const struct of_device_id lpc2k_i2c_match[] = {
 	{ .compatible = "nxp,lpc1788-i2c" },
 	{},
@@ -472,7 +465,7 @@ static struct platform_driver i2c_lpc2k_driver = {
 	.remove_new = i2c_lpc2k_remove,
 	.driver	= {
 		.name		= "lpc2k-i2c",
-		.pm		= I2C_LPC2K_DEV_PM_OPS,
+		.pm		= pm_sleep_ptr(&i2c_lpc2k_dev_pm_ops),
 		.of_match_table	= lpc2k_i2c_match,
 	},
 };

@@ -1469,6 +1469,10 @@ static void flush_recv_queue(struct rxe_qp *qp, bool notify)
 		return;
 	}
 
+	/* recv queue not created. nothing to do. */
+	if (!qp->rq.queue)
+		return;
+
 	while ((wqe = queue_head(q, q->type))) {
 		if (notify) {
 			err = flush_recv_wqe(qp, wqe);

@@ -81,7 +81,7 @@ Description:	Remote processor coredump configuration
 		collected userspace will directly read from the remote
 		processor's device memory. Extra buffer will not be used to
 		copy the dump. Also recovery process will not proceed until
-		all data is read by usersapce.
+		all data is read by userspace.
 
 What:		/sys/class/remoteproc/.../recovery
 Date:		July 2020

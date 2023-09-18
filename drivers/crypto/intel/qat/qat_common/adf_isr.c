@@ -380,3 +380,9 @@ bool adf_misc_wq_queue_work(struct work_struct *work)
 {
 	return queue_work(adf_misc_wq, work);
 }
+
+bool adf_misc_wq_queue_delayed_work(struct delayed_work *work,
+				    unsigned long delay)
+{
+	return queue_delayed_work(adf_misc_wq, work, delay);
+}

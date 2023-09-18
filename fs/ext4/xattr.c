@@ -356,13 +356,13 @@ ext4_xattr_inode_hash(struct ext4_sb_info *sbi, const void *buffer, size_t size)
 
 static u64 ext4_xattr_inode_get_ref(struct inode *ea_inode)
 {
-	return ((u64)ea_inode->i_ctime.tv_sec << 32) |
+	return ((u64) inode_get_ctime(ea_inode).tv_sec << 32) |
 		(u32) inode_peek_iversion_raw(ea_inode);
 }
 
 static void ext4_xattr_inode_set_ref(struct inode *ea_inode, u64 ref_count)
 {
-	ea_inode->i_ctime.tv_sec = (u32)(ref_count >> 32);
+	inode_set_ctime(ea_inode, (u32)(ref_count >> 32), 0);
 	inode_set_iversion_raw(ea_inode, ref_count & 0xffffffff);
 }
 
@@ -701,7 +701,7 @@ ext4_xattr_get(struct inode *inode, int name_index, const char *name,
 {
 	int error;
 
-	if (unlikely(ext4_forced_shutdown(EXT4_SB(inode->i_sb))))
+	if (unlikely(ext4_forced_shutdown(inode->i_sb)))
 		return -EIO;
 
 	if (strlen(name) > 255)
@@ -2473,7 +2473,7 @@ retry_inode:
 	}
 	if (!error) {
 		ext4_xattr_update_super_block(handle, inode->i_sb);
-		inode->i_ctime = current_time(inode);
+		inode_set_ctime_current(inode);
 		inode_inc_iversion(inode);
 		if (!value)
 			no_expand = 0;

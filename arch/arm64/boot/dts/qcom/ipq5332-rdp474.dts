@@ -7,41 +7,11 @@
 
 /dts-v1/;
 
-#include <dt-bindings/gpio/gpio.h>
-#include <dt-bindings/input/input.h>
-#include "ipq5332.dtsi"
+#include "ipq5332-rdp-common.dtsi"
 
 / {
 	model = "Qualcomm Technologies, Inc. IPQ5332 MI01.9";
 	compatible = "qcom,ipq5332-ap-mi01.9", "qcom,ipq5332";
-
-	aliases {
-		serial0 = &blsp1_uart0;
-	};
-
-	chosen {
-		stdout-path = "serial0";
-	};
-
-	gpio-keys {
-		compatible = "gpio-keys";
-		pinctrl-0 = <&gpio_keys_default_state>;
-		pinctrl-names = "default";
-
-		button-wps {
-			label = "wps";
-			linux,code = <KEY_WPS_BUTTON>;
-			gpios = <&tlmm 35 GPIO_ACTIVE_LOW>;
-			linux,input-type = <1>;
-			debounce-interval = <60>;
-		};
-	};
-};
-
-&blsp1_uart0 {
-	pinctrl-0 = <&serial_0_pins>;
-	pinctrl-names = "default";
-	status = "okay";
 };
 
 &blsp1_i2c1 {
@@ -62,24 +32,9 @@
 	status = "okay";
 };
 
-&sleep_clk {
-	clock-frequency = <32000>;
-};
-
-&xo_board {
-	clock-frequency = <24000000>;
-};
-
 /* PINCTRL */
 
 &tlmm {
-	gpio_keys_default_state: gpio-keys-default-state {
-		pins = "gpio35";
-		function = "gpio";
-		drive-strength = <8>;
-		bias-pull-up;
-	};
-
 	i2c_1_pins: i2c-1-state {
 		pins = "gpio29", "gpio30";
 		function = "blsp1_i2c0";

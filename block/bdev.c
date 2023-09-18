@@ -206,23 +206,6 @@ int sync_blockdev_range(struct block_device *bdev, loff_t lstart, loff_t lend)
 }
 EXPORT_SYMBOL(sync_blockdev_range);
 
-/*
- * Write out and wait upon all dirty data associated with this
- * device.   Filesystem data as well as the underlying block
- * device.  Takes the superblock lock.
- */
-int fsync_bdev(struct block_device *bdev)
-{
-	struct super_block *sb = get_super(bdev);
-	if (sb) {
-		int res = sync_filesystem(sb);
-		drop_super(sb);
-		return res;
-	}
-	return sync_blockdev(bdev);
-}
-EXPORT_SYMBOL(fsync_bdev);
-
 /**
  * freeze_bdev - lock a filesystem and force it into a consistent state
  * @bdev:	blockdevice to lock
@@ -248,9 +231,9 @@ int freeze_bdev(struct block_device *bdev)
 	if (!sb)
 		goto sync;
 	if (sb->s_op->freeze_super)
-		error = sb->s_op->freeze_super(sb);
+		error = sb->s_op->freeze_super(sb, FREEZE_HOLDER_USERSPACE);
 	else
-		error = freeze_super(sb);
+		error = freeze_super(sb, FREEZE_HOLDER_USERSPACE);
 	deactivate_super(sb);
 
 	if (error) {
@@ -291,9 +274,9 @@ int thaw_bdev(struct block_device *bdev)
 		goto out;
 
 	if (sb->s_op->thaw_super)
-		error = sb->s_op->thaw_super(sb);
+		error = sb->s_op->thaw_super(sb, FREEZE_HOLDER_USERSPACE);
 	else
-		error = thaw_super(sb);
+		error = thaw_super(sb, FREEZE_HOLDER_USERSPACE);
 	if (error)
 		bdev->bd_fsfreeze_count++;
 	else
@@ -960,26 +943,38 @@ out_path_put:
 }
 EXPORT_SYMBOL(lookup_bdev);
 
-int __invalidate_device(struct block_device *bdev, bool kill_dirty)
+/**
+ * bdev_mark_dead - mark a block device as dead
+ * @bdev: block device to operate on
+ * @surprise: indicate a surprise removal
+ *
+ * Tell the file system that this devices or media is dead.  If @surprise is set
+ * to %true the device or media is already gone, if not we are preparing for an
+ * orderly removal.
+ *
+ * This calls into the file system, which then typicall syncs out all dirty data
+ * and writes back inodes and then invalidates any cached data in the inodes on
+ * the file system.  In addition we also invalidate the block device mapping.
+ */
+void bdev_mark_dead(struct block_device *bdev, bool surprise)
 {
-	struct super_block *sb = get_super(bdev);
-	int res = 0;
+	mutex_lock(&bdev->bd_holder_lock);
+	if (bdev->bd_holder_ops && bdev->bd_holder_ops->mark_dead)
+		bdev->bd_holder_ops->mark_dead(bdev, surprise);
+	else
+		sync_blockdev(bdev);
+	mutex_unlock(&bdev->bd_holder_lock);
 
-	if (sb) {
-		/*
-		 * no need to lock the super, get_super holds the
-		 * read mutex so the filesystem cannot go away
-		 * under us (->put_super runs with the write lock
-		 * hold).
-		 */
-		shrink_dcache_sb(sb);
-		res = invalidate_inodes(sb, kill_dirty);
-		drop_super(sb);
-	}
 	invalidate_bdev(bdev);
-	return res;
 }
-EXPORT_SYMBOL(__invalidate_device);
+#ifdef CONFIG_DASD_MODULE
+/*
+ * Drivers should not use this directly, but the DASD driver has historically
+ * had a shutdown to offline mode that doesn't actually remove the gendisk
+ * that otherwise looks a lot like a safe device removal.
+ */
+EXPORT_SYMBOL_GPL(bdev_mark_dead);
+#endif
 
 void sync_bdevs(bool wait)
 {

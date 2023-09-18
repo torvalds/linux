@@ -175,12 +175,6 @@ extern int send_sigterm;
  */
 extern int debug_largebar;
 
-/*
- * Ignore CRAT table during KFD initialization, can be used to work around
- * broken CRAT tables on some AMD systems
- */
-extern int ignore_crat;
-
 /* Set sh_mem_config.retry_disable on GFX v9 */
 extern int amdgpu_noretry;
 
@@ -234,7 +228,6 @@ struct kfd_device_info {
 	uint8_t num_of_watch_points;
 	uint16_t mqd_size_aligned;
 	bool supports_cwsr;
-	bool needs_iommu_device;
 	bool needs_pci_atomics;
 	uint32_t no_atomic_fw_version;
 	unsigned int num_sdma_queues_per_engine;
@@ -323,15 +316,6 @@ struct kfd_dev {
 
 	struct kfd_device_info device_info;
 
-	phys_addr_t doorbell_base;	/* Start of actual doorbells used by
-					 * KFD. It is aligned for mapping
-					 * into user mode
-					 */
-	size_t doorbell_base_dw_offset;	/* Offset from the start of the PCI
-					 * doorbell BAR to the first KFD
-					 * doorbell in dwords. GFX reserves
-					 * the segment before this offset.
-					 */
 	u32 __iomem *doorbell_kernel_ptr; /* This is a pointer for a doorbells
 					   * page used by kernel queue
 					   */
@@ -340,8 +324,6 @@ struct kfd_dev {
 
 	const struct kfd2kgd_calls *kfd2kgd;
 	struct mutex doorbell_mutex;
-	DECLARE_BITMAP(doorbell_available_index,
-			KFD_MAX_NUM_OF_QUEUES_PER_PROCESS);
 
 	void *gtt_mem;
 	uint64_t gtt_start_gpu_addr;
@@ -368,9 +350,6 @@ struct kfd_dev {
 
 	bool pci_atomic_requested;
 
-	/* Use IOMMU v2 flag */
-	bool use_iommu_v2;
-
 	/* Compute Profile ref. count */
 	atomic_t compute_profile;
 
@@ -385,6 +364,12 @@ struct kfd_dev {
 	/* Track per device allocated watch points */
 	uint32_t alloc_watch_ids;
 	spinlock_t watch_points_lock;
+
+	/* Kernel doorbells for KFD device */
+	struct amdgpu_bo *doorbells;
+
+	/* bitmap for dynamic doorbell allocation from doorbell object */
+	unsigned long *doorbell_bitmap;
 };
 
 enum kfd_mempool {
@@ -702,7 +687,10 @@ struct qcm_process_device {
 	uint64_t ib_base;
 	void *ib_kaddr;
 
-	/* doorbell resources per process per device */
+	/* doorbells for kfd process */
+	struct amdgpu_bo *proc_doorbells;
+
+	/* bitmap for dynamic doorbell allocation from the bo */
 	unsigned long *doorbell_bitmap;
 };
 
@@ -792,7 +780,6 @@ struct kfd_process_device {
 	struct attribute attr_evict;
 
 	struct kobject *kobj_stats;
-	unsigned int doorbell_index;
 
 	/*
 	 * @cu_occupancy: Reports occupancy of Compute Units (CU) of a process
@@ -1100,9 +1087,9 @@ unsigned int kfd_get_doorbell_dw_offset_in_bar(struct kfd_dev *kfd,
 					unsigned int doorbell_id);
 phys_addr_t kfd_get_process_doorbells(struct kfd_process_device *pdd);
 int kfd_alloc_process_doorbells(struct kfd_dev *kfd,
-				unsigned int *doorbell_index);
+				struct kfd_process_device *pdd);
 void kfd_free_process_doorbells(struct kfd_dev *kfd,
-				unsigned int doorbell_index);
+				struct kfd_process_device *pdd);
 /* GTT Sub-Allocator */
 
 int kfd_gtt_sa_allocate(struct kfd_node *node, unsigned int size,
@@ -1152,7 +1139,6 @@ static inline struct kfd_node *kfd_node_by_irq_ids(struct amdgpu_device *adev,
 }
 int kfd_topology_enum_kfd_devices(uint8_t idx, struct kfd_node **kdev);
 int kfd_numa_node_to_apic_id(int numa_node_id);
-void kfd_double_confirm_iommu_support(struct kfd_dev *gpu);
 
 /* Interrupts */
 #define	KFD_IRQ_FENCE_CLIENTID	0xff
@@ -1299,11 +1285,7 @@ void print_queue(struct queue *q);
 
 struct mqd_manager *mqd_manager_init_cik(enum KFD_MQD_TYPE type,
 		struct kfd_node *dev);
-struct mqd_manager *mqd_manager_init_cik_hawaii(enum KFD_MQD_TYPE type,
-		struct kfd_node *dev);
 struct mqd_manager *mqd_manager_init_vi(enum KFD_MQD_TYPE type,
-		struct kfd_node *dev);
-struct mqd_manager *mqd_manager_init_vi_tonga(enum KFD_MQD_TYPE type,
 		struct kfd_node *dev);
 struct mqd_manager *mqd_manager_init_v9(enum KFD_MQD_TYPE type,
 		struct kfd_node *dev);
@@ -1459,9 +1441,6 @@ int kfd_wait_on_events(struct kfd_process *p,
 		       uint32_t *wait_result);
 void kfd_signal_event_interrupt(u32 pasid, uint32_t partial_id,
 				uint32_t valid_id_bits);
-void kfd_signal_iommu_event(struct kfd_node *dev,
-			    u32 pasid, unsigned long address,
-			    bool is_write_requested, bool is_execute_requested);
 void kfd_signal_hw_exception_event(u32 pasid);
 int kfd_set_event(struct kfd_process *p, uint32_t event_id);
 int kfd_reset_event(struct kfd_process *p, uint32_t event_id);
@@ -1487,8 +1466,7 @@ void kfd_flush_tlb(struct kfd_process_device *pdd, enum TLB_FLUSH_TYPE type);
 
 static inline bool kfd_flush_tlb_after_unmap(struct kfd_dev *dev)
 {
-	return KFD_GC_VERSION(dev) == IP_VERSION(9, 4, 3) ||
-	       KFD_GC_VERSION(dev) == IP_VERSION(9, 4, 2) ||
+	return KFD_GC_VERSION(dev) > IP_VERSION(9, 4, 2) ||
 	       (KFD_GC_VERSION(dev) == IP_VERSION(9, 4, 1) && dev->sdma_fw_version >= 18) ||
 	       KFD_GC_VERSION(dev) == IP_VERSION(9, 4, 0);
 }

@@ -27,17 +27,12 @@
 #include <linux/elf-randomize.h>
 
 /*
- * Construct an artificial page offset for the mapping based on the virtual
+ * Construct an artificial page offset for the mapping based on the physical
  * address of the kernel file mapping variable.
- * If filp is zero the calculated pgoff value aliases the memory of the given
- * address. This is useful for io_uring where the mapping shall alias a kernel
- * address and a userspace adress where both the kernel and the userspace
- * access the same memory region.
  */
-#define GET_FILP_PGOFF(filp, addr)		\
-	((filp ? (((unsigned long) filp->f_mapping) >> 8)	\
-		 & ((SHM_COLOUR-1) >> PAGE_SHIFT) : 0UL)	\
-	  + (addr >> PAGE_SHIFT))
+#define GET_FILP_PGOFF(filp)		\
+	(filp ? (((unsigned long) filp->f_mapping) >> 8)	\
+		 & ((SHM_COLOUR-1) >> PAGE_SHIFT) : 0UL)
 
 static unsigned long shared_align_offset(unsigned long filp_pgoff,
 					 unsigned long pgoff)
@@ -117,7 +112,7 @@ static unsigned long arch_get_unmapped_area_common(struct file *filp,
 	do_color_align = 0;
 	if (filp || (flags & MAP_SHARED))
 		do_color_align = 1;
-	filp_pgoff = GET_FILP_PGOFF(filp, addr);
+	filp_pgoff = GET_FILP_PGOFF(filp);
 
 	if (flags & MAP_FIXED) {
 		/* Even MAP_FIXED mappings must reside within TASK_SIZE */
@@ -166,7 +161,7 @@ static unsigned long arch_get_unmapped_area_common(struct file *filp,
 	}
 
 	info.flags = 0;
-	info.low_limit = mm->mmap_legacy_base;
+	info.low_limit = mm->mmap_base;
 	info.high_limit = mmap_upper_limit(NULL);
 	return vm_unmapped_area(&info);
 }
@@ -185,58 +180,6 @@ unsigned long arch_get_unmapped_area_topdown(struct file *filp,
 	return arch_get_unmapped_area_common(filp,
 			addr, len, pgoff, flags, DOWN);
 }
-
-static int mmap_is_legacy(void)
-{
-	if (current->personality & ADDR_COMPAT_LAYOUT)
-		return 1;
-
-	/* parisc stack always grows up - so a unlimited stack should
-	 * not be an indicator to use the legacy memory layout.
-	 * if (rlimit(RLIMIT_STACK) == RLIM_INFINITY)
-	 *	return 1;
-	 */
-
-	return sysctl_legacy_va_layout;
-}
-
-static unsigned long mmap_rnd(void)
-{
-	unsigned long rnd = 0;
-
-	if (current->flags & PF_RANDOMIZE)
-		rnd = get_random_u32() & MMAP_RND_MASK;
-
-	return rnd << PAGE_SHIFT;
-}
-
-unsigned long arch_mmap_rnd(void)
-{
-	return (get_random_u32() & MMAP_RND_MASK) << PAGE_SHIFT;
-}
-
-static unsigned long mmap_legacy_base(void)
-{
-	return TASK_UNMAPPED_BASE + mmap_rnd();
-}
-
-/*
- * This function, called very early during the creation of a new
- * process VM image, sets up which VM layout function to use:
- */
-void arch_pick_mmap_layout(struct mm_struct *mm, struct rlimit *rlim_stack)
-{
-	mm->mmap_legacy_base = mmap_legacy_base();
-	mm->mmap_base = mmap_upper_limit(rlim_stack);
-
-	if (mmap_is_legacy()) {
-		mm->mmap_base = mm->mmap_legacy_base;
-		mm->get_unmapped_area = arch_get_unmapped_area;
-	} else {
-		mm->get_unmapped_area = arch_get_unmapped_area_topdown;
-	}
-}
-
 
 asmlinkage unsigned long sys_mmap2(unsigned long addr, unsigned long len,
 	unsigned long prot, unsigned long flags, unsigned long fd,

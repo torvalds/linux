@@ -153,6 +153,13 @@ static int __build_mock(struct kunit *test, struct drm_device *drm,
 	return 0;
 }
 
+static void kunit_action_drm_dev_unregister(void *ptr)
+{
+	struct drm_device *drm = ptr;
+
+	drm_dev_unregister(drm);
+}
+
 static struct vc4_dev *__mock_device(struct kunit *test, bool is_vc5)
 {
 	struct drm_device *drm;
@@ -184,6 +191,11 @@ static struct vc4_dev *__mock_device(struct kunit *test, bool is_vc5)
 	KUNIT_ASSERT_EQ(test, ret, 0);
 
 	ret = drm_dev_register(drm, 0);
+	KUNIT_ASSERT_EQ(test, ret, 0);
+
+	ret = kunit_add_action_or_reset(test,
+					kunit_action_drm_dev_unregister,
+					drm);
 	KUNIT_ASSERT_EQ(test, ret, 0);
 
 	return vc4;

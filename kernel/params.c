@@ -331,7 +331,7 @@ EXPORT_SYMBOL(param_ops_bool);
 
 int param_set_bool_enable_only(const char *val, const struct kernel_param *kp)
 {
-	int err = 0;
+	int err;
 	bool new_value;
 	bool orig_value = *(bool *)kp->arg;
 	struct kernel_param dummy_kp = *kp;

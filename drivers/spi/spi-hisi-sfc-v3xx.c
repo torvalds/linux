@@ -152,7 +152,7 @@ static int hisi_sfc_v3xx_adjust_op_size(struct spi_mem *mem,
 	uintptr_t addr = (uintptr_t)op->data.buf.in;
 	int max_byte_count;
 
-	host = spi_controller_get_devdata(spi->master);
+	host = spi_controller_get_devdata(spi->controller);
 
 	max_byte_count = host->max_cmd_dword * 4;
 
@@ -174,7 +174,7 @@ static bool hisi_sfc_v3xx_supports_op(struct spi_mem *mem,
 	struct spi_device *spi = mem->spi;
 	struct hisi_sfc_v3xx_host *host;
 
-	host = spi_controller_get_devdata(spi->master);
+	host = spi_controller_get_devdata(spi->controller);
 
 	if (op->data.buswidth > 4 || op->dummy.buswidth > 4 ||
 	    op->addr.buswidth > 4 || op->cmd.buswidth > 4)
@@ -363,7 +363,7 @@ static int hisi_sfc_v3xx_exec_op(struct spi_mem *mem,
 	struct spi_device *spi = mem->spi;
 	u8 chip_select = spi_get_chipselect(spi, 0);
 
-	host = spi_controller_get_devdata(spi->master);
+	host = spi_controller_get_devdata(spi->controller);
 
 	return hisi_sfc_v3xx_generic_exec_op(host, op, chip_select);
 }
@@ -431,7 +431,7 @@ static int hisi_sfc_v3xx_probe(struct platform_device *pdev)
 	u32 version, glb_config;
 	int ret;
 
-	ctlr = spi_alloc_master(&pdev->dev, sizeof(*host));
+	ctlr = spi_alloc_host(&pdev->dev, sizeof(*host));
 	if (!ctlr)
 		return -ENOMEM;
 
@@ -448,13 +448,13 @@ static int hisi_sfc_v3xx_probe(struct platform_device *pdev)
 	host->regbase = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(host->regbase)) {
 		ret = PTR_ERR(host->regbase);
-		goto err_put_master;
+		goto err_put_host;
 	}
 
 	host->irq = platform_get_irq_optional(pdev, 0);
 	if (host->irq == -EPROBE_DEFER) {
 		ret = -EPROBE_DEFER;
-		goto err_put_master;
+		goto err_put_host;
 	}
 
 	hisi_sfc_v3xx_disable_int(host);
@@ -496,15 +496,15 @@ static int hisi_sfc_v3xx_probe(struct platform_device *pdev)
 
 	ret = devm_spi_register_controller(dev, ctlr);
 	if (ret)
-		goto err_put_master;
+		goto err_put_host;
 
 	dev_info(&pdev->dev, "hw version 0x%x, %s mode.\n",
 		 version, host->irq ? "irq" : "polling");
 
 	return 0;
 
-err_put_master:
-	spi_master_put(ctlr);
+err_put_host:
+	spi_controller_put(ctlr);
 	return ret;
 }
 

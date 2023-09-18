@@ -11,7 +11,6 @@ TAR_CONTENT := Documentation LICENSES arch block certs crypto drivers fs \
                samples scripts security sound tools usr virt \
                .config Makefile \
                Kbuild Kconfig COPYING $(wildcard localversion*)
-MKSPEC     := $(srctree)/scripts/package/mkspec
 
 quiet_cmd_src_tar = TAR     $(2).tar.gz
       cmd_src_tar = \
@@ -66,30 +65,38 @@ $(linux-tarballs): archive-args = --prefix=linux/ $$(cat $<)
 $(linux-tarballs): .tmp_HEAD FORCE
 	$(call if_changed,archive)
 
-# rpm-pkg
+# rpm-pkg srcrpm-pkg binrpm-pkg
 # ---------------------------------------------------------------------------
-PHONY += rpm-pkg
-rpm-pkg: srpm = $(shell rpmspec --srpm --query --queryformat='%{name}-%{VERSION}-%{RELEASE}.src.rpm' kernel.spec)
-rpm-pkg: srcrpm-pkg
-	+rpmbuild $(RPMOPTS) --target $(UTS_MACHINE)-linux -rb $(srpm) \
-	--define='_smp_mflags %{nil}'
 
-# srcrpm-pkg
-# ---------------------------------------------------------------------------
-PHONY += srcrpm-pkg
-srcrpm-pkg: linux.tar.gz
-	$(CONFIG_SHELL) $(MKSPEC) >$(objtree)/kernel.spec
-	+rpmbuild $(RPMOPTS) --target $(UTS_MACHINE)-linux -bs kernel.spec \
-	--define='_smp_mflags %{nil}' --define='_sourcedir rpmbuild/SOURCES' --define='_srcrpmdir .'
+quiet_cmd_mkspec = GEN     $@
+      cmd_mkspec = $(srctree)/scripts/package/mkspec > $@
 
-# binrpm-pkg
-# ---------------------------------------------------------------------------
-PHONY += binrpm-pkg
-binrpm-pkg:
-	$(MAKE) -f $(srctree)/Makefile
-	$(CONFIG_SHELL) $(MKSPEC) prebuilt > $(objtree)/binkernel.spec
-	+rpmbuild $(RPMOPTS) --define "_builddir $(objtree)" --target \
-		$(UTS_MACHINE)-linux -bb $(objtree)/binkernel.spec
+kernel.spec: FORCE
+	$(call cmd,mkspec)
+
+PHONY += rpm-sources
+rpm-sources: linux.tar.gz
+	$(Q)mkdir -p rpmbuild/SOURCES
+	$(Q)ln -f linux.tar.gz rpmbuild/SOURCES/linux.tar.gz
+	$(Q)cp $(KCONFIG_CONFIG) rpmbuild/SOURCES/config
+	$(Q)$(srctree)/scripts/package/gen-diff-patch rpmbuild/SOURCES/diff.patch
+
+PHONY += rpm-pkg srcrpm-pkg binrpm-pkg
+
+rpm-pkg:    private build-type := a
+srcrpm-pkg: private build-type := s
+binrpm-pkg: private build-type := b
+
+rpm-pkg srcrpm-pkg: rpm-sources
+rpm-pkg srcrpm-pkg binrpm-pkg: kernel.spec
+	+$(strip rpmbuild -b$(build-type) kernel.spec \
+	--define='_topdir $(abspath rpmbuild)' \
+	$(if $(filter a b, $(build-type)), \
+		--target $(UTS_MACHINE)-linux --build-in-place --noprep --define='_smp_mflags %{nil}' \
+		$$(rpm -q rpm >/dev/null 2>&1 || echo --nodeps)) \
+	$(if $(filter b, $(build-type)), \
+		--without devel) \
+	$(RPMOPTS))
 
 # deb-pkg srcdeb-pkg bindeb-pkg
 # ---------------------------------------------------------------------------
@@ -141,13 +148,9 @@ deb-pkg srcdeb-pkg bindeb-pkg:
 	$(if $(findstring source, $(build-type)), \
 		--unsigned-source --compression=$(KDEB_SOURCE_COMPRESS)) \
 	$(if $(findstring binary, $(build-type)), \
-		-r$(KBUILD_PKG_ROOTCMD) -a$$(cat debian/arch), \
+		--rules-file='$(MAKE) -f debian/rules' --jobs=1 -r$(KBUILD_PKG_ROOTCMD) -a$$(cat debian/arch), \
 		--no-check-builddeps) \
 	$(DPKG_FLAGS))
-
-PHONY += intdeb-pkg
-intdeb-pkg:
-	+$(CONFIG_SHELL) $(srctree)/scripts/package/builddeb
 
 # snap-pkg
 # ---------------------------------------------------------------------------

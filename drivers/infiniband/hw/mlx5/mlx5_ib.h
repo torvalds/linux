@@ -26,6 +26,7 @@
 
 #include "srq.h"
 #include "qp.h"
+#include "macsec.h"
 
 #define mlx5_ib_dbg(_dev, format, arg...)                                      \
 	dev_dbg(&(_dev)->ib_dev.dev, "%s:%d:(pid %d): " format, __func__,      \
@@ -870,6 +871,9 @@ struct mlx5_ib_port {
 	struct mlx5_ib_dbg_cc_params *dbg_cc_params;
 	struct mlx5_roce roce;
 	struct mlx5_eswitch_rep		*rep;
+#ifdef CONFIG_MLX5_MACSEC
+	struct mlx5_reserved_gids *reserved_gids;
+#endif
 };
 
 struct mlx5_ib_dbg_param {
@@ -1086,6 +1090,12 @@ struct mlx5_special_mkeys {
 	__be32 terminate_scatter_list_mkey;
 };
 
+struct mlx5_macsec {
+	struct mutex lock; /* Protects mlx5_macsec internal contexts */
+	struct list_head macsec_devices_list;
+	struct notifier_block blocking_events_nb;
+};
+
 struct mlx5_ib_dev {
 	struct ib_device		ib_dev;
 	struct mlx5_core_dev		*mdev;
@@ -1145,6 +1155,10 @@ struct mlx5_ib_dev {
 	u16 pkey_table_len;
 	u8 lag_ports;
 	struct mlx5_special_mkeys mkeys;
+
+#ifdef CONFIG_MLX5_MACSEC
+	struct mlx5_macsec macsec;
+#endif
 };
 
 static inline struct mlx5_ib_cq *to_mibcq(struct mlx5_core_cq *mcq)
@@ -1648,4 +1662,7 @@ static inline bool mlx5_umem_needs_ats(struct mlx5_ib_dev *dev,
 	return access_flags & IB_ACCESS_RELAXED_ORDERING;
 }
 
+int set_roce_addr(struct mlx5_ib_dev *dev, u32 port_num,
+		  unsigned int index, const union ib_gid *gid,
+		  const struct ib_gid_attr *attr);
 #endif /* MLX5_IB_H */

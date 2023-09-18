@@ -1160,7 +1160,6 @@ static int via_sd_probe(struct pci_dev *pcidev,
 unmap:
 	iounmap(sdhost->mmiobase);
 free_mmc_host:
-	dev_set_drvdata(&pcidev->dev, NULL);
 	mmc_free_host(mmc);
 release:
 	pci_release_regions(pcidev);
@@ -1212,7 +1211,6 @@ static void via_sd_remove(struct pci_dev *pcidev)
 	writeb(gatt, sdhost->pcictrl_mmiobase + VIA_CRDR_PCICLKGATT);
 
 	iounmap(sdhost->mmiobase);
-	dev_set_drvdata(&pcidev->dev, NULL);
 	mmc_free_host(sdhost->mmc);
 	pci_release_regions(pcidev);
 	pci_disable_device(pcidev);

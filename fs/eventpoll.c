@@ -975,15 +975,11 @@ again:
 
 static int ep_alloc(struct eventpoll **pep)
 {
-	int error;
-	struct user_struct *user;
 	struct eventpoll *ep;
 
-	user = get_current_user();
-	error = -ENOMEM;
 	ep = kzalloc(sizeof(*ep), GFP_KERNEL);
 	if (unlikely(!ep))
-		goto free_uid;
+		return -ENOMEM;
 
 	mutex_init(&ep->mtx);
 	rwlock_init(&ep->lock);
@@ -992,16 +988,12 @@ static int ep_alloc(struct eventpoll **pep)
 	INIT_LIST_HEAD(&ep->rdllist);
 	ep->rbr = RB_ROOT_CACHED;
 	ep->ovflist = EP_UNACTIVE_PTR;
-	ep->user = user;
+	ep->user = get_current_user();
 	refcount_set(&ep->refcount, 1);
 
 	*pep = ep;
 
 	return 0;
-
-free_uid:
-	free_uid(user);
-	return error;
 }
 
 /*

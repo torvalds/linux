@@ -40,12 +40,14 @@
 #include "inc/hw/dmcu.h"
 #include "dml/display_mode_lib.h"
 
+struct abm_save_restore;
+
 /* forward declaration */
 struct aux_payload;
 struct set_config_cmd_payload;
 struct dmub_notification;
 
-#define DC_VER "3.2.241"
+#define DC_VER "3.2.247"
 
 #define MAX_SURFACES 3
 #define MAX_PLANES 6
@@ -428,6 +430,7 @@ enum visual_confirm {
 	VISUAL_CONFIRM_SWAPCHAIN = 6,
 	VISUAL_CONFIRM_FAMS = 7,
 	VISUAL_CONFIRM_SWIZZLE = 9,
+	VISUAL_CONFIRM_REPLAY = 12,
 	VISUAL_CONFIRM_SUBVP = 14,
 	VISUAL_CONFIRM_MCLK_SWITCH = 16,
 };
@@ -506,7 +509,7 @@ enum dcn_zstate_support_state {
 	DCN_ZSTATE_SUPPORT_DISALLOW,
 };
 
-/**
+/*
  * struct dc_clocks - DC pipe clocks
  *
  * For any clocks that may differ per pipe only the max is stored in this
@@ -728,7 +731,7 @@ struct resource_pool;
 struct dce_hwseq;
 struct link_service;
 
-/**
+/*
  * struct dc_debug_options - DC debug struct
  *
  * This struct provides a simple mechanism for developers to change some
@@ -756,7 +759,7 @@ struct dc_debug_options {
 	bool use_max_lb;
 	enum dcc_option disable_dcc;
 
-	/**
+	/*
 	 * @pipe_split_policy: Define which pipe split policy is used by the
 	 * display core.
 	 */
@@ -861,6 +864,7 @@ struct dc_debug_options {
 	bool psr_skip_crtc_disable;
 	union dpia_debug_options dpia_debug;
 	bool disable_fixed_vs_aux_timeout_wa;
+	uint32_t fixed_vs_aux_delay_config_wa;
 	bool force_disable_subvp;
 	bool force_subvp_mclk_switch;
 	bool allow_sw_cursor_fallback;
@@ -902,9 +906,18 @@ struct dc_debug_options {
 	uint32_t fpo_vactive_max_blank_us;
 	bool enable_legacy_fast_update;
 	bool disable_dc_mode_overwrite;
+	bool replay_skip_crtc_disabled;
 };
 
 struct gpu_info_soc_bounding_box_v1_0;
+
+/* Generic structure that can be used to query properties of DC. More fields
+ * can be added as required.
+ */
+struct dc_current_properties {
+	unsigned int cursor_size_limit;
+};
+
 struct dc {
 	struct dc_debug_options debug;
 	struct dc_versions versions;
@@ -1334,7 +1347,7 @@ struct dc_validation_set {
 	struct dc_stream_state *stream;
 
 	/**
-	 * @plane_state: Surface state
+	 * @plane_states: Surface state
 	 */
 	struct dc_plane_state *plane_states[MAX_SURFACES];
 
@@ -1409,10 +1422,14 @@ struct dc_plane_state *dc_get_surface_for_mpcc(struct dc *dc,
 
 uint32_t dc_get_opp_for_plane(struct dc *dc, struct dc_plane_state *plane);
 
+void dc_set_disable_128b_132b_stream_overhead(bool disable);
+
 /* The function returns minimum bandwidth required to drive a given timing
  * return - minimum required timing bandwidth in kbps.
  */
-uint32_t dc_bandwidth_in_kbps_from_timing(const struct dc_crtc_timing *timing);
+uint32_t dc_bandwidth_in_kbps_from_timing(
+		const struct dc_crtc_timing *timing,
+		const enum dc_link_encoding_format link_encoding);
 
 /* Link Interfaces */
 /*
@@ -1479,8 +1496,10 @@ struct dc_link {
 	 * object creation.
 	 */
 	enum engine_id eng_id;
+	enum engine_id dpia_preferred_eng_id;
 
 	bool test_pattern_enabled;
+	enum dp_test_pattern current_test_pattern;
 	union compliance_test_state compliance_test_state;
 
 	void *priv;
@@ -1514,7 +1533,10 @@ struct dc_link {
 	enum edp_revision edp_revision;
 	union dpcd_sink_ext_caps dpcd_sink_ext_caps;
 
+	struct backlight_settings backlight_settings;
 	struct psr_settings psr_settings;
+
+	struct replay_settings replay_settings;
 
 	/* Drive settings read from integrated info table */
 	struct dc_lane_settings bios_forced_drive_settings;
@@ -1849,6 +1871,14 @@ enum dp_link_encoding dc_link_dp_mst_decide_link_encoding_format(
  */
 const struct dc_link_settings *dc_link_get_link_cap(const struct dc_link *link);
 
+/* Get the highest encoding format that the link supports; highest meaning the
+ * encoding format which supports the maximum bandwidth.
+ *
+ * @link - a link with DP RX connection
+ * return - highest encoding format link supports.
+ */
+enum dc_link_encoding_format dc_link_get_highest_encoding_format(const struct dc_link *link);
+
 /* Check if a RX (ex. DP sink, MST hub, passive or active dongle) is connected
  * to a link with dp connector signal type.
  * @link - a link with dp connector signal type
@@ -1982,6 +2012,8 @@ bool dc_link_get_psr_state(const struct dc_link *dc_link, enum dc_psr_state *sta
 bool dc_link_setup_psr(struct dc_link *dc_link,
 		const struct dc_stream_state *stream, struct psr_config *psr_config,
 		struct psr_context *psr_context);
+
+bool dc_link_get_replay_state(const struct dc_link *dc_link, uint64_t *state);
 
 /* On eDP links this function call will stall until T12 has elapsed.
  * If the panel is not in power off state, this function will return
@@ -2230,6 +2262,11 @@ void dc_z10_save_init(struct dc *dc);
 bool dc_is_dmub_outbox_supported(struct dc *dc);
 bool dc_enable_dmub_notifications(struct dc *dc);
 
+bool dc_abm_save_restore(
+		struct dc *dc,
+		struct dc_stream_state *stream,
+		struct abm_save_restore *pData);
+
 void dc_enable_dmub_outbox(struct dc *dc);
 
 bool dc_process_dmub_aux_transfer_async(struct dc *dc,
@@ -2254,6 +2291,8 @@ void dc_process_dmub_dpia_hpd_int_enable(const struct dc *dc,
 				uint32_t hpd_int_enable);
 
 void dc_print_dmub_diagnostic_data(const struct dc *dc);
+
+void dc_query_current_properties(struct dc *dc, struct dc_current_properties *properties);
 
 /* DSC Interfaces */
 #include "dc_dsc.h"

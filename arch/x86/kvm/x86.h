@@ -323,6 +323,7 @@ fastpath_t handle_fastpath_set_msr_irqoff(struct kvm_vcpu *vcpu);
 
 extern u64 host_xcr0;
 extern u64 host_xss;
+extern u64 host_arch_capabilities;
 
 extern struct kvm_caps kvm_caps;
 

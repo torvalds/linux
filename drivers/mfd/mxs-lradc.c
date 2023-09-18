@@ -142,7 +142,7 @@ static int mxs_lradc_probe(struct platform_device *pdev)
 	if (!of_id)
 		return -EINVAL;
 
-	lradc->soc = (enum mxs_lradc_id)of_id->data;
+	lradc->soc = (uintptr_t)of_id->data;
 
 	lradc->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(lradc->clk)) {

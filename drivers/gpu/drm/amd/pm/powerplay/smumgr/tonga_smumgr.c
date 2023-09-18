@@ -226,7 +226,7 @@ static int tonga_start_smu(struct pp_hwmgr *hwmgr)
 
 static int tonga_smu_init(struct pp_hwmgr *hwmgr)
 {
-	struct tonga_smumgr *tonga_priv = NULL;
+	struct tonga_smumgr *tonga_priv;
 
 	tonga_priv = kzalloc(sizeof(struct tonga_smumgr), GFP_KERNEL);
 	if (tonga_priv == NULL)

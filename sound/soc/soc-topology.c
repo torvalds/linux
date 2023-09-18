@@ -1560,6 +1560,10 @@ static void set_dai_flags(struct snd_soc_dai_driver *dai_drv,
 			1 : 0;
 }
 
+static const struct snd_soc_dai_ops tplg_dai_ops = {
+	.compress_new	= snd_soc_new_compress,
+};
+
 static int soc_tplg_dai_create(struct soc_tplg *tplg,
 	struct snd_soc_tplg_pcm *pcm)
 {
@@ -1601,7 +1605,7 @@ static int soc_tplg_dai_create(struct soc_tplg *tplg,
 	}
 
 	if (pcm->compress)
-		dai_drv->compress_new = snd_soc_new_compress;
+		dai_drv->ops = &tplg_dai_ops;
 
 	/* pass control to component driver for optional further init */
 	ret = soc_tplg_dai_load(tplg, dai_drv, pcm, NULL);
@@ -2568,7 +2572,6 @@ EXPORT_SYMBOL_GPL(snd_soc_tplg_component_load);
 /* remove dynamic controls from the component driver */
 int snd_soc_tplg_component_remove(struct snd_soc_component *comp)
 {
-	struct snd_card *card = comp->card->snd_card;
 	struct snd_soc_dobj *dobj, *next_dobj;
 	int pass;
 
@@ -2576,7 +2579,6 @@ int snd_soc_tplg_component_remove(struct snd_soc_component *comp)
 	for (pass = SOC_TPLG_PASS_END; pass >= SOC_TPLG_PASS_START; pass--) {
 
 		/* remove mixer controls */
-		down_write(&card->controls_rwsem);
 		list_for_each_entry_safe(dobj, next_dobj, &comp->dobj_list,
 			list) {
 
@@ -2611,7 +2613,6 @@ int snd_soc_tplg_component_remove(struct snd_soc_component *comp)
 				break;
 			}
 		}
-		up_write(&card->controls_rwsem);
 	}
 
 	/* let caller know if FW can be freed when no objects are left */

@@ -4,7 +4,7 @@
  * Copyright (C) 2005 David S. Miller <davem@davemloft.net>
  */
 
-#include <asm/export.h>
+#include <linux/export.h>
 
 #ifdef __KERNEL__
 #define GLOBAL_SPARE	%g7

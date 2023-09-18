@@ -2400,7 +2400,7 @@ static const struct regmap_config wm5100_regmap = {
 	.num_reg_defaults = ARRAY_SIZE(wm5100_reg_defaults),
 	.volatile_reg = wm5100_volatile_register,
 	.readable_reg = wm5100_readable_register,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 
 static const unsigned int wm5100_mic_ctrl_reg[] = {

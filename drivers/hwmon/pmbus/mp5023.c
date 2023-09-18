@@ -5,7 +5,7 @@
 
 #include <linux/i2c.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include "pmbus.h"
 
 static struct pmbus_driver_info mp5023_info = {

@@ -26,6 +26,21 @@ properties:
   '#sound-dai-cells':
     const: 0
 
+  AVDD-supply:
+    description: Analogue supply.
+
+  DBVDD-supply:
+    description: Digital Buffer Supply.
+
+  DCVDD-supply:
+    description: Digital Core Supply.
+
+  SPKVDD1-supply:
+    description: Supply for speaker drivers 1.
+
+  SPKVDD2-supply:
+    description: Supply for speaker drivers 2.
+
   wlf,capless:
     type: boolean
     description:
@@ -84,5 +99,10 @@ examples:
             wlf,hp-cfg = <3 2 3>;
             wlf,gpio-cfg = <1 3>;
             wlf,shared-lrclk;
+            DCVDD-supply = <&reg_audio>;
+            DBVDD-supply = <&reg_audio>;
+            AVDD-supply = <&reg_audio>;
+            SPKVDD1-supply = <&reg_audio>;
+            SPKVDD2-supply = <&reg_audio>;
         };
     };

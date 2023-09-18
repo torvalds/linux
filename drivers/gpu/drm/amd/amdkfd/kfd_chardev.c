@@ -333,10 +333,12 @@ static int kfd_ioctl_create_queue(struct file *filep, struct kfd_process *p,
 		goto err_bind_process;
 	}
 
-	if (!pdd->doorbell_index &&
-	    kfd_alloc_process_doorbells(dev->kfd, &pdd->doorbell_index) < 0) {
-		err = -ENOMEM;
-		goto err_alloc_doorbells;
+	if (!pdd->qpd.proc_doorbells) {
+		err = kfd_alloc_process_doorbells(dev->kfd, pdd);
+		if (err) {
+			pr_debug("failed to allocate process doorbells\n");
+			goto err_bind_process;
+		}
 	}
 
 	/* Starting with GFX11, wptr BOs must be mapped to GART for MES to determine work
@@ -417,7 +419,6 @@ err_create_queue:
 	if (wptr_bo)
 		amdgpu_amdkfd_free_gtt_mem(dev->adev, wptr_bo);
 err_wptr_map_gart:
-err_alloc_doorbells:
 err_bind_process:
 err_pdd:
 	mutex_unlock(&p->mutex);
@@ -1025,9 +1026,6 @@ bool kfd_dev_is_large_bar(struct kfd_node *dev)
 		return true;
 	}
 
-	if (dev->kfd->use_iommu_v2)
-		return false;
-
 	if (dev->local_mem_info.local_mem_size_private == 0 &&
 	    dev->local_mem_info.local_mem_size_public > 0)
 		return true;
@@ -1487,7 +1485,8 @@ static int kfd_ioctl_alloc_queue_gws(struct file *filep,
 		goto out_unlock;
 	}
 
-	if (!kfd_dbg_has_gws_support(dev) && p->debug_trap_enabled) {
+	if (p->debug_trap_enabled && (!kfd_dbg_has_gws_support(dev) ||
+				      kfd_dbg_has_cwsr_workaround(dev))) {
 		retval = -EBUSY;
 		goto out_unlock;
 	}
@@ -1845,22 +1844,21 @@ static uint32_t get_process_num_bos(struct kfd_process *p)
 		idr_for_each_entry(&pdd->alloc_idr, mem, id) {
 			struct kgd_mem *kgd_mem = (struct kgd_mem *)mem;
 
-			if ((uint64_t)kgd_mem->va > pdd->gpuvm_base)
+			if (!kgd_mem->va || kgd_mem->va > pdd->gpuvm_base)
 				num_of_bos++;
 		}
 	}
 	return num_of_bos;
 }
 
-static int criu_get_prime_handle(struct drm_gem_object *gobj, int flags,
+static int criu_get_prime_handle(struct kgd_mem *mem, int flags,
 				      u32 *shared_fd)
 {
 	struct dma_buf *dmabuf;
 	int ret;
 
-	dmabuf = amdgpu_gem_prime_export(gobj, flags);
-	if (IS_ERR(dmabuf)) {
-		ret = PTR_ERR(dmabuf);
+	ret = amdgpu_amdkfd_gpuvm_export_dmabuf(mem, &dmabuf);
+	if (ret) {
 		pr_err("dmabuf export failed for the BO\n");
 		return ret;
 	}
@@ -1918,7 +1916,11 @@ static int criu_checkpoint_bos(struct kfd_process *p,
 			kgd_mem = (struct kgd_mem *)mem;
 			dumper_bo = kgd_mem->bo;
 
-			if ((uint64_t)kgd_mem->va <= pdd->gpuvm_base)
+			/* Skip checkpointing BOs that are used for Trap handler
+			 * code and state. Currently, these BOs have a VA that
+			 * is less GPUVM Base
+			 */
+			if (kgd_mem->va && kgd_mem->va <= pdd->gpuvm_base)
 				continue;
 
 			bo_bucket = &bo_buckets[bo_index];
@@ -1940,7 +1942,7 @@ static int criu_checkpoint_bos(struct kfd_process *p,
 			}
 			if (bo_bucket->alloc_flags
 			    & (KFD_IOC_ALLOC_MEM_FLAGS_VRAM | KFD_IOC_ALLOC_MEM_FLAGS_GTT)) {
-				ret = criu_get_prime_handle(&dumper_bo->tbo.base,
+				ret = criu_get_prime_handle(kgd_mem,
 						bo_bucket->alloc_flags &
 						KFD_IOC_ALLOC_MEM_FLAGS_WRITABLE ? DRM_RDWR : 0,
 						&bo_bucket->dmabuf_fd);
@@ -2262,10 +2264,10 @@ static int criu_restore_devices(struct kfd_process *p,
 			goto exit;
 		}
 
-		if (!pdd->doorbell_index &&
-		    kfd_alloc_process_doorbells(pdd->dev->kfd, &pdd->doorbell_index) < 0) {
-			ret = -ENOMEM;
-			goto exit;
+		if (!pdd->qpd.proc_doorbells) {
+			ret = kfd_alloc_process_doorbells(dev->kfd, pdd);
+			if (ret)
+				goto exit;
 		}
 	}
 
@@ -2402,7 +2404,7 @@ static int criu_restore_bo(struct kfd_process *p,
 	/* create the dmabuf object and export the bo */
 	if (bo_bucket->alloc_flags
 	    & (KFD_IOC_ALLOC_MEM_FLAGS_VRAM | KFD_IOC_ALLOC_MEM_FLAGS_GTT)) {
-		ret = criu_get_prime_handle(&kgd_mem->bo->tbo.base, DRM_RDWR,
+		ret = criu_get_prime_handle(kgd_mem, DRM_RDWR,
 					    &bo_bucket->dmabuf_fd);
 		if (ret)
 			return ret;
@@ -2755,6 +2757,16 @@ static int runtime_enable(struct kfd_process *p, uint64_t r_debug,
 
 		if (pdd->qpd.queue_count)
 			return -EEXIST;
+
+		/*
+		 * Setup TTMPs by default.
+		 * Note that this call must remain here for MES ADD QUEUE to
+		 * skip_process_ctx_clear unconditionally as the first call to
+		 * SET_SHADER_DEBUGGER clears any stale process context data
+		 * saved in MES.
+		 */
+		if (pdd->dev->kfd->shared_resources.enable_mes)
+			kfd_dbg_set_mes_debug_mode(pdd, !kfd_dbg_has_cwsr_workaround(pdd->dev));
 	}
 
 	p->runtime_info.runtime_state = DEBUG_RUNTIME_STATE_ENABLED;
@@ -2848,7 +2860,8 @@ static int runtime_disable(struct kfd_process *p)
 			if (!pdd->dev->kfd->shared_resources.enable_mes)
 				debug_refresh_runlist(pdd->dev->dqm);
 			else
-				kfd_dbg_set_mes_debug_mode(pdd);
+				kfd_dbg_set_mes_debug_mode(pdd,
+							   !kfd_dbg_has_cwsr_workaround(pdd->dev));
 		}
 	}
 

@@ -10,7 +10,6 @@
  * and check it can be retrieved with KVM_GET_MSR, also test
  * the invalid LBR formats are rejected.
  */
-
 #define _GNU_SOURCE /* for program_invocation_short_name */
 #include <sys/ioctl.h>
 
@@ -52,23 +51,24 @@ static const union perf_capabilities format_caps = {
 	.pebs_format = -1,
 };
 
+static void guest_test_perf_capabilities_gp(uint64_t val)
+{
+	uint8_t vector = wrmsr_safe(MSR_IA32_PERF_CAPABILITIES, val);
+
+	__GUEST_ASSERT(vector == GP_VECTOR,
+		       "Expected #GP for value '0x%llx', got vector '0x%x'",
+		       val, vector);
+}
+
 static void guest_code(uint64_t current_val)
 {
-	uint8_t vector;
 	int i;
 
-	vector = wrmsr_safe(MSR_IA32_PERF_CAPABILITIES, current_val);
-	GUEST_ASSERT_2(vector == GP_VECTOR, current_val, vector);
+	guest_test_perf_capabilities_gp(current_val);
+	guest_test_perf_capabilities_gp(0);
 
-	vector = wrmsr_safe(MSR_IA32_PERF_CAPABILITIES, 0);
-	GUEST_ASSERT_2(vector == GP_VECTOR, 0, vector);
-
-	for (i = 0; i < 64; i++) {
-		vector = wrmsr_safe(MSR_IA32_PERF_CAPABILITIES,
-				    current_val ^ BIT_ULL(i));
-		GUEST_ASSERT_2(vector == GP_VECTOR,
-			       current_val ^ BIT_ULL(i), vector);
-	}
+	for (i = 0; i < 64; i++)
+		guest_test_perf_capabilities_gp(current_val ^ BIT_ULL(i));
 
 	GUEST_DONE();
 }
@@ -95,7 +95,7 @@ static void test_guest_wrmsr_perf_capabilities(union perf_capabilities host_cap)
 
 	switch (get_ucall(vcpu, &uc)) {
 	case UCALL_ABORT:
-		REPORT_GUEST_ASSERT_2(uc, "val = 0x%lx, vector = %lu");
+		REPORT_GUEST_ASSERT(uc);
 		break;
 	case UCALL_DONE:
 		break;
@@ -103,7 +103,8 @@ static void test_guest_wrmsr_perf_capabilities(union perf_capabilities host_cap)
 		TEST_FAIL("Unexpected ucall: %lu", uc.cmd);
 	}
 
-	ASSERT_EQ(vcpu_get_msr(vcpu, MSR_IA32_PERF_CAPABILITIES), host_cap.capabilities);
+	TEST_ASSERT_EQ(vcpu_get_msr(vcpu, MSR_IA32_PERF_CAPABILITIES),
+			host_cap.capabilities);
 
 	vcpu_set_msr(vcpu, MSR_IA32_PERF_CAPABILITIES, host_cap.capabilities);
 

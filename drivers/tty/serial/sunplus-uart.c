@@ -231,7 +231,7 @@ static void transmit_chars(struct uart_port *port)
 static void receive_chars(struct uart_port *port)
 {
 	unsigned int lsr = readl(port->membase + SUP_UART_LSR);
-	unsigned int ch, flag;
+	u8 ch, flag;
 
 	do {
 		ch = readl(port->membase + SUP_UART_DATA);

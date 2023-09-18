@@ -11,6 +11,7 @@
 
 #include <sound/rt5682s.h>
 #include <linux/regulator/consumer.h>
+#include <linux/gpio/consumer.h>
 #include <linux/clk.h>
 #include <linux/clkdev.h>
 #include <linux/clk-provider.h>
@@ -1446,6 +1447,7 @@ enum {
 struct rt5682s_priv {
 	struct snd_soc_component *component;
 	struct rt5682s_platform_data pdata;
+	struct gpio_desc *ldo1_en;
 	struct regmap *regmap;
 	struct snd_soc_jack *hs_jack;
 	struct regulator_bulk_data supplies[RT5682S_NUM_SUPPLIES];

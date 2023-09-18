@@ -195,7 +195,7 @@ static int rts5227_extra_init_hw(struct rtsx_pcr *pcr)
 		}
 	}
 
-	if (option->force_clkreq_0)
+	if (option->force_clkreq_0 && pcr->aspm_mode == ASPM_MODE_CFG)
 		rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, PETXCFG,
 				FORCE_CLKREQ_DELINK_MASK, FORCE_CLKREQ_LOW);
 	else

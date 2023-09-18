@@ -7,7 +7,7 @@
 #include <linux/interconnect-provider.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
+#include <linux/of_platform.h>
 #include <linux/slab.h>
 
 #include "bcm-voter.h"
@@ -185,6 +185,7 @@ int qcom_icc_rpmh_probe(struct platform_device *pdev)
 	data = devm_kzalloc(dev, struct_size(data, nodes, num_nodes), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
+	data->num_nodes = num_nodes;
 
 	provider = &qp->provider;
 	provider->dev = dev;
@@ -227,8 +228,6 @@ int qcom_icc_rpmh_probe(struct platform_device *pdev)
 
 		data->nodes[i] = node;
 	}
-
-	data->num_nodes = num_nodes;
 
 	ret = icc_provider_register(provider);
 	if (ret)

@@ -63,7 +63,6 @@ additionalProperties:
         Client device subnodes use below standard properties.
 
       properties:
-        phandle: true
         pinmux:
           description:
             Values are constructed from GPIO port number, pin number, and
@@ -87,9 +86,6 @@ additionalProperties:
         line-name: true
 
     - type: object
-      properties:
-        phandle: true
-
       additionalProperties:
         $ref: "#/additionalProperties/anyOf/0"
 

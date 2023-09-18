@@ -63,6 +63,7 @@ macro_rules! new_mutex {
 /// assert_eq!(e.c, 10);
 /// assert_eq!(e.d.lock().a, 20);
 /// assert_eq!(e.d.lock().b, 30);
+/// # Ok::<(), Error>(())
 /// ```
 ///
 /// The following example shows how to use interior mutability to modify the contents of a struct

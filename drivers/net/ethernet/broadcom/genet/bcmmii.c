@@ -617,9 +617,9 @@ static int bcmgenet_mii_pd_init(struct bcmgenet_priv *priv)
 		};
 
 		phydev = fixed_phy_register(PHY_POLL, &fphy_status, NULL);
-		if (!phydev || IS_ERR(phydev)) {
+		if (IS_ERR(phydev)) {
 			dev_err(kdev, "failed to register fixed PHY device\n");
-			return -ENODEV;
+			return PTR_ERR(phydev);
 		}
 
 		/* Make sure we initialize MoCA PHYs with a link down */

@@ -35,6 +35,7 @@ properties:
               - amlogic,meson-sm1-gpio-intc
               - amlogic,meson-a1-gpio-intc
               - amlogic,meson-s4-gpio-intc
+              - amlogic,c3-gpio-intc
           - const: amlogic,meson-gpio-intc
 
   reg:

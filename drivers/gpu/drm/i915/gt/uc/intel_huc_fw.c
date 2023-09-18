@@ -27,7 +27,6 @@ struct mtl_huc_auth_msg_out {
 int intel_huc_fw_auth_via_gsccs(struct intel_huc *huc)
 {
 	struct intel_gt *gt = huc_to_gt(huc);
-	struct drm_i915_private *i915 = gt->i915;
 	struct drm_i915_gem_object *obj;
 	struct mtl_huc_auth_msg_in *msg_in;
 	struct mtl_huc_auth_msg_out *msg_out;
@@ -43,7 +42,7 @@ int intel_huc_fw_auth_via_gsccs(struct intel_huc *huc)
 	pkt_offset = i915_ggtt_offset(huc->heci_pkt);
 
 	pkt_vaddr = i915_gem_object_pin_map_unlocked(obj,
-						     i915_coherent_map_type(i915, obj, true));
+						     intel_gt_coherent_map_type(gt, obj, true));
 	if (IS_ERR(pkt_vaddr))
 		return PTR_ERR(pkt_vaddr);
 
@@ -105,15 +104,6 @@ int intel_huc_fw_auth_via_gsccs(struct intel_huc *huc)
 out_unpin:
 	i915_gem_object_unpin_map(obj);
 	return err;
-}
-
-static void get_version_from_gsc_manifest(struct intel_uc_fw_ver *ver, const void *data)
-{
-	const struct intel_gsc_manifest_header *manifest = data;
-
-	ver->major = manifest->fw_version.major;
-	ver->minor = manifest->fw_version.minor;
-	ver->patch = manifest->fw_version.hotfix;
 }
 
 static bool css_valid(const void *data, size_t size)
@@ -227,8 +217,8 @@ int intel_huc_fw_get_binary_info(struct intel_uc_fw *huc_fw, const void *data, s
 
 	for (i = 0; i < header->num_of_entries; i++, entry++) {
 		if (strcmp(entry->name, "HUCP.man") == 0)
-			get_version_from_gsc_manifest(&huc_fw->file_selected.ver,
-						      data + entry_offset(entry));
+			intel_uc_fw_version_from_gsc_manifest(&huc_fw->file_selected.ver,
+							      data + entry_offset(entry));
 
 		if (strcmp(entry->name, "huc_fw") == 0) {
 			u32 offset = entry_offset(entry);

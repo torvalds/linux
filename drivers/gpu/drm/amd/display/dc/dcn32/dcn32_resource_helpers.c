@@ -641,16 +641,21 @@ bool dcn32_subvp_drr_admissable(struct dc *dc, struct dc_state *context)
 	uint8_t non_subvp_pipes = 0;
 	bool drr_pipe_found = false;
 	bool drr_psr_capable = false;
+	uint64_t refresh_rate = 0;
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
 
-		if (!pipe->stream)
-			continue;
-
-		if (pipe->plane_state && !pipe->top_pipe) {
-			if (pipe->stream->mall_stream_config.type == SUBVP_MAIN)
+		if (resource_is_pipe_type(pipe, OPP_HEAD) &&
+				resource_is_pipe_type(pipe, DPP_PIPE)) {
+			if (pipe->stream->mall_stream_config.type == SUBVP_MAIN) {
 				subvp_count++;
+
+				refresh_rate = (pipe->stream->timing.pix_clk_100hz * (uint64_t)100 +
+					pipe->stream->timing.v_total * pipe->stream->timing.h_total - (uint64_t)1);
+				refresh_rate = div_u64(refresh_rate, pipe->stream->timing.v_total);
+				refresh_rate = div_u64(refresh_rate, pipe->stream->timing.h_total);
+			}
 			if (pipe->stream->mall_stream_config.type == SUBVP_NONE) {
 				non_subvp_pipes++;
 				drr_psr_capable = (drr_psr_capable || dcn32_is_psr_capable(pipe));
@@ -662,7 +667,8 @@ bool dcn32_subvp_drr_admissable(struct dc *dc, struct dc_state *context)
 		}
 	}
 
-	if (subvp_count == 1 && non_subvp_pipes == 1 && drr_pipe_found && !drr_psr_capable)
+	if (subvp_count == 1 && non_subvp_pipes == 1 && drr_pipe_found && !drr_psr_capable &&
+		((uint32_t)refresh_rate < 120))
 		result = true;
 
 	return result;
@@ -693,16 +699,21 @@ bool dcn32_subvp_vblank_admissable(struct dc *dc, struct dc_state *context, int 
 	bool drr_pipe_found = false;
 	struct vba_vars_st *vba = &context->bw_ctx.dml.vba;
 	bool vblank_psr_capable = false;
+	uint64_t refresh_rate = 0;
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
 
-		if (!pipe->stream)
-			continue;
-
-		if (pipe->plane_state && !pipe->top_pipe) {
-			if (pipe->stream->mall_stream_config.type == SUBVP_MAIN)
+		if (resource_is_pipe_type(pipe, OPP_HEAD) &&
+				resource_is_pipe_type(pipe, DPP_PIPE)) {
+			if (pipe->stream->mall_stream_config.type == SUBVP_MAIN) {
 				subvp_count++;
+
+				refresh_rate = (pipe->stream->timing.pix_clk_100hz * (uint64_t)100 +
+					pipe->stream->timing.v_total * pipe->stream->timing.h_total - (uint64_t)1);
+				refresh_rate = div_u64(refresh_rate, pipe->stream->timing.v_total);
+				refresh_rate = div_u64(refresh_rate, pipe->stream->timing.h_total);
+			}
 			if (pipe->stream->mall_stream_config.type == SUBVP_NONE) {
 				non_subvp_pipes++;
 				vblank_psr_capable = (vblank_psr_capable || dcn32_is_psr_capable(pipe));
@@ -715,7 +726,8 @@ bool dcn32_subvp_vblank_admissable(struct dc *dc, struct dc_state *context, int 
 	}
 
 	if (subvp_count == 1 && non_subvp_pipes == 1 && !drr_pipe_found && !vblank_psr_capable &&
-			vba->DRAMClockChangeSupport[vlevel][vba->maxMpcComb] == dm_dram_clock_change_vblank_w_mall_sub_vp)
+		((uint32_t)refresh_rate < 120) &&
+		vba->DRAMClockChangeSupport[vlevel][vba->maxMpcComb] == dm_dram_clock_change_vblank_w_mall_sub_vp)
 		result = true;
 
 	return result;

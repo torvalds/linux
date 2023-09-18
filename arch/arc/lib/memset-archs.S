@@ -36,11 +36,12 @@
 #endif
 
 ENTRY_CFI(memset)
-	PREFETCHW_INSTR	r0, 0	; Prefetch the first write location
 	mov.f	0, r2
 ;;; if size is zero
 	jz.d	[blink]
 	mov	r3, r0		; don't clobber ret val
+
+	PREFETCHW_INSTR	r0, 0	; Prefetch the first write location
 
 ;;; if length < 8
 	brls.d.nt	r2, 8, .Lsmallchunk

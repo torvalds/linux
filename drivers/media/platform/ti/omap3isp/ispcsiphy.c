@@ -163,12 +163,16 @@ static int csiphy_set_power(struct isp_csiphy *phy, u32 power)
 static int omap3isp_csiphy_config(struct isp_csiphy *phy)
 {
 	struct isp_pipeline *pipe = to_isp_pipeline(phy->entity);
-	struct isp_bus_cfg *buscfg = v4l2_subdev_to_bus_cfg(pipe->external);
+	struct isp_bus_cfg *buscfg;
 	struct isp_csiphy_lanes_cfg *lanes;
 	int csi2_ddrclk_khz;
 	unsigned int num_data_lanes, used_lanes = 0;
 	unsigned int i;
 	u32 reg;
+
+	buscfg = v4l2_subdev_to_bus_cfg(pipe->external);
+	if (WARN_ON(!buscfg))
+		return -EPIPE;
 
 	if (buscfg->interface == ISP_INTERFACE_CCP2B_PHY1
 	    || buscfg->interface == ISP_INTERFACE_CCP2B_PHY2) {
@@ -306,8 +310,13 @@ void omap3isp_csiphy_release(struct isp_csiphy *phy)
 	mutex_lock(&phy->mutex);
 	if (phy->entity) {
 		struct isp_pipeline *pipe = to_isp_pipeline(phy->entity);
-		struct isp_bus_cfg *buscfg =
-			v4l2_subdev_to_bus_cfg(pipe->external);
+		struct isp_bus_cfg *buscfg;
+
+		buscfg = v4l2_subdev_to_bus_cfg(pipe->external);
+		if (WARN_ON(!buscfg)) {
+			mutex_unlock(&phy->mutex);
+			return;
+		}
 
 		csiphy_routing_cfg(phy, buscfg->interface, false,
 				   buscfg->bus.ccp2.phy_layer);

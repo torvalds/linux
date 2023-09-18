@@ -1333,6 +1333,7 @@ static int measure_breadcrumb_dw(struct intel_context *ce)
 	if (!frame)
 		return -ENOMEM;
 
+	frame->rq.i915 = engine->i915;
 	frame->rq.engine = engine;
 	frame->rq.context = ce;
 	rcu_assign_pointer(frame->rq.timeline, ce->timeline);

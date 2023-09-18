@@ -12,7 +12,6 @@
 
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/of_graph.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
@@ -252,7 +251,7 @@ static int rvin_group_notify_complete(struct v4l2_async_notifier *notifier)
 
 static void rvin_group_notify_unbind(struct v4l2_async_notifier *notifier,
 				     struct v4l2_subdev *subdev,
-				     struct v4l2_async_subdev *asd)
+				     struct v4l2_async_connection *asc)
 {
 	struct rvin_dev *vin = v4l2_dev_to_vin(notifier->v4l2_dev);
 	unsigned int i;
@@ -264,7 +263,7 @@ static void rvin_group_notify_unbind(struct v4l2_async_notifier *notifier,
 	mutex_lock(&vin->group->lock);
 
 	for (i = 0; i < RVIN_CSI_MAX; i++) {
-		if (vin->group->remotes[i].asd != asd)
+		if (vin->group->remotes[i].asc != asc)
 			continue;
 		vin->group->remotes[i].subdev = NULL;
 		vin_dbg(vin, "Unbind %s from slot %u\n", subdev->name, i);
@@ -278,7 +277,7 @@ static void rvin_group_notify_unbind(struct v4l2_async_notifier *notifier,
 
 static int rvin_group_notify_bound(struct v4l2_async_notifier *notifier,
 				   struct v4l2_subdev *subdev,
-				   struct v4l2_async_subdev *asd)
+				   struct v4l2_async_connection *asc)
 {
 	struct rvin_dev *vin = v4l2_dev_to_vin(notifier->v4l2_dev);
 	unsigned int i;
@@ -286,7 +285,7 @@ static int rvin_group_notify_bound(struct v4l2_async_notifier *notifier,
 	mutex_lock(&vin->group->lock);
 
 	for (i = 0; i < RVIN_CSI_MAX; i++) {
-		if (vin->group->remotes[i].asd != asd)
+		if (vin->group->remotes[i].asc != asc)
 			continue;
 		vin->group->remotes[i].subdev = subdev;
 		vin_dbg(vin, "Bound %s to slot %u\n", subdev->name, i);
@@ -311,7 +310,7 @@ static int rvin_group_parse_of(struct rvin_dev *vin, unsigned int port,
 	struct v4l2_fwnode_endpoint vep = {
 		.bus_type = V4L2_MBUS_CSI2_DPHY,
 	};
-	struct v4l2_async_subdev *asd;
+	struct v4l2_async_connection *asc;
 	int ret;
 
 	ep = fwnode_graph_get_endpoint_by_id(dev_fwnode(vin->dev), port, id, 0);
@@ -327,14 +326,14 @@ static int rvin_group_parse_of(struct rvin_dev *vin, unsigned int port,
 		goto out;
 	}
 
-	asd = v4l2_async_nf_add_fwnode(&vin->group->notifier, fwnode,
-				       struct v4l2_async_subdev);
-	if (IS_ERR(asd)) {
-		ret = PTR_ERR(asd);
+	asc = v4l2_async_nf_add_fwnode(&vin->group->notifier, fwnode,
+				       struct v4l2_async_connection);
+	if (IS_ERR(asc)) {
+		ret = PTR_ERR(asc);
 		goto out;
 	}
 
-	vin->group->remotes[vep.base.id].asd = asd;
+	vin->group->remotes[vep.base.id].asc = asc;
 
 	vin_dbg(vin, "Add group OF device %pOF to slot %u\n",
 		to_of_node(fwnode), vep.base.id);
@@ -376,7 +375,7 @@ static int rvin_group_notifier_init(struct rvin_dev *vin, unsigned int port,
 
 	mutex_unlock(&vin->group->lock);
 
-	v4l2_async_nf_init(&vin->group->notifier);
+	v4l2_async_nf_init(&vin->group->notifier, &vin->v4l2_dev);
 
 	/*
 	 * Some subdevices may overlap but the parser function can handle it and
@@ -387,7 +386,7 @@ static int rvin_group_notifier_init(struct rvin_dev *vin, unsigned int port,
 			continue;
 
 		for (id = 0; id < max_id; id++) {
-			if (vin->group->remotes[id].asd)
+			if (vin->group->remotes[id].asc)
 				continue;
 
 			ret = rvin_group_parse_of(vin->group->vin[i], port, id);
@@ -396,11 +395,11 @@ static int rvin_group_notifier_init(struct rvin_dev *vin, unsigned int port,
 		}
 	}
 
-	if (list_empty(&vin->group->notifier.asd_list))
+	if (list_empty(&vin->group->notifier.waiting_list))
 		return 0;
 
 	vin->group->notifier.ops = &rvin_group_notify_ops;
-	ret = v4l2_async_nf_register(&vin->v4l2_dev, &vin->group->notifier);
+	ret = v4l2_async_nf_register(&vin->group->notifier);
 	if (ret < 0) {
 		vin_err(vin, "Notifier registration failed\n");
 		v4l2_async_nf_cleanup(&vin->group->notifier);
@@ -611,7 +610,7 @@ static int rvin_parallel_notify_complete(struct v4l2_async_notifier *notifier)
 
 static void rvin_parallel_notify_unbind(struct v4l2_async_notifier *notifier,
 					struct v4l2_subdev *subdev,
-					struct v4l2_async_subdev *asd)
+					struct v4l2_async_connection *asc)
 {
 	struct rvin_dev *vin = v4l2_dev_to_vin(notifier->v4l2_dev);
 
@@ -624,7 +623,7 @@ static void rvin_parallel_notify_unbind(struct v4l2_async_notifier *notifier,
 
 static int rvin_parallel_notify_bound(struct v4l2_async_notifier *notifier,
 				      struct v4l2_subdev *subdev,
-				      struct v4l2_async_subdev *asd)
+				      struct v4l2_async_connection *asc)
 {
 	struct rvin_dev *vin = v4l2_dev_to_vin(notifier->v4l2_dev);
 	int ret;
@@ -656,7 +655,7 @@ static int rvin_parallel_parse_of(struct rvin_dev *vin)
 	struct v4l2_fwnode_endpoint vep = {
 		.bus_type = V4L2_MBUS_UNKNOWN,
 	};
-	struct v4l2_async_subdev *asd;
+	struct v4l2_async_connection *asc;
 	int ret;
 
 	ep = fwnode_graph_get_endpoint_by_id(dev_fwnode(vin->dev), 0, 0, 0);
@@ -687,14 +686,14 @@ static int rvin_parallel_parse_of(struct rvin_dev *vin)
 		goto out;
 	}
 
-	asd = v4l2_async_nf_add_fwnode(&vin->notifier, fwnode,
-				       struct v4l2_async_subdev);
-	if (IS_ERR(asd)) {
-		ret = PTR_ERR(asd);
+	asc = v4l2_async_nf_add_fwnode(&vin->notifier, fwnode,
+				       struct v4l2_async_connection);
+	if (IS_ERR(asc)) {
+		ret = PTR_ERR(asc);
 		goto out;
 	}
 
-	vin->parallel.asd = asd;
+	vin->parallel.asc = asc;
 
 	vin_dbg(vin, "Add parallel OF device %pOF\n", to_of_node(fwnode));
 out:
@@ -713,20 +712,20 @@ static int rvin_parallel_init(struct rvin_dev *vin)
 {
 	int ret;
 
-	v4l2_async_nf_init(&vin->notifier);
+	v4l2_async_nf_init(&vin->notifier, &vin->v4l2_dev);
 
 	ret = rvin_parallel_parse_of(vin);
 	if (ret)
 		return ret;
 
-	if (!vin->parallel.asd)
+	if (!vin->parallel.asc)
 		return -ENODEV;
 
 	vin_dbg(vin, "Found parallel subdevice %pOF\n",
-		to_of_node(vin->parallel.asd->match.fwnode));
+		to_of_node(vin->parallel.asc->match.fwnode));
 
 	vin->notifier.ops = &rvin_parallel_notify_ops;
-	ret = v4l2_async_nf_register(&vin->v4l2_dev, &vin->notifier);
+	ret = v4l2_async_nf_register(&vin->notifier);
 	if (ret < 0) {
 		vin_err(vin, "Notifier registration failed\n");
 		v4l2_async_nf_cleanup(&vin->notifier);

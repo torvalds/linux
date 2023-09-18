@@ -279,4 +279,17 @@ static inline bool can_support_ecm(struct usb_gadget *gadget)
 	return true;
 }
 
+/* peak (theoretical) bulk transfer rate in bits-per-second */
+static inline unsigned int gether_bitrate(struct usb_gadget *g)
+{
+	if (g->speed >= USB_SPEED_SUPER_PLUS)
+		return 4250000000U;
+	if (g->speed == USB_SPEED_SUPER)
+		return 3750000000U;
+	else if (g->speed == USB_SPEED_HIGH)
+		return 13 * 512 * 8 * 1000 * 8;
+	else
+		return 19 * 64 * 1 * 1000 * 8;
+}
+
 #endif /* __U_ETHER_H */

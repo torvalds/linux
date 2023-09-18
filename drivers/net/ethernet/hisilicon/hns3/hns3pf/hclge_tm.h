@@ -33,6 +33,9 @@ enum hclge_opcode_type;
 #define HCLGE_DSCP_MAP_TC_BD_NUM	2
 #define HCLGE_DSCP_TC_SHIFT(n)		(((n) & 1) * 4)
 
+#define HCLGE_TM_FLUSH_TIME_MS	10
+#define HCLGE_TM_FLUSH_EN_MSK	BIT(0)
+
 struct hclge_pg_to_pri_link_cmd {
 	u8 pg_id;
 	u8 rsvd1[3];
@@ -242,6 +245,7 @@ int hclge_pfc_pause_en_cfg(struct hclge_dev *hdev, u8 tx_rx_bitmap,
 			   u8 pfc_bitmap);
 int hclge_mac_pause_en_cfg(struct hclge_dev *hdev, bool tx, bool rx);
 int hclge_pause_addr_cfg(struct hclge_dev *hdev, const u8 *mac_addr);
+int hclge_mac_pause_setup_hw(struct hclge_dev *hdev);
 void hclge_pfc_rx_stats_get(struct hclge_dev *hdev, u64 *stats);
 void hclge_pfc_tx_stats_get(struct hclge_dev *hdev, u64 *stats);
 int hclge_tm_qs_shaper_cfg(struct hclge_vport *vport, int max_tx_rate);
@@ -272,4 +276,5 @@ int hclge_tm_get_port_shaper(struct hclge_dev *hdev,
 			     struct hclge_tm_shaper_para *para);
 int hclge_up_to_tc_map(struct hclge_dev *hdev);
 int hclge_dscp_to_tc_map(struct hclge_dev *hdev);
+int hclge_tm_flush_cfg(struct hclge_dev *hdev, bool enable);
 #endif

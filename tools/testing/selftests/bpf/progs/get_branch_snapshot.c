@@ -15,7 +15,7 @@ long total_entries = 0;
 #define ENTRY_CNT 32
 struct perf_branch_entry entries[ENTRY_CNT] = {};
 
-static inline bool in_range(__u64 val)
+static inline bool gbs_in_range(__u64 val)
 {
 	return (val >= address_low) && (val < address_high);
 }
@@ -31,7 +31,7 @@ int BPF_PROG(test1, int n, int ret)
 	for (i = 0; i < ENTRY_CNT; i++) {
 		if (i >= total_entries)
 			break;
-		if (in_range(entries[i].from) && in_range(entries[i].to))
+		if (gbs_in_range(entries[i].from) && gbs_in_range(entries[i].to))
 			test1_hits++;
 		else if (!test1_hits)
 			wasted_entries++;

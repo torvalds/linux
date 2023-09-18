@@ -124,7 +124,7 @@ static void missing_map(void)
 	ASSERT_FALSE(bpf_map__autocreate(skel->maps.missing_map), "missing_map_autocreate");
 
 	ASSERT_HAS_SUBSTR(log_buf,
-			  "8: <invalid BPF map reference>\n"
+			  ": <invalid BPF map reference>\n"
 			  "BPF map 'missing_map' is referenced but wasn't created\n",
 			  "log_buf");
 

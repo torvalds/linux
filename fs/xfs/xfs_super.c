@@ -42,6 +42,7 @@
 #include "xfs_xattr.h"
 #include "xfs_iunlink_item.h"
 #include "xfs_dahash_test.h"
+#include "scrub/stats.h"
 
 #include <linux/magic.h>
 #include <linux/fs_context.h>
@@ -49,6 +50,7 @@
 
 static const struct super_operations xfs_super_operations;
 
+static struct dentry *xfs_debugfs;	/* top-level xfs debugfs dir */
 static struct kset *xfs_kset;		/* top-level xfs sysfs dir */
 #ifdef DEBUG
 static struct xfs_kobj xfs_dbg_kobj;	/* global debug sysfs attrs */
@@ -377,17 +379,6 @@ disable_dax:
 	return 0;
 }
 
-static void
-xfs_bdev_mark_dead(
-	struct block_device	*bdev)
-{
-	xfs_force_shutdown(bdev->bd_holder, SHUTDOWN_DEVICE_REMOVED);
-}
-
-static const struct blk_holder_ops xfs_holder_ops = {
-	.mark_dead		= xfs_bdev_mark_dead,
-};
-
 STATIC int
 xfs_blkdev_get(
 	xfs_mount_t		*mp,
@@ -396,8 +387,8 @@ xfs_blkdev_get(
 {
 	int			error = 0;
 
-	*bdevp = blkdev_get_by_path(name, BLK_OPEN_READ | BLK_OPEN_WRITE, mp,
-				    &xfs_holder_ops);
+	*bdevp = blkdev_get_by_path(name, BLK_OPEN_READ | BLK_OPEN_WRITE,
+				    mp->m_super, &fs_holder_ops);
 	if (IS_ERR(*bdevp)) {
 		error = PTR_ERR(*bdevp);
 		xfs_warn(mp, "Invalid device [%s], error=%d", name, error);
@@ -407,31 +398,45 @@ xfs_blkdev_get(
 }
 
 STATIC void
-xfs_blkdev_put(
-	struct xfs_mount	*mp,
-	struct block_device	*bdev)
-{
-	if (bdev)
-		blkdev_put(bdev, mp);
-}
-
-STATIC void
-xfs_close_devices(
+xfs_shutdown_devices(
 	struct xfs_mount	*mp)
 {
+	/*
+	 * Udev is triggered whenever anyone closes a block device or unmounts
+	 * a file systemm on a block device.
+	 * The default udev rules invoke blkid to read the fs super and create
+	 * symlinks to the bdev under /dev/disk.  For this, it uses buffered
+	 * reads through the page cache.
+	 *
+	 * xfs_db also uses buffered reads to examine metadata.  There is no
+	 * coordination between xfs_db and udev, which means that they can run
+	 * concurrently.  Note there is no coordination between the kernel and
+	 * blkid either.
+	 *
+	 * On a system with 64k pages, the page cache can cache the superblock
+	 * and the root inode (and hence the root directory) with the same 64k
+	 * page.  If udev spawns blkid after the mkfs and the system is busy
+	 * enough that it is still running when xfs_db starts up, they'll both
+	 * read from the same page in the pagecache.
+	 *
+	 * The unmount writes updated inode metadata to disk directly.  The XFS
+	 * buffer cache does not use the bdev pagecache, so it needs to
+	 * invalidate that pagecache on unmount.  If the above scenario occurs,
+	 * the pagecache no longer reflects what's on disk, xfs_db reads the
+	 * stale metadata, and fails to find /a.  Most of the time this succeeds
+	 * because closing a bdev invalidates the page cache, but when processes
+	 * race, everyone loses.
+	 */
 	if (mp->m_logdev_targp && mp->m_logdev_targp != mp->m_ddev_targp) {
-		struct block_device *logdev = mp->m_logdev_targp->bt_bdev;
-
-		xfs_free_buftarg(mp->m_logdev_targp);
-		xfs_blkdev_put(mp, logdev);
+		blkdev_issue_flush(mp->m_logdev_targp->bt_bdev);
+		invalidate_bdev(mp->m_logdev_targp->bt_bdev);
 	}
 	if (mp->m_rtdev_targp) {
-		struct block_device *rtdev = mp->m_rtdev_targp->bt_bdev;
-
-		xfs_free_buftarg(mp->m_rtdev_targp);
-		xfs_blkdev_put(mp, rtdev);
+		blkdev_issue_flush(mp->m_rtdev_targp->bt_bdev);
+		invalidate_bdev(mp->m_rtdev_targp->bt_bdev);
 	}
-	xfs_free_buftarg(mp->m_ddev_targp);
+	blkdev_issue_flush(mp->m_ddev_targp->bt_bdev);
+	invalidate_bdev(mp->m_ddev_targp->bt_bdev);
 }
 
 /*
@@ -448,9 +453,16 @@ STATIC int
 xfs_open_devices(
 	struct xfs_mount	*mp)
 {
-	struct block_device	*ddev = mp->m_super->s_bdev;
+	struct super_block	*sb = mp->m_super;
+	struct block_device	*ddev = sb->s_bdev;
 	struct block_device	*logdev = NULL, *rtdev = NULL;
 	int			error;
+
+	/*
+	 * blkdev_put() can't be called under s_umount, see the comment
+	 * in get_tree_bdev() for more details
+	 */
+	up_write(&sb->s_umount);
 
 	/*
 	 * Open real time and log devices - order is important.
@@ -458,7 +470,7 @@ xfs_open_devices(
 	if (mp->m_logname) {
 		error = xfs_blkdev_get(mp, mp->m_logname, &logdev);
 		if (error)
-			return error;
+			goto out_relock;
 	}
 
 	if (mp->m_rtname) {
@@ -496,7 +508,10 @@ xfs_open_devices(
 		mp->m_logdev_targp = mp->m_ddev_targp;
 	}
 
-	return 0;
+	error = 0;
+out_relock:
+	down_write(&sb->s_umount);
+	return error;
 
  out_free_rtdev_targ:
 	if (mp->m_rtdev_targp)
@@ -504,11 +519,12 @@ xfs_open_devices(
  out_free_ddev_targ:
 	xfs_free_buftarg(mp->m_ddev_targp);
  out_close_rtdev:
-	xfs_blkdev_put(mp, rtdev);
+	 if (rtdev)
+		 blkdev_put(rtdev, sb);
  out_close_logdev:
 	if (logdev && logdev != ddev)
-		xfs_blkdev_put(mp, logdev);
-	return error;
+		blkdev_put(logdev, sb);
+	goto out_relock;
 }
 
 /*
@@ -758,6 +774,18 @@ static void
 xfs_mount_free(
 	struct xfs_mount	*mp)
 {
+	/*
+	 * Free the buftargs here because blkdev_put needs to be called outside
+	 * of sb->s_umount, which is held around the call to ->put_super.
+	 */
+	if (mp->m_logdev_targp && mp->m_logdev_targp != mp->m_ddev_targp)
+		xfs_free_buftarg(mp->m_logdev_targp);
+	if (mp->m_rtdev_targp)
+		xfs_free_buftarg(mp->m_rtdev_targp);
+	if (mp->m_ddev_targp)
+		xfs_free_buftarg(mp->m_ddev_targp);
+
+	debugfs_remove(mp->m_debugfs);
 	kfree(mp->m_rtname);
 	kfree(mp->m_logname);
 	kmem_free(mp);
@@ -1133,24 +1161,18 @@ xfs_fs_put_super(
 {
 	struct xfs_mount	*mp = XFS_M(sb);
 
-	/* if ->fill_super failed, we have no mount to tear down */
-	if (!sb->s_fs_info)
-		return;
-
 	xfs_notice(mp, "Unmounting Filesystem %pU", &mp->m_sb.sb_uuid);
 	xfs_filestream_unmount(mp);
 	xfs_unmountfs(mp);
 
 	xfs_freesb(mp);
+	xchk_mount_stats_free(mp);
 	free_percpu(mp->m_stats.xs_stats);
 	xfs_mount_list_del(mp);
 	xfs_inodegc_free_percpu(mp);
 	xfs_destroy_percpu_counters(mp);
 	xfs_destroy_mount_workqueues(mp);
-	xfs_close_devices(mp);
-
-	sb->s_fs_info = NULL;
-	xfs_mount_free(mp);
+	xfs_shutdown_devices(mp);
 }
 
 static long
@@ -1479,6 +1501,21 @@ xfs_fs_validate_params(
 	return 0;
 }
 
+struct dentry *
+xfs_debugfs_mkdir(
+	const char	*name,
+	struct dentry	*parent)
+{
+	struct dentry	*child;
+
+	/* Apparently we're expected to ignore error returns?? */
+	child = debugfs_create_dir(name, parent);
+	if (IS_ERR(child))
+		return NULL;
+
+	return child;
+}
+
 static int
 xfs_fs_fill_super(
 	struct super_block	*sb,
@@ -1492,7 +1529,7 @@ xfs_fs_fill_super(
 
 	error = xfs_fs_validate_params(mp);
 	if (error)
-		goto out_free_names;
+		return error;
 
 	sb_min_blocksize(sb, BBSIZE);
 	sb->s_xattr = xfs_xattr_handlers;
@@ -1519,11 +1556,18 @@ xfs_fs_fill_super(
 
 	error = xfs_open_devices(mp);
 	if (error)
-		goto out_free_names;
+		return error;
+
+	if (xfs_debugfs) {
+		mp->m_debugfs = xfs_debugfs_mkdir(mp->m_super->s_id,
+						  xfs_debugfs);
+	} else {
+		mp->m_debugfs = NULL;
+	}
 
 	error = xfs_init_mount_workqueues(mp);
 	if (error)
-		goto out_close_devices;
+		goto out_shutdown_devices;
 
 	error = xfs_init_percpu_counters(mp);
 	if (error)
@@ -1547,9 +1591,13 @@ xfs_fs_fill_super(
 		goto out_destroy_inodegc;
 	}
 
-	error = xfs_readsb(mp, flags);
+	error = xchk_mount_stats_alloc(mp);
 	if (error)
 		goto out_free_stats;
+
+	error = xfs_readsb(mp, flags);
+	if (error)
+		goto out_free_scrub_stats;
 
 	error = xfs_finish_flags(mp);
 	if (error)
@@ -1728,6 +1776,8 @@ xfs_fs_fill_super(
 	xfs_filestream_unmount(mp);
  out_free_sb:
 	xfs_freesb(mp);
+ out_free_scrub_stats:
+	xchk_mount_stats_free(mp);
  out_free_stats:
 	free_percpu(mp->m_stats.xs_stats);
  out_destroy_inodegc:
@@ -1737,11 +1787,8 @@ xfs_fs_fill_super(
 	xfs_destroy_percpu_counters(mp);
  out_destroy_workqueues:
 	xfs_destroy_mount_workqueues(mp);
- out_close_devices:
-	xfs_close_devices(mp);
- out_free_names:
-	sb->s_fs_info = NULL;
-	xfs_mount_free(mp);
+ out_shutdown_devices:
+	xfs_shutdown_devices(mp);
 	return error;
 
  out_unmount:
@@ -1934,7 +1981,8 @@ xfs_fs_reconfigure(
 	return 0;
 }
 
-static void xfs_fs_free(
+static void
+xfs_fs_free(
 	struct fs_context	*fc)
 {
 	struct xfs_mount	*mp = fc->s_fs_info;
@@ -2003,13 +2051,21 @@ static int xfs_init_fs_context(
 	return 0;
 }
 
+static void
+xfs_kill_sb(
+	struct super_block		*sb)
+{
+	kill_block_super(sb);
+	xfs_mount_free(XFS_M(sb));
+}
+
 static struct file_system_type xfs_fs_type = {
 	.owner			= THIS_MODULE,
 	.name			= "xfs",
 	.init_fs_context	= xfs_init_fs_context,
 	.parameters		= xfs_fs_parameters,
-	.kill_sb		= kill_block_super,
-	.fs_flags		= FS_REQUIRES_DEV | FS_ALLOW_IDMAP,
+	.kill_sb		= xfs_kill_sb,
+	.fs_flags		= FS_REQUIRES_DEV | FS_ALLOW_IDMAP | FS_MGTIME,
 };
 MODULE_ALIAS_FS("xfs");
 
@@ -2353,10 +2409,12 @@ init_xfs_fs(void)
 	if (error)
 		goto out_cleanup_procfs;
 
+	xfs_debugfs = xfs_debugfs_mkdir("xfs", NULL);
+
 	xfs_kset = kset_create_and_add("xfs", NULL, fs_kobj);
 	if (!xfs_kset) {
 		error = -ENOMEM;
-		goto out_sysctl_unregister;
+		goto out_debugfs_unregister;
 	}
 
 	xfsstats.xs_kobj.kobject.kset = xfs_kset;
@@ -2372,11 +2430,15 @@ init_xfs_fs(void)
 	if (error)
 		goto out_free_stats;
 
+	error = xchk_global_stats_setup(xfs_debugfs);
+	if (error)
+		goto out_remove_stats_kobj;
+
 #ifdef DEBUG
 	xfs_dbg_kobj.kobject.kset = xfs_kset;
 	error = xfs_sysfs_init(&xfs_dbg_kobj, &xfs_dbg_ktype, NULL, "debug");
 	if (error)
-		goto out_remove_stats_kobj;
+		goto out_remove_scrub_stats;
 #endif
 
 	error = xfs_qm_init();
@@ -2393,14 +2455,17 @@ init_xfs_fs(void)
  out_remove_dbg_kobj:
 #ifdef DEBUG
 	xfs_sysfs_del(&xfs_dbg_kobj);
- out_remove_stats_kobj:
+ out_remove_scrub_stats:
 #endif
+	xchk_global_stats_teardown();
+ out_remove_stats_kobj:
 	xfs_sysfs_del(&xfsstats.xs_kobj);
  out_free_stats:
 	free_percpu(xfsstats.xs_stats);
  out_kset_unregister:
 	kset_unregister(xfs_kset);
- out_sysctl_unregister:
+ out_debugfs_unregister:
+	debugfs_remove(xfs_debugfs);
 	xfs_sysctl_unregister();
  out_cleanup_procfs:
 	xfs_cleanup_procfs();
@@ -2424,9 +2489,11 @@ exit_xfs_fs(void)
 #ifdef DEBUG
 	xfs_sysfs_del(&xfs_dbg_kobj);
 #endif
+	xchk_global_stats_teardown();
 	xfs_sysfs_del(&xfsstats.xs_kobj);
 	free_percpu(xfsstats.xs_stats);
 	kset_unregister(xfs_kset);
+	debugfs_remove(xfs_debugfs);
 	xfs_sysctl_unregister();
 	xfs_cleanup_procfs();
 	xfs_mru_cache_uninit();

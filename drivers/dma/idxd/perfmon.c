@@ -245,12 +245,11 @@ static void perfmon_pmu_event_update(struct perf_event *event)
 	int shift = 64 - idxd->idxd_pmu->counter_width;
 	struct hw_perf_event *hwc = &event->hw;
 
+	prev_raw_count = local64_read(&hwc->prev_count);
 	do {
-		prev_raw_count = local64_read(&hwc->prev_count);
 		new_raw_count = perfmon_pmu_read_counter(event);
-	} while (local64_cmpxchg(&hwc->prev_count, prev_raw_count,
-			new_raw_count) != prev_raw_count);
-
+	} while (!local64_try_cmpxchg(&hwc->prev_count,
+				      &prev_raw_count, new_raw_count));
 	n = (new_raw_count << shift);
 	p = (prev_raw_count << shift);
 

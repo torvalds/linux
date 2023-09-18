@@ -11,6 +11,7 @@ maintainers:
 
 allOf:
   - $ref: spi-controller.yaml#
+  - $ref: /schemas/arm/primecell.yaml#
 
 # We need a select here so we don't match all nodes with 'arm,primecell'
 select:

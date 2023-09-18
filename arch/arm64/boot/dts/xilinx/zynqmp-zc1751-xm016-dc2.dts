@@ -110,8 +110,8 @@
 	pinctrl-names = "default", "gpio";
 	pinctrl-0 = <&pinctrl_i2c0_default>;
 	pinctrl-1 = <&pinctrl_i2c0_gpio>;
-	scl-gpios = <&gpio 6 GPIO_ACTIVE_HIGH>;
-	sda-gpios = <&gpio 7 GPIO_ACTIVE_HIGH>;
+	scl-gpios = <&gpio 6 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+	sda-gpios = <&gpio 7 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 
 	tca6416_u26: gpio@20 {
 		compatible = "ti,tca6416";

@@ -7,7 +7,8 @@
 #include <dt-bindings/phy/phy.h>
 #include <dt-bindings/phy/phy-ti.h>
 #include <dt-bindings/mux/mux.h>
-#include <dt-bindings/mux/ti-serdes.h>
+
+#include "k3-serdes.h"
 
 / {
 	cmn_refclk: clock-cmnrefclk {
@@ -76,7 +77,7 @@
 		};
 
 		ehrpwm_tbclk: clock-controller@4140 {
-			compatible = "ti,am654-ehrpwm-tbclk", "syscon";
+			compatible = "ti,am654-ehrpwm-tbclk";
 			reg = <0x4140 0x18>;
 			#clock-cells = <1>;
 		};
@@ -364,11 +365,12 @@
 
 		main_ringacc: ringacc@3c000000 {
 			compatible = "ti,am654-navss-ringacc";
-			reg =	<0x0 0x3c000000 0x0 0x400000>,
-				<0x0 0x38000000 0x0 0x400000>,
-				<0x0 0x31120000 0x0 0x100>,
-				<0x0 0x33000000 0x0 0x40000>;
-			reg-names = "rt", "fifos", "proxy_gcfg", "proxy_target";
+			reg = <0x0 0x3c000000 0x0 0x400000>,
+			      <0x0 0x38000000 0x0 0x400000>,
+			      <0x0 0x31120000 0x0 0x100>,
+			      <0x0 0x33000000 0x0 0x40000>,
+			      <0x0 0x31080000 0x0 0x40000>;
+			reg-names = "rt", "fifos", "proxy_gcfg", "proxy_target", "cfg";
 			ti,num-rings = <1024>;
 			ti,sci-rm-range-gp-rings = <0x1>; /* GP ring range */
 			ti,sci = <&dmsc>;
@@ -378,9 +380,9 @@
 
 		main_udmap: dma-controller@31150000 {
 			compatible = "ti,j721e-navss-main-udmap";
-			reg =	<0x0 0x31150000 0x0 0x100>,
-				<0x0 0x34000000 0x0 0x100000>,
-				<0x0 0x35000000 0x0 0x100000>;
+			reg = <0x0 0x31150000 0x0 0x100>,
+			      <0x0 0x34000000 0x0 0x100000>,
+			      <0x0 0x35000000 0x0 0x100000>;
 			reg-names = "gcfg", "rchanrt", "tchanrt";
 			msi-parent = <&main_udmass_inta>;
 			#dma-cells = <1>;
@@ -660,7 +662,7 @@
 			assigned-clock-parents = <&k3_clks 293 13>;
 		};
 
-		wiz1_cmn_refclk_dig_div: cmn-refclk-dig-div{
+		wiz1_cmn_refclk_dig_div: cmn-refclk-dig-div {
 			clocks = <&wiz1_refclk_dig>;
 			#clock-cells = <0>;
 		};
@@ -1338,6 +1340,7 @@
 		power-domains = <&k3_pds 105 TI_SCI_PD_EXCLUSIVE>;
 		clocks = <&k3_clks 105 0>;
 		clock-names = "gpio";
+		status = "disabled";
 	};
 
 	main_gpio1: gpio@601000 {
@@ -1354,6 +1357,7 @@
 		power-domains = <&k3_pds 106 TI_SCI_PD_EXCLUSIVE>;
 		clocks = <&k3_clks 106 0>;
 		clock-names = "gpio";
+		status = "disabled";
 	};
 
 	main_gpio2: gpio@610000 {
@@ -1371,6 +1375,7 @@
 		power-domains = <&k3_pds 107 TI_SCI_PD_EXCLUSIVE>;
 		clocks = <&k3_clks 107 0>;
 		clock-names = "gpio";
+		status = "disabled";
 	};
 
 	main_gpio3: gpio@611000 {
@@ -1387,6 +1392,7 @@
 		power-domains = <&k3_pds 108 TI_SCI_PD_EXCLUSIVE>;
 		clocks = <&k3_clks 108 0>;
 		clock-names = "gpio";
+		status = "disabled";
 	};
 
 	main_gpio4: gpio@620000 {
@@ -1404,6 +1410,7 @@
 		power-domains = <&k3_pds 109 TI_SCI_PD_EXCLUSIVE>;
 		clocks = <&k3_clks 109 0>;
 		clock-names = "gpio";
+		status = "disabled";
 	};
 
 	main_gpio5: gpio@621000 {
@@ -1420,6 +1427,7 @@
 		power-domains = <&k3_pds 110 TI_SCI_PD_EXCLUSIVE>;
 		clocks = <&k3_clks 110 0>;
 		clock-names = "gpio";
+		status = "disabled";
 	};
 
 	main_gpio6: gpio@630000 {
@@ -1437,6 +1445,7 @@
 		power-domains = <&k3_pds 111 TI_SCI_PD_EXCLUSIVE>;
 		clocks = <&k3_clks 111 0>;
 		clock-names = "gpio";
+		status = "disabled";
 	};
 
 	main_gpio7: gpio@631000 {
@@ -1453,6 +1462,7 @@
 		power-domains = <&k3_pds 112 TI_SCI_PD_EXCLUSIVE>;
 		clocks = <&k3_clks 112 0>;
 		clock-names = "gpio";
+		status = "disabled";
 	};
 
 	main_sdhci0: mmc@4f80000 {
@@ -1477,6 +1487,7 @@
 		ti,itap-del-sel-ddr52 = <0x3>;
 		ti,trm-icp = <0x8>;
 		dma-coherent;
+		status = "disabled";
 	};
 
 	main_sdhci1: mmc@4fb0000 {
@@ -1504,6 +1515,7 @@
 		ti,clkbuf-sel = <0x7>;
 		dma-coherent;
 		sdhci-caps-mask = <0x2 0x0>;
+		status = "disabled";
 	};
 
 	main_sdhci2: mmc@4f98000 {
@@ -1531,6 +1543,7 @@
 		ti,clkbuf-sel = <0x7>;
 		dma-coherent;
 		sdhci-caps-mask = <0x2 0x0>;
+		status = "disabled";
 	};
 
 	usbss0: cdns-usb@4104000 {
@@ -1761,11 +1774,11 @@
 			"vp1", "vp2", "vp3", "vp4",
 			"wb";
 
-		clocks =	<&k3_clks 152 0>,
-				<&k3_clks 152 1>,
-				<&k3_clks 152 4>,
-				<&k3_clks 152 9>,
-				<&k3_clks 152 13>;
+		clocks = <&k3_clks 152 0>,
+			 <&k3_clks 152 1>,
+			 <&k3_clks 152 4>,
+			 <&k3_clks 152 9>,
+			 <&k3_clks 152 13>;
 		clock-names = "fck", "vp1", "vp2", "vp3", "vp4";
 
 		power-domains = <&k3_pds 152 TI_SCI_PD_EXCLUSIVE>;
@@ -2108,6 +2121,7 @@
 		ti,sci-proc-ids = <0x03 0xff>;
 		resets = <&k3_reset 142 1>;
 		firmware-name = "j7-c66_0-fw";
+		status = "disabled";
 	};
 
 	c66_1: dsp@4d81800000 {
@@ -2121,6 +2135,7 @@
 		ti,sci-proc-ids = <0x04 0xff>;
 		resets = <&k3_reset 143 1>;
 		firmware-name = "j7-c66_1-fw";
+		status = "disabled";
 	};
 
 	c71_0: dsp@64800000 {
@@ -2133,6 +2148,7 @@
 		ti,sci-proc-ids = <0x30 0xff>;
 		resets = <&k3_reset 15 1>;
 		firmware-name = "j7-c71_0-fw";
+		status = "disabled";
 	};
 
 	icssg0: icssg@b000000 {

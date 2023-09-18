@@ -5,7 +5,7 @@
 # Carsten Haitzler <carsten.haitzler@arm.com>, 2021
 
 TEST="unroll_loop_thread"
-. $(dirname $0)/../lib/coresight.sh
+. "$(dirname $0)"/../lib/coresight.sh
 ARGS="10"
 DATV="10"
 DATA="$DATD/perf-$TEST-$DATV.data"

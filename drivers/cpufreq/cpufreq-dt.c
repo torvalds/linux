@@ -349,11 +349,10 @@ err:
 	return ret;
 }
 
-static int dt_cpufreq_remove(struct platform_device *pdev)
+static void dt_cpufreq_remove(struct platform_device *pdev)
 {
 	cpufreq_unregister_driver(&dt_cpufreq_driver);
 	dt_cpufreq_release();
-	return 0;
 }
 
 static struct platform_driver dt_cpufreq_platdrv = {
@@ -361,7 +360,7 @@ static struct platform_driver dt_cpufreq_platdrv = {
 		.name	= "cpufreq-dt",
 	},
 	.probe		= dt_cpufreq_probe,
-	.remove		= dt_cpufreq_remove,
+	.remove_new	= dt_cpufreq_remove,
 };
 module_platform_driver(dt_cpufreq_platdrv);
 

@@ -1547,7 +1547,6 @@ static int fd_locked_ioctl(struct block_device *bdev, blk_mode_t mode,
 			rel_fdc();
 			return -EBUSY;
 		}
-		fsync_bdev(bdev);
 		if (fd_motor_on(drive) == 0) {
 			rel_fdc();
 			return -ENODEV;

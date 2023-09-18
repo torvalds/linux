@@ -500,7 +500,8 @@ static int vega20_ih_self_irq(struct amdgpu_device *adev,
 	case 2:
 		schedule_work(&adev->irq.ih2_work);
 		break;
-	default: break;
+	default:
+		break;
 	}
 	return 0;
 }
@@ -539,7 +540,7 @@ static int vega20_ih_sw_init(void *handle)
 	    (adev->ip_versions[OSSSYS_HWIP][0] == IP_VERSION(4, 4, 2)))
 		use_bus_addr = false;
 
-	r = amdgpu_ih_ring_init(adev, &adev->irq.ih, 256 * 1024, use_bus_addr);
+	r = amdgpu_ih_ring_init(adev, &adev->irq.ih, IH_RING_SIZE, use_bus_addr);
 	if (r)
 		return r;
 
@@ -565,7 +566,7 @@ static int vega20_ih_sw_init(void *handle)
 	/* initialize ih control registers offset */
 	vega20_ih_init_register_offset(adev);
 
-	r = amdgpu_ih_ring_init(adev, &adev->irq.ih_soft, PAGE_SIZE, use_bus_addr);
+	r = amdgpu_ih_ring_init(adev, &adev->irq.ih_soft, IH_SW_RING_SIZE, use_bus_addr);
 	if (r)
 		return r;
 
@@ -710,8 +711,7 @@ static void vega20_ih_set_interrupt_funcs(struct amdgpu_device *adev)
 	adev->irq.ih_funcs = &vega20_ih_funcs;
 }
 
-const struct amdgpu_ip_block_version vega20_ih_ip_block =
-{
+const struct amdgpu_ip_block_version vega20_ih_ip_block = {
 	.type = AMD_IP_BLOCK_TYPE_IH,
 	.major = 4,
 	.minor = 2,

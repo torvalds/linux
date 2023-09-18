@@ -12,11 +12,11 @@
  * Returns 0 if successful, otherwise count of bytes not copied yet
  */
 
+#include <linux/export.h>
 #include <asm/ptrace.h>
 #include <asm/asmmacro.h>
 #include <asm/page.h>
 #include <asm/thread_info.h>
-#include <asm/export.h>
 
 /* Work around cpp -rob */
 #define ALLOC #alloc

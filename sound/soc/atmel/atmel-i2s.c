@@ -163,11 +163,14 @@ struct atmel_i2s_gck_param {
 
 #define I2S_MCK_12M288		12288000UL
 #define I2S_MCK_11M2896		11289600UL
+#define I2S_MCK_6M144		6144000UL
 
 /* mck = (32 * (imckfs+1) / (imckdiv+1)) * fs */
 static const struct atmel_i2s_gck_param gck_params[] = {
+	/* mck = 6.144Mhz */
+	{  8000, I2S_MCK_6M144,  1, 47},	/* mck =  768 fs */
+
 	/* mck = 12.288MHz */
-	{  8000, I2S_MCK_12M288, 0, 47},	/* mck = 1536 fs */
 	{ 16000, I2S_MCK_12M288, 1, 47},	/* mck =  768 fs */
 	{ 24000, I2S_MCK_12M288, 3, 63},	/* mck =  512 fs */
 	{ 32000, I2S_MCK_12M288, 3, 47},	/* mck =  384 fs */
@@ -529,13 +532,6 @@ static int atmel_i2s_trigger(struct snd_pcm_substream *substream, int cmd,
 	return err;
 }
 
-static const struct snd_soc_dai_ops atmel_i2s_dai_ops = {
-	.prepare	= atmel_i2s_prepare,
-	.trigger	= atmel_i2s_trigger,
-	.hw_params	= atmel_i2s_hw_params,
-	.set_fmt	= atmel_i2s_set_dai_fmt,
-};
-
 static int atmel_i2s_dai_probe(struct snd_soc_dai *dai)
 {
 	struct atmel_i2s_dev *dev = snd_soc_dai_get_drvdata(dai);
@@ -544,8 +540,15 @@ static int atmel_i2s_dai_probe(struct snd_soc_dai *dai)
 	return 0;
 }
 
+static const struct snd_soc_dai_ops atmel_i2s_dai_ops = {
+	.probe		= atmel_i2s_dai_probe,
+	.prepare	= atmel_i2s_prepare,
+	.trigger	= atmel_i2s_trigger,
+	.hw_params	= atmel_i2s_hw_params,
+	.set_fmt	= atmel_i2s_set_dai_fmt,
+};
+
 static struct snd_soc_dai_driver atmel_i2s_dai = {
-	.probe	= atmel_i2s_dai_probe,
 	.playback = {
 		.channels_min = 1,
 		.channels_max = 2,
@@ -727,7 +730,7 @@ static void atmel_i2s_remove(struct platform_device *pdev)
 static struct platform_driver atmel_i2s_driver = {
 	.driver		= {
 		.name	= "atmel_i2s",
-		.of_match_table	= of_match_ptr(atmel_i2s_dt_ids),
+		.of_match_table	= atmel_i2s_dt_ids,
 	},
 	.probe		= atmel_i2s_probe,
 	.remove_new	= atmel_i2s_remove,

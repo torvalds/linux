@@ -965,7 +965,7 @@ config SERIAL_MULTI_INSTANTIATE
 
 config MLX_PLATFORM
 	tristate "Mellanox Technologies platform support"
-	depends on I2C
+	depends on ACPI && I2C && PCI
 	select REGMAP
 	help
 	  This option enables system support for the Mellanox Technologies
@@ -1074,17 +1074,7 @@ config INTEL_SCU_IPC_UTIL
 	  low level access for debug work and updating the firmware. Say
 	  N unless you will be doing this on an Intel MID platform.
 
-config SIEMENS_SIMATIC_IPC
-	tristate "Siemens Simatic IPC Class driver"
-	depends on PCI
-	help
-	  This Simatic IPC class driver is the central of several drivers. It
-	  is mainly used for system identification, after which drivers in other
-	  classes will take care of driving specifics of those machines.
-	  i.e. LEDs and watchdog.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called simatic-ipc.
+source "drivers/platform/x86/siemens/Kconfig"
 
 config WINMATE_FM07_KEYS
 	tristate "Winmate FM07/FM07P front-panel keys driver"
@@ -1094,10 +1084,25 @@ config WINMATE_FM07_KEYS
 	  buttons below the display. This module adds an input device
 	  that delivers key events when these buttons are pressed.
 
+config SEL3350_PLATFORM
+	tristate "SEL-3350 LEDs and power supplies"
+	depends on ACPI
+	depends on GPIOLIB
+	depends on PINCTRL_BROXTON
+	select POWER_SUPPLY
+	select NEW_LEDS
+	select LEDS_CLASS
+	select LEDS_GPIO
+	help
+	  Support for LEDs and power supplies on SEL-3350 computers.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called sel3350-platform.
+
 endif # X86_PLATFORM_DEVICES
 
 config P2SB
-	bool "Primary to Sideband (P2SB) bridge access support"
+	bool
 	depends on PCI && X86
 	help
 	  The Primary to Sideband (P2SB) bridge is an interface to some

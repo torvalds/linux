@@ -370,26 +370,26 @@ extern int hantro_debug;
 	pr_err("%s:%d: " fmt, __func__, __LINE__, ##args)
 
 /* Structure access helpers. */
-static inline struct hantro_ctx *fh_to_ctx(struct v4l2_fh *fh)
+static __always_inline struct hantro_ctx *fh_to_ctx(struct v4l2_fh *fh)
 {
 	return container_of(fh, struct hantro_ctx, fh);
 }
 
 /* Register accessors. */
-static inline void vepu_write_relaxed(struct hantro_dev *vpu,
-				      u32 val, u32 reg)
+static __always_inline void vepu_write_relaxed(struct hantro_dev *vpu,
+					       u32 val, u32 reg)
 {
 	vpu_debug(6, "0x%04x = 0x%08x\n", reg / 4, val);
 	writel_relaxed(val, vpu->enc_base + reg);
 }
 
-static inline void vepu_write(struct hantro_dev *vpu, u32 val, u32 reg)
+static __always_inline void vepu_write(struct hantro_dev *vpu, u32 val, u32 reg)
 {
 	vpu_debug(6, "0x%04x = 0x%08x\n", reg / 4, val);
 	writel(val, vpu->enc_base + reg);
 }
 
-static inline u32 vepu_read(struct hantro_dev *vpu, u32 reg)
+static __always_inline u32 vepu_read(struct hantro_dev *vpu, u32 reg)
 {
 	u32 val = readl(vpu->enc_base + reg);
 
@@ -397,27 +397,27 @@ static inline u32 vepu_read(struct hantro_dev *vpu, u32 reg)
 	return val;
 }
 
-static inline void vdpu_write_relaxed(struct hantro_dev *vpu,
-				      u32 val, u32 reg)
+static __always_inline void vdpu_write_relaxed(struct hantro_dev *vpu,
+					       u32 val, u32 reg)
 {
 	vpu_debug(6, "0x%04x = 0x%08x\n", reg / 4, val);
 	writel_relaxed(val, vpu->dec_base + reg);
 }
 
-static inline void vdpu_write(struct hantro_dev *vpu, u32 val, u32 reg)
+static __always_inline void vdpu_write(struct hantro_dev *vpu, u32 val, u32 reg)
 {
 	vpu_debug(6, "0x%04x = 0x%08x\n", reg / 4, val);
 	writel(val, vpu->dec_base + reg);
 }
 
-static inline void hantro_write_addr(struct hantro_dev *vpu,
-				     unsigned long offset,
-				     dma_addr_t addr)
+static __always_inline void hantro_write_addr(struct hantro_dev *vpu,
+					      unsigned long offset,
+					      dma_addr_t addr)
 {
 	vdpu_write(vpu, addr & 0xffffffff, offset);
 }
 
-static inline u32 vdpu_read(struct hantro_dev *vpu, u32 reg)
+static __always_inline u32 vdpu_read(struct hantro_dev *vpu, u32 reg)
 {
 	u32 val = readl(vpu->dec_base + reg);
 
@@ -425,9 +425,9 @@ static inline u32 vdpu_read(struct hantro_dev *vpu, u32 reg)
 	return val;
 }
 
-static inline u32 vdpu_read_mask(struct hantro_dev *vpu,
-				 const struct hantro_reg *reg,
-				 u32 val)
+static __always_inline u32 vdpu_read_mask(struct hantro_dev *vpu,
+					  const struct hantro_reg *reg,
+					  u32 val)
 {
 	u32 v;
 
@@ -437,18 +437,18 @@ static inline u32 vdpu_read_mask(struct hantro_dev *vpu,
 	return v;
 }
 
-static inline void hantro_reg_write(struct hantro_dev *vpu,
-				    const struct hantro_reg *reg,
-				    u32 val)
-{
-	vdpu_write_relaxed(vpu, vdpu_read_mask(vpu, reg, val), reg->base);
-}
-
-static inline void hantro_reg_write_s(struct hantro_dev *vpu,
-				      const struct hantro_reg *reg,
-				      u32 val)
+static __always_inline void hantro_reg_write(struct hantro_dev *vpu,
+					     const struct hantro_reg *reg,
+					     u32 val)
 {
 	vdpu_write(vpu, vdpu_read_mask(vpu, reg, val), reg->base);
+}
+
+static __always_inline void hantro_reg_write_relaxed(struct hantro_dev *vpu,
+						     const struct hantro_reg *reg,
+						     u32 val)
+{
+	vdpu_write_relaxed(vpu, vdpu_read_mask(vpu, reg, val), reg->base);
 }
 
 void *hantro_get_ctrl(struct hantro_ctx *ctx, u32 id);

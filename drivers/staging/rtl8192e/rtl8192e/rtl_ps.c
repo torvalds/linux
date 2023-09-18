@@ -118,8 +118,7 @@ void rtl92e_ips_enter(struct net_device *dev)
 
 	rt_state = priv->rtllib->rf_power_state;
 	if (rt_state == rf_on && !psc->bSwRfProcessing &&
-		(priv->rtllib->link_state != MAC80211_LINKED) &&
-		(priv->rtllib->iw_mode != IW_MODE_MASTER)) {
+		(priv->rtllib->link_state != MAC80211_LINKED)) {
 		psc->eInactivePowerState = rf_off;
 		_rtl92e_ps_update_rf_state(dev);
 	}
@@ -210,8 +209,7 @@ void rtl92e_leisure_ps_enter(struct net_device *dev)
 
 	if (!((priv->rtllib->iw_mode == IW_MODE_INFRA) &&
 	    (priv->rtllib->link_state == MAC80211_LINKED))
-	    || (priv->rtllib->iw_mode == IW_MODE_ADHOC) ||
-	    (priv->rtllib->iw_mode == IW_MODE_MASTER))
+	    || (priv->rtllib->iw_mode == IW_MODE_ADHOC))
 		return;
 
 	if (psc->bLeisurePs) {

@@ -46,7 +46,7 @@ patternProperties:
 
       shunt-resistor-micro-ohms:
         description:
-          The value of curent sense resistor in microohms.
+          The value of current sense resistor in microohms.
 
 required:
   - compatible

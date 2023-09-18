@@ -2610,7 +2610,7 @@ static const struct regmap_config wm8996_regmap = {
 	.num_reg_defaults = ARRAY_SIZE(wm8996_reg),
 	.volatile_reg = wm8996_volatile_register,
 	.readable_reg = wm8996_readable_register,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 
 static int wm8996_probe(struct snd_soc_component *component)

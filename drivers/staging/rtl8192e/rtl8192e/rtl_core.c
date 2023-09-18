@@ -618,8 +618,6 @@ static int _rtl92e_sta_up(struct net_device *dev, bool is_silent_reset)
 					(&priv->rtllib->pwr_save_ctrl);
 	bool init_status;
 
-	priv->bdisable_nic = false;
-
 	priv->up = 1;
 	priv->rtllib->ieee_up = 1;
 
@@ -760,13 +758,11 @@ static void _rtl92e_init_priv_variable(struct net_device *dev)
 	priv->up_first_time = 1;
 	priv->blinked_ingpio = false;
 	priv->being_init_adapter = false;
-	priv->bdisable_nic = false;
 	priv->txringcount = 64;
 	priv->rxbuffersize = 9100;
 	priv->rxringcount = MAX_RX_COUNT;
 	priv->irq_enabled = 0;
 	priv->chan = 1;
-	priv->reg_chnl_plan = 0xf;
 	priv->rtllib->mode = WIRELESS_MODE_AUTO;
 	priv->rtllib->iw_mode = IW_MODE_INFRA;
 	priv->rtllib->net_promiscuous_md = false;
@@ -778,7 +774,6 @@ static void _rtl92e_init_priv_variable(struct net_device *dev)
 	priv->retry_data = DEFAULT_RETRY_DATA;
 	priv->rtllib->rts = DEFAULT_RTS_THRESHOLD;
 	priv->rtllib->rate = 110;
-	priv->rtllib->short_slot = 1;
 	priv->promisc = (dev->flags & IFF_PROMISC) ? 1 : 0;
 	priv->bcck_in_ch14 = false;
 	priv->cck_present_attn = 0;
@@ -804,14 +799,8 @@ static void _rtl92e_init_priv_variable(struct net_device *dev)
 	priv->rtllib->iw_mode = IW_MODE_INFRA;
 	priv->rtllib->active_scan = 1;
 	priv->rtllib->be_scan_inprogress = false;
-	priv->rtllib->modulation = RTLLIB_CCK_MODULATION |
-				   RTLLIB_OFDM_MODULATION;
-	priv->rtllib->host_encrypt = 1;
-	priv->rtllib->host_decrypt = 1;
 
 	priv->rtllib->fts = DEFAULT_FRAG_THRESHOLD;
-
-	priv->card_type = PCI;
 
 	priv->fw_info = vzalloc(sizeof(struct rt_firmware));
 	if (!priv->fw_info)
@@ -1504,12 +1493,6 @@ static short _rtl92e_tx(struct net_device *dev, struct sk_buff *skb)
 	int   idx;
 	u32 fwinfo_size = 0;
 
-	if (priv->bdisable_nic) {
-		netdev_warn(dev, "%s: Nic is disabled! Can't tx packet.\n",
-			    __func__);
-		return skb->len;
-	}
-
 	priv->rtllib->bAwakePktSent = true;
 
 	fwinfo_size = sizeof(struct tx_fwinfo_8190pci);
@@ -1990,16 +1973,13 @@ static irqreturn_t _rtl92e_irq(int irq, void *netdev)
 	struct r8192_priv *priv = rtllib_priv(dev);
 	unsigned long flags;
 	u32 inta;
-	u32 intb;
-
-	intb = 0;
 
 	if (priv->irq_enabled == 0)
 		goto done;
 
 	spin_lock_irqsave(&priv->irq_th_lock, flags);
 
-	rtl92e_ack_irq(dev, &inta, &intb);
+	rtl92e_ack_irq(dev, &inta);
 
 	if (!inta) {
 		spin_unlock_irqrestore(&priv->irq_th_lock, flags);
@@ -2251,20 +2231,17 @@ bool rtl92e_enable_nic(struct net_device *dev)
 
 	if (!priv->up) {
 		netdev_warn(dev, "%s(): Driver is already down!\n", __func__);
-		priv->bdisable_nic = false;
 		return false;
 	}
 
 	init_status = rtl92e_start_adapter(dev);
 	if (!init_status) {
 		netdev_warn(dev, "%s(): Initialization failed!\n", __func__);
-		priv->bdisable_nic = false;
 		return false;
 	}
 	RT_CLEAR_PS_LEVEL(psc, RT_RF_OFF_LEVL_HALT_NIC);
 
 	rtl92e_irq_enable(dev);
-	priv->bdisable_nic = false;
 	return init_status;
 }
 

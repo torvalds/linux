@@ -11,8 +11,6 @@
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
-#include <linux/of_pci.h>
-#include <linux/of_platform.h>
 #include <linux/pci.h>
 #include <linux/pci-acpi.h>
 #include <linux/pci-ecam.h>

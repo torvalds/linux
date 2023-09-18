@@ -16,7 +16,7 @@
 #include <linux/mfd/hi655x-pmic.h>
 #include <linux/module.h>
 #include <linux/gpio/consumer.h>
-#include <linux/of_platform.h>
+#include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 
@@ -100,8 +100,7 @@ static int hi655x_pmic_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	pmic->dev = dev;
 
-	pmic->res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = devm_ioremap_resource(dev, pmic->res);
+	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 
@@ -163,7 +162,7 @@ MODULE_DEVICE_TABLE(of, hi655x_pmic_match);
 static struct platform_driver hi655x_pmic_driver = {
 	.driver	= {
 		.name =	"hi655x-pmic",
-		.of_match_table = of_match_ptr(hi655x_pmic_match),
+		.of_match_table = hi655x_pmic_match,
 	},
 	.probe  = hi655x_pmic_probe,
 	.remove = hi655x_pmic_remove,

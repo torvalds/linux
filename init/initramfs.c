@@ -61,7 +61,7 @@ static void __init error(char *x)
 }
 
 #define panic_show_mem(fmt, ...) \
-	({ show_mem(0, NULL); panic(fmt, ##__VA_ARGS__); })
+	({ show_mem(); panic(fmt, ##__VA_ARGS__); })
 
 /* link hash */
 

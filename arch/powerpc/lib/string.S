@@ -4,8 +4,8 @@
  *
  * Copyright (C) 1996 Paul Mackerras.
  */
+#include <linux/export.h>
 #include <asm/ppc_asm.h>
-#include <asm/export.h>
 #include <asm/cache.h>
 
 	.text

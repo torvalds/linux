@@ -796,8 +796,8 @@ static void mips_ejtag_fdc_tty_hangup(struct tty_struct *tty)
 	tty_port_hangup(tty->port);
 }
 
-static int mips_ejtag_fdc_tty_write(struct tty_struct *tty,
-				    const unsigned char *buf, int total)
+static ssize_t mips_ejtag_fdc_tty_write(struct tty_struct *tty, const u8 *buf,
+					size_t total)
 {
 	int count, block;
 	struct mips_ejtag_fdc_tty_port *dport = tty->driver_data;
@@ -816,7 +816,7 @@ static int mips_ejtag_fdc_tty_write(struct tty_struct *tty,
 	 */
 	spin_lock(&dport->xmit_lock);
 	/* Work out how many bytes we can write to the xmit buffer */
-	total = min(total, (int)(priv->xmit_size - dport->xmit_cnt));
+	total = min_t(size_t, total, priv->xmit_size - dport->xmit_cnt);
 	atomic_add(total, &priv->xmit_total);
 	dport->xmit_cnt += total;
 	/* Write the actual bytes (may need splitting if it wraps) */

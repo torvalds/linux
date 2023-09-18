@@ -14,7 +14,7 @@ Required properties:
 - #clock-cells : from common clock binding; shall be set to 0.
 - compatible : shall be "ti,keystone,main-pll-clock" or "ti,keystone,pll-clock"
 - clocks : parent clock phandle
-- reg - pll control0 and pll multipler registers
+- reg - pll control0 and pll multiplier registers
 - reg-names : control, multiplier and post-divider. The multiplier and
 		post-divider registers are applicable only for main pll clock
 - fixed-postdiv : fixed post divider value. If absent, use clkod register bits

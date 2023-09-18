@@ -213,7 +213,6 @@
 
 		rmi4-f1a@1a {
 			reg = <0x1a>;
-			syna,codes = <KEY_BACK KEY_APPSELECT>;
 		};
 	};
 };

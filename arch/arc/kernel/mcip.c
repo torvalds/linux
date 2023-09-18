@@ -165,8 +165,6 @@ static void mcip_probe_n_setup(void)
 		IS_AVAIL1(mp.idu, "IDU "),
 		IS_AVAIL1(mp.dbg, "DEBUG "),
 		IS_AVAIL1(mp.gfrc, "GFRC"));
-
-	cpuinfo_arc700[0].extn.gfrc = mp.gfrc;
 }
 
 struct plat_smp_ops plat_smp_ops = {

@@ -129,9 +129,8 @@ srmcons_do_write(struct tty_port *port, const char *buf, int count)
 	return count;
 }
 
-static int
-srmcons_write(struct tty_struct *tty,
-	      const unsigned char *buf, int count)
+static ssize_t
+srmcons_write(struct tty_struct *tty, const u8 *buf, size_t count)
 {
 	unsigned long flags;
 

@@ -780,6 +780,27 @@ int amdgpu_vm_pde_update(struct amdgpu_vm_update_params *params,
 					1, 0, flags);
 }
 
+/**
+ * amdgpu_vm_pte_update_noretry_flags - Update PTE no-retry flags
+ *
+ * @adev: amdgpu_device pointer
+ * @flags: pointer to PTE flags
+ *
+ * Update PTE no-retry flags when TF is enabled.
+ */
+static void amdgpu_vm_pte_update_noretry_flags(struct amdgpu_device *adev,
+						uint64_t *flags)
+{
+	/*
+	 * Update no-retry flags with the corresponding TF
+	 * no-retry combination.
+	 */
+	if ((*flags & AMDGPU_VM_NORETRY_FLAGS) == AMDGPU_VM_NORETRY_FLAGS) {
+		*flags &= ~AMDGPU_VM_NORETRY_FLAGS;
+		*flags |= adev->gmc.noretry_flags;
+	}
+}
+
 /*
  * amdgpu_vm_pte_update_flags - figure out flags for PTE updates
  *
@@ -805,6 +826,16 @@ static void amdgpu_vm_pte_update_flags(struct amdgpu_vm_update_params *params,
 		/* Workaround for fault priority problem on GMC9 */
 		flags |= AMDGPU_PTE_EXECUTABLE;
 	}
+
+	/*
+	 * Update no-retry flags to use the no-retry flag combination
+	 * with TF enabled. The AMDGPU_VM_NORETRY_FLAGS flag combination
+	 * does not work when TF is enabled. So, replace them with
+	 * AMDGPU_VM_NORETRY_FLAGS_TF flag combination which works for
+	 * all cases.
+	 */
+	if (level == AMDGPU_VM_PTB)
+		amdgpu_vm_pte_update_noretry_flags(adev, &flags);
 
 	/* APUs mapping system memory may need different MTYPEs on different
 	 * NUMA nodes. Only do this for contiguous ranges that can be assumed
@@ -1041,6 +1072,34 @@ int amdgpu_vm_ptes_update(struct amdgpu_vm_update_params *params,
 		} else if (frag >= shift) {
 			/* or just move on to the next on the same level. */
 			amdgpu_vm_pt_next(adev, &cursor);
+		}
+	}
+
+	return 0;
+}
+
+/**
+ * amdgpu_vm_pt_map_tables - have bo of root PD cpu accessible
+ * @adev: amdgpu device structure
+ * @vm: amdgpu vm structure
+ *
+ * make root page directory and everything below it cpu accessible.
+ */
+int amdgpu_vm_pt_map_tables(struct amdgpu_device *adev, struct amdgpu_vm *vm)
+{
+	struct amdgpu_vm_pt_cursor cursor;
+	struct amdgpu_vm_bo_base *entry;
+
+	for_each_amdgpu_vm_pt_dfs_safe(adev, vm, NULL, cursor, entry) {
+
+		struct amdgpu_bo_vm *bo;
+		int r;
+
+		if (entry->bo) {
+			bo = to_amdgpu_bo_vm(entry->bo);
+			r = vm->update_funcs->map_table(bo);
+			if (r)
+				return r;
 		}
 	}
 

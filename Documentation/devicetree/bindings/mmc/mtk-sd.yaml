@@ -91,16 +91,6 @@ properties:
       should switch dat1 pin to GPIO mode.
     maxItems: 1
 
-  assigned-clocks:
-    description:
-      PLL of the source clock.
-    maxItems: 1
-
-  assigned-clock-parents:
-    description:
-      parent of source clock, used for HS400 mode to get 400Mhz source clock.
-    maxItems: 1
-
   hs400-ds-delay:
     $ref: /schemas/types.yaml#/definitions/uint32
     description:

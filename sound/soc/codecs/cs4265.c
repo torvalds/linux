@@ -564,7 +564,7 @@ static const struct regmap_config cs4265_regmap = {
 	.num_reg_defaults = ARRAY_SIZE(cs4265_reg_defaults),
 	.readable_reg = cs4265_readable_register,
 	.volatile_reg = cs4265_volatile_register,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 
 static int cs4265_i2c_probe(struct i2c_client *i2c_client)

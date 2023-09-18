@@ -113,6 +113,15 @@ static inline int ksft_get_error_cnt(void) { return ksft_cnt.ksft_error; }
 
 static inline void ksft_print_header(void)
 {
+	/*
+	 * Force line buffering; If stdout is not connected to a terminal, it
+	 * will otherwise default to fully buffered, which can cause output
+	 * duplication if there is content in the buffer when fork()ing. If
+	 * there is a crash, line buffering also means the most recent output
+	 * line will be visible.
+	 */
+	setvbuf(stdout, NULL, _IOLBF, 0);
+
 	if (!(getenv("KSFT_TAP_LEVEL")))
 		printf("TAP version 13\n");
 }

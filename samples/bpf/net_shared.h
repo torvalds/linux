@@ -17,6 +17,8 @@
 #define TC_ACT_OK		0
 #define TC_ACT_SHOT		2
 
+#define IFNAMSIZ 16
+
 #if defined(__BYTE_ORDER__) && defined(__ORDER_LITTLE_ENDIAN__) && \
 	__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 #define bpf_ntohs(x)		__builtin_bswap16(x)

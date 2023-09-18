@@ -106,7 +106,7 @@ int ui_browser__input_window(const char *title, const char *text, char *input,
 	SLsmg_draw_box(y, x++, nr_lines, max_len);
 	if (title) {
 		SLsmg_gotorc(y, x + 1);
-		SLsmg_write_string((char *)title);
+		SLsmg_write_string(title);
 	}
 	SLsmg_gotorc(++y, x);
 	nr_lines -= 7;
@@ -117,12 +117,12 @@ int ui_browser__input_window(const char *title, const char *text, char *input,
 	len = 5;
 	while (len--) {
 		SLsmg_gotorc(y + len - 1, x);
-		SLsmg_write_nstring((char *)" ", max_len);
+		SLsmg_write_nstring(" ", max_len);
 	}
 	SLsmg_draw_box(y++, x + 1, 3, max_len - 2);
 
 	SLsmg_gotorc(y + 3, x);
-	SLsmg_write_nstring((char *)exit_msg, max_len);
+	SLsmg_write_nstring(exit_msg, max_len);
 	SLsmg_refresh();
 
 	mutex_unlock(&ui__lock);
@@ -197,7 +197,7 @@ void __ui__info_window(const char *title, const char *text, const char *exit_msg
 	SLsmg_draw_box(y, x++, nr_lines, max_len);
 	if (title) {
 		SLsmg_gotorc(y, x + 1);
-		SLsmg_write_string((char *)title);
+		SLsmg_write_string(title);
 	}
 	SLsmg_gotorc(++y, x);
 	if (exit_msg)
@@ -207,9 +207,9 @@ void __ui__info_window(const char *title, const char *text, const char *exit_msg
 				   nr_lines, max_len, 1);
 	if (exit_msg) {
 		SLsmg_gotorc(y + nr_lines - 2, x);
-		SLsmg_write_nstring((char *)" ", max_len);
+		SLsmg_write_nstring(" ", max_len);
 		SLsmg_gotorc(y + nr_lines - 1, x);
-		SLsmg_write_nstring((char *)exit_msg, max_len);
+		SLsmg_write_nstring(exit_msg, max_len);
 	}
 }
 

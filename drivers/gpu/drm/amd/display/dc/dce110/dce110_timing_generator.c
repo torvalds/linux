@@ -288,7 +288,7 @@ bool dce110_timing_generator_program_timing_generator(
 
 	uint32_t vsync_offset = dc_crtc_timing->v_border_bottom +
 			dc_crtc_timing->v_front_porch;
-	uint32_t v_sync_start =dc_crtc_timing->v_addressable + vsync_offset;
+	uint32_t v_sync_start = dc_crtc_timing->v_addressable + vsync_offset;
 
 	uint32_t hsync_offset = dc_crtc_timing->h_border_right +
 			dc_crtc_timing->h_front_porch;
@@ -603,7 +603,7 @@ void dce110_timing_generator_program_blanking(
 {
 	uint32_t vsync_offset = timing->v_border_bottom +
 			timing->v_front_porch;
-	uint32_t v_sync_start =timing->v_addressable + vsync_offset;
+	uint32_t v_sync_start = timing->v_addressable + vsync_offset;
 
 	uint32_t hsync_offset = timing->h_border_right +
 			timing->h_front_porch;

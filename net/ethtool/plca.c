@@ -40,7 +40,7 @@ const struct nla_policy ethnl_plca_get_cfg_policy[] = {
 
 static int plca_get_cfg_prepare_data(const struct ethnl_req_info *req_base,
 				     struct ethnl_reply_data *reply_base,
-				     struct genl_info *info)
+				     const struct genl_info *info)
 {
 	struct plca_reply_data *data = PLCA_REPDATA(reply_base);
 	struct net_device *dev = reply_base->dev;
@@ -183,7 +183,7 @@ const struct nla_policy ethnl_plca_get_status_policy[] = {
 
 static int plca_get_status_prepare_data(const struct ethnl_req_info *req_base,
 					struct ethnl_reply_data *reply_base,
-					struct genl_info *info)
+					const struct genl_info *info)
 {
 	struct plca_reply_data *data = PLCA_REPDATA(reply_base);
 	struct net_device *dev = reply_base->dev;

@@ -34,9 +34,10 @@
 #define _GVT_H_
 
 #include <uapi/linux/pci_regs.h>
-#include <linux/kvm_host.h>
 #include <linux/vfio.h>
 #include <linux/mdev.h>
+
+#include <asm/kvm_page_track.h>
 
 #include "i915_drv.h"
 #include "intel_gvt.h"

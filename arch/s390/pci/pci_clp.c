@@ -666,9 +666,4 @@ static struct miscdevice clp_misc_device = {
 	.fops = &clp_misc_fops,
 };
 
-static int __init clp_misc_init(void)
-{
-	return misc_register(&clp_misc_device);
-}
-
-device_initcall(clp_misc_init);
+builtin_misc_device(clp_misc_device);

@@ -1581,6 +1581,7 @@ rcu_torture_writer(void *arg)
 				    rcu_access_pointer(rcu_torture_current) !=
 				    &rcu_tortures[i]) {
 					tracing_off();
+					show_rcu_gp_kthreads();
 					WARN(1, "%s: rtort_pipe_count: %d\n", __func__, rcu_tortures[i].rtort_pipe_count);
 					rcu_ftrace_dump(DUMP_ALL);
 				}
@@ -1876,7 +1877,7 @@ static int
 rcutorture_extend_mask(int oldmask, struct torture_random_state *trsp)
 {
 	int mask = rcutorture_extend_mask_max();
-	unsigned long randmask1 = torture_random(trsp) >> 8;
+	unsigned long randmask1 = torture_random(trsp);
 	unsigned long randmask2 = randmask1 >> 3;
 	unsigned long preempts = RCUTORTURE_RDR_PREEMPT | RCUTORTURE_RDR_SCHED;
 	unsigned long preempts_irq = preempts | RCUTORTURE_RDR_IRQ;
@@ -1935,7 +1936,7 @@ rcutorture_loop_extend(int *readstate, struct torture_random_state *trsp,
 	if (!((mask - 1) & mask))
 		return rtrsp;  /* Current RCU reader not extendable. */
 	/* Bias towards larger numbers of loops. */
-	i = (torture_random(trsp) >> 3);
+	i = torture_random(trsp);
 	i = ((i | (i >> 3)) & RCUTORTURE_RDR_MAX_LOOPS) + 1;
 	for (j = 0; j < i; j++) {
 		mask = rcutorture_extend_mask(*readstate, trsp);
@@ -2136,7 +2137,7 @@ static int rcu_nocb_toggle(void *arg)
 		toggle_fuzz = NSEC_PER_USEC;
 	do {
 		r = torture_random(&rand);
-		cpu = (r >> 4) % (maxcpu + 1);
+		cpu = (r >> 1) % (maxcpu + 1);
 		if (r & 0x1) {
 			rcu_nocb_cpu_offload(cpu);
 			atomic_long_inc(&n_nocb_offload);

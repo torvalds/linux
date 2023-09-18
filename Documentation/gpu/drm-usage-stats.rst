@@ -8,7 +8,7 @@ DRM drivers can choose to export partly standardised text output via the
 `fops->show_fdinfo()` as part of the driver specific file operations registered
 in the `struct drm_driver` object registered with the DRM core.
 
-One purpose of this output is to enable writing as generic as practicaly
+One purpose of this output is to enable writing as generic as practically
 feasible `top(1)` like userspace monitoring tools.
 
 Given the differences between various DRM drivers the specification of the
@@ -119,7 +119,7 @@ drm-engine-<keystr> tag and shall contain the maximum frequency for the given
 engine.  Taken together with drm-cycles-<keystr>, this can be used to calculate
 percentage utilization of the engine, whereas drm-engine-<keystr> only reflects
 time active without considering what frequency the engine is operating as a
-percentage of it's maximum frequency.
+percentage of its maximum frequency.
 
 Memory
 ^^^^^^

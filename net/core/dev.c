@@ -107,6 +107,7 @@
 #include <net/pkt_cls.h>
 #include <net/checksum.h>
 #include <net/xfrm.h>
+#include <net/tcx.h>
 #include <linux/highmem.h>
 #include <linux/init.h>
 #include <linux/module.h>
@@ -132,6 +133,7 @@
 #include <trace/events/net.h>
 #include <trace/events/skb.h>
 #include <trace/events/qdisc.h>
+#include <trace/events/xdp.h>
 #include <linux/inetdevice.h>
 #include <linux/cpu_rmap.h>
 #include <linux/static_key.h>
@@ -150,10 +152,10 @@
 #include <linux/pm_runtime.h>
 #include <linux/prandom.h>
 #include <linux/once_lite.h>
+#include <net/netdev_rx_queue.h>
 
 #include "dev.h"
 #include "net-sysfs.h"
-
 
 static DEFINE_SPINLOCK(ptype_lock);
 struct list_head ptype_base[PTYPE_HASH_SIZE] __read_mostly;
@@ -388,6 +390,8 @@ static void list_netdevice(struct net_device *dev)
 	hlist_add_head_rcu(&dev->index_hlist,
 			   dev_index_hash(net, dev->ifindex));
 	write_unlock(&dev_base_lock);
+	/* We reserved the ifindex, this can't fail */
+	WARN_ON(xa_store(&net->dev_by_index, dev->ifindex, dev, GFP_KERNEL));
 
 	dev_base_seq_inc(net);
 }
@@ -397,7 +401,11 @@ static void list_netdevice(struct net_device *dev)
  */
 static void unlist_netdevice(struct net_device *dev, bool lock)
 {
+	struct net *net = dev_net(dev);
+
 	ASSERT_RTNL();
+
+	xa_erase(&net->dev_by_index, dev->ifindex);
 
 	/* Unlink dev from the device chain */
 	if (lock)
@@ -2384,8 +2392,7 @@ static bool remove_xps_queue(struct xps_dev_maps *dev_maps,
 	struct xps_map *map = NULL;
 	int pos;
 
-	if (dev_maps)
-		map = xmap_dereference(dev_maps->attr_map[tci]);
+	map = xmap_dereference(dev_maps->attr_map[tci]);
 	if (!map)
 		return false;
 
@@ -3882,50 +3889,6 @@ int dev_loopback_xmit(struct net *net, struct sock *sk, struct sk_buff *skb)
 EXPORT_SYMBOL(dev_loopback_xmit);
 
 #ifdef CONFIG_NET_EGRESS
-static struct sk_buff *
-sch_handle_egress(struct sk_buff *skb, int *ret, struct net_device *dev)
-{
-#ifdef CONFIG_NET_CLS_ACT
-	struct mini_Qdisc *miniq = rcu_dereference_bh(dev->miniq_egress);
-	struct tcf_result cl_res;
-
-	if (!miniq)
-		return skb;
-
-	/* qdisc_skb_cb(skb)->pkt_len was already set by the caller. */
-	tc_skb_cb(skb)->mru = 0;
-	tc_skb_cb(skb)->post_ct = false;
-	mini_qdisc_bstats_cpu_update(miniq, skb);
-
-	switch (tcf_classify(skb, miniq->block, miniq->filter_list, &cl_res, false)) {
-	case TC_ACT_OK:
-	case TC_ACT_RECLASSIFY:
-		skb->tc_index = TC_H_MIN(cl_res.classid);
-		break;
-	case TC_ACT_SHOT:
-		mini_qdisc_qstats_cpu_drop(miniq);
-		*ret = NET_XMIT_DROP;
-		kfree_skb_reason(skb, SKB_DROP_REASON_TC_EGRESS);
-		return NULL;
-	case TC_ACT_STOLEN:
-	case TC_ACT_QUEUED:
-	case TC_ACT_TRAP:
-		*ret = NET_XMIT_SUCCESS;
-		consume_skb(skb);
-		return NULL;
-	case TC_ACT_REDIRECT:
-		/* No need to push/pop skb's mac_header here on egress! */
-		skb_do_redirect(skb);
-		*ret = NET_XMIT_SUCCESS;
-		return NULL;
-	default:
-		break;
-	}
-#endif /* CONFIG_NET_CLS_ACT */
-
-	return skb;
-}
-
 static struct netdev_queue *
 netdev_tx_queue_mapping(struct net_device *dev, struct sk_buff *skb)
 {
@@ -3945,6 +3908,182 @@ void netdev_xmit_skip_txqueue(bool skip)
 }
 EXPORT_SYMBOL_GPL(netdev_xmit_skip_txqueue);
 #endif /* CONFIG_NET_EGRESS */
+
+#ifdef CONFIG_NET_XGRESS
+static int tc_run(struct tcx_entry *entry, struct sk_buff *skb)
+{
+	int ret = TC_ACT_UNSPEC;
+#ifdef CONFIG_NET_CLS_ACT
+	struct mini_Qdisc *miniq = rcu_dereference_bh(entry->miniq);
+	struct tcf_result res;
+
+	if (!miniq)
+		return ret;
+
+	tc_skb_cb(skb)->mru = 0;
+	tc_skb_cb(skb)->post_ct = false;
+
+	mini_qdisc_bstats_cpu_update(miniq, skb);
+	ret = tcf_classify(skb, miniq->block, miniq->filter_list, &res, false);
+	/* Only tcf related quirks below. */
+	switch (ret) {
+	case TC_ACT_SHOT:
+		mini_qdisc_qstats_cpu_drop(miniq);
+		break;
+	case TC_ACT_OK:
+	case TC_ACT_RECLASSIFY:
+		skb->tc_index = TC_H_MIN(res.classid);
+		break;
+	}
+#endif /* CONFIG_NET_CLS_ACT */
+	return ret;
+}
+
+static DEFINE_STATIC_KEY_FALSE(tcx_needed_key);
+
+void tcx_inc(void)
+{
+	static_branch_inc(&tcx_needed_key);
+}
+
+void tcx_dec(void)
+{
+	static_branch_dec(&tcx_needed_key);
+}
+
+static __always_inline enum tcx_action_base
+tcx_run(const struct bpf_mprog_entry *entry, struct sk_buff *skb,
+	const bool needs_mac)
+{
+	const struct bpf_mprog_fp *fp;
+	const struct bpf_prog *prog;
+	int ret = TCX_NEXT;
+
+	if (needs_mac)
+		__skb_push(skb, skb->mac_len);
+	bpf_mprog_foreach_prog(entry, fp, prog) {
+		bpf_compute_data_pointers(skb);
+		ret = bpf_prog_run(prog, skb);
+		if (ret != TCX_NEXT)
+			break;
+	}
+	if (needs_mac)
+		__skb_pull(skb, skb->mac_len);
+	return tcx_action_code(skb, ret);
+}
+
+static __always_inline struct sk_buff *
+sch_handle_ingress(struct sk_buff *skb, struct packet_type **pt_prev, int *ret,
+		   struct net_device *orig_dev, bool *another)
+{
+	struct bpf_mprog_entry *entry = rcu_dereference_bh(skb->dev->tcx_ingress);
+	int sch_ret;
+
+	if (!entry)
+		return skb;
+	if (*pt_prev) {
+		*ret = deliver_skb(skb, *pt_prev, orig_dev);
+		*pt_prev = NULL;
+	}
+
+	qdisc_skb_cb(skb)->pkt_len = skb->len;
+	tcx_set_ingress(skb, true);
+
+	if (static_branch_unlikely(&tcx_needed_key)) {
+		sch_ret = tcx_run(entry, skb, true);
+		if (sch_ret != TC_ACT_UNSPEC)
+			goto ingress_verdict;
+	}
+	sch_ret = tc_run(tcx_entry(entry), skb);
+ingress_verdict:
+	switch (sch_ret) {
+	case TC_ACT_REDIRECT:
+		/* skb_mac_header check was done by BPF, so we can safely
+		 * push the L2 header back before redirecting to another
+		 * netdev.
+		 */
+		__skb_push(skb, skb->mac_len);
+		if (skb_do_redirect(skb) == -EAGAIN) {
+			__skb_pull(skb, skb->mac_len);
+			*another = true;
+			break;
+		}
+		*ret = NET_RX_SUCCESS;
+		return NULL;
+	case TC_ACT_SHOT:
+		kfree_skb_reason(skb, SKB_DROP_REASON_TC_INGRESS);
+		*ret = NET_RX_DROP;
+		return NULL;
+	/* used by tc_run */
+	case TC_ACT_STOLEN:
+	case TC_ACT_QUEUED:
+	case TC_ACT_TRAP:
+		consume_skb(skb);
+		fallthrough;
+	case TC_ACT_CONSUMED:
+		*ret = NET_RX_SUCCESS;
+		return NULL;
+	}
+
+	return skb;
+}
+
+static __always_inline struct sk_buff *
+sch_handle_egress(struct sk_buff *skb, int *ret, struct net_device *dev)
+{
+	struct bpf_mprog_entry *entry = rcu_dereference_bh(dev->tcx_egress);
+	int sch_ret;
+
+	if (!entry)
+		return skb;
+
+	/* qdisc_skb_cb(skb)->pkt_len & tcx_set_ingress() was
+	 * already set by the caller.
+	 */
+	if (static_branch_unlikely(&tcx_needed_key)) {
+		sch_ret = tcx_run(entry, skb, false);
+		if (sch_ret != TC_ACT_UNSPEC)
+			goto egress_verdict;
+	}
+	sch_ret = tc_run(tcx_entry(entry), skb);
+egress_verdict:
+	switch (sch_ret) {
+	case TC_ACT_REDIRECT:
+		/* No need to push/pop skb's mac_header here on egress! */
+		skb_do_redirect(skb);
+		*ret = NET_XMIT_SUCCESS;
+		return NULL;
+	case TC_ACT_SHOT:
+		kfree_skb_reason(skb, SKB_DROP_REASON_TC_EGRESS);
+		*ret = NET_XMIT_DROP;
+		return NULL;
+	/* used by tc_run */
+	case TC_ACT_STOLEN:
+	case TC_ACT_QUEUED:
+	case TC_ACT_TRAP:
+		consume_skb(skb);
+		fallthrough;
+	case TC_ACT_CONSUMED:
+		*ret = NET_XMIT_SUCCESS;
+		return NULL;
+	}
+
+	return skb;
+}
+#else
+static __always_inline struct sk_buff *
+sch_handle_ingress(struct sk_buff *skb, struct packet_type **pt_prev, int *ret,
+		   struct net_device *orig_dev, bool *another)
+{
+	return skb;
+}
+
+static __always_inline struct sk_buff *
+sch_handle_egress(struct sk_buff *skb, int *ret, struct net_device *dev)
+{
+	return skb;
+}
+#endif /* CONFIG_NET_XGRESS */
 
 #ifdef CONFIG_XPS
 static int __get_xps_queue_idx(struct net_device *dev, struct sk_buff *skb,
@@ -4128,9 +4267,7 @@ int __dev_queue_xmit(struct sk_buff *skb, struct net_device *sb_dev)
 	skb_update_prio(skb);
 
 	qdisc_pkt_len_init(skb);
-#ifdef CONFIG_NET_CLS_ACT
-	skb->tc_at_ingress = 0;
-#endif
+	tcx_set_ingress(skb, false);
 #ifdef CONFIG_NET_EGRESS
 	if (static_branch_unlikely(&egress_needed_key)) {
 		if (nf_hook_egress_active()) {
@@ -5063,72 +5200,6 @@ int (*br_fdb_test_addr_hook)(struct net_device *dev,
 			     unsigned char *addr) __read_mostly;
 EXPORT_SYMBOL_GPL(br_fdb_test_addr_hook);
 #endif
-
-static inline struct sk_buff *
-sch_handle_ingress(struct sk_buff *skb, struct packet_type **pt_prev, int *ret,
-		   struct net_device *orig_dev, bool *another)
-{
-#ifdef CONFIG_NET_CLS_ACT
-	struct mini_Qdisc *miniq = rcu_dereference_bh(skb->dev->miniq_ingress);
-	struct tcf_result cl_res;
-
-	/* If there's at least one ingress present somewhere (so
-	 * we get here via enabled static key), remaining devices
-	 * that are not configured with an ingress qdisc will bail
-	 * out here.
-	 */
-	if (!miniq)
-		return skb;
-
-	if (*pt_prev) {
-		*ret = deliver_skb(skb, *pt_prev, orig_dev);
-		*pt_prev = NULL;
-	}
-
-	qdisc_skb_cb(skb)->pkt_len = skb->len;
-	tc_skb_cb(skb)->mru = 0;
-	tc_skb_cb(skb)->post_ct = false;
-	skb->tc_at_ingress = 1;
-	mini_qdisc_bstats_cpu_update(miniq, skb);
-
-	switch (tcf_classify(skb, miniq->block, miniq->filter_list, &cl_res, false)) {
-	case TC_ACT_OK:
-	case TC_ACT_RECLASSIFY:
-		skb->tc_index = TC_H_MIN(cl_res.classid);
-		break;
-	case TC_ACT_SHOT:
-		mini_qdisc_qstats_cpu_drop(miniq);
-		kfree_skb_reason(skb, SKB_DROP_REASON_TC_INGRESS);
-		*ret = NET_RX_DROP;
-		return NULL;
-	case TC_ACT_STOLEN:
-	case TC_ACT_QUEUED:
-	case TC_ACT_TRAP:
-		consume_skb(skb);
-		*ret = NET_RX_SUCCESS;
-		return NULL;
-	case TC_ACT_REDIRECT:
-		/* skb_mac_header check was done by cls/act_bpf, so
-		 * we can safely push the L2 header back before
-		 * redirecting to another netdev
-		 */
-		__skb_push(skb, skb->mac_len);
-		if (skb_do_redirect(skb) == -EAGAIN) {
-			__skb_pull(skb, skb->mac_len);
-			*another = true;
-			break;
-		}
-		*ret = NET_RX_SUCCESS;
-		return NULL;
-	case TC_ACT_CONSUMED:
-		*ret = NET_RX_SUCCESS;
-		return NULL;
-	default:
-		break;
-	}
-#endif /* CONFIG_NET_CLS_ACT */
-	return skb;
-}
 
 /**
  *	netdev_is_rx_handler_busy - check if receive handler is registered
@@ -6316,12 +6387,8 @@ int dev_set_threaded(struct net_device *dev, bool threaded)
 	 * softirq mode will happen in the next round of napi_schedule().
 	 * This should not cause hiccups/stalls to the live traffic.
 	 */
-	list_for_each_entry(napi, &dev->napi_list, dev_list) {
-		if (threaded)
-			set_bit(NAPI_STATE_THREADED, &napi->state);
-		else
-			clear_bit(NAPI_STATE_THREADED, &napi->state);
-	}
+	list_for_each_entry(napi, &dev->napi_list, dev_list)
+		assign_bit(NAPI_STATE_THREADED, &napi->state, threaded);
 
 	return err;
 }
@@ -9413,6 +9480,7 @@ int bpf_xdp_link_attach(const union bpf_attr *attr, struct bpf_prog *prog)
 {
 	struct net *net = current->nsproxy->net_ns;
 	struct bpf_link_primer link_primer;
+	struct netlink_ext_ack extack = {};
 	struct bpf_xdp_link *link;
 	struct net_device *dev;
 	int err, fd;
@@ -9440,12 +9508,13 @@ int bpf_xdp_link_attach(const union bpf_attr *attr, struct bpf_prog *prog)
 		goto unlock;
 	}
 
-	err = dev_xdp_attach_link(dev, NULL, link);
+	err = dev_xdp_attach_link(dev, &extack, link);
 	rtnl_unlock();
 
 	if (err) {
 		link->dev = NULL;
 		bpf_link_cleanup(&link_primer);
+		trace_bpf_xdp_link_attach_failed(extack._msg);
 		goto out_put_dev;
 	}
 
@@ -9509,23 +9578,40 @@ err_out:
 }
 
 /**
- *	dev_new_index	-	allocate an ifindex
- *	@net: the applicable net namespace
+ * dev_index_reserve() - allocate an ifindex in a namespace
+ * @net: the applicable net namespace
+ * @ifindex: requested ifindex, pass %0 to get one allocated
  *
- *	Returns a suitable unique value for a new device interface
- *	number.  The caller must hold the rtnl semaphore or the
- *	dev_base_lock to be sure it remains unique.
+ * Allocate a ifindex for a new device. Caller must either use the ifindex
+ * to store the device (via list_netdevice()) or call dev_index_release()
+ * to give the index up.
+ *
+ * Return: a suitable unique value for a new device interface number or -errno.
  */
-static int dev_new_index(struct net *net)
+static int dev_index_reserve(struct net *net, u32 ifindex)
 {
-	int ifindex = net->ifindex;
+	int err;
 
-	for (;;) {
-		if (++ifindex <= 0)
-			ifindex = 1;
-		if (!__dev_get_by_index(net, ifindex))
-			return net->ifindex = ifindex;
+	if (ifindex > INT_MAX) {
+		DEBUG_NET_WARN_ON_ONCE(1);
+		return -EINVAL;
 	}
+
+	if (!ifindex)
+		err = xa_alloc_cyclic(&net->dev_by_index, &ifindex, NULL,
+				      xa_limit_31b, &net->ifindex, GFP_KERNEL);
+	else
+		err = xa_insert(&net->dev_by_index, ifindex, NULL, GFP_KERNEL);
+	if (err < 0)
+		return err;
+
+	return ifindex;
+}
+
+static void dev_index_release(struct net *net, int ifindex)
+{
+	/* Expect only unused indexes, unlist_netdevice() removes the used */
+	WARN_ON(xa_erase(&net->dev_by_index, ifindex));
 }
 
 /* Delayed registration/unregisteration */
@@ -9995,11 +10081,10 @@ int register_netdevice(struct net_device *dev)
 		goto err_uninit;
 	}
 
-	ret = -EBUSY;
-	if (!dev->ifindex)
-		dev->ifindex = dev_new_index(net);
-	else if (__dev_get_by_index(net, dev->ifindex))
+	ret = dev_index_reserve(net, dev->ifindex);
+	if (ret < 0)
 		goto err_uninit;
+	dev->ifindex = ret;
 
 	/* Transfer changeable features to wanted_features and enable
 	 * software offloads (GSO and GRO).
@@ -10046,7 +10131,7 @@ int register_netdevice(struct net_device *dev)
 	ret = call_netdevice_notifiers(NETDEV_POST_INIT, dev);
 	ret = notifier_to_errno(ret);
 	if (ret)
-		goto err_uninit;
+		goto err_ifindex_release;
 
 	ret = netdev_register_kobject(dev);
 	write_lock(&dev_base_lock);
@@ -10102,6 +10187,8 @@ out:
 
 err_uninit_notify:
 	call_netdevice_notifiers(NETDEV_PRE_UNINIT, dev);
+err_ifindex_release:
+	dev_index_release(net, dev->ifindex);
 err_uninit:
 	if (dev->netdev_ops->ndo_uninit)
 		dev->netdev_ops->ndo_uninit(dev);
@@ -10617,6 +10704,7 @@ struct net_device *alloc_netdev_mqs(int sizeof_priv, const char *name,
 	dev_net_set(dev, &init_net);
 
 	dev->gso_max_size = GSO_LEGACY_MAX_SIZE;
+	dev->xdp_zc_max_segs = 1;
 	dev->gso_max_segs = GSO_MAX_SEGS;
 	dev->gro_max_size = GRO_LEGACY_MAX_SIZE;
 	dev->gso_ipv4_max_size = GSO_LEGACY_MAX_SIZE;
@@ -10838,7 +10926,7 @@ void unregister_netdevice_many_notify(struct list_head *head,
 
 		/* Shutdown queueing discipline. */
 		dev_shutdown(dev);
-
+		dev_tcx_uninstall(dev);
 		dev_xdp_uninstall(dev);
 		bpf_dev_bound_netdev_unregister(dev);
 
@@ -10978,9 +11066,19 @@ int __dev_change_net_namespace(struct net_device *dev, struct net *net,
 	}
 
 	/* Check that new_ifindex isn't used yet. */
-	err = -EBUSY;
-	if (new_ifindex && __dev_get_by_index(net, new_ifindex))
-		goto out;
+	if (new_ifindex) {
+		err = dev_index_reserve(net, new_ifindex);
+		if (err < 0)
+			goto out;
+	} else {
+		/* If there is an ifindex conflict assign a new one */
+		err = dev_index_reserve(net, dev->ifindex);
+		if (err == -EBUSY)
+			err = dev_index_reserve(net, 0);
+		if (err < 0)
+			goto out;
+		new_ifindex = err;
+	}
 
 	/*
 	 * And now a mini version of register_netdevice unregister_netdevice.
@@ -11008,13 +11106,6 @@ int __dev_change_net_namespace(struct net_device *dev, struct net *net,
 	rcu_barrier();
 
 	new_nsid = peernet2id_alloc(dev_net(dev), net, GFP_KERNEL);
-	/* If there is an ifindex conflict assign a new one */
-	if (!new_ifindex) {
-		if (__dev_get_by_index(net, dev->ifindex))
-			new_ifindex = dev_new_index(net);
-		else
-			new_ifindex = dev->ifindex;
-	}
 
 	rtmsg_ifinfo_newnet(RTM_DELLINK, dev, ~0U, GFP_KERNEL, &new_nsid,
 			    new_ifindex);
@@ -11192,6 +11283,8 @@ static int __net_init netdev_init(struct net *net)
 	if (net->dev_index_head == NULL)
 		goto err_idx;
 
+	xa_init_flags(&net->dev_by_index, XA_FLAGS_ALLOC1);
+
 	RAW_INIT_NOTIFIER_HEAD(&net->netdev_chain);
 
 	return 0;
@@ -11289,6 +11382,7 @@ static void __net_exit netdev_exit(struct net *net)
 {
 	kfree(net->dev_name_head);
 	kfree(net->dev_index_head);
+	xa_destroy(&net->dev_by_index);
 	if (net != &init_net)
 		WARN_ON_ONCE(!list_empty(&net->dev_base_head));
 }

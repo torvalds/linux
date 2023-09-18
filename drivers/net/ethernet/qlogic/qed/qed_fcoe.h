@@ -28,8 +28,20 @@ int qed_fcoe_alloc(struct qed_hwfn *p_hwfn);
 void qed_fcoe_setup(struct qed_hwfn *p_hwfn);
 
 void qed_fcoe_free(struct qed_hwfn *p_hwfn);
+/**
+ * qed_get_protocol_stats_fcoe(): Fills provided statistics
+ *				  struct with statistics.
+ *
+ * @cdev: Qed dev pointer.
+ * @stats: Points to struct that will be filled with statistics.
+ * @is_atomic: Hint from the caller - if the func can sleep or not.
+ *
+ * Context: The function should not sleep in case is_atomic == true.
+ * Return: Void.
+ */
 void qed_get_protocol_stats_fcoe(struct qed_dev *cdev,
-				 struct qed_mcp_fcoe_stats *stats);
+				 struct qed_mcp_fcoe_stats *stats,
+				 bool is_atomic);
 #else /* CONFIG_QED_FCOE */
 static inline int qed_fcoe_alloc(struct qed_hwfn *p_hwfn)
 {
@@ -40,7 +52,8 @@ static inline void qed_fcoe_setup(struct qed_hwfn *p_hwfn) {}
 static inline void qed_fcoe_free(struct qed_hwfn *p_hwfn) {}
 
 static inline void qed_get_protocol_stats_fcoe(struct qed_dev *cdev,
-					       struct qed_mcp_fcoe_stats *stats)
+					       struct qed_mcp_fcoe_stats *stats,
+					       bool is_atomic)
 {
 }
 #endif /* CONFIG_QED_FCOE */

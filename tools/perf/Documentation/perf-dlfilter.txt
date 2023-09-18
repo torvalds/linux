@@ -64,6 +64,12 @@ internal filtering.
 If implemented, 'filter_description' should return a one-line description
 of the filter, and optionally a longer description.
 
+Do not assume the 'sample' argument is valid (dereferenceable)
+after 'filter_event' and 'filter_event_early' return.
+
+Do not assume data referenced by pointers in struct perf_dlfilter_sample
+is valid (dereferenceable) after 'filter_event' and 'filter_event_early' return.
+
 The perf_dlfilter_sample structure
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -150,7 +156,8 @@ struct perf_dlfilter_fns {
 	const char *(*srcline)(void *ctx, __u32 *line_number);
 	struct perf_event_attr *(*attr)(void *ctx);
 	__s32 (*object_code)(void *ctx, __u64 ip, void *buf, __u32 len);
-	void *(*reserved[120])(void *);
+	void (*al_cleanup)(void *ctx, struct perf_dlfilter_al *al);
+	void *(*reserved[119])(void *);
 };
 ----
 
@@ -161,7 +168,8 @@ struct perf_dlfilter_fns {
 'args' returns arguments from --dlarg options.
 
 'resolve_address' provides information about 'address'. al->size must be set
-before calling. Returns 0 on success, -1 otherwise.
+before calling. Returns 0 on success, -1 otherwise. Call al_cleanup() (if present,
+see below) when 'al' data is no longer needed.
 
 'insn' returns instruction bytes and length.
 
@@ -170,6 +178,12 @@ before calling. Returns 0 on success, -1 otherwise.
 'attr' returns perf_event_attr, refer <linux/perf_event.h>.
 
 'object_code' reads object code and returns the number of bytes read.
+
+'al_cleanup' must be called (if present, so check perf_dlfilter_fns.al_cleanup != NULL)
+after resolve_address() to free any associated resources.
+
+Do not assume pointers obtained via perf_dlfilter_fns are valid (dereferenceable)
+after 'filter_event' and 'filter_event_early' return.
 
 The perf_dlfilter_al structure
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -197,8 +211,12 @@ struct perf_dlfilter_al {
 	/* Below members are only populated by resolve_ip() */
 	__u8 filtered; /* true if this sample event will be filtered out */
 	const char *comm;
+	void *priv; /* Private data. Do not change */
 };
 ----
+
+Do not assume data referenced by pointers in struct perf_dlfilter_al
+is valid (dereferenceable) after 'filter_event' and 'filter_event_early' return.
 
 perf_dlfilter_sample flags
 ~~~~~~~~~~~~~~~~~~~~~~~~~~

@@ -41,8 +41,6 @@
 #include <linux/debugfs.h>
 #include <linux/delay.h>
 
-#define DEVNAME "pcmtestd"
-#define CARD_NAME "pcm-test-card"
 #define TIMER_PER_SEC 5
 #define TIMER_INTERVAL (HZ / TIMER_PER_SEC)
 #define DELAY_JIFFIES HZ
@@ -65,6 +63,7 @@ static int inject_delay;
 static bool inject_hwpars_err;
 static bool inject_prepare_err;
 static bool inject_trigger_err;
+static bool inject_open_err;
 
 static short fill_mode = FILL_MODE_PAT;
 
@@ -73,11 +72,11 @@ static u8 ioctl_reset_test;
 static struct dentry *driver_debug_dir;
 
 module_param(index, int, 0444);
-MODULE_PARM_DESC(index, "Index value for " CARD_NAME " soundcard");
+MODULE_PARM_DESC(index, "Index value for pcmtest soundcard");
 module_param(id, charp, 0444);
-MODULE_PARM_DESC(id, "ID string for " CARD_NAME " soundcard");
+MODULE_PARM_DESC(id, "ID string for pcmtest soundcard");
 module_param(enable, bool, 0444);
-MODULE_PARM_DESC(enable, "Enable " CARD_NAME " soundcard.");
+MODULE_PARM_DESC(enable, "Enable pcmtest soundcard.");
 module_param(fill_mode, short, 0600);
 MODULE_PARM_DESC(fill_mode, "Buffer fill mode: rand(0) or pattern(1)");
 module_param(inject_delay, int, 0600);
@@ -88,6 +87,8 @@ module_param(inject_prepare_err, bool, 0600);
 MODULE_PARM_DESC(inject_prepare_err, "Inject EINVAL error in the 'prepare' callback");
 module_param(inject_trigger_err, bool, 0600);
 MODULE_PARM_DESC(inject_trigger_err, "Inject EINVAL error in the 'trigger' callback");
+module_param(inject_open_err, bool, 0600);
+MODULE_PARM_DESC(inject_open_err, "Inject EBUSY error in the 'open' callback");
 
 struct pcmtst {
 	struct snd_pcm *pcm;
@@ -107,6 +108,7 @@ struct pcmtst_buf_iter {
 	size_t total_bytes;			// Total bytes read/written
 	size_t chan_block;			// Bytes in one channel buffer when non-interleaved
 	struct snd_pcm_substream *substream;
+	bool suspend;				// We need to pause timer without shutting it down
 	struct timer_list timer_instance;
 };
 
@@ -114,7 +116,8 @@ static struct snd_pcm_hardware snd_pcmtst_hw = {
 	.info = (SNDRV_PCM_INFO_INTERLEAVED |
 		 SNDRV_PCM_INFO_BLOCK_TRANSFER |
 		 SNDRV_PCM_INFO_NONINTERLEAVED |
-		 SNDRV_PCM_INFO_MMAP_VALID),
+		 SNDRV_PCM_INFO_MMAP_VALID |
+		 SNDRV_PCM_INFO_PAUSE),
 	.formats =		SNDRV_PCM_FMTBIT_U8 | SNDRV_PCM_FMTBIT_S16_LE,
 	.rates =		SNDRV_PCM_RATE_8000_48000,
 	.rate_min =		8000,
@@ -140,7 +143,8 @@ static inline void inc_buf_pos(struct pcmtst_buf_iter *v_iter, size_t by, size_t
 {
 	v_iter->total_bytes += by;
 	v_iter->buf_pos += by;
-	v_iter->buf_pos %= bytes;
+	if (v_iter->buf_pos >= bytes)
+		v_iter->buf_pos %= bytes;
 }
 
 /*
@@ -196,10 +200,10 @@ static void check_buf_block_ni(struct pcmtst_buf_iter *v_iter, struct snd_pcm_ru
 	u8 current_byte;
 
 	for (i = 0; i < v_iter->b_rw; i++) {
-		current_byte = runtime->dma_area[buf_pos_n(v_iter, channels, i % channels)];
+		ch_num = i % channels;
+		current_byte = runtime->dma_area[buf_pos_n(v_iter, channels, ch_num)];
 		if (!current_byte)
 			break;
-		ch_num = i % channels;
 		if (current_byte != patt_bufs[ch_num].buf[(v_iter->total_bytes / channels)
 							  % patt_bufs[ch_num].len]) {
 			v_iter->is_buf_corrupted = true;
@@ -225,7 +229,7 @@ static void check_buf_block(struct pcmtst_buf_iter *v_iter, struct snd_pcm_runti
 
 /*
  * Fill buffer in the non-interleaved mode. The order of samples is C0, ..., C0, C1, ..., C1, C2...
- * The channel buffers lay in the DMA buffer continuously (see default copy_user and copy_kernel
+ * The channel buffers lay in the DMA buffer continuously (see default copy
  * handlers in the pcm_lib.c file).
  *
  * Here we increment the DMA buffer position every time we write a byte to any channel 'buffer'.
@@ -239,7 +243,7 @@ static void fill_block_pattern_n(struct pcmtst_buf_iter *v_iter, struct snd_pcm_
 
 	for (i = 0; i < v_iter->b_rw; i++) {
 		ch_num = i % channels;
-		runtime->dma_area[buf_pos_n(v_iter, channels, i % channels)] =
+		runtime->dma_area[buf_pos_n(v_iter, channels, ch_num)] =
 			patt_bufs[ch_num].buf[(v_iter->total_bytes / channels)
 					      % patt_bufs[ch_num].len];
 		inc_buf_pos(v_iter, 1, runtime->dma_bytes);
@@ -344,6 +348,9 @@ static void timer_timeout(struct timer_list *data)
 	v_iter = from_timer(v_iter, data, timer_instance);
 	substream = v_iter->substream;
 
+	if (v_iter->suspend)
+		return;
+
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK && !v_iter->is_buf_corrupted)
 		check_buf_block(v_iter, substream->runtime);
 	else if (substream->stream == SNDRV_PCM_STREAM_CAPTURE)
@@ -356,7 +363,9 @@ static void timer_timeout(struct timer_list *data)
 		v_iter->period_pos %= v_iter->period_bytes;
 		snd_pcm_period_elapsed(substream);
 	}
-	mod_timer(&v_iter->timer_instance, jiffies + TIMER_INTERVAL + inject_delay);
+
+	if (!v_iter->suspend)
+		mod_timer(&v_iter->timer_instance, jiffies + TIMER_INTERVAL + inject_delay);
 }
 
 static int snd_pcmtst_pcm_open(struct snd_pcm_substream *substream)
@@ -364,23 +373,22 @@ static int snd_pcmtst_pcm_open(struct snd_pcm_substream *substream)
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct pcmtst_buf_iter *v_iter;
 
+	if (inject_open_err)
+		return -EBUSY;
+
 	v_iter = kzalloc(sizeof(*v_iter), GFP_KERNEL);
 	if (!v_iter)
 		return -ENOMEM;
 
+	v_iter->substream = substream;
 	runtime->hw = snd_pcmtst_hw;
 	runtime->private_data = v_iter;
-	v_iter->substream = substream;
-	v_iter->buf_pos = 0;
-	v_iter->is_buf_corrupted = false;
-	v_iter->period_pos = 0;
-	v_iter->total_bytes = 0;
 
 	playback_capture_test = 0;
 	ioctl_reset_test = 0;
 
 	timer_setup(&v_iter->timer_instance, timer_timeout, 0);
-	mod_timer(&v_iter->timer_instance, jiffies + TIMER_INTERVAL);
+
 	return 0;
 }
 
@@ -395,26 +403,40 @@ static int snd_pcmtst_pcm_close(struct snd_pcm_substream *substream)
 	return 0;
 }
 
+static inline void reset_buf_iterator(struct pcmtst_buf_iter *v_iter)
+{
+	v_iter->buf_pos = 0;
+	v_iter->is_buf_corrupted = false;
+	v_iter->period_pos = 0;
+	v_iter->total_bytes = 0;
+}
+
+static inline void start_pcmtest_timer(struct pcmtst_buf_iter *v_iter)
+{
+	v_iter->suspend = false;
+	mod_timer(&v_iter->timer_instance, jiffies + TIMER_INTERVAL);
+}
+
 static int snd_pcmtst_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 {
-	struct snd_pcm_runtime *runtime = substream->runtime;
-	struct pcmtst_buf_iter *v_iter = runtime->private_data;
+	struct pcmtst_buf_iter *v_iter = substream->runtime->private_data;
 
 	if (inject_trigger_err)
 		return -EINVAL;
-
-	v_iter->sample_bytes = runtime->sample_bits / 8;
-	v_iter->period_bytes = frames_to_bytes(runtime, runtime->period_size);
-	if (runtime->access == SNDRV_PCM_ACCESS_RW_NONINTERLEAVED ||
-	    runtime->access == SNDRV_PCM_ACCESS_MMAP_NONINTERLEAVED) {
-		v_iter->chan_block = runtime->dma_bytes / runtime->channels;
-		v_iter->interleaved = false;
-	} else {
-		v_iter->interleaved = true;
+	switch (cmd) {
+	case SNDRV_PCM_TRIGGER_START:
+		reset_buf_iterator(v_iter);
+		start_pcmtest_timer(v_iter);
+		break;
+	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
+		start_pcmtest_timer(v_iter);
+		break;
+	case SNDRV_PCM_TRIGGER_STOP:
+	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
+		// We can't call timer_shutdown_sync here, as it is forbidden to sleep here
+		v_iter->suspend = true;
+		break;
 	}
-	// We want to record RATE * ch_cnt samples per sec, it is rate * sample_bytes * ch_cnt bytes
-	v_iter->s_rw_ch = runtime->rate / TIMER_PER_SEC;
-	v_iter->b_rw = v_iter->s_rw_ch * v_iter->sample_bytes * runtime->channels;
 
 	return 0;
 }
@@ -446,8 +468,24 @@ static void pcmtst_pdev_release(struct device *dev)
 
 static int snd_pcmtst_pcm_prepare(struct snd_pcm_substream *substream)
 {
+	struct snd_pcm_runtime *runtime = substream->runtime;
+	struct pcmtst_buf_iter *v_iter = runtime->private_data;
+
 	if (inject_prepare_err)
 		return -EINVAL;
+
+	v_iter->sample_bytes = samples_to_bytes(runtime, 1);
+	v_iter->period_bytes = snd_pcm_lib_period_bytes(substream);
+	v_iter->interleaved = true;
+	if (runtime->access == SNDRV_PCM_ACCESS_RW_NONINTERLEAVED ||
+	    runtime->access == SNDRV_PCM_ACCESS_MMAP_NONINTERLEAVED) {
+		v_iter->chan_block = snd_pcm_lib_buffer_bytes(substream) / runtime->channels;
+		v_iter->interleaved = false;
+	}
+	// We want to record RATE * ch_cnt samples per sec, it is rate * sample_bytes * ch_cnt bytes
+	v_iter->s_rw_ch = runtime->rate / TIMER_PER_SEC;
+	v_iter->b_rw = v_iter->s_rw_ch * v_iter->sample_bytes * runtime->channels;
+
 	return 0;
 }
 

@@ -144,7 +144,7 @@ static void port_work_proc(struct work_struct *unused)
 	local_irq_restore(flags);
 }
 
-DECLARE_WORK(port_work, port_work_proc);
+static DECLARE_WORK(port_work, port_work_proc);
 
 static irqreturn_t port_interrupt(int irq, void *data)
 {

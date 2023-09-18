@@ -97,8 +97,6 @@ int ocelot_netdev_to_port(struct net_device *dev);
 int ocelot_probe_port(struct ocelot *ocelot, int port, struct regmap *target,
 		      struct device_node *portnp);
 void ocelot_release_port(struct ocelot_port *ocelot_port);
-int ocelot_devlink_init(struct ocelot *ocelot);
-void ocelot_devlink_teardown(struct ocelot *ocelot);
 int ocelot_port_devlink_init(struct ocelot *ocelot, int port,
 			     enum devlink_port_flavour flavour);
 void ocelot_port_devlink_teardown(struct ocelot *ocelot, int port);

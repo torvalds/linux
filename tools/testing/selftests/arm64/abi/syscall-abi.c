@@ -20,12 +20,20 @@
 
 #include "syscall-abi.h"
 
+/*
+ * The kernel defines a much larger SVE_VQ_MAX than is expressable in
+ * the architecture, this creates a *lot* of overhead filling the
+ * buffers (especially ZA) on emulated platforms so use the actual
+ * architectural maximum instead.
+ */
+#define ARCH_SVE_VQ_MAX 16
+
 static int default_sme_vl;
 
 static int sve_vl_count;
-static unsigned int sve_vls[SVE_VQ_MAX];
+static unsigned int sve_vls[ARCH_SVE_VQ_MAX];
 static int sme_vl_count;
-static unsigned int sme_vls[SVE_VQ_MAX];
+static unsigned int sme_vls[ARCH_SVE_VQ_MAX];
 
 extern void do_syscall(int sve_vl, int sme_vl);
 
@@ -130,9 +138,9 @@ static int check_fpr(struct syscall_cfg *cfg, int sve_vl, int sme_vl,
 
 #define SVE_Z_SHARED_BYTES (128 / 8)
 
-static uint8_t z_zero[__SVE_ZREG_SIZE(SVE_VQ_MAX)];
-uint8_t z_in[SVE_NUM_ZREGS * __SVE_ZREG_SIZE(SVE_VQ_MAX)];
-uint8_t z_out[SVE_NUM_ZREGS * __SVE_ZREG_SIZE(SVE_VQ_MAX)];
+static uint8_t z_zero[__SVE_ZREG_SIZE(ARCH_SVE_VQ_MAX)];
+uint8_t z_in[SVE_NUM_ZREGS * __SVE_ZREG_SIZE(ARCH_SVE_VQ_MAX)];
+uint8_t z_out[SVE_NUM_ZREGS * __SVE_ZREG_SIZE(ARCH_SVE_VQ_MAX)];
 
 static void setup_z(struct syscall_cfg *cfg, int sve_vl, int sme_vl,
 		    uint64_t svcr)
@@ -190,8 +198,8 @@ static int check_z(struct syscall_cfg *cfg, int sve_vl, int sme_vl,
 	return errors;
 }
 
-uint8_t p_in[SVE_NUM_PREGS * __SVE_PREG_SIZE(SVE_VQ_MAX)];
-uint8_t p_out[SVE_NUM_PREGS * __SVE_PREG_SIZE(SVE_VQ_MAX)];
+uint8_t p_in[SVE_NUM_PREGS * __SVE_PREG_SIZE(ARCH_SVE_VQ_MAX)];
+uint8_t p_out[SVE_NUM_PREGS * __SVE_PREG_SIZE(ARCH_SVE_VQ_MAX)];
 
 static void setup_p(struct syscall_cfg *cfg, int sve_vl, int sme_vl,
 		    uint64_t svcr)
@@ -222,8 +230,8 @@ static int check_p(struct syscall_cfg *cfg, int sve_vl, int sme_vl,
 	return errors;
 }
 
-uint8_t ffr_in[__SVE_PREG_SIZE(SVE_VQ_MAX)];
-uint8_t ffr_out[__SVE_PREG_SIZE(SVE_VQ_MAX)];
+uint8_t ffr_in[__SVE_PREG_SIZE(ARCH_SVE_VQ_MAX)];
+uint8_t ffr_out[__SVE_PREG_SIZE(ARCH_SVE_VQ_MAX)];
 
 static void setup_ffr(struct syscall_cfg *cfg, int sve_vl, int sme_vl,
 		      uint64_t svcr)
@@ -300,8 +308,8 @@ static int check_svcr(struct syscall_cfg *cfg, int sve_vl, int sme_vl,
 	return errors;
 }
 
-uint8_t za_in[ZA_SIG_REGS_SIZE(SVE_VQ_MAX)];
-uint8_t za_out[ZA_SIG_REGS_SIZE(SVE_VQ_MAX)];
+uint8_t za_in[ZA_SIG_REGS_SIZE(ARCH_SVE_VQ_MAX)];
+uint8_t za_out[ZA_SIG_REGS_SIZE(ARCH_SVE_VQ_MAX)];
 
 static void setup_za(struct syscall_cfg *cfg, int sve_vl, int sme_vl,
 		     uint64_t svcr)
@@ -470,9 +478,9 @@ void sve_count_vls(void)
 		return;
 
 	/*
-	 * Enumerate up to SVE_VQ_MAX vector lengths
+	 * Enumerate up to ARCH_SVE_VQ_MAX vector lengths
 	 */
-	for (vq = SVE_VQ_MAX; vq > 0; vq /= 2) {
+	for (vq = ARCH_SVE_VQ_MAX; vq > 0; vq /= 2) {
 		vl = prctl(PR_SVE_SET_VL, vq * 16);
 		if (vl == -1)
 			ksft_exit_fail_msg("PR_SVE_SET_VL failed: %s (%d)\n",
@@ -496,9 +504,9 @@ void sme_count_vls(void)
 		return;
 
 	/*
-	 * Enumerate up to SVE_VQ_MAX vector lengths
+	 * Enumerate up to ARCH_SVE_VQ_MAX vector lengths
 	 */
-	for (vq = SVE_VQ_MAX; vq > 0; vq /= 2) {
+	for (vq = ARCH_SVE_VQ_MAX; vq > 0; vq /= 2) {
 		vl = prctl(PR_SME_SET_VL, vq * 16);
 		if (vl == -1)
 			ksft_exit_fail_msg("PR_SME_SET_VL failed: %s (%d)\n",

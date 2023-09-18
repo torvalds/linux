@@ -593,8 +593,6 @@ static int mvpp2_dbgfs_c2_entry_init(struct dentry *parent,
 	sprintf(c2_entry_name, "%03d", id);
 
 	c2_entry_dir = debugfs_create_dir(c2_entry_name, parent);
-	if (!c2_entry_dir)
-		return -ENOMEM;
 
 	entry = &priv->dbgfs_entries->c2_entries[id];
 
@@ -626,8 +624,6 @@ static int mvpp2_dbgfs_flow_tbl_entry_init(struct dentry *parent,
 	sprintf(flow_tbl_entry_name, "%03d", id);
 
 	flow_tbl_entry_dir = debugfs_create_dir(flow_tbl_entry_name, parent);
-	if (!flow_tbl_entry_dir)
-		return -ENOMEM;
 
 	entry = &priv->dbgfs_entries->flt_entries[id];
 
@@ -646,12 +642,8 @@ static int mvpp2_dbgfs_cls_init(struct dentry *parent, struct mvpp2 *priv)
 	int i, ret;
 
 	cls_dir = debugfs_create_dir("classifier", parent);
-	if (!cls_dir)
-		return -ENOMEM;
 
 	c2_dir = debugfs_create_dir("c2", cls_dir);
-	if (!c2_dir)
-		return -ENOMEM;
 
 	for (i = 0; i < MVPP22_CLS_C2_N_ENTRIES; i++) {
 		ret = mvpp2_dbgfs_c2_entry_init(c2_dir, priv, i);
@@ -660,8 +652,6 @@ static int mvpp2_dbgfs_cls_init(struct dentry *parent, struct mvpp2 *priv)
 	}
 
 	flow_tbl_dir = debugfs_create_dir("flow_table", cls_dir);
-	if (!flow_tbl_dir)
-		return -ENOMEM;
 
 	for (i = 0; i < MVPP2_CLS_FLOWS_TBL_SIZE; i++) {
 		ret = mvpp2_dbgfs_flow_tbl_entry_init(flow_tbl_dir, priv, i);

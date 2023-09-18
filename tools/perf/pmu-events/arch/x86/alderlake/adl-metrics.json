@@ -558,6 +558,7 @@
     },
     {
         "BriefDescription": "Counts the number of cycles a core is stalled due to a demand load which hit in the Last Level Cache (LLC) or other core with HITE/F/M.",
+        "MetricConstraint": "NO_GROUP_EVENTS_NMI",
         "MetricExpr": "cpu_atom@MEM_BOUND_STALLS.LOAD_LLC_HIT@ / tma_info_core_clks - max((cpu_atom@MEM_BOUND_STALLS.LOAD@ - cpu_atom@LD_HEAD.L1_MISS_AT_RET@) / tma_info_core_clks, 0) * cpu_atom@MEM_BOUND_STALLS.LOAD_LLC_HIT@ / cpu_atom@MEM_BOUND_STALLS.LOAD@",
         "MetricGroup": "TopdownL3;tma_L3_group;tma_memory_bound_group",
         "MetricName": "tma_l3_bound",
@@ -800,6 +801,7 @@
     },
     {
         "BriefDescription": "Counts the number of cycles that the oldest load of the load buffer is stalled at retirement due to a store forward block.",
+        "MetricConstraint": "NO_GROUP_EVENTS_NMI",
         "MetricExpr": "LD_HEAD.ST_ADDR_AT_RET / tma_info_core_clks",
         "MetricGroup": "TopdownL4;tma_L4_group;tma_l1_bound_group",
         "MetricName": "tma_store_fwd_blk",
@@ -1058,7 +1060,6 @@
     },
     {
         "BriefDescription": "This metric represents overall arithmetic floating-point (FP) operations fraction the CPU has executed (retired)",
-        "MetricConstraint": "NO_GROUP_EVENTS",
         "MetricExpr": "tma_x87_use + tma_fp_scalar + tma_fp_vector",
         "MetricGroup": "HPC;TopdownL3;tma_L3_group;tma_light_operations_group",
         "MetricName": "tma_fp_arith",
@@ -1230,6 +1231,7 @@
     },
     {
         "BriefDescription": "Total pipeline cost of Instruction Cache misses - subset of the Big_Code Bottleneck",
+        "MetricConstraint": "NO_GROUP_EVENTS",
         "MetricExpr": "100 * (tma_fetch_latency * tma_icache_misses / (tma_branch_resteers + tma_dsb_switches + tma_icache_misses + tma_itlb_misses + tma_lcp + tma_ms_switches))",
         "MetricGroup": "Fed;FetchLat;IcMiss;tma_issueFL",
         "MetricName": "tma_info_botlnk_l2_ic_misses",
@@ -1267,6 +1269,7 @@
     },
     {
         "BriefDescription": "Total pipeline cost of (external) Memory Bandwidth related bottlenecks",
+        "MetricConstraint": "NO_GROUP_EVENTS",
         "MetricExpr": "100 * tma_memory_bound * (tma_dram_bound / (tma_dram_bound + tma_l1_bound + tma_l2_bound + tma_l3_bound + tma_store_bound) * (tma_mem_bandwidth / (tma_mem_bandwidth + tma_mem_latency)) + tma_l3_bound / (tma_dram_bound + tma_l1_bound + tma_l2_bound + tma_l3_bound + tma_store_bound) * (tma_sq_full / (tma_contested_accesses + tma_data_sharing + tma_l3_hit_latency + tma_sq_full))) + tma_l1_bound / (tma_dram_bound + tma_l1_bound + tma_l2_bound + tma_l3_bound + tma_store_bound) * (tma_fb_full / (tma_dtlb_load + tma_fb_full + tma_lock_latency + tma_split_loads + tma_store_fwd_blk))",
         "MetricGroup": "Mem;MemoryBW;Offcore;tma_issueBW",
         "MetricName": "tma_info_bottleneck_memory_bandwidth",
@@ -1355,7 +1358,6 @@
     },
     {
         "BriefDescription": "Floating Point Operations Per Cycle",
-        "MetricConstraint": "NO_GROUP_EVENTS",
         "MetricExpr": "(cpu_core@FP_ARITH_INST_RETIRED.SCALAR_SINGLE@ + cpu_core@FP_ARITH_INST_RETIRED.SCALAR_DOUBLE@ + 2 * cpu_core@FP_ARITH_INST_RETIRED.128B_PACKED_DOUBLE@ + 4 * (cpu_core@FP_ARITH_INST_RETIRED.128B_PACKED_SINGLE@ + cpu_core@FP_ARITH_INST_RETIRED.256B_PACKED_DOUBLE@) + 8 * cpu_core@FP_ARITH_INST_RETIRED.256B_PACKED_SINGLE@) / tma_info_core_core_clks",
         "MetricGroup": "Flops;Ret",
         "MetricName": "tma_info_core_flopc",
@@ -1363,7 +1365,6 @@
     },
     {
         "BriefDescription": "Actual per-core usage of the Floating Point non-X87 execution units (regardless of precision or vector-width)",
-        "MetricConstraint": "NO_GROUP_EVENTS",
         "MetricExpr": "(cpu_core@FP_ARITH_DISPATCHED.PORT_0@ + cpu_core@FP_ARITH_DISPATCHED.PORT_1@ + cpu_core@FP_ARITH_DISPATCHED.PORT_5@) / (2 * tma_info_core_core_clks)",
         "MetricGroup": "Cor;Flops;HPC",
         "MetricName": "tma_info_core_fp_arith_utilization",
@@ -1769,7 +1770,6 @@
     },
     {
         "BriefDescription": "Average number of Uops retired in cycles where at least one uop has retired.",
-        "MetricConstraint": "NO_GROUP_EVENTS",
         "MetricExpr": "tma_retiring * tma_info_thread_slots / cpu_core@UOPS_RETIRED.SLOTS\\,cmask\\=1@",
         "MetricGroup": "Pipeline;Ret",
         "MetricName": "tma_info_pipeline_retire",
@@ -2002,6 +2002,7 @@
     },
     {
         "BriefDescription": "This metric estimates how often the CPU was stalled due to loads accesses to L3 cache or contended with a sibling Core",
+        "MetricConstraint": "NO_GROUP_EVENTS_NMI",
         "MetricExpr": "(cpu_core@MEMORY_ACTIVITY.STALLS_L2_MISS@ - cpu_core@MEMORY_ACTIVITY.STALLS_L3_MISS@) / tma_info_thread_clks",
         "MetricGroup": "CacheMisses;MemoryBound;TmaL3mem;TopdownL3;tma_L3_group;tma_memory_bound_group",
         "MetricName": "tma_l3_bound",
@@ -2375,6 +2376,7 @@
     },
     {
         "BriefDescription": "This metric represents rate of split store accesses",
+        "MetricConstraint": "NO_GROUP_EVENTS_NMI",
         "MetricExpr": "MEM_INST_RETIRED.SPLIT_STORES / tma_info_core_core_clks",
         "MetricGroup": "TopdownL4;tma_L4_group;tma_issueSpSt;tma_store_bound_group",
         "MetricName": "tma_split_stores",
@@ -2405,6 +2407,7 @@
     },
     {
         "BriefDescription": "This metric roughly estimates fraction of cycles when the memory subsystem had loads blocked since they could not forward data from earlier (in program order) overlapping stores",
+        "MetricConstraint": "NO_GROUP_EVENTS_NMI",
         "MetricExpr": "13 * cpu_core@LD_BLOCKS.STORE_FORWARD@ / tma_info_thread_clks",
         "MetricGroup": "TopdownL4;tma_L4_group;tma_l1_bound_group",
         "MetricName": "tma_store_fwd_blk",

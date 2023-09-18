@@ -89,10 +89,6 @@ static inline void *netdev_priv_rsl(struct net_device *dev)
 #define HIGH_QUEUE			     7
 #define BEACON_QUEUE			   8
 
-#ifndef IW_MODE_MESH
-#define IW_MODE_MESH			7
-#endif
-
 #define IE_CISCO_FLAG_POSITION		0x08
 #define SUPPORT_CKIP_MIC			0x08
 #define SUPPORT_CKIP_PK			0x10
@@ -818,7 +814,7 @@ struct rtllib_txb {
 	u16 reserved;
 	__le16 frag_size;
 	__le16 payload_size;
-	struct sk_buff *fragments[];
+	struct sk_buff *fragments[] __counted_by(nr_frags);
 };
 
 #define MAX_SUBFRAME_COUNT		  64
@@ -1440,10 +1436,6 @@ struct rtllib_device {
 				 * WEP key changes
 				 */
 
-	/* If the host performs {en,de}cryption, then set to 1 */
-	int host_encrypt;
-	int host_decrypt;
-
 	int ieee802_1x; /* is IEEE 802.1X used */
 
 	/* WPA data */
@@ -1490,9 +1482,7 @@ struct rtllib_device {
 
 	enum rtl_link_state link_state;
 
-	int short_slot;
 	int mode;       /* A, B, G */
-	int modulation; /* CCK, OFDM */
 
 	/* used for forcing the ibss workqueue to terminate
 	 * without wait for the syncro scan to terminate
@@ -1893,7 +1883,7 @@ void rtllib_disassociate(struct rtllib_device *ieee);
 void rtllib_stop_scan(struct rtllib_device *ieee);
 bool rtllib_act_scanning(struct rtllib_device *ieee, bool sync_scan);
 void rtllib_stop_scan_syncro(struct rtllib_device *ieee);
-void rtllib_start_scan_syncro(struct rtllib_device *ieee, u8 is_mesh);
+void rtllib_start_scan_syncro(struct rtllib_device *ieee);
 void rtllib_sta_ps_send_null_frame(struct rtllib_device *ieee, short pwr);
 void rtllib_sta_ps_send_pspoll_frame(struct rtllib_device *ieee);
 void rtllib_start_protocol(struct rtllib_device *ieee);
@@ -2008,15 +1998,15 @@ u16  TxCountToDataRate(struct rtllib_device *ieee, u8 nDataRate);
 int rtllib_rx_ADDBAReq(struct rtllib_device *ieee, struct sk_buff *skb);
 int rtllib_rx_ADDBARsp(struct rtllib_device *ieee, struct sk_buff *skb);
 int rtllib_rx_DELBA(struct rtllib_device *ieee, struct sk_buff *skb);
-void TsInitAddBA(struct rtllib_device *ieee, struct tx_ts_record *pTS,
-		 u8 Policy, u8 bOverwritePending);
-void TsInitDelBA(struct rtllib_device *ieee,
-		 struct ts_common_info *pTsCommonInfo,
-		 enum tr_select TxRxSelect);
-void BaSetupTimeOut(struct timer_list *t);
-void TxBaInactTimeout(struct timer_list *t);
-void RxBaInactTimeout(struct timer_list *t);
-void ResetBaEntry(struct ba_record *pBA);
+void rtllib_ts_init_add_ba(struct rtllib_device *ieee, struct tx_ts_record *pTS,
+			   u8 Policy, u8 bOverwritePending);
+void rtllib_ts_init_del_ba(struct rtllib_device *ieee,
+			   struct ts_common_info *pTsCommonInfo,
+			   enum tr_select TxRxSelect);
+void rtllib_ba_setup_timeout(struct timer_list *t);
+void rtllib_tx_ba_inact_timeout(struct timer_list *t);
+void rtllib_rx_ba_inact_timeout(struct timer_list *t);
+void rtllib_reset_ba_entry(struct ba_record *pBA);
 bool GetTs(struct rtllib_device *ieee, struct ts_common_info **ppTS, u8 *Addr,
 	   u8 TID, enum tr_select TxRxSelect, bool bAddNewTs);
 void TSInitialize(struct rtllib_device *ieee);

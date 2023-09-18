@@ -22,8 +22,9 @@ locktorture_param_onoff () {
 #
 # Adds per-version torture-module parameters to kernels supporting them.
 per_version_boot_params () {
-	echo $1 `locktorture_param_onoff "$1" "$2"` \
+	echo	`locktorture_param_onoff "$1" "$2"` \
 		locktorture.stat_interval=15 \
 		locktorture.shutdown_secs=$3 \
-		locktorture.verbose=1
+		locktorture.verbose=1 \
+		$1
 }

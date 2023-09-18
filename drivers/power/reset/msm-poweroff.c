@@ -35,11 +35,7 @@ static void do_msm_poweroff(void)
 
 static int msm_restart_probe(struct platform_device *pdev)
 {
-	struct device *dev = &pdev->dev;
-	struct resource *mem;
-
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	msm_ps_hold = devm_ioremap_resource(dev, mem);
+	msm_ps_hold = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(msm_ps_hold))
 		return PTR_ERR(msm_ps_hold);
 

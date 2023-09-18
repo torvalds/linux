@@ -4968,7 +4968,7 @@ static bool wcd9335_is_volatile_register(struct device *dev, unsigned int reg)
 static struct regmap_config wcd9335_regmap_config = {
 	.reg_bits = 16,
 	.val_bits = 8,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.max_register = WCD9335_MAX_REGISTER,
 	.can_multi_write = true,
 	.ranges = wcd9335_ranges,

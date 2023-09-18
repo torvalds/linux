@@ -154,7 +154,7 @@ static void dcn31_hpo_dp_stream_enc_dp_blank(
 			VID_STREAM_STATUS, 0,
 			10, 5000);
 
-	/* Disable SDP tranmission */
+	/* Disable SDP transmission */
 	REG_UPDATE(DP_SYM32_ENC_SDP_CONTROL,
 			SDP_STREAM_ENABLE, 0);
 

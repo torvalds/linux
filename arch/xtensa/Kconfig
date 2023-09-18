@@ -28,6 +28,7 @@ config XTENSA
 	select GENERIC_LIB_UCMPDI2
 	select GENERIC_PCI_IOMAP
 	select GENERIC_SCHED_CLOCK
+	select GENERIC_IOREMAP if MMU
 	select HAVE_ARCH_AUDITSYSCALL
 	select HAVE_ARCH_JUMP_LABEL if !XIP_KERNEL
 	select HAVE_ARCH_KASAN if MMU && !XIP_KERNEL
@@ -69,6 +70,9 @@ config ARCH_HAS_ILOG2_U32
 
 config ARCH_HAS_ILOG2_U64
 	def_bool n
+
+config ARCH_MTD_XIP
+	def_bool y
 
 config NO_IOPORT_MAP
 	def_bool n

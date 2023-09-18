@@ -43,6 +43,7 @@
 #define AMDGPU_GFX_LBPW_DISABLED_MODE		0x00000008L
 
 #define AMDGPU_MAX_GC_INSTANCES		8
+#define KGD_MAX_QUEUES			128
 
 #define AMDGPU_MAX_GFX_QUEUES KGD_MAX_QUEUES
 #define AMDGPU_MAX_COMPUTE_QUEUES KGD_MAX_QUEUES
@@ -241,6 +242,9 @@ struct amdgpu_gfx_config {
 	uint32_t gc_gl1c_per_sa;
 	uint32_t gc_gl1c_size_per_instance;
 	uint32_t gc_gl2c_per_gpu;
+	uint32_t gc_tcp_size_per_cu;
+	uint32_t gc_num_cu_per_sqc;
+	uint32_t gc_tcc_size;
 };
 
 struct amdgpu_cu_info {
@@ -254,7 +258,7 @@ struct amdgpu_cu_info {
 	uint32_t number;
 	uint32_t ao_cu_mask;
 	uint32_t ao_cu_bitmap[4][4];
-	uint32_t bitmap[4][4];
+	uint32_t bitmap[AMDGPU_MAX_GC_INSTANCES][4][4];
 };
 
 struct amdgpu_gfx_ras {

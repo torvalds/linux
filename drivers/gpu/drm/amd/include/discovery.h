@@ -30,7 +30,7 @@
 #define GC_TABLE_ID                     0x4347
 #define HARVEST_TABLE_SIGNATURE         0x56524148
 #define VCN_INFO_TABLE_ID               0x004E4356
-#define MALL_INFO_TABLE_ID              0x4D414C4C
+#define MALL_INFO_TABLE_ID              0x4C4C414D
 
 typedef enum
 {
@@ -280,6 +280,36 @@ struct gc_info_v2_0 {
 	uint32_t gc_num_packer_per_sc;
 };
 
+struct gc_info_v2_1 {
+	struct gpu_info_header header;
+
+	uint32_t gc_num_se;
+	uint32_t gc_num_cu_per_sh;
+	uint32_t gc_num_sh_per_se;
+	uint32_t gc_num_rb_per_se;
+	uint32_t gc_num_tccs;
+	uint32_t gc_num_gprs;
+	uint32_t gc_num_max_gs_thds;
+	uint32_t gc_gs_table_depth;
+	uint32_t gc_gsprim_buff_depth;
+	uint32_t gc_parameter_cache_depth;
+	uint32_t gc_double_offchip_lds_buffer;
+	uint32_t gc_wave_size;
+	uint32_t gc_max_waves_per_simd;
+	uint32_t gc_max_scratch_slots_per_cu;
+	uint32_t gc_lds_size;
+	uint32_t gc_num_sc_per_se;
+	uint32_t gc_num_packer_per_sc;
+	/* new for v2_1 */
+	uint32_t gc_num_tcp_per_sh;
+	uint32_t gc_tcp_size_per_cu;
+	uint32_t gc_num_sdp_interface;
+	uint32_t gc_num_cu_per_sqc;
+	uint32_t gc_instruction_cache_size_per_sqc;
+	uint32_t gc_scalar_data_cache_size_per_sqc;
+	uint32_t gc_tcc_size;
+};
+
 typedef struct harvest_info_header {
 	uint32_t signature; /* Table Signature */
 	uint32_t version;   /* Table Version */
@@ -310,6 +340,12 @@ struct mall_info_v1_0 {
 	uint32_t m_half_use;
 	uint32_t m_mall_config;
 	uint32_t reserved[5];
+};
+
+struct mall_info_v2_0 {
+	struct mall_info_header header;
+	uint32_t mall_size_per_umc;
+	uint32_t reserved[8];
 };
 
 #define VCN_INFO_TABLE_MAX_NUM_INSTANCES 4

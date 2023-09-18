@@ -30,6 +30,7 @@
 	FN(TCP_OVERWINDOW)		\
 	FN(TCP_OFOMERGE)		\
 	FN(TCP_RFC7323_PAWS)		\
+	FN(TCP_OLD_SEQUENCE)		\
 	FN(TCP_INVALID_SEQUENCE)	\
 	FN(TCP_RESET)			\
 	FN(TCP_INVALID_SYN)		\
@@ -78,6 +79,7 @@
 	FN(IPV6_NDISC_BAD_CODE)		\
 	FN(IPV6_NDISC_BAD_OPTIONS)	\
 	FN(IPV6_NDISC_NS_OTHERHOST)	\
+	FN(QUEUE_PURGE)			\
 	FNe(MAX)
 
 /**
@@ -188,6 +190,8 @@ enum skb_drop_reason {
 	 * LINUX_MIB_PAWSESTABREJECTED
 	 */
 	SKB_DROP_REASON_TCP_RFC7323_PAWS,
+	/** @SKB_DROP_REASON_TCP_OLD_SEQUENCE: Old SEQ field (duplicate packet) */
+	SKB_DROP_REASON_TCP_OLD_SEQUENCE,
 	/** @SKB_DROP_REASON_TCP_INVALID_SEQUENCE: Not acceptable SEQ field */
 	SKB_DROP_REASON_TCP_INVALID_SEQUENCE,
 	/** @SKB_DROP_REASON_TCP_RESET: Invalid RST packet */
@@ -339,6 +343,8 @@ enum skb_drop_reason {
 	 * for another host.
 	 */
 	SKB_DROP_REASON_IPV6_NDISC_NS_OTHERHOST,
+	/** @SKB_DROP_REASON_QUEUE_PURGE: bulk free. */
+	SKB_DROP_REASON_QUEUE_PURGE,
 	/**
 	 * @SKB_DROP_REASON_MAX: the maximum of core drop reasons, which
 	 * shouldn't be used as a real 'reason' - only for tracing code gen

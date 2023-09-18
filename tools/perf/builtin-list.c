@@ -145,9 +145,20 @@ static void default_print_event(void *ps, const char *pmu_name, const char *topi
 		putchar('\n');
 
 	if (desc && print_state->desc) {
+		char *desc_with_unit = NULL;
+		int desc_len = -1;
+
+		if (pmu_name && strcmp(pmu_name, "default_core")) {
+			desc_len = strlen(desc);
+			desc_len = asprintf(&desc_with_unit,
+					    desc[desc_len - 1] != '.'
+					      ? "%s. Unit: %s" : "%s Unit: %s",
+					    desc, pmu_name);
+		}
 		printf("%*s", 8, "[");
-		wordwrap(desc, 8, pager_get_columns(), 0);
+		wordwrap(desc_len > 0 ? desc_with_unit : desc, 8, pager_get_columns(), 0);
 		printf("]\n");
+		free(desc_with_unit);
 	}
 	long_desc = long_desc ?: desc;
 	if (long_desc && print_state->long_desc) {
@@ -423,6 +434,13 @@ static void json_print_metric(void *ps __maybe_unused, const char *group,
 	strbuf_release(&buf);
 }
 
+static bool default_skip_duplicate_pmus(void *ps)
+{
+	struct print_state *print_state = ps;
+
+	return !print_state->long_desc;
+}
+
 int cmd_list(int argc, const char **argv)
 {
 	int i, ret = 0;
@@ -434,6 +452,7 @@ int cmd_list(int argc, const char **argv)
 		.print_end = default_print_end,
 		.print_event = default_print_event,
 		.print_metric = default_print_metric,
+		.skip_duplicate_pmus = default_skip_duplicate_pmus,
 	};
 	const char *cputype = NULL;
 	const char *unit_name = NULL;
@@ -502,7 +521,7 @@ int cmd_list(int argc, const char **argv)
 				ret = -1;
 				goto out;
 			}
-			default_ps.pmu_glob = pmu->name;
+			default_ps.pmu_glob = strdup(pmu->name);
 		}
 	}
 	print_cb.print_start(ps);

@@ -83,8 +83,6 @@ extern int cpci_debug;
  * board/chassis drivers.
  */
 u8 cpci_get_attention_status(struct slot *slot);
-u8 cpci_get_latch_status(struct slot *slot);
-u8 cpci_get_adapter_status(struct slot *slot);
 u16 cpci_get_hs_csr(struct slot *slot);
 int cpci_set_attention_status(struct slot *slot, int status);
 int cpci_check_and_clear_ins(struct slot *slot);

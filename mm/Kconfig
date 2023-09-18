@@ -25,7 +25,6 @@ menuconfig SWAP
 config ZSWAP
 	bool "Compressed cache for swap pages"
 	depends on SWAP
-	select FRONTSWAP
 	select CRYPTO
 	select ZPOOL
 	help
@@ -337,6 +336,23 @@ config SLUB_CPU_PARTIAL
 	  which requires the taking of locks that may cause latency spikes.
 	  Typically one would choose no for a realtime system.
 
+config RANDOM_KMALLOC_CACHES
+	default n
+	depends on SLUB && !SLUB_TINY
+	bool "Randomize slab caches for normal kmalloc"
+	help
+	  A hardening feature that creates multiple copies of slab caches for
+	  normal kmalloc allocation and makes kmalloc randomly pick one based
+	  on code address, which makes the attackers more difficult to spray
+	  vulnerable memory objects on the heap for the purpose of exploiting
+	  memory vulnerabilities.
+
+	  Currently the number of copies is set to 16, a reasonably large value
+	  that effectively diverges the memory objects allocated for different
+	  subsystems or modules into different caches, at the expense of a
+	  limited degree of memory and CPU overhead that relates to hardware and
+	  system workload.
+
 endmenu # SLAB allocator options
 
 config SHUFFLE_PAGE_ALLOCATOR
@@ -487,7 +503,10 @@ config SPARSEMEM_VMEMMAP
 # Select this config option from the architecture Kconfig, if it is preferred
 # to enable the feature of HugeTLB/dev_dax vmemmap optimization.
 #
-config ARCH_WANT_OPTIMIZE_VMEMMAP
+config ARCH_WANT_OPTIMIZE_DAX_VMEMMAP
+	bool
+
+config ARCH_WANT_OPTIMIZE_HUGETLB_VMEMMAP
 	bool
 
 config HAVE_MEMBLOCK_PHYS_MAP
@@ -568,6 +587,9 @@ config MHP_MEMMAP_ON_MEMORY
 	depends on ARCH_MHP_MEMMAP_ON_MEMORY_ENABLE
 
 endif # MEMORY_HOTPLUG
+
+config ARCH_MHP_MEMMAP_ON_MEMORY_ENABLE
+       bool
 
 # Heavily threaded applications may benefit from splitting the mm-wide
 # page_table_lock, so that faults on different parts of the user address
@@ -870,9 +892,6 @@ config USE_PERCPU_NUMA_NODE_ID
 config HAVE_SETUP_PER_CPU_AREA
 	bool
 
-config FRONTSWAP
-	bool
-
 config CMA
 	bool "Contiguous Memory Allocator"
 	depends on MMU
@@ -1143,6 +1162,9 @@ config KMAP_LOCAL_NON_LINEAR_PTE_ARRAY
 # struct io_mapping based helper.  Selected by drivers that need them
 config IO_MAPPING
 	bool
+
+config MEMFD_CREATE
+	bool "Enable memfd_create() system call" if EXPERT
 
 config SECRETMEM
 	default y

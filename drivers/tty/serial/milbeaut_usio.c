@@ -148,8 +148,7 @@ static void mlb_usio_enable_ms(struct uart_port *port)
 static void mlb_usio_rx_chars(struct uart_port *port)
 {
 	struct tty_port *ttyport = &port->state->port;
-	unsigned long flag = 0;
-	char ch = 0;
+	u8 flag = 0, ch = 0;
 	u8 status;
 	int max_count = 2;
 

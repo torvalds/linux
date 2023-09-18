@@ -26,7 +26,6 @@
 #include <linux/writeback.h>
 #include <linux/compaction.h>
 #include <linux/mm_inline.h>
-#include <linux/page_ext.h>
 #include <linux/page_owner.h>
 #include <linux/sched/isolation.h>
 

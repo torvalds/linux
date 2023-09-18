@@ -35,131 +35,153 @@
 
 #include "ast_drv.h"
 
-void ast_set_index_reg_mask(struct ast_device *ast,
-			    uint32_t base, uint8_t index,
-			    uint8_t mask, uint8_t val)
+static bool ast_is_vga_enabled(struct drm_device *dev)
 {
-	u8 tmp;
-	ast_io_write8(ast, base, index);
-	tmp = (ast_io_read8(ast, base + 1) & mask) | val;
-	ast_set_index_reg(ast, base, index, tmp);
-}
-
-uint8_t ast_get_index_reg(struct ast_device *ast,
-			  uint32_t base, uint8_t index)
-{
-	uint8_t ret;
-	ast_io_write8(ast, base, index);
-	ret = ast_io_read8(ast, base + 1);
-	return ret;
-}
-
-uint8_t ast_get_index_reg_mask(struct ast_device *ast,
-			       uint32_t base, uint8_t index, uint8_t mask)
-{
-	uint8_t ret;
-	ast_io_write8(ast, base, index);
-	ret = ast_io_read8(ast, base + 1) & mask;
-	return ret;
-}
-
-static void ast_detect_config_mode(struct drm_device *dev, u32 *scu_rev)
-{
-	struct device_node *np = dev->dev->of_node;
 	struct ast_device *ast = to_ast_device(dev);
+	u8 ch;
+
+	ch = ast_io_read8(ast, AST_IO_VGA_ENABLE_PORT);
+
+	return !!(ch & 0x01);
+}
+
+static void ast_enable_vga(struct drm_device *dev)
+{
+	struct ast_device *ast = to_ast_device(dev);
+
+	ast_io_write8(ast, AST_IO_VGA_ENABLE_PORT, 0x01);
+	ast_io_write8(ast, AST_IO_MISC_PORT_WRITE, 0x01);
+}
+
+/*
+ * Run this function as part of the HW device cleanup; not
+ * when the DRM device gets released.
+ */
+static void ast_enable_mmio_release(void *data)
+{
+	struct ast_device *ast = data;
+
+	/* enable standard VGA decode */
+	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xa1, 0x04);
+}
+
+static int ast_enable_mmio(struct ast_device *ast)
+{
+	struct drm_device *dev = &ast->base;
+
+	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xa1, 0x06);
+
+	return devm_add_action_or_reset(dev->dev, ast_enable_mmio_release, ast);
+}
+
+static void ast_open_key(struct ast_device *ast)
+{
+	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x80, 0xA8);
+}
+
+static int ast_device_config_init(struct ast_device *ast)
+{
+	struct drm_device *dev = &ast->base;
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
-	uint32_t data, jregd0, jregd1;
-
-	/* Defaults */
-	ast->config_mode = ast_use_defaults;
-	*scu_rev = 0xffffffff;
-
-	/* Check if we have device-tree properties */
-	if (np && !of_property_read_u32(np, "aspeed,scu-revision-id",
-					scu_rev)) {
-		/* We do, disable P2A access */
-		ast->config_mode = ast_use_dt;
-		drm_info(dev, "Using device-tree for configuration\n");
-		return;
-	}
-
-	/* Not all families have a P2A bridge */
-	if (pdev->device != PCI_CHIP_AST2000)
-		return;
+	struct device_node *np = dev->dev->of_node;
+	uint32_t scu_rev = 0xffffffff;
+	u32 data;
+	u8 jregd0, jregd1;
 
 	/*
-	 * The BMC will set SCU 0x40 D[12] to 1 if the P2 bridge
-	 * is disabled. We force using P2A if VGA only mode bit
-	 * is set D[7]
+	 * Find configuration mode and read SCU revision
 	 */
-	jregd0 = ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xd0, 0xff);
-	jregd1 = ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xd1, 0xff);
-	if (!(jregd0 & 0x80) || !(jregd1 & 0x10)) {
-		/* Patch AST2500 */
-		if (((pdev->revision & 0xF0) == 0x40)
-			&& ((jregd0 & AST_VRAM_INIT_STATUS_MASK) == 0))
-			ast_patch_ahb_2500(ast);
 
-		/* Double check it's actually working */
-		data = ast_read32(ast, 0xf004);
-		if ((data != 0xFFFFFFFF) && (data != 0x00)) {
-			/* P2A works, grab silicon revision */
-			ast->config_mode = ast_use_p2a;
+	ast->config_mode = ast_use_defaults;
 
-			drm_info(dev, "Using P2A bridge for configuration\n");
+	/* Check if we have device-tree properties */
+	if (np && !of_property_read_u32(np, "aspeed,scu-revision-id", &data)) {
+		/* We do, disable P2A access */
+		ast->config_mode = ast_use_dt;
+		scu_rev = data;
+	} else if (pdev->device == PCI_CHIP_AST2000) { // Not all families have a P2A bridge
+		/*
+		 * The BMC will set SCU 0x40 D[12] to 1 if the P2 bridge
+		 * is disabled. We force using P2A if VGA only mode bit
+		 * is set D[7]
+		 */
+		jregd0 = ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xd0, 0xff);
+		jregd1 = ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xd1, 0xff);
+		if (!(jregd0 & 0x80) || !(jregd1 & 0x10)) {
 
-			/* Read SCU7c (silicon revision register) */
-			ast_write32(ast, 0xf004, 0x1e6e0000);
-			ast_write32(ast, 0xf000, 0x1);
-			*scu_rev = ast_read32(ast, 0x1207c);
-			return;
+			/*
+			 * We have a P2A bridge and it is enabled.
+			 */
+
+			/* Patch AST2500/AST2510 */
+			if ((pdev->revision & 0xf0) == 0x40) {
+				if (!(jregd0 & AST_VRAM_INIT_STATUS_MASK))
+					ast_patch_ahb_2500(ast);
+			}
+
+			/* Double check that it's actually working */
+			data = ast_read32(ast, 0xf004);
+			if ((data != 0xffffffff) && (data != 0x00)) {
+				ast->config_mode = ast_use_p2a;
+
+				/* Read SCU7c (silicon revision register) */
+				ast_write32(ast, 0xf004, 0x1e6e0000);
+				ast_write32(ast, 0xf000, 0x1);
+				scu_rev = ast_read32(ast, 0x1207c);
+			}
 		}
 	}
 
-	/* We have a P2A bridge but it's disabled */
-	drm_info(dev, "P2A bridge disabled, using default configuration\n");
-}
-
-static int ast_detect_chip(struct drm_device *dev, bool *need_post)
-{
-	struct ast_device *ast = to_ast_device(dev);
-	struct pci_dev *pdev = to_pci_dev(dev->dev);
-	uint32_t jreg, scu_rev;
+	switch (ast->config_mode) {
+	case ast_use_defaults:
+		drm_info(dev, "Using default configuration\n");
+		break;
+	case ast_use_dt:
+		drm_info(dev, "Using device-tree for configuration\n");
+		break;
+	case ast_use_p2a:
+		drm_info(dev, "Using P2A bridge for configuration\n");
+		break;
+	}
 
 	/*
-	 * If VGA isn't enabled, we need to enable now or subsequent
-	 * access to the scratch registers will fail. We also inform
-	 * our caller that it needs to POST the chip
-	 * (Assumption: VGA not enabled -> need to POST)
+	 * Identify chipset
 	 */
-	if (!ast_is_vga_enabled(dev)) {
-		ast_enable_vga(dev);
-		drm_info(dev, "VGA not enabled on entry, requesting chip POST\n");
-		*need_post = true;
-	} else
-		*need_post = false;
 
-
-	/* Enable extended register access */
-	ast_open_key(ast);
-	ast_enable_mmio(dev);
-
-	/* Find out whether P2A works or whether to use device-tree */
-	ast_detect_config_mode(dev, &scu_rev);
-
-	/* Identify chipset */
 	if (pdev->revision >= 0x50) {
 		ast->chip = AST2600;
 		drm_info(dev, "AST 2600 detected\n");
 	} else if (pdev->revision >= 0x40) {
-		ast->chip = AST2500;
-		drm_info(dev, "AST 2500 detected\n");
+		switch (scu_rev & 0x300) {
+		case 0x0100:
+			ast->chip = AST2510;
+			drm_info(dev, "AST 2510 detected\n");
+			break;
+		default:
+			ast->chip = AST2500;
+			drm_info(dev, "AST 2500 detected\n");
+		}
 	} else if (pdev->revision >= 0x30) {
-		ast->chip = AST2400;
-		drm_info(dev, "AST 2400 detected\n");
+		switch (scu_rev & 0x300) {
+		case 0x0100:
+			ast->chip = AST1400;
+			drm_info(dev, "AST 1400 detected\n");
+			break;
+		default:
+			ast->chip = AST2400;
+			drm_info(dev, "AST 2400 detected\n");
+		}
 	} else if (pdev->revision >= 0x20) {
-		ast->chip = AST2300;
-		drm_info(dev, "AST 2300 detected\n");
+		switch (scu_rev & 0x300) {
+		case 0x0000:
+			ast->chip = AST1300;
+			drm_info(dev, "AST 1300 detected\n");
+			break;
+		default:
+			ast->chip = AST2300;
+			drm_info(dev, "AST 2300 detected\n");
+			break;
+		}
 	} else if (pdev->revision >= 0x10) {
 		switch (scu_rev & 0x0300) {
 		case 0x0200:
@@ -179,15 +201,21 @@ static int ast_detect_chip(struct drm_device *dev, bool *need_post)
 			drm_info(dev, "AST 2100 detected\n");
 			break;
 		}
-		ast->vga2_clone = false;
 	} else {
 		ast->chip = AST2000;
 		drm_info(dev, "AST 2000 detected\n");
 	}
 
+	return 0;
+}
+
+static void ast_detect_widescreen(struct ast_device *ast)
+{
+	u8 jreg;
+
 	/* Check if we support wide screen */
-	switch (ast->chip) {
-	case AST2000:
+	switch (AST_GEN(ast)) {
+	case 1:
 		ast->support_wide_screen = false;
 		break;
 	default:
@@ -198,20 +226,23 @@ static int ast_detect_chip(struct drm_device *dev, bool *need_post)
 			ast->support_wide_screen = true;
 		else {
 			ast->support_wide_screen = false;
-			if (ast->chip == AST2300 &&
-			    (scu_rev & 0x300) == 0x0) /* ast1300 */
+			if (ast->chip == AST1300)
 				ast->support_wide_screen = true;
-			if (ast->chip == AST2400 &&
-			    (scu_rev & 0x300) == 0x100) /* ast1400 */
+			if (ast->chip == AST1400)
 				ast->support_wide_screen = true;
-			if (ast->chip == AST2500 &&
-			    scu_rev == 0x100)           /* ast2510 */
+			if (ast->chip == AST2510)
 				ast->support_wide_screen = true;
-			if (ast->chip == AST2600)		/* ast2600 */
+			if (IS_AST_GEN7(ast))
 				ast->support_wide_screen = true;
 		}
 		break;
 	}
+}
+
+static void ast_detect_tx_chip(struct ast_device *ast, bool need_post)
+{
+	struct drm_device *dev = &ast->base;
+	u8 jreg;
 
 	/* Check 3rd Tx option (digital output afaik) */
 	ast->tx_chip_types |= AST_TX_NONE_BIT;
@@ -224,15 +255,15 @@ static int ast_detect_chip(struct drm_device *dev, bool *need_post)
 	 * is at power-on reset, otherwise we'll incorrectly "detect" a
 	 * SIL164 when there is none.
 	 */
-	if (!*need_post) {
+	if (!need_post) {
 		jreg = ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xa3, 0xff);
 		if (jreg & 0x80)
 			ast->tx_chip_types = AST_TX_SIL164_BIT;
 	}
 
-	if ((ast->chip == AST2300) || (ast->chip == AST2400) || (ast->chip == AST2500)) {
+	if (IS_AST_GEN4(ast) || IS_AST_GEN5(ast) || IS_AST_GEN6(ast)) {
 		/*
-		 * On AST2300 and 2400, look the configuration set by the SoC in
+		 * On AST GEN4+, look the configuration set by the SoC in
 		 * the SOC scratch register #1 bits 11:8 (interestingly marked
 		 * as "reserved" in the spec)
 		 */
@@ -254,7 +285,7 @@ static int ast_detect_chip(struct drm_device *dev, bool *need_post)
 		case 0x0c:
 			ast->tx_chip_types = AST_TX_DP501_BIT;
 		}
-	} else if (ast->chip == AST2600) {
+	} else if (IS_AST_GEN7(ast)) {
 		if (ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xD1, TX_TYPE_MASK) ==
 		    ASTDP_DPMCU_TX) {
 			ast->tx_chip_types = AST_TX_ASTDP_BIT;
@@ -271,8 +302,6 @@ static int ast_detect_chip(struct drm_device *dev, bool *need_post)
 		drm_info(dev, "Using DP501 DisplayPort transmitter\n");
 	if (ast->tx_chip_types & AST_TX_ASTDP_BIT)
 		drm_info(dev, "Using ASPEED DisplayPort transmitter\n");
-
-	return 0;
 }
 
 static int ast_get_dram_info(struct drm_device *dev)
@@ -286,7 +315,7 @@ static int ast_get_dram_info(struct drm_device *dev)
 	case ast_use_dt:
 		/*
 		 * If some properties are missing, use reasonable
-		 * defaults for AST2400
+		 * defaults for GEN5
 		 */
 		if (of_property_read_u32(np, "aspeed,mcr-configuration",
 					 &mcr_cfg))
@@ -309,7 +338,7 @@ static int ast_get_dram_info(struct drm_device *dev)
 	default:
 		ast->dram_bus_width = 16;
 		ast->dram_type = AST_DRAM_1Gx16;
-		if (ast->chip == AST2500)
+		if (IS_AST_GEN6(ast))
 			ast->mclk = 800;
 		else
 			ast->mclk = 396;
@@ -321,7 +350,7 @@ static int ast_get_dram_info(struct drm_device *dev)
 	else
 		ast->dram_bus_width = 32;
 
-	if (ast->chip == AST2500) {
+	if (IS_AST_GEN6(ast)) {
 		switch (mcr_cfg & 0x03) {
 		case 0:
 			ast->dram_type = AST_DRAM_1Gx16;
@@ -337,7 +366,7 @@ static int ast_get_dram_info(struct drm_device *dev)
 			ast->dram_type = AST_DRAM_8Gx16;
 			break;
 		}
-	} else if (ast->chip == AST2300 || ast->chip == AST2400) {
+	} else if (IS_AST_GEN4(ast) || IS_AST_GEN5(ast)) {
 		switch (mcr_cfg & 0x03) {
 		case 0:
 			ast->dram_type = AST_DRAM_512Mx16;
@@ -395,25 +424,13 @@ static int ast_get_dram_info(struct drm_device *dev)
 	return 0;
 }
 
-/*
- * Run this function as part of the HW device cleanup; not
- * when the DRM device gets released.
- */
-static void ast_device_release(void *data)
-{
-	struct ast_device *ast = data;
-
-	/* enable standard VGA decode */
-	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xa1, 0x04);
-}
-
 struct ast_device *ast_device_create(const struct drm_driver *drv,
 				     struct pci_dev *pdev,
 				     unsigned long flags)
 {
 	struct drm_device *dev;
 	struct ast_device *ast;
-	bool need_post;
+	bool need_post = false;
 	int ret = 0;
 
 	ast = devm_drm_dev_alloc(&pdev->dev, drv, struct ast_device, base);
@@ -449,7 +466,30 @@ struct ast_device *ast_device_create(const struct drm_driver *drv,
 			return ERR_PTR(-EIO);
 	}
 
-	ast_detect_chip(dev, &need_post);
+	if (!ast_is_vga_enabled(dev)) {
+		drm_info(dev, "VGA not enabled on entry, requesting chip POST\n");
+		need_post = true;
+	}
+
+	/*
+	 * If VGA isn't enabled, we need to enable now or subsequent
+	 * access to the scratch registers will fail.
+	 */
+	if (need_post)
+		ast_enable_vga(dev);
+
+	/* Enable extended register access */
+	ast_open_key(ast);
+	ret = ast_enable_mmio(ast);
+	if (ret)
+		return ERR_PTR(ret);
+
+	ret = ast_device_config_init(ast);
+	if (ret)
+		return ERR_PTR(ret);
+
+	ast_detect_widescreen(ast);
+	ast_detect_tx_chip(ast, need_post);
 
 	ret = ast_get_dram_info(dev);
 	if (ret)
@@ -474,10 +514,6 @@ struct ast_device *ast_device_create(const struct drm_driver *drv,
 	}
 
 	ret = ast_mode_config_init(ast);
-	if (ret)
-		return ERR_PTR(ret);
-
-	ret = devm_add_action_or_reset(dev->dev, ast_device_release, ast);
 	if (ret)
 		return ERR_PTR(ret);
 

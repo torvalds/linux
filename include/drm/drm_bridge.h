@@ -36,6 +36,7 @@ struct drm_bridge;
 struct drm_bridge_timings;
 struct drm_connector;
 struct drm_display_info;
+struct drm_minor;
 struct drm_panel;
 struct edid;
 struct i2c_adapter;
@@ -948,5 +949,7 @@ static inline struct drm_bridge *drmm_of_get_bridge(struct drm_device *drm,
 	return ERR_PTR(-ENODEV);
 }
 #endif
+
+void drm_bridge_debugfs_init(struct drm_minor *minor);
 
 #endif

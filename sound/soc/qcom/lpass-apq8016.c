@@ -41,7 +41,6 @@ static struct snd_soc_dai_driver apq8016_lpass_cpu_dai_driver[] = {
 			.channels_min	= 1,
 			.channels_max	= 8,
 		},
-		.probe	= &asoc_qcom_lpass_cpu_dai_probe,
 		.ops    = &asoc_qcom_lpass_cpu_dai_ops,
 	},
 	[MI2S_SECONDARY] =  {
@@ -62,7 +61,6 @@ static struct snd_soc_dai_driver apq8016_lpass_cpu_dai_driver[] = {
 			.channels_min	= 1,
 			.channels_max	= 8,
 		},
-		.probe	= &asoc_qcom_lpass_cpu_dai_probe,
 		.ops    = &asoc_qcom_lpass_cpu_dai_ops,
 	},
 	[MI2S_TERTIARY] =  {
@@ -83,7 +81,6 @@ static struct snd_soc_dai_driver apq8016_lpass_cpu_dai_driver[] = {
 			.channels_min	= 1,
 			.channels_max	= 8,
 		},
-		.probe	= &asoc_qcom_lpass_cpu_dai_probe,
 		.ops    = &asoc_qcom_lpass_cpu_dai_ops,
 	},
 	[MI2S_QUATERNARY] =  {
@@ -119,7 +116,6 @@ static struct snd_soc_dai_driver apq8016_lpass_cpu_dai_driver[] = {
 			.channels_min	= 1,
 			.channels_max	= 8,
 		},
-		.probe	= &asoc_qcom_lpass_cpu_dai_probe,
 		.ops    = &asoc_qcom_lpass_cpu_dai_ops,
 	},
 };

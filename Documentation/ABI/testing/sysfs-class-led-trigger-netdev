@@ -13,7 +13,7 @@ Description:
 		Specifies the duration of the LED blink in milliseconds.
 		Defaults to 50 ms.
 
-		With hw_control ON, the interval value MUST be set to the
+		When offloaded is true, the interval value MUST be set to the
 		default value and cannot be changed.
 		Trying to set any value in this specific mode will return
 		an EINVAL error.
@@ -44,8 +44,8 @@ Description:
 		If set to 1, the LED will blink for the milliseconds specified
 		in interval to signal transmission.
 
-		With hw_control ON, the blink interval is controlled by hardware
-		and won't reflect the value set in interval.
+		When offloaded is true, the blink interval is controlled by
+		hardware and won't reflect the value set in interval.
 
 What:		/sys/class/leds/<led>/rx
 Date:		Dec 2017
@@ -59,21 +59,21 @@ Description:
 		If set to 1, the LED will blink for the milliseconds specified
 		in interval to signal reception.
 
-		With hw_control ON, the blink interval is controlled by hardware
-		and won't reflect the value set in interval.
+		When offloaded is true, the blink interval is controlled by
+		hardware and won't reflect the value set in interval.
 
-What:		/sys/class/leds/<led>/hw_control
+What:		/sys/class/leds/<led>/offloaded
 Date:		Jun 2023
 KernelVersion:	6.5
 Contact:	linux-leds@vger.kernel.org
 Description:
-		Communicate whether the LED trigger modes are driven by hardware
-		or software fallback is used.
+		Communicate whether the LED trigger modes are offloaded to
+		hardware or whether software fallback is used.
 
 		If 0, the LED is using software fallback to blink.
 
-		If 1, the LED is using hardware control to blink and signal the
-		requested modes.
+		If 1, the LED blinking in requested mode is offloaded to
+		hardware.
 
 What:		/sys/class/leds/<led>/link_10
 Date:		Jun 2023

@@ -543,7 +543,7 @@ static const struct regmap_config wm8741_regmap = {
 
 	.reg_defaults = wm8741_reg_defaults,
 	.num_reg_defaults = ARRAY_SIZE(wm8741_reg_defaults),
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 
 static int wm8741_set_pdata(struct device *dev, struct wm8741_priv *wm8741)

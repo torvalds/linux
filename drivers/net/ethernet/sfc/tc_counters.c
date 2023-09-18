@@ -129,8 +129,8 @@ static void efx_tc_counter_work(struct work_struct *work)
 
 /* Counter allocation */
 
-static struct efx_tc_counter *efx_tc_flower_allocate_counter(struct efx_nic *efx,
-							     int type)
+struct efx_tc_counter *efx_tc_flower_allocate_counter(struct efx_nic *efx,
+						      int type)
 {
 	struct efx_tc_counter *cnt;
 	int rc, rc2;
@@ -169,8 +169,8 @@ fail1:
 	return ERR_PTR(rc > 0 ? -EIO : rc);
 }
 
-static void efx_tc_flower_release_counter(struct efx_nic *efx,
-					  struct efx_tc_counter *cnt)
+void efx_tc_flower_release_counter(struct efx_nic *efx,
+				   struct efx_tc_counter *cnt)
 {
 	int rc;
 

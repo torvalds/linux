@@ -1541,7 +1541,6 @@ temeprature||temperature
 temorary||temporary
 temproarily||temporarily
 temperture||temperature
-thead||thread
 theads||threads
 therfore||therefore
 thier||their

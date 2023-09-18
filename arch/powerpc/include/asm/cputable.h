@@ -252,7 +252,7 @@ static inline void cpu_feature_keys_init(void) { }
  * This is also required by 52xx family.
  */
 #if defined(CONFIG_SMP) || defined(CONFIG_MPC10X_BRIDGE) \
-	|| defined(CONFIG_PPC_83xx) || defined(CONFIG_8260) \
+	|| defined(CONFIG_PPC_83xx) || defined(CONFIG_PPC_82xx) \
 	|| defined(CONFIG_PPC_MPC52xx)
 #define CPU_FTR_COMMON                  CPU_FTR_NEED_COHERENT
 #else

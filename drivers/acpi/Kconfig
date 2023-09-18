@@ -581,7 +581,7 @@ config ACPI_VIOT
 
 config ACPI_PRMT
 	bool "Platform Runtime Mechanism Support"
-	depends on EFI && (X86_64 || ARM64)
+	depends on EFI_RUNTIME_WRAPPERS && (X86_64 || ARM64)
 	default y
 	help
 	  Platform Runtime Mechanism (PRM) is a firmware interface exposing a

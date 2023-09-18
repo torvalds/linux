@@ -10,8 +10,8 @@
 #include <linux/genalloc.h>
 #include <linux/io.h>
 #include <linux/list_sort.h>
+#include <linux/of.h>
 #include <linux/of_address.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
@@ -236,7 +236,7 @@ static int sram_reserve_regions(struct sram_dev *sram, struct resource *res)
 			}
 			if (!label)
 				block->label = devm_kasprintf(sram->dev, GFP_KERNEL,
-							      "%s", dev_name(sram->dev));
+							      "%s", of_node_full_name(child));
 			else
 				block->label = devm_kstrdup(sram->dev,
 							    label, GFP_KERNEL);

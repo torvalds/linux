@@ -24,9 +24,9 @@ struct nv31_mpeg_func {
 struct nv31_mpeg_chan {
 	struct nvkm_object object;
 	struct nv31_mpeg *mpeg;
-	struct nvkm_fifo_chan *fifo;
+	struct nvkm_chan *fifo;
 };
 
-int nv31_mpeg_chan_new(struct nvkm_fifo_chan *, const struct nvkm_oclass *,
+int nv31_mpeg_chan_new(struct nvkm_chan *, const struct nvkm_oclass *,
 		       struct nvkm_object **);
 #endif

@@ -995,7 +995,7 @@ static const struct regmap_config wm8983_regmap = {
 
 	.reg_defaults = wm8983_defaults,
 	.num_reg_defaults = ARRAY_SIZE(wm8983_defaults),
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.max_register = WM8983_MAX_REGISTER,
 
 	.writeable_reg = wm8983_writeable,

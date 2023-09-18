@@ -30,7 +30,8 @@
 		compatible = "operating-points-v2-ti-cpu";
 		syscon = <&scm_conf>;
 
-		opp50-300000000 {
+		opp-50-300000000 {
+			/* OPP50 */
 			opp-hz = /bits/ 64 <300000000>;
 			/*
 			 * we currently only select the max voltage from table
@@ -48,21 +49,24 @@
 			opp-suspend;
 		};
 
-		opp100-600000000 {
+		opp-100-600000000 {
+			/* OPP100 */
 			opp-hz = /bits/ 64 <600000000>;
 			opp-microvolt = <1200000 1200000 1200000>,
 					 <1200000 1200000 1200000>;
 			opp-supported-hw = <0xffffffff 3>;
 		};
 
-		opp130-800000000 {
+		opp-130-800000000 {
+			/* OPP130 */
 			opp-hz = /bits/ 64 <800000000>;
 			opp-microvolt = <1325000 1325000 1325000>,
 					 <1325000 1325000 1325000>;
 			opp-supported-hw = <0xffffffff 3>;
 		};
 
-		opp1g-1000000000 {
+		opp-1000000000 {
+			/* OPP1G */
 			opp-hz = /bits/ 64 <1000000000>;
 			opp-microvolt = <1375000 1375000 1375000>,
 					 <1375000 1375000 1375000>;
@@ -71,7 +75,7 @@
 		};
 	};
 
-	opp_supply_mpu_iva: opp_supply {
+	opp_supply_mpu_iva: opp-supply {
 		compatible = "ti,omap-opp-supply";
 		ti,absolute-max-voltage-uv = <1375000>;
 	};

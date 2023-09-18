@@ -3,7 +3,7 @@ config VIDEO_BT848
 	tristate "BT848 Video For Linux"
 	depends on PCI && I2C && VIDEO_DEV
 	select I2C_ALGOBIT
-	select VIDEOBUF_DMA_SG
+	select VIDEOBUF2_DMA_SG
 	depends on RC_CORE
 	depends on MEDIA_RADIO_SUPPORT
 	select VIDEO_TUNER

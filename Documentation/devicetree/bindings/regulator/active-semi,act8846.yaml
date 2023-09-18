@@ -28,74 +28,36 @@ properties:
       the VSEL pin is assumed to be low.
     type: boolean
 
+  inl1-supply:
+    description: Handle to the INL1 input supply (REG5-7)
+
+  inl2-supply:
+    description: Handle to the INL2 input supply (REG8-9)
+
+  inl3-supply:
+    description: Handle to the INL3 input supply (REG10-12)
+
+  vp1-supply:
+    description: Handle to the VP1 input supply (REG1)
+
+  vp2-supply:
+    description: Handle to the VP2 input supply (REG2)
+
+  vp3-supply:
+    description: Handle to the VP3 input supply (REG3)
+
+  vp4-supply:
+    description: Handle to the VP4 input supply (REG4)
+
   regulators:
     type: object
     additionalProperties: false
 
-    properties:
-      REG1:
-        type: object
-        $ref: /schemas/regulator/regulator.yaml#
-        unevaluatedProperties: false
-
-        properties:
-          vp1-supply:
-            description: Handle to the VP1 input supply
-
-      REG2:
-        type: object
-        $ref: /schemas/regulator/regulator.yaml#
-        unevaluatedProperties: false
-
-        properties:
-          vp2-supply:
-            description: Handle to the VP2 input supply
-
-      REG3:
-        type: object
-        $ref: /schemas/regulator/regulator.yaml#
-        unevaluatedProperties: false
-
-        properties:
-          vp3-supply:
-            description: Handle to the VP3 input supply
-
-      REG4:
-        type: object
-        $ref: /schemas/regulator/regulator.yaml#
-        unevaluatedProperties: false
-
-        properties:
-          vp4-supply:
-            description: Handle to the VP4 input supply
-
     patternProperties:
-      "^REG[5-7]$":
+      "^REG([1-9]|1[0-2])$":
         type: object
         $ref: /schemas/regulator/regulator.yaml#
         unevaluatedProperties: false
-
-        properties:
-          inl1-supply:
-            description: Handle to the INL1 input supply
-
-      "^REG[8-9]$":
-        type: object
-        $ref: /schemas/regulator/regulator.yaml#
-        unevaluatedProperties: false
-
-        properties:
-          inl2-supply:
-            description: Handle to the INL2 input supply
-
-      "^REG1[0-2]$":
-        type: object
-        $ref: /schemas/regulator/regulator.yaml#
-        unevaluatedProperties: false
-
-        properties:
-          inl3-supply:
-            description: Handle to the INL3 input supply
 
 additionalProperties: false
 

@@ -28,6 +28,7 @@ properties:
       - mediatek,mt76
       - mediatek,mt7628-wmac
       - mediatek,mt7622-wmac
+      - mediatek,mt7981-wmac
       - mediatek,mt7986-wmac
 
   reg:
@@ -71,6 +72,14 @@ properties:
 
   ieee80211-freq-limit: true
 
+  nvmem-cells:
+    items:
+      - description: NVMEM cell with EEPROM
+
+  nvmem-cell-names:
+    items:
+      - const: eeprom
+
   mediatek,eeprom-data:
     $ref: /schemas/types.yaml#/definitions/uint32-array
     description:
@@ -84,6 +93,7 @@ properties:
           - description: offset containing EEPROM data
     description:
       Phandle to a MTD partition + offset containing EEPROM data
+    deprecated: true
 
   big-endian:
     $ref: /schemas/types.yaml#/definitions/flag
@@ -258,7 +268,8 @@ examples:
       interrupt-parent = <&cpuintc>;
       interrupts = <6>;
 
-      mediatek,mtd-eeprom = <&factory 0x0>;
+      nvmem-cells = <&eeprom>;
+      nvmem-cell-names = "eeprom";
     };
 
   - |

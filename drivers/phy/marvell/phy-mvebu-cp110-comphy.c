@@ -11,6 +11,7 @@
 #include <linux/iopoll.h>
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/phy.h>
 #include <linux/phy/phy.h>
 #include <linux/platform_device.h>
@@ -1011,8 +1012,7 @@ static int mvebu_comphy_probe(struct platform_device *pdev)
 						"marvell,system-controller");
 	if (IS_ERR(priv->regmap))
 		return PTR_ERR(priv->regmap);
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	priv->base = devm_ioremap_resource(&pdev->dev, res);
+	priv->base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(priv->base))
 		return PTR_ERR(priv->base);
 

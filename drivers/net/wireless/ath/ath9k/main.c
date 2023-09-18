@@ -1571,7 +1571,6 @@ static void ath9k_configure_filter(struct ieee80211_hw *hw,
 	struct ath_chanctx *ctx;
 	u32 rfilt;
 
-	changed_flags &= SUPPORTED_FILTERS;
 	*total_flags &= SUPPORTED_FILTERS;
 
 	spin_lock_bh(&sc->chan_lock);

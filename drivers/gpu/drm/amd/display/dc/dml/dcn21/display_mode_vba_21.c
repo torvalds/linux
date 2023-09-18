@@ -3194,7 +3194,7 @@ static void CalculateFlipSchedule(
 	unsigned int HostVMDynamicLevels;
 	double TimeForFetchingMetaPTEImmediateFlip;
 	double TimeForFetchingRowInVBlankImmediateFlip;
-	double ImmediateFlipBW;
+	double ImmediateFlipBW = 1.0;
 	double HostVMInefficiencyFactor;
 	double VRatioClamped;
 

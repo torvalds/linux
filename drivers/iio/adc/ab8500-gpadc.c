@@ -1099,14 +1099,12 @@ static int ab8500_gpadc_probe(struct platform_device *pdev)
 
 	gpadc->irq_sw = platform_get_irq_byname(pdev, "SW_CONV_END");
 	if (gpadc->irq_sw < 0)
-		return dev_err_probe(dev, gpadc->irq_sw,
-				     "failed to get platform sw_conv_end irq\n");
+		return gpadc->irq_sw;
 
 	if (is_ab8500(gpadc->ab8500)) {
 		gpadc->irq_hw = platform_get_irq_byname(pdev, "HW_CONV_END");
 		if (gpadc->irq_hw < 0)
-			return dev_err_probe(dev, gpadc->irq_hw,
-					     "failed to get platform hw_conv_end irq\n");
+			return gpadc->irq_hw;
 	} else {
 		gpadc->irq_hw = 0;
 	}

@@ -9,7 +9,7 @@ config MT76x2E
 	depends on MAC80211
 	depends on PCI
 	help
-	  This adds support for MT7612/MT7602/MT7662-based wireless PCIe
+	  This adds support for MT7612/MT7602/MT7662-based PCIe wireless
 	  devices, which comply with IEEE 802.11ac standards and support
 	  2SS to 866Mbit/s PHY rate.
 
@@ -22,7 +22,7 @@ config MT76x2U
 	depends on MAC80211
 	depends on USB
 	help
-	  This adds support for MT7612U-based wireless USB 3.0 dongles,
+	  This adds support for MT7612U-based USB 3.0 wireless dongles,
 	  which comply with IEEE 802.11ac standards and support 2SS to
 	  866Mbit/s PHY rate.
 

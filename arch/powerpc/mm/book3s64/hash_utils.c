@@ -1307,18 +1307,19 @@ void hash__early_init_mmu_secondary(void)
  */
 unsigned int hash_page_do_lazy_icache(unsigned int pp, pte_t pte, int trap)
 {
-	struct page *page;
+	struct folio *folio;
 
 	if (!pfn_valid(pte_pfn(pte)))
 		return pp;
 
-	page = pte_page(pte);
+	folio = page_folio(pte_page(pte));
 
 	/* page is dirty */
-	if (!test_bit(PG_dcache_clean, &page->flags) && !PageReserved(page)) {
+	if (!test_bit(PG_dcache_clean, &folio->flags) &&
+	    !folio_test_reserved(folio)) {
 		if (trap == INTERRUPT_INST_STORAGE) {
-			flush_dcache_icache_page(page);
-			set_bit(PG_dcache_clean, &page->flags);
+			flush_dcache_icache_folio(folio);
+			set_bit(PG_dcache_clean, &folio->flags);
 		} else
 			pp |= HPTE_R_N;
 	}

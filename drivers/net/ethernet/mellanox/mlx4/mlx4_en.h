@@ -49,6 +49,7 @@
 #include <linux/ptp_clock_kernel.h>
 #include <linux/irq.h>
 #include <net/xdp.h>
+#include <linux/notifier.h>
 
 #include <linux/mlx4/device.h>
 #include <linux/mlx4/qp.h>
@@ -432,7 +433,8 @@ struct mlx4_en_dev {
 	unsigned long		last_overflow_check;
 	struct ptp_clock	*ptp_clock;
 	struct ptp_clock_info	ptp_clock_info;
-	struct notifier_block	nb;
+	struct notifier_block	netdev_nb;
+	struct notifier_block	mlx_nb;
 };
 
 

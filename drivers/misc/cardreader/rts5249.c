@@ -327,12 +327,11 @@ static int rts5249_extra_init_hw(struct rtsx_pcr *pcr)
 		}
 	}
 
-
 	/*
 	 * If u_force_clkreq_0 is enabled, CLKREQ# PIN will be forced
 	 * to drive low, and we forcibly request clock.
 	 */
-	if (option->force_clkreq_0)
+	if (option->force_clkreq_0 && pcr->aspm_mode == ASPM_MODE_CFG)
 		rtsx_pci_write_register(pcr, PETXCFG,
 			FORCE_CLKREQ_DELINK_MASK, FORCE_CLKREQ_LOW);
 	else

@@ -180,7 +180,7 @@
 		>;
 	};
 
-	pinctrl_leds: ledsgrp{
+	pinctrl_leds: ledsgrp {
 		fsl,pins = <
 			IMX8QXP_ESAI0_TX2_RX3_LSIO_GPIO0_IO06			0x00000021
 			IMX8QXP_ESAI0_TX3_RX2_LSIO_GPIO0_IO07			0x00000021

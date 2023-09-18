@@ -182,6 +182,38 @@
 			pinctrl-0 = <&max77693_irq>;
 			reg = <0x66>;
 
+			muic {
+				compatible = "maxim,max77693-muic";
+
+				connector {
+					compatible = "samsung,usb-connector-11pin",
+						     "usb-b-connector";
+					label = "micro-USB";
+					type = "micro";
+
+					ports {
+						#address-cells = <1>;
+						#size-cells = <0>;
+
+						port@0 {
+							reg = <0>;
+
+							muic_to_usb: endpoint {
+								remote-endpoint = <&usb_to_muic>;
+							};
+						};
+
+						port@3 {
+							reg = <3>;
+
+							muic_to_mhl: endpoint {
+								remote-endpoint = <&mhl_to_muic>;
+							};
+						};
+					};
+				};
+			};
+
 			regulators {
 				esafeout1_reg: ESAFEOUT1 {
 					regulator-name = "ESAFEOUT1";
@@ -285,6 +317,14 @@
 
 					mhl_to_hdmi: endpoint {
 						remote-endpoint = <&hdmi_to_mhl>;
+					};
+				};
+
+				port@1 {
+					reg = <1>;
+
+					mhl_to_muic: endpoint {
+						remote-endpoint = <&muic_to_mhl>;
 					};
 				};
 			};
@@ -545,8 +585,16 @@
 &hsotg {
 	vusb_d-supply = <&ldo15_reg>;
 	vusb_a-supply = <&ldo12_reg>;
-	dr_mode = "peripheral";
+	dr_mode = "otg";
+	role-switch-default-mode = "peripheral";
+	usb-role-switch;
 	status = "okay";
+
+	port {
+		usb_to_muic: endpoint {
+			remote-endpoint = <&muic_to_usb>;
+		};
+	};
 };
 
 &i2c_0 {
@@ -990,7 +1038,7 @@
 
 &pmu_system_controller {
 	assigned-clocks = <&pmu_system_controller 0>;
-	assigned-clock-parents =  <&clock CLK_XUSBXTI>;
+	assigned-clock-parents = <&clock CLK_XUSBXTI>;
 };
 
 &pinctrl_0 {

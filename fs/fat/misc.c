@@ -332,13 +332,14 @@ int fat_truncate_time(struct inode *inode, struct timespec64 *now, int flags)
 	 * but ctime updates are ignored.
 	 */
 	if (flags & S_MTIME)
-		inode->i_mtime = inode->i_ctime = fat_truncate_mtime(sbi, now);
+		inode->i_mtime = inode_set_ctime_to_ts(inode,
+						       fat_truncate_mtime(sbi, now));
 
 	return 0;
 }
 EXPORT_SYMBOL_GPL(fat_truncate_time);
 
-int fat_update_time(struct inode *inode, struct timespec64 *now, int flags)
+int fat_update_time(struct inode *inode, int flags)
 {
 	int dirty_flags = 0;
 
@@ -346,15 +347,12 @@ int fat_update_time(struct inode *inode, struct timespec64 *now, int flags)
 		return 0;
 
 	if (flags & (S_ATIME | S_CTIME | S_MTIME)) {
-		fat_truncate_time(inode, now, flags);
+		fat_truncate_time(inode, NULL, flags);
 		if (inode->i_sb->s_flags & SB_LAZYTIME)
 			dirty_flags |= I_DIRTY_TIME;
 		else
 			dirty_flags |= I_DIRTY_SYNC;
 	}
-
-	if ((flags & S_VERSION) && inode_maybe_inc_iversion(inode, false))
-		dirty_flags |= I_DIRTY_SYNC;
 
 	__mark_inode_dirty(inode, dirty_flags);
 	return 0;

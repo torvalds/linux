@@ -1305,8 +1305,12 @@ static int psy_register_thermal(struct power_supply *psy)
 
 	/* Register battery zone device psy reports temperature */
 	if (psy_has_property(psy->desc, POWER_SUPPLY_PROP_TEMP)) {
-		psy->tzd = thermal_zone_device_register(psy->desc->name,
-				0, 0, psy, &psy_tzd_ops, NULL, 0, 0);
+		/* Prefer our hwmon device and avoid duplicates */
+		struct thermal_zone_params tzp = {
+			.no_hwmon = IS_ENABLED(CONFIG_POWER_SUPPLY_HWMON)
+		};
+		psy->tzd = thermal_tripless_zone_device_register(psy->desc->name,
+				psy, &psy_tzd_ops, &tzp);
 		if (IS_ERR(psy->tzd))
 			return PTR_ERR(psy->tzd);
 		ret = thermal_zone_device_enable(psy->tzd);

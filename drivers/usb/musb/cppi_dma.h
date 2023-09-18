@@ -121,9 +121,6 @@ struct cppi {
 	struct list_head		tx_complete;
 };
 
-/* CPPI IRQ handler */
-extern irqreturn_t cppi_interrupt(int, void *);
-
 struct cppi41_dma_channel {
 	struct dma_channel channel;
 	struct cppi41_dma_controller *controller;

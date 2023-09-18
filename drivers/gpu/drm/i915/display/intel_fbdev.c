@@ -85,9 +85,9 @@ static void intel_fbdev_invalidate(struct intel_fbdev *ifbdev)
 	intel_frontbuffer_invalidate(to_frontbuffer(ifbdev), ORIGIN_CPU);
 }
 
-FB_GEN_DEFAULT_DEFERRED_IO_OPS(intel_fbdev,
-			       drm_fb_helper_damage_range,
-			       drm_fb_helper_damage_area)
+FB_GEN_DEFAULT_DEFERRED_IOMEM_OPS(intel_fbdev,
+				  drm_fb_helper_damage_range,
+				  drm_fb_helper_damage_area)
 
 static int intel_fbdev_set_par(struct fb_info *info)
 {
@@ -182,8 +182,10 @@ static int intelfb_alloc(struct drm_fb_helper *helper,
 		 * If the FB is too big, just don't use it since fbdev is not very
 		 * important and we should probably use that space with FBC or other
 		 * features.
+		 *
+		 * Also skip stolen on MTL as Wa_22018444074 mitigation.
 		 */
-		if (size * 2 < dev_priv->dsm.usable_size)
+		if (!(IS_METEORLAKE(dev_priv)) && size * 2 < dev_priv->dsm.usable_size)
 			obj = i915_gem_object_create_stolen(dev_priv, size);
 		if (IS_ERR(obj))
 			obj = i915_gem_object_create_shmem(dev_priv, size);

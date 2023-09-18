@@ -8,6 +8,7 @@
 #include <linux/mfd/stm32-timers.h>
 #include <linux/module.h>
 #include <linux/of_platform.h>
+#include <linux/platform_device.h>
 #include <linux/reset.h>
 
 #define STM32_TIMERS_MAX_REGISTERS	0x3fc
@@ -226,8 +227,7 @@ static int stm32_timers_probe(struct platform_device *pdev)
 	if (!ddata)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	mmio = devm_ioremap_resource(dev, res);
+	mmio = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(mmio))
 		return PTR_ERR(mmio);
 

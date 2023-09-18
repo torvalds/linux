@@ -2734,12 +2734,8 @@ static int snd_cmipci_mixer_new(struct cmipci *cm, int pcm_spdif_device)
 	}
 
 	for (idx = 0; idx < CM_SAVED_MIXERS; idx++) {
-		struct snd_ctl_elem_id elem_id;
 		struct snd_kcontrol *ctl;
-		memset(&elem_id, 0, sizeof(elem_id));
-		elem_id.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
-		strcpy(elem_id.name, cm_saved_mixer[idx].name);
-		ctl = snd_ctl_find_id(cm->card, &elem_id);
+		ctl = snd_ctl_find_id_mixer(cm->card, cm_saved_mixer[idx].name);
 		if (ctl)
 			cm->mixer_res_ctl[idx] = ctl;
 	}

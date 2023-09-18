@@ -31,6 +31,7 @@
 #include "core_types.h"
 #include "../basics/conversion.h"
 #include "cursor_reg_cache.h"
+#include "resource.h"
 
 #define CTX dc_dmub_srv->ctx
 #define DC_LOGGER CTX->logger
@@ -356,7 +357,7 @@ bool dc_dmub_srv_p_state_delegate(struct dc *dc, bool should_manage_pstate, stru
 	for (i = 0, k = 0; context && i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
 
-		if (!pipe->top_pipe && !pipe->prev_odm_pipe && pipe->stream && pipe->stream->fpo_in_use) {
+		if (resource_is_pipe_type(pipe, OTG_MASTER) && pipe->stream->fpo_in_use) {
 			struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
 			uint8_t min_refresh_in_hz = (pipe->stream->timing.min_refresh_in_uhz + 999999) / 1000000;
 
@@ -380,6 +381,9 @@ bool dc_dmub_srv_p_state_delegate(struct dc *dc, bool should_manage_pstate, stru
 void dc_dmub_srv_query_caps_cmd(struct dc_dmub_srv *dc_dmub_srv)
 {
 	union dmub_rb_cmd cmd = { 0 };
+
+	if (dc_dmub_srv->ctx->dc->debug.dmcub_emulation)
+		return;
 
 	memset(&cmd, 0, sizeof(cmd));
 
@@ -528,7 +532,8 @@ static void populate_subvp_cmd_vblank_pipe_info(struct dc *dc,
 
 		// We check for master pipe, but it shouldn't matter since we only need
 		// the pipe for timing info (stream should be same for any pipe splits)
-		if (!pipe->stream || !pipe->plane_state || pipe->top_pipe || pipe->prev_odm_pipe)
+		if (!resource_is_pipe_type(pipe, OTG_MASTER) ||
+				!resource_is_pipe_type(pipe, DPP_PIPE))
 			continue;
 
 		// Find the SubVP pipe
@@ -725,12 +730,10 @@ void dc_dmub_setup_subvp_dmub_command(struct dc *dc,
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
 
-		if (!pipe->stream)
-			continue;
-
 		/* For SubVP pipe count, only count the top most (ODM / MPC) pipe
 		 */
-		if (pipe->plane_state && !pipe->top_pipe && !pipe->prev_odm_pipe &&
+		if (resource_is_pipe_type(pipe, OTG_MASTER) &&
+				resource_is_pipe_type(pipe, DPP_PIPE) &&
 				pipe->stream->mall_stream_config.type == SUBVP_MAIN)
 			subvp_pipes[subvp_count++] = pipe;
 	}
@@ -747,12 +750,14 @@ void dc_dmub_setup_subvp_dmub_command(struct dc *dc,
 			 * Any ODM or MPC splits being used in SubVP will be handled internally in
 			 * populate_subvp_cmd_pipe_info
 			 */
-			if (pipe->plane_state && pipe->stream->mall_stream_config.paired_stream &&
-					!pipe->top_pipe && !pipe->prev_odm_pipe &&
+			if (resource_is_pipe_type(pipe, OTG_MASTER) &&
+					resource_is_pipe_type(pipe, DPP_PIPE) &&
+					pipe->stream->mall_stream_config.paired_stream &&
 					pipe->stream->mall_stream_config.type == SUBVP_MAIN) {
 				populate_subvp_cmd_pipe_info(dc, context, &cmd, pipe, cmd_pipe_index++);
-			} else if (pipe->plane_state && pipe->stream->mall_stream_config.type == SUBVP_NONE &&
-				    !pipe->top_pipe && !pipe->prev_odm_pipe) {
+			} else if (resource_is_pipe_type(pipe, OTG_MASTER) &&
+					resource_is_pipe_type(pipe, DPP_PIPE) &&
+					pipe->stream->mall_stream_config.type == SUBVP_NONE) {
 				// Don't need to check for ActiveDRAMClockChangeMargin < 0, not valid in cases where
 				// we run through DML without calculating "natural" P-state support
 				populate_subvp_cmd_vblank_pipe_info(dc, context, &cmd, pipe, cmd_pipe_index++);
@@ -894,6 +899,9 @@ static bool dc_dmub_should_update_cursor_data(struct pipe_ctx *pipe_ctx)
 		pipe_ctx->stream->ctx->dce_version >= DCN_VERSION_3_1)
 		return true;
 
+	if (pipe_ctx->stream->link->replay_settings.config.replay_supported)
+		return true;
+
 	return false;
 }
 
@@ -1017,4 +1025,33 @@ bool dc_dmub_check_min_version(struct dmub_srv *srv)
 	if (!srv->hw_funcs.is_psrsu_supported)
 		return true;
 	return srv->hw_funcs.is_psrsu_supported(srv);
+}
+
+void dc_dmub_srv_enable_dpia_trace(const struct dc *dc)
+{
+	struct dc_dmub_srv *dc_dmub_srv = dc->ctx->dmub_srv;
+	struct dmub_srv *dmub;
+	enum dmub_status status;
+	static const uint32_t timeout_us = 30;
+
+	if (!dc_dmub_srv || !dc_dmub_srv->dmub) {
+		DC_LOG_ERROR("%s: invalid parameters.", __func__);
+		return;
+	}
+
+	dmub = dc_dmub_srv->dmub;
+
+	status = dmub_srv_send_gpint_command(dmub, DMUB_GPINT__SET_TRACE_BUFFER_MASK_WORD1, 0x0010, timeout_us);
+	if (status != DMUB_STATUS_OK) {
+		DC_LOG_ERROR("timeout updating trace buffer mask word\n");
+		return;
+	}
+
+	status = dmub_srv_send_gpint_command(dmub, DMUB_GPINT__UPDATE_TRACE_BUFFER_MASK, 0x0000, timeout_us);
+	if (status != DMUB_STATUS_OK) {
+		DC_LOG_ERROR("timeout updating trace buffer mask word\n");
+		return;
+	}
+
+	DC_LOG_DEBUG("Enabled DPIA trace\n");
 }

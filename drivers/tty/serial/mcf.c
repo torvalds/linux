@@ -281,7 +281,7 @@ static void mcf_set_termios(struct uart_port *port, struct ktermios *termios,
 static void mcf_rx_chars(struct mcf_uart *pp)
 {
 	struct uart_port *port = &pp->port;
-	unsigned char status, ch, flag;
+	u8 status, ch, flag;
 
 	while ((status = readb(port->membase + MCFUART_USR)) & MCFUART_USR_RXREADY) {
 		ch = readb(port->membase + MCFUART_URB);

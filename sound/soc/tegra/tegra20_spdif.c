@@ -241,6 +241,7 @@ static int tegra20_spdif_probe(struct snd_soc_dai *dai)
 }
 
 static const struct snd_soc_dai_ops tegra20_spdif_dai_ops = {
+	.probe = tegra20_spdif_probe,
 	.hw_params = tegra20_spdif_hw_params,
 	.trigger = tegra20_spdif_trigger,
 	.startup = tegra20_spdif_startup,
@@ -248,7 +249,6 @@ static const struct snd_soc_dai_ops tegra20_spdif_dai_ops = {
 
 static struct snd_soc_dai_driver tegra20_spdif_dai = {
 	.name = "tegra20-spdif",
-	.probe = tegra20_spdif_probe,
 	.playback = {
 		.stream_name = "Playback",
 		.channels_min = 2,

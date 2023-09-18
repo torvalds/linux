@@ -14,9 +14,9 @@
  * Copyright (C) 2002 Intel Corp.
  * Copyright (C) 2002 Ken Chen <kenneth.w.chen@intel.com>
  */
+#include <linux/export.h>
 #include <asm/asmmacro.h>
 #include <asm/page.h>
-#include <asm/export.h>
 
 #define EK(y...) EX(y)
 

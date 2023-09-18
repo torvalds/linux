@@ -582,17 +582,15 @@
 	ti,pindir-d0-out-d1-in;
 };
 
-&tscadc0 {
-	status = "disabled";
-};
-
 &tscadc1 {
+	status = "okay";
 	adc {
 		ti,adc-channels = <0 1 2 3 4 5>;
 	};
 };
 
 &ospi0 {
+	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&mcu_fss0_ospi0_pins_default>;
 

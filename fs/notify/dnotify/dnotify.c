@@ -199,7 +199,7 @@ void dnotify_flush(struct file *filp, fl_owner_t id)
 }
 
 /* this conversion is done only at watch creation */
-static __u32 convert_arg(unsigned long arg)
+static __u32 convert_arg(unsigned int arg)
 {
 	__u32 new_mask = FS_EVENT_ON_CHILD;
 
@@ -258,7 +258,7 @@ static int attach_dn(struct dnotify_struct *dn, struct dnotify_mark *dn_mark,
  * up here.  Allocate both a mark for fsnotify to add and a dnotify_struct to be
  * attached to the fsnotify_mark.
  */
-int fcntl_dirnotify(int fd, struct file *filp, unsigned long arg)
+int fcntl_dirnotify(int fd, struct file *filp, unsigned int arg)
 {
 	struct dnotify_mark *new_dn_mark, *dn_mark;
 	struct fsnotify_mark *new_fsn_mark, *fsn_mark;

@@ -560,11 +560,11 @@ struct memory_dev_type *alloc_memory_type(int adistance)
 }
 EXPORT_SYMBOL_GPL(alloc_memory_type);
 
-void destroy_memory_type(struct memory_dev_type *memtype)
+void put_memory_type(struct memory_dev_type *memtype)
 {
 	kref_put(&memtype->kref, release_memtype);
 }
-EXPORT_SYMBOL_GPL(destroy_memory_type);
+EXPORT_SYMBOL_GPL(put_memory_type);
 
 void init_node_memory_type(int node, struct memory_dev_type *memtype)
 {
@@ -586,7 +586,7 @@ void clear_node_memory_type(int node, struct memory_dev_type *memtype)
 	 */
 	if (!node_memory_types[node].map_count) {
 		node_memory_types[node].memtype = NULL;
-		kref_put(&memtype->kref, release_memtype);
+		put_memory_type(memtype);
 	}
 	mutex_unlock(&memory_tier_lock);
 }
@@ -672,16 +672,16 @@ bool numa_demotion_enabled = false;
 
 #ifdef CONFIG_MIGRATION
 #ifdef CONFIG_SYSFS
-static ssize_t numa_demotion_enabled_show(struct kobject *kobj,
-					  struct kobj_attribute *attr, char *buf)
+static ssize_t demotion_enabled_show(struct kobject *kobj,
+				     struct kobj_attribute *attr, char *buf)
 {
 	return sysfs_emit(buf, "%s\n",
 			  numa_demotion_enabled ? "true" : "false");
 }
 
-static ssize_t numa_demotion_enabled_store(struct kobject *kobj,
-					   struct kobj_attribute *attr,
-					   const char *buf, size_t count)
+static ssize_t demotion_enabled_store(struct kobject *kobj,
+				      struct kobj_attribute *attr,
+				      const char *buf, size_t count)
 {
 	ssize_t ret;
 
@@ -693,8 +693,7 @@ static ssize_t numa_demotion_enabled_store(struct kobject *kobj,
 }
 
 static struct kobj_attribute numa_demotion_enabled_attr =
-	__ATTR(demotion_enabled, 0644, numa_demotion_enabled_show,
-	       numa_demotion_enabled_store);
+	__ATTR_RW(demotion_enabled);
 
 static struct attribute *numa_attrs[] = {
 	&numa_demotion_enabled_attr.attr,

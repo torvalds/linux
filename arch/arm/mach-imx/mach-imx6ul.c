@@ -3,12 +3,8 @@
  * Copyright (C) 2015 Freescale Semiconductor, Inc.
  */
 #include <linux/irqchip.h>
-#include <linux/mfd/syscon.h>
 #include <linux/of_platform.h>
-#include <linux/phy.h>
-#include <linux/regmap.h>
 #include <asm/mach/arch.h>
-#include <asm/mach/map.h>
 
 #include "common.h"
 #include "cpuidle.h"

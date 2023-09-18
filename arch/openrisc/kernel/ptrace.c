@@ -27,6 +27,10 @@
 #include <asm/thread_info.h>
 #include <asm/page.h>
 
+asmlinkage long do_syscall_trace_enter(struct pt_regs *regs);
+
+asmlinkage void do_syscall_trace_leave(struct pt_regs *regs);
+
 /*
  * Copy the thread state to a regset that can be interpreted by userspace.
  *

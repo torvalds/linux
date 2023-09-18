@@ -14,7 +14,7 @@
 #include <linux/idr.h>
 #include <linux/rhashtable.h>
 #include <linux/bug.h>
-#include <net/page_pool.h>
+#include <net/page_pool/helpers.h>
 
 #include <net/xdp.h>
 #include <net/xdp_priv.h> /* struct xdp_mem_allocator */
