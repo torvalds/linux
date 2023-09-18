@@ -353,7 +353,7 @@ static int ksz9477_acl_update_linkage(struct ksz_device *dev, u8 *entry,
 		return 0;
 
 	if (val0 != old_idx) {
-		dev_err(dev->dev, "ACL: entry %d has unxpexted ActionRule linkage: %d\n",
+		dev_err(dev->dev, "ACL: entry %d has unexpected ActionRule linkage: %d\n",
 			old_idx, val0);
 		return -EINVAL;
 	}
