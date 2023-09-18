@@ -103,9 +103,10 @@ static void test_exceptions_success(void)
 			goto done;						  \
 		}								  \
 		if (load_ret != 0) {						  \
-			printf("%s\n", log_buf);				  \
-			if (!ASSERT_OK_PTR(strstr(log_buf, msg), "strstr"))	  \
+			if (!ASSERT_OK_PTR(strstr(log_buf, msg), "strstr")) {	  \
+				printf("%s\n", log_buf);			  \
 				goto done;					  \
+			}							  \
 		}								  \
 		if (!load_ret && attach_err) {					  \
 			if (!ASSERT_ERR_PTR(link = bpf_program__attach(prog), "attach err")) \
