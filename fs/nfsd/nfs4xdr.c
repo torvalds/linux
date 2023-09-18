@@ -2915,6 +2915,7 @@ struct nfsd4_fattr_args {
 	u64			size;
 	u32			rdattr_err;
 	bool			contextsupport;
+	bool			ignore_crossmnt;
 };
 
 static __be32 nfsd4_encode_fattr4__true(struct xdr_stream *xdr,
@@ -3275,6 +3276,23 @@ static __be32 nfsd4_encode_fattr4_time_modify(struct xdr_stream *xdr,
 	return nfsd4_encode_nfstime4(xdr, &args->stat.mtime);
 }
 
+static __be32 nfsd4_encode_fattr4_mounted_on_fileid(struct xdr_stream *xdr,
+						    const struct nfsd4_fattr_args *args)
+{
+	u64 ino;
+	int err;
+
+	if (!args->ignore_crossmnt &&
+	    args->dentry == args->exp->ex_path.mnt->mnt_root) {
+		err = nfsd4_get_mounted_on_ino(args->exp, &ino);
+		if (err)
+			return nfserrno(err);
+	} else
+		ino = args->stat.ino;
+
+	return nfsd4_encode_uint64_t(xdr, ino);
+}
+
 /*
  * Note: @fhp can be NULL; in this case, we might have to compose the filehandle
  * ourselves.
@@ -3314,6 +3332,7 @@ nfsd4_encode_fattr(struct xdr_stream *xdr, struct svc_fh *fhp,
 	args.rqstp = rqstp;
 	args.exp = exp;
 	args.dentry = dentry;
+	args.ignore_crossmnt = (ignore_crossmnt != 0);
 
 	args.rdattr_err = 0;
 	if (exp->ex_fslocs.migrated) {
@@ -3628,23 +3647,9 @@ nfsd4_encode_fattr(struct xdr_stream *xdr, struct svc_fh *fhp,
 			goto out;
 	}
 	if (bmval1 & FATTR4_WORD1_MOUNTED_ON_FILEID) {
-		u64 ino = args.stat.ino;
-
-		p = xdr_reserve_space(xdr, 8);
-		if (!p)
-                	goto out_resource;
-		/*
-		 * Get ino of mountpoint in parent filesystem, if not ignoring
-		 * crossmount and this is the root of a cross-mounted
-		 * filesystem.
-		 */
-		if (ignore_crossmnt == 0 &&
-		    dentry == exp->ex_path.mnt->mnt_root) {
-			err = nfsd4_get_mounted_on_ino(exp, &ino);
-			if (err)
-				goto out_nfserr;
-		}
-		p = xdr_encode_hyper(p, ino);
+		status = nfsd4_encode_fattr4_mounted_on_fileid(xdr, &args);
+		if (status != nfs_ok)
+			goto out;
 	}
 #ifdef CONFIG_NFSD_PNFS
 	if (bmval1 & FATTR4_WORD1_FS_LAYOUT_TYPES) {
