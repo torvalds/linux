@@ -966,11 +966,9 @@ static void cpcap_charger_shutdown(struct platform_device *pdev)
 	cancel_delayed_work_sync(&ddata->detect_work);
 }
 
-static int cpcap_charger_remove(struct platform_device *pdev)
+static void cpcap_charger_remove(struct platform_device *pdev)
 {
 	cpcap_charger_shutdown(pdev);
-
-	return 0;
 }
 
 static struct platform_driver cpcap_charger_driver = {
@@ -980,7 +978,7 @@ static struct platform_driver cpcap_charger_driver = {
 		.of_match_table = of_match_ptr(cpcap_charger_id_table),
 	},
 	.shutdown = cpcap_charger_shutdown,
-	.remove	= cpcap_charger_remove,
+	.remove_new = cpcap_charger_remove,
 };
 module_platform_driver(cpcap_charger_driver);
 
