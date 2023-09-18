@@ -4433,34 +4433,25 @@ nfsd4_encode_secinfo_no_name(struct nfsd4_compoundres *resp, __be32 nfserr,
 	return nfsd4_do_encode_secinfo(xdr, secinfo->sin_exp);
 }
 
-/*
- * The SETATTR encode routine is special -- it always encodes a bitmap,
- * regardless of the error status.
- */
 static __be32
 nfsd4_encode_setattr(struct nfsd4_compoundres *resp, __be32 nfserr,
 		     union nfsd4_op_u *u)
 {
 	struct nfsd4_setattr *setattr = &u->setattr;
-	struct xdr_stream *xdr = resp->xdr;
-	__be32 *p;
+	__be32 status;
 
-	p = xdr_reserve_space(xdr, 16);
-	if (!p)
-		return nfserr_resource;
-	if (nfserr) {
-		*p++ = cpu_to_be32(3);
-		*p++ = cpu_to_be32(0);
-		*p++ = cpu_to_be32(0);
-		*p++ = cpu_to_be32(0);
+	switch (nfserr) {
+	case nfs_ok:
+		/* attrsset */
+		status = nfsd4_encode_bitmap4(resp->xdr, setattr->sa_bmval[0],
+					      setattr->sa_bmval[1],
+					      setattr->sa_bmval[2]);
+		break;
+	default:
+		/* attrsset */
+		status = nfsd4_encode_bitmap4(resp->xdr, 0, 0, 0);
 	}
-	else {
-		*p++ = cpu_to_be32(3);
-		*p++ = cpu_to_be32(setattr->sa_bmval[0]);
-		*p++ = cpu_to_be32(setattr->sa_bmval[1]);
-		*p++ = cpu_to_be32(setattr->sa_bmval[2]);
-	}
-	return nfserr;
+	return status != nfs_ok ? status : nfserr;
 }
 
 static __be32
