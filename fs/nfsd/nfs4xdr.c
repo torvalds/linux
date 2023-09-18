@@ -2658,9 +2658,6 @@ static __be32 nfsd4_encode_components(struct xdr_stream *xdr, char sep,
 	return nfsd4_encode_components_esc(xdr, sep, components, 0, 0);
 }
 
-/*
- * encode a location element of a fs_locations structure
- */
 static __be32 nfsd4_encode_fs_location4(struct xdr_stream *xdr,
 					struct nfsd4_fs_location *location)
 {
@@ -2673,15 +2670,12 @@ static __be32 nfsd4_encode_fs_location4(struct xdr_stream *xdr,
 	status = nfsd4_encode_components(xdr, '/', location->path);
 	if (status)
 		return status;
-	return 0;
+	return nfs_ok;
 }
 
-/*
- * Encode a path in RFC3530 'pathname4' format
- */
-static __be32 nfsd4_encode_path(struct xdr_stream *xdr,
-				const struct path *root,
-				const struct path *path)
+static __be32 nfsd4_encode_pathname4(struct xdr_stream *xdr,
+				     const struct path *root,
+				     const struct path *path)
 {
 	struct path cur = *path;
 	__be32 *p;
@@ -2749,44 +2743,34 @@ out_free:
 	return err;
 }
 
-static __be32 nfsd4_encode_fsloc_fsroot(struct xdr_stream *xdr,
-			struct svc_rqst *rqstp, const struct path *path)
+static __be32 nfsd4_encode_fs_locations4(struct xdr_stream *xdr,
+					 struct svc_rqst *rqstp,
+					 struct svc_export *exp)
 {
+	struct nfsd4_fs_locations *fslocs = &exp->ex_fslocs;
 	struct svc_export *exp_ps;
-	__be32 res;
+	unsigned int i;
+	__be32 status;
 
+	/* fs_root */
 	exp_ps = rqst_find_fsidzero_export(rqstp);
 	if (IS_ERR(exp_ps))
 		return nfserrno(PTR_ERR(exp_ps));
-	res = nfsd4_encode_path(xdr, &exp_ps->ex_path, path);
+	status = nfsd4_encode_pathname4(xdr, &exp_ps->ex_path, &exp->ex_path);
 	exp_put(exp_ps);
-	return res;
-}
-
-/*
- *  encode a fs_locations structure
- */
-static __be32 nfsd4_encode_fs_locations(struct xdr_stream *xdr,
-			struct svc_rqst *rqstp, struct svc_export *exp)
-{
-	__be32 status;
-	int i;
-	__be32 *p;
-	struct nfsd4_fs_locations *fslocs = &exp->ex_fslocs;
-
-	status = nfsd4_encode_fsloc_fsroot(xdr, rqstp, &exp->ex_path);
-	if (status)
+	if (status != nfs_ok)
 		return status;
-	p = xdr_reserve_space(xdr, 4);
-	if (!p)
+
+	/* locations<> */
+	if (xdr_stream_encode_u32(xdr, fslocs->locations_count) != XDR_UNIT)
 		return nfserr_resource;
-	*p++ = cpu_to_be32(fslocs->locations_count);
-	for (i=0; i<fslocs->locations_count; i++) {
+	for (i = 0; i < fslocs->locations_count; i++) {
 		status = nfsd4_encode_fs_location4(xdr, &fslocs->locations[i]);
-		if (status)
+		if (status != nfs_ok)
 			return status;
 	}
-	return 0;
+
+	return nfs_ok;
 }
 
 static __be32 nfsd4_encode_nfsace4(struct xdr_stream *xdr, struct svc_rqst *rqstp,
@@ -3161,6 +3145,12 @@ static __be32 nfsd4_encode_fattr4_files_total(struct xdr_stream *xdr,
 	return nfsd4_encode_uint64_t(xdr, args->statfs.f_files);
 }
 
+static __be32 nfsd4_encode_fattr4_fs_locations(struct xdr_stream *xdr,
+					       const struct nfsd4_fattr_args *args)
+{
+	return nfsd4_encode_fs_locations4(xdr, args->rqstp, args->exp);
+}
+
 /*
  * Note: @fhp can be NULL; in this case, we might have to compose the filehandle
  * ourselves.
@@ -3405,8 +3395,8 @@ nfsd4_encode_fattr(struct xdr_stream *xdr, struct svc_fh *fhp,
 			goto out;
 	}
 	if (bmval0 & FATTR4_WORD0_FS_LOCATIONS) {
-		status = nfsd4_encode_fs_locations(xdr, rqstp, exp);
-		if (status)
+		status = nfsd4_encode_fattr4_fs_locations(xdr, &args);
+		if (status != nfs_ok)
 			goto out;
 	}
 	if (bmval0 & FATTR4_WORD0_HOMOGENEOUS) {
