@@ -1424,9 +1424,16 @@ static void __map_bio(struct bio *clone)
 		if (unlikely(dm_emulate_zone_append(md)))
 			r = dm_zone_map_bio(tio);
 		else
+			goto do_map;
+	} else {
+do_map:
+		if (likely(ti->type->map == linear_map))
+			r = linear_map(ti, clone);
+		else if (ti->type->map == stripe_map)
+			r = stripe_map(ti, clone);
+		else
 			r = ti->type->map(ti, clone);
-	} else
-		r = ti->type->map(ti, clone);
+	}
 
 	switch (r) {
 	case DM_MAPIO_SUBMITTED:
