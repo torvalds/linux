@@ -150,7 +150,7 @@ enum nfs_opnum4 {
 	OP_WRITE_SAME = 70,
 	OP_CLONE = 71,
 
-	/* xattr support (RFC8726) */
+	/* xattr support (RFC8276) */
 	OP_GETXATTR                = 72,
 	OP_SETXATTR                = 73,
 	OP_LISTXATTRS              = 74,
