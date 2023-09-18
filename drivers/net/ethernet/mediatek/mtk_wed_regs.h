@@ -100,8 +100,6 @@ struct mtk_wdma_desc {
 
 #define MTK_WED_TX_BM_BASE				0x084
 
-#define MTK_WED_TX_BM_TKID				0x088
-#define MTK_WED_TX_BM_TKID_V2				0x0c8
 #define MTK_WED_TX_BM_TKID_START			GENMASK(15, 0)
 #define MTK_WED_TX_BM_TKID_END				GENMASK(31, 16)
 
@@ -160,9 +158,6 @@ struct mtk_wdma_desc {
 #define MTK_WED_GLO_CFG_RX_2B_OFFSET			BIT(31)
 
 #define MTK_WED_RESET_IDX				0x20c
-#define MTK_WED_RESET_IDX_TX				GENMASK(3, 0)
-#define MTK_WED_RESET_IDX_RX				GENMASK(17, 16)
-#define MTK_WED_RESET_IDX_RX_V2				GENMASK(7, 6)
 #define MTK_WED_RESET_WPDMA_IDX_RX			GENMASK(31, 30)
 
 #define MTK_WED_TX_MIB(_n)				(0x2a0 + (_n) * 4)
@@ -286,7 +281,6 @@ struct mtk_wdma_desc {
 #define MTK_WED_WPDMA_RX_D_RST_DRV_IDX			GENMASK(25, 24)
 
 #define MTK_WED_WPDMA_RX_GLO_CFG			0x76c
-#define MTK_WED_WPDMA_RX_RING				0x770
 
 #define MTK_WED_WPDMA_RX_D_MIB(_n)			(0x774 + (_n) * 4)
 #define MTK_WED_WPDMA_RX_D_PROCESSED_MIB(_n)		(0x784 + (_n) * 4)

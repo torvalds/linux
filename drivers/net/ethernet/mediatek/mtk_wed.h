@@ -12,7 +12,18 @@
 struct mtk_eth;
 struct mtk_wed_wo;
 
+struct mtk_wed_soc_data {
+	struct {
+		u32 tx_bm_tkid;
+		u32 wpdma_rx_ring0;
+		u32 reset_idx_tx_mask;
+		u32 reset_idx_rx_mask;
+	} regmap;
+	u32 wdma_desc_size;
+};
+
 struct mtk_wed_hw {
+	const struct mtk_wed_soc_data *soc;
 	struct device_node *node;
 	struct mtk_eth *eth;
 	struct regmap *regs;
