@@ -1,5 +1,5 @@
-#ifndef __src_nvidia_inc_kernel_gpu_intr_engine_idx_h__
-#define __src_nvidia_inc_kernel_gpu_intr_engine_idx_h__
+#ifndef __src_nvidia_generated_g_mem_desc_nvoc_h__
+#define __src_nvidia_generated_g_mem_desc_nvoc_h__
 
 /* Excerpt of RM headers from https://github.com/NVIDIA/open-gpu-kernel-modules/tree/535.54.03 */
 
@@ -26,8 +26,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-#define MC_ENGINE_IDX_DISP                          2
-
-#define MC_ENGINE_IDX_GSP                           49
+#define ADDR_SYSMEM     1         // System memory (PCI)
+#define ADDR_FBMEM      2         // Frame buffer memory space
 
 #endif

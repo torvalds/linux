@@ -1,10 +1,10 @@
-#ifndef __src_nvidia_inc_kernel_gpu_intr_engine_idx_h__
-#define __src_nvidia_inc_kernel_gpu_intr_engine_idx_h__
+#ifndef __src_nvidia_inc_kernel_os_nv_memory_type_h__
+#define __src_nvidia_inc_kernel_os_nv_memory_type_h__
 
 /* Excerpt of RM headers from https://github.com/NVIDIA/open-gpu-kernel-modules/tree/535.54.03 */
 
 /*
- * SPDX-FileCopyrightText: Copyright (c) 1993-2023 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-FileCopyrightText: Copyright (c) 2020 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: MIT
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -26,8 +26,6 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-#define MC_ENGINE_IDX_DISP                          2
-
-#define MC_ENGINE_IDX_GSP                           49
+#define NV_MEMORY_WRITECOMBINED      2
 
 #endif

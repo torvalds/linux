@@ -30,16 +30,20 @@
 
 #include <nvrm/nvtypes.h>
 #include <nvrm/535.54.03/common/sdk/nvidia/inc/class/cl0000.h>
+#include <nvrm/535.54.03/common/sdk/nvidia/inc/class/cl0005.h>
 #include <nvrm/535.54.03/common/sdk/nvidia/inc/class/cl0080.h>
 #include <nvrm/535.54.03/common/sdk/nvidia/inc/class/cl2080.h>
+#include <nvrm/535.54.03/common/sdk/nvidia/inc/ctrl/ctrl2080/ctrl2080event.h>
 #include <nvrm/535.54.03/common/sdk/nvidia/inc/ctrl/ctrl2080/ctrl2080gpu.h>
 #include <nvrm/535.54.03/common/sdk/nvidia/inc/ctrl/ctrl2080/ctrl2080internal.h>
+#include <nvrm/535.54.03/common/sdk/nvidia/inc/nvos.h>
 #include <nvrm/535.54.03/common/shared/msgq/inc/msgq/msgq_priv.h>
 #include <nvrm/535.54.03/common/uproc/os/common/include/libos_init_args.h>
 #include <nvrm/535.54.03/nvidia/arch/nvalloc/common/inc/gsp/gsp_fw_sr_meta.h>
 #include <nvrm/535.54.03/nvidia/arch/nvalloc/common/inc/gsp/gsp_fw_wpr_meta.h>
 #include <nvrm/535.54.03/nvidia/arch/nvalloc/common/inc/rmRiscvUcode.h>
 #include <nvrm/535.54.03/nvidia/arch/nvalloc/common/inc/rmgspseq.h>
+#include <nvrm/535.54.03/nvidia/generated/g_allclasses.h>
 #include <nvrm/535.54.03/nvidia/generated/g_os_nvoc.h>
 #include <nvrm/535.54.03/nvidia/generated/g_rpc-structures.h>
 #include <nvrm/535.54.03/nvidia/inc/kernel/gpu/gsp/gsp_fw_heap.h>
@@ -361,6 +365,81 @@ r535_gsp_rpc_send(struct nvkm_gsp *gsp, void *argv, bool wait, u32 repc)
 }
 
 static void
+r535_gsp_event_dtor(struct nvkm_gsp_event *event)
+{
+	struct nvkm_gsp_device *device = event->device;
+	struct nvkm_gsp_client *client = device->object.client;
+	struct nvkm_gsp *gsp = client->gsp;
+
+	mutex_lock(&gsp->client_id.mutex);
+	if (event->func) {
+		list_del(&event->head);
+		event->func = NULL;
+	}
+	mutex_unlock(&gsp->client_id.mutex);
+
+	nvkm_gsp_rm_free(&event->object);
+	event->device = NULL;
+}
+
+static int
+r535_gsp_device_event_get(struct nvkm_gsp_event *event)
+{
+	struct nvkm_gsp_device *device = event->device;
+	NV2080_CTRL_EVENT_SET_NOTIFICATION_PARAMS *ctrl;
+
+	ctrl = nvkm_gsp_rm_ctrl_get(&device->subdevice,
+				    NV2080_CTRL_CMD_EVENT_SET_NOTIFICATION, sizeof(*ctrl));
+	if (IS_ERR(ctrl))
+		return PTR_ERR(ctrl);
+
+	ctrl->event = event->id;
+	ctrl->action = NV2080_CTRL_EVENT_SET_NOTIFICATION_ACTION_REPEAT;
+	return nvkm_gsp_rm_ctrl_wr(&device->subdevice, ctrl);
+}
+
+static int
+r535_gsp_device_event_ctor(struct nvkm_gsp_device *device, u32 handle, u32 id,
+			   nvkm_gsp_event_func func, struct nvkm_gsp_event *event)
+{
+	struct nvkm_gsp_client *client = device->object.client;
+	struct nvkm_gsp *gsp = client->gsp;
+	NV0005_ALLOC_PARAMETERS *args;
+	int ret;
+
+	args = nvkm_gsp_rm_alloc_get(&device->subdevice, handle,
+				     NV01_EVENT_KERNEL_CALLBACK_EX, sizeof(*args),
+				     &event->object);
+	if (IS_ERR(args))
+		return PTR_ERR(args);
+
+	args->hParentClient = client->object.handle;
+	args->hSrcResource = 0;
+	args->hClass = NV01_EVENT_KERNEL_CALLBACK_EX;
+	args->notifyIndex = NV01_EVENT_CLIENT_RM | id;
+	args->data = NULL;
+
+	ret = nvkm_gsp_rm_alloc_wr(&event->object, args);
+	if (ret)
+		return ret;
+
+	event->device = device;
+	event->id = id;
+
+	ret = r535_gsp_device_event_get(event);
+	if (ret) {
+		nvkm_gsp_event_dtor(event);
+		return ret;
+	}
+
+	mutex_lock(&gsp->client_id.mutex);
+	event->func = func;
+	list_add(&event->head, &client->events);
+	mutex_unlock(&gsp->client_id.mutex);
+	return 0;
+}
+
+static void
 r535_gsp_device_dtor(struct nvkm_gsp_device *device)
 {
 	nvkm_gsp_rm_free(&device->subdevice);
@@ -428,6 +507,7 @@ r535_gsp_client_ctor(struct nvkm_gsp *gsp, struct nvkm_gsp_client *client)
 
 	client->gsp = gsp;
 	client->object.client = client;
+	INIT_LIST_HEAD(&client->events);
 
 	args = nvkm_gsp_rm_alloc_get(&client->object, 0xc1d00000 | ret, NV01_ROOT, sizeof(*args),
 				     &client->object);
@@ -690,6 +770,9 @@ r535_gsp_rm = {
 
 	.device_ctor = r535_gsp_device_ctor,
 	.device_dtor = r535_gsp_device_dtor,
+
+	.event_ctor = r535_gsp_device_event_ctor,
+	.event_dtor = r535_gsp_event_dtor,
 };
 
 static void
@@ -761,6 +844,10 @@ r535_gsp_intr_get_table(struct nvkm_gsp *gsp)
 		switch (ctrl->table[i].engineIdx) {
 		case MC_ENGINE_IDX_GSP:
 			type = NVKM_SUBDEV_GSP;
+			inst = 0;
+			break;
+		case MC_ENGINE_IDX_DISP:
+			type = NVKM_ENGINE_DISP;
 			inst = 0;
 			break;
 		default:
@@ -1148,6 +1235,47 @@ r535_gsp_msg_mmu_fault_queued(void *priv, u32 fn, void *repv, u32 repc)
 	WARN_ON(repc != 0);
 
 	nvkm_error(subdev, "mmu fault queued\n");
+	return 0;
+}
+
+static int
+r535_gsp_msg_post_event(void *priv, u32 fn, void *repv, u32 repc)
+{
+	struct nvkm_gsp *gsp = priv;
+	struct nvkm_gsp_client *client;
+	struct nvkm_subdev *subdev = &gsp->subdev;
+	rpc_post_event_v17_00 *msg = repv;
+
+	if (WARN_ON(repc < sizeof(*msg)))
+		return -EINVAL;
+	if (WARN_ON(repc != sizeof(*msg) + msg->eventDataSize))
+		return -EINVAL;
+
+	nvkm_debug(subdev, "event: %08x %08x %d %08x %08x %d %d\n",
+		   msg->hClient, msg->hEvent, msg->notifyIndex, msg->data,
+		   msg->status, msg->eventDataSize, msg->bNotifyList);
+
+	mutex_lock(&gsp->client_id.mutex);
+	client = idr_find(&gsp->client_id.idr, msg->hClient & 0xffff);
+	if (client) {
+		struct nvkm_gsp_event *event;
+		bool handled = false;
+
+		list_for_each_entry(event, &client->events, head) {
+			if (event->object.handle == msg->hEvent) {
+				event->func(event, msg->eventData, msg->eventDataSize);
+				handled = true;
+			}
+		}
+
+		if (!handled) {
+			nvkm_error(subdev, "event: cid 0x%08x event 0x%08x not found!\n",
+				   msg->hClient, msg->hEvent);
+		}
+	} else {
+		nvkm_error(subdev, "event: cid 0x%08x not found!\n", msg->hClient);
+	}
+	mutex_unlock(&gsp->client_id.mutex);
 	return 0;
 }
 
@@ -1872,6 +2000,7 @@ r535_gsp_oneinit(struct nvkm_gsp *gsp)
 
 	r535_gsp_msg_ntfy_add(gsp, NV_VGPU_MSG_EVENT_GSP_RUN_CPU_SEQUENCER,
 			      r535_gsp_msg_run_cpu_sequencer, gsp);
+	r535_gsp_msg_ntfy_add(gsp, NV_VGPU_MSG_EVENT_POST_EVENT, r535_gsp_msg_post_event, gsp);
 	r535_gsp_msg_ntfy_add(gsp, NV_VGPU_MSG_EVENT_MMU_FAULT_QUEUED,
 			      r535_gsp_msg_mmu_fault_queued, gsp);
 	r535_gsp_msg_ntfy_add(gsp, NV_VGPU_MSG_EVENT_OS_ERROR_LOG, r535_gsp_msg_os_error_log, gsp);

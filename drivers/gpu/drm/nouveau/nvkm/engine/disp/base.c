@@ -137,7 +137,8 @@ nvkm_disp_init(struct nvkm_engine *engine)
 	 * each output resource to 'fully enabled'.
 	 */
 	list_for_each_entry(ior, &disp->iors, head) {
-		ior->func->power(ior, true, true, true, true, true);
+		if (ior->func->power)
+			ior->func->power(ior, true, true, true, true, true);
 	}
 
 	return 0;

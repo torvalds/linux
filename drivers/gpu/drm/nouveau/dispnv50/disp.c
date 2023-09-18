@@ -1592,6 +1592,146 @@ nv50_sor_atomic_disable(struct drm_encoder *encoder, struct drm_atomic_state *st
 	nv_encoder->crtc = NULL;
 }
 
+// common/inc/displayport/displayport.h
+#define DP_CONFIG_WATERMARK_ADJUST                   2
+#define DP_CONFIG_WATERMARK_LIMIT                   20
+#define DP_CONFIG_INCREASED_WATERMARK_ADJUST         8
+#define DP_CONFIG_INCREASED_WATERMARK_LIMIT         22
+
+static bool
+nv50_sor_dp_watermark_sst(struct nouveau_encoder *outp,
+			  struct nv50_head *head, struct nv50_head_atom *asyh)
+{
+	bool enhancedFraming = outp->dp.dpcd[DP_MAX_LANE_COUNT] & DP_ENHANCED_FRAME_CAP;
+	u64 minRate = outp->dp.link_bw * 1000;
+	unsigned tuSize = 64;
+	unsigned waterMark;
+	unsigned hBlankSym;
+	unsigned vBlankSym;
+	unsigned watermarkAdjust = DP_CONFIG_WATERMARK_ADJUST;
+	unsigned watermarkMinimum = DP_CONFIG_WATERMARK_LIMIT;
+	// depth is multiplied by 16 in case of DSC enable
+	s32 hblank_symbols;
+	// number of link clocks per line.
+	int vblank_symbols	  = 0;
+	bool bEnableDsc = false;
+	unsigned surfaceWidth = asyh->mode.h.blanks - asyh->mode.h.blanke;
+	unsigned rasterWidth = asyh->mode.h.active;
+	unsigned depth = asyh->or.bpc * 3;
+	unsigned DSC_FACTOR = bEnableDsc ? 16 : 1;
+	u64 pixelClockHz = asyh->mode.clock * 1000;
+	u64 PrecisionFactor = 100000, ratioF, watermarkF;
+	u32 numLanesPerLink = outp->dp.link_nr;
+	u32 numSymbolsPerLine;
+	u32 BlankingBits;
+	u32 surfaceWidthPerLink;
+	u32 PixelSteeringBits;
+	u64 NumBlankingLinkClocks;
+	u32 MinHBlank;
+
+	if (outp->outp.info.dp.increased_wm) {
+		watermarkAdjust = DP_CONFIG_INCREASED_WATERMARK_ADJUST;
+		watermarkMinimum = DP_CONFIG_INCREASED_WATERMARK_LIMIT;
+	}
+
+	if ((pixelClockHz * depth) >= (8 * minRate * outp->dp.link_nr * DSC_FACTOR))
+	{
+		return false;
+	}
+
+	//
+	// For DSC, if (pclk * bpp) < (1/64 * orclk * 8 * lanes) then some TU may end up with
+	// 0 active symbols. This may cause HW hang. Bug 200379426
+	//
+	if ((bEnableDsc) &&
+		((pixelClockHz * depth) < ((8 * minRate * outp->dp.link_nr * DSC_FACTOR) / 64)))
+	{
+		return false;
+	}
+
+	//
+	//  Perform the SST calculation.
+	//	For auto mode the watermark calculation does not need to track accumulated error the
+	//	formulas for manual mode will not work.  So below calculation was extracted from the DTB.
+	//
+	ratioF = ((u64)pixelClockHz * depth * PrecisionFactor) / DSC_FACTOR;
+
+	ratioF /= 8 * (u64) minRate * outp->dp.link_nr;
+
+	if (PrecisionFactor < ratioF) // Assert if we will end up with a negative number in below
+		return false;
+
+	watermarkF = ratioF * tuSize * (PrecisionFactor - ratioF)  / PrecisionFactor;
+	waterMark = (unsigned)(watermarkAdjust + ((2 * (depth * PrecisionFactor / (8 * numLanesPerLink * DSC_FACTOR)) + watermarkF) / PrecisionFactor));
+
+	//
+	//  Bounds check the watermark
+	//
+	numSymbolsPerLine = (surfaceWidth * depth) / (8 * outp->dp.link_nr * DSC_FACTOR);
+
+	if (WARN_ON(waterMark > 39 || waterMark > numSymbolsPerLine))
+		return false;
+
+	//
+	//  Clamp the low side
+	//
+	if (waterMark < watermarkMinimum)
+		waterMark = watermarkMinimum;
+
+	//Bits to send BS/BE/Extra symbols due to pixel padding
+	//Also accounts for enhanced framing.
+	BlankingBits = 3*8*numLanesPerLink + (enhancedFraming ? 3*8*numLanesPerLink : 0);
+
+	//VBID/MVID/MAUD sent 4 times all the time
+	BlankingBits += 3*8*4;
+
+	surfaceWidthPerLink = surfaceWidth;
+
+	//Extra bits sent due to pixel steering
+	PixelSteeringBits = (surfaceWidthPerLink % numLanesPerLink) ? (((numLanesPerLink - surfaceWidthPerLink % numLanesPerLink) * depth) / DSC_FACTOR) : 0;
+
+	BlankingBits += PixelSteeringBits;
+	NumBlankingLinkClocks = (u64)BlankingBits * PrecisionFactor / (8 * numLanesPerLink);
+	MinHBlank = (u32)(NumBlankingLinkClocks * pixelClockHz/ minRate / PrecisionFactor);
+	MinHBlank += 12;
+
+	if (WARN_ON(MinHBlank > rasterWidth - surfaceWidth))
+		return false;
+
+	// Bug 702290 - Active Width should be greater than 60
+	if (WARN_ON(surfaceWidth <= 60))
+		return false;
+
+
+	hblank_symbols = (s32)(((u64)(rasterWidth - surfaceWidth - MinHBlank) * minRate) / pixelClockHz);
+
+	//reduce HBlank Symbols to account for secondary data packet
+	hblank_symbols -= 1; //Stuffer latency to send BS
+	hblank_symbols -= 3; //SPKT latency to send data to stuffer
+
+	hblank_symbols -= numLanesPerLink == 1 ? 9  : numLanesPerLink == 2 ? 6 : 3;
+
+	hBlankSym = (hblank_symbols < 0) ? 0 : hblank_symbols;
+
+	// Refer to dev_disp.ref for more information.
+	// # symbols/vblank = ((SetRasterBlankEnd.X + SetRasterSize.Width - SetRasterBlankStart.X - 40) * link_clk / pclk) - Y - 1;
+	// where Y = (# lanes == 4) 12 : (# lanes == 2) ? 21 : 39
+	if (surfaceWidth < 40)
+	{
+		vblank_symbols = 0;
+	}
+	else
+	{
+		vblank_symbols = (s32)(((u64)(surfaceWidth - 40) * minRate) /  pixelClockHz) - 1;
+
+		vblank_symbols -= numLanesPerLink == 1 ? 39  : numLanesPerLink == 2 ? 21 : 12;
+	}
+
+	vBlankSym = (vblank_symbols < 0) ? 0 : vblank_symbols;
+
+	return nvif_outp_dp_sst(&outp->outp, head->base.index, waterMark, hBlankSym, vBlankSym);
+}
+
 static void
 nv50_sor_atomic_enable(struct drm_encoder *encoder, struct drm_atomic_state *state)
 {
@@ -1679,6 +1819,7 @@ nv50_sor_atomic_enable(struct drm_encoder *encoder, struct drm_atomic_state *sta
 		break;
 	case DCB_OUTPUT_DP:
 		nouveau_dp_train(nv_encoder, false, mode->clock, asyh->or.bpc);
+		nv50_sor_dp_watermark_sst(nv_encoder, head, asyh);
 		depth = nv50_dp_bpc_to_depth(asyh->or.bpc);
 
 		if (nv_encoder->outp.or.link & 1)

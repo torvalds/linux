@@ -91,6 +91,19 @@ typedef struct rpc_run_cpu_sequencer_v17_00
     NvU32      commandBuffer[];
 } rpc_run_cpu_sequencer_v17_00;
 
+typedef struct rpc_post_event_v17_00
+{
+    NvHandle   hClient;
+    NvHandle   hEvent;
+    NvU32      notifyIndex;
+    NvU32      data;
+    NvU16      info16;
+    NvU32      status;
+    NvU32      eventDataSize;
+    NvBool     bNotifyList;
+    NvU8       eventData[];
+} rpc_post_event_v17_00;
+
 typedef struct rpc_os_error_log_v17_00
 {
     NvU32      exceptType;

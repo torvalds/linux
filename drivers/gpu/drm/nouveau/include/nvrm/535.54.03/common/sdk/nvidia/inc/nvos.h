@@ -78,6 +78,33 @@
 #define NVOS02_FLAGS_MAPPING_NO_MAP                                (0x00000001)
 #define NVOS02_FLAGS_MAPPING_NEVER_MAP                             (0x00000002)
 
+#define NV01_EVENT_CLIENT_RM                                       (0x04000000)
+
+typedef struct
+{
+    NvV32    channelInstance;            // One of the n channel instances of a given channel type.
+                                         // Note that core channel has only one instance
+                                         // while all others have two (one per head).
+    NvHandle hObjectBuffer;              // ctx dma handle for DMA push buffer
+    NvHandle hObjectNotify;              // ctx dma handle for an area (of type NvNotification defined in sdk/nvidia/inc/nvtypes.h) where RM can write errors/notifications
+    NvU32    offset;                     // Initial offset for put/get, usually zero.
+    NvP64    pControl NV_ALIGN_BYTES(8); // pControl gives virt addr of UDISP GET/PUT regs
+
+    NvU32    flags;
+#define NV50VAIO_CHANNELDMA_ALLOCATION_FLAGS_CONNECT_PB_AT_GRAB                1:1
+#define NV50VAIO_CHANNELDMA_ALLOCATION_FLAGS_CONNECT_PB_AT_GRAB_YES            0x00000000
+#define NV50VAIO_CHANNELDMA_ALLOCATION_FLAGS_CONNECT_PB_AT_GRAB_NO             0x00000001
+
+} NV50VAIO_CHANNELDMA_ALLOCATION_PARAMETERS;
+
+typedef struct
+{
+    NvV32    channelInstance;            // One of the n channel instances of a given channel type.
+                                         // All PIO channels have two instances (one per head).
+    NvHandle hObjectNotify;              // ctx dma handle for an area (of type NvNotification defined in sdk/nvidia/inc/nvtypes.h) where RM can write errors.
+    NvP64    pControl NV_ALIGN_BYTES(8); // pControl gives virt addr of control region for PIO channel
+} NV50VAIO_CHANNELPIO_ALLOCATION_PARAMETERS;
+
 typedef struct
 {
     NvU32   index;

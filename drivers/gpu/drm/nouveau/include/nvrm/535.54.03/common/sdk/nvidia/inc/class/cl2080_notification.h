@@ -1,10 +1,10 @@
-#ifndef __src_nvidia_inc_kernel_gpu_intr_engine_idx_h__
-#define __src_nvidia_inc_kernel_gpu_intr_engine_idx_h__
+#ifndef __src_common_sdk_nvidia_inc_class_cl2080_notification_h__
+#define __src_common_sdk_nvidia_inc_class_cl2080_notification_h__
 
 /* Excerpt of RM headers from https://github.com/NVIDIA/open-gpu-kernel-modules/tree/535.54.03 */
 
 /*
- * SPDX-FileCopyrightText: Copyright (c) 1993-2023 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-FileCopyrightText: Copyright (c) 2022 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: MIT
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -26,8 +26,17 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-#define MC_ENGINE_IDX_DISP                          2
+#define NV2080_NOTIFIERS_HOTPLUG                                   (1)
 
-#define MC_ENGINE_IDX_GSP                           49
+#define NV2080_NOTIFIERS_DP_IRQ                                    (7)
+
+typedef struct {
+    NvU32 plugDisplayMask;
+    NvU32 unplugDisplayMask;
+} Nv2080HotplugNotification;
+
+typedef struct Nv2080DpIrqNotificationRec {
+    NvU32 displayId;
+} Nv2080DpIrqNotification;
 
 #endif

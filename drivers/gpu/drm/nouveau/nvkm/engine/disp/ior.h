@@ -187,6 +187,8 @@ int gp100_sor_new(struct nvkm_disp *, int);
 int gv100_sor_cnt(struct nvkm_disp *, unsigned long *);
 void gv100_sor_state(struct nvkm_ior *, struct nvkm_ior_state *);
 extern const struct nvkm_ior_func_hdmi gv100_sor_hdmi;
+void gv100_sor_hdmi_infoframe_avi(struct nvkm_ior *, int, void *, u32);
+void gv100_sor_hdmi_infoframe_vsi(struct nvkm_ior *, int, void *, u32);
 void gv100_sor_dp_audio(struct nvkm_ior *, int, bool);
 void gv100_sor_dp_audio_sym(struct nvkm_ior *, int, u16, u32);
 void gv100_sor_dp_watermark(struct nvkm_ior *, int, u8);

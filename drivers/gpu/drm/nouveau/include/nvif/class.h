@@ -104,6 +104,7 @@
 #define GV100_DISP                                    /* if0010.h */ 0x0000c370
 #define TU102_DISP                                    /* if0010.h */ 0x0000c570
 #define GA102_DISP                                    /* if0010.h */ 0x0000c670
+#define AD102_DISP                                    /* if0010.h */ 0x0000c770
 
 #define GV100_DISP_CAPS                                              0x0000c373
 
@@ -154,6 +155,7 @@
 #define GV100_DISP_CORE_CHANNEL_DMA                   /* if0014.h */ 0x0000c37d
 #define TU102_DISP_CORE_CHANNEL_DMA                   /* if0014.h */ 0x0000c57d
 #define GA102_DISP_CORE_CHANNEL_DMA                   /* if0014.h */ 0x0000c67d
+#define AD102_DISP_CORE_CHANNEL_DMA                   /* if0014.h */ 0x0000c77d
 
 #define NV50_DISP_OVERLAY_CHANNEL_DMA                 /* if0014.h */ 0x0000507e
 #define G82_DISP_OVERLAY_CHANNEL_DMA                  /* if0014.h */ 0x0000827e

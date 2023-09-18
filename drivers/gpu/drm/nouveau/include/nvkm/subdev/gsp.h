@@ -23,6 +23,9 @@ void nvkm_gsp_sg_free(struct nvkm_device *, struct sg_table *);
 
 typedef int (*nvkm_gsp_msg_ntfy_func)(void *priv, u32 fn, void *repv, u32 repc);
 
+struct nvkm_gsp_event;
+typedef void (*nvkm_gsp_event_func)(struct nvkm_gsp_event *, void *repv, u32 repc);
+
 struct nvkm_gsp {
 	const struct nvkm_gsp_func *func;
 	struct nvkm_subdev subdev;
@@ -150,6 +153,8 @@ struct nvkm_gsp {
 			} object;
 
 			struct nvkm_gsp *gsp;
+
+			struct list_head events;
 		} client;
 
 		struct nvkm_gsp_device {
@@ -191,6 +196,10 @@ struct nvkm_gsp {
 
 		int (*device_ctor)(struct nvkm_gsp_client *, struct nvkm_gsp_device *);
 		void (*device_dtor)(struct nvkm_gsp_device *);
+
+		int (*event_ctor)(struct nvkm_gsp_device *, u32 handle, u32 id,
+				  nvkm_gsp_event_func, struct nvkm_gsp_event *);
+		void (*event_dtor)(struct nvkm_gsp_event *);
 	} *rm;
 
 	struct {
@@ -397,6 +406,32 @@ nvkm_gsp_client_device_ctor(struct nvkm_gsp *gsp,
 	}
 
 	return ret;
+}
+
+struct nvkm_gsp_event {
+	struct nvkm_gsp_device *device;
+	u32 id;
+	nvkm_gsp_event_func func;
+
+	struct nvkm_gsp_object object;
+
+	struct list_head head;
+};
+
+static inline int
+nvkm_gsp_device_event_ctor(struct nvkm_gsp_device *device, u32 handle, u32 id,
+			   nvkm_gsp_event_func func, struct nvkm_gsp_event *event)
+{
+	return device->object.client->gsp->rm->event_ctor(device, handle, id, func, event);
+}
+
+static inline void
+nvkm_gsp_event_dtor(struct nvkm_gsp_event *event)
+{
+	struct nvkm_gsp_device *device = event->device;
+
+	if (device)
+		device->object.client->gsp->rm->event_dtor(event);
 }
 
 int nvkm_gsp_intr_stall(struct nvkm_gsp *, enum nvkm_subdev_type, int);
