@@ -16,6 +16,7 @@
 #include <sound/core.h>
 #include <sound/hda_codec.h>
 #include <sound/tlv.h>
+#include "cirrus_scodec.h"
 #include "cs35l56_hda.h"
 #include "hda_component.h"
 #include "hda_cs_dsp_ctl.h"
@@ -869,7 +870,17 @@ static int cs35l56_hda_read_acpi(struct cs35l56_hda *cs35l56, int id)
 			 "Read ACPI _SUB failed(%ld): fallback to generic firmware\n",
 			 PTR_ERR(sub));
 	} else {
-		cs35l56->system_name = sub;
+		ret = cirrus_scodec_get_speaker_id(cs35l56->base.dev, cs35l56->index, nval, -1);
+		if (ret == -ENOENT) {
+			cs35l56->system_name = sub;
+		} else if (ret >= 0) {
+			cs35l56->system_name = kasprintf(GFP_KERNEL, "%s-spkid%d", sub, ret);
+			kfree(sub);
+			if (!cs35l56->system_name)
+				return -ENOMEM;
+		} else {
+			return ret;
+		}
 	}
 
 	cs35l56->base.reset_gpio = devm_gpiod_get_index_optional(cs35l56->base.dev,
@@ -1024,7 +1035,18 @@ const struct dev_pm_ops cs35l56_hda_pm_ops = {
 };
 EXPORT_SYMBOL_NS_GPL(cs35l56_hda_pm_ops, SND_HDA_SCODEC_CS35L56);
 
+#if IS_ENABLED(CONFIG_SND_HDA_SCODEC_CS35L56_KUNIT_TEST)
+/* Hooks to export static function to KUnit test */
+
+int cs35l56_hda_test_hook_get_speaker_id(struct device *dev, int amp_index, int num_amps)
+{
+	return cs35l56_hda_get_speaker_id(dev, amp_index, num_amps);
+}
+EXPORT_SYMBOL_NS_GPL(cs35l56_hda_test_hook_get_speaker_id, SND_HDA_SCODEC_CS35L56);
+#endif
+
 MODULE_DESCRIPTION("CS35L56 HDA Driver");
+MODULE_IMPORT_NS(SND_HDA_CIRRUS_SCODEC);
 MODULE_IMPORT_NS(SND_HDA_CS_DSP_CONTROLS);
 MODULE_IMPORT_NS(SND_SOC_CS35L56_SHARED);
 MODULE_AUTHOR("Richard Fitzgerald <rf@opensource.cirrus.com>");
