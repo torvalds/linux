@@ -253,4 +253,7 @@
 #define ADA_COMPUTE_A                                                0x0000c9c0
 
 #define NV74_CIPHER                                                  0x000074c1
+
+#define NVC4D1_VIDEO_NVJPG                                           0x0000c4d1
+#define NVC9D1_VIDEO_NVJPG                                           0x0000c9d1
 #endif

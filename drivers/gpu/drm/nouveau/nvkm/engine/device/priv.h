@@ -43,6 +43,7 @@
 #include <engine/msvld.h>
 #include <engine/nvenc.h>
 #include <engine/nvdec.h>
+#include <engine/nvjpg.h>
 #include <engine/pm.h>
 #include <engine/sec.h>
 #include <engine/sec2.h>

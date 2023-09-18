@@ -210,6 +210,7 @@ nvkm_fifo_info(struct nvkm_engine *engine, u64 mthd, u64 *data)
 				CASE(SEC2  );
 				CASE(NVDEC );
 				CASE(NVENC );
+				CASE(NVJPG );
 				default:
 					WARN_ON(1);
 					break;

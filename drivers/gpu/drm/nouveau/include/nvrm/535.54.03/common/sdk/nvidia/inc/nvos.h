@@ -121,6 +121,13 @@ typedef struct
 
 typedef struct
 {
+    NvU32 size;
+    NvU32 prohibitMultipleInstances;  // Prohibit multiple allocations of NVJPG?
+    NvU32 engineInstance;
+} NV_NVJPG_ALLOCATION_PARAMETERS;
+
+typedef struct
+{
     NvU32   index;
     NvV32   flags;
     NvU64   vaSize NV_ALIGN_BYTES(8);

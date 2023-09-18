@@ -37,6 +37,11 @@
 #define MC_ENGINE_IDX_MSENC2                        40
 
 #define MC_ENGINE_IDX_GSP                           49
+#define MC_ENGINE_IDX_NVJPG                         50
+#define MC_ENGINE_IDX_NVJPEG                        MC_ENGINE_IDX_NVJPG
+#define MC_ENGINE_IDX_NVJPEG0                       MC_ENGINE_IDX_NVJPEG
+
+#define MC_ENGINE_IDX_NVJPEG7                       57
 
 #define MC_ENGINE_IDX_BSP                           64
 #define MC_ENGINE_IDX_NVDEC                         MC_ENGINE_IDX_BSP
