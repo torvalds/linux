@@ -2550,6 +2550,17 @@ static __be32 nfsd4_encode_nfstime4(struct xdr_stream *xdr,
 	return nfs_ok;
 }
 
+static __be32 nfsd4_encode_specdata4(struct xdr_stream *xdr,
+				     unsigned int major, unsigned int minor)
+{
+	__be32 status;
+
+	status = nfsd4_encode_uint32_t(xdr, major);
+	if (status != nfs_ok)
+		return status;
+	return nfsd4_encode_uint32_t(xdr, minor);
+}
+
 /*
  * ctime (in NFSv4, time_metadata) is not writeable, and the client
  * doesn't really care what resolution could theoretically be stored by
@@ -3207,6 +3218,13 @@ static __be32 nfsd4_encode_fattr4_owner_group(struct xdr_stream *xdr,
 	return nfsd4_encode_group(xdr, args->rqstp, args->stat.gid);
 }
 
+static __be32 nfsd4_encode_fattr4_rawdev(struct xdr_stream *xdr,
+					 const struct nfsd4_fattr_args *args)
+{
+	return nfsd4_encode_specdata4(xdr, MAJOR(args->stat.rdev),
+				      MINOR(args->stat.rdev));
+}
+
 /*
  * Note: @fhp can be NULL; in this case, we might have to compose the filehandle
  * ourselves.
@@ -3511,11 +3529,9 @@ nfsd4_encode_fattr(struct xdr_stream *xdr, struct svc_fh *fhp,
 			goto out;
 	}
 	if (bmval1 & FATTR4_WORD1_RAWDEV) {
-		p = xdr_reserve_space(xdr, 8);
-		if (!p)
-			goto out_resource;
-		*p++ = cpu_to_be32((u32) MAJOR(args.stat.rdev));
-		*p++ = cpu_to_be32((u32) MINOR(args.stat.rdev));
+		status = nfsd4_encode_fattr4_rawdev(xdr, &args);
+		if (status != nfs_ok)
+			goto out;
 	}
 	if (bmval1 & FATTR4_WORD1_SPACE_AVAIL) {
 		p = xdr_reserve_space(xdr, 8);
