@@ -30,6 +30,7 @@
 #include "file-item.h"
 #include "inode-item.h"
 #include "dir-item.h"
+#include "raid-stripe-tree.h"
 
 /*
  * Error message should follow the following format:
@@ -1632,6 +1633,44 @@ static int check_inode_ref(struct extent_buffer *leaf,
 	return 0;
 }
 
+static int check_raid_stripe_extent(const struct extent_buffer *leaf,
+				    const struct btrfs_key *key, int slot)
+{
+	struct btrfs_stripe_extent *stripe_extent =
+		btrfs_item_ptr(leaf, slot, struct btrfs_stripe_extent);
+
+	if (unlikely(!IS_ALIGNED(key->objectid, leaf->fs_info->sectorsize))) {
+		generic_err(leaf, slot,
+"invalid key objectid for raid stripe extent, have %llu expect aligned to %u",
+			    key->objectid, leaf->fs_info->sectorsize);
+		return -EUCLEAN;
+	}
+
+	if (unlikely(!btrfs_fs_incompat(leaf->fs_info, RAID_STRIPE_TREE))) {
+		generic_err(leaf, slot,
+	"RAID_STRIPE_EXTENT present but RAID_STRIPE_TREE incompat bit unset");
+		return -EUCLEAN;
+	}
+
+	switch (btrfs_stripe_extent_encoding(leaf, stripe_extent)) {
+	case BTRFS_STRIPE_RAID0:
+	case BTRFS_STRIPE_RAID1:
+	case BTRFS_STRIPE_DUP:
+	case BTRFS_STRIPE_RAID10:
+	case BTRFS_STRIPE_RAID5:
+	case BTRFS_STRIPE_RAID6:
+	case BTRFS_STRIPE_RAID1C3:
+	case BTRFS_STRIPE_RAID1C4:
+		break;
+	default:
+		generic_err(leaf, slot, "invalid raid stripe encoding %u",
+			    btrfs_stripe_extent_encoding(leaf, stripe_extent));
+		return -EUCLEAN;
+	}
+
+	return 0;
+}
+
 /*
  * Common point to switch the item-specific validation.
  */
@@ -1685,6 +1724,9 @@ static enum btrfs_tree_block_status check_leaf_item(struct extent_buffer *leaf,
 		break;
 	case BTRFS_EXTENT_DATA_REF_KEY:
 		ret = check_extent_data_ref(leaf, key, slot);
+		break;
+	case BTRFS_RAID_STRIPE_KEY:
+		ret = check_raid_stripe_extent(leaf, key, slot);
 		break;
 	}
 
