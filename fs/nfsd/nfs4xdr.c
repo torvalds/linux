@@ -3320,6 +3320,20 @@ static __be32 nfsd4_encode_fattr4_layout_blksize(struct xdr_stream *xdr,
 
 #endif
 
+static __be32 nfsd4_encode_fattr4_suppattr_exclcreat(struct xdr_stream *xdr,
+						     const struct nfsd4_fattr_args *args)
+{
+	struct nfsd4_compoundres *resp = args->rqstp->rq_resp;
+	u32 supp[3];
+
+	memcpy(supp, nfsd_suppattrs[resp->cstate.minorversion], sizeof(supp));
+	supp[0] &= NFSD_SUPPATTR_EXCLCREAT_WORD0;
+	supp[1] &= NFSD_SUPPATTR_EXCLCREAT_WORD1;
+	supp[2] &= NFSD_SUPPATTR_EXCLCREAT_WORD2;
+
+	return nfsd4_encode_bitmap4(xdr, supp[0], supp[1], supp[2]);
+}
+
 /*
  * Note: @fhp can be NULL; in this case, we might have to compose the filehandle
  * ourselves.
@@ -3698,14 +3712,7 @@ nfsd4_encode_fattr(struct xdr_stream *xdr, struct svc_fh *fhp,
 	}
 #endif /* CONFIG_NFSD_PNFS */
 	if (bmval2 & FATTR4_WORD2_SUPPATTR_EXCLCREAT) {
-		u32 supp[3];
-
-		memcpy(supp, nfsd_suppattrs[minorversion], sizeof(supp));
-		supp[0] &= NFSD_SUPPATTR_EXCLCREAT_WORD0;
-		supp[1] &= NFSD_SUPPATTR_EXCLCREAT_WORD1;
-		supp[2] &= NFSD_SUPPATTR_EXCLCREAT_WORD2;
-
-		status = nfsd4_encode_bitmap4(xdr, supp[0], supp[1], supp[2]);
+		status = nfsd4_encode_fattr4_suppattr_exclcreat(xdr, &args);
 		if (status)
 			goto out;
 	}
