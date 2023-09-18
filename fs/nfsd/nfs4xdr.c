@@ -2939,7 +2939,9 @@ out_resource:
 }
 
 struct nfsd4_fattr_args {
+	struct svc_rqst		*rqstp;
 	struct svc_fh		*fhp;
+	struct dentry		*dentry;
 	struct kstat		stat;
 	struct kstatfs		statfs;
 	struct nfs4_acl		*acl;
@@ -2958,6 +2960,22 @@ static __be32 nfsd4_encode_fattr4__false(struct xdr_stream *xdr,
 					 const struct nfsd4_fattr_args *args)
 {
 	return nfsd4_encode_bool(xdr, false);
+}
+
+static __be32 nfsd4_encode_fattr4_supported_attrs(struct xdr_stream *xdr,
+						  const struct nfsd4_fattr_args *args)
+{
+	struct nfsd4_compoundres *resp = args->rqstp->rq_resp;
+	u32 minorversion = resp->cstate.minorversion;
+	u32 supp[3];
+
+	memcpy(supp, nfsd_suppattrs[minorversion], sizeof(supp));
+	if (!IS_POSIXACL(d_inode(args->dentry)))
+		supp[0] &= ~FATTR4_WORD0_ACL;
+	if (!args->contextsupport)
+		supp[2] &= ~FATTR4_WORD2_SECURITY_LABEL;
+
+	return nfsd4_encode_bitmap4(xdr, supp[0], supp[1], supp[2]);
 }
 
 /*
@@ -2998,6 +3016,9 @@ nfsd4_encode_fattr(struct xdr_stream *xdr, struct svc_fh *fhp,
 
 	BUG_ON(bmval1 & NFSD_WRITEONLY_ATTRS_WORD1);
 	BUG_ON(!nfsd_attrs_supported(minorversion, bmval));
+
+	args.rqstp = rqstp;
+	args.dentry = dentry;
 
 	args.rdattr_err = 0;
 	if (exp->ex_fslocs.migrated) {
@@ -3087,30 +3108,9 @@ nfsd4_encode_fattr(struct xdr_stream *xdr, struct svc_fh *fhp,
 		goto out_resource;
 
 	if (bmval0 & FATTR4_WORD0_SUPPORTED_ATTRS) {
-		u32 supp[3];
-
-		memcpy(supp, nfsd_suppattrs[minorversion], sizeof(supp));
-
-		if (!IS_POSIXACL(dentry->d_inode))
-			supp[0] &= ~FATTR4_WORD0_ACL;
-		if (!args.contextsupport)
-			supp[2] &= ~FATTR4_WORD2_SECURITY_LABEL;
-		if (!supp[2]) {
-			p = xdr_reserve_space(xdr, 12);
-			if (!p)
-				goto out_resource;
-			*p++ = cpu_to_be32(2);
-			*p++ = cpu_to_be32(supp[0]);
-			*p++ = cpu_to_be32(supp[1]);
-		} else {
-			p = xdr_reserve_space(xdr, 16);
-			if (!p)
-				goto out_resource;
-			*p++ = cpu_to_be32(3);
-			*p++ = cpu_to_be32(supp[0]);
-			*p++ = cpu_to_be32(supp[1]);
-			*p++ = cpu_to_be32(supp[2]);
-		}
+		status = nfsd4_encode_fattr4_supported_attrs(xdr, &args);
+		if (status != nfs_ok)
+			goto out;
 	}
 	if (bmval0 & FATTR4_WORD0_TYPE) {
 		p = xdr_reserve_space(xdr, 4);
