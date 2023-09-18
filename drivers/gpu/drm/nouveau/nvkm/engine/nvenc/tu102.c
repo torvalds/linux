@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Red Hat Inc.
+ * Copyright 2023 Red Hat Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,34 +19,16 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-
 #include "priv.h"
 
-static const struct nvkm_falcon_func
-gm107_nvenc_flcn = {
-};
-
-static const struct nvkm_nvenc_func
-gm107_nvenc = {
-	.flcn = &gm107_nvenc_flcn,
-};
-
-static int
-gm107_nvenc_nofw(struct nvkm_nvenc *nvenc, int ver,
-		 const struct nvkm_nvenc_fwif *fwif)
-{
-	return 0;
-}
-
-const struct nvkm_nvenc_fwif
-gm107_nvenc_fwif[] = {
-	{ -1, gm107_nvenc_nofw, &gm107_nvenc },
-	{}
-};
+#include <subdev/gsp.h>
 
 int
-gm107_nvenc_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
+tu102_nvenc_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 		struct nvkm_nvenc **pnvenc)
 {
+	if (nvkm_gsp_rm(device->gsp))
+		return -ENODEV;
+
 	return nvkm_nvenc_new_(gm107_nvenc_fwif, device, type, inst, pnvenc);
 }
