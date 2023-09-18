@@ -981,7 +981,7 @@ static int phy_check_link_status(struct phy_device *phydev)
  *   If the PHYCONTROL Layer is operating, we change the state to
  *   reflect the beginning of Auto-negotiation or forcing.
  */
-static int _phy_start_aneg(struct phy_device *phydev)
+int _phy_start_aneg(struct phy_device *phydev)
 {
 	int err;
 
@@ -1002,6 +1002,7 @@ static int _phy_start_aneg(struct phy_device *phydev)
 
 	return err;
 }
+EXPORT_SYMBOL(_phy_start_aneg);
 
 /**
  * phy_start_aneg - start auto-negotiation for this PHY device
