@@ -42,6 +42,7 @@ struct nvkm_chan {
 			dma_addr_t addr;
 			void *ptr;
 		} mthdbuf;
+		struct nvkm_vctx *grctx;
 	} rm;
 
 	struct list_head cctxs;

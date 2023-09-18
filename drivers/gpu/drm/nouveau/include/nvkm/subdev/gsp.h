@@ -176,6 +176,11 @@ struct nvkm_gsp {
 		u64 rm_bar2_pdb;
 	} bar;
 
+	struct {
+		u8 gpcs;
+		u8 tpcs;
+	} gr;
+
 	const struct nvkm_gsp_rm {
 		void *(*rpc_get)(struct nvkm_gsp *, u32 fn, u32 argc);
 		void *(*rpc_push)(struct nvkm_gsp *, void *argv, bool wait, u32 repc);

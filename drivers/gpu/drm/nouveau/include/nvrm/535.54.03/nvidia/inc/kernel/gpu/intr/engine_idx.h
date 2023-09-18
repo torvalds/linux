@@ -34,4 +34,7 @@
 
 #define MC_ENGINE_IDX_GSP                           49
 
+#define MC_ENGINE_IDX_GR                            82
+#define MC_ENGINE_IDX_GR0                           MC_ENGINE_IDX_GR
+
 #endif

@@ -194,6 +194,8 @@
 
 #define AMPERE_B                                      /* cl9097.h */ 0x0000c797
 
+#define ADA_A                                         /* cl9097.h */ 0x0000c997
+
 #define NV74_BSP                                                     0x000074b0
 
 #define GT212_MSVLD                                                  0x000085b1
@@ -239,6 +241,7 @@
 #define VOLTA_COMPUTE_A                                              0x0000c3c0
 #define TURING_COMPUTE_A                                             0x0000c5c0
 #define AMPERE_COMPUTE_B                                             0x0000c7c0
+#define ADA_COMPUTE_A                                                0x0000c9c0
 
 #define NV74_CIPHER                                                  0x000074c1
 #endif

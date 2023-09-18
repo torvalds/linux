@@ -29,6 +29,7 @@
 #include <subdev/gsp.h>
 #include <subdev/mmu.h>
 #include <subdev/vfn.h>
+#include <engine/gr.h>
 
 #include <nvhw/drf.h>
 
@@ -67,6 +68,8 @@ r535_chan_ramfc_clear(struct nvkm_chan *chan)
 
 	dma_free_coherent(fifo->engine.subdev.device->dev, fifo->rm.mthdbuf_size,
 			  chan->rm.mthdbuf.ptr, chan->rm.mthdbuf.addr);
+
+	nvkm_cgrp_vctx_put(chan->cgrp, &chan->rm.grctx);
 }
 
 #define CHID_PER_USERD 8
@@ -76,11 +79,18 @@ r535_chan_ramfc_write(struct nvkm_chan *chan, u64 offset, u64 length, u32 devm, 
 {
 	struct nvkm_fifo *fifo = chan->cgrp->runl->fifo;
 	struct nvkm_engn *engn;
+	struct nvkm_device *device = fifo->engine.subdev.device;
 	NV_CHANNELGPFIFO_ALLOCATION_PARAMETERS *args;
 	const int userd_p = chan->id / CHID_PER_USERD;
 	const int userd_i = chan->id % CHID_PER_USERD;
 	u32 eT = ~0;
 	int ret;
+
+	if (unlikely(device->gr && !device->gr->engine.subdev.oneinit)) {
+		ret = nvkm_subdev_oneinit(&device->gr->engine.subdev);
+		if (ret)
+			return ret;
+	}
 
 	nvkm_runl_foreach_engn(engn, chan->cgrp->runl) {
 		eT = engn->id;
@@ -347,6 +357,27 @@ r535_ce = {
 	.nonstall = r535_engn_nonstall,
 };
 
+static int
+r535_gr_ctor(struct nvkm_engn *engn, struct nvkm_vctx *vctx, struct nvkm_chan *chan)
+{
+	/* RM requires GR context buffers to remain mapped until after the
+	 * channel has been destroyed (as opposed to after the last gr obj
+	 * has been deleted).
+	 *
+	 * Take an extra ref here, which will be released once the channel
+	 * object has been deleted.
+	 */
+	refcount_inc(&vctx->refs);
+	chan->rm.grctx = vctx;
+	return 0;
+}
+
+static const struct nvkm_engn_func
+r535_gr = {
+	.nonstall = r535_engn_nonstall,
+	.ctor2 = r535_gr_ctor,
+};
+
 static void
 r535_runl_allow(struct nvkm_runl *runl, u32 engm)
 {
@@ -476,6 +507,9 @@ r535_fifo_runl_ctor(struct nvkm_fifo *fifo)
 		switch (type) {
 		case NVKM_ENGINE_CE:
 			engn = nvkm_runl_add(runl, nv2080, &r535_ce, type, inst);
+			break;
+		case NVKM_ENGINE_GR:
+			engn = nvkm_runl_add(runl, nv2080, &r535_gr, type, inst);
 			break;
 		case NVKM_ENGINE_SW:
 			continue;

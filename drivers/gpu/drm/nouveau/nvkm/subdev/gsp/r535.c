@@ -855,6 +855,10 @@ r535_gsp_intr_get_table(struct nvkm_gsp *gsp)
 			type = NVKM_ENGINE_CE;
 			inst = ctrl->table[i].engineIdx - MC_ENGINE_IDX_CE0;
 			break;
+		case MC_ENGINE_IDX_GR0:
+			type = NVKM_ENGINE_GR;
+			inst = 0;
+			break;
 		default:
 			continue;
 		}
@@ -928,6 +932,13 @@ r535_gsp_rpc_get_gsp_static_info(struct nvkm_gsp *gsp)
 		u32 rsvd_base = rpc->fbRegionInfoParams.fbRegion[last_usable].limit + 1;
 
 		gsp->fb.rsvd_size = gsp->fb.heap.addr - rsvd_base;
+	}
+
+	for (int gpc = 0; gpc < ARRAY_SIZE(rpc->tpcInfo); gpc++) {
+		if (rpc->gpcInfo.gpcMask & BIT(gpc)) {
+			gsp->gr.tpcs += hweight32(rpc->tpcInfo[gpc].tpcMask);
+			gsp->gr.gpcs++;
+		}
 	}
 
 	nvkm_gsp_rpc_done(gsp, rpc);
