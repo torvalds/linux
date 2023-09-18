@@ -220,10 +220,21 @@ int maxim4c_mipi_csi_output(maxim4c_t *maxim4c, bool enable)
 {
 	struct i2c_client *client = maxim4c->client;
 	struct device *dev = &client->dev;
+	maxim4c_mipi_txphy_t *mipi_txphy = &maxim4c->mipi_txphy;
 	u8 reg_mask = 0, reg_value = 0;
 	int ret = 0;
 
 	dev_dbg(dev, "%s: enable = %d\n", __func__, enable);
+
+	if (mipi_txphy->force_clock_out_en != 0) {
+		reg_mask = BIT(7);
+		reg_value = enable ? BIT(7) : 0;
+
+		// Force all MIPI clocks running Config
+		ret |= maxim4c_i2c_update_byte(client,
+				0x08A0, MAXIM4C_I2C_REG_ADDR_16BITS,
+				reg_mask, reg_value);
+	}
 
 	/* Bit1 of the register 0x040B: CSI_OUT_EN
 	 *     1 = CSI output enabled
@@ -484,9 +495,6 @@ int maxim4c_mipi_txphy_hw_init(maxim4c_t *maxim4c)
 			phy_cfg->clock_master = 1;
 		break;
 	}
-	// MIPI clocks running mode
-	if (mipi_txphy->force_clock_out_en != 0)
-		mode |= BIT(7);
 
 	// MIPI TXPHY Mode setting
 	ret |= maxim4c_i2c_write_byte(client,

@@ -280,6 +280,7 @@ int maxim4c_pattern_data_init(maxim4c_t *maxim4c)
 	struct device_node *node = NULL;
 	struct maxim4c_mode *supported_mode = NULL;
 	struct maxim4c_pattern *pattern = NULL;
+	maxim4c_mipi_txphy_t *mipi_txphy = &maxim4c->mipi_txphy;
 	int ret = 0;
 
 	// maxim serdes local
@@ -305,6 +306,10 @@ int maxim4c_pattern_data_init(maxim4c_t *maxim4c)
 		dev_err(dev, "%s: txphy parse dt error\n", __func__);
 		return ret;
 	}
+
+	// pattern need enable force_clock_out_en
+	dev_info(dev, "Pattern mode force_clock_out_en default enable\n");
+	mipi_txphy->force_clock_out_en = 1;
 
 	// pattern generator and mode init
 	pattern = &maxim4c->pattern;
