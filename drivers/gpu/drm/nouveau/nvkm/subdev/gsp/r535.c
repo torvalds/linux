@@ -355,6 +355,61 @@ r535_gsp_rpc_send(struct nvkm_gsp *gsp, void *argv, bool wait, u32 repc)
 }
 
 static void
+r535_gsp_rpc_rm_ctrl_done(struct nvkm_gsp_object *object, void *repv)
+{
+	rpc_gsp_rm_control_v03_00 *rpc = container_of(repv, typeof(*rpc), params);
+
+	nvkm_gsp_rpc_done(object->client->gsp, rpc);
+}
+
+static void *
+r535_gsp_rpc_rm_ctrl_push(struct nvkm_gsp_object *object, void *argv, u32 repc)
+{
+	rpc_gsp_rm_control_v03_00 *rpc = container_of(argv, typeof(*rpc), params);
+	struct nvkm_gsp *gsp = object->client->gsp;
+	void *ret;
+
+	rpc = nvkm_gsp_rpc_push(gsp, rpc, true, repc);
+	if (IS_ERR_OR_NULL(rpc))
+		return rpc;
+
+	if (rpc->status) {
+		nvkm_error(&gsp->subdev, "cli:0x%08x obj:0x%08x ctrl cmd:0x%08x failed: 0x%08x\n",
+			   object->client->object.handle, object->handle, rpc->cmd, rpc->status);
+		ret = ERR_PTR(-EINVAL);
+	} else {
+		ret = repc ? rpc->params : NULL;
+	}
+
+	if (IS_ERR_OR_NULL(ret))
+		nvkm_gsp_rpc_done(gsp, rpc);
+
+	return ret;
+}
+
+static void *
+r535_gsp_rpc_rm_ctrl_get(struct nvkm_gsp_object *object, u32 cmd, u32 argc)
+{
+	struct nvkm_gsp_client *client = object->client;
+	struct nvkm_gsp *gsp = client->gsp;
+	rpc_gsp_rm_control_v03_00 *rpc;
+
+	nvkm_debug(&gsp->subdev, "cli:0x%08x obj:0x%08x ctrl cmd:0x%08x argc:%d\n",
+		   client->object.handle, object->handle, cmd, argc);
+
+	rpc = nvkm_gsp_rpc_get(gsp, NV_VGPU_MSG_FUNCTION_GSP_RM_CONTROL, sizeof(*rpc) + argc);
+	if (IS_ERR(rpc))
+		return rpc;
+
+	rpc->hClient    = client->object.handle;
+	rpc->hObject    = object->handle;
+	rpc->cmd	= cmd;
+	rpc->status     = 0;
+	rpc->paramsSize = argc;
+	return rpc->params;
+}
+
+static void
 r535_gsp_rpc_done(struct nvkm_gsp *gsp, void *repv)
 {
 	struct nvfw_gsp_rpc *rpc = container_of(repv, typeof(*rpc), data);
@@ -450,7 +505,49 @@ r535_gsp_rm = {
 	.rpc_get = r535_gsp_rpc_get,
 	.rpc_push = r535_gsp_rpc_push,
 	.rpc_done = r535_gsp_rpc_done,
+
+	.rm_ctrl_get = r535_gsp_rpc_rm_ctrl_get,
+	.rm_ctrl_push = r535_gsp_rpc_rm_ctrl_push,
+	.rm_ctrl_done = r535_gsp_rpc_rm_ctrl_done,
 };
+
+static int
+r535_gsp_rpc_get_gsp_static_info(struct nvkm_gsp *gsp)
+{
+	GspStaticConfigInfo *rpc;
+
+	rpc = nvkm_gsp_rpc_rd(gsp, NV_VGPU_MSG_FUNCTION_GET_GSP_STATIC_INFO, sizeof(*rpc));
+	if (IS_ERR(rpc))
+		return PTR_ERR(rpc);
+
+	gsp->internal.client.object.client = &gsp->internal.client;
+	gsp->internal.client.object.parent = NULL;
+	gsp->internal.client.object.handle = rpc->hInternalClient;
+	gsp->internal.client.gsp = gsp;
+
+	gsp->internal.device.object.client = &gsp->internal.client;
+	gsp->internal.device.object.parent = &gsp->internal.client.object;
+	gsp->internal.device.object.handle = rpc->hInternalDevice;
+
+	gsp->internal.device.subdevice.client = &gsp->internal.client;
+	gsp->internal.device.subdevice.parent = &gsp->internal.device.object;
+	gsp->internal.device.subdevice.handle = rpc->hInternalSubdevice;
+
+	nvkm_gsp_rpc_done(gsp, rpc);
+	return 0;
+}
+
+static int
+r535_gsp_postinit(struct nvkm_gsp *gsp)
+{
+	int ret;
+
+	ret = r535_gsp_rpc_get_gsp_static_info(gsp);
+	if (WARN_ON(ret))
+		return ret;
+
+	return ret;
+}
 
 static int
 r535_gsp_rpc_unloading_guest_driver(struct nvkm_gsp *gsp, bool suspend)
@@ -1302,7 +1399,11 @@ done:
 		nvkm_gsp_mem_dtor(gsp, &gsp->sr.meta);
 		nvkm_gsp_radix3_dtor(gsp, &gsp->sr.radix3);
 		nvkm_gsp_sg_free(gsp->subdev.device, &gsp->sr.sgt);
+		return ret;
 	}
+
+	if (ret == 0)
+		ret = r535_gsp_postinit(gsp);
 
 	return ret;
 }

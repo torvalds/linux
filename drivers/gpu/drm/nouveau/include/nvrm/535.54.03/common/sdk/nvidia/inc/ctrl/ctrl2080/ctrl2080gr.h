@@ -1,10 +1,10 @@
-#ifndef __src_nvidia_generated_g_rpc_structures_h__
-#define __src_nvidia_generated_g_rpc_structures_h__
+#ifndef __src_common_sdk_nvidia_inc_ctrl_ctrl2080_ctrl2080gr_h__
+#define __src_common_sdk_nvidia_inc_ctrl_ctrl2080_ctrl2080gr_h__
 
 /* Excerpt of RM headers from https://github.com/NVIDIA/open-gpu-kernel-modules/tree/535.54.03 */
 
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2008-2022 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-FileCopyrightText: Copyright (c) 2006-2023 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: MIT
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -26,38 +26,16 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-typedef struct rpc_unloading_guest_driver_v1F_07
-{
-    NvBool     bInPMTransition;
-    NvBool     bGc6Entering;
-    NvU32      newLevel;
-} rpc_unloading_guest_driver_v1F_07;
-
-typedef struct rpc_gsp_rm_control_v03_00
-{
-    NvHandle   hClient;
-    NvHandle   hObject;
-    NvU32      cmd;
-    NvU32      status;
-    NvU32      paramsSize;
-    NvU32      flags;
-    NvU8       params[];
-} rpc_gsp_rm_control_v03_00;
-
-typedef struct rpc_run_cpu_sequencer_v17_00
-{
-    NvU32      bufferSizeDWord;
-    NvU32      cmdIndex;
-    NvU32      regSaveArea[8];
-    NvU32      commandBuffer[];
-} rpc_run_cpu_sequencer_v17_00;
-
-typedef struct rpc_os_error_log_v17_00
-{
-    NvU32      exceptType;
-    NvU32      runlistId;
-    NvU32      chid;
-    char       errString[0x100];
-} rpc_os_error_log_v17_00;
+typedef enum NV2080_CTRL_CMD_GR_CTXSW_PREEMPTION_BIND_BUFFERS {
+    NV2080_CTRL_CMD_GR_CTXSW_PREEMPTION_BIND_BUFFERS_MAIN = 0,
+    NV2080_CTRL_CMD_GR_CTXSW_PREEMPTION_BIND_BUFFERS_SPILL = 1,
+    NV2080_CTRL_CMD_GR_CTXSW_PREEMPTION_BIND_BUFFERS_PAGEPOOL = 2,
+    NV2080_CTRL_CMD_GR_CTXSW_PREEMPTION_BIND_BUFFERS_BETACB = 3,
+    NV2080_CTRL_CMD_GR_CTXSW_PREEMPTION_BIND_BUFFERS_RTV = 4,
+    NV2080_CTRL_CMD_GR_CTXSW_PREEMPTION_BIND_BUFFERS_CONTEXT_POOL = 5,
+    NV2080_CTRL_CMD_GR_CTXSW_PREEMPTION_BIND_BUFFERS_CONTEXT_POOL_CONTROL = 6,
+    NV2080_CTRL_CMD_GR_CTXSW_PREEMPTION_BIND_BUFFERS_CONTEXT_POOL_CONTROL_CPU = 7,
+    NV2080_CTRL_CMD_GR_CTXSW_PREEMPTION_BIND_BUFFERS_END = 8,
+} NV2080_CTRL_CMD_GR_CTXSW_PREEMPTION_BIND_BUFFERS;
 
 #endif

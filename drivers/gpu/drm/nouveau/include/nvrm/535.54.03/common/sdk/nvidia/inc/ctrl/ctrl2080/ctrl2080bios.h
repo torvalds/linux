@@ -1,10 +1,10 @@
-#ifndef __src_nvidia_generated_g_rpc_structures_h__
-#define __src_nvidia_generated_g_rpc_structures_h__
+#ifndef __src_common_sdk_nvidia_inc_ctrl_ctrl2080_ctrl2080bios_h__
+#define __src_common_sdk_nvidia_inc_ctrl_ctrl2080_ctrl2080bios_h__
 
 /* Excerpt of RM headers from https://github.com/NVIDIA/open-gpu-kernel-modules/tree/535.54.03 */
 
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2008-2022 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-FileCopyrightText: Copyright (c) 2005-2021 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: MIT
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -26,38 +26,15 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-typedef struct rpc_unloading_guest_driver_v1F_07
-{
-    NvBool     bInPMTransition;
-    NvBool     bGc6Entering;
-    NvU32      newLevel;
-} rpc_unloading_guest_driver_v1F_07;
-
-typedef struct rpc_gsp_rm_control_v03_00
-{
-    NvHandle   hClient;
-    NvHandle   hObject;
-    NvU32      cmd;
-    NvU32      status;
-    NvU32      paramsSize;
-    NvU32      flags;
-    NvU8       params[];
-} rpc_gsp_rm_control_v03_00;
-
-typedef struct rpc_run_cpu_sequencer_v17_00
-{
-    NvU32      bufferSizeDWord;
-    NvU32      cmdIndex;
-    NvU32      regSaveArea[8];
-    NvU32      commandBuffer[];
-} rpc_run_cpu_sequencer_v17_00;
-
-typedef struct rpc_os_error_log_v17_00
-{
-    NvU32      exceptType;
-    NvU32      runlistId;
-    NvU32      chid;
-    char       errString[0x100];
-} rpc_os_error_log_v17_00;
+typedef struct NV2080_CTRL_BIOS_GET_SKU_INFO_PARAMS {
+    NvU32 BoardID;
+    char  chipSKU[4];
+    char  chipSKUMod[2];
+    char  project[5];
+    char  projectSKU[5];
+    char  CDP[6];
+    char  projectSKUMod[2];
+    NvU32 businessCycle;
+} NV2080_CTRL_BIOS_GET_SKU_INFO_PARAMS;
 
 #endif

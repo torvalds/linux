@@ -132,10 +132,32 @@ struct nvkm_gsp {
 
 	bool running;
 
+	/* Internal GSP-RM control handles. */
+	struct {
+		struct nvkm_gsp_client {
+			struct nvkm_gsp_object {
+				struct nvkm_gsp_client *client;
+				struct nvkm_gsp_object *parent;
+				u32 handle;
+			} object;
+
+			struct nvkm_gsp *gsp;
+		} client;
+
+		struct nvkm_gsp_device {
+			struct nvkm_gsp_object object;
+			struct nvkm_gsp_object subdevice;
+		} device;
+	} internal;
+
 	const struct nvkm_gsp_rm {
 		void *(*rpc_get)(struct nvkm_gsp *, u32 fn, u32 argc);
 		void *(*rpc_push)(struct nvkm_gsp *, void *argv, bool wait, u32 repc);
 		void (*rpc_done)(struct nvkm_gsp *gsp, void *repv);
+
+		void *(*rm_ctrl_get)(struct nvkm_gsp_object *, u32 cmd, u32 argc);
+		void *(*rm_ctrl_push)(struct nvkm_gsp_object *, void *argv, u32 repc);
+		void (*rm_ctrl_done)(struct nvkm_gsp_object *, void *repv);
 	} *rm;
 };
 
@@ -183,6 +205,46 @@ static inline void
 nvkm_gsp_rpc_done(struct nvkm_gsp *gsp, void *repv)
 {
 	gsp->rm->rpc_done(gsp, repv);
+}
+
+static inline void *
+nvkm_gsp_rm_ctrl_get(struct nvkm_gsp_object *object, u32 cmd, u32 argc)
+{
+	return object->client->gsp->rm->rm_ctrl_get(object, cmd, argc);
+}
+
+static inline void *
+nvkm_gsp_rm_ctrl_push(struct nvkm_gsp_object *object, void *argv, u32 repc)
+{
+	return object->client->gsp->rm->rm_ctrl_push(object, argv, repc);
+}
+
+static inline void *
+nvkm_gsp_rm_ctrl_rd(struct nvkm_gsp_object *object, u32 cmd, u32 repc)
+{
+	void *argv = nvkm_gsp_rm_ctrl_get(object, cmd, repc);
+
+	if (IS_ERR(argv))
+		return argv;
+
+	return nvkm_gsp_rm_ctrl_push(object, argv, repc);
+}
+
+static inline int
+nvkm_gsp_rm_ctrl_wr(struct nvkm_gsp_object *object, void *argv)
+{
+	void *repv = nvkm_gsp_rm_ctrl_push(object, argv, 0);
+
+	if (IS_ERR(repv))
+		return PTR_ERR(repv);
+
+	return 0;
+}
+
+static inline void
+nvkm_gsp_rm_ctrl_done(struct nvkm_gsp_object *object, void *repv)
+{
+	object->client->gsp->rm->rm_ctrl_done(object, repv);
 }
 
 int gv100_gsp_new(struct nvkm_device *, enum nvkm_subdev_type, int, struct nvkm_gsp **);
