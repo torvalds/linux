@@ -256,4 +256,8 @@
 
 #define NVC4D1_VIDEO_NVJPG                                           0x0000c4d1
 #define NVC9D1_VIDEO_NVJPG                                           0x0000c9d1
+
+#define NVC6FA_VIDEO_OFA                                             0x0000c6fa
+#define NVC7FA_VIDEO_OFA                                             0x0000c7fa
+#define NVC9FA_VIDEO_OFA                                             0x0000c9fa
 #endif

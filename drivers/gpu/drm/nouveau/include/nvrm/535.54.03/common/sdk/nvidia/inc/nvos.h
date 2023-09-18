@@ -128,6 +128,12 @@ typedef struct
 
 typedef struct
 {
+    NvU32 size;
+    NvU32 prohibitMultipleInstances;  // Prohibit multiple allocations of OFA?
+} NV_OFA_ALLOCATION_PARAMETERS;
+
+typedef struct
+{
     NvU32   index;
     NvV32   flags;
     NvU64   vaSize NV_ALIGN_BYTES(8);

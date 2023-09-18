@@ -871,6 +871,10 @@ r535_gsp_intr_get_table(struct nvkm_gsp *gsp)
 			type = NVKM_ENGINE_NVJPG;
 			inst = ctrl->table[i].engineIdx - MC_ENGINE_IDX_NVJPEG0;
 			break;
+		case MC_ENGINE_IDX_OFA0:
+			type = NVKM_ENGINE_OFA;
+			inst = 0;
+			break;
 		default:
 			continue;
 		}

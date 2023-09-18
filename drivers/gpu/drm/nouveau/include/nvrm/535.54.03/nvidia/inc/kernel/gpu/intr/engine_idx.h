@@ -49,6 +49,8 @@
 
 #define MC_ENGINE_IDX_NVDEC7                        71
 
+#define MC_ENGINE_IDX_OFA0                          80
+
 #define MC_ENGINE_IDX_GR                            82
 #define MC_ENGINE_IDX_GR0                           MC_ENGINE_IDX_GR
 
