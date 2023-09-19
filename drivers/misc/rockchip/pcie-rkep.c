@@ -20,6 +20,7 @@
 #include <linux/ctype.h>
 #include <linux/of.h>
 #include <linux/interrupt.h>
+#include <linux/iopoll.h>
 
 #include <uapi/linux/rk-pcie-ep.h>
 
@@ -88,6 +89,7 @@ static DEFINE_MUTEX(rkep_mutex);
 #define PCIE_ELBI_REG_NUM		0x2
 
 #define RKEP_EP_VIRTUAL_ID_MAX		(8 * 4096)
+#define RKEP_EP_ELBI_TIEMOUT_US		100000
 
 struct pcie_rkep_msix_context {
 	struct pci_dev *dev;
@@ -162,6 +164,35 @@ static int rkep_ep_release_virtual_id(struct pcie_rkep *pcie_rkep, int index)
 	mutex_unlock(&pcie_rkep->dev_lock_mutex);
 
 	return 0;
+}
+
+static int rkep_ep_raise_elbi_irq_user(struct pcie_rkep *pcie_rkep, u32 interrupt_num)
+{
+	u32 index, off;
+	int i, gap_us = 100;
+	u32 val;
+
+	if (interrupt_num >= (PCIE_ELBI_REG_NUM * 16)) {
+		dev_err(&pcie_rkep->pdev->dev, "elbi int num out of max count\n");
+		return -EINVAL;
+	}
+
+	index = interrupt_num / 16;
+	off = interrupt_num % 16;
+
+	for (i = 0; i < RKEP_EP_ELBI_TIEMOUT_US; i += gap_us) {
+		pci_read_config_dword(pcie_rkep->pdev, PCIE_CFG_ELBI_APP_OFFSET + 4 * index, &val);
+		if (val & BIT(off))
+			usleep_range(gap_us, gap_us + 10);
+		else
+			break;
+	}
+
+	if (i >= gap_us)
+		dev_err(&pcie_rkep->pdev->dev, "elbi int is not clear, status=%x\n", val);
+
+	return pci_write_config_dword(pcie_rkep->pdev, PCIE_CFG_ELBI_APP_OFFSET + 4 * index,
+				      (1 << (off + 16)) | (1 << off));
 }
 
 static int pcie_rkep_fasync(int fd, struct file *file, int mode)
@@ -308,7 +339,8 @@ static long pcie_rkep_ioctl(struct file *file, unsigned int cmd, unsigned long a
 	struct pcie_ep_dma_cache_cfg cfg;
 	struct pcie_ep_dma_block_req dma;
 	void __user *uarg = (void __user *)args;
-	int ret, index;
+	int ret;
+	int index;
 	u64 addr;
 
 	argp = (void __user *)args;
@@ -376,6 +408,20 @@ static long pcie_rkep_ioctl(struct file *file, unsigned int cmd, unsigned long a
 		if (ret < 0) {
 			dev_err(&pcie_rkep->pdev->dev,
 				"release virtual id %d failed, ret=%d\n", index, ret);
+
+			return -EFAULT;
+		}
+		break;
+	case PCIE_EP_RAISE_ELBI:
+		ret = copy_from_user(&index, uarg, sizeof(index));
+		if (ret) {
+			dev_err(&pcie_rkep->pdev->dev, "failed to get dma_data copy from userspace\n");
+			return -EFAULT;
+		}
+		ret = rkep_ep_raise_elbi_irq_user(pcie_rkep, index);
+		if (ret < 0) {
+			dev_err(&pcie_rkep->pdev->dev,
+				"raise elbi %d failed, ret=%d\n", index, ret);
 
 			return -EFAULT;
 		}
@@ -647,22 +693,6 @@ static int pcie_rkep_obj_handler(struct pcie_rkep *pcie_rkep, struct pci_dev *pd
 	}
 
 	return 0;
-}
-
-static int __maybe_unused rockchip_pcie_raise_elbi_irq(struct pcie_rkep *pcie_rkep,
-						       u8 interrupt_num)
-{
-	u32 index, off;
-
-	if (interrupt_num >= (PCIE_ELBI_REG_NUM * 16)) {
-		dev_err(&pcie_rkep->pdev->dev, "elbi int num out of max count\n");
-		return -EINVAL;
-	}
-
-	index = interrupt_num / 16;
-	off = interrupt_num % 16;
-	return pci_write_config_dword(pcie_rkep->pdev, PCIE_CFG_ELBI_APP_OFFSET + 4 * index,
-				      (1 << (off + 16)) | (1 << off));
 }
 
 static irqreturn_t pcie_rkep_pcie_interrupt(int irq, void *context)
