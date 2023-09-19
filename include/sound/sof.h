@@ -52,10 +52,13 @@ enum sof_dsp_power_states {
 
 /* Definitions for multiple IPCs */
 enum sof_ipc_type {
-	SOF_IPC,
-	SOF_INTEL_IPC4,
+	SOF_IPC_TYPE_3,
+	SOF_IPC_TYPE_4,
 	SOF_IPC_TYPE_COUNT
 };
+
+#define SOF_IPC		SOF_IPC_TYPE_3
+#define SOF_INTEL_IPC4	SOF_IPC_TYPE_4
 
 /*
  * SOF Platform data.
