@@ -1253,6 +1253,7 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp,
 		}
 		break;
 	case BPF_ALU | BPF_END | BPF_FROM_LE:
+	case BPF_ALU64 | BPF_END | BPF_FROM_LE:
 		switch (imm) {
 		case 16: /* dst = (u16) cpu_to_le16(dst) */
 			/* lrvr %dst,%dst */
