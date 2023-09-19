@@ -736,6 +736,7 @@ static int probe_codec(struct hdac_bus *bus, int addr)
 		return PTR_ERR(codec);
 
 	hda_codec->codec = codec;
+	hda_codec->dev_index = addr;
 	dev_set_drvdata(&codec->core.dev, hda_codec);
 
 	/* use legacy bus only for HDA codecs, idisp uses ext bus */

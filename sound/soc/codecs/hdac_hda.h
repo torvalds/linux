@@ -26,6 +26,10 @@ struct hdac_hda_priv {
 	struct hda_codec *codec;
 	struct hdac_hda_pcm pcm[HDAC_DAI_ID_NUM];
 	bool need_display_power;
+	int dev_index;
+#ifdef CONFIG_SND_HDA_PATCH_LOADER
+	const struct firmware *fw;
+#endif
 };
 
 struct hdac_ext_bus_ops *snd_soc_hdac_hda_get_ops(void);
