@@ -1507,12 +1507,14 @@ static void gmc_v9_0_set_umc_funcs(struct amdgpu_device *adev)
 			adev->umc.channel_idx_tbl = &umc_v6_7_channel_idx_tbl_second[0][0];
 		break;
 	case IP_VERSION(12, 0, 0):
-		adev->umc.max_ras_err_cnt_per_query = UMC_V12_0_TOTAL_CHANNEL_NUM(adev);
+		adev->umc.max_ras_err_cnt_per_query =
+			UMC_V12_0_TOTAL_CHANNEL_NUM(adev) * UMC_V12_0_BAD_PAGE_NUM_PER_CHANNEL;
 		adev->umc.channel_inst_num = UMC_V12_0_CHANNEL_INSTANCE_NUM;
 		adev->umc.umc_inst_num = UMC_V12_0_UMC_INSTANCE_NUM;
 		adev->umc.node_inst_num /= UMC_V12_0_UMC_INSTANCE_NUM;
 		adev->umc.channel_offs = UMC_V12_0_PER_CHANNEL_OFFSET;
 		adev->umc.active_mask = adev->aid_mask;
+		adev->umc.retire_unit = UMC_V12_0_BAD_PAGE_NUM_PER_CHANNEL;
 		adev->umc.channel_idx_tbl = &umc_v12_0_channel_idx_tbl[0][0][0];
 		if (!adev->gmc.xgmi.connected_to_cpu && !adev->gmc.is_app_apu)
 			adev->umc.ras = &umc_v12_0_ras;

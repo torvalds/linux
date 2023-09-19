@@ -53,6 +53,8 @@
 
 /* one piece of normalized address is mapped to 8 pieces of physical address */
 #define UMC_V12_0_NA_MAP_PA_NUM        8
+/* R13 bit shift should be considered, double the number */
+#define UMC_V12_0_BAD_PAGE_NUM_PER_CHANNEL (UMC_V12_0_NA_MAP_PA_NUM * 2)
 /* bank bits in MCA error address */
 #define UMC_V12_0_MCA_B0_BIT 6
 #define UMC_V12_0_MCA_B1_BIT 7
