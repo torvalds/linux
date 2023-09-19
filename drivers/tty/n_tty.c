@@ -253,7 +253,7 @@ static void n_tty_check_throttle(struct tty_struct *tty)
 		tty_set_flow_change(tty, TTY_THROTTLE_SAFE);
 		if (N_TTY_BUF_SIZE - read_cnt(ldata) >= TTY_THRESHOLD_THROTTLE)
 			break;
-	} while (tty_throttle_safe(tty));
+	} while (!tty_throttle_safe(tty));
 
 	__tty_set_flow_change(tty, 0);
 }
@@ -282,7 +282,7 @@ static void n_tty_check_unthrottle(struct tty_struct *tty)
 			break;
 
 		n_tty_kick_worker(tty);
-	} while (tty_unthrottle_safe(tty));
+	} while (!tty_unthrottle_safe(tty));
 
 	__tty_set_flow_change(tty, 0);
 }
