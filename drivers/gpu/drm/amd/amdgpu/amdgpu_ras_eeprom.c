@@ -616,7 +616,8 @@ amdgpu_ras_eeprom_append_table(struct amdgpu_ras_eeprom_control *control,
 		__encode_table_record_to_buf(control, &record[i], pp);
 
 		/* update bad channel bitmap */
-		if (!(control->bad_channel_bitmap & (1 << record[i].mem_channel))) {
+		if ((record[i].mem_channel < BITS_PER_TYPE(control->bad_channel_bitmap)) &&
+		    !(control->bad_channel_bitmap & (1 << record[i].mem_channel))) {
 			control->bad_channel_bitmap |= 1 << record[i].mem_channel;
 			con->update_channel_flag = true;
 		}
@@ -969,7 +970,8 @@ int amdgpu_ras_eeprom_read(struct amdgpu_ras_eeprom_control *control,
 		__decode_table_record_from_buf(control, &record[i], pp);
 
 		/* update bad channel bitmap */
-		if (!(control->bad_channel_bitmap & (1 << record[i].mem_channel))) {
+		if ((record[i].mem_channel < BITS_PER_TYPE(control->bad_channel_bitmap)) &&
+		    !(control->bad_channel_bitmap & (1 << record[i].mem_channel))) {
 			control->bad_channel_bitmap |= 1 << record[i].mem_channel;
 			con->update_channel_flag = true;
 		}
