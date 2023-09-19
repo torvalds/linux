@@ -249,15 +249,12 @@ static void n_tty_check_throttle(struct tty_struct *tty)
 	if (ldata->icanon && ldata->canon_head == ldata->read_tail)
 		return;
 
-	while (1) {
-		int throttled;
+	do {
 		tty_set_flow_change(tty, TTY_THROTTLE_SAFE);
 		if (N_TTY_BUF_SIZE - read_cnt(ldata) >= TTY_THRESHOLD_THROTTLE)
 			break;
-		throttled = tty_throttle_safe(tty);
-		if (!throttled)
-			break;
-	}
+	} while (tty_throttle_safe(tty));
+
 	__tty_set_flow_change(tty, 0);
 }
 
@@ -279,16 +276,14 @@ static void n_tty_check_unthrottle(struct tty_struct *tty)
 	 * we won't get any more characters.
 	 */
 
-	while (1) {
-		int unthrottled;
+	do {
 		tty_set_flow_change(tty, TTY_UNTHROTTLE_SAFE);
 		if (chars_in_buffer(tty) > TTY_THRESHOLD_UNTHROTTLE)
 			break;
+
 		n_tty_kick_worker(tty);
-		unthrottled = tty_unthrottle_safe(tty);
-		if (!unthrottled)
-			break;
-	}
+	} while (tty_unthrottle_safe(tty));
+
 	__tty_set_flow_change(tty, 0);
 }
 
