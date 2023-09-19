@@ -91,6 +91,7 @@ static const char * const iio_chan_type_name_spec[] = {
 	[IIO_PHASE] = "phase",
 	[IIO_MASSCONCENTRATION] = "massconcentration",
 	[IIO_COLORTEMP] = "colortemp",
+	[IIO_CHROMATICITY] = "chromaticity",
 };
 
 static const char * const iio_modifier_names[] = {

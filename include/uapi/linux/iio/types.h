@@ -48,6 +48,7 @@ enum iio_chan_type {
 	IIO_PHASE,
 	IIO_MASSCONCENTRATION,
 	IIO_COLORTEMP,
+	IIO_CHROMATICITY,
 };
 
 enum iio_modifier {
