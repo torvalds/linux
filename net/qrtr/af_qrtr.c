@@ -439,6 +439,7 @@ static void __qrtr_node_release(struct kref *kref)
 	kthread_stop(node->task);
 	skb_queue_purge(&node->rx_queue);
 	wakeup_source_unregister(node->ws);
+	xa_destroy(&node->no_wake_svc);
 
 	/* Free tx flow counters */
 	mutex_lock(&node->qrtr_tx_lock);
