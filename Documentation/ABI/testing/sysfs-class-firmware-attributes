@@ -383,6 +383,36 @@ Description:
 		Note that any changes to this attribute requires a reboot
 		for changes to take effect.
 
+What:		/sys/class/firmware-attributes/*/attributes/save_settings
+Date:		August 2023
+KernelVersion:	6.6
+Contact:	Mark Pearson <mpearson-lenovo@squebb.ca>
+Description:
+		On Lenovo platforms there is a limitation in the number of times an attribute can be
+		saved. This is an architectural limitation and it limits the number of attributes
+		that can be modified to 48.
+		A solution for this is instead of the attribute being saved after every modification,
+		to allow a user to bulk set the attributes, and then trigger a final save. This allows
+		unlimited attributes.
+
+		Read the attribute to check what save mode is enabled (single or bulk).
+		E.g:
+		# cat /sys/class/firmware-attributes/thinklmi/attributes/save_settings
+		single
+
+		Write the attribute with 'bulk' to enable bulk save mode.
+		Write the attribute with 'single' to enable saving, after every attribute set.
+		The default setting is single mode.
+		E.g:
+		# echo bulk > /sys/class/firmware-attributes/thinklmi/attributes/save_settings
+
+		When in bulk mode write 'save' to trigger a save of all currently modified attributes.
+		Note, once a save has been triggered, in bulk mode, attributes can no longer be set and
+		will return a permissions error. This is to prevent users hitting the 48+ save limitation
+		(which requires entering the BIOS to clear the error condition)
+		E.g:
+		# echo save > /sys/class/firmware-attributes/thinklmi/attributes/save_settings
+
 What:		/sys/class/firmware-attributes/*/attributes/debug_cmd
 Date:		July 2021
 KernelVersion:	5.14
