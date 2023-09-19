@@ -44,6 +44,9 @@ properties:
       - const: tx
       - const: rx
 
+  interconnects:
+    maxItems: 1
+
   interrupts:
     maxItems: 1
 
@@ -67,6 +70,7 @@ unevaluatedProperties: false
 examples:
   - |
     #include <dt-bindings/clock/qcom,gcc-msm8996.h>
+    #include <dt-bindings/interconnect/qcom,msm8996.h>
     #include <dt-bindings/interrupt-controller/arm-gic.h>
     #include <dt-bindings/power/qcom-rpmpd.h>
 
@@ -84,6 +88,7 @@ examples:
         dma-names = "tx", "rx";
         power-domains = <&rpmpd MSM8996_VDDCX>;
         operating-points-v2 = <&spi_opp_table>;
+        interconnects = <&pnoc MASTER_BLSP_1 &bimc SLAVE_EBI_CH0>;
         #address-cells = <1>;
         #size-cells = <0>;
     };
