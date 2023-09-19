@@ -1559,6 +1559,47 @@ static void ufs_qcom_set_affinity_hint(struct ufs_hba *hba, bool prime)
 		dev_err(host->hba->dev, "prime=%d, err=%d\n", prime, ret);
 }
 
+static void ufs_qcom_set_esi_affinity_hint(struct ufs_hba *hba)
+{
+	struct ufs_qcom_host *host = ufshcd_get_variant(hba);
+	cpumask_t *affinity_mask = &host->esi_affinity_mask;
+	const cpumask_t *mask;
+	struct msi_desc *desc;
+	unsigned int set = IRQ_NO_BALANCING;
+	unsigned int clear = 0;
+	unsigned int cpu = 0;
+	int ret, i = 0;
+
+	if (affinity_mask->bits[0] == 0)
+		return;
+
+	ufs_qcom_msi_lock_descs(hba);
+	msi_for_each_desc(desc, hba->dev, MSI_DESC_ALL) {
+		if (i % cpumask_weight(affinity_mask) == 0)
+			cpu = cpumask_first(affinity_mask);
+		else
+			cpu = cpumask_next(cpu, affinity_mask);
+
+		mask = get_cpu_mask(cpu);
+		irq_modify_status(desc->irq, clear, set);
+		ret = irq_set_affinity_hint(desc->irq, mask);
+		if (ret < 0)
+			dev_err(hba->dev, "%s: Failed to set affinity hint to cpu %d for ESI %d, err = %d\n",
+					__func__, cpu, desc->irq, ret);
+		i++;
+	}
+	ufs_qcom_msi_unlock_descs(hba);
+}
+
+static int ufs_qcom_cpu_online(unsigned int cpu)
+{
+	struct ufs_hba *hba = ufs_qcom_hosts[0]->hba;
+
+	ufs_qcom_set_esi_affinity_hint(hba);
+
+	return 0;
+}
+
 static void ufs_qcom_toggle_pri_affinity(struct ufs_hba *hba, bool on)
 {
 	struct ufs_qcom_host *host = ufshcd_get_variant(hba);
@@ -4948,21 +4989,6 @@ static irqreturn_t ufs_qcom_mcq_esi_handler(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static void ufs_qcom_set_esi_affinity_hint(struct ufs_hba *hba, int irq)
-{
-	struct ufs_qcom_host *host = ufshcd_get_variant(hba);
-	cpumask_t *affinity_mask = &host->esi_affinity_mask;
-	unsigned int set = IRQ_NO_BALANCING;
-	unsigned int clear = 0;
-	int ret;
-
-	irq_modify_status(irq, clear, set);
-	ret = irq_set_affinity_hint(irq, affinity_mask);
-	if (ret < 0)
-		dev_err(hba->dev, "%s: Failed to set affinity hint for ESI %d, err = %d\n",
-			__func__, irq, ret);
-}
-
 static int ufs_qcom_config_esi(struct ufs_hba *hba)
 {
 	struct ufs_qcom_host *host = ufshcd_get_variant(hba);
@@ -4996,8 +5022,6 @@ static int ufs_qcom_config_esi(struct ufs_hba *hba)
 			failed_desc = desc;
 			break;
 		}
-
-		ufs_qcom_set_esi_affinity_hint(hba, desc->irq);
 	}
 	ufs_qcom_msi_unlock_descs(hba);
 
@@ -5022,8 +5046,12 @@ static int ufs_qcom_config_esi(struct ufs_hba *hba)
 	}
 
 out:
-	if (!ret)
+	if (!ret) {
+		ufs_qcom_set_esi_affinity_hint(hba);
+		cpuhp_setup_state_nocalls(CPUHP_AP_ONLINE_DYN,
+					"ufs_qcom:online", ufs_qcom_cpu_online, NULL);
 		host->esi_enabled = true;
+	}
 
 	return ret;
 }
