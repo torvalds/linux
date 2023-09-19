@@ -21,6 +21,8 @@ union nvif_outp_args {
 
 #define NVIF_OUTP_V0_LOAD_DETECT   0x20
 
+#define NVIF_OUTP_V0_HDMI          0x50
+
 #define NVIF_OUTP_V0_INFOFRAME     0x60
 #define NVIF_OUTP_V0_HDA_ELD       0x61
 
@@ -62,7 +64,6 @@ union nvif_outp_acquire_args {
 #define NVIF_OUTP_ACQUIRE_V0_DAC  0x00
 #define NVIF_OUTP_ACQUIRE_V0_SOR  0x01
 #define NVIF_OUTP_ACQUIRE_V0_PIOR 0x02
-#define NVIF_OUTP_ACQUIRE_V0_TMDS    0x05
 #define NVIF_OUTP_ACQUIRE_V0_LVDS    0x03
 #define NVIF_OUTP_ACQUIRE_V0_DP      0x04
 		__u8 type;
@@ -73,17 +74,6 @@ union nvif_outp_acquire_args {
 			struct {
 				__u8 hda;
 			} sor;
-			struct {
-				__u8 head;
-				__u8 hdmi;
-				__u8 hdmi_max_ac_packet;
-				__u8 hdmi_rekey;
-#define NVIF_OUTP_ACQUIRE_V0_TMDS_HDMI_SCDC_SCRAMBLE (1 << 0)
-#define NVIF_OUTP_ACQUIRE_V0_TMDS_HDMI_SCDC_DIV_BY_4 (1 << 1)
-				__u8 hdmi_scdc;
-				__u8 hdmi_hda;
-				__u8 pad06[2];
-			} tmds;
 			struct {
 				__u8 dual;
 				__u8 bpc8;
@@ -126,6 +116,20 @@ union nvif_outp_inherit_args {
 union nvif_outp_release_args {
 	struct nvif_outp_release_vn {
 	} vn;
+};
+
+union nvif_outp_hdmi_args {
+	struct nvif_outp_hdmi_v0 {
+		__u8 version;
+		__u8 head;
+		__u8 enable;
+		__u8 max_ac_packet;
+		__u8 rekey;
+		__u8 scdc;
+		__u8 scdc_scrambling;
+		__u8 scdc_low_rates;
+		__u32 khz;
+	} v0;
 };
 
 union nvif_outp_infoframe_args {

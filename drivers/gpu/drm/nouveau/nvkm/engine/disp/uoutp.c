@@ -137,24 +137,28 @@ nvkm_uoutp_mthd_infoframe(struct nvkm_outp *outp, void *argv, u32 argc)
 }
 
 static int
-nvkm_uoutp_mthd_acquire_tmds(struct nvkm_outp *outp, u8 head, u8 hdmi, u8 hdmi_max_ac_packet,
-			     u8 hdmi_rekey, u8 hdmi_scdc, u8 hdmi_hda)
+nvkm_uoutp_mthd_hdmi(struct nvkm_outp *outp, void *argv, u32 argc)
 {
+	union nvif_outp_hdmi_args *args = argv;
 	struct nvkm_ior *ior = outp->ior;
 
-	if (!(outp->asy.head = nvkm_head_find(outp->disp, head)))
+	if (argc != sizeof(args->v0) || args->v0.version != 0)
+		return -ENOSYS;
+
+	if (!(outp->asy.head = nvkm_head_find(outp->disp, args->v0.head)))
 		return -EINVAL;
 
-	if (hdmi) {
-		if (!ior->func->hdmi ||
-		    hdmi_max_ac_packet > 0x1f || hdmi_rekey > 0x7f ||
-		    (hdmi_scdc && !ior->func->hdmi->scdc))
-			return -EINVAL;
+	if (!ior->func->hdmi ||
+	    args->v0.max_ac_packet > 0x1f ||
+	    args->v0.rekey > 0x7f ||
+	    (args->v0.scdc && !ior->func->hdmi->scdc))
+		return -EINVAL;
 
-		ior->func->hdmi->ctrl(ior, head, hdmi, hdmi_max_ac_packet, hdmi_rekey);
-		if (ior->func->hdmi->scdc)
-			ior->func->hdmi->scdc(ior, hdmi_scdc);
-	}
+	ior->func->hdmi->ctrl(ior, args->v0.head, args->v0.enable,
+			      args->v0.max_ac_packet, args->v0.rekey);
+	if (ior->func->hdmi->scdc)
+		ior->func->hdmi->scdc(ior, args->v0.khz, args->v0.scdc, args->v0.scdc_scrambling,
+				      args->v0.scdc_low_rates);
 
 	return 0;
 }
@@ -208,14 +212,6 @@ nvkm_uoutp_mthd_acquire(struct nvkm_outp *outp, void *argv, u32 argc)
 		break;
 	case NVIF_OUTP_ACQUIRE_V0_SOR:
 		ret = nvkm_outp_acquire_or(outp, NVKM_OUTP_USER, args->v0.sor.hda);
-		break;
-	case NVIF_OUTP_ACQUIRE_V0_TMDS:
-		ret = nvkm_uoutp_mthd_acquire_tmds(outp, args->v0.tmds.head,
-							 args->v0.tmds.hdmi,
-							 args->v0.tmds.hdmi_max_ac_packet,
-							 args->v0.tmds.hdmi_rekey,
-							 args->v0.tmds.hdmi_scdc,
-							 args->v0.tmds.hdmi_hda);
 		break;
 	case NVIF_OUTP_ACQUIRE_V0_LVDS:
 		ret = nvkm_uoutp_mthd_acquire_lvds(outp, args->v0.lvds.dual, args->v0.lvds.bpc8);
@@ -370,6 +366,7 @@ nvkm_uoutp_mthd_acquired(struct nvkm_outp *outp, u32 mthd, void *argv, u32 argc)
 {
 	switch (mthd) {
 	case NVIF_OUTP_V0_RELEASE      : return nvkm_uoutp_mthd_release      (outp, argv, argc);
+	case NVIF_OUTP_V0_HDMI         : return nvkm_uoutp_mthd_hdmi         (outp, argv, argc);
 	case NVIF_OUTP_V0_INFOFRAME    : return nvkm_uoutp_mthd_infoframe    (outp, argv, argc);
 	case NVIF_OUTP_V0_HDA_ELD      : return nvkm_uoutp_mthd_hda_eld      (outp, argv, argc);
 	case NVIF_OUTP_V0_DP_RETRAIN   : return nvkm_uoutp_mthd_dp_retrain   (outp, argv, argc);

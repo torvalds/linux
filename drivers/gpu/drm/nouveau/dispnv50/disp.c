@@ -778,7 +778,6 @@ nv50_hdmi_enable(struct drm_encoder *encoder, struct nouveau_crtc *nv_crtc,
 	struct drm_hdmi_info *hdmi = &nv_connector->base.display_info.hdmi;
 	union hdmi_infoframe infoframe = { 0 };
 	const u8 rekey = 56; /* binary driver, and tegra, constant */
-	u8 scdc = 0;
 	u32 max_ac_packet;
 	struct {
 		struct nvif_outp_infoframe_v0 infoframe;
@@ -791,8 +790,9 @@ nv50_hdmi_enable(struct drm_encoder *encoder, struct nouveau_crtc *nv_crtc,
 	max_ac_packet -= 18; /* constant from tegra */
 	max_ac_packet /= 32;
 
-	if (hdmi->scdc.scrambling.supported) {
+	if (nv_encoder->i2c && hdmi->scdc.scrambling.supported) {
 		const bool high_tmds_clock_ratio = mode->clock > 340000;
+		u8 scdc;
 
 		ret = drm_scdc_readb(nv_encoder->i2c, SCDC_TMDS_CONFIG, &scdc);
 		if (ret < 0) {
@@ -812,8 +812,9 @@ nv50_hdmi_enable(struct drm_encoder *encoder, struct nouveau_crtc *nv_crtc,
 				 scdc, ret);
 	}
 
-	ret = nvif_outp_acquire_tmds(&nv_encoder->outp, nv_crtc->index, true,
-				     max_ac_packet, rekey, scdc, hda);
+	ret = nvif_outp_hdmi(&nv_encoder->outp, nv_crtc->index, true, max_ac_packet, rekey,
+			     mode->clock, hdmi->scdc.supported, hdmi->scdc.scrambling.supported,
+			     hdmi->scdc.scrambling.low_rates);
 	if (ret)
 		return;
 
@@ -1852,7 +1853,6 @@ nv50_pior_atomic_enable(struct drm_encoder *encoder, struct drm_atomic_state *st
 	switch (nv_encoder->dcb->type) {
 	case DCB_OUTPUT_TMDS:
 		ctrl |= NVDEF(NV507D, PIOR_SET_CONTROL, PROTOCOL, EXT_TMDS_ENC);
-		nvif_outp_acquire_tmds(&nv_encoder->outp, false, false, 0, 0, 0, false);
 		break;
 	case DCB_OUTPUT_DP:
 		ctrl |= NVDEF(NV507D, PIOR_SET_CONTROL, PROTOCOL, EXT_TMDS_ENC);

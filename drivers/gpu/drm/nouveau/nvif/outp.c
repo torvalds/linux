@@ -124,25 +124,28 @@ nvif_outp_infoframe(struct nvif_outp *outp, u8 type, struct nvif_outp_infoframe_
 }
 
 int
-nvif_outp_acquire_tmds(struct nvif_outp *outp, int head,
-		       bool hdmi, u8 max_ac_packet, u8 rekey, u8 scdc, bool hda)
+nvif_outp_hdmi(struct nvif_outp *outp, int head, bool enable, u8 max_ac_packet, u8 rekey,
+	       u32 khz, bool scdc, bool scdc_scrambling, bool scdc_low_rates)
 {
-	struct nvif_outp_acquire_v0 args;
+	struct nvif_outp_hdmi_v0 args;
 	int ret;
 
-	args.tmds.head = head;
-	args.tmds.hdmi = hdmi;
-	args.tmds.hdmi_max_ac_packet = max_ac_packet;
-	args.tmds.hdmi_rekey = rekey;
-	args.tmds.hdmi_scdc = scdc;
-	args.tmds.hdmi_hda = hda;
+	args.version = 0;
+	args.head = head;
+	args.enable = enable;
+	args.max_ac_packet = max_ac_packet;
+	args.rekey = rekey;
+	args.khz = khz;
+	args.scdc = scdc;
+	args.scdc_scrambling = scdc_scrambling;
+	args.scdc_low_rates = scdc_low_rates;
 
-	ret = nvif_outp_acquire(outp, NVIF_OUTP_ACQUIRE_V0_TMDS, &args);
+	ret = nvif_mthd(&outp->object, NVIF_OUTP_V0_HDMI, &args, sizeof(args));
 	NVIF_ERRON(ret, &outp->object,
-		   "[ACQUIRE proto:TMDS head:%d hdmi:%d max_ac_packet:%d rekey:%d scdc:%d hda:%d]"
-		   " or:%d link:%d", args.tmds.head, args.tmds.hdmi, args.tmds.hdmi_max_ac_packet,
-		   args.tmds.hdmi_rekey, args.tmds.hdmi_scdc, args.tmds.hdmi_hda,
-		   args.or, args.link);
+		   "[HDMI head:%d enable:%d max_ac_packet:%d rekey:%d khz:%d scdc:%d "
+		   "scdc_scrambling:%d scdc_low_rates:%d]",
+		   args.head, args.enable, args.max_ac_packet, args.rekey, args.khz,
+		   args.scdc, args.scdc_scrambling, args.scdc_low_rates);
 	return ret;
 }
 

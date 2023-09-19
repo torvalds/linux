@@ -65,7 +65,8 @@ struct nvkm_ior_func {
 
 	const struct nvkm_ior_func_hdmi {
 		void (*ctrl)(struct nvkm_ior *, int head, bool enable, u8 max_ac_packet, u8 rekey);
-		void (*scdc)(struct nvkm_ior *, u8 scdc);
+		void (*scdc)(struct nvkm_ior *, u32 khz, bool support, bool scrambling,
+			     bool scrambling_low_rates);
 		void (*infoframe_avi)(struct nvkm_ior *, int head, void *data, u32 size);
 		void (*infoframe_vsi)(struct nvkm_ior *, int head, void *data, u32 size);
 	} *hdmi;
@@ -167,7 +168,7 @@ void gm107_sor_dp_pattern(struct nvkm_ior *, int);
 void gm200_sor_route_set(struct nvkm_outp *, struct nvkm_ior *);
 int gm200_sor_route_get(struct nvkm_outp *, int *);
 extern const struct nvkm_ior_func_hdmi gm200_sor_hdmi;
-void gm200_sor_hdmi_scdc(struct nvkm_ior *, u8);
+void gm200_sor_hdmi_scdc(struct nvkm_ior *, u32, bool, bool, bool);
 extern const struct nvkm_ior_func_dp gm200_sor_dp;
 void gm200_sor_dp_drive(struct nvkm_ior *, int, int, int, int, int);
 
