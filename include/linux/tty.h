@@ -416,8 +416,8 @@ unsigned int tty_chars_in_buffer(struct tty_struct *tty);
 unsigned int tty_write_room(struct tty_struct *tty);
 void tty_driver_flush_buffer(struct tty_struct *tty);
 void tty_unthrottle(struct tty_struct *tty);
-int tty_throttle_safe(struct tty_struct *tty);
-int tty_unthrottle_safe(struct tty_struct *tty);
+bool tty_throttle_safe(struct tty_struct *tty);
+bool tty_unthrottle_safe(struct tty_struct *tty);
 int tty_do_resize(struct tty_struct *tty, struct winsize *ws);
 int tty_get_icount(struct tty_struct *tty,
 		struct serial_icounter_struct *icount);

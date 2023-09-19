@@ -124,17 +124,16 @@ EXPORT_SYMBOL(tty_unthrottle);
  *	conditions when throttling is conditional on factors evaluated prior to
  *	throttling.
  *
- *	Returns 0 if tty is throttled (or was already throttled)
+ *	Returns false if tty is throttled (or was already throttled)
  */
-
-int tty_throttle_safe(struct tty_struct *tty)
+bool tty_throttle_safe(struct tty_struct *tty)
 {
-	int ret = 0;
+	bool ret = false;
 
 	mutex_lock(&tty->throttle_mutex);
 	if (!tty_throttled(tty)) {
 		if (tty->flow_change != TTY_THROTTLE_SAFE)
-			ret = 1;
+			ret = true;
 		else {
 			set_bit(TTY_THROTTLED, &tty->flags);
 			if (tty->ops->throttle)
@@ -155,17 +154,16 @@ int tty_throttle_safe(struct tty_struct *tty)
  *	unthrottle due to race conditions when unthrottling is conditional
  *	on factors evaluated prior to unthrottling.
  *
- *	Returns 0 if tty is unthrottled (or was already unthrottled)
+ *	Returns false if tty is unthrottled (or was already unthrottled)
  */
-
-int tty_unthrottle_safe(struct tty_struct *tty)
+bool tty_unthrottle_safe(struct tty_struct *tty)
 {
-	int ret = 0;
+	bool ret = false;
 
 	mutex_lock(&tty->throttle_mutex);
 	if (tty_throttled(tty)) {
 		if (tty->flow_change != TTY_UNTHROTTLE_SAFE)
-			ret = 1;
+			ret = true;
 		else {
 			clear_bit(TTY_THROTTLED, &tty->flags);
 			if (tty->ops->unthrottle)
