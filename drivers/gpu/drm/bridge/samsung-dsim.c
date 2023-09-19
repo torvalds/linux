@@ -1998,7 +1998,7 @@ err_disable_runtime:
 }
 EXPORT_SYMBOL_GPL(samsung_dsim_probe);
 
-int samsung_dsim_remove(struct platform_device *pdev)
+void samsung_dsim_remove(struct platform_device *pdev)
 {
 	struct samsung_dsim *dsi = platform_get_drvdata(pdev);
 
@@ -2006,8 +2006,6 @@ int samsung_dsim_remove(struct platform_device *pdev)
 
 	if (dsi->plat_data->host_ops && dsi->plat_data->host_ops->unregister_host)
 		dsi->plat_data->host_ops->unregister_host(dsi);
-
-	return 0;
 }
 EXPORT_SYMBOL_GPL(samsung_dsim_remove);
 
@@ -2107,7 +2105,7 @@ MODULE_DEVICE_TABLE(of, samsung_dsim_of_match);
 
 static struct platform_driver samsung_dsim_driver = {
 	.probe = samsung_dsim_probe,
-	.remove = samsung_dsim_remove,
+	.remove_new = samsung_dsim_remove,
 	.driver = {
 		   .name = "samsung-dsim",
 		   .pm = &samsung_dsim_pm_ops,

@@ -116,7 +116,7 @@ struct samsung_dsim {
 };
 
 extern int samsung_dsim_probe(struct platform_device *pdev);
-extern int samsung_dsim_remove(struct platform_device *pdev);
+extern void samsung_dsim_remove(struct platform_device *pdev);
 extern const struct dev_pm_ops samsung_dsim_pm_ops;
 
 #endif /* __SAMSUNG_DSIM__ */
