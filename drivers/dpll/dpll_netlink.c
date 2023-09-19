@@ -844,7 +844,7 @@ dpll_pin_find(u64 clock_id, struct nlattr *mod_name_attr,
 				return ERR_PTR(-EINVAL);
 			}
 			pin_match = pin;
-		};
+		}
 	}
 	if (!pin_match) {
 		NL_SET_ERR_MSG(extack, "not found");
