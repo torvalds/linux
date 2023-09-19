@@ -287,13 +287,6 @@ nvkm_outp_acquire(struct nvkm_outp *outp, bool hda)
 	return 0;
 }
 
-void
-nvkm_outp_fini(struct nvkm_outp *outp)
-{
-	if (outp->func->fini)
-		outp->func->fini(outp);
-}
-
 struct nvkm_ior *
 nvkm_outp_inherit(struct nvkm_outp *outp)
 {
@@ -332,8 +325,8 @@ nvkm_outp_inherit(struct nvkm_outp *outp)
 	return ior;
 }
 
-static void
-nvkm_outp_init_route(struct nvkm_outp *outp)
+void
+nvkm_outp_init(struct nvkm_outp *outp)
 {
 	enum nvkm_ior_proto proto;
 	enum nvkm_ior_type type;
@@ -363,14 +356,6 @@ nvkm_outp_init_route(struct nvkm_outp *outp)
 
 	OUTP_DBG(outp, "on %s link %x", ior->name, ior->arm.link);
 	ior->arm.outp = outp;
-}
-
-void
-nvkm_outp_init(struct nvkm_outp *outp)
-{
-	nvkm_outp_init_route(outp);
-	if (outp->func->init)
-		outp->func->init(outp);
 }
 
 void
@@ -420,6 +405,7 @@ nvkm_outp_new_(const struct nvkm_outp_func *func, struct nvkm_disp *disp,
 
 static const struct nvkm_outp_func
 nvkm_outp = {
+	.init = nvkm_outp_init,
 	.detect = nvkm_outp_detect,
 	.inherit = nvkm_outp_inherit,
 	.acquire = nvkm_outp_acquire,

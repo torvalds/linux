@@ -1586,6 +1586,7 @@ nv50_disp_oneinit(struct nvkm_disp *disp)
 	struct nvkm_bios *bios = device->bios;
 	struct nvkm_outp *outp, *outt, *pair;
 	struct nvkm_conn *conn;
+	struct nvkm_ior *ior;
 	int ret, i;
 	u8  ver, hdr;
 	u32 data;
@@ -1745,6 +1746,19 @@ nv50_disp_oneinit(struct nvkm_disp *disp)
 		}
 
 		list_add_tail(&outp->conn->head, &disp->conns);
+	}
+
+	/* Enforce identity-mapped SOR assignment for panels, which have
+	 * certain bits (ie. backlight controls) wired to a specific SOR.
+	 */
+	list_for_each_entry(outp, &disp->outps, head) {
+		if (outp->conn->info.type == DCB_CONNECTOR_LVDS ||
+		    outp->conn->info.type == DCB_CONNECTOR_eDP) {
+			ior = nvkm_ior_find(disp, SOR, ffs(outp->info.or) - 1);
+			if (!WARN_ON(!ior))
+				ior->identity = true;
+			outp->identity = true;
+		}
 	}
 
 	return 0;

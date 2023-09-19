@@ -102,18 +102,14 @@ static int
 nvkm_disp_fini(struct nvkm_engine *engine, bool suspend)
 {
 	struct nvkm_disp *disp = nvkm_disp(engine);
-	struct nvkm_conn *conn;
 	struct nvkm_outp *outp;
 
 	if (disp->func->fini)
 		disp->func->fini(disp);
 
 	list_for_each_entry(outp, &disp->outps, head) {
-		nvkm_outp_fini(outp);
-	}
-
-	list_for_each_entry(conn, &disp->conns, head) {
-		nvkm_conn_fini(conn);
+		if (outp->func->fini)
+			outp->func->fini(outp);
 	}
 
 	return 0;
@@ -123,16 +119,12 @@ static int
 nvkm_disp_init(struct nvkm_engine *engine)
 {
 	struct nvkm_disp *disp = nvkm_disp(engine);
-	struct nvkm_conn *conn;
 	struct nvkm_outp *outp;
 	struct nvkm_ior *ior;
 
-	list_for_each_entry(conn, &disp->conns, head) {
-		nvkm_conn_init(conn);
-	}
-
 	list_for_each_entry(outp, &disp->outps, head) {
-		nvkm_outp_init(outp);
+		if (outp->func->init)
+			outp->func->init(outp);
 	}
 
 	if (disp->func->init) {
@@ -156,28 +148,13 @@ nvkm_disp_oneinit(struct nvkm_engine *engine)
 {
 	struct nvkm_disp *disp = nvkm_disp(engine);
 	struct nvkm_subdev *subdev = &disp->engine.subdev;
-	struct nvkm_outp *outp;
 	struct nvkm_head *head;
-	struct nvkm_ior *ior;
 	int ret, i;
 
 	if (disp->func->oneinit) {
 		ret = disp->func->oneinit(disp);
 		if (ret)
 			return ret;
-	}
-
-	/* Enforce identity-mapped SOR assignment for panels, which have
-	 * certain bits (ie. backlight controls) wired to a specific SOR.
-	 */
-	list_for_each_entry(outp, &disp->outps, head) {
-		if (outp->conn->info.type == DCB_CONNECTOR_LVDS ||
-		    outp->conn->info.type == DCB_CONNECTOR_eDP) {
-			ior = nvkm_ior_find(disp, SOR, ffs(outp->info.or) - 1);
-			if (!WARN_ON(!ior))
-				ior->identity = true;
-			outp->identity = true;
-		}
 	}
 
 	i = 0;
