@@ -7,6 +7,21 @@ struct nvif_disp;
 
 struct nvif_conn {
 	struct nvif_object object;
+	u32 id;
+
+	struct {
+		enum {
+			NVIF_CONN_VGA,
+			NVIF_CONN_TV,
+			NVIF_CONN_DVI_I,
+			NVIF_CONN_DVI_D,
+			NVIF_CONN_LVDS,
+			NVIF_CONN_LVDS_SPWG,
+			NVIF_CONN_HDMI,
+			NVIF_CONN_DP,
+			NVIF_CONN_EDP,
+		} type;
+	} info;
 };
 
 int nvif_conn_ctor(struct nvif_disp *, const char *name, int id, struct nvif_conn *);

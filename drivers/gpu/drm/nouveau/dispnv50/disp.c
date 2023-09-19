@@ -2788,7 +2788,7 @@ nv50_display_create(struct drm_device *dev)
 			continue;
 		}
 
-		connector = nouveau_connector_create(dev, dcbe);
+		connector = nouveau_connector_create(dev, dcbe->connector);
 		if (IS_ERR(connector)) {
 			nvif_outp_dtor(&outp->outp);
 			kfree(outp);

@@ -142,6 +142,32 @@ nvkm_uconn_new(const struct nvkm_oclass *oclass, void *argv, u32 argc, struct nv
 	ret = -EBUSY;
 	spin_lock(&disp->client.lock);
 	if (!conn->object.func) {
+		switch (conn->info.type) {
+		case DCB_CONNECTOR_VGA      : args->v0.type = NVIF_CONN_V0_VGA; break;
+		case DCB_CONNECTOR_TV_0     :
+		case DCB_CONNECTOR_TV_1     :
+		case DCB_CONNECTOR_TV_3     : args->v0.type = NVIF_CONN_V0_TV; break;
+		case DCB_CONNECTOR_DMS59_0  :
+		case DCB_CONNECTOR_DMS59_1  :
+		case DCB_CONNECTOR_DVI_I    : args->v0.type = NVIF_CONN_V0_DVI_I; break;
+		case DCB_CONNECTOR_DVI_D    : args->v0.type = NVIF_CONN_V0_DVI_D; break;
+		case DCB_CONNECTOR_LVDS     : args->v0.type = NVIF_CONN_V0_LVDS; break;
+		case DCB_CONNECTOR_LVDS_SPWG: args->v0.type = NVIF_CONN_V0_LVDS_SPWG; break;
+		case DCB_CONNECTOR_DMS59_DP0:
+		case DCB_CONNECTOR_DMS59_DP1:
+		case DCB_CONNECTOR_DP       :
+		case DCB_CONNECTOR_mDP      :
+		case DCB_CONNECTOR_USB_C    : args->v0.type = NVIF_CONN_V0_DP; break;
+		case DCB_CONNECTOR_eDP      : args->v0.type = NVIF_CONN_V0_EDP; break;
+		case DCB_CONNECTOR_HDMI_0   :
+		case DCB_CONNECTOR_HDMI_1   :
+		case DCB_CONNECTOR_HDMI_C   : args->v0.type = NVIF_CONN_V0_HDMI; break;
+		default:
+			WARN_ON(1);
+			ret = -EINVAL;
+			break;
+		}
+
 		nvkm_object_ctor(&nvkm_uconn, oclass, &conn->object);
 		*pobject = &conn->object;
 		ret = 0;

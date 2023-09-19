@@ -1275,15 +1275,13 @@ drm_conntype_from_dcb(enum dcb_connector_type dcb)
 }
 
 struct drm_connector *
-nouveau_connector_create(struct drm_device *dev,
-			 const struct dcb_output *dcbe)
+nouveau_connector_create(struct drm_device *dev, int index)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_display *disp = nouveau_display(dev);
 	struct nouveau_connector *nv_connector = NULL;
 	struct drm_connector *connector;
 	struct drm_connector_list_iter conn_iter;
-	int index = dcbe->connector;
 	int type, ret = 0;
 	bool dummy;
 
@@ -1305,70 +1303,76 @@ nouveau_connector_create(struct drm_device *dev,
 	nv_connector->index = index;
 	INIT_WORK(&nv_connector->irq_work, nouveau_dp_irq);
 
-	/* attempt to parse vbios connector type and hotplug gpio */
-	nv_connector->dcb = olddcb_conn(dev, index);
-	if (nv_connector->dcb) {
-		u32 entry = ROM16(nv_connector->dcb[0]);
-		if (olddcb_conntab(dev)[3] >= 4)
-			entry |= (u32)ROM16(nv_connector->dcb[2]) << 16;
-
-		nv_connector->type = nv_connector->dcb[0];
-		if (drm_conntype_from_dcb(nv_connector->type) ==
-					  DRM_MODE_CONNECTOR_Unknown) {
-			NV_WARN(drm, "unknown connector type %02x\n",
-				nv_connector->type);
-			nv_connector->type = DCB_CONNECTOR_NONE;
+	if (disp->disp.conn_mask & BIT(nv_connector->index)) {
+		ret = nvif_conn_ctor(&disp->disp, nv_connector->base.name, nv_connector->index,
+				     &nv_connector->conn);
+		if (ret) {
+			kfree(nv_connector);
+			return ERR_PTR(ret);
 		}
 
-		/* Gigabyte NX85T */
-		if (nv_match_device(dev, 0x0421, 0x1458, 0x344c)) {
-			if (nv_connector->type == DCB_CONNECTOR_HDMI_1)
-				nv_connector->type = DCB_CONNECTOR_DVI_I;
+		switch (nv_connector->conn.info.type) {
+		case NVIF_CONN_VGA      : type = DCB_CONNECTOR_VGA; break;
+		case NVIF_CONN_DVI_I    : type = DCB_CONNECTOR_DVI_I; break;
+		case NVIF_CONN_DVI_D    : type = DCB_CONNECTOR_DVI_D; break;
+		case NVIF_CONN_LVDS     : type = DCB_CONNECTOR_LVDS; break;
+		case NVIF_CONN_LVDS_SPWG: type = DCB_CONNECTOR_LVDS_SPWG; break;
+		case NVIF_CONN_DP       : type = DCB_CONNECTOR_DP; break;
+		case NVIF_CONN_EDP      : type = DCB_CONNECTOR_eDP; break;
+		case NVIF_CONN_HDMI     : type = DCB_CONNECTOR_HDMI_0; break;
+		default:
+			WARN_ON(1);
+			return NULL;
 		}
 
-		/* Gigabyte GV-NX86T512H */
-		if (nv_match_device(dev, 0x0402, 0x1458, 0x3455)) {
-			if (nv_connector->type == DCB_CONNECTOR_HDMI_1)
-				nv_connector->type = DCB_CONNECTOR_DVI_I;
-		}
+		nv_connector->type = type;
 	} else {
-		nv_connector->type = DCB_CONNECTOR_NONE;
-	}
+		u8 *dcb = olddcb_conn(dev, nv_connector->index);
 
-	/* no vbios data, or an unknown dcb connector type - attempt to
-	 * figure out something suitable ourselves
-	 */
-	if (nv_connector->type == DCB_CONNECTOR_NONE) {
-		struct nouveau_drm *drm = nouveau_drm(dev);
-		struct dcb_table *dcbt = &drm->vbios.dcb;
-		u32 encoders = 0;
-		int i;
+		if (dcb)
+			nv_connector->type = dcb[0];
+		else
+			nv_connector->type = DCB_CONNECTOR_NONE;
 
-		for (i = 0; i < dcbt->entries; i++) {
-			if (dcbt->entry[i].connector == nv_connector->index)
-				encoders |= (1 << dcbt->entry[i].type);
+		/* attempt to parse vbios connector type and hotplug gpio */
+		if (nv_connector->type != DCB_CONNECTOR_NONE) {
+			if (drm_conntype_from_dcb(nv_connector->type) ==
+						  DRM_MODE_CONNECTOR_Unknown) {
+				NV_WARN(drm, "unknown connector type %02x\n",
+					nv_connector->type);
+				nv_connector->type = DCB_CONNECTOR_NONE;
+			}
 		}
 
-		if (encoders & (1 << DCB_OUTPUT_DP)) {
-			if (encoders & (1 << DCB_OUTPUT_TMDS))
-				nv_connector->type = DCB_CONNECTOR_DP;
-			else
-				nv_connector->type = DCB_CONNECTOR_eDP;
-		} else
-		if (encoders & (1 << DCB_OUTPUT_TMDS)) {
-			if (encoders & (1 << DCB_OUTPUT_ANALOG))
-				nv_connector->type = DCB_CONNECTOR_DVI_I;
-			else
-				nv_connector->type = DCB_CONNECTOR_DVI_D;
-		} else
-		if (encoders & (1 << DCB_OUTPUT_ANALOG)) {
-			nv_connector->type = DCB_CONNECTOR_VGA;
-		} else
-		if (encoders & (1 << DCB_OUTPUT_LVDS)) {
-			nv_connector->type = DCB_CONNECTOR_LVDS;
-		} else
-		if (encoders & (1 << DCB_OUTPUT_TV)) {
-			nv_connector->type = DCB_CONNECTOR_TV_0;
+		/* no vbios data, or an unknown dcb connector type - attempt to
+		 * figure out something suitable ourselves
+		 */
+		if (nv_connector->type == DCB_CONNECTOR_NONE &&
+		    !WARN_ON(drm->client.device.info.family >= NV_DEVICE_INFO_V0_TESLA)) {
+			struct dcb_table *dcbt = &drm->vbios.dcb;
+			u32 encoders = 0;
+			int i;
+
+			for (i = 0; i < dcbt->entries; i++) {
+				if (dcbt->entry[i].connector == nv_connector->index)
+					encoders |= (1 << dcbt->entry[i].type);
+			}
+
+			if (encoders & (1 << DCB_OUTPUT_TMDS)) {
+				if (encoders & (1 << DCB_OUTPUT_ANALOG))
+					nv_connector->type = DCB_CONNECTOR_DVI_I;
+				else
+					nv_connector->type = DCB_CONNECTOR_DVI_D;
+			} else
+			if (encoders & (1 << DCB_OUTPUT_ANALOG)) {
+				nv_connector->type = DCB_CONNECTOR_VGA;
+			} else
+			if (encoders & (1 << DCB_OUTPUT_LVDS)) {
+				nv_connector->type = DCB_CONNECTOR_LVDS;
+			} else
+			if (encoders & (1 << DCB_OUTPUT_TV)) {
+				nv_connector->type = DCB_CONNECTOR_TV_0;
+			}
 		}
 	}
 
@@ -1414,14 +1418,7 @@ nouveau_connector_create(struct drm_device *dev,
 	drm_connector_helper_add(connector, &nouveau_connector_helper_funcs);
 	connector->polled = DRM_CONNECTOR_POLL_CONNECT;
 
-	if (nv_connector->dcb && (disp->disp.conn_mask & BIT(nv_connector->index))) {
-		ret = nvif_conn_ctor(&disp->disp, nv_connector->base.name, nv_connector->index,
-				     &nv_connector->conn);
-		if (ret) {
-			kfree(nv_connector);
-			return ERR_PTR(ret);
-		}
-
+	if (nvif_object_constructed(&nv_connector->conn.object)) {
 		ret = nvif_conn_event_ctor(&nv_connector->conn, "kmsHotplug",
 					   nouveau_connector_hotplug,
 					   NVIF_CONN_EVENT_V0_PLUG | NVIF_CONN_EVENT_V0_UNPLUG,
