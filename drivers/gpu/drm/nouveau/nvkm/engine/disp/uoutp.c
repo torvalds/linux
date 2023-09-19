@@ -46,6 +46,32 @@ nvkm_uoutp_mthd_dp_mst_vcpi(struct nvkm_outp *outp, void *argv, u32 argc)
 }
 
 static int
+nvkm_uoutp_mthd_dp_mst_id_put(struct nvkm_outp *outp, void *argv, u32 argc)
+{
+	union nvif_outp_dp_mst_id_put_args *args = argv;
+
+	if (argc != sizeof(args->v0) || args->v0.version != 0)
+	        return -ENOSYS;
+	if (!outp->func->dp.mst_id_put)
+	        return -EINVAL;
+
+	return outp->func->dp.mst_id_put(outp, args->v0.id);
+}
+
+static int
+nvkm_uoutp_mthd_dp_mst_id_get(struct nvkm_outp *outp, void *argv, u32 argc)
+{
+	union nvif_outp_dp_mst_id_get_args *args = argv;
+
+	if (argc != sizeof(args->v0) || args->v0.version != 0)
+	        return -ENOSYS;
+	if (!outp->func->dp.mst_id_get)
+	        return -EINVAL;
+
+	return outp->func->dp.mst_id_get(outp, &args->v0.id);
+}
+
+static int
 nvkm_uoutp_mthd_dp_sst(struct nvkm_outp *outp, void *argv, u32 argc)
 {
 	union nvif_outp_dp_sst_args *args = argv;
@@ -482,6 +508,8 @@ nvkm_uoutp_mthd_acquired(struct nvkm_outp *outp, u32 mthd, void *argv, u32 argc)
 	case NVIF_OUTP_V0_DP_TRAIN     : return nvkm_uoutp_mthd_dp_train     (outp, argv, argc);
 	case NVIF_OUTP_V0_DP_DRIVE     : return nvkm_uoutp_mthd_dp_drive     (outp, argv, argc);
 	case NVIF_OUTP_V0_DP_SST       : return nvkm_uoutp_mthd_dp_sst       (outp, argv, argc);
+	case NVIF_OUTP_V0_DP_MST_ID_GET: return nvkm_uoutp_mthd_dp_mst_id_get(outp, argv, argc);
+	case NVIF_OUTP_V0_DP_MST_ID_PUT: return nvkm_uoutp_mthd_dp_mst_id_put(outp, argv, argc);
 	case NVIF_OUTP_V0_DP_MST_VCPI  : return nvkm_uoutp_mthd_dp_mst_vcpi  (outp, argv, argc);
 	default:
 		break;

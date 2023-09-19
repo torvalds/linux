@@ -37,6 +37,8 @@ union nvif_outp_args {
 #define NVIF_OUTP_V0_DP_TRAIN      0x73
 #define NVIF_OUTP_V0_DP_DRIVE      0x74
 #define NVIF_OUTP_V0_DP_SST        0x75
+#define NVIF_OUTP_V0_DP_MST_ID_GET 0x76
+#define NVIF_OUTP_V0_DP_MST_ID_PUT 0x77
 #define NVIF_OUTP_V0_DP_MST_VCPI   0x78
 
 union nvif_outp_detect_args {
@@ -231,6 +233,22 @@ union nvif_outp_dp_sst_args {
 		__u32 watermark;
 		__u32 hblanksym;
 		__u32 vblanksym;
+	} v0;
+};
+
+union nvif_outp_dp_mst_id_put_args {
+	struct nvif_outp_dp_mst_id_put_v0 {
+		__u8  version;
+		__u8  pad01[3];
+		__u32 id;
+	} v0;
+};
+
+union nvif_outp_dp_mst_id_get_args {
+	struct nvif_outp_dp_mst_id_get_v0 {
+		__u8  version;
+		__u8  pad01[3];
+		__u32 id;
 	} v0;
 };
 

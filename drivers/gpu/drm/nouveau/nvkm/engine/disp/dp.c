@@ -42,6 +42,19 @@
 #define AMPERE_IED_HACK(disp) ((disp)->engine.subdev.device->card_type >= GA100)
 
 static int
+nvkm_dp_mst_id_put(struct nvkm_outp *outp, u32 id)
+{
+	return 0;
+}
+
+static int
+nvkm_dp_mst_id_get(struct nvkm_outp *outp, u32 *pid)
+{
+	*pid = BIT(outp->index);
+	return 0;
+}
+
+static int
 nvkm_dp_aux_xfer(struct nvkm_outp *outp, u8 type, u32 addr, u8 *data, u8 *size)
 {
 	int ret = nvkm_i2c_aux_acquire(outp->dp.aux);
@@ -614,6 +627,8 @@ nvkm_dp_func = {
 	.dp.aux_xfer = nvkm_dp_aux_xfer,
 	.dp.train = nvkm_dp_train,
 	.dp.drive = nvkm_dp_drive,
+	.dp.mst_id_get = nvkm_dp_mst_id_get,
+	.dp.mst_id_put = nvkm_dp_mst_id_put,
 };
 
 int

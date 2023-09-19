@@ -109,6 +109,8 @@ struct nvkm_outp_func {
 		int (*rates)(struct nvkm_outp *);
 		int (*train)(struct nvkm_outp *, bool retrain);
 		int (*drive)(struct nvkm_outp *, u8 lanes, u8 pe[4], u8 vs[4]);
+		int (*mst_id_get)(struct nvkm_outp *, u32 *id);
+		int (*mst_id_put)(struct nvkm_outp *, u32 id);
 	} dp;
 };
 
