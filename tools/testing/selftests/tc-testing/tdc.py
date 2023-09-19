@@ -17,6 +17,7 @@ import subprocess
 import time
 import traceback
 import random
+from multiprocessing import Pool
 from collections import OrderedDict
 from string import Template
 
@@ -477,6 +478,33 @@ def run_one_test(pm, args, index, tidx):
 
     return res
 
+def prepare_run(pm, args, testlist):
+    tcount = len(testlist)
+    emergency_exit = False
+    emergency_exit_message = ''
+
+    try:
+        pm.call_pre_suite(tcount, testlist)
+    except Exception as ee:
+        ex_type, ex, ex_tb = sys.exc_info()
+        print('Exception {} {} (caught in pre_suite).'.
+              format(ex_type, ex))
+        traceback.print_tb(ex_tb)
+        emergency_exit_message = 'EMERGENCY EXIT, call_pre_suite failed with exception {} {}\n'.format(ex_type, ex)
+        emergency_exit = True
+
+    if emergency_exit:
+        pm.call_post_suite(1)
+        return emergency_exit_message
+
+    if args.verbose:
+        print('give test rig 2 seconds to stabilize')
+
+    time.sleep(2)
+
+def purge_run(pm, index):
+    pm.call_post_suite(index)
+
 def test_runner(pm, args, filtered_tests):
     """
     Driver function for the unit tests.
@@ -492,28 +520,9 @@ def test_runner(pm, args, filtered_tests):
     tap = ''
     badtest = None
     stage = None
-    emergency_exit = False
-    emergency_exit_message = ''
 
     tsr = TestSuiteReport()
 
-    try:
-        pm.call_pre_suite(tcount, testlist)
-    except Exception as ee:
-        ex_type, ex, ex_tb = sys.exc_info()
-        print('Exception {} {} (caught in pre_suite).'.
-              format(ex_type, ex))
-        traceback.print_tb(ex_tb)
-        emergency_exit_message = 'EMERGENCY EXIT, call_pre_suite failed with exception {} {}\n'.format(ex_type, ex)
-        emergency_exit = True
-        stage = 'pre-SUITE'
-
-    if emergency_exit:
-        pm.call_post_suite(index)
-        return emergency_exit_message
-    if args.verbose > 1:
-        print('give test rig 2 seconds to stabilize')
-    time.sleep(2)
     for tidx in testlist:
         if "flower" in tidx["category"] and args.device == None:
             errmsg = "Tests using the DEV2 variable must define the name of a "
@@ -576,7 +585,68 @@ def test_runner(pm, args, filtered_tests):
         if input(sys.stdin):
             print('got something on stdin')
 
-    pm.call_post_suite(index)
+    return (index, tsr)
+
+def mp_bins(alltests):
+    serial = []
+    parallel = []
+
+    for test in alltests:
+        if 'nsPlugin' not in test['plugins']:
+            serial.append(test)
+        else:
+            # We can only create one netdevsim device at a time
+            if 'netdevsim/new_device' in str(test['setup']):
+                serial.append(test)
+            else:
+                parallel.append(test)
+
+    return (serial, parallel)
+
+def __mp_runner(tests):
+    (_, tsr) = test_runner(mp_pm, mp_args, tests)
+    return tsr._testsuite
+
+def test_runner_mp(pm, args, alltests):
+    prepare_run(pm, args, alltests)
+
+    (serial, parallel) = mp_bins(alltests)
+
+    batches = [parallel[n : n + 32] for n in range(0, len(parallel), 32)]
+    batches.insert(0, serial)
+
+    print("Executing {} tests in parallel and {} in serial".format(len(parallel), len(serial)))
+    print("Using {} batches".format(len(batches)))
+
+    # We can't pickle these objects so workaround them
+    global mp_pm
+    mp_pm = pm
+
+    global mp_args
+    mp_args = args
+
+    with Pool(args.mp) as p:
+        pres = p.map(__mp_runner, batches)
+
+    tsr = TestSuiteReport()
+    for trs in pres:
+        for res in trs:
+            tsr.add_resultdata(res)
+
+    # Passing an index is not useful in MP
+    purge_run(pm, None)
+
+    return tsr
+
+def test_runner_serial(pm, args, alltests):
+    prepare_run(pm, args, alltests)
+
+    if args.verbose:
+        print("Executing {} tests in serial".format(len(alltests)))
+
+    (index, tsr) = test_runner(pm, args, alltests)
+
+    purge_run(pm, index)
 
     return tsr
 
@@ -605,12 +675,15 @@ def load_from_file(filename):
                 k['filename'] = filename
     return testlist
 
+def identity(string):
+    return string
 
 def args_parse():
     """
     Create the argument parser.
     """
     parser = argparse.ArgumentParser(description='Linux TC unit tests')
+    parser.register('type', None, identity)
     return parser
 
 
@@ -668,6 +741,9 @@ def set_args(parser):
     parser.add_argument(
         '-P', '--pause', action='store_true',
         help='Pause execution just before post-suite stage')
+    parser.add_argument(
+        '-J', '--multiprocess', type=int, default=1, dest='mp',
+        help='Run tests in parallel whenever possible')
     return parser
 
 
@@ -888,7 +964,12 @@ def set_operation_mode(pm, parser, args, remaining):
         except PluginDependencyException as pde:
             print('The following plugins were not found:')
             print('{}'.format(pde.missing_pg))
-        catresults = test_runner(pm, args, alltests)
+
+        if args.mp > 1:
+            catresults = test_runner_mp(pm, args, alltests)
+        else:
+            catresults = test_runner_serial(pm, args, alltests)
+
         if catresults.count_failures() != 0:
             exit_code = 1 # KSFT_FAIL
         if args.format == 'none':

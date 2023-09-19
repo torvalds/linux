@@ -3,10 +3,49 @@ import signal
 from string import Template
 import subprocess
 import time
+from multiprocessing import Pool
 from functools import cached_property
 from TdcPlugin import TdcPlugin
 
 from tdc_config import *
+
+def prepare_suite(obj, test):
+    original = obj.args.NAMES
+
+    if 'skip' in test and test['skip'] == 'yes':
+        return
+
+    if 'nsPlugin' not in test['plugins']:
+        return
+
+    shadow = {}
+    shadow['IP'] = original['IP']
+    shadow['TC'] = original['TC']
+    shadow['NS'] = '{}-{}'.format(original['NS'], test['random'])
+    shadow['DEV0'] = '{}id{}'.format(original['DEV0'], test['id'])
+    shadow['DEV1'] = '{}id{}'.format(original['DEV1'], test['id'])
+    shadow['DUMMY'] = '{}id{}'.format(original['DUMMY'], test['id'])
+    shadow['DEV2'] = original['DEV2']
+    obj.args.NAMES = shadow
+
+    if obj.args.namespace:
+        obj._ns_create()
+    else:
+        obj._ports_create()
+
+    # Make sure the netns is visible in the fs
+    while True:
+        obj._proc_check()
+        try:
+            ns = obj.args.NAMES['NS']
+            f = open('/run/netns/{}'.format(ns))
+            f.close()
+            break
+        except:
+            time.sleep(0.1)
+            continue
+
+    obj.args.NAMES = original
 
 class SubPlugin(TdcPlugin):
     def __init__(self):
@@ -14,35 +53,15 @@ class SubPlugin(TdcPlugin):
         super().__init__()
 
     def pre_suite(self, testcount, testlist):
+        from itertools import cycle
+
         super().pre_suite(testcount, testlist)
 
         print("Setting up namespaces and devices...")
 
-        original = self.args.NAMES
-
-        for t in testlist:
-            if 'skip' in t and t['skip'] == 'yes':
-                continue
-
-            if 'nsPlugin' not in t['plugins']:
-                continue
-
-            shadow = {}
-            shadow['IP'] = original['IP']
-            shadow['TC'] = original['TC']
-            shadow['NS'] = '{}-{}'.format(original['NS'], t['random'])
-            shadow['DEV0'] = '{}id{}'.format(original['DEV0'], t['id'])
-            shadow['DEV1'] = '{}id{}'.format(original['DEV1'], t['id'])
-            shadow['DUMMY'] = '{}id{}'.format(original['DUMMY'], t['id'])
-            shadow['DEV2'] = original['DEV2']
-            self.args.NAMES = shadow
-
-            if self.args.namespace:
-                self._ns_create()
-            else:
-                self._ports_create()
-
-        self.args.NAMES = original
+        with Pool(self.args.mp) as p:
+            it = zip(cycle([self]), testlist)
+            p.starmap(prepare_suite, it)
 
     def pre_case(self, caseinfo, test_skip):
         if self.args.verbose:
@@ -51,16 +70,6 @@ class SubPlugin(TdcPlugin):
         if test_skip:
             return
 
-        # Make sure the netns is visible in the fs
-        while True:
-            self._proc_check()
-            try:
-                ns = self.args.NAMES['NS']
-                f = open('/run/netns/{}'.format(ns))
-                f.close()
-                break
-            except:
-                continue
 
     def post_case(self):
         if self.args.verbose:
