@@ -15,6 +15,7 @@
 #include "sof-audio.h"
 #include "ipc4-fw-reg.h"
 #include "ipc4-priv.h"
+#include "ipc4-telemetry.h"
 #include "ops.h"
 
 static const struct sof_ipc4_fw_status {
@@ -597,6 +598,8 @@ static int ipc4_fw_ready(struct snd_sof_dev *sdev, struct sof_ipc4_msg *ipc4_msg
 
 	sdev->debug_box.offset = snd_sof_dsp_get_window_offset(sdev,
 							SOF_IPC4_DEBUG_WINDOW_IDX);
+
+	sof_ipc4_create_exception_debugfs_node(sdev);
 
 	dev_dbg(sdev->dev, "mailbox upstream 0x%x - size 0x%x\n",
 		inbox_offset, inbox_size);
