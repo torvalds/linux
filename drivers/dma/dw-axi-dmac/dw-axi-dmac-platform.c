@@ -1535,7 +1535,7 @@ err_pm_disable:
 	return ret;
 }
 
-static int dw_remove(struct platform_device *pdev)
+static void dw_remove(struct platform_device *pdev)
 {
 	struct axi_dma_chip *chip = platform_get_drvdata(pdev);
 	struct dw_axi_dma *dw = chip->dw;
@@ -1564,8 +1564,6 @@ static int dw_remove(struct platform_device *pdev)
 		list_del(&chan->vc.chan.device_node);
 		tasklet_kill(&chan->vc.task);
 	}
-
-	return 0;
 }
 
 static const struct dev_pm_ops dw_axi_dma_pm_ops = {
@@ -1588,7 +1586,7 @@ MODULE_DEVICE_TABLE(of, dw_dma_of_id_table);
 
 static struct platform_driver dw_driver = {
 	.probe		= dw_probe,
-	.remove		= dw_remove,
+	.remove_new	= dw_remove,
 	.driver = {
 		.name	= KBUILD_MODNAME,
 		.of_match_table = dw_dma_of_id_table,
