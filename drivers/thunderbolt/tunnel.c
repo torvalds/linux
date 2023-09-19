@@ -58,27 +58,6 @@ MODULE_PARM_DESC(bw_alloc_mode,
 
 static const char * const tb_tunnel_names[] = { "PCI", "DP", "DMA", "USB3" };
 
-#define __TB_TUNNEL_PRINT(level, tunnel, fmt, arg...)                   \
-	do {                                                            \
-		struct tb_tunnel *__tunnel = (tunnel);                  \
-		level(__tunnel->tb, "%llx:%u <-> %llx:%u (%s): " fmt,   \
-		      tb_route(__tunnel->src_port->sw),                 \
-		      __tunnel->src_port->port,                         \
-		      tb_route(__tunnel->dst_port->sw),                 \
-		      __tunnel->dst_port->port,                         \
-		      tb_tunnel_names[__tunnel->type],			\
-		      ## arg);                                          \
-	} while (0)
-
-#define tb_tunnel_WARN(tunnel, fmt, arg...) \
-	__TB_TUNNEL_PRINT(tb_WARN, tunnel, fmt, ##arg)
-#define tb_tunnel_warn(tunnel, fmt, arg...) \
-	__TB_TUNNEL_PRINT(tb_warn, tunnel, fmt, ##arg)
-#define tb_tunnel_info(tunnel, fmt, arg...) \
-	__TB_TUNNEL_PRINT(tb_info, tunnel, fmt, ##arg)
-#define tb_tunnel_dbg(tunnel, fmt, arg...) \
-	__TB_TUNNEL_PRINT(tb_dbg, tunnel, fmt, ##arg)
-
 static inline unsigned int tb_usable_credits(const struct tb_port *port)
 {
 	return port->total_credits - port->ctl_credits;
@@ -2374,4 +2353,9 @@ void tb_tunnel_reclaim_available_bandwidth(struct tb_tunnel *tunnel,
 	if (tunnel->reclaim_available_bandwidth)
 		tunnel->reclaim_available_bandwidth(tunnel, available_up,
 						    available_down);
+}
+
+const char *tb_tunnel_type_name(const struct tb_tunnel *tunnel)
+{
+	return tb_tunnel_names[tunnel->type];
 }
