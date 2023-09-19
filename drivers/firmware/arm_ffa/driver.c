@@ -478,6 +478,19 @@ static u32 ffa_get_num_pages_sg(struct scatterlist *sg)
 	return num_pages;
 }
 
+static u8 ffa_memory_attributes_get(u32 func_id)
+{
+	/*
+	 * For the memory lend or donate operation, if the receiver is a PE or
+	 * a proxy endpoint, the owner/sender must not specify the attributes
+	 */
+	if (func_id == FFA_FN_NATIVE(MEM_LEND) ||
+	    func_id == FFA_MEM_LEND)
+		return 0;
+
+	return FFA_MEM_NORMAL | FFA_MEM_WRITE_BACK | FFA_MEM_INNER_SHAREABLE;
+}
+
 static int
 ffa_setup_and_transmit(u32 func_id, void *buffer, u32 max_fragsize,
 		       struct ffa_mem_ops_args *args)
@@ -494,8 +507,7 @@ ffa_setup_and_transmit(u32 func_id, void *buffer, u32 max_fragsize,
 	mem_region->tag = args->tag;
 	mem_region->flags = args->flags;
 	mem_region->sender_id = drv_info->vm_id;
-	mem_region->attributes = FFA_MEM_NORMAL | FFA_MEM_WRITE_BACK |
-				 FFA_MEM_INNER_SHAREABLE;
+	mem_region->attributes = ffa_memory_attributes_get(func_id);
 	ep_mem_access = &mem_region->ep_mem_access[0];
 
 	for (idx = 0; idx < args->nattrs; idx++, ep_mem_access++) {
