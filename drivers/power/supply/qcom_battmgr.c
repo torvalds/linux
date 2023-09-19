@@ -105,7 +105,7 @@ struct qcom_battmgr_property_request {
 
 struct qcom_battmgr_update_request {
 	struct pmic_glink_hdr hdr;
-	u32 battery_id;
+	__le32 battery_id;
 };
 
 struct qcom_battmgr_charge_time_request {
