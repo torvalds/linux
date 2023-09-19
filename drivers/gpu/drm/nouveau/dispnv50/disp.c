@@ -502,7 +502,8 @@ nv50_dac_atomic_enable(struct drm_encoder *encoder, struct drm_atomic_state *sta
 
 	ctrl |= NVDEF(NV507D, DAC_SET_CONTROL, PROTOCOL, RGB_CRT);
 
-	nvif_outp_acquire_rgb_crt(&nv_encoder->outp);
+	if (!nvif_outp_acquired(&nv_encoder->outp))
+		nvif_outp_acquire_dac(&nv_encoder->outp);
 
 	core->func->dac->ctrl(core, nv_encoder->outp.or.id, ctrl, asyh);
 	asyh->or.depth = 0;

@@ -171,12 +171,12 @@ nvif_outp_release(struct nvif_outp *outp)
 }
 
 static inline int
-nvif_outp_acquire(struct nvif_outp *outp, u8 proto, struct nvif_outp_acquire_v0 *args)
+nvif_outp_acquire(struct nvif_outp *outp, u8 type, struct nvif_outp_acquire_v0 *args)
 {
 	int ret;
 
 	args->version = 0;
-	args->proto = proto;
+	args->type = type;
 
 	ret = nvif_mthd(&outp->object, NVIF_OUTP_V0_ACQUIRE, args, sizeof(*args));
 	if (ret)
@@ -188,13 +188,13 @@ nvif_outp_acquire(struct nvif_outp *outp, u8 proto, struct nvif_outp_acquire_v0 
 }
 
 int
-nvif_outp_acquire_rgb_crt(struct nvif_outp *outp)
+nvif_outp_acquire_dac(struct nvif_outp *outp)
 {
 	struct nvif_outp_acquire_v0 args;
 	int ret;
 
-	ret = nvif_outp_acquire(outp, NVIF_OUTP_ACQUIRE_V0_RGB_CRT, &args);
-	NVIF_ERRON(ret, &outp->object, "[ACQUIRE proto:RGB_CRT] or:%d", args.or);
+	ret = nvif_outp_acquire(outp, NVIF_OUTP_ACQUIRE_V0_DAC, &args);
+	NVIF_ERRON(ret, &outp->object, "[ACQUIRE DAC] or:%d", args.or);
 	return ret;
 }
 

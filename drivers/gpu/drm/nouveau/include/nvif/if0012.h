@@ -59,12 +59,11 @@ union nvif_outp_load_detect_args {
 union nvif_outp_acquire_args {
 	struct nvif_outp_acquire_v0 {
 		__u8 version;
-#define NVIF_OUTP_ACQUIRE_V0_RGB_CRT 0x00
-#define NVIF_OUTP_ACQUIRE_V0_TV      0x01
+#define NVIF_OUTP_ACQUIRE_V0_DAC  0x00
 #define NVIF_OUTP_ACQUIRE_V0_TMDS    0x02
 #define NVIF_OUTP_ACQUIRE_V0_LVDS    0x03
 #define NVIF_OUTP_ACQUIRE_V0_DP      0x04
-		__u8 proto;
+		__u8 type;
 		__u8 or;
 		__u8 link;
 		__u8 pad04[4];

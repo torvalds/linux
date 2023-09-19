@@ -217,8 +217,8 @@ nvkm_uoutp_mthd_acquire(struct nvkm_outp *outp, void *argv, u32 argc)
 	if (outp->ior)
 		return -EBUSY;
 
-	switch (args->v0.proto) {
-	case NVIF_OUTP_ACQUIRE_V0_RGB_CRT:
+	switch (args->v0.type) {
+	case NVIF_OUTP_ACQUIRE_V0_DAC:
 		ret = nvkm_outp_acquire_or(outp, NVKM_OUTP_USER, false);
 		break;
 	case NVIF_OUTP_ACQUIRE_V0_TMDS:
