@@ -154,6 +154,13 @@ nvkm_uoutp_mthd_hdmi(struct nvkm_outp *outp, void *argv, u32 argc)
 	    (args->v0.scdc && !ior->func->hdmi->scdc))
 		return -EINVAL;
 
+	if (!args->v0.enable) {
+		ior->func->hdmi->infoframe_avi(ior, args->v0.head, NULL, 0);
+		ior->func->hdmi->infoframe_vsi(ior, args->v0.head, NULL, 0);
+		ior->func->hdmi->ctrl(ior, args->v0.head, false, 0, 0);
+		return 0;
+	}
+
 	ior->func->hdmi->ctrl(ior, args->v0.head, args->v0.enable,
 			      args->v0.max_ac_packet, args->v0.rekey);
 	if (ior->func->hdmi->scdc)
@@ -177,18 +184,10 @@ nvkm_uoutp_mthd_acquire_lvds(struct nvkm_outp *outp, bool dual, bool bpc8)
 static int
 nvkm_uoutp_mthd_release(struct nvkm_outp *outp, void *argv, u32 argc)
 {
-	struct nvkm_head *head = outp->asy.head;
-	struct nvkm_ior *ior = outp->ior;
 	union nvif_outp_release_args *args = argv;
 
 	if (argc != sizeof(args->vn))
 		return -ENOSYS;
-
-	if (ior->func->hdmi && head) {
-		ior->func->hdmi->infoframe_avi(ior, head->id, NULL, 0);
-		ior->func->hdmi->infoframe_vsi(ior, head->id, NULL, 0);
-		ior->func->hdmi->ctrl(ior, head->id, false, 0, 0);
-	}
 
 	nvkm_outp_release(outp);
 	return 0;

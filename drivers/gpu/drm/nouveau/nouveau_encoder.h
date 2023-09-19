@@ -69,7 +69,11 @@ struct nouveau_encoder {
 
 	struct nv04_output_reg restore;
 
-	union {
+	struct {
+		struct {
+			bool enabled;
+		} hdmi;
+
 		struct {
 			struct nv50_mstm *mstm;
 			int link_nr;

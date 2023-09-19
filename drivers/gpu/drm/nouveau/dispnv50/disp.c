@@ -842,6 +842,8 @@ nv50_hdmi_enable(struct drm_encoder *encoder, struct nouveau_crtc *nv_crtc,
 		size = 0;
 
 	nvif_outp_infoframe(&nv_encoder->outp, NVIF_OUTP_INFOFRAME_V0_VSI, &args.infoframe, size);
+
+	nv_encoder->hdmi.enabled = true;
 }
 
 /******************************************************************************
@@ -1561,6 +1563,12 @@ nv50_sor_atomic_disable(struct drm_encoder *encoder, struct drm_atomic_state *st
 				 nv_connector->base.base.id, nv_connector->base.name, ret);
 	}
 #endif
+
+	if (nv_encoder->dcb->type == DCB_OUTPUT_TMDS && nv_encoder->hdmi.enabled) {
+		nvif_outp_hdmi(&nv_encoder->outp, nv_crtc->index,
+			       false, 0, 0, 0, false, false, false);
+		nv_encoder->hdmi.enabled = false;
+	}
 
 	if (nv_encoder->dcb->type == DCB_OUTPUT_DP) {
 		ret = drm_dp_dpcd_readb(aux, DP_SET_POWER, &pwr);
