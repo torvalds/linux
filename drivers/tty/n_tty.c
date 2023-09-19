@@ -2154,9 +2154,8 @@ static ssize_t n_tty_read(struct tty_struct *tty, struct file *file, u8 *kbuf,
 	struct n_tty_data *ldata = tty->disc_data;
 	u8 *kb = kbuf;
 	DEFINE_WAIT_FUNC(wait, woken_wake_function);
-	int c;
 	int minimum, time;
-	ssize_t retval = 0;
+	ssize_t retval;
 	long timeout;
 	bool packet;
 	size_t old_tail;
@@ -2192,9 +2191,9 @@ static ssize_t n_tty_read(struct tty_struct *tty, struct file *file, u8 *kbuf,
 		return kb - kbuf;
 	}
 
-	c = job_control(tty, file);
-	if (c < 0)
-		return c;
+	retval = job_control(tty, file);
+	if (retval < 0)
+		return retval;
 
 	/*
 	 *	Internal serialization of reads.
