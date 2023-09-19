@@ -1,0 +1,29 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2023 Rockchip Electronics Co., Ltd.
+ */
+
+/dts-v1/;
+
+#include "rv1106g-evb1-v11.dts"
+#include "rv1106-tb-nofastae.dtsi"
+
+/ {
+	model = "Rockchip RV1106G EVB1 V11 Board";
+	compatible = "rockchip,rv1106g-evb1-v11", "rockchip,rv1106";
+	chosen {
+		bootargs = "loglevel=0 rootfstype=erofs rootflags=dax console=ttyFIQ0 root=/dev/rd0 snd_soc_core.prealloc_buffer_size_kbytes=16 coherent_pool=0 driver_async_probe=dwmmc_rockchip";
+	};
+};
+
+&fiq_debugger {
+	rockchip,baudrate = <1500000>;
+};
+
+&ramdisk_r {
+	reg = <0x800000 (15 * 0x00100000)>;
+};
+
+&ramdisk_c {
+	reg = <0x1700000 (10 * 0x00100000)>;
+};
