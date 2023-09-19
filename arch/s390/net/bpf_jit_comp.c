@@ -779,6 +779,7 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp,
 				 int i, bool extra_pass, u32 stack_depth)
 {
 	struct bpf_insn *insn = &fp->insnsi[i];
+	s16 branch_oc_off = insn->off;
 	u32 dst_reg = insn->dst_reg;
 	u32 src_reg = insn->src_reg;
 	int last, insn_count = 1;
@@ -1625,6 +1626,9 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp,
 	 * instruction itself (loop) and for BPF with offset 0 we
 	 * branch to the instruction behind the branch.
 	 */
+	case BPF_JMP32 | BPF_JA: /* if (true) */
+		branch_oc_off = imm;
+		fallthrough;
 	case BPF_JMP | BPF_JA: /* if (true) */
 		mask = 0xf000; /* j */
 		goto branch_oc;
@@ -1793,14 +1797,16 @@ branch_xu:
 		break;
 branch_oc:
 		if (!is_first_pass(jit) &&
-		    can_use_rel(jit, addrs[i + off + 1])) {
+		    can_use_rel(jit, addrs[i + branch_oc_off + 1])) {
 			/* brc mask,off */
 			EMIT4_PCREL_RIC(0xa7040000,
-					mask >> 12, addrs[i + off + 1]);
+					mask >> 12,
+					addrs[i + branch_oc_off + 1]);
 		} else {
 			/* brcl mask,off */
 			EMIT6_PCREL_RILC(0xc0040000,
-					 mask >> 12, addrs[i + off + 1]);
+					 mask >> 12,
+					 addrs[i + branch_oc_off + 1]);
 		}
 		break;
 	}
