@@ -15339,14 +15339,12 @@ static int check_btf_func(struct bpf_verifier_env *env,
 			  bpfptr_t uattr)
 {
 	const struct btf_type *type, *func_proto, *ret_type;
-	u32 i, nfuncs, urec_size, min_size;
-	u32 krec_size = sizeof(struct bpf_func_info);
+	u32 i, nfuncs, urec_size;
 	struct bpf_func_info *krecord;
 	struct bpf_func_info_aux *info_aux = NULL;
 	struct bpf_prog *prog;
 	const struct btf *btf;
 	bpfptr_t urecord;
-	u32 prev_offset = 0;
 	bool scalar_return;
 	int ret = -ENOMEM;
 
@@ -15367,7 +15365,6 @@ static int check_btf_func(struct bpf_verifier_env *env,
 	btf = prog->aux->btf;
 
 	urecord = make_bpfptr(attr->func_info, uattr.is_kernel);
-	min_size = min_t(u32, krec_size, urec_size);
 
 	krecord = prog->aux->func_info;
 	info_aux = kcalloc(nfuncs, sizeof(*info_aux), GFP_KERNEL | __GFP_NOWARN);
@@ -15401,7 +15398,6 @@ static int check_btf_func(struct bpf_verifier_env *env,
 			goto err_free;
 		}
 
-		prev_offset = krecord[i].insn_off;
 		bpfptr_add(&urecord, urec_size);
 	}
 
