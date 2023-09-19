@@ -22,11 +22,13 @@
  * Authors: Ben Skeggs
  */
 #include "outp.h"
+#include "conn.h"
 #include "dp.h"
 #include "ior.h"
 
 #include <subdev/bios.h>
 #include <subdev/bios/dcb.h>
+#include <subdev/gpio.h>
 #include <subdev/i2c.h>
 
 void
@@ -207,6 +209,31 @@ nvkm_outp_acquire(struct nvkm_outp *outp, u8 user, bool hda)
 	return nvkm_outp_acquire_hda(outp, type, user, false);
 }
 
+int
+nvkm_outp_detect(struct nvkm_outp *outp)
+{
+	struct nvkm_gpio *gpio = outp->disp->engine.subdev.device->gpio;
+	int ret = -EINVAL;
+
+	if (outp->conn->info.hpd != DCB_GPIO_UNUSED) {
+		ret = nvkm_gpio_get(gpio, 0, DCB_GPIO_UNUSED, outp->conn->info.hpd);
+		if (ret < 0)
+			return ret;
+		if (ret)
+			return 1;
+
+		/*TODO: Look into returning NOT_PRESENT if !HPD on DVI/HDMI.
+		 *
+		 *      It's uncertain whether this is accurate for all older chipsets,
+		 *      so we're returning UNKNOWN, and the DRM will probe DDC instead.
+		 */
+		if (outp->info.type == DCB_OUTPUT_DP)
+			return 0;
+	}
+
+	return ret;
+}
+
 void
 nvkm_outp_fini(struct nvkm_outp *outp)
 {
@@ -328,6 +355,7 @@ nvkm_outp_new_(const struct nvkm_outp_func *func, struct nvkm_disp *disp,
 
 static const struct nvkm_outp_func
 nvkm_outp = {
+	.detect = nvkm_outp_detect,
 };
 
 int

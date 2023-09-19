@@ -413,6 +413,7 @@ nouveau_connector_ddc_detect(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
+	struct nouveau_connector *conn = nouveau_connector(connector);
 	struct nouveau_encoder *nv_encoder = NULL, *found = NULL;
 	struct drm_encoder *encoder;
 	int ret;
@@ -421,33 +422,48 @@ nouveau_connector_ddc_detect(struct drm_connector *connector)
 	drm_connector_for_each_possible_encoder(connector, encoder) {
 		nv_encoder = nouveau_encoder(encoder);
 
-		switch (nv_encoder->dcb->type) {
-		case DCB_OUTPUT_DP:
-			ret = nouveau_dp_detect(nouveau_connector(connector),
-						nv_encoder);
-			if (ret == NOUVEAU_DP_MST)
-				return NULL;
-			else if (ret == NOUVEAU_DP_SST)
-				found = nv_encoder;
+		if (nvif_object_constructed(&nv_encoder->outp.object)) {
+			enum nvif_outp_detect_status status;
 
-			break;
-		case DCB_OUTPUT_LVDS:
+			if (nv_encoder->dcb->type == DCB_OUTPUT_DP) {
+				ret = nouveau_dp_detect(conn, nv_encoder);
+				if (ret == NOUVEAU_DP_MST)
+					return NULL;
+				if (ret != NOUVEAU_DP_SST)
+					continue;
+
+				return nv_encoder;
+			} else {
+				status = nvif_outp_detect(&nv_encoder->outp);
+				switch (status) {
+				case PRESENT:
+					return nv_encoder;
+				case NOT_PRESENT:
+					continue;
+				case UNKNOWN:
+					break;
+				default:
+					WARN_ON(1);
+					break;
+				}
+			}
+		}
+
+		if (!nv_encoder->i2c)
+			continue;
+
+		if (nv_encoder->dcb->type == DCB_OUTPUT_LVDS) {
 			switcheroo_ddc = !!(vga_switcheroo_handler_flags() &
 					    VGA_SWITCHEROO_CAN_SWITCH_DDC);
-			fallthrough;
-		default:
-			if (!nv_encoder->i2c)
-				break;
-
-			if (switcheroo_ddc)
-				vga_switcheroo_lock_ddc(pdev);
-			if (nvkm_probe_i2c(nv_encoder->i2c, 0x50))
-				found = nv_encoder;
-			if (switcheroo_ddc)
-				vga_switcheroo_unlock_ddc(pdev);
-
-			break;
 		}
+
+		if (switcheroo_ddc)
+			vga_switcheroo_lock_ddc(pdev);
+		if (nvkm_probe_i2c(nv_encoder->i2c, 0x50))
+			found = nv_encoder;
+		if (switcheroo_ddc)
+			vga_switcheroo_unlock_ddc(pdev);
+
 		if (found)
 			break;
 	}

@@ -74,6 +74,9 @@ int nvkm_outp_new(struct nvkm_disp *, int index, struct dcb_output *, struct nvk
 void nvkm_outp_del(struct nvkm_outp **);
 void nvkm_outp_init(struct nvkm_outp *);
 void nvkm_outp_fini(struct nvkm_outp *);
+
+int nvkm_outp_detect(struct nvkm_outp *);
+
 int nvkm_outp_acquire(struct nvkm_outp *, u8 user, bool hda);
 void nvkm_outp_release(struct nvkm_outp *, u8 user);
 void nvkm_outp_route(struct nvkm_disp *);
@@ -82,6 +85,9 @@ struct nvkm_outp_func {
 	void *(*dtor)(struct nvkm_outp *);
 	void (*init)(struct nvkm_outp *);
 	void (*fini)(struct nvkm_outp *);
+
+	int (*detect)(struct nvkm_outp *);
+
 	int (*acquire)(struct nvkm_outp *);
 	void (*release)(struct nvkm_outp *);
 	void (*disable)(struct nvkm_outp *, struct nvkm_ior *);

@@ -45,20 +45,6 @@ nvif_conn_event_ctor(struct nvif_conn *conn, const char *name, nvif_event_func f
 	return ret;
 }
 
-int
-nvif_conn_hpd_status(struct nvif_conn *conn)
-{
-	struct nvif_conn_hpd_status_v0 args;
-	int ret;
-
-	args.version = 0;
-
-	ret = nvif_mthd(&conn->object, NVIF_CONN_V0_HPD_STATUS, &args, sizeof(args));
-	NVIF_ERRON(ret, &conn->object, "[HPD_STATUS] support:%d present:%d",
-		   args.support, args.present);
-	return ret ? ret : !!args.support + !!args.present;
-}
-
 void
 nvif_conn_dtor(struct nvif_conn *conn)
 {

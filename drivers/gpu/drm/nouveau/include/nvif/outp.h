@@ -17,6 +17,15 @@ struct nvif_outp {
 
 int nvif_outp_ctor(struct nvif_disp *, const char *name, int id, struct nvif_outp *);
 void nvif_outp_dtor(struct nvif_outp *);
+
+enum nvif_outp_detect_status {
+	NOT_PRESENT,
+	PRESENT,
+	UNKNOWN,
+};
+
+enum nvif_outp_detect_status nvif_outp_detect(struct nvif_outp *);
+
 int nvif_outp_load_detect(struct nvif_outp *, u32 loadval);
 int nvif_outp_acquire_rgb_crt(struct nvif_outp *);
 int nvif_outp_acquire_tmds(struct nvif_outp *, int head,
