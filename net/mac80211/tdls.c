@@ -309,7 +309,7 @@ ieee80211_tdls_chandef_vht_upgrade(struct ieee80211_sub_if_data *sdata,
 				   struct sta_info *sta)
 {
 	/* IEEE802.11ac-2013 Table E-4 */
-	u16 centers_80mhz[] = { 5210, 5290, 5530, 5610, 5690, 5775 };
+	static const u16 centers_80mhz[] = { 5210, 5290, 5530, 5610, 5690, 5775 };
 	struct cfg80211_chan_def uc = sta->tdls_chandef;
 	enum nl80211_chan_width max_width =
 		ieee80211_sta_cap_chan_bw(&sta->deflink);
