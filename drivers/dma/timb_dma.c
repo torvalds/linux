@@ -740,7 +740,7 @@ err_release_region:
 
 }
 
-static int td_remove(struct platform_device *pdev)
+static void td_remove(struct platform_device *pdev)
 {
 	struct timb_dma *td = platform_get_drvdata(pdev);
 	struct resource *iomem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -754,7 +754,6 @@ static int td_remove(struct platform_device *pdev)
 	release_mem_region(iomem->start, resource_size(iomem));
 
 	dev_dbg(&pdev->dev, "Removed...\n");
-	return 0;
 }
 
 static struct platform_driver td_driver = {
@@ -762,7 +761,7 @@ static struct platform_driver td_driver = {
 		.name	= DRIVER_NAME,
 	},
 	.probe	= td_probe,
-	.remove	= td_remove,
+	.remove_new = td_remove,
 };
 
 module_platform_driver(td_driver);
