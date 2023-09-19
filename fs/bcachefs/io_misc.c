@@ -462,9 +462,9 @@ btree_err:
 				bch2_logged_op_update(trans, &op->k_i));
 	}
 
-	fallthrough;
+	break;
 case LOGGED_OP_FINSERT_finish:
-	ret = ret;
+	break;
 	}
 err:
 	bch2_logged_op_finish(trans, op_k);
