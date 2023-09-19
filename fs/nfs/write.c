@@ -802,8 +802,8 @@ static void nfs_inode_remove_request(struct nfs_page *req)
 	}
 
 	if (test_and_clear_bit(PG_INODE_REF, &req->wb_flags)) {
-		nfs_release_request(req);
 		atomic_long_dec(&NFS_I(nfs_page_to_inode(req))->nrequests);
+		nfs_release_request(req);
 	}
 }
 
