@@ -319,16 +319,16 @@ static ssize_t flush_buf(struct dump_iter *i)
 {
 	if (i->buf.pos) {
 		size_t bytes = min_t(size_t, i->buf.pos, i->size);
-		int err = copy_to_user(i->ubuf, i->buf.buf, bytes);
+		int copied = bytes - copy_to_user(i->ubuf, i->buf.buf, bytes);
 
-		if (err)
-			return err;
+		i->ret	 += copied;
+		i->ubuf	 += copied;
+		i->size	 -= copied;
+		i->buf.pos -= copied;
+		memmove(i->buf.buf, i->buf.buf + copied, i->buf.pos);
 
-		i->ret	 += bytes;
-		i->ubuf	 += bytes;
-		i->size	 -= bytes;
-		i->buf.pos -= bytes;
-		memmove(i->buf.buf, i->buf.buf + bytes, i->buf.pos);
+		if (copied != bytes)
+			return -EFAULT;
 	}
 
 	return i->size ? 0 : i->ret;
