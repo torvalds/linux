@@ -7,6 +7,8 @@
  * Author : K. Y. Srinivasan <kys@microsoft.com>
  */
 
+#define pr_fmt(fmt)  "Hyper-V: " fmt
+
 #include <linux/efi.h>
 #include <linux/types.h>
 #include <linux/bitfield.h>
@@ -191,7 +193,7 @@ void set_hv_tscchange_cb(void (*cb)(void))
 	struct hv_tsc_emulation_control emu_ctrl = {.enabled = 1};
 
 	if (!hv_reenlightenment_available()) {
-		pr_warn("Hyper-V: reenlightenment support is unavailable\n");
+		pr_warn("reenlightenment support is unavailable\n");
 		return;
 	}
 
@@ -568,7 +570,7 @@ skip_hypercall_pg_init:
 	if (cpu_feature_enabled(X86_FEATURE_IBT) &&
 	    *(u32 *)hv_hypercall_pg != gen_endbr()) {
 		setup_clear_cpu_cap(X86_FEATURE_IBT);
-		pr_warn("Hyper-V: Disabling IBT because of Hyper-V bug\n");
+		pr_warn("Disabling IBT because of Hyper-V bug\n");
 	}
 #endif
 
