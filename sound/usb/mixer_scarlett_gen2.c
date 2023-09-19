@@ -3195,8 +3195,8 @@ static int scarlett2_add_line_in_ctls(struct usb_mixer_interface *mixer)
 	/* Add input phantom controls */
 	if (info->inputs_per_phantom == 1) {
 		for (i = 0; i < info->phantom_count; i++) {
-			snprintf(s, sizeof(s), fmt, i + 1,
-				 "Phantom Power", "Switch");
+			scnprintf(s, sizeof(s), fmt, i + 1,
+				  "Phantom Power", "Switch");
 			err = scarlett2_add_new_ctl(
 				mixer, &scarlett2_phantom_ctl,
 				i, 1, s, &private->phantom_ctls[i]);
