@@ -13,8 +13,7 @@
 static void ath12k_dp_mon_rx_handle_ofdma_info(void *rx_tlv,
 					       struct hal_rx_user_status *rx_user_status)
 {
-	struct hal_rx_ppdu_end_user_stats *ppdu_end_user =
-				(struct hal_rx_ppdu_end_user_stats *)rx_tlv;
+	struct hal_rx_ppdu_end_user_stats *ppdu_end_user = rx_tlv;
 
 	rx_user_status->ul_ofdma_user_v0_word0 =
 		__le32_to_cpu(ppdu_end_user->usr_resp_ref);
@@ -23,13 +22,12 @@ static void ath12k_dp_mon_rx_handle_ofdma_info(void *rx_tlv,
 }
 
 static void
-ath12k_dp_mon_rx_populate_byte_count(void *rx_tlv, void *ppduinfo,
+ath12k_dp_mon_rx_populate_byte_count(const struct hal_rx_ppdu_end_user_stats *stats,
+				     void *ppduinfo,
 				     struct hal_rx_user_status *rx_user_status)
 {
-	struct hal_rx_ppdu_end_user_stats *ppdu_end_user =
-		(struct hal_rx_ppdu_end_user_stats *)rx_tlv;
-	u32 mpdu_ok_byte_count = __le32_to_cpu(ppdu_end_user->mpdu_ok_cnt);
-	u32 mpdu_err_byte_count = __le32_to_cpu(ppdu_end_user->mpdu_err_cnt);
+	u32 mpdu_ok_byte_count = __le32_to_cpu(stats->mpdu_ok_cnt);
+	u32 mpdu_err_byte_count = __le32_to_cpu(stats->mpdu_err_cnt);
 
 	rx_user_status->mpdu_ok_byte_count =
 		u32_get_bits(mpdu_ok_byte_count,
