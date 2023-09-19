@@ -795,15 +795,47 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp,
 	/*
 	 * BPF_MOV
 	 */
-	case BPF_ALU | BPF_MOV | BPF_X: /* dst = (u32) src */
-		/* llgfr %dst,%src */
-		EMIT4(0xb9160000, dst_reg, src_reg);
-		if (insn_is_zext(&insn[1]))
-			insn_count = 2;
+	case BPF_ALU | BPF_MOV | BPF_X:
+		switch (insn->off) {
+		case 0: /* DST = (u32) SRC */
+			/* llgfr %dst,%src */
+			EMIT4(0xb9160000, dst_reg, src_reg);
+			if (insn_is_zext(&insn[1]))
+				insn_count = 2;
+			break;
+		case 8: /* DST = (u32)(s8) SRC */
+			/* lbr %dst,%src */
+			EMIT4(0xb9260000, dst_reg, src_reg);
+			/* llgfr %dst,%dst */
+			EMIT4(0xb9160000, dst_reg, dst_reg);
+			break;
+		case 16: /* DST = (u32)(s16) SRC */
+			/* lhr %dst,%src */
+			EMIT4(0xb9270000, dst_reg, src_reg);
+			/* llgfr %dst,%dst */
+			EMIT4(0xb9160000, dst_reg, dst_reg);
+			break;
+		}
 		break;
-	case BPF_ALU64 | BPF_MOV | BPF_X: /* dst = src */
-		/* lgr %dst,%src */
-		EMIT4(0xb9040000, dst_reg, src_reg);
+	case BPF_ALU64 | BPF_MOV | BPF_X:
+		switch (insn->off) {
+		case 0: /* DST = SRC */
+			/* lgr %dst,%src */
+			EMIT4(0xb9040000, dst_reg, src_reg);
+			break;
+		case 8: /* DST = (s8) SRC */
+			/* lgbr %dst,%src */
+			EMIT4(0xb9060000, dst_reg, src_reg);
+			break;
+		case 16: /* DST = (s16) SRC */
+			/* lghr %dst,%src */
+			EMIT4(0xb9070000, dst_reg, src_reg);
+			break;
+		case 32: /* DST = (s32) SRC */
+			/* lgfr %dst,%src */
+			EMIT4(0xb9140000, dst_reg, src_reg);
+			break;
+		}
 		break;
 	case BPF_ALU | BPF_MOV | BPF_K: /* dst = (u32) imm */
 		/* llilf %dst,imm */
