@@ -104,7 +104,11 @@ int _tc(volatile struct __sk_buff *skb)
 		      "%[tmp_mark] = r1"
 		      : [tmp_mark]"=r"(tmp_mark)
 		      : [ctx]"r"(skb),
-			[off_mark]"i"(offsetof(struct __sk_buff, mark))
+			[off_mark]"i"(offsetof(struct __sk_buff, mark)
+#if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+			+ sizeof(skb->mark) - 1
+#endif
+			)
 		      : "r1");
 #else
 	tmp_mark = (char)skb->mark;
