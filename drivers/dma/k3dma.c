@@ -974,7 +974,7 @@ dma_async_register_fail:
 	return ret;
 }
 
-static int k3_dma_remove(struct platform_device *op)
+static void k3_dma_remove(struct platform_device *op)
 {
 	struct k3_dma_chan *c, *cn;
 	struct k3_dma_dev *d = platform_get_drvdata(op);
@@ -990,7 +990,6 @@ static int k3_dma_remove(struct platform_device *op)
 	}
 	tasklet_kill(&d->task);
 	clk_disable_unprepare(d->clk);
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -1034,7 +1033,7 @@ static struct platform_driver k3_pdma_driver = {
 		.of_match_table = k3_pdma_dt_ids,
 	},
 	.probe		= k3_dma_probe,
-	.remove		= k3_dma_remove,
+	.remove_new	= k3_dma_remove,
 };
 
 module_platform_driver(k3_pdma_driver);
