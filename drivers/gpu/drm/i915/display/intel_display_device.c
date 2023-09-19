@@ -761,6 +761,10 @@ static const struct intel_display_device_info xe_lpdp_display = {
 
 static const struct intel_display_device_info xe2_lpd_display = {
 	XE_LPDP_FEATURES,
+
+	.__runtime_defaults.fbc_mask =
+		BIT(INTEL_FBC_A) | BIT(INTEL_FBC_B) |
+		BIT(INTEL_FBC_C) | BIT(INTEL_FBC_D),
 };
 
 /*
