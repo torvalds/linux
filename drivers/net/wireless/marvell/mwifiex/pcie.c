@@ -710,18 +710,12 @@ static int mwifiex_pm_wakeup_card_complete(struct mwifiex_adapter *adapter)
  * The host interrupt mask is read, the disable bit is reset and
  * written back to the card host interrupt mask register.
  */
-static int mwifiex_pcie_disable_host_int(struct mwifiex_adapter *adapter)
+static void mwifiex_pcie_disable_host_int(struct mwifiex_adapter *adapter)
 {
 	if (mwifiex_pcie_ok_to_access_hw(adapter))
 		mwifiex_write_reg(adapter, PCIE_HOST_INT_MASK, 0x00000000);
 
 	atomic_set(&adapter->tx_hw_pending, 0);
-	return 0;
-}
-
-static void mwifiex_pcie_disable_host_int_noerr(struct mwifiex_adapter *adapter)
-{
-	WARN_ON(mwifiex_pcie_disable_host_int(adapter));
 }
 
 /*
@@ -1298,7 +1292,7 @@ static int mwifiex_pcie_delete_sleep_cookie_buf(struct mwifiex_adapter *adapter)
  * This function defined as handler is also called while cleaning TXRX
  * during disconnect/ bss stop.
  */
-static int mwifiex_clean_pcie_ring_buf(struct mwifiex_adapter *adapter)
+static void mwifiex_clean_pcie_ring_buf(struct mwifiex_adapter *adapter)
 {
 	struct pcie_service_card *card = adapter->card;
 
@@ -1310,7 +1304,6 @@ static int mwifiex_clean_pcie_ring_buf(struct mwifiex_adapter *adapter)
 		mwifiex_write_reg(adapter, PCIE_CPU_INT_EVENT,
 				  CPU_INTR_DNLD_RDY);
 	}
-	return 0;
 }
 
 /*
@@ -1706,7 +1699,7 @@ mwifiex_pcie_send_boot_cmd(struct mwifiex_adapter *adapter, struct sk_buff *skb)
 /* This function init rx port in firmware which in turn enables to receive data
  * from device before transmitting any packet.
  */
-static int mwifiex_pcie_init_fw_port(struct mwifiex_adapter *adapter)
+static void mwifiex_pcie_init_fw_port(struct mwifiex_adapter *adapter)
 {
 	struct pcie_service_card *card = adapter->card;
 	const struct mwifiex_pcie_card_reg *reg = card->pcie.reg;
@@ -1714,8 +1707,6 @@ static int mwifiex_pcie_init_fw_port(struct mwifiex_adapter *adapter)
 
 	/* Write the RX ring read pointer in to reg->rx_rdptr */
 	mwifiex_write_reg(adapter, reg->rx_rdptr, card->rxbd_rdptr | tx_wrap);
-
-	return 0;
 }
 
 /* This function downloads commands to the device
@@ -2001,7 +1992,6 @@ static int mwifiex_pcie_event_complete(struct mwifiex_adapter *adapter,
 {
 	struct pcie_service_card *card = adapter->card;
 	const struct mwifiex_pcie_card_reg *reg = card->pcie.reg;
-	int ret = 0;
 	u32 rdptr = card->evtbd_rdptr & MWIFIEX_EVTBD_MASK;
 	u32 wrptr;
 	struct mwifiex_evt_buf_desc *desc;
@@ -2057,9 +2047,7 @@ static int mwifiex_pcie_event_complete(struct mwifiex_adapter *adapter,
 
 	mwifiex_dbg(adapter, EVENT,
 		    "info: Check Events Again\n");
-	ret = mwifiex_pcie_process_event_ready(adapter);
-
-	return ret;
+	return mwifiex_pcie_process_event_ready(adapter);
 }
 
 /* Combo firmware image is a combination of
@@ -2192,11 +2180,7 @@ static int mwifiex_prog_fw_w_helper(struct mwifiex_adapter *adapter,
 		    "info: Downloading FW image (%d bytes)\n",
 		    firmware_len);
 
-	if (mwifiex_pcie_disable_host_int(adapter)) {
-		mwifiex_dbg(adapter, ERROR,
-			    "%s: Disabling interrupts failed.\n", __func__);
-		return -1;
-	}
+	mwifiex_pcie_disable_host_int(adapter);
 
 	skb = dev_alloc_skb(MWIFIEX_UPLD_SIZE);
 	if (!skb) {
@@ -3265,7 +3249,7 @@ static struct mwifiex_if_ops pcie_ops = {
 	.register_dev =			mwifiex_register_dev,
 	.unregister_dev =		mwifiex_unregister_dev,
 	.enable_int =			mwifiex_pcie_enable_host_int,
-	.disable_int =			mwifiex_pcie_disable_host_int_noerr,
+	.disable_int =			mwifiex_pcie_disable_host_int,
 	.process_int_status =		mwifiex_process_int_status,
 	.host_to_card =			mwifiex_pcie_host_to_card,
 	.wakeup =			mwifiex_pm_wakeup_card,
