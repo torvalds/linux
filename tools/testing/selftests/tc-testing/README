@@ -9,8 +9,7 @@ execute them inside a network namespace dedicated to the task.
 REQUIREMENTS
 ------------
 
-*  Minimum Python version of 3.4. Earlier 3.X versions may work but are not
-   guaranteed.
+*  Minimum Python version of 3.8.
 
 *  The kernel must have network namespace support if using nsPlugin
 
@@ -96,6 +95,15 @@ the stdout with a regular expression.
 
 Each of the commands in any stage will run in a shell instance.
 
+Each test is an atomic unit. A test that for whatever reason spans multiple test
+definitions is a bug.
+
+A test that runs inside a namespace (requires "nsPlugin") will run in parallel
+with other tests.
+
+Tests that use netdevsim or don't run inside a namespace run serially with regards
+to each other.
+
 
 USER-DEFINED CONSTANTS
 ----------------------
@@ -115,59 +123,6 @@ COMMAND LINE ARGUMENTS
 ----------------------
 
 Run tdc.py -h to see the full list of available arguments.
-
-usage: tdc.py [-h] [-p PATH] [-D DIR [DIR ...]] [-f FILE [FILE ...]]
-              [-c [CATG [CATG ...]]] [-e ID [ID ...]] [-l] [-s] [-i] [-v] [-N]
-              [-d DEVICE] [-P] [-n] [-V]
-
-Linux TC unit tests
-
-optional arguments:
-  -h, --help            show this help message and exit
-  -p PATH, --path PATH  The full path to the tc executable to use
-  -v, --verbose         Show the commands that are being run
-  -N, --notap           Suppress tap results for command under test
-  -d DEVICE, --device DEVICE
-                        Execute test cases that use a physical device, where
-                        DEVICE is its name. (If not defined, tests that require
-                        a physical device will be skipped)
-  -P, --pause           Pause execution just before post-suite stage
-
-selection:
-  select which test cases: files plus directories; filtered by categories
-  plus testids
-
-  -D DIR [DIR ...], --directory DIR [DIR ...]
-                        Collect tests from the specified directory(ies)
-                        (default [tc-tests])
-  -f FILE [FILE ...], --file FILE [FILE ...]
-                        Run tests from the specified file(s)
-  -c [CATG [CATG ...]], --category [CATG [CATG ...]]
-                        Run tests only from the specified category/ies, or if
-                        no category/ies is/are specified, list known
-                        categories.
-  -e ID [ID ...], --execute ID [ID ...]
-                        Execute the specified test cases with specified IDs
-
-action:
-  select action to perform on selected test cases
-
-  -l, --list            List all test cases, or those only within the
-                        specified category
-  -s, --show            Display the selected test cases
-  -i, --id              Generate ID numbers for new test cases
-
-netns:
-  options for nsPlugin (run commands in net namespace)
-
-  -N, --no-namespace
-                        Do not run commands in a network namespace.
-
-valgrind:
-  options for valgrindPlugin (run command under test under Valgrind)
-
-  -V, --valgrind        Run commands under valgrind
-
 
 PLUGIN ARCHITECTURE
 -------------------
