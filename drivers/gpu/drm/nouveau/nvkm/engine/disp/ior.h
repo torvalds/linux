@@ -84,6 +84,8 @@ struct nvkm_ior_func {
 		void (*pattern)(struct nvkm_ior *, int pattern);
 		void (*drive)(struct nvkm_ior *, int ln, int pc,
 			      int dc, int pe, int tx_pu);
+		int (*sst)(struct nvkm_ior *, int head, bool ef,
+			   u32 watermark, u32 hblanksym, u32 vblanksym);
 		void (*vcpi)(struct nvkm_ior *, int head, u8 slot,
 			     u8 slot_nr, u16 pbn, u16 aligned);
 		void (*audio)(struct nvkm_ior *, int head, bool enable);

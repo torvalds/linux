@@ -47,6 +47,24 @@ nvif_outp_dp_mst_vcpi(struct nvif_outp *outp, int head,
 }
 
 int
+nvif_outp_dp_sst(struct nvif_outp *outp, int head, u32 watermark, u32 hblanksym, u32 vblanksym)
+{
+	struct nvif_outp_dp_sst_v0 args;
+	int ret;
+
+	args.version = 0;
+	args.head = head;
+	args.watermark = watermark;
+	args.hblanksym = hblanksym;
+	args.vblanksym = vblanksym;
+	ret = nvif_object_mthd(&outp->object, NVIF_OUTP_V0_DP_SST, &args, sizeof(args));
+	NVIF_ERRON(ret, &outp->object,
+		   "[DP_SST head:%d watermark:%d hblanksym:%d vblanksym:%d]",
+		   args.head, args.watermark, args.hblanksym, args.vblanksym);
+	return ret;
+}
+
+int
 nvif_outp_dp_drive(struct nvif_outp *outp, u8 link_nr, u8 pe[4], u8 vs[4])
 {
 	struct nvif_outp_dp_drive_v0 args;

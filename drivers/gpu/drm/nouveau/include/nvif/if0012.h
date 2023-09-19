@@ -36,6 +36,7 @@ union nvif_outp_args {
 #define NVIF_OUTP_V0_DP_RATES      0x72
 #define NVIF_OUTP_V0_DP_TRAIN      0x73
 #define NVIF_OUTP_V0_DP_DRIVE      0x74
+#define NVIF_OUTP_V0_DP_SST        0x75
 #define NVIF_OUTP_V0_DP_MST_VCPI   0x78
 
 union nvif_outp_detect_args {
@@ -219,6 +220,17 @@ union nvif_outp_dp_drive_args {
 		__u8  lanes;
 		__u8  pe[4];
 		__u8  vs[4];
+	} v0;
+};
+
+union nvif_outp_dp_sst_args {
+	struct nvif_outp_dp_sst_v0 {
+		__u8  version;
+		__u8  head;
+		__u8  pad02[2];
+		__u32 watermark;
+		__u32 hblanksym;
+		__u32 vblanksym;
 	} v0;
 };
 
