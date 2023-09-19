@@ -29,6 +29,10 @@
 
 #include <trace/hooks/softlockup.h>
 
+#if IS_ENABLED(CONFIG_ROCKCHIP_MINIDUMP)
+#include <soc/rockchip/rk_minidump.h>
+#endif
+
 static DEFINE_MUTEX(watchdog_mutex);
 
 #if defined(CONFIG_HARDLOCKUP_DETECTOR) || defined(CONFIG_HAVE_NMI_WATCHDOG)
@@ -412,12 +416,13 @@ static void watchdog_check_hardlockup_other_cpu(void)
 		if (per_cpu(hard_watchdog_warn, next_cpu) == true)
 			return;
 
+		atomic_notifier_call_chain(&hardlock_notifier_list, next_cpu, NULL);
+
 		if (hardlockup_panic)
 			panic("Watchdog detected hard LOCKUP on cpu %u", next_cpu);
 		else
 			WARN(1, "Watchdog detected hard LOCKUP on cpu %u", next_cpu);
 
-		atomic_notifier_call_chain(&hardlock_notifier_list, 0, NULL);
 		per_cpu(hard_watchdog_warn, next_cpu) = true;
 	} else {
 		per_cpu(hard_watchdog_warn, next_cpu) = false;
@@ -541,6 +546,9 @@ static enum hrtimer_restart watchdog_timer_fn(struct hrtimer *hrtimer)
 
 		trace_android_vh_watchdog_timer_softlockup(duration, regs, !!softlockup_panic);
 		add_taint(TAINT_SOFTLOCKUP, LOCKDEP_STILL_OK);
+#if IS_ENABLED(CONFIG_ROCKCHIP_MINIDUMP)
+		rk_minidump_update_cpu_regs(regs);
+#endif
 		if (softlockup_panic)
 			panic("softlockup: hung tasks");
 	}
