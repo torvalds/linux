@@ -42,6 +42,21 @@ nouveau_dp_has_sink_count(struct drm_connector *connector,
 	return drm_dp_read_sink_count_cap(connector, outp->dp.dpcd, &outp->dp.desc);
 }
 
+static bool
+nouveau_dp_probe_lttpr(struct nouveau_encoder *outp)
+{
+	u8 rev, size = sizeof(rev);
+	int ret;
+
+	ret = nvif_outp_dp_aux_xfer(&outp->outp, DP_AUX_NATIVE_READ, &size,
+				    DP_LT_TUNABLE_PHY_REPEATER_FIELD_DATA_STRUCTURE_REV,
+				    &rev);
+	if (ret || size < sizeof(rev) || rev < 0x14)
+		return false;
+
+	return true;
+}
+
 static enum drm_connector_status
 nouveau_dp_probe_dpcd(struct nouveau_connector *nv_connector,
 		      struct nouveau_encoder *outp)
@@ -53,9 +68,98 @@ nouveau_dp_probe_dpcd(struct nouveau_connector *nv_connector,
 	int ret;
 	u8 *dpcd = outp->dp.dpcd;
 
+	outp->dp.lttpr.nr = 0;
+	outp->dp.rate_nr  = 0;
+	outp->dp.link_nr  = 0;
+	outp->dp.link_bw  = 0;
+
+	if (connector->connector_type != DRM_MODE_CONNECTOR_eDP &&
+	    nouveau_dp_probe_lttpr(outp) &&
+	    !drm_dp_read_dpcd_caps(aux, dpcd) &&
+	    !drm_dp_read_lttpr_common_caps(aux, dpcd, outp->dp.lttpr.caps)) {
+		int nr = drm_dp_lttpr_count(outp->dp.lttpr.caps);
+
+		if (nr > 0)
+			outp->dp.lttpr.nr = nr;
+	}
+
 	ret = drm_dp_read_dpcd_caps(aux, dpcd);
 	if (ret < 0)
 		goto out;
+
+	outp->dp.link_nr = dpcd[DP_MAX_LANE_COUNT] & DP_MAX_LANE_COUNT_MASK;
+	if (outp->dcb->dpconf.link_nr < outp->dp.link_nr)
+		outp->dp.link_nr = outp->dcb->dpconf.link_nr;
+
+	if (outp->dp.lttpr.nr) {
+		int links = drm_dp_lttpr_max_lane_count(outp->dp.lttpr.caps);
+
+		if (links && links < outp->dp.link_nr)
+			outp->dp.link_nr = links;
+	}
+
+	if (connector->connector_type == DRM_MODE_CONNECTOR_eDP && dpcd[DP_DPCD_REV] >= 0x13) {
+		__le16 rates[DP_MAX_SUPPORTED_RATES];
+
+		ret = drm_dp_dpcd_read(aux, DP_SUPPORTED_LINK_RATES, rates, sizeof(rates));
+		if (ret == sizeof(rates)) {
+			for (int i = 0; i < ARRAY_SIZE(rates); i++) {
+				u32 rate = (le16_to_cpu(rates[i]) * 200) / 10;
+				int j;
+
+				if (!rate)
+					break;
+
+				for (j = 0; j < outp->dp.rate_nr; j++) {
+					if (rate > outp->dp.rate[j].rate) {
+						for (int k = outp->dp.rate_nr; k > j; k--)
+							outp->dp.rate[k] = outp->dp.rate[k - 1];
+						break;
+					}
+				}
+
+				outp->dp.rate[j].dpcd = i;
+				outp->dp.rate[j].rate = rate;
+				outp->dp.rate_nr++;
+			}
+		}
+	}
+
+	if (!outp->dp.rate_nr) {
+		const u32 rates[] = { 810000, 540000, 270000, 162000 };
+		u32 max_rate = dpcd[DP_MAX_LINK_RATE] * 27000;
+
+		if (outp->dp.lttpr.nr) {
+			int rate = drm_dp_lttpr_max_link_rate(outp->dp.lttpr.caps);
+
+			if (rate && rate < max_rate)
+				max_rate = rate;
+		}
+
+		max_rate = min_t(int, max_rate, outp->dcb->dpconf.link_bw);
+
+		for (int i = 0; i < ARRAY_SIZE(rates); i++) {
+			if (rates[i] <= max_rate) {
+				outp->dp.rate[outp->dp.rate_nr].dpcd = -1;
+				outp->dp.rate[outp->dp.rate_nr].rate = rates[i];
+				outp->dp.rate_nr++;
+			}
+		}
+
+		if (WARN_ON(!outp->dp.rate_nr))
+			goto out;
+	}
+
+	ret = nvif_outp_dp_rates(&outp->outp, outp->dp.rate, outp->dp.rate_nr);
+	if (ret)
+		goto out;
+
+	for (int i = 0; i < outp->dp.rate_nr; i++) {
+		u32 link_bw = outp->dp.rate[i].rate;
+
+		if (link_bw > outp->dp.link_bw)
+			outp->dp.link_bw = link_bw;
+	}
 
 	ret = drm_dp_read_desc(aux, &outp->dp.desc, drm_dp_is_branch(dpcd));
 	if (ret < 0)
@@ -151,39 +255,14 @@ nouveau_dp_detect(struct nouveau_connector *nv_connector,
 		goto out;
 	}
 
-	nv_encoder->dp.link_bw = 27000 * dpcd[DP_MAX_LINK_RATE];
-	nv_encoder->dp.link_nr =
-		dpcd[DP_MAX_LANE_COUNT] & DP_MAX_LANE_COUNT_MASK;
+	NV_DEBUG(drm, "sink dpcd version: 0x%02x\n", dpcd[DP_DPCD_REV]);
+	for (int i = 0; i < nv_encoder->dp.rate_nr; i++)
+		NV_DEBUG(drm, "sink rate %d: %d\n", i, nv_encoder->dp.rate[i].rate);
 
-	if (connector->connector_type == DRM_MODE_CONNECTOR_eDP && dpcd[DP_DPCD_REV] >= 0x13) {
-		struct drm_dp_aux *aux = &nv_connector->aux;
-		int ret, i;
-		u8 sink_rates[16];
-
-		ret = drm_dp_dpcd_read(aux, DP_SUPPORTED_LINK_RATES, sink_rates, sizeof(sink_rates));
-		if (ret == sizeof(sink_rates)) {
-			for (i = 0; i < ARRAY_SIZE(sink_rates); i += 2) {
-				int val = ((sink_rates[i + 1] << 8) | sink_rates[i]) * 200 / 10;
-				if (val && (i == 0 || val > nv_encoder->dp.link_bw))
-					nv_encoder->dp.link_bw = val;
-			}
-		}
-	}
-
-	NV_DEBUG(drm, "display: %dx%d dpcd 0x%02x\n",
-		 nv_encoder->dp.link_nr, nv_encoder->dp.link_bw,
-		 dpcd[DP_DPCD_REV]);
-	NV_DEBUG(drm, "encoder: %dx%d\n",
-		 nv_encoder->dcb->dpconf.link_nr,
-		 nv_encoder->dcb->dpconf.link_bw);
-
-	if (nv_encoder->dcb->dpconf.link_nr < nv_encoder->dp.link_nr)
-		nv_encoder->dp.link_nr = nv_encoder->dcb->dpconf.link_nr;
-	if (nv_encoder->dcb->dpconf.link_bw < nv_encoder->dp.link_bw)
-		nv_encoder->dp.link_bw = nv_encoder->dcb->dpconf.link_bw;
-
-	NV_DEBUG(drm, "maximum: %dx%d\n",
-		 nv_encoder->dp.link_nr, nv_encoder->dp.link_bw);
+	NV_DEBUG(drm, "encoder: %dx%d\n", nv_encoder->dcb->dpconf.link_nr,
+					  nv_encoder->dcb->dpconf.link_bw);
+	NV_DEBUG(drm, "maximum: %dx%d\n", nv_encoder->dp.link_nr,
+					  nv_encoder->dp.link_bw);
 
 	if (mstm && mstm->can_mst) {
 		ret = nv50_mstm_detect(nv_encoder);

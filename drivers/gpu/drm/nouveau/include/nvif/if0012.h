@@ -33,6 +33,7 @@ union nvif_outp_args {
 
 #define NVIF_OUTP_V0_DP_AUX_PWR    0x70
 #define NVIF_OUTP_V0_DP_AUX_XFER   0x71
+#define NVIF_OUTP_V0_DP_RATES      0x72
 #define NVIF_OUTP_V0_DP_RETRAIN    0x73
 #define NVIF_OUTP_V0_DP_MST_VCPI   0x78
 
@@ -191,6 +192,18 @@ union nvif_outp_dp_aux_xfer_args {
 		__u8  size;
 		__u32 addr;
 		__u8  data[16];
+	} v0;
+};
+
+union nvif_outp_dp_rates_args {
+	struct nvif_outp_dp_rates_v0 {
+		__u8  version;
+		__u8  pad01[6];
+		__u8  rates;
+		struct {
+			__s8  dpcd;
+			__u32 rate;
+		} rate[8];
 	} v0;
 };
 

@@ -75,6 +75,17 @@ struct nouveau_encoder {
 
 		struct {
 			struct nv50_mstm *mstm;
+
+			struct {
+				u8 caps[DP_LTTPR_COMMON_CAP_SIZE];
+				u8 nr;
+			} lttpr;
+
+			u8 dpcd[DP_RECEIVER_CAP_SIZE];
+
+			struct nvif_outp_dp_rate rate[8];
+			int rate_nr;
+
 			int link_nr;
 			int link_bw;
 
@@ -83,7 +94,6 @@ struct nouveau_encoder {
 			 */
 			struct mutex hpd_irq_lock;
 
-			u8 dpcd[DP_RECEIVER_CAP_SIZE];
 			u8 downstream_ports[DP_MAX_DOWNSTREAM_PORTS];
 			struct drm_dp_desc desc;
 

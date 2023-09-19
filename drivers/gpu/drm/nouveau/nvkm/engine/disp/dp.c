@@ -615,48 +615,6 @@ done:
 	return ret;
 }
 
-static bool
-nvkm_dp_enable_supported_link_rates(struct nvkm_outp *outp)
-{
-	u8 sink_rates[DPCD_RC10_SUPPORTED_LINK_RATES__SIZE];
-	int i, j, k;
-
-	if (outp->conn->info.type != DCB_CONNECTOR_eDP ||
-	    outp->dp.dpcd[DPCD_RC00_DPCD_REV] < 0x13 ||
-	    nvkm_rdaux(outp->dp.aux, DPCD_RC10_SUPPORTED_LINK_RATES(0),
-		       sink_rates, sizeof(sink_rates)))
-		return false;
-
-	for (i = 0; i < ARRAY_SIZE(sink_rates); i += 2) {
-		const u32 rate = ((sink_rates[i + 1] << 8) | sink_rates[i]) * 200 / 10;
-
-		if (!rate || WARN_ON(outp->dp.rates == ARRAY_SIZE(outp->dp.rate)))
-			break;
-
-		if (rate > outp->info.dpconf.link_bw * 27000) {
-			OUTP_DBG(outp, "rate %d !outp", rate);
-			continue;
-		}
-
-		for (j = 0; j < outp->dp.rates; j++) {
-			if (rate > outp->dp.rate[j].rate) {
-				for (k = outp->dp.rates; k > j; k--)
-					outp->dp.rate[k] = outp->dp.rate[k - 1];
-				break;
-			}
-		}
-
-		outp->dp.rate[j].dpcd = i / 2;
-		outp->dp.rate[j].rate = rate;
-		outp->dp.rates++;
-	}
-
-	for (i = 0; i < outp->dp.rates; i++)
-		OUTP_DBG(outp, "link_rate[%d] = %d", outp->dp.rate[i].dpcd, outp->dp.rate[i].rate);
-
-	return outp->dp.rates != 0;
-}
-
 /* XXX: This is a big fat hack, and this is just drm_dp_read_dpcd_caps()
  * converted to work inside nvkm. This is a temporary holdover until we start
  * passing the drm_dp_aux device through NVKM
@@ -757,34 +715,10 @@ nvkm_dp_enable(struct nvkm_outp *outp, bool auxpwr)
 		}
 
 		if (!nvkm_dp_read_dpcd_caps(outp)) {
-			const u8 rates[] = { 0x1e, 0x14, 0x0a, 0x06, 0 };
-			const u8 *rate;
-			int rate_max;
-
-			outp->dp.rates = 0;
 			outp->dp.links = outp->dp.dpcd[DPCD_RC02] & DPCD_RC02_MAX_LANE_COUNT;
 			outp->dp.links = min(outp->dp.links, outp->info.dpconf.link_nr);
 			if (outp->dp.lttprs && outp->dp.lttpr[4])
 				outp->dp.links = min_t(int, outp->dp.links, outp->dp.lttpr[4]);
-
-			rate_max = outp->dp.dpcd[DPCD_RC01_MAX_LINK_RATE];
-			rate_max = min(rate_max, outp->info.dpconf.link_bw);
-			if (outp->dp.lttprs && outp->dp.lttpr[1])
-				rate_max = min_t(int, rate_max, outp->dp.lttpr[1]);
-
-			if (!nvkm_dp_enable_supported_link_rates(outp)) {
-				for (rate = rates; *rate; rate++) {
-					if (*rate > rate_max)
-						continue;
-
-					if (WARN_ON(outp->dp.rates == ARRAY_SIZE(outp->dp.rate)))
-						break;
-
-					outp->dp.rate[outp->dp.rates].dpcd = -1;
-					outp->dp.rate[outp->dp.rates].rate = *rate * 27000;
-					outp->dp.rates++;
-				}
-			}
 		}
 	} else
 	if (!auxpwr && outp->dp.aux_pwr) {

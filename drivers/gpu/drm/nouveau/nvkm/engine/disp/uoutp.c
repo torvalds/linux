@@ -71,6 +71,29 @@ nvkm_uoutp_mthd_acquire_dp(struct nvkm_outp *outp, u8 dpcd[DP_RECEIVER_CAP_SIZE]
 }
 
 static int
+nvkm_uoutp_mthd_dp_rates(struct nvkm_outp *outp, void *argv, u32 argc)
+{
+	union nvif_outp_dp_rates_args *args = argv;
+
+	if (argc != sizeof(args->v0) || args->v0.version != 0)
+		return -ENOSYS;
+	if (args->v0.rates > ARRAY_SIZE(outp->dp.rate))
+		return -EINVAL;
+
+	for (int i = 0; i < args->v0.rates; i++) {
+		outp->dp.rate[i].dpcd = args->v0.rate[i].dpcd;
+		outp->dp.rate[i].rate = args->v0.rate[i].rate;
+	}
+
+	outp->dp.rates = args->v0.rates;
+
+	if (outp->func->dp.rates)
+		outp->func->dp.rates(outp);
+
+	return 0;
+}
+
+static int
 nvkm_uoutp_mthd_dp_aux_xfer(struct nvkm_outp *outp, void *argv, u32 argc)
 {
 	union nvif_outp_dp_aux_xfer_args *args = argv;
@@ -457,6 +480,7 @@ nvkm_uoutp_mthd_noacquire(struct nvkm_outp *outp, u32 mthd, void *argv, u32 argc
 	case NVIF_OUTP_V0_BL_SET     : return nvkm_uoutp_mthd_bl_set     (outp, argv, argc);
 	case NVIF_OUTP_V0_DP_AUX_PWR : return nvkm_uoutp_mthd_dp_aux_pwr (outp, argv, argc);
 	case NVIF_OUTP_V0_DP_AUX_XFER: return nvkm_uoutp_mthd_dp_aux_xfer(outp, argv, argc);
+	case NVIF_OUTP_V0_DP_RATES   : return nvkm_uoutp_mthd_dp_rates   (outp, argv, argc);
 	default:
 		break;
 	}

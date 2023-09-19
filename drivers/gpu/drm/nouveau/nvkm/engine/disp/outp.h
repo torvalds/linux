@@ -108,6 +108,7 @@ struct nvkm_outp_func {
 	struct {
 		int (*aux_pwr)(struct nvkm_outp *, bool pu);
 		int (*aux_xfer)(struct nvkm_outp *, u8 type, u32 addr, u8 *data, u8 *size);
+		int (*rates)(struct nvkm_outp *);
 	} dp;
 };
 
