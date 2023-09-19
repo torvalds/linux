@@ -100,6 +100,8 @@ struct als_input_report {
 	/* values specific to this sensor */
 	int illuminance_value;
 	int light_color_temp;
+	int chromaticity_x_value;
+	int chromaticity_y_value;
 } __packed;
 
 struct hpd_feature_report {
