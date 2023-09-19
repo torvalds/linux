@@ -31,10 +31,38 @@
 			no-map;
 		};
 
+		rpmsg_reserved: rpmsg@7c00000 {
+			reg = <0x0 0x07c00000 0x0 0x400000>;
+			no-map;
+		};
+
+		rpmsg_dma_reserved: rpmsg-dma@8000000 {
+			compatible = "shared-dma-pool";
+			reg = <0x0 0x08000000 0x0 0x100000>;
+			no-map;
+		};
+
 		/* mcu address */
 		mcu_reserved: mcu@8200000 {
 			reg = <0x0 0x8200000 0x0 0x100000>;
 			no-map;
 		};
 	};
+
+	rpmsg: rpmsg@7c00000 {
+		compatible = "rockchip,rpmsg";
+		mbox-names = "rpmsg-rx", "rpmsg-tx";
+		mboxes = <&mailbox0 0 &mailbox0 3>;
+		rockchip,vdev-nums = <1>;
+		rockchip,link-id = <0x03>;
+		reg = <0x0 0x7c00000 0x0 0x20000>;
+		memory-region = <&rpmsg_dma_reserved>;
+
+		status = "okay";
+	};
+};
+
+&mailbox0 {
+	rockchip,txpoll-period-ms = <1>;
+	status = "okay";
 };
