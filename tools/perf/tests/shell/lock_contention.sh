@@ -32,6 +32,12 @@ check() {
 		err=2
 		exit
 	fi
+
+	if [ `nproc` -lt 4 ]; then
+		echo "[Skip] Low number of CPUs (`nproc`), lock event cannot be triggered certainly"
+		err=2
+		exit
+	fi
 }
 
 test_record()
