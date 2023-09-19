@@ -89,6 +89,12 @@ struct nouveau_encoder {
 			int link_nr;
 			int link_bw;
 
+			struct {
+				bool mst;
+				u8   nr;
+				u32  bw;
+			} lt;
+
 			/* Protects DP state that needs to be accessed outside
 			 * connector reprobing contexts
 			 */
@@ -155,6 +161,7 @@ enum nouveau_dp_status {
 };
 
 int nouveau_dp_detect(struct nouveau_connector *, struct nouveau_encoder *);
+bool nouveau_dp_train(struct nouveau_encoder *, bool mst, u32 khz, u8 bpc);
 void nouveau_dp_power_down(struct nouveau_encoder *);
 bool nouveau_dp_link_check(struct nouveau_connector *);
 void nouveau_dp_irq(struct work_struct *);

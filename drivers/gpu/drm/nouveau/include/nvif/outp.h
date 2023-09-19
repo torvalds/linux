@@ -31,8 +31,6 @@ int nvif_outp_load_detect(struct nvif_outp *, u32 loadval);
 int nvif_outp_acquire_dac(struct nvif_outp *);
 int nvif_outp_acquire_sor(struct nvif_outp *, bool hda);
 int nvif_outp_acquire_pior(struct nvif_outp *);
-int nvif_outp_acquire_dp(struct nvif_outp *outp, u8 dpcd[DP_RECEIVER_CAP_SIZE],
-			 int link_nr, int link_bw, bool hda, bool mst);
 int nvif_outp_inherit_rgb_crt(struct nvif_outp *outp, u8 *proto_out);
 int nvif_outp_inherit_lvds(struct nvif_outp *outp, u8 *proto_out);
 int nvif_outp_inherit_tmds(struct nvif_outp *outp, u8 *proto_out);
@@ -66,8 +64,9 @@ struct nvif_outp_dp_rate {
 };
 
 int nvif_outp_dp_rates(struct nvif_outp *, struct nvif_outp_dp_rate *rate, int rate_nr);
-
-int nvif_outp_dp_retrain(struct nvif_outp *);
+int nvif_outp_dp_train(struct nvif_outp *, u8 dpcd[DP_RECEIVER_CAP_SIZE],
+		       u8 lttprs, u8 link_nr, u32 link_bw, bool mst, bool post_lt_adj,
+		       bool retrain);
 int nvif_outp_dp_mst_vcpi(struct nvif_outp *, int head,
 			  u8 start_slot, u8 num_slots, u16 pbn, u16 aligned_pbn);
 #endif

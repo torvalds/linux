@@ -79,8 +79,21 @@ nouveau_dp_probe_dpcd(struct nouveau_connector *nv_connector,
 	    !drm_dp_read_lttpr_common_caps(aux, dpcd, outp->dp.lttpr.caps)) {
 		int nr = drm_dp_lttpr_count(outp->dp.lttpr.caps);
 
-		if (nr > 0)
-			outp->dp.lttpr.nr = nr;
+		if (nr) {
+			drm_dp_dpcd_writeb(aux, DP_PHY_REPEATER_MODE,
+						DP_PHY_REPEATER_MODE_TRANSPARENT);
+
+			if (nr > 0) {
+				ret = drm_dp_dpcd_writeb(aux, DP_PHY_REPEATER_MODE,
+							      DP_PHY_REPEATER_MODE_NON_TRANSPARENT);
+				if (ret != 1) {
+					drm_dp_dpcd_writeb(aux, DP_PHY_REPEATER_MODE,
+								DP_PHY_REPEATER_MODE_TRANSPARENT);
+				} else {
+					outp->dp.lttpr.nr = nr;
+				}
+			}
+		}
 	}
 
 	ret = drm_dp_read_dpcd_caps(aux, dpcd);
@@ -291,23 +304,71 @@ nouveau_dp_power_down(struct nouveau_encoder *outp)
 	int ret;
 	u8 pwr;
 
+	mutex_lock(&outp->dp.hpd_irq_lock);
+
 	ret = drm_dp_dpcd_readb(aux, DP_SET_POWER, &pwr);
 	if (ret == 1) {
 		pwr &= ~DP_SET_POWER_MASK;
 		pwr |=  DP_SET_POWER_D3;
 		drm_dp_dpcd_writeb(aux, DP_SET_POWER, pwr);
 	}
+
+	outp->dp.lt.nr = 0;
+	mutex_unlock(&outp->dp.hpd_irq_lock);
+}
+
+static bool
+nouveau_dp_train_link(struct nouveau_encoder *outp, bool retrain)
+{
+	int ret;
+
+	ret = nvif_outp_dp_train(&outp->outp, outp->dp.dpcd,
+					      outp->dp.lttpr.nr,
+					      outp->dp.lt.nr,
+					      outp->dp.lt.bw,
+					      outp->dp.lt.mst,
+					      false,
+					      retrain);
+
+	return ret == 0;
+}
+
+bool
+nouveau_dp_train(struct nouveau_encoder *outp, bool mst, u32 khz, u8 bpc)
+{
+	bool ret;
+
+	mutex_lock(&outp->dp.hpd_irq_lock);
+
+	outp->dp.lt.nr = outp->dp.link_nr;
+	outp->dp.lt.bw = 0;
+	outp->dp.lt.mst = mst;
+	ret = nouveau_dp_train_link(outp, false);
+
+	mutex_unlock(&outp->dp.hpd_irq_lock);
+	return ret;
+}
+
+static bool
+nouveau_dp_link_check_locked(struct nouveau_encoder *outp)
+{
+	return nouveau_dp_train_link(outp, true);
 }
 
 bool
 nouveau_dp_link_check(struct nouveau_connector *nv_connector)
 {
-	struct nouveau_encoder *nv_encoder = find_encoder(&nv_connector->base, DCB_OUTPUT_DP);
+	struct nouveau_encoder *outp = nv_connector->dp_encoder;
+	bool link_ok = true;
 
-	if (!nv_encoder || nv_encoder->outp.or.id < 0)
-		return true;
+	if (outp) {
+		mutex_lock(&outp->dp.hpd_irq_lock);
+		if (outp->dp.lt.nr)
+			link_ok = nouveau_dp_link_check_locked(outp);
+		mutex_unlock(&outp->dp.hpd_irq_lock);
+	}
 
-	return nvif_outp_dp_retrain(&nv_encoder->outp) == 0;
+	return link_ok;
 }
 
 void

@@ -34,7 +34,7 @@ union nvif_outp_args {
 #define NVIF_OUTP_V0_DP_AUX_PWR    0x70
 #define NVIF_OUTP_V0_DP_AUX_XFER   0x71
 #define NVIF_OUTP_V0_DP_RATES      0x72
-#define NVIF_OUTP_V0_DP_RETRAIN    0x73
+#define NVIF_OUTP_V0_DP_TRAIN      0x73
 #define NVIF_OUTP_V0_DP_MST_VCPI   0x78
 
 union nvif_outp_detect_args {
@@ -71,7 +71,6 @@ union nvif_outp_acquire_args {
 #define NVIF_OUTP_ACQUIRE_V0_DAC  0x00
 #define NVIF_OUTP_ACQUIRE_V0_SOR  0x01
 #define NVIF_OUTP_ACQUIRE_V0_PIOR 0x02
-#define NVIF_OUTP_ACQUIRE_V0_DP      0x04
 		__u8 type;
 		__u8 or;
 		__u8 link;
@@ -80,14 +79,6 @@ union nvif_outp_acquire_args {
 			struct {
 				__u8 hda;
 			} sor;
-			struct {
-				__u8 link_nr; /* 0 = highest possible. */
-				__u8 link_bw; /* 0 = highest possible, DP BW code otherwise. */
-				__u8 hda;
-				__u8 mst;
-				__u8 pad04[4];
-				__u8 dpcd[DP_RECEIVER_CAP_SIZE];
-			} dp;
 		};
 	} v0;
 };
@@ -207,9 +198,17 @@ union nvif_outp_dp_rates_args {
 	} v0;
 };
 
-union nvif_outp_dp_retrain_args {
-	struct nvif_outp_dp_retrain_vn {
-	} vn;
+union nvif_outp_dp_train_args {
+	struct nvif_outp_dp_train_v0 {
+		__u8  version;
+		__u8  retrain;
+		__u8  mst;
+		__u8  lttprs;
+		__u8  post_lt_adj;
+		__u8  link_nr;
+		__u32 link_bw;
+		__u8 dpcd[DP_RECEIVER_CAP_SIZE];
+	} v0;
 };
 
 union nvif_outp_dp_mst_vcpi_args {

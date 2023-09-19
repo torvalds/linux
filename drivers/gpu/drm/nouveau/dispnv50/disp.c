@@ -1038,7 +1038,7 @@ nv50_msto_atomic_enable(struct drm_encoder *encoder, struct drm_atomic_state *st
 
 	if (!mstm->links++) {
 		nvif_outp_acquire_sor(&mstm->outp->outp, false /*TODO: MST audio... */);
-		nvif_outp_acquire_dp(&mstm->outp->outp, mstm->outp->dp.dpcd, 0, 0, false, true);
+		nouveau_dp_train(mstm->outp, true, 0, 0);
 	}
 
 	if (mstm->outp->outp.or.link & 1)
@@ -1661,7 +1661,7 @@ nv50_sor_atomic_enable(struct drm_encoder *encoder, struct drm_atomic_state *sta
 		nvif_outp_lvds(&nv_encoder->outp, lvds_dual, lvds_8bpc);
 		break;
 	case DCB_OUTPUT_DP:
-		nvif_outp_acquire_dp(&nv_encoder->outp, nv_encoder->dp.dpcd, 0, 0, hda, false);
+		nouveau_dp_train(nv_encoder, false, mode->clock, asyh->or.bpc);
 		depth = nv50_dp_bpc_to_depth(asyh->or.bpc);
 
 		if (nv_encoder->outp.or.link & 1)
@@ -1852,7 +1852,7 @@ nv50_pior_atomic_enable(struct drm_encoder *encoder, struct drm_atomic_state *st
 		break;
 	case DCB_OUTPUT_DP:
 		ctrl |= NVDEF(NV507D, PIOR_SET_CONTROL, PROTOCOL, EXT_TMDS_ENC);
-		nvif_outp_acquire_dp(&nv_encoder->outp, nv_encoder->dp.dpcd, 0, 0, false, false);
+		nouveau_dp_train(nv_encoder, false, asyh->state.adjusted_mode.clock, 6);
 		break;
 	default:
 		BUG();

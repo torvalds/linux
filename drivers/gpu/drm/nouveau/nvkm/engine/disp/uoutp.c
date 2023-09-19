@@ -46,28 +46,26 @@ nvkm_uoutp_mthd_dp_mst_vcpi(struct nvkm_outp *outp, void *argv, u32 argc)
 }
 
 static int
-nvkm_uoutp_mthd_dp_retrain(struct nvkm_outp *outp, void *argv, u32 argc)
+nvkm_uoutp_mthd_dp_train(struct nvkm_outp *outp, void *argv, u32 argc)
 {
-	union nvif_outp_dp_retrain_args *args = argv;
+	union nvif_outp_dp_train_args *args = argv;
 
-	if (argc != sizeof(args->vn))
+	if (argc != sizeof(args->v0) || args->v0.version != 0)
 		return -ENOSYS;
+	if (!outp->func->dp.train)
+		return -EINVAL;
 
-	if (!atomic_read(&outp->dp.lt.done))
-		return 0;
+	if (!args->v0.retrain) {
+		memcpy(outp->dp.dpcd, args->v0.dpcd, sizeof(outp->dp.dpcd));
+		outp->dp.lttprs = args->v0.lttprs;
+		outp->dp.links = args->v0.link_nr;
+		outp->dp.lt.nr = 0;
+		outp->dp.lt.bw = 0;
+		outp->dp.lt.mst = args->v0.mst;
+		outp->dp.lt.post_adj = args->v0.post_lt_adj;
+	}
 
-	return outp->func->acquire(outp);
-}
-
-static int
-nvkm_uoutp_mthd_acquire_dp(struct nvkm_outp *outp, u8 dpcd[DP_RECEIVER_CAP_SIZE],
-			   u8 link_nr, u8 link_bw, bool hda, bool mst)
-{
-	memcpy(outp->dp.dpcd, dpcd, sizeof(outp->dp.dpcd));
-	outp->dp.lt.nr = link_nr;
-	outp->dp.lt.bw = link_bw;
-	outp->dp.lt.mst = mst;
-	return 0;
+	return outp->func->dp.train(outp, args->v0.retrain);
 }
 
 static int
@@ -304,13 +302,6 @@ nvkm_uoutp_mthd_acquire(struct nvkm_outp *outp, void *argv, u32 argc)
 	case NVIF_OUTP_ACQUIRE_V0_SOR:
 		ret = nvkm_outp_acquire_or(outp, NVKM_OUTP_USER, args->v0.sor.hda);
 		break;
-	case NVIF_OUTP_ACQUIRE_V0_DP:
-		ret = nvkm_uoutp_mthd_acquire_dp(outp, args->v0.dp.dpcd,
-						       args->v0.dp.link_nr,
-						       args->v0.dp.link_bw,
-						       args->v0.dp.hda != 0,
-						       args->v0.dp.mst != 0);
-		break;
 	default:
 		ret = -EINVAL;
 		break;
@@ -458,7 +449,7 @@ nvkm_uoutp_mthd_acquired(struct nvkm_outp *outp, u32 mthd, void *argv, u32 argc)
 	case NVIF_OUTP_V0_HDMI         : return nvkm_uoutp_mthd_hdmi         (outp, argv, argc);
 	case NVIF_OUTP_V0_INFOFRAME    : return nvkm_uoutp_mthd_infoframe    (outp, argv, argc);
 	case NVIF_OUTP_V0_HDA_ELD      : return nvkm_uoutp_mthd_hda_eld      (outp, argv, argc);
-	case NVIF_OUTP_V0_DP_RETRAIN   : return nvkm_uoutp_mthd_dp_retrain   (outp, argv, argc);
+	case NVIF_OUTP_V0_DP_TRAIN     : return nvkm_uoutp_mthd_dp_train     (outp, argv, argc);
 	case NVIF_OUTP_V0_DP_MST_VCPI  : return nvkm_uoutp_mthd_dp_mst_vcpi  (outp, argv, argc);
 	default:
 		break;

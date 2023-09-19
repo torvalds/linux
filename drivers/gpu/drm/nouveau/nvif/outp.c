@@ -47,32 +47,26 @@ nvif_outp_dp_mst_vcpi(struct nvif_outp *outp, int head,
 }
 
 int
-nvif_outp_dp_retrain(struct nvif_outp *outp)
+nvif_outp_dp_train(struct nvif_outp *outp, u8 dpcd[DP_RECEIVER_CAP_SIZE], u8 lttprs,
+		   u8 link_nr, u32 link_bw, bool mst, bool post_lt_adj, bool retrain)
 {
-	int ret = nvif_object_mthd(&outp->object, NVIF_OUTP_V0_DP_RETRAIN, NULL, 0);
-	NVIF_ERRON(ret, &outp->object, "[DP_RETRAIN]");
-	return ret;
-}
-
-static inline int nvif_outp_acquire(struct nvif_outp *, u8, struct nvif_outp_acquire_v0 *);
-
-int
-nvif_outp_acquire_dp(struct nvif_outp *outp, u8 dpcd[DP_RECEIVER_CAP_SIZE],
-		     int link_nr, int link_bw, bool hda, bool mst)
-{
-	struct nvif_outp_acquire_v0 args;
+	struct nvif_outp_dp_train_v0 args;
 	int ret;
 
-	args.dp.link_nr = link_nr;
-	args.dp.link_bw = link_bw;
-	args.dp.hda = hda;
-	args.dp.mst = mst;
-	memcpy(args.dp.dpcd, dpcd, sizeof(args.dp.dpcd));
+	args.version = 0;
+	args.retrain = retrain;
+	args.mst = mst;
+	args.lttprs = lttprs;
+	args.post_lt_adj = post_lt_adj;
+	args.link_nr = link_nr;
+	args.link_bw = link_bw;
+	memcpy(args.dpcd, dpcd, sizeof(args.dpcd));
 
-	ret = nvif_outp_acquire(outp, NVIF_OUTP_ACQUIRE_V0_DP, &args);
+	ret = nvif_object_mthd(&outp->object, NVIF_OUTP_V0_DP_TRAIN, &args, sizeof(args));
 	NVIF_ERRON(ret, &outp->object,
-		   "[ACQUIRE proto:DP link_nr:%d link_bw:%02x hda:%d mst:%d] or:%d link:%d",
-		   args.dp.link_nr, args.dp.link_bw, args.dp.hda, args.dp.mst, args.or, args.link);
+		   "[DP_TRAIN retrain:%d mst:%d lttprs:%d post_lt_adj:%d nr:%d bw:%d]",
+		   args.retrain, args.mst, args.lttprs, args.post_lt_adj, args.link_nr,
+		   args.link_bw);
 	return ret;
 }
 

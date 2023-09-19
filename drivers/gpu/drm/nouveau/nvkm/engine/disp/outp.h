@@ -58,6 +58,7 @@ struct nvkm_outp {
 				u8 nr;
 				u8 bw;
 				bool mst;
+				bool post_adj;
 			} lt;
 		} dp;
 	};
@@ -109,6 +110,7 @@ struct nvkm_outp_func {
 		int (*aux_pwr)(struct nvkm_outp *, bool pu);
 		int (*aux_xfer)(struct nvkm_outp *, u8 type, u32 addr, u8 *data, u8 *size);
 		int (*rates)(struct nvkm_outp *);
+		int (*train)(struct nvkm_outp *, bool retrain);
 	} dp;
 };
 
