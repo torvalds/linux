@@ -916,6 +916,33 @@ static struct sof_sdw_codec_info codec_info_list[] = {
 		.dai_num = 1,
 	},
 	{
+		.part_id = 0x4243,
+		.codec_name = "cs42l43-codec",
+		.dais = {
+			{
+				.direction = {true, false},
+				.dai_name = "cs42l43-dp5",
+				.dai_type = SOF_SDW_DAI_TYPE_JACK,
+				.dailink = {SDW_JACK_OUT_DAI_ID, SDW_UNUSED_DAI_ID},
+				.init = sof_sdw_cs42l43_hs_init,
+			},
+			{
+				.direction = {false, true},
+				.dai_name = "cs42l43-dp1",
+				.dai_type = SOF_SDW_DAI_TYPE_JACK,
+				.dailink = {SDW_UNUSED_DAI_ID, SDW_JACK_IN_DAI_ID},
+			},
+			{
+				.direction = {false, true},
+				.dai_name = "cs42l43-dp2",
+				.dai_type = SOF_SDW_DAI_TYPE_MIC,
+				.dailink = {SDW_UNUSED_DAI_ID, SDW_DMIC_DAI_ID},
+				.init = sof_sdw_cs42l43_dmic_init,
+			}
+		},
+		.dai_num = 3,
+	},
+	{
 		.part_id = 0xaaaa, /* generic codec mockup */
 		.version_id = 0,
 		.dais = {
