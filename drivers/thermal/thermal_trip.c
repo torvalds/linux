@@ -17,9 +17,6 @@ int for_each_thermal_trip(struct thermal_zone_device *tz,
 
 	lockdep_assert_held(&tz->lock);
 
-	if (!tz->trips)
-		return -ENODATA;
-
 	for (i = 0; i < tz->num_trips; i++) {
 		ret = cb(&tz->trips[i], data);
 		if (ret)
