@@ -102,6 +102,7 @@ int sof_tgl_ops_init(struct snd_sof_dev *sdev)
 
 		/* debug */
 		sof_tgl_ops.ipc_dump	= cnl_ipc4_dump;
+		sof_tgl_ops.dbg_dump	= hda_ipc4_dsp_dump;
 
 		sof_tgl_ops.set_power_state = hda_dsp_set_power_state_ipc4;
 	}
