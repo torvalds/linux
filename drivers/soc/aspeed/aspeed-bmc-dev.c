@@ -486,17 +486,15 @@ static int aspeed_bmc_device_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to find e2m regmap\n");
 		goto out_region;
 	}
-
-	dma_set_mask_and_coherent(dev, DMA_BIT_MASK(64));
 #else
 	bmc_device->scu = syscon_regmap_lookup_by_phandle(dev->of_node, "aspeed,scu");
 	if (IS_ERR(bmc_device->scu)) {
 		dev_err(&pdev->dev, "failed to find SCU regmap\n");
 		goto out_region;
 	}
-
-	dma_set_mask_and_coherent(dev, DMA_BIT_MASK(32));
 #endif
+
+	dma_set_mask_and_coherent(dev, DMA_BIT_MASK(64));
 
 	if (of_property_read_bool(dev->of_node, "pcie2lpc"))
 		bmc_device->pcie2lpc = 1;
