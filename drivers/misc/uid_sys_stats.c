@@ -558,7 +558,11 @@ static void update_io_stats_all(void)
 	}
 }
 
+#ifndef CONFIG_UID_SYS_STATS_DEBUG
+static void update_io_stats_uid(struct uid_entry *uid_entry)
+#else
 static void update_io_stats_uid_locked(struct uid_entry *uid_entry)
+#endif
 {
 	struct task_struct *task, *temp;
 	struct user_namespace *user_ns = current_user_ns();
@@ -639,6 +643,9 @@ static ssize_t uid_procstat_write(struct file *file,
 	uid_t uid;
 	int argc, state;
 	char input[128];
+#ifndef CONFIG_UID_SYS_STATS_DEBUG
+	struct uid_entry uid_entry_tmp;
+#endif
 
 	if (count >= sizeof(input))
 		return -EINVAL;
@@ -667,11 +674,39 @@ static ssize_t uid_procstat_write(struct file *file,
 		return count;
 	}
 
+#ifndef CONFIG_UID_SYS_STATS_DEBUG
+	/*
+	 * Update_io_stats_uid_locked would take a long lock-time of uid_lock
+	 * due to call do_each_thread to compute uid_entry->io, which would
+	 * cause to lock competition sometime.
+	 *
+	 * Using uid_entry_tmp to get the result of Update_io_stats_uid,
+	 * so that we can unlock_uid during update_io_stats_uid, in order
+	 * to avoid the unnecessary lock-time of uid_lock.
+	 */
+	uid_entry_tmp.uid = uid_entry->uid;
+	memcpy(uid_entry_tmp.io, uid_entry->io,
+				sizeof(struct io_stats) * UID_STATE_SIZE);
+	unlock_uid(uid);
+	update_io_stats_uid(&uid_entry_tmp);
+
+	lock_uid(uid);
+	hlist_for_each_entry(uid_entry, &hash_table[hash_min(uid, HASH_BITS(hash_table))], hash) {
+		if (uid_entry->uid == uid_entry_tmp.uid) {
+			memcpy(uid_entry->io, uid_entry_tmp.io,
+				sizeof(struct io_stats) * UID_STATE_SIZE);
+			uid_entry->state = state;
+			break;
+		}
+	}
+	unlock_uid(uid);
+#else
 	update_io_stats_uid_locked(uid_entry);
 
 	uid_entry->state = state;
 
 	unlock_uid(uid);
+#endif
 
 	return count;
 }
