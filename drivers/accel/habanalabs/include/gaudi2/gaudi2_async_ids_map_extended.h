@@ -1293,7 +1293,7 @@ static struct gaudi2_async_events_ids_map gaudi2_irq_map_table[] = {
 		 .name = "" },
 	{ .fc_id = 631, .cpu_id = 128, .valid = 1, .msg = 0, .reset = EVENT_RESET_TYPE_NONE,
 		 .name = "PCIE_P2P_MSIX" },
-	{ .fc_id = 632, .cpu_id = 129, .valid = 1, .msg = 0, .reset = EVENT_RESET_TYPE_NONE,
+	{ .fc_id = 632, .cpu_id = 129, .valid = 1, .msg = 0, .reset = EVENT_RESET_TYPE_HARD,
 		 .name = "PCIE_DRAIN_COMPLETE" },
 	{ .fc_id = 633, .cpu_id = 130, .valid = 1, .msg = 0, .reset = EVENT_RESET_TYPE_NONE,
 		 .name = "TPC0_BMON_SPMU" },
