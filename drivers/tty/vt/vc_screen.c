@@ -174,7 +174,7 @@ vcs_poll_data_get(struct file *file)
 }
 
 /**
- * vcs_vc -- return VC for @inode
+ * vcs_vc - return VC for @inode
  * @inode: inode for which to return a VC
  * @viewed: returns whether this console is currently foreground (viewed)
  *
@@ -199,7 +199,7 @@ static struct vc_data *vcs_vc(struct inode *inode, bool *viewed)
 }
 
 /**
- * vcs_size -- return size for a VC in @vc
+ * vcs_size - return size for a VC in @vc
  * @vc: which VC
  * @attr: does it use attributes?
  * @unicode: is it unicode?

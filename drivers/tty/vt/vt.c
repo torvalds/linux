@@ -2588,7 +2588,7 @@ static inline int vc_translate_ascii(const struct vc_data *vc, int c)
 
 
 /**
- * vc_sanitize_unicode -- Replace invalid Unicode code points with U+FFFD
+ * vc_sanitize_unicode - Replace invalid Unicode code points with U+FFFD
  * @c: the received character, or U+FFFD for invalid sequences.
  */
 static inline int vc_sanitize_unicode(const int c)
@@ -2600,7 +2600,7 @@ static inline int vc_sanitize_unicode(const int c)
 }
 
 /**
- * vc_translate_unicode -- Combine UTF-8 into Unicode in @vc_utf_char
+ * vc_translate_unicode - Combine UTF-8 into Unicode in @vc_utf_char
  * @vc: virtual console
  * @c: character to translate
  * @rescan: we return true if we need more (continuation) data
