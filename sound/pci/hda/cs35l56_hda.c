@@ -105,7 +105,7 @@ static void cs35l56_hda_playback_hook(struct device *dev, int action)
 	}
 }
 
-static int __maybe_unused cs35l56_hda_runtime_suspend(struct device *dev)
+static int cs35l56_hda_runtime_suspend(struct device *dev)
 {
 	struct cs35l56_hda *cs35l56 = dev_get_drvdata(dev);
 
@@ -115,7 +115,7 @@ static int __maybe_unused cs35l56_hda_runtime_suspend(struct device *dev)
 	return cs35l56_runtime_suspend_common(&cs35l56->base);
 }
 
-static int __maybe_unused cs35l56_hda_runtime_resume(struct device *dev)
+static int cs35l56_hda_runtime_resume(struct device *dev)
 {
 	struct cs35l56_hda *cs35l56 = dev_get_drvdata(dev);
 	int ret;
@@ -1015,7 +1015,7 @@ void cs35l56_hda_remove(struct device *dev)
 EXPORT_SYMBOL_NS_GPL(cs35l56_hda_remove, SND_HDA_SCODEC_CS35L56);
 
 const struct dev_pm_ops cs35l56_hda_pm_ops = {
-	SET_RUNTIME_PM_OPS(cs35l56_hda_runtime_suspend, cs35l56_hda_runtime_resume, NULL)
+	RUNTIME_PM_OPS(cs35l56_hda_runtime_suspend, cs35l56_hda_runtime_resume, NULL)
 	SYSTEM_SLEEP_PM_OPS(cs35l56_hda_system_suspend, cs35l56_hda_system_resume)
 	LATE_SYSTEM_SLEEP_PM_OPS(cs35l56_hda_system_suspend_late,
 				 cs35l56_hda_system_resume_early)
