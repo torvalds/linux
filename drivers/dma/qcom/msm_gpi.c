@@ -2410,10 +2410,12 @@ static int gpi_pause(struct dma_chan *chan)
 		chid = gpi_event->xfer_compl_event.chid;
 		type = gpi_event->xfer_compl_event.type;
 		GPII_ERR(gpii, GPI_DBG_COMMON,
-		  "chid:%u type:0x%x %08x %08x %08x %08x\n", chid, type,
-		gpi_event->gpi_ere.dword[0], gpi_event->gpi_ere.dword[1],
-		gpi_event->gpi_ere.dword[2], gpi_event->gpi_ere.dword[3]);
+			 "chid:%u type:0x%x %08x %08x %08x %08x rp:%pK rp1:%pK\n", chid, type,
+			 gpi_event->gpi_ere.dword[0], gpi_event->gpi_ere.dword[1],
+			 gpi_event->gpi_ere.dword[2], gpi_event->gpi_ere.dword[3], rp, rp1);
 		rp1 += ev_ring->el_size;
+		if (rp1  >= (ev_ring->base + ev_ring->len))
+			rp1 = ev_ring->base;
 	}
 
 	/* send stop command to stop the channels */
