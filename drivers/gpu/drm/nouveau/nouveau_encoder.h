@@ -62,7 +62,6 @@ struct nouveau_encoder {
 	/* Protected by nouveau_drm.audio.lock */
 	struct {
 		bool enabled;
-		struct drm_connector *connector;
 	} audio;
 
 	struct drm_display_mode mode;
