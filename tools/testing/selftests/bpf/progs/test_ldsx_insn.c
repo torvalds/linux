@@ -6,7 +6,8 @@
 #include <bpf/bpf_tracing.h>
 
 #if (defined(__TARGET_ARCH_arm64) || defined(__TARGET_ARCH_x86) || \
-     (defined(__TARGET_ARCH_riscv) && __riscv_xlen == 64)) && __clang_major__ >= 18
+     (defined(__TARGET_ARCH_riscv) && __riscv_xlen == 64) ||       \
+     defined(__TARGET_ARCH_s390)) && __clang_major__ >= 18
 const volatile int skip = 0;
 #else
 const volatile int skip = 1;
