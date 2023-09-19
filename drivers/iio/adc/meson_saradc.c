@@ -1437,15 +1437,13 @@ err:
 	return ret;
 }
 
-static int meson_sar_adc_remove(struct platform_device *pdev)
+static void meson_sar_adc_remove(struct platform_device *pdev)
 {
 	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
 
 	iio_device_unregister(indio_dev);
 
 	meson_sar_adc_hw_disable(indio_dev);
-
-	return 0;
 }
 
 static int meson_sar_adc_suspend(struct device *dev)
@@ -1480,7 +1478,7 @@ static DEFINE_SIMPLE_DEV_PM_OPS(meson_sar_adc_pm_ops,
 
 static struct platform_driver meson_sar_adc_driver = {
 	.probe		= meson_sar_adc_probe,
-	.remove		= meson_sar_adc_remove,
+	.remove_new	= meson_sar_adc_remove,
 	.driver		= {
 		.name	= "meson-saradc",
 		.of_match_table = meson_sar_adc_of_match,
