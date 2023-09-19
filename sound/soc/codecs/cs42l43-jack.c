@@ -127,7 +127,7 @@ int cs42l43_set_jack(struct snd_soc_component *component,
 
 	hs2 |= ret << CS42L43_HSBIAS_RAMP_SHIFT;
 
-	ret = cs42l43_find_index(priv, "cirrus,bias-sense-microamp", 0,
+	ret = cs42l43_find_index(priv, "cirrus,bias-sense-microamp", 14,
 				 &priv->bias_sense_ua, cs42l43_accdet_bias_sense,
 				 ARRAY_SIZE(cs42l43_accdet_bias_sense));
 	if (ret < 0)
