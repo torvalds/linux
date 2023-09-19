@@ -570,7 +570,6 @@ nouveau_connector_detect(struct drm_connector *connector, bool force)
 	struct nouveau_connector *nv_connector = nouveau_connector(connector);
 	struct nouveau_encoder *nv_encoder = NULL;
 	struct nouveau_encoder *nv_partner;
-	struct i2c_adapter *i2c;
 	int type;
 	int ret;
 	enum drm_connector_status conn_status = connector_status_disconnected;
@@ -593,15 +592,20 @@ nouveau_connector_detect(struct drm_connector *connector, bool force)
 	}
 
 	nv_encoder = nouveau_connector_ddc_detect(connector);
-	if (nv_encoder && (i2c = nv_encoder->i2c) != NULL) {
-		struct edid *new_edid;
+	if (nv_encoder) {
+		struct edid *new_edid = NULL;
 
-		if ((vga_switcheroo_handler_flags() &
-		     VGA_SWITCHEROO_CAN_SWITCH_DDC) &&
-		    nv_connector->type == DCB_CONNECTOR_LVDS)
-			new_edid = drm_get_edid_switcheroo(connector, i2c);
-		else
-			new_edid = drm_get_edid(connector, i2c);
+		if (nv_encoder->i2c) {
+			if ((vga_switcheroo_handler_flags() & VGA_SWITCHEROO_CAN_SWITCH_DDC) &&
+			    nv_connector->type == DCB_CONNECTOR_LVDS)
+				new_edid = drm_get_edid_switcheroo(connector, nv_encoder->i2c);
+			else
+				new_edid = drm_get_edid(connector, nv_encoder->i2c);
+		} else {
+			ret = nvif_outp_edid_get(&nv_encoder->outp, (u8 **)&new_edid);
+			if (ret < 0)
+				return connector_status_disconnected;
+		}
 
 		nouveau_connector_set_edid(nv_connector, new_edid);
 		if (!nv_connector->edid) {

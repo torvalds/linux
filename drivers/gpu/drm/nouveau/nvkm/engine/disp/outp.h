@@ -87,6 +87,7 @@ struct nvkm_outp_func {
 	void (*fini)(struct nvkm_outp *);
 
 	int (*detect)(struct nvkm_outp *);
+	int (*edid_get)(struct nvkm_outp *, u8 *data, u16 *size);
 
 	int (*acquire)(struct nvkm_outp *);
 	void (*release)(struct nvkm_outp *);

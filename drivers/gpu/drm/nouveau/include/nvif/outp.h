@@ -25,6 +25,7 @@ enum nvif_outp_detect_status {
 };
 
 enum nvif_outp_detect_status nvif_outp_detect(struct nvif_outp *);
+int nvif_outp_edid_get(struct nvif_outp *, u8 **pedid);
 
 int nvif_outp_load_detect(struct nvif_outp *, u32 loadval);
 int nvif_outp_acquire_rgb_crt(struct nvif_outp *);
