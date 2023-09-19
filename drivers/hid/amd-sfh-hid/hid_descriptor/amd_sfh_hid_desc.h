@@ -99,6 +99,7 @@ struct als_input_report {
 	struct common_input_property common_property;
 	/* values specific to this sensor */
 	int illuminance_value;
+	int light_color_temp;
 } __packed;
 
 struct hpd_feature_report {
