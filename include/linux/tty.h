@@ -390,14 +390,12 @@ int vcs_init(void);
 extern const struct class tty_class;
 
 /**
- *	tty_kref_get		-	get a tty reference
- *	@tty: tty device
+ * tty_kref_get - get a tty reference
+ * @tty: tty device
  *
- *	Return a new reference to a tty object. The caller must hold
- *	sufficient locks/counts to ensure that their existing reference cannot
- *	go away
+ * Returns: a new reference to a tty object. The caller must hold sufficient
+ * locks/counts to ensure that their existing reference cannot go away
  */
-
 static inline struct tty_struct *tty_kref_get(struct tty_struct *tty)
 {
 	if (tty)
@@ -435,14 +433,13 @@ void tty_encode_baud_rate(struct tty_struct *tty, speed_t ibaud,
 		speed_t obaud);
 
 /**
- *	tty_get_baud_rate	-	get tty bit rates
- *	@tty: tty to query
+ * tty_get_baud_rate - get tty bit rates
+ * @tty: tty to query
  *
- *	Returns the baud rate as an integer for this terminal. The
- *	termios lock must be held by the caller and the terminal bit
- *	flags may be updated.
+ * Returns: the baud rate as an integer for this terminal. The termios lock
+ * must be held by the caller and the terminal bit flags may be updated.
  *
- *	Locking: none
+ * Locking: none
  */
 static inline speed_t tty_get_baud_rate(struct tty_struct *tty)
 {
