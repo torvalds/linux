@@ -49,6 +49,8 @@ struct nouveau_encoder {
 	struct nvif_outp outp;
 	int or;
 
+	struct nouveau_connector *conn;
+
 	struct i2c_adapter *i2c;
 	struct nvkm_i2c_aux *aux;
 
