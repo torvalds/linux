@@ -1966,24 +1966,26 @@ static bool copy_from_read_buf(const struct tty_struct *tty, u8 **kbp,
 	size_t tail = MASK(ldata->read_tail);
 
 	n = min3(head - ldata->read_tail, N_TTY_BUF_SIZE - tail, *nr);
-	if (n) {
-		u8 *from = read_buf_addr(ldata, tail);
-		memcpy(*kbp, from, n);
-		is_eof = n == 1 && *from == EOF_CHAR(tty);
-		tty_audit_add_data(tty, from, n);
-		zero_buffer(tty, from, n);
-		smp_store_release(&ldata->read_tail, ldata->read_tail + n);
-		/* Turn single EOF into zero-length read */
-		if (L_EXTPROC(tty) && ldata->icanon && is_eof &&
-		    (head == ldata->read_tail))
-			return false;
-		*kbp += n;
-		*nr -= n;
+	if (!n)
+		return false;
 
-		/* If we have more to copy, let the caller know */
-		return head != ldata->read_tail;
-	}
-	return false;
+	u8 *from = read_buf_addr(ldata, tail);
+	memcpy(*kbp, from, n);
+	is_eof = n == 1 && *from == EOF_CHAR(tty);
+	tty_audit_add_data(tty, from, n);
+	zero_buffer(tty, from, n);
+	smp_store_release(&ldata->read_tail, ldata->read_tail + n);
+
+	/* Turn single EOF into zero-length read */
+	if (L_EXTPROC(tty) && ldata->icanon && is_eof &&
+	    head == ldata->read_tail)
+		return false;
+
+	*kbp += n;
+	*nr -= n;
+
+	/* If we have more to copy, let the caller know */
+	return head != ldata->read_tail;
 }
 
 /**
