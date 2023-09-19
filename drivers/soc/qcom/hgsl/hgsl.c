@@ -1768,19 +1768,6 @@ static int hgsl_ioctl_ctxt_create(struct file *filep, unsigned long arg)
 	init_waitqueue_head(&ctxt->wait_q);
 	mutex_init(&ctxt->lock);
 
-	write_lock(&hgsl->ctxt_lock);
-	if (hgsl->contexts[ctxt->context_id] != NULL) {
-		LOGE("context id %d already created",
-			ctxt->context_id);
-		ret = -EBUSY;
-		write_unlock(&hgsl->ctxt_lock);
-		goto out;
-	}
-
-	hgsl->contexts[ctxt->context_id] = ctxt;
-	write_unlock(&hgsl->ctxt_lock);
-	ctxt_created = true;
-
 	hgsl_get_shadowts_mem(hab_channel, ctxt);
 	if (hgsl->global_hyp_inited && !hgsl->db_off)
 		hgsl_ctxt_create_dbq(priv, hab_channel, ctxt);
@@ -1795,6 +1782,19 @@ static int hgsl_ioctl_ctxt_create(struct file *filep, unsigned long arg)
 		params.sync_type = HGSL_SYNC_TYPE_HSYNC;
 	else
 		params.sync_type = HGSL_SYNC_TYPE_ISYNC;
+
+	write_lock(&hgsl->ctxt_lock);
+	if (hgsl->contexts[ctxt->context_id] != NULL) {
+		LOGE("context id %d already created",
+			ctxt->context_id);
+		ret = -EBUSY;
+		write_unlock(&hgsl->ctxt_lock);
+		goto out;
+	}
+
+	hgsl->contexts[ctxt->context_id] = ctxt;
+	write_unlock(&hgsl->ctxt_lock);
+	ctxt_created = true;
 
 	if (copy_to_user(USRPTR(arg), &params, sizeof(params))) {
 		ret = -EFAULT;
