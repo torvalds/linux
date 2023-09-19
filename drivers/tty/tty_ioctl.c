@@ -104,7 +104,7 @@ void tty_unthrottle(struct tty_struct *tty)
 	if (test_and_clear_bit(TTY_THROTTLED, &tty->flags) &&
 	    tty->ops->unthrottle)
 		tty->ops->unthrottle(tty);
-	tty->flow_change = 0;
+	tty->flow_change = TTY_FLOW_NO_CHANGE;
 	up_write(&tty->termios_rwsem);
 }
 EXPORT_SYMBOL(tty_unthrottle);
