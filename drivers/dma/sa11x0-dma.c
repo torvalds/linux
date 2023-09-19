@@ -984,7 +984,7 @@ static int sa11x0_dma_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int sa11x0_dma_remove(struct platform_device *pdev)
+static void sa11x0_dma_remove(struct platform_device *pdev)
 {
 	struct sa11x0_dma_dev *d = platform_get_drvdata(pdev);
 	unsigned pch;
@@ -997,8 +997,6 @@ static int sa11x0_dma_remove(struct platform_device *pdev)
 	tasklet_kill(&d->task);
 	iounmap(d->base);
 	kfree(d);
-
-	return 0;
 }
 
 static __maybe_unused int sa11x0_dma_suspend(struct device *dev)
@@ -1081,7 +1079,7 @@ static struct platform_driver sa11x0_dma_driver = {
 		.pm	= &sa11x0_dma_pm_ops,
 	},
 	.probe		= sa11x0_dma_probe,
-	.remove		= sa11x0_dma_remove,
+	.remove_new	= sa11x0_dma_remove,
 };
 
 static int __init sa11x0_dma_init(void)
