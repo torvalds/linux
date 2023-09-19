@@ -10,7 +10,6 @@
             "requires": "nsPlugin"
         },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true"
         ],
         "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root fq",
         "expExitCode": "0",
@@ -18,8 +17,7 @@
         "matchPattern": "qdisc fq 1: root refcnt [0-9]+ limit",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY handle 1: root",
-            "$IP link del dev $DUMMY type dummy"
+            "$TC qdisc del dev $DUMMY handle 1: root"
         ]
     },
     {
@@ -33,7 +31,6 @@
             "requires": "nsPlugin"
         },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true"
         ],
         "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root fq limit 3000",
         "expExitCode": "0",
@@ -41,8 +38,7 @@
         "matchPattern": "qdisc fq 1: root refcnt [0-9]+ limit 3000p",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY handle 1: root",
-            "$IP link del dev $DUMMY type dummy"
+            "$TC qdisc del dev $DUMMY handle 1: root"
         ]
     },
     {
@@ -56,7 +52,6 @@
             "requires": "nsPlugin"
         },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true"
         ],
         "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root fq flow_limit 300",
         "expExitCode": "0",
@@ -64,8 +59,7 @@
         "matchPattern": "qdisc fq 1: root refcnt [0-9]+ limit 10000p flow_limit 300p",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY handle 1: root",
-            "$IP link del dev $DUMMY type dummy"
+            "$TC qdisc del dev $DUMMY handle 1: root"
         ]
     },
     {
@@ -79,7 +73,6 @@
             "requires": "nsPlugin"
         },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true"
         ],
         "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root fq quantum 9000",
         "expExitCode": "0",
@@ -87,8 +80,7 @@
         "matchPattern": "qdisc fq 1: root refcnt [0-9]+ limit 10000p flow_limit 100p buckets.*orphan_mask 1023 quantum 9000b",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY handle 1: root",
-            "$IP link del dev $DUMMY type dummy"
+            "$TC qdisc del dev $DUMMY handle 1: root"
         ]
     },
     {
@@ -102,7 +94,6 @@
             "requires": "nsPlugin"
         },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true"
         ],
         "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root fq initial_quantum 900000",
         "expExitCode": "0",
@@ -110,8 +101,7 @@
         "matchPattern": "qdisc fq 1: root refcnt [0-9]+ limit 10000p flow_limit 100p buckets.*initial_quantum 900000b",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY handle 1: root",
-            "$IP link del dev $DUMMY type dummy"
+            "$TC qdisc del dev $DUMMY handle 1: root"
         ]
     },
     {
@@ -125,7 +115,6 @@
             "requires": "nsPlugin"
         },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true"
         ],
         "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root fq initial_quantum 0x80000000",
         "expExitCode": "2",
@@ -133,7 +122,6 @@
         "matchPattern": "qdisc fq 1: root.*initial_quantum 2048Mb",
         "matchCount": "0",
         "teardown": [
-            "$IP link del dev $DUMMY type dummy"
         ]
     },
     {
@@ -147,7 +135,6 @@
             "requires": "nsPlugin"
         },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true"
         ],
         "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root fq maxrate 100000",
         "expExitCode": "0",
@@ -155,8 +142,7 @@
         "matchPattern": "qdisc fq 1: root refcnt [0-9]+ limit 10000p flow_limit 100p buckets.*maxrate 100Kbit",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY handle 1: root",
-            "$IP link del dev $DUMMY type dummy"
+            "$TC qdisc del dev $DUMMY handle 1: root"
         ]
     },
     {
@@ -170,7 +156,6 @@
             "requires": "nsPlugin"
         },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true"
         ],
         "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root fq nopacing",
         "expExitCode": "0",
@@ -178,8 +163,7 @@
         "matchPattern": "qdisc fq 1: root refcnt [0-9]+ limit 10000p flow_limit 100p.*nopacing",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY handle 1: root",
-            "$IP link del dev $DUMMY type dummy"
+            "$TC qdisc del dev $DUMMY handle 1: root"
         ]
     },
     {
@@ -193,7 +177,6 @@
             "requires": "nsPlugin"
         },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true"
         ],
         "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root fq refill_delay 100ms",
         "expExitCode": "0",
@@ -201,8 +184,7 @@
         "matchPattern": "qdisc fq 1: root refcnt [0-9]+ limit 10000p flow_limit 100p.*refill_delay 100ms",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY handle 1: root",
-            "$IP link del dev $DUMMY type dummy"
+            "$TC qdisc del dev $DUMMY handle 1: root"
         ]
     },
     {
@@ -216,7 +198,6 @@
             "requires": "nsPlugin"
         },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true"
         ],
         "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root fq low_rate_threshold 10000",
         "expExitCode": "0",
@@ -224,8 +205,7 @@
         "matchPattern": "qdisc fq 1: root refcnt [0-9]+ limit 10000p flow_limit 100p.*low_rate_threshold 10Kbit",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY handle 1: root",
-            "$IP link del dev $DUMMY type dummy"
+            "$TC qdisc del dev $DUMMY handle 1: root"
         ]
     },
     {
@@ -239,7 +219,6 @@
             "requires": "nsPlugin"
         },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true"
         ],
         "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root fq orphan_mask 255",
         "expExitCode": "0",
@@ -247,8 +226,7 @@
         "matchPattern": "qdisc fq 1: root refcnt [0-9]+ limit 10000p flow_limit 100p.*orphan_mask 255",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY handle 1: root",
-            "$IP link del dev $DUMMY type dummy"
+            "$TC qdisc del dev $DUMMY handle 1: root"
         ]
     },
     {
@@ -262,7 +240,6 @@
             "requires": "nsPlugin"
         },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true"
         ],
         "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root fq timer_slack 100",
         "expExitCode": "0",
@@ -270,8 +247,7 @@
         "matchPattern": "qdisc fq 1: root refcnt [0-9]+ limit 10000p flow_limit 100p.*timer_slack 100ns",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY handle 1: root",
-            "$IP link del dev $DUMMY type dummy"
+            "$TC qdisc del dev $DUMMY handle 1: root"
         ]
     },
     {
@@ -285,7 +261,6 @@
             "requires": "nsPlugin"
         },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true"
         ],
         "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root fq ce_threshold 100",
         "expExitCode": "0",
@@ -293,8 +268,7 @@
         "matchPattern": "qdisc fq 1: root refcnt [0-9]+ limit 10000p flow_limit 100p",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY handle 1: root",
-            "$IP link del dev $DUMMY type dummy"
+            "$TC qdisc del dev $DUMMY handle 1: root"
         ]
     },
     {
@@ -308,7 +282,6 @@
             "requires": "nsPlugin"
         },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true"
         ],
         "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root fq horizon 100",
         "expExitCode": "0",
@@ -316,8 +289,7 @@
         "matchPattern": "qdisc fq 1: root refcnt [0-9]+ limit 10000p flow_limit 100p.*horizon 100us",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY handle 1: root",
-            "$IP link del dev $DUMMY type dummy"
+            "$TC qdisc del dev $DUMMY handle 1: root"
         ]
     },
     {
@@ -331,7 +303,6 @@
             "requires": "nsPlugin"
         },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true"
         ],
         "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root fq horizon_cap",
         "expExitCode": "0",
@@ -339,8 +310,7 @@
         "matchPattern": "qdisc fq 1: root refcnt [0-9]+ limit 10000p flow_limit 100p.*horizon_cap",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY handle 1: root",
-            "$IP link del dev $DUMMY type dummy"
+            "$TC qdisc del dev $DUMMY handle 1: root"
         ]
     },
     {
@@ -354,7 +324,6 @@
             "requires": "nsPlugin"
         },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true",
             "$TC qdisc add dev $DUMMY handle 1: root fq"
         ],
         "cmdUnderTest": "$TC qdisc del dev $DUMMY handle 1: root",
@@ -363,7 +332,6 @@
         "matchPattern": "qdisc fq 1: root refcnt [0-9]+ limit 10000p",
         "matchCount": "0",
         "teardown": [
-            "$IP link del dev $DUMMY type dummy"
         ]
     },
     {
@@ -377,7 +345,6 @@
             "requires": "nsPlugin"
         },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true",
             "$TC qdisc add dev $DUMMY handle 1: root fq"
         ],
         "cmdUnderTest": "$TC qdisc replace dev $DUMMY handle 1: root fq limit 5000",
@@ -386,8 +353,7 @@
         "matchPattern": "qdisc fq 1: root refcnt [0-9]+ limit 5000p",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY handle 1: root",
-            "$IP link del dev $DUMMY type dummy"
+            "$TC qdisc del dev $DUMMY handle 1: root"
         ]
     },
     {
@@ -401,7 +367,6 @@
             "requires": "nsPlugin"
         },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true",
             "$TC qdisc add dev $DUMMY handle 1: root fq"
         ],
         "cmdUnderTest": "$TC qdisc change dev $DUMMY handle 1: root fq limit 100",
@@ -410,8 +375,7 @@
         "matchPattern": "qdisc fq 1: root refcnt [0-9]+ limit 100p",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY handle 1: root",
-            "$IP link del dev $DUMMY type dummy"
+            "$TC qdisc del dev $DUMMY handle 1: root"
         ]
     }
 ]

@@ -10,7 +10,6 @@
             "requires": "nsPlugin"
         },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true"
         ],
         "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root tbf limit 1000 burst 1500 rate 10000",
         "expExitCode": "0",
@@ -18,8 +17,7 @@
         "matchPattern": "qdisc tbf 1: root refcnt [0-9]+ rate 10Kbit burst 1500b limit 1000b",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY handle 1: root",
-            "$IP link del dev $DUMMY type dummy"
+            "$TC qdisc del dev $DUMMY handle 1: root"
         ]
     },
     {
@@ -33,7 +31,6 @@
             "requires": "nsPlugin"
         },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true"
         ],
         "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root tbf limit 1000 burst 1500 rate 20000 mtu 2048",
         "expExitCode": "0",
@@ -41,8 +38,7 @@
         "matchPattern": "qdisc tbf 1: root refcnt [0-9]+ rate 20Kbit burst 1500b limit 1000b",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY handle 1: root",
-            "$IP link del dev $DUMMY type dummy"
+            "$TC qdisc del dev $DUMMY handle 1: root"
         ]
     },
     {
@@ -56,7 +52,6 @@
             "requires": "nsPlugin"
         },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true"
         ],
         "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root tbf limit 1000 burst 1500 rate 20000 mtu 1510 peakrate 30000",
         "expExitCode": "0",
@@ -64,8 +59,7 @@
         "matchPattern": "qdisc tbf 1: root refcnt [0-9]+ rate 20Kbit burst 1500b peakrate 30Kbit minburst.*limit 1000b",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY handle 1: root",
-            "$IP link del dev $DUMMY type dummy"
+            "$TC qdisc del dev $DUMMY handle 1: root"
         ]
     },
     {
@@ -79,7 +73,6 @@
             "requires": "nsPlugin"
         },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true"
         ],
         "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root tbf burst 1500 rate 20000 latency 100ms",
         "expExitCode": "0",
@@ -87,8 +80,7 @@
         "matchPattern": "qdisc tbf 1: root refcnt [0-9]+ rate 20Kbit burst 1500b lat 100ms",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY handle 1: root",
-            "$IP link del dev $DUMMY type dummy"
+            "$TC qdisc del dev $DUMMY handle 1: root"
         ]
     },
     {
@@ -102,7 +94,6 @@
             "requires": "nsPlugin"
         },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true"
         ],
         "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root tbf limit 1000 burst 1500 rate 20000 overhead 300",
         "expExitCode": "0",
@@ -110,8 +101,7 @@
         "matchPattern": "qdisc tbf 1: root refcnt [0-9]+ rate 20Kbit burst 1800b limit 1000b overhead 300",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY handle 1: root",
-            "$IP link del dev $DUMMY type dummy"
+            "$TC qdisc del dev $DUMMY handle 1: root"
         ]
     },
     {
@@ -125,7 +115,6 @@
             "requires": "nsPlugin"
         },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true"
         ],
         "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root tbf limit 1000 burst 1500 rate 20000 linklayer atm",
         "expExitCode": "0",
@@ -133,8 +122,7 @@
         "matchPattern": "qdisc tbf 1: root refcnt [0-9]+ rate 20Kbit burst 1696b limit 1000b linklayer atm",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY handle 1: root",
-            "$IP link del dev $DUMMY type dummy"
+            "$TC qdisc del dev $DUMMY handle 1: root"
         ]
     },
     {
@@ -148,7 +136,6 @@
             "requires": "nsPlugin"
         },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true",
             "$TC qdisc add dev $DUMMY handle 1: root tbf limit 1000 burst 1500 rate 20000 linklayer atm"
         ],
         "cmdUnderTest": "$TC qdisc replace dev $DUMMY handle 1: root tbf limit 1000 burst 1500 rate 20000 linklayer ethernet",
@@ -157,8 +144,7 @@
         "matchPattern": "qdisc tbf 1: root refcnt [0-9]+ rate 20Kbit burst 1500b limit 1000b",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY handle 1: root",
-            "$IP link del dev $DUMMY type dummy"
+            "$TC qdisc del dev $DUMMY handle 1: root"
         ]
     },
     {
@@ -172,7 +158,6 @@
             "requires": "nsPlugin"
         },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true",
             "$TC qdisc add dev $DUMMY handle 1: root tbf burst 1500 rate 20000 latency 10ms"
         ],
         "cmdUnderTest": "$TC qdisc change dev $DUMMY handle 1: root tbf burst 1500 rate 20000 latency 200ms",
@@ -181,8 +166,7 @@
         "matchPattern": "qdisc tbf 1: root refcnt [0-9]+ rate 20Kbit burst 1500b lat 200ms",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY handle 1: root",
-            "$IP link del dev $DUMMY type dummy"
+            "$TC qdisc del dev $DUMMY handle 1: root"
         ]
     },
     {
@@ -196,7 +180,6 @@
             "requires": "nsPlugin"
         },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true"
         ],
         "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root tbf limit 1000 burst 1500 rate 10000",
         "expExitCode": "0",
@@ -204,8 +187,7 @@
         "matchPattern": "class tbf.*parent 1:",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY handle 1: root",
-            "$IP link del dev $DUMMY type dummy"
+            "$TC qdisc del dev $DUMMY handle 1: root"
         ]
     }
 ]

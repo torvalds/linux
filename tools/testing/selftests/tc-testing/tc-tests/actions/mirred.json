@@ -6,6 +6,9 @@
             "actions",
             "mirred"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mirred",
@@ -30,6 +33,9 @@
             "actions",
             "mirred"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mirred",
@@ -55,6 +61,9 @@
             "actions",
             "mirred"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mirred",
@@ -81,6 +90,9 @@
             "actions",
             "mirred"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mirred",
@@ -105,6 +117,9 @@
             "actions",
             "mirred"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mirred",
@@ -129,6 +144,9 @@
             "actions",
             "mirred"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mirred",
@@ -153,6 +171,9 @@
             "actions",
             "mirred"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mirred",
@@ -178,6 +199,9 @@
             "actions",
             "mirred"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mirred",
@@ -202,6 +226,9 @@
             "actions",
             "mirred"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mirred",
@@ -226,6 +253,9 @@
             "actions",
             "mirred"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mirred",
@@ -250,6 +280,9 @@
             "actions",
             "mirred"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mirred",
@@ -274,6 +307,9 @@
             "actions",
             "mirred"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mirred",
@@ -298,6 +334,9 @@
             "actions",
             "mirred"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mirred",
@@ -322,6 +361,9 @@
             "actions",
             "mirred"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mirred",
@@ -346,6 +388,9 @@
             "actions",
             "mirred"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mirred",
@@ -370,6 +415,9 @@
             "actions",
             "mirred"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mirred",
@@ -392,6 +440,9 @@
             "actions",
             "mirred"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mirred",
@@ -417,6 +468,9 @@
             "actions",
             "mirred"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mirred",
@@ -442,6 +496,9 @@
             "actions",
             "mirred"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mirred",
@@ -467,6 +524,9 @@
             "actions",
             "mirred"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mirred",
@@ -491,6 +551,9 @@
             "actions",
             "mirred"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mirred",
@@ -514,6 +577,9 @@
             "actions",
             "mirred"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mirred",
@@ -538,6 +604,9 @@
             "actions",
             "mirred"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mirred",
@@ -561,6 +630,9 @@
             "actions",
             "mirred"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mirred",
