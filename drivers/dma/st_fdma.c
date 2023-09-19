@@ -849,15 +849,13 @@ err:
 	return ret;
 }
 
-static int st_fdma_remove(struct platform_device *pdev)
+static void st_fdma_remove(struct platform_device *pdev)
 {
 	struct st_fdma_dev *fdev = platform_get_drvdata(pdev);
 
 	devm_free_irq(&pdev->dev, fdev->irq, fdev);
 	st_slim_rproc_put(fdev->slim_rproc);
 	of_dma_controller_free(pdev->dev.of_node);
-
-	return 0;
 }
 
 static struct platform_driver st_fdma_platform_driver = {
@@ -866,7 +864,7 @@ static struct platform_driver st_fdma_platform_driver = {
 		.of_match_table = st_fdma_match,
 	},
 	.probe = st_fdma_probe,
-	.remove = st_fdma_remove,
+	.remove_new = st_fdma_remove,
 };
 module_platform_driver(st_fdma_platform_driver);
 
