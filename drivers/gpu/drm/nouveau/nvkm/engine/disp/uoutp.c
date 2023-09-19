@@ -606,10 +606,60 @@ nvkm_uoutp_new(const struct nvkm_oclass *oclass, void *argv, u32 argc, struct nv
 	ret = -EBUSY;
 	spin_lock(&disp->client.lock);
 	if (!outp->object.func) {
+		switch (outp->info.type) {
+		case DCB_OUTPUT_ANALOG:
+			args->v0.type = NVIF_OUTP_V0_TYPE_DAC;
+			args->v0.proto = NVIF_OUTP_V0_PROTO_RGB_CRT;
+			args->v0.rgb_crt.freq_max = outp->info.crtconf.maxfreq;
+			break;
+		case DCB_OUTPUT_TMDS:
+			if (!outp->info.location) {
+				args->v0.type = NVIF_OUTP_V0_TYPE_SOR;
+				args->v0.tmds.dual = (outp->info.tmdsconf.sor.link == 3);
+			} else {
+				args->v0.type = NVIF_OUTP_V0_TYPE_PIOR;
+				args->v0.tmds.dual = 0;
+			}
+			args->v0.proto = NVIF_OUTP_V0_PROTO_TMDS;
+			break;
+		case DCB_OUTPUT_LVDS:
+			args->v0.type = NVIF_OUTP_V0_TYPE_SOR;
+			args->v0.proto = NVIF_OUTP_V0_PROTO_LVDS;
+			args->v0.lvds.acpi_edid = outp->info.lvdsconf.use_acpi_for_edid;
+			break;
+		case DCB_OUTPUT_DP:
+			if (!outp->info.location) {
+				args->v0.type = NVIF_OUTP_V0_TYPE_SOR;
+				args->v0.dp.aux = outp->info.i2c_index;
+			} else {
+				args->v0.type = NVIF_OUTP_V0_TYPE_PIOR;
+				args->v0.dp.aux = NVKM_I2C_AUX_EXT(outp->info.extdev);
+			}
+			args->v0.proto = NVIF_OUTP_V0_PROTO_DP;
+			args->v0.dp.mst = outp->dp.mst;
+			args->v0.dp.increased_wm = outp->dp.increased_wm;
+			args->v0.dp.link_nr = outp->info.dpconf.link_nr;
+			args->v0.dp.link_bw = outp->info.dpconf.link_bw * 27000;
+			break;
+		default:
+			WARN_ON(1);
+			ret = -EINVAL;
+			goto done;
+		}
+
+		if (outp->info.location)
+			args->v0.ddc = NVKM_I2C_BUS_EXT(outp->info.extdev);
+		else
+			args->v0.ddc = outp->info.i2c_index;
+		args->v0.heads = outp->info.heads;
+		args->v0.conn = outp->info.connector;
+
 		nvkm_object_ctor(&nvkm_uoutp, oclass, &outp->object);
 		*pobject = &outp->object;
 		ret = 0;
 	}
+
+done:
 	spin_unlock(&disp->client.lock);
 	return ret;
 }

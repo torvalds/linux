@@ -66,8 +66,6 @@
 #include "nouveau_fence.h"
 #include "nv50_display.h"
 
-#include <subdev/bios/dp.h>
-
 /******************************************************************************
  * EVO channel
  *****************************************************************************/
@@ -1704,7 +1702,7 @@ nv50_sor_atomic_enable(struct drm_encoder *encoder, struct drm_atomic_state *sta
 	}
 
 	if (head->func->display_id)
-		head->func->display_id(head, BIT(nv_encoder->dcb->id));
+		head->func->display_id(head, BIT(nv_encoder->outp.id));
 
 	nv_encoder->update(nv_encoder, nv_crtc->index, asyh, proto, depth);
 }
@@ -1735,16 +1733,6 @@ static const struct drm_encoder_funcs
 nv50_sor_func = {
 	.destroy = nv50_sor_destroy,
 };
-
-bool nv50_has_mst(struct nouveau_drm *drm)
-{
-	struct nvkm_bios *bios = nvxx_bios(&drm->client.device);
-	u32 data;
-	u8 ver, hdr, cnt, len;
-
-	data = nvbios_dp_table(bios, &ver, &hdr, &cnt, &len);
-	return data && ver >= 0x40 && (nvbios_rd08(bios, data + 0x08) & 0x04);
-}
 
 static int
 nv50_sor_create(struct nouveau_encoder *nv_encoder)
@@ -1798,15 +1786,15 @@ nv50_sor_create(struct nouveau_encoder *nv_encoder)
 			nv_encoder->i2c = &nv_connector->aux.ddc;
 		}
 
-		if (nv_connector->type != DCB_CONNECTOR_eDP &&
-		    nv50_has_mst(drm)) {
+		if (nv_connector->type != DCB_CONNECTOR_eDP && nv_encoder->outp.info.dp.mst) {
 			ret = nv50_mstm_new(nv_encoder, &nv_connector->aux,
 					    16, nv_connector->base.base.id,
 					    &nv_encoder->dp.mstm);
 			if (ret)
 				return ret;
 		}
-	} else {
+	} else
+	if (nv_encoder->outp.info.ddc != NVIF_OUTP_DDC_INVALID) {
 		struct nvkm_i2c_bus *bus =
 			nvkm_i2c_bus_find(i2c, dcbe->i2c_index);
 		if (bus)
@@ -1927,12 +1915,12 @@ nv50_pior_create(struct nouveau_encoder *nv_encoder)
 
 	switch (dcbe->type) {
 	case DCB_OUTPUT_TMDS:
-		bus  = nvkm_i2c_bus_find(i2c, NVKM_I2C_BUS_EXT(dcbe->extdev));
+		bus  = nvkm_i2c_bus_find(i2c, nv_encoder->outp.info.ddc);
 		ddc  = bus ? &bus->i2c : NULL;
 		type = DRM_MODE_ENCODER_TMDS;
 		break;
 	case DCB_OUTPUT_DP:
-		aux  = nvkm_i2c_aux_find(i2c, NVKM_I2C_AUX_EXT(dcbe->extdev));
+		aux  = nvkm_i2c_aux_find(i2c, nv_encoder->outp.info.dp.aux);
 		ddc  = aux ? &aux->i2c : NULL;
 		type = DRM_MODE_ENCODER_TMDS;
 		break;
@@ -2693,12 +2681,10 @@ int
 nv50_display_create(struct drm_device *dev)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct dcb_table *dcb = &drm->vbios.dcb;
 	struct drm_connector *connector, *tmp;
 	struct nv50_disp *disp;
-	struct dcb_output *dcbe;
 	int ret, i;
-	bool has_mst = nv50_has_mst(drm);
+	bool has_mst = false;
 
 	disp = kzalloc(sizeof(*disp), GFP_KERNEL);
 	if (!disp)
@@ -2775,54 +2761,75 @@ nv50_display_create(struct drm_device *dev)
 	}
 
 	/* create encoder/connector objects based on VBIOS DCB table */
-	for (i = 0, dcbe = &dcb->entry[0]; i < dcb->entries; i++, dcbe++) {
+	for_each_set_bit(i, &disp->disp->outp_mask, sizeof(disp->disp->outp_mask) * 8) {
 		struct nouveau_encoder *outp;
 
 		outp = kzalloc(sizeof(*outp), GFP_KERNEL);
 		if (!outp)
 			break;
 
-		ret = nvif_outp_ctor(disp->disp, "kmsOutp", dcbe->id, &outp->outp);
+		ret = nvif_outp_ctor(disp->disp, "kmsOutp", i, &outp->outp);
 		if (ret) {
 			kfree(outp);
 			continue;
 		}
 
-		connector = nouveau_connector_create(dev, dcbe->connector);
+		connector = nouveau_connector_create(dev, outp->outp.info.conn);
 		if (IS_ERR(connector)) {
 			nvif_outp_dtor(&outp->outp);
 			kfree(outp);
 			continue;
 		}
 
-		outp->base.base.possible_crtcs = dcbe->heads;
+		outp->base.base.possible_crtcs = outp->outp.info.heads;
 		outp->base.base.possible_clones = 0;
-		outp->dcb = dcbe;
 		outp->conn = nouveau_connector(connector);
 
-		if (dcbe->location == DCB_LOC_ON_CHIP) {
-			switch (dcbe->type) {
-			case DCB_OUTPUT_TMDS:
-			case DCB_OUTPUT_LVDS:
-			case DCB_OUTPUT_DP:
-				ret = nv50_sor_create(outp);
-				break;
-			case DCB_OUTPUT_ANALOG:
-				ret = nv50_dac_create(outp);
-				break;
-			default:
-				ret = -ENODEV;
-				break;
-			}
-		} else {
-			ret = nv50_pior_create(outp);
+		outp->dcb = kzalloc(sizeof(*outp->dcb), GFP_KERNEL);
+		if (!outp->dcb)
+			break;
+
+		switch (outp->outp.info.proto) {
+		case NVIF_OUTP_RGB_CRT:
+			outp->dcb->type = DCB_OUTPUT_ANALOG;
+			outp->dcb->crtconf.maxfreq = outp->outp.info.rgb_crt.freq_max;
+			break;
+		case NVIF_OUTP_TMDS:
+			outp->dcb->type = DCB_OUTPUT_TMDS;
+			outp->dcb->duallink_possible = outp->outp.info.tmds.dual;
+			break;
+		case NVIF_OUTP_LVDS:
+			outp->dcb->type = DCB_OUTPUT_LVDS;
+			outp->dcb->lvdsconf.use_acpi_for_edid = outp->outp.info.lvds.acpi_edid;
+			break;
+		case NVIF_OUTP_DP:
+			outp->dcb->type = DCB_OUTPUT_DP;
+			outp->dcb->dpconf.link_nr = outp->outp.info.dp.link_nr;
+			outp->dcb->dpconf.link_bw = outp->outp.info.dp.link_bw;
+			if (outp->outp.info.dp.mst)
+				has_mst = true;
+			break;
+		default:
+			WARN_ON(1);
+			continue;
+		}
+
+		outp->dcb->heads = outp->outp.info.heads;
+		outp->dcb->connector = outp->outp.info.conn;
+		outp->dcb->i2c_index = outp->outp.info.ddc;
+
+		switch (outp->outp.info.type) {
+		case NVIF_OUTP_DAC : ret = nv50_dac_create(outp); break;
+		case NVIF_OUTP_SOR : ret = nv50_sor_create(outp); break;
+		case NVIF_OUTP_PIOR: ret = nv50_pior_create(outp); break;
+		default:
+			WARN_ON(1);
+			continue;
 		}
 
 		if (ret) {
 			NV_WARN(drm, "failed to create encoder %d/%d/%d: %d\n",
-				     dcbe->location, dcbe->type,
-				     ffs(dcbe->or) - 1, ret);
-			ret = 0;
+				i, outp->outp.info.type, outp->outp.info.proto, ret);
 		}
 	}
 

@@ -511,6 +511,50 @@ nvif_outp_ctor(struct nvif_disp *disp, const char *name, int id, struct nvif_out
 	if (ret)
 		return ret;
 
+	outp->id = args.id;
+
+	switch (args.type) {
+	case NVIF_OUTP_V0_TYPE_DAC : outp->info.type = NVIF_OUTP_DAC; break;
+	case NVIF_OUTP_V0_TYPE_SOR : outp->info.type = NVIF_OUTP_SOR; break;
+	case NVIF_OUTP_V0_TYPE_PIOR: outp->info.type = NVIF_OUTP_PIOR; break;
+		break;
+	default:
+		WARN_ON(1);
+		nvif_outp_dtor(outp);
+		return -EINVAL;
+	}
+
+	switch (args.proto) {
+	case NVIF_OUTP_V0_PROTO_RGB_CRT:
+		outp->info.proto = NVIF_OUTP_RGB_CRT;
+		outp->info.rgb_crt.freq_max = args.rgb_crt.freq_max;
+		break;
+	case NVIF_OUTP_V0_PROTO_TMDS:
+		outp->info.proto = NVIF_OUTP_TMDS;
+		outp->info.tmds.dual = args.tmds.dual;
+		break;
+	case NVIF_OUTP_V0_PROTO_LVDS:
+		outp->info.proto = NVIF_OUTP_LVDS;
+		outp->info.lvds.acpi_edid = args.lvds.acpi_edid;
+		break;
+	case NVIF_OUTP_V0_PROTO_DP:
+		outp->info.proto = NVIF_OUTP_DP;
+		outp->info.dp.aux = args.dp.aux;
+		outp->info.dp.mst = args.dp.mst;
+		outp->info.dp.increased_wm = args.dp.increased_wm;
+		outp->info.dp.link_nr = args.dp.link_nr;
+		outp->info.dp.link_bw = args.dp.link_bw;
+		break;
+	default:
+		WARN_ON(1);
+		nvif_outp_dtor(outp);
+		return -EINVAL;
+	}
+
+	outp->info.heads = args.heads;
+	outp->info.ddc = args.ddc;
+	outp->info.conn = args.conn;
+
 	outp->or.id = -1;
 	return 0;
 }
