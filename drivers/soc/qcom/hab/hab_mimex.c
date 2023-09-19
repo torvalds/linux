@@ -547,7 +547,10 @@ int hab_mem_import(struct uhab_context *ctx,
 
 err_imp:
 	if (vchan) {
-		if (vchan->pchan->mem_proto == 1 && (found == 1) && (ret != 0)) {
+		if ((vchan->pchan != NULL) &&
+			(vchan->pchan->mem_proto == 1) &&
+			(found == 1) &&
+			(ret != 0)) {
 			/* dma_buf create failure, rollback required */
 			hab_send_unimport_msg(vchan, exp->export_id);
 

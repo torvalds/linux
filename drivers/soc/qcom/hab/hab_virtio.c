@@ -126,6 +126,9 @@ static void virthab_recv_txq(struct virtqueue *vq)
 	unsigned long flags;
 	unsigned int len;
 
+	if (!vpc)
+		return;
+
 	spin_lock_irqsave(&vpc->lock[HAB_PCHAN_TX_VQ], flags);
 	if (vpc->pchan_ready) {
 		if (vq != vpc->vq[HAB_PCHAN_TX_VQ])
@@ -189,11 +192,15 @@ static void virthab_recv_rxq(unsigned long p)
 	struct vq_pchan *vpc = get_virtio_pchan(vh, vq);
 	char *inbuf;
 	unsigned int len;
-	struct physical_channel *pchan = vpc->pchan;
+	struct physical_channel *pchan = NULL;
 	struct scatterlist sg[1];
 	int rc;
 	struct vh_buf_header *hd = NULL;
 
+	if (!vpc)
+		return;
+
+	pchan = vpc->pchan;
 	if (vq != vpc->vq[HAB_PCHAN_RX_VQ])
 		pr_err("%s failed to match rxq %pK expecting %pK\n",
 			vq->name, vq, vpc->vq[HAB_PCHAN_RX_VQ]);
@@ -263,6 +270,9 @@ static void virthab_recv_rxq_task(struct virtqueue *vq)
 {
 	struct virtio_hab *vh = get_vh(vq->vdev);
 	struct vq_pchan *vpc = get_virtio_pchan(vh, vq);
+
+	if (!vpc)
+		return;
 
 	tasklet_schedule(&vpc->task);
 }
