@@ -1277,6 +1277,9 @@ static irqreturn_t rockchip_sai_isr(int irq, void *devid)
 		dev_warn_ratelimited(sai->dev, "TX FIFO Underrun\n");
 		regmap_update_bits(sai->regmap, SAI_INTCR,
 				   SAI_INTCR_TXUIC, SAI_INTCR_TXUIC);
+		regmap_update_bits(sai->regmap, SAI_INTCR,
+				   SAI_INTCR_TXUIE_MASK,
+				   SAI_INTCR_TXUIE(0));
 		substream = sai->substreams[SNDRV_PCM_STREAM_PLAYBACK];
 		if (substream)
 			snd_pcm_stop_xrun(substream);
@@ -1286,6 +1289,9 @@ static irqreturn_t rockchip_sai_isr(int irq, void *devid)
 		dev_warn_ratelimited(sai->dev, "RX FIFO Overrun\n");
 		regmap_update_bits(sai->regmap, SAI_INTCR,
 				   SAI_INTCR_RXOIC, SAI_INTCR_RXOIC);
+		regmap_update_bits(sai->regmap, SAI_INTCR,
+				   SAI_INTCR_RXOIE_MASK,
+				   SAI_INTCR_RXOIE(0));
 		substream = sai->substreams[SNDRV_PCM_STREAM_CAPTURE];
 		if (substream)
 			snd_pcm_stop_xrun(substream);
