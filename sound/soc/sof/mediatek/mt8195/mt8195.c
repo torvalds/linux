@@ -635,16 +635,16 @@ static struct snd_sof_of_mach sof_mt8195_machs[] = {
 
 static const struct sof_dev_desc sof_of_mt8195_desc = {
 	.of_machines = sof_mt8195_machs,
-	.ipc_supported_mask	= BIT(SOF_IPC),
-	.ipc_default		= SOF_IPC,
+	.ipc_supported_mask	= BIT(SOF_IPC_TYPE_3),
+	.ipc_default		= SOF_IPC_TYPE_3,
 	.default_fw_path = {
-		[SOF_IPC] = "mediatek/sof",
+		[SOF_IPC_TYPE_3] = "mediatek/sof",
 	},
 	.default_tplg_path = {
-		[SOF_IPC] = "mediatek/sof-tplg",
+		[SOF_IPC_TYPE_3] = "mediatek/sof-tplg",
 	},
 	.default_fw_filename = {
-		[SOF_IPC] = "sof-mt8195.ri",
+		[SOF_IPC_TYPE_3] = "sof-mt8195.ri",
 	},
 	.nocodec_tplg_filename = "sof-mt8195-nocodec.tplg",
 	.ops = &sof_mt8195_ops,

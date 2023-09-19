@@ -607,16 +607,16 @@ static struct snd_sof_of_mach sof_mt8186_machs[] = {
 
 static const struct sof_dev_desc sof_of_mt8186_desc = {
 	.of_machines = sof_mt8186_machs,
-	.ipc_supported_mask	= BIT(SOF_IPC),
-	.ipc_default		= SOF_IPC,
+	.ipc_supported_mask	= BIT(SOF_IPC_TYPE_3),
+	.ipc_default		= SOF_IPC_TYPE_3,
 	.default_fw_path = {
-		[SOF_IPC] = "mediatek/sof",
+		[SOF_IPC_TYPE_3] = "mediatek/sof",
 	},
 	.default_tplg_path = {
-		[SOF_IPC] = "mediatek/sof-tplg",
+		[SOF_IPC_TYPE_3] = "mediatek/sof-tplg",
 	},
 	.default_fw_filename = {
-		[SOF_IPC] = "sof-mt8186.ri",
+		[SOF_IPC_TYPE_3] = "sof-mt8186.ri",
 	},
 	.nocodec_tplg_filename = "sof-mt8186-nocodec.tplg",
 	.ops = &sof_mt8186_ops,
@@ -681,16 +681,16 @@ static struct snd_sof_of_mach sof_mt8188_machs[] = {
 
 static const struct sof_dev_desc sof_of_mt8188_desc = {
 	.of_machines = sof_mt8188_machs,
-	.ipc_supported_mask	= BIT(SOF_IPC),
-	.ipc_default		= SOF_IPC,
+	.ipc_supported_mask	= BIT(SOF_IPC_TYPE_3),
+	.ipc_default		= SOF_IPC_TYPE_3,
 	.default_fw_path = {
-		[SOF_IPC] = "mediatek/sof",
+		[SOF_IPC_TYPE_3] = "mediatek/sof",
 	},
 	.default_tplg_path = {
-		[SOF_IPC] = "mediatek/sof-tplg",
+		[SOF_IPC_TYPE_3] = "mediatek/sof-tplg",
 	},
 	.default_fw_filename = {
-		[SOF_IPC] = "sof-mt8188.ri",
+		[SOF_IPC_TYPE_3] = "sof-mt8188.ri",
 	},
 	.nocodec_tplg_filename = "sof-mt8188-nocodec.tplg",
 	.ops = &sof_mt8188_ops,
