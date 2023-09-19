@@ -607,7 +607,7 @@ void hda_set_dai_drv_ops(struct snd_sof_dev *sdev, struct snd_sof_dsp_ops *ops)
 	ssp_set_dai_drv_ops(sdev, ops);
 	dmic_set_dai_drv_ops(sdev, ops);
 
-	if (sdev->pdata->ipc_type == SOF_INTEL_IPC4 && !hda_use_tplg_nhlt) {
+	if (sdev->pdata->ipc_type == SOF_IPC_TYPE_4 && !hda_use_tplg_nhlt) {
 		struct sof_ipc4_fw_data *ipc4_data = sdev->private;
 
 		ipc4_data->nhlt = intel_nhlt_init(sdev->dev);
@@ -616,7 +616,7 @@ void hda_set_dai_drv_ops(struct snd_sof_dev *sdev, struct snd_sof_dsp_ops *ops)
 
 void hda_ops_free(struct snd_sof_dev *sdev)
 {
-	if (sdev->pdata->ipc_type == SOF_INTEL_IPC4) {
+	if (sdev->pdata->ipc_type == SOF_IPC_TYPE_4) {
 		struct sof_ipc4_fw_data *ipc4_data = sdev->private;
 
 		if (!hda_use_tplg_nhlt)

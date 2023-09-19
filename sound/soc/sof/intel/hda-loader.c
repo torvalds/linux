@@ -643,7 +643,7 @@ int hda_dsp_post_fw_run(struct snd_sof_dev *sdev)
 		/* Check if IMR boot is usable */
 		if (!sof_debug_check_flag(SOF_DBG_IGNORE_D3_PERSISTENT) &&
 		    (sdev->fw_ready.flags & SOF_IPC_INFO_D3_PERSISTENT ||
-		     sdev->pdata->ipc_type == SOF_INTEL_IPC4))
+		     sdev->pdata->ipc_type == SOF_IPC_TYPE_4))
 			hdev->imrboot_supported = true;
 	}
 

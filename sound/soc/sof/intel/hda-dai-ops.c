@@ -609,7 +609,7 @@ hda_select_dai_widget_ops(struct snd_sof_dev *sdev, struct snd_sof_widget *swidg
 	sdai = swidget->private;
 
 	switch (sdev->pdata->ipc_type) {
-	case SOF_IPC:
+	case SOF_IPC_TYPE_3:
 	{
 		struct sof_dai_private_data *private = sdai->private;
 
@@ -617,7 +617,7 @@ hda_select_dai_widget_ops(struct snd_sof_dev *sdev, struct snd_sof_widget *swidg
 			return &hda_ipc3_dma_ops;
 		break;
 	}
-	case SOF_INTEL_IPC4:
+	case SOF_IPC_TYPE_4:
 	{
 		struct sof_ipc4_copier *ipc4_copier = sdai->private;
 		const struct sof_intel_dsp_desc *chip;

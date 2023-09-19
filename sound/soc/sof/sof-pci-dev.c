@@ -46,7 +46,7 @@ MODULE_PARM_DESC(sof_pci_debug, "SOF PCI debug options (0x0 all off)");
 
 static int sof_pci_ipc_type = -1;
 module_param_named(ipc_type, sof_pci_ipc_type, int, 0444);
-MODULE_PARM_DESC(ipc_type, "SOF IPC type (0): SOF, (1) Intel CAVS");
+MODULE_PARM_DESC(ipc_type, "Force SOF IPC type. 0 - IPC3, 1 - IPC4");
 
 static const char *sof_dmi_override_tplg_name;
 static bool sof_dmi_use_community_key;

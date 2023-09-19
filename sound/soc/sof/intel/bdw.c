@@ -639,16 +639,16 @@ static const struct sof_dev_desc sof_acpi_broadwell_desc = {
 	.resindex_imr_base = -1,
 	.irqindex_host_ipc = 0,
 	.chip_info = &bdw_chip_info,
-	.ipc_supported_mask = BIT(SOF_IPC),
-	.ipc_default = SOF_IPC,
+	.ipc_supported_mask = BIT(SOF_IPC_TYPE_3),
+	.ipc_default = SOF_IPC_TYPE_3,
 	.default_fw_path = {
-		[SOF_IPC] = "intel/sof",
+		[SOF_IPC_TYPE_3] = "intel/sof",
 	},
 	.default_tplg_path = {
-		[SOF_IPC] = "intel/sof-tplg",
+		[SOF_IPC_TYPE_3] = "intel/sof-tplg",
 	},
 	.default_fw_filename = {
-		[SOF_IPC] = "sof-bdw.ri",
+		[SOF_IPC_TYPE_3] = "sof-bdw.ri",
 	},
 	.nocodec_tplg_filename = "sof-bdw-nocodec.tplg",
 	.ops = &sof_bdw_ops,
