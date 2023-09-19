@@ -77,7 +77,9 @@ void nvkm_outp_fini(struct nvkm_outp *);
 
 int nvkm_outp_detect(struct nvkm_outp *);
 
+struct nvkm_ior *nvkm_outp_inherit(struct nvkm_outp *);
 int nvkm_outp_acquire_or(struct nvkm_outp *, u8 user, bool hda);
+int nvkm_outp_acquire_ior(struct nvkm_outp *, u8 user, struct nvkm_ior *);
 void nvkm_outp_release(struct nvkm_outp *);
 void nvkm_outp_release_or(struct nvkm_outp *, u8 user);
 void nvkm_outp_route(struct nvkm_disp *);
@@ -90,6 +92,7 @@ struct nvkm_outp_func {
 	int (*detect)(struct nvkm_outp *);
 	int (*edid_get)(struct nvkm_outp *, u8 *data, u16 *size);
 
+	struct nvkm_ior *(*inherit)(struct nvkm_outp *);
 	int (*acquire)(struct nvkm_outp *);
 	void (*release)(struct nvkm_outp *);
 	void (*disable)(struct nvkm_outp *, struct nvkm_ior *);
