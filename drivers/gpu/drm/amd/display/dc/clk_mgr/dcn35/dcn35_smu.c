@@ -130,11 +130,11 @@ static int dcn35_smu_send_msg_with_param(struct clk_mgr_internal *clk_mgr,
 	result = dcn35_smu_wait_for_response(clk_mgr, 10, 2000000);
 	ASSERT(result == VBIOSSMC_Result_OK);
 
+	if (result != VBIOSSMC_Result_OK) {
+		DC_LOG_WARNING("SMU response after wait: %d, msg id = %d\n", result, msg_id);
 
-
-	if (result == VBIOSSMC_Status_BUSY) {
-		smu_print("SMU response after wait: %d\n", result);
-		return -1;
+		if (result == VBIOSSMC_Status_BUSY)
+			return -1;
 	}
 
 	/* First clear response register */
@@ -155,7 +155,7 @@ static int dcn35_smu_send_msg_with_param(struct clk_mgr_internal *clk_mgr,
 		else
 			ASSERT(0);
 		REG_WRITE(MP1_SMN_C2PMSG_91, VBIOSSMC_Result_OK);
-		smu_print("SMU response after wait: %d\n", result);
+		DC_LOG_WARNING("SMU response after wait: %d, msg id = %d\n", result, msg_id);
 		return -1;
 	}
 
@@ -163,7 +163,7 @@ static int dcn35_smu_send_msg_with_param(struct clk_mgr_internal *clk_mgr,
 		ASSERT(0);
 		result = dcn35_smu_wait_for_response(clk_mgr, 10, 2000000);
 		//dm_helpers_smu_timeout(CTX, msg_id, param, 10 * 200000);
-		smu_print("SMU response after wait: %d\n", result);
+		DC_LOG_WARNING("SMU response after wait: %d, msg id = %d\n", result, msg_id);
 	}
 
 	return REG_READ(MP1_SMN_C2PMSG_83);

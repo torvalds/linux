@@ -262,6 +262,7 @@ void pg_cntl35_hpo_pg_control(struct pg_cntl *pg_cntl, bool power_on)
 	bool block_enabled;
 
 	if (pg_cntl->ctx->dc->debug.ignore_pg ||
+		pg_cntl->ctx->dc->debug.disable_hpo_power_gate ||
 		pg_cntl->ctx->dc->idle_optimizations_allowed)
 		return;
 
