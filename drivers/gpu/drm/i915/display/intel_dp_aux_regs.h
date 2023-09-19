@@ -86,4 +86,9 @@
 		 _XELPDP_DP_AUX_CH_DATA(__xe2lpd_aux_ch_idx(aux_ch), i) :	\
 		 _XELPDP_DP_AUX_CH_DATA(aux_ch, i))
 
+/* PICA Power Well Control */
+#define XE2LPD_PICA_PW_CTL			_MMIO(0x16fe04)
+#define   XE2LPD_PICA_CTL_POWER_REQUEST		REG_BIT(31)
+#define   XE2LPD_PICA_CTL_POWER_STATUS		REG_BIT(30)
+
 #endif /* __INTEL_DP_AUX_REGS_H__ */
