@@ -1407,7 +1407,7 @@ TEST_F(iommufd_mock_domain, alloc_hwpt)
 		uint32_t stddev_id;
 		uint32_t hwpt_id;
 
-		test_cmd_hwpt_alloc(self->idev_ids[0], self->ioas_id, &hwpt_id);
+		test_cmd_hwpt_alloc(self->idev_ids[i], self->ioas_id, &hwpt_id);
 		test_cmd_mock_domain(hwpt_id, &stddev_id, NULL, NULL);
 		test_ioctl_destroy(stddev_id);
 		test_ioctl_destroy(hwpt_id);
