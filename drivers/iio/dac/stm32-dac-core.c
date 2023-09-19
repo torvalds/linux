@@ -183,7 +183,7 @@ err_pm_stop:
 	return ret;
 }
 
-static int stm32_dac_remove(struct platform_device *pdev)
+static void stm32_dac_remove(struct platform_device *pdev)
 {
 	pm_runtime_get_sync(&pdev->dev);
 	of_platform_depopulate(&pdev->dev);
@@ -191,8 +191,6 @@ static int stm32_dac_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 	pm_runtime_set_suspended(&pdev->dev);
 	pm_runtime_put_noidle(&pdev->dev);
-
-	return 0;
 }
 
 static int stm32_dac_core_resume(struct device *dev)
@@ -249,7 +247,7 @@ MODULE_DEVICE_TABLE(of, stm32_dac_of_match);
 
 static struct platform_driver stm32_dac_driver = {
 	.probe = stm32_dac_probe,
-	.remove = stm32_dac_remove,
+	.remove_new = stm32_dac_remove,
 	.driver = {
 		.name = "stm32-dac-core",
 		.of_match_table = stm32_dac_of_match,
