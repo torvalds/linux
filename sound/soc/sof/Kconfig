@@ -283,7 +283,7 @@ config SND_SOC_SOF_PROBE_WORK_QUEUE
 config SND_SOC_SOF_IPC3
 	bool
 
-config SND_SOC_SOF_INTEL_IPC4
+config SND_SOC_SOF_IPC4
 	bool
 
 source "sound/soc/sof/amd/Kconfig"
