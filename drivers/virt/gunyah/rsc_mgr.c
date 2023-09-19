@@ -567,10 +567,7 @@ static int gh_rm_send_request(struct gh_rm *rm, u32 message_id,
 	hdr_template.seq = cpu_to_le16(connection->reply.seq);
 	hdr_template.msg_id = cpu_to_le32(message_id);
 
-	ret = mutex_lock_interruptible(&rm->send_lock);
-	if (ret)
-		return ret;
-
+	mutex_lock(&rm->send_lock);
 	do {
 		msg = kmem_cache_zalloc(rm->cache, GFP_KERNEL);
 		if (!msg) {
