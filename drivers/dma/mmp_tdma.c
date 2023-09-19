@@ -552,12 +552,10 @@ static void mmp_tdma_issue_pending(struct dma_chan *chan)
 	mmp_tdma_enable_chan(tdmac);
 }
 
-static int mmp_tdma_remove(struct platform_device *pdev)
+static void mmp_tdma_remove(struct platform_device *pdev)
 {
 	if (pdev->dev.of_node)
 		of_dma_controller_free(pdev->dev.of_node);
-
-	return 0;
 }
 
 static int mmp_tdma_chan_init(struct mmp_tdma_device *tdev,
@@ -753,7 +751,7 @@ static struct platform_driver mmp_tdma_driver = {
 	},
 	.id_table	= mmp_tdma_id_table,
 	.probe		= mmp_tdma_probe,
-	.remove		= mmp_tdma_remove,
+	.remove_new	= mmp_tdma_remove,
 };
 
 module_platform_driver(mmp_tdma_driver);
