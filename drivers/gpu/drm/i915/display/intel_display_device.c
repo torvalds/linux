@@ -759,6 +759,10 @@ static const struct intel_display_device_info xe_lpdp_display = {
 	XE_LPDP_FEATURES,
 };
 
+static const struct intel_display_device_info xe2_lpd_display = {
+	XE_LPDP_FEATURES,
+};
+
 /*
  * Separate detection for no display cases to keep the display id array simple.
  *
@@ -838,6 +842,7 @@ static const struct {
 	const struct intel_display_device_info *display;
 } gmdid_display_map[] = {
 	{ 14,  0, &xe_lpdp_display },
+	{ 20,  0, &xe2_lpd_display },
 };
 
 static const struct intel_display_device_info *
