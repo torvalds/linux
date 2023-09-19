@@ -687,10 +687,10 @@ static i915_reg_t xelpdp_aux_ctl_reg(struct intel_dp *intel_dp)
 	case AUX_CH_USBC2:
 	case AUX_CH_USBC3:
 	case AUX_CH_USBC4:
-		return XELPDP_DP_AUX_CH_CTL(aux_ch);
+		return XELPDP_DP_AUX_CH_CTL(dev_priv, aux_ch);
 	default:
 		MISSING_CASE(aux_ch);
-		return XELPDP_DP_AUX_CH_CTL(AUX_CH_A);
+		return XELPDP_DP_AUX_CH_CTL(dev_priv, AUX_CH_A);
 	}
 }
 
@@ -707,10 +707,10 @@ static i915_reg_t xelpdp_aux_data_reg(struct intel_dp *intel_dp, int index)
 	case AUX_CH_USBC2:
 	case AUX_CH_USBC3:
 	case AUX_CH_USBC4:
-		return XELPDP_DP_AUX_CH_DATA(aux_ch, index);
+		return XELPDP_DP_AUX_CH_DATA(dev_priv, aux_ch, index);
 	default:
 		MISSING_CASE(aux_ch);
-		return XELPDP_DP_AUX_CH_DATA(AUX_CH_A, index);
+		return XELPDP_DP_AUX_CH_DATA(dev_priv, AUX_CH_A, index);
 	}
 }
 
