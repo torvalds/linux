@@ -77,6 +77,30 @@ nvif_outp_acquire_dp(struct nvif_outp *outp, u8 dpcd[DP_RECEIVER_CAP_SIZE],
 }
 
 int
+nvif_outp_dp_aux_xfer(struct nvif_outp *outp, u8 type, u8 *psize, u32 addr, u8 *data)
+{
+	struct nvif_outp_dp_aux_xfer_v0 args;
+	u8 size = *psize;
+	int ret;
+
+	args.version = 0;
+	args.type = type;
+	args.size = size;
+	args.addr = addr;
+	memcpy(args.data, data, size);
+	ret = nvif_object_mthd(&outp->object, NVIF_OUTP_V0_DP_AUX_XFER, &args, sizeof(args));
+	NVIF_DEBUG(&outp->object, "[DP_AUX_XFER type:%d size:%d addr:%05x] %d size:%d (ret: %d)",
+		   args.type, size, args.addr, ret, args.size, ret);
+	if (ret < 0)
+		return ret;
+
+	*psize = args.size;
+
+	memcpy(data, args.data, size);
+	return ret;
+}
+
+int
 nvif_outp_dp_aux_pwr(struct nvif_outp *outp, bool enable)
 {
 	struct nvif_outp_dp_aux_pwr_v0 args;

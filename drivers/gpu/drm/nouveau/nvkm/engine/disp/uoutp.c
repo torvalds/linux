@@ -25,6 +25,8 @@
 #include "head.h"
 #include "ior.h"
 
+#include <subdev/i2c.h>
+
 #include <nvif/if0012.h>
 
 static int
@@ -66,6 +68,20 @@ nvkm_uoutp_mthd_acquire_dp(struct nvkm_outp *outp, u8 dpcd[DP_RECEIVER_CAP_SIZE]
 	outp->dp.lt.bw = link_bw;
 	outp->dp.lt.mst = mst;
 	return 0;
+}
+
+static int
+nvkm_uoutp_mthd_dp_aux_xfer(struct nvkm_outp *outp, void *argv, u32 argc)
+{
+	union nvif_outp_dp_aux_xfer_args *args = argv;
+
+	if (argc != sizeof(args->v0) || args->v0.version != 0)
+		return -ENOSYS;
+	if (!outp->func->dp.aux_xfer)
+		return -EINVAL;
+
+	return outp->func->dp.aux_xfer(outp, args->v0.type, args->v0.addr,
+					     args->v0.data, &args->v0.size);
 }
 
 static int
@@ -429,7 +445,7 @@ nvkm_uoutp_mthd_acquired(struct nvkm_outp *outp, u32 mthd, void *argv, u32 argc)
 }
 
 static int
-nvkm_uoutp_mthd_noacquire(struct nvkm_outp *outp, u32 mthd, void *argv, u32 argc)
+nvkm_uoutp_mthd_noacquire(struct nvkm_outp *outp, u32 mthd, void *argv, u32 argc, bool *invalid)
 {
 	switch (mthd) {
 	case NVIF_OUTP_V0_DETECT     : return nvkm_uoutp_mthd_detect     (outp, argv, argc);
@@ -440,11 +456,13 @@ nvkm_uoutp_mthd_noacquire(struct nvkm_outp *outp, u32 mthd, void *argv, u32 argc
 	case NVIF_OUTP_V0_BL_GET     : return nvkm_uoutp_mthd_bl_get     (outp, argv, argc);
 	case NVIF_OUTP_V0_BL_SET     : return nvkm_uoutp_mthd_bl_set     (outp, argv, argc);
 	case NVIF_OUTP_V0_DP_AUX_PWR : return nvkm_uoutp_mthd_dp_aux_pwr (outp, argv, argc);
+	case NVIF_OUTP_V0_DP_AUX_XFER: return nvkm_uoutp_mthd_dp_aux_xfer(outp, argv, argc);
 	default:
 		break;
 	}
 
-	return 1;
+	*invalid = true;
+	return 0;
 }
 
 static int
@@ -452,12 +470,13 @@ nvkm_uoutp_mthd(struct nvkm_object *object, u32 mthd, void *argv, u32 argc)
 {
 	struct nvkm_outp *outp = nvkm_uoutp(object);
 	struct nvkm_disp *disp = outp->disp;
+	bool invalid = false;
 	int ret;
 
 	mutex_lock(&disp->super.mutex);
 
-	ret = nvkm_uoutp_mthd_noacquire(outp, mthd, argv, argc);
-	if (ret <= 0)
+	ret = nvkm_uoutp_mthd_noacquire(outp, mthd, argv, argc, &invalid);
+	if (!invalid)
 		goto done;
 
 	if (outp->ior)
