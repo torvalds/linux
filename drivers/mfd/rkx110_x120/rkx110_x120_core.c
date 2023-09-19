@@ -22,7 +22,7 @@
 static const struct mfd_cell rkx110_x120_devs[] = {
 	/* 2 panel device for rkx110_x120 drm panel */
 	{
-		.name = "serdes-panel",
+		.name = "rockchip-serdes-panel",
 		.of_compatible = "rockchip,serdes-panel",
 	},
 };

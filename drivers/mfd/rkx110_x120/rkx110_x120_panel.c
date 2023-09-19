@@ -630,7 +630,7 @@ static struct platform_driver serdes_panel_driver = {
 	.probe		= serdes_panel_probe,
 	.remove		= serdes_panel_remove,
 	.driver		= {
-		.name	= "serdes-panel",
+		.name	= "rockchip-serdes-panel",
 		.of_match_table = serdes_panel_of_table,
 	},
 };
