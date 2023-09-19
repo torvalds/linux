@@ -2080,7 +2080,7 @@ nv50_disp_atomic_commit_tail(struct drm_atomic_state *state)
 	nv50_crc_atomic_init_notifier_contexts(state);
 
 	/* Update output path(s). */
-	list_for_each_entry_safe(outp, outt, &atom->outp, head) {
+	list_for_each_entry(outp, &atom->outp, head) {
 		const struct drm_encoder_helper_funcs *help;
 		struct drm_encoder *encoder;
 
@@ -2094,9 +2094,6 @@ nv50_disp_atomic_commit_tail(struct drm_atomic_state *state)
 			help->atomic_enable(encoder, state);
 			interlock[NV50_DISP_INTERLOCK_CORE] = 1;
 		}
-
-		list_del(&outp->head);
-		kfree(outp);
 	}
 
 	/* Update head(s). */
@@ -2193,6 +2190,11 @@ nv50_disp_atomic_commit_tail(struct drm_atomic_state *state)
 
 	if (atom->lock_core)
 		mutex_unlock(&disp->mutex);
+
+	list_for_each_entry_safe(outp, outt, &atom->outp, head) {
+		list_del(&outp->head);
+		kfree(outp);
+	}
 
 	/* Wait for HW to signal completion. */
 	for_each_new_plane_in_state(state, plane, new_plane_state, i) {
