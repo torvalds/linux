@@ -33,7 +33,7 @@ static int battery_health		= POWER_SUPPLY_HEALTH_GOOD;
 static int battery_present		= 1; /* true */
 static int battery_technology		= POWER_SUPPLY_TECHNOLOGY_LION;
 static int battery_capacity		= 50;
-static int battery_voltage		= 3300;
+static int battery_voltage		= 3300000;
 static int battery_charge_counter	= -1000;
 static int battery_current		= -1600;
 
