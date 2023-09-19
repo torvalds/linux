@@ -574,12 +574,19 @@ static void run_one_async_start(struct btrfs_work *work)
  *
  * At IO completion time the csums attached on the ordered extent record are
  * inserted into the tree.
+ *
+ * If called with @do_free == true, then it will free the work struct.
  */
-static void run_one_async_done(struct btrfs_work *work)
+static void run_one_async_done(struct btrfs_work *work, bool do_free)
 {
 	struct async_submit_bio *async =
 		container_of(work, struct async_submit_bio, work);
 	struct bio *bio = &async->bbio->bio;
+
+	if (do_free) {
+		kfree(container_of(work, struct async_submit_bio, work));
+		return;
+	}
 
 	/* If an error occurred we just want to clean up the bio and move on. */
 	if (bio->bi_status) {
@@ -594,11 +601,6 @@ static void run_one_async_done(struct btrfs_work *work)
 	 */
 	bio->bi_opf |= REQ_BTRFS_CGROUP_PUNT;
 	__btrfs_submit_bio(bio, async->bioc, &async->smap, async->mirror_num);
-}
-
-static void run_one_async_free(struct btrfs_work *work)
-{
-	kfree(container_of(work, struct async_submit_bio, work));
 }
 
 static bool should_async_write(struct btrfs_bio *bbio)
@@ -642,8 +644,7 @@ static bool btrfs_wq_submit_bio(struct btrfs_bio *bbio,
 	async->smap = *smap;
 	async->mirror_num = mirror_num;
 
-	btrfs_init_work(&async->work, run_one_async_start, run_one_async_done,
-			run_one_async_free);
+	btrfs_init_work(&async->work, run_one_async_start, run_one_async_done);
 	btrfs_queue_work(fs_info->workers, &async->work);
 	return true;
 }

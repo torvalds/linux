@@ -365,7 +365,7 @@ static void btrfs_queue_ordered_fn(struct btrfs_ordered_extent *ordered)
 	struct btrfs_workqueue *wq = btrfs_is_free_space_inode(inode) ?
 		fs_info->endio_freespace_worker : fs_info->endio_write_workers;
 
-	btrfs_init_work(&ordered->work, finish_ordered_fn, NULL, NULL);
+	btrfs_init_work(&ordered->work, finish_ordered_fn, NULL);
 	btrfs_queue_work(wq, &ordered->work);
 }
 
@@ -712,7 +712,7 @@ u64 btrfs_wait_ordered_extents(struct btrfs_root *root, u64 nr,
 		spin_unlock(&root->ordered_extent_lock);
 
 		btrfs_init_work(&ordered->flush_work,
-				btrfs_run_ordered_extent_work, NULL, NULL);
+				btrfs_run_ordered_extent_work, NULL);
 		list_add_tail(&ordered->work_list, &works);
 		btrfs_queue_work(fs_info->flush_workers, &ordered->flush_work);
 

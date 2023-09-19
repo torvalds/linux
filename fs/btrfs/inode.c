@@ -1566,8 +1566,11 @@ out_unlock:
  * Phase two of compressed writeback.  This is the ordered portion of the code,
  * which only gets called in the order the work was queued.  We walk all the
  * async extents created by compress_file_range and send them down to the disk.
+ *
+ * If called with @do_free == true then it'll try to finish the work and free
+ * the work struct eventually.
  */
-static noinline void submit_compressed_extents(struct btrfs_work *work)
+static noinline void submit_compressed_extents(struct btrfs_work *work, bool do_free)
 {
 	struct async_chunk *async_chunk = container_of(work, struct async_chunk,
 						     work);
@@ -1575,6 +1578,21 @@ static noinline void submit_compressed_extents(struct btrfs_work *work)
 	struct async_extent *async_extent;
 	unsigned long nr_pages;
 	u64 alloc_hint = 0;
+
+	if (do_free) {
+		struct async_chunk *async_chunk;
+		struct async_cow *async_cow;
+
+		async_chunk = container_of(work, struct async_chunk, work);
+		btrfs_add_delayed_iput(async_chunk->inode);
+		if (async_chunk->blkcg_css)
+			css_put(async_chunk->blkcg_css);
+
+		async_cow = async_chunk->async_cow;
+		if (atomic_dec_and_test(&async_cow->num_chunks))
+			kvfree(async_cow);
+		return;
+	}
 
 	nr_pages = (async_chunk->end - async_chunk->start + PAGE_SIZE) >>
 		PAGE_SHIFT;
@@ -1590,21 +1608,6 @@ static noinline void submit_compressed_extents(struct btrfs_work *work)
 	if (atomic_sub_return(nr_pages, &fs_info->async_delalloc_pages) <
 	    5 * SZ_1M)
 		cond_wake_up_nomb(&fs_info->async_submit_wait);
-}
-
-static noinline void async_cow_free(struct btrfs_work *work)
-{
-	struct async_chunk *async_chunk;
-	struct async_cow *async_cow;
-
-	async_chunk = container_of(work, struct async_chunk, work);
-	btrfs_add_delayed_iput(async_chunk->inode);
-	if (async_chunk->blkcg_css)
-		css_put(async_chunk->blkcg_css);
-
-	async_cow = async_chunk->async_cow;
-	if (atomic_dec_and_test(&async_cow->num_chunks))
-		kvfree(async_cow);
 }
 
 static bool run_delalloc_compressed(struct btrfs_inode *inode,
@@ -1684,7 +1687,7 @@ static bool run_delalloc_compressed(struct btrfs_inode *inode,
 		}
 
 		btrfs_init_work(&async_chunk[i].work, compress_file_range,
-				submit_compressed_extents, async_cow_free);
+				submit_compressed_extents);
 
 		nr_pages = DIV_ROUND_UP(cur_end - start, PAGE_SIZE);
 		atomic_add(nr_pages, &fs_info->async_delalloc_pages);
@@ -2848,7 +2851,7 @@ int btrfs_writepage_cow_fixup(struct page *page)
 	ihold(inode);
 	btrfs_page_set_checked(fs_info, page, page_offset(page), PAGE_SIZE);
 	get_page(page);
-	btrfs_init_work(&fixup->work, btrfs_writepage_fixup_worker, NULL, NULL);
+	btrfs_init_work(&fixup->work, btrfs_writepage_fixup_worker, NULL);
 	fixup->page = page;
 	fixup->inode = BTRFS_I(inode);
 	btrfs_queue_work(fs_info->fixup_workers, &fixup->work);
@@ -9215,7 +9218,7 @@ static struct btrfs_delalloc_work *btrfs_alloc_delalloc_work(struct inode *inode
 	init_completion(&work->completion);
 	INIT_LIST_HEAD(&work->list);
 	work->inode = inode;
-	btrfs_init_work(&work->work, btrfs_run_delalloc_work, NULL, NULL);
+	btrfs_init_work(&work->work, btrfs_run_delalloc_work, NULL);
 
 	return work;
 }
