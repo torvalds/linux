@@ -105,5 +105,6 @@
 #define HWCAP2_MOPS		(1UL << 43)
 #define HWCAP2_HBC		(1UL << 44)
 #define HWCAP2_SVE_B16B16	(1UL << 45)
+#define HWCAP2_LRCPC3		(1UL << 46)
 
 #endif /* _UAPI__ASM_HWCAP_H */
