@@ -1221,13 +1221,12 @@ static void pxad_free_channels(struct dma_device *dmadev)
 	}
 }
 
-static int pxad_remove(struct platform_device *op)
+static void pxad_remove(struct platform_device *op)
 {
 	struct pxad_device *pdev = platform_get_drvdata(op);
 
 	pxad_cleanup_debugfs(pdev);
 	pxad_free_channels(&pdev->slave);
-	return 0;
 }
 
 static int pxad_init_phys(struct platform_device *op,
@@ -1444,7 +1443,7 @@ static struct platform_driver pxad_driver = {
 	},
 	.id_table	= pxad_id_table,
 	.probe		= pxad_probe,
-	.remove		= pxad_remove,
+	.remove_new	= pxad_remove,
 };
 
 static bool pxad_filter_fn(struct dma_chan *chan, void *param)
