@@ -347,10 +347,6 @@ static void handle_thermal_trip(struct thermal_zone_device *tz, int trip_id)
 {
 	struct thermal_trip trip;
 
-	/* Ignore disabled trip points */
-	if (test_bit(trip_id, &tz->trips_disabled))
-		return;
-
 	__thermal_zone_get_trip(tz, trip_id, &trip);
 
 	if (trip.temperature == THERMAL_TEMP_INVALID)
@@ -1231,7 +1227,6 @@ thermal_zone_device_register_with_trips(const char *type, struct thermal_trip *t
 	struct thermal_zone_device *tz;
 	int id;
 	int result;
-	int count;
 	struct thermal_governor *governor;
 
 	if (!type || strlen(type) == 0) {
@@ -1327,14 +1322,6 @@ thermal_zone_device_register_with_trips(const char *type, struct thermal_trip *t
 	result = device_register(&tz->device);
 	if (result)
 		goto release_device;
-
-	for (count = 0; count < num_trips; count++) {
-		struct thermal_trip trip;
-
-		result = thermal_zone_get_trip(tz, count, &trip);
-		if (result || !trip.temperature)
-			set_bit(count, &tz->trips_disabled);
-	}
 
 	/* Update 'this' zone's governor information */
 	mutex_lock(&thermal_governor_lock);
