@@ -477,7 +477,6 @@ nv50_dac_atomic_disable(struct drm_encoder *encoder, struct drm_atomic_state *st
 
 	core->func->dac->ctrl(core, nv_encoder->outp.or.id, ctrl, NULL);
 	nv_encoder->crtc = NULL;
-	nvif_outp_release(&nv_encoder->outp);
 }
 
 static void
@@ -1300,6 +1299,11 @@ nv50_mstm_cleanup(struct drm_atomic_state *state,
 		}
 	}
 
+	if (mstm->disabled) {
+		nvif_outp_release(&mstm->outp->outp);
+		mstm->disabled = false;
+	}
+
 	mstm->modified = false;
 }
 
@@ -1333,12 +1337,6 @@ nv50_mstm_prepare(struct drm_atomic_state *state,
 			if (mstc && mstc->mstm == mstm && !msto->disabled)
 				nv50_msto_prepare(state, mst_state, &mstm->mgr, msto);
 		}
-	}
-
-	if (mstm->disabled) {
-		if (!mstm->links)
-			nvif_outp_release(&mstm->outp->outp);
-		mstm->disabled = false;
 	}
 }
 
@@ -1582,7 +1580,6 @@ nv50_sor_atomic_disable(struct drm_encoder *encoder, struct drm_atomic_state *st
 
 	nv_encoder->update(nv_encoder, nv_crtc->index, NULL, 0, 0);
 	nv50_audio_disable(encoder, nv_crtc);
-	nvif_outp_release(&nv_encoder->outp);
 	nv_encoder->crtc = NULL;
 }
 
@@ -1827,7 +1824,6 @@ nv50_pior_atomic_disable(struct drm_encoder *encoder, struct drm_atomic_state *s
 
 	core->func->pior->ctrl(core, nv_encoder->outp.or.id, ctrl, NULL);
 	nv_encoder->crtc = NULL;
-	nvif_outp_release(&nv_encoder->outp);
 }
 
 static void
@@ -1990,8 +1986,10 @@ nv50_disp_atomic_commit_core(struct drm_atomic_state *state, u32 *interlock)
 						  nv_encoder->conn, NULL, NULL);
 				outp->enabled = outp->disabled = false;
 			} else {
-				if (outp->disabled)
+				if (outp->disabled) {
+					nvif_outp_release(&nv_encoder->outp);
 					outp->disabled = false;
+				}
 			}
 		}
 	}

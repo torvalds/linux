@@ -188,6 +188,8 @@ nvkm_uoutp_mthd_release(struct nvkm_outp *outp, void *argv, u32 argc)
 
 	if (argc != sizeof(args->vn))
 		return -ENOSYS;
+	if (!outp->ior)
+		return -EINVAL;
 
 	nvkm_outp_release(outp);
 	return 0;

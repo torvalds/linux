@@ -238,6 +238,7 @@ void
 nvkm_outp_release(struct nvkm_outp *outp)
 {
 	nvkm_outp_release_or(outp, NVKM_OUTP_USER);
+	nvkm_outp_route(outp->disp);
 }
 
 void
