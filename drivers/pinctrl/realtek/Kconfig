@@ -7,6 +7,11 @@ config PINCTRL_RTD
 	select PINMUX
 	select GENERIC_PINCONF
 
+config PINCTRL_RTD1619B
+	tristate "Realtek DHC 1619B pin controller driver"
+	depends on PINCTRL_RTD
+	default y
+
 config PINCTRL_RTD1319D
 	tristate "Realtek DHC 1319D pin controller driver"
 	depends on PINCTRL_RTD
