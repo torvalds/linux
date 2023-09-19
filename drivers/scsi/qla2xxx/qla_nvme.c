@@ -397,8 +397,13 @@ static inline int qla2x00_start_nvme_mq(srb_t *sp)
 	}
 	req_cnt = qla24xx_calc_iocbs(vha, tot_dsds);
 	if (req->cnt < (req_cnt + 2)) {
-		cnt = IS_SHADOW_REG_CAPABLE(ha) ? *req->out_ptr :
-		    rd_reg_dword_relaxed(req->req_q_out);
+		if (IS_SHADOW_REG_CAPABLE(ha)) {
+			cnt = *req->out_ptr;
+		} else {
+			cnt = rd_reg_dword_relaxed(req->req_q_out);
+			if (qla2x00_check_reg16_for_disconnect(vha, cnt))
+				goto queuing_error;
+		}
 
 		if (req->ring_index < cnt)
 			req->cnt = cnt - req->ring_index;
@@ -535,6 +540,7 @@ static inline int qla2x00_start_nvme_mq(srb_t *sp)
 
 queuing_error:
 	spin_unlock_irqrestore(&qpair->qp_lock, flags);
+
 	return rval;
 }
 
@@ -604,7 +610,7 @@ static int qla_nvme_post_cmd(struct nvme_fc_local_port *lport,
 
 	rval = qla2x00_start_nvme_mq(sp);
 	if (rval != QLA_SUCCESS) {
-		ql_log(ql_log_warn, vha, 0x212d,
+		ql_dbg(ql_dbg_io + ql_dbg_verbose, vha, 0x212d,
 		    "qla2x00_start_nvme_mq failed = %d\n", rval);
 		sp->priv = NULL;
 		priv->sp = NULL;
