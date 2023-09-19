@@ -1965,8 +1965,7 @@ static bool copy_from_read_buf(const struct tty_struct *tty, u8 **kbp,
 	size_t head = smp_load_acquire(&ldata->commit_head);
 	size_t tail = MASK(ldata->read_tail);
 
-	n = min(head - ldata->read_tail, N_TTY_BUF_SIZE - tail);
-	n = min(*nr, n);
+	n = min3(head - ldata->read_tail, N_TTY_BUF_SIZE - tail, *nr);
 	if (n) {
 		u8 *from = read_buf_addr(ldata, tail);
 		memcpy(*kbp, from, n);
