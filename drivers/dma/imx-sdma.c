@@ -2358,7 +2358,7 @@ err_clk:
 	return ret;
 }
 
-static int sdma_remove(struct platform_device *pdev)
+static void sdma_remove(struct platform_device *pdev)
 {
 	struct sdma_engine *sdma = platform_get_drvdata(pdev);
 	int i;
@@ -2377,7 +2377,6 @@ static int sdma_remove(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, NULL);
-	return 0;
 }
 
 static struct platform_driver sdma_driver = {
@@ -2385,7 +2384,7 @@ static struct platform_driver sdma_driver = {
 		.name	= "imx-sdma",
 		.of_match_table = sdma_dt_ids,
 	},
-	.remove		= sdma_remove,
+	.remove_new	= sdma_remove,
 	.probe		= sdma_probe,
 };
 
