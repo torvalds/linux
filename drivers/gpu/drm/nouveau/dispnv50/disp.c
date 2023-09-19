@@ -707,6 +707,18 @@ nv50_audio_supported(struct drm_encoder *encoder)
 	    disp->disp->object.oclass == GT206_DISP)
 		return false;
 
+	if (encoder->encoder_type != DRM_MODE_ENCODER_DPMST) {
+		struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
+
+		switch (nv_encoder->dcb->type) {
+		case DCB_OUTPUT_TMDS:
+		case DCB_OUTPUT_DP:
+			break;
+		default:
+			return false;
+		}
+	}
+
 	return true;
 }
 
@@ -829,8 +841,6 @@ nv50_hdmi_enable(struct drm_encoder *encoder, struct nouveau_crtc *nv_crtc,
 		size = 0;
 
 	nvif_outp_infoframe(&nv_encoder->outp, NVIF_OUTP_INFOFRAME_V0_VSI, &args.infoframe, size);
-
-	nv50_audio_enable(encoder, nv_crtc, nv_connector, state, mode);
 }
 
 /******************************************************************************
@@ -1660,8 +1670,6 @@ nv50_sor_atomic_enable(struct drm_encoder *encoder, struct drm_atomic_state *sta
 		else
 			proto = NV887D_SOR_SET_CONTROL_PROTOCOL_DP_B;
 
-		nv50_audio_enable(encoder, nv_crtc, nv_connector, state, mode);
-
 #ifdef CONFIG_DRM_NOUVEAU_BACKLIGHT
 		backlight = nv_connector->backlight;
 		if (backlight && backlight->uses_dpcd)
@@ -1939,7 +1947,9 @@ nv50_disp_atomic_commit_core(struct drm_atomic_state *state, u32 *interlock)
 	struct drm_dp_mst_topology_state *mst_state;
 	struct nouveau_drm *drm = nouveau_drm(state->dev);
 	struct nv50_disp *disp = nv50_disp(drm->dev);
+	struct nv50_atom *atom = nv50_atom(state);
 	struct nv50_core *core = disp->core;
+	struct nv50_outp_atom *outp;
 	struct nv50_mstm *mstm;
 	int i;
 
@@ -1961,6 +1971,21 @@ nv50_disp_atomic_commit_core(struct drm_atomic_state *state, u32 *interlock)
 		mstm = nv50_mstm(mgr);
 		if (mstm->modified)
 			nv50_mstm_cleanup(state, mst_state, mstm);
+	}
+
+	list_for_each_entry(outp, &atom->outp, head) {
+		if (outp->encoder->encoder_type != DRM_MODE_ENCODER_DPMST) {
+			struct nouveau_encoder *nv_encoder = nouveau_encoder(outp->encoder);
+
+			if (outp->enabled) {
+				nv50_audio_enable(outp->encoder, nouveau_crtc(nv_encoder->crtc),
+						  nv_encoder->conn, NULL, NULL);
+				outp->enabled = outp->disabled = false;
+			} else {
+				if (outp->disabled)
+					outp->disabled = false;
+			}
+		}
 	}
 }
 
@@ -2053,6 +2078,7 @@ nv50_disp_atomic_commit_tail(struct drm_atomic_state *state)
 
 		if (outp->clr.mask) {
 			help->atomic_disable(encoder, state);
+			outp->disabled = true;
 			interlock[NV50_DISP_INTERLOCK_CORE] |= 1;
 			if (outp->flush_disable) {
 				nv50_disp_atomic_commit_wndw(state, interlock);
@@ -2092,6 +2118,7 @@ nv50_disp_atomic_commit_tail(struct drm_atomic_state *state)
 
 		if (outp->set.mask) {
 			help->atomic_enable(encoder, state);
+			outp->enabled = true;
 			interlock[NV50_DISP_INTERLOCK_CORE] = 1;
 		}
 	}
