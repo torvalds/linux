@@ -670,15 +670,18 @@ static void bpf_jit_epilogue(struct bpf_jit *jit, u32 stack_depth)
 static int get_probe_mem_regno(const u8 *insn)
 {
 	/*
-	 * insn must point to llgc, llgh, llgf or lg, which have destination
-	 * register at the same position.
+	 * insn must point to llgc, llgh, llgf, lg, lgb, lgh or lgf, which have
+	 * destination register at the same position.
 	 */
-	if (insn[0] != 0xe3) /* common llgc, llgh, llgf and lg prefix */
+	if (insn[0] != 0xe3) /* common prefix */
 		return -1;
 	if (insn[5] != 0x90 && /* llgc */
 	    insn[5] != 0x91 && /* llgh */
 	    insn[5] != 0x16 && /* llgf */
-	    insn[5] != 0x04) /* lg */
+	    insn[5] != 0x04 && /* lg */
+	    insn[5] != 0x77 && /* lgb */
+	    insn[5] != 0x15 && /* lgh */
+	    insn[5] != 0x14) /* lgf */
 		return -1;
 	return insn[1] >> 4;
 }
@@ -788,7 +791,8 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp,
 	int err;
 
 	if (BPF_CLASS(insn->code) == BPF_LDX &&
-	    BPF_MODE(insn->code) == BPF_PROBE_MEM)
+	    (BPF_MODE(insn->code) == BPF_PROBE_MEM ||
+	     BPF_MODE(insn->code) == BPF_PROBE_MEMSX))
 		probe_prg = jit->prg;
 
 	switch (insn->code) {
@@ -1406,6 +1410,12 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp,
 		if (insn_is_zext(&insn[1]))
 			insn_count = 2;
 		break;
+	case BPF_LDX | BPF_MEMSX | BPF_B: /* dst = *(s8 *)(ul) (src + off) */
+	case BPF_LDX | BPF_PROBE_MEMSX | BPF_B:
+		/* lgb %dst,0(off,%src) */
+		EMIT6_DISP_LH(0xe3000000, 0x0077, dst_reg, src_reg, REG_0, off);
+		jit->seen |= SEEN_MEM;
+		break;
 	case BPF_LDX | BPF_MEM | BPF_H: /* dst = *(u16 *)(ul) (src + off) */
 	case BPF_LDX | BPF_PROBE_MEM | BPF_H:
 		/* llgh %dst,0(off,%src) */
@@ -1414,6 +1424,12 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp,
 		if (insn_is_zext(&insn[1]))
 			insn_count = 2;
 		break;
+	case BPF_LDX | BPF_MEMSX | BPF_H: /* dst = *(s16 *)(ul) (src + off) */
+	case BPF_LDX | BPF_PROBE_MEMSX | BPF_H:
+		/* lgh %dst,0(off,%src) */
+		EMIT6_DISP_LH(0xe3000000, 0x0015, dst_reg, src_reg, REG_0, off);
+		jit->seen |= SEEN_MEM;
+		break;
 	case BPF_LDX | BPF_MEM | BPF_W: /* dst = *(u32 *)(ul) (src + off) */
 	case BPF_LDX | BPF_PROBE_MEM | BPF_W:
 		/* llgf %dst,off(%src) */
@@ -1421,6 +1437,12 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp,
 		EMIT6_DISP_LH(0xe3000000, 0x0016, dst_reg, src_reg, REG_0, off);
 		if (insn_is_zext(&insn[1]))
 			insn_count = 2;
+		break;
+	case BPF_LDX | BPF_MEMSX | BPF_W: /* dst = *(s32 *)(ul) (src + off) */
+	case BPF_LDX | BPF_PROBE_MEMSX | BPF_W:
+		/* lgf %dst,off(%src) */
+		jit->seen |= SEEN_MEM;
+		EMIT6_DISP_LH(0xe3000000, 0x0014, dst_reg, src_reg, REG_0, off);
 		break;
 	case BPF_LDX | BPF_MEM | BPF_DW: /* dst = *(u64 *)(ul) (src + off) */
 	case BPF_LDX | BPF_PROBE_MEM | BPF_DW:
