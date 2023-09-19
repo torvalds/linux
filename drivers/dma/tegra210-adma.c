@@ -949,7 +949,7 @@ irq_dispose:
 	return ret;
 }
 
-static int tegra_adma_remove(struct platform_device *pdev)
+static void tegra_adma_remove(struct platform_device *pdev)
 {
 	struct tegra_adma *tdma = platform_get_drvdata(pdev);
 	int i;
@@ -961,8 +961,6 @@ static int tegra_adma_remove(struct platform_device *pdev)
 		irq_dispose_mapping(tdma->channels[i].irq);
 
 	pm_runtime_disable(&pdev->dev);
-
-	return 0;
 }
 
 static const struct dev_pm_ops tegra_adma_dev_pm_ops = {
@@ -979,7 +977,7 @@ static struct platform_driver tegra_admac_driver = {
 		.of_match_table = tegra_adma_of_match,
 	},
 	.probe		= tegra_adma_probe,
-	.remove		= tegra_adma_remove,
+	.remove_new	= tegra_adma_remove,
 };
 
 module_platform_driver(tegra_admac_driver);
