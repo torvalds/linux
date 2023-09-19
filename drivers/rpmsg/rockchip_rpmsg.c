@@ -26,11 +26,6 @@
 
 #include "rpmsg_internal.h"
 
-enum rk_rpmsg_chip {
-	RK3562,
-	RK3568,
-};
-
 struct rk_virtio_dev {
 	struct virtio_device vdev;
 	unsigned int vring[2];
@@ -44,7 +39,6 @@ struct rk_virtio_dev {
 
 struct rk_rpmsg_dev {
 	struct platform_device *pdev;
-	enum rk_rpmsg_chip chip;
 	int vdev_nums;
 	unsigned int link_id;
 	int first_notify;
@@ -307,7 +301,6 @@ static int rockchip_rpmsg_probe(struct platform_device *pdev)
 
 	dev_info(dev, "rockchip rpmsg platform probe.\n");
 	rpdev->pdev = pdev;
-	rpdev->chip = (enum rk_rpmsg_chip)device_get_match_data(dev);
 	rpdev->first_notify = 0;
 
 	cl = &rpdev->mbox_cl;
@@ -399,8 +392,7 @@ static int rockchip_rpmsg_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id rockchip_rpmsg_match[] = {
-	{ .compatible = "rockchip,rk3562-rpmsg", .data = (void *)RK3562, },
-	{ .compatible = "rockchip,rk3568-rpmsg", .data = (void *)RK3568, },
+	{ .compatible = "rockchip,rpmsg", },
 	{ /* sentinel */ },
 };
 
