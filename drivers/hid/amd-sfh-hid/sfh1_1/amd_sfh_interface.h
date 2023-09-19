@@ -147,6 +147,8 @@ struct sfh_als_data {
 	struct sfh_common_data commondata;
 	u32 lux;
 	u32 light_color_temp;
+	u32 chromaticity_x;
+	u32 chromaticity_y;
 };
 
 struct hpd_status {

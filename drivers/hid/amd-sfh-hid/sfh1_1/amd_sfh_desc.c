@@ -238,8 +238,11 @@ static u8 get_input_rep(u8 current_index, int sensor_idx, int report_id,
 		als_input.illuminance_value = float_to_int(als_data.lux);
 
 		memcpy_fromio(&binfo, mp2->vsbase, sizeof(struct sfh_base_info));
-		if (binfo.sbase.s_prop[ALS_IDX].sf.feat & 0x2)
+		if (binfo.sbase.s_prop[ALS_IDX].sf.feat & 0x2) {
 			als_input.light_color_temp = als_data.light_color_temp;
+			als_input.chromaticity_x_value = float_to_int(als_data.chromaticity_x);
+			als_input.chromaticity_y_value = float_to_int(als_data.chromaticity_y);
+		}
 
 		report_size = sizeof(als_input);
 		memcpy(input_report, &als_input, sizeof(als_input));
