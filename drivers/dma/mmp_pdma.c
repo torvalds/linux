@@ -932,7 +932,7 @@ static void dma_do_tasklet(struct tasklet_struct *t)
 	}
 }
 
-static int mmp_pdma_remove(struct platform_device *op)
+static void mmp_pdma_remove(struct platform_device *op)
 {
 	struct mmp_pdma_device *pdev = platform_get_drvdata(op);
 	struct mmp_pdma_phy *phy;
@@ -958,7 +958,6 @@ static int mmp_pdma_remove(struct platform_device *op)
 	}
 
 	dma_async_device_unregister(&pdev->device);
-	return 0;
 }
 
 static int mmp_pdma_chan_init(struct mmp_pdma_device *pdev, int idx, int irq)
@@ -1141,7 +1140,7 @@ static struct platform_driver mmp_pdma_driver = {
 	},
 	.id_table	= mmp_pdma_id_table,
 	.probe		= mmp_pdma_probe,
-	.remove		= mmp_pdma_remove,
+	.remove_new	= mmp_pdma_remove,
 };
 
 module_platform_driver(mmp_pdma_driver);
