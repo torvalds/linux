@@ -74,6 +74,7 @@ struct nvkm_ior_func {
 			     bool scrambling_low_rates);
 		void (*infoframe_avi)(struct nvkm_ior *, int head, void *data, u32 size);
 		void (*infoframe_vsi)(struct nvkm_ior *, int head, void *data, u32 size);
+		void (*audio)(struct nvkm_ior *, int head, bool enable);
 	} *hdmi;
 
 	const struct nvkm_ior_func_dp {

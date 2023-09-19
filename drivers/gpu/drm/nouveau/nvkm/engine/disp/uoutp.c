@@ -99,12 +99,20 @@ nvkm_uoutp_mthd_hda_eld(struct nvkm_outp *outp, void *argv, u32 argc)
 	if (argc && args->v0.data[0]) {
 		if (outp->info.type == DCB_OUTPUT_DP)
 			ior->func->dp->audio(ior, args->v0.head, true);
+		else
+		if (ior->func->hdmi->audio)
+			ior->func->hdmi->audio(ior, args->v0.head, true);
+
 		ior->func->hda->hpd(ior, args->v0.head, true);
 		ior->func->hda->eld(ior, args->v0.head, args->v0.data, argc);
 	} else {
+		ior->func->hda->hpd(ior, args->v0.head, false);
+
 		if (outp->info.type == DCB_OUTPUT_DP)
 			ior->func->dp->audio(ior, args->v0.head, false);
-		ior->func->hda->hpd(ior, args->v0.head, false);
+		else
+		if (ior->func->hdmi->audio)
+			ior->func->hdmi->audio(ior, args->v0.head, false);
 	}
 
 	return 0;
