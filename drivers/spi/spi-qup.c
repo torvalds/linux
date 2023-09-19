@@ -12,6 +12,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
+#include <linux/pm_opp.h>
 #include <linux/pm_runtime.h>
 #include <linux/spi/spi.h>
 #include <linux/dmaengine.h>
@@ -667,7 +668,7 @@ static int spi_qup_io_prep(struct spi_device *spi, struct spi_transfer *xfer)
 		return -EIO;
 	}
 
-	ret = clk_set_rate(controller->cclk, xfer->speed_hz);
+	ret = dev_pm_opp_set_rate(controller->dev, xfer->speed_hz);
 	if (ret) {
 		dev_err(controller->dev, "fail to set frequency %d",
 			xfer->speed_hz);
@@ -1026,6 +1027,15 @@ static int spi_qup_probe(struct platform_device *pdev)
 		dev_err(dev, "invalid clock frequency %d\n", max_freq);
 		return -ENXIO;
 	}
+
+	ret = devm_pm_opp_set_clkname(dev, "core");
+	if (ret)
+		return ret;
+
+	/* OPP table is optional */
+	ret = devm_pm_opp_of_add_table(dev);
+	if (ret && ret != -ENODEV)
+		return dev_err_probe(dev, ret, "invalid OPP table\n");
 
 	host = spi_alloc_host(dev, sizeof(struct spi_qup));
 	if (!host) {
