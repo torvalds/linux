@@ -1,0 +1,71 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2023 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+/dts-v1/;
+
+#include "rk3588-evb1-lp4.dtsi"
+#include "rk3588-evb1-imx415.dtsi"
+#include "rk3588-linux.dtsi"
+#include "rk3588-amp.dtsi"
+
+/ {
+	model = "Rockchip RK3588 EVB1 LP4 V10 Board";
+	compatible = "rockchip,rk3588-evb1-lp4-v10", "rockchip,rk3588";
+
+	cpus {
+		cpu-map {
+			cluster0 {
+				/delete-node/ core3;
+			};
+		};
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0x0 0x02000000 0x0 0x06400000>,
+		      <0x0 0x09400000 0x0 0xe6c00000>,
+		      <0x1 0x00000000 0x1 0x00000000>,
+		      <0x2 0xf0000000 0x0 0x10000000>;
+	};
+};
+
+&arm_pmu {
+	interrupt-affinity = <&cpu_l0>, <&cpu_l1>, <&cpu_l2>,
+			     <&cpu_b0>, <&cpu_b1>, <&cpu_b2>, <&cpu_b3>;
+};
+
+/delete-node/ &cpu_l3;
+
+&route_hdmi0 {
+	status = "okay";
+	connect = <&vp0_out_hdmi0>;
+	/delete-property/ force-output;
+	/delete-node/ force_timing;
+};
+
+&route_hdmi1 {
+	status = "okay";
+	connect = <&vp1_out_hdmi1>;
+	/delete-property/ force-output;
+	/delete-node/ force_timing;
+};
+
+&vcc_1v8_s0 {
+	/delete-property/ regulator-state-mem;
+	regulator-state-mem {
+		regulator-on-in-suspend;
+		regulator-suspend-microvolt = <1800000>;
+	};
+};
+
+&vcc_3v3_s0 {
+	/delete-property/ regulator-state-mem;
+	regulator-state-mem {
+		regulator-on-in-suspend;
+		regulator-suspend-microvolt = <3300000>;
+	};
+};
+
