@@ -110,7 +110,7 @@ int cs42l43_set_jack(struct snd_soc_component *component,
 		priv->buttons[3] = 735;
 	}
 
-	ret = cs42l43_find_index(priv, "cirrus,detect-us", 10000, &priv->detect_us,
+	ret = cs42l43_find_index(priv, "cirrus,detect-us", 1000, &priv->detect_us,
 				 cs42l43_accdet_us, ARRAY_SIZE(cs42l43_accdet_us));
 	if (ret < 0)
 		goto error;
@@ -127,7 +127,7 @@ int cs42l43_set_jack(struct snd_soc_component *component,
 
 	hs2 |= ret << CS42L43_HSBIAS_RAMP_SHIFT;
 
-	ret = cs42l43_find_index(priv, "cirrus,bias-sense-microamp", 0,
+	ret = cs42l43_find_index(priv, "cirrus,bias-sense-microamp", 14,
 				 &priv->bias_sense_ua, cs42l43_accdet_bias_sense,
 				 ARRAY_SIZE(cs42l43_accdet_bias_sense));
 	if (ret < 0)
@@ -250,6 +250,15 @@ static void cs42l43_start_hs_bias(struct cs42l43_codec *priv, bool force_high)
 	if (!force_high && priv->bias_low)
 		val = 0x2 << CS42L43_HSBIAS_MODE_SHIFT;
 
+	if (priv->bias_sense_ua) {
+		regmap_update_bits(cs42l43->regmap,
+				   CS42L43_HS_BIAS_SENSE_AND_CLAMP_AUTOCONTROL,
+				   CS42L43_HSBIAS_SENSE_EN_MASK |
+				   CS42L43_AUTO_HSBIAS_CLAMP_EN_MASK,
+				   CS42L43_HSBIAS_SENSE_EN_MASK |
+				   CS42L43_AUTO_HSBIAS_CLAMP_EN_MASK);
+	}
+
 	regmap_update_bits(cs42l43->regmap, CS42L43_MIC_DETECT_CONTROL_1,
 			   CS42L43_HSBIAS_MODE_MASK, val);
 
@@ -267,6 +276,13 @@ static void cs42l43_stop_hs_bias(struct cs42l43_codec *priv)
 
 	regmap_update_bits(cs42l43->regmap, CS42L43_HS2,
 			   CS42L43_HS_CLAMP_DISABLE_MASK, 0);
+
+	if (priv->bias_sense_ua) {
+		regmap_update_bits(cs42l43->regmap,
+				   CS42L43_HS_BIAS_SENSE_AND_CLAMP_AUTOCONTROL,
+				   CS42L43_HSBIAS_SENSE_EN_MASK |
+				   CS42L43_AUTO_HSBIAS_CLAMP_EN_MASK, 0);
+	}
 }
 
 irqreturn_t cs42l43_bias_detect_clamp(int irq, void *data)
@@ -274,7 +290,7 @@ irqreturn_t cs42l43_bias_detect_clamp(int irq, void *data)
 	struct cs42l43_codec *priv = data;
 
 	queue_delayed_work(system_wq, &priv->bias_sense_timeout,
-			   msecs_to_jiffies(250));
+			   msecs_to_jiffies(1000));
 
 	return IRQ_HANDLED;
 }
@@ -318,15 +334,6 @@ static void cs42l43_start_button_detect(struct cs42l43_codec *priv)
 	regmap_update_bits(cs42l43->regmap, CS42L43_MIC_DETECT_CONTROL_1,
 			   CS42L43_BUTTON_DETECT_MODE_MASK |
 			   CS42L43_MIC_LVL_DET_DISABLE_MASK, val);
-
-	if (priv->bias_sense_ua) {
-		regmap_update_bits(cs42l43->regmap,
-				   CS42L43_HS_BIAS_SENSE_AND_CLAMP_AUTOCONTROL,
-				   CS42L43_HSBIAS_SENSE_EN_MASK |
-				   CS42L43_AUTO_HSBIAS_CLAMP_EN_MASK,
-				   CS42L43_HSBIAS_SENSE_EN_MASK |
-				   CS42L43_AUTO_HSBIAS_CLAMP_EN_MASK);
-	}
 }
 
 static void cs42l43_stop_button_detect(struct cs42l43_codec *priv)
@@ -334,13 +341,6 @@ static void cs42l43_stop_button_detect(struct cs42l43_codec *priv)
 	struct cs42l43 *cs42l43 = priv->core;
 
 	dev_dbg(priv->dev, "Stop button detect\n");
-
-	if (priv->bias_sense_ua) {
-		regmap_update_bits(cs42l43->regmap,
-				   CS42L43_HS_BIAS_SENSE_AND_CLAMP_AUTOCONTROL,
-				   CS42L43_HSBIAS_SENSE_EN_MASK |
-				   CS42L43_AUTO_HSBIAS_CLAMP_EN_MASK, 0);
-	}
 
 	regmap_update_bits(cs42l43->regmap, CS42L43_MIC_DETECT_CONTROL_1,
 			   CS42L43_BUTTON_DETECT_MODE_MASK |
