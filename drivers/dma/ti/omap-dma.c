@@ -1844,7 +1844,7 @@ static int omap_dma_probe(struct platform_device *pdev)
 	return rc;
 }
 
-static int omap_dma_remove(struct platform_device *pdev)
+static void omap_dma_remove(struct platform_device *pdev)
 {
 	struct omap_dmadev *od = platform_get_drvdata(pdev);
 	int irq;
@@ -1869,8 +1869,6 @@ static int omap_dma_remove(struct platform_device *pdev)
 		dma_pool_destroy(od->desc_pool);
 
 	omap_dma_free(od);
-
-	return 0;
 }
 
 static const struct omap_dma_config omap2420_data = {
@@ -1918,7 +1916,7 @@ MODULE_DEVICE_TABLE(of, omap_dma_match);
 
 static struct platform_driver omap_dma_driver = {
 	.probe	= omap_dma_probe,
-	.remove	= omap_dma_remove,
+	.remove_new = omap_dma_remove,
 	.driver = {
 		.name = "omap-dma-engine",
 		.of_match_table = omap_dma_match,
