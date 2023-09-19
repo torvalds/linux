@@ -141,7 +141,7 @@ nvkm_uoutp_mthd_release(struct nvkm_outp *outp, void *argv, u32 argc)
 		ior->func->hdmi->ctrl(ior, head->id, false, 0, 0);
 	}
 
-	nvkm_outp_release(outp, NVKM_OUTP_USER);
+	nvkm_outp_release(outp);
 	return 0;
 }
 
@@ -151,7 +151,7 @@ nvkm_uoutp_mthd_acquire_dp(struct nvkm_outp *outp, u8 dpcd[DP_RECEIVER_CAP_SIZE]
 {
 	int ret;
 
-	ret = nvkm_outp_acquire(outp, NVKM_OUTP_USER, hda);
+	ret = nvkm_outp_acquire_or(outp, NVKM_OUTP_USER, hda);
 	if (ret)
 		return ret;
 
@@ -172,7 +172,7 @@ nvkm_uoutp_mthd_acquire_tmds(struct nvkm_outp *outp, u8 head, u8 hdmi, u8 hdmi_m
 	if (!(outp->asy.head = nvkm_head_find(outp->disp, head)))
 		return -EINVAL;
 
-	ret = nvkm_outp_acquire(outp, NVKM_OUTP_USER, hdmi && hdmi_hda);
+	ret = nvkm_outp_acquire_or(outp, NVKM_OUTP_USER, hdmi && hdmi_hda);
 	if (ret)
 		return ret;
 
@@ -182,7 +182,7 @@ nvkm_uoutp_mthd_acquire_tmds(struct nvkm_outp *outp, u8 head, u8 hdmi, u8 hdmi_m
 		if (!ior->func->hdmi ||
 		    hdmi_max_ac_packet > 0x1f || hdmi_rekey > 0x7f ||
 		    (hdmi_scdc && !ior->func->hdmi->scdc)) {
-			nvkm_outp_release(outp, NVKM_OUTP_USER);
+			nvkm_outp_release_or(outp, NVKM_OUTP_USER);
 			return -EINVAL;
 		}
 
@@ -203,7 +203,7 @@ nvkm_uoutp_mthd_acquire_lvds(struct nvkm_outp *outp, bool dual, bool bpc8)
 	outp->lvds.dual = dual;
 	outp->lvds.bpc8 = bpc8;
 
-	return nvkm_outp_acquire(outp, NVKM_OUTP_USER, false);
+	return nvkm_outp_acquire_or(outp, NVKM_OUTP_USER, false);
 }
 
 static int
@@ -219,7 +219,7 @@ nvkm_uoutp_mthd_acquire(struct nvkm_outp *outp, void *argv, u32 argc)
 
 	switch (args->v0.proto) {
 	case NVIF_OUTP_ACQUIRE_V0_RGB_CRT:
-		ret = nvkm_outp_acquire(outp, NVKM_OUTP_USER, false);
+		ret = nvkm_outp_acquire_or(outp, NVKM_OUTP_USER, false);
 		break;
 	case NVIF_OUTP_ACQUIRE_V0_TMDS:
 		ret = nvkm_uoutp_mthd_acquire_tmds(outp, args->v0.tmds.head,
@@ -261,7 +261,7 @@ nvkm_uoutp_mthd_load_detect(struct nvkm_outp *outp, void *argv, u32 argc)
 	if (argc != sizeof(args->v0) || args->v0.version != 0)
 		return -ENOSYS;
 
-	ret = nvkm_outp_acquire(outp, NVKM_OUTP_PRIV, false);
+	ret = nvkm_outp_acquire_or(outp, NVKM_OUTP_PRIV, false);
 	if (ret == 0) {
 		if (outp->ior->func->sense) {
 			ret = outp->ior->func->sense(outp->ior, args->v0.data);
@@ -269,7 +269,7 @@ nvkm_uoutp_mthd_load_detect(struct nvkm_outp *outp, void *argv, u32 argc)
 		} else {
 			ret = -EINVAL;
 		}
-		nvkm_outp_release(outp, NVKM_OUTP_PRIV);
+		nvkm_outp_release_or(outp, NVKM_OUTP_PRIV);
 	}
 
 	return ret;

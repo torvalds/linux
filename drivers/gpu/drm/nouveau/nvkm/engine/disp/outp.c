@@ -89,7 +89,7 @@ nvkm_outp_xlat(struct nvkm_outp *outp, enum nvkm_ior_type *type)
 }
 
 void
-nvkm_outp_release(struct nvkm_outp *outp, u8 user)
+nvkm_outp_release_or(struct nvkm_outp *outp, u8 user)
 {
 	struct nvkm_ior *ior = outp->ior;
 	OUTP_TRACE(outp, "release %02x &= %02x %p", outp->acquired, ~user, ior);
@@ -142,7 +142,7 @@ nvkm_outp_acquire_hda(struct nvkm_outp *outp, enum nvkm_ior_type type,
 }
 
 int
-nvkm_outp_acquire(struct nvkm_outp *outp, u8 user, bool hda)
+nvkm_outp_acquire_or(struct nvkm_outp *outp, u8 user, bool hda)
 {
 	struct nvkm_ior *ior = outp->ior;
 	enum nvkm_ior_proto proto;
@@ -232,6 +232,12 @@ nvkm_outp_detect(struct nvkm_outp *outp)
 	}
 
 	return ret;
+}
+
+void
+nvkm_outp_release(struct nvkm_outp *outp)
+{
+	nvkm_outp_release_or(outp, NVKM_OUTP_USER);
 }
 
 void

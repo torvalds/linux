@@ -77,8 +77,9 @@ void nvkm_outp_fini(struct nvkm_outp *);
 
 int nvkm_outp_detect(struct nvkm_outp *);
 
-int nvkm_outp_acquire(struct nvkm_outp *, u8 user, bool hda);
-void nvkm_outp_release(struct nvkm_outp *, u8 user);
+int nvkm_outp_acquire_or(struct nvkm_outp *, u8 user, bool hda);
+void nvkm_outp_release(struct nvkm_outp *);
+void nvkm_outp_release_or(struct nvkm_outp *, u8 user);
 void nvkm_outp_route(struct nvkm_disp *);
 
 struct nvkm_outp_func {
