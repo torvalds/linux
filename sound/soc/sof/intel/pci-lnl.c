@@ -29,17 +29,17 @@ static const struct sof_dev_desc lnl_desc = {
 	.resindex_imr_base      = -1,
 	.irqindex_host_ipc      = -1,
 	.chip_info		= &lnl_chip_info,
-	.ipc_supported_mask	= BIT(SOF_INTEL_IPC4),
-	.ipc_default		= SOF_INTEL_IPC4,
+	.ipc_supported_mask	= BIT(SOF_IPC_TYPE_4),
+	.ipc_default		= SOF_IPC_TYPE_4,
 	.dspless_mode_supported	= true,
 	.default_fw_path = {
-		[SOF_INTEL_IPC4] = "intel/sof-ipc4/lnl",
+		[SOF_IPC_TYPE_4] = "intel/sof-ipc4/lnl",
 	},
 	.default_tplg_path = {
-		[SOF_INTEL_IPC4] = "intel/sof-ace-tplg",
+		[SOF_IPC_TYPE_4] = "intel/sof-ace-tplg",
 	},
 	.default_fw_filename = {
-		[SOF_INTEL_IPC4] = "sof-lnl.ri",
+		[SOF_IPC_TYPE_4] = "sof-lnl.ri",
 	},
 	.nocodec_tplg_filename = "sof-lnl-nocodec.tplg",
 	.ops = &sof_lnl_ops,
