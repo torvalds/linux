@@ -916,23 +916,27 @@ nv50_msto_prepare(struct drm_atomic_state *state,
 	struct nv50_mstc *mstc = msto->mstc;
 	struct nv50_mstm *mstm = mstc->mstm;
 	struct drm_dp_mst_atomic_payload *payload;
+	int ret = 0;
 
 	NV_ATOMIC(drm, "%s: msto prepare\n", msto->encoder.name);
 
 	payload = drm_atomic_get_mst_payload_state(mst_state, mstc->port);
 
-	// TODO: Figure out if we want to do a better job of handling VCPI allocation failures here?
 	if (msto->disabled) {
 		drm_dp_remove_payload_part1(mgr, mst_state, payload);
-
 		nvif_outp_dp_mst_vcpi(&mstm->outp->outp, msto->head->base.index, 0, 0, 0, 0);
+		ret = 1;
 	} else {
 		if (msto->enabled)
-			drm_dp_add_payload_part1(mgr, mst_state, payload);
+			ret = drm_dp_add_payload_part1(mgr, mst_state, payload);
+	}
 
+	if (ret == 0) {
 		nvif_outp_dp_mst_vcpi(&mstm->outp->outp, msto->head->base.index,
 				      payload->vc_start_slot, payload->time_slots,
 				      payload->pbn, payload->time_slots * mst_state->pbn_div);
+	} else {
+		nvif_outp_dp_mst_vcpi(&mstm->outp->outp, msto->head->base.index, 0, 0, 0, 0);
 	}
 }
 
