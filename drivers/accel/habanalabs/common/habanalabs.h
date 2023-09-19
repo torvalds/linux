@@ -1520,8 +1520,6 @@ struct engines_data {
  * @asic_dma_pool_free: free small DMA allocation from pool.
  * @cpu_accessible_dma_pool_alloc: allocate CPU PQ packet from DMA pool.
  * @cpu_accessible_dma_pool_free: free CPU PQ packet from DMA pool.
- * @asic_dma_unmap_single: unmap a single DMA buffer
- * @asic_dma_map_single: map a single buffer to a DMA
  * @hl_dma_unmap_sgtable: DMA unmap scatter-gather table.
  * @cs_parser: parse Command Submission.
  * @asic_dma_map_sgtable: DMA map scatter-gather table.
@@ -1645,12 +1643,6 @@ struct hl_asic_funcs {
 				size_t size, dma_addr_t *dma_handle);
 	void (*cpu_accessible_dma_pool_free)(struct hl_device *hdev,
 				size_t size, void *vaddr);
-	void (*asic_dma_unmap_single)(struct hl_device *hdev,
-				dma_addr_t dma_addr, int len,
-				enum dma_data_direction dir);
-	dma_addr_t (*asic_dma_map_single)(struct hl_device *hdev,
-				void *addr, int len,
-				enum dma_data_direction dir);
 	void (*hl_dma_unmap_sgtable)(struct hl_device *hdev,
 				struct sg_table *sgt,
 				enum dma_data_direction dir);

@@ -6731,24 +6731,6 @@ static void gaudi2_cpu_accessible_dma_pool_free(struct hl_device *hdev, size_t s
 	hl_fw_cpu_accessible_dma_pool_free(hdev, size, vaddr);
 }
 
-static dma_addr_t gaudi2_dma_map_single(struct hl_device *hdev, void *addr, int len,
-					enum dma_data_direction dir)
-{
-	dma_addr_t dma_addr;
-
-	dma_addr = dma_map_single(&hdev->pdev->dev, addr, len, dir);
-	if (unlikely(dma_mapping_error(&hdev->pdev->dev, dma_addr)))
-		return 0;
-
-	return dma_addr;
-}
-
-static void gaudi2_dma_unmap_single(struct hl_device *hdev, dma_addr_t addr, int len,
-					enum dma_data_direction dir)
-{
-	dma_unmap_single(&hdev->pdev->dev, addr, len, dir);
-}
-
 static int gaudi2_validate_cb_address(struct hl_device *hdev, struct hl_cs_parser *parser)
 {
 	struct asic_fixed_properties *asic_prop = &hdev->asic_prop;
@@ -11515,8 +11497,6 @@ static const struct hl_asic_funcs gaudi2_funcs = {
 	.asic_dma_pool_free = gaudi2_dma_pool_free,
 	.cpu_accessible_dma_pool_alloc = gaudi2_cpu_accessible_dma_pool_alloc,
 	.cpu_accessible_dma_pool_free = gaudi2_cpu_accessible_dma_pool_free,
-	.asic_dma_unmap_single = gaudi2_dma_unmap_single,
-	.asic_dma_map_single = gaudi2_dma_map_single,
 	.hl_dma_unmap_sgtable = hl_dma_unmap_sgtable,
 	.cs_parser = gaudi2_cs_parser,
 	.asic_dma_map_sgtable = hl_dma_map_sgtable,
