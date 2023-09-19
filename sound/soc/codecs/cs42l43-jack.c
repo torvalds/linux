@@ -290,7 +290,7 @@ irqreturn_t cs42l43_bias_detect_clamp(int irq, void *data)
 	struct cs42l43_codec *priv = data;
 
 	queue_delayed_work(system_wq, &priv->bias_sense_timeout,
-			   msecs_to_jiffies(250));
+			   msecs_to_jiffies(1000));
 
 	return IRQ_HANDLED;
 }
