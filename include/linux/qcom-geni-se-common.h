@@ -52,6 +52,7 @@ if (print) { \
 
 #define SE_DMA_TX_PTR_L			(0xC30)
 #define SE_DMA_TX_PTR_H			(0xC34)
+#define SE_DMA_TX_ATTR			(0xC38)
 #define SE_DMA_TX_LEN                   (0xC3C)
 #define SE_DMA_TX_IRQ_EN                (0xC48)
 #define SE_DMA_TX_LEN_IN                (0xC54)
