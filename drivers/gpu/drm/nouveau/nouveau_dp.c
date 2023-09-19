@@ -320,15 +320,83 @@ nouveau_dp_power_down(struct nouveau_encoder *outp)
 static bool
 nouveau_dp_train_link(struct nouveau_encoder *outp, bool retrain)
 {
-	int ret;
+	struct drm_dp_aux *aux = &outp->conn->aux;
+	bool post_lt = false;
+	int ret, retries = 0;
 
+	if ( (outp->dp.dpcd[DP_MAX_LANE_COUNT] & 0x20) &&
+	    !(outp->dp.dpcd[DP_MAX_DOWNSPREAD] & DP_TPS4_SUPPORTED))
+	    post_lt = true;
+
+retry:
 	ret = nvif_outp_dp_train(&outp->outp, outp->dp.dpcd,
 					      outp->dp.lttpr.nr,
 					      outp->dp.lt.nr,
 					      outp->dp.lt.bw,
 					      outp->dp.lt.mst,
-					      false,
+					      post_lt,
 					      retrain);
+	if (ret)
+		return false;
+
+	if (post_lt) {
+		u8 stat[DP_LINK_STATUS_SIZE];
+		u8 prev[2];
+		u8 time = 0, adjusts = 0, tmp;
+
+		ret = drm_dp_dpcd_read_phy_link_status(aux, DP_PHY_DPRX, stat);
+		if (ret)
+			return false;
+
+		for (;;) {
+			if (!drm_dp_channel_eq_ok(stat, outp->dp.lt.nr)) {
+				ret = 1;
+				break;
+			}
+
+			if (!(stat[2] & 0x02))
+				break;
+
+			msleep(5);
+			time += 5;
+
+			memcpy(prev, &stat[4], sizeof(prev));
+			ret = drm_dp_dpcd_read_phy_link_status(aux, DP_PHY_DPRX, stat);
+			if (ret)
+				break;
+
+			if (!memcmp(prev, &stat[4], sizeof(prev))) {
+				if (time > 200)
+					break;
+			} else {
+				u8 pe[4], vs[4];
+
+				if (adjusts++ == 6)
+					break;
+
+				for (int i = 0; i < outp->dp.lt.nr; i++) {
+					pe[i] = drm_dp_get_adjust_request_pre_emphasis(stat, i) >>
+							DP_TRAIN_PRE_EMPHASIS_SHIFT;
+					vs[i] = drm_dp_get_adjust_request_voltage(stat, i) >>
+							DP_TRAIN_VOLTAGE_SWING_SHIFT;
+				}
+
+				ret = nvif_outp_dp_drive(&outp->outp, outp->dp.lt.nr, pe, vs);
+				if (ret)
+					break;
+
+				time = 0;
+			}
+		}
+
+		if (drm_dp_dpcd_readb(aux, DP_LANE_COUNT_SET, &tmp) == 1) {
+			tmp &= ~0x20;
+			drm_dp_dpcd_writeb(aux, DP_LANE_COUNT_SET, tmp);
+		}
+	}
+
+	if (ret == 1 && retries++ < 3)
+		goto retry;
 
 	return ret == 0;
 }
@@ -336,15 +404,44 @@ nouveau_dp_train_link(struct nouveau_encoder *outp, bool retrain)
 bool
 nouveau_dp_train(struct nouveau_encoder *outp, bool mst, u32 khz, u8 bpc)
 {
-	bool ret;
+	struct nouveau_drm *drm = nouveau_drm(outp->base.base.dev);
+	struct drm_dp_aux *aux = &outp->conn->aux;
+	u32 min_rate;
+	u8 pwr;
+	bool ret = true;
+
+	if (mst)
+		min_rate = outp->dp.link_nr * outp->dp.rate[0].rate;
+	else
+		min_rate = DIV_ROUND_UP(khz * bpc * 3, 8);
+
+	NV_DEBUG(drm, "%s link training (mst:%d min_rate:%d)\n",
+		 outp->base.base.name, mst, min_rate);
 
 	mutex_lock(&outp->dp.hpd_irq_lock);
 
-	outp->dp.lt.nr = outp->dp.link_nr;
-	outp->dp.lt.bw = 0;
-	outp->dp.lt.mst = mst;
-	ret = nouveau_dp_train_link(outp, false);
+	if (drm_dp_dpcd_readb(aux, DP_SET_POWER, &pwr) == 1) {
+		if ((pwr & DP_SET_POWER_MASK) != DP_SET_POWER_D0) {
+			pwr &= ~DP_SET_POWER_MASK;
+			pwr |=  DP_SET_POWER_D0;
+			drm_dp_dpcd_writeb(aux, DP_SET_POWER, pwr);
+		}
+	}
 
+	for (int nr = outp->dp.link_nr; nr; nr >>= 1) {
+		for (int rate = 0; rate < outp->dp.rate_nr; rate++) {
+			if (outp->dp.rate[rate].rate * nr >= min_rate) {
+				outp->dp.lt.nr = nr;
+				outp->dp.lt.bw = outp->dp.rate[rate].rate;
+				outp->dp.lt.mst = mst;
+				if (nouveau_dp_train_link(outp, false))
+					goto done;
+			}
+		}
+	}
+
+	ret = false;
+done:
 	mutex_unlock(&outp->dp.hpd_irq_lock);
 	return ret;
 }
@@ -352,6 +449,17 @@ nouveau_dp_train(struct nouveau_encoder *outp, bool mst, u32 khz, u8 bpc)
 static bool
 nouveau_dp_link_check_locked(struct nouveau_encoder *outp)
 {
+	u8 link_status[DP_LINK_STATUS_SIZE];
+
+	if (!outp || !outp->dp.lt.nr)
+		return true;
+
+	if (drm_dp_dpcd_read_phy_link_status(&outp->conn->aux, DP_PHY_DPRX, link_status) < 0)
+		return false;
+
+	if (drm_dp_channel_eq_ok(link_status, outp->dp.lt.nr))
+		return true;
+
 	return nouveau_dp_train_link(outp, true);
 }
 

@@ -47,6 +47,22 @@ nvif_outp_dp_mst_vcpi(struct nvif_outp *outp, int head,
 }
 
 int
+nvif_outp_dp_drive(struct nvif_outp *outp, u8 link_nr, u8 pe[4], u8 vs[4])
+{
+	struct nvif_outp_dp_drive_v0 args;
+	int ret;
+
+	args.version = 0;
+	args.lanes   = link_nr;
+	memcpy(args.pe, pe, sizeof(args.pe));
+	memcpy(args.vs, vs, sizeof(args.vs));
+
+	ret = nvif_object_mthd(&outp->object, NVIF_OUTP_V0_DP_DRIVE, &args, sizeof(args));
+	NVIF_ERRON(ret, &outp->object, "[DP_DRIVE lanes:%d]", args.lanes);
+	return ret;
+}
+
+int
 nvif_outp_dp_train(struct nvif_outp *outp, u8 dpcd[DP_RECEIVER_CAP_SIZE], u8 lttprs,
 		   u8 link_nr, u32 link_bw, bool mst, bool post_lt_adj, bool retrain)
 {

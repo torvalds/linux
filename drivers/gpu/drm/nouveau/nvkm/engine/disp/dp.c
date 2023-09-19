@@ -315,6 +315,8 @@ nvkm_dp_train_link(struct nvkm_outp *outp, int rate)
 	sink[1] = ior->dp.nr;
 	if (ior->dp.ef)
 		sink[1] |= DPCD_LC01_ENHANCED_FRAME_EN;
+	if (outp->dp.lt.post_adj)
+		sink[1] |= 0x20;
 
 	ret = nvkm_wraux(outp->dp.aux, DPCD_LC00_LINK_BW_SET, sink, 2);
 	if (ret)
@@ -455,71 +457,58 @@ nvkm_dp_train_init(struct nvkm_outp *outp)
 }
 
 static int
-nvkm_dp_train_(struct nvkm_outp *outp, bool retrain)
+nvkm_dp_drive(struct nvkm_outp *outp, u8 lanes, u8 pe[4], u8 vs[4])
 {
-	if (retrain) {
-		if (!atomic_read(&outp->dp.lt.done))
-			return 0;
+	struct lt_state lt = {
+		.outp = outp,
+		.stat[4] = (pe[0] << 2) | (vs[0] << 0) |
+			   (pe[1] << 6) | (vs[1] << 4),
+		.stat[5] = (pe[2] << 2) | (vs[2] << 0) |
+			   (pe[3] << 6) | (vs[3] << 4),
+	};
 
-		return outp->func->acquire(outp);
-	}
-
-	return 0;
+	return nvkm_dp_train_drive(&lt, false);
 }
 
 static int
-nvkm_dp_train(struct nvkm_outp *outp, u32 dataKBps)
+nvkm_dp_train(struct nvkm_outp *outp, bool retrain)
 {
 	struct nvkm_ior *ior = outp->ior;
-	int ret = -EINVAL, nr, rate;
-	u8  pwr;
+	int ret, rate;
+
+	for (rate = 0; rate < outp->dp.rates; rate++) {
+		if (outp->dp.rate[rate].rate == (retrain ? ior->dp.bw : outp->dp.lt.bw) * 27000)
+			break;
+	}
+
+	if (WARN_ON(rate == outp->dp.rates))
+		return -EINVAL;
 
 	/* Retraining link?  Skip source configuration, it can mess up the active modeset. */
-	if (atomic_read(&outp->dp.lt.done)) {
-		for (rate = 0; rate < outp->dp.rates; rate++) {
-			if (outp->dp.rate[rate].rate == ior->dp.bw * 27000)
-				return nvkm_dp_train_link(outp, ret);
-		}
-		WARN_ON(1);
-		return -EINVAL;
+	if (retrain) {
+		mutex_lock(&outp->dp.mutex);
+		ret = nvkm_dp_train_link(outp, rate);
+		mutex_unlock(&outp->dp.mutex);
+		return ret;
 	}
 
-	/* Ensure sink is not in a low-power state. */
-	if (!nvkm_rdaux(outp->dp.aux, DPCD_SC00, &pwr, 1)) {
-		if ((pwr & DPCD_SC00_SET_POWER) != DPCD_SC00_SET_POWER_D0) {
-			pwr &= ~DPCD_SC00_SET_POWER;
-			pwr |=  DPCD_SC00_SET_POWER_D0;
-			nvkm_wraux(outp->dp.aux, DPCD_SC00, &pwr, 1);
-		}
-	}
+	mutex_lock(&outp->dp.mutex);
+	OUTP_DBG(outp, "training");
 
 	ior->dp.mst = outp->dp.lt.mst;
 	ior->dp.ef = outp->dp.dpcd[DPCD_RC02] & DPCD_RC02_ENHANCED_FRAME_CAP;
-	ior->dp.nr = 0;
+	ior->dp.bw = outp->dp.lt.bw;
+	ior->dp.nr = outp->dp.lt.nr;
 
-	/* Link training. */
-	OUTP_DBG(outp, "training");
 	nvkm_dp_train_init(outp);
-
-	/* Otherwise, loop through all valid link configurations that support the data rate. */
-	for (nr = outp->dp.links; ret < 0 && nr; nr >>= 1) {
-		for (rate = 0; ret < 0 && rate < outp->dp.rates; rate++) {
-			if (outp->dp.rate[rate].rate * nr >= dataKBps || WARN_ON(!ior->dp.nr)) {
-				/* Program selected link configuration. */
-				ior->dp.bw = outp->dp.rate[rate].rate / 27000;
-				ior->dp.nr = nr;
-				ret = nvkm_dp_train_links(outp, rate);
-			}
-		}
-	}
-
-	/* Finish up. */
+	ret = nvkm_dp_train_links(outp, rate);
 	nvkm_dp_train_fini(outp);
 	if (ret < 0)
 		OUTP_ERR(outp, "training failed");
 	else
 		OUTP_DBG(outp, "training done");
-	atomic_set(&outp->dp.lt.done, 1);
+
+	mutex_unlock(&outp->dp.mutex);
 	return ret;
 }
 
@@ -537,69 +526,10 @@ nvkm_dp_disable(struct nvkm_outp *outp, struct nvkm_ior *ior)
 static void
 nvkm_dp_release(struct nvkm_outp *outp)
 {
-	/* Prevent link from being retrained if sink sends an IRQ. */
-	atomic_set(&outp->dp.lt.done, 0);
 	outp->ior->dp.nr = 0;
-}
+	nvkm_dp_disable(outp, outp->ior);
 
-static int
-nvkm_dp_acquire(struct nvkm_outp *outp)
-{
-	struct nvkm_ior *ior = outp->ior;
-	struct nvkm_head *head;
-	bool retrain = true;
-	u32 datakbps = 0;
-	u32 dataKBps;
-	u32 linkKBps;
-	u8  stat[3];
-	int ret, i;
-
-	mutex_lock(&outp->dp.mutex);
-
-	/* Check that link configuration meets current requirements. */
-	list_for_each_entry(head, &outp->disp->heads, head) {
-		if (ior->asy.head & (1 << head->id)) {
-			u32 khz = (head->asy.hz >> ior->asy.rgdiv) / 1000;
-			datakbps += khz * head->asy.or.depth;
-		}
-	}
-
-	linkKBps = ior->dp.bw * 27000 * ior->dp.nr;
-	dataKBps = DIV_ROUND_UP(datakbps, 8);
-	OUTP_DBG(outp, "data %d KB/s link %d KB/s mst %d->%d",
-		 dataKBps, linkKBps, ior->dp.mst, outp->dp.lt.mst);
-	if (linkKBps < dataKBps || ior->dp.mst != outp->dp.lt.mst) {
-		OUTP_DBG(outp, "link requirements changed");
-		goto done;
-	}
-
-	/* Check that link is still trained. */
-	ret = nvkm_rdaux(outp->dp.aux, DPCD_LS02, stat, 3);
-	if (ret) {
-		OUTP_DBG(outp, "failed to read link status, assuming no sink");
-		goto done;
-	}
-
-	if (stat[2] & DPCD_LS04_INTERLANE_ALIGN_DONE) {
-		for (i = 0; i < ior->dp.nr; i++) {
-			u8 lane = (stat[i >> 1] >> ((i & 1) * 4)) & 0x0f;
-			if (!(lane & DPCD_LS02_LANE0_CR_DONE) ||
-			    !(lane & DPCD_LS02_LANE0_CHANNEL_EQ_DONE) ||
-			    !(lane & DPCD_LS02_LANE0_SYMBOL_LOCKED)) {
-				OUTP_DBG(outp, "lane %d not equalised", lane);
-				goto done;
-			}
-		}
-		retrain = false;
-	} else {
-		OUTP_DBG(outp, "no inter-lane alignment");
-	}
-
-done:
-	if (retrain || !atomic_read(&outp->dp.lt.done))
-		ret = nvkm_dp_train(outp, dataKBps);
-	mutex_unlock(&outp->dp.mutex);
-	return ret;
+	nvkm_outp_release(outp);
 }
 
 void
@@ -638,7 +568,6 @@ nvkm_dp_enable(struct nvkm_outp *outp, bool auxpwr)
 		OUTP_DBG(outp, "aux power -> demand");
 		nvkm_i2c_aux_monitor(aux, false);
 		outp->dp.aux_pwr = false;
-		atomic_set(&outp->dp.lt.done, 0);
 
 		/* Restore eDP panel GPIO to its prior state if we changed it, as
 		 * it could potentially interfere with other outputs.
@@ -677,14 +606,14 @@ nvkm_dp_func = {
 	.fini = nvkm_dp_fini,
 	.detect = nvkm_outp_detect,
 	.inherit = nvkm_outp_inherit,
-	.acquire = nvkm_dp_acquire,
+	.acquire = nvkm_outp_acquire,
 	.release = nvkm_dp_release,
-	.disable = nvkm_dp_disable,
 	.bl.get = nvkm_outp_bl_get,
 	.bl.set = nvkm_outp_bl_set,
 	.dp.aux_pwr = nvkm_dp_aux_pwr,
 	.dp.aux_xfer = nvkm_dp_aux_xfer,
-	.dp.train = nvkm_dp_train_,
+	.dp.train = nvkm_dp_train,
+	.dp.drive = nvkm_dp_drive,
 };
 
 int
@@ -723,6 +652,5 @@ nvkm_dp_new(struct nvkm_disp *disp, int index, struct dcb_output *dcbE, struct n
 	OUTP_DBG(outp, "bios dp %02x %02x %02x %02x", outp->dp.version, hdr, cnt, len);
 
 	mutex_init(&outp->dp.mutex);
-	atomic_set(&outp->dp.lt.done, 0);
 	return 0;
 }

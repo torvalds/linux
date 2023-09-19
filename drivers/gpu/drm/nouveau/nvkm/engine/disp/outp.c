@@ -31,7 +31,7 @@
 #include <subdev/gpio.h>
 #include <subdev/i2c.h>
 
-void
+static void
 nvkm_outp_route(struct nvkm_disp *disp)
 {
 	struct nvkm_outp *outp;
@@ -96,8 +96,6 @@ nvkm_outp_release_or(struct nvkm_outp *outp, u8 user)
 	if (ior) {
 		outp->acquired &= ~user;
 		if (!outp->acquired) {
-			if (outp->func->release && outp->ior)
-				outp->func->release(outp);
 			outp->ior->asy.outp = NULL;
 			outp->ior = NULL;
 		}
@@ -277,6 +275,18 @@ nvkm_outp_release(struct nvkm_outp *outp)
 	nvkm_outp_route(outp->disp);
 }
 
+int
+nvkm_outp_acquire(struct nvkm_outp *outp, bool hda)
+{
+	int ret = nvkm_outp_acquire_or(outp, NVKM_OUTP_USER, hda);
+
+	if (ret)
+		return ret;
+
+	nvkm_outp_route(outp->disp);
+	return 0;
+}
+
 void
 nvkm_outp_fini(struct nvkm_outp *outp)
 {
@@ -412,6 +422,8 @@ static const struct nvkm_outp_func
 nvkm_outp = {
 	.detect = nvkm_outp_detect,
 	.inherit = nvkm_outp_inherit,
+	.acquire = nvkm_outp_acquire,
+	.release = nvkm_outp_release,
 	.bl.get = nvkm_outp_bl_get,
 	.bl.set = nvkm_outp_bl_set,
 };

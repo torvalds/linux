@@ -35,6 +35,7 @@ union nvif_outp_args {
 #define NVIF_OUTP_V0_DP_AUX_XFER   0x71
 #define NVIF_OUTP_V0_DP_RATES      0x72
 #define NVIF_OUTP_V0_DP_TRAIN      0x73
+#define NVIF_OUTP_V0_DP_DRIVE      0x74
 #define NVIF_OUTP_V0_DP_MST_VCPI   0x78
 
 union nvif_outp_detect_args {
@@ -208,6 +209,16 @@ union nvif_outp_dp_train_args {
 		__u8  link_nr;
 		__u32 link_bw;
 		__u8 dpcd[DP_RECEIVER_CAP_SIZE];
+	} v0;
+};
+
+union nvif_outp_dp_drive_args {
+	struct nvif_outp_dp_drive_v0 {
+		__u8  version;
+		__u8  pad01[2];
+		__u8  lanes;
+		__u8  pe[4];
+		__u8  vs[4];
 	} v0;
 };
 

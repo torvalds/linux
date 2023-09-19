@@ -46,6 +46,19 @@ nvkm_uoutp_mthd_dp_mst_vcpi(struct nvkm_outp *outp, void *argv, u32 argc)
 }
 
 static int
+nvkm_uoutp_mthd_dp_drive(struct nvkm_outp *outp, void *argv, u32 argc)
+{
+	union nvif_outp_dp_drive_args *args = argv;
+
+	if (argc != sizeof(args->v0) || args->v0.version != 0)
+		return -ENOSYS;
+	if (!outp->func->dp.drive)
+		return -EINVAL;
+
+	return outp->func->dp.drive(outp, args->v0.lanes, args->v0.pe, args->v0.vs);
+}
+
+static int
 nvkm_uoutp_mthd_dp_train(struct nvkm_outp *outp, void *argv, u32 argc)
 {
 	union nvif_outp_dp_train_args *args = argv;
@@ -58,9 +71,8 @@ nvkm_uoutp_mthd_dp_train(struct nvkm_outp *outp, void *argv, u32 argc)
 	if (!args->v0.retrain) {
 		memcpy(outp->dp.dpcd, args->v0.dpcd, sizeof(outp->dp.dpcd));
 		outp->dp.lttprs = args->v0.lttprs;
-		outp->dp.links = args->v0.link_nr;
-		outp->dp.lt.nr = 0;
-		outp->dp.lt.bw = 0;
+		outp->dp.lt.nr = args->v0.link_nr;
+		outp->dp.lt.bw = args->v0.link_bw / 27000;
 		outp->dp.lt.mst = args->v0.mst;
 		outp->dp.lt.post_adj = args->v0.post_lt_adj;
 	}
@@ -279,7 +291,7 @@ nvkm_uoutp_mthd_release(struct nvkm_outp *outp, void *argv, u32 argc)
 	if (!outp->ior)
 		return -EINVAL;
 
-	nvkm_outp_release(outp);
+	outp->func->release(outp);
 	return 0;
 }
 
@@ -297,10 +309,10 @@ nvkm_uoutp_mthd_acquire(struct nvkm_outp *outp, void *argv, u32 argc)
 	switch (args->v0.type) {
 	case NVIF_OUTP_ACQUIRE_V0_DAC:
 	case NVIF_OUTP_ACQUIRE_V0_PIOR:
-		ret = nvkm_outp_acquire_or(outp, NVKM_OUTP_USER, false);
+		ret = outp->func->acquire(outp, false);
 		break;
 	case NVIF_OUTP_ACQUIRE_V0_SOR:
-		ret = nvkm_outp_acquire_or(outp, NVKM_OUTP_USER, args->v0.sor.hda);
+		ret = outp->func->acquire(outp, args->v0.sor.hda);
 		break;
 	default:
 		ret = -EINVAL;
@@ -309,8 +321,6 @@ nvkm_uoutp_mthd_acquire(struct nvkm_outp *outp, void *argv, u32 argc)
 
 	if (ret)
 		return ret;
-
-	nvkm_outp_route(outp->disp);
 
 	args->v0.or = outp->ior->id;
 	args->v0.link = outp->ior->asy.link;
@@ -450,6 +460,7 @@ nvkm_uoutp_mthd_acquired(struct nvkm_outp *outp, u32 mthd, void *argv, u32 argc)
 	case NVIF_OUTP_V0_INFOFRAME    : return nvkm_uoutp_mthd_infoframe    (outp, argv, argc);
 	case NVIF_OUTP_V0_HDA_ELD      : return nvkm_uoutp_mthd_hda_eld      (outp, argv, argc);
 	case NVIF_OUTP_V0_DP_TRAIN     : return nvkm_uoutp_mthd_dp_train     (outp, argv, argc);
+	case NVIF_OUTP_V0_DP_DRIVE     : return nvkm_uoutp_mthd_dp_drive     (outp, argv, argc);
 	case NVIF_OUTP_V0_DP_MST_VCPI  : return nvkm_uoutp_mthd_dp_mst_vcpi  (outp, argv, argc);
 	default:
 		break;

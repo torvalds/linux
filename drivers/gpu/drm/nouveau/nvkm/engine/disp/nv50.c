@@ -1286,10 +1286,6 @@ nv50_disp_super_2_2(struct nvkm_disp *disp, struct nvkm_head *head)
 		ior->asy.link      = outp->lvds.dual ? 3 : 1;
 	}
 
-	/* Handle any link training, etc. */
-	if (outp && outp->func->acquire)
-		outp->func->acquire(outp);
-
 	/* Execute OnInt2 IED script. */
 	nv50_disp_super_ied_on(head, ior, 0, khz);
 
@@ -1319,7 +1315,6 @@ nv50_disp_super_2_1(struct nvkm_disp *disp, struct nvkm_head *head)
 void
 nv50_disp_super_2_0(struct nvkm_disp *disp, struct nvkm_head *head)
 {
-	struct nvkm_outp *outp;
 	struct nvkm_ior *ior;
 
 	/* Determine which OR, if any, we're detaching from the head. */
@@ -1330,14 +1325,6 @@ nv50_disp_super_2_0(struct nvkm_disp *disp, struct nvkm_head *head)
 
 	/* Execute OffInt2 IED script. */
 	nv50_disp_super_ied_off(head, ior, 2);
-
-	/* If we're shutting down the OR's only active head, execute
-	 * the output path's disable function.
-	 */
-	if (ior->arm.head == (1 << head->id)) {
-		if ((outp = ior->arm.outp) && outp->func->disable)
-			outp->func->disable(outp, ior);
-	}
 }
 
 void
