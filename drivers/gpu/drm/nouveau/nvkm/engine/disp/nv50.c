@@ -1656,7 +1656,6 @@ nv50_disp_oneinit(struct nvkm_disp *disp)
 
 		switch (dcbE.type) {
 		case DCB_OUTPUT_ANALOG:
-		case DCB_OUTPUT_TV:
 		case DCB_OUTPUT_TMDS:
 		case DCB_OUTPUT_LVDS:
 			ret = nvkm_outp_new(disp, i, &dcbE, &outp);
@@ -1664,6 +1663,7 @@ nv50_disp_oneinit(struct nvkm_disp *disp)
 		case DCB_OUTPUT_DP:
 			ret = nvkm_dp_new(disp, i, &dcbE, &outp);
 			break;
+		case DCB_OUTPUT_TV:
 		case DCB_OUTPUT_WFD:
 			/* No support for WFD yet. */
 			ret = -ENODEV;
