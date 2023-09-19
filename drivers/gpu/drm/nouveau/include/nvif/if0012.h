@@ -21,6 +21,9 @@ union nvif_outp_args {
 
 #define NVIF_OUTP_V0_LOAD_DETECT   0x20
 
+#define NVIF_OUTP_V0_BL_GET        0x30
+#define NVIF_OUTP_V0_BL_SET        0x31
+
 #define NVIF_OUTP_V0_HDMI          0x50
 
 #define NVIF_OUTP_V0_INFOFRAME     0x60
@@ -116,6 +119,20 @@ union nvif_outp_inherit_args {
 union nvif_outp_release_args {
 	struct nvif_outp_release_vn {
 	} vn;
+};
+
+union nvif_outp_bl_get_args {
+	struct nvif_outp_bl_get_v0 {
+		__u8  version;
+		__u8  level;
+	} v0;
+};
+
+union nvif_outp_bl_set_args {
+	struct nvif_outp_bl_set_v0 {
+		__u8  version;
+		__u8  level;
+	} v0;
 };
 
 union nvif_outp_hdmi_args {

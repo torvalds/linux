@@ -210,6 +210,42 @@ nvkm_outp_acquire_or(struct nvkm_outp *outp, u8 user, bool hda)
 }
 
 int
+nvkm_outp_bl_set(struct nvkm_outp *outp, int level)
+{
+	int ret;
+
+	ret = nvkm_outp_acquire_or(outp, NVKM_OUTP_PRIV, false);
+	if (ret)
+		return ret;
+
+	if (outp->ior->func->bl)
+		ret = outp->ior->func->bl->set(outp->ior, level);
+	else
+		ret = -EINVAL;
+
+	nvkm_outp_release_or(outp, NVKM_OUTP_PRIV);
+	return ret;
+}
+
+int
+nvkm_outp_bl_get(struct nvkm_outp *outp)
+{
+	int ret;
+
+	ret = nvkm_outp_acquire_or(outp, NVKM_OUTP_PRIV, false);
+	if (ret)
+		return ret;
+
+	if (outp->ior->func->bl)
+		ret = outp->ior->func->bl->get(outp->ior);
+	else
+		ret = -EINVAL;
+
+	nvkm_outp_release_or(outp, NVKM_OUTP_PRIV);
+	return ret;
+}
+
+int
 nvkm_outp_detect(struct nvkm_outp *outp)
 {
 	struct nvkm_gpio *gpio = outp->disp->engine.subdev.device->gpio;
@@ -376,6 +412,8 @@ static const struct nvkm_outp_func
 nvkm_outp = {
 	.detect = nvkm_outp_detect,
 	.inherit = nvkm_outp_inherit,
+	.bl.get = nvkm_outp_bl_get,
+	.bl.set = nvkm_outp_bl_set,
 };
 
 int

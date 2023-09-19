@@ -165,6 +165,33 @@ nvif_outp_acquire_lvds(struct nvif_outp *outp, bool dual, bool bpc8)
 	return ret;
 }
 
+int
+nvif_outp_bl_set(struct nvif_outp *outp, int level)
+{
+	struct nvif_outp_bl_set_v0 args;
+	int ret;
+
+	args.version = 0;
+	args.level = level;
+
+	ret = nvif_object_mthd(&outp->object, NVIF_OUTP_V0_BL_SET, &args, sizeof(args));
+	NVIF_ERRON(ret, &outp->object, "[BL_SET level:%d]", args.level);
+	return ret;
+}
+
+int
+nvif_outp_bl_get(struct nvif_outp *outp)
+{
+	struct nvif_outp_bl_get_v0 args;
+	int ret;
+
+	args.version = 0;
+
+	ret = nvif_object_mthd(&outp->object, NVIF_OUTP_V0_BL_GET, &args, sizeof(args));
+	NVIF_ERRON(ret, &outp->object, "[BL_GET level:%d]", args.level);
+	return ret ? ret : args.level;
+}
+
 void
 nvif_outp_release(struct nvif_outp *outp)
 {

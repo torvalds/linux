@@ -182,6 +182,45 @@ nvkm_uoutp_mthd_acquire_lvds(struct nvkm_outp *outp, bool dual, bool bpc8)
 }
 
 static int
+nvkm_uoutp_mthd_bl_set(struct nvkm_outp *outp, void *argv, u32 argc)
+{
+	union nvif_outp_bl_get_args *args = argv;
+	int ret;
+
+	if (argc != sizeof(args->v0) || args->v0.version != 0)
+		return -ENOSYS;
+
+	if (outp->func->bl.set)
+		ret = outp->func->bl.set(outp, args->v0.level);
+	else
+		ret = -EINVAL;
+
+	return ret;
+}
+
+static int
+nvkm_uoutp_mthd_bl_get(struct nvkm_outp *outp, void *argv, u32 argc)
+{
+	union nvif_outp_bl_get_args *args = argv;
+	int ret;
+
+	if (argc != sizeof(args->v0) || args->v0.version != 0)
+		return -ENOSYS;
+
+	if (outp->func->bl.get) {
+		ret = outp->func->bl.get(outp);
+		if (ret >= 0) {
+			args->v0.level = ret;
+			ret = 0;
+		}
+	} else {
+		ret = -EINVAL;
+	}
+
+	return ret;
+}
+
+static int
 nvkm_uoutp_mthd_release(struct nvkm_outp *outp, void *argv, u32 argc)
 {
 	union nvif_outp_release_args *args = argv;
@@ -388,6 +427,8 @@ nvkm_uoutp_mthd_noacquire(struct nvkm_outp *outp, u32 mthd, void *argv, u32 argc
 	case NVIF_OUTP_V0_INHERIT    : return nvkm_uoutp_mthd_inherit    (outp, argv, argc);
 	case NVIF_OUTP_V0_ACQUIRE    : return nvkm_uoutp_mthd_acquire    (outp, argv, argc);
 	case NVIF_OUTP_V0_LOAD_DETECT: return nvkm_uoutp_mthd_load_detect(outp, argv, argc);
+	case NVIF_OUTP_V0_BL_GET     : return nvkm_uoutp_mthd_bl_get     (outp, argv, argc);
+	case NVIF_OUTP_V0_BL_SET     : return nvkm_uoutp_mthd_bl_set     (outp, argv, argc);
 	case NVIF_OUTP_V0_DP_AUX_PWR : return nvkm_uoutp_mthd_dp_aux_pwr (outp, argv, argc);
 	default:
 		break;

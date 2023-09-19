@@ -328,6 +328,7 @@ gf119_sor = {
 	.state = gf119_sor_state,
 	.power = nv50_sor_power,
 	.clock = gf119_sor_clock,
+	.bl = &gt215_sor_bl,
 	.hdmi = &gf119_sor_hdmi,
 	.dp = &gf119_sor_dp,
 	.hda = &gf119_sor_hda,

@@ -47,6 +47,9 @@ nvif_outp_acquired(struct nvif_outp *outp)
 	return outp->or.id >= 0;
 }
 
+int nvif_outp_bl_get(struct nvif_outp *);
+int nvif_outp_bl_set(struct nvif_outp *, int level);
+
 int nvif_outp_hdmi(struct nvif_outp *, int head, bool enable, u8 max_ac_packet, u8 rekey, u32 khz,
 		   bool scdc, bool scdc_scrambling, bool scdc_low_rates);
 
