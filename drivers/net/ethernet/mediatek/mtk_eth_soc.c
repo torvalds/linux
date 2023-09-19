@@ -197,6 +197,7 @@ static const struct mtk_reg_map mt7988_reg_map = {
 	.wdma_base = {
 		[0]		= 0x4800,
 		[1]		= 0x4c00,
+		[2]		= 0x5000,
 	},
 	.pse_iq_sta		= 0x0180,
 	.pse_oq_sta		= 0x01a0,
