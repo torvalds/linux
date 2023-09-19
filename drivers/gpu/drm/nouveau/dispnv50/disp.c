@@ -2375,7 +2375,8 @@ nv50_disp_outp_atomic_check_clr(struct nv50_atom *atom,
 		if (IS_ERR(outp))
 			return PTR_ERR(outp);
 
-		if (outp->encoder->encoder_type == DRM_MODE_ENCODER_DPMST) {
+		if (outp->encoder->encoder_type == DRM_MODE_ENCODER_DPMST ||
+		    nouveau_encoder(outp->encoder)->dcb->type == DCB_OUTPUT_DP) {
 			outp->flush_disable = true;
 			atom->flush_disable = true;
 		}
