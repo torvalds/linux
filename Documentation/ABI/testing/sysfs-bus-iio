@@ -2179,3 +2179,10 @@ Contact:	linux-iio@vger.kernel.org
 Description:
 		Number of conditions that must occur, during a running
 		period, before an event is generated.
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_colortemp_raw
+KernelVersion:	6.7
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Represents light color temperature, which measures light color
+		temperature in Kelvin.
