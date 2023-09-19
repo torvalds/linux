@@ -1029,7 +1029,7 @@ err_clk_disable:
 	return ret;
 }
 
-static int axi_dmac_remove(struct platform_device *pdev)
+static void axi_dmac_remove(struct platform_device *pdev)
 {
 	struct axi_dmac *dmac = platform_get_drvdata(pdev);
 
@@ -1038,8 +1038,6 @@ static int axi_dmac_remove(struct platform_device *pdev)
 	tasklet_kill(&dmac->chan.vchan.task);
 	dma_async_device_unregister(&dmac->dma_dev);
 	clk_disable_unprepare(dmac->clk);
-
-	return 0;
 }
 
 static const struct of_device_id axi_dmac_of_match_table[] = {
@@ -1054,7 +1052,7 @@ static struct platform_driver axi_dmac_driver = {
 		.of_match_table = axi_dmac_of_match_table,
 	},
 	.probe = axi_dmac_probe,
-	.remove = axi_dmac_remove,
+	.remove_new = axi_dmac_remove,
 };
 module_platform_driver(axi_dmac_driver);
 
