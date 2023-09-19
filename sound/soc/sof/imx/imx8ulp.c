@@ -478,16 +478,16 @@ static struct snd_sof_dsp_ops sof_imx8ulp_ops = {
 };
 
 static struct sof_dev_desc sof_of_imx8ulp_desc = {
-	.ipc_supported_mask     = BIT(SOF_IPC),
-	.ipc_default            = SOF_IPC,
+	.ipc_supported_mask     = BIT(SOF_IPC_TYPE_3),
+	.ipc_default            = SOF_IPC_TYPE_3,
 	.default_fw_path = {
-		[SOF_IPC] = "imx/sof",
+		[SOF_IPC_TYPE_3] = "imx/sof",
 	},
 	.default_tplg_path = {
-		[SOF_IPC] = "imx/sof-tplg",
+		[SOF_IPC_TYPE_3] = "imx/sof-tplg",
 	},
 	.default_fw_filename = {
-		[SOF_IPC] = "sof-imx8ulp.ri",
+		[SOF_IPC_TYPE_3] = "sof-imx8ulp.ri",
 	},
 	.nocodec_tplg_filename = "sof-imx8ulp-nocodec.tplg",
 	.ops = &sof_imx8ulp_ops,
