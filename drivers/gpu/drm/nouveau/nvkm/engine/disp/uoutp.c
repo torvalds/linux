@@ -61,12 +61,6 @@ static int
 nvkm_uoutp_mthd_acquire_dp(struct nvkm_outp *outp, u8 dpcd[DP_RECEIVER_CAP_SIZE],
 			   u8 link_nr, u8 link_bw, bool hda, bool mst)
 {
-	int ret;
-
-	ret = nvkm_outp_acquire_or(outp, NVKM_OUTP_USER, hda);
-	if (ret)
-		return ret;
-
 	memcpy(outp->dp.dpcd, dpcd, sizeof(outp->dp.dpcd));
 	outp->dp.lt.nr = link_nr;
 	outp->dp.lt.bw = link_bw;
@@ -146,25 +140,16 @@ static int
 nvkm_uoutp_mthd_acquire_tmds(struct nvkm_outp *outp, u8 head, u8 hdmi, u8 hdmi_max_ac_packet,
 			     u8 hdmi_rekey, u8 hdmi_scdc, u8 hdmi_hda)
 {
-	struct nvkm_ior *ior;
-	int ret;
+	struct nvkm_ior *ior = outp->ior;
 
 	if (!(outp->asy.head = nvkm_head_find(outp->disp, head)))
 		return -EINVAL;
 
-	ret = nvkm_outp_acquire_or(outp, NVKM_OUTP_USER, hdmi && hdmi_hda);
-	if (ret)
-		return ret;
-
-	ior = outp->ior;
-
 	if (hdmi) {
 		if (!ior->func->hdmi ||
 		    hdmi_max_ac_packet > 0x1f || hdmi_rekey > 0x7f ||
-		    (hdmi_scdc && !ior->func->hdmi->scdc)) {
-			nvkm_outp_release_or(outp, NVKM_OUTP_USER);
+		    (hdmi_scdc && !ior->func->hdmi->scdc))
 			return -EINVAL;
-		}
 
 		ior->func->hdmi->ctrl(ior, head, hdmi, hdmi_max_ac_packet, hdmi_rekey);
 		if (ior->func->hdmi->scdc)
@@ -182,8 +167,7 @@ nvkm_uoutp_mthd_acquire_lvds(struct nvkm_outp *outp, bool dual, bool bpc8)
 
 	outp->lvds.dual = dual;
 	outp->lvds.bpc8 = bpc8;
-
-	return nvkm_outp_acquire_or(outp, NVKM_OUTP_USER, false);
+	return 0;
 }
 
 static int
@@ -214,12 +198,16 @@ nvkm_uoutp_mthd_acquire(struct nvkm_outp *outp, void *argv, u32 argc)
 
 	if (argc != sizeof(args->v0) || args->v0.version != 0)
 		return -ENOSYS;
-	if (outp->ior)
+	if (outp->ior && args->v0.type <= NVIF_OUTP_ACQUIRE_V0_PIOR)
 		return -EBUSY;
 
 	switch (args->v0.type) {
 	case NVIF_OUTP_ACQUIRE_V0_DAC:
+	case NVIF_OUTP_ACQUIRE_V0_PIOR:
 		ret = nvkm_outp_acquire_or(outp, NVKM_OUTP_USER, false);
+		break;
+	case NVIF_OUTP_ACQUIRE_V0_SOR:
+		ret = nvkm_outp_acquire_or(outp, NVKM_OUTP_USER, args->v0.sor.hda);
 		break;
 	case NVIF_OUTP_ACQUIRE_V0_TMDS:
 		ret = nvkm_uoutp_mthd_acquire_tmds(outp, args->v0.tmds.head,

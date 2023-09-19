@@ -1034,7 +1034,7 @@ nv50_msto_atomic_enable(struct drm_encoder *encoder, struct drm_atomic_state *st
 		return;
 
 	if (!mstm->links++) {
-		/*XXX: MST audio. */
+		nvif_outp_acquire_sor(&mstm->outp->outp, false /*TODO: MST audio... */);
 		nvif_outp_acquire_dp(&mstm->outp->outp, mstm->outp->dp.dpcd, 0, 0, false, true);
 	}
 
@@ -1602,15 +1602,17 @@ nv50_sor_atomic_enable(struct drm_encoder *encoder, struct drm_atomic_state *sta
 
 	if ((disp->disp->object.oclass == GT214_DISP ||
 	     disp->disp->object.oclass >= GF110_DISP) &&
+	    nv_encoder->dcb->type != DCB_OUTPUT_LVDS &&
 	    drm_detect_monitor_audio(nv_connector->edid))
 		hda = true;
 
+	if (!nvif_outp_acquired(outp))
+		nvif_outp_acquire_sor(outp, hda);
+
 	switch (nv_encoder->dcb->type) {
 	case DCB_OUTPUT_TMDS:
-		if (disp->disp->object.oclass == NV50_DISP ||
-		    !drm_detect_hdmi_monitor(nv_connector->edid))
-			nvif_outp_acquire_tmds(outp, nv_crtc->index, false, 0, 0, 0, false);
-		else
+		if (disp->disp->object.oclass != NV50_DISP &&
+		    drm_detect_hdmi_monitor(nv_connector->edid))
 			nv50_hdmi_enable(encoder, nv_crtc, nv_connector, state, mode, hda);
 
 		if (nv_encoder->outp.or.link & 1) {
@@ -1849,6 +1851,9 @@ nv50_pior_atomic_enable(struct drm_encoder *encoder, struct drm_atomic_state *st
 	case  6: asyh->or.depth = NV837D_PIOR_SET_CONTROL_PIXEL_DEPTH_BPP_18_444; break;
 	default: asyh->or.depth = NV837D_PIOR_SET_CONTROL_PIXEL_DEPTH_DEFAULT; break;
 	}
+
+	if (!nvif_outp_acquired(&nv_encoder->outp))
+		nvif_outp_acquire_pior(&nv_encoder->outp);
 
 	switch (nv_encoder->dcb->type) {
 	case DCB_OUTPUT_TMDS:

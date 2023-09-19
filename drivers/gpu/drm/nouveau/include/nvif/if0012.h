@@ -60,7 +60,9 @@ union nvif_outp_acquire_args {
 	struct nvif_outp_acquire_v0 {
 		__u8 version;
 #define NVIF_OUTP_ACQUIRE_V0_DAC  0x00
-#define NVIF_OUTP_ACQUIRE_V0_TMDS    0x02
+#define NVIF_OUTP_ACQUIRE_V0_SOR  0x01
+#define NVIF_OUTP_ACQUIRE_V0_PIOR 0x02
+#define NVIF_OUTP_ACQUIRE_V0_TMDS    0x05
 #define NVIF_OUTP_ACQUIRE_V0_LVDS    0x03
 #define NVIF_OUTP_ACQUIRE_V0_DP      0x04
 		__u8 type;
@@ -68,6 +70,9 @@ union nvif_outp_acquire_args {
 		__u8 link;
 		__u8 pad04[4];
 		union {
+			struct {
+				__u8 hda;
+			} sor;
 			struct {
 				__u8 head;
 				__u8 hdmi;
