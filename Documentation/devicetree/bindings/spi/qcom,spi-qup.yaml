@@ -47,6 +47,11 @@ properties:
   interrupts:
     maxItems: 1
 
+  operating-points-v2: true
+
+  power-domains:
+    maxItems: 1
+
   reg:
     maxItems: 1
 
@@ -63,6 +68,7 @@ examples:
   - |
     #include <dt-bindings/clock/qcom,gcc-msm8996.h>
     #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/power/qcom-rpmpd.h>
 
     spi@7575000 {
         compatible = "qcom,spi-qup-v2.2.1";
@@ -76,6 +82,8 @@ examples:
         pinctrl-1 = <&blsp1_spi1_sleep>;
         dmas = <&blsp1_dma 12>, <&blsp1_dma 13>;
         dma-names = "tx", "rx";
+        power-domains = <&rpmpd MSM8996_VDDCX>;
+        operating-points-v2 = <&spi_opp_table>;
         #address-cells = <1>;
         #size-cells = <0>;
     };
