@@ -2084,13 +2084,6 @@ nv50_disp_atomic_commit_tail(struct drm_atomic_state *state)
 			help->atomic_disable(encoder, state);
 			outp->disabled = true;
 			interlock[NV50_DISP_INTERLOCK_CORE] |= 1;
-			if (outp->flush_disable) {
-				nv50_disp_atomic_commit_wndw(state, interlock);
-				nv50_disp_atomic_commit_core(state, interlock);
-				memset(interlock, 0x00, sizeof(interlock));
-
-				flushed = true;
-			}
 		}
 	}
 
@@ -2376,10 +2369,8 @@ nv50_disp_outp_atomic_check_clr(struct nv50_atom *atom,
 			return PTR_ERR(outp);
 
 		if (outp->encoder->encoder_type == DRM_MODE_ENCODER_DPMST ||
-		    nouveau_encoder(outp->encoder)->dcb->type == DCB_OUTPUT_DP) {
-			outp->flush_disable = true;
+		    nouveau_encoder(outp->encoder)->dcb->type == DCB_OUTPUT_DP)
 			atom->flush_disable = true;
-		}
 		outp->clr.ctrl = true;
 		atom->lock_core = true;
 	}
