@@ -34,7 +34,6 @@
 
 struct aspeed_vuart {
 	struct device		*dev;
-	struct clk		*clk;
 	int			line;
 	struct timer_list	unthrottle_timer;
 	struct uart_8250_port	*port;
@@ -422,6 +421,7 @@ static int aspeed_vuart_probe(struct platform_device *pdev)
 	struct resource *res;
 	u32 clk, prop, sirq[2];
 	int rc, sirq_polarity;
+	struct clk *vclk;
 
 	np = pdev->dev.of_node;
 
@@ -454,18 +454,13 @@ static int aspeed_vuart_probe(struct platform_device *pdev)
 		return rc;
 
 	if (of_property_read_u32(np, "clock-frequency", &clk)) {
-		vuart->clk = devm_clk_get(&pdev->dev, NULL);
-		if (IS_ERR(vuart->clk)) {
-			rc = dev_err_probe(dev, PTR_ERR(vuart->clk),
-					   "clk or clock-frequency not defined\n");
+		vclk = devm_clk_get_enabled(dev, NULL);
+		if (IS_ERR(vclk)) {
+			rc = dev_err_probe(dev, PTR_ERR(vclk), "clk or clock-frequency not defined\n");
 			goto err_sysfs_remove;
 		}
 
-		rc = clk_prepare_enable(vuart->clk);
-		if (rc < 0)
-			goto err_sysfs_remove;
-
-		clk = clk_get_rate(vuart->clk);
+		clk = clk_get_rate(vclk);
 	}
 
 	/* If current-speed was set, then try not to change it. */
@@ -565,7 +560,6 @@ static int aspeed_vuart_probe(struct platform_device *pdev)
 	return 0;
 
 err_clk_disable:
-	clk_disable_unprepare(vuart->clk);
 	irq_dispose_mapping(port.port.irq);
 err_sysfs_remove:
 	sysfs_remove_group(&vuart->dev->kobj, &aspeed_vuart_attr_group);
@@ -580,7 +574,6 @@ static int aspeed_vuart_remove(struct platform_device *pdev)
 	aspeed_vuart_set_enabled(vuart, false);
 	serial8250_unregister_port(vuart->line);
 	sysfs_remove_group(&vuart->dev->kobj, &aspeed_vuart_attr_group);
-	clk_disable_unprepare(vuart->clk);
 
 	return 0;
 }
