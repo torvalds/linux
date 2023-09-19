@@ -494,7 +494,7 @@ static int ipc3_dtrace_init(struct snd_sof_dev *sdev)
 	int ret;
 
 	/* dtrace is only supported with SOF_IPC */
-	if (sdev->pdata->ipc_type != SOF_IPC)
+	if (sdev->pdata->ipc_type != SOF_IPC_TYPE_3)
 		return -EOPNOTSUPP;
 
 	if (sdev->fw_trace_data) {

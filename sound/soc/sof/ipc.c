@@ -165,12 +165,12 @@ struct snd_sof_ipc *snd_sof_ipc_init(struct snd_sof_dev *sdev)
 
 	switch (sdev->pdata->ipc_type) {
 #if defined(CONFIG_SND_SOC_SOF_IPC3)
-	case SOF_IPC:
+	case SOF_IPC_TYPE_3:
 		ops = &ipc3_ops;
 		break;
 #endif
 #if defined(CONFIG_SND_SOC_SOF_IPC4)
-	case SOF_INTEL_IPC4:
+	case SOF_IPC_TYPE_4:
 		ops = &ipc4_ops;
 		break;
 #endif
