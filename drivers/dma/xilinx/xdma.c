@@ -841,7 +841,7 @@ EXPORT_SYMBOL(xdma_get_user_irq);
  * xdma_remove - Driver remove function
  * @pdev: Pointer to the platform_device structure
  */
-static int xdma_remove(struct platform_device *pdev)
+static void xdma_remove(struct platform_device *pdev)
 {
 	struct xdma_device *xdev = platform_get_drvdata(pdev);
 
@@ -850,8 +850,6 @@ static int xdma_remove(struct platform_device *pdev)
 
 	if (xdev->status & XDMA_DEV_STATUS_REG_DMA)
 		dma_async_device_unregister(&xdev->dma_dev);
-
-	return 0;
 }
 
 /**
@@ -966,7 +964,7 @@ static struct platform_driver xdma_driver = {
 	},
 	.id_table	= xdma_id_table,
 	.probe		= xdma_probe,
-	.remove		= xdma_remove,
+	.remove_new	= xdma_remove,
 };
 
 module_platform_driver(xdma_driver);
