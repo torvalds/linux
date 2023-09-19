@@ -24,6 +24,8 @@ union nvif_outp_args {
 #define NVIF_OUTP_V0_BL_GET        0x30
 #define NVIF_OUTP_V0_BL_SET        0x31
 
+#define NVIF_OUTP_V0_LVDS          0x40
+
 #define NVIF_OUTP_V0_HDMI          0x50
 
 #define NVIF_OUTP_V0_INFOFRAME     0x60
@@ -67,7 +69,6 @@ union nvif_outp_acquire_args {
 #define NVIF_OUTP_ACQUIRE_V0_DAC  0x00
 #define NVIF_OUTP_ACQUIRE_V0_SOR  0x01
 #define NVIF_OUTP_ACQUIRE_V0_PIOR 0x02
-#define NVIF_OUTP_ACQUIRE_V0_LVDS    0x03
 #define NVIF_OUTP_ACQUIRE_V0_DP      0x04
 		__u8 type;
 		__u8 or;
@@ -77,11 +78,6 @@ union nvif_outp_acquire_args {
 			struct {
 				__u8 hda;
 			} sor;
-			struct {
-				__u8 dual;
-				__u8 bpc8;
-				__u8 pad02[6];
-			} lvds;
 			struct {
 				__u8 link_nr; /* 0 = highest possible. */
 				__u8 link_bw; /* 0 = highest possible, DP BW code otherwise. */
@@ -132,6 +128,14 @@ union nvif_outp_bl_set_args {
 	struct nvif_outp_bl_set_v0 {
 		__u8  version;
 		__u8  level;
+	} v0;
+};
+
+union nvif_outp_lvds_args {
+	struct nvif_outp_lvds_v0 {
+		__u8  version;
+		__u8  dual;
+		__u8  bpc8;
 	} v0;
 };
 

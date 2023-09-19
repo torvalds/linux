@@ -171,13 +171,17 @@ nvkm_uoutp_mthd_hdmi(struct nvkm_outp *outp, void *argv, u32 argc)
 }
 
 static int
-nvkm_uoutp_mthd_acquire_lvds(struct nvkm_outp *outp, bool dual, bool bpc8)
+nvkm_uoutp_mthd_lvds(struct nvkm_outp *outp, void *argv, u32 argc)
 {
+	union nvif_outp_lvds_args *args = argv;
+
+	if (argc != sizeof(args->v0) || args->v0.version != 0)
+		return -ENOSYS;
 	if (outp->info.type != DCB_OUTPUT_LVDS)
 		return -EINVAL;
 
-	outp->lvds.dual = dual;
-	outp->lvds.bpc8 = bpc8;
+	outp->lvds.dual = !!args->v0.dual;
+	outp->lvds.bpc8 = !!args->v0.bpc8;
 	return 0;
 }
 
@@ -252,9 +256,6 @@ nvkm_uoutp_mthd_acquire(struct nvkm_outp *outp, void *argv, u32 argc)
 		break;
 	case NVIF_OUTP_ACQUIRE_V0_SOR:
 		ret = nvkm_outp_acquire_or(outp, NVKM_OUTP_USER, args->v0.sor.hda);
-		break;
-	case NVIF_OUTP_ACQUIRE_V0_LVDS:
-		ret = nvkm_uoutp_mthd_acquire_lvds(outp, args->v0.lvds.dual, args->v0.lvds.bpc8);
 		break;
 	case NVIF_OUTP_ACQUIRE_V0_DP:
 		ret = nvkm_uoutp_mthd_acquire_dp(outp, args->v0.dp.dpcd,
@@ -406,6 +407,7 @@ nvkm_uoutp_mthd_acquired(struct nvkm_outp *outp, u32 mthd, void *argv, u32 argc)
 {
 	switch (mthd) {
 	case NVIF_OUTP_V0_RELEASE      : return nvkm_uoutp_mthd_release      (outp, argv, argc);
+	case NVIF_OUTP_V0_LVDS         : return nvkm_uoutp_mthd_lvds         (outp, argv, argc);
 	case NVIF_OUTP_V0_HDMI         : return nvkm_uoutp_mthd_hdmi         (outp, argv, argc);
 	case NVIF_OUTP_V0_INFOFRAME    : return nvkm_uoutp_mthd_infoframe    (outp, argv, argc);
 	case NVIF_OUTP_V0_HDA_ELD      : return nvkm_uoutp_mthd_hda_eld      (outp, argv, argc);

@@ -150,18 +150,17 @@ nvif_outp_hdmi(struct nvif_outp *outp, int head, bool enable, u8 max_ac_packet, 
 }
 
 int
-nvif_outp_acquire_lvds(struct nvif_outp *outp, bool dual, bool bpc8)
+nvif_outp_lvds(struct nvif_outp *outp, bool dual, bool bpc8)
 {
-	struct nvif_outp_acquire_v0 args;
+	struct nvif_outp_lvds_v0 args;
 	int ret;
 
-	args.lvds.dual = dual;
-	args.lvds.bpc8 = bpc8;
+	args.version = 0;
+	args.dual = dual;
+	args.bpc8 = bpc8;
 
-	ret = nvif_outp_acquire(outp, NVIF_OUTP_ACQUIRE_V0_LVDS, &args);
-	NVIF_ERRON(ret, &outp->object,
-		   "[ACQUIRE proto:LVDS dual:%d 8bpc:%d] or:%d link:%d",
-		   args.lvds.dual, args.lvds.bpc8, args.or, args.link);
+	ret = nvif_mthd(&outp->object, NVIF_OUTP_V0_LVDS, &args, sizeof(args));
+	NVIF_ERRON(ret, &outp->object, "[LVDS dual:%d 8bpc:%d]", args.dual, args.bpc8);
 	return ret;
 }
 
