@@ -124,7 +124,7 @@ int __bch2_insert_snapshot_whiteouts(struct btree_trans *trans,
 	struct bkey_s_c old_k, new_k;
 	snapshot_id_list s;
 	struct bkey_i *update;
-	int ret;
+	int ret = 0;
 
 	if (!bch2_snapshot_has_children(c, old_pos.snapshot))
 		return 0;

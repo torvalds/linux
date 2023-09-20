@@ -627,7 +627,7 @@ int bch2_move_data(struct bch_fs *c,
 {
 	struct moving_context ctxt;
 	enum btree_id id;
-	int ret;
+	int ret = 0;
 
 	bch2_moving_ctxt_init(&ctxt, c, rate, stats, wp, wait_on_copygc);
 

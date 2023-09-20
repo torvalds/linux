@@ -930,7 +930,7 @@ static int bch2_write_extent(struct bch_write_op *op, struct write_point *wp,
 	do {
 		struct bch_extent_crc_unpacked crc = { 0 };
 		struct bversion version = op->version;
-		size_t dst_len, src_len;
+		size_t dst_len = 0, src_len = 0;
 
 		if (page_alloc_failed &&
 		    dst->bi_iter.bi_size  < (wp->sectors_free << 9) &&

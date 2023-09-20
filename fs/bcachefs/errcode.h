@@ -99,6 +99,7 @@
 	x(ENOENT,			ENOENT_str_hash_set_must_replace)	\
 	x(ENOENT,			ENOENT_inode)				\
 	x(ENOENT,			ENOENT_not_subvol)			\
+	x(ENOENT,			ENOENT_not_directory)			\
 	x(ENOENT,			ENOENT_directory_dead)			\
 	x(ENOENT,			ENOENT_subvolume)			\
 	x(ENOENT,			ENOENT_snapshot_tree)			\

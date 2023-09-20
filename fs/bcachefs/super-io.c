@@ -185,7 +185,7 @@ int bch2_sb_realloc(struct bch_sb_handle *sb, unsigned u64s)
 	if (sb->sb && sb->buffer_size >= new_buffer_size)
 		return 0;
 
-	if (sb->have_layout) {
+	if (sb->sb && sb->have_layout) {
 		u64 max_bytes = 512 << sb->sb->layout.sb_max_size_bits;
 
 		if (new_bytes > max_bytes) {

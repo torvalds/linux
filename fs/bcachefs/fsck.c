@@ -281,7 +281,7 @@ static int lookup_lostfound(struct btree_trans *trans, u32 subvol,
 
 	if (d_type != DT_DIR) {
 		bch_err(c, "error looking up lost+found: not a directory");
-		return ret;
+		return -BCH_ERR_ENOENT_not_directory;
 	}
 
 	/*
