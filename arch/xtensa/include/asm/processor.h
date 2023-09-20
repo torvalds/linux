@@ -220,6 +220,7 @@ struct mm_struct;
 extern unsigned long __get_wchan(struct task_struct *p);
 
 void init_arch(bp_tag_t *bp_start);
+void do_notify_resume(struct pt_regs *regs);
 
 #define KSTK_EIP(tsk)		(task_pt_regs(tsk)->pc)
 #define KSTK_ESP(tsk)		(task_pt_regs(tsk)->areg[1])
