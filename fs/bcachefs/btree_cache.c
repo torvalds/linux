@@ -746,7 +746,7 @@ static noinline struct btree *bch2_btree_node_fill(struct btree_trans *trans,
 	six_unlock_intent(&b->c.lock);
 
 	/* Unlock before doing IO: */
-	if (trans && sync)
+	if (path && sync)
 		bch2_trans_unlock_noassert(trans);
 
 	bch2_btree_node_read(c, b, sync);
@@ -976,28 +976,8 @@ struct btree *bch2_btree_node_get(struct btree_trans *trans, struct btree_path *
 	}
 
 	if (unlikely(btree_node_read_in_flight(b))) {
-		u32 seq = six_lock_seq(&b->c.lock);
-
 		six_unlock_type(&b->c.lock, lock_type);
-		bch2_trans_unlock(trans);
-
-		bch2_btree_node_wait_on_read(b);
-
-		/*
-		 * should_be_locked is not set on this path yet, so we need to
-		 * relock it specifically:
-		 */
-		if (trans) {
-			ret = bch2_trans_relock(trans) ?:
-				bch2_btree_path_relock_intent(trans, path);
-			if (ret) {
-				BUG_ON(!trans->restarted);
-				return ERR_PTR(ret);
-			}
-		}
-
-		if (!six_relock_type(&b->c.lock, lock_type, seq))
-			return __bch2_btree_node_get(trans, path, k, level, lock_type, trace_ip);
+		return __bch2_btree_node_get(trans, path, k, level, lock_type, trace_ip);
 	}
 
 	prefetch(b->aux_data);
