@@ -1197,6 +1197,9 @@ static unsigned long system_supported_vcpu_features(void)
 	if (!cpus_have_final_cap(ARM64_HAS_32BIT_EL1))
 		clear_bit(KVM_ARM_VCPU_EL1_32BIT, &features);
 
+	if (!kvm_arm_support_pmu_v3())
+		clear_bit(KVM_ARM_VCPU_PMU_V3, &features);
+
 	return features;
 }
 

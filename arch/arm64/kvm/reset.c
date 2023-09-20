@@ -255,11 +255,6 @@ int kvm_reset_vcpu(struct kvm_vcpu *vcpu)
 	else
 		pstate = VCPU_RESET_PSTATE_EL1;
 
-	if (kvm_vcpu_has_pmu(vcpu) && !kvm_arm_support_pmu_v3()) {
-		ret = -EINVAL;
-		goto out;
-	}
-
 	/* Reset core registers */
 	memset(vcpu_gp_regs(vcpu), 0, sizeof(*vcpu_gp_regs(vcpu)));
 	memset(&vcpu->arch.ctxt.fp_regs, 0, sizeof(vcpu->arch.ctxt.fp_regs));
