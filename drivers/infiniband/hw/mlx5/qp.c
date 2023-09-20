@@ -3436,7 +3436,7 @@ static int ib_rate_to_mlx5(struct mlx5_ib_dev *dev, u8 rate)
 	if (rate == IB_RATE_PORT_CURRENT)
 		return 0;
 
-	if (rate < IB_RATE_2_5_GBPS || rate > IB_RATE_600_GBPS)
+	if (rate < IB_RATE_2_5_GBPS || rate > IB_RATE_800_GBPS)
 		return -EINVAL;
 
 	stat_rate_support = MLX5_CAP_GEN(dev->mdev, stat_rate_support);
