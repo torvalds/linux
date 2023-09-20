@@ -4008,21 +4008,27 @@ static void rtw89_core_setup_rfe_parms(struct rtw89_dev *rtwdev)
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 	const struct rtw89_rfe_parms_conf *conf = chip->rfe_parms_conf;
 	struct rtw89_efuse *efuse = &rtwdev->efuse;
+	const struct rtw89_rfe_parms *sel;
 	u8 rfe_type = efuse->rfe_type;
 
-	if (!conf)
+	if (!conf) {
+		sel = chip->dflt_parms;
 		goto out;
+	}
 
 	while (conf->rfe_parms) {
 		if (rfe_type == conf->rfe_type) {
-			rtwdev->rfe_parms = conf->rfe_parms;
-			return;
+			sel = conf->rfe_parms;
+			goto out;
 		}
 		conf++;
 	}
 
+	sel = chip->dflt_parms;
+
 out:
-	rtwdev->rfe_parms = chip->dflt_parms;
+	rtwdev->rfe_parms = sel;
+	rtw89_load_txpwr_table(rtwdev, sel->byr_tbl);
 }
 
 static int rtw89_chip_efuse_info_setup(struct rtw89_dev *rtwdev)
