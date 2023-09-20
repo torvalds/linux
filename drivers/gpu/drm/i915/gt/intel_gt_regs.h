@@ -26,7 +26,7 @@
 #define   MTL_CAGF_MASK				REG_GENMASK(8, 0)
 #define   MTL_CC0				0x0
 #define   MTL_CC6				0x3
-#define   MTL_CC_MASK				REG_GENMASK(12, 9)
+#define   MTL_CC_MASK				REG_GENMASK(10, 9)
 
 /* RPM unit config (Gen8+) */
 #define RPM_CONFIG0				_MMIO(0xd00)
