@@ -627,6 +627,9 @@ static long bch2_ioctl_disk_resize_journal(struct bch_fs *c,
 	    arg.pad)
 		return -EINVAL;
 
+	if (arg.nbuckets > U32_MAX)
+		return -EINVAL;
+
 	ca = bch2_device_lookup(c, arg.dev, arg.flags);
 	if (IS_ERR(ca))
 		return PTR_ERR(ca);
