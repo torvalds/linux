@@ -4474,6 +4474,8 @@ static void ieee80211_mlo_multicast_tx(struct net_device *dev,
  * @dev: incoming interface
  *
  * On failure skb will be freed.
+ *
+ * Returns: the netdev TX status (but really only %NETDEV_TX_OK)
  */
 netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 				       struct net_device *dev)

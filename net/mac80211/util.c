@@ -4146,6 +4146,8 @@ u8 ieee80211_mcs_to_chains(const struct ieee80211_mcs_info *mcs)
  * This function calculates the RX timestamp at the given MPDU offset, taking
  * into account what the RX timestamp was. An offset of 0 will just normalize
  * the timestamp to TSF at beginning of MPDU reception.
+ *
+ * Returns: the calculated timestamp
  */
 u64 ieee80211_calculate_rx_timestamp(struct ieee80211_local *local,
 				     struct ieee80211_rx_status *status,
