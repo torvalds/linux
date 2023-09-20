@@ -230,7 +230,7 @@ static int shm_send_health_check_ind(struct hma_info *tmp_hma_info)
 	int rc;
 	struct restart_work *rwp;
 
-	if (!tmp_hma_info->connected)
+	if (!tmp_hma_info->connected || atomic_read(&tmp_hma_info->is_in_reset))
 		return 0;
 
 	/* Rate limit the health check as configured by the subsystem */
@@ -322,7 +322,12 @@ static void shm_reg_req_handler(struct qmi_handle *qmi, struct sockaddr_qrtr *sq
 	mutex_lock(&hma_info_list_lock);
 	list_for_each_entry(tmp_hma_info, &hma_info_list, list) {
 		if (!strcmp(tmp_hma_info->subsys_name, req->name) &&
-		    !tmp_hma_info->connected) {
+		    !atomic_read(&tmp_hma_info->is_in_reset)) {
+			if (tmp_hma_info->connected)
+				SHM_ERR("%s: Duplicate HMA from %s-cur[0x%x:0x%x] new[0x%x:0x%x]\n",
+					__func__, req->name, tmp_hma_info->sq.sq_node,
+					tmp_hma_info->sq.sq_port, sq->sq_node, sq->sq_port);
+
 			tmp_hma_info->connected = true;
 			memcpy(&tmp_hma_info->sq, sq, sizeof(*sq));
 			if (req->timeout_valid)
@@ -336,10 +341,6 @@ static void shm_reg_req_handler(struct qmi_handle *qmi, struct sockaddr_qrtr *sq
 				     __func__, req->name, tmp_hma_info->timeout,
 				     sq->sq_node, sq->sq_port);
 			hma_info_found = true;
-		} else if (!strcmp(tmp_hma_info->subsys_name, req->name)) {
-			SHM_ERR("%s: Duplicate HMA from %s - cur[0x%x:0x%x] new[0x%x:0x%x]\n",
-				__func__, req->name, tmp_hma_info->sq.sq_node,
-				tmp_hma_info->sq.sq_port, sq->sq_node, sq->sq_port);
 		}
 	}
 	mutex_unlock(&hma_info_list_lock);
