@@ -2103,7 +2103,6 @@ const struct rtw89_chip_info rtw8852a_chip_info = {
 				   &rtw89_8852a_phy_radiob_table,},
 	.nctl_table		= &rtw89_8852a_phy_nctl_table,
 	.nctl_post_table	= NULL,
-	.byr_table		= &rtw89_8852a_byr_table,
 	.dflt_parms		= &rtw89_8852a_dflt_parms,
 	.rfe_parms_conf		= NULL,
 	.txpwr_factor_rf	= 2,

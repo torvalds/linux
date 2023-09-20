@@ -11,7 +11,6 @@ extern const struct rtw89_phy_table rtw89_8851b_phy_bb_table;
 extern const struct rtw89_phy_table rtw89_8851b_phy_bb_gain_table;
 extern const struct rtw89_phy_table rtw89_8851b_phy_radioa_table;
 extern const struct rtw89_phy_table rtw89_8851b_phy_nctl_table;
-extern const struct rtw89_txpwr_table rtw89_8851b_byr_table;
 extern const struct rtw89_txpwr_track_cfg rtw89_8851b_trk_cfg;
 extern const struct rtw89_rfe_parms rtw89_8851b_dflt_parms;
 extern const struct rtw89_rfe_parms_conf rtw89_8851b_rfe_parms_conf[];
