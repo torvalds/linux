@@ -1805,6 +1805,31 @@ static void vlv_dsi_lenovo_yoga_tab2_size_fixup(struct intel_dsi *intel_dsi)
 	}
 }
 
+/*
+ * On the Lenovo Yoga Tab 3 Pro YT3-X90F there are 2 problems:
+ * 1. i2c_acpi_find_adapter() picks the wrong adapter causing mipi_exec_i2c()
+ *    to not work. Fix this by setting i2c_bus_num.
+ * 2. There is no backlight off MIPI sequence, causing the backlight to stay on.
+ *    Add a backlight off sequence mirroring the existing backlight on sequence.
+ *
+ * https://gitlab.freedesktop.org/drm/intel/-/issues/9380
+ */
+static void vlv_dsi_lenovo_yoga_tab3_backlight_fixup(struct intel_dsi *intel_dsi)
+{
+	static const u8 backlight_off_sequence[16] = {
+		/* Header Seq-id 7, length after header 11 bytes */
+		0x07, 0x0b, 0x00, 0x00, 0x00,
+		/* MIPI_SEQ_ELEM_I2C bus 0 addr 0x2c reg 0x00 data-len 1 data 0x00 */
+		0x04, 0x08, 0x00, 0x00, 0x00, 0x2c, 0x00, 0x00, 0x01, 0x00,
+		/* MIPI_SEQ_ELEM_END */
+		0x00
+	};
+	struct intel_connector *connector = intel_dsi->attached_connector;
+
+	intel_dsi->i2c_bus_num = 0;
+	connector->panel.vbt.dsi.sequence[MIPI_SEQ_BACKLIGHT_OFF] = backlight_off_sequence;
+}
+
 static const struct dmi_system_id vlv_dsi_dmi_quirk_table[] = {
 	{
 		/* Asus Transformer Pad TF103C */
@@ -1827,6 +1852,15 @@ static const struct dmi_system_id vlv_dsi_dmi_quirk_table[] = {
 			DMI_MATCH(DMI_BIOS_VERSION, "BLADE_21"),
 		},
 		.driver_data = (void *)vlv_dsi_lenovo_yoga_tab2_size_fixup,
+	},
+	{
+		/* Lenovo Yoga Tab 3 Pro YT3-X90F */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Intel Corporation"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "CHERRYVIEW D1 PLATFORM"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "Blade3-10A-001"),
+		},
+		.driver_data = (void *)vlv_dsi_lenovo_yoga_tab3_backlight_fixup,
 	},
 	{ }
 };
