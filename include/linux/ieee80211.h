@@ -1705,6 +1705,8 @@ struct ieee80211_mcs_info {
 #define		IEEE80211_HT_MCS_TX_MAX_STREAMS	4
 #define IEEE80211_HT_MCS_TX_UNEQUAL_MODULATION	0x10
 
+#define IEEE80211_HT_MCS_CHAINS(mcs) ((mcs) == 32 ? 1 : (1 + ((mcs) >> 3)))
+
 /*
  * 802.11n D5.0 20.3.5 / 20.6 says:
  * - indices 0 to 7 and 32 are single spatial stream
