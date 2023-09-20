@@ -656,6 +656,18 @@ static int gt1x_ts_remove(struct i2c_client *client)
 }
 
 #if defined(CONFIG_FB)
+#include <linux/async.h>
+
+static void gt1x_resume_async(void *data, async_cookie_t cookie)
+{
+	gt1x_resume();
+}
+
+static void gt1x_suspend_async(void *data, async_cookie_t cookie)
+{
+	gt1x_suspend();
+}
+
 /* frame buffer notifier block control the suspend/resume procedure */
 static struct notifier_block gt1x_fb_notifier;
 static int tp_status;
@@ -686,7 +698,7 @@ static int gtp_fb_notifier_callback(struct notifier_block *noti, unsigned long e
 		if (*blank == FB_BLANK_UNBLANK) {
 			tp_status = *blank;
 			GTP_DEBUG("Resume by fb notifier.");
-			gt1x_resume();
+			async_schedule(gt1x_resume_async, NULL);
 		}
 	}
 #endif
@@ -697,7 +709,7 @@ static int gtp_fb_notifier_callback(struct notifier_block *noti, unsigned long e
 		if (*blank == FB_BLANK_POWERDOWN) {
 			tp_status = *blank;
 			GTP_DEBUG("Suspend by fb notifier.");
-			gt1x_suspend();
+			async_schedule(gt1x_suspend_async, NULL);
 		}
 	}
 
