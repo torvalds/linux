@@ -549,15 +549,13 @@ err_free_mem:
 	return err;
 }
 
-static int matrix_keypad_remove(struct platform_device *pdev)
+static void matrix_keypad_remove(struct platform_device *pdev)
 {
 	struct matrix_keypad *keypad = platform_get_drvdata(pdev);
 
 	matrix_keypad_free_gpio(keypad);
 	input_unregister_device(keypad->input_dev);
 	kfree(keypad);
-
-	return 0;
 }
 
 #ifdef CONFIG_OF
@@ -570,7 +568,7 @@ MODULE_DEVICE_TABLE(of, matrix_keypad_dt_match);
 
 static struct platform_driver matrix_keypad_driver = {
 	.probe		= matrix_keypad_probe,
-	.remove		= matrix_keypad_remove,
+	.remove_new	= matrix_keypad_remove,
 	.driver		= {
 		.name	= "matrix-keypad",
 		.pm	= pm_sleep_ptr(&matrix_keypad_pm_ops),
