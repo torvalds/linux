@@ -302,6 +302,7 @@ show_perf_event_kprobe_json(struct bpf_link_info *info, json_writer_t *wtr)
 	jsonw_string_field(wtr, "func",
 			   u64_to_ptr(info->perf_event.kprobe.func_name));
 	jsonw_uint_field(wtr, "offset", info->perf_event.kprobe.offset);
+	jsonw_uint_field(wtr, "missed", info->perf_event.kprobe.missed);
 }
 
 static void
@@ -686,6 +687,8 @@ static void show_perf_event_kprobe_plain(struct bpf_link_info *info)
 	printf("%s", buf);
 	if (info->perf_event.kprobe.offset)
 		printf("+%#x", info->perf_event.kprobe.offset);
+	if (info->perf_event.kprobe.missed)
+		printf("  missed %llu", info->perf_event.kprobe.missed);
 	printf("  ");
 }
 
