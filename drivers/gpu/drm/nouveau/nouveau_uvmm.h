@@ -3,13 +3,13 @@
 #ifndef __NOUVEAU_UVMM_H__
 #define __NOUVEAU_UVMM_H__
 
-#include <drm/drm_gpuva_mgr.h>
+#include <drm/drm_gpuvm.h>
 
 #include "nouveau_drv.h"
 
 struct nouveau_uvmm {
 	struct nouveau_vmm vmm;
-	struct drm_gpuva_manager umgr;
+	struct drm_gpuvm umgr;
 	struct maple_tree region_mt;
 	struct mutex mutex;
 	struct dma_resv resv;
@@ -44,7 +44,7 @@ struct nouveau_uvma {
 #define uvmm_from_mgr(x) container_of((x), struct nouveau_uvmm, umgr)
 #define uvma_from_va(x) container_of((x), struct nouveau_uvma, va)
 
-#define to_uvmm(x) uvmm_from_mgr((x)->va.mgr)
+#define to_uvmm(x) uvmm_from_mgr((x)->va.vm)
 
 struct nouveau_uvmm_bind_job {
 	struct nouveau_job base;
