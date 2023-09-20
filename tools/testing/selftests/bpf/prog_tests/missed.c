@@ -2,6 +2,7 @@
 #include <test_progs.h>
 #include "missed_kprobe.skel.h"
 #include "missed_kprobe_recursion.skel.h"
+#include "missed_tp_recursion.skel.h"
 
 /*
  * Putting kprobe on bpf_fentry_test1 that calls bpf_kfunc_common_test
@@ -89,10 +90,49 @@ cleanup:
 	missed_kprobe_recursion__destroy(skel);
 }
 
+/*
+ * Putting kprobe on bpf_fentry_test1 that calls bpf_printk and invokes
+ * bpf_trace_printk tracepoint. The bpf_trace_printk tracepoint has test[234]
+ * programs attached to it.
+ *
+ * Because kprobe execution goes through bpf_prog_active check, programs
+ * attached to the tracepoint will fail the recursion check and increment
+ * the recursion_misses stats.
+ */
+static void test_missed_tp_recursion(void)
+{
+	LIBBPF_OPTS(bpf_test_run_opts, topts);
+	struct missed_tp_recursion *skel;
+	int err, prog_fd;
+
+	skel = missed_tp_recursion__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "missed_tp_recursion__open_and_load"))
+		goto cleanup;
+
+	err = missed_tp_recursion__attach(skel);
+	if (!ASSERT_OK(err, "missed_tp_recursion__attach"))
+		goto cleanup;
+
+	prog_fd = bpf_program__fd(skel->progs.trigger);
+	err = bpf_prog_test_run_opts(prog_fd, &topts);
+	ASSERT_OK(err, "test_run");
+	ASSERT_EQ(topts.retval, 0, "test_run");
+
+	ASSERT_EQ(get_missed_count(bpf_program__fd(skel->progs.test1)), 0, "test1_recursion_misses");
+	ASSERT_EQ(get_missed_count(bpf_program__fd(skel->progs.test2)), 1, "test2_recursion_misses");
+	ASSERT_EQ(get_missed_count(bpf_program__fd(skel->progs.test3)), 1, "test3_recursion_misses");
+	ASSERT_EQ(get_missed_count(bpf_program__fd(skel->progs.test4)), 1, "test4_recursion_misses");
+
+cleanup:
+	missed_tp_recursion__destroy(skel);
+}
+
 void test_missed(void)
 {
 	if (test__start_subtest("perf_kprobe"))
 		test_missed_perf_kprobe();
 	if (test__start_subtest("kprobe_recursion"))
 		test_missed_kprobe_recursion();
+	if (test__start_subtest("tp_recursion"))
+		test_missed_tp_recursion();
 }
