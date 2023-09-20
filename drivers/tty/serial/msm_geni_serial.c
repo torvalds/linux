@@ -169,7 +169,7 @@ static bool con_enabled = IS_ENABLED(CONFIG_SERIAL_MSM_GENI_CONSOLE_DEFAULT_ENAB
 
 /* In KHz */
 #define DEFAULT_SE_CLK  19200
-#define UART_CORE2X_VOTE    100000
+#define UART_CORE2X_VOTE    50000
 #define UART_CONSOLE_CORE2X_VOTE    19200
 
 #define DEFAULT_BUS_WIDTH   (4)
@@ -3300,6 +3300,26 @@ static bool handle_rx_dma_xfer(u32 s_irq_status, struct uart_port *uport)
 	return ret;
 }
 
+/*
+ * msm_geni_serial_clear_irqs() - clear the IRQs if they are coming after port close
+ *
+ * @uport: pointer to uart port
+ *
+ * Return: None
+ */
+static void msm_geni_serial_clear_irqs(struct uart_port *uport)
+{
+	u32 dma_tx_status, dma_rx_status;
+
+	dma_tx_status = geni_read_reg(uport->membase, SE_DMA_TX_IRQ_STAT);
+	if (dma_tx_status)
+		geni_write_reg(dma_tx_status, uport->membase, SE_DMA_TX_IRQ_CLR);
+
+	dma_rx_status = geni_read_reg(uport->membase, SE_DMA_RX_IRQ_STAT);
+	if (dma_rx_status)
+		geni_write_reg(dma_rx_status, uport->membase, SE_DMA_RX_IRQ_CLR);
+}
+
 static void msm_geni_serial_handle_isr(struct uart_port *uport,
 				       unsigned long *flags,
 				       bool is_irq_masked)
@@ -3386,6 +3406,7 @@ static void msm_geni_serial_handle_isr(struct uart_port *uport,
 		} else {
 			UART_LOG_DBG(msm_port->ipc_log_irqstatus, uport->dev,
 				     "Port is closed!\n");
+			msm_geni_serial_clear_irqs(uport);
 		}
 	}
 
@@ -3558,7 +3579,8 @@ static void msm_geni_serial_shutdown(struct uart_port *uport)
 		console_stop(uport->cons);
 		disable_irq(uport->irq);
 	} else {
-		msm_geni_serial_power_on(uport);
+		if (!msm_port->ioctl_count)
+			msm_geni_serial_power_on(uport);
 
 		if (msm_port->xfer_mode == GENI_GPI_DMA) {
 			/* From the framework every time the stop
@@ -3612,22 +3634,13 @@ static void msm_geni_serial_shutdown(struct uart_port *uport)
 		} else {
 			msm_geni_serial_stop_tx(uport);
 		}
-		msm_port->count = 0;
-	}
 
-	if (msm_port->pm_auto_suspend_disable)
-		disable_irq(uport->irq);
+		if (msm_port->pm_auto_suspend_disable)
+			disable_irq(uport->irq);
 
-	if (!uart_console(uport)) {
 		if (msm_port->ioctl_count) {
-			int i;
-
-			for (i = 0; i < msm_port->ioctl_count; i++) {
-				UART_LOG_DBG(msm_port->ipc_log_pwr, uport->dev,
-				"%s IOCTL vote present. Forcing off\n",
-								__func__);
-				msm_geni_serial_power_off(uport);
-			}
+			UART_LOG_DBG(msm_port->ipc_log_pwr, uport->dev,
+				     "%s: IOCTL vote present. Resetting ioctl count\n", __func__);
 			msm_port->ioctl_count = 0;
 		}
 
@@ -3653,6 +3666,7 @@ static void msm_geni_serial_shutdown(struct uart_port *uport)
 		msm_port->uart_error = UART_ERROR_DEFAULT;
 		atomic_set(&msm_port->flush_buffers, 0);
 		msm_port->current_termios = NULL;
+		msm_port->count = 0;
 	}
 	msm_port->shutdown_in_progress = false;
 	UART_LOG_DBG(msm_port->ipc_log_misc, uport->dev, "%s: End %d\n", __func__, ret);
@@ -4712,8 +4726,13 @@ static int msm_geni_serial_read_dtsi(struct platform_device *pdev,
 		return ret;
 	}
 
-	ret = geni_se_common_resources_init(&dev_port->se, GENI_DEFAULT_BW,
-			GENI_DEFAULT_BW, GENI_DEFAULT_BW);
+	if (!is_console)
+		ret = geni_se_common_resources_init(&dev_port->se, UART_CORE2X_VOTE,
+						    APPS_PROC_TO_QUP_VOTE,
+						    (DEFAULT_SE_CLK * DEFAULT_BUS_WIDTH));
+	else
+		ret = geni_se_common_resources_init(&dev_port->se, GENI_DEFAULT_BW,
+						    GENI_DEFAULT_BW, GENI_DEFAULT_BW);
 	if (ret) {
 		msm_geni_update_uart_error_code(dev_port, UART_ERROR_SE_RESOURCES_INIT_FAIL);
 		return ret;
