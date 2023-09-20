@@ -1554,6 +1554,7 @@ static void journal_write_done(struct closure *cl)
 
 	if (!journal_state_count(new, new.unwritten_idx) &&
 	    journal_last_unwritten_seq(j) <= journal_cur_seq(j)) {
+		spin_unlock(&j->lock);
 		closure_call(&j->io, bch2_journal_write, c->io_complete_wq, NULL);
 	} else if (journal_last_unwritten_seq(j) == journal_cur_seq(j) &&
 		   new.cur_entry_offset < JOURNAL_ENTRY_CLOSED_VAL) {
@@ -1566,10 +1567,11 @@ static void journal_write_done(struct closure *cl)
 		 * might want to be written now:
 		 */
 
+		spin_unlock(&j->lock);
 		mod_delayed_work(c->io_complete_wq, &j->write_work, max(0L, delta));
+	} else {
+		spin_unlock(&j->lock);
 	}
-
-	spin_unlock(&j->lock);
 }
 
 static void journal_write_endio(struct bio *bio)
