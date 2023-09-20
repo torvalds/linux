@@ -72,15 +72,6 @@ MODULE_PARM_DESC(mlo, "Support MLO");
 /**
  * enum hwsim_regtest - the type of regulatory tests we offer
  *
- * These are the different values you can use for the regtest
- * module parameter. This is useful to help test world roaming
- * and the driver regulatory_hint() call and combinations of these.
- * If you want to do specific alpha2 regulatory domain tests simply
- * use the userspace regulatory request as that will be respected as
- * well without the need of this module parameter. This is designed
- * only for testing the driver regulatory request, world roaming
- * and all possible combinations.
- *
  * @HWSIM_REGTEST_DISABLED: No regulatory tests are performed,
  * 	this is the default value.
  * @HWSIM_REGTEST_DRIVER_REG_FOLLOW: Used for testing the driver regulatory
@@ -125,6 +116,15 @@ MODULE_PARM_DESC(mlo, "Support MLO");
  * 	    domain request
  * 	6 and on - should follow the intersection of the 3rd, 4rth and 5th radio
  * 	           regulatory requests.
+ *
+ * These are the different values you can use for the regtest
+ * module parameter. This is useful to help test world roaming
+ * and the driver regulatory_hint() call and combinations of these.
+ * If you want to do specific alpha2 regulatory domain tests simply
+ * use the userspace regulatory request as that will be respected as
+ * well without the need of this module parameter. This is designed
+ * only for testing the driver regulatory request, world roaming
+ * and all possible combinations.
  */
 enum hwsim_regtest {
 	HWSIM_REGTEST_DISABLED = 0,
