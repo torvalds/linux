@@ -68,7 +68,6 @@ static void omap_atomic_commit_tail(struct drm_atomic_state *old_state)
 {
 	struct drm_device *dev = old_state->dev;
 	struct omap_drm_private *priv = dev->dev_private;
-	bool fence_cookie = dma_fence_begin_signalling();
 
 	dispc_runtime_get(priv->dispc);
 
@@ -91,6 +90,8 @@ static void omap_atomic_commit_tail(struct drm_atomic_state *old_state)
 		omap_atomic_wait_for_completion(dev, old_state);
 
 		drm_atomic_helper_commit_planes(dev, old_state, 0);
+
+		drm_atomic_helper_commit_hw_done(old_state);
 	} else {
 		/*
 		 * OMAP3 DSS seems to have issues with the work-around above,
@@ -100,11 +101,9 @@ static void omap_atomic_commit_tail(struct drm_atomic_state *old_state)
 		drm_atomic_helper_commit_planes(dev, old_state, 0);
 
 		drm_atomic_helper_commit_modeset_enables(dev, old_state);
+
+		drm_atomic_helper_commit_hw_done(old_state);
 	}
-
-	drm_atomic_helper_commit_hw_done(old_state);
-
-	dma_fence_end_signalling(fence_cookie);
 
 	/*
 	 * Wait for completion of the page flips to ensure that old buffers
