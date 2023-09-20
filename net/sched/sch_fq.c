@@ -2,7 +2,7 @@
 /*
  * net/sched/sch_fq.c Fair Queue Packet Scheduler (per flow pacing)
  *
- *  Copyright (C) 2013-2015 Eric Dumazet <edumazet@google.com>
+ *  Copyright (C) 2013-2023 Eric Dumazet <edumazet@google.com>
  *
  *  Meant to be mostly used for locally generated traffic :
  *  Fast classification depends on skb->sk being set before reaching us.
@@ -73,7 +73,13 @@ struct fq_flow {
 		struct sk_buff *tail;	/* last skb in the list */
 		unsigned long  age;	/* (jiffies | 1UL) when flow was emptied, for gc */
 	};
-	struct rb_node	fq_node;	/* anchor in fq_root[] trees */
+	union {
+		struct rb_node	fq_node;	/* anchor in fq_root[] trees */
+		/* Following field is only used for q->internal,
+		 * because q->internal is not hashed in fq_root[]
+		 */
+		u64		stat_fastpath_packets;
+	};
 	struct sock	*sk;
 	u32		socket_hash;	/* sk_hash */
 	int		qlen;		/* number of packets in flow queue */
@@ -134,7 +140,7 @@ struct fq_sched_data {
 
 /* Seldom used fields. */
 
-	u64		stat_internal_packets;
+	u64		stat_internal_packets; /* aka highprio */
 	u64		stat_ce_mark;
 	u64		stat_horizon_drops;
 	u64		stat_horizon_caps;
@@ -266,17 +272,64 @@ static void fq_gc(struct fq_sched_data *q,
 	kmem_cache_free_bulk(fq_flow_cachep, fcnt, tofree);
 }
 
-static struct fq_flow *fq_classify(struct sk_buff *skb, struct fq_sched_data *q)
+/* Fast path can be used if :
+ * 1) Packet tstamp is in the past.
+ * 2) FQ qlen == 0   OR
+ *   (no flow is currently eligible for transmit,
+ *    AND fast path queue has less than 8 packets)
+ * 3) No SO_MAX_PACING_RATE on the socket (if any).
+ * 4) No @maxrate attribute on this qdisc,
+ *
+ * FQ can not use generic TCQ_F_CAN_BYPASS infrastructure.
+ */
+static bool fq_fastpath_check(const struct Qdisc *sch, struct sk_buff *skb)
 {
+	const struct fq_sched_data *q = qdisc_priv(sch);
+	const struct sock *sk;
+
+	if (fq_skb_cb(skb)->time_to_send > q->ktime_cache)
+		return false;
+
+	if (sch->q.qlen != 0) {
+		/* Even if some packets are stored in this qdisc,
+		 * we can still enable fast path if all of them are
+		 * scheduled in the future (ie no flows are eligible)
+		 * or in the fast path queue.
+		 */
+		if (q->flows != q->inactive_flows + q->throttled_flows)
+			return false;
+
+		/* Do not allow fast path queue to explode, we want Fair Queue mode
+		 * under pressure.
+		 */
+		if (q->internal.qlen >= 8)
+			return false;
+	}
+
+	sk = skb->sk;
+	if (sk && sk_fullsock(sk) && !sk_is_tcp(sk) &&
+	    sk->sk_max_pacing_rate != ~0UL)
+		return false;
+
+	if (q->flow_max_rate != ~0UL)
+		return false;
+
+	return true;
+}
+
+static struct fq_flow *fq_classify(struct Qdisc *sch, struct sk_buff *skb)
+{
+	struct fq_sched_data *q = qdisc_priv(sch);
 	struct rb_node **p, *parent;
 	struct sock *sk = skb->sk;
 	struct rb_root *root;
 	struct fq_flow *f;
 
 	/* warning: no starvation prevention... */
-	if (unlikely((skb->priority & TC_PRIO_MAX) == TC_PRIO_CONTROL))
+	if (unlikely((skb->priority & TC_PRIO_MAX) == TC_PRIO_CONTROL)) {
+		q->stat_internal_packets++; /* highprio packet */
 		return &q->internal;
-
+	}
 	/* SYNACK messages are attached to a TCP_NEW_SYN_RECV request socket
 	 * or a listener (SYNCOOKIE mode)
 	 * 1) request sockets are not full blown,
@@ -305,6 +358,11 @@ static struct fq_flow *fq_classify(struct sk_buff *skb, struct fq_sched_data *q)
 		 * if we care enough.
 		 */
 		sk = (struct sock *)((hash << 1) | 1UL);
+	}
+
+	if (fq_fastpath_check(sch, skb)) {
+		q->internal.stat_fastpath_packets++;
+		return &q->internal;
 	}
 
 	root = &q->fq_root[hash_ptr(sk, q->fq_trees_log)];
@@ -402,12 +460,8 @@ static void fq_erase_head(struct Qdisc *sch, struct fq_flow *flow,
 static void fq_dequeue_skb(struct Qdisc *sch, struct fq_flow *flow,
 			   struct sk_buff *skb)
 {
-	struct fq_sched_data *q = qdisc_priv(sch);
-
 	fq_erase_head(sch, flow, skb);
 	skb_mark_not_on_list(skb);
-	if (--flow->qlen == 0)
-		q->inactive_flows++;
 	qdisc_qstats_backlog_dec(sch, skb);
 	sch->q.qlen--;
 }
@@ -459,49 +513,45 @@ static int fq_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 	if (unlikely(sch->q.qlen >= sch->limit))
 		return qdisc_drop(skb, sch, to_free);
 
+	q->ktime_cache = ktime_get_ns();
 	if (!skb->tstamp) {
-		fq_skb_cb(skb)->time_to_send = q->ktime_cache = ktime_get_ns();
+		fq_skb_cb(skb)->time_to_send = q->ktime_cache;
 	} else {
-		/* Check if packet timestamp is too far in the future.
-		 * Try first if our cached value, to avoid ktime_get_ns()
-		 * cost in most cases.
-		 */
+		/* Check if packet timestamp is too far in the future. */
 		if (fq_packet_beyond_horizon(skb, q)) {
-			/* Refresh our cache and check another time */
-			q->ktime_cache = ktime_get_ns();
-			if (fq_packet_beyond_horizon(skb, q)) {
-				if (q->horizon_drop) {
+			if (q->horizon_drop) {
 					q->stat_horizon_drops++;
 					return qdisc_drop(skb, sch, to_free);
-				}
-				q->stat_horizon_caps++;
-				skb->tstamp = q->ktime_cache + q->horizon;
 			}
+			q->stat_horizon_caps++;
+			skb->tstamp = q->ktime_cache + q->horizon;
 		}
 		fq_skb_cb(skb)->time_to_send = skb->tstamp;
 	}
 
-	f = fq_classify(skb, q);
-	if (unlikely(f->qlen >= q->flow_plimit && f != &q->internal)) {
-		q->stat_flows_plimit++;
-		return qdisc_drop(skb, sch, to_free);
+	f = fq_classify(sch, skb);
+
+	if (f != &q->internal) {
+		if (unlikely(f->qlen >= q->flow_plimit)) {
+			q->stat_flows_plimit++;
+			return qdisc_drop(skb, sch, to_free);
+		}
+
+		if (fq_flow_is_detached(f)) {
+			fq_flow_add_tail(&q->new_flows, f);
+			if (time_after(jiffies, f->age + q->flow_refill_delay))
+				f->credit = max_t(u32, f->credit, q->quantum);
+		}
+
+		if (f->qlen == 0)
+			q->inactive_flows--;
 	}
 
-	if (f->qlen++ == 0)
-		q->inactive_flows--;
-	qdisc_qstats_backlog_inc(sch, skb);
-	if (fq_flow_is_detached(f)) {
-		fq_flow_add_tail(&q->new_flows, f);
-		if (time_after(jiffies, f->age + q->flow_refill_delay))
-			f->credit = max_t(u32, f->credit, q->quantum);
-	}
-
+	f->qlen++;
 	/* Note: this overwrites f->age */
 	flow_queue_add(f, skb);
 
-	if (unlikely(f == &q->internal)) {
-		q->stat_internal_packets++;
-	}
+	qdisc_qstats_backlog_inc(sch, skb);
 	sch->q.qlen++;
 
 	return NET_XMIT_SUCCESS;
@@ -549,6 +599,7 @@ static struct sk_buff *fq_dequeue(struct Qdisc *sch)
 
 	skb = fq_peek(&q->internal);
 	if (unlikely(skb)) {
+		q->internal.qlen--;
 		fq_dequeue_skb(sch, &q->internal, skb);
 		goto out;
 	}
@@ -592,6 +643,8 @@ begin:
 			INET_ECN_set_ce(skb);
 			q->stat_ce_mark++;
 		}
+		if (--f->qlen == 0)
+			q->inactive_flows++;
 		fq_dequeue_skb(sch, f, skb);
 	} else {
 		head->first = f->next;
@@ -1024,6 +1077,7 @@ static int fq_dump_stats(struct Qdisc *sch, struct gnet_dump *d)
 
 	st.gc_flows		  = q->stat_gc_flows;
 	st.highprio_packets	  = q->stat_internal_packets;
+	st.fastpath_packets	  = q->internal.stat_fastpath_packets;
 	st.tcp_retrans		  = 0;
 	st.throttled		  = q->stat_throttled;
 	st.flows_plimit		  = q->stat_flows_plimit;

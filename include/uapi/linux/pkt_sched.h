@@ -962,6 +962,7 @@ struct tc_fq_qd_stats {
 	__u64	ce_mark;		/* packets above ce_threshold */
 	__u64	horizon_drops;
 	__u64	horizon_caps;
+	__u64	fastpath_packets;
 };
 
 /* Heavy-Hitter Filter */
