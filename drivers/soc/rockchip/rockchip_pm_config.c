@@ -99,9 +99,17 @@ static const struct of_device_id pm_match_table[] = {
 };
 
 #ifndef MODULE
+enum {
+	RK_PM_VIRT_PWROFF_EN = 0,
+	RK_PM_VIRT_PWROFF_IRQ_CFG = 1,
+	RK_PM_VIRT_PWROFF_MAX,
+};
+
+static u32 *virtual_pwroff_irqs;
+
 static void rockchip_pm_virt_pwroff_prepare(void)
 {
-	int error;
+	int error, i;
 
 	pm_wakeup_clear(0);
 
@@ -113,8 +121,58 @@ static void rockchip_pm_virt_pwroff_prepare(void)
 		return;
 	}
 
-	sip_smc_set_suspend_mode(VIRTUAL_POWEROFF, 0, 1);
+	sip_smc_set_suspend_mode(VIRTUAL_POWEROFF, RK_PM_VIRT_PWROFF_EN, 1);
+
+	if (virtual_pwroff_irqs) {
+		for (i = 0; virtual_pwroff_irqs[i]; i++) {
+			error = sip_smc_set_suspend_mode(VIRTUAL_POWEROFF,
+							 RK_PM_VIRT_PWROFF_IRQ_CFG,
+							 virtual_pwroff_irqs[i]);
+			if (error) {
+				pr_err("%s: config virtual_pwroff_irqs[%d] error, overflow or update trust!\n",
+				       __func__, i);
+				break;
+			}
+		}
+	}
+
 	sip_smc_virtual_poweroff();
+}
+
+static int parse_virtual_pwroff_config(struct device_node *node)
+{
+	int ret = 0, cnt;
+	u32 virtual_poweroff_en = 0;
+
+	if (!of_property_read_u32_array(node,
+					"rockchip,virtual-poweroff",
+					&virtual_poweroff_en, 1) &&
+	    virtual_poweroff_en)
+		pm_power_off_prepare = rockchip_pm_virt_pwroff_prepare;
+
+	if (!virtual_poweroff_en)
+		return 0;
+
+	cnt = of_property_count_u32_elems(node, "rockchip,virtual-poweroff-irqs");
+	if (cnt > 0) {
+		/* 0 as the last element of virtual_pwroff_irqs */
+		virtual_pwroff_irqs = kzalloc((cnt + 1) * sizeof(u32), GFP_KERNEL);
+		if (!virtual_pwroff_irqs) {
+			ret = -ENOMEM;
+			goto out;
+		}
+
+		ret = of_property_read_u32_array(node, "rockchip,virtual-poweroff-irqs",
+						 virtual_pwroff_irqs, cnt);
+		if (ret) {
+			pr_err("%s: get rockchip,virtual-poweroff-irqs error\n",
+			       __func__);
+			goto out;
+		}
+	}
+
+out:
+	return ret;
 }
 
 static int parse_sleep_config(struct device_node *node, enum rk_pm_state state)
@@ -317,9 +375,7 @@ static int pm_config_probe(struct platform_device *pdev)
 	u32 apios_suspend = 0;
 	u32 io_ret_config = 0;
 	u32 sleep_pin_config[2] = {0};
-#ifndef MODULE
-	u32 virtual_poweroff_en = 0;
-#endif
+
 	enum of_gpio_flags flags;
 	int i = 0;
 	int length;
@@ -413,11 +469,7 @@ static int pm_config_probe(struct platform_device *pdev)
 	parse_mcu_sleep_config(node);
 
 #ifndef MODULE
-	if (!of_property_read_u32_array(node,
-					"rockchip,virtual-poweroff",
-					&virtual_poweroff_en, 1) &&
-	    virtual_poweroff_en)
-		pm_power_off_prepare = rockchip_pm_virt_pwroff_prepare;
+	parse_virtual_pwroff_config(node);
 
 	for (i = RK_PM_MEM; i < RK_PM_STATE_MAX; i++) {
 		parse_sleep_config(node, i);
