@@ -3003,16 +3003,15 @@ void bpf_jit_free(struct bpf_prog *prog)
 bool bpf_jit_supports_exceptions(void)
 {
 	/* We unwind through both kernel frames (starting from within bpf_throw
-	 * call) and BPF frames. Therefore we require one of ORC or FP unwinder
-	 * to be enabled to walk kernel frames and reach BPF frames in the stack
-	 * trace.
+	 * call) and BPF frames. Therefore we require ORC unwinder to be enabled
+	 * to walk kernel frames and reach BPF frames in the stack trace.
 	 */
-	return IS_ENABLED(CONFIG_UNWINDER_ORC) || IS_ENABLED(CONFIG_UNWINDER_FRAME_POINTER);
+	return IS_ENABLED(CONFIG_UNWINDER_ORC);
 }
 
 void arch_bpf_stack_walk(bool (*consume_fn)(void *cookie, u64 ip, u64 sp, u64 bp), void *cookie)
 {
-#if defined(CONFIG_UNWINDER_ORC) || defined(CONFIG_UNWINDER_FRAME_POINTER)
+#if defined(CONFIG_UNWINDER_ORC)
 	struct unwind_state state;
 	unsigned long addr;
 

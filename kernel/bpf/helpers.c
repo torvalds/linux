@@ -2488,7 +2488,7 @@ __bpf_kfunc void bpf_throw(u64 cookie)
 	 * deeper stack depths than ctx.sp as we do not return from bpf_throw,
 	 * which skips compiler generated instrumentation to do the same.
 	 */
-	kasan_unpoison_task_stack_below((void *)ctx.sp);
+	kasan_unpoison_task_stack_below((void *)(long)ctx.sp);
 	ctx.aux->bpf_exception_cb(cookie, ctx.sp, ctx.bp);
 	WARN(1, "A call to BPF exception callback should never return\n");
 }
