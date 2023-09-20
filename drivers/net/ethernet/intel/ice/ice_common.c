@@ -2765,6 +2765,21 @@ bool ice_is_pf_c827(struct ice_hw *hw)
 }
 
 /**
+ * ice_is_gps_in_netlist
+ * @hw: pointer to the hw struct
+ *
+ * Check if the GPS generic device is present in the netlist
+ */
+bool ice_is_gps_in_netlist(struct ice_hw *hw)
+{
+	if (ice_find_netlist_node(hw, ICE_AQC_LINK_TOPO_NODE_TYPE_GPS,
+				  ICE_AQC_GET_LINK_TOPO_NODE_NR_GEN_GPS, NULL))
+		return false;
+
+	return true;
+}
+
+/**
  * ice_aq_list_caps - query function/device capabilities
  * @hw: pointer to the HW struct
  * @buf: a buffer to hold the capabilities
