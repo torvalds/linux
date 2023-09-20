@@ -11,8 +11,12 @@
 #define __DRIVERS_INTERCONNECT_IMX_H
 
 #include <linux/args.h>
+#include <linux/bits.h>
+#include <linux/types.h>
+
 #include <linux/interconnect-provider.h>
-#include <linux/kernel.h>
+
+struct platform_device;
 
 #define IMX_ICC_MAX_LINKS	4
 
