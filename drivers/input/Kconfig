@@ -168,7 +168,7 @@ config INPUT_EVBUG
 
 config INPUT_KUNIT_TEST
 	tristate "KUnit tests for Input" if !KUNIT_ALL_TESTS
-	depends on INPUT && KUNIT=y
+	depends on INPUT && KUNIT
 	default KUNIT_ALL_TESTS
 	help
 	  Say Y here if you want to build the KUnit tests for the input

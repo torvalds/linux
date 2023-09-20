@@ -3,7 +3,7 @@
 
 /dts-v1/;
 #include "sun50i-h5.dtsi"
-#include <arm/sunxi-libretech-all-h3-it.dtsi>
+#include <arm/allwinner/sunxi-libretech-all-h3-it.dtsi>
 
 / {
 	model = "Libre Computer Board ALL-H3-IT H5";

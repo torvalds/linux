@@ -42,8 +42,8 @@
 	hubbub2->shifts->field_name, hubbub2->masks->field_name
 
 /**
- * @DCN32_CRB_SEGMENT_SIZE_KB: Maximum Configurable Return Buffer size for
- * DCN32
+ * DCN32_CRB_SEGMENT_SIZE_KB: Maximum Configurable Return Buffer size for
+ *                            DCN32
  */
 #define DCN32_CRB_SEGMENT_SIZE_KB 64
 

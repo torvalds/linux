@@ -531,7 +531,7 @@ static int load_firmware(struct snd_cs46xx *chip)
 	return err;
 }
 
-int snd_cs46xx_download_image(struct snd_cs46xx *chip)
+static __maybe_unused int snd_cs46xx_download_image(struct snd_cs46xx *chip)
 {
 	int idx, err;
 	unsigned int offset = 0;

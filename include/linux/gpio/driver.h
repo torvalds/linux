@@ -61,13 +61,6 @@ struct gpio_irq_chip {
 	 */
 	struct irq_domain *domain;
 
-	/**
-	 * @domain_ops:
-	 *
-	 * Table of interrupt domain operations for this IRQ chip.
-	 */
-	const struct irq_domain_ops *domain_ops;
-
 #ifdef CONFIG_IRQ_DOMAIN_HIERARCHY
 	/**
 	 * @fwnode:
@@ -250,6 +243,14 @@ struct gpio_irq_chip {
 	 * before they are initialized.
 	 */
 	bool initialized;
+
+	/**
+	 * @domain_is_allocated_externally:
+	 *
+	 * True it the irq_domain was allocated outside of gpiolib, in which
+	 * case gpiolib won't free the irq_domain itself.
+	 */
+	bool domain_is_allocated_externally;
 
 	/**
 	 * @init_hw: optional routine to initialize hardware before

@@ -547,7 +547,7 @@ static struct i2c_driver lp3972_i2c_driver = {
 		.name = "lp3972",
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
-	.probe_new = lp3972_i2c_probe,
+	.probe = lp3972_i2c_probe,
 	.id_table = lp3972_i2c_id,
 };
 

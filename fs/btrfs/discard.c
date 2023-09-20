@@ -73,6 +73,23 @@ static struct list_head *get_discard_list(struct btrfs_discard_ctl *discard_ctl,
 	return &discard_ctl->discard_list[block_group->discard_index];
 }
 
+/*
+ * Determine if async discard should be running.
+ *
+ * @discard_ctl: discard control
+ *
+ * Check if the file system is writeable and BTRFS_FS_DISCARD_RUNNING is set.
+ */
+static bool btrfs_run_discard_work(struct btrfs_discard_ctl *discard_ctl)
+{
+	struct btrfs_fs_info *fs_info = container_of(discard_ctl,
+						     struct btrfs_fs_info,
+						     discard_ctl);
+
+	return (!(fs_info->sb->s_flags & SB_RDONLY) &&
+		test_bit(BTRFS_FS_DISCARD_RUNNING, &fs_info->flags));
+}
+
 static void __add_to_discard_list(struct btrfs_discard_ctl *discard_ctl,
 				  struct btrfs_block_group *block_group)
 {
@@ -542,23 +559,6 @@ static void btrfs_discard_workfn(struct work_struct *work)
 	discard_ctl->block_group = NULL;
 	__btrfs_discard_schedule_work(discard_ctl, now, false);
 	spin_unlock(&discard_ctl->lock);
-}
-
-/*
- * Determine if async discard should be running.
- *
- * @discard_ctl: discard control
- *
- * Check if the file system is writeable and BTRFS_FS_DISCARD_RUNNING is set.
- */
-bool btrfs_run_discard_work(struct btrfs_discard_ctl *discard_ctl)
-{
-	struct btrfs_fs_info *fs_info = container_of(discard_ctl,
-						     struct btrfs_fs_info,
-						     discard_ctl);
-
-	return (!(fs_info->sb->s_flags & SB_RDONLY) &&
-		test_bit(BTRFS_FS_DISCARD_RUNNING, &fs_info->flags));
 }
 
 /*

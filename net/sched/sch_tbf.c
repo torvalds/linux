@@ -13,6 +13,7 @@
 #include <linux/string.h>
 #include <linux/errno.h>
 #include <linux/skbuff.h>
+#include <net/gso.h>
 #include <net/netlink.h>
 #include <net/sch_generic.h>
 #include <net/pkt_cls.h>

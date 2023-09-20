@@ -55,7 +55,7 @@ properties:
 patternProperties:
   "^mdio@[0-9a-f]+$":
     type: object
-    $ref: "brcm,unimac-mdio.yaml"
+    $ref: brcm,unimac-mdio.yaml
 
     description:
       GENET internal UniMAC MDIO bus

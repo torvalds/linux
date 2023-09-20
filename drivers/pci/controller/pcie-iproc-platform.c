@@ -114,11 +114,11 @@ static int iproc_pltfm_pcie_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int iproc_pltfm_pcie_remove(struct platform_device *pdev)
+static void iproc_pltfm_pcie_remove(struct platform_device *pdev)
 {
 	struct iproc_pcie *pcie = platform_get_drvdata(pdev);
 
-	return iproc_pcie_remove(pcie);
+	iproc_pcie_remove(pcie);
 }
 
 static void iproc_pltfm_pcie_shutdown(struct platform_device *pdev)
@@ -134,7 +134,7 @@ static struct platform_driver iproc_pltfm_pcie_driver = {
 		.of_match_table = of_match_ptr(iproc_pcie_of_match_table),
 	},
 	.probe = iproc_pltfm_pcie_probe,
-	.remove = iproc_pltfm_pcie_remove,
+	.remove_new = iproc_pltfm_pcie_remove,
 	.shutdown = iproc_pltfm_pcie_shutdown,
 };
 module_platform_driver(iproc_pltfm_pcie_driver);

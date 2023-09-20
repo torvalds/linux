@@ -791,7 +791,7 @@ static const struct of_device_id ps8640_match[] = {
 MODULE_DEVICE_TABLE(of, ps8640_match);
 
 static struct i2c_driver ps8640_driver = {
-	.probe_new = ps8640_probe,
+	.probe = ps8640_probe,
 	.remove = ps8640_remove,
 	.driver = {
 		.name = "ps8640",

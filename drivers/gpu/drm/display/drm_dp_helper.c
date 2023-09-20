@@ -2103,7 +2103,7 @@ int drm_dp_aux_register(struct drm_dp_aux *aux)
 	aux->ddc.owner = THIS_MODULE;
 	aux->ddc.dev.parent = aux->dev;
 
-	strlcpy(aux->ddc.name, aux->name ? aux->name : dev_name(aux->dev),
+	strscpy(aux->ddc.name, aux->name ? aux->name : dev_name(aux->dev),
 		sizeof(aux->ddc.name));
 
 	ret = drm_dp_aux_register_devnode(aux);

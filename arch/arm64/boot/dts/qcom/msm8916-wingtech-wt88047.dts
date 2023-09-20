@@ -16,7 +16,9 @@
 	chassis-type = "handset";
 
 	aliases {
-		serial0 = &blsp1_uart2;
+		mmc0 = &sdhc_1; /* eMMC */
+		mmc1 = &sdhc_2; /* SD card */
+		serial0 = &blsp_uart2;
 	};
 
 	chosen {
@@ -25,8 +27,8 @@
 
 	flash-led-controller {
 		compatible = "ocs,ocp8110";
-		enable-gpios = <&msmgpio 31 GPIO_ACTIVE_HIGH>;
-		flash-gpios = <&msmgpio 32 GPIO_ACTIVE_HIGH>;
+		enable-gpios = <&tlmm 31 GPIO_ACTIVE_HIGH>;
+		flash-gpios = <&tlmm 32 GPIO_ACTIVE_HIGH>;
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&camera_flash_default>;
@@ -47,14 +49,14 @@
 
 		button-volume-up {
 			label = "Volume Up";
-			gpios = <&msmgpio 107 GPIO_ACTIVE_LOW>;
+			gpios = <&tlmm 107 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_VOLUMEUP>;
 		};
 	};
 
 	usb_id: usb-id {
 		compatible = "linux,extcon-usb-gpio";
-		id-gpio = <&msmgpio 110 GPIO_ACTIVE_HIGH>;
+		id-gpio = <&tlmm 110 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&usb_id_default>;
 	};
@@ -67,7 +69,7 @@
 		compatible = "invensense,mpu6880";
 		reg = <0x68>;
 
-		interrupt-parent = <&msmgpio>;
+		interrupt-parent = <&tlmm>;
 		interrupts = <115 IRQ_TYPE_EDGE_RISING>;
 
 		vdd-supply = <&pm8916_l17>;
@@ -90,10 +92,10 @@
 		compatible = "edt,edt-ft5506";
 		reg = <0x38>;
 
-		interrupt-parent = <&msmgpio>;
+		interrupt-parent = <&tlmm>;
 		interrupts = <13 IRQ_TYPE_EDGE_FALLING>;
 
-		reset-gpios = <&msmgpio 12 GPIO_ACTIVE_LOW>;
+		reset-gpios = <&tlmm 12 GPIO_ACTIVE_LOW>;
 
 		vcc-supply = <&pm8916_l17>;
 		iovcc-supply = <&pm8916_l6>;
@@ -140,7 +142,7 @@
 	};
 };
 
-&blsp1_uart2 {
+&blsp_uart2 {
 	status = "okay";
 };
 
@@ -149,25 +151,32 @@
 	linux,code = <KEY_VOLUMEDOWN>;
 };
 
+&pm8916_rpm_regulators {
+	pm8916_l16: l16 {
+		/*
+		 * L16 is only used for AW2013 which is fine with 2.5-3.3V.
+		 * Use the recommended typical voltage of 2.8V as minimum.
+		 */
+		regulator-min-microvolt = <2800000>;
+		regulator-max-microvolt = <3300000>;
+	};
+
+	pm8916_l17: l17 {
+		regulator-min-microvolt = <2850000>;
+		regulator-max-microvolt = <2850000>;
+	};
+};
+
 &pm8916_vib {
 	status = "okay";
 };
 
 &sdhc_1 {
 	status = "okay";
-
-	pinctrl-names = "default", "sleep";
-	pinctrl-0 = <&sdc1_clk_on &sdc1_cmd_on &sdc1_data_on>;
-	pinctrl-1 = <&sdc1_clk_off &sdc1_cmd_off &sdc1_data_off>;
 };
 
 &sdhc_2 {
 	status = "okay";
-
-	pinctrl-names = "default", "sleep";
-	pinctrl-0 = <&sdc2_clk_on &sdc2_cmd_on &sdc2_data_on>;
-	pinctrl-1 = <&sdc2_clk_off &sdc2_cmd_off &sdc2_data_off>;
-
 	non-removable;
 };
 
@@ -188,110 +197,7 @@
 	compatible = "qcom,wcn3620";
 };
 
-&smd_rpm_regulators {
-	vdd_l1_l2_l3-supply = <&pm8916_s3>;
-	vdd_l4_l5_l6-supply = <&pm8916_s4>;
-	vdd_l7-supply = <&pm8916_s4>;
-
-	s3 {
-		regulator-min-microvolt = <1200000>;
-		regulator-max-microvolt = <1300000>;
-	};
-
-	s4 {
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <2100000>;
-	};
-
-	l1 {
-		regulator-min-microvolt = <1225000>;
-		regulator-max-microvolt = <1225000>;
-	};
-
-	l2 {
-		regulator-min-microvolt = <1200000>;
-		regulator-max-microvolt = <1200000>;
-	};
-
-	l4 {
-		regulator-min-microvolt = <2050000>;
-		regulator-max-microvolt = <2050000>;
-	};
-
-	l5 {
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <1800000>;
-	};
-
-	l6 {
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <1800000>;
-	};
-
-	l7 {
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <1800000>;
-	};
-
-	l8 {
-		regulator-min-microvolt = <2850000>;
-		regulator-max-microvolt = <2900000>;
-	};
-
-	l9 {
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-	};
-
-	l10 {
-		regulator-min-microvolt = <2700000>;
-		regulator-max-microvolt = <2800000>;
-	};
-
-	l11 {
-		regulator-min-microvolt = <2950000>;
-		regulator-max-microvolt = <2950000>;
-		regulator-allow-set-load;
-		regulator-system-load = <200000>;
-	};
-
-	l12 {
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <2950000>;
-	};
-
-	l13 {
-		regulator-min-microvolt = <3075000>;
-		regulator-max-microvolt = <3075000>;
-	};
-
-	l14 {
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <3300000>;
-	};
-
-	l15 {
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <3300000>;
-	};
-
-	l16 {
-		regulator-min-microvolt = <2800000>;
-		regulator-max-microvolt = <3300000>;
-	};
-
-	l17 {
-		regulator-min-microvolt = <2850000>;
-		regulator-max-microvolt = <2850000>;
-	};
-
-	l18 {
-		regulator-min-microvolt = <2700000>;
-		regulator-max-microvolt = <2700000>;
-	};
-};
-
-&msmgpio {
+&tlmm {
 	camera_flash_default: camera-flash-default-state {
 		pins = "gpio31", "gpio32";
 		function = "gpio";

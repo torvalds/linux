@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Xilinx Zynq Ultrascale MPSoC FPGA Manager
 
 maintainers:
-  - Nava kishore Manne <navam@xilinx.com>
+  - Nava kishore Manne <nava.kishore.manne@amd.com>
 
 description: |
   Device Tree Bindings for Zynq Ultrascale MPSoC FPGA Manager.

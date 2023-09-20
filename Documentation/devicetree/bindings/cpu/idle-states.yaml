@@ -259,7 +259,7 @@ description: |+
       http://infocenter.arm.com/help/index.jsp
 
   [5] ARM Linux Kernel documentation - Booting AArch64 Linux
-      Documentation/arm64/booting.rst
+      Documentation/arch/arm64/booting.rst
 
   [6] RISC-V Linux Kernel documentation - CPUs bindings
       Documentation/devicetree/bindings/riscv/cpus.yaml

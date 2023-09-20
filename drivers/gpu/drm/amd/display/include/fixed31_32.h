@@ -525,7 +525,7 @@ static inline struct fixed31_32 dc_fixpt_truncate(struct fixed31_32 arg, unsigne
 
 	if (negative)
 		arg.value = -arg.value;
-	arg.value &= (~0LL) << (FIXED31_32_BITS_PER_FRACTIONAL_PART - frac_bits);
+	arg.value &= (~0ULL) << (FIXED31_32_BITS_PER_FRACTIONAL_PART - frac_bits);
 	if (negative)
 		arg.value = -arg.value;
 	return arg;

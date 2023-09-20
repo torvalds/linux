@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
  * Copyright (C) 2017 Intel Deutschland GmbH
- * Copyright (C) 2018-2021 Intel Corporation
+ * Copyright (C) 2018-2022 Intel Corporation
  */
 #include "iwl-trans.h"
 #include "iwl-fh.h"
@@ -38,9 +38,9 @@ static void *_iwl_pcie_ctxt_info_dma_alloc_coherent(struct iwl_trans *trans,
 	return result;
 }
 
-static void *iwl_pcie_ctxt_info_dma_alloc_coherent(struct iwl_trans *trans,
-						   size_t size,
-						   dma_addr_t *phys)
+void *iwl_pcie_ctxt_info_dma_alloc_coherent(struct iwl_trans *trans,
+					    size_t size,
+					    dma_addr_t *phys)
 {
 	return _iwl_pcie_ctxt_info_dma_alloc_coherent(trans, size, phys, 0);
 }

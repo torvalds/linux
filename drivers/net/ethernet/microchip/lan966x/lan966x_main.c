@@ -818,6 +818,7 @@ static int lan966x_probe_port(struct lan966x *lan966x, u32 p,
 	port->phylink_config.type = PHYLINK_NETDEV;
 	port->phylink_pcs.poll = true;
 	port->phylink_pcs.ops = &lan966x_phylink_pcs_ops;
+	port->phylink_pcs.neg_mode = true;
 
 	port->phylink_config.mac_capabilities = MAC_ASYM_PAUSE | MAC_SYM_PAUSE |
 		MAC_10 | MAC_100 | MAC_1000FD | MAC_2500FD;
@@ -1039,6 +1040,16 @@ static int lan966x_reset_switch(struct lan966x *lan966x)
 
 	reset_control_reset(switch_reset);
 
+	/* Don't reinitialize the switch core, if it is already initialized. In
+	 * case it is initialized twice, some pointers inside the queue system
+	 * in HW will get corrupted and then after a while the queue system gets
+	 * full and no traffic is passing through the switch. The issue is seen
+	 * when loading and unloading the driver and sending traffic through the
+	 * switch.
+	 */
+	if (lan_rd(lan966x, SYS_RESET_CFG) & SYS_RESET_CFG_CORE_ENA)
+		return 0;
+
 	lan_wr(SYS_RESET_CFG_CORE_ENA_SET(0), lan966x, SYS_RESET_CFG);
 	lan_wr(SYS_RAM_INIT_RAM_INIT_SET(1), lan966x, SYS_RAM_INIT);
 	ret = readx_poll_timeout(lan966x_ram_init, lan966x,
@@ -1212,6 +1223,8 @@ static int lan966x_probe(struct platform_device *pdev)
 	err = lan966x_vcap_init(lan966x);
 	if (err)
 		goto cleanup_fdma;
+
+	lan966x_dcb_init(lan966x);
 
 	return 0;
 

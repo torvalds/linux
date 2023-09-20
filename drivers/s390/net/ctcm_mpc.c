@@ -144,9 +144,9 @@ void ctcmpc_dumpit(char *buf, int len)
 
 	for (ct = 0; ct < len; ct++, ptr++, rptr++) {
 		if (sw == 0) {
-			sprintf(addr, "%16.16llx", (__u64)rptr);
+			scnprintf(addr, sizeof(addr), "%16.16llx", (__u64)rptr);
 
-			sprintf(boff, "%4.4X", (__u32)ct);
+			scnprintf(boff, sizeof(boff), "%4.4X", (__u32)ct);
 			bhex[0] = '\0';
 			basc[0] = '\0';
 		}
@@ -155,7 +155,7 @@ void ctcmpc_dumpit(char *buf, int len)
 		if (sw == 8)
 			strcat(bhex, "	");
 
-		sprintf(tbuf, "%2.2llX", (__u64)*ptr);
+		scnprintf(tbuf, sizeof(tbuf), "%2.2llX", (__u64)*ptr);
 
 		tbuf[2] = '\0';
 		strcat(bhex, tbuf);
@@ -171,8 +171,8 @@ void ctcmpc_dumpit(char *buf, int len)
 			continue;
 		if ((strcmp(duphex, bhex)) != 0) {
 			if (dup != 0) {
-				sprintf(tdup,
-					"Duplicate as above to %s", addr);
+				scnprintf(tdup, sizeof(tdup),
+					  "Duplicate as above to %s", addr);
 				ctcm_pr_debug("		       --- %s ---\n",
 						tdup);
 			}
@@ -197,14 +197,16 @@ void ctcmpc_dumpit(char *buf, int len)
 			strcat(basc, " ");
 		}
 		if (dup != 0) {
-			sprintf(tdup, "Duplicate as above to %s", addr);
+			scnprintf(tdup, sizeof(tdup),
+				  "Duplicate as above to %s", addr);
 			ctcm_pr_debug("		       --- %s ---\n", tdup);
 		}
 		ctcm_pr_debug("   %s (+%s) : %s  [%s]\n",
 					addr, boff, bhex, basc);
 	} else {
 		if (dup >= 1) {
-			sprintf(tdup, "Duplicate as above to %s", addr);
+			scnprintf(tdup, sizeof(tdup),
+				  "Duplicate as above to %s", addr);
 			ctcm_pr_debug("		       --- %s ---\n", tdup);
 		}
 		if (dup != 0) {
@@ -291,7 +293,7 @@ static struct net_device *ctcmpc_get_dev(int port_num)
 	struct net_device *dev;
 	struct ctcm_priv *priv;
 
-	sprintf(device, "%s%i", MPC_DEVICE_NAME, port_num);
+	scnprintf(device, sizeof(device), "%s%i", MPC_DEVICE_NAME, port_num);
 
 	dev = __dev_get_by_name(&init_net, device);
 

@@ -104,13 +104,7 @@ static void debug_packet(struct device *dev, const char *name, u8 *ptr,
 			 int len)
 {
 #ifdef DEBUG
-	int i;
-
-	dev_dbg(dev, "%s: ", name);
-	for (i = 0; i < len; i++)
-		pr_cont(" %02x", ptr[i]);
-
-	pr_cont("\n");
+	dev_dbg(dev, "%s: %*ph\n", name, len, ptr);
 #endif
 }
 

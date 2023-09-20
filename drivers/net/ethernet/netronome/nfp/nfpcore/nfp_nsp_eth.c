@@ -227,6 +227,30 @@ nfp_eth_calc_port_type(struct nfp_cpp *cpp, struct nfp_eth_table_port *entry)
 		entry->port_type = PORT_DA;
 }
 
+static void
+nfp_eth_read_media(struct nfp_cpp *cpp, struct nfp_nsp *nsp, struct nfp_eth_table_port *entry)
+{
+	struct nfp_eth_media_buf ethm = {
+		.eth_index = entry->eth_index,
+	};
+	unsigned int i;
+	int ret;
+
+	if (!nfp_nsp_has_read_media(nsp))
+		return;
+
+	ret = nfp_nsp_read_media(nsp, &ethm, sizeof(ethm));
+	if (ret) {
+		nfp_err(cpp, "Reading media link modes failed: %d\n", ret);
+		return;
+	}
+
+	for (i = 0; i < 2; i++) {
+		entry->link_modes_supp[i] = le64_to_cpu(ethm.supported_modes[i]);
+		entry->link_modes_ad[i] = le64_to_cpu(ethm.advertised_modes[i]);
+	}
+}
+
 /**
  * nfp_eth_read_ports() - retrieve port information
  * @cpp:	NFP CPP handle
@@ -293,8 +317,10 @@ __nfp_eth_read_ports(struct nfp_cpp *cpp, struct nfp_nsp *nsp)
 					       &table->ports[j++]);
 
 	nfp_eth_calc_port_geometry(cpp, table);
-	for (i = 0; i < table->count; i++)
+	for (i = 0; i < table->count; i++) {
 		nfp_eth_calc_port_type(cpp, &table->ports[i]);
+		nfp_eth_read_media(cpp, nsp, &table->ports[i]);
+	}
 
 	kfree(entries);
 
@@ -646,30 +672,4 @@ int __nfp_eth_set_split(struct nfp_nsp *nsp, unsigned int lanes)
 {
 	return NFP_ETH_SET_BIT_CONFIG(nsp, NSP_ETH_RAW_PORT, NSP_ETH_PORT_LANES,
 				      lanes, NSP_ETH_CTRL_SET_LANES);
-}
-
-int nfp_eth_read_media(struct nfp_cpp *cpp, struct nfp_eth_media_buf *ethm)
-{
-	struct nfp_nsp *nsp;
-	int ret;
-
-	nsp = nfp_nsp_open(cpp);
-	if (IS_ERR(nsp)) {
-		nfp_err(cpp, "Failed to access the NSP: %pe\n", nsp);
-		return PTR_ERR(nsp);
-	}
-
-	if (!nfp_nsp_has_read_media(nsp)) {
-		nfp_warn(cpp, "Reading media link modes not supported. Please update flash\n");
-		ret = -EOPNOTSUPP;
-		goto exit_close_nsp;
-	}
-
-	ret = nfp_nsp_read_media(nsp, ethm, sizeof(*ethm));
-	if (ret)
-		nfp_err(cpp, "Reading media link modes failed: %pe\n", ERR_PTR(ret));
-
-exit_close_nsp:
-	nfp_nsp_close(nsp);
-	return ret;
 }

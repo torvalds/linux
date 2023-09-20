@@ -32,7 +32,7 @@ static int iwl_mvm_binding_cmd(struct iwl_mvm *mvm, u32 action,
 	if (fw_has_capa(&mvm->fw->ucode_capa,
 			IWL_UCODE_TLV_CAPA_BINDING_CDB_SUPPORT)) {
 		size = sizeof(cmd);
-		cmd.lmac_id = cpu_to_le32(iwl_mvm_get_lmac_id(mvm->fw,
+		cmd.lmac_id = cpu_to_le32(iwl_mvm_get_lmac_id(mvm,
 							      phyctxt->channel->band));
 	} else {
 		size = IWL_BINDING_CMD_SIZE_V1;
@@ -163,4 +163,12 @@ int iwl_mvm_binding_remove_vif(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 			IWL_ERR(mvm, "Failed to update SF state\n");
 
 	return ret;
+}
+
+u32 iwl_mvm_get_lmac_id(struct iwl_mvm *mvm, enum nl80211_band band)
+{
+	if (!fw_has_capa(&mvm->fw->ucode_capa, IWL_UCODE_TLV_CAPA_CDB_SUPPORT) ||
+	    band == NL80211_BAND_2GHZ)
+		return IWL_LMAC_24G_INDEX;
+	return IWL_LMAC_5G_INDEX;
 }

@@ -22,30 +22,6 @@
 #include <asm/atomic-spinlock.h>
 #endif
 
-#define arch_atomic_cmpxchg(v, o, n)					\
-({									\
-	arch_cmpxchg(&((v)->counter), (o), (n));			\
-})
-
-#ifdef arch_cmpxchg_relaxed
-#define arch_atomic_cmpxchg_relaxed(v, o, n)				\
-({									\
-	arch_cmpxchg_relaxed(&((v)->counter), (o), (n));		\
-})
-#endif
-
-#define arch_atomic_xchg(v, n)						\
-({									\
-	arch_xchg(&((v)->counter), (n));				\
-})
-
-#ifdef arch_xchg_relaxed
-#define arch_atomic_xchg_relaxed(v, n)					\
-({									\
-	arch_xchg_relaxed(&((v)->counter), (n));			\
-})
-#endif
-
 /*
  * 64-bit atomics
  */

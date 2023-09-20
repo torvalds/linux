@@ -8,10 +8,10 @@ size_t syscall_arg__scnprintf_pid(char *bf, size_t size, struct syscall_arg *arg
 	struct thread *thread = machine__findnew_thread(trace->host, pid, pid);
 
 	if (thread != NULL) {
-		if (!thread->comm_set)
+		if (!thread__comm_set(thread))
 			thread__set_comm_from_proc(thread);
 
-		if (thread->comm_set)
+		if (thread__comm_set(thread))
 			printed += scnprintf(bf + printed, size - printed,
 					     " (%s)", thread__comm_str(thread));
 		thread__put(thread);

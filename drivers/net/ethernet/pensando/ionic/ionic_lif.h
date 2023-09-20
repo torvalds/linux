@@ -201,6 +201,7 @@ struct ionic_lif {
 	u64 hw_features;
 	bool registered;
 	u16 lif_type;
+	unsigned int link_down_count;
 	unsigned int nmcast;
 	unsigned int nucast;
 	unsigned int nvlans;

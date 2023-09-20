@@ -119,9 +119,9 @@ All expectations/assertions are formatted as:
 	  terminated immediately.
 
 		- Assertions call the function:
-		  ``void __noreturn kunit_abort(struct kunit *)``.
+		  ``void __noreturn __kunit_abort(struct kunit *)``.
 
-		- ``kunit_abort`` calls the function:
+		- ``__kunit_abort`` calls the function:
 		  ``void __noreturn kunit_try_catch_throw(struct kunit_try_catch *try_catch)``.
 
 		- ``kunit_try_catch_throw`` calls the function:

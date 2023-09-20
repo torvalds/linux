@@ -2949,7 +2949,7 @@ static const struct regmap_config rt5640_regmap = {
 	.volatile_reg = rt5640_volatile_register,
 	.readable_reg = rt5640_readable_register,
 
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.reg_defaults = rt5640_reg,
 	.num_reg_defaults = ARRAY_SIZE(rt5640_reg),
 	.ranges = rt5640_ranges,
@@ -3079,7 +3079,7 @@ static struct i2c_driver rt5640_i2c_driver = {
 		.acpi_match_table = ACPI_PTR(rt5640_acpi_match),
 		.of_match_table = of_match_ptr(rt5640_of_match),
 	},
-	.probe_new = rt5640_i2c_probe,
+	.probe = rt5640_i2c_probe,
 	.id_table = rt5640_i2c_id,
 };
 module_i2c_driver(rt5640_i2c_driver);

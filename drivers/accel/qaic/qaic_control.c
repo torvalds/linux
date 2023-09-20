@@ -997,12 +997,32 @@ static void *msg_xfer(struct qaic_device *qdev, struct wrapper_list *wrappers, u
 	struct xfer_queue_elem elem;
 	struct wire_msg *out_buf;
 	struct wrapper_msg *w;
+	long ret = -EAGAIN;
+	int xfer_count = 0;
 	int retry_count;
-	long ret;
 
 	if (qdev->in_reset) {
 		mutex_unlock(&qdev->cntl_mutex);
 		return ERR_PTR(-ENODEV);
+	}
+
+	/* Attempt to avoid a partial commit of a message */
+	list_for_each_entry(w, &wrappers->list, list)
+		xfer_count++;
+
+	for (retry_count = 0; retry_count < QAIC_MHI_RETRY_MAX; retry_count++) {
+		if (xfer_count <= mhi_get_free_desc_count(qdev->cntl_ch, DMA_TO_DEVICE)) {
+			ret = 0;
+			break;
+		}
+		msleep_interruptible(QAIC_MHI_RETRY_WAIT_MS);
+		if (signal_pending(current))
+			break;
+	}
+
+	if (ret) {
+		mutex_unlock(&qdev->cntl_mutex);
+		return ERR_PTR(ret);
 	}
 
 	elem.seq_num = seq_num;
@@ -1038,16 +1058,9 @@ static void *msg_xfer(struct qaic_device *qdev, struct wrapper_list *wrappers, u
 	list_for_each_entry(w, &wrappers->list, list) {
 		kref_get(&w->ref_count);
 		retry_count = 0;
-retry:
 		ret = mhi_queue_buf(qdev->cntl_ch, DMA_TO_DEVICE, &w->msg, w->len,
 				    list_is_last(&w->list, &wrappers->list) ? MHI_EOT : MHI_CHAIN);
 		if (ret) {
-			if (ret == -EAGAIN && retry_count++ < QAIC_MHI_RETRY_MAX) {
-				msleep_interruptible(QAIC_MHI_RETRY_WAIT_MS);
-				if (!signal_pending(current))
-					goto retry;
-			}
-
 			qdev->cntl_lost_buf = true;
 			kref_put(&w->ref_count, free_wrapper);
 			mutex_unlock(&qdev->cntl_mutex);
@@ -1249,7 +1262,7 @@ dma_cont_failed:
 
 int qaic_manage_ioctl(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
-	struct qaic_manage_msg *user_msg;
+	struct qaic_manage_msg *user_msg = data;
 	struct qaic_device *qdev;
 	struct manage_msg *msg;
 	struct qaic_user *usr;
@@ -1257,6 +1270,9 @@ int qaic_manage_ioctl(struct drm_device *dev, void *data, struct drm_file *file_
 	int qdev_rcu_id;
 	int usr_rcu_id;
 	int ret;
+
+	if (user_msg->len > QAIC_MANAGE_MAX_MSG_LENGTH)
+		return -EINVAL;
 
 	usr = file_priv->driver_priv;
 
@@ -1273,13 +1289,6 @@ int qaic_manage_ioctl(struct drm_device *dev, void *data, struct drm_file *file_
 		srcu_read_unlock(&qdev->dev_lock, qdev_rcu_id);
 		srcu_read_unlock(&usr->qddev_lock, usr_rcu_id);
 		return -ENODEV;
-	}
-
-	user_msg = data;
-
-	if (user_msg->len > QAIC_MANAGE_MAX_MSG_LENGTH) {
-		ret = -EINVAL;
-		goto out;
 	}
 
 	msg = kzalloc(QAIC_MANAGE_MAX_MSG_LENGTH + sizeof(*msg), GFP_KERNEL);

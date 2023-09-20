@@ -177,6 +177,7 @@ struct uv_hub_info_s {
 	unsigned short		nr_possible_cpus;
 	unsigned short		nr_online_cpus;
 	short			memory_nid;
+	unsigned short		*node_to_socket;
 };
 
 /* CPU specific info with a pointer to the hub common info struct */
@@ -519,25 +520,30 @@ static inline int uv_socket_to_node(int socket)
 	return _uv_socket_to_node(socket, uv_hub_info->socket_to_node);
 }
 
+static inline int uv_pnode_to_socket(int pnode)
+{
+	unsigned short *p2s = uv_hub_info->pnode_to_socket;
+
+	return p2s ? p2s[pnode - uv_hub_info->min_pnode] : pnode;
+}
+
 /* pnode, offset --> socket virtual */
 static inline void *uv_pnode_offset_to_vaddr(int pnode, unsigned long offset)
 {
 	unsigned int m_val = uv_hub_info->m_val;
 	unsigned long base;
-	unsigned short sockid, node, *p2s;
+	unsigned short sockid;
 
 	if (m_val)
 		return __va(((unsigned long)pnode << m_val) | offset);
 
-	p2s = uv_hub_info->pnode_to_socket;
-	sockid = p2s ? p2s[pnode - uv_hub_info->min_pnode] : pnode;
-	node = uv_socket_to_node(sockid);
+	sockid = uv_pnode_to_socket(pnode);
 
 	/* limit address of previous socket is our base, except node 0 is 0 */
-	if (!node)
+	if (sockid == 0)
 		return __va((unsigned long)offset);
 
-	base = (unsigned long)(uv_hub_info->gr_table[node - 1].limit);
+	base = (unsigned long)(uv_hub_info->gr_table[sockid - 1].limit);
 	return __va(base << UV_GAM_RANGE_SHFT | offset);
 }
 
@@ -644,7 +650,7 @@ static inline int uv_cpu_blade_processor_id(int cpu)
 /* Blade number to Node number (UV2..UV4 is 1:1) */
 static inline int uv_blade_to_node(int blade)
 {
-	return blade;
+	return uv_socket_to_node(blade);
 }
 
 /* Blade number of current cpu. Numnbered 0 .. <#blades -1> */
@@ -656,23 +662,27 @@ static inline int uv_numa_blade_id(void)
 /*
  * Convert linux node number to the UV blade number.
  * .. Currently for UV2 thru UV4 the node and the blade are identical.
- * .. If this changes then you MUST check references to this function!
+ * .. UV5 needs conversion when sub-numa clustering is enabled.
  */
 static inline int uv_node_to_blade_id(int nid)
 {
-	return nid;
+	unsigned short *n2s = uv_hub_info->node_to_socket;
+
+	return n2s ? n2s[nid] : nid;
 }
 
 /* Convert a CPU number to the UV blade number */
 static inline int uv_cpu_to_blade_id(int cpu)
 {
-	return uv_node_to_blade_id(cpu_to_node(cpu));
+	return uv_cpu_hub_info(cpu)->numa_blade_id;
 }
 
 /* Convert a blade id to the PNODE of the blade */
 static inline int uv_blade_to_pnode(int bid)
 {
-	return uv_hub_info_list(uv_blade_to_node(bid))->pnode;
+	unsigned short *s2p = uv_hub_info->socket_to_pnode;
+
+	return s2p ? s2p[bid] : bid;
 }
 
 /* Nid of memory node on blade. -1 if no blade-local memory */

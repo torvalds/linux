@@ -282,7 +282,7 @@ static struct i2c_driver rt5739_driver = {
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = rt5739_device_table,
 	},
-	.probe_new = rt5739_probe,
+	.probe = rt5739_probe,
 };
 module_i2c_driver(rt5739_driver);
 

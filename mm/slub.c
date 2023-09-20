@@ -292,7 +292,12 @@ static inline bool kmem_cache_has_cpu_partial(struct kmem_cache *s)
 /* Poison object */
 #define __OBJECT_POISON		((slab_flags_t __force)0x80000000U)
 /* Use cmpxchg_double */
+
+#ifdef system_has_freelist_aba
 #define __CMPXCHG_DOUBLE	((slab_flags_t __force)0x40000000U)
+#else
+#define __CMPXCHG_DOUBLE	((slab_flags_t __force)0U)
+#endif
 
 /*
  * Tracking user of a slab.
@@ -512,6 +517,40 @@ static __always_inline void slab_unlock(struct slab *slab)
 	__bit_spin_unlock(PG_locked, &page->flags);
 }
 
+static inline bool
+__update_freelist_fast(struct slab *slab,
+		      void *freelist_old, unsigned long counters_old,
+		      void *freelist_new, unsigned long counters_new)
+{
+#ifdef system_has_freelist_aba
+	freelist_aba_t old = { .freelist = freelist_old, .counter = counters_old };
+	freelist_aba_t new = { .freelist = freelist_new, .counter = counters_new };
+
+	return try_cmpxchg_freelist(&slab->freelist_counter.full, &old.full, new.full);
+#else
+	return false;
+#endif
+}
+
+static inline bool
+__update_freelist_slow(struct slab *slab,
+		      void *freelist_old, unsigned long counters_old,
+		      void *freelist_new, unsigned long counters_new)
+{
+	bool ret = false;
+
+	slab_lock(slab);
+	if (slab->freelist == freelist_old &&
+	    slab->counters == counters_old) {
+		slab->freelist = freelist_new;
+		slab->counters = counters_new;
+		ret = true;
+	}
+	slab_unlock(slab);
+
+	return ret;
+}
+
 /*
  * Interrupts must be disabled (for the fallback code to work right), typically
  * by an _irqsave() lock variant. On PREEMPT_RT the preempt_disable(), which is
@@ -519,33 +558,25 @@ static __always_inline void slab_unlock(struct slab *slab)
  * allocation/ free operation in hardirq context. Therefore nothing can
  * interrupt the operation.
  */
-static inline bool __cmpxchg_double_slab(struct kmem_cache *s, struct slab *slab,
+static inline bool __slab_update_freelist(struct kmem_cache *s, struct slab *slab,
 		void *freelist_old, unsigned long counters_old,
 		void *freelist_new, unsigned long counters_new,
 		const char *n)
 {
+	bool ret;
+
 	if (USE_LOCKLESS_FAST_PATH())
 		lockdep_assert_irqs_disabled();
-#if defined(CONFIG_HAVE_CMPXCHG_DOUBLE) && \
-    defined(CONFIG_HAVE_ALIGNED_STRUCT_PAGE)
+
 	if (s->flags & __CMPXCHG_DOUBLE) {
-		if (cmpxchg_double(&slab->freelist, &slab->counters,
-				   freelist_old, counters_old,
-				   freelist_new, counters_new))
-			return true;
-	} else
-#endif
-	{
-		slab_lock(slab);
-		if (slab->freelist == freelist_old &&
-					slab->counters == counters_old) {
-			slab->freelist = freelist_new;
-			slab->counters = counters_new;
-			slab_unlock(slab);
-			return true;
-		}
-		slab_unlock(slab);
+		ret = __update_freelist_fast(slab, freelist_old, counters_old,
+				            freelist_new, counters_new);
+	} else {
+		ret = __update_freelist_slow(slab, freelist_old, counters_old,
+				            freelist_new, counters_new);
 	}
+	if (likely(ret))
+		return true;
 
 	cpu_relax();
 	stat(s, CMPXCHG_DOUBLE_FAIL);
@@ -557,36 +588,26 @@ static inline bool __cmpxchg_double_slab(struct kmem_cache *s, struct slab *slab
 	return false;
 }
 
-static inline bool cmpxchg_double_slab(struct kmem_cache *s, struct slab *slab,
+static inline bool slab_update_freelist(struct kmem_cache *s, struct slab *slab,
 		void *freelist_old, unsigned long counters_old,
 		void *freelist_new, unsigned long counters_new,
 		const char *n)
 {
-#if defined(CONFIG_HAVE_CMPXCHG_DOUBLE) && \
-    defined(CONFIG_HAVE_ALIGNED_STRUCT_PAGE)
+	bool ret;
+
 	if (s->flags & __CMPXCHG_DOUBLE) {
-		if (cmpxchg_double(&slab->freelist, &slab->counters,
-				   freelist_old, counters_old,
-				   freelist_new, counters_new))
-			return true;
-	} else
-#endif
-	{
+		ret = __update_freelist_fast(slab, freelist_old, counters_old,
+				            freelist_new, counters_new);
+	} else {
 		unsigned long flags;
 
 		local_irq_save(flags);
-		slab_lock(slab);
-		if (slab->freelist == freelist_old &&
-					slab->counters == counters_old) {
-			slab->freelist = freelist_new;
-			slab->counters = counters_new;
-			slab_unlock(slab);
-			local_irq_restore(flags);
-			return true;
-		}
-		slab_unlock(slab);
+		ret = __update_freelist_slow(slab, freelist_old, counters_old,
+				            freelist_new, counters_new);
 		local_irq_restore(flags);
 	}
+	if (likely(ret))
+		return true;
 
 	cpu_relax();
 	stat(s, CMPXCHG_DOUBLE_FAIL);
@@ -1344,14 +1365,6 @@ static void remove_full(struct kmem_cache *s, struct kmem_cache_node *n, struct 
 	list_del(&slab->slab_list);
 }
 
-/* Tracking of the number of slabs for debugging purposes */
-static inline unsigned long slabs_node(struct kmem_cache *s, int node)
-{
-	struct kmem_cache_node *n = get_node(s, node);
-
-	return atomic_long_read(&n->nr_slabs);
-}
-
 static inline unsigned long node_nr_slabs(struct kmem_cache_node *n)
 {
 	return atomic_long_read(&n->nr_slabs);
@@ -1722,8 +1735,6 @@ slab_flags_t kmem_cache_flags(unsigned int object_size,
 
 #define disable_higher_order_debug 0
 
-static inline unsigned long slabs_node(struct kmem_cache *s, int node)
-							{ return 0; }
 static inline unsigned long node_nr_slabs(struct kmem_cache_node *n)
 							{ return 0; }
 static inline void inc_slabs_node(struct kmem_cache *s, int node,
@@ -2228,7 +2239,7 @@ static inline void *acquire_slab(struct kmem_cache *s,
 	VM_BUG_ON(new.frozen);
 	new.frozen = 1;
 
-	if (!__cmpxchg_double_slab(s, slab,
+	if (!__slab_update_freelist(s, slab,
 			freelist, counters,
 			new.freelist, new.counters,
 			"acquire_slab"))
@@ -2554,7 +2565,7 @@ redo:
 	}
 
 
-	if (!cmpxchg_double_slab(s, slab,
+	if (!slab_update_freelist(s, slab,
 				old.freelist, old.counters,
 				new.freelist, new.counters,
 				"unfreezing slab")) {
@@ -2611,7 +2622,7 @@ static void __unfreeze_partials(struct kmem_cache *s, struct slab *partial_slab)
 
 			new.frozen = 0;
 
-		} while (!__cmpxchg_double_slab(s, slab,
+		} while (!__slab_update_freelist(s, slab,
 				old.freelist, old.counters,
 				new.freelist, new.counters,
 				"unfreezing slab"));
@@ -3008,6 +3019,18 @@ static inline bool pfmemalloc_match(struct slab *slab, gfp_t gfpflags)
 }
 
 #ifndef CONFIG_SLUB_TINY
+static inline bool
+__update_cpu_freelist_fast(struct kmem_cache *s,
+			   void *freelist_old, void *freelist_new,
+			   unsigned long tid)
+{
+	freelist_aba_t old = { .freelist = freelist_old, .counter = tid };
+	freelist_aba_t new = { .freelist = freelist_new, .counter = next_tid(tid) };
+
+	return this_cpu_try_cmpxchg_freelist(s->cpu_slab->freelist_tid.full,
+					     &old.full, new.full);
+}
+
 /*
  * Check the slab->freelist and either transfer the freelist to the
  * per cpu freelist or deactivate the slab.
@@ -3034,7 +3057,7 @@ static inline void *get_freelist(struct kmem_cache *s, struct slab *slab)
 		new.inuse = slab->objects;
 		new.frozen = freelist != NULL;
 
-	} while (!__cmpxchg_double_slab(s, slab,
+	} while (!__slab_update_freelist(s, slab,
 		freelist, counters,
 		NULL, new.counters,
 		"get_freelist"));
@@ -3359,11 +3382,7 @@ redo:
 		 * against code executing on this cpu *not* from access by
 		 * other cpus.
 		 */
-		if (unlikely(!this_cpu_cmpxchg_double(
-				s->cpu_slab->freelist, s->cpu_slab->tid,
-				object, tid,
-				next_object, next_tid(tid)))) {
-
+		if (unlikely(!__update_cpu_freelist_fast(s, object, next_object, tid))) {
 			note_cmpxchg_failure("slab_alloc", s, tid);
 			goto redo;
 		}
@@ -3631,7 +3650,7 @@ static void __slab_free(struct kmem_cache *s, struct slab *slab,
 			}
 		}
 
-	} while (!cmpxchg_double_slab(s, slab,
+	} while (!slab_update_freelist(s, slab,
 		prior, counters,
 		head, new.counters,
 		"__slab_free"));
@@ -3736,11 +3755,7 @@ redo:
 
 		set_freepointer(s, tail_obj, freelist);
 
-		if (unlikely(!this_cpu_cmpxchg_double(
-				s->cpu_slab->freelist, s->cpu_slab->tid,
-				freelist, tid,
-				head, next_tid(tid)))) {
-
+		if (unlikely(!__update_cpu_freelist_fast(s, freelist, head, tid))) {
 			note_cmpxchg_failure("slab_free", s, tid);
 			goto redo;
 		}
@@ -4505,11 +4520,11 @@ static int kmem_cache_open(struct kmem_cache *s, slab_flags_t flags)
 		}
 	}
 
-#if defined(CONFIG_HAVE_CMPXCHG_DOUBLE) && \
-    defined(CONFIG_HAVE_ALIGNED_STRUCT_PAGE)
-	if (system_has_cmpxchg_double() && (s->flags & SLAB_NO_CMPXCHG) == 0)
+#ifdef system_has_freelist_aba
+	if (system_has_freelist_aba() && !(s->flags & SLAB_NO_CMPXCHG)) {
 		/* Enable fast mode */
 		s->flags |= __CMPXCHG_DOUBLE;
+	}
 #endif
 
 	/*
@@ -4598,7 +4613,7 @@ bool __kmem_cache_empty(struct kmem_cache *s)
 	struct kmem_cache_node *n;
 
 	for_each_kmem_cache_node(s, node, n)
-		if (n->nr_partial || slabs_node(s, node))
+		if (n->nr_partial || node_nr_slabs(n))
 			return false;
 	return true;
 }
@@ -4615,7 +4630,7 @@ int __kmem_cache_shutdown(struct kmem_cache *s)
 	/* Attempt to free all objects */
 	for_each_kmem_cache_node(s, node, n) {
 		free_partial(s, n);
-		if (n->nr_partial || slabs_node(s, node))
+		if (n->nr_partial || node_nr_slabs(n))
 			return 1;
 	}
 	return 0;
@@ -4828,7 +4843,7 @@ static int __kmem_cache_do_shrink(struct kmem_cache *s)
 		list_for_each_entry_safe(slab, t, &discard, slab_list)
 			free_slab(s, slab);
 
-		if (slabs_node(s, node))
+		if (node_nr_slabs(n))
 			ret = 1;
 	}
 
@@ -5166,9 +5181,9 @@ static int validate_slab_node(struct kmem_cache *s,
 		validate_slab(s, slab, obj_map);
 		count++;
 	}
-	if (count != atomic_long_read(&n->nr_slabs)) {
+	if (count != node_nr_slabs(n)) {
 		pr_err("SLUB: %s %ld slabs counted but counter=%ld\n",
-		       s->name, count, atomic_long_read(&n->nr_slabs));
+		       s->name, count, node_nr_slabs(n));
 		slab_add_kunit_errors();
 	}
 
@@ -5452,12 +5467,11 @@ static ssize_t show_slab_objects(struct kmem_cache *s,
 		for_each_kmem_cache_node(s, node, n) {
 
 			if (flags & SO_TOTAL)
-				x = atomic_long_read(&n->total_objects);
+				x = node_nr_objs(n);
 			else if (flags & SO_OBJECTS)
-				x = atomic_long_read(&n->total_objects) -
-					count_partial(n, count_free);
+				x = node_nr_objs(n) - count_partial(n, count_free);
 			else
-				x = atomic_long_read(&n->nr_slabs);
+				x = node_nr_slabs(n);
 			total += x;
 			nodes[node] += x;
 		}
@@ -5612,12 +5626,6 @@ static ssize_t cpu_slabs_show(struct kmem_cache *s, char *buf)
 }
 SLAB_ATTR_RO(cpu_slabs);
 
-static ssize_t objects_show(struct kmem_cache *s, char *buf)
-{
-	return show_slab_objects(s, buf, SO_ALL|SO_OBJECTS);
-}
-SLAB_ATTR_RO(objects);
-
 static ssize_t objects_partial_show(struct kmem_cache *s, char *buf)
 {
 	return show_slab_objects(s, buf, SO_PARTIAL|SO_OBJECTS);
@@ -5646,7 +5654,7 @@ static ssize_t slabs_cpu_partial_show(struct kmem_cache *s, char *buf)
 	objects = (slabs * oo_objects(s->oo)) / 2;
 	len += sysfs_emit_at(buf, len, "%d(%d)", objects, slabs);
 
-#if defined(CONFIG_SLUB_CPU_PARTIAL) && defined(CONFIG_SMP)
+#ifdef CONFIG_SLUB_CPU_PARTIAL
 	for_each_online_cpu(cpu) {
 		struct slab *slab;
 
@@ -5711,6 +5719,12 @@ static ssize_t total_objects_show(struct kmem_cache *s, char *buf)
 	return show_slab_objects(s, buf, SO_ALL|SO_TOTAL);
 }
 SLAB_ATTR_RO(total_objects);
+
+static ssize_t objects_show(struct kmem_cache *s, char *buf)
+{
+	return show_slab_objects(s, buf, SO_ALL|SO_OBJECTS);
+}
+SLAB_ATTR_RO(objects);
 
 static ssize_t sanity_checks_show(struct kmem_cache *s, char *buf)
 {
@@ -5943,7 +5957,6 @@ static struct attribute *slab_attrs[] = {
 	&order_attr.attr,
 	&min_partial_attr.attr,
 	&cpu_partial_attr.attr,
-	&objects_attr.attr,
 	&objects_partial_attr.attr,
 	&partial_attr.attr,
 	&cpu_slabs_attr.attr,
@@ -5957,6 +5970,7 @@ static struct attribute *slab_attrs[] = {
 	&slabs_cpu_partial_attr.attr,
 #ifdef CONFIG_SLUB_DEBUG
 	&total_objects_attr.attr,
+	&objects_attr.attr,
 	&slabs_attr.attr,
 	&sanity_checks_attr.attr,
 	&trace_attr.attr,
@@ -6224,7 +6238,7 @@ static int __init slab_sysfs_init(void)
 	if (!slab_kset) {
 		mutex_unlock(&slab_mutex);
 		pr_err("Cannot register slab subsystem.\n");
-		return -ENOSYS;
+		return -ENOMEM;
 	}
 
 	slab_state = FULL;
@@ -6396,7 +6410,7 @@ static int slab_debug_trace_open(struct inode *inode, struct file *filep)
 		unsigned long flags;
 		struct slab *slab;
 
-		if (!atomic_long_read(&n->nr_slabs))
+		if (!node_nr_slabs(n))
 			continue;
 
 		spin_lock_irqsave(&n->list_lock, flags);

@@ -12,6 +12,7 @@
 #include "util/debug.h"
 #include "util/config.h"
 #include <linux/string.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -157,7 +158,8 @@ int cmd_config(int argc, const char **argv)
 {
 	int i, ret = -1;
 	struct perf_config_set *set;
-	char *user_config = mkpath("%s/.perfconfig", getenv("HOME"));
+	char path[PATH_MAX];
+	char *user_config = mkpath(path, sizeof(path), "%s/.perfconfig", getenv("HOME"));
 	const char *config_filename;
 	bool changed = false;
 

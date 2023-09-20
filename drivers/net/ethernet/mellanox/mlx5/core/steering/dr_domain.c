@@ -555,17 +555,18 @@ int mlx5dr_domain_destroy(struct mlx5dr_domain *dmn)
 }
 
 void mlx5dr_domain_set_peer(struct mlx5dr_domain *dmn,
-			    struct mlx5dr_domain *peer_dmn)
+			    struct mlx5dr_domain *peer_dmn,
+			    u8 peer_idx)
 {
 	mlx5dr_domain_lock(dmn);
 
-	if (dmn->peer_dmn)
-		refcount_dec(&dmn->peer_dmn->refcount);
+	if (dmn->peer_dmn[peer_idx])
+		refcount_dec(&dmn->peer_dmn[peer_idx]->refcount);
 
-	dmn->peer_dmn = peer_dmn;
+	dmn->peer_dmn[peer_idx] = peer_dmn;
 
-	if (dmn->peer_dmn)
-		refcount_inc(&dmn->peer_dmn->refcount);
+	if (dmn->peer_dmn[peer_idx])
+		refcount_inc(&dmn->peer_dmn[peer_idx]->refcount);
 
 	mlx5dr_domain_unlock(dmn);
 }

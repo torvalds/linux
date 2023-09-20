@@ -243,8 +243,8 @@ Description:
 
 		index:
 					Used with HDD and NVME authentication to set the drive index
-					that is being referenced (e.g hdd0, hdd1 etc)
-					This attribute defaults to device 0.
+					that is being referenced (e.g hdd1, hdd2 etc)
+					This attribute defaults to device 1.
 
 		certificate, signature, save_signature:
 					These attributes are used for certificate based authentication. This is

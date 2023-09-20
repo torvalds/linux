@@ -131,22 +131,22 @@ SYM_FUNC_START(__put_user_nocheck_8)
 SYM_FUNC_END(__put_user_nocheck_8)
 EXPORT_SYMBOL(__put_user_nocheck_8)
 
-SYM_CODE_START_LOCAL(.Lbad_put_user_clac)
+SYM_CODE_START_LOCAL(__put_user_handle_exception)
 	ASM_CLAC
 .Lbad_put_user:
 	movl $-EFAULT,%ecx
 	RET
-SYM_CODE_END(.Lbad_put_user_clac)
+SYM_CODE_END(__put_user_handle_exception)
 
-	_ASM_EXTABLE(1b, .Lbad_put_user_clac)
-	_ASM_EXTABLE(2b, .Lbad_put_user_clac)
-	_ASM_EXTABLE(3b, .Lbad_put_user_clac)
-	_ASM_EXTABLE(4b, .Lbad_put_user_clac)
-	_ASM_EXTABLE(5b, .Lbad_put_user_clac)
-	_ASM_EXTABLE(6b, .Lbad_put_user_clac)
-	_ASM_EXTABLE(7b, .Lbad_put_user_clac)
-	_ASM_EXTABLE(9b, .Lbad_put_user_clac)
+	_ASM_EXTABLE(1b, __put_user_handle_exception)
+	_ASM_EXTABLE(2b, __put_user_handle_exception)
+	_ASM_EXTABLE(3b, __put_user_handle_exception)
+	_ASM_EXTABLE(4b, __put_user_handle_exception)
+	_ASM_EXTABLE(5b, __put_user_handle_exception)
+	_ASM_EXTABLE(6b, __put_user_handle_exception)
+	_ASM_EXTABLE(7b, __put_user_handle_exception)
+	_ASM_EXTABLE(9b, __put_user_handle_exception)
 #ifdef CONFIG_X86_32
-	_ASM_EXTABLE(8b, .Lbad_put_user_clac)
-	_ASM_EXTABLE(10b, .Lbad_put_user_clac)
+	_ASM_EXTABLE(8b, __put_user_handle_exception)
+	_ASM_EXTABLE(10b, __put_user_handle_exception)
 #endif

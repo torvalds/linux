@@ -272,7 +272,7 @@ static const struct i2c_device_id mcs5000_ts_id[] = {
 MODULE_DEVICE_TABLE(i2c, mcs5000_ts_id);
 
 static struct i2c_driver mcs5000_ts_driver = {
-	.probe_new	= mcs5000_ts_probe,
+	.probe		= mcs5000_ts_probe,
 	.driver = {
 		.name = "mcs5000_ts",
 		.pm   = pm_sleep_ptr(&mcs5000_ts_pm),

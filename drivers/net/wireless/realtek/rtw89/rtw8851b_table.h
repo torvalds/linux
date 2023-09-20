@@ -13,7 +13,7 @@ extern const struct rtw89_phy_table rtw89_8851b_phy_radioa_table;
 extern const struct rtw89_phy_table rtw89_8851b_phy_nctl_table;
 extern const struct rtw89_txpwr_table rtw89_8851b_byr_table;
 extern const struct rtw89_txpwr_track_cfg rtw89_8851b_trk_cfg;
-extern const u8 rtw89_8851b_tx_shape[RTW89_BAND_MAX][RTW89_RS_TX_SHAPE_NUM]
+extern const u8 rtw89_8851b_tx_shape[RTW89_BAND_NUM][RTW89_RS_TX_SHAPE_NUM]
 				    [RTW89_REGD_NUM];
 extern const struct rtw89_rfe_parms rtw89_8851b_dflt_parms;
 extern const struct rtw89_rfe_parms_conf rtw89_8851b_rfe_parms_conf[];

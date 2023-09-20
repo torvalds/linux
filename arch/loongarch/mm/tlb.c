@@ -167,6 +167,9 @@ void __update_tlb(struct vm_area_struct *vma, unsigned long address, pte_t *ptep
 	int idx;
 	unsigned long flags;
 
+	if (cpu_has_ptw)
+		return;
+
 	/*
 	 * Handle debugger faulting in for debugee.
 	 */
@@ -222,6 +225,9 @@ static void setup_ptwalker(void)
 	pwctl0 = pte_i | pte_w << 5 | pmd_i << 10 | pmd_w << 15 | pud_i << 20 | pud_w << 25;
 	pwctl1 = pgd_i | pgd_w << 6;
 
+	if (cpu_has_ptw)
+		pwctl1 |= CSR_PWCTL1_PTW;
+
 	csr_write64(pwctl0, LOONGARCH_CSR_PWCTL0);
 	csr_write64(pwctl1, LOONGARCH_CSR_PWCTL1);
 	csr_write64((long)swapper_pg_dir, LOONGARCH_CSR_PGDH);
@@ -264,10 +270,17 @@ void setup_tlb_handler(int cpu)
 	if (cpu == 0) {
 		memcpy((void *)tlbrentry, handle_tlb_refill, 0x80);
 		local_flush_icache_range(tlbrentry, tlbrentry + 0x80);
-		set_handler(EXCCODE_TLBI * VECSIZE, handle_tlb_load, VECSIZE);
-		set_handler(EXCCODE_TLBL * VECSIZE, handle_tlb_load, VECSIZE);
-		set_handler(EXCCODE_TLBS * VECSIZE, handle_tlb_store, VECSIZE);
-		set_handler(EXCCODE_TLBM * VECSIZE, handle_tlb_modify, VECSIZE);
+		if (!cpu_has_ptw) {
+			set_handler(EXCCODE_TLBI * VECSIZE, handle_tlb_load, VECSIZE);
+			set_handler(EXCCODE_TLBL * VECSIZE, handle_tlb_load, VECSIZE);
+			set_handler(EXCCODE_TLBS * VECSIZE, handle_tlb_store, VECSIZE);
+			set_handler(EXCCODE_TLBM * VECSIZE, handle_tlb_modify, VECSIZE);
+		} else {
+			set_handler(EXCCODE_TLBI * VECSIZE, handle_tlb_load_ptw, VECSIZE);
+			set_handler(EXCCODE_TLBL * VECSIZE, handle_tlb_load_ptw, VECSIZE);
+			set_handler(EXCCODE_TLBS * VECSIZE, handle_tlb_store_ptw, VECSIZE);
+			set_handler(EXCCODE_TLBM * VECSIZE, handle_tlb_modify_ptw, VECSIZE);
+		}
 		set_handler(EXCCODE_TLBNR * VECSIZE, handle_tlb_protect, VECSIZE);
 		set_handler(EXCCODE_TLBNX * VECSIZE, handle_tlb_protect, VECSIZE);
 		set_handler(EXCCODE_TLBPE * VECSIZE, handle_tlb_protect, VECSIZE);

@@ -259,7 +259,7 @@ const struct file_operations hpfs_file_ops =
 	.mmap		= generic_file_mmap,
 	.release	= hpfs_file_release,
 	.fsync		= hpfs_file_fsync,
-	.splice_read	= generic_file_splice_read,
+	.splice_read	= filemap_splice_read,
 	.unlocked_ioctl	= hpfs_ioctl,
 	.compat_ioctl	= compat_ptr_ioctl,
 };

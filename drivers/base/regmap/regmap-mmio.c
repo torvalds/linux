@@ -448,7 +448,7 @@ static struct regmap_mmio_context *regmap_mmio_gen_context(struct device *dev,
 	if (min_stride < 0)
 		return ERR_PTR(min_stride);
 
-	if (config->reg_stride < min_stride)
+	if (config->reg_stride && config->reg_stride < min_stride)
 		return ERR_PTR(-EINVAL);
 
 	if (config->use_relaxed_mmio && config->io_port)

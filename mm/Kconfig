@@ -46,6 +46,22 @@ config ZSWAP_DEFAULT_ON
 	  The selection made here can be overridden by using the kernel
 	  command line 'zswap.enabled=' option.
 
+config ZSWAP_EXCLUSIVE_LOADS_DEFAULT_ON
+	bool "Invalidate zswap entries when pages are loaded"
+	depends on ZSWAP
+	help
+	  If selected, exclusive loads for zswap will be enabled at boot,
+	  otherwise it will be disabled.
+
+	  If exclusive loads are enabled, when a page is loaded from zswap,
+	  the zswap entry is invalidated at once, as opposed to leaving it
+	  in zswap until the swap entry is freed.
+
+	  This avoids having two copies of the same page in memory
+	  (compressed and uncompressed) after faulting in a page from zswap.
+	  The cost is that if the page was never dirtied and needs to be
+	  swapped out again, it will be re-compressed.
+
 choice
 	prompt "Default compressor"
 	depends on ZSWAP
@@ -218,18 +234,23 @@ choice
 	help
 	   This option allows to select a slab allocator.
 
-config SLAB
-	bool "SLAB"
+config SLAB_DEPRECATED
+	bool "SLAB (DEPRECATED)"
 	depends on !PREEMPT_RT
-	select HAVE_HARDENED_USERCOPY_ALLOCATOR
 	help
+	  Deprecated and scheduled for removal in a few cycles. Replaced by
+	  SLUB.
+
+	  If you cannot migrate to SLUB, please contact linux-mm@kvack.org
+	  and the people listed in the SLAB ALLOCATOR section of MAINTAINERS
+	  file, explaining why.
+
 	  The regular slab allocator that is established and known to work
 	  well in all environments. It organizes cache hot objects in
 	  per cpu and per node queues.
 
 config SLUB
 	bool "SLUB (Unqueued Allocator)"
-	select HAVE_HARDENED_USERCOPY_ALLOCATOR
 	help
 	   SLUB is a slab allocator that minimizes cache line usage
 	   instead of managing queues of cached objects (SLAB approach).
@@ -239,6 +260,11 @@ config SLUB
 	   a slab allocator.
 
 endchoice
+
+config SLAB
+	bool
+	default y
+	depends on SLAB_DEPRECATED
 
 config SLUB_TINY
 	bool "Configure SLUB for minimal memory footprint"
@@ -1205,6 +1231,10 @@ config PER_VMA_LOCK
 
 	  This feature allows locking each virtual memory area separately when
 	  handling page faults instead of taking mmap_lock.
+
+config LOCK_MM_AND_FIND_VMA
+	bool
+	depends on !STACK_GROWSUP
 
 source "mm/damon/Kconfig"
 

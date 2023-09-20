@@ -58,8 +58,9 @@
 struct kvm_pgtable_walk_data {
 	struct kvm_pgtable_walker	*walker;
 
+	const u64			start;
 	u64				addr;
-	u64				end;
+	const u64			end;
 };
 
 static bool kvm_phys_is_valid(u64 phys)
@@ -201,20 +202,33 @@ static inline int __kvm_pgtable_visit(struct kvm_pgtable_walk_data *data,
 		.old	= READ_ONCE(*ptep),
 		.arg	= data->walker->arg,
 		.mm_ops	= mm_ops,
+		.start	= data->start,
 		.addr	= data->addr,
 		.end	= data->end,
 		.level	= level,
 		.flags	= flags,
 	};
 	int ret = 0;
+	bool reload = false;
 	kvm_pteref_t childp;
 	bool table = kvm_pte_table(ctx.old, level);
 
-	if (table && (ctx.flags & KVM_PGTABLE_WALK_TABLE_PRE))
+	if (table && (ctx.flags & KVM_PGTABLE_WALK_TABLE_PRE)) {
 		ret = kvm_pgtable_visitor_cb(data, &ctx, KVM_PGTABLE_WALK_TABLE_PRE);
+		reload = true;
+	}
 
 	if (!table && (ctx.flags & KVM_PGTABLE_WALK_LEAF)) {
 		ret = kvm_pgtable_visitor_cb(data, &ctx, KVM_PGTABLE_WALK_LEAF);
+		reload = true;
+	}
+
+	/*
+	 * Reload the page table after invoking the walker callback for leaf
+	 * entries or after pre-order traversal, to allow the walker to descend
+	 * into a newly installed or replaced table.
+	 */
+	if (reload) {
 		ctx.old = READ_ONCE(*ptep);
 		table = kvm_pte_table(ctx.old, level);
 	}
@@ -293,6 +307,7 @@ int kvm_pgtable_walk(struct kvm_pgtable *pgt, u64 addr, u64 size,
 		     struct kvm_pgtable_walker *walker)
 {
 	struct kvm_pgtable_walk_data walk_data = {
+		.start	= ALIGN_DOWN(addr, PAGE_SIZE),
 		.addr	= ALIGN_DOWN(addr, PAGE_SIZE),
 		.end	= PAGE_ALIGN(walk_data.addr + size),
 		.walker	= walker,
@@ -349,7 +364,7 @@ int kvm_pgtable_get_leaf(struct kvm_pgtable *pgt, u64 addr,
 }
 
 struct hyp_map_data {
-	u64				phys;
+	const u64			phys;
 	kvm_pte_t			attr;
 };
 
@@ -407,13 +422,12 @@ enum kvm_pgtable_prot kvm_pgtable_hyp_pte_prot(kvm_pte_t pte)
 static bool hyp_map_walker_try_leaf(const struct kvm_pgtable_visit_ctx *ctx,
 				    struct hyp_map_data *data)
 {
+	u64 phys = data->phys + (ctx->addr - ctx->start);
 	kvm_pte_t new;
-	u64 granule = kvm_granule_size(ctx->level), phys = data->phys;
 
 	if (!kvm_block_mapping_supported(ctx, phys))
 		return false;
 
-	data->phys += granule;
 	new = kvm_init_valid_leaf_pte(phys, data->attr, ctx->level);
 	if (ctx->old == new)
 		return true;
@@ -576,7 +590,7 @@ void kvm_pgtable_hyp_destroy(struct kvm_pgtable *pgt)
 }
 
 struct stage2_map_data {
-	u64				phys;
+	const u64			phys;
 	kvm_pte_t			attr;
 	u8				owner_id;
 
@@ -794,20 +808,43 @@ static bool stage2_pte_executable(kvm_pte_t pte)
 	return !(pte & KVM_PTE_LEAF_ATTR_HI_S2_XN);
 }
 
+static u64 stage2_map_walker_phys_addr(const struct kvm_pgtable_visit_ctx *ctx,
+				       const struct stage2_map_data *data)
+{
+	u64 phys = data->phys;
+
+	/*
+	 * Stage-2 walks to update ownership data are communicated to the map
+	 * walker using an invalid PA. Avoid offsetting an already invalid PA,
+	 * which could overflow and make the address valid again.
+	 */
+	if (!kvm_phys_is_valid(phys))
+		return phys;
+
+	/*
+	 * Otherwise, work out the correct PA based on how far the walk has
+	 * gotten.
+	 */
+	return phys + (ctx->addr - ctx->start);
+}
+
 static bool stage2_leaf_mapping_allowed(const struct kvm_pgtable_visit_ctx *ctx,
 					struct stage2_map_data *data)
 {
+	u64 phys = stage2_map_walker_phys_addr(ctx, data);
+
 	if (data->force_pte && (ctx->level < (KVM_PGTABLE_MAX_LEVELS - 1)))
 		return false;
 
-	return kvm_block_mapping_supported(ctx, data->phys);
+	return kvm_block_mapping_supported(ctx, phys);
 }
 
 static int stage2_map_walker_try_leaf(const struct kvm_pgtable_visit_ctx *ctx,
 				      struct stage2_map_data *data)
 {
 	kvm_pte_t new;
-	u64 granule = kvm_granule_size(ctx->level), phys = data->phys;
+	u64 phys = stage2_map_walker_phys_addr(ctx, data);
+	u64 granule = kvm_granule_size(ctx->level);
 	struct kvm_pgtable *pgt = data->mmu->pgt;
 	struct kvm_pgtable_mm_ops *mm_ops = ctx->mm_ops;
 
@@ -841,8 +878,6 @@ static int stage2_map_walker_try_leaf(const struct kvm_pgtable_visit_ctx *ctx,
 
 	stage2_make_pte(ctx, new);
 
-	if (kvm_phys_is_valid(phys))
-		data->phys += granule;
 	return 0;
 }
 
@@ -1297,4 +1332,7 @@ void kvm_pgtable_stage2_free_removed(struct kvm_pgtable_mm_ops *mm_ops, void *pg
 	};
 
 	WARN_ON(__kvm_pgtable_walk(&data, mm_ops, ptep, level + 1));
+
+	WARN_ON(mm_ops->page_count(pgtable) != 1);
+	mm_ops->put_page(pgtable);
 }

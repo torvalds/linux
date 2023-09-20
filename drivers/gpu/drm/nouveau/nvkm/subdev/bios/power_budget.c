@@ -59,7 +59,6 @@ int
 nvbios_power_budget_header(struct nvkm_bios *bios,
                            struct nvbios_power_budget *budget)
 {
-	struct nvkm_subdev *subdev = &bios->subdev;
 	u8 ver, hdr, cnt, len, cap_entry;
 	u32 header;
 
@@ -82,7 +81,7 @@ nvbios_power_budget_header(struct nvkm_bios *bios,
 	}
 
 	if (cap_entry >= cnt && cap_entry != 0xff) {
-		nvkm_warn(subdev,
+		nvkm_warn(&bios->subdev,
 		          "invalid cap_entry in power budget table found\n");
 		budget->cap_entry = 0xff;
 		return -EINVAL;

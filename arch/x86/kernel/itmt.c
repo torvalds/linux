@@ -165,32 +165,19 @@ int arch_asym_cpu_priority(int cpu)
 
 /**
  * sched_set_itmt_core_prio() - Set CPU priority based on ITMT
- * @prio:	Priority of cpu core
- * @core_cpu:	The cpu number associated with the core
+ * @prio:	Priority of @cpu
+ * @cpu:	The CPU number
  *
  * The pstate driver will find out the max boost frequency
  * and call this function to set a priority proportional
- * to the max boost frequency. CPU with higher boost
+ * to the max boost frequency. CPUs with higher boost
  * frequency will receive higher priority.
  *
  * No need to rebuild sched domain after updating
  * the CPU priorities. The sched domains have no
  * dependency on CPU priorities.
  */
-void sched_set_itmt_core_prio(int prio, int core_cpu)
+void sched_set_itmt_core_prio(int prio, int cpu)
 {
-	int cpu, i = 1;
-
-	for_each_cpu(cpu, topology_sibling_cpumask(core_cpu)) {
-		int smt_prio;
-
-		/*
-		 * Ensure that the siblings are moved to the end
-		 * of the priority chain and only used when
-		 * all other high priority cpus are out of capacity.
-		 */
-		smt_prio = prio * smp_num_siblings / (i * i);
-		per_cpu(sched_core_priority, cpu) = smt_prio;
-		i++;
-	}
+	per_cpu(sched_core_priority, cpu) = prio;
 }

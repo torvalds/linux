@@ -78,7 +78,8 @@ enum qca_flags {
 	QCA_HW_ERROR_EVENT,
 	QCA_SSR_TRIGGERED,
 	QCA_BT_OFF,
-	QCA_ROM_FW
+	QCA_ROM_FW,
+	QCA_DEBUGFS_CREATED,
 };
 
 enum qca_capabilities {
@@ -633,6 +634,9 @@ static void qca_debugfs_init(struct hci_dev *hdev)
 	umode_t mode;
 
 	if (!hdev->debugfs)
+		return;
+
+	if (test_and_set_bit(QCA_DEBUGFS_CREATED, &qca->flags))
 		return;
 
 	ibs_dir = debugfs_create_dir("ibs", hdev->debugfs);

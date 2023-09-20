@@ -181,7 +181,6 @@ const struct address_space_operations zonefs_file_aops = {
 	.migrate_folio		= filemap_migrate_folio,
 	.is_partially_uptodate	= iomap_is_partially_uptodate,
 	.error_remove_page	= generic_error_remove_page,
-	.direct_IO		= noop_direct_IO,
 	.swap_activate		= zonefs_swap_activate,
 };
 
@@ -342,6 +341,77 @@ static loff_t zonefs_file_llseek(struct file *file, loff_t offset, int whence)
 	return generic_file_llseek_size(file, offset, whence, isize, isize);
 }
 
+struct zonefs_zone_append_bio {
+	/* The target inode of the BIO */
+	struct inode *inode;
+
+	/* For sync writes, the target append write offset */
+	u64 append_offset;
+
+	/*
+	 * This member must come last, bio_alloc_bioset will allocate enough
+	 * bytes for entire zonefs_bio but relies on bio being last.
+	 */
+	struct bio bio;
+};
+
+static inline struct zonefs_zone_append_bio *
+zonefs_zone_append_bio(struct bio *bio)
+{
+	return container_of(bio, struct zonefs_zone_append_bio, bio);
+}
+
+static void zonefs_file_zone_append_dio_bio_end_io(struct bio *bio)
+{
+	struct zonefs_zone_append_bio *za_bio = zonefs_zone_append_bio(bio);
+	struct zonefs_zone *z = zonefs_inode_zone(za_bio->inode);
+	sector_t za_sector;
+
+	if (bio->bi_status != BLK_STS_OK)
+		goto bio_end;
+
+	/*
+	 * If the file zone was written underneath the file system, the zone
+	 * append operation can still succedd (if the zone is not full) but
+	 * the write append location will not be where we expect it to be.
+	 * Check that we wrote where we intended to, that is, at z->z_wpoffset.
+	 */
+	za_sector = z->z_sector + (za_bio->append_offset >> SECTOR_SHIFT);
+	if (bio->bi_iter.bi_sector != za_sector) {
+		zonefs_warn(za_bio->inode->i_sb,
+			    "Invalid write sector %llu for zone at %llu\n",
+			    bio->bi_iter.bi_sector, z->z_sector);
+		bio->bi_status = BLK_STS_IOERR;
+	}
+
+bio_end:
+	iomap_dio_bio_end_io(bio);
+}
+
+static void zonefs_file_zone_append_dio_submit_io(const struct iomap_iter *iter,
+						  struct bio *bio,
+						  loff_t file_offset)
+{
+	struct zonefs_zone_append_bio *za_bio = zonefs_zone_append_bio(bio);
+	struct inode *inode = iter->inode;
+	struct zonefs_zone *z = zonefs_inode_zone(inode);
+
+	/*
+	 * Issue a zone append BIO to process sync dio writes. The append
+	 * file offset is saved to check the zone append write location
+	 * on completion of the BIO.
+	 */
+	za_bio->inode = inode;
+	za_bio->append_offset = file_offset;
+
+	bio->bi_opf &= ~REQ_OP_WRITE;
+	bio->bi_opf |= REQ_OP_ZONE_APPEND;
+	bio->bi_iter.bi_sector = z->z_sector;
+	bio->bi_end_io = zonefs_file_zone_append_dio_bio_end_io;
+
+	submit_bio(bio);
+}
+
 static int zonefs_file_write_dio_end_io(struct kiocb *iocb, ssize_t size,
 					int error, unsigned int flags)
 {
@@ -372,93 +442,17 @@ static int zonefs_file_write_dio_end_io(struct kiocb *iocb, ssize_t size,
 	return 0;
 }
 
-static const struct iomap_dio_ops zonefs_write_dio_ops = {
-	.end_io			= zonefs_file_write_dio_end_io,
+static struct bio_set zonefs_zone_append_bio_set;
+
+static const struct iomap_dio_ops zonefs_zone_append_dio_ops = {
+	.submit_io	= zonefs_file_zone_append_dio_submit_io,
+	.end_io		= zonefs_file_write_dio_end_io,
+	.bio_set	= &zonefs_zone_append_bio_set,
 };
 
-static ssize_t zonefs_file_dio_append(struct kiocb *iocb, struct iov_iter *from)
-{
-	struct inode *inode = file_inode(iocb->ki_filp);
-	struct zonefs_zone *z = zonefs_inode_zone(inode);
-	struct block_device *bdev = inode->i_sb->s_bdev;
-	unsigned int max = bdev_max_zone_append_sectors(bdev);
-	pgoff_t start, end;
-	struct bio *bio;
-	ssize_t size = 0;
-	int nr_pages;
-	ssize_t ret;
-
-	max = ALIGN_DOWN(max << SECTOR_SHIFT, inode->i_sb->s_blocksize);
-	iov_iter_truncate(from, max);
-
-	/*
-	 * If the inode block size (zone write granularity) is smaller than the
-	 * page size, we may be appending data belonging to the last page of the
-	 * inode straddling inode->i_size, with that page already cached due to
-	 * a buffered read or readahead. So make sure to invalidate that page.
-	 * This will always be a no-op for the case where the block size is
-	 * equal to the page size.
-	 */
-	start = iocb->ki_pos >> PAGE_SHIFT;
-	end = (iocb->ki_pos + iov_iter_count(from) - 1) >> PAGE_SHIFT;
-	if (invalidate_inode_pages2_range(inode->i_mapping, start, end))
-		return -EBUSY;
-
-	nr_pages = iov_iter_npages(from, BIO_MAX_VECS);
-	if (!nr_pages)
-		return 0;
-
-	bio = bio_alloc(bdev, nr_pages,
-			REQ_OP_ZONE_APPEND | REQ_SYNC | REQ_IDLE, GFP_NOFS);
-	bio->bi_iter.bi_sector = z->z_sector;
-	bio->bi_ioprio = iocb->ki_ioprio;
-	if (iocb_is_dsync(iocb))
-		bio->bi_opf |= REQ_FUA;
-
-	ret = bio_iov_iter_get_pages(bio, from);
-	if (unlikely(ret))
-		goto out_release;
-
-	size = bio->bi_iter.bi_size;
-	task_io_account_write(size);
-
-	if (iocb->ki_flags & IOCB_HIPRI)
-		bio_set_polled(bio, iocb);
-
-	ret = submit_bio_wait(bio);
-
-	/*
-	 * If the file zone was written underneath the file system, the zone
-	 * write pointer may not be where we expect it to be, but the zone
-	 * append write can still succeed. So check manually that we wrote where
-	 * we intended to, that is, at zi->i_wpoffset.
-	 */
-	if (!ret) {
-		sector_t wpsector =
-			z->z_sector + (z->z_wpoffset >> SECTOR_SHIFT);
-
-		if (bio->bi_iter.bi_sector != wpsector) {
-			zonefs_warn(inode->i_sb,
-				"Corrupted write pointer %llu for zone at %llu\n",
-				bio->bi_iter.bi_sector, z->z_sector);
-			ret = -EIO;
-		}
-	}
-
-	zonefs_file_write_dio_end_io(iocb, size, ret, 0);
-	trace_zonefs_file_dio_append(inode, size, ret);
-
-out_release:
-	bio_release_pages(bio, false);
-	bio_put(bio);
-
-	if (ret >= 0) {
-		iocb->ki_pos += size;
-		return size;
-	}
-
-	return ret;
-}
+static const struct iomap_dio_ops zonefs_write_dio_ops = {
+	.end_io		= zonefs_file_write_dio_end_io,
+};
 
 /*
  * Do not exceed the LFS limits nor the file zone size. If pos is under the
@@ -539,6 +533,7 @@ static ssize_t zonefs_file_dio_write(struct kiocb *iocb, struct iov_iter *from)
 	struct zonefs_inode_info *zi = ZONEFS_I(inode);
 	struct zonefs_zone *z = zonefs_inode_zone(inode);
 	struct super_block *sb = inode->i_sb;
+	const struct iomap_dio_ops *dio_ops;
 	bool sync = is_sync_kiocb(iocb);
 	bool append = false;
 	ssize_t ret, count;
@@ -582,19 +577,25 @@ static ssize_t zonefs_file_dio_write(struct kiocb *iocb, struct iov_iter *from)
 	}
 
 	if (append) {
-		ret = zonefs_file_dio_append(iocb, from);
+		unsigned int max = bdev_max_zone_append_sectors(sb->s_bdev);
+
+		max = ALIGN_DOWN(max << SECTOR_SHIFT, sb->s_blocksize);
+		iov_iter_truncate(from, max);
+
+		dio_ops = &zonefs_zone_append_dio_ops;
 	} else {
-		/*
-		 * iomap_dio_rw() may return ENOTBLK if there was an issue with
-		 * page invalidation. Overwrite that error code with EBUSY to
-		 * be consistent with zonefs_file_dio_append() return value for
-		 * similar issues.
-		 */
-		ret = iomap_dio_rw(iocb, from, &zonefs_write_iomap_ops,
-				   &zonefs_write_dio_ops, 0, NULL, 0);
-		if (ret == -ENOTBLK)
-			ret = -EBUSY;
+		dio_ops = &zonefs_write_dio_ops;
 	}
+
+	/*
+	 * iomap_dio_rw() may return ENOTBLK if there was an issue with
+	 * page invalidation. Overwrite that error code with EBUSY so that
+	 * the user can make sense of the error.
+	 */
+	ret = iomap_dio_rw(iocb, from, &zonefs_write_iomap_ops,
+			   dio_ops, 0, NULL, 0);
+	if (ret == -ENOTBLK)
+		ret = -EBUSY;
 
 	if (zonefs_zone_is_seq(z) &&
 	    (ret > 0 || ret == -EIOCBQUEUED)) {
@@ -643,9 +644,7 @@ static ssize_t zonefs_file_buffered_write(struct kiocb *iocb,
 		goto inode_unlock;
 
 	ret = iomap_file_buffered_write(iocb, from, &zonefs_write_iomap_ops);
-	if (ret > 0)
-		iocb->ki_pos += ret;
-	else if (ret == -EIO)
+	if (ret == -EIO)
 		zonefs_io_error(inode, true);
 
 inode_unlock:
@@ -752,6 +751,44 @@ inode_unlock:
 	return ret;
 }
 
+static ssize_t zonefs_file_splice_read(struct file *in, loff_t *ppos,
+				       struct pipe_inode_info *pipe,
+				       size_t len, unsigned int flags)
+{
+	struct inode *inode = file_inode(in);
+	struct zonefs_inode_info *zi = ZONEFS_I(inode);
+	struct zonefs_zone *z = zonefs_inode_zone(inode);
+	loff_t isize;
+	ssize_t ret = 0;
+
+	/* Offline zones cannot be read */
+	if (unlikely(IS_IMMUTABLE(inode) && !(inode->i_mode & 0777)))
+		return -EPERM;
+
+	if (*ppos >= z->z_capacity)
+		return 0;
+
+	inode_lock_shared(inode);
+
+	/* Limit read operations to written data */
+	mutex_lock(&zi->i_truncate_mutex);
+	isize = i_size_read(inode);
+	if (*ppos >= isize)
+		len = 0;
+	else
+		len = min_t(loff_t, len, isize - *ppos);
+	mutex_unlock(&zi->i_truncate_mutex);
+
+	if (len > 0) {
+		ret = filemap_splice_read(in, ppos, pipe, len, flags);
+		if (ret == -EIO)
+			zonefs_io_error(inode, false);
+	}
+
+	inode_unlock_shared(inode);
+	return ret;
+}
+
 /*
  * Write open accounting is done only for sequential files.
  */
@@ -813,6 +850,7 @@ static int zonefs_file_open(struct inode *inode, struct file *file)
 {
 	int ret;
 
+	file->f_mode |= FMODE_CAN_ODIRECT;
 	ret = generic_file_open(inode, file);
 	if (ret)
 		return ret;
@@ -896,7 +934,19 @@ const struct file_operations zonefs_file_operations = {
 	.llseek		= zonefs_file_llseek,
 	.read_iter	= zonefs_file_read_iter,
 	.write_iter	= zonefs_file_write_iter,
-	.splice_read	= generic_file_splice_read,
+	.splice_read	= zonefs_file_splice_read,
 	.splice_write	= iter_file_splice_write,
 	.iopoll		= iocb_bio_iopoll,
 };
+
+int zonefs_file_bioset_init(void)
+{
+	return bioset_init(&zonefs_zone_append_bio_set, BIO_POOL_SIZE,
+			   offsetof(struct zonefs_zone_append_bio, bio),
+			   BIOSET_NEED_BVECS);
+}
+
+void zonefs_file_bioset_exit(void)
+{
+	bioset_exit(&zonefs_zone_append_bio_set);
+}

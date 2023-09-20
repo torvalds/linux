@@ -1183,7 +1183,7 @@ static struct i2c_driver rohm_bu21023_i2c_driver = {
 	.driver = {
 		.name = BU21023_NAME,
 	},
-	.probe_new = rohm_bu21023_i2c_probe,
+	.probe = rohm_bu21023_i2c_probe,
 	.id_table = rohm_bu21023_i2c_id,
 };
 module_i2c_driver(rohm_bu21023_i2c_driver);

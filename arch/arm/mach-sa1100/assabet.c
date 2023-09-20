@@ -710,7 +710,7 @@ static void __init assabet_map_io(void)
 	sa1100_register_uart(2, 3);
 }
 
-void __init assabet_init_irq(void)
+static void __init assabet_init_irq(void)
 {
 	u32 def_val;
 

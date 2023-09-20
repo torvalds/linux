@@ -61,7 +61,7 @@ static struct i2c_driver aic3x_i2c_driver = {
 		.name = "tlv320aic3x",
 		.of_match_table = aic3x_of_id,
 	},
-	.probe_new = aic3x_i2c_probe,
+	.probe = aic3x_i2c_probe,
 	.remove = aic3x_i2c_remove,
 	.id_table = aic3x_i2c_id,
 };

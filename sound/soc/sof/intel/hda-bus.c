@@ -70,9 +70,14 @@ void sof_hda_bus_init(struct snd_sof_dev *sdev, struct device *dev)
 {
 	struct hdac_bus *bus = sof_to_bus(sdev);
 
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA_LINK)
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA_AUDIO_CODEC)
 	snd_hdac_ext_bus_init(bus, dev, &bus_core_ops, sof_hda_ext_ops);
-#else /* CONFIG_SND_SOC_SOF_HDA_AUDIO_CODEC */
+#else
+	snd_hdac_ext_bus_init(bus, dev, NULL, NULL);
+#endif
+#else
+
 	memset(bus, 0, sizeof(*bus));
 	bus->dev = dev;
 
@@ -87,12 +92,12 @@ void sof_hda_bus_init(struct snd_sof_dev *sdev, struct device *dev)
 	bus->idx = 0;
 
 	spin_lock_init(&bus->reg_lock);
-#endif /* CONFIG_SND_SOC_SOF_HDA_AUDIO_CODEC */
+#endif /* CONFIG_SND_SOC_SOF_HDA_LINK */
 }
 
 void sof_hda_bus_exit(struct snd_sof_dev *sdev)
 {
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA_AUDIO_CODEC)
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA_LINK)
 	struct hdac_bus *bus = sof_to_bus(sdev);
 
 	snd_hdac_ext_bus_exit(bus);

@@ -8,7 +8,7 @@
 
 #include "fou_nl.h"
 
-#include <linux/fou.h>
+#include <uapi/linux/fou.h>
 
 /* Global operation policy for fou */
 const struct nla_policy fou_nl_policy[FOU_ATTR_IFINDEX + 1] = {

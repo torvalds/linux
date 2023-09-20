@@ -903,7 +903,7 @@ err_finished_ddc_init:
 	return err;
 }
 
-static int panel_edp_remove(struct device *dev)
+static void panel_edp_remove(struct device *dev)
 {
 	struct panel_edp *panel = dev_get_drvdata(dev);
 
@@ -918,8 +918,6 @@ static int panel_edp_remove(struct device *dev)
 
 	kfree(panel->edid);
 	panel->edid = NULL;
-
-	return 0;
 }
 
 static void panel_edp_shutdown(struct device *dev)
@@ -1934,9 +1932,9 @@ static int panel_edp_platform_probe(struct platform_device *pdev)
 	return panel_edp_probe(&pdev->dev, id->data, NULL);
 }
 
-static int panel_edp_platform_remove(struct platform_device *pdev)
+static void panel_edp_platform_remove(struct platform_device *pdev)
 {
-	return panel_edp_remove(&pdev->dev);
+	panel_edp_remove(&pdev->dev);
 }
 
 static void panel_edp_platform_shutdown(struct platform_device *pdev)
@@ -1957,7 +1955,7 @@ static struct platform_driver panel_edp_platform_driver = {
 		.pm = &panel_edp_pm_ops,
 	},
 	.probe = panel_edp_platform_probe,
-	.remove = panel_edp_platform_remove,
+	.remove_new = panel_edp_platform_remove,
 	.shutdown = panel_edp_platform_shutdown,
 };
 

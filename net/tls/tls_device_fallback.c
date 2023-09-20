@@ -271,7 +271,7 @@ static int fill_sg_in(struct scatterlist *sg_in,
 		 * There is a corner case where the packet contains
 		 * both an acked and a non-acked record.
 		 * We currently don't handle that case and rely
-		 * on TCP to retranmit a packet that doesn't contain
+		 * on TCP to retransmit a packet that doesn't contain
 		 * already acked payload.
 		 */
 		if (!is_start_marker)

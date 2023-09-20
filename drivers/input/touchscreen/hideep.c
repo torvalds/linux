@@ -1136,7 +1136,7 @@ static struct i2c_driver hideep_driver = {
 		.pm			= pm_sleep_ptr(&hideep_pm_ops),
 	},
 	.id_table	= hideep_i2c_id,
-	.probe_new	= hideep_probe,
+	.probe		= hideep_probe,
 };
 
 module_i2c_driver(hideep_driver);

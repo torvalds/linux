@@ -485,7 +485,6 @@ static const struct proto_ops mctp_dgram_ops = {
 	.sendmsg	= mctp_sendmsg,
 	.recvmsg	= mctp_recvmsg,
 	.mmap		= sock_no_mmap,
-	.sendpage	= sock_no_sendpage,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= mctp_compat_ioctl,
 #endif

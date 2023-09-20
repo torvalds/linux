@@ -31,7 +31,7 @@ you probably needn't concern yourself with pcmciautils.
 ====================== ===============  ========================================
 GNU C                  5.1              gcc --version
 Clang/LLVM (optional)  11.0.0           clang --version
-Rust (optional)        1.62.0           rustc --version
+Rust (optional)        1.68.2           rustc --version
 bindgen (optional)     0.56.0           bindgen --version
 GNU make               3.82             make --version
 bash                   4.2              bash --version

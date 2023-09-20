@@ -1126,8 +1126,7 @@ static int bgx_lmac_enable(struct bgx *bgx, u8 lmacid)
 	}
 
 poll:
-	lmac->check_link = alloc_workqueue("check_link", WQ_UNBOUND |
-					   WQ_MEM_RECLAIM, 1);
+	lmac->check_link = alloc_ordered_workqueue("check_link", WQ_MEM_RECLAIM);
 	if (!lmac->check_link)
 		return -ENOMEM;
 	INIT_DELAYED_WORK(&lmac->dwork, bgx_poll_for_link);

@@ -1082,8 +1082,7 @@ int ath10k_qmi_init(struct ath10k *ar, u32 msa_size)
 	if (ret)
 		goto err;
 
-	qmi->event_wq = alloc_workqueue("ath10k_qmi_driver_event",
-					WQ_UNBOUND, 1);
+	qmi->event_wq = alloc_ordered_workqueue("ath10k_qmi_driver_event", 0);
 	if (!qmi->event_wq) {
 		ath10k_err(ar, "failed to allocate workqueue\n");
 		ret = -EFAULT;

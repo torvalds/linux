@@ -1114,8 +1114,6 @@ static void sdma_v4_0_gfx_resume(struct amdgpu_device *adev, unsigned int i)
 #endif
 	/* enable DMA IBs */
 	WREG32_SDMA(i, mmSDMA0_GFX_IB_CNTL, ib_cntl);
-
-	ring->sched.ready = true;
 }
 
 /**
@@ -1202,8 +1200,6 @@ static void sdma_v4_0_page_resume(struct amdgpu_device *adev, unsigned int i)
 #endif
 	/* enable DMA IBs */
 	WREG32_SDMA(i, mmSDMA0_PAGE_IB_CNTL, ib_cntl);
-
-	ring->sched.ready = true;
 }
 
 static void
@@ -1825,12 +1821,12 @@ static int sdma_v4_0_sw_init(void *handle)
 
 		/*
 		 * On Arcturus, SDMA instance 5~7 has a different vmhub
-		 * type(AMDGPU_MMHUB_1).
+		 * type(AMDGPU_MMHUB1).
 		 */
 		if (adev->ip_versions[SDMA0_HWIP][0] == IP_VERSION(4, 2, 2) && i >= 5)
-			ring->vm_hub = AMDGPU_MMHUB_1;
+			ring->vm_hub = AMDGPU_MMHUB1(0);
 		else
-			ring->vm_hub = AMDGPU_MMHUB_0;
+			ring->vm_hub = AMDGPU_MMHUB0(0);
 
 		sprintf(ring->name, "sdma%d", i);
 		r = amdgpu_ring_init(adev, ring, 1024, &adev->sdma.trap_irq,
@@ -1847,13 +1843,23 @@ static int sdma_v4_0_sw_init(void *handle)
 			/* paging queue use same doorbell index/routing as gfx queue
 			 * with 0x400 (4096 dwords) offset on second doorbell page
 			 */
-			ring->doorbell_index = adev->doorbell_index.sdma_engine[i] << 1;
-			ring->doorbell_index += 0x400;
+			if (adev->ip_versions[SDMA0_HWIP][0] >= IP_VERSION(4, 0, 0) &&
+			    adev->ip_versions[SDMA0_HWIP][0] < IP_VERSION(4, 2, 0)) {
+				ring->doorbell_index =
+					adev->doorbell_index.sdma_engine[i] << 1;
+				ring->doorbell_index += 0x400;
+			} else {
+				/* From vega20, the sdma_doorbell_range in 1st
+				 * doorbell page is reserved for page queue.
+				 */
+				ring->doorbell_index =
+					(adev->doorbell_index.sdma_engine[i] + 1) << 1;
+			}
 
 			if (adev->ip_versions[SDMA0_HWIP][0] == IP_VERSION(4, 2, 2) && i >= 5)
-				ring->vm_hub = AMDGPU_MMHUB_1;
+				ring->vm_hub = AMDGPU_MMHUB1(0);
 			else
-				ring->vm_hub = AMDGPU_MMHUB_0;
+				ring->vm_hub = AMDGPU_MMHUB0(0);
 
 			sprintf(ring->name, "page%d", i);
 			r = amdgpu_ring_init(adev, ring, 1024,
@@ -1917,9 +1923,11 @@ static int sdma_v4_0_hw_fini(void *handle)
 		return 0;
 	}
 
-	for (i = 0; i < adev->sdma.num_instances; i++) {
-		amdgpu_irq_put(adev, &adev->sdma.ecc_irq,
-			       AMDGPU_SDMA_IRQ_INSTANCE0 + i);
+	if (amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__SDMA)) {
+		for (i = 0; i < adev->sdma.num_instances; i++) {
+			amdgpu_irq_put(adev, &adev->sdma.ecc_irq,
+				       AMDGPU_SDMA_IRQ_INSTANCE0 + i);
+		}
 	}
 
 	sdma_v4_0_ctx_switch_enable(adev, false);
@@ -2304,7 +2312,7 @@ const struct amd_ip_funcs sdma_v4_0_ip_funcs = {
 
 static const struct amdgpu_ring_funcs sdma_v4_0_ring_funcs = {
 	.type = AMDGPU_RING_TYPE_SDMA,
-	.align_mask = 0xf,
+	.align_mask = 0xff,
 	.nop = SDMA_PKT_NOP_HEADER_OP(SDMA_OP_NOP),
 	.support_64bit_ptrs = true,
 	.secure_submission_supported = true,
@@ -2336,7 +2344,7 @@ static const struct amdgpu_ring_funcs sdma_v4_0_ring_funcs = {
 
 static const struct amdgpu_ring_funcs sdma_v4_0_page_ring_funcs = {
 	.type = AMDGPU_RING_TYPE_SDMA,
-	.align_mask = 0xf,
+	.align_mask = 0xff,
 	.nop = SDMA_PKT_NOP_HEADER_OP(SDMA_OP_NOP),
 	.support_64bit_ptrs = true,
 	.secure_submission_supported = true,

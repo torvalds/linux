@@ -2071,41 +2071,7 @@ call.
 
 Because RCU avoids interrupting idle CPUs, it is illegal to execute an
 RCU read-side critical section on an idle CPU. (Kernels built with
-``CONFIG_PROVE_RCU=y`` will splat if you try it.) The RCU_NONIDLE()
-macro and ``_rcuidle`` event tracing is provided to work around this
-restriction. In addition, rcu_is_watching() may be used to test
-whether or not it is currently legal to run RCU read-side critical
-sections on this CPU. I learned of the need for diagnostics on the one
-hand and RCU_NONIDLE() on the other while inspecting idle-loop code.
-Steven Rostedt supplied ``_rcuidle`` event tracing, which is used quite
-heavily in the idle loop. However, there are some restrictions on the
-code placed within RCU_NONIDLE():
-
-#. Blocking is prohibited. In practice, this is not a serious
-   restriction given that idle tasks are prohibited from blocking to
-   begin with.
-#. Although nesting RCU_NONIDLE() is permitted, they cannot nest
-   indefinitely deeply. However, given that they can be nested on the
-   order of a million deep, even on 32-bit systems, this should not be a
-   serious restriction. This nesting limit would probably be reached
-   long after the compiler OOMed or the stack overflowed.
-#. Any code path that enters RCU_NONIDLE() must sequence out of that
-   same RCU_NONIDLE(). For example, the following is grossly
-   illegal:
-
-      ::
-
-	  1     RCU_NONIDLE({
-	  2       do_something();
-	  3       goto bad_idea;  /* BUG!!! */
-	  4       do_something_else();});
-	  5   bad_idea:
-
-
-   It is just as illegal to transfer control into the middle of
-   RCU_NONIDLE()'s argument. Yes, in theory, you could transfer in
-   as long as you also transferred out, but in practice you could also
-   expect to get sharply worded review comments.
+``CONFIG_PROVE_RCU=y`` will splat if you try it.)
 
 It is similarly socially unacceptable to interrupt an ``nohz_full`` CPU
 running in userspace. RCU must therefore track ``nohz_full`` userspace

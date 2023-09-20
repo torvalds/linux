@@ -14,6 +14,7 @@
 
 / {
 	model = "MediaTek krane sku0 board";
+	chassis-type = "tablet";
 	compatible = "google,krane-sku0", "google,krane", "mediatek,mt8183";
 };
 

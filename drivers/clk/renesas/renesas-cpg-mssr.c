@@ -17,6 +17,7 @@
 #include <linux/device.h>
 #include <linux/init.h>
 #include <linux/io.h>
+#include <linux/iopoll.h>
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/of_address.h>
@@ -196,8 +197,8 @@ static int cpg_mstp_clock_endisable(struct clk_hw *hw, bool enable)
 	struct device *dev = priv->dev;
 	u32 bitmask = BIT(bit);
 	unsigned long flags;
-	unsigned int i;
 	u32 value;
+	int error;
 
 	dev_dbg(dev, "MSTP %u%02u/%pC %s\n", reg, bit, hw->clk,
 		enable ? "ON" : "OFF");
@@ -228,19 +229,13 @@ static int cpg_mstp_clock_endisable(struct clk_hw *hw, bool enable)
 	if (!enable || priv->reg_layout == CLK_REG_LAYOUT_RZ_A)
 		return 0;
 
-	for (i = 1000; i > 0; --i) {
-		if (!(readl(priv->base + priv->status_regs[reg]) & bitmask))
-			break;
-		cpu_relax();
-	}
-
-	if (!i) {
+	error = readl_poll_timeout_atomic(priv->base + priv->status_regs[reg],
+					  value, !(value & bitmask), 0, 10);
+	if (error)
 		dev_err(dev, "Failed to enable SMSTP %p[%d]\n",
 			priv->base + priv->control_regs[reg], bit);
-		return -ETIMEDOUT;
-	}
 
-	return 0;
+	return error;
 }
 
 static int cpg_mstp_clock_enable(struct clk_hw *hw)
@@ -896,8 +891,9 @@ static int cpg_mssr_suspend_noirq(struct device *dev)
 static int cpg_mssr_resume_noirq(struct device *dev)
 {
 	struct cpg_mssr_priv *priv = dev_get_drvdata(dev);
-	unsigned int reg, i;
+	unsigned int reg;
 	u32 mask, oldval, newval;
+	int error;
 
 	/* This is the best we can do to check for the presence of PSCI */
 	if (!psci_ops.cpu_suspend)
@@ -935,14 +931,9 @@ static int cpg_mssr_resume_noirq(struct device *dev)
 		if (!mask)
 			continue;
 
-		for (i = 1000; i > 0; --i) {
-			oldval = readl(priv->base + priv->status_regs[reg]);
-			if (!(oldval & mask))
-				break;
-			cpu_relax();
-		}
-
-		if (!i)
+		error = readl_poll_timeout_atomic(priv->base + priv->status_regs[reg],
+						oldval, !(oldval & mask), 0, 10);
+		if (error)
 			dev_warn(dev, "Failed to enable SMSTP%u[0x%x]\n", reg,
 				 oldval & mask);
 	}

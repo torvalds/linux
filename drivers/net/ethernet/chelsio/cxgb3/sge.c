@@ -2184,9 +2184,8 @@ static void lro_add_page(struct adapter *adap, struct sge_qset *qs,
 	len -= offset;
 
 	rx_frag += nr_frags;
-	__skb_frag_set_page(rx_frag, sd->pg_chunk.page);
-	skb_frag_off_set(rx_frag, sd->pg_chunk.offset + offset);
-	skb_frag_size_set(rx_frag, len);
+	skb_frag_fill_page_desc(rx_frag, sd->pg_chunk.page,
+				sd->pg_chunk.offset + offset, len);
 
 	skb->len += len;
 	skb->data_len += len;

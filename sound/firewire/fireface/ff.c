@@ -11,7 +11,7 @@
 
 MODULE_DESCRIPTION("RME Fireface series Driver");
 MODULE_AUTHOR("Takashi Sakamoto <o-takashi@sakamocchi.jp>");
-MODULE_LICENSE("GPL v2");
+MODULE_LICENSE("GPL");
 
 static void name_card(struct snd_ff *ff)
 {

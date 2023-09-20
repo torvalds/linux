@@ -6,7 +6,7 @@
  *
  * Core file which registers crypto algorithms supported by the SS.
  *
- * You could find a link for the datasheet in Documentation/arm/sunxi.rst
+ * You could find a link for the datasheet in Documentation/arch/arm/sunxi.rst
  */
 #include <linux/clk.h>
 #include <linux/crypto.h>

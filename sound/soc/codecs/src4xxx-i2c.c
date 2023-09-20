@@ -36,7 +36,7 @@ static struct i2c_driver src4xxx_i2c_driver = {
 		.name = "src4xxx",
 		.of_match_table = of_match_ptr(src4xxx_of_match),
 	},
-	.probe_new = src4xxx_i2c_probe,
+	.probe = src4xxx_i2c_probe,
 	.id_table = src4xxx_i2c_ids,
 };
 module_i2c_driver(src4xxx_i2c_driver);

@@ -857,7 +857,6 @@ static int l2_cache_pmu_probe_cluster(struct device *dev, void *data)
 		return -ENOMEM;
 
 	INIT_LIST_HEAD(&cluster->next);
-	list_add(&cluster->next, &l2cache_pmu->clusters);
 	cluster->cluster_id = fw_cluster_id;
 
 	irq = platform_get_irq(sdev, 0);
@@ -883,6 +882,7 @@ static int l2_cache_pmu_probe_cluster(struct device *dev, void *data)
 
 	spin_lock_init(&cluster->pmu_lock);
 
+	list_add(&cluster->next, &l2cache_pmu->clusters);
 	l2cache_pmu->num_pmus++;
 
 	return 0;

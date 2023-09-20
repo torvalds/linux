@@ -102,6 +102,11 @@ void __init time_early_init(void)
 			((long) qui.old_leap * 4096000000L);
 }
 
+unsigned long long noinstr sched_clock_noinstr(void)
+{
+	return tod_to_ns(__get_tod_clock_monotonic());
+}
+
 /*
  * Scheduler clock - returns current time in nanosec units.
  */

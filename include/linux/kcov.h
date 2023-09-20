@@ -72,6 +72,23 @@ static inline void kcov_remote_stop_softirq(void)
 		kcov_remote_stop();
 }
 
+#ifdef CONFIG_64BIT
+typedef unsigned long kcov_u64;
+#else
+typedef unsigned long long kcov_u64;
+#endif
+
+void __sanitizer_cov_trace_pc(void);
+void __sanitizer_cov_trace_cmp1(u8 arg1, u8 arg2);
+void __sanitizer_cov_trace_cmp2(u16 arg1, u16 arg2);
+void __sanitizer_cov_trace_cmp4(u32 arg1, u32 arg2);
+void __sanitizer_cov_trace_cmp8(kcov_u64 arg1, kcov_u64 arg2);
+void __sanitizer_cov_trace_const_cmp1(u8 arg1, u8 arg2);
+void __sanitizer_cov_trace_const_cmp2(u16 arg1, u16 arg2);
+void __sanitizer_cov_trace_const_cmp4(u32 arg1, u32 arg2);
+void __sanitizer_cov_trace_const_cmp8(kcov_u64 arg1, kcov_u64 arg2);
+void __sanitizer_cov_trace_switch(kcov_u64 val, void *cases);
+
 #else
 
 static inline void kcov_task_init(struct task_struct *t) {}

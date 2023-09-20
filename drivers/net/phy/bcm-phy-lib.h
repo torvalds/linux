@@ -8,6 +8,9 @@
 
 #include <linux/brcmphy.h>
 #include <linux/phy.h>
+#include <linux/interrupt.h>
+
+struct ethtool_wolinfo;
 
 /* 28nm only register definitions */
 #define MISC_ADDR(base, channel)	base, channel
@@ -38,6 +41,11 @@ static inline int bcm_phy_write_exp_sel(struct phy_device *phydev,
 					u16 reg, u16 val)
 {
 	return bcm_phy_write_exp(phydev, reg | MII_BCM54XX_EXP_SEL_ER, val);
+}
+
+static inline int bcm_phy_read_exp_sel(struct phy_device *phydev, u16 reg)
+{
+	return bcm_phy_read_exp(phydev, reg | MII_BCM54XX_EXP_SEL_ER);
 }
 
 int bcm54xx_auxctl_write(struct phy_device *phydev, u16 regnum, u16 val);
@@ -105,5 +113,12 @@ static inline void bcm_ptp_stop(struct bcm_ptp_private *priv)
 {
 }
 #endif
+
+int bcm_phy_set_wol(struct phy_device *phydev, struct ethtool_wolinfo *wol);
+void bcm_phy_get_wol(struct phy_device *phydev, struct ethtool_wolinfo *wol);
+irqreturn_t bcm_phy_wol_isr(int irq, void *dev_id);
+
+int bcm_phy_led_brightness_set(struct phy_device *phydev,
+			       u8 index, enum led_brightness value);
 
 #endif /* _LINUX_BCM_PHY_LIB_H */

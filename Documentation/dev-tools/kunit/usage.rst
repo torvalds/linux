@@ -121,6 +121,12 @@ there's an allocation error.
    ``return`` so they only work from the test function. In KUnit, we stop the
    current kthread on failure, so you can call them from anywhere.
 
+.. note::
+   Warning: There is an exception to the above rule. You shouldn't use assertions
+   in the suite's exit() function, or in the free function for a resource. These
+   run when a test is shutting down, and an assertion here prevents further
+   cleanup code from running, potentially leading to a memory leak.
+
 Customizing error messages
 --------------------------
 
@@ -160,7 +166,12 @@ many similar tests. In order to reduce duplication in these closely related
 tests, most unit testing frameworks (including KUnit) provide the concept of a
 *test suite*. A test suite is a collection of test cases for a unit of code
 with optional setup and teardown functions that run before/after the whole
-suite and/or every test case. For example:
+suite and/or every test case.
+
+.. note::
+   A test case will only run if it is associated with a test suite.
+
+For example:
 
 .. code-block:: c
 
@@ -190,7 +201,10 @@ after everything else. ``kunit_test_suite(example_test_suite)`` registers the
 test suite with the KUnit test framework.
 
 .. note::
-   A test case will only run if it is associated with a test suite.
+   The ``exit`` and ``suite_exit`` functions will run even if ``init`` or
+   ``suite_init`` fail. Make sure that they can handle any inconsistent
+   state which may result from ``init`` or ``suite_init`` encountering errors
+   or exiting early.
 
 ``kunit_test_suite(...)`` is a macro which tells the linker to put the
 specified test suite in a special linker section so that it can be run by KUnit
@@ -600,6 +614,57 @@ For example:
 
 		KUNIT_ASSERT_STREQ(test, buffer, "");
 	}
+
+Registering Cleanup Actions
+---------------------------
+
+If you need to perform some cleanup beyond simple use of ``kunit_kzalloc``,
+you can register a custom "deferred action", which is a cleanup function
+run when the test exits (whether cleanly, or via a failed assertion).
+
+Actions are simple functions with no return value, and a single ``void*``
+context argument, and fulfill the same role as "cleanup" functions in Python
+and Go tests, "defer" statements in languages which support them, and
+(in some cases) destructors in RAII languages.
+
+These are very useful for unregistering things from global lists, closing
+files or other resources, or freeing resources.
+
+For example:
+
+.. code-block:: C
+
+	static void cleanup_device(void *ctx)
+	{
+		struct device *dev = (struct device *)ctx;
+
+		device_unregister(dev);
+	}
+
+	void example_device_test(struct kunit *test)
+	{
+		struct my_device dev;
+
+		device_register(&dev);
+
+		kunit_add_action(test, &cleanup_device, &dev);
+	}
+
+Note that, for functions like device_unregister which only accept a single
+pointer-sized argument, it's possible to directly cast that function to
+a ``kunit_action_t`` rather than writing a wrapper function, for example:
+
+.. code-block:: C
+
+	kunit_add_action(test, (kunit_action_t *)&device_unregister, &dev);
+
+``kunit_add_action`` can fail if, for example, the system is out of memory.
+You can use ``kunit_add_action_or_reset`` instead which runs the action
+immediately if it cannot be deferred.
+
+If you need more control over when the cleanup function is called, you
+can trigger it early using ``kunit_release_action``, or cancel it entirely
+with ``kunit_remove_action``.
 
 
 Testing Static Functions

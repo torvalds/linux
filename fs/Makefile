@@ -17,14 +17,8 @@ obj-y :=	open.o read_write.o file_table.o super.o \
 		fs_types.o fs_context.o fs_parser.o fsopen.o init.o \
 		kernel_read_file.o mnt_idmapping.o remap_range.o
 
-ifeq ($(CONFIG_BLOCK),y)
-obj-y +=	buffer.o mpage.o
-else
-obj-y +=	no-block.o
-endif
-
-obj-$(CONFIG_PROC_FS) += proc_namespace.o
-
+obj-$(CONFIG_BLOCK)		+= buffer.o mpage.o
+obj-$(CONFIG_PROC_FS)		+= proc_namespace.o
 obj-$(CONFIG_LEGACY_DIRECT_IO)	+= direct-io.o
 obj-y				+= notify/
 obj-$(CONFIG_EPOLL)		+= eventpoll.o
@@ -95,9 +89,7 @@ obj-$(CONFIG_LOCKD)		+= lockd/
 obj-$(CONFIG_NLS)		+= nls/
 obj-y				+= unicode/
 obj-$(CONFIG_SYSV_FS)		+= sysv/
-obj-$(CONFIG_SMBFS_COMMON)	+= smbfs_common/
-obj-$(CONFIG_CIFS)		+= cifs/
-obj-$(CONFIG_SMB_SERVER)	+= ksmbd/
+obj-$(CONFIG_SMBFS)		+= smb/
 obj-$(CONFIG_HPFS_FS)		+= hpfs/
 obj-$(CONFIG_NTFS_FS)		+= ntfs/
 obj-$(CONFIG_NTFS3_FS)		+= ntfs3/

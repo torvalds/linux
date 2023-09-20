@@ -45,7 +45,8 @@
 #include "dcn10_cm_common.h"
 #include "clk_mgr.h"
 
-unsigned int snprintf_count(char *pBuf, unsigned int bufSize, char *fmt, ...)
+__printf(3, 4)
+unsigned int snprintf_count(char *pbuf, unsigned int bufsize, char *fmt, ...)
 {
 	int ret_vsnprintf;
 	unsigned int chars_printed;
@@ -53,15 +54,15 @@ unsigned int snprintf_count(char *pBuf, unsigned int bufSize, char *fmt, ...)
 	va_list args;
 	va_start(args, fmt);
 
-	ret_vsnprintf = vsnprintf(pBuf, bufSize, fmt, args);
+	ret_vsnprintf = vsnprintf(pbuf, bufsize, fmt, args);
 
 	va_end(args);
 
 	if (ret_vsnprintf > 0) {
-		if (ret_vsnprintf < bufSize)
+		if (ret_vsnprintf < bufsize)
 			chars_printed = ret_vsnprintf;
 		else
-			chars_printed = bufSize - 1;
+			chars_printed = bufsize - 1;
 	} else
 		chars_printed = 0;
 

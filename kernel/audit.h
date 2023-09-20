@@ -259,8 +259,8 @@ extern struct tty_struct *audit_get_tty(void);
 extern void audit_put_tty(struct tty_struct *tty);
 
 /* audit watch/mark/tree functions */
-#ifdef CONFIG_AUDITSYSCALL
 extern unsigned int audit_serial(void);
+#ifdef CONFIG_AUDITSYSCALL
 extern int auditsc_get_stamp(struct audit_context *ctx,
 			      struct timespec64 *t, unsigned int *serial);
 

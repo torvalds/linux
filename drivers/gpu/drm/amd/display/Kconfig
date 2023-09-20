@@ -8,7 +8,7 @@ config DRM_AMD_DC
 	depends on BROKEN || !CC_IS_CLANG || X86_64 || SPARC64 || ARM64
 	select SND_HDA_COMPONENT if SND_HDA_CORE
 	# !CC_IS_CLANG: https://github.com/ClangBuiltLinux/linux/issues/1752
-	select DRM_AMD_DC_FP if (X86 || (PPC64 && ALTIVEC) || (ARM64 && KERNEL_MODE_NEON && !CC_IS_CLANG))
+	select DRM_AMD_DC_FP if (X86 || LOONGARCH || (PPC64 && ALTIVEC) || (ARM64 && KERNEL_MODE_NEON && !CC_IS_CLANG))
 	help
 	  Choose this option if you want to use the new display engine
 	  support for AMDGPU. This adds required support for Vega and
@@ -42,16 +42,13 @@ config DEBUG_KERNEL_DC
 	  Choose this option if you want to hit kdgb_break in assert.
 
 config DRM_AMD_SECURE_DISPLAY
-        bool "Enable secure display support"
-        depends on DEBUG_FS
-        depends on DRM_AMD_DC_FP
-        help
-            Choose this option if you want to
-            support secure display
+	bool "Enable secure display support"
+	depends on DEBUG_FS
+	depends on DRM_AMD_DC_FP
+	help
+	  Choose this option if you want to support secure display
 
-            This option enables the calculation
-            of crc of specific region via debugfs.
-            Cooperate with specific DMCU FW.
-
+	  This option enables the calculation of crc of specific region via
+	  debugfs. Cooperate with specific DMCU FW.
 
 endmenu

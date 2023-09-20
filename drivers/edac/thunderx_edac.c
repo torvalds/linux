@@ -481,7 +481,7 @@ static int thunderx_create_debugfs_nodes(struct dentry *parent,
 		ent = edac_debugfs_create_file(attrs[i]->name, attrs[i]->mode,
 					       parent, data, &attrs[i]->fops);
 
-		if (!ent)
+		if (IS_ERR(ent))
 			break;
 	}
 

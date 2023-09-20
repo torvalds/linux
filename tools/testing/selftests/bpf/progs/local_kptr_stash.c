@@ -5,7 +5,8 @@
 #include <bpf/bpf_tracing.h>
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_core_read.h>
-#include "bpf_experimental.h"
+#include "../bpf_experimental.h"
+#include "../bpf_testmod/bpf_testmod_kfunc.h"
 
 struct node_data {
 	long key;
@@ -31,8 +32,6 @@ struct map_value {
  * Had to do the same w/ bpf_kfunc_call_test_release below
  */
 struct node_data *just_here_because_btf_bug;
-
-extern void bpf_kfunc_call_test_release(struct prog_test_ref_kfunc *p) __ksym;
 
 struct {
 	__uint(type, BPF_MAP_TYPE_ARRAY);

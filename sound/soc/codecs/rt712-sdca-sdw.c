@@ -116,7 +116,7 @@ static const struct regmap_config rt712_sdca_regmap = {
 	.max_register = 0x44ffffff,
 	.reg_defaults = rt712_sdca_reg_defaults,
 	.num_reg_defaults = ARRAY_SIZE(rt712_sdca_reg_defaults),
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.use_single_read = true,
 	.use_single_write = true,
 };
@@ -130,7 +130,7 @@ static const struct regmap_config rt712_sdca_mbq_regmap = {
 	.max_register = 0x41000312,
 	.reg_defaults = rt712_sdca_mbq_defaults,
 	.num_reg_defaults = ARRAY_SIZE(rt712_sdca_mbq_defaults),
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.use_single_read = true,
 	.use_single_write = true,
 };
@@ -139,9 +139,6 @@ static int rt712_sdca_update_status(struct sdw_slave *slave,
 				enum sdw_slave_status status)
 {
 	struct rt712_sdca_priv *rt712 = dev_get_drvdata(&slave->dev);
-
-	/* Update the status */
-	rt712->status = status;
 
 	if (status == SDW_SLAVE_UNATTACHED)
 		rt712->hw_init = false;
@@ -165,7 +162,7 @@ static int rt712_sdca_update_status(struct sdw_slave *slave,
 	 * Perform initialization only if slave status is present and
 	 * hw_init flag is false
 	 */
-	if (rt712->hw_init || rt712->status != SDW_SLAVE_ATTACHED)
+	if (rt712->hw_init || status != SDW_SLAVE_ATTACHED)
 		return 0;
 
 	/* perform I/O transfers required for Slave initialization */

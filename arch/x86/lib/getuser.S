@@ -143,43 +143,43 @@ SYM_FUNC_END(__get_user_nocheck_8)
 EXPORT_SYMBOL(__get_user_nocheck_8)
 
 
-SYM_CODE_START_LOCAL(.Lbad_get_user_clac)
+SYM_CODE_START_LOCAL(__get_user_handle_exception)
 	ASM_CLAC
 .Lbad_get_user:
 	xor %edx,%edx
 	mov $(-EFAULT),%_ASM_AX
 	RET
-SYM_CODE_END(.Lbad_get_user_clac)
+SYM_CODE_END(__get_user_handle_exception)
 
 #ifdef CONFIG_X86_32
-SYM_CODE_START_LOCAL(.Lbad_get_user_8_clac)
+SYM_CODE_START_LOCAL(__get_user_8_handle_exception)
 	ASM_CLAC
 bad_get_user_8:
 	xor %edx,%edx
 	xor %ecx,%ecx
 	mov $(-EFAULT),%_ASM_AX
 	RET
-SYM_CODE_END(.Lbad_get_user_8_clac)
+SYM_CODE_END(__get_user_8_handle_exception)
 #endif
 
 /* get_user */
-	_ASM_EXTABLE(1b, .Lbad_get_user_clac)
-	_ASM_EXTABLE(2b, .Lbad_get_user_clac)
-	_ASM_EXTABLE(3b, .Lbad_get_user_clac)
+	_ASM_EXTABLE(1b, __get_user_handle_exception)
+	_ASM_EXTABLE(2b, __get_user_handle_exception)
+	_ASM_EXTABLE(3b, __get_user_handle_exception)
 #ifdef CONFIG_X86_64
-	_ASM_EXTABLE(4b, .Lbad_get_user_clac)
+	_ASM_EXTABLE(4b, __get_user_handle_exception)
 #else
-	_ASM_EXTABLE(4b, .Lbad_get_user_8_clac)
-	_ASM_EXTABLE(5b, .Lbad_get_user_8_clac)
+	_ASM_EXTABLE(4b, __get_user_8_handle_exception)
+	_ASM_EXTABLE(5b, __get_user_8_handle_exception)
 #endif
 
 /* __get_user */
-	_ASM_EXTABLE(6b, .Lbad_get_user_clac)
-	_ASM_EXTABLE(7b, .Lbad_get_user_clac)
-	_ASM_EXTABLE(8b, .Lbad_get_user_clac)
+	_ASM_EXTABLE(6b, __get_user_handle_exception)
+	_ASM_EXTABLE(7b, __get_user_handle_exception)
+	_ASM_EXTABLE(8b, __get_user_handle_exception)
 #ifdef CONFIG_X86_64
-	_ASM_EXTABLE(9b, .Lbad_get_user_clac)
+	_ASM_EXTABLE(9b, __get_user_handle_exception)
 #else
-	_ASM_EXTABLE(9b, .Lbad_get_user_8_clac)
-	_ASM_EXTABLE(10b, .Lbad_get_user_8_clac)
+	_ASM_EXTABLE(9b, __get_user_8_handle_exception)
+	_ASM_EXTABLE(10b, __get_user_8_handle_exception)
 #endif

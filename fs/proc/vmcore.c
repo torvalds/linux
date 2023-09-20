@@ -877,7 +877,7 @@ static int __init merge_note_headers_elf64(char *elfptr, size_t *elfsz,
 	phdr.p_offset  = roundup(note_off, PAGE_SIZE);
 	phdr.p_vaddr   = phdr.p_paddr = 0;
 	phdr.p_filesz  = phdr.p_memsz = phdr_sz;
-	phdr.p_align   = 0;
+	phdr.p_align   = 4;
 
 	/* Add merged PT_NOTE program header*/
 	tmp = elfptr + sizeof(Elf64_Ehdr);
@@ -1068,7 +1068,7 @@ static int __init merge_note_headers_elf32(char *elfptr, size_t *elfsz,
 	phdr.p_offset  = roundup(note_off, PAGE_SIZE);
 	phdr.p_vaddr   = phdr.p_paddr = 0;
 	phdr.p_filesz  = phdr.p_memsz = phdr_sz;
-	phdr.p_align   = 0;
+	phdr.p_align   = 4;
 
 	/* Add merged PT_NOTE program header*/
 	tmp = elfptr + sizeof(Elf32_Ehdr);

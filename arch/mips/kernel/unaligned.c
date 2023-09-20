@@ -160,6 +160,47 @@ static void emulate_load_store_insn(struct pt_regs *regs,
 		 * The remaining opcodes are the ones that are really of
 		 * interest.
 		 */
+#ifdef CONFIG_MACH_INGENIC
+	case spec2_op:
+		if (insn.mxu_lx_format.func != mxu_lx_op)
+			goto sigbus; /* other MXU instructions we don't care */
+
+		switch (insn.mxu_lx_format.op) {
+		case mxu_lxw_op:
+			if (user && !access_ok(addr, 4))
+				goto sigbus;
+			LoadW(addr, value, res);
+			if (res)
+				goto fault;
+			compute_return_epc(regs);
+			regs->regs[insn.mxu_lx_format.rd] = value;
+			break;
+		case mxu_lxh_op:
+			if (user && !access_ok(addr, 2))
+				goto sigbus;
+			LoadHW(addr, value, res);
+			if (res)
+				goto fault;
+			compute_return_epc(regs);
+			regs->regs[insn.dsp_format.rd] = value;
+			break;
+		case mxu_lxhu_op:
+			if (user && !access_ok(addr, 2))
+				goto sigbus;
+			LoadHWU(addr, value, res);
+			if (res)
+				goto fault;
+			compute_return_epc(regs);
+			regs->regs[insn.dsp_format.rd] = value;
+			break;
+		case mxu_lxb_op:
+		case mxu_lxbu_op:
+			goto sigbus;
+		default:
+			goto sigill;
+		}
+		break;
+#endif
 	case spec3_op:
 		if (insn.dsp_format.func == lx_op) {
 			switch (insn.dsp_format.op) {

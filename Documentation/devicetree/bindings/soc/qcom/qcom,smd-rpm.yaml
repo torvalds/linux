@@ -81,6 +81,7 @@ if:
       contains:
         enum:
           - qcom,rpm-apq8084
+          - qcom,rpm-msm8226
           - qcom,rpm-msm8916
           - qcom,rpm-msm8936
           - qcom,rpm-msm8974

@@ -11,11 +11,16 @@ check_line_first()
 	local lock=$5
 	local up=$6
 
-	local line_name=`echo "${line}" | awk 'BEGIN { FS = ":" } ; { print $2 }'`
-	local line_base=`echo "${line}" | awk 'BEGIN { FS = ":" } ; { print $3 }'`
-	local line_output=`echo "${line}" | awk 'BEGIN { FS = ":" } ; { print $4 }'`
-	local line_lock=`echo "${line}" | awk 'BEGIN { FS = ":" } ; { print $5 }'`
-	local line_up=`echo "${line}" | awk 'BEGIN { FS = ":" } ; { print $6 }'`
+	local line_name
+	line_name=`echo "${line}" | awk 'BEGIN { FS = ":" } ; { print $2 }'`
+	local line_base
+	line_base=`echo "${line}" | awk 'BEGIN { FS = ":" } ; { print $3 }'`
+	local line_output
+	line_output=`echo "${line}" | awk 'BEGIN { FS = ":" } ; { print $4 }'`
+	local line_lock
+	line_lock=`echo "${line}" | awk 'BEGIN { FS = ":" } ; { print $5 }'`
+	local line_up
+	line_up=`echo "${line}" | awk 'BEGIN { FS = ":" } ; { print $6 }'`
 
 	if [ "${name}" != "${line_name}" ]; then
 		echo "FAILED: wrong name"
@@ -54,13 +59,20 @@ check_line_other()
 	local ack=$7
 	local up=$8
 
-	local line_name=`echo "${line}" | awk 'BEGIN { FS = ":" } ; { print $2 }'`
-	local line_run=`echo "${line}" | awk 'BEGIN { FS = ":" } ; { print $3 }'`
-	local line_base=`echo "${line}" | awk 'BEGIN { FS = ":" } ; { print $4 }'`
-	local line_output=`echo "${line}" | awk 'BEGIN { FS = ":" } ; { print $5 }'`
-	local line_control=`echo "${line}" | awk 'BEGIN { FS = ":" } ; { print $6 }'`
-	local line_ack=`echo "${line}" | awk 'BEGIN { FS = ":" } ; { print $7 }'`
-	local line_up=`echo "${line}" | awk 'BEGIN { FS = ":" } ; { print $8 }'`
+	local line_name
+	line_name=`echo "${line}" | awk 'BEGIN { FS = ":" } ; { print $2 }'`
+	local line_run
+	line_run=`echo "${line}" | awk 'BEGIN { FS = ":" } ; { print $3 }'`
+	local line_base
+	line_base=`echo "${line}" | awk 'BEGIN { FS = ":" } ; { print $4 }'`
+	local line_output
+	line_output=`echo "${line}" | awk 'BEGIN { FS = ":" } ; { print $5 }'`
+	local line_control
+	line_control=`echo "${line}" | awk 'BEGIN { FS = ":" } ; { print $6 }'`
+	local line_ack
+	line_ack=`echo "${line}" | awk 'BEGIN { FS = ":" } ; { print $7 }'`
+	local line_up
+	line_up=`echo "${line}" | awk 'BEGIN { FS = ":" } ; { print $8 }'`
 
 	if [ "${name}" != "${line_name}" ]; then
 		echo "FAILED: wrong name"
@@ -102,8 +114,10 @@ daemon_exit()
 {
 	local config=$1
 
-	local line=`perf daemon --config ${config} -x: | head -1`
-	local pid=`echo "${line}" | awk 'BEGIN { FS = ":" } ; { print $1 }'`
+	local line
+	line=`perf daemon --config ${config} -x: | head -1`
+	local pid
+	pid=`echo "${line}" | awk 'BEGIN { FS = ":" } ; { print $1 }'`
 
 	# Reset trap handler.
 	trap - SIGINT SIGTERM
@@ -123,7 +137,7 @@ daemon_start()
 	perf daemon start --config ${config}
 
 	# Clean up daemon if interrupted.
-	trap "echo 'FAILED: Signal caught'; daemon_exit ${config}; exit 1" SIGINT SIGTERM
+	trap 'echo "FAILED: Signal caught"; daemon_exit "${config}"; exit 1' SIGINT SIGTERM
 
 	# wait for the session to ping
 	local state="FAIL"
@@ -144,8 +158,10 @@ test_list()
 {
 	echo "test daemon list"
 
-	local config=$(mktemp /tmp/perf.daemon.config.XXX)
-	local base=$(mktemp -d /tmp/perf.daemon.base.XXX)
+	local config
+	config=$(mktemp /tmp/perf.daemon.config.XXX)
+	local base
+	base=$(mktemp -d /tmp/perf.daemon.base.XXX)
 
 	cat <<EOF > ${config}
 [daemon]
@@ -165,19 +181,22 @@ EOF
 
 	# check first line
 	# pid:daemon:base:base/output:base/lock
-	local line=`perf daemon --config ${config} -x: | head -1`
+	local line
+	line=`perf daemon --config ${config} -x: | head -1`
 	check_line_first ${line} daemon ${base} ${base}/output ${base}/lock "0"
 
 	# check 1st session
 	# pid:size:-e cpu-clock:base/size:base/size/output:base/size/control:base/size/ack:0
-	local line=`perf daemon --config ${config} -x: | head -2 | tail -1`
+	local line
+	line=`perf daemon --config ${config} -x: | head -2 | tail -1`
 	check_line_other "${line}" size "-e cpu-clock -m 1 sleep 10" ${base}/session-size \
 			 ${base}/session-size/output ${base}/session-size/control \
 			 ${base}/session-size/ack "0"
 
 	# check 2nd session
 	# pid:time:-e task-clock:base/time:base/time/output:base/time/control:base/time/ack:0
-	local line=`perf daemon --config ${config} -x: | head -3 | tail -1`
+	local line
+	line=`perf daemon --config ${config} -x: | head -3 | tail -1`
 	check_line_other "${line}" time "-e task-clock -m 1 sleep 10" ${base}/session-time \
 			 ${base}/session-time/output ${base}/session-time/control \
 			 ${base}/session-time/ack "0"
@@ -193,8 +212,10 @@ test_reconfig()
 {
 	echo "test daemon reconfig"
 
-	local config=$(mktemp /tmp/perf.daemon.config.XXX)
-	local base=$(mktemp -d /tmp/perf.daemon.base.XXX)
+	local config
+	config=$(mktemp /tmp/perf.daemon.config.XXX)
+	local base
+	base=$(mktemp -d /tmp/perf.daemon.base.XXX)
 
 	# prepare config
 	cat <<EOF > ${config}
@@ -215,10 +236,12 @@ EOF
 
 	# check 2nd session
 	# pid:time:-e task-clock:base/time:base/time/output:base/time/control:base/time/ack:0
-	local line=`perf daemon --config ${config} -x: | head -3 | tail -1`
+	local line
+	line=`perf daemon --config ${config} -x: | head -3 | tail -1`
 	check_line_other "${line}" time "-e task-clock -m 1 sleep 10" ${base}/session-time \
 			 ${base}/session-time/output ${base}/session-time/control ${base}/session-time/ack "0"
-	local pid=`echo "${line}" | awk 'BEGIN { FS = ":" } ; { print $1 }'`
+	local pid
+	pid=`echo "${line}" | awk 'BEGIN { FS = ":" } ; { print $1 }'`
 
 	# prepare new config
 	local config_new=${config}.new
@@ -249,7 +272,8 @@ EOF
 
 	# check reconfigured 2nd session
 	# pid:time:-e task-clock:base/time:base/time/output:base/time/control:base/time/ack:0
-	local line=`perf daemon --config ${config} -x: | head -3 | tail -1`
+	local line
+	line=`perf daemon --config ${config} -x: | head -3 | tail -1`
 	check_line_other "${line}" time "-e cpu-clock -m 1 sleep 10" ${base}/session-time \
 			 ${base}/session-time/output ${base}/session-time/control ${base}/session-time/ack "0"
 
@@ -276,7 +300,8 @@ EOF
 		state=`perf daemon ping --config ${config} --session size | awk '{ print $1 }'`
 	done
 
-	local one=`perf daemon --config ${config} -x: | wc -l`
+	local one
+	one=`perf daemon --config ${config} -x: | wc -l`
 
 	if [ ${one} -ne "1" ]; then
 		echo "FAILED: wrong list output"
@@ -312,8 +337,10 @@ test_stop()
 {
 	echo "test daemon stop"
 
-	local config=$(mktemp /tmp/perf.daemon.config.XXX)
-	local base=$(mktemp -d /tmp/perf.daemon.base.XXX)
+	local config
+	config=$(mktemp /tmp/perf.daemon.config.XXX)
+	local base
+	base=$(mktemp -d /tmp/perf.daemon.base.XXX)
 
 	# prepare config
 	cat <<EOF > ${config}
@@ -332,8 +359,12 @@ EOF
 	# start daemon
 	daemon_start ${config} size
 
-	local pid_size=`perf daemon --config ${config} -x: | head -2 | tail -1 | awk 'BEGIN { FS = ":" } ; { print $1 }'`
-	local pid_time=`perf daemon --config ${config} -x: | head -3 | tail -1 | awk 'BEGIN { FS = ":" } ; { print $1 }'`
+	local pid_size
+	pid_size=`perf daemon --config ${config} -x: | head -2 | tail -1 |
+		  awk 'BEGIN { FS = ":" } ; { print $1 }'`
+	local pid_time
+	pid_time=`perf daemon --config ${config} -x: | head -3 | tail -1 |
+		  awk 'BEGIN { FS = ":" } ; { print $1 }'`
 
 	# check that sessions are running
 	if [ ! -d "/proc/${pid_size}" ]; then
@@ -364,8 +395,10 @@ test_signal()
 {
 	echo "test daemon signal"
 
-	local config=$(mktemp /tmp/perf.daemon.config.XXX)
-	local base=$(mktemp -d /tmp/perf.daemon.base.XXX)
+	local config
+	config=$(mktemp /tmp/perf.daemon.config.XXX)
+	local base
+	base=$(mktemp -d /tmp/perf.daemon.base.XXX)
 
 	# prepare config
 	cat <<EOF > ${config}
@@ -389,7 +422,7 @@ EOF
 	daemon_exit ${config}
 
 	# count is 2 perf.data for signals and 1 for perf record finished
-	count=`ls ${base}/session-test/ | grep perf.data | wc -l`
+	count=`ls ${base}/session-test/*perf.data* | wc -l`
 	if [ ${count} -ne 3 ]; then
 		error=1
 		echo "FAILED: perf data no generated"
@@ -403,8 +436,10 @@ test_ping()
 {
 	echo "test daemon ping"
 
-	local config=$(mktemp /tmp/perf.daemon.config.XXX)
-	local base=$(mktemp -d /tmp/perf.daemon.base.XXX)
+	local config
+	config=$(mktemp /tmp/perf.daemon.config.XXX)
+	local base
+	base=$(mktemp -d /tmp/perf.daemon.base.XXX)
 
 	# prepare config
 	cat <<EOF > ${config}
@@ -426,7 +461,7 @@ EOF
 	size=`perf daemon ping --config ${config} --session size | awk '{ print $1 }'`
 	type=`perf daemon ping --config ${config} --session time | awk '{ print $1 }'`
 
-	if [ ${size} != "OK" -o ${type} != "OK" ]; then
+	if [ ${size} != "OK" ] || [ ${type} != "OK" ]; then
 		error=1
 		echo "FAILED: daemon ping failed"
 	fi
@@ -442,8 +477,10 @@ test_lock()
 {
 	echo "test daemon lock"
 
-	local config=$(mktemp /tmp/perf.daemon.config.XXX)
-	local base=$(mktemp -d /tmp/perf.daemon.base.XXX)
+	local config
+	config=$(mktemp /tmp/perf.daemon.config.XXX)
+	local base
+	base=$(mktemp -d /tmp/perf.daemon.base.XXX)
 
 	# prepare config
 	cat <<EOF > ${config}

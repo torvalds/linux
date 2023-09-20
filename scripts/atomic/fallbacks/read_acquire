@@ -1,16 +1,12 @@
 cat <<EOF
-static __always_inline ${ret}
-arch_${atomic}_read_acquire(const ${atomic}_t *v)
-{
 	${int} ret;
 
 	if (__native_word(${atomic}_t)) {
 		ret = smp_load_acquire(&(v)->counter);
 	} else {
-		ret = arch_${atomic}_read(v);
+		ret = raw_${atomic}_read(v);
 		__atomic_acquire_fence();
 	}
 
 	return ret;
-}
 EOF

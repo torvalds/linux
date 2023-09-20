@@ -1,12 +1,10 @@
+// SPDX-License-Identifier: GPL-1.0+
 /* wd.c: A WD80x3 ethernet driver for linux. */
 /*
 	Written 1993-94 by Donald Becker.
 
 	Copyright 1993 United States Government as represented by the
 	Director, National Security Agency.
-
-	This software may be used and distributed according to the terms
-	of the GNU General Public License, incorporated herein by reference.
 
 	The author may be reached as becker@scyld.com, or C/O
 	Scyld Computing Corporation
@@ -37,6 +35,7 @@ static const char version[] =
 #include <linux/delay.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
+#include <net/Space.h>
 
 #include <asm/io.h>
 

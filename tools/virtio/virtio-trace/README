@@ -95,7 +95,7 @@ Run
 
 1) Enable ftrace in the guest
  <Example>
-	# echo 1 > /sys/kernel/debug/tracing/events/sched/enable
+	# echo 1 > /sys/kernel/tracing/events/sched/enable
 
 2) Run trace agent in the guest
  This agent must be operated as root.

@@ -483,7 +483,7 @@ void dcn31_calculate_wm_and_dlg_fp(
 		int pipe_cnt,
 		int vlevel)
 {
-	int i, pipe_idx, active_hubp_count = 0;
+	int i, pipe_idx, total_det = 0, active_hubp_count = 0;
 	double dcfclk = context->bw_ctx.dml.vba.DCFCLKState[vlevel][context->bw_ctx.dml.vba.maxMpcComb];
 
 	dc_assert_fp_enabled();
@@ -563,6 +563,18 @@ void dcn31_calculate_wm_and_dlg_fp(
 			if (context->res_ctx.pipe_ctx[i].stream)
 				context->res_ctx.pipe_ctx[i].plane_res.bw.dppclk_khz = 0;
 	}
+	for (i = 0, pipe_idx = 0; i < dc->res_pool->pipe_count; i++) {
+		if (!context->res_ctx.pipe_ctx[i].stream)
+			continue;
+
+		context->res_ctx.pipe_ctx[i].det_buffer_size_kb =
+				get_det_buffer_size_kbytes(&context->bw_ctx.dml, pipes, pipe_cnt, pipe_idx);
+		if (context->res_ctx.pipe_ctx[i].det_buffer_size_kb > 384)
+			context->res_ctx.pipe_ctx[i].det_buffer_size_kb /= 2;
+		total_det += context->res_ctx.pipe_ctx[i].det_buffer_size_kb;
+		pipe_idx++;
+	}
+	context->bw_ctx.bw.dcn.compbuf_size_kb = context->bw_ctx.dml.ip.config_return_buffer_size_in_kbytes - total_det;
 }
 
 void dcn31_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_params)
@@ -570,6 +582,7 @@ void dcn31_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_params
 	struct _vcs_dpi_voltage_scaling_st *s = dc->scratch.update_bw_bounding_box.clock_limits;
 	struct clk_limit_table *clk_table = &bw_params->clk_table;
 	unsigned int i, closest_clk_lvl;
+	int max_dispclk_mhz = 0, max_dppclk_mhz = 0;
 	int j;
 
 	dc_assert_fp_enabled();
@@ -577,59 +590,55 @@ void dcn31_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_params
 	memcpy(s, dcn3_1_soc.clock_limits, sizeof(dcn3_1_soc.clock_limits));
 
 	// Default clock levels are used for diags, which may lead to overclocking.
-	if (!IS_DIAG_DC(dc->ctx->dce_environment)) {
-		int max_dispclk_mhz = 0, max_dppclk_mhz = 0;
+	dcn3_1_ip.max_num_otg = dc->res_pool->res_cap->num_timing_generator;
+	dcn3_1_ip.max_num_dpp = dc->res_pool->pipe_count;
+	dcn3_1_soc.num_chans = bw_params->num_channels;
 
-		dcn3_1_ip.max_num_otg = dc->res_pool->res_cap->num_timing_generator;
-		dcn3_1_ip.max_num_dpp = dc->res_pool->pipe_count;
-		dcn3_1_soc.num_chans = bw_params->num_channels;
+	ASSERT(clk_table->num_entries);
 
-		ASSERT(clk_table->num_entries);
+	/* Prepass to find max clocks independent of voltage level. */
+	for (i = 0; i < clk_table->num_entries; ++i) {
+		if (clk_table->entries[i].dispclk_mhz > max_dispclk_mhz)
+			max_dispclk_mhz = clk_table->entries[i].dispclk_mhz;
+		if (clk_table->entries[i].dppclk_mhz > max_dppclk_mhz)
+			max_dppclk_mhz = clk_table->entries[i].dppclk_mhz;
+	}
 
-		/* Prepass to find max clocks independent of voltage level. */
-		for (i = 0; i < clk_table->num_entries; ++i) {
-			if (clk_table->entries[i].dispclk_mhz > max_dispclk_mhz)
-				max_dispclk_mhz = clk_table->entries[i].dispclk_mhz;
-			if (clk_table->entries[i].dppclk_mhz > max_dppclk_mhz)
-				max_dppclk_mhz = clk_table->entries[i].dppclk_mhz;
-		}
-
-		for (i = 0; i < clk_table->num_entries; i++) {
-			/* loop backwards*/
-			for (closest_clk_lvl = 0, j = dcn3_1_soc.num_states - 1; j >= 0; j--) {
-				if ((unsigned int) dcn3_1_soc.clock_limits[j].dcfclk_mhz <= clk_table->entries[i].dcfclk_mhz) {
-					closest_clk_lvl = j;
-					break;
-				}
+	for (i = 0; i < clk_table->num_entries; i++) {
+		/* loop backwards*/
+		for (closest_clk_lvl = 0, j = dcn3_1_soc.num_states - 1; j >= 0; j--) {
+			if ((unsigned int) dcn3_1_soc.clock_limits[j].dcfclk_mhz <= clk_table->entries[i].dcfclk_mhz) {
+				closest_clk_lvl = j;
+				break;
 			}
-
-			s[i].state = i;
-
-			/* Clocks dependent on voltage level. */
-			s[i].dcfclk_mhz = clk_table->entries[i].dcfclk_mhz;
-			s[i].fabricclk_mhz = clk_table->entries[i].fclk_mhz;
-			s[i].socclk_mhz = clk_table->entries[i].socclk_mhz;
-			s[i].dram_speed_mts = clk_table->entries[i].memclk_mhz *
-				2 * clk_table->entries[i].wck_ratio;
-
-			/* Clocks independent of voltage level. */
-			s[i].dispclk_mhz = max_dispclk_mhz ? max_dispclk_mhz :
-				dcn3_1_soc.clock_limits[closest_clk_lvl].dispclk_mhz;
-
-			s[i].dppclk_mhz = max_dppclk_mhz ? max_dppclk_mhz :
-				dcn3_1_soc.clock_limits[closest_clk_lvl].dppclk_mhz;
-
-			s[i].dram_bw_per_chan_gbps =
-				dcn3_1_soc.clock_limits[closest_clk_lvl].dram_bw_per_chan_gbps;
-			s[i].dscclk_mhz = dcn3_1_soc.clock_limits[closest_clk_lvl].dscclk_mhz;
-			s[i].dtbclk_mhz = dcn3_1_soc.clock_limits[closest_clk_lvl].dtbclk_mhz;
-			s[i].phyclk_d18_mhz =
-				dcn3_1_soc.clock_limits[closest_clk_lvl].phyclk_d18_mhz;
-			s[i].phyclk_mhz = dcn3_1_soc.clock_limits[closest_clk_lvl].phyclk_mhz;
 		}
-		if (clk_table->num_entries) {
-			dcn3_1_soc.num_states = clk_table->num_entries;
-		}
+
+		s[i].state = i;
+
+		/* Clocks dependent on voltage level. */
+		s[i].dcfclk_mhz = clk_table->entries[i].dcfclk_mhz;
+		s[i].fabricclk_mhz = clk_table->entries[i].fclk_mhz;
+		s[i].socclk_mhz = clk_table->entries[i].socclk_mhz;
+		s[i].dram_speed_mts = clk_table->entries[i].memclk_mhz *
+			2 * clk_table->entries[i].wck_ratio;
+
+		/* Clocks independent of voltage level. */
+		s[i].dispclk_mhz = max_dispclk_mhz ? max_dispclk_mhz :
+			dcn3_1_soc.clock_limits[closest_clk_lvl].dispclk_mhz;
+
+		s[i].dppclk_mhz = max_dppclk_mhz ? max_dppclk_mhz :
+			dcn3_1_soc.clock_limits[closest_clk_lvl].dppclk_mhz;
+
+		s[i].dram_bw_per_chan_gbps =
+			dcn3_1_soc.clock_limits[closest_clk_lvl].dram_bw_per_chan_gbps;
+		s[i].dscclk_mhz = dcn3_1_soc.clock_limits[closest_clk_lvl].dscclk_mhz;
+		s[i].dtbclk_mhz = dcn3_1_soc.clock_limits[closest_clk_lvl].dtbclk_mhz;
+		s[i].phyclk_d18_mhz =
+			dcn3_1_soc.clock_limits[closest_clk_lvl].phyclk_d18_mhz;
+		s[i].phyclk_mhz = dcn3_1_soc.clock_limits[closest_clk_lvl].phyclk_mhz;
+	}
+	if (clk_table->num_entries) {
+		dcn3_1_soc.num_states = clk_table->num_entries;
 	}
 
 	memcpy(dcn3_1_soc.clock_limits, s, sizeof(dcn3_1_soc.clock_limits));
@@ -643,10 +652,7 @@ void dcn31_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_params
 		dcn3_1_soc.dram_clock_change_latency_us = dc->debug.dram_clock_change_latency_ns / 1000;
 	}
 
-	if (!IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment))
-		dml_init_instance(&dc->dml, &dcn3_1_soc, &dcn3_1_ip, DML_PROJECT_DCN31);
-	else
-		dml_init_instance(&dc->dml, &dcn3_1_soc, &dcn3_1_ip, DML_PROJECT_DCN31_FPGA);
+	dml_init_instance(&dc->dml, &dcn3_1_soc, &dcn3_1_ip, DML_PROJECT_DCN31);
 }
 
 void dcn315_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_params)
@@ -707,10 +713,7 @@ void dcn315_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_param
 		dcn3_15_soc.dram_clock_change_latency_us = dc->debug.dram_clock_change_latency_ns / 1000;
 	}
 
-	if (!IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment))
-		dml_init_instance(&dc->dml, &dcn3_15_soc, &dcn3_15_ip, DML_PROJECT_DCN315);
-	else
-		dml_init_instance(&dc->dml, &dcn3_15_soc, &dcn3_15_ip, DML_PROJECT_DCN31_FPGA);
+	dml_init_instance(&dc->dml, &dcn3_15_soc, &dcn3_15_ip, DML_PROJECT_DCN315);
 }
 
 void dcn316_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_params)
@@ -726,71 +729,68 @@ void dcn316_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_param
 	memcpy(s, dcn3_16_soc.clock_limits, sizeof(dcn3_16_soc.clock_limits));
 
 	// Default clock levels are used for diags, which may lead to overclocking.
-	if (!IS_DIAG_DC(dc->ctx->dce_environment)) {
+	dcn3_16_ip.max_num_otg = dc->res_pool->res_cap->num_timing_generator;
+	dcn3_16_ip.max_num_dpp = dc->res_pool->pipe_count;
+	dcn3_16_soc.num_chans = bw_params->num_channels;
 
-		dcn3_16_ip.max_num_otg = dc->res_pool->res_cap->num_timing_generator;
-		dcn3_16_ip.max_num_dpp = dc->res_pool->pipe_count;
-		dcn3_16_soc.num_chans = bw_params->num_channels;
+	ASSERT(clk_table->num_entries);
 
-		ASSERT(clk_table->num_entries);
+	/* Prepass to find max clocks independent of voltage level. */
+	for (i = 0; i < clk_table->num_entries; ++i) {
+		if (clk_table->entries[i].dispclk_mhz > max_dispclk_mhz)
+			max_dispclk_mhz = clk_table->entries[i].dispclk_mhz;
+		if (clk_table->entries[i].dppclk_mhz > max_dppclk_mhz)
+			max_dppclk_mhz = clk_table->entries[i].dppclk_mhz;
+	}
 
-		/* Prepass to find max clocks independent of voltage level. */
-		for (i = 0; i < clk_table->num_entries; ++i) {
-			if (clk_table->entries[i].dispclk_mhz > max_dispclk_mhz)
-				max_dispclk_mhz = clk_table->entries[i].dispclk_mhz;
-			if (clk_table->entries[i].dppclk_mhz > max_dppclk_mhz)
-				max_dppclk_mhz = clk_table->entries[i].dppclk_mhz;
+	for (i = 0; i < clk_table->num_entries; i++) {
+		/* loop backwards*/
+		for (closest_clk_lvl = 0, j = dcn3_16_soc.num_states - 1; j >= 0; j--) {
+			if ((unsigned int) dcn3_16_soc.clock_limits[j].dcfclk_mhz <=
+			    clk_table->entries[i].dcfclk_mhz) {
+				closest_clk_lvl = j;
+				break;
+			}
+		}
+		// Ported from DCN315
+		if (clk_table->num_entries == 1) {
+			/*smu gives one DPM level, let's take the highest one*/
+			closest_clk_lvl = dcn3_16_soc.num_states - 1;
 		}
 
-		for (i = 0; i < clk_table->num_entries; i++) {
-			/* loop backwards*/
-			for (closest_clk_lvl = 0, j = dcn3_16_soc.num_states - 1; j >= 0; j--) {
-				if ((unsigned int) dcn3_16_soc.clock_limits[j].dcfclk_mhz <=
-				    clk_table->entries[i].dcfclk_mhz) {
-					closest_clk_lvl = j;
-					break;
-				}
-			}
-			// Ported from DCN315
-			if (clk_table->num_entries == 1) {
-				/*smu gives one DPM level, let's take the highest one*/
-				closest_clk_lvl = dcn3_16_soc.num_states - 1;
-			}
+		s[i].state = i;
 
-			s[i].state = i;
-
-			/* Clocks dependent on voltage level. */
-			s[i].dcfclk_mhz = clk_table->entries[i].dcfclk_mhz;
-			if (clk_table->num_entries == 1 &&
-			    s[i].dcfclk_mhz <
-			    dcn3_16_soc.clock_limits[closest_clk_lvl].dcfclk_mhz) {
-				/*SMU fix not released yet*/
-				s[i].dcfclk_mhz =
-					dcn3_16_soc.clock_limits[closest_clk_lvl].dcfclk_mhz;
-			}
-			s[i].fabricclk_mhz = clk_table->entries[i].fclk_mhz;
-			s[i].socclk_mhz = clk_table->entries[i].socclk_mhz;
-			s[i].dram_speed_mts = clk_table->entries[i].memclk_mhz *
-				2 * clk_table->entries[i].wck_ratio;
-
-			/* Clocks independent of voltage level. */
-			s[i].dispclk_mhz = max_dispclk_mhz ? max_dispclk_mhz :
-				dcn3_16_soc.clock_limits[closest_clk_lvl].dispclk_mhz;
-
-			s[i].dppclk_mhz = max_dppclk_mhz ? max_dppclk_mhz :
-				dcn3_16_soc.clock_limits[closest_clk_lvl].dppclk_mhz;
-
-			s[i].dram_bw_per_chan_gbps =
-				dcn3_16_soc.clock_limits[closest_clk_lvl].dram_bw_per_chan_gbps;
-			s[i].dscclk_mhz = dcn3_16_soc.clock_limits[closest_clk_lvl].dscclk_mhz;
-			s[i].dtbclk_mhz = dcn3_16_soc.clock_limits[closest_clk_lvl].dtbclk_mhz;
-			s[i].phyclk_d18_mhz =
-				dcn3_16_soc.clock_limits[closest_clk_lvl].phyclk_d18_mhz;
-			s[i].phyclk_mhz = dcn3_16_soc.clock_limits[closest_clk_lvl].phyclk_mhz;
+		/* Clocks dependent on voltage level. */
+		s[i].dcfclk_mhz = clk_table->entries[i].dcfclk_mhz;
+		if (clk_table->num_entries == 1 &&
+		    s[i].dcfclk_mhz <
+		    dcn3_16_soc.clock_limits[closest_clk_lvl].dcfclk_mhz) {
+			/*SMU fix not released yet*/
+			s[i].dcfclk_mhz =
+				dcn3_16_soc.clock_limits[closest_clk_lvl].dcfclk_mhz;
 		}
-		if (clk_table->num_entries) {
-			dcn3_16_soc.num_states = clk_table->num_entries;
-		}
+		s[i].fabricclk_mhz = clk_table->entries[i].fclk_mhz;
+		s[i].socclk_mhz = clk_table->entries[i].socclk_mhz;
+		s[i].dram_speed_mts = clk_table->entries[i].memclk_mhz *
+			2 * clk_table->entries[i].wck_ratio;
+
+		/* Clocks independent of voltage level. */
+		s[i].dispclk_mhz = max_dispclk_mhz ? max_dispclk_mhz :
+			dcn3_16_soc.clock_limits[closest_clk_lvl].dispclk_mhz;
+
+		s[i].dppclk_mhz = max_dppclk_mhz ? max_dppclk_mhz :
+			dcn3_16_soc.clock_limits[closest_clk_lvl].dppclk_mhz;
+
+		s[i].dram_bw_per_chan_gbps =
+			dcn3_16_soc.clock_limits[closest_clk_lvl].dram_bw_per_chan_gbps;
+		s[i].dscclk_mhz = dcn3_16_soc.clock_limits[closest_clk_lvl].dscclk_mhz;
+		s[i].dtbclk_mhz = dcn3_16_soc.clock_limits[closest_clk_lvl].dtbclk_mhz;
+		s[i].phyclk_d18_mhz =
+			dcn3_16_soc.clock_limits[closest_clk_lvl].phyclk_d18_mhz;
+		s[i].phyclk_mhz = dcn3_16_soc.clock_limits[closest_clk_lvl].phyclk_mhz;
+	}
+	if (clk_table->num_entries) {
+		dcn3_16_soc.num_states = clk_table->num_entries;
 	}
 
 	memcpy(dcn3_16_soc.clock_limits, s, sizeof(dcn3_16_soc.clock_limits));
@@ -805,13 +805,21 @@ void dcn316_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_param
 		dcn3_16_soc.dram_clock_change_latency_us = dc->debug.dram_clock_change_latency_ns / 1000;
 	}
 
-	if (!IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment))
-		dml_init_instance(&dc->dml, &dcn3_16_soc, &dcn3_16_ip, DML_PROJECT_DCN31);
-	else
-		dml_init_instance(&dc->dml, &dcn3_16_soc, &dcn3_16_ip, DML_PROJECT_DCN31_FPGA);
+	dml_init_instance(&dc->dml, &dcn3_16_soc, &dcn3_16_ip, DML_PROJECT_DCN31);
 }
 
 int dcn_get_max_non_odm_pix_rate_100hz(struct _vcs_dpi_soc_bounding_box_st *soc)
 {
 	return soc->clock_limits[0].dispclk_mhz * 10000.0 / (1.0 + soc->dcn_downspread_percent / 100.0);
+}
+
+int dcn_get_approx_det_segs_required_for_pstate(
+		struct _vcs_dpi_soc_bounding_box_st *soc,
+		int pix_clk_100hz, int bpp, int seg_size_kb)
+{
+	/* Roughly calculate required crb to hide latency. In practice there is slightly
+	 * more buffer available for latency hiding
+	 */
+	return (int)(soc->dram_clock_change_latency_us * pix_clk_100hz * bpp
+					/ 10240000 + seg_size_kb - 1) /	seg_size_kb;
 }

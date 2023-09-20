@@ -168,6 +168,7 @@ static void ionic_link_status_check(struct ionic_lif *lif)
 		}
 	} else {
 		if (netif_carrier_ok(netdev)) {
+			lif->link_down_count++;
 			netdev_info(netdev, "Link down\n");
 			netif_carrier_off(netdev);
 		}
@@ -560,7 +561,7 @@ static int ionic_qcq_alloc(struct ionic_lif *lif, unsigned int type,
 	new->q.dev = dev;
 	new->flags = flags;
 
-	new->q.info = vzalloc(num_descs * sizeof(*new->q.info));
+	new->q.info = vcalloc(num_descs, sizeof(*new->q.info));
 	if (!new->q.info) {
 		netdev_err(lif->netdev, "Cannot allocate queue info\n");
 		err = -ENOMEM;
@@ -581,7 +582,7 @@ static int ionic_qcq_alloc(struct ionic_lif *lif, unsigned int type,
 	if (err)
 		goto err_out;
 
-	new->cq.info = vzalloc(num_descs * sizeof(*new->cq.info));
+	new->cq.info = vcalloc(num_descs, sizeof(*new->cq.info));
 	if (!new->cq.info) {
 		netdev_err(lif->netdev, "Cannot allocate completion queue info\n");
 		err = -ENOMEM;

@@ -583,6 +583,21 @@ struct mm_cid {
 struct kioctx_table;
 struct mm_struct {
 	struct {
+		/*
+		 * Fields which are often written to are placed in a separate
+		 * cache line.
+		 */
+		struct {
+			/**
+			 * @mm_count: The number of references to &struct
+			 * mm_struct (@mm_users count as 1).
+			 *
+			 * Use mmgrab()/mmdrop() to modify. When this drops to
+			 * 0, the &struct mm_struct is freed.
+			 */
+			atomic_t mm_count;
+		} ____cacheline_aligned_in_smp;
+
 		struct maple_tree mm_mt;
 #ifdef CONFIG_MMU
 		unsigned long (*get_unmapped_area) (struct file *filp,
@@ -620,14 +635,6 @@ struct mm_struct {
 		 */
 		atomic_t mm_users;
 
-		/**
-		 * @mm_count: The number of references to &struct mm_struct
-		 * (@mm_users count as 1).
-		 *
-		 * Use mmgrab()/mmdrop() to modify. When this drops to 0, the
-		 * &struct mm_struct is freed.
-		 */
-		atomic_t mm_count;
 #ifdef CONFIG_SCHED_MM_CID
 		/**
 		 * @pcpu_cid: Per-cpu current cid.

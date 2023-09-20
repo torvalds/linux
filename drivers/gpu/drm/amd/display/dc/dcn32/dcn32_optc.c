@@ -98,7 +98,7 @@ static void optc32_set_odm_combine(struct timing_generator *optc, int *opp_id, i
 	optc1->opp_count = opp_cnt;
 }
 
-static void optc32_set_h_timing_div_manual_mode(struct timing_generator *optc, bool manual_mode)
+void optc32_set_h_timing_div_manual_mode(struct timing_generator *optc, bool manual_mode)
 {
 	struct optc *optc1 = DCN10TG_FROM_TG(optc);
 
@@ -106,8 +106,11 @@ static void optc32_set_h_timing_div_manual_mode(struct timing_generator *optc, b
 			OTG_H_TIMING_DIV_MODE_MANUAL, manual_mode ? 1 : 0);
 }
 /**
- * Enable CRTC
- * Enable CRTC - call ASIC Control Object to enable Timing generator.
+ * optc32_enable_crtc() - Enable CRTC - call ASIC Control Object to enable Timing generator.
+ *
+ * @optc: timing_generator instance.
+ *
+ * Return: If CRTC is enabled, return true.
  */
 static bool optc32_enable_crtc(struct timing_generator *optc)
 {
@@ -245,16 +248,9 @@ static void optc32_set_drr(
 		}
 
 		optc->funcs->set_vtotal_min_max(optc, params->vertical_total_min - 1, params->vertical_total_max - 1);
-		optc32_setup_manual_trigger(optc);
-	} else {
-		REG_UPDATE_4(OTG_V_TOTAL_CONTROL,
-				OTG_SET_V_TOTAL_MIN_MASK, 0,
-				OTG_V_TOTAL_MIN_SEL, 0,
-				OTG_V_TOTAL_MAX_SEL, 0,
-				OTG_FORCE_LOCK_ON_EVENT, 0);
-
-		optc->funcs->set_vtotal_min_max(optc, 0, 0);
 	}
+
+	optc32_setup_manual_trigger(optc);
 }
 
 static struct timing_generator_funcs dcn32_tg_funcs = {

@@ -26,7 +26,7 @@
 // *** IMPORTANT ***
 // SMU TEAM: Always increment the interface version if
 // any structure is changed in this file
-#define SMU13_DRIVER_IF_VERSION 4
+#define SMU13_YELLOW_CARP_DRIVER_IF_VERSION 4
 
 typedef struct {
   int32_t value;

@@ -8,7 +8,6 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
-#include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/pinmux.h>
 
 #include "pinctrl-msm.h"
@@ -195,31 +194,24 @@ DECLARE_MSM_GPIO_PINS(85);
 DECLARE_MSM_GPIO_PINS(86);
 DECLARE_MSM_GPIO_PINS(87);
 
-#define FUNCTION(fname)					\
-	[MSM_MUX_##fname] = {				\
-		.name = #fname,				\
-		.groups = fname##_groups,		\
-		.ngroups = ARRAY_SIZE(fname##_groups),	\
-	}
-
 #define PINGROUP(id, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11) \
 	{						\
-		.name = "gpio" #id,			\
-		.pins = gpio##id##_pins,		\
-		.npins = ARRAY_SIZE(gpio##id##_pins),	\
+		.grp = PINCTRL_PINGROUP("gpio" #id, 	\
+			gpio##id##_pins, 		\
+			ARRAY_SIZE(gpio##id##_pins)),	\
 		.funcs = (int[]){			\
-			MSM_MUX_gpio,			\
-			MSM_MUX_##f1,			\
-			MSM_MUX_##f2,			\
-			MSM_MUX_##f3,			\
-			MSM_MUX_##f4,			\
-			MSM_MUX_##f5,			\
-			MSM_MUX_##f6,			\
-			MSM_MUX_##f7,			\
-			MSM_MUX_##f8,			\
-			MSM_MUX_##f9,			\
-			MSM_MUX_##f10,			\
-			MSM_MUX_##f11			\
+			msm_mux_gpio,			\
+			msm_mux_##f1,			\
+			msm_mux_##f2,			\
+			msm_mux_##f3,			\
+			msm_mux_##f4,			\
+			msm_mux_##f5,			\
+			msm_mux_##f6,			\
+			msm_mux_##f7,			\
+			msm_mux_##f8,			\
+			msm_mux_##f9,			\
+			msm_mux_##f10,			\
+			msm_mux_##f11			\
 		},					\
 		.nfuncs = 12,				\
 		.ctl_reg = 0x1000 + 0x10 * id,		\
@@ -245,19 +237,19 @@ DECLARE_MSM_GPIO_PINS(87);
 	}
 
 enum mdm9615_functions {
-	MSM_MUX_gpio,
-	MSM_MUX_gsbi2_i2c,
-	MSM_MUX_gsbi3,
-	MSM_MUX_gsbi4,
-	MSM_MUX_gsbi5_i2c,
-	MSM_MUX_gsbi5_uart,
-	MSM_MUX_sdc2,
-	MSM_MUX_ebi2_lcdc,
-	MSM_MUX_ps_hold,
-	MSM_MUX_prim_audio,
-	MSM_MUX_sec_audio,
-	MSM_MUX_cdc_mclk,
-	MSM_MUX_NA,
+	msm_mux_gpio,
+	msm_mux_gsbi2_i2c,
+	msm_mux_gsbi3,
+	msm_mux_gsbi4,
+	msm_mux_gsbi5_i2c,
+	msm_mux_gsbi5_uart,
+	msm_mux_sdc2,
+	msm_mux_ebi2_lcdc,
+	msm_mux_ps_hold,
+	msm_mux_prim_audio,
+	msm_mux_sec_audio,
+	msm_mux_cdc_mclk,
+	msm_mux_NA,
 };
 
 static const char * const gpio_groups[] = {
@@ -320,19 +312,19 @@ static const char * const cdc_mclk_groups[] = {
 	"gpio24",
 };
 
-static const struct msm_function mdm9615_functions[] = {
-	FUNCTION(gpio),
-	FUNCTION(gsbi2_i2c),
-	FUNCTION(gsbi3),
-	FUNCTION(gsbi4),
-	FUNCTION(gsbi5_i2c),
-	FUNCTION(gsbi5_uart),
-	FUNCTION(sdc2),
-	FUNCTION(ebi2_lcdc),
-	FUNCTION(ps_hold),
-	FUNCTION(prim_audio),
-	FUNCTION(sec_audio),
-	FUNCTION(cdc_mclk),
+static const struct pinfunction mdm9615_functions[] = {
+	MSM_PIN_FUNCTION(gpio),
+	MSM_PIN_FUNCTION(gsbi2_i2c),
+	MSM_PIN_FUNCTION(gsbi3),
+	MSM_PIN_FUNCTION(gsbi4),
+	MSM_PIN_FUNCTION(gsbi5_i2c),
+	MSM_PIN_FUNCTION(gsbi5_uart),
+	MSM_PIN_FUNCTION(sdc2),
+	MSM_PIN_FUNCTION(ebi2_lcdc),
+	MSM_PIN_FUNCTION(ps_hold),
+	MSM_PIN_FUNCTION(prim_audio),
+	MSM_PIN_FUNCTION(sec_audio),
+	MSM_PIN_FUNCTION(cdc_mclk),
 };
 
 static const struct msm_pingroup mdm9615_groups[] = {

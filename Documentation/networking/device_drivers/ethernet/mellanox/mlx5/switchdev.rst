@@ -45,6 +45,28 @@ Following bridge VLAN functions are supported by mlx5:
 Subfunction
 ===========
 
+Subfunction which are spawned over the E-switch are created only with devlink
+device, and by default all the SF auxiliary devices are disabled.
+This will allow user to configure the SF before the SF have been fully probed,
+which will save time.
+
+Usage example:
+
+- Create SF::
+
+    $ devlink port add pci/0000:08:00.0 flavour pcisf pfnum 0 sfnum 11
+    $ devlink port function set pci/0000:08:00.0/32768 hw_addr 00:00:00:00:00:11 state active
+
+- Enable ETH auxiliary device::
+
+    $ devlink dev param set auxiliary/mlx5_core.sf.1 name enable_eth value true cmode driverinit
+
+- Now, in order to fully probe the SF, use devlink reload::
+
+    $ devlink dev reload auxiliary/mlx5_core.sf.1
+
+mlx5 supports ETH,rdma and vdpa (vnet) auxiliary devices devlink params (see :ref:`Documentation/networking/devlink/devlink-params.rst <devlink_params_generic>`).
+
 mlx5 supports subfunction management using devlink port (see :ref:`Documentation/networking/devlink/devlink-port.rst <devlink_port>`) interface.
 
 A subfunction has its own function capabilities and its own resources. This

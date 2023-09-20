@@ -71,8 +71,15 @@ config CRYPTO_AEAD
 config CRYPTO_AEAD2
 	tristate
 	select CRYPTO_ALGAPI2
-	select CRYPTO_NULL2
-	select CRYPTO_RNG2
+
+config CRYPTO_SIG
+	tristate
+	select CRYPTO_SIG2
+	select CRYPTO_ALGAPI
+
+config CRYPTO_SIG2
+	tristate
+	select CRYPTO_ALGAPI2
 
 config CRYPTO_SKCIPHER
 	tristate
@@ -82,7 +89,6 @@ config CRYPTO_SKCIPHER
 config CRYPTO_SKCIPHER2
 	tristate
 	select CRYPTO_ALGAPI2
-	select CRYPTO_RNG2
 
 config CRYPTO_HASH
 	tristate
@@ -143,12 +149,14 @@ config CRYPTO_MANAGER
 
 config CRYPTO_MANAGER2
 	def_tristate CRYPTO_MANAGER || (CRYPTO_MANAGER!=n && CRYPTO_ALGAPI=y)
-	select CRYPTO_AEAD2
-	select CRYPTO_HASH2
-	select CRYPTO_SKCIPHER2
-	select CRYPTO_AKCIPHER2
-	select CRYPTO_KPP2
 	select CRYPTO_ACOMP2
+	select CRYPTO_AEAD2
+	select CRYPTO_AKCIPHER2
+	select CRYPTO_SIG2
+	select CRYPTO_HASH2
+	select CRYPTO_KPP2
+	select CRYPTO_RNG2
+	select CRYPTO_SKCIPHER2
 
 config CRYPTO_USER
 	tristate "Userspace cryptographic algorithm configuration"
@@ -833,13 +841,16 @@ config CRYPTO_GCM
 
 	  This is required for IPSec ESP (XFRM_ESP).
 
+config CRYPTO_GENIV
+	tristate
+	select CRYPTO_AEAD
+	select CRYPTO_NULL
+	select CRYPTO_MANAGER
+	select CRYPTO_RNG_DEFAULT
+
 config CRYPTO_SEQIV
 	tristate "Sequence Number IV Generator"
-	select CRYPTO_AEAD
-	select CRYPTO_SKCIPHER
-	select CRYPTO_NULL
-	select CRYPTO_RNG_DEFAULT
-	select CRYPTO_MANAGER
+	select CRYPTO_GENIV
 	help
 	  Sequence Number IV generator
 
@@ -850,10 +861,7 @@ config CRYPTO_SEQIV
 
 config CRYPTO_ECHAINIV
 	tristate "Encrypted Chain IV Generator"
-	select CRYPTO_AEAD
-	select CRYPTO_NULL
-	select CRYPTO_RNG_DEFAULT
-	select CRYPTO_MANAGER
+	select CRYPTO_GENIV
 	help
 	  Encrypted Chain IV generator
 
@@ -1277,6 +1285,7 @@ endif	# if CRYPTO_DRBG_MENU
 config CRYPTO_JITTERENTROPY
 	tristate "CPU Jitter Non-Deterministic RNG (Random Number Generator)"
 	select CRYPTO_RNG
+	select CRYPTO_SHA3
 	help
 	  CPU Jitter RNG (Random Number Generator) from the Jitterentropy library
 
@@ -1286,6 +1295,26 @@ config CRYPTO_JITTERENTROPY
 	  This RNG does not perform any cryptographic whitening of the generated
 
 	  See https://www.chronox.de/jent.html
+
+config CRYPTO_JITTERENTROPY_TESTINTERFACE
+	bool "CPU Jitter RNG Test Interface"
+	depends on CRYPTO_JITTERENTROPY
+	help
+	  The test interface allows a privileged process to capture
+	  the raw unconditioned high resolution time stamp noise that
+	  is collected by the Jitter RNG for statistical analysis. As
+	  this data is used at the same time to generate random bits,
+	  the Jitter RNG operates in an insecure mode as long as the
+	  recording is enabled. This interface therefore is only
+	  intended for testing purposes and is not suitable for
+	  production systems.
+
+	  The raw noise data can be obtained using the jent_raw_hires
+	  debugfs file. Using the option
+	  jitterentropy_testing.boot_raw_hires_test=1 the raw noise of
+	  the first 1000 entropy events since boot can be sampled.
+
+	  If unsure, select N.
 
 config CRYPTO_KDF800108_CTR
 	tristate
@@ -1371,6 +1400,9 @@ config CRYPTO_STATS
 	depends on CRYPTO_USER
 	help
 	  Enable the gathering of crypto stats.
+
+	  Enabling this option reduces the performance of the crypto API.  It
+	  should only be enabled when there is actually a use case for it.
 
 	  This collects data sizes, numbers of requests, and numbers
 	  of errors processed by:

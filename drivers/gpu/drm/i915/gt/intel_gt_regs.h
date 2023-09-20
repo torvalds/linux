@@ -7,7 +7,8 @@
 #define __INTEL_GT_REGS__
 
 #include "i915_reg_defs.h"
-#include "display/intel_display_reg_defs.h"	/* VLV_DISPLAY_BASE */
+
+#define VLV_GUNIT_BASE			0x180000
 
 /*
  * The perf control registers are technically multicast registers, but the
@@ -356,7 +357,11 @@
 #define GEN7_TLB_RD_ADDR			_MMIO(0x4700)
 
 #define GEN12_PAT_INDEX(index)			_MMIO(0x4800 + (index) * 4)
-#define XEHP_PAT_INDEX(index)			MCR_REG(0x4800 + (index) * 4)
+#define _PAT_INDEX(index)			_PICK_EVEN_2RANGES(index, 8, \
+								   0x4800, 0x4804, \
+								   0x4848, 0x484c)
+#define XEHP_PAT_INDEX(index)			MCR_REG(_PAT_INDEX(index))
+#define XELPMP_PAT_INDEX(index)			_MMIO(_PAT_INDEX(index))
 
 #define XEHP_TILE0_ADDR_RANGE			MCR_REG(0x4900)
 #define   XEHP_TILE_LMEM_RANGE_SHIFT		8
@@ -524,6 +529,11 @@
 #define   POLYGON_TRIFAN_LINELOOP_DISABLE	REG_BIT(4)
 
 #define GEN8_RC6_CTX_INFO			_MMIO(0x8504)
+
+#define GEN12_SQCNT1				_MMIO(0x8718)
+#define   GEN12_SQCNT1_PMON_ENABLE		REG_BIT(30)
+#define   GEN12_SQCNT1_OABPC			REG_BIT(29)
+#define   GEN12_STRICT_RAR_ENABLE		REG_BIT(23)
 
 #define XEHP_SQCM				MCR_REG(0x8724)
 #define   EN_32B_ACCESS				REG_BIT(30)
@@ -1460,7 +1470,7 @@
 #define GEN12_RCU_MODE				_MMIO(0x14800)
 #define   GEN12_RCU_MODE_CCS_ENABLE		REG_BIT(0)
 
-#define CHV_FUSE_GT				_MMIO(VLV_DISPLAY_BASE + 0x2168)
+#define CHV_FUSE_GT				_MMIO(VLV_GUNIT_BASE + 0x2168)
 #define   CHV_FGT_DISABLE_SS0			(1 << 10)
 #define   CHV_FGT_DISABLE_SS1			(1 << 11)
 #define   CHV_FGT_EU_DIS_SS0_R0_SHIFT		16
@@ -1587,6 +1597,7 @@
 
 #define GEN11_GT_INTR_DW(x)			_MMIO(0x190018 + ((x) * 4))
 #define   GEN11_CSME				(31)
+#define   GEN12_HECI_2				(30)
 #define   GEN11_GUNIT				(28)
 #define   GEN11_GUC				(25)
 #define   MTL_MGUC				(24)
@@ -1628,6 +1639,7 @@
 /* irq instances for OTHER_CLASS */
 #define   OTHER_GUC_INSTANCE			0
 #define   OTHER_GTPM_INSTANCE			1
+#define   OTHER_GSC_HECI_2_INSTANCE		3
 #define   OTHER_KCR_INSTANCE			4
 #define   OTHER_GSC_INSTANCE			6
 #define   OTHER_MEDIA_GUC_INSTANCE		16
@@ -1643,6 +1655,7 @@
 #define GEN12_VCS6_VCS7_INTR_MASK		_MMIO(0x1900b4)
 #define GEN11_VECS0_VECS1_INTR_MASK		_MMIO(0x1900d0)
 #define GEN12_VECS2_VECS3_INTR_MASK		_MMIO(0x1900d4)
+#define GEN12_HECI2_RSVD_INTR_MASK		_MMIO(0x1900e4)
 #define GEN11_GUC_SG_INTR_MASK			_MMIO(0x1900e8)
 #define MTL_GUC_MGUC_INTR_MASK			_MMIO(0x1900e8) /* MTL+ */
 #define GEN11_GPM_WGBOXPERF_INTR_MASK		_MMIO(0x1900ec)

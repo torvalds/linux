@@ -17,8 +17,8 @@
 #include <linux/fs.h>
 #include <linux/vfs.h>
 #include <linux/slab.h>
+#include <linux/pagemap.h>
 #include <linux/string.h>
-#include <linux/buffer_head.h>
 #include <linux/bio.h>
 
 #include "squashfs_fs.h"
@@ -76,10 +76,101 @@ static int copy_bio_to_actor(struct bio *bio,
 	return copied_bytes;
 }
 
+static int squashfs_bio_read_cached(struct bio *fullbio,
+		struct address_space *cache_mapping, u64 index, int length,
+		u64 read_start, u64 read_end, int page_count)
+{
+	struct page *head_to_cache = NULL, *tail_to_cache = NULL;
+	struct block_device *bdev = fullbio->bi_bdev;
+	int start_idx = 0, end_idx = 0;
+	struct bvec_iter_all iter_all;
+	struct bio *bio = NULL;
+	struct bio_vec *bv;
+	int idx = 0;
+	int err = 0;
+
+	bio_for_each_segment_all(bv, fullbio, iter_all) {
+		struct page *page = bv->bv_page;
+
+		if (page->mapping == cache_mapping) {
+			idx++;
+			continue;
+		}
+
+		/*
+		 * We only use this when the device block size is the same as
+		 * the page size, so read_start and read_end cover full pages.
+		 *
+		 * Compare these to the original required index and length to
+		 * only cache pages which were requested partially, since these
+		 * are the ones which are likely to be needed when reading
+		 * adjacent blocks.
+		 */
+		if (idx == 0 && index != read_start)
+			head_to_cache = page;
+		else if (idx == page_count - 1 && index + length != read_end)
+			tail_to_cache = page;
+
+		if (!bio || idx != end_idx) {
+			struct bio *new = bio_alloc_clone(bdev, fullbio,
+							  GFP_NOIO, &fs_bio_set);
+
+			if (bio) {
+				bio_trim(bio, start_idx * PAGE_SECTORS,
+					 (end_idx - start_idx) * PAGE_SECTORS);
+				bio_chain(bio, new);
+				submit_bio(bio);
+			}
+
+			bio = new;
+			start_idx = idx;
+		}
+
+		idx++;
+		end_idx = idx;
+	}
+
+	if (bio) {
+		bio_trim(bio, start_idx * PAGE_SECTORS,
+			 (end_idx - start_idx) * PAGE_SECTORS);
+		err = submit_bio_wait(bio);
+		bio_put(bio);
+	}
+
+	if (err)
+		return err;
+
+	if (head_to_cache) {
+		int ret = add_to_page_cache_lru(head_to_cache, cache_mapping,
+						read_start >> PAGE_SHIFT,
+						GFP_NOIO);
+
+		if (!ret) {
+			SetPageUptodate(head_to_cache);
+			unlock_page(head_to_cache);
+		}
+
+	}
+
+	if (tail_to_cache) {
+		int ret = add_to_page_cache_lru(tail_to_cache, cache_mapping,
+						(read_end >> PAGE_SHIFT) - 1,
+						GFP_NOIO);
+
+		if (!ret) {
+			SetPageUptodate(tail_to_cache);
+			unlock_page(tail_to_cache);
+		}
+	}
+
+	return 0;
+}
+
 static int squashfs_bio_read(struct super_block *sb, u64 index, int length,
 			     struct bio **biop, int *block_offset)
 {
 	struct squashfs_sb_info *msblk = sb->s_fs_info;
+	struct address_space *cache_mapping = msblk->cache_mapping;
 	const u64 read_start = round_down(index, msblk->devblksize);
 	const sector_t block = read_start >> msblk->devblksize_log2;
 	const u64 read_end = round_up(index + length, msblk->devblksize);
@@ -99,21 +190,34 @@ static int squashfs_bio_read(struct super_block *sb, u64 index, int length,
 	for (i = 0; i < page_count; ++i) {
 		unsigned int len =
 			min_t(unsigned int, PAGE_SIZE - offset, total_len);
-		struct page *page = alloc_page(GFP_NOIO);
+		struct page *page = NULL;
+
+		if (cache_mapping)
+			page = find_get_page(cache_mapping,
+					     (read_start >> PAGE_SHIFT) + i);
+		if (!page)
+			page = alloc_page(GFP_NOIO);
 
 		if (!page) {
 			error = -ENOMEM;
 			goto out_free_bio;
 		}
-		if (!bio_add_page(bio, page, len, offset)) {
-			error = -EIO;
-			goto out_free_bio;
-		}
+
+		/*
+		 * Use the __ version to avoid merging since we need each page
+		 * to be separate when we check for and avoid cached pages.
+		 */
+		__bio_add_page(bio, page, len, offset);
 		offset = 0;
 		total_len -= len;
 	}
 
-	error = submit_bio_wait(bio);
+	if (cache_mapping)
+		error = squashfs_bio_read_cached(bio, cache_mapping, index,
+						 length, read_start, read_end,
+						 page_count);
+	else
+		error = submit_bio_wait(bio);
 	if (error)
 		goto out_free_bio;
 

@@ -20,6 +20,14 @@ static struct {
 	{"test_ringbuf", SETUP_SYSCALL_SLEEP},
 	{"test_skb_readonly", SETUP_SKB_PROG},
 	{"test_dynptr_skb_data", SETUP_SKB_PROG},
+	{"test_adjust", SETUP_SYSCALL_SLEEP},
+	{"test_adjust_err", SETUP_SYSCALL_SLEEP},
+	{"test_zero_size_dynptr", SETUP_SYSCALL_SLEEP},
+	{"test_dynptr_is_null", SETUP_SYSCALL_SLEEP},
+	{"test_dynptr_is_rdonly", SETUP_SKB_PROG},
+	{"test_dynptr_clone", SETUP_SKB_PROG},
+	{"test_dynptr_skb_no_buff", SETUP_SKB_PROG},
+	{"test_dynptr_skb_strcmp", SETUP_SKB_PROG},
 };
 
 static void verify_success(const char *prog_name, enum test_setup_type setup_type)

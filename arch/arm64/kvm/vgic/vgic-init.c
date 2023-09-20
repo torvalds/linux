@@ -235,9 +235,9 @@ int kvm_vgic_vcpu_init(struct kvm_vcpu *vcpu)
 	 * KVM io device for the redistributor that belongs to this VCPU.
 	 */
 	if (dist->vgic_model == KVM_DEV_TYPE_ARM_VGIC_V3) {
-		mutex_lock(&vcpu->kvm->arch.config_lock);
+		mutex_lock(&vcpu->kvm->slots_lock);
 		ret = vgic_register_redist_iodev(vcpu);
-		mutex_unlock(&vcpu->kvm->arch.config_lock);
+		mutex_unlock(&vcpu->kvm->slots_lock);
 	}
 	return ret;
 }
@@ -406,7 +406,7 @@ void kvm_vgic_destroy(struct kvm *kvm)
 
 /**
  * vgic_lazy_init: Lazy init is only allowed if the GIC exposed to the guest
- * is a GICv2. A GICv3 must be explicitly initialized by the guest using the
+ * is a GICv2. A GICv3 must be explicitly initialized by userspace using the
  * KVM_DEV_ARM_VGIC_GRP_CTRL KVM_DEVICE group.
  * @kvm: kvm struct pointer
  */
@@ -446,11 +446,14 @@ int vgic_lazy_init(struct kvm *kvm)
 int kvm_vgic_map_resources(struct kvm *kvm)
 {
 	struct vgic_dist *dist = &kvm->arch.vgic;
+	enum vgic_type type;
+	gpa_t dist_base;
 	int ret = 0;
 
 	if (likely(vgic_ready(kvm)))
 		return 0;
 
+	mutex_lock(&kvm->slots_lock);
 	mutex_lock(&kvm->arch.config_lock);
 	if (vgic_ready(kvm))
 		goto out;
@@ -458,18 +461,33 @@ int kvm_vgic_map_resources(struct kvm *kvm)
 	if (!irqchip_in_kernel(kvm))
 		goto out;
 
-	if (dist->vgic_model == KVM_DEV_TYPE_ARM_VGIC_V2)
+	if (dist->vgic_model == KVM_DEV_TYPE_ARM_VGIC_V2) {
 		ret = vgic_v2_map_resources(kvm);
-	else
+		type = VGIC_V2;
+	} else {
 		ret = vgic_v3_map_resources(kvm);
+		type = VGIC_V3;
+	}
 
-	if (ret)
+	if (ret) {
 		__kvm_vgic_destroy(kvm);
-	else
-		dist->ready = true;
+		goto out;
+	}
+	dist->ready = true;
+	dist_base = dist->vgic_dist_base;
+	mutex_unlock(&kvm->arch.config_lock);
+
+	ret = vgic_register_dist_iodev(kvm, dist_base, type);
+	if (ret) {
+		kvm_err("Unable to register VGIC dist MMIO regions\n");
+		kvm_vgic_destroy(kvm);
+	}
+	mutex_unlock(&kvm->slots_lock);
+	return ret;
 
 out:
 	mutex_unlock(&kvm->arch.config_lock);
+	mutex_unlock(&kvm->slots_lock);
 	return ret;
 }
 

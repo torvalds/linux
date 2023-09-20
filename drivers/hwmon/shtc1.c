@@ -279,7 +279,7 @@ static struct i2c_driver shtc1_i2c_driver = {
 		.name = "shtc1",
 		.of_match_table = shtc1_of_match,
 	},
-	.probe_new    = shtc1_probe,
+	.probe        = shtc1_probe,
 	.id_table     = shtc1_id,
 };
 

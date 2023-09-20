@@ -207,13 +207,6 @@ ATOMIC64_FETCH_OP(xor, ^)
 #undef ATOMIC64_FETCH_OP
 #undef ATOMIC64_OP
 
-#define arch_atomic_cmpxchg(v, old, new) (arch_cmpxchg(&((v)->counter), old, new))
-#define arch_atomic_xchg(v, new) (arch_xchg(&((v)->counter), new))
-
-#define arch_atomic64_cmpxchg(v, old, new) \
-	(arch_cmpxchg(&((v)->counter), old, new))
-#define arch_atomic64_xchg(v, new) (arch_xchg(&((v)->counter), new))
-
 #define arch_atomic_add(i,v)		(void)arch_atomic_add_return((i), (v))
 #define arch_atomic_sub(i,v)		(void)arch_atomic_sub_return((i), (v))
 

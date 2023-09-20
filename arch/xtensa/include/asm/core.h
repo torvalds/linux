@@ -26,6 +26,14 @@
 #define XCHAL_SPANNING_WAY 0
 #endif
 
+#ifndef XCHAL_HAVE_TRAX
+#define XCHAL_HAVE_TRAX 0
+#endif
+
+#ifndef XCHAL_NUM_PERF_COUNTERS
+#define XCHAL_NUM_PERF_COUNTERS 0
+#endif
+
 #if XCHAL_HAVE_WINDOWED
 #if defined(CONFIG_USER_ABI_DEFAULT) || defined(CONFIG_USER_ABI_CALL0_PROBE)
 /* Whether windowed ABI is supported in userspace. */

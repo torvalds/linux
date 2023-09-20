@@ -77,6 +77,10 @@ static void ioc_destroy_icq(struct io_cq *icq)
 	struct elevator_type *et = q->elevator->type;
 
 	lockdep_assert_held(&ioc->lock);
+	lockdep_assert_held(&q->queue_lock);
+
+	if (icq->flags & ICQ_DESTROYED)
+		return;
 
 	radix_tree_delete(&ioc->icq_tree, icq->q->id);
 	hlist_del_init(&icq->ioc_node);
@@ -128,12 +132,7 @@ static void ioc_release_fn(struct work_struct *work)
 			spin_lock(&q->queue_lock);
 			spin_lock(&ioc->lock);
 
-			/*
-			 * The icq may have been destroyed when the ioc lock
-			 * was released.
-			 */
-			if (!(icq->flags & ICQ_DESTROYED))
-				ioc_destroy_icq(icq);
+			ioc_destroy_icq(icq);
 
 			spin_unlock(&q->queue_lock);
 			rcu_read_unlock();
@@ -171,23 +170,20 @@ static bool ioc_delay_free(struct io_context *ioc)
  */
 void ioc_clear_queue(struct request_queue *q)
 {
-	LIST_HEAD(icq_list);
-
 	spin_lock_irq(&q->queue_lock);
-	list_splice_init(&q->icq_list, &icq_list);
-	spin_unlock_irq(&q->queue_lock);
-
-	rcu_read_lock();
-	while (!list_empty(&icq_list)) {
+	while (!list_empty(&q->icq_list)) {
 		struct io_cq *icq =
-			list_entry(icq_list.next, struct io_cq, q_node);
+			list_first_entry(&q->icq_list, struct io_cq, q_node);
 
-		spin_lock_irq(&icq->ioc->lock);
-		if (!(icq->flags & ICQ_DESTROYED))
-			ioc_destroy_icq(icq);
-		spin_unlock_irq(&icq->ioc->lock);
+		/*
+		 * Other context won't hold ioc lock to wait for queue_lock, see
+		 * details in ioc_release_fn().
+		 */
+		spin_lock(&icq->ioc->lock);
+		ioc_destroy_icq(icq);
+		spin_unlock(&icq->ioc->lock);
 	}
-	rcu_read_unlock();
+	spin_unlock_irq(&q->queue_lock);
 }
 #else /* CONFIG_BLK_ICQ */
 static inline void ioc_exit_icqs(struct io_context *ioc)

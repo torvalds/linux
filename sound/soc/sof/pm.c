@@ -164,7 +164,7 @@ static int sof_resume(struct device *dev, bool runtime_resume)
 		ret = tplg_ops->set_up_all_pipelines(sdev, false);
 		if (ret < 0) {
 			dev_err(sdev->dev, "Failed to restore pipeline after resume %d\n", ret);
-			return ret;
+			goto setup_fail;
 		}
 	}
 
@@ -177,6 +177,18 @@ static int sof_resume(struct device *dev, bool runtime_resume)
 		if (ret < 0)
 			dev_err(sdev->dev, "ctx_restore IPC error during resume: %d\n", ret);
 	}
+
+setup_fail:
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_ENABLE_DEBUGFS_CACHE)
+	if (ret < 0) {
+		/*
+		 * Debugfs cannot be read in runtime suspend, so cache
+		 * the contents upon failure. This allows to capture
+		 * possible DSP coredump information.
+		 */
+		sof_cache_debugfs(sdev);
+	}
+#endif
 
 	return ret;
 }
@@ -222,19 +234,15 @@ static int sof_suspend(struct device *dev, bool runtime_suspend)
 
 	pm_state.event = target_state;
 
-	/* Skip to platform-specific suspend if DSP is entering D0 */
-	if (target_state == SOF_DSP_PM_D0) {
-		sof_fw_trace_suspend(sdev, pm_state);
-		/* Notify clients not managed by pm framework about core suspend */
-		sof_suspend_clients(sdev, pm_state);
-		goto suspend;
-	}
-
 	/* suspend DMA trace */
 	sof_fw_trace_suspend(sdev, pm_state);
 
 	/* Notify clients not managed by pm framework about core suspend */
 	sof_suspend_clients(sdev, pm_state);
+
+	/* Skip to platform-specific suspend if DSP is entering D0 */
+	if (target_state == SOF_DSP_PM_D0)
+		goto suspend;
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_ENABLE_DEBUGFS_CACHE)
 	/* cache debugfs contents during runtime suspend */

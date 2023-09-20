@@ -30,7 +30,7 @@ static struct kmem_cache *ufshpb_mctx_cache;
 static mempool_t *ufshpb_mctx_pool;
 static mempool_t *ufshpb_page_pool;
 /* A cache size of 2MB can cache ppn in the 1GB range. */
-static unsigned int ufshpb_host_map_kbytes = 2048;
+static unsigned int ufshpb_host_map_kbytes = SZ_2K;
 static int tot_active_srgn_pages;
 
 static struct workqueue_struct *ufshpb_wq;
@@ -2461,7 +2461,7 @@ static void ufshpb_hpb_lu_prepared(struct ufs_hba *hba)
 
 	init_success = !ufshpb_check_hpb_reset_query(hba);
 
-	pool_size = PAGE_ALIGN(ufshpb_host_map_kbytes * 1024) / PAGE_SIZE;
+	pool_size = PAGE_ALIGN(ufshpb_host_map_kbytes * SZ_1K) / PAGE_SIZE;
 	if (pool_size > tot_active_srgn_pages) {
 		mempool_resize(ufshpb_mctx_pool, tot_active_srgn_pages);
 		mempool_resize(ufshpb_page_pool, tot_active_srgn_pages);
@@ -2527,7 +2527,7 @@ static int ufshpb_init_mem_wq(struct ufs_hba *hba)
 		return -ENOMEM;
 	}
 
-	pool_size = PAGE_ALIGN(ufshpb_host_map_kbytes * 1024) / PAGE_SIZE;
+	pool_size = PAGE_ALIGN(ufshpb_host_map_kbytes * SZ_1K) / PAGE_SIZE;
 	dev_info(hba->dev, "%s:%d ufshpb_host_map_kbytes %u pool_size %u\n",
 	       __func__, __LINE__, ufshpb_host_map_kbytes, pool_size);
 

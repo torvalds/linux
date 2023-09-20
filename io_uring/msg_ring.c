@@ -162,14 +162,12 @@ static struct file *io_msg_grab_file(struct io_kiocb *req, unsigned int issue_fl
 	struct io_msg *msg = io_kiocb_to_cmd(req, struct io_msg);
 	struct io_ring_ctx *ctx = req->ctx;
 	struct file *file = NULL;
-	unsigned long file_ptr;
 	int idx = msg->src_fd;
 
 	io_ring_submit_lock(ctx, issue_flags);
 	if (likely(idx < ctx->nr_user_files)) {
 		idx = array_index_nospec(idx, ctx->nr_user_files);
-		file_ptr = io_fixed_file_slot(&ctx->file_table, idx)->file_ptr;
-		file = (struct file *) (file_ptr & FFS_MASK);
+		file = io_file_from_index(&ctx->file_table, idx);
 		if (file)
 			get_file(file);
 	}

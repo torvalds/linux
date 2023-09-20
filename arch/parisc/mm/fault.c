@@ -288,14 +288,18 @@ void do_page_fault(struct pt_regs *regs, unsigned long code,
 retry:
 	mmap_read_lock(mm);
 	vma = find_vma_prev(mm, address, &prev_vma);
-	if (!vma || address < vma->vm_start)
-		goto check_expansion;
+	if (!vma || address < vma->vm_start) {
+		if (!prev_vma || !(prev_vma->vm_flags & VM_GROWSUP))
+			goto bad_area;
+		vma = expand_stack(mm, address);
+		if (!vma)
+			goto bad_area_nosemaphore;
+	}
+
 /*
  * Ok, we have a good vm_area for this memory access. We still need to
  * check the access permissions.
  */
-
-good_area:
 
 	if ((vma->vm_flags & acc_type) != acc_type)
 		goto bad_area;
@@ -347,17 +351,13 @@ good_area:
 	mmap_read_unlock(mm);
 	return;
 
-check_expansion:
-	vma = prev_vma;
-	if (vma && (expand_stack(vma, address) == 0))
-		goto good_area;
-
 /*
  * Something tried to access memory that isn't in our memory map..
  */
 bad_area:
 	mmap_read_unlock(mm);
 
+bad_area_nosemaphore:
 	if (user_mode(regs)) {
 		int signo, si_code;
 
@@ -449,7 +449,7 @@ handle_nadtlb_fault(struct pt_regs *regs)
 {
 	unsigned long insn = regs->iir;
 	int breg, treg, xreg, val = 0;
-	struct vm_area_struct *vma, *prev_vma;
+	struct vm_area_struct *vma;
 	struct task_struct *tsk;
 	struct mm_struct *mm;
 	unsigned long address;
@@ -485,7 +485,7 @@ handle_nadtlb_fault(struct pt_regs *regs)
 				/* Search for VMA */
 				address = regs->ior;
 				mmap_read_lock(mm);
-				vma = find_vma_prev(mm, address, &prev_vma);
+				vma = vma_lookup(mm, address);
 				mmap_read_unlock(mm);
 
 				/*
@@ -494,7 +494,6 @@ handle_nadtlb_fault(struct pt_regs *regs)
 				 */
 				acc_type = (insn & 0x40) ? VM_WRITE : VM_READ;
 				if (vma
-				    && address >= vma->vm_start
 				    && (vma->vm_flags & acc_type) == acc_type)
 					val = 1;
 			}

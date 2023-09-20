@@ -124,7 +124,8 @@ static u64 block_rsv_release_bytes(struct btrfs_fs_info *fs_info,
 	} else {
 		num_bytes = 0;
 	}
-	if (block_rsv->qgroup_rsv_reserved >= block_rsv->qgroup_rsv_size) {
+	if (qgroup_to_release_ret &&
+	    block_rsv->qgroup_rsv_reserved >= block_rsv->qgroup_rsv_size) {
 		qgroup_to_release = block_rsv->qgroup_rsv_reserved -
 				    block_rsv->qgroup_rsv_size;
 		block_rsv->qgroup_rsv_reserved = block_rsv->qgroup_rsv_size;
@@ -539,4 +540,23 @@ try_reserve:
 		return block_rsv;
 
 	return ERR_PTR(ret);
+}
+
+int btrfs_check_trunc_cache_free_space(struct btrfs_fs_info *fs_info,
+				       struct btrfs_block_rsv *rsv)
+{
+	u64 needed_bytes;
+	int ret;
+
+	/* 1 for slack space, 1 for updating the inode */
+	needed_bytes = btrfs_calc_insert_metadata_size(fs_info, 1) +
+		btrfs_calc_metadata_size(fs_info, 1);
+
+	spin_lock(&rsv->lock);
+	if (rsv->reserved < needed_bytes)
+		ret = -ENOSPC;
+	else
+		ret = 0;
+	spin_unlock(&rsv->lock);
+	return ret;
 }

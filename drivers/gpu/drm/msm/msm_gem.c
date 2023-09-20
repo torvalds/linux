@@ -219,7 +219,8 @@ static void put_pages(struct drm_gem_object *obj)
 	}
 }
 
-static struct page **msm_gem_pin_pages_locked(struct drm_gem_object *obj)
+static struct page **msm_gem_pin_pages_locked(struct drm_gem_object *obj,
+					      unsigned madv)
 {
 	struct msm_drm_private *priv = obj->dev->dev_private;
 	struct msm_gem_object *msm_obj = to_msm_bo(obj);
@@ -227,7 +228,9 @@ static struct page **msm_gem_pin_pages_locked(struct drm_gem_object *obj)
 
 	msm_gem_assert_locked(obj);
 
-	if (GEM_WARN_ON(msm_obj->madv != MSM_MADV_WILLNEED)) {
+	if (GEM_WARN_ON(msm_obj->madv > madv)) {
+		DRM_DEV_ERROR(obj->dev->dev, "Invalid madv state: %u vs %u\n",
+			msm_obj->madv, madv);
 		return ERR_PTR(-EBUSY);
 	}
 
@@ -248,7 +251,7 @@ struct page **msm_gem_pin_pages(struct drm_gem_object *obj)
 	struct page **p;
 
 	msm_gem_lock(obj);
-	p = msm_gem_pin_pages_locked(obj);
+	p = msm_gem_pin_pages_locked(obj, MSM_MADV_WILLNEED);
 	msm_gem_unlock(obj);
 
 	return p;
@@ -473,10 +476,7 @@ int msm_gem_pin_vma_locked(struct drm_gem_object *obj, struct msm_gem_vma *vma)
 
 	msm_gem_assert_locked(obj);
 
-	if (GEM_WARN_ON(msm_obj->madv != MSM_MADV_WILLNEED))
-		return -EBUSY;
-
-	pages = msm_gem_pin_pages_locked(obj);
+	pages = msm_gem_pin_pages_locked(obj, MSM_MADV_WILLNEED);
 	if (IS_ERR(pages))
 		return PTR_ERR(pages);
 
@@ -699,13 +699,7 @@ static void *get_vaddr(struct drm_gem_object *obj, unsigned madv)
 	if (obj->import_attach)
 		return ERR_PTR(-ENODEV);
 
-	if (GEM_WARN_ON(msm_obj->madv > madv)) {
-		DRM_DEV_ERROR(obj->dev->dev, "Invalid madv state: %u vs %u\n",
-			msm_obj->madv, madv);
-		return ERR_PTR(-EBUSY);
-	}
-
-	pages = msm_gem_pin_pages_locked(obj);
+	pages = msm_gem_pin_pages_locked(obj, madv);
 	if (IS_ERR(pages))
 		return ERR_CAST(pages);
 
@@ -1096,6 +1090,20 @@ int msm_gem_new_handle(struct drm_device *dev, struct drm_file *file,
 	return ret;
 }
 
+static enum drm_gem_object_status msm_gem_status(struct drm_gem_object *obj)
+{
+	struct msm_gem_object *msm_obj = to_msm_bo(obj);
+	enum drm_gem_object_status status = 0;
+
+	if (msm_obj->pages)
+		status |= DRM_GEM_OBJECT_RESIDENT;
+
+	if (msm_obj->madv == MSM_MADV_DONTNEED)
+		status |= DRM_GEM_OBJECT_PURGEABLE;
+
+	return status;
+}
+
 static const struct vm_operations_struct vm_ops = {
 	.fault = msm_gem_fault,
 	.open = drm_gem_vm_open,
@@ -1110,6 +1118,7 @@ static const struct drm_gem_object_funcs msm_gem_object_funcs = {
 	.vmap = msm_gem_prime_vmap,
 	.vunmap = msm_gem_prime_vunmap,
 	.mmap = msm_gem_object_mmap,
+	.status = msm_gem_status,
 	.vm_ops = &vm_ops,
 };
 

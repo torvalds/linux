@@ -526,7 +526,7 @@ static int f_ospi_exec_op(struct spi_mem *mem, const struct spi_mem_op *op)
 static bool f_ospi_supports_op_width(struct spi_mem *mem,
 				     const struct spi_mem_op *op)
 {
-	u8 width_available[] = { 0, 1, 2, 4, 8 };
+	static const u8 width_available[] = { 0, 1, 2, 4, 8 };
 	u8 width_op[] = { op->cmd.buswidth, op->addr.buswidth,
 			  op->dummy.buswidth, op->data.buswidth };
 	bool is_match_found;
@@ -566,7 +566,7 @@ static bool f_ospi_supports_op(struct spi_mem *mem,
 
 static int f_ospi_adjust_op_size(struct spi_mem *mem, struct spi_mem_op *op)
 {
-	op->data.nbytes = min((int)op->data.nbytes, (int)(OSPI_DAT_SIZE_MAX));
+	op->data.nbytes = min_t(int, op->data.nbytes, OSPI_DAT_SIZE_MAX);
 
 	return 0;
 }
@@ -634,16 +634,10 @@ static int f_ospi_probe(struct platform_device *pdev)
 		goto err_put_ctlr;
 	}
 
-	ospi->clk = devm_clk_get(dev, NULL);
+	ospi->clk = devm_clk_get_enabled(dev, NULL);
 	if (IS_ERR(ospi->clk)) {
 		ret = PTR_ERR(ospi->clk);
 		goto err_put_ctlr;
-	}
-
-	ret = clk_prepare_enable(ospi->clk);
-	if (ret) {
-		dev_err(dev, "Failed to enable the clock\n");
-		goto err_disable_clk;
 	}
 
 	mutex_init(&ospi->mlock);
@@ -661,9 +655,6 @@ static int f_ospi_probe(struct platform_device *pdev)
 err_destroy_mutex:
 	mutex_destroy(&ospi->mlock);
 
-err_disable_clk:
-	clk_disable_unprepare(ospi->clk);
-
 err_put_ctlr:
 	spi_controller_put(ctlr);
 
@@ -673,8 +664,6 @@ err_put_ctlr:
 static void f_ospi_remove(struct platform_device *pdev)
 {
 	struct f_ospi *ospi = platform_get_drvdata(pdev);
-
-	clk_disable_unprepare(ospi->clk);
 
 	mutex_destroy(&ospi->mlock);
 }

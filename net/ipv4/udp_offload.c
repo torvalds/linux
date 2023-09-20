@@ -8,6 +8,7 @@
 
 #include <linux/skbuff.h>
 #include <net/gro.h>
+#include <net/gso.h>
 #include <net/udp.h>
 #include <net/protocol.h>
 #include <net/inet_common.h>

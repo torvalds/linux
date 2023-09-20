@@ -9,23 +9,13 @@
 
 #include "div.h"
 
-long sprd_div_helper_round_rate(struct sprd_clk_common *common,
-				const struct sprd_div_internal *div,
-				unsigned long rate,
-				unsigned long *parent_rate)
-{
-	return divider_round_rate(&common->hw, rate, parent_rate,
-				  NULL, div->width, 0);
-}
-EXPORT_SYMBOL_GPL(sprd_div_helper_round_rate);
-
 static long sprd_div_round_rate(struct clk_hw *hw, unsigned long rate,
 				unsigned long *parent_rate)
 {
 	struct sprd_div *cd = hw_to_sprd_div(hw);
 
-	return sprd_div_helper_round_rate(&cd->common, &cd->div,
-					  rate, parent_rate);
+	return divider_round_rate(&cd->common.hw, rate, parent_rate, NULL,
+				  cd->div.width, 0);
 }
 
 unsigned long sprd_div_helper_recalc_rate(struct sprd_clk_common *common,

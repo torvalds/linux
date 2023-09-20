@@ -39,3 +39,6 @@ local_config.h
 local_config.mk
 ksm_functional_tests
 mdwe_test
+gup_longterm
+mkdirty
+va_high_addr_switch

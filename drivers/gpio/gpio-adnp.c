@@ -535,7 +535,7 @@ static struct i2c_driver adnp_i2c_driver = {
 		.name = "gpio-adnp",
 		.of_match_table = adnp_of_match,
 	},
-	.probe_new = adnp_i2c_probe,
+	.probe = adnp_i2c_probe,
 	.id_table = adnp_i2c_id,
 };
 module_i2c_driver(adnp_i2c_driver);

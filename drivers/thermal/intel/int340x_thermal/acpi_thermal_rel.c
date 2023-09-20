@@ -203,6 +203,151 @@ end:
 }
 EXPORT_SYMBOL(acpi_parse_art);
 
+/*
+ * acpi_parse_psvt - Passive Table (PSVT) for passive cooling
+ *
+ * @handle: ACPI handle of the device which contains PSVT
+ * @psvt_count: the number of valid entries resulted from parsing PSVT
+ * @psvtp: pointer to array of psvt entries
+ *
+ */
+static int acpi_parse_psvt(acpi_handle handle, int *psvt_count, struct psvt **psvtp)
+{
+	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
+	int nr_bad_entries = 0, revision = 0;
+	union acpi_object *p;
+	acpi_status status;
+	int i, result = 0;
+	struct psvt *psvts;
+
+	if (!acpi_has_method(handle, "PSVT"))
+		return -ENODEV;
+
+	status = acpi_evaluate_object(handle, "PSVT", NULL, &buffer);
+	if (ACPI_FAILURE(status))
+		return -ENODEV;
+
+	p = buffer.pointer;
+	if (!p || (p->type != ACPI_TYPE_PACKAGE)) {
+		result = -EFAULT;
+		goto end;
+	}
+
+	/* first package is the revision number */
+	if (p->package.count > 0) {
+		union acpi_object *prev = &(p->package.elements[0]);
+
+		if (prev->type == ACPI_TYPE_INTEGER)
+			revision = (int)prev->integer.value;
+	} else {
+		result = -EFAULT;
+		goto end;
+	}
+
+	/* Support only version 2 */
+	if (revision != 2) {
+		result = -EFAULT;
+		goto end;
+	}
+
+	*psvt_count = p->package.count - 1;
+	if (!*psvt_count) {
+		result = -EFAULT;
+		goto end;
+	}
+
+	psvts = kcalloc(*psvt_count, sizeof(*psvts), GFP_KERNEL);
+	if (!psvts) {
+		result = -ENOMEM;
+		goto end;
+	}
+
+	/* Start index is 1 because the first package is the revision number */
+	for (i = 1; i < p->package.count; i++) {
+		struct acpi_buffer psvt_int_format = { sizeof("RRNNNNNNNNNN"), "RRNNNNNNNNNN" };
+		struct acpi_buffer psvt_str_format = { sizeof("RRNNNNNSNNNN"), "RRNNNNNSNNNN" };
+		union acpi_object *package = &(p->package.elements[i]);
+		struct psvt *psvt = &psvts[i - 1 - nr_bad_entries];
+		struct acpi_buffer *psvt_format = &psvt_int_format;
+		struct acpi_buffer element = { 0, NULL };
+		union acpi_object *knob;
+		struct acpi_device *res;
+		struct psvt *psvt_ptr;
+
+		element.length = ACPI_ALLOCATE_BUFFER;
+		element.pointer = NULL;
+
+		if (package->package.count >= ACPI_NR_PSVT_ELEMENTS) {
+			knob = &(package->package.elements[ACPI_PSVT_CONTROL_KNOB]);
+		} else {
+			nr_bad_entries++;
+			pr_info("PSVT package %d is invalid, ignored\n", i);
+			continue;
+		}
+
+		if (knob->type == ACPI_TYPE_STRING) {
+			psvt_format = &psvt_str_format;
+			if (knob->string.length > ACPI_LIMIT_STR_MAX_LEN - 1) {
+				pr_info("PSVT package %d limit string len exceeds max\n", i);
+				knob->string.length = ACPI_LIMIT_STR_MAX_LEN - 1;
+			}
+		}
+
+		status = acpi_extract_package(&(p->package.elements[i]), psvt_format, &element);
+		if (ACPI_FAILURE(status)) {
+			nr_bad_entries++;
+			pr_info("PSVT package %d is invalid, ignored\n", i);
+			continue;
+		}
+
+		psvt_ptr = (struct psvt *)element.pointer;
+
+		memcpy(psvt, psvt_ptr, sizeof(*psvt));
+
+		/* The limit element can be string or U64 */
+		psvt->control_knob_type = (u64)knob->type;
+
+		if (knob->type == ACPI_TYPE_STRING) {
+			memset(&psvt->limit, 0, sizeof(u64));
+			strncpy(psvt->limit.string, psvt_ptr->limit.str_ptr, knob->string.length);
+		} else {
+			psvt->limit.integer = psvt_ptr->limit.integer;
+		}
+
+		kfree(element.pointer);
+
+		res = acpi_fetch_acpi_dev(psvt->source);
+		if (!res) {
+			nr_bad_entries++;
+			pr_info("Failed to get source ACPI device\n");
+			continue;
+		}
+
+		res = acpi_fetch_acpi_dev(psvt->target);
+		if (!res) {
+			nr_bad_entries++;
+			pr_info("Failed to get target ACPI device\n");
+			continue;
+		}
+	}
+
+	/* don't count bad entries */
+	*psvt_count -= nr_bad_entries;
+
+	if (!*psvt_count) {
+		result = -EFAULT;
+		kfree(psvts);
+		goto end;
+	}
+
+	*psvtp = psvts;
+
+	return 0;
+
+end:
+	kfree(buffer.pointer);
+	return result;
+}
 
 /* get device name from acpi handle */
 static void get_single_name(acpi_handle handle, char *name)
@@ -289,6 +434,57 @@ free_trt:
 	return ret;
 }
 
+static int fill_psvt(char __user *ubuf)
+{
+	int i, ret, count, psvt_len;
+	union psvt_object *psvt_user;
+	struct psvt *psvts;
+
+	ret = acpi_parse_psvt(acpi_thermal_rel_handle, &count, &psvts);
+	if (ret)
+		return ret;
+
+	psvt_len = count * sizeof(*psvt_user);
+
+	psvt_user = kzalloc(psvt_len, GFP_KERNEL);
+	if (!psvt_user) {
+		ret = -ENOMEM;
+		goto free_psvt;
+	}
+
+	/* now fill in user psvt data */
+	for (i = 0; i < count; i++) {
+		/* userspace psvt needs device name instead of acpi reference */
+		get_single_name(psvts[i].source, psvt_user[i].source_device);
+		get_single_name(psvts[i].target, psvt_user[i].target_device);
+
+		psvt_user[i].priority = psvts[i].priority;
+		psvt_user[i].sample_period = psvts[i].sample_period;
+		psvt_user[i].passive_temp = psvts[i].passive_temp;
+		psvt_user[i].source_domain = psvts[i].source_domain;
+		psvt_user[i].control_knob = psvts[i].control_knob;
+		psvt_user[i].step_size = psvts[i].step_size;
+		psvt_user[i].limit_coeff = psvts[i].limit_coeff;
+		psvt_user[i].unlimit_coeff = psvts[i].unlimit_coeff;
+		psvt_user[i].control_knob_type = psvts[i].control_knob_type;
+		if (psvt_user[i].control_knob_type == ACPI_TYPE_STRING)
+			strncpy(psvt_user[i].limit.string, psvts[i].limit.string,
+				ACPI_LIMIT_STR_MAX_LEN);
+		else
+			psvt_user[i].limit.integer = psvts[i].limit.integer;
+
+	}
+
+	if (copy_to_user(ubuf, psvt_user, psvt_len))
+		ret = -EFAULT;
+
+	kfree(psvt_user);
+
+free_psvt:
+	kfree(psvts);
+	return ret;
+}
+
 static long acpi_thermal_rel_ioctl(struct file *f, unsigned int cmd,
 				   unsigned long __arg)
 {
@@ -298,6 +494,7 @@ static long acpi_thermal_rel_ioctl(struct file *f, unsigned int cmd,
 	char __user *arg = (void __user *)__arg;
 	struct trt *trts = NULL;
 	struct art *arts = NULL;
+	struct psvt *psvts;
 
 	switch (cmd) {
 	case ACPI_THERMAL_GET_TRT_COUNT:
@@ -335,6 +532,27 @@ static long acpi_thermal_rel_ioctl(struct file *f, unsigned int cmd,
 
 	case ACPI_THERMAL_GET_ART:
 		return fill_art(arg);
+
+	case ACPI_THERMAL_GET_PSVT_COUNT:
+		ret = acpi_parse_psvt(acpi_thermal_rel_handle, &count, &psvts);
+		if (!ret) {
+			kfree(psvts);
+			return put_user(count, (unsigned long __user *)__arg);
+		}
+		return ret;
+
+	case ACPI_THERMAL_GET_PSVT_LEN:
+		/* total length of the data retrieved (count * PSVT entry size) */
+		ret = acpi_parse_psvt(acpi_thermal_rel_handle, &count, &psvts);
+		length = count * sizeof(union psvt_object);
+		if (!ret) {
+			kfree(psvts);
+			return put_user(length, (unsigned long __user *)__arg);
+		}
+		return ret;
+
+	case ACPI_THERMAL_GET_PSVT:
+		return fill_psvt(arg);
 
 	default:
 		return -ENOTTY;

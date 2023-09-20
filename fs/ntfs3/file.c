@@ -744,6 +744,35 @@ static ssize_t ntfs_file_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 	return generic_file_read_iter(iocb, iter);
 }
 
+static ssize_t ntfs_file_splice_read(struct file *in, loff_t *ppos,
+				     struct pipe_inode_info *pipe,
+				     size_t len, unsigned int flags)
+{
+	struct inode *inode = in->f_mapping->host;
+	struct ntfs_inode *ni = ntfs_i(inode);
+
+	if (is_encrypted(ni)) {
+		ntfs_inode_warn(inode, "encrypted i/o not supported");
+		return -EOPNOTSUPP;
+	}
+
+#ifndef CONFIG_NTFS3_LZX_XPRESS
+	if (ni->ni_flags & NI_FLAG_COMPRESSED_MASK) {
+		ntfs_inode_warn(
+			inode,
+			"activate CONFIG_NTFS3_LZX_XPRESS to read external compressed files");
+		return -EOPNOTSUPP;
+	}
+#endif
+
+	if (is_dedup(ni)) {
+		ntfs_inode_warn(inode, "read deduplicated not supported");
+		return -EOPNOTSUPP;
+	}
+
+	return filemap_splice_read(in, ppos, pipe, len, flags);
+}
+
 /*
  * ntfs_get_frame_pages
  *
@@ -820,7 +849,6 @@ static ssize_t ntfs_compress_write(struct kiocb *iocb, struct iov_iter *from)
 	if (!pages)
 		return -ENOMEM;
 
-	current->backing_dev_info = inode_to_bdi(inode);
 	err = file_remove_privs(file);
 	if (err)
 		goto out;
@@ -993,8 +1021,6 @@ static ssize_t ntfs_compress_write(struct kiocb *iocb, struct iov_iter *from)
 out:
 	kfree(pages);
 
-	current->backing_dev_info = NULL;
-
 	if (err < 0)
 		return err;
 
@@ -1159,7 +1185,7 @@ const struct file_operations ntfs_file_operations = {
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= ntfs_compat_ioctl,
 #endif
-	.splice_read	= generic_file_splice_read,
+	.splice_read	= ntfs_file_splice_read,
 	.mmap		= ntfs_file_mmap,
 	.open		= ntfs_file_open,
 	.fsync		= generic_file_fsync,

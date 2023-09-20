@@ -6,8 +6,8 @@
  */
 #include <linux/clk.h>
 #include <linux/davinci_emac.h>
+#include <linux/gpio/machine.h>
 #include <linux/gpio/consumer.h>
-#include <linux/gpio.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/of_platform.h>
@@ -41,7 +41,6 @@ struct pdata_init {
 };
 
 static struct of_dev_auxdata omap_auxdata_lookup[];
-static struct twl4030_gpio_platform_data twl_gpio_auxdata;
 
 #ifdef CONFIG_MACH_NOKIA_N8X0
 static void __init omap2420_n8x0_legacy_init(void)
@@ -98,52 +97,43 @@ static struct iommu_platform_data omap3_iommu_isp_pdata = {
 };
 #endif
 
-static int omap3_sbc_t3730_twl_callback(struct device *dev,
-					   unsigned gpio,
-					   unsigned ngpio)
+static void __init omap3_sbc_t3x_usb_hub_init(char *hub_name, int idx)
 {
-	int res;
+	struct gpio_desc *d;
 
-	res = gpio_request_one(gpio + 2, GPIOF_OUT_INIT_HIGH,
-			       "wlan pwr");
-	if (res)
-		return res;
-
-	gpiod_export(gpio_to_desc(gpio), 0);
-
-	return 0;
-}
-
-static void __init omap3_sbc_t3x_usb_hub_init(int gpio, char *hub_name)
-{
-	int err = gpio_request_one(gpio, GPIOF_OUT_INIT_LOW, hub_name);
-
-	if (err) {
-		pr_err("SBC-T3x: %s reset gpio request failed: %d\n",
-			hub_name, err);
+	/* This asserts the RESET line (reverse polarity) */
+	d = gpiod_get_index(NULL, "reset", idx, GPIOD_OUT_HIGH);
+	if (IS_ERR(d)) {
+		pr_err("Unable to get T3x USB reset GPIO descriptor\n");
 		return;
 	}
-
-	gpiod_export(gpio_to_desc(gpio), 0);
-
+	gpiod_set_consumer_name(d, hub_name);
+	gpiod_export(d, 0);
 	udelay(10);
-	gpio_set_value(gpio, 1);
+	/* De-assert RESET */
+	gpiod_set_value(d, 0);
 	msleep(1);
 }
 
-static void __init omap3_sbc_t3730_twl_init(void)
-{
-	twl_gpio_auxdata.setup = omap3_sbc_t3730_twl_callback;
-}
+static struct gpiod_lookup_table omap3_sbc_t3x_usb_gpio_table = {
+	.dev_id = NULL,
+	.table = {
+		GPIO_LOOKUP_IDX("gpio-160-175", 7, "reset", 0,
+				GPIO_ACTIVE_LOW),
+		{ }
+	},
+};
 
 static void __init omap3_sbc_t3730_legacy_init(void)
 {
-	omap3_sbc_t3x_usb_hub_init(167, "sb-t35 usb hub");
+	gpiod_add_lookup_table(&omap3_sbc_t3x_usb_gpio_table);
+	omap3_sbc_t3x_usb_hub_init("sb-t35 usb hub", 0);
 }
 
 static void __init omap3_sbc_t3530_legacy_init(void)
 {
-	omap3_sbc_t3x_usb_hub_init(167, "sb-t35 usb hub");
+	gpiod_add_lookup_table(&omap3_sbc_t3x_usb_gpio_table);
+	omap3_sbc_t3x_usb_hub_init("sb-t35 usb hub", 0);
 }
 
 static void __init omap3_evm_legacy_init(void)
@@ -187,31 +177,59 @@ static void __init am35xx_emac_reset(void)
 	omap_ctrl_readl(AM35XX_CONTROL_IP_SW_RESET); /* OCP barrier */
 }
 
-static struct gpio cm_t3517_wlan_gpios[] __initdata = {
-	{ 56,	GPIOF_OUT_INIT_HIGH,	"wlan pwr" },
-	{ 4,	GPIOF_OUT_INIT_HIGH,	"xcvr noe" },
+static struct gpiod_lookup_table cm_t3517_wlan_gpio_table = {
+	.dev_id = NULL,
+	.table = {
+		GPIO_LOOKUP("gpio-48-53", 8, "power",
+			    GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("gpio-0-15", 4, "noe",
+			    GPIO_ACTIVE_HIGH),
+		{ }
+	},
 };
 
 static void __init omap3_sbc_t3517_wifi_init(void)
 {
-	int err = gpio_request_array(cm_t3517_wlan_gpios,
-				ARRAY_SIZE(cm_t3517_wlan_gpios));
-	if (err) {
-		pr_err("SBC-T3517: wl12xx gpios request failed: %d\n", err);
-		return;
+	struct gpio_desc *d;
+
+	gpiod_add_lookup_table(&cm_t3517_wlan_gpio_table);
+
+	/* This asserts the RESET line (reverse polarity) */
+	d = gpiod_get(NULL, "power", GPIOD_OUT_HIGH);
+	if (IS_ERR(d)) {
+		pr_err("Unable to get CM T3517 WLAN power GPIO descriptor\n");
+	} else {
+		gpiod_set_consumer_name(d, "wlan pwr");
+		gpiod_export(d, 0);
 	}
 
-	gpiod_export(gpio_to_desc(cm_t3517_wlan_gpios[0].gpio), 0);
-	gpiod_export(gpio_to_desc(cm_t3517_wlan_gpios[1].gpio), 0);
-
+	d = gpiod_get(NULL, "noe", GPIOD_OUT_HIGH);
+	if (IS_ERR(d)) {
+		pr_err("Unable to get CM T3517 WLAN XCVR NOE GPIO descriptor\n");
+	} else {
+		gpiod_set_consumer_name(d, "xcvr noe");
+		gpiod_export(d, 0);
+	}
 	msleep(100);
-	gpio_set_value(cm_t3517_wlan_gpios[1].gpio, 0);
+	gpiod_set_value(d, 0);
 }
+
+static struct gpiod_lookup_table omap3_sbc_t3517_usb_gpio_table = {
+	.dev_id = NULL,
+	.table = {
+		GPIO_LOOKUP_IDX("gpio-144-159", 8, "reset", 0,
+				GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP_IDX("gpio-96-111", 2, "reset", 1,
+				GPIO_ACTIVE_LOW),
+		{ }
+	},
+};
 
 static void __init omap3_sbc_t3517_legacy_init(void)
 {
-	omap3_sbc_t3x_usb_hub_init(152, "cm-t3517 usb hub");
-	omap3_sbc_t3x_usb_hub_init(98, "sb-t35 usb hub");
+	gpiod_add_lookup_table(&omap3_sbc_t3517_usb_gpio_table);
+	omap3_sbc_t3x_usb_hub_init("cm-t3517 usb hub", 0);
+	omap3_sbc_t3x_usb_hub_init("sb-t35 usb hub", 1);
 	am35xx_emac_reset();
 	hsmmc2_internal_input_clk();
 	omap3_sbc_t3517_wifi_init();
@@ -393,21 +411,6 @@ static struct ti_prm_platform_data ti_prm_pdata = {
 	.clkdm_lookup = clkdm_lookup,
 };
 
-/*
- * GPIOs for TWL are initialized by the I2C bus and need custom
- * handing until DSS has device tree bindings.
- */
-void omap_auxdata_legacy_init(struct device *dev)
-{
-	if (dev->platform_data)
-		return;
-
-	if (strcmp("twl4030-gpio", dev_name(dev)))
-		return;
-
-	dev->platform_data = &twl_gpio_auxdata;
-}
-
 #if defined(CONFIG_ARCH_OMAP3) && IS_ENABLED(CONFIG_SND_SOC_OMAP_MCBSP)
 static struct omap_mcbsp_platform_data mcbsp_pdata;
 static void __init omap3_mcbsp_init(void)
@@ -427,9 +430,6 @@ static struct pdata_init auxdata_quirks[] __initdata = {
 	{ "nokia,n800", omap2420_n8x0_legacy_init, },
 	{ "nokia,n810", omap2420_n8x0_legacy_init, },
 	{ "nokia,n810-wimax", omap2420_n8x0_legacy_init, },
-#endif
-#ifdef CONFIG_ARCH_OMAP3
-	{ "compulab,omap3-sbc-t3730", omap3_sbc_t3730_twl_init, },
 #endif
 	{ /* sentinel */ },
 };

@@ -321,12 +321,15 @@ static inline void red_adaptative_timer(struct timer_list *t)
 {
 	struct red_sched_data *q = from_timer(q, t, adapt_timer);
 	struct Qdisc *sch = q->sch;
-	spinlock_t *root_lock = qdisc_lock(qdisc_root_sleeping(sch));
+	spinlock_t *root_lock;
 
+	rcu_read_lock();
+	root_lock = qdisc_lock(qdisc_root_sleeping(sch));
 	spin_lock(root_lock);
 	red_adaptative_algo(&q->parms, &q->vars);
 	mod_timer(&q->adapt_timer, jiffies + HZ/2);
 	spin_unlock(root_lock);
+	rcu_read_unlock();
 }
 
 static int red_init(struct Qdisc *sch, struct nlattr *opt,

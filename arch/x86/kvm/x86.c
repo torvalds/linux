@@ -1446,7 +1446,7 @@ static const u32 msrs_to_save_base[] = {
 #endif
 	MSR_IA32_TSC, MSR_IA32_CR_PAT, MSR_VM_HSAVE_PA,
 	MSR_IA32_FEAT_CTL, MSR_IA32_BNDCFGS, MSR_TSC_AUX,
-	MSR_IA32_SPEC_CTRL,
+	MSR_IA32_SPEC_CTRL, MSR_IA32_TSX_CTRL,
 	MSR_IA32_RTIT_CTL, MSR_IA32_RTIT_STATUS, MSR_IA32_RTIT_CR3_MATCH,
 	MSR_IA32_RTIT_OUTPUT_BASE, MSR_IA32_RTIT_OUTPUT_MASK,
 	MSR_IA32_RTIT_ADDR0_A, MSR_IA32_RTIT_ADDR0_B,
@@ -2799,14 +2799,13 @@ static u64 read_tsc(void)
 static inline u64 vgettsc(struct pvclock_clock *clock, u64 *tsc_timestamp,
 			  int *mode)
 {
-	long v;
 	u64 tsc_pg_val;
+	long v;
 
 	switch (clock->vclock_mode) {
 	case VDSO_CLOCKMODE_HVCLOCK:
-		tsc_pg_val = hv_read_tsc_page_tsc(hv_get_tsc_page(),
-						  tsc_timestamp);
-		if (tsc_pg_val != U64_MAX) {
+		if (hv_read_tsc_page_tsc(hv_get_tsc_page(),
+					 tsc_timestamp, &tsc_pg_val)) {
 			/* TSC page valid */
 			*mode = VDSO_CLOCKMODE_HVCLOCK;
 			v = (tsc_pg_val - clock->cycle_last) &
@@ -7155,6 +7154,10 @@ static void kvm_probe_msr_to_save(u32 msr_index)
 		if (!kvm_cpu_cap_has(X86_FEATURE_XFD))
 			return;
 		break;
+	case MSR_IA32_TSX_CTRL:
+		if (!(kvm_get_arch_capabilities() & ARCH_CAP_TSX_CTRL_MSR))
+			return;
+		break;
 	default:
 		break;
 	}
@@ -10754,6 +10757,9 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 			exit_fastpath = EXIT_FASTPATH_EXIT_HANDLED;
 			break;
 		}
+
+		/* Note, VM-Exits that go down the "slow" path are accounted below. */
+		++vcpu->stat.exits;
 	}
 
 	/*
@@ -13155,7 +13161,7 @@ EXPORT_SYMBOL_GPL(kvm_arch_end_assignment);
 
 bool noinstr kvm_arch_has_assigned_device(struct kvm *kvm)
 {
-	return arch_atomic_read(&kvm->arch.assigned_device_count);
+	return raw_atomic_read(&kvm->arch.assigned_device_count);
 }
 EXPORT_SYMBOL_GPL(kvm_arch_has_assigned_device);
 

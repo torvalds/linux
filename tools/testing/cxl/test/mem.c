@@ -1256,6 +1256,7 @@ static int cxl_mock_mem_probe(struct platform_device *pdev)
 	if (rc)
 		return rc;
 
+	cxlds->media_ready = true;
 	rc = cxl_dev_state_identify(cxlds);
 	if (rc)
 		return rc;

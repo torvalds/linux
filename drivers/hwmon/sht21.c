@@ -285,7 +285,7 @@ MODULE_DEVICE_TABLE(i2c, sht21_id);
 
 static struct i2c_driver sht21_driver = {
 	.driver.name = "sht21",
-	.probe_new   = sht21_probe,
+	.probe       = sht21_probe,
 	.id_table    = sht21_id,
 };
 

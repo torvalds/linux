@@ -71,7 +71,7 @@ static int kvm_set_wallclock(const struct timespec64 *now)
 	return -ENODEV;
 }
 
-static noinstr u64 kvm_clock_read(void)
+static u64 kvm_clock_read(void)
 {
 	u64 ret;
 
@@ -88,7 +88,7 @@ static u64 kvm_clock_get_cycles(struct clocksource *cs)
 
 static noinstr u64 kvm_sched_clock_read(void)
 {
-	return kvm_clock_read() - kvm_sched_clock_offset;
+	return pvclock_clocksource_read_nowd(this_cpu_pvti()) - kvm_sched_clock_offset;
 }
 
 static inline void kvm_sched_clock_init(bool stable)

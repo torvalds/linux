@@ -77,7 +77,9 @@ int rx(struct xdp_md *ctx)
 	}
 
 	err = bpf_xdp_metadata_rx_timestamp(ctx, &meta->rx_timestamp);
-	if (err)
+	if (!err)
+		meta->xdp_timestamp = bpf_ktime_get_tai_ns();
+	else
 		meta->rx_timestamp = 0; /* Used by AF_XDP as not avail signal */
 
 	err = bpf_xdp_metadata_rx_hash(ctx, &meta->rx_hash, &meta->rx_hash_type);

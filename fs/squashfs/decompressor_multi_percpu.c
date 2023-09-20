@@ -7,7 +7,6 @@
 #include <linux/types.h>
 #include <linux/slab.h>
 #include <linux/percpu.h>
-#include <linux/buffer_head.h>
 #include <linux/local_lock.h>
 
 #include "squashfs_fs.h"

@@ -175,7 +175,7 @@ static struct i2c_driver pca9570_driver = {
 		.name = "pca9570",
 		.of_match_table = pca9570_of_match_table,
 	},
-	.probe_new = pca9570_probe,
+	.probe = pca9570_probe,
 	.id_table = pca9570_id_table,
 };
 module_i2c_driver(pca9570_driver);

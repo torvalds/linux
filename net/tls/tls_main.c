@@ -111,7 +111,8 @@ int wait_on_pending_writer(struct sock *sk, long *timeo)
 			break;
 		}
 
-		if (sk_wait_event(sk, timeo, !sk->sk_write_pending, &wait))
+		if (sk_wait_event(sk, timeo,
+				  !READ_ONCE(sk->sk_write_pending), &wait))
 			break;
 	}
 	remove_wait_queue(sk_sleep(sk), &wait);
@@ -124,7 +125,10 @@ int tls_push_sg(struct sock *sk,
 		u16 first_offset,
 		int flags)
 {
-	int sendpage_flags = flags | MSG_SENDPAGE_NOTLAST;
+	struct bio_vec bvec;
+	struct msghdr msg = {
+		.msg_flags = MSG_SPLICE_PAGES | flags,
+	};
 	int ret = 0;
 	struct page *p;
 	size_t size;
@@ -133,16 +137,19 @@ int tls_push_sg(struct sock *sk,
 	size = sg->length - offset;
 	offset += sg->offset;
 
-	ctx->in_tcp_sendpages = true;
+	ctx->splicing_pages = true;
 	while (1) {
 		if (sg_is_last(sg))
-			sendpage_flags = flags;
+			msg.msg_flags = flags;
 
 		/* is sending application-limited? */
 		tcp_rate_check_app_limited(sk);
 		p = sg_page(sg);
 retry:
-		ret = do_tcp_sendpages(sk, p, offset, size, sendpage_flags);
+		bvec_set_page(&bvec, p, size, offset);
+		iov_iter_bvec(&msg.msg_iter, ITER_SOURCE, &bvec, 1, size);
+
+		ret = tcp_sendmsg_locked(sk, &msg, size);
 
 		if (ret != size) {
 			if (ret > 0) {
@@ -154,7 +161,7 @@ retry:
 			offset -= sg->offset;
 			ctx->partially_sent_offset = offset;
 			ctx->partially_sent_record = (void *)sg;
-			ctx->in_tcp_sendpages = false;
+			ctx->splicing_pages = false;
 			return ret;
 		}
 
@@ -168,7 +175,7 @@ retry:
 		size = sg->length;
 	}
 
-	ctx->in_tcp_sendpages = false;
+	ctx->splicing_pages = false;
 
 	return 0;
 }
@@ -246,11 +253,11 @@ static void tls_write_space(struct sock *sk)
 {
 	struct tls_context *ctx = tls_get_ctx(sk);
 
-	/* If in_tcp_sendpages call lower protocol write space handler
+	/* If splicing_pages call lower protocol write space handler
 	 * to ensure we wake up any waiting operations there. For example
-	 * if do_tcp_sendpages where to call sk_wait_event.
+	 * if splicing pages where to call sk_wait_event.
 	 */
-	if (ctx->in_tcp_sendpages) {
+	if (ctx->splicing_pages) {
 		ctx->sk_write_space(sk);
 		return;
 	}
@@ -349,6 +356,39 @@ static void tls_sk_proto_close(struct sock *sk, long timeout)
 
 	if (free_ctx)
 		tls_ctx_free(sk, ctx);
+}
+
+static __poll_t tls_sk_poll(struct file *file, struct socket *sock,
+			    struct poll_table_struct *wait)
+{
+	struct tls_sw_context_rx *ctx;
+	struct tls_context *tls_ctx;
+	struct sock *sk = sock->sk;
+	struct sk_psock *psock;
+	__poll_t mask = 0;
+	u8 shutdown;
+	int state;
+
+	mask = tcp_poll(file, sock, wait);
+
+	state = inet_sk_state_load(sk);
+	shutdown = READ_ONCE(sk->sk_shutdown);
+	if (unlikely(state != TCP_ESTABLISHED || shutdown & RCV_SHUTDOWN))
+		return mask;
+
+	tls_ctx = tls_get_ctx(sk);
+	ctx = tls_sw_ctx_rx(tls_ctx);
+	psock = sk_psock_get(sk);
+
+	if (skb_queue_empty_lockless(&ctx->rx_list) &&
+	    !tls_strp_msg_ready(ctx) &&
+	    sk_psock_queue_empty(psock))
+		mask &= ~(EPOLLIN | EPOLLRDNORM);
+
+	if (psock)
+		sk_psock_put(sk, psock);
+
+	return mask;
 }
 
 static int do_tls_getsockopt_conf(struct sock *sk, char __user *optval,
@@ -917,27 +957,26 @@ static void build_proto_ops(struct proto_ops ops[TLS_NUM_CONFIG][TLS_NUM_CONFIG]
 	ops[TLS_BASE][TLS_BASE] = *base;
 
 	ops[TLS_SW  ][TLS_BASE] = ops[TLS_BASE][TLS_BASE];
-	ops[TLS_SW  ][TLS_BASE].sendpage_locked	= tls_sw_sendpage_locked;
+	ops[TLS_SW  ][TLS_BASE].splice_eof	= tls_sw_splice_eof;
 
 	ops[TLS_BASE][TLS_SW  ] = ops[TLS_BASE][TLS_BASE];
 	ops[TLS_BASE][TLS_SW  ].splice_read	= tls_sw_splice_read;
+	ops[TLS_BASE][TLS_SW  ].poll		= tls_sk_poll;
 
 	ops[TLS_SW  ][TLS_SW  ] = ops[TLS_SW  ][TLS_BASE];
 	ops[TLS_SW  ][TLS_SW  ].splice_read	= tls_sw_splice_read;
+	ops[TLS_SW  ][TLS_SW  ].poll		= tls_sk_poll;
 
 #ifdef CONFIG_TLS_DEVICE
 	ops[TLS_HW  ][TLS_BASE] = ops[TLS_BASE][TLS_BASE];
-	ops[TLS_HW  ][TLS_BASE].sendpage_locked	= NULL;
 
 	ops[TLS_HW  ][TLS_SW  ] = ops[TLS_BASE][TLS_SW  ];
-	ops[TLS_HW  ][TLS_SW  ].sendpage_locked	= NULL;
 
 	ops[TLS_BASE][TLS_HW  ] = ops[TLS_BASE][TLS_SW  ];
 
 	ops[TLS_SW  ][TLS_HW  ] = ops[TLS_SW  ][TLS_SW  ];
 
 	ops[TLS_HW  ][TLS_HW  ] = ops[TLS_HW  ][TLS_SW  ];
-	ops[TLS_HW  ][TLS_HW  ].sendpage_locked	= NULL;
 #endif
 #ifdef CONFIG_TLS_TOE
 	ops[TLS_HW_RECORD][TLS_HW_RECORD] = *base;
@@ -985,7 +1024,7 @@ static void build_protos(struct proto prot[TLS_NUM_CONFIG][TLS_NUM_CONFIG],
 
 	prot[TLS_SW][TLS_BASE] = prot[TLS_BASE][TLS_BASE];
 	prot[TLS_SW][TLS_BASE].sendmsg		= tls_sw_sendmsg;
-	prot[TLS_SW][TLS_BASE].sendpage		= tls_sw_sendpage;
+	prot[TLS_SW][TLS_BASE].splice_eof	= tls_sw_splice_eof;
 
 	prot[TLS_BASE][TLS_SW] = prot[TLS_BASE][TLS_BASE];
 	prot[TLS_BASE][TLS_SW].recvmsg		  = tls_sw_recvmsg;
@@ -1000,11 +1039,11 @@ static void build_protos(struct proto prot[TLS_NUM_CONFIG][TLS_NUM_CONFIG],
 #ifdef CONFIG_TLS_DEVICE
 	prot[TLS_HW][TLS_BASE] = prot[TLS_BASE][TLS_BASE];
 	prot[TLS_HW][TLS_BASE].sendmsg		= tls_device_sendmsg;
-	prot[TLS_HW][TLS_BASE].sendpage		= tls_device_sendpage;
+	prot[TLS_HW][TLS_BASE].splice_eof	= tls_device_splice_eof;
 
 	prot[TLS_HW][TLS_SW] = prot[TLS_BASE][TLS_SW];
 	prot[TLS_HW][TLS_SW].sendmsg		= tls_device_sendmsg;
-	prot[TLS_HW][TLS_SW].sendpage		= tls_device_sendpage;
+	prot[TLS_HW][TLS_SW].splice_eof		= tls_device_splice_eof;
 
 	prot[TLS_BASE][TLS_HW] = prot[TLS_BASE][TLS_SW];
 

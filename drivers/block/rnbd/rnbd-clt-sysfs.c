@@ -24,7 +24,9 @@
 #include "rnbd-clt.h"
 
 static struct device *rnbd_dev;
-static struct class *rnbd_dev_class;
+static const struct class rnbd_dev_class = {
+	.name = "rnbd_client",
+};
 static struct kobject *rnbd_devs_kobj;
 
 enum {
@@ -278,7 +280,7 @@ static ssize_t access_mode_show(struct kobject *kobj,
 
 	dev = container_of(kobj, struct rnbd_clt_dev, kobj);
 
-	return sysfs_emit(page, "%s\n", rnbd_access_mode_str(dev->access_mode));
+	return sysfs_emit(page, "%s\n", rnbd_access_modes[dev->access_mode].str);
 }
 
 static struct kobj_attribute rnbd_clt_access_mode =
@@ -596,7 +598,7 @@ static ssize_t rnbd_clt_map_device_store(struct kobject *kobj,
 
 	pr_info("Mapping device %s on session %s, (access_mode: %s, nr_poll_queues: %d)\n",
 		pathname, sessname,
-		rnbd_access_mode_str(access_mode),
+		rnbd_access_modes[access_mode].str,
 		nr_poll_queues);
 
 	dev = rnbd_clt_map_device(sessname, paths, path_cnt, port_nr, pathname,
@@ -646,11 +648,11 @@ int rnbd_clt_create_sysfs_files(void)
 {
 	int err;
 
-	rnbd_dev_class = class_create("rnbd-client");
-	if (IS_ERR(rnbd_dev_class))
-		return PTR_ERR(rnbd_dev_class);
+	err = class_register(&rnbd_dev_class);
+	if (err)
+		return err;
 
-	rnbd_dev = device_create_with_groups(rnbd_dev_class, NULL,
+	rnbd_dev = device_create_with_groups(&rnbd_dev_class, NULL,
 					      MKDEV(0, 0), NULL,
 					      default_attr_groups, "ctl");
 	if (IS_ERR(rnbd_dev)) {
@@ -666,9 +668,9 @@ int rnbd_clt_create_sysfs_files(void)
 	return 0;
 
 dev_destroy:
-	device_destroy(rnbd_dev_class, MKDEV(0, 0));
+	device_destroy(&rnbd_dev_class, MKDEV(0, 0));
 cls_destroy:
-	class_destroy(rnbd_dev_class);
+	class_unregister(&rnbd_dev_class);
 
 	return err;
 }
@@ -678,6 +680,6 @@ void rnbd_clt_destroy_sysfs_files(void)
 	sysfs_remove_group(&rnbd_dev->kobj, &default_attr_group);
 	kobject_del(rnbd_devs_kobj);
 	kobject_put(rnbd_devs_kobj);
-	device_destroy(rnbd_dev_class, MKDEV(0, 0));
-	class_destroy(rnbd_dev_class);
+	device_destroy(&rnbd_dev_class, MKDEV(0, 0));
+	class_unregister(&rnbd_dev_class);
 }

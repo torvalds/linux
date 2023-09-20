@@ -37,6 +37,16 @@ s64 arch_atomic64_fetch_##op(s64, atomic64_t *);
 ATOMIC_OPS(add)
 ATOMIC_OPS(sub)
 
+#define arch_atomic_add_return			arch_atomic_add_return
+#define arch_atomic_sub_return			arch_atomic_sub_return
+#define arch_atomic_fetch_add			arch_atomic_fetch_add
+#define arch_atomic_fetch_sub			arch_atomic_fetch_sub
+
+#define arch_atomic64_add_return		arch_atomic64_add_return
+#define arch_atomic64_sub_return		arch_atomic64_sub_return
+#define arch_atomic64_fetch_add			arch_atomic64_fetch_add
+#define arch_atomic64_fetch_sub			arch_atomic64_fetch_sub
+
 #undef ATOMIC_OPS
 #define ATOMIC_OPS(op) ATOMIC_OP(op) ATOMIC_FETCH_OP(op)
 
@@ -44,21 +54,18 @@ ATOMIC_OPS(and)
 ATOMIC_OPS(or)
 ATOMIC_OPS(xor)
 
+#define arch_atomic_fetch_and			arch_atomic_fetch_and
+#define arch_atomic_fetch_or			arch_atomic_fetch_or
+#define arch_atomic_fetch_xor			arch_atomic_fetch_xor
+
+#define arch_atomic64_fetch_and			arch_atomic64_fetch_and
+#define arch_atomic64_fetch_or			arch_atomic64_fetch_or
+#define arch_atomic64_fetch_xor			arch_atomic64_fetch_xor
+
 #undef ATOMIC_OPS
 #undef ATOMIC_FETCH_OP
 #undef ATOMIC_OP_RETURN
 #undef ATOMIC_OP
-
-#define arch_atomic_cmpxchg(v, o, n) (arch_cmpxchg(&((v)->counter), (o), (n)))
-
-static inline int arch_atomic_xchg(atomic_t *v, int new)
-{
-	return arch_xchg(&v->counter, new);
-}
-
-#define arch_atomic64_cmpxchg(v, o, n) \
-	((__typeof__((v)->counter))arch_cmpxchg(&((v)->counter), (o), (n)))
-#define arch_atomic64_xchg(v, new) (arch_xchg(&((v)->counter), new))
 
 s64 arch_atomic64_dec_if_positive(atomic64_t *v);
 #define arch_atomic64_dec_if_positive arch_atomic64_dec_if_positive

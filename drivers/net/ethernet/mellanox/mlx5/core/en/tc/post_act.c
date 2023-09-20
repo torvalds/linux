@@ -112,10 +112,8 @@ mlx5e_tc_post_act_add(struct mlx5e_post_act *post_act, struct mlx5_flow_attr *po
 	int err;
 
 	handle = kzalloc(sizeof(*handle), GFP_KERNEL);
-	if (!handle) {
-		kfree(handle);
+	if (!handle)
 		return ERR_PTR(-ENOMEM);
-	}
 
 	post_attr->chain = 0;
 	post_attr->prio = 0;

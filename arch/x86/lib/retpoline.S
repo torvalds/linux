@@ -143,9 +143,9 @@ SYM_CODE_END(__x86_indirect_jump_thunk_array)
  *    from re-poisioning the BTB prediction.
  */
 	.align 64
-	.skip 63, 0xcc
-SYM_FUNC_START_NOALIGN(zen_untrain_ret);
-
+	.skip 64 - (__x86_return_thunk - zen_untrain_ret), 0xcc
+SYM_START(zen_untrain_ret, SYM_L_GLOBAL, SYM_A_NONE)
+	ANNOTATE_NOENDBR
 	/*
 	 * As executed from zen_untrain_ret, this is:
 	 *

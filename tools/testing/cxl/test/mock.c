@@ -19,7 +19,7 @@ void register_cxl_mock_ops(struct cxl_mock_ops *ops)
 }
 EXPORT_SYMBOL_GPL(register_cxl_mock_ops);
 
-static DEFINE_SRCU(cxl_mock_srcu);
+DEFINE_STATIC_SRCU(cxl_mock_srcu);
 
 void unregister_cxl_mock_ops(struct cxl_mock_ops *ops)
 {
@@ -148,6 +148,21 @@ struct cxl_hdm *__wrap_devm_cxl_setup_hdm(struct cxl_port *port,
 	return cxlhdm;
 }
 EXPORT_SYMBOL_NS_GPL(__wrap_devm_cxl_setup_hdm, CXL);
+
+int __wrap_devm_cxl_enable_hdm(struct cxl_port *port, struct cxl_hdm *cxlhdm)
+{
+	int index, rc;
+	struct cxl_mock_ops *ops = get_cxl_mock_ops(&index);
+
+	if (ops && ops->is_mock_port(port->uport))
+		rc = 0;
+	else
+		rc = devm_cxl_enable_hdm(port, cxlhdm);
+	put_cxl_mock_ops(index);
+
+	return rc;
+}
+EXPORT_SYMBOL_NS_GPL(__wrap_devm_cxl_enable_hdm, CXL);
 
 int __wrap_devm_cxl_add_passthrough_decoder(struct cxl_port *port)
 {

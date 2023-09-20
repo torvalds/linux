@@ -9,6 +9,7 @@
 #include <asm/processor.h>
 #include <asm/desc.h>
 #include <asm/traps.h>
+#include <asm/doublefault.h>
 
 #define ptr_ok(x) ((x) > PAGE_OFFSET && (x) < PAGE_OFFSET + MAXMEM)
 

@@ -228,7 +228,7 @@ static u32 hns3_lb_check_rx_ring(struct hns3_nic_priv *priv, u32 budget)
 }
 
 static void hns3_lb_clear_tx_ring(struct hns3_nic_priv *priv, u32 start_ringid,
-				  u32 end_ringid, u32 budget)
+				  u32 end_ringid)
 {
 	u32 i;
 
@@ -295,8 +295,7 @@ static int hns3_lp_run_test(struct net_device *ndev, enum hnae3_loop mode)
 
 out:
 	hns3_lb_clear_tx_ring(priv, HNS3_NIC_LB_TEST_RING_ID,
-			      HNS3_NIC_LB_TEST_RING_ID,
-			      HNS3_NIC_LB_TEST_PKT_NUM);
+			      HNS3_NIC_LB_TEST_RING_ID);
 
 	kfree_skb(skb);
 	return ret_val;
@@ -618,7 +617,7 @@ static void hns3_get_stats(struct net_device *netdev,
 		return;
 	}
 
-	h->ae_algo->ops->update_stats(h, &netdev->stats);
+	h->ae_algo->ops->update_stats(h);
 
 	/* get per-queue stats */
 	p = hns3_get_stats_tqps(h, p);

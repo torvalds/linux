@@ -362,6 +362,7 @@ struct snd_sof_control {
 	size_t priv_size; /* size of private data */
 	size_t max_size;
 	void *ipc_control_data;
+	void *old_ipc_control_data;
 	int max; /* applicable to volume controls */
 	u32 size;	/* cdata size */
 	u32 *volume_table; /* volume table computed from tlv data*/

@@ -92,7 +92,7 @@ int avtab_alloc(struct avtab *, u32);
 int avtab_alloc_dup(struct avtab *new, const struct avtab *orig);
 struct avtab_datum *avtab_search(struct avtab *h, const struct avtab_key *k);
 void avtab_destroy(struct avtab *h);
-void avtab_hash_eval(struct avtab *h, char *tag);
+void avtab_hash_eval(struct avtab *h, const char *tag);
 
 struct policydb;
 int avtab_read_item(struct avtab *a, void *fp, struct policydb *pol,

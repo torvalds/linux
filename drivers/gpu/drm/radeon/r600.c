@@ -4345,7 +4345,7 @@ restart_ih:
 
 static int r600_debugfs_mc_info_show(struct seq_file *m, void *unused)
 {
-	struct radeon_device *rdev = (struct radeon_device *)m->private;
+	struct radeon_device *rdev = m->private;
 
 	DREG32_SYS(m, rdev, R_000E50_SRBM_STATUS);
 	DREG32_SYS(m, rdev, VM_L2_STATUS);

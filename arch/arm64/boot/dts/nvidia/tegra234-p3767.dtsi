@@ -99,72 +99,22 @@
 	};
 
 	thermal-zones {
-		/*
-		 * This monitoring is far from optimal, but it's good enough
-		 * at this stage.
-		 */
-		cpu-thermal {
+		tj-thermal {
 			polling-delay = <1000>;
 			polling-delay-passive = <1000>;
 			status = "okay";
 
 			trips {
-				critical {
-					temperature = <104500>;
-					hysteresis = <0>;
-					type = "critical";
+				tj_trip_active0: active-0 {
+					temperature = <74000>;
+					hysteresis = <4000>;
+					type = "active";
 				};
 
-				hot {
-					temperature = <99000>;
-					hysteresis = <1000>;
-					type = "hot";
-				};
-
-				board_trip_passive: passive {
+				tj_trip_active1: active-1 {
 					temperature = <95000>;
-					hysteresis = <2000>;
-					type = "passive";
-				};
-
-				board_trip_active2: active-2 {
-					temperature = <80000>;
 					hysteresis = <4000>;
 					type = "active";
-				};
-
-				board_trip_active1: active-1 {
-					temperature = <65000>;
-					hysteresis = <4000>;
-					type = "active";
-				};
-
-				board_trip_active0: active-0 {
-					temperature = <50000>;
-					hysteresis = <4000>;
-					type = "active";
-				};
-			};
-
-			cooling-maps {
-				passive {
-					cooling-device = <&fan 3 3>;
-					trip = <&board_trip_passive>;
-				};
-
-				active2 {
-					cooling-device = <&fan 2 3>;
-					trip = <&board_trip_active2>;
-				};
-
-				active1 {
-					cooling-device = <&fan 1 2>;
-					trip = <&board_trip_active1>;
-				};
-
-				active0 {
-					cooling-device = <&fan 0 1>;
-					trip = <&board_trip_active0>;
 				};
 			};
 		};

@@ -1,0 +1,69 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/soc/qcom/qcom,rpm-master-stats.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Qualcomm Technologies, Inc. (QTI) RPM Master Stats
+
+maintainers:
+  - Konrad Dybcio <konrad.dybcio@linaro.org>
+
+description: |
+  The Qualcomm RPM (Resource Power Manager) architecture includes a concept
+  of "RPM Masters". They can be thought of as "the local gang leaders", usually
+  spanning a single subsystem (e.g. APSS, ADSP, CDSP). All of the RPM decisions
+  (particularly around entering hardware-driven low power modes: XO shutdown
+  and total system-wide power collapse) are first made at Master-level, and
+  only then aggregated for the entire system.
+
+  The Master Stats provide a few useful bits that can be used to assess whether
+  our device has entered the desired low-power mode, how long it took to do so,
+  the duration of that residence, how long it took to come back online,
+  how many times a given sleep state was entered and which cores are actively
+  voting for staying awake.
+
+  This scheme has been used on various SoCs in the 2013-2023 era, with some
+  newer or higher-end designs providing this information through an SMEM query.
+
+properties:
+  compatible:
+    const: qcom,rpm-master-stats
+
+  qcom,rpm-msg-ram:
+    $ref: /schemas/types.yaml#/definitions/phandle-array
+    description: Phandle to an RPM MSG RAM slice containing the master stats
+    minItems: 1
+    maxItems: 5
+
+  qcom,master-names:
+    $ref: /schemas/types.yaml#/definitions/string-array
+    description:
+      The name of the RPM Master which owns the MSG RAM slice where this
+      instance of Master Stats resides
+    minItems: 1
+    maxItems: 5
+
+required:
+  - compatible
+  - qcom,rpm-msg-ram
+  - qcom,master-names
+
+additionalProperties: false
+
+examples:
+  - |
+    stats {
+      compatible = "qcom,rpm-master-stats";
+      qcom,rpm-msg-ram = <&apss_master_stats>,
+                         <&mpss_master_stats>,
+                         <&adsp_master_stats>,
+                         <&cdsp_master_stats>,
+                         <&tz_master_stats>;
+      qcom,master-names = "APSS",
+                          "MPSS",
+                          "ADSP",
+                          "CDSP",
+                          "TZ";
+    };
+...

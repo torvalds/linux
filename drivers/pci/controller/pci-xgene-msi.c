@@ -348,7 +348,7 @@ static void xgene_msi_isr(struct irq_desc *desc)
 
 static enum cpuhp_state pci_xgene_online;
 
-static int xgene_msi_remove(struct platform_device *pdev)
+static void xgene_msi_remove(struct platform_device *pdev)
 {
 	struct xgene_msi *msi = platform_get_drvdata(pdev);
 
@@ -362,8 +362,6 @@ static int xgene_msi_remove(struct platform_device *pdev)
 	msi->bitmap = NULL;
 
 	xgene_free_domains(msi);
-
-	return 0;
 }
 
 static int xgene_msi_hwirq_alloc(unsigned int cpu)
@@ -521,7 +519,7 @@ static struct platform_driver xgene_msi_driver = {
 		.of_match_table = xgene_msi_match_table,
 	},
 	.probe = xgene_msi_probe,
-	.remove = xgene_msi_remove,
+	.remove_new = xgene_msi_remove,
 };
 
 static int __init xgene_pcie_msi_init(void)

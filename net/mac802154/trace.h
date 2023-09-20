@@ -14,7 +14,7 @@
 
 #define MAXNAME		32
 #define LOCAL_ENTRY	__array(char, wpan_phy_name, MAXNAME)
-#define LOCAL_ASSIGN	strlcpy(__entry->wpan_phy_name, \
+#define LOCAL_ASSIGN	strscpy(__entry->wpan_phy_name, \
 				wpan_phy_name(local->hw.phy), MAXNAME)
 #define LOCAL_PR_FMT	"%s"
 #define LOCAL_PR_ARG	__entry->wpan_phy_name

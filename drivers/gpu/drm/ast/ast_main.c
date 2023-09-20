@@ -254,8 +254,13 @@ static int ast_detect_chip(struct drm_device *dev, bool *need_post)
 		case 0x0c:
 			ast->tx_chip_types = AST_TX_DP501_BIT;
 		}
-	} else if (ast->chip == AST2600)
-		ast_dp_launch(&ast->base, 0);
+	} else if (ast->chip == AST2600) {
+		if (ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xD1, TX_TYPE_MASK) ==
+		    ASTDP_DPMCU_TX) {
+			ast->tx_chip_types = AST_TX_ASTDP_BIT;
+			ast_dp_launch(&ast->base);
+		}
+	}
 
 	/* Print stuff for diagnostic purposes */
 	if (ast->tx_chip_types & AST_TX_NONE_BIT)
@@ -264,6 +269,8 @@ static int ast_detect_chip(struct drm_device *dev, bool *need_post)
 		drm_info(dev, "Using Sil164 TMDS transmitter\n");
 	if (ast->tx_chip_types & AST_TX_DP501_BIT)
 		drm_info(dev, "Using DP501 DisplayPort transmitter\n");
+	if (ast->tx_chip_types & AST_TX_ASTDP_BIT)
+		drm_info(dev, "Using ASPEED DisplayPort transmitter\n");
 
 	return 0;
 }
@@ -425,11 +432,12 @@ struct ast_device *ast_device_create(const struct drm_driver *drv,
 		return ERR_PTR(-EIO);
 
 	/*
-	 * If we don't have IO space at all, use MMIO now and
-	 * assume the chip has MMIO enabled by default (rev 0x20
-	 * and higher).
+	 * After AST2500, MMIO is enabled by default, and it should be adopted
+	 * to be compatible with Arm.
 	 */
-	if (!(pci_resource_flags(pdev, 2) & IORESOURCE_IO)) {
+	if (pdev->revision >= 0x40) {
+		ast->ioregs = ast->regs + AST_IO_MM_OFFSET;
+	} else if (!(pci_resource_flags(pdev, 2) & IORESOURCE_IO)) {
 		drm_info(dev, "platform has no IO space, trying MMIO\n");
 		ast->ioregs = ast->regs + AST_IO_MM_OFFSET;
 	}

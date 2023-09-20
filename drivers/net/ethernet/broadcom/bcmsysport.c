@@ -2531,9 +2531,9 @@ static int bcm_sysport_probe(struct platform_device *pdev)
 	priv->irq0 = platform_get_irq(pdev, 0);
 	if (!priv->is_lite) {
 		priv->irq1 = platform_get_irq(pdev, 1);
-		priv->wol_irq = platform_get_irq(pdev, 2);
+		priv->wol_irq = platform_get_irq_optional(pdev, 2);
 	} else {
-		priv->wol_irq = platform_get_irq(pdev, 1);
+		priv->wol_irq = platform_get_irq_optional(pdev, 1);
 	}
 	if (priv->irq0 <= 0 || (priv->irq1 <= 0 && !priv->is_lite)) {
 		ret = -EINVAL;

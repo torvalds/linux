@@ -118,7 +118,7 @@
 #define BXCAN_FiR1_REG(b) (0x40 + (b) * 8)
 #define BXCAN_FiR2_REG(b) (0x44 + (b) * 8)
 
-#define BXCAN_FILTER_ID(primary) (primary ? 0 : 14)
+#define BXCAN_FILTER_ID(cfg) ((cfg) == BXCAN_CFG_DUAL_SECONDARY ? 14 : 0)
 
 /* Filter primary register (FMR) bits */
 #define BXCAN_FMR_CANSB_MASK GENMASK(13, 8)
@@ -133,6 +133,12 @@ enum bxcan_lec_code {
 	BXCAN_LEC_BIT0_ERROR,
 	BXCAN_LEC_CRC_ERROR,
 	BXCAN_LEC_UNUSED
+};
+
+enum bxcan_cfg {
+	BXCAN_CFG_SINGLE = 0,
+	BXCAN_CFG_DUAL_PRIMARY,
+	BXCAN_CFG_DUAL_SECONDARY
 };
 
 /* Structure of the message buffer */
@@ -167,7 +173,7 @@ struct bxcan_priv {
 	struct regmap *gcan;
 	int tx_irq;
 	int sce_irq;
-	bool primary;
+	enum bxcan_cfg cfg;
 	struct clk *clk;
 	spinlock_t rmw_lock;	/* lock for read-modify-write operations */
 	unsigned int tx_head;
@@ -202,17 +208,17 @@ static inline void bxcan_rmw(struct bxcan_priv *priv, void __iomem *addr,
 	spin_unlock_irqrestore(&priv->rmw_lock, flags);
 }
 
-static void bxcan_disable_filters(struct bxcan_priv *priv, bool primary)
+static void bxcan_disable_filters(struct bxcan_priv *priv, enum bxcan_cfg cfg)
 {
-	unsigned int fid = BXCAN_FILTER_ID(primary);
+	unsigned int fid = BXCAN_FILTER_ID(cfg);
 	u32 fmask = BIT(fid);
 
 	regmap_update_bits(priv->gcan, BXCAN_FA1R_REG, fmask, 0);
 }
 
-static void bxcan_enable_filters(struct bxcan_priv *priv, bool primary)
+static void bxcan_enable_filters(struct bxcan_priv *priv, enum bxcan_cfg cfg)
 {
-	unsigned int fid = BXCAN_FILTER_ID(primary);
+	unsigned int fid = BXCAN_FILTER_ID(cfg);
 	u32 fmask = BIT(fid);
 
 	/* Filter settings:
@@ -680,7 +686,7 @@ static int bxcan_chip_start(struct net_device *ndev)
 		  BXCAN_BTR_BRP_MASK | BXCAN_BTR_TS1_MASK | BXCAN_BTR_TS2_MASK |
 		  BXCAN_BTR_SJW_MASK, set);
 
-	bxcan_enable_filters(priv, priv->primary);
+	bxcan_enable_filters(priv, priv->cfg);
 
 	/* Clear all internal status */
 	priv->tx_head = 0;
@@ -806,7 +812,7 @@ static void bxcan_chip_stop(struct net_device *ndev)
 		  BXCAN_IER_EPVIE | BXCAN_IER_EWGIE | BXCAN_IER_FOVIE1 |
 		  BXCAN_IER_FFIE1 | BXCAN_IER_FMPIE1 | BXCAN_IER_FOVIE0 |
 		  BXCAN_IER_FFIE0 | BXCAN_IER_FMPIE0 | BXCAN_IER_TMEIE, 0);
-	bxcan_disable_filters(priv, priv->primary);
+	bxcan_disable_filters(priv, priv->cfg);
 	bxcan_enter_sleep_mode(priv);
 	priv->can.state = CAN_STATE_STOPPED;
 }
@@ -931,7 +937,7 @@ static int bxcan_probe(struct platform_device *pdev)
 	struct clk *clk = NULL;
 	void __iomem *regs;
 	struct regmap *gcan;
-	bool primary;
+	enum bxcan_cfg cfg;
 	int err, rx_irq, tx_irq, sce_irq;
 
 	regs = devm_platform_ioremap_resource(pdev, 0);
@@ -946,7 +952,13 @@ static int bxcan_probe(struct platform_device *pdev)
 		return PTR_ERR(gcan);
 	}
 
-	primary = of_property_read_bool(np, "st,can-primary");
+	if (of_property_read_bool(np, "st,can-primary"))
+		cfg = BXCAN_CFG_DUAL_PRIMARY;
+	else if (of_property_read_bool(np, "st,can-secondary"))
+		cfg = BXCAN_CFG_DUAL_SECONDARY;
+	else
+		cfg = BXCAN_CFG_SINGLE;
+
 	clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(clk)) {
 		dev_err(dev, "failed to get clock\n");
@@ -954,22 +966,16 @@ static int bxcan_probe(struct platform_device *pdev)
 	}
 
 	rx_irq = platform_get_irq_byname(pdev, "rx0");
-	if (rx_irq < 0) {
-		dev_err(dev, "failed to get rx0 irq\n");
+	if (rx_irq < 0)
 		return rx_irq;
-	}
 
 	tx_irq = platform_get_irq_byname(pdev, "tx");
-	if (tx_irq < 0) {
-		dev_err(dev, "failed to get tx irq\n");
+	if (tx_irq < 0)
 		return tx_irq;
-	}
 
 	sce_irq = platform_get_irq_byname(pdev, "sce");
-	if (sce_irq < 0) {
-		dev_err(dev, "failed to get sce irq\n");
+	if (sce_irq < 0)
 		return sce_irq;
-	}
 
 	ndev = alloc_candev(sizeof(struct bxcan_priv), BXCAN_TX_MB_NUM);
 	if (!ndev) {
@@ -992,7 +998,7 @@ static int bxcan_probe(struct platform_device *pdev)
 	priv->clk = clk;
 	priv->tx_irq = tx_irq;
 	priv->sce_irq = sce_irq;
-	priv->primary = primary;
+	priv->cfg = cfg;
 	priv->can.clock.freq = clk_get_rate(clk);
 	spin_lock_init(&priv->rmw_lock);
 	priv->tx_head = 0;
@@ -1027,7 +1033,7 @@ out_free_candev:
 	return err;
 }
 
-static int bxcan_remove(struct platform_device *pdev)
+static void bxcan_remove(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct bxcan_priv *priv = netdev_priv(ndev);
@@ -1036,7 +1042,6 @@ static int bxcan_remove(struct platform_device *pdev)
 	clk_disable_unprepare(priv->clk);
 	can_rx_offload_del(&priv->offload);
 	free_candev(ndev);
-	return 0;
 }
 
 static int __maybe_unused bxcan_suspend(struct device *dev)
@@ -1088,7 +1093,7 @@ static struct platform_driver bxcan_driver = {
 		.of_match_table = bxcan_of_match,
 	},
 	.probe = bxcan_probe,
-	.remove = bxcan_remove,
+	.remove_new = bxcan_remove,
 };
 
 module_platform_driver(bxcan_driver);

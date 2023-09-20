@@ -429,9 +429,14 @@ struct snd_pcm_sw_params {
 	snd_pcm_uframes_t avail_min;		/* min avail frames for wakeup */
 	snd_pcm_uframes_t xfer_align;		/* obsolete: xfer size need to be a multiple */
 	snd_pcm_uframes_t start_threshold;	/* min hw_avail frames for automatic start */
-	snd_pcm_uframes_t stop_threshold;	/* min avail frames for automatic stop */
-	snd_pcm_uframes_t silence_threshold;	/* min distance from noise for silence filling */
-	snd_pcm_uframes_t silence_size;		/* silence block size */
+	/*
+	 * The following two thresholds alleviate playback buffer underruns; when
+	 * hw_avail drops below the threshold, the respective action is triggered:
+	 */
+	snd_pcm_uframes_t stop_threshold;	/* - stop playback */
+	snd_pcm_uframes_t silence_threshold;	/* - pre-fill buffer with silence */
+	snd_pcm_uframes_t silence_size;		/* max size of silence pre-fill; when >= boundary,
+						 * fill played area with silence immediately */
 	snd_pcm_uframes_t boundary;		/* pointers wrap point */
 	unsigned int proto;			/* protocol version */
 	unsigned int tstamp_type;		/* timestamp type (req. proto >= 2.0.12) */
@@ -570,7 +575,8 @@ struct __snd_pcm_mmap_status64 {
 struct __snd_pcm_mmap_control64 {
 	__pad_before_uframe __pad1;
 	snd_pcm_uframes_t appl_ptr;	 /* RW: appl ptr (0...boundary-1) */
-	__pad_before_uframe __pad2;
+	__pad_before_uframe __pad2;	 // This should be __pad_after_uframe, but binary
+					 // backwards compatibility constraints prevent a fix.
 
 	__pad_before_uframe __pad3;
 	snd_pcm_uframes_t  avail_min;	 /* RW: min available frames for wakeup */

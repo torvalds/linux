@@ -1426,6 +1426,17 @@ Description:	This entry shows the status of WriteBooster buffer flushing
 		If flushing is enabled, the device executes the flush
 		operation when the command queue is empty.
 
+What:		/sys/bus/platform/drivers/ufshcd/*/wb_flush_threshold
+What:		/sys/bus/platform/devices/*.ufs/wb_flush_threshold
+Date:		June 2023
+Contact:	Lu Hongfei <luhongfei@vivo.com>
+Description:
+		wb_flush_threshold represents the threshold for flushing WriteBooster buffer,
+		whose value expressed in unit of 10% granularity, such as '1' representing 10%,
+		'2' representing 20%, and so on.
+		If avail_wb_buff < wb_flush_threshold, it indicates that WriteBooster buffer needs to
+		be flushed, otherwise it is not necessary.
+
 What:		/sys/bus/platform/drivers/ufshcd/*/device_descriptor/hpb_version
 What:		/sys/bus/platform/devices/*.ufs/device_descriptor/hpb_version
 Date:		June 2021

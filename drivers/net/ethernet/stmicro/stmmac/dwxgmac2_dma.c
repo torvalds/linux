@@ -368,10 +368,12 @@ static int dwxgmac2_dma_interrupt(struct stmmac_priv *priv,
 
 		if (likely(intr_status & XGMAC_RI)) {
 			x->rx_normal_irq_n++;
+			x->rxq_stats[chan].rx_normal_irq_n++;
 			ret |= handle_rx;
 		}
 		if (likely(intr_status & (XGMAC_TI | XGMAC_TBU))) {
 			x->tx_normal_irq_n++;
+			x->txq_stats[chan].tx_normal_irq_n++;
 			ret |= handle_tx;
 		}
 	}

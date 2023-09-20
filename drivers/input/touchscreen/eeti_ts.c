@@ -291,7 +291,7 @@ static struct i2c_driver eeti_ts_driver = {
 		.pm = pm_sleep_ptr(&eeti_ts_pm),
 		.of_match_table = of_match_ptr(of_eeti_ts_match),
 	},
-	.probe_new = eeti_ts_probe,
+	.probe = eeti_ts_probe,
 	.id_table = eeti_ts_id,
 };
 

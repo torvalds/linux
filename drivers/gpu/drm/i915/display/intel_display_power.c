@@ -7,6 +7,7 @@
 
 #include "i915_drv.h"
 #include "i915_irq.h"
+#include "i915_reg.h"
 #include "intel_backlight_regs.h"
 #include "intel_cdclk.h"
 #include "intel_combo_phy.h"
@@ -19,6 +20,7 @@
 #include "intel_mchbar_regs.h"
 #include "intel_pch_refclk.h"
 #include "intel_pcode.h"
+#include "intel_pmdemand.h"
 #include "intel_pps_regs.h"
 #include "intel_snps_phy.h"
 #include "skl_watermark.h"
@@ -1052,7 +1054,7 @@ void gen9_dbuf_slices_update(struct drm_i915_private *dev_priv,
 			     u8 req_slices)
 {
 	struct i915_power_domains *power_domains = &dev_priv->display.power.domains;
-	u8 slice_mask = INTEL_INFO(dev_priv)->display.dbuf.slice_mask;
+	u8 slice_mask = DISPLAY_INFO(dev_priv)->dbuf.slice_mask;
 	enum dbuf_slice slice;
 
 	drm_WARN(&dev_priv->drm, req_slices & ~slice_mask,
@@ -1081,20 +1083,29 @@ void gen9_dbuf_slices_update(struct drm_i915_private *dev_priv,
 
 static void gen9_dbuf_enable(struct drm_i915_private *dev_priv)
 {
+	u8 slices_mask;
+
 	dev_priv->display.dbuf.enabled_slices =
 		intel_enabled_dbuf_slices_mask(dev_priv);
+
+	slices_mask = BIT(DBUF_S1) | dev_priv->display.dbuf.enabled_slices;
+
+	if (DISPLAY_VER(dev_priv) >= 14)
+		intel_pmdemand_program_dbuf(dev_priv, slices_mask);
 
 	/*
 	 * Just power up at least 1 slice, we will
 	 * figure out later which slices we have and what we need.
 	 */
-	gen9_dbuf_slices_update(dev_priv, BIT(DBUF_S1) |
-				dev_priv->display.dbuf.enabled_slices);
+	gen9_dbuf_slices_update(dev_priv, slices_mask);
 }
 
 static void gen9_dbuf_disable(struct drm_i915_private *dev_priv)
 {
 	gen9_dbuf_slices_update(dev_priv, 0);
+
+	if (DISPLAY_VER(dev_priv) >= 14)
+		intel_pmdemand_program_dbuf(dev_priv, 0);
 }
 
 static void gen12_dbuf_slices_config(struct drm_i915_private *dev_priv)
@@ -1112,7 +1123,7 @@ static void gen12_dbuf_slices_config(struct drm_i915_private *dev_priv)
 
 static void icl_mbus_init(struct drm_i915_private *dev_priv)
 {
-	unsigned long abox_regs = INTEL_INFO(dev_priv)->display.abox_mask;
+	unsigned long abox_regs = DISPLAY_INFO(dev_priv)->abox_mask;
 	u32 mask, val, i;
 
 	if (IS_ALDERLAKE_P(dev_priv) || DISPLAY_VER(dev_priv) >= 14)
@@ -1164,31 +1175,39 @@ static void assert_can_disable_lcpll(struct drm_i915_private *dev_priv)
 	struct intel_crtc *crtc;
 
 	for_each_intel_crtc(&dev_priv->drm, crtc)
-		I915_STATE_WARN(crtc->active, "CRTC for pipe %c enabled\n",
+		I915_STATE_WARN(dev_priv, crtc->active,
+				"CRTC for pipe %c enabled\n",
 				pipe_name(crtc->pipe));
 
-	I915_STATE_WARN(intel_de_read(dev_priv, HSW_PWR_WELL_CTL2),
+	I915_STATE_WARN(dev_priv, intel_de_read(dev_priv, HSW_PWR_WELL_CTL2),
 			"Display power well on\n");
-	I915_STATE_WARN(intel_de_read(dev_priv, SPLL_CTL) & SPLL_PLL_ENABLE,
+	I915_STATE_WARN(dev_priv,
+			intel_de_read(dev_priv, SPLL_CTL) & SPLL_PLL_ENABLE,
 			"SPLL enabled\n");
-	I915_STATE_WARN(intel_de_read(dev_priv, WRPLL_CTL(0)) & WRPLL_PLL_ENABLE,
+	I915_STATE_WARN(dev_priv,
+			intel_de_read(dev_priv, WRPLL_CTL(0)) & WRPLL_PLL_ENABLE,
 			"WRPLL1 enabled\n");
-	I915_STATE_WARN(intel_de_read(dev_priv, WRPLL_CTL(1)) & WRPLL_PLL_ENABLE,
+	I915_STATE_WARN(dev_priv,
+			intel_de_read(dev_priv, WRPLL_CTL(1)) & WRPLL_PLL_ENABLE,
 			"WRPLL2 enabled\n");
-	I915_STATE_WARN(intel_de_read(dev_priv, PP_STATUS(0)) & PP_ON,
+	I915_STATE_WARN(dev_priv,
+			intel_de_read(dev_priv, PP_STATUS(0)) & PP_ON,
 			"Panel power on\n");
-	I915_STATE_WARN(intel_de_read(dev_priv, BLC_PWM_CPU_CTL2) & BLM_PWM_ENABLE,
+	I915_STATE_WARN(dev_priv,
+			intel_de_read(dev_priv, BLC_PWM_CPU_CTL2) & BLM_PWM_ENABLE,
 			"CPU PWM1 enabled\n");
 	if (IS_HASWELL(dev_priv))
-		I915_STATE_WARN(intel_de_read(dev_priv, HSW_BLC_PWM2_CTL) & BLM_PWM_ENABLE,
+		I915_STATE_WARN(dev_priv,
+				intel_de_read(dev_priv, HSW_BLC_PWM2_CTL) & BLM_PWM_ENABLE,
 				"CPU PWM2 enabled\n");
-	I915_STATE_WARN(intel_de_read(dev_priv, BLC_PWM_PCH_CTL1) & BLM_PCH_PWM_ENABLE,
+	I915_STATE_WARN(dev_priv,
+			intel_de_read(dev_priv, BLC_PWM_PCH_CTL1) & BLM_PCH_PWM_ENABLE,
 			"PCH PWM1 enabled\n");
-	I915_STATE_WARN((intel_de_read(dev_priv, UTIL_PIN_CTL) &
-			 (UTIL_PIN_ENABLE | UTIL_PIN_MODE_MASK)) ==
-			(UTIL_PIN_ENABLE | UTIL_PIN_MODE_PWM),
+	I915_STATE_WARN(dev_priv,
+			(intel_de_read(dev_priv, UTIL_PIN_CTL) & (UTIL_PIN_ENABLE | UTIL_PIN_MODE_MASK)) == (UTIL_PIN_ENABLE | UTIL_PIN_MODE_PWM),
 			"Utility pin enabled in PWM mode\n");
-	I915_STATE_WARN(intel_de_read(dev_priv, PCH_GTC_CTL) & PCH_GTC_ENABLE,
+	I915_STATE_WARN(dev_priv,
+			intel_de_read(dev_priv, PCH_GTC_CTL) & PCH_GTC_ENABLE,
 			"PCH GTC enabled\n");
 
 	/*
@@ -1197,7 +1216,8 @@ static void assert_can_disable_lcpll(struct drm_i915_private *dev_priv)
 	 * gen-specific and since we only disable LCPLL after we fully disable
 	 * the interrupts, the check below should be enough.
 	 */
-	I915_STATE_WARN(intel_irqs_enabled(dev_priv), "IRQs enabled\n");
+	I915_STATE_WARN(dev_priv, intel_irqs_enabled(dev_priv),
+			"IRQs enabled\n");
 }
 
 static u32 hsw_read_dcomp(struct drm_i915_private *dev_priv)
@@ -1558,7 +1578,7 @@ static void tgl_bw_buddy_init(struct drm_i915_private *dev_priv)
 	enum intel_dram_type type = dev_priv->dram_info.type;
 	u8 num_channels = dev_priv->dram_info.num_channels;
 	const struct buddy_page_mask *table;
-	unsigned long abox_mask = INTEL_INFO(dev_priv)->display.abox_mask;
+	unsigned long abox_mask = DISPLAY_INFO(dev_priv)->abox_mask;
 	int config, i;
 
 	/* BW_BUDDY registers are not used on dgpu's beyond DG1 */
@@ -2021,7 +2041,7 @@ void intel_power_domains_disable(struct drm_i915_private *i915)
 /**
  * intel_power_domains_suspend - suspend power domain state
  * @i915: i915 device instance
- * @suspend_mode: specifies the target suspend state (idle, mem, hibernation)
+ * @s2idle: specifies whether we go to idle, or deeper sleep
  *
  * This function prepares the hardware power domain state before entering
  * system suspend.
@@ -2029,8 +2049,7 @@ void intel_power_domains_disable(struct drm_i915_private *i915)
  * It must be called with power domains already disabled (after a call to
  * intel_power_domains_disable()) and paired with intel_power_domains_resume().
  */
-void intel_power_domains_suspend(struct drm_i915_private *i915,
-				 enum i915_drm_suspend_mode suspend_mode)
+void intel_power_domains_suspend(struct drm_i915_private *i915, bool s2idle)
 {
 	struct i915_power_domains *power_domains = &i915->display.power.domains;
 	intel_wakeref_t wakeref __maybe_unused =
@@ -2045,8 +2064,7 @@ void intel_power_domains_suspend(struct drm_i915_private *i915,
 	 * resources as required and also enable deeper system power states
 	 * that would be blocked if the firmware was inactive.
 	 */
-	if (!(power_domains->allowed_dc_mask & DC_STATE_EN_DC9) &&
-	    suspend_mode == I915_DRM_SUSPEND_IDLE &&
+	if (!(power_domains->allowed_dc_mask & DC_STATE_EN_DC9) && s2idle &&
 	    intel_dmc_has_payload(i915)) {
 		intel_display_power_flush_work(i915);
 		intel_power_domains_verify_state(i915);

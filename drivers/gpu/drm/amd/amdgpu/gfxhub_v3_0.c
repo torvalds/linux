@@ -119,7 +119,7 @@ static u64 gfxhub_v3_0_get_mc_fb_offset(struct amdgpu_device *adev)
 static void gfxhub_v3_0_setup_vm_pt_regs(struct amdgpu_device *adev, uint32_t vmid,
 				uint64_t page_table_base)
 {
-	struct amdgpu_vmhub *hub = &adev->vmhub[AMDGPU_GFXHUB_0];
+	struct amdgpu_vmhub *hub = &adev->vmhub[AMDGPU_GFXHUB(0)];
 
 	WREG32_SOC15_OFFSET(GC, 0, regGCVM_CONTEXT0_PAGE_TABLE_BASE_ADDR_LO32,
 			    hub->ctx_addr_distance * vmid,
@@ -290,7 +290,7 @@ static void gfxhub_v3_0_disable_identity_aperture(struct amdgpu_device *adev)
 
 static void gfxhub_v3_0_setup_vmid_config(struct amdgpu_device *adev)
 {
-	struct amdgpu_vmhub *hub = &adev->vmhub[AMDGPU_GFXHUB_0];
+	struct amdgpu_vmhub *hub = &adev->vmhub[AMDGPU_GFXHUB(0)];
 	int i;
 	uint32_t tmp;
 
@@ -339,7 +339,7 @@ static void gfxhub_v3_0_setup_vmid_config(struct amdgpu_device *adev)
 
 static void gfxhub_v3_0_program_invalidation(struct amdgpu_device *adev)
 {
-	struct amdgpu_vmhub *hub = &adev->vmhub[AMDGPU_GFXHUB_0];
+	struct amdgpu_vmhub *hub = &adev->vmhub[AMDGPU_GFXHUB(0)];
 	unsigned i;
 
 	for (i = 0 ; i < 18; ++i) {
@@ -380,7 +380,7 @@ static int gfxhub_v3_0_gart_enable(struct amdgpu_device *adev)
 
 static void gfxhub_v3_0_gart_disable(struct amdgpu_device *adev)
 {
-	struct amdgpu_vmhub *hub = &adev->vmhub[AMDGPU_GFXHUB_0];
+	struct amdgpu_vmhub *hub = &adev->vmhub[AMDGPU_GFXHUB(0)];
 	u32 tmp;
 	u32 i;
 
@@ -463,7 +463,7 @@ static const struct amdgpu_vmhub_funcs gfxhub_v3_0_vmhub_funcs = {
 
 static void gfxhub_v3_0_init(struct amdgpu_device *adev)
 {
-	struct amdgpu_vmhub *hub = &adev->vmhub[AMDGPU_GFXHUB_0];
+	struct amdgpu_vmhub *hub = &adev->vmhub[AMDGPU_GFXHUB(0)];
 
 	hub->ctx0_ptb_addr_lo32 =
 		SOC15_REG_OFFSET(GC, 0,

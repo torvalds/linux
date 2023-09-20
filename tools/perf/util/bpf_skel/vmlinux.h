@@ -1,6 +1,7 @@
 #ifndef __VMLINUX_H
 #define __VMLINUX_H
 
+#include <linux/stddef.h> // for define __always_inline
 #include <linux/bpf.h>
 #include <linux/types.h>
 #include <linux/perf_event.h>

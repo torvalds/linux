@@ -28,5 +28,6 @@ void wx_free_resources(struct wx *wx);
 int wx_setup_resources(struct wx *wx);
 void wx_get_stats64(struct net_device *netdev,
 		    struct rtnl_link_stats64 *stats);
+int wx_set_features(struct net_device *netdev, netdev_features_t features);
 
 #endif /* _NGBE_LIB_H_ */

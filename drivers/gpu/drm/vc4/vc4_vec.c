@@ -219,17 +219,11 @@ struct vc4_vec {
 		writel(val, vec->regs + (offset));					\
 	} while (0)
 
-static inline struct vc4_vec *
-encoder_to_vc4_vec(struct drm_encoder *encoder)
-{
-	return container_of(encoder, struct vc4_vec, encoder.base);
-}
+#define encoder_to_vc4_vec(_encoder)					\
+	container_of_const(_encoder, struct vc4_vec, encoder.base)
 
-static inline struct vc4_vec *
-connector_to_vc4_vec(struct drm_connector *connector)
-{
-	return container_of(connector, struct vc4_vec, connector);
-}
+#define connector_to_vc4_vec(_connector)				\
+	container_of_const(_connector, struct vc4_vec, connector)
 
 enum vc4_vec_tv_mode_id {
 	VC4_VEC_TV_MODE_NTSC,

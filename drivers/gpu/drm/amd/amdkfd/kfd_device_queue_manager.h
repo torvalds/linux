@@ -37,6 +37,7 @@
 
 #define KFD_MES_PROCESS_QUANTUM		100000
 #define KFD_MES_GANG_QUANTUM		10000
+#define USE_DEFAULT_GRACE_PERIOD 0xffffffff
 
 struct device_process_node {
 	struct qcm_process_device *qpd;
@@ -207,7 +208,7 @@ struct device_queue_manager_asic_ops {
 				struct queue *q,
 				struct qcm_process_device *qpd);
 	struct mqd_manager *	(*mqd_manager_init)(enum KFD_MQD_TYPE type,
-				 struct kfd_dev *dev);
+				 struct kfd_node *dev);
 };
 
 /**
@@ -228,7 +229,7 @@ struct device_queue_manager {
 
 	struct mqd_manager	*mqd_mgrs[KFD_MQD_TYPE_MAX];
 	struct packet_manager	packet_mgr;
-	struct kfd_dev		*dev;
+	struct kfd_node		*dev;
 	struct mutex		lock_hidden; /* use dqm_lock/unlock(dqm) */
 	struct list_head	queues;
 	unsigned int		saved_flags;
@@ -239,8 +240,8 @@ struct device_queue_manager {
 	unsigned int		total_queue_count;
 	unsigned int		next_pipe_to_allocate;
 	unsigned int		*allocated_queues;
-	uint64_t		sdma_bitmap;
-	uint64_t		xgmi_sdma_bitmap;
+	DECLARE_BITMAP(sdma_bitmap, KFD_MAX_SDMA_QUEUES);
+	DECLARE_BITMAP(xgmi_sdma_bitmap, KFD_MAX_SDMA_QUEUES);
 	/* the pasid mapping for each kfd vmid */
 	uint16_t		vmid_pasid[VMID_NUM];
 	uint64_t		pipelines_addr;
@@ -249,6 +250,7 @@ struct device_queue_manager {
 	struct kfd_mem_obj	*fence_mem;
 	bool			active_runlist;
 	int			sched_policy;
+	uint32_t		trap_debug_vmid;
 
 	/* hw exception  */
 	bool			is_hws_hang;
@@ -256,6 +258,13 @@ struct device_queue_manager {
 	struct work_struct	hw_exception_work;
 	struct kfd_mem_obj	hiq_sdma_mqd;
 	bool			sched_running;
+
+	/* used for GFX 9.4.3 only */
+	uint32_t		current_logical_xcc_start;
+
+	uint32_t		wait_times;
+
+	wait_queue_head_t	destroy_wait;
 };
 
 void device_queue_manager_init_cik(
@@ -279,6 +288,24 @@ unsigned int get_queues_per_pipe(struct device_queue_manager *dqm);
 unsigned int get_pipes_per_mec(struct device_queue_manager *dqm);
 unsigned int get_num_sdma_queues(struct device_queue_manager *dqm);
 unsigned int get_num_xgmi_sdma_queues(struct device_queue_manager *dqm);
+int reserve_debug_trap_vmid(struct device_queue_manager *dqm,
+			struct qcm_process_device *qpd);
+int release_debug_trap_vmid(struct device_queue_manager *dqm,
+			struct qcm_process_device *qpd);
+int suspend_queues(struct kfd_process *p,
+			uint32_t num_queues,
+			uint32_t grace_period,
+			uint64_t exception_clear_mask,
+			uint32_t *usr_queue_id_array);
+int resume_queues(struct kfd_process *p,
+		uint32_t num_queues,
+		uint32_t *usr_queue_id_array);
+void set_queue_snapshot_entry(struct queue *q,
+			      uint64_t exception_clear_mask,
+			      struct kfd_queue_snapshot_entry *qss_entry);
+int debug_lock_and_unmap(struct device_queue_manager *dqm);
+int debug_map_and_unlock(struct device_queue_manager *dqm);
+int debug_refresh_runlist(struct device_queue_manager *dqm);
 
 static inline unsigned int get_sh_mem_bases_32(struct kfd_process_device *pdd)
 {

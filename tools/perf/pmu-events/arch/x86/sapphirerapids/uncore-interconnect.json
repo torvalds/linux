@@ -464,7 +464,7 @@
         "Unit": "M2M"
     },
     {
-        "BriefDescription": "Counts the time when FM didn? do d2c for fill reads (cross tile case)",
+        "BriefDescription": "Counts the time when FM didn't do d2c for fill reads (cross tile case)",
         "EventCode": "0x4a",
         "EventName": "UNC_M2M_DIRECT2CORE_NOT_TAKEN_NOTFORKED",
         "PerPkg": "1",

@@ -31,6 +31,7 @@
 
 // Minimum amount of time between queue kicks in msec (10 seconds)
 #define MIN_TX_TIMEOUT_GAP (1000 * 10)
+#define DQO_TX_MAX	0x3FFFF
 
 const char gve_version_str[] = GVE_VERSION;
 static const char gve_version_prefix[] = GVE_VERSION_PREFIX;
@@ -293,19 +294,6 @@ static int gve_napi_poll_dqo(struct napi_struct *napi, int budget)
 	struct gve_priv *priv = block->priv;
 	bool reschedule = false;
 	int work_done = 0;
-
-	/* Clear PCI MSI-X Pending Bit Array (PBA)
-	 *
-	 * This bit is set if an interrupt event occurs while the vector is
-	 * masked. If this bit is set and we reenable the interrupt, it will
-	 * fire again. Since we're just about to poll the queue state, we don't
-	 * need it to fire again.
-	 *
-	 * Under high softirq load, it's possible that the interrupt condition
-	 * is triggered twice before we got the chance to process it.
-	 */
-	gve_write_irq_doorbell_dqo(priv, block,
-				   GVE_ITR_NO_UPDATE_DQO | GVE_ITR_CLEAR_PBA_BIT_DQO);
 
 	if (block->tx)
 		reschedule |= gve_tx_poll_dqo(block, /*do_clean=*/true);
@@ -2059,6 +2047,10 @@ static int gve_init_priv(struct gve_priv *priv, bool skip_describe_device)
 		err = -EINVAL;
 		goto err;
 	}
+
+	/* Big TCP is only supported on DQ*/
+	if (!gve_is_gqi(priv))
+		netif_set_tso_max_size(priv->dev, DQO_TX_MAX);
 
 	priv->num_registered_pages = 0;
 	priv->rx_copybreak = GVE_DEFAULT_RX_COPYBREAK;

@@ -2762,6 +2762,7 @@ static const struct rtw89_chip_ops rtw8852c_chip_ops = {
 	.read_efuse		= rtw8852c_read_efuse,
 	.read_phycap		= rtw8852c_read_phycap,
 	.fem_setup		= NULL,
+	.rfe_gpio		= NULL,
 	.rfk_init		= rtw8852c_rfk_init,
 	.rfk_channel		= rtw8852c_rfk_channel,
 	.rfk_band_changed	= rtw8852c_rfk_band_changed,
@@ -2779,6 +2780,7 @@ static const struct rtw89_chip_ops rtw8852c_chip_ops = {
 	.set_txpwr_ul_tb_offset	= rtw8852c_set_txpwr_ul_tb_offset,
 	.pwr_on_func		= rtw8852c_pwr_on_func,
 	.pwr_off_func		= rtw8852c_pwr_off_func,
+	.query_rxdesc		= rtw89_core_query_rxdesc,
 	.fill_txdesc		= rtw89_core_fill_txdesc_v1,
 	.fill_txdesc_fwcmd	= rtw89_core_fill_txdesc_fwcmd_v1,
 	.cfg_ctrl_path		= rtw89_mac_cfg_ctrl_path_v1,
@@ -2805,6 +2807,7 @@ const struct rtw89_chip_info rtw8852c_chip_info = {
 	.fw_format_max		= RTW8852C_FW_FORMAT_MAX,
 	.try_ce_fw		= false,
 	.fifo_size		= 458752,
+	.small_fifo_size	= false,
 	.dle_scc_rsvd_size	= 0,
 	.max_amsdu_limit	= 8000,
 	.dis_2g_40m_ul_ofdma	= false,
@@ -2821,6 +2824,7 @@ const struct rtw89_chip_info rtw8852c_chip_info = {
 	.rf_table		= {&rtw89_8852c_phy_radiob_table,
 				   &rtw89_8852c_phy_radioa_table,},
 	.nctl_table		= &rtw89_8852c_phy_nctl_table,
+	.nctl_post_table	= NULL,
 	.byr_table		= &rtw89_8852c_byr_table,
 	.dflt_parms		= &rtw89_8852c_dflt_parms,
 	.rfe_parms_conf		= NULL,
@@ -2834,6 +2838,7 @@ const struct rtw89_chip_info rtw8852c_chip_info = {
 				  BIT(NL80211_BAND_5GHZ) |
 				  BIT(NL80211_BAND_6GHZ),
 	.support_bw160		= true,
+	.support_unii4		= true,
 	.support_ul_tb_ctrl     = false,
 	.hw_sec_hdr		= true,
 	.rf_path_num		= 2,
@@ -2844,7 +2849,7 @@ const struct rtw89_chip_info rtw8852c_chip_info = {
 	.scam_num		= 128,
 	.bacam_num		= 8,
 	.bacam_dynamic_num	= 8,
-	.bacam_v1		= true,
+	.bacam_ver		= RTW89_BACAM_V0_EXT,
 	.sec_ctrl_efuse_size	= 4,
 	.physical_efuse_size	= 1216,
 	.logical_efuse_size	= 2048,
@@ -2897,6 +2902,7 @@ const struct rtw89_chip_info rtw8852c_chip_info = {
 #ifdef CONFIG_PM
 	.wowlan_stub		= &rtw_wowlan_stub_8852c,
 #endif
+	.xtal_info		= NULL,
 };
 EXPORT_SYMBOL(rtw8852c_chip_info);
 

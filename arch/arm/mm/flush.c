@@ -354,6 +354,7 @@ EXPORT_SYMBOL(flush_dcache_page);
  *  memcpy() to/from page
  *  if written to page, flush_dcache_page()
  */
+void __flush_anon_page(struct vm_area_struct *vma, struct page *page, unsigned long vmaddr);
 void __flush_anon_page(struct vm_area_struct *vma, struct page *page, unsigned long vmaddr)
 {
 	unsigned long pfn;

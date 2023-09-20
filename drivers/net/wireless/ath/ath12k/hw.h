@@ -184,6 +184,8 @@ struct ath12k_hw_params {
 			 struct ath12k_wmi_resource_config_arg *config);
 
 	const struct hal_ops *hal_ops;
+
+	u64 qmi_cnss_feature_bitmap;
 };
 
 struct ath12k_hw_ops {

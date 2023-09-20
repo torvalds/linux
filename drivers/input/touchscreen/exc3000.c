@@ -460,7 +460,7 @@ static struct i2c_driver exc3000_driver = {
 		.of_match_table = of_match_ptr(exc3000_of_match),
 	},
 	.id_table	= exc3000_id,
-	.probe_new	= exc3000_probe,
+	.probe		= exc3000_probe,
 };
 
 module_i2c_driver(exc3000_driver);

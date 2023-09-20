@@ -1048,6 +1048,8 @@ void ext4_mark_group_bitmap_corrupted(struct super_block *sb,
 	struct ext4_group_desc *gdp = ext4_get_group_desc(sb, group, NULL);
 	int ret;
 
+	if (!grp || !gdp)
+		return;
 	if (flags & EXT4_GROUP_INFO_BBITMAP_CORRUPT) {
 		ret = ext4_test_and_set_bit(EXT4_GROUP_INFO_BBITMAP_CORRUPT_BIT,
 					    &grp->bb_state);
@@ -1094,6 +1096,15 @@ void ext4_update_dynamic_rev(struct super_block *sb)
 	 */
 }
 
+static void ext4_bdev_mark_dead(struct block_device *bdev)
+{
+	ext4_force_shutdown(bdev->bd_holder, EXT4_GOING_FLAGS_NOLOGFLUSH);
+}
+
+static const struct blk_holder_ops ext4_holder_ops = {
+	.mark_dead		= ext4_bdev_mark_dead,
+};
+
 /*
  * Open the external journal device
  */
@@ -1101,7 +1112,8 @@ static struct block_device *ext4_blkdev_get(dev_t dev, struct super_block *sb)
 {
 	struct block_device *bdev;
 
-	bdev = blkdev_get_by_dev(dev, FMODE_READ|FMODE_WRITE|FMODE_EXCL, sb);
+	bdev = blkdev_get_by_dev(dev, BLK_OPEN_READ | BLK_OPEN_WRITE, sb,
+				 &ext4_holder_ops);
 	if (IS_ERR(bdev))
 		goto fail;
 	return bdev;
@@ -1116,17 +1128,18 @@ fail:
 /*
  * Release the journal device
  */
-static void ext4_blkdev_put(struct block_device *bdev)
-{
-	blkdev_put(bdev, FMODE_READ|FMODE_WRITE|FMODE_EXCL);
-}
-
 static void ext4_blkdev_remove(struct ext4_sb_info *sbi)
 {
 	struct block_device *bdev;
 	bdev = sbi->s_journal_bdev;
 	if (bdev) {
-		ext4_blkdev_put(bdev);
+		/*
+		 * Invalidate the journal device's buffers.  We don't want them
+		 * floating about in memory - the physical journal device may
+		 * hotswapped, and it breaks the `ro-after' testing code.
+		 */
+		invalidate_bdev(bdev);
+		blkdev_put(bdev, sbi->s_sb);
 		sbi->s_journal_bdev = NULL;
 	}
 }
@@ -1157,12 +1170,12 @@ static void dump_orphan_list(struct super_block *sb, struct ext4_sb_info *sbi)
 #ifdef CONFIG_QUOTA
 static int ext4_quota_off(struct super_block *sb, int type);
 
-static inline void ext4_quota_off_umount(struct super_block *sb)
+static inline void ext4_quotas_off(struct super_block *sb, int type)
 {
-	int type;
+	BUG_ON(type > EXT4_MAXQUOTAS);
 
 	/* Use our quota_off function to clear inode flags etc. */
-	for (type = 0; type < EXT4_MAXQUOTAS; type++)
+	for (type--; type >= 0; type--)
 		ext4_quota_off(sb, type);
 }
 
@@ -1178,7 +1191,7 @@ static inline char *get_qf_name(struct super_block *sb,
 					 lockdep_is_held(&sb->s_umount));
 }
 #else
-static inline void ext4_quota_off_umount(struct super_block *sb)
+static inline void ext4_quotas_off(struct super_block *sb, int type)
 {
 }
 #endif
@@ -1278,7 +1291,7 @@ static void ext4_put_super(struct super_block *sb)
 			 &sb->s_uuid);
 
 	ext4_unregister_li_request(sb);
-	ext4_quota_off_umount(sb);
+	ext4_quotas_off(sb, EXT4_MAXQUOTAS);
 
 	flush_work(&sbi->s_error_work);
 	destroy_workqueue(sbi->rsv_conversion_wq);
@@ -1325,14 +1338,8 @@ static void ext4_put_super(struct super_block *sb)
 
 	sync_blockdev(sb->s_bdev);
 	invalidate_bdev(sb->s_bdev);
-	if (sbi->s_journal_bdev && sbi->s_journal_bdev != sb->s_bdev) {
-		/*
-		 * Invalidate the journal device's buffers.  We don't want them
-		 * floating about in memory - the physical journal device may
-		 * hotswapped, and it breaks the `ro-after' testing code.
-		 */
+	if (sbi->s_journal_bdev) {
 		sync_blockdev(sbi->s_journal_bdev);
-		invalidate_bdev(sbi->s_journal_bdev);
 		ext4_blkdev_remove(sbi);
 	}
 
@@ -1445,6 +1452,11 @@ static void ext4_destroy_inode(struct inode *inode)
 			 "Inode %lu (%p): i_reserved_data_blocks (%u) not cleared!",
 			 inode->i_ino, EXT4_I(inode),
 			 EXT4_I(inode)->i_reserved_data_blocks);
+}
+
+static void ext4_shutdown(struct super_block *sb)
+{
+       ext4_force_shutdown(sb, EXT4_GOING_FLAGS_NOLOGFLUSH);
 }
 
 static void init_once(void *foo)
@@ -1607,6 +1619,7 @@ static const struct super_operations ext4_sops = {
 	.unfreeze_fs	= ext4_unfreeze,
 	.statfs		= ext4_statfs,
 	.show_options	= ext4_show_options,
+	.shutdown	= ext4_shutdown,
 #ifdef CONFIG_QUOTA
 	.quota_read	= ext4_quota_read,
 	.quota_write	= ext4_quota_write,
@@ -3238,11 +3251,9 @@ static __le16 ext4_group_desc_csum(struct super_block *sb, __u32 block_group,
 	crc = crc16(crc, (__u8 *)gdp, offset);
 	offset += sizeof(gdp->bg_checksum); /* skip checksum */
 	/* for checksum of struct ext4_group_desc do the rest...*/
-	if (ext4_has_feature_64bit(sb) &&
-	    offset < le16_to_cpu(sbi->s_es->s_desc_size))
+	if (ext4_has_feature_64bit(sb) && offset < sbi->s_desc_size)
 		crc = crc16(crc, (__u8 *)gdp + offset,
-			    le16_to_cpu(sbi->s_es->s_desc_size) -
-				offset);
+			    sbi->s_desc_size - offset);
 
 out:
 	return cpu_to_le16(crc);
@@ -3692,16 +3703,13 @@ static int ext4_run_li_request(struct ext4_li_request *elr)
 	ext4_group_t group = elr->lr_next_group;
 	unsigned int prefetch_ios = 0;
 	int ret = 0;
+	int nr = EXT4_SB(sb)->s_mb_prefetch;
 	u64 start_time;
 
 	if (elr->lr_mode == EXT4_LI_MODE_PREFETCH_BBITMAP) {
-		elr->lr_next_group = ext4_mb_prefetch(sb, group,
-				EXT4_SB(sb)->s_mb_prefetch, &prefetch_ios);
-		if (prefetch_ios)
-			ext4_mb_prefetch_fini(sb, elr->lr_next_group,
-					      prefetch_ios);
-		trace_ext4_prefetch_bitmaps(sb, group, elr->lr_next_group,
-					    prefetch_ios);
+		elr->lr_next_group = ext4_mb_prefetch(sb, group, nr, &prefetch_ios);
+		ext4_mb_prefetch_fini(sb, elr->lr_next_group, nr);
+		trace_ext4_prefetch_bitmaps(sb, group, elr->lr_next_group, nr);
 		if (group >= elr->lr_next_group) {
 			ret = 1;
 			if (elr->lr_first_not_zeroed != ngroups &&
@@ -5297,6 +5305,19 @@ static int __ext4_fill_super(struct fs_context *fc, struct super_block *sb)
 		goto failed_mount3;
 
 	sbi->s_stripe = ext4_get_stripe_size(sbi);
+	/*
+	 * It's hard to get stripe aligned blocks if stripe is not aligned with
+	 * cluster, just disable stripe and alert user to simpfy code and avoid
+	 * stripe aligned allocation which will rarely successes.
+	 */
+	if (sbi->s_stripe > 0 && sbi->s_cluster_ratio > 1 &&
+	    sbi->s_stripe % sbi->s_cluster_ratio != 0) {
+		ext4_msg(sb, KERN_WARNING,
+			 "stripe (%lu) is not aligned with cluster size (%u), "
+			 "stripe is disabled",
+			 sbi->s_stripe, sbi->s_cluster_ratio);
+		sbi->s_stripe = 0;
+	}
 	sbi->s_extent_max_zeroout_kb = 32;
 
 	/*
@@ -5567,7 +5588,7 @@ static int __ext4_fill_super(struct fs_context *fc, struct super_block *sb)
 		ext4_msg(sb, KERN_INFO, "recovery complete");
 		err = ext4_mark_recovery_complete(sb, es);
 		if (err)
-			goto failed_mount9;
+			goto failed_mount10;
 	}
 
 	if (test_opt(sb, DISCARD) && !bdev_max_discard_sectors(sb->s_bdev))
@@ -5586,7 +5607,9 @@ static int __ext4_fill_super(struct fs_context *fc, struct super_block *sb)
 
 	return 0;
 
-failed_mount9:
+failed_mount10:
+	ext4_quotas_off(sb, EXT4_MAXQUOTAS);
+failed_mount9: __maybe_unused
 	ext4_release_orphan_info(sb);
 failed_mount8:
 	ext4_unregister_sysfs(sb);
@@ -5645,6 +5668,7 @@ failed_mount:
 	brelse(sbi->s_sbh);
 	ext4_blkdev_remove(sbi);
 out_fail:
+	invalidate_bdev(sb->s_bdev);
 	sb->s_fs_info = NULL;
 	return err;
 }
@@ -5684,8 +5708,9 @@ static int ext4_fill_super(struct super_block *sb, struct fs_context *fc)
 		descr = "out journal";
 
 	if (___ratelimit(&ext4_mount_msg_ratelimit, "EXT4-fs mount"))
-		ext4_msg(sb, KERN_INFO, "mounted filesystem %pU with%s. "
-			 "Quota mode: %s.", &sb->s_uuid, descr,
+		ext4_msg(sb, KERN_INFO, "mounted filesystem %pU %s with%s. "
+			 "Quota mode: %s.", &sb->s_uuid,
+			 sb_rdonly(sb) ? "ro" : "r/w", descr,
 			 ext4_quota_mode(sb));
 
 	/* Update the s_overhead_clusters if necessary */
@@ -5726,6 +5751,11 @@ static void ext4_init_journal_params(struct super_block *sb, journal_t *journal)
 		journal->j_flags |= JBD2_ABORT_ON_SYNCDATA_ERR;
 	else
 		journal->j_flags &= ~JBD2_ABORT_ON_SYNCDATA_ERR;
+	/*
+	 * Always enable journal cycle record option, letting the journal
+	 * records log transactions continuously between each mount.
+	 */
+	journal->j_flags |= JBD2_CYCLE_RECORD;
 	write_unlock(&journal->j_state_lock);
 }
 
@@ -5898,7 +5928,7 @@ static journal_t *ext4_get_dev_journal(struct super_block *sb,
 out_journal:
 	jbd2_journal_destroy(journal);
 out_bdev:
-	ext4_blkdev_put(bdev);
+	blkdev_put(bdev, sb);
 	return NULL;
 }
 
@@ -5978,19 +6008,27 @@ static int ext4_load_journal(struct super_block *sb,
 		err = jbd2_journal_wipe(journal, !really_read_only);
 	if (!err) {
 		char *save = kmalloc(EXT4_S_ERR_LEN, GFP_KERNEL);
+		__le16 orig_state;
+		bool changed = false;
 
 		if (save)
 			memcpy(save, ((char *) es) +
 			       EXT4_S_ERR_START, EXT4_S_ERR_LEN);
 		err = jbd2_journal_load(journal);
-		if (save)
+		if (save && memcmp(((char *) es) + EXT4_S_ERR_START,
+				   save, EXT4_S_ERR_LEN)) {
 			memcpy(((char *) es) + EXT4_S_ERR_START,
 			       save, EXT4_S_ERR_LEN);
+			changed = true;
+		}
 		kfree(save);
+		orig_state = es->s_state;
 		es->s_state |= cpu_to_le16(EXT4_SB(sb)->s_mount_state &
 					   EXT4_ERROR_FS);
+		if (orig_state != es->s_state)
+			changed = true;
 		/* Write out restored error information to the superblock */
-		if (!bdev_read_only(sb->s_bdev)) {
+		if (changed && !really_read_only) {
 			int err2;
 			err2 = ext4_commit_super(sb);
 			err = err ? : err2;
@@ -6587,18 +6625,6 @@ static int __ext4_remount(struct fs_context *fc, struct super_block *sb)
 	}
 
 	/*
-	 * Reinitialize lazy itable initialization thread based on
-	 * current settings
-	 */
-	if (sb_rdonly(sb) || !test_opt(sb, INIT_INODE_TABLE))
-		ext4_unregister_li_request(sb);
-	else {
-		ext4_group_t first_not_zeroed;
-		first_not_zeroed = ext4_has_uninit_itable(sb);
-		ext4_register_li_request(sb, first_not_zeroed);
-	}
-
-	/*
 	 * Handle creation of system zone data early because it can fail.
 	 * Releasing of existing data is done when we are sure remount will
 	 * succeed.
@@ -6616,9 +6642,6 @@ static int __ext4_remount(struct fs_context *fc, struct super_block *sb)
 	}
 
 #ifdef CONFIG_QUOTA
-	/* Release old quota file names */
-	for (i = 0; i < EXT4_MAXQUOTAS; i++)
-		kfree(old_opts.s_qf_names[i]);
 	if (enable_quota) {
 		if (sb_any_quota_suspended(sb))
 			dquot_resume(sb, -1);
@@ -6628,9 +6651,24 @@ static int __ext4_remount(struct fs_context *fc, struct super_block *sb)
 				goto restore_opts;
 		}
 	}
+	/* Release old quota file names */
+	for (i = 0; i < EXT4_MAXQUOTAS; i++)
+		kfree(old_opts.s_qf_names[i]);
 #endif
 	if (!test_opt(sb, BLOCK_VALIDITY) && sbi->s_system_blks)
 		ext4_release_system_zone(sb);
+
+	/*
+	 * Reinitialize lazy itable initialization thread based on
+	 * current settings
+	 */
+	if (sb_rdonly(sb) || !test_opt(sb, INIT_INODE_TABLE))
+		ext4_unregister_li_request(sb);
+	else {
+		ext4_group_t first_not_zeroed;
+		first_not_zeroed = ext4_has_uninit_itable(sb);
+		ext4_register_li_request(sb, first_not_zeroed);
+	}
 
 	if (!ext4_has_feature_mmp(sb) || sb_rdonly(sb))
 		ext4_stop_mmpd(sbi);
@@ -6638,6 +6676,13 @@ static int __ext4_remount(struct fs_context *fc, struct super_block *sb)
 	return 0;
 
 restore_opts:
+	/*
+	 * If there was a failing r/w to ro transition, we may need to
+	 * re-enable quota
+	 */
+	if ((sb->s_flags & SB_RDONLY) && !(old_sb_flags & SB_RDONLY) &&
+	    sb_any_quota_suspended(sb))
+		dquot_resume(sb, -1);
 	sb->s_flags = old_sb_flags;
 	sbi->s_mount_opt = old_opts.s_mount_opt;
 	sbi->s_mount_opt2 = old_opts.s_mount_opt2;
@@ -6678,8 +6723,9 @@ static int ext4_reconfigure(struct fs_context *fc)
 	if (ret < 0)
 		return ret;
 
-	ext4_msg(sb, KERN_INFO, "re-mounted %pU. Quota mode: %s.",
-		 &sb->s_uuid, ext4_quota_mode(sb));
+	ext4_msg(sb, KERN_INFO, "re-mounted %pU %s. Quota mode: %s.",
+		 &sb->s_uuid, sb_rdonly(sb) ? "ro" : "r/w",
+		 ext4_quota_mode(sb));
 
 	return 0;
 }
@@ -7017,20 +7063,8 @@ int ext4_enable_quotas(struct super_block *sb)
 					"(type=%d, err=%d, ino=%lu). "
 					"Please run e2fsck to fix.", type,
 					err, qf_inums[type]);
-				for (type--; type >= 0; type--) {
-					struct inode *inode;
 
-					inode = sb_dqopt(sb)->files[type];
-					if (inode)
-						inode = igrab(inode);
-					dquot_quota_off(sb, type);
-					if (inode) {
-						lockdep_set_quota_inode(inode,
-							I_DATA_SEM_NORMAL);
-						iput(inode);
-					}
-				}
-
+				ext4_quotas_off(sb, type);
 				return err;
 			}
 		}

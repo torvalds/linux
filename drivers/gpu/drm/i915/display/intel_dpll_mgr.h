@@ -341,6 +341,9 @@ int intel_reserve_shared_dplls(struct intel_atomic_state *state,
 			       struct intel_encoder *encoder);
 void intel_release_shared_dplls(struct intel_atomic_state *state,
 				struct intel_crtc *crtc);
+void intel_unreference_shared_dpll_crtc(const struct intel_crtc *crtc,
+					const struct intel_shared_dpll *pll,
+					struct intel_shared_dpll_state *shared_dpll_state);
 void icl_set_active_port_dpll(struct intel_crtc_state *crtc_state,
 			      enum icl_port_dpll_id port_dpll_id);
 void intel_update_active_dpll(struct intel_atomic_state *state,

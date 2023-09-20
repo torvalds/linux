@@ -9,6 +9,7 @@
 
 / {
 	model = "MediaTek MT6755 EVB";
+	chassis-type = "embedded";
 	compatible = "mediatek,mt6755-evb", "mediatek,mt6755";
 
 	aliases {

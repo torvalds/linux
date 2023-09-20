@@ -31,13 +31,18 @@ struct erdma_user_mmap_entry {
 	u8 mmap_flag;
 };
 
+struct erdma_ext_db_info {
+	bool enable;
+	u16 sdb_off;
+	u16 rdb_off;
+	u16 cdb_off;
+};
+
 struct erdma_ucontext {
 	struct ib_ucontext ibucontext;
 
-	u32 sdb_type;
-	u32 sdb_idx;
-	u32 sdb_page_idx;
-	u32 sdb_page_off;
+	struct erdma_ext_db_info ext_db;
+
 	u64 sdb;
 	u64 rdb;
 	u64 cdb;

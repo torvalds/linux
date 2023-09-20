@@ -104,6 +104,15 @@ static void ionic_get_regs(struct net_device *netdev, struct ethtool_regs *regs,
 	memcpy_fromio(p + offset, lif->ionic->idev.dev_cmd_regs->words, size);
 }
 
+static void ionic_get_link_ext_stats(struct net_device *netdev,
+				     struct ethtool_link_ext_stats *stats)
+{
+	struct ionic_lif *lif = netdev_priv(netdev);
+
+	if (lif->ionic->pdev->is_physfn)
+		stats->link_down_events = lif->link_down_count;
+}
+
 static int ionic_get_link_ksettings(struct net_device *netdev,
 				    struct ethtool_link_ksettings *ks)
 {
@@ -1074,6 +1083,7 @@ static const struct ethtool_ops ionic_ethtool_ops = {
 	.get_regs_len		= ionic_get_regs_len,
 	.get_regs		= ionic_get_regs,
 	.get_link		= ethtool_op_get_link,
+	.get_link_ext_stats	= ionic_get_link_ext_stats,
 	.get_link_ksettings	= ionic_get_link_ksettings,
 	.set_link_ksettings	= ionic_set_link_ksettings,
 	.get_coalesce		= ionic_get_coalesce,

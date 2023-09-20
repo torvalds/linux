@@ -35,9 +35,13 @@
 			next-level-cache = <&L2_0>;
 			L2_0: l2-cache {
 				compatible = "cache";
+				cache-level = <2>;
+				cache-unified;
 				next-level-cache = <&L3_0>;
 				L3_0: l3-cache {
 					compatible = "cache";
+					cache-level = <3>;
+					cache-unified;
 				};
 			};
 		};
@@ -54,6 +58,8 @@
 			next-level-cache = <&L2_100>;
 			L2_100: l2-cache {
 				compatible = "cache";
+				cache-level = <2>;
+				cache-unified;
 				next-level-cache = <&L3_0>;
 			};
 		};
@@ -70,6 +76,8 @@
 			next-level-cache = <&L2_200>;
 			L2_200: l2-cache {
 				compatible = "cache";
+				cache-level = <2>;
+				cache-unified;
 				next-level-cache = <&L3_0>;
 			};
 		};
@@ -86,6 +94,8 @@
 			next-level-cache = <&L2_300>;
 			L2_300: l2-cache {
 				compatible = "cache";
+				cache-level = <2>;
+				cache-unified;
 				next-level-cache = <&L3_0>;
 			};
 		};
@@ -842,6 +852,53 @@
 			#hwlock-cells = <1>;
 		};
 
+		sdhc: mmc@8804000 {
+			compatible = "qcom,qdu1000-sdhci", "qcom,sdhci-msm-v5";
+			reg = <0x0 0x08804000 0x0 0x1000>,
+			      <0x0 0x08805000 0x0 0x1000>;
+			reg-names = "hc", "cqhci";
+
+			interrupts = <GIC_SPI 207 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 223 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "hc_irq", "pwr_irq";
+
+			clocks = <&gcc GCC_SDCC5_AHB_CLK>,
+				 <&gcc GCC_SDCC5_APPS_CLK>,
+				 <&rpmhcc RPMH_CXO_CLK>;
+			clock-names = "iface",
+				      "core",
+				      "xo";
+
+			resets = <&gcc GCC_SDCC5_BCR>;
+
+			interconnects = <&system_noc MASTER_SDCC_1 0 &mc_virt SLAVE_EBI1 0>,
+					<&gem_noc MASTER_APPSS_PROC 0 &system_noc SLAVE_SDCC_2 0>;
+			interconnect-names = "sdhc-ddr", "cpu-sdhc";
+			power-domains = <&rpmhpd QDU1000_CX>;
+			operating-points-v2 = <&sdhc1_opp_table>;
+
+			iommus = <&apps_smmu 0x80 0x0>;
+			dma-coherent;
+
+			bus-width = <8>;
+
+			qcom,dll-config = <0x0007642c>;
+			qcom,ddr-config = <0x80040868>;
+
+			status = "disabled";
+
+			sdhc1_opp_table: opp-table {
+				compatible = "operating-points-v2";
+
+				opp-384000000 {
+					opp-hz = /bits/ 64 <384000000>;
+					required-opps = <&rpmhpd_opp_nom>;
+					opp-peak-kBps = <6528000 1652800>;
+					opp-avg-kBps = <400000 0>;
+				};
+			};
+		};
+
 		pdc: interrupt-controller@b220000 {
 			compatible = "qcom,qdu1000-pdc", "qcom,pdc";
 			reg = <0x0 0xb220000 0x0 0x30000>, <0x0 0x174000f0 0x0 0x64>;
@@ -1100,10 +1157,73 @@
 				pins = "gpio31";
 				function = "gpio";
 			};
+
+			sdc_on_state: sdc-on-state {
+				clk-pins {
+					pins = "sdc1_clk";
+					drive-strength = <16>;
+					bias-disable;
+				};
+
+				cmd-pins {
+					pins = "sdc1_cmd";
+					drive-strength = <10>;
+					bias-pull-up;
+				};
+
+				data-pins {
+					pins = "sdc1_data";
+					drive-strength = <10>;
+					bias-pull-up;
+				};
+
+				rclk-pins {
+					pins = "sdc1_rclk";
+					bias-pull-down;
+				};
+			};
+
+			sdc_off_state: sdc-off-state {
+				clk-pins {
+					pins = "sdc1_clk";
+					drive-strength = <2>;
+					bias-disable;
+				};
+
+				cmd-pins {
+					pins = "sdc1_cmd";
+					drive-strength = <2>;
+					bias-pull-up;
+				};
+
+				data-pins {
+					pins = "sdc1_data";
+					drive-strength = <2>;
+					bias-pull-up;
+				};
+
+				rclk-pins {
+					pins = "sdc1_rclk";
+					bias-pull-down;
+				};
+			};
+		};
+
+		sram@14680000 {
+			compatible = "qcom,qdu1000-imem", "syscon", "simple-mfd";
+			reg = <0 0x14680000 0 0x1000>;
+			ranges = <0 0 0x14680000 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			pil-reloc@94c {
+				compatible = "qcom,pil-reloc-info";
+				reg = <0x94c 0xc8>;
+			};
 		};
 
 		apps_smmu: iommu@15000000 {
-			compatible = "qcom,qdu1000-smmu-500", "arm,mmu-500";
+			compatible = "qcom,qdu1000-smmu-500", "qcom,smmu-500", "arm,mmu-500";
 			reg = <0x0 0x15000000 0x0 0x100000>;
 			#iommu-cells = <2>;
 			#global-interrupts = <2>;
@@ -1242,6 +1362,7 @@
 			qcom,tcs-config = <ACTIVE_TCS    2>, <SLEEP_TCS     3>,
 					  <WAKE_TCS      3>, <CONTROL_TCS   0>;
 			label = "apps_rsc";
+			power-domains = <&CLUSTER_PD>;
 
 			apps_bcm_voter: bcm-voter {
 				compatible = "qcom,bcm-voter";

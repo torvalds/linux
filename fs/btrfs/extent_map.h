@@ -90,10 +90,8 @@ struct extent_map *lookup_extent_mapping(struct extent_map_tree *tree,
 int add_extent_mapping(struct extent_map_tree *tree,
 		       struct extent_map *em, int modified);
 void remove_extent_mapping(struct extent_map_tree *tree, struct extent_map *em);
-void replace_extent_mapping(struct extent_map_tree *tree,
-			    struct extent_map *cur,
-			    struct extent_map *new,
-			    int modified);
+int split_extent_map(struct btrfs_inode *inode, u64 start, u64 len, u64 pre,
+		     u64 new_logical);
 
 struct extent_map *alloc_extent_map(void);
 void free_extent_map(struct extent_map *em);

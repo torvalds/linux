@@ -2763,7 +2763,7 @@ struct wmi_rf_xpm_write_result_event {
 
 /* WMI_TX_MGMT_PACKET_EVENTID */
 struct wmi_tx_mgmt_packet_event {
-	u8 payload[0];
+	DECLARE_FLEX_ARRAY(u8, payload);
 } __packed;
 
 /* WMI_RX_MGMT_PACKET_EVENTID */

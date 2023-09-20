@@ -4,7 +4,7 @@
  *
  * (C) Copyright 2014 - 2021, Xilinx, Inc.
  *
- * Michal Simek <michal.simek@xilinx.com>
+ * Michal Simek <michal.simek@amd.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -118,6 +118,7 @@
 	};
 
 	zynqmp_ipi: zynqmp_ipi {
+		bootph-all;
 		compatible = "xlnx,zynqmp-ipi-mailbox";
 		interrupt-parent = <&gic>;
 		interrupts = <0 35 4>;
@@ -126,7 +127,8 @@
 		#size-cells = <2>;
 		ranges;
 
-		ipi_mailbox_pmu1: mailbox@ff990400 {
+		ipi_mailbox_pmu1: mailbox@ff9905c0 {
+			bootph-all;
 			reg = <0x0 0xff9905c0 0x0 0x20>,
 			      <0x0 0xff9905e0 0x0 0x20>,
 			      <0x0 0xff990e80 0x0 0x20>,
@@ -143,6 +145,7 @@
 	dcc: dcc {
 		compatible = "arm,dcc";
 		status = "disabled";
+		bootph-all;
 	};
 
 	pmu {
@@ -152,6 +155,10 @@
 			     <0 144 4>,
 			     <0 145 4>,
 			     <0 146 4>;
+		interrupt-affinity = <&cpu0>,
+				     <&cpu1>,
+				     <&cpu2>,
+				     <&cpu3>;
 	};
 
 	psci {
@@ -164,8 +171,10 @@
 			compatible = "xlnx,zynqmp-firmware";
 			#power-domain-cells = <1>;
 			method = "smc";
+			bootph-all;
 
 			zynqmp_power: zynqmp-power {
+				bootph-all;
 				compatible = "xlnx,zynqmp-power";
 				interrupt-parent = <&gic>;
 				interrupts = <0 35 4>;
@@ -245,6 +254,7 @@
 
 	amba: axi {
 		compatible = "simple-bus";
+		bootph-all;
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges;
@@ -400,7 +410,6 @@
 
 		gic: interrupt-controller@f9010000 {
 			compatible = "arm,gic-400";
-			#address-cells = <0>;
 			#interrupt-cells = <3>;
 			reg = <0x0 0xf9010000 0x0 0x10000>,
 			      <0x0 0xf9020000 0x0 0x20000>,
@@ -409,6 +418,18 @@
 			interrupt-controller;
 			interrupt-parent = <&gic>;
 			interrupts = <1 9 0xf04>;
+		};
+
+		gpu: gpu@fd4b0000 {
+			status = "disabled";
+			compatible = "xlnx,zynqmp-mali", "arm,mali-400";
+			reg = <0x0 0xfd4b0000 0x0 0x10000>;
+			interrupt-parent = <&gic>;
+			interrupts = <0 132 4>, <0 132 4>, <0 132 4>,
+				     <0 132 4>, <0 132 4>, <0 132 4>;
+			interrupt-names = "gp", "gpmmu", "pp0", "ppmmu0", "pp1", "ppmmu1";
+			clock-names = "bus", "core";
+			power-domains = <&zynqmp_firmware PD_GPU>;
 		};
 
 		/* LPDDMA default allows only secured access. inorder to enable
@@ -602,7 +623,6 @@
 		gpio: gpio@ff0a0000 {
 			compatible = "xlnx,zynqmp-gpio-1.0";
 			status = "disabled";
-			#address-cells = <0>;
 			#gpio-cells = <0x2>;
 			gpio-controller;
 			interrupt-parent = <&gic>;
@@ -674,6 +694,7 @@
 		};
 
 		qspi: spi@ff0f0000 {
+			bootph-all;
 			compatible = "xlnx,zynqmp-qspi-1.0";
 			status = "disabled";
 			clock-names = "ref_clk", "pclk";
@@ -720,6 +741,7 @@
 		};
 
 		sdhci0: mmc@ff160000 {
+			bootph-all;
 			compatible = "xlnx,zynqmp-8.9a", "arasan,sdhci-8.9a";
 			status = "disabled";
 			interrupt-parent = <&gic>;
@@ -730,9 +752,11 @@
 			#clock-cells = <1>;
 			clock-output-names = "clk_out_sd0", "clk_in_sd0";
 			power-domains = <&zynqmp_firmware PD_SD_0>;
+			resets = <&zynqmp_reset ZYNQMP_RESET_SDIO0>;
 		};
 
 		sdhci1: mmc@ff170000 {
+			bootph-all;
 			compatible = "xlnx,zynqmp-8.9a", "arasan,sdhci-8.9a";
 			status = "disabled";
 			interrupt-parent = <&gic>;
@@ -743,6 +767,7 @@
 			#clock-cells = <1>;
 			clock-output-names = "clk_out_sd1", "clk_in_sd1";
 			power-domains = <&zynqmp_firmware PD_SD_1>;
+			resets = <&zynqmp_reset ZYNQMP_RESET_SDIO1>;
 		};
 
 		smmu: iommu@fd800000 {
@@ -824,6 +849,7 @@
 		};
 
 		uart0: serial@ff000000 {
+			bootph-all;
 			compatible = "xlnx,zynqmp-uart", "cdns,uart-r1p12";
 			status = "disabled";
 			interrupt-parent = <&gic>;
@@ -834,6 +860,7 @@
 		};
 
 		uart1: serial@ff010000 {
+			bootph-all;
 			compatible = "xlnx,zynqmp-uart", "cdns,uart-r1p12";
 			status = "disabled";
 			interrupt-parent = <&gic>;
@@ -928,13 +955,13 @@
 			#io-channel-cells = <1>;
 			ranges = <0 0 0xffa50800 0x800>;
 
-			ams_ps: ams_ps@0 {
+			ams_ps: ams-ps@0 {
 				compatible = "xlnx,zynqmp-ams-ps";
 				status = "disabled";
 				reg = <0x0 0x400>;
 			};
 
-			ams_pl: ams_pl@400 {
+			ams_pl: ams-pl@400 {
 				compatible = "xlnx,zynqmp-ams-pl";
 				status = "disabled";
 				reg = <0x400 0x400>;
@@ -955,6 +982,7 @@
 		};
 
 		zynqmp_dpsub: display@fd4a0000 {
+			bootph-all;
 			compatible = "xlnx,zynqmp-dpsub-1.7";
 			status = "disabled";
 			reg = <0x0 0xfd4a0000 0x0 0x1000>,

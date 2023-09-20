@@ -47,6 +47,10 @@
 			"AMIC5", "MIC BIAS3";
 };
 
+&pmi8998_charger {
+	monitored-battery = <&battery>;
+};
+
 /*
  * The TFA9894 codec is currently unsupported.
  * We need to delete the node to allow the soundcard

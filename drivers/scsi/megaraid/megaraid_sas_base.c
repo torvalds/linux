@@ -5153,8 +5153,8 @@ static void megasas_update_ext_vd_details(struct megasas_instance *instance)
 		fusion->max_map_sz = ventura_map_sz;
 	} else {
 		fusion->old_map_sz =
-			struct_size((struct MR_FW_RAID_MAP *)0, ldSpanMap,
-				    instance->fw_supported_vd_count);
+			struct_size_t(struct MR_FW_RAID_MAP, ldSpanMap,
+				      instance->fw_supported_vd_count);
 		fusion->new_map_sz =  sizeof(struct MR_FW_RAID_MAP_EXT);
 
 		fusion->max_map_sz =
@@ -5789,8 +5789,8 @@ megasas_setup_jbod_map(struct megasas_instance *instance)
 	struct fusion_context *fusion = instance->ctrl_context;
 	size_t pd_seq_map_sz;
 
-	pd_seq_map_sz = struct_size((struct MR_PD_CFG_SEQ_NUM_SYNC *)0, seq,
-				    MAX_PHYSICAL_DEVICES);
+	pd_seq_map_sz = struct_size_t(struct MR_PD_CFG_SEQ_NUM_SYNC, seq,
+				      MAX_PHYSICAL_DEVICES);
 
 	instance->use_seqnum_jbod_fp =
 		instance->support_seqnum_jbod_fp;
@@ -8033,8 +8033,8 @@ skip_firing_dcmds:
 	if (instance->adapter_type != MFI_SERIES) {
 		megasas_release_fusion(instance);
 		pd_seq_map_sz =
-			struct_size((struct MR_PD_CFG_SEQ_NUM_SYNC *)0,
-				    seq, MAX_PHYSICAL_DEVICES);
+			struct_size_t(struct MR_PD_CFG_SEQ_NUM_SYNC,
+				      seq, MAX_PHYSICAL_DEVICES);
 		for (i = 0; i < 2 ; i++) {
 			if (fusion->ld_map[i])
 				dma_free_coherent(&instance->pdev->dev,

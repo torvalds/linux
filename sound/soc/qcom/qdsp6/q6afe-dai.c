@@ -12,6 +12,7 @@
 #include <sound/soc.h>
 #include <sound/pcm_params.h>
 #include "q6dsp-lpass-ports.h"
+#include "q6dsp-common.h"
 #include "q6afe.h"
 
 
@@ -69,6 +70,7 @@ static int q6hdmi_hw_params(struct snd_pcm_substream *substream,
 	struct q6afe_dai_data *dai_data = dev_get_drvdata(dai->dev);
 	int channels = params_channels(params);
 	struct q6afe_hdmi_cfg *hdmi = &dai_data->port_config[dai->id].hdmi;
+	int ret;
 
 	hdmi->sample_rate = params_rate(params);
 	switch (params_format(params)) {
@@ -80,33 +82,11 @@ static int q6hdmi_hw_params(struct snd_pcm_substream *substream,
 		break;
 	}
 
-	/* HDMI spec CEA-861-E: Table 28 Audio InfoFrame Data Byte 4 */
-	switch (channels) {
-	case 2:
-		hdmi->channel_allocation = 0;
-		break;
-	case 3:
-		hdmi->channel_allocation = 0x02;
-		break;
-	case 4:
-		hdmi->channel_allocation = 0x06;
-		break;
-	case 5:
-		hdmi->channel_allocation = 0x0A;
-		break;
-	case 6:
-		hdmi->channel_allocation = 0x0B;
-		break;
-	case 7:
-		hdmi->channel_allocation = 0x12;
-		break;
-	case 8:
-		hdmi->channel_allocation = 0x13;
-		break;
-	default:
-		dev_err(dai->dev, "invalid Channels = %u\n", channels);
-		return -EINVAL;
-	}
+	ret = q6dsp_get_channel_allocation(channels);
+	if (ret < 0)
+		return ret;
+
+	hdmi->channel_allocation = (u16) ret;
 
 	return 0;
 }

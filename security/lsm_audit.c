@@ -200,7 +200,7 @@ static void dump_common_audit_data(struct audit_buffer *ab,
 	char comm[sizeof(current->comm)];
 
 	/*
-	 * To keep stack sizes in check force programers to notice if they
+	 * To keep stack sizes in check force programmers to notice if they
 	 * start making this union too large!  See struct lsm_network_audit
 	 * as an example of how to deal with large data.
 	 */

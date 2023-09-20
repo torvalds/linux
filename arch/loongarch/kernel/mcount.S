@@ -79,18 +79,20 @@ SYM_FUNC_START(ftrace_graph_caller)
 SYM_FUNC_END(ftrace_graph_caller)
 
 SYM_FUNC_START(return_to_handler)
-	PTR_ADDI	sp, sp, -2 * SZREG
-	PTR_S		a0, sp, 0
-	PTR_S		a1, sp, SZREG
+	PTR_ADDI	sp, sp, -FGRET_REGS_SIZE
+	PTR_S		a0, sp, FGRET_REGS_A0
+	PTR_S		a1, sp, FGRET_REGS_A1
+	PTR_S		zero, sp, FGRET_REGS_FP
 
+	move		a0, sp
 	bl		ftrace_return_to_handler
 
 	/* Restore the real parent address: a0 -> ra */
 	move		ra, a0
 
-	PTR_L		a0, sp, 0
-	PTR_L		a1, sp, SZREG
-	PTR_ADDI	sp, sp, 2 * SZREG
+	PTR_L		a0, sp, FGRET_REGS_A0
+	PTR_L		a1, sp, FGRET_REGS_A1
+	PTR_ADDI	sp, sp, FGRET_REGS_SIZE
 	jr		ra
 SYM_FUNC_END(return_to_handler)
 #endif /* CONFIG_FUNCTION_GRAPH_TRACER */

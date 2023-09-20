@@ -142,6 +142,8 @@ EX(10f) s8i	a3, a5, 0
 	abi_ret_default
 
 ENDPROC(__memset)
+EXPORT_SYMBOL(__memset)
+EXPORT_SYMBOL(memset)
 
 	.section .fixup, "ax"
 	.align	4

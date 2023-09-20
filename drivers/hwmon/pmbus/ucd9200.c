@@ -200,7 +200,7 @@ static struct i2c_driver ucd9200_driver = {
 		.name = "ucd9200",
 		.of_match_table = of_match_ptr(ucd9200_of_match),
 	},
-	.probe_new = ucd9200_probe,
+	.probe = ucd9200_probe,
 	.id_table = ucd9200_id,
 };
 

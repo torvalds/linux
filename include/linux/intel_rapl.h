@@ -14,6 +14,12 @@
 #include <linux/powercap.h>
 #include <linux/cpuhotplug.h>
 
+enum rapl_if_type {
+	RAPL_IF_MSR,	/* RAPL I/F using MSR registers */
+	RAPL_IF_MMIO,	/* RAPL I/F using MMIO registers */
+	RAPL_IF_TPMI,	/* RAPL I/F using TPMI registers */
+};
+
 enum rapl_domain_type {
 	RAPL_DOMAIN_PACKAGE,	/* entire package/socket */
 	RAPL_DOMAIN_PP0,	/* core power plane */
@@ -30,17 +36,23 @@ enum rapl_domain_reg_id {
 	RAPL_DOMAIN_REG_POLICY,
 	RAPL_DOMAIN_REG_INFO,
 	RAPL_DOMAIN_REG_PL4,
+	RAPL_DOMAIN_REG_UNIT,
+	RAPL_DOMAIN_REG_PL2,
 	RAPL_DOMAIN_REG_MAX,
 };
 
 struct rapl_domain;
 
 enum rapl_primitives {
-	ENERGY_COUNTER,
 	POWER_LIMIT1,
 	POWER_LIMIT2,
 	POWER_LIMIT4,
+	ENERGY_COUNTER,
 	FW_LOCK,
+	FW_HIGH_LOCK,
+	PL1_LOCK,
+	PL2_LOCK,
+	PL4_LOCK,
 
 	PL1_ENABLE,		/* power limit 1, aka long term */
 	PL1_CLAMP,		/* allow frequency to go below OS request */
@@ -74,12 +86,13 @@ struct rapl_domain_data {
 	unsigned long timestamp;
 };
 
-#define NR_POWER_LIMITS (3)
+#define NR_POWER_LIMITS	(POWER_LIMIT4 + 1)
+
 struct rapl_power_limit {
 	struct powercap_zone_constraint *constraint;
-	int prim_id;		/* primitive ID used to enable */
 	struct rapl_domain *domain;
 	const char *name;
+	bool locked;
 	u64 last_power_limit;
 };
 
@@ -96,7 +109,9 @@ struct rapl_domain {
 	struct rapl_power_limit rpl[NR_POWER_LIMITS];
 	u64 attr_map;		/* track capabilities */
 	unsigned int state;
-	unsigned int domain_energy_unit;
+	unsigned int power_unit;
+	unsigned int energy_unit;
+	unsigned int time_unit;
 	struct rapl_package *rp;
 };
 
@@ -121,16 +136,20 @@ struct reg_action {
  *				registers.
  * @write_raw:			Callback for writing RAPL interface specific
  *				registers.
+ * @defaults:			internal pointer to interface default settings
+ * @rpi:			internal pointer to interface primitive info
  */
 struct rapl_if_priv {
+	enum rapl_if_type type;
 	struct powercap_control_type *control_type;
-	struct rapl_domain *platform_rapl_domain;
 	enum cpuhp_state pcap_rapl_online;
 	u64 reg_unit;
 	u64 regs[RAPL_DOMAIN_MAX][RAPL_DOMAIN_REG_MAX];
 	int limits[RAPL_DOMAIN_MAX];
-	int (*read_raw)(int cpu, struct reg_action *ra);
-	int (*write_raw)(int cpu, struct reg_action *ra);
+	int (*read_raw)(int id, struct reg_action *ra);
+	int (*write_raw)(int id, struct reg_action *ra);
+	void *defaults;
+	void *rpi;
 };
 
 /* maximum rapl package domain name: package-%d-die-%d */
@@ -140,9 +159,6 @@ struct rapl_package {
 	unsigned int id;	/* logical die id, equals physical 1-die systems */
 	unsigned int nr_domains;
 	unsigned long domain_map;	/* bit map of active domains */
-	unsigned int power_unit;
-	unsigned int energy_unit;
-	unsigned int time_unit;
 	struct rapl_domain *domains;	/* array of domains, sized at runtime */
 	struct powercap_zone *power_zone;	/* keep track of parent zone */
 	unsigned long power_limit_irq;	/* keep track of package power limit
@@ -156,8 +172,8 @@ struct rapl_package {
 	struct rapl_if_priv *priv;
 };
 
-struct rapl_package *rapl_find_package_domain(int cpu, struct rapl_if_priv *priv);
-struct rapl_package *rapl_add_package(int cpu, struct rapl_if_priv *priv);
+struct rapl_package *rapl_find_package_domain(int id, struct rapl_if_priv *priv, bool id_is_cpu);
+struct rapl_package *rapl_add_package(int id, struct rapl_if_priv *priv, bool id_is_cpu);
 void rapl_remove_package(struct rapl_package *rp);
 
 #endif /* __INTEL_RAPL_H__ */

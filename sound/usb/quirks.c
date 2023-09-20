@@ -19,6 +19,7 @@
 #include "mixer.h"
 #include "mixer_quirks.h"
 #include "midi.h"
+#include "midi2.h"
 #include "quirks.h"
 #include "helper.h"
 #include "endpoint.h"
@@ -80,7 +81,7 @@ static int create_any_midi_quirk(struct snd_usb_audio *chip,
 				 struct usb_driver *driver,
 				 const struct snd_usb_audio_quirk *quirk)
 {
-	return snd_usbmidi_create(chip->card, intf, &chip->midi_list, quirk);
+	return snd_usb_midi_v2_create(chip, intf, quirk, 0);
 }
 
 /*
@@ -436,8 +437,9 @@ static int create_uaxx_quirk(struct snd_usb_audio *chip,
 			chip->usb_id == USB_ID(0x0582, 0x002b)
 			? &ua700_quirk : &uaxx_quirk;
 		return __snd_usbmidi_create(chip->card, iface,
-					  &chip->midi_list, quirk,
-					  chip->usb_id);
+					    &chip->midi_list, quirk,
+					    chip->usb_id,
+					    &chip->num_rawmidis);
 	}
 
 	if (altsd->bNumEndpoints != 1)
@@ -2190,6 +2192,8 @@ static const struct usb_audio_quirk_flags_table quirk_flags_table[] = {
 	VENDOR_FLG(0x2972, /* FiiO devices */
 		   QUIRK_FLAG_DSD_RAW),
 	VENDOR_FLG(0x2ab6, /* T+A devices */
+		   QUIRK_FLAG_DSD_RAW),
+	VENDOR_FLG(0x3336, /* HEM devices */
 		   QUIRK_FLAG_DSD_RAW),
 	VENDOR_FLG(0x3353, /* Khadas devices */
 		   QUIRK_FLAG_DSD_RAW),

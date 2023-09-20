@@ -86,6 +86,30 @@ FTRACE_ENTRY_PACKED(funcgraph_entry, ftrace_graph_ent_entry,
 );
 
 /* Function return entry */
+#ifdef CONFIG_FUNCTION_GRAPH_RETVAL
+
+FTRACE_ENTRY_PACKED(funcgraph_exit, ftrace_graph_ret_entry,
+
+	TRACE_GRAPH_RET,
+
+	F_STRUCT(
+		__field_struct(	struct ftrace_graph_ret,	ret	)
+		__field_packed(	unsigned long,	ret,		func	)
+		__field_packed(	unsigned long,	ret,		retval	)
+		__field_packed(	int,		ret,		depth	)
+		__field_packed(	unsigned int,	ret,		overrun	)
+		__field_packed(	unsigned long long, ret,	calltime)
+		__field_packed(	unsigned long long, ret,	rettime	)
+	),
+
+	F_printk("<-- %ps (%d) (start: %llx  end: %llx) over: %d retval: %lx",
+		 (void *)__entry->func, __entry->depth,
+		 __entry->calltime, __entry->rettime,
+		 __entry->depth, __entry->retval)
+);
+
+#else
+
 FTRACE_ENTRY_PACKED(funcgraph_exit, ftrace_graph_ret_entry,
 
 	TRACE_GRAPH_RET,
@@ -104,6 +128,8 @@ FTRACE_ENTRY_PACKED(funcgraph_exit, ftrace_graph_ret_entry,
 		 __entry->calltime, __entry->rettime,
 		 __entry->depth)
 );
+
+#endif
 
 /*
  * Context switch trace entry - which task (and prio) we switched from/to:

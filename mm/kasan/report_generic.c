@@ -30,9 +30,9 @@
 #include "kasan.h"
 #include "../slab.h"
 
-void *kasan_find_first_bad_addr(void *addr, size_t size)
+const void *kasan_find_first_bad_addr(const void *addr, size_t size)
 {
-	void *p = addr;
+	const void *p = addr;
 
 	if (!addr_has_metadata(p))
 		return p;
@@ -362,14 +362,14 @@ void kasan_print_address_stack_frame(const void *addr)
 #endif /* CONFIG_KASAN_STACK */
 
 #define DEFINE_ASAN_REPORT_LOAD(size)                     \
-void __asan_report_load##size##_noabort(unsigned long addr) \
+void __asan_report_load##size##_noabort(void *addr) \
 {                                                         \
 	kasan_report(addr, size, false, _RET_IP_);	  \
 }                                                         \
 EXPORT_SYMBOL(__asan_report_load##size##_noabort)
 
 #define DEFINE_ASAN_REPORT_STORE(size)                     \
-void __asan_report_store##size##_noabort(unsigned long addr) \
+void __asan_report_store##size##_noabort(void *addr) \
 {                                                          \
 	kasan_report(addr, size, true, _RET_IP_);	   \
 }                                                          \
@@ -386,13 +386,13 @@ DEFINE_ASAN_REPORT_STORE(4);
 DEFINE_ASAN_REPORT_STORE(8);
 DEFINE_ASAN_REPORT_STORE(16);
 
-void __asan_report_load_n_noabort(unsigned long addr, size_t size)
+void __asan_report_load_n_noabort(void *addr, ssize_t size)
 {
 	kasan_report(addr, size, false, _RET_IP_);
 }
 EXPORT_SYMBOL(__asan_report_load_n_noabort);
 
-void __asan_report_store_n_noabort(unsigned long addr, size_t size)
+void __asan_report_store_n_noabort(void *addr, ssize_t size)
 {
 	kasan_report(addr, size, true, _RET_IP_);
 }

@@ -490,9 +490,6 @@ do {									\
 	rcu_assign_pointer((KEY)->payload.rcu_data0, (PAYLOAD));	\
 } while (0)
 
-#ifdef CONFIG_SYSCTL
-extern struct ctl_table key_sysctls[];
-#endif
 /*
  * the userspace interface
  */

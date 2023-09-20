@@ -4337,8 +4337,8 @@ static int mlxsw_sp_port_lag_join(struct mlxsw_sp_port *mlxsw_sp_port,
 		mlxsw_sp_port_vlan_router_leave(mlxsw_sp_port->default_vlan);
 
 	/* Join a router interface configured on the LAG, if exists */
-	err = mlxsw_sp_port_vlan_router_join(mlxsw_sp_port->default_vlan,
-					     lag_dev, extack);
+	err = mlxsw_sp_router_port_join_lag(mlxsw_sp_port, lag_dev,
+					    extack);
 	if (err)
 		goto err_router_join;
 
@@ -5139,14 +5139,6 @@ static int mlxsw_sp_netdevice_event(struct notifier_block *nb,
 	return notifier_from_errno(err);
 }
 
-static struct notifier_block mlxsw_sp_inetaddr_valid_nb __read_mostly = {
-	.notifier_call = mlxsw_sp_inetaddr_valid_event,
-};
-
-static struct notifier_block mlxsw_sp_inet6addr_valid_nb __read_mostly = {
-	.notifier_call = mlxsw_sp_inet6addr_valid_event,
-};
-
 static const struct pci_device_id mlxsw_sp1_pci_id_table[] = {
 	{PCI_VDEVICE(MELLANOX, PCI_DEVICE_ID_MELLANOX_SPECTRUM), 0},
 	{0, },
@@ -5191,12 +5183,9 @@ static int __init mlxsw_sp_module_init(void)
 {
 	int err;
 
-	register_inetaddr_validator_notifier(&mlxsw_sp_inetaddr_valid_nb);
-	register_inet6addr_validator_notifier(&mlxsw_sp_inet6addr_valid_nb);
-
 	err = mlxsw_core_driver_register(&mlxsw_sp1_driver);
 	if (err)
-		goto err_sp1_core_driver_register;
+		return err;
 
 	err = mlxsw_core_driver_register(&mlxsw_sp2_driver);
 	if (err)
@@ -5242,9 +5231,6 @@ err_sp3_core_driver_register:
 	mlxsw_core_driver_unregister(&mlxsw_sp2_driver);
 err_sp2_core_driver_register:
 	mlxsw_core_driver_unregister(&mlxsw_sp1_driver);
-err_sp1_core_driver_register:
-	unregister_inet6addr_validator_notifier(&mlxsw_sp_inet6addr_valid_nb);
-	unregister_inetaddr_validator_notifier(&mlxsw_sp_inetaddr_valid_nb);
 	return err;
 }
 
@@ -5258,8 +5244,6 @@ static void __exit mlxsw_sp_module_exit(void)
 	mlxsw_core_driver_unregister(&mlxsw_sp3_driver);
 	mlxsw_core_driver_unregister(&mlxsw_sp2_driver);
 	mlxsw_core_driver_unregister(&mlxsw_sp1_driver);
-	unregister_inet6addr_validator_notifier(&mlxsw_sp_inet6addr_valid_nb);
-	unregister_inetaddr_validator_notifier(&mlxsw_sp_inetaddr_valid_nb);
 }
 
 module_init(mlxsw_sp_module_init);

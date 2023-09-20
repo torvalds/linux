@@ -1451,7 +1451,7 @@ static struct i2c_driver lm49453_i2c_driver = {
 	.driver = {
 		.name = "lm49453",
 	},
-	.probe_new = lm49453_i2c_probe,
+	.probe = lm49453_i2c_probe,
 	.id_table = lm49453_i2c_id,
 };
 

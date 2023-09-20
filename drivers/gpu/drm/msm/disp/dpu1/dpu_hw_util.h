@@ -306,19 +306,20 @@ struct dpu_drm_scaler_v2 {
 };
 
 /**
- * struct dpu_hw_cdp_cfg : CDP configuration
- * @enable: true to enable CDP
- * @ubwc_meta_enable: true to enable ubwc metadata preload
- * @tile_amortize_enable: true to enable amortization control for tile format
- * @preload_ahead: number of request to preload ahead
- *	DPU_*_CDP_PRELOAD_AHEAD_32,
- *	DPU_*_CDP_PRELOAD_AHEAD_64
+ * struct dpu_hw_qos_cfg: pipe QoS configuration
+ * @danger_lut: LUT for generate danger level based on fill level
+ * @safe_lut: LUT for generate safe level based on fill level
+ * @creq_lut: LUT for generate creq level based on fill level
+ * @creq_vblank: creq value generated to vbif during vertical blanking
+ * @danger_vblank: danger value generated during vertical blanking
+ * @vblank_en: enable creq_vblank and danger_vblank during vblank
+ * @danger_safe_en: enable danger safe generation
  */
-struct dpu_hw_cdp_cfg {
-	bool enable;
-	bool ubwc_meta_enable;
-	bool tile_amortize_enable;
-	u32 preload_ahead;
+struct dpu_hw_qos_cfg {
+	u32 danger_lut;
+	u32 safe_lut;
+	u64 creq_lut;
+	bool danger_safe_en;
 };
 
 u32 *dpu_hw_util_get_log_mask_ptr(void);
@@ -346,8 +347,15 @@ void dpu_hw_csc_setup(struct dpu_hw_blk_reg_map  *c,
 		u32 csc_reg_off,
 		const struct dpu_csc_cfg *data, bool csc10);
 
+void dpu_setup_cdp(struct dpu_hw_blk_reg_map *c, u32 offset,
+		   const struct dpu_format *fmt, bool enable);
+
 u64 _dpu_hw_get_qos_lut(const struct dpu_qos_lut_tbl *tbl,
 		u32 total_fl);
+
+void _dpu_hw_setup_qos_lut(struct dpu_hw_blk_reg_map *c, u32 offset,
+			   bool qos_8lvl,
+			   const struct dpu_hw_qos_cfg *cfg);
 
 void dpu_hw_setup_misr(struct dpu_hw_blk_reg_map *c,
 		u32 misr_ctrl_offset,

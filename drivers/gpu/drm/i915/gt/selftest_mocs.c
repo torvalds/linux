@@ -131,13 +131,14 @@ static int read_mocs_table(struct i915_request *rq,
 			   const struct drm_i915_mocs_table *table,
 			   u32 *offset)
 {
+	struct intel_gt *gt = rq->engine->gt;
 	u32 addr;
 
 	if (!table)
 		return 0;
 
 	if (HAS_GLOBAL_MOCS_REGISTERS(rq->engine->i915))
-		addr = global_mocs_offset();
+		addr = global_mocs_offset() + gt->uncore->gsi_offset;
 	else
 		addr = mocs_offset(rq->engine);
 

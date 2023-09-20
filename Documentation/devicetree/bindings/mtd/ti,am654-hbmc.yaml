@@ -30,6 +30,8 @@ properties:
 patternProperties:
   "^flash@[0-1],[0-9a-f]+$":
     type: object
+    $ref: mtd-physmap.yaml
+    unevaluatedProperties: false
 
 required:
   - compatible

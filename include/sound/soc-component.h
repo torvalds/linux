@@ -159,6 +159,15 @@ struct snd_soc_component_driver {
 	int remove_order;
 
 	/*
+	 * soc_pcm_trigger() start/stop sequence.
+	 * see also
+	 *	snd_soc_dai_link
+	 *	soc_pcm_trigger()
+	 */
+	enum snd_soc_trigger_order trigger_start;
+	enum snd_soc_trigger_order trigger_stop;
+
+	/*
 	 * signal if the module handling the component should not be removed
 	 * if a pcm is open. Setting this would prevent the module
 	 * refcount being incremented in probe() but allow it be incremented
@@ -189,8 +198,6 @@ struct snd_soc_component_driver {
 				  struct snd_pcm_hw_params *params);
 	bool use_dai_pcm_id;	/* use DAI link PCM ID as PCM device number */
 	int be_pcm_base;	/* base device ID for all BE PCMs */
-
-	unsigned int start_dma_last;
 
 #ifdef CONFIG_DEBUG_FS
 	const char *debugfs_prefix;
@@ -453,6 +460,10 @@ int snd_soc_component_force_enable_pin(struct snd_soc_component *component,
 int snd_soc_component_force_enable_pin_unlocked(
 	struct snd_soc_component *component,
 	const char *pin);
+
+/* component controls */
+int snd_soc_component_notify_control(struct snd_soc_component *component,
+				     const char * const ctl);
 
 /* component driver ops */
 int snd_soc_component_open(struct snd_soc_component *component,

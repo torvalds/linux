@@ -826,7 +826,7 @@ static struct i2c_driver lm8323_i2c_driver = {
 		.name	= "lm8323",
 		.pm	= pm_sleep_ptr(&lm8323_pm_ops),
 	},
-	.probe_new	= lm8323_probe,
+	.probe		= lm8323_probe,
 	.remove		= lm8323_remove,
 	.id_table	= lm8323_id,
 };

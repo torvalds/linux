@@ -4,6 +4,7 @@
  */
 
 #include <linux/delay.h>
+#include <linux/pm_runtime.h>
 
 #include "iosm_ipc_chnl_cfg.h"
 #include "iosm_ipc_devlink.h"
@@ -565,24 +566,32 @@ static void ipc_imem_run_state_worker(struct work_struct *instance)
 	struct ipc_mux_config mux_cfg;
 	struct iosm_imem *ipc_imem;
 	u8 ctrl_chl_idx = 0;
+	int ret;
 
 	ipc_imem = container_of(instance, struct iosm_imem, run_state_worker);
 
 	if (ipc_imem->phase != IPC_P_RUN) {
 		dev_err(ipc_imem->dev,
 			"Modem link down. Exit run state worker.");
-		return;
+		goto err_out;
 	}
 
 	if (test_and_clear_bit(IOSM_DEVLINK_INIT, &ipc_imem->flag))
 		ipc_devlink_deinit(ipc_imem->ipc_devlink);
 
-	if (!ipc_imem_setup_cp_mux_cap_init(ipc_imem, &mux_cfg))
-		ipc_imem->mux = ipc_mux_init(&mux_cfg, ipc_imem);
+	ret = ipc_imem_setup_cp_mux_cap_init(ipc_imem, &mux_cfg);
+	if (ret < 0)
+		goto err_out;
 
-	ipc_imem_wwan_channel_init(ipc_imem, mux_cfg.protocol);
-	if (ipc_imem->mux)
-		ipc_imem->mux->wwan = ipc_imem->wwan;
+	ipc_imem->mux = ipc_mux_init(&mux_cfg, ipc_imem);
+	if (!ipc_imem->mux)
+		goto err_out;
+
+	ret = ipc_imem_wwan_channel_init(ipc_imem, mux_cfg.protocol);
+	if (ret < 0)
+		goto err_ipc_mux_deinit;
+
+	ipc_imem->mux->wwan = ipc_imem->wwan;
 
 	while (ctrl_chl_idx < IPC_MEM_MAX_CHANNELS) {
 		if (!ipc_chnl_cfg_get(&chnl_cfg_port, ctrl_chl_idx)) {
@@ -622,6 +631,18 @@ static void ipc_imem_run_state_worker(struct work_struct *instance)
 
 	/* Complete all memory stores after setting bit */
 	smp_mb__after_atomic();
+
+	if (ipc_imem->pcie->pci->device == INTEL_CP_DEVICE_7560_ID) {
+		pm_runtime_mark_last_busy(ipc_imem->dev);
+		pm_runtime_put_autosuspend(ipc_imem->dev);
+	}
+
+	return;
+
+err_ipc_mux_deinit:
+	ipc_mux_deinit(ipc_imem->mux);
+err_out:
+	ipc_uevent_send(ipc_imem->dev, UEVENT_CD_READY_LINK_DOWN);
 }
 
 static void ipc_imem_handle_irq(struct iosm_imem *ipc_imem, int irq)
@@ -1219,6 +1240,7 @@ void ipc_imem_cleanup(struct iosm_imem *ipc_imem)
 
 	/* forward MDM_NOT_READY to listeners */
 	ipc_uevent_send(ipc_imem->dev, UEVENT_MDM_NOT_READY);
+	pm_runtime_get_sync(ipc_imem->dev);
 
 	hrtimer_cancel(&ipc_imem->td_alloc_timer);
 	hrtimer_cancel(&ipc_imem->tdupdate_timer);
@@ -1404,6 +1426,16 @@ struct iosm_imem *ipc_imem_init(struct iosm_pcie *pcie, unsigned int device_id,
 
 		set_bit(IOSM_DEVLINK_INIT, &ipc_imem->flag);
 	}
+
+	if (!pm_runtime_enabled(ipc_imem->dev))
+		pm_runtime_enable(ipc_imem->dev);
+
+	pm_runtime_set_autosuspend_delay(ipc_imem->dev,
+					 IPC_MEM_AUTO_SUSPEND_DELAY_MS);
+	pm_runtime_use_autosuspend(ipc_imem->dev);
+	pm_runtime_allow(ipc_imem->dev);
+	pm_runtime_mark_last_busy(ipc_imem->dev);
+
 	return ipc_imem;
 devlink_channel_fail:
 	ipc_devlink_deinit(ipc_imem->ipc_devlink);

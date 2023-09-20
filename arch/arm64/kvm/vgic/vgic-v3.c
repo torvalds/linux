@@ -539,7 +539,6 @@ int vgic_v3_map_resources(struct kvm *kvm)
 {
 	struct vgic_dist *dist = &kvm->arch.vgic;
 	struct kvm_vcpu *vcpu;
-	int ret = 0;
 	unsigned long c;
 
 	kvm_for_each_vcpu(c, vcpu, kvm) {
@@ -567,12 +566,6 @@ int vgic_v3_map_resources(struct kvm *kvm)
 	 */
 	if (!vgic_initialized(kvm)) {
 		return -EBUSY;
-	}
-
-	ret = vgic_register_dist_iodev(kvm, dist->vgic_dist_base, VGIC_V3);
-	if (ret) {
-		kvm_err("Unable to register VGICv3 dist MMIO regions\n");
-		return ret;
 	}
 
 	if (kvm_vgic_global_state.has_gicv4_1)
@@ -616,6 +609,10 @@ static const struct midr_range broken_seis[] = {
 	MIDR_ALL_VERSIONS(MIDR_APPLE_M1_FIRESTORM_MAX),
 	MIDR_ALL_VERSIONS(MIDR_APPLE_M2_BLIZZARD),
 	MIDR_ALL_VERSIONS(MIDR_APPLE_M2_AVALANCHE),
+	MIDR_ALL_VERSIONS(MIDR_APPLE_M2_BLIZZARD_PRO),
+	MIDR_ALL_VERSIONS(MIDR_APPLE_M2_AVALANCHE_PRO),
+	MIDR_ALL_VERSIONS(MIDR_APPLE_M2_BLIZZARD_MAX),
+	MIDR_ALL_VERSIONS(MIDR_APPLE_M2_AVALANCHE_MAX),
 	{},
 };
 

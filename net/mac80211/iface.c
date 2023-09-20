@@ -8,7 +8,7 @@
  * Copyright 2008, Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
  * Copyright (c) 2016        Intel Deutschland GmbH
- * Copyright (C) 2018-2022 Intel Corporation
+ * Copyright (C) 2018-2023 Intel Corporation
  */
 #include <linux/slab.h>
 #include <linux/kernel.h>
@@ -43,7 +43,7 @@
  * by either the RTNL, the iflist_mtx or RCU.
  */
 
-static void ieee80211_iface_work(struct work_struct *work);
+static void ieee80211_iface_work(struct wiphy *wiphy, struct wiphy_work *work);
 
 bool __ieee80211_recalc_txpower(struct ieee80211_sub_if_data *sdata)
 {
@@ -521,7 +521,7 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata, bool going_do
 	cancel_work_sync(&sdata->recalc_smps);
 
 	sdata_lock(sdata);
-	WARN(sdata->vif.valid_links,
+	WARN(ieee80211_vif_is_mld(&sdata->vif),
 	     "destroying interface with valid links 0x%04x\n",
 	     sdata->vif.valid_links);
 
@@ -614,7 +614,7 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata, bool going_do
 		RCU_INIT_POINTER(local->p2p_sdata, NULL);
 		fallthrough;
 	default:
-		cancel_work_sync(&sdata->work);
+		wiphy_work_cancel(sdata->local->hw.wiphy, &sdata->work);
 		/*
 		 * When we get here, the interface is marked down.
 		 * Free the remaining keys, if there are any
@@ -1133,6 +1133,7 @@ int ieee80211_add_virtual_monitor(struct ieee80211_local *local)
 	snprintf(sdata->name, IFNAMSIZ, "%s-monitor",
 		 wiphy_name(local->hw.wiphy));
 	sdata->wdev.iftype = NL80211_IFTYPE_MONITOR;
+	mutex_init(&sdata->wdev.mtx);
 
 	ieee80211_sdata_init(local, sdata);
 
@@ -1157,23 +1158,26 @@ int ieee80211_add_virtual_monitor(struct ieee80211_local *local)
 	rcu_assign_pointer(local->monitor_sdata, sdata);
 	mutex_unlock(&local->iflist_mtx);
 
+	sdata_lock(sdata);
 	mutex_lock(&local->mtx);
 	ret = ieee80211_link_use_channel(&sdata->deflink, &local->monitor_chandef,
 					 IEEE80211_CHANCTX_EXCLUSIVE);
 	mutex_unlock(&local->mtx);
+	sdata_unlock(sdata);
 	if (ret) {
 		mutex_lock(&local->iflist_mtx);
 		RCU_INIT_POINTER(local->monitor_sdata, NULL);
 		mutex_unlock(&local->iflist_mtx);
 		synchronize_net();
 		drv_remove_interface(local, sdata);
+		mutex_destroy(&sdata->wdev.mtx);
 		kfree(sdata);
 		return ret;
 	}
 
 	skb_queue_head_init(&sdata->skb_queue);
 	skb_queue_head_init(&sdata->status_queue);
-	INIT_WORK(&sdata->work, ieee80211_iface_work);
+	wiphy_work_init(&sdata->work, ieee80211_iface_work);
 
 	return 0;
 }
@@ -1202,12 +1206,15 @@ void ieee80211_del_virtual_monitor(struct ieee80211_local *local)
 
 	synchronize_net();
 
+	sdata_lock(sdata);
 	mutex_lock(&local->mtx);
 	ieee80211_link_release_channel(&sdata->deflink);
 	mutex_unlock(&local->mtx);
+	sdata_unlock(sdata);
 
 	drv_remove_interface(local, sdata);
 
+	mutex_destroy(&sdata->wdev.mtx);
 	kfree(sdata);
 }
 
@@ -1221,7 +1228,7 @@ int ieee80211_do_open(struct wireless_dev *wdev, bool coming_up)
 	struct ieee80211_sub_if_data *sdata = IEEE80211_WDEV_TO_SUB_IF(wdev);
 	struct net_device *dev = wdev->netdev;
 	struct ieee80211_local *local = sdata->local;
-	u32 changed = 0;
+	u64 changed = 0;
 	int res;
 	u32 hw_reconf_flags = 0;
 
@@ -1281,6 +1288,9 @@ int ieee80211_do_open(struct wireless_dev *wdev, bool coming_up)
 	}
 
 	if (local->open_count == 0) {
+		/* here we can consider everything in good order (again) */
+		local->reconfig_failure = false;
+
 		res = drv_start(local);
 		if (res)
 			goto err_del_bss;
@@ -1622,7 +1632,7 @@ static void ieee80211_iface_process_status(struct ieee80211_sub_if_data *sdata,
 	}
 }
 
-static void ieee80211_iface_work(struct work_struct *work)
+static void ieee80211_iface_work(struct wiphy *wiphy, struct wiphy_work *work)
 {
 	struct ieee80211_sub_if_data *sdata =
 		container_of(work, struct ieee80211_sub_if_data, work);
@@ -1734,7 +1744,7 @@ static void ieee80211_setup_sdata(struct ieee80211_sub_if_data *sdata,
 
 	skb_queue_head_init(&sdata->skb_queue);
 	skb_queue_head_init(&sdata->status_queue);
-	INIT_WORK(&sdata->work, ieee80211_iface_work);
+	wiphy_work_init(&sdata->work, ieee80211_iface_work);
 	INIT_WORK(&sdata->recalc_smps, ieee80211_recalc_smps_work);
 	INIT_WORK(&sdata->activate_links_work, ieee80211_activate_links_work);
 
@@ -1812,7 +1822,7 @@ static int ieee80211_runtime_change_iftype(struct ieee80211_sub_if_data *sdata,
 		return -EBUSY;
 
 	/* for now, don't support changing while links exist */
-	if (sdata->vif.valid_links)
+	if (ieee80211_vif_is_mld(&sdata->vif))
 		return -EBUSY;
 
 	switch (sdata->vif.type) {
@@ -2255,7 +2265,6 @@ void ieee80211_remove_interfaces(struct ieee80211_local *local)
 {
 	struct ieee80211_sub_if_data *sdata, *tmp;
 	LIST_HEAD(unreg_list);
-	LIST_HEAD(wdev_list);
 
 	ASSERT_RTNL();
 
@@ -2278,23 +2287,18 @@ void ieee80211_remove_interfaces(struct ieee80211_local *local)
 	ieee80211_txq_teardown_flows(local);
 
 	mutex_lock(&local->iflist_mtx);
-	list_for_each_entry_safe(sdata, tmp, &local->interfaces, list) {
-		list_del(&sdata->list);
-
-		if (sdata->dev)
-			unregister_netdevice_queue(sdata->dev, &unreg_list);
-		else
-			list_add(&sdata->list, &wdev_list);
-	}
+	list_splice_init(&local->interfaces, &unreg_list);
 	mutex_unlock(&local->iflist_mtx);
 
-	unregister_netdevice_many(&unreg_list);
-
 	wiphy_lock(local->hw.wiphy);
-	list_for_each_entry_safe(sdata, tmp, &wdev_list, list) {
+	list_for_each_entry_safe(sdata, tmp, &unreg_list, list) {
+		bool netdev = sdata->dev;
+
 		list_del(&sdata->list);
 		cfg80211_unregister_wdev(&sdata->wdev);
-		kfree(sdata);
+
+		if (!netdev)
+			kfree(sdata);
 	}
 	wiphy_unlock(local->hw.wiphy);
 }

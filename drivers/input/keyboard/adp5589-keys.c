@@ -1054,7 +1054,7 @@ static struct i2c_driver adp5589_driver = {
 		.name = KBUILD_MODNAME,
 		.pm = pm_sleep_ptr(&adp5589_dev_pm_ops),
 	},
-	.probe_new = adp5589_probe,
+	.probe = adp5589_probe,
 	.id_table = adp5589_id,
 };
 

@@ -512,8 +512,6 @@ static int ucd9000_init_debugfs(struct i2c_client *client,
 		return -ENOENT;
 
 	data->debugfs = debugfs_create_dir(client->name, debugfs);
-	if (!data->debugfs)
-		return -ENOENT;
 
 	/*
 	 * Of the chips this driver supports, only the UCD9090, UCD90160,
@@ -695,7 +693,7 @@ static struct i2c_driver ucd9000_driver = {
 		.name = "ucd9000",
 		.of_match_table = of_match_ptr(ucd9000_of_match),
 	},
-	.probe_new = ucd9000_probe,
+	.probe = ucd9000_probe,
 	.id_table = ucd9000_id,
 };
 

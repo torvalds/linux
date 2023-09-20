@@ -1,1 +1,12 @@
 # SPDX-License-Identifier: GPL-2.0
+#
+config LIGHTWEIGHT_SPINLOCK_CHECK
+	bool "Enable lightweight spinlock checks"
+	depends on SMP && !DEBUG_SPINLOCK
+	default y
+	help
+	  Add checks with low performance impact to the spinlock functions
+	  to catch memory overwrites at runtime. For more advanced
+	  spinlock debugging you should choose the DEBUG_SPINLOCK option
+	  which will detect unitialized spinlocks too.
+	  If unsure say Y here.

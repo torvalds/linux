@@ -248,7 +248,7 @@ static int gve_tx_alloc_ring(struct gve_priv *priv, int idx)
 	tx->mask = slots - 1;
 
 	/* alloc metadata */
-	tx->info = vzalloc(sizeof(*tx->info) * slots);
+	tx->info = vcalloc(slots, sizeof(*tx->info));
 	if (!tx->info)
 		return -ENOMEM;
 

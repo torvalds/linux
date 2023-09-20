@@ -624,7 +624,7 @@ static struct i2c_driver max6639_driver = {
 		   .name = "max6639",
 		   .pm = pm_sleep_ptr(&max6639_pm_ops),
 		   },
-	.probe_new = max6639_probe,
+	.probe = max6639_probe,
 	.id_table = max6639_id,
 	.detect = max6639_detect,
 	.address_list = normal_i2c,

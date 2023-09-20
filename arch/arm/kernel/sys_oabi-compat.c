@@ -10,6 +10,8 @@
  *  Copyright:	MontaVista Software, Inc.
  */
 
+#include <asm/syscalls.h>
+
 /*
  * The legacy ABI and the new ARM EABI have different rules making some
  * syscalls incompatible especially with structure arguments.

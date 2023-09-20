@@ -15,6 +15,7 @@
 #include <linux/u64_stats_sync.h>
 #include <net/route.h>
 #include <net/ip6_fib.h>
+#include <net/pkt_cls.h>
 #include <linux/if_vlan.h>
 #include <linux/rhashtable.h>
 #include <linux/refcount.h>
@@ -753,6 +754,32 @@ int br_boolopt_multi_toggle(struct net_bridge *br,
 void br_boolopt_multi_get(const struct net_bridge *br,
 			  struct br_boolopt_multi *bm);
 void br_opt_toggle(struct net_bridge *br, enum net_bridge_opts opt, bool on);
+
+#if IS_ENABLED(CONFIG_NET_TC_SKB_EXT)
+static inline void br_tc_skb_miss_set(struct sk_buff *skb, bool miss)
+{
+	struct tc_skb_ext *ext;
+
+	if (!tc_skb_ext_tc_enabled())
+		return;
+
+	ext = skb_ext_find(skb, TC_SKB_EXT);
+	if (ext) {
+		ext->l2_miss = miss;
+		return;
+	}
+	if (!miss)
+		return;
+	ext = tc_skb_ext_alloc(skb);
+	if (!ext)
+		return;
+	ext->l2_miss = true;
+}
+#else
+static inline void br_tc_skb_miss_set(struct sk_buff *skb, bool miss)
+{
+}
+#endif
 
 /* br_device.c */
 void br_dev_setup(struct net_device *dev);

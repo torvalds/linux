@@ -120,9 +120,9 @@ static void simdisk_submit_bio(struct bio *bio)
 	bio_endio(bio);
 }
 
-static int simdisk_open(struct block_device *bdev, fmode_t mode)
+static int simdisk_open(struct gendisk *disk, blk_mode_t mode)
 {
-	struct simdisk *dev = bdev->bd_disk->private_data;
+	struct simdisk *dev = disk->private_data;
 
 	spin_lock(&dev->lock);
 	++dev->users;
@@ -130,7 +130,7 @@ static int simdisk_open(struct block_device *bdev, fmode_t mode)
 	return 0;
 }
 
-static void simdisk_release(struct gendisk *disk, fmode_t mode)
+static void simdisk_release(struct gendisk *disk)
 {
 	struct simdisk *dev = disk->private_data;
 	spin_lock(&dev->lock);

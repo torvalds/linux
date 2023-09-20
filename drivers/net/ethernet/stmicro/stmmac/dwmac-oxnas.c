@@ -231,7 +231,7 @@ MODULE_DEVICE_TABLE(of, oxnas_dwmac_match);
 
 static struct platform_driver oxnas_dwmac_driver = {
 	.probe  = oxnas_dwmac_probe,
-	.remove = stmmac_pltfr_remove,
+	.remove_new = stmmac_pltfr_remove,
 	.driver = {
 		.name           = "oxnas-dwmac",
 		.pm		= &stmmac_pltfr_pm_ops,

@@ -1673,7 +1673,7 @@ MODULE_DEVICE_TABLE(of, elants_of_match);
 #endif
 
 static struct i2c_driver elants_i2c_driver = {
-	.probe_new = elants_i2c_probe,
+	.probe = elants_i2c_probe,
 	.id_table = elants_i2c_id,
 	.driver = {
 		.name = DEVICE_NAME,

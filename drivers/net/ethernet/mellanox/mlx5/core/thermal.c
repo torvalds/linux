@@ -45,7 +45,7 @@ static int mlx5_thermal_get_mtmp_temp(struct mlx5_core_dev *mdev, u32 id, int *p
 static int mlx5_thermal_get_temp(struct thermal_zone_device *tzdev,
 				 int *p_temp)
 {
-	struct mlx5_thermal *thermal = tzdev->devdata;
+	struct mlx5_thermal *thermal = thermal_zone_device_priv(tzdev);
 	struct mlx5_core_dev *mdev = thermal->mdev;
 	int err;
 
@@ -81,12 +81,13 @@ int mlx5_thermal_init(struct mlx5_core_dev *mdev)
 		return -ENOMEM;
 
 	thermal->mdev = mdev;
-	thermal->tzdev = thermal_zone_device_register(data,
-						      MLX5_THERMAL_NUM_TRIPS,
-						      MLX5_THERMAL_TRIP_MASK,
-						      thermal,
-						      &mlx5_thermal_ops,
-						      NULL, 0, MLX5_THERMAL_POLL_INT_MSEC);
+	thermal->tzdev = thermal_zone_device_register_with_trips(data,
+								 NULL,
+								 MLX5_THERMAL_NUM_TRIPS,
+								 MLX5_THERMAL_TRIP_MASK,
+								 thermal,
+								 &mlx5_thermal_ops,
+								 NULL, 0, MLX5_THERMAL_POLL_INT_MSEC);
 	if (IS_ERR(thermal->tzdev)) {
 		dev_err(mdev->device, "Failed to register thermal zone device (%s) %ld\n",
 			data, PTR_ERR(thermal->tzdev));

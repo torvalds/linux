@@ -414,6 +414,8 @@ extern bool acpi_is_pnp_device(struct acpi_device *);
 
 typedef void (*wmi_notify_handler) (u32 value, void *context);
 
+int wmi_instance_count(const char *guid);
+
 extern acpi_status wmi_evaluate_method(const char *guid, u8 instance,
 					u32 method_id,
 					const struct acpi_buffer *in,
@@ -712,7 +714,6 @@ int acpi_match_platform_list(const struct acpi_platform_list *plat);
 
 extern void acpi_early_init(void);
 extern void acpi_subsystem_init(void);
-extern void arch_post_acpi_subsys_init(void);
 
 extern int acpi_nvs_register(__u64 start, __u64 size);
 
@@ -1083,6 +1084,8 @@ static inline bool acpi_sleep_state_supported(u8 sleep_state)
 }
 
 #endif	/* !CONFIG_ACPI */
+
+extern void arch_post_acpi_subsys_init(void);
 
 #ifdef CONFIG_ACPI_HOTPLUG_IOAPIC
 int acpi_ioapic_add(acpi_handle root);
@@ -1505,6 +1508,12 @@ static inline int find_acpi_cpu_topology_hetero_id(unsigned int cpu)
 {
 	return -EINVAL;
 }
+#endif
+
+#ifdef CONFIG_ARM64
+void acpi_arm_init(void);
+#else
+static inline void acpi_arm_init(void) { }
 #endif
 
 #ifdef CONFIG_ACPI_PCC

@@ -467,7 +467,7 @@ struct parport *parport_register_port(unsigned long base, int irq, int dma,
 	atomic_set(&tmp->ref_count, 1);
 	INIT_LIST_HEAD(&tmp->full_list);
 
-	name = kmalloc(15, GFP_KERNEL);
+	name = kmalloc(PARPORT_NAME_MAX_LEN, GFP_KERNEL);
 	if (!name) {
 		kfree(tmp);
 		return NULL;

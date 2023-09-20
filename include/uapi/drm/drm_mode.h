@@ -834,6 +834,11 @@ struct drm_color_ctm {
 	/*
 	 * Conversion matrix in S31.32 sign-magnitude
 	 * (not two's complement!) format.
+	 *
+	 * out   matrix    in
+	 * |R|   |0 1 2|   |R|
+	 * |G| = |3 4 5| x |G|
+	 * |B|   |6 7 8|   |B|
 	 */
 	__u64 matrix[9];
 };

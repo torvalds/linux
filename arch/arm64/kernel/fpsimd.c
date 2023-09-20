@@ -1649,6 +1649,7 @@ void fpsimd_flush_thread(void)
 
 		fpsimd_flush_thread_vl(ARM64_VEC_SME);
 		current->thread.svcr = 0;
+		sme_smstop();
 	}
 
 	current->thread.fp_type = FP_STATE_FPSIMD;

@@ -528,6 +528,10 @@ int adreno_load_fw(struct adreno_gpu *adreno_gpu)
 		if (!adreno_gpu->info->fw[i])
 			continue;
 
+		/* Skip loading GMU firwmare with GMU Wrapper */
+		if (adreno_has_gmu_wrapper(adreno_gpu) && i == ADRENO_FW_GMU)
+			continue;
+
 		/* Skip if the firmware has already been loaded */
 		if (adreno_gpu->fw[i])
 			continue;
@@ -1074,8 +1078,8 @@ int adreno_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 	u32 speedbin;
 	int ret;
 
-	/* Only handle the core clock when GMU is not in use */
-	if (config->rev.core < 6) {
+	/* Only handle the core clock when GMU is not in use (or is absent). */
+	if (adreno_has_gmu_wrapper(adreno_gpu) || config->rev.core < 6) {
 		/*
 		 * This can only be done before devm_pm_opp_of_add_table(), or
 		 * dev_pm_opp_set_config() will WARN_ON()

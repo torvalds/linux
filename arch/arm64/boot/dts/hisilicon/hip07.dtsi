@@ -843,81 +843,97 @@
 		cluster0_l2: l2-cache0 {
 			compatible = "cache";
 			cache-level = <2>;
+			cache-unified;
 		};
 
 		cluster1_l2: l2-cache1 {
 			compatible = "cache";
 			cache-level = <2>;
+			cache-unified;
 		};
 
 		cluster2_l2: l2-cache2 {
 			compatible = "cache";
 			cache-level = <2>;
+			cache-unified;
 		};
 
 		cluster3_l2: l2-cache3 {
 			compatible = "cache";
 			cache-level = <2>;
+			cache-unified;
 		};
 
 		cluster4_l2: l2-cache4 {
 			compatible = "cache";
 			cache-level = <2>;
+			cache-unified;
 		};
 
 		cluster5_l2: l2-cache5 {
 			compatible = "cache";
 			cache-level = <2>;
+			cache-unified;
 		};
 
 		cluster6_l2: l2-cache6 {
 			compatible = "cache";
 			cache-level = <2>;
+			cache-unified;
 		};
 
 		cluster7_l2: l2-cache7 {
 			compatible = "cache";
 			cache-level = <2>;
+			cache-unified;
 		};
 
 		cluster8_l2: l2-cache8 {
 			compatible = "cache";
 			cache-level = <2>;
+			cache-unified;
 		};
 
 		cluster9_l2: l2-cache9 {
 			compatible = "cache";
 			cache-level = <2>;
+			cache-unified;
 		};
 
 		cluster10_l2: l2-cache10 {
 			compatible = "cache";
 			cache-level = <2>;
+			cache-unified;
 		};
 
 		cluster11_l2: l2-cache11 {
 			compatible = "cache";
 			cache-level = <2>;
+			cache-unified;
 		};
 
 		cluster12_l2: l2-cache12 {
 			compatible = "cache";
 			cache-level = <2>;
+			cache-unified;
 		};
 
 		cluster13_l2: l2-cache13 {
 			compatible = "cache";
 			cache-level = <2>;
+			cache-unified;
 		};
 
 		cluster14_l2: l2-cache14 {
 			compatible = "cache";
 			cache-level = <2>;
+			cache-unified;
 		};
 
 		cluster15_l2: l2-cache15 {
 			compatible = "cache";
 			cache-level = <2>;
+			cache-unified;
 		};
 	};
 

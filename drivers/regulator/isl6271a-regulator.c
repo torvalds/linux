@@ -149,7 +149,7 @@ static struct i2c_driver isl6271a_i2c_driver = {
 		.name = "isl6271a",
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
-	.probe_new = isl6271a_probe,
+	.probe = isl6271a_probe,
 	.id_table = isl6271a_id,
 };
 

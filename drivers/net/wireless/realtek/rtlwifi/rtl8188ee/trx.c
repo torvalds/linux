@@ -674,7 +674,7 @@ void rtl88ee_tx_fill_cmddesc(struct ieee80211_hw *hw,
 	u8 fw_queue = QSLT_BEACON;
 	__le32 *pdesc = (__le32 *)pdesc8;
 
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)(skb->data);
+	struct ieee80211_hdr *hdr = rtl_get_hdr(skb);
 	__le16 fc = hdr->frame_control;
 
 	dma_addr_t mapping = dma_map_single(&rtlpci->pdev->dev, skb->data,

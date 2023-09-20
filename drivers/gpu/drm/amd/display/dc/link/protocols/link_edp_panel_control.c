@@ -165,14 +165,35 @@ bool edp_set_backlight_level_nits(struct dc_link *link,
 	*(uint16_t *)&dpcd_backlight_set.backlight_transition_time_ms = (uint16_t)transition_time_in_ms;
 
 
-	if (core_link_write_dpcd(link, DP_SOURCE_BACKLIGHT_LEVEL,
+	if (!link->dpcd_caps.panel_luminance_control) {
+		if (core_link_write_dpcd(link, DP_SOURCE_BACKLIGHT_LEVEL,
 			(uint8_t *)(&dpcd_backlight_set),
 			sizeof(dpcd_backlight_set)) != DC_OK)
-		return false;
+			return false;
 
-	if (core_link_write_dpcd(link, DP_SOURCE_BACKLIGHT_CONTROL,
+		if (core_link_write_dpcd(link, DP_SOURCE_BACKLIGHT_CONTROL,
 			&backlight_control, 1) != DC_OK)
-		return false;
+			return false;
+	} else {
+		const uint8_t backlight_enable = DP_EDP_PANEL_LUMINANCE_CONTROL_ENABLE;
+		struct target_luminance_value *target_luminance = NULL;
+
+		//if target luminance value is greater than 24 bits, clip the value to 24 bits
+		if (backlight_millinits > 0xFFFFFF)
+			backlight_millinits = 0xFFFFFF;
+
+		target_luminance = (struct target_luminance_value *)&backlight_millinits;
+
+		if (core_link_write_dpcd(link, DP_EDP_BACKLIGHT_MODE_SET_REGISTER,
+			&backlight_enable,
+			sizeof(backlight_enable)) != DC_OK)
+			return false;
+
+		if (core_link_write_dpcd(link, DP_EDP_PANEL_TARGET_LUMINANCE_VALUE,
+			(uint8_t *)(target_luminance),
+			sizeof(struct target_luminance_value)) != DC_OK)
+			return false;
+	}
 
 	return true;
 }

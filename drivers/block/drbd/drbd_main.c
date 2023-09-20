@@ -37,7 +37,6 @@
 #include <linux/notifier.h>
 #include <linux/kthread.h>
 #include <linux/workqueue.h>
-#define __KERNEL_SYSCALLS__
 #include <linux/unistd.h>
 #include <linux/vmalloc.h>
 #include <linux/sched/signal.h>
@@ -50,8 +49,8 @@
 #include "drbd_debugfs.h"
 
 static DEFINE_MUTEX(drbd_main_mutex);
-static int drbd_open(struct block_device *bdev, fmode_t mode);
-static void drbd_release(struct gendisk *gd, fmode_t mode);
+static int drbd_open(struct gendisk *disk, blk_mode_t mode);
+static void drbd_release(struct gendisk *gd);
 static void md_sync_timer_fn(struct timer_list *t);
 static int w_bitmap_io(struct drbd_work *w, int unused);
 
@@ -1540,6 +1539,8 @@ static int _drbd_send_page(struct drbd_peer_device *peer_device, struct page *pa
 		    int offset, size_t size, unsigned msg_flags)
 {
 	struct socket *socket = peer_device->connection->data.socket;
+	struct msghdr msg = { .msg_flags = msg_flags, };
+	struct bio_vec bvec;
 	int len = size;
 	int err = -EIO;
 
@@ -1549,15 +1550,17 @@ static int _drbd_send_page(struct drbd_peer_device *peer_device, struct page *pa
 	 * put_page(); and would cause either a VM_BUG directly, or
 	 * __page_cache_release a page that would actually still be referenced
 	 * by someone, leading to some obscure delayed Oops somewhere else. */
-	if (drbd_disable_sendpage || !sendpage_ok(page))
-		return _drbd_no_send_page(peer_device, page, offset, size, msg_flags);
+	if (!drbd_disable_sendpage && sendpage_ok(page))
+		msg.msg_flags |= MSG_NOSIGNAL | MSG_SPLICE_PAGES;
 
-	msg_flags |= MSG_NOSIGNAL;
 	drbd_update_congested(peer_device->connection);
 	do {
 		int sent;
 
-		sent = socket->ops->sendpage(socket, page, offset, len, msg_flags);
+		bvec_set_page(&bvec, page, offset, len);
+		iov_iter_bvec(&msg.msg_iter, ITER_SOURCE, &bvec, 1, len);
+
+		sent = sock_sendmsg(socket, &msg);
 		if (sent <= 0) {
 			if (sent == -EAGAIN) {
 				if (we_should_drop_the_connection(peer_device->connection, socket))
@@ -1883,9 +1886,9 @@ int drbd_send_all(struct drbd_connection *connection, struct socket *sock, void 
 	return 0;
 }
 
-static int drbd_open(struct block_device *bdev, fmode_t mode)
+static int drbd_open(struct gendisk *disk, blk_mode_t mode)
 {
-	struct drbd_device *device = bdev->bd_disk->private_data;
+	struct drbd_device *device = disk->private_data;
 	unsigned long flags;
 	int rv = 0;
 
@@ -1895,7 +1898,7 @@ static int drbd_open(struct block_device *bdev, fmode_t mode)
 	 * and no race with updating open_cnt */
 
 	if (device->state.role != R_PRIMARY) {
-		if (mode & FMODE_WRITE)
+		if (mode & BLK_OPEN_WRITE)
 			rv = -EROFS;
 		else if (!drbd_allow_oos)
 			rv = -EMEDIUMTYPE;
@@ -1909,9 +1912,10 @@ static int drbd_open(struct block_device *bdev, fmode_t mode)
 	return rv;
 }
 
-static void drbd_release(struct gendisk *gd, fmode_t mode)
+static void drbd_release(struct gendisk *gd)
 {
 	struct drbd_device *device = gd->private_data;
+
 	mutex_lock(&drbd_main_mutex);
 	device->open_cnt--;
 	mutex_unlock(&drbd_main_mutex);

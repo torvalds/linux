@@ -91,7 +91,7 @@ static void rtw89_wow_show_wakeup_reason(struct rtw89_dev *rtwdev)
 	u32 wow_reason_reg;
 	u8 reason;
 
-	if (chip_id == RTL8852A || chip_id == RTL8852B)
+	if (chip_id == RTL8852A || chip_id == RTL8852B || chip_id == RTL8851B)
 		wow_reason_reg = R_AX_C2HREG_DATA3 + 3;
 	else
 		wow_reason_reg = R_AX_C2HREG_DATA3_V1 + 3;

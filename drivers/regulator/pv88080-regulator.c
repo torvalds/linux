@@ -560,7 +560,7 @@ static struct i2c_driver pv88080_regulator_driver = {
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = of_match_ptr(pv88080_dt_ids),
 	},
-	.probe_new = pv88080_i2c_probe,
+	.probe = pv88080_i2c_probe,
 	.id_table = pv88080_i2c_id,
 };
 

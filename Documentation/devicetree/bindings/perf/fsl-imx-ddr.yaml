@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/perf/fsl-imx-ddr.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Freescale(NXP) IMX8 DDR performance monitor
+title: Freescale(NXP) IMX8/9 DDR performance monitor
 
 maintainers:
   - Frank Li <frank.li@nxp.com>
@@ -19,6 +19,7 @@ properties:
           - fsl,imx8mm-ddr-pmu
           - fsl,imx8mn-ddr-pmu
           - fsl,imx8mp-ddr-pmu
+          - fsl,imx93-ddr-pmu
       - items:
           - enum:
               - fsl,imx8mm-ddr-pmu

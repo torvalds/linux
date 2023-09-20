@@ -33,6 +33,8 @@
 #include <asm/suspend.h>
 #include <asm/mach/time.h>
 
+#include "generic.h"
+
 extern int sa1100_finish_suspend(unsigned long);
 
 #define SAVE(x)		sleep_save[SLEEP_SAVE_##x] = x

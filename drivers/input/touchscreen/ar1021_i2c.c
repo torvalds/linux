@@ -182,7 +182,7 @@ static struct i2c_driver ar1021_i2c_driver = {
 		.of_match_table = ar1021_i2c_of_match,
 	},
 
-	.probe_new	= ar1021_i2c_probe,
+	.probe		= ar1021_i2c_probe,
 	.id_table	= ar1021_i2c_id,
 };
 module_i2c_driver(ar1021_i2c_driver);

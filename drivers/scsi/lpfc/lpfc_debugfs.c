@@ -2259,11 +2259,15 @@ lpfc_debugfs_ras_log_open(struct inode *inode, struct file *file)
 		goto out;
 	}
 	spin_unlock_irq(&phba->hbalock);
-	debug = kmalloc(sizeof(*debug), GFP_KERNEL);
+
+	if (check_mul_overflow(LPFC_RAS_MIN_BUFF_POST_SIZE,
+			       phba->cfg_ras_fwlog_buffsize, &size))
+		goto out;
+
+	debug = kzalloc(sizeof(*debug), GFP_KERNEL);
 	if (!debug)
 		goto out;
 
-	size = LPFC_RAS_MIN_BUFF_POST_SIZE * phba->cfg_ras_fwlog_buffsize;
 	debug->buffer = vmalloc(size);
 	if (!debug->buffer)
 		goto free_debug;

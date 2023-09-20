@@ -7,6 +7,8 @@
 #ifndef _NOLIBC_ARCH_RISCV_H
 #define _NOLIBC_ARCH_RISCV_H
 
+#include "compiler.h"
+
 struct sys_stat_struct {
 	unsigned long	st_dev;		/* Device.  */
 	unsigned long	st_ino;		/* File serial number.  */
@@ -33,9 +35,13 @@ struct sys_stat_struct {
 #if   __riscv_xlen == 64
 #define PTRLOG "3"
 #define SZREG  "8"
+#define REG_L  "ld"
+#define REG_S  "sd"
 #elif __riscv_xlen == 32
 #define PTRLOG "2"
 #define SZREG  "4"
+#define REG_L  "lw"
+#define REG_S  "sw"
 #endif
 
 /* Syscalls for RISCV :
@@ -174,35 +180,38 @@ char **environ __attribute__((weak));
 const unsigned long *_auxv __attribute__((weak));
 
 /* startup code */
-void __attribute__((weak,noreturn,optimize("omit-frame-pointer"))) _start(void)
+void __attribute__((weak,noreturn,optimize("omit-frame-pointer"))) __no_stack_protector _start(void)
 {
 	__asm__ volatile (
 		".option push\n"
 		".option norelax\n"
 		"lla   gp, __global_pointer$\n"
 		".option pop\n"
-		"lw    a0, 0(sp)\n"          // argc (a0) was in the stack
-		"add   a1, sp, "SZREG"\n"    // argv (a1) = sp
-		"slli  a2, a0, "PTRLOG"\n"   // envp (a2) = SZREG*argc ...
-		"add   a2, a2, "SZREG"\n"    //             + SZREG (skip null)
-		"add   a2,a2,a1\n"           //             + argv
+#ifdef _NOLIBC_STACKPROTECTOR
+		"call __stack_chk_init\n"    /* initialize stack protector                          */
+#endif
+		REG_L" a0, 0(sp)\n"          /* argc (a0) was in the stack                          */
+		"add   a1, sp, "SZREG"\n"    /* argv (a1) = sp                                      */
+		"slli  a2, a0, "PTRLOG"\n"   /* envp (a2) = SZREG*argc ...                          */
+		"add   a2, a2, "SZREG"\n"    /*             + SZREG (skip null)                     */
+		"add   a2,a2,a1\n"           /*             + argv                                  */
 
-		"add   a3, a2, zero\n"       // iterate a3 over envp to find auxv (after NULL)
-		"0:\n"                       // do {
-		"ld    a4, 0(a3)\n"          //   a4 = *a3;
-		"add   a3, a3, "SZREG"\n"    //   a3 += sizeof(void*);
-		"bne   a4, zero, 0b\n"       // } while (a4);
-		"lui   a4, %hi(_auxv)\n"     // a4 = &_auxv (high bits)
-		"sd    a3, %lo(_auxv)(a4)\n" // store a3 into _auxv
+		"add   a3, a2, zero\n"       /* iterate a3 over envp to find auxv (after NULL)      */
+		"0:\n"                       /* do {                                                */
+		REG_L" a4, 0(a3)\n"          /*   a4 = *a3;                                         */
+		"add   a3, a3, "SZREG"\n"    /*   a3 += sizeof(void*);                              */
+		"bne   a4, zero, 0b\n"       /* } while (a4);                                       */
+		"lui   a4, %hi(_auxv)\n"     /* a4 = &_auxv (high bits)                             */
+		REG_S" a3, %lo(_auxv)(a4)\n" /* store a3 into _auxv                                 */
 
-		"lui a3, %hi(environ)\n"     // a3 = &environ (high bits)
-		"sd a2,%lo(environ)(a3)\n"   // store envp(a2) into environ
-		"andi  sp,a1,-16\n"          // sp must be 16-byte aligned
-		"call  main\n"               // main() returns the status code, we'll exit with it.
-		"li a7, 93\n"                // NR_exit == 93
+		"lui   a3, %hi(environ)\n"   /* a3 = &environ (high bits)                           */
+		REG_S" a2,%lo(environ)(a3)\n"/* store envp(a2) into environ                         */
+		"andi  sp,a1,-16\n"          /* sp must be 16-byte aligned                          */
+		"call  main\n"               /* main() returns the status code, we'll exit with it. */
+		"li a7, 93\n"                /* NR_exit == 93                                       */
 		"ecall\n"
 	);
 	__builtin_unreachable();
 }
 
-#endif // _NOLIBC_ARCH_RISCV_H
+#endif /* _NOLIBC_ARCH_RISCV_H */

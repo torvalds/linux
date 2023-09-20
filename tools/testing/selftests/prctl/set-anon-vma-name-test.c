@@ -97,7 +97,7 @@ TEST_F(vma, renaming) {
 	TH_LOG("Try to pass invalid name (with non-printable character \\1) to rename the VMA");
 	EXPECT_EQ(rename_vma((unsigned long)self->ptr_anon, AREA_SIZE, BAD_NAME), -EINVAL);
 
-	TH_LOG("Try to rename non-anonynous VMA");
+	TH_LOG("Try to rename non-anonymous VMA");
 	EXPECT_EQ(rename_vma((unsigned long) self->ptr_not_anon, AREA_SIZE, GOOD_NAME), -EINVAL);
 }
 

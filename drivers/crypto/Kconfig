@@ -807,5 +807,6 @@ config CRYPTO_DEV_SA2UL
 	  acceleration for cryptographic algorithms on these devices.
 
 source "drivers/crypto/aspeed/Kconfig"
+source "drivers/crypto/starfive/Kconfig"
 
 endif # CRYPTO_HW

@@ -26,12 +26,21 @@
         "UMask": "0x4"
     },
     {
-        "BriefDescription": "Conditional branch instructions retired.",
+        "BriefDescription": "Conditional branch instructions retired. [This event is alias to BR_INST_RETIRED.CONDITIONAL]",
+        "Errata": "SKL091",
+        "EventCode": "0xC4",
+        "EventName": "BR_INST_RETIRED.COND",
+        "PublicDescription": "This event counts conditional branch instructions retired. [This event is alias to BR_INST_RETIRED.CONDITIONAL]",
+        "SampleAfterValue": "400009",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Conditional branch instructions retired. [This event is alias to BR_INST_RETIRED.COND]",
         "Errata": "SKL091",
         "EventCode": "0xC4",
         "EventName": "BR_INST_RETIRED.CONDITIONAL",
         "PEBS": "1",
-        "PublicDescription": "This event counts conditional branch instructions retired.",
+        "PublicDescription": "This event counts conditional branch instructions retired. [This event is alias to BR_INST_RETIRED.COND]",
         "SampleAfterValue": "400009",
         "UMask": "0x1"
     },
@@ -405,9 +414,9 @@
         "UMask": "0x1"
     },
     {
-        "AnyThread": "1",
         "BriefDescription": "Clears speculative count",
         "CounterMask": "1",
+        "EdgeDetect": "1",
         "EventCode": "0x0D",
         "EventName": "INT_MISC.CLEARS_COUNT",
         "PublicDescription": "Counts the number of speculative clears due to any type of branch misprediction or machine clears",

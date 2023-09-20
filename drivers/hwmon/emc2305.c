@@ -615,7 +615,7 @@ static struct i2c_driver emc2305_driver = {
 	.driver = {
 		.name = "emc2305",
 	},
-	.probe_new = emc2305_probe,
+	.probe = emc2305_probe,
 	.remove	  = emc2305_remove,
 	.id_table = emc2305_ids,
 	.address_list = emc2305_normal_i2c,

@@ -25,6 +25,7 @@
  */
 
 #include <arm_neon.h>
+#include "neon.h"
 
 typedef uint8x16_t unative_t;
 

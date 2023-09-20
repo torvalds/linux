@@ -32,7 +32,7 @@ static DEFINE_PER_CPU(void *, kmemleak_test_pointer);
  * Some very simple testing. This function needs to be extended for
  * proper testing.
  */
-static int __init kmemleak_test_init(void)
+static int kmemleak_test_init(void)
 {
 	struct test_node *elem;
 	int i;

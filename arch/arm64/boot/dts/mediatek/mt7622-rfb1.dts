@@ -15,6 +15,7 @@
 
 / {
 	model = "MediaTek MT7622 RFB1 board";
+	chassis-type = "embedded";
 	compatible = "mediatek,mt7622-rfb1", "mediatek,mt7622";
 
 	aliases {

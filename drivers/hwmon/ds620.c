@@ -245,7 +245,7 @@ static struct i2c_driver ds620_driver = {
 	.driver = {
 		   .name = "ds620",
 	},
-	.probe_new = ds620_probe,
+	.probe = ds620_probe,
 	.id_table = ds620_id,
 };
 

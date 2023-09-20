@@ -272,6 +272,7 @@ static int convert_atom_mem_type_to_vram_type(struct amdgpu_device *adev,
 			break;
 		case ATOM_DGPU_VRAM_TYPE_HBM2:
 		case ATOM_DGPU_VRAM_TYPE_HBM2E:
+		case ATOM_DGPU_VRAM_TYPE_HBM3:
 			vram_type = AMDGPU_VRAM_TYPE_HBM;
 			break;
 		case ATOM_DGPU_VRAM_TYPE_GDDR6:

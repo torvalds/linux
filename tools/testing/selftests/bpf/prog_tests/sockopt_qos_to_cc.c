@@ -42,6 +42,8 @@ void test_sockopt_qos_to_cc(void)
 	if (!ASSERT_OK_PTR(skel, "skel"))
 		goto done;
 
+	skel->bss->page_size = sysconf(_SC_PAGESIZE);
+
 	sock_fd = socket(AF_INET6, SOCK_STREAM, 0);
 	if (!ASSERT_GE(sock_fd, 0, "v6 socket open"))
 		goto done;

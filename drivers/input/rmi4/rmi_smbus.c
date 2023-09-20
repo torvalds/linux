@@ -418,7 +418,7 @@ static struct i2c_driver rmi_smb_driver = {
 		.pm	= pm_ptr(&rmi_smb_pm),
 	},
 	.id_table	= rmi_id,
-	.probe_new	= rmi_smb_probe,
+	.probe		= rmi_smb_probe,
 	.remove		= rmi_smb_remove,
 };
 

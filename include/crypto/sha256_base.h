@@ -8,13 +8,12 @@
 #ifndef _CRYPTO_SHA256_BASE_H
 #define _CRYPTO_SHA256_BASE_H
 
+#include <asm/byteorder.h>
+#include <asm/unaligned.h>
 #include <crypto/internal/hash.h>
 #include <crypto/sha2.h>
-#include <linux/crypto.h>
-#include <linux/module.h>
 #include <linux/string.h>
-
-#include <asm/unaligned.h>
+#include <linux/types.h>
 
 typedef void (sha256_block_fn)(struct sha256_state *sst, u8 const *src,
 			       int blocks);
@@ -35,12 +34,11 @@ static inline int sha256_base_init(struct shash_desc *desc)
 	return 0;
 }
 
-static inline int sha256_base_do_update(struct shash_desc *desc,
-					const u8 *data,
-					unsigned int len,
-					sha256_block_fn *block_fn)
+static inline int lib_sha256_base_do_update(struct sha256_state *sctx,
+					    const u8 *data,
+					    unsigned int len,
+					    sha256_block_fn *block_fn)
 {
-	struct sha256_state *sctx = shash_desc_ctx(desc);
 	unsigned int partial = sctx->count % SHA256_BLOCK_SIZE;
 
 	sctx->count += len;
@@ -73,11 +71,20 @@ static inline int sha256_base_do_update(struct shash_desc *desc,
 	return 0;
 }
 
-static inline int sha256_base_do_finalize(struct shash_desc *desc,
-					  sha256_block_fn *block_fn)
+static inline int sha256_base_do_update(struct shash_desc *desc,
+					const u8 *data,
+					unsigned int len,
+					sha256_block_fn *block_fn)
+{
+	struct sha256_state *sctx = shash_desc_ctx(desc);
+
+	return lib_sha256_base_do_update(sctx, data, len, block_fn);
+}
+
+static inline int lib_sha256_base_do_finalize(struct sha256_state *sctx,
+					      sha256_block_fn *block_fn)
 {
 	const int bit_offset = SHA256_BLOCK_SIZE - sizeof(__be64);
-	struct sha256_state *sctx = shash_desc_ctx(desc);
 	__be64 *bits = (__be64 *)(sctx->buf + bit_offset);
 	unsigned int partial = sctx->count % SHA256_BLOCK_SIZE;
 
@@ -96,10 +103,17 @@ static inline int sha256_base_do_finalize(struct shash_desc *desc,
 	return 0;
 }
 
-static inline int sha256_base_finish(struct shash_desc *desc, u8 *out)
+static inline int sha256_base_do_finalize(struct shash_desc *desc,
+					  sha256_block_fn *block_fn)
 {
-	unsigned int digest_size = crypto_shash_digestsize(desc->tfm);
 	struct sha256_state *sctx = shash_desc_ctx(desc);
+
+	return lib_sha256_base_do_finalize(sctx, block_fn);
+}
+
+static inline int lib_sha256_base_finish(struct sha256_state *sctx, u8 *out,
+					 unsigned int digest_size)
+{
 	__be32 *digest = (__be32 *)out;
 	int i;
 
@@ -108,6 +122,14 @@ static inline int sha256_base_finish(struct shash_desc *desc, u8 *out)
 
 	memzero_explicit(sctx, sizeof(*sctx));
 	return 0;
+}
+
+static inline int sha256_base_finish(struct shash_desc *desc, u8 *out)
+{
+	unsigned int digest_size = crypto_shash_digestsize(desc->tfm);
+	struct sha256_state *sctx = shash_desc_ctx(desc);
+
+	return lib_sha256_base_finish(sctx, out, digest_size);
 }
 
 #endif /* _CRYPTO_SHA256_BASE_H */

@@ -623,6 +623,17 @@ void hubbub2_read_state(struct hubbub *hubbub, struct dcn_hubbub_state *hubbub_s
 		 REG_GET(DCN_VM_FAULT_STATUS, DCN_VM_ERROR_VMID, &hubbub_state->vm_error_vmid);
 		 REG_GET(DCN_VM_FAULT_STATUS, DCN_VM_ERROR_PIPE, &hubbub_state->vm_error_pipe);
 	}
+
+	if (REG(DCHUBBUB_TEST_DEBUG_INDEX) && REG(DCHUBBUB_TEST_DEBUG_DATA)) {
+		REG_WRITE(DCHUBBUB_TEST_DEBUG_INDEX, 0x6);
+		hubbub_state->test_debug_data = REG_READ(DCHUBBUB_TEST_DEBUG_DATA);
+	}
+
+	if (REG(DCHUBBUB_ARB_WATERMARK_CHANGE_CNTL))
+		hubbub_state->watermark_change_cntl = REG_READ(DCHUBBUB_ARB_WATERMARK_CHANGE_CNTL);
+
+	if (REG(DCHUBBUB_ARB_DRAM_STATE_CNTL))
+		hubbub_state->dram_state_cntl = REG_READ(DCHUBBUB_ARB_DRAM_STATE_CNTL);
 }
 
 static const struct hubbub_funcs hubbub2_funcs = {

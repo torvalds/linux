@@ -1916,7 +1916,7 @@ static void radeon_dynpm_idle_work_handler(struct work_struct *work)
 
 static int radeon_debugfs_pm_info_show(struct seq_file *m, void *unused)
 {
-	struct radeon_device *rdev = (struct radeon_device *)m->private;
+	struct radeon_device *rdev = m->private;
 	struct drm_device *ddev = rdev->ddev;
 
 	if  ((rdev->flags & RADEON_IS_PX) &&

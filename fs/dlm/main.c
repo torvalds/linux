@@ -73,10 +73,10 @@ static void __exit exit_dlm(void)
 	dlm_plock_exit();
 	dlm_user_exit();
 	dlm_config_exit();
-	dlm_memory_exit();
 	dlm_lockspace_exit();
 	dlm_midcomms_exit();
 	dlm_unregister_debugfs();
+	dlm_memory_exit();
 }
 
 module_init(init_dlm);

@@ -84,7 +84,7 @@ static struct i2c_driver w83l785ts_driver = {
 	.driver = {
 		.name	= "w83l785ts",
 	},
-	.probe_new	= w83l785ts_probe,
+	.probe		= w83l785ts_probe,
 	.remove		= w83l785ts_remove,
 	.id_table	= w83l785ts_id,
 	.detect		= w83l785ts_detect,

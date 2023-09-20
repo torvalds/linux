@@ -13,5 +13,6 @@ struct intel_uncore;
 
 int intel_gsc_uc_fw_upload(struct intel_gsc_uc *gsc);
 bool intel_gsc_uc_fw_init_done(struct intel_gsc_uc *gsc);
+bool intel_gsc_uc_fw_proxy_init_done(struct intel_gsc_uc *gsc);
 
 #endif

@@ -89,7 +89,7 @@ also define a new hypercall feature to indicate that the host can give you more
 registers. Only if the host supports the additional features, make use of them.
 
 The magic page layout is described by struct kvm_vcpu_arch_shared
-in arch/powerpc/include/asm/kvm_para.h.
+in arch/powerpc/include/uapi/asm/kvm_para.h.
 
 Magic page features
 ===================
@@ -112,7 +112,7 @@ Magic page flags
 ================
 
 In addition to features that indicate whether a host is capable of a particular
-feature we also have a channel for a guest to tell the guest whether it's capable
+feature we also have a channel for a guest to tell the host whether it's capable
 of something. This is what we call "flags".
 
 Flags are passed to the host in the low 12 bits of the Effective Address.
@@ -139,7 +139,7 @@ Patched instructions
 ====================
 
 The "ld" and "std" instructions are transformed to "lwz" and "stw" instructions
-respectively on 32 bit systems with an added offset of 4 to accommodate for big
+respectively on 32-bit systems with an added offset of 4 to accommodate for big
 endianness.
 
 The following is a list of mapping the Linux kernel performs when running as
@@ -210,7 +210,7 @@ available on all targets.
 2) PAPR hypercalls
 
 PAPR hypercalls are needed to run server PowerPC PAPR guests (-M pseries in QEMU).
-These are the same hypercalls that pHyp, the POWER hypervisor implements. Some of
+These are the same hypercalls that pHyp, the POWER hypervisor, implements. Some of
 them are handled in the kernel, some are handled in user space. This is only
 available on book3s_64.
 

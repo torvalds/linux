@@ -1262,7 +1262,7 @@ static struct i2c_driver sx150x_driver = {
 		.name = "sx150x-pinctrl",
 		.of_match_table = sx150x_of_match,
 	},
-	.probe_new = sx150x_probe,
+	.probe = sx150x_probe,
 	.id_table = sx150x_id,
 };
 

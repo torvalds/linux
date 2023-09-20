@@ -56,6 +56,8 @@ extern int olpc_ec_sci_query(u16 *sci_value);
 
 extern bool olpc_ec_wakeup_available(void);
 
+asmlinkage int xo1_do_sleep(u8 sleep_state);
+
 #else
 
 static inline int olpc_ec_cmd(u8 cmd, u8 *inbuf, size_t inlen, u8 *outbuf,

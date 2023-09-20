@@ -258,12 +258,14 @@ static struct dma_contig_early_reserve dma_mmu_remap[MAX_CMA_AREAS] __initdata;
 
 static int dma_mmu_remap_num __initdata;
 
+#ifdef CONFIG_DMA_CMA
 void __init dma_contiguous_early_fixup(phys_addr_t base, unsigned long size)
 {
 	dma_mmu_remap[dma_mmu_remap_num].base = base;
 	dma_mmu_remap[dma_mmu_remap_num].size = size;
 	dma_mmu_remap_num++;
 }
+#endif
 
 void __init dma_contiguous_remap(void)
 {

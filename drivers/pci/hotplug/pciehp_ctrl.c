@@ -166,11 +166,11 @@ void pciehp_handle_button_press(struct controller *ctrl)
 	case ON_STATE:
 		if (ctrl->state == ON_STATE) {
 			ctrl->state = BLINKINGOFF_STATE;
-			ctrl_info(ctrl, "Slot(%s): Powering off due to button press\n",
+			ctrl_info(ctrl, "Slot(%s): Button press: will power off in 5 sec\n",
 				  slot_name(ctrl));
 		} else {
 			ctrl->state = BLINKINGON_STATE;
-			ctrl_info(ctrl, "Slot(%s) Powering on due to button press\n",
+			ctrl_info(ctrl, "Slot(%s): Button press: will power on in 5 sec\n",
 				  slot_name(ctrl));
 		}
 		/* blink power indicator and turn off attention */
@@ -185,22 +185,23 @@ void pciehp_handle_button_press(struct controller *ctrl)
 		 * press the attention again before the 5 sec. limit
 		 * expires to cancel hot-add or hot-remove
 		 */
-		ctrl_info(ctrl, "Slot(%s): Button cancel\n", slot_name(ctrl));
 		cancel_delayed_work(&ctrl->button_work);
 		if (ctrl->state == BLINKINGOFF_STATE) {
 			ctrl->state = ON_STATE;
 			pciehp_set_indicators(ctrl, PCI_EXP_SLTCTL_PWR_IND_ON,
 					      PCI_EXP_SLTCTL_ATTN_IND_OFF);
+			ctrl_info(ctrl, "Slot(%s): Button press: canceling request to power off\n",
+				  slot_name(ctrl));
 		} else {
 			ctrl->state = OFF_STATE;
 			pciehp_set_indicators(ctrl, PCI_EXP_SLTCTL_PWR_IND_OFF,
 					      PCI_EXP_SLTCTL_ATTN_IND_OFF);
+			ctrl_info(ctrl, "Slot(%s): Button press: canceling request to power on\n",
+				  slot_name(ctrl));
 		}
-		ctrl_info(ctrl, "Slot(%s): Action canceled due to button press\n",
-			  slot_name(ctrl));
 		break;
 	default:
-		ctrl_err(ctrl, "Slot(%s): Ignoring invalid state %#x\n",
+		ctrl_err(ctrl, "Slot(%s): Button press: ignoring invalid state %#x\n",
 			 slot_name(ctrl), ctrl->state);
 		break;
 	}
@@ -256,6 +257,14 @@ void pciehp_handle_presence_or_link_change(struct controller *ctrl, u32 events)
 	present = pciehp_card_present(ctrl);
 	link_active = pciehp_check_link_active(ctrl);
 	if (present <= 0 && link_active <= 0) {
+		if (ctrl->state == BLINKINGON_STATE) {
+			ctrl->state = OFF_STATE;
+			cancel_delayed_work(&ctrl->button_work);
+			pciehp_set_indicators(ctrl, PCI_EXP_SLTCTL_PWR_IND_OFF,
+					      INDICATOR_NOOP);
+			ctrl_info(ctrl, "Slot(%s): Card not present\n",
+				  slot_name(ctrl));
+		}
 		mutex_unlock(&ctrl->state_lock);
 		return;
 	}

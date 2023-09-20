@@ -156,10 +156,10 @@ static __refdata struct memblock_type *memblock_memory = &memblock.memory;
 	} while (0)
 
 static int memblock_debug __initdata_memblock;
-static bool system_has_some_mirror __initdata_memblock = false;
+static bool system_has_some_mirror __initdata_memblock;
 static int memblock_can_resize __initdata_memblock;
-static int memblock_memory_in_slab __initdata_memblock = 0;
-static int memblock_reserved_in_slab __initdata_memblock = 0;
+static int memblock_memory_in_slab __initdata_memblock;
+static int memblock_reserved_in_slab __initdata_memblock;
 
 static enum memblock_flags __init_memblock choose_memblock_flags(void)
 {
@@ -1436,6 +1436,15 @@ done:
 		 */
 		kmemleak_alloc_phys(found, size, 0);
 
+	/*
+	 * Some Virtual Machine platforms, such as Intel TDX or AMD SEV-SNP,
+	 * require memory to be accepted before it can be used by the
+	 * guest.
+	 *
+	 * Accept the memory of the allocated buffer.
+	 */
+	accept_memory(found, found + size);
+
 	return found;
 }
 
@@ -2082,19 +2091,30 @@ static void __init memmap_init_reserved_pages(void)
 {
 	struct memblock_region *region;
 	phys_addr_t start, end;
-	u64 i;
+	int nid;
+
+	/*
+	 * set nid on all reserved pages and also treat struct
+	 * pages for the NOMAP regions as PageReserved
+	 */
+	for_each_mem_region(region) {
+		nid = memblock_get_region_node(region);
+		start = region->base;
+		end = start + region->size;
+
+		if (memblock_is_nomap(region))
+			reserve_bootmem_region(start, end, nid);
+
+		memblock_set_node(start, end, &memblock.reserved, nid);
+	}
 
 	/* initialize struct pages for the reserved regions */
-	for_each_reserved_mem_range(i, &start, &end)
-		reserve_bootmem_region(start, end);
+	for_each_reserved_mem_region(region) {
+		nid = memblock_get_region_node(region);
+		start = region->base;
+		end = start + region->size;
 
-	/* and also treat struct pages for the NOMAP regions as PageReserved */
-	for_each_mem_region(region) {
-		if (memblock_is_nomap(region)) {
-			start = region->base;
-			end = start + region->size;
-			reserve_bootmem_region(start, end);
-		}
+		reserve_bootmem_region(start, end, nid);
 	}
 }
 
@@ -2122,7 +2142,7 @@ static unsigned long __init free_low_memory_core_early(void)
 
 static int reset_managed_pages_done __initdata;
 
-void reset_node_managed_pages(pg_data_t *pgdat)
+static void __init reset_node_managed_pages(pg_data_t *pgdat)
 {
 	struct zone *z;
 
@@ -2158,20 +2178,44 @@ void __init memblock_free_all(void)
 }
 
 #if defined(CONFIG_DEBUG_FS) && defined(CONFIG_ARCH_KEEP_MEMBLOCK)
+static const char * const flagname[] = {
+	[ilog2(MEMBLOCK_HOTPLUG)] = "HOTPLUG",
+	[ilog2(MEMBLOCK_MIRROR)] = "MIRROR",
+	[ilog2(MEMBLOCK_NOMAP)] = "NOMAP",
+	[ilog2(MEMBLOCK_DRIVER_MANAGED)] = "DRV_MNG",
+};
 
 static int memblock_debug_show(struct seq_file *m, void *private)
 {
 	struct memblock_type *type = m->private;
 	struct memblock_region *reg;
-	int i;
+	int i, j, nid;
+	unsigned int count = ARRAY_SIZE(flagname);
 	phys_addr_t end;
 
 	for (i = 0; i < type->cnt; i++) {
 		reg = &type->regions[i];
 		end = reg->base + reg->size - 1;
+		nid = memblock_get_region_node(reg);
 
 		seq_printf(m, "%4d: ", i);
-		seq_printf(m, "%pa..%pa\n", &reg->base, &end);
+		seq_printf(m, "%pa..%pa ", &reg->base, &end);
+		if (nid != MAX_NUMNODES)
+			seq_printf(m, "%4d ", nid);
+		else
+			seq_printf(m, "%4c ", 'x');
+		if (reg->flags) {
+			for (j = 0; j < count; j++) {
+				if (reg->flags & (1U << j)) {
+					seq_printf(m, "%s\n", flagname[j]);
+					break;
+				}
+			}
+			if (j == count)
+				seq_printf(m, "%s\n", "UNKNOWN");
+		} else {
+			seq_printf(m, "%s\n", "NONE");
+		}
 	}
 	return 0;
 }

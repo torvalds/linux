@@ -93,6 +93,7 @@ extern struct bus_type nubus_bus_type;
 
 /* Generic NuBus interface functions, modelled after the PCI interface */
 #ifdef CONFIG_PROC_FS
+extern bool nubus_populate_procfs;
 void nubus_proc_init(void);
 struct proc_dir_entry *nubus_proc_add_board(struct nubus_board *board);
 struct proc_dir_entry *nubus_proc_add_rsrc_dir(struct proc_dir_entry *procdir,

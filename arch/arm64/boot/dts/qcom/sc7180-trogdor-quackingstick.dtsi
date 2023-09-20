@@ -52,36 +52,6 @@
 	};
 };
 
-&dsi0 {
-	panel: panel@0 {
-		/* Compatible will be filled in per-board */
-		reg = <0>;
-		enable-gpios = <&tlmm 87 GPIO_ACTIVE_HIGH>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&lcd_rst>;
-		avdd-supply = <&ppvar_lcd>;
-		pp1800-supply = <&v1p8_disp>;
-		pp3300-supply = <&pp3300_dx_edp>;
-		backlight = <&backlight>;
-		rotation = <270>;
-
-		port {
-			panel_in: endpoint {
-				remote-endpoint = <&dsi0_out>;
-			};
-		};
-	};
-
-	ports {
-		port@1 {
-			endpoint {
-				remote-endpoint = <&panel_in>;
-				data-lanes = <0 1 2 3>;
-			};
-		};
-	};
-};
-
 &gpio_keys {
 	status = "okay";
 };
@@ -103,6 +73,36 @@
 		hid-descr-addr = <0x0001>;
 
 		vdd-supply = <&pp3300_ts>;
+	};
+};
+
+&mdss_dsi0 {
+	panel: panel@0 {
+		/* Compatible will be filled in per-board */
+		reg = <0>;
+		enable-gpios = <&tlmm 87 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&lcd_rst>;
+		avdd-supply = <&ppvar_lcd>;
+		pp1800-supply = <&v1p8_disp>;
+		pp3300-supply = <&pp3300_dx_edp>;
+		backlight = <&backlight>;
+		rotation = <270>;
+
+		port {
+			panel_in: endpoint {
+				remote-endpoint = <&mdss_dsi0_out>;
+			};
+		};
+	};
+
+	ports {
+		port@1 {
+			endpoint {
+				remote-endpoint = <&panel_in>;
+				data-lanes = <0 1 2 3>;
+			};
+		};
 	};
 };
 

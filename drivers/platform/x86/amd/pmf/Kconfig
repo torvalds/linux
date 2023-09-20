@@ -16,3 +16,14 @@ config AMD_PMF
 
 	  To compile this driver as a module, choose M here: the module will
 	  be called amd_pmf.
+
+config AMD_PMF_DEBUG
+	bool "PMF debug information"
+	depends on AMD_PMF
+	help
+	 Enabling this option would give more debug information on the OEM fed
+	 power setting values for each of the PMF feature. PMF driver gets this
+	 information after evaluating a ACPI method and the information is stored
+	 in the PMF config store.
+
+	 Say Y here to enable more debug logs and Say N here if you are not sure.

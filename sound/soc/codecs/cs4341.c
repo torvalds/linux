@@ -258,7 +258,7 @@ static struct i2c_driver cs4341_i2c_driver = {
 		.name = "cs4341-i2c",
 		.of_match_table = of_match_ptr(cs4341_dt_ids),
 	},
-	.probe_new = cs4341_i2c_probe,
+	.probe = cs4341_i2c_probe,
 	.id_table = cs4341_i2c_id,
 };
 #endif

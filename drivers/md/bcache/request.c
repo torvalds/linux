@@ -1228,7 +1228,7 @@ void cached_dev_submit_bio(struct bio *bio)
 		detached_dev_do_request(d, bio, orig_bdev, start_time);
 }
 
-static int cached_dev_ioctl(struct bcache_device *d, fmode_t mode,
+static int cached_dev_ioctl(struct bcache_device *d, blk_mode_t mode,
 			    unsigned int cmd, unsigned long arg)
 {
 	struct cached_dev *dc = container_of(d, struct cached_dev, disk);
@@ -1318,7 +1318,7 @@ void flash_dev_submit_bio(struct bio *bio)
 	continue_at(cl, search_free, NULL);
 }
 
-static int flash_dev_ioctl(struct bcache_device *d, fmode_t mode,
+static int flash_dev_ioctl(struct bcache_device *d, blk_mode_t mode,
 			   unsigned int cmd, unsigned long arg)
 {
 	return -ENOTTY;

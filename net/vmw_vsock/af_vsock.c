@@ -1306,7 +1306,6 @@ static const struct proto_ops vsock_dgram_ops = {
 	.sendmsg = vsock_dgram_sendmsg,
 	.recvmsg = vsock_dgram_recvmsg,
 	.mmap = sock_no_mmap,
-	.sendpage = sock_no_sendpage,
 	.read_skb = vsock_read_skb,
 };
 
@@ -1462,7 +1461,7 @@ static int vsock_connect(struct socket *sock, struct sockaddr *addr,
 			vsock_transport_cancel_pkt(vsk);
 			vsock_remove_connected(vsk);
 			goto out_wait;
-		} else if (timeout == 0) {
+		} else if ((sk->sk_state != TCP_ESTABLISHED) && (timeout == 0)) {
 			err = -ETIMEDOUT;
 			sk->sk_state = TCP_CLOSE;
 			sock->state = SS_UNCONNECTED;
@@ -2234,7 +2233,6 @@ static const struct proto_ops vsock_stream_ops = {
 	.sendmsg = vsock_connectible_sendmsg,
 	.recvmsg = vsock_connectible_recvmsg,
 	.mmap = sock_no_mmap,
-	.sendpage = sock_no_sendpage,
 	.set_rcvlowat = vsock_set_rcvlowat,
 	.read_skb = vsock_read_skb,
 };
@@ -2257,7 +2255,6 @@ static const struct proto_ops vsock_seqpacket_ops = {
 	.sendmsg = vsock_connectible_sendmsg,
 	.recvmsg = vsock_connectible_recvmsg,
 	.mmap = sock_no_mmap,
-	.sendpage = sock_no_sendpage,
 	.read_skb = vsock_read_skb,
 };
 

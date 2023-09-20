@@ -86,7 +86,9 @@ __igt_reset_stolen(struct intel_gt *gt,
 
 		ggtt->vm.insert_page(&ggtt->vm, dma,
 				     ggtt->error_capture.start,
-				     I915_CACHE_NONE, 0);
+				     i915_gem_get_pat_index(gt->i915,
+							    I915_CACHE_NONE),
+				     0);
 		mb();
 
 		s = io_mapping_map_wc(&ggtt->iomap,
@@ -127,7 +129,9 @@ __igt_reset_stolen(struct intel_gt *gt,
 
 		ggtt->vm.insert_page(&ggtt->vm, dma,
 				     ggtt->error_capture.start,
-				     I915_CACHE_NONE, 0);
+				     i915_gem_get_pat_index(gt->i915,
+							    I915_CACHE_NONE),
+				     0);
 		mb();
 
 		s = io_mapping_map_wc(&ggtt->iomap,

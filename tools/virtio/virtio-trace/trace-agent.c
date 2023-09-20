@@ -18,8 +18,9 @@
 #define PIPE_DEF_BUFS		16
 #define PIPE_MIN_SIZE		(PAGE_SIZE*PIPE_DEF_BUFS)
 #define PIPE_MAX_SIZE		(1024*1024)
-#define READ_PATH_FMT	\
-		"/sys/kernel/debug/tracing/per_cpu/cpu%d/trace_pipe_raw"
+#define TRACEFS 		"/sys/kernel/tracing"
+#define DEBUGFS 		"/sys/kernel/debug/tracing"
+#define READ_PATH_FMT		"%s/per_cpu/cpu%d/trace_pipe_raw"
 #define WRITE_PATH_FMT		"/dev/virtio-ports/trace-path-cpu%d"
 #define CTL_PATH		"/dev/virtio-ports/agent-ctl-path"
 
@@ -120,9 +121,12 @@ static const char *make_path(int cpu_num, bool this_is_write_path)
 	if (this_is_write_path)
 		/* write(output) path */
 		ret = snprintf(buf, PATH_MAX, WRITE_PATH_FMT, cpu_num);
-	else
+	else {
 		/* read(input) path */
-		ret = snprintf(buf, PATH_MAX, READ_PATH_FMT, cpu_num);
+		ret = snprintf(buf, PATH_MAX, READ_PATH_FMT, TRACEFS, cpu_num);
+		if (ret > 0 && access(buf, F_OK) != 0)
+			ret = snprintf(buf, PATH_MAX, READ_PATH_FMT, DEBUGFS, cpu_num);
+	}
 
 	if (ret <= 0) {
 		pr_err("Failed to generate %s path(CPU#%d):%d\n",

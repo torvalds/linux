@@ -29,11 +29,10 @@ static inline void mxc_isi_write(struct mxc_isi_pipe *pipe, u32 reg, u32 val)
 
 void mxc_isi_channel_set_inbuf(struct mxc_isi_pipe *pipe, dma_addr_t dma_addr)
 {
-	mxc_isi_write(pipe, CHNL_IN_BUF_ADDR, dma_addr);
-#if CONFIG_ARCH_DMA_ADDR_T_64BIT
+	mxc_isi_write(pipe, CHNL_IN_BUF_ADDR, lower_32_bits(dma_addr));
 	if (pipe->isi->pdata->has_36bit_dma)
-		mxc_isi_write(pipe, CHNL_IN_BUF_XTND_ADDR, dma_addr >> 32);
-#endif
+		mxc_isi_write(pipe, CHNL_IN_BUF_XTND_ADDR,
+			      upper_32_bits(dma_addr));
 }
 
 void mxc_isi_channel_set_outbuf(struct mxc_isi_pipe *pipe,
@@ -45,34 +44,36 @@ void mxc_isi_channel_set_outbuf(struct mxc_isi_pipe *pipe,
 	val = mxc_isi_read(pipe, CHNL_OUT_BUF_CTRL);
 
 	if (buf_id == MXC_ISI_BUF1) {
-		mxc_isi_write(pipe, CHNL_OUT_BUF1_ADDR_Y, dma_addrs[0]);
-		mxc_isi_write(pipe, CHNL_OUT_BUF1_ADDR_U, dma_addrs[1]);
-		mxc_isi_write(pipe, CHNL_OUT_BUF1_ADDR_V, dma_addrs[2]);
-#if CONFIG_ARCH_DMA_ADDR_T_64BIT
+		mxc_isi_write(pipe, CHNL_OUT_BUF1_ADDR_Y,
+			      lower_32_bits(dma_addrs[0]));
+		mxc_isi_write(pipe, CHNL_OUT_BUF1_ADDR_U,
+			      lower_32_bits(dma_addrs[1]));
+		mxc_isi_write(pipe, CHNL_OUT_BUF1_ADDR_V,
+			      lower_32_bits(dma_addrs[2]));
 		if (pipe->isi->pdata->has_36bit_dma) {
 			mxc_isi_write(pipe, CHNL_Y_BUF1_XTND_ADDR,
-				      dma_addrs[0] >> 32);
+				      upper_32_bits(dma_addrs[0]));
 			mxc_isi_write(pipe, CHNL_U_BUF1_XTND_ADDR,
-				      dma_addrs[1] >> 32);
+				      upper_32_bits(dma_addrs[1]));
 			mxc_isi_write(pipe, CHNL_V_BUF1_XTND_ADDR,
-				      dma_addrs[2] >> 32);
+				      upper_32_bits(dma_addrs[2]));
 		}
-#endif
 		val ^= CHNL_OUT_BUF_CTRL_LOAD_BUF1_ADDR;
 	} else  {
-		mxc_isi_write(pipe, CHNL_OUT_BUF2_ADDR_Y, dma_addrs[0]);
-		mxc_isi_write(pipe, CHNL_OUT_BUF2_ADDR_U, dma_addrs[1]);
-		mxc_isi_write(pipe, CHNL_OUT_BUF2_ADDR_V, dma_addrs[2]);
-#if CONFIG_ARCH_DMA_ADDR_T_64BIT
+		mxc_isi_write(pipe, CHNL_OUT_BUF2_ADDR_Y,
+			      lower_32_bits(dma_addrs[0]));
+		mxc_isi_write(pipe, CHNL_OUT_BUF2_ADDR_U,
+			      lower_32_bits(dma_addrs[1]));
+		mxc_isi_write(pipe, CHNL_OUT_BUF2_ADDR_V,
+			      lower_32_bits(dma_addrs[2]));
 		if (pipe->isi->pdata->has_36bit_dma) {
 			mxc_isi_write(pipe, CHNL_Y_BUF2_XTND_ADDR,
-				      dma_addrs[0] >> 32);
+				      upper_32_bits(dma_addrs[0]));
 			mxc_isi_write(pipe, CHNL_U_BUF2_XTND_ADDR,
-				      dma_addrs[1] >> 32);
+				      upper_32_bits(dma_addrs[1]));
 			mxc_isi_write(pipe, CHNL_V_BUF2_XTND_ADDR,
-				      dma_addrs[2] >> 32);
+				      upper_32_bits(dma_addrs[2]));
 		}
-#endif
 		val ^= CHNL_OUT_BUF_CTRL_LOAD_BUF2_ADDR;
 	}
 

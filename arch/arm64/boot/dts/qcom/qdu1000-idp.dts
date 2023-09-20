@@ -448,6 +448,29 @@
 	status = "okay";
 };
 
+&sdhc {
+	pinctrl-0 = <&sdc_on_state>;
+	pinctrl-1 = <&sdc_off_state>;
+	pinctrl-names = "default", "sleep";
+
+	cap-mmc-hw-reset;
+	mmc-ddr-1_8v;
+	mmc-hs200-1_8v;
+	mmc-hs400-1_8v;
+	mmc-hs400-enhanced-strobe;
+
+	non-removable;
+	no-sd;
+	no-sdio;
+
+	supports-cqe;
+
+	vmmc-supply = <&vreg_l10a_2p95>;
+	vqmmc-supply = <&vreg_l7a_1p8>;
+
+	status = "okay";
+};
+
 &uart7 {
 	status = "okay";
 };

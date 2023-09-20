@@ -456,7 +456,7 @@ static enum hrtimer_restart gpio_keys_irq_timer(struct hrtimer *t)
 	struct input_dev *input = bdata->input;
 
 	if (bdata->key_pressed) {
-		input_event(input, EV_KEY, *bdata->code, 0);
+		input_report_key(input, *bdata->code, 0);
 		input_sync(input);
 		bdata->key_pressed = false;
 	}
@@ -478,11 +478,11 @@ static irqreturn_t gpio_keys_irq_isr(int irq, void *dev_id)
 		if (bdata->button->wakeup)
 			pm_wakeup_event(bdata->input->dev.parent, 0);
 
-		input_event(input, EV_KEY, *bdata->code, 1);
+		input_report_key(input, *bdata->code, 1);
 		input_sync(input);
 
 		if (!bdata->release_delay) {
-			input_event(input, EV_KEY, *bdata->code, 0);
+			input_report_key(input, *bdata->code, 0);
 			input_sync(input);
 			goto out;
 		}

@@ -8,7 +8,7 @@
  *		eric miao <eric.miao@marvell.com>
  *
  * Links to reference manuals for some of the supported PWM chips can be found
- * in Documentation/arm/marvell.rst.
+ * in Documentation/arch/arm/marvell.rst.
  *
  * Limitations:
  * - When PWM is stopped, the current PWM period stops abruptly at the next

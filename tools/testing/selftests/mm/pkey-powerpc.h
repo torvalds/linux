@@ -3,9 +3,6 @@
 #ifndef _PKEYS_POWERPC_H
 #define _PKEYS_POWERPC_H
 
-#ifndef SYS_mprotect_key
-# define SYS_mprotect_key	386
-#endif
 #ifndef SYS_pkey_alloc
 # define SYS_pkey_alloc		384
 # define SYS_pkey_free		385

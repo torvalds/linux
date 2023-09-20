@@ -12,6 +12,7 @@
 #ifndef _LINUX_SLAB_H
 #define	_LINUX_SLAB_H
 
+#include <linux/cache.h>
 #include <linux/gfp.h>
 #include <linux/overflow.h>
 #include <linux/types.h>
@@ -53,16 +54,18 @@
  * stays valid, the trick to using this is relying on an independent
  * object validation pass. Something like:
  *
- *  rcu_read_lock()
- * again:
+ * begin:
+ *  rcu_read_lock();
  *  obj = lockless_lookup(key);
  *  if (obj) {
  *    if (!try_get_ref(obj)) // might fail for free objects
- *      goto again;
+ *      rcu_read_unlock();
+ *      goto begin;
  *
  *    if (obj->key != key) { // not the object we expected
  *      put_ref(obj);
- *      goto again;
+ *      rcu_read_unlock();
+ *      goto begin;
  *    }
  *  }
  *  rcu_read_unlock();
@@ -105,6 +108,18 @@
 
 /* Avoid kmemleak tracing */
 #define SLAB_NOLEAKTRACE	((slab_flags_t __force)0x00800000U)
+
+/*
+ * Prevent merging with compatible kmem caches. This flag should be used
+ * cautiously. Valid use cases:
+ *
+ * - caches created for self-tests (e.g. kunit)
+ * - general caches created and used by a subsystem, only when a
+ *   (subsystem-specific) debug option is enabled
+ * - performance critical caches, should be very rare and consulted with slab
+ *   maintainers, and not used together with CONFIG_SLUB_TINY
+ */
+#define SLAB_NO_MERGE		((slab_flags_t __force)0x01000000U)
 
 /* Fault injection mark */
 #ifdef CONFIG_FAILSLAB
@@ -235,12 +250,17 @@ void kmem_dump_obj(void *object);
  * alignment larger than the alignment of a 64-bit integer.
  * Setting ARCH_DMA_MINALIGN in arch headers allows that.
  */
-#if defined(ARCH_DMA_MINALIGN) && ARCH_DMA_MINALIGN > 8
+#ifdef ARCH_HAS_DMA_MINALIGN
+#if ARCH_DMA_MINALIGN > 8 && !defined(ARCH_KMALLOC_MINALIGN)
 #define ARCH_KMALLOC_MINALIGN ARCH_DMA_MINALIGN
-#define KMALLOC_MIN_SIZE ARCH_DMA_MINALIGN
-#define KMALLOC_SHIFT_LOW ilog2(ARCH_DMA_MINALIGN)
-#else
+#endif
+#endif
+
+#ifndef ARCH_KMALLOC_MINALIGN
 #define ARCH_KMALLOC_MINALIGN __alignof__(unsigned long long)
+#elif ARCH_KMALLOC_MINALIGN > 8
+#define KMALLOC_MIN_SIZE ARCH_KMALLOC_MINALIGN
+#define KMALLOC_SHIFT_LOW ilog2(KMALLOC_MIN_SIZE)
 #endif
 
 /*

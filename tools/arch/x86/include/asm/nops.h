@@ -34,6 +34,8 @@
 #define BYTES_NOP7	0x8d,0xb4,0x26,0x00,0x00,0x00,0x00
 #define BYTES_NOP8	0x3e,BYTES_NOP7
 
+#define ASM_NOP_MAX 8
+
 #else
 
 /*
@@ -47,6 +49,9 @@
  * 6: osp nopl 0x00(%eax,%eax,1)
  * 7: nopl 0x00000000(%eax)
  * 8: nopl 0x00000000(%eax,%eax,1)
+ * 9: cs nopl 0x00000000(%eax,%eax,1)
+ * 10: osp cs nopl 0x00000000(%eax,%eax,1)
+ * 11: osp osp cs nopl 0x00000000(%eax,%eax,1)
  */
 #define BYTES_NOP1	0x90
 #define BYTES_NOP2	0x66,BYTES_NOP1
@@ -56,6 +61,15 @@
 #define BYTES_NOP6	0x66,BYTES_NOP5
 #define BYTES_NOP7	0x0f,0x1f,0x80,0x00,0x00,0x00,0x00
 #define BYTES_NOP8	0x0f,0x1f,0x84,0x00,0x00,0x00,0x00,0x00
+#define BYTES_NOP9	0x2e,BYTES_NOP8
+#define BYTES_NOP10	0x66,BYTES_NOP9
+#define BYTES_NOP11	0x66,BYTES_NOP10
+
+#define ASM_NOP9  _ASM_BYTES(BYTES_NOP9)
+#define ASM_NOP10 _ASM_BYTES(BYTES_NOP10)
+#define ASM_NOP11 _ASM_BYTES(BYTES_NOP11)
+
+#define ASM_NOP_MAX 11
 
 #endif /* CONFIG_64BIT */
 
@@ -67,8 +81,6 @@
 #define ASM_NOP6 _ASM_BYTES(BYTES_NOP6)
 #define ASM_NOP7 _ASM_BYTES(BYTES_NOP7)
 #define ASM_NOP8 _ASM_BYTES(BYTES_NOP8)
-
-#define ASM_NOP_MAX 8
 
 #ifndef __ASSEMBLY__
 extern const unsigned char * const x86_nops[];

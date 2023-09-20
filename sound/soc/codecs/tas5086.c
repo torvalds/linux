@@ -990,7 +990,7 @@ static struct i2c_driver tas5086_i2c_driver = {
 		.of_match_table = of_match_ptr(tas5086_dt_ids),
 	},
 	.id_table	= tas5086_i2c_id,
-	.probe_new	= tas5086_i2c_probe,
+	.probe		= tas5086_i2c_probe,
 	.remove		= tas5086_i2c_remove,
 };
 

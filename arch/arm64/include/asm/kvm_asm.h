@@ -267,6 +267,24 @@ extern u64 __kvm_get_mdcr_el2(void);
 	__kvm_at_err;							\
 } )
 
+void __noreturn hyp_panic(void);
+asmlinkage void kvm_unexpected_el2_exception(void);
+asmlinkage void __noreturn hyp_panic(void);
+asmlinkage void __noreturn hyp_panic_bad_stack(void);
+asmlinkage void kvm_unexpected_el2_exception(void);
+struct kvm_cpu_context;
+void handle_trap(struct kvm_cpu_context *host_ctxt);
+asmlinkage void __noreturn kvm_host_psci_cpu_entry(bool is_cpu_on);
+void __noreturn __pkvm_init_finalise(void);
+void kvm_nvhe_prepare_backtrace(unsigned long fp, unsigned long pc);
+void kvm_patch_vector_branch(struct alt_instr *alt,
+	__le32 *origptr, __le32 *updptr, int nr_inst);
+void kvm_get_kimage_voffset(struct alt_instr *alt,
+	__le32 *origptr, __le32 *updptr, int nr_inst);
+void kvm_compute_final_ctr_el0(struct alt_instr *alt,
+	__le32 *origptr, __le32 *updptr, int nr_inst);
+void __noreturn __cold nvhe_hyp_panic_handler(u64 esr, u64 spsr, u64 elr_virt,
+	u64 elr_phys, u64 par, uintptr_t vcpu, u64 far, u64 hpfar);
 
 #else /* __ASSEMBLY__ */
 

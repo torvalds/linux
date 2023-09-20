@@ -21,6 +21,24 @@ enum {
 	MLO_AN_FIXED,	/* Fixed-link mode */
 	MLO_AN_INBAND,	/* In-band protocol */
 
+	/* PCS "negotiation" mode.
+	 *  PHYLINK_PCS_NEG_NONE - protocol has no inband capability
+	 *  PHYLINK_PCS_NEG_OUTBAND - some out of band or fixed link setting
+	 *  PHYLINK_PCS_NEG_INBAND_DISABLED - inband mode disabled, e.g.
+	 *				      1000base-X with autoneg off
+	 *  PHYLINK_PCS_NEG_INBAND_ENABLED - inband mode enabled
+	 * Additionally, this can be tested using bitmasks:
+	 *  PHYLINK_PCS_NEG_INBAND - inband mode selected
+	 *  PHYLINK_PCS_NEG_ENABLED - negotiation mode enabled
+	 */
+	PHYLINK_PCS_NEG_NONE = 0,
+	PHYLINK_PCS_NEG_ENABLED = BIT(4),
+	PHYLINK_PCS_NEG_OUTBAND = BIT(5),
+	PHYLINK_PCS_NEG_INBAND = BIT(6),
+	PHYLINK_PCS_NEG_INBAND_DISABLED = PHYLINK_PCS_NEG_INBAND,
+	PHYLINK_PCS_NEG_INBAND_ENABLED = PHYLINK_PCS_NEG_INBAND |
+					 PHYLINK_PCS_NEG_ENABLED,
+
 	/* MAC_SYM_PAUSE and MAC_ASYM_PAUSE are used when configuring our
 	 * autonegotiation advertisement. They correspond to the PAUSE and
 	 * ASM_DIR bits defined by 802.3, respectively.
@@ -77,6 +95,72 @@ enum {
 static inline bool phylink_autoneg_inband(unsigned int mode)
 {
 	return mode == MLO_AN_INBAND;
+}
+
+/**
+ * phylink_pcs_neg_mode() - helper to determine PCS inband mode
+ * @mode: one of %MLO_AN_FIXED, %MLO_AN_PHY, %MLO_AN_INBAND.
+ * @interface: interface mode to be used
+ * @advertising: adertisement ethtool link mode mask
+ *
+ * Determines the negotiation mode to be used by the PCS, and returns
+ * one of:
+ *
+ * - %PHYLINK_PCS_NEG_NONE: interface mode does not support inband
+ * - %PHYLINK_PCS_NEG_OUTBAND: an out of band mode (e.g. reading the PHY)
+ *   will be used.
+ * - %PHYLINK_PCS_NEG_INBAND_DISABLED: inband mode selected but autoneg
+ *   disabled
+ * - %PHYLINK_PCS_NEG_INBAND_ENABLED: inband mode selected and autoneg enabled
+ *
+ * Note: this is for cases where the PCS itself is involved in negotiation
+ * (e.g. Clause 37, SGMII and similar) not Clause 73.
+ */
+static inline unsigned int phylink_pcs_neg_mode(unsigned int mode,
+						phy_interface_t interface,
+						const unsigned long *advertising)
+{
+	unsigned int neg_mode;
+
+	switch (interface) {
+	case PHY_INTERFACE_MODE_SGMII:
+	case PHY_INTERFACE_MODE_QSGMII:
+	case PHY_INTERFACE_MODE_QUSGMII:
+	case PHY_INTERFACE_MODE_USXGMII:
+		/* These protocols are designed for use with a PHY which
+		 * communicates its negotiation result back to the MAC via
+		 * inband communication. Note: there exist PHYs that run
+		 * with SGMII but do not send the inband data.
+		 */
+		if (!phylink_autoneg_inband(mode))
+			neg_mode = PHYLINK_PCS_NEG_OUTBAND;
+		else
+			neg_mode = PHYLINK_PCS_NEG_INBAND_ENABLED;
+		break;
+
+	case PHY_INTERFACE_MODE_1000BASEX:
+	case PHY_INTERFACE_MODE_2500BASEX:
+		/* 1000base-X is designed for use media-side for Fibre
+		 * connections, and thus the Autoneg bit needs to be
+		 * taken into account. We also do this for 2500base-X
+		 * as well, but drivers may not support this, so may
+		 * need to override this.
+		 */
+		if (!phylink_autoneg_inband(mode))
+			neg_mode = PHYLINK_PCS_NEG_OUTBAND;
+		else if (linkmode_test_bit(ETHTOOL_LINK_MODE_Autoneg_BIT,
+					   advertising))
+			neg_mode = PHYLINK_PCS_NEG_INBAND_ENABLED;
+		else
+			neg_mode = PHYLINK_PCS_NEG_INBAND_DISABLED;
+		break;
+
+	default:
+		neg_mode = PHYLINK_PCS_NEG_NONE;
+		break;
+	}
+
+	return neg_mode;
 }
 
 /**
@@ -436,6 +520,7 @@ struct phylink_pcs_ops;
 /**
  * struct phylink_pcs - PHYLINK PCS instance
  * @ops: a pointer to the &struct phylink_pcs_ops structure
+ * @neg_mode: provide PCS neg mode via "mode" argument
  * @poll: poll the PCS for link changes
  *
  * This structure is designed to be embedded within the PCS private data,
@@ -443,6 +528,7 @@ struct phylink_pcs_ops;
  */
 struct phylink_pcs {
 	const struct phylink_pcs_ops *ops;
+	bool neg_mode;
 	bool poll;
 };
 
@@ -460,12 +546,12 @@ struct phylink_pcs_ops {
 			    const struct phylink_link_state *state);
 	void (*pcs_get_state)(struct phylink_pcs *pcs,
 			      struct phylink_link_state *state);
-	int (*pcs_config)(struct phylink_pcs *pcs, unsigned int mode,
+	int (*pcs_config)(struct phylink_pcs *pcs, unsigned int neg_mode,
 			  phy_interface_t interface,
 			  const unsigned long *advertising,
 			  bool permit_pause_to_mac);
 	void (*pcs_an_restart)(struct phylink_pcs *pcs);
-	void (*pcs_link_up)(struct phylink_pcs *pcs, unsigned int mode,
+	void (*pcs_link_up)(struct phylink_pcs *pcs, unsigned int neg_mode,
 			    phy_interface_t interface, int speed, int duplex);
 };
 
@@ -508,7 +594,7 @@ void pcs_get_state(struct phylink_pcs *pcs,
 /**
  * pcs_config() - Configure the PCS mode and advertisement
  * @pcs: a pointer to a &struct phylink_pcs.
- * @mode: one of %MLO_AN_FIXED, %MLO_AN_PHY, %MLO_AN_INBAND.
+ * @neg_mode: link negotiation mode (see below)
  * @interface: interface mode to be used
  * @advertising: adertisement ethtool link mode mask
  * @permit_pause_to_mac: permit forwarding pause resolution to MAC
@@ -526,8 +612,12 @@ void pcs_get_state(struct phylink_pcs *pcs,
  * For 1000BASE-X, the advertisement should be programmed into the PCS.
  *
  * For most 10GBASE-R, there is no advertisement.
+ *
+ * The %neg_mode argument should be tested via the phylink_mode_*() family of
+ * functions, or for PCS that set pcs->neg_mode true, should be tested
+ * against the %PHYLINK_PCS_NEG_* definitions.
  */
-int pcs_config(struct phylink_pcs *pcs, unsigned int mode,
+int pcs_config(struct phylink_pcs *pcs, unsigned int neg_mode,
 	       phy_interface_t interface, const unsigned long *advertising,
 	       bool permit_pause_to_mac);
 
@@ -543,7 +633,7 @@ void pcs_an_restart(struct phylink_pcs *pcs);
 /**
  * pcs_link_up() - program the PCS for the resolved link configuration
  * @pcs: a pointer to a &struct phylink_pcs.
- * @mode: link autonegotiation mode
+ * @neg_mode: link negotiation mode (see below)
  * @interface: link &typedef phy_interface_t mode
  * @speed: link speed
  * @duplex: link duplex
@@ -552,8 +642,12 @@ void pcs_an_restart(struct phylink_pcs *pcs);
  * the resolved link parameters. For example, a PCS operating in SGMII
  * mode without in-band AN needs to be manually configured for the link
  * and duplex setting. Otherwise, this should be a no-op.
+ *
+ * The %mode argument should be tested via the phylink_mode_*() family of
+ * functions, or for PCS that set pcs->neg_mode true, should be tested
+ * against the %PHYLINK_PCS_NEG_* definitions.
  */
-void pcs_link_up(struct phylink_pcs *pcs, unsigned int mode,
+void pcs_link_up(struct phylink_pcs *pcs, unsigned int neg_mode,
 		 phy_interface_t interface, int speed, int duplex);
 #endif
 
@@ -568,16 +662,17 @@ void phylink_generic_validate(struct phylink_config *config,
 			      unsigned long *supported,
 			      struct phylink_link_state *state);
 
-struct phylink *phylink_create(struct phylink_config *, struct fwnode_handle *,
-			       phy_interface_t iface,
-			       const struct phylink_mac_ops *mac_ops);
+struct phylink *phylink_create(struct phylink_config *,
+			       const struct fwnode_handle *,
+			       phy_interface_t,
+			       const struct phylink_mac_ops *);
 void phylink_destroy(struct phylink *);
 bool phylink_expects_phy(struct phylink *pl);
 
 int phylink_connect_phy(struct phylink *, struct phy_device *);
 int phylink_of_phy_connect(struct phylink *, struct device_node *, u32 flags);
 int phylink_fwnode_phy_connect(struct phylink *pl,
-			       struct fwnode_handle *fwnode,
+			       const struct fwnode_handle *fwnode,
 			       u32 flags);
 void phylink_disconnect_phy(struct phylink *);
 
@@ -650,10 +745,13 @@ void phylink_mii_c22_pcs_get_state(struct mdio_device *pcs,
 				   struct phylink_link_state *state);
 int phylink_mii_c22_pcs_encode_advertisement(phy_interface_t interface,
 					     const unsigned long *advertising);
-int phylink_mii_c22_pcs_config(struct mdio_device *pcs, unsigned int mode,
+int phylink_mii_c22_pcs_config(struct mdio_device *pcs,
 			       phy_interface_t interface,
-			       const unsigned long *advertising);
+			       const unsigned long *advertising,
+			       unsigned int neg_mode);
 void phylink_mii_c22_pcs_an_restart(struct mdio_device *pcs);
+
+void phylink_resolve_c73(struct phylink_link_state *state);
 
 void phylink_mii_c45_pcs_get_state(struct mdio_device *pcs,
 				   struct phylink_link_state *state);

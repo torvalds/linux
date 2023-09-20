@@ -34,13 +34,13 @@ void __init usb_init_pool_max(void)
 {
 	/*
 	 * The pool_max values must never be smaller than
-	 * ARCH_KMALLOC_MINALIGN.
+	 * ARCH_DMA_MINALIGN.
 	 */
-	if (ARCH_KMALLOC_MINALIGN <= 32)
+	if (ARCH_DMA_MINALIGN <= 32)
 		;			/* Original value is okay */
-	else if (ARCH_KMALLOC_MINALIGN <= 64)
+	else if (ARCH_DMA_MINALIGN <= 64)
 		pool_max[0] = 64;
-	else if (ARCH_KMALLOC_MINALIGN <= 128)
+	else if (ARCH_DMA_MINALIGN <= 128)
 		pool_max[0] = 0;	/* Don't use this pool */
 	else
 		BUILD_BUG();		/* We don't allow this */
@@ -170,5 +170,46 @@ void hcd_buffer_free(
 			return;
 		}
 	}
+	dma_free_coherent(hcd->self.sysdev, size, addr, dma);
+}
+
+void *hcd_buffer_alloc_pages(struct usb_hcd *hcd,
+		size_t size, gfp_t mem_flags, dma_addr_t *dma)
+{
+	if (size == 0)
+		return NULL;
+
+	if (hcd->localmem_pool)
+		return gen_pool_dma_alloc_align(hcd->localmem_pool,
+				size, dma, PAGE_SIZE);
+
+	/* some USB hosts just use PIO */
+	if (!hcd_uses_dma(hcd)) {
+		*dma = DMA_MAPPING_ERROR;
+		return (void *)__get_free_pages(mem_flags,
+				get_order(size));
+	}
+
+	return dma_alloc_coherent(hcd->self.sysdev,
+			size, dma, mem_flags);
+}
+
+void hcd_buffer_free_pages(struct usb_hcd *hcd,
+		size_t size, void *addr, dma_addr_t dma)
+{
+	if (!addr)
+		return;
+
+	if (hcd->localmem_pool) {
+		gen_pool_free(hcd->localmem_pool,
+				(unsigned long)addr, size);
+		return;
+	}
+
+	if (!hcd_uses_dma(hcd)) {
+		free_pages((unsigned long)addr, get_order(size));
+		return;
+	}
+
 	dma_free_coherent(hcd->self.sysdev, size, addr, dma);
 }

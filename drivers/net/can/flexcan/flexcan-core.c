@@ -2218,7 +2218,7 @@ static int flexcan_probe(struct platform_device *pdev)
 	return err;
 }
 
-static int flexcan_remove(struct platform_device *pdev)
+static void flexcan_remove(struct platform_device *pdev)
 {
 	struct net_device *dev = platform_get_drvdata(pdev);
 
@@ -2227,8 +2227,6 @@ static int flexcan_remove(struct platform_device *pdev)
 	unregister_flexcandev(dev);
 	pm_runtime_disable(&pdev->dev);
 	free_candev(dev);
-
-	return 0;
 }
 
 static int __maybe_unused flexcan_suspend(struct device *device)
@@ -2379,7 +2377,7 @@ static struct platform_driver flexcan_driver = {
 		.of_match_table = flexcan_of_match,
 	},
 	.probe = flexcan_probe,
-	.remove = flexcan_remove,
+	.remove_new = flexcan_remove,
 	.id_table = flexcan_id_table,
 };
 

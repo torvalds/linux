@@ -31,8 +31,19 @@
 #include <bfd.h>
 #endif
 
+#if defined(HAVE_LIBBFD_SUPPORT) || defined(HAVE_CPLUS_DEMANGLE_SUPPORT)
+#ifndef DMGL_PARAMS
+#define DMGL_PARAMS     (1 << 0)  /* Include function args */
+#define DMGL_ANSI       (1 << 1)  /* Include const, volatile, etc */
+#endif
+#endif
+
 #ifndef EM_AARCH64
 #define EM_AARCH64	183  /* ARM 64 bit */
+#endif
+
+#ifndef EM_LOONGARCH
+#define EM_LOONGARCH	258
 #endif
 
 #ifndef ELF32_ST_VISIBILITY
@@ -271,6 +282,26 @@ static bool want_demangle(bool is_kernel_sym)
 	return is_kernel_sym ? symbol_conf.demangle_kernel : symbol_conf.demangle;
 }
 
+/*
+ * Demangle C++ function signature, typically replaced by demangle-cxx.cpp
+ * version.
+ */
+__weak char *cxx_demangle_sym(const char *str __maybe_unused, bool params __maybe_unused,
+			      bool modifiers __maybe_unused)
+{
+#ifdef HAVE_LIBBFD_SUPPORT
+	int flags = (params ? DMGL_PARAMS : 0) | (modifiers ? DMGL_ANSI : 0);
+
+	return bfd_demangle(NULL, str, flags);
+#elif defined(HAVE_CPLUS_DEMANGLE_SUPPORT)
+	int flags = (params ? DMGL_PARAMS : 0) | (modifiers ? DMGL_ANSI : 0);
+
+	return cplus_demangle(str, flags);
+#else
+	return NULL;
+#endif
+}
+
 static char *demangle_sym(struct dso *dso, int kmodule, const char *elf_name)
 {
 	char *demangled = NULL;
@@ -408,6 +439,10 @@ static bool get_plt_sizes(struct dso *dso, GElf_Ehdr *ehdr, GElf_Shdr *shdr_plt,
 		*plt_entry_size = 12;
 		return true;
 	case EM_AARCH64:
+		*plt_header_size = 32;
+		*plt_entry_size = 16;
+		return true;
+	case EM_LOONGARCH:
 		*plt_header_size = 32;
 		*plt_entry_size = 16;
 		return true;
@@ -1362,11 +1397,11 @@ static int dso__process_kernel_symbol(struct dso *dso, struct map *map,
 			/* Ensure maps are correctly ordered */
 			if (kmaps) {
 				int err;
+				struct map *tmp = map__get(map);
 
-				map__get(map);
 				maps__remove(kmaps, map);
 				err = maps__insert(kmaps, map);
-				map__put(map);
+				map__put(tmp);
 				if (err)
 					return err;
 			}

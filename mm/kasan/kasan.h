@@ -198,13 +198,13 @@ enum kasan_report_type {
 struct kasan_report_info {
 	/* Filled in by kasan_report_*(). */
 	enum kasan_report_type type;
-	void *access_addr;
+	const void *access_addr;
 	size_t access_size;
 	bool is_write;
 	unsigned long ip;
 
 	/* Filled in by the common reporting code. */
-	void *first_bad_addr;
+	const void *first_bad_addr;
 	struct kmem_cache *cache;
 	void *object;
 	size_t alloc_size;
@@ -311,7 +311,7 @@ static __always_inline bool addr_has_metadata(const void *addr)
  * @ret_ip: return address
  * @return: true if access was valid, false if invalid
  */
-bool kasan_check_range(unsigned long addr, size_t size, bool write,
+bool kasan_check_range(const void *addr, size_t size, bool write,
 				unsigned long ret_ip);
 
 #else /* CONFIG_KASAN_GENERIC || CONFIG_KASAN_SW_TAGS */
@@ -323,7 +323,7 @@ static __always_inline bool addr_has_metadata(const void *addr)
 
 #endif /* CONFIG_KASAN_GENERIC || CONFIG_KASAN_SW_TAGS */
 
-void *kasan_find_first_bad_addr(void *addr, size_t size);
+const void *kasan_find_first_bad_addr(const void *addr, size_t size);
 size_t kasan_get_alloc_size(void *object, struct kmem_cache *cache);
 void kasan_complete_mode_report_info(struct kasan_report_info *info);
 void kasan_metadata_fetch_row(char *buffer, void *row);
@@ -346,7 +346,7 @@ void kasan_print_aux_stacks(struct kmem_cache *cache, const void *object);
 static inline void kasan_print_aux_stacks(struct kmem_cache *cache, const void *object) { }
 #endif
 
-bool kasan_report(unsigned long addr, size_t size,
+bool kasan_report(const void *addr, size_t size,
 		bool is_write, unsigned long ip);
 void kasan_report_invalid_free(void *object, unsigned long ip, enum kasan_report_type type);
 
@@ -571,79 +571,82 @@ void kasan_restore_multi_shot(bool enabled);
  */
 
 asmlinkage void kasan_unpoison_task_stack_below(const void *watermark);
-void __asan_register_globals(struct kasan_global *globals, size_t size);
-void __asan_unregister_globals(struct kasan_global *globals, size_t size);
+void __asan_register_globals(void *globals, ssize_t size);
+void __asan_unregister_globals(void *globals, ssize_t size);
 void __asan_handle_no_return(void);
-void __asan_alloca_poison(unsigned long addr, size_t size);
-void __asan_allocas_unpoison(const void *stack_top, const void *stack_bottom);
+void __asan_alloca_poison(void *, ssize_t size);
+void __asan_allocas_unpoison(void *stack_top, ssize_t stack_bottom);
 
-void __asan_load1(unsigned long addr);
-void __asan_store1(unsigned long addr);
-void __asan_load2(unsigned long addr);
-void __asan_store2(unsigned long addr);
-void __asan_load4(unsigned long addr);
-void __asan_store4(unsigned long addr);
-void __asan_load8(unsigned long addr);
-void __asan_store8(unsigned long addr);
-void __asan_load16(unsigned long addr);
-void __asan_store16(unsigned long addr);
-void __asan_loadN(unsigned long addr, size_t size);
-void __asan_storeN(unsigned long addr, size_t size);
+void __asan_load1(void *);
+void __asan_store1(void *);
+void __asan_load2(void *);
+void __asan_store2(void *);
+void __asan_load4(void *);
+void __asan_store4(void *);
+void __asan_load8(void *);
+void __asan_store8(void *);
+void __asan_load16(void *);
+void __asan_store16(void *);
+void __asan_loadN(void *, ssize_t size);
+void __asan_storeN(void *, ssize_t size);
 
-void __asan_load1_noabort(unsigned long addr);
-void __asan_store1_noabort(unsigned long addr);
-void __asan_load2_noabort(unsigned long addr);
-void __asan_store2_noabort(unsigned long addr);
-void __asan_load4_noabort(unsigned long addr);
-void __asan_store4_noabort(unsigned long addr);
-void __asan_load8_noabort(unsigned long addr);
-void __asan_store8_noabort(unsigned long addr);
-void __asan_load16_noabort(unsigned long addr);
-void __asan_store16_noabort(unsigned long addr);
-void __asan_loadN_noabort(unsigned long addr, size_t size);
-void __asan_storeN_noabort(unsigned long addr, size_t size);
+void __asan_load1_noabort(void *);
+void __asan_store1_noabort(void *);
+void __asan_load2_noabort(void *);
+void __asan_store2_noabort(void *);
+void __asan_load4_noabort(void *);
+void __asan_store4_noabort(void *);
+void __asan_load8_noabort(void *);
+void __asan_store8_noabort(void *);
+void __asan_load16_noabort(void *);
+void __asan_store16_noabort(void *);
+void __asan_loadN_noabort(void *, ssize_t size);
+void __asan_storeN_noabort(void *, ssize_t size);
 
-void __asan_report_load1_noabort(unsigned long addr);
-void __asan_report_store1_noabort(unsigned long addr);
-void __asan_report_load2_noabort(unsigned long addr);
-void __asan_report_store2_noabort(unsigned long addr);
-void __asan_report_load4_noabort(unsigned long addr);
-void __asan_report_store4_noabort(unsigned long addr);
-void __asan_report_load8_noabort(unsigned long addr);
-void __asan_report_store8_noabort(unsigned long addr);
-void __asan_report_load16_noabort(unsigned long addr);
-void __asan_report_store16_noabort(unsigned long addr);
-void __asan_report_load_n_noabort(unsigned long addr, size_t size);
-void __asan_report_store_n_noabort(unsigned long addr, size_t size);
+void __asan_report_load1_noabort(void *);
+void __asan_report_store1_noabort(void *);
+void __asan_report_load2_noabort(void *);
+void __asan_report_store2_noabort(void *);
+void __asan_report_load4_noabort(void *);
+void __asan_report_store4_noabort(void *);
+void __asan_report_load8_noabort(void *);
+void __asan_report_store8_noabort(void *);
+void __asan_report_load16_noabort(void *);
+void __asan_report_store16_noabort(void *);
+void __asan_report_load_n_noabort(void *, ssize_t size);
+void __asan_report_store_n_noabort(void *, ssize_t size);
 
-void __asan_set_shadow_00(const void *addr, size_t size);
-void __asan_set_shadow_f1(const void *addr, size_t size);
-void __asan_set_shadow_f2(const void *addr, size_t size);
-void __asan_set_shadow_f3(const void *addr, size_t size);
-void __asan_set_shadow_f5(const void *addr, size_t size);
-void __asan_set_shadow_f8(const void *addr, size_t size);
+void __asan_set_shadow_00(const void *addr, ssize_t size);
+void __asan_set_shadow_f1(const void *addr, ssize_t size);
+void __asan_set_shadow_f2(const void *addr, ssize_t size);
+void __asan_set_shadow_f3(const void *addr, ssize_t size);
+void __asan_set_shadow_f5(const void *addr, ssize_t size);
+void __asan_set_shadow_f8(const void *addr, ssize_t size);
 
-void *__asan_memset(void *addr, int c, size_t len);
-void *__asan_memmove(void *dest, const void *src, size_t len);
-void *__asan_memcpy(void *dest, const void *src, size_t len);
+void *__asan_memset(void *addr, int c, ssize_t len);
+void *__asan_memmove(void *dest, const void *src, ssize_t len);
+void *__asan_memcpy(void *dest, const void *src, ssize_t len);
 
-void __hwasan_load1_noabort(unsigned long addr);
-void __hwasan_store1_noabort(unsigned long addr);
-void __hwasan_load2_noabort(unsigned long addr);
-void __hwasan_store2_noabort(unsigned long addr);
-void __hwasan_load4_noabort(unsigned long addr);
-void __hwasan_store4_noabort(unsigned long addr);
-void __hwasan_load8_noabort(unsigned long addr);
-void __hwasan_store8_noabort(unsigned long addr);
-void __hwasan_load16_noabort(unsigned long addr);
-void __hwasan_store16_noabort(unsigned long addr);
-void __hwasan_loadN_noabort(unsigned long addr, size_t size);
-void __hwasan_storeN_noabort(unsigned long addr, size_t size);
+void __hwasan_load1_noabort(void *);
+void __hwasan_store1_noabort(void *);
+void __hwasan_load2_noabort(void *);
+void __hwasan_store2_noabort(void *);
+void __hwasan_load4_noabort(void *);
+void __hwasan_store4_noabort(void *);
+void __hwasan_load8_noabort(void *);
+void __hwasan_store8_noabort(void *);
+void __hwasan_load16_noabort(void *);
+void __hwasan_store16_noabort(void *);
+void __hwasan_loadN_noabort(void *, ssize_t size);
+void __hwasan_storeN_noabort(void *, ssize_t size);
 
-void __hwasan_tag_memory(unsigned long addr, u8 tag, unsigned long size);
+void __hwasan_tag_memory(void *, u8 tag, ssize_t size);
 
-void *__hwasan_memset(void *addr, int c, size_t len);
-void *__hwasan_memmove(void *dest, const void *src, size_t len);
-void *__hwasan_memcpy(void *dest, const void *src, size_t len);
+void *__hwasan_memset(void *addr, int c, ssize_t len);
+void *__hwasan_memmove(void *dest, const void *src, ssize_t len);
+void *__hwasan_memcpy(void *dest, const void *src, ssize_t len);
+
+void kasan_tag_mismatch(void *addr, unsigned long access_info,
+			unsigned long ret_ip);
 
 #endif /* __MM_KASAN_KASAN_H */

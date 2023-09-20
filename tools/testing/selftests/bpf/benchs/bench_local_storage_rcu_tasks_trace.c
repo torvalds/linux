@@ -72,8 +72,8 @@ static void validate(void)
 		fprintf(stderr, "benchmark doesn't support multi-producer!\n");
 		exit(1);
 	}
-	if (env.consumer_cnt != 1) {
-		fprintf(stderr, "benchmark doesn't support multi-consumer!\n");
+	if (env.consumer_cnt != 0) {
+		fprintf(stderr, "benchmark doesn't support consumer!\n");
 		exit(1);
 	}
 
@@ -197,11 +197,6 @@ static void measure(struct bench_res *res)
 	ctx.prev_kthread_stime = ticks;
 }
 
-static void *consumer(void *input)
-{
-	return NULL;
-}
-
 static void *producer(void *input)
 {
 	while (true)
@@ -262,7 +257,6 @@ const struct bench bench_local_storage_tasks_trace = {
 	.validate = validate,
 	.setup = local_storage_tasks_trace_setup,
 	.producer_thread = producer,
-	.consumer_thread = consumer,
 	.measure = measure,
 	.report_progress = report_progress,
 	.report_final = report_final,

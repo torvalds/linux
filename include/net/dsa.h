@@ -314,9 +314,17 @@ struct dsa_port {
 	struct list_head	fdbs;
 	struct list_head	mdbs;
 
-	/* List of VLANs that CPU and DSA ports are members of. */
 	struct mutex		vlans_lock;
-	struct list_head	vlans;
+	union {
+		/* List of VLANs that CPU and DSA ports are members of.
+		 * Access to this is serialized by the sleepable @vlans_lock.
+		 */
+		struct list_head	vlans;
+		/* List of VLANs that user ports are members of.
+		 * Access to this is serialized by netif_addr_lock_bh().
+		 */
+		struct list_head	user_vlans;
+	};
 };
 
 /* TODO: ideally DSA ports would have a single dp->link_dp member,
@@ -867,9 +875,15 @@ struct dsa_switch_ops {
 						      phy_interface_t iface);
 	int	(*phylink_mac_link_state)(struct dsa_switch *ds, int port,
 					  struct phylink_link_state *state);
+	int	(*phylink_mac_prepare)(struct dsa_switch *ds, int port,
+				       unsigned int mode,
+				       phy_interface_t interface);
 	void	(*phylink_mac_config)(struct dsa_switch *ds, int port,
 				      unsigned int mode,
 				      const struct phylink_link_state *state);
+	int	(*phylink_mac_finish)(struct dsa_switch *ds, int port,
+				      unsigned int mode,
+				      phy_interface_t interface);
 	void	(*phylink_mac_an_restart)(struct dsa_switch *ds, int port);
 	void	(*phylink_mac_link_down)(struct dsa_switch *ds, int port,
 					 unsigned int mode,
@@ -957,6 +971,14 @@ struct dsa_switch_ops {
 	int	(*port_enable)(struct dsa_switch *ds, int port,
 			       struct phy_device *phy);
 	void	(*port_disable)(struct dsa_switch *ds, int port);
+
+	/*
+	 * Compatibility between device trees defining multiple CPU ports and
+	 * drivers which are not OK to use by default the numerically smallest
+	 * CPU port of a switch for its local ports. This can return NULL,
+	 * meaning "don't know/don't care".
+	 */
+	struct dsa_port *(*preferred_default_local_cpu_port)(struct dsa_switch *ds);
 
 	/*
 	 * Port's MAC EEE settings

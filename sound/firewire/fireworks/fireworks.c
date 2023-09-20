@@ -18,7 +18,7 @@
 
 MODULE_DESCRIPTION("Echo Fireworks driver");
 MODULE_AUTHOR("Takashi Sakamoto <o-takashi@sakamocchi.jp>");
-MODULE_LICENSE("GPL v2");
+MODULE_LICENSE("GPL");
 
 static int index[SNDRV_CARDS]	= SNDRV_DEFAULT_IDX;
 static char *id[SNDRV_CARDS]	= SNDRV_DEFAULT_STR;

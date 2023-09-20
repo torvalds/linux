@@ -289,6 +289,7 @@ struct intel_engine_execlists {
 	 */
 	u8 csb_head;
 
+	/* private: selftest */
 	I915_SELFTEST_DECLARE(struct st_preempt_hang preempt_hang;)
 };
 

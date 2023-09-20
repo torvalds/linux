@@ -33,7 +33,7 @@
 			function = LED_FUNCTION_KBD_BACKLIGHT;
 			color = <LED_COLOR_ID_WHITE>;
 
-			gpios = <&msmgpio 60 GPIO_ACTIVE_HIGH>;
+			gpios = <&tlmm 60 GPIO_ACTIVE_HIGH>;
 
 			pinctrl-names = "default";
 			pinctrl-0 = <&gpio_leds_default>;
@@ -42,14 +42,14 @@
 };
 
 &reg_motor_vdd {
-	gpio = <&msmgpio 72 GPIO_ACTIVE_HIGH>;
+	gpio = <&tlmm 72 GPIO_ACTIVE_HIGH>;
 };
 
 &reg_touch_key {
 	status = "disabled";
 };
 
-&msmgpio {
+&tlmm {
 	gpio_leds_default: gpio-led-default-state {
 		pins = "gpio60";
 		function = "gpio";

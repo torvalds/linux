@@ -498,7 +498,7 @@ static struct i2c_driver icn8505_driver = {
 		.pm	= pm_sleep_ptr(&icn8505_pm_ops),
 		.acpi_match_table = icn8505_acpi_match,
 	},
-	.probe_new = icn8505_probe,
+	.probe = icn8505_probe,
 };
 
 module_i2c_driver(icn8505_driver);

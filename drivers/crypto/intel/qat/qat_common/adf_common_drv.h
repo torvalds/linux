@@ -187,7 +187,7 @@ void qat_uclo_del_obj(struct icp_qat_fw_loader_handle *handle);
 int qat_uclo_wr_mimage(struct icp_qat_fw_loader_handle *handle, void *addr_ptr,
 		       int mem_size);
 int qat_uclo_map_obj(struct icp_qat_fw_loader_handle *handle,
-		     void *addr_ptr, u32 mem_size, char *obj_name);
+		     void *addr_ptr, u32 mem_size, const char *obj_name);
 int qat_uclo_set_cfg_ae_mask(struct icp_qat_fw_loader_handle *handle,
 			     unsigned int cfg_ae_mask);
 int adf_init_misc_wq(void);

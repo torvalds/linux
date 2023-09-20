@@ -402,6 +402,11 @@ void nfsd_reset_write_verifier(struct nfsd_net *nn)
 	write_sequnlock(&nn->writeverf_lock);
 }
 
+/*
+ * Crank up a set of per-namespace resources for a new NFSD instance,
+ * including lockd, a duplicate reply cache, an open file cache
+ * instance, and a cache of NFSv4 state objects.
+ */
 static int nfsd_startup_net(struct net *net, const struct cred *cred)
 {
 	struct nfsd_net *nn = net_generic(net, nfsd_net_id);

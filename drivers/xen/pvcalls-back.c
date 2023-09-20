@@ -325,8 +325,10 @@ static struct sock_mapping *pvcalls_new_active_socket(
 	void *page;
 
 	map = kzalloc(sizeof(*map), GFP_KERNEL);
-	if (map == NULL)
+	if (map == NULL) {
+		sock_release(sock);
 		return NULL;
+	}
 
 	map->fedata = fedata;
 	map->sock = sock;
@@ -361,7 +363,7 @@ static struct sock_mapping *pvcalls_new_active_socket(
 	map->data.in = map->bytes;
 	map->data.out = map->bytes + XEN_FLEX_RING_SIZE(map->ring_order);
 
-	map->ioworker.wq = alloc_workqueue("pvcalls_io", WQ_UNBOUND, 1);
+	map->ioworker.wq = alloc_ordered_workqueue("pvcalls_io", 0);
 	if (!map->ioworker.wq)
 		goto out;
 	atomic_set(&map->io, 1);
@@ -418,10 +420,8 @@ static int pvcalls_back_connect(struct xenbus_device *dev,
 					req->u.connect.ref,
 					req->u.connect.evtchn,
 					sock);
-	if (!map) {
+	if (!map)
 		ret = -EFAULT;
-		sock_release(sock);
-	}
 
 out:
 	rsp = RING_GET_RESPONSE(&fedata->ring, fedata->ring.rsp_prod_pvt++);
@@ -561,7 +561,6 @@ static void __pvcalls_back_accept(struct work_struct *work)
 					sock);
 	if (!map) {
 		ret = -EFAULT;
-		sock_release(sock);
 		goto out_error;
 	}
 
@@ -637,7 +636,7 @@ static int pvcalls_back_bind(struct xenbus_device *dev,
 
 	INIT_WORK(&map->register_work, __pvcalls_back_accept);
 	spin_lock_init(&map->copy_lock);
-	map->wq = alloc_workqueue("pvcalls_wq", WQ_UNBOUND, 1);
+	map->wq = alloc_ordered_workqueue("pvcalls_wq", 0);
 	if (!map->wq) {
 		ret = -ENOMEM;
 		goto out;

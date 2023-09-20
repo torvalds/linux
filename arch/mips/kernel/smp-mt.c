@@ -46,7 +46,8 @@ static void __init smvp_copy_vpe_config(void)
 static unsigned int __init smvp_vpe_init(unsigned int tc, unsigned int mvpconf0,
 	unsigned int ncpu)
 {
-	if (tc > ((mvpconf0 & MVPCONF0_PVPE) >> MVPCONF0_PVPE_SHIFT))
+	if (tc >= smp_max_threads ||
+		(tc > ((mvpconf0 & MVPCONF0_PVPE) >> MVPCONF0_PVPE_SHIFT)))
 		return ncpu;
 
 	/* Deactivate all but VPE 0 */

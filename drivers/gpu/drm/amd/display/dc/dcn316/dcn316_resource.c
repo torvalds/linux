@@ -884,24 +884,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 			.afmt = true,
 		}
 	},
-};
-
-static const struct dc_debug_options debug_defaults_diags = {
-	.disable_dmcu = true,
-	.force_abm_enable = false,
-	.timing_trace = true,
-	.clock_trace = true,
-	.disable_dpp_power_gate = true,
-	.disable_hubp_power_gate = true,
-	.disable_clock_gate = true,
-	.disable_pplib_clock_request = true,
-	.disable_pplib_wm_range = true,
-	.disable_stutter = false,
-	.scl_reset_length10 = true,
-	.dwb_fi_phase = -1, // -1 = disable
-	.dmub_command_table = true,
-	.enable_tri_buf = true,
-	.use_max_lb = true
+	.enable_legacy_fast_update = true,
 };
 
 static const struct dc_panel_config panel_config_defaults = {
@@ -1340,13 +1323,6 @@ static struct dce_hwseq *dcn31_hwseq_create(
 		hws->regs = &hwseq_reg;
 		hws->shifts = &hwseq_shift;
 		hws->masks = &hwseq_mask;
-		/* DCN3.1 FPGA Workaround
-		 * Need to enable HPO DP Stream Encoder before setting OTG master enable.
-		 * To do so, move calling function enable_stream_timing to only be done AFTER calling
-		 * function core_link_enable_stream
-		 */
-		if (IS_FPGA_MAXIMUS_DC(ctx->dce_environment))
-			hws->wa.dp_hpo_and_otg_sequence = true;
 	}
 	return hws;
 }
@@ -1354,15 +1330,6 @@ static const struct resource_create_funcs res_create_funcs = {
 	.read_dce_straps = read_dce_straps,
 	.create_audio = dcn31_create_audio,
 	.create_stream_encoder = dcn316_stream_encoder_create,
-	.create_hpo_dp_stream_encoder = dcn31_hpo_dp_stream_encoder_create,
-	.create_hpo_dp_link_encoder = dcn31_hpo_dp_link_encoder_create,
-	.create_hwseq = dcn31_hwseq_create,
-};
-
-static const struct resource_create_funcs res_create_maximus_funcs = {
-	.read_dce_straps = NULL,
-	.create_audio = NULL,
-	.create_stream_encoder = NULL,
 	.create_hpo_dp_stream_encoder = dcn31_hpo_dp_stream_encoder_create,
 	.create_hpo_dp_link_encoder = dcn31_hpo_dp_link_encoder_create,
 	.create_hwseq = dcn31_hwseq_create,
@@ -1844,10 +1811,7 @@ static bool dcn316_resource_construct(
 
 	if (dc->ctx->dce_environment == DCE_ENV_PRODUCTION_DRV)
 		dc->debug = debug_defaults_drv;
-	else if (dc->ctx->dce_environment == DCE_ENV_FPGA_MAXIMUS) {
-		dc->debug = debug_defaults_diags;
-	} else
-		dc->debug = debug_defaults_diags;
+
 	// Init the vm_helper
 	if (dc->vm_helper)
 		vm_helper_init(dc->vm_helper, 16);
@@ -2028,9 +1992,8 @@ static bool dcn316_resource_construct(
 
 	/* Audio, Stream Encoders including HPO and virtual, MPC 3D LUTs */
 	if (!resource_construct(num_virtual_links, dc, &pool->base,
-			(!IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment) ?
-			&res_create_funcs : &res_create_maximus_funcs)))
-			goto create_fail;
+			&res_create_funcs))
+		goto create_fail;
 
 	/* HW Sequencer and Plane caps */
 	dcn31_hw_sequencer_construct(dc);

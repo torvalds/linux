@@ -171,6 +171,14 @@
 #define PTE_ATTRINDX_MASK	(_AT(pteval_t, 7) << 2)
 
 /*
+ * PIIndex[3:0] encoding (Permission Indirection Extension)
+ */
+#define PTE_PI_IDX_0	6	/* AP[1], USER */
+#define PTE_PI_IDX_1	51	/* DBM */
+#define PTE_PI_IDX_2	53	/* PXN */
+#define PTE_PI_IDX_3	54	/* UXN */
+
+/*
  * Memory Attribute override for Stage-2 (MemAttr[3:0])
  */
 #define PTE_S2_MEMATTR(t)	(_AT(pteval_t, (t)) << 2)

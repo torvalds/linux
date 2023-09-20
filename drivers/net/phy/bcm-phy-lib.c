@@ -6,12 +6,14 @@
 #include "bcm-phy-lib.h"
 #include <linux/bitfield.h>
 #include <linux/brcmphy.h>
+#include <linux/etherdevice.h>
 #include <linux/export.h>
 #include <linux/mdio.h>
 #include <linux/module.h>
 #include <linux/phy.h>
 #include <linux/ethtool.h>
 #include <linux/ethtool_netlink.h>
+#include <linux/netdevice.h>
 
 #define MII_BCM_CHANNEL_WIDTH     0x2000
 #define BCM_CL45VEN_EEE_ADV       0x3c
@@ -494,18 +496,20 @@ EXPORT_SYMBOL_GPL(bcm_phy_downshift_set);
 
 struct bcm_phy_hw_stat {
 	const char *string;
-	u8 reg;
+	int devad;
+	u16 reg;
 	u8 shift;
 	u8 bits;
 };
 
 /* Counters freeze at either 0xffff or 0xff, better than nothing */
 static const struct bcm_phy_hw_stat bcm_phy_hw_stats[] = {
-	{ "phy_receive_errors", MII_BRCM_CORE_BASE12, 0, 16 },
-	{ "phy_serdes_ber_errors", MII_BRCM_CORE_BASE13, 8, 8 },
-	{ "phy_false_carrier_sense_errors", MII_BRCM_CORE_BASE13, 0, 8 },
-	{ "phy_local_rcvr_nok", MII_BRCM_CORE_BASE14, 8, 8 },
-	{ "phy_remote_rcv_nok", MII_BRCM_CORE_BASE14, 0, 8 },
+	{ "phy_receive_errors", -1, MII_BRCM_CORE_BASE12, 0, 16 },
+	{ "phy_serdes_ber_errors", -1, MII_BRCM_CORE_BASE13, 8, 8 },
+	{ "phy_false_carrier_sense_errors", -1, MII_BRCM_CORE_BASE13, 0, 8 },
+	{ "phy_local_rcvr_nok", -1, MII_BRCM_CORE_BASE14, 8, 8 },
+	{ "phy_remote_rcv_nok", -1, MII_BRCM_CORE_BASE14, 0, 8 },
+	{ "phy_lpi_count", MDIO_MMD_AN, BRCM_CL45VEN_EEE_LPI_CNT, 0, 16 },
 };
 
 int bcm_phy_get_sset_count(struct phy_device *phydev)
@@ -534,7 +538,10 @@ static u64 bcm_phy_get_stat(struct phy_device *phydev, u64 *shadow,
 	int val;
 	u64 ret;
 
-	val = phy_read(phydev, stat.reg);
+	if (stat.devad < 0)
+		val = phy_read(phydev, stat.reg);
+	else
+		val = phy_read_mmd(phydev, stat.devad, stat.reg);
 	if (val < 0) {
 		ret = U64_MAX;
 	} else {
@@ -815,6 +822,249 @@ int bcm_phy_cable_test_get_status_rdb(struct phy_device *phydev,
 	return _bcm_phy_cable_test_get_status(phydev, finished, true);
 }
 EXPORT_SYMBOL_GPL(bcm_phy_cable_test_get_status_rdb);
+
+#define BCM54XX_WOL_SUPPORTED_MASK	(WAKE_UCAST | \
+					 WAKE_MCAST | \
+					 WAKE_BCAST | \
+					 WAKE_MAGIC | \
+					 WAKE_MAGICSECURE)
+
+int bcm_phy_set_wol(struct phy_device *phydev, struct ethtool_wolinfo *wol)
+{
+	struct net_device *ndev = phydev->attached_dev;
+	u8 da[ETH_ALEN], mask[ETH_ALEN];
+	unsigned int i;
+	u16 ctl;
+	int ret;
+
+	/* Allow a MAC driver to play through its own Wake-on-LAN
+	 * implementation
+	 */
+	if (wol->wolopts & ~BCM54XX_WOL_SUPPORTED_MASK)
+		return -EOPNOTSUPP;
+
+	/* The PHY supports passwords of 4, 6 and 8 bytes in size, but Linux's
+	 * ethtool only supports 6, for now.
+	 */
+	BUILD_BUG_ON(sizeof(wol->sopass) != ETH_ALEN);
+
+	/* Clear previous interrupts */
+	ret = bcm_phy_read_exp(phydev, BCM54XX_WOL_INT_STATUS);
+	if (ret < 0)
+		return ret;
+
+	ret = bcm_phy_read_exp(phydev, BCM54XX_WOL_MAIN_CTL);
+	if (ret < 0)
+		return ret;
+
+	ctl = ret;
+
+	if (!wol->wolopts) {
+		if (phy_interrupt_is_valid(phydev))
+			disable_irq_wake(phydev->irq);
+
+		/* Leave all interrupts disabled */
+		ret = bcm_phy_write_exp(phydev, BCM54XX_WOL_INT_MASK,
+					BCM54XX_WOL_ALL_INTRS);
+		if (ret < 0)
+			return ret;
+
+		/* Disable the global Wake-on-LAN enable bit */
+		ctl &= ~BCM54XX_WOL_EN;
+
+		return bcm_phy_write_exp(phydev, BCM54XX_WOL_MAIN_CTL, ctl);
+	}
+
+	/* Clear the previously configured mode and mask mode for Wake-on-LAN */
+	ctl &= ~(BCM54XX_WOL_MODE_MASK << BCM54XX_WOL_MODE_SHIFT);
+	ctl &= ~(BCM54XX_WOL_MASK_MODE_MASK << BCM54XX_WOL_MASK_MODE_SHIFT);
+	ctl &= ~BCM54XX_WOL_DIR_PKT_EN;
+	ctl &= ~(BCM54XX_WOL_SECKEY_OPT_MASK << BCM54XX_WOL_SECKEY_OPT_SHIFT);
+
+	/* When using WAKE_MAGIC, we program the magic pattern filter to match
+	 * the device's MAC address and we accept any MAC DA in the Ethernet
+	 * frame.
+	 *
+	 * When using WAKE_UCAST, WAKE_BCAST or WAKE_MCAST, we program the
+	 * following:
+	 * - WAKE_UCAST -> MAC DA is the device's MAC with a perfect match
+	 * - WAKE_MCAST -> MAC DA is X1:XX:XX:XX:XX:XX where XX is don't care
+	 * - WAKE_BCAST -> MAC DA is FF:FF:FF:FF:FF:FF with a perfect match
+	 *
+	 * Note that the Broadcast MAC DA is inherently going to match the
+	 * multicast pattern being matched.
+	 */
+	memset(mask, 0, sizeof(mask));
+
+	if (wol->wolopts & WAKE_MCAST) {
+		memset(da, 0, sizeof(da));
+		memset(mask, 0xff, sizeof(mask));
+		da[0] = 0x01;
+		mask[0] = ~da[0];
+	} else {
+		if (wol->wolopts & WAKE_UCAST) {
+			ether_addr_copy(da, ndev->dev_addr);
+		} else if (wol->wolopts & WAKE_BCAST) {
+			eth_broadcast_addr(da);
+		} else if (wol->wolopts & WAKE_MAGICSECURE) {
+			ether_addr_copy(da, wol->sopass);
+		} else if (wol->wolopts & WAKE_MAGIC) {
+			memset(da, 0, sizeof(da));
+			memset(mask, 0xff, sizeof(mask));
+		}
+	}
+
+	for (i = 0; i < ETH_ALEN / 2; i++) {
+		if (wol->wolopts & (WAKE_MAGIC | WAKE_MAGICSECURE)) {
+			ret = bcm_phy_write_exp(phydev,
+						BCM54XX_WOL_MPD_DATA1(2 - i),
+						ndev->dev_addr[i * 2] << 8 |
+						ndev->dev_addr[i * 2 + 1]);
+			if (ret < 0)
+				return ret;
+		}
+
+		ret = bcm_phy_write_exp(phydev, BCM54XX_WOL_MPD_DATA2(2 - i),
+					da[i * 2] << 8 | da[i * 2 + 1]);
+		if (ret < 0)
+			return ret;
+
+		ret = bcm_phy_write_exp(phydev, BCM54XX_WOL_MASK(2 - i),
+					mask[i * 2] << 8 | mask[i * 2 + 1]);
+		if (ret)
+			return ret;
+	}
+
+	if (wol->wolopts & WAKE_MAGICSECURE) {
+		ctl |= BCM54XX_WOL_SECKEY_OPT_6B <<
+		       BCM54XX_WOL_SECKEY_OPT_SHIFT;
+		ctl |= BCM54XX_WOL_MODE_SINGLE_MPDSEC << BCM54XX_WOL_MODE_SHIFT;
+		ctl |= BCM54XX_WOL_MASK_MODE_DA_FF <<
+		       BCM54XX_WOL_MASK_MODE_SHIFT;
+	} else {
+		if (wol->wolopts & WAKE_MAGIC)
+			ctl |= BCM54XX_WOL_MODE_SINGLE_MPD;
+		else
+			ctl |= BCM54XX_WOL_DIR_PKT_EN;
+		ctl |= BCM54XX_WOL_MASK_MODE_DA_ONLY <<
+		       BCM54XX_WOL_MASK_MODE_SHIFT;
+	}
+
+	/* Globally enable Wake-on-LAN */
+	ctl |= BCM54XX_WOL_EN | BCM54XX_WOL_CRC_CHK;
+
+	ret = bcm_phy_write_exp(phydev, BCM54XX_WOL_MAIN_CTL, ctl);
+	if (ret < 0)
+		return ret;
+
+	/* Enable WOL interrupt on LED4 */
+	ret = bcm_phy_read_exp(phydev, BCM54XX_TOP_MISC_LED_CTL);
+	if (ret < 0)
+		return ret;
+
+	ret |= BCM54XX_LED4_SEL_INTR;
+	ret = bcm_phy_write_exp(phydev, BCM54XX_TOP_MISC_LED_CTL, ret);
+	if (ret < 0)
+		return ret;
+
+	/* Enable all Wake-on-LAN interrupt sources */
+	ret = bcm_phy_write_exp(phydev, BCM54XX_WOL_INT_MASK, 0);
+	if (ret < 0)
+		return ret;
+
+	if (phy_interrupt_is_valid(phydev))
+		enable_irq_wake(phydev->irq);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(bcm_phy_set_wol);
+
+void bcm_phy_get_wol(struct phy_device *phydev, struct ethtool_wolinfo *wol)
+{
+	struct net_device *ndev = phydev->attached_dev;
+	u8 da[ETH_ALEN];
+	unsigned int i;
+	int ret;
+	u16 ctl;
+
+	wol->supported = BCM54XX_WOL_SUPPORTED_MASK;
+	wol->wolopts = 0;
+
+	ret = bcm_phy_read_exp(phydev, BCM54XX_WOL_MAIN_CTL);
+	if (ret < 0)
+		return;
+
+	ctl = ret;
+
+	if (!(ctl & BCM54XX_WOL_EN))
+		return;
+
+	for (i = 0; i < sizeof(da) / 2; i++) {
+		ret = bcm_phy_read_exp(phydev,
+				       BCM54XX_WOL_MPD_DATA2(2 - i));
+		if (ret < 0)
+			return;
+
+		da[i * 2] = ret >> 8;
+		da[i * 2 + 1] = ret & 0xff;
+	}
+
+	if (ctl & BCM54XX_WOL_DIR_PKT_EN) {
+		if (is_broadcast_ether_addr(da))
+			wol->wolopts |= WAKE_BCAST;
+		else if (is_multicast_ether_addr(da))
+			wol->wolopts |= WAKE_MCAST;
+		else if (ether_addr_equal(da, ndev->dev_addr))
+			wol->wolopts |= WAKE_UCAST;
+	} else {
+		ctl = (ctl >> BCM54XX_WOL_MODE_SHIFT) & BCM54XX_WOL_MODE_MASK;
+		switch (ctl) {
+		case BCM54XX_WOL_MODE_SINGLE_MPD:
+			wol->wolopts |= WAKE_MAGIC;
+			break;
+		case BCM54XX_WOL_MODE_SINGLE_MPDSEC:
+			wol->wolopts |= WAKE_MAGICSECURE;
+			memcpy(wol->sopass, da, sizeof(da));
+			break;
+		default:
+			break;
+		}
+	}
+}
+EXPORT_SYMBOL_GPL(bcm_phy_get_wol);
+
+irqreturn_t bcm_phy_wol_isr(int irq, void *dev_id)
+{
+	return IRQ_HANDLED;
+}
+EXPORT_SYMBOL_GPL(bcm_phy_wol_isr);
+
+int bcm_phy_led_brightness_set(struct phy_device *phydev,
+			       u8 index, enum led_brightness value)
+{
+	u8 led_num;
+	int ret;
+	u16 reg;
+
+	if (index >= 4)
+		return -EINVAL;
+
+	/* Two LEDS per register */
+	led_num = index % 2;
+	reg = index >= 2 ? BCM54XX_SHD_LEDS2 : BCM54XX_SHD_LEDS1;
+
+	ret = bcm_phy_read_shadow(phydev, reg);
+	if (ret < 0)
+		return ret;
+
+	ret &= ~(BCM_LED_SRC_MASK << BCM54XX_SHD_LEDS_SHIFT(led_num));
+	if (value == LED_OFF)
+		ret |= BCM_LED_SRC_OFF << BCM54XX_SHD_LEDS_SHIFT(led_num);
+	else
+		ret |= BCM_LED_SRC_ON << BCM54XX_SHD_LEDS_SHIFT(led_num);
+	return bcm_phy_write_shadow(phydev, reg, ret);
+}
+EXPORT_SYMBOL_GPL(bcm_phy_led_brightness_set);
 
 MODULE_DESCRIPTION("Broadcom PHY Library");
 MODULE_LICENSE("GPL v2");

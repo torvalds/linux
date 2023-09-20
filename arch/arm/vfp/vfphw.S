@@ -172,13 +172,14 @@ vfp_hw_state_valid:
 					@ out before setting an FPEXC that
 					@ stops us reading stuff
 	VFPFMXR	FPEXC, r1		@ Restore FPEXC last
+	mov	sp, r3			@ we think we have handled things
+	pop	{lr}
 	sub	r2, r2, #4		@ Retry current instruction - if Thumb
 	str	r2, [sp, #S_PC]		@ mode it's two 16-bit instructions,
 					@ else it's one 32-bit instruction, so
 					@ always subtract 4 from the following
 					@ instruction address.
 
-	mov	lr, r3			@ we think we have handled things
 local_bh_enable_and_ret:
 	adr	r0, .
 	mov	r1, #SOFTIRQ_DISABLE_OFFSET
@@ -209,8 +210,9 @@ skip:
 
 process_exception:
 	DBGSTR	"bounce"
+	mov	sp, r3			@ setup for a return to the user code.
+	pop	{lr}
 	mov	r2, sp			@ nothing stacked - regdump is at TOS
-	mov	lr, r3			@ setup for a return to the user code.
 
 	@ Now call the C code to package up the bounce to the support code
 	@   r0 holds the trigger instruction

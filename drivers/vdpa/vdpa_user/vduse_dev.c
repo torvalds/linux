@@ -1052,7 +1052,7 @@ static int vduse_dev_reg_umem(struct vduse_dev *dev,
 		goto out;
 
 	pinned = pin_user_pages(uaddr, npages, FOLL_LONGTERM | FOLL_WRITE,
-				page_list, NULL);
+				page_list);
 	if (pinned != npages) {
 		ret = pinned < 0 ? pinned : -ENOMEM;
 		goto out;
@@ -1683,6 +1683,9 @@ static bool vduse_validate_config(struct vduse_dev_config *config)
 		return false;
 
 	if (config->vq_num > 0xffff)
+		return false;
+
+	if (!config->name[0])
 		return false;
 
 	if (!device_is_allowed(config->device_id))

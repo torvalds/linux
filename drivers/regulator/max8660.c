@@ -503,7 +503,7 @@ static const struct i2c_device_id max8660_id[] = {
 MODULE_DEVICE_TABLE(i2c, max8660_id);
 
 static struct i2c_driver max8660_driver = {
-	.probe_new = max8660_probe,
+	.probe = max8660_probe,
 	.driver		= {
 		.name	= "max8660",
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,

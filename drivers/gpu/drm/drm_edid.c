@@ -2845,6 +2845,35 @@ struct edid *drm_get_edid_switcheroo(struct drm_connector *connector,
 EXPORT_SYMBOL(drm_get_edid_switcheroo);
 
 /**
+ * drm_edid_read_switcheroo - get EDID data for a vga_switcheroo output
+ * @connector: connector we're probing
+ * @adapter: I2C adapter to use for DDC
+ *
+ * Wrapper around drm_edid_read_ddc() for laptops with dual GPUs using one set
+ * of outputs. The wrapper adds the requisite vga_switcheroo calls to
+ * temporarily switch DDC to the GPU which is retrieving EDID.
+ *
+ * Return: Pointer to valid EDID or %NULL if we couldn't find any.
+ */
+const struct drm_edid *drm_edid_read_switcheroo(struct drm_connector *connector,
+						struct i2c_adapter *adapter)
+{
+	struct drm_device *dev = connector->dev;
+	struct pci_dev *pdev = to_pci_dev(dev->dev);
+	const struct drm_edid *drm_edid;
+
+	if (drm_WARN_ON_ONCE(dev, !dev_is_pci(dev->dev)))
+		return NULL;
+
+	vga_switcheroo_lock_ddc(pdev);
+	drm_edid = drm_edid_read_ddc(connector, adapter);
+	vga_switcheroo_unlock_ddc(pdev);
+
+	return drm_edid;
+}
+EXPORT_SYMBOL(drm_edid_read_switcheroo);
+
+/**
  * drm_edid_duplicate - duplicate an EDID and the extensions
  * @edid: EDID to duplicate
  *
@@ -2852,6 +2881,9 @@ EXPORT_SYMBOL(drm_get_edid_switcheroo);
  */
 struct edid *drm_edid_duplicate(const struct edid *edid)
 {
+	if (!edid)
+		return NULL;
+
 	return kmemdup(edid, edid_size(edid), GFP_KERNEL);
 }
 EXPORT_SYMBOL(drm_edid_duplicate);
@@ -6243,6 +6275,9 @@ static void drm_parse_cea_ext(struct drm_connector *connector,
 			info->color_formats |= DRM_COLOR_FORMAT_YCBCR444;
 		if (edid_ext[3] & EDID_CEA_YCRCB422)
 			info->color_formats |= DRM_COLOR_FORMAT_YCBCR422;
+		if (edid_ext[3] & EDID_BASIC_AUDIO)
+			info->has_audio = true;
+
 	}
 	drm_edid_iter_end(&edid_iter);
 
@@ -6268,6 +6303,8 @@ static void drm_parse_cea_ext(struct drm_connector *connector,
 			drm_parse_hdr_metadata_block(connector, data);
 		else if (cea_db_tag(db) == CTA_DB_VIDEO)
 			parse_cta_vdb(connector, db);
+		else if (cea_db_tag(db) == CTA_DB_AUDIO)
+			info->has_audio = true;
 	}
 	cea_db_iter_end(&iter);
 
@@ -6424,6 +6461,7 @@ static void drm_reset_display_info(struct drm_connector *connector)
 	info->max_tmds_clock = 0;
 	info->dvi_dual = false;
 	info->is_hdmi = false;
+	info->has_audio = false;
 	info->has_hdmi_infoframe = false;
 	info->rgb_quant_range_selectable = false;
 	memset(&info->hdmi, 0, sizeof(info->hdmi));

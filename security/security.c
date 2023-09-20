@@ -2491,7 +2491,7 @@ int security_inode_copy_up_xattr(const char *name)
 	/*
 	 * The implementation can return 0 (accept the xattr), 1 (discard the
 	 * xattr), -EOPNOTSUPP if it does not know anything about the xattr or
-	 * any other error code incase of an error.
+	 * any other error code in case of an error.
 	 */
 	hlist_for_each_entry(hp,
 			     &security_hook_heads.inode_copy_up_xattr, list) {
@@ -4667,6 +4667,23 @@ int security_sctp_assoc_established(struct sctp_association *asoc,
 }
 EXPORT_SYMBOL(security_sctp_assoc_established);
 
+/**
+ * security_mptcp_add_subflow() - Inherit the LSM label from the MPTCP socket
+ * @sk: the owning MPTCP socket
+ * @ssk: the new subflow
+ *
+ * Update the labeling for the given MPTCP subflow, to match the one of the
+ * owning MPTCP socket. This hook has to be called after the socket creation and
+ * initialization via the security_socket_create() and
+ * security_socket_post_create() LSM hooks.
+ *
+ * Return: Returns 0 on success or a negative error code on failure.
+ */
+int security_mptcp_add_subflow(struct sock *sk, struct sock *ssk)
+{
+	return call_int_hook(mptcp_add_subflow, 0, sk, ssk);
+}
+
 #endif	/* CONFIG_SECURITY_NETWORK */
 
 #ifdef CONFIG_SECURITY_INFINIBAND
@@ -4676,7 +4693,7 @@ EXPORT_SYMBOL(security_sctp_assoc_established);
  * @subnet_prefix: subnet prefix of the port
  * @pkey: IB pkey
  *
- * Check permission to access a pkey when modifing a QP.
+ * Check permission to access a pkey when modifying a QP.
  *
  * Return: Returns 0 if permission is granted.
  */

@@ -14,10 +14,6 @@ Programs can view status of the events via
 /sys/kernel/tracing/user_events_status and can both register and write
 data out via /sys/kernel/tracing/user_events_data.
 
-Programs can also use /sys/kernel/tracing/dynamic_events to register and
-delete user based events via the u: prefix. The format of the command to
-dynamic_events is the same as the ioctl with the u: prefix applied.
-
 Typically programs will register a set of events that they wish to expose to
 tools that can read trace_events (such as ftrace and perf). The registration
 process tells the kernel which address and bit to reflect if any tool has
@@ -143,6 +139,9 @@ This command only requires a single string specifying the event to delete by
 its name. Delete will only succeed if there are no references left to the
 event (in both user and kernel space). User programs should use a separate file
 to request deletes than the one used for registration due to this.
+
+**NOTE:** By default events will auto-delete when there are no references left
+to the event. Flags in the future may change this logic.
 
 Unregistering
 -------------

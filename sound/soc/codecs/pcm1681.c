@@ -327,7 +327,7 @@ static struct i2c_driver pcm1681_i2c_driver = {
 		.of_match_table = of_match_ptr(pcm1681_dt_ids),
 	},
 	.id_table	= pcm1681_i2c_id,
-	.probe_new	= pcm1681_i2c_probe,
+	.probe		= pcm1681_i2c_probe,
 };
 
 module_i2c_driver(pcm1681_i2c_driver);

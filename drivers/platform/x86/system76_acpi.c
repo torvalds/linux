@@ -581,7 +581,7 @@ static const struct hwmon_ops thermal_ops = {
 };
 
 // Allocate up to 8 fans and temperatures
-static const struct hwmon_channel_info *thermal_channel_info[] = {
+static const struct hwmon_channel_info * const thermal_channel_info[] = {
 	HWMON_CHANNEL_INFO(fan,
 		HWMON_F_INPUT | HWMON_F_LABEL,
 		HWMON_F_INPUT | HWMON_F_LABEL,

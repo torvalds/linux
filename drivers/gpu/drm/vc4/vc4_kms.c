@@ -31,11 +31,8 @@ struct vc4_ctm_state {
 	int fifo;
 };
 
-static struct vc4_ctm_state *
-to_vc4_ctm_state(const struct drm_private_state *priv)
-{
-	return container_of(priv, struct vc4_ctm_state, base);
-}
+#define to_vc4_ctm_state(_state)				\
+	container_of_const(_state, struct vc4_ctm_state, base)
 
 struct vc4_load_tracker_state {
 	struct drm_private_state base;
@@ -43,11 +40,8 @@ struct vc4_load_tracker_state {
 	u64 membus_load;
 };
 
-static struct vc4_load_tracker_state *
-to_vc4_load_tracker_state(const struct drm_private_state *priv)
-{
-	return container_of(priv, struct vc4_load_tracker_state, base);
-}
+#define to_vc4_load_tracker_state(_state)				\
+	container_of_const(_state, struct vc4_load_tracker_state, base)
 
 static struct vc4_ctm_state *vc4_get_ctm_state(struct drm_atomic_state *state,
 					       struct drm_private_obj *manager)
@@ -717,7 +711,7 @@ static void vc4_hvs_channels_destroy_state(struct drm_private_obj *obj,
 static void vc4_hvs_channels_print_state(struct drm_printer *p,
 					 const struct drm_private_state *state)
 {
-	struct vc4_hvs_state *hvs_state = to_vc4_hvs_state(state);
+	const struct vc4_hvs_state *hvs_state = to_vc4_hvs_state(state);
 	unsigned int i;
 
 	drm_printf(p, "HVS State\n");

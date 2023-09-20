@@ -22,7 +22,7 @@ KCOV_INSTRUMENT	:= n
 
 $(obj)/%.pi.o: OBJCOPYFLAGS := --prefix-symbols=__pi_ \
 			       --remove-section=.note.gnu.property \
-			       --prefix-alloc-sections=.init
+			       --prefix-alloc-sections=.init.pi
 $(obj)/%.pi.o: $(obj)/%.o FORCE
 	$(call if_changed,objcopy)
 

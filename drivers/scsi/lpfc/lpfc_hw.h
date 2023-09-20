@@ -86,8 +86,8 @@ union CtRevisionId {
 union CtCommandResponse {
 	/* Structure is in Big Endian format */
 	struct {
-		uint32_t CmdRsp:16;
-		uint32_t Size:16;
+		__be16 CmdRsp;
+		__be16 Size;
 	} bits;
 	uint32_t word;
 };
@@ -124,7 +124,7 @@ struct lpfc_sli_ct_request {
 #define LPFC_CT_PREAMBLE	20	/* Size of CTReq + 4 up to here */
 
 	union {
-		uint32_t PortID;
+		__be32 PortID;
 		struct gid {
 			uint8_t PortType;	/* for GID_PT requests */
 #define GID_PT_N_PORT	1
@@ -1408,19 +1408,19 @@ struct entity_id_object {
 };
 
 struct app_id_object {
-	uint32_t port_id;
-	uint32_t app_id;
+	__be32 port_id;
+	__be32 app_id;
 	struct entity_id_object obj;
 };
 
 struct lpfc_vmid_rapp_ident_list {
-	uint32_t no_of_objects;
-	struct entity_id_object obj[1];
+	__be32 no_of_objects;
+	struct entity_id_object obj[];
 };
 
 struct lpfc_vmid_dapp_ident_list {
-	uint32_t no_of_objects;
-	struct entity_id_object obj[1];
+	__be32 no_of_objects;
+	struct entity_id_object obj[];
 };
 
 #define GALLAPPIA_ID_LAST  0x80
@@ -1512,7 +1512,7 @@ struct lpfc_fdmi_hba_ident {
  * Registered Port List Format
  */
 struct lpfc_fdmi_reg_port_list {
-	uint32_t EntryCnt;
+	__be32 EntryCnt;
 	struct lpfc_fdmi_port_entry pe;
 } __packed;
 

@@ -337,6 +337,17 @@ free_gains:
 	return ret;
 }
 
+static void iio_gts_us_to_int_micro(int *time_us, int *int_micro_times,
+				    int num_times)
+{
+	int i;
+
+	for (i = 0; i < num_times; i++) {
+		int_micro_times[i * 2] = time_us[i] / 1000000;
+		int_micro_times[i * 2 + 1] = time_us[i] % 1000000;
+	}
+}
+
 /**
  * iio_gts_build_avail_time_table - build table of available integration times
  * @gts:	Gain time scale descriptor
@@ -351,7 +362,7 @@ free_gains:
  */
 static int iio_gts_build_avail_time_table(struct iio_gts *gts)
 {
-	int *times, i, j, idx = 0;
+	int *times, i, j, idx = 0, *int_micro_times;
 
 	if (!gts->num_itime)
 		return 0;
@@ -378,13 +389,24 @@ static int iio_gts_build_avail_time_table(struct iio_gts *gts)
 			}
 		}
 	}
-	gts->avail_time_tables = times;
-	/*
-	 * This is just to survive a unlikely corner-case where times in the
-	 * given time table were not unique. Else we could just trust the
-	 * gts->num_itime.
-	 */
-	gts->num_avail_time_tables = idx;
+
+	/* create a list of times formatted as list of IIO_VAL_INT_PLUS_MICRO */
+	int_micro_times = kcalloc(idx, sizeof(int) * 2, GFP_KERNEL);
+	if (int_micro_times) {
+		/*
+		 * This is just to survive a unlikely corner-case where times in
+		 * the given time table were not unique. Else we could just
+		 * trust the gts->num_itime.
+		 */
+		gts->num_avail_time_tables = idx;
+		iio_gts_us_to_int_micro(times, int_micro_times, idx);
+	}
+
+	gts->avail_time_tables = int_micro_times;
+	kfree(times);
+
+	if (!int_micro_times)
+		return -ENOMEM;
 
 	return 0;
 }
@@ -683,8 +705,8 @@ int iio_gts_avail_times(struct iio_gts *gts,  const int **vals, int *type,
 		return -EINVAL;
 
 	*vals = gts->avail_time_tables;
-	*type = IIO_VAL_INT;
-	*length = gts->num_avail_time_tables;
+	*type = IIO_VAL_INT_PLUS_MICRO;
+	*length = gts->num_avail_time_tables * 2;
 
 	return IIO_AVAIL_LIST;
 }

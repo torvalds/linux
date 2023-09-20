@@ -102,7 +102,11 @@ static int kvm_vgic_addr(struct kvm *kvm, struct kvm_device_attr *attr, bool wri
 		if (get_user(addr, uaddr))
 			return -EFAULT;
 
-	mutex_lock(&kvm->arch.config_lock);
+	/*
+	 * Since we can't hold config_lock while registering the redistributor
+	 * iodevs, take the slots_lock immediately.
+	 */
+	mutex_lock(&kvm->slots_lock);
 	switch (attr->attr) {
 	case KVM_VGIC_V2_ADDR_TYPE_DIST:
 		r = vgic_check_type(kvm, KVM_DEV_TYPE_ARM_VGIC_V2);
@@ -182,6 +186,7 @@ static int kvm_vgic_addr(struct kvm *kvm, struct kvm_device_attr *attr, bool wri
 	if (r)
 		goto out;
 
+	mutex_lock(&kvm->arch.config_lock);
 	if (write) {
 		r = vgic_check_iorange(kvm, *addr_ptr, addr, alignment, size);
 		if (!r)
@@ -189,9 +194,10 @@ static int kvm_vgic_addr(struct kvm *kvm, struct kvm_device_attr *attr, bool wri
 	} else {
 		addr = *addr_ptr;
 	}
+	mutex_unlock(&kvm->arch.config_lock);
 
 out:
-	mutex_unlock(&kvm->arch.config_lock);
+	mutex_unlock(&kvm->slots_lock);
 
 	if (!r && !write)
 		r =  put_user(addr, uaddr);

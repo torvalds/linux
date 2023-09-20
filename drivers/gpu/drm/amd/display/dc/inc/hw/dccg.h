@@ -68,6 +68,7 @@ struct dccg {
 	const struct dccg_funcs *funcs;
 	int pipe_dppclk_khz[MAX_PIPES];
 	int ref_dppclk;
+	bool dpp_clock_gated[MAX_PIPES];
 	//int dtbclk_khz[MAX_PIPES];/* TODO needs to be removed */
 	//int audio_dtbclk_khz;/* TODO needs to be removed */
 	//int ref_dtbclk_khz;/* TODO needs to be removed */
@@ -158,6 +159,9 @@ struct dccg_funcs {
 			int ref_dtbclk_khz,
 			int otg_inst,
 			int pixclk_khz);
+
+	void (*trigger_dio_fifo_resync)(
+			struct dccg *dccg);
 
 	void (*dpp_root_clock_control)(
 			struct dccg *dccg,

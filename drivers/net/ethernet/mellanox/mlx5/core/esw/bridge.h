@@ -10,6 +10,7 @@
 #include <linux/xarray.h>
 #include "eswitch.h"
 
+struct dentry;
 struct mlx5_flow_table;
 struct mlx5_flow_group;
 
@@ -17,6 +18,7 @@ struct mlx5_esw_bridge_offloads {
 	struct mlx5_eswitch *esw;
 	struct list_head bridges;
 	struct xarray ports;
+	struct dentry *debugfs_root;
 
 	struct notifier_block netdev_nb;
 	struct notifier_block nb_blk;
@@ -43,16 +45,18 @@ struct mlx5_esw_bridge_offloads {
 
 struct mlx5_esw_bridge_offloads *mlx5_esw_bridge_init(struct mlx5_eswitch *esw);
 void mlx5_esw_bridge_cleanup(struct mlx5_eswitch *esw);
-int mlx5_esw_bridge_vport_link(int ifindex, u16 vport_num, u16 esw_owner_vhca_id,
+int mlx5_esw_bridge_vport_link(struct net_device *br_netdev, u16 vport_num, u16 esw_owner_vhca_id,
 			       struct mlx5_esw_bridge_offloads *br_offloads,
 			       struct netlink_ext_ack *extack);
-int mlx5_esw_bridge_vport_unlink(int ifindex, u16 vport_num, u16 esw_owner_vhca_id,
+int mlx5_esw_bridge_vport_unlink(struct net_device *br_netdev, u16 vport_num, u16 esw_owner_vhca_id,
 				 struct mlx5_esw_bridge_offloads *br_offloads,
 				 struct netlink_ext_ack *extack);
-int mlx5_esw_bridge_vport_peer_link(int ifindex, u16 vport_num, u16 esw_owner_vhca_id,
+int mlx5_esw_bridge_vport_peer_link(struct net_device *br_netdev, u16 vport_num,
+				    u16 esw_owner_vhca_id,
 				    struct mlx5_esw_bridge_offloads *br_offloads,
 				    struct netlink_ext_ack *extack);
-int mlx5_esw_bridge_vport_peer_unlink(int ifindex, u16 vport_num, u16 esw_owner_vhca_id,
+int mlx5_esw_bridge_vport_peer_unlink(struct net_device *br_netdev, u16 vport_num,
+				      u16 esw_owner_vhca_id,
 				      struct mlx5_esw_bridge_offloads *br_offloads,
 				      struct netlink_ext_ack *extack);
 void mlx5_esw_bridge_fdb_update_used(struct net_device *dev, u16 vport_num, u16 esw_owner_vhca_id,

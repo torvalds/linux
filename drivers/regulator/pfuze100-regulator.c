@@ -848,7 +848,7 @@ static struct i2c_driver pfuze_driver = {
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = pfuze_dt_ids,
 	},
-	.probe_new = pfuze100_regulator_probe,
+	.probe = pfuze100_regulator_probe,
 };
 module_i2c_driver(pfuze_driver);
 

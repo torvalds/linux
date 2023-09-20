@@ -10,12 +10,15 @@
 #include <linux/bitmap.h>
 #include <linux/bitops.h>
 #include <linux/ctype.h>
+#include <linux/delay.h>
 #include <linux/idr.h>
 #include <linux/kernel.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/overflow.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/string.h>
@@ -239,6 +242,11 @@ static void __exit gpio_aggregator_remove_all(void)
  *  GPIO Forwarder
  */
 
+struct gpiochip_fwd_timing {
+	u32 ramp_up_us;
+	u32 ramp_down_us;
+};
+
 struct gpiochip_fwd {
 	struct gpio_chip chip;
 	struct gpio_desc **descs;
@@ -246,6 +254,7 @@ struct gpiochip_fwd {
 		struct mutex mlock;	/* protects tmp[] if can_sleep */
 		spinlock_t slock;	/* protects tmp[] if !can_sleep */
 	};
+	struct gpiochip_fwd_timing *delay_timings;
 	unsigned long tmp[];		/* values and descs for multiple ops */
 };
 
@@ -330,6 +339,27 @@ static int gpio_fwd_get_multiple_locked(struct gpio_chip *chip,
 	return error;
 }
 
+static void gpio_fwd_delay(struct gpio_chip *chip, unsigned int offset, int value)
+{
+	struct gpiochip_fwd *fwd = gpiochip_get_data(chip);
+	const struct gpiochip_fwd_timing *delay_timings;
+	bool is_active_low = gpiod_is_active_low(fwd->descs[offset]);
+	u32 delay_us;
+
+	delay_timings = &fwd->delay_timings[offset];
+	if ((!is_active_low && value) || (is_active_low && !value))
+		delay_us = delay_timings->ramp_up_us;
+	else
+		delay_us = delay_timings->ramp_down_us;
+	if (!delay_us)
+		return;
+
+	if (chip->can_sleep)
+		fsleep(delay_us);
+	else
+		udelay(delay_us);
+}
+
 static void gpio_fwd_set(struct gpio_chip *chip, unsigned int offset, int value)
 {
 	struct gpiochip_fwd *fwd = gpiochip_get_data(chip);
@@ -338,6 +368,9 @@ static void gpio_fwd_set(struct gpio_chip *chip, unsigned int offset, int value)
 		gpiod_set_value_cansleep(fwd->descs[offset], value);
 	else
 		gpiod_set_value(fwd->descs[offset], value);
+
+	if (fwd->delay_timings)
+		gpio_fwd_delay(chip, offset, value);
 }
 
 static void gpio_fwd_set_multiple(struct gpiochip_fwd *fwd, unsigned long *mask,
@@ -390,6 +423,59 @@ static int gpio_fwd_to_irq(struct gpio_chip *chip, unsigned int offset)
 	return gpiod_to_irq(fwd->descs[offset]);
 }
 
+/*
+ * The GPIO delay provides a way to configure platform specific delays
+ * for the GPIO ramp-up or ramp-down delays. This can serve the following
+ * purposes:
+ *   - Open-drain output using an RC filter
+ */
+#define FWD_FEATURE_DELAY		BIT(0)
+
+#ifdef CONFIG_OF_GPIO
+static int gpiochip_fwd_delay_of_xlate(struct gpio_chip *chip,
+				       const struct of_phandle_args *gpiospec,
+				       u32 *flags)
+{
+	struct gpiochip_fwd *fwd = gpiochip_get_data(chip);
+	struct gpiochip_fwd_timing *timings;
+	u32 line;
+
+	if (gpiospec->args_count != chip->of_gpio_n_cells)
+		return -EINVAL;
+
+	line = gpiospec->args[0];
+	if (line >= chip->ngpio)
+		return -EINVAL;
+
+	timings = &fwd->delay_timings[line];
+	timings->ramp_up_us = gpiospec->args[1];
+	timings->ramp_down_us = gpiospec->args[2];
+
+	return line;
+}
+
+static int gpiochip_fwd_setup_delay_line(struct device *dev, struct gpio_chip *chip,
+					 struct gpiochip_fwd *fwd)
+{
+	fwd->delay_timings = devm_kcalloc(dev, chip->ngpio,
+					  sizeof(*fwd->delay_timings),
+					  GFP_KERNEL);
+	if (!fwd->delay_timings)
+		return -ENOMEM;
+
+	chip->of_xlate = gpiochip_fwd_delay_of_xlate;
+	chip->of_gpio_n_cells = 3;
+
+	return 0;
+}
+#else
+static int gpiochip_fwd_setup_delay_line(struct device *dev, struct gpio_chip *chip,
+					 struct gpiochip_fwd *fwd)
+{
+	return 0;
+}
+#endif	/* !CONFIG_OF_GPIO */
+
 /**
  * gpiochip_fwd_create() - Create a new GPIO forwarder
  * @dev: Parent device pointer
@@ -397,6 +483,7 @@ static int gpio_fwd_to_irq(struct gpio_chip *chip, unsigned int offset)
  * @descs: Array containing the GPIO descriptors to forward to.
  *         This array must contain @ngpios entries, and must not be deallocated
  *         before the forwarder has been destroyed again.
+ * @features: Bitwise ORed features as defined with FWD_FEATURE_*.
  *
  * This function creates a new gpiochip, which forwards all GPIO operations to
  * the passed GPIO descriptors.
@@ -406,7 +493,8 @@ static int gpio_fwd_to_irq(struct gpio_chip *chip, unsigned int offset)
  */
 static struct gpiochip_fwd *gpiochip_fwd_create(struct device *dev,
 						unsigned int ngpios,
-						struct gpio_desc *descs[])
+						struct gpio_desc *descs[],
+						unsigned long features)
 {
 	const char *label = dev_name(dev);
 	struct gpiochip_fwd *fwd;
@@ -459,6 +547,12 @@ static struct gpiochip_fwd *gpiochip_fwd_create(struct device *dev,
 	else
 		spin_lock_init(&fwd->slock);
 
+	if (features & FWD_FEATURE_DELAY) {
+		error = gpiochip_fwd_setup_delay_line(dev, chip, fwd);
+		if (error)
+			return ERR_PTR(error);
+	}
+
 	error = devm_gpiochip_add_data(dev, chip, fwd);
 	if (error)
 		return ERR_PTR(error);
@@ -476,6 +570,7 @@ static int gpio_aggregator_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct gpio_desc **descs;
 	struct gpiochip_fwd *fwd;
+	unsigned long features;
 	int i, n;
 
 	n = gpiod_count(dev, NULL);
@@ -492,7 +587,8 @@ static int gpio_aggregator_probe(struct platform_device *pdev)
 			return PTR_ERR(descs[i]);
 	}
 
-	fwd = gpiochip_fwd_create(dev, n, descs);
+	features = (uintptr_t)device_get_match_data(dev);
+	fwd = gpiochip_fwd_create(dev, n, descs, features);
 	if (IS_ERR(fwd))
 		return PTR_ERR(fwd);
 
@@ -500,23 +596,25 @@ static int gpio_aggregator_probe(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_OF
 static const struct of_device_id gpio_aggregator_dt_ids[] = {
+	{
+		.compatible = "gpio-delay",
+		.data = (void *)FWD_FEATURE_DELAY,
+	},
 	/*
 	 * Add GPIO-operated devices controlled from userspace below,
-	 * or use "driver_override" in sysfs
+	 * or use "driver_override" in sysfs.
 	 */
 	{}
 };
 MODULE_DEVICE_TABLE(of, gpio_aggregator_dt_ids);
-#endif
 
 static struct platform_driver gpio_aggregator_driver = {
 	.probe = gpio_aggregator_probe,
 	.driver = {
 		.name = DRV_NAME,
 		.groups = gpio_aggregator_groups,
-		.of_match_table = of_match_ptr(gpio_aggregator_dt_ids),
+		.of_match_table = gpio_aggregator_dt_ids,
 	},
 };
 

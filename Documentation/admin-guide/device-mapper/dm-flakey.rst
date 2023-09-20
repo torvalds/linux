@@ -67,6 +67,16 @@ Optional feature parameters:
 	Perform the replacement only if bio->bi_opf has all the
 	selected flags set.
 
+  random_read_corrupt <probability>
+	During <down interval>, replace random byte in a read bio
+	with a random value. probability is an integer between
+	0 and 1000000000 meaning 0% to 100% probability of corruption.
+
+  random_write_corrupt <probability>
+	During <down interval>, replace random byte in a write bio
+	with a random value. probability is an integer between
+	0 and 1000000000 meaning 0% to 100% probability of corruption.
+
 Examples:
 
 Replaces the 32nd byte of READ bios with the value 1::

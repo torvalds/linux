@@ -43,9 +43,9 @@
 #define DEFAULT_OUTPUT_MASK_PLL1	DEFAULT_OUTPUT_MASK_PLL0
 
 /**
- * @brief Maximum absolute value for write phase offset in femtoseconds
+ * @brief Maximum absolute value for write phase offset in nanoseconds
  */
-#define WRITE_PHASE_OFFSET_LIMIT (20000052084ll)
+#define WRITE_PHASE_OFFSET_LIMIT (20000l)
 
 /** @brief Phase offset resolution
  *

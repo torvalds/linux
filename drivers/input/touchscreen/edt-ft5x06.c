@@ -1241,6 +1241,7 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client)
 	if (tsdata->wake_gpio) {
 		usleep_range(5000, 6000);
 		gpiod_set_value_cansleep(tsdata->wake_gpio, 1);
+		usleep_range(5000, 6000);
 	}
 
 	if (tsdata->reset_gpio) {
@@ -1510,7 +1511,7 @@ static struct i2c_driver edt_ft5x06_ts_driver = {
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 	.id_table = edt_ft5x06_ts_id,
-	.probe_new = edt_ft5x06_ts_probe,
+	.probe    = edt_ft5x06_ts_probe,
 	.remove   = edt_ft5x06_ts_remove,
 };
 

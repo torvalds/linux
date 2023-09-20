@@ -347,4 +347,6 @@ int acpi_nfit_ctl(struct nvdimm_bus_descriptor *nd_desc, struct nvdimm *nvdimm,
 void acpi_nfit_desc_init(struct acpi_nfit_desc *acpi_desc, struct device *dev);
 bool intel_fwa_supported(struct nvdimm_bus *nvdimm_bus);
 extern struct device_attribute dev_attr_firmware_activate_noidle;
+void nfit_intel_shutdown_status(struct nfit_mem *nfit_mem);
+
 #endif /* __NFIT_H__ */

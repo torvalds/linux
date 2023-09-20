@@ -13,7 +13,6 @@
 #include <linux/fs.h>
 #include <linux/xattr.h>
 #include <linux/evm.h>
-#include <linux/iversion.h>
 #include <linux/fsverity.h>
 
 #include "ima.h"
@@ -202,19 +201,19 @@ int ima_get_action(struct mnt_idmap *idmap, struct inode *inode,
 				allowed_algos);
 }
 
-static int ima_get_verity_digest(struct integrity_iint_cache *iint,
-				 struct ima_max_digest_data *hash)
+static bool ima_get_verity_digest(struct integrity_iint_cache *iint,
+				  struct ima_max_digest_data *hash)
 {
-	enum hash_algo verity_alg;
-	int ret;
+	enum hash_algo alg;
+	int digest_len;
 
 	/*
 	 * On failure, 'measure' policy rules will result in a file data
 	 * hash containing 0's.
 	 */
-	ret = fsverity_get_digest(iint->inode, hash->digest, &verity_alg);
-	if (ret)
-		return ret;
+	digest_len = fsverity_get_digest(iint->inode, hash->digest, NULL, &alg);
+	if (digest_len == 0)
+		return false;
 
 	/*
 	 * Unlike in the case of actually calculating the file hash, in
@@ -223,9 +222,9 @@ static int ima_get_verity_digest(struct integrity_iint_cache *iint,
 	 * mismatch between the verity algorithm and the xattr signature
 	 * algorithm, if one exists, will be detected later.
 	 */
-	hash->hdr.algo = verity_alg;
-	hash->hdr.length = hash_digest_size[verity_alg];
-	return 0;
+	hash->hdr.algo = alg;
+	hash->hdr.length = digest_len;
+	return true;
 }
 
 /*
@@ -246,10 +245,11 @@ int ima_collect_measurement(struct integrity_iint_cache *iint,
 	struct inode *inode = file_inode(file);
 	const char *filename = file->f_path.dentry->d_name.name;
 	struct ima_max_digest_data hash;
+	struct kstat stat;
 	int result = 0;
 	int length;
 	void *tmpbuf;
-	u64 i_version;
+	u64 i_version = 0;
 
 	/*
 	 * Always collect the modsig, because IMA might have already collected
@@ -268,7 +268,10 @@ int ima_collect_measurement(struct integrity_iint_cache *iint,
 	 * to an initial measurement/appraisal/audit, but was modified to
 	 * assume the file changed.
 	 */
-	i_version = inode_query_iversion(inode);
+	result = vfs_getattr_nosec(&file->f_path, &stat, STATX_CHANGE_COOKIE,
+				   AT_STATX_SYNC_AS_STAT);
+	if (!result && (stat.result_mask & STATX_CHANGE_COOKIE))
+		i_version = stat.change_cookie;
 	hash.hdr.algo = algo;
 	hash.hdr.length = hash_digest_size[algo];
 
@@ -276,16 +279,9 @@ int ima_collect_measurement(struct integrity_iint_cache *iint,
 	memset(&hash.digest, 0, sizeof(hash.digest));
 
 	if (iint->flags & IMA_VERITY_REQUIRED) {
-		result = ima_get_verity_digest(iint, &hash);
-		switch (result) {
-		case 0:
-			break;
-		case -ENODATA:
+		if (!ima_get_verity_digest(iint, &hash)) {
 			audit_cause = "no-verity-digest";
-			break;
-		default:
-			audit_cause = "invalid-verity-digest";
-			break;
+			result = -ENODATA;
 		}
 	} else if (buf) {
 		result = ima_calc_buffer_hash(buf, size, &hash.hdr);

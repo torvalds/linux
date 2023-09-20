@@ -35,9 +35,11 @@ struct fprobe {
 	int			nr_maxactive;
 
 	int (*entry_handler)(struct fprobe *fp, unsigned long entry_ip,
-			     struct pt_regs *regs, void *entry_data);
+			     unsigned long ret_ip, struct pt_regs *regs,
+			     void *entry_data);
 	void (*exit_handler)(struct fprobe *fp, unsigned long entry_ip,
-			     struct pt_regs *regs, void *entry_data);
+			     unsigned long ret_ip, struct pt_regs *regs,
+			     void *entry_data);
 };
 
 /* This fprobe is soft-disabled. */
@@ -64,6 +66,7 @@ int register_fprobe(struct fprobe *fp, const char *filter, const char *notfilter
 int register_fprobe_ips(struct fprobe *fp, unsigned long *addrs, int num);
 int register_fprobe_syms(struct fprobe *fp, const char **syms, int num);
 int unregister_fprobe(struct fprobe *fp);
+bool fprobe_is_registered(struct fprobe *fp);
 #else
 static inline int register_fprobe(struct fprobe *fp, const char *filter, const char *notfilter)
 {
@@ -80,6 +83,10 @@ static inline int register_fprobe_syms(struct fprobe *fp, const char **syms, int
 static inline int unregister_fprobe(struct fprobe *fp)
 {
 	return -EOPNOTSUPP;
+}
+static inline bool fprobe_is_registered(struct fprobe *fp)
+{
+	return false;
 }
 #endif
 

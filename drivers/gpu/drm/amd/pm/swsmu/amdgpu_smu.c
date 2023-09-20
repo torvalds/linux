@@ -733,6 +733,24 @@ static int smu_late_init(void *handle)
 		return ret;
 	}
 
+	/*
+	 * Explicitly notify PMFW the power mode the system in. Since
+	 * the PMFW may boot the ASIC with a different mode.
+	 * For those supporting ACDC switch via gpio, PMFW will
+	 * handle the switch automatically. Driver involvement
+	 * is unnecessary.
+	 */
+	if (!smu->dc_controlled_by_gpio) {
+		ret = smu_set_power_source(smu,
+					   adev->pm.ac_power ? SMU_POWER_SOURCE_AC :
+					   SMU_POWER_SOURCE_DC);
+		if (ret) {
+			dev_err(adev->dev, "Failed to switch to %s mode!\n",
+				adev->pm.ac_power ? "AC" : "DC");
+			return ret;
+		}
+	}
+
 	if ((adev->ip_versions[MP1_HWIP][0] == IP_VERSION(13, 0, 1)) ||
 	    (adev->ip_versions[MP1_HWIP][0] == IP_VERSION(13, 0, 3)))
 		return 0;
@@ -804,10 +822,19 @@ static int smu_init_fb_allocations(struct smu_context *smu)
 		}
 	}
 
+	driver_table->domain = AMDGPU_GEM_DOMAIN_VRAM | AMDGPU_GEM_DOMAIN_GTT;
 	/* VRAM allocation for driver table */
 	for (i = 0; i < SMU_TABLE_COUNT; i++) {
 		if (tables[i].size == 0)
 			continue;
+
+		/* If one of the tables has VRAM domain restriction, keep it in
+		 * VRAM
+		 */
+		if ((tables[i].domain &
+		    (AMDGPU_GEM_DOMAIN_VRAM | AMDGPU_GEM_DOMAIN_GTT)) ==
+			    AMDGPU_GEM_DOMAIN_VRAM)
+			driver_table->domain = AMDGPU_GEM_DOMAIN_VRAM;
 
 		if (i == SMU_TABLE_PMSTATUSLOG)
 			continue;
@@ -818,7 +845,6 @@ static int smu_init_fb_allocations(struct smu_context *smu)
 
 	driver_table->size = max_table_size;
 	driver_table->align = PAGE_SIZE;
-	driver_table->domain = AMDGPU_GEM_DOMAIN_VRAM;
 
 	ret = amdgpu_bo_create_kernel(adev,
 				      driver_table->size,

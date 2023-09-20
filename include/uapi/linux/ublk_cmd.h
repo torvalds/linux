@@ -47,6 +47,14 @@
 	_IOWR('u', UBLK_CMD_END_USER_RECOVERY, struct ublksrv_ctrl_cmd)
 #define UBLK_U_CMD_GET_DEV_INFO2	\
 	_IOR('u', UBLK_CMD_GET_DEV_INFO2, struct ublksrv_ctrl_cmd)
+#define UBLK_U_CMD_GET_FEATURES	\
+	_IOR('u', 0x13, struct ublksrv_ctrl_cmd)
+
+/*
+ * 64bits are enough now, and it should be easy to extend in case of
+ * running out of feature flags
+ */
+#define UBLK_FEATURES_LEN  8
 
 /*
  * IO commands, issued by ublk server, and handled by ublk driver.
@@ -93,8 +101,28 @@
 #define UBLKSRV_CMD_BUF_OFFSET	0
 #define UBLKSRV_IO_BUF_OFFSET	0x80000000
 
-/* tag bit is 12bit, so at most 4096 IOs for each queue */
+/* tag bit is 16bit, so far limit at most 4096 IOs for each queue */
 #define UBLK_MAX_QUEUE_DEPTH	4096
+
+/* single IO buffer max size is 32MB */
+#define UBLK_IO_BUF_OFF		0
+#define UBLK_IO_BUF_BITS	25
+#define UBLK_IO_BUF_BITS_MASK	((1ULL << UBLK_IO_BUF_BITS) - 1)
+
+/* so at most 64K IOs for each queue */
+#define UBLK_TAG_OFF		UBLK_IO_BUF_BITS
+#define UBLK_TAG_BITS		16
+#define UBLK_TAG_BITS_MASK	((1ULL << UBLK_TAG_BITS) - 1)
+
+/* max 4096 queues */
+#define UBLK_QID_OFF		(UBLK_TAG_OFF + UBLK_TAG_BITS)
+#define UBLK_QID_BITS		12
+#define UBLK_QID_BITS_MASK	((1ULL << UBLK_QID_BITS) - 1)
+
+#define UBLK_MAX_NR_QUEUES	(1U << UBLK_QID_BITS)
+
+#define UBLKSRV_IO_BUF_TOTAL_BITS	(UBLK_QID_OFF + UBLK_QID_BITS)
+#define UBLKSRV_IO_BUF_TOTAL_SIZE	(1ULL << UBLKSRV_IO_BUF_TOTAL_BITS)
 
 /*
  * zero copy requires 4k block size, and can remap ublk driver's io
@@ -144,6 +172,9 @@
 
 /* use ioctl encoding for uring command */
 #define UBLK_F_CMD_IOCTL_ENCODE	(1UL << 6)
+
+/* Copy between request and user buffer by pread()/pwrite() */
+#define UBLK_F_USER_COPY	(1UL << 7)
 
 /* device state */
 #define UBLK_S_DEV_DEAD	0

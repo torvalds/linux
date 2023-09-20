@@ -111,6 +111,9 @@ struct dcn_hubbub_state {
 	uint32_t vm_error_vmid;
 	uint32_t vm_error_pipe;
 	uint32_t vm_error_mode;
+	uint32_t test_debug_data;
+	uint32_t watermark_change_cntl;
+	uint32_t dram_state_cntl;
 };
 
 struct hubbub_funcs {

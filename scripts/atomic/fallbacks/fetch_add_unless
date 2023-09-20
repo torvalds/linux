@@ -1,23 +1,10 @@
 cat << EOF
-/**
- * arch_${atomic}_fetch_add_unless - add unless the number is already a given value
- * @v: pointer of type ${atomic}_t
- * @a: the amount to add to v...
- * @u: ...unless v is equal to u.
- *
- * Atomically adds @a to @v, so long as @v was not already @u.
- * Returns original value of @v
- */
-static __always_inline ${int}
-arch_${atomic}_fetch_add_unless(${atomic}_t *v, ${int} a, ${int} u)
-{
-	${int} c = arch_${atomic}_read(v);
+	${int} c = raw_${atomic}_read(v);
 
 	do {
 		if (unlikely(c == u))
 			break;
-	} while (!arch_${atomic}_try_cmpxchg(v, &c, c + a));
+	} while (!raw_${atomic}_try_cmpxchg(v, &c, c + a));
 
 	return c;
-}
 EOF

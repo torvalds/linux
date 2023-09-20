@@ -23,6 +23,7 @@
 #include <linux/idr.h>
 #include <linux/backing-dev.h>
 #include <linux/gfp.h>
+#include <linux/random.h>
 #include <linux/slab.h>
 #include <linux/reboot.h>
 #include <linux/leds.h>
@@ -966,6 +967,26 @@ static int mtd_otp_nvmem_add(struct mtd_info *mtd)
 		}
 
 		if (size > 0) {
+			/*
+			 * The factory OTP contains thing such as a unique serial
+			 * number and is small, so let's read it out and put it
+			 * into the entropy pool.
+			 */
+			void *otp;
+
+			otp = kmalloc(size, GFP_KERNEL);
+			if (!otp) {
+				err = -ENOMEM;
+				goto err;
+			}
+			err = mtd_nvmem_fact_otp_reg_read(mtd, 0, otp, size);
+			if (err < 0) {
+				kfree(otp);
+				goto err;
+			}
+			add_device_randomness(otp, err);
+			kfree(otp);
+
 			nvmem = mtd_otp_nvmem_register(mtd, "factory-otp", size,
 						       mtd_nvmem_fact_otp_reg_read);
 			if (IS_ERR(nvmem)) {

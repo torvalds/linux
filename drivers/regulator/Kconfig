@@ -1033,6 +1033,13 @@ config REGULATOR_QCOM_USB_VBUS
 	  Say M here if you want to include support for enabling the VBUS output
 	  as a module. The module will be named "qcom_usb_vbus_regulator".
 
+config REGULATOR_RAA215300
+	tristate "Renesas RAA215300 driver"
+	select REGMAP_I2C
+	depends on I2C
+	help
+	  Support for the Renesas RAA215300 PMIC.
+
 config REGULATOR_RASPBERRYPI_TOUCHSCREEN_ATTINY
 	tristate "Raspberry Pi 7-inch touchscreen panel ATTINY regulator"
 	depends on BACKLIGHT_CLASS_DEVICE
@@ -1056,7 +1063,7 @@ config REGULATOR_RC5T583
 
 config REGULATOR_RK808
 	tristate "Rockchip RK805/RK808/RK809/RK817/RK818 Power regulators"
-	depends on MFD_RK808
+	depends on MFD_RK8XX
 	help
 	  Select this option to enable the power regulator of ROCKCHIP
 	  PMIC RK805,RK809&RK817,RK808 and RK818.
@@ -1397,6 +1404,17 @@ config REGULATOR_TPS6286X
 	  high-frequency synchronous step-down converters with an I2C
 	  interface.
 
+config REGULATOR_TPS6287X
+	tristate "TI TPS6287x Power Regulator"
+	depends on I2C && OF
+	select REGMAP_I2C
+	help
+	  This driver supports TPS6287x voltage regulator chips. These are
+	  pin-to-pin high-frequency synchronous step-down dc-dc converters
+	  with an I2C interface.
+
+	  If built as a module it will be called tps6287x-regulator.
+
 config REGULATOR_TPS65023
 	tristate "TI TPS65023 Power regulators"
 	depends on I2C
@@ -1461,6 +1479,19 @@ config REGULATOR_TPS65219
 	  This driver supports TPS65219 voltage regulator chips.
 	  TPS65219 series of PMICs have 3 single phase BUCKs & 4 LDOs
 	  voltage regulators. It supports software based voltage control
+	  for different voltage domains.
+
+config REGULATOR_TPS6594
+	tristate "TI TPS6594 Power regulators"
+	depends on MFD_TPS6594 && OF
+	default MFD_TPS6594
+	help
+	  This driver supports TPS6594 voltage regulator chips.
+	  TPS6594 series of PMICs have 5 BUCKs and 4 LDOs
+	  voltage regulators.
+	  BUCKs 1,2,3,4 can be used in single phase or multiphase mode.
+	  Part number defines which single or multiphase mode is i used.
+	  It supports software based voltage control
 	  for different voltage domains.
 
 config REGULATOR_TPS6524X

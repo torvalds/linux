@@ -10,6 +10,7 @@ RISC-V architecture
     hwprobe
     patch-acceptance
     uabi
+    vector
 
     features
 

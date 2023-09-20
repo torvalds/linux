@@ -730,12 +730,20 @@ EXPORT_SYMBOL_GPL(snd_ctl_activate_id);
  * Finds the control with the old id from the card, and replaces the
  * id with the new one.
  *
+ * The function tries to keep the already assigned numid while replacing
+ * the rest.
+ *
+ * Note that this function should be used only in the card initialization
+ * phase.  Calling after the card instantiation may cause issues with
+ * user-space expecting persistent numids.
+ *
  * Return: Zero if successful, or a negative error code on failure.
  */
 int snd_ctl_rename_id(struct snd_card *card, struct snd_ctl_elem_id *src_id,
 		      struct snd_ctl_elem_id *dst_id)
 {
 	struct snd_kcontrol *kctl;
+	int saved_numid;
 
 	down_write(&card->controls_rwsem);
 	kctl = snd_ctl_find_id(card, src_id);
@@ -743,10 +751,10 @@ int snd_ctl_rename_id(struct snd_card *card, struct snd_ctl_elem_id *src_id,
 		up_write(&card->controls_rwsem);
 		return -ENOENT;
 	}
+	saved_numid = kctl->id.numid;
 	remove_hash_entries(card, kctl);
 	kctl->id = *dst_id;
-	kctl->id.numid = card->last_numid + 1;
-	card->last_numid += kctl->count;
+	kctl->id.numid = saved_numid;
 	add_hash_entries(card, kctl);
 	up_write(&card->controls_rwsem);
 	return 0;

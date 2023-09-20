@@ -394,7 +394,7 @@ static void _rtl_rx_process(struct ieee80211_hw *hw, struct sk_buff *skb)
 				 (struct rx_desc_92c *)rxdesc, p_drvinfo);
 	}
 	skb_pull(skb, (drvinfo_len + RTL_RX_DESC_SIZE));
-	hdr = (struct ieee80211_hdr *)(skb->data);
+	hdr = rtl_get_hdr(skb);
 	fc = hdr->frame_control;
 	bv = ieee80211_is_probe_resp(fc);
 	if (bv)
@@ -632,7 +632,7 @@ void rtl92cu_tx_fill_cmddesc(struct ieee80211_hw *hw,
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	u8 fw_queue = QSLT_BEACON;
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)(skb->data);
+	struct ieee80211_hdr *hdr = rtl_get_hdr(skb);
 	__le16 fc = hdr->frame_control;
 	__le32 *pdesc = (__le32 *)pdesc8;
 

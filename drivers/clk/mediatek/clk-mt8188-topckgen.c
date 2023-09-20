@@ -954,13 +954,17 @@ static const struct mtk_mux top_mtk_muxes[] = {
 	 * spm_sel and scp_sel are main clocks in always-on co-processor.
 	 */
 	MUX_GATE_CLR_SET_UPD_FLAGS(CLK_TOP_AXI, "top_axi", axi_parents,
-				   0x020, 0x024, 0x028, 0, 4, 7, 0x04, 0, CLK_IS_CRITICAL),
+				   0x020, 0x024, 0x028, 0, 4, 7, 0x04, 0,
+				   CLK_IS_CRITICAL | CLK_SET_RATE_PARENT),
 	MUX_GATE_CLR_SET_UPD_FLAGS(CLK_TOP_SPM, "top_spm", spm_parents,
-				   0x020, 0x024, 0x028, 8, 4, 15, 0x04, 1, CLK_IS_CRITICAL),
+				   0x020, 0x024, 0x028, 8, 4, 15, 0x04, 1,
+				   CLK_IS_CRITICAL | CLK_SET_RATE_PARENT),
 	MUX_GATE_CLR_SET_UPD_FLAGS(CLK_TOP_SCP, "top_scp", scp_parents,
-				   0x020, 0x024, 0x028, 16, 4, 23, 0x04, 2, CLK_IS_CRITICAL),
+				   0x020, 0x024, 0x028, 16, 4, 23, 0x04, 2,
+				   CLK_IS_CRITICAL | CLK_SET_RATE_PARENT),
 	MUX_GATE_CLR_SET_UPD_FLAGS(CLK_TOP_BUS_AXIMEM, "top_bus_aximem", bus_aximem_parents,
-				   0x020, 0x024, 0x028, 24, 4, 31, 0x04, 3, CLK_IS_CRITICAL),
+				   0x020, 0x024, 0x028, 24, 4, 31, 0x04, 3,
+				   CLK_IS_CRITICAL | CLK_SET_RATE_PARENT),
 	/* CLK_CFG_1 */
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_VPP, "top_vpp",
 			     vpp_parents, 0x02C, 0x030, 0x034, 0, 4, 7, 0x04, 4),
@@ -1011,15 +1015,15 @@ static const struct mtk_mux top_mtk_muxes[] = {
 			     uart_parents, 0x068, 0x06C, 0x070, 0, 4, 7, 0x04, 24),
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_SPI, "top_spi",
 			     spi_parents, 0x068, 0x06C, 0x070, 8, 4, 15, 0x04, 25),
-	MUX_GATE_CLR_SET_UPD(CLK_TOP_MSDC50_0_HCLK, "top_msdc5hclk",
-			     msdc5hclk_parents, 0x068, 0x06C, 0x070, 16, 4, 23, 0x04, 26),
-	MUX_GATE_CLR_SET_UPD(CLK_TOP_MSDC50_0, "top_msdc50_0",
-			     msdc50_0_parents, 0x068, 0x06C, 0x070, 24, 4, 31, 0x04, 27),
+	MUX_GATE_CLR_SET_UPD_FLAGS(CLK_TOP_MSDC50_0_HCLK, "top_msdc5hclk",
+				   msdc5hclk_parents, 0x068, 0x06C, 0x070, 16, 4, 23, 0x04, 26, 0),
+	MUX_GATE_CLR_SET_UPD_FLAGS(CLK_TOP_MSDC50_0, "top_msdc50_0",
+				   msdc50_0_parents, 0x068, 0x06C, 0x070, 24, 4, 31, 0x04, 27, 0),
 	/* CLK_CFG_7 */
-	MUX_GATE_CLR_SET_UPD(CLK_TOP_MSDC30_1, "top_msdc30_1",
-			     msdc30_1_parents, 0x074, 0x078, 0x07C, 0, 4, 7, 0x04, 28),
-	MUX_GATE_CLR_SET_UPD(CLK_TOP_MSDC30_2, "top_msdc30_2",
-			     msdc30_2_parents, 0x074, 0x078, 0x07C, 8, 4, 15, 0x04, 29),
+	MUX_GATE_CLR_SET_UPD_FLAGS(CLK_TOP_MSDC30_1, "top_msdc30_1",
+				   msdc30_1_parents, 0x074, 0x078, 0x07C, 0, 4, 7, 0x04, 28, 0),
+	MUX_GATE_CLR_SET_UPD_FLAGS(CLK_TOP_MSDC30_2, "top_msdc30_2",
+				   msdc30_2_parents, 0x074, 0x078, 0x07C, 8, 4, 15, 0x04, 29, 0),
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_INTDIR, "top_intdir",
 			     intdir_parents, 0x074, 0x078, 0x07C, 16, 4, 23, 0x04, 30),
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_AUD_INTBUS, "top_aud_intbus",
@@ -1078,7 +1082,8 @@ static const struct mtk_mux top_mtk_muxes[] = {
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_PWM, "top_pwm",
 			     pwm_parents, 0x0BC, 0x0C0, 0x0C4, 8, 4, 15, 0x08, 21),
 	MUX_GATE_CLR_SET_UPD_FLAGS(CLK_TOP_MCUPM, "top_mcupm", mcupm_parents,
-				   0x0BC, 0x0C0, 0x0C4, 16, 4, 23, 0x08, 22, CLK_IS_CRITICAL),
+				   0x0BC, 0x0C0, 0x0C4, 16, 4, 23, 0x08, 22,
+				   CLK_IS_CRITICAL | CLK_SET_RATE_PARENT),
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_SPMI_P_MST, "top_spmi_p_mst",
 			     spmi_p_mst_parents, 0x0BC, 0x0C0, 0x0C4, 24, 4, 31, 0x08, 23),
 	/*
@@ -1088,7 +1093,8 @@ static const struct mtk_mux top_mtk_muxes[] = {
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_SPMI_M_MST, "top_spmi_m_mst",
 			     spmi_m_mst_parents, 0x0C8, 0x0CC, 0x0D0, 0, 4, 7, 0x08, 24),
 	MUX_GATE_CLR_SET_UPD_FLAGS(CLK_TOP_DVFSRC, "top_dvfsrc", dvfsrc_parents,
-				   0x0C8, 0x0CC, 0x0D0, 8, 4, 15, 0x08, 25, CLK_IS_CRITICAL),
+				   0x0C8, 0x0CC, 0x0D0, 8, 4, 15, 0x08, 25,
+				   CLK_IS_CRITICAL | CLK_SET_RATE_PARENT),
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_TL, "top_tl",
 			     tl_parents, 0x0C8, 0x0CC, 0x0D0, 16, 4, 23, 0x08, 26),
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_AES_MSDCFDE, "top_aes_msdcfde",
@@ -1164,9 +1170,11 @@ static const struct mtk_mux top_mtk_muxes[] = {
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_SPINOR, "top_spinor",
 			     spinor_parents, 0x0128, 0x012C, 0x0130, 0, 4, 7, 0x0C, 24),
 	MUX_GATE_CLR_SET_UPD_FLAGS(CLK_TOP_ULPOSC, "top_ulposc", ulposc_parents,
-				   0x0128, 0x012C, 0x0130, 8, 4, 15, 0x0C, 25, CLK_IS_CRITICAL),
+				   0x0128, 0x012C, 0x0130, 8, 4, 15, 0x0C, 25,
+				   CLK_IS_CRITICAL | CLK_SET_RATE_PARENT),
 	MUX_GATE_CLR_SET_UPD_FLAGS(CLK_TOP_SRCK, "top_srck", srck_parents,
-				   0x0128, 0x012C, 0x0130, 16, 4, 23, 0x0C, 26, CLK_IS_CRITICAL),
+				   0x0128, 0x012C, 0x0130, 16, 4, 23, 0x0C, 26,
+				   CLK_IS_CRITICAL | CLK_SET_RATE_PARENT),
 };
 
 static const struct mtk_composite top_adj_divs[] = {
@@ -1322,7 +1330,7 @@ free_top_data:
 	return r;
 }
 
-static int clk_mt8188_topck_remove(struct platform_device *pdev)
+static void clk_mt8188_topck_remove(struct platform_device *pdev)
 {
 	struct clk_hw_onecell_data *top_clk_data = platform_get_drvdata(pdev);
 	struct device_node *node = pdev->dev.of_node;
@@ -1334,13 +1342,11 @@ static int clk_mt8188_topck_remove(struct platform_device *pdev)
 	mtk_clk_unregister_factors(top_divs, ARRAY_SIZE(top_divs), top_clk_data);
 	mtk_clk_unregister_fixed_clks(top_fixed_clks, ARRAY_SIZE(top_fixed_clks), top_clk_data);
 	mtk_free_clk_data(top_clk_data);
-
-	return 0;
 }
 
 static struct platform_driver clk_mt8188_topck_drv = {
 	.probe = clk_mt8188_topck_probe,
-	.remove = clk_mt8188_topck_remove,
+	.remove_new = clk_mt8188_topck_remove,
 	.driver = {
 		.name = "clk-mt8188-topck",
 		.of_match_table = of_match_clk_mt8188_topck,

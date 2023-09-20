@@ -492,7 +492,7 @@ static const struct of_device_id msg2638_of_match[] = {
 MODULE_DEVICE_TABLE(of, msg2638_of_match);
 
 static struct i2c_driver msg2638_ts_driver = {
-	.probe_new = msg2638_ts_probe,
+	.probe = msg2638_ts_probe,
 	.driver = {
 		.name = "MStar-TS",
 		.pm = pm_sleep_ptr(&msg2638_pm_ops),

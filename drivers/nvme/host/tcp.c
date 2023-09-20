@@ -997,25 +997,28 @@ static int nvme_tcp_try_send_data(struct nvme_tcp_request *req)
 	u32 h2cdata_left = req->h2cdata_left;
 
 	while (true) {
+		struct bio_vec bvec;
+		struct msghdr msg = {
+			.msg_flags = MSG_DONTWAIT | MSG_SPLICE_PAGES,
+		};
 		struct page *page = nvme_tcp_req_cur_page(req);
 		size_t offset = nvme_tcp_req_cur_offset(req);
 		size_t len = nvme_tcp_req_cur_length(req);
 		bool last = nvme_tcp_pdu_last_send(req, len);
 		int req_data_sent = req->data_sent;
-		int ret, flags = MSG_DONTWAIT;
+		int ret;
 
 		if (last && !queue->data_digest && !nvme_tcp_queue_more(queue))
-			flags |= MSG_EOR;
+			msg.msg_flags |= MSG_EOR;
 		else
-			flags |= MSG_MORE | MSG_SENDPAGE_NOTLAST;
+			msg.msg_flags |= MSG_MORE;
 
-		if (sendpage_ok(page)) {
-			ret = kernel_sendpage(queue->sock, page, offset, len,
-					flags);
-		} else {
-			ret = sock_no_sendpage(queue->sock, page, offset, len,
-					flags);
-		}
+		if (!sendpage_ok(page))
+			msg.msg_flags &= ~MSG_SPLICE_PAGES,
+
+		bvec_set_page(&bvec, page, len, offset);
+		iov_iter_bvec(&msg.msg_iter, ITER_SOURCE, &bvec, 1, len);
+		ret = sock_sendmsg(queue->sock, &msg);
 		if (ret <= 0)
 			return ret;
 
@@ -1054,22 +1057,24 @@ static int nvme_tcp_try_send_cmd_pdu(struct nvme_tcp_request *req)
 {
 	struct nvme_tcp_queue *queue = req->queue;
 	struct nvme_tcp_cmd_pdu *pdu = nvme_tcp_req_cmd_pdu(req);
+	struct bio_vec bvec;
+	struct msghdr msg = { .msg_flags = MSG_DONTWAIT | MSG_SPLICE_PAGES, };
 	bool inline_data = nvme_tcp_has_inline_data(req);
 	u8 hdgst = nvme_tcp_hdgst_len(queue);
 	int len = sizeof(*pdu) + hdgst - req->offset;
-	int flags = MSG_DONTWAIT;
 	int ret;
 
 	if (inline_data || nvme_tcp_queue_more(queue))
-		flags |= MSG_MORE | MSG_SENDPAGE_NOTLAST;
+		msg.msg_flags |= MSG_MORE;
 	else
-		flags |= MSG_EOR;
+		msg.msg_flags |= MSG_EOR;
 
 	if (queue->hdr_digest && !req->offset)
 		nvme_tcp_hdgst(queue->snd_hash, pdu, sizeof(*pdu));
 
-	ret = kernel_sendpage(queue->sock, virt_to_page(pdu),
-			offset_in_page(pdu) + req->offset, len,  flags);
+	bvec_set_virt(&bvec, (void *)pdu + req->offset, len);
+	iov_iter_bvec(&msg.msg_iter, ITER_SOURCE, &bvec, 1, len);
+	ret = sock_sendmsg(queue->sock, &msg);
 	if (unlikely(ret <= 0))
 		return ret;
 
@@ -1093,6 +1098,8 @@ static int nvme_tcp_try_send_data_pdu(struct nvme_tcp_request *req)
 {
 	struct nvme_tcp_queue *queue = req->queue;
 	struct nvme_tcp_data_pdu *pdu = nvme_tcp_req_data_pdu(req);
+	struct bio_vec bvec;
+	struct msghdr msg = { .msg_flags = MSG_DONTWAIT | MSG_MORE, };
 	u8 hdgst = nvme_tcp_hdgst_len(queue);
 	int len = sizeof(*pdu) - req->offset + hdgst;
 	int ret;
@@ -1101,13 +1108,11 @@ static int nvme_tcp_try_send_data_pdu(struct nvme_tcp_request *req)
 		nvme_tcp_hdgst(queue->snd_hash, pdu, sizeof(*pdu));
 
 	if (!req->h2cdata_left)
-		ret = kernel_sendpage(queue->sock, virt_to_page(pdu),
-				offset_in_page(pdu) + req->offset, len,
-				MSG_DONTWAIT | MSG_MORE | MSG_SENDPAGE_NOTLAST);
-	else
-		ret = sock_no_sendpage(queue->sock, virt_to_page(pdu),
-				offset_in_page(pdu) + req->offset, len,
-				MSG_DONTWAIT | MSG_MORE);
+		msg.msg_flags |= MSG_SPLICE_PAGES;
+
+	bvec_set_virt(&bvec, (void *)pdu + req->offset, len);
+	iov_iter_bvec(&msg.msg_iter, ITER_SOURCE, &bvec, 1, len);
+	ret = sock_sendmsg(queue->sock, &msg);
 	if (unlikely(ret <= 0))
 		return ret;
 
@@ -1802,58 +1807,12 @@ out_free_queues:
 	return ret;
 }
 
-static unsigned int nvme_tcp_nr_io_queues(struct nvme_ctrl *ctrl)
-{
-	unsigned int nr_io_queues;
-
-	nr_io_queues = min(ctrl->opts->nr_io_queues, num_online_cpus());
-	nr_io_queues += min(ctrl->opts->nr_write_queues, num_online_cpus());
-	nr_io_queues += min(ctrl->opts->nr_poll_queues, num_online_cpus());
-
-	return nr_io_queues;
-}
-
-static void nvme_tcp_set_io_queues(struct nvme_ctrl *nctrl,
-		unsigned int nr_io_queues)
-{
-	struct nvme_tcp_ctrl *ctrl = to_tcp_ctrl(nctrl);
-	struct nvmf_ctrl_options *opts = nctrl->opts;
-
-	if (opts->nr_write_queues && opts->nr_io_queues < nr_io_queues) {
-		/*
-		 * separate read/write queues
-		 * hand out dedicated default queues only after we have
-		 * sufficient read queues.
-		 */
-		ctrl->io_queues[HCTX_TYPE_READ] = opts->nr_io_queues;
-		nr_io_queues -= ctrl->io_queues[HCTX_TYPE_READ];
-		ctrl->io_queues[HCTX_TYPE_DEFAULT] =
-			min(opts->nr_write_queues, nr_io_queues);
-		nr_io_queues -= ctrl->io_queues[HCTX_TYPE_DEFAULT];
-	} else {
-		/*
-		 * shared read/write queues
-		 * either no write queues were requested, or we don't have
-		 * sufficient queue count to have dedicated default queues.
-		 */
-		ctrl->io_queues[HCTX_TYPE_DEFAULT] =
-			min(opts->nr_io_queues, nr_io_queues);
-		nr_io_queues -= ctrl->io_queues[HCTX_TYPE_DEFAULT];
-	}
-
-	if (opts->nr_poll_queues && nr_io_queues) {
-		/* map dedicated poll queues only if we have queues left */
-		ctrl->io_queues[HCTX_TYPE_POLL] =
-			min(opts->nr_poll_queues, nr_io_queues);
-	}
-}
-
 static int nvme_tcp_alloc_io_queues(struct nvme_ctrl *ctrl)
 {
 	unsigned int nr_io_queues;
 	int ret;
 
-	nr_io_queues = nvme_tcp_nr_io_queues(ctrl);
+	nr_io_queues = nvmf_nr_io_queues(ctrl->opts);
 	ret = nvme_set_queue_count(ctrl, &nr_io_queues);
 	if (ret)
 		return ret;
@@ -1868,8 +1827,8 @@ static int nvme_tcp_alloc_io_queues(struct nvme_ctrl *ctrl)
 	dev_info(ctrl->device,
 		"creating %d I/O queues.\n", nr_io_queues);
 
-	nvme_tcp_set_io_queues(ctrl, nr_io_queues);
-
+	nvmf_set_io_queues(ctrl->opts, nr_io_queues,
+			   to_tcp_ctrl(ctrl)->io_queues);
 	return __nvme_tcp_alloc_io_queues(ctrl);
 }
 
@@ -2449,44 +2408,8 @@ static blk_status_t nvme_tcp_queue_rq(struct blk_mq_hw_ctx *hctx,
 static void nvme_tcp_map_queues(struct blk_mq_tag_set *set)
 {
 	struct nvme_tcp_ctrl *ctrl = to_tcp_ctrl(set->driver_data);
-	struct nvmf_ctrl_options *opts = ctrl->ctrl.opts;
 
-	if (opts->nr_write_queues && ctrl->io_queues[HCTX_TYPE_READ]) {
-		/* separate read/write queues */
-		set->map[HCTX_TYPE_DEFAULT].nr_queues =
-			ctrl->io_queues[HCTX_TYPE_DEFAULT];
-		set->map[HCTX_TYPE_DEFAULT].queue_offset = 0;
-		set->map[HCTX_TYPE_READ].nr_queues =
-			ctrl->io_queues[HCTX_TYPE_READ];
-		set->map[HCTX_TYPE_READ].queue_offset =
-			ctrl->io_queues[HCTX_TYPE_DEFAULT];
-	} else {
-		/* shared read/write queues */
-		set->map[HCTX_TYPE_DEFAULT].nr_queues =
-			ctrl->io_queues[HCTX_TYPE_DEFAULT];
-		set->map[HCTX_TYPE_DEFAULT].queue_offset = 0;
-		set->map[HCTX_TYPE_READ].nr_queues =
-			ctrl->io_queues[HCTX_TYPE_DEFAULT];
-		set->map[HCTX_TYPE_READ].queue_offset = 0;
-	}
-	blk_mq_map_queues(&set->map[HCTX_TYPE_DEFAULT]);
-	blk_mq_map_queues(&set->map[HCTX_TYPE_READ]);
-
-	if (opts->nr_poll_queues && ctrl->io_queues[HCTX_TYPE_POLL]) {
-		/* map dedicated poll queues only if we have queues left */
-		set->map[HCTX_TYPE_POLL].nr_queues =
-				ctrl->io_queues[HCTX_TYPE_POLL];
-		set->map[HCTX_TYPE_POLL].queue_offset =
-			ctrl->io_queues[HCTX_TYPE_DEFAULT] +
-			ctrl->io_queues[HCTX_TYPE_READ];
-		blk_mq_map_queues(&set->map[HCTX_TYPE_POLL]);
-	}
-
-	dev_info(ctrl->ctrl.device,
-		"mapped %d/%d/%d default/read/poll queues.\n",
-		ctrl->io_queues[HCTX_TYPE_DEFAULT],
-		ctrl->io_queues[HCTX_TYPE_READ],
-		ctrl->io_queues[HCTX_TYPE_POLL]);
+	nvmf_map_queues(set, &ctrl->ctrl, ctrl->io_queues);
 }
 
 static int nvme_tcp_poll(struct blk_mq_hw_ctx *hctx, struct io_comp_batch *iob)

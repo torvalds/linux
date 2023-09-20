@@ -1166,7 +1166,7 @@ static struct i2c_driver nau8822_i2c_driver = {
 		.name = "nau8822",
 		.of_match_table = of_match_ptr(nau8822_of_match),
 	},
-	.probe_new = nau8822_i2c_probe,
+	.probe = nau8822_i2c_probe,
 	.id_table = nau8822_i2c_id,
 };
 module_i2c_driver(nau8822_i2c_driver);

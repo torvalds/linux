@@ -18,8 +18,10 @@
 	compatible = "qcom,apq8016-sbc", "qcom,apq8016";
 
 	aliases {
-		serial0 = &blsp1_uart2;
-		serial1 = &blsp1_uart1;
+		mmc0 = &sdhc_1; /* eMMC */
+		mmc1 = &sdhc_2; /* SD card */
+		serial0 = &blsp_uart2;
+		serial1 = &blsp_uart1;
 		usid0 = &pm8916_0;
 		i2c0 = &blsp_i2c2;
 		i2c1 = &blsp_i2c6;
@@ -75,7 +77,7 @@
 
 	usb_id: usb-id {
 		compatible = "linux,extcon-usb-gpio";
-		id-gpio = <&msmgpio 121 GPIO_ACTIVE_HIGH>;
+		id-gpio = <&tlmm 121 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&usb_id_default>;
 	};
@@ -101,13 +103,13 @@
 		button {
 			label = "Volume Up";
 			linux,code = <KEY_VOLUMEUP>;
-			gpios = <&msmgpio 107 GPIO_ACTIVE_LOW>;
+			gpios = <&tlmm 107 GPIO_ACTIVE_LOW>;
 		};
 	};
 
 	leds {
 		pinctrl-names = "default";
-		pinctrl-0 = <&msmgpio_leds>,
+		pinctrl-0 = <&tlmm_leds>,
 			    <&pm8916_gpios_leds>,
 			    <&pm8916_mpps_leds>;
 
@@ -117,7 +119,7 @@
 			label = "apq8016-sbc:green:user1";
 			function = LED_FUNCTION_HEARTBEAT;
 			color = <LED_COLOR_ID_GREEN>;
-			gpios = <&msmgpio 21 GPIO_ACTIVE_HIGH>;
+			gpios = <&tlmm 21 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "heartbeat";
 			default-state = "off";
 		};
@@ -126,7 +128,7 @@
 			label = "apq8016-sbc:green:user2";
 			function = LED_FUNCTION_DISK_ACTIVITY;
 			color = <LED_COLOR_ID_GREEN>;
-			gpios = <&msmgpio 120 GPIO_ACTIVE_HIGH>;
+			gpios = <&tlmm 120 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "mmc0";
 			default-state = "off";
 		};
@@ -186,14 +188,14 @@
 		compatible = "adi,adv7533";
 		reg = <0x39>;
 
-		interrupt-parent = <&msmgpio>;
+		interrupt-parent = <&tlmm>;
 		interrupts = <31 IRQ_TYPE_EDGE_FALLING>;
 
 		adi,dsi-lanes = <4>;
 		clocks = <&rpmcc RPM_SMD_BB_CLK2>;
 		clock-names = "cec";
 
-		pd-gpios = <&msmgpio 32 GPIO_ACTIVE_HIGH>;
+		pd-gpios = <&tlmm 32 GPIO_ACTIVE_HIGH>;
 
 		avdd-supply = <&pm8916_l6>;
 		v1p2-supply = <&pm8916_l6>;
@@ -211,7 +213,7 @@
 			port@0 {
 				reg = <0>;
 				adv7533_in: endpoint {
-					remote-endpoint = <&dsi0_out>;
+					remote-endpoint = <&mdss_dsi0_out>;
 				};
 			};
 
@@ -243,12 +245,12 @@
 	label = "LS-SPI0";
 };
 
-&blsp1_uart1 {
+&blsp_uart1 {
 	status = "okay";
 	label = "LS-UART0";
 };
 
-&blsp1_uart2 {
+&blsp_uart2 {
 	status = "okay";
 	label = "LS-UART1";
 };
@@ -276,8 +278,8 @@
 		compatible = "ovti,ov5640";
 		reg = <0x3b>;
 
-		enable-gpios = <&msmgpio 34 GPIO_ACTIVE_HIGH>;
-		reset-gpios = <&msmgpio 35 GPIO_ACTIVE_LOW>;
+		enable-gpios = <&tlmm 34 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&tlmm 35 GPIO_ACTIVE_LOW>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&camera_rear_default>;
 
@@ -301,17 +303,21 @@
 	};
 };
 
-&dsi0_out {
-	data-lanes = <0 1 2 3>;
-	remote-endpoint = <&adv7533_in>;
+&lpass {
+	status = "okay";
 };
 
-&lpass {
+&lpass_codec {
 	status = "okay";
 };
 
 &mdss {
 	status = "okay";
+};
+
+&mdss_dsi0_out {
+	data-lanes = <0 1 2 3>;
+	remote-endpoint = <&adv7533_in>;
 };
 
 &mpss {
@@ -320,34 +326,67 @@
 	firmware-name = "qcom/apq8016/mba.mbn", "qcom/apq8016/modem.mbn";
 };
 
+&pm8916_codec {
+	status = "okay";
+	clocks = <&gcc GCC_CODEC_DIGCODEC_CLK>;
+	clock-names = "mclk";
+	qcom,mbhc-vthreshold-low = <75 150 237 450 500>;
+	qcom,mbhc-vthreshold-high = <75 150 237 450 500>;
+};
+
 &pm8916_resin {
 	status = "okay";
 	linux,code = <KEY_VOLUMEDOWN>;
 };
 
+&pm8916_rpm_regulators {
+	/*
+	 * The 96Boards specification expects a 1.8V power rail on the low-speed
+	 * expansion connector that is able to provide at least 0.18W / 100 mA.
+	 * L15/L16 are connected in parallel to provide 55 mA each. A minimum load
+	 * must be specified to ensure the regulators are not put in LPM where they
+	 * would only provide 5 mA.
+	 */
+	pm8916_l15: l15 {
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-system-load = <50000>;
+		regulator-allow-set-load;
+		regulator-always-on;
+	};
+	pm8916_l16: l16 {
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-system-load = <50000>;
+		regulator-allow-set-load;
+		regulator-always-on;
+	};
+
+	pm8916_l17: l17 {
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+	};
+};
+
 &sdhc_1 {
 	status = "okay";
-
-	pinctrl-names = "default", "sleep";
-	pinctrl-0 = <&sdc1_clk_on &sdc1_cmd_on &sdc1_data_on>;
-	pinctrl-1 = <&sdc1_clk_off &sdc1_cmd_off &sdc1_data_off>;
 };
 
 &sdhc_2 {
 	status = "okay";
 
 	pinctrl-names = "default", "sleep";
-	pinctrl-0 = <&sdc2_clk_on &sdc2_cmd_on &sdc2_data_on &sdc2_cd_on>;
-	pinctrl-1 = <&sdc2_clk_off &sdc2_cmd_off &sdc2_data_off &sdc2_cd_off>;
+	pinctrl-0 = <&sdc2_default &sdc2_cd_default>;
+	pinctrl-1 = <&sdc2_sleep &sdc2_cd_default>;
 
-	cd-gpios = <&msmgpio 38 GPIO_ACTIVE_LOW>;
+	cd-gpios = <&tlmm 38 GPIO_ACTIVE_LOW>;
 };
 
 &sound {
 	status = "okay";
 
-	pinctrl-0 = <&cdc_pdm_lines_act &ext_sec_tlmm_lines_act &ext_mclk_tlmm_lines_act>;
-	pinctrl-1 = <&cdc_pdm_lines_sus &ext_sec_tlmm_lines_sus &ext_mclk_tlmm_lines_sus>;
+	pinctrl-0 = <&cdc_pdm_default &sec_mi2s_default>;
+	pinctrl-1 = <&cdc_pdm_sleep &sec_mi2s_sleep>;
 	pinctrl-names = "default", "sleep";
 	model = "DB410c";
 	audio-routing =
@@ -370,7 +409,7 @@
 			sound-dai = <&lpass MI2S_PRIMARY>;
 		};
 		codec {
-			sound-dai = <&lpass_codec 0>, <&wcd_codec 0>;
+			sound-dai = <&lpass_codec 0>, <&pm8916_codec 0>;
 		};
 	};
 
@@ -380,7 +419,7 @@
 			sound-dai = <&lpass MI2S_TERTIARY>;
 		};
 		codec {
-			sound-dai = <&lpass_codec 1>, <&wcd_codec 1>;
+			sound-dai = <&lpass_codec 1>, <&pm8916_codec 1>;
 		};
 	};
 };
@@ -396,13 +435,6 @@
 
 &usb_hs_phy {
 	extcon = <&usb_id>;
-};
-
-&wcd_codec {
-	clocks = <&gcc GCC_CODEC_DIGCODEC_CLK>;
-	clock-names = "mclk";
-	qcom,mbhc-vthreshold-low = <75 150 237 450 500>;
-	qcom,mbhc-vthreshold-high = <75 150 237 450 500>;
 };
 
 &wcnss {
@@ -441,130 +473,19 @@
 &stm { status = "okay"; };
 &tpiu { status = "okay"; };
 
-&smd_rpm_regulators {
-	vdd_l1_l2_l3-supply = <&pm8916_s3>;
-	vdd_l4_l5_l6-supply = <&pm8916_s4>;
-	vdd_l7-supply = <&pm8916_s4>;
-
-	s3 {
-		regulator-min-microvolt = <375000>;
-		regulator-max-microvolt = <1562000>;
-	};
-
-	s4 {
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <1800000>;
-
-		regulator-always-on;
-		regulator-boot-on;
-	};
-
-	l1 {
-		regulator-min-microvolt = <375000>;
-		regulator-max-microvolt = <1525000>;
-	};
-
-	l2 {
-		regulator-min-microvolt = <1200000>;
-		regulator-max-microvolt = <1200000>;
-	};
-
-	l4 {
-		regulator-min-microvolt = <1750000>;
-		regulator-max-microvolt = <3337000>;
-	};
-
-	l5 {
-		regulator-min-microvolt = <1750000>;
-		regulator-max-microvolt = <3337000>;
-	};
-
-	l6 {
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <1800000>;
-	};
-
-	l7 {
-		regulator-min-microvolt = <1750000>;
-		regulator-max-microvolt = <3337000>;
-	};
-
-	l8 {
-		regulator-min-microvolt = <1750000>;
-		regulator-max-microvolt = <3337000>;
-	};
-
-	l9 {
-		regulator-min-microvolt = <1750000>;
-		regulator-max-microvolt = <3337000>;
-	};
-
-	l10 {
-		regulator-min-microvolt = <1750000>;
-		regulator-max-microvolt = <3337000>;
-	};
-
-	l11 {
-		regulator-min-microvolt = <1750000>;
-		regulator-max-microvolt = <3337000>;
-		regulator-allow-set-load;
-		regulator-system-load = <200000>;
-	};
-
-	l12 {
-		regulator-min-microvolt = <1750000>;
-		regulator-max-microvolt = <3337000>;
-	};
-
-	l13 {
-		regulator-min-microvolt = <1750000>;
-		regulator-max-microvolt = <3337000>;
-	};
-
-	l14 {
-		regulator-min-microvolt = <1750000>;
-		regulator-max-microvolt = <3337000>;
-	};
-
-	/**
-	 * 1.8v required on LS expansion
-	 * for mezzanine boards
-	 */
-	l15 {
-		regulator-min-microvolt = <1750000>;
-		regulator-max-microvolt = <3337000>;
-		regulator-always-on;
-	};
-
-	l16 {
-		regulator-min-microvolt = <1750000>;
-		regulator-max-microvolt = <3337000>;
-	};
-
-	l17 {
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-	};
-
-	l18 {
-		regulator-min-microvolt = <1750000>;
-		regulator-max-microvolt = <3337000>;
-	};
-};
-
 /*
  * 2mA drive strength is not enough when connecting multiple
  * I2C devices with different pull up resistors.
  */
-&i2c2_default {
+&blsp_i2c2_default {
 	drive-strength = <16>;
 };
 
-&i2c4_default {
+&blsp_i2c4_default {
 	drive-strength = <16>;
 };
 
-&i2c6_default {
+&blsp_i2c6_default {
 	drive-strength = <16>;
 };
 
@@ -592,7 +513,7 @@
  * ones actually used for GPIO.
  */
 
-&msmgpio {
+&tlmm {
 	gpio-line-names =
 		"[UART0_TX]", /* GPIO_0, LSEC pin 5 */
 		"[UART0_RX]", /* GPIO_1, LSEC pin 7 */
@@ -717,7 +638,14 @@
 		"USR_LED_2_CTRL", /* GPIO 120 */
 		"SB_HS_ID";
 
-	msmgpio_leds: msmgpio-leds-state {
+	sdc2_cd_default: sdc2-cd-default-state {
+		pins = "gpio38";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+	};
+
+	tlmm_leds: tlmm-leds-state {
 		pins = "gpio21", "gpio120";
 		function = "gpio";
 

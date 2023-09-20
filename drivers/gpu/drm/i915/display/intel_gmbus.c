@@ -991,3 +991,8 @@ void intel_gmbus_teardown(struct drm_i915_private *i915)
 		i915->display.gmbus.bus[pin] = NULL;
 	}
 }
+
+void intel_gmbus_irq_handler(struct drm_i915_private *i915)
+{
+	wake_up_all(&i915->display.gmbus.wait_queue);
+}

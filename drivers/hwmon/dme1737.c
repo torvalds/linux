@@ -2528,7 +2528,7 @@ static struct i2c_driver dme1737_i2c_driver = {
 	.driver = {
 		.name = "dme1737",
 	},
-	.probe_new = dme1737_i2c_probe,
+	.probe = dme1737_i2c_probe,
 	.remove = dme1737_i2c_remove,
 	.id_table = dme1737_id,
 	.detect = dme1737_i2c_detect,

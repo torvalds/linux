@@ -34,7 +34,6 @@
         "EventCode": "0xff",
         "EventName": "UNC_IIO_BANDWIDTH_IN.PART0_FREERUN",
         "PerPkg": "1",
-        "PublicDescription": "UNC_IIO_BANDWIDTH_IN.PART0_FREERUN",
         "UMask": "0x20",
         "Unit": "iio_free_running"
     },
@@ -43,7 +42,6 @@
         "EventCode": "0xff",
         "EventName": "UNC_IIO_BANDWIDTH_IN.PART1_FREERUN",
         "PerPkg": "1",
-        "PublicDescription": "UNC_IIO_BANDWIDTH_IN.PART1_FREERUN",
         "UMask": "0x21",
         "Unit": "iio_free_running"
     },
@@ -52,7 +50,6 @@
         "EventCode": "0xff",
         "EventName": "UNC_IIO_BANDWIDTH_IN.PART2_FREERUN",
         "PerPkg": "1",
-        "PublicDescription": "UNC_IIO_BANDWIDTH_IN.PART2_FREERUN",
         "UMask": "0x22",
         "Unit": "iio_free_running"
     },
@@ -61,7 +58,6 @@
         "EventCode": "0xff",
         "EventName": "UNC_IIO_BANDWIDTH_IN.PART3_FREERUN",
         "PerPkg": "1",
-        "PublicDescription": "UNC_IIO_BANDWIDTH_IN.PART3_FREERUN",
         "UMask": "0x23",
         "Unit": "iio_free_running"
     },
@@ -70,7 +66,6 @@
         "EventCode": "0xff",
         "EventName": "UNC_IIO_BANDWIDTH_IN.PART4_FREERUN",
         "PerPkg": "1",
-        "PublicDescription": "UNC_IIO_BANDWIDTH_IN.PART4_FREERUN",
         "UMask": "0x24",
         "Unit": "iio_free_running"
     },
@@ -79,7 +74,6 @@
         "EventCode": "0xff",
         "EventName": "UNC_IIO_BANDWIDTH_IN.PART5_FREERUN",
         "PerPkg": "1",
-        "PublicDescription": "UNC_IIO_BANDWIDTH_IN.PART5_FREERUN",
         "UMask": "0x25",
         "Unit": "iio_free_running"
     },
@@ -88,7 +82,6 @@
         "EventCode": "0xff",
         "EventName": "UNC_IIO_BANDWIDTH_IN.PART6_FREERUN",
         "PerPkg": "1",
-        "PublicDescription": "UNC_IIO_BANDWIDTH_IN.PART6_FREERUN",
         "UMask": "0x26",
         "Unit": "iio_free_running"
     },
@@ -97,7 +90,6 @@
         "EventCode": "0xff",
         "EventName": "UNC_IIO_BANDWIDTH_IN.PART7_FREERUN",
         "PerPkg": "1",
-        "PublicDescription": "UNC_IIO_BANDWIDTH_IN.PART7_FREERUN",
         "UMask": "0x27",
         "Unit": "iio_free_running"
     },

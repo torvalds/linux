@@ -132,12 +132,9 @@ SD_FLAG(SD_SERIALIZE, SDF_SHARED_PARENT | SDF_NEEDS_GROUPS)
 /*
  * Place busy tasks earlier in the domain
  *
- * SHARED_CHILD: Usually set on the SMT level. Technically could be set further
- *               up, but currently assumed to be set from the base domain
- *               upwards (see update_top_cache_domain()).
  * NEEDS_GROUPS: Load balancing flag.
  */
-SD_FLAG(SD_ASYM_PACKING, SDF_SHARED_CHILD | SDF_NEEDS_GROUPS)
+SD_FLAG(SD_ASYM_PACKING, SDF_NEEDS_GROUPS)
 
 /*
  * Prefer to place tasks in a sibling domain

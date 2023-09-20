@@ -296,11 +296,12 @@ static int tmag5273_read_raw(struct iio_dev *indio_dev,
 			return ret;
 
 		ret = tmag5273_get_measure(data, &t, &x, &y, &z, &angle, &magnitude);
-		if (ret)
-			return ret;
 
 		pm_runtime_mark_last_busy(data->dev);
 		pm_runtime_put_autosuspend(data->dev);
+
+		if (ret)
+			return ret;
 
 		switch (chan->address) {
 		case TEMPERATURE:

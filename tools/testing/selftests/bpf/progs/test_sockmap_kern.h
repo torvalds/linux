@@ -191,7 +191,7 @@ SEC("sockops")
 int bpf_sockmap(struct bpf_sock_ops *skops)
 {
 	__u32 lport, rport;
-	int op, err, ret;
+	int op, ret;
 
 	op = (int) skops->op;
 
@@ -203,10 +203,10 @@ int bpf_sockmap(struct bpf_sock_ops *skops)
 		if (lport == 10000) {
 			ret = 1;
 #ifdef SOCKMAP
-			err = bpf_sock_map_update(skops, &sock_map, &ret,
+			bpf_sock_map_update(skops, &sock_map, &ret,
 						  BPF_NOEXIST);
 #else
-			err = bpf_sock_hash_update(skops, &sock_map, &ret,
+			bpf_sock_hash_update(skops, &sock_map, &ret,
 						   BPF_NOEXIST);
 #endif
 		}
@@ -218,10 +218,10 @@ int bpf_sockmap(struct bpf_sock_ops *skops)
 		if (bpf_ntohl(rport) == 10001) {
 			ret = 10;
 #ifdef SOCKMAP
-			err = bpf_sock_map_update(skops, &sock_map, &ret,
+			bpf_sock_map_update(skops, &sock_map, &ret,
 						  BPF_NOEXIST);
 #else
-			err = bpf_sock_hash_update(skops, &sock_map, &ret,
+			bpf_sock_hash_update(skops, &sock_map, &ret,
 						   BPF_NOEXIST);
 #endif
 		}
@@ -229,8 +229,6 @@ int bpf_sockmap(struct bpf_sock_ops *skops)
 	default:
 		break;
 	}
-
-	__sink(err);
 
 	return 0;
 }

@@ -2,7 +2,7 @@
 
 /* Various wrappers to make the kernel .S file build in user-space: */
 
-// memcpy_orig and memcpy_erms are being defined as SYM_L_LOCAL but we need it
+// memcpy_orig is being defined as SYM_L_LOCAL but we need it
 #define SYM_FUNC_START_LOCAL(name)                      \
         SYM_START(name, SYM_L_GLOBAL, SYM_A_ALIGN)
 #define memcpy MEMCPY /* don't hide glibc's memcpy() */

@@ -331,8 +331,7 @@ static struct snd_soc_dai_link *sof_card_dai_links_create(struct device *dev,
 				devm_kasprintf(dev, GFP_KERNEL,
 					       "intel-hdmi-hifi%d", i);
 		} else {
-			idisp_components[i - 1].name = "snd-soc-dummy";
-			idisp_components[i - 1].dai_name = "snd-soc-dummy-dai";
+			idisp_components[i - 1] = asoc_dummy_dlc;
 		}
 		if (!idisp_components[i - 1].dai_name)
 			goto devm_err;

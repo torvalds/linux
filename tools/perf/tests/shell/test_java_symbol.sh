@@ -56,7 +56,7 @@ if [ $? -ne 0 ]; then
 	exit 1
 fi
 
-if ! perf inject -i $PERF_DATA -o $PERF_INJ_DATA -j; then
+if ! DEBUGINFOD_URLS='' perf inject -i $PERF_DATA -o $PERF_INJ_DATA -j; then
 	echo "Fail to inject samples"
 	exit 1
 fi

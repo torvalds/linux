@@ -17,9 +17,10 @@
 
 #ifdef CONFIG_USER_EVENTS
 struct user_event_mm {
-	struct list_head	link;
+	struct list_head	mms_link;
 	struct list_head	enablers;
 	struct mm_struct	*mm;
+	/* Used for one-shot lists, protected by event_mutex */
 	struct user_event_mm	*next;
 	refcount_t		refcnt;
 	refcount_t		tasks;

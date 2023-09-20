@@ -419,7 +419,7 @@ static ssize_t read_kcore_iter(struct kiocb *iocb, struct iov_iter *iter)
 		char *notes;
 		size_t i = 0;
 
-		strlcpy(prpsinfo.pr_psargs, saved_command_line,
+		strscpy(prpsinfo.pr_psargs, saved_command_line,
 			sizeof(prpsinfo.pr_psargs));
 
 		notes = kzalloc(notes_len, GFP_KERNEL);

@@ -191,30 +191,30 @@
 		};
 	};
 
-	leds: gpio-leds {
-		compatible = "gpio-leds";
-		pinctrl-0 = <&led_pins>;
-		pinctrl-names = "default";
+	leds: pwm-leds {
+		compatible = "pwm-leds";
 
 		green_led: led-0 {
 			color = <LED_COLOR_ID_GREEN>;
 			default-state = "on";
 			function = LED_FUNCTION_POWER;
-			gpios = <&gpio0 RK_PC5 GPIO_ACTIVE_HIGH>;
+			max-brightness = <255>;
+			pwms = <&pwm6 0 25000 0>;
 		};
 
 		amber_led: led-1 {
 			color = <LED_COLOR_ID_AMBER>;
 			function = LED_FUNCTION_CHARGING;
-			gpios = <&gpio0 RK_PC6 GPIO_ACTIVE_HIGH>;
-			retain-state-suspended;
+			max-brightness = <255>;
+			pwms = <&pwm7 0 25000 0>;
 		};
 
 		red_led: led-2 {
 			color = <LED_COLOR_ID_RED>;
 			default-state = "off";
 			function = LED_FUNCTION_STATUS;
-			gpios = <&gpio0 RK_PC7 GPIO_ACTIVE_HIGH>;
+			max-brightness = <255>;
+			pwms = <&pwm0 0 25000 0>;
 		};
 	};
 
@@ -597,15 +597,6 @@
 		};
 	};
 
-	gpio-led {
-		led_pins: led-pins {
-			rockchip,pins =
-				<0 RK_PC5 RK_FUNC_GPIO &pcfg_pull_none>,
-				<0 RK_PC6 RK_FUNC_GPIO &pcfg_pull_none>,
-				<0 RK_PC7 RK_FUNC_GPIO &pcfg_pull_none>;
-		};
-	};
-
 	joy-mux {
 		joy_mux_en: joy-mux-en {
 			rockchip,pins =
@@ -654,7 +645,21 @@
 	vccio7-supply = <&vcc_3v3>;
 };
 
+&pwm0 {
+	pinctrl-0 = <&pwm0m1_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
 &pwm5 {
+	status = "okay";
+};
+
+&pwm6 {
+	status = "okay";
+};
+
+&pwm7 {
 	status = "okay";
 };
 
@@ -716,7 +721,7 @@
 	status = "okay";
 
 	bluetooth {
-		compatible = "realtek,rtl8821cs-bt", "realtek,rtl8822cs-bt";
+		compatible = "realtek,rtl8821cs-bt", "realtek,rtl8723bs-bt";
 		device-wake-gpios = <&gpio4 4 GPIO_ACTIVE_HIGH>;
 		enable-gpios = <&gpio4 3 GPIO_ACTIVE_HIGH>;
 		host-wake-gpios = <&gpio4 5 GPIO_ACTIVE_HIGH>;

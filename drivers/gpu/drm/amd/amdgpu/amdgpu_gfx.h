@@ -61,7 +61,42 @@ enum amdgpu_gfx_partition {
 	AMDGPU_TPX_PARTITION_MODE = 2,
 	AMDGPU_QPX_PARTITION_MODE = 3,
 	AMDGPU_CPX_PARTITION_MODE = 4,
-	AMDGPU_UNKNOWN_COMPUTE_PARTITION_MODE,
+	AMDGPU_UNKNOWN_COMPUTE_PARTITION_MODE = -1,
+	/* Automatically choose the right mode */
+	AMDGPU_AUTO_COMPUTE_PARTITION_MODE = -2,
+};
+
+#define NUM_XCC(x) hweight16(x)
+
+enum amdgpu_pkg_type {
+	AMDGPU_PKG_TYPE_APU = 2,
+	AMDGPU_PKG_TYPE_UNKNOWN,
+};
+
+enum amdgpu_gfx_ras_mem_id_type {
+	AMDGPU_GFX_CP_MEM = 0,
+	AMDGPU_GFX_GCEA_MEM,
+	AMDGPU_GFX_GC_CANE_MEM,
+	AMDGPU_GFX_GCUTCL2_MEM,
+	AMDGPU_GFX_GDS_MEM,
+	AMDGPU_GFX_LDS_MEM,
+	AMDGPU_GFX_RLC_MEM,
+	AMDGPU_GFX_SP_MEM,
+	AMDGPU_GFX_SPI_MEM,
+	AMDGPU_GFX_SQC_MEM,
+	AMDGPU_GFX_SQ_MEM,
+	AMDGPU_GFX_TA_MEM,
+	AMDGPU_GFX_TCC_MEM,
+	AMDGPU_GFX_TCA_MEM,
+	AMDGPU_GFX_TCI_MEM,
+	AMDGPU_GFX_TCP_MEM,
+	AMDGPU_GFX_TD_MEM,
+	AMDGPU_GFX_TCX_MEM,
+	AMDGPU_GFX_ATC_L2_MEM,
+	AMDGPU_GFX_UTCL2_MEM,
+	AMDGPU_GFX_VML2_MEM,
+	AMDGPU_GFX_VML2_WALKER_MEM,
+	AMDGPU_GFX_MEM_TYPE_NUM
 };
 
 struct amdgpu_mec {
@@ -75,8 +110,10 @@ struct amdgpu_mec {
 	u32 num_mec;
 	u32 num_pipe_per_mec;
 	u32 num_queue_per_pipe;
-	void			*mqd_backup[AMDGPU_MAX_COMPUTE_RINGS + 1];
+	void			*mqd_backup[AMDGPU_MAX_COMPUTE_RINGS * AMDGPU_MAX_GC_INSTANCES];
+};
 
+struct amdgpu_mec_bitmap {
 	/* These are the resources for which amdgpu takes ownership */
 	DECLARE_BITMAP(queue_bitmap, AMDGPU_MAX_COMPUTE_QUEUES);
 };
@@ -120,6 +157,7 @@ struct amdgpu_kiq {
 	struct amdgpu_ring	ring;
 	struct amdgpu_irq_src	irq;
 	const struct kiq_pm4_funcs *pmf;
+	void			*mqd_backup;
 };
 
 /*
@@ -230,23 +268,37 @@ struct amdgpu_gfx_ras {
 						struct amdgpu_iv_entry *entry);
 };
 
+struct amdgpu_gfx_shadow_info {
+	u32 shadow_size;
+	u32 shadow_alignment;
+	u32 csa_size;
+	u32 csa_alignment;
+};
+
 struct amdgpu_gfx_funcs {
 	/* get the gpu clock counter */
 	uint64_t (*get_gpu_clock_counter)(struct amdgpu_device *adev);
 	void (*select_se_sh)(struct amdgpu_device *adev, u32 se_num,
-			     u32 sh_num, u32 instance);
-	void (*read_wave_data)(struct amdgpu_device *adev, uint32_t simd,
+			     u32 sh_num, u32 instance, int xcc_id);
+	void (*read_wave_data)(struct amdgpu_device *adev, uint32_t xcc_id, uint32_t simd,
 			       uint32_t wave, uint32_t *dst, int *no_fields);
-	void (*read_wave_vgprs)(struct amdgpu_device *adev, uint32_t simd,
+	void (*read_wave_vgprs)(struct amdgpu_device *adev, uint32_t xcc_id, uint32_t simd,
 				uint32_t wave, uint32_t thread, uint32_t start,
 				uint32_t size, uint32_t *dst);
-	void (*read_wave_sgprs)(struct amdgpu_device *adev, uint32_t simd,
+	void (*read_wave_sgprs)(struct amdgpu_device *adev, uint32_t xcc_id, uint32_t simd,
 				uint32_t wave, uint32_t start, uint32_t size,
 				uint32_t *dst);
 	void (*select_me_pipe_q)(struct amdgpu_device *adev, u32 me, u32 pipe,
-				 u32 queue, u32 vmid);
+				 u32 queue, u32 vmid, u32 xcc_id);
 	void (*init_spm_golden)(struct amdgpu_device *adev);
 	void (*update_perfmon_mgcg)(struct amdgpu_device *adev, bool enable);
+	int (*get_gfx_shadow_info)(struct amdgpu_device *adev,
+				   struct amdgpu_gfx_shadow_info *shadow_info);
+	enum amdgpu_gfx_partition
+			(*query_partition_mode)(struct amdgpu_device *adev);
+	int (*switch_partition_mode)(struct amdgpu_device *adev,
+				     int num_xccs_per_xcp);
+	int (*ih_node_to_logical_xcc)(struct amdgpu_device *adev, int ih_node);
 };
 
 struct sq_work {
@@ -296,7 +348,8 @@ struct amdgpu_gfx {
 	struct amdgpu_ce		ce;
 	struct amdgpu_me		me;
 	struct amdgpu_mec		mec;
-	struct amdgpu_kiq		kiq;
+	struct amdgpu_mec_bitmap	mec_bitmap[AMDGPU_MAX_GC_INSTANCES];
+	struct amdgpu_kiq		kiq[AMDGPU_MAX_GC_INSTANCES];
 	struct amdgpu_imu		imu;
 	bool				rs64_enable; /* firmware format */
 	const struct firmware		*me_fw;	/* ME firmware */
@@ -376,15 +429,31 @@ struct amdgpu_gfx {
 	struct amdgpu_ring		sw_gfx_ring[AMDGPU_MAX_SW_GFX_RINGS];
 	struct amdgpu_ring_mux          muxer;
 
-	enum amdgpu_gfx_partition	partition_mode;
-	uint32_t			num_xcd;
+	bool				cp_gfx_shadow; /* for gfx11 */
+
+	uint16_t 			xcc_mask;
 	uint32_t			num_xcc_per_xcp;
+	struct mutex			partition_mutex;
 };
 
+struct amdgpu_gfx_ras_reg_entry {
+	struct amdgpu_ras_err_status_reg_entry reg_entry;
+	enum amdgpu_gfx_ras_mem_id_type mem_id_type;
+	uint32_t se_num;
+};
+
+struct amdgpu_gfx_ras_mem_id_entry {
+	const struct amdgpu_ras_memory_id_entry *mem_id_ent;
+	uint32_t size;
+};
+
+#define AMDGPU_GFX_MEMID_ENT(x) {(x), ARRAY_SIZE(x)},
+
 #define amdgpu_gfx_get_gpu_clock_counter(adev) (adev)->gfx.funcs->get_gpu_clock_counter((adev))
-#define amdgpu_gfx_select_se_sh(adev, se, sh, instance) (adev)->gfx.funcs->select_se_sh((adev), (se), (sh), (instance))
-#define amdgpu_gfx_select_me_pipe_q(adev, me, pipe, q, vmid) (adev)->gfx.funcs->select_me_pipe_q((adev), (me), (pipe), (q), (vmid))
+#define amdgpu_gfx_select_se_sh(adev, se, sh, instance, xcc_id) ((adev)->gfx.funcs->select_se_sh((adev), (se), (sh), (instance), (xcc_id)))
+#define amdgpu_gfx_select_me_pipe_q(adev, me, pipe, q, vmid, xcc_id) ((adev)->gfx.funcs->select_me_pipe_q((adev), (me), (pipe), (q), (vmid), (xcc_id)))
 #define amdgpu_gfx_init_spm_golden(adev) (adev)->gfx.funcs->init_spm_golden((adev))
+#define amdgpu_gfx_get_gfx_shadow_info(adev, si) ((adev)->gfx.funcs->get_gfx_shadow_info((adev), (si)))
 
 /**
  * amdgpu_gfx_create_bitmask - create a bitmask
@@ -404,19 +473,21 @@ void amdgpu_gfx_parse_disable_cu(unsigned *mask, unsigned max_se,
 
 int amdgpu_gfx_kiq_init_ring(struct amdgpu_device *adev,
 			     struct amdgpu_ring *ring,
-			     struct amdgpu_irq_src *irq);
+			     struct amdgpu_irq_src *irq, int xcc_id);
 
 void amdgpu_gfx_kiq_free_ring(struct amdgpu_ring *ring);
 
-void amdgpu_gfx_kiq_fini(struct amdgpu_device *adev);
+void amdgpu_gfx_kiq_fini(struct amdgpu_device *adev, int xcc_id);
 int amdgpu_gfx_kiq_init(struct amdgpu_device *adev,
-			unsigned hpd_size);
+			unsigned hpd_size, int xcc_id);
 
 int amdgpu_gfx_mqd_sw_init(struct amdgpu_device *adev,
-			   unsigned mqd_size);
-void amdgpu_gfx_mqd_sw_fini(struct amdgpu_device *adev);
-int amdgpu_gfx_disable_kcq(struct amdgpu_device *adev);
-int amdgpu_gfx_enable_kcq(struct amdgpu_device *adev);
+			   unsigned mqd_size, int xcc_id);
+void amdgpu_gfx_mqd_sw_fini(struct amdgpu_device *adev, int xcc_id);
+int amdgpu_gfx_disable_kcq(struct amdgpu_device *adev, int xcc_id);
+int amdgpu_gfx_enable_kcq(struct amdgpu_device *adev, int xcc_id);
+int amdgpu_gfx_disable_kgq(struct amdgpu_device *adev, int xcc_id);
+int amdgpu_gfx_enable_kgq(struct amdgpu_device *adev, int xcc_id);
 
 void amdgpu_gfx_compute_queue_acquire(struct amdgpu_device *adev);
 void amdgpu_gfx_graphics_queue_acquire(struct amdgpu_device *adev);
@@ -425,8 +496,8 @@ int amdgpu_gfx_mec_queue_to_bit(struct amdgpu_device *adev, int mec,
 				int pipe, int queue);
 void amdgpu_queue_mask_bit_to_mec_queue(struct amdgpu_device *adev, int bit,
 				 int *mec, int *pipe, int *queue);
-bool amdgpu_gfx_is_mec_queue_enabled(struct amdgpu_device *adev, int mec,
-				     int pipe, int queue);
+bool amdgpu_gfx_is_mec_queue_enabled(struct amdgpu_device *adev, int xcc_id,
+				     int mec, int pipe, int queue);
 bool amdgpu_gfx_is_high_priority_compute_queue(struct amdgpu_device *adev,
 					       struct amdgpu_ring *ring);
 bool amdgpu_gfx_is_high_priority_graphics_queue(struct amdgpu_device *adev,
@@ -458,4 +529,33 @@ void amdgpu_gfx_cp_init_microcode(struct amdgpu_device *adev, uint32_t ucode_id)
 int amdgpu_gfx_ras_sw_init(struct amdgpu_device *adev);
 int amdgpu_gfx_poison_consumption_handler(struct amdgpu_device *adev,
 						struct amdgpu_iv_entry *entry);
+
+bool amdgpu_gfx_is_master_xcc(struct amdgpu_device *adev, int xcc_id);
+int amdgpu_gfx_sysfs_init(struct amdgpu_device *adev);
+void amdgpu_gfx_sysfs_fini(struct amdgpu_device *adev);
+void amdgpu_gfx_ras_error_func(struct amdgpu_device *adev,
+		void *ras_error_status,
+		void (*func)(struct amdgpu_device *adev, void *ras_error_status,
+				int xcc_id));
+
+static inline const char *amdgpu_gfx_compute_mode_desc(int mode)
+{
+	switch (mode) {
+	case AMDGPU_SPX_PARTITION_MODE:
+		return "SPX";
+	case AMDGPU_DPX_PARTITION_MODE:
+		return "DPX";
+	case AMDGPU_TPX_PARTITION_MODE:
+		return "TPX";
+	case AMDGPU_QPX_PARTITION_MODE:
+		return "QPX";
+	case AMDGPU_CPX_PARTITION_MODE:
+		return "CPX";
+	default:
+		return "UNKNOWN";
+	}
+
+	return "UNKNOWN";
+}
+
 #endif

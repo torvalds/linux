@@ -1070,7 +1070,9 @@ static int igt_lmem_write_cpu(void *arg)
 	/* Put the pages into a known state -- from the gpu for added fun */
 	intel_engine_pm_get(engine);
 	err = intel_context_migrate_clear(engine->gt->migrate.context, NULL,
-					  obj->mm.pages->sgl, I915_CACHE_NONE,
+					  obj->mm.pages->sgl,
+					  i915_gem_get_pat_index(i915,
+								 I915_CACHE_NONE),
 					  true, 0xdeadbeaf, &rq);
 	if (rq) {
 		dma_resv_add_fence(obj->base.resv, &rq->fence,

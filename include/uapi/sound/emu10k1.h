@@ -308,6 +308,8 @@ struct snd_emu10k1_fx8010_info {
 #define EMU10K1_GPR_TRANSLATION_BASS		2
 #define EMU10K1_GPR_TRANSLATION_TREBLE		3
 #define EMU10K1_GPR_TRANSLATION_ONOFF		4
+#define EMU10K1_GPR_TRANSLATION_NEGATE		5
+#define EMU10K1_GPR_TRANSLATION_NEG_TABLE100	6
 
 enum emu10k1_ctl_elem_iface {
 	EMU10K1_CTL_ELEM_IFACE_MIXER = 2,	/* virtual mixer device */
@@ -328,9 +330,9 @@ struct snd_emu10k1_fx8010_control_gpr {
 	unsigned int vcount;		/* visible count */
 	unsigned int count;		/* count of GPR (1..16) */
 	unsigned short gpr[32];		/* GPR number(s) */
-	unsigned int value[32];		/* initial values */
-	unsigned int min;		/* minimum range */
-	unsigned int max;		/* maximum range */
+	int value[32];			/* initial values */
+	int min;			/* minimum range */
+	int max;			/* maximum range */
 	unsigned int translation;	/* translation type (EMU10K1_GPR_TRANSLATION*) */
 	const unsigned int *tlv;
 };

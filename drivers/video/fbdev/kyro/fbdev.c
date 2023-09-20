@@ -737,7 +737,7 @@ static int kyrofb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			       info->var.bits_per_pixel);
 	size *= info->var.yres_virtual;
 
-	fb_memset(info->screen_base, 0, size);
+	fb_memset_io(info->screen_base, 0, size);
 
 	if (register_framebuffer(info) < 0)
 		goto out_unmap;

@@ -236,8 +236,7 @@ static int imx93_adc_read_raw(struct iio_dev *indio_dev,
 {
 	struct imx93_adc *adc = iio_priv(indio_dev);
 	struct device *dev = adc->dev;
-	long ret;
-	u32 vref_uv;
+	int ret;
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
@@ -253,10 +252,10 @@ static int imx93_adc_read_raw(struct iio_dev *indio_dev,
 		return IIO_VAL_INT;
 
 	case IIO_CHAN_INFO_SCALE:
-		ret = vref_uv = regulator_get_voltage(adc->vref);
+		ret = regulator_get_voltage(adc->vref);
 		if (ret < 0)
 			return ret;
-		*val = vref_uv / 1000;
+		*val = ret / 1000;
 		*val2 = 12;
 		return IIO_VAL_FRACTIONAL_LOG2;
 

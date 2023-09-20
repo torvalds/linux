@@ -45,7 +45,7 @@ Installation instructions
 
 If you have built the CIFS vfs as module (successfully) simply
 type ``make modules_install`` (or if you prefer, manually copy the file to
-the modules directory e.g. /lib/modules/2.4.10-4GB/kernel/fs/cifs/cifs.ko).
+the modules directory e.g. /lib/modules/6.3.0-060300-generic/kernel/fs/smb/client/cifs.ko).
 
 If you have built the CIFS vfs into the kernel itself, follow the instructions
 for your distribution on how to install a new kernel (usually you
@@ -66,15 +66,15 @@ If cifs is built as a module, then the size and number of network buffers
 and maximum number of simultaneous requests to one server can be configured.
 Changing these from their defaults is not recommended. By executing modinfo::
 
-	modinfo kernel/fs/cifs/cifs.ko
+	modinfo <path to cifs.ko>
 
-on kernel/fs/cifs/cifs.ko the list of configuration changes that can be made
+on kernel/fs/smb/client/cifs.ko the list of configuration changes that can be made
 at module initialization time (by running insmod cifs.ko) can be seen.
 
 Recommendations
 ===============
 
-To improve security the SMB2.1 dialect or later (usually will get SMB3) is now
+To improve security the SMB2.1 dialect or later (usually will get SMB3.1.1) is now
 the new default. To use old dialects (e.g. to mount Windows XP) use "vers=1.0"
 on mount (or vers=2.0 for Windows Vista).  Note that the CIFS (vers=1.0) is
 much older and less secure than the default dialect SMB3 which includes

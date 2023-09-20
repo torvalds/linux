@@ -28,6 +28,7 @@
 #include <linux/mm_inline.h>
 #include <linux/page_ext.h>
 #include <linux/page_owner.h>
+#include <linux/sched/isolation.h>
 
 #include "internal.h"
 
@@ -1180,6 +1181,9 @@ const char * const vmstat_text[] = {
 	"nr_zspages",
 #endif
 	"nr_free_cma",
+#ifdef CONFIG_UNACCEPTED_MEMORY
+	"nr_unaccepted",
+#endif
 
 	/* enum numa_stat_item counters */
 #ifdef CONFIG_NUMA
@@ -2021,6 +2025,20 @@ static void vmstat_shepherd(struct work_struct *w)
 	/* Check processors whose vmstat worker threads have been disabled */
 	for_each_online_cpu(cpu) {
 		struct delayed_work *dw = &per_cpu(vmstat_work, cpu);
+
+		/*
+		 * In kernel users of vmstat counters either require the precise value and
+		 * they are using zone_page_state_snapshot interface or they can live with
+		 * an imprecision as the regular flushing can happen at arbitrary time and
+		 * cumulative error can grow (see calculate_normal_threshold).
+		 *
+		 * From that POV the regular flushing can be postponed for CPUs that have
+		 * been isolated from the kernel interference without critical
+		 * infrastructure ever noticing. Skip regular flushing from vmstat_shepherd
+		 * for all isolated CPUs to avoid interference with the isolated workload.
+		 */
+		if (cpu_is_isolated(cpu))
+			continue;
 
 		if (!delayed_work_pending(dw) && need_update(cpu))
 			queue_delayed_work_on(cpu, mm_percpu_wq, dw, 0);

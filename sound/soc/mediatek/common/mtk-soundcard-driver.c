@@ -21,8 +21,10 @@ static int set_card_codec_info(struct snd_soc_card *card,
 	int ret;
 
 	codec_node = of_get_child_by_name(sub_node, "codec");
-	if (!codec_node)
-		return -EINVAL;
+	if (!codec_node) {
+		dev_dbg(dev, "%s no specified codec\n", dai_link->name);
+		return 0;
+	}
 
 	/* set card codec info */
 	ret = snd_soc_of_get_dai_link_codecs(dev, codec_node, dai_link);
@@ -32,6 +34,47 @@ static int set_card_codec_info(struct snd_soc_card *card,
 	if (ret < 0)
 		return dev_err_probe(dev, ret, "%s: codec dai not found\n",
 				     dai_link->name);
+
+	return 0;
+}
+
+static int set_dailink_daifmt(struct snd_soc_card *card,
+			      struct device_node *sub_node,
+			      struct snd_soc_dai_link *dai_link)
+{
+	unsigned int daifmt;
+	const char *str;
+	int ret;
+	struct {
+		char *name;
+		unsigned int val;
+	} of_clk_table[] = {
+		{ "cpu",	SND_SOC_DAIFMT_CBC_CFC },
+		{ "codec",	SND_SOC_DAIFMT_CBP_CFP },
+	};
+
+	daifmt = snd_soc_daifmt_parse_format(sub_node, NULL);
+	if (daifmt) {
+		dai_link->dai_fmt &= SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK;
+		dai_link->dai_fmt |= daifmt;
+	}
+
+	/*
+	 * check "mediatek,clk-provider = xxx"
+	 * SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK area
+	 */
+	ret = of_property_read_string(sub_node, "mediatek,clk-provider", &str);
+	if (ret == 0) {
+		int i;
+
+		for (i = 0; i < ARRAY_SIZE(of_clk_table); i++) {
+			if (strcmp(str, of_clk_table[i].name) == 0) {
+				dai_link->dai_fmt &= ~SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK;
+				dai_link->dai_fmt |= of_clk_table[i].val;
+				break;
+			}
+		}
+	}
 
 	return 0;
 }
@@ -63,6 +106,12 @@ int parse_dai_link_info(struct snd_soc_card *card)
 		}
 
 		ret = set_card_codec_info(card, sub_node, dai_link);
+		if (ret < 0) {
+			of_node_put(sub_node);
+			return ret;
+		}
+
+		ret = set_dailink_daifmt(card, sub_node, dai_link);
 		if (ret < 0) {
 			of_node_put(sub_node);
 			return ret;

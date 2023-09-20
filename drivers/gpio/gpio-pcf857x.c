@@ -419,7 +419,7 @@ static struct i2c_driver pcf857x_driver = {
 		.name	= "pcf857x",
 		.of_match_table = pcf857x_of_table,
 	},
-	.probe_new = pcf857x_probe,
+	.probe = pcf857x_probe,
 	.shutdown = pcf857x_shutdown,
 	.id_table = pcf857x_id,
 };

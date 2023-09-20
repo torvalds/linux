@@ -336,6 +336,9 @@ struct iwl_mvm_rxq_dup_data {
  * @sta_id: the index of the station in the fw
  * @lq_sta: holds rate scaling data, either for the case when RS is done in
  *	the driver - %rs_drv or in the FW - %rs_fw.
+ * @orig_amsdu_len: used to save the original amsdu_len when it is changed via
+ *      debugfs.  If it's set to 0, it means that it is it's not set via
+ *      debugfs.
  * @avg_energy: energy as reported by FW statistics notification
  */
 struct iwl_mvm_link_sta {
@@ -345,6 +348,8 @@ struct iwl_mvm_link_sta {
 		struct iwl_lq_sta_rs_fw rs_fw;
 		struct iwl_lq_sta rs_drv;
 	} lq_sta;
+
+	u16 orig_amsdu_len;
 
 	u8 avg_energy;
 };
@@ -365,6 +370,7 @@ struct iwl_mvm_link_sta {
  * and from Tx response flow, it needs a spinlock.
  * @tid_data: per tid data + mgmt. Look at %iwl_mvm_tid_data.
  * @tid_to_baid: a simple map of TID to baid
+ * @vif: a vif pointer
  * @reserved_queue: the queue reserved for this STA for DQA purposes
  *	Every STA has is given one reserved queue to allow it to operate. If no
  *	such queue can be guaranteed, the STA addition will fail.
@@ -374,10 +380,8 @@ struct iwl_mvm_link_sta {
  * @amsdu_enabled: bitmap of TX AMSDU allowed TIDs.
  *	In case TLC offload is not active it is either 0xFFFF or 0.
  * @max_amsdu_len: max AMSDU length
- * @orig_amsdu_len: used to save the original amsdu_len when it is changed via
- *      debugfs.  If it's set to 0, it means that it is it's not set via
- *      debugfs.
  * @agg_tids: bitmap of tids whose status is operational aggregated (IWL_AGG_ON)
+ * @sleeping: sta sleep transitions in power management
  * @sleep_tx_count: the number of frames that we told the firmware to let out
  *	even when that station is asleep. This is useful in case the queue
  *	gets empty before all the frames were sent, which can happen when
@@ -427,7 +431,6 @@ struct iwl_mvm_sta {
 	bool disable_tx;
 	u16 amsdu_enabled;
 	u16 max_amsdu_len;
-	u16 orig_amsdu_len;
 	bool sleeping;
 	u8 agg_tids;
 	u8 sleep_tx_count;
@@ -580,7 +583,7 @@ int iwl_mvm_add_pasn_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			 u8 *key, u32 key_len);
 void iwl_mvm_cancel_channel_switch(struct iwl_mvm *mvm,
 				   struct ieee80211_vif *vif,
-				   u32 mac_id);
+				   u32 id);
 /* Queues */
 int iwl_mvm_tvqm_enable_txq(struct iwl_mvm *mvm,
 			    struct ieee80211_sta *sta,
@@ -616,7 +619,7 @@ int iwl_mvm_mac_sta_state_common(struct ieee80211_hw *hw,
 				 struct ieee80211_sta *sta,
 				 enum ieee80211_sta_state old_state,
 				 enum ieee80211_sta_state new_state,
-				 struct iwl_mvm_sta_state_ops *callbacks);
+				 const struct iwl_mvm_sta_state_ops *callbacks);
 
 /* New MLD STA related APIs */
 /* STA */
@@ -646,6 +649,11 @@ int iwl_mvm_mld_update_sta_links(struct iwl_mvm *mvm,
 				 u16 old_links, u16 new_links);
 u32 iwl_mvm_sta_fw_id_mask(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 			   int filter_link_id);
+int iwl_mvm_mld_add_int_sta_with_queue(struct iwl_mvm *mvm,
+				       struct iwl_mvm_int_sta *sta,
+				       const u8 *addr, int link_id,
+				       u16 *queue, u8 tid,
+				       unsigned int *_wdg_timeout);
 
 /* Queues */
 void iwl_mvm_mld_modify_all_sta_disable_tx(struct iwl_mvm *mvm,

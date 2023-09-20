@@ -16,7 +16,6 @@
 #include <linux/of_platform.h>
 
 #include <asm/octeon/octeon.h>
-#include <asm/bitfield.h>
 
 #define CVMX_SATA_UCTL_SHIM_CFG		0xE8
 

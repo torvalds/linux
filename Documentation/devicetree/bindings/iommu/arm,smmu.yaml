@@ -29,6 +29,7 @@ properties:
               - qcom,msm8996-smmu-v2
               - qcom,msm8998-smmu-v2
               - qcom,sdm630-smmu-v2
+              - qcom,sm6375-smmu-v2
           - const: qcom,smmu-v2
 
       - description: Qcom SoCs implementing "qcom,smmu-500" and "arm,mmu-500"
@@ -45,6 +46,7 @@ properties:
               - qcom,sdm845-smmu-500
               - qcom,sdx55-smmu-500
               - qcom,sdx65-smmu-500
+              - qcom,sdx75-smmu-500
               - qcom,sm6115-smmu-500
               - qcom,sm6125-smmu-500
               - qcom,sm6350-smmu-500
@@ -79,7 +81,9 @@ properties:
       - description: Qcom Adreno GPUs implementing "qcom,smmu-500" and "arm,mmu-500"
         items:
           - enum:
+              - qcom,sa8775p-smmu-500
               - qcom,sc7280-smmu-500
+              - qcom,sc8280xp-smmu-500
               - qcom,sm6115-smmu-500
               - qcom,sm6125-smmu-500
               - qcom,sm8150-smmu-500
@@ -267,6 +271,7 @@ allOf:
             enum:
               - qcom,msm8998-smmu-v2
               - qcom,sdm630-smmu-v2
+              - qcom,sm6375-smmu-v2
     then:
       anyOf:
         - properties:
@@ -331,7 +336,10 @@ allOf:
       properties:
         compatible:
           contains:
-            const: qcom,sc7280-smmu-500
+            enum:
+              - qcom,sa8775p-smmu-500
+              - qcom,sc7280-smmu-500
+              - qcom,sc8280xp-smmu-500
     then:
       properties:
         clock-names:
@@ -413,10 +421,8 @@ allOf:
               - nvidia,smmu-500
               - qcom,qcm2290-smmu-500
               - qcom,qdu1000-smmu-500
-              - qcom,sa8775p-smmu-500
               - qcom,sc7180-smmu-500
               - qcom,sc8180x-smmu-500
-              - qcom,sc8280xp-smmu-500
               - qcom,sdm670-smmu-500
               - qcom,sdm845-smmu-500
               - qcom,sdx55-smmu-500

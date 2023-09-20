@@ -33,7 +33,7 @@ static struct i2c_driver cs4271_i2c_driver = {
 		.name = "cs4271",
 		.of_match_table = of_match_ptr(cs4271_dt_ids),
 	},
-	.probe_new = cs4271_i2c_probe,
+	.probe = cs4271_i2c_probe,
 	.id_table = cs4271_i2c_id,
 };
 module_i2c_driver(cs4271_i2c_driver);

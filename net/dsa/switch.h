@@ -111,6 +111,9 @@ struct dsa_notifier_master_state_info {
 	bool operational;
 };
 
+struct dsa_vlan *dsa_vlan_find(struct list_head *vlan_list,
+			       const struct switchdev_obj_port_vlan *vlan);
+
 int dsa_tree_notify(struct dsa_switch_tree *dst, unsigned long e, void *v);
 int dsa_broadcast(unsigned long e, void *v);
 

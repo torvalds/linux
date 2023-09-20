@@ -37,14 +37,14 @@
 #define CTX \
 	oppn10->base.ctx
 
-
-/************* FORMATTER ************/
-
 /**
- *	set_truncation
+ * opp1_set_truncation():
  *	1) set truncation depth: 0 for 18 bpp or 1 for 24 bpp
  *	2) enable truncation
  *	3) HW remove 12bit FMT support for DCE11 power saving reason.
+ *
+ * @oppn10: output_pixel_processor struct instance for dcn10.
+ * @params: pointer to bit_depth_reduction_params.
  */
 static void opp1_set_truncation(
 		struct dcn10_opp *oppn10,
@@ -149,11 +149,12 @@ void opp1_program_bit_depth_reduction(
 }
 
 /**
- *	set_pixel_encoding
- *
- *	Set Pixel Encoding
+ * opp1_set_pixel_encoding():
  *		0: RGB 4:4:4 or YCbCr 4:4:4 or YOnly
  *		1: YCbCr 4:2:2
+ *
+ * @oppn10: output_pixel_processor struct instance for dcn10.
+ * @params: pointer to clamping_and_pixel_encoding_params.
  */
 static void opp1_set_pixel_encoding(
 	struct dcn10_opp *oppn10,
@@ -180,13 +181,16 @@ static void opp1_set_pixel_encoding(
 }
 
 /**
- *	Set Clamping
+ * opp1_set_clamping():
  *	1) Set clamping format based on bpc - 0 for 6bpc (No clamping)
  *		1 for 8 bpc
  *		2 for 10 bpc
  *		3 for 12 bpc
  *		7 for programable
  *	2) Enable clamp if Limited range requested
+ *
+ * @oppn10: output_pixel_processor struct instance for dcn10.
+ * @params: pointer to clamping_and_pixel_encoding_params.
  */
 static void opp1_set_clamping(
 	struct dcn10_opp *oppn10,

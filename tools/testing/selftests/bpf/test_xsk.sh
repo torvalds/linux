@@ -68,9 +68,6 @@
 # Run with verbose output:
 #   sudo ./test_xsk.sh -v
 #
-# Run and dump packet contents:
-#   sudo ./test_xsk.sh -D
-#
 # Set up veth interfaces and leave them up so xskxceiver can be launched in a debugger:
 #   sudo ./test_xsk.sh -d
 #
@@ -81,11 +78,10 @@
 
 ETH=""
 
-while getopts "vDi:d" flag
+while getopts "vi:d" flag
 do
 	case "${flag}" in
 		v) verbose=1;;
-		D) dump_pkts=1;;
 		d) debug=1;;
 		i) ETH=${OPTARG};;
 	esac
@@ -155,10 +151,6 @@ fi
 
 if [[ $verbose -eq 1 ]]; then
 	ARGS+="-v "
-fi
-
-if [[ $dump_pkts -eq 1 ]]; then
-	ARGS="-D "
 fi
 
 retval=$?

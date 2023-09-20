@@ -160,5 +160,6 @@
 #define GCC_WCSS_Q6_BCR						151
 #define GCC_WCSS_Q6_TBU_BCR					152
 #define GCC_TCSR_BCR						153
+#define GCC_CRYPTO_BCR						154
 
 #endif

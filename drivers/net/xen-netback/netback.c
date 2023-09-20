@@ -1128,9 +1128,7 @@ static int xenvif_handle_frag_list(struct xenvif_queue *queue, struct sk_buff *s
 			BUG();
 
 		offset += len;
-		__skb_frag_set_page(&frags[i], page);
-		skb_frag_off_set(&frags[i], 0);
-		skb_frag_size_set(&frags[i], len);
+		skb_frag_fill_page_desc(&frags[i], page, 0, len);
 	}
 
 	/* Release all the original (foreign) frags. */

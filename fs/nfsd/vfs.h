@@ -110,13 +110,12 @@ __be32		nfsd_splice_read(struct svc_rqst *rqstp, struct svc_fh *fhp,
 				struct file *file, loff_t offset,
 				unsigned long *count,
 				u32 *eof);
-__be32		nfsd_readv(struct svc_rqst *rqstp, struct svc_fh *fhp,
+__be32		nfsd_iter_read(struct svc_rqst *rqstp, struct svc_fh *fhp,
 				struct file *file, loff_t offset,
-				struct kvec *vec, int vlen,
-				unsigned long *count,
+				unsigned long *count, unsigned int base,
 				u32 *eof);
-__be32 		nfsd_read(struct svc_rqst *, struct svc_fh *,
-				loff_t, struct kvec *, int, unsigned long *,
+__be32		nfsd_read(struct svc_rqst *rqstp, struct svc_fh *fhp,
+				loff_t offset, unsigned long *count,
 				u32 *eof);
 __be32 		nfsd_write(struct svc_rqst *, struct svc_fh *, loff_t,
 				struct kvec *, int, unsigned long *,

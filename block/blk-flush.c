@@ -188,7 +188,9 @@ static void blk_flush_complete_seq(struct request *rq,
 
 	case REQ_FSEQ_DATA:
 		list_move_tail(&rq->flush.list, &fq->flush_data_in_flight);
-		blk_mq_add_to_requeue_list(rq, BLK_MQ_INSERT_AT_HEAD);
+		spin_lock(&q->requeue_lock);
+		list_add_tail(&rq->queuelist, &q->flush_list);
+		spin_unlock(&q->requeue_lock);
 		blk_mq_kick_requeue_list(q);
 		break;
 
@@ -346,7 +348,10 @@ static void blk_kick_flush(struct request_queue *q, struct blk_flush_queue *fq,
 	smp_wmb();
 	req_ref_set(flush_rq, 1);
 
-	blk_mq_add_to_requeue_list(flush_rq, 0);
+	spin_lock(&q->requeue_lock);
+	list_add_tail(&flush_rq->queuelist, &q->flush_list);
+	spin_unlock(&q->requeue_lock);
+
 	blk_mq_kick_requeue_list(q);
 }
 
@@ -376,22 +381,29 @@ static enum rq_end_io_ret mq_flush_data_end_io(struct request *rq,
 	return RQ_END_IO_NONE;
 }
 
-/**
- * blk_insert_flush - insert a new PREFLUSH/FUA request
- * @rq: request to insert
- *
- * To be called from __elv_add_request() for %ELEVATOR_INSERT_FLUSH insertions.
- * or __blk_mq_run_hw_queue() to dispatch request.
- * @rq is being submitted.  Analyze what needs to be done and put it on the
- * right queue.
+static void blk_rq_init_flush(struct request *rq)
+{
+	rq->flush.seq = 0;
+	INIT_LIST_HEAD(&rq->flush.list);
+	rq->rq_flags |= RQF_FLUSH_SEQ;
+	rq->flush.saved_end_io = rq->end_io; /* Usually NULL */
+	rq->end_io = mq_flush_data_end_io;
+}
+
+/*
+ * Insert a PREFLUSH/FUA request into the flush state machine.
+ * Returns true if the request has been consumed by the flush state machine,
+ * or false if the caller should continue to process it.
  */
-void blk_insert_flush(struct request *rq)
+bool blk_insert_flush(struct request *rq)
 {
 	struct request_queue *q = rq->q;
 	unsigned long fflags = q->queue_flags;	/* may change, cache */
 	unsigned int policy = blk_flush_policy(fflags, rq);
 	struct blk_flush_queue *fq = blk_get_flush_queue(q, rq->mq_ctx);
-	struct blk_mq_hw_ctx *hctx = rq->mq_hctx;
+
+	/* FLUSH/FUA request must never be merged */
+	WARN_ON_ONCE(rq->bio != rq->biotail);
 
 	/*
 	 * @policy now records what operations need to be done.  Adjust
@@ -408,45 +420,45 @@ void blk_insert_flush(struct request *rq)
 	 */
 	rq->cmd_flags |= REQ_SYNC;
 
-	/*
-	 * An empty flush handed down from a stacking driver may
-	 * translate into nothing if the underlying device does not
-	 * advertise a write-back cache.  In this case, simply
-	 * complete the request.
-	 */
-	if (!policy) {
+	switch (policy) {
+	case 0:
+		/*
+		 * An empty flush handed down from a stacking driver may
+		 * translate into nothing if the underlying device does not
+		 * advertise a write-back cache.  In this case, simply
+		 * complete the request.
+		 */
 		blk_mq_end_request(rq, 0);
-		return;
+		return true;
+	case REQ_FSEQ_DATA:
+		/*
+		 * If there's data, but no flush is necessary, the request can
+		 * be processed directly without going through flush machinery.
+		 * Queue for normal execution.
+		 */
+		return false;
+	case REQ_FSEQ_DATA | REQ_FSEQ_POSTFLUSH:
+		/*
+		 * Initialize the flush fields and completion handler to trigger
+		 * the post flush, and then just pass the command on.
+		 */
+		blk_rq_init_flush(rq);
+		rq->flush.seq |= REQ_FSEQ_POSTFLUSH;
+		spin_lock_irq(&fq->mq_flush_lock);
+		list_move_tail(&rq->flush.list, &fq->flush_data_in_flight);
+		spin_unlock_irq(&fq->mq_flush_lock);
+		return false;
+	default:
+		/*
+		 * Mark the request as part of a flush sequence and submit it
+		 * for further processing to the flush state machine.
+		 */
+		blk_rq_init_flush(rq);
+		spin_lock_irq(&fq->mq_flush_lock);
+		blk_flush_complete_seq(rq, fq, REQ_FSEQ_ACTIONS & ~policy, 0);
+		spin_unlock_irq(&fq->mq_flush_lock);
+		return true;
 	}
-
-	BUG_ON(rq->bio != rq->biotail); /*assumes zero or single bio rq */
-
-	/*
-	 * If there's data but flush is not necessary, the request can be
-	 * processed directly without going through flush machinery.  Queue
-	 * for normal execution.
-	 */
-	if ((policy & REQ_FSEQ_DATA) &&
-	    !(policy & (REQ_FSEQ_PREFLUSH | REQ_FSEQ_POSTFLUSH))) {
-		blk_mq_request_bypass_insert(rq, 0);
-		blk_mq_run_hw_queue(hctx, false);
-		return;
-	}
-
-	/*
-	 * @rq should go through flush machinery.  Mark it part of flush
-	 * sequence and submit for further processing.
-	 */
-	memset(&rq->flush, 0, sizeof(rq->flush));
-	INIT_LIST_HEAD(&rq->flush.list);
-	rq->rq_flags |= RQF_FLUSH_SEQ;
-	rq->flush.saved_end_io = rq->end_io; /* Usually NULL */
-
-	rq->end_io = mq_flush_data_end_io;
-
-	spin_lock_irq(&fq->mq_flush_lock);
-	blk_flush_complete_seq(rq, fq, REQ_FSEQ_ACTIONS & ~policy, 0);
-	spin_unlock_irq(&fq->mq_flush_lock);
 }
 
 /**

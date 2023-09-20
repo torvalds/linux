@@ -3630,7 +3630,7 @@ static int prism2_ioctl_get_encryption(local_info_t *local,
 		param->u.crypt.key_len = 0;
 		param->u.crypt.idx = 0xff;
 	} else {
-		strncpy(param->u.crypt.alg, (*crypt)->ops->name,
+		strscpy(param->u.crypt.alg, (*crypt)->ops->name,
 			HOSTAP_CRYPT_ALG_NAME_LEN);
 		param->u.crypt.key_len = 0;
 

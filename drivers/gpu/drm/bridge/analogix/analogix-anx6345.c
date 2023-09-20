@@ -815,7 +815,7 @@ static struct i2c_driver anx6345_driver = {
 		   .name = "anx6345",
 		   .of_match_table = of_match_ptr(anx6345_match_table),
 		  },
-	.probe_new = anx6345_i2c_probe,
+	.probe = anx6345_i2c_probe,
 	.remove = anx6345_i2c_remove,
 	.id_table = anx6345_id,
 };

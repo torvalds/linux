@@ -1493,7 +1493,7 @@ static void qca8k_pcs_get_state(struct phylink_pcs *pcs,
 		state->pause |= MLO_PAUSE_TX;
 }
 
-static int qca8k_pcs_config(struct phylink_pcs *pcs, unsigned int mode,
+static int qca8k_pcs_config(struct phylink_pcs *pcs, unsigned int neg_mode,
 			    phy_interface_t interface,
 			    const unsigned long *advertising,
 			    bool permit_pause_to_mac)
@@ -1520,14 +1520,12 @@ static int qca8k_pcs_config(struct phylink_pcs *pcs, unsigned int mode,
 	}
 
 	/* Enable/disable SerDes auto-negotiation as necessary */
-	ret = qca8k_read(priv, QCA8K_REG_PWS, &val);
+	val = neg_mode == PHYLINK_PCS_NEG_INBAND_ENABLED ?
+		0 : QCA8K_PWS_SERDES_AEN_DIS;
+
+	ret = qca8k_rmw(priv, QCA8K_REG_PWS, QCA8K_PWS_SERDES_AEN_DIS, val);
 	if (ret)
 		return ret;
-	if (phylink_autoneg_inband(mode))
-		val &= ~QCA8K_PWS_SERDES_AEN_DIS;
-	else
-		val |= QCA8K_PWS_SERDES_AEN_DIS;
-	qca8k_write(priv, QCA8K_REG_PWS, val);
 
 	/* Configure the SGMII parameters */
 	ret = qca8k_read(priv, QCA8K_REG_SGMII_CTRL, &val);
@@ -1598,6 +1596,7 @@ static void qca8k_setup_pcs(struct qca8k_priv *priv, struct qca8k_pcs *qpcs,
 			    int port)
 {
 	qpcs->pcs.ops = &qca8k_pcs_ops;
+	qpcs->pcs.neg_mode = true;
 
 	/* We don't have interrupts for link changes, so we need to poll */
 	qpcs->pcs.poll = true;
@@ -1756,7 +1755,7 @@ static int qca8k_connect_tag_protocol(struct dsa_switch *ds,
 static int
 qca8k_setup(struct dsa_switch *ds)
 {
-	struct qca8k_priv *priv = (struct qca8k_priv *)ds->priv;
+	struct qca8k_priv *priv = ds->priv;
 	int cpu_port, ret, i;
 	u32 mask;
 

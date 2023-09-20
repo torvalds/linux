@@ -12,10 +12,12 @@
 
 static DEFINE_STRARRAY_OFFSET(x86_arch_prctl_codes_1, "ARCH_", x86_arch_prctl_codes_1_offset);
 static DEFINE_STRARRAY_OFFSET(x86_arch_prctl_codes_2, "ARCH_", x86_arch_prctl_codes_2_offset);
+static DEFINE_STRARRAY_OFFSET(x86_arch_prctl_codes_3, "ARCH_", x86_arch_prctl_codes_3_offset);
 
 static struct strarray *x86_arch_prctl_codes[] = {
 	&strarray__x86_arch_prctl_codes_1,
 	&strarray__x86_arch_prctl_codes_2,
+	&strarray__x86_arch_prctl_codes_3,
 };
 
 static DEFINE_STRARRAYS(x86_arch_prctl_codes);

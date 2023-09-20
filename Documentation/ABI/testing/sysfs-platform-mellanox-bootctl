@@ -75,3 +75,12 @@ KernelVersion:	6.4
 Contact:	"Liming Sun <limings@nvidia.com>"
 Description:
 		The file used to access the BlueField boot fifo.
+
+What:		/sys/bus/platform/devices/MLNXBF04:00/rsh_log
+Date:		May 2023
+KernelVersion:	6.4
+Contact:	"Liming Sun <limings@nvidia.com>"
+Description:
+		The file used to write BlueField boot log with the format
+                "[INFO|WARN|ERR|ASSERT ]<msg>". Log level 'INFO' is used by
+                default if not specified.

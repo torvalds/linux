@@ -11,6 +11,7 @@
 #include <sound/soc.h>
 #include <sound/pcm_params.h>
 #include "q6dsp-lpass-ports.h"
+#include "q6dsp-common.h"
 #include "audioreach.h"
 #include "q6apm.h"
 
@@ -87,6 +88,36 @@ static int q6dma_set_channel_map(struct snd_soc_dai *dai,
 	}
 
 	cfg->active_channels_mask = ch_mask;
+
+	return 0;
+}
+
+static int q6hdmi_hw_params(struct snd_pcm_substream *substream,
+			    struct snd_pcm_hw_params *params, struct snd_soc_dai *dai)
+{
+	struct q6apm_lpass_dai_data *dai_data = dev_get_drvdata(dai->dev);
+	struct audioreach_module_config *cfg = &dai_data->module_config[dai->id];
+	int channels = params_channels(params);
+	int ret;
+
+	cfg->bit_width = params_width(params);
+	cfg->sample_rate = params_rate(params);
+	cfg->num_channels = channels;
+
+	switch (dai->id) {
+	case DISPLAY_PORT_RX_0:
+		cfg->dp_idx = 0;
+		break;
+	case DISPLAY_PORT_RX_1 ... DISPLAY_PORT_RX_7:
+		cfg->dp_idx = dai->id - DISPLAY_PORT_RX_1 + 1;
+		break;
+	}
+
+	ret = q6dsp_get_channel_allocation(channels);
+	if (ret < 0)
+		return ret;
+
+	cfg->channel_allocation = ret;
 
 	return 0;
 }
@@ -215,6 +246,13 @@ static const struct snd_soc_dai_ops q6i2s_ops = {
 	.shutdown	= q6apm_lpass_dai_shutdown,
 	.set_channel_map  = q6dma_set_channel_map,
 	.hw_params        = q6dma_hw_params,
+};
+
+static const struct snd_soc_dai_ops q6hdmi_ops = {
+	.prepare	= q6apm_lpass_dai_prepare,
+	.startup	= q6apm_lpass_dai_startup,
+	.shutdown	= q6apm_lpass_dai_shutdown,
+	.hw_params	= q6hdmi_hw_params,
 	.set_fmt	= q6i2s_set_fmt,
 };
 
@@ -242,6 +280,7 @@ static int q6apm_lpass_dai_dev_probe(struct platform_device *pdev)
 	memset(&cfg, 0, sizeof(cfg));
 	cfg.q6i2s_ops = &q6i2s_ops;
 	cfg.q6dma_ops = &q6dma_ops;
+	cfg.q6hdmi_ops = &q6hdmi_ops;
 	dais = q6dsp_audio_ports_set_config(dev, &cfg, &num_dais);
 
 	return devm_snd_soc_register_component(dev, &q6apm_lpass_dai_component, dais, num_dais);

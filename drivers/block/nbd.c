@@ -1502,7 +1502,7 @@ static int __nbd_ioctl(struct block_device *bdev, struct nbd_device *nbd,
 	return -ENOTTY;
 }
 
-static int nbd_ioctl(struct block_device *bdev, fmode_t mode,
+static int nbd_ioctl(struct block_device *bdev, blk_mode_t mode,
 		     unsigned int cmd, unsigned long arg)
 {
 	struct nbd_device *nbd = bdev->bd_disk->private_data;
@@ -1553,13 +1553,13 @@ static struct nbd_config *nbd_alloc_config(void)
 	return config;
 }
 
-static int nbd_open(struct block_device *bdev, fmode_t mode)
+static int nbd_open(struct gendisk *disk, blk_mode_t mode)
 {
 	struct nbd_device *nbd;
 	int ret = 0;
 
 	mutex_lock(&nbd_index_mutex);
-	nbd = bdev->bd_disk->private_data;
+	nbd = disk->private_data;
 	if (!nbd) {
 		ret = -ENXIO;
 		goto out;
@@ -1587,17 +1587,17 @@ static int nbd_open(struct block_device *bdev, fmode_t mode)
 		refcount_inc(&nbd->refs);
 		mutex_unlock(&nbd->config_lock);
 		if (max_part)
-			set_bit(GD_NEED_PART_SCAN, &bdev->bd_disk->state);
+			set_bit(GD_NEED_PART_SCAN, &disk->state);
 	} else if (nbd_disconnected(nbd->config)) {
 		if (max_part)
-			set_bit(GD_NEED_PART_SCAN, &bdev->bd_disk->state);
+			set_bit(GD_NEED_PART_SCAN, &disk->state);
 	}
 out:
 	mutex_unlock(&nbd_index_mutex);
 	return ret;
 }
 
-static void nbd_release(struct gendisk *disk, fmode_t mode)
+static void nbd_release(struct gendisk *disk)
 {
 	struct nbd_device *nbd = disk->private_data;
 
@@ -1666,7 +1666,7 @@ static int nbd_dev_dbg_init(struct nbd_device *nbd)
 		return -EIO;
 
 	dir = debugfs_create_dir(nbd_name(nbd), nbd_dbg_dir);
-	if (!dir) {
+	if (IS_ERR(dir)) {
 		dev_err(nbd_to_dev(nbd), "Failed to create debugfs dir for '%s'\n",
 			nbd_name(nbd));
 		return -EIO;
@@ -1692,7 +1692,7 @@ static int nbd_dbg_init(void)
 	struct dentry *dbg_dir;
 
 	dbg_dir = debugfs_create_dir("nbd", NULL);
-	if (!dbg_dir)
+	if (IS_ERR(dbg_dir))
 		return -EIO;
 
 	nbd_dbg_dir = dbg_dir;
@@ -1776,7 +1776,8 @@ static struct nbd_device *nbd_dev_add(int index, unsigned int refs)
 		if (err == -ENOSPC)
 			err = -EEXIST;
 	} else {
-		err = idr_alloc(&nbd_index_idr, nbd, 0, 0, GFP_KERNEL);
+		err = idr_alloc(&nbd_index_idr, nbd, 0,
+				(MINORMASK >> part_shift) + 1, GFP_KERNEL);
 		if (err >= 0)
 			index = err;
 	}

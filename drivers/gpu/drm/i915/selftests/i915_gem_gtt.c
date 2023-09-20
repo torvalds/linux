@@ -135,7 +135,7 @@ fake_dma_object(struct drm_i915_private *i915, u64 size)
 
 	obj->write_domain = I915_GEM_DOMAIN_CPU;
 	obj->read_domains = I915_GEM_DOMAIN_CPU;
-	obj->cache_level = I915_CACHE_NONE;
+	obj->pat_index = i915_gem_get_pat_index(i915, I915_CACHE_NONE);
 
 	/* Preallocate the "backing storage" */
 	if (i915_gem_object_pin_pages_unlocked(obj))
@@ -359,7 +359,9 @@ alloc_vm_end:
 
 			with_intel_runtime_pm(vm->gt->uncore->rpm, wakeref)
 			  vm->insert_entries(vm, mock_vma_res,
-						   I915_CACHE_NONE, 0);
+					     i915_gem_get_pat_index(vm->i915,
+								    I915_CACHE_NONE),
+					     0);
 		}
 		count = n;
 
@@ -389,7 +391,7 @@ static void close_object_list(struct list_head *objects,
 			      struct i915_address_space *vm)
 {
 	struct drm_i915_gem_object *obj, *on;
-	int ignored;
+	int __maybe_unused ignored;
 
 	list_for_each_entry_safe(obj, on, objects, st_link) {
 		struct i915_vma *vma;
@@ -1377,7 +1379,10 @@ static int igt_ggtt_page(void *arg)
 
 		ggtt->vm.insert_page(&ggtt->vm,
 				     i915_gem_object_get_dma_address(obj, 0),
-				     offset, I915_CACHE_NONE, 0);
+				     offset,
+				     i915_gem_get_pat_index(i915,
+							    I915_CACHE_NONE),
+				     0);
 	}
 
 	order = i915_random_order(count, &prng);
@@ -1510,7 +1515,7 @@ static int reserve_gtt_with_resource(struct i915_vma *vma, u64 offset)
 	mutex_lock(&vm->mutex);
 	err = i915_gem_gtt_reserve(vm, NULL, &vma->node, obj->base.size,
 				   offset,
-				   obj->cache_level,
+				   obj->pat_index,
 				   0);
 	if (!err) {
 		i915_vma_resource_init_from_vma(vma_res, vma);
@@ -1690,7 +1695,7 @@ static int insert_gtt_with_resource(struct i915_vma *vma)
 
 	mutex_lock(&vm->mutex);
 	err = i915_gem_gtt_insert(vm, NULL, &vma->node, obj->base.size, 0,
-				  obj->cache_level, 0, vm->total, 0);
+				  obj->pat_index, 0, vm->total, 0);
 	if (!err) {
 		i915_vma_resource_init_from_vma(vma_res, vma);
 		vma->resource = vma_res;

@@ -109,7 +109,8 @@ static const struct hw_sequencer_funcs dcn32_funcs = {
 	.commit_subvp_config = dcn32_commit_subvp_config,
 	.enable_phantom_streams = dcn32_enable_phantom_streams,
 	.subvp_pipe_control_lock = dcn32_subvp_pipe_control_lock,
-	.update_visual_confirm_color = dcn20_update_visual_confirm_color,
+	.update_visual_confirm_color = dcn10_update_visual_confirm_color,
+	.subvp_pipe_control_lock_fast = dcn32_subvp_pipe_control_lock_fast,
 	.update_phantom_vp_position = dcn32_update_phantom_vp_position,
 	.update_dsc_pg = dcn32_update_dsc_pg,
 	.apply_update_flags_for_phantom = dcn32_apply_update_flags_for_phantom,
@@ -153,6 +154,7 @@ static const struct hwseq_private_funcs dcn32_private_funcs = {
 	.update_mall_sel = dcn32_update_mall_sel,
 	.calculate_dccg_k1_k2_values = dcn32_calculate_dccg_k1_k2_values,
 	.set_pixels_per_cycle = dcn32_set_pixels_per_cycle,
+	.resync_fifo_dccg_dio = dcn32_resync_fifo_dccg_dio,
 	.is_dp_dig_pixel_rate_div_policy = dcn32_is_dp_dig_pixel_rate_div_policy,
 };
 
@@ -161,8 +163,4 @@ void dcn32_hw_sequencer_init_functions(struct dc *dc)
 	dc->hwss = dcn32_funcs;
 	dc->hwseq->funcs = dcn32_private_funcs;
 
-	if (IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment)) {
-		dc->hwss.init_hw = dcn20_fpga_init_hw;
-		dc->hwseq->funcs.init_pipes = NULL;
-	}
 }

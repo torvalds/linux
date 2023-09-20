@@ -35,7 +35,7 @@ Documentation written by Tom Zanussi
   in place of an explicit value field - this is simply a count of
   event hits.  If 'values' isn't specified, an implicit 'hitcount'
   value will be automatically created and used as the only value.
-  Keys can be any field, or the special string 'stacktrace', which
+  Keys can be any field, or the special string 'common_stacktrace', which
   will use the event's kernel stacktrace as the key.  The keywords
   'keys' or 'key' can be used to specify keys, and the keywords
   'values', 'vals', or 'val' can be used to specify values.  Compound
@@ -54,7 +54,7 @@ Documentation written by Tom Zanussi
   'compatible' if the fields named in the trigger share the same
   number and type of fields and those fields also have the same names.
   Note that any two events always share the compatible 'hitcount' and
-  'stacktrace' fields and can therefore be combined using those
+  'common_stacktrace' fields and can therefore be combined using those
   fields, however pointless that may be.
 
   'hist' triggers add a 'hist' file to each event's subdirectory.
@@ -547,9 +547,9 @@ Extended error information
   the hist trigger display symbolic call_sites, we can have the hist
   trigger additionally display the complete set of kernel stack traces
   that led to each call_site.  To do that, we simply use the special
-  value 'stacktrace' for the key parameter::
+  value 'common_stacktrace' for the key parameter::
 
-    # echo 'hist:keys=stacktrace:values=bytes_req,bytes_alloc:sort=bytes_alloc' > \
+    # echo 'hist:keys=common_stacktrace:values=bytes_req,bytes_alloc:sort=bytes_alloc' > \
            /sys/kernel/tracing/events/kmem/kmalloc/trigger
 
   The above trigger will use the kernel stack trace in effect when an
@@ -561,9 +561,9 @@ Extended error information
   every callpath to a kmalloc for a kernel compile)::
 
     # cat /sys/kernel/tracing/events/kmem/kmalloc/hist
-    # trigger info: hist:keys=stacktrace:vals=bytes_req,bytes_alloc:sort=bytes_alloc:size=2048 [active]
+    # trigger info: hist:keys=common_stacktrace:vals=bytes_req,bytes_alloc:sort=bytes_alloc:size=2048 [active]
 
-    { stacktrace:
+    { common_stacktrace:
          __kmalloc_track_caller+0x10b/0x1a0
          kmemdup+0x20/0x50
          hidraw_report_event+0x8a/0x120 [hid]
@@ -581,7 +581,7 @@ Extended error information
          cpu_startup_entry+0x315/0x3e0
          rest_init+0x7c/0x80
     } hitcount:          3  bytes_req:         21  bytes_alloc:         24
-    { stacktrace:
+    { common_stacktrace:
          __kmalloc_track_caller+0x10b/0x1a0
          kmemdup+0x20/0x50
          hidraw_report_event+0x8a/0x120 [hid]
@@ -596,7 +596,7 @@ Extended error information
          do_IRQ+0x5a/0xf0
          ret_from_intr+0x0/0x30
     } hitcount:          3  bytes_req:         21  bytes_alloc:         24
-    { stacktrace:
+    { common_stacktrace:
          kmem_cache_alloc_trace+0xeb/0x150
          aa_alloc_task_context+0x27/0x40
          apparmor_cred_prepare+0x1f/0x50
@@ -608,7 +608,7 @@ Extended error information
     .
     .
     .
-    { stacktrace:
+    { common_stacktrace:
          __kmalloc+0x11b/0x1b0
          i915_gem_execbuffer2+0x6c/0x2c0 [i915]
          drm_ioctl+0x349/0x670 [drm]
@@ -616,7 +616,7 @@ Extended error information
          SyS_ioctl+0x81/0xa0
          system_call_fastpath+0x12/0x6a
     } hitcount:      17726  bytes_req:   13944120  bytes_alloc:   19593808
-    { stacktrace:
+    { common_stacktrace:
          __kmalloc+0x11b/0x1b0
          load_elf_phdrs+0x76/0xa0
          load_elf_binary+0x102/0x1650
@@ -625,7 +625,7 @@ Extended error information
          SyS_execve+0x3a/0x50
          return_from_execve+0x0/0x23
     } hitcount:      33348  bytes_req:   17152128  bytes_alloc:   20226048
-    { stacktrace:
+    { common_stacktrace:
          kmem_cache_alloc_trace+0xeb/0x150
          apparmor_file_alloc_security+0x27/0x40
          security_file_alloc+0x16/0x20
@@ -636,7 +636,7 @@ Extended error information
          SyS_open+0x1e/0x20
          system_call_fastpath+0x12/0x6a
     } hitcount:    4766422  bytes_req:    9532844  bytes_alloc:   38131376
-    { stacktrace:
+    { common_stacktrace:
          __kmalloc+0x11b/0x1b0
          seq_buf_alloc+0x1b/0x50
          seq_read+0x2cc/0x370
@@ -1026,7 +1026,7 @@ Extended error information
   First we set up an initially paused stacktrace trigger on the
   netif_receive_skb event::
 
-    # echo 'hist:key=stacktrace:vals=len:pause' > \
+    # echo 'hist:key=common_stacktrace:vals=len:pause' > \
            /sys/kernel/tracing/events/net/netif_receive_skb/trigger
 
   Next, we set up an 'enable_hist' trigger on the sched_process_exec
@@ -1060,9 +1060,9 @@ Extended error information
     $ wget https://www.kernel.org/pub/linux/kernel/v3.x/patch-3.19.xz
 
     # cat /sys/kernel/tracing/events/net/netif_receive_skb/hist
-    # trigger info: hist:keys=stacktrace:vals=len:sort=hitcount:size=2048 [paused]
+    # trigger info: hist:keys=common_stacktrace:vals=len:sort=hitcount:size=2048 [paused]
 
-    { stacktrace:
+    { common_stacktrace:
          __netif_receive_skb_core+0x46d/0x990
          __netif_receive_skb+0x18/0x60
          netif_receive_skb_internal+0x23/0x90
@@ -1079,7 +1079,7 @@ Extended error information
          kthread+0xd2/0xf0
          ret_from_fork+0x42/0x70
     } hitcount:         85  len:      28884
-    { stacktrace:
+    { common_stacktrace:
          __netif_receive_skb_core+0x46d/0x990
          __netif_receive_skb+0x18/0x60
          netif_receive_skb_internal+0x23/0x90
@@ -1097,7 +1097,7 @@ Extended error information
          irq_thread+0x11f/0x150
          kthread+0xd2/0xf0
     } hitcount:         98  len:     664329
-    { stacktrace:
+    { common_stacktrace:
          __netif_receive_skb_core+0x46d/0x990
          __netif_receive_skb+0x18/0x60
          process_backlog+0xa8/0x150
@@ -1115,7 +1115,7 @@ Extended error information
          inet_sendmsg+0x64/0xa0
          sock_sendmsg+0x3d/0x50
     } hitcount:        115  len:      13030
-    { stacktrace:
+    { common_stacktrace:
          __netif_receive_skb_core+0x46d/0x990
          __netif_receive_skb+0x18/0x60
          netif_receive_skb_internal+0x23/0x90
@@ -1142,14 +1142,14 @@ Extended error information
   into the histogram.  In order to avoid having to set everything up
   again, we can just clear the histogram first::
 
-    # echo 'hist:key=stacktrace:vals=len:clear' >> \
+    # echo 'hist:key=common_stacktrace:vals=len:clear' >> \
            /sys/kernel/tracing/events/net/netif_receive_skb/trigger
 
   Just to verify that it is in fact cleared, here's what we now see in
   the hist file::
 
     # cat /sys/kernel/tracing/events/net/netif_receive_skb/hist
-    # trigger info: hist:keys=stacktrace:vals=len:sort=hitcount:size=2048 [paused]
+    # trigger info: hist:keys=common_stacktrace:vals=len:sort=hitcount:size=2048 [paused]
 
     Totals:
         Hits: 0
@@ -1485,12 +1485,12 @@ Extended error information
 
   And here's an example that shows how to combine histogram data from
   any two events even if they don't share any 'compatible' fields
-  other than 'hitcount' and 'stacktrace'.  These commands create a
+  other than 'hitcount' and 'common_stacktrace'.  These commands create a
   couple of triggers named 'bar' using those fields::
 
-    # echo 'hist:name=bar:key=stacktrace:val=hitcount' > \
+    # echo 'hist:name=bar:key=common_stacktrace:val=hitcount' > \
            /sys/kernel/tracing/events/sched/sched_process_fork/trigger
-    # echo 'hist:name=bar:key=stacktrace:val=hitcount' > \
+    # echo 'hist:name=bar:key=common_stacktrace:val=hitcount' > \
           /sys/kernel/tracing/events/net/netif_rx/trigger
 
   And displaying the output of either shows some interesting if
@@ -1501,16 +1501,16 @@ Extended error information
 
     # event histogram
     #
-    # trigger info: hist:name=bar:keys=stacktrace:vals=hitcount:sort=hitcount:size=2048 [active]
+    # trigger info: hist:name=bar:keys=common_stacktrace:vals=hitcount:sort=hitcount:size=2048 [active]
     #
 
-    { stacktrace:
+    { common_stacktrace:
              kernel_clone+0x18e/0x330
              kernel_thread+0x29/0x30
              kthreadd+0x154/0x1b0
              ret_from_fork+0x3f/0x70
     } hitcount:          1
-    { stacktrace:
+    { common_stacktrace:
              netif_rx_internal+0xb2/0xd0
              netif_rx_ni+0x20/0x70
              dev_loopback_xmit+0xaa/0xd0
@@ -1528,7 +1528,7 @@ Extended error information
              call_cpuidle+0x3b/0x60
              cpu_startup_entry+0x22d/0x310
     } hitcount:          1
-    { stacktrace:
+    { common_stacktrace:
              netif_rx_internal+0xb2/0xd0
              netif_rx_ni+0x20/0x70
              dev_loopback_xmit+0xaa/0xd0
@@ -1543,7 +1543,7 @@ Extended error information
              SyS_sendto+0xe/0x10
              entry_SYSCALL_64_fastpath+0x12/0x6a
     } hitcount:          2
-    { stacktrace:
+    { common_stacktrace:
              netif_rx_internal+0xb2/0xd0
              netif_rx+0x1c/0x60
              loopback_xmit+0x6c/0xb0
@@ -1561,7 +1561,7 @@ Extended error information
              sock_sendmsg+0x38/0x50
              ___sys_sendmsg+0x14e/0x270
     } hitcount:         76
-    { stacktrace:
+    { common_stacktrace:
              netif_rx_internal+0xb2/0xd0
              netif_rx+0x1c/0x60
              loopback_xmit+0x6c/0xb0
@@ -1579,7 +1579,7 @@ Extended error information
              sock_sendmsg+0x38/0x50
              ___sys_sendmsg+0x269/0x270
     } hitcount:         77
-    { stacktrace:
+    { common_stacktrace:
              netif_rx_internal+0xb2/0xd0
              netif_rx+0x1c/0x60
              loopback_xmit+0x6c/0xb0
@@ -1597,7 +1597,7 @@ Extended error information
              sock_sendmsg+0x38/0x50
              SYSC_sendto+0xef/0x170
     } hitcount:         88
-    { stacktrace:
+    { common_stacktrace:
              kernel_clone+0x18e/0x330
              SyS_clone+0x19/0x20
              entry_SYSCALL_64_fastpath+0x12/0x6a
@@ -1949,7 +1949,7 @@ uninterruptible state::
 
   # cd /sys/kernel/tracing
   # echo 's:block_lat pid_t pid; u64 delta; unsigned long[] stack;' > dynamic_events
-  # echo 'hist:keys=next_pid:ts=common_timestamp.usecs,st=stacktrace  if prev_state == 2' >> events/sched/sched_switch/trigger
+  # echo 'hist:keys=next_pid:ts=common_timestamp.usecs,st=common_stacktrace  if prev_state == 2' >> events/sched/sched_switch/trigger
   # echo 'hist:keys=prev_pid:delta=common_timestamp.usecs-$ts,s=$st:onmax($delta).trace(block_lat,prev_pid,$delta,$s)' >> events/sched/sched_switch/trigger
   # echo 1 > events/synthetic/block_lat/enable
   # cat trace

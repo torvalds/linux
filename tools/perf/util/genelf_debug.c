@@ -337,6 +337,9 @@ static void emit_lineno_info(struct buffer_ext *be,
 {
 	size_t i;
 
+	/* as described in the jitdump format */
+	const char repeated_name_marker[] = {'\xff', '\0'};
+
 	/*
 	 * Machine state at start of a statement program
 	 * address = 0
@@ -363,7 +366,8 @@ static void emit_lineno_info(struct buffer_ext *be,
 		/*
 		 * check if filename changed, if so add it
 		 */
-		if (!cur_filename || strcmp(cur_filename, ent->name)) {
+		if ((!cur_filename || strcmp(cur_filename, ent->name)) &&
+			strcmp(repeated_name_marker, ent->name)) {
 			emit_lne_define_filename(be, ent->name);
 			cur_filename = ent->name;
 			emit_set_file(be, ++cur_file_idx);

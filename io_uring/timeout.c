@@ -73,8 +73,8 @@ static void io_timeout_complete(struct io_kiocb *req, struct io_tw_state *ts)
 
 	if (!io_timeout_finish(timeout, data)) {
 		bool filled;
-		filled = io_aux_cqe(ctx, ts->locked, req->cqe.user_data, -ETIME,
-				    IORING_CQE_F_MORE, false);
+		filled = io_aux_cqe(req, ts->locked, -ETIME, IORING_CQE_F_MORE,
+				    false);
 		if (filled) {
 			/* re-arm timer */
 			spin_lock_irq(&ctx->timeout_lock);
@@ -594,7 +594,7 @@ int io_timeout(struct io_kiocb *req, unsigned int issue_flags)
 		goto add;
 	}
 
-	tail = ctx->cached_cq_tail - atomic_read(&ctx->cq_timeouts);
+	tail = data_race(ctx->cached_cq_tail) - atomic_read(&ctx->cq_timeouts);
 	timeout->target_seq = tail + off;
 
 	/* Update the last seq here in case io_flush_timeouts() hasn't.

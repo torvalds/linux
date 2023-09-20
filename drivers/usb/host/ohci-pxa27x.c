@@ -29,6 +29,7 @@
 #include <linux/of_platform.h>
 #include <linux/of_gpio.h>
 #include <linux/platform_data/usb-ohci-pxa27x.h>
+#include <linux/platform_data/pxa2xx_udc.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
 #include <linux/signal.h>
@@ -262,12 +263,6 @@ static inline void pxa27x_reset_hc(struct pxa27x_ohci *pxa_ohci)
 	udelay(11);
 	__raw_writel(uhchr & ~UHCHR_FHR, pxa_ohci->mmio_base + UHCHR);
 }
-
-#ifdef CONFIG_PXA27x
-extern void pxa27x_clear_otgph(void);
-#else
-#define pxa27x_clear_otgph()	do {} while (0)
-#endif
 
 static int pxa27x_start_hc(struct pxa27x_ohci *pxa_ohci, struct device *dev)
 {

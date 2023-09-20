@@ -1692,14 +1692,23 @@ static int initialize_dco_operating_mode(struct idtcm_channel *channel)
 /* PTP Hardware Clock interface */
 
 /*
- * Maximum absolute value for write phase offset in picoseconds
- *
- * @channel:  channel
- * @delta_ns: delta in nanoseconds
+ * Maximum absolute value for write phase offset in nanoseconds
  *
  * Destination signed register is 32-bit register in resolution of 50ps
  *
- * 0x7fffffff * 50 =  2147483647 * 50 = 107374182350
+ * 0x7fffffff * 50 =  2147483647 * 50 = 107374182350 ps
+ * Represent 107374182350 ps as 107374182 ns
+ */
+static s32 idtcm_getmaxphase(struct ptp_clock_info *ptp __always_unused)
+{
+	return MAX_ABS_WRITE_PHASE_NANOSECONDS;
+}
+
+/*
+ * Internal function for implementing support for write phase offset
+ *
+ * @channel:  channel
+ * @delta_ns: delta in nanoseconds
  */
 static int _idtcm_adjphase(struct idtcm_channel *channel, s32 delta_ns)
 {
@@ -1708,7 +1717,6 @@ static int _idtcm_adjphase(struct idtcm_channel *channel, s32 delta_ns)
 	u8 i;
 	u8 buf[4] = {0};
 	s32 phase_50ps;
-	s64 offset_ps;
 
 	if (channel->mode != PTP_PLL_MODE_WRITE_PHASE) {
 		err = channel->configure_write_phase(channel);
@@ -1716,19 +1724,7 @@ static int _idtcm_adjphase(struct idtcm_channel *channel, s32 delta_ns)
 			return err;
 	}
 
-	offset_ps = (s64)delta_ns * 1000;
-
-	/*
-	 * Check for 32-bit signed max * 50:
-	 *
-	 * 0x7fffffff * 50 =  2147483647 * 50 = 107374182350
-	 */
-	if (offset_ps > MAX_ABS_WRITE_PHASE_PICOSECONDS)
-		offset_ps = MAX_ABS_WRITE_PHASE_PICOSECONDS;
-	else if (offset_ps < -MAX_ABS_WRITE_PHASE_PICOSECONDS)
-		offset_ps = -MAX_ABS_WRITE_PHASE_PICOSECONDS;
-
-	phase_50ps = div_s64(offset_ps, 50);
+	phase_50ps = div_s64((s64)delta_ns * 1000, 50);
 
 	for (i = 0; i < 4; i++) {
 		buf[i] = phase_50ps & 0xff;
@@ -2048,6 +2044,7 @@ static const struct ptp_clock_info idtcm_caps = {
 	.n_ext_ts	= MAX_TOD,
 	.n_pins		= MAX_REF_CLK,
 	.adjphase	= &idtcm_adjphase,
+	.getmaxphase	= &idtcm_getmaxphase,
 	.adjfine	= &idtcm_adjfine,
 	.adjtime	= &idtcm_adjtime,
 	.gettime64	= &idtcm_gettime,
@@ -2064,6 +2061,7 @@ static const struct ptp_clock_info idtcm_caps_deprecated = {
 	.n_ext_ts	= MAX_TOD,
 	.n_pins		= MAX_REF_CLK,
 	.adjphase	= &idtcm_adjphase,
+	.getmaxphase    = &idtcm_getmaxphase,
 	.adjfine	= &idtcm_adjfine,
 	.adjtime	= &idtcm_adjtime_deprecated,
 	.gettime64	= &idtcm_gettime,

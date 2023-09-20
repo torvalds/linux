@@ -117,8 +117,14 @@ int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
 	 */
 	preempt_disable();
 
-	if (is_fpu_owner())
-		save_fp(current);
+	if (is_fpu_owner()) {
+		if (is_lasx_enabled())
+			save_lasx(current);
+		else if (is_lsx_enabled())
+			save_lsx(current);
+		else
+			save_fp(current);
+	}
 
 	preempt_enable();
 
@@ -285,7 +291,7 @@ unsigned long stack_top(void)
 
 	/* Space for the VDSO & data page */
 	top -= PAGE_ALIGN(current->thread.vdso->size);
-	top -= PAGE_SIZE;
+	top -= VVAR_SIZE;
 
 	/* Space to randomize the VDSO base */
 	if (current->flags & PF_RANDOMIZE)

@@ -140,7 +140,7 @@ static int test__maps__merge_in(struct test_suite *t __maybe_unused, int subtest
 	ret = check_maps(merged3, ARRAY_SIZE(merged3), maps);
 	TEST_ASSERT_VAL("merge check failed", !ret);
 
-	maps__delete(maps);
+	maps__zput(maps);
 	return TEST_OK;
 }
 

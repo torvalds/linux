@@ -1944,7 +1944,7 @@ static struct i2c_driver cs35l36_i2c_driver = {
 		.of_match_table = cs35l36_of_match,
 	},
 	.id_table = cs35l36_id,
-	.probe_new = cs35l36_i2c_probe,
+	.probe = cs35l36_i2c_probe,
 	.remove = cs35l36_i2c_remove,
 };
 module_i2c_driver(cs35l36_i2c_driver);

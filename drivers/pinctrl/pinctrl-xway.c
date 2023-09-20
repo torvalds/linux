@@ -8,11 +8,11 @@
  */
 
 #include <linux/err.h>
+#include <linux/gpio/driver.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/of_platform.h>
 #include <linux/of_address.h>
-#include <linux/of_gpio.h>
 #include <linux/ioport.h>
 #include <linux/io.h>
 #include <linux/device.h>

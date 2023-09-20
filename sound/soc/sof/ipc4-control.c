@@ -54,6 +54,26 @@ static int sof_ipc4_set_get_kcontrol_data(struct snd_sof_control *scontrol,
 	msg->primary |= SOF_IPC4_MOD_INSTANCE(swidget->instance_id);
 
 	ret = iops->set_get_data(sdev, msg, msg->data_size, set);
+	if (!set)
+		goto unlock;
+
+	/* It is a set-data operation, and we have a valid backup that we can restore */
+	if (ret < 0) {
+		if (!scontrol->old_ipc_control_data)
+			goto unlock;
+		/*
+		 * Current ipc_control_data is not valid, we use the last known good
+		 * configuration
+		 */
+		memcpy(scontrol->ipc_control_data, scontrol->old_ipc_control_data,
+		       scontrol->max_size);
+		kfree(scontrol->old_ipc_control_data);
+		scontrol->old_ipc_control_data = NULL;
+		/* Send the last known good configuration to firmware */
+		ret = iops->set_get_data(sdev, msg, msg->data_size, set);
+		if (ret < 0)
+			goto unlock;
+	}
 
 unlock:
 	if (lock)
@@ -327,13 +347,24 @@ static int sof_ipc4_bytes_ext_put(struct snd_sof_control *scontrol,
 		return -EINVAL;
 	}
 
+	if (!scontrol->old_ipc_control_data) {
+		/* Create a backup of the current, valid bytes control */
+		scontrol->old_ipc_control_data = kmemdup(scontrol->ipc_control_data,
+							 scontrol->max_size, GFP_KERNEL);
+		if (!scontrol->old_ipc_control_data)
+			return -ENOMEM;
+	}
+
 	/* Copy the whole binary data which includes the ABI header and the payload */
-	if (copy_from_user(data, tlvd->tlv, header.length))
+	if (copy_from_user(data, tlvd->tlv, header.length)) {
+		memcpy(scontrol->ipc_control_data, scontrol->old_ipc_control_data,
+		       scontrol->max_size);
+		kfree(scontrol->old_ipc_control_data);
+		scontrol->old_ipc_control_data = NULL;
 		return -EFAULT;
+	}
 
-	sof_ipc4_set_get_bytes_data(sdev, scontrol, true, true);
-
-	return 0;
+	return sof_ipc4_set_get_bytes_data(sdev, scontrol, true, true);
 }
 
 static int _sof_ipc4_bytes_ext_get(struct snd_sof_control *scontrol,

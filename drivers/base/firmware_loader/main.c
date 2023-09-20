@@ -812,7 +812,7 @@ static void fw_log_firmware_info(const struct firmware *fw, const char *name, st
 	char *outbuf;
 
 	alg = crypto_alloc_shash("sha256", 0, 0);
-	if (!alg)
+	if (IS_ERR(alg))
 		return;
 
 	sha256buf = kmalloc(SHA256_DIGEST_SIZE, GFP_KERNEL);

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2005-2014, 2018-2019, 2021-2022 Intel Corporation
+ * Copyright (C) 2005-2014, 2018-2019, 2021-2023 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2015-2017 Intel Deutschland GmbH
  */
@@ -227,6 +227,8 @@ static inline void iwl_fw_flush_dumps(struct iwl_fw_runtime *fwrt)
 		flush_delayed_work(&fwrt->dump.wks[i].wk);
 }
 
+int iwl_fw_send_timestamp_marker_cmd(struct iwl_fw_runtime *fwrt);
+
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 static inline void iwl_fw_cancel_timestamp(struct iwl_fw_runtime *fwrt)
 {
@@ -327,4 +329,18 @@ void iwl_fwrt_dump_error_logs(struct iwl_fw_runtime *fwrt);
 void iwl_send_dbg_dump_complete_cmd(struct iwl_fw_runtime *fwrt,
 				    u32 timepoint,
 				    u32 timepoint_data);
+
+#define IWL_FW_CHECK_FAILED(_obj, _fmt, ...)				\
+	IWL_ERR_LIMIT(_obj, _fmt, __VA_ARGS__)
+
+#define IWL_FW_CHECK(_obj, _cond, _fmt, ...)				\
+	({								\
+		bool __cond = (_cond);					\
+									\
+		if (unlikely(__cond))					\
+			IWL_FW_CHECK_FAILED(_obj, _fmt, __VA_ARGS__);	\
+									\
+		unlikely(__cond);					\
+	})
+
 #endif  /* __iwl_fw_dbg_h__ */

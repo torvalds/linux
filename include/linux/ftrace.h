@@ -633,6 +633,7 @@ enum {
 	FTRACE_ITER_MOD		= (1 << 5),
 	FTRACE_ITER_ENABLED	= (1 << 6),
 	FTRACE_ITER_TOUCHED	= (1 << 7),
+	FTRACE_ITER_ADDRS	= (1 << 8),
 };
 
 void arch_ftrace_update_code(int command);
@@ -1018,6 +1019,9 @@ struct ftrace_graph_ent {
  */
 struct ftrace_graph_ret {
 	unsigned long func; /* Current function */
+#ifdef CONFIG_FUNCTION_GRAPH_RETVAL
+	unsigned long retval;
+#endif
 	int depth;
 	/* Number of functions that overran the depth limit for current task */
 	unsigned int overrun;

@@ -63,6 +63,9 @@ int iwl_mvm_add_link(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 								    mvmvif);
 		if (link_info->fw_link_id == IWL_MVM_FW_LINK_ID_INVALID)
 			return -EINVAL;
+
+		rcu_assign_pointer(mvm->link_id_to_link_conf[link_info->fw_link_id],
+				   link_conf);
 	}
 
 	/* Update SF - Disable if needed. if this fails, SF might still be on
@@ -73,6 +76,7 @@ int iwl_mvm_add_link(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	cmd.link_id = cpu_to_le32(link_info->fw_link_id);
 	cmd.mac_id = cpu_to_le32(mvmvif->id);
+	cmd.spec_link_id = link_conf->link_id;
 	/* P2P-Device already has a valid PHY context during add */
 	phyctxt = link_info->phy_ctxt;
 	if (phyctxt)
@@ -84,6 +88,8 @@ int iwl_mvm_add_link(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	if (vif->type == NL80211_IFTYPE_ADHOC && link_conf->bssid)
 		memcpy(cmd.ibss_bssid_addr, link_conf->bssid, ETH_ALEN);
+
+	cmd.listen_lmac = cpu_to_le32(link_info->listen_lmac);
 
 	return iwl_mvm_link_cmd_send(mvm, &cmd, FW_CTXT_ACTION_ADD);
 }
@@ -113,22 +119,6 @@ int iwl_mvm_link_changed(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		 */
 		if (!link_info->phy_ctxt)
 			return 0;
-
-		/* check there aren't too many active links */
-		if (!link_info->active && active) {
-			int i, count = 0;
-
-			/* link with phy_ctxt is active in FW */
-			for_each_mvm_vif_valid_link(mvmvif, i)
-				if (mvmvif->link[i]->phy_ctxt)
-					count++;
-
-			/* FIXME: IWL_MVM_FW_MAX_ACTIVE_LINKS_NUM should be
-			 * defined per HW
-			 */
-			if (count >= IWL_MVM_FW_MAX_ACTIVE_LINKS_NUM)
-				return -EINVAL;
-		}
 
 		/* Catch early if driver tries to activate or deactivate a link
 		 * twice.
@@ -161,10 +151,6 @@ int iwl_mvm_link_changed(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	if (vif->type == NL80211_IFTYPE_ADHOC && link_conf->bssid)
 		memcpy(cmd.ibss_bssid_addr, link_conf->bssid, ETH_ALEN);
 
-	/* TODO: set a value to cmd.listen_lmac when system requiremens
-	 * will define it
-	 */
-
 	iwl_mvm_set_fw_basic_rates(mvm, vif, link_conf,
 				   &cmd.cck_rates, &cmd.ofdm_rates);
 
@@ -177,7 +163,7 @@ int iwl_mvm_link_changed(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 					&cmd.protection_flags,
 					ht_flag, LINK_PROT_FLG_TGG_PROTECT);
 
-	iwl_mvm_set_fw_qos_params(mvm, vif, link_conf, &cmd.ac[0],
+	iwl_mvm_set_fw_qos_params(mvm, vif, link_conf, cmd.ac,
 				  &cmd.qos_flags);
 
 
@@ -202,7 +188,7 @@ int iwl_mvm_link_changed(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	/* TODO  how to set ndp_fdbk_buff_th_exp? */
 
-	if (iwl_mvm_set_fw_mu_edca_params(mvm, mvmvif,
+	if (iwl_mvm_set_fw_mu_edca_params(mvm, mvmvif->link[link_id],
 					  &cmd.trig_based_txf[0])) {
 		flags |= LINK_FLG_MU_EDCA_CW;
 		flags_mask |= LINK_FLG_MU_EDCA_CW;
@@ -239,6 +225,8 @@ send_cmd:
 	cmd.modify_mask = cpu_to_le32(changes);
 	cmd.flags = cpu_to_le32(flags);
 	cmd.flags_mask = cpu_to_le32(flags_mask);
+	cmd.spec_link_id = link_conf->link_id;
+	cmd.listen_lmac = cpu_to_le32(link_info->listen_lmac);
 
 	ret = iwl_mvm_link_cmd_send(mvm, &cmd, FW_CTXT_ACTION_MODIFY);
 	if (!ret && (changes & LINK_CONTEXT_MODIFY_ACTIVE))
@@ -260,9 +248,12 @@ int iwl_mvm_remove_link(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		    link_info->fw_link_id == IWL_MVM_FW_LINK_ID_INVALID))
 		return -EINVAL;
 
+	RCU_INIT_POINTER(mvm->link_id_to_link_conf[link_info->fw_link_id],
+			 NULL);
 	cmd.link_id = cpu_to_le32(link_info->fw_link_id);
 	iwl_mvm_release_fw_link_id(mvm, link_info->fw_link_id);
 	link_info->fw_link_id = IWL_MVM_FW_LINK_ID_INVALID;
+	cmd.spec_link_id = link_conf->link_id;
 
 	ret = iwl_mvm_link_cmd_send(mvm, &cmd, FW_CTXT_ACTION_REMOVE);
 

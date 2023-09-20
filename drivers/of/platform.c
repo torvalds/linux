@@ -140,8 +140,8 @@ struct platform_device *of_device_alloc(struct device_node *np,
 		}
 	}
 
-	dev->dev.of_node = of_node_get(np);
-	dev->dev.fwnode = &np->fwnode;
+	/* setup generic device info */
+	device_set_node(&dev->dev, of_fwnode_handle(np));
 	dev->dev.parent = parent ? : &platform_bus;
 
 	if (bus_id)
@@ -239,8 +239,7 @@ static struct amba_device *of_amba_device_create(struct device_node *node,
 	dev->dev.dma_mask = &dev->dev.coherent_dma_mask;
 
 	/* setup generic device info */
-	dev->dev.of_node = of_node_get(node);
-	dev->dev.fwnode = &node->fwnode;
+	device_set_node(&dev->dev, of_fwnode_handle(node));
 	dev->dev.parent = parent ? : &platform_bus;
 	dev->dev.platform_data = platform_data;
 	if (bus_id)

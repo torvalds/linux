@@ -118,7 +118,7 @@ static struct i2c_driver elan_i2c_hid_ts_driver = {
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = of_match_ptr(elan_i2c_hid_of_match),
 	},
-	.probe_new	= i2c_hid_of_elan_probe,
+	.probe		= i2c_hid_of_elan_probe,
 	.remove		= i2c_hid_core_remove,
 	.shutdown	= i2c_hid_core_shutdown,
 };

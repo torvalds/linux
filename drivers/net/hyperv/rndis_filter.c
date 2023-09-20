@@ -21,6 +21,7 @@
 #include <linux/rtnetlink.h>
 #include <linux/ucs2_string.h>
 #include <linux/string.h>
+#include <linux/slab.h>
 
 #include "hyperv_net.h"
 #include "netvsc_trace.h"
@@ -927,7 +928,7 @@ static int rndis_set_rss_param_msg(struct rndis_device *rdev,
 	struct rndis_set_request *set;
 	struct rndis_set_complete *set_complete;
 	u32 extlen = sizeof(struct ndis_recv_scale_param) +
-		     4 * ITAB_NUM + NETVSC_HASH_KEYLEN;
+		     4 * ndc->rx_table_sz + NETVSC_HASH_KEYLEN;
 	struct ndis_recv_scale_param *rssp;
 	u32 *itab;
 	u8 *keyp;
@@ -953,7 +954,7 @@ static int rndis_set_rss_param_msg(struct rndis_device *rdev,
 	rssp->hashinfo = NDIS_HASH_FUNC_TOEPLITZ | NDIS_HASH_IPV4 |
 			 NDIS_HASH_TCP_IPV4 | NDIS_HASH_IPV6 |
 			 NDIS_HASH_TCP_IPV6;
-	rssp->indirect_tabsize = 4*ITAB_NUM;
+	rssp->indirect_tabsize = 4 * ndc->rx_table_sz;
 	rssp->indirect_taboffset = sizeof(struct ndis_recv_scale_param);
 	rssp->hashkey_size = NETVSC_HASH_KEYLEN;
 	rssp->hashkey_offset = rssp->indirect_taboffset +
@@ -961,7 +962,7 @@ static int rndis_set_rss_param_msg(struct rndis_device *rdev,
 
 	/* Set indirection table entries */
 	itab = (u32 *)(rssp + 1);
-	for (i = 0; i < ITAB_NUM; i++)
+	for (i = 0; i < ndc->rx_table_sz; i++)
 		itab[i] = ndc->rx_table[i];
 
 	/* Set hask key values */
@@ -1548,6 +1549,18 @@ struct netvsc_device *rndis_filter_device_add(struct hv_device *dev,
 	if (ret || rsscap.num_recv_que < 2)
 		goto out;
 
+	if (rsscap.num_indirect_tabent &&
+	    rsscap.num_indirect_tabent <= ITAB_NUM_MAX)
+		ndc->rx_table_sz = rsscap.num_indirect_tabent;
+	else
+		ndc->rx_table_sz = ITAB_NUM;
+
+	ndc->rx_table = kcalloc(ndc->rx_table_sz, sizeof(u16), GFP_KERNEL);
+	if (!ndc->rx_table) {
+		ret = -ENOMEM;
+		goto err_dev_remv;
+	}
+
 	/* This guarantees that num_possible_rss_qs <= num_online_cpus */
 	num_possible_rss_qs = min_t(u32, num_online_cpus(),
 				    rsscap.num_recv_que);
@@ -1558,7 +1571,7 @@ struct netvsc_device *rndis_filter_device_add(struct hv_device *dev,
 	net_device->num_chn = min(net_device->max_chn, device_info->num_chn);
 
 	if (!netif_is_rxfh_configured(net)) {
-		for (i = 0; i < ITAB_NUM; i++)
+		for (i = 0; i < ndc->rx_table_sz; i++)
 			ndc->rx_table[i] = ethtool_rxfh_indir_default(
 						i, net_device->num_chn);
 	}
@@ -1596,11 +1609,19 @@ void rndis_filter_device_remove(struct hv_device *dev,
 				struct netvsc_device *net_dev)
 {
 	struct rndis_device *rndis_dev = net_dev->extension;
+	struct net_device *net = hv_get_drvdata(dev);
+	struct net_device_context *ndc;
+
+	ndc = netdev_priv(net);
 
 	/* Halt and release the rndis device */
 	rndis_filter_halt_device(net_dev, rndis_dev);
 
 	netvsc_device_remove(dev);
+
+	ndc->rx_table_sz = 0;
+	kfree(ndc->rx_table);
+	ndc->rx_table = NULL;
 }
 
 int rndis_filter_open(struct netvsc_device *nvdev)

@@ -59,7 +59,7 @@ static void nft_symhash_eval(const struct nft_expr *expr,
 static const struct nla_policy nft_hash_policy[NFTA_HASH_MAX + 1] = {
 	[NFTA_HASH_SREG]	= { .type = NLA_U32 },
 	[NFTA_HASH_DREG]	= { .type = NLA_U32 },
-	[NFTA_HASH_LEN]		= { .type = NLA_U32 },
+	[NFTA_HASH_LEN]		= NLA_POLICY_MAX(NLA_BE32, 255),
 	[NFTA_HASH_MODULUS]	= { .type = NLA_U32 },
 	[NFTA_HASH_SEED]	= { .type = NLA_U32 },
 	[NFTA_HASH_OFFSET]	= { .type = NLA_U32 },

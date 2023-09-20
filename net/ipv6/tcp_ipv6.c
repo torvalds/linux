@@ -93,12 +93,8 @@ static struct tcp_md5sig_key *tcp_v6_md5_do_lookup(const struct sock *sk,
  * This avoids a dereference and allow compiler optimizations.
  * It is a specialized version of inet6_sk_generic().
  */
-static struct ipv6_pinfo *tcp_inet6_sk(const struct sock *sk)
-{
-	unsigned int offset = sizeof(struct tcp6_sock) - sizeof(struct ipv6_pinfo);
-
-	return (struct ipv6_pinfo *)(((u8 *)sk) + offset);
-}
+#define tcp_inet6_sk(sk) (&container_of_const(tcp_sk(sk), \
+					      struct tcp6_sock, tcp)->inet6)
 
 static void inet6_sk_rx_dst_set(struct sock *sk, const struct sk_buff *skb)
 {
@@ -533,7 +529,7 @@ static int tcp_v6_send_synack(const struct sock *sk, struct dst_entry *dst,
 			      struct sk_buff *syn_skb)
 {
 	struct inet_request_sock *ireq = inet_rsk(req);
-	struct ipv6_pinfo *np = tcp_inet6_sk(sk);
+	const struct ipv6_pinfo *np = tcp_inet6_sk(sk);
 	struct ipv6_txoptions *opt;
 	struct flowi6 *fl6 = &fl->u.ip6;
 	struct sk_buff *skb;
@@ -2154,7 +2150,7 @@ struct proto tcpv6_prot = {
 	.keepalive		= tcp_set_keepalive,
 	.recvmsg		= tcp_recvmsg,
 	.sendmsg		= tcp_sendmsg,
-	.sendpage		= tcp_sendpage,
+	.splice_eof		= tcp_splice_eof,
 	.backlog_rcv		= tcp_v6_do_rcv,
 	.release_cb		= tcp_release_cb,
 	.hash			= inet6_hash,

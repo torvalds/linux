@@ -538,7 +538,7 @@ static struct i2c_driver kxtj9_driver = {
 		.name	= NAME,
 		.pm	= pm_sleep_ptr(&kxtj9_pm_ops),
 	},
-	.probe_new	= kxtj9_probe,
+	.probe		= kxtj9_probe,
 	.id_table	= kxtj9_id,
 };
 

@@ -17,7 +17,11 @@ binutils)
 	echo 2.25.0
 	;;
 gcc)
-	echo 5.1.0
+	if [ "$SRCARCH" = parisc ]; then
+		echo 11.0.0
+	else
+		echo 5.1.0
+	fi
 	;;
 llvm)
 	if [ "$SRCARCH" = s390 ]; then
@@ -27,7 +31,7 @@ llvm)
 	fi
 	;;
 rustc)
-	echo 1.62.0
+	echo 1.68.2
 	;;
 bindgen)
 	echo 0.56.0

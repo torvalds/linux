@@ -24,11 +24,12 @@ properties:
       - nxp,88w8997-bt
 
   fw-init-baudrate:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    default: 115200
     description:
       Chip baudrate after FW is downloaded and initialized.
       This property depends on the module vendor's
-      configuration. If this property is not specified,
-      115200 is set as default.
+      configuration.
 
 required:
   - compatible

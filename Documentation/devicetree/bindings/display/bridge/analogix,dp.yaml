@@ -26,6 +26,7 @@ properties:
     const: dp
 
   force-hpd:
+    type: boolean
     description:
       Indicate driver need force hpd when hpd detect failed, this
       is used for some eDP screen which don not have a hpd signal.

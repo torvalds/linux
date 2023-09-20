@@ -78,5 +78,6 @@ void snd_seq_driver_unregister(struct snd_seq_driver *drv);
  */
 #define SNDRV_SEQ_DEV_ID_MIDISYNTH	"seq-midi"
 #define SNDRV_SEQ_DEV_ID_OPL3		"opl3-synth"
+#define SNDRV_SEQ_DEV_ID_UMP		"seq-ump-client"
 
 #endif /* __SOUND_SEQ_DEVICE_H */

@@ -100,7 +100,7 @@ struct soc15_ras_field_entry {
 #define SOC15_RAS_REG_FIELD_VAL(val, entry, field) SOC15_REG_FIELD_VAL((val), (entry).field##_count_mask, (entry).field##_count_shift)
 
 void soc15_grbm_select(struct amdgpu_device *adev,
-		    u32 me, u32 pipe, u32 queue, u32 vmid);
+		    u32 me, u32 pipe, u32 queue, u32 vmid, int xcc_id);
 void soc15_set_virt_ops(struct amdgpu_device *adev);
 
 void soc15_program_register_sequence(struct amdgpu_device *adev,
@@ -111,7 +111,11 @@ int vega10_reg_base_init(struct amdgpu_device *adev);
 int vega20_reg_base_init(struct amdgpu_device *adev);
 int arct_reg_base_init(struct amdgpu_device *adev);
 int aldebaran_reg_base_init(struct amdgpu_device *adev);
+void aqua_vanjaram_ip_map_init(struct amdgpu_device *adev);
+u64 aqua_vanjaram_encode_ext_smn_addressing(int ext_id);
+int aqua_vanjaram_init_soc_config(struct amdgpu_device *adev);
 
 void vega10_doorbell_index_init(struct amdgpu_device *adev);
 void vega20_doorbell_index_init(struct amdgpu_device *adev);
+void aqua_vanjaram_doorbell_index_init(struct amdgpu_device *adev);
 #endif

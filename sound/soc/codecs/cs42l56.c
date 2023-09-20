@@ -1341,7 +1341,7 @@ static struct i2c_driver cs42l56_i2c_driver = {
 		.of_match_table = cs42l56_of_match,
 	},
 	.id_table = cs42l56_id,
-	.probe_new = cs42l56_i2c_probe,
+	.probe =    cs42l56_i2c_probe,
 	.remove =   cs42l56_i2c_remove,
 };
 

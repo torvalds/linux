@@ -14,7 +14,6 @@
 #include "dp_catalog.h"
 
 struct dp_ctrl {
-	bool orientation;
 	atomic_t aborted;
 	bool wide_bus_en;
 };

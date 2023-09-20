@@ -80,7 +80,7 @@ int vc4_mock_atomic_add_output(struct kunit *test,
 	crtc = vc4_find_crtc_for_encoder(test, drm, encoder);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, crtc);
 
-	output = container_of(encoder, struct vc4_dummy_output, encoder.base);
+	output = encoder_to_vc4_dummy_output(encoder);
 	conn = &output->connector;
 	conn_state = drm_atomic_get_connector_state(state, conn);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, conn_state);
@@ -126,7 +126,7 @@ int vc4_mock_atomic_del_output(struct kunit *test,
 	ret = drm_atomic_set_mode_for_crtc(crtc_state, NULL);
 	KUNIT_ASSERT_EQ(test, ret, 0);
 
-	output = container_of(encoder, struct vc4_dummy_output, encoder.base);
+	output = encoder_to_vc4_dummy_output(encoder);
 	conn = &output->connector;
 	conn_state = drm_atomic_get_connector_state(state, conn);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, conn_state);

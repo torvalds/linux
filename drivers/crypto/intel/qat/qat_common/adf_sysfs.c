@@ -78,6 +78,13 @@ static ssize_t state_store(struct device *dev, struct device_attribute *attr,
 static const char * const services_operations[] = {
 	ADF_CFG_CY,
 	ADF_CFG_DC,
+	ADF_CFG_SYM,
+	ADF_CFG_ASYM,
+	ADF_CFG_ASYM_SYM,
+	ADF_CFG_ASYM_DC,
+	ADF_CFG_DC_ASYM,
+	ADF_CFG_SYM_DC,
+	ADF_CFG_DC_SYM,
 };
 
 static ssize_t cfg_services_show(struct device *dev, struct device_attribute *attr,
@@ -145,12 +152,65 @@ static ssize_t cfg_services_store(struct device *dev, struct device_attribute *a
 	return count;
 }
 
+static ssize_t pm_idle_enabled_show(struct device *dev, struct device_attribute *attr,
+				    char *buf)
+{
+	char pm_idle_enabled[ADF_CFG_MAX_VAL_LEN_IN_BYTES] = {};
+	struct adf_accel_dev *accel_dev;
+	int ret;
+
+	accel_dev = adf_devmgr_pci_to_accel_dev(to_pci_dev(dev));
+	if (!accel_dev)
+		return -EINVAL;
+
+	ret = adf_cfg_get_param_value(accel_dev, ADF_GENERAL_SEC,
+				      ADF_PM_IDLE_SUPPORT, pm_idle_enabled);
+	if (ret)
+		return sysfs_emit(buf, "1\n");
+
+	return sysfs_emit(buf, "%s\n", pm_idle_enabled);
+}
+
+static ssize_t pm_idle_enabled_store(struct device *dev, struct device_attribute *attr,
+				     const char *buf, size_t count)
+{
+	unsigned long pm_idle_enabled_cfg_val;
+	struct adf_accel_dev *accel_dev;
+	bool pm_idle_enabled;
+	int ret;
+
+	ret = kstrtobool(buf, &pm_idle_enabled);
+	if (ret)
+		return ret;
+
+	pm_idle_enabled_cfg_val = pm_idle_enabled;
+	accel_dev = adf_devmgr_pci_to_accel_dev(to_pci_dev(dev));
+	if (!accel_dev)
+		return -EINVAL;
+
+	if (adf_dev_started(accel_dev)) {
+		dev_info(dev, "Device qat_dev%d must be down to set pm_idle_enabled.\n",
+			 accel_dev->accel_id);
+		return -EINVAL;
+	}
+
+	ret = adf_cfg_add_key_value_param(accel_dev, ADF_GENERAL_SEC,
+					  ADF_PM_IDLE_SUPPORT, &pm_idle_enabled_cfg_val,
+					  ADF_DEC);
+	if (ret)
+		return ret;
+
+	return count;
+}
+static DEVICE_ATTR_RW(pm_idle_enabled);
+
 static DEVICE_ATTR_RW(state);
 static DEVICE_ATTR_RW(cfg_services);
 
 static struct attribute *qat_attrs[] = {
 	&dev_attr_state.attr,
 	&dev_attr_cfg_services.attr,
+	&dev_attr_pm_idle_enabled.attr,
 	NULL,
 };
 

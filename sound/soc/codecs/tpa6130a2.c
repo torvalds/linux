@@ -319,7 +319,7 @@ static struct i2c_driver tpa6130a2_i2c_driver = {
 		.name = "tpa6130a2",
 		.of_match_table = of_match_ptr(tpa6130a2_of_match),
 	},
-	.probe_new = tpa6130a2_probe,
+	.probe = tpa6130a2_probe,
 	.id_table = tpa6130a2_id,
 };
 

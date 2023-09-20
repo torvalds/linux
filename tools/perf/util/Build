@@ -1,4 +1,5 @@
 perf-y += arm64-frame-pointer-unwind-support.o
+perf-y += addr_location.o
 perf-y += annotate.o
 perf-y += block-info.o
 perf-y += block-range.o
@@ -11,7 +12,6 @@ perf-y += db-export.o
 perf-y += env.o
 perf-y += event.o
 perf-y += evlist.o
-perf-y += evlist-hybrid.o
 perf-y += sideband_evlist.o
 perf-y += evsel.o
 perf-y += evsel_fprintf.o
@@ -24,7 +24,6 @@ perf-y += llvm-utils.o
 perf-y += mmap.o
 perf-y += memswap.o
 perf-y += parse-events.o
-perf-y += parse-events-hybrid.o
 perf-y += print-events.o
 perf-y += tracepoint.o
 perf-y += perf_regs.o
@@ -75,7 +74,6 @@ perf-y += pmu.o
 perf-y += pmus.o
 perf-y += pmu-flex.o
 perf-y += pmu-bison.o
-perf-y += pmu-hybrid.o
 perf-y += svghelper.o
 perf-$(CONFIG_LIBTRACEEVENT) += trace-event-info.o
 perf-y += trace-event-scripting.o
@@ -147,6 +145,7 @@ perf-y += mem2node.o
 perf-y += clockid.o
 perf-y += list_sort.o
 perf-y += mutex.o
+perf-y += sharded_mutex.o
 
 perf-$(CONFIG_LIBBPF) += bpf-loader.o
 perf-$(CONFIG_LIBBPF) += bpf_map.o
@@ -214,7 +213,7 @@ perf-$(CONFIG_ZSTD) += zstd.o
 
 perf-$(CONFIG_LIBCAP) += cap.o
 
-perf-y += demangle-cxx.o
+perf-$(CONFIG_CXX_DEMANGLE) += demangle-cxx.o
 perf-y += demangle-ocaml.o
 perf-y += demangle-java.o
 perf-y += demangle-rust.o

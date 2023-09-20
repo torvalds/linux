@@ -469,7 +469,7 @@ static void m_can_receive_skb(struct m_can_classdev *cdev,
 		int err;
 
 		err = can_rx_offload_queue_timestamp(&cdev->offload, skb,
-						  timestamp);
+						     timestamp);
 		if (err)
 			stats->rx_fifo_errors++;
 	} else {
@@ -895,7 +895,7 @@ static int m_can_handle_bus_errors(struct net_device *dev, u32 irqstatus,
 			netdev_dbg(dev, "Arbitration phase error detected\n");
 			work_done += m_can_handle_lec_err(dev, lec);
 		}
-		
+
 		if (is_lec_err(dlec)) {
 			netdev_dbg(dev, "Data phase error detected\n");
 			work_done += m_can_handle_lec_err(dev, dlec);

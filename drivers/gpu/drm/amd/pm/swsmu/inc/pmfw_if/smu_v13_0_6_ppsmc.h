@@ -82,7 +82,8 @@
 #define PPSMC_MSG_SetSoftMaxGfxClk                  0x31
 #define PPSMC_MSG_GetMinGfxDpmFreq                  0x32
 #define PPSMC_MSG_GetMaxGfxDpmFreq                  0x33
-#define PPSMC_Message_Count                         0x34
+#define PPSMC_MSG_PrepareForDriverUnload            0x34
+#define PPSMC_Message_Count                         0x35
 
 //PPSMC Reset Types for driver msg argument
 #define PPSMC_RESET_TYPE_DRIVER_MODE_1_RESET        0x1

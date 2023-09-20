@@ -21,6 +21,7 @@
 #include <asm/cputype.h>
 #include <asm/mpu.h>
 #include <asm/procinfo.h>
+#include <asm/idmap.h>
 
 #include "mm.h"
 

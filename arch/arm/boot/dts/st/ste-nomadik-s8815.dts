@@ -1,0 +1,172 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Device Tree for the ST-Ericsson Nomadik S8815 board
+ * Produced by Calao Systems
+ */
+
+/dts-v1/;
+#include <dt-bindings/interrupt-controller/irq.h>
+#include "ste-nomadik-stn8815.dtsi"
+
+/ {
+	model = "Calao Systems USB-S8815";
+	compatible = "calaosystems,usb-s8815";
+
+	chosen {
+		bootargs = "root=/dev/ram0 console=ttyAMA1,115200n8 earlyprintk";
+	};
+
+	aliases {
+		serial0 = &uart0;
+		serial1 = &uart1;
+	};
+
+	gpio3: gpio@101e7000 {
+		/* This hog will bias the MMC/SD card detect line */
+		mmcsd-gpio {
+			gpio-hog;
+			gpios = <16 0x0>;
+			output-low;
+			line-name = "card detect bias";
+		};
+	};
+
+	src@101e0000 {
+		/* These chrystal drivers are not used on this board */
+		disable-sxtalo;
+		disable-mxtalo;
+	};
+
+	pinctrl {
+		/* Hog CD pins */
+		pinctrl-names = "default";
+		pinctrl-0 = <&cd_default_mode>;
+
+		uart0 {
+			/* Only use RX/TX pins */
+			uart0_s8815_mode: uart0_mux {
+				u0_default_mux {
+					function = "u0";
+					groups = "u0txrx_a_1";
+				};
+			};
+		};
+		mmcsd-cd {
+			cd_default_mode: cd_default {
+				cd_default_cfg1 {
+					/* CD input GPIO */
+					pins = "GPIO111_H21";
+					ste,input = <0>;
+				};
+				cd_default_cfg2 {
+					/* CD GPIO biasing */
+					pins = "GPIO112_J21";
+					ste,output = <0>;
+				};
+			};
+		};
+		gpioi2c {
+			gpioi2c_default_mode: gpioi2c_default {
+				gpioi2c_default_cfg {
+					pins = "GPIO73_C21", "GPIO74_C20";
+					ste,input = <0>;
+				};
+			};
+		};
+		user-led {
+			user_led_default_mode: user_led_default {
+				user_led_default_cfg {
+					pins = "GPIO2_C5";
+					ste,output = <1>;
+				};
+			};
+		};
+		user-button {
+			user_button_default_mode: user_button_default {
+				user_button_default_cfg {
+					pins = "GPIO3_A4";
+					ste,input = <0>;
+				};
+			};
+		};
+	};
+
+	/* Ethernet */
+	external-bus@34000000 {
+		compatible = "simple-bus";
+		reg = <0x34000000 0x1000000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0 0x34000000 0x1000000>;
+		ethernet@300 {
+			compatible = "smsc,lan91c111";
+			reg = <0x300 0x0fd00>;
+			interrupt-parent = <&gpio3>;
+			interrupts = <8 IRQ_TYPE_EDGE_RISING>;
+		};
+	};
+
+	i2c1 {
+		lis3lv02dl@1d {
+			/* Accelerometer */
+			compatible = "st,lis3lv02dl-accel";
+			reg = <0x1d>;
+		};
+	};
+
+	/* GPIO I2C connected to the USB portions of the STw4811 only */
+	gpio-i2c {
+		compatible = "i2c-gpio";
+		gpios = <&gpio2 10 0>, /* sda */
+			<&gpio2 9 0>; /* scl */
+		#address-cells = <1>;
+		#size-cells = <0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&gpioi2c_default_mode>;
+
+		stw4811@2d {
+			   compatible = "st,stw4811-usb";
+			   reg = <0x2d>;
+		};
+	};
+
+
+	amba {
+		/* Activate RXTX on UART 0 */
+		uart0: serial@101fd000 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&uart0_s8815_mode>;
+			status = "okay";
+		};
+		/* Configure card detect for the uSD slot */
+		mmc@101f6000 {
+			cd-gpios = <&gpio3 15 GPIO_ACTIVE_LOW>;
+		};
+	};
+
+	/* The user LED on the board is set up to be used for heartbeat */
+	leds {
+		compatible = "gpio-leds";
+		user-led {
+			label = "user_led";
+			gpios = <&gpio0 2 0x1>;
+			default-state = "off";
+			linux,default-trigger = "heartbeat";
+			pinctrl-names = "default";
+			pinctrl-0 = <&user_led_default_mode>;
+		};
+	};
+
+	/* User key mapped in as "escape" */
+	gpio-keys {
+		compatible = "gpio-keys";
+		user-button {
+			label = "user_button";
+			gpios = <&gpio0 3 0x1>;
+			linux,code = <1>; /* KEY_ESC */
+			wakeup-source;
+			pinctrl-names = "default";
+			pinctrl-0 = <&user_button_default_mode>;
+		};
+	};
+};

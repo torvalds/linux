@@ -583,7 +583,7 @@ static int __init pcc_cpufreq_probe(struct platform_device *pdev)
 
 	/* Skip initialization if another cpufreq driver is there. */
 	if (cpufreq_get_current_driver())
-		return -EEXIST;
+		return -ENODEV;
 
 	if (acpi_disabled)
 		return -ENODEV;

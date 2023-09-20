@@ -8,6 +8,17 @@
 #include <linux/bitfield.h>
 #include "rvu.h"
 
+static void rvu_switch_enable_lbk_link(struct rvu *rvu, u16 pcifunc, bool enable)
+{
+	struct rvu_pfvf *pfvf = rvu_get_pfvf(rvu, pcifunc);
+	struct nix_hw *nix_hw;
+
+	nix_hw = get_nix_hw(rvu->hw, pfvf->nix_blkaddr);
+	/* Enable LBK links with channel 63 for TX MCAM rule */
+	rvu_nix_tx_tl2_cfg(rvu, pfvf->nix_blkaddr, pcifunc,
+			   &nix_hw->txsch[NIX_TXSCH_LVL_TL2], enable);
+}
+
 static int rvu_switch_install_rx_rule(struct rvu *rvu, u16 pcifunc,
 				      u16 chan_mask)
 {
@@ -51,6 +62,8 @@ static int rvu_switch_install_tx_rule(struct rvu *rvu, u16 pcifunc, u16 entry)
 	 */
 	if (!test_bit(NIXLF_INITIALIZED, &pfvf->flags))
 		return 0;
+
+	rvu_switch_enable_lbk_link(rvu, pcifunc, true);
 
 	lbkid = pfvf->nix_blkaddr == BLKADDR_NIX0 ? 0 : 1;
 	ether_addr_copy(req.packet.dmac, pfvf->mac_addr);
@@ -218,6 +231,9 @@ void rvu_switch_disable(struct rvu *rvu)
 				"Reverting RX rule for PF%d failed(%d)\n",
 				pf, err);
 
+		/* Disable LBK link */
+		rvu_switch_enable_lbk_link(rvu, pcifunc, false);
+
 		rvu_get_pf_numvfs(rvu, pf, &numvfs, NULL);
 		for (vf = 0; vf < numvfs; vf++) {
 			pcifunc = pf << 10 | ((vf + 1) & 0x3FF);
@@ -226,6 +242,8 @@ void rvu_switch_disable(struct rvu *rvu)
 				dev_err(rvu->dev,
 					"Reverting RX rule for PF%dVF%d failed(%d)\n",
 					pf, vf, err);
+
+			rvu_switch_enable_lbk_link(rvu, pcifunc, false);
 		}
 	}
 

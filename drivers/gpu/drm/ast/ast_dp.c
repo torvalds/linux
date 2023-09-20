@@ -119,53 +119,32 @@ err_astdp_edid_not_ready:
 /*
  * Launch Aspeed DP
  */
-void ast_dp_launch(struct drm_device *dev, u8 bPower)
+void ast_dp_launch(struct drm_device *dev)
 {
-	u32 i = 0, j = 0, WaitCount = 1;
-	u8 bDPTX = 0;
+	u32 i = 0;
 	u8 bDPExecute = 1;
-
 	struct ast_device *ast = to_ast_device(dev);
-	// S3 come back, need more time to wait BMC ready.
-	if (bPower)
-		WaitCount = 300;
 
-
-	// Wait total count by different condition.
-	for (j = 0; j < WaitCount; j++) {
-		bDPTX = ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xD1, TX_TYPE_MASK);
-
-		if (bDPTX)
-			break;
-
+	// Wait one second then timeout.
+	while (ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xD1, ASTDP_MCU_FW_EXECUTING) !=
+		ASTDP_MCU_FW_EXECUTING) {
+		i++;
+		// wait 100 ms
 		msleep(100);
-	}
 
-	// 0xE : ASTDP with DPMCU FW handling
-	if (bDPTX == ASTDP_DPMCU_TX) {
-		// Wait one second then timeout.
-		i = 0;
-
-		while (ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xD1, COPROCESSOR_LAUNCH) !=
-			COPROCESSOR_LAUNCH) {
-			i++;
-			// wait 100 ms
-			msleep(100);
-
-			if (i >= 10) {
-				// DP would not be ready.
-				bDPExecute = 0;
-				break;
-			}
+		if (i >= 10) {
+			// DP would not be ready.
+			bDPExecute = 0;
+			break;
 		}
-
-		if (bDPExecute)
-			ast->tx_chip_types |= BIT(AST_TX_ASTDP);
-
-		ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xE5,
-							(u8) ~ASTDP_HOST_EDID_READ_DONE_MASK,
-							ASTDP_HOST_EDID_READ_DONE);
 	}
+
+	if (!bDPExecute)
+		drm_err(dev, "Wait DPMCU executing timeout\n");
+
+	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xE5,
+			       (u8) ~ASTDP_HOST_EDID_READ_DONE_MASK,
+			       ASTDP_HOST_EDID_READ_DONE);
 }
 
 

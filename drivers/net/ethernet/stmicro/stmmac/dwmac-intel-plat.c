@@ -169,20 +169,17 @@ err_remove_config_dt:
 	return ret;
 }
 
-static int intel_eth_plat_remove(struct platform_device *pdev)
+static void intel_eth_plat_remove(struct platform_device *pdev)
 {
 	struct intel_dwmac *dwmac = get_stmmac_bsp_priv(&pdev->dev);
-	int ret;
 
-	ret = stmmac_pltfr_remove(pdev);
+	stmmac_pltfr_remove(pdev);
 	clk_disable_unprepare(dwmac->tx_clk);
-
-	return ret;
 }
 
 static struct platform_driver intel_eth_plat_driver = {
 	.probe  = intel_eth_plat_probe,
-	.remove = intel_eth_plat_remove,
+	.remove_new = intel_eth_plat_remove,
 	.driver = {
 		.name		= "intel-eth-plat",
 		.pm		= &stmmac_pltfr_pm_ops,

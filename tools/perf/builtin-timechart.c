@@ -315,10 +315,10 @@ static void pid_put_sample(struct timechart *tchart, int pid, int type,
 
 #define MAX_CPUS 4096
 
-static u64 cpus_cstate_start_times[MAX_CPUS];
-static int cpus_cstate_state[MAX_CPUS];
-static u64 cpus_pstate_start_times[MAX_CPUS];
-static u64 cpus_pstate_state[MAX_CPUS];
+static u64 *cpus_cstate_start_times;
+static int *cpus_cstate_state;
+static u64 *cpus_pstate_start_times;
+static u64 *cpus_pstate_state;
 
 static int process_comm_event(struct perf_tool *tool,
 			      union perf_event *event,
@@ -498,7 +498,6 @@ static const char *cat_backtrace(union perf_event *event,
 	char *p = NULL;
 	size_t p_len;
 	u8 cpumode = PERF_RECORD_MISC_USER;
-	struct addr_location tal;
 	struct ip_callchain *chain = sample->callchain;
 	FILE *f = open_memstream(&p, &p_len);
 
@@ -507,6 +506,7 @@ static const char *cat_backtrace(union perf_event *event,
 		return NULL;
 	}
 
+	addr_location__init(&al);
 	if (!chain)
 		goto exit;
 
@@ -518,6 +518,7 @@ static const char *cat_backtrace(union perf_event *event,
 
 	for (i = 0; i < chain->nr; i++) {
 		u64 ip;
+		struct addr_location tal;
 
 		if (callchain_param.order == ORDER_CALLEE)
 			ip = chain->ips[i];
@@ -544,20 +545,22 @@ static const char *cat_backtrace(union perf_event *event,
 				 * Discard all.
 				 */
 				zfree(&p);
-				goto exit_put;
+				goto exit;
 			}
 			continue;
 		}
 
+		addr_location__init(&tal);
 		tal.filtered = 0;
 		if (thread__find_symbol(al.thread, cpumode, ip, &tal))
 			fprintf(f, "..... %016" PRIx64 " %s\n", ip, tal.sym->name);
 		else
 			fprintf(f, "..... %016" PRIx64 "\n", ip);
+
+		addr_location__exit(&tal);
 	}
-exit_put:
-	addr_location__put(&al);
 exit:
+	addr_location__exit(&al);
 	fclose(f);
 
 	return p;
@@ -1981,12 +1984,34 @@ int cmd_timechart(int argc, const char **argv)
 		"perf timechart record [<options>]",
 		NULL
 	};
+	int ret;
+
+	cpus_cstate_start_times = calloc(MAX_CPUS, sizeof(*cpus_cstate_start_times));
+	if (!cpus_cstate_start_times)
+		return -ENOMEM;
+	cpus_cstate_state = calloc(MAX_CPUS, sizeof(*cpus_cstate_state));
+	if (!cpus_cstate_state) {
+		ret = -ENOMEM;
+		goto out;
+	}
+	cpus_pstate_start_times = calloc(MAX_CPUS, sizeof(*cpus_pstate_start_times));
+	if (!cpus_pstate_start_times) {
+		ret = -ENOMEM;
+		goto out;
+	}
+	cpus_pstate_state = calloc(MAX_CPUS, sizeof(*cpus_pstate_state));
+	if (!cpus_pstate_state) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
 	argc = parse_options_subcommand(argc, argv, timechart_options, timechart_subcommands,
 			timechart_usage, PARSE_OPT_STOP_AT_NON_OPTION);
 
 	if (tchart.power_only && tchart.tasks_only) {
 		pr_err("-P and -T options cannot be used at the same time.\n");
-		return -1;
+		ret = -1;
+		goto out;
 	}
 
 	if (argc && strlen(argv[0]) > 2 && strstarts("record", argv[0])) {
@@ -1996,17 +2021,25 @@ int cmd_timechart(int argc, const char **argv)
 
 		if (tchart.power_only && tchart.tasks_only) {
 			pr_err("-P and -T options cannot be used at the same time.\n");
-			return -1;
+			ret = -1;
+			goto out;
 		}
 
 		if (tchart.io_only)
-			return timechart__io_record(argc, argv);
+			ret = timechart__io_record(argc, argv);
 		else
-			return timechart__record(&tchart, argc, argv);
+			ret = timechart__record(&tchart, argc, argv);
+		goto out;
 	} else if (argc)
 		usage_with_options(timechart_usage, timechart_options);
 
 	setup_pager();
 
-	return __cmd_timechart(&tchart, output_name);
+	ret = __cmd_timechart(&tchart, output_name);
+out:
+	zfree(&cpus_cstate_start_times);
+	zfree(&cpus_cstate_state);
+	zfree(&cpus_pstate_start_times);
+	zfree(&cpus_pstate_state);
+	return ret;
 }

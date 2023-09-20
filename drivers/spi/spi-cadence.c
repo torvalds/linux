@@ -12,6 +12,7 @@
 #include <linux/gpio/consumer.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
+#include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of_irq.h>
 #include <linux/of_address.h>
@@ -101,6 +102,7 @@
  * @regs:		Virtual address of the SPI controller registers
  * @ref_clk:		Pointer to the peripheral clock
  * @pclk:		Pointer to the APB clock
+ * @clk_rate:		Reference clock frequency, taken from @ref_clk
  * @speed_hz:		Current SPI bus clock speed in Hz
  * @txbuf:		Pointer	to the TX buffer
  * @rxbuf:		Pointer to the RX buffer
@@ -301,49 +303,43 @@ static int cdns_spi_setup_transfer(struct spi_device *spi,
 }
 
 /**
- * cdns_spi_fill_tx_fifo - Fills the TX FIFO with as many bytes as possible
+ * cdns_spi_process_fifo - Fills the TX FIFO, and drain the RX FIFO
  * @xspi:	Pointer to the cdns_spi structure
+ * @ntx:	Number of bytes to pack into the TX FIFO
+ * @nrx:	Number of bytes to drain from the RX FIFO
  */
-static void cdns_spi_fill_tx_fifo(struct cdns_spi *xspi)
+static void cdns_spi_process_fifo(struct cdns_spi *xspi, int ntx, int nrx)
 {
-	unsigned long trans_cnt = 0;
+	ntx = clamp(ntx, 0, xspi->tx_bytes);
+	nrx = clamp(nrx, 0, xspi->rx_bytes);
 
-	while ((trans_cnt < xspi->tx_fifo_depth) &&
-	       (xspi->tx_bytes > 0)) {
+	xspi->tx_bytes -= ntx;
+	xspi->rx_bytes -= nrx;
 
+	while (ntx || nrx) {
 		/* When xspi in busy condition, bytes may send failed,
 		 * then spi control did't work thoroughly, add one byte delay
 		 */
-		if (cdns_spi_read(xspi, CDNS_SPI_ISR) &
-		    CDNS_SPI_IXR_TXFULL)
+		if (cdns_spi_read(xspi, CDNS_SPI_ISR) & CDNS_SPI_IXR_TXFULL)
 			udelay(10);
 
-		if (xspi->txbuf)
-			cdns_spi_write(xspi, CDNS_SPI_TXD, *xspi->txbuf++);
-		else
-			cdns_spi_write(xspi, CDNS_SPI_TXD, 0);
+		if (ntx) {
+			if (xspi->txbuf)
+				cdns_spi_write(xspi, CDNS_SPI_TXD, *xspi->txbuf++);
+			else
+				cdns_spi_write(xspi, CDNS_SPI_TXD, 0);
 
-		xspi->tx_bytes--;
-		trans_cnt++;
-	}
-}
+			ntx--;
+		}
 
-/**
- * cdns_spi_read_rx_fifo - Reads the RX FIFO with as many bytes as possible
- * @xspi:       Pointer to the cdns_spi structure
- * @count:	Read byte count
- */
-static void cdns_spi_read_rx_fifo(struct cdns_spi *xspi, unsigned long count)
-{
-	u8 data;
+		if (nrx) {
+			u8 data = cdns_spi_read(xspi, CDNS_SPI_RXD);
 
-	/* Read out the data from the RX FIFO */
-	while (count > 0) {
-		data = cdns_spi_read(xspi, CDNS_SPI_RXD);
-		if (xspi->rxbuf)
-			*xspi->rxbuf++ = data;
-		xspi->rx_bytes--;
-		count--;
+			if (xspi->rxbuf)
+				*xspi->rxbuf++ = data;
+
+			nrx--;
+		}
 	}
 }
 
@@ -381,33 +377,22 @@ static irqreturn_t cdns_spi_irq(int irq, void *dev_id)
 		spi_finalize_current_transfer(ctlr);
 		status = IRQ_HANDLED;
 	} else if (intr_status & CDNS_SPI_IXR_TXOW) {
-		int trans_cnt = cdns_spi_read(xspi, CDNS_SPI_THLD);
+		int threshold = cdns_spi_read(xspi, CDNS_SPI_THLD);
+		int trans_cnt = xspi->rx_bytes - xspi->tx_bytes;
+
+		if (threshold > 1)
+			trans_cnt -= threshold;
+
 		/* Set threshold to one if number of pending are
 		 * less than half fifo
 		 */
 		if (xspi->tx_bytes < xspi->tx_fifo_depth >> 1)
 			cdns_spi_write(xspi, CDNS_SPI_THLD, 1);
 
-		while (trans_cnt) {
-			cdns_spi_read_rx_fifo(xspi, 1);
-
-			if (xspi->tx_bytes) {
-				if (xspi->txbuf)
-					cdns_spi_write(xspi, CDNS_SPI_TXD,
-						       *xspi->txbuf++);
-				else
-					cdns_spi_write(xspi, CDNS_SPI_TXD, 0);
-				xspi->tx_bytes--;
-			}
-			trans_cnt--;
-		}
-		if (!xspi->tx_bytes) {
-			/* Fixed delay due to controller limitation with
-			 * RX_NEMPTY incorrect status
-			 * Xilinx AR:65885 contains more details
-			 */
-			udelay(10);
-			cdns_spi_read_rx_fifo(xspi, xspi->rx_bytes);
+		if (xspi->tx_bytes) {
+			cdns_spi_process_fifo(xspi, trans_cnt, trans_cnt);
+		} else {
+			cdns_spi_process_fifo(xspi, 0, trans_cnt);
 			cdns_spi_write(xspi, CDNS_SPI_IDR,
 				       CDNS_SPI_IXR_DEFAULT);
 			spi_finalize_current_transfer(ctlr);
@@ -450,16 +435,17 @@ static int cdns_transfer_one(struct spi_controller *ctlr,
 	xspi->tx_bytes = transfer->len;
 	xspi->rx_bytes = transfer->len;
 
-	if (!spi_controller_is_slave(ctlr))
+	if (!spi_controller_is_slave(ctlr)) {
 		cdns_spi_setup_transfer(spi, transfer);
+	} else {
+		/* Set TX empty threshold to half of FIFO depth
+		 * only if TX bytes are more than half FIFO depth.
+		 */
+		if (xspi->tx_bytes > xspi->tx_fifo_depth)
+			cdns_spi_write(xspi, CDNS_SPI_THLD, xspi->tx_fifo_depth >> 1);
+	}
 
-	/* Set TX empty threshold to half of FIFO depth
-	 * only if TX bytes are more than half FIFO depth.
-	 */
-	if (xspi->tx_bytes > (xspi->tx_fifo_depth >> 1))
-		cdns_spi_write(xspi, CDNS_SPI_THLD, xspi->tx_fifo_depth >> 1);
-
-	cdns_spi_fill_tx_fifo(xspi);
+	cdns_spi_process_fifo(xspi, xspi->tx_fifo_depth, 0);
 	spi_transfer_delay_exec(transfer);
 
 	cdns_spi_write(xspi, CDNS_SPI_IER, CDNS_SPI_IXR_DEFAULT);

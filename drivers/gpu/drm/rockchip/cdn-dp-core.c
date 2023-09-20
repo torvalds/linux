@@ -273,10 +273,9 @@ static int cdn_dp_connector_get_modes(struct drm_connector *connector)
 				  edid->width_cm, edid->height_cm);
 
 		dp->sink_has_audio = drm_detect_monitor_audio(edid);
+
+		drm_connector_update_edid_property(connector, edid);
 		ret = drm_add_edid_modes(connector, edid);
-		if (ret)
-			drm_connector_update_edid_property(connector,
-								edid);
 	}
 	mutex_unlock(&dp->lock);
 

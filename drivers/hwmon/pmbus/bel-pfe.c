@@ -120,7 +120,7 @@ static struct i2c_driver pfe_pmbus_driver = {
 	.driver = {
 		   .name = "bel-pfe",
 	},
-	.probe_new = pfe_pmbus_probe,
+	.probe = pfe_pmbus_probe,
 	.id_table = pfe_device_id,
 };
 

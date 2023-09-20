@@ -101,6 +101,25 @@
 #define LAN966X_VCAP_CID_IS2_L1 VCAP_CID_INGRESS_STAGE2_L1 /* IS2 lookup 1 */
 #define LAN966X_VCAP_CID_IS2_MAX (VCAP_CID_INGRESS_STAGE2_L2 - 1) /* IS2 Max */
 
+#define LAN966X_VCAP_CID_ES0_L0 VCAP_CID_EGRESS_L0 /* ES0 lookup 0 */
+#define LAN966X_VCAP_CID_ES0_MAX (VCAP_CID_EGRESS_L1 - 1) /* ES0 Max */
+
+#define LAN966X_PORT_QOS_PCP_COUNT	8
+#define LAN966X_PORT_QOS_DEI_COUNT	8
+#define LAN966X_PORT_QOS_PCP_DEI_COUNT \
+	(LAN966X_PORT_QOS_PCP_COUNT + LAN966X_PORT_QOS_DEI_COUNT)
+
+#define LAN966X_PORT_QOS_DSCP_COUNT	64
+
+/* Port PCP rewrite mode */
+#define LAN966X_PORT_REW_TAG_CTRL_CLASSIFIED	0
+#define LAN966X_PORT_REW_TAG_CTRL_MAPPED	2
+
+/* Port DSCP rewrite mode */
+#define LAN966X_PORT_REW_DSCP_FRAME		0
+#define LAN966X_PORT_REW_DSCP_ANALIZER		1
+#define LAN966X_PORT_QOS_REWR_DSCP_ALL		3
+
 /* MAC table entry types.
  * ENTRYTYPE_NORMAL is subject to aging.
  * ENTRYTYPE_LOCKED is not subject to aging.
@@ -389,6 +408,34 @@ struct lan966x_port_tc {
 	struct flow_stats mirror_stat;
 };
 
+struct lan966x_port_qos_pcp {
+	u8 map[LAN966X_PORT_QOS_PCP_DEI_COUNT];
+	bool enable;
+};
+
+struct lan966x_port_qos_dscp {
+	u8 map[LAN966X_PORT_QOS_DSCP_COUNT];
+	bool enable;
+};
+
+struct lan966x_port_qos_pcp_rewr {
+	u16 map[NUM_PRIO_QUEUES];
+	bool enable;
+};
+
+struct lan966x_port_qos_dscp_rewr {
+	u16 map[LAN966X_PORT_QOS_DSCP_COUNT];
+	bool enable;
+};
+
+struct lan966x_port_qos {
+	struct lan966x_port_qos_pcp pcp;
+	struct lan966x_port_qos_dscp dscp;
+	struct lan966x_port_qos_pcp_rewr pcp_rewr;
+	struct lan966x_port_qos_dscp_rewr dscp_rewr;
+	u8 default_prio;
+};
+
 struct lan966x_port {
 	struct net_device *dev;
 	struct lan966x *lan966x;
@@ -452,6 +499,11 @@ void lan966x_port_status_get(struct lan966x_port *port,
 int lan966x_port_pcs_set(struct lan966x_port *port,
 			 struct lan966x_port_config *config);
 void lan966x_port_init(struct lan966x_port *port);
+
+void lan966x_port_qos_set(struct lan966x_port *port,
+			  struct lan966x_port_qos *qos);
+void lan966x_port_qos_dscp_rewr_mode_set(struct lan966x_port *port,
+					 int mode);
 
 int lan966x_mac_ip_learn(struct lan966x *lan966x,
 			 bool cpu_copy,
@@ -676,6 +728,14 @@ int lan966x_goto_port_add(struct lan966x_port *port,
 int lan966x_goto_port_del(struct lan966x_port *port,
 			  unsigned long goto_id,
 			  struct netlink_ext_ack *extack);
+
+#ifdef CONFIG_LAN966X_DCB
+void lan966x_dcb_init(struct lan966x *lan966x);
+#else
+static inline void lan966x_dcb_init(struct lan966x *lan966x)
+{
+}
+#endif
 
 static inline void __iomem *lan_addr(void __iomem *base[],
 				     int id, int tinst, int tcnt,

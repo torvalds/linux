@@ -298,7 +298,7 @@ static bool intel_dp_mst_has_audio(const struct drm_connector_state *conn_state)
 		to_intel_connector(conn_state->connector);
 
 	if (intel_conn_state->force_audio == HDMI_AUDIO_AUTO)
-		return connector->port->has_audio;
+		return connector->base.display_info.has_audio;
 	else
 		return intel_conn_state->force_audio == HDMI_AUDIO_ON;
 }
@@ -318,6 +318,7 @@ static int intel_dp_mst_compute_config(struct intel_encoder *encoder,
 	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLSCAN)
 		return -EINVAL;
 
+	pipe_config->sink_format = INTEL_OUTPUT_FORMAT_RGB;
 	pipe_config->output_format = INTEL_OUTPUT_FORMAT_RGB;
 	pipe_config->has_pch_encoder = false;
 
@@ -800,9 +801,7 @@ static void intel_mst_enable_dp(struct intel_atomic_state *state,
 	/* Enable hdcp if it's desired */
 	if (conn_state->content_protection ==
 	    DRM_MODE_CONTENT_PROTECTION_DESIRED)
-		intel_hdcp_enable(to_intel_connector(conn_state->connector),
-				  pipe_config,
-				  (u8)conn_state->hdcp_content_type);
+		intel_hdcp_enable(state, encoder, pipe_config, conn_state);
 }
 
 static bool intel_dp_mst_enc_get_hw_state(struct intel_encoder *encoder,
@@ -837,15 +836,17 @@ static int intel_dp_mst_get_ddc_modes(struct drm_connector *connector)
 {
 	struct intel_connector *intel_connector = to_intel_connector(connector);
 	struct intel_dp *intel_dp = intel_connector->mst_port;
-	struct edid *edid;
+	const struct drm_edid *drm_edid;
 	int ret;
 
 	if (drm_connector_is_unregistered(connector))
 		return intel_connector_update_modes(connector, NULL);
 
-	edid = drm_dp_mst_get_edid(connector, &intel_dp->mst_mgr, intel_connector->port);
-	ret = intel_connector_update_modes(connector, edid);
-	kfree(edid);
+	drm_edid = drm_dp_mst_edid_read(connector, &intel_dp->mst_mgr, intel_connector->port);
+
+	ret = intel_connector_update_modes(connector, drm_edid);
+
+	drm_edid_free(drm_edid);
 
 	return ret;
 }

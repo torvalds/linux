@@ -4129,6 +4129,240 @@
 #define SQC_DCACHE_UTCL1_STATUS__FAULT_DETECTED_MASK                                                          0x00000001L
 #define SQC_DCACHE_UTCL1_STATUS__RETRY_DETECTED_MASK                                                          0x00000002L
 #define SQC_DCACHE_UTCL1_STATUS__PRT_DETECTED_MASK                                                            0x00000004L
+//SQC_UE_EDC_LO
+#define SQC_UE_EDC_LO__STATUS_VALID_FLAG__SHIFT                                                               0x0
+#define SQC_UE_EDC_LO__ADDRESS_INFO_VALID_FLAG__SHIFT                                                         0x1
+#define SQC_UE_EDC_LO__ADDRESS__SHIFT                                                                         0x2
+#define SQC_UE_EDC_LO__MEM_ID__SHIFT                                                                          0x18
+#define SQC_UE_EDC_LO__STATUS_VALID_FLAG_MASK                                                                 0x00000001L
+#define SQC_UE_EDC_LO__ADDRESS_INFO_VALID_FLAG_MASK                                                           0x00000002L
+#define SQC_UE_EDC_LO__ADDRESS_MASK                                                                           0x00FFFFFCL
+#define SQC_UE_EDC_LO__MEM_ID_MASK                                                                            0xFF000000L
+//SQC_UE_EDC_HI
+#define SQC_UE_EDC_HI__ECC__SHIFT                                                                             0x0
+#define SQC_UE_EDC_HI__PARITY__SHIFT                                                                          0x1
+#define SQC_UE_EDC_HI__ERR_INFO_VALID_FLAG__SHIFT                                                             0x2
+#define SQC_UE_EDC_HI__ERR_INFO__SHIFT                                                                        0x3
+#define SQC_UE_EDC_HI__UE_CNT__SHIFT                                                                          0x17
+#define SQC_UE_EDC_HI__FED_CNT__SHIFT                                                                         0x1a
+#define SQC_UE_EDC_HI__ECC_MASK                                                                               0x00000001L
+#define SQC_UE_EDC_HI__PARITY_MASK                                                                            0x00000002L
+#define SQC_UE_EDC_HI__ERR_INFO_VALID_FLAG_MASK                                                               0x00000004L
+#define SQC_UE_EDC_HI__ERR_INFO_MASK                                                                          0x007FFFF8L
+#define SQC_UE_EDC_HI__UE_CNT_MASK                                                                            0x03800000L
+#define SQC_UE_EDC_HI__FED_CNT_MASK                                                                           0x1C000000L
+//SQC_CE_EDC_LO
+#define SQC_CE_EDC_LO__STATUS_VALID_FLAG__SHIFT                                                               0x0
+#define SQC_CE_EDC_LO__ADDRESS_INFO_VALID_FLAG__SHIFT                                                         0x1
+#define SQC_CE_EDC_LO__ADDRESS__SHIFT                                                                         0x2
+#define SQC_CE_EDC_LO__MEM_ID__SHIFT                                                                          0x18
+#define SQC_CE_EDC_LO__STATUS_VALID_FLAG_MASK                                                                 0x00000001L
+#define SQC_CE_EDC_LO__ADDRESS_INFO_VALID_FLAG_MASK                                                           0x00000002L
+#define SQC_CE_EDC_LO__ADDRESS_MASK                                                                           0x00FFFFFCL
+#define SQC_CE_EDC_LO__MEM_ID_MASK                                                                            0xFF000000L
+//SQC_CE_EDC_HI
+#define SQC_CE_EDC_HI__ECC__SHIFT                                                                             0x0
+#define SQC_CE_EDC_HI__ERR_INFO_VALID_FLAG__SHIFT                                                             0x2
+#define SQC_CE_EDC_HI__ERR_INFO__SHIFT                                                                        0x3
+#define SQC_CE_EDC_HI__CE_CNT__SHIFT                                                                          0x17
+#define SQC_CE_EDC_HI__POSION__SHIFT                                                                          0x1a
+#define SQC_CE_EDC_HI__ECC_MASK                                                                               0x00000001L
+#define SQC_CE_EDC_HI__ERR_INFO_VALID_FLAG_MASK                                                               0x00000004L
+#define SQC_CE_EDC_HI__ERR_INFO_MASK                                                                          0x007FFFF8L
+#define SQC_CE_EDC_HI__CE_CNT_MASK                                                                            0x03800000L
+#define SQC_CE_EDC_HI__POSION_MASK                                                                            0x04000000L
+//SQ_UE_ERR_STATUS_LO
+#define SQ_UE_ERR_STATUS_LO__ERR_STATUS_VALID_FLAG__SHIFT                                                     0x0
+#define SQ_UE_ERR_STATUS_LO__ADDRESS_VALID_FLAG__SHIFT                                                        0x1
+#define SQ_UE_ERR_STATUS_LO__ADDRESS__SHIFT                                                                   0x2
+#define SQ_UE_ERR_STATUS_LO__MEMORY_ID__SHIFT                                                                 0x18
+#define SQ_UE_ERR_STATUS_LO__ERR_STATUS_VALID_FLAG_MASK                                                       0x00000001L
+#define SQ_UE_ERR_STATUS_LO__ADDRESS_VALID_FLAG_MASK                                                          0x00000002L
+#define SQ_UE_ERR_STATUS_LO__ADDRESS_MASK                                                                     0x00FFFFFCL
+#define SQ_UE_ERR_STATUS_LO__MEMORY_ID_MASK                                                                   0xFF000000L
+//SQ_UE_ERR_STATUS_HI
+#define SQ_UE_ERR_STATUS_HI__ECC__SHIFT                                                                       0x0
+#define SQ_UE_ERR_STATUS_HI__PARITY__SHIFT                                                                    0x1
+#define SQ_UE_ERR_STATUS_HI__ERR_INFO_VALID_FLAG__SHIFT                                                       0x2
+#define SQ_UE_ERR_STATUS_HI__ERR_INFO__SHIFT                                                                  0x3
+#define SQ_UE_ERR_STATUS_HI__UE_CNT__SHIFT                                                                    0x17
+#define SQ_UE_ERR_STATUS_HI__FED_CNT__SHIFT                                                                   0x1a
+#define SQ_UE_ERR_STATUS_HI__RESERVED__SHIFT                                                                  0x1d
+#define SQ_UE_ERR_STATUS_HI__ECC_MASK                                                                         0x00000001L
+#define SQ_UE_ERR_STATUS_HI__PARITY_MASK                                                                      0x00000002L
+#define SQ_UE_ERR_STATUS_HI__ERR_INFO_VALID_FLAG_MASK                                                         0x00000004L
+#define SQ_UE_ERR_STATUS_HI__ERR_INFO_MASK                                                                    0x007FFFF8L
+#define SQ_UE_ERR_STATUS_HI__UE_CNT_MASK                                                                      0x03800000L
+#define SQ_UE_ERR_STATUS_HI__FED_CNT_MASK                                                                     0x1C000000L
+#define SQ_UE_ERR_STATUS_HI__RESERVED_MASK                                                                    0xE0000000L
+//SQ_CE_ERR_STATUS_LO
+#define SQ_CE_ERR_STATUS_LO__ERR_STATUS_VALID_FLAG__SHIFT                                                     0x0
+#define SQ_CE_ERR_STATUS_LO__ADDRESS_VALID_FLAG__SHIFT                                                        0x1
+#define SQ_CE_ERR_STATUS_LO__ADDRESS__SHIFT                                                                   0x2
+#define SQ_CE_ERR_STATUS_LO__MEMORY_ID__SHIFT                                                                 0x18
+#define SQ_CE_ERR_STATUS_LO__ERR_STATUS_VALID_FLAG_MASK                                                       0x00000001L
+#define SQ_CE_ERR_STATUS_LO__ADDRESS_VALID_FLAG_MASK                                                          0x00000002L
+#define SQ_CE_ERR_STATUS_LO__ADDRESS_MASK                                                                     0x00FFFFFCL
+#define SQ_CE_ERR_STATUS_LO__MEMORY_ID_MASK                                                                   0xFF000000L
+//SQ_CE_ERR_STATUS_HI
+#define SQ_CE_ERR_STATUS_HI__ECC__SHIFT                                                                       0x0
+#define SQ_CE_ERR_STATUS_HI__OTHER__SHIFT                                                                     0x1
+#define SQ_CE_ERR_STATUS_HI__ERR_INFO_VALID_FLAG__SHIFT                                                       0x2
+#define SQ_CE_ERR_STATUS_HI__ERR_INFO__SHIFT                                                                  0x3
+#define SQ_CE_ERR_STATUS_HI__CE_CNT__SHIFT                                                                    0x17
+#define SQ_CE_ERR_STATUS_HI__POISON__SHIFT                                                                    0x1a
+#define SQ_CE_ERR_STATUS_HI__RESERVED__SHIFT                                                                  0x1b
+#define SQ_CE_ERR_STATUS_HI__ECC_MASK                                                                         0x00000001L
+#define SQ_CE_ERR_STATUS_HI__OTHER_MASK                                                                       0x00000002L
+#define SQ_CE_ERR_STATUS_HI__ERR_INFO_VALID_FLAG_MASK                                                         0x00000004L
+#define SQ_CE_ERR_STATUS_HI__ERR_INFO_MASK                                                                    0x007FFFF8L
+#define SQ_CE_ERR_STATUS_HI__CE_CNT_MASK                                                                      0x03800000L
+#define SQ_CE_ERR_STATUS_HI__POISON_MASK                                                                      0x04000000L
+#define SQ_CE_ERR_STATUS_HI__RESERVED_MASK                                                                    0xF8000000L
+//LDS_UE_ERR_STATUS_LO
+#define LDS_UE_ERR_STATUS_LO__ERR_STATUS_VALID_FLAG__SHIFT                                                    0x0
+#define LDS_UE_ERR_STATUS_LO__ADDRESS_VALID_FLAG__SHIFT                                                       0x1
+#define LDS_UE_ERR_STATUS_LO__ADDRESS__SHIFT                                                                  0x2
+#define LDS_UE_ERR_STATUS_LO__MEMORY_ID__SHIFT                                                                0x18
+#define LDS_UE_ERR_STATUS_LO__ERR_STATUS_VALID_FLAG_MASK                                                      0x00000001L
+#define LDS_UE_ERR_STATUS_LO__ADDRESS_VALID_FLAG_MASK                                                         0x00000002L
+#define LDS_UE_ERR_STATUS_LO__ADDRESS_MASK                                                                    0x00FFFFFCL
+#define LDS_UE_ERR_STATUS_LO__MEMORY_ID_MASK                                                                  0xFF000000L
+//LDS_UE_ERR_STATUS_HI
+#define LDS_UE_ERR_STATUS_HI__ECC__SHIFT                                                                      0x0
+#define LDS_UE_ERR_STATUS_HI__PARITY__SHIFT                                                                   0x1
+#define LDS_UE_ERR_STATUS_HI__ERR_INFO_VALID_FLAG__SHIFT                                                      0x2
+#define LDS_UE_ERR_STATUS_HI__ERR_INFO__SHIFT                                                                 0x3
+#define LDS_UE_ERR_STATUS_HI__UE_CNT__SHIFT                                                                   0x17
+#define LDS_UE_ERR_STATUS_HI__FED_CNT__SHIFT                                                                  0x1a
+#define LDS_UE_ERR_STATUS_HI__RESERVED__SHIFT                                                                 0x1d
+#define LDS_UE_ERR_STATUS_HI__ECC_MASK                                                                        0x00000001L
+#define LDS_UE_ERR_STATUS_HI__PARITY_MASK                                                                     0x00000002L
+#define LDS_UE_ERR_STATUS_HI__ERR_INFO_VALID_FLAG_MASK                                                        0x00000004L
+#define LDS_UE_ERR_STATUS_HI__ERR_INFO_MASK                                                                   0x007FFFF8L
+#define LDS_UE_ERR_STATUS_HI__UE_CNT_MASK                                                                     0x03800000L
+#define LDS_UE_ERR_STATUS_HI__FED_CNT_MASK                                                                    0x1C000000L
+#define LDS_UE_ERR_STATUS_HI__RESERVED_MASK                                                                   0xE0000000L
+//LDS_CE_ERR_STATUS_LO
+#define LDS_CE_ERR_STATUS_LO__ERR_STATUS_VALID_FLAG__SHIFT                                                    0x0
+#define LDS_CE_ERR_STATUS_LO__ADDRESS_VALID_FLAG__SHIFT                                                       0x1
+#define LDS_CE_ERR_STATUS_LO__ADDRESS__SHIFT                                                                  0x2
+#define LDS_CE_ERR_STATUS_LO__MEMORY_ID__SHIFT                                                                0x18
+#define LDS_CE_ERR_STATUS_LO__ERR_STATUS_VALID_FLAG_MASK                                                      0x00000001L
+#define LDS_CE_ERR_STATUS_LO__ADDRESS_VALID_FLAG_MASK                                                         0x00000002L
+#define LDS_CE_ERR_STATUS_LO__ADDRESS_MASK                                                                    0x00FFFFFCL
+#define LDS_CE_ERR_STATUS_LO__MEMORY_ID_MASK                                                                  0xFF000000L
+//LDS_CE_ERR_STATUS_HI
+#define LDS_CE_ERR_STATUS_HI__ECC__SHIFT                                                                      0x0
+#define LDS_CE_ERR_STATUS_HI__OTHER__SHIFT                                                                    0x1
+#define LDS_CE_ERR_STATUS_HI__ERR_INFO_VALID_FLAG__SHIFT                                                      0x2
+#define LDS_CE_ERR_STATUS_HI__ERR_INFO__SHIFT                                                                 0x3
+#define LDS_CE_ERR_STATUS_HI__CE_CNT__SHIFT                                                                   0x17
+#define LDS_CE_ERR_STATUS_HI__POISON__SHIFT                                                                   0x1a
+#define LDS_CE_ERR_STATUS_HI__RESERVED__SHIFT                                                                 0x1b
+#define LDS_CE_ERR_STATUS_HI__ECC_MASK                                                                        0x00000001L
+#define LDS_CE_ERR_STATUS_HI__OTHER_MASK                                                                      0x00000002L
+#define LDS_CE_ERR_STATUS_HI__ERR_INFO_VALID_FLAG_MASK                                                        0x00000004L
+#define LDS_CE_ERR_STATUS_HI__ERR_INFO_MASK                                                                   0x007FFFF8L
+#define LDS_CE_ERR_STATUS_HI__CE_CNT_MASK                                                                     0x03800000L
+#define LDS_CE_ERR_STATUS_HI__POISON_MASK                                                                     0x04000000L
+#define LDS_CE_ERR_STATUS_HI__RESERVED_MASK                                                                   0xF8000000L
+//SP0_UE_ERR_STATUS_LO
+#define SP0_UE_ERR_STATUS_LO__ERR_STATUS_VALID_FLAG__SHIFT                                                    0x0
+#define SP0_UE_ERR_STATUS_LO__ADDRESS_VALID_FLAG__SHIFT                                                       0x1
+#define SP0_UE_ERR_STATUS_LO__ADDRESS__SHIFT                                                                  0x2
+#define SP0_UE_ERR_STATUS_LO__MEMORY_ID__SHIFT                                                                0x18
+#define SP0_UE_ERR_STATUS_LO__ERR_STATUS_VALID_FLAG_MASK                                                      0x00000001L
+#define SP0_UE_ERR_STATUS_LO__ADDRESS_VALID_FLAG_MASK                                                         0x00000002L
+#define SP0_UE_ERR_STATUS_LO__ADDRESS_MASK                                                                    0x00FFFFFCL
+#define SP0_UE_ERR_STATUS_LO__MEMORY_ID_MASK                                                                  0xFF000000L
+//SP0_UE_ERR_STATUS_HI
+#define SP0_UE_ERR_STATUS_HI__ECC__SHIFT                                                                      0x0
+#define SP0_UE_ERR_STATUS_HI__PARITY__SHIFT                                                                   0x1
+#define SP0_UE_ERR_STATUS_HI__ERR_INFO_VALID_FLAG__SHIFT                                                      0x2
+#define SP0_UE_ERR_STATUS_HI__ERR_INFO__SHIFT                                                                 0x3
+#define SP0_UE_ERR_STATUS_HI__UE_CNT__SHIFT                                                                   0x17
+#define SP0_UE_ERR_STATUS_HI__FED_CNT__SHIFT                                                                  0x1a
+#define SP0_UE_ERR_STATUS_HI__RESERVED__SHIFT                                                                 0x1d
+#define SP0_UE_ERR_STATUS_HI__ECC_MASK                                                                        0x00000001L
+#define SP0_UE_ERR_STATUS_HI__PARITY_MASK                                                                     0x00000002L
+#define SP0_UE_ERR_STATUS_HI__ERR_INFO_VALID_FLAG_MASK                                                        0x00000004L
+#define SP0_UE_ERR_STATUS_HI__ERR_INFO_MASK                                                                   0x007FFFF8L
+#define SP0_UE_ERR_STATUS_HI__UE_CNT_MASK                                                                     0x03800000L
+#define SP0_UE_ERR_STATUS_HI__FED_CNT_MASK                                                                    0x1C000000L
+#define SP0_UE_ERR_STATUS_HI__RESERVED_MASK                                                                   0xE0000000L
+//SP0_CE_ERR_STATUS_LO
+#define SP0_CE_ERR_STATUS_LO__ERR_STATUS_VALID_FLAG__SHIFT                                                    0x0
+#define SP0_CE_ERR_STATUS_LO__ADDRESS_VALID_FLAG__SHIFT                                                       0x1
+#define SP0_CE_ERR_STATUS_LO__ADDRESS__SHIFT                                                                  0x2
+#define SP0_CE_ERR_STATUS_LO__MEMORY_ID__SHIFT                                                                0x18
+#define SP0_CE_ERR_STATUS_LO__ERR_STATUS_VALID_FLAG_MASK                                                      0x00000001L
+#define SP0_CE_ERR_STATUS_LO__ADDRESS_VALID_FLAG_MASK                                                         0x00000002L
+#define SP0_CE_ERR_STATUS_LO__ADDRESS_MASK                                                                    0x00FFFFFCL
+#define SP0_CE_ERR_STATUS_LO__MEMORY_ID_MASK                                                                  0xFF000000L
+//SP0_CE_ERR_STATUS_HI
+#define SP0_CE_ERR_STATUS_HI__ECC__SHIFT                                                                      0x0
+#define SP0_CE_ERR_STATUS_HI__OTHER__SHIFT                                                                    0x1
+#define SP0_CE_ERR_STATUS_HI__ERR_INFO_VALID_FLAG__SHIFT                                                      0x2
+#define SP0_CE_ERR_STATUS_HI__ERR_INFO__SHIFT                                                                 0x3
+#define SP0_CE_ERR_STATUS_HI__CE_CNT__SHIFT                                                                   0x17
+#define SP0_CE_ERR_STATUS_HI__POISON__SHIFT                                                                   0x1a
+#define SP0_CE_ERR_STATUS_HI__RESERVED__SHIFT                                                                 0x1b
+#define SP0_CE_ERR_STATUS_HI__ECC_MASK                                                                        0x00000001L
+#define SP0_CE_ERR_STATUS_HI__OTHER_MASK                                                                      0x00000002L
+#define SP0_CE_ERR_STATUS_HI__ERR_INFO_VALID_FLAG_MASK                                                        0x00000004L
+#define SP0_CE_ERR_STATUS_HI__ERR_INFO_MASK                                                                   0x007FFFF8L
+#define SP0_CE_ERR_STATUS_HI__CE_CNT_MASK                                                                     0x03800000L
+#define SP0_CE_ERR_STATUS_HI__POISON_MASK                                                                     0x04000000L
+#define SP0_CE_ERR_STATUS_HI__RESERVED_MASK                                                                   0xF8000000L
+//SP1_UE_ERR_STATUS_LO
+#define SP1_UE_ERR_STATUS_LO__ERR_STATUS_VALID_FLAG__SHIFT                                                    0x0
+#define SP1_UE_ERR_STATUS_LO__ADDRESS_VALID_FLAG__SHIFT                                                       0x1
+#define SP1_UE_ERR_STATUS_LO__ADDRESS__SHIFT                                                                  0x2
+#define SP1_UE_ERR_STATUS_LO__MEMORY_ID__SHIFT                                                                0x18
+#define SP1_UE_ERR_STATUS_LO__ERR_STATUS_VALID_FLAG_MASK                                                      0x00000001L
+#define SP1_UE_ERR_STATUS_LO__ADDRESS_VALID_FLAG_MASK                                                         0x00000002L
+#define SP1_UE_ERR_STATUS_LO__ADDRESS_MASK                                                                    0x00FFFFFCL
+#define SP1_UE_ERR_STATUS_LO__MEMORY_ID_MASK                                                                  0xFF000000L
+//SP1_UE_ERR_STATUS_HI
+#define SP1_UE_ERR_STATUS_HI__ECC__SHIFT                                                                      0x0
+#define SP1_UE_ERR_STATUS_HI__PARITY__SHIFT                                                                   0x1
+#define SP1_UE_ERR_STATUS_HI__ERR_INFO_VALID_FLAG__SHIFT                                                      0x2
+#define SP1_UE_ERR_STATUS_HI__ERR_INFO__SHIFT                                                                 0x3
+#define SP1_UE_ERR_STATUS_HI__UE_CNT__SHIFT                                                                   0x17
+#define SP1_UE_ERR_STATUS_HI__FED_CNT__SHIFT                                                                  0x1a
+#define SP1_UE_ERR_STATUS_HI__RESERVED__SHIFT                                                                 0x1d
+#define SP1_UE_ERR_STATUS_HI__ECC_MASK                                                                        0x00000001L
+#define SP1_UE_ERR_STATUS_HI__PARITY_MASK                                                                     0x00000002L
+#define SP1_UE_ERR_STATUS_HI__ERR_INFO_VALID_FLAG_MASK                                                        0x00000004L
+#define SP1_UE_ERR_STATUS_HI__ERR_INFO_MASK                                                                   0x007FFFF8L
+#define SP1_UE_ERR_STATUS_HI__UE_CNT_MASK                                                                     0x03800000L
+#define SP1_UE_ERR_STATUS_HI__FED_CNT_MASK                                                                    0x1C000000L
+#define SP1_UE_ERR_STATUS_HI__RESERVED_MASK                                                                   0xE0000000L
+//SP1_CE_ERR_STATUS_LO
+#define SP1_CE_ERR_STATUS_LO__ERR_STATUS_VALID_FLAG__SHIFT                                                    0x0
+#define SP1_CE_ERR_STATUS_LO__ADDRESS_VALID_FLAG__SHIFT                                                       0x1
+#define SP1_CE_ERR_STATUS_LO__ADDRESS__SHIFT                                                                  0x2
+#define SP1_CE_ERR_STATUS_LO__MEMORY_ID__SHIFT                                                                0x18
+#define SP1_CE_ERR_STATUS_LO__ERR_STATUS_VALID_FLAG_MASK                                                      0x00000001L
+#define SP1_CE_ERR_STATUS_LO__ADDRESS_VALID_FLAG_MASK                                                         0x00000002L
+#define SP1_CE_ERR_STATUS_LO__ADDRESS_MASK                                                                    0x00FFFFFCL
+#define SP1_CE_ERR_STATUS_LO__MEMORY_ID_MASK                                                                  0xFF000000L
+//SP1_CE_ERR_STATUS_HI
+#define SP1_CE_ERR_STATUS_HI__ECC__SHIFT                                                                      0x0
+#define SP1_CE_ERR_STATUS_HI__OTHER__SHIFT                                                                    0x1
+#define SP1_CE_ERR_STATUS_HI__ERR_INFO_VALID_FLAG__SHIFT                                                      0x2
+#define SP1_CE_ERR_STATUS_HI__ERR_INFO__SHIFT                                                                 0x3
+#define SP1_CE_ERR_STATUS_HI__CE_CNT__SHIFT                                                                   0x17
+#define SP1_CE_ERR_STATUS_HI__POISON__SHIFT                                                                   0x1a
+#define SP1_CE_ERR_STATUS_HI__RESERVED__SHIFT                                                                 0x1b
+#define SP1_CE_ERR_STATUS_HI__ECC_MASK                                                                        0x00000001L
+#define SP1_CE_ERR_STATUS_HI__OTHER_MASK                                                                      0x00000002L
+#define SP1_CE_ERR_STATUS_HI__ERR_INFO_VALID_FLAG_MASK                                                        0x00000004L
+#define SP1_CE_ERR_STATUS_HI__ERR_INFO_MASK                                                                   0x007FFFF8L
+#define SP1_CE_ERR_STATUS_HI__CE_CNT_MASK                                                                     0x03800000L
+#define SP1_CE_ERR_STATUS_HI__POISON_MASK                                                                     0x04000000L
+#define SP1_CE_ERR_STATUS_HI__RESERVED_MASK                                                                   0xF8000000L
 
 
 // addressBlock: xcd0_gc_shsdec
@@ -4235,6 +4469,54 @@
 #define SPI_EDC_CNT__SPI_LIFE_CNT_SEC_COUNT_MASK                                                              0x00030000L
 #define SPI_EDC_CNT__SPI_LIFE_CNT_DED_COUNT_MASK                                                              0x000C0000L
 #define SPI_EDC_CNT__UNUSED_MASK                                                                              0xFFF00000L
+//SPI_UE_ERR_STATUS_LO
+#define SPI_UE_ERR_STATUS_LO__ERR_STATUS_VALID_FLAG__SHIFT                                                    0x0
+#define SPI_UE_ERR_STATUS_LO__ADDRESS_VALID_FLAG__SHIFT                                                       0x1
+#define SPI_UE_ERR_STATUS_LO__ADDRESS__SHIFT                                                                  0x2
+#define SPI_UE_ERR_STATUS_LO__MEMORY_ID__SHIFT                                                                0x18
+#define SPI_UE_ERR_STATUS_LO__ERR_STATUS_VALID_FLAG_MASK                                                      0x00000001L
+#define SPI_UE_ERR_STATUS_LO__ADDRESS_VALID_FLAG_MASK                                                         0x00000002L
+#define SPI_UE_ERR_STATUS_LO__ADDRESS_MASK                                                                    0x00FFFFFCL
+#define SPI_UE_ERR_STATUS_LO__MEMORY_ID_MASK                                                                  0xFF000000L
+//SPI_UE_ERR_STATUS_HI
+#define SPI_UE_ERR_STATUS_HI__ECC__SHIFT                                                                      0x0
+#define SPI_UE_ERR_STATUS_HI__PARITY__SHIFT                                                                   0x1
+#define SPI_UE_ERR_STATUS_HI__ERR_INFO_VALID_FLAG__SHIFT                                                      0x2
+#define SPI_UE_ERR_STATUS_HI__ERR_INFO__SHIFT                                                                 0x3
+#define SPI_UE_ERR_STATUS_HI__UE_CNT__SHIFT                                                                   0x17
+#define SPI_UE_ERR_STATUS_HI__FED_CNT__SHIFT                                                                  0x1a
+#define SPI_UE_ERR_STATUS_HI__RESERVED__SHIFT                                                                 0x1d
+#define SPI_UE_ERR_STATUS_HI__ECC_MASK                                                                        0x00000001L
+#define SPI_UE_ERR_STATUS_HI__PARITY_MASK                                                                     0x00000002L
+#define SPI_UE_ERR_STATUS_HI__ERR_INFO_VALID_FLAG_MASK                                                        0x00000004L
+#define SPI_UE_ERR_STATUS_HI__ERR_INFO_MASK                                                                   0x007FFFF8L
+#define SPI_UE_ERR_STATUS_HI__UE_CNT_MASK                                                                     0x03800000L
+#define SPI_UE_ERR_STATUS_HI__FED_CNT_MASK                                                                    0x1C000000L
+#define SPI_UE_ERR_STATUS_HI__RESERVED_MASK                                                                   0xE0000000L
+//SPI_CE_ERR_STATUS_LO
+#define SPI_CE_ERR_STATUS_LO__ERR_STATUS_VALID_FLAG__SHIFT                                                    0x0
+#define SPI_CE_ERR_STATUS_LO__ADDRESS_VALID_FLAG__SHIFT                                                       0x1
+#define SPI_CE_ERR_STATUS_LO__ADDRESS__SHIFT                                                                  0x2
+#define SPI_CE_ERR_STATUS_LO__MEMORY_ID__SHIFT                                                                0x18
+#define SPI_CE_ERR_STATUS_LO__ERR_STATUS_VALID_FLAG_MASK                                                      0x00000001L
+#define SPI_CE_ERR_STATUS_LO__ADDRESS_VALID_FLAG_MASK                                                         0x00000002L
+#define SPI_CE_ERR_STATUS_LO__ADDRESS_MASK                                                                    0x00FFFFFCL
+#define SPI_CE_ERR_STATUS_LO__MEMORY_ID_MASK                                                                  0xFF000000L
+//SPI_CE_ERR_STATUS_HI
+#define SPI_CE_ERR_STATUS_HI__ECC__SHIFT                                                                      0x0
+#define SPI_CE_ERR_STATUS_HI__OTHER__SHIFT                                                                    0x1
+#define SPI_CE_ERR_STATUS_HI__ERR_INFO_VALID_FLAG__SHIFT                                                      0x2
+#define SPI_CE_ERR_STATUS_HI__ERR_INFO__SHIFT                                                                 0x3
+#define SPI_CE_ERR_STATUS_HI__CE_CNT__SHIFT                                                                   0x17
+#define SPI_CE_ERR_STATUS_HI__POISON__SHIFT                                                                   0x1a
+#define SPI_CE_ERR_STATUS_HI__RESERVED__SHIFT                                                                 0x1b
+#define SPI_CE_ERR_STATUS_HI__ECC_MASK                                                                        0x00000001L
+#define SPI_CE_ERR_STATUS_HI__OTHER_MASK                                                                      0x00000002L
+#define SPI_CE_ERR_STATUS_HI__ERR_INFO_VALID_FLAG_MASK                                                        0x00000004L
+#define SPI_CE_ERR_STATUS_HI__ERR_INFO_MASK                                                                   0x007FFFF8L
+#define SPI_CE_ERR_STATUS_HI__CE_CNT_MASK                                                                     0x03800000L
+#define SPI_CE_ERR_STATUS_HI__POISON_MASK                                                                     0x04000000L
+#define SPI_CE_ERR_STATUS_HI__RESERVED_MASK                                                                   0xF8000000L
 //SPI_DEBUG_BUSY
 #define SPI_DEBUG_BUSY__HS_BUSY__SHIFT                                                                        0x0
 #define SPI_DEBUG_BUSY__GS_BUSY__SHIFT                                                                        0x1
@@ -4622,6 +4904,48 @@
 #define TD_POWER_CNTL__MGCG_OUTPUTSTAGE_MASK                                                                  0x00000002L
 #define TD_POWER_CNTL__MID0_THREAD_DATA_MASK                                                                  0x00000004L
 #define TD_POWER_CNTL__MID2_ACCUM_DATA_MASK                                                                   0x00000008L
+//TD_UE_EDC_LO
+#define TD_UE_EDC_LO__STATUS_VALID_FLAG__SHIFT                                                                0x0
+#define TD_UE_EDC_LO__ADDRESS_INFO_VALID_FLAG__SHIFT                                                          0x1
+#define TD_UE_EDC_LO__ADDRESS__SHIFT                                                                          0x2
+#define TD_UE_EDC_LO__MEM_ID__SHIFT                                                                           0x18
+#define TD_UE_EDC_LO__STATUS_VALID_FLAG_MASK                                                                  0x00000001L
+#define TD_UE_EDC_LO__ADDRESS_INFO_VALID_FLAG_MASK                                                            0x00000002L
+#define TD_UE_EDC_LO__ADDRESS_MASK                                                                            0x00FFFFFCL
+#define TD_UE_EDC_LO__MEM_ID_MASK                                                                             0xFF000000L
+//TD_UE_EDC_HI
+#define TD_UE_EDC_HI__ECC__SHIFT                                                                              0x0
+#define TD_UE_EDC_HI__PARITY__SHIFT                                                                           0x1
+#define TD_UE_EDC_HI__ERR_INFO_VALID_FLAG__SHIFT                                                              0x2
+#define TD_UE_EDC_HI__ERR_INFO__SHIFT                                                                         0x3
+#define TD_UE_EDC_HI__UE_CNT__SHIFT                                                                           0x17
+#define TD_UE_EDC_HI__FED_CNT__SHIFT                                                                          0x1a
+#define TD_UE_EDC_HI__ECC_MASK                                                                                0x00000001L
+#define TD_UE_EDC_HI__PARITY_MASK                                                                             0x00000002L
+#define TD_UE_EDC_HI__ERR_INFO_VALID_FLAG_MASK                                                                0x00000004L
+#define TD_UE_EDC_HI__ERR_INFO_MASK                                                                           0x007FFFF8L
+#define TD_UE_EDC_HI__UE_CNT_MASK                                                                             0x03800000L
+#define TD_UE_EDC_HI__FED_CNT_MASK                                                                            0x1C000000L
+//TD_CE_EDC_LO
+#define TD_CE_EDC_LO__STATUS_VALID_FLAG__SHIFT                                                                0x0
+#define TD_CE_EDC_LO__ADDRESS_INFO_VALID_FLAG__SHIFT                                                          0x1
+#define TD_CE_EDC_LO__ADDRESS__SHIFT                                                                          0x2
+#define TD_CE_EDC_LO__MEM_ID__SHIFT                                                                           0x18
+#define TD_CE_EDC_LO__STATUS_VALID_FLAG_MASK                                                                  0x00000001L
+#define TD_CE_EDC_LO__ADDRESS_INFO_VALID_FLAG_MASK                                                            0x00000002L
+#define TD_CE_EDC_LO__ADDRESS_MASK                                                                            0x00FFFFFCL
+#define TD_CE_EDC_LO__MEM_ID_MASK                                                                             0xFF000000L
+//TD_CE_EDC_HI
+#define TD_CE_EDC_HI__ECC__SHIFT                                                                              0x0
+#define TD_CE_EDC_HI__ERR_INFO_VALID_FLAG__SHIFT                                                              0x2
+#define TD_CE_EDC_HI__ERR_INFO__SHIFT                                                                         0x3
+#define TD_CE_EDC_HI__CE_CNT__SHIFT                                                                           0x17
+#define TD_CE_EDC_HI__POISON__SHIFT                                                                           0x1a
+#define TD_CE_EDC_HI__ECC_MASK                                                                                0x00000001L
+#define TD_CE_EDC_HI__ERR_INFO_VALID_FLAG_MASK                                                                0x00000004L
+#define TD_CE_EDC_HI__ERR_INFO_MASK                                                                           0x007FFFF8L
+#define TD_CE_EDC_HI__CE_CNT_MASK                                                                             0x03800000L
+#define TD_CE_EDC_HI__POISON_MASK                                                                             0x04000000L
 //TD_DSM_CNTL
 #define TD_DSM_CNTL__TD_SS_FIFO_LO_DSM_IRRITATOR_DATA__SHIFT                                                  0x0
 #define TD_DSM_CNTL__TD_SS_FIFO_LO_ENABLE_SINGLE_WRITE__SHIFT                                                 0x2
@@ -4771,6 +5095,48 @@
 #define TA_DSM_CNTL2__TA_FS_AFIFO_HI_ENABLE_ERROR_INJECT_MASK                                                 0x000C0000L
 #define TA_DSM_CNTL2__TA_FS_AFIFO_HI_SELECT_INJECT_DELAY_MASK                                                 0x00100000L
 #define TA_DSM_CNTL2__TA_INJECT_DELAY_MASK                                                                    0xFC000000L
+//TA_UE_EDC_LO
+#define TA_UE_EDC_LO__STATUS_VALID_FLAG__SHIFT                                                                0x0
+#define TA_UE_EDC_LO__ADDRESS_INFO_VALID_FLAG__SHIFT                                                          0x1
+#define TA_UE_EDC_LO__ADDRESS__SHIFT                                                                          0x2
+#define TA_UE_EDC_LO__MEM_ID__SHIFT                                                                           0x18
+#define TA_UE_EDC_LO__STATUS_VALID_FLAG_MASK                                                                  0x00000001L
+#define TA_UE_EDC_LO__ADDRESS_INFO_VALID_FLAG_MASK                                                            0x00000002L
+#define TA_UE_EDC_LO__ADDRESS_MASK                                                                            0x00FFFFFCL
+#define TA_UE_EDC_LO__MEM_ID_MASK                                                                             0xFF000000L
+//TA_UE_EDC_HI
+#define TA_UE_EDC_HI__ECC__SHIFT                                                                              0x0
+#define TA_UE_EDC_HI__PARITY__SHIFT                                                                           0x1
+#define TA_UE_EDC_HI__ERR_INFO_VALID_FLAG__SHIFT                                                              0x2
+#define TA_UE_EDC_HI__ERR_INFO__SHIFT                                                                         0x3
+#define TA_UE_EDC_HI__UE_CNT__SHIFT                                                                           0x17
+#define TA_UE_EDC_HI__FED_CNT__SHIFT                                                                          0x1a
+#define TA_UE_EDC_HI__ECC_MASK                                                                                0x00000001L
+#define TA_UE_EDC_HI__PARITY_MASK                                                                             0x00000002L
+#define TA_UE_EDC_HI__ERR_INFO_VALID_FLAG_MASK                                                                0x00000004L
+#define TA_UE_EDC_HI__ERR_INFO_MASK                                                                           0x007FFFF8L
+#define TA_UE_EDC_HI__UE_CNT_MASK                                                                             0x03800000L
+#define TA_UE_EDC_HI__FED_CNT_MASK                                                                            0x1C000000L
+//TA_CE_EDC_LO
+#define TA_CE_EDC_LO__STATUS_VALID_FLAG__SHIFT                                                                0x0
+#define TA_CE_EDC_LO__ADDRESS_INFO_VALID_FLAG__SHIFT                                                          0x1
+#define TA_CE_EDC_LO__ADDRESS__SHIFT                                                                          0x2
+#define TA_CE_EDC_LO__MEM_ID__SHIFT                                                                           0x18
+#define TA_CE_EDC_LO__STATUS_VALID_FLAG_MASK                                                                  0x00000001L
+#define TA_CE_EDC_LO__ADDRESS_INFO_VALID_FLAG_MASK                                                            0x00000002L
+#define TA_CE_EDC_LO__ADDRESS_MASK                                                                            0x00FFFFFCL
+#define TA_CE_EDC_LO__MEM_ID_MASK                                                                             0xFF000000L
+//TA_CE_EDC_HI
+#define TA_CE_EDC_HI__ECC__SHIFT                                                                              0x0
+#define TA_CE_EDC_HI__ERR_INFO_VALID_FLAG__SHIFT                                                              0x2
+#define TA_CE_EDC_HI__ERR_INFO__SHIFT                                                                         0x3
+#define TA_CE_EDC_HI__CE_CNT__SHIFT                                                                           0x17
+#define TA_CE_EDC_HI__POISON__SHIFT                                                                           0x1a
+#define TA_CE_EDC_HI__ECC_MASK                                                                                0x00000001L
+#define TA_CE_EDC_HI__ERR_INFO_VALID_FLAG_MASK                                                                0x00000004L
+#define TA_CE_EDC_HI__ERR_INFO_MASK                                                                           0x007FFFF8L
+#define TA_CE_EDC_HI__CE_CNT_MASK                                                                             0x03800000L
+#define TA_CE_EDC_HI__POISON_MASK                                                                             0x04000000L
 
 
 // addressBlock: xcd0_gc_gdsdec
@@ -5015,6 +5381,54 @@
 #define GDS_WD_GDS_CSB__UNUSED__SHIFT                                                                         0xd
 #define GDS_WD_GDS_CSB__COUNTER_MASK                                                                          0x00001FFFL
 #define GDS_WD_GDS_CSB__UNUSED_MASK                                                                           0xFFFFE000L
+//GDS_UE_ERR_STATUS_LO
+#define GDS_UE_ERR_STATUS_LO__ERR_STATUS_VALID_FLAG__SHIFT                                                    0x0
+#define GDS_UE_ERR_STATUS_LO__ADDRESS_VALID_FLAG__SHIFT                                                       0x1
+#define GDS_UE_ERR_STATUS_LO__ADDRESS__SHIFT                                                                  0x2
+#define GDS_UE_ERR_STATUS_LO__MEMORY_ID__SHIFT                                                                0x18
+#define GDS_UE_ERR_STATUS_LO__ERR_STATUS_VALID_FLAG_MASK                                                      0x00000001L
+#define GDS_UE_ERR_STATUS_LO__ADDRESS_VALID_FLAG_MASK                                                         0x00000002L
+#define GDS_UE_ERR_STATUS_LO__ADDRESS_MASK                                                                    0x00FFFFFCL
+#define GDS_UE_ERR_STATUS_LO__MEMORY_ID_MASK                                                                  0xFF000000L
+//GDS_UE_ERR_STATUS_HI
+#define GDS_UE_ERR_STATUS_HI__ECC__SHIFT                                                                      0x0
+#define GDS_UE_ERR_STATUS_HI__PARITY__SHIFT                                                                   0x1
+#define GDS_UE_ERR_STATUS_HI__ERR_INFO_VALID_FLAG__SHIFT                                                      0x2
+#define GDS_UE_ERR_STATUS_HI__ERR_INFO__SHIFT                                                                 0x3
+#define GDS_UE_ERR_STATUS_HI__UE_CNT__SHIFT                                                                   0x17
+#define GDS_UE_ERR_STATUS_HI__FED_CNT__SHIFT                                                                  0x1a
+#define GDS_UE_ERR_STATUS_HI__RESERVED__SHIFT                                                                 0x1d
+#define GDS_UE_ERR_STATUS_HI__ECC_MASK                                                                        0x00000001L
+#define GDS_UE_ERR_STATUS_HI__PARITY_MASK                                                                     0x00000002L
+#define GDS_UE_ERR_STATUS_HI__ERR_INFO_VALID_FLAG_MASK                                                        0x00000004L
+#define GDS_UE_ERR_STATUS_HI__ERR_INFO_MASK                                                                   0x007FFFF8L
+#define GDS_UE_ERR_STATUS_HI__UE_CNT_MASK                                                                     0x03800000L
+#define GDS_UE_ERR_STATUS_HI__FED_CNT_MASK                                                                    0x1C000000L
+#define GDS_UE_ERR_STATUS_HI__RESERVED_MASK                                                                   0xE0000000L
+//GDS_CE_ERR_STATUS_LO
+#define GDS_CE_ERR_STATUS_LO__ERR_STATUS_VALID_FLAG__SHIFT                                                    0x0
+#define GDS_CE_ERR_STATUS_LO__ADDRESS_VALID_FLAG__SHIFT                                                       0x1
+#define GDS_CE_ERR_STATUS_LO__ADDRESS__SHIFT                                                                  0x2
+#define GDS_CE_ERR_STATUS_LO__MEMORY_ID__SHIFT                                                                0x18
+#define GDS_CE_ERR_STATUS_LO__ERR_STATUS_VALID_FLAG_MASK                                                      0x00000001L
+#define GDS_CE_ERR_STATUS_LO__ADDRESS_VALID_FLAG_MASK                                                         0x00000002L
+#define GDS_CE_ERR_STATUS_LO__ADDRESS_MASK                                                                    0x00FFFFFCL
+#define GDS_CE_ERR_STATUS_LO__MEMORY_ID_MASK                                                                  0xFF000000L
+//GDS_CE_ERR_STATUS_HI
+#define GDS_CE_ERR_STATUS_HI__ECC__SHIFT                                                                      0x0
+#define GDS_CE_ERR_STATUS_HI__OTHER__SHIFT                                                                    0x1
+#define GDS_CE_ERR_STATUS_HI__ERR_INFO_VALID_FLAG__SHIFT                                                      0x2
+#define GDS_CE_ERR_STATUS_HI__ERR_INFO__SHIFT                                                                 0x3
+#define GDS_CE_ERR_STATUS_HI__CE_CNT__SHIFT                                                                   0x17
+#define GDS_CE_ERR_STATUS_HI__POISON__SHIFT                                                                   0x1a
+#define GDS_CE_ERR_STATUS_HI__RESERVED__SHIFT                                                                 0x1b
+#define GDS_CE_ERR_STATUS_HI__ECC_MASK                                                                        0x00000001L
+#define GDS_CE_ERR_STATUS_HI__OTHER_MASK                                                                      0x00000002L
+#define GDS_CE_ERR_STATUS_HI__ERR_INFO_VALID_FLAG_MASK                                                        0x00000004L
+#define GDS_CE_ERR_STATUS_HI__ERR_INFO_MASK                                                                   0x007FFFF8L
+#define GDS_CE_ERR_STATUS_HI__CE_CNT_MASK                                                                     0x03800000L
+#define GDS_CE_ERR_STATUS_HI__POISON_MASK                                                                     0x04000000L
+#define GDS_CE_ERR_STATUS_HI__RESERVED_MASK                                                                   0xF8000000L
 
 
 // addressBlock: xcd0_gc_rbdec
@@ -7370,6 +7784,30 @@
 #define GCEA_MAM_CTRL2__ARAM_FLUSH_NOALLOC_MASK                                                               0x00000040L
 #define GCEA_MAM_CTRL2__RESERVED_FIELD_MASK                                                                   0x00FFFF80L
 #define GCEA_MAM_CTRL2__ADDR_HI_MASK                                                                          0xFF000000L
+//GCEA_UE_ERR_STATUS_LO
+#define GCEA_UE_ERR_STATUS_LO__STATUS_VALID_FLAG__SHIFT                                                       0x0
+#define GCEA_UE_ERR_STATUS_LO__ADDRESS_VALID_FLAG__SHIFT                                                      0x1
+#define GCEA_UE_ERR_STATUS_LO__ADDRESS__SHIFT                                                                 0x2
+#define GCEA_UE_ERR_STATUS_LO__MEMORY_ID__SHIFT                                                               0x18
+#define GCEA_UE_ERR_STATUS_LO__STATUS_VALID_FLAG_MASK                                                         0x00000001L
+#define GCEA_UE_ERR_STATUS_LO__ADDRESS_VALID_FLAG_MASK                                                        0x00000002L
+#define GCEA_UE_ERR_STATUS_LO__ADDRESS_MASK                                                                   0x00FFFFFCL
+#define GCEA_UE_ERR_STATUS_LO__MEMORY_ID_MASK                                                                 0xFF000000L
+//GCEA_UE_ERR_STATUS_HI
+#define GCEA_UE_ERR_STATUS_HI__ECC__SHIFT                                                                     0x0
+#define GCEA_UE_ERR_STATUS_HI__PARITY__SHIFT                                                                  0x1
+#define GCEA_UE_ERR_STATUS_HI__ERR_INFO_VALID_FLAG__SHIFT                                                     0x2
+#define GCEA_UE_ERR_STATUS_HI__ERR_INFO__SHIFT                                                                0x3
+#define GCEA_UE_ERR_STATUS_HI__UE_CNT__SHIFT                                                                  0x17
+#define GCEA_UE_ERR_STATUS_HI__FED_CNT__SHIFT                                                                 0x1a
+#define GCEA_UE_ERR_STATUS_HI__RESERVED_FIELD__SHIFT                                                          0x1d
+#define GCEA_UE_ERR_STATUS_HI__ECC_MASK                                                                       0x00000001L
+#define GCEA_UE_ERR_STATUS_HI__PARITY_MASK                                                                    0x00000002L
+#define GCEA_UE_ERR_STATUS_HI__ERR_INFO_VALID_FLAG_MASK                                                       0x00000004L
+#define GCEA_UE_ERR_STATUS_HI__ERR_INFO_MASK                                                                  0x007FFFF8L
+#define GCEA_UE_ERR_STATUS_HI__UE_CNT_MASK                                                                    0x03800000L
+#define GCEA_UE_ERR_STATUS_HI__FED_CNT_MASK                                                                   0x1C000000L
+#define GCEA_UE_ERR_STATUS_HI__RESERVED_FIELD_MASK                                                            0xE0000000L
 //GCEA_DSM_CNTL
 #define GCEA_DSM_CNTL__DRAMRD_CMDMEM_DSM_IRRITATOR_DATA__SHIFT                                                0x0
 #define GCEA_DSM_CNTL__DRAMRD_CMDMEM_ENABLE_SINGLE_WRITE__SHIFT                                               0x2
@@ -7745,6 +8183,30 @@
 #define GCEA_SDP_BACKDOOR_MISCCREDITS__WRRSP_CREDITS_RELEASED_MASK                                            0x0000FF00L
 #define GCEA_SDP_BACKDOOR_MISCCREDITS__PRB_REQ_CREDITS_RELEASED_MASK                                          0x007F0000L
 #define GCEA_SDP_BACKDOOR_MISCCREDITS__PRB_RSP_CREDITS_RECEIVED_MASK                                          0x3F800000L
+//GCEA_CE_ERR_STATUS_LO
+#define GCEA_CE_ERR_STATUS_LO__STATUS_VALID_FLAG__SHIFT                                                       0x0
+#define GCEA_CE_ERR_STATUS_LO__ADDRESS_VALID_FLAG__SHIFT                                                      0x1
+#define GCEA_CE_ERR_STATUS_LO__ADDRESS__SHIFT                                                                 0x2
+#define GCEA_CE_ERR_STATUS_LO__MEMORY_ID__SHIFT                                                               0x18
+#define GCEA_CE_ERR_STATUS_LO__STATUS_VALID_FLAG_MASK                                                         0x00000001L
+#define GCEA_CE_ERR_STATUS_LO__ADDRESS_VALID_FLAG_MASK                                                        0x00000002L
+#define GCEA_CE_ERR_STATUS_LO__ADDRESS_MASK                                                                   0x00FFFFFCL
+#define GCEA_CE_ERR_STATUS_LO__MEMORY_ID_MASK                                                                 0xFF000000L
+//GCEA_CE_ERR_STATUS_HI
+#define GCEA_CE_ERR_STATUS_HI__ECC__SHIFT                                                                     0x0
+#define GCEA_CE_ERR_STATUS_HI__RESERVED_FIELD0__SHIFT                                                         0x1
+#define GCEA_CE_ERR_STATUS_HI__ERR_INFO_VALID_FLAG__SHIFT                                                     0x2
+#define GCEA_CE_ERR_STATUS_HI__ERR_INFO__SHIFT                                                                0x3
+#define GCEA_CE_ERR_STATUS_HI__CE_CNT__SHIFT                                                                  0x17
+#define GCEA_CE_ERR_STATUS_HI__POISON__SHIFT                                                                  0x1a
+#define GCEA_CE_ERR_STATUS_HI__RESERVED_FIELD1__SHIFT                                                         0x1b
+#define GCEA_CE_ERR_STATUS_HI__ECC_MASK                                                                       0x00000001L
+#define GCEA_CE_ERR_STATUS_HI__RESERVED_FIELD0_MASK                                                           0x00000002L
+#define GCEA_CE_ERR_STATUS_HI__ERR_INFO_VALID_FLAG_MASK                                                       0x00000004L
+#define GCEA_CE_ERR_STATUS_HI__ERR_INFO_MASK                                                                  0x007FFFF8L
+#define GCEA_CE_ERR_STATUS_HI__CE_CNT_MASK                                                                    0x03800000L
+#define GCEA_CE_ERR_STATUS_HI__POISON_MASK                                                                    0x04000000L
+#define GCEA_CE_ERR_STATUS_HI__RESERVED_FIELD1_MASK                                                           0xF8000000L
 //GCEA_SDP_ENABLE
 #define GCEA_SDP_ENABLE__ENABLE__SHIFT                                                                        0x0
 #define GCEA_SDP_ENABLE__ENABLE_MASK                                                                          0x00000001L
@@ -8440,6 +8902,54 @@
 //ATC_L2_MM_GROUP_RT_CLASSES
 #define ATC_L2_MM_GROUP_RT_CLASSES__GROUP_RT_CLASS__SHIFT                                                     0x0
 #define ATC_L2_MM_GROUP_RT_CLASSES__GROUP_RT_CLASS_MASK                                                       0xFFFFFFFFL
+//ATC_L2_UE_ERR_STATUS_LO
+#define ATC_L2_UE_ERR_STATUS_LO__ERR_STATUS_VALID_FLAG__SHIFT                                                 0x0
+#define ATC_L2_UE_ERR_STATUS_LO__ADDRESS_VALID_FLAG__SHIFT                                                    0x1
+#define ATC_L2_UE_ERR_STATUS_LO__ADDRESS__SHIFT                                                               0x2
+#define ATC_L2_UE_ERR_STATUS_LO__MEMORY_ID__SHIFT                                                             0x18
+#define ATC_L2_UE_ERR_STATUS_LO__ERR_STATUS_VALID_FLAG_MASK                                                   0x00000001L
+#define ATC_L2_UE_ERR_STATUS_LO__ADDRESS_VALID_FLAG_MASK                                                      0x00000002L
+#define ATC_L2_UE_ERR_STATUS_LO__ADDRESS_MASK                                                                 0x00FFFFFCL
+#define ATC_L2_UE_ERR_STATUS_LO__MEMORY_ID_MASK                                                               0xFF000000L
+//ATC_L2_UE_ERR_STATUS_HI
+#define ATC_L2_UE_ERR_STATUS_HI__ECC__SHIFT                                                                   0x0
+#define ATC_L2_UE_ERR_STATUS_HI__PARITY__SHIFT                                                                0x1
+#define ATC_L2_UE_ERR_STATUS_HI__ERR_INFO_VALID_FLAG__SHIFT                                                   0x2
+#define ATC_L2_UE_ERR_STATUS_HI__ERR_INFO__SHIFT                                                              0x3
+#define ATC_L2_UE_ERR_STATUS_HI__UE_CNT__SHIFT                                                                0x17
+#define ATC_L2_UE_ERR_STATUS_HI__FED_CNT__SHIFT                                                               0x1a
+#define ATC_L2_UE_ERR_STATUS_HI__RESERVED__SHIFT                                                              0x1d
+#define ATC_L2_UE_ERR_STATUS_HI__ECC_MASK                                                                     0x00000001L
+#define ATC_L2_UE_ERR_STATUS_HI__PARITY_MASK                                                                  0x00000002L
+#define ATC_L2_UE_ERR_STATUS_HI__ERR_INFO_VALID_FLAG_MASK                                                     0x00000004L
+#define ATC_L2_UE_ERR_STATUS_HI__ERR_INFO_MASK                                                                0x007FFFF8L
+#define ATC_L2_UE_ERR_STATUS_HI__UE_CNT_MASK                                                                  0x03800000L
+#define ATC_L2_UE_ERR_STATUS_HI__FED_CNT_MASK                                                                 0x1C000000L
+#define ATC_L2_UE_ERR_STATUS_HI__RESERVED_MASK                                                                0x60000000L
+//ATC_L2_CE_ERR_STATUS_LO
+#define ATC_L2_CE_ERR_STATUS_LO__ERR_STATUS_VALID_FLAG__SHIFT                                                 0x0
+#define ATC_L2_CE_ERR_STATUS_LO__ADDRESS_VALID_FLAG__SHIFT                                                    0x1
+#define ATC_L2_CE_ERR_STATUS_LO__ADDRESS__SHIFT                                                               0x2
+#define ATC_L2_CE_ERR_STATUS_LO__MEMORY_ID__SHIFT                                                             0x18
+#define ATC_L2_CE_ERR_STATUS_LO__ERR_STATUS_VALID_FLAG_MASK                                                   0x00000001L
+#define ATC_L2_CE_ERR_STATUS_LO__ADDRESS_VALID_FLAG_MASK                                                      0x00000002L
+#define ATC_L2_CE_ERR_STATUS_LO__ADDRESS_MASK                                                                 0x00FFFFFCL
+#define ATC_L2_CE_ERR_STATUS_LO__MEMORY_ID_MASK                                                               0xFF000000L
+//ATC_L2_CE_ERR_STATUS_HI
+#define ATC_L2_CE_ERR_STATUS_HI__ECC__SHIFT                                                                   0x0
+#define ATC_L2_CE_ERR_STATUS_HI__OTHER__SHIFT                                                                 0x1
+#define ATC_L2_CE_ERR_STATUS_HI__ERR_INFO_VALID_FLAG__SHIFT                                                   0x2
+#define ATC_L2_CE_ERR_STATUS_HI__ERR_INFO__SHIFT                                                              0x3
+#define ATC_L2_CE_ERR_STATUS_HI__CE_CNT__SHIFT                                                                0x17
+#define ATC_L2_CE_ERR_STATUS_HI__POISON__SHIFT                                                                0x1a
+#define ATC_L2_CE_ERR_STATUS_HI__RESERVED__SHIFT                                                              0x1b
+#define ATC_L2_CE_ERR_STATUS_HI__ECC_MASK                                                                     0x00000001L
+#define ATC_L2_CE_ERR_STATUS_HI__OTHER_MASK                                                                   0x00000002L
+#define ATC_L2_CE_ERR_STATUS_HI__ERR_INFO_VALID_FLAG_MASK                                                     0x00000004L
+#define ATC_L2_CE_ERR_STATUS_HI__ERR_INFO_MASK                                                                0x007FFFF8L
+#define ATC_L2_CE_ERR_STATUS_HI__CE_CNT_MASK                                                                  0x03800000L
+#define ATC_L2_CE_ERR_STATUS_HI__POISON_MASK                                                                  0x04000000L
+#define ATC_L2_CE_ERR_STATUS_HI__RESERVED_MASK                                                                0xF8000000L
 
 
 // addressBlock: xcd0_gc_utcl2_vml2pfdec
@@ -8888,6 +9398,150 @@
 #define UTCL2_EDC_CONFIG__DIS_EDC__SHIFT                                                                      0x1
 #define UTCL2_EDC_CONFIG__WRITE_DIS_MASK                                                                      0x00000001L
 #define UTCL2_EDC_CONFIG__DIS_EDC_MASK                                                                        0x00000002L
+//VML2_UE_ERR_STATUS_LO
+#define VML2_UE_ERR_STATUS_LO__ERR_STATUS_VALID_FLAG__SHIFT                                                   0x0
+#define VML2_UE_ERR_STATUS_LO__ADDRESS_VALID_FLAG__SHIFT                                                      0x1
+#define VML2_UE_ERR_STATUS_LO__ADDRESS__SHIFT                                                                 0x2
+#define VML2_UE_ERR_STATUS_LO__MEMORY_ID__SHIFT                                                               0x18
+#define VML2_UE_ERR_STATUS_LO__ERR_STATUS_VALID_FLAG_MASK                                                     0x00000001L
+#define VML2_UE_ERR_STATUS_LO__ADDRESS_VALID_FLAG_MASK                                                        0x00000002L
+#define VML2_UE_ERR_STATUS_LO__ADDRESS_MASK                                                                   0x00FFFFFCL
+#define VML2_UE_ERR_STATUS_LO__MEMORY_ID_MASK                                                                 0xFF000000L
+//VML2_WALKER_UE_ERR_STATUS_LO
+#define VML2_WALKER_UE_ERR_STATUS_LO__ERR_STATUS_VALID_FLAG__SHIFT                                            0x0
+#define VML2_WALKER_UE_ERR_STATUS_LO__ADDRESS_VALID_FLAG__SHIFT                                               0x1
+#define VML2_WALKER_UE_ERR_STATUS_LO__ADDRESS__SHIFT                                                          0x2
+#define VML2_WALKER_UE_ERR_STATUS_LO__MEMORY_ID__SHIFT                                                        0x18
+#define VML2_WALKER_UE_ERR_STATUS_LO__ERR_STATUS_VALID_FLAG_MASK                                              0x00000001L
+#define VML2_WALKER_UE_ERR_STATUS_LO__ADDRESS_VALID_FLAG_MASK                                                 0x00000002L
+#define VML2_WALKER_UE_ERR_STATUS_LO__ADDRESS_MASK                                                            0x00FFFFFCL
+#define VML2_WALKER_UE_ERR_STATUS_LO__MEMORY_ID_MASK                                                          0xFF000000L
+//UTCL2_UE_ERR_STATUS_LO
+#define UTCL2_UE_ERR_STATUS_LO__ERR_STATUS_VALID_FLAG__SHIFT                                                  0x0
+#define UTCL2_UE_ERR_STATUS_LO__ADDRESS_VALID_FLAG__SHIFT                                                     0x1
+#define UTCL2_UE_ERR_STATUS_LO__ADDRESS__SHIFT                                                                0x2
+#define UTCL2_UE_ERR_STATUS_LO__MEMORY_ID__SHIFT                                                              0x18
+#define UTCL2_UE_ERR_STATUS_LO__ERR_STATUS_VALID_FLAG_MASK                                                    0x00000001L
+#define UTCL2_UE_ERR_STATUS_LO__ADDRESS_VALID_FLAG_MASK                                                       0x00000002L
+#define UTCL2_UE_ERR_STATUS_LO__ADDRESS_MASK                                                                  0x00FFFFFCL
+#define UTCL2_UE_ERR_STATUS_LO__MEMORY_ID_MASK                                                                0xFF000000L
+//VML2_UE_ERR_STATUS_HI
+#define VML2_UE_ERR_STATUS_HI__ECC__SHIFT                                                                     0x0
+#define VML2_UE_ERR_STATUS_HI__PARITY__SHIFT                                                                  0x1
+#define VML2_UE_ERR_STATUS_HI__ERR_INFO_VALID_FLAG__SHIFT                                                     0x2
+#define VML2_UE_ERR_STATUS_HI__ERR_INFO__SHIFT                                                                0x3
+#define VML2_UE_ERR_STATUS_HI__UE_CNT__SHIFT                                                                  0x17
+#define VML2_UE_ERR_STATUS_HI__FED_CNT__SHIFT                                                                 0x1a
+#define VML2_UE_ERR_STATUS_HI__RESERVED__SHIFT                                                                0x1d
+#define VML2_UE_ERR_STATUS_HI__ECC_MASK                                                                       0x00000001L
+#define VML2_UE_ERR_STATUS_HI__PARITY_MASK                                                                    0x00000002L
+#define VML2_UE_ERR_STATUS_HI__ERR_INFO_VALID_FLAG_MASK                                                       0x00000004L
+#define VML2_UE_ERR_STATUS_HI__ERR_INFO_MASK                                                                  0x007FFFF8L
+#define VML2_UE_ERR_STATUS_HI__UE_CNT_MASK                                                                    0x03800000L
+#define VML2_UE_ERR_STATUS_HI__FED_CNT_MASK                                                                   0x1C000000L
+#define VML2_UE_ERR_STATUS_HI__RESERVED_MASK                                                                  0xE0000000L
+//VML2_WALKER_UE_ERR_STATUS_HI
+#define VML2_WALKER_UE_ERR_STATUS_HI__ECC__SHIFT                                                              0x0
+#define VML2_WALKER_UE_ERR_STATUS_HI__PARITY__SHIFT                                                           0x1
+#define VML2_WALKER_UE_ERR_STATUS_HI__ERR_INFO_VALID_FLAG__SHIFT                                              0x2
+#define VML2_WALKER_UE_ERR_STATUS_HI__ERR_INFO__SHIFT                                                         0x3
+#define VML2_WALKER_UE_ERR_STATUS_HI__UE_CNT__SHIFT                                                           0x17
+#define VML2_WALKER_UE_ERR_STATUS_HI__FED_CNT__SHIFT                                                          0x1a
+#define VML2_WALKER_UE_ERR_STATUS_HI__RESERVED__SHIFT                                                         0x1d
+#define VML2_WALKER_UE_ERR_STATUS_HI__ECC_MASK                                                                0x00000001L
+#define VML2_WALKER_UE_ERR_STATUS_HI__PARITY_MASK                                                             0x00000002L
+#define VML2_WALKER_UE_ERR_STATUS_HI__ERR_INFO_VALID_FLAG_MASK                                                0x00000004L
+#define VML2_WALKER_UE_ERR_STATUS_HI__ERR_INFO_MASK                                                           0x007FFFF8L
+#define VML2_WALKER_UE_ERR_STATUS_HI__UE_CNT_MASK                                                             0x03800000L
+#define VML2_WALKER_UE_ERR_STATUS_HI__FED_CNT_MASK                                                            0x1C000000L
+#define VML2_WALKER_UE_ERR_STATUS_HI__RESERVED_MASK                                                           0xE0000000L
+//UTCL2_UE_ERR_STATUS_HI
+#define UTCL2_UE_ERR_STATUS_HI__ECC__SHIFT                                                                    0x0
+#define UTCL2_UE_ERR_STATUS_HI__PARITY__SHIFT                                                                 0x1
+#define UTCL2_UE_ERR_STATUS_HI__ERR_INFO_VALID_FLAG__SHIFT                                                    0x2
+#define UTCL2_UE_ERR_STATUS_HI__ERR_INFO__SHIFT                                                               0x3
+#define UTCL2_UE_ERR_STATUS_HI__UE_CNT__SHIFT                                                                 0x17
+#define UTCL2_UE_ERR_STATUS_HI__FED_CNT__SHIFT                                                                0x1a
+#define UTCL2_UE_ERR_STATUS_HI__RESERVED__SHIFT                                                               0x1d
+#define UTCL2_UE_ERR_STATUS_HI__ECC_MASK                                                                      0x00000001L
+#define UTCL2_UE_ERR_STATUS_HI__PARITY_MASK                                                                   0x00000002L
+#define UTCL2_UE_ERR_STATUS_HI__ERR_INFO_VALID_FLAG_MASK                                                      0x00000004L
+#define UTCL2_UE_ERR_STATUS_HI__ERR_INFO_MASK                                                                 0x007FFFF8L
+#define UTCL2_UE_ERR_STATUS_HI__UE_CNT_MASK                                                                   0x03800000L
+#define UTCL2_UE_ERR_STATUS_HI__FED_CNT_MASK                                                                  0x1C000000L
+#define UTCL2_UE_ERR_STATUS_HI__RESERVED_MASK                                                                 0xE0000000L
+//VML2_CE_ERR_STATUS_LO
+#define VML2_CE_ERR_STATUS_LO__ERR_STATUS_VALID_FLAG__SHIFT                                                   0x0
+#define VML2_CE_ERR_STATUS_LO__ADDRESS_VALID_FLAG__SHIFT                                                      0x1
+#define VML2_CE_ERR_STATUS_LO__ADDRESS__SHIFT                                                                 0x2
+#define VML2_CE_ERR_STATUS_LO__MEMORY_ID__SHIFT                                                               0x18
+#define VML2_CE_ERR_STATUS_LO__ERR_STATUS_VALID_FLAG_MASK                                                     0x00000001L
+#define VML2_CE_ERR_STATUS_LO__ADDRESS_VALID_FLAG_MASK                                                        0x00000002L
+#define VML2_CE_ERR_STATUS_LO__ADDRESS_MASK                                                                   0x00FFFFFCL
+#define VML2_CE_ERR_STATUS_LO__MEMORY_ID_MASK                                                                 0xFF000000L
+//VML2_WALKER_CE_ERR_STATUS_LO
+#define VML2_WALKER_CE_ERR_STATUS_LO__ERR_STATUS_VALID_FLAG__SHIFT                                            0x0
+#define VML2_WALKER_CE_ERR_STATUS_LO__ADDRESS_VALID_FLAG__SHIFT                                               0x1
+#define VML2_WALKER_CE_ERR_STATUS_LO__ADDRESS__SHIFT                                                          0x2
+#define VML2_WALKER_CE_ERR_STATUS_LO__MEMORY_ID__SHIFT                                                        0x18
+#define VML2_WALKER_CE_ERR_STATUS_LO__ERR_STATUS_VALID_FLAG_MASK                                              0x00000001L
+#define VML2_WALKER_CE_ERR_STATUS_LO__ADDRESS_VALID_FLAG_MASK                                                 0x00000002L
+#define VML2_WALKER_CE_ERR_STATUS_LO__ADDRESS_MASK                                                            0x00FFFFFCL
+#define VML2_WALKER_CE_ERR_STATUS_LO__MEMORY_ID_MASK                                                          0xFF000000L
+//UTCL2_CE_ERR_STATUS_LO
+#define UTCL2_CE_ERR_STATUS_LO__ERR_STATUS_VALID_FLAG__SHIFT                                                  0x0
+#define UTCL2_CE_ERR_STATUS_LO__ADDRESS_VALID_FLAG__SHIFT                                                     0x1
+#define UTCL2_CE_ERR_STATUS_LO__ADDRESS__SHIFT                                                                0x2
+#define UTCL2_CE_ERR_STATUS_LO__MEMORY_ID__SHIFT                                                              0x18
+#define UTCL2_CE_ERR_STATUS_LO__ERR_STATUS_VALID_FLAG_MASK                                                    0x00000001L
+#define UTCL2_CE_ERR_STATUS_LO__ADDRESS_VALID_FLAG_MASK                                                       0x00000002L
+#define UTCL2_CE_ERR_STATUS_LO__ADDRESS_MASK                                                                  0x00FFFFFCL
+#define UTCL2_CE_ERR_STATUS_LO__MEMORY_ID_MASK                                                                0xFF000000L
+//VML2_CE_ERR_STATUS_HI
+#define VML2_CE_ERR_STATUS_HI__ECC__SHIFT                                                                     0x0
+#define VML2_CE_ERR_STATUS_HI__OTHER__SHIFT                                                                   0x1
+#define VML2_CE_ERR_STATUS_HI__ERR_INFO_VALID_FLAG__SHIFT                                                     0x2
+#define VML2_CE_ERR_STATUS_HI__ERR_INFO__SHIFT                                                                0x3
+#define VML2_CE_ERR_STATUS_HI__CE_CNT__SHIFT                                                                  0x17
+#define VML2_CE_ERR_STATUS_HI__POISON__SHIFT                                                                  0x1a
+#define VML2_CE_ERR_STATUS_HI__RESERVED__SHIFT                                                                0x1b
+#define VML2_CE_ERR_STATUS_HI__ECC_MASK                                                                       0x00000001L
+#define VML2_CE_ERR_STATUS_HI__OTHER_MASK                                                                     0x00000002L
+#define VML2_CE_ERR_STATUS_HI__ERR_INFO_VALID_FLAG_MASK                                                       0x00000004L
+#define VML2_CE_ERR_STATUS_HI__ERR_INFO_MASK                                                                  0x007FFFF8L
+#define VML2_CE_ERR_STATUS_HI__CE_CNT_MASK                                                                    0x03800000L
+#define VML2_CE_ERR_STATUS_HI__POISON_MASK                                                                    0x04000000L
+#define VML2_CE_ERR_STATUS_HI__RESERVED_MASK                                                                  0xF8000000L
+//VML2_WALKER_CE_ERR_STATUS_HI
+#define VML2_WALKER_CE_ERR_STATUS_HI__ECC__SHIFT                                                              0x0
+#define VML2_WALKER_CE_ERR_STATUS_HI__OTHER__SHIFT                                                            0x1
+#define VML2_WALKER_CE_ERR_STATUS_HI__ERR_INFO_VALID_FLAG__SHIFT                                              0x2
+#define VML2_WALKER_CE_ERR_STATUS_HI__ERR_INFO__SHIFT                                                         0x3
+#define VML2_WALKER_CE_ERR_STATUS_HI__CE_CNT__SHIFT                                                           0x17
+#define VML2_WALKER_CE_ERR_STATUS_HI__POISON__SHIFT                                                           0x1a
+#define VML2_WALKER_CE_ERR_STATUS_HI__RESERVED__SHIFT                                                         0x1b
+#define VML2_WALKER_CE_ERR_STATUS_HI__ECC_MASK                                                                0x00000001L
+#define VML2_WALKER_CE_ERR_STATUS_HI__OTHER_MASK                                                              0x00000002L
+#define VML2_WALKER_CE_ERR_STATUS_HI__ERR_INFO_VALID_FLAG_MASK                                                0x00000004L
+#define VML2_WALKER_CE_ERR_STATUS_HI__ERR_INFO_MASK                                                           0x007FFFF8L
+#define VML2_WALKER_CE_ERR_STATUS_HI__CE_CNT_MASK                                                             0x03800000L
+#define VML2_WALKER_CE_ERR_STATUS_HI__POISON_MASK                                                             0x04000000L
+#define VML2_WALKER_CE_ERR_STATUS_HI__RESERVED_MASK                                                           0xF8000000L
+//UTCL2_CE_ERR_STATUS_HI
+#define UTCL2_CE_ERR_STATUS_HI__ECC__SHIFT                                                                    0x0
+#define UTCL2_CE_ERR_STATUS_HI__OTHER__SHIFT                                                                  0x1
+#define UTCL2_CE_ERR_STATUS_HI__ERR_INFO_VALID_FLAG__SHIFT                                                    0x2
+#define UTCL2_CE_ERR_STATUS_HI__ERR_INFO__SHIFT                                                               0x3
+#define UTCL2_CE_ERR_STATUS_HI__CE_CNT__SHIFT                                                                 0x17
+#define UTCL2_CE_ERR_STATUS_HI__POISON__SHIFT                                                                 0x1a
+#define UTCL2_CE_ERR_STATUS_HI__RESERVED__SHIFT                                                               0x1b
+#define UTCL2_CE_ERR_STATUS_HI__ECC_MASK                                                                      0x00000001L
+#define UTCL2_CE_ERR_STATUS_HI__OTHER_MASK                                                                    0x00000002L
+#define UTCL2_CE_ERR_STATUS_HI__ERR_INFO_VALID_FLAG_MASK                                                      0x00000004L
+#define UTCL2_CE_ERR_STATUS_HI__ERR_INFO_MASK                                                                 0x007FFFF8L
+#define UTCL2_CE_ERR_STATUS_HI__CE_CNT_MASK                                                                   0x03800000L
+#define UTCL2_CE_ERR_STATUS_HI__POISON_MASK                                                                   0x04000000L
+#define UTCL2_CE_ERR_STATUS_HI__RESERVED_MASK                                                                 0xF8000000L
 
 
 // addressBlock: xcd0_gc_utcl2_vml2vcdec
@@ -11139,6 +11793,98 @@
 //TC_CFG_L2_VOLATILE
 #define TC_CFG_L2_VOLATILE__VOL__SHIFT                                                                        0x0
 #define TC_CFG_L2_VOLATILE__VOL_MASK                                                                          0x0000000FL
+//TCP_UE_EDC_HI_REG
+#define TCP_UE_EDC_HI_REG__ECC__SHIFT                                                                         0x0
+#define TCP_UE_EDC_HI_REG__PARITY__SHIFT                                                                      0x1
+#define TCP_UE_EDC_HI_REG__ERR_INFO_VALID_FLAG__SHIFT                                                         0x2
+#define TCP_UE_EDC_HI_REG__ERR_INFO__SHIFT                                                                    0x3
+#define TCP_UE_EDC_HI_REG__UE_CNT__SHIFT                                                                      0x17
+#define TCP_UE_EDC_HI_REG__FED_CNT__SHIFT                                                                     0x1a
+#define TCP_UE_EDC_HI_REG__RESERVED__SHIFT                                                                    0x1d
+#define TCP_UE_EDC_HI_REG__ECC_MASK                                                                           0x00000001L
+#define TCP_UE_EDC_HI_REG__PARITY_MASK                                                                        0x00000002L
+#define TCP_UE_EDC_HI_REG__ERR_INFO_VALID_FLAG_MASK                                                           0x00000004L
+#define TCP_UE_EDC_HI_REG__ERR_INFO_MASK                                                                      0x007FFFF8L
+#define TCP_UE_EDC_HI_REG__UE_CNT_MASK                                                                        0x03800000L
+#define TCP_UE_EDC_HI_REG__FED_CNT_MASK                                                                       0x1C000000L
+#define TCP_UE_EDC_HI_REG__RESERVED_MASK                                                                      0xE0000000L
+//TCP_UE_EDC_LO_REG
+#define TCP_UE_EDC_LO_REG__STATUS_VALID_FLAG__SHIFT                                                           0x0
+#define TCP_UE_EDC_LO_REG__ADDRESS_INFO_VALID_FLAG__SHIFT                                                     0x1
+#define TCP_UE_EDC_LO_REG__ADDRESS__SHIFT                                                                     0x2
+#define TCP_UE_EDC_LO_REG__MEM_ID__SHIFT                                                                      0x18
+#define TCP_UE_EDC_LO_REG__STATUS_VALID_FLAG_MASK                                                             0x00000001L
+#define TCP_UE_EDC_LO_REG__ADDRESS_INFO_VALID_FLAG_MASK                                                       0x00000002L
+#define TCP_UE_EDC_LO_REG__ADDRESS_MASK                                                                       0x00FFFFFCL
+#define TCP_UE_EDC_LO_REG__MEM_ID_MASK                                                                        0xFF000000L
+//TCP_CE_EDC_HI_REG
+#define TCP_CE_EDC_HI_REG__ECC__SHIFT                                                                         0x0
+#define TCP_CE_EDC_HI_REG__ERR_INFO_VALID_FLAG__SHIFT                                                         0x2
+#define TCP_CE_EDC_HI_REG__ERR_INFO__SHIFT                                                                    0x3
+#define TCP_CE_EDC_HI_REG__CE_CNT__SHIFT                                                                      0x17
+#define TCP_CE_EDC_HI_REG__POISON__SHIFT                                                                      0x1a
+#define TCP_CE_EDC_HI_REG__RESERVED__SHIFT                                                                    0x1b
+#define TCP_CE_EDC_HI_REG__ECC_MASK                                                                           0x00000001L
+#define TCP_CE_EDC_HI_REG__ERR_INFO_VALID_FLAG_MASK                                                           0x00000004L
+#define TCP_CE_EDC_HI_REG__ERR_INFO_MASK                                                                      0x007FFFF8L
+#define TCP_CE_EDC_HI_REG__CE_CNT_MASK                                                                        0x03800000L
+#define TCP_CE_EDC_HI_REG__POISON_MASK                                                                        0x04000000L
+#define TCP_CE_EDC_HI_REG__RESERVED_MASK                                                                      0xF8000000L
+//TCP_CE_EDC_LO_REG
+#define TCP_CE_EDC_LO_REG__STATUS_VALID_FLAG__SHIFT                                                           0x0
+#define TCP_CE_EDC_LO_REG__ADDRESS_INFO_VALID_FLAG__SHIFT                                                     0x1
+#define TCP_CE_EDC_LO_REG__ADDRESS__SHIFT                                                                     0x2
+#define TCP_CE_EDC_LO_REG__MEM_ID__SHIFT                                                                      0x18
+#define TCP_CE_EDC_LO_REG__STATUS_VALID_FLAG_MASK                                                             0x00000001L
+#define TCP_CE_EDC_LO_REG__ADDRESS_INFO_VALID_FLAG_MASK                                                       0x00000002L
+#define TCP_CE_EDC_LO_REG__ADDRESS_MASK                                                                       0x00FFFFFCL
+#define TCP_CE_EDC_LO_REG__MEM_ID_MASK                                                                        0xFF000000L
+//TCI_UE_EDC_HI_REG
+#define TCI_UE_EDC_HI_REG__ECC__SHIFT                                                                         0x0
+#define TCI_UE_EDC_HI_REG__PARITY__SHIFT                                                                      0x1
+#define TCI_UE_EDC_HI_REG__ERR_INFO_VALID_FLAG__SHIFT                                                         0x2
+#define TCI_UE_EDC_HI_REG__ERR_INFO__SHIFT                                                                    0x3
+#define TCI_UE_EDC_HI_REG__UE_CNT__SHIFT                                                                      0x17
+#define TCI_UE_EDC_HI_REG__FED_CNT__SHIFT                                                                     0x1a
+#define TCI_UE_EDC_HI_REG__RESERVED__SHIFT                                                                    0x1d
+#define TCI_UE_EDC_HI_REG__ECC_MASK                                                                           0x00000001L
+#define TCI_UE_EDC_HI_REG__PARITY_MASK                                                                        0x00000002L
+#define TCI_UE_EDC_HI_REG__ERR_INFO_VALID_FLAG_MASK                                                           0x00000004L
+#define TCI_UE_EDC_HI_REG__ERR_INFO_MASK                                                                      0x007FFFF8L
+#define TCI_UE_EDC_HI_REG__UE_CNT_MASK                                                                        0x03800000L
+#define TCI_UE_EDC_HI_REG__FED_CNT_MASK                                                                       0x1C000000L
+#define TCI_UE_EDC_HI_REG__RESERVED_MASK                                                                      0xE0000000L
+//TCI_UE_EDC_LO_REG
+#define TCI_UE_EDC_LO_REG__STATUS_VALID_FLAG__SHIFT                                                           0x0
+#define TCI_UE_EDC_LO_REG__ADDRESS_INFO_VALID_FLAG__SHIFT                                                     0x1
+#define TCI_UE_EDC_LO_REG__ADDRESS__SHIFT                                                                     0x2
+#define TCI_UE_EDC_LO_REG__MEM_ID__SHIFT                                                                      0x18
+#define TCI_UE_EDC_LO_REG__STATUS_VALID_FLAG_MASK                                                             0x00000001L
+#define TCI_UE_EDC_LO_REG__ADDRESS_INFO_VALID_FLAG_MASK                                                       0x00000002L
+#define TCI_UE_EDC_LO_REG__ADDRESS_MASK                                                                       0x00FFFFFCL
+#define TCI_UE_EDC_LO_REG__MEM_ID_MASK                                                                        0xFF000000L
+//TCI_CE_EDC_HI_REG
+#define TCI_CE_EDC_HI_REG__ECC__SHIFT                                                                         0x0
+#define TCI_CE_EDC_HI_REG__ERR_INFO_VALID_FLAG__SHIFT                                                         0x2
+#define TCI_CE_EDC_HI_REG__ERR_INFO__SHIFT                                                                    0x3
+#define TCI_CE_EDC_HI_REG__CE_CNT__SHIFT                                                                      0x17
+#define TCI_CE_EDC_HI_REG__POISON__SHIFT                                                                      0x1a
+#define TCI_CE_EDC_HI_REG__RESERVED__SHIFT                                                                    0x1b
+#define TCI_CE_EDC_HI_REG__ECC_MASK                                                                           0x00000001L
+#define TCI_CE_EDC_HI_REG__ERR_INFO_VALID_FLAG_MASK                                                           0x00000004L
+#define TCI_CE_EDC_HI_REG__ERR_INFO_MASK                                                                      0x007FFFF8L
+#define TCI_CE_EDC_HI_REG__CE_CNT_MASK                                                                        0x03800000L
+#define TCI_CE_EDC_HI_REG__POISON_MASK                                                                        0x04000000L
+#define TCI_CE_EDC_HI_REG__RESERVED_MASK                                                                      0xF8000000L
+//TCI_CE_EDC_LO_REG
+#define TCI_CE_EDC_LO_REG__STATUS_VALID_FLAG__SHIFT                                                           0x0
+#define TCI_CE_EDC_LO_REG__ADDRESS_INFO_VALID_FLAG__SHIFT                                                     0x1
+#define TCI_CE_EDC_LO_REG__ADDRESS__SHIFT                                                                     0x2
+#define TCI_CE_EDC_LO_REG__MEM_ID__SHIFT                                                                      0x18
+#define TCI_CE_EDC_LO_REG__STATUS_VALID_FLAG_MASK                                                             0x00000001L
+#define TCI_CE_EDC_LO_REG__ADDRESS_INFO_VALID_FLAG_MASK                                                       0x00000002L
+#define TCI_CE_EDC_LO_REG__ADDRESS_MASK                                                                       0x00FFFFFCL
+#define TCI_CE_EDC_LO_REG__MEM_ID_MASK                                                                        0xFF000000L
 //TCI_MISC
 #define TCI_MISC__FGCG_REPEATER_DISABLE__SHIFT                                                                0x0
 #define TCI_MISC__LEGACY_MGCG_DISABLE__SHIFT                                                                  0x1
@@ -11560,6 +12306,112 @@
 #define TCX_DSM_CNTL2__SED_ENABLE_ERROR_INJECT_MASK                                                           0x00000003L
 #define TCX_DSM_CNTL2__SED_SELECT_INJECT_DELAY_MASK                                                           0x00000004L
 #define TCX_DSM_CNTL2__INJECT_DELAY_MASK                                                                      0xFC000000L
+//TCA_UE_ERR_STATUS_LO
+#define TCA_UE_ERR_STATUS_LO__ERR_STATUS_VALID_FLAG__SHIFT                                                    0x0
+#define TCA_UE_ERR_STATUS_LO__ADDRESS_VALID_FLAG__SHIFT                                                       0x1
+#define TCA_UE_ERR_STATUS_LO__ADDRESS__SHIFT                                                                  0x2
+#define TCA_UE_ERR_STATUS_LO__MEMORY_ID__SHIFT                                                                0x18
+#define TCA_UE_ERR_STATUS_LO__ERR_STATUS_VALID_FLAG_MASK                                                      0x00000001L
+#define TCA_UE_ERR_STATUS_LO__ADDRESS_VALID_FLAG_MASK                                                         0x00000002L
+#define TCA_UE_ERR_STATUS_LO__ADDRESS_MASK                                                                    0x00FFFFFCL
+#define TCA_UE_ERR_STATUS_LO__MEMORY_ID_MASK                                                                  0xFF000000L
+//TCA_UE_ERR_STATUS_HI
+#define TCA_UE_ERR_STATUS_HI__ECC__SHIFT                                                                      0x0
+#define TCA_UE_ERR_STATUS_HI__PARITY__SHIFT                                                                   0x1
+#define TCA_UE_ERR_STATUS_HI__ERROR_INFO_VALID_FLAG__SHIFT                                                    0x2
+#define TCA_UE_ERR_STATUS_HI__ERROR_INFO__SHIFT                                                               0x3
+#define TCA_UE_ERR_STATUS_HI__UE_CNT__SHIFT                                                                   0x17
+#define TCA_UE_ERR_STATUS_HI__FED_CNT__SHIFT                                                                  0x1a
+#define TCA_UE_ERR_STATUS_HI__ECC_MASK                                                                        0x00000001L
+#define TCA_UE_ERR_STATUS_HI__PARITY_MASK                                                                     0x00000002L
+#define TCA_UE_ERR_STATUS_HI__ERROR_INFO_VALID_FLAG_MASK                                                      0x00000004L
+#define TCA_UE_ERR_STATUS_HI__ERROR_INFO_MASK                                                                 0x007FFFF8L
+#define TCA_UE_ERR_STATUS_HI__UE_CNT_MASK                                                                     0x03800000L
+#define TCA_UE_ERR_STATUS_HI__FED_CNT_MASK                                                                    0x1C000000L
+//TCX_UE_ERR_STATUS_LO
+#define TCX_UE_ERR_STATUS_LO__ERR_STATUS_VALID_FLAG__SHIFT                                                    0x0
+#define TCX_UE_ERR_STATUS_LO__ADDRESS_VALID_FLAG__SHIFT                                                       0x1
+#define TCX_UE_ERR_STATUS_LO__ADDRESS__SHIFT                                                                  0x2
+#define TCX_UE_ERR_STATUS_LO__MEMORY_ID__SHIFT                                                                0x18
+#define TCX_UE_ERR_STATUS_LO__ERR_STATUS_VALID_FLAG_MASK                                                      0x00000001L
+#define TCX_UE_ERR_STATUS_LO__ADDRESS_VALID_FLAG_MASK                                                         0x00000002L
+#define TCX_UE_ERR_STATUS_LO__ADDRESS_MASK                                                                    0x00FFFFFCL
+#define TCX_UE_ERR_STATUS_LO__MEMORY_ID_MASK                                                                  0xFF000000L
+//TCX_UE_ERR_STATUS_HI
+#define TCX_UE_ERR_STATUS_HI__ECC__SHIFT                                                                      0x0
+#define TCX_UE_ERR_STATUS_HI__PARITY__SHIFT                                                                   0x1
+#define TCX_UE_ERR_STATUS_HI__ERROR_INFO_VALID_FLAG__SHIFT                                                    0x2
+#define TCX_UE_ERR_STATUS_HI__ERROR_INFO__SHIFT                                                               0x3
+#define TCX_UE_ERR_STATUS_HI__UE_CNT__SHIFT                                                                   0x17
+#define TCX_UE_ERR_STATUS_HI__FED_CNT__SHIFT                                                                  0x1a
+#define TCX_UE_ERR_STATUS_HI__ECC_MASK                                                                        0x00000001L
+#define TCX_UE_ERR_STATUS_HI__PARITY_MASK                                                                     0x00000002L
+#define TCX_UE_ERR_STATUS_HI__ERROR_INFO_VALID_FLAG_MASK                                                      0x00000004L
+#define TCX_UE_ERR_STATUS_HI__ERROR_INFO_MASK                                                                 0x007FFFF8L
+#define TCX_UE_ERR_STATUS_HI__UE_CNT_MASK                                                                     0x03800000L
+#define TCX_UE_ERR_STATUS_HI__FED_CNT_MASK                                                                    0x1C000000L
+//TCX_CE_ERR_STATUS_LO
+#define TCX_CE_ERR_STATUS_LO__ERR_STATUS_VALID_FLAG__SHIFT                                                    0x0
+#define TCX_CE_ERR_STATUS_LO__ADDRESS_VALID_FLAG__SHIFT                                                       0x1
+#define TCX_CE_ERR_STATUS_LO__ADDRESS__SHIFT                                                                  0x2
+#define TCX_CE_ERR_STATUS_LO__MEMORY_ID__SHIFT                                                                0x18
+#define TCX_CE_ERR_STATUS_LO__ERR_STATUS_VALID_FLAG_MASK                                                      0x00000001L
+#define TCX_CE_ERR_STATUS_LO__ADDRESS_VALID_FLAG_MASK                                                         0x00000002L
+#define TCX_CE_ERR_STATUS_LO__ADDRESS_MASK                                                                    0x00FFFFFCL
+#define TCX_CE_ERR_STATUS_LO__MEMORY_ID_MASK                                                                  0xFF000000L
+//TCX_CE_ERR_STATUS_HI
+#define TCX_CE_ERR_STATUS_HI__ECC__SHIFT                                                                      0x0
+#define TCX_CE_ERR_STATUS_HI__ERROR_INFO_VALID_FLAG__SHIFT                                                    0x2
+#define TCX_CE_ERR_STATUS_HI__ERROR_INFO__SHIFT                                                               0x3
+#define TCX_CE_ERR_STATUS_HI__CE_CNT__SHIFT                                                                   0x17
+#define TCX_CE_ERR_STATUS_HI__POISON__SHIFT                                                                   0x1a
+#define TCX_CE_ERR_STATUS_HI__ECC_MASK                                                                        0x00000001L
+#define TCX_CE_ERR_STATUS_HI__ERROR_INFO_VALID_FLAG_MASK                                                      0x00000004L
+#define TCX_CE_ERR_STATUS_HI__ERROR_INFO_MASK                                                                 0x007FFFF8L
+#define TCX_CE_ERR_STATUS_HI__CE_CNT_MASK                                                                     0x03800000L
+#define TCX_CE_ERR_STATUS_HI__POISON_MASK                                                                     0x04000000L
+//TCC_UE_ERR_STATUS_LO
+#define TCC_UE_ERR_STATUS_LO__ERR_STATUS_VALID_FLAG__SHIFT                                                    0x0
+#define TCC_UE_ERR_STATUS_LO__ADDRESS_VALID_FLAG__SHIFT                                                       0x1
+#define TCC_UE_ERR_STATUS_LO__ADDRESS__SHIFT                                                                  0x2
+#define TCC_UE_ERR_STATUS_LO__MEMORY_ID__SHIFT                                                                0x18
+#define TCC_UE_ERR_STATUS_LO__ERR_STATUS_VALID_FLAG_MASK                                                      0x00000001L
+#define TCC_UE_ERR_STATUS_LO__ADDRESS_VALID_FLAG_MASK                                                         0x00000002L
+#define TCC_UE_ERR_STATUS_LO__ADDRESS_MASK                                                                    0x00FFFFFCL
+#define TCC_UE_ERR_STATUS_LO__MEMORY_ID_MASK                                                                  0xFF000000L
+//TCC_UE_ERR_STATUS_HI
+#define TCC_UE_ERR_STATUS_HI__ECC__SHIFT                                                                      0x0
+#define TCC_UE_ERR_STATUS_HI__PARITY__SHIFT                                                                   0x1
+#define TCC_UE_ERR_STATUS_HI__ERROR_INFO_VALID_FLAG__SHIFT                                                    0x2
+#define TCC_UE_ERR_STATUS_HI__ERROR_INFO__SHIFT                                                               0x3
+#define TCC_UE_ERR_STATUS_HI__UE_CNT__SHIFT                                                                   0x17
+#define TCC_UE_ERR_STATUS_HI__FED_CNT__SHIFT                                                                  0x1a
+#define TCC_UE_ERR_STATUS_HI__ECC_MASK                                                                        0x00000001L
+#define TCC_UE_ERR_STATUS_HI__PARITY_MASK                                                                     0x00000002L
+#define TCC_UE_ERR_STATUS_HI__ERROR_INFO_VALID_FLAG_MASK                                                      0x00000004L
+#define TCC_UE_ERR_STATUS_HI__ERROR_INFO_MASK                                                                 0x007FFFF8L
+#define TCC_UE_ERR_STATUS_HI__UE_CNT_MASK                                                                     0x03800000L
+#define TCC_UE_ERR_STATUS_HI__FED_CNT_MASK                                                                    0x1C000000L
+//TCC_CE_ERR_STATUS_LO
+#define TCC_CE_ERR_STATUS_LO__ERR_STATUS_VALID_FLAG__SHIFT                                                    0x0
+#define TCC_CE_ERR_STATUS_LO__ADDRESS_VALID_FLAG__SHIFT                                                       0x1
+#define TCC_CE_ERR_STATUS_LO__ADDRESS__SHIFT                                                                  0x2
+#define TCC_CE_ERR_STATUS_LO__MEMORY_ID__SHIFT                                                                0x18
+#define TCC_CE_ERR_STATUS_LO__ERR_STATUS_VALID_FLAG_MASK                                                      0x00000001L
+#define TCC_CE_ERR_STATUS_LO__ADDRESS_VALID_FLAG_MASK                                                         0x00000002L
+#define TCC_CE_ERR_STATUS_LO__ADDRESS_MASK                                                                    0x00FFFFFCL
+#define TCC_CE_ERR_STATUS_LO__MEMORY_ID_MASK                                                                  0xFF000000L
+//TCC_CE_ERR_STATUS_HI
+#define TCC_CE_ERR_STATUS_HI__ECC__SHIFT                                                                      0x0
+#define TCC_CE_ERR_STATUS_HI__ERROR_INFO_VALID_FLAG__SHIFT                                                    0x2
+#define TCC_CE_ERR_STATUS_HI__ERROR_INFO__SHIFT                                                               0x3
+#define TCC_CE_ERR_STATUS_HI__CE_CNT__SHIFT                                                                   0x17
+#define TCC_CE_ERR_STATUS_HI__POISON__SHIFT                                                                   0x1a
+#define TCC_CE_ERR_STATUS_HI__ECC_MASK                                                                        0x00000001L
+#define TCC_CE_ERR_STATUS_HI__ERROR_INFO_VALID_FLAG_MASK                                                      0x00000004L
+#define TCC_CE_ERR_STATUS_HI__ERROR_INFO_MASK                                                                 0x007FFFF8L
+#define TCC_CE_ERR_STATUS_HI__CE_CNT_MASK                                                                     0x03800000L
+#define TCC_CE_ERR_STATUS_HI__POISON_MASK                                                                     0x04000000L
 
 
 // addressBlock: xcd0_gc_shdec
@@ -14384,6 +15236,150 @@
 #define CP_VMID_STATUS__PREEMPT_CE_STATUS__SHIFT                                                              0x10
 #define CP_VMID_STATUS__PREEMPT_DE_STATUS_MASK                                                                0x0000FFFFL
 #define CP_VMID_STATUS__PREEMPT_CE_STATUS_MASK                                                                0xFFFF0000L
+//CPC_UE_ERR_STATUS_LO
+#define CPC_UE_ERR_STATUS_LO__ERR_STATUS_VALID_FLAG__SHIFT                                                    0x0
+#define CPC_UE_ERR_STATUS_LO__ADDRESS_VALID_FLAG__SHIFT                                                       0x1
+#define CPC_UE_ERR_STATUS_LO__ADDRESS__SHIFT                                                                  0x2
+#define CPC_UE_ERR_STATUS_LO__MEMORY_ID__SHIFT                                                                0x18
+#define CPC_UE_ERR_STATUS_LO__ERR_STATUS_VALID_FLAG_MASK                                                      0x00000001L
+#define CPC_UE_ERR_STATUS_LO__ADDRESS_VALID_FLAG_MASK                                                         0x00000002L
+#define CPC_UE_ERR_STATUS_LO__ADDRESS_MASK                                                                    0x00FFFFFCL
+#define CPC_UE_ERR_STATUS_LO__MEMORY_ID_MASK                                                                  0xFF000000L
+//CPC_UE_ERR_STATUS_HI
+#define CPC_UE_ERR_STATUS_HI__ECC__SHIFT                                                                      0x0
+#define CPC_UE_ERR_STATUS_HI__PARITY__SHIFT                                                                   0x1
+#define CPC_UE_ERR_STATUS_HI__ERR_INFO_VALID_FLAG__SHIFT                                                      0x2
+#define CPC_UE_ERR_STATUS_HI__ERR_INFO__SHIFT                                                                 0x3
+#define CPC_UE_ERR_STATUS_HI__UE_CNT__SHIFT                                                                   0x17
+#define CPC_UE_ERR_STATUS_HI__FED_CNT__SHIFT                                                                  0x1a
+#define CPC_UE_ERR_STATUS_HI__RESERVED__SHIFT                                                                 0x1d
+#define CPC_UE_ERR_STATUS_HI__ECC_MASK                                                                        0x00000001L
+#define CPC_UE_ERR_STATUS_HI__PARITY_MASK                                                                     0x00000002L
+#define CPC_UE_ERR_STATUS_HI__ERR_INFO_VALID_FLAG_MASK                                                        0x00000004L
+#define CPC_UE_ERR_STATUS_HI__ERR_INFO_MASK                                                                   0x007FFFF8L
+#define CPC_UE_ERR_STATUS_HI__UE_CNT_MASK                                                                     0x03800000L
+#define CPC_UE_ERR_STATUS_HI__FED_CNT_MASK                                                                    0x1C000000L
+#define CPC_UE_ERR_STATUS_HI__RESERVED_MASK                                                                   0xE0000000L
+//CPC_CE_ERR_STATUS_LO
+#define CPC_CE_ERR_STATUS_LO__ERR_STATUS_VALID_FLAG__SHIFT                                                    0x0
+#define CPC_CE_ERR_STATUS_LO__ADDRESS_VALID_FLAG__SHIFT                                                       0x1
+#define CPC_CE_ERR_STATUS_LO__ADDRESS__SHIFT                                                                  0x2
+#define CPC_CE_ERR_STATUS_LO__MEMORY_ID__SHIFT                                                                0x18
+#define CPC_CE_ERR_STATUS_LO__ERR_STATUS_VALID_FLAG_MASK                                                      0x00000001L
+#define CPC_CE_ERR_STATUS_LO__ADDRESS_VALID_FLAG_MASK                                                         0x00000002L
+#define CPC_CE_ERR_STATUS_LO__ADDRESS_MASK                                                                    0x00FFFFFCL
+#define CPC_CE_ERR_STATUS_LO__MEMORY_ID_MASK                                                                  0xFF000000L
+//CPC_CE_ERR_STATUS_HI
+#define CPC_CE_ERR_STATUS_HI__ECC__SHIFT                                                                      0x0
+#define CPC_CE_ERR_STATUS_HI__OTHER__SHIFT                                                                    0x1
+#define CPC_CE_ERR_STATUS_HI__ERR_INFO_VALID_FLAG__SHIFT                                                      0x2
+#define CPC_CE_ERR_STATUS_HI__ERR_INFO__SHIFT                                                                 0x3
+#define CPC_CE_ERR_STATUS_HI__CE_CNT__SHIFT                                                                   0x17
+#define CPC_CE_ERR_STATUS_HI__POISON__SHIFT                                                                   0x1a
+#define CPC_CE_ERR_STATUS_HI__RESERVED__SHIFT                                                                 0x1b
+#define CPC_CE_ERR_STATUS_HI__ECC_MASK                                                                        0x00000001L
+#define CPC_CE_ERR_STATUS_HI__OTHER_MASK                                                                      0x00000002L
+#define CPC_CE_ERR_STATUS_HI__ERR_INFO_VALID_FLAG_MASK                                                        0x00000004L
+#define CPC_CE_ERR_STATUS_HI__ERR_INFO_MASK                                                                   0x007FFFF8L
+#define CPC_CE_ERR_STATUS_HI__CE_CNT_MASK                                                                     0x03800000L
+#define CPC_CE_ERR_STATUS_HI__POISON_MASK                                                                     0x04000000L
+#define CPC_CE_ERR_STATUS_HI__RESERVED_MASK                                                                   0xF8000000L
+//CPF_UE_ERR_STATUS_LO
+#define CPF_UE_ERR_STATUS_LO__ERR_STATUS_VALID_FLAG__SHIFT                                                    0x0
+#define CPF_UE_ERR_STATUS_LO__ADDRESS_VALID_FLAG__SHIFT                                                       0x1
+#define CPF_UE_ERR_STATUS_LO__ADDRESS__SHIFT                                                                  0x2
+#define CPF_UE_ERR_STATUS_LO__MEMORY_ID__SHIFT                                                                0x18
+#define CPF_UE_ERR_STATUS_LO__ERR_STATUS_VALID_FLAG_MASK                                                      0x00000001L
+#define CPF_UE_ERR_STATUS_LO__ADDRESS_VALID_FLAG_MASK                                                         0x00000002L
+#define CPF_UE_ERR_STATUS_LO__ADDRESS_MASK                                                                    0x00FFFFFCL
+#define CPF_UE_ERR_STATUS_LO__MEMORY_ID_MASK                                                                  0xFF000000L
+//CPF_UE_ERR_STATUS_HI
+#define CPF_UE_ERR_STATUS_HI__ECC__SHIFT                                                                      0x0
+#define CPF_UE_ERR_STATUS_HI__PARITY__SHIFT                                                                   0x1
+#define CPF_UE_ERR_STATUS_HI__ERR_INFO_VALID_FLAG__SHIFT                                                      0x2
+#define CPF_UE_ERR_STATUS_HI__ERR_INFO__SHIFT                                                                 0x3
+#define CPF_UE_ERR_STATUS_HI__UE_CNT__SHIFT                                                                   0x17
+#define CPF_UE_ERR_STATUS_HI__FED_CNT__SHIFT                                                                  0x1a
+#define CPF_UE_ERR_STATUS_HI__RESERVED__SHIFT                                                                 0x1d
+#define CPF_UE_ERR_STATUS_HI__ECC_MASK                                                                        0x00000001L
+#define CPF_UE_ERR_STATUS_HI__PARITY_MASK                                                                     0x00000002L
+#define CPF_UE_ERR_STATUS_HI__ERR_INFO_VALID_FLAG_MASK                                                        0x00000004L
+#define CPF_UE_ERR_STATUS_HI__ERR_INFO_MASK                                                                   0x007FFFF8L
+#define CPF_UE_ERR_STATUS_HI__UE_CNT_MASK                                                                     0x03800000L
+#define CPF_UE_ERR_STATUS_HI__FED_CNT_MASK                                                                    0x1C000000L
+#define CPF_UE_ERR_STATUS_HI__RESERVED_MASK                                                                   0xE0000000L
+//CPF_CE_ERR_STATUS_LO
+#define CPF_CE_ERR_STATUS_LO__ERR_STATUS_VALID_FLAG__SHIFT                                                    0x0
+#define CPF_CE_ERR_STATUS_LO__ADDRESS_VALID_FLAG__SHIFT                                                       0x1
+#define CPF_CE_ERR_STATUS_LO__ADDRESS__SHIFT                                                                  0x2
+#define CPF_CE_ERR_STATUS_LO__MEMORY_ID__SHIFT                                                                0x18
+#define CPF_CE_ERR_STATUS_LO__ERR_STATUS_VALID_FLAG_MASK                                                      0x00000001L
+#define CPF_CE_ERR_STATUS_LO__ADDRESS_VALID_FLAG_MASK                                                         0x00000002L
+#define CPF_CE_ERR_STATUS_LO__ADDRESS_MASK                                                                    0x00FFFFFCL
+#define CPF_CE_ERR_STATUS_LO__MEMORY_ID_MASK                                                                  0xFF000000L
+//CPF_CE_ERR_STATUS_HI
+#define CPF_CE_ERR_STATUS_HI__ECC__SHIFT                                                                      0x0
+#define CPF_CE_ERR_STATUS_HI__OTHER__SHIFT                                                                    0x1
+#define CPF_CE_ERR_STATUS_HI__ERR_INFO_VALID_FLAG__SHIFT                                                      0x2
+#define CPF_CE_ERR_STATUS_HI__ERR_INFO__SHIFT                                                                 0x3
+#define CPF_CE_ERR_STATUS_HI__CE_CNT__SHIFT                                                                   0x17
+#define CPF_CE_ERR_STATUS_HI__POISON__SHIFT                                                                   0x1a
+#define CPF_CE_ERR_STATUS_HI__RESERVED__SHIFT                                                                 0x1b
+#define CPF_CE_ERR_STATUS_HI__ECC_MASK                                                                        0x00000001L
+#define CPF_CE_ERR_STATUS_HI__OTHER_MASK                                                                      0x00000002L
+#define CPF_CE_ERR_STATUS_HI__ERR_INFO_VALID_FLAG_MASK                                                        0x00000004L
+#define CPF_CE_ERR_STATUS_HI__ERR_INFO_MASK                                                                   0x007FFFF8L
+#define CPF_CE_ERR_STATUS_HI__CE_CNT_MASK                                                                     0x03800000L
+#define CPF_CE_ERR_STATUS_HI__POISON_MASK                                                                     0x04000000L
+#define CPF_CE_ERR_STATUS_HI__RESERVED_MASK                                                                   0xF8000000L
+//CPG_UE_ERR_STATUS_LO
+#define CPG_UE_ERR_STATUS_LO__ERR_STATUS_VALID_FLAG__SHIFT                                                    0x0
+#define CPG_UE_ERR_STATUS_LO__ADDRESS_VALID_FLAG__SHIFT                                                       0x1
+#define CPG_UE_ERR_STATUS_LO__ADDRESS__SHIFT                                                                  0x2
+#define CPG_UE_ERR_STATUS_LO__MEMORY_ID__SHIFT                                                                0x18
+#define CPG_UE_ERR_STATUS_LO__ERR_STATUS_VALID_FLAG_MASK                                                      0x00000001L
+#define CPG_UE_ERR_STATUS_LO__ADDRESS_VALID_FLAG_MASK                                                         0x00000002L
+#define CPG_UE_ERR_STATUS_LO__ADDRESS_MASK                                                                    0x00FFFFFCL
+#define CPG_UE_ERR_STATUS_LO__MEMORY_ID_MASK                                                                  0xFF000000L
+//CPG_UE_ERR_STATUS_HI
+#define CPG_UE_ERR_STATUS_HI__ECC__SHIFT                                                                      0x0
+#define CPG_UE_ERR_STATUS_HI__PARITY__SHIFT                                                                   0x1
+#define CPG_UE_ERR_STATUS_HI__ERR_INFO_VALID_FLAG__SHIFT                                                      0x2
+#define CPG_UE_ERR_STATUS_HI__ERR_INFO__SHIFT                                                                 0x3
+#define CPG_UE_ERR_STATUS_HI__UE_CNT__SHIFT                                                                   0x17
+#define CPG_UE_ERR_STATUS_HI__FED_CNT__SHIFT                                                                  0x1a
+#define CPG_UE_ERR_STATUS_HI__RESERVED__SHIFT                                                                 0x1d
+#define CPG_UE_ERR_STATUS_HI__ECC_MASK                                                                        0x00000001L
+#define CPG_UE_ERR_STATUS_HI__PARITY_MASK                                                                     0x00000002L
+#define CPG_UE_ERR_STATUS_HI__ERR_INFO_VALID_FLAG_MASK                                                        0x00000004L
+#define CPG_UE_ERR_STATUS_HI__ERR_INFO_MASK                                                                   0x007FFFF8L
+#define CPG_UE_ERR_STATUS_HI__UE_CNT_MASK                                                                     0x03800000L
+#define CPG_UE_ERR_STATUS_HI__FED_CNT_MASK                                                                    0x1C000000L
+#define CPG_UE_ERR_STATUS_HI__RESERVED_MASK                                                                   0xE0000000L
+//CPG_CE_ERR_STATUS_LO
+#define CPG_CE_ERR_STATUS_LO__ERR_STATUS_VALID_FLAG__SHIFT                                                    0x0
+#define CPG_CE_ERR_STATUS_LO__ADDRESS_VALID_FLAG__SHIFT                                                       0x1
+#define CPG_CE_ERR_STATUS_LO__ADDRESS__SHIFT                                                                  0x2
+#define CPG_CE_ERR_STATUS_LO__MEMORY_ID__SHIFT                                                                0x18
+#define CPG_CE_ERR_STATUS_LO__ERR_STATUS_VALID_FLAG_MASK                                                      0x00000001L
+#define CPG_CE_ERR_STATUS_LO__ADDRESS_VALID_FLAG_MASK                                                         0x00000002L
+#define CPG_CE_ERR_STATUS_LO__ADDRESS_MASK                                                                    0x00FFFFFCL
+#define CPG_CE_ERR_STATUS_LO__MEMORY_ID_MASK                                                                  0xFF000000L
+//CPG_CE_ERR_STATUS_HI
+#define CPG_CE_ERR_STATUS_HI__ECC__SHIFT                                                                      0x0
+#define CPG_CE_ERR_STATUS_HI__OTHER__SHIFT                                                                    0x1
+#define CPG_CE_ERR_STATUS_HI__ERR_INFO_VALID_FLAG__SHIFT                                                      0x2
+#define CPG_CE_ERR_STATUS_HI__ERR_INFO__SHIFT                                                                 0x3
+#define CPG_CE_ERR_STATUS_HI__CE_CNT__SHIFT                                                                   0x17
+#define CPG_CE_ERR_STATUS_HI__POISON__SHIFT                                                                   0x1a
+#define CPG_CE_ERR_STATUS_HI__RESERVED__SHIFT                                                                 0x1b
+#define CPG_CE_ERR_STATUS_HI__ECC_MASK                                                                        0x00000001L
+#define CPG_CE_ERR_STATUS_HI__OTHER_MASK                                                                      0x00000002L
+#define CPG_CE_ERR_STATUS_HI__ERR_INFO_VALID_FLAG_MASK                                                        0x00000004L
+#define CPG_CE_ERR_STATUS_HI__ERR_INFO_MASK                                                                   0x007FFFF8L
+#define CPG_CE_ERR_STATUS_HI__CE_CNT_MASK                                                                     0x03800000L
+#define CPG_CE_ERR_STATUS_HI__POISON_MASK                                                                     0x04000000L
+#define CPG_CE_ERR_STATUS_HI__RESERVED_MASK                                                                   0xF8000000L
 
 
 // addressBlock: xcd0_gc_cppdec2
@@ -22764,6 +23760,74 @@
 #define SPI_WAVE_LIMIT_CNTL__GS_WAVE_GRAN_MASK                                                                0x00000030L
 #define SPI_WAVE_LIMIT_CNTL__HS_WAVE_GRAN_MASK                                                                0x000000C0L
 
+// addressBlock: xcd0_gc_gccanedec
+//GC_CANE_ERR_STATUS
+#define GC_CANE_ERR_STATUS__SDPM_RDRSP_STATUS__SHIFT                                                          0x0
+#define GC_CANE_ERR_STATUS__SDPM_WRRSP_STATUS__SHIFT                                                          0x4
+#define GC_CANE_ERR_STATUS__SDPM_RDRSP_DATASTATUS__SHIFT                                                      0x8
+#define GC_CANE_ERR_STATUS__SDPM_RDRSP_DATAPARITY_ERROR__SHIFT                                                0xa
+#define GC_CANE_ERR_STATUS__SDPS_DAT_ERROR__SHIFT                                                             0xb
+#define GC_CANE_ERR_STATUS__SDPS_DAT_PARITY_ERROR__SHIFT                                                      0xc
+#define GC_CANE_ERR_STATUS__CLEAR_ERROR_STATUS__SHIFT                                                         0xd
+#define GC_CANE_ERR_STATUS__BUSY_ON_ERROR__SHIFT                                                              0xe
+#define GC_CANE_ERR_STATUS__BUSY_ON_UER_ERROR__SHIFT                                                          0xf
+#define GC_CANE_ERR_STATUS__FUE_FLAG__SHIFT                                                                   0x10
+#define GC_CANE_ERR_STATUS__INTERRUPT_ON_FATAL__SHIFT                                                         0x11
+#define GC_CANE_ERR_STATUS__LEVEL_INTERRUPT__SHIFT                                                            0x12
+#define GC_CANE_ERR_STATUS__SDPM_RDRSP_STATUS_MASK                                                            0x0000000FL
+#define GC_CANE_ERR_STATUS__SDPM_WRRSP_STATUS_MASK                                                            0x000000F0L
+#define GC_CANE_ERR_STATUS__SDPM_RDRSP_DATASTATUS_MASK                                                        0x00000300L
+#define GC_CANE_ERR_STATUS__SDPM_RDRSP_DATAPARITY_ERROR_MASK                                                  0x00000400L
+#define GC_CANE_ERR_STATUS__SDPS_DAT_ERROR_MASK                                                               0x00000800L
+#define GC_CANE_ERR_STATUS__SDPS_DAT_PARITY_ERROR_MASK                                                        0x00001000L
+#define GC_CANE_ERR_STATUS__CLEAR_ERROR_STATUS_MASK                                                           0x00002000L
+#define GC_CANE_ERR_STATUS__BUSY_ON_ERROR_MASK                                                                0x00004000L
+#define GC_CANE_ERR_STATUS__BUSY_ON_UER_ERROR_MASK                                                            0x00008000L
+#define GC_CANE_ERR_STATUS__FUE_FLAG_MASK                                                                     0x00010000L
+#define GC_CANE_ERR_STATUS__INTERRUPT_ON_FATAL_MASK                                                           0x00020000L
+#define GC_CANE_ERR_STATUS__LEVEL_INTERRUPT_MASK                                                              0x00040000L
+//GC_CANE_UE_ERR_STATUS_LO
+#define GC_CANE_UE_ERR_STATUS_LO__ERR_STATUS_VALID_FLAG__SHIFT                                                0x0
+#define GC_CANE_UE_ERR_STATUS_LO__ADDRESS_VALID_FLAG__SHIFT                                                   0x1
+#define GC_CANE_UE_ERR_STATUS_LO__ADDRESS__SHIFT                                                              0x2
+#define GC_CANE_UE_ERR_STATUS_LO__MEMORY_ID__SHIFT                                                            0x18
+#define GC_CANE_UE_ERR_STATUS_LO__ERR_STATUS_VALID_FLAG_MASK                                                  0x00000001L
+#define GC_CANE_UE_ERR_STATUS_LO__ADDRESS_VALID_FLAG_MASK                                                     0x00000002L
+#define GC_CANE_UE_ERR_STATUS_LO__ADDRESS_MASK                                                                0x00FFFFFCL
+#define GC_CANE_UE_ERR_STATUS_LO__MEMORY_ID_MASK                                                              0xFF000000L
+//GC_CANE_UE_ERR_STATUS_HI
+#define GC_CANE_UE_ERR_STATUS_HI__ECC__SHIFT                                                                  0x0
+#define GC_CANE_UE_ERR_STATUS_HI__PARITY__SHIFT                                                               0x1
+#define GC_CANE_UE_ERR_STATUS_HI__ERR_INFO_VALID_FLAG__SHIFT                                                  0x2
+#define GC_CANE_UE_ERR_STATUS_HI__ERR_INFO__SHIFT                                                             0x3
+#define GC_CANE_UE_ERR_STATUS_HI__UE_CNT__SHIFT                                                               0x17
+#define GC_CANE_UE_ERR_STATUS_HI__FED_CNT__SHIFT                                                              0x1a
+#define GC_CANE_UE_ERR_STATUS_HI__ECC_MASK                                                                    0x00000001L
+#define GC_CANE_UE_ERR_STATUS_HI__PARITY_MASK                                                                 0x00000002L
+#define GC_CANE_UE_ERR_STATUS_HI__ERR_INFO_VALID_FLAG_MASK                                                    0x00000004L
+#define GC_CANE_UE_ERR_STATUS_HI__ERR_INFO_MASK                                                               0x007FFFF8L
+#define GC_CANE_UE_ERR_STATUS_HI__UE_CNT_MASK                                                                 0x03800000L
+#define GC_CANE_UE_ERR_STATUS_HI__FED_CNT_MASK                                                                0x1C000000L
+//GC_CANE_CE_ERR_STATUS_LO
+#define GC_CANE_CE_ERR_STATUS_LO__ERR_STATUS_VALID_FLAG__SHIFT                                                0x0
+#define GC_CANE_CE_ERR_STATUS_LO__ADDRESS_VALID_FLAG__SHIFT                                                   0x1
+#define GC_CANE_CE_ERR_STATUS_LO__ADDRESS__SHIFT                                                              0x2
+#define GC_CANE_CE_ERR_STATUS_LO__MEMORY_ID__SHIFT                                                            0x18
+#define GC_CANE_CE_ERR_STATUS_LO__ERR_STATUS_VALID_FLAG_MASK                                                  0x00000001L
+#define GC_CANE_CE_ERR_STATUS_LO__ADDRESS_VALID_FLAG_MASK                                                     0x00000002L
+#define GC_CANE_CE_ERR_STATUS_LO__ADDRESS_MASK                                                                0x00FFFFFCL
+#define GC_CANE_CE_ERR_STATUS_LO__MEMORY_ID_MASK                                                              0xFF000000L
+//GC_CANE_CE_ERR_STATUS_HI
+#define GC_CANE_CE_ERR_STATUS_HI__ECC__SHIFT                                                                  0x0
+#define GC_CANE_CE_ERR_STATUS_HI__ERR_INFO_VALID_FLAG__SHIFT                                                  0x2
+#define GC_CANE_CE_ERR_STATUS_HI__ERR_INFO__SHIFT                                                             0x3
+#define GC_CANE_CE_ERR_STATUS_HI__CE_CNT__SHIFT                                                               0x17
+#define GC_CANE_CE_ERR_STATUS_HI__POISON__SHIFT                                                               0x1a
+#define GC_CANE_CE_ERR_STATUS_HI__ECC_MASK                                                                    0x00000001L
+#define GC_CANE_CE_ERR_STATUS_HI__ERR_INFO_VALID_FLAG_MASK                                                    0x00000004L
+#define GC_CANE_CE_ERR_STATUS_HI__ERR_INFO_MASK                                                               0x007FFFF8L
+#define GC_CANE_CE_ERR_STATUS_HI__CE_CNT_MASK                                                                 0x03800000L
+#define GC_CANE_CE_ERR_STATUS_HI__POISON_MASK                                                                 0x04000000L
 
 // addressBlock: xcd0_gc_perfddec
 //CPG_PERFCOUNTER1_LO
@@ -26471,6 +27535,30 @@
 //RLC_CPG_STAT_INVAL
 #define RLC_CPG_STAT_INVAL__CPG_stat_inval__SHIFT                                                             0x0
 #define RLC_CPG_STAT_INVAL__CPG_stat_inval_MASK                                                               0x00000001L
+//RLC_UE_ERR_STATUS_LOW
+#define RLC_UE_ERR_STATUS_LOW__ERR_STATUS_VALID_FLAG__SHIFT                                                   0x0
+#define RLC_UE_ERR_STATUS_LOW__ADDRESS_VALID_FLAG__SHIFT                                                      0x1
+#define RLC_UE_ERR_STATUS_LOW__ADDRESS__SHIFT                                                                 0x2
+#define RLC_UE_ERR_STATUS_LOW__MEMORY_ID__SHIFT                                                               0x18
+#define RLC_UE_ERR_STATUS_LOW__ERR_STATUS_VALID_FLAG_MASK                                                     0x00000001L
+#define RLC_UE_ERR_STATUS_LOW__ADDRESS_VALID_FLAG_MASK                                                        0x00000002L
+#define RLC_UE_ERR_STATUS_LOW__ADDRESS_MASK                                                                   0x00FFFFFCL
+#define RLC_UE_ERR_STATUS_LOW__MEMORY_ID_MASK                                                                 0xFF000000L
+//RLC_UE_ERR_STATUS_HIGH
+#define RLC_UE_ERR_STATUS_HIGH__ECC__SHIFT                                                                    0x0
+#define RLC_UE_ERR_STATUS_HIGH__PARITY__SHIFT                                                                 0x1
+#define RLC_UE_ERR_STATUS_HIGH__ERR_INFO_VALID_FLAG__SHIFT                                                    0x2
+#define RLC_UE_ERR_STATUS_HIGH__ERR_INFO__SHIFT                                                               0x3
+#define RLC_UE_ERR_STATUS_HIGH__UE_CNT__SHIFT                                                                 0x17
+#define RLC_UE_ERR_STATUS_HIGH__FED_CNT__SHIFT                                                                0x1a
+#define RLC_UE_ERR_STATUS_HIGH__RESERVED__SHIFT                                                               0x1d
+#define RLC_UE_ERR_STATUS_HIGH__ECC_MASK                                                                      0x00000001L
+#define RLC_UE_ERR_STATUS_HIGH__PARITY_MASK                                                                   0x00000002L
+#define RLC_UE_ERR_STATUS_HIGH__ERR_INFO_VALID_FLAG_MASK                                                      0x00000004L
+#define RLC_UE_ERR_STATUS_HIGH__ERR_INFO_MASK                                                                 0x007FFFF8L
+#define RLC_UE_ERR_STATUS_HIGH__UE_CNT_MASK                                                                   0x03800000L
+#define RLC_UE_ERR_STATUS_HIGH__FED_CNT_MASK                                                                  0x1C000000L
+#define RLC_UE_ERR_STATUS_HIGH__RESERVED_MASK                                                                 0xE0000000L
 //RLC_DSM_CNTL
 #define RLC_DSM_CNTL__RLCG_INSTR_RAM_IRRITATOR_DATA_SEL__SHIFT                                                0x0
 #define RLC_DSM_CNTL__RLCG_INSTR_RAM_IRRITATOR_SINGLE_WRITE__SHIFT                                            0x2
@@ -26573,6 +27661,30 @@
 #define RLC_DSM_CNTL2A__RLC_SPM_SE2_SCRATCH_RAM_SELECT_INJECT_DELAY_MASK                                      0x00000100L
 #define RLC_DSM_CNTL2A__RLC_SPM_SE3_SCRATCH_RAM_ENABLE_ERROR_INJECT_MASK                                      0x00000600L
 #define RLC_DSM_CNTL2A__RLC_SPM_SE3_SCRATCH_RAM_SELECT_INJECT_DELAY_MASK                                      0x00000800L
+//RLC_CE_ERR_STATUS_LOW
+#define RLC_CE_ERR_STATUS_LOW__ERR_STATUS_VALID_FLAG__SHIFT                                                   0x0
+#define RLC_CE_ERR_STATUS_LOW__ADDRESS_VALID_FLAG__SHIFT                                                      0x1
+#define RLC_CE_ERR_STATUS_LOW__ADDRESS__SHIFT                                                                 0x2
+#define RLC_CE_ERR_STATUS_LOW__MEMORY_ID__SHIFT                                                               0x18
+#define RLC_CE_ERR_STATUS_LOW__ERR_STATUS_VALID_FLAG_MASK                                                     0x00000001L
+#define RLC_CE_ERR_STATUS_LOW__ADDRESS_VALID_FLAG_MASK                                                        0x00000002L
+#define RLC_CE_ERR_STATUS_LOW__ADDRESS_MASK                                                                   0x00FFFFFCL
+#define RLC_CE_ERR_STATUS_LOW__MEMORY_ID_MASK                                                                 0xFF000000L
+//RLC_CE_ERR_STATUS_HIGH
+#define RLC_CE_ERR_STATUS_HIGH__ECC__SHIFT                                                                    0x0
+#define RLC_CE_ERR_STATUS_HIGH__OTHER__SHIFT                                                                  0x1
+#define RLC_CE_ERR_STATUS_HIGH__ERR_INFO_VALID_FLAG__SHIFT                                                    0x2
+#define RLC_CE_ERR_STATUS_HIGH__ERR_INFO__SHIFT                                                               0x3
+#define RLC_CE_ERR_STATUS_HIGH__CE_CNT__SHIFT                                                                 0x17
+#define RLC_CE_ERR_STATUS_HIGH__POISON__SHIFT                                                                 0x1a
+#define RLC_CE_ERR_STATUS_HIGH__RESERVED__SHIFT                                                               0x1b
+#define RLC_CE_ERR_STATUS_HIGH__ECC_MASK                                                                      0x00000001L
+#define RLC_CE_ERR_STATUS_HIGH__OTHER_MASK                                                                    0x00000002L
+#define RLC_CE_ERR_STATUS_HIGH__ERR_INFO_VALID_FLAG_MASK                                                      0x00000004L
+#define RLC_CE_ERR_STATUS_HIGH__ERR_INFO_MASK                                                                 0x007FFFF8L
+#define RLC_CE_ERR_STATUS_HIGH__CE_CNT_MASK                                                                   0x03800000L
+#define RLC_CE_ERR_STATUS_HIGH__POISON_MASK                                                                   0x04000000L
+#define RLC_CE_ERR_STATUS_HIGH__RESERVED_MASK                                                                 0xF8000000L
 //RLC_RLCV_SPARE_INT
 #define RLC_RLCV_SPARE_INT__INTERRUPT__SHIFT                                                                  0x0
 #define RLC_RLCV_SPARE_INT__RESERVED__SHIFT                                                                   0x1

@@ -481,10 +481,9 @@ failed:
 }
 
 /**
- * start_isolate_page_range() - make page-allocation-type of range of pages to
- * be MIGRATE_ISOLATE.
- * @start_pfn:		The lower PFN of the range to be isolated.
- * @end_pfn:		The upper PFN of the range to be isolated.
+ * start_isolate_page_range() - mark page range MIGRATE_ISOLATE
+ * @start_pfn:		The first PFN of the range to be isolated.
+ * @end_pfn:		The last PFN of the range to be isolated.
  * @migratetype:	Migrate type to set in error recovery.
  * @flags:		The following flags are allowed (they can be combined in
  *			a bit mask)
@@ -571,8 +570,14 @@ int start_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn,
 	return 0;
 }
 
-/*
- * Make isolated pages available again.
+/**
+ * undo_isolate_page_range - undo effects of start_isolate_page_range()
+ * @start_pfn:		The first PFN of the isolated range
+ * @end_pfn:		The last PFN of the isolated range
+ * @migratetype:	New migrate type to set on the range
+ *
+ * This finds every MIGRATE_ISOLATE page block in the given range
+ * and switches it to @migratetype.
  */
 void undo_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn,
 			    int migratetype)
@@ -631,7 +636,21 @@ __test_page_isolated_in_pageblock(unsigned long pfn, unsigned long end_pfn,
 	return pfn;
 }
 
-/* Caller should ensure that requested range is in a single zone */
+/**
+ * test_pages_isolated - check if pageblocks in range are isolated
+ * @start_pfn:		The first PFN of the isolated range
+ * @end_pfn:		The first PFN *after* the isolated range
+ * @isol_flags:		Testing mode flags
+ *
+ * This tests if all in the specified range are free.
+ *
+ * If %MEMORY_OFFLINE is specified in @flags, it will consider
+ * poisoned and offlined pages free as well.
+ *
+ * Caller must ensure the requested range doesn't span zones.
+ *
+ * Returns 0 if true, -EBUSY if one or more pages are in use.
+ */
 int test_pages_isolated(unsigned long start_pfn, unsigned long end_pfn,
 			int isol_flags)
 {

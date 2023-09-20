@@ -272,7 +272,8 @@
 #define NIX_AF_DEBUG_NPC_RESP_DATAX(a)          (0x680 | (a) << 3)
 #define NIX_AF_SMQX_CFG(a)                      (0x700 | (a) << 16)
 #define NIX_AF_SQM_DBG_CTL_STATUS               (0x750)
-#define NIX_AF_DWRR_SDP_MTU                     (0x790)
+#define NIX_AF_DWRR_SDP_MTU                     (0x790) /* All CN10K except CN10KB */
+#define NIX_AF_DWRR_MTUX(a)			(0x790 | (a) << 16) /* Only for CN10KB */
 #define NIX_AF_DWRR_RPM_MTU                     (0x7A0)
 #define NIX_AF_PSE_CHANNEL_LEVEL                (0x800)
 #define NIX_AF_PSE_SHAPER_CFG                   (0x810)

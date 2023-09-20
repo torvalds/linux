@@ -706,7 +706,7 @@ config CHARGER_BQ256XX
 
 config CHARGER_RK817
 	tristate "Rockchip RK817 PMIC Battery Charger"
-	depends on MFD_RK808
+	depends on MFD_RK8XX
 	help
 	  Say Y to include support for Rockchip RK817 Battery Charger.
 

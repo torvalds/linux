@@ -647,8 +647,7 @@ struct hnae3_ae_ops {
 	int (*rm_mc_addr)(struct hnae3_handle *handle,
 			  const unsigned char *addr);
 	void (*set_tso_stats)(struct hnae3_handle *handle, int enable);
-	void (*update_stats)(struct hnae3_handle *handle,
-			     struct net_device_stats *net_stats);
+	void (*update_stats)(struct hnae3_handle *handle);
 	void (*get_stats)(struct hnae3_handle *handle, u64 *data);
 	void (*get_mac_stats)(struct hnae3_handle *handle,
 			      struct hns3_mac_stats *mac_stats);

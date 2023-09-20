@@ -307,7 +307,7 @@ void rs400_mc_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v)
 #if defined(CONFIG_DEBUG_FS)
 static int rs400_debugfs_gart_info_show(struct seq_file *m, void *unused)
 {
-	struct radeon_device *rdev = (struct radeon_device *)m->private;
+	struct radeon_device *rdev = m->private;
 	uint32_t tmp;
 
 	tmp = RREG32(RADEON_HOST_PATH_CNTL);

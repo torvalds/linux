@@ -399,21 +399,29 @@ static u64 find_callsite(struct evsel *evsel, struct perf_sample *sample)
 	struct addr_location al;
 	struct machine *machine = &kmem_session->machines.host;
 	struct callchain_cursor_node *node;
+	struct callchain_cursor *cursor;
+	u64 result = sample->ip;
 
+	addr_location__init(&al);
 	if (alloc_func_list == NULL) {
 		if (build_alloc_func_list() < 0)
 			goto out;
 	}
 
 	al.thread = machine__findnew_thread(machine, sample->pid, sample->tid);
-	sample__resolve_callchain(sample, &callchain_cursor, NULL, evsel, &al, 16);
 
-	callchain_cursor_commit(&callchain_cursor);
+	cursor = get_tls_callchain_cursor();
+	if (cursor == NULL)
+		goto out;
+
+	sample__resolve_callchain(sample, cursor, NULL, evsel, &al, 16);
+
+	callchain_cursor_commit(cursor);
 	while (true) {
 		struct alloc_func key, *caller;
 		u64 addr;
 
-		node = callchain_cursor_current(&callchain_cursor);
+		node = callchain_cursor_current(cursor);
 		if (node == NULL)
 			break;
 
@@ -427,16 +435,18 @@ static u64 find_callsite(struct evsel *evsel, struct perf_sample *sample)
 			else
 				addr = node->ip;
 
-			return addr;
+			result = addr;
+			goto out;
 		} else
 			pr_debug3("skipping alloc function: %s\n", caller->name);
 
-		callchain_cursor_advance(&callchain_cursor);
+		callchain_cursor_advance(cursor);
 	}
 
-out:
 	pr_debug2("unknown callsite: %"PRIx64 "\n", sample->ip);
-	return sample->ip;
+out:
+	addr_location__exit(&al);
+	return result;
 }
 
 struct sort_dimension {
@@ -964,7 +974,7 @@ static int process_sample_event(struct perf_tool *tool __maybe_unused,
 	if (perf_kmem__skip_sample(sample))
 		return 0;
 
-	dump_printf(" ... thread: %s:%d\n", thread__comm_str(thread), thread->tid);
+	dump_printf(" ... thread: %s:%d\n", thread__comm_str(thread), thread__tid(thread));
 
 	if (evsel->handler != NULL) {
 		tracepoint_handler f = evsel->handler;

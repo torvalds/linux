@@ -943,7 +943,7 @@ static int mtk_pcie_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int mtk_pcie_remove(struct platform_device *pdev)
+static void mtk_pcie_remove(struct platform_device *pdev)
 {
 	struct mtk_gen3_pcie *pcie = platform_get_drvdata(pdev);
 	struct pci_host_bridge *host = pci_host_bridge_from_priv(pcie);
@@ -955,8 +955,6 @@ static int mtk_pcie_remove(struct platform_device *pdev)
 
 	mtk_pcie_irq_teardown(pcie);
 	mtk_pcie_power_down(pcie);
-
-	return 0;
 }
 
 static void mtk_pcie_irq_save(struct mtk_gen3_pcie *pcie)
@@ -1069,7 +1067,7 @@ MODULE_DEVICE_TABLE(of, mtk_pcie_of_match);
 
 static struct platform_driver mtk_pcie_driver = {
 	.probe = mtk_pcie_probe,
-	.remove = mtk_pcie_remove,
+	.remove_new = mtk_pcie_remove,
 	.driver = {
 		.name = "mtk-pcie-gen3",
 		.of_match_table = mtk_pcie_of_match,

@@ -976,7 +976,6 @@ static const struct proto_ops caif_seqpacket_ops = {
 	.sendmsg = caif_seqpkt_sendmsg,
 	.recvmsg = caif_seqpkt_recvmsg,
 	.mmap = sock_no_mmap,
-	.sendpage = sock_no_sendpage,
 };
 
 static const struct proto_ops caif_stream_ops = {
@@ -996,7 +995,6 @@ static const struct proto_ops caif_stream_ops = {
 	.sendmsg = caif_stream_sendmsg,
 	.recvmsg = caif_stream_recvmsg,
 	.mmap = sock_no_mmap,
-	.sendpage = sock_no_sendpage,
 };
 
 /* This function is called when a socket is finally destroyed. */

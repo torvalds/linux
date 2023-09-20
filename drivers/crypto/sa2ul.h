@@ -170,7 +170,7 @@ struct sa_tfm_ctx;
  * the following range, so avoid using it.
  */
 #define SA_UNSAFE_DATA_SZ_MIN	240
-#define SA_UNSAFE_DATA_SZ_MAX	256
+#define SA_UNSAFE_DATA_SZ_MAX	255
 
 struct sa_match_data;
 

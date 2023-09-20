@@ -5,6 +5,7 @@
 
 #include <linux/sort.h>
 
+#include "gt/intel_gt_print.h"
 #include "i915_selftest.h"
 #include "intel_engine_regs.h"
 #include "intel_gpu_commands.h"
@@ -402,7 +403,7 @@ static int live_engine_pm(void *arg)
 
 			/* gt wakeref is async (deferred to workqueue) */
 			if (intel_gt_pm_wait_for_idle(gt)) {
-				pr_err("GT failed to idle\n");
+				gt_err(gt, "GT failed to idle\n");
 				return -EINVAL;
 			}
 		}

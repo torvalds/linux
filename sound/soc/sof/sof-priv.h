@@ -48,6 +48,9 @@ struct snd_sof_pcm_stream;
 #define SOF_DBG_FORCE_NOCODEC			BIT(10) /* ignore all codec-related
 							 * configurations
 							 */
+#define SOF_DBG_DUMP_IPC_MESSAGE_PAYLOAD	BIT(11) /* On top of the IPC message header
+							 * dump the message payload also
+							 */
 #define SOF_DBG_DSPLESS_MODE			BIT(15) /* Do not initialize and use the DSP */
 
 /* Flag definitions used for controlling the DSP dump behavior */
