@@ -1431,14 +1431,22 @@ int psp_xgmi_get_topology_info(struct psp_context *psp,
 			amdgpu_ip_version(psp->adev, MP0_HWIP, 0) ==
 				IP_VERSION(13, 0, 6);
 
-		xgmi_cmd->cmd_id = TA_COMMAND_XGMI__GET_PEER_LINKS;
+		link_info_output = &xgmi_cmd->xgmi_out_message.get_link_info;
+		/* popluate the shared output buffer rather than the cmd input buffer
+		 * with node_ids as the input for GET_PEER_LINKS command execution.
+		 * This is required for GET_PEER_LINKS only per xgmi ta implementation
+		 */
+		for (i = 0; i < topology->num_nodes; i++) {
+			link_info_output->nodes[i].node_id = topology->nodes[i].node_id;
+		}
+		link_info_output->num_nodes = topology->num_nodes;
 
+		xgmi_cmd->cmd_id = TA_COMMAND_XGMI__GET_PEER_LINKS;
 		ret = psp_xgmi_invoke(psp, TA_COMMAND_XGMI__GET_PEER_LINKS);
 
 		if (ret)
 			return ret;
 
-		link_info_output = &xgmi_cmd->xgmi_out_message.get_link_info;
 		for (i = 0; i < topology->num_nodes; i++) {
 			/* accumulate num_links on extended data */
 			topology->nodes[i].num_links = get_extended_data ?
