@@ -265,6 +265,7 @@ show_kprobe_multi_json(struct bpf_link_info *info, json_writer_t *wtr)
 	jsonw_bool_field(json_wtr, "retprobe",
 			 info->kprobe_multi.flags & BPF_F_KPROBE_MULTI_RETURN);
 	jsonw_uint_field(json_wtr, "func_cnt", info->kprobe_multi.count);
+	jsonw_uint_field(json_wtr, "missed", info->kprobe_multi.missed);
 	jsonw_name(json_wtr, "funcs");
 	jsonw_start_array(json_wtr);
 	addrs = u64_to_ptr(info->kprobe_multi.addrs);
@@ -641,6 +642,8 @@ static void show_kprobe_multi_plain(struct bpf_link_info *info)
 	else
 		printf("\n\tkprobe.multi  ");
 	printf("func_cnt %u  ", info->kprobe_multi.count);
+	if (info->kprobe_multi.missed)
+		printf("missed %llu  ", info->kprobe_multi.missed);
 	addrs = (__u64 *)u64_to_ptr(info->kprobe_multi.addrs);
 	qsort(addrs, info->kprobe_multi.count, sizeof(__u64), cmp_u64);
 
