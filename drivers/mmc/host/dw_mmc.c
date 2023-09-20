@@ -124,6 +124,8 @@ void rv1106_sdmmc_put_lock(void)
 EXPORT_SYMBOL(rv1106_sdmmc_put_lock);
 #endif
 
+#define RV1106_RAMDON_DATA_SIZE 508
+
 #if defined(CONFIG_DEBUG_FS)
 static int dw_mci_req_show(struct seq_file *s, void *v)
 {
@@ -739,7 +741,7 @@ static inline int dw_mci_prepare_desc32(struct dw_mci *host,
 	if (host->is_rv1106_sd && (data->flags & MMC_DATA_WRITE)) {
 		desc->des0 = desc_last->des0;
 		desc->des2 = desc_last->des2;
-		desc->des1 = 0x8; /* Random dirty data for last one desc */
+		desc->des1 = RV1106_RAMDON_DATA_SIZE; /* Random dirty data for last one desc */
 		desc_last = desc;
 	}
 
@@ -1445,13 +1447,6 @@ static void dw_mci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 		mrq->cmd->error = -ENOMEDIUM;
 		mmc_request_done(mmc, mrq);
 		return;
-	}
-
-	if (host->is_rv1106_sd) {
-		u32 reg;
-
-		readl_poll_timeout(host->regs + SDMMC_STATUS, reg,
-				   reg & BIT(2), USEC_PER_MSEC, 500 * USEC_PER_MSEC);
 	}
 
 	spin_lock_bh(&host->lock);
@@ -2227,8 +2222,18 @@ static void dw_mci_tasklet_func(unsigned long priv)
 				}
 
 				/* stop command for open-ended transfer*/
-				if (data->stop)
+				if (data->stop) {
+					if (host->is_rv1106_sd && (data->flags & MMC_DATA_WRITE)) {
+						int fifo_count;
+
+						if (readl_poll_timeout_atomic(host->regs + SDMMC_STATUS, fifo_count,
+								((fifo_count >> 17) & 0x7FF) <= RV1106_RAMDON_DATA_SIZE / 4,
+								0, 5000 * USEC_PER_MSEC))
+							data->error = -ETIMEDOUT;
+						dw_mci_reset(host);
+					}
 					send_stop_abort(host, data);
+				}
 			} else {
 				/*
 				 * If we don't have a command complete now we'll
