@@ -143,20 +143,6 @@ bool __bch2_snapshot_is_ancestor(struct bch_fs *c, u32 id, u32 ancestor)
 	return ret;
 }
 
-struct snapshot_t_free_rcu {
-	struct rcu_head		rcu;
-	struct snapshot_table	*t;
-};
-
-static void snapshot_t_free_rcu(struct rcu_head *rcu)
-{
-	struct snapshot_t_free_rcu *free_rcu =
-		container_of(rcu, struct snapshot_t_free_rcu, rcu);
-
-	kvfree(free_rcu->t);
-	kfree(free_rcu);
-}
-
 static noinline struct snapshot_t *__snapshot_t_mut(struct bch_fs *c, u32 id)
 {
 	size_t idx = U32_MAX - id;
@@ -177,13 +163,7 @@ static noinline struct snapshot_t *__snapshot_t_mut(struct bch_fs *c, u32 id)
 
 	rcu_assign_pointer(c->snapshots, new);
 	c->snapshot_table_size = new_size;
-	if (old) {
-		struct snapshot_t_free_rcu *rcu =
-			kmalloc(sizeof(*rcu), GFP_KERNEL|__GFP_NOFAIL);
-
-		rcu->t = old;
-		call_rcu(&rcu->rcu, snapshot_t_free_rcu);
-	}
+	kvfree_rcu_mightsleep(old);
 
 	return &rcu_dereference_protected(c->snapshots, true)->s[idx];
 }
@@ -1638,7 +1618,7 @@ int bch2_propagate_key_to_snapshot_leaves(struct btree_trans *trans,
 	struct bch_fs *c = trans->c;
 	struct bkey_buf sk;
 	u32 restart_count = trans->restart_count;
-	int ret;
+	int ret = 0;
 
 	bch2_bkey_buf_init(&sk);
 	bch2_bkey_buf_reassemble(&sk, c, k);
