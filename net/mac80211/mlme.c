@@ -4755,6 +4755,7 @@ ieee80211_verify_sta_eht_mcs_support(struct ieee80211_sub_if_data *sdata,
 static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 				  struct ieee80211_link_data *link,
 				  struct cfg80211_bss *cbss,
+				  bool mlo,
 				  ieee80211_conn_flags_t *conn_flags)
 {
 	struct ieee80211_local *local = sdata->local;
@@ -4768,6 +4769,7 @@ static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 	struct cfg80211_chan_def chandef;
 	bool is_6ghz = cbss->channel->band == NL80211_BAND_6GHZ;
 	bool is_5ghz = cbss->channel->band == NL80211_BAND_5GHZ;
+	bool supports_mlo = false;
 	struct ieee80211_bss *bss = (void *)cbss->priv;
 	struct ieee80211_elems_parse_params parse_params = {
 		.link_id = -1,
@@ -4921,6 +4923,8 @@ static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 		    ieee80211_mle_type_ok(eht_ml_elem->data + 1,
 					  IEEE80211_ML_CONTROL_TYPE_BASIC,
 					  eht_ml_elem->datalen - 1)) {
+			supports_mlo = true;
+
 			sdata->vif.cfg.eml_cap =
 				ieee80211_mle_get_eml_cap(eht_ml_elem->data + 1);
 			sdata->vif.cfg.eml_med_sync_delay =
@@ -4973,6 +4977,11 @@ static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 
 	if (*conn_flags & IEEE80211_CONN_DISABLE_HE && is_6ghz) {
 		sdata_info(sdata, "Rejecting non-HE 6/7 GHz connection");
+		return -EINVAL;
+	}
+
+	if (mlo && !supports_mlo) {
+		sdata_info(sdata, "Rejecting MLO as it is not supported by AP\n");
 		return -EINVAL;
 	}
 
@@ -5124,7 +5133,7 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 		link->conf->dtim_period = link->u.mgd.dtim_period ?: 1;
 
 		if (link_id != assoc_data->assoc_link_id) {
-			err = ieee80211_prep_channel(sdata, link, cbss,
+			err = ieee80211_prep_channel(sdata, link, cbss, true,
 						     &link->u.mgd.conn_flags);
 			if (err) {
 				link_info(link, "prep_channel failed\n");
@@ -7159,7 +7168,7 @@ static int ieee80211_prep_connection(struct ieee80211_sub_if_data *sdata,
 	}
 
 	if (new_sta || override) {
-		err = ieee80211_prep_channel(sdata, link, cbss,
+		err = ieee80211_prep_channel(sdata, link, cbss, mlo,
 					     &link->u.mgd.conn_flags);
 		if (err) {
 			if (new_sta)
@@ -7864,7 +7873,8 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 		if (i == assoc_data->assoc_link_id)
 			continue;
 		/* only calculate the flags, hence link == NULL */
-		err = ieee80211_prep_channel(sdata, NULL, assoc_data->link[i].bss,
+		err = ieee80211_prep_channel(sdata, NULL,
+					     assoc_data->link[i].bss, true,
 					     &assoc_data->link[i].conn_flags);
 		if (err) {
 			req->links[i].error = err;
