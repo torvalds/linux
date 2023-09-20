@@ -293,10 +293,9 @@ struct i801_priv {
 
 	/*
 	 * If set to true the host controller registers are reserved for
-	 * ACPI AML use. Protected by acpi_lock.
+	 * ACPI AML use.
 	 */
 	bool acpi_reserved;
-	struct mutex acpi_lock;
 };
 
 #define FEATURE_SMBUS_PEC	BIT(0)
@@ -874,11 +873,8 @@ static s32 i801_access(struct i2c_adapter *adap, u16 addr,
 	int hwpec, ret;
 	struct i801_priv *priv = i2c_get_adapdata(adap);
 
-	mutex_lock(&priv->acpi_lock);
-	if (priv->acpi_reserved) {
-		mutex_unlock(&priv->acpi_lock);
+	if (priv->acpi_reserved)
 		return -EBUSY;
-	}
 
 	pm_runtime_get_sync(&priv->pci_dev->dev);
 
@@ -919,7 +915,6 @@ out:
 
 	pm_runtime_mark_last_busy(&priv->pci_dev->dev);
 	pm_runtime_put_autosuspend(&priv->pci_dev->dev);
-	mutex_unlock(&priv->acpi_lock);
 	return ret;
 }
 
@@ -1571,7 +1566,7 @@ i801_acpi_io_handler(u32 function, acpi_physical_address address, u32 bits,
 	 * further access from the driver itself. This device is now owned
 	 * by the system firmware.
 	 */
-	mutex_lock(&priv->acpi_lock);
+	i2c_lock_bus(&priv->adapter, I2C_LOCK_SEGMENT);
 
 	if (!priv->acpi_reserved && i801_acpi_is_smbus_ioport(priv, address)) {
 		priv->acpi_reserved = true;
@@ -1591,7 +1586,7 @@ i801_acpi_io_handler(u32 function, acpi_physical_address address, u32 bits,
 	else
 		status = acpi_os_write_port(address, (u32)*value, bits);
 
-	mutex_unlock(&priv->acpi_lock);
+	i2c_unlock_bus(&priv->adapter, I2C_LOCK_SEGMENT);
 
 	return status;
 }
@@ -1651,7 +1646,6 @@ static int i801_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	priv->adapter.dev.parent = &dev->dev;
 	ACPI_COMPANION_SET(&priv->adapter.dev, ACPI_COMPANION(&dev->dev));
 	priv->adapter.retries = 3;
-	mutex_init(&priv->acpi_lock);
 
 	priv->pci_dev = dev;
 	priv->features = id->driver_data;
