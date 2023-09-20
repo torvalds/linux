@@ -10,8 +10,6 @@
 #include <asm/io.h>
 #include <asm/pgtable.h>
 
-#define __HAVE_ARCH_SHADOW_MAP
-
 #define KASAN_SHADOW_SCALE_SHIFT 3
 #define KASAN_SHADOW_OFFSET	_AC(CONFIG_KASAN_SHADOW_OFFSET, UL)
 
@@ -68,6 +66,7 @@ static __always_inline bool kasan_arch_is_ready(void)
 	return !kasan_early_stage;
 }
 
+#define kasan_mem_to_shadow kasan_mem_to_shadow
 static inline void *kasan_mem_to_shadow(const void *addr)
 {
 	if (!kasan_arch_is_ready()) {
@@ -97,6 +96,7 @@ static inline void *kasan_mem_to_shadow(const void *addr)
 	}
 }
 
+#define kasan_shadow_to_mem kasan_shadow_to_mem
 static inline const void *kasan_shadow_to_mem(const void *shadow_addr)
 {
 	unsigned long addr = (unsigned long)shadow_addr;
@@ -117,6 +117,12 @@ static inline const void *kasan_shadow_to_mem(const void *shadow_addr)
 		WARN_ON(1);
 		return NULL;
 	}
+}
+
+#define addr_has_metadata addr_has_metadata
+static __always_inline bool addr_has_metadata(const void *addr)
+{
+	return (kasan_mem_to_shadow((void *)addr) != NULL);
 }
 
 void kasan_init(void);
