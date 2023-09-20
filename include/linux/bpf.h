@@ -2922,6 +2922,22 @@ static inline int sock_map_bpf_prog_query(const union bpf_attr *attr,
 #endif /* CONFIG_BPF_SYSCALL */
 #endif /* CONFIG_NET && CONFIG_BPF_SYSCALL */
 
+static __always_inline void
+bpf_prog_inc_misses_counters(const struct bpf_prog_array *array)
+{
+	const struct bpf_prog_array_item *item;
+	struct bpf_prog *prog;
+
+	if (unlikely(!array))
+		return;
+
+	item = &array->items[0];
+	while ((prog = READ_ONCE(item->prog))) {
+		bpf_prog_inc_misses_counter(prog);
+		item++;
+	}
+}
+
 #if defined(CONFIG_INET) && defined(CONFIG_BPF_SYSCALL)
 void bpf_sk_reuseport_detach(struct sock *sk);
 int bpf_fd_reuseport_array_lookup_elem(struct bpf_map *map, void *key,
