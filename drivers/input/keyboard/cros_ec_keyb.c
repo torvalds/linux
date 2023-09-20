@@ -743,14 +743,12 @@ static int cros_ec_keyb_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int cros_ec_keyb_remove(struct platform_device *pdev)
+static void cros_ec_keyb_remove(struct platform_device *pdev)
 {
 	struct cros_ec_keyb *ckdev = dev_get_drvdata(&pdev->dev);
 
 	blocking_notifier_chain_unregister(&ckdev->ec->event_notifier,
 					   &ckdev->notifier);
-
-	return 0;
 }
 
 #ifdef CONFIG_ACPI
@@ -774,7 +772,7 @@ static DEFINE_SIMPLE_DEV_PM_OPS(cros_ec_keyb_pm_ops, NULL, cros_ec_keyb_resume);
 
 static struct platform_driver cros_ec_keyb_driver = {
 	.probe = cros_ec_keyb_probe,
-	.remove = cros_ec_keyb_remove,
+	.remove_new = cros_ec_keyb_remove,
 	.driver = {
 		.name = "cros-ec-keyb",
 		.dev_groups = cros_ec_keyb_groups,
