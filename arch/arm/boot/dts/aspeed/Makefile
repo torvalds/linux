@@ -4,6 +4,7 @@ dtb-$(CONFIG_ARCH_ASPEED) += \
 	aspeed-ast2600-evb-a1.dtb \
 	aspeed-ast2600-evb.dtb \
 	aspeed-ast2600-evb-tee.dtb \
+	aspeed-ast2600-ncsi.dtb \
 	aspeed-ast2600-ncsi-tee.dtb \
 	aspeed-ast2600-dcscm.dtb \
 	aspeed-ast2600-dcscm-amd.dtb \
