@@ -45,6 +45,8 @@
 #include "gpio_service_interface.h"
 #include "atomfirmware.h"
 
+#define DC_LOGGER \
+	dc_ctx->logger
 #define DC_LOGGER_INIT(logger)
 
 #define LINK_INFO(...) \

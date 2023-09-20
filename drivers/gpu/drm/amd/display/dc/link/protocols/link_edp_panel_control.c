@@ -38,6 +38,8 @@
 #include "dc/dc_dmub_srv.h"
 #include "dce/dmub_replay.h"
 #include "abm.h"
+#define DC_LOGGER \
+	link->ctx->logger
 #define DC_LOGGER_INIT(logger)
 
 #define DP_SINK_PR_ENABLE_AND_CONFIGURATION		0x37B

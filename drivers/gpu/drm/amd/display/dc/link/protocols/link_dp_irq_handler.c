@@ -38,6 +38,8 @@
 #include "link/link_dpms.h"
 #include "dm_helpers.h"
 
+#define DC_LOGGER \
+	link->ctx->logger
 #define DC_LOGGER_INIT(logger)
 
 bool dp_parse_link_loss_status(

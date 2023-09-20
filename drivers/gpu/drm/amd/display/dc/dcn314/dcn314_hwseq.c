@@ -62,7 +62,7 @@
 #define REG(reg)\
 	hws->regs->reg
 #define DC_LOGGER \
-		dc->ctx->logger
+	stream->ctx->logger
 
 
 #undef FN

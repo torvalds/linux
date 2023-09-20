@@ -82,6 +82,8 @@
  */
 #define VISUAL_CONFIRM_DPP_OFFSET_DENO 240
 
+#define DC_LOGGER \
+	dc->ctx->logger
 #define DC_LOGGER_INIT(logger)
 
 #define UNABLE_TO_SPLIT -1

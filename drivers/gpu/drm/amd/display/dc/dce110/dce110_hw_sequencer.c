@@ -82,7 +82,10 @@
 #define CTX \
 	hws->ctx
 
-#define DC_LOGGER_INIT()
+#define DC_LOGGER \
+	ctx->logger
+#define DC_LOGGER_INIT() \
+	struct dc_context *ctx = dc->ctx
 
 #define REG(reg)\
 	hws->regs->reg
@@ -2457,6 +2460,7 @@ static bool wait_for_reset_trigger_to_occur(
 	struct dc_context *dc_ctx,
 	struct timing_generator *tg)
 {
+	struct dc_context *ctx = dc_ctx;
 	bool rc = false;
 
 	/* To avoid endless loop we wait at most
@@ -2500,6 +2504,7 @@ static void dce110_enable_timing_synchronization(
 	struct dc_context *dc_ctx = dc->ctx;
 	struct dcp_gsl_params gsl_params = { 0 };
 	int i;
+	DC_LOGGER_INIT();
 
 	DC_SYNC_INFO("GSL: Setting-up...\n");
 
@@ -2545,6 +2550,7 @@ static void dce110_enable_per_frame_crtc_position_reset(
 	struct dc_context *dc_ctx = dc->ctx;
 	struct dcp_gsl_params gsl_params = { 0 };
 	int i;
+	DC_LOGGER_INIT();
 
 	gsl_params.gsl_group = 0;
 	gsl_params.gsl_master = 0;
@@ -2690,7 +2696,6 @@ static void dce110_program_front_end_for_pipe(
 	unsigned int i;
 	struct dce_hwseq *hws = dc->hwseq;
 
-	DC_LOGGER_INIT();
 	memset(&tbl_entry, 0, sizeof(tbl_entry));
 
 	memset(&adjust, 0, sizeof(adjust));

@@ -56,6 +56,8 @@
 
 #include "dml/dcn303/dcn303_fpu.h"
 
+#define DC_LOGGER \
+	dc->ctx->logger
 #define DC_LOGGER_INIT(logger)
 
 

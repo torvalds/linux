@@ -104,6 +104,8 @@
 
 #include "link_enc_cfg.h"
 
+#define DC_LOGGER \
+	dc->ctx->logger
 #define DC_LOGGER_INIT(logger)
 
 enum dcn31_clk_src_array_id {

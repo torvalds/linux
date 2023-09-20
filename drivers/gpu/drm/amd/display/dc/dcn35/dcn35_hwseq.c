@@ -55,14 +55,15 @@
 #include "dcn31/dcn31_hwseq.h"
 #include "dcn20/dcn20_hwseq.h"
 
-#define DC_LOGGER_INIT(logger)
+#define DC_LOGGER_INIT(logger) \
+	struct dal_logger *dc_logger = logger
 
 #define CTX \
 	hws->ctx
 #define REG(reg)\
 	hws->regs->reg
 #define DC_LOGGER \
-		dc->ctx->logger
+	dc_logger
 
 
 #undef FN
@@ -340,6 +341,8 @@ static void update_dsc_on_stream(struct pipe_ctx *pipe_ctx, bool enable)
 	struct dc_stream_state *stream = pipe_ctx->stream;
 	struct pipe_ctx *odm_pipe;
 	int opp_cnt = 1;
+
+	DC_LOGGER_INIT(stream->ctx->logger);
 
 	ASSERT(dsc);
 	for (odm_pipe = pipe_ctx->next_odm_pipe; odm_pipe; odm_pipe = odm_pipe->next_odm_pipe)

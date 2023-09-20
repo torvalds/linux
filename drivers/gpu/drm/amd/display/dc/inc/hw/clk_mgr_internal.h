@@ -73,7 +73,7 @@ enum dentist_divider_range {
 	clk_mgr->base.ctx
 
 #define DC_LOGGER \
-	clk_mgr->base.ctx->logger
+	dc->ctx->logger
 
 
 

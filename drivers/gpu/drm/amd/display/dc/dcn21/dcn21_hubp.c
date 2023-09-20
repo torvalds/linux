@@ -31,6 +31,8 @@
 
 #include "dc_dmub_srv.h"
 
+#define DC_LOGGER \
+	ctx->logger
 #define DC_LOGGER_INIT(logger)
 
 #define REG(reg)\

@@ -74,6 +74,8 @@
 #include "nbio/nbio_7_4_offset.h"
 #include "amdgpu_socbb.h"
 
+#define DC_LOGGER \
+	dc->ctx->logger
 #define DC_LOGGER_INIT(logger)
 
 static const struct dc_debug_options debug_defaults_drv = {

@@ -56,7 +56,10 @@
 #include "link_hwss.h"
 #include "link.h"
 
-#define DC_LOGGER_INIT(logger)
+#define DC_LOGGER \
+	dc_logger
+#define DC_LOGGER_INIT(logger) \
+	struct dal_logger *dc_logger = logger
 
 #define CTX \
 	hws->ctx
@@ -1994,8 +1997,6 @@ void dcn20_post_unlock_program_front_end(
 	const unsigned int TIMEOUT_FOR_PIPE_ENABLE_US = 100000;
 	unsigned int polling_interval_us = 1;
 	struct dce_hwseq *hwseq = dc->hwseq;
-
-	DC_LOGGER_INIT(dc->ctx->logger);
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++)
 		if (context->res_ctx.pipe_ctx[i].update_flags.bits.disable)

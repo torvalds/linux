@@ -55,7 +55,10 @@
 #include "dccg.h"
 #include "clk_mgr.h"
 #include "atomfirmware.h"
-#define DC_LOGGER_INIT(logger)
+#define DC_LOGGER \
+	dc_logger
+#define DC_LOGGER_INIT(logger) \
+	struct dal_logger *dc_logger = logger
 
 #define LINK_INFO(...) \
 	DC_LOG_HW_HOTPLUG(  \
@@ -2264,14 +2267,14 @@ void link_set_dpms_off(struct pipe_ctx *pipe_ctx)
 	struct dc_link *link = stream->sink->link;
 	struct vpg *vpg = pipe_ctx->stream_res.stream_enc->vpg;
 
+	DC_LOGGER_INIT(pipe_ctx->stream->ctx->logger);
+
 	ASSERT(is_master_pipe_for_link(link, pipe_ctx));
 
 	if (dp_is_128b_132b_signal(pipe_ctx))
 		vpg = pipe_ctx->stream_res.hpo_dp_stream_enc->vpg;
 	if (dc_is_virtual_signal(pipe_ctx->stream->signal))
 		return;
-
-	DC_LOGGER_INIT(pipe_ctx->stream->ctx->logger);
 
 	if (pipe_ctx->stream->sink) {
 		if (pipe_ctx->stream->sink->sink_signal != SIGNAL_TYPE_VIRTUAL &&
@@ -2376,14 +2379,14 @@ void link_set_dpms_on(
 	bool apply_edp_fast_boot_optimization =
 		pipe_ctx->stream->apply_edp_fast_boot_optimization;
 
+	DC_LOGGER_INIT(pipe_ctx->stream->ctx->logger);
+
 	ASSERT(is_master_pipe_for_link(link, pipe_ctx));
 
 	if (dp_is_128b_132b_signal(pipe_ctx))
 		vpg = pipe_ctx->stream_res.hpo_dp_stream_enc->vpg;
 	if (dc_is_virtual_signal(pipe_ctx->stream->signal))
 		return;
-
-	DC_LOGGER_INIT(pipe_ctx->stream->ctx->logger);
 
 	if (pipe_ctx->stream->sink) {
 		if (pipe_ctx->stream->sink->sink_signal != SIGNAL_TYPE_VIRTUAL &&

@@ -91,6 +91,8 @@
 #include "amdgpu_socbb.h"
 #include "dc_dmub_srv.h"
 
+#define DC_LOGGER \
+	dc->ctx->logger
 #define DC_LOGGER_INIT(logger)
 
 enum dcn30_clk_src_array_id {

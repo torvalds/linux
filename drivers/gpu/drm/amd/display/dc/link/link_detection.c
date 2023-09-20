@@ -47,6 +47,8 @@
 #include "dm_helpers.h"
 #include "clk_mgr.h"
 
+#define DC_LOGGER \
+	link->ctx->logger
 #define DC_LOGGER_INIT(logger)
 
 #define LINK_INFO(...) \
@@ -322,6 +324,7 @@ static void query_dp_dual_mode_adaptor(
 	bool is_type2_dongle = false;
 	int retry_count = 2;
 	struct dp_hdmi_dongle_signature_data *dongle_signature;
+	struct dc_link *link = ddc->link;
 
 	/* Assume we have no valid DP passive dongle connected */
 	*dongle = DISPLAY_DONGLE_NONE;

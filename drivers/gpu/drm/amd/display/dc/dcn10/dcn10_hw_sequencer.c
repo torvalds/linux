@@ -57,7 +57,10 @@
 #include "dce/dmub_outbox.h"
 #include "link.h"
 
-#define DC_LOGGER_INIT(logger)
+#define DC_LOGGER \
+	dc_logger
+#define DC_LOGGER_INIT(logger) \
+	struct dal_logger *dc_logger = logger
 
 #define CTX \
 	hws->ctx
@@ -1808,7 +1811,6 @@ static void log_tf(struct dc_context *ctx,
 	// DC_LOG_ALL_TF_POINTS logs all channels of the tf
 	int i = 0;
 
-	DC_LOGGER_INIT(ctx->logger);
 	DC_LOG_GAMMA("Gamma Correction TF");
 	DC_LOG_ALL_GAMMA("Logging all tf points...");
 	DC_LOG_ALL_TF_CHANNELS("Logging all channels...");
@@ -1990,6 +1992,8 @@ static bool wait_for_reset_trigger_to_occur(
 {
 	bool rc = false;
 
+	DC_LOGGER_INIT(dc_ctx->logger);
+
 	/* To avoid endless loop we wait at most
 	 * frames_to_wait_on_triggered_reset frames for the reset to occur. */
 	const uint32_t frames_to_wait_on_triggered_reset = 10;
@@ -2117,6 +2121,8 @@ static int dcn10_align_pixel_clocks(struct dc *dc, int group_size,
 	uint32_t dp_ref_clk_100hz =
 		dc->res_pool->dp_clock_source->ctx->dc->clk_mgr->dprefclk_khz*10;
 
+	DC_LOGGER_INIT(dc_ctx->logger);
+
 	hw_crtc_timing = kcalloc(MAX_PIPES, sizeof(*hw_crtc_timing), GFP_KERNEL);
 	if (!hw_crtc_timing)
 		return master;
@@ -2200,6 +2206,8 @@ void dcn10_enable_vblanks_synchronization(
 	struct timing_generator *tg;
 	int i, width, height, master;
 
+	DC_LOGGER_INIT(dc_ctx->logger);
+
 	for (i = 1; i < group_size; i++) {
 		opp = grouped_pipes[i]->stream_res.opp;
 		tg = grouped_pipes[i]->stream_res.tg;
@@ -2262,6 +2270,8 @@ void dcn10_enable_timing_synchronization(
 	struct output_pixel_processor *opp;
 	struct timing_generator *tg;
 	int i, width, height;
+
+	DC_LOGGER_INIT(dc_ctx->logger);
 
 	DC_SYNC_INFO("Setting up OTG reset trigger\n");
 
@@ -2339,6 +2349,8 @@ void dcn10_enable_per_frame_crtc_position_reset(
 {
 	struct dc_context *dc_ctx = dc->ctx;
 	int i;
+
+	DC_LOGGER_INIT(dc_ctx->logger);
 
 	DC_SYNC_INFO("Setting up\n");
 	for (i = 0; i < group_size; i++)
@@ -2993,8 +3005,6 @@ void dcn10_post_unlock_program_front_end(
 		struct dc_state *context)
 {
 	int i;
-
-	DC_LOGGER_INIT(dc->ctx->logger);
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];

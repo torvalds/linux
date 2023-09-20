@@ -34,6 +34,8 @@
 #include "link.h"
 #include "dcn20_fpu.h"
 
+#define DC_LOGGER \
+	dc->ctx->logger
 #define DC_LOGGER_INIT(logger)
 
 #ifndef MAX
