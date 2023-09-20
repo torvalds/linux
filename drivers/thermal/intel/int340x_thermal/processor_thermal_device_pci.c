@@ -154,9 +154,10 @@ static irqreturn_t proc_thermal_irq_handler(int irq, void *devid)
 	if (status) {
 		/* Disable enable interrupt flag */
 		proc_thermal_mmio_write(pci_info, PROC_THERMAL_MMIO_INT_ENABLE_0, 0);
-		pci_write_config_byte(pci_info->pdev, 0xdc, 0x01);
 		pkg_thermal_schedule_work(&pci_info->work);
 	}
+
+	pci_write_config_byte(pci_info->pdev, 0xdc, 0x01);
 
 	return ret;
 }
