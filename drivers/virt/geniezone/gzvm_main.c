@@ -3,14 +3,13 @@
  * Copyright (c) 2023 MediaTek Inc.
  */
 
-#include <linux/anon_inodes.h>
 #include <linux/device.h>
 #include <linux/file.h>
 #include <linux/kdev_t.h>
+#include <linux/miscdevice.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
-#include <linux/slab.h>
 #include <linux/gzvm_drv.h>
 
 /**
@@ -121,7 +120,7 @@ static int gzvm_drv_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id gzvm_of_match[] = {
-	{ .compatible = "mediatek,geniezone-hyp", },
+	{ .compatible = "mediatek,geniezone-hyp" },
 	{/* sentinel */},
 };
 

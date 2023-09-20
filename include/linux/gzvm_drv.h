@@ -8,17 +8,23 @@
 
 #include <linux/eventfd.h>
 #include <linux/list.h>
+#include <linux/mm.h>
 #include <linux/mutex.h>
-#include <linux/miscdevice.h>
 #include <linux/gzvm.h>
 #include <linux/srcu.h>
+
+/*
+ * For the normal physical address, the highest 12 bits should be zero, so we
+ * can mask bit 62 ~ bit 52 to indicate the error physical address
+ */
+#define GZVM_PA_ERR_BAD (0x7ffULL << 52)
 
 #define GZVM_VCPU_MMAP_SIZE  PAGE_SIZE
 #define INVALID_VM_ID   0xffff
 
 /*
- * These are the efinitions of APIs between GenieZone hypervisor and driver,
- * there's no need to be visible to uapi. Furthermore, We need GenieZone
+ * These are the definitions of APIs between GenieZone hypervisor and driver,
+ * there's no need to be visible to uapi. Furthermore, we need GenieZone
  * specific error code in order to map to Linux errno
  */
 #define NO_ERROR                (0)

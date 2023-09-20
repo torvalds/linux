@@ -3,7 +3,6 @@
  * Copyright (c) 2023 MediaTek Inc.
  */
 
-#include <asm/sysreg.h>
 #include <linux/arm-smccc.h>
 #include <linux/err.h>
 #include <linux/uaccess.h>
@@ -30,10 +29,10 @@ int gzvm_arch_probe(void)
 	struct arm_smccc_res res;
 
 	arm_smccc_hvc(MT_HVC_GZVM_PROBE, 0, 0, 0, 0, 0, 0, 0, &res);
-	if (res.a0 == 0)
-		return 0;
+	if (res.a0)
+		return -ENXIO;
 
-	return -ENXIO;
+	return 0;
 }
 
 int gzvm_arch_set_memregion(u16 vm_id, size_t buf_size,
@@ -94,11 +93,7 @@ int gzvm_arch_create_vm(unsigned long vm_type)
 
 	ret = gzvm_hypcall_wrapper(MT_HVC_GZVM_CREATE_VM, vm_type, 0, 0, 0, 0,
 				   0, 0, &res);
-
-	if (ret == 0)
-		return res.a1;
-	else
-		return ret;
+	return ret ? ret : res.a1;
 }
 
 int gzvm_arch_destroy_vm(u16 vm_id)
@@ -221,12 +216,12 @@ int gzvm_vm_ioctl_arch_enable_cap(struct gzvm *gzvm,
  * gzvm_hva_to_pa_arch() - converts hva to pa with arch-specific way
  * @hva: Host virtual address.
  *
- * Return: 0 if translation error
+ * Return: GZVM_PA_ERR_BAD for translation error
  */
 u64 gzvm_hva_to_pa_arch(u64 hva)
 {
-	u64 par;
 	unsigned long flags;
+	u64 par;
 
 	local_irq_save(flags);
 	asm volatile("at s1e1r, %0" :: "r" (hva));
@@ -235,7 +230,9 @@ u64 gzvm_hva_to_pa_arch(u64 hva)
 	local_irq_restore(flags);
 
 	if (par & SYS_PAR_EL1_F)
-		return 0;
-
-	return par & PAR_PA47_MASK;
+		return GZVM_PA_ERR_BAD;
+	par = par & PAR_PA47_MASK;
+	if (!par)
+		return GZVM_PA_ERR_BAD;
+	return par;
 }
