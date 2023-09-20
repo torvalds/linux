@@ -362,7 +362,6 @@ struct btrfs_fs_devices {
 	bool rotating;
 	/* Devices support TRIM/discard commands. */
 	bool discardable;
-	bool fsid_change;
 	/* The filesystem is a seed filesystem. */
 	bool seeding;
 
