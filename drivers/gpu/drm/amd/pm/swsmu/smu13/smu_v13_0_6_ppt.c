@@ -1897,12 +1897,6 @@ static int smu_v13_0_6_set_df_cstate(struct smu_context *smu,
 					       state, NULL);
 }
 
-static int smu_v13_0_6_allow_xgmi_power_down(struct smu_context *smu, bool en)
-{
-	return smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_GmiPwrDnControl,
-					       en ? 0 : 1, NULL);
-}
-
 static const char *const throttling_logging_label[] = {
 	[THROTTLER_PROCHOT_BIT] = "Prochot",
 	[THROTTLER_PPT_BIT] = "PPT",
@@ -2730,13 +2724,22 @@ static int smu_v13_0_6_select_xgmi_plpd_policy(struct smu_context *smu,
 	case XGMI_PLPD_OPTIMIZED:
 		param = PPSMC_PLPD_MODE_OPTIMIZED;
 		break;
+	case XGMI_PLPD_DISALLOW:
+		param = 0;
+		break;
 	default:
 		return -EINVAL;
 	}
 
-	/* change xgmi per-link power down policy */
-	ret = smu_cmn_send_smc_msg_with_param(
-		smu, SMU_MSG_SelectPLPDMode, param, NULL);
+	if (mode == XGMI_PLPD_DISALLOW)
+		ret = smu_cmn_send_smc_msg_with_param(smu,
+						      SMU_MSG_GmiPwrDnControl,
+						      param, NULL);
+	else
+		/* change xgmi per-link power down policy */
+		ret = smu_cmn_send_smc_msg_with_param(smu,
+						      SMU_MSG_SelectPLPDMode,
+						      param, NULL);
 
 	if (ret)
 		dev_err(adev->dev,
@@ -2785,7 +2788,6 @@ static const struct pptable_funcs smu_v13_0_6_ppt_funcs = {
 	.set_soft_freq_limited_range = smu_v13_0_6_set_soft_freq_limited_range,
 	.od_edit_dpm_table = smu_v13_0_6_usr_edit_dpm_table,
 	.set_df_cstate = smu_v13_0_6_set_df_cstate,
-	.allow_xgmi_power_down = smu_v13_0_6_allow_xgmi_power_down,
 	.select_xgmi_plpd_policy = smu_v13_0_6_select_xgmi_plpd_policy,
 	.log_thermal_throttling_event = smu_v13_0_6_log_thermal_throttling_event,
 	.get_pp_feature_mask = smu_cmn_get_pp_feature_mask,
