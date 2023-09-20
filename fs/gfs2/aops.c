@@ -155,7 +155,7 @@ static int gfs2_jdata_writepage(struct page *page, struct writeback_control *wbc
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_sbd *sdp = GFS2_SB(inode);
 
-	if (gfs2_assert_withdraw(sdp, gfs2_glock_is_held_excl(ip->i_gl)))
+	if (gfs2_assert_withdraw(sdp, ip->i_gl->gl_state == LM_ST_EXCLUSIVE))
 		goto out;
 	if (folio_test_checked(folio) || current->journal_info)
 		goto out_ignore;
