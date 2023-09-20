@@ -140,18 +140,16 @@ static int gxl_mdio_mux_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int gxl_mdio_mux_remove(struct platform_device *pdev)
+static void gxl_mdio_mux_remove(struct platform_device *pdev)
 {
 	struct gxl_mdio_mux *priv = platform_get_drvdata(pdev);
 
 	mdio_mux_uninit(priv->mux_handle);
-
-	return 0;
 }
 
 static struct platform_driver gxl_mdio_mux_driver = {
 	.probe		= gxl_mdio_mux_probe,
-	.remove		= gxl_mdio_mux_remove,
+	.remove_new	= gxl_mdio_mux_remove,
 	.driver		= {
 		.name	= "gxl-mdio-mux",
 		.of_match_table = gxl_mdio_mux_match,
