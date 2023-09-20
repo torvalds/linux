@@ -23696,6 +23696,11 @@ F:	Documentation/devicetree/bindings/gpio/xlnx,gpio-xilinx.yaml
 F:	drivers/gpio/gpio-xilinx.c
 F:	drivers/gpio/gpio-zynq.c
 
+XILINX LL TEMAC ETHERNET DRIVER
+L:	netdev@vger.kernel.org
+S:	Obsolete
+F:	drivers/net/ethernet/xilinx/ll_temac*
+
 XILINX PWM DRIVER
 M:	Sean Anderson <sean.anderson@seco.com>
 S:	Maintained
