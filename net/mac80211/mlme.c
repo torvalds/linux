@@ -5713,6 +5713,8 @@ static void ieee80211_ml_reconf_work(struct wiphy *wiphy,
 	if (ret)
 		sdata_info(sdata, "Failed setting valid links\n");
 
+	ieee80211_vif_cfg_change_notify(sdata, BSS_CHANGED_MLD_VALID_LINKS);
+
 out:
 	if (!ret)
 		cfg80211_links_removed(sdata->dev, sdata->u.mgd.removed_links);
