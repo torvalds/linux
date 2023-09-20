@@ -109,7 +109,8 @@ ieee80211_extract_dis_subch_bmap(const struct ieee80211_eht_operation *eht_oper,
 		return 0;
 
 	/* set 160/320 supported to get the full AP definition */
-	ieee80211_chandef_eht_oper(eht_oper, true, true, &ap_chandef);
+	ieee80211_chandef_eht_oper((const void *)eht_oper->optional,
+				   true, true, &ap_chandef);
 	ap_center_freq = ap_chandef.center_freq1;
 	ap_bw = 20 * BIT(u8_get_bits(info->control,
 				     IEEE80211_EHT_OPER_CHAN_WIDTH));
@@ -387,7 +388,7 @@ ieee80211_determine_chantype(struct ieee80211_sub_if_data *sdata,
 	if (eht_oper && (eht_oper->params & IEEE80211_EHT_OPER_INFO_PRESENT)) {
 		struct cfg80211_chan_def eht_chandef = *chandef;
 
-		ieee80211_chandef_eht_oper(eht_oper,
+		ieee80211_chandef_eht_oper((const void *)eht_oper->optional,
 					   eht_chandef.width ==
 					   NL80211_CHAN_WIDTH_160,
 					   false, &eht_chandef);

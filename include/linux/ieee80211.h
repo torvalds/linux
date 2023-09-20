@@ -3139,6 +3139,28 @@ ieee80211_eht_oper_size_ok(const u8 *data, u8 len)
 	return len >= needed;
 }
 
+#define IEEE80211_BW_IND_DIS_SUBCH_PRESENT	BIT(1)
+
+struct ieee80211_bandwidth_indication {
+	u8 params;
+	struct ieee80211_eht_operation_info info;
+} __packed;
+
+static inline bool
+ieee80211_bandwidth_indication_size_ok(const u8 *data, u8 len)
+{
+	const struct ieee80211_bandwidth_indication *bwi = (const void *)data;
+
+	if (len < sizeof(*bwi))
+		return false;
+
+	if (bwi->params & IEEE80211_BW_IND_DIS_SUBCH_PRESENT &&
+	    len < sizeof(*bwi) + 2)
+		return false;
+
+	return true;
+}
+
 #define LISTEN_INT_USF	GENMASK(15, 14)
 #define LISTEN_INT_UI	GENMASK(13, 0)
 
@@ -3596,6 +3618,7 @@ enum ieee80211_eid_ext {
 	WLAN_EID_EXT_EHT_OPERATION = 106,
 	WLAN_EID_EXT_EHT_MULTI_LINK = 107,
 	WLAN_EID_EXT_EHT_CAPABILITY = 108,
+	WLAN_EID_EXT_BANDWIDTH_INDICATION = 135,
 };
 
 /* Action category code */
