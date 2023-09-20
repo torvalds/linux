@@ -124,9 +124,6 @@ static inline int xe_mmio_wait32(struct xe_gt *gt, struct xe_reg reg, u32 mask,
 	return ret;
 }
 
-int xe_mmio_ioctl(struct drm_device *dev, void *data,
-		  struct drm_file *file);
-
 static inline bool xe_mmio_in_range(const struct xe_gt *gt,
 				    const struct xe_mmio_range *range,
 				    struct xe_reg reg)
