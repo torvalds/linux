@@ -424,8 +424,6 @@ int amdgpu_dpm_baco_enter(struct amdgpu_device *adev);
 int amdgpu_dpm_set_df_cstate(struct amdgpu_device *adev,
 			     uint32_t cstate);
 
-int amdgpu_dpm_allow_xgmi_power_down(struct amdgpu_device *adev, bool en);
-
 int amdgpu_dpm_get_xgmi_plpd_mode(struct amdgpu_device *adev,
 				  char **mode);
 

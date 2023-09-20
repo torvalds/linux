@@ -2178,23 +2178,6 @@ static int smu_set_df_cstate(void *handle,
 	return ret;
 }
 
-int smu_allow_xgmi_power_down(struct smu_context *smu, bool en)
-{
-	int ret = 0;
-
-	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
-		return -EOPNOTSUPP;
-
-	if (!smu->ppt_funcs || !smu->ppt_funcs->allow_xgmi_power_down)
-		return 0;
-
-	ret = smu->ppt_funcs->allow_xgmi_power_down(smu, en);
-	if (ret)
-		dev_err(smu->adev->dev, "[AllowXgmiPowerDown] failed!\n");
-
-	return ret;
-}
-
 int smu_write_watermarks_table(struct smu_context *smu)
 {
 	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
