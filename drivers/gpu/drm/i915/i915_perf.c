@@ -543,10 +543,9 @@ static bool oa_buffer_check_unlocked(struct i915_perf_stream *stream)
 {
 	u32 gtt_offset = i915_ggtt_offset(stream->oa_buffer.vma);
 	int report_size = stream->oa_buffer.format->size;
-	u32 head, tail, read_tail;
+	u32 tail, hw_tail;
 	unsigned long flags;
 	bool pollin;
-	u32 hw_tail;
 	u32 partial_report_size;
 
 	/* We have to consider the (unlikely) possibility that read() errors
@@ -556,6 +555,7 @@ static bool oa_buffer_check_unlocked(struct i915_perf_stream *stream)
 	spin_lock_irqsave(&stream->oa_buffer.ptr_lock, flags);
 
 	hw_tail = stream->perf->ops.oa_hw_tail_read(stream);
+	hw_tail -= gtt_offset;
 
 	/* The tail pointer increases in 64 byte increments, not in report_size
 	 * steps. Also the report size may not be a power of 2. Compute
@@ -566,13 +566,6 @@ static bool oa_buffer_check_unlocked(struct i915_perf_stream *stream)
 
 	/* Subtract partial amount off the tail */
 	hw_tail = OA_TAKEN(hw_tail, partial_report_size);
-
-	/* NB: The head we observe here might effectively be a little
-	 * out of date. If a read() is in progress, the head could be
-	 * anywhere between this head and stream->oa_buffer.tail.
-	 */
-	head = stream->oa_buffer.head - gtt_offset;
-	read_tail = stream->oa_buffer.tail - gtt_offset;
 
 	tail = hw_tail;
 
@@ -587,7 +580,7 @@ static bool oa_buffer_check_unlocked(struct i915_perf_stream *stream)
 	 * memory in the order they were written to.
 	 * If not : (╯°□°）╯︵ ┻━┻
 	 */
-	while (OA_TAKEN(tail, read_tail) >= report_size) {
+	while (OA_TAKEN(tail, stream->oa_buffer.tail) >= report_size) {
 		void *report = stream->oa_buffer.vaddr + tail;
 
 		if (oa_report_id(stream, report) ||
@@ -601,9 +594,9 @@ static bool oa_buffer_check_unlocked(struct i915_perf_stream *stream)
 	    __ratelimit(&stream->perf->tail_pointer_race))
 		drm_notice(&stream->uncore->i915->drm,
 			   "unlanded report(s) head=0x%x tail=0x%x hw_tail=0x%x\n",
-		 head, tail, hw_tail);
+		 stream->oa_buffer.head, tail, hw_tail);
 
-	stream->oa_buffer.tail = gtt_offset + tail;
+	stream->oa_buffer.tail = tail;
 
 	pollin = OA_TAKEN(stream->oa_buffer.tail,
 			  stream->oa_buffer.head) >= report_size;
@@ -754,13 +747,6 @@ static int gen8_append_oa_reports(struct i915_perf_stream *stream,
 	spin_unlock_irqrestore(&stream->oa_buffer.ptr_lock, flags);
 
 	/*
-	 * NB: oa_buffer.head/tail include the gtt_offset which we don't want
-	 * while indexing relative to oa_buf_base.
-	 */
-	head -= gtt_offset;
-	tail -= gtt_offset;
-
-	/*
 	 * An out of bounds or misaligned head or tail pointer implies a driver
 	 * bug since we validate + align the tail pointers we read from the
 	 * hardware and we are in full control of the head pointer which should
@@ -895,9 +881,8 @@ static int gen8_append_oa_reports(struct i915_perf_stream *stream,
 		 * We removed the gtt_offset for the copy loop above, indexing
 		 * relative to oa_buf_base so put back here...
 		 */
-		head += gtt_offset;
 		intel_uncore_write(uncore, oaheadptr,
-				   head & GEN12_OAG_OAHEADPTR_MASK);
+				   (head + gtt_offset) & GEN12_OAG_OAHEADPTR_MASK);
 		stream->oa_buffer.head = head;
 
 		spin_unlock_irqrestore(&stream->oa_buffer.ptr_lock, flags);
@@ -1042,12 +1027,6 @@ static int gen7_append_oa_reports(struct i915_perf_stream *stream,
 
 	spin_unlock_irqrestore(&stream->oa_buffer.ptr_lock, flags);
 
-	/* NB: oa_buffer.head/tail include the gtt_offset which we don't want
-	 * while indexing relative to oa_buf_base.
-	 */
-	head -= gtt_offset;
-	tail -= gtt_offset;
-
 	/* An out of bounds or misaligned head or tail pointer implies a driver
 	 * bug since we validate + align the tail pointers we read from the
 	 * hardware and we are in full control of the head pointer which should
@@ -1110,13 +1089,8 @@ static int gen7_append_oa_reports(struct i915_perf_stream *stream,
 	if (start_offset != *offset) {
 		spin_lock_irqsave(&stream->oa_buffer.ptr_lock, flags);
 
-		/* We removed the gtt_offset for the copy loop above, indexing
-		 * relative to oa_buf_base so put back here...
-		 */
-		head += gtt_offset;
-
 		intel_uncore_write(uncore, GEN7_OASTATUS2,
-				   (head & GEN7_OASTATUS2_HEAD_MASK) |
+				   ((head + gtt_offset) & GEN7_OASTATUS2_HEAD_MASK) |
 				   GEN7_OASTATUS2_MEM_SELECT_GGTT);
 		stream->oa_buffer.head = head;
 
@@ -1704,7 +1678,7 @@ static void gen7_init_oa_buffer(struct i915_perf_stream *stream)
 	 */
 	intel_uncore_write(uncore, GEN7_OASTATUS2, /* head */
 			   gtt_offset | GEN7_OASTATUS2_MEM_SELECT_GGTT);
-	stream->oa_buffer.head = gtt_offset;
+	stream->oa_buffer.head = 0;
 
 	intel_uncore_write(uncore, GEN7_OABUFFER, gtt_offset);
 
@@ -1712,7 +1686,7 @@ static void gen7_init_oa_buffer(struct i915_perf_stream *stream)
 			   gtt_offset | OABUFFER_SIZE_16M);
 
 	/* Mark that we need updated tail pointers to read from... */
-	stream->oa_buffer.tail = gtt_offset;
+	stream->oa_buffer.tail = 0;
 
 	spin_unlock_irqrestore(&stream->oa_buffer.ptr_lock, flags);
 
@@ -1746,7 +1720,7 @@ static void gen8_init_oa_buffer(struct i915_perf_stream *stream)
 
 	intel_uncore_write(uncore, GEN8_OASTATUS, 0);
 	intel_uncore_write(uncore, GEN8_OAHEADPTR, gtt_offset);
-	stream->oa_buffer.head = gtt_offset;
+	stream->oa_buffer.head = 0;
 
 	intel_uncore_write(uncore, GEN8_OABUFFER_UDW, 0);
 
@@ -1763,7 +1737,7 @@ static void gen8_init_oa_buffer(struct i915_perf_stream *stream)
 	intel_uncore_write(uncore, GEN8_OATAILPTR, gtt_offset & GEN8_OATAILPTR_MASK);
 
 	/* Mark that we need updated tail pointers to read from... */
-	stream->oa_buffer.tail = gtt_offset;
+	stream->oa_buffer.tail = 0;
 
 	/*
 	 * Reset state used to recognise context switches, affecting which
@@ -1800,7 +1774,7 @@ static void gen12_init_oa_buffer(struct i915_perf_stream *stream)
 	intel_uncore_write(uncore, __oa_regs(stream)->oa_status, 0);
 	intel_uncore_write(uncore, __oa_regs(stream)->oa_head_ptr,
 			   gtt_offset & GEN12_OAG_OAHEADPTR_MASK);
-	stream->oa_buffer.head = gtt_offset;
+	stream->oa_buffer.head = 0;
 
 	/*
 	 * PRM says:
@@ -1816,7 +1790,7 @@ static void gen12_init_oa_buffer(struct i915_perf_stream *stream)
 			   gtt_offset & GEN12_OAG_OATAILPTR_MASK);
 
 	/* Mark that we need updated tail pointers to read from... */
-	stream->oa_buffer.tail = gtt_offset;
+	stream->oa_buffer.tail = 0;
 
 	/*
 	 * Reset state used to recognise context switches, affecting which
