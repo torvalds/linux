@@ -995,6 +995,14 @@ ieee80211_parse_extension_element(u32 *crc,
 			elems->bandwidth_indication = data;
 		calc_crc = true;
 		break;
+	case WLAN_EID_EXT_TID_TO_LINK_MAPPING:
+		calc_crc = true;
+		if (ieee80211_tid_to_link_map_size_ok(data, len) &&
+		    elems->ttlm_num < ARRAY_SIZE(elems->ttlm)) {
+			elems->ttlm[elems->ttlm_num] = (void *)data;
+			elems->ttlm_num++;
+		}
+		break;
 	}
 
 	if (crc && calc_crc)

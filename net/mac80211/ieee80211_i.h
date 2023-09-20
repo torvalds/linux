@@ -1678,6 +1678,7 @@ struct ieee802_11_elems {
 	const struct ieee80211_multi_link_elem *ml_basic;
 	const struct ieee80211_multi_link_elem *ml_reconf;
 	const struct ieee80211_bandwidth_indication *bandwidth_indication;
+	const struct ieee80211_ttlm_elem *ttlm[IEEE80211_TTLM_MAX_CNT];
 
 	/* length of them, respectively */
 	u8 ext_capab_len;
@@ -1710,6 +1711,8 @@ struct ieee802_11_elems {
 
 	/* The reconfiguration Multi-Link element in the original IEs */
 	const struct element *ml_reconf_elem;
+
+	u8 ttlm_num;
 
 	/*
 	 * store the per station profile pointer and length in case that the

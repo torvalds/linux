@@ -1246,6 +1246,30 @@ struct ieee80211_twt_setup {
 	u8 params[];
 } __packed;
 
+#define IEEE80211_TTLM_MAX_CNT				2
+#define IEEE80211_TTLM_CONTROL_DIRECTION		0x03
+#define IEEE80211_TTLM_CONTROL_DEF_LINK_MAP		0x04
+#define IEEE80211_TTLM_CONTROL_SWITCH_TIME_PRESENT	0x08
+#define IEEE80211_TTLM_CONTROL_EXPECTED_DUR_PRESENT	0x10
+#define IEEE80211_TTLM_CONTROL_LINK_MAP_SIZE		0x20
+
+#define IEEE80211_TTLM_DIRECTION_DOWN		0
+#define IEEE80211_TTLM_DIRECTION_UP		1
+#define IEEE80211_TTLM_DIRECTION_BOTH		2
+
+/**
+ * struct ieee80211_ttlm_elem - TID-To-Link Mapping element
+ *
+ * Defined in section 9.4.2.314 in P802.11be_D4
+ *
+ * @control: the first part of control field
+ * @optional: the second part of control field
+ */
+struct ieee80211_ttlm_elem {
+	u8 control;
+	u8 optional[];
+} __packed;
+
 struct ieee80211_mgmt {
 	__le16 frame_control;
 	__le16 duration;
@@ -3618,6 +3642,7 @@ enum ieee80211_eid_ext {
 	WLAN_EID_EXT_EHT_OPERATION = 106,
 	WLAN_EID_EXT_EHT_MULTI_LINK = 107,
 	WLAN_EID_EXT_EHT_CAPABILITY = 108,
+	WLAN_EID_EXT_TID_TO_LINK_MAPPING = 109,
 	WLAN_EID_EXT_BANDWIDTH_INDICATION = 135,
 };
 
@@ -5153,6 +5178,39 @@ static inline bool ieee80211_mle_reconf_sta_prof_size_ok(const u8 *data,
 
 	return prof->sta_info_len >= info_len &&
 	       fixed + prof->sta_info_len - 1 <= len;
+}
+
+static inline bool ieee80211_tid_to_link_map_size_ok(const u8 *data, size_t len)
+{
+	const struct ieee80211_ttlm_elem *t2l = (const void *)data;
+	u8 control, fixed = sizeof(*t2l), elem_len = 0;
+
+	if (len < fixed)
+		return false;
+
+	control = t2l->control;
+
+	if (control & IEEE80211_TTLM_CONTROL_SWITCH_TIME_PRESENT)
+		elem_len += 2;
+	if (control & IEEE80211_TTLM_CONTROL_EXPECTED_DUR_PRESENT)
+		elem_len += 3;
+
+	if (!(control & IEEE80211_TTLM_CONTROL_DEF_LINK_MAP)) {
+		u8 bm_size;
+
+		elem_len += 1;
+		if (len < fixed + elem_len)
+			return false;
+
+		if (control & IEEE80211_TTLM_CONTROL_LINK_MAP_SIZE)
+			bm_size = 1;
+		else
+			bm_size = 2;
+
+		elem_len += hweight8(t2l->optional[0]) * bm_size;
+	}
+
+	return len >= fixed + elem_len;
 }
 
 #define for_each_mle_subelement(_elem, _data, _len)			\
