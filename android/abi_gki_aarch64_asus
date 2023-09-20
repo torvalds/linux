@@ -6,3 +6,6 @@
   hid_hw_start
   hid_hw_stop
   __hid_register_driver
+  hid_hw_output_report
+  hid_hw_open
+  hid_hw_close
