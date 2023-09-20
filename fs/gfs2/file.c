@@ -1120,13 +1120,15 @@ static ssize_t gfs2_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	if (ret)
 		goto out_unlock;
 
-	ret = file_update_time(file);
-	if (ret)
-		goto out_unlock;
-
 	if (iocb->ki_flags & IOCB_DIRECT) {
 		struct address_space *mapping = file->f_mapping;
 		ssize_t buffered, ret2;
+
+		/*
+		 * Note that under direct I/O, we don't allow and inode
+		 * timestamp updates, so we're not calling file_update_time()
+		 * here.
+		 */
 
 		ret = gfs2_file_direct_write(iocb, from, &gh);
 		if (ret < 0 || !iov_iter_count(from))
@@ -1154,6 +1156,10 @@ static ssize_t gfs2_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 		if (!ret || ret2 > 0)
 			ret += ret2;
 	} else {
+		ret = file_update_time(file);
+		if (ret)
+			goto out_unlock;
+
 		ret = gfs2_file_buffered_write(iocb, from, &gh);
 		if (likely(ret > 0))
 			ret = generic_write_sync(iocb, ret);
