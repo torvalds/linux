@@ -316,14 +316,6 @@ void amdgpu_gmc_agp_location(struct amdgpu_device *adev, struct amdgpu_gmc *mc)
 	const uint64_t sixteen_gb_mask = ~(sixteen_gb - 1);
 	u64 size_af, size_bf;
 
-	if (amdgpu_sriov_vf(adev)) {
-		mc->agp_start = 0xffffffffffff;
-		mc->agp_end = 0x0;
-		mc->agp_size = 0;
-
-		return;
-	}
-
 	if (mc->fb_start > mc->gart_start) {
 		size_bf = (mc->fb_start & sixteen_gb_mask) -
 			ALIGN(mc->gart_end + 1, sixteen_gb);
@@ -345,6 +337,25 @@ void amdgpu_gmc_agp_location(struct amdgpu_device *adev, struct amdgpu_gmc *mc)
 	mc->agp_end = mc->agp_start + mc->agp_size - 1;
 	dev_info(adev->dev, "AGP: %lluM 0x%016llX - 0x%016llX\n",
 			mc->agp_size >> 20, mc->agp_start, mc->agp_end);
+}
+
+/**
+ * amdgpu_gmc_set_agp_default - Set the default AGP aperture value.
+ * @adev: amdgpu device structure holding all necessary information
+ * @mc: memory controller structure holding memory information
+ *
+ * To disable the AGP aperture, you need to set the start to a larger
+ * value than the end.  This function sets the default value which
+ * can then be overridden using amdgpu_gmc_agp_location() if you want
+ * to enable the AGP aperture on a specific chip.
+ *
+ */
+void amdgpu_gmc_set_agp_default(struct amdgpu_device *adev,
+				struct amdgpu_gmc *mc)
+{
+	mc->agp_start = 0xffffffffffff;
+	mc->agp_end = 0;
+	mc->agp_size = 0;
 }
 
 /**
