@@ -1200,6 +1200,9 @@ static unsigned long system_supported_vcpu_features(void)
 	if (!kvm_arm_support_pmu_v3())
 		clear_bit(KVM_ARM_VCPU_PMU_V3, &features);
 
+	if (!system_supports_sve())
+		clear_bit(KVM_ARM_VCPU_SVE, &features);
+
 	return features;
 }
 
