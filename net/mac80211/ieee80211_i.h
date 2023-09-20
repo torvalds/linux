@@ -467,6 +467,17 @@ struct ieee80211_sta_tx_tspec {
 	bool downgraded;
 };
 
+/* Advertised TID-to-link mapping info */
+struct ieee80211_adv_ttlm_info {
+	/* time in TUs at which the new mapping is established, or 0 if there is
+	 * no planned advertised TID-to-link mapping
+	 */
+	u16 switch_time;
+	u32 duration; /* duration of the planned T2L map in TUs */
+	u16 map; /* map of usable links for all TIDs */
+	bool active; /* whether the advertised mapping is active or not */
+};
+
 DECLARE_EWMA(beacon_signal, 4, 4)
 
 struct ieee80211_if_managed {
@@ -560,6 +571,10 @@ struct ieee80211_if_managed {
 
 	struct wiphy_delayed_work ml_reconf_work;
 	u16 removed_links;
+
+	/* TID-to-link mapping support */
+	struct wiphy_delayed_work ttlm_work;
+	struct ieee80211_adv_ttlm_info ttlm_info;
 };
 
 struct ieee80211_if_ibss {
