@@ -729,7 +729,7 @@ static void tb_reclaim_usb3_bandwidth(struct tb *tb, struct tb_port *src_port,
 	if (!tunnel)
 		return;
 
-	tb_dbg(tb, "reclaiming unused bandwidth for USB3\n");
+	tb_tunnel_dbg(tunnel, "reclaiming unused bandwidth\n");
 
 	/*
 	 * Calculate available bandwidth for the first hop USB3 tunnel.
@@ -738,12 +738,12 @@ static void tb_reclaim_usb3_bandwidth(struct tb *tb, struct tb_port *src_port,
 	ret = tb_available_bandwidth(tb, tunnel->src_port, tunnel->dst_port,
 				     &available_up, &available_down);
 	if (ret) {
-		tb_warn(tb, "failed to calculate available bandwidth\n");
+		tb_tunnel_warn(tunnel, "failed to calculate available bandwidth\n");
 		return;
 	}
 
-	tb_dbg(tb, "available bandwidth for USB3 %d/%d Mb/s\n",
-	       available_up, available_down);
+	tb_tunnel_dbg(tunnel, "available bandwidth %d/%d Mb/s\n", available_up,
+		      available_down);
 
 	tb_tunnel_reclaim_available_bandwidth(tunnel, &available_up, &available_down);
 }
@@ -1188,7 +1188,7 @@ tb_recalc_estimated_bandwidth_for_group(struct tb_bandwidth_group *group)
 			ret = tb_release_unused_usb3_bandwidth(tb,
 				first_tunnel->src_port, first_tunnel->dst_port);
 			if (ret) {
-				tb_port_warn(in,
+				tb_tunnel_warn(tunnel,
 					"failed to release unused bandwidth\n");
 				break;
 			}
@@ -1198,7 +1198,7 @@ tb_recalc_estimated_bandwidth_for_group(struct tb_bandwidth_group *group)
 		ret = tb_available_bandwidth(tb, in, out, &estimated_up,
 					     &estimated_down);
 		if (ret) {
-			tb_port_warn(in,
+			tb_tunnel_warn(tunnel,
 				"failed to re-calculate estimated bandwidth\n");
 			break;
 		}
@@ -1209,8 +1209,9 @@ tb_recalc_estimated_bandwidth_for_group(struct tb_bandwidth_group *group)
 		 *  - available bandwidth along the path
 		 *  - bandwidth allocated for USB 3.x but not used.
 		 */
-		tb_port_dbg(in, "re-calculated estimated bandwidth %u/%u Mb/s\n",
-			    estimated_up, estimated_down);
+		tb_tunnel_dbg(tunnel,
+			      "re-calculated estimated bandwidth %u/%u Mb/s\n",
+			      estimated_up, estimated_down);
 
 		if (in->sw->config.depth < out->sw->config.depth)
 			estimated_bw = estimated_down;
@@ -1218,7 +1219,8 @@ tb_recalc_estimated_bandwidth_for_group(struct tb_bandwidth_group *group)
 			estimated_bw = estimated_up;
 
 		if (usb4_dp_port_set_estimated_bandwidth(in, estimated_bw))
-			tb_port_warn(in, "failed to update estimated bandwidth\n");
+			tb_tunnel_warn(tunnel,
+				       "failed to update estimated bandwidth\n");
 	}
 
 	if (first_tunnel)
@@ -1780,8 +1782,8 @@ static int tb_alloc_dp_bandwidth(struct tb_tunnel *tunnel, int *requested_up,
 	in = tunnel->src_port;
 	out = tunnel->dst_port;
 
-	tb_port_dbg(in, "bandwidth allocated currently %d/%d Mb/s\n",
-		    allocated_up, allocated_down);
+	tb_tunnel_dbg(tunnel, "bandwidth allocated currently %d/%d Mb/s\n",
+		      allocated_up, allocated_down);
 
 	/*
 	 * If we get rounded up request from graphics side, say HBR2 x 4
@@ -1822,14 +1824,15 @@ static int tb_alloc_dp_bandwidth(struct tb_tunnel *tunnel, int *requested_up,
 	else if (requested_down_corrected < 0)
 		requested_down_corrected = 0;
 
-	tb_port_dbg(in, "corrected bandwidth request %d/%d Mb/s\n",
-		    requested_up_corrected, requested_down_corrected);
+	tb_tunnel_dbg(tunnel, "corrected bandwidth request %d/%d Mb/s\n",
+		      requested_up_corrected, requested_down_corrected);
 
 	if ((*requested_up >= 0 && requested_up_corrected > max_up_rounded) ||
 	    (*requested_down >= 0 && requested_down_corrected > max_down_rounded)) {
-		tb_port_dbg(in, "bandwidth request too high (%d/%d Mb/s > %d/%d Mb/s)\n",
-			    requested_up_corrected, requested_down_corrected,
-			    max_up_rounded, max_down_rounded);
+		tb_tunnel_dbg(tunnel,
+			      "bandwidth request too high (%d/%d Mb/s > %d/%d Mb/s)\n",
+			      requested_up_corrected, requested_down_corrected,
+			      max_up_rounded, max_down_rounded);
 		return -ENOBUFS;
 	}
 
@@ -1864,8 +1867,8 @@ static int tb_alloc_dp_bandwidth(struct tb_tunnel *tunnel, int *requested_up,
 	if (ret)
 		goto reclaim;
 
-	tb_port_dbg(in, "bandwidth available for allocation %d/%d Mb/s\n",
-		    available_up, available_down);
+	tb_tunnel_dbg(tunnel, "bandwidth available for allocation %d/%d Mb/s\n",
+		      available_up, available_down);
 
 	if ((*requested_up >= 0 && available_up >= requested_up_corrected) ||
 	    (*requested_down >= 0 && available_down >= requested_down_corrected)) {
@@ -1947,12 +1950,15 @@ static void tb_handle_dp_bandwidth_request(struct work_struct *work)
 	ret = tb_alloc_dp_bandwidth(tunnel, &requested_up, &requested_down);
 	if (ret) {
 		if (ret == -ENOBUFS)
-			tb_port_warn(in, "not enough bandwidth available\n");
+			tb_tunnel_warn(tunnel,
+				       "not enough bandwidth available\n");
 		else
-			tb_port_warn(in, "failed to change bandwidth allocation\n");
+			tb_tunnel_warn(tunnel,
+				       "failed to change bandwidth allocation\n");
 	} else {
-		tb_port_dbg(in, "bandwidth allocation changed to %d/%d Mb/s\n",
-			    requested_up, requested_down);
+		tb_tunnel_dbg(tunnel,
+			      "bandwidth allocation changed to %d/%d Mb/s\n",
+			      requested_up, requested_down);
 
 		/* Update other clients about the allocation change */
 		tb_recalc_estimated_bandwidth(tb);
