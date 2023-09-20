@@ -1942,7 +1942,7 @@ static inline bool ieee80211_vif_is_mld(const struct ieee80211_vif *vif)
 	for (link_id = 0; link_id < ARRAY_SIZE((vif)->link_conf); link_id++)	\
 		if ((!(vif)->active_links ||					\
 		     (vif)->active_links & BIT(link_id)) &&			\
-		    (link = rcu_dereference((vif)->link_conf[link_id])))
+		    (link = link_conf_dereference_check(vif, link_id)))
 
 static inline bool ieee80211_vif_is_mesh(struct ieee80211_vif *vif)
 {
