@@ -104,4 +104,6 @@ void bpf_kfunc_call_test_fail1(struct prog_test_fail1 *p);
 void bpf_kfunc_call_test_fail2(struct prog_test_fail2 *p);
 void bpf_kfunc_call_test_fail3(struct prog_test_fail3 *p);
 void bpf_kfunc_call_test_mem_len_fail1(void *mem, int len);
+
+void bpf_kfunc_common_test(void) __ksym;
 #endif /* _BPF_TESTMOD_KFUNC_H */
