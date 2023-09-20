@@ -2445,6 +2445,14 @@ static void mac80211_hwsim_vif_info_changed(struct ieee80211_hw *hw,
 		vp->assoc = vif->cfg.assoc;
 		vp->aid = vif->cfg.aid;
 	}
+
+	if (vif->type == NL80211_IFTYPE_STATION &&
+	    changed & BSS_CHANGED_MLD_VALID_LINKS) {
+		u16 usable_links = ieee80211_vif_usable_links(vif);
+
+		if (vif->active_links != usable_links)
+			ieee80211_set_active_links_async(vif, usable_links);
+	}
 }
 
 static void mac80211_hwsim_link_info_changed(struct ieee80211_hw *hw,
