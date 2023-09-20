@@ -165,6 +165,7 @@ static const struct cmn2asic_msg_mapping smu_v13_0_6_message_map[SMU_MSG_MAX_COU
 	MSG_MAP(SetSoftMaxGfxClk,                    PPSMC_MSG_SetSoftMaxGfxClk,                0),
 	MSG_MAP(PrepareMp1ForUnload,                 PPSMC_MSG_PrepareForDriverUnload,          0),
 	MSG_MAP(GetCTFLimit,                         PPSMC_MSG_GetCTFLimit,                     0),
+	MSG_MAP(GetThermalLimit,                     PPSMC_MSG_ReadThrottlerLimit,              0),
 	MSG_MAP(ClearMcaOnRead,	                     PPSMC_MSG_ClearMcaOnRead,                  0),
 	MSG_MAP(QueryValidMcaCount,                  PPSMC_MSG_QueryValidMcaCount,              0),
 	MSG_MAP(QueryValidMcaCeCount,                PPSMC_MSG_QueryValidMcaCeCount,            0),
@@ -2105,7 +2106,7 @@ static int smu_v13_0_6_get_thermal_temperature_range(struct smu_context *smu,
 						     struct smu_temperature_range *range)
 {
 	struct amdgpu_device *adev = smu->adev;
-	u32 aid_temp, xcd_temp, mem_temp;
+	u32 aid_temp, xcd_temp, max_temp;
 	uint32_t smu_version;
 	u32 ccd_temp = 0;
 	int ret;
@@ -2121,31 +2122,50 @@ static int smu_v13_0_6_get_thermal_temperature_range(struct smu_context *smu,
 	if (smu_version < 0x554500)
 		return 0;
 
+	/* Get SOC Max operating temperature */
 	ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_GetCTFLimit,
 					      PPSMC_AID_THM_TYPE, &aid_temp);
 	if (ret)
 		goto failed;
-
 	if (adev->flags & AMD_IS_APU) {
 		ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_GetCTFLimit,
 						      PPSMC_CCD_THM_TYPE, &ccd_temp);
 		if (ret)
 			goto failed;
 	}
-
 	ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_GetCTFLimit,
 					      PPSMC_XCD_THM_TYPE, &xcd_temp);
 	if (ret)
 		goto failed;
-
-	range->hotspot_crit_max = max3(aid_temp, xcd_temp, ccd_temp) *
+	range->hotspot_emergency_max = max3(aid_temp, xcd_temp, ccd_temp) *
 				       SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+
+	/* Get HBM Max operating temperature */
 	ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_GetCTFLimit,
-					      PPSMC_HBM_THM_TYPE, &mem_temp);
+					      PPSMC_HBM_THM_TYPE, &max_temp);
+	if (ret)
+		goto failed;
+	range->mem_emergency_max =
+		max_temp * SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+
+	/* Get SOC thermal throttle limit */
+	ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_GetThermalLimit,
+					      PPSMC_THROTTLING_LIMIT_TYPE_SOCKET,
+					      &max_temp);
+	if (ret)
+		goto failed;
+	range->hotspot_crit_max =
+		max_temp * SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+
+	/* Get HBM thermal throttle limit */
+	ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_GetThermalLimit,
+					      PPSMC_THROTTLING_LIMIT_TYPE_HBM,
+					      &max_temp);
 	if (ret)
 		goto failed;
 
-	range->mem_crit_max = mem_temp * SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+	range->mem_crit_max = max_temp * SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+
 failed:
 	return ret;
 }
