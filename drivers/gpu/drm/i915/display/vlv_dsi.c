@@ -1767,6 +1767,44 @@ static void vlv_dsi_asus_tf103c_mode_fixup(struct intel_dsi *intel_dsi)
 		fixed_mode->vtotal -= 4;
 }
 
+/*
+ * On the Lenovo Yoga Tablet 2 830 / 1050 there are 2 problems:
+ * 1. The I2C MIPI sequence elements reference bus 3. ACPI has I2C1 - I2C7
+ *    which under Linux become bus 0 - 6. And the MIPI sequence reference
+ *    to bus 3 is indented for I2C3 which is bus 2 under Linux.
+ *
+ *    Note mipi_exec_i2c() cannot just subtract 1 from the bus
+ *    given in the I2C MIPI sequence element. Since on other
+ *    devices the I2C bus-numbers used in the MIPI sequences do
+ *    actually start at 0.
+ *
+ * 2. width_/height_mm contain a bogus 192mm x 120mm size. This is
+ *    especially a problem on the 8" 830 version which uses a 10:16
+ *    portrait screen where as the bogus size is 16:10.
+ *
+ * https://gitlab.freedesktop.org/drm/intel/-/issues/9379
+ */
+static void vlv_dsi_lenovo_yoga_tab2_size_fixup(struct intel_dsi *intel_dsi)
+{
+	const struct drm_display_mode *fixed_mode =
+		intel_panel_preferred_fixed_mode(intel_dsi->attached_connector);
+	struct drm_display_info *info = &intel_dsi->attached_connector->base.display_info;
+
+	intel_dsi->i2c_bus_num = 2;
+
+	/*
+	 * The 10" 1050 uses a 1920x1200 landscape screen, where as the 8" 830
+	 * uses a 1200x1920 portrait screen.
+	 */
+	if (fixed_mode->hdisplay == 1920) {
+		info->width_mm = 216;
+		info->height_mm = 135;
+	} else {
+		info->width_mm = 107;
+		info->height_mm = 171;
+	}
+}
+
 static const struct dmi_system_id vlv_dsi_dmi_quirk_table[] = {
 	{
 		/* Asus Transformer Pad TF103C */
@@ -1775,6 +1813,20 @@ static const struct dmi_system_id vlv_dsi_dmi_quirk_table[] = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "TF103C"),
 		},
 		.driver_data = (void *)vlv_dsi_asus_tf103c_mode_fixup,
+	},
+	{
+		/*
+		 * Lenovo Yoga Tablet 2 830F/L or 1050F/L (The 8" and 10"
+		 * Lenovo Yoga Tablet 2 use the same mainboard)
+		 */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Intel Corp."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "VALLEYVIEW C0 PLATFORM"),
+			DMI_MATCH(DMI_BOARD_NAME, "BYT-T FFD8"),
+			/* Partial match on beginning of BIOS version */
+			DMI_MATCH(DMI_BIOS_VERSION, "BLADE_21"),
+		},
+		.driver_data = (void *)vlv_dsi_lenovo_yoga_tab2_size_fixup,
 	},
 	{ }
 };
