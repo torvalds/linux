@@ -866,12 +866,31 @@ config QCOM_WCD_USBSS_I2C
 
 config QCOM_MINIDUMP
 	tristate "QCOM Minidump Support"
-	depends on (QCOM_SMEM || ARCH_QTI_VM) && KALLSYMS
+	depends on QCOM_SMEM || GUNYAH_DRIVERS
 	help
 	  This enables minidump feature. It allows various clients to
 	  register to dump their state at system bad state (panic/WDT,etc.,).
 	  Minidump would dump all registered entries, only when DLOAD mode
 	  is enabled.
+
+config QCOM_MINIDUMP_SMEM
+	bool "QCOM Minidump SMEM Support"
+	depends on QCOM_MINIDUMP && QCOM_SMEM
+	default y
+	help
+	  This enables minidump smem transport layer.
+	  If minidump and smem are enabled,
+	  this config option shall be enabled by
+	  default.
+
+config QCOM_MINIDUMP_RM
+	bool "QCOM Minidump RM Support"
+	depends on QCOM_MINIDUMP && GUNYAH_DRIVERS
+	help
+	  This enables minidump rm on gunyah platform transport layer.
+	  If minidump and gunyah are enabled,
+	  say yes to enable minidump feature.
+	  If unsure, say no.
 
 config QCOM_VA_MINIDUMP
 	tristate "QCOM VA Minidump Support"

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2017-2019, 2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef __MINIDUMP_PRIVATE_H
@@ -28,6 +28,12 @@
 #define MD_SS_ENCR_START	('S' << 24 | 'T' << 16 | 'R' << 8 | 'T' << 0)
 #define MD_SS_ENABLED		('E' << 24 | 'N' << 16 | 'B' << 8 | 'L' << 0)
 #define MD_SS_DISABLED		('D' << 24 | 'S' << 16 | 'B' << 8 | 'L' << 0)
+
+#define MAX_NUM_ENTRIES         (CONFIG_MINIDUMP_MAX_ENTRIES + 1)
+#define MAX_STRTBL_SIZE		(MAX_NUM_ENTRIES * MAX_REGION_NAME_LENGTH)
+
+extern unsigned int md_num_regions;
+extern struct md_elfhdr minidump_elfheader;
 
 /**
  * md_ss_region - Minidump region
@@ -78,5 +84,44 @@ struct md_global_toc {
 };
 
 int msm_minidump_log_init(void);
+
+/**
+ * md_elfhdr: Minidump table elf header
+ * @ehdr: elf main header
+ * @shdr: Section header
+ * @phdr: Program header
+ * @elf_offset: section offset in elf
+ * @strtable_idx: string table current index position
+ */
+struct md_elfhdr {
+	struct elfhdr		*ehdr;
+	struct elf_shdr		*shdr;
+	struct elf_phdr		*phdr;
+	u64			elf_offset;
+	u64			strtable_idx;
+};
+
+struct md_ops {
+	int (*init_md_table)(void);
+	int (*add_pending_entry)(struct list_head *pending_list);
+	void (*add_header)(struct elf_shdr *shdr, struct elfhdr *ehdr, unsigned int elfh_size);
+	int (*remove_region)(const struct md_region *entry);
+	int (*add_region)(const struct md_region *entry);
+	int (*update_region)(int regno, const struct md_region *entry);
+	int (*get_available_region)(void);
+	bool (*md_enable)(void);
+	struct md_region (*get_region)(char *name);
+};
+
+struct md_init_data {
+	const struct	md_ops *ops;
+};
+
+extern int msm_minidump_driver_probe(const struct md_init_data *data);
+extern void md_add_elf_header(const struct md_region *entry);
+extern void md_update_elf_header(int entryno, const struct md_region *entry);
+extern int msm_minidump_clear_headers(const struct md_region *entry);
+extern inline unsigned int set_section_name(const char *name);
+extern inline char *elf_lookup_string(struct elfhdr *hdr, int offset);
 
 #endif
