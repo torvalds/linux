@@ -1535,68 +1535,75 @@ static const u8 rtw89_rs_nss_num[] = {
 	[RTW89_RS_OFFSET] = 1,
 };
 
-static const u8 _byr_of_rs[] = {
-	[RTW89_RS_CCK] = offsetof(struct rtw89_txpwr_byrate, cck),
-	[RTW89_RS_OFDM] = offsetof(struct rtw89_txpwr_byrate, ofdm),
-	[RTW89_RS_MCS] = offsetof(struct rtw89_txpwr_byrate, mcs),
-	[RTW89_RS_HEDCM] = offsetof(struct rtw89_txpwr_byrate, hedcm),
-	[RTW89_RS_OFFSET] = offsetof(struct rtw89_txpwr_byrate, offset),
-};
-
-#define _byr_seek(rs, raw) ((s8 *)(raw) + _byr_of_rs[rs])
-#define _byr_idx(rs, nss, idx) ((nss) * rtw89_rs_idx_num[rs] + (idx))
-#define _byr_chk(rs, nss, idx) \
-	((nss) < rtw89_rs_nss_num[rs] && (idx) < rtw89_rs_idx_num[rs])
+static
+s8 *rtw89_phy_raw_byr_seek(struct rtw89_dev *rtwdev,
+			   struct rtw89_txpwr_byrate *head,
+			   const struct rtw89_rate_desc *desc)
+{
+	switch (desc->rs) {
+	case RTW89_RS_CCK:
+		return &head->cck[desc->idx];
+	case RTW89_RS_OFDM:
+		return &head->ofdm[desc->idx];
+	case RTW89_RS_MCS:
+		return &head->mcs[desc->nss][desc->idx];
+	case RTW89_RS_HEDCM:
+		return &head->hedcm[desc->nss][desc->idx];
+	case RTW89_RS_OFFSET:
+		return &head->offset[desc->idx];
+	default:
+		rtw89_warn(rtwdev, "unrecognized byr rs: %d\n", desc->rs);
+		return &head->trap;
+	}
+}
 
 void rtw89_phy_load_txpwr_byrate(struct rtw89_dev *rtwdev,
 				 const struct rtw89_txpwr_table *tbl)
 {
 	const struct rtw89_txpwr_byrate_cfg *cfg = tbl->data;
 	const struct rtw89_txpwr_byrate_cfg *end = cfg + tbl->size;
+	struct rtw89_txpwr_byrate *byr_head;
+	struct rtw89_rate_desc desc = {};
 	s8 *byr;
 	u32 data;
-	u8 i, idx;
+	u8 i;
 
 	for (; cfg < end; cfg++) {
-		byr = _byr_seek(cfg->rs, &rtwdev->byr[cfg->band]);
+		byr_head = &rtwdev->byr[cfg->band];
+		desc.rs = cfg->rs;
+		desc.nss = cfg->nss;
 		data = cfg->data;
 
 		for (i = 0; i < cfg->len; i++, data >>= 8) {
-			idx = _byr_idx(cfg->rs, cfg->nss, (cfg->shf + i));
-			byr[idx] = (s8)(data & 0xff);
+			desc.idx = cfg->shf + i;
+			byr = rtw89_phy_raw_byr_seek(rtwdev, byr_head, &desc);
+			*byr = data & 0xff;
 		}
 	}
 }
 EXPORT_SYMBOL(rtw89_phy_load_txpwr_byrate);
 
-#define _phy_txpwr_rf_to_mac(rtwdev, txpwr_rf)				\
-({									\
-	const struct rtw89_chip_info *__c = (rtwdev)->chip;		\
-	(txpwr_rf) >> (__c->txpwr_factor_rf - __c->txpwr_factor_mac);	\
-})
+static s8 rtw89_phy_txpwr_rf_to_mac(struct rtw89_dev *rtwdev, s8 txpwr_rf)
+{
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+
+	return txpwr_rf >> (chip->txpwr_factor_rf - chip->txpwr_factor_mac);
+}
 
 static
 s8 rtw89_phy_read_txpwr_byrate(struct rtw89_dev *rtwdev, u8 band,
 			       const struct rtw89_rate_desc *rate_desc)
 {
+	struct rtw89_txpwr_byrate *byr_head;
 	s8 *byr;
-	u8 idx;
 
 	if (rate_desc->rs == RTW89_RS_CCK)
 		band = RTW89_BAND_2G;
 
-	if (!_byr_chk(rate_desc->rs, rate_desc->nss, rate_desc->idx)) {
-		rtw89_debug(rtwdev, RTW89_DBG_TXPWR,
-			    "[TXPWR] unknown byrate desc rs=%d nss=%d idx=%d\n",
-			    rate_desc->rs, rate_desc->nss, rate_desc->idx);
+	byr_head = &rtwdev->byr[band];
+	byr = rtw89_phy_raw_byr_seek(rtwdev, byr_head, rate_desc);
 
-		return 0;
-	}
-
-	byr = _byr_seek(rate_desc->rs, &rtwdev->byr[band]);
-	idx = _byr_idx(rate_desc->rs, rate_desc->nss, rate_desc->idx);
-
-	return _phy_txpwr_rf_to_mac(rtwdev, byr[idx]);
+	return rtw89_phy_txpwr_rf_to_mac(rtwdev, *byr);
 }
 
 static u8 rtw89_channel_6g_to_idx(struct rtw89_dev *rtwdev, u8 channel_6g)
@@ -1688,7 +1695,7 @@ s8 rtw89_phy_read_txpwr_limit(struct rtw89_dev *rtwdev, u8 band,
 		return 0;
 	}
 
-	lmt = _phy_txpwr_rf_to_mac(rtwdev, lmt);
+	lmt = rtw89_phy_txpwr_rf_to_mac(rtwdev, lmt);
 	sar = rtw89_query_sar(rtwdev, freq);
 
 	return min(lmt, sar);
@@ -1945,7 +1952,7 @@ static s8 rtw89_phy_read_txpwr_limit_ru(struct rtw89_dev *rtwdev, u8 band,
 		return 0;
 	}
 
-	lmt_ru = _phy_txpwr_rf_to_mac(rtwdev, lmt_ru);
+	lmt_ru = rtw89_phy_txpwr_rf_to_mac(rtwdev, lmt_ru);
 	sar = rtw89_query_sar(rtwdev, freq);
 
 	return min(lmt_ru, sar);

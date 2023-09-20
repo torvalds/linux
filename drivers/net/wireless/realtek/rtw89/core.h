@@ -718,6 +718,7 @@ struct rtw89_txpwr_byrate {
 	s8 mcs[RTW89_NSS_NUM][RTW89_RATE_MCS_NUM];
 	s8 hedcm[RTW89_NSS_HEDCM_NUM][RTW89_RATE_HEDCM_NUM];
 	s8 offset[RTW89_RATE_OFFSET_NUM];
+	s8 trap;
 };
 
 enum rtw89_bandwidth_section_num {
