@@ -367,9 +367,7 @@ static struct fq_flow *fq_classify(struct Qdisc *sch, struct sk_buff *skb)
 
 	root = &q->fq_root[hash_ptr(sk, q->fq_trees_log)];
 
-	if (q->flows >= (2U << q->fq_trees_log) &&
-	    q->inactive_flows > q->flows/2)
-		fq_gc(q, root, sk);
+	fq_gc(q, root, sk);
 
 	p = &root->rb_node;
 	parent = NULL;
