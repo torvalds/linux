@@ -87,6 +87,19 @@ static enum rtw89_sc_offset rtw89_get_primary_chan_idx(enum rtw89_bandwidth bw,
 	return primary_chan_idx;
 }
 
+static u8 rtw89_get_primary_sb_idx(u8 central_ch, u8 pri_ch,
+				   enum rtw89_bandwidth bw)
+{
+	static const u8 prisb_cal_ofst[RTW89_CHANNEL_WIDTH_ORDINARY_NUM] = {
+		0, 2, 6, 14, 30
+	};
+
+	if (bw >= RTW89_CHANNEL_WIDTH_ORDINARY_NUM)
+		return 0;
+
+	return (prisb_cal_ofst[bw] + pri_ch - central_ch) / 4;
+}
+
 void rtw89_chan_create(struct rtw89_chan *chan, u8 center_chan, u8 primary_chan,
 		       enum rtw89_band band, enum rtw89_bandwidth bandwidth)
 {
@@ -106,6 +119,8 @@ void rtw89_chan_create(struct rtw89_chan *chan, u8 center_chan, u8 primary_chan,
 	chan->subband_type = rtw89_get_subband_type(band, center_chan);
 	chan->pri_ch_idx = rtw89_get_primary_chan_idx(bandwidth, center_freq,
 						      primary_freq);
+	chan->pri_sb_idx = rtw89_get_primary_sb_idx(center_chan, primary_chan,
+						    bandwidth);
 }
 
 bool rtw89_assign_entity_chan(struct rtw89_dev *rtwdev,
