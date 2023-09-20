@@ -595,11 +595,16 @@ int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 	struct drm_amdgpu_info *info = data;
 	struct amdgpu_mode_info *minfo = &adev->mode_info;
 	void __user *out = (void __user *)(uintptr_t)info->return_pointer;
+	struct amdgpu_fpriv *fpriv;
+	struct amdgpu_ip_block *ip_block;
+	enum amd_ip_block_type type;
+	struct amdgpu_xcp *xcp;
+	u32 count, inst_mask;
 	uint32_t size = info->return_size;
 	struct drm_crtc *crtc;
 	uint32_t ui32 = 0;
 	uint64_t ui64 = 0;
-	int i, found;
+	int i, found, ret;
 	int ui32_size = sizeof(ui32);
 
 	if (!info->return_size || !info->return_pointer)
@@ -627,7 +632,6 @@ int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		return copy_to_user(out, &ui32, min(size, 4u)) ? -EFAULT : 0;
 	case AMDGPU_INFO_HW_IP_INFO: {
 		struct drm_amdgpu_info_hw_ip ip = {};
-		int ret;
 
 		ret = amdgpu_hw_ip_info(adev, info, &ip);
 		if (ret)
@@ -637,14 +641,40 @@ int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		return ret ? -EFAULT : 0;
 	}
 	case AMDGPU_INFO_HW_IP_COUNT: {
-		enum amd_ip_block_type type;
-		struct amdgpu_ip_block *ip_block = NULL;
-		uint32_t count = 0;
-
+		fpriv = (struct amdgpu_fpriv *)filp->driver_priv;
 		type = amdgpu_ip_get_block_type(adev, info->query_hw_ip.type);
 		ip_block = amdgpu_device_ip_get_ip_block(adev, type);
+
 		if (!ip_block || !ip_block->status.valid)
 			return -EINVAL;
+
+		if (adev->xcp_mgr && adev->xcp_mgr->num_xcps > 0 &&
+		    fpriv->xcp_id >= 0 && fpriv->xcp_id < adev->xcp_mgr->num_xcps) {
+			xcp = &adev->xcp_mgr->xcp[fpriv->xcp_id];
+			switch (type) {
+			case AMD_IP_BLOCK_TYPE_GFX:
+				ret = amdgpu_xcp_get_inst_details(xcp, AMDGPU_XCP_GFX, &inst_mask);
+				count = hweight32(inst_mask);
+				break;
+			case AMD_IP_BLOCK_TYPE_SDMA:
+				ret = amdgpu_xcp_get_inst_details(xcp, AMDGPU_XCP_SDMA, &inst_mask);
+				count = hweight32(inst_mask);
+				break;
+			case AMD_IP_BLOCK_TYPE_JPEG:
+				ret = amdgpu_xcp_get_inst_details(xcp, AMDGPU_XCP_VCN, &inst_mask);
+				count = hweight32(inst_mask) * adev->jpeg.num_jpeg_rings;
+				break;
+			case AMD_IP_BLOCK_TYPE_VCN:
+				ret = amdgpu_xcp_get_inst_details(xcp, AMDGPU_XCP_VCN, &inst_mask);
+				count = hweight32(inst_mask);
+				break;
+			default:
+				return -EINVAL;
+			}
+			if (ret)
+				return ret;
+			return copy_to_user(out, &count, min(size, 4u)) ? -EFAULT : 0;
+		}
 
 		switch (type) {
 		case AMD_IP_BLOCK_TYPE_GFX:
@@ -678,7 +708,6 @@ int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		return copy_to_user(out, &ui64, min(size, 8u)) ? -EFAULT : 0;
 	case AMDGPU_INFO_FW_VERSION: {
 		struct drm_amdgpu_info_firmware fw_info;
-		int ret;
 
 		/* We only support one instance of each IP block right now. */
 		if (info->query_fw.ip_instance != 0)
@@ -823,7 +852,6 @@ int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		struct drm_amdgpu_info_device *dev_info;
 		uint64_t vm_size;
 		uint32_t pcie_gen_mask;
-		int ret;
 
 		dev_info = kzalloc(sizeof(*dev_info), GFP_KERNEL);
 		if (!dev_info)
