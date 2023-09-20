@@ -423,6 +423,7 @@ struct dc_config {
 	bool dc_mode_clk_limit_support;
 	bool EnableMinDispClkODM;
 	bool enable_auto_dpm_test_logs;
+	unsigned int disable_ips;
 };
 
 enum visual_confirm {
@@ -913,7 +914,6 @@ struct dc_debug_options {
 	enum det_size crb_alloc_policy;
 	int crb_alloc_policy_min_disp_count;
 	bool disable_z10;
-	unsigned int disable_ips;
 	bool enable_z9_disable_interface;
 	bool psr_skip_crtc_disable;
 	union dpia_debug_options dpia_debug;

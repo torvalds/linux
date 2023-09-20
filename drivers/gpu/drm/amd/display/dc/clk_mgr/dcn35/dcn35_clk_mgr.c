@@ -744,16 +744,16 @@ static void dcn35_set_idle_state(struct clk_mgr *clk_mgr_base, bool allow_idle)
 	struct dc *dc = clk_mgr_base->ctx->dc;
 	uint32_t val = dcn35_smu_read_ips_scratch(clk_mgr);
 
-	if (dc->debug.disable_ips == 0) {
+	if (dc->config.disable_ips == 0) {
 		val |= DMUB_IPS1_ALLOW_MASK;
 		val |= DMUB_IPS2_ALLOW_MASK;
-	} else if (dc->debug.disable_ips == DMUB_IPS_DISABLE_IPS1) {
+	} else if (dc->config.disable_ips == DMUB_IPS_DISABLE_IPS1) {
 		val = val & ~DMUB_IPS1_ALLOW_MASK;
 		val = val & ~DMUB_IPS2_ALLOW_MASK;
-	} else if (dc->debug.disable_ips == DMUB_IPS_DISABLE_IPS2) {
+	} else if (dc->config.disable_ips == DMUB_IPS_DISABLE_IPS2) {
 		val |= DMUB_IPS1_ALLOW_MASK;
 		val = val & ~DMUB_IPS2_ALLOW_MASK;
-	} else if (dc->debug.disable_ips == DMUB_IPS_DISABLE_IPS2_Z10) {
+	} else if (dc->config.disable_ips == DMUB_IPS_DISABLE_IPS2_Z10) {
 		val |= DMUB_IPS1_ALLOW_MASK;
 		val |= DMUB_IPS2_ALLOW_MASK;
 	}
@@ -1036,12 +1036,20 @@ void dcn35_clk_mgr_construct(
 		dm_helpers_free_gpu_mem(clk_mgr->base.base.ctx, DC_MEM_ALLOC_TYPE_FRAME_BUFFER,
 				smu_dpm_clks.dpm_clks);
 
-	if (dcn35_smu_get_ips_supported(&clk_mgr->base)) {
-		ctx->dc->debug.ignore_pg = false;
-		ctx->dc->debug.dmcub_emulation = false;
-		ctx->dc->debug.disable_dpp_power_gate = false;
-		ctx->dc->debug.disable_hubp_power_gate = false;
-		ctx->dc->debug.disable_dsc_power_gate = false;
+	if (ctx->dc->config.disable_ips == 0) {
+		bool ips_support = false;
+
+		/*avoid call pmfw at init*/
+		ips_support = dcn35_smu_get_ips_supported(&clk_mgr->base);
+		if (ips_support) {
+			ctx->dc->debug.ignore_pg = false;
+			ctx->dc->debug.disable_dpp_power_gate = false;
+			ctx->dc->debug.disable_hubp_power_gate = false;
+			ctx->dc->debug.disable_dsc_power_gate = false;
+		} else {
+			/*let's reset the config control flag*/
+			ctx->dc->config.disable_ips = 1; /*pmfw not support it, disable it all*/
+		}
 	}
 }
 
