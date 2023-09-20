@@ -371,13 +371,12 @@ static int ast_vhub_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-#ifdef CONFIG_64BIT
 	rc = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
 	if (rc) {
 		dev_warn(&pdev->dev, "No suitable DMA available\n");
 		goto err;
 	}
-#endif
+
 	/*
 	 * Allocate DMA buffers for all EP0s in one chunk,
 	 * one per port and one for the vHub itself

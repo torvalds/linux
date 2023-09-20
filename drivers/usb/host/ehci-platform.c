@@ -126,9 +126,7 @@ static struct usb_ehci_pdata ehci_platform_defaults = {
 	.power_on =		ehci_platform_power_on,
 	.power_suspend =	ehci_platform_power_off,
 	.power_off =		ehci_platform_power_off,
-#ifdef CONFIG_64BIT
 	.dma_mask_64 =		1,
-#endif
 };
 
 /**
