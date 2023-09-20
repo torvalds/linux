@@ -943,7 +943,7 @@ void kvm_timer_sync_user(struct kvm_vcpu *vcpu)
 		unmask_vtimer_irq_user(vcpu);
 }
 
-int kvm_timer_vcpu_reset(struct kvm_vcpu *vcpu)
+void kvm_timer_vcpu_reset(struct kvm_vcpu *vcpu)
 {
 	struct arch_timer_cpu *timer = vcpu_timer(vcpu);
 	struct timer_map map;
@@ -987,8 +987,6 @@ int kvm_timer_vcpu_reset(struct kvm_vcpu *vcpu)
 		soft_timer_cancel(&map.emul_vtimer->hrtimer);
 	if (map.emul_ptimer)
 		soft_timer_cancel(&map.emul_ptimer->hrtimer);
-
-	return 0;
 }
 
 static void timer_context_init(struct kvm_vcpu *vcpu, int timerid)

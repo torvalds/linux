@@ -188,10 +188,9 @@ static void kvm_vcpu_enable_ptrauth(struct kvm_vcpu *vcpu)
  * disable preemption around the vcpu reset as we would otherwise race with
  * preempt notifiers which also call put/load.
  */
-int kvm_reset_vcpu(struct kvm_vcpu *vcpu)
+void kvm_reset_vcpu(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_reset_state reset_state;
-	int ret;
 	bool loaded;
 	u32 pstate;
 
@@ -260,12 +259,11 @@ int kvm_reset_vcpu(struct kvm_vcpu *vcpu)
 	}
 
 	/* Reset timer */
-	ret = kvm_timer_vcpu_reset(vcpu);
+	kvm_timer_vcpu_reset(vcpu);
 
 	if (loaded)
 		kvm_arch_vcpu_load(vcpu, smp_processor_id());
 	preempt_enable();
-	return ret;
 }
 
 u32 get_kvm_ipa_limit(void)
