@@ -49,13 +49,30 @@ static int xe_dma_buf_pin(struct dma_buf_attachment *attach)
 {
 	struct drm_gem_object *obj = attach->dmabuf->priv;
 	struct xe_bo *bo = gem_to_xe_bo(obj);
+	struct xe_device *xe = xe_bo_device(bo);
+	int ret;
 
 	/*
-	 * Migrate to TT first to increase the chance of non-p2p clients
-	 * can attach.
+	 * For now only support pinning in TT memory, for two reasons:
+	 * 1) Avoid pinning in a placement not accessible to some importers.
+	 * 2) Pinning in VRAM requires PIN accounting which is a to-do.
 	 */
-	(void)xe_bo_migrate(bo, XE_PL_TT);
-	xe_bo_pin_external(bo);
+	if (xe_bo_is_pinned(bo) && bo->ttm.resource->placement != XE_PL_TT) {
+		drm_dbg(&xe->drm, "Can't migrate pinned bo for dma-buf pin.\n");
+		return -EINVAL;
+	}
+
+	ret = xe_bo_migrate(bo, XE_PL_TT);
+	if (ret) {
+		if (ret != -EINTR && ret != -ERESTARTSYS)
+			drm_dbg(&xe->drm,
+				"Failed migrating dma-buf to TT memory: %pe\n",
+				ERR_PTR(ret));
+		return ret;
+	}
+
+	ret = xe_bo_pin_external(bo);
+	xe_assert(xe, !ret);
 
 	return 0;
 }

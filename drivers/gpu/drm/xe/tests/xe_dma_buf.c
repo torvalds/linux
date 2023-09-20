@@ -149,11 +149,19 @@ static void xe_test_dmabuf_import_same_driver(struct xe_device *xe)
 			/* Is everything where we expect it to be? */
 			xe_bo_lock(import_bo, false);
 			err = xe_bo_validate(import_bo, NULL, false);
-			if (err && err != -EINTR && err != -ERESTARTSYS)
-				KUNIT_FAIL(test,
-					   "xe_bo_validate() failed with err=%d\n", err);
 
-			check_residency(test, bo, import_bo, dmabuf);
+			/* Pinning in VRAM is not allowed. */
+			if (!is_dynamic(params) &&
+			    params->force_different_devices &&
+			    !(params->mem_mask & XE_BO_CREATE_SYSTEM_BIT))
+				KUNIT_EXPECT_EQ(test, err, -EINVAL);
+			/* Otherwise only expect interrupts or success. */
+			else if (err && err != -EINTR && err != -ERESTARTSYS)
+				KUNIT_EXPECT_TRUE(test, !err || err == -EINTR ||
+						  err == -ERESTARTSYS);
+
+			if (!err)
+				check_residency(test, bo, import_bo, dmabuf);
 			xe_bo_unlock(import_bo);
 		}
 		drm_gem_object_put(import);
