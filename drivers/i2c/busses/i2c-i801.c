@@ -1818,6 +1818,7 @@ static int i801_suspend(struct device *dev)
 {
 	struct i801_priv *priv = dev_get_drvdata(dev);
 
+	i2c_mark_adapter_suspended(&priv->adapter);
 	i801_restore_regs(priv);
 
 	return 0;
@@ -1829,6 +1830,7 @@ static int i801_resume(struct device *dev)
 
 	i801_setup_hstcfg(priv);
 	i801_enable_host_notify(&priv->adapter);
+	i2c_mark_adapter_resumed(&priv->adapter);
 
 	return 0;
 }
