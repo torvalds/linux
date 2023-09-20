@@ -47,6 +47,8 @@ patternProperties:
 
       opp-microvolt: true
 
+      opp-peak-kBps: true
+
       opp-supported-hw:
         description: |
           A single 32 bit bitmap value, representing compatible HW.
