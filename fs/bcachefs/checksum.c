@@ -159,15 +159,16 @@ int bch2_chacha_encrypt_key(struct bch_key *key, struct nonce nonce,
 		crypto_alloc_sync_skcipher("chacha20", 0, 0);
 	int ret;
 
-	if (!chacha20) {
-		pr_err("error requesting chacha20 module: %li", PTR_ERR(chacha20));
-		return PTR_ERR(chacha20);
+	ret = PTR_ERR_OR_ZERO(chacha20);
+	if (ret) {
+		pr_err("error requesting chacha20 cipher: %s", bch2_err_str(ret));
+		return ret;
 	}
 
 	ret = crypto_skcipher_setkey(&chacha20->base,
 				     (void *) key, sizeof(*key));
 	if (ret) {
-		pr_err("crypto_skcipher_setkey() error: %i", ret);
+		pr_err("error from crypto_skcipher_setkey(): %s", bch2_err_str(ret));
 		goto err;
 	}
 
@@ -578,7 +579,7 @@ int bch2_decrypt_sb_key(struct bch_fs *c,
 
 	/* decrypt real key: */
 	ret = bch2_chacha_encrypt_key(&user_key, bch2_sb_key_nonce(c),
-			     &sb_key, sizeof(sb_key));
+				      &sb_key, sizeof(sb_key));
 	if (ret)
 		goto err;
 
