@@ -372,6 +372,7 @@ static int tb_switch_nvm_add(struct tb_switch *sw)
 		ret = tb_nvm_add_active(nvm, nvm_read);
 		if (ret)
 			goto err_nvm;
+		tb_sw_dbg(sw, "NVM version %x.%x\n", nvm->major, nvm->minor);
 	}
 
 	if (!sw->no_nvm_upgrade) {
