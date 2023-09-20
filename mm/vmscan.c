@@ -7326,6 +7326,7 @@ static int __node_reclaim(struct pglist_data *pgdat, gfp_t gfp_mask, unsigned in
 
 	cond_resched();
 	psi_memstall_enter(&pflags);
+	delayacct_freepages_start();
 	fs_reclaim_acquire(sc.gfp_mask);
 	/*
 	 * We need to be able to allocate from the reserves for RECLAIM_UNMAP
@@ -7348,6 +7349,7 @@ static int __node_reclaim(struct pglist_data *pgdat, gfp_t gfp_mask, unsigned in
 	memalloc_noreclaim_restore(noreclaim_flag);
 	fs_reclaim_release(sc.gfp_mask);
 	psi_memstall_leave(&pflags);
+	delayacct_freepages_end();
 
 	trace_mm_vmscan_node_reclaim_end(sc.nr_reclaimed);
 
