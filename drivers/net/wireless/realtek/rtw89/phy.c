@@ -1522,9 +1522,9 @@ EXPORT_SYMBOL(rtw89_phy_write_reg3_tbl);
 static const u8 rtw89_rs_idx_num[] = {
 	[RTW89_RS_CCK] = RTW89_RATE_CCK_NUM,
 	[RTW89_RS_OFDM] = RTW89_RATE_OFDM_NUM,
-	[RTW89_RS_MCS] = RTW89_RATE_MCS_NUM,
+	[RTW89_RS_MCS] = RTW89_RATE_MCS_NUM_AX,
 	[RTW89_RS_HEDCM] = RTW89_RATE_HEDCM_NUM,
-	[RTW89_RS_OFFSET] = RTW89_RATE_OFFSET_NUM,
+	[RTW89_RS_OFFSET] = RTW89_RATE_OFFSET_NUM_AX,
 };
 
 static const u8 rtw89_rs_nss_num[] = {
@@ -1546,9 +1546,9 @@ s8 *rtw89_phy_raw_byr_seek(struct rtw89_dev *rtwdev,
 	case RTW89_RS_OFDM:
 		return &head->ofdm[desc->idx];
 	case RTW89_RS_MCS:
-		return &head->mcs[desc->nss][desc->idx];
+		return &head->mcs[desc->ofdma][desc->nss][desc->idx];
 	case RTW89_RS_HEDCM:
-		return &head->hedcm[desc->nss][desc->idx];
+		return &head->hedcm[desc->ofdma][desc->nss][desc->idx];
 	case RTW89_RS_OFFSET:
 		return &head->offset[desc->idx];
 	default:
@@ -1569,7 +1569,7 @@ void rtw89_phy_load_txpwr_byrate(struct rtw89_dev *rtwdev,
 	u8 i;
 
 	for (; cfg < end; cfg++) {
-		byr_head = &rtwdev->byr[cfg->band];
+		byr_head = &rtwdev->byr[cfg->band][0];
 		desc.rs = cfg->rs;
 		desc.nss = cfg->nss;
 		data = cfg->data;
@@ -1591,7 +1591,7 @@ static s8 rtw89_phy_txpwr_rf_to_mac(struct rtw89_dev *rtwdev, s8 txpwr_rf)
 }
 
 static
-s8 rtw89_phy_read_txpwr_byrate(struct rtw89_dev *rtwdev, u8 band,
+s8 rtw89_phy_read_txpwr_byrate(struct rtw89_dev *rtwdev, u8 band, u8 bw,
 			       const struct rtw89_rate_desc *rate_desc)
 {
 	struct rtw89_txpwr_byrate *byr_head;
@@ -1600,7 +1600,7 @@ s8 rtw89_phy_read_txpwr_byrate(struct rtw89_dev *rtwdev, u8 band,
 	if (rate_desc->rs == RTW89_RS_CCK)
 		band = RTW89_BAND_2G;
 
-	byr_head = &rtwdev->byr[band];
+	byr_head = &rtwdev->byr[band][bw];
 	byr = rtw89_phy_raw_byr_seek(rtwdev, byr_head, rate_desc);
 
 	return rtw89_phy_txpwr_rf_to_mac(rtwdev, *byr);
@@ -2110,7 +2110,7 @@ void rtw89_phy_set_txpwr_byrate(struct rtw89_dev *rtwdev,
 		RTW89_RS_MCS,
 		RTW89_RS_HEDCM,
 	};
-	struct rtw89_rate_desc cur;
+	struct rtw89_rate_desc cur = {};
 	u8 band = chan->band_type;
 	u8 ch = chan->channel;
 	u32 addr, val;
@@ -2136,7 +2136,7 @@ void rtw89_phy_set_txpwr_byrate(struct rtw89_dev *rtwdev,
 			     cur.idx++) {
 				v[cur.idx % 4] =
 					rtw89_phy_read_txpwr_byrate(rtwdev,
-								    band,
+								    band, 0,
 								    &cur);
 
 				if ((cur.idx + 1) % 4)
@@ -2165,15 +2165,15 @@ void rtw89_phy_set_txpwr_offset(struct rtw89_dev *rtwdev,
 		.rs = RTW89_RS_OFFSET,
 	};
 	u8 band = chan->band_type;
-	s8 v[RTW89_RATE_OFFSET_NUM] = {};
+	s8 v[RTW89_RATE_OFFSET_NUM_AX] = {};
 	u32 val;
 
 	rtw89_debug(rtwdev, RTW89_DBG_TXPWR, "[TXPWR] set txpwr offset\n");
 
-	for (desc.idx = 0; desc.idx < RTW89_RATE_OFFSET_NUM; desc.idx++)
-		v[desc.idx] = rtw89_phy_read_txpwr_byrate(rtwdev, band, &desc);
+	for (desc.idx = 0; desc.idx < RTW89_RATE_OFFSET_NUM_AX; desc.idx++)
+		v[desc.idx] = rtw89_phy_read_txpwr_byrate(rtwdev, band, 0, &desc);
 
-	BUILD_BUG_ON(RTW89_RATE_OFFSET_NUM != 5);
+	BUILD_BUG_ON(RTW89_RATE_OFFSET_NUM_AX != 5);
 	val = FIELD_PREP(GENMASK(3, 0), v[0]) |
 	      FIELD_PREP(GENMASK(7, 4), v[1]) |
 	      FIELD_PREP(GENMASK(11, 8), v[2]) |

@@ -22892,5 +22892,5 @@ const struct rtw89_rfe_parms rtw89_8852b_dflt_parms = {
 		.lmt = &rtw89_8852b_txpwr_lmt_5g,
 		.lmt_ru = &rtw89_8852b_txpwr_lmt_ru_5g,
 	},
-	.tx_shape = &rtw89_8852b_tx_shape,
+	.tx_shape.lmt = &rtw89_8852b_tx_shape,
 };
