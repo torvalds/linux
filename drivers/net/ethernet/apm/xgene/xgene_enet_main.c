@@ -2127,7 +2127,7 @@ err:
 	return ret;
 }
 
-static int xgene_enet_remove(struct platform_device *pdev)
+static void xgene_enet_remove(struct platform_device *pdev)
 {
 	struct xgene_enet_pdata *pdata;
 	struct net_device *ndev;
@@ -2149,8 +2149,6 @@ static int xgene_enet_remove(struct platform_device *pdev)
 	xgene_enet_delete_desc_rings(pdata);
 	pdata->port_ops->shutdown(pdata);
 	free_netdev(ndev);
-
-	return 0;
 }
 
 static void xgene_enet_shutdown(struct platform_device *pdev)
@@ -2174,7 +2172,7 @@ static struct platform_driver xgene_enet_driver = {
 		   .acpi_match_table = ACPI_PTR(xgene_enet_acpi_match),
 	},
 	.probe = xgene_enet_probe,
-	.remove = xgene_enet_remove,
+	.remove_new = xgene_enet_remove,
 	.shutdown = xgene_enet_shutdown,
 };
 

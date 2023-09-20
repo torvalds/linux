@@ -153,7 +153,7 @@ probe_failed_free_mpu:
 	return retval;
 }
 
-static int sni_82596_driver_remove(struct platform_device *pdev)
+static void sni_82596_driver_remove(struct platform_device *pdev)
 {
 	struct net_device *dev = platform_get_drvdata(pdev);
 	struct i596_private *lp = netdev_priv(dev);
@@ -164,12 +164,11 @@ static int sni_82596_driver_remove(struct platform_device *pdev)
 	iounmap(lp->ca);
 	iounmap(lp->mpu_port);
 	free_netdev (dev);
-	return 0;
 }
 
 static struct platform_driver sni_82596_driver = {
 	.probe	= sni_82596_probe,
-	.remove	= sni_82596_driver_remove,
+	.remove_new = sni_82596_driver_remove,
 	.driver	= {
 		.name	= sni_82596_string,
 	},

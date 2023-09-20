@@ -1820,7 +1820,7 @@ err_alloc:
  * changes the link status, releases the DMA descriptor rings,
  * unregisters the MDIO bus and unmaps the allocated memory.
  */
-static int xgmac_remove(struct platform_device *pdev)
+static void xgmac_remove(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct xgmac_priv *priv = netdev_priv(ndev);
@@ -1840,8 +1840,6 @@ static int xgmac_remove(struct platform_device *pdev)
 	release_mem_region(res->start, resource_size(res));
 
 	free_netdev(ndev);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -1921,7 +1919,7 @@ static struct platform_driver xgmac_driver = {
 		.pm = &xgmac_pm_ops,
 	},
 	.probe = xgmac_probe,
-	.remove = xgmac_remove,
+	.remove_new = xgmac_remove,
 };
 
 module_platform_driver(xgmac_driver);

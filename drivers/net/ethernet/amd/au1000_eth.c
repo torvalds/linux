@@ -1323,7 +1323,7 @@ out:
 	return err;
 }
 
-static int au1000_remove(struct platform_device *pdev)
+static void au1000_remove(struct platform_device *pdev)
 {
 	struct net_device *dev = platform_get_drvdata(pdev);
 	struct au1000_private *aup = netdev_priv(dev);
@@ -1359,13 +1359,11 @@ static int au1000_remove(struct platform_device *pdev)
 	release_mem_region(macen->start, resource_size(macen));
 
 	free_netdev(dev);
-
-	return 0;
 }
 
 static struct platform_driver au1000_eth_driver = {
 	.probe  = au1000_probe,
-	.remove = au1000_remove,
+	.remove_new = au1000_remove,
 	.driver = {
 		.name   = "au1000-eth",
 	},

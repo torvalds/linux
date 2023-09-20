@@ -1770,8 +1770,7 @@ static const struct dev_pm_ops dm9000_drv_pm_ops = {
 	.resume		= dm9000_drv_resume,
 };
 
-static int
-dm9000_drv_remove(struct platform_device *pdev)
+static void dm9000_drv_remove(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct board_info *dm = to_dm9000_board(ndev);
@@ -1783,7 +1782,6 @@ dm9000_drv_remove(struct platform_device *pdev)
 		regulator_disable(dm->power_supply);
 
 	dev_dbg(&pdev->dev, "released and freed device\n");
-	return 0;
 }
 
 #ifdef CONFIG_OF
@@ -1801,7 +1799,7 @@ static struct platform_driver dm9000_driver = {
 		.of_match_table = of_match_ptr(dm9000_of_matches),
 	},
 	.probe   = dm9000_probe,
-	.remove  = dm9000_drv_remove,
+	.remove_new = dm9000_drv_remove,
 };
 
 module_platform_driver(dm9000_driver);

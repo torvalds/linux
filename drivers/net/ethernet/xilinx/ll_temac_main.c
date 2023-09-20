@@ -1626,7 +1626,7 @@ err_sysfs_create:
 	return rc;
 }
 
-static int temac_remove(struct platform_device *pdev)
+static void temac_remove(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct temac_local *lp = netdev_priv(ndev);
@@ -1636,7 +1636,6 @@ static int temac_remove(struct platform_device *pdev)
 	if (lp->phy_node)
 		of_node_put(lp->phy_node);
 	temac_mdio_teardown(lp);
-	return 0;
 }
 
 static const struct of_device_id temac_of_match[] = {
@@ -1650,7 +1649,7 @@ MODULE_DEVICE_TABLE(of, temac_of_match);
 
 static struct platform_driver temac_driver = {
 	.probe = temac_probe,
-	.remove = temac_remove,
+	.remove_new = temac_remove,
 	.driver = {
 		.name = "xilinx_temac",
 		.of_match_table = temac_of_match,

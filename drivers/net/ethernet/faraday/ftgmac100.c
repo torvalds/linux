@@ -2012,7 +2012,7 @@ err_alloc_etherdev:
 	return err;
 }
 
-static int ftgmac100_remove(struct platform_device *pdev)
+static void ftgmac100_remove(struct platform_device *pdev)
 {
 	struct net_device *netdev;
 	struct ftgmac100 *priv;
@@ -2040,7 +2040,6 @@ static int ftgmac100_remove(struct platform_device *pdev)
 
 	netif_napi_del(&priv->napi);
 	free_netdev(netdev);
-	return 0;
 }
 
 static const struct of_device_id ftgmac100_of_match[] = {
@@ -2051,7 +2050,7 @@ MODULE_DEVICE_TABLE(of, ftgmac100_of_match);
 
 static struct platform_driver ftgmac100_driver = {
 	.probe	= ftgmac100_probe,
-	.remove	= ftgmac100_remove,
+	.remove_new = ftgmac100_remove,
 	.driver	= {
 		.name		= DRV_NAME,
 		.of_match_table	= ftgmac100_of_match,

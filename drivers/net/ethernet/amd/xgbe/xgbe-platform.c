@@ -512,7 +512,7 @@ err_alloc:
 	return ret;
 }
 
-static int xgbe_platform_remove(struct platform_device *pdev)
+static void xgbe_platform_remove(struct platform_device *pdev)
 {
 	struct xgbe_prv_data *pdata = platform_get_drvdata(pdev);
 
@@ -521,8 +521,6 @@ static int xgbe_platform_remove(struct platform_device *pdev)
 	platform_device_put(pdata->phy_platdev);
 
 	xgbe_free_pdata(pdata);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -615,7 +613,7 @@ static struct platform_driver xgbe_driver = {
 		.pm = &xgbe_platform_pm_ops,
 	},
 	.probe = xgbe_platform_probe,
-	.remove = xgbe_platform_remove,
+	.remove_new = xgbe_platform_remove,
 };
 
 int xgbe_platform_init(void)
