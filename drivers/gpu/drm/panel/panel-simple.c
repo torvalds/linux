@@ -277,7 +277,7 @@ static int panel_simple_xfer_dsi_cmd_seq(struct panel_simple *panel,
 			dev_err(dev, "failed to write dcs cmd: %d\n", err);
 
 		if (cmd->header.delay)
-			msleep(cmd->header.delay);
+			usleep_range(cmd->header.delay * 1000, cmd->header.delay * 1000 + 100);
 	}
 
 	return 0;
@@ -300,7 +300,7 @@ static int panel_simple_xfer_spi_cmd_seq(struct panel_simple *panel, struct pane
 			return ret;
 
 		if (cmd->header.delay)
-			usleep_range(cmd->header.delay * 1000, (cmd->header.delay + 1) * 1000);
+			usleep_range(cmd->header.delay * 1000, cmd->header.delay * 1000 + 100);
 	}
 
 	return 0;
@@ -478,7 +478,7 @@ static int panel_simple_disable(struct drm_panel *panel)
 		return 0;
 
 	if (p->desc->delay.disable)
-		msleep(p->desc->delay.disable);
+		usleep_range(p->desc->delay.disable * 1000, p->desc->delay.disable * 1000 + 100);
 
 	p->enabled = false;
 
@@ -510,7 +510,7 @@ static int panel_simple_unprepare(struct drm_panel *panel)
 	panel_simple_regulator_disable(p);
 
 	if (p->desc->delay.unprepare)
-		msleep(p->desc->delay.unprepare);
+		usleep_range(p->desc->delay.unprepare * 1000, p->desc->delay.unprepare * 1000 + 100);
 
 	p->prepared = false;
 
@@ -564,7 +564,7 @@ static int panel_simple_prepare(struct drm_panel *panel)
 	if (p->no_hpd)
 		delay += p->desc->delay.hpd_absent_delay;
 	if (delay)
-		msleep(delay);
+		usleep_range(delay * 1000, delay * 1000 + 100);
 
 	if (p->hpd_gpio) {
 		if (IS_ERR(p->hpd_gpio)) {
@@ -589,12 +589,12 @@ static int panel_simple_prepare(struct drm_panel *panel)
 	gpiod_direction_output(p->reset_gpio, 1);
 
 	if (p->desc->delay.reset)
-		msleep(p->desc->delay.reset);
+		usleep_range(p->desc->delay.reset * 1000, p->desc->delay.reset * 1000 + 100);
 
 	gpiod_direction_output(p->reset_gpio, 0);
 
 	if (p->desc->delay.init)
-		msleep(p->desc->delay.init);
+		usleep_range(p->desc->delay.init * 1000, p->desc->delay.init * 1000 + 100);
 
 	if (p->desc->init_seq) {
 		if (p->desc->cmd_type == CMD_TYPE_SPI) {
@@ -621,7 +621,7 @@ static int panel_simple_enable(struct drm_panel *panel)
 		return 0;
 
 	if (p->desc->delay.enable)
-		msleep(p->desc->delay.enable);
+		usleep_range(p->desc->delay.enable * 1000, p->desc->delay.enable * 1000 + 100);
 
 	p->enabled = true;
 
