@@ -468,6 +468,7 @@ static void aspeed_rsa_exit_tfm(struct crypto_akcipher *tfm)
 }
 
 struct aspeed_rsss_alg aspeed_rsss_algs_rsa = {
+	.type = ASPEED_ALGO_TYPE_AKCIPHER,
 	.alg.akcipher = {
 		.encrypt = aspeed_rsa_enc,
 		.decrypt = aspeed_rsa_dec,
