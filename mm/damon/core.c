@@ -1326,12 +1326,10 @@ static bool kdamond_need_stop(struct damon_ctx *ctx)
 
 static unsigned long damos_wmark_metric_value(enum damos_wmark_metric metric)
 {
-	struct sysinfo i;
-
 	switch (metric) {
 	case DAMOS_WMARK_FREE_MEM_RATE:
-		si_meminfo(&i);
-		return i.freeram * 1000 / i.totalram;
+		return global_zone_page_state(NR_FREE_PAGES) * 1000 /
+		       totalram_pages();
 	default:
 		break;
 	}
