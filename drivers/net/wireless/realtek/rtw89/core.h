@@ -3400,6 +3400,95 @@ struct rtw89_rfe_parms_conf {
 	u8 rfe_type;
 };
 
+#define RTW89_TXPWR_CONF_DFLT_RFE_TYPE 0x0
+
+struct rtw89_txpwr_conf {
+	u8 rfe_type;
+	u8 ent_sz;
+	u32 num_ents;
+	const void *data;
+};
+
+#define rtw89_txpwr_conf_valid(conf) (!!(conf)->data)
+
+#define rtw89_for_each_in_txpwr_conf(entry, cursor, conf) \
+	for (typecheck(const void *, cursor), (cursor) = (conf)->data, \
+	     memcpy(&(entry), cursor, \
+		    min_t(u8, sizeof(entry), (conf)->ent_sz)); \
+	     (cursor) < (conf)->data + (conf)->num_ents * (conf)->ent_sz; \
+	     (cursor) += (conf)->ent_sz, \
+	     memcpy(&(entry), cursor, \
+		    min_t(u8, sizeof(entry), (conf)->ent_sz)))
+
+struct rtw89_txpwr_byrate_data {
+	struct rtw89_txpwr_conf conf;
+	struct rtw89_txpwr_table tbl;
+};
+
+struct rtw89_txpwr_lmt_2ghz_data {
+	struct rtw89_txpwr_conf conf;
+	s8 v[RTW89_2G_BW_NUM][RTW89_NTX_NUM]
+	    [RTW89_RS_LMT_NUM][RTW89_BF_NUM]
+	    [RTW89_REGD_NUM][RTW89_2G_CH_NUM];
+};
+
+struct rtw89_txpwr_lmt_5ghz_data {
+	struct rtw89_txpwr_conf conf;
+	s8 v[RTW89_5G_BW_NUM][RTW89_NTX_NUM]
+	    [RTW89_RS_LMT_NUM][RTW89_BF_NUM]
+	    [RTW89_REGD_NUM][RTW89_5G_CH_NUM];
+};
+
+struct rtw89_txpwr_lmt_6ghz_data {
+	struct rtw89_txpwr_conf conf;
+	s8 v[RTW89_6G_BW_NUM][RTW89_NTX_NUM]
+	    [RTW89_RS_LMT_NUM][RTW89_BF_NUM]
+	    [RTW89_REGD_NUM][NUM_OF_RTW89_REG_6GHZ_POWER]
+	    [RTW89_6G_CH_NUM];
+};
+
+struct rtw89_txpwr_lmt_ru_2ghz_data {
+	struct rtw89_txpwr_conf conf;
+	s8 v[RTW89_RU_NUM][RTW89_NTX_NUM]
+	    [RTW89_REGD_NUM][RTW89_2G_CH_NUM];
+};
+
+struct rtw89_txpwr_lmt_ru_5ghz_data {
+	struct rtw89_txpwr_conf conf;
+	s8 v[RTW89_RU_NUM][RTW89_NTX_NUM]
+	    [RTW89_REGD_NUM][RTW89_5G_CH_NUM];
+};
+
+struct rtw89_txpwr_lmt_ru_6ghz_data {
+	struct rtw89_txpwr_conf conf;
+	s8 v[RTW89_RU_NUM][RTW89_NTX_NUM]
+	    [RTW89_REGD_NUM][NUM_OF_RTW89_REG_6GHZ_POWER]
+	    [RTW89_6G_CH_NUM];
+};
+
+struct rtw89_tx_shape_lmt_data {
+	struct rtw89_txpwr_conf conf;
+	u8 v[RTW89_BAND_NUM][RTW89_RS_TX_SHAPE_NUM][RTW89_REGD_NUM];
+};
+
+struct rtw89_tx_shape_lmt_ru_data {
+	struct rtw89_txpwr_conf conf;
+	u8 v[RTW89_BAND_NUM][RTW89_REGD_NUM];
+};
+
+struct rtw89_rfe_data {
+	struct rtw89_txpwr_byrate_data byrate;
+	struct rtw89_txpwr_lmt_2ghz_data lmt_2ghz;
+	struct rtw89_txpwr_lmt_5ghz_data lmt_5ghz;
+	struct rtw89_txpwr_lmt_6ghz_data lmt_6ghz;
+	struct rtw89_txpwr_lmt_ru_2ghz_data lmt_ru_2ghz;
+	struct rtw89_txpwr_lmt_ru_5ghz_data lmt_ru_5ghz;
+	struct rtw89_txpwr_lmt_ru_6ghz_data lmt_ru_6ghz;
+	struct rtw89_tx_shape_lmt_data tx_shape_lmt;
+	struct rtw89_tx_shape_lmt_ru_data tx_shape_lmt_ru;
+	struct rtw89_rfe_parms rfe_parms;
+};
+
 struct rtw89_page_regs {
 	u32 hci_fc_ctrl;
 	u32 ch_page_ctrl;
@@ -4582,6 +4671,7 @@ struct rtw89_dev {
 	struct rtw89_hci_info hci;
 	struct rtw89_efuse efuse;
 	struct rtw89_traffic_stats stats;
+	struct rtw89_rfe_data *rfe_data;
 
 	/* ensures exclusive access from mac80211 callbacks */
 	struct mutex mutex;

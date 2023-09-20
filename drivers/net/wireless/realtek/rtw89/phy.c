@@ -1535,7 +1535,6 @@ static const u8 rtw89_rs_nss_num[] = {
 	[RTW89_RS_OFFSET] = 1,
 };
 
-static
 s8 *rtw89_phy_raw_byr_seek(struct rtw89_dev *rtwdev,
 			   struct rtw89_txpwr_byrate *head,
 			   const struct rtw89_rate_desc *desc)

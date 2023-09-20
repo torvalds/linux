@@ -4027,8 +4027,8 @@ static void rtw89_core_setup_rfe_parms(struct rtw89_dev *rtwdev)
 	sel = chip->dflt_parms;
 
 out:
-	rtwdev->rfe_parms = sel;
-	rtw89_load_txpwr_table(rtwdev, sel->byr_tbl);
+	rtwdev->rfe_parms = rtw89_load_rfe_data_from_fw(rtwdev, sel);
+	rtw89_load_txpwr_table(rtwdev, rtwdev->rfe_parms->byr_tbl);
 }
 
 static int rtw89_chip_efuse_info_setup(struct rtw89_dev *rtwdev)
@@ -4052,7 +4052,6 @@ static int rtw89_chip_efuse_info_setup(struct rtw89_dev *rtwdev)
 		return ret;
 
 	rtw89_core_setup_phycap(rtwdev);
-	rtw89_core_setup_rfe_parms(rtwdev);
 
 	rtw89_mac_pwr_off(rtwdev);
 
@@ -4084,20 +4083,21 @@ int rtw89_chip_info_setup(struct rtw89_dev *rtwdev)
 		return ret;
 	}
 
+	ret = rtw89_chip_efuse_info_setup(rtwdev);
+	if (ret)
+		return ret;
+
 	ret = rtw89_fw_recognize_elements(rtwdev);
 	if (ret) {
 		rtw89_err(rtwdev, "failed to recognize firmware elements\n");
 		return ret;
 	}
 
-	ret = rtw89_chip_efuse_info_setup(rtwdev);
-	if (ret)
-		return ret;
-
 	ret = rtw89_chip_board_info_setup(rtwdev);
 	if (ret)
 		return ret;
 
+	rtw89_core_setup_rfe_parms(rtwdev);
 	rtwdev->ps_mode = rtw89_update_ps_mode(rtwdev);
 
 	return 0;
@@ -4309,6 +4309,7 @@ EXPORT_SYMBOL(rtw89_alloc_ieee80211_hw);
 void rtw89_free_ieee80211_hw(struct rtw89_dev *rtwdev)
 {
 	kfree(rtwdev->ops);
+	kfree(rtwdev->rfe_data);
 	release_firmware(rtwdev->fw.req.firmware);
 	ieee80211_free_hw(rtwdev->hw);
 }
