@@ -295,7 +295,7 @@ err_free_gpio:
 	return error;
 }
 
-static int navpoint_remove(struct platform_device *pdev)
+static void navpoint_remove(struct platform_device *pdev)
 {
 	const struct navpoint_platform_data *pdata =
 					dev_get_platdata(&pdev->dev);
@@ -311,8 +311,6 @@ static int navpoint_remove(struct platform_device *pdev)
 
 	if (gpio_is_valid(pdata->gpio))
 		gpio_free(pdata->gpio);
-
-	return 0;
 }
 
 static int navpoint_suspend(struct device *dev)
@@ -348,7 +346,7 @@ static DEFINE_SIMPLE_DEV_PM_OPS(navpoint_pm_ops,
 
 static struct platform_driver navpoint_driver = {
 	.probe		= navpoint_probe,
-	.remove		= navpoint_remove,
+	.remove_new	= navpoint_remove,
 	.driver = {
 		.name	= "navpoint",
 		.pm	= pm_sleep_ptr(&navpoint_pm_ops),
