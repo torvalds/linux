@@ -209,6 +209,10 @@
 	};
 };
 
+&peci0 {
+	status = "okay";
+};
+
 &spi1 {
 	status = "okay";
 	pinctrl-names = "default";
