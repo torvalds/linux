@@ -77,7 +77,7 @@ void kvm_vcpu_pmu_restore_host(struct kvm_vcpu *vcpu);
 void kvm_vcpu_pmu_resync_el0(void);
 
 #define kvm_vcpu_has_pmu(vcpu)					\
-	(test_bit(KVM_ARM_VCPU_PMU_V3, (vcpu)->arch.features))
+	(vcpu_has_feature(vcpu, KVM_ARM_VCPU_PMU_V3))
 
 /*
  * Updates the vcpu's view of the pmu events for this cpu.
