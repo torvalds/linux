@@ -1203,6 +1203,11 @@ static unsigned long system_supported_vcpu_features(void)
 	if (!system_supports_sve())
 		clear_bit(KVM_ARM_VCPU_SVE, &features);
 
+	if (!system_has_full_ptr_auth()) {
+		clear_bit(KVM_ARM_VCPU_PTRAUTH_ADDRESS, &features);
+		clear_bit(KVM_ARM_VCPU_PTRAUTH_GENERIC, &features);
+	}
+
 	return features;
 }
 
@@ -1221,6 +1226,14 @@ static int kvm_vcpu_init_check_features(struct kvm_vcpu *vcpu,
 	}
 
 	if (features & ~system_supported_vcpu_features())
+		return -EINVAL;
+
+	/*
+	 * For now make sure that both address/generic pointer authentication
+	 * features are requested by the userspace together.
+	 */
+	if (test_bit(KVM_ARM_VCPU_PTRAUTH_ADDRESS, &features) !=
+	    test_bit(KVM_ARM_VCPU_PTRAUTH_GENERIC, &features))
 		return -EINVAL;
 
 	if (!test_bit(KVM_ARM_VCPU_EL1_32BIT, &features))
