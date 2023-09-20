@@ -751,6 +751,8 @@ static void dg1_irq_reset(struct drm_i915_private *dev_priv)
 
 	GEN3_IRQ_RESET(uncore, GEN11_GU_MISC_);
 	GEN3_IRQ_RESET(uncore, GEN8_PCU_);
+
+	intel_uncore_write(uncore, GEN11_GFX_MSTR_IRQ, ~0);
 }
 
 static void cherryview_irq_reset(struct drm_i915_private *dev_priv)
