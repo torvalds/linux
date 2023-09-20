@@ -841,6 +841,15 @@ config SM_DISPCC_8550
 	  Say Y if you want to support display devices and functionality such as
 	  splash screen.
 
+config SM_GCC_4450
+	tristate "SM4450 Global Clock Controller"
+	depends on ARM64 || COMPILE_TEST
+	select QCOM_GDSC
+	help
+	  Support for the global clock controller on SM4450 devices.
+	  Say Y if you want to use peripheral devices such as UART, SPI,
+	  I2C, USB, SD/UFS, PCIe, etc.
+
 config SM_GCC_6115
 	tristate "SM6115 and SM4250 Global Clock Controller"
 	depends on ARM64 || COMPILE_TEST
