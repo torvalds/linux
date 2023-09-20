@@ -2614,6 +2614,7 @@ static int bpf_kprobe_multi_link_fill_link_info(const struct bpf_link *link,
 	kmulti_link = container_of(link, struct bpf_kprobe_multi_link, link);
 	info->kprobe_multi.count = kmulti_link->cnt;
 	info->kprobe_multi.flags = kmulti_link->flags;
+	info->kprobe_multi.missed = kmulti_link->fp.nmissed;
 
 	if (!uaddrs)
 		return 0;
