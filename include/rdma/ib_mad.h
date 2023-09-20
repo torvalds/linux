@@ -277,6 +277,8 @@ enum ib_port_capability_mask2_bits {
 	IB_PORT_LINK_WIDTH_2X_SUP		= 1 << 4,
 	IB_PORT_LINK_SPEED_HDR_SUP		= 1 << 5,
 	IB_PORT_LINK_SPEED_NDR_SUP		= 1 << 10,
+	IB_PORT_EXTENDED_SPEEDS2_SUP            = 1 << 11,
+	IB_PORT_LINK_SPEED_XDR_SUP              = 1 << 12,
 };
 
 #define OPA_CLASS_PORT_INFO_PR_SUPPORT BIT(26)

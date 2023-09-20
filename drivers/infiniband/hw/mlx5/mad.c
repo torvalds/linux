@@ -619,6 +619,19 @@ int mlx5_query_mad_ifc_port(struct ib_device *ibdev, u32 port,
 		}
 	}
 
+	/* Check if extended speeds 2 (XDR/...) are supported */
+	if (props->port_cap_flags & IB_PORT_CAP_MASK2_SUP &&
+	    props->port_cap_flags2 & IB_PORT_EXTENDED_SPEEDS2_SUP) {
+		ext_active_speed = (out_mad->data[56] >> 4) & 0x6;
+
+		switch (ext_active_speed) {
+		case 2:
+			if (props->port_cap_flags2 & IB_PORT_LINK_SPEED_XDR_SUP)
+				props->active_speed = IB_SPEED_XDR;
+			break;
+		}
+	}
+
 	/* If reported active speed is QDR, check if is FDR-10 */
 	if (props->active_speed == 4) {
 		if (dev->port_caps[port - 1].ext_port_cap &
