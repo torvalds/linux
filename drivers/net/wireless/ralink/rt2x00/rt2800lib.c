@@ -9700,9 +9700,6 @@ static void rt2800_loft_iq_calibration(struct rt2x00_dev *rt2x00dev)
 
 				rt2x00_dbg(rt2x00dev, "Used VGA %d %x\n", vga_gain[ch_idx],
 					   rfvga_gain_table[vga_gain[ch_idx]]);
-
-				if (vga_gain[ch_idx] < 0)
-					vga_gain[ch_idx] = 0;
 			}
 
 			rfvalue = rfvga_gain_table[vga_gain[ch_idx]];
