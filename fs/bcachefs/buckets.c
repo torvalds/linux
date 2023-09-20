@@ -680,7 +680,7 @@ static int check_bucket_ref(struct btree_trans *trans,
 	struct bch_fs *c = trans->c;
 	struct bch_dev *ca = bch_dev_bkey_exists(c, ptr->dev);
 	size_t bucket_nr = PTR_BUCKET_NR(ca, ptr);
-	u16 bucket_sectors = !ptr->cached
+	u32 bucket_sectors = !ptr->cached
 		? dirty_sectors
 		: cached_sectors;
 	struct printbuf buf = PRINTBUF;
@@ -752,9 +752,9 @@ static int check_bucket_ref(struct btree_trans *trans,
 		goto err;
 	}
 
-	if ((unsigned) (bucket_sectors + sectors) > U32_MAX) {
+	if ((u64) bucket_sectors + sectors > U32_MAX) {
 		bch2_fsck_err(c, FSCK_CAN_IGNORE|FSCK_NEED_FSCK,
-			"bucket %u:%zu gen %u data type %s sector count overflow: %u + %lli > U16_MAX\n"
+			"bucket %u:%zu gen %u data type %s sector count overflow: %u + %lli > U32_MAX\n"
 			"while marking %s",
 			ptr->dev, bucket_nr, b_gen,
 			bch2_data_types[bucket_data_type ?: ptr_data_type],
