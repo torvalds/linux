@@ -2320,7 +2320,26 @@ int cs42l42_common_probe(struct cs42l42_private *cs42l42,
 
 	if (cs42l42->reset_gpio) {
 		dev_dbg(cs42l42->dev, "Found reset GPIO\n");
-		gpiod_set_value_cansleep(cs42l42->reset_gpio, 1);
+
+		/*
+		 * ACPI can override the default GPIO state we requested
+		 * so ensure that we start with RESET low.
+		 */
+		gpiod_set_value_cansleep(cs42l42->reset_gpio, 0);
+
+		/* Ensure minimum reset pulse width */
+		usleep_range(10, 500);
+
+		/*
+		 * On SoundWire keep the chip in reset until we get an UNATTACH
+		 * notification from the SoundWire core. This acts as a
+		 * synchronization point to reject stale ATTACH notifications
+		 * if the chip was already enumerated before we reset it.
+		 */
+		if (cs42l42->sdw_peripheral)
+			cs42l42->sdw_waiting_first_unattach = true;
+		else
+			gpiod_set_value_cansleep(cs42l42->reset_gpio, 1);
 	}
 	usleep_range(CS42L42_BOOT_TIME_US, CS42L42_BOOT_TIME_US * 2);
 
