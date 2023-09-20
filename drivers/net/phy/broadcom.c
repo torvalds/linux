@@ -439,6 +439,37 @@ static int bcm54xx_config_init(struct phy_device *phydev)
 	return 0;
 }
 
+static int bcm5221_config_init(struct phy_device *phydev)
+{
+	int reg, err;
+
+	reg = phy_read(phydev, MII_BCM5221_TEST);
+	reg |= MII_BCM5221_TEST_ENABLE_SHADOWS;
+	err = phy_write(phydev, MII_BCM5221_TEST, reg);
+	if (err < 0)
+		return err;
+
+	reg = phy_read(phydev, MII_BCM5221_SHDOW_AUX_STAT2);
+	reg |= MII_BCM5221_SHDOW_AUX_STAT2_APD;
+	err = phy_write(phydev, MII_BCM5221_SHDOW_AUX_STAT2, reg);
+	if (err < 0)
+		return err;
+
+	reg = phy_read(phydev, MII_BCM5221_SHDOW_AUX_MODE4);
+	reg |= MII_BCM5221_SHDOW_AUX_MODE4_CLKLOPWR;
+	err = phy_write(phydev, MII_BCM5221_SHDOW_AUX_MODE4, reg);
+	if (err < 0)
+		return err;
+
+	reg = phy_read(phydev, MII_BCM5221_TEST);
+	reg &= ~MII_BCM5221_TEST_ENABLE_SHADOWS;
+	err = phy_write(phydev, MII_BCM5221_TEST, reg);
+	if (err < 0)
+		return err;
+
+	return 0;
+}
+
 static int bcm54xx_iddq_set(struct phy_device *phydev, bool enable)
 {
 	int ret = 0;
@@ -1276,6 +1307,19 @@ static struct phy_driver broadcom_drivers[] = {
 	.config_intr    = bcm_phy_config_intr,
 	.handle_interrupt = bcm_phy_handle_interrupt,
 	.link_change_notify	= bcm54xx_link_change_notify,
+}, {
+	.phy_id		= PHY_ID_BCM5221,
+	.phy_id_mask	= 0xfffffff0,
+	.name		= "Broadcom BCM5221",
+	/* PHY_GBIT_FEATURES */
+	.get_sset_count	= bcm_phy_get_sset_count,
+	.get_strings	= bcm_phy_get_strings,
+	.get_stats	= bcm54xx_get_stats,
+	.probe		= bcm54xx_phy_probe,
+	.config_init	= bcm5221_config_init,
+	.config_intr	= bcm_phy_config_intr,
+	.handle_interrupt = bcm_phy_handle_interrupt,
+	.link_change_notify	= bcm54xx_link_change_notify,
 } };
 
 module_phy_driver(broadcom_drivers);
@@ -1296,6 +1340,7 @@ static struct mdio_device_id __maybe_unused broadcom_tbl[] = {
 	{ PHY_ID_BCM50610M, 0xfffffff0 },
 	{ PHY_ID_BCM57780, 0xfffffff0 },
 	{ PHY_ID_BCMAC131, 0xfffffff0 },
+	{ PHY_ID_BCM5221, 0xfffffff0},
 	{ PHY_ID_BCM5241, 0xfffffff0 },
 	{ PHY_ID_BCM5395, 0xfffffff0 },
 	{ PHY_ID_BCM53125, 0xfffffff0 },
