@@ -24,18 +24,6 @@
 		};
 	};
 
-	rpmsg: rpmsg@7c00000 {
-		compatible = "rockchip,rk3568-rpmsg";
-		mbox-names = "rpmsg-rx", "rpmsg-tx";
-		mboxes = <&mailbox 0 &mailbox 3>;
-		rockchip,vdev-nums = <1>;
-		rockchip,link-id = <0x03>;
-		reg = <0x0 0x7c00000 0x0 0x20000>;
-		memory-region = <&rpmsg_dma_reserved>;
-
-		status = "okay";
-	};
-
 	reserved-memory {
 		#address-cells = <2>;
 		#size-cells = <2>;
@@ -63,6 +51,18 @@
 			reg = <0x0 0x8200000 0x0 0x100000>;
 			no-map;
 		};
+	};
+
+	rpmsg: rpmsg@7c00000 {
+		compatible = "rockchip,rpmsg";
+		mbox-names = "rpmsg-rx", "rpmsg-tx";
+		mboxes = <&mailbox 0 &mailbox 3>;
+		rockchip,vdev-nums = <1>;
+		rockchip,link-id = <0x03>;
+		reg = <0x0 0x7c00000 0x0 0x20000>;
+		memory-region = <&rpmsg_dma_reserved>;
+
+		status = "okay";
 	};
 };
 
