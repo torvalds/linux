@@ -797,8 +797,8 @@ struct fuse_conn {
 	/* Is tmpfile not implemented by fs? */
 	unsigned int no_tmpfile:1;
 
-	/* relax restrictions in FOPEN_DIRECT_IO mode */
-	unsigned int direct_io_relax:1;
+	/* Relax restrictions to allow shared mmap in FOPEN_DIRECT_IO mode */
+	unsigned int direct_io_allow_mmap:1;
 
 	/* Is statx not implemented by fs? */
 	unsigned int no_statx:1;
