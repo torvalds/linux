@@ -669,16 +669,16 @@ fail:
 /*
  * routine to check that the specified directory is empty (for rmdir)
  */
-int ext2_empty_dir (struct inode * inode)
+int ext2_empty_dir(struct inode *inode)
 {
-	struct page *page;
+	struct folio *folio;
 	char *kaddr;
 	unsigned long i, npages = dir_pages(inode);
 
 	for (i = 0; i < npages; i++) {
 		ext2_dirent *de;
 
-		kaddr = ext2_get_page(inode, i, 0, &page);
+		kaddr = ext2_get_folio(inode, i, 0, &folio);
 		if (IS_ERR(kaddr))
 			return 0;
 
@@ -707,12 +707,12 @@ int ext2_empty_dir (struct inode * inode)
 			}
 			de = ext2_next_entry(de);
 		}
-		ext2_put_page(page, kaddr);
+		folio_release_kmap(folio, kaddr);
 	}
 	return 1;
 
 not_empty:
-	ext2_put_page(page, kaddr);
+	folio_release_kmap(folio, kaddr);
 	return 0;
 }
 
