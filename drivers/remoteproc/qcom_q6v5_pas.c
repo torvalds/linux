@@ -2251,7 +2251,6 @@ static const struct adsp_data monaco_auto_adsp_resource = {
 	.qmp_name = "adsp",
 	.ssctl_id = 0x14,
 	.minidump_id = 5,
-	.auto_boot = true,
 };
 
 static const struct adsp_data monaco_auto_cdsp_resource = {
@@ -2266,7 +2265,6 @@ static const struct adsp_data monaco_auto_cdsp_resource = {
 	.qmp_name = "cdsp",
 	.ssctl_id = 0x17,
 	.minidump_id = 19,
-	.auto_boot = true,
 };
 
 static const struct adsp_data monaco_auto_gpdsp_resource = {
@@ -2281,7 +2279,6 @@ static const struct adsp_data monaco_auto_gpdsp_resource = {
 	.qmp_name = "gpdsp0",
 	.ssctl_id = 0x21,
 	.minidump_id = 21,
-	.auto_boot = true,
 };
 
 static const struct adsp_data cliffs_wpss_resource = {
