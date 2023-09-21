@@ -915,6 +915,8 @@ __SYSCALL(__NR_fchmodat2, sys_fchmodat2)
 __SYSCALL(__NR_futex_wake, sys_futex_wake)
 #define __NR_futex_wait 455
 __SYSCALL(__NR_futex_wait, sys_futex_wait)
+#define __NR_futex_requeue 456
+__SYSCALL(__NR_futex_requeue, sys_futex_requeue)
 
 /*
  * Please add new compat syscalls above this comment and update
