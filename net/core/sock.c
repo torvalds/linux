@@ -806,9 +806,7 @@ EXPORT_SYMBOL(sock_no_linger);
 
 void sock_set_priority(struct sock *sk, u32 priority)
 {
-	lock_sock(sk);
 	WRITE_ONCE(sk->sk_priority, priority);
-	release_sock(sk);
 }
 EXPORT_SYMBOL(sock_set_priority);
 
@@ -1118,6 +1116,18 @@ int sk_setsockopt(struct sock *sk, int level, int optname,
 
 	valbool = val ? 1 : 0;
 
+	/* handle options which do not require locking the socket. */
+	switch (optname) {
+	case SO_PRIORITY:
+		if ((val >= 0 && val <= 6) ||
+		    sockopt_ns_capable(sock_net(sk)->user_ns, CAP_NET_RAW) ||
+		    sockopt_ns_capable(sock_net(sk)->user_ns, CAP_NET_ADMIN)) {
+			sock_set_priority(sk, val);
+			return 0;
+		}
+		return -EPERM;
+	}
+
 	sockopt_lock_sock(sk);
 
 	switch (optname) {
@@ -1211,15 +1221,6 @@ set_sndbuf:
 
 	case SO_NO_CHECK:
 		sk->sk_no_check_tx = valbool;
-		break;
-
-	case SO_PRIORITY:
-		if ((val >= 0 && val <= 6) ||
-		    sockopt_ns_capable(sock_net(sk)->user_ns, CAP_NET_RAW) ||
-		    sockopt_ns_capable(sock_net(sk)->user_ns, CAP_NET_ADMIN))
-			WRITE_ONCE(sk->sk_priority, val);
-		else
-			ret = -EPERM;
 		break;
 
 	case SO_LINGER:

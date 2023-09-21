@@ -239,7 +239,7 @@ static int dccp_v6_send_response(const struct sock *sk, struct request_sock *req
 		if (!opt)
 			opt = rcu_dereference(np->opt);
 		err = ip6_xmit(sk, skb, &fl6, READ_ONCE(sk->sk_mark), opt,
-			       np->tclass, sk->sk_priority);
+			       np->tclass, READ_ONCE(sk->sk_priority));
 		rcu_read_unlock();
 		err = net_xmit_eval(err);
 	}

@@ -165,7 +165,7 @@ int inet_diag_msg_attrs_fill(struct sock *sk, struct sk_buff *skb,
 		 * For cgroup2 classid is always zero.
 		 */
 		if (!classid)
-			classid = sk->sk_priority;
+			classid = READ_ONCE(sk->sk_priority);
 
 		if (nla_put_u32(skb, INET_DIAG_CLASS_ID, classid))
 			goto errout;
