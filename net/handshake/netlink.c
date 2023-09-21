@@ -163,7 +163,7 @@ int handshake_nl_done_doit(struct sk_buff *skb, struct genl_info *info)
 
 	if (GENL_REQ_ATTR_CHECK(info, HANDSHAKE_A_DONE_SOCKFD))
 		return -EINVAL;
-	fd = nla_get_u32(info->attrs[HANDSHAKE_A_DONE_SOCKFD]);
+	fd = nla_get_s32(info->attrs[HANDSHAKE_A_DONE_SOCKFD]);
 
 	sock = sockfd_lookup(fd, &err);
 	if (!sock)

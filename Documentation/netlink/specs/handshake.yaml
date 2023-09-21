@@ -43,7 +43,7 @@ attribute-sets:
     attributes:
       -
         name: sockfd
-        type: u32
+        type: s32
       -
         name: handler-class
         type: u32
@@ -79,7 +79,7 @@ attribute-sets:
         type: u32
       -
         name: sockfd
-        type: u32
+        type: s32
       -
         name: remote-auth
         type: u32
