@@ -31,6 +31,7 @@ struct mlx5_ipsec_fs {
 	struct mlx5_ipsec_rx_roce ipv4_rx;
 	struct mlx5_ipsec_rx_roce ipv6_rx;
 	struct mlx5_ipsec_tx_roce tx;
+	struct mlx5_devcom_comp_dev **devcom;
 };
 
 static void ipsec_fs_roce_setup_udp_dport(struct mlx5_flow_spec *spec,
@@ -337,7 +338,8 @@ void mlx5_ipsec_fs_roce_cleanup(struct mlx5_ipsec_fs *ipsec_roce)
 	kfree(ipsec_roce);
 }
 
-struct mlx5_ipsec_fs *mlx5_ipsec_fs_roce_init(struct mlx5_core_dev *mdev)
+struct mlx5_ipsec_fs *mlx5_ipsec_fs_roce_init(struct mlx5_core_dev *mdev,
+					      struct mlx5_devcom_comp_dev **devcom)
 {
 	struct mlx5_ipsec_fs *roce_ipsec;
 	struct mlx5_flow_namespace *ns;
@@ -362,6 +364,8 @@ struct mlx5_ipsec_fs *mlx5_ipsec_fs_roce_init(struct mlx5_core_dev *mdev)
 	}
 
 	roce_ipsec->tx.ns = ns;
+
+	roce_ipsec->devcom = devcom;
 
 	return roce_ipsec;
 
