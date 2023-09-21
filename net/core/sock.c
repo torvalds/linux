@@ -1140,6 +1140,26 @@ int sk_setsockopt(struct sock *sk, int level, int optname,
 	case SO_DOMAIN:
 	case SO_ERROR:
 		return -ENOPROTOOPT;
+#ifdef CONFIG_NET_RX_BUSY_POLL
+	case SO_BUSY_POLL:
+		if (val < 0)
+			return -EINVAL;
+		WRITE_ONCE(sk->sk_ll_usec, val);
+		return 0;
+	case SO_PREFER_BUSY_POLL:
+		if (valbool && !sockopt_capable(CAP_NET_ADMIN))
+			return -EPERM;
+		WRITE_ONCE(sk->sk_prefer_busy_poll, valbool);
+		return 0;
+	case SO_BUSY_POLL_BUDGET:
+		if (val > READ_ONCE(sk->sk_busy_poll_budget) &&
+		    !sockopt_capable(CAP_NET_ADMIN))
+			return -EPERM;
+		if (val < 0 || val > U16_MAX)
+			return -EINVAL;
+		WRITE_ONCE(sk->sk_busy_poll_budget, val);
+		return 0;
+#endif
 	}
 
 	sockopt_lock_sock(sk);
@@ -1402,30 +1422,6 @@ set_sndbuf:
 		sock_valbool_flag(sk, SOCK_SELECT_ERR_QUEUE, valbool);
 		break;
 
-#ifdef CONFIG_NET_RX_BUSY_POLL
-	case SO_BUSY_POLL:
-		if (val < 0)
-			ret = -EINVAL;
-		else
-			WRITE_ONCE(sk->sk_ll_usec, val);
-		break;
-	case SO_PREFER_BUSY_POLL:
-		if (valbool && !sockopt_capable(CAP_NET_ADMIN))
-			ret = -EPERM;
-		else
-			WRITE_ONCE(sk->sk_prefer_busy_poll, valbool);
-		break;
-	case SO_BUSY_POLL_BUDGET:
-		if (val > READ_ONCE(sk->sk_busy_poll_budget) && !sockopt_capable(CAP_NET_ADMIN)) {
-			ret = -EPERM;
-		} else {
-			if (val < 0 || val > U16_MAX)
-				ret = -EINVAL;
-			else
-				WRITE_ONCE(sk->sk_busy_poll_budget, val);
-		}
-		break;
-#endif
 
 	case SO_MAX_PACING_RATE:
 		{
