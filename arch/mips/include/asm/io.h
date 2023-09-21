@@ -118,34 +118,11 @@ static inline phys_addr_t virt_to_phys(const volatile void *x)
 }
 
 /*
- *     phys_to_virt    -       map physical address to virtual
- *     @address: address to remap
- *
- *     The returned virtual address is a current CPU mapping for
- *     the memory address given. It is only valid to use this function on
- *     addresses that have a kernel mapping
- *
- *     This function does not handle bus mappings for DMA transfers. In
- *     almost all conceivable cases a device driver should not be using
- *     this function
- */
-#define phys_to_virt phys_to_virt
-static inline void * phys_to_virt(unsigned long address)
-{
-	return __va(address);
-}
-
-/*
  * ISA I/O bus memory addresses are 1:1 with the physical address.
  */
 static inline unsigned long isa_virt_to_bus(volatile void *address)
 {
 	return virt_to_phys(address);
-}
-
-static inline void *isa_bus_to_virt(unsigned long address)
-{
-	return phys_to_virt(address);
 }
 
 /*
@@ -595,5 +572,10 @@ extern void (*_dma_cache_inv)(unsigned long start, unsigned long size);
 void __ioread64_copy(void *to, const void __iomem *from, size_t count);
 
 #include <asm-generic/io.h>
+
+static inline void *isa_bus_to_virt(unsigned long address)
+{
+	return phys_to_virt(address);
+}
 
 #endif /* _ASM_IO_H */
