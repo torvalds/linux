@@ -327,7 +327,8 @@ static int hci_dma_init(struct i3c_hci *hci)
 		rh_reg_write(INTR_SIGNAL_ENABLE, regval);
 
 ring_ready:
-		rh_reg_write(RING_CONTROL, RING_CTRL_ENABLE);
+		rh_reg_write(RING_CONTROL, RING_CTRL_ENABLE |
+					   RING_CTRL_RUN_STOP);
 	}
 
 	regval = FIELD_PREP(MAX_HEADER_COUNT, rings->total);
