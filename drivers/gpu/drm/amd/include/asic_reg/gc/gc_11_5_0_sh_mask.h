@@ -19227,6 +19227,9 @@
 #define CB_COLOR0_FDCC_CONTROL__FDCC_ENABLE__SHIFT                                                            0x16
 #define CB_COLOR0_FDCC_CONTROL__DCC_COMPRESS_DISABLE__SHIFT                                                   0x17
 #define CB_COLOR0_FDCC_CONTROL__FRAGMENT_COMPRESS_DISABLE__SHIFT                                              0x18
+#define CB_COLOR0_FDCC_CONTROL__DISABLE_OVERRIDE_INCONSISTENT_KEYS__SHIFT                                     0x19
+#define CB_COLOR0_FDCC_CONTROL__ENABLE_MAX_COMP_FRAG_OVERRIDE__SHIFT                                          0x1a
+#define CB_COLOR0_FDCC_CONTROL__MAX_COMP_FRAGS__SHIFT                                                         0x1b
 #define CB_COLOR0_FDCC_CONTROL__SAMPLE_MASK_TRACKER_DISABLE_MASK                                              0x00000001L
 #define CB_COLOR0_FDCC_CONTROL__SAMPLE_MASK_TRACKER_FEA_FORCE_MASK                                            0x00000002L
 #define CB_COLOR0_FDCC_CONTROL__MAX_UNCOMPRESSED_BLOCK_SIZE_MASK                                              0x0000000CL
@@ -19241,6 +19244,9 @@
 #define CB_COLOR0_FDCC_CONTROL__FDCC_ENABLE_MASK                                                              0x00400000L
 #define CB_COLOR0_FDCC_CONTROL__DCC_COMPRESS_DISABLE_MASK                                                     0x00800000L
 #define CB_COLOR0_FDCC_CONTROL__FRAGMENT_COMPRESS_DISABLE_MASK                                                0x01000000L
+#define CB_COLOR0_FDCC_CONTROL__DISABLE_OVERRIDE_INCONSISTENT_KEYS_MASK                                       0x02000000L
+#define CB_COLOR0_FDCC_CONTROL__ENABLE_MAX_COMP_FRAG_OVERRIDE_MASK                                            0x04000000L
+#define CB_COLOR0_FDCC_CONTROL__MAX_COMP_FRAGS_MASK                                                           0x38000000L
 //CB_COLOR0_DCC_BASE
 #define CB_COLOR0_DCC_BASE__BASE_256B__SHIFT                                                                  0x0
 #define CB_COLOR0_DCC_BASE__BASE_256B_MASK                                                                    0xFFFFFFFFL
@@ -19301,6 +19307,9 @@
 #define CB_COLOR1_FDCC_CONTROL__FDCC_ENABLE__SHIFT                                                            0x16
 #define CB_COLOR1_FDCC_CONTROL__DCC_COMPRESS_DISABLE__SHIFT                                                   0x17
 #define CB_COLOR1_FDCC_CONTROL__FRAGMENT_COMPRESS_DISABLE__SHIFT                                              0x18
+#define CB_COLOR1_FDCC_CONTROL__DISABLE_OVERRIDE_INCONSISTENT_KEYS__SHIFT                                     0x19
+#define CB_COLOR1_FDCC_CONTROL__ENABLE_MAX_COMP_FRAG_OVERRIDE__SHIFT                                          0x1a
+#define CB_COLOR1_FDCC_CONTROL__MAX_COMP_FRAGS__SHIFT                                                         0x1b
 #define CB_COLOR1_FDCC_CONTROL__SAMPLE_MASK_TRACKER_DISABLE_MASK                                              0x00000001L
 #define CB_COLOR1_FDCC_CONTROL__SAMPLE_MASK_TRACKER_FEA_FORCE_MASK                                            0x00000002L
 #define CB_COLOR1_FDCC_CONTROL__MAX_UNCOMPRESSED_BLOCK_SIZE_MASK                                              0x0000000CL
@@ -19315,6 +19324,9 @@
 #define CB_COLOR1_FDCC_CONTROL__FDCC_ENABLE_MASK                                                              0x00400000L
 #define CB_COLOR1_FDCC_CONTROL__DCC_COMPRESS_DISABLE_MASK                                                     0x00800000L
 #define CB_COLOR1_FDCC_CONTROL__FRAGMENT_COMPRESS_DISABLE_MASK                                                0x01000000L
+#define CB_COLOR1_FDCC_CONTROL__DISABLE_OVERRIDE_INCONSISTENT_KEYS_MASK                                       0x02000000L
+#define CB_COLOR1_FDCC_CONTROL__ENABLE_MAX_COMP_FRAG_OVERRIDE_MASK                                            0x04000000L
+#define CB_COLOR1_FDCC_CONTROL__MAX_COMP_FRAGS_MASK                                                           0x38000000L
 //CB_COLOR1_DCC_BASE
 #define CB_COLOR1_DCC_BASE__BASE_256B__SHIFT                                                                  0x0
 #define CB_COLOR1_DCC_BASE__BASE_256B_MASK                                                                    0xFFFFFFFFL
@@ -19375,6 +19387,9 @@
 #define CB_COLOR2_FDCC_CONTROL__FDCC_ENABLE__SHIFT                                                            0x16
 #define CB_COLOR2_FDCC_CONTROL__DCC_COMPRESS_DISABLE__SHIFT                                                   0x17
 #define CB_COLOR2_FDCC_CONTROL__FRAGMENT_COMPRESS_DISABLE__SHIFT                                              0x18
+#define CB_COLOR2_FDCC_CONTROL__DISABLE_OVERRIDE_INCONSISTENT_KEYS__SHIFT                                     0x19
+#define CB_COLOR2_FDCC_CONTROL__ENABLE_MAX_COMP_FRAG_OVERRIDE__SHIFT                                          0x1a
+#define CB_COLOR2_FDCC_CONTROL__MAX_COMP_FRAGS__SHIFT                                                         0x1b
 #define CB_COLOR2_FDCC_CONTROL__SAMPLE_MASK_TRACKER_DISABLE_MASK                                              0x00000001L
 #define CB_COLOR2_FDCC_CONTROL__SAMPLE_MASK_TRACKER_FEA_FORCE_MASK                                            0x00000002L
 #define CB_COLOR2_FDCC_CONTROL__MAX_UNCOMPRESSED_BLOCK_SIZE_MASK                                              0x0000000CL
@@ -19389,6 +19404,9 @@
 #define CB_COLOR2_FDCC_CONTROL__FDCC_ENABLE_MASK                                                              0x00400000L
 #define CB_COLOR2_FDCC_CONTROL__DCC_COMPRESS_DISABLE_MASK                                                     0x00800000L
 #define CB_COLOR2_FDCC_CONTROL__FRAGMENT_COMPRESS_DISABLE_MASK                                                0x01000000L
+#define CB_COLOR2_FDCC_CONTROL__DISABLE_OVERRIDE_INCONSISTENT_KEYS_MASK                                       0x02000000L
+#define CB_COLOR2_FDCC_CONTROL__ENABLE_MAX_COMP_FRAG_OVERRIDE_MASK                                            0x04000000L
+#define CB_COLOR2_FDCC_CONTROL__MAX_COMP_FRAGS_MASK                                                           0x38000000L
 //CB_COLOR2_DCC_BASE
 #define CB_COLOR2_DCC_BASE__BASE_256B__SHIFT                                                                  0x0
 #define CB_COLOR2_DCC_BASE__BASE_256B_MASK                                                                    0xFFFFFFFFL
@@ -19449,6 +19467,9 @@
 #define CB_COLOR3_FDCC_CONTROL__FDCC_ENABLE__SHIFT                                                            0x16
 #define CB_COLOR3_FDCC_CONTROL__DCC_COMPRESS_DISABLE__SHIFT                                                   0x17
 #define CB_COLOR3_FDCC_CONTROL__FRAGMENT_COMPRESS_DISABLE__SHIFT                                              0x18
+#define CB_COLOR3_FDCC_CONTROL__DISABLE_OVERRIDE_INCONSISTENT_KEYS__SHIFT                                     0x19
+#define CB_COLOR3_FDCC_CONTROL__ENABLE_MAX_COMP_FRAG_OVERRIDE__SHIFT                                          0x1a
+#define CB_COLOR3_FDCC_CONTROL__MAX_COMP_FRAGS__SHIFT                                                         0x1b
 #define CB_COLOR3_FDCC_CONTROL__SAMPLE_MASK_TRACKER_DISABLE_MASK                                              0x00000001L
 #define CB_COLOR3_FDCC_CONTROL__SAMPLE_MASK_TRACKER_FEA_FORCE_MASK                                            0x00000002L
 #define CB_COLOR3_FDCC_CONTROL__MAX_UNCOMPRESSED_BLOCK_SIZE_MASK                                              0x0000000CL
@@ -19463,6 +19484,9 @@
 #define CB_COLOR3_FDCC_CONTROL__FDCC_ENABLE_MASK                                                              0x00400000L
 #define CB_COLOR3_FDCC_CONTROL__DCC_COMPRESS_DISABLE_MASK                                                     0x00800000L
 #define CB_COLOR3_FDCC_CONTROL__FRAGMENT_COMPRESS_DISABLE_MASK                                                0x01000000L
+#define CB_COLOR3_FDCC_CONTROL__DISABLE_OVERRIDE_INCONSISTENT_KEYS_MASK                                       0x02000000L
+#define CB_COLOR3_FDCC_CONTROL__ENABLE_MAX_COMP_FRAG_OVERRIDE_MASK                                            0x04000000L
+#define CB_COLOR3_FDCC_CONTROL__MAX_COMP_FRAGS_MASK                                                           0x38000000L
 //CB_COLOR3_DCC_BASE
 #define CB_COLOR3_DCC_BASE__BASE_256B__SHIFT                                                                  0x0
 #define CB_COLOR3_DCC_BASE__BASE_256B_MASK                                                                    0xFFFFFFFFL
@@ -19523,6 +19547,9 @@
 #define CB_COLOR4_FDCC_CONTROL__FDCC_ENABLE__SHIFT                                                            0x16
 #define CB_COLOR4_FDCC_CONTROL__DCC_COMPRESS_DISABLE__SHIFT                                                   0x17
 #define CB_COLOR4_FDCC_CONTROL__FRAGMENT_COMPRESS_DISABLE__SHIFT                                              0x18
+#define CB_COLOR4_FDCC_CONTROL__DISABLE_OVERRIDE_INCONSISTENT_KEYS__SHIFT                                     0x19
+#define CB_COLOR4_FDCC_CONTROL__ENABLE_MAX_COMP_FRAG_OVERRIDE__SHIFT                                          0x1a
+#define CB_COLOR4_FDCC_CONTROL__MAX_COMP_FRAGS__SHIFT                                                         0x1b
 #define CB_COLOR4_FDCC_CONTROL__SAMPLE_MASK_TRACKER_DISABLE_MASK                                              0x00000001L
 #define CB_COLOR4_FDCC_CONTROL__SAMPLE_MASK_TRACKER_FEA_FORCE_MASK                                            0x00000002L
 #define CB_COLOR4_FDCC_CONTROL__MAX_UNCOMPRESSED_BLOCK_SIZE_MASK                                              0x0000000CL
@@ -19537,6 +19564,9 @@
 #define CB_COLOR4_FDCC_CONTROL__FDCC_ENABLE_MASK                                                              0x00400000L
 #define CB_COLOR4_FDCC_CONTROL__DCC_COMPRESS_DISABLE_MASK                                                     0x00800000L
 #define CB_COLOR4_FDCC_CONTROL__FRAGMENT_COMPRESS_DISABLE_MASK                                                0x01000000L
+#define CB_COLOR4_FDCC_CONTROL__DISABLE_OVERRIDE_INCONSISTENT_KEYS_MASK                                       0x02000000L
+#define CB_COLOR4_FDCC_CONTROL__ENABLE_MAX_COMP_FRAG_OVERRIDE_MASK                                            0x04000000L
+#define CB_COLOR4_FDCC_CONTROL__MAX_COMP_FRAGS_MASK                                                           0x38000000L
 //CB_COLOR4_DCC_BASE
 #define CB_COLOR4_DCC_BASE__BASE_256B__SHIFT                                                                  0x0
 #define CB_COLOR4_DCC_BASE__BASE_256B_MASK                                                                    0xFFFFFFFFL
@@ -19597,6 +19627,9 @@
 #define CB_COLOR5_FDCC_CONTROL__FDCC_ENABLE__SHIFT                                                            0x16
 #define CB_COLOR5_FDCC_CONTROL__DCC_COMPRESS_DISABLE__SHIFT                                                   0x17
 #define CB_COLOR5_FDCC_CONTROL__FRAGMENT_COMPRESS_DISABLE__SHIFT                                              0x18
+#define CB_COLOR5_FDCC_CONTROL__DISABLE_OVERRIDE_INCONSISTENT_KEYS__SHIFT                                     0x19
+#define CB_COLOR5_FDCC_CONTROL__ENABLE_MAX_COMP_FRAG_OVERRIDE__SHIFT                                          0x1a
+#define CB_COLOR5_FDCC_CONTROL__MAX_COMP_FRAGS__SHIFT                                                         0x1b
 #define CB_COLOR5_FDCC_CONTROL__SAMPLE_MASK_TRACKER_DISABLE_MASK                                              0x00000001L
 #define CB_COLOR5_FDCC_CONTROL__SAMPLE_MASK_TRACKER_FEA_FORCE_MASK                                            0x00000002L
 #define CB_COLOR5_FDCC_CONTROL__MAX_UNCOMPRESSED_BLOCK_SIZE_MASK                                              0x0000000CL
@@ -19611,6 +19644,9 @@
 #define CB_COLOR5_FDCC_CONTROL__FDCC_ENABLE_MASK                                                              0x00400000L
 #define CB_COLOR5_FDCC_CONTROL__DCC_COMPRESS_DISABLE_MASK                                                     0x00800000L
 #define CB_COLOR5_FDCC_CONTROL__FRAGMENT_COMPRESS_DISABLE_MASK                                                0x01000000L
+#define CB_COLOR5_FDCC_CONTROL__DISABLE_OVERRIDE_INCONSISTENT_KEYS_MASK                                       0x02000000L
+#define CB_COLOR5_FDCC_CONTROL__ENABLE_MAX_COMP_FRAG_OVERRIDE_MASK                                            0x04000000L
+#define CB_COLOR5_FDCC_CONTROL__MAX_COMP_FRAGS_MASK                                                           0x38000000L
 //CB_COLOR5_DCC_BASE
 #define CB_COLOR5_DCC_BASE__BASE_256B__SHIFT                                                                  0x0
 #define CB_COLOR5_DCC_BASE__BASE_256B_MASK                                                                    0xFFFFFFFFL
@@ -19671,6 +19707,9 @@
 #define CB_COLOR6_FDCC_CONTROL__FDCC_ENABLE__SHIFT                                                            0x16
 #define CB_COLOR6_FDCC_CONTROL__DCC_COMPRESS_DISABLE__SHIFT                                                   0x17
 #define CB_COLOR6_FDCC_CONTROL__FRAGMENT_COMPRESS_DISABLE__SHIFT                                              0x18
+#define CB_COLOR6_FDCC_CONTROL__DISABLE_OVERRIDE_INCONSISTENT_KEYS__SHIFT                                     0x19
+#define CB_COLOR6_FDCC_CONTROL__ENABLE_MAX_COMP_FRAG_OVERRIDE__SHIFT                                          0x1a
+#define CB_COLOR6_FDCC_CONTROL__MAX_COMP_FRAGS__SHIFT                                                         0x1b
 #define CB_COLOR6_FDCC_CONTROL__SAMPLE_MASK_TRACKER_DISABLE_MASK                                              0x00000001L
 #define CB_COLOR6_FDCC_CONTROL__SAMPLE_MASK_TRACKER_FEA_FORCE_MASK                                            0x00000002L
 #define CB_COLOR6_FDCC_CONTROL__MAX_UNCOMPRESSED_BLOCK_SIZE_MASK                                              0x0000000CL
@@ -19685,6 +19724,9 @@
 #define CB_COLOR6_FDCC_CONTROL__FDCC_ENABLE_MASK                                                              0x00400000L
 #define CB_COLOR6_FDCC_CONTROL__DCC_COMPRESS_DISABLE_MASK                                                     0x00800000L
 #define CB_COLOR6_FDCC_CONTROL__FRAGMENT_COMPRESS_DISABLE_MASK                                                0x01000000L
+#define CB_COLOR6_FDCC_CONTROL__DISABLE_OVERRIDE_INCONSISTENT_KEYS_MASK                                       0x02000000L
+#define CB_COLOR6_FDCC_CONTROL__ENABLE_MAX_COMP_FRAG_OVERRIDE_MASK                                            0x04000000L
+#define CB_COLOR6_FDCC_CONTROL__MAX_COMP_FRAGS_MASK                                                           0x38000000L
 //CB_COLOR6_DCC_BASE
 #define CB_COLOR6_DCC_BASE__BASE_256B__SHIFT                                                                  0x0
 #define CB_COLOR6_DCC_BASE__BASE_256B_MASK                                                                    0xFFFFFFFFL
@@ -19745,6 +19787,9 @@
 #define CB_COLOR7_FDCC_CONTROL__FDCC_ENABLE__SHIFT                                                            0x16
 #define CB_COLOR7_FDCC_CONTROL__DCC_COMPRESS_DISABLE__SHIFT                                                   0x17
 #define CB_COLOR7_FDCC_CONTROL__FRAGMENT_COMPRESS_DISABLE__SHIFT                                              0x18
+#define CB_COLOR7_FDCC_CONTROL__DISABLE_OVERRIDE_INCONSISTENT_KEYS__SHIFT                                     0x19
+#define CB_COLOR7_FDCC_CONTROL__ENABLE_MAX_COMP_FRAG_OVERRIDE__SHIFT                                          0x1a
+#define CB_COLOR7_FDCC_CONTROL__MAX_COMP_FRAGS__SHIFT                                                         0x1b
 #define CB_COLOR7_FDCC_CONTROL__SAMPLE_MASK_TRACKER_DISABLE_MASK                                              0x00000001L
 #define CB_COLOR7_FDCC_CONTROL__SAMPLE_MASK_TRACKER_FEA_FORCE_MASK                                            0x00000002L
 #define CB_COLOR7_FDCC_CONTROL__MAX_UNCOMPRESSED_BLOCK_SIZE_MASK                                              0x0000000CL
@@ -19759,6 +19804,9 @@
 #define CB_COLOR7_FDCC_CONTROL__FDCC_ENABLE_MASK                                                              0x00400000L
 #define CB_COLOR7_FDCC_CONTROL__DCC_COMPRESS_DISABLE_MASK                                                     0x00800000L
 #define CB_COLOR7_FDCC_CONTROL__FRAGMENT_COMPRESS_DISABLE_MASK                                                0x01000000L
+#define CB_COLOR7_FDCC_CONTROL__DISABLE_OVERRIDE_INCONSISTENT_KEYS_MASK                                       0x02000000L
+#define CB_COLOR7_FDCC_CONTROL__ENABLE_MAX_COMP_FRAG_OVERRIDE_MASK                                            0x04000000L
+#define CB_COLOR7_FDCC_CONTROL__MAX_COMP_FRAGS_MASK                                                           0x38000000L
 //CB_COLOR7_DCC_BASE
 #define CB_COLOR7_DCC_BASE__BASE_256B__SHIFT                                                                  0x0
 #define CB_COLOR7_DCC_BASE__BASE_256B_MASK                                                                    0xFFFFFFFFL
