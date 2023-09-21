@@ -716,9 +716,15 @@ enum ibmvfc_target_action {
 	IBMVFC_TGT_ACTION_LOGOUT_DELETED_RPORT,
 };
 
+enum ibmvfc_protocol {
+	IBMVFC_PROTO_SCSI = 0,
+	IBMVFC_PROTO_NVME = 1,
+};
+
 struct ibmvfc_target {
 	struct list_head queue;
 	struct ibmvfc_host *vhost;
+	enum ibmvfc_protocol protocol;
 	u64 scsi_id;
 	u64 wwpn;
 	u64 new_scsi_id;
@@ -814,11 +820,6 @@ struct ibmvfc_queue {
 	unsigned long hwq_id;
 	char name[32];
 	irq_handler_t handler;
-};
-
-enum ibmvfc_protocol {
-	IBMVFC_PROTO_SCSI = 0,
-	IBMVFC_PROTO_NVME = 1,
 };
 
 struct ibmvfc_channels {
