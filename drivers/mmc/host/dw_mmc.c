@@ -1549,9 +1549,11 @@ static void dw_mci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 				slot->host->vqmmc_enabled = true;
 			}
 
+#ifndef CONFIG_ROCKCHIP_THUNDER_BOOT_MMC
 			/* Reset our state machine after powering on */
 			dw_mci_ctrl_reset(slot->host,
 					  SDMMC_CTRL_ALL_RESET_FLAGS);
+#endif
 		}
 
 		/* Adjust clock / bus width after power is up */
