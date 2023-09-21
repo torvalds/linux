@@ -722,7 +722,16 @@ static int
 inno_hdmi_probe_single_connector_modes(struct drm_connector *connector,
 				       uint32_t maxX, uint32_t maxY)
 {
-	return drm_helper_probe_single_connector_modes(connector, 3840, 2160);
+	struct inno_hdmi *hdmi = to_inno_hdmi(connector);
+
+	int ret = pm_runtime_get_sync(hdmi->dev);
+	if (ret < 0)
+	   return ret;
+
+	ret = drm_helper_probe_single_connector_modes(connector, 3840, 2160);
+
+	pm_runtime_put(hdmi->dev);
+	return ret;
 }
 
 static void inno_hdmi_connector_destroy(struct drm_connector *connector)
