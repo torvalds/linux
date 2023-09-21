@@ -27,6 +27,7 @@
 #define IBMVFC_ABORT_TIMEOUT		8
 #define IBMVFC_ABORT_WAIT_TIMEOUT	40
 #define IBMVFC_MAX_REQUESTS_DEFAULT	100
+#define IBMVFC_SCSI_QDEPTH		128
 
 #define IBMVFC_DEBUG			0
 #define IBMVFC_MAX_TARGETS		1024
@@ -57,6 +58,8 @@
  * 2 for each discovery thread
  */
 #define IBMVFC_NUM_INTERNAL_REQ	(1 + 1 + 1 + 2 + (disc_threads * 2))
+/* Reserved suset of events for cancelling channelized IO commands */
+#define IBMVFC_NUM_INTERNAL_SUBQ_REQ 4
 
 #define IBMVFC_MAD_SUCCESS		0x00
 #define IBMVFC_MAD_NOT_SUPPORTED	0xF1
@@ -758,6 +761,7 @@ struct ibmvfc_event {
 	struct completion *eh_comp;
 	struct timer_list timer;
 	u16 hwq;
+	u8 reserved;
 };
 
 /* a pool of event structs for use */
@@ -793,6 +797,11 @@ struct ibmvfc_queue {
 	struct ibmvfc_event_pool evt_pool;
 	struct list_head sent;
 	struct list_head free;
+	u16 total_depth;
+	u16 evt_depth;
+	u16 reserved_depth;
+	u16 evt_free;
+	u16 reserved_free;
 	spinlock_t l_lock;
 
 	union ibmvfc_iu cancel_rsp;
