@@ -22,6 +22,12 @@ config RESET_A10SR
 	  This option enables support for the external reset functions for
 	  peripheral PHYs on the Altera Arria10 System Resource Chip.
 
+config RESET_ASPEED
+	bool "ASPEED Reset Driver" if COMPILE_TEST
+	default ARCH_ASPEED
+	help
+	  This enables the reset controller for ASPEED BMC SoCs.
+
 config RESET_ATH79
 	bool "AR71xx Reset Driver" if COMPILE_TEST
 	default ATH79
