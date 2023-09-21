@@ -1256,7 +1256,7 @@ static int ath11k_htt_tlv_ppdu_stats_parse(struct ath11k_base *ab,
 	int cur_user;
 	u16 peer_id;
 
-	ppdu_info = (struct htt_ppdu_stats_info *)data;
+	ppdu_info = data;
 
 	switch (tag) {
 	case HTT_PPDU_STATS_TAG_COMMON:
@@ -4486,8 +4486,7 @@ int ath11k_dp_rx_monitor_link_desc_return(struct ath11k *ar,
 	src_srng_desc = ath11k_hal_srng_src_get_next_entry(ar->ab, hal_srng);
 
 	if (src_srng_desc) {
-		struct ath11k_buffer_addr *src_desc =
-				(struct ath11k_buffer_addr *)src_srng_desc;
+		struct ath11k_buffer_addr *src_desc = src_srng_desc;
 
 		*src_desc = *((struct ath11k_buffer_addr *)p_last_buf_addr_info);
 	} else {
@@ -4506,8 +4505,7 @@ void ath11k_dp_rx_mon_next_link_desc_get(void *rx_msdu_link_desc,
 					 u8 *rbm,
 					 void **pp_buf_addr_info)
 {
-	struct hal_rx_msdu_link *msdu_link =
-			(struct hal_rx_msdu_link *)rx_msdu_link_desc;
+	struct hal_rx_msdu_link *msdu_link = rx_msdu_link_desc;
 	struct ath11k_buffer_addr *buf_addr_info;
 
 	buf_addr_info = (struct ath11k_buffer_addr *)&msdu_link->buf_addr_info;
@@ -4548,7 +4546,7 @@ static void ath11k_hal_rx_msdu_list_get(struct ath11k *ar,
 	u32 first = FIELD_PREP(RX_MSDU_DESC_INFO0_FIRST_MSDU_IN_MPDU, 1);
 	u8  tmp  = 0;
 
-	msdu_link = (struct hal_rx_msdu_link *)msdu_link_desc;
+	msdu_link = msdu_link_desc;
 	msdu_details = &msdu_link->msdu_link[0];
 
 	for (i = 0; i < HAL_RX_NUM_MSDU_DESC; i++) {
@@ -4645,8 +4643,7 @@ ath11k_dp_rx_mon_mpdu_pop(struct ath11k *ar, int mac_id,
 	bool is_frag, is_first_msdu;
 	bool drop_mpdu = false;
 	struct ath11k_skb_rxcb *rxcb;
-	struct hal_reo_entrance_ring *ent_desc =
-			(struct hal_reo_entrance_ring *)ring_entry;
+	struct hal_reo_entrance_ring *ent_desc = ring_entry;
 	int buf_id;
 	u32 rx_link_buf_info[2];
 	u8 rbm;

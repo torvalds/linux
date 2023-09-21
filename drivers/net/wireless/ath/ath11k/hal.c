@@ -571,7 +571,7 @@ u32 ath11k_hal_ce_get_desc_size(enum hal_ce_desc type)
 void ath11k_hal_ce_src_set_desc(void *buf, dma_addr_t paddr, u32 len, u32 id,
 				u8 byte_swap_data)
 {
-	struct hal_ce_srng_src_desc *desc = (struct hal_ce_srng_src_desc *)buf;
+	struct hal_ce_srng_src_desc *desc = buf;
 
 	desc->buffer_addr_low = paddr & HAL_ADDR_LSB_REG_MASK;
 	desc->buffer_addr_info =
@@ -586,8 +586,7 @@ void ath11k_hal_ce_src_set_desc(void *buf, dma_addr_t paddr, u32 len, u32 id,
 
 void ath11k_hal_ce_dst_set_desc(void *buf, dma_addr_t paddr)
 {
-	struct hal_ce_srng_dest_desc *desc =
-		(struct hal_ce_srng_dest_desc *)buf;
+	struct hal_ce_srng_dest_desc *desc = buf;
 
 	desc->buffer_addr_low = paddr & HAL_ADDR_LSB_REG_MASK;
 	desc->buffer_addr_info =
@@ -597,8 +596,7 @@ void ath11k_hal_ce_dst_set_desc(void *buf, dma_addr_t paddr)
 
 u32 ath11k_hal_ce_dst_status_get_length(void *buf)
 {
-	struct hal_ce_srng_dst_status_desc *desc =
-		(struct hal_ce_srng_dst_status_desc *)buf;
+	struct hal_ce_srng_dst_status_desc *desc = buf;
 	u32 len;
 
 	len = FIELD_GET(HAL_CE_DST_STATUS_DESC_FLAGS_LEN, desc->flags);

@@ -6967,8 +6967,8 @@ err:
 
 static int ath11k_mac_vif_unref(int buf_id, void *skb, void *ctx)
 {
-	struct ieee80211_vif *vif = (struct ieee80211_vif *)ctx;
-	struct ath11k_skb_cb *skb_cb = ATH11K_SKB_CB((struct sk_buff *)skb);
+	struct ieee80211_vif *vif = ctx;
+	struct ath11k_skb_cb *skb_cb = ATH11K_SKB_CB(skb);
 
 	if (skb_cb->vif == vif)
 		skb_cb->vif = NULL;
