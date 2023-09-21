@@ -977,7 +977,7 @@ STORE(bch2_dev)
 		mutex_lock(&c->sb_lock);
 		mi = &bch2_sb_get_members(c->disk_sb.sb)->members[ca->dev_idx];
 
-		if (v != BCH_MEMBER_DURABILITY(mi)) {
+		if (v + 1 != BCH_MEMBER_DURABILITY(mi)) {
 			SET_BCH_MEMBER_DURABILITY(mi, v + 1);
 			bch2_write_super(c);
 		}
