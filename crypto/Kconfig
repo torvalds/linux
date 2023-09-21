@@ -1339,6 +1339,23 @@ config CRYPTO_JITTERENTROPY_MEMORY_BLOCKSIZE
 	default 1024 if CRYPTO_JITTERENTROPY_MEMSIZE_1024
 	default 2048 if CRYPTO_JITTERENTROPY_MEMSIZE_8192
 
+config CRYPTO_JITTERENTROPY_OSR
+	int "CPU Jitter RNG Oversampling Rate"
+	range 1 15
+	default 1
+	depends on CRYPTO_JITTERENTROPY
+	help
+	  The Jitter RNG allows the specification of an oversampling rate (OSR).
+	  The Jitter RNG operation requires a fixed amount of timing
+	  measurements to produce one output block of random numbers. The
+	  OSR value is multiplied with the amount of timing measurements to
+	  generate one output block. Thus, the timing measurement is oversampled
+	  by the OSR factor. The oversampling allows the Jitter RNG to operate
+	  on hardware whose timers deliver limited amount of entropy (e.g.
+	  the timer is coarse) by setting the OSR to a higher value. The
+	  trade-off, however, is that the Jitter RNG now requires more time
+	  to generate random numbers.
+
 config CRYPTO_JITTERENTROPY_TESTINTERFACE
 	bool "CPU Jitter RNG Test Interface"
 	depends on CRYPTO_JITTERENTROPY
