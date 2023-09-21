@@ -562,7 +562,7 @@ err_rule:
 static void tx_destroy(struct mlx5e_ipsec *ipsec, struct mlx5e_ipsec_tx *tx,
 		       struct mlx5_ipsec_fs *roce)
 {
-	mlx5_ipsec_fs_roce_tx_destroy(roce);
+	mlx5_ipsec_fs_roce_tx_destroy(roce, ipsec->mdev);
 	if (tx->chains) {
 		ipsec_chains_destroy(tx->chains);
 	} else {

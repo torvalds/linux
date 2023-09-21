@@ -17,7 +17,8 @@ int mlx5_ipsec_fs_roce_rx_create(struct mlx5_core_dev *mdev,
 				 struct mlx5_flow_namespace *ns,
 				 struct mlx5_flow_destination *default_dst,
 				 u32 family, u32 level, u32 prio);
-void mlx5_ipsec_fs_roce_tx_destroy(struct mlx5_ipsec_fs *ipsec_roce);
+void mlx5_ipsec_fs_roce_tx_destroy(struct mlx5_ipsec_fs *ipsec_roce,
+				   struct mlx5_core_dev *mdev);
 int mlx5_ipsec_fs_roce_tx_create(struct mlx5_core_dev *mdev,
 				 struct mlx5_ipsec_fs *ipsec_roce,
 				 struct mlx5_flow_table *pol_ft);
