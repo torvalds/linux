@@ -7,7 +7,6 @@ target_name = "blair"
 def define_blair():
     _blair_in_tree_modules = [
         # keep sorted
-        "debug_symbol.ko",
         "drivers/char/rdbg.ko",
         "drivers/clk/qcom/clk-dummy.ko",
         "drivers/clk/qcom/clk-qcom.ko",
@@ -141,6 +140,7 @@ def define_blair():
         "drivers/soc/qcom/dcvs/memlat.ko",
         "drivers/soc/qcom/dcvs/qcom-dcvs.ko",
         "drivers/soc/qcom/dcvs/qcom-pmu-lib.ko",
+        "drivers/soc/qcom/debug_symbol.ko",
         "drivers/soc/qcom/eud.ko",
         "drivers/soc/qcom/gic_intr_routing.ko",
         "drivers/soc/qcom/glink_probe.ko",
@@ -154,6 +154,7 @@ def define_blair():
         "drivers/soc/qcom/memory_dump_v2.ko",
         "drivers/soc/qcom/memshare/heap_mem_ext_v01.ko",
         "drivers/soc/qcom/memshare/msm_memshare.ko",
+        "drivers/soc/qcom/minidump.ko",
         "drivers/soc/qcom/msm_performance.ko",
         "drivers/soc/qcom/panel_event_notifier.ko",
         "drivers/soc/qcom/pdr_interface.ko",
@@ -207,7 +208,6 @@ def define_blair():
         "kernel/msm_sysstats.ko",
         "kernel/sched/walt/sched-walt.ko",
         "kernel/trace/qcom_ipc_logging.ko",
-        "minidump.ko",
         "net/mac80211/mac80211.ko",
         "net/qrtr/qrtr.ko",
         "net/qrtr/qrtr-smd.ko",
