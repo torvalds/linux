@@ -259,25 +259,6 @@ static int mt7921_start(struct ieee80211_hw *hw)
 	return err;
 }
 
-void mt7921_stop(struct ieee80211_hw *hw)
-{
-	struct mt792x_dev *dev = mt792x_hw_dev(hw);
-	struct mt792x_phy *phy = mt792x_hw_phy(hw);
-
-	cancel_delayed_work_sync(&phy->mt76->mac_work);
-
-	cancel_delayed_work_sync(&dev->pm.ps_work);
-	cancel_work_sync(&dev->pm.wake_work);
-	cancel_work_sync(&dev->reset_work);
-	mt76_connac_free_pending_tx_skbs(&dev->pm, NULL);
-
-	mt792x_mutex_acquire(dev);
-	clear_bit(MT76_STATE_RUNNING, &phy->mt76->state);
-	mt76_connac_mcu_set_mac_enable(&dev->mt76, 0, false, false);
-	mt792x_mutex_release(dev);
-}
-EXPORT_SYMBOL_GPL(mt7921_stop);
-
 static int
 mt7921_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 {
@@ -1312,7 +1293,7 @@ static void mt7921_mgd_complete_tx(struct ieee80211_hw *hw,
 const struct ieee80211_ops mt7921_ops = {
 	.tx = mt792x_tx,
 	.start = mt7921_start,
-	.stop = mt7921_stop,
+	.stop = mt792x_stop,
 	.add_interface = mt7921_add_interface,
 	.remove_interface = mt792x_remove_interface,
 	.config = mt7921_config,

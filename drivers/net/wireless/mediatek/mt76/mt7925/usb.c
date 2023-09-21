@@ -69,14 +69,6 @@ static int mt7925u_mcu_init(struct mt792x_dev *dev)
 	return 0;
 }
 
-static void mt7925u_stop(struct ieee80211_hw *hw)
-{
-	struct mt792x_dev *dev = mt792x_hw_dev(hw);
-
-	mt76u_stop_tx(&dev->mt76);
-	mt7925_stop(hw);
-}
-
 static int mt7925u_mac_reset(struct mt792x_dev *dev)
 {
 	int err;
@@ -180,7 +172,7 @@ static int mt7925u_probe(struct usb_interface *usb_intf,
 	if (!ops)
 		return -ENOMEM;
 
-	ops->stop = mt7925u_stop;
+	ops->stop = mt792xu_stop;
 
 	mdev = mt76_alloc_device(&usb_intf->dev, sizeof(*dev), ops, &drv_ops);
 	if (!mdev)

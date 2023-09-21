@@ -91,6 +91,28 @@ void mt792x_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
 }
 EXPORT_SYMBOL_GPL(mt792x_tx);
 
+void mt792x_stop(struct ieee80211_hw *hw)
+{
+	struct mt792x_dev *dev = mt792x_hw_dev(hw);
+	struct mt792x_phy *phy = mt792x_hw_phy(hw);
+
+	cancel_delayed_work_sync(&phy->mt76->mac_work);
+
+	cancel_delayed_work_sync(&dev->pm.ps_work);
+	cancel_work_sync(&dev->pm.wake_work);
+	cancel_work_sync(&dev->reset_work);
+	mt76_connac_free_pending_tx_skbs(&dev->pm, NULL);
+
+	if (is_mt7921(&dev->mt76)) {
+		mt792x_mutex_acquire(dev);
+		mt76_connac_mcu_set_mac_enable(&dev->mt76, 0, false, false);
+		mt792x_mutex_release(dev);
+	}
+
+	clear_bit(MT76_STATE_RUNNING, &phy->mt76->state);
+}
+EXPORT_SYMBOL_GPL(mt792x_stop);
+
 void mt792x_remove_interface(struct ieee80211_hw *hw,
 			     struct ieee80211_vif *vif)
 {
