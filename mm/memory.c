@@ -689,6 +689,16 @@ struct page *vm_normal_page_pmd(struct vm_area_struct *vma, unsigned long addr,
 out:
 	return pfn_to_page(pfn);
 }
+
+struct folio *vm_normal_folio_pmd(struct vm_area_struct *vma,
+				  unsigned long addr, pmd_t pmd)
+{
+	struct page *page = vm_normal_page_pmd(vma, addr, pmd);
+
+	if (page)
+		return page_folio(page);
+	return NULL;
+}
 #endif
 
 static void restore_exclusive_pte(struct vm_area_struct *vma,
