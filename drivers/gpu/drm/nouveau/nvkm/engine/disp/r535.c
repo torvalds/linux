@@ -37,16 +37,16 @@
 #include <nvhw/drf.h>
 
 #include <nvrm/nvtypes.h>
-#include <nvrm/535.54.03/common/sdk/nvidia/inc/class/cl2080_notification.h>
-#include <nvrm/535.54.03/common/sdk/nvidia/inc/ctrl/ctrl0073/ctrl0073dfp.h>
-#include <nvrm/535.54.03/common/sdk/nvidia/inc/ctrl/ctrl0073/ctrl0073dp.h>
-#include <nvrm/535.54.03/common/sdk/nvidia/inc/ctrl/ctrl0073/ctrl0073specific.h>
-#include <nvrm/535.54.03/common/sdk/nvidia/inc/ctrl/ctrl0073/ctrl0073system.h>
-#include <nvrm/535.54.03/common/sdk/nvidia/inc/ctrl/ctrl2080/ctrl2080internal.h>
-#include <nvrm/535.54.03/common/sdk/nvidia/inc/nvos.h>
-#include <nvrm/535.54.03/nvidia/generated/g_allclasses.h>
-#include <nvrm/535.54.03/nvidia/generated/g_mem_desc_nvoc.h>
-#include <nvrm/535.54.03/nvidia/inc/kernel/os/nv_memory_type.h>
+#include <nvrm/535.113.01/common/sdk/nvidia/inc/class/cl2080_notification.h>
+#include <nvrm/535.113.01/common/sdk/nvidia/inc/ctrl/ctrl0073/ctrl0073dfp.h>
+#include <nvrm/535.113.01/common/sdk/nvidia/inc/ctrl/ctrl0073/ctrl0073dp.h>
+#include <nvrm/535.113.01/common/sdk/nvidia/inc/ctrl/ctrl0073/ctrl0073specific.h>
+#include <nvrm/535.113.01/common/sdk/nvidia/inc/ctrl/ctrl0073/ctrl0073system.h>
+#include <nvrm/535.113.01/common/sdk/nvidia/inc/ctrl/ctrl2080/ctrl2080internal.h>
+#include <nvrm/535.113.01/common/sdk/nvidia/inc/nvos.h>
+#include <nvrm/535.113.01/nvidia/generated/g_allclasses.h>
+#include <nvrm/535.113.01/nvidia/generated/g_mem_desc_nvoc.h>
+#include <nvrm/535.113.01/nvidia/inc/kernel/os/nv_memory_type.h>
 
 #include <linux/acpi.h>
 

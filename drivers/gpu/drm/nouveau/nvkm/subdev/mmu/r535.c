@@ -22,9 +22,9 @@
 #include "vmm.h"
 
 #include <nvrm/nvtypes.h>
-#include <nvrm/535.54.03/common/sdk/nvidia/inc/class/cl90f1.h>
-#include <nvrm/535.54.03/common/sdk/nvidia/inc/ctrl/ctrl90f1.h>
-#include <nvrm/535.54.03/common/sdk/nvidia/inc/nvos.h>
+#include <nvrm/535.113.01/common/sdk/nvidia/inc/class/cl90f1.h>
+#include <nvrm/535.113.01/common/sdk/nvidia/inc/ctrl/ctrl90f1.h>
+#include <nvrm/535.113.01/common/sdk/nvidia/inc/nvos.h>
 
 static int
 r535_mmu_promote_vmm(struct nvkm_vmm *vmm)

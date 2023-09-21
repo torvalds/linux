@@ -30,36 +30,45 @@
 #include <nvfw/fw.h>
 
 #include <nvrm/nvtypes.h>
-#include <nvrm/535.54.03/common/sdk/nvidia/inc/class/cl0000.h>
-#include <nvrm/535.54.03/common/sdk/nvidia/inc/class/cl0005.h>
-#include <nvrm/535.54.03/common/sdk/nvidia/inc/class/cl0080.h>
-#include <nvrm/535.54.03/common/sdk/nvidia/inc/class/cl2080.h>
-#include <nvrm/535.54.03/common/sdk/nvidia/inc/ctrl/ctrl2080/ctrl2080event.h>
-#include <nvrm/535.54.03/common/sdk/nvidia/inc/ctrl/ctrl2080/ctrl2080gpu.h>
-#include <nvrm/535.54.03/common/sdk/nvidia/inc/ctrl/ctrl2080/ctrl2080internal.h>
-#include <nvrm/535.54.03/common/sdk/nvidia/inc/nvos.h>
-#include <nvrm/535.54.03/common/shared/msgq/inc/msgq/msgq_priv.h>
-#include <nvrm/535.54.03/common/uproc/os/common/include/libos_init_args.h>
-#include <nvrm/535.54.03/nvidia/arch/nvalloc/common/inc/gsp/gsp_fw_sr_meta.h>
-#include <nvrm/535.54.03/nvidia/arch/nvalloc/common/inc/gsp/gsp_fw_wpr_meta.h>
-#include <nvrm/535.54.03/nvidia/arch/nvalloc/common/inc/rmRiscvUcode.h>
-#include <nvrm/535.54.03/nvidia/arch/nvalloc/common/inc/rmgspseq.h>
-#include <nvrm/535.54.03/nvidia/generated/g_allclasses.h>
-#include <nvrm/535.54.03/nvidia/generated/g_os_nvoc.h>
-#include <nvrm/535.54.03/nvidia/generated/g_rpc-structures.h>
-#include <nvrm/535.54.03/nvidia/inc/kernel/gpu/gsp/gsp_fw_heap.h>
-#include <nvrm/535.54.03/nvidia/inc/kernel/gpu/gsp/gsp_init_args.h>
-#include <nvrm/535.54.03/nvidia/inc/kernel/gpu/gsp/gsp_static_config.h>
-#include <nvrm/535.54.03/nvidia/inc/kernel/gpu/intr/engine_idx.h>
-#include <nvrm/535.54.03/nvidia/kernel/inc/vgpu/rpc_global_enums.h>
+#include <nvrm/535.113.01/common/sdk/nvidia/inc/class/cl0000.h>
+#include <nvrm/535.113.01/common/sdk/nvidia/inc/class/cl0005.h>
+#include <nvrm/535.113.01/common/sdk/nvidia/inc/class/cl0080.h>
+#include <nvrm/535.113.01/common/sdk/nvidia/inc/class/cl2080.h>
+#include <nvrm/535.113.01/common/sdk/nvidia/inc/ctrl/ctrl2080/ctrl2080event.h>
+#include <nvrm/535.113.01/common/sdk/nvidia/inc/ctrl/ctrl2080/ctrl2080gpu.h>
+#include <nvrm/535.113.01/common/sdk/nvidia/inc/ctrl/ctrl2080/ctrl2080internal.h>
+#include <nvrm/535.113.01/common/sdk/nvidia/inc/nvos.h>
+#include <nvrm/535.113.01/common/shared/msgq/inc/msgq/msgq_priv.h>
+#include <nvrm/535.113.01/common/uproc/os/common/include/libos_init_args.h>
+#include <nvrm/535.113.01/nvidia/arch/nvalloc/common/inc/gsp/gsp_fw_sr_meta.h>
+#include <nvrm/535.113.01/nvidia/arch/nvalloc/common/inc/gsp/gsp_fw_wpr_meta.h>
+#include <nvrm/535.113.01/nvidia/arch/nvalloc/common/inc/rmRiscvUcode.h>
+#include <nvrm/535.113.01/nvidia/arch/nvalloc/common/inc/rmgspseq.h>
+#include <nvrm/535.113.01/nvidia/generated/g_allclasses.h>
+#include <nvrm/535.113.01/nvidia/generated/g_os_nvoc.h>
+#include <nvrm/535.113.01/nvidia/generated/g_rpc-structures.h>
+#include <nvrm/535.113.01/nvidia/inc/kernel/gpu/gsp/gsp_fw_heap.h>
+#include <nvrm/535.113.01/nvidia/inc/kernel/gpu/gsp/gsp_init_args.h>
+#include <nvrm/535.113.01/nvidia/inc/kernel/gpu/gsp/gsp_static_config.h>
+#include <nvrm/535.113.01/nvidia/inc/kernel/gpu/intr/engine_idx.h>
+#include <nvrm/535.113.01/nvidia/kernel/inc/vgpu/rpc_global_enums.h>
 
 #include <linux/acpi.h>
 
+#define GSP_MSG_MIN_SIZE GSP_PAGE_SIZE
+#define GSP_MSG_MAX_SIZE GSP_PAGE_MIN_SIZE * 16
+
 struct r535_gsp_msg {
+	u8 auth_tag_buffer[16];
+	u8 aad_buffer[16];
 	u32 checksum;
 	u32 sequence;
+	u32 elem_count;
+	u32 pad;
 	u8  data[];
 };
+
+#define GSP_MSG_HDR_SIZE offsetof(struct r535_gsp_msg, data)
 
 static void *
 r535_gsp_msgq_wait(struct nvkm_gsp *gsp, u32 repc, u32 *prepc, int *ptime)
@@ -70,7 +79,7 @@ r535_gsp_msgq_wait(struct nvkm_gsp *gsp, u32 repc, u32 *prepc, int *ptime)
 	u8 *msg;
 	u32 len;
 
-	size = DIV_ROUND_UP(sizeof(*mqe) + repc, GSP_PAGE_SIZE);
+	size = DIV_ROUND_UP(GSP_MSG_HDR_SIZE + repc, GSP_PAGE_SIZE);
 	if (WARN_ON(!size || size >= gsp->msgq.cnt))
 		return ERR_PTR(-EINVAL);
 
@@ -135,20 +144,25 @@ r535_gsp_cmdq_push(struct nvkm_gsp *gsp, void *argv)
 	struct r535_gsp_msg *cqe;
 	u32 argc = cmd->checksum;
 	u64 *ptr = (void *)cmd;
-	u64 *end = (void *)cmd->data + argc;
+	u64 *end;
 	u64 csum = 0;
 	int free, time = 1000000;
 	u32 wptr, size;
 	u32 off = 0;
 
+	argc = ALIGN(GSP_MSG_HDR_SIZE + argc, GSP_PAGE_SIZE);
+
+	end = (u64 *)((char *)ptr + argc);
+	cmd->pad = 0;
 	cmd->checksum = 0;
 	cmd->sequence = gsp->cmdq.seq++;
+	cmd->elem_count = DIV_ROUND_UP(argc, 0x1000);
+
 	while (ptr < end)
 		csum ^= *ptr++;
 
 	cmd->checksum = upper_32_bits(csum) ^ lower_32_bits(csum);
 
-	argc = sizeof(*cmd) + argc;
 	wptr = *gsp->cmdq.wptr;
 	do {
 		do {
@@ -193,8 +207,10 @@ static void *
 r535_gsp_cmdq_get(struct nvkm_gsp *gsp, u32 argc)
 {
 	struct r535_gsp_msg *cmd;
+	u32 size = GSP_MSG_HDR_SIZE + argc;
 
-	cmd = kvzalloc(sizeof(*cmd) + argc, GFP_KERNEL);
+	size = ALIGN(size, GSP_MSG_MIN_SIZE);
+	cmd = kvzalloc(size, GFP_KERNEL);
 	if (!cmd)
 		return ERR_PTR(-ENOMEM);
 
@@ -2168,10 +2184,10 @@ r535_gsp_load(struct nvkm_gsp *gsp, int ver, const struct nvkm_gsp_fwif *fwif)
 }
 
 #define NVKM_GSP_FIRMWARE(chip)                                  \
-MODULE_FIRMWARE("nvidia/"#chip"/gsp/booter_load-535.54.03.bin");   \
-MODULE_FIRMWARE("nvidia/"#chip"/gsp/booter_unload-535.54.03.bin"); \
-MODULE_FIRMWARE("nvidia/"#chip"/gsp/bootloader-535.54.03.bin");    \
-MODULE_FIRMWARE("nvidia/"#chip"/gsp/gsp-535.54.03.bin")
+MODULE_FIRMWARE("nvidia/"#chip"/gsp/booter_load-535.113.01.bin");   \
+MODULE_FIRMWARE("nvidia/"#chip"/gsp/booter_unload-535.113.01.bin"); \
+MODULE_FIRMWARE("nvidia/"#chip"/gsp/bootloader-535.113.01.bin");    \
+MODULE_FIRMWARE("nvidia/"#chip"/gsp/gsp-535.113.01.bin")
 
 NVKM_GSP_FIRMWARE(tu102);
 NVKM_GSP_FIRMWARE(tu104);

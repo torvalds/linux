@@ -26,8 +26,8 @@
 #include <engine/fifo.h>
 
 #include <nvrm/nvtypes.h>
-#include <nvrm/535.54.03/common/sdk/nvidia/inc/class/cl2080_notification.h>
-#include <nvrm/535.54.03/common/sdk/nvidia/inc/class/clc0b5sw.h>
+#include <nvrm/535.113.01/common/sdk/nvidia/inc/class/cl2080_notification.h>
+#include <nvrm/535.113.01/common/sdk/nvidia/inc/class/clc0b5sw.h>
 
 struct r535_ce_obj {
 	struct nvkm_object object;

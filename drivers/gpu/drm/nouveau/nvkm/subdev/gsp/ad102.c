@@ -22,7 +22,7 @@
 #include "priv.h"
 
 static const struct nvkm_gsp_func
-ad102_gsp_r535_54_03 = {
+ad102_gsp_r535_113_01 = {
 	.flcn = &ga102_gsp_flcn,
 	.fwsec = &ga102_gsp_fwsec,
 
@@ -45,7 +45,7 @@ ad102_gsp_r535_54_03 = {
 
 static struct nvkm_gsp_fwif
 ad102_gsps[] = {
-	{ 0, r535_gsp_load, &ad102_gsp_r535_54_03, "535.54.03", true },
+	{ 0, r535_gsp_load, &ad102_gsp_r535_113_01, "535.113.01", true },
 	{}
 };
 

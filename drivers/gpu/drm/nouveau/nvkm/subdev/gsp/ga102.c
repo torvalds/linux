@@ -150,7 +150,7 @@ ga102_gsp_flcn = {
 };
 
 static const struct nvkm_gsp_func
-ga102_gsp_r535_54_03 = {
+ga102_gsp_r535_113_01 = {
 	.flcn = &ga102_gsp_flcn,
 	.fwsec = &ga102_gsp_fwsec,
 
@@ -178,7 +178,7 @@ ga102_gsp = {
 
 static struct nvkm_gsp_fwif
 ga102_gsps[] = {
-	{  0,  r535_gsp_load, &ga102_gsp_r535_54_03, "535.54.03" },
+	{  0,  r535_gsp_load, &ga102_gsp_r535_113_01, "535.113.01" },
 	{ -1, gv100_gsp_nofw, &ga102_gsp },
 	{}
 };

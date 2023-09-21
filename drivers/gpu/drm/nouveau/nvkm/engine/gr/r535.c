@@ -31,11 +31,11 @@
 #include <nvhw/drf.h>
 
 #include <nvrm/nvtypes.h>
-#include <nvrm/535.54.03/common/sdk/nvidia/inc/alloc/alloc_channel.h>
-#include <nvrm/535.54.03/common/sdk/nvidia/inc/ctrl/ctrl0080/ctrl0080fifo.h>
-#include <nvrm/535.54.03/common/sdk/nvidia/inc/ctrl/ctrl2080/ctrl2080gpu.h>
-#include <nvrm/535.54.03/common/sdk/nvidia/inc/ctrl/ctrl2080/ctrl2080internal.h>
-#include <nvrm/535.54.03/nvidia/generated/g_kernel_channel_nvoc.h>
+#include <nvrm/535.113.01/common/sdk/nvidia/inc/alloc/alloc_channel.h>
+#include <nvrm/535.113.01/common/sdk/nvidia/inc/ctrl/ctrl0080/ctrl0080fifo.h>
+#include <nvrm/535.113.01/common/sdk/nvidia/inc/ctrl/ctrl2080/ctrl2080gpu.h>
+#include <nvrm/535.113.01/common/sdk/nvidia/inc/ctrl/ctrl2080/ctrl2080internal.h>
+#include <nvrm/535.113.01/nvidia/generated/g_kernel_channel_nvoc.h>
 
 #define r535_gr(p) container_of((p), struct r535_gr, base)
 

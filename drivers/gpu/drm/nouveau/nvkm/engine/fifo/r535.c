@@ -34,16 +34,16 @@
 #include <nvhw/drf.h>
 
 #include <nvrm/nvtypes.h>
-#include <nvrm/535.54.03/common/sdk/nvidia/inc/alloc/alloc_channel.h>
-#include <nvrm/535.54.03/common/sdk/nvidia/inc/class/cl2080_notification.h>
-#include <nvrm/535.54.03/common/sdk/nvidia/inc/ctrl/ctrl2080/ctrl2080ce.h>
-#include <nvrm/535.54.03/common/sdk/nvidia/inc/ctrl/ctrl2080/ctrl2080fifo.h>
-#include <nvrm/535.54.03/common/sdk/nvidia/inc/ctrl/ctrl2080/ctrl2080gpu.h>
-#include <nvrm/535.54.03/common/sdk/nvidia/inc/ctrl/ctrl2080/ctrl2080internal.h>
-#include <nvrm/535.54.03/common/sdk/nvidia/inc/ctrl/ctrla06f/ctrla06fgpfifo.h>
-#include <nvrm/535.54.03/nvidia/generated/g_kernel_channel_nvoc.h>
-#include <nvrm/535.54.03/nvidia/generated/g_kernel_fifo_nvoc.h>
-#include <nvrm/535.54.03/nvidia/inc/kernel/gpu/gpu_engine_type.h>
+#include <nvrm/535.113.01/common/sdk/nvidia/inc/alloc/alloc_channel.h>
+#include <nvrm/535.113.01/common/sdk/nvidia/inc/class/cl2080_notification.h>
+#include <nvrm/535.113.01/common/sdk/nvidia/inc/ctrl/ctrl2080/ctrl2080ce.h>
+#include <nvrm/535.113.01/common/sdk/nvidia/inc/ctrl/ctrl2080/ctrl2080fifo.h>
+#include <nvrm/535.113.01/common/sdk/nvidia/inc/ctrl/ctrl2080/ctrl2080gpu.h>
+#include <nvrm/535.113.01/common/sdk/nvidia/inc/ctrl/ctrl2080/ctrl2080internal.h>
+#include <nvrm/535.113.01/common/sdk/nvidia/inc/ctrl/ctrla06f/ctrla06fgpfifo.h>
+#include <nvrm/535.113.01/nvidia/generated/g_kernel_channel_nvoc.h>
+#include <nvrm/535.113.01/nvidia/generated/g_kernel_fifo_nvoc.h>
+#include <nvrm/535.113.01/nvidia/inc/kernel/gpu/gpu_engine_type.h>
 
 static u32
 r535_chan_doorbell_handle(struct nvkm_chan *chan)

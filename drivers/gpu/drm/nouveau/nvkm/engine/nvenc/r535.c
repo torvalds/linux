@@ -26,7 +26,7 @@
 #include <engine/fifo.h>
 
 #include <nvrm/nvtypes.h>
-#include <nvrm/535.54.03/common/sdk/nvidia/inc/nvos.h>
+#include <nvrm/535.113.01/common/sdk/nvidia/inc/nvos.h>
 
 struct r535_nvenc_obj {
 	struct nvkm_object object;

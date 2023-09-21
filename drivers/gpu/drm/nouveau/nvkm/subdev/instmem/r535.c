@@ -26,12 +26,12 @@
 #include <nvhw/drf.h>
 
 #include <nvrm/nvtypes.h>
-#include <nvrm/535.54.03/common/sdk/nvidia/inc/class/cl84a0.h>
-#include <nvrm/535.54.03/common/sdk/nvidia/inc/ctrl/ctrl2080/ctrl2080internal.h>
-#include <nvrm/535.54.03/common/sdk/nvidia/inc/nvos.h>
-#include <nvrm/535.54.03/nvidia/generated/g_fbsr_nvoc.h>
-#include <nvrm/535.54.03/nvidia/generated/g_rpc-structures.h>
-#include <nvrm/535.54.03/nvidia/kernel/inc/vgpu/rpc_global_enums.h>
+#include <nvrm/535.113.01/common/sdk/nvidia/inc/class/cl84a0.h>
+#include <nvrm/535.113.01/common/sdk/nvidia/inc/ctrl/ctrl2080/ctrl2080internal.h>
+#include <nvrm/535.113.01/common/sdk/nvidia/inc/nvos.h>
+#include <nvrm/535.113.01/nvidia/generated/g_fbsr_nvoc.h>
+#include <nvrm/535.113.01/nvidia/generated/g_rpc-structures.h>
+#include <nvrm/535.113.01/nvidia/kernel/inc/vgpu/rpc_global_enums.h>
 
 struct fbsr_item {
 	const char *type;
