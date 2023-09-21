@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
  *
- * Copyright 2016-2022 HabanaLabs, Ltd.
+ * Copyright 2016-2023 HabanaLabs, Ltd.
  * All Rights Reserved.
  *
  */
@@ -885,11 +885,11 @@ enum hl_server_type {
  * @dram_enabled: Whether the DRAM is enabled.
  * @security_enabled: Whether security is enabled on device.
  * @mme_master_slave_mode: Indicate whether the MME is working in master/slave
- *                         configuration. Relevant for Greco and later.
+ *                         configuration. Relevant for Gaudi2 and later.
  * @cpucp_version: The CPUCP f/w version.
  * @card_name: The card name as passed by the f/w.
  * @tpc_enabled_mask_ext: Bit-mask that represents which TPCs are enabled.
- *                        Relevant for Greco and later.
+ *                        Relevant for Gaudi2 and later.
  * @dram_page_size: The DRAM physical page size.
  * @edma_enabled_mask: Bit-mask that represents which EDMAs are enabled.
  *                     Relevant for Gaudi2 and later.
@@ -1425,7 +1425,7 @@ union hl_cb_args {
  *
  * HL_CS_CHUNK_FLAGS_USER_ALLOC_CB:
  *      Indicates if the CB was allocated and mapped by userspace
- *      (relevant to greco and above). User allocated CB is a command buffer,
+ *      (relevant to Gaudi2 and later). User allocated CB is a command buffer,
  *      allocated by the user, via malloc (or similar). After allocating the
  *      CB, the user invokes - “memory ioctl” to map the user memory into a
  *      device virtual address. The user provides this address via the
@@ -1450,7 +1450,7 @@ struct hl_cs_chunk {
 		 * a DRAM address of the internal CB. In Gaudi, this might also
 		 * represent a mapped host address of the CB.
 		 *
-		 * Greco onwards:
+		 * Gaudi2 onwards:
 		 * For H/W queue, this represents either a Handle of CB on the
 		 * Host, or an SRAM, a DRAM, or a mapped host address of the CB.
 		 *
@@ -2227,7 +2227,7 @@ struct hl_debug_args {
  * internal. The driver will get completion notifications from the device only
  * on JOBS which are enqueued in the external queues.
  *
- * Greco onwards:
+ * Gaudi2 onwards:
  * There is a single type of queue for all types of engines, either DMA engines
  * for transfers from/to the host or inside the device, or compute engines.
  * The driver will get completion notifications from the device for all queues.
