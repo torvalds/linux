@@ -3257,6 +3257,7 @@ struct hl_reset_info {
  * @clk_throttling: holds information about current/previous clock throttling events
  * @captured_err_info: holds information about errors.
  * @reset_info: holds current device reset information.
+ * @irq_affinity_mask: mask of available CPU cores for user and decoder interrupt handling.
  * @stream_master_qid_arr: pointer to array with QIDs of master streams.
  * @fw_inner_major_ver: the major of current loaded preboot inner version.
  * @fw_inner_minor_ver: the minor of current loaded preboot inner version.
@@ -3445,6 +3446,8 @@ struct hl_device {
 	struct hl_error_info		captured_err_info;
 
 	struct hl_reset_info		reset_info;
+
+	cpumask_t			irq_affinity_mask;
 
 	u32				*stream_master_qid_arr;
 	u32				fw_inner_major_ver;
@@ -4032,6 +4035,8 @@ void hl_handle_critical_hw_err(struct hl_device *hdev, u16 event_id, u64 *event_
 void hl_handle_fw_err(struct hl_device *hdev, struct hl_info_fw_err_info *info);
 void hl_capture_engine_err(struct hl_device *hdev, u16 engine_id, u16 error_count);
 void hl_enable_err_info_capture(struct hl_error_info *captured_err_info);
+void hl_init_cpu_for_irq(struct hl_device *hdev);
+void hl_set_irq_affinity(struct hl_device *hdev, int irq);
 
 #ifdef CONFIG_DEBUG_FS
 

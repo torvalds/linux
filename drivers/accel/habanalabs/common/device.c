@@ -2801,3 +2801,35 @@ void hl_enable_err_info_capture(struct hl_error_info *captured_err_info)
 	atomic_set(&captured_err_info->cs_timeout.write_enable, 1);
 	captured_err_info->undef_opcode.write_enable = true;
 }
+
+void hl_init_cpu_for_irq(struct hl_device *hdev)
+{
+#ifdef CONFIG_NUMA
+	struct cpumask *available_mask = &hdev->irq_affinity_mask;
+	int numa_node = hdev->pdev->dev.numa_node, i;
+	static struct cpumask cpu_mask;
+
+	if (numa_node < 0)
+		return;
+
+	if (!cpumask_and(&cpu_mask, cpumask_of_node(numa_node), cpu_online_mask)) {
+		dev_err(hdev->dev, "No available affinities in current numa node\n");
+		return;
+	}
+
+	/* Remove HT siblings */
+	for_each_cpu(i, &cpu_mask)
+		cpumask_set_cpu(cpumask_first(topology_sibling_cpumask(i)), available_mask);
+#endif
+}
+
+void hl_set_irq_affinity(struct hl_device *hdev, int irq)
+{
+	if (cpumask_empty(&hdev->irq_affinity_mask)) {
+		dev_dbg(hdev->dev, "affinity mask is empty\n");
+		return;
+	}
+
+	if (irq_set_affinity_hint(irq, &hdev->irq_affinity_mask))
+		dev_err(hdev->dev, "Failed setting irq %d affinity\n", irq);
+}
