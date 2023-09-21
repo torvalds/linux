@@ -65,7 +65,7 @@ void rtllib_reset_ba_entry(struct ba_record *pBA)
 
 static struct sk_buff *rtllib_ADDBA(struct rtllib_device *ieee, u8 *dst,
 				    struct ba_record *pBA,
-				    u16 StatusCode, u8 type)
+				    u16 status_code, u8 type)
 {
 	struct sk_buff *skb = NULL;
 	struct ieee80211_hdr_3addr *BAReq = NULL;
@@ -101,7 +101,7 @@ static struct sk_buff *rtllib_ADDBA(struct rtllib_device *ieee, u8 *dst,
 	*tag++ = pBA->dialog_token;
 
 	if (type == ACT_ADDBARSP) {
-		put_unaligned_le16(StatusCode, tag);
+		put_unaligned_le16(status_code, tag);
 		tag += 2;
 	}
 
@@ -187,11 +187,11 @@ static void rtllib_send_ADDBAReq(struct rtllib_device *ieee, u8 *dst,
 }
 
 static void rtllib_send_ADDBARsp(struct rtllib_device *ieee, u8 *dst,
-				 struct ba_record *pBA, u16 StatusCode)
+				 struct ba_record *pBA, u16 status_code)
 {
 	struct sk_buff *skb;
 
-	skb = rtllib_ADDBA(ieee, dst, pBA, StatusCode, ACT_ADDBARSP);
+	skb = rtllib_ADDBA(ieee, dst, pBA, status_code, ACT_ADDBARSP);
 	if (skb)
 		softmac_mgmt_xmit(skb, ieee);
 	else
