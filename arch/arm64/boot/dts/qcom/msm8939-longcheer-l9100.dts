@@ -247,6 +247,10 @@
 	compatible = "qcom,wcn3620";
 };
 
+&wcnss_mem {
+	status = "okay";
+};
+
 &tlmm {
 	button_backlight_default: button-backlight-default-state {
 		pins = "gpio17";
