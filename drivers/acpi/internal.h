@@ -148,8 +148,11 @@ int acpi_wakeup_device_init(void);
 #ifdef CONFIG_ARCH_MIGHT_HAVE_ACPI_PDC
 void acpi_early_processor_control_setup(void);
 void acpi_early_processor_set_pdc(void);
-
+#ifdef CONFIG_X86
 void acpi_proc_quirk_mwait_check(void);
+#else
+static inline void acpi_proc_quirk_mwait_check(void) {}
+#endif
 bool processor_physically_present(acpi_handle handle);
 #else
 static inline void acpi_early_processor_control_setup(void) {}
