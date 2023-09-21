@@ -3,6 +3,7 @@
  * Copyright © 2022 Intel Corporation
  */
 
+#include "i915_drv.h"
 #include "intel_gt.h"
 #include "intel_gt_mcr.h"
 #include "intel_gt_print.h"
