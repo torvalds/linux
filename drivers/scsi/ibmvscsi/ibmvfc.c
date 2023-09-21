@@ -1489,7 +1489,7 @@ static void ibmvfc_set_login_info(struct ibmvfc_host *vhost)
 	max_cmds = scsi_qdepth + IBMVFC_NUM_INTERNAL_REQ;
 	if (mq_enabled)
 		max_cmds += (scsi_qdepth + IBMVFC_NUM_INTERNAL_SUBQ_REQ) *
-			vhost->client_scsi_channels;
+			vhost->scsi_scrqs.desired_queues;
 
 	memset(login_info, 0, sizeof(*login_info));
 
@@ -3578,11 +3578,12 @@ static ssize_t ibmvfc_show_scsi_channels(struct device *dev,
 {
 	struct Scsi_Host *shost = class_to_shost(dev);
 	struct ibmvfc_host *vhost = shost_priv(shost);
+	struct ibmvfc_channels *scsi = &vhost->scsi_scrqs;
 	unsigned long flags = 0;
 	int len;
 
 	spin_lock_irqsave(shost->host_lock, flags);
-	len = snprintf(buf, PAGE_SIZE, "%d\n", vhost->client_scsi_channels);
+	len = snprintf(buf, PAGE_SIZE, "%d\n", scsi->desired_queues);
 	spin_unlock_irqrestore(shost->host_lock, flags);
 	return len;
 }
@@ -3593,12 +3594,13 @@ static ssize_t ibmvfc_store_scsi_channels(struct device *dev,
 {
 	struct Scsi_Host *shost = class_to_shost(dev);
 	struct ibmvfc_host *vhost = shost_priv(shost);
+	struct ibmvfc_channels *scsi = &vhost->scsi_scrqs;
 	unsigned long flags = 0;
 	unsigned int channels;
 
 	spin_lock_irqsave(shost->host_lock, flags);
 	channels = simple_strtoul(buf, NULL, 10);
-	vhost->client_scsi_channels = min(channels, nr_scsi_hw_queues);
+	scsi->desired_queues = min(channels, shost->nr_hw_queues);
 	ibmvfc_hard_reset_host(vhost);
 	spin_unlock_irqrestore(shost->host_lock, flags);
 	return strlen(buf);
@@ -5066,7 +5068,7 @@ static void ibmvfc_channel_setup(struct ibmvfc_host *vhost)
 	struct ibmvfc_event *evt = ibmvfc_get_reserved_event(&vhost->crq);
 	struct ibmvfc_channels *scrqs = &vhost->scsi_scrqs;
 	unsigned int num_channels =
-		min(vhost->client_scsi_channels, vhost->max_vios_scsi_channels);
+		min(scrqs->desired_queues, vhost->max_vios_scsi_channels);
 	int level = IBMVFC_DEFAULT_LOG_LEVEL;
 	int i;
 
@@ -6290,7 +6292,8 @@ static int ibmvfc_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 	vhost->task_set = 1;
 
 	vhost->mq_enabled = mq_enabled;
-	vhost->client_scsi_channels = min(shost->nr_hw_queues, nr_scsi_channels);
+	vhost->scsi_scrqs.desired_queues = min(shost->nr_hw_queues, nr_scsi_channels);
+	vhost->scsi_scrqs.max_queues = shost->nr_hw_queues;
 	vhost->using_channels = 0;
 	vhost->do_enquiry = 1;
 	vhost->scan_timeout = 0;

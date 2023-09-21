@@ -818,6 +818,8 @@ struct ibmvfc_queue {
 struct ibmvfc_channels {
 	struct ibmvfc_queue *scrqs;
 	unsigned int active_queues;
+	unsigned int desired_queues;
+	unsigned int max_queues;
 };
 
 enum ibmvfc_host_action {
@@ -876,8 +878,7 @@ struct ibmvfc_host {
 	int log_level;
 	struct ibmvfc_discover_targets_entry *disc_buf;
 	struct mutex passthru_mutex;
-	int max_vios_scsi_channels;
-	int client_scsi_channels;
+	unsigned int max_vios_scsi_channels;
 	int task_set;
 	int init_retries;
 	int discovery_threads;
