@@ -233,14 +233,16 @@ static bool update_trip_devices(struct acpi_thermal *tz,
 	return true;
 }
 
-static void acpi_thermal_update_passive_devices(struct acpi_thermal *tz)
+static void acpi_thermal_update_trip_devices(struct acpi_thermal *tz, int index)
 {
-	struct acpi_thermal_trip *acpi_trip = &tz->trips.passive.trip;
+	struct acpi_thermal_trip *acpi_trip;
 
+	acpi_trip = index == ACPI_THERMAL_TRIP_PASSIVE ?
+			&tz->trips.passive.trip : &tz->trips.active[index].trip;
 	if (!acpi_thermal_trip_valid(acpi_trip))
 		return;
 
-	if (update_trip_devices(tz, acpi_trip, ACPI_THERMAL_TRIP_PASSIVE, true)) {
+	if (update_trip_devices(tz, acpi_trip, index, true)) {
 		return;
 	}
 
@@ -283,20 +285,6 @@ static void acpi_thermal_update_active_trip(struct acpi_thermal *tz, int index)
 		ACPI_THERMAL_TRIPS_EXCEPTION(tz, "state");
 }
 
-static void acpi_thermal_update_active_devices(struct acpi_thermal *tz, int index)
-{
-	struct acpi_thermal_trip *acpi_trip = &tz->trips.active[index].trip;
-
-	if (!acpi_thermal_trip_valid(acpi_trip))
-		return;
-
-	if (update_trip_devices(tz, acpi_trip, index, true))
-		return;
-
-	acpi_trip->temperature = THERMAL_TEMP_INVALID;
-	ACPI_THERMAL_TRIPS_EXCEPTION(tz, "state");
-}
-
 static int acpi_thermal_adjust_trip(struct thermal_trip *trip, void *data)
 {
 	struct acpi_thermal_trip *acpi_trip = trip->priv;
@@ -324,9 +312,9 @@ static void acpi_thermal_adjust_thermal_zone(struct thermal_zone_device *thermal
 		for (i = 0; i < ACPI_THERMAL_MAX_ACTIVE; i++)
 			acpi_thermal_update_active_trip(tz, i);
 	} else {
-		acpi_thermal_update_passive_devices(tz);
+		acpi_thermal_update_trip_devices(tz, ACPI_THERMAL_TRIP_PASSIVE);
 		for (i = 0; i < ACPI_THERMAL_MAX_ACTIVE; i++)
-			acpi_thermal_update_active_devices(tz, i);
+			acpi_thermal_update_trip_devices(tz, i);
 	}
 
 	for_each_thermal_trip(tz->thermal_zone, acpi_thermal_adjust_trip, tz);
