@@ -1959,7 +1959,9 @@ static int rockchip_i2s_tdm_dai_probe(struct snd_soc_dai *dai)
 	dai->playback_dma_data = &i2s_tdm->playback_dma_data;
 
 	if (i2s_tdm->mclk_calibrate)
-		snd_soc_add_dai_controls(dai, &rockchip_i2s_tdm_compensation_control, 1);
+		snd_soc_add_component_controls(dai->component,
+					       &rockchip_i2s_tdm_compensation_control,
+					       1);
 
 	return 0;
 }
