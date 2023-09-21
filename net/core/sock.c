@@ -1160,6 +1160,27 @@ int sk_setsockopt(struct sock *sk, int level, int optname,
 		WRITE_ONCE(sk->sk_busy_poll_budget, val);
 		return 0;
 #endif
+	case SO_MAX_PACING_RATE:
+		{
+		unsigned long ulval = (val == ~0U) ? ~0UL : (unsigned int)val;
+		unsigned long pacing_rate;
+
+		if (sizeof(ulval) != sizeof(val) &&
+		    optlen >= sizeof(ulval) &&
+		    copy_from_sockptr(&ulval, optval, sizeof(ulval))) {
+			return -EFAULT;
+		}
+		if (ulval != ~0UL)
+			cmpxchg(&sk->sk_pacing_status,
+				SK_PACING_NONE,
+				SK_PACING_NEEDED);
+		/* Pairs with READ_ONCE() from sk_getsockopt() */
+		WRITE_ONCE(sk->sk_max_pacing_rate, ulval);
+		pacing_rate = READ_ONCE(sk->sk_pacing_rate);
+		if (ulval < pacing_rate)
+			WRITE_ONCE(sk->sk_pacing_rate, ulval);
+		return 0;
+		}
 	}
 
 	sockopt_lock_sock(sk);
@@ -1423,25 +1444,6 @@ set_sndbuf:
 		break;
 
 
-	case SO_MAX_PACING_RATE:
-		{
-		unsigned long ulval = (val == ~0U) ? ~0UL : (unsigned int)val;
-
-		if (sizeof(ulval) != sizeof(val) &&
-		    optlen >= sizeof(ulval) &&
-		    copy_from_sockptr(&ulval, optval, sizeof(ulval))) {
-			ret = -EFAULT;
-			break;
-		}
-		if (ulval != ~0UL)
-			cmpxchg(&sk->sk_pacing_status,
-				SK_PACING_NONE,
-				SK_PACING_NEEDED);
-		/* Pairs with READ_ONCE() from sk_getsockopt() */
-		WRITE_ONCE(sk->sk_max_pacing_rate, ulval);
-		sk->sk_pacing_rate = min(sk->sk_pacing_rate, ulval);
-		break;
-		}
 	case SO_INCOMING_CPU:
 		reuseport_update_incoming_cpu(sk, val);
 		break;
