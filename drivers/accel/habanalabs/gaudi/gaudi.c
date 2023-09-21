@@ -4623,8 +4623,7 @@ static int gaudi_scrub_device_dram(struct hl_device *hdev, u64 val)
 static int gaudi_scrub_device_mem(struct hl_device *hdev)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
-	u64 wait_to_idle_time = hdev->pdev ? HBM_SCRUBBING_TIMEOUT_US :
-			min_t(u64, HBM_SCRUBBING_TIMEOUT_US * 10, HL_SIM_MAX_TIMEOUT_US);
+	u64 wait_to_idle_time = HBM_SCRUBBING_TIMEOUT_US;
 	u64 addr, size, val = hdev->memory_scrub_val;
 	ktime_t timeout;
 	int rc = 0;

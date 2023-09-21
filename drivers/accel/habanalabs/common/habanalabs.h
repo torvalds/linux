@@ -85,8 +85,6 @@ struct hl_fpriv;
 
 #define HL_PCI_ELBI_TIMEOUT_MSEC	10 /* 10ms */
 
-#define HL_SIM_MAX_TIMEOUT_US		100000000 /* 100s */
-
 #define HL_INVALID_QUEUE		UINT_MAX
 
 #define HL_COMMON_USER_CQ_INTERRUPT_ID	0xFFF
