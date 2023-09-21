@@ -257,12 +257,45 @@ the second byte and Y'\ :sub:`7-0` in the third byte.
     - The padding bits contain undefined values that must be ignored by all
       applications and drivers.
 
+The next table lists the packed YUV 4:4:4 formats with 12 bits per component.
+Expand the bits per component to 16 bits, data in the high bits, zeros in the low bits,
+arranged in little endian order, storing 1 pixel in 6 bytes.
+
+.. flat-table:: Packed YUV 4:4:4 Image Formats (12bpc)
+    :header-rows: 1
+    :stub-columns: 0
+
+    * - Identifier
+      - Code
+      - Byte 1-0
+      - Byte 3-2
+      - Byte 5-4
+      - Byte 7-6
+      - Byte 9-8
+      - Byte 11-10
+
+    * .. _V4L2-PIX-FMT-YUV48-12:
+
+      - ``V4L2_PIX_FMT_YUV48_12``
+      - 'Y312'
+
+      - Y'\ :sub:`0`
+      - Cb\ :sub:`0`
+      - Cr\ :sub:`0`
+      - Y'\ :sub:`1`
+      - Cb\ :sub:`1`
+      - Cr\ :sub:`1`
 
 4:2:2 Subsampling
 =================
 
 These formats, commonly referred to as YUYV or YUY2, subsample the chroma
-components horizontally by 2, storing 2 pixels in 4 bytes.
+components horizontally by 2, storing 2 pixels in a container. The container
+is 32-bits for 8-bit formats, and 64-bits for 10+-bit formats.
+
+The packed YUYV formats with more than 8 bits per component are stored as four
+16-bit little-endian words. Each word's most significant bits contain one
+component, and the least significant bits are zero padding.
 
 .. raw:: latex
 
@@ -270,7 +303,7 @@ components horizontally by 2, storing 2 pixels in 4 bytes.
 
 .. tabularcolumns:: |p{3.4cm}|p{1.2cm}|p{0.8cm}|p{0.8cm}|p{0.8cm}|p{0.8cm}|p{0.8cm}|p{0.8cm}|p{0.8cm}|p{0.8cm}|
 
-.. flat-table:: Packed YUV 4:2:2 Formats
+.. flat-table:: Packed YUV 4:2:2 Formats in 32-bit container
     :header-rows: 1
     :stub-columns: 0
 
@@ -336,6 +369,46 @@ components horizontally by 2, storing 2 pixels in 4 bytes.
       - Cr\ :sub:`2`
       - Y'\ :sub:`3`
       - Cb\ :sub:`2`
+
+.. tabularcolumns:: |p{3.4cm}|p{1.2cm}|p{0.8cm}|p{0.8cm}|p{0.8cm}|p{0.8cm}|p{0.8cm}|p{0.8cm}|p{0.8cm}|p{0.8cm}|
+
+.. flat-table:: Packed YUV 4:2:2 Formats in 64-bit container
+    :header-rows: 1
+    :stub-columns: 0
+
+    * - Identifier
+      - Code
+      - Word 0
+      - Word 1
+      - Word 2
+      - Word 3
+    * .. _V4L2-PIX-FMT-Y210:
+
+      - ``V4L2_PIX_FMT_Y210``
+      - 'Y210'
+
+      - Y'\ :sub:`0` (bits 15-6)
+      - Cb\ :sub:`0` (bits 15-6)
+      - Y'\ :sub:`1` (bits 15-6)
+      - Cr\ :sub:`0` (bits 15-6)
+    * .. _V4L2-PIX-FMT-Y212:
+
+      - ``V4L2_PIX_FMT_Y212``
+      - 'Y212'
+
+      - Y'\ :sub:`0` (bits 15-4)
+      - Cb\ :sub:`0` (bits 15-4)
+      - Y'\ :sub:`1` (bits 15-4)
+      - Cr\ :sub:`0` (bits 15-4)
+    * .. _V4L2-PIX-FMT-Y216:
+
+      - ``V4L2_PIX_FMT_Y216``
+      - 'Y216'
+
+      - Y'\ :sub:`0` (bits 15-0)
+      - Cb\ :sub:`0` (bits 15-0)
+      - Y'\ :sub:`1` (bits 15-0)
+      - Cr\ :sub:`0` (bits 15-0)
 
 .. raw:: latex
 

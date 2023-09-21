@@ -19,6 +19,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
+#include <linux/llist.h>
 #include <linux/mm.h>
 #include <linux/proc_fs.h>
 #include <linux/profile.h>
@@ -629,7 +630,6 @@ static const struct proc_ops uid_procstat_fops = {
 };
 
 struct update_stats_work {
-	struct work_struct work;
 	uid_t uid;
 #ifdef CONFIG_UID_SYS_STATS_DEBUG
 	struct task_struct *task;
@@ -637,38 +637,46 @@ struct update_stats_work {
 	struct task_io_accounting ioac;
 	u64 utime;
 	u64 stime;
+	struct llist_node node;
 };
+
+static LLIST_HEAD(work_usw);
 
 static void update_stats_workfn(struct work_struct *work)
 {
-	struct update_stats_work *usw =
-		container_of(work, struct update_stats_work, work);
+	struct update_stats_work *usw, *t;
 	struct uid_entry *uid_entry;
 	struct task_entry *task_entry __maybe_unused;
+	struct llist_node *node;
 
 	rt_mutex_lock(&uid_lock);
-	uid_entry = find_uid_entry(usw->uid);
-	if (!uid_entry)
-		goto exit;
 
-	uid_entry->utime += usw->utime;
-	uid_entry->stime += usw->stime;
+	node = llist_del_all(&work_usw);
+	llist_for_each_entry_safe(usw, t, node, node) {
+		uid_entry = find_uid_entry(usw->uid);
+		if (!uid_entry)
+			goto next;
+
+		uid_entry->utime += usw->utime;
+		uid_entry->stime += usw->stime;
 
 #ifdef CONFIG_UID_SYS_STATS_DEBUG
-	task_entry = find_task_entry(uid_entry, usw->task);
-	if (!task_entry)
-		goto exit;
-	add_uid_tasks_io_stats(task_entry, &usw->ioac,
-			       UID_STATE_DEAD_TASKS);
+		task_entry = find_task_entry(uid_entry, usw->task);
+		if (!task_entry)
+			goto next;
+		add_uid_tasks_io_stats(task_entry, &usw->ioac,
+				       UID_STATE_DEAD_TASKS);
 #endif
-	__add_uid_io_stats(uid_entry, &usw->ioac, UID_STATE_DEAD_TASKS);
-exit:
+		__add_uid_io_stats(uid_entry, &usw->ioac, UID_STATE_DEAD_TASKS);
+next:
+#ifdef CONFIG_UID_SYS_STATS_DEBUG
+		put_task_struct(usw->task);
+#endif
+		kfree(usw);
+	}
 	rt_mutex_unlock(&uid_lock);
-#ifdef CONFIG_UID_SYS_STATS_DEBUG
-	put_task_struct(usw->task);
-#endif
-	kfree(usw);
 }
+static DECLARE_WORK(update_stats_work, update_stats_workfn);
 
 static int process_notifier(struct notifier_block *self,
 			unsigned long cmd, void *v)
@@ -687,7 +695,6 @@ static int process_notifier(struct notifier_block *self,
 
 		usw = kmalloc(sizeof(struct update_stats_work), GFP_KERNEL);
 		if (usw) {
-			INIT_WORK(&usw->work, update_stats_workfn);
 			usw->uid = uid;
 #ifdef CONFIG_UID_SYS_STATS_DEBUG
 			usw->task = get_task_struct(task);
@@ -698,7 +705,8 @@ static int process_notifier(struct notifier_block *self,
 			 */
 			usw->ioac = task->ioac;
 			task_cputime_adjusted(task, &usw->utime, &usw->stime);
-			schedule_work(&usw->work);
+			llist_add(&usw->node, &work_usw);
+			schedule_work(&update_stats_work);
 		}
 		return NOTIFY_OK;
 	}

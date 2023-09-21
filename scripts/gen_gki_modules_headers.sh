@@ -108,7 +108,7 @@ if [ "$(basename "${TARGET}")" = "gki_module_unprotected.h" ]; then
 	generate_header "${TARGET}" "${GKI_VENDOR_SYMBOLS}" "unprotected"
 else
 	# Sorted list of exported symbols
-	GKI_EXPORTED_SYMBOLS="${objtree}/abi_gki_protected_exports"
+	GKI_EXPORTED_SYMBOLS="include/config/abi_gki_protected_exports"
 
 	if [ -z "${SYMBOL_LIST}" ]; then
 		# Create empty list if ARCH doesn't have protected exports

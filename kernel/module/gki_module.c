@@ -16,8 +16,8 @@
  * gki_module_protected_exports.h -- Symbols protected from _export_ by unsigned modules
  * gki_module_unprotected.h -- Symbols allowed to _access_ by unsigned modules
  */
-#include "gki_module_protected_exports.h"
-#include "gki_module_unprotected.h"
+#include <generated/gki_module_protected_exports.h>
+#include <generated/gki_module_unprotected.h>
 
 #define MAX_STRCMP_LEN (max(MAX_UNPROTECTED_NAME_LEN, MAX_PROTECTED_EXPORTS_NAME_LEN))
 

@@ -42,28 +42,26 @@ static inline size_t packed_ea_size(const struct EA_FULL *ea)
  * Assume there is at least one xattr in the list.
  */
 static inline bool find_ea(const struct EA_FULL *ea_all, u32 bytes,
-			   const char *name, u8 name_len, u32 *off)
+			   const char *name, u8 name_len, u32 *off, u32 *ea_sz)
 {
-	*off = 0;
+	u32 ea_size;
 
-	if (!ea_all || !bytes)
+	*off = 0;
+	if (!ea_all)
 		return false;
 
-	for (;;) {
+	for (; *off < bytes; *off += ea_size) {
 		const struct EA_FULL *ea = Add2Ptr(ea_all, *off);
-		u32 next_off = *off + unpacked_ea_size(ea);
-
-		if (next_off > bytes)
-			return false;
-
+		ea_size = unpacked_ea_size(ea);
 		if (ea->name_len == name_len &&
-		    !memcmp(ea->name, name, name_len))
+		    !memcmp(ea->name, name, name_len)) {
+			if (ea_sz)
+				*ea_sz = ea_size;
 			return true;
-
-		*off = next_off;
-		if (next_off >= bytes)
-			return false;
+		}
 	}
+
+	return false;
 }
 
 /*
@@ -74,12 +72,12 @@ static inline bool find_ea(const struct EA_FULL *ea_all, u32 bytes,
 static int ntfs_read_ea(struct ntfs_inode *ni, struct EA_FULL **ea,
 			size_t add_bytes, const struct EA_INFO **info)
 {
-	int err;
+	int err = -EINVAL;
 	struct ntfs_sb_info *sbi = ni->mi.sbi;
 	struct ATTR_LIST_ENTRY *le = NULL;
 	struct ATTRIB *attr_info, *attr_ea;
 	void *ea_p;
-	u32 size;
+	u32 size, off, ea_size;
 
 	static_assert(le32_to_cpu(ATTR_EA_INFO) < le32_to_cpu(ATTR_EA));
 
@@ -96,24 +94,31 @@ static int ntfs_read_ea(struct ntfs_inode *ni, struct EA_FULL **ea,
 
 	*info = resident_data_ex(attr_info, sizeof(struct EA_INFO));
 	if (!*info)
-		return -EINVAL;
+		goto out;
 
 	/* Check Ea limit. */
 	size = le32_to_cpu((*info)->size);
-	if (size > sbi->ea_max_size)
-		return -EFBIG;
+	if (size > sbi->ea_max_size) {
+		err = -EFBIG;
+		goto out;
+	}
 
-	if (attr_size(attr_ea) > sbi->ea_max_size)
-		return -EFBIG;
+	if (attr_size(attr_ea) > sbi->ea_max_size) {
+		err = -EFBIG;
+		goto out;
+	}
+
+	if (!size) {
+		/* EA info persists, but xattr is empty. Looks like EA problem. */
+		goto out;
+	}
 
 	/* Allocate memory for packed Ea. */
 	ea_p = kmalloc(size_add(size, add_bytes), GFP_NOFS);
 	if (!ea_p)
 		return -ENOMEM;
 
-	if (!size) {
-		/* EA info persists, but xattr is empty. Looks like EA problem. */
-	} else if (attr_ea->non_res) {
+	if (attr_ea->non_res) {
 		struct runs_tree run;
 
 		run_init(&run);
@@ -124,24 +129,52 @@ static int ntfs_read_ea(struct ntfs_inode *ni, struct EA_FULL **ea,
 		run_close(&run);
 
 		if (err)
-			goto out;
+			goto out1;
 	} else {
 		void *p = resident_data_ex(attr_ea, size);
 
-		if (!p) {
-			err = -EINVAL;
-			goto out;
-		}
+		if (!p)
+			goto out1;
 		memcpy(ea_p, p, size);
 	}
 
 	memset(Add2Ptr(ea_p, size), 0, add_bytes);
+
+	/* Check all attributes for consistency. */
+	for (off = 0; off < size; off += ea_size) {
+		const struct EA_FULL *ef = Add2Ptr(ea_p, off);
+		u32 bytes = size - off;
+
+		/* Check if we can use field ea->size. */
+		if (bytes < sizeof(ef->size))
+			goto out1;
+
+		if (ef->size) {
+			ea_size = le32_to_cpu(ef->size);
+			if (ea_size > bytes)
+				goto out1;
+			continue;
+		}
+
+		/* Check if we can use fields ef->name_len and ef->elength. */
+		if (bytes < offsetof(struct EA_FULL, name))
+			goto out1;
+
+		ea_size = ALIGN(struct_size(ef, name,
+					    1 + ef->name_len +
+						    le16_to_cpu(ef->elength)),
+				4);
+		if (ea_size > bytes)
+			goto out1;
+	}
+
 	*ea = ea_p;
 	return 0;
 
-out:
+out1:
 	kfree(ea_p);
-	*ea = NULL;
+out:
+	ntfs_set_state(sbi, NTFS_DIRTY_DIRTY);
 	return err;
 }
 
@@ -163,6 +196,7 @@ static ssize_t ntfs_list_ea(struct ntfs_inode *ni, char *buffer,
 	const struct EA_FULL *ea;
 	u32 off, size;
 	int err;
+	int ea_size;
 	size_t ret;
 
 	err = ntfs_read_ea(ni, &ea_all, 0, &info);
@@ -175,8 +209,9 @@ static ssize_t ntfs_list_ea(struct ntfs_inode *ni, char *buffer,
 	size = le32_to_cpu(info->size);
 
 	/* Enumerate all xattrs. */
-	for (ret = 0, off = 0; off < size; off += unpacked_ea_size(ea)) {
+	for (ret = 0, off = 0; off < size; off += ea_size) {
 		ea = Add2Ptr(ea_all, off);
+		ea_size = unpacked_ea_size(ea);
 
 		if (buffer) {
 			if (ret + ea->name_len + 1 > bytes_per_buffer) {
@@ -227,7 +262,8 @@ static int ntfs_get_ea(struct inode *inode, const char *name, size_t name_len,
 		goto out;
 
 	/* Enumerate all xattrs. */
-	if (!find_ea(ea_all, le32_to_cpu(info->size), name, name_len, &off)) {
+	if (!find_ea(ea_all, le32_to_cpu(info->size), name, name_len, &off,
+		     NULL)) {
 		err = -ENODATA;
 		goto out;
 	}
@@ -269,7 +305,7 @@ static noinline int ntfs_set_ea(struct inode *inode, const char *name,
 	struct EA_FULL *new_ea;
 	struct EA_FULL *ea_all = NULL;
 	size_t add, new_pack;
-	u32 off, size;
+	u32 off, size, ea_sz;
 	__le16 size_pack;
 	struct ATTRIB *attr;
 	struct ATTR_LIST_ENTRY *le;
@@ -304,9 +340,8 @@ static noinline int ntfs_set_ea(struct inode *inode, const char *name,
 		size_pack = ea_info.size_pack;
 	}
 
-	if (info && find_ea(ea_all, size, name, name_len, &off)) {
+	if (info && find_ea(ea_all, size, name, name_len, &off, &ea_sz)) {
 		struct EA_FULL *ea;
-		size_t ea_sz;
 
 		if (flags & XATTR_CREATE) {
 			err = -EEXIST;
@@ -328,8 +363,6 @@ static noinline int ntfs_set_ea(struct inode *inode, const char *name,
 		/* Remove current xattr. */
 		if (ea->flags & FILE_NEED_EA)
 			le16_add_cpu(&ea_info.count, -1);
-
-		ea_sz = unpacked_ea_size(ea);
 
 		le16_add_cpu(&ea_info.size_pack, 0 - packed_ea_size(ea));
 

@@ -113,15 +113,9 @@ void do_page_fault(unsigned long address, struct pt_regs *regs)
 
 	perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS, 1, regs, address);
 retry:
-	mmap_read_lock(mm);
-
-	vma = find_vma(mm, address);
+	vma = lock_mm_and_find_vma(mm, address, regs);
 	if (!vma)
-		goto bad_area;
-	if (unlikely(address < vma->vm_start)) {
-		if (!(vma->vm_flags & VM_GROWSDOWN) || expand_stack(vma, address))
-			goto bad_area;
-	}
+		goto bad_area_nosemaphore;
 
 	/*
 	 * vm_area is good, now check permissions for this memory access
@@ -161,6 +155,7 @@ retry:
 bad_area:
 	mmap_read_unlock(mm);
 
+bad_area_nosemaphore:
 	/*
 	 * Major/minor page fault accounting
 	 * (in case of retry we only land here once)

@@ -694,6 +694,7 @@ static __latent_entropy int dup_mmap(struct mm_struct *mm,
 	mas_for_each(&old_mas, mpnt, ULONG_MAX) {
 		struct file *file;
 
+		vma_start_write(mpnt);
 		if (mpnt->vm_flags & VM_DONTCOPY) {
 			vm_stat_account(mm, mpnt->vm_flags, -vma_pages(mpnt));
 			continue;
