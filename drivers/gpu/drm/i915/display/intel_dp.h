@@ -26,7 +26,14 @@ struct intel_encoder;
 struct link_config_limits {
 	int min_rate, max_rate;
 	int min_lane_count, max_lane_count;
-	int min_bpp, max_bpp;
+	struct {
+		/* Uncompressed DSC input or link output bpp in 1 bpp units */
+		int min_bpp, max_bpp;
+	} pipe;
+	struct {
+		/* Compressed or uncompressed link output bpp in 1/16 bpp units */
+		int min_bpp_x16, max_bpp_x16;
+	} link;
 };
 
 void intel_edp_fixup_vbt_bpp(struct intel_encoder *encoder, int pipe_bpp);

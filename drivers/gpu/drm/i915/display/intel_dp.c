@@ -1470,7 +1470,7 @@ intel_dp_adjust_compliance_config(struct intel_dp *intel_dp,
 	if (intel_dp->compliance.test_data.bpc != 0) {
 		int bpp = 3 * intel_dp->compliance.test_data.bpc;
 
-		limits->min_bpp = limits->max_bpp = bpp;
+		limits->pipe.min_bpp = limits->pipe.max_bpp = bpp;
 		pipe_config->dither_force_disable = bpp == 6 * 3;
 
 		drm_dbg_kms(&i915->drm, "Setting pipe_bpp to %d\n", bpp);
@@ -1532,7 +1532,9 @@ intel_dp_compute_link_config_wide(struct intel_dp *intel_dp,
 	int bpp, i, lane_count, clock = intel_dp_mode_clock(pipe_config, conn_state);
 	int mode_rate, link_rate, link_avail;
 
-	for (bpp = limits->max_bpp; bpp >= limits->min_bpp; bpp -= 2 * 3) {
+	for (bpp = to_bpp_int(limits->link.max_bpp_x16);
+	     bpp >= to_bpp_int(limits->link.min_bpp_x16);
+	     bpp -= 2 * 3) {
 		int link_bpp = intel_dp_output_bpp(pipe_config->output_format, bpp);
 
 		mode_rate = intel_dp_link_required(clock, link_bpp);
@@ -1958,8 +1960,8 @@ bool is_dsc_pipe_bpp_sufficient(struct drm_i915_private *i915,
 	dsc_max_bpc = min(intel_dp_dsc_max_src_input_bpc(i915), conn_state->max_requested_bpc);
 	dsc_min_bpc = intel_dp_dsc_min_src_input_bpc(i915);
 
-	dsc_max_pipe_bpp = min(dsc_max_bpc * 3, limits->max_bpp);
-	dsc_min_pipe_bpp = max(dsc_min_bpc * 3, limits->min_bpp);
+	dsc_max_pipe_bpp = min(dsc_max_bpc * 3, limits->pipe.max_bpp);
+	dsc_min_pipe_bpp = max(dsc_min_bpc * 3, limits->pipe.min_bpp);
 
 	return pipe_bpp >= dsc_min_pipe_bpp &&
 	       pipe_bpp <= dsc_max_pipe_bpp;
@@ -2019,10 +2021,10 @@ static int intel_dp_dsc_compute_pipe_bpp(struct intel_dp *intel_dp,
 		return -EINVAL;
 
 	dsc_max_bpc = min_t(u8, dsc_max_bpc, max_req_bpc);
-	dsc_max_bpp = min(dsc_max_bpc * 3, limits->max_bpp);
+	dsc_max_bpp = min(dsc_max_bpc * 3, limits->pipe.max_bpp);
 
 	dsc_min_bpc = intel_dp_dsc_min_src_input_bpc(i915);
-	dsc_min_bpp = max(dsc_min_bpc * 3, limits->min_bpp);
+	dsc_min_bpp = max(dsc_min_bpc * 3, limits->pipe.min_bpp);
 
 	/*
 	 * Get the maximum DSC bpc that will be supported by any valid
@@ -2061,7 +2063,7 @@ static int intel_edp_dsc_compute_pipe_bpp(struct intel_dp *intel_dp,
 	if (forced_bpp) {
 		pipe_bpp = forced_bpp;
 	} else {
-		int max_bpc = min(limits->max_bpp / 3, (int)conn_state->max_requested_bpc);
+		int max_bpc = min(limits->pipe.max_bpp / 3, (int)conn_state->max_requested_bpc);
 
 		/* For eDP use max bpp that can be supported with DSC. */
 		pipe_bpp = intel_dp_dsc_compute_max_bpp(intel_dp, max_bpc);
@@ -2204,9 +2206,9 @@ intel_dp_compute_config_limits(struct intel_dp *intel_dp,
 	limits->min_lane_count = 1;
 	limits->max_lane_count = intel_dp_max_lane_count(intel_dp);
 
-	limits->min_bpp = intel_dp_min_bpp(crtc_state->output_format);
-	limits->max_bpp = intel_dp_max_bpp(intel_dp, crtc_state,
-					   respect_downstream_limits);
+	limits->pipe.min_bpp = intel_dp_min_bpp(crtc_state->output_format);
+	limits->pipe.max_bpp = intel_dp_max_bpp(intel_dp, crtc_state,
+						     respect_downstream_limits);
 
 	if (intel_dp->use_max_params) {
 		/*
@@ -2223,10 +2225,13 @@ intel_dp_compute_config_limits(struct intel_dp *intel_dp,
 
 	intel_dp_adjust_compliance_config(intel_dp, crtc_state, limits);
 
+	limits->link.min_bpp_x16 = to_bpp_x16(limits->pipe.min_bpp);
+	limits->link.max_bpp_x16 = to_bpp_x16(limits->pipe.max_bpp);
+
 	drm_dbg_kms(&i915->drm, "DP link computation with max lane count %i "
 		    "max rate %d max bpp %d pixel clock %iKHz\n",
 		    limits->max_lane_count, limits->max_rate,
-		    limits->max_bpp, adjusted_mode->crtc_clock);
+		    to_bpp_int(limits->link.max_bpp_x16), adjusted_mode->crtc_clock);
 }
 
 static int
