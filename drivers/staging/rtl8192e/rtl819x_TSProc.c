@@ -120,7 +120,7 @@ static void ResetRxTsEntry(struct rx_ts_record *ts)
 	rtllib_reset_ba_entry(&ts->rx_admitted_ba_record);
 }
 
-void TSInitialize(struct rtllib_device *ieee)
+void rtllib_ts_init(struct rtllib_device *ieee)
 {
 	struct tx_ts_record *pTxTS  = ieee->TxTsRecord;
 	struct rx_ts_record *rxts  = ieee->RxTsRecord;
