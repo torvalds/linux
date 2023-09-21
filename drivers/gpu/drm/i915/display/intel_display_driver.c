@@ -380,6 +380,8 @@ int intel_display_driver_probe(struct drm_i915_private *i915)
 
 void intel_display_driver_register(struct drm_i915_private *i915)
 {
+	struct drm_printer p = drm_debug_printer("i915 display info:");
+
 	if (!HAS_DISPLAY(i915))
 		return;
 
@@ -407,6 +409,9 @@ void intel_display_driver_register(struct drm_i915_private *i915)
 	 * fbdev->async_cookie.
 	 */
 	drm_kms_helper_poll_init(&i915->drm);
+
+	intel_display_device_info_print(DISPLAY_INFO(i915),
+					DISPLAY_RUNTIME_INFO(i915), &p);
 }
 
 /* part #1: call before irq uninstall */
