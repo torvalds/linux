@@ -290,6 +290,8 @@ static void early_init_hygon(struct cpuinfo_x86 *c)
 
 static void init_hygon(struct cpuinfo_x86 *c)
 {
+	u64 vm_cr;
+
 	early_init_hygon(c);
 
 	/*
@@ -319,6 +321,14 @@ static void init_hygon(struct cpuinfo_x86 *c)
 	srat_detect_node(c);
 
 	init_hygon_cacheinfo(c);
+
+	if (cpu_has(c, X86_FEATURE_SVM)) {
+		rdmsrl(MSR_VM_CR, vm_cr);
+		if (vm_cr & SVM_VM_CR_SVM_DIS_MASK) {
+			pr_notice_once("SVM disabled (by BIOS) in MSR_VM_CR\n");
+			clear_cpu_cap(c, X86_FEATURE_SVM);
+		}
+	}
 
 	if (cpu_has(c, X86_FEATURE_XMM2)) {
 		/*
