@@ -8,6 +8,7 @@
 
 enum mlx5_devcom_component {
 	MLX5_DEVCOM_ESW_OFFLOADS,
+	MLX5_DEVCOM_MPV,
 	MLX5_DEVCOM_NUM_COMPONENTS,
 };
 

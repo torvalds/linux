@@ -42,6 +42,8 @@
 #define MLX5E_IPSEC_SADB_RX_BITS 10
 #define MLX5E_IPSEC_ESN_SCOPE_MID 0x80000000L
 
+#define MPV_DEVCOM_MASTER_UP 1
+
 struct aes_gcm_keymat {
 	u64   seq_iv;
 
