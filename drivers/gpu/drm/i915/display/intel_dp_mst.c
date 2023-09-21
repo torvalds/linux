@@ -157,6 +157,10 @@ static int intel_dp_mst_compute_link_config(struct intel_encoder *encoder,
 	int slots = -EINVAL;
 	int link_bpp;
 
+	/*
+	 * FIXME: allocate the BW according to link_bpp, which in the case of
+	 * YUV420 is only half of the pipe bpp value.
+	 */
 	slots = intel_dp_mst_find_vcpi_slots_for_bpp(encoder, crtc_state,
 						     to_bpp_int(limits->link.max_bpp_x16),
 						     to_bpp_int(limits->link.min_bpp_x16),
