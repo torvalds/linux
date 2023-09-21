@@ -481,7 +481,7 @@ void rtllib_ts_init_add_ba(struct rtllib_device *ieee, struct tx_ts_record *pTS,
 
 	activate_ba_entry(pBA, BA_SETUP_TIMEOUT);
 
-	rtllib_send_ADDBAReq(ieee, pTS->TsCommonInfo.Addr, pBA);
+	rtllib_send_ADDBAReq(ieee, pTS->TsCommonInfo.addr, pBA);
 }
 
 void rtllib_ts_init_del_ba(struct rtllib_device *ieee,
@@ -493,7 +493,7 @@ void rtllib_ts_init_del_ba(struct rtllib_device *ieee,
 			 (struct tx_ts_record *)pTsCommonInfo;
 
 		if (tx_ts_delete_ba(ieee, pTxTs))
-			rtllib_send_DELBA(ieee, pTsCommonInfo->Addr,
+			rtllib_send_DELBA(ieee, pTsCommonInfo->addr,
 					  (pTxTs->TxAdmittedBARecord.b_valid) ?
 					 (&pTxTs->TxAdmittedBARecord) :
 					(&pTxTs->TxPendingBARecord),
@@ -502,7 +502,7 @@ void rtllib_ts_init_del_ba(struct rtllib_device *ieee,
 		struct rx_ts_record *ts =
 				 (struct rx_ts_record *)pTsCommonInfo;
 		if (rx_ts_delete_ba(ieee, ts))
-			rtllib_send_DELBA(ieee, pTsCommonInfo->Addr,
+			rtllib_send_DELBA(ieee, pTsCommonInfo->addr,
 					  &ts->rx_admitted_ba_record,
 					  TxRxSelect, DELBA_REASON_END_BA);
 	}
@@ -525,7 +525,7 @@ void rtllib_tx_ba_inact_timeout(struct timer_list *t)
 	struct rtllib_device *ieee = container_of(pTxTs, struct rtllib_device,
 				     TxTsRecord[pTxTs->num]);
 	tx_ts_delete_ba(ieee, pTxTs);
-	rtllib_send_DELBA(ieee, pTxTs->TsCommonInfo.Addr,
+	rtllib_send_DELBA(ieee, pTxTs->TsCommonInfo.addr,
 			  &pTxTs->TxAdmittedBARecord, TX_DIR,
 			  DELBA_REASON_TIMEOUT);
 }
@@ -538,7 +538,7 @@ void rtllib_rx_ba_inact_timeout(struct timer_list *t)
 				     RxTsRecord[ts->num]);
 
 	rx_ts_delete_ba(ieee, ts);
-	rtllib_send_DELBA(ieee, ts->ts_common_info.Addr,
+	rtllib_send_DELBA(ieee, ts->ts_common_info.addr,
 			  &ts->rx_admitted_ba_record, RX_DIR,
 			  DELBA_REASON_TIMEOUT);
 }

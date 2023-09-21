@@ -93,7 +93,7 @@ static void TsAddBaProcess(struct timer_list *t)
 
 static void ResetTsCommonInfo(struct ts_common_info *pTsCommonInfo)
 {
-	eth_zero_addr(pTsCommonInfo->Addr);
+	eth_zero_addr(pTsCommonInfo->addr);
 	memset(&pTsCommonInfo->TSpec, 0, sizeof(union tspec_body));
 	memset(&pTsCommonInfo->TClass, 0, sizeof(union qos_tclas) * TCLAS_NUM);
 	pTsCommonInfo->TClasProc = 0;
@@ -173,7 +173,7 @@ void TSInitialize(struct rtllib_device *ieee)
 }
 
 static struct ts_common_info *SearchAdmitTRStream(struct rtllib_device *ieee,
-						  u8 *Addr, u8 TID,
+						  u8 *addr, u8 TID,
 						  enum tr_select TxRxSelect)
 {
 	u8	dir;
@@ -207,7 +207,7 @@ static struct ts_common_info *SearchAdmitTRStream(struct rtllib_device *ieee,
 		if (!search_dir[dir])
 			continue;
 		list_for_each_entry(pRet, psearch_list, List) {
-			if (memcmp(pRet->Addr, Addr, 6) == 0 &&
+			if (memcmp(pRet->addr, addr, 6) == 0 &&
 			    pRet->TSpec.f.TSInfo.field.ucTSID == TID &&
 			    pRet->TSpec.f.TSInfo.field.ucDirection == dir)
 				break;
@@ -221,7 +221,7 @@ static struct ts_common_info *SearchAdmitTRStream(struct rtllib_device *ieee,
 	return NULL;
 }
 
-static void MakeTSEntry(struct ts_common_info *pTsCommonInfo, u8 *Addr,
+static void MakeTSEntry(struct ts_common_info *pTsCommonInfo, u8 *addr,
 			union tspec_body *pTSPEC, union qos_tclas *pTCLAS,
 			u8 TCLAS_Num, u8 TCLAS_Proc)
 {
@@ -230,7 +230,7 @@ static void MakeTSEntry(struct ts_common_info *pTsCommonInfo, u8 *Addr,
 	if (!pTsCommonInfo)
 		return;
 
-	memcpy(pTsCommonInfo->Addr, Addr, 6);
+	memcpy(pTsCommonInfo->addr, addr, 6);
 
 	if (pTSPEC)
 		memcpy((u8 *)(&(pTsCommonInfo->TSpec)), (u8 *)pTSPEC,
@@ -245,7 +245,7 @@ static void MakeTSEntry(struct ts_common_info *pTsCommonInfo, u8 *Addr,
 }
 
 bool GetTs(struct rtllib_device *ieee, struct ts_common_info **ppTS,
-	   u8 *Addr, u8 TID, enum tr_select TxRxSelect, bool bAddNewTs)
+	   u8 *addr, u8 TID, enum tr_select TxRxSelect, bool bAddNewTs)
 {
 	u8	UP = 0;
 	union tspec_body TSpec;
@@ -254,7 +254,7 @@ bool GetTs(struct rtllib_device *ieee, struct ts_common_info **ppTS,
 	struct list_head *pAddmitList;
 	enum direction_value Dir;
 
-	if (is_multicast_ether_addr(Addr)) {
+	if (is_multicast_ether_addr(addr)) {
 		netdev_warn(ieee->dev, "Get TS for Broadcast or Multicast\n");
 		return false;
 	}
@@ -285,7 +285,7 @@ bool GetTs(struct rtllib_device *ieee, struct ts_common_info **ppTS,
 		}
 	}
 
-	*ppTS = SearchAdmitTRStream(ieee, Addr, UP, TxRxSelect);
+	*ppTS = SearchAdmitTRStream(ieee, addr, UP, TxRxSelect);
 	if (*ppTS)
 		return true;
 
@@ -324,7 +324,7 @@ bool GetTs(struct rtllib_device *ieee, struct ts_common_info **ppTS,
 
 		netdev_dbg(ieee->dev,
 			   "to init current TS, UP:%d, Dir:%d, addr: %pM ppTs=%p\n",
-			   UP, Dir, Addr, *ppTS);
+			   UP, Dir, addr, *ppTS);
 		pTSInfo->field.ucTrafficType = 0;
 		pTSInfo->field.ucTSID = UP;
 		pTSInfo->field.ucDirection = Dir;
@@ -335,7 +335,7 @@ bool GetTs(struct rtllib_device *ieee, struct ts_common_info **ppTS,
 		pTSInfo->field.ucTSInfoAckPolicy = 0;
 		pTSInfo->field.ucSchedule = 0;
 
-		MakeTSEntry(*ppTS, Addr, &TSpec, NULL, 0, 0);
+		MakeTSEntry(*ppTS, addr, &TSpec, NULL, 0, 0);
 		list_add_tail(&((*ppTS)->List), pAddmitList);
 
 		return true;
@@ -387,14 +387,14 @@ static void RemoveTsEntry(struct rtllib_device *ieee,
 	}
 }
 
-void RemovePeerTS(struct rtllib_device *ieee, u8 *Addr)
+void RemovePeerTS(struct rtllib_device *ieee, u8 *addr)
 {
 	struct ts_common_info *pTS, *pTmpTS;
 
-	netdev_info(ieee->dev, "===========>%s, %pM\n", __func__, Addr);
+	netdev_info(ieee->dev, "===========>%s, %pM\n", __func__, addr);
 
 	list_for_each_entry_safe(pTS, pTmpTS, &ieee->Tx_TS_Pending_List, List) {
-		if (memcmp(pTS->Addr, Addr, 6) == 0) {
+		if (memcmp(pTS->addr, addr, 6) == 0) {
 			RemoveTsEntry(ieee, pTS, TX_DIR);
 			list_del_init(&pTS->List);
 			list_add_tail(&pTS->List, &ieee->Tx_TS_Unused_List);
@@ -402,7 +402,7 @@ void RemovePeerTS(struct rtllib_device *ieee, u8 *Addr)
 	}
 
 	list_for_each_entry_safe(pTS, pTmpTS, &ieee->Tx_TS_Admit_List, List) {
-		if (memcmp(pTS->Addr, Addr, 6) == 0) {
+		if (memcmp(pTS->addr, addr, 6) == 0) {
 			netdev_info(ieee->dev,
 				    "====>remove Tx_TS_admin_list\n");
 			RemoveTsEntry(ieee, pTS, TX_DIR);
@@ -412,7 +412,7 @@ void RemovePeerTS(struct rtllib_device *ieee, u8 *Addr)
 	}
 
 	list_for_each_entry_safe(pTS, pTmpTS, &ieee->Rx_TS_Pending_List, List) {
-		if (memcmp(pTS->Addr, Addr, 6) == 0) {
+		if (memcmp(pTS->addr, addr, 6) == 0) {
 			RemoveTsEntry(ieee, pTS, RX_DIR);
 			list_del_init(&pTS->List);
 			list_add_tail(&pTS->List, &ieee->Rx_TS_Unused_List);
@@ -420,7 +420,7 @@ void RemovePeerTS(struct rtllib_device *ieee, u8 *Addr)
 	}
 
 	list_for_each_entry_safe(pTS, pTmpTS, &ieee->Rx_TS_Admit_List, List) {
-		if (memcmp(pTS->Addr, Addr, 6) == 0) {
+		if (memcmp(pTS->addr, addr, 6) == 0) {
 			RemoveTsEntry(ieee, pTS, RX_DIR);
 			list_del_init(&pTS->List);
 			list_add_tail(&pTS->List, &ieee->Rx_TS_Unused_List);
