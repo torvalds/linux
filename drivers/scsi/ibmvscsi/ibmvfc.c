@@ -163,8 +163,8 @@ static void ibmvfc_npiv_logout(struct ibmvfc_host *);
 static void ibmvfc_tgt_implicit_logout_and_del(struct ibmvfc_target *);
 static void ibmvfc_tgt_move_login(struct ibmvfc_target *);
 
-static void ibmvfc_dereg_sub_crqs(struct ibmvfc_host *);
-static void ibmvfc_reg_sub_crqs(struct ibmvfc_host *);
+static void ibmvfc_dereg_sub_crqs(struct ibmvfc_host *, struct ibmvfc_channels *);
+static void ibmvfc_reg_sub_crqs(struct ibmvfc_host *, struct ibmvfc_channels *);
 
 static const char *unknown_error = "unknown error";
 
@@ -925,7 +925,7 @@ static int ibmvfc_reenable_crq_queue(struct ibmvfc_host *vhost)
 	struct vio_dev *vdev = to_vio_dev(vhost->dev);
 	unsigned long flags;
 
-	ibmvfc_dereg_sub_crqs(vhost);
+	ibmvfc_dereg_sub_crqs(vhost, &vhost->scsi_scrqs);
 
 	/* Re-enable the CRQ */
 	do {
@@ -944,7 +944,7 @@ static int ibmvfc_reenable_crq_queue(struct ibmvfc_host *vhost)
 	spin_unlock(vhost->crq.q_lock);
 	spin_unlock_irqrestore(vhost->host->host_lock, flags);
 
-	ibmvfc_reg_sub_crqs(vhost);
+	ibmvfc_reg_sub_crqs(vhost, &vhost->scsi_scrqs);
 
 	return rc;
 }
@@ -963,7 +963,7 @@ static int ibmvfc_reset_crq(struct ibmvfc_host *vhost)
 	struct vio_dev *vdev = to_vio_dev(vhost->dev);
 	struct ibmvfc_queue *crq = &vhost->crq;
 
-	ibmvfc_dereg_sub_crqs(vhost);
+	ibmvfc_dereg_sub_crqs(vhost, &vhost->scsi_scrqs);
 
 	/* Close the CRQ */
 	do {
@@ -996,7 +996,7 @@ static int ibmvfc_reset_crq(struct ibmvfc_host *vhost)
 	spin_unlock(vhost->crq.q_lock);
 	spin_unlock_irqrestore(vhost->host->host_lock, flags);
 
-	ibmvfc_reg_sub_crqs(vhost);
+	ibmvfc_reg_sub_crqs(vhost, &vhost->scsi_scrqs);
 
 	return rc;
 }
@@ -5906,12 +5906,13 @@ reg_crq_failed:
 	return retrc;
 }
 
-static int ibmvfc_register_scsi_channel(struct ibmvfc_host *vhost,
-				  int index)
+static int ibmvfc_register_channel(struct ibmvfc_host *vhost,
+				   struct ibmvfc_channels *channels,
+				   int index)
 {
 	struct device *dev = vhost->dev;
 	struct vio_dev *vdev = to_vio_dev(dev);
-	struct ibmvfc_queue *scrq = &vhost->scsi_scrqs.scrqs[index];
+	struct ibmvfc_queue *scrq = &channels->scrqs[index];
 	int rc = -ENOMEM;
 
 	ENTER;
@@ -5959,11 +5960,13 @@ reg_failed:
 	return rc;
 }
 
-static void ibmvfc_deregister_scsi_channel(struct ibmvfc_host *vhost, int index)
+static void ibmvfc_deregister_channel(struct ibmvfc_host *vhost,
+				      struct ibmvfc_channels *channels,
+				      int index)
 {
 	struct device *dev = vhost->dev;
 	struct vio_dev *vdev = to_vio_dev(dev);
-	struct ibmvfc_queue *scrq = &vhost->scsi_scrqs.scrqs[index];
+	struct ibmvfc_queue *scrq = &channels->scrqs[index];
 	long rc;
 
 	ENTER;
@@ -5987,18 +5990,19 @@ static void ibmvfc_deregister_scsi_channel(struct ibmvfc_host *vhost, int index)
 	LEAVE;
 }
 
-static void ibmvfc_reg_sub_crqs(struct ibmvfc_host *vhost)
+static void ibmvfc_reg_sub_crqs(struct ibmvfc_host *vhost,
+				struct ibmvfc_channels *channels)
 {
 	int i, j;
 
 	ENTER;
-	if (!vhost->mq_enabled || !vhost->scsi_scrqs.scrqs)
+	if (!vhost->mq_enabled || !channels->scrqs)
 		return;
 
-	for (i = 0; i < nr_scsi_hw_queues; i++) {
-		if (ibmvfc_register_scsi_channel(vhost, i)) {
+	for (i = 0; i < channels->max_queues; i++) {
+		if (ibmvfc_register_channel(vhost, channels, i)) {
 			for (j = i; j > 0; j--)
-				ibmvfc_deregister_scsi_channel(vhost, j - 1);
+				ibmvfc_deregister_channel(vhost, channels, j - 1);
 			vhost->do_enquiry = 0;
 			return;
 		}
@@ -6007,77 +6011,96 @@ static void ibmvfc_reg_sub_crqs(struct ibmvfc_host *vhost)
 	LEAVE;
 }
 
-static void ibmvfc_dereg_sub_crqs(struct ibmvfc_host *vhost)
+static void ibmvfc_dereg_sub_crqs(struct ibmvfc_host *vhost,
+				  struct ibmvfc_channels *channels)
 {
 	int i;
 
 	ENTER;
-	if (!vhost->mq_enabled || !vhost->scsi_scrqs.scrqs)
+	if (!vhost->mq_enabled || !channels->scrqs)
 		return;
 
-	for (i = 0; i < nr_scsi_hw_queues; i++)
-		ibmvfc_deregister_scsi_channel(vhost, i);
+	for (i = 0; i < channels->max_queues; i++)
+		ibmvfc_deregister_channel(vhost, channels, i);
 
 	LEAVE;
+}
+
+static int ibmvfc_alloc_channels(struct ibmvfc_host *vhost,
+				 struct ibmvfc_channels *channels)
+{
+	struct ibmvfc_queue *scrq;
+	int i, j;
+	int rc = 0;
+
+	channels->scrqs = kcalloc(channels->max_queues,
+				  sizeof(*channels->scrqs),
+				  GFP_KERNEL);
+	if (!channels->scrqs)
+		return -ENOMEM;
+
+	for (i = 0; i < channels->max_queues; i++) {
+		scrq = &channels->scrqs[i];
+		rc = ibmvfc_alloc_queue(vhost, scrq, IBMVFC_SUB_CRQ_FMT);
+		if (rc) {
+			for (j = i; j > 0; j--) {
+				scrq = &channels->scrqs[j - 1];
+				ibmvfc_free_queue(vhost, scrq);
+			}
+			kfree(channels->scrqs);
+			channels->scrqs = NULL;
+			channels->active_queues = 0;
+			return rc;
+		}
+	}
+
+	return rc;
 }
 
 static void ibmvfc_init_sub_crqs(struct ibmvfc_host *vhost)
 {
-	struct ibmvfc_queue *scrq;
-	int i, j;
-
 	ENTER;
 	if (!vhost->mq_enabled)
 		return;
 
-	vhost->scsi_scrqs.scrqs = kcalloc(nr_scsi_hw_queues,
-					  sizeof(*vhost->scsi_scrqs.scrqs),
-					  GFP_KERNEL);
-	if (!vhost->scsi_scrqs.scrqs) {
+	if (ibmvfc_alloc_channels(vhost, &vhost->scsi_scrqs)) {
 		vhost->do_enquiry = 0;
+		vhost->mq_enabled = 0;
 		return;
 	}
 
-	for (i = 0; i < nr_scsi_hw_queues; i++) {
-		scrq = &vhost->scsi_scrqs.scrqs[i];
-		if (ibmvfc_alloc_queue(vhost, scrq, IBMVFC_SUB_CRQ_FMT)) {
-			for (j = i; j > 0; j--) {
-				scrq = &vhost->scsi_scrqs.scrqs[j - 1];
-				ibmvfc_free_queue(vhost, scrq);
-			}
-			kfree(vhost->scsi_scrqs.scrqs);
-			vhost->scsi_scrqs.scrqs = NULL;
-			vhost->scsi_scrqs.active_queues = 0;
-			vhost->do_enquiry = 0;
-			vhost->mq_enabled = 0;
-			return;
-		}
-	}
-
-	ibmvfc_reg_sub_crqs(vhost);
+	ibmvfc_reg_sub_crqs(vhost, &vhost->scsi_scrqs);
 
 	LEAVE;
 }
 
-static void ibmvfc_release_sub_crqs(struct ibmvfc_host *vhost)
+static void ibmvfc_release_channels(struct ibmvfc_host *vhost,
+				    struct ibmvfc_channels *channels)
 {
 	struct ibmvfc_queue *scrq;
 	int i;
 
+	if (channels->scrqs) {
+		for (i = 0; i < channels->max_queues; i++) {
+			scrq = &channels->scrqs[i];
+			ibmvfc_free_queue(vhost, scrq);
+		}
+
+		kfree(channels->scrqs);
+		channels->scrqs = NULL;
+		channels->active_queues = 0;
+	}
+}
+
+static void ibmvfc_release_sub_crqs(struct ibmvfc_host *vhost)
+{
 	ENTER;
 	if (!vhost->scsi_scrqs.scrqs)
 		return;
 
-	ibmvfc_dereg_sub_crqs(vhost);
+	ibmvfc_dereg_sub_crqs(vhost, &vhost->scsi_scrqs);
 
-	for (i = 0; i < nr_scsi_hw_queues; i++) {
-		scrq = &vhost->scsi_scrqs.scrqs[i];
-		ibmvfc_free_queue(vhost, scrq);
-	}
-
-	kfree(vhost->scsi_scrqs.scrqs);
-	vhost->scsi_scrqs.scrqs = NULL;
-	vhost->scsi_scrqs.active_queues = 0;
+	ibmvfc_release_channels(vhost, &vhost->scsi_scrqs);
 	LEAVE;
 }
 
