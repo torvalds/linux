@@ -81,19 +81,19 @@ ext2_last_byte(struct inode *inode, unsigned long page_nr)
 	return last_byte;
 }
 
-static void ext2_commit_chunk(struct page *page, loff_t pos, unsigned len)
+static void ext2_commit_chunk(struct folio *folio, loff_t pos, unsigned len)
 {
-	struct address_space *mapping = page->mapping;
+	struct address_space *mapping = folio->mapping;
 	struct inode *dir = mapping->host;
 
 	inode_inc_iversion(dir);
-	block_write_end(NULL, mapping, pos, len, len, page, NULL);
+	block_write_end(NULL, mapping, pos, len, len, &folio->page, NULL);
 
 	if (pos+len > dir->i_size) {
 		i_size_write(dir, pos+len);
 		mark_inode_dirty(dir);
 	}
-	unlock_page(page);
+	folio_unlock(folio);
 }
 
 static bool ext2_check_folio(struct folio *folio, int quiet, char *kaddr)
@@ -433,11 +433,10 @@ int ext2_inode_by_name(struct inode *dir, const struct qstr *child, ino_t *ino)
 	return 0;
 }
 
-static int ext2_prepare_chunk(struct page *page, loff_t pos, unsigned len)
+static int ext2_prepare_chunk(struct folio *folio, loff_t pos, unsigned len)
 {
-	return __block_write_begin(page, pos, len, ext2_get_block);
+	return __block_write_begin(&folio->page, pos, len, ext2_get_block);
 }
-
 
 static int ext2_handle_dirsync(struct inode *dir)
 {
@@ -457,14 +456,14 @@ int ext2_set_link(struct inode *dir, struct ext2_dir_entry_2 *de,
 	int err;
 
 	folio_lock(folio);
-	err = ext2_prepare_chunk(&folio->page, pos, len);
+	err = ext2_prepare_chunk(folio, pos, len);
 	if (err) {
 		folio_unlock(folio);
 		return err;
 	}
 	de->inode = cpu_to_le32(inode->i_ino);
 	ext2_set_de_type(de, inode);
-	ext2_commit_chunk(&folio->page, pos, len);
+	ext2_commit_chunk(folio, pos, len);
 	if (update_times)
 		dir->i_mtime = inode_set_ctime_current(dir);
 	EXT2_I(dir)->i_flags &= ~EXT2_BTREE_FL;
@@ -539,7 +538,7 @@ int ext2_add_link (struct dentry *dentry, struct inode *inode)
 
 got_it:
 	pos = folio_pos(folio) + offset_in_folio(folio, de);
-	err = ext2_prepare_chunk(&folio->page, pos, rec_len);
+	err = ext2_prepare_chunk(folio, pos, rec_len);
 	if (err)
 		goto out_unlock;
 	if (de->inode) {
@@ -552,7 +551,7 @@ got_it:
 	memcpy(de->name, name, namelen);
 	de->inode = cpu_to_le32(inode->i_ino);
 	ext2_set_de_type (de, inode);
-	ext2_commit_chunk(&folio->page, pos, rec_len);
+	ext2_commit_chunk(folio, pos, rec_len);
 	dir->i_mtime = inode_set_ctime_current(dir);
 	EXT2_I(dir)->i_flags &= ~EXT2_BTREE_FL;
 	mark_inode_dirty(dir);
@@ -598,7 +597,7 @@ int ext2_delete_entry(struct ext2_dir_entry_2 *dir, struct folio *folio)
 		from = offset_in_folio(folio, pde);
 	pos = folio_pos(folio) + from;
 	folio_lock(folio);
-	err = ext2_prepare_chunk(&folio->page, pos, to - from);
+	err = ext2_prepare_chunk(folio, pos, to - from);
 	if (err) {
 		folio_unlock(folio);
 		return err;
@@ -606,7 +605,7 @@ int ext2_delete_entry(struct ext2_dir_entry_2 *dir, struct folio *folio)
 	if (pde)
 		pde->rec_len = ext2_rec_len_to_disk(to - from);
 	dir->inode = 0;
-	ext2_commit_chunk(&folio->page, pos, to - from);
+	ext2_commit_chunk(folio, pos, to - from);
 	inode->i_mtime = inode_set_ctime_current(inode);
 	EXT2_I(inode)->i_flags &= ~EXT2_BTREE_FL;
 	mark_inode_dirty(inode);
@@ -627,7 +626,7 @@ int ext2_make_empty(struct inode *inode, struct inode *parent)
 	if (IS_ERR(folio))
 		return PTR_ERR(folio);
 
-	err = ext2_prepare_chunk(&folio->page, 0, chunk_size);
+	err = ext2_prepare_chunk(folio, 0, chunk_size);
 	if (err) {
 		folio_unlock(folio);
 		goto fail;
@@ -648,7 +647,7 @@ int ext2_make_empty(struct inode *inode, struct inode *parent)
 	memcpy (de->name, "..\0", 4);
 	ext2_set_de_type (de, inode);
 	kunmap_local(kaddr);
-	ext2_commit_chunk(&folio->page, 0, chunk_size);
+	ext2_commit_chunk(folio, 0, chunk_size);
 	err = ext2_handle_dirsync(inode);
 fail:
 	folio_put(folio);
