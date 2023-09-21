@@ -37,7 +37,7 @@ static int comm_read_regr(struct pi_adapter *pi, int cont, int regr)
 {
 	int l, h, r;
 
-        r = regr + cont_map[cont];
+	r = regr + cont_map[cont];
 
 	switch (pi->mode) {
 	case 0:
@@ -90,7 +90,6 @@ static void comm_connect(struct pi_adapter *pi)
 }
 
 static void comm_disconnect(struct pi_adapter *pi)
-
 {
 	w2(0); w2(0); w2(0); w2(4);
 	w0(pi->saved_r0);
@@ -172,12 +171,12 @@ static void comm_write_block(struct pi_adapter *pi, char *buf, int count)
 			w4l(swab16(((u16 *)buf)[2 * k]) |
 			    swab16(((u16 *)buf)[2 * k + 1]) << 16);
 		break;
-        }
+	}
 }
 
 static void comm_log_adapter(struct pi_adapter *pi)
-
-{       char *mode_string[5] = { "4-bit", "8-bit", "EPP-8", "EPP-16", "EPP-32" };
+{
+	char *mode_string[5] = { "4-bit", "8-bit", "EPP-8", "EPP-16", "EPP-32" };
 
 	dev_info(&pi->dev,
 		 "DataStor Commuter at 0x%x, mode %d (%s), delay %d\n",

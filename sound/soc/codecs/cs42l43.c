@@ -2077,7 +2077,8 @@ static const struct cs42l43_irq cs42l43_irqs[] = {
 
 static int cs42l43_request_irq(struct cs42l43_codec *priv,
 			       struct irq_domain *dom, const char * const name,
-			       unsigned int irq, irq_handler_t handler)
+			       unsigned int irq, irq_handler_t handler,
+			       unsigned long flags)
 {
 	int ret;
 
@@ -2087,8 +2088,8 @@ static int cs42l43_request_irq(struct cs42l43_codec *priv,
 
 	dev_dbg(priv->dev, "Request IRQ %d for %s\n", ret, name);
 
-	ret = devm_request_threaded_irq(priv->dev, ret, NULL, handler, IRQF_ONESHOT,
-					name, priv);
+	ret = devm_request_threaded_irq(priv->dev, ret, NULL, handler,
+					IRQF_ONESHOT | flags, name, priv);
 	if (ret)
 		return dev_err_probe(priv->dev, ret, "Failed to request IRQ %s\n", name);
 
@@ -2124,11 +2125,11 @@ static int cs42l43_shutter_irq(struct cs42l43_codec *priv,
 		return 0;
 	}
 
-	ret = cs42l43_request_irq(priv, dom, close_name, close_irq, handler);
+	ret = cs42l43_request_irq(priv, dom, close_name, close_irq, handler, IRQF_SHARED);
 	if (ret)
 		return ret;
 
-	return cs42l43_request_irq(priv, dom, open_name, open_irq, handler);
+	return cs42l43_request_irq(priv, dom, open_name, open_irq, handler, IRQF_SHARED);
 }
 
 static int cs42l43_codec_probe(struct platform_device *pdev)
@@ -2178,7 +2179,8 @@ static int cs42l43_codec_probe(struct platform_device *pdev)
 
 	for (i = 0; i < ARRAY_SIZE(cs42l43_irqs); i++) {
 		ret = cs42l43_request_irq(priv, dom, cs42l43_irqs[i].name,
-					  cs42l43_irqs[i].irq, cs42l43_irqs[i].handler);
+					  cs42l43_irqs[i].irq,
+					  cs42l43_irqs[i].handler, 0);
 		if (ret)
 			goto err_pm;
 	}

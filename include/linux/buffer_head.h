@@ -171,7 +171,10 @@ static __always_inline int buffer_uptodate(const struct buffer_head *bh)
 	return test_bit_acquire(BH_Uptodate, &bh->b_state);
 }
 
-#define bh_offset(bh)		((unsigned long)(bh)->b_data & ~PAGE_MASK)
+static inline unsigned long bh_offset(const struct buffer_head *bh)
+{
+	return (unsigned long)(bh)->b_data & (page_size(bh->b_page) - 1);
+}
 
 /* If we *know* page->private refers to buffer_heads */
 #define page_buffers(page)					\
