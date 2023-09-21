@@ -84,6 +84,7 @@ void dc_fpu_begin(const char *function_name, const int line)
 {
 	int depth;
 
+	WARN_ON_ONCE(!in_task());
 	preempt_disable();
 	depth = __this_cpu_inc_return(fpu_recursion_depth);
 
