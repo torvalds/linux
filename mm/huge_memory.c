@@ -1556,7 +1556,7 @@ vm_fault_t do_huge_pmd_numa_page(struct vm_fault *vmf)
 	 */
 	if (node_is_toptier(nid))
 		last_cpupid = page_cpupid_last(&folio->page);
-	target_nid = numa_migrate_prep(&folio->page, vma, haddr, nid, &flags);
+	target_nid = numa_migrate_prep(folio, vma, haddr, nid, &flags);
 	if (target_nid == NUMA_NO_NODE) {
 		folio_put(folio);
 		goto out_map;
