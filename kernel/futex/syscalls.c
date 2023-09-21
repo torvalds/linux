@@ -333,7 +333,7 @@ SYSCALL_DEFINE4(futex_wake,
 	if (!futex_validate_input(flags, mask))
 		return -EINVAL;
 
-	return futex_wake(uaddr, flags, nr, mask);
+	return futex_wake(uaddr, FLAGS_STRICT | flags, nr, mask);
 }
 
 #ifdef CONFIG_COMPAT

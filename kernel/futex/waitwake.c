@@ -155,6 +155,9 @@ int futex_wake(u32 __user *uaddr, unsigned int flags, int nr_wake, u32 bitset)
 	if (unlikely(ret != 0))
 		return ret;
 
+	if ((flags & FLAGS_STRICT) && !nr_wake)
+		return 0;
+
 	hb = futex_hash(&key);
 
 	/* Make sure we really have tasks to wakeup */

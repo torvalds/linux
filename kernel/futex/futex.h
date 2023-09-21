@@ -17,25 +17,26 @@
  * Futex flags used to encode options to functions and preserve them across
  * restarts.
  */
-#define FLAGS_SIZE_8		0x00
-#define FLAGS_SIZE_16		0x01
-#define FLAGS_SIZE_32		0x02
-#define FLAGS_SIZE_64		0x03
+#define FLAGS_SIZE_8		0x0000
+#define FLAGS_SIZE_16		0x0001
+#define FLAGS_SIZE_32		0x0002
+#define FLAGS_SIZE_64		0x0003
 
-#define FLAGS_SIZE_MASK		0x03
+#define FLAGS_SIZE_MASK		0x0003
 
 #ifdef CONFIG_MMU
-# define FLAGS_SHARED		0x10
+# define FLAGS_SHARED		0x0010
 #else
 /*
  * NOMMU does not have per process address space. Let the compiler optimize
  * code away.
  */
-# define FLAGS_SHARED		0x00
+# define FLAGS_SHARED		0x0000
 #endif
-#define FLAGS_CLOCKRT		0x20
-#define FLAGS_HAS_TIMEOUT	0x40
-#define FLAGS_NUMA		0x80
+#define FLAGS_CLOCKRT		0x0020
+#define FLAGS_HAS_TIMEOUT	0x0040
+#define FLAGS_NUMA		0x0080
+#define FLAGS_STRICT		0x0100
 
 /* FUTEX_ to FLAGS_ */
 static inline unsigned int futex_to_flags(unsigned int op)
