@@ -467,8 +467,7 @@ static void i3c_hci_bus_cleanup(struct i3c_master_controller *m)
 
 void mipi_i3c_hci_resume(struct i3c_hci *hci)
 {
-	/* the HC_CONTROL_RESUME bit is R/W1C so just read and write back */
-	reg_write(HC_CONTROL, reg_read(HC_CONTROL));
+	reg_set(HC_CONTROL, HC_CONTROL_RESUME);
 }
 
 /* located here rather than pio.c because needed bits are in core reg space */
