@@ -47,7 +47,6 @@ struct wait_interrupt_data {
 	u64 cq_offset;
 	u64 target_value;
 	u64 intr_timeout_us;
-	unsigned long flags;
 };
 
 static void job_wq_completion(struct work_struct *work);
