@@ -231,6 +231,13 @@ static int rockchip_mdais_dai_probe(struct snd_soc_dai *dai)
 		child = mdais->dais[i].dai;
 		comp = child->component;
 		if (!child->probed && child->driver->probe) {
+			if (!comp->name_prefix) {
+				ret = device_property_read_string(child->dev,
+								  SOUND_NAME_PREFIX, &str);
+				if (!ret)
+					comp->name_prefix = str;
+			}
+
 			comp->card = dai->component->card;
 			ret = child->driver->probe(child);
 			if (ret < 0) {
@@ -238,13 +245,6 @@ static int rockchip_mdais_dai_probe(struct snd_soc_dai *dai)
 					"ASoC: failed to probe DAI %s: %d\n",
 					child->name, ret);
 				return ret;
-			}
-
-			if (!comp->name_prefix) {
-				ret = device_property_read_string(child->dev,
-								  SOUND_NAME_PREFIX, &str);
-				if (!ret)
-					comp->name_prefix = str;
 			}
 
 			ret = snd_soc_add_component_controls(comp,
