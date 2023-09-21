@@ -697,6 +697,8 @@ int iwl_mvm_mld_add_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	/* at this stage sta link pointers are already allocated */
 	ret = iwl_mvm_mld_update_sta(mvm, vif, sta);
+	if (ret)
+		goto err;
 
 	for_each_sta_active_link(vif, sta, link_sta, link_id) {
 		struct ieee80211_bss_conf *link_conf =
