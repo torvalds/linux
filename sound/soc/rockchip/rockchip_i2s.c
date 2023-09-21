@@ -589,7 +589,9 @@ static int rockchip_i2s_dai_probe(struct snd_soc_dai *dai)
 		i2s->has_capture  ? &i2s->capture_dma_data  : NULL);
 
 	if (i2s->mclk_calibrate)
-		snd_soc_add_dai_controls(dai, &rockchip_i2s_compensation_control, 1);
+		snd_soc_add_component_controls(dai->component,
+					       &rockchip_i2s_compensation_control,
+					       1);
 
 	return 0;
 }
