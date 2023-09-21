@@ -264,7 +264,7 @@ static void rx_destroy(struct mlx5_core_dev *mdev, struct mlx5e_ipsec *ipsec,
 	}
 	mlx5_destroy_flow_table(rx->ft.status);
 
-	mlx5_ipsec_fs_roce_rx_destroy(ipsec->roce, family);
+	mlx5_ipsec_fs_roce_rx_destroy(ipsec->roce, family, mdev);
 }
 
 static void ipsec_rx_create_attr_set(struct mlx5e_ipsec *ipsec,
@@ -422,7 +422,7 @@ err_fs_ft:
 err_add:
 	mlx5_destroy_flow_table(rx->ft.status);
 err_fs_ft_status:
-	mlx5_ipsec_fs_roce_rx_destroy(ipsec->roce, family);
+	mlx5_ipsec_fs_roce_rx_destroy(ipsec->roce, family, mdev);
 	return err;
 }
 

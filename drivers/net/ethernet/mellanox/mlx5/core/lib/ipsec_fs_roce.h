@@ -11,7 +11,7 @@ struct mlx5_ipsec_fs;
 struct mlx5_flow_table *
 mlx5_ipsec_fs_roce_ft_get(struct mlx5_ipsec_fs *ipsec_roce, u32 family);
 void mlx5_ipsec_fs_roce_rx_destroy(struct mlx5_ipsec_fs *ipsec_roce,
-				   u32 family);
+				   u32 family, struct mlx5_core_dev *mdev);
 int mlx5_ipsec_fs_roce_rx_create(struct mlx5_core_dev *mdev,
 				 struct mlx5_ipsec_fs *ipsec_roce,
 				 struct mlx5_flow_namespace *ns,
