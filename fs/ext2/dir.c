@@ -497,7 +497,7 @@ int ext2_add_link (struct dentry *dentry, struct inode *inode)
 	unsigned chunk_size = ext2_chunk_size(dir);
 	unsigned reclen = EXT2_DIR_REC_LEN(namelen);
 	unsigned short rec_len, name_len;
-	struct page *page = NULL;
+	struct folio *folio = NULL;
 	ext2_dirent * de;
 	unsigned long npages = dir_pages(dir);
 	unsigned long n;
@@ -506,19 +506,19 @@ int ext2_add_link (struct dentry *dentry, struct inode *inode)
 
 	/*
 	 * We take care of directory expansion in the same loop.
-	 * This code plays outside i_size, so it locks the page
+	 * This code plays outside i_size, so it locks the folio
 	 * to protect that region.
 	 */
 	for (n = 0; n <= npages; n++) {
-		char *kaddr = ext2_get_page(dir, n, 0, &page);
+		char *kaddr = ext2_get_folio(dir, n, 0, &folio);
 		char *dir_end;
 
 		if (IS_ERR(kaddr))
 			return PTR_ERR(kaddr);
-		lock_page(page);
+		folio_lock(folio);
 		dir_end = kaddr + ext2_last_byte(dir, n);
 		de = (ext2_dirent *)kaddr;
-		kaddr += PAGE_SIZE - reclen;
+		kaddr += folio_size(folio) - reclen;
 		while ((char *)de <= kaddr) {
 			if ((char *)de == dir_end) {
 				/* We hit i_size */
@@ -545,15 +545,15 @@ int ext2_add_link (struct dentry *dentry, struct inode *inode)
 				goto got_it;
 			de = (ext2_dirent *) ((char *) de + rec_len);
 		}
-		unlock_page(page);
-		ext2_put_page(page, kaddr);
+		folio_unlock(folio);
+		folio_release_kmap(folio, kaddr);
 	}
 	BUG();
 	return -EINVAL;
 
 got_it:
-	pos = page_offset(page) + offset_in_page(de);
-	err = ext2_prepare_chunk(page, pos, rec_len);
+	pos = folio_pos(folio) + offset_in_folio(folio, de);
+	err = ext2_prepare_chunk(&folio->page, pos, rec_len);
 	if (err)
 		goto out_unlock;
 	if (de->inode) {
@@ -566,17 +566,17 @@ got_it:
 	memcpy(de->name, name, namelen);
 	de->inode = cpu_to_le32(inode->i_ino);
 	ext2_set_de_type (de, inode);
-	ext2_commit_chunk(page, pos, rec_len);
+	ext2_commit_chunk(&folio->page, pos, rec_len);
 	dir->i_mtime = inode_set_ctime_current(dir);
 	EXT2_I(dir)->i_flags &= ~EXT2_BTREE_FL;
 	mark_inode_dirty(dir);
 	err = ext2_handle_dirsync(dir);
 	/* OFFSET_CACHE */
 out_put:
-	ext2_put_page(page, de);
+	folio_release_kmap(folio, de);
 	return err;
 out_unlock:
-	unlock_page(page);
+	folio_unlock(folio);
 	goto out_put;
 }
 
