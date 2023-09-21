@@ -1181,6 +1181,16 @@ int sk_setsockopt(struct sock *sk, int level, int optname,
 			WRITE_ONCE(sk->sk_pacing_rate, ulval);
 		return 0;
 		}
+	case SO_TXREHASH:
+		if (val < -1 || val > 1)
+			return -EINVAL;
+		if ((u8)val == SOCK_TXREHASH_DEFAULT)
+			val = READ_ONCE(sock_net(sk)->core.sysctl_txrehash);
+		/* Paired with READ_ONCE() in tcp_rtx_synack()
+		 * and sk_getsockopt().
+		 */
+		WRITE_ONCE(sk->sk_txrehash, (u8)val);
+		return 0;
 	}
 
 	sockopt_lock_sock(sk);
@@ -1527,19 +1537,6 @@ set_sndbuf:
 			ret = sock_reserve_memory(sk, delta);
 		break;
 	}
-
-	case SO_TXREHASH:
-		if (val < -1 || val > 1) {
-			ret = -EINVAL;
-			break;
-		}
-		if ((u8)val == SOCK_TXREHASH_DEFAULT)
-			val = READ_ONCE(sock_net(sk)->core.sysctl_txrehash);
-		/* Paired with READ_ONCE() in tcp_rtx_synack()
-		 * and sk_getsockopt().
-		 */
-		WRITE_ONCE(sk->sk_txrehash, (u8)val);
-		break;
 
 	default:
 		ret = -ENOPROTOOPT;
