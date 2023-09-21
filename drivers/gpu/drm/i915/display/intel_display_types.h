@@ -2120,6 +2120,14 @@ static inline int to_bpp_int(int bpp_x16)
 	return bpp_x16 >> 4;
 }
 
+static inline int to_bpp_frac(int bpp_x16)
+{
+	return bpp_x16 & 0xf;
+}
+
+#define BPP_X16_FMT		"%d.%04d"
+#define BPP_X16_ARGS(bpp_x16)	to_bpp_int(bpp_x16), (to_bpp_frac(bpp_x16) * 625)
+
 static inline int to_bpp_x16(int bpp)
 {
 	return bpp << 4;

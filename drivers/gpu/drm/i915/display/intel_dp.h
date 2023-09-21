@@ -156,4 +156,10 @@ void intel_dp_phy_test(struct intel_encoder *encoder);
 void intel_dp_wait_source_oui(struct intel_dp *intel_dp);
 int intel_dp_output_bpp(enum intel_output_format output_format, int bpp);
 
+bool
+intel_dp_compute_config_link_bpp_limits(struct intel_dp *intel_dp,
+					const struct intel_crtc_state *crtc_state,
+					bool dsc,
+					struct link_config_limits *limits);
+
 #endif /* __INTEL_DP_H__ */
