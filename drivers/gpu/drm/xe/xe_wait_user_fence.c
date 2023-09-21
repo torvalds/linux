@@ -85,17 +85,45 @@ static int check_hw_engines(struct xe_device *xe,
 			 DRM_XE_UFENCE_WAIT_VM_ERROR)
 #define MAX_OP		DRM_XE_UFENCE_WAIT_LTE
 
-static unsigned long to_jiffies_timeout(struct drm_xe_wait_user_fence *args)
+static long to_jiffies_timeout(struct xe_device *xe,
+			       struct drm_xe_wait_user_fence *args)
 {
-	unsigned long timeout;
+	unsigned long long t;
+	long timeout;
 
+	/*
+	 * For negative timeout we want to wait "forever" by setting
+	 * MAX_SCHEDULE_TIMEOUT. But we have to assign this value also
+	 * to args->timeout to avoid being zeroed on the signal delivery
+	 * (see arithmetics after wait).
+	 */
+	if (args->timeout < 0) {
+		args->timeout = MAX_SCHEDULE_TIMEOUT;
+		return MAX_SCHEDULE_TIMEOUT;
+	}
+
+	if (args->timeout == 0)
+		return 0;
+
+	/*
+	 * Save the timeout to an u64 variable because nsecs_to_jiffies
+	 * might return a value that overflows s32 variable.
+	 */
 	if (args->flags & DRM_XE_UFENCE_WAIT_ABSTIME)
-		return drm_timeout_abs_to_jiffies(args->timeout);
+		t = drm_timeout_abs_to_jiffies(args->timeout);
+	else
+		t = nsecs_to_jiffies(args->timeout);
 
-	if (args->timeout == MAX_SCHEDULE_TIMEOUT || args->timeout == 0)
-		return args->timeout;
-
-	timeout = nsecs_to_jiffies(args->timeout);
+	/*
+	 * Anything greater then MAX_SCHEDULE_TIMEOUT is meaningless,
+	 * also we don't want to cap it at MAX_SCHEDULE_TIMEOUT because
+	 * apparently user doesn't mean to wait forever, otherwise the
+	 * args->timeout should have been set to a negative value.
+	 */
+	if (t > MAX_SCHEDULE_TIMEOUT)
+		timeout = MAX_SCHEDULE_TIMEOUT - 1;
+	else
+		timeout = t;
 
 	return timeout ?: 1;
 }
@@ -114,7 +142,7 @@ int xe_wait_user_fence_ioctl(struct drm_device *dev, void *data,
 	int err;
 	bool no_engines = args->flags & DRM_XE_UFENCE_WAIT_SOFT_OP ||
 		args->flags & DRM_XE_UFENCE_WAIT_VM_ERROR;
-	unsigned long timeout;
+	long timeout;
 	ktime_t start;
 
 	if (XE_IOCTL_DBG(xe, args->extensions) || XE_IOCTL_DBG(xe, args->pad) ||
@@ -169,16 +197,7 @@ int xe_wait_user_fence_ioctl(struct drm_device *dev, void *data,
 		addr = vm->async_ops.error_capture.addr;
 	}
 
-	/*
-	 * For negative timeout we want to wait "forever" by setting
-	 * MAX_SCHEDULE_TIMEOUT. But we have to assign this value also
-	 * to args->timeout to avoid being zeroed on the signal delivery
-	 * (see arithmetics after wait).
-	 */
-	if (args->timeout < 0)
-		args->timeout = MAX_SCHEDULE_TIMEOUT;
-
-	timeout = to_jiffies_timeout(args);
+	timeout = to_jiffies_timeout(xe, args);
 
 	start = ktime_get();
 
