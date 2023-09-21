@@ -75,10 +75,10 @@ struct rand_data {
 
 	unsigned int flags;		/* Flags used to initialize */
 	unsigned int osr;		/* Oversample rate */
-#define JENT_MEMORY_BLOCKS 64
-#define JENT_MEMORY_BLOCKSIZE 32
 #define JENT_MEMORY_ACCESSLOOPS 128
-#define JENT_MEMORY_SIZE (JENT_MEMORY_BLOCKS*JENT_MEMORY_BLOCKSIZE)
+#define JENT_MEMORY_SIZE						\
+	(CONFIG_CRYPTO_JITTERENTROPY_MEMORY_BLOCKS *			\
+	 CONFIG_CRYPTO_JITTERENTROPY_MEMORY_BLOCKSIZE)
 	unsigned char *mem;	/* Memory access location with size of
 				 * memblocks * memblocksize */
 	unsigned int memlocation; /* Pointer to byte in *mem */
@@ -650,13 +650,15 @@ struct rand_data *jent_entropy_collector_alloc(unsigned int osr,
 		/* Allocate memory for adding variations based on memory
 		 * access
 		 */
-		entropy_collector->mem = jent_zalloc(JENT_MEMORY_SIZE);
+		entropy_collector->mem = jent_kvzalloc(JENT_MEMORY_SIZE);
 		if (!entropy_collector->mem) {
 			jent_zfree(entropy_collector);
 			return NULL;
 		}
-		entropy_collector->memblocksize = JENT_MEMORY_BLOCKSIZE;
-		entropy_collector->memblocks = JENT_MEMORY_BLOCKS;
+		entropy_collector->memblocksize =
+			CONFIG_CRYPTO_JITTERENTROPY_MEMORY_BLOCKSIZE;
+		entropy_collector->memblocks =
+			CONFIG_CRYPTO_JITTERENTROPY_MEMORY_BLOCKS;
 		entropy_collector->memaccessloops = JENT_MEMORY_ACCESSLOOPS;
 	}
 
@@ -679,7 +681,7 @@ struct rand_data *jent_entropy_collector_alloc(unsigned int osr,
 
 void jent_entropy_collector_free(struct rand_data *entropy_collector)
 {
-	jent_zfree(entropy_collector->mem);
+	jent_kvzfree(entropy_collector->mem, JENT_MEMORY_SIZE);
 	entropy_collector->mem = NULL;
 	jent_zfree(entropy_collector);
 }
