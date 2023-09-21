@@ -3591,7 +3591,7 @@ vm_fault_t filemap_map_pages(struct vm_fault *vmf,
 		addr += (xas.xa_index - last_pgoff) << PAGE_SHIFT;
 		vmf->pte += xas.xa_index - last_pgoff;
 		last_pgoff = xas.xa_index;
-		end = folio->index + folio_nr_pages(folio) - 1;
+		end = folio_next_index(folio) - 1;
 		nr_pages = min(end, end_pgoff) - xas.xa_index + 1;
 
 		if (!folio_test_large(folio))
