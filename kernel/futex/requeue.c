@@ -346,8 +346,9 @@ futex_proxy_trylock_atomic(u32 __user *pifutex, struct futex_hash_bucket *hb1,
 /**
  * futex_requeue() - Requeue waiters from uaddr1 to uaddr2
  * @uaddr1:	source futex user address
- * @flags:	futex flags (FLAGS_SHARED, etc.)
+ * @flags1:	futex flags (FLAGS_SHARED, etc.)
  * @uaddr2:	target futex user address
+ * @flags2:	futex flags (FLAGS_SHARED, etc.)
  * @nr_wake:	number of waiters to wake (must be 1 for requeue_pi)
  * @nr_requeue:	number of waiters to requeue (0-INT_MAX)
  * @cmpval:	@uaddr1 expected value (or %NULL)
@@ -361,7 +362,8 @@ futex_proxy_trylock_atomic(u32 __user *pifutex, struct futex_hash_bucket *hb1,
  *  - >=0 - on success, the number of tasks requeued or woken;
  *  -  <0 - on error
  */
-int futex_requeue(u32 __user *uaddr1, unsigned int flags, u32 __user *uaddr2,
+int futex_requeue(u32 __user *uaddr1, unsigned int flags1,
+		  u32 __user *uaddr2, unsigned int flags2,
 		  int nr_wake, int nr_requeue, u32 *cmpval, int requeue_pi)
 {
 	union futex_key key1 = FUTEX_KEY_INIT, key2 = FUTEX_KEY_INIT;
@@ -424,10 +426,10 @@ int futex_requeue(u32 __user *uaddr1, unsigned int flags, u32 __user *uaddr2,
 	}
 
 retry:
-	ret = get_futex_key(uaddr1, flags, &key1, FUTEX_READ);
+	ret = get_futex_key(uaddr1, flags1, &key1, FUTEX_READ);
 	if (unlikely(ret != 0))
 		return ret;
-	ret = get_futex_key(uaddr2, flags, &key2,
+	ret = get_futex_key(uaddr2, flags2, &key2,
 			    requeue_pi ? FUTEX_WRITE : FUTEX_READ);
 	if (unlikely(ret != 0))
 		return ret;
@@ -459,7 +461,7 @@ retry_private:
 			if (ret)
 				return ret;
 
-			if (!(flags & FLAGS_SHARED))
+			if (!(flags1 & FLAGS_SHARED))
 				goto retry_private;
 
 			goto retry;

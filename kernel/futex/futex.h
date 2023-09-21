@@ -328,8 +328,9 @@ extern int futex_wait_requeue_pi(u32 __user *uaddr, unsigned int flags, u32
 				 val, ktime_t *abs_time, u32 bitset, u32 __user
 				 *uaddr2);
 
-extern int futex_requeue(u32 __user *uaddr1, unsigned int flags,
-			 u32 __user *uaddr2, int nr_wake, int nr_requeue,
+extern int futex_requeue(u32 __user *uaddr1, unsigned int flags1,
+			 u32 __user *uaddr2, unsigned int flags2,
+			 int nr_wake, int nr_requeue,
 			 u32 *cmpval, int requeue_pi);
 
 extern int __futex_wait(u32 __user *uaddr, unsigned int flags, u32 val,
