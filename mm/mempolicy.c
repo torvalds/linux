@@ -2642,7 +2642,7 @@ int mpol_misplaced(struct folio *folio, struct vm_area_struct *vma,
 	if (pol->flags & MPOL_F_MORON) {
 		polnid = thisnid;
 
-		if (!should_numa_migrate_memory(current, &folio->page, curnid,
+		if (!should_numa_migrate_memory(current, folio, curnid,
 						thiscpu))
 			goto out;
 	}
