@@ -52,7 +52,7 @@ config I3C_HUB
 if I3CDEV
 config I3CDEV_FORCE_CREATE
 	bool "force create I3C device interface"
-	default y
+	default n
 	help
 	  Say 'y' to force create I3C devices under /dev/bus/i3c/ regardless of
 	  driver binding.  This option is to help development so it shall be
