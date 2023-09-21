@@ -3114,7 +3114,7 @@ static bool is_reg64(struct bpf_verifier_env *env, struct bpf_insn *insn,
 
 	if (class == BPF_LDX) {
 		if (t != SRC_OP)
-			return BPF_SIZE(code) == BPF_DW;
+			return BPF_SIZE(code) == BPF_DW || BPF_MODE(code) == BPF_MEMSX;
 		/* LDX source must be ptr. */
 		return true;
 	}

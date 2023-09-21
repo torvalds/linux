@@ -6,7 +6,8 @@
 #include <bpf/bpf_tracing.h>
 
 #if (defined(__TARGET_ARCH_arm64) || defined(__TARGET_ARCH_x86) || \
-     (defined(__TARGET_ARCH_riscv) && __riscv_xlen == 64)) && __clang_major__ >= 18
+     (defined(__TARGET_ARCH_riscv) && __riscv_xlen == 64) ||       \
+     defined(__TARGET_ARCH_s390)) && __clang_major__ >= 18
 const volatile int skip = 0;
 #else
 const volatile int skip = 1;
@@ -104,7 +105,11 @@ int _tc(volatile struct __sk_buff *skb)
 		      "%[tmp_mark] = r1"
 		      : [tmp_mark]"=r"(tmp_mark)
 		      : [ctx]"r"(skb),
-			[off_mark]"i"(offsetof(struct __sk_buff, mark))
+			[off_mark]"i"(offsetof(struct __sk_buff, mark)
+#if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+			+ sizeof(skb->mark) - 1
+#endif
+			)
 		      : "r1");
 #else
 	tmp_mark = (char)skb->mark;
