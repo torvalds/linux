@@ -200,6 +200,15 @@ static int qcom_rmtfs_mem_probe(struct platform_device *pdev)
 	rmtfs_mem->client_id = client_id;
 	rmtfs_mem->size = rmem->size;
 
+	/*
+	 * If requested, discard the first and last 4k block in order to ensure
+	 * that the rmtfs region isn't adjacent to other protected regions.
+	 */
+	if (of_property_read_bool(node, "qcom,use-guard-pages")) {
+		rmtfs_mem->addr += SZ_4K;
+		rmtfs_mem->size -= 2 * SZ_4K;
+	}
+
 	device_initialize(&rmtfs_mem->dev);
 	rmtfs_mem->dev.parent = &pdev->dev;
 	rmtfs_mem->dev.groups = qcom_rmtfs_mem_groups;
