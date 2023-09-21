@@ -2218,9 +2218,8 @@ static void dcn21_calculate_wm(struct dc *dc, struct dc_state *context,
 						&context->bw_ctx.dml, pipes, pipe_cnt);
 }
 
-bool dcn21_validate_bandwidth_fp(struct dc *dc,
-				 struct dc_state *context,
-				 bool fast_validate)
+bool dcn21_validate_bandwidth_fp(struct dc *dc, struct dc_state *context,
+				 bool fast_validate, display_e2e_pipe_params_st *pipes)
 {
 	bool out = false;
 
@@ -2229,7 +2228,6 @@ bool dcn21_validate_bandwidth_fp(struct dc *dc,
 	int vlevel = 0;
 	int pipe_split_from[MAX_PIPES];
 	int pipe_cnt = 0;
-	display_e2e_pipe_params_st *pipes = kzalloc(dc->res_pool->pipe_count * sizeof(display_e2e_pipe_params_st), GFP_ATOMIC);
 	DC_LOGGER_INIT(dc->ctx->logger);
 
 	BW_VAL_TRACE_COUNT();
@@ -2269,7 +2267,6 @@ validate_fail:
 	out = false;
 
 validate_out:
-	kfree(pipes);
 
 	BW_VAL_TRACE_FINISH();
 
