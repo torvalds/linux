@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0
  *
- * Copyright 2020-2022 HabanaLabs, Ltd.
+ * Copyright 2020-2023 HabanaLabs, Ltd.
  * All Rights Reserved.
  *
  */
@@ -668,18 +668,15 @@ enum pq_init_status {
  *       Obsolete.
  *
  * CPUCP_PACKET_GENERIC_PASSTHROUGH -
- *      Generic opcode for all firmware info that is only passed to host
- *      through the LKD, without getting parsed there.
+ *       Generic opcode for all firmware info that is only passed to host
+ *       through the LKD, without getting parsed there.
  *
  * CPUCP_PACKET_ACTIVE_STATUS_SET -
  *       LKD sends FW indication whether device is free or in use, this indication is reported
  *       also to the BMC.
  *
- * CPUCP_PACKET_REGISTER_INTERRUPTS -
- *       Packet to register interrupts indicating LKD is ready to receive events from FW.
- *
  * CPUCP_PACKET_SOFT_RESET -
- *      Packet to perform soft-reset.
+ *       Packet to perform soft-reset.
  *
  * CPUCP_PACKET_INTS_REGISTER -
  *       Packet to inform FW that queues have been established and LKD is ready to receive
@@ -750,9 +747,9 @@ enum cpucp_packet_id {
 	CPUCP_PACKET_RESERVED11,		/* not used */
 	CPUCP_PACKET_RESERVED12,		/* internal */
 	CPUCP_PACKET_RESERVED13,                /* internal */
-	CPUCP_PACKET_SOFT_RESET,                /* internal */
-	CPUCP_PACKET_INTS_REGISTER,             /* internal */
-	CPUCP_PACKET_ID_MAX                     /* must be last */
+	CPUCP_PACKET_SOFT_RESET,		/* internal */
+	CPUCP_PACKET_INTS_REGISTER,		/* internal */
+	CPUCP_PACKET_ID_MAX			/* must be last */
 };
 
 #define CPUCP_PACKET_FENCE_VAL	0xFE8CE7A5
