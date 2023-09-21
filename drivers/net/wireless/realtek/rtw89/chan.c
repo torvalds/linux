@@ -1445,6 +1445,7 @@ static void rtw89_mcc_handle_beacon_noa(struct rtw89_dev *rtwdev, bool enable)
 	struct rtw89_mcc_role *aux = &mcc->role_aux;
 	struct rtw89_mcc_config *config = &mcc->config;
 	struct rtw89_mcc_pattern *pattern = &config->pattern;
+	struct rtw89_mcc_sync *sync = &config->sync;
 	struct ieee80211_p2p_noa_desc noa_desc = {};
 	u64 start_time = config->start_tsf;
 	u32 interval = config->mcc_interval;
@@ -1464,6 +1465,9 @@ static void rtw89_mcc_handle_beacon_noa(struct rtw89_dev *rtwdev, bool enable)
 			      ieee80211_tu_to_usec(config->beacon_offset) +
 			      ieee80211_tu_to_usec(pattern->toa_aux);
 		duration = config->mcc_interval - aux->duration;
+
+		/* convert time domain from sta(ref) to GO(aux) */
+		start_time += ieee80211_tu_to_usec(sync->offset);
 	} else {
 		rtw89_debug(rtwdev, RTW89_DBG_CHAN,
 			    "MCC find no GO: skip updating beacon NoA\n");
