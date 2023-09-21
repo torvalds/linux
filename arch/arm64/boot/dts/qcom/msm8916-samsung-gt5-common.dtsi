@@ -65,25 +65,6 @@
 	};
 };
 
-&blsp_i2c4 {
-	status = "okay";
-
-	fuelgauge@36 {
-		compatible = "maxim,max77849-battery";
-		reg = <0x36>;
-
-		maxim,rsns-microohm = <10000>;
-		maxim,over-heat-temp = <600>;
-		maxim,over-volt = <4400>;
-
-		interrupt-parent = <&tlmm>;
-		interrupts = <121 IRQ_TYPE_EDGE_FALLING>;
-
-		pinctrl-0 = <&fuelgauge_int_default>;
-		pinctrl-names = "default";
-	};
-};
-
 &blsp_i2c2 {
 	status = "okay";
 
@@ -108,6 +89,25 @@
 			       "0", "0", "1";
 
 		pinctrl-0 = <&accel_int_default>;
+		pinctrl-names = "default";
+	};
+};
+
+&blsp_i2c4 {
+	status = "okay";
+
+	fuelgauge@36 {
+		compatible = "maxim,max77849-battery";
+		reg = <0x36>;
+
+		maxim,rsns-microohm = <10000>;
+		maxim,over-heat-temp = <600>;
+		maxim,over-volt = <4400>;
+
+		interrupt-parent = <&tlmm>;
+		interrupts = <121 IRQ_TYPE_EDGE_FALLING>;
+
+		pinctrl-0 = <&fuelgauge_int_default>;
 		pinctrl-names = "default";
 	};
 };

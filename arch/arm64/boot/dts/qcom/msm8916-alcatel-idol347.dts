@@ -58,10 +58,6 @@
 	};
 };
 
-&blsp_uart2 {
-	status = "okay";
-};
-
 &blsp_i2c4 {
 	status = "okay";
 
@@ -151,6 +147,10 @@
 			color = <LED_COLOR_ID_WHITE>;
 		};
 	};
+};
+
+&blsp_uart2 {
+	status = "okay";
 };
 
 &pm8916_resin {
