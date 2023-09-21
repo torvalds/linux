@@ -244,7 +244,7 @@ static void MakeTSEntry(struct ts_common_info *pTsCommonInfo, u8 *addr,
 	pTsCommonInfo->TClasNum = TCLAS_Num;
 }
 
-bool GetTs(struct rtllib_device *ieee, struct ts_common_info **ppTS,
+bool rtllib_get_ts(struct rtllib_device *ieee, struct ts_common_info **ppTS,
 	   u8 *addr, u8 TID, enum tr_select TxRxSelect, bool bAddNewTs)
 {
 	u8	UP = 0;
