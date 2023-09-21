@@ -593,11 +593,13 @@ static int iwl_run_unified_mvm_ucode(struct iwl_mvm *mvm)
 
 	mvm->rfkill_safe_init_done = false;
 
-	sb_cfg = iwl_read_umac_prph(mvm->trans, SB_MODIFY_CFG_FLAG);
-	/* if needed, we'll reset this on our way out later */
-	mvm->pldr_sync = !(sb_cfg & SB_CFG_RESIDES_IN_OTP_MASK);
-	if (mvm->pldr_sync && iwl_mei_pldr_req())
-		return -EBUSY;
+	if (mvm->trans->trans_cfg->device_family == IWL_DEVICE_FAMILY_AX210) {
+		sb_cfg = iwl_read_umac_prph(mvm->trans, SB_MODIFY_CFG_FLAG);
+		/* if needed, we'll reset this on our way out later */
+		mvm->pldr_sync = !(sb_cfg & SB_CFG_RESIDES_IN_OTP_MASK);
+		if (mvm->pldr_sync && iwl_mei_pldr_req())
+			return -EBUSY;
+	}
 
 	iwl_init_notification_wait(&mvm->notif_wait,
 				   &init_wait,
