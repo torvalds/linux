@@ -2247,7 +2247,8 @@ intel_dp_compute_link_config(struct intel_encoder *encoder,
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 	struct link_config_limits limits;
 	bool joiner_needs_dsc = false;
-	int ret;
+	bool dsc_needed;
+	int ret = 0;
 
 	intel_dp_compute_config_limits(intel_dp, pipe_config,
 				       respect_downstream_limits, &limits);
@@ -2263,13 +2264,20 @@ intel_dp_compute_link_config(struct intel_encoder *encoder,
 	 */
 	joiner_needs_dsc = DISPLAY_VER(i915) < 13 && pipe_config->bigjoiner_pipes;
 
-	/*
-	 * Optimize for slow and wide for everything, because there are some
-	 * eDP 1.3 and 1.4 panels don't work well with fast and narrow.
-	 */
-	ret = intel_dp_compute_link_config_wide(intel_dp, pipe_config, conn_state, &limits);
+	dsc_needed = joiner_needs_dsc || intel_dp->force_dsc_en;
 
-	if (ret || joiner_needs_dsc || intel_dp->force_dsc_en) {
+	if (!dsc_needed) {
+		/*
+		 * Optimize for slow and wide for everything, because there are some
+		 * eDP 1.3 and 1.4 panels don't work well with fast and narrow.
+		 */
+		ret = intel_dp_compute_link_config_wide(intel_dp, pipe_config,
+							conn_state, &limits);
+		if (ret)
+			dsc_needed = true;
+	}
+
+	if (dsc_needed) {
 		drm_dbg_kms(&i915->drm, "Try DSC (fallback=%s, joiner=%s, force=%s)\n",
 			    str_yes_no(ret), str_yes_no(joiner_needs_dsc),
 			    str_yes_no(intel_dp->force_dsc_en));
