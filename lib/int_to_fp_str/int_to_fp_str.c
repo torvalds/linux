@@ -1,9 +1,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
-
 #include <linux/slab.h>
-
 #include <linux/int_to_fp_str.h>
 
 #define OURMODNAME "int_to_fp_str"
@@ -12,6 +10,8 @@ MODULE_AUTHOR("Guilherme Giacomo Simoes <trintaeoitogc@gmail.com>");
 MODULE_DESCRIPTION("This lib will convert int to string float");
 MODULE_LICENSE("GPL");
 MODULE_VERSION("1.2.0-BETA");
+
+extern char *int_to_fp_str(int number, int decimal_places);
 
 char *int_to_fp_str(int number, int decimal_places)
 {
