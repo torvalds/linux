@@ -10,3 +10,4 @@ arm_smmu.ko
 clk-dummy.ko
 clk-qcom.ko
 gdsc-regulator.ko
+stub-regulator.ko
