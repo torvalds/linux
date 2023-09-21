@@ -640,10 +640,12 @@ static int rockchip_pdm_dai_probe(struct snd_soc_dai *dai)
 	struct rk_pdm_dev *pdm = to_info(dai);
 
 	dai->capture_dma_data = &pdm->capture_dma_data;
-	snd_soc_add_dai_controls(dai, rockchip_pdm_controls,
-				 ARRAY_SIZE(rockchip_pdm_controls));
+
 	if (pdm->clk_calibrate)
-		snd_soc_add_dai_controls(dai, &rockchip_pdm_compensation_control, 1);
+		snd_soc_add_component_controls(dai->component,
+					       &rockchip_pdm_compensation_control,
+					       1);
+
 	return 0;
 }
 
@@ -724,6 +726,8 @@ static struct snd_soc_dai_driver rockchip_pdm_dai = {
 
 static const struct snd_soc_component_driver rockchip_pdm_component = {
 	.name = "rockchip-pdm",
+	.controls = rockchip_pdm_controls,
+	.num_controls = ARRAY_SIZE(rockchip_pdm_controls),
 };
 
 static int rockchip_pdm_pinctrl_select_clk_state(struct device *dev)
