@@ -205,6 +205,7 @@ void rtw89_entity_init(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_hal *hal = &rtwdev->hal;
 
+	hal->entity_pause = false;
 	bitmap_zero(hal->entity_map, NUM_OF_RTW89_SUB_ENTITY);
 	bitmap_zero(hal->changes, NUM_OF_RTW89_CHANCTX_CHANGES);
 	atomic_set(&hal->roc_entity_idx, RTW89_SUB_ENTITY_IDLE);
@@ -220,6 +221,8 @@ enum rtw89_entity_mode rtw89_entity_recalc(struct rtw89_dev *rtwdev)
 	u8 weight;
 	u8 last;
 	u8 idx;
+
+	lockdep_assert_held(&rtwdev->mutex);
 
 	weight = bitmap_weight(hal->entity_map, NUM_OF_RTW89_SUB_ENTITY);
 	switch (weight) {
@@ -254,6 +257,9 @@ enum rtw89_entity_mode rtw89_entity_recalc(struct rtw89_dev *rtwdev)
 
 		rtw89_assign_entity_chan(rtwdev, idx, &chan);
 	}
+
+	if (hal->entity_pause)
+		return rtw89_get_entity_mode(rtwdev);
 
 	rtw89_set_entity_mode(rtwdev, mode);
 	return mode;
@@ -1736,6 +1742,11 @@ void rtw89_chanctx_work(struct work_struct *work)
 
 	mutex_lock(&rtwdev->mutex);
 
+	if (hal->entity_pause) {
+		mutex_unlock(&rtwdev->mutex);
+		return;
+	}
+
 	for (i = 0; i < NUM_OF_RTW89_CHANCTX_CHANGES; i++) {
 		if (test_and_clear_bit(i, hal->changes))
 			changed |= BIT(i);
@@ -1816,9 +1827,13 @@ void rtw89_queue_chanctx_work(struct rtw89_dev *rtwdev)
 
 void rtw89_chanctx_track(struct rtw89_dev *rtwdev)
 {
+	struct rtw89_hal *hal = &rtwdev->hal;
 	enum rtw89_entity_mode mode;
 
 	lockdep_assert_held(&rtwdev->mutex);
+
+	if (hal->entity_pause)
+		return;
 
 	mode = rtw89_get_entity_mode(rtwdev);
 	switch (mode) {
@@ -1828,6 +1843,61 @@ void rtw89_chanctx_track(struct rtw89_dev *rtwdev)
 	default:
 		break;
 	}
+}
+
+void rtw89_chanctx_pause(struct rtw89_dev *rtwdev,
+			 enum rtw89_chanctx_pause_reasons rsn)
+{
+	struct rtw89_hal *hal = &rtwdev->hal;
+	enum rtw89_entity_mode mode;
+
+	lockdep_assert_held(&rtwdev->mutex);
+
+	if (hal->entity_pause)
+		return;
+
+	rtw89_debug(rtwdev, RTW89_DBG_CHAN, "chanctx pause (rsn: %d)\n", rsn);
+
+	mode = rtw89_get_entity_mode(rtwdev);
+	switch (mode) {
+	case RTW89_ENTITY_MODE_MCC:
+		rtw89_mcc_stop(rtwdev);
+		break;
+	default:
+		break;
+	}
+
+	hal->entity_pause = true;
+}
+
+void rtw89_chanctx_proceed(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_hal *hal = &rtwdev->hal;
+	enum rtw89_entity_mode mode;
+	int ret;
+
+	lockdep_assert_held(&rtwdev->mutex);
+
+	if (!hal->entity_pause)
+		return;
+
+	rtw89_debug(rtwdev, RTW89_DBG_CHAN, "chanctx proceed\n");
+
+	hal->entity_pause = false;
+	rtw89_set_channel(rtwdev);
+
+	mode = rtw89_get_entity_mode(rtwdev);
+	switch (mode) {
+	case RTW89_ENTITY_MODE_MCC:
+		ret = rtw89_mcc_start(rtwdev);
+		if (ret)
+			rtw89_warn(rtwdev, "failed to start MCC: %d\n", ret);
+		break;
+	default:
+		break;
+	}
+
+	rtw89_queue_chanctx_work(rtwdev);
 }
 
 int rtw89_chanctx_ops_add(struct rtw89_dev *rtwdev,

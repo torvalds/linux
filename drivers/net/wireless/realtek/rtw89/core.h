@@ -4018,6 +4018,7 @@ struct rtw89_hal {
 	struct cfg80211_chan_def roc_chandef;
 
 	bool entity_active;
+	bool entity_pause;
 	enum rtw89_entity_mode entity_mode;
 
 	u32 edcca_bak;

@@ -33,6 +33,11 @@
 
 #define NUM_OF_RTW89_MCC_ROLES 2
 
+enum rtw89_chanctx_pause_reasons {
+	RTW89_CHANCTX_PAUSE_REASON_HW_SCAN,
+	RTW89_CHANCTX_PAUSE_REASON_ROC,
+};
+
 static inline bool rtw89_get_entity_state(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_hal *hal = &rtwdev->hal;
@@ -81,6 +86,9 @@ void rtw89_queue_chanctx_work(struct rtw89_dev *rtwdev);
 void rtw89_queue_chanctx_change(struct rtw89_dev *rtwdev,
 				enum rtw89_chanctx_changes change);
 void rtw89_chanctx_track(struct rtw89_dev *rtwdev);
+void rtw89_chanctx_pause(struct rtw89_dev *rtwdev,
+			 enum rtw89_chanctx_pause_reasons rsn);
+void rtw89_chanctx_proceed(struct rtw89_dev *rtwdev);
 int rtw89_chanctx_ops_add(struct rtw89_dev *rtwdev,
 			  struct ieee80211_chanctx_conf *ctx);
 void rtw89_chanctx_ops_remove(struct rtw89_dev *rtwdev,
