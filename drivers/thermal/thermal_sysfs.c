@@ -943,7 +943,8 @@ trip_point_show(struct device *dev, struct device_attribute *attr, char *buf)
 	instance =
 	    container_of(attr, struct thermal_instance, attr);
 
-	return sprintf(buf, "%d\n", instance->trip);
+	return sprintf(buf, "%d\n",
+		       thermal_zone_trip_id(instance->tz, instance->trip));
 }
 
 ssize_t
