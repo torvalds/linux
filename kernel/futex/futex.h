@@ -85,6 +85,16 @@ static inline bool futex_flags_valid(unsigned int flags)
 	return true;
 }
 
+static inline bool futex_validate_input(unsigned int flags, u64 val)
+{
+	int bits = 8 * futex_size(flags);
+
+	if (bits < 64 && (val >> bits))
+		return false;
+
+	return true;
+}
+
 #ifdef CONFIG_FAIL_FUTEX
 extern bool should_fail_futex(bool fshared);
 #else
