@@ -63,7 +63,7 @@ void rtllib_reset_ba_entry(struct ba_record *pBA)
 	pBA->ba_start_seq_ctrl.short_data = 0;
 }
 
-static struct sk_buff *rtllib_ADDBA(struct rtllib_device *ieee, u8 *Dst,
+static struct sk_buff *rtllib_ADDBA(struct rtllib_device *ieee, u8 *dst,
 				    struct ba_record *pBA,
 				    u16 StatusCode, u8 type)
 {
@@ -73,7 +73,7 @@ static struct sk_buff *rtllib_ADDBA(struct rtllib_device *ieee, u8 *Dst,
 	u16 len = ieee->tx_headroom + 9;
 
 	netdev_dbg(ieee->dev, "%s(): frame(%d) sentd to: %pM, ieee->dev:%p\n",
-		   __func__, type, Dst, ieee->dev);
+		   __func__, type, dst, ieee->dev);
 
 	if (!pBA) {
 		netdev_warn(ieee->dev, "pBA is NULL\n");
@@ -89,7 +89,7 @@ static struct sk_buff *rtllib_ADDBA(struct rtllib_device *ieee, u8 *Dst,
 
 	BAReq = skb_put(skb, sizeof(struct ieee80211_hdr_3addr));
 
-	ether_addr_copy(BAReq->addr1, Dst);
+	ether_addr_copy(BAReq->addr1, dst);
 	ether_addr_copy(BAReq->addr2, ieee->dev->dev_addr);
 
 	ether_addr_copy(BAReq->addr3, ieee->current_network.bssid);
