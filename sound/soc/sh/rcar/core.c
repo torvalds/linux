@@ -1303,6 +1303,7 @@ audio_graph:
 		if (i >= RSND_MAX_COMPONENT) {
 			dev_info(dev, "reach to max component\n");
 			of_node_put(node);
+			of_node_put(ports);
 			break;
 		}
 	}
