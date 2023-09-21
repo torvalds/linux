@@ -761,9 +761,11 @@ static bool hci_dma_irq_handler(struct i3c_hci *hci, unsigned int mask)
 		if (status & INTR_RING_OP)
 			complete(&rh->op_done);
 
-		if (status & INTR_TRANSFER_ABORT)
+		if (status & INTR_TRANSFER_ABORT) {
 			dev_notice_ratelimited(&hci->master.dev,
 				"ring %d: Transfer Aborted\n", i);
+			mipi_i3c_hci_resume(hci);
+		}
 		if (status & INTR_WARN_INS_STOP_MODE)
 			dev_warn_ratelimited(&hci->master.dev,
 				"ring %d: Inserted Stop on Mode Change\n", i);
