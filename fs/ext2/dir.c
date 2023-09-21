@@ -286,8 +286,8 @@ ext2_readdir(struct file *file, struct dir_context *ctx)
 
 	for ( ; n < npages; n++, offset = 0) {
 		ext2_dirent *de;
-		struct page *page;
-		char *kaddr = ext2_get_page(inode, n, 0, &page);
+		struct folio *folio;
+		char *kaddr = ext2_get_folio(inode, n, 0, &folio);
 		char *limit;
 
 		if (IS_ERR(kaddr)) {
@@ -311,7 +311,7 @@ ext2_readdir(struct file *file, struct dir_context *ctx)
 			if (de->rec_len == 0) {
 				ext2_error(sb, __func__,
 					"zero-length directory entry");
-				ext2_put_page(page, de);
+				folio_release_kmap(folio, de);
 				return -EIO;
 			}
 			if (de->inode) {
@@ -323,13 +323,13 @@ ext2_readdir(struct file *file, struct dir_context *ctx)
 				if (!dir_emit(ctx, de->name, de->name_len,
 						le32_to_cpu(de->inode),
 						d_type)) {
-					ext2_put_page(page, de);
+					folio_release_kmap(folio, de);
 					return 0;
 				}
 			}
 			ctx->pos += ext2_rec_len_from_disk(de->rec_len);
 		}
-		ext2_put_page(page, kaddr);
+		folio_release_kmap(folio, kaddr);
 	}
 	return 0;
 }
