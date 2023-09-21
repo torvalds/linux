@@ -508,3 +508,31 @@ int i3c_device_getmwl_ccc(struct i3c_device *dev, struct i3c_device_info *info)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(i3c_device_getmwl_ccc);
+
+int i3c_device_setaasa_ccc(struct i3c_device *dev)
+{
+	struct i3c_master_controller *master = i3c_dev_get_master(dev->desc);
+	int ret = -EINVAL;
+
+	i3c_bus_normaluse_lock(dev->bus);
+	if (master)
+		ret = i3c_master_setaasa_locked(master);
+	i3c_bus_normaluse_unlock(dev->bus);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(i3c_device_setaasa_ccc);
+
+int i3c_device_sethid_ccc(struct i3c_device *dev)
+{
+	struct i3c_master_controller *master = i3c_dev_get_master(dev->desc);
+	int ret = -EINVAL;
+
+	i3c_bus_normaluse_lock(dev->bus);
+	if (master)
+		ret = i3c_master_sethid_locked(master);
+	i3c_bus_normaluse_unlock(dev->bus);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(i3c_device_sethid_ccc);
