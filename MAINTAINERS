@@ -6826,12 +6826,26 @@ M:	Thomas Zimmermann <tzimmermann@suse.de>
 S:	Maintained
 W:	https://01.org/linuxgraphics/gfx-docs/maintainer-tools/drm-misc.html
 T:	git git://anongit.freedesktop.org/drm/drm-misc
+F:	Documentation/devicetree/bindings/display/
+F:	Documentation/devicetree/bindings/gpu/
 F:	Documentation/gpu/
-F:	drivers/gpu/drm/*
+F:	drivers/gpu/drm/
 F:	drivers/gpu/vga/
-F:	include/drm/drm*
+F:	include/drm/drm
 F:	include/linux/vga*
-F:	include/uapi/drm/drm*
+F:	include/uapi/drm/
+X:	drivers/gpu/drm/amd/
+X:	drivers/gpu/drm/armada/
+X:	drivers/gpu/drm/etnaviv/
+X:	drivers/gpu/drm/exynos/
+X:	drivers/gpu/drm/i915/
+X:	drivers/gpu/drm/kmb/
+X:	drivers/gpu/drm/mediatek/
+X:	drivers/gpu/drm/msm/
+X:	drivers/gpu/drm/nouveau/
+X:	drivers/gpu/drm/radeon/
+X:	drivers/gpu/drm/renesas/
+X:	drivers/gpu/drm/tegra/
 
 DRM DRIVERS FOR ALLWINNER A10
 M:	Maxime Ripard <mripard@kernel.org>
