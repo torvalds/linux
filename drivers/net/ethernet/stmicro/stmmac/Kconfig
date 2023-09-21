@@ -142,6 +142,18 @@ config DWMAC_QCOM_ETHQOS
 	  This selects the Qualcomm ETHQOS glue layer support for the
 	  stmmac device driver.
 
+config DWMAC_QCOM_VER3
+	tristate "EMAC ETHQOS support for direwolf"
+	default ARCH_QCOM
+	depends on OF && (ARCH_QCOM || COMPILE_TEST)
+	help
+	  Support for the EMAC ETHQOS core 3.
+
+	  This selects the EMAC ETHQOS glue layer DMA and MTL offsets for
+	  the stmmac device driver for direwolf. With this config different
+	  base address for various MTL and DMA registers are selected.
+	  This config is only applicable for EMAC version 3.
+
 config DWMAC_ROCKCHIP
 	tristate "Rockchip dwmac support"
 	default ARCH_ROCKCHIP

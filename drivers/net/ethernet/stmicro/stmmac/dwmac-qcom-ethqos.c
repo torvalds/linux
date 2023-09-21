@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 // Copyright (c) 2018-19, Linaro Limited
+// Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
 
 #include <linux/module.h>
 #include <linux/of.h>
@@ -40,6 +41,19 @@
 #define RGMII_CONFIG_LOOPBACK_EN		BIT(2)
 #define RGMII_CONFIG_PROG_SWAP			BIT(1)
 #define RGMII_CONFIG_DDR_MODE			BIT(0)
+
+/*RGMII DLL CONFIG*/
+#define HSR_DLL_CONFIG				0x000B642C
+#define HSR_DLL_CONFIG_2			0xA001
+#define HSR_MACRO_CONFIG_2			0x01
+#define HSR_DLL_TEST_CTRL			0x1400000
+#define HSR_DDR_CONFIG				0x80040868
+#define HSR_SDCC_USR_CTRL			0x2C010800
+#define MACRO_CONFIG_2_MASK			GENMASK(24, 17)
+#define	DLL_CONFIG_2_MASK			GENMASK(22, 0)
+#define HSR_SDCC_DLL_TEST_CTRL			0x1800000
+#define DDR_CONFIG_PRG_RCLK_DLY			115
+#define DLL_BYPASS				BIT(30)
 
 /* SDCC_HC_REG_DLL_CONFIG fields */
 #define SDCC_DLL_CONFIG_DLL_RST			BIT(30)
@@ -284,6 +298,106 @@ static int ethqos_dll_configure(struct qcom_ethqos *ethqos)
 	return 0;
 }
 
+void emac_rgmii_io_macro_config_1G(struct qcom_ethqos *ethqos)
+{
+	rgmii_updatel(ethqos, RGMII_CONFIG_DDR_MODE,
+		      RGMII_CONFIG_DDR_MODE, RGMII_IO_MACRO_CONFIG);
+	rgmii_updatel(ethqos, RGMII_CONFIG_BYPASS_TX_ID_EN,
+		      0, RGMII_IO_MACRO_CONFIG);
+	rgmii_updatel(ethqos, RGMII_CONFIG_POS_NEG_DATA_SEL,
+		      RGMII_CONFIG_POS_NEG_DATA_SEL,
+		      RGMII_IO_MACRO_CONFIG);
+	rgmii_updatel(ethqos, RGMII_CONFIG_PROG_SWAP,
+		      RGMII_CONFIG_PROG_SWAP, RGMII_IO_MACRO_CONFIG);
+	rgmii_updatel(ethqos, RGMII_CONFIG2_DATA_DIVIDE_CLK_SEL,
+		      0, RGMII_IO_MACRO_CONFIG2);
+	rgmii_updatel(ethqos, RGMII_CONFIG2_TX_CLK_PHASE_SHIFT_EN,
+		      RGMII_CONFIG2_TX_CLK_PHASE_SHIFT_EN,
+		      RGMII_IO_MACRO_CONFIG2);
+	rgmii_updatel(ethqos, RGMII_CONFIG2_RSVD_CONFIG15,
+		      0, RGMII_IO_MACRO_CONFIG2);
+	rgmii_updatel(ethqos, RGMII_CONFIG2_RX_PROG_SWAP,
+		      RGMII_CONFIG2_RX_PROG_SWAP,
+		      RGMII_IO_MACRO_CONFIG2);
+
+	/* Set PRG_RCLK_DLY to 115 */
+	rgmii_updatel(ethqos, SDCC_DDR_CONFIG_PRG_RCLK_DLY,
+		      115, SDCC_HC_REG_DDR_CONFIG);
+	rgmii_updatel(ethqos, SDCC_DDR_CONFIG_PRG_DLY_EN,
+		      SDCC_DDR_CONFIG_PRG_DLY_EN,
+		      SDCC_HC_REG_DDR_CONFIG);
+	rgmii_updatel(ethqos, RGMII_CONFIG_LOOPBACK_EN,
+		      0, RGMII_IO_MACRO_CONFIG);
+}
+
+void emac_rgmii_io_macro_config_100M(struct qcom_ethqos *ethqos)
+{
+	rgmii_updatel(ethqos, RGMII_CONFIG_DDR_MODE,
+		      RGMII_CONFIG_DDR_MODE, RGMII_IO_MACRO_CONFIG);
+	rgmii_updatel(ethqos, RGMII_CONFIG_BYPASS_TX_ID_EN,
+		      RGMII_CONFIG_BYPASS_TX_ID_EN,
+		      RGMII_IO_MACRO_CONFIG);
+	rgmii_updatel(ethqos, RGMII_CONFIG_POS_NEG_DATA_SEL,
+		      0, RGMII_IO_MACRO_CONFIG);
+	rgmii_updatel(ethqos, RGMII_CONFIG_PROG_SWAP,
+		      0, RGMII_IO_MACRO_CONFIG);
+	rgmii_updatel(ethqos, RGMII_CONFIG2_DATA_DIVIDE_CLK_SEL,
+		      0, RGMII_IO_MACRO_CONFIG2);
+	rgmii_updatel(ethqos, RGMII_CONFIG2_TX_CLK_PHASE_SHIFT_EN,
+		      RGMII_CONFIG2_TX_CLK_PHASE_SHIFT_EN,
+		      RGMII_IO_MACRO_CONFIG2);
+	rgmii_updatel(ethqos, RGMII_CONFIG_MAX_SPD_PRG_2,
+		      BIT(6), RGMII_IO_MACRO_CONFIG);
+	rgmii_updatel(ethqos, RGMII_CONFIG2_RSVD_CONFIG15,
+		      0, RGMII_IO_MACRO_CONFIG2);
+	rgmii_updatel(ethqos, RGMII_CONFIG2_RX_PROG_SWAP,
+		      RGMII_CONFIG2_RX_PROG_SWAP,
+		      RGMII_IO_MACRO_CONFIG2);
+
+	/* Write 0x5 to PRG_RCLK_DLY_CODE */
+	rgmii_updatel(ethqos, SDCC_DDR_CONFIG_EXT_PRG_RCLK_DLY_CODE,
+		      (BIT(29) | BIT(27)), SDCC_HC_REG_DDR_CONFIG);
+	rgmii_updatel(ethqos, SDCC_DDR_CONFIG_EXT_PRG_RCLK_DLY,
+		      SDCC_DDR_CONFIG_EXT_PRG_RCLK_DLY,
+		      SDCC_HC_REG_DDR_CONFIG);
+	rgmii_updatel(ethqos, SDCC_DDR_CONFIG_EXT_PRG_RCLK_DLY_EN,
+		      SDCC_DDR_CONFIG_EXT_PRG_RCLK_DLY_EN,
+		      SDCC_HC_REG_DDR_CONFIG);
+	rgmii_updatel(ethqos, RGMII_CONFIG_LOOPBACK_EN,
+		      0, RGMII_IO_MACRO_CONFIG);
+}
+
+void emac_rgmii_io_macro_config_10M(struct qcom_ethqos *ethqos)
+{
+	rgmii_updatel(ethqos, RGMII_CONFIG_DDR_MODE,
+		      RGMII_CONFIG_DDR_MODE, RGMII_IO_MACRO_CONFIG);
+	rgmii_updatel(ethqos, RGMII_CONFIG_BYPASS_TX_ID_EN,
+		      RGMII_CONFIG_BYPASS_TX_ID_EN,
+		      RGMII_IO_MACRO_CONFIG);
+	rgmii_updatel(ethqos, RGMII_CONFIG_POS_NEG_DATA_SEL,
+		      0, RGMII_IO_MACRO_CONFIG);
+	rgmii_updatel(ethqos, RGMII_CONFIG_PROG_SWAP,
+		      0, RGMII_IO_MACRO_CONFIG);
+	rgmii_updatel(ethqos, RGMII_CONFIG2_DATA_DIVIDE_CLK_SEL,
+		      0, RGMII_IO_MACRO_CONFIG2);
+	rgmii_updatel(ethqos,
+		      RGMII_CONFIG2_TX_CLK_PHASE_SHIFT_EN,
+		      RGMII_CONFIG2_TX_CLK_PHASE_SHIFT_EN,
+		      RGMII_IO_MACRO_CONFIG2);
+	rgmii_updatel(ethqos, RGMII_CONFIG_MAX_SPD_PRG_9,
+		      BIT(12) | GENMASK(9, 8),
+		      RGMII_IO_MACRO_CONFIG);
+	rgmii_updatel(ethqos, RGMII_CONFIG2_RSVD_CONFIG15,
+		      0, RGMII_IO_MACRO_CONFIG2);
+	rgmii_updatel(ethqos, RGMII_CONFIG2_RX_PROG_SWAP,
+		      RGMII_CONFIG2_RX_PROG_SWAP,
+		      RGMII_IO_MACRO_CONFIG2);
+
+	/* Write 0x5 to PRG_RCLK_DLY_CODE */
+	rgmii_updatel(ethqos, SDCC_DDR_CONFIG_EXT_PRG_RCLK_DLY_CODE,
+		      (BIT(29) | BIT(27)), SDCC_HC_REG_DDR_CONFIG);
+}
+
 static int ethqos_rgmii_macro_init(struct qcom_ethqos *ethqos)
 {
 	/* Disable loopback mode */
@@ -451,6 +565,37 @@ static int ethqos_rgmii_macro_init(struct qcom_ethqos *ethqos)
 	return 0;
 }
 
+static int ethqos_rgmii_macro_init_v3(struct qcom_ethqos *ethqos)
+{
+	/* Disable loopback mode */
+	rgmii_updatel(ethqos, RGMII_CONFIG2_TX_TO_RX_LOOPBACK_EN,
+		      0, RGMII_IO_MACRO_CONFIG2);
+
+	/* Select RGMII, write 0 to interface select */
+	rgmii_updatel(ethqos, RGMII_CONFIG_INTF_SEL,
+		      0, RGMII_IO_MACRO_CONFIG);
+
+	switch (ethqos->speed) {
+	case SPEED_1000:
+		emac_rgmii_io_macro_config_1G(ethqos);
+		break;
+
+	case SPEED_100:
+		emac_rgmii_io_macro_config_100M(ethqos);
+		break;
+
+	case SPEED_10:
+		emac_rgmii_io_macro_config_10M(ethqos);
+		break;
+	default:
+		dev_err(&ethqos->pdev->dev,
+			"Invalid speed %d\n", ethqos->speed);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int ethqos_configure(struct qcom_ethqos *ethqos)
 {
 	volatile unsigned int dll_lock;
@@ -514,13 +659,122 @@ static int ethqos_configure(struct qcom_ethqos *ethqos)
 	return 0;
 }
 
+/* for EMAC_HW_VER >= 3 */
+static int ethqos_configure_mac_v3(struct qcom_ethqos *ethqos)
+{
+	unsigned int dll_lock;
+	unsigned int i, retry = 1000;
+	int ret = 0;
+	/* Reset to POR values and enable clk */
+	for (i = 0; i < ethqos->num_por; i++)
+		rgmii_writel(ethqos, ethqos->por[i].value,
+			     ethqos->por[i].offset);
+	ethqos_set_func_clk_en(ethqos);
+
+	/* Put DLL into Reset and Powerdown */
+	rgmii_updatel(ethqos, SDCC_DLL_CONFIG_DLL_RST,
+		      SDCC_DLL_CONFIG_DLL_RST, SDCC_HC_REG_DLL_CONFIG);
+	rgmii_updatel(ethqos, SDCC_DLL_CONFIG_PDN,
+		      SDCC_DLL_CONFIG_PDN, SDCC_HC_REG_DLL_CONFIG)
+		;
+	/*Power on and set DLL, Set->RST & PDN to '0' */
+	rgmii_updatel(ethqos, SDCC_DLL_CONFIG_DLL_RST,
+		      0, SDCC_HC_REG_DLL_CONFIG);
+	rgmii_updatel(ethqos, SDCC_DLL_CONFIG_PDN,
+		      0, SDCC_HC_REG_DLL_CONFIG);
+
+	/* for 10 or 100Mbps further configuration not required */
+	if (ethqos->speed == SPEED_1000) {
+		/* Disable DLL output clock */
+		rgmii_updatel(ethqos, SDCC_DLL_CONFIG_CK_OUT_EN,
+			      0, SDCC_HC_REG_DLL_CONFIG);
+
+		/* Configure SDCC_DLL_TEST_CTRL */
+		rgmii_writel(ethqos, HSR_SDCC_DLL_TEST_CTRL, SDCC_TEST_CTL);
+
+		/* Configure SDCC_USR_CTRL */
+		rgmii_writel(ethqos, HSR_SDCC_USR_CTRL, SDCC_USR_CTL);
+
+		/* Configure DDR_CONFIG */
+		rgmii_writel(ethqos, HSR_DDR_CONFIG, SDCC_HC_REG_DDR_CONFIG);
+
+		/* Configure PRG_RCLK_DLY */
+		rgmii_updatel(ethqos, SDCC_DDR_CONFIG_PRG_RCLK_DLY,
+			      DDR_CONFIG_PRG_RCLK_DLY, SDCC_HC_REG_DDR_CONFIG);
+		/*Enable PRG_RCLK_CLY */
+		rgmii_updatel(ethqos, SDCC_DDR_CONFIG_PRG_DLY_EN,
+			      SDCC_DDR_CONFIG_PRG_DLY_EN, SDCC_HC_REG_DDR_CONFIG);
+
+		/* Configure DLL_CONFIG */
+		rgmii_writel(ethqos, HSR_DLL_CONFIG, SDCC_HC_REG_DLL_CONFIG);
+
+		/*Set -> DLL_CONFIG_2 MCLK_FREQ_CALC*/
+		rgmii_writel(ethqos, HSR_DLL_CONFIG_2, SDCC_HC_REG_DLL_CONFIG2);
+
+		/*Power Down and Reset DLL*/
+		rgmii_updatel(ethqos, SDCC_DLL_CONFIG_DLL_RST,
+			      SDCC_DLL_CONFIG_DLL_RST, SDCC_HC_REG_DLL_CONFIG);
+		rgmii_updatel(ethqos, SDCC_DLL_CONFIG_PDN,
+			      SDCC_DLL_CONFIG_PDN, SDCC_HC_REG_DLL_CONFIG);
+
+		/*wait for 52us*/
+		usleep_range(52, 55);
+
+		/*Power on and set DLL, Set->RST & PDN to '0' */
+		rgmii_updatel(ethqos, SDCC_DLL_CONFIG_DLL_RST,
+			      0, SDCC_HC_REG_DLL_CONFIG);
+		rgmii_updatel(ethqos, SDCC_DLL_CONFIG_PDN,
+			      0, SDCC_HC_REG_DLL_CONFIG);
+
+		/*Wait for 8000 input clock cycles, 8000 cycles of 100 MHz = 80us*/
+		usleep_range(80, 85);
+
+		/* Enable DLL output clock */
+		rgmii_updatel(ethqos, SDCC_DLL_CONFIG_CK_OUT_EN,
+			      SDCC_DLL_CONFIG_CK_OUT_EN, SDCC_HC_REG_DLL_CONFIG);
+
+		/* Check for DLL lock */
+		do {
+			udelay(1);
+			dll_lock = rgmii_readl(ethqos, SDC4_STATUS);
+			if (dll_lock & SDC4_STATUS_DLL_LOCK)
+				break;
+			retry--;
+		} while (retry > 0);
+		if (!retry)
+			dev_err(&ethqos->pdev->dev,
+				"Timeout while waiting for DLL lock\n");
+	}
+
+	/* DLL bypass mode for 10Mbps and 100Mbps
+	 * 1.   Write 1 to PDN bit of SDCC_HC_REG_DLL_CONFIG register.
+	 * 2.   Write 1 to bypass bit of SDCC_USR_CTL register
+	 * 3.   Default value of this register is 0x00010800
+	 */
+	if (ethqos->speed == SPEED_10 || ethqos->speed == SPEED_100) {
+		rgmii_updatel(ethqos, SDCC_DLL_CONFIG_PDN,
+			      SDCC_DLL_CONFIG_PDN, SDCC_HC_REG_DLL_CONFIG);
+		rgmii_updatel(ethqos, DLL_BYPASS,
+			      DLL_BYPASS, SDCC_USR_CTL);
+	}
+
+	ret = ethqos_rgmii_macro_init_v3(ethqos);
+
+	return ret;
+}
+
 static void ethqos_fix_mac_speed(void *priv, unsigned int speed)
 {
 	struct qcom_ethqos *ethqos = priv;
+	int ret = 0;
 
 	ethqos->speed = speed;
-	ethqos_update_rgmii_clk(ethqos, speed);
-	ethqos_configure(ethqos);
+	if (ethqos->emac_ver == EMAC_HW_v3_0_0_RG)
+		ret = ethqos_configure_mac_v3(ethqos);
+	else
+		ethqos_configure(ethqos);
+	if (ret != 0)
+		ETHQOSERR("HSR configuration has failed\n");
 }
 
 static int ethqos_clks_config(void *priv, bool enabled)
