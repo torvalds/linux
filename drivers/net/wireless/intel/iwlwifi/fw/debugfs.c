@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2012-2014, 2018-2020 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2023 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -341,6 +341,12 @@ static int iwl_dbgfs_fw_info_seq_show(struct seq_file *seq, void *v)
 		seq_printf(seq,
 			   "    %d: %d\n",
 			   IWL_UCODE_TLV_CAPA_PPAG_CHINA_BIOS_SUPPORT,
+			   has_capa);
+		has_capa = fw_has_capa(&fw->ucode_capa,
+				       IWL_UCODE_TLV_CAPA_CHINA_22_REG_SUPPORT) ? 1 : 0;
+		seq_printf(seq,
+			   "    %d: %d\n",
+			   IWL_UCODE_TLV_CAPA_CHINA_22_REG_SUPPORT,
 			   has_capa);
 		seq_puts(seq, "fw_api_ver:\n");
 	}

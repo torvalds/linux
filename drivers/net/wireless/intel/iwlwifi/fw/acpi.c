@@ -1011,6 +1011,7 @@ __le32 iwl_acpi_get_lari_config_bitmap(struct iwl_fw_runtime *fwrt)
 {
 	int ret;
 	u8 value;
+	u32 val;
 	__le32 config_bitmap = 0;
 
 	/*
@@ -1037,6 +1038,23 @@ __le32 iwl_acpi_get_lari_config_bitmap(struct iwl_fw_runtime *fwrt)
 		else if (value == DSM_VALUE_SRD_DISABLE)
 			config_bitmap |=
 				cpu_to_le32(LARI_CONFIG_CHANGE_ETSI_TO_DISABLED_MSK);
+	}
+
+	if (fw_has_capa(&fwrt->fw->ucode_capa,
+			IWL_UCODE_TLV_CAPA_CHINA_22_REG_SUPPORT)) {
+		/*
+		 ** Evaluate func 'DSM_FUNC_REGULATORY_CONFIG'
+		 */
+		ret = iwl_acpi_get_dsm_u32(fwrt->dev, 0,
+					   DSM_FUNC_REGULATORY_CONFIG,
+					   &iwl_guid, &val);
+		/*
+		 * China 2022 enable if the BIOS object does not exist or
+		 * if it is enabled in BIOS.
+		 */
+		if (ret < 0 || val & DSM_MASK_CHINA_22_REG)
+			config_bitmap |=
+				cpu_to_le32(LARI_CONFIG_ENABLE_CHINA_22_REG_SUPPORT_MSK);
 	}
 
 	return config_bitmap;
