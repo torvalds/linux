@@ -1671,13 +1671,9 @@ static int aspeed_i3c_master_send_ccc_cmd(struct i3c_master_controller *m,
 {
 	struct aspeed_i3c_master *master = to_aspeed_i3c_master(m);
 	int ret = 0;
-	u32 i3c_pp_timing, i3c_od_timing;
 
 	if (ccc->id == I3C_CCC_ENTDAA)
 		return -EINVAL;
-
-	i3c_od_timing = readl(master->regs + SCL_I3C_OD_TIMING);
-	i3c_pp_timing = readl(master->regs + SCL_I3C_PP_TIMING);
 
 	dev_dbg(master->dev, "ccc-id %02x rnw=%d\n", ccc->id, ccc->rnw);
 
