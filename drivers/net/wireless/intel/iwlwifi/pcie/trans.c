@@ -2177,6 +2177,9 @@ bool __iwl_trans_pcie_grab_nic_access(struct iwl_trans *trans)
 		   CSR_GP_CNTRL_REG_FLAG_GOING_TO_SLEEP;
 	u32 poll = CSR_GP_CNTRL_REG_VAL_MAC_ACCESS_EN;
 
+	if (test_bit(STATUS_TRANS_DEAD, &trans->status))
+		return false;
+
 	spin_lock(&trans_pcie->reg_lock);
 
 	if (trans_pcie->cmd_hold_nic_awake)
