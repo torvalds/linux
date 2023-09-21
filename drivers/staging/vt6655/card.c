@@ -228,7 +228,7 @@ bool CARDbSetPhyParameter(struct vnt_private *priv, u8 bb_type)
 		}
 	}
 
-	if (priv->byRFType == RF_RFMD2959) {
+	if (priv->rf_type == RF_RFMD2959) {
 		/*
 		 * bcs TX_PE will reserve 3 us hardware's processing
 		 * time here is 2 us.
@@ -356,7 +356,7 @@ void CARDbRadioPowerOff(struct vnt_private *priv)
 	if (priv->radio_off)
 		return;
 
-	switch (priv->byRFType) {
+	switch (priv->rf_type) {
 	case RF_RFMD2959:
 		vt6655_mac_word_reg_bits_off(priv->port_offset, MAC_REG_SOFTPWRCTL,
 					     SOFTPWRCTL_TXPEINV);

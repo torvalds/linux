@@ -153,7 +153,7 @@ struct vnt_private {
 
 	/* Version control */
 	unsigned char local_id;
-	unsigned char byRFType;
+	unsigned char rf_type;
 
 	unsigned char max_pwr_level;
 	unsigned char byZoneType;

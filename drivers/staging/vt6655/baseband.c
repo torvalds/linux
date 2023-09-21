@@ -1979,7 +1979,7 @@ bool bb_write_embedded(struct vnt_private *priv, unsigned char by_bb_addr,
  *  In:
  *      iobase      - I/O base address
  *      byRevId     - Revision ID
- *      byRFType    - RF type
+ *      rf_type     - RF type
  *  Out:
  *      none
  *
@@ -1992,10 +1992,10 @@ bool bb_vt3253_init(struct vnt_private *priv)
 	bool result = true;
 	int        ii;
 	void __iomem *iobase = priv->port_offset;
-	unsigned char by_rf_type = priv->byRFType;
+	unsigned char rf_type = priv->rf_type;
 	unsigned char by_local_id = priv->local_id;
 
-	if (by_rf_type == RF_RFMD2959) {
+	if (rf_type == RF_RFMD2959) {
 		if (by_local_id <= REV_ID_VT3253_A1) {
 			for (ii = 0; ii < CB_VT3253_INIT_FOR_RFMD; ii++)
 				result &= bb_write_embedded(priv,
@@ -2024,7 +2024,7 @@ bool bb_vt3253_init(struct vnt_private *priv)
 		priv->dbm_threshold[1] = -50;
 		priv->dbm_threshold[2] = 0;
 		priv->dbm_threshold[3] = 0;
-	} else if ((by_rf_type == RF_AIROHA) || (by_rf_type == RF_AL2230S)) {
+	} else if ((rf_type == RF_AIROHA) || (rf_type == RF_AL2230S)) {
 		for (ii = 0; ii < CB_VT3253B0_INIT_FOR_AIROHA2230; ii++)
 			result &= bb_write_embedded(priv,
 				vt3253b0_airoha2230[ii][0],
@@ -2042,7 +2042,7 @@ bool bb_vt3253_init(struct vnt_private *priv)
 		priv->dbm_threshold[1] = -48;
 		priv->dbm_threshold[2] = 0;
 		priv->dbm_threshold[3] = 0;
-	} else if (by_rf_type == RF_UW2451) {
+	} else if (rf_type == RF_UW2451) {
 		for (ii = 0; ii < CB_VT3253B0_INIT_FOR_UW2451; ii++)
 			result &= bb_write_embedded(priv,
 				vt3253b0_uw2451[ii][0],
@@ -2064,7 +2064,7 @@ bool bb_vt3253_init(struct vnt_private *priv)
 		priv->dbm_threshold[1] = -50;
 		priv->dbm_threshold[2] = 0;
 		priv->dbm_threshold[3] = 0;
-	} else if (by_rf_type == RF_VT3226) {
+	} else if (rf_type == RF_VT3226) {
 		for (ii = 0; ii < CB_VT3253B0_INIT_FOR_AIROHA2230; ii++)
 			result &= bb_write_embedded(priv,
 				vt3253b0_airoha2230[ii][0],
