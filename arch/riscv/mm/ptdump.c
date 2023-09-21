@@ -129,7 +129,6 @@ static struct ptd_mm_info efi_ptd_info = {
 /* Page Table Entry */
 struct prot_bits {
 	u64 mask;
-	u64 val;
 	const char *set;
 	const char *clear;
 };
@@ -137,47 +136,38 @@ struct prot_bits {
 static const struct prot_bits pte_bits[] = {
 	{
 		.mask = _PAGE_SOFT,
-		.val = _PAGE_SOFT,
-		.set = "RSW",
-		.clear = "   ",
+		.set = "RSW(%d)",
+		.clear = "  ..  ",
 	}, {
 		.mask = _PAGE_DIRTY,
-		.val = _PAGE_DIRTY,
 		.set = "D",
 		.clear = ".",
 	}, {
 		.mask = _PAGE_ACCESSED,
-		.val = _PAGE_ACCESSED,
 		.set = "A",
 		.clear = ".",
 	}, {
 		.mask = _PAGE_GLOBAL,
-		.val = _PAGE_GLOBAL,
 		.set = "G",
 		.clear = ".",
 	}, {
 		.mask = _PAGE_USER,
-		.val = _PAGE_USER,
 		.set = "U",
 		.clear = ".",
 	}, {
 		.mask = _PAGE_EXEC,
-		.val = _PAGE_EXEC,
 		.set = "X",
 		.clear = ".",
 	}, {
 		.mask = _PAGE_WRITE,
-		.val = _PAGE_WRITE,
 		.set = "W",
 		.clear = ".",
 	}, {
 		.mask = _PAGE_READ,
-		.val = _PAGE_READ,
 		.set = "R",
 		.clear = ".",
 	}, {
 		.mask = _PAGE_PRESENT,
-		.val = _PAGE_PRESENT,
 		.set = "V",
 		.clear = ".",
 	}
@@ -208,15 +198,20 @@ static void dump_prot(struct pg_state *st)
 	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(pte_bits); i++) {
-		const char *s;
+		char s[7];
+		unsigned long val;
 
-		if ((st->current_prot & pte_bits[i].mask) == pte_bits[i].val)
-			s = pte_bits[i].set;
-		else
-			s = pte_bits[i].clear;
+		val = st->current_prot & pte_bits[i].mask;
+		if (val) {
+			if (pte_bits[i].mask == _PAGE_SOFT)
+				sprintf(s, pte_bits[i].set, val >> 8);
+			else
+				sprintf(s, "%s", pte_bits[i].set);
+		} else {
+			sprintf(s, "%s", pte_bits[i].clear);
+		}
 
-		if (s)
-			pt_dump_seq_printf(st->seq, " %s", s);
+		pt_dump_seq_printf(st->seq, " %s", s);
 	}
 }
 
