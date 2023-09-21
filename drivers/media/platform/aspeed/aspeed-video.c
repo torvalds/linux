@@ -792,6 +792,9 @@ static void aspeed_video_off(struct aspeed_video *video)
 	aspeed_video_write(video, VE_INTERRUPT_CTRL, 0);
 	aspeed_video_write(video, VE_INTERRUPT_STATUS, 0xffffffff);
 
+	reset_control_assert(video->reset);
+	usleep_range(100, 200);
+
 	/* Turn off the relevant clocks */
 	clk_disable(video->eclk);
 	clk_disable(video->vclk);
@@ -808,13 +811,16 @@ static void aspeed_video_on(struct aspeed_video *video)
 	clk_enable(video->vclk);
 	clk_enable(video->eclk);
 
+	mdelay(10);
+	reset_control_deassert(video->reset);
+
 	set_bit(VIDEO_CLOCKS_ON, &video->flags);
 }
 
 static void aspeed_video_reset(struct aspeed_video *v)
 {
 	reset_control_assert(v->reset);
-	udelay(100);
+	usleep_range(100, 200);
 	reset_control_deassert(v->reset);
 }
 
@@ -940,6 +946,10 @@ static void aspeed_video_get_bounding_box(struct aspeed_video *v,
 
 static void aspeed_video_swap_src_buf(struct aspeed_video *v)
 {
+	// 2700's new design will automatically swap src at each operation
+	if (v->version > 6)
+		return;
+
 	if (v->format == VIDEO_FMT_STANDARD)
 		return;
 
@@ -1789,10 +1799,13 @@ static int aspeed_video_set_input(struct file *file, void *fh, unsigned int i)
 	video->input = i;
 
 	// modify dpll source per current input
-	if (video->input == VIDEO_INPUT_VGA)
-		regmap_update_bits(video->scu, SCU_MISC_CTRL, SCU_DPLL_SOURCE, 0);
-	else
-		regmap_update_bits(video->scu, SCU_MISC_CTRL, SCU_DPLL_SOURCE, SCU_DPLL_SOURCE);
+	if (video->version == 6) {
+		if (video->input == VIDEO_INPUT_VGA)
+			regmap_update_bits(video->scu, SCU_MISC_CTRL, SCU_DPLL_SOURCE, 0);
+		else
+			regmap_update_bits(video->scu, SCU_MISC_CTRL, SCU_DPLL_SOURCE, SCU_DPLL_SOURCE);
+	} else {
+	}
 
 	// update signal status
 	if (i == VIDEO_INPUT_MEM) {
@@ -2556,7 +2569,7 @@ static int aspeed_video_init(struct aspeed_video *video)
 	}
 	dev_info(video->dev, "irq %d\n", irq);
 
-	video->reset = devm_reset_control_get(dev, NULL);
+	video->reset = devm_reset_control_get_shared(dev, NULL);
 	if (IS_ERR(video->reset)) {
 		dev_err(dev, "Unable to get reset\n");
 		return PTR_ERR(video->reset);
