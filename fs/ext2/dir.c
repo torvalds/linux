@@ -180,32 +180,44 @@ fail:
 }
 
 /*
- * Calls to ext2_get_page()/ext2_put_page() must be nested according to the
- * rules documented in kmap_local_page()/kunmap_local().
+ * Calls to ext2_get_folio()/folio_release_kmap() must be nested according
+ * to the rules documented in kmap_local_folio()/kunmap_local().
  *
- * NOTE: ext2_find_entry() and ext2_dotdot() act as a call to ext2_get_page()
- * and should be treated as a call to ext2_get_page() for nesting purposes.
+ * NOTE: ext2_find_entry() and ext2_dotdot() act as a call
+ * to folio_release_kmap() and should be treated as a call to
+ * folio_release_kmap() for nesting purposes.
  */
-static void *ext2_get_page(struct inode *dir, unsigned long n,
-				   int quiet, struct page **page)
+static void *ext2_get_folio(struct inode *dir, unsigned long n,
+				   int quiet, struct folio **foliop)
 {
 	struct address_space *mapping = dir->i_mapping;
 	struct folio *folio = read_mapping_folio(mapping, n, NULL);
-	void *page_addr;
+	void *kaddr;
 
 	if (IS_ERR(folio))
 		return ERR_CAST(folio);
-	page_addr = kmap_local_folio(folio, 0);
+	kaddr = kmap_local_folio(folio, 0);
 	if (unlikely(!folio_test_checked(folio))) {
-		if (!ext2_check_folio(folio, quiet, page_addr))
+		if (!ext2_check_folio(folio, quiet, kaddr))
 			goto fail;
 	}
-	*page = &folio->page;
-	return page_addr;
+	*foliop = folio;
+	return kaddr;
 
 fail:
-	ext2_put_page(&folio->page, page_addr);
+	folio_release_kmap(folio, kaddr);
 	return ERR_PTR(-EIO);
+}
+
+static void *ext2_get_page(struct inode *dir, unsigned long n,
+				   int quiet, struct page **pagep)
+{
+	struct folio *folio;
+	void *kaddr = ext2_get_folio(dir, n, quiet, &folio);
+
+	if (!IS_ERR(kaddr))
+		*pagep = &folio->page;
+	return kaddr;
 }
 
 /*
