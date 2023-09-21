@@ -571,94 +571,72 @@ static void acpi_thermal_zone_device_critical(struct thermal_zone_device *therma
 	thermal_zone_device_critical(thermal);
 }
 
-static int acpi_thermal_cooling_device_cb(struct thermal_zone_device *thermal,
-					  struct thermal_cooling_device *cdev,
-					  bool bind)
+struct acpi_thermal_bind_data {
+	struct thermal_zone_device *thermal;
+	struct thermal_cooling_device *cdev;
+	bool bind;
+};
+
+static int bind_unbind_cdev_cb(struct thermal_trip *trip, void *arg)
 {
-	struct acpi_device *device = cdev->devdata;
-	struct acpi_thermal *tz = thermal_zone_device_priv(thermal);
-	struct acpi_thermal_trip *acpi_trip;
-	struct acpi_device *dev;
-	acpi_handle handle;
+	struct acpi_thermal_trip *acpi_trip = trip->priv;
+	struct acpi_thermal_bind_data *bd = arg;
+	struct thermal_zone_device *thermal = bd->thermal;
+	struct thermal_cooling_device *cdev = bd->cdev;
+	struct acpi_device *cdev_adev = cdev->devdata;
 	int i;
-	int j;
-	int trip = -1;
-	int result = 0;
 
-	if (tz->trips.critical_valid)
-		trip++;
+	/* Skip critical and hot trips. */
+	if (!acpi_trip)
+		return 0;
 
-	if (tz->trips.hot_valid)
-		trip++;
+	for (i = 0; i < acpi_trip->devices.count; i++) {
+		acpi_handle handle = acpi_trip->devices.handles[i];
+		struct acpi_device *adev = acpi_fetch_acpi_dev(handle);
 
-	acpi_trip = &tz->trips.passive.trip;
-	if (acpi_thermal_trip_valid(acpi_trip)) {
-		trip++;
-		for (i = 0; i < acpi_trip->devices.count; i++) {
-			handle = acpi_trip->devices.handles[i];
-			dev = acpi_fetch_acpi_dev(handle);
-			if (dev != device)
-				continue;
+		if (adev != cdev_adev)
+			continue;
 
-			if (bind)
-				result = thermal_zone_bind_cooling_device(
-						thermal, trip, cdev,
-						THERMAL_NO_LIMIT,
-						THERMAL_NO_LIMIT,
-						THERMAL_WEIGHT_DEFAULT);
-			else
-				result =
-					thermal_zone_unbind_cooling_device(
-						thermal, trip, cdev);
+		if (bd->bind) {
+			int ret;
 
-			if (result)
-				goto failed;
+			ret = thermal_bind_cdev_to_trip(thermal, trip, cdev,
+							THERMAL_NO_LIMIT,
+							THERMAL_NO_LIMIT,
+							THERMAL_WEIGHT_DEFAULT);
+			if (ret)
+				return ret;
+		} else {
+			thermal_unbind_cdev_from_trip(thermal, trip, cdev);
 		}
 	}
 
-	for (i = 0; i < ACPI_THERMAL_MAX_ACTIVE; i++) {
-		acpi_trip = &tz->trips.active[i].trip;
-		if (!acpi_thermal_trip_valid(acpi_trip))
-			break;
+	return 0;
+}
 
-		trip++;
-		for (j = 0; j < acpi_trip->devices.count; j++) {
-			handle = acpi_trip->devices.handles[j];
-			dev = acpi_fetch_acpi_dev(handle);
-			if (dev != device)
-				continue;
+static int acpi_thermal_bind_unbind_cdev(struct thermal_zone_device *thermal,
+					 struct thermal_cooling_device *cdev,
+					 bool bind)
+{
+	struct acpi_thermal_bind_data bd = {
+		.thermal = thermal, .cdev = cdev, .bind = bind
+	};
 
-			if (bind)
-				result = thermal_zone_bind_cooling_device(
-						thermal, trip, cdev,
-						THERMAL_NO_LIMIT,
-						THERMAL_NO_LIMIT,
-						THERMAL_WEIGHT_DEFAULT);
-			else
-				result = thermal_zone_unbind_cooling_device(
-						thermal, trip, cdev);
-
-			if (result)
-				goto failed;
-		}
-	}
-
-failed:
-	return result;
+	return for_each_thermal_trip(thermal, bind_unbind_cdev_cb, &bd);
 }
 
 static int
 acpi_thermal_bind_cooling_device(struct thermal_zone_device *thermal,
 				 struct thermal_cooling_device *cdev)
 {
-	return acpi_thermal_cooling_device_cb(thermal, cdev, true);
+	return acpi_thermal_bind_unbind_cdev(thermal, cdev, true);
 }
 
 static int
 acpi_thermal_unbind_cooling_device(struct thermal_zone_device *thermal,
 				   struct thermal_cooling_device *cdev)
 {
-	return acpi_thermal_cooling_device_cb(thermal, cdev, false);
+	return acpi_thermal_bind_unbind_cdev(thermal, cdev, false);
 }
 
 static struct thermal_zone_device_ops acpi_thermal_zone_ops = {
