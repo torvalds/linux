@@ -5526,7 +5526,7 @@ int intel_modeset_pipes_in_mask_early(struct intel_atomic_state *state,
 }
 
 /**
- * intel_modeset_all_pipes - force a full modeset on all pipes
+ * intel_modeset_all_pipes_late - force a full modeset on all pipes
  * @state: intel atomic state
  * @reason: the reason for the full modeset
  *
@@ -5536,8 +5536,8 @@ int intel_modeset_pipes_in_mask_early(struct intel_atomic_state *state,
  *
  * Returns 0 in case of success, negative error code otherwise.
  */
-int intel_modeset_all_pipes(struct intel_atomic_state *state,
-			    const char *reason)
+int intel_modeset_all_pipes_late(struct intel_atomic_state *state,
+				 const char *reason)
 {
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
 	struct intel_crtc *crtc;
