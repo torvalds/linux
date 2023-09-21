@@ -877,21 +877,21 @@ struct ibmvfc_host {
 	struct ibmvfc_discover_targets_entry *disc_buf;
 	struct mutex passthru_mutex;
 	int max_vios_scsi_channels;
+	int client_scsi_channels;
 	int task_set;
 	int init_retries;
 	int discovery_threads;
 	int abort_threads;
-	int client_migrated;
-	int reinit;
-	int delay_init;
-	int scan_complete;
+	int client_migrated:1;
+	int reinit:1;
+	int delay_init:1;
+	int logged_in:1;
+	int mq_enabled:1;
+	int using_channels:1;
+	int do_enquiry:1;
+	int aborting_passthru:1;
+	int scan_complete:1;
 	int scan_timeout;
-	int logged_in;
-	int mq_enabled;
-	int using_channels;
-	int do_enquiry;
-	int client_scsi_channels;
-	int aborting_passthru;
 	int events_to_log;
 #define IBMVFC_AE_LINKUP	0x0001
 #define IBMVFC_AE_LINKDOWN	0x0002
