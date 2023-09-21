@@ -138,7 +138,7 @@ void free_mqd_hiq_sdma(struct mqd_manager *mm, void *mqd,
 
 void mqd_symmetrically_map_cu_mask(struct mqd_manager *mm,
 		const uint32_t *cu_mask, uint32_t cu_mask_count,
-		uint32_t *se_mask);
+		uint32_t *se_mask, uint32_t inst);
 
 int kfd_hiq_load_mqd_kiq(struct mqd_manager *mm, void *mqd,
 		uint32_t pipe_id, uint32_t queue_id,

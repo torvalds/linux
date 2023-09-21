@@ -72,7 +72,7 @@ config I2C_MUX
 source "drivers/i2c/muxes/Kconfig"
 
 config I2C_ATR
-	tristate "I2C Address Translator (ATR) support"
+	tristate "I2C Address Translator (ATR) support" if COMPILE_TEST
 	help
 	  Enable support for I2C Address Translator (ATR) chips.
 

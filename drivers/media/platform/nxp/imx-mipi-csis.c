@@ -1490,7 +1490,6 @@ err_cleanup:
 	v4l2_async_unregister_subdev(&csis->sd);
 err_disable_clock:
 	mipi_csis_clk_disable(csis);
-	fwnode_handle_put(csis->sd.fwnode);
 
 	return ret;
 }
@@ -1510,7 +1509,6 @@ static void mipi_csis_remove(struct platform_device *pdev)
 	mipi_csis_clk_disable(csis);
 	v4l2_subdev_cleanup(&csis->sd);
 	media_entity_cleanup(&csis->sd.entity);
-	fwnode_handle_put(csis->sd.fwnode);
 	pm_runtime_set_suspended(&pdev->dev);
 }
 

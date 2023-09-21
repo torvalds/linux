@@ -19,6 +19,7 @@
 #include <asm/unistd.h>
 
 #include "../kselftest_harness.h"
+#include "user_events_selftests.h"
 
 const char *data_file = "/sys/kernel/tracing/user_events_data";
 const char *enable_file = "/sys/kernel/tracing/events/user_events/__abi_event/enable";
@@ -93,6 +94,8 @@ FIXTURE(user) {
 };
 
 FIXTURE_SETUP(user) {
+	USER_EVENT_FIXTURE_SETUP(return);
+
 	change_event(false);
 	self->check = 0;
 }
