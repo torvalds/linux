@@ -548,14 +548,14 @@ static void stmmac_get_per_qstats(struct stmmac_priv *priv, u64 *data)
 
 	pos = data;
 	for (q = 0; q < tx_cnt; q++) {
-		struct stmmac_tx_queue *tx_q = &priv->dma_conf.tx_queue[q];
+		struct stmmac_txq_stats *txq_stats = &priv->xstats.txq_stats[q];
 		struct stmmac_txq_stats snapshot;
 
 		data = pos;
 		do {
-			start = u64_stats_fetch_begin(&tx_q->txq_stats.syncp);
-			snapshot = tx_q->txq_stats;
-		} while (u64_stats_fetch_retry(&tx_q->txq_stats.syncp, start));
+			start = u64_stats_fetch_begin(&txq_stats->syncp);
+			snapshot = *txq_stats;
+		} while (u64_stats_fetch_retry(&txq_stats->syncp, start));
 
 		p = (char *)&snapshot + offsetof(struct stmmac_txq_stats, tx_pkt_n);
 		for (stat = 0; stat < STMMAC_TXQ_STATS; stat++) {
@@ -566,14 +566,14 @@ static void stmmac_get_per_qstats(struct stmmac_priv *priv, u64 *data)
 
 	pos = data;
 	for (q = 0; q < rx_cnt; q++) {
-		struct stmmac_rx_queue *rx_q = &priv->dma_conf.rx_queue[q];
+		struct stmmac_rxq_stats *rxq_stats = &priv->xstats.rxq_stats[q];
 		struct stmmac_rxq_stats snapshot;
 
 		data = pos;
 		do {
-			start = u64_stats_fetch_begin(&rx_q->rxq_stats.syncp);
-			snapshot = rx_q->rxq_stats;
-		} while (u64_stats_fetch_retry(&rx_q->rxq_stats.syncp, start));
+			start = u64_stats_fetch_begin(&rxq_stats->syncp);
+			snapshot = *rxq_stats;
+		} while (u64_stats_fetch_retry(&rxq_stats->syncp, start));
 
 		p = (char *)&snapshot + offsetof(struct stmmac_rxq_stats, rx_pkt_n);
 		for (stat = 0; stat < STMMAC_RXQ_STATS; stat++) {
@@ -637,14 +637,14 @@ static void stmmac_get_ethtool_stats(struct net_device *dev,
 
 	pos = j;
 	for (i = 0; i < rx_queues_count; i++) {
-		struct stmmac_rx_queue *rx_q = &priv->dma_conf.rx_queue[i];
+		struct stmmac_rxq_stats *rxq_stats = &priv->xstats.rxq_stats[i];
 		struct stmmac_rxq_stats snapshot;
 
 		j = pos;
 		do {
-			start = u64_stats_fetch_begin(&rx_q->rxq_stats.syncp);
-			snapshot = rx_q->rxq_stats;
-		} while (u64_stats_fetch_retry(&rx_q->rxq_stats.syncp, start));
+			start = u64_stats_fetch_begin(&rxq_stats->syncp);
+			snapshot = *rxq_stats;
+		} while (u64_stats_fetch_retry(&rxq_stats->syncp, start));
 
 		data[j++] += snapshot.rx_pkt_n;
 		data[j++] += snapshot.rx_normal_irq_n;
@@ -654,14 +654,14 @@ static void stmmac_get_ethtool_stats(struct net_device *dev,
 
 	pos = j;
 	for (i = 0; i < tx_queues_count; i++) {
-		struct stmmac_tx_queue *tx_q = &priv->dma_conf.tx_queue[i];
+		struct stmmac_txq_stats *txq_stats = &priv->xstats.txq_stats[i];
 		struct stmmac_txq_stats snapshot;
 
 		j = pos;
 		do {
-			start = u64_stats_fetch_begin(&tx_q->txq_stats.syncp);
-			snapshot = tx_q->txq_stats;
-		} while (u64_stats_fetch_retry(&tx_q->txq_stats.syncp, start));
+			start = u64_stats_fetch_begin(&txq_stats->syncp);
+			snapshot = *txq_stats;
+		} while (u64_stats_fetch_retry(&txq_stats->syncp, start));
 
 		data[j++] += snapshot.tx_pkt_n;
 		data[j++] += snapshot.tx_normal_irq_n;
