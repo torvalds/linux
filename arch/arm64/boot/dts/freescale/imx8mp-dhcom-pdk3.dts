@@ -212,10 +212,6 @@
 	};
 };
 
-&ethphy0g {
-	reg = <7>;
-};
-
 &fec {	/* Second ethernet */
 	pinctrl-0 = <&pinctrl_fec_rgmii>;
 	phy-handle = <&ethphypdk>;
