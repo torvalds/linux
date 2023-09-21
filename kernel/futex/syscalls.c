@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-#include <linux/compat.h>
 #include <linux/syscalls.h>
 #include <linux/time_namespace.h>
 
@@ -85,15 +84,12 @@ err_unlock:
 long do_futex(u32 __user *uaddr, int op, u32 val, ktime_t *timeout,
 		u32 __user *uaddr2, u32 val2, u32 val3)
 {
+	unsigned int flags = futex_to_flags(op);
 	int cmd = op & FUTEX_CMD_MASK;
-	unsigned int flags = 0;
 
-	if (!(op & FUTEX_PRIVATE_FLAG))
-		flags |= FLAGS_SHARED;
-
-	if (op & FUTEX_CLOCK_REALTIME) {
-		flags |= FLAGS_CLOCKRT;
-		if (cmd != FUTEX_WAIT_BITSET && cmd != FUTEX_WAIT_REQUEUE_PI &&
+	if (flags & FLAGS_CLOCKRT) {
+		if (cmd != FUTEX_WAIT_BITSET &&
+		    cmd != FUTEX_WAIT_REQUEUE_PI &&
 		    cmd != FUTEX_LOCK_PI2)
 			return -ENOSYS;
 	}
@@ -201,21 +197,19 @@ static int futex_parse_waitv(struct futex_vector *futexv,
 	unsigned int i;
 
 	for (i = 0; i < nr_futexes; i++) {
+		unsigned int flags;
+
 		if (copy_from_user(&aux, &uwaitv[i], sizeof(aux)))
 			return -EFAULT;
 
 		if ((aux.flags & ~FUTEX2_VALID_MASK) || aux.__reserved)
 			return -EINVAL;
 
-		if (!IS_ENABLED(CONFIG_64BIT) || in_compat_syscall()) {
-			if ((aux.flags & FUTEX2_SIZE_MASK) == FUTEX2_SIZE_U64)
-				return -EINVAL;
-		}
-
-		if ((aux.flags & FUTEX2_SIZE_MASK) != FUTEX2_SIZE_U32)
+		flags = futex2_to_flags(aux.flags);
+		if (!futex_flags_valid(flags))
 			return -EINVAL;
 
-		futexv[i].w.flags = aux.flags;
+		futexv[i].w.flags = flags;
 		futexv[i].w.val = aux.val;
 		futexv[i].w.uaddr = aux.uaddr;
 		futexv[i].q = futex_q_init;
