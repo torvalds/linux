@@ -81,11 +81,11 @@ static struct workqueue_struct *acpi_thermal_pm_queue;
 
 struct acpi_thermal_trip {
 	unsigned long temperature;
+	struct acpi_handle_list devices;
 };
 
 struct acpi_thermal_passive {
 	struct acpi_thermal_trip trip;
-	struct acpi_handle_list devices;
 	unsigned long tc1;
 	unsigned long tc2;
 	unsigned long tsp;
@@ -93,7 +93,6 @@ struct acpi_thermal_passive {
 
 struct acpi_thermal_active {
 	struct acpi_thermal_trip trip;
-	struct acpi_handle_list devices;
 };
 
 struct acpi_thermal_trips {
@@ -205,6 +204,7 @@ static void acpi_thermal_update_passive_trip(struct acpi_thermal *tz)
 
 static bool update_passive_devices(struct acpi_thermal *tz, bool compare)
 {
+	struct acpi_thermal_trip *acpi_trip = &tz->trips.passive.trip;
 	struct acpi_handle_list devices;
 	acpi_status status;
 
@@ -217,10 +217,10 @@ static bool update_passive_devices(struct acpi_thermal *tz, bool compare)
 		return false;
 	}
 
-	if (compare && memcmp(&tz->trips.passive.devices, &devices, sizeof(devices)))
+	if (compare && memcmp(&acpi_trip->devices, &devices, sizeof(devices)))
 		ACPI_THERMAL_TRIPS_EXCEPTION(tz, "device");
 
-	memcpy(&tz->trips.passive.devices, &devices, sizeof(devices));
+	memcpy(&acpi_trip->devices, &devices, sizeof(devices));
 	return true;
 }
 
@@ -276,6 +276,7 @@ static void acpi_thermal_update_active_trip(struct acpi_thermal *tz, int index)
 static bool update_active_devices(struct acpi_thermal *tz, int index, bool compare)
 {
 	char method[] = { '_', 'A', 'L', '0' + index, '\0' };
+	struct acpi_thermal_trip *acpi_trip = &tz->trips.active[index].trip;
 	struct acpi_handle_list devices;
 	acpi_status status;
 
@@ -289,10 +290,10 @@ static bool update_active_devices(struct acpi_thermal *tz, int index, bool compa
 		return false;
 	}
 
-	if (compare && memcmp(&tz->trips.active[index].devices, &devices, sizeof(devices)))
+	if (compare && memcmp(&acpi_trip->devices, &devices, sizeof(devices)))
 		ACPI_THERMAL_TRIPS_EXCEPTION(tz, "device");
 
-	memcpy(&tz->trips.active[index].devices, &devices, sizeof(devices));
+	memcpy(&acpi_trip->devices, &devices, sizeof(devices));
 	return true;
 }
 
@@ -602,6 +603,7 @@ static int acpi_thermal_cooling_device_cb(struct thermal_zone_device *thermal,
 {
 	struct acpi_device *device = cdev->devdata;
 	struct acpi_thermal *tz = thermal_zone_device_priv(thermal);
+	struct acpi_thermal_trip *acpi_trip;
 	struct acpi_device *dev;
 	acpi_handle handle;
 	int i;
@@ -615,10 +617,11 @@ static int acpi_thermal_cooling_device_cb(struct thermal_zone_device *thermal,
 	if (tz->trips.hot_valid)
 		trip++;
 
-	if (acpi_thermal_trip_valid(&tz->trips.passive.trip)) {
+	acpi_trip = &tz->trips.passive.trip;
+	if (acpi_thermal_trip_valid(acpi_trip)) {
 		trip++;
-		for (i = 0; i < tz->trips.passive.devices.count; i++) {
-			handle = tz->trips.passive.devices.handles[i];
+		for (i = 0; i < acpi_trip->devices.count; i++) {
+			handle = acpi_trip->devices.handles[i];
 			dev = acpi_fetch_acpi_dev(handle);
 			if (dev != device)
 				continue;
@@ -640,12 +643,13 @@ static int acpi_thermal_cooling_device_cb(struct thermal_zone_device *thermal,
 	}
 
 	for (i = 0; i < ACPI_THERMAL_MAX_ACTIVE; i++) {
-		if (!acpi_thermal_trip_valid(&tz->trips.active[i].trip))
+		acpi_trip = &tz->trips.active[i].trip;
+		if (!acpi_thermal_trip_valid(acpi_trip))
 			break;
 
 		trip++;
-		for (j = 0; j < tz->trips.active[i].devices.count; j++) {
-			handle = tz->trips.active[i].devices.handles[j];
+		for (j = 0; j < acpi_trip->devices.count; j++) {
+			handle = acpi_trip->devices.handles[j];
 			dev = acpi_fetch_acpi_dev(handle);
 			if (dev != device)
 				continue;
@@ -1037,11 +1041,13 @@ static int acpi_thermal_resume(struct device *dev)
 		return -EINVAL;
 
 	for (i = 0; i < ACPI_THERMAL_MAX_ACTIVE; i++) {
-		if (!acpi_thermal_trip_valid(&tz->trips.active[i].trip))
+		struct acpi_thermal_trip *acpi_trip = &tz->trips.active[i].trip;
+
+		if (!acpi_thermal_trip_valid(acpi_trip))
 			break;
 
-		for (j = 0; j < tz->trips.active[i].devices.count; j++) {
-			acpi_bus_update_power(tz->trips.active[i].devices.handles[j],
+		for (j = 0; j < acpi_trip->devices.count; j++) {
+			acpi_bus_update_power(acpi_trip->devices.handles[j],
 					      &power_state);
 		}
 	}
