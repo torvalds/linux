@@ -61,9 +61,8 @@ void dcn20_update_bounding_box(struct dc *dc,
 			       unsigned int num_states);
 void dcn20_patch_bounding_box(struct dc *dc,
 			      struct _vcs_dpi_soc_bounding_box_st *bb);
-bool dcn20_validate_bandwidth_fp(struct dc *dc,
-				 struct dc_state *context,
-				 bool fast_validate);
+bool dcn20_validate_bandwidth_fp(struct dc *dc, struct dc_state *context,
+				 bool fast_validate, display_e2e_pipe_params_st *pipes);
 void dcn20_fpu_set_wm_ranges(int i,
 			     struct pp_smu_wm_range_sets *ranges,
 			     struct _vcs_dpi_soc_bounding_box_st *loaded_bb);
