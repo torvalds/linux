@@ -72,6 +72,8 @@ struct rand_data {
 	__u64 prev_time;		/* SENSITIVE Previous time stamp */
 	__u64 last_delta;		/* SENSITIVE stuck test */
 	__s64 last_delta2;		/* SENSITIVE stuck test */
+
+	unsigned int flags;		/* Flags used to initialize */
 	unsigned int osr;		/* Oversample rate */
 #define JENT_MEMORY_BLOCKS 64
 #define JENT_MEMORY_BLOCKSIZE 32
@@ -88,16 +90,9 @@ struct rand_data {
 	/* Repetition Count Test */
 	unsigned int rct_count;			/* Number of stuck values */
 
-	/* Intermittent health test failure threshold of 2^-30 */
-	/* From an SP800-90B perspective, this RCT cutoff value is equal to 31. */
-	/* However, our RCT implementation starts at 1, so we subtract 1 here. */
-#define JENT_RCT_CUTOFF		(31 - 1)	/* Taken from SP800-90B sec 4.4.1 */
-#define JENT_APT_CUTOFF		325			/* Taken from SP800-90B sec 4.4.2 */
-	/* Permanent health test failure threshold of 2^-60 */
-	/* From an SP800-90B perspective, this RCT cutoff value is equal to 61. */
-	/* However, our RCT implementation starts at 1, so we subtract 1 here. */
-#define JENT_RCT_CUTOFF_PERMANENT	(61 - 1)
-#define JENT_APT_CUTOFF_PERMANENT	355
+	/* Adaptive Proportion Test cutoff values */
+	unsigned int apt_cutoff; /* Intermittent health test failure */
+	unsigned int apt_cutoff_permanent; /* Permanent health test failure */
 #define JENT_APT_WINDOW_SIZE	512	/* Data window size */
 	/* LSB of time stamp to process */
 #define JENT_APT_LSB		16
@@ -122,6 +117,9 @@ struct rand_data {
 				   * zero). */
 #define JENT_ESTUCK		8 /* Too many stuck results during init. */
 #define JENT_EHEALTH		9 /* Health test failed during initialization */
+#define JENT_ERCT	       10 /* RCT failed during initialization */
+#define JENT_EHASH	       11 /* Hash self test failed */
+#define JENT_EMEM	       12 /* Can't allocate memory for initialization */
 
 /*
  * The output n bits can receive more than n bits of min entropy, of course,
@@ -147,6 +145,48 @@ struct rand_data {
  * This test complies with SP800-90B section 4.4.2.
  ***************************************************************************/
 
+/*
+ * See the SP 800-90B comment #10b for the corrected cutoff for the SP 800-90B
+ * APT.
+ * http://www.untruth.org/~josh/sp80090b/UL%20SP800-90B-final%20comments%20v1.9%2020191212.pdf
+ * In in the syntax of R, this is C = 2 + qbinom(1 − 2^(−30), 511, 2^(-1/osr)).
+ * (The original formula wasn't correct because the first symbol must
+ * necessarily have been observed, so there is no chance of observing 0 of these
+ * symbols.)
+ *
+ * For the alpha < 2^-53, R cannot be used as it uses a float data type without
+ * arbitrary precision. A SageMath script is used to calculate those cutoff
+ * values.
+ *
+ * For any value above 14, this yields the maximal allowable value of 512
+ * (by FIPS 140-2 IG 7.19 Resolution # 16, we cannot choose a cutoff value that
+ * renders the test unable to fail).
+ */
+static const unsigned int jent_apt_cutoff_lookup[15] = {
+	325, 422, 459, 477, 488, 494, 499, 502,
+	505, 507, 508, 509, 510, 511, 512 };
+static const unsigned int jent_apt_cutoff_permanent_lookup[15] = {
+	355, 447, 479, 494, 502, 507, 510, 512,
+	512, 512, 512, 512, 512, 512, 512 };
+#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
+
+static void jent_apt_init(struct rand_data *ec, unsigned int osr)
+{
+	/*
+	 * Establish the apt_cutoff based on the presumed entropy rate of
+	 * 1/osr.
+	 */
+	if (osr >= ARRAY_SIZE(jent_apt_cutoff_lookup)) {
+		ec->apt_cutoff = jent_apt_cutoff_lookup[
+			ARRAY_SIZE(jent_apt_cutoff_lookup) - 1];
+		ec->apt_cutoff_permanent = jent_apt_cutoff_permanent_lookup[
+			ARRAY_SIZE(jent_apt_cutoff_permanent_lookup) - 1];
+	} else {
+		ec->apt_cutoff = jent_apt_cutoff_lookup[osr - 1];
+		ec->apt_cutoff_permanent =
+				jent_apt_cutoff_permanent_lookup[osr - 1];
+	}
+}
 /*
  * Reset the APT counter
  *
@@ -187,12 +227,12 @@ static void jent_apt_insert(struct rand_data *ec, unsigned int delta_masked)
 /* APT health test failure detection */
 static int jent_apt_permanent_failure(struct rand_data *ec)
 {
-	return (ec->apt_count >= JENT_APT_CUTOFF_PERMANENT) ? 1 : 0;
+	return (ec->apt_count >= ec->apt_cutoff_permanent) ? 1 : 0;
 }
 
 static int jent_apt_failure(struct rand_data *ec)
 {
-	return (ec->apt_count >= JENT_APT_CUTOFF) ? 1 : 0;
+	return (ec->apt_count >= ec->apt_cutoff) ? 1 : 0;
 }
 
 /***************************************************************************
@@ -275,15 +315,28 @@ static int jent_stuck(struct rand_data *ec, __u64 current_delta)
 	return 0;
 }
 
-/* RCT health test failure detection */
+/*
+ * The cutoff value is based on the following consideration:
+ * alpha = 2^-30 or 2^-60 as recommended in SP800-90B.
+ * In addition, we require an entropy value H of 1/osr as this is the minimum
+ * entropy required to provide full entropy.
+ * Note, we collect (DATA_SIZE_BITS + ENTROPY_SAFETY_FACTOR)*osr deltas for
+ * inserting them into the entropy pool which should then have (close to)
+ * DATA_SIZE_BITS bits of entropy in the conditioned output.
+ *
+ * Note, ec->rct_count (which equals to value B in the pseudo code of SP800-90B
+ * section 4.4.1) starts with zero. Hence we need to subtract one from the
+ * cutoff value as calculated following SP800-90B. Thus
+ * C = ceil(-log_2(alpha)/H) = 30*osr or 60*osr.
+ */
 static int jent_rct_permanent_failure(struct rand_data *ec)
 {
-	return (ec->rct_count >= JENT_RCT_CUTOFF_PERMANENT) ? 1 : 0;
+	return (ec->rct_count >= (60 * ec->osr)) ? 1 : 0;
 }
 
 static int jent_rct_failure(struct rand_data *ec)
 {
-	return (ec->rct_count >= JENT_RCT_CUTOFF) ? 1 : 0;
+	return (ec->rct_count >= (30 * ec->osr)) ? 1 : 0;
 }
 
 /* Report of health test failures */
@@ -448,7 +501,7 @@ static void jent_memaccess(struct rand_data *ec, __u64 loop_cnt)
  *
  * @return result of stuck test
  */
-static int jent_measure_jitter(struct rand_data *ec)
+static int jent_measure_jitter(struct rand_data *ec, __u64 *ret_current_delta)
 {
 	__u64 time = 0;
 	__u64 current_delta = 0;
@@ -472,6 +525,10 @@ static int jent_measure_jitter(struct rand_data *ec)
 	if (jent_condition_data(ec, current_delta, stuck))
 		stuck = 1;
 
+	/* return the raw entropy value */
+	if (ret_current_delta)
+		*ret_current_delta = current_delta;
+
 	return stuck;
 }
 
@@ -489,11 +546,11 @@ static void jent_gen_entropy(struct rand_data *ec)
 		safety_factor = JENT_ENTROPY_SAFETY_FACTOR;
 
 	/* priming of the ->prev_time value */
-	jent_measure_jitter(ec);
+	jent_measure_jitter(ec, NULL);
 
 	while (!jent_health_failure(ec)) {
 		/* If a stuck measurement is received, repeat measurement */
-		if (jent_measure_jitter(ec))
+		if (jent_measure_jitter(ec, NULL))
 			continue;
 
 		/*
@@ -554,7 +611,8 @@ int jent_read_entropy(struct rand_data *ec, unsigned char *data,
 			 * Perform startup health tests and return permanent
 			 * error if it fails.
 			 */
-			if (jent_entropy_init(ec->hash_state))
+			if (jent_entropy_init(ec->osr, ec->flags,
+					      ec->hash_state))
 				return -3;
 
 			return -2;
@@ -604,10 +662,14 @@ struct rand_data *jent_entropy_collector_alloc(unsigned int osr,
 
 	/* verify and set the oversampling rate */
 	if (osr == 0)
-		osr = 1; /* minimum sampling rate is 1 */
+		osr = 1; /* H_submitter = 1 / osr */
 	entropy_collector->osr = osr;
+	entropy_collector->flags = flags;
 
 	entropy_collector->hash_state = hash_state;
+
+	/* Initialize the APT */
+	jent_apt_init(entropy_collector, osr);
 
 	/* fill the data pad with non-zero values */
 	jent_gen_entropy(entropy_collector);
@@ -622,20 +684,14 @@ void jent_entropy_collector_free(struct rand_data *entropy_collector)
 	jent_zfree(entropy_collector);
 }
 
-int jent_entropy_init(void *hash_state)
+int jent_entropy_init(unsigned int osr, unsigned int flags, void *hash_state)
 {
-	int i;
-	__u64 delta_sum = 0;
-	__u64 old_delta = 0;
-	unsigned int nonstuck = 0;
-	int time_backwards = 0;
-	int count_mod = 0;
-	int count_stuck = 0;
-	struct rand_data ec = { 0 };
+	struct rand_data *ec;
+	int i, time_backwards = 0, ret = 0;
 
-	/* Required for RCT */
-	ec.osr = 1;
-	ec.hash_state = hash_state;
+	ec = jent_entropy_collector_alloc(osr, flags, hash_state);
+	if (!ec)
+		return JENT_EMEM;
 
 	/* We could perform statistical tests here, but the problem is
 	 * that we only have a few loop counts to do testing. These
@@ -664,31 +720,28 @@ int jent_entropy_init(void *hash_state)
 #define TESTLOOPCOUNT 1024
 #define CLEARCACHE 100
 	for (i = 0; (TESTLOOPCOUNT + CLEARCACHE) > i; i++) {
-		__u64 time = 0;
-		__u64 time2 = 0;
-		__u64 delta = 0;
-		unsigned int lowdelta = 0;
-		int stuck;
+		__u64 start_time = 0, end_time = 0, delta = 0;
 
 		/* Invoke core entropy collection logic */
-		jent_get_nstime(&time);
-		ec.prev_time = time;
-		jent_condition_data(&ec, time, 0);
-		jent_get_nstime(&time2);
+		jent_measure_jitter(ec, &delta);
+		end_time = ec->prev_time;
+		start_time = ec->prev_time - delta;
 
 		/* test whether timer works */
-		if (!time || !time2)
-			return JENT_ENOTIME;
-		delta = jent_delta(time, time2);
+		if (!start_time || !end_time) {
+			ret = JENT_ENOTIME;
+			goto out;
+		}
+
 		/*
 		 * test whether timer is fine grained enough to provide
 		 * delta even when called shortly after each other -- this
 		 * implies that we also have a high resolution timer
 		 */
-		if (!delta)
-			return JENT_ECOARSETIME;
-
-		stuck = jent_stuck(&ec, delta);
+		if (!delta || (end_time == start_time)) {
+			ret = JENT_ECOARSETIME;
+			goto out;
+		}
 
 		/*
 		 * up to here we did not modify any variable that will be
@@ -700,49 +753,9 @@ int jent_entropy_init(void *hash_state)
 		if (i < CLEARCACHE)
 			continue;
 
-		if (stuck)
-			count_stuck++;
-		else {
-			nonstuck++;
-
-			/*
-			 * Ensure that the APT succeeded.
-			 *
-			 * With the check below that count_stuck must be less
-			 * than 10% of the overall generated raw entropy values
-			 * it is guaranteed that the APT is invoked at
-			 * floor((TESTLOOPCOUNT * 0.9) / 64) == 14 times.
-			 */
-			if ((nonstuck % JENT_APT_WINDOW_SIZE) == 0) {
-				jent_apt_reset(&ec,
-					       delta & JENT_APT_WORD_MASK);
-			}
-		}
-
-		/* Validate health test result */
-		if (jent_health_failure(&ec))
-			return JENT_EHEALTH;
-
 		/* test whether we have an increasing timer */
-		if (!(time2 > time))
+		if (!(end_time > start_time))
 			time_backwards++;
-
-		/* use 32 bit value to ensure compilation on 32 bit arches */
-		lowdelta = time2 - time;
-		if (!(lowdelta % 100))
-			count_mod++;
-
-		/*
-		 * ensure that we have a varying delta timer which is necessary
-		 * for the calculation of entropy -- perform this check
-		 * only after the first loop is executed as we need to prime
-		 * the old_data value
-		 */
-		if (delta > old_delta)
-			delta_sum += (delta - old_delta);
-		else
-			delta_sum += (old_delta - delta);
-		old_delta = delta;
 	}
 
 	/*
@@ -752,31 +765,23 @@ int jent_entropy_init(void *hash_state)
 	 * should not fail. The value of 3 should cover the NTP case being
 	 * performed during our test run.
 	 */
-	if (time_backwards > 3)
-		return JENT_ENOMONOTONIC;
+	if (time_backwards > 3) {
+		ret = JENT_ENOMONOTONIC;
+		goto out;
+	}
 
-	/*
-	 * Variations of deltas of time must on average be larger
-	 * than 1 to ensure the entropy estimation
-	 * implied with 1 is preserved
-	 */
-	if ((delta_sum) <= 1)
-		return JENT_EVARVAR;
+	/* Did we encounter a health test failure? */
+	if (jent_rct_failure(ec)) {
+		ret = JENT_ERCT;
+		goto out;
+	}
+	if (jent_apt_failure(ec)) {
+		ret = JENT_EHEALTH;
+		goto out;
+	}
 
-	/*
-	 * Ensure that we have variations in the time stamp below 10 for at
-	 * least 10% of all checks -- on some platforms, the counter increments
-	 * in multiples of 100, but not always
-	 */
-	if ((TESTLOOPCOUNT/10 * 9) < count_mod)
-		return JENT_ECOARSETIME;
+out:
+	jent_entropy_collector_free(ec);
 
-	/*
-	 * If we have more than 90% stuck results, then this Jitter RNG is
-	 * likely to not work well.
-	 */
-	if ((TESTLOOPCOUNT/10 * 9) < count_stuck)
-		return JENT_ESTUCK;
-
-	return 0;
+	return ret;
 }

@@ -9,7 +9,8 @@ extern int jent_hash_time(void *hash_state, __u64 time, u8 *addtl,
 int jent_read_random_block(void *hash_state, char *dst, unsigned int dst_len);
 
 struct rand_data;
-extern int jent_entropy_init(void *hash_state);
+extern int jent_entropy_init(unsigned int osr, unsigned int flags,
+			     void *hash_state);
 extern int jent_read_entropy(struct rand_data *ec, unsigned char *data,
 			     unsigned int len);
 
