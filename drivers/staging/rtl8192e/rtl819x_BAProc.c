@@ -10,11 +10,11 @@
 #include "rtllib.h"
 #include "rtl819x_BA.h"
 
-static void activate_ba_entry(struct ba_record *pBA, u16 Time)
+static void activate_ba_entry(struct ba_record *pBA, u16 time)
 {
 	pBA->b_valid = true;
-	if (Time != 0)
-		mod_timer(&pBA->timer, jiffies + msecs_to_jiffies(Time));
+	if (time != 0)
+		mod_timer(&pBA->timer, jiffies + msecs_to_jiffies(time));
 }
 
 static void deactivate_ba_entry(struct rtllib_device *ieee, struct ba_record *pBA)
