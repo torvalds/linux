@@ -25,7 +25,7 @@ static void deactivate_ba_entry(struct rtllib_device *ieee, struct ba_record *pB
 
 static u8 tx_ts_delete_ba(struct rtllib_device *ieee, struct tx_ts_record *pTxTs)
 {
-	struct ba_record *pAdmittedBa = &pTxTs->TxAdmittedBARecord;
+	struct ba_record *admitted_ba = &pTxTs->TxAdmittedBARecord;
 	struct ba_record *pPendingBa = &pTxTs->TxPendingBARecord;
 	u8 bSendDELBA = false;
 
@@ -34,8 +34,8 @@ static u8 tx_ts_delete_ba(struct rtllib_device *ieee, struct tx_ts_record *pTxTs
 		bSendDELBA = true;
 	}
 
-	if (pAdmittedBa->b_valid) {
-		deactivate_ba_entry(ieee, pAdmittedBa);
+	if (admitted_ba->b_valid) {
+		deactivate_ba_entry(ieee, admitted_ba);
 		bSendDELBA = true;
 	}
 	return bSendDELBA;
