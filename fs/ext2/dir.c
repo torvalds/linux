@@ -586,15 +586,19 @@ out_unlock:
  */
 int ext2_delete_entry(struct ext2_dir_entry_2 *dir, struct page *page)
 {
-	struct inode *inode = page->mapping->host;
-	char *kaddr = (char *)((unsigned long)dir & PAGE_MASK);
-	unsigned from = offset_in_page(dir) & ~(ext2_chunk_size(inode)-1);
-	unsigned to = offset_in_page(dir) +
-				ext2_rec_len_from_disk(dir->rec_len);
+	struct folio *folio = page_folio(page);
+	struct inode *inode = folio->mapping->host;
+	size_t from, to;
+	char *kaddr;
 	loff_t pos;
-	ext2_dirent *pde = NULL;
-	ext2_dirent *de = (ext2_dirent *)(kaddr + from);
+	ext2_dirent *de, *pde = NULL;
 	int err;
+
+	from = offset_in_folio(folio, dir);
+	to = from + ext2_rec_len_from_disk(dir->rec_len);
+	kaddr = (char *)dir - from;
+	from &= ~(ext2_chunk_size(inode)-1);
+	de = (ext2_dirent *)(kaddr + from);
 
 	while ((char*)de < (char*)dir) {
 		if (de->rec_len == 0) {
@@ -606,18 +610,18 @@ int ext2_delete_entry(struct ext2_dir_entry_2 *dir, struct page *page)
 		de = ext2_next_entry(de);
 	}
 	if (pde)
-		from = offset_in_page(pde);
-	pos = page_offset(page) + from;
-	lock_page(page);
-	err = ext2_prepare_chunk(page, pos, to - from);
+		from = offset_in_folio(folio, pde);
+	pos = folio_pos(folio) + from;
+	folio_lock(folio);
+	err = ext2_prepare_chunk(&folio->page, pos, to - from);
 	if (err) {
-		unlock_page(page);
+		folio_unlock(folio);
 		return err;
 	}
 	if (pde)
 		pde->rec_len = ext2_rec_len_to_disk(to - from);
 	dir->inode = 0;
-	ext2_commit_chunk(page, pos, to - from);
+	ext2_commit_chunk(&folio->page, pos, to - from);
 	inode->i_mtime = inode_set_ctime_current(inode);
 	EXT2_I(inode)->i_flags &= ~EXT2_BTREE_FL;
 	mark_inode_dirty(inode);
