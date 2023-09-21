@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0
  *
- * Copyright 2016-2022 HabanaLabs, Ltd.
+ * Copyright 2016-2023 HabanaLabs, Ltd.
  * All Rights Reserved.
  *
  */
@@ -553,8 +553,7 @@ struct hl_hints_range {
  *              allocated with huge pages.
  * @hints_dram_reserved_va_range: dram hint addresses reserved range.
  * @hints_host_reserved_va_range: host hint addresses reserved range.
- * @hints_host_hpage_reserved_va_range: host huge page hint addresses reserved
- *                                      range.
+ * @hints_host_hpage_reserved_va_range: host huge page hint addresses reserved range.
  * @sram_base_address: SRAM physical start address.
  * @sram_end_address: SRAM physical end address.
  * @sram_user_base_address - SRAM physical start address for user access.
@@ -593,7 +592,7 @@ struct hl_hints_range {
  * @mmu_pte_size: PTE size in MMU page tables.
  * @mmu_hop_table_size: MMU hop table size.
  * @mmu_hop0_tables_total_size: total size of MMU hop0 tables.
- * @dram_page_size: page size for MMU DRAM allocation.
+ * @dram_page_size: The DRAM physical page size.
  * @cfg_size: configuration space size on SRAM.
  * @sram_size: total size of SRAM.
  * @max_asid: maximum number of open contexts (ASIDs).
@@ -695,7 +694,7 @@ struct hl_hints_range {
  * @configurable_stop_on_err: is stop-on-error option configurable via debugfs.
  * @set_max_power_on_device_init: true if need to set max power in F/W on device init.
  * @supports_user_set_page_size: true if user can set the allocation page size.
- * @dma_mask: the dma mask to be set for this device
+ * @dma_mask: the dma mask to be set for this device.
  * @supports_advanced_cpucp_rc: true if new cpucp opcodes are supported.
  * @supports_engine_modes: true if changing engines/engine_cores modes is supported.
  * @support_dynamic_resereved_fw_size: true if we support dynamic reserved size for fw.
@@ -1959,17 +1958,17 @@ struct hl_ctx_mgr {
  * @dma_mapped: true if the SG was mapped to DMA addresses, false otherwise.
  */
 struct hl_userptr {
-	enum vm_type		vm_type; /* must be first */
-	struct list_head	job_node;
-	struct page		**pages;
-	unsigned int		npages;
-	struct sg_table		*sgt;
-	enum dma_data_direction dir;
-	struct list_head	debugfs_list;
-	pid_t			pid;
-	u64			addr;
-	u64			size;
-	u8			dma_mapped;
+	enum vm_type			vm_type; /* must be first */
+	struct list_head		job_node;
+	struct page			**pages;
+	unsigned int			npages;
+	struct sg_table			*sgt;
+	enum dma_data_direction		dir;
+	struct list_head		debugfs_list;
+	pid_t				pid;
+	u64				addr;
+	u64				size;
+	u8				dma_mapped;
 };
 
 /**
