@@ -1135,6 +1135,11 @@ int sk_setsockopt(struct sock *sk, int level, int optname,
 	case SO_PASSPIDFD:
 		assign_bit(SOCK_PASSPIDFD, &sock->flags, valbool);
 		return 0;
+	case SO_TYPE:
+	case SO_PROTOCOL:
+	case SO_DOMAIN:
+	case SO_ERROR:
+		return -ENOPROTOOPT;
 	}
 
 	sockopt_lock_sock(sk);
@@ -1151,12 +1156,6 @@ int sk_setsockopt(struct sock *sk, int level, int optname,
 		break;
 	case SO_REUSEPORT:
 		sk->sk_reuseport = valbool;
-		break;
-	case SO_TYPE:
-	case SO_PROTOCOL:
-	case SO_DOMAIN:
-	case SO_ERROR:
-		ret = -ENOPROTOOPT;
 		break;
 	case SO_DONTROUTE:
 		sock_valbool_flag(sk, SOCK_LOCALROUTE, valbool);
