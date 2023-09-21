@@ -1252,7 +1252,7 @@
 				reg = <0x80074000 0x1000>;
 				interrupts = <47>;
 				clocks = <&clks 45>, <&clks 26>;
-				clock-names = "uart", "apb_pclk";
+				clock-names = "uartclk", "apb_pclk";
 				status = "disabled";
 			};
 
