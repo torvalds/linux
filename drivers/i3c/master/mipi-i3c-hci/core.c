@@ -1430,6 +1430,7 @@ static struct platform_driver i3c_hci_driver = {
 	},
 };
 module_platform_driver(i3c_hci_driver);
+MODULE_ALIAS("platform:mipi-i3c-hci");
 
 MODULE_AUTHOR("Nicolas Pitre <npitre@baylibre.com>");
 MODULE_DESCRIPTION("MIPI I3C HCI driver");
