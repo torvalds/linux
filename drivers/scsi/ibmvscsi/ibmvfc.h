@@ -813,10 +813,17 @@ struct ibmvfc_queue {
 	unsigned long irq;
 	unsigned long hwq_id;
 	char name[32];
+	irq_handler_t handler;
+};
+
+enum ibmvfc_protocol {
+	IBMVFC_PROTO_SCSI = 0,
+	IBMVFC_PROTO_NVME = 1,
 };
 
 struct ibmvfc_channels {
 	struct ibmvfc_queue *scrqs;
+	enum ibmvfc_protocol protocol;
 	unsigned int active_queues;
 	unsigned int desired_queues;
 	unsigned int max_queues;

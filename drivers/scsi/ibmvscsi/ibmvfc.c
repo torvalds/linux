@@ -3935,7 +3935,7 @@ static void ibmvfc_drain_sub_crq(struct ibmvfc_queue *scrq)
 	}
 }
 
-static irqreturn_t ibmvfc_interrupt_scsi(int irq, void *scrq_instance)
+static irqreturn_t ibmvfc_interrupt_mq(int irq, void *scrq_instance)
 {
 	struct ibmvfc_queue *scrq = (struct ibmvfc_queue *)scrq_instance;
 
@@ -5936,9 +5936,24 @@ static int ibmvfc_register_channel(struct ibmvfc_host *vhost,
 		goto irq_failed;
 	}
 
-	snprintf(scrq->name, sizeof(scrq->name), "ibmvfc-%x-scsi%d",
-		 vdev->unit_address, index);
-	rc = request_irq(scrq->irq, ibmvfc_interrupt_scsi, 0, scrq->name, scrq);
+	switch (channels->protocol) {
+	case IBMVFC_PROTO_SCSI:
+		snprintf(scrq->name, sizeof(scrq->name), "ibmvfc-%x-scsi%d",
+			 vdev->unit_address, index);
+		scrq->handler = ibmvfc_interrupt_mq;
+		break;
+	case IBMVFC_PROTO_NVME:
+		snprintf(scrq->name, sizeof(scrq->name), "ibmvfc-%x-nvmf%d",
+			 vdev->unit_address, index);
+		scrq->handler = ibmvfc_interrupt_mq;
+		break;
+	default:
+		dev_err(dev, "Unknown channel protocol (%d)\n",
+			channels->protocol);
+		goto irq_failed;
+	}
+
+	rc = request_irq(scrq->irq, scrq->handler, 0, scrq->name, scrq);
 
 	if (rc) {
 		dev_err(dev, "Couldn't register sub-crq[%d] irq\n", index);
@@ -6317,6 +6332,7 @@ static int ibmvfc_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 	vhost->mq_enabled = mq_enabled;
 	vhost->scsi_scrqs.desired_queues = min(shost->nr_hw_queues, nr_scsi_channels);
 	vhost->scsi_scrqs.max_queues = shost->nr_hw_queues;
+	vhost->scsi_scrqs.protocol = IBMVFC_PROTO_SCSI;
 	vhost->using_channels = 0;
 	vhost->do_enquiry = 1;
 	vhost->scan_timeout = 0;
