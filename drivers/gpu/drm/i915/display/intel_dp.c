@@ -2188,6 +2188,47 @@ int intel_dp_dsc_compute_config(struct intel_dp *intel_dp,
 	return 0;
 }
 
+static void
+intel_dp_compute_config_limits(struct intel_dp *intel_dp,
+			       struct intel_crtc_state *crtc_state,
+			       bool respect_downstream_limits,
+			       struct link_config_limits *limits)
+{
+	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
+	const struct drm_display_mode *adjusted_mode =
+		&crtc_state->hw.adjusted_mode;
+
+	limits->min_rate = intel_dp_common_rate(intel_dp, 0);
+	limits->max_rate = intel_dp_max_link_rate(intel_dp);
+
+	limits->min_lane_count = 1;
+	limits->max_lane_count = intel_dp_max_lane_count(intel_dp);
+
+	limits->min_bpp = intel_dp_min_bpp(crtc_state->output_format);
+	limits->max_bpp = intel_dp_max_bpp(intel_dp, crtc_state,
+					   respect_downstream_limits);
+
+	if (intel_dp->use_max_params) {
+		/*
+		 * Use the maximum clock and number of lanes the eDP panel
+		 * advertizes being capable of in case the initial fast
+		 * optimal params failed us. The panels are generally
+		 * designed to support only a single clock and lane
+		 * configuration, and typically on older panels these
+		 * values correspond to the native resolution of the panel.
+		 */
+		limits->min_lane_count = limits->max_lane_count;
+		limits->min_rate = limits->max_rate;
+	}
+
+	intel_dp_adjust_compliance_config(intel_dp, crtc_state, limits);
+
+	drm_dbg_kms(&i915->drm, "DP link computation with max lane count %i "
+		    "max rate %d max bpp %d pixel clock %iKHz\n",
+		    limits->max_lane_count, limits->max_rate,
+		    limits->max_bpp, adjusted_mode->crtc_clock);
+}
+
 static int
 intel_dp_compute_link_config(struct intel_encoder *encoder,
 			     struct intel_crtc_state *pipe_config,
@@ -2203,34 +2244,8 @@ intel_dp_compute_link_config(struct intel_encoder *encoder,
 	bool joiner_needs_dsc = false;
 	int ret;
 
-	limits.min_rate = intel_dp_common_rate(intel_dp, 0);
-	limits.max_rate = intel_dp_max_link_rate(intel_dp);
-
-	limits.min_lane_count = 1;
-	limits.max_lane_count = intel_dp_max_lane_count(intel_dp);
-
-	limits.min_bpp = intel_dp_min_bpp(pipe_config->output_format);
-	limits.max_bpp = intel_dp_max_bpp(intel_dp, pipe_config, respect_downstream_limits);
-
-	if (intel_dp->use_max_params) {
-		/*
-		 * Use the maximum clock and number of lanes the eDP panel
-		 * advertizes being capable of in case the initial fast
-		 * optimal params failed us. The panels are generally
-		 * designed to support only a single clock and lane
-		 * configuration, and typically on older panels these
-		 * values correspond to the native resolution of the panel.
-		 */
-		limits.min_lane_count = limits.max_lane_count;
-		limits.min_rate = limits.max_rate;
-	}
-
-	intel_dp_adjust_compliance_config(intel_dp, pipe_config, &limits);
-
-	drm_dbg_kms(&i915->drm, "DP link computation with max lane count %i "
-		    "max rate %d max bpp %d pixel clock %iKHz\n",
-		    limits.max_lane_count, limits.max_rate,
-		    limits.max_bpp, adjusted_mode->crtc_clock);
+	intel_dp_compute_config_limits(intel_dp, pipe_config,
+				       respect_downstream_limits, &limits);
 
 	if (intel_dp_need_bigjoiner(intel_dp, adjusted_mode->crtc_hdisplay,
 				    adjusted_mode->crtc_clock))
