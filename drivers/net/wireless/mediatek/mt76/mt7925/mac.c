@@ -1378,7 +1378,7 @@ int mt7925_usb_sdio_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 	pktid = mt76_tx_status_skb_add(&dev->mt76, wcid, skb);
 	mt7925_usb_sdio_write_txwi(dev, wcid, qid, sta, key, pktid, skb);
 
-	mt7925_skb_add_usb_sdio_hdr(dev, skb, 0);
+	mt792x_skb_add_usb_sdio_hdr(dev, skb, 0);
 	pad = round_up(skb->len, 4) - skb->len;
 	if (mt76_is_usb(mdev))
 		pad += 4;

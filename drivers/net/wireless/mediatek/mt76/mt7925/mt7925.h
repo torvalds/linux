@@ -25,9 +25,6 @@
 #define MT7925_SKU_MAX_DELTA_IDX	MT7925_SKU_RATE_NUM
 #define MT7925_SKU_TABLE_SIZE		(MT7925_SKU_RATE_NUM + 1)
 
-#define MT7925_SDIO_HDR_TX_BYTES	GENMASK(15, 0)
-#define MT7925_SDIO_HDR_PKT_TYPE	GENMASK(17, 16)
-
 #define MCU_UNI_EVENT_ROC  0x27
 
 enum {
@@ -210,18 +207,6 @@ void mt7925_mcu_rx_event(struct mt792x_dev *dev, struct sk_buff *skb);
 int mt7925_mcu_chip_config(struct mt792x_dev *dev, const char *cmd);
 int mt7925_mcu_set_rxfilter(struct mt792x_dev *dev, u32 fif,
 			    u8 bit_op, u32 bit_map);
-static inline void
-mt7925_skb_add_usb_sdio_hdr(struct mt792x_dev *dev, struct sk_buff *skb,
-			    int type)
-{
-	u32 hdr, len;
-
-	len = mt76_is_usb(&dev->mt76) ? skb->len : skb->len + sizeof(hdr);
-	hdr = FIELD_PREP(MT7925_SDIO_HDR_TX_BYTES, len) |
-	      FIELD_PREP(MT7925_SDIO_HDR_PKT_TYPE, type);
-
-	put_unaligned_le32(hdr, skb_push(skb, sizeof(hdr)));
-}
 
 void mt7925_stop(struct ieee80211_hw *hw);
 int mt7925_mac_init(struct mt792x_dev *dev);
