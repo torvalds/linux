@@ -618,21 +618,21 @@ int ext2_delete_entry(struct ext2_dir_entry_2 *dir, struct folio *folio)
  */
 int ext2_make_empty(struct inode *inode, struct inode *parent)
 {
-	struct page *page = grab_cache_page(inode->i_mapping, 0);
+	struct folio *folio = filemap_grab_folio(inode->i_mapping, 0);
 	unsigned chunk_size = ext2_chunk_size(inode);
 	struct ext2_dir_entry_2 * de;
 	int err;
 	void *kaddr;
 
-	if (!page)
-		return -ENOMEM;
+	if (IS_ERR(folio))
+		return PTR_ERR(folio);
 
-	err = ext2_prepare_chunk(page, 0, chunk_size);
+	err = ext2_prepare_chunk(&folio->page, 0, chunk_size);
 	if (err) {
-		unlock_page(page);
+		folio_unlock(folio);
 		goto fail;
 	}
-	kaddr = kmap_local_page(page);
+	kaddr = kmap_local_folio(folio, 0);
 	memset(kaddr, 0, chunk_size);
 	de = (struct ext2_dir_entry_2 *)kaddr;
 	de->name_len = 1;
@@ -648,10 +648,10 @@ int ext2_make_empty(struct inode *inode, struct inode *parent)
 	memcpy (de->name, "..\0", 4);
 	ext2_set_de_type (de, inode);
 	kunmap_local(kaddr);
-	ext2_commit_chunk(page, 0, chunk_size);
+	ext2_commit_chunk(&folio->page, 0, chunk_size);
 	err = ext2_handle_dirsync(inode);
 fail:
-	put_page(page);
+	folio_put(folio);
 	return err;
 }
 
