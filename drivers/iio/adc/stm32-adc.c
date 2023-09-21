@@ -2209,7 +2209,7 @@ static int stm32_adc_generic_chan_init(struct iio_dev *indio_dev,
 				ret = -EINVAL;
 				goto err;
 			}
-			strncpy(adc->chan_name[val], name, STM32_ADC_CH_SZ);
+			strscpy(adc->chan_name[val], name, STM32_ADC_CH_SZ);
 			ret = stm32_adc_populate_int_ch(indio_dev, name, val);
 			if (ret == -ENOENT)
 				continue;
