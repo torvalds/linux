@@ -815,6 +815,8 @@ struct iommu_dev_data {
 	u32 flags;			  /* Holds AMD_IOMMU_DEVICE_FLAG_<*> */
 	int ats_qdep;
 	u8 ats_enabled  :1;		  /* ATS state */
+	u8 pri_enabled  :1;		  /* PRI state */
+	u8 pasid_enabled:1;		  /* PASID state */
 	u8 pri_tlp      :1;		  /* PASID TLB required for
 					     PPR completions */
 	u8 ppr          :1;		  /* Enable device PPR support */
