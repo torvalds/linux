@@ -26,6 +26,17 @@ properties:
     description: >
       identifier of the client to use this region for buffers
 
+  qcom,use-guard-pages:
+    type: boolean
+    description: >
+      Indicates that the firmware, or hardware, does not gracefully handle
+      memory protection of this region when placed adjacent to other protected
+      memory regions, and that padding around the used portion of the memory
+      region is necessary.
+
+      When this is set, the first and last page should be left unused, and the
+      effective size of the region will thereby shrink with two pages.
+
   qcom,vmid:
     $ref: /schemas/types.yaml#/definitions/uint32-array
     description: >
