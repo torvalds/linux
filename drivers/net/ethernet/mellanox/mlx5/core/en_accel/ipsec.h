@@ -43,8 +43,6 @@
 #define MLX5E_IPSEC_SADB_RX_BITS 10
 #define MLX5E_IPSEC_ESN_SCOPE_MID 0x80000000L
 
-#define MPV_DEVCOM_MASTER_UP 1
-
 struct aes_gcm_keymat {
 	u64   seq_iv;
 
@@ -224,12 +222,20 @@ struct mlx5e_ipsec_tx_create_attr {
 	enum mlx5_flow_namespace_type chains_ns;
 };
 
+struct mlx5e_ipsec_mpv_work {
+	int event;
+	struct work_struct work;
+	struct mlx5e_priv *slave_priv;
+	struct mlx5e_priv *master_priv;
+};
+
 struct mlx5e_ipsec {
 	struct mlx5_core_dev *mdev;
 	struct xarray sadb;
 	struct mlx5e_ipsec_sw_stats sw_stats;
 	struct mlx5e_ipsec_hw_stats hw_stats;
 	struct workqueue_struct *wq;
+	struct completion comp;
 	struct mlx5e_flow_steering *fs;
 	struct mlx5e_ipsec_rx *rx_ipv4;
 	struct mlx5e_ipsec_rx *rx_ipv6;
@@ -241,6 +247,7 @@ struct mlx5e_ipsec {
 	struct notifier_block netevent_nb;
 	struct mlx5_ipsec_fs *roce;
 	u8 is_uplink_rep: 1;
+	struct mlx5e_ipsec_mpv_work mpv_work;
 };
 
 struct mlx5e_ipsec_esn_state {
@@ -331,6 +338,10 @@ void mlx5e_accel_ipsec_fs_read_stats(struct mlx5e_priv *priv,
 
 void mlx5e_ipsec_build_accel_xfrm_attrs(struct mlx5e_ipsec_sa_entry *sa_entry,
 					struct mlx5_accel_esp_xfrm_attrs *attrs);
+void mlx5e_ipsec_handle_mpv_event(int event, struct mlx5e_priv *slave_priv,
+				  struct mlx5e_priv *master_priv);
+void mlx5e_ipsec_send_event(struct mlx5e_priv *priv, int event);
+
 static inline struct mlx5_core_dev *
 mlx5e_ipsec_sa2dev(struct mlx5e_ipsec_sa_entry *sa_entry)
 {
@@ -365,6 +376,15 @@ static inline void mlx5e_ipsec_build_netdev(struct mlx5e_priv *priv)
 static inline u32 mlx5_ipsec_device_caps(struct mlx5_core_dev *mdev)
 {
 	return 0;
+}
+
+static inline void mlx5e_ipsec_handle_mpv_event(int event, struct mlx5e_priv *slave_priv,
+						struct mlx5e_priv *master_priv)
+{
+}
+
+static inline void mlx5e_ipsec_send_event(struct mlx5e_priv *priv, int event)
+{
 }
 #endif
 

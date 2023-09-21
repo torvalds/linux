@@ -5,6 +5,7 @@
 #include "en.h"
 #include "ipsec.h"
 #include "lib/crypto.h"
+#include "lib/ipsec_fs_roce.h"
 
 enum {
 	MLX5_IPSEC_ASO_REMOVE_FLOW_PKT_CNT_OFFSET,
@@ -63,7 +64,7 @@ u32 mlx5_ipsec_device_caps(struct mlx5_core_dev *mdev)
 			caps |= MLX5_IPSEC_CAP_ESPINUDP;
 	}
 
-	if (mlx5_get_roce_state(mdev) &&
+	if (mlx5_get_roce_state(mdev) && mlx5_ipsec_fs_is_mpv_roce_supported(mdev) &&
 	    MLX5_CAP_GEN_2(mdev, flow_table_type_2_type) & MLX5_FT_NIC_RX_2_NIC_RX_RDMA &&
 	    MLX5_CAP_GEN_2(mdev, flow_table_type_2_type) & MLX5_FT_NIC_TX_RDMA_2_NIC_TX)
 		caps |= MLX5_IPSEC_CAP_ROCE;

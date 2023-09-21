@@ -183,7 +183,20 @@ static int mlx5e_devcom_event_mpv(int event, void *my_data, void *event_data)
 {
 	struct mlx5e_priv *slave_priv = my_data;
 
-	mlx5_devcom_comp_set_ready(slave_priv->devcom, true);
+	switch (event) {
+	case MPV_DEVCOM_MASTER_UP:
+		mlx5_devcom_comp_set_ready(slave_priv->devcom, true);
+		break;
+	case MPV_DEVCOM_MASTER_DOWN:
+		/* no need for comp set ready false since we unregister after
+		 * and it hurts cleanup flow.
+		 */
+		break;
+	case MPV_DEVCOM_IPSEC_MASTER_UP:
+	case MPV_DEVCOM_IPSEC_MASTER_DOWN:
+		mlx5e_ipsec_handle_mpv_event(event, my_data, event_data);
+		break;
+	}
 
 	return 0;
 }
@@ -198,15 +211,26 @@ static int mlx5e_devcom_init_mpv(struct mlx5e_priv *priv, u64 *data)
 	if (IS_ERR_OR_NULL(priv->devcom))
 		return -EOPNOTSUPP;
 
-	if (mlx5_core_is_mp_master(priv->mdev))
+	if (mlx5_core_is_mp_master(priv->mdev)) {
 		mlx5_devcom_send_event(priv->devcom, MPV_DEVCOM_MASTER_UP,
 				       MPV_DEVCOM_MASTER_UP, priv);
+		mlx5e_ipsec_send_event(priv, MPV_DEVCOM_IPSEC_MASTER_UP);
+	}
 
 	return 0;
 }
 
 static void mlx5e_devcom_cleanup_mpv(struct mlx5e_priv *priv)
 {
+	if (IS_ERR_OR_NULL(priv->devcom))
+		return;
+
+	if (mlx5_core_is_mp_master(priv->mdev)) {
+		mlx5_devcom_send_event(priv->devcom, MPV_DEVCOM_MASTER_DOWN,
+				       MPV_DEVCOM_MASTER_DOWN, priv);
+		mlx5e_ipsec_send_event(priv, MPV_DEVCOM_IPSEC_MASTER_DOWN);
+	}
+
 	mlx5_devcom_unregister_component(priv->devcom);
 }
 
