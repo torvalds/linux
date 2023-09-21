@@ -33,6 +33,15 @@
 #include <linux/mfd/syscon.h>
 //syscon panel
 
+#define CURSOR_MEM_SIZE_32X32 (32*32*4)
+#define CURSOR_MEM_SIZE_64X64 (CURSOR_MEM_SIZE_32X32 << 2)
+static u32 l2_cache_size = 0;
+
+static const struct of_device_id sifive_l2_ids[] = {
+        { .compatible = "sifive,fu740-c000-ccache" },
+        { /* end of table */ },
+};
+
 static inline void update_format(u32 format, u64 mod, struct dc_hw_fb *fb)
 {
 	u8 f = FORMAT_A8R8G8B8;
@@ -644,10 +653,21 @@ static void dc_deinit(struct device *dev)
 
 static int dc_init(struct device *dev)
 {
+	struct device_node *np;
 	struct vs_dc *dc = dev_get_drvdata(dev);
 	int ret;
 
 	dc->first_frame = true;
+
+	np = of_find_matching_node(NULL, sifive_l2_ids);
+        if (!np)
+                return -ENODEV;
+
+	ret = of_property_read_u32(np, "cache-size", &l2_cache_size);
+	if (ret) {
+		dev_err(dev, "failed to get l2 cache size\n");
+		return ret;
+        }
 
 	ret = syscon_panel_parse_dt(dev);
 	if (ret){
@@ -1005,11 +1025,26 @@ static void update_fb(struct vs_plane *plane, u8 display_id,
 	update_swizzle(drm_fb->format->format, fb);
 	update_watermark(plane_state->watermark, fb);
 
-	starfive_flush_dcache(fb->y_address, fb->height * fb->y_stride);
-	if (fb->u_address)
-		starfive_flush_dcache(fb->u_address, fb->height * fb->u_stride);
-	if (fb->v_address)
-		starfive_flush_dcache(fb->v_address, fb->height * fb->v_stride);
+	if (fb->enable) {
+		u32 flush_addr, flush_size;
+
+#define FLUSH_FB_PLANE(addr, stride)						\
+		if (addr) {							\
+			flush_addr = addr;					\
+			flush_size = fb->height * stride;			\
+			if (flush_size > l2_cache_size) {			\
+				flush_addr += flush_size - l2_cache_size;	\
+				flush_size = l2_cache_size;			\
+			}							\
+			sifive_l2_flush64_range(flush_addr, flush_size);	\
+		}
+
+		FLUSH_FB_PLANE(fb->y_address, fb->y_stride);
+		FLUSH_FB_PLANE(fb->u_address, fb->u_stride);
+		FLUSH_FB_PLANE(fb->v_address, fb->v_stride);
+
+#undef FLUSH_FB_PLANE
+	}
 
 	plane_state->status.tile_mode = fb->tile_mode;
 }
@@ -1247,6 +1282,7 @@ static void update_cursor_plane(struct vs_dc *dc, struct vs_plane *plane, struct
 									   drm_plane);
 	struct drm_framebuffer *drm_fb = state->fb;
 	struct dc_hw_cursor cursor;
+	static u32 pre_address = 0;
 
 	cursor.address = plane->dma_addr[0];
 	cursor.x = state->crtc_x;
@@ -1256,6 +1292,12 @@ static void update_cursor_plane(struct vs_dc *dc, struct vs_plane *plane, struct
 	cursor.display_id = to_vs_display_id(dc, state->crtc);
 	update_cursor_size(state, &cursor);
 	cursor.enable = true;
+
+	if (cursor.address != pre_address) {
+		sifive_l2_flush64_range(cursor.address, ((cursor.size == CURSOR_SIZE_32X32) ?
+					CURSOR_MEM_SIZE_32X32 : CURSOR_MEM_SIZE_64X64));
+		pre_address = cursor.address;
+	}
 
 	dc_hw_update_cursor(&dc->hw, cursor.display_id, &cursor);
 }
