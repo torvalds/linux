@@ -4,6 +4,7 @@
 #include "fs_core.h"
 #include "lib/ipsec_fs_roce.h"
 #include "mlx5_core.h"
+#include <linux/random.h>
 
 struct mlx5_ipsec_miss {
 	struct mlx5_flow_group *group;
@@ -42,6 +43,71 @@ static void ipsec_fs_roce_setup_udp_dport(struct mlx5_flow_spec *spec,
 	MLX5_SET(fte_match_param, spec->match_value, outer_headers.ip_protocol, IPPROTO_UDP);
 	MLX5_SET_TO_ONES(fte_match_param, spec->match_criteria, outer_headers.udp_dport);
 	MLX5_SET(fte_match_param, spec->match_value, outer_headers.udp_dport, dport);
+}
+
+static bool ipsec_fs_create_alias_supported(struct mlx5_core_dev *mdev,
+					    struct mlx5_core_dev *master_mdev)
+{
+	u64 obj_allowed_m = MLX5_CAP_GEN_2_64(master_mdev, allowed_object_for_other_vhca_access);
+	u32 obj_supp_m = MLX5_CAP_GEN_2(master_mdev, cross_vhca_object_to_object_supported);
+	u64 obj_allowed = MLX5_CAP_GEN_2_64(mdev, allowed_object_for_other_vhca_access);
+	u32 obj_supp = MLX5_CAP_GEN_2(mdev, cross_vhca_object_to_object_supported);
+
+	if (!(obj_supp &
+	    MLX5_CROSS_VHCA_OBJ_TO_OBJ_SUPPORTED_LOCAL_FLOW_TABLE_TO_REMOTE_FLOW_TABLE_MISS) ||
+	    !(obj_supp_m &
+	    MLX5_CROSS_VHCA_OBJ_TO_OBJ_SUPPORTED_LOCAL_FLOW_TABLE_TO_REMOTE_FLOW_TABLE_MISS))
+		return false;
+
+	if (!(obj_allowed & MLX5_ALLOWED_OBJ_FOR_OTHER_VHCA_ACCESS_FLOW_TABLE) ||
+	    !(obj_allowed_m & MLX5_ALLOWED_OBJ_FOR_OTHER_VHCA_ACCESS_FLOW_TABLE))
+		return false;
+
+	return true;
+}
+
+static int ipsec_fs_create_aliased_ft(struct mlx5_core_dev *ibv_owner,
+				      struct mlx5_core_dev *ibv_allowed,
+				      struct mlx5_flow_table *ft,
+				      u32 *obj_id)
+{
+	u32 aliased_object_id = (ft->type << FT_ID_FT_TYPE_OFFSET) | ft->id;
+	u16 vhca_id_to_be_accessed = MLX5_CAP_GEN(ibv_owner, vhca_id);
+	struct mlx5_cmd_allow_other_vhca_access_attr allow_attr = {};
+	struct mlx5_cmd_alias_obj_create_attr alias_attr = {};
+	char key[ACCESS_KEY_LEN];
+	int ret;
+	int i;
+
+	if (!ipsec_fs_create_alias_supported(ibv_owner, ibv_allowed))
+		return -EOPNOTSUPP;
+
+	for (i = 0; i < ACCESS_KEY_LEN; i++)
+		key[i] = get_random_u64() & 0xFF;
+
+	memcpy(allow_attr.access_key, key, ACCESS_KEY_LEN);
+	allow_attr.obj_type = MLX5_GENERAL_OBJECT_TYPES_FLOW_TABLE_ALIAS;
+	allow_attr.obj_id = aliased_object_id;
+
+	ret = mlx5_cmd_allow_other_vhca_access(ibv_owner, &allow_attr);
+	if (ret) {
+		mlx5_core_err(ibv_owner, "Failed to allow other vhca access err=%d\n",
+			      ret);
+		return ret;
+	}
+
+	memcpy(alias_attr.access_key, key, ACCESS_KEY_LEN);
+	alias_attr.obj_id = aliased_object_id;
+	alias_attr.obj_type = MLX5_GENERAL_OBJECT_TYPES_FLOW_TABLE_ALIAS;
+	alias_attr.vhca_id = vhca_id_to_be_accessed;
+	ret = mlx5_cmd_alias_obj_create(ibv_allowed, &alias_attr, obj_id);
+	if (ret) {
+		mlx5_core_err(ibv_allowed, "Failed to create alias object err=%d\n",
+			      ret);
+		return ret;
+	}
+
+	return 0;
 }
 
 static int
