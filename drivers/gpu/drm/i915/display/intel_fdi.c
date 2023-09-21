@@ -120,6 +120,53 @@ void intel_fdi_link_train(struct intel_crtc *crtc,
 	dev_priv->display.funcs.fdi->fdi_link_train(crtc, crtc_state);
 }
 
+/**
+ * intel_fdi_add_affected_crtcs - add CRTCs on FDI affected by other modeset CRTCs
+ * @state: intel atomic state
+ *
+ * Add a CRTC using FDI to @state if changing another CRTC's FDI BW usage is
+ * known to affect the available FDI BW for the former CRTC. In practice this
+ * means adding CRTC B on IVYBRIDGE if its use of FDI lanes is limited (by
+ * CRTC C) and CRTC C is getting disabled.
+ *
+ * Returns 0 in case of success, or a negative error code otherwise.
+ */
+int intel_fdi_add_affected_crtcs(struct intel_atomic_state *state)
+{
+	struct drm_i915_private *i915 = to_i915(state->base.dev);
+	const struct intel_crtc_state *old_crtc_state;
+	const struct intel_crtc_state *new_crtc_state;
+	struct intel_crtc *crtc;
+
+	if (!IS_IVYBRIDGE(i915) || INTEL_NUM_PIPES(i915) != 3)
+		return 0;
+
+	crtc = intel_crtc_for_pipe(i915, PIPE_C);
+	new_crtc_state = intel_atomic_get_new_crtc_state(state, crtc);
+	if (!new_crtc_state)
+		return 0;
+
+	if (!intel_crtc_needs_modeset(new_crtc_state))
+		return 0;
+
+	old_crtc_state = intel_atomic_get_old_crtc_state(state, crtc);
+	if (!old_crtc_state->fdi_lanes)
+		return 0;
+
+	crtc = intel_crtc_for_pipe(i915, PIPE_B);
+	new_crtc_state = intel_atomic_get_crtc_state(&state->base, crtc);
+	if (IS_ERR(new_crtc_state))
+		return PTR_ERR(new_crtc_state);
+
+	old_crtc_state = intel_atomic_get_old_crtc_state(state, crtc);
+	if (!old_crtc_state->fdi_lanes)
+		return 0;
+
+	return intel_modeset_pipes_in_mask_early(state,
+						 "FDI link BW decrease on pipe C",
+						 BIT(PIPE_B));
+}
+
 /* units of 100MHz */
 static int pipe_required_fdi_lanes(struct intel_crtc_state *crtc_state)
 {

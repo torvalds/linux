@@ -6298,6 +6298,10 @@ static int intel_atomic_check_config(struct intel_atomic_state *state,
 	if (ret)
 		return ret;
 
+	ret = intel_fdi_add_affected_crtcs(state);
+	if (ret)
+		return ret;
+
 	for_each_new_intel_crtc_in_state(state, crtc, new_crtc_state, i) {
 		if (!intel_crtc_needs_modeset(new_crtc_state)) {
 			if (intel_crtc_is_bigjoiner_slave(new_crtc_state))
