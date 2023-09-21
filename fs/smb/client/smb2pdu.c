@@ -848,7 +848,7 @@ add_posix_context(struct kvec *iov, unsigned int *num_iovec, umode_t mode)
 
 	iov[num].iov_base = create_posix_buf(mode);
 	if (mode == ACL_NO_MODE)
-		cifs_dbg(FYI, "Invalid mode\n");
+		cifs_dbg(FYI, "%s: no mode\n", __func__);
 	if (iov[num].iov_base == NULL)
 		return -ENOMEM;
 	iov[num].iov_len = sizeof(struct create_posix);
