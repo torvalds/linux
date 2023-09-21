@@ -4935,7 +4935,7 @@ static int ibmvfc_alloc_targets(struct ibmvfc_host *vhost)
 	int i, rc;
 
 	for (i = 0, rc = 0; !rc && i < vhost->num_targets; i++)
-		rc = ibmvfc_alloc_target(vhost, &vhost->disc_buf[i]);
+		rc = ibmvfc_alloc_target(vhost, &vhost->scsi_scrqs.disc_buf[i]);
 
 	return rc;
 }
@@ -4999,9 +4999,9 @@ static void ibmvfc_discover_targets(struct ibmvfc_host *vhost)
 	mad->common.version = cpu_to_be32(1);
 	mad->common.opcode = cpu_to_be32(IBMVFC_DISC_TARGETS);
 	mad->common.length = cpu_to_be16(sizeof(*mad));
-	mad->bufflen = cpu_to_be32(vhost->disc_buf_sz);
-	mad->buffer.va = cpu_to_be64(vhost->disc_buf_dma);
-	mad->buffer.len = cpu_to_be32(vhost->disc_buf_sz);
+	mad->bufflen = cpu_to_be32(vhost->scsi_scrqs.disc_buf_sz);
+	mad->buffer.va = cpu_to_be64(vhost->scsi_scrqs.disc_buf_dma);
+	mad->buffer.len = cpu_to_be32(vhost->scsi_scrqs.disc_buf_sz);
 	mad->flags = cpu_to_be32(IBMVFC_DISC_TGT_PORT_ID_WWPN_LIST);
 	ibmvfc_set_host_action(vhost, IBMVFC_HOST_ACTION_INIT_WAIT);
 
@@ -6119,6 +6119,12 @@ static void ibmvfc_release_sub_crqs(struct ibmvfc_host *vhost)
 	LEAVE;
 }
 
+static void ibmvfc_free_disc_buf(struct device *dev, struct ibmvfc_channels *channels)
+{
+	dma_free_coherent(dev, channels->disc_buf_sz, channels->disc_buf,
+			  channels->disc_buf_dma);
+}
+
 /**
  * ibmvfc_free_mem - Free memory for vhost
  * @vhost:	ibmvfc host struct
@@ -6133,8 +6139,7 @@ static void ibmvfc_free_mem(struct ibmvfc_host *vhost)
 	ENTER;
 	mempool_destroy(vhost->tgt_pool);
 	kfree(vhost->trace);
-	dma_free_coherent(vhost->dev, vhost->disc_buf_sz, vhost->disc_buf,
-			  vhost->disc_buf_dma);
+	ibmvfc_free_disc_buf(vhost->dev, &vhost->scsi_scrqs);
 	dma_free_coherent(vhost->dev, sizeof(*vhost->login_buf),
 			  vhost->login_buf, vhost->login_buf_dma);
 	dma_free_coherent(vhost->dev, sizeof(*vhost->channel_setup_buf),
@@ -6142,6 +6147,21 @@ static void ibmvfc_free_mem(struct ibmvfc_host *vhost)
 	dma_pool_destroy(vhost->sg_pool);
 	ibmvfc_free_queue(vhost, async_q);
 	LEAVE;
+}
+
+static int ibmvfc_alloc_disc_buf(struct device *dev, struct ibmvfc_channels *channels)
+{
+	channels->disc_buf_sz = sizeof(*channels->disc_buf) * max_targets;
+	channels->disc_buf = dma_alloc_coherent(dev, channels->disc_buf_sz,
+					     &channels->disc_buf_dma, GFP_KERNEL);
+
+	if (!channels->disc_buf) {
+		dev_err(dev, "Couldn't allocate %s Discover Targets buffer\n",
+			(channels->protocol == IBMVFC_PROTO_SCSI) ? "SCSI" : "NVMe");
+		return -ENOMEM;
+	}
+
+	return 0;
 }
 
 /**
@@ -6179,21 +6199,15 @@ static int ibmvfc_alloc_mem(struct ibmvfc_host *vhost)
 		goto free_sg_pool;
 	}
 
-	vhost->disc_buf_sz = sizeof(*vhost->disc_buf) * max_targets;
-	vhost->disc_buf = dma_alloc_coherent(dev, vhost->disc_buf_sz,
-					     &vhost->disc_buf_dma, GFP_KERNEL);
-
-	if (!vhost->disc_buf) {
-		dev_err(dev, "Couldn't allocate Discover Targets buffer\n");
+	if (ibmvfc_alloc_disc_buf(dev, &vhost->scsi_scrqs))
 		goto free_login_buffer;
-	}
 
 	vhost->trace = kcalloc(IBMVFC_NUM_TRACE_ENTRIES,
 			       sizeof(struct ibmvfc_trace_entry), GFP_KERNEL);
 	atomic_set(&vhost->trace_index, -1);
 
 	if (!vhost->trace)
-		goto free_disc_buffer;
+		goto free_scsi_disc_buffer;
 
 	vhost->tgt_pool = mempool_create_kmalloc_pool(IBMVFC_TGT_MEMPOOL_SZ,
 						      sizeof(struct ibmvfc_target));
@@ -6219,9 +6233,8 @@ free_tgt_pool:
 	mempool_destroy(vhost->tgt_pool);
 free_trace:
 	kfree(vhost->trace);
-free_disc_buffer:
-	dma_free_coherent(dev, vhost->disc_buf_sz, vhost->disc_buf,
-			  vhost->disc_buf_dma);
+free_scsi_disc_buffer:
+	ibmvfc_free_disc_buf(dev, &vhost->scsi_scrqs);
 free_login_buffer:
 	dma_free_coherent(dev, sizeof(*vhost->login_buf),
 			  vhost->login_buf, vhost->login_buf_dma);

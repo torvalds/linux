@@ -827,6 +827,9 @@ struct ibmvfc_channels {
 	unsigned int active_queues;
 	unsigned int desired_queues;
 	unsigned int max_queues;
+	int disc_buf_sz;
+	struct ibmvfc_discover_targets_entry *disc_buf;
+	dma_addr_t disc_buf_dma;
 };
 
 enum ibmvfc_host_action {
@@ -881,9 +884,7 @@ struct ibmvfc_host {
 	dma_addr_t login_buf_dma;
 	struct ibmvfc_channel_setup *channel_setup_buf;
 	dma_addr_t channel_setup_dma;
-	int disc_buf_sz;
 	int log_level;
-	struct ibmvfc_discover_targets_entry *disc_buf;
 	struct mutex passthru_mutex;
 	unsigned int max_vios_scsi_channels;
 	int task_set;
@@ -904,7 +905,6 @@ struct ibmvfc_host {
 #define IBMVFC_AE_LINKUP	0x0001
 #define IBMVFC_AE_LINKDOWN	0x0002
 #define IBMVFC_AE_RSCN		0x0004
-	dma_addr_t disc_buf_dma;
 	unsigned int partition_number;
 	char partition_name[97];
 	void (*job_step) (struct ibmvfc_host *);
