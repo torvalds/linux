@@ -1918,7 +1918,7 @@ int kfd_topology_add_device(struct kfd_node *gpu)
 {
 	uint32_t gpu_id;
 	struct kfd_topology_device *dev;
-	struct kfd_cu_info cu_info;
+	struct kfd_cu_info *cu_info;
 	int res = 0;
 	int i;
 	const char *asic_name = amdgpu_asic_name[gpu->adev->asic_type];
@@ -1959,8 +1959,11 @@ int kfd_topology_add_device(struct kfd_node *gpu)
 	/* Fill-in additional information that is not available in CRAT but
 	 * needed for the topology
 	 */
+	cu_info = kzalloc(sizeof(struct kfd_cu_info), GFP_KERNEL);
+	if (!cu_info)
+		return -ENOMEM;
 
-	amdgpu_amdkfd_get_cu_info(dev->gpu->adev, &cu_info);
+	amdgpu_amdkfd_get_cu_info(dev->gpu->adev, cu_info);
 
 	for (i = 0; i < KFD_TOPOLOGY_PUBLIC_NAME_SIZE-1; i++) {
 		dev->node_props.name[i] = __tolower(asic_name[i]);
@@ -1970,7 +1973,7 @@ int kfd_topology_add_device(struct kfd_node *gpu)
 	dev->node_props.name[i] = '\0';
 
 	dev->node_props.simd_arrays_per_engine =
-		cu_info.num_shader_arrays_per_engine;
+		cu_info->num_shader_arrays_per_engine;
 
 	dev->node_props.gfx_target_version =
 				gpu->kfd->device_info.gfx_target_version;
@@ -2051,7 +2054,7 @@ int kfd_topology_add_device(struct kfd_node *gpu)
 	 */
 	if (dev->gpu->adev->asic_type == CHIP_CARRIZO) {
 		dev->node_props.simd_count =
-			cu_info.simd_per_cu * cu_info.cu_active_number;
+			cu_info->simd_per_cu * cu_info->cu_active_number;
 		dev->node_props.max_waves_per_simd = 10;
 	}
 
@@ -2077,6 +2080,8 @@ int kfd_topology_add_device(struct kfd_node *gpu)
 	kfd_debug_print_topology();
 
 	kfd_notify_gpu_change(gpu_id, 1);
+
+	kfree(cu_info);
 
 	return 0;
 }
