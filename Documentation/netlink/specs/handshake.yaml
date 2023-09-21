@@ -34,10 +34,10 @@ attribute-sets:
     attributes:
       -
         name: cert
-        type: u32
+        type: s32
       -
         name: privkey
-        type: u32
+        type: s32
   -
     name: accept
     attributes:

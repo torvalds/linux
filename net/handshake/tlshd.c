@@ -173,9 +173,9 @@ static int tls_handshake_put_certificate(struct sk_buff *msg,
 	if (!entry_attr)
 		return -EMSGSIZE;
 
-	if (nla_put_u32(msg, HANDSHAKE_A_X509_CERT,
+	if (nla_put_s32(msg, HANDSHAKE_A_X509_CERT,
 			treq->th_certificate) ||
-	    nla_put_u32(msg, HANDSHAKE_A_X509_PRIVKEY,
+	    nla_put_s32(msg, HANDSHAKE_A_X509_PRIVKEY,
 			treq->th_privkey)) {
 		nla_nest_cancel(msg, entry_attr);
 		return -EMSGSIZE;

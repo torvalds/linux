@@ -28,8 +28,8 @@ struct handshake_x509 {
 		__u32 privkey:1;
 	} _present;
 
-	__u32 cert;
-	__u32 privkey;
+	__s32 cert;
+	__s32 privkey;
 };
 
 /* ============== HANDSHAKE_CMD_ACCEPT ============== */
