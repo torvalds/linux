@@ -320,10 +320,18 @@ const char *thermal_zone_device_type(struct thermal_zone_device *tzd);
 int thermal_zone_device_id(struct thermal_zone_device *tzd);
 struct device *thermal_zone_device(struct thermal_zone_device *tzd);
 
+int thermal_bind_cdev_to_trip(struct thermal_zone_device *tz,
+			      const struct thermal_trip *trip,
+			      struct thermal_cooling_device *cdev,
+			      unsigned long upper, unsigned long lower,
+			      unsigned int weight);
 int thermal_zone_bind_cooling_device(struct thermal_zone_device *, int,
 				     struct thermal_cooling_device *,
 				     unsigned long, unsigned long,
 				     unsigned int);
+int thermal_unbind_cdev_from_trip(struct thermal_zone_device *tz,
+				  const struct thermal_trip *trip,
+				  struct thermal_cooling_device *cdev);
 int thermal_zone_unbind_cooling_device(struct thermal_zone_device *, int,
 				       struct thermal_cooling_device *);
 void thermal_zone_device_update(struct thermal_zone_device *,
