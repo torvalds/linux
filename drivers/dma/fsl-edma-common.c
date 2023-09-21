@@ -448,11 +448,24 @@ static void fsl_edma_set_tcd_regs(struct fsl_edma_chan *fsl_chan,
 
 	edma_write_tcdreg(fsl_chan, tcd->dlast_sga, dlast_sga);
 
+	csr = le16_to_cpu(tcd->csr);
+
 	if (fsl_chan->is_sw) {
-		csr = le16_to_cpu(tcd->csr);
 		csr |= EDMA_TCD_CSR_START;
 		tcd->csr = cpu_to_le16(csr);
 	}
+
+	/*
+	 * Must clear CHn_CSR[DONE] bit before enable TCDn_CSR[ESG] at EDMAv3
+	 * eDMAv4 have not such requirement.
+	 * Change MLINK need clear CHn_CSR[DONE] for both eDMAv3 and eDMAv4.
+	 */
+	if (((fsl_edma_drvflags(fsl_chan) & FSL_EDMA_DRV_CLEAR_DONE_E_SG) &&
+		(csr & EDMA_TCD_CSR_E_SG)) ||
+	    ((fsl_edma_drvflags(fsl_chan) & FSL_EDMA_DRV_CLEAR_DONE_E_LINK) &&
+		(csr & EDMA_TCD_CSR_E_LINK)))
+		edma_writel_chreg(fsl_chan, edma_readl_chreg(fsl_chan, ch_csr), ch_csr);
+
 
 	edma_write_tcdreg(fsl_chan, tcd->csr, csr);
 }
