@@ -4802,19 +4802,19 @@ static void guc_context_replay(struct intel_context *ce)
 static void guc_handle_context_reset(struct intel_guc *guc,
 				     struct intel_context *ce)
 {
+	bool capture = intel_context_is_schedulable(ce);
+
 	trace_intel_context_reset(ce);
 
-	guc_dbg(guc, "Got context reset notification: 0x%04X on %s, exiting = %s, banned = %s\n",
+	guc_dbg(guc, "%s context reset notification: 0x%04X on %s, exiting = %s, banned = %s\n",
+		capture ? "Got" : "Ignoring",
 		ce->guc_id.id, ce->engine->name,
 		str_yes_no(intel_context_is_exiting(ce)),
 		str_yes_no(intel_context_is_banned(ce)));
 
-	if (likely(intel_context_is_schedulable(ce))) {
+	if (capture) {
 		capture_error_state(guc, ce);
 		guc_context_replay(ce);
-	} else {
-		guc_info(guc, "Ignoring context reset notification of exiting context 0x%04X on %s",
-			 ce->guc_id.id, ce->engine->name);
 	}
 }
 
