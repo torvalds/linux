@@ -221,6 +221,46 @@ static int futex_parse_waitv(struct futex_vector *futexv,
 	return 0;
 }
 
+static int futex2_setup_timeout(struct __kernel_timespec __user *timeout,
+				clockid_t clockid, struct hrtimer_sleeper *to)
+{
+	int flag_clkid = 0, flag_init = 0;
+	struct timespec64 ts;
+	ktime_t time;
+	int ret;
+
+	if (!timeout)
+		return 0;
+
+	if (clockid == CLOCK_REALTIME) {
+		flag_clkid = FLAGS_CLOCKRT;
+		flag_init = FUTEX_CLOCK_REALTIME;
+	}
+
+	if (clockid != CLOCK_REALTIME && clockid != CLOCK_MONOTONIC)
+		return -EINVAL;
+
+	if (get_timespec64(&ts, timeout))
+		return -EFAULT;
+
+	/*
+	 * Since there's no opcode for futex_waitv, use
+	 * FUTEX_WAIT_BITSET that uses absolute timeout as well
+	 */
+	ret = futex_init_timeout(FUTEX_WAIT_BITSET, flag_init, &ts, &time);
+	if (ret)
+		return ret;
+
+	futex_setup_timer(&time, to, flag_clkid, 0);
+	return 0;
+}
+
+static inline void futex2_destroy_timeout(struct hrtimer_sleeper *to)
+{
+	hrtimer_cancel(&to->timer);
+	destroy_hrtimer_on_stack(&to->timer);
+}
+
 /**
  * sys_futex_waitv - Wait on a list of futexes
  * @waiters:    List of futexes to wait on
@@ -250,8 +290,6 @@ SYSCALL_DEFINE5(futex_waitv, struct futex_waitv __user *, waiters,
 {
 	struct hrtimer_sleeper to;
 	struct futex_vector *futexv;
-	struct timespec64 ts;
-	ktime_t time;
 	int ret;
 
 	/* This syscall supports no flags for now */
@@ -261,30 +299,8 @@ SYSCALL_DEFINE5(futex_waitv, struct futex_waitv __user *, waiters,
 	if (!nr_futexes || nr_futexes > FUTEX_WAITV_MAX || !waiters)
 		return -EINVAL;
 
-	if (timeout) {
-		int flag_clkid = 0, flag_init = 0;
-
-		if (clockid == CLOCK_REALTIME) {
-			flag_clkid = FLAGS_CLOCKRT;
-			flag_init = FUTEX_CLOCK_REALTIME;
-		}
-
-		if (clockid != CLOCK_REALTIME && clockid != CLOCK_MONOTONIC)
-			return -EINVAL;
-
-		if (get_timespec64(&ts, timeout))
-			return -EFAULT;
-
-		/*
-		 * Since there's no opcode for futex_waitv, use
-		 * FUTEX_WAIT_BITSET that uses absolute timeout as well
-		 */
-		ret = futex_init_timeout(FUTEX_WAIT_BITSET, flag_init, &ts, &time);
-		if (ret)
-			return ret;
-
-		futex_setup_timer(&time, &to, flag_clkid, 0);
-	}
+	if (timeout && (ret = futex2_setup_timeout(timeout, clockid, &to)))
+		return ret;
 
 	futexv = kcalloc(nr_futexes, sizeof(*futexv), GFP_KERNEL);
 	if (!futexv) {
@@ -299,10 +315,8 @@ SYSCALL_DEFINE5(futex_waitv, struct futex_waitv __user *, waiters,
 	kfree(futexv);
 
 destroy_timer:
-	if (timeout) {
-		hrtimer_cancel(&to.timer);
-		destroy_hrtimer_on_stack(&to.timer);
-	}
+	if (timeout)
+		futex2_destroy_timeout(&to);
 	return ret;
 }
 
@@ -334,6 +348,52 @@ SYSCALL_DEFINE4(futex_wake,
 		return -EINVAL;
 
 	return futex_wake(uaddr, FLAGS_STRICT | flags, nr, mask);
+}
+
+/*
+ * sys_futex_wait - Wait on a futex
+ * @uaddr:	Address of the futex to wait on
+ * @val:	Value of @uaddr
+ * @mask:	bitmask
+ * @flags:	FUTEX2 flags
+ * @timeout:	Optional absolute timeout
+ * @clockid:	Clock to be used for the timeout, realtime or monotonic
+ *
+ * Identical to the traditional FUTEX_WAIT_BITSET op, except it is part of the
+ * futex2 familiy of calls.
+ */
+
+SYSCALL_DEFINE6(futex_wait,
+		void __user *, uaddr,
+		unsigned long, val,
+		unsigned long, mask,
+		unsigned int, flags,
+		struct __kernel_timespec __user *, timeout,
+		clockid_t, clockid)
+{
+	struct hrtimer_sleeper to;
+	int ret;
+
+	if (flags & ~FUTEX2_VALID_MASK)
+		return -EINVAL;
+
+	flags = futex2_to_flags(flags);
+	if (!futex_flags_valid(flags))
+		return -EINVAL;
+
+	if (!futex_validate_input(flags, val) ||
+	    !futex_validate_input(flags, mask))
+		return -EINVAL;
+
+	if (timeout && (ret = futex2_setup_timeout(timeout, clockid, &to)))
+		return ret;
+
+	ret = __futex_wait(uaddr, flags, val, timeout ? &to : NULL, mask);
+
+	if (timeout)
+		futex2_destroy_timeout(&to);
+
+	return ret;
 }
 
 #ifdef CONFIG_COMPAT

@@ -332,6 +332,9 @@ extern int futex_requeue(u32 __user *uaddr1, unsigned int flags,
 			 u32 __user *uaddr2, int nr_wake, int nr_requeue,
 			 u32 *cmpval, int requeue_pi);
 
+extern int __futex_wait(u32 __user *uaddr, unsigned int flags, u32 val,
+			struct hrtimer_sleeper *to, u32 bitset);
+
 extern int futex_wait(u32 __user *uaddr, unsigned int flags, u32 val,
 		      ktime_t *abs_time, u32 bitset);
 

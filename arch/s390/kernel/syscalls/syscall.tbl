@@ -456,3 +456,4 @@
 451  common	cachestat		sys_cachestat			sys_cachestat
 452  common	fchmodat2		sys_fchmodat2			sys_fchmodat2
 454  common	futex_wake		sys_futex_wake			sys_futex_wake
+455  common	futex_wait		sys_futex_wait			sys_futex_wait

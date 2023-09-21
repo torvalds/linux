@@ -458,3 +458,4 @@
 451	i386	cachestat		sys_cachestat
 452	i386	fchmodat2		sys_fchmodat2
 454	i386	futex_wake		sys_futex_wake
+455	i386	futex_wait		sys_futex_wait
