@@ -1751,16 +1751,11 @@ static int hl_cs_ctx_switch(struct hl_fpriv *hpriv, union hl_cs_args *args,
 		/* Need to wait for restore completion before execution phase */
 		if (num_chunks) {
 			enum hl_cs_wait_status status;
-wait_again:
+
 			ret = _hl_cs_wait_ioctl(hdev, ctx,
 					jiffies_to_usecs(hdev->timeout_jiffies),
 					*cs_seq, &status, NULL);
 			if (ret) {
-				if (ret == -ERESTARTSYS) {
-					usleep_range(100, 200);
-					goto wait_again;
-				}
-
 				dev_err(hdev->dev,
 					"Restore CS for context %d failed to complete %d\n",
 					ctx->asid, ret);
