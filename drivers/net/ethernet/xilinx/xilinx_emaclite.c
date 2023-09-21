@@ -1180,8 +1180,6 @@ error:
  * This function is called if a device is physically removed from the system or
  * if the driver module is being unloaded. It frees any resources allocated to
  * the device.
- *
- * Return:	0, always.
  */
 static void xemaclite_of_remove(struct platform_device *of_dev)
 {
