@@ -13,28 +13,21 @@
 
 #include "thermal_core.h"
 
-static int thermal_zone_trip_update(struct thermal_zone_device *tz, int trip_id)
+static int thermal_zone_trip_update(struct thermal_zone_device *tz, int trip_index)
 {
-	struct thermal_trip trip;
+	const struct thermal_trip *trip = &tz->trips[trip_index];
 	struct thermal_instance *instance;
-	int ret;
 
-	ret = __thermal_zone_get_trip(tz, trip_id, &trip);
-	if (ret) {
-		pr_warn_once("Failed to retrieve trip point %d\n", trip_id);
-		return ret;
-	}
-
-	if (!trip.hysteresis)
+	if (!trip->hysteresis)
 		dev_info_once(&tz->device,
 			      "Zero hysteresis value for thermal zone %s\n", tz->type);
 
 	dev_dbg(&tz->device, "Trip%d[temp=%d]:temp=%d:hyst=%d\n",
-				trip_id, trip.temperature, tz->temperature,
-				trip.hysteresis);
+				trip_index, trip->temperature, tz->temperature,
+				trip->hysteresis);
 
 	list_for_each_entry(instance, &tz->thermal_instances, tz_node) {
-		if (instance->trip != trip_id)
+		if (instance->trip != trip)
 			continue;
 
 		/* in case fan is in initial state, switch the fan off */
@@ -52,10 +45,10 @@ static int thermal_zone_trip_update(struct thermal_zone_device *tz, int trip_id)
 		 * enable fan when temperature exceeds trip_temp and disable
 		 * the fan in case it falls below trip_temp minus hysteresis
 		 */
-		if (instance->target == 0 && tz->temperature >= trip.temperature)
+		if (instance->target == 0 && tz->temperature >= trip->temperature)
 			instance->target = 1;
 		else if (instance->target == 1 &&
-			 tz->temperature <= trip.temperature - trip.hysteresis)
+			 tz->temperature <= trip->temperature - trip->hysteresis)
 			instance->target = 0;
 
 		dev_dbg(&instance->cdev->device, "target=%d\n",
