@@ -903,6 +903,11 @@ static bool pixel_format_is_valid(const struct intel_plane_state *plane_state)
 		if (IS_G4X(i915))
 			return false;
 		return true;
+	case DRM_FORMAT_ARGB8888:
+	case DRM_FORMAT_ABGR8888:
+		if (DISPLAY_VER(i915) >= 20)
+			return true;
+		fallthrough;
 	default:
 		return false;
 	}
@@ -1132,7 +1137,8 @@ static int intel_fbc_check_plane(struct intel_atomic_state *state,
 		return 0;
 	}
 
-	if (plane_state->hw.pixel_blend_mode != DRM_MODE_BLEND_PIXEL_NONE &&
+	if (DISPLAY_VER(i915) < 20 &&
+	    plane_state->hw.pixel_blend_mode != DRM_MODE_BLEND_PIXEL_NONE &&
 	    fb->format->has_alpha) {
 		plane_state->no_fbc_reason = "per-pixel alpha not supported";
 		return 0;
