@@ -2024,7 +2024,8 @@ void dsa_shared_port_link_unregister_of(struct dsa_port *dp)
 		dsa_shared_port_setup_phy_of(dp, false);
 }
 
-int dsa_port_hsr_join(struct dsa_port *dp, struct net_device *hsr)
+int dsa_port_hsr_join(struct dsa_port *dp, struct net_device *hsr,
+		      struct netlink_ext_ack *extack)
 {
 	struct dsa_switch *ds = dp->ds;
 	int err;
@@ -2034,7 +2035,7 @@ int dsa_port_hsr_join(struct dsa_port *dp, struct net_device *hsr)
 
 	dp->hsr_dev = hsr;
 
-	err = ds->ops->port_hsr_join(ds, dp->index, hsr);
+	err = ds->ops->port_hsr_join(ds, dp->index, hsr, extack);
 	if (err)
 		dp->hsr_dev = NULL;
 

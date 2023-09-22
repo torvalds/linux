@@ -1198,7 +1198,8 @@ struct dsa_switch_ops {
 	 * HSR integration
 	 */
 	int	(*port_hsr_join)(struct dsa_switch *ds, int port,
-				 struct net_device *hsr);
+				 struct net_device *hsr,
+				 struct netlink_ext_ack *extack);
 	int	(*port_hsr_leave)(struct dsa_switch *ds, int port,
 				  struct net_device *hsr);
 

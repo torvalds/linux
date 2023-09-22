@@ -2862,7 +2862,7 @@ static int dsa_slave_changeupper(struct net_device *dev,
 		}
 	} else if (is_hsr_master(info->upper_dev)) {
 		if (info->linking) {
-			err = dsa_port_hsr_join(dp, info->upper_dev);
+			err = dsa_port_hsr_join(dp, info->upper_dev, extack);
 			if (err == -EOPNOTSUPP) {
 				NL_SET_ERR_MSG_WEAK_MOD(extack,
 							"Offloading not supported");
