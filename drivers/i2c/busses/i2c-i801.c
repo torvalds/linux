@@ -1117,7 +1117,7 @@ static void dmi_check_onboard_devices(const struct dmi_header *dm, void *adap)
 {
 	int i, count;
 
-	if (dm->type != 10)
+	if (dm->type != DMI_ENTRY_ONBOARD_DEVICE)
 		return;
 
 	count = (dm->length - sizeof(struct dmi_header)) / 2;
