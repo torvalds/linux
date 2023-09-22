@@ -45,7 +45,7 @@ struct dp_meter {
 struct dp_meter_instance {
 	struct rcu_head rcu;
 	u32 n_meters;
-	struct dp_meter __rcu *dp_meters[];
+	struct dp_meter __rcu *dp_meters[] __counted_by(n_meters);
 };
 
 struct dp_meter_table {
