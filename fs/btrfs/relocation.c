@@ -163,9 +163,9 @@ struct reloc_control {
 	u64 extents_found;
 
 	enum reloc_stage stage;
-	unsigned int create_reloc_tree:1;
-	unsigned int merge_reloc_tree:1;
-	unsigned int found_file_extent:1;
+	bool create_reloc_tree;
+	bool merge_reloc_tree;
+	bool found_file_extent;
 };
 
 static void mark_block_processed(struct reloc_control *rc,
@@ -1902,7 +1902,7 @@ again:
 		}
 	}
 
-	rc->merge_reloc_tree = 1;
+	rc->merge_reloc_tree = true;
 
 	while (!list_empty(&rc->reloc_roots)) {
 		reloc_root = list_entry(rc->reloc_roots.next,
@@ -3659,7 +3659,7 @@ int prepare_to_relocate(struct reloc_control *rc)
 	if (ret)
 		return ret;
 
-	rc->create_reloc_tree = 1;
+	rc->create_reloc_tree = true;
 	set_reloc_control(rc);
 
 	trans = btrfs_join_transaction(rc->extent_root);
@@ -3786,7 +3786,7 @@ restart:
 
 		if (rc->stage == MOVE_DATA_EXTENTS &&
 		    (flags & BTRFS_EXTENT_FLAG_DATA)) {
-			rc->found_file_extent = 1;
+			rc->found_file_extent = true;
 			ret = relocate_data_extent(rc->data_inode,
 						   &key, &rc->cluster);
 			if (ret < 0) {
@@ -3823,7 +3823,7 @@ restart:
 			err = ret;
 	}
 
-	rc->create_reloc_tree = 0;
+	rc->create_reloc_tree = false;
 	set_reloc_control(rc);
 
 	btrfs_backref_release_cache(&rc->backref_cache);
@@ -3841,7 +3841,7 @@ restart:
 
 	merge_reloc_roots(rc);
 
-	rc->merge_reloc_tree = 0;
+	rc->merge_reloc_tree = false;
 	unset_reloc_control(rc);
 	btrfs_block_rsv_release(fs_info, rc->block_rsv, (u64)-1, NULL);
 
@@ -4355,7 +4355,7 @@ int btrfs_recover_relocation(struct btrfs_fs_info *fs_info)
 		goto out_unset;
 	}
 
-	rc->merge_reloc_tree = 1;
+	rc->merge_reloc_tree = true;
 
 	while (!list_empty(&reloc_roots)) {
 		reloc_root = list_entry(reloc_roots.next,
