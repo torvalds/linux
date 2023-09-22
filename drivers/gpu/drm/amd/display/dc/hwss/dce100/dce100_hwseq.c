@@ -26,10 +26,10 @@
 #include "dc.h"
 #include "core_types.h"
 #include "clk_mgr.h"
-#include "dce100_hw_sequencer.h"
+#include "dce100_hwseq.h"
 #include "resource.h"
 
-#include "dce110/dce110_hw_sequencer.h"
+#include "dce110/dce110_hwseq.h"
 
 /* include DCE10 register header files */
 #include "dce/dce_10_0_d.h"

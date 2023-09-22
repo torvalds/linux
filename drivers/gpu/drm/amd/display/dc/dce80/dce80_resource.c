@@ -46,7 +46,7 @@
 #include "dce/dce_clock_source.h"
 #include "dce/dce_audio.h"
 #include "dce/dce_hwseq.h"
-#include "dce80/dce80_hw_sequencer.h"
+#include "dce80/dce80_hwseq.h"
 #include "dce100/dce100_resource.h"
 #include "dce/dce_panel_cntl.h"
 

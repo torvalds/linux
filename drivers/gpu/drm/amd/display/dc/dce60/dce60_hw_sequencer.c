@@ -29,8 +29,8 @@
 #include "dce60_hw_sequencer.h"
 
 #include "dce/dce_hwseq.h"
-#include "dce110/dce110_hw_sequencer.h"
-#include "dce100/dce100_hw_sequencer.h"
+#include "dce110/dce110_hwseq.h"
+#include "dce100/dce100_hwseq.h"
 
 /* include DCE6 register header files */
 #include "dce/dce_6_0_d.h"

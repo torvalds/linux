@@ -49,7 +49,7 @@
 #include "dcn35/dcn35_optc.h"
 #include "dcn20/dcn20_hwseq.h"
 #include "dcn30/dcn30_hwseq.h"
-#include "dce110/dce110_hw_sequencer.h"
+#include "dce110/dce110_hwseq.h"
 #include "dcn35/dcn35_opp.h"
 #include "dcn35/dcn35_dsc.h"
 #include "dcn30/dcn30_vpg.h"
@@ -75,7 +75,7 @@
 #include "dcn35/dcn35_pg_cntl.h"
 #include "dcn10/dcn10_resource.h"
 #include "dcn31/dcn31_panel_cntl.h"
-#include "dcn35_hwseq.h"
+#include "dcn35/dcn35_hwseq.h"
 #include "dcn35_dio_link_encoder.h"
 #include "dml/dcn31/dcn31_fpu.h" /*todo*/
 #include "dml/dcn35/dcn35_fpu.h"

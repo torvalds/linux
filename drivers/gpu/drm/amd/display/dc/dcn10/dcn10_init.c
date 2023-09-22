@@ -24,8 +24,8 @@
  */
 
 #include "hw_sequencer_private.h"
-#include "dce110/dce110_hw_sequencer.h"
-#include "dcn10_hw_sequencer.h"
+#include "dce110/dce110_hwseq.h"
+#include "dcn10/dcn10_hwseq.h"
 #include "dcn20/dcn20_hwseq.h"
 
 static const struct hw_sequencer_funcs dcn10_funcs = {

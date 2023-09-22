@@ -35,7 +35,7 @@
 #include "grph_object_ctrl_defs.h"
 #include <inc/hw/opp.h>
 
-#include "inc/hw_sequencer.h"
+#include "hwss/hw_sequencer.h"
 #include "inc/compressor.h"
 #include "inc/hw/dmcu.h"
 #include "dml/display_mode_lib.h"

@@ -45,8 +45,8 @@
 #include "irq/dcn20/irq_service_dcn20.h"
 #include "dcn20_dpp.h"
 #include "dcn20_optc.h"
-#include "dcn20_hwseq.h"
-#include "dce110/dce110_hw_sequencer.h"
+#include "dcn20/dcn20_hwseq.h"
+#include "dce110/dce110_hwseq.h"
 #include "dcn10/dcn10_resource.h"
 #include "dcn20_opp.h"
 

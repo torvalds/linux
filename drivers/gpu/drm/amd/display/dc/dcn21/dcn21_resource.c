@@ -49,7 +49,7 @@
 #include "dcn20/dcn20_dpp.h"
 #include "dcn20/dcn20_optc.h"
 #include "dcn21/dcn21_hwseq.h"
-#include "dce110/dce110_hw_sequencer.h"
+#include "dce110/dce110_hwseq.h"
 #include "dcn20/dcn20_opp.h"
 #include "dcn20/dcn20_dsc.h"
 #include "dcn21/dcn21_link_encoder.h"

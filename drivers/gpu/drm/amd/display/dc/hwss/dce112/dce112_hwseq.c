@@ -26,9 +26,9 @@
 #include "dm_services.h"
 #include "dc.h"
 #include "core_types.h"
-#include "dce112_hw_sequencer.h"
+#include "dce112_hwseq.h"
 
-#include "dce110/dce110_hw_sequencer.h"
+#include "dce110/dce110_hwseq.h"
 
 /* include DCE11.2 register header files */
 #include "dce/dce_11_2_d.h"

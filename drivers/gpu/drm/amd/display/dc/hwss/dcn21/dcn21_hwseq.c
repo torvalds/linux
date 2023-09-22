@@ -28,7 +28,7 @@
 #include "core_types.h"
 #include "resource.h"
 #include "dce/dce_hwseq.h"
-#include "dce110/dce110_hw_sequencer.h"
+#include "dce110/dce110_hwseq.h"
 #include "dcn21_hwseq.h"
 #include "vmid.h"
 #include "reg_helper.h"

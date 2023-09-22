@@ -23,10 +23,10 @@
  *
  */
 
-#include "dce110/dce110_hw_sequencer.h"
-#include "dcn10/dcn10_hw_sequencer.h"
+#include "dce110/dce110_hwseq.h"
+#include "dcn10/dcn10_hwseq.h"
 #include "dcn20/dcn20_hwseq.h"
-#include "dcn21_hwseq.h"
+#include "dcn21/dcn21_hwseq.h"
 
 #include "dcn21_init.h"
 

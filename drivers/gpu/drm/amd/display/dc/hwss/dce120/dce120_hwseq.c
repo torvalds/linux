@@ -26,10 +26,10 @@
 #include "dm_services.h"
 #include "dc.h"
 #include "core_types.h"
-#include "dce120_hw_sequencer.h"
+#include "dce120_hwseq.h"
 #include "dce/dce_hwseq.h"
 
-#include "dce110/dce110_hw_sequencer.h"
+#include "dce110/dce110_hwseq.h"
 
 #include "dce/dce_12_0_offset.h"
 #include "dce/dce_12_0_sh_mask.h"

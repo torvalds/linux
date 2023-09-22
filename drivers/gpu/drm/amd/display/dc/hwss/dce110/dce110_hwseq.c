@@ -30,11 +30,12 @@
 #include "core_status.h"
 #include "resource.h"
 #include "dm_helpers.h"
-#include "dce110_timing_generator.h"
+#include "dce110_hwseq.h"
+#include "dce110/dce110_timing_generator.h"
 #include "dce/dce_hwseq.h"
 #include "gpio_service_interface.h"
 
-#include "dce110_compressor.h"
+#include "dce110/dce110_compressor.h"
 
 #include "bios/bios_parser_helper.h"
 #include "timing_generator.h"
@@ -62,9 +63,9 @@
 
 #include "atomfirmware.h"
 
-#include "dcn10/dcn10_hw_sequencer.h"
+#include "dcn10/dcn10_hwseq.h"
 
-#include "dce110_hw_sequencer.h"
+#include "dce110_hwseq.h"
 
 #define GAMMA_HW_POINTS_NUM 256
 

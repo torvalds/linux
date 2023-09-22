@@ -28,7 +28,7 @@
 #include "core_types.h"
 #include "resource.h"
 #include "dcn201_hwseq.h"
-#include "dcn201_optc.h"
+#include "dcn201/dcn201_optc.h"
 #include "dce/dce_hwseq.h"
 #include "hubp.h"
 #include "dchubbub.h"

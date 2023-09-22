@@ -48,7 +48,7 @@
 #include "dsc.h"
 #include "dcn20/dcn20_optc.h"
 #include "dce/dmub_hw_lock_mgr.h"
-#include "dcn32_resource.h"
+#include "dcn32/dcn32_resource.h"
 #include "link.h"
 
 #define DC_LOGGER_INIT(logger)

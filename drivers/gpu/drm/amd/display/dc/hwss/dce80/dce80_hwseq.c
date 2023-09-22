@@ -26,11 +26,11 @@
 #include "dm_services.h"
 #include "dc.h"
 #include "core_types.h"
-#include "dce80_hw_sequencer.h"
+#include "dce80_hwseq.h"
 
 #include "dce/dce_hwseq.h"
-#include "dce110/dce110_hw_sequencer.h"
-#include "dce100/dce100_hw_sequencer.h"
+#include "dce110/dce110_hwseq.h"
+#include "dce100/dce100_hwseq.h"
 
 /* include DCE8 register header files */
 #include "dce/dce_8_0_d.h"

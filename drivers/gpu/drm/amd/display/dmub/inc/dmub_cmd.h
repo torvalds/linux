@@ -2306,7 +2306,7 @@ struct dmub_cmd_psr_copy_settings_data {
 	 */
 	uint8_t relock_delay_frame_cnt;
 	/**
-	 * Explicit padding to 2 byte boundary.
+	 * Explicit padding to 4 byte boundary.
 	 */
 	uint8_t pad3;
 	/**
@@ -3139,6 +3139,7 @@ enum hw_lock_client {
 	 * PSR SU is the client of HW Lock Manager.
 	 */
 	HW_LOCK_CLIENT_PSR_SU		= 1,
+	HW_LOCK_CLIENT_SUBVP = 3,
 	/**
 	 * Replay is the client of HW Lock Manager.
 	 */
