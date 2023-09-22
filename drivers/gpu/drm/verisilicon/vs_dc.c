@@ -668,6 +668,7 @@ static int dc_init(struct device *dev)
 		dev_err(dev, "failed to get l2 cache size\n");
 		return ret;
         }
+	l2_cache_size <<= 4;
 
 	ret = syscon_panel_parse_dt(dev);
 	if (ret){
