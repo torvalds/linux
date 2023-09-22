@@ -11630,7 +11630,7 @@ static int attach_uprobe(const struct bpf_program *prog, long cookie, struct bpf
 
 	*link = NULL;
 
-	n = sscanf(prog->sec_name, "%m[^/]/%m[^:]:%m[a-zA-Z0-9_.]+%li",
+	n = sscanf(prog->sec_name, "%m[^/]/%m[^:]:%m[a-zA-Z0-9_.@]+%li",
 		   &probe_type, &binary_path, &func_name, &offset);
 	switch (n) {
 	case 1:
