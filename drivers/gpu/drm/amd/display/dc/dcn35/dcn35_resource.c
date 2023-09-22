@@ -1830,7 +1830,13 @@ static bool dcn35_resource_construct(
 	dc->caps.color.mpc.ogam_rom_caps.hlg = 0;
 	dc->caps.color.mpc.ocsc = 1;
 
-	dc->caps.max_disp_clock_khz_at_vmin = 669154;
+	/* max_disp_clock_khz_at_vmin is slightly lower than the STA value in order
+	 * to provide some margin.
+	 * It's expected for furture ASIC to have equal or higher value, in order to
+	 * have determinstic power improvement from generate to genration.
+	 * (i.e., we should not expect new ASIC generation with lower vmin rate)
+	 */
+	dc->caps.max_disp_clock_khz_at_vmin = 650000;
 
 	/* Use pipe context based otg sync logic */
 	dc->config.use_pipe_ctx_sync_logic = true;
