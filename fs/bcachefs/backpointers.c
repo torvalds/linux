@@ -703,7 +703,7 @@ static int bch2_get_alloc_in_memory_pos(struct btree_trans *trans,
 
 		--btree_nodes;
 		if (!btree_nodes) {
-			*end = alloc_k.k->p;
+			*end = alloc_k.k ? alloc_k.k->p : SPOS_MAX;
 			break;
 		}
 
