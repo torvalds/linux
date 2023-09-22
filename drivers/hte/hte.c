@@ -88,7 +88,7 @@ struct hte_device {
 	struct list_head list;
 	struct hte_chip *chip;
 	struct module *owner;
-	struct hte_ts_info ei[];
+	struct hte_ts_info ei[] __counted_by(nlines);
 };
 
 #ifdef CONFIG_DEBUG_FS
