@@ -336,6 +336,7 @@ enum msm8226_functions {
 	msm_mux_blsp_i2c3,
 	msm_mux_blsp_i2c4,
 	msm_mux_blsp_i2c5,
+	msm_mux_blsp_i2c6,
 	msm_mux_blsp_spi1,
 	msm_mux_blsp_spi2,
 	msm_mux_blsp_spi3,
@@ -436,6 +437,8 @@ static const char * const blsp_spi5_groups[] = {
 	"gpio16", "gpio17", "gpio18", "gpio19"
 };
 
+static const char * const blsp_i2c6_groups[] = { "gpio22", "gpio23" };
+
 static const char * const cci_i2c0_groups[] = { "gpio29", "gpio30" };
 
 static const char * const cam_mclk0_groups[] = { "gpio26" };
@@ -459,6 +462,7 @@ static const struct pinfunction msm8226_functions[] = {
 	MSM_PIN_FUNCTION(blsp_i2c3),
 	MSM_PIN_FUNCTION(blsp_i2c4),
 	MSM_PIN_FUNCTION(blsp_i2c5),
+	MSM_PIN_FUNCTION(blsp_i2c6),
 	MSM_PIN_FUNCTION(blsp_spi1),
 	MSM_PIN_FUNCTION(blsp_spi2),
 	MSM_PIN_FUNCTION(blsp_spi3),
@@ -507,8 +511,8 @@ static const struct msm_pingroup msm8226_groups[] = {
 	PINGROUP(19,  blsp_spi5, blsp_uart5, blsp_i2c5, NA, NA, NA, NA),
 	PINGROUP(20,  NA, NA, NA, NA, NA, NA, NA),
 	PINGROUP(21,  NA, NA, NA, NA, NA, NA, NA),
-	PINGROUP(22,  NA, NA, NA, NA, NA, NA, NA),
-	PINGROUP(23,  NA, NA, NA, NA, NA, NA, NA),
+	PINGROUP(22,  NA, NA, blsp_i2c6, NA, NA, NA, NA),
+	PINGROUP(23,  NA, NA, blsp_i2c6, NA, NA, NA, NA),
 	PINGROUP(24,  NA, NA, NA, NA, NA, NA, NA),
 	PINGROUP(25,  NA, NA, NA, NA, NA, NA, NA),
 	PINGROUP(26,  cam_mclk0, NA, NA, NA, NA, NA, NA),
