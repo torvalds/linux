@@ -956,14 +956,6 @@ static struct sk_buff *rtllib_pspoll_func(struct rtllib_device *ieee)
 	return skb;
 }
 
-static void rtllib_resp_to_probe(struct rtllib_device *ieee, u8 *dest)
-{
-	struct sk_buff *buf = rtllib_probe_resp(ieee, dest);
-
-	if (buf)
-		softmac_mgmt_xmit(buf, ieee);
-}
-
 static inline int SecIsInPMKIDList(struct rtllib_device *ieee, u8 *bssid)
 {
 	int i = 0;
@@ -1613,52 +1605,6 @@ static inline int auth_parse(struct net_device *dev, struct sk_buff *skb,
 	return 0;
 }
 
-static short probe_rq_parse(struct rtllib_device *ieee, struct sk_buff *skb,
-			    u8 *src)
-{
-	u8 *tag;
-	u8 *skbend;
-	u8 *ssid = NULL;
-	u8 ssidlen = 0;
-	struct ieee80211_hdr_3addr   *header =
-		(struct ieee80211_hdr_3addr   *)skb->data;
-	bool bssid_match;
-
-	if (skb->len < sizeof(struct ieee80211_hdr_3addr))
-		return -1; /* corrupted */
-
-	bssid_match =
-	  (!ether_addr_equal(header->addr3, ieee->current_network.bssid)) &&
-	  (!is_broadcast_ether_addr(header->addr3));
-	if (bssid_match)
-		return -1;
-
-	ether_addr_copy(src, header->addr2);
-
-	skbend = (u8 *)skb->data + skb->len;
-
-	tag = skb->data + sizeof(struct ieee80211_hdr_3addr);
-
-	while (tag + 1 < skbend) {
-		if (*tag == 0) {
-			ssid = tag + 2;
-			ssidlen = *(tag + 1);
-			break;
-		}
-		tag++; /* point to the len field */
-		tag = tag + *(tag); /* point to the last data byte of the tag */
-		tag++; /* point to the next tag */
-	}
-
-	if (ssidlen == 0)
-		return 1;
-
-	if (!ssid)
-		return 1; /* ssid not found in tagged param */
-
-	return !strncmp(ssid, ieee->current_network.ssid, ssidlen);
-}
-
 static inline u16 assoc_parse(struct rtllib_device *ieee, struct sk_buff *skb,
 			      int *aid)
 {
@@ -1686,17 +1632,6 @@ static inline u16 assoc_parse(struct rtllib_device *ieee, struct sk_buff *skb,
 	}
 
 	return le16_to_cpu(response_head->status);
-}
-
-void rtllib_rx_probe_rq(struct rtllib_device *ieee, struct sk_buff *skb)
-{
-	u8 dest[ETH_ALEN];
-
-	ieee->softmac_stats.rx_probe_rq++;
-	if (probe_rq_parse(ieee, skb, dest) > 0) {
-		ieee->softmac_stats.tx_probe_rs++;
-		rtllib_resp_to_probe(ieee, dest);
-	}
 }
 
 void rtllib_sta_ps_send_null_frame(struct rtllib_device *ieee, short pwr)

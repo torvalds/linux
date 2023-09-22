@@ -375,37 +375,6 @@ static int is_duplicate_packet(struct rtllib_device *ieee,
 	}
 
 	switch (ieee->iw_mode) {
-	case IW_MODE_ADHOC:
-	{
-		struct list_head *p;
-		struct ieee_ibss_seq *entry = NULL;
-		u8 *mac = header->addr2;
-		int index = mac[5] % IEEE_IBSS_MAC_HASH_SIZE;
-
-		list_for_each(p, &ieee->ibss_mac_hash[index]) {
-			entry = list_entry(p, struct ieee_ibss_seq, list);
-			if (!memcmp(entry->mac, mac, ETH_ALEN))
-				break;
-		}
-		if (p == &ieee->ibss_mac_hash[index]) {
-			entry = kmalloc(sizeof(struct ieee_ibss_seq),
-					GFP_ATOMIC);
-			if (!entry)
-				return 0;
-
-			ether_addr_copy(entry->mac, mac);
-			entry->seq_num[tid] = seq;
-			entry->frag_num[tid] = frag;
-			entry->packet_time[tid] = jiffies;
-			list_add(&entry->list, &ieee->ibss_mac_hash[index]);
-			return 0;
-		}
-		last_seq = &entry->seq_num[tid];
-		last_frag = &entry->frag_num[tid];
-		last_time = &entry->packet_time[tid];
-		break;
-	}
-
 	case IW_MODE_INFRA:
 		last_seq = &ieee->last_rxseq_num[tid];
 		last_frag = &ieee->last_rxfrag_num[tid];
@@ -1487,7 +1456,6 @@ int rtllib_rx(struct rtllib_device *ieee, struct sk_buff *skb,
 	}
 
 	switch (ieee->iw_mode) {
-	case IW_MODE_ADHOC:
 	case IW_MODE_INFRA:
 		ret = rtllib_rx_InfraAdhoc(ieee, skb, rx_stats);
 		break;
@@ -2654,11 +2622,5 @@ static void rtllib_rx_mgt(struct rtllib_device *ieee,
 		netdev_dbg(ieee->dev, "received PROBE RESPONSE\n");
 		rtllib_process_probe_response(ieee,
 			      (struct rtllib_probe_response *)header, stats);
-	} else if (ieee80211_is_probe_req(header->frame_control)) {
-		netdev_dbg(ieee->dev, "received PROBE REQUEST\n");
-		if ((ieee->softmac_features & IEEE_SOFTMAC_PROBERS) &&
-		    (ieee->iw_mode == IW_MODE_ADHOC &&
-		    ieee->link_state == MAC80211_LINKED))
-			rtllib_rx_probe_rq(ieee, skb);
 	}
 }
