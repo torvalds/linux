@@ -3966,8 +3966,7 @@ static void fill_inode_item(struct btrfs_trans_handle *trans,
  * copy everything in the in-memory inode into the btree.
  */
 static noinline int btrfs_update_inode_item(struct btrfs_trans_handle *trans,
-				struct btrfs_root *root,
-				struct btrfs_inode *inode)
+					    struct btrfs_inode *inode)
 {
 	struct btrfs_inode_item *inode_item;
 	struct btrfs_path *path;
@@ -3978,7 +3977,7 @@ static noinline int btrfs_update_inode_item(struct btrfs_trans_handle *trans,
 	if (!path)
 		return -ENOMEM;
 
-	ret = btrfs_lookup_inode(trans, root, path, &inode->location, 1);
+	ret = btrfs_lookup_inode(trans, inode->root, path, &inode->location, 1);
 	if (ret) {
 		if (ret > 0)
 			ret = -ENOENT;
@@ -4026,7 +4025,7 @@ int btrfs_update_inode(struct btrfs_trans_handle *trans,
 		return ret;
 	}
 
-	return btrfs_update_inode_item(trans, root, inode);
+	return btrfs_update_inode_item(trans, inode);
 }
 
 int btrfs_update_inode_fallback(struct btrfs_trans_handle *trans,
@@ -4036,7 +4035,7 @@ int btrfs_update_inode_fallback(struct btrfs_trans_handle *trans,
 
 	ret = btrfs_update_inode(trans, inode);
 	if (ret == -ENOSPC)
-		return btrfs_update_inode_item(trans, inode->root, inode);
+		return btrfs_update_inode_item(trans, inode);
 	return ret;
 }
 
