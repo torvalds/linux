@@ -720,6 +720,9 @@ void __init_or_module noinline apply_returns(s32 *start, s32 *end)
 {
 	s32 *s;
 
+	if (cpu_feature_enabled(X86_FEATURE_RETHUNK))
+		static_call_force_reinit();
+
 	for (s = start; s < end; s++) {
 		void *dest = NULL, *addr = (void *)s + *s;
 		struct insn insn;
