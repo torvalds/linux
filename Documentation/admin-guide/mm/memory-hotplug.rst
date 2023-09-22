@@ -250,15 +250,15 @@ Observing the State of Memory Blocks
 The state (online/offline/going-offline) of a memory block can be observed
 either via::
 
-	% cat /sys/device/system/memory/memoryXXX/state
+	% cat /sys/devices/system/memory/memoryXXX/state
 
 Or alternatively (1/0) via::
 
-	% cat /sys/device/system/memory/memoryXXX/online
+	% cat /sys/devices/system/memory/memoryXXX/online
 
 For an online memory block, the managing zone can be observed via::
 
-	% cat /sys/device/system/memory/memoryXXX/valid_zones
+	% cat /sys/devices/system/memory/memoryXXX/valid_zones
 
 Configuring Memory Hot(Un)Plug
 ==============================
@@ -326,7 +326,7 @@ however, a memory block might span memory holes. A memory block spanning memory
 holes cannot be offlined.
 
 For example, assume 1 GiB memory block size. A device for a memory starting at
-0x100000000 is ``/sys/device/system/memory/memory4``::
+0x100000000 is ``/sys/devices/system/memory/memory4``::
 
 	(0x100000000 / 1Gib = 4)
 
