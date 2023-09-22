@@ -131,7 +131,7 @@
 
 	backlight {
 		compatible = "pwm-backlight";
-		pwms = <&pwm 0 500000>;
+		pwms = <&pwm 0 500000 0>;
 		/*
 		 * a silly way to create a 1:1 relationship between the
 		 * PWM value and the actual duty cycle

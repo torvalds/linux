@@ -1185,7 +1185,7 @@
 				compatible = "fsl,imx28-pwm", "fsl,imx23-pwm";
 				reg = <0x80064000 0x2000>;
 				clocks = <&clks 44>;
-				#pwm-cells = <2>;
+				#pwm-cells = <3>;
 				fsl,pwm-number = <8>;
 				status = "disabled";
 			};
