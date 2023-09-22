@@ -545,7 +545,7 @@ struct hv_pcidev_description {
 struct hv_dr_state {
 	struct list_head list_entry;
 	u32 device_count;
-	struct hv_pcidev_description func[];
+	struct hv_pcidev_description func[] __counted_by(device_count);
 };
 
 struct hv_pci_dev {
