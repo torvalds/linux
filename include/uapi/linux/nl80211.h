@@ -335,6 +335,15 @@
  */
 
 /**
+ * DOC: OWE DH IE handling offload
+ *
+ * By setting @NL80211_EXT_FEATURE_OWE_OFFLOAD flag, drivers can indicate
+ * kernel/application space to avoid DH IE handling. When this flag is
+ * advertised, the driver/device will take care of DH IE inclusion and
+ * processing of peer DH IE to generate PMK.
+ */
+
+/**
  * enum nl80211_commands - supported nl80211 commands
  *
  * @NL80211_CMD_UNSPEC: unspecified command to catch errors
@@ -6411,6 +6420,12 @@ enum nl80211_feature_flags {
  *	in authentication and deauthentication frames sent to unassociated peer
  *	using @NL80211_CMD_FRAME.
  *
+ * @NL80211_EXT_FEATURE_OWE_OFFLOAD: Driver/Device wants to do OWE DH IE
+ *	handling in station mode.
+ *
+ * @NL80211_EXT_FEATURE_OWE_OFFLOAD_AP: Driver/Device wants to do OWE DH IE
+ *	handling in AP mode.
+ *
  * @NUM_NL80211_EXT_FEATURES: number of extended features.
  * @MAX_NL80211_EXT_FEATURES: highest extended feature index.
  */
@@ -6482,6 +6497,8 @@ enum nl80211_ext_feature_index {
 	NL80211_EXT_FEATURE_PUNCT,
 	NL80211_EXT_FEATURE_SECURE_NAN,
 	NL80211_EXT_FEATURE_AUTH_AND_DEAUTH_RANDOM_TA,
+	NL80211_EXT_FEATURE_OWE_OFFLOAD,
+	NL80211_EXT_FEATURE_OWE_OFFLOAD_AP,
 
 	/* add new features before the definition below */
 	NUM_NL80211_EXT_FEATURES,
