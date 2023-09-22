@@ -33,8 +33,8 @@ static int cg3_setcolreg(unsigned, unsigned, unsigned, unsigned,
 			 unsigned, struct fb_info *);
 static int cg3_blank(int, struct fb_info *);
 
-static int cg3_mmap(struct fb_info *, struct vm_area_struct *);
-static int cg3_ioctl(struct fb_info *, unsigned int, unsigned long);
+static int cg3_sbusfb_mmap(struct fb_info *info, struct vm_area_struct *vma);
+static int cg3_sbusfb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg);
 
 /*
  *  Frame buffer operations
@@ -42,16 +42,9 @@ static int cg3_ioctl(struct fb_info *, unsigned int, unsigned long);
 
 static const struct fb_ops cg3_ops = {
 	.owner			= THIS_MODULE,
+	FB_DEFAULT_SBUS_OPS(cg3),
 	.fb_setcolreg		= cg3_setcolreg,
 	.fb_blank		= cg3_blank,
-	.fb_fillrect		= cfb_fillrect,
-	.fb_copyarea		= cfb_copyarea,
-	.fb_imageblit		= cfb_imageblit,
-	.fb_mmap		= cg3_mmap,
-	.fb_ioctl		= cg3_ioctl,
-#ifdef CONFIG_COMPAT
-	.fb_compat_ioctl	= sbusfb_compat_ioctl,
-#endif
 };
 
 
@@ -225,7 +218,7 @@ static struct sbus_mmap_map cg3_mmap_map[] = {
 	{ .size = 0 }
 };
 
-static int cg3_mmap(struct fb_info *info, struct vm_area_struct *vma)
+static int cg3_sbusfb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 {
 	struct cg3_par *par = (struct cg3_par *)info->par;
 
@@ -235,7 +228,7 @@ static int cg3_mmap(struct fb_info *info, struct vm_area_struct *vma)
 				  vma);
 }
 
-static int cg3_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
+static int cg3_sbusfb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 {
 	return sbusfb_ioctl_helper(cmd, arg, info,
 				   FBTYPE_SUN3COLOR, 8, info->fix.smem_len);

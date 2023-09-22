@@ -551,15 +551,13 @@ err_put_phy:
 	return ret;
 }
 
-static int msm_hdmi_dev_remove(struct platform_device *pdev)
+static void msm_hdmi_dev_remove(struct platform_device *pdev)
 {
 	struct hdmi *hdmi = dev_get_drvdata(&pdev->dev);
 
 	component_del(&pdev->dev, &msm_hdmi_ops);
 
 	msm_hdmi_put_phy(hdmi);
-
-	return 0;
 }
 
 static const struct of_device_id msm_hdmi_dt_match[] = {
@@ -574,7 +572,7 @@ static const struct of_device_id msm_hdmi_dt_match[] = {
 
 static struct platform_driver msm_hdmi_driver = {
 	.probe = msm_hdmi_dev_probe,
-	.remove = msm_hdmi_dev_remove,
+	.remove_new = msm_hdmi_dev_remove,
 	.driver = {
 		.name = "hdmi_msm",
 		.of_match_table = msm_hdmi_dt_match,

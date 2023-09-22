@@ -32,6 +32,8 @@ struct ivpu_mmu_context {
 
 int ivpu_mmu_global_context_init(struct ivpu_device *vdev);
 void ivpu_mmu_global_context_fini(struct ivpu_device *vdev);
+int ivpu_mmu_reserved_context_init(struct ivpu_device *vdev);
+void ivpu_mmu_reserved_context_fini(struct ivpu_device *vdev);
 
 int ivpu_mmu_user_context_init(struct ivpu_device *vdev, struct ivpu_mmu_context *ctx, u32 ctx_id);
 void ivpu_mmu_user_context_fini(struct ivpu_device *vdev, struct ivpu_mmu_context *ctx);

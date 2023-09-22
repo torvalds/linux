@@ -560,11 +560,9 @@ static int mdp4_probe(struct platform_device *pdev)
 	return msm_drv_probe(&pdev->dev, mdp4_kms_init);
 }
 
-static int mdp4_remove(struct platform_device *pdev)
+static void mdp4_remove(struct platform_device *pdev)
 {
 	component_master_del(&pdev->dev, &msm_drm_ops);
-
-	return 0;
 }
 
 static const struct of_device_id mdp4_dt_match[] = {
@@ -575,7 +573,7 @@ MODULE_DEVICE_TABLE(of, mdp4_dt_match);
 
 static struct platform_driver mdp4_platform_driver = {
 	.probe      = mdp4_probe,
-	.remove     = mdp4_remove,
+	.remove_new = mdp4_remove,
 	.shutdown   = msm_drv_shutdown,
 	.driver     = {
 		.name   = "mdp4",

@@ -882,21 +882,26 @@ struct nouveau_encoder *nv50_real_outp(struct drm_encoder *encoder)
 
 static void
 nv50_msto_cleanup(struct drm_atomic_state *state,
-		  struct drm_dp_mst_topology_state *mst_state,
+		  struct drm_dp_mst_topology_state *new_mst_state,
 		  struct drm_dp_mst_topology_mgr *mgr,
 		  struct nv50_msto *msto)
 {
 	struct nouveau_drm *drm = nouveau_drm(msto->encoder.dev);
-	struct drm_dp_mst_atomic_payload *payload =
-		drm_atomic_get_mst_payload_state(mst_state, msto->mstc->port);
+	struct drm_dp_mst_atomic_payload *new_payload =
+		drm_atomic_get_mst_payload_state(new_mst_state, msto->mstc->port);
+	struct drm_dp_mst_topology_state *old_mst_state =
+		drm_atomic_get_old_mst_topology_state(state, mgr);
+	const struct drm_dp_mst_atomic_payload *old_payload =
+		drm_atomic_get_mst_payload_state(old_mst_state, msto->mstc->port);
 
 	NV_ATOMIC(drm, "%s: msto cleanup\n", msto->encoder.name);
 
 	if (msto->disabled) {
 		msto->mstc = NULL;
 		msto->disabled = false;
+		drm_dp_remove_payload_part2(mgr, new_mst_state, old_payload, new_payload);
 	} else if (msto->enabled) {
-		drm_dp_add_payload_part2(mgr, state, payload);
+		drm_dp_add_payload_part2(mgr, state, new_payload);
 		msto->enabled = false;
 	}
 }
@@ -910,19 +915,15 @@ nv50_msto_prepare(struct drm_atomic_state *state,
 	struct nouveau_drm *drm = nouveau_drm(msto->encoder.dev);
 	struct nv50_mstc *mstc = msto->mstc;
 	struct nv50_mstm *mstm = mstc->mstm;
-	struct drm_dp_mst_topology_state *old_mst_state;
-	struct drm_dp_mst_atomic_payload *payload, *old_payload;
+	struct drm_dp_mst_atomic_payload *payload;
 
 	NV_ATOMIC(drm, "%s: msto prepare\n", msto->encoder.name);
 
-	old_mst_state = drm_atomic_get_old_mst_topology_state(state, mgr);
-
 	payload = drm_atomic_get_mst_payload_state(mst_state, mstc->port);
-	old_payload = drm_atomic_get_mst_payload_state(old_mst_state, mstc->port);
 
 	// TODO: Figure out if we want to do a better job of handling VCPI allocation failures here?
 	if (msto->disabled) {
-		drm_dp_remove_payload(mgr, mst_state, old_payload, payload);
+		drm_dp_remove_payload_part1(mgr, mst_state, payload);
 
 		nvif_outp_dp_mst_vcpi(&mstm->outp->outp, msto->head->base.index, 0, 0, 0, 0);
 	} else {

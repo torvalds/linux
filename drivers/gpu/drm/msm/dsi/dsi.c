@@ -161,14 +161,12 @@ static int dsi_dev_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int dsi_dev_remove(struct platform_device *pdev)
+static void dsi_dev_remove(struct platform_device *pdev)
 {
 	struct msm_dsi *msm_dsi = platform_get_drvdata(pdev);
 
 	DBG("");
 	dsi_destroy(msm_dsi);
-
-	return 0;
 }
 
 static const struct of_device_id dt_match[] = {
@@ -187,7 +185,7 @@ static const struct dev_pm_ops dsi_pm_ops = {
 
 static struct platform_driver dsi_driver = {
 	.probe = dsi_dev_probe,
-	.remove = dsi_dev_remove,
+	.remove_new = dsi_dev_remove,
 	.driver = {
 		.name = "msm_dsi",
 		.of_match_table = dt_match,
