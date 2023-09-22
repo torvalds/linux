@@ -6011,7 +6011,7 @@ static int btrfs_dirty_inode(struct btrfs_inode *inode)
 		return PTR_ERR(trans);
 
 	ret = btrfs_update_inode(trans, root, inode);
-	if (ret && (ret == -ENOSPC || ret == -EDQUOT)) {
+	if (ret == -ENOSPC || ret == -EDQUOT) {
 		/* whoops, lets try again with the full transaction */
 		btrfs_end_transaction(trans);
 		trans = btrfs_start_transaction(root, 1);
