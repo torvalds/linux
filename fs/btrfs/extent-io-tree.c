@@ -885,10 +885,19 @@ bool find_first_extent_bit(struct extent_io_tree *tree, u64 start,
 		if (state->end == start - 1 && extent_state_in_tree(state)) {
 			while ((state = next_state(state)) != NULL) {
 				if (state->state & bits)
-					goto got_it;
+					break;
 			}
+			/*
+			 * If we found the next extent state, clear cached_state
+			 * so that we can cache the next extent state below and
+			 * avoid future calls going over the same extent state
+			 * again. If we haven't found any, clear as well since
+			 * it's now useless.
+			 */
 			free_extent_state(*cached_state);
 			*cached_state = NULL;
+			if (state)
+				goto got_it;
 			goto out;
 		}
 		free_extent_state(*cached_state);
