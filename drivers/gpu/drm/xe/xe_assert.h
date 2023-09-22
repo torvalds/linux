@@ -86,7 +86,7 @@
 })
 #else
 #define __xe_assert_msg(xe, condition, msg, arg...) ({						\
-	typecheck(struct xe_device *, xe);							\
+	typecheck(const struct xe_device *, xe);						\
 	BUILD_BUG_ON_INVALID(condition);							\
 })
 #endif
@@ -107,7 +107,7 @@
  */
 #define xe_assert(xe, condition) xe_assert_msg((xe), condition, "")
 #define xe_assert_msg(xe, condition, msg, arg...) ({						\
-	struct xe_device *__xe = (xe);								\
+	const struct xe_device *__xe = (xe);							\
 	__xe_assert_msg(__xe, condition,							\
 			"platform: %d subplatform: %d\n"					\
 			"graphics: %s %u.%02u step %s\n"					\
@@ -142,7 +142,7 @@
  */
 #define xe_tile_assert(tile, condition) xe_tile_assert_msg((tile), condition, "")
 #define xe_tile_assert_msg(tile, condition, msg, arg...) ({					\
-	struct xe_tile *__tile = (tile);							\
+	const struct xe_tile *__tile = (tile);							\
 	char __buf[10] __maybe_unused;								\
 	xe_assert_msg(tile_to_xe(__tile), condition, "tile: %u VRAM %s\n" msg,			\
 		      __tile->id, ({ string_get_size(__tile->mem.vram.actual_physical_size, 1,	\
@@ -166,7 +166,7 @@
  */
 #define xe_gt_assert(gt, condition) xe_gt_assert_msg((gt), condition, "")
 #define xe_gt_assert_msg(gt, condition, msg, arg...) ({						\
-	struct xe_gt *__gt = (gt);								\
+	const struct xe_gt *__gt = (gt);							\
 	xe_tile_assert_msg(gt_to_tile(__gt), condition, "GT: %u type %d\n" msg,			\
 			   __gt->info.id, __gt->info.type, ## arg);				\
 })
