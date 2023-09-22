@@ -1620,13 +1620,6 @@ int do_ip_getsockopt(struct sock *sk, int level, int optname,
 			return -EFAULT;
 		return 0;
 	}
-	}
-
-	if (needs_rtnl)
-		rtnl_lock();
-	sockopt_lock_sock(sk);
-
-	switch (optname) {
 	case IP_MTU:
 	{
 		struct dst_entry *dst;
@@ -1636,12 +1629,17 @@ int do_ip_getsockopt(struct sock *sk, int level, int optname,
 			val = dst_mtu(dst);
 			dst_release(dst);
 		}
-		if (!val) {
-			sockopt_release_sock(sk);
+		if (!val)
 			return -ENOTCONN;
-		}
-		break;
+		goto copyval;
 	}
+	}
+
+	if (needs_rtnl)
+		rtnl_lock();
+	sockopt_lock_sock(sk);
+
+	switch (optname) {
 	case IP_UNICAST_IF:
 		val = (__force int)htonl((__u32) inet->uc_index);
 		break;
