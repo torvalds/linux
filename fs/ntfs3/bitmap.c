@@ -125,6 +125,7 @@ void wnd_close(struct wnd_bitmap *wnd)
 	struct rb_node *node, *next;
 
 	kfree(wnd->free_bits);
+	wnd->free_bits = NULL;
 	run_close(&wnd->run);
 
 	node = rb_first(&wnd->start_tree);

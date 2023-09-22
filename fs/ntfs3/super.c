@@ -576,20 +576,30 @@ static noinline void ntfs3_put_sbi(struct ntfs_sb_info *sbi)
 	wnd_close(&sbi->mft.bitmap);
 	wnd_close(&sbi->used.bitmap);
 
-	if (sbi->mft.ni)
+	if (sbi->mft.ni) {
 		iput(&sbi->mft.ni->vfs_inode);
+		sbi->mft.ni = NULL;
+	}
 
-	if (sbi->security.ni)
+	if (sbi->security.ni) {
 		iput(&sbi->security.ni->vfs_inode);
+		sbi->security.ni = NULL;
+	}
 
-	if (sbi->reparse.ni)
+	if (sbi->reparse.ni) {
 		iput(&sbi->reparse.ni->vfs_inode);
+		sbi->reparse.ni = NULL;
+	}
 
-	if (sbi->objid.ni)
+	if (sbi->objid.ni) {
 		iput(&sbi->objid.ni->vfs_inode);
+		sbi->objid.ni = NULL;
+	}
 
-	if (sbi->volume.ni)
+	if (sbi->volume.ni) {
 		iput(&sbi->volume.ni->vfs_inode);
+		sbi->volume.ni = NULL;
+	}
 
 	ntfs_update_mftmirr(sbi, 0);
 
@@ -1577,6 +1587,7 @@ put_inode_out:
 	iput(inode);
 out:
 	kfree(boot2);
+	ntfs3_put_sbi(sbi);
 	return err;
 }
 
