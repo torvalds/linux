@@ -257,13 +257,6 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 	if (!ret && unlikely(test_tsk_thread_flag(current, TIF_IO_BITMAP)))
 		io_bitmap_share(p);
 
-	/*
-	 * If copy_thread() if failing, don't leak the shadow stack possibly
-	 * allocated in shstk_alloc_thread_stack() above.
-	 */
-	if (ret)
-		shstk_free(p);
-
 	return ret;
 }
 
