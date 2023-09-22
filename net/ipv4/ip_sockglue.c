@@ -622,9 +622,7 @@ int ip_sock_set_mtu_discover(struct sock *sk, int val)
 {
 	if (val < IP_PMTUDISC_DONT || val > IP_PMTUDISC_OMIT)
 		return -EINVAL;
-	lock_sock(sk);
-	inet_sk(sk)->pmtudisc = val;
-	release_sock(sk);
+	WRITE_ONCE(inet_sk(sk)->pmtudisc, val);
 	return 0;
 }
 EXPORT_SYMBOL(ip_sock_set_mtu_discover);
@@ -1050,6 +1048,8 @@ int do_ip_setsockopt(struct sock *sk, int level, int optname,
 			return -EINVAL;
 		WRITE_ONCE(inet->mc_ttl, val);
 		return 0;
+	case IP_MTU_DISCOVER:
+		return ip_sock_set_mtu_discover(sk, val);
 	}
 
 	err = 0;
@@ -1106,11 +1106,6 @@ int do_ip_setsockopt(struct sock *sk, int level, int optname,
 		break;
 	case IP_TOS:	/* This sets both TOS and Precedence */
 		__ip_sock_set_tos(sk, val);
-		break;
-	case IP_MTU_DISCOVER:
-		if (val < IP_PMTUDISC_DONT || val > IP_PMTUDISC_OMIT)
-			goto e_inval;
-		inet->pmtudisc = val;
 		break;
 	case IP_UNICAST_IF:
 	{
@@ -1595,6 +1590,9 @@ int do_ip_getsockopt(struct sock *sk, int level, int optname,
 	case IP_MULTICAST_TTL:
 		val = READ_ONCE(inet->mc_ttl);
 		goto copyval;
+	case IP_MTU_DISCOVER:
+		val = READ_ONCE(inet->pmtudisc);
+		goto copyval;
 	}
 
 	if (needs_rtnl)
@@ -1633,9 +1631,6 @@ int do_ip_getsockopt(struct sock *sk, int level, int optname,
 	}
 	case IP_TOS:
 		val = inet->tos;
-		break;
-	case IP_MTU_DISCOVER:
-		val = inet->pmtudisc;
 		break;
 	case IP_MTU:
 	{

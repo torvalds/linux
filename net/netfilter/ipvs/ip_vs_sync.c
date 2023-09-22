@@ -1335,7 +1335,7 @@ static void set_mcast_pmtudisc(struct sock *sk, int val)
 
 	/* setsockopt(sock, SOL_IP, IP_MTU_DISCOVER, &val, sizeof(val)); */
 	lock_sock(sk);
-	inet->pmtudisc = val;
+	WRITE_ONCE(inet->pmtudisc, val);
 #ifdef CONFIG_IP_VS_IPV6
 	if (sk->sk_family == AF_INET6) {
 		struct ipv6_pinfo *np = inet6_sk(sk);

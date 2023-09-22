@@ -1387,8 +1387,8 @@ struct sk_buff *__ip_make_skb(struct sock *sk,
 	struct ip_options *opt = NULL;
 	struct rtable *rt = (struct rtable *)cork->dst;
 	struct iphdr *iph;
+	u8 pmtudisc, ttl;
 	__be16 df = 0;
-	__u8 ttl;
 
 	skb = __skb_dequeue(queue);
 	if (!skb)
@@ -1418,8 +1418,9 @@ struct sk_buff *__ip_make_skb(struct sock *sk,
 	/* DF bit is set when we want to see DF on outgoing frames.
 	 * If ignore_df is set too, we still allow to fragment this frame
 	 * locally. */
-	if (inet->pmtudisc == IP_PMTUDISC_DO ||
-	    inet->pmtudisc == IP_PMTUDISC_PROBE ||
+	pmtudisc = READ_ONCE(inet->pmtudisc);
+	if (pmtudisc == IP_PMTUDISC_DO ||
+	    pmtudisc == IP_PMTUDISC_PROBE ||
 	    (skb->len <= dst_mtu(&rt->dst) &&
 	     ip_dont_fragment(sk, &rt->dst)))
 		df = htons(IP_DF);

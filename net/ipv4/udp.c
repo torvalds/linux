@@ -750,7 +750,7 @@ int __udp4_lib_err(struct sk_buff *skb, u32 info, struct udp_table *udptable)
 	case ICMP_DEST_UNREACH:
 		if (code == ICMP_FRAG_NEEDED) { /* Path MTU discovery */
 			ipv4_sk_update_pmtu(skb, sk, info);
-			if (inet->pmtudisc != IP_PMTUDISC_DONT) {
+			if (READ_ONCE(inet->pmtudisc) != IP_PMTUDISC_DONT) {
 				err = EMSGSIZE;
 				harderr = 1;
 				break;
