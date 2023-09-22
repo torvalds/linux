@@ -33,6 +33,7 @@ struct dmaengine_mpcm {
 
 struct dmaengine_mpcm_runtime_data {
 	struct dma_chan *chans[MAX_DAIS];
+	struct dma_interleaved_template *xt;
 	dma_cookie_t cookies[MAX_DAIS];
 	unsigned int *channel_maps;
 	int num_chans;
@@ -135,33 +136,71 @@ static void dmaengine_mpcm_get_master_chan(struct dmaengine_mpcm_runtime_data *p
 	}
 }
 
+static int dmaengine_config_interleaved(struct snd_pcm_substream *substream,
+					struct dma_interleaved_template *xt,
+					int offset, int sample_bytes, int nump, int numf)
+{
+	struct snd_pcm_runtime *runtime = substream->runtime;
+	int frame_bytes;
+
+	frame_bytes = frames_to_bytes(runtime, 1);
+
+	xt->frame_size = 1;
+	xt->sgl[0].size = sample_bytes;
+	xt->sgl[0].icg = frame_bytes - sample_bytes;
+
+#ifdef CONFIG_NO_GKI
+	xt->nump = nump;
+#endif
+	xt->numf = numf;
+
+	xt->dir = snd_pcm_substream_to_dma_direction(substream);
+
+	if (xt->dir == DMA_MEM_TO_DEV) {
+		xt->src_start = runtime->dma_addr + offset;
+		xt->src_inc = true;
+		xt->src_sgl = true;
+		xt->dst_inc = false;
+		xt->dst_sgl = false;
+	} else {
+		xt->dst_start = runtime->dma_addr + offset;
+		xt->src_inc = false;
+		xt->src_sgl = false;
+		xt->dst_inc = true;
+		xt->dst_sgl = true;
+	}
+
+	return 0;
+}
+
 static int dmaengine_mpcm_prepare_and_submit(struct snd_pcm_substream *substream)
 {
 	struct dmaengine_mpcm_runtime_data *prtd = substream_to_prtd(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct dma_async_tx_descriptor *desc = NULL;
-	enum dma_transfer_direction direction;
+	struct dma_interleaved_template *xt = prtd->xt;
 	unsigned long flags = DMA_CTRL_ACK;
 	unsigned int *maps = prtd->channel_maps;
-	int offset, buffer_bytes, period_bytes;
+	int offset;
 	int i;
-
-	direction = snd_pcm_substream_to_dma_direction(substream);
 
 	if (!substream->runtime->no_period_wakeup)
 		flags |= DMA_PREP_INTERRUPT;
 
 	prtd->pos = 0;
 	offset = 0;
-	period_bytes = snd_pcm_lib_period_bytes(substream);
-	buffer_bytes = snd_pcm_lib_buffer_bytes(substream);
+
 	for (i = 0; i < prtd->num_chans; i++) {
 		if (!prtd->chans[i])
 			continue;
-		desc = dmaengine_prep_dma_cyclic(prtd->chans[i],
-						 runtime->dma_addr + offset,
-						 buffer_bytes, period_bytes,
-						 direction, flags);
+
+		dmaengine_config_interleaved(substream, xt, offset,
+					     samples_to_bytes(runtime, maps[i]),
+					     runtime->period_size,
+					     runtime->buffer_size);
+
+		desc = dmaengine_prep_interleaved_dma(prtd->chans[i], xt,
+						      flags | DMA_PREP_REPEAT);
 
 		if (!desc)
 			return -ENOMEM;
@@ -249,33 +288,34 @@ static void dmaengine_mpcm_single_dma_complete(void *arg)
 }
 
 static int __mpcm_prepare_single_and_submit(struct snd_pcm_substream *substream,
-					    dma_addr_t buf_start, int size)
+					    int buf_offset, int size)
 {
 	struct dmaengine_mpcm_runtime_data *prtd = substream_to_prtd(substream);
+	struct dma_interleaved_template *xt = prtd->xt;
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct dma_async_tx_descriptor *desc;
-	enum dma_transfer_direction direction;
 	unsigned long flags = DMA_CTRL_ACK;
 	unsigned int *maps = prtd->channel_maps;
 	int offset, i;
 	bool callback = false;
 
-	direction = snd_pcm_substream_to_dma_direction(substream);
-
 	if (!substream->runtime->no_period_wakeup)
 		flags |= DMA_PREP_INTERRUPT;
 
-	offset = 0;
+	offset = buf_offset;
 	for (i = 0; i < prtd->num_chans; i++) {
 		if (!prtd->chans[i])
 			continue;
-		desc = dmaengine_prep_slave_single(prtd->chans[i],
-						   buf_start + offset,
-						   size,
-						   direction, flags);
 
+		dmaengine_config_interleaved(substream, xt, offset,
+					     samples_to_bytes(runtime, maps[i]),
+					     0,
+					     bytes_to_frames(runtime, size));
+
+		desc = dmaengine_prep_interleaved_dma(prtd->chans[i], xt, flags);
 		if (!desc)
 			return -ENOMEM;
+
 		if (!callback) {
 			desc->callback = dmaengine_mpcm_single_dma_complete;
 			desc->callback_param = substream;
@@ -316,15 +356,15 @@ static int dmaengine_mpcm_prepare_single_and_submit(struct snd_pcm_substream *su
 	pr_debug("%s: offset: %d, buffer_bytes: %d\n", __func__, offset, buffer_bytes);
 	pr_debug("%s: count: %d, residue_bytes: %d\n", __func__, count, residue_bytes);
 	for (i = 0; i < count; i++) {
-		ret = __mpcm_prepare_single_and_submit(substream, buf_start,
+		ret = __mpcm_prepare_single_and_submit(substream, offset,
 						       period_bytes);
 		if (ret)
 			return ret;
-		buf_start += period_bytes;
+		offset += period_bytes;
 	}
 
 	if (residue_bytes) {
-		ret = __mpcm_prepare_single_and_submit(substream, buf_start,
+		ret = __mpcm_prepare_single_and_submit(substream, offset,
 						       residue_bytes);
 		if (ret)
 			return ret;
@@ -423,22 +463,12 @@ static int dmaengine_mpcm_hw_params(struct snd_soc_component *component,
 		sz = snd_pcm_format_size(format, maps[i]);
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 			chan = pcm->tx_chans[i];
-#ifdef CONFIG_NO_GKI
-			if (sz) {
-				slave_config.src_interlace_size = frame_bytes - sz;
-				if (slave_config.src_interlace_size)
-					slave_config.dst_maxburst = sz / slave_config.dst_addr_width;
-			}
-#endif
+			if (sz && (frame_bytes - sz) > 0)
+				slave_config.dst_maxburst = sz / slave_config.dst_addr_width;
 		} else {
 			chan = pcm->rx_chans[i];
-#ifdef CONFIG_NO_GKI
-			if (sz) {
-				slave_config.dst_interlace_size = frame_bytes - sz;
-				if (slave_config.dst_interlace_size)
-					slave_config.src_maxburst = sz / slave_config.src_addr_width;
-			}
-#endif
+			if (sz && (frame_bytes - sz) > 0)
+				slave_config.src_maxburst = sz / slave_config.src_addr_width;
 		}
 		if (!chan)
 			continue;
@@ -542,6 +572,13 @@ static int dmaengine_mpcm_open(struct snd_soc_component *component,
 	if (!prtd)
 		return -ENOMEM;
 
+	prtd->xt = kzalloc(sizeof(struct dma_interleaved_template) +
+			   sizeof(struct data_chunk), GFP_KERNEL);
+	if (!prtd->xt) {
+		kfree(prtd);
+		return -ENOMEM;
+	}
+
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		prtd->channel_maps = pcm->mdais->playback_channel_maps;
 		for (i = 0; i < pcm->mdais->num_dais; i++)
@@ -642,6 +679,7 @@ static int dmaengine_mpcm_close(struct snd_soc_component *component,
 {
 	struct dmaengine_mpcm_runtime_data *prtd = substream_to_prtd(substream);
 
+	kfree(prtd->xt);
 	kfree(prtd);
 
 	return 0;
