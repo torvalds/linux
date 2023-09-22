@@ -287,7 +287,7 @@ struct rpmsg_endpoint *qcom_wcnss_open_channel(void *wcnss, const char *name, rp
 
 	return rpmsg_create_ept(_wcnss->channel->rpdev, cb, priv, chinfo);
 }
-EXPORT_SYMBOL(qcom_wcnss_open_channel);
+EXPORT_SYMBOL_GPL(qcom_wcnss_open_channel);
 
 static void wcnss_async_probe(struct work_struct *work)
 {

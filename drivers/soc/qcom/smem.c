@@ -368,7 +368,7 @@ bool qcom_smem_is_available(void)
 {
 	return !!__smem;
 }
-EXPORT_SYMBOL(qcom_smem_is_available);
+EXPORT_SYMBOL_GPL(qcom_smem_is_available);
 
 static int qcom_smem_alloc_private(struct qcom_smem *smem,
 				   struct smem_partition *part,

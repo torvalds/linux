@@ -211,7 +211,7 @@ struct ocmem *of_get_ocmem(struct device *dev)
 	}
 	return ocmem;
 }
-EXPORT_SYMBOL(of_get_ocmem);
+EXPORT_SYMBOL_GPL(of_get_ocmem);
 
 struct ocmem_buf *ocmem_allocate(struct ocmem *ocmem, enum ocmem_client client,
 				 unsigned long size)
@@ -267,7 +267,7 @@ err_unlock:
 
 	return ERR_PTR(ret);
 }
-EXPORT_SYMBOL(ocmem_allocate);
+EXPORT_SYMBOL_GPL(ocmem_allocate);
 
 void ocmem_free(struct ocmem *ocmem, enum ocmem_client client,
 		struct ocmem_buf *buf)
@@ -294,7 +294,7 @@ void ocmem_free(struct ocmem *ocmem, enum ocmem_client client,
 
 	clear_bit_unlock(BIT(client), &ocmem->active_allocations);
 }
-EXPORT_SYMBOL(ocmem_free);
+EXPORT_SYMBOL_GPL(ocmem_free);
 
 static int ocmem_dev_probe(struct platform_device *pdev)
 {
