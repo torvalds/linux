@@ -115,12 +115,6 @@ void extent_io_tree_init(struct btrfs_fs_info *fs_info,
 void extent_io_tree_release(struct extent_io_tree *tree)
 {
 	spin_lock(&tree->lock);
-	/*
-	 * Do a single barrier for the waitqueue_active check here, the state
-	 * of the waitqueue should not change once extent_io_tree_release is
-	 * called.
-	 */
-	smp_mb();
 	while (!RB_EMPTY_ROOT(&tree->state)) {
 		struct rb_node *node;
 		struct extent_state *state;
@@ -130,6 +124,11 @@ void extent_io_tree_release(struct extent_io_tree *tree)
 		rb_erase(&state->rb_node, &tree->state);
 		RB_CLEAR_NODE(&state->rb_node);
 		ASSERT(!(state->state & EXTENT_LOCKED));
+		/*
+		 * No need for a memory barrier here, as we are holding the tree
+		 * lock and we only change the waitqueue while holding that lock
+		 * (see wait_on_state()).
+		 */
 		ASSERT(!waitqueue_active(&state->wq));
 		free_extent_state(state);
 
