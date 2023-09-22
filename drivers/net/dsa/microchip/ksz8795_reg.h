@@ -323,13 +323,6 @@
 	((addr) + REG_PORT_1_CTRL_0 + (port) *	\
 		(REG_PORT_2_CTRL_0 - REG_PORT_1_CTRL_0))
 
-#define REG_SW_MAC_ADDR_0		0x68
-#define REG_SW_MAC_ADDR_1		0x69
-#define REG_SW_MAC_ADDR_2		0x6A
-#define REG_SW_MAC_ADDR_3		0x6B
-#define REG_SW_MAC_ADDR_4		0x6C
-#define REG_SW_MAC_ADDR_5		0x6D
-
 #define TABLE_EXT_SELECT_S		5
 #define TABLE_EEE_V			1
 #define TABLE_ACL_V			2
