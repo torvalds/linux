@@ -105,6 +105,13 @@ void extent_io_tree_init(struct btrfs_fs_info *fs_info,
 		lockdep_set_class(&tree->lock, &file_extent_tree_class);
 }
 
+/*
+ * Empty an io tree, removing and freeing every extent state record from the
+ * tree. This should be called once we are sure no other task can access the
+ * tree anymore, so no tree updates happen after we empty the tree and there
+ * aren't any waiters on any extent state record (EXTENT_LOCKED bit is never
+ * set on any extent state when calling this function).
+ */
 void extent_io_tree_release(struct extent_io_tree *tree)
 {
 	spin_lock(&tree->lock);
@@ -122,10 +129,7 @@ void extent_io_tree_release(struct extent_io_tree *tree)
 		state = rb_entry(node, struct extent_state, rb_node);
 		rb_erase(&state->rb_node, &tree->state);
 		RB_CLEAR_NODE(&state->rb_node);
-		/*
-		 * btree io trees aren't supposed to have tasks waiting for
-		 * changes in the flags of extent states ever.
-		 */
+		ASSERT(!(state->state & EXTENT_LOCKED));
 		ASSERT(!waitqueue_active(&state->wq));
 		free_extent_state(state);
 
