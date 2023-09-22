@@ -4019,7 +4019,7 @@ int btrfs_update_inode(struct btrfs_trans_handle *trans,
 	    && !test_bit(BTRFS_FS_LOG_RECOVERING, &fs_info->flags)) {
 		btrfs_update_root_times(trans, root);
 
-		ret = btrfs_delayed_update_inode(trans, root, inode);
+		ret = btrfs_delayed_update_inode(trans, inode);
 		if (!ret)
 			btrfs_set_inode_last_trans(trans, inode);
 		return ret;
