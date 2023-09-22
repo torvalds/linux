@@ -656,7 +656,7 @@ struct ata_cpr {
 
 struct ata_cpr_log {
 	u8			nr_cpr;
-	struct ata_cpr		cpr[];
+	struct ata_cpr		cpr[] __counted_by(nr_cpr);
 };
 
 struct ata_device {
