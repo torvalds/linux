@@ -129,6 +129,33 @@ static const match_table_t tokens = {
 	{Opt_err, NULL}
 };
 
+static int autofs_parse_fd(struct autofs_sb_info *sbi, int fd)
+{
+	struct file *pipe;
+	int ret;
+
+	pipe = fget(fd);
+	if (!pipe) {
+		pr_err("could not open pipe file descriptor\n");
+		return -EBADF;
+	}
+
+	ret = autofs_check_pipe(pipe);
+	if (ret < 0) {
+		pr_err("Invalid/unusable pipe\n");
+		fput(pipe);
+		return -EBADF;
+	}
+
+	if (sbi->pipe)
+		fput(sbi->pipe);
+
+	sbi->pipefd = fd;
+	sbi->pipe = pipe;
+
+	return 0;
+}
+
 static int parse_options(char *options,
 			 struct inode *root, int *pgrp, bool *pgrp_set,
 			 struct autofs_sb_info *sbi)
@@ -139,6 +166,7 @@ static int parse_options(char *options,
 	int pipefd = -1;
 	kuid_t uid;
 	kgid_t gid;
+	int ret;
 
 	root->i_uid = current_uid();
 	root->i_gid = current_gid();
@@ -162,7 +190,9 @@ static int parse_options(char *options,
 		case Opt_fd:
 			if (match_int(args, &pipefd))
 				return 1;
-			sbi->pipefd = pipefd;
+			ret = autofs_parse_fd(sbi, pipefd);
+			if (ret)
+				return 1;
 			break;
 		case Opt_uid:
 			if (match_int(args, &option))
@@ -222,7 +252,6 @@ int autofs_fill_super(struct super_block *s, void *data, int silent)
 {
 	struct inode *root_inode;
 	struct dentry *root;
-	struct file *pipe;
 	struct autofs_sb_info *sbi;
 	struct autofs_info *ino;
 	int pgrp = 0;
@@ -275,7 +304,6 @@ int autofs_fill_super(struct super_block *s, void *data, int silent)
 		ret = -ENOMEM;
 		goto fail_ino;
 	}
-	pipe = NULL;
 
 	root->d_fsdata = ino;
 
@@ -321,16 +349,7 @@ int autofs_fill_super(struct super_block *s, void *data, int silent)
 
 	pr_debug("pipe fd = %d, pgrp = %u\n",
 		 sbi->pipefd, pid_nr(sbi->oz_pgrp));
-	pipe = fget(sbi->pipefd);
 
-	if (!pipe) {
-		pr_err("could not open pipe file descriptor\n");
-		goto fail_put_pid;
-	}
-	ret = autofs_prepare_pipe(pipe);
-	if (ret < 0)
-		goto fail_fput;
-	sbi->pipe = pipe;
 	sbi->flags &= ~AUTOFS_SBI_CATATONIC;
 
 	/*
@@ -342,11 +361,6 @@ int autofs_fill_super(struct super_block *s, void *data, int silent)
 	/*
 	 * Failure ... clean up.
 	 */
-fail_fput:
-	pr_err("pipe file descriptor does not contain proper ops\n");
-	fput(pipe);
-fail_put_pid:
-	put_pid(sbi->oz_pgrp);
 fail_dput:
 	dput(root);
 	goto fail_free;
