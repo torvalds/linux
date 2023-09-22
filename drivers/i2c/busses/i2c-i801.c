@@ -1445,8 +1445,7 @@ static inline void i801_del_mux(struct i801_priv *priv) { }
 #endif
 
 static struct platform_device *
-i801_add_tco_spt(struct i801_priv *priv, struct pci_dev *pci_dev,
-		 struct resource *tco_res)
+i801_add_tco_spt(struct pci_dev *pci_dev, struct resource *tco_res)
 {
 	static const struct itco_wdt_platform_data pldata = {
 		.name = "Intel PCH",
@@ -1477,8 +1476,7 @@ i801_add_tco_spt(struct i801_priv *priv, struct pci_dev *pci_dev,
 }
 
 static struct platform_device *
-i801_add_tco_cnl(struct i801_priv *priv, struct pci_dev *pci_dev,
-		 struct resource *tco_res)
+i801_add_tco_cnl(struct pci_dev *pci_dev, struct resource *tco_res)
 {
 	static const struct itco_wdt_platform_data pldata = {
 		.name = "Intel PCH",
@@ -1518,9 +1516,9 @@ static void i801_add_tco(struct i801_priv *priv)
 	res->flags = IORESOURCE_IO;
 
 	if (priv->features & FEATURE_TCO_CNL)
-		priv->tco_pdev = i801_add_tco_cnl(priv, pci_dev, tco_res);
+		priv->tco_pdev = i801_add_tco_cnl(pci_dev, tco_res);
 	else
-		priv->tco_pdev = i801_add_tco_spt(priv, pci_dev, tco_res);
+		priv->tco_pdev = i801_add_tco_spt(pci_dev, tco_res);
 
 	if (IS_ERR(priv->tco_pdev))
 		dev_warn(&pci_dev->dev, "failed to create iTCO device\n");
