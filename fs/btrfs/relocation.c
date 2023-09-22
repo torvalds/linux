@@ -111,8 +111,8 @@ struct tree_block {
 	}; /* Use rb_simple_node for search/insert */
 	u64 owner;
 	struct btrfs_key key;
-	unsigned int level:8;
-	unsigned int key_ready:1;
+	u8 level;
+	bool key_ready;
 };
 
 #define MAX_EXTENTS 128
@@ -2664,7 +2664,7 @@ static int get_tree_block_key(struct btrfs_fs_info *fs_info,
 	else
 		btrfs_node_key_to_cpu(eb, &block->key, 0);
 	free_extent_buffer(eb);
-	block->key_ready = 1;
+	block->key_ready = true;
 	return 0;
 }
 
@@ -3313,7 +3313,7 @@ static int add_tree_block(struct reloc_control *rc,
 	block->key.objectid = rc->extent_root->fs_info->nodesize;
 	block->key.offset = generation;
 	block->level = level;
-	block->key_ready = 0;
+	block->key_ready = false;
 	block->owner = owner;
 
 	rb_node = rb_simple_insert(blocks, block->bytenr, &block->rb_node);
