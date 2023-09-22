@@ -4800,9 +4800,9 @@ out:
 	return ret;
 }
 
-static int maybe_insert_hole(struct btrfs_root *root, struct btrfs_inode *inode,
-			     u64 offset, u64 len)
+static int maybe_insert_hole(struct btrfs_inode *inode, u64 offset, u64 len)
 {
+	struct btrfs_root *root = inode->root;
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct btrfs_trans_handle *trans;
 	struct btrfs_drop_extents_args drop_args = { 0 };
@@ -4898,8 +4898,7 @@ int btrfs_cont_expand(struct btrfs_inode *inode, loff_t oldsize, loff_t size)
 		if (!test_bit(EXTENT_FLAG_PREALLOC, &em->flags)) {
 			struct extent_map *hole_em;
 
-			err = maybe_insert_hole(root, inode, cur_offset,
-						hole_size);
+			err = maybe_insert_hole(inode, cur_offset, hole_size);
 			if (err)
 				break;
 
