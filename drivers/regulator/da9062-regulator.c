@@ -73,7 +73,7 @@ struct da9062_regulators {
 	int					irq_ldo_lim;
 	unsigned				n_regulators;
 	/* Array size to be defined during init. Keep at end. */
-	struct da9062_regulator			regulator[];
+	struct da9062_regulator			regulator[] __counted_by(n_regulators);
 };
 
 /* Regulator operations */
