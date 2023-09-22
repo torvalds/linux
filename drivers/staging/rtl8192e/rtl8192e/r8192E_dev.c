@@ -55,10 +55,6 @@ static void _rtl92e_update_msr(struct net_device *dev)
 		if (priv->rtllib->link_state == MAC80211_LINKED)
 			msr |= MSR_LINK_MANAGED;
 		break;
-	case IW_MODE_ADHOC:
-		if (priv->rtllib->link_state == MAC80211_LINKED)
-			msr |= MSR_LINK_ADHOC;
-		break;
 	default:
 		break;
 	}
@@ -706,7 +702,6 @@ static void _rtl92e_net_update(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rtllib_network *net;
-	u16 BcnTimeCfg = 0, BcnCW = 6, BcnIFS = 0xf;
 	u16 rate_config = 0;
 
 	net = &priv->rtllib->current_network;
@@ -715,19 +710,6 @@ static void _rtl92e_net_update(struct net_device *dev)
 	priv->basic_rate = rate_config &= 0x15f;
 	rtl92e_writew(dev, BSSIDR, *(u16 *)net->bssid);
 	rtl92e_writel(dev, BSSIDR + 2, *(u32 *)(net->bssid + 2));
-
-	if (priv->rtllib->iw_mode == IW_MODE_ADHOC) {
-		rtl92e_writew(dev, ATIMWND, 2);
-		rtl92e_writew(dev, BCN_DMATIME, 256);
-		rtl92e_writew(dev, BCN_INTERVAL, net->beacon_interval);
-		rtl92e_writew(dev, BCN_DRV_EARLY_INT, 10);
-		rtl92e_writeb(dev, BCN_ERR_THRESH, 100);
-
-		BcnTimeCfg |= (BcnCW << BCN_TCFG_CW_SHIFT);
-		BcnTimeCfg |= BcnIFS << BCN_TCFG_IFS;
-
-		rtl92e_writew(dev, BCN_TCFG, BcnTimeCfg);
-	}
 }
 
 void rtl92e_link_change(struct net_device *dev)
@@ -749,7 +731,7 @@ void rtl92e_link_change(struct net_device *dev)
 	}
 	_rtl92e_update_msr(dev);
 
-	if (ieee->iw_mode == IW_MODE_INFRA || ieee->iw_mode == IW_MODE_ADHOC) {
+	if (ieee->iw_mode == IW_MODE_INFRA) {
 		u32 reg;
 
 		reg = rtl92e_readl(dev, RCR);

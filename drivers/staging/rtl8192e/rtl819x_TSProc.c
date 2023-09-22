@@ -181,21 +181,14 @@ static struct ts_common_info *SearchAdmitTRStream(struct rtllib_device *ieee,
 	struct list_head *psearch_list;
 	struct ts_common_info *pRet = NULL;
 
-	if (ieee->iw_mode == IW_MODE_ADHOC) {
-		if (TxRxSelect == TX_DIR)
-			search_dir[DIR_UP] = true;
-		else
-			search_dir[DIR_DOWN] = true;
+	if (TxRxSelect == TX_DIR) {
+		search_dir[DIR_UP] = true;
+		search_dir[DIR_BI_DIR] = true;
+		search_dir[DIR_DIRECT] = true;
 	} else {
-		if (TxRxSelect == TX_DIR) {
-			search_dir[DIR_UP] = true;
-			search_dir[DIR_BI_DIR] = true;
-			search_dir[DIR_DIRECT] = true;
-		} else {
-			search_dir[DIR_DOWN] = true;
-			search_dir[DIR_BI_DIR] = true;
-			search_dir[DIR_DIRECT] = true;
-		}
+		search_dir[DIR_DOWN] = true;
+		search_dir[DIR_BI_DIR] = true;
+		search_dir[DIR_DIRECT] = true;
 	}
 
 	if (TxRxSelect == TX_DIR)

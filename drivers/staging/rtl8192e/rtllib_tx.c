@@ -482,8 +482,7 @@ static void rtllib_txrate_selectmode(struct rtllib_device *ieee,
 		tcb_desc->tx_use_drv_assinged_rate = true;
 	if (!tcb_desc->tx_dis_rate_fallback ||
 	    !tcb_desc->tx_use_drv_assinged_rate) {
-		if (ieee->iw_mode == IW_MODE_INFRA ||
-		    ieee->iw_mode == IW_MODE_ADHOC)
+		if (ieee->iw_mode == IW_MODE_INFRA)
 			tcb_desc->ratr_index = 0;
 	}
 }
@@ -677,14 +676,6 @@ static int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 						ieee->current_network.bssid);
 			else
 				ether_addr_copy(header.addr3, dest);
-		} else if (ieee->iw_mode == IW_MODE_ADHOC) {
-			/* not From/To DS: Addr1 = DA, Addr2 = SA,
-			 * Addr3 = BSSID
-			 */
-			ether_addr_copy(header.addr1, dest);
-			ether_addr_copy(header.addr2, src);
-			ether_addr_copy(header.addr3,
-					ieee->current_network.bssid);
 		}
 
 		bIsMulticast = is_multicast_ether_addr(header.addr1);
