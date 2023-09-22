@@ -457,6 +457,13 @@ static int dsa_slave_set_mac_address(struct net_device *dev, void *a)
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 
+	if (ds->ops->port_set_mac_address) {
+		err = ds->ops->port_set_mac_address(ds, dp->index,
+						    addr->sa_data);
+		if (err)
+			return err;
+	}
+
 	/* If the port is down, the address isn't synced yet to hardware or
 	 * to the DSA master, so there is nothing to change.
 	 */
