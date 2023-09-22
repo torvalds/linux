@@ -876,7 +876,7 @@ static const char * const rpaths_text[] = {
 	"From SDI0", "From SDI1", "From SDI2", "From SDI3" };
 
 static const char * const tpaths_text[] = {
-	"To SDO0", "To SDO1", "To SDO2", "To SDO3" };
+	"From PATH0", "From PATH1", "From PATH2", "From PATH3" };
 
 /* TXCR */
 static SOC_ENUM_SINGLE_DECL(tsft_enum, SAI_TXCR, 22, edge_shift_text);
@@ -1243,10 +1243,10 @@ static const struct snd_kcontrol_new rockchip_sai_controls[] = {
 	SOC_ENUM("Receive PATH2 Source Select", rpath2_enum),
 	SOC_ENUM("Receive PATH1 Source Select", rpath1_enum),
 	SOC_ENUM("Receive PATH0 Source Select", rpath0_enum),
-	SOC_ENUM("Transmit PATH3 Sink Select", tpath3_enum),
-	SOC_ENUM("Transmit PATH2 Sink Select", tpath2_enum),
-	SOC_ENUM("Transmit PATH1 Sink Select", tpath1_enum),
-	SOC_ENUM("Transmit PATH0 Sink Select", tpath0_enum),
+	SOC_ENUM("Transmit SDO3 Source Select", tpath3_enum),
+	SOC_ENUM("Transmit SDO2 Source Select", tpath2_enum),
+	SOC_ENUM("Transmit SDO1 Source Select", tpath1_enum),
+	SOC_ENUM("Transmit SDO0 Source Select", tpath0_enum),
 
 	SOC_SINGLE_BOOL_EXT("Clk Auto Switch", 0,
 			    rockchip_sai_clk_auto_get,
