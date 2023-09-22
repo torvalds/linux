@@ -107,7 +107,7 @@ static const int logical_to_physical_port_idx[][MAX_PORTS] = {
 struct pci1xxxx_8250 {
 	unsigned int nr;
 	void __iomem *membase;
-	int line[];
+	int line[] __counted_by(nr);
 };
 
 static int pci1xxxx_get_num_ports(struct pci_dev *dev)
