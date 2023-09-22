@@ -1591,27 +1591,20 @@ int do_ip_getsockopt(struct sock *sk, int level, int optname,
 	case IP_TOS:
 		val = READ_ONCE(inet->tos);
 		goto copyval;
-	}
-
-	if (needs_rtnl)
-		rtnl_lock();
-	sockopt_lock_sock(sk);
-
-	switch (optname) {
 	case IP_OPTIONS:
 	{
 		unsigned char optbuf[sizeof(struct ip_options)+40];
 		struct ip_options *opt = (struct ip_options *)optbuf;
 		struct ip_options_rcu *inet_opt;
 
-		inet_opt = rcu_dereference_protected(inet->inet_opt,
-						     lockdep_sock_is_held(sk));
+		rcu_read_lock();
+		inet_opt = rcu_dereference(inet->inet_opt);
 		opt->optlen = 0;
 		if (inet_opt)
 			memcpy(optbuf, &inet_opt->opt,
 			       sizeof(struct ip_options) +
 			       inet_opt->opt.optlen);
-		sockopt_release_sock(sk);
+		rcu_read_unlock();
 
 		if (opt->optlen == 0) {
 			len = 0;
@@ -1627,6 +1620,13 @@ int do_ip_getsockopt(struct sock *sk, int level, int optname,
 			return -EFAULT;
 		return 0;
 	}
+	}
+
+	if (needs_rtnl)
+		rtnl_lock();
+	sockopt_lock_sock(sk);
+
+	switch (optname) {
 	case IP_MTU:
 	{
 		struct dst_entry *dst;
