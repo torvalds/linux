@@ -29,8 +29,6 @@
 #include "soc15_common.h"
 #include "vpe_v6_1.h"
 
-#define VPE_FW_NAME_LEN		64
-
 #define AMDGPU_CSA_VPE_SIZE 	64
 /* VPE CSA resides in the 4th page of CSA */
 #define AMDGPU_CSA_VPE_OFFSET 	(4096 * 3)
@@ -52,8 +50,7 @@ int amdgpu_vpe_init_microcode(struct amdgpu_vpe *vpe)
 {
 	struct amdgpu_device *adev = vpe->ring.adev;
 	const struct vpe_firmware_header_v1_0 *vpe_hdr;
-	char fw_name[VPE_FW_NAME_LEN];
-	char fw_prefix[VPE_FW_NAME_LEN];
+	char fw_prefix[32], fw_name[64];
 	int ret;
 
 	amdgpu_ucode_ip_version_decode(adev, VPE_HWIP, fw_prefix, sizeof(fw_prefix));
