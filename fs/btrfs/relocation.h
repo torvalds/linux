@@ -18,7 +18,7 @@ int btrfs_reloc_post_snapshot(struct btrfs_trans_handle *trans,
 			      struct btrfs_pending_snapshot *pending);
 int btrfs_should_cancel_balance(struct btrfs_fs_info *fs_info);
 struct btrfs_root *find_reloc_root(struct btrfs_fs_info *fs_info, u64 bytenr);
-int btrfs_should_ignore_reloc_root(struct btrfs_root *root);
+bool btrfs_should_ignore_reloc_root(struct btrfs_root *root);
 u64 btrfs_get_reloc_bg_bytenr(struct btrfs_fs_info *fs_info);
 
 #endif

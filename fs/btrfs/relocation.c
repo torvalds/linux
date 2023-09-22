@@ -325,31 +325,30 @@ static bool have_reloc_root(struct btrfs_root *root)
 	return true;
 }
 
-int btrfs_should_ignore_reloc_root(struct btrfs_root *root)
+bool btrfs_should_ignore_reloc_root(struct btrfs_root *root)
 {
 	struct btrfs_root *reloc_root;
 
 	if (!test_bit(BTRFS_ROOT_SHAREABLE, &root->state))
-		return 0;
+		return false;
 
 	/* This root has been merged with its reloc tree, we can ignore it */
 	if (reloc_root_is_dead(root))
-		return 1;
+		return true;
 
 	reloc_root = root->reloc_root;
 	if (!reloc_root)
-		return 0;
+		return false;
 
 	if (btrfs_header_generation(reloc_root->commit_root) ==
 	    root->fs_info->running_transaction->transid)
-		return 0;
+		return false;
 	/*
-	 * if there is reloc tree and it was created in previous
-	 * transaction backref lookup can find the reloc tree,
-	 * so backref node for the fs tree root is useless for
-	 * relocation.
+	 * If there is reloc tree and it was created in previous transaction
+	 * backref lookup can find the reloc tree, so backref node for the fs
+	 * tree root is useless for relocation.
 	 */
-	return 1;
+	return true;
 }
 
 /*
