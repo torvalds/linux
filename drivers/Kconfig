@@ -135,8 +135,6 @@ source "drivers/uio/Kconfig"
 
 source "drivers/vfio/Kconfig"
 
-source "drivers/vlynq/Kconfig"
-
 source "drivers/virt/Kconfig"
 
 source "drivers/virtio/Kconfig"
