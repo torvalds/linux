@@ -775,7 +775,7 @@ static int mlxsw_env_module_has_temp_sensor(struct mlxsw_core *mlxsw_core,
 	int err;
 
 	mlxsw_reg_mtbr_pack(mtbr_pl, slot_index,
-			    MLXSW_REG_MTBR_BASE_MODULE_INDEX + module, 1);
+			    MLXSW_REG_MTBR_BASE_MODULE_INDEX + module);
 	err = mlxsw_reg_query(mlxsw_core, MLXSW_REG(mtbr), mtbr_pl);
 	if (err)
 		return err;
