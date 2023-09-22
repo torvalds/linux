@@ -165,8 +165,7 @@ bool rtl92e_set_rf_state(struct net_device *dev,
 
 	case rf_off:
 
-		if ((priv->rtllib->iw_mode == IW_MODE_INFRA) ||
-		    (priv->rtllib->iw_mode == IW_MODE_ADHOC)) {
+		if (priv->rtllib->iw_mode == IW_MODE_INFRA) {
 			if ((priv->rtllib->rf_off_reason > RF_CHANGE_BY_IPS) ||
 			    (change_source > RF_CHANGE_BY_IPS)) {
 				if (ieee->link_state == MAC80211_LINKED)
@@ -1088,17 +1087,6 @@ RESET_START:
 
 			schedule_work(&ieee->associate_complete_wq);
 
-		} else if (ieee->link_state == MAC80211_LINKED && ieee->iw_mode ==
-			   IW_MODE_ADHOC) {
-			ieee->set_chan(ieee->dev,
-				       ieee->current_network.channel);
-			ieee->link_change(ieee->dev);
-
-			notify_wx_assoc_event(ieee);
-
-			rtllib_start_send_beacons(ieee);
-
-			netif_carrier_on(ieee->dev);
 		}
 
 		rtl92e_cam_restore(dev);

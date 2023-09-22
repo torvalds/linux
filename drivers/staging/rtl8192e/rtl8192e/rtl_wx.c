@@ -250,7 +250,7 @@ static int _rtl92e_wx_set_mode(struct net_device *dev,
 		return 0;
 	rt_state = priv->rtllib->rf_power_state;
 	mutex_lock(&priv->wx_mutex);
-	if (wrqu->mode == IW_MODE_ADHOC || wrqu->mode == IW_MODE_MONITOR ||
+	if (wrqu->mode == IW_MODE_MONITOR ||
 	    ieee->net_promiscuous_md) {
 		if (rt_state == rf_off) {
 			if (priv->rtllib->rf_off_reason >
@@ -844,8 +844,7 @@ static int _rtl92e_wx_set_encode_ext(struct net_device *dev,
 			idx--;
 		group = ext->ext_flags & IW_ENCODE_EXT_GROUP_KEY;
 
-		if ((!group) || (ieee->iw_mode == IW_MODE_ADHOC) ||
-		    (alg ==  KEY_TYPE_WEP40)) {
+		if ((!group) || (alg ==  KEY_TYPE_WEP40)) {
 			if ((ext->key_len == 13) && (alg == KEY_TYPE_WEP40))
 				alg = KEY_TYPE_WEP104;
 			ieee->pairwise_key_type = alg;

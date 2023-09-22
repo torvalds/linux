@@ -1405,8 +1405,6 @@ static void _rtl92e_dm_check_edca_turbo(struct net_device *dev)
 	unsigned long curTxOkCnt = 0;
 	unsigned long curRxOkCnt = 0;
 
-	if (priv->rtllib->iw_mode == IW_MODE_ADHOC)
-		goto dm_CheckEdcaTurbo_EXIT;
 	if (priv->rtllib->link_state != MAC80211_LINKED)
 		goto dm_CheckEdcaTurbo_EXIT;
 	if (priv->rtllib->ht_info->iot_action & HT_IOT_ACT_DISABLE_EDCA_TURBO)

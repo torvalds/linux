@@ -50,12 +50,6 @@ int rtllib_wx_set_freq(struct rtllib_device *ieee, struct iw_request_info *a,
 		}
 		ieee->current_network.channel = fwrq->m;
 		ieee->set_chan(ieee->dev, ieee->current_network.channel);
-
-		if (ieee->iw_mode == IW_MODE_ADHOC)
-			if (ieee->link_state == MAC80211_LINKED) {
-				rtllib_stop_send_beacons(ieee);
-				rtllib_start_send_beacons(ieee);
-			}
 	}
 
 	ret = 0;
@@ -360,9 +354,6 @@ void rtllib_wx_sync_scan_wq(void *data)
 		ieee->link_detect_info.NumRecvBcnInPeriod = 1;
 		ieee->link_detect_info.NumRecvDataInPeriod = 1;
 	}
-	if (ieee->iw_mode == IW_MODE_ADHOC)
-		rtllib_start_send_beacons(ieee);
-
 	rtllib_wake_all_queues(ieee);
 
 out:
