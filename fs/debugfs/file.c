@@ -939,7 +939,7 @@ static ssize_t debugfs_write_file_str(struct file *file, const char __user *user
 	new[pos + count] = '\0';
 	strim(new);
 
-	rcu_assign_pointer(*(char **)file->private_data, new);
+	rcu_assign_pointer(*(char __rcu **)file->private_data, new);
 	synchronize_rcu();
 	kfree(old);
 
