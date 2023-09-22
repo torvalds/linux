@@ -96,7 +96,7 @@ struct iqs62x_fw_blk {
 	u8 addr;
 	u8 mask;
 	u8 len;
-	u8 data[];
+	u8 data[] __counted_by(len);
 };
 
 struct iqs62x_info {
