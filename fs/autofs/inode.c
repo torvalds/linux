@@ -287,7 +287,17 @@ static int autofs_validate_protocol(struct fs_context *fc)
 		sbi->version = AUTOFS_MAX_PROTO_VERSION;
 	else
 		sbi->version = sbi->max_proto;
-	sbi->sub_version = AUTOFS_PROTO_SUBVERSION;
+
+	switch (sbi->version) {
+	case 4:
+		sbi->sub_version = 7;
+		break;
+	case 5:
+		sbi->sub_version = AUTOFS_PROTO_SUBVERSION;
+		break;
+	default:
+		sbi->sub_version = 0;
+	}
 
 	return 0;
 }
