@@ -3001,7 +3001,7 @@ int btrfs_backref_iter_next(struct btrfs_backref_iter *iter)
 }
 
 void btrfs_backref_init_cache(struct btrfs_fs_info *fs_info,
-			      struct btrfs_backref_cache *cache, int is_reloc)
+			      struct btrfs_backref_cache *cache, bool is_reloc)
 {
 	int i;
 

@@ -440,11 +440,11 @@ struct btrfs_backref_cache {
 	 * Reloction backref cache require more info for reloc root compared
 	 * to generic backref cache.
 	 */
-	unsigned int is_reloc;
+	bool is_reloc;
 };
 
 void btrfs_backref_init_cache(struct btrfs_fs_info *fs_info,
-			      struct btrfs_backref_cache *cache, int is_reloc);
+			      struct btrfs_backref_cache *cache, bool is_reloc);
 struct btrfs_backref_node *btrfs_backref_alloc_node(
 		struct btrfs_backref_cache *cache, u64 bytenr, int level);
 struct btrfs_backref_edge *btrfs_backref_alloc_edge(
