@@ -125,6 +125,12 @@ struct file_extent_cluster {
 	u64 owning_root;
 };
 
+/* Stages of data relocation. */
+enum reloc_stage {
+	MOVE_DATA_EXTENTS,
+	UPDATE_DATA_PTRS
+};
+
 struct reloc_control {
 	/* block group to relocate */
 	struct btrfs_block_group *block_group;
@@ -156,15 +162,11 @@ struct reloc_control {
 	u64 search_start;
 	u64 extents_found;
 
-	unsigned int stage:8;
+	enum reloc_stage stage;
 	unsigned int create_reloc_tree:1;
 	unsigned int merge_reloc_tree:1;
 	unsigned int found_file_extent:1;
 };
-
-/* stages of data relocation */
-#define MOVE_DATA_EXTENTS	0
-#define UPDATE_DATA_PTRS	1
 
 static void mark_block_processed(struct reloc_control *rc,
 				 struct btrfs_backref_node *node)
@@ -4054,7 +4056,7 @@ static void describe_relocation(struct btrfs_fs_info *fs_info,
 		   block_group->start, buf);
 }
 
-static const char *stage_to_string(int stage)
+static const char *stage_to_string(enum reloc_stage stage)
 {
 	if (stage == MOVE_DATA_EXTENTS)
 		return "move data extents";
@@ -4170,7 +4172,7 @@ int btrfs_relocate_block_group(struct btrfs_fs_info *fs_info, u64 group_start)
 	WARN_ON(ret && ret != -EAGAIN);
 
 	while (1) {
-		int finishes_stage;
+		enum reloc_stage finishes_stage;
 
 		mutex_lock(&fs_info->cleaner_mutex);
 		ret = relocate_block_group(rc);
