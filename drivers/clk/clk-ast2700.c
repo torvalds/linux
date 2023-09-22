@@ -15,33 +15,31 @@
 #define AST2700_CLK_24MHZ 24000000
 #define AST2700_CLK_192MHZ 192000000
 /* CPU Die */
-#define AST2700_CPU_RESET_CTRL 0x00
-#define AST2700_CPU_RESET_CTRL2 0x20
-#define AST2700_CPU_CLK_STOP 0x40
-#define AST2700_CPU_CLK_SEL1 0x80
-#define AST2700_CPU_CLK_SEL2 0x84
+#define AST2700_CPU_CLK_STOP 0x00
+#define AST2700_CPU_CLK_SEL1 0x40
+#define AST2700_CPU_CLK_SEL2 0x44
 #define UART_DIV13_EN BIT(30)
-#define AST2700_CPU_HPLL_PARAM 0x100
-#define AST2700_CPU_DPLL_PARAM 0x108
-#define AST2700_CPU_MPLL_PARAM 0x110
-#define AST2700_CPU_D1CLK_PARAM 0x120
-#define AST2700_CPU_D2CLK_PARAM 0x130
-#define AST2700_CPU_CRT1CLK_PARAM 0x140
-#define AST2700_CPU_CRT2CLK_PARAM 0x150
-#define AST2700_CPU_MPHYCLK_PARAM 0x160
+#define AST2700_CPU_HPLL_PARAM 0xC0
+#define AST2700_CPU_DPLL_PARAM 0xC8
+#define AST2700_CPU_MPLL_PARAM 0xD0
+#define AST2700_CPU_D1CLK_PARAM 0xE0
+#define AST2700_CPU_D2CLK_PARAM 0xF0
+#define AST2700_CPU_CRT1CLK_PARAM 0x100
+#define AST2700_CPU_CRT2CLK_PARAM 0x110
+#define AST2700_CPU_MPHYCLK_PARAM 0x120
 
 /* IO Die */
-#define AST2700_IO_CLK_STOP 0x40
-#define AST2700_IO_CLK_STOP2 0x60
-#define AST2700_IO_CLK_SEL1 0x80
-#define AST2700_IO_CLK_SEL2 0x84
+#define AST2700_IO_CLK_STOP 0x00
+#define AST2700_IO_CLK_STOP2 0x20
+#define AST2700_IO_CLK_SEL1 0x40
+#define AST2700_IO_CLK_SEL2 0x44
 #define UXCLK_MASK GENMASK(1, 0)
 #define HUXCLK_MASK GENMASK(4, 3)
-#define AST2700_IO_HPLL_PARAM 0x100
-#define AST2700_IO_APLL_PARAM 0x110
-#define AST2700_IO_DPLL_PARAM 0x120
-#define AST2700_IO_UXCLK_CTRL 0x130
-#define AST2700_IO_HUXCLK_CTRL 0x140
+#define AST2700_IO_HPLL_PARAM 0xC0
+#define AST2700_IO_APLL_PARAM 0xD0
+#define AST2700_IO_DPLL_PARAM 0xE0
+#define AST2700_IO_UXCLK_CTRL 0xF0
+#define AST2700_IO_HUXCLK_CTRL 0x100
 
 /* Globally visible clocks */
 static DEFINE_SPINLOCK(ast2700_clk_lock);
@@ -257,69 +255,6 @@ static struct clk_hw *ast2700_clk_hw_register_gate(struct device *dev, const cha
 	}
 
 	return hw;
-}
-
-struct aspeed_rst_data {
-	struct reset_controller_dev rcdev;
-	void __iomem *base;
-};
-
-#define to_rc_data(p) container_of(p, struct aspeed_rst_data, rcdev)
-
-static int aspeed_rst_deassert(struct reset_controller_dev *rcdev, unsigned long id)
-{
-	struct aspeed_rst_data *rc = to_rc_data(rcdev);
-	u32 rst = BIT(id % 32);
-	u32 reg = id >= 32 ? AST2700_CPU_RESET_CTRL2 : AST2700_CPU_RESET_CTRL;
-
-	/* Use set to clear register */
-	writel(rst, rc->base + reg + 0x04);
-	return 0;
-}
-
-static int aspeed_rst_assert(struct reset_controller_dev *rcdev, unsigned long id)
-{
-	struct aspeed_rst_data *rc = to_rc_data(rcdev);
-	u32 rst = BIT(id % 32);
-	u32 reg = id >= 32 ? AST2700_CPU_RESET_CTRL2 : AST2700_CPU_RESET_CTRL;
-
-	writel(rst, rc->base + reg);
-	return 0;
-}
-
-static int aspeed_rst_status(struct reset_controller_dev *rcdev, unsigned long id)
-{
-	struct aspeed_rst_data *rc = to_rc_data(rcdev);
-	u32 rst = BIT(id % 32);
-	u32 reg = id >= 32 ? AST2700_CPU_RESET_CTRL2 : AST2700_CPU_RESET_CTRL;
-
-	return (readl(rc->base + reg) & rst);
-}
-
-static const struct reset_control_ops aspeed_rst_ops = {
-	.assert = aspeed_rst_assert,
-	.deassert = aspeed_rst_deassert,
-	.status = aspeed_rst_status,
-};
-
-static int ast2700_reset_init(struct platform_device *pdev, void __iomem *base,
-			      unsigned int nr_resets)
-{
-	struct device_node *np = pdev->dev.of_node;
-	struct device *dev = &pdev->dev;
-	struct aspeed_rst_data *rstc;
-
-	rstc = devm_kzalloc(&pdev->dev, sizeof(*rstc), GFP_KERNEL);
-	if (!rstc)
-		return -ENOMEM;
-
-	rstc->rcdev.owner = THIS_MODULE;
-	rstc->rcdev.ops = &aspeed_rst_ops;
-	rstc->rcdev.of_node = np;
-	rstc->rcdev.nr_resets = nr_resets;
-	rstc->base = base;
-
-	return devm_reset_controller_register(dev, &rstc->rcdev);
 }
 
 static const char *const sdclk_sel[] = {
@@ -759,7 +694,7 @@ static int ast2700_io_clk_init(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	return ast2700_reset_init(pdev, clk_base, ASPEED_IO_RESET_NUMS);
+	return 0;
 };
 
 static int ast2700_cpu_clk_init(struct platform_device *pdev)
@@ -971,7 +906,7 @@ static int ast2700_cpu_clk_init(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	return ast2700_reset_init(pdev, clk_base, ASPEED_CPU_RESET_NUMS);
+	return 0;
 };
 
 static int ast2700_clk_probe(struct platform_device *pdev)
