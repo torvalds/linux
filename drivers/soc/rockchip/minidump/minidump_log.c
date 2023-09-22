@@ -36,7 +36,6 @@
 #ifdef CONFIG_ROCKCHIP_MINIDUMP_PANIC_DUMP
 #include <linux/bits.h>
 #include <linux/sched/prio.h>
-#include <asm/memory.h>
 
 #include "../../../kernel/sched/sched.h"
 
@@ -49,6 +48,7 @@
 #include <linux/module.h>
 #include <linux/cma.h>
 #include <linux/dma-map-ops.h>
+#include <asm-generic/irq_regs.h>
 #ifdef CONFIG_ROCKCHIP_MINIDUMP_PANIC_CPU_CONTEXT
 #include <trace/hooks/debug.h>
 #endif
@@ -149,6 +149,7 @@ static DEFINE_SPINLOCK(md_modules_lock);
 
 static struct md_region note_md_entry;
 static DEFINE_PER_CPU_SHARED_ALIGNED(struct elf_prstatus *, cpu_epr);
+static struct elf_prstatus *epr_hang_task[8];
 
 static int register_stack_entry(struct md_region *ksp_entry, u64 sp, u64 size)
 {
@@ -594,14 +595,15 @@ static Elf_Word *append_elf_note(Elf_Word *buf, char *name, unsigned int type,
 
 static void register_note_section(void)
 {
-	int ret = 0, i = 0;
+	int ret = 0, i = 0, j = 0;
 	size_t data_len;
 	Elf_Word *buf;
 	void *buffer_start;
 	struct elf_prstatus *epr;
+	struct user_pt_regs *regs;
 	struct md_region *mdr = &note_md_entry;
 
-	buffer_start = kzalloc(PAGE_SIZE, GFP_KERNEL);
+	buffer_start = kzalloc(PAGE_SIZE * 2, GFP_KERNEL);
 	if (!buffer_start)
 		return;
 
@@ -611,11 +613,26 @@ static void register_note_section(void)
 
 	buf = (Elf_Word *)mdr->virt_addr;
 	data_len = sizeof(struct elf_prstatus);
+
 	for_each_possible_cpu(i) {
 		buf = append_elf_note(buf, "CORE", NT_PRSTATUS, data_len);
 		epr = (struct elf_prstatus *)buf;
 		epr->pr_pid = i;
 		per_cpu(cpu_epr, i) = epr;
+		regs = (struct user_pt_regs *)&epr->pr_reg;
+		regs->pc = (u64)register_note_section; /* just for fun */
+
+		buf += DIV_ROUND_UP(data_len, sizeof(Elf_Word));
+	}
+
+	j = i;
+	for (; i < 16; i++) {
+		buf = append_elf_note(buf, "TASK", NT_PRSTATUS, data_len);
+		epr = (struct elf_prstatus *)buf;
+		epr->pr_pid = i;
+		epr_hang_task[i - j] = epr;
+		regs = (struct user_pt_regs *)&epr->pr_reg;
+		regs->pc = (u64)register_note_section; /* just for fun */
 		buf += DIV_ROUND_UP(data_len, sizeof(Elf_Word));
 	}
 
@@ -626,17 +643,117 @@ static void register_note_section(void)
 		pr_err("Failed to add %s entry in Minidump\n", mdr->name);
 }
 
+static int md_register_minidump_entry(char *name, u64 virt_addr,
+				      u64 phys_addr, u64 size)
+{
+	struct md_region md_entry;
+	int ret;
+
+	strscpy(md_entry.name, name, sizeof(md_entry.name));
+	md_entry.virt_addr = virt_addr;
+	md_entry.phys_addr = phys_addr;
+	md_entry.size = size;
+	ret = rk_minidump_add_region(&md_entry);
+	if (ret < 0)
+		pr_err("Failed to add %s entry in Minidump\n", name);
+	return ret;
+}
+
+static int md_is_kernel_address(u64 addr)
+{
+	u32 data;
+
+	if (addr < PAGE_OFFSET || addr > -4096UL)
+		return 0;
+
+	if (addr >= (u64)_text && addr < (u64)_end)
+		return 0;
+
+	if (aarch64_insn_read((void *)addr, &data))
+		return 0;
+	else
+		return 1;
+}
+
+static int md_save_page(u64 addr, bool flush)
+{
+	u64 phys_addr, virt_addr;
+	struct page *page;
+	char buf[32];
+	int ret;
+
+	if (md_is_kernel_address(addr)) {
+		if (!md_is_in_the_region(addr)) {
+			virt_addr = addr & PAGE_MASK;
+			sprintf(buf, "%x", (u32)(virt_addr >> 12));
+
+			if (__is_lm_address(virt_addr)) {
+				phys_addr = virt_to_phys((void *)virt_addr);
+			} else if (virt_addr >= VMALLOC_START && virt_addr < VMALLOC_END) {
+				page = vmalloc_to_page((const void *) virt_addr);
+				phys_addr = page_to_phys(page);
+			} else {
+				return -1;
+			}
+
+			ret = md_register_minidump_entry(buf, (uintptr_t)virt_addr,
+							 phys_addr, PAGE_SIZE);
+			if (ret > 0 && flush)
+				rk_md_flush_dcache_area((void *)virt_addr, PAGE_SIZE);
+		} else {
+			if (flush)
+				rk_md_flush_dcache_area((void *)(addr & PAGE_MASK), PAGE_SIZE);
+		}
+		return 0;
+	}
+	return -1;
+}
+
+static void md_save_pages(u64 addr, bool flush)
+{
+	u64 *p, *end;
+
+	if (!md_save_page(addr, flush)) {
+		addr &= ~0x7;
+		p = (u64 *)addr;
+		end = (u64 *)((addr & ~(PAGE_SIZE - 1)) + PAGE_SIZE);
+		while (p < end) {
+			if (!md_is_kernel_address((u64)p))
+				break;
+			md_save_page(*p++, flush);
+		}
+	}
+}
+
 void rk_minidump_update_cpu_regs(struct pt_regs *regs)
 {
 	int cpu = raw_smp_processor_id();
+	struct user_pt_regs *old_regs;
+	int i = 0;
+
 	struct elf_prstatus *epr = per_cpu(cpu_epr, cpu);
 
 	if (!epr)
 		return;
 
+	if (system_state == SYSTEM_RESTART)
+		return;
+
+	old_regs = (struct user_pt_regs *)&epr->pr_reg;
+	/* if epr has been saved, don't save it again in panic notifier*/
+	if (old_regs->sp != 0)
+		return;
+
 	memcpy((void *)&epr->pr_reg, (void *)regs, sizeof(elf_gregset_t));
 	rk_md_flush_dcache_area((void *)&epr->pr_reg, sizeof(elf_gregset_t));
 	rk_md_flush_dcache_area((void *)(regs->sp & ~(PAGE_SIZE - 1)), PAGE_SIZE);
+
+	/* dump sp */
+	md_save_pages(regs->sp, true);
+
+	/*dump x0-x28, x29 is lr, x30 is fp*/
+	for (i = 0; i < 29; i++)
+		md_save_pages(regs->regs[i], true);
 }
 EXPORT_SYMBOL(rk_minidump_update_cpu_regs);
 
@@ -1028,7 +1145,10 @@ static inline void md_dump_panic_regs(void)
 
 	seq_buf_printf(md_cntxt_seq_buf, "PANIC CPU : %d\n",
 				   raw_smp_processor_id());
-	md_reg_context_data(&regs);
+	if (in_interrupt())
+		md_reg_context_data(get_irq_regs());
+	else
+		md_reg_context_data(&regs);
 }
 
 static int md_die_context_notify(struct notifier_block *self,
@@ -1055,6 +1175,43 @@ static struct notifier_block md_die_context_nb = {
 	.priority = INT_MAX - 2, /* < rk watchdog die notifier */
 };
 #endif
+
+static int rk_minidump_collect_hang_task(void)
+{
+	struct task_struct *g, *p;
+	struct elf_prstatus *epr;
+	struct user_pt_regs *regs;
+	int idx = 0, i = 0;
+
+	for_each_process_thread(g, p) {
+		touch_nmi_watchdog();
+		touch_all_softlockup_watchdogs();
+		if (p->state == TASK_UNINTERRUPTIBLE && p->state != TASK_IDLE) {
+			epr = epr_hang_task[idx++];
+			regs = (struct user_pt_regs *)&epr->pr_reg;
+			regs->regs[19] = (unsigned long)(p->thread.cpu_context.x19);
+			regs->regs[20] = (unsigned long)(p->thread.cpu_context.x20);
+			regs->regs[21] = (unsigned long)(p->thread.cpu_context.x21);
+			regs->regs[22] = (unsigned long)(p->thread.cpu_context.x22);
+			regs->regs[23] = (unsigned long)(p->thread.cpu_context.x23);
+			regs->regs[24] = (unsigned long)(p->thread.cpu_context.x24);
+			regs->regs[25] = (unsigned long)(p->thread.cpu_context.x25);
+			regs->regs[26] = (unsigned long)(p->thread.cpu_context.x26);
+			regs->regs[27] = (unsigned long)(p->thread.cpu_context.x27);
+			regs->regs[28] = (unsigned long)(p->thread.cpu_context.x28);
+			regs->regs[29] = (unsigned long)(p->thread.cpu_context.fp);
+			regs->sp = (unsigned long)(p->thread.cpu_context.sp);
+			regs->pc = (unsigned long)p->thread.cpu_context.pc;
+			md_save_pages(regs->sp, true);
+			for (i = 19; i < 29; i++)
+				md_save_pages(regs->regs[i], true);
+			rk_md_flush_dcache_area((void *)epr, sizeof(struct elf_prstatus));
+		}
+		if (idx >= 8)
+			return 0;
+	}
+	return 0;
+}
 
 static int md_panic_handler(struct notifier_block *this,
 			    unsigned long event, void *ptr)
@@ -1093,6 +1250,8 @@ dump_rq:
 	if (md_dma_buf_procs_addr)
 		md_dma_buf_procs(md_dma_buf_procs_addr, md_dma_buf_procs_size);
 
+	rk_minidump_collect_hang_task();
+
 	rk_minidump_flush_elfheader();
 	md_in_oops_handler = false;
 	return NOTIFY_DONE;
@@ -1102,22 +1261,6 @@ static struct notifier_block md_panic_blk = {
 	.notifier_call = md_panic_handler,
 	.priority = INT_MAX - 2,
 };
-
-static int md_register_minidump_entry(char *name, u64 virt_addr,
-				      u64 phys_addr, u64 size)
-{
-	struct md_region md_entry;
-	int ret;
-
-	strscpy(md_entry.name, name, sizeof(md_entry.name));
-	md_entry.virt_addr = virt_addr;
-	md_entry.phys_addr = phys_addr;
-	md_entry.size = size;
-	ret = rk_minidump_add_region(&md_entry);
-	if (ret < 0)
-		pr_err("Failed to add %s entry in Minidump\n", name);
-	return ret;
-}
 
 static int md_register_panic_entries(int num_pages, char *name,
 				      struct seq_buf **global_buf)
@@ -1248,6 +1391,43 @@ static void md_register_module_data(void)
 	android_debug_for_each_module(print_module, NULL);
 }
 #endif /* CONFIG_ROCKCHIP_MINIDUMP_PANIC_DUMP */
+
+#ifdef CONFIG_HARDLOCKUP_DETECTOR
+int rk_minidump_hardlock_notify(struct notifier_block *nb, unsigned long event,
+				void *p)
+{
+	struct elf_prstatus *epr;
+	struct user_pt_regs *regs;
+	unsigned long hardlock_cpu = event;
+#ifdef CONFIG_ROCKCHIP_DYN_MINIDUMP_STACK
+	int i = 0;
+	struct md_stack_cpu_data *md_stack_cpu_d;
+	struct md_region *mdr;
+#endif
+
+	if (hardlock_cpu >= num_possible_cpus())
+		return NOTIFY_DONE;
+
+#ifdef CONFIG_ROCKCHIP_DYN_MINIDUMP_STACK
+	md_stack_cpu_d = &per_cpu(md_stack_data, hardlock_cpu);
+	for (i = 0; i < STACK_NUM_PAGES; i++) {
+		mdr = &md_stack_cpu_d->stack_mdr[i];
+		if (md_is_kernel_address(mdr->virt_addr))
+			rk_md_flush_dcache_area((void *)mdr->virt_addr, mdr->size);
+	}
+#endif
+	epr = per_cpu(cpu_epr, hardlock_cpu);
+	if (!epr)
+		return NOTIFY_DONE;
+	regs = (struct user_pt_regs *)&epr->pr_reg;
+	regs->pc = (u64)p;
+#ifdef CONFIG_ROCKCHIP_DYN_MINIDUMP_STACK
+	regs->sp = mdr->virt_addr + mdr->size;
+#endif
+	rk_md_flush_dcache_area((void *)epr, sizeof(struct elf_prstatus));
+	return NOTIFY_OK;
+}
+#endif
 
 int rk_minidump_log_init(void)
 {

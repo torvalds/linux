@@ -86,4 +86,5 @@ int rk_minidump_log_init(void);
 extern void rk_minidump_flush_elfheader(void);
 extern void dump_stack_minidump(u64 sp);
 extern struct md_region *md_get_region(char *name);
+int md_is_in_the_region(u64 addr);
 #endif

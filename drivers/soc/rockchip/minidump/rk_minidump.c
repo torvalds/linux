@@ -212,6 +212,26 @@ static inline int validate_region(const struct md_region *entry)
 	return 0;
 }
 
+int md_is_in_the_region(u64 addr)
+{
+	struct md_region *mdr;
+	u32 entries;
+	int i;
+
+	entries = minidump_table.num_regions;
+
+	for (i = 0; i < entries; i++) {
+		mdr = &minidump_table.entry[i];
+		if (mdr->virt_addr <= addr && addr < (mdr->virt_addr + mdr->size))
+			break;
+	}
+
+	if (i < entries)
+		return 1;
+	else
+		return 0;
+}
+
 int rk_minidump_update_region(int regno, const struct md_region *entry)
 {
 	int ret = 0;
@@ -655,9 +675,10 @@ static int rk_minidump_driver_probe(struct platform_device *pdev)
 		phdr = (Elf64_Phdr *)(md_elf_mem + (ulong)ehdr->e_phoff);
 		phdr += ehdr->e_phnum - 1;
 		md_elf_size = phdr->p_memsz + phdr->p_offset;
-
-		pr_info("Create /proc/rk_md/minidump...\n");
+		pr_info("Create /proc/rk_md/minidump, size:0x%llx...\n", md_elf_size);
 		proc_rk_minidump = proc_create("minidump", 0400, base_dir, &rk_minidump_proc_ops);
+	} else {
+		pr_info("Create /proc/rk_md/minidump fail...\n");
 	}
 
 	/* Check global minidump support initialization */

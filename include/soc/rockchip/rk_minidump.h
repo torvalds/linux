@@ -45,6 +45,8 @@ int rk_minidump_remove_region(const struct md_region *entry);
 int rk_minidump_update_region(int regno, const struct md_region *entry);
 bool rk_minidump_enabled(void);
 void rk_minidump_update_cpu_regs(struct pt_regs *regs);
+int rk_minidump_hardlock_notify(struct notifier_block *nb, unsigned long event,
+				void *p);
 #else
 static inline int rk_minidump_add_region(const struct md_region *entry)
 {
@@ -61,7 +63,12 @@ static inline int rk_minidump_update_region(int regno, const struct md_region *e
 }
 static inline bool rk_minidump_enabled(void) { return false; }
 static inline void rk_minidump_update_cpu_regs(struct pt_regs *regs) { return; }
+static inline int rk_minidump_hardlock_notify(struct notifier_block *nb,
+					      unsigned long event, void *p)
+{
+	return 0;
+}
 #endif
 
-extern void rk_md_flush_dcache_area(void *addr, size_t len);
+void rk_md_flush_dcache_area(void *addr, size_t len);
 #endif /* __RK_MINIDUMP_H */
