@@ -1046,7 +1046,8 @@ static irqreturn_t ivpu_hw_40xx_irqb_handler(struct ivpu_device *vdev, int irq)
 	if (status == 0)
 		return IRQ_NONE;
 
-	REGB_WR32(VPU_40XX_BUTTRESS_INTERRUPT_STAT, status);
+	/* Disable global interrupt before handling local buttress interrupts */
+	REGB_WR32(VPU_40XX_BUTTRESS_GLOBAL_INT_MASK, 0x1);
 
 	if (REG_TEST_FLD(VPU_40XX_BUTTRESS_INTERRUPT_STAT, FREQ_CHANGE, status))
 		ivpu_dbg(vdev, IRQ, "FREQ_CHANGE");
@@ -1091,6 +1092,12 @@ static irqreturn_t ivpu_hw_40xx_irqb_handler(struct ivpu_device *vdev, int irq)
 		ivpu_err(vdev, "Survivability error detected\n");
 		schedule_recovery = true;
 	}
+
+	/* This must be done after interrupts are cleared at the source. */
+	REGB_WR32(VPU_40XX_BUTTRESS_INTERRUPT_STAT, status);
+
+	/* Re-enable global interrupt */
+	REGB_WR32(VPU_40XX_BUTTRESS_GLOBAL_INT_MASK, 0x0);
 
 	if (schedule_recovery)
 		ivpu_pm_schedule_recovery(vdev);

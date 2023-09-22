@@ -213,7 +213,7 @@ nouveau_exec_job_timeout(struct nouveau_job *job)
 
 	nouveau_sched_entity_fini(job->entity);
 
-	return DRM_GPU_SCHED_STAT_ENODEV;
+	return DRM_GPU_SCHED_STAT_NOMINAL;
 }
 
 static struct nouveau_job_ops nouveau_exec_job_ops = {
