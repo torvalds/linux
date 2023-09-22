@@ -44,8 +44,8 @@ static struct device *dmaengine_dma_dev(struct dmaengine_pcm *pcm,
  * platforms which make use of the snd_dmaengine_dai_dma_data struct for their
  * DAI DMA data. Internally the function will first call
  * snd_hwparams_to_dma_slave_config to fill in the slave config based on the
- * hw_params, followed by snd_dmaengine_set_config_from_dai_data to fill in the
- * remaining fields based on the DAI DMA data.
+ * hw_params, followed by snd_dmaengine_pcm_set_config_from_dai_data to fill in
+ * the remaining fields based on the DAI DMA data.
  */
 int snd_dmaengine_pcm_prepare_slave_config(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params, struct dma_slave_config *slave_config)
