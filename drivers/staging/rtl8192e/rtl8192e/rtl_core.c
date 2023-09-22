@@ -458,10 +458,6 @@ static void _rtl92e_prepare_beacon(struct tasklet_struct *t)
 	pdesc->OWN = 1;
 }
 
-static void _rtl92e_stop_beacon(struct net_device *dev)
-{
-}
-
 void rtl92e_config_rate(struct net_device *dev, u16 *rate_config)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
@@ -699,8 +695,6 @@ static void _rtl92e_init_priv_handler(struct net_device *dev)
 	priv->rtllib->leisure_ps_leave		= rtl92e_leisure_ps_leave;
 	priv->rtllib->set_bw_mode_handler	= rtl92e_set_bw_mode;
 	priv->rf_set_chan			= rtl92e_set_channel;
-
-	priv->rtllib->stop_send_beacons = _rtl92e_stop_beacon;
 
 	priv->rtllib->sta_wake_up = rtl92e_hw_wakeup;
 	priv->rtllib->enter_sleep_state = rtl92e_enter_sleep;
@@ -1045,7 +1039,6 @@ RESET_START:
 		if (ieee->link_state == MAC80211_LINKED) {
 			mutex_lock(&ieee->wx_mutex);
 			netdev_info(dev, "ieee->link_state is MAC80211_LINKED\n");
-			rtllib_stop_send_beacons(priv->rtllib);
 			del_timer_sync(&ieee->associate_timer);
 			cancel_delayed_work(&ieee->associate_retry_wq);
 			rtllib_stop_scan(ieee);

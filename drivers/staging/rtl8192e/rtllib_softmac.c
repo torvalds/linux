@@ -607,26 +607,6 @@ out1:
 	mutex_unlock(&ieee->scan_mutex);
 }
 
-static void rtllib_beacons_stop(struct rtllib_device *ieee)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&ieee->beacon_lock, flags);
-
-	ieee->beacon_txing = 0;
-
-	spin_unlock_irqrestore(&ieee->beacon_lock, flags);
-	del_timer_sync(&ieee->beacon_timer);
-}
-
-void rtllib_stop_send_beacons(struct rtllib_device *ieee)
-{
-	ieee->stop_send_beacons(ieee->dev);
-	if (ieee->softmac_features & IEEE_SOFTMAC_BEACONS)
-		rtllib_beacons_stop(ieee);
-}
-EXPORT_SYMBOL(rtllib_stop_send_beacons);
-
 static void rtllib_softmac_stop_scan(struct rtllib_device *ieee)
 {
 	mutex_lock(&ieee->scan_mutex);
@@ -2326,7 +2306,6 @@ void rtllib_stop_protocol(struct rtllib_device *ieee, u8 shutdown)
 		ieee->rtllib_ips_leave(ieee->dev);
 	}
 
-	rtllib_stop_send_beacons(ieee);
 	del_timer_sync(&ieee->associate_timer);
 	cancel_delayed_work_sync(&ieee->associate_retry_wq);
 	cancel_delayed_work_sync(&ieee->link_change_wq);

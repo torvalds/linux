@@ -1495,14 +1495,6 @@ struct rtllib_device {
 	 */
 	void (*link_change)(struct net_device *dev);
 
-	/* these two function indicates to the HW when to start
-	 * and stop to send beacons. This is used when the
-	 * IEEE_SOFTMAC_BEACONS is not set. For now the
-	 * stop_send_bacons is NOT guaranteed to be called only
-	 * after start_send_beacons.
-	 */
-	void (*stop_send_beacons)(struct net_device *dev);
-
 	/* power save mode related */
 	void (*sta_wake_up)(struct net_device *dev);
 	void (*enter_sleep_state)(struct net_device *dev, u64 time);
@@ -1725,7 +1717,6 @@ void rtllib_reset_queue(struct rtllib_device *ieee);
 void rtllib_wake_all_queues(struct rtllib_device *ieee);
 void rtllib_stop_all_queues(struct rtllib_device *ieee);
 struct sk_buff *rtllib_get_beacon(struct rtllib_device *ieee);
-void rtllib_stop_send_beacons(struct rtllib_device *ieee);
 
 void notify_wx_assoc_event(struct rtllib_device *ieee);
 void rtllib_ps_tx_ack(struct rtllib_device *ieee, short success);
