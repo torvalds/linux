@@ -16,6 +16,7 @@ properties:
   compatible:
     enum:
       - amlogic,c3-periphs-pinctrl
+      - amlogic,t7-periphs-pinctrl
       - amlogic,meson-a1-periphs-pinctrl
       - amlogic,meson-s4-periphs-pinctrl
 
