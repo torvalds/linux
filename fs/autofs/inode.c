@@ -6,7 +6,6 @@
 
 #include <linux/seq_file.h>
 #include <linux/pagemap.h>
-#include <linux/parser.h>
 
 #include "autofs_i.h"
 
@@ -111,7 +110,6 @@ static const struct super_operations autofs_sops = {
 };
 
 enum {
-	Opt_err,
 	Opt_direct,
 	Opt_fd,
 	Opt_gid,
@@ -125,100 +123,106 @@ enum {
 	Opt_uid,
 };
 
-static const match_table_t tokens = {
-	{Opt_fd, "fd=%u"},
-	{Opt_uid, "uid=%u"},
-	{Opt_gid, "gid=%u"},
-	{Opt_pgrp, "pgrp=%u"},
-	{Opt_minproto, "minproto=%u"},
-	{Opt_maxproto, "maxproto=%u"},
-	{Opt_indirect, "indirect"},
-	{Opt_direct, "direct"},
-	{Opt_offset, "offset"},
-	{Opt_strictexpire, "strictexpire"},
-	{Opt_ignore, "ignore"},
-	{Opt_err, NULL}
+const struct fs_parameter_spec autofs_param_specs[] = {
+	fsparam_flag	("direct",		Opt_direct),
+	fsparam_fd	("fd",			Opt_fd),
+	fsparam_u32	("gid",			Opt_gid),
+	fsparam_flag	("ignore",		Opt_ignore),
+	fsparam_flag	("indirect",		Opt_indirect),
+	fsparam_u32	("maxproto",		Opt_maxproto),
+	fsparam_u32	("minproto",		Opt_minproto),
+	fsparam_flag	("offset",		Opt_offset),
+	fsparam_u32	("pgrp",		Opt_pgrp),
+	fsparam_flag	("strictexpire",	Opt_strictexpire),
+	fsparam_u32	("uid",			Opt_uid),
+	{}
 };
 
-static int autofs_parse_fd(struct autofs_sb_info *sbi, int fd)
+struct autofs_fs_context {
+	kuid_t	uid;
+	kgid_t	gid;
+	int	pgrp;
+	bool	pgrp_set;
+};
+
+/*
+ * Open the fd.  We do it here rather than in get_tree so that it's done in the
+ * context of the system call that passed the data and not the one that
+ * triggered the superblock creation, lest the fd gets reassigned.
+ */
+static int autofs_parse_fd(struct fs_context *fc, struct autofs_sb_info *sbi,
+			   struct fs_parameter *param,
+			   struct fs_parse_result *result)
 {
 	struct file *pipe;
 	int ret;
 
-	pipe = fget(fd);
+	if (param->type == fs_value_is_file) {
+		/* came through the new api */
+		pipe = param->file;
+		param->file = NULL;
+	} else {
+		pipe = fget(result->uint_32);
+	}
 	if (!pipe) {
-		pr_err("could not open pipe file descriptor\n");
+		errorf(fc, "could not open pipe file descriptor");
 		return -EBADF;
 	}
 
 	ret = autofs_check_pipe(pipe);
 	if (ret < 0) {
-		pr_err("Invalid/unusable pipe\n");
-		fput(pipe);
+		errorf(fc, "Invalid/unusable pipe");
+		if (param->type != fs_value_is_file)
+			fput(pipe);
 		return -EBADF;
 	}
 
 	if (sbi->pipe)
 		fput(sbi->pipe);
 
-	sbi->pipefd = fd;
+	sbi->pipefd = result->uint_32;
 	sbi->pipe = pipe;
 
 	return 0;
 }
 
-static int autofs_parse_param(char *optstr, struct inode *root,
-			      int *pgrp, bool *pgrp_set,
-			      struct autofs_sb_info *sbi)
+static int autofs_parse_param(struct fs_context *fc, struct fs_parameter *param)
 {
-	substring_t args[MAX_OPT_ARGS];
-	int option;
-	int pipefd = -1;
+	struct autofs_fs_context *ctx = fc->fs_private;
+	struct autofs_sb_info *sbi = fc->s_fs_info;
+	struct fs_parse_result result;
 	kuid_t uid;
 	kgid_t gid;
-	int token;
-	int ret;
+	int opt;
 
-	token = match_token(optstr, tokens, args);
-	switch (token) {
+	opt = fs_parse(fc, autofs_param_specs, param, &result);
+	if (opt < 0)
+		return opt;
+
+	switch (opt) {
 	case Opt_fd:
-		if (match_int(args, &pipefd))
-			return 1;
-		ret = autofs_parse_fd(sbi, pipefd);
-		if (ret)
-			return 1;
-		break;
+		return autofs_parse_fd(fc, sbi, param, &result);
 	case Opt_uid:
-		if (match_int(args, &option))
-			return 1;
-		uid = make_kuid(current_user_ns(), option);
+		uid = make_kuid(current_user_ns(), result.uint_32);
 		if (!uid_valid(uid))
-			return 1;
-		root->i_uid = uid;
+			return invalfc(fc, "Invalid uid");
+		ctx->uid = uid;
 		break;
 	case Opt_gid:
-		if (match_int(args, &option))
-			return 1;
-		gid = make_kgid(current_user_ns(), option);
+		gid = make_kgid(current_user_ns(), result.uint_32);
 		if (!gid_valid(gid))
-			return 1;
-		root->i_gid = gid;
+			return invalfc(fc, "Invalid gid");
+		ctx->gid = gid;
 		break;
 	case Opt_pgrp:
-		if (match_int(args, &option))
-			return 1;
-		*pgrp = option;
-		*pgrp_set = true;
+		ctx->pgrp = result.uint_32;
+		ctx->pgrp_set = true;
 		break;
 	case Opt_minproto:
-		if (match_int(args, &option))
-			return 1;
-		sbi->min_proto = option;
+		sbi->min_proto = result.uint_32;
 		break;
 	case Opt_maxproto:
-		if (match_int(args, &option))
-			return 1;
-		sbi->max_proto = option;
+		sbi->max_proto = result.uint_32;
 		break;
 	case Opt_indirect:
 		set_autofs_type_indirect(&sbi->type);
@@ -237,29 +241,6 @@ static int autofs_parse_param(char *optstr, struct inode *root,
 	}
 
 	return 0;
-}
-
-static int parse_options(char *options,
-			 struct inode *root, int *pgrp, bool *pgrp_set,
-			 struct autofs_sb_info *sbi)
-{
-	char *p;
-
-	root->i_uid = current_uid();
-	root->i_gid = current_gid();
-
-	if (!options)
-		return 1;
-
-	while ((p = strsep(&options, ",")) != NULL) {
-		if (!*p)
-			continue;
-
-		if (autofs_parse_param(p, root, pgrp, pgrp_set, sbi))
-			return 1;
-	}
-
-	return (sbi->pipefd < 0);
 }
 
 static struct autofs_sb_info *autofs_alloc_sbi(void)
@@ -287,12 +268,14 @@ static struct autofs_sb_info *autofs_alloc_sbi(void)
 	return sbi;
 }
 
-static int autofs_validate_protocol(struct autofs_sb_info *sbi)
+static int autofs_validate_protocol(struct fs_context *fc)
 {
+	struct autofs_sb_info *sbi = fc->s_fs_info;
+
 	/* Test versions first */
 	if (sbi->max_proto < AUTOFS_MIN_PROTO_VERSION ||
 	    sbi->min_proto > AUTOFS_MAX_PROTO_VERSION) {
-		pr_err("kernel does not match daemon version "
+		errorf(fc, "kernel does not match daemon version "
 		       "daemon (%d, %d) kernel (%d, %d)\n",
 		       sbi->min_proto, sbi->max_proto,
 		       AUTOFS_MIN_PROTO_VERSION, AUTOFS_MAX_PROTO_VERSION);
@@ -309,24 +292,18 @@ static int autofs_validate_protocol(struct autofs_sb_info *sbi)
 	return 0;
 }
 
-int autofs_fill_super(struct super_block *s, void *data, int silent)
+static int autofs_fill_super(struct super_block *s, struct fs_context *fc)
 {
+	struct autofs_fs_context *ctx = fc->fs_private;
+	struct autofs_sb_info *sbi = s->s_fs_info;
 	struct inode *root_inode;
 	struct dentry *root;
-	struct autofs_sb_info *sbi;
 	struct autofs_info *ino;
-	int pgrp = 0;
-	bool pgrp_set = false;
-	int ret = -EINVAL;
-
-	sbi = autofs_alloc_sbi();
-	if (!sbi)
-		return -ENOMEM;
+	int ret = -ENOMEM;
 
 	pr_debug("starting up, sbi = %p\n", sbi);
 
 	sbi->sb = s;
-	s->s_fs_info = sbi;
 	s->s_blocksize = 1024;
 	s->s_blocksize_bits = 10;
 	s->s_magic = AUTOFS_SUPER_MAGIC;
@@ -338,33 +315,24 @@ int autofs_fill_super(struct super_block *s, void *data, int silent)
 	 * Get the root inode and dentry, but defer checking for errors.
 	 */
 	ino = autofs_new_ino(sbi);
-	if (!ino) {
-		ret = -ENOMEM;
-		goto fail_free;
-	}
+	if (!ino)
+		goto fail;
+
 	root_inode = autofs_get_inode(s, S_IFDIR | 0755);
+	root_inode->i_uid = ctx->uid;
+	root_inode->i_gid = ctx->gid;
+
 	root = d_make_root(root_inode);
-	if (!root) {
-		ret = -ENOMEM;
+	if (!root)
 		goto fail_ino;
-	}
 
 	root->d_fsdata = ino;
 
-	/* Can this call block? */
-	if (parse_options(data, root_inode, &pgrp, &pgrp_set, sbi)) {
-		pr_err("called with bogus options\n");
-		goto fail_dput;
-	}
-
-	if (autofs_validate_protocol(sbi))
-		goto fail_dput;
-
-	if (pgrp_set) {
-		sbi->oz_pgrp = find_get_pid(pgrp);
+	if (ctx->pgrp_set) {
+		sbi->oz_pgrp = find_get_pid(ctx->pgrp);
 		if (!sbi->oz_pgrp) {
-			pr_err("could not find process group %d\n",
-				pgrp);
+			ret = invalf(fc, "Could not find process group %d",
+				     ctx->pgrp);
 			goto fail_dput;
 		}
 	} else {
@@ -393,13 +361,78 @@ int autofs_fill_super(struct super_block *s, void *data, int silent)
 	 */
 fail_dput:
 	dput(root);
-	goto fail_free;
+	goto fail;
 fail_ino:
 	autofs_free_ino(ino);
-fail_free:
-	kfree(sbi);
-	s->s_fs_info = NULL;
+fail:
 	return ret;
+}
+
+/*
+ * Validate the parameters and then request a superblock.
+ */
+static int autofs_get_tree(struct fs_context *fc)
+{
+	struct autofs_sb_info *sbi = fc->s_fs_info;
+	int ret;
+
+	ret = autofs_validate_protocol(fc);
+	if (ret)
+		return ret;
+
+	if (sbi->pipefd < 0)
+		return invalf(fc, "No control pipe specified");
+
+	return get_tree_nodev(fc, autofs_fill_super);
+}
+
+static void autofs_free_fc(struct fs_context *fc)
+{
+	struct autofs_fs_context *ctx = fc->fs_private;
+	struct autofs_sb_info *sbi = fc->s_fs_info;
+
+	if (sbi) {
+		if (sbi->pipe)
+			fput(sbi->pipe);
+		kfree(sbi);
+	}
+	kfree(ctx);
+}
+
+static const struct fs_context_operations autofs_context_ops = {
+	.free		= autofs_free_fc,
+	.parse_param	= autofs_parse_param,
+	.get_tree	= autofs_get_tree,
+};
+
+/*
+ * Set up the filesystem mount context.
+ */
+int autofs_init_fs_context(struct fs_context *fc)
+{
+	struct autofs_fs_context *ctx;
+	struct autofs_sb_info *sbi;
+
+	ctx = kzalloc(sizeof(struct autofs_fs_context), GFP_KERNEL);
+	if (!ctx)
+		goto nomem;
+
+	ctx->uid = current_uid();
+	ctx->gid = current_gid();
+
+	sbi = autofs_alloc_sbi();
+	if (!sbi)
+		goto nomem_ctx;
+
+	fc->fs_private = ctx;
+	fc->s_fs_info = sbi;
+	fc->ops = &autofs_context_ops;
+	return 0;
+
+nomem_ctx:
+	kfree(ctx);
+nomem:
+	return -ENOMEM;
 }
 
 struct inode *autofs_get_inode(struct super_block *sb, umode_t mode)
