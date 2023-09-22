@@ -295,7 +295,7 @@ static int update_backref_cache(struct btrfs_trans_handle *trans,
 	return 1;
 }
 
-static bool reloc_root_is_dead(struct btrfs_root *root)
+static bool reloc_root_is_dead(const struct btrfs_root *root)
 {
 	/*
 	 * Pair with set_bit/clear_bit in clean_dirty_subvols and
@@ -316,7 +316,7 @@ static bool reloc_root_is_dead(struct btrfs_root *root)
  * from no reloc root.  But btrfs_should_ignore_reloc_root() below is a
  * special case.
  */
-static bool have_reloc_root(struct btrfs_root *root)
+static bool have_reloc_root(const struct btrfs_root *root)
 {
 	if (reloc_root_is_dead(root))
 		return false;
@@ -325,7 +325,7 @@ static bool have_reloc_root(struct btrfs_root *root)
 	return true;
 }
 
-bool btrfs_should_ignore_reloc_root(struct btrfs_root *root)
+bool btrfs_should_ignore_reloc_root(const struct btrfs_root *root)
 {
 	struct btrfs_root *reloc_root;
 
@@ -541,7 +541,7 @@ out:
  */
 static int clone_backref_node(struct btrfs_trans_handle *trans,
 			      struct reloc_control *rc,
-			      struct btrfs_root *src,
+			      const struct btrfs_root *src,
 			      struct btrfs_root *dest)
 {
 	struct btrfs_root *reloc_root = src->reloc_root;
@@ -1181,9 +1181,9 @@ int replace_file_extents(struct btrfs_trans_handle *trans,
 	return ret;
 }
 
-static noinline_for_stack
-int memcmp_node_keys(struct extent_buffer *eb, int slot,
-		     struct btrfs_path *path, int level)
+static noinline_for_stack int memcmp_node_keys(const struct extent_buffer *eb,
+					       int slot, const struct btrfs_path *path,
+					       int level)
 {
 	struct btrfs_disk_key key1;
 	struct btrfs_disk_key key2;
@@ -1515,8 +1515,8 @@ int walk_down_reloc_tree(struct btrfs_root *root, struct btrfs_path *path,
  * [min_key, max_key)
  */
 static int invalidate_extent_cache(struct btrfs_root *root,
-				   struct btrfs_key *min_key,
-				   struct btrfs_key *max_key)
+				   const struct btrfs_key *min_key,
+				   const struct btrfs_key *max_key)
 {
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct inode *inode = NULL;
@@ -2828,7 +2828,7 @@ out_free_blocks:
 
 static noinline_for_stack int prealloc_file_extent_cluster(
 				struct btrfs_inode *inode,
-				struct file_extent_cluster *cluster)
+				const struct file_extent_cluster *cluster)
 {
 	u64 alloc_hint = 0;
 	u64 start;
@@ -2963,7 +2963,7 @@ static noinline_for_stack int setup_relocation_extent_mapping(struct inode *inod
 /*
  * Allow error injection to test balance/relocation cancellation
  */
-noinline int btrfs_should_cancel_balance(struct btrfs_fs_info *fs_info)
+noinline int btrfs_should_cancel_balance(const struct btrfs_fs_info *fs_info)
 {
 	return atomic_read(&fs_info->balance_cancel_req) ||
 		atomic_read(&fs_info->reloc_cancel_req) ||
@@ -2971,7 +2971,7 @@ noinline int btrfs_should_cancel_balance(struct btrfs_fs_info *fs_info)
 }
 ALLOW_ERROR_INJECTION(btrfs_should_cancel_balance, TRUE);
 
-static u64 get_cluster_boundary_end(struct file_extent_cluster *cluster,
+static u64 get_cluster_boundary_end(const struct file_extent_cluster *cluster,
 				    int cluster_nr)
 {
 	/* Last extent, use cluster end directly */
@@ -2983,7 +2983,7 @@ static u64 get_cluster_boundary_end(struct file_extent_cluster *cluster,
 }
 
 static int relocate_one_page(struct inode *inode, struct file_ra_state *ra,
-			     struct file_extent_cluster *cluster,
+			     const struct file_extent_cluster *cluster,
 			     int *cluster_nr, unsigned long page_index)
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
@@ -3118,7 +3118,7 @@ release_page:
 }
 
 static int relocate_file_extent_cluster(struct inode *inode,
-					struct file_extent_cluster *cluster)
+					const struct file_extent_cluster *cluster)
 {
 	u64 offset = BTRFS_I(inode)->index_cnt;
 	unsigned long index;
@@ -3156,9 +3156,9 @@ out:
 	return ret;
 }
 
-static noinline_for_stack
-int relocate_data_extent(struct inode *inode, struct btrfs_key *extent_key,
-			 struct file_extent_cluster *cluster)
+static noinline_for_stack int relocate_data_extent(struct inode *inode,
+				const struct btrfs_key *extent_key,
+				struct file_extent_cluster *cluster)
 {
 	int ret;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
@@ -3222,7 +3222,7 @@ int relocate_data_extent(struct inode *inode, struct btrfs_key *extent_key,
  * the major work is getting the generation and level of the block
  */
 static int add_tree_block(struct reloc_control *rc,
-			  struct btrfs_key *extent_key,
+			  const struct btrfs_key *extent_key,
 			  struct btrfs_path *path,
 			  struct rb_root *blocks)
 {
@@ -3473,11 +3473,10 @@ static int delete_v1_space_cache(struct extent_buffer *leaf,
 /*
  * helper to find all tree blocks that reference a given data extent
  */
-static noinline_for_stack
-int add_data_references(struct reloc_control *rc,
-			struct btrfs_key *extent_key,
-			struct btrfs_path *path,
-			struct rb_root *blocks)
+static noinline_for_stack int add_data_references(struct reloc_control *rc,
+						  const struct btrfs_key *extent_key,
+						  struct btrfs_path *path,
+						  struct rb_root *blocks)
 {
 	struct btrfs_backref_walk_ctx ctx = { 0 };
 	struct ulist_iterator leaf_uiter;
@@ -3918,9 +3917,9 @@ out:
  * helper to create inode for data relocation.
  * the inode is in data relocation tree and its link count is 0
  */
-static noinline_for_stack
-struct inode *create_reloc_inode(struct btrfs_fs_info *fs_info,
-				 struct btrfs_block_group *group)
+static noinline_for_stack struct inode *create_reloc_inode(
+					struct btrfs_fs_info *fs_info,
+					const struct btrfs_block_group *group)
 {
 	struct inode *inode = NULL;
 	struct btrfs_trans_handle *trans;
@@ -4467,7 +4466,8 @@ int btrfs_reloc_clone_csums(struct btrfs_ordered_extent *ordered)
 }
 
 int btrfs_reloc_cow_block(struct btrfs_trans_handle *trans,
-			  struct btrfs_root *root, struct extent_buffer *buf,
+			  struct btrfs_root *root,
+			  const struct extent_buffer *buf,
 			  struct extent_buffer *cow)
 {
 	struct btrfs_fs_info *fs_info = root->fs_info;
@@ -4606,7 +4606,7 @@ int btrfs_reloc_post_snapshot(struct btrfs_trans_handle *trans,
  *
  * Return U64_MAX if no running relocation.
  */
-u64 btrfs_get_reloc_bg_bytenr(struct btrfs_fs_info *fs_info)
+u64 btrfs_get_reloc_bg_bytenr(const struct btrfs_fs_info *fs_info)
 {
 	u64 logical = U64_MAX;
 
