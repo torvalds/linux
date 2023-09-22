@@ -1488,7 +1488,7 @@ static int rpm_smd_clk_probe(struct platform_device *pdev)
 {
 	struct clk_hw **hw_clks;
 	const struct rpm_smd_clk_desc *desc;
-	int ret, i, is_holi;
+	int ret, i, is_holi, hw_clk_handoff = false;
 
 	desc = of_device_get_match_data(&pdev->dev);
 	if (!desc)
@@ -1504,13 +1504,17 @@ static int rpm_smd_clk_probe(struct platform_device *pdev)
 
 	hw_clks = desc->clks;
 
-	for (i = 0; i < desc->num_clks; i++) {
-		if (!hw_clks[i])
-			continue;
+	hw_clk_handoff = of_property_read_bool(pdev->dev.of_node,
+						"qcom,hw-clk-handoff");
+	if (hw_clk_handoff) {
+		for (i = 0; i < desc->num_clks; i++) {
+			if (!hw_clks[i])
+				continue;
 
-		ret = clk_smd_rpm_handoff(hw_clks[i]);
-		if (ret)
-			goto err;
+			ret = clk_smd_rpm_handoff(hw_clks[i]);
+			if (ret)
+				goto err;
+		}
 	}
 
 	ret = clk_smd_rpm_enable_scaling();
