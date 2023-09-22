@@ -580,6 +580,7 @@ static struct platform_driver pm8xxx_rtc_driver = {
 	.driver	= {
 		.name		= "rtc-pm8xxx",
 		.of_match_table	= pm8xxx_id_table,
+		.pm             = &pm8xxx_rtc_pm_ops,
 	},
 };
 
