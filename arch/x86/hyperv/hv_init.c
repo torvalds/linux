@@ -610,6 +610,9 @@ skip_hypercall_pg_init:
 	/* Find the VTL */
 	ms_hyperv.vtl = get_vtl();
 
+	if (ms_hyperv.vtl > 0) /* non default VTL */
+		hv_vtl_early_init();
+
 	return;
 
 clean_guest_os_id:
