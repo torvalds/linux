@@ -391,7 +391,7 @@
 			interrupt-names = "mctp", "pcie";
 			resets = <&cpu_rst ASPEED_RESET_MCTP0>;
 			aspeed,scu = <&syscon0>;
-			aspeed,pcieh = <&pcie_config0>;
+			aspeed,pcieh = <&pcie_phy0>;
 			status = "disabled";
 		};
 
@@ -402,7 +402,7 @@
 			interrupt-names = "mctp", "pcie";
 			resets = <&cpu_rst ASPEED_RESET_MCTP1>;
 			aspeed,scu = <&syscon0>;
-			aspeed,pcieh = <&pcie_config1>;
+			aspeed,pcieh = <&pcie_phy1>;
 			status = "disabled";
 		};
 
@@ -411,6 +411,16 @@
 			reg = <0 0x12c0f000 0 0x18>;
 			interrupts = <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>;
 			status = "disabled";
+		};
+
+		pcie_phy0: pcie_phy@12c15000 {
+			compatible = "aspeed,ast2700-pcie-phy", "syscon";
+			reg = <0x0 0x12c15000 0x0 0x800>;
+		};
+
+		pcie_phy1: rc_bridge@12c15800 {
+			compatible = "aspeed,ast2700-pcie-phy", "syscon";
+			reg = <0x0 0x12c15800 0x0 0x800>;
 		};
 
 		pcie0_vuart0: serial@12c18000 {
