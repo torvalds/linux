@@ -43,7 +43,7 @@ int __ip4_datagram_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len
 		if (!saddr)
 			saddr = inet->mc_addr;
 	} else if (!oif) {
-		oif = inet->uc_index;
+		oif = READ_ONCE(inet->uc_index);
 	}
 	fl4 = &inet->cork.fl.u.ip4;
 	rt = ip_route_connect(fl4, usin->sin_addr.s_addr, saddr, oif,

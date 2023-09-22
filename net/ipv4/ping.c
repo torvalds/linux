@@ -777,7 +777,7 @@ static int ping_v4_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 		if (!saddr)
 			saddr = inet->mc_addr;
 	} else if (!ipc.oif)
-		ipc.oif = inet->uc_index;
+		ipc.oif = READ_ONCE(inet->uc_index);
 
 	flowi4_init_output(&fl4, ipc.oif, ipc.sockc.mark, tos, scope,
 			   sk->sk_protocol, inet_sk_flowi_flags(sk), faddr,

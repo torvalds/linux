@@ -1113,7 +1113,7 @@ int do_ip_setsockopt(struct sock *sk, int level, int optname,
 
 		ifindex = (__force int)ntohl((__force __be32)val);
 		if (ifindex == 0) {
-			inet->uc_index = 0;
+			WRITE_ONCE(inet->uc_index, 0);
 			err = 0;
 			break;
 		}
@@ -1130,7 +1130,7 @@ int do_ip_setsockopt(struct sock *sk, int level, int optname,
 		if (sk->sk_bound_dev_if && midx != sk->sk_bound_dev_if)
 			break;
 
-		inet->uc_index = ifindex;
+		WRITE_ONCE(inet->uc_index, ifindex);
 		err = 0;
 		break;
 	}
@@ -1633,6 +1633,9 @@ int do_ip_getsockopt(struct sock *sk, int level, int optname,
 			return -ENOTCONN;
 		goto copyval;
 	}
+	case IP_UNICAST_IF:
+		val = (__force int)htonl((__u32) READ_ONCE(inet->uc_index));
+		goto copyval;
 	}
 
 	if (needs_rtnl)
@@ -1640,9 +1643,6 @@ int do_ip_getsockopt(struct sock *sk, int level, int optname,
 	sockopt_lock_sock(sk);
 
 	switch (optname) {
-	case IP_UNICAST_IF:
-		val = (__force int)htonl((__u32) inet->uc_index);
-		break;
 	case IP_MULTICAST_IF:
 	{
 		struct in_addr addr;
