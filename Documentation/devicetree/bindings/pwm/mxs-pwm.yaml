@@ -25,6 +25,9 @@ properties:
   reg:
     maxItems: 1
 
+  clocks:
+    maxItems: 1
+
   "#pwm-cells":
     const: 3
 
@@ -35,6 +38,7 @@ properties:
 required:
   - compatible
   - reg
+  - clocks
   - fsl,pwm-number
 
 additionalProperties: false
@@ -44,6 +48,7 @@ examples:
     pwm@80064000 {
         compatible = "fsl,imx23-pwm";
         reg = <0x80064000 0x2000>;
+        clocks = <&clks 30>;
         #pwm-cells = <3>;
         fsl,pwm-number = <8>;
     };
