@@ -101,7 +101,7 @@ static int lp3952_get_label(struct device *dev, const char *label, char *dest)
 	if (ret)
 		return ret;
 
-	strncpy(dest, str, LP3952_LABEL_MAX_LEN);
+	strscpy(dest, str, LP3952_LABEL_MAX_LEN);
 	return 0;
 }
 
