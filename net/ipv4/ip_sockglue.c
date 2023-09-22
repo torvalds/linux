@@ -1633,6 +1633,43 @@ int do_ip_getsockopt(struct sock *sk, int level, int optname,
 			return -ENOTCONN;
 		goto copyval;
 	}
+	case IP_PKTOPTIONS:
+	{
+		struct msghdr msg;
+
+		if (sk->sk_type != SOCK_STREAM)
+			return -ENOPROTOOPT;
+
+		if (optval.is_kernel) {
+			msg.msg_control_is_user = false;
+			msg.msg_control = optval.kernel;
+		} else {
+			msg.msg_control_is_user = true;
+			msg.msg_control_user = optval.user;
+		}
+		msg.msg_controllen = len;
+		msg.msg_flags = in_compat_syscall() ? MSG_CMSG_COMPAT : 0;
+
+		if (inet_test_bit(PKTINFO, sk)) {
+			struct in_pktinfo info;
+
+			info.ipi_addr.s_addr = READ_ONCE(inet->inet_rcv_saddr);
+			info.ipi_spec_dst.s_addr = READ_ONCE(inet->inet_rcv_saddr);
+			info.ipi_ifindex = READ_ONCE(inet->mc_index);
+			put_cmsg(&msg, SOL_IP, IP_PKTINFO, sizeof(info), &info);
+		}
+		if (inet_test_bit(TTL, sk)) {
+			int hlim = READ_ONCE(inet->mc_ttl);
+
+			put_cmsg(&msg, SOL_IP, IP_TTL, sizeof(hlim), &hlim);
+		}
+		if (inet_test_bit(TOS, sk)) {
+			int tos = READ_ONCE(inet->rcv_tos);
+			put_cmsg(&msg, SOL_IP, IP_TOS, sizeof(tos), &tos);
+		}
+		len -= msg.msg_controllen;
+		return copy_to_sockptr(optlen, &len, sizeof(int));
+	}
 	case IP_UNICAST_IF:
 		val = (__force int)htonl((__u32) READ_ONCE(inet->uc_index));
 		goto copyval;
@@ -1678,45 +1715,6 @@ int do_ip_getsockopt(struct sock *sk, int level, int optname,
 		else
 			err = ip_get_mcast_msfilter(sk, optval, optlen, len);
 		goto out;
-	case IP_PKTOPTIONS:
-	{
-		struct msghdr msg;
-
-		sockopt_release_sock(sk);
-
-		if (sk->sk_type != SOCK_STREAM)
-			return -ENOPROTOOPT;
-
-		if (optval.is_kernel) {
-			msg.msg_control_is_user = false;
-			msg.msg_control = optval.kernel;
-		} else {
-			msg.msg_control_is_user = true;
-			msg.msg_control_user = optval.user;
-		}
-		msg.msg_controllen = len;
-		msg.msg_flags = in_compat_syscall() ? MSG_CMSG_COMPAT : 0;
-
-		if (inet_test_bit(PKTINFO, sk)) {
-			struct in_pktinfo info;
-
-			info.ipi_addr.s_addr = inet->inet_rcv_saddr;
-			info.ipi_spec_dst.s_addr = inet->inet_rcv_saddr;
-			info.ipi_ifindex = inet->mc_index;
-			put_cmsg(&msg, SOL_IP, IP_PKTINFO, sizeof(info), &info);
-		}
-		if (inet_test_bit(TTL, sk)) {
-			int hlim = READ_ONCE(inet->mc_ttl);
-
-			put_cmsg(&msg, SOL_IP, IP_TTL, sizeof(hlim), &hlim);
-		}
-		if (inet_test_bit(TOS, sk)) {
-			int tos = inet->rcv_tos;
-			put_cmsg(&msg, SOL_IP, IP_TOS, sizeof(tos), &tos);
-		}
-		len -= msg.msg_controllen;
-		return copy_to_sockptr(optlen, &len, sizeof(int));
-	}
 	case IP_LOCAL_PORT_RANGE:
 		val = inet->local_port_range.hi << 16 | inet->local_port_range.lo;
 		break;
