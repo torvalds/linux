@@ -429,49 +429,13 @@ static void set_crtc_test_pattern(struct dc_link *link,
 	struct bit_depth_reduction_params params;
 	struct output_pixel_processor *opp = pipe_ctx->stream_res.opp;
 	struct pipe_ctx *odm_pipe;
-	int odm_cnt = 1;
-	int h_active = pipe_ctx->stream->timing.h_addressable +
-		pipe_ctx->stream->timing.h_border_left +
-		pipe_ctx->stream->timing.h_border_right;
-	int v_active = pipe_ctx->stream->timing.v_addressable +
-		pipe_ctx->stream->timing.v_border_bottom +
-		pipe_ctx->stream->timing.v_border_top;
-	int odm_slice_width, last_odm_slice_width, offset = 0;
+	struct test_pattern_params *tp_params;
 
 	memset(&params, 0, sizeof(params));
 
-	for (odm_pipe = pipe_ctx->next_odm_pipe; odm_pipe; odm_pipe = odm_pipe->next_odm_pipe)
-		odm_cnt++;
-
-	odm_slice_width = h_active / odm_cnt;
-	last_odm_slice_width = h_active - odm_slice_width * (odm_cnt - 1);
-
-	switch (test_pattern) {
-	case DP_TEST_PATTERN_COLOR_SQUARES:
-		controller_test_pattern =
-				CONTROLLER_DP_TEST_PATTERN_COLORSQUARES;
-	break;
-	case DP_TEST_PATTERN_COLOR_SQUARES_CEA:
-		controller_test_pattern =
-				CONTROLLER_DP_TEST_PATTERN_COLORSQUARES_CEA;
-	break;
-	case DP_TEST_PATTERN_VERTICAL_BARS:
-		controller_test_pattern =
-				CONTROLLER_DP_TEST_PATTERN_VERTICALBARS;
-	break;
-	case DP_TEST_PATTERN_HORIZONTAL_BARS:
-		controller_test_pattern =
-				CONTROLLER_DP_TEST_PATTERN_HORIZONTALBARS;
-	break;
-	case DP_TEST_PATTERN_COLOR_RAMP:
-		controller_test_pattern =
-				CONTROLLER_DP_TEST_PATTERN_COLORRAMP;
-	break;
-	default:
-		controller_test_pattern =
-				CONTROLLER_DP_TEST_PATTERN_VIDEOMODE;
-	break;
-	}
+	resource_build_test_pattern_params(&link->dc->current_state->res_ctx,
+			pipe_ctx);
+	controller_test_pattern = pipe_ctx->stream_res.test_pattern_params.test_pattern;
 
 	switch (test_pattern) {
 	case DP_TEST_PATTERN_COLOR_SQUARES:
@@ -490,51 +454,29 @@ static void set_crtc_test_pattern(struct dc_link *link,
 			enum controller_dp_color_space controller_color_space;
 			struct output_pixel_processor *odm_opp;
 
-			switch (test_pattern_color_space) {
-			case DP_TEST_PATTERN_COLOR_SPACE_RGB:
-				controller_color_space = CONTROLLER_DP_COLOR_SPACE_RGB;
-				break;
-			case DP_TEST_PATTERN_COLOR_SPACE_YCBCR601:
-				controller_color_space = CONTROLLER_DP_COLOR_SPACE_YCBCR601;
-				break;
-			case DP_TEST_PATTERN_COLOR_SPACE_YCBCR709:
-				controller_color_space = CONTROLLER_DP_COLOR_SPACE_YCBCR709;
-				break;
-			case DP_TEST_PATTERN_COLOR_SPACE_UNDEFINED:
-			default:
-				controller_color_space = CONTROLLER_DP_COLOR_SPACE_UDEFINED;
-				DC_LOG_ERROR("%s: Color space must be defined for test pattern", __func__);
+			controller_color_space = pipe_ctx->stream_res.test_pattern_params.color_space;
+
+			if (controller_color_space == CONTROLLER_DP_COLOR_SPACE_UDEFINED) {
+				DC_LOG_WARNING("%s: Color space must be defined for test pattern", __func__);
 				ASSERT(0);
-				break;
 			}
 
 			odm_pipe = pipe_ctx;
-			while (odm_pipe->next_odm_pipe) {
+			while (odm_pipe) {
+				tp_params = &odm_pipe->stream_res.test_pattern_params;
 				odm_opp = odm_pipe->stream_res.opp;
 				odm_opp->funcs->opp_program_bit_depth_reduction(odm_opp, &params);
 				link->dc->hwss.set_disp_pattern_generator(link->dc,
 						odm_pipe,
-						controller_test_pattern,
-						controller_color_space,
-						color_depth,
+						tp_params->test_pattern,
+						tp_params->color_space,
+						tp_params->color_depth,
 						NULL,
-						odm_slice_width,
-						v_active,
-						offset);
-				offset += odm_slice_width;
+						tp_params->width,
+						tp_params->height,
+						tp_params->offset);
 				odm_pipe = odm_pipe->next_odm_pipe;
 			}
-			odm_opp = odm_pipe->stream_res.opp;
-			odm_opp->funcs->opp_program_bit_depth_reduction(odm_opp, &params);
-			link->dc->hwss.set_disp_pattern_generator(link->dc,
-					odm_pipe,
-					controller_test_pattern,
-					controller_color_space,
-					color_depth,
-					NULL,
-					last_odm_slice_width,
-					v_active,
-					offset);
 		}
 	}
 	break;
@@ -552,32 +494,21 @@ static void set_crtc_test_pattern(struct dc_link *link,
 			struct output_pixel_processor *odm_opp;
 
 			odm_pipe = pipe_ctx;
-			while (odm_pipe->next_odm_pipe) {
+			while (odm_pipe) {
+				tp_params = &odm_pipe->stream_res.test_pattern_params;
 				odm_opp = odm_pipe->stream_res.opp;
 				odm_opp->funcs->opp_program_bit_depth_reduction(odm_opp, &params);
 				link->dc->hwss.set_disp_pattern_generator(link->dc,
 						odm_pipe,
-						CONTROLLER_DP_TEST_PATTERN_VIDEOMODE,
-						CONTROLLER_DP_COLOR_SPACE_UDEFINED,
-						color_depth,
+						tp_params->test_pattern,
+						tp_params->color_space,
+						tp_params->color_depth,
 						NULL,
-						odm_slice_width,
-						v_active,
-						offset);
-				offset += odm_slice_width;
+						tp_params->width,
+						tp_params->height,
+						tp_params->offset);
 				odm_pipe = odm_pipe->next_odm_pipe;
 			}
-			odm_opp = odm_pipe->stream_res.opp;
-			odm_opp->funcs->opp_program_bit_depth_reduction(odm_opp, &params);
-			link->dc->hwss.set_disp_pattern_generator(link->dc,
-					odm_pipe,
-					CONTROLLER_DP_TEST_PATTERN_VIDEOMODE,
-					CONTROLLER_DP_COLOR_SPACE_UDEFINED,
-					color_depth,
-					NULL,
-					last_odm_slice_width,
-					v_active,
-					offset);
 		}
 	}
 	break;

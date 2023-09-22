@@ -103,6 +103,10 @@ enum dc_status resource_map_pool_resources(
 		struct dc_state *context,
 		struct dc_stream_state *stream);
 
+void resource_build_test_pattern_params(
+		struct resource_context *res_ctx,
+		struct pipe_ctx *pipe_ctx);
+
 bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx);
 
 enum dc_status resource_build_scaling_params_for_context(

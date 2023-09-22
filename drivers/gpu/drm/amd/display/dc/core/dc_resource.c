@@ -1367,6 +1367,110 @@ static bool is_subvp_high_refresh_candidate(struct dc_stream_state *stream)
 	return false;
 }
 
+static enum controller_dp_test_pattern convert_dp_to_controller_test_pattern(
+				enum dp_test_pattern test_pattern)
+{
+	enum controller_dp_test_pattern controller_test_pattern;
+
+	switch (test_pattern) {
+	case DP_TEST_PATTERN_COLOR_SQUARES:
+		controller_test_pattern =
+				CONTROLLER_DP_TEST_PATTERN_COLORSQUARES;
+	break;
+	case DP_TEST_PATTERN_COLOR_SQUARES_CEA:
+		controller_test_pattern =
+				CONTROLLER_DP_TEST_PATTERN_COLORSQUARES_CEA;
+	break;
+	case DP_TEST_PATTERN_VERTICAL_BARS:
+		controller_test_pattern =
+				CONTROLLER_DP_TEST_PATTERN_VERTICALBARS;
+	break;
+	case DP_TEST_PATTERN_HORIZONTAL_BARS:
+		controller_test_pattern =
+				CONTROLLER_DP_TEST_PATTERN_HORIZONTALBARS;
+	break;
+	case DP_TEST_PATTERN_COLOR_RAMP:
+		controller_test_pattern =
+				CONTROLLER_DP_TEST_PATTERN_COLORRAMP;
+	break;
+	default:
+		controller_test_pattern =
+				CONTROLLER_DP_TEST_PATTERN_VIDEOMODE;
+	break;
+	}
+
+	return controller_test_pattern;
+}
+
+static enum controller_dp_color_space convert_dp_to_controller_color_space(
+		enum dp_test_pattern_color_space color_space)
+{
+	enum controller_dp_color_space controller_color_space;
+
+	switch (color_space) {
+	case DP_TEST_PATTERN_COLOR_SPACE_RGB:
+		controller_color_space = CONTROLLER_DP_COLOR_SPACE_RGB;
+		break;
+	case DP_TEST_PATTERN_COLOR_SPACE_YCBCR601:
+		controller_color_space = CONTROLLER_DP_COLOR_SPACE_YCBCR601;
+		break;
+	case DP_TEST_PATTERN_COLOR_SPACE_YCBCR709:
+		controller_color_space = CONTROLLER_DP_COLOR_SPACE_YCBCR709;
+		break;
+	case DP_TEST_PATTERN_COLOR_SPACE_UNDEFINED:
+	default:
+		controller_color_space = CONTROLLER_DP_COLOR_SPACE_UDEFINED;
+		break;
+	}
+
+	return controller_color_space;
+}
+
+void resource_build_test_pattern_params(struct resource_context *res_ctx,
+				struct pipe_ctx *otg_master)
+{
+	int odm_slice_width, last_odm_slice_width, offset = 0;
+	struct pipe_ctx *opp_heads[MAX_PIPES];
+	struct test_pattern_params *params;
+	int odm_cnt = 1;
+	enum controller_dp_test_pattern controller_test_pattern;
+	enum controller_dp_color_space controller_color_space;
+	enum dc_color_depth color_depth = otg_master->stream->timing.display_color_depth;
+	int h_active = otg_master->stream->timing.h_addressable +
+		otg_master->stream->timing.h_border_left +
+		otg_master->stream->timing.h_border_right;
+	int v_active = otg_master->stream->timing.v_addressable +
+		otg_master->stream->timing.v_border_bottom +
+		otg_master->stream->timing.v_border_top;
+	int i;
+
+	controller_test_pattern = convert_dp_to_controller_test_pattern(
+			otg_master->stream->test_pattern.type);
+	controller_color_space = convert_dp_to_controller_color_space(
+			otg_master->stream->test_pattern.color_space);
+
+	odm_cnt = resource_get_opp_heads_for_otg_master(otg_master, res_ctx, opp_heads);
+
+	odm_slice_width = h_active / odm_cnt;
+	last_odm_slice_width = h_active - odm_slice_width * (odm_cnt - 1);
+
+	for (i = 0; i < odm_cnt; i++) {
+		params = &opp_heads[i]->stream_res.test_pattern_params;
+		params->test_pattern = controller_test_pattern;
+		params->color_space = controller_color_space;
+		params->color_depth = color_depth;
+		params->height = v_active;
+		params->offset = offset;
+
+		if (i < odm_cnt - 1)
+			params->width = odm_slice_width;
+		else
+			params->width = last_odm_slice_width;
+
+		offset += odm_slice_width;
+	}
+}
+
 bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 {
 	const struct dc_plane_state *plane_state = pipe_ctx->plane_state;

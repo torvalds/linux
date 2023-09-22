@@ -1538,6 +1538,11 @@ static void dcn20_detect_pipe_changes(struct pipe_ctx *old_pipe, struct pipe_ctx
 
 	if (old_pipe->unbounded_req != new_pipe->unbounded_req)
 		new_pipe->update_flags.bits.unbounded_req = 1;
+
+	if (memcmp(&old_pipe->stream_res.test_pattern_params,
+				&new_pipe->stream_res.test_pattern_params, sizeof(struct test_pattern_params))) {
+		new_pipe->update_flags.bits.test_pattern_changed = 1;
+	}
 }
 
 static void dcn20_update_dchubp_dpp(
@@ -1845,6 +1850,23 @@ static void dcn20_program_pipe(
 			pipe_ctx->stream_res.abm->funcs->set_abm_level(pipe_ctx->stream_res.abm,
 				pipe_ctx->stream->abm_level);
 		}
+	}
+
+	if (pipe_ctx->update_flags.bits.test_pattern_changed) {
+		struct output_pixel_processor *odm_opp = pipe_ctx->stream_res.opp;
+		struct bit_depth_reduction_params params;
+
+		memset(&params, 0, sizeof(params));
+		odm_opp->funcs->opp_program_bit_depth_reduction(odm_opp, &params);
+		dc->hwss.set_disp_pattern_generator(dc,
+				pipe_ctx,
+				pipe_ctx->stream_res.test_pattern_params.test_pattern,
+				pipe_ctx->stream_res.test_pattern_params.color_space,
+				pipe_ctx->stream_res.test_pattern_params.color_depth,
+				NULL,
+				pipe_ctx->stream_res.test_pattern_params.width,
+				pipe_ctx->stream_res.test_pattern_params.height,
+				pipe_ctx->stream_res.test_pattern_params.offset);
 	}
 }
 

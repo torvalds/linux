@@ -308,6 +308,16 @@ struct dcn_fe_bandwidth {
 
 };
 
+/* Parameters needed to call set_disp_pattern_generator */
+struct test_pattern_params {
+	enum controller_dp_test_pattern test_pattern;
+	enum controller_dp_color_space color_space;
+	enum dc_color_depth color_depth;
+	int width;
+	int height;
+	int offset;
+};
+
 struct stream_resource {
 	struct output_pixel_processor *opp;
 	struct display_stream_compressor *dsc;
@@ -324,6 +334,8 @@ struct stream_resource {
 	 * otherwise it's using group number 'gsl_group-1'
 	 */
 	uint8_t gsl_group;
+
+	struct test_pattern_params test_pattern_params;
 };
 
 struct plane_resource {
@@ -367,6 +379,7 @@ union pipe_update_flags {
 		uint32_t plane_changed : 1;
 		uint32_t det_size : 1;
 		uint32_t unbounded_req : 1;
+		uint32_t test_pattern_changed : 1;
 	} bits;
 	uint32_t raw;
 };
