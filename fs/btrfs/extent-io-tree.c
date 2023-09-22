@@ -114,14 +114,15 @@ void extent_io_tree_init(struct btrfs_fs_info *fs_info,
  */
 void extent_io_tree_release(struct extent_io_tree *tree)
 {
-	spin_lock(&tree->lock);
-	while (!RB_EMPTY_ROOT(&tree->state)) {
-		struct rb_node *node;
-		struct extent_state *state;
+	struct rb_root root;
+	struct extent_state *state;
+	struct extent_state *tmp;
 
-		node = rb_first(&tree->state);
-		state = rb_entry(node, struct extent_state, rb_node);
-		rb_erase(&state->rb_node, &tree->state);
+	spin_lock(&tree->lock);
+	root = tree->state;
+	tree->state = RB_ROOT;
+	rbtree_postorder_for_each_entry_safe(state, tmp, &root, rb_node) {
+		/* Clear node to keep free_extent_state() happy. */
 		RB_CLEAR_NODE(&state->rb_node);
 		ASSERT(!(state->state & EXTENT_LOCKED));
 		/*
@@ -131,9 +132,13 @@ void extent_io_tree_release(struct extent_io_tree *tree)
 		 */
 		ASSERT(!waitqueue_active(&state->wq));
 		free_extent_state(state);
-
 		cond_resched_lock(&tree->lock);
 	}
+	/*
+	 * Should still be empty even after a reschedule, no other task should
+	 * be accessing the tree anymore.
+	 */
+	ASSERT(RB_EMPTY_ROOT(&tree->state));
 	spin_unlock(&tree->lock);
 }
 
