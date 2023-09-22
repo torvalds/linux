@@ -92,7 +92,7 @@ struct at24_data {
 	 * them for us.
 	 */
 	u8 bank_addr_shift;
-	struct regmap *client_regmaps[];
+	struct regmap *client_regmaps[] __counted_by(num_addresses);
 };
 
 /*
