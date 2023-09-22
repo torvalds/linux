@@ -343,8 +343,8 @@ int btrfs_run_defrag_inodes(struct btrfs_fs_info *fs_info)
  * better reflect disk order
  */
 
-int btrfs_defrag_leaves(struct btrfs_trans_handle *trans,
-			struct btrfs_root *root)
+static int btrfs_defrag_leaves(struct btrfs_trans_handle *trans,
+			       struct btrfs_root *root)
 {
 	struct btrfs_path *path = NULL;
 	struct btrfs_key key;
@@ -457,6 +457,45 @@ done:
 		memset(&root->defrag_progress, 0,
 		       sizeof(root->defrag_progress));
 
+	return ret;
+}
+
+/*
+ * Defrag a given btree.  Every leaf in the btree is read and defragmented.
+ */
+int btrfs_defrag_root(struct btrfs_root *root)
+{
+	struct btrfs_fs_info *fs_info = root->fs_info;
+	int ret;
+
+	if (test_and_set_bit(BTRFS_ROOT_DEFRAG_RUNNING, &root->state))
+		return 0;
+
+	while (1) {
+		struct btrfs_trans_handle *trans;
+
+		trans = btrfs_start_transaction(root, 0);
+		if (IS_ERR(trans)) {
+			ret = PTR_ERR(trans);
+			break;
+		}
+
+		ret = btrfs_defrag_leaves(trans, root);
+
+		btrfs_end_transaction(trans);
+		btrfs_btree_balance_dirty(fs_info);
+		cond_resched();
+
+		if (btrfs_fs_closing(fs_info) || ret != -EAGAIN)
+			break;
+
+		if (btrfs_defrag_cancelled(fs_info)) {
+			btrfs_debug(fs_info, "defrag_root cancelled");
+			ret = -EAGAIN;
+			break;
+		}
+	}
+	clear_bit(BTRFS_ROOT_DEFRAG_RUNNING, &root->state);
 	return ret;
 }
 

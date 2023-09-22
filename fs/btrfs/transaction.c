@@ -1565,45 +1565,6 @@ static noinline int commit_fs_roots(struct btrfs_trans_handle *trans)
 }
 
 /*
- * defrag a given btree.
- * Every leaf in the btree is read and defragged.
- */
-int btrfs_defrag_root(struct btrfs_root *root)
-{
-	struct btrfs_fs_info *info = root->fs_info;
-	struct btrfs_trans_handle *trans;
-	int ret;
-
-	if (test_and_set_bit(BTRFS_ROOT_DEFRAG_RUNNING, &root->state))
-		return 0;
-
-	while (1) {
-		trans = btrfs_start_transaction(root, 0);
-		if (IS_ERR(trans)) {
-			ret = PTR_ERR(trans);
-			break;
-		}
-
-		ret = btrfs_defrag_leaves(trans, root);
-
-		btrfs_end_transaction(trans);
-		btrfs_btree_balance_dirty(info);
-		cond_resched();
-
-		if (btrfs_fs_closing(info) || ret != -EAGAIN)
-			break;
-
-		if (btrfs_defrag_cancelled(info)) {
-			btrfs_debug(info, "defrag_root cancelled");
-			ret = -EAGAIN;
-			break;
-		}
-	}
-	clear_bit(BTRFS_ROOT_DEFRAG_RUNNING, &root->state);
-	return ret;
-}
-
-/*
  * Do all special snapshot related qgroup dirty hack.
  *
  * Will do all needed qgroup inherit and dirty hack like switch commit
