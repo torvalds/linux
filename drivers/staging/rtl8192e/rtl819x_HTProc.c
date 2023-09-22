@@ -743,38 +743,6 @@ void HT_update_self_and_peer_setting(struct rtllib_device *ieee,
 }
 EXPORT_SYMBOL(HT_update_self_and_peer_setting);
 
-void HTUseDefaultSetting(struct rtllib_device *ieee)
-{
-	struct rt_hi_throughput *ht_info = ieee->ht_info;
-
-	if (ht_info->enable_ht) {
-		ht_info->bCurrentHTSupport = true;
-		ht_info->bCurSuppCCK = ht_info->bRegSuppCCK;
-
-		ht_info->bCurBW40MHz = ht_info->bRegBW40MHz;
-		ht_info->bCurShortGI20MHz = ht_info->bRegShortGI20MHz;
-
-		ht_info->bCurShortGI40MHz = ht_info->bRegShortGI40MHz;
-		ht_info->bCurrent_AMSDU_Support = ht_info->bAMSDU_Support;
-		ht_info->nCurrent_AMSDU_MaxSize = ht_info->nAMSDU_MaxSize;
-
-		ht_info->bCurrentAMPDUEnable = ht_info->bAMPDUEnable;
-		ht_info->CurrentAMPDUFactor = ht_info->AMPDU_Factor;
-
-		ht_info->current_mpdu_density = ht_info->current_mpdu_density;
-
-		HTFilterMCSRate(ieee, ieee->reg_dot11tx_ht_oper_rate_set,
-				ieee->dot11ht_oper_rate_set);
-		ieee->HTHighestOperaRate = HTGetHighestMCSRate(ieee,
-							       ieee->dot11ht_oper_rate_set,
-							       MCS_FILTER_ALL);
-		ieee->HTCurrentOperaRate = ieee->HTHighestOperaRate;
-
-	} else {
-		ht_info->bCurrentHTSupport = false;
-	}
-}
-
 u8 HTCCheck(struct rtllib_device *ieee, u8 *pFrame)
 {
 	if (ieee->ht_info->bCurrentHTSupport) {

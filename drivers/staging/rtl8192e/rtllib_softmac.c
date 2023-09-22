@@ -607,18 +607,6 @@ out1:
 	mutex_unlock(&ieee->scan_mutex);
 }
 
-static void rtllib_beacons_start(struct rtllib_device *ieee)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&ieee->beacon_lock, flags);
-
-	ieee->beacon_txing = 1;
-	rtllib_send_beacon(ieee);
-
-	spin_unlock_irqrestore(&ieee->beacon_lock, flags);
-}
-
 static void rtllib_beacons_stop(struct rtllib_device *ieee)
 {
 	unsigned long flags;
@@ -638,14 +626,6 @@ void rtllib_stop_send_beacons(struct rtllib_device *ieee)
 		rtllib_beacons_stop(ieee);
 }
 EXPORT_SYMBOL(rtllib_stop_send_beacons);
-
-void rtllib_start_send_beacons(struct rtllib_device *ieee)
-{
-	ieee->start_send_beacons(ieee->dev);
-	if (ieee->softmac_features & IEEE_SOFTMAC_BEACONS)
-		rtllib_beacons_start(ieee);
-}
-EXPORT_SYMBOL(rtllib_start_send_beacons);
 
 static void rtllib_softmac_stop_scan(struct rtllib_device *ieee)
 {
@@ -2189,116 +2169,6 @@ static void rtllib_start_monitor_mode(struct rtllib_device *ieee)
 		netif_carrier_on(ieee->dev);
 }
 
-static void rtllib_start_ibss_wq(void *data)
-{
-	struct rtllib_device *ieee = container_of_dwork_rsl(data,
-				     struct rtllib_device, start_ibss_wq);
-	/* iwconfig mode ad-hoc will schedule this and return
-	 * on the other hand this will block further iwconfig SET
-	 * operations because of the wx_mutex hold.
-	 * Anyway some most set operations set a flag to speed-up
-	 * (abort) this wq (when syncro scanning) before sleeping
-	 * on the mutex
-	 */
-	if (!ieee->proto_started) {
-		netdev_info(ieee->dev, "==========oh driver down return\n");
-		return;
-	}
-	mutex_lock(&ieee->wx_mutex);
-
-	if (ieee->current_network.ssid_len == 0) {
-		strscpy(ieee->current_network.ssid, RTLLIB_DEFAULT_TX_ESSID,
-			sizeof(ieee->current_network.ssid));
-		ieee->current_network.ssid_len = strlen(RTLLIB_DEFAULT_TX_ESSID);
-		ieee->ssid_set = 1;
-	}
-
-	ieee->link_state = MAC80211_NOLINK;
-	ieee->mode = WIRELESS_MODE_G;
-	/* check if we have this cell in our network list */
-	rtllib_softmac_check_all_nets(ieee);
-
-	/* if not then the state is not linked. Maybe the user switched to
-	 * ad-hoc mode just after being in monitor mode, or just after
-	 * being very few time in managed mode (so the card have had no
-	 * time to scan all the chans..) or we have just run up the iface
-	 * after setting ad-hoc mode. So we have to give another try..
-	 * Here, in ibss mode, should be safe to do this without extra care
-	 * (in bss mode we had to make sure no-one tried to associate when
-	 * we had just checked the ieee->link_state and we was going to start the
-	 * scan) because in ibss mode the rtllib_new_net function, when
-	 * finds a good net, just set the ieee->link_state to MAC80211_LINKED,
-	 * so, at worst, we waste a bit of time to initiate an unneeded syncro
-	 * scan, that will stop at the first round because it sees the state
-	 * associated.
-	 */
-	if (ieee->link_state == MAC80211_NOLINK)
-		rtllib_start_scan_syncro(ieee);
-
-	/* the network definitively is not here.. create a new cell */
-	if (ieee->link_state == MAC80211_NOLINK) {
-		netdev_info(ieee->dev, "creating new IBSS cell\n");
-		ieee->current_network.channel = ieee->bss_start_channel;
-		if (!ieee->wap_set)
-			eth_random_addr(ieee->current_network.bssid);
-
-		ieee->current_network.rates_len = 4;
-		ieee->current_network.rates[0] =
-			RTLLIB_BASIC_RATE_MASK | RTLLIB_CCK_RATE_1MB;
-		ieee->current_network.rates[1] =
-			RTLLIB_BASIC_RATE_MASK | RTLLIB_CCK_RATE_2MB;
-		ieee->current_network.rates[2] =
-			RTLLIB_BASIC_RATE_MASK | RTLLIB_CCK_RATE_5MB;
-		ieee->current_network.rates[3] =
-			RTLLIB_BASIC_RATE_MASK | RTLLIB_CCK_RATE_11MB;
-
-		ieee->current_network.rates_ex_len = 8;
-		ieee->current_network.rates_ex[0] =
-			RTLLIB_OFDM_RATE_6MB;
-		ieee->current_network.rates_ex[1] =
-			RTLLIB_OFDM_RATE_9MB;
-		ieee->current_network.rates_ex[2] =
-			RTLLIB_OFDM_RATE_12MB;
-		ieee->current_network.rates_ex[3] =
-			RTLLIB_OFDM_RATE_18MB;
-		ieee->current_network.rates_ex[4] =
-			RTLLIB_OFDM_RATE_24MB;
-		ieee->current_network.rates_ex[5] =
-			RTLLIB_OFDM_RATE_36MB;
-		ieee->current_network.rates_ex[6] =
-			RTLLIB_OFDM_RATE_48MB;
-		ieee->current_network.rates_ex[7] =
-			RTLLIB_OFDM_RATE_54MB;
-		ieee->rate = 108;
-
-		ieee->current_network.qos_data.supported = 0;
-		ieee->set_wireless_mode(ieee->dev, WIRELESS_MODE_G);
-		ieee->current_network.mode = ieee->mode;
-		ieee->current_network.atim_window = 0;
-		ieee->current_network.capability = WLAN_CAPABILITY_IBSS;
-	}
-
-	netdev_info(ieee->dev, "%s(): ieee->mode = %d\n", __func__, ieee->mode);
-	if (ieee->mode == WIRELESS_MODE_N_24G)
-		HTUseDefaultSetting(ieee);
-	else
-		ieee->ht_info->bCurrentHTSupport = false;
-
-	ieee->SetHwRegHandler(ieee->dev, HW_VAR_MEDIA_STATUS,
-			      (u8 *)(&ieee->link_state));
-
-	ieee->link_state = MAC80211_LINKED;
-	ieee->link_change(ieee->dev);
-
-	HTSetConnectBwMode(ieee, HT_CHANNEL_WIDTH_20, HT_EXTCHNL_OFFSET_NO_EXT);
-	rtllib_start_send_beacons(ieee);
-
-	notify_wx_assoc_event(ieee);
-	netif_carrier_on(ieee->dev);
-
-	mutex_unlock(&ieee->wx_mutex);
-}
-
 /* this is called only in user context, with wx_mutex held */
 static void rtllib_start_bss(struct rtllib_device *ieee)
 {
@@ -2459,7 +2329,6 @@ void rtllib_stop_protocol(struct rtllib_device *ieee, u8 shutdown)
 	rtllib_stop_send_beacons(ieee);
 	del_timer_sync(&ieee->associate_timer);
 	cancel_delayed_work_sync(&ieee->associate_retry_wq);
-	cancel_delayed_work_sync(&ieee->start_ibss_wq);
 	cancel_delayed_work_sync(&ieee->link_change_wq);
 	rtllib_stop_scan(ieee);
 
@@ -2593,7 +2462,6 @@ int rtllib_softmac_init(struct rtllib_device *ieee)
 	timer_setup(&ieee->beacon_timer, rtllib_send_beacon_cb, 0);
 
 	INIT_DELAYED_WORK(&ieee->link_change_wq, (void *)rtllib_link_change_wq);
-	INIT_DELAYED_WORK(&ieee->start_ibss_wq, (void *)rtllib_start_ibss_wq);
 	INIT_WORK(&ieee->associate_complete_wq, (void *)rtllib_associate_complete_wq);
 	INIT_DELAYED_WORK(&ieee->associate_procedure_wq, (void *)rtllib_associate_procedure_wq);
 	INIT_DELAYED_WORK(&ieee->softmac_scan_wq, (void *)rtllib_softmac_scan_wq);
@@ -2622,7 +2490,6 @@ void rtllib_softmac_free(struct rtllib_device *ieee)
 	cancel_delayed_work_sync(&ieee->associate_retry_wq);
 	cancel_delayed_work_sync(&ieee->associate_procedure_wq);
 	cancel_delayed_work_sync(&ieee->softmac_scan_wq);
-	cancel_delayed_work_sync(&ieee->start_ibss_wq);
 	cancel_delayed_work_sync(&ieee->hw_wakeup_wq);
 	cancel_delayed_work_sync(&ieee->hw_sleep_wq);
 	cancel_delayed_work_sync(&ieee->link_change_wq);

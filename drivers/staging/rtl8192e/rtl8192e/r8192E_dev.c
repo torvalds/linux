@@ -18,30 +18,6 @@
 static int WDCAPARA_ADD[] = {EDCAPARA_BE, EDCAPARA_BK, EDCAPARA_VI,
 			     EDCAPARA_VO};
 
-void rtl92e_start_beacon(struct net_device *dev)
-{
-	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
-	struct rtllib_network *net = &priv->rtllib->current_network;
-	u16 BcnTimeCfg = 0;
-	u16 BcnCW = 6;
-	u16 BcnIFS = 0xf;
-
-	rtl92e_irq_disable(dev);
-
-	rtl92e_writew(dev, ATIMWND, 2);
-
-	rtl92e_writew(dev, BCN_INTERVAL, net->beacon_interval);
-	rtl92e_writew(dev, BCN_DRV_EARLY_INT, 10);
-	rtl92e_writew(dev, BCN_DMATIME, 256);
-
-	rtl92e_writeb(dev, BCN_ERR_THRESH, 100);
-
-	BcnTimeCfg |= BcnCW << BCN_TCFG_CW_SHIFT;
-	BcnTimeCfg |= BcnIFS << BCN_TCFG_IFS;
-	rtl92e_writew(dev, BCN_TCFG, BcnTimeCfg);
-	rtl92e_irq_enable(dev);
-}
-
 static void _rtl92e_update_msr(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
