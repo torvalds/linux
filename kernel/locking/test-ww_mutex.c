@@ -465,17 +465,18 @@ retry:
 			ww_mutex_unlock(&locks[order[n]]);
 
 		if (err == -EDEADLK) {
-			ww_mutex_lock_slow(&locks[order[contended]], &ctx);
-			goto retry;
+			if (!time_after(jiffies, stress->timeout)) {
+				ww_mutex_lock_slow(&locks[order[contended]], &ctx);
+				goto retry;
+			}
 		}
 
+		ww_acquire_fini(&ctx);
 		if (err) {
 			pr_err_once("stress (%s) failed with %d\n",
 				    __func__, err);
 			break;
 		}
-
-		ww_acquire_fini(&ctx);
 	} while (!time_after(jiffies, stress->timeout));
 
 	kfree(order);
