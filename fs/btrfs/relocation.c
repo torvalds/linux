@@ -183,13 +183,6 @@ static void mark_block_processed(struct reloc_control *rc,
 	node->processed = 1;
 }
 
-
-static void mapping_tree_init(struct mapping_tree *tree)
-{
-	tree->rb_root = RB_ROOT;
-	spin_lock_init(&tree->lock);
-}
-
 /*
  * walk up backref nodes until reach node presents tree root
  */
@@ -4024,7 +4017,8 @@ static struct reloc_control *alloc_reloc_control(struct btrfs_fs_info *fs_info)
 	INIT_LIST_HEAD(&rc->reloc_roots);
 	INIT_LIST_HEAD(&rc->dirty_subvol_roots);
 	btrfs_backref_init_cache(fs_info, &rc->backref_cache, 1);
-	mapping_tree_init(&rc->reloc_root_tree);
+	rc->reloc_root_tree.rb_root = RB_ROOT;
+	spin_lock_init(&rc->reloc_root_tree.lock);
 	extent_io_tree_init(fs_info, &rc->processed_blocks, IO_TREE_RELOC_BLOCKS);
 	return rc;
 }
