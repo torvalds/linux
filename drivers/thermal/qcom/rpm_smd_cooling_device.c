@@ -198,5 +198,5 @@ static struct platform_driver rpm_smd_cdev_driver = {
 };
 
 module_platform_driver(rpm_smd_cdev_driver);
-MODULE_DESCRIPTION(RPM shared memory cooling device);
+MODULE_DESCRIPTION("RPM shared memory cooling device");
 MODULE_LICENSE("GPL");

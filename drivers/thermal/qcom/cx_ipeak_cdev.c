@@ -253,5 +253,5 @@ static struct platform_driver cxip_lm_cdev_driver = {
 	.remove = cxip_lm_cdev_remove,
 };
 module_platform_driver(cxip_lm_cdev_driver);
-MODULE_DESCRIPTION(CX IPEAK cooling device driver);
+MODULE_DESCRIPTION("CX IPEAK cooling device driver");
 MODULE_LICENSE("GPL");
