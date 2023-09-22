@@ -127,7 +127,7 @@ void extent_io_tree_release(struct extent_io_tree *tree)
 		/*
 		 * No need for a memory barrier here, as we are holding the tree
 		 * lock and we only change the waitqueue while holding that lock
-		 * (see wait_on_state()).
+		 * (see wait_extent_bit()).
 		 */
 		ASSERT(!waitqueue_active(&state->wq));
 		free_extent_state(state);
@@ -748,19 +748,6 @@ out:
 
 }
 
-static void wait_on_state(struct extent_io_tree *tree,
-			  struct extent_state *state)
-		__releases(tree->lock)
-		__acquires(tree->lock)
-{
-	DEFINE_WAIT(wait);
-	prepare_to_wait(&state->wq, &wait, TASK_UNINTERRUPTIBLE);
-	spin_unlock(&tree->lock);
-	schedule();
-	spin_lock(&tree->lock);
-	finish_wait(&state->wq, &wait);
-}
-
 /*
  * Wait for one or more bits to clear on a range in the state tree.
  * The range [start, end] is inclusive.
@@ -798,9 +785,15 @@ process_node:
 			goto out;
 
 		if (state->state & bits) {
+			DEFINE_WAIT(wait);
+
 			start = state->start;
 			refcount_inc(&state->refs);
-			wait_on_state(tree, state);
+			prepare_to_wait(&state->wq, &wait, TASK_UNINTERRUPTIBLE);
+			spin_unlock(&tree->lock);
+			schedule();
+			spin_lock(&tree->lock);
+			finish_wait(&state->wq, &wait);
 			free_extent_state(state);
 			goto again;
 		}
