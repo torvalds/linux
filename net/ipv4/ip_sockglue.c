@@ -1039,6 +1039,17 @@ int do_ip_setsockopt(struct sock *sk, int level, int optname,
 
 		WRITE_ONCE(inet->min_ttl, val);
 		return 0;
+	case IP_MULTICAST_TTL:
+		if (sk->sk_type == SOCK_STREAM)
+			return -EINVAL;
+		if (optlen < 1)
+			return -EINVAL;
+		if (val == -1)
+			val = 1;
+		if (val < 0 || val > 255)
+			return -EINVAL;
+		WRITE_ONCE(inet->mc_ttl, val);
+		return 0;
 	}
 
 	err = 0;
@@ -1100,17 +1111,6 @@ int do_ip_setsockopt(struct sock *sk, int level, int optname,
 		if (val < IP_PMTUDISC_DONT || val > IP_PMTUDISC_OMIT)
 			goto e_inval;
 		inet->pmtudisc = val;
-		break;
-	case IP_MULTICAST_TTL:
-		if (sk->sk_type == SOCK_STREAM)
-			goto e_inval;
-		if (optlen < 1)
-			goto e_inval;
-		if (val == -1)
-			val = 1;
-		if (val < 0 || val > 255)
-			goto e_inval;
-		inet->mc_ttl = val;
 		break;
 	case IP_UNICAST_IF:
 	{
@@ -1592,6 +1592,9 @@ int do_ip_getsockopt(struct sock *sk, int level, int optname,
 	case IP_MINTTL:
 		val = READ_ONCE(inet->min_ttl);
 		goto copyval;
+	case IP_MULTICAST_TTL:
+		val = READ_ONCE(inet->mc_ttl);
+		goto copyval;
 	}
 
 	if (needs_rtnl)
@@ -1649,9 +1652,6 @@ int do_ip_getsockopt(struct sock *sk, int level, int optname,
 		}
 		break;
 	}
-	case IP_MULTICAST_TTL:
-		val = inet->mc_ttl;
-		break;
 	case IP_UNICAST_IF:
 		val = (__force int)htonl((__u32) inet->uc_index);
 		break;
@@ -1718,7 +1718,8 @@ int do_ip_getsockopt(struct sock *sk, int level, int optname,
 			put_cmsg(&msg, SOL_IP, IP_PKTINFO, sizeof(info), &info);
 		}
 		if (inet_test_bit(TTL, sk)) {
-			int hlim = inet->mc_ttl;
+			int hlim = READ_ONCE(inet->mc_ttl);
+
 			put_cmsg(&msg, SOL_IP, IP_TTL, sizeof(hlim), &hlim);
 		}
 		if (inet_test_bit(TOS, sk)) {
