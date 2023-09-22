@@ -249,7 +249,7 @@ static inline struct folio *hugetlb_swap_entry_to_folio(swp_entry_t entry)
 }
 
 void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
-			    pte_t *ptep, pte_t pte)
+			    pte_t *ptep, pte_t pte, unsigned long sz)
 {
 	size_t pgsize;
 	int i;
@@ -571,5 +571,7 @@ pte_t huge_ptep_modify_prot_start(struct vm_area_struct *vma, unsigned long addr
 void huge_ptep_modify_prot_commit(struct vm_area_struct *vma, unsigned long addr, pte_t *ptep,
 				  pte_t old_pte, pte_t pte)
 {
-	set_huge_pte_at(vma->vm_mm, addr, ptep, pte);
+	unsigned long psize = huge_page_size(hstate_vma(vma));
+
+	set_huge_pte_at(vma->vm_mm, addr, ptep, pte, psize);
 }
