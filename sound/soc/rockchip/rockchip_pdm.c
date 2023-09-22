@@ -569,7 +569,20 @@ static int rockchip_pdm_filter_delay_put(struct snd_kcontrol *kcontrol,
 	return 1;
 }
 
+static const char * const rpaths_text[] = {
+	"From SDI0", "From SDI1", "From SDI2", "From SDI3" };
+
+static SOC_ENUM_SINGLE_DECL(rpath3_enum, PDM_CLK_CTRL, 14, rpaths_text);
+static SOC_ENUM_SINGLE_DECL(rpath2_enum, PDM_CLK_CTRL, 12, rpaths_text);
+static SOC_ENUM_SINGLE_DECL(rpath1_enum, PDM_CLK_CTRL, 10, rpaths_text);
+static SOC_ENUM_SINGLE_DECL(rpath0_enum, PDM_CLK_CTRL, 8, rpaths_text);
+
 static const struct snd_kcontrol_new rockchip_pdm_controls[] = {
+	SOC_ENUM("Receive PATH3 Source Select", rpath3_enum),
+	SOC_ENUM("Receive PATH2 Source Select", rpath2_enum),
+	SOC_ENUM("Receive PATH1 Source Select", rpath1_enum),
+	SOC_ENUM("Receive PATH0 Source Select", rpath0_enum),
+
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_PCM,
 		.name = "PDM Start Delay Ms",
