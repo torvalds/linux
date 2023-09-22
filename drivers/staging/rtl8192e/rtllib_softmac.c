@@ -901,8 +901,6 @@ static struct sk_buff *rtllib_probe_resp(struct rtllib_device *ieee,
 	}
 
 	if (wpa_ie_len) {
-		if (ieee->iw_mode == IW_MODE_ADHOC)
-			memcpy(&ieee->wpa_ie[14], &ieee->wpa_ie[8], 4);
 		memcpy(tag, ieee->wpa_ie, ieee->wpa_ie_len);
 		tag += ieee->wpa_ie_len;
 	}
@@ -1437,14 +1435,7 @@ inline void rtllib_softmac_new_net(struct rtllib_device *ieee,
 	    WLAN_CAPABILITY_ESS))
 		return;
 
-	if ((ieee->iw_mode == IW_MODE_ADHOC) && !(net->capability &
-	     WLAN_CAPABILITY_IBSS))
-		return;
-
-	if ((ieee->iw_mode == IW_MODE_ADHOC) &&
-	    (net->channel > ieee->ibss_maxjoin_chal))
-		return;
-	if (ieee->iw_mode == IW_MODE_INFRA || ieee->iw_mode == IW_MODE_ADHOC) {
+	if (ieee->iw_mode == IW_MODE_INFRA) {
 		/* if the user specified the AP MAC, we need also the essid
 		 * This could be obtained by beacons or, if the network does not
 		 * broadcast it, it can be put manually.
@@ -2308,11 +2299,6 @@ static void rtllib_start_ibss_wq(void *data)
 	mutex_unlock(&ieee->wx_mutex);
 }
 
-inline void rtllib_start_ibss(struct rtllib_device *ieee)
-{
-	schedule_delayed_work(&ieee->start_ibss_wq, msecs_to_jiffies(150));
-}
-
 /* this is called only in user context, with wx_mutex held */
 static void rtllib_start_bss(struct rtllib_device *ieee)
 {
@@ -2546,9 +2532,6 @@ void rtllib_start_protocol(struct rtllib_device *ieee)
 	case IW_MODE_INFRA:
 		rtllib_start_bss(ieee);
 		break;
-	case IW_MODE_ADHOC:
-		rtllib_start_ibss(ieee);
-		break;
 	case IW_MODE_MONITOR:
 		rtllib_start_monitor_mode(ieee);
 		break;
@@ -2745,30 +2728,6 @@ u8 rtllib_ap_sec_type(struct rtllib_device *ieee)
 	}
 }
 
-static void rtllib_MgntDisconnectIBSS(struct rtllib_device *rtllib)
-{
-	u8	OpMode;
-	u8	i;
-	bool	bFilterOutNonAssociatedBSSID = false;
-
-	rtllib->link_state = MAC80211_NOLINK;
-
-	for (i = 0; i < 6; i++)
-		rtllib->current_network.bssid[i] = 0x55;
-
-	rtllib->OpMode = RT_OP_MODE_NO_LINK;
-	rtllib->SetHwRegHandler(rtllib->dev, HW_VAR_BSSID,
-				rtllib->current_network.bssid);
-	OpMode = RT_OP_MODE_NO_LINK;
-	rtllib->SetHwRegHandler(rtllib->dev, HW_VAR_MEDIA_STATUS, &OpMode);
-	rtllib_stop_send_beacons(rtllib);
-
-	bFilterOutNonAssociatedBSSID = false;
-	rtllib->SetHwRegHandler(rtllib->dev, HW_VAR_CECHK_BSSID,
-				(u8 *)(&bFilterOutNonAssociatedBSSID));
-	notify_wx_assoc_event(rtllib);
-}
-
 static void rtllib_MlmeDisassociateRequest(struct rtllib_device *rtllib,
 					   u8 *asSta, u8 asRsn)
 {
@@ -2816,8 +2775,6 @@ bool rtllib_MgntDisconnect(struct rtllib_device *rtllib, u8 asRsn)
 		rtllib->sta_wake_up(rtllib->dev);
 
 	if (rtllib->link_state == MAC80211_LINKED) {
-		if (rtllib->iw_mode == IW_MODE_ADHOC)
-			rtllib_MgntDisconnectIBSS(rtllib);
 		if (rtllib->iw_mode == IW_MODE_INFRA)
 			rtllib_MgntDisconnectAP(rtllib, asRsn);
 	}
