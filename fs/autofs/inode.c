@@ -167,17 +167,83 @@ static int autofs_parse_fd(struct autofs_sb_info *sbi, int fd)
 	return 0;
 }
 
-static int parse_options(char *options,
-			 struct inode *root, int *pgrp, bool *pgrp_set,
-			 struct autofs_sb_info *sbi)
+static int autofs_parse_param(char *optstr, struct inode *root,
+			      int *pgrp, bool *pgrp_set,
+			      struct autofs_sb_info *sbi)
 {
-	char *p;
 	substring_t args[MAX_OPT_ARGS];
 	int option;
 	int pipefd = -1;
 	kuid_t uid;
 	kgid_t gid;
+	int token;
 	int ret;
+
+	token = match_token(optstr, tokens, args);
+	switch (token) {
+	case Opt_fd:
+		if (match_int(args, &pipefd))
+			return 1;
+		ret = autofs_parse_fd(sbi, pipefd);
+		if (ret)
+			return 1;
+		break;
+	case Opt_uid:
+		if (match_int(args, &option))
+			return 1;
+		uid = make_kuid(current_user_ns(), option);
+		if (!uid_valid(uid))
+			return 1;
+		root->i_uid = uid;
+		break;
+	case Opt_gid:
+		if (match_int(args, &option))
+			return 1;
+		gid = make_kgid(current_user_ns(), option);
+		if (!gid_valid(gid))
+			return 1;
+		root->i_gid = gid;
+		break;
+	case Opt_pgrp:
+		if (match_int(args, &option))
+			return 1;
+		*pgrp = option;
+		*pgrp_set = true;
+		break;
+	case Opt_minproto:
+		if (match_int(args, &option))
+			return 1;
+		sbi->min_proto = option;
+		break;
+	case Opt_maxproto:
+		if (match_int(args, &option))
+			return 1;
+		sbi->max_proto = option;
+		break;
+	case Opt_indirect:
+		set_autofs_type_indirect(&sbi->type);
+		break;
+	case Opt_direct:
+		set_autofs_type_direct(&sbi->type);
+		break;
+	case Opt_offset:
+		set_autofs_type_offset(&sbi->type);
+		break;
+	case Opt_strictexpire:
+		sbi->flags |= AUTOFS_SBI_STRICTEXPIRE;
+		break;
+	case Opt_ignore:
+		sbi->flags |= AUTOFS_SBI_IGNORE;
+	}
+
+	return 0;
+}
+
+static int parse_options(char *options,
+			 struct inode *root, int *pgrp, bool *pgrp_set,
+			 struct autofs_sb_info *sbi)
+{
+	char *p;
 
 	root->i_uid = current_uid();
 	root->i_gid = current_gid();
@@ -186,71 +252,13 @@ static int parse_options(char *options,
 		return 1;
 
 	while ((p = strsep(&options, ",")) != NULL) {
-		int token;
-
 		if (!*p)
 			continue;
 
-		token = match_token(p, tokens, args);
-		switch (token) {
-		case Opt_fd:
-			if (match_int(args, &pipefd))
-				return 1;
-			ret = autofs_parse_fd(sbi, pipefd);
-			if (ret)
-				return 1;
-			break;
-		case Opt_uid:
-			if (match_int(args, &option))
-				return 1;
-			uid = make_kuid(current_user_ns(), option);
-			if (!uid_valid(uid))
-				return 1;
-			root->i_uid = uid;
-			break;
-		case Opt_gid:
-			if (match_int(args, &option))
-				return 1;
-			gid = make_kgid(current_user_ns(), option);
-			if (!gid_valid(gid))
-				return 1;
-			root->i_gid = gid;
-			break;
-		case Opt_pgrp:
-			if (match_int(args, &option))
-				return 1;
-			*pgrp = option;
-			*pgrp_set = true;
-			break;
-		case Opt_minproto:
-			if (match_int(args, &option))
-				return 1;
-			sbi->min_proto = option;
-			break;
-		case Opt_maxproto:
-			if (match_int(args, &option))
-				return 1;
-			sbi->max_proto = option;
-			break;
-		case Opt_indirect:
-			set_autofs_type_indirect(&sbi->type);
-			break;
-		case Opt_direct:
-			set_autofs_type_direct(&sbi->type);
-			break;
-		case Opt_offset:
-			set_autofs_type_offset(&sbi->type);
-			break;
-		case Opt_strictexpire:
-			sbi->flags |= AUTOFS_SBI_STRICTEXPIRE;
-			break;
-		case Opt_ignore:
-			sbi->flags |= AUTOFS_SBI_IGNORE;
-			break;
-		default:
+		if (autofs_parse_param(p, root, pgrp, pgrp_set, sbi))
 			return 1;
-		}
 	}
+
 	return (sbi->pipefd < 0);
 }
 
