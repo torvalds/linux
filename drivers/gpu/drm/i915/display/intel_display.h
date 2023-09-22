@@ -190,8 +190,6 @@ enum aux_ch {
 	AUX_CH_E_XELPD,
 };
 
-#define aux_ch_name(a) ((a) + 'A')
-
 enum phy {
 	PHY_NONE = -1,
 
