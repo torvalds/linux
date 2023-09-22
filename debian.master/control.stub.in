@@ -39,7 +39,7 @@ Build-Depends:
  curl <!stage1>,
  zstd <!stage1>,
  pahole [amd64 arm64 armhf ppc64el s390x riscv64] | dwarves (>= 1.21) [amd64 arm64 armhf ppc64el s390x riscv64] <!stage1>,
- libstdc++-dev,
+ libstdc++-12-dev,
 Build-Depends-Indep:
  xmlto <!stage1>,
  docbook-utils <!stage1>,

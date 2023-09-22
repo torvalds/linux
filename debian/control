@@ -45,8 +45,11 @@ Build-Depends:
  rust-1.62-src [amd64],
  rustfmt-1.62 [amd64],
  bindgen-0.56 [amd64],
+<<<<<<< HEAD
  llvm-15 [amd64],
  clang-15 [amd64],
+=======
+>>>>>>> 338f4e6447cf (fix(debian): define libstdc++-12-dev)
  libstdc++-12-dev,
 Build-Depends-Indep:
  xmlto <!stage1>,
