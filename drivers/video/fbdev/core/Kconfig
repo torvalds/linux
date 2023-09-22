@@ -28,7 +28,7 @@ config FIRMWARE_EDID
 config FB_DEVICE
 	bool "Provide legacy /dev/fb* device"
 	depends on FB_CORE
-	default y
+	default FB
 	help
 	  Say Y here if you want the legacy /dev/fb* device file and
 	  interfaces within sysfs anc procfs. It is only required if you
