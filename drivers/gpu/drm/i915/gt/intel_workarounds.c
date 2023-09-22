@@ -2941,6 +2941,11 @@ general_render_compute_wa_init(struct intel_engine_cs *engine, struct i915_wa_li
 			   true);
 	}
 
+	if (IS_DG2_G10(i915) || IS_DG2_G12(i915)) {
+		/* Wa_18028616096 */
+		wa_mcr_write_or(wal, LSC_CHICKEN_BIT_0_UDW, UGM_FRAGMENT_THRESHOLD_TO_3);
+	}
+
 	if (IS_XEHPSDV(i915)) {
 		/* Wa_1409954639 */
 		wa_mcr_masked_en(wal,
