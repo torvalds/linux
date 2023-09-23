@@ -271,14 +271,12 @@ static void rkisp1_rsz_config(struct rkisp1_resizer *rsz,
 {
 	const struct rkisp1_rsz_yuv_mbus_info *sink_yuv_info, *src_yuv_info;
 	const struct v4l2_mbus_framefmt *src_fmt, *sink_fmt;
-	const struct v4l2_rect *sink_crop;
-	struct v4l2_rect sink_y, sink_c;
+	const struct v4l2_rect *sink_y;
 	struct v4l2_area src_y, src_c;
+	struct v4l2_rect sink_c;
 
 	sink_fmt = v4l2_subdev_get_pad_format(&rsz->sd, sd_state,
 					      RKISP1_RSZ_PAD_SINK);
-	sink_crop = v4l2_subdev_get_pad_crop(&rsz->sd, sd_state,
-					     RKISP1_RSZ_PAD_SINK);
 	src_fmt = v4l2_subdev_get_pad_format(&rsz->sd, sd_state,
 					     RKISP1_RSZ_PAD_SRC);
 
@@ -294,13 +292,13 @@ static void rkisp1_rsz_config(struct rkisp1_resizer *rsz,
 		return;
 	}
 
-	sink_y.width = sink_crop->width;
-	sink_y.height = sink_crop->height;
+	sink_y = v4l2_subdev_get_pad_crop(&rsz->sd, sd_state,
+					  RKISP1_RSZ_PAD_SINK);
+	sink_c.width = sink_y->width / sink_yuv_info->hdiv;
+	sink_c.height = sink_y->height / sink_yuv_info->vdiv;
+
 	src_y.width = src_fmt->width;
 	src_y.height = src_fmt->height;
-
-	sink_c.width = sink_y.width / sink_yuv_info->hdiv;
-	sink_c.height = sink_y.height / sink_yuv_info->vdiv;
 
 	/*
 	 * The resizer is used not only to change the dimensions of the frame
@@ -317,13 +315,13 @@ static void rkisp1_rsz_config(struct rkisp1_resizer *rsz,
 	}
 
 	dev_dbg(rsz->rkisp1->dev, "stream %d rsz/scale: %dx%d -> %dx%d\n",
-		rsz->id, sink_crop->width, sink_crop->height,
+		rsz->id, sink_y->width, sink_y->height,
 		src_fmt->width, src_fmt->height);
 	dev_dbg(rsz->rkisp1->dev, "chroma scaling %dx%d -> %dx%d\n",
 		sink_c.width, sink_c.height, src_c.width, src_c.height);
 
 	/* set values in the hw */
-	rkisp1_rsz_config_regs(rsz, &sink_y, &sink_c, &src_y, &src_c, when);
+	rkisp1_rsz_config_regs(rsz, sink_y, &sink_c, &src_y, &src_c, when);
 }
 
 /* ----------------------------------------------------------------------------
