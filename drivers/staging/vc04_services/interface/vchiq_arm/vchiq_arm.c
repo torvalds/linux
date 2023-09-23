@@ -12,6 +12,7 @@
 #include <linux/cdev.h>
 #include <linux/fs.h>
 #include <linux/device.h>
+#include <linux/device/bus.h>
 #include <linux/mm.h>
 #include <linux/highmem.h>
 #include <linux/pagemap.h>
@@ -33,6 +34,7 @@
 #include "vchiq_core.h"
 #include "vchiq_ioctl.h"
 #include "vchiq_arm.h"
+#include "vchiq_bus.h"
 #include "vchiq_debugfs.h"
 #include "vchiq_connected.h"
 #include "vchiq_pagelist.h"
@@ -1870,9 +1872,17 @@ static int __init vchiq_driver_init(void)
 {
 	int ret;
 
+	ret = bus_register(&vchiq_bus_type);
+	if (ret) {
+		pr_err("Failed to register %s\n", vchiq_bus_type.name);
+		return ret;
+	}
+
 	ret = platform_driver_register(&vchiq_driver);
-	if (ret)
+	if (ret) {
 		pr_err("Failed to register vchiq driver\n");
+		bus_unregister(&vchiq_bus_type);
+	}
 
 	return ret;
 }
@@ -1880,6 +1890,7 @@ module_init(vchiq_driver_init);
 
 static void __exit vchiq_driver_exit(void)
 {
+	bus_unregister(&vchiq_bus_type);
 	platform_driver_unregister(&vchiq_driver);
 }
 module_exit(vchiq_driver_exit);
