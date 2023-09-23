@@ -616,6 +616,16 @@ static const struct msm_pingroup msm8226_groups[] = {
 
 #define NUM_GPIO_PINGROUPS 117
 
+static const struct msm_gpio_wakeirq_map msm8226_mpm_map[] = {
+	{ 1, 3 }, { 4, 4 }, { 5, 5 }, { 9, 6 }, { 13, 7 }, { 17, 8 },
+	{ 21, 9 }, { 27, 10 }, { 29, 11 }, { 31, 12 }, { 33, 13 }, { 35, 14 },
+	{ 37, 15 }, { 38, 16 }, { 39, 17 }, { 41, 18 }, { 46, 19 }, { 48, 20 },
+	{ 49, 21 }, { 50, 22 }, { 51, 23 }, { 52, 24 }, { 54, 25 }, { 62, 26 },
+	{ 63, 27 }, { 64, 28 }, { 65, 29 }, { 66, 30 }, { 67, 31 }, { 68, 32 },
+	{ 69, 33 }, { 71, 34 }, { 72, 35 }, { 106, 36 }, { 107, 37 }, { 108, 38 },
+	{ 109, 39 }, { 110, 40 }, { 111, 54 }, { 113, 55 }, { 115, 41 },
+};
+
 static const struct msm_pinctrl_soc_data msm8226_pinctrl = {
 	.pins = msm8226_pins,
 	.npins = ARRAY_SIZE(msm8226_pins),
@@ -624,6 +634,8 @@ static const struct msm_pinctrl_soc_data msm8226_pinctrl = {
 	.groups = msm8226_groups,
 	.ngroups = ARRAY_SIZE(msm8226_groups),
 	.ngpios = NUM_GPIO_PINGROUPS,
+	.wakeirq_map = msm8226_mpm_map,
+	.nwakeirq_map = ARRAY_SIZE(msm8226_mpm_map),
 };
 
 static int msm8226_pinctrl_probe(struct platform_device *pdev)
