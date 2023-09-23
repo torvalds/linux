@@ -1206,7 +1206,7 @@ ia_css_debug_pipe_graph_dump_stage(
 		char enable_info1[100];
 		char enable_info2[100];
 		char enable_info3[100];
-		char enable_info[200];
+		char enable_info[302];
 		struct ia_css_binary_info *bi = stage->binary_info;
 
 		/* Split it in 2 function-calls to keep the amount of
