@@ -104,16 +104,6 @@ static const struct pca955x_chipdef pca955x_chipdefs[] = {
 	},
 };
 
-static const struct i2c_device_id pca955x_id[] = {
-	{ "pca9550", (kernel_ulong_t)&pca955x_chipdefs[pca9550] },
-	{ "pca9551", (kernel_ulong_t)&pca955x_chipdefs[pca9551] },
-	{ "pca9552", (kernel_ulong_t)&pca955x_chipdefs[pca9552] },
-	{ "ibm-pca9552", (kernel_ulong_t)&pca955x_chipdefs[ibm_pca9552] },
-	{ "pca9553", (kernel_ulong_t)&pca955x_chipdefs[pca9553] },
-	{ }
-};
-MODULE_DEVICE_TABLE(i2c, pca955x_id);
-
 struct pca955x {
 	struct mutex lock;
 	struct pca955x_led *leds;
@@ -457,16 +447,6 @@ pca955x_get_pdata(struct i2c_client *client, const struct pca955x_chipdef *chip)
 	return pdata;
 }
 
-static const struct of_device_id of_pca955x_match[] = {
-	{ .compatible = "nxp,pca9550", .data = &pca955x_chipdefs[pca9550] },
-	{ .compatible = "nxp,pca9551", .data = &pca955x_chipdefs[pca9551] },
-	{ .compatible = "nxp,pca9552", .data = &pca955x_chipdefs[pca9552] },
-	{ .compatible = "ibm,pca9552", .data = &pca955x_chipdefs[ibm_pca9552] },
-	{ .compatible = "nxp,pca9553", .data = &pca955x_chipdefs[pca9553] },
-	{},
-};
-MODULE_DEVICE_TABLE(of, of_pca955x_match);
-
 static int pca955x_probe(struct i2c_client *client)
 {
 	struct pca955x *pca955x;
@@ -649,6 +629,26 @@ static int pca955x_probe(struct i2c_client *client)
 
 	return 0;
 }
+
+static const struct i2c_device_id pca955x_id[] = {
+	{ "pca9550", (kernel_ulong_t)&pca955x_chipdefs[pca9550] },
+	{ "pca9551", (kernel_ulong_t)&pca955x_chipdefs[pca9551] },
+	{ "pca9552", (kernel_ulong_t)&pca955x_chipdefs[pca9552] },
+	{ "ibm-pca9552", (kernel_ulong_t)&pca955x_chipdefs[ibm_pca9552] },
+	{ "pca9553", (kernel_ulong_t)&pca955x_chipdefs[pca9553] },
+	{}
+};
+MODULE_DEVICE_TABLE(i2c, pca955x_id);
+
+static const struct of_device_id of_pca955x_match[] = {
+	{ .compatible = "nxp,pca9550", .data = &pca955x_chipdefs[pca9550] },
+	{ .compatible = "nxp,pca9551", .data = &pca955x_chipdefs[pca9551] },
+	{ .compatible = "nxp,pca9552", .data = &pca955x_chipdefs[pca9552] },
+	{ .compatible = "ibm,pca9552", .data = &pca955x_chipdefs[ibm_pca9552] },
+	{ .compatible = "nxp,pca9553", .data = &pca955x_chipdefs[pca9553] },
+	{}
+};
+MODULE_DEVICE_TABLE(of, of_pca955x_match);
 
 static struct i2c_driver pca955x_driver = {
 	.driver = {
