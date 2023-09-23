@@ -3475,13 +3475,11 @@ skip:
  */
 static vm_fault_t filemap_map_folio_range(struct vm_fault *vmf,
 			struct folio *folio, unsigned long start,
-			unsigned long addr, unsigned int nr_pages)
+			unsigned long addr, unsigned int nr_pages,
+			unsigned int *mmap_miss)
 {
 	vm_fault_t ret = 0;
-	struct vm_area_struct *vma = vmf->vma;
-	struct file *file = vma->vm_file;
 	struct page *page = folio_page(folio, start);
-	unsigned int mmap_miss = READ_ONCE(file->f_ra.mmap_miss);
 	unsigned int count = 0;
 	pte_t *old_ptep = vmf->pte;
 
@@ -3489,8 +3487,7 @@ static vm_fault_t filemap_map_folio_range(struct vm_fault *vmf,
 		if (PageHWPoison(page + count))
 			goto skip;
 
-		if (mmap_miss > 0)
-			mmap_miss--;
+		(*mmap_miss)++;
 
 		/*
 		 * NOTE: If there're PTE markers, we'll leave them to be
@@ -3525,7 +3522,35 @@ skip:
 	}
 
 	vmf->pte = old_ptep;
-	WRITE_ONCE(file->f_ra.mmap_miss, mmap_miss);
+
+	return ret;
+}
+
+static vm_fault_t filemap_map_order0_folio(struct vm_fault *vmf,
+		struct folio *folio, unsigned long addr,
+		unsigned int *mmap_miss)
+{
+	vm_fault_t ret = 0;
+	struct page *page = &folio->page;
+
+	if (PageHWPoison(page))
+		return ret;
+
+	(*mmap_miss)++;
+
+	/*
+	 * NOTE: If there're PTE markers, we'll leave them to be
+	 * handled in the specific fault path, and it'll prohibit
+	 * the fault-around logic.
+	 */
+	if (!pte_none(ptep_get(vmf->pte)))
+		return ret;
+
+	if (vmf->address == addr)
+		ret = VM_FAULT_NOPAGE;
+
+	set_pte_range(vmf, folio, page, 1, addr);
+	folio_ref_inc(folio);
 
 	return ret;
 }
@@ -3541,7 +3566,7 @@ vm_fault_t filemap_map_pages(struct vm_fault *vmf,
 	XA_STATE(xas, &mapping->i_pages, start_pgoff);
 	struct folio *folio;
 	vm_fault_t ret = 0;
-	int nr_pages = 0;
+	unsigned int nr_pages = 0, mmap_miss = 0, mmap_miss_saved;
 
 	rcu_read_lock();
 	folio = next_uptodate_folio(&xas, mapping, end_pgoff);
@@ -3569,25 +3594,27 @@ vm_fault_t filemap_map_pages(struct vm_fault *vmf,
 		end = folio->index + folio_nr_pages(folio) - 1;
 		nr_pages = min(end, end_pgoff) - xas.xa_index + 1;
 
-		/*
-		 * NOTE: If there're PTE markers, we'll leave them to be
-		 * handled in the specific fault path, and it'll prohibit the
-		 * fault-around logic.
-		 */
-		if (!pte_none(ptep_get(vmf->pte)))
-			goto unlock;
+		if (!folio_test_large(folio))
+			ret |= filemap_map_order0_folio(vmf,
+					folio, addr, &mmap_miss);
+		else
+			ret |= filemap_map_folio_range(vmf, folio,
+					xas.xa_index - folio->index, addr,
+					nr_pages, &mmap_miss);
 
-		ret |= filemap_map_folio_range(vmf, folio,
-				xas.xa_index - folio->index, addr, nr_pages);
-
-unlock:
 		folio_unlock(folio);
 		folio_put(folio);
-		folio = next_uptodate_folio(&xas, mapping, end_pgoff);
-	} while (folio);
+	} while ((folio = next_uptodate_folio(&xas, mapping, end_pgoff)) != NULL);
 	pte_unmap_unlock(vmf->pte, vmf->ptl);
 out:
 	rcu_read_unlock();
+
+	mmap_miss_saved = READ_ONCE(file->f_ra.mmap_miss);
+	if (mmap_miss >= mmap_miss_saved)
+		WRITE_ONCE(file->f_ra.mmap_miss, 0);
+	else
+		WRITE_ONCE(file->f_ra.mmap_miss, mmap_miss_saved - mmap_miss);
+
 	return ret;
 }
 EXPORT_SYMBOL(filemap_map_pages);
