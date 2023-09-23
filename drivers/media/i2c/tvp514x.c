@@ -118,7 +118,7 @@ struct tvp514x_decoder {
 	struct media_pad pad;
 	struct v4l2_mbus_framefmt format;
 
-	struct tvp514x_reg *int_seq;
+	const struct tvp514x_reg *int_seq;
 };
 
 /* TVP514x default register values */
@@ -1024,7 +1024,6 @@ done:
 static int
 tvp514x_probe(struct i2c_client *client)
 {
-	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct tvp514x_platform_data *pdata = tvp514x_get_pdata(client);
 	struct tvp514x_decoder *decoder;
 	struct v4l2_subdev *sd;
@@ -1049,7 +1048,7 @@ tvp514x_probe(struct i2c_client *client)
 	memcpy(decoder->tvp514x_regs, tvp514x_reg_list_default,
 			sizeof(tvp514x_reg_list_default));
 
-	decoder->int_seq = (struct tvp514x_reg *)id->driver_data;
+	decoder->int_seq = i2c_get_match_data(client);
 
 	/* Copy board specific information here */
 	decoder->pdata = pdata;
@@ -1183,22 +1182,21 @@ static const struct tvp514x_reg tvp514xm_init_reg_seq[] = {
  * driver_data - Driver data
  */
 static const struct i2c_device_id tvp514x_id[] = {
-	{"tvp5146", (unsigned long)tvp5146_init_reg_seq},
-	{"tvp5146m2", (unsigned long)tvp514xm_init_reg_seq},
-	{"tvp5147", (unsigned long)tvp5147_init_reg_seq},
-	{"tvp5147m1", (unsigned long)tvp514xm_init_reg_seq},
-	{},
+	{"tvp5146", (kernel_ulong_t)tvp5146_init_reg_seq },
+	{"tvp5146m2", (kernel_ulong_t)tvp514xm_init_reg_seq },
+	{"tvp5147", (kernel_ulong_t)tvp5147_init_reg_seq },
+	{"tvp5147m1", (kernel_ulong_t)tvp514xm_init_reg_seq },
+	{ /* sentinel */ }
 };
-
 MODULE_DEVICE_TABLE(i2c, tvp514x_id);
 
 #if IS_ENABLED(CONFIG_OF)
 static const struct of_device_id tvp514x_of_match[] = {
-	{ .compatible = "ti,tvp5146", },
-	{ .compatible = "ti,tvp5146m2", },
-	{ .compatible = "ti,tvp5147", },
-	{ .compatible = "ti,tvp5147m1", },
-	{ /* sentinel */ },
+	{ .compatible = "ti,tvp5146", .data = tvp5146_init_reg_seq },
+	{ .compatible = "ti,tvp5146m2", .data = tvp514xm_init_reg_seq },
+	{ .compatible = "ti,tvp5147", .data = tvp5147_init_reg_seq },
+	{ .compatible = "ti,tvp5147m1", .data = tvp514xm_init_reg_seq },
+	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, tvp514x_of_match);
 #endif
