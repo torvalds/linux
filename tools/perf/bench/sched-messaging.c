@@ -139,29 +139,11 @@ again:
 	return NULL;
 }
 
-static pthread_t create_worker(void *ctx, void *(*func)(void *))
+static void create_thread_worker(pthread_t *thread,
+				 void *ctx, void *(*func)(void *))
 {
 	pthread_attr_t attr;
-	pthread_t childid;
 	int ret;
-
-	if (!thread_mode) {
-		/* process mode */
-		/* Fork the receiver. */
-		switch (fork()) {
-		case -1:
-			err(EXIT_FAILURE, "fork()");
-			break;
-		case 0:
-			(*func) (ctx);
-			exit(0);
-			break;
-		default:
-			break;
-		}
-
-		return (pthread_t)0;
-	}
 
 	if (pthread_attr_init(&attr) != 0)
 		err(EXIT_FAILURE, "pthread_attr_init:");
@@ -171,12 +153,32 @@ static pthread_t create_worker(void *ctx, void *(*func)(void *))
 		err(EXIT_FAILURE, "pthread_attr_setstacksize");
 #endif
 
-	ret = pthread_create(&childid, &attr, func, ctx);
+	ret = pthread_create(thread, &attr, func, ctx);
 	if (ret != 0)
 		err(EXIT_FAILURE, "pthread_create failed");
 
 	pthread_attr_destroy(&attr);
-	return childid;
+}
+
+static void create_process_worker(void *ctx, void *(*func)(void *))
+{
+	/* Fork the receiver. */
+	pid_t pid = fork();
+
+	if (pid == -1) {
+		err(EXIT_FAILURE, "fork()");
+	} else if (pid == 0) {
+		(*func) (ctx);
+		exit(0);
+	}
+}
+
+static void create_worker(pthread_t *thread, void *ctx, void *(*func)(void *))
+{
+	if (!thread_mode)
+		return create_process_worker(ctx, func);
+	else
+		return create_thread_worker(thread, ctx, func);
 }
 
 static void reap_worker(pthread_t id)
@@ -226,7 +228,7 @@ static unsigned int group(pthread_t *pth,
 		ctx->ready_out = ready_out;
 		ctx->wakefd = wakefd;
 
-		pth[i] = create_worker(ctx, (void *)receiver);
+		create_worker(pth + i, ctx, (void *)receiver);
 
 		snd_ctx->out_fds[i] = fds[1];
 		if (!thread_mode)
@@ -239,7 +241,7 @@ static unsigned int group(pthread_t *pth,
 		snd_ctx->wakefd = wakefd;
 		snd_ctx->num_fds = num_fds;
 
-		pth[num_fds + i] = create_worker(snd_ctx, (void *)sender);
+		create_worker(pth + num_fds + i, snd_ctx, (void *)sender);
 	}
 
 	/* Close the fds we have left */
