@@ -98,7 +98,7 @@ static void *sender(struct sender_context *ctx)
 
 again:
 			ret = write(ctx->out_fds[j], data + done,
-				    sizeof(data)-done);
+				    sizeof(data) - done);
 			if (ret < 0)
 				err(EXIT_FAILURE, "SENDER: write");
 			done += ret;
@@ -201,8 +201,8 @@ static unsigned int group(pthread_t *pth,
 		int wakefd)
 {
 	unsigned int i;
-	struct sender_context *snd_ctx = malloc(sizeof(struct sender_context)
-			+ num_fds * sizeof(int));
+	struct sender_context *snd_ctx = malloc(sizeof(struct sender_context) +
+						num_fds * sizeof(int));
 
 	if (!snd_ctx)
 		err(EXIT_FAILURE, "malloc()");
@@ -239,7 +239,7 @@ static unsigned int group(pthread_t *pth,
 		snd_ctx->wakefd = wakefd;
 		snd_ctx->num_fds = num_fds;
 
-		pth[num_fds+i] = create_worker(snd_ctx, (void *)sender);
+		pth[num_fds + i] = create_worker(snd_ctx, (void *)sender);
 	}
 
 	/* Close the fds we have left */
@@ -288,7 +288,7 @@ int bench_sched_messaging(int argc, const char **argv)
 
 	total_children = 0;
 	for (i = 0; i < num_groups; i++)
-		total_children += group(pth_tab+total_children, num_fds,
+		total_children += group(pth_tab + total_children, num_fds,
 					readyfds[1], wakefds[0]);
 
 	/* Wait for everyone to be ready */
