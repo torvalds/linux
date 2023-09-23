@@ -559,6 +559,26 @@ int bch2_request_key(struct bch_sb *sb, struct bch_key *key)
 	return ret;
 }
 
+#ifndef __KERNEL__
+int bch2_revoke_key(struct bch_sb *sb)
+{
+	key_serial_t key_id;
+	struct printbuf key_description = PRINTBUF;
+
+	prt_printf(&key_description, "bcachefs:");
+	pr_uuid(&key_description, sb->user_uuid.b);
+
+	key_id = request_key("user", key_description.buf, NULL, KEY_SPEC_USER_KEYRING);
+	printbuf_exit(&key_description);
+	if (key_id < 0)
+		return errno;
+
+	keyctl_revoke(key_id);
+
+	return 0;
+}
+#endif
+
 int bch2_decrypt_sb_key(struct bch_fs *c,
 			struct bch_sb_field_crypt *crypt,
 			struct bch_key *key)

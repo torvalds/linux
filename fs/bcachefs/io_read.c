@@ -24,6 +24,8 @@
 #include "subvolume.h"
 #include "trace.h"
 
+#include <linux/sched/mm.h>
+
 #ifndef CONFIG_BCACHEFS_NO_LATENCY_ACCT
 
 static bool bch2_target_congested(struct bch_fs *c, u16 target)

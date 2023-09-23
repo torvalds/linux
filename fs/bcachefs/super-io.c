@@ -675,7 +675,7 @@ retry:
 
 #ifndef __KERNEL__
 	if (opt_get(*opts, direct_io) == false)
-		sb->mode |= FMODE_BUFFERED;
+		sb->mode |= BLK_OPEN_BUFFERED;
 #endif
 
 	if (!opt_get(*opts, noexcl))
