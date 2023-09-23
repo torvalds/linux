@@ -25,8 +25,11 @@ properties:
       - description: i.MX23 based Boards
         items:
           - enum:
+              - creative,x-fi3
               - fsl,imx23-evk
+              - fsl,stmp378x-devb
               - olimex,imx23-olinuxino
+              - sandisk,sansa_fuze_plus
           - const: fsl,imx23
 
       - description: i.MX25 Product Development Kit
