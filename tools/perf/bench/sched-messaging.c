@@ -55,6 +55,11 @@ struct receiver_context {
 	int wakefd;
 };
 
+union messaging_worker {
+	pthread_t thread;
+	pid_t pid;
+};
+
 static void fdpair(int fds[2])
 {
 	if (use_pipes) {
@@ -139,7 +144,7 @@ again:
 	return NULL;
 }
 
-static void create_thread_worker(pthread_t *thread,
+static void create_thread_worker(union messaging_worker *worker,
 				 void *ctx, void *(*func)(void *))
 {
 	pthread_attr_t attr;
@@ -153,35 +158,37 @@ static void create_thread_worker(pthread_t *thread,
 		err(EXIT_FAILURE, "pthread_attr_setstacksize");
 #endif
 
-	ret = pthread_create(thread, &attr, func, ctx);
+	ret = pthread_create(&worker->thread, &attr, func, ctx);
 	if (ret != 0)
 		err(EXIT_FAILURE, "pthread_create failed");
 
 	pthread_attr_destroy(&attr);
 }
 
-static void create_process_worker(void *ctx, void *(*func)(void *))
+static void create_process_worker(union messaging_worker *worker,
+				  void *ctx, void *(*func)(void *))
 {
 	/* Fork the receiver. */
-	pid_t pid = fork();
+	worker->pid = fork();
 
-	if (pid == -1) {
+	if (worker->pid == -1) {
 		err(EXIT_FAILURE, "fork()");
-	} else if (pid == 0) {
+	} else if (worker->pid == 0) {
 		(*func) (ctx);
 		exit(0);
 	}
 }
 
-static void create_worker(pthread_t *thread, void *ctx, void *(*func)(void *))
+static void create_worker(union messaging_worker *worker,
+			  void *ctx, void *(*func)(void *))
 {
 	if (!thread_mode)
-		return create_process_worker(ctx, func);
+		return create_process_worker(worker, ctx, func);
 	else
-		return create_thread_worker(thread, ctx, func);
+		return create_thread_worker(worker, ctx, func);
 }
 
-static void reap_worker(pthread_t id)
+static void reap_worker(union messaging_worker *worker)
 {
 	int proc_status;
 	void *thread_status;
@@ -192,12 +199,12 @@ static void reap_worker(pthread_t id)
 		if (!WIFEXITED(proc_status))
 			exit(1);
 	} else {
-		pthread_join(id, &thread_status);
+		pthread_join(worker->thread, &thread_status);
 	}
 }
 
 /* One group of senders and receivers */
-static unsigned int group(pthread_t *pth,
+static unsigned int group(union messaging_worker *worker,
 		unsigned int num_fds,
 		int ready_out,
 		int wakefd)
@@ -228,7 +235,7 @@ static unsigned int group(pthread_t *pth,
 		ctx->ready_out = ready_out;
 		ctx->wakefd = wakefd;
 
-		create_worker(pth + i, ctx, (void *)receiver);
+		create_worker(worker + i, ctx, (void *)receiver);
 
 		snd_ctx->out_fds[i] = fds[1];
 		if (!thread_mode)
@@ -241,7 +248,7 @@ static unsigned int group(pthread_t *pth,
 		snd_ctx->wakefd = wakefd;
 		snd_ctx->num_fds = num_fds;
 
-		create_worker(pth + num_fds + i, snd_ctx, (void *)sender);
+		create_worker(worker + num_fds + i, snd_ctx, (void *)sender);
 	}
 
 	/* Close the fds we have left */
@@ -275,14 +282,14 @@ int bench_sched_messaging(int argc, const char **argv)
 	unsigned int num_fds = 20;
 	int readyfds[2], wakefds[2];
 	char dummy;
-	pthread_t *pth_tab;
+	union messaging_worker *worker_tab;
 	struct sender_context *pos, *n;
 
 	argc = parse_options(argc, argv, options,
 			     bench_sched_message_usage, 0);
 
-	pth_tab = malloc(num_fds * 2 * num_groups * sizeof(pthread_t));
-	if (!pth_tab)
+	worker_tab = malloc(num_fds * 2 * num_groups * sizeof(union messaging_worker));
+	if (!worker_tab)
 		err(EXIT_FAILURE, "main:malloc()");
 
 	fdpair(readyfds);
@@ -290,7 +297,7 @@ int bench_sched_messaging(int argc, const char **argv)
 
 	total_children = 0;
 	for (i = 0; i < num_groups; i++)
-		total_children += group(pth_tab + total_children, num_fds,
+		total_children += group(worker_tab + total_children, num_fds,
 					readyfds[1], wakefds[0]);
 
 	/* Wait for everyone to be ready */
@@ -306,7 +313,7 @@ int bench_sched_messaging(int argc, const char **argv)
 
 	/* Reap them all */
 	for (i = 0; i < total_children; i++)
-		reap_worker(pth_tab[i]);
+		reap_worker(worker_tab + i);
 
 	gettimeofday(&stop, NULL);
 
@@ -334,7 +341,7 @@ int bench_sched_messaging(int argc, const char **argv)
 		break;
 	}
 
-	free(pth_tab);
+	free(worker_tab);
 	list_for_each_entry_safe(pos, n, &sender_contexts, list) {
 		list_del_init(&pos->list);
 		free(pos);
