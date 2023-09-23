@@ -36,6 +36,7 @@ static bool use_pipes = false;
 static unsigned int nr_loops = 100;
 static bool thread_mode = false;
 static unsigned int num_groups = 10;
+static unsigned int total_children = 0;
 static struct list_head sender_contexts = LIST_HEAD_INIT(sender_contexts);
 static struct list_head receiver_contexts = LIST_HEAD_INIT(receiver_contexts);
 
@@ -59,6 +60,8 @@ union messaging_worker {
 	pthread_t thread;
 	pid_t pid;
 };
+
+static union messaging_worker *worker_tab;
 
 static void fdpair(int fds[2])
 {
@@ -260,6 +263,17 @@ static unsigned int group(union messaging_worker *worker,
 	return num_fds * 2;
 }
 
+static void sig_handler(int sig __maybe_unused)
+{
+	unsigned int i;
+
+	/*
+	 * When exit abnormally, kill all forked child processes.
+	 */
+	for (i = 0; i < total_children; i++)
+		kill(worker_tab[i].pid, SIGKILL);
+}
+
 static const struct option options[] = {
 	OPT_BOOLEAN('p', "pipe", &use_pipes,
 		    "Use pipe() instead of socketpair()"),
@@ -277,12 +291,11 @@ static const char * const bench_sched_message_usage[] = {
 
 int bench_sched_messaging(int argc, const char **argv)
 {
-	unsigned int i, total_children;
+	unsigned int i;
 	struct timeval start, stop, diff;
 	unsigned int num_fds = 20;
 	int readyfds[2], wakefds[2];
 	char dummy;
-	union messaging_worker *worker_tab;
 	struct sender_context *pos, *n;
 
 	argc = parse_options(argc, argv, options,
@@ -295,7 +308,11 @@ int bench_sched_messaging(int argc, const char **argv)
 	fdpair(readyfds);
 	fdpair(wakefds);
 
-	total_children = 0;
+	if (!thread_mode) {
+		signal(SIGINT, sig_handler);
+		signal(SIGTERM, sig_handler);
+	}
+
 	for (i = 0; i < num_groups; i++)
 		total_children += group(worker_tab + total_children, num_fds,
 					readyfds[1], wakefds[0]);
