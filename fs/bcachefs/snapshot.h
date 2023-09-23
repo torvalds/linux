@@ -235,8 +235,6 @@ int bch2_snapshot_lookup(struct btree_trans *trans, u32 id,
 			 struct bch_snapshot *s);
 int bch2_snapshot_get_subvol(struct btree_trans *, u32,
 			     struct bch_subvolume *);
-int bch2_snapshot_live(struct btree_trans *trans, u32 id);
-int bch2_snapshot_set_equiv(struct btree_trans *trans, struct bkey_s_c k);
 
 /* only exported for tests: */
 int bch2_snapshot_node_create(struct btree_trans *, u32,

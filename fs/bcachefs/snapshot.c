@@ -343,7 +343,7 @@ int bch2_snapshot_lookup(struct btree_trans *trans, u32 id,
 				       BTREE_ITER_WITH_UPDATES, snapshot, s);
 }
 
-int bch2_snapshot_live(struct btree_trans *trans, u32 id)
+static int bch2_snapshot_live(struct btree_trans *trans, u32 id)
 {
 	struct bch_snapshot v;
 	int ret;
@@ -370,7 +370,7 @@ int bch2_snapshot_live(struct btree_trans *trans, u32 id)
  * it's part of such a linear chain: this correctly sets equivalence classes on
  * startup if we run leaf to root (i.e. in natural key order).
  */
-int bch2_snapshot_set_equiv(struct btree_trans *trans, struct bkey_s_c k)
+static int bch2_snapshot_set_equiv(struct btree_trans *trans, struct bkey_s_c k)
 {
 	struct bch_fs *c = trans->c;
 	unsigned i, nr_live = 0, live_idx = 0;
@@ -1071,6 +1071,10 @@ static int create_snapids(struct btree_trans *trans, u32 parent, u32 tree,
 			goto err;
 
 		new_snapids[i]	= iter.pos.offset;
+
+		mutex_lock(&c->snapshot_table_lock);
+		snapshot_t_mut(c, new_snapids[i])->equiv = new_snapids[i];
+		mutex_unlock(&c->snapshot_table_lock);
 	}
 err:
 	bch2_trans_iter_exit(trans, &iter);
