@@ -539,6 +539,9 @@ static int parse_create_response(struct cifs_open_info_data *data,
 	int rc = 0;
 
 	switch (rsp->hdr.Status) {
+	case STATUS_IO_REPARSE_TAG_NOT_HANDLED:
+		reparse_point = true;
+		break;
 	case STATUS_STOPPED_ON_SYMLINK:
 		rc = smb2_parse_symlink_response(cifs_sb, iov,
 						 &data->symlink_target);
