@@ -206,10 +206,10 @@ static void rkisp1_rsz_disable(struct rkisp1_resizer *rsz,
 }
 
 static void rkisp1_rsz_config_regs(struct rkisp1_resizer *rsz,
-				   struct v4l2_rect *sink_y,
-				   struct v4l2_rect *sink_c,
-				   struct v4l2_rect *src_y,
-				   struct v4l2_rect *src_c,
+				   const struct v4l2_rect *sink_y,
+				   const struct v4l2_rect *sink_c,
+				   const struct v4l2_rect *src_y,
+				   const struct v4l2_rect *src_c,
 				   enum rkisp1_shadow_regs_when when)
 {
 	u32 ratio, rsz_ctrl = 0;
@@ -270,9 +270,9 @@ static void rkisp1_rsz_config(struct rkisp1_resizer *rsz,
 			      enum rkisp1_shadow_regs_when when)
 {
 	const struct rkisp1_rsz_yuv_mbus_info *sink_yuv_info, *src_yuv_info;
+	const struct v4l2_mbus_framefmt *src_fmt, *sink_fmt;
+	const struct v4l2_rect *sink_crop;
 	struct v4l2_rect sink_y, sink_c, src_y, src_c;
-	struct v4l2_mbus_framefmt *src_fmt, *sink_fmt;
-	struct v4l2_rect *sink_crop;
 
 	sink_fmt = v4l2_subdev_get_pad_format(&rsz->sd, sd_state,
 					      RKISP1_RSZ_PAD_SINK);
