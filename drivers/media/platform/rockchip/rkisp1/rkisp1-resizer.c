@@ -60,7 +60,6 @@ struct rkisp1_rsz_config {
 	const int min_rsz_height;
 	/* registers */
 	struct {
-		u32 ctrl;
 		u32 yuvmode_mask;
 		u32 rawmode_mask;
 		u32 h_offset;
@@ -78,7 +77,6 @@ static const struct rkisp1_rsz_config rkisp1_rsz_config_mp = {
 	.min_rsz_height = RKISP1_RSZ_SRC_MIN_HEIGHT,
 	/* registers */
 	.dual_crop = {
-		.ctrl =			RKISP1_CIF_DUAL_CROP_CTRL,
 		.yuvmode_mask =		RKISP1_CIF_DUAL_CROP_MP_MODE_YUV,
 		.rawmode_mask =		RKISP1_CIF_DUAL_CROP_MP_MODE_RAW,
 		.h_offset =		RKISP1_CIF_DUAL_CROP_M_H_OFFS,
@@ -96,7 +94,6 @@ static const struct rkisp1_rsz_config rkisp1_rsz_config_sp = {
 	.min_rsz_height = RKISP1_RSZ_SRC_MIN_HEIGHT,
 	/* registers */
 	.dual_crop = {
-		.ctrl =			RKISP1_CIF_DUAL_CROP_CTRL,
 		.yuvmode_mask =		RKISP1_CIF_DUAL_CROP_SP_MODE_YUV,
 		.rawmode_mask =		RKISP1_CIF_DUAL_CROP_SP_MODE_RAW,
 		.h_offset =		RKISP1_CIF_DUAL_CROP_S_H_OFFS,
@@ -124,7 +121,7 @@ static inline void rkisp1_rsz_write(struct rkisp1_resizer *rsz, u32 offset,
 static void rkisp1_dcrop_disable(struct rkisp1_resizer *rsz,
 				 enum rkisp1_shadow_regs_when when)
 {
-	u32 dc_ctrl = rkisp1_read(rsz->rkisp1, rsz->config->dual_crop.ctrl);
+	u32 dc_ctrl = rkisp1_read(rsz->rkisp1, RKISP1_CIF_DUAL_CROP_CTRL);
 	u32 mask = ~(rsz->config->dual_crop.yuvmode_mask |
 		     rsz->config->dual_crop.rawmode_mask);
 
@@ -133,7 +130,7 @@ static void rkisp1_dcrop_disable(struct rkisp1_resizer *rsz,
 		dc_ctrl |= RKISP1_CIF_DUAL_CROP_GEN_CFG_UPD;
 	else
 		dc_ctrl |= RKISP1_CIF_DUAL_CROP_CFG_UPD;
-	rkisp1_write(rsz->rkisp1, rsz->config->dual_crop.ctrl, dc_ctrl);
+	rkisp1_write(rsz->rkisp1, RKISP1_CIF_DUAL_CROP_CTRL, dc_ctrl);
 }
 
 /* configure dual-crop unit */
@@ -158,14 +155,14 @@ static void rkisp1_dcrop_config(struct rkisp1_resizer *rsz,
 		return;
 	}
 
-	dc_ctrl = rkisp1_read(rkisp1, rsz->config->dual_crop.ctrl);
+	dc_ctrl = rkisp1_read(rkisp1, RKISP1_CIF_DUAL_CROP_CTRL);
 	rkisp1_write(rkisp1, rsz->config->dual_crop.h_offset, sink_crop->left);
 	rkisp1_write(rkisp1, rsz->config->dual_crop.v_offset, sink_crop->top);
 	rkisp1_write(rkisp1, rsz->config->dual_crop.h_size, sink_crop->width);
 	rkisp1_write(rkisp1, rsz->config->dual_crop.v_size, sink_crop->height);
 	dc_ctrl |= rsz->config->dual_crop.yuvmode_mask;
 	dc_ctrl |= RKISP1_CIF_DUAL_CROP_CFG_UPD;
-	rkisp1_write(rkisp1, rsz->config->dual_crop.ctrl, dc_ctrl);
+	rkisp1_write(rkisp1, RKISP1_CIF_DUAL_CROP_CTRL, dc_ctrl);
 
 	dev_dbg(rkisp1->dev, "stream %d crop: %dx%d -> %dx%d\n", rsz->id,
 		sink_fmt->width, sink_fmt->height,
