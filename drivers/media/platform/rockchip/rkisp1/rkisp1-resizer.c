@@ -284,8 +284,8 @@ static void rkisp1_rsz_config(struct rkisp1_resizer *rsz,
 	src_yuv_info = rkisp1_rsz_get_yuv_mbus_info(src_fmt->code);
 
 	/*
-	 * The resizer only works on yuv formats,
-	 * so return if it is bayer format.
+	 * The resizer only works on yuv formats, so return if it is bayer
+	 * format.
 	 */
 	if (!sink_yuv_info) {
 		rkisp1_rsz_disable(rsz, when);
@@ -299,15 +299,15 @@ static void rkisp1_rsz_config(struct rkisp1_resizer *rsz,
 
 	src_y.width = src_fmt->width;
 	src_y.height = src_fmt->height;
+	src_c.width = src_y.width / src_yuv_info->hdiv;
+	src_c.height = src_y.height / src_yuv_info->vdiv;
 
 	/*
 	 * The resizer is used not only to change the dimensions of the frame
-	 * but also to change the scale for YUV formats,
-	 * (4:2:2 -> 4:2:0 for example). So the width/height of the CbCr
-	 * streams should be set according to the media bus format in the src pad.
+	 * but also to change the subsampling for YUV formats (for instance
+	 * converting from 4:2:2 to 4:2:0). Check both the luma and chroma
+	 * dimensions to decide whether or not to enable the resizer.
 	 */
-	src_c.width = src_y.width / src_yuv_info->hdiv;
-	src_c.height = src_y.height / src_yuv_info->vdiv;
 
 	dev_dbg(rsz->rkisp1->dev,
 		"stream %u rsz/scale: Y %ux%u -> %ux%u, CbCr %ux%u -> %ux%u\n",
@@ -315,12 +315,13 @@ static void rkisp1_rsz_config(struct rkisp1_resizer *rsz,
 		src_fmt->width, src_fmt->height,
 		sink_c.width, sink_c.height, src_c.width, src_c.height);
 
-	if (sink_c.width == src_c.width && sink_c.height == src_c.height) {
+	if (sink_y->width == src_y.width && sink_y->height == src_y.height &&
+	    sink_c.width == src_c.width && sink_c.height == src_c.height) {
 		rkisp1_rsz_disable(rsz, when);
 		return;
 	}
 
-	/* set values in the hw */
+	/* Set values in the hardware. */
 	rkisp1_rsz_config_regs(rsz, sink_y, &sink_c, &src_y, &src_c, when);
 }
 
