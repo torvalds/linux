@@ -24,6 +24,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/dmapool.h>
 #include <linux/etherdevice.h>
+#include <linux/if_vlan.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/net_tstamp.h>
@@ -1487,6 +1488,13 @@ static int ixp4xx_eth_probe(struct platform_device *pdev)
 	/* Inherit the DMA masks from the platform device */
 	ndev->dev.dma_mask = dev->dma_mask;
 	ndev->dev.coherent_dma_mask = dev->coherent_dma_mask;
+
+	/* Maximum frame size is 16320 bytes and includes VLAN and
+	 * ethernet headers. See "IXP400 Software Programmer's Guide"
+	 * section 10.3.2, page 161.
+	 */
+	ndev->min_mtu = ETH_MIN_MTU;
+	ndev->max_mtu = 16320 - VLAN_ETH_HLEN;
 
 	netif_napi_add_weight(ndev, &port->napi, eth_poll, NAPI_WEIGHT);
 
