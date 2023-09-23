@@ -407,6 +407,15 @@
 	pinctrl-0 = <&main_i2c0_pins_default>;
 	clock-frequency = <400000>;
 
+	gpio@38 {
+		/* TCA9554 */
+		compatible = "nxp,pca9554";
+		reg = <0x38>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		gpio-line-names = "HSE_DETECT";
+	};
+
 	eeprom@50 {
 		/* AT24CM01 */
 		compatible = "atmel,24c1024";
