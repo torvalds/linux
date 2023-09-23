@@ -592,8 +592,8 @@ static int csi2tx_probe(struct platform_device *pdev)
 	csi2tx->subdev.owner = THIS_MODULE;
 	csi2tx->subdev.dev = &pdev->dev;
 	csi2tx->subdev.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
-	snprintf(csi2tx->subdev.name, V4L2_SUBDEV_NAME_SIZE, "%s.%s",
-		 KBUILD_MODNAME, dev_name(&pdev->dev));
+	snprintf(csi2tx->subdev.name, sizeof(csi2tx->subdev.name),
+		 "%s.%s", KBUILD_MODNAME, dev_name(&pdev->dev));
 
 	ret = csi2tx_check_lanes(csi2tx);
 	if (ret)

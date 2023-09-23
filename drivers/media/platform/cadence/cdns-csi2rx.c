@@ -516,8 +516,8 @@ static int csi2rx_probe(struct platform_device *pdev)
 	csi2rx->subdev.dev = &pdev->dev;
 	v4l2_subdev_init(&csi2rx->subdev, &csi2rx_subdev_ops);
 	v4l2_set_subdevdata(&csi2rx->subdev, &pdev->dev);
-	snprintf(csi2rx->subdev.name, V4L2_SUBDEV_NAME_SIZE, "%s.%s",
-		 KBUILD_MODNAME, dev_name(&pdev->dev));
+	snprintf(csi2rx->subdev.name, sizeof(csi2rx->subdev.name),
+		 "%s.%s", KBUILD_MODNAME, dev_name(&pdev->dev));
 
 	/* Create our media pads */
 	csi2rx->subdev.entity.function = MEDIA_ENT_F_VID_IF_BRIDGE;

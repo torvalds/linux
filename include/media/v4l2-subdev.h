@@ -951,8 +951,6 @@ struct v4l2_subdev_internal_ops {
 	void (*release)(struct v4l2_subdev *sd);
 };
 
-#define V4L2_SUBDEV_NAME_SIZE 52
-
 /* Set this flag if this subdev is a i2c device. */
 #define V4L2_SUBDEV_FL_IS_I2C			(1U << 0)
 /* Set this flag if this subdev is a spi device. */
@@ -1062,7 +1060,7 @@ struct v4l2_subdev {
 	const struct v4l2_subdev_ops *ops;
 	const struct v4l2_subdev_internal_ops *internal_ops;
 	struct v4l2_ctrl_handler *ctrl_handler;
-	char name[V4L2_SUBDEV_NAME_SIZE];
+	char name[52];
 	u32 grp_id;
 	void *dev_priv;
 	void *host_priv;
