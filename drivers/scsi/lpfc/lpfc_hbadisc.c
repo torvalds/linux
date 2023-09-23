@@ -199,11 +199,12 @@ lpfc_dev_loss_tmo_callbk(struct fc_rport *rport)
 		/* Only 1 thread can drop the initial node reference.  If
 		 * another thread has set NLP_DROPPED, this thread is done.
 		 */
-		if (!(ndlp->nlp_flag & NLP_DROPPED)) {
+		if (!(ndlp->fc4_xpt_flags & NVME_XPT_REGD) &&
+		    !(ndlp->nlp_flag & NLP_DROPPED)) {
 			ndlp->nlp_flag |= NLP_DROPPED;
 			spin_unlock_irqrestore(&ndlp->lock, iflags);
 			lpfc_nlp_put(ndlp);
-			spin_lock_irqsave(&ndlp->lock, iflags);
+			return;
 		}
 
 		spin_unlock_irqrestore(&ndlp->lock, iflags);

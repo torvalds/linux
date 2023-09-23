@@ -185,17 +185,49 @@ static struct dentry *create_dir(const char *name, struct dentry *parent, void *
 
 /**
  * eventfs_set_ef_status_free - set the ef->status to free
+ * @ti: the tracefs_inode of the dentry
  * @dentry: dentry who's status to be freed
  *
  * eventfs_set_ef_status_free will be called if no more
  * references remain
  */
-void eventfs_set_ef_status_free(struct dentry *dentry)
+void eventfs_set_ef_status_free(struct tracefs_inode *ti, struct dentry *dentry)
 {
 	struct tracefs_inode *ti_parent;
-	struct eventfs_file *ef;
+	struct eventfs_inode *ei;
+	struct eventfs_file *ef, *tmp;
+
+	/* The top level events directory may be freed by this */
+	if (unlikely(ti->flags & TRACEFS_EVENT_TOP_INODE)) {
+		LIST_HEAD(ef_del_list);
+
+		mutex_lock(&eventfs_mutex);
+
+		ei = ti->private;
+
+		/* Record all the top level files */
+		list_for_each_entry_srcu(ef, &ei->e_top_files, list,
+					 lockdep_is_held(&eventfs_mutex)) {
+			list_add_tail(&ef->del_list, &ef_del_list);
+		}
+
+		/* Nothing should access this, but just in case! */
+		ti->private = NULL;
+
+		mutex_unlock(&eventfs_mutex);
+
+		/* Now safely free the top level files and their children */
+		list_for_each_entry_safe(ef, tmp, &ef_del_list, del_list) {
+			list_del(&ef->del_list);
+			eventfs_remove(ef);
+		}
+
+		kfree(ei);
+		return;
+	}
 
 	mutex_lock(&eventfs_mutex);
+
 	ti_parent = get_tracefs(dentry->d_parent->d_inode);
 	if (!ti_parent || !(ti_parent->flags & TRACEFS_EVENT_INODE))
 		goto out;
@@ -420,7 +452,8 @@ static int dcache_dir_open_wrapper(struct inode *inode, struct file *file)
 
 	ei = ti->private;
 	idx = srcu_read_lock(&eventfs_srcu);
-	list_for_each_entry_rcu(ef, &ei->e_top_files, list) {
+	list_for_each_entry_srcu(ef, &ei->e_top_files, list,
+				 srcu_read_lock_held(&eventfs_srcu)) {
 		create_dentry(ef, dentry, false);
 	}
 	srcu_read_unlock(&eventfs_srcu, idx);
@@ -491,6 +524,9 @@ struct dentry *eventfs_create_events_dir(const char *name,
 	struct tracefs_inode *ti;
 	struct inode *inode;
 
+	if (security_locked_down(LOCKDOWN_TRACEFS))
+		return NULL;
+
 	if (IS_ERR(dentry))
 		return dentry;
 
@@ -507,7 +543,7 @@ struct dentry *eventfs_create_events_dir(const char *name,
 	INIT_LIST_HEAD(&ei->e_top_files);
 
 	ti = get_tracefs(inode);
-	ti->flags |= TRACEFS_EVENT_INODE;
+	ti->flags |= TRACEFS_EVENT_INODE | TRACEFS_EVENT_TOP_INODE;
 	ti->private = ei;
 
 	inode->i_mode = S_IFDIR | S_IRWXU | S_IRUGO | S_IXUGO;
@@ -537,6 +573,9 @@ struct eventfs_file *eventfs_add_subsystem_dir(const char *name,
 	struct tracefs_inode *ti_parent;
 	struct eventfs_inode *ei_parent;
 	struct eventfs_file *ef;
+
+	if (security_locked_down(LOCKDOWN_TRACEFS))
+		return NULL;
 
 	if (!parent)
 		return ERR_PTR(-EINVAL);
@@ -568,6 +607,9 @@ struct eventfs_file *eventfs_add_dir(const char *name,
 				     struct eventfs_file *ef_parent)
 {
 	struct eventfs_file *ef;
+
+	if (security_locked_down(LOCKDOWN_TRACEFS))
+		return NULL;
 
 	if (!ef_parent)
 		return ERR_PTR(-EINVAL);
@@ -605,6 +647,9 @@ int eventfs_add_events_file(const char *name, umode_t mode,
 	struct tracefs_inode *ti;
 	struct eventfs_inode *ei;
 	struct eventfs_file *ef;
+
+	if (security_locked_down(LOCKDOWN_TRACEFS))
+		return -ENODEV;
 
 	if (!parent)
 		return -EINVAL;
@@ -653,6 +698,9 @@ int eventfs_add_file(const char *name, umode_t mode,
 		     const struct file_operations *fop)
 {
 	struct eventfs_file *ef;
+
+	if (security_locked_down(LOCKDOWN_TRACEFS))
+		return -ENODEV;
 
 	if (!ef_parent)
 		return -EINVAL;
@@ -791,7 +839,6 @@ void eventfs_remove(struct eventfs_file *ef)
 void eventfs_remove_events_dir(struct dentry *dentry)
 {
 	struct tracefs_inode *ti;
-	struct eventfs_inode *ei;
 
 	if (!dentry || !dentry->d_inode)
 		return;
@@ -800,8 +847,6 @@ void eventfs_remove_events_dir(struct dentry *dentry)
 	if (!ti || !(ti->flags & TRACEFS_EVENT_INODE))
 		return;
 
-	ei = ti->private;
 	d_invalidate(dentry);
 	dput(dentry);
-	kfree(ei);
 }

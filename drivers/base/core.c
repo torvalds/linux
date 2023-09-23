@@ -3537,6 +3537,8 @@ int device_add(struct device *dev)
 	/* subsystems can specify simple device enumeration */
 	else if (dev->bus && dev->bus->dev_name)
 		error = dev_set_name(dev, "%s%u", dev->bus->dev_name, dev->id);
+	else
+		error = -EINVAL;
 	if (error)
 		goto name_error;
 
