@@ -20,6 +20,7 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/videodev2.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/v4l2-mediabus.h>
 #include <linux/of.h>
@@ -1190,7 +1191,6 @@ static const struct i2c_device_id tvp514x_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, tvp514x_id);
 
-#if IS_ENABLED(CONFIG_OF)
 static const struct of_device_id tvp514x_of_match[] = {
 	{ .compatible = "ti,tvp5146", .data = tvp5146_init_reg_seq },
 	{ .compatible = "ti,tvp5146m2", .data = tvp514xm_init_reg_seq },
@@ -1199,11 +1199,10 @@ static const struct of_device_id tvp514x_of_match[] = {
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, tvp514x_of_match);
-#endif
 
 static struct i2c_driver tvp514x_driver = {
 	.driver = {
-		.of_match_table = of_match_ptr(tvp514x_of_match),
+		.of_match_table = tvp514x_of_match,
 		.name = TVP514X_MODULE_NAME,
 	},
 	.probe = tvp514x_probe,
