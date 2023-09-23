@@ -812,7 +812,7 @@ static void rkisp1_hst_config_v10(struct rkisp1_params *params,
 								weight[2], weight[3]));
 
 	rkisp1_write(params->rkisp1, RKISP1_CIF_ISP_HIST_WEIGHT_44_V10,
-		     weight[0] & 0x1F);
+		     weight[0] & 0x1f);
 }
 
 static void rkisp1_hst_config_v12(struct rkisp1_params *params,
