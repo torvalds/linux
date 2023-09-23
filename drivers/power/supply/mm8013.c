@@ -273,8 +273,10 @@ static int mm8013_probe(struct i2c_client *client)
 	chip->client = client;
 
 	chip->regmap = devm_regmap_init_i2c(client, &mm8013_regmap_config);
-	if (IS_ERR(chip->regmap))
+	if (IS_ERR(chip->regmap)) {
+		ret = PTR_ERR(chip->regmap);
 		return dev_err_probe(dev, ret, "Couldn't initialize regmap\n");
+	}
 
 	ret = mm8013_checkdevice(chip);
 	if (ret)
