@@ -125,13 +125,27 @@ static int es58x_parse_hw_rev(struct es58x_device *es58x_dev,
  * firmware version, the bootloader version and the hardware
  * revision.
  *
- * If the function fails, simply emit a log message and continue
- * because product information is not critical for the driver to
- * operate.
+ * If the function fails, set the version or revision to an invalid
+ * value and emit an informal message. Continue probing because the
+ * product information is not critical for the driver to operate.
  */
 void es58x_parse_product_info(struct es58x_device *es58x_dev)
 {
+	static const struct es58x_sw_version sw_version_not_set = {
+		.major = -1,
+		.minor = -1,
+		.revision = -1,
+	};
+	static const struct es58x_hw_revision hw_revision_not_set = {
+		.letter = '\0',
+		.major = -1,
+		.minor = -1,
+	};
 	char *prod_info;
+
+	es58x_dev->firmware_version = sw_version_not_set;
+	es58x_dev->bootloader_version = sw_version_not_set;
+	es58x_dev->hardware_revision = hw_revision_not_set;
 
 	prod_info = usb_cache_string(es58x_dev->udev, ES58X_PROD_INFO_IDX);
 	if (!prod_info) {
@@ -150,29 +164,36 @@ void es58x_parse_product_info(struct es58x_device *es58x_dev)
 }
 
 /**
- * es58x_sw_version_is_set() - Check if the version is a valid number.
+ * es58x_sw_version_is_valid() - Check if the version is a valid number.
  * @sw_ver: Version number of either the firmware or the bootloader.
  *
- * If &es58x_sw_version.major, &es58x_sw_version.minor and
- * &es58x_sw_version.revision are all zero, the product string could
- * not be parsed and the version number is invalid.
+ * If any of the software version sub-numbers do not fit on two
+ * digits, the version is invalid, most probably because the product
+ * string could not be parsed.
+ *
+ * Return: @true if the software version is valid, @false otherwise.
  */
-static inline bool es58x_sw_version_is_set(struct es58x_sw_version *sw_ver)
+static inline bool es58x_sw_version_is_valid(struct es58x_sw_version *sw_ver)
 {
-	return sw_ver->major || sw_ver->minor || sw_ver->revision;
+	return sw_ver->major < 100 && sw_ver->minor < 100 &&
+		sw_ver->revision < 100;
 }
 
 /**
- * es58x_hw_revision_is_set() - Check if the revision is a valid number.
+ * es58x_hw_revision_is_valid() - Check if the revision is a valid number.
  * @hw_rev: Revision number of the hardware.
  *
- * If &es58x_hw_revision.letter is the null character, the product
- * string could not be parsed and the hardware revision number is
- * invalid.
+ * If &es58x_hw_revision.letter is not a alphanumeric character or if
+ * any of the hardware revision sub-numbers do not fit on three
+ * digits, the revision is invalid, most probably because the product
+ * string could not be parsed.
+ *
+ * Return: @true if the hardware revision is valid, @false otherwise.
  */
-static inline bool es58x_hw_revision_is_set(struct es58x_hw_revision *hw_rev)
+static inline bool es58x_hw_revision_is_valid(struct es58x_hw_revision *hw_rev)
 {
-	return hw_rev->letter != '\0';
+	return isalnum(hw_rev->letter) && hw_rev->major < 1000 &&
+		hw_rev->minor < 1000;
 }
 
 /**
@@ -197,7 +218,7 @@ static int es58x_devlink_info_get(struct devlink *devlink,
 	char buf[max(sizeof("xx.xx.xx"), sizeof("axxx/xxx"))];
 	int ret = 0;
 
-	if (es58x_sw_version_is_set(fw_ver)) {
+	if (es58x_sw_version_is_valid(fw_ver)) {
 		snprintf(buf, sizeof(buf), "%02u.%02u.%02u",
 			 fw_ver->major, fw_ver->minor, fw_ver->revision);
 		ret = devlink_info_version_running_put(req,
@@ -207,7 +228,7 @@ static int es58x_devlink_info_get(struct devlink *devlink,
 			return ret;
 	}
 
-	if (es58x_sw_version_is_set(bl_ver)) {
+	if (es58x_sw_version_is_valid(bl_ver)) {
 		snprintf(buf, sizeof(buf), "%02u.%02u.%02u",
 			 bl_ver->major, bl_ver->minor, bl_ver->revision);
 		ret = devlink_info_version_running_put(req,
@@ -217,7 +238,7 @@ static int es58x_devlink_info_get(struct devlink *devlink,
 			return ret;
 	}
 
-	if (es58x_hw_revision_is_set(hw_rev)) {
+	if (es58x_hw_revision_is_valid(hw_rev)) {
 		snprintf(buf, sizeof(buf), "%c%03u/%03u",
 			 hw_rev->letter, hw_rev->major, hw_rev->minor);
 		ret = devlink_info_version_fixed_put(req,
