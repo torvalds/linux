@@ -611,12 +611,16 @@ static int imx219_set_pad_format(struct v4l2_subdev *sd,
 }
 
 static int imx219_set_framefmt(struct imx219 *imx219,
-			       const struct v4l2_mbus_framefmt *format)
+			       struct v4l2_subdev_state *state)
 {
-	const struct imx219_mode *mode = imx219->mode;
+	const struct v4l2_mbus_framefmt *format;
+	const struct v4l2_rect *crop;
 	unsigned int bpp;
 	u64 bin_mode;
 	int ret = 0;
+
+	format = v4l2_subdev_get_pad_format(&imx219->sd, state, 0);
+	crop = v4l2_subdev_get_pad_crop(&imx219->sd, state, 0);
 
 	switch (format->code) {
 	case MEDIA_BUS_FMT_SRGGB8_1X8:
@@ -636,15 +640,13 @@ static int imx219_set_framefmt(struct imx219 *imx219,
 	}
 
 	cci_write(imx219->regmap, IMX219_REG_X_ADD_STA_A,
-		  mode->crop.left - IMX219_PIXEL_ARRAY_LEFT, &ret);
+		  crop->left - IMX219_PIXEL_ARRAY_LEFT, &ret);
 	cci_write(imx219->regmap, IMX219_REG_X_ADD_END_A,
-		  mode->crop.left - IMX219_PIXEL_ARRAY_LEFT + mode->crop.width - 1,
-		  &ret);
+		  crop->left - IMX219_PIXEL_ARRAY_LEFT + crop->width - 1, &ret);
 	cci_write(imx219->regmap, IMX219_REG_Y_ADD_STA_A,
-		  mode->crop.top - IMX219_PIXEL_ARRAY_TOP, &ret);
+		  crop->top - IMX219_PIXEL_ARRAY_TOP, &ret);
 	cci_write(imx219->regmap, IMX219_REG_Y_ADD_END_A,
-		  mode->crop.top - IMX219_PIXEL_ARRAY_TOP + mode->crop.height - 1,
-		  &ret);
+		  crop->top - IMX219_PIXEL_ARRAY_TOP + crop->height - 1, &ret);
 
 	if (!imx219->mode->binning)
 		bin_mode = IMX219_BINNING_NONE;
@@ -714,7 +716,6 @@ static int imx219_start_streaming(struct imx219 *imx219,
 				  struct v4l2_subdev_state *state)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&imx219->sd);
-	const struct v4l2_mbus_framefmt *format;
 	int ret;
 
 	ret = pm_runtime_resume_and_get(&client->dev);
@@ -737,8 +738,7 @@ static int imx219_start_streaming(struct imx219 *imx219,
 	}
 
 	/* Apply format and crop settings. */
-	format = v4l2_subdev_get_pad_format(&imx219->sd, state, 0);
-	ret = imx219_set_framefmt(imx219, format);
+	ret = imx219_set_framefmt(imx219, state);
 	if (ret) {
 		dev_err(&client->dev, "%s failed to set frame format: %d\n",
 			__func__, ret);
