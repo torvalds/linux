@@ -161,9 +161,6 @@ struct imx219_mode {
 
 	/* V-timing */
 	unsigned int vts_def;
-
-	/* 2x2 binning is used */
-	bool binning;
 };
 
 static const struct cci_reg_sequence imx219_common_regs[] = {
@@ -305,7 +302,6 @@ static const struct imx219_mode supported_modes[] = {
 			.height = 2464
 		},
 		.vts_def = IMX219_VTS_15FPS,
-		.binning = false,
 	},
 	{
 		/* 1080P 30fps cropped */
@@ -318,7 +314,6 @@ static const struct imx219_mode supported_modes[] = {
 			.height = 1080
 		},
 		.vts_def = IMX219_VTS_30FPS_1080P,
-		.binning = false,
 	},
 	{
 		/* 2x2 binned 30fps mode */
@@ -331,7 +326,6 @@ static const struct imx219_mode supported_modes[] = {
 			.height = 2464
 		},
 		.vts_def = IMX219_VTS_30FPS_BINNED,
-		.binning = true,
 	},
 	{
 		/* 640x480 30fps mode */
@@ -344,7 +338,6 @@ static const struct imx219_mode supported_modes[] = {
 			.height = 960
 		},
 		.vts_def = IMX219_VTS_30FPS_640x480,
-		.binning = true,
 	},
 };
 
@@ -648,7 +641,7 @@ static int imx219_set_framefmt(struct imx219 *imx219,
 	cci_write(imx219->regmap, IMX219_REG_Y_ADD_END_A,
 		  crop->top - IMX219_PIXEL_ARRAY_TOP + crop->height - 1, &ret);
 
-	if (!imx219->mode->binning)
+	if (format->width == crop->width && format->height == crop->height)
 		bin_mode = IMX219_BINNING_NONE;
 	else if (bpp == 8)
 		bin_mode = IMX219_BINNING_2X2_ANALOG;
