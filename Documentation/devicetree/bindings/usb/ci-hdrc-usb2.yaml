@@ -15,6 +15,7 @@ properties:
     oneOf:
       - enum:
           - chipidea,usb2
+          - fsl,imx27-usb
           - lsi,zevio-usb
           - nvidia,tegra20-ehci
           - nvidia,tegra20-udc
