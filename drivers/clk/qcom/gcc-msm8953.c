@@ -4218,6 +4218,9 @@ static int gcc_msm8953_probe(struct platform_device *pdev)
 
 	clk_alpha_pll_configure(&gpll3_early, regmap, &gpll3_early_config);
 
+	/* Enable GPLL4 output to APSS */
+	regmap_update_bits(regmap, 0x60000, BIT(3), BIT(3));
+
 	return qcom_cc_really_probe(&pdev->dev, &gcc_msm8953_desc, regmap);
 }
 
