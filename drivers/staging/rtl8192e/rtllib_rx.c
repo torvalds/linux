@@ -693,8 +693,10 @@ static void RxReorderIndicatePacket(struct rtllib_device *ieee,
 	 * Rx buffering.
 	 */
 	if (index > 0) {
+		spin_unlock_irqrestore(&ieee->reorder_spinlock, flags);
 		if (timer_pending(&ts->rx_pkt_pending_timer))
 			del_timer_sync(&ts->rx_pkt_pending_timer);
+		spin_lock_irqsave(&ieee->reorder_spinlock, flags);
 		ts->rx_timeout_indicate_seq = 0xffff;
 
 		if (index > REORDER_WIN_SIZE) {
@@ -712,8 +714,10 @@ static void RxReorderIndicatePacket(struct rtllib_device *ieee,
 	if (bPktInBuf && ts->rx_timeout_indicate_seq == 0xffff) {
 		netdev_dbg(ieee->dev, "%s(): SET rx timeout timer\n", __func__);
 		ts->rx_timeout_indicate_seq = ts->rx_indicate_seq;
+		spin_unlock_irqrestore(&ieee->reorder_spinlock, flags);
 		mod_timer(&ts->rx_pkt_pending_timer, jiffies +
 			  msecs_to_jiffies(ht_info->rx_reorder_pending_time));
+		spin_lock_irqsave(&ieee->reorder_spinlock, flags);
 	}
 	spin_unlock_irqrestore(&(ieee->reorder_spinlock), flags);
 }
