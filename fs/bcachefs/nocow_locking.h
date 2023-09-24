@@ -44,6 +44,7 @@ static inline bool bch2_bucket_nocow_trylock(struct bucket_nocow_lock_table *t,
 
 void bch2_nocow_locks_to_text(struct printbuf *, struct bucket_nocow_lock_table *);
 
+void bch2_fs_nocow_locking_exit(struct bch_fs *);
 int bch2_fs_nocow_locking_init(struct bch_fs *);
 
 #endif /* _BCACHEFS_NOCOW_LOCKING_H */
