@@ -784,28 +784,6 @@ static void imx219_update_pad_format(struct imx219 *imx219,
 	fmt->xfer_func = V4L2_XFER_FUNC_NONE;
 }
 
-static int imx219_init_cfg(struct v4l2_subdev *sd,
-			   struct v4l2_subdev_state *state)
-{
-	struct imx219 *imx219 = to_imx219(sd);
-	struct v4l2_mbus_framefmt *format;
-	struct v4l2_rect *crop;
-
-	/* Initialize the format. */
-	format = v4l2_subdev_get_pad_format(sd, state, 0);
-	imx219_update_pad_format(imx219, &supported_modes[0], format,
-				 MEDIA_BUS_FMT_SRGGB10_1X10);
-
-	/* Initialize the crop rectangle. */
-	crop = v4l2_subdev_get_pad_crop(sd, state, 0);
-	crop->top = IMX219_PIXEL_ARRAY_TOP;
-	crop->left = IMX219_PIXEL_ARRAY_LEFT;
-	crop->width = IMX219_PIXEL_ARRAY_WIDTH;
-	crop->height = IMX219_PIXEL_ARRAY_HEIGHT;
-
-	return 0;
-}
-
 static int imx219_enum_mbus_code(struct v4l2_subdev *sd,
 				 struct v4l2_subdev_state *sd_state,
 				 struct v4l2_subdev_mbus_code_enum *code)
@@ -922,6 +900,24 @@ static int imx219_get_selection(struct v4l2_subdev *sd,
 	}
 
 	return -EINVAL;
+}
+
+static int imx219_init_cfg(struct v4l2_subdev *sd,
+			   struct v4l2_subdev_state *state)
+{
+	struct v4l2_subdev_format fmt = {
+		.which = V4L2_SUBDEV_FORMAT_TRY,
+		.pad = 0,
+		.format = {
+			.code = MEDIA_BUS_FMT_SRGGB10_1X10,
+			.width = supported_modes[0].width,
+			.height = supported_modes[0].height,
+		},
+	};
+
+	imx219_set_pad_format(sd, state, &fmt);
+
+	return 0;
 }
 
 static const struct v4l2_subdev_core_ops imx219_core_ops = {
