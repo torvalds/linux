@@ -2461,7 +2461,6 @@ int rtllib_softmac_init(struct rtllib_device *ieee)
 
 void rtllib_softmac_free(struct rtllib_device *ieee)
 {
-	mutex_lock(&ieee->wx_mutex);
 	del_timer_sync(&ieee->associate_timer);
 
 	cancel_delayed_work_sync(&ieee->associate_retry_wq);
@@ -2477,7 +2476,6 @@ void rtllib_softmac_free(struct rtllib_device *ieee)
 
 	kfree(ieee->dot11d_info);
 	ieee->dot11d_info = NULL;
-	mutex_unlock(&ieee->wx_mutex);
 }
 
 static inline struct sk_buff *
