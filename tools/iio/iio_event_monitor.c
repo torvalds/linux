@@ -61,6 +61,8 @@ static const char * const iio_chan_type_name_spec[] = {
 	[IIO_MASSCONCENTRATION] = "massconcentration",
 	[IIO_DELTA_ANGL] = "deltaangl",
 	[IIO_DELTA_VELOCITY] = "deltavelocity",
+	[IIO_COLORTEMP] = "colortemp",
+	[IIO_CHROMATICITY] = "chromaticity",
 };
 
 static const char * const iio_ev_type_text[] = {
@@ -177,6 +179,8 @@ static bool event_is_known(struct iio_event_data *event)
 	case IIO_MASSCONCENTRATION:
 	case IIO_DELTA_ANGL:
 	case IIO_DELTA_VELOCITY:
+	case IIO_COLORTEMP:
+	case IIO_CHROMATICITY:
 		break;
 	default:
 		return false;
