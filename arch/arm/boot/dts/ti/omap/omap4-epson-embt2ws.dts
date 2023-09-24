@@ -189,15 +189,6 @@
 		pinctrl-0 = <&mpu9150h_pins>;
 		interrupt-parent = <&gpio2>;
 		interrupt = <19 IRQ_TYPE_LEVEL_HIGH>;
-
-		i2c-gate {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			magnetometer@c {
-				compatible = "asahi-kasei,ak8975";
-				reg = <0x0c>;
-			};
-		};
 	};
 };
 
