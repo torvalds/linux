@@ -760,19 +760,11 @@ static int imx219_set_stream(struct v4l2_subdev *sd, int enable)
 
 	state = v4l2_subdev_lock_and_get_active_state(sd);
 
-	if (enable) {
-		/*
-		 * Apply default & customized values
-		 * and then start streaming.
-		 */
+	if (enable)
 		ret = imx219_start_streaming(imx219, state);
-		if (ret)
-			goto unlock;
-	} else {
+	else
 		imx219_stop_streaming(imx219);
-	}
 
-unlock:
 	v4l2_subdev_unlock_state(state);
 	return ret;
 }
