@@ -224,7 +224,6 @@ static const struct cci_reg_sequence imx219_common_regs[] = {
 	{ IMX219_REG_Y_ODD_INC_A, 1 },
 
 	/* Output setup registers */
-	{ IMX219_REG_CSI_LANE_MODE, IMX219_CSI_2_LANE_MODE },
 	{ IMX219_REG_DPHY_CTRL, IMX219_DPHY_CTRL_TIMING_AUTO },
 	{ IMX219_REG_EXCK_FREQ, IMX219_EXCK_FREQ(IMX219_XCLK_FREQ / 1000000) },
 };
