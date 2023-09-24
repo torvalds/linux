@@ -189,11 +189,19 @@ struct mlx5e_ipsec_ft {
 	u32 refcnt;
 };
 
+struct mlx5e_ipsec_drop {
+	struct mlx5_flow_handle *rule;
+	struct mlx5_fc *fc;
+};
+
 struct mlx5e_ipsec_rule {
 	struct mlx5_flow_handle *rule;
 	struct mlx5_modify_hdr *modify_hdr;
 	struct mlx5_pkt_reformat *pkt_reformat;
 	struct mlx5_fc *fc;
+	struct mlx5e_ipsec_drop replay;
+	struct mlx5e_ipsec_drop auth;
+	struct mlx5e_ipsec_drop trailer;
 };
 
 struct mlx5e_ipsec_miss {
