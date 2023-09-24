@@ -90,10 +90,11 @@
 #define IMX219_REG_ORIENTATION		CCI_REG8(0x0172)
 
 /* Binning  Mode */
-#define IMX219_REG_BINNING_MODE		CCI_REG16(0x0174)
-#define IMX219_BINNING_NONE		0x0000
-#define IMX219_BINNING_2X2		0x0101
-#define IMX219_BINNING_2X2_ANALOG	0x0303
+#define IMX219_REG_BINNING_MODE_H	CCI_REG8(0x0174)
+#define IMX219_REG_BINNING_MODE_V	CCI_REG8(0x0175)
+#define IMX219_BINNING_NONE		0x00
+#define IMX219_BINNING_X2		0x01
+#define IMX219_BINNING_X2_ANALOG	0x03
 
 #define IMX219_REG_CSI_DATA_FORMAT_A	CCI_REG16(0x018c)
 
@@ -615,7 +616,7 @@ static int imx219_set_framefmt(struct imx219 *imx219,
 	const struct v4l2_mbus_framefmt *format;
 	const struct v4l2_rect *crop;
 	unsigned int bpp;
-	u64 bin_mode;
+	u64 bin_h, bin_v;
 	int ret = 0;
 
 	format = v4l2_subdev_get_pad_format(&imx219->sd, state, 0);
@@ -647,14 +648,28 @@ static int imx219_set_framefmt(struct imx219 *imx219,
 	cci_write(imx219->regmap, IMX219_REG_Y_ADD_END_A,
 		  crop->top - IMX219_PIXEL_ARRAY_TOP + crop->height - 1, &ret);
 
-	if (format->width == crop->width && format->height == crop->height)
-		bin_mode = IMX219_BINNING_NONE;
-	else if (bpp == 8)
-		bin_mode = IMX219_BINNING_2X2_ANALOG;
-	else
-		bin_mode = IMX219_BINNING_2X2;
+	switch (crop->width / format->width) {
+	case 1:
+	default:
+		bin_h = IMX219_BINNING_NONE;
+		break;
+	case 2:
+		bin_h = bpp == 8 ? IMX219_BINNING_X2_ANALOG : IMX219_BINNING_X2;
+		break;
+	}
 
-	cci_write(imx219->regmap, IMX219_REG_BINNING_MODE, bin_mode, &ret);
+	switch (crop->height / format->height) {
+	case 1:
+	default:
+		bin_v = IMX219_BINNING_NONE;
+		break;
+	case 2:
+		bin_v = bpp == 8 ? IMX219_BINNING_X2_ANALOG : IMX219_BINNING_X2;
+		break;
+	}
+
+	cci_write(imx219->regmap, IMX219_REG_BINNING_MODE_H, bin_h, &ret);
+	cci_write(imx219->regmap, IMX219_REG_BINNING_MODE_V, bin_v, &ret);
 
 	cci_write(imx219->regmap, IMX219_REG_X_OUTPUT_SIZE,
 		  format->width, &ret);
