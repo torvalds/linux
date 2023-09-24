@@ -2307,7 +2307,9 @@ void rtllib_stop_protocol(struct rtllib_device *ieee, u8 shutdown)
 	}
 
 	del_timer_sync(&ieee->associate_timer);
+	mutex_unlock(&ieee->wx_mutex);
 	cancel_delayed_work_sync(&ieee->associate_retry_wq);
+	mutex_lock(&ieee->wx_mutex);
 	cancel_delayed_work_sync(&ieee->link_change_wq);
 	rtllib_stop_scan(ieee);
 
