@@ -1282,6 +1282,17 @@ LIBBPF_API unsigned long ring__consumer_pos(const struct ring *r);
  */
 LIBBPF_API unsigned long ring__producer_pos(const struct ring *r);
 
+/**
+ * @brief **ring__avail_data_size()** returns the number of bytes in the
+ * ringbuffer not yet consumed. This has no locking associated with it, so it
+ * can be inaccurate if operations are ongoing while this is called. However, it
+ * should still show the correct trend over the long-term.
+ *
+ * @param r A ringbuffer object.
+ * @return The number of bytes not yet consumed.
+ */
+LIBBPF_API size_t ring__avail_data_size(const struct ring *r);
+
 struct user_ring_buffer_opts {
 	size_t sz; /* size of this struct, for forward/backward compatibility */
 };

@@ -352,6 +352,15 @@ unsigned long ring__producer_pos(const struct ring *r)
 	return smp_load_acquire(r->producer_pos);
 }
 
+size_t ring__avail_data_size(const struct ring *r)
+{
+	unsigned long cons_pos, prod_pos;
+
+	cons_pos = ring__consumer_pos(r);
+	prod_pos = ring__producer_pos(r);
+	return prod_pos - cons_pos;
+}
+
 static void user_ringbuf_unmap_ring(struct user_ring_buffer *rb)
 {
 	if (rb->consumer_pos) {
