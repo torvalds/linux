@@ -103,6 +103,8 @@ static void rockchip_pm_virt_pwroff_prepare(void)
 {
 	int error;
 
+	pm_wakeup_clear(0);
+
 	regulator_suspend_prepare(PM_SUSPEND_MEM);
 
 	error = suspend_disable_secondary_cpus();
