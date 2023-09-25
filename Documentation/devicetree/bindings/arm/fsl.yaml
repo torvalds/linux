@@ -984,7 +984,9 @@ properties:
 
       - description: PHYTEC phyCORE-i.MX8MM SoM based boards
         items:
-          - const: phytec,imx8mm-phyboard-polis-rdk # phyBOARD-Polis RDK
+          - enum:
+              - phytec,imx8mm-phyboard-polis-rdk # phyBOARD-Polis RDK
+              - phytec,imx8mm-phygate-tauri-l    # phyGATE-Tauri-L Gateway
           - const: phytec,imx8mm-phycore-som        # phyCORE-i.MX8MM SoM
           - const: fsl,imx8mm
 
