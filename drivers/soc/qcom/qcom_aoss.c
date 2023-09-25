@@ -533,7 +533,7 @@ err_free_mbox:
 	return ret;
 }
 
-static int qmp_remove(struct platform_device *pdev)
+static void qmp_remove(struct platform_device *pdev)
 {
 	struct qmp *qmp = platform_get_drvdata(pdev);
 
@@ -542,8 +542,6 @@ static int qmp_remove(struct platform_device *pdev)
 
 	qmp_close(qmp);
 	mbox_free_channel(qmp->mbox_chan);
-
-	return 0;
 }
 
 static const struct of_device_id qmp_dt_match[] = {
@@ -565,7 +563,7 @@ static struct platform_driver qmp_driver = {
 		.suppress_bind_attrs = true,
 	},
 	.probe = qmp_probe,
-	.remove	= qmp_remove,
+	.remove_new = qmp_remove,
 };
 module_platform_driver(qmp_driver);
 
