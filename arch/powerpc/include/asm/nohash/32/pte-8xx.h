@@ -48,6 +48,10 @@
 
 #define _PAGE_HUGE	0x0800	/* Copied to L1 PS bit 29 */
 
+#define _PAGE_ROX	(_PAGE_RO | _PAGE_EXEC)
+#define _PAGE_RW	0
+#define _PAGE_RWX	_PAGE_EXEC
+
 /* cache related flags non existing on 8xx */
 #define _PAGE_COHERENT	0
 #define _PAGE_WRITETHRU	0
@@ -77,14 +81,7 @@
 #define _PAGE_BASE_NC	(_PAGE_PRESENT | _PAGE_ACCESSED | _PAGE_PSIZE)
 #define _PAGE_BASE	(_PAGE_BASE_NC)
 
-/* Permission masks used to generate the __P and __S table */
-#define PAGE_NONE	__pgprot(_PAGE_BASE | _PAGE_NA)
-#define PAGE_SHARED	__pgprot(_PAGE_BASE)
-#define PAGE_SHARED_X	__pgprot(_PAGE_BASE | _PAGE_EXEC)
-#define PAGE_COPY	__pgprot(_PAGE_BASE | _PAGE_RO)
-#define PAGE_COPY_X	__pgprot(_PAGE_BASE | _PAGE_RO | _PAGE_EXEC)
-#define PAGE_READONLY	__pgprot(_PAGE_BASE | _PAGE_RO)
-#define PAGE_READONLY_X	__pgprot(_PAGE_BASE | _PAGE_RO | _PAGE_EXEC)
+#include <asm/pgtable-masks.h>
 
 #ifndef __ASSEMBLY__
 static inline pte_t pte_wrprotect(pte_t pte)
