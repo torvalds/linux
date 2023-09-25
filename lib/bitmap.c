@@ -8,7 +8,6 @@
 #include <linux/bitops.h>
 #include <linux/ctype.h>
 #include <linux/device.h>
-#include <linux/errno.h>
 #include <linux/export.h>
 #include <linux/slab.h>
 
@@ -707,69 +706,6 @@ void bitmap_fold(unsigned long *dst, const unsigned long *orig,
 		set_bit(oldbit % sz, dst);
 }
 #endif /* CONFIG_NUMA */
-
-/**
- * bitmap_find_free_region - find a contiguous aligned mem region
- *	@bitmap: array of unsigned longs corresponding to the bitmap
- *	@bits: number of bits in the bitmap
- *	@order: region size (log base 2 of number of bits) to find
- *
- * Find a region of free (zero) bits in a @bitmap of @bits bits and
- * allocate them (set them to one).  Only consider regions of length
- * a power (@order) of two, aligned to that power of two, which
- * makes the search algorithm much faster.
- *
- * Return: the bit offset in bitmap of the allocated region,
- * or -errno on failure.
- */
-int bitmap_find_free_region(unsigned long *bitmap, unsigned int bits, int order)
-{
-	unsigned int pos, end;		/* scans bitmap by regions of size order */
-
-	for (pos = 0; (end = pos + BIT(order)) <= bits; pos = end) {
-		if (!bitmap_allocate_region(bitmap, pos, order))
-			return pos;
-	}
-	return -ENOMEM;
-}
-EXPORT_SYMBOL(bitmap_find_free_region);
-
-/**
- * bitmap_release_region - release allocated bitmap region
- *	@bitmap: array of unsigned longs corresponding to the bitmap
- *	@pos: beginning of bit region to release
- *	@order: region size (log base 2 of number of bits) to release
- *
- * This is the complement to __bitmap_find_free_region() and releases
- * the found region (by clearing it in the bitmap).
- */
-void bitmap_release_region(unsigned long *bitmap, unsigned int pos, int order)
-{
-	bitmap_clear(bitmap, pos, BIT(order));
-}
-EXPORT_SYMBOL(bitmap_release_region);
-
-/**
- * bitmap_allocate_region - allocate bitmap region
- *	@bitmap: array of unsigned longs corresponding to the bitmap
- *	@pos: beginning of bit region to allocate
- *	@order: region size (log base 2 of number of bits) to allocate
- *
- * Allocate (set bits in) a specified region of a bitmap.
- *
- * Return: 0 on success, or %-EBUSY if specified region wasn't
- * free (not all bits were zero).
- */
-int bitmap_allocate_region(unsigned long *bitmap, unsigned int pos, int order)
-{
-	unsigned int len = BIT(order);
-
-	if (find_next_bit(bitmap, pos + len, pos) < pos + len)
-		return -EBUSY;
-	bitmap_set(bitmap, pos, len);
-	return 0;
-}
-EXPORT_SYMBOL(bitmap_allocate_region);
 
 unsigned long *bitmap_alloc(unsigned int nbits, gfp_t flags)
 {
