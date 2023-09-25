@@ -1269,6 +1269,19 @@ struct bch_sb_field_journal_v2 {
 
 #define BCH_MIN_NR_NBUCKETS	(1 << 6)
 
+#define BCH_IOPS_MEASUREMENTS()			\
+	x(seqread,	0)			\
+	x(seqwrite,	1)			\
+	x(randread,	2)			\
+	x(randwrite,	3)
+
+enum bch_iops_measurement {
+#define x(t, n) BCH_IOPS_##t = n,
+	BCH_IOPS_MEASUREMENTS()
+#undef x
+	BCH_IOPS_NR
+};
+
 struct bch_member {
 	__uuid_t		uuid;
 	__le64			nbuckets;	/* device size */
@@ -1277,19 +1290,20 @@ struct bch_member {
 	__le32			pad;
 	__le64			last_mount;	/* time_t */
 
-	__le64			flags[2];
+	__le64			flags;
+	__le32			iops[4];
 };
 
 #define BCH_MEMBER_V1_BYTES	56
 
-LE64_BITMASK(BCH_MEMBER_STATE,		struct bch_member, flags[0],  0,  4)
+LE64_BITMASK(BCH_MEMBER_STATE,		struct bch_member, flags,  0,  4)
 /* 4-14 unused, was TIER, HAS_(META)DATA, REPLACEMENT */
-LE64_BITMASK(BCH_MEMBER_DISCARD,	struct bch_member, flags[0], 14, 15)
-LE64_BITMASK(BCH_MEMBER_DATA_ALLOWED,	struct bch_member, flags[0], 15, 20)
-LE64_BITMASK(BCH_MEMBER_GROUP,		struct bch_member, flags[0], 20, 28)
-LE64_BITMASK(BCH_MEMBER_DURABILITY,	struct bch_member, flags[0], 28, 30)
+LE64_BITMASK(BCH_MEMBER_DISCARD,	struct bch_member, flags, 14, 15)
+LE64_BITMASK(BCH_MEMBER_DATA_ALLOWED,	struct bch_member, flags, 15, 20)
+LE64_BITMASK(BCH_MEMBER_GROUP,		struct bch_member, flags, 20, 28)
+LE64_BITMASK(BCH_MEMBER_DURABILITY,	struct bch_member, flags, 28, 30)
 LE64_BITMASK(BCH_MEMBER_FREESPACE_INITIALIZED,
-					struct bch_member, flags[0], 30, 31)
+					struct bch_member, flags, 30, 31)
 
 #if 0
 LE64_BITMASK(BCH_MEMBER_NR_READ_ERRORS,	struct bch_member, flags[1], 0,  20);

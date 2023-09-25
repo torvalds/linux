@@ -10,6 +10,7 @@
 
 struct bch_fs;
 
+extern const char * const bch2_iops_measurements[];
 extern const char * const bch2_error_actions[];
 extern const char * const bch2_fsck_fix_opts[];
 extern const char * const bch2_version_upgrade_opts[];

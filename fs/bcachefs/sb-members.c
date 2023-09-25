@@ -2,6 +2,7 @@
 
 #include "bcachefs.h"
 #include "disk_groups.h"
+#include "opts.h"
 #include "replicas.h"
 #include "sb-members.h"
 #include "super-io.h"
@@ -171,6 +172,13 @@ static void member_to_text(struct printbuf *out,
 	prt_tab(out);
 	prt_units_u64(out, device_size << 9);
 	prt_newline(out);
+
+	for (unsigned i = 0; i < BCH_IOPS_NR; i++) {
+		prt_printf(out, "%s iops:", bch2_iops_measurements[i]);
+		prt_tab(out);
+		prt_printf(out, "%u", le32_to_cpu(m.iops[i]));
+		prt_newline(out);
+	}
 
 	prt_printf(out, "Bucket size:");
 	prt_tab(out);

@@ -12,6 +12,11 @@
 
 #define x(t, n, ...) [n] = #t,
 
+const char * const bch2_iops_measurements[] = {
+	BCH_IOPS_MEASUREMENTS()
+	NULL
+};
+
 const char * const bch2_error_actions[] = {
 	BCH_ERROR_ACTIONS()
 	NULL
