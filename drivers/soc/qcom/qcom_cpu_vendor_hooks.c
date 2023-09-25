@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #define pr_fmt(fmt) "VendorHooks: " fmt
@@ -151,7 +151,7 @@ static int cpu_vendor_hooks_driver_probe(struct platform_device *pdev)
 	int ret;
 
 	store_kaslr_offset();
-#ifdef CONFIG_HIBERNATION
+#if defined(CONFIG_HIBERNATION) && defined(CONFIG_RANDOMIZE_BASE)
 	register_syscore_ops(&kaslr_offset_restore_syscore_ops);
 #endif
 
