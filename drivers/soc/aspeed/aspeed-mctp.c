@@ -149,9 +149,6 @@ static DEFINE_IDA(mctp_ida);
 #define TX_MAX_PACKET_COUNT	(TX_BUF_RD_PTR_MASK + 1)
 #define RX_MAX_PACKET_COUNT	(RX_BUF_RD_PTR_MASK + 1)
 
-#define TX_CMD_BUF_SIZE \
-	PAGE_ALIGN(TX_PACKET_COUNT * sizeof(struct aspeed_mctp_tx_cmd))
-
 /* Per client packet cache sizes */
 #define RX_RING_COUNT		64
 #define TX_RING_COUNT		64
@@ -222,6 +219,7 @@ static DEFINE_IDA(mctp_ida);
 
 struct aspeed_mctp_match_data {
 	u32 rx_cmd_size;
+	u32 tx_cmd_size;
 	u32 packet_unit_size;
 	bool need_address_mapping;
 	bool vdm_hdr_direct_xfer;
@@ -236,6 +234,13 @@ struct aspeed_mctp_rx_cmd {
 struct aspeed_mctp_tx_cmd {
 	u32 tx_lo;
 	u32 tx_hi;
+};
+
+struct aspeed_g7_mctp_tx_cmd {
+	u32 tx_lo;
+	u32 tx_mid;
+	u32 tx_hi;
+	u32 reserved;
 };
 
 struct mctp_buffer {
@@ -2055,7 +2060,7 @@ static int aspeed_mctp_dma_init(struct aspeed_mctp *priv)
 
 	if (!tx->data.vaddr)
 		goto out_tx_data;
-	alloc_size = TX_CMD_BUF_SIZE;
+	alloc_size = PAGE_ALIGN(TX_PACKET_COUNT * priv->match_data->tx_cmd_size);
 	tx->cmd.vaddr = dma_alloc_coherent(priv->dev, alloc_size, &tx->cmd.dma_handle, GFP_KERNEL);
 
 	if (!tx->cmd.vaddr)
@@ -2087,24 +2092,26 @@ static void aspeed_mctp_dma_fini(struct aspeed_mctp *priv)
 {
 	struct mctp_channel *tx = &priv->tx;
 	struct mctp_channel *rx = &priv->rx;
+	size_t free_size;
 
-	dma_free_coherent(priv->dev, TX_CMD_BUF_SIZE, tx->cmd.vaddr,
+	free_size = PAGE_ALIGN(TX_PACKET_COUNT * priv->match_data->tx_cmd_size);
+	dma_free_coherent(priv->dev, free_size, tx->cmd.vaddr,
 			  tx->cmd.dma_handle);
 
-	dma_free_coherent(
-		priv->dev,
-		PAGE_ALIGN(priv->rx_packet_count * priv->match_data->rx_cmd_size),
-		rx->cmd.vaddr, rx->cmd.dma_handle);
+	free_size = PAGE_ALIGN(priv->rx_packet_count *
+			       priv->match_data->rx_cmd_size);
+	dma_free_coherent(priv->dev, free_size, rx->cmd.vaddr,
+			  rx->cmd.dma_handle);
 
-	dma_free_coherent(priv->dev,
-			  PAGE_ALIGN(TX_PACKET_COUNT *
-				     priv->match_data->packet_unit_size),
-			  tx->data.vaddr, tx->data.dma_handle);
+	free_size = PAGE_ALIGN(TX_PACKET_COUNT *
+			       priv->match_data->packet_unit_size);
+	dma_free_coherent(priv->dev, free_size, tx->data.vaddr,
+			  tx->data.dma_handle);
 
-	dma_free_coherent(priv->dev,
-			  PAGE_ALIGN(priv->rx_packet_count *
-				     priv->match_data->packet_unit_size),
-			  rx->data.vaddr, rx->data.dma_handle);
+	free_size = PAGE_ALIGN(priv->rx_packet_count *
+			       priv->match_data->packet_unit_size);
+	dma_free_coherent(priv->dev, free_size, rx->data.vaddr,
+			  rx->data.dma_handle);
 }
 
 static int aspeed_mctp_irq_init(struct aspeed_mctp *priv)
@@ -2282,6 +2289,7 @@ static int aspeed_mctp_remove(struct platform_device *pdev)
 
 static const struct aspeed_mctp_match_data ast2500_mctp_match_data = {
 	.rx_cmd_size = sizeof(struct aspeed_mctp_rx_cmd),
+	.tx_cmd_size = sizeof(struct aspeed_mctp_tx_cmd),
 	.packet_unit_size = 128,
 	.need_address_mapping = true,
 	.vdm_hdr_direct_xfer = false,
@@ -2290,6 +2298,7 @@ static const struct aspeed_mctp_match_data ast2500_mctp_match_data = {
 
 static const struct aspeed_mctp_match_data ast2600_mctp_match_data = {
 	.rx_cmd_size = sizeof(u32),
+	.tx_cmd_size = sizeof(struct aspeed_mctp_tx_cmd),
 	.packet_unit_size = sizeof(struct mctp_pcie_packet_data),
 	.need_address_mapping = false,
 	.vdm_hdr_direct_xfer = true,
@@ -2297,7 +2306,8 @@ static const struct aspeed_mctp_match_data ast2600_mctp_match_data = {
 };
 
 static const struct aspeed_mctp_match_data ast2700_mctp_match_data = {
-	.rx_cmd_size = sizeof(u32),
+	.rx_cmd_size = sizeof(struct aspeed_mctp_rx_cmd),
+	.tx_cmd_size = sizeof(struct aspeed_g7_mctp_tx_cmd),
 	.packet_unit_size = sizeof(struct mctp_pcie_packet_data),
 	.need_address_mapping = false,
 	.vdm_hdr_direct_xfer = true,
