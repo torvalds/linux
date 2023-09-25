@@ -77,7 +77,7 @@ nfsd4_ff_encode_layoutget(struct xdr_stream *xdr,
 
 __be32
 nfsd4_ff_encode_getdeviceinfo(struct xdr_stream *xdr,
-		struct nfsd4_getdeviceinfo *gdp)
+		const struct nfsd4_getdeviceinfo *gdp)
 {
 	struct pnfs_ff_device_addr *da = gdp->gd_device;
 	int len;
