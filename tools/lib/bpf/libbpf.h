@@ -1312,6 +1312,16 @@ LIBBPF_API size_t ring__size(const struct ring *r);
  */
 LIBBPF_API int ring__map_fd(const struct ring *r);
 
+/**
+ * @brief **ring__consume()** consumes available ringbuffer data without event
+ * polling.
+ *
+ * @param r A ringbuffer object.
+ * @return The number of records consumed (or INT_MAX, whichever is less), or
+ * a negative number if any of the callbacks return an error.
+ */
+LIBBPF_API int ring__consume(struct ring *r);
+
 struct user_ring_buffer_opts {
 	size_t sz; /* size of this struct, for forward/backward compatibility */
 };

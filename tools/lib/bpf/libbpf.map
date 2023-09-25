@@ -401,6 +401,7 @@ LIBBPF_1.3.0 {
 		bpf_program__attach_tcx;
 		bpf_program__attach_uprobe_multi;
 		ring__avail_data_size;
+		ring__consume;
 		ring__consumer_pos;
 		ring__map_fd;
 		ring__producer_pos;
