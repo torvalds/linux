@@ -164,22 +164,6 @@ static inline void pmd_clear(pmd_t *pmdp)
 	*pmdp = __pmd(0);
 }
 
-#define __HAVE_ARCH_PTEP_GET_AND_CLEAR
-static inline pte_t ptep_get_and_clear(struct mm_struct *mm, unsigned long addr,
-				       pte_t *ptep)
-{
-	return __pte(pte_update(mm, addr, ptep, ~0, 0, 0));
-}
-
-#define __HAVE_ARCH_PTEP_SET_WRPROTECT
-#ifndef ptep_set_wrprotect
-static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addr,
-				      pte_t *ptep)
-{
-	pte_update(mm, addr, ptep, _PAGE_RW, 0, 0);
-}
-#endif
-
 #ifndef __ptep_set_access_flags
 static inline void __ptep_set_access_flags(struct vm_area_struct *vma,
 					   pte_t *ptep, pte_t entry,

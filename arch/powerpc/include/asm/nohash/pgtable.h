@@ -80,6 +80,22 @@ static inline int ptep_test_and_clear_young(struct vm_area_struct *vma,
 }
 #define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_YOUNG
 
+#ifndef ptep_set_wrprotect
+static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addr,
+				      pte_t *ptep)
+{
+	pte_update(mm, addr, ptep, _PAGE_RW, 0, 0);
+}
+#endif
+#define __HAVE_ARCH_PTEP_SET_WRPROTECT
+
+static inline pte_t ptep_get_and_clear(struct mm_struct *mm, unsigned long addr,
+				       pte_t *ptep)
+{
+	return __pte(pte_update(mm, addr, ptep, ~0UL, 0, 0));
+}
+#define __HAVE_ARCH_PTEP_GET_AND_CLEAR
+
 /* Generic accessors to PTE bits */
 #ifndef pte_mkwrite_novma
 static inline pte_t pte_mkwrite_novma(pte_t pte)
