@@ -9,6 +9,7 @@
 #include <linux/device.h>
 #include <linux/module.h>
 #include <linux/pm_domain.h>
+#include <linux/pm_opp.h>
 #include <linux/scmi_protocol.h>
 #include <linux/slab.h>
 
@@ -40,6 +41,37 @@ scmi_pd_set_perf_state(struct generic_pm_domain *genpd, unsigned int state)
 			 ret, state);
 
 	return ret;
+}
+
+static int
+scmi_pd_attach_dev(struct generic_pm_domain *genpd, struct device *dev)
+{
+	struct scmi_perf_domain *pd = to_scmi_pd(genpd);
+	int ret;
+
+	/*
+	 * Allow the device to be attached, but don't add the OPP table unless
+	 * the performance level can be changed.
+	 */
+	if (!pd->info->set_perf)
+		return 0;
+
+	ret = pd->perf_ops->device_opps_add(pd->ph, dev, pd->domain_id);
+	if (ret)
+		dev_warn(dev, "failed to add OPPs for the device\n");
+
+	return ret;
+}
+
+static void
+scmi_pd_detach_dev(struct generic_pm_domain *genpd, struct device *dev)
+{
+	struct scmi_perf_domain *pd = to_scmi_pd(genpd);
+
+	if (!pd->info->set_perf)
+		return;
+
+	dev_pm_opp_remove_all_dynamic(dev);
 }
 
 static int scmi_perf_domain_probe(struct scmi_device *sdev)
@@ -95,6 +127,8 @@ static int scmi_perf_domain_probe(struct scmi_device *sdev)
 		scmi_pd->genpd.flags = GENPD_FLAG_ALWAYS_ON |
 				       GENPD_FLAG_OPP_TABLE_FW;
 		scmi_pd->genpd.set_performance_state = scmi_pd_set_perf_state;
+		scmi_pd->genpd.attach_dev = scmi_pd_attach_dev;
+		scmi_pd->genpd.detach_dev = scmi_pd_detach_dev;
 
 		ret = pm_genpd_init(&scmi_pd->genpd, NULL, false);
 		if (ret)
