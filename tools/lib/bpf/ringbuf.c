@@ -34,7 +34,7 @@ struct ring {
 
 struct ring_buffer {
 	struct epoll_event *events;
-	struct ring *rings;
+	struct ring **rings;
 	size_t page_size;
 	int epoll_fd;
 	int ring_cnt;
@@ -57,7 +57,7 @@ struct ringbuf_hdr {
 	__u32 pad;
 };
 
-static void ringbuf_unmap_ring(struct ring_buffer *rb, struct ring *r)
+static void ringbuf_free_ring(struct ring_buffer *rb, struct ring *r)
 {
 	if (r->consumer_pos) {
 		munmap(r->consumer_pos, rb->page_size);
@@ -67,6 +67,8 @@ static void ringbuf_unmap_ring(struct ring_buffer *rb, struct ring *r)
 		munmap(r->producer_pos, rb->page_size + 2 * (r->mask + 1));
 		r->producer_pos = NULL;
 	}
+
+	free(r);
 }
 
 /* Add extra RINGBUF maps to this ring buffer manager */
@@ -107,8 +109,10 @@ int ring_buffer__add(struct ring_buffer *rb, int map_fd,
 		return libbpf_err(-ENOMEM);
 	rb->events = tmp;
 
-	r = &rb->rings[rb->ring_cnt];
-	memset(r, 0, sizeof(*r));
+	r = calloc(1, sizeof(*r));
+	if (!r)
+		return libbpf_err(-ENOMEM);
+	rb->rings[rb->ring_cnt] = r;
 
 	r->map_fd = map_fd;
 	r->sample_cb = sample_cb;
@@ -161,7 +165,7 @@ int ring_buffer__add(struct ring_buffer *rb, int map_fd,
 	return 0;
 
 err_out:
-	ringbuf_unmap_ring(rb, r);
+	ringbuf_free_ring(rb, r);
 	return libbpf_err(err);
 }
 
@@ -173,7 +177,7 @@ void ring_buffer__free(struct ring_buffer *rb)
 		return;
 
 	for (i = 0; i < rb->ring_cnt; ++i)
-		ringbuf_unmap_ring(rb, &rb->rings[i]);
+		ringbuf_free_ring(rb, rb->rings[i]);
 	if (rb->epoll_fd >= 0)
 		close(rb->epoll_fd);
 
@@ -281,7 +285,7 @@ int ring_buffer__consume(struct ring_buffer *rb)
 	int i;
 
 	for (i = 0; i < rb->ring_cnt; i++) {
-		struct ring *ring = &rb->rings[i];
+		struct ring *ring = rb->rings[i];
 
 		err = ringbuf_process_ring(ring);
 		if (err < 0)
@@ -308,7 +312,7 @@ int ring_buffer__poll(struct ring_buffer *rb, int timeout_ms)
 
 	for (i = 0; i < cnt; i++) {
 		__u32 ring_id = rb->events[i].data.fd;
-		struct ring *ring = &rb->rings[ring_id];
+		struct ring *ring = rb->rings[ring_id];
 
 		err = ringbuf_process_ring(ring);
 		if (err < 0)
