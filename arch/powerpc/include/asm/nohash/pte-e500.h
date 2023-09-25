@@ -57,6 +57,7 @@
 #define _PAGE_KERNEL_ROX	(_PAGE_BAP_SR | _PAGE_BAP_SX)
 
 #define _PAGE_NA	0
+#define _PAGE_NAX	_PAGE_BAP_UX
 #define _PAGE_RO	_PAGE_READ
 #define _PAGE_ROX	(_PAGE_READ | _PAGE_BAP_UX)
 #define _PAGE_RW	(_PAGE_READ | _PAGE_WRITE)

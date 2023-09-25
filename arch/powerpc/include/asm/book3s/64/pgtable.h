@@ -18,6 +18,7 @@
 #define _PAGE_WRITE		0x00002 /* write access allowed */
 #define _PAGE_READ		0x00004	/* read access allowed */
 #define _PAGE_NA		_PAGE_PRIVILEGED
+#define _PAGE_NAX		_PAGE_EXEC
 #define _PAGE_RO		_PAGE_READ
 #define _PAGE_ROX		(_PAGE_READ | _PAGE_EXEC)
 #define _PAGE_RW		(_PAGE_READ | _PAGE_WRITE)
@@ -140,9 +141,6 @@
 #define _PAGE_BASE	(_PAGE_BASE_NC)
 
 #include <asm/pgtable-masks.h>
-
-/* Radix only, Hash uses PAGE_READONLY_X + execute-only pkey instead */
-#define PAGE_EXECONLY	__pgprot(_PAGE_BASE | _PAGE_EXEC)
 
 /* Permission masks used for kernel mappings */
 #define PAGE_KERNEL	__pgprot(_PAGE_BASE | _PAGE_KERNEL_RW)

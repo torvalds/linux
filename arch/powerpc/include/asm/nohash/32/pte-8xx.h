@@ -48,6 +48,7 @@
 
 #define _PAGE_HUGE	0x0800	/* Copied to L1 PS bit 29 */
 
+#define _PAGE_NAX	(_PAGE_NA | _PAGE_EXEC)
 #define _PAGE_ROX	(_PAGE_RO | _PAGE_EXEC)
 #define _PAGE_RW	0
 #define _PAGE_RWX	_PAGE_EXEC

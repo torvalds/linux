@@ -202,7 +202,7 @@ static inline bool pte_access_permitted(pte_t pte, bool write)
 {
 	/*
 	 * A read-only access is controlled by _PAGE_READ bit.
-	 * We have _PAGE_READ set for WRITE and EXECUTE
+	 * We have _PAGE_READ set for WRITE
 	 */
 	if (!pte_present(pte) || !pte_read(pte))
 		return false;
