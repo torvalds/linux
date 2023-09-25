@@ -309,16 +309,16 @@ static void rkisp1_rsz_config(struct rkisp1_resizer *rsz,
 	src_c.width = src_y.width / src_yuv_info->hdiv;
 	src_c.height = src_y.height / src_yuv_info->vdiv;
 
+	dev_dbg(rsz->rkisp1->dev,
+		"stream %u rsz/scale: Y %ux%u -> %ux%u, CbCr %ux%u -> %ux%u\n",
+		rsz->id, sink_y->width, sink_y->height,
+		src_fmt->width, src_fmt->height,
+		sink_c.width, sink_c.height, src_c.width, src_c.height);
+
 	if (sink_c.width == src_c.width && sink_c.height == src_c.height) {
 		rkisp1_rsz_disable(rsz, when);
 		return;
 	}
-
-	dev_dbg(rsz->rkisp1->dev, "stream %d rsz/scale: %dx%d -> %dx%d\n",
-		rsz->id, sink_y->width, sink_y->height,
-		src_fmt->width, src_fmt->height);
-	dev_dbg(rsz->rkisp1->dev, "chroma scaling %dx%d -> %dx%d\n",
-		sink_c.width, sink_c.height, src_c.width, src_c.height);
 
 	/* set values in the hw */
 	rkisp1_rsz_config_regs(rsz, sink_y, &sink_c, &src_y, &src_c, when);
