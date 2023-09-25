@@ -3871,18 +3871,18 @@ nfsd4_encode_clientid4(struct xdr_stream *xdr, const clientid_t *clientid)
 	return nfs_ok;
 }
 
+/* This is a frequently-encoded item; open-coded for speed */
 static __be32
-nfsd4_encode_stateid(struct xdr_stream *xdr, stateid_t *sid)
+nfsd4_encode_stateid4(struct xdr_stream *xdr, const stateid_t *sid)
 {
 	__be32 *p;
 
-	p = xdr_reserve_space(xdr, sizeof(stateid_t));
+	p = xdr_reserve_space(xdr, NFS4_STATEID_SIZE);
 	if (!p)
 		return nfserr_resource;
 	*p++ = cpu_to_be32(sid->si_generation);
-	p = xdr_encode_opaque_fixed(p, &sid->si_opaque,
-					sizeof(stateid_opaque_t));
-	return 0;
+	memcpy(p, &sid->si_opaque, sizeof(sid->si_opaque));
+	return nfs_ok;
 }
 
 static __be32
@@ -3926,7 +3926,8 @@ nfsd4_encode_close(struct nfsd4_compoundres *resp, __be32 nfserr,
 	struct nfsd4_close *close = &u->close;
 	struct xdr_stream *xdr = resp->xdr;
 
-	return nfsd4_encode_stateid(xdr, &close->cl_stateid);
+	/* open_stateid */
+	return nfsd4_encode_stateid4(xdr, &close->cl_stateid);
 }
 
 
@@ -4026,7 +4027,7 @@ nfsd4_encode_lock(struct nfsd4_compoundres *resp, __be32 nfserr,
 	struct xdr_stream *xdr = resp->xdr;
 
 	if (!nfserr)
-		nfserr = nfsd4_encode_stateid(xdr, &lock->lk_resp_stateid);
+		nfserr = nfsd4_encode_stateid4(xdr, &lock->lk_resp_stateid);
 	else if (nfserr == nfserr_denied)
 		nfserr = nfsd4_encode_lock_denied(xdr, &lock->lk_denied);
 
@@ -4052,7 +4053,8 @@ nfsd4_encode_locku(struct nfsd4_compoundres *resp, __be32 nfserr,
 	struct nfsd4_locku *locku = &u->locku;
 	struct xdr_stream *xdr = resp->xdr;
 
-	return nfsd4_encode_stateid(xdr, &locku->lu_stateid);
+	/* lock_stateid */
+	return nfsd4_encode_stateid4(xdr, &locku->lu_stateid);
 }
 
 
@@ -4075,7 +4077,7 @@ nfsd4_encode_open(struct nfsd4_compoundres *resp, __be32 nfserr,
 	struct xdr_stream *xdr = resp->xdr;
 	__be32 *p;
 
-	nfserr = nfsd4_encode_stateid(xdr, &open->op_stateid);
+	nfserr = nfsd4_encode_stateid4(xdr, &open->op_stateid);
 	if (nfserr)
 		return nfserr;
 	nfserr = nfsd4_encode_change_info4(xdr, &open->op_cinfo);
@@ -4098,7 +4100,7 @@ nfsd4_encode_open(struct nfsd4_compoundres *resp, __be32 nfserr,
 	case NFS4_OPEN_DELEGATE_NONE:
 		break;
 	case NFS4_OPEN_DELEGATE_READ:
-		nfserr = nfsd4_encode_stateid(xdr, &open->op_delegate_stateid);
+		nfserr = nfsd4_encode_stateid4(xdr, &open->op_delegate_stateid);
 		if (nfserr)
 			return nfserr;
 		p = xdr_reserve_space(xdr, 20);
@@ -4115,7 +4117,7 @@ nfsd4_encode_open(struct nfsd4_compoundres *resp, __be32 nfserr,
 		*p++ = cpu_to_be32(0);   /* XXX: is NULL principal ok? */
 		break;
 	case NFS4_OPEN_DELEGATE_WRITE:
-		nfserr = nfsd4_encode_stateid(xdr, &open->op_delegate_stateid);
+		nfserr = nfsd4_encode_stateid4(xdr, &open->op_delegate_stateid);
 		if (nfserr)
 			return nfserr;
 
@@ -4173,7 +4175,8 @@ nfsd4_encode_open_confirm(struct nfsd4_compoundres *resp, __be32 nfserr,
 	struct nfsd4_open_confirm *oc = &u->open_confirm;
 	struct xdr_stream *xdr = resp->xdr;
 
-	return nfsd4_encode_stateid(xdr, &oc->oc_resp_stateid);
+	/* open_stateid */
+	return nfsd4_encode_stateid4(xdr, &oc->oc_resp_stateid);
 }
 
 static __be32
@@ -4183,7 +4186,8 @@ nfsd4_encode_open_downgrade(struct nfsd4_compoundres *resp, __be32 nfserr,
 	struct nfsd4_open_downgrade *od = &u->open_downgrade;
 	struct xdr_stream *xdr = resp->xdr;
 
-	return nfsd4_encode_stateid(xdr, &od->od_stateid);
+	/* open_stateid */
+	return nfsd4_encode_stateid4(xdr, &od->od_stateid);
 }
 
 /*
@@ -4923,7 +4927,7 @@ nfsd4_encode_layoutreturn(struct nfsd4_compoundres *resp, __be32 nfserr,
 		return nfserr_resource;
 	*p++ = cpu_to_be32(lrp->lrs_present);
 	if (lrp->lrs_present)
-		return nfsd4_encode_stateid(xdr, &lrp->lr_sid);
+		return nfsd4_encode_stateid4(xdr, &lrp->lr_sid);
 	return 0;
 }
 #endif /* CONFIG_NFSD_PNFS */
@@ -4942,7 +4946,7 @@ nfsd42_encode_write_res(struct nfsd4_compoundres *resp,
 	else {
 		__be32 nfserr;
 		*p++ = cpu_to_be32(1);
-		nfserr = nfsd4_encode_stateid(resp->xdr, &write->cb_stateid);
+		nfserr = nfsd4_encode_stateid4(resp->xdr, &write->cb_stateid);
 		if (nfserr)
 			return nfserr;
 	}
@@ -5126,7 +5130,7 @@ nfsd4_encode_copy_notify(struct nfsd4_compoundres *resp, __be32 nfserr,
 	*p++ = cpu_to_be32(cn->cpn_nsec);
 
 	/* cnr_stateid */
-	nfserr = nfsd4_encode_stateid(xdr, &cn->cpn_cnr_stateid);
+	nfserr = nfsd4_encode_stateid4(xdr, &cn->cpn_cnr_stateid);
 	if (nfserr)
 		return nfserr;
 
