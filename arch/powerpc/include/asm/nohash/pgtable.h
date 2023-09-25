@@ -84,7 +84,7 @@ static inline int ptep_test_and_clear_young(struct vm_area_struct *vma,
 static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addr,
 				      pte_t *ptep)
 {
-	pte_update(mm, addr, ptep, _PAGE_RW, 0, 0);
+	pte_update(mm, addr, ptep, _PAGE_WRITE, 0, 0);
 }
 #endif
 #define __HAVE_ARCH_PTEP_SET_WRPROTECT
@@ -122,6 +122,9 @@ static inline void __ptep_set_access_flags(struct vm_area_struct *vma,
 #ifndef pte_mkwrite_novma
 static inline pte_t pte_mkwrite_novma(pte_t pte)
 {
+	/*
+	 * write implies read, hence set both
+	 */
 	return __pte(pte_val(pte) | _PAGE_RW);
 }
 #endif
@@ -139,7 +142,7 @@ static inline pte_t pte_mkyoung(pte_t pte)
 #ifndef pte_wrprotect
 static inline pte_t pte_wrprotect(pte_t pte)
 {
-	return __pte(pte_val(pte) & ~_PAGE_RW);
+	return __pte(pte_val(pte) & ~_PAGE_WRITE);
 }
 #endif
 
@@ -153,7 +156,7 @@ static inline pte_t pte_mkexec(pte_t pte)
 #ifndef pte_write
 static inline int pte_write(pte_t pte)
 {
-	return pte_val(pte) & _PAGE_RW;
+	return pte_val(pte) & _PAGE_WRITE;
 }
 #endif
 #ifndef pte_read

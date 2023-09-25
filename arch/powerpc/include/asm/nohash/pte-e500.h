@@ -55,6 +55,8 @@
 #define _PAGE_KERNEL_ROX	(_PAGE_BAP_SR | _PAGE_BAP_SX)
 #define _PAGE_USER		(_PAGE_BAP_UR | _PAGE_BAP_SR) /* Can be read */
 
+#define _PAGE_WRITE	_PAGE_RW
+
 #define _PAGE_SPECIAL	_PAGE_SW0
 
 /* Base page size */

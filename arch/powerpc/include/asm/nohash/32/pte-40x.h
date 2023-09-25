@@ -49,6 +49,8 @@
 #define _PAGE_EXEC	0x200	/* hardware: EX permission */
 #define _PAGE_ACCESSED	0x400	/* software: R: page referenced */
 
+#define _PAGE_WRITE	_PAGE_RW
+
 /* No page size encoding in the linux PTE */
 #define _PAGE_PSIZE		0
 

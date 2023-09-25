@@ -75,6 +75,8 @@
 #define _PAGE_NO_CACHE	0x00000400		/* H: I bit */
 #define _PAGE_WRITETHRU	0x00000800		/* H: W bit */
 
+#define _PAGE_WRITE	_PAGE_RW
+
 /* No page size encoding in the linux PTE */
 #define _PAGE_PSIZE		0
 
