@@ -1258,6 +1258,11 @@ static void sdma_v6_0_set_ras_funcs(struct amdgpu_device *adev)
 static int sdma_v6_0_early_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	int r;
+
+	r = amdgpu_sdma_init_microcode(adev, 0, true);
+	if (r)
+		return r;
 
 	sdma_v6_0_set_ring_funcs(adev);
 	sdma_v6_0_set_buffer_funcs(adev);
@@ -1279,10 +1284,6 @@ static int sdma_v6_0_sw_init(void *handle)
 	r = amdgpu_irq_add_id(adev, SOC21_IH_CLIENTID_GFX,
 			      GFX_11_0_0__SRCID__SDMA_TRAP,
 			      &adev->sdma.trap_irq);
-	if (r)
-		return r;
-
-	r = amdgpu_sdma_init_microcode(adev, 0, true);
 	if (r)
 		return r;
 
