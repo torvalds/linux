@@ -307,6 +307,13 @@ static inline u16 ieee80211_sn_sub(u16 sn1, u16 sn2)
 #define IEEE80211_TRIGGER_TYPE_BQRP		0x6
 #define IEEE80211_TRIGGER_TYPE_NFRP		0x7
 
+/* UL-bandwidth within common_info of trigger frame */
+#define IEEE80211_TRIGGER_ULBW_MASK		0xc0000
+#define IEEE80211_TRIGGER_ULBW_20MHZ		0x0
+#define IEEE80211_TRIGGER_ULBW_40MHZ		0x1
+#define IEEE80211_TRIGGER_ULBW_80MHZ		0x2
+#define IEEE80211_TRIGGER_ULBW_160_80P80MHZ	0x3
+
 struct ieee80211_hdr {
 	__le16 frame_control;
 	__le16 duration_id;
