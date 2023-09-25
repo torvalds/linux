@@ -9,9 +9,7 @@
 #include <linux/threads.h>
 #include <asm/mmu.h>			/* For sub-arch specific PPC_PIN_SIZE */
 
-#ifdef CONFIG_44x
 extern int icache_44x_need_flush;
-#endif
 
 #endif /* __ASSEMBLY__ */
 
@@ -229,10 +227,9 @@ static inline pte_basic_t pte_update(struct mm_struct *mm, unsigned long addr, p
 
 	*p = __pte(new);
 
-#ifdef CONFIG_44x
-	if ((old & _PAGE_USER) && (old & _PAGE_EXEC))
+	if (IS_ENABLED(CONFIG_44x) && (old & _PAGE_USER) && (old & _PAGE_EXEC))
 		icache_44x_need_flush = 1;
-#endif
+
 	return old;
 }
 #endif
