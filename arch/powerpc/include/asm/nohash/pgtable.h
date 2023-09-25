@@ -69,6 +69,17 @@ static inline pte_basic_t pte_update(struct mm_struct *mm, unsigned long addr, p
 }
 #endif
 
+static inline int ptep_test_and_clear_young(struct vm_area_struct *vma,
+					    unsigned long addr, pte_t *ptep)
+{
+	unsigned long old;
+
+	old = pte_update(vma->vm_mm, addr, ptep, _PAGE_ACCESSED, 0, 0);
+
+	return (old & _PAGE_ACCESSED) != 0;
+}
+#define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_YOUNG
+
 /* Generic accessors to PTE bits */
 #ifndef pte_mkwrite_novma
 static inline pte_t pte_mkwrite_novma(pte_t pte)
