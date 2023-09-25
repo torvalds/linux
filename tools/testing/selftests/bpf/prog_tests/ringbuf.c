@@ -92,7 +92,7 @@ static void ringbuf_subtest(void)
 	int page_size = getpagesize();
 	void *mmap_ptr, *tmp_ptr;
 	struct ring *ring;
-	unsigned long cons_pos, prod_pos;
+	unsigned long avail_data, cons_pos, prod_pos;
 
 	skel = test_ringbuf_lskel__open();
 	if (CHECK(!skel, "skel_open", "skeleton open failed\n"))
@@ -185,6 +185,8 @@ static void ringbuf_subtest(void)
 	/* verify getting this data directly via the ring object yields the same
 	 * results
 	 */
+	avail_data = ring__avail_data_size(ring);
+	ASSERT_EQ(avail_data, 3 * rec_sz, "ring_avail_size");
 	cons_pos = ring__consumer_pos(ring);
 	ASSERT_EQ(cons_pos, 0, "ring_cons_pos");
 	prod_pos = ring__producer_pos(ring);
