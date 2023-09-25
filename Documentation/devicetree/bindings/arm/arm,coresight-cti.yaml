@@ -92,7 +92,6 @@ properties:
     maxItems: 1
 
   cpu:
-    $ref: /schemas/types.yaml#/definitions/phandle
     description:
       Handle to cpu this device is associated with. This must appear in the
       base cti node if compatible string arm,coresight-cti-v8-arch is used,
