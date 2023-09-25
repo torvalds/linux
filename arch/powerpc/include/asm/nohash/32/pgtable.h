@@ -161,22 +161,6 @@ static inline void pmd_clear(pmd_t *pmdp)
 	*pmdp = __pmd(0);
 }
 
-#ifndef __ptep_set_access_flags
-static inline void __ptep_set_access_flags(struct vm_area_struct *vma,
-					   pte_t *ptep, pte_t entry,
-					   unsigned long address,
-					   int psize)
-{
-	unsigned long set = pte_val(entry) &
-			    (_PAGE_DIRTY | _PAGE_ACCESSED | _PAGE_RW | _PAGE_EXEC);
-	int huge = psize > mmu_virtual_psize ? 1 : 0;
-
-	pte_update(vma->vm_mm, address, ptep, 0, set, huge);
-
-	flush_tlb_page(vma, address);
-}
-#endif
-
 /*
  * Note that on Book E processors, the pmd contains the kernel virtual
  * (lowmem) address of the pte page.  The physical address is less useful

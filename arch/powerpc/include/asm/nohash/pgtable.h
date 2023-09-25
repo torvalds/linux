@@ -101,6 +101,23 @@ static inline void pte_clear(struct mm_struct *mm, unsigned long addr, pte_t *pt
 	pte_update(mm, addr, ptep, ~0UL, 0, 0);
 }
 
+/* Set the dirty and/or accessed bits atomically in a linux PTE */
+#ifndef __ptep_set_access_flags
+static inline void __ptep_set_access_flags(struct vm_area_struct *vma,
+					   pte_t *ptep, pte_t entry,
+					   unsigned long address,
+					   int psize)
+{
+	unsigned long set = pte_val(entry) &
+			    (_PAGE_DIRTY | _PAGE_ACCESSED | _PAGE_RW | _PAGE_EXEC);
+	int huge = psize > mmu_virtual_psize ? 1 : 0;
+
+	pte_update(vma->vm_mm, address, ptep, 0, set, huge);
+
+	flush_tlb_page(vma, address);
+}
+#endif
+
 /* Generic accessors to PTE bits */
 #ifndef pte_mkwrite_novma
 static inline pte_t pte_mkwrite_novma(pte_t pte)
