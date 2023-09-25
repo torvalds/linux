@@ -4754,8 +4754,6 @@ static int dm_init_microcode(struct amdgpu_device *adev)
 		return 0;
 	}
 	r = amdgpu_ucode_request(adev, &adev->dm.dmub_fw, fw_name_dmub);
-	if (r)
-		DRM_ERROR("DMUB firmware loading failed: %d\n", r);
 	return r;
 }
 
