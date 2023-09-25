@@ -76,7 +76,7 @@ struct adreno_reglist {
 };
 
 extern const struct adreno_reglist a612_hwcg[], a615_hwcg[], a630_hwcg[], a640_hwcg[], a650_hwcg[];
-extern const struct adreno_reglist a660_hwcg[], a690_hwcg[];
+extern const struct adreno_reglist a660_hwcg[], a690_hwcg[], a730_hwcg[];
 
 struct adreno_speedbin {
 	uint16_t fuse;
@@ -401,6 +401,11 @@ static inline int adreno_is_a640_family(const struct adreno_gpu *gpu)
 	if (WARN_ON_ONCE(!gpu->info))
 		return false;
 	return gpu->info->family == ADRENO_6XX_GEN2;
+}
+
+static inline int adreno_is_a730(struct adreno_gpu *gpu)
+{
+	return gpu->info->chip_ids[0] == 0x07030001;
 }
 
 static inline int adreno_is_a7xx(struct adreno_gpu *gpu)
