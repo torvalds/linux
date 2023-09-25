@@ -64,6 +64,10 @@ properties:
   iommus:
     maxItems: 1
 
+  qcom,qmp:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description: Reference to the AOSS side-channel message RAM
+
   operating-points-v2: true
 
   opp-table:
@@ -250,6 +254,9 @@ allOf:
             - const: memnoc
             - const: hub
             - const: demet
+
+      required:
+        - qcom,qmp
 
   - if:
       properties:
