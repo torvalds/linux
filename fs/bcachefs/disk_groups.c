@@ -440,7 +440,7 @@ int __bch2_dev_group_set(struct bch_fs *c, struct bch_dev *ca, const char *name)
 	if (ret)
 		return ret;
 
-	mi = &bch2_sb_get_members(c->disk_sb.sb)->members[ca->dev_idx];
+	mi = bch2_members_v2_get_mut(c->disk_sb.sb, ca->dev_idx);
 	SET_BCH_MEMBER_GROUP(mi, v + 1);
 	return 0;
 }

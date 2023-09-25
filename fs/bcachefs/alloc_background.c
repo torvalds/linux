@@ -1922,7 +1922,7 @@ bkey_err:
 	}
 
 	mutex_lock(&c->sb_lock);
-	m = bch2_sb_get_members(c->disk_sb.sb)->members + ca->dev_idx;
+	m = bch2_members_v2_get_mut(c->disk_sb.sb, ca->dev_idx);
 	SET_BCH_MEMBER_FREESPACE_INITIALIZED(m, true);
 	mutex_unlock(&c->sb_lock);
 

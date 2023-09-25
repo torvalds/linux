@@ -1231,7 +1231,8 @@ struct bch_sb_field {
 	x(replicas,	7)			\
 	x(journal_seq_blacklist, 8)		\
 	x(journal_v2,	9)			\
-	x(counters,	10)
+	x(counters,	10)			\
+	x(members_v2,	11)
 
 enum bch_sb_field_type {
 #define x(f, nr)	BCH_SB_FIELD_##f = nr,
@@ -1279,6 +1280,8 @@ struct bch_member {
 	__le64			flags[2];
 };
 
+#define BCH_MEMBER_V1_BYTES	56
+
 LE64_BITMASK(BCH_MEMBER_STATE,		struct bch_member, flags[0],  0,  4)
 /* 4-14 unused, was TIER, HAS_(META)DATA, REPLACEMENT */
 LE64_BITMASK(BCH_MEMBER_DISCARD,	struct bch_member, flags[0], 14, 15)
@@ -1308,7 +1311,14 @@ enum bch_member_state {
 
 struct bch_sb_field_members {
 	struct bch_sb_field	field;
-	struct bch_member	members[];
+	struct bch_member	_members[]; //Members are now variable size
+};
+
+struct bch_sb_field_members_v2 {
+	struct bch_sb_field	field;
+	__le16			member_bytes; //size of single member entry
+	u8			pad[6];
+	struct bch_member	_members[];
 };
 
 /* BCH_SB_FIELD_crypt: */

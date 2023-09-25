@@ -962,7 +962,7 @@ STORE(bch2_dev)
 		bool v = strtoul_or_return(buf);
 
 		mutex_lock(&c->sb_lock);
-		mi = &bch2_sb_get_members(c->disk_sb.sb)->members[ca->dev_idx];
+		mi = bch2_members_v2_get_mut(c->disk_sb.sb, ca->dev_idx);
 
 		if (v != BCH_MEMBER_DISCARD(mi)) {
 			SET_BCH_MEMBER_DISCARD(mi, v);
@@ -975,7 +975,7 @@ STORE(bch2_dev)
 		u64 v = strtoul_or_return(buf);
 
 		mutex_lock(&c->sb_lock);
-		mi = &bch2_sb_get_members(c->disk_sb.sb)->members[ca->dev_idx];
+		mi = bch2_members_v2_get_mut(c->disk_sb.sb, ca->dev_idx);
 
 		if (v + 1 != BCH_MEMBER_DURABILITY(mi)) {
 			SET_BCH_MEMBER_DURABILITY(mi, v + 1);

@@ -400,6 +400,10 @@ static int __bch2_fs_read_write(struct bch_fs *c, bool early)
 
 	bch_info(c, "going read-write");
 
+	ret = bch2_members_v2_init(c);
+	if (ret)
+		goto err;
+
 	ret = bch2_fs_mark_dirty(c);
 	if (ret)
 		goto err;
@@ -924,7 +928,6 @@ static void print_mount_opts(struct bch_fs *c)
 
 int bch2_fs_start(struct bch_fs *c)
 {
-	struct bch_sb_field_members *mi;
 	struct bch_dev *ca;
 	time64_t now = ktime_get_real_seconds();
 	unsigned i;
@@ -938,12 +941,17 @@ int bch2_fs_start(struct bch_fs *c)
 
 	mutex_lock(&c->sb_lock);
 
+	ret = bch2_members_v2_init(c);
+	if (ret) {
+		mutex_unlock(&c->sb_lock);
+		goto err;
+	}
+
 	for_each_online_member(ca, c, i)
 		bch2_sb_from_fs(c, ca);
 
-	mi = bch2_sb_get_members(c->disk_sb.sb);
 	for_each_online_member(ca, c, i)
-		mi->members[ca->dev_idx].last_mount = cpu_to_le64(now);
+		bch2_members_v2_get_mut(c->disk_sb.sb, i)->last_mount = cpu_to_le64(now);
 
 	mutex_unlock(&c->sb_lock);
 
@@ -1382,7 +1390,7 @@ static void __bch2_dev_read_write(struct bch_fs *c, struct bch_dev *ca)
 int __bch2_dev_set_state(struct bch_fs *c, struct bch_dev *ca,
 			 enum bch_member_state new_state, int flags)
 {
-	struct bch_sb_field_members *mi;
+	struct bch_member *m;
 	int ret = 0;
 
 	if (ca->mi.state == new_state)
@@ -1397,8 +1405,8 @@ int __bch2_dev_set_state(struct bch_fs *c, struct bch_dev *ca,
 	bch_notice(ca, "%s", bch2_member_states[new_state]);
 
 	mutex_lock(&c->sb_lock);
-	mi = bch2_sb_get_members(c->disk_sb.sb);
-	SET_BCH_MEMBER_STATE(&mi->members[ca->dev_idx], new_state);
+	m = bch2_members_v2_get_mut(c->disk_sb.sb, ca->dev_idx);
+	SET_BCH_MEMBER_STATE(m, new_state);
 	bch2_write_super(c);
 	mutex_unlock(&c->sb_lock);
 
@@ -1454,7 +1462,7 @@ static int bch2_dev_remove_alloc(struct bch_fs *c, struct bch_dev *ca)
 
 int bch2_dev_remove(struct bch_fs *c, struct bch_dev *ca, int flags)
 {
-	struct bch_sb_field_members *mi;
+	struct bch_member *m;
 	unsigned dev_idx = ca->dev_idx, data;
 	int ret;
 
@@ -1542,8 +1550,8 @@ int bch2_dev_remove(struct bch_fs *c, struct bch_dev *ca, int flags)
 	 * this device must be gone:
 	 */
 	mutex_lock(&c->sb_lock);
-	mi = bch2_sb_get_members(c->disk_sb.sb);
-	memset(&mi->members[dev_idx].uuid, 0, sizeof(mi->members[dev_idx].uuid));
+	m = bch2_members_v2_get_mut(c->disk_sb.sb, dev_idx);
+	memset(&m->uuid, 0, sizeof(m->uuid));
 
 	bch2_write_super(c);
 
@@ -1566,7 +1574,7 @@ int bch2_dev_add(struct bch_fs *c, const char *path)
 	struct bch_opts opts = bch2_opts_empty();
 	struct bch_sb_handle sb;
 	struct bch_dev *ca = NULL;
-	struct bch_sb_field_members *mi;
+	struct bch_sb_field_members_v2 *mi;
 	struct bch_member dev_mi;
 	unsigned dev_idx, nr_devices, u64s;
 	struct printbuf errbuf = PRINTBUF;
@@ -1622,9 +1630,9 @@ int bch2_dev_add(struct bch_fs *c, const char *path)
 		goto err_unlock;
 	}
 
-	mi = bch2_sb_get_members(ca->disk_sb.sb);
+	mi = bch2_sb_get_members_v2(ca->disk_sb.sb);
 
-	if (!bch2_sb_resize_members(&ca->disk_sb,
+	if (!bch2_sb_resize_members_v2(&ca->disk_sb,
 				le32_to_cpu(mi->field.u64s) +
 				sizeof(dev_mi) / sizeof(u64))) {
 		ret = -BCH_ERR_ENOSPC_sb_members;
@@ -1645,20 +1653,21 @@ no_slot:
 
 have_slot:
 	nr_devices = max_t(unsigned, dev_idx + 1, c->sb.nr_devices);
-	u64s = (sizeof(struct bch_sb_field_members) +
-		sizeof(struct bch_member) * nr_devices) / sizeof(u64);
+	u64s = DIV_ROUND_UP(sizeof(struct bch_sb_field_members_v2) +
+			    le16_to_cpu(mi->member_bytes) * nr_devices, sizeof(u64));
 
-	mi = bch2_sb_resize_members(&c->disk_sb, u64s);
+	mi = bch2_sb_resize_members_v2(&c->disk_sb, u64s);
 	if (!mi) {
 		ret = -BCH_ERR_ENOSPC_sb_members;
 		bch_err_msg(c, ret, "setting up new superblock");
 		goto err_unlock;
 	}
+	struct bch_member *m = bch2_members_v2_get_mut(c->disk_sb.sb, dev_idx);
 
 	/* success: */
 
-	mi->members[dev_idx] = dev_mi;
-	mi->members[dev_idx].last_mount = cpu_to_le64(ktime_get_real_seconds());
+	*m = dev_mi;
+	m->last_mount = cpu_to_le64(ktime_get_real_seconds());
 	c->disk_sb.sb->nr_devices	= nr_devices;
 
 	ca->disk_sb.sb->dev_idx	= dev_idx;
@@ -1718,7 +1727,6 @@ int bch2_dev_online(struct bch_fs *c, const char *path)
 {
 	struct bch_opts opts = bch2_opts_empty();
 	struct bch_sb_handle sb = { NULL };
-	struct bch_sb_field_members *mi;
 	struct bch_dev *ca;
 	unsigned dev_idx;
 	int ret;
@@ -1755,9 +1763,9 @@ int bch2_dev_online(struct bch_fs *c, const char *path)
 		__bch2_dev_read_write(c, ca);
 
 	mutex_lock(&c->sb_lock);
-	mi = bch2_sb_get_members(c->disk_sb.sb);
+	struct bch_member *m = bch2_members_v2_get_mut(c->disk_sb.sb, ca->dev_idx);
 
-	mi->members[ca->dev_idx].last_mount =
+	m->last_mount =
 		cpu_to_le64(ktime_get_real_seconds());
 
 	bch2_write_super(c);
@@ -1799,7 +1807,7 @@ int bch2_dev_offline(struct bch_fs *c, struct bch_dev *ca, int flags)
 
 int bch2_dev_resize(struct bch_fs *c, struct bch_dev *ca, u64 nbuckets)
 {
-	struct bch_member *mi;
+	struct bch_member *m;
 	int ret = 0;
 
 	down_write(&c->state_lock);
@@ -1829,8 +1837,8 @@ int bch2_dev_resize(struct bch_fs *c, struct bch_dev *ca, u64 nbuckets)
 		goto err;
 
 	mutex_lock(&c->sb_lock);
-	mi = &bch2_sb_get_members(c->disk_sb.sb)->members[ca->dev_idx];
-	mi->nbuckets = cpu_to_le64(nbuckets);
+	m = bch2_members_v2_get_mut(c->disk_sb.sb, ca->dev_idx);
+	m->nbuckets = cpu_to_le64(nbuckets);
 
 	bch2_write_super(c);
 	mutex_unlock(&c->sb_lock);

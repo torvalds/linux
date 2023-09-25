@@ -91,6 +91,7 @@
 	x(ENOSPC,			ENOSPC_sb_quota)			\
 	x(ENOSPC,			ENOSPC_sb_replicas)			\
 	x(ENOSPC,			ENOSPC_sb_members)			\
+	x(ENOSPC,			ENOSPC_sb_members_v2)			\
 	x(ENOSPC,			ENOSPC_sb_crypt)			\
 	x(ENOSPC,			ENOSPC_btree_slot)			\
 	x(ENOSPC,			ENOSPC_snapshot_tree)			\
