@@ -309,8 +309,6 @@ static inline void __ptep_set_access_flags(struct vm_area_struct *vma,
 /* We borrow MSB 56 (LSB 7) to store the exclusive marker in swap PTEs. */
 #define _PAGE_SWP_EXCLUSIVE	0x80
 
-int map_kernel_page(unsigned long ea, unsigned long pa, pgprot_t prot);
-void unmap_kernel_page(unsigned long va);
 extern int __meminit vmemmap_create_mapping(unsigned long start,
 					    unsigned long page_size,
 					    unsigned long phys);

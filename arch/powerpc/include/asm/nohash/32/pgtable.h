@@ -58,14 +58,6 @@ extern int icache_44x_need_flush;
 #define pgd_ERROR(e) \
 	pr_err("%s:%d: bad pgd %08lx.\n", __FILE__, __LINE__, pgd_val(e))
 
-#ifndef __ASSEMBLY__
-
-int map_kernel_page(unsigned long va, phys_addr_t pa, pgprot_t prot);
-void unmap_kernel_page(unsigned long va);
-
-#endif /* !__ASSEMBLY__ */
-
-
 /*
  * This is the bottom of the PKMAP area with HIGHMEM or an arbitrary
  * value (for now) on others, from where we can start layout kernel
