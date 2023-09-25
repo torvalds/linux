@@ -1087,6 +1087,7 @@ static void sdma_v3_0_ring_emit_wreg(struct amdgpu_ring *ring,
 static int sdma_v3_0_early_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	int r;
 
 	switch (adev->asic_type) {
 	case CHIP_STONEY:
@@ -1096,6 +1097,10 @@ static int sdma_v3_0_early_init(void *handle)
 		adev->sdma.num_instances = SDMA_MAX_INSTANCE;
 		break;
 	}
+
+	r = sdma_v3_0_init_microcode(adev);
+	if (r)
+		return r;
 
 	sdma_v3_0_set_ring_funcs(adev);
 	sdma_v3_0_set_buffer_funcs(adev);
@@ -1126,10 +1131,6 @@ static int sdma_v3_0_sw_init(void *handle)
 	/* SDMA Privileged inst */
 	r = amdgpu_irq_add_id(adev, AMDGPU_IRQ_CLIENTID_LEGACY, VISLANDS30_IV_SRCID_SDMA_SRBM_WRITE,
 			      &adev->sdma.illegal_inst_irq);
-	if (r)
-		return r;
-
-	r = sdma_v3_0_init_microcode(adev);
 	if (r)
 		return r;
 
