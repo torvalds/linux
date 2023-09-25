@@ -22,6 +22,7 @@ enum xe_hwmon_reg {
 	REG_PKG_POWER_SKU,
 	REG_PKG_POWER_SKU_UNIT,
 	REG_GT_PERF_STATUS,
+	REG_PKG_ENERGY_STATUS,
 };
 
 enum xe_hwmon_reg_operation {
@@ -36,12 +37,20 @@ enum xe_hwmon_reg_operation {
 #define SF_POWER	1000000		/* microwatts */
 #define SF_CURR		1000		/* milliamperes */
 #define SF_VOLTAGE	1000		/* millivolts */
+#define SF_ENERGY	1000000		/* microjoules */
+
+struct xe_hwmon_energy_info {
+	u32 reg_val_prev;
+	long accum_energy;		/* Accumulated energy for energy1_input */
+};
 
 struct xe_hwmon {
 	struct device *hwmon_dev;
 	struct xe_gt *gt;
 	struct mutex hwmon_lock; /* rmw operations*/
 	int scl_shift_power;
+	int scl_shift_energy;
+	struct xe_hwmon_energy_info ei;	/*  Energy info for energy1_input */
 };
 
 static u32 xe_hwmon_get_reg(struct xe_hwmon *hwmon, enum xe_hwmon_reg hwmon_reg)
@@ -71,6 +80,12 @@ static u32 xe_hwmon_get_reg(struct xe_hwmon *hwmon, enum xe_hwmon_reg hwmon_reg)
 	case REG_GT_PERF_STATUS:
 		if (xe->info.platform == XE_DG2)
 			reg = GT_PERF_STATUS;
+		break;
+	case REG_PKG_ENERGY_STATUS:
+		if (xe->info.platform == XE_DG2)
+			reg = PCU_CR_PACKAGE_ENERGY_STATUS;
+		else if (xe->info.platform == XE_PVC)
+			reg = PVC_GT0_PLATFORM_ENERGY_STATUS;
 		break;
 	default:
 		drm_warn(&xe->drm, "Unknown xe hwmon reg id: %d\n", hwmon_reg);
@@ -194,10 +209,59 @@ static int xe_hwmon_power_rated_max_read(struct xe_hwmon *hwmon, long *value)
 	return 0;
 }
 
+/*
+ * xe_hwmon_energy_get - Obtain energy value
+ *
+ * The underlying energy hardware register is 32-bits and is subject to
+ * overflow. How long before overflow? For example, with an example
+ * scaling bit shift of 14 bits (see register *PACKAGE_POWER_SKU_UNIT) and
+ * a power draw of 1000 watts, the 32-bit counter will overflow in
+ * approximately 4.36 minutes.
+ *
+ * Examples:
+ *    1 watt:  (2^32 >> 14) /    1 W / (60 * 60 * 24) secs/day -> 3 days
+ * 1000 watts: (2^32 >> 14) / 1000 W / 60             secs/min -> 4.36 minutes
+ *
+ * The function significantly increases overflow duration (from 4.36
+ * minutes) by accumulating the energy register into a 'long' as allowed by
+ * the hwmon API. Using x86_64 128 bit arithmetic (see mul_u64_u32_shr()),
+ * a 'long' of 63 bits, SF_ENERGY of 1e6 (~20 bits) and
+ * hwmon->scl_shift_energy of 14 bits we have 57 (63 - 20 + 14) bits before
+ * energy1_input overflows. This at 1000 W is an overflow duration of 278 years.
+ */
+static void
+xe_hwmon_energy_get(struct xe_hwmon *hwmon, long *energy)
+{
+	struct xe_hwmon_energy_info *ei = &hwmon->ei;
+	u32 reg_val;
+
+	xe_device_mem_access_get(gt_to_xe(hwmon->gt));
+
+	mutex_lock(&hwmon->hwmon_lock);
+
+	xe_hwmon_process_reg(hwmon, REG_PKG_ENERGY_STATUS, REG_READ,
+			     &reg_val, 0, 0);
+
+	if (reg_val >= ei->reg_val_prev)
+		ei->accum_energy += reg_val - ei->reg_val_prev;
+	else
+		ei->accum_energy += UINT_MAX - ei->reg_val_prev + reg_val;
+
+	ei->reg_val_prev = reg_val;
+
+	*energy = mul_u64_u32_shr(ei->accum_energy, SF_ENERGY,
+				  hwmon->scl_shift_energy);
+
+	mutex_unlock(&hwmon->hwmon_lock);
+
+	xe_device_mem_access_put(gt_to_xe(hwmon->gt));
+}
+
 static const struct hwmon_channel_info *hwmon_info[] = {
 	HWMON_CHANNEL_INFO(power, HWMON_P_MAX | HWMON_P_RATED_MAX | HWMON_P_CRIT),
 	HWMON_CHANNEL_INFO(curr, HWMON_C_CRIT),
 	HWMON_CHANNEL_INFO(in, HWMON_I_INPUT),
+	HWMON_CHANNEL_INFO(energy, HWMON_E_INPUT),
 	NULL
 };
 
@@ -372,6 +436,29 @@ xe_hwmon_in_read(struct xe_hwmon *hwmon, u32 attr, long *val)
 }
 
 static umode_t
+xe_hwmon_energy_is_visible(struct xe_hwmon *hwmon, u32 attr)
+{
+	switch (attr) {
+	case hwmon_energy_input:
+		return xe_hwmon_get_reg(hwmon, REG_PKG_ENERGY_STATUS) ? 0444 : 0;
+	default:
+		return 0;
+	}
+}
+
+static int
+xe_hwmon_energy_read(struct xe_hwmon *hwmon, u32 attr, long *val)
+{
+	switch (attr) {
+	case hwmon_energy_input:
+		xe_hwmon_energy_get(hwmon, val);
+		return 0;
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static umode_t
 xe_hwmon_is_visible(const void *drvdata, enum hwmon_sensor_types type,
 		    u32 attr, int channel)
 {
@@ -389,6 +476,9 @@ xe_hwmon_is_visible(const void *drvdata, enum hwmon_sensor_types type,
 		break;
 	case hwmon_in:
 		ret = xe_hwmon_in_is_visible(hwmon, attr);
+		break;
+	case hwmon_energy:
+		ret = xe_hwmon_energy_is_visible(hwmon, attr);
 		break;
 	default:
 		ret = 0;
@@ -418,6 +508,9 @@ xe_hwmon_read(struct device *dev, enum hwmon_sensor_types type, u32 attr,
 		break;
 	case hwmon_in:
 		ret = xe_hwmon_in_read(hwmon, attr, val);
+		break;
+	case hwmon_energy:
+		ret = xe_hwmon_energy_read(hwmon, attr, val);
 		break;
 	default:
 		ret = -EOPNOTSUPP;
@@ -470,6 +563,7 @@ static void
 xe_hwmon_get_preregistration_info(struct xe_device *xe)
 {
 	struct xe_hwmon *hwmon = xe->hwmon;
+	long energy;
 	u32 val_sku_unit = 0;
 	int ret;
 
@@ -478,8 +572,17 @@ xe_hwmon_get_preregistration_info(struct xe_device *xe)
 	 * The contents of register PKG_POWER_SKU_UNIT do not change,
 	 * so read it once and store the shift values.
 	 */
-	if (!ret)
+	if (!ret) {
 		hwmon->scl_shift_power = REG_FIELD_GET(PKG_PWR_UNIT, val_sku_unit);
+		hwmon->scl_shift_energy = REG_FIELD_GET(PKG_ENERGY_UNIT, val_sku_unit);
+	}
+
+	/*
+	 * Initialize 'struct xe_hwmon_energy_info', i.e. set fields to the
+	 * first value of the energy register read
+	 */
+	if (xe_hwmon_is_visible(hwmon, hwmon_energy, hwmon_energy_input, 0))
+		xe_hwmon_energy_get(hwmon, &energy);
 }
 
 void xe_hwmon_register(struct xe_device *xe)
