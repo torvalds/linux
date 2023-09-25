@@ -156,37 +156,6 @@
 #define pte_clear(mm, addr, ptep) \
 	do { pte_update(mm, addr, ptep, ~0, 0, 0); } while (0)
 
-#ifndef pte_mkwrite_novma
-static inline pte_t pte_mkwrite_novma(pte_t pte)
-{
-	return __pte(pte_val(pte) | _PAGE_RW);
-}
-#endif
-
-static inline pte_t pte_mkdirty(pte_t pte)
-{
-	return __pte(pte_val(pte) | _PAGE_DIRTY);
-}
-
-static inline pte_t pte_mkyoung(pte_t pte)
-{
-	return __pte(pte_val(pte) | _PAGE_ACCESSED);
-}
-
-#ifndef pte_wrprotect
-static inline pte_t pte_wrprotect(pte_t pte)
-{
-	return __pte(pte_val(pte) & ~_PAGE_RW);
-}
-#endif
-
-#ifndef pte_mkexec
-static inline pte_t pte_mkexec(pte_t pte)
-{
-	return __pte(pte_val(pte) | _PAGE_EXEC);
-}
-#endif
-
 #define pmd_none(pmd)		(!pmd_val(pmd))
 #define	pmd_bad(pmd)		(pmd_val(pmd) & _PMD_BAD)
 #define	pmd_present(pmd)	(pmd_val(pmd) & _PMD_PRESENT_MASK)
@@ -237,11 +206,6 @@ static inline void __ptep_set_access_flags(struct vm_area_struct *vma,
 	flush_tlb_page(vma, address);
 }
 #endif
-
-static inline int pte_young(pte_t pte)
-{
-	return pte_val(pte) & _PAGE_ACCESSED;
-}
 
 /*
  * Note that on Book E processors, the pmd contains the kernel virtual
