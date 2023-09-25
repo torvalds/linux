@@ -47,6 +47,7 @@ enum adreno_family {
 	ADRENO_6XX_GEN3,  /* a650 family */
 	ADRENO_6XX_GEN4,  /* a660 family */
 	ADRENO_7XX_GEN1,  /* a730 family */
+	ADRENO_7XX_GEN2,  /* a740 family */
 };
 
 #define ADRENO_QUIRK_TWO_PASS_USE_WFI		BIT(0)
@@ -76,7 +77,7 @@ struct adreno_reglist {
 };
 
 extern const struct adreno_reglist a612_hwcg[], a615_hwcg[], a630_hwcg[], a640_hwcg[], a650_hwcg[];
-extern const struct adreno_reglist a660_hwcg[], a690_hwcg[], a730_hwcg[];
+extern const struct adreno_reglist a660_hwcg[], a690_hwcg[], a730_hwcg[], a740_hwcg[];
 
 struct adreno_speedbin {
 	uint16_t fuse;
@@ -408,10 +409,24 @@ static inline int adreno_is_a730(struct adreno_gpu *gpu)
 	return gpu->info->chip_ids[0] == 0x07030001;
 }
 
+static inline int adreno_is_a740(struct adreno_gpu *gpu)
+{
+	return gpu->info->chip_ids[0] == 0x43050a01;
+}
+
+/* Placeholder to make future diffs smaller */
+static inline int adreno_is_a740_family(struct adreno_gpu *gpu)
+{
+	if (WARN_ON_ONCE(!gpu->info))
+		return false;
+	return gpu->info->family == ADRENO_7XX_GEN2;
+}
+
 static inline int adreno_is_a7xx(struct adreno_gpu *gpu)
 {
 	/* Update with non-fake (i.e. non-A702) Gen 7 GPUs */
-	return gpu->info->family == ADRENO_7XX_GEN1;
+	return gpu->info->family == ADRENO_7XX_GEN1 ||
+	       adreno_is_a740_family(gpu);
 }
 
 u64 adreno_private_address_space_size(struct msm_gpu *gpu);
