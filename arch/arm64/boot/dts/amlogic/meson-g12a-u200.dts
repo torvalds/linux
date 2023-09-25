@@ -189,9 +189,9 @@
 				"TDMOUT_C IN 1", "FRDDR_B OUT 2",
 				"TDMOUT_C IN 2", "FRDDR_C OUT 2",
 				"TDM_C Playback", "TDMOUT_C OUT",
-				"SPDIFOUT IN 0", "FRDDR_A OUT 3",
-				"SPDIFOUT IN 1", "FRDDR_B OUT 3",
-				"SPDIFOUT IN 2", "FRDDR_C OUT 3",
+				"SPDIFOUT_A IN 0", "FRDDR_A OUT 3",
+				"SPDIFOUT_A IN 1", "FRDDR_B OUT 3",
+				"SPDIFOUT_A IN 2", "FRDDR_C OUT 3",
 				"SPDIFOUT_B IN 0", "FRDDR_A OUT 4",
 				"SPDIFOUT_B IN 1", "FRDDR_B OUT 4",
 				"SPDIFOUT_B IN 2", "FRDDR_C OUT 4",
@@ -324,7 +324,7 @@
 
 		/* spdif hdmi and coax output */
 		dai-link-9 {
-			sound-dai = <&spdifout>;
+			sound-dai = <&spdifout_a>;
 
 			codec-0 {
 				sound-dai = <&spdif_dit>;
@@ -546,7 +546,7 @@
 	status = "okay";
 };
 
-&spdifout {
+&spdifout_a {
 	pinctrl-0 = <&spdif_ao_out_pins>;
 	pinctrl-names = "default";
 	status = "okay";
