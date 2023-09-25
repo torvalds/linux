@@ -172,7 +172,7 @@ struct sw_chnl_cmd {
 	u32			Para1;
 	u32			Para2;
 	u32			msDelay;
-} __packed;
+};
 
 /*--------------------------Define -------------------------------------------*/
 #define MGN_1M		  0x02
@@ -700,7 +700,7 @@ struct rtllib_rxb {
 	struct sk_buff *subframes[MAX_SUBFRAME_COUNT];
 	u8 dst[ETH_ALEN];
 	u8 src[ETH_ALEN];
-} __packed;
+};
 
 union frameqos {
 	u16 shortdata;
