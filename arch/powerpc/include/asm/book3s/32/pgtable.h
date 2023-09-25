@@ -20,7 +20,7 @@
 
 #define _PAGE_PRESENT	0x001	/* software: pte contains a translation */
 #define _PAGE_HASHPTE	0x002	/* hash_page has made an HPTE for this pte */
-#define _PAGE_USER	0x004	/* usermode access allowed */
+#define _PAGE_READ	0x004	/* software: read access allowed */
 #define _PAGE_GUARDED	0x008	/* G: prohibit speculative access */
 #define _PAGE_COHERENT	0x010	/* M: enforce memory coherence (SMP systems) */
 #define _PAGE_NO_CACHE	0x020	/* I: cache inhibit */
@@ -28,10 +28,8 @@
 #define _PAGE_DIRTY	0x080	/* C: page changed */
 #define _PAGE_ACCESSED	0x100	/* R: page referenced */
 #define _PAGE_EXEC	0x200	/* software: exec allowed */
-#define _PAGE_RW	0x400	/* software: user write access allowed */
+#define _PAGE_WRITE	0x400	/* software: user write access allowed */
 #define _PAGE_SPECIAL	0x800	/* software: Special page */
-
-#define _PAGE_WRITE	_PAGE_RW
 
 #ifdef CONFIG_PTE_64BIT
 /* We never clear the high word of the pte */
@@ -44,25 +42,12 @@
 #define _PMD_PRESENT_MASK (PAGE_MASK)
 #define _PMD_BAD	(~PAGE_MASK)
 
-/* We borrow the _PAGE_USER bit to store the exclusive marker in swap PTEs. */
-#define _PAGE_SWP_EXCLUSIVE	_PAGE_USER
+/* We borrow the _PAGE_READ bit to store the exclusive marker in swap PTEs. */
+#define _PAGE_SWP_EXCLUSIVE	_PAGE_READ
 
 /* And here we include common definitions */
 
-#define _PAGE_KERNEL_RO		0
-#define _PAGE_KERNEL_ROX	(_PAGE_EXEC)
-#define _PAGE_KERNEL_RW		(_PAGE_DIRTY | _PAGE_RW)
-#define _PAGE_KERNEL_RWX	(_PAGE_DIRTY | _PAGE_RW | _PAGE_EXEC)
-
 #define _PAGE_HPTEFLAGS _PAGE_HASHPTE
-
-#ifndef __ASSEMBLY__
-
-static inline bool pte_user(pte_t pte)
-{
-	return pte_val(pte) & _PAGE_USER;
-}
-#endif /* __ASSEMBLY__ */
 
 /*
  * Location of the PFN in the PTE. Most 32-bit platforms use the same
@@ -99,20 +84,7 @@ static inline bool pte_user(pte_t pte)
 #define _PAGE_BASE_NC	(_PAGE_PRESENT | _PAGE_ACCESSED)
 #define _PAGE_BASE	(_PAGE_BASE_NC | _PAGE_COHERENT)
 
-/*
- * Permission masks used to generate the __P and __S table.
- *
- * Note:__pgprot is defined in arch/powerpc/include/asm/page.h
- *
- * Write permissions imply read permissions for now.
- */
-#define PAGE_NONE	__pgprot(_PAGE_BASE)
-#define PAGE_SHARED	__pgprot(_PAGE_BASE | _PAGE_USER | _PAGE_RW)
-#define PAGE_SHARED_X	__pgprot(_PAGE_BASE | _PAGE_USER | _PAGE_RW | _PAGE_EXEC)
-#define PAGE_COPY	__pgprot(_PAGE_BASE | _PAGE_USER)
-#define PAGE_COPY_X	__pgprot(_PAGE_BASE | _PAGE_USER | _PAGE_EXEC)
-#define PAGE_READONLY	__pgprot(_PAGE_BASE | _PAGE_USER)
-#define PAGE_READONLY_X	__pgprot(_PAGE_BASE | _PAGE_USER | _PAGE_EXEC)
+#include <asm/pgtable-masks.h>
 
 /* Permission masks used for kernel mappings */
 #define PAGE_KERNEL	__pgprot(_PAGE_BASE | _PAGE_KERNEL_RW)
@@ -408,12 +380,16 @@ static inline pte_t pte_swp_clear_exclusive(pte_t pte)
 }
 
 /* Generic accessors to PTE bits */
+static inline bool pte_read(pte_t pte)
+{
+	return !!(pte_val(pte) & _PAGE_READ);
+}
+
 static inline bool pte_write(pte_t pte)
 {
 	return !!(pte_val(pte) & _PAGE_WRITE);
 }
 
-static inline int pte_read(pte_t pte)		{ return 1; }
 static inline int pte_dirty(pte_t pte)		{ return !!(pte_val(pte) & _PAGE_DIRTY); }
 static inline int pte_young(pte_t pte)		{ return !!(pte_val(pte) & _PAGE_ACCESSED); }
 static inline int pte_special(pte_t pte)	{ return !!(pte_val(pte) & _PAGE_SPECIAL); }
@@ -448,10 +424,10 @@ static inline bool pte_ci(pte_t pte)
 static inline bool pte_access_permitted(pte_t pte, bool write)
 {
 	/*
-	 * A read-only access is controlled by _PAGE_USER bit.
+	 * A read-only access is controlled by _PAGE_READ bit.
 	 * We have _PAGE_READ set for WRITE and EXECUTE
 	 */
-	if (!pte_present(pte) || !pte_user(pte) || !pte_read(pte))
+	if (!pte_present(pte) || !pte_read(pte))
 		return false;
 
 	if (write && !pte_write(pte))
