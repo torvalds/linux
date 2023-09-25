@@ -2,6 +2,8 @@
 #ifndef _BCACHEFS_SB_MEMBERS_H
 #define _BCACHEFS_SB_MEMBERS_H
 
+struct bch_member bch2_sb_member_get(struct bch_sb *sb, int i);
+
 static inline bool bch2_dev_is_online(struct bch_dev *ca)
 {
 	return !percpu_ref_is_zero(&ca->io_ref);

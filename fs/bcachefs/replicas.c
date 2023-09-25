@@ -805,7 +805,6 @@ static int bch2_cpu_replicas_validate(struct bch_replicas_cpu *cpu_r,
 				      struct bch_sb *sb,
 				      struct printbuf *err)
 {
-	struct bch_sb_field_members *mi = bch2_sb_get_members(sb);
 	unsigned i, j;
 
 	sort_cmp_size(cpu_r->entries,
@@ -837,7 +836,7 @@ static int bch2_cpu_replicas_validate(struct bch_replicas_cpu *cpu_r,
 		}
 
 		for (j = 0; j < e->nr_devs; j++)
-			if (!bch2_dev_exists(sb, mi, e->devs[j])) {
+			if (!bch2_dev_exists(sb, e->devs[j])) {
 				prt_printf(err, "invalid device %u in entry ", e->devs[j]);
 				bch2_replicas_entry_to_text(err, e);
 				return -BCH_ERR_invalid_sb_replicas;

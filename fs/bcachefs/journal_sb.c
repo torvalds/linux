@@ -21,7 +21,7 @@ static int bch2_sb_journal_validate(struct bch_sb *sb,
 				    struct printbuf *err)
 {
 	struct bch_sb_field_journal *journal = field_to_type(f, journal);
-	struct bch_member *m = bch2_sb_get_members(sb)->members + sb->dev_idx;
+	struct bch_member m = bch2_sb_member_get(sb, sb->dev_idx);
 	int ret = -BCH_ERR_invalid_sb_journal;
 	unsigned nr;
 	unsigned i;
@@ -45,15 +45,15 @@ static int bch2_sb_journal_validate(struct bch_sb *sb,
 		goto err;
 	}
 
-	if (b[0] < le16_to_cpu(m->first_bucket)) {
+	if (b[0] < le16_to_cpu(m.first_bucket)) {
 		prt_printf(err, "journal bucket %llu before first bucket %u",
-		       b[0], le16_to_cpu(m->first_bucket));
+		       b[0], le16_to_cpu(m.first_bucket));
 		goto err;
 	}
 
-	if (b[nr - 1] >= le64_to_cpu(m->nbuckets)) {
+	if (b[nr - 1] >= le64_to_cpu(m.nbuckets)) {
 		prt_printf(err, "journal bucket %llu past end of device (nbuckets %llu)",
-		       b[nr - 1], le64_to_cpu(m->nbuckets));
+		       b[nr - 1], le64_to_cpu(m.nbuckets));
 		goto err;
 	}
 
@@ -104,7 +104,7 @@ static int bch2_sb_journal_v2_validate(struct bch_sb *sb,
 				    struct printbuf *err)
 {
 	struct bch_sb_field_journal_v2 *journal = field_to_type(f, journal_v2);
-	struct bch_member *m = bch2_sb_get_members(sb)->members + sb->dev_idx;
+	struct bch_member m = bch2_sb_member_get(sb, sb->dev_idx);
 	int ret = -BCH_ERR_invalid_sb_journal;
 	unsigned nr;
 	unsigned i;
@@ -130,15 +130,15 @@ static int bch2_sb_journal_v2_validate(struct bch_sb *sb,
 		goto err;
 	}
 
-	if (b[0].start < le16_to_cpu(m->first_bucket)) {
+	if (b[0].start < le16_to_cpu(m.first_bucket)) {
 		prt_printf(err, "journal bucket %llu before first bucket %u",
-		       b[0].start, le16_to_cpu(m->first_bucket));
+		       b[0].start, le16_to_cpu(m.first_bucket));
 		goto err;
 	}
 
-	if (b[nr - 1].end > le64_to_cpu(m->nbuckets)) {
+	if (b[nr - 1].end > le64_to_cpu(m.nbuckets)) {
 		prt_printf(err, "journal bucket %llu past end of device (nbuckets %llu)",
-		       b[nr - 1].end - 1, le64_to_cpu(m->nbuckets));
+		       b[nr - 1].end - 1, le64_to_cpu(m.nbuckets));
 		goto err;
 	}
 

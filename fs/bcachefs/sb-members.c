@@ -7,6 +7,23 @@
 #include "super-io.h"
 
 /* Code for bch_sb_field_members: */
+static struct bch_member *members_v1_get_mut(struct bch_sb_field_members *mi, int i)
+{
+	return mi->members + i;
+}
+
+static struct bch_member members_v1_get(struct bch_sb_field_members *mi, int i)
+{
+	struct bch_member ret, *p = members_v1_get_mut(mi, i);
+	memset(&ret, 0, sizeof(ret));
+	memcpy(&ret, p, min_t(size_t, sizeof(struct bch_member), sizeof(ret))); return ret;
+}
+
+struct bch_member bch2_sb_member_get(struct bch_sb *sb, int i)
+{
+	struct bch_sb_field_members *mi1 = bch2_sb_get_members(sb);
+	return members_v1_get(mi1, i);
+}
 
 static int bch2_sb_members_validate(struct bch_sb *sb,
 				    struct bch_sb_field *f,

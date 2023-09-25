@@ -49,6 +49,7 @@
 #include "recovery.h"
 #include "replicas.h"
 #include "sb-clean.h"
+#include "sb-members.h"
 #include "snapshot.h"
 #include "subvolume.h"
 #include "super.h"
@@ -662,7 +663,6 @@ err:
 
 static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 {
-	struct bch_sb_field_members *mi;
 	struct bch_fs *c;
 	struct printbuf name = PRINTBUF;
 	unsigned i, iter_size;
@@ -858,9 +858,8 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 	if (ret)
 		goto err;
 
-	mi = bch2_sb_get_members(c->disk_sb.sb);
 	for (i = 0; i < c->sb.nr_devices; i++)
-		if (bch2_dev_exists(c->disk_sb.sb, mi, i) &&
+		if (bch2_dev_exists(c->disk_sb.sb, i) &&
 		    bch2_dev_alloc(c, i)) {
 			ret = -EEXIST;
 			goto err;
@@ -997,16 +996,12 @@ err:
 
 static int bch2_dev_may_add(struct bch_sb *sb, struct bch_fs *c)
 {
-	struct bch_sb_field_members *sb_mi;
-
-	sb_mi = bch2_sb_get_members(sb);
-	if (!sb_mi)
-		return -BCH_ERR_member_info_missing;
+	struct bch_member m = bch2_sb_member_get(sb, sb->dev_idx);
 
 	if (le16_to_cpu(sb->block_size) != block_sectors(c))
 		return -BCH_ERR_mismatched_block_size;
 
-	if (le16_to_cpu(sb_mi->members[sb->dev_idx].bucket_size) <
+	if (le16_to_cpu(m.bucket_size) <
 	    BCH_SB_BTREE_NODE_SIZE(c->disk_sb.sb))
 		return -BCH_ERR_bucket_size_too_small;
 
@@ -1017,12 +1012,11 @@ static int bch2_dev_in_fs(struct bch_sb *fs, struct bch_sb *sb)
 {
 	struct bch_sb *newest =
 		le64_to_cpu(fs->seq) > le64_to_cpu(sb->seq) ? fs : sb;
-	struct bch_sb_field_members *mi = bch2_sb_get_members(newest);
 
 	if (!uuid_equal(&fs->uuid, &sb->uuid))
 		return -BCH_ERR_device_not_a_member_of_filesystem;
 
-	if (!bch2_dev_exists(newest, mi, sb->dev_idx))
+	if (!bch2_dev_exists(newest, sb->dev_idx))
 		return -BCH_ERR_device_has_been_removed;
 
 	if (fs->block_size != sb->block_size)
@@ -1192,15 +1186,14 @@ static void bch2_dev_attach(struct bch_fs *c, struct bch_dev *ca,
 
 static int bch2_dev_alloc(struct bch_fs *c, unsigned dev_idx)
 {
-	struct bch_member *member =
-		bch2_sb_get_members(c->disk_sb.sb)->members + dev_idx;
+	struct bch_member member = bch2_sb_member_get(c->disk_sb.sb, dev_idx);
 	struct bch_dev *ca = NULL;
 	int ret = 0;
 
 	if (bch2_fs_init_fault("dev_alloc"))
 		goto err;
 
-	ca = __bch2_dev_alloc(c, member);
+	ca = __bch2_dev_alloc(c, &member);
 	if (!ca)
 		goto err;
 
@@ -1335,7 +1328,6 @@ bool bch2_dev_state_allowed(struct bch_fs *c, struct bch_dev *ca,
 
 static bool bch2_fs_may_start(struct bch_fs *c)
 {
-	struct bch_sb_field_members *mi;
 	struct bch_dev *ca;
 	unsigned i, flags = 0;
 
@@ -1348,10 +1340,9 @@ static bool bch2_fs_may_start(struct bch_fs *c)
 	if (!c->opts.degraded &&
 	    !c->opts.very_degraded) {
 		mutex_lock(&c->sb_lock);
-		mi = bch2_sb_get_members(c->disk_sb.sb);
 
 		for (i = 0; i < c->disk_sb.sb->nr_devices; i++) {
-			if (!bch2_dev_exists(c->disk_sb.sb, mi, i))
+			if (!bch2_dev_exists(c->disk_sb.sb, i))
 				continue;
 
 			ca = bch_dev_locked(c, i);
@@ -1588,7 +1579,7 @@ int bch2_dev_add(struct bch_fs *c, const char *path)
 		goto err;
 	}
 
-	dev_mi = bch2_sb_get_members(sb.sb)->members[sb.sb->dev_idx];
+	dev_mi = bch2_sb_member_get(sb.sb, sb.sb->dev_idx);
 
 	if (BCH_MEMBER_GROUP(&dev_mi)) {
 		bch2_disk_path_to_text(&label, sb.sb, BCH_MEMBER_GROUP(&dev_mi) - 1);
@@ -1644,9 +1635,8 @@ int bch2_dev_add(struct bch_fs *c, const char *path)
 	if (dynamic_fault("bcachefs:add:no_slot"))
 		goto no_slot;
 
-	mi = bch2_sb_get_members(c->disk_sb.sb);
 	for (dev_idx = 0; dev_idx < BCH_SB_MEMBERS_MAX; dev_idx++)
-		if (!bch2_dev_exists(c->disk_sb.sb, mi, dev_idx))
+		if (!bch2_dev_exists(c->disk_sb.sb, dev_idx))
 			goto have_slot;
 no_slot:
 	ret = -BCH_ERR_ENOSPC_sb_members;
@@ -1875,7 +1865,6 @@ struct bch_fs *bch2_fs_open(char * const *devices, unsigned nr_devices,
 {
 	struct bch_sb_handle *sb = NULL;
 	struct bch_fs *c = NULL;
-	struct bch_sb_field_members *mi;
 	unsigned i, best_sb = 0;
 	struct printbuf errbuf = PRINTBUF;
 	int ret = 0;
@@ -1906,12 +1895,10 @@ struct bch_fs *bch2_fs_open(char * const *devices, unsigned nr_devices,
 		    le64_to_cpu(sb[best_sb].sb->seq))
 			best_sb = i;
 
-	mi = bch2_sb_get_members(sb[best_sb].sb);
-
 	i = 0;
 	while (i < nr_devices) {
 		if (i != best_sb &&
-		    !bch2_dev_exists(sb[best_sb].sb, mi, sb[i].sb->dev_idx)) {
+		    !bch2_dev_exists(sb[best_sb].sb, sb[i].sb->dev_idx)) {
 			pr_info("%pg has been removed, skipping", sb[i].bdev);
 			bch2_free_super(&sb[i]);
 			array_remove_item(sb, nr_devices, i);

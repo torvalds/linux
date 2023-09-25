@@ -6,6 +6,7 @@
 #include "eytzinger.h"
 #include "super_types.h"
 #include "super.h"
+#include "sb-members.h"
 
 #include <asm/byteorder.h>
 
@@ -97,11 +98,13 @@ static inline bool bch2_member_exists(struct bch_member *m)
 }
 
 static inline bool bch2_dev_exists(struct bch_sb *sb,
-				   struct bch_sb_field_members *mi,
 				   unsigned dev)
 {
-	return dev < sb->nr_devices &&
-		bch2_member_exists(&mi->members[dev]);
+	if (dev < sb->nr_devices) {
+	struct bch_member m = bch2_sb_member_get(sb, dev);
+		return bch2_member_exists(&m);
+	}
+	return false;
 }
 
 static inline struct bch_member_cpu bch2_mi_to_cpu(struct bch_member *mi)

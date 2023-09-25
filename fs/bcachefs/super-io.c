@@ -485,7 +485,6 @@ static int bch2_sb_validate(struct bch_sb_handle *disk_sb, struct printbuf *out,
 static void bch2_sb_update(struct bch_fs *c)
 {
 	struct bch_sb *src = c->disk_sb.sb;
-	struct bch_sb_field_members *mi = bch2_sb_get_members(src);
 	struct bch_dev *ca;
 	unsigned i;
 
@@ -511,8 +510,10 @@ static void bch2_sb_update(struct bch_fs *c)
 	c->sb.features		= le64_to_cpu(src->features[0]);
 	c->sb.compat		= le64_to_cpu(src->compat[0]);
 
-	for_each_member_device(ca, c, i)
-		ca->mi = bch2_mi_to_cpu(mi->members + i);
+	for_each_member_device(ca, c, i) {
+		struct bch_member m = bch2_sb_member_get(src, i);
+		ca->mi = bch2_mi_to_cpu(&m);
+	}
 }
 
 static int __copy_super(struct bch_sb_handle *dst_handle, struct bch_sb *src)
@@ -1125,7 +1126,6 @@ void bch2_sb_layout_to_text(struct printbuf *out, struct bch_sb_layout *l)
 void bch2_sb_to_text(struct printbuf *out, struct bch_sb *sb,
 		     bool print_layout, unsigned fields)
 {
-	struct bch_sb_field_members *mi;
 	struct bch_sb_field *f;
 	u64 fields_have = 0;
 	unsigned nr_devices = 0;
@@ -1133,15 +1133,8 @@ void bch2_sb_to_text(struct printbuf *out, struct bch_sb *sb,
 	if (!out->nr_tabstops)
 		printbuf_tabstop_push(out, 44);
 
-	mi = bch2_sb_get_members(sb);
-	if (mi) {
-		struct bch_member *m;
-
-		for (m = mi->members;
-		     m < mi->members + sb->nr_devices;
-		     m++)
-			nr_devices += bch2_member_exists(m);
-	}
+	for (int i = 0; i < sb->nr_devices; i++)
+		nr_devices += bch2_dev_exists(sb, i);
 
 	prt_printf(out, "External UUID:");
 	prt_tab(out);

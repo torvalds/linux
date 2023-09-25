@@ -25,19 +25,18 @@ static int bch2_sb_disk_groups_validate(struct bch_sb *sb,
 	struct bch_sb_field_disk_groups *groups =
 		field_to_type(f, disk_groups);
 	struct bch_disk_group *g, *sorted = NULL;
-	struct bch_sb_field_members *mi = bch2_sb_get_members(sb);
 	unsigned nr_groups = disk_groups_nr(groups);
 	unsigned i, len;
 	int ret = 0;
 
 	for (i = 0; i < sb->nr_devices; i++) {
-		struct bch_member *m = mi->members + i;
+		struct bch_member m = bch2_sb_member_get(sb, i);
 		unsigned group_id;
 
-		if (!BCH_MEMBER_GROUP(m))
+		if (!BCH_MEMBER_GROUP(&m))
 			continue;
 
-		group_id = BCH_MEMBER_GROUP(m) - 1;
+		group_id = BCH_MEMBER_GROUP(&m) - 1;
 
 		if (group_id >= nr_groups) {
 			prt_printf(err, "disk %u has invalid label %u (have %u)",
@@ -152,14 +151,12 @@ const struct bch_sb_field_ops bch_sb_field_ops_disk_groups = {
 
 int bch2_sb_disk_groups_to_cpu(struct bch_fs *c)
 {
-	struct bch_sb_field_members *mi;
 	struct bch_sb_field_disk_groups *groups;
 	struct bch_disk_groups_cpu *cpu_g, *old_g;
 	unsigned i, g, nr_groups;
 
 	lockdep_assert_held(&c->sb_lock);
 
-	mi		= bch2_sb_get_members(c->disk_sb.sb);
 	groups		= bch2_sb_get_disk_groups(c->disk_sb.sb);
 	nr_groups	= disk_groups_nr(groups);
 
@@ -182,13 +179,13 @@ int bch2_sb_disk_groups_to_cpu(struct bch_fs *c)
 	}
 
 	for (i = 0; i < c->disk_sb.sb->nr_devices; i++) {
-		struct bch_member *m = mi->members + i;
+		struct bch_member m = bch2_sb_member_get(c->disk_sb.sb, i);
 		struct bch_disk_group_cpu *dst;
 
-		if (!bch2_member_exists(m))
+		if (!bch2_member_exists(&m))
 			continue;
 
-		g = BCH_MEMBER_GROUP(m);
+		g = BCH_MEMBER_GROUP(&m);
 		while (g) {
 			dst = &cpu_g->entries[g - 1];
 			__set_bit(i, dst->devs.d);
@@ -528,12 +525,11 @@ void bch2_opt_target_to_text(struct printbuf *out,
 
 			rcu_read_unlock();
 		} else {
-			struct bch_sb_field_members *mi = bch2_sb_get_members(sb);
-			struct bch_member *m = mi->members + t.dev;
+			struct bch_member m = bch2_sb_member_get(sb, t.dev);
 
-			if (bch2_dev_exists(sb, mi, t.dev)) {
+			if (bch2_dev_exists(sb, t.dev)) {
 				prt_printf(out, "Device ");
-				pr_uuid(out, m->uuid.b);
+				pr_uuid(out, m.uuid.b);
 				prt_printf(out, " (%u)", t.dev);
 			} else {
 				prt_printf(out, "Bad device %u", t.dev);
