@@ -1229,6 +1229,7 @@ LIBBPF_API int bpf_tc_query(const struct bpf_tc_hook *hook,
 
 /* Ring buffer APIs */
 struct ring_buffer;
+struct ring;
 struct user_ring_buffer;
 
 typedef int (*ring_buffer_sample_fn)(void *ctx, void *data, size_t size);
@@ -1248,6 +1249,78 @@ LIBBPF_API int ring_buffer__add(struct ring_buffer *rb, int map_fd,
 LIBBPF_API int ring_buffer__poll(struct ring_buffer *rb, int timeout_ms);
 LIBBPF_API int ring_buffer__consume(struct ring_buffer *rb);
 LIBBPF_API int ring_buffer__epoll_fd(const struct ring_buffer *rb);
+
+/**
+ * @brief **ring_buffer__ring()** returns the ringbuffer object inside a given
+ * ringbuffer manager representing a single BPF_MAP_TYPE_RINGBUF map instance.
+ *
+ * @param rb A ringbuffer manager object.
+ * @param idx An index into the ringbuffers contained within the ringbuffer
+ * manager object. The index is 0-based and corresponds to the order in which
+ * ring_buffer__add was called.
+ * @return A ringbuffer object on success; NULL and errno set if the index is
+ * invalid.
+ */
+LIBBPF_API struct ring *ring_buffer__ring(struct ring_buffer *rb,
+					  unsigned int idx);
+
+/**
+ * @brief **ring__consumer_pos()** returns the current consumer position in the
+ * given ringbuffer.
+ *
+ * @param r A ringbuffer object.
+ * @return The current consumer position.
+ */
+LIBBPF_API unsigned long ring__consumer_pos(const struct ring *r);
+
+/**
+ * @brief **ring__producer_pos()** returns the current producer position in the
+ * given ringbuffer.
+ *
+ * @param r A ringbuffer object.
+ * @return The current producer position.
+ */
+LIBBPF_API unsigned long ring__producer_pos(const struct ring *r);
+
+/**
+ * @brief **ring__avail_data_size()** returns the number of bytes in the
+ * ringbuffer not yet consumed. This has no locking associated with it, so it
+ * can be inaccurate if operations are ongoing while this is called. However, it
+ * should still show the correct trend over the long-term.
+ *
+ * @param r A ringbuffer object.
+ * @return The number of bytes not yet consumed.
+ */
+LIBBPF_API size_t ring__avail_data_size(const struct ring *r);
+
+/**
+ * @brief **ring__size()** returns the total size of the ringbuffer's map data
+ * area (excluding special producer/consumer pages). Effectively this gives the
+ * amount of usable bytes of data inside the ringbuffer.
+ *
+ * @param r A ringbuffer object.
+ * @return The total size of the ringbuffer map data area.
+ */
+LIBBPF_API size_t ring__size(const struct ring *r);
+
+/**
+ * @brief **ring__map_fd()** returns the file descriptor underlying the given
+ * ringbuffer.
+ *
+ * @param r A ringbuffer object.
+ * @return The underlying ringbuffer file descriptor
+ */
+LIBBPF_API int ring__map_fd(const struct ring *r);
+
+/**
+ * @brief **ring__consume()** consumes available ringbuffer data without event
+ * polling.
+ *
+ * @param r A ringbuffer object.
+ * @return The number of records consumed (or INT_MAX, whichever is less), or
+ * a negative number if any of the callbacks return an error.
+ */
+LIBBPF_API int ring__consume(struct ring *r);
 
 struct user_ring_buffer_opts {
 	size_t sz; /* size of this struct, for forward/backward compatibility */
