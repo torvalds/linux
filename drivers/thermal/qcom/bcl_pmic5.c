@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2018-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2022, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #define pr_fmt(fmt) "%s:%s " fmt, KBUILD_MODNAME, __func__
@@ -89,6 +89,8 @@ enum bcl_dev_type {
 	BCL_LVL0,
 	BCL_LVL1,
 	BCL_LVL2,
+	BCL_2S_IBAT_LVL0,
+	BCL_2S_IBAT_LVL1,
 	BCL_TYPE_MAX,
 };
 
@@ -101,6 +103,8 @@ static char bcl_int_names[BCL_TYPE_MAX][25] = {
 	"bcl-lvl0",
 	"bcl-lvl1",
 	"bcl-lvl2",
+	"bcl-2s-ibat-lvl0",
+	"bcl-2s-ibat-lvl1",
 };
 
 enum bcl_ibat_ext_range_type {
@@ -294,11 +298,13 @@ static int bcl_set_ibat(struct thermal_zone_device *tz, int low, int high)
 	val = (int8_t)thresh_value;
 	switch (bat_data->type) {
 	case BCL_IBAT_LVL0:
+	case BCL_2S_IBAT_LVL0:
 		addr = BCL_IBAT_HIGH;
 		pr_debug("ibat high threshold:%d mA ADC:0x%02x\n",
 				ibat_ua, val);
 		break;
 	case BCL_IBAT_LVL1:
+	case BCL_2S_IBAT_LVL1:
 		addr = BCL_IBAT_TOO_HIGH;
 		if (bat_data->dev->dig_major >= BCL_GEN3_MAJOR_REV &&
 			bat_data->dev->bcl_param_1 & BCL_PARAM_HAS_IBAT_ADC)
@@ -544,6 +550,8 @@ static int bcl_read_lbat(struct thermal_zone_device *tz, int *adc_value)
 			bat_data->last_val);
 	if (bcl_perph->param[BCL_IBAT_LVL0].tz_dev)
 		bcl_read_ibat(bcl_perph->param[BCL_IBAT_LVL0].tz_dev, &ibat);
+	else if (bcl_perph->param[BCL_2S_IBAT_LVL0].tz_dev)
+		bcl_read_ibat(bcl_perph->param[BCL_2S_IBAT_LVL0].tz_dev, &ibat);
 	if (bcl_perph->param[BCL_VBAT_LVL0].tz_dev)
 		bcl_read_vbat_tz(bcl_perph->param[BCL_VBAT_LVL0].tz_dev, &vbat);
 	BCL_IPC(bcl_perph, "LVLbat:%d val:%d\n", bat_data->type,
@@ -567,6 +575,8 @@ static irqreturn_t bcl_handle_irq(int irq, void *data)
 	bcl_read_register(bcl_perph, BCL_IRQ_STATUS, &irq_status);
 	if (bcl_perph->param[BCL_IBAT_LVL0].tz_dev)
 		bcl_read_ibat(bcl_perph->param[BCL_IBAT_LVL0].tz_dev, &ibat);
+	else if (bcl_perph->param[BCL_2S_IBAT_LVL0].tz_dev)
+		bcl_read_ibat(bcl_perph->param[BCL_2S_IBAT_LVL0].tz_dev, &ibat);
 	if (bcl_perph->param[BCL_VBAT_LVL0].tz_dev)
 		bcl_read_vbat_tz(bcl_perph->param[BCL_VBAT_LVL0].tz_dev, &vbat);
 
@@ -766,11 +776,59 @@ static void bcl_ibat_init(struct platform_device *pdev,
 	thermal_zone_device_update(ibat->tz_dev, THERMAL_DEVICE_UP);
 }
 
+static int bcl_get_ibat_config(struct platform_device *pdev,
+		uint32_t *ibat_config)
+{
+	int ret = 0;
+	const char *name;
+	struct nvmem_cell *cell;
+	size_t len;
+	char *buf;
+
+	ret = of_property_read_string(pdev->dev.of_node, "nvmem-cell-names", &name);
+	if (ret) {
+		*ibat_config = 0;
+		pr_debug("Default ibat config enabled %u\n", *ibat_config);
+		return 0;
+	}
+
+	cell = nvmem_cell_get(&pdev->dev, name);
+	if (IS_ERR(cell)) {
+		dev_err(&pdev->dev, "failed to get nvmem cell %s\n", name);
+		return PTR_ERR(cell);
+	}
+
+	buf = nvmem_cell_read(cell, &len);
+	nvmem_cell_put(cell);
+	if (IS_ERR_OR_NULL(buf)) {
+		dev_err(&pdev->dev, "failed to read nvmem cell %s\n", name);
+		return PTR_ERR(buf);
+	}
+
+	if (len <= 0 || len > sizeof(uint32_t)) {
+		dev_err(&pdev->dev, "nvmem cell length out of range %d\n", len);
+		kfree(buf);
+		return -EINVAL;
+	}
+	memcpy(ibat_config, buf, min(len, sizeof(*ibat_config)));
+	kfree(buf);
+
+	return 0;
+}
 static void bcl_probe_ibat(struct platform_device *pdev,
 					struct bcl_device *bcl_perph)
 {
-	bcl_ibat_init(pdev, BCL_IBAT_LVL0, bcl_perph);
-	bcl_ibat_init(pdev, BCL_IBAT_LVL1, bcl_perph);
+	uint32_t bcl_config = 0;
+
+	bcl_get_ibat_config(pdev, &bcl_config);
+
+	if (bcl_config == 1) {
+		bcl_ibat_init(pdev, BCL_2S_IBAT_LVL0, bcl_perph);
+		bcl_ibat_init(pdev, BCL_2S_IBAT_LVL1, bcl_perph);
+	} else {
+		bcl_ibat_init(pdev, BCL_IBAT_LVL0, bcl_perph);
+		bcl_ibat_init(pdev, BCL_IBAT_LVL1, bcl_perph);
+	}
 }
 
 static void bcl_lvl_init(struct platform_device *pdev,
