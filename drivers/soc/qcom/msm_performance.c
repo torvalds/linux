@@ -1528,7 +1528,7 @@ static int __init msm_performance_init(void)
 			per_cpu(cpu_is_hp, cpu) = true;
 	}
 
-	ret = cpuhp_setup_state_nocalls(CPUHP_AP_ONLINE_DYN,
+	ret = cpuhp_setup_state_nocalls_cpuslocked(CPUHP_AP_ONLINE_DYN,
 		"msm_performance_cpu_hotplug",
 		hotplug_notify_up,
 		hotplug_notify_down);
