@@ -312,7 +312,7 @@ _ASM_NOKPROBE_SYMBOL(\name\()_virt)
 
 	rlwimi	r11, r10, 22, 20, 29	/* Compute PTE address */
 	lwz	r11, 0(r11)		/* Get Linux PTE */
-	li	r9, _PAGE_PRESENT | _PAGE_ACCESSED
+	li	r9, _PAGE_PRESENT | _PAGE_ACCESSED | _PAGE_READ
 	andc.	r9, r9, r11		/* Check permission */
 	bne	5f
 
@@ -561,10 +561,11 @@ finish_tlb_load:
 	/*
 	 * Clear out the software-only bits in the PTE to generate the
 	 * TLB_DATA value.  These are the bottom 2 bits of the RPM, the
-	 * top 3 bits of the zone field, and M.
+	 * 4 bits of the zone field, and M.
 	 */
-	li	r9, 0x0ce2
+	li	r9, 0x0cf2
 	andc	r11, r11, r9
+	rlwimi	r11, r10, 8, 24, 27	/* Copy 4 upper address bit into zone */
 
 	/* load the next available TLB index. */
 	lwz	r9, tlb_4xx_index@l(0)
