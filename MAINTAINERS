@@ -11405,6 +11405,7 @@ F:	kernel/configs/hardening.config
 F:	mm/usercopy.c
 K:	\b(add|choose)_random_kstack_offset\b
 K:	\b__check_(object_size|heap_object)\b
+K:	\b__counted_by\b
 
 KERNEL JANITORS
 L:	kernel-janitors@vger.kernel.org
