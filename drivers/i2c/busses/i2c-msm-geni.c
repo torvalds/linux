@@ -669,7 +669,7 @@ static int geni_i2c_prepare(struct geni_i2c_dev *gi2c)
 
 		if (gi2c->pm_ctrl_client)
 			I2C_LOG_DBG(gi2c->ipcl, false, gi2c->dev,
-				    "SMP: %s: pm_runtime_get_sync bypassed\n", __func__);
+				"%s: pm_runtime_get_sync bypassed\n", __func__);
 	}
 	return 0;
 }
