@@ -196,6 +196,14 @@ static int ivpu_pll_wait_for_status_ready(struct ivpu_device *vdev)
 	return REGB_POLL_FLD(VPU_40XX_BUTTRESS_VPU_STATUS, READY, 1, PLL_TIMEOUT_US);
 }
 
+static int ivpu_wait_for_clock_own_resource_ack(struct ivpu_device *vdev)
+{
+	if (ivpu_is_simics(vdev))
+		return 0;
+
+	return REGB_POLL_FLD(VPU_40XX_BUTTRESS_VPU_STATUS, CLOCK_RESOURCE_OWN_ACK, 1, TIMEOUT_US);
+}
+
 static void ivpu_pll_init_frequency_ratios(struct ivpu_device *vdev)
 {
 	struct ivpu_hw_info *hw = vdev->hw;
@@ -555,6 +563,12 @@ static int ivpu_boot_cpu_noc_qdeny_check(struct ivpu_device *vdev, u32 exp_val)
 static int ivpu_boot_pwr_domain_enable(struct ivpu_device *vdev)
 {
 	int ret;
+
+	ret = ivpu_wait_for_clock_own_resource_ack(vdev);
+	if (ret) {
+		ivpu_err(vdev, "Timed out waiting for clock own resource ACK\n");
+		return ret;
+	}
 
 	ivpu_boot_pwr_island_trickle_drive(vdev, true);
 	ivpu_boot_pwr_island_drive(vdev, true);
