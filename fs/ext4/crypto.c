@@ -235,6 +235,7 @@ static bool ext4_has_stable_inodes(struct super_block *sb)
 const struct fscrypt_operations ext4_cryptops = {
 	.needs_bounce_pages	= 1,
 	.has_32bit_inodes	= 1,
+	.supports_subblock_data_units = 1,
 	.legacy_key_prefix	= "ext4:",
 	.get_context		= ext4_get_context,
 	.set_context		= ext4_set_context,

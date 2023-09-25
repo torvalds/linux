@@ -86,6 +86,18 @@ struct fscrypt_operations {
 	unsigned int has_32bit_inodes : 1;
 
 	/*
+	 * If set, then fs/crypto/ will allow users to select a crypto data unit
+	 * size that is less than the filesystem block size.  This is done via
+	 * the log2_data_unit_size field of the fscrypt policy.  This flag is
+	 * not compatible with filesystems that encrypt variable-length blocks
+	 * (i.e. blocks that aren't all equal to filesystem's block size), for
+	 * example as a result of compression.  It's also not compatible with
+	 * the fscrypt_encrypt_block_inplace() and
+	 * fscrypt_decrypt_block_inplace() functions.
+	 */
+	unsigned int supports_subblock_data_units : 1;
+
+	/*
 	 * This field exists only for backwards compatibility reasons and should
 	 * only be set by the filesystems that are setting it already.  It
 	 * contains the filesystem-specific key description prefix that is

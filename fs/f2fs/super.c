@@ -3226,6 +3226,7 @@ static struct block_device **f2fs_get_devices(struct super_block *sb,
 static const struct fscrypt_operations f2fs_cryptops = {
 	.needs_bounce_pages	= 1,
 	.has_32bit_inodes	= 1,
+	.supports_subblock_data_units = 1,
 	.legacy_key_prefix	= "f2fs:",
 	.get_context		= f2fs_get_context,
 	.set_context		= f2fs_set_context,
