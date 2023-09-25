@@ -343,53 +343,78 @@ union dmub_psr_debug_flags {
 union replay_debug_flags {
 	struct {
 		/**
+		 * 0x1 (bit 0)
 		 * Enable visual confirm in FW.
 		 */
 		uint32_t visual_confirm : 1;
 
 		/**
+		 * 0x2 (bit 1)
 		 * @skip_crc: Set if need to skip CRC.
 		 */
 		uint32_t skip_crc : 1;
 
 		/**
+		 * 0x4 (bit 2)
 		 * @force_link_power_on: Force disable ALPM control
 		 */
 		uint32_t force_link_power_on : 1;
 
 		/**
+		 * 0x8 (bit 3)
 		 * @force_phy_power_on: Force phy power on
 		 */
 		uint32_t force_phy_power_on : 1;
 
 		/**
+		 * 0x10 (bit 4)
 		 * @timing_resync_disabled: Disabled Replay normal sleep mode timing resync
 		 */
 		uint32_t timing_resync_disabled : 1;
 
 		/**
+		 * 0x20 (bit 5)
 		 * @skip_crtc_disabled: CRTC disable skipped
 		 */
 		uint32_t skip_crtc_disabled : 1;
 
 		/**
+		 * 0x40 (bit 6)
 		 * @force_defer_one_frame_update: Force defer one frame update in ultra sleep mode
 		 */
 		uint32_t force_defer_one_frame_update : 1;
+
 		/**
+		 * 0x80 (bit 7)
 		 * @disable_delay_alpm_on: Force disable delay alpm on
 		 */
 		uint32_t disable_delay_alpm_on : 1;
+
 		/**
+		 * 0x100 (bit 8)
 		 * @disable_desync_error_check: Force disable desync error check
 		 */
 		uint32_t disable_desync_error_check : 1;
-		/**
-		 * @disable_desync_error_check: Force disable desync error check
-		 */
-		uint32_t disable_dmub_save_restore : 1;
 
-		uint32_t reserved : 22;
+		/**
+		 * 0x200 (bit 9)
+		 * @force_self_update_when_abm_non_steady: Force self update if abm is not steady
+		 */
+		uint32_t force_self_update_when_abm_non_steady : 1;
+
+		/**
+		 * 0x400 (bit 10)
+		 * @force_disable_ips1: Force disable IPS1 state
+		 */
+		uint32_t force_disable_ips1 : 1;
+
+		/**
+		 * 0x800 (bit 11)
+		 * @force_disable_ips2: Force disable IPS2 state
+		 */
+		uint32_t force_disable_ips2 : 1;
+
+		uint32_t reserved : 20;
 	} bitfields;
 
 	uint32_t u32All;
