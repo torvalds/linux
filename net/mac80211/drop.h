@@ -18,6 +18,7 @@ typedef unsigned int __bitwise ieee80211_rx_result;
 /* this line for the trailing \ - add before this */
 
 #define MAC80211_DROP_REASONS_UNUSABLE(R)	\
+	/* 0x00 == ___RX_DROP_UNUSABLE */	\
 	R(RX_DROP_U_MIC_FAIL)			\
 	R(RX_DROP_U_REPLAY)			\
 	R(RX_DROP_U_BAD_MMIE)			\
@@ -33,8 +34,15 @@ typedef unsigned int __bitwise ieee80211_rx_result;
 	R(RX_DROP_U_BAD_AMSDU)			\
 	R(RX_DROP_U_BAD_AMSDU_CIPHER)		\
 	R(RX_DROP_U_INVALID_8023)		\
+	/* 0x10 */				\
 	R(RX_DROP_U_RUNT_ACTION)		\
 	R(RX_DROP_U_UNPROT_ACTION)		\
+	R(RX_DROP_U_UNPROT_DUAL)		\
+	R(RX_DROP_U_UNPROT_UCAST_MGMT)		\
+	R(RX_DROP_U_UNPROT_MCAST_MGMT)		\
+	R(RX_DROP_U_UNPROT_BEACON)		\
+	R(RX_DROP_U_UNPROT_UNICAST_PUB_ACTION)	\
+	R(RX_DROP_U_UNPROT_ROBUST_ACTION)	\
 	R(RX_DROP_U_ACTION_UNKNOWN_SRC)		\
 	R(RX_DROP_U_REJECTED_ACTION_RESPONSE)	\
 	R(RX_DROP_U_EXPECT_DEFRAG_PROT)		\
@@ -43,6 +51,7 @@ typedef unsigned int __bitwise ieee80211_rx_result;
 	R(RX_DROP_U_NO_ICV)			\
 	R(RX_DROP_U_AP_RX_GROUPCAST)		\
 	R(RX_DROP_U_SHORT_MMIC)			\
+	/* 0x20 */				\
 	R(RX_DROP_U_MMIC_FAIL)			\
 	R(RX_DROP_U_SHORT_TKIP)			\
 	R(RX_DROP_U_TKIP_FAIL)			\
