@@ -46,13 +46,13 @@ static inline int is_exec_fault(void)
  * and we avoid _PAGE_SPECIAL and cache inhibited pte. We also only do that
  * on userspace PTEs
  */
-static inline int pte_looks_normal(pte_t pte)
+static inline int pte_looks_normal(pte_t pte, unsigned long addr)
 {
 
 	if (pte_present(pte) && !pte_special(pte)) {
 		if (pte_ci(pte))
 			return 0;
-		if (pte_user(pte))
+		if (!is_kernel_addr(addr))
 			return 1;
 	}
 	return 0;
@@ -79,11 +79,11 @@ static struct folio *maybe_pte_to_folio(pte_t pte)
  * support falls into the same category.
  */
 
-static pte_t set_pte_filter_hash(pte_t pte)
+static pte_t set_pte_filter_hash(pte_t pte, unsigned long addr)
 {
 	pte = __pte(pte_val(pte) & ~_PAGE_HPTEFLAGS);
-	if (pte_looks_normal(pte) && !(cpu_has_feature(CPU_FTR_COHERENT_ICACHE) ||
-				       cpu_has_feature(CPU_FTR_NOEXECUTE))) {
+	if (pte_looks_normal(pte, addr) && !(cpu_has_feature(CPU_FTR_COHERENT_ICACHE) ||
+					     cpu_has_feature(CPU_FTR_NOEXECUTE))) {
 		struct folio *folio = maybe_pte_to_folio(pte);
 		if (!folio)
 			return pte;
@@ -97,7 +97,7 @@ static pte_t set_pte_filter_hash(pte_t pte)
 
 #else /* CONFIG_PPC_BOOK3S */
 
-static pte_t set_pte_filter_hash(pte_t pte) { return pte; }
+static pte_t set_pte_filter_hash(pte_t pte, unsigned long addr) { return pte; }
 
 #endif /* CONFIG_PPC_BOOK3S */
 
@@ -105,7 +105,7 @@ static pte_t set_pte_filter_hash(pte_t pte) { return pte; }
  * as we don't have two bits to spare for _PAGE_EXEC and _PAGE_HWEXEC so
  * instead we "filter out" the exec permission for non clean pages.
  */
-static inline pte_t set_pte_filter(pte_t pte)
+static inline pte_t set_pte_filter(pte_t pte, unsigned long addr)
 {
 	struct folio *folio;
 
@@ -113,10 +113,10 @@ static inline pte_t set_pte_filter(pte_t pte)
 		return pte;
 
 	if (mmu_has_feature(MMU_FTR_HPTE_TABLE))
-		return set_pte_filter_hash(pte);
+		return set_pte_filter_hash(pte, addr);
 
 	/* No exec permission in the first place, move on */
-	if (!pte_exec(pte) || !pte_looks_normal(pte))
+	if (!pte_exec(pte) || !pte_looks_normal(pte, addr))
 		return pte;
 
 	/* If you set _PAGE_EXEC on weird pages you're on your own */
@@ -200,7 +200,7 @@ void set_ptes(struct mm_struct *mm, unsigned long addr, pte_t *ptep,
 	 * this context might not have been activated yet when this
 	 * is called.
 	 */
-	pte = set_pte_filter(pte);
+	pte = set_pte_filter(pte, addr);
 
 	/* Perform the setting of the PTE */
 	arch_enter_lazy_mmu_mode();
@@ -301,7 +301,7 @@ void set_huge_pte_at(struct mm_struct *mm, unsigned long addr, pte_t *ptep, pte_
 	 */
 	VM_WARN_ON(pte_hw_valid(*ptep) && !pte_protnone(*ptep));
 
-	pte = set_pte_filter(pte);
+	pte = set_pte_filter(pte, addr);
 
 	val = pte_val(pte);
 
