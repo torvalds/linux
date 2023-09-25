@@ -1059,9 +1059,6 @@ static irqreturn_t ivpu_hw_40xx_irqb_handler(struct ivpu_device *vdev, int irq)
 	if (status == 0)
 		return IRQ_NONE;
 
-	/* Disable global interrupt before handling local buttress interrupts */
-	REGB_WR32(VPU_40XX_BUTTRESS_GLOBAL_INT_MASK, 0x1);
-
 	if (REG_TEST_FLD(VPU_40XX_BUTTRESS_INTERRUPT_STAT, FREQ_CHANGE, status))
 		ivpu_dbg(vdev, IRQ, "FREQ_CHANGE");
 
@@ -1109,9 +1106,6 @@ static irqreturn_t ivpu_hw_40xx_irqb_handler(struct ivpu_device *vdev, int irq)
 	/* This must be done after interrupts are cleared at the source. */
 	REGB_WR32(VPU_40XX_BUTTRESS_INTERRUPT_STAT, status);
 
-	/* Re-enable global interrupt */
-	REGB_WR32(VPU_40XX_BUTTRESS_GLOBAL_INT_MASK, 0x0);
-
 	if (schedule_recovery)
 		ivpu_pm_schedule_recovery(vdev);
 
@@ -1123,8 +1117,13 @@ static irqreturn_t ivpu_hw_40xx_irq_handler(int irq, void *ptr)
 	struct ivpu_device *vdev = ptr;
 	irqreturn_t ret = IRQ_NONE;
 
+	REGB_WR32(VPU_40XX_BUTTRESS_GLOBAL_INT_MASK, 0x1);
+
 	ret |= ivpu_hw_40xx_irqv_handler(vdev, irq);
 	ret |= ivpu_hw_40xx_irqb_handler(vdev, irq);
+
+	/* Re-enable global interrupts to re-trigger MSI for pending interrupts */
+	REGB_WR32(VPU_40XX_BUTTRESS_GLOBAL_INT_MASK, 0x0);
 
 	if (ret & IRQ_WAKE_THREAD)
 		return IRQ_WAKE_THREAD;
