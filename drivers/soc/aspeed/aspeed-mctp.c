@@ -66,6 +66,7 @@ static DEFINE_IDA(mctp_ida);
 	(((x) << FIFO_LAYOUT_SHIFT) & FIFO_LAYOUT_MASK)
 
 #define ASPEED_MCTP_RX_BUF_ADDR		0x08
+#define ASPEED_MCTP_RX_BUF_HI_ADDR	0x020
 #define ASPEED_MCTP_RX_BUF_SIZE		0x024
 #define ASPEED_MCTP_RX_BUF_RD_PTR	0x028
 #define  UPDATE_RX_RD_PTR		BIT(31)
@@ -74,12 +75,14 @@ static DEFINE_IDA(mctp_ida);
 #define  RX_BUF_WR_PTR_MASK		GENMASK(11, 0)
 
 #define ASPEED_MCTP_TX_BUF_ADDR		0x04
+#define ASPEED_MCTP_TX_BUF_HI_ADDR	0x030
 #define ASPEED_MCTP_TX_BUF_SIZE		0x034
 #define ASPEED_MCTP_TX_BUF_RD_PTR	0x038
 #define  UPDATE_TX_RD_PTR		BIT(31)
 #define  TX_BUF_RD_PTR_MASK		GENMASK(11, 0)
 #define ASPEED_MCTP_TX_BUF_WR_PTR	0x03c
 #define  TX_BUF_WR_PTR_MASK		GENMASK(11, 0)
+#define ASPEED_G7_MCTP_PCIE_BDF		0x04c
 
 #define ADDR_LEN	GENMASK(26, 0)
 #define DATA_ADDR(x)	(((x) >> 4) & ADDR_LEN)
@@ -158,6 +161,10 @@ static DEFINE_IDA(mctp_ida);
 #define PCIE_LINK_STS		BIT(5)
 #define ASPEED_PCIE_MISC_STS_1	0x0c4
 
+/* PCIe Host Controller registers */
+#define ASPEED_G7_PCIE_LINK	0x358
+#define PCIE_G7_LINK_STS	BIT(8)
+
 /* PCI address definitions */
 #define PCI_DEV_NUM_MASK	GENMASK(4, 0)
 #define PCI_BUS_NUM_SHIFT	5
@@ -217,6 +224,9 @@ static DEFINE_IDA(mctp_ida);
 #define ID0_AST2625A3			0x05030403
 #define ID1_AST2625A3			0x05030403
 
+#define ASPEED_G7_SCU_PCIE_CTRL_OFFSET	0xa60
+#define ASPEED_G7_SCU_PCIE_CTRL_VDM_EN	BIT(1)
+
 struct aspeed_mctp_match_data {
 	u32 rx_cmd_size;
 	u32 tx_cmd_size;
@@ -224,6 +234,7 @@ struct aspeed_mctp_match_data {
 	bool need_address_mapping;
 	bool vdm_hdr_direct_xfer;
 	bool fifo_auto_surround;
+	bool dma_need_64bits_width;
 };
 
 struct aspeed_mctp_rx_cmd {
@@ -349,7 +360,7 @@ void data_dump(struct aspeed_mctp *priv, struct mctp_pcie_packet_data *data)
 {
 	int i;
 
-	dev_dbg(priv->dev, "Address %08x", (u32)data);
+	dev_dbg(priv->dev, "Address %zu", (size_t)data);
 	dev_dbg(priv->dev, "VDM header:");
 	for (i = 0; i < PCIE_VDM_HDR_SIZE_DW; i++) {
 		dev_dbg(priv->dev, "%02x %02x %02x %02x", data->hdr[i] & 0xff,
@@ -382,15 +393,24 @@ static u16 _get_bdf(struct aspeed_mctp *priv)
 	u32 reg;
 	u16 bdf, devfn;
 
-	regmap_read(priv->pcie.map, ASPEED_PCIE_LINK, &reg);
-	if (!(reg & PCIE_LINK_STS))
-		return 0;
-	regmap_read(priv->pcie.map, ASPEED_PCIE_MISC_STS_1, &reg);
+	if (priv->match_data->dma_need_64bits_width) {
+		regmap_read(priv->pcie.map, ASPEED_G7_PCIE_LINK, &reg);
+		if (!(reg & PCIE_G7_LINK_STS))
+			return 0;
+		dev_info(priv->dev, "Link Up\n");
+		regmap_read(priv->map, ASPEED_G7_MCTP_PCIE_BDF, &reg);
+		bdf = PCI_DEVID(PCI_BUS_NUM(reg), reg & 0xff);
+	} else {
+		regmap_read(priv->pcie.map, ASPEED_PCIE_LINK, &reg);
+		if (!(reg & PCIE_LINK_STS))
+			return 0;
+		regmap_read(priv->pcie.map, ASPEED_PCIE_MISC_STS_1, &reg);
 
-	reg = reg & (PCI_BUS_NUM_MASK | PCI_DEV_NUM_MASK);
-	/* only support function 0 */
-	devfn = GET_PCI_DEV_NUM(reg) << 3;
-	bdf = PCI_DEVID(GET_PCI_BUS_NUM(reg), devfn);
+		reg = reg & (PCI_BUS_NUM_MASK | PCI_DEV_NUM_MASK);
+		/* only support function 0 */
+		devfn = GET_PCI_DEV_NUM(reg) << 3;
+		bdf = PCI_DEVID(GET_PCI_BUS_NUM(reg), devfn);
+	}
 
 	return bdf;
 }
@@ -421,6 +441,21 @@ static uint32_t chip_version(struct device *dev)
 		return ASPEED_MCTP_2600A3;
 	}
 	return ASPEED_MCTP_2600;
+}
+
+static int pcie_vdm_enable(struct device *dev)
+{
+	int ret = 0;
+	struct regmap *scu;
+
+	scu = syscon_regmap_lookup_by_phandle(dev->of_node, "aspeed,scu");
+	if (IS_ERR(scu)) {
+		dev_err(dev, "failed to find SCU regmap\n");
+		return PTR_ERR(scu);
+	}
+	ret = regmap_update_bits(scu, ASPEED_G7_SCU_PCIE_CTRL_OFFSET,
+				 ASPEED_G7_SCU_PCIE_CTRL_VDM_EN, 1);
+	return ret;
 }
 
 /*
@@ -454,6 +489,9 @@ static void aspeed_mctp_rx_trigger(struct mctp_channel *rx)
 	if (priv->match_data->fifo_auto_surround) {
 		regmap_write(priv->map, ASPEED_MCTP_RX_BUF_ADDR,
 			     rx->cmd.dma_handle);
+		if (priv->match_data->dma_need_64bits_width)
+			regmap_write(priv->map, ASPEED_MCTP_RX_BUF_HI_ADDR,
+				     rx->cmd.dma_handle >> 32);
 	} else {
 		regmap_read(priv->map, ASPEED_MCTP_RX_BUF_ADDR, &reg);
 		if (!reg) {
@@ -493,11 +531,19 @@ static void aspeed_mctp_tx_trigger(struct mctp_channel *tx, bool notify)
 	struct aspeed_mctp *priv = container_of(tx, typeof(*priv), tx);
 
 	if (notify) {
-		struct aspeed_mctp_tx_cmd *last_cmd;
+		if (priv->match_data->dma_need_64bits_width) {
+			struct aspeed_g7_mctp_tx_cmd *last_cmd;
 
-		last_cmd = (struct aspeed_mctp_tx_cmd *)tx->cmd.vaddr +
-			   (tx->wr_ptr - 1) % TX_PACKET_COUNT;
-		last_cmd->tx_lo |= TX_INTERRUPT_AFTER_CMD;
+			last_cmd = (struct aspeed_g7_mctp_tx_cmd *)tx->cmd.vaddr +
+				(tx->wr_ptr - 1) % TX_PACKET_COUNT;
+			last_cmd->tx_lo |= TX_INTERRUPT_AFTER_CMD;
+		} else {
+			struct aspeed_mctp_tx_cmd *last_cmd;
+
+			last_cmd = (struct aspeed_mctp_tx_cmd *)tx->cmd.vaddr +
+				   (tx->wr_ptr - 1) % TX_PACKET_COUNT;
+			last_cmd->tx_lo |= TX_INTERRUPT_AFTER_CMD;
+		}
 	}
 	if (priv->match_data->fifo_auto_surround)
 		regmap_write(priv->map, ASPEED_MCTP_TX_BUF_WR_PTR, tx->wr_ptr);
@@ -533,6 +579,8 @@ static void aspeed_mctp_emit_tx_cmd(struct mctp_channel *tx,
 	struct aspeed_mctp *priv = container_of(tx, typeof(*priv), tx);
 	struct aspeed_mctp_tx_cmd *tx_cmd =
 		(struct aspeed_mctp_tx_cmd *)tx->cmd.vaddr + tx->wr_ptr;
+	struct aspeed_g7_mctp_tx_cmd *tx_cmd_g7 =
+		(struct aspeed_g7_mctp_tx_cmd *)tx->cmd.vaddr + tx->wr_ptr;
 	u32 packet_sz_dw = packet->size / sizeof(u32) -
 		sizeof(packet->data.hdr) / sizeof(u32);
 	u32 offset;
@@ -544,10 +592,17 @@ static void aspeed_mctp_emit_tx_cmd(struct mctp_channel *tx,
 		offset = tx->wr_ptr * sizeof(packet->data);
 		memcpy((u8 *)tx->data.vaddr + offset, &packet->data,
 		       sizeof(packet->data));
-
-		tx_cmd->tx_lo = TX_PACKET_SIZE(packet_sz_dw);
-		tx_cmd->tx_hi = TX_RESERVED_1;
-		tx_cmd->tx_hi |= TX_DATA_ADDR(tx->data.dma_handle + offset);
+		if (priv->match_data->dma_need_64bits_width) {
+			tx_cmd_g7->tx_lo = TX_PACKET_SIZE(packet_sz_dw);
+			tx_cmd_g7->tx_mid = TX_RESERVED_1;
+			tx_cmd_g7->tx_mid |= ((tx->data.dma_handle + offset) &
+					      GENMASK(31, 4));
+			tx_cmd_g7->tx_hi = (tx->data.dma_handle + offset) >> 32;
+		} else {
+			tx_cmd->tx_lo = TX_PACKET_SIZE(packet_sz_dw);
+			tx_cmd->tx_hi = TX_RESERVED_1;
+			tx_cmd->tx_hi |= TX_DATA_ADDR(tx->data.dma_handle + offset);
+		}
 	} else {
 		offset = tx->wr_ptr * sizeof(struct mctp_pcie_packet_data_2500);
 		memcpy((u8 *)tx->data.vaddr + offset, packet->data.payload,
@@ -957,10 +1012,23 @@ static void aspeed_mctp_rx_chan_init(struct mctp_channel *rx)
 	int i;
 
 	if (priv->match_data->vdm_hdr_direct_xfer) {
-		for (i = 0; i < priv->rx_packet_count; i++) {
-			*rx_cmd = RX_DATA_ADDR(rx->data.dma_handle + data_size * i);
-			*rx_cmd |= RX_INTERRUPT_AFTER_CMD;
-			rx_cmd++;
+		if (priv->match_data->dma_need_64bits_width) {
+			for (i = 0; i < priv->rx_packet_count; i++) {
+				rx_cmd_64->rx_hi =
+					(rx->data.dma_handle + data_size * i) >>
+					32;
+				rx_cmd_64->rx_lo =
+					(rx->data.dma_handle + data_size * i) &
+					GENMASK(31, 4);
+				rx_cmd_64->rx_lo |= RX_INTERRUPT_AFTER_CMD;
+				rx_cmd_64++;
+			}
+		} else {
+			for (i = 0; i < priv->rx_packet_count; i++) {
+				*rx_cmd = RX_DATA_ADDR(rx->data.dma_handle + data_size * i);
+				*rx_cmd |= RX_INTERRUPT_AFTER_CMD;
+				rx_cmd++;
+			}
 		}
 	} else {
 		for (i = 0; i < priv->rx_packet_count; i++) {
@@ -1004,6 +1072,9 @@ static void aspeed_mctp_tx_chan_init(struct mctp_channel *tx)
 	tx->rd_ptr = 0;
 	regmap_update_bits(priv->map, ASPEED_MCTP_CTRL, TX_CMD_TRIGGER, 0);
 	regmap_write(priv->map, ASPEED_MCTP_TX_BUF_ADDR, tx->cmd.dma_handle);
+	if (priv->match_data->dma_need_64bits_width)
+		regmap_write(priv->map, ASPEED_MCTP_TX_BUF_HI_ADDR,
+			     tx->cmd.dma_handle >> 32);
 	if (priv->match_data->fifo_auto_surround) {
 		regmap_write(priv->map, ASPEED_MCTP_TX_BUF_SIZE, TX_PACKET_COUNT);
 		regmap_write(priv->map, ASPEED_MCTP_TX_BUF_WR_PTR, 0);
@@ -1805,7 +1876,7 @@ static const struct regmap_config aspeed_mctp_regmap_cfg = {
 	.reg_bits	= 32,
 	.reg_stride	= 4,
 	.val_bits	= 32,
-	.max_register	= ASPEED_MCTP_TX_BUF_WR_PTR,
+	.max_register	= ASPEED_G7_MCTP_PCIE_BDF,
 };
 
 struct device_type aspeed_mctp_type = {
@@ -1823,14 +1894,10 @@ static void aspeed_mctp_send_pcie_uevent(struct kobject *kobj, bool ready)
 
 static u16 aspeed_mctp_pcie_setup(struct aspeed_mctp *priv)
 {
-	u32 reg;
 	u16 bdf;
 
-	regmap_read(priv->pcie.map, ASPEED_PCIE_MISC_STS_1, &reg);
-
-	reg = reg & (PCI_BUS_NUM_MASK | PCI_DEV_NUM_MASK);
-	bdf = PCI_DEVID(GET_PCI_BUS_NUM(reg), GET_PCI_DEV_NUM(reg));
-	if (reg != 0) {
+	bdf = _get_bdf(priv);
+	if (bdf != 0) {
 		cancel_delayed_work(&priv->pcie.rst_dwork);
 	} else {
 		schedule_delayed_work(&priv->pcie.rst_dwork,
@@ -2041,6 +2108,12 @@ static int aspeed_mctp_dma_init(struct aspeed_mctp *priv)
 		return ret;
 	}
 
+	ret = dma_set_mask_and_coherent(priv->dev, DMA_BIT_MASK(64));
+	if (ret) {
+		dev_err(priv->dev, "cannot set 64-bits DMA mask\n");
+		return ret;
+	}
+
 	alloc_size = PAGE_ALIGN(priv->rx_packet_count * priv->match_data->packet_unit_size);
 	rx->data.vaddr =
 		dma_alloc_coherent(priv->dev, alloc_size, &rx->data.dma_handle, GFP_KERNEL);
@@ -2142,15 +2215,28 @@ static int aspeed_mctp_irq_init(struct aspeed_mctp *priv)
 	return 0;
 }
 
-static void aspeed_mctp_hw_reset(struct aspeed_mctp *priv)
+static int aspeed_mctp_hw_reset(struct aspeed_mctp *priv)
 {
-	if (reset_control_deassert(priv->reset) != 0)
+	int ret = 0;
+
+	ret = reset_control_deassert(priv->reset);
+	if (ret) {
 		dev_warn(priv->dev, "Failed to deassert reset\n");
+		return ret;
+	}
 
 	if (priv->rc_f) {
-		if (reset_control_deassert(priv->reset_dma) != 0)
+		ret = reset_control_deassert(priv->reset_dma);
+		if (ret) {
 			dev_warn(priv->dev, "Failed to deassert ep reset\n");
+			return ret;
+		}
 	}
+
+	if (priv->match_data->dma_need_64bits_width)
+		ret = pcie_vdm_enable(priv->dev);
+
+	return ret;
 }
 
 static int aspeed_mctp_probe(struct platform_device *pdev)
@@ -2207,7 +2293,9 @@ static int aspeed_mctp_probe(struct platform_device *pdev)
 		goto out_drv;
 	}
 
-	aspeed_mctp_hw_reset(priv);
+	ret = aspeed_mctp_hw_reset(priv);
+	if (ret)
+		goto out_drv;
 
 	aspeed_mctp_channels_init(priv);
 
@@ -2312,6 +2400,7 @@ static const struct aspeed_mctp_match_data ast2700_mctp_match_data = {
 	.need_address_mapping = false,
 	.vdm_hdr_direct_xfer = true,
 	.fifo_auto_surround = true,
+	.dma_need_64bits_width = true,
 };
 
 static const struct of_device_id aspeed_mctp_match_table[] = {
