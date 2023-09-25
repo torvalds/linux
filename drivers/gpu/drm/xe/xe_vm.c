@@ -6,6 +6,7 @@
 #include "xe_vm.h"
 
 #include <linux/dma-fence-array.h>
+#include <linux/nospec.h>
 
 #include <drm/drm_exec.h>
 #include <drm/drm_print.h>
@@ -26,6 +27,7 @@
 #include "xe_gt_pagefault.h"
 #include "xe_gt_tlb_invalidation.h"
 #include "xe_migrate.h"
+#include "xe_pat.h"
 #include "xe_pm.h"
 #include "xe_preempt_fence.h"
 #include "xe_pt.h"
@@ -868,7 +870,8 @@ static struct xe_vma *xe_vma_create(struct xe_vm *vm,
 				    u64 start, u64 end,
 				    bool read_only,
 				    bool is_null,
-				    u8 tile_mask)
+				    u8 tile_mask,
+				    u16 pat_index)
 {
 	struct xe_vma *vma;
 	struct xe_tile *tile;
@@ -909,6 +912,8 @@ static struct xe_vma *xe_vma_create(struct xe_vm *vm,
 
 	if (GRAPHICS_VER(vm->xe) >= 20 || vm->xe->info.platform == XE_PVC)
 		vma->gpuva.flags |= XE_VMA_ATOMIC_PTE_BIT;
+
+	vma->pat_index = pat_index;
 
 	if (bo) {
 		struct drm_gpuvm_bo *vm_bo;
@@ -2162,7 +2167,7 @@ static struct drm_gpuva_ops *
 vm_bind_ioctl_ops_create(struct xe_vm *vm, struct xe_bo *bo,
 			 u64 bo_offset_or_userptr, u64 addr, u64 range,
 			 u32 operation, u32 flags, u8 tile_mask,
-			 u32 prefetch_region)
+			 u32 prefetch_region, u16 pat_index)
 {
 	struct drm_gem_object *obj = bo ? &bo->ttm.base : NULL;
 	struct drm_gpuva_ops *ops;
@@ -2231,6 +2236,7 @@ vm_bind_ioctl_ops_create(struct xe_vm *vm, struct xe_bo *bo,
 			op->map.read_only =
 				flags & DRM_XE_VM_BIND_FLAG_READONLY;
 			op->map.is_null = flags & DRM_XE_VM_BIND_FLAG_NULL;
+			op->map.pat_index = pat_index;
 		} else if (__op->op == DRM_GPUVA_OP_PREFETCH) {
 			op->prefetch.region = prefetch_region;
 		}
@@ -2242,7 +2248,8 @@ vm_bind_ioctl_ops_create(struct xe_vm *vm, struct xe_bo *bo,
 }
 
 static struct xe_vma *new_vma(struct xe_vm *vm, struct drm_gpuva_op_map *op,
-			      u8 tile_mask, bool read_only, bool is_null)
+			      u8 tile_mask, bool read_only, bool is_null,
+			      u16 pat_index)
 {
 	struct xe_bo *bo = op->gem.obj ? gem_to_xe_bo(op->gem.obj) : NULL;
 	struct xe_vma *vma;
@@ -2258,7 +2265,7 @@ static struct xe_vma *new_vma(struct xe_vm *vm, struct drm_gpuva_op_map *op,
 	vma = xe_vma_create(vm, bo, op->gem.offset,
 			    op->va.addr, op->va.addr +
 			    op->va.range - 1, read_only, is_null,
-			    tile_mask);
+			    tile_mask, pat_index);
 	if (bo)
 		xe_bo_unlock(bo);
 
@@ -2404,7 +2411,7 @@ static int vm_bind_ioctl_ops_parse(struct xe_vm *vm, struct xe_exec_queue *q,
 
 			vma = new_vma(vm, &op->base.map,
 				      op->tile_mask, op->map.read_only,
-				      op->map.is_null);
+				      op->map.is_null, op->map.pat_index);
 			if (IS_ERR(vma))
 				return PTR_ERR(vma);
 
@@ -2430,7 +2437,7 @@ static int vm_bind_ioctl_ops_parse(struct xe_vm *vm, struct xe_exec_queue *q,
 
 				vma = new_vma(vm, op->base.remap.prev,
 					      op->tile_mask, read_only,
-					      is_null);
+					      is_null, old->pat_index);
 				if (IS_ERR(vma))
 					return PTR_ERR(vma);
 
@@ -2464,7 +2471,7 @@ static int vm_bind_ioctl_ops_parse(struct xe_vm *vm, struct xe_exec_queue *q,
 
 				vma = new_vma(vm, op->base.remap.next,
 					      op->tile_mask, read_only,
-					      is_null);
+					      is_null, old->pat_index);
 				if (IS_ERR(vma))
 					return PTR_ERR(vma);
 
@@ -2862,6 +2869,26 @@ static int vm_bind_ioctl_check_args(struct xe_device *xe,
 		u64 obj_offset = (*bind_ops)[i].obj_offset;
 		u32 prefetch_region = (*bind_ops)[i].prefetch_mem_region_instance;
 		bool is_null = flags & DRM_XE_VM_BIND_FLAG_NULL;
+		u16 pat_index = (*bind_ops)[i].pat_index;
+		u16 coh_mode;
+
+		if (XE_IOCTL_DBG(xe, pat_index >= xe->pat.n_entries)) {
+			err = -EINVAL;
+			goto free_bind_ops;
+		}
+
+		pat_index = array_index_nospec(pat_index, xe->pat.n_entries);
+		(*bind_ops)[i].pat_index = pat_index;
+		coh_mode = xe_pat_index_get_coh_mode(xe, pat_index);
+		if (XE_IOCTL_DBG(xe, !coh_mode)) { /* hw reserved */
+			err = -EINVAL;
+			goto free_bind_ops;
+		}
+
+		if (XE_WARN_ON(coh_mode > XE_COH_AT_LEAST_1WAY)) {
+			err = -EINVAL;
+			goto free_bind_ops;
+		}
 
 		if (i == 0) {
 			*async = !!(flags & DRM_XE_VM_BIND_FLAG_ASYNC);
@@ -2891,6 +2918,8 @@ static int vm_bind_ioctl_check_args(struct xe_device *xe,
 		    XE_IOCTL_DBG(xe, range &&
 				 op == DRM_XE_VM_BIND_OP_UNMAP_ALL) ||
 		    XE_IOCTL_DBG(xe, obj &&
+				 op == DRM_XE_VM_BIND_OP_MAP_USERPTR) ||
+		    XE_IOCTL_DBG(xe, coh_mode == XE_COH_NONE &&
 				 op == DRM_XE_VM_BIND_OP_MAP_USERPTR) ||
 		    XE_IOCTL_DBG(xe, obj &&
 				 op == DRM_XE_VM_BIND_OP_PREFETCH) ||
@@ -3025,6 +3054,8 @@ int xe_vm_bind_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 		u64 addr = bind_ops[i].addr;
 		u32 obj = bind_ops[i].obj;
 		u64 obj_offset = bind_ops[i].obj_offset;
+		u16 pat_index = bind_ops[i].pat_index;
+		u16 coh_mode;
 
 		if (!obj)
 			continue;
@@ -3051,6 +3082,24 @@ int xe_vm_bind_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 				err = -EINVAL;
 				goto put_obj;
 			}
+		}
+
+		coh_mode = xe_pat_index_get_coh_mode(xe, pat_index);
+		if (bos[i]->cpu_caching) {
+			if (XE_IOCTL_DBG(xe, coh_mode == XE_COH_NONE &&
+					 bos[i]->cpu_caching == DRM_XE_GEM_CPU_CACHING_WB)) {
+				err = -EINVAL;
+				goto put_obj;
+			}
+		} else if (XE_IOCTL_DBG(xe, coh_mode == XE_COH_NONE)) {
+			/*
+			 * Imported dma-buf from a different device should
+			 * require 1way or 2way coherency since we don't know
+			 * how it was mapped on the CPU. Just assume is it
+			 * potentially cached on CPU side.
+			 */
+			err = -EINVAL;
+			goto put_obj;
 		}
 	}
 
@@ -3079,10 +3128,12 @@ int xe_vm_bind_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 		u64 obj_offset = bind_ops[i].obj_offset;
 		u8 tile_mask = bind_ops[i].tile_mask;
 		u32 prefetch_region = bind_ops[i].prefetch_mem_region_instance;
+		u16 pat_index = bind_ops[i].pat_index;
 
 		ops[i] = vm_bind_ioctl_ops_create(vm, bos[i], obj_offset,
 						  addr, range, op, flags,
-						  tile_mask, prefetch_region);
+						  tile_mask, prefetch_region,
+						  pat_index);
 		if (IS_ERR(ops[i])) {
 			err = PTR_ERR(ops[i]);
 			ops[i] = NULL;

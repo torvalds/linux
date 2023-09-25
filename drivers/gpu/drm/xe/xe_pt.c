@@ -290,8 +290,6 @@ struct xe_pt_stage_bind_walk {
 	struct xe_vm *vm;
 	/** @tile: The tile we're building for. */
 	struct xe_tile *tile;
-	/** @cache: Desired cache level for the ptes */
-	enum xe_cache_level cache;
 	/** @default_pte: PTE flag only template. No address is associated */
 	u64 default_pte;
 	/** @dma_offset: DMA offset to add to the PTE. */
@@ -511,7 +509,7 @@ xe_pt_stage_bind_entry(struct xe_ptw *parent, pgoff_t offset,
 {
 	struct xe_pt_stage_bind_walk *xe_walk =
 		container_of(walk, typeof(*xe_walk), base);
-	u16 pat_index = tile_to_xe(xe_walk->tile)->pat.idx[xe_walk->cache];
+	u16 pat_index = xe_walk->vma->pat_index;
 	struct xe_pt *xe_parent = container_of(parent, typeof(*xe_parent), base);
 	struct xe_vm *vm = xe_walk->vm;
 	struct xe_pt *xe_child;
@@ -657,13 +655,8 @@ xe_pt_stage_bind(struct xe_tile *tile, struct xe_vma *vma,
 	if (is_devmem) {
 		xe_walk.default_pte |= XE_PPGTT_PTE_DM;
 		xe_walk.dma_offset = vram_region_gpu_offset(bo->ttm.resource);
-		xe_walk.cache = XE_CACHE_WB;
-	} else {
-		if (!xe_vma_has_no_bo(vma) && bo->flags & XE_BO_SCANOUT_BIT)
-			xe_walk.cache = XE_CACHE_WT;
-		else
-			xe_walk.cache = XE_CACHE_WB;
 	}
+
 	if (!xe_vma_has_no_bo(vma) && xe_bo_is_stolen(bo))
 		xe_walk.dma_offset = xe_ttm_stolen_gpu_offset(xe_bo_device(bo));
 

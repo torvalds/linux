@@ -110,6 +110,11 @@ struct xe_vma {
 	 */
 	u8 tile_present;
 
+	/**
+	 * @pat_index: The pat index to use when encoding the PTEs for this vma.
+	 */
+	u16 pat_index;
+
 	struct {
 		struct list_head rebind_link;
 	} notifier;
@@ -333,6 +338,8 @@ struct xe_vma_op_map {
 	bool read_only;
 	/** @is_null: is NULL binding */
 	bool is_null;
+	/** @pat_index: The pat index to use for this operation. */
+	u16 pat_index;
 };
 
 /** struct xe_vma_op_remap - VMA remap operation */
