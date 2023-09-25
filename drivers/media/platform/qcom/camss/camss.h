@@ -80,27 +80,27 @@ enum icc_count {
 };
 
 struct camss_resources {
+	enum camss_version version;
 	const struct camss_subdev_resources *csiphy_res;
 	const struct camss_subdev_resources *csid_res;
 	const struct camss_subdev_resources *ispif_res;
 	const struct camss_subdev_resources *vfe_res;
 	const struct resources_icc *icc_res;
 	const unsigned int icc_path_num;
+	const unsigned int csiphy_num;
+	const unsigned int csid_num;
+	const unsigned int vfe_num;
+	const unsigned int vfe_lite_num;
 };
 
 struct camss {
-	enum camss_version version;
 	struct v4l2_device v4l2_dev;
 	struct v4l2_async_notifier notifier;
 	struct media_device media_dev;
 	struct device *dev;
-	int csiphy_num;
 	struct csiphy_device *csiphy;
-	int csid_num;
 	struct csid_device *csid;
 	struct ispif_device *ispif;
-	int vfe_num;
-	int vfe_lite_num;
 	struct vfe_device *vfe;
 	atomic_t ref_count;
 	int genpd_num;
@@ -108,6 +108,7 @@ struct camss {
 	struct device_link **genpd_link;
 	struct icc_path *icc_path[ICC_SM8250_COUNT];
 	const struct camss_resources *res;
+	unsigned int vfe_total_num;
 };
 
 struct camss_camera_interface {
