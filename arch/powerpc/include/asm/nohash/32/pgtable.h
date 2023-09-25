@@ -153,9 +153,6 @@
 
 #ifndef __ASSEMBLY__
 
-#define pte_clear(mm, addr, ptep) \
-	do { pte_update(mm, addr, ptep, ~0, 0, 0); } while (0)
-
 #define pmd_none(pmd)		(!pmd_val(pmd))
 #define	pmd_bad(pmd)		(pmd_val(pmd) & _PMD_BAD)
 #define	pmd_present(pmd)	(pmd_val(pmd) & _PMD_PRESENT_MASK)
