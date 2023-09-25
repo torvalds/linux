@@ -86,7 +86,8 @@ properties:
     patternProperties:
       "^(LDO_REG[1-9]|DCDC_REG[1-5]|SWITCH_REG[1-2])$":
         type: object
-        $ref: ../regulator/regulator.yaml#
+        $ref: /schemas/regulator/regulator.yaml#
+        unevaluatedProperties: false
     unevaluatedProperties: false
 
 allOf:

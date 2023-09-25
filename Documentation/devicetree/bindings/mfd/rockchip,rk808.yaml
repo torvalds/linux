@@ -107,6 +107,7 @@ properties:
       "^(DCDC_REG[1-4]|LDO_REG[1-8]|SWITCH_REG[1-2])$":
         type: object
         $ref: ../regulator/regulator.yaml#
+        unevaluatedProperties: false
     unevaluatedProperties: false
 
 required:

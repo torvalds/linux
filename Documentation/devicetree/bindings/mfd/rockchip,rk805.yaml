@@ -80,6 +80,7 @@ properties:
       "^(DCDC_REG[1-4]|LDO_REG[1-3])$":
         type: object
         $ref: ../regulator/regulator.yaml#
+        unevaluatedProperties: false
     unevaluatedProperties: false
 
 allOf:
