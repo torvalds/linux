@@ -1321,16 +1321,18 @@ TRACE_EVENT(rdev_deauth,
 		NETDEV_ENTRY
 		MAC_ENTRY(bssid)
 		__field(u16, reason_code)
+		__field(bool, local_state_change)
 	),
 	TP_fast_assign(
 		WIPHY_ASSIGN;
 		NETDEV_ASSIGN;
 		MAC_ASSIGN(bssid, req->bssid);
 		__entry->reason_code = req->reason_code;
+		__entry->local_state_change = req->local_state_change;
 	),
-	TP_printk(WIPHY_PR_FMT ", " NETDEV_PR_FMT ", bssid: %pM, reason: %u",
+	TP_printk(WIPHY_PR_FMT ", " NETDEV_PR_FMT ", bssid: %pM, reason: %u, local_state_change:%d",
 		  WIPHY_PR_ARG, NETDEV_PR_ARG, __entry->bssid,
-		  __entry->reason_code)
+		  __entry->reason_code, __entry->local_state_change)
 );
 
 TRACE_EVENT(rdev_disassoc,
