@@ -35,6 +35,7 @@
 #include "xe_vm.h"
 #include "xe_vm_madvise.h"
 #include "xe_wait_user_fence.h"
+#include "xe_hwmon.h"
 
 #ifdef CONFIG_LOCKDEP
 struct lockdep_map xe_device_mem_access_lockdep_map = {
@@ -327,6 +328,8 @@ int xe_device_probe(struct xe_device *xe)
 	xe_debugfs_register(xe);
 
 	xe_pmu_register(&xe->pmu);
+
+	xe_hwmon_register(xe);
 
 	err = drmm_add_action_or_reset(&xe->drm, xe_device_sanitize, xe);
 	if (err)
