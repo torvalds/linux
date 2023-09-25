@@ -159,9 +159,6 @@ static inline int pte_write(pte_t pte)
 	return pte_val(pte) & _PAGE_WRITE;
 }
 #endif
-#ifndef pte_read
-static inline int pte_read(pte_t pte)		{ return 1; }
-#endif
 static inline int pte_dirty(pte_t pte)		{ return pte_val(pte) & _PAGE_DIRTY; }
 static inline int pte_special(pte_t pte)	{ return pte_val(pte) & _PAGE_SPECIAL; }
 static inline int pte_none(pte_t pte)		{ return (pte_val(pte) & ~_PTE_NONE_MASK) == 0; }
@@ -189,10 +186,14 @@ static inline int pte_young(pte_t pte)
  * and PTE_64BIT, PAGE_KERNEL_X contains _PAGE_BAP_SR which is also in
  * _PAGE_USER.  Need to explicitly match _PAGE_BAP_UR bit in that case too.
  */
-#ifndef pte_user
-static inline bool pte_user(pte_t pte)
+#ifndef pte_read
+static inline bool pte_read(pte_t pte)
 {
+#ifdef _PAGE_READ
+	return (pte_val(pte) & _PAGE_READ) == _PAGE_READ;
+#else
 	return (pte_val(pte) & _PAGE_USER) == _PAGE_USER;
+#endif
 }
 #endif
 
@@ -207,7 +208,7 @@ static inline bool pte_access_permitted(pte_t pte, bool write)
 	 * A read-only access is controlled by _PAGE_USER bit.
 	 * We have _PAGE_READ set for WRITE and EXECUTE
 	 */
-	if (!pte_present(pte) || !pte_user(pte) || !pte_read(pte))
+	if (!pte_present(pte) || !pte_read(pte))
 		return false;
 
 	if (write && !pte_write(pte))

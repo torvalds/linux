@@ -112,13 +112,6 @@ static inline pte_t pte_mkwrite_novma(pte_t pte)
 
 #define pte_mkwrite_novma pte_mkwrite_novma
 
-static inline bool pte_user(pte_t pte)
-{
-	return !(pte_val(pte) & _PAGE_SH);
-}
-
-#define pte_user pte_user
-
 static inline pte_t pte_mkhuge(pte_t pte)
 {
 	return __pte(pte_val(pte) | _PAGE_SPS | _PAGE_HUGE);
