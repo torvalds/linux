@@ -3906,6 +3906,7 @@ static void commit_planes_for_stream(struct dc *dc,
  *
  * @dc: Used to get the current state status
  * @stream: Target stream, which we want to remove the attached planes
+ * @srf_updates: Array of surface updates
  * @surface_count: Number of surface update
  * @is_plane_addition: [in] Fill out with true if it is a plane addition case
  *
