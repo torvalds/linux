@@ -304,6 +304,10 @@ static void ringbuf_subtest(void)
 	err = ring_buffer__consume(ringbuf);
 	CHECK(err < 0, "rb_consume", "failed: %d\b", err);
 
+	/* also consume using ring__consume to make sure it works the same */
+	err = ring__consume(ring);
+	ASSERT_GE(err, 0, "ring_consume");
+
 	/* 3 rounds, 2 samples each */
 	cnt = atomic_xchg(&sample_cnt, 0);
 	CHECK(cnt != 6, "cnt", "exp %d samples, got %d\n", 6, cnt);
