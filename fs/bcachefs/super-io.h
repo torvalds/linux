@@ -90,7 +90,7 @@ static inline void bch2_check_set_feature(struct bch_fs *c, unsigned feat)
 		__bch2_check_set_feature(c, feat);
 }
 
-/* BCH_SB_FIELD_members: */
+/* BCH_SB_FIELD_members_v1: */
 
 static inline bool bch2_member_exists(struct bch_member *m)
 {

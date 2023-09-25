@@ -6,7 +6,7 @@
 #include "sb-members.h"
 #include "super-io.h"
 
-/* Code for bch_sb_field_members: */
+/* Code for bch_sb_field_members_v1: */
 
 static struct bch_member *members_v2_get_mut(struct bch_sb_field_members_v2 *mi, int i)
 {
@@ -26,12 +26,12 @@ static struct bch_member members_v2_get(struct bch_sb_field_members_v2 *mi, int 
 	return ret;
 }
 
-static struct bch_member *members_v1_get_mut(struct bch_sb_field_members *mi, int i)
+static struct bch_member *members_v1_get_mut(struct bch_sb_field_members_v1 *mi, int i)
 {
 	return (void *) mi->_members + (i * BCH_MEMBER_V1_BYTES);
 }
 
-static struct bch_member members_v1_get(struct bch_sb_field_members *mi, int i)
+static struct bch_member members_v1_get(struct bch_sb_field_members_v1 *mi, int i)
 {
 	struct bch_member ret, *p = members_v1_get_mut(mi, i);
 	memset(&ret, 0, sizeof(ret));
@@ -43,7 +43,7 @@ struct bch_member bch2_sb_member_get(struct bch_sb *sb, int i)
 	struct bch_sb_field_members_v2 *mi2 = bch2_sb_get_members_v2(sb);
 	if (mi2)
 		return members_v2_get(mi2, i);
-	struct bch_sb_field_members *mi1 = bch2_sb_get_members(sb);
+	struct bch_sb_field_members_v1 *mi1 = bch2_sb_get_members_v1(sb);
 	return members_v1_get(mi1, i);
 }
 
@@ -72,7 +72,7 @@ static int sb_members_v2_resize_entries(struct bch_fs *c)
 
 int bch2_members_v2_init(struct bch_fs *c)
 {
-	struct bch_sb_field_members *mi1;
+	struct bch_sb_field_members_v1 *mi1;
 	struct bch_sb_field_members_v2 *mi2;
 
 	if (!bch2_sb_get_members_v2(c->disk_sb.sb)) {
@@ -80,7 +80,7 @@ int bch2_members_v2_init(struct bch_fs *c)
 				DIV_ROUND_UP(sizeof(*mi2) +
 					     sizeof(struct bch_member) * c->sb.nr_devices,
 					     sizeof(u64)));
-		mi1 = bch2_sb_get_members(c->disk_sb.sb);
+		mi1 = bch2_sb_get_members_v1(c->disk_sb.sb);
 		memcpy(&mi2->_members[0], &mi1->_members[0],
 		       BCH_MEMBER_V1_BYTES * c->sb.nr_devices);
 		memset(&mi2->pad[0], 0, sizeof(mi2->pad));
@@ -92,10 +92,10 @@ int bch2_members_v2_init(struct bch_fs *c)
 
 int bch_members_cpy_v2_v1(struct bch_sb_handle *disk_sb)
 {
-	struct bch_sb_field_members *mi1;
+	struct bch_sb_field_members_v1 *mi1;
 	struct bch_sb_field_members_v2 *mi2;
 
-	mi1 = bch2_sb_resize_members(disk_sb,
+	mi1 = bch2_sb_resize_members_v1(disk_sb,
 			DIV_ROUND_UP(sizeof(*mi1) + BCH_MEMBER_V1_BYTES *
 				     disk_sb->sb->nr_devices, sizeof(u64)));
 	if (!mi1)
@@ -251,7 +251,7 @@ static int bch2_sb_members_v1_validate(struct bch_sb *sb,
 				    struct bch_sb_field *f,
 				    struct printbuf *err)
 {
-	struct bch_sb_field_members *mi = field_to_type(f, members);
+	struct bch_sb_field_members_v1 *mi = field_to_type(f, members_v1);
 	unsigned i;
 
 	if ((void *) members_v1_get_mut(mi, sb->nr_devices)  >
@@ -274,7 +274,7 @@ static int bch2_sb_members_v1_validate(struct bch_sb *sb,
 static void bch2_sb_members_v1_to_text(struct printbuf *out, struct bch_sb *sb,
 				       struct bch_sb_field *f)
 {
-	struct bch_sb_field_members *mi = field_to_type(f, members);
+	struct bch_sb_field_members_v1 *mi = field_to_type(f, members_v1);
 	struct bch_sb_field_disk_groups *gi = bch2_sb_get_disk_groups(sb);
 	unsigned i;
 
@@ -284,7 +284,7 @@ static void bch2_sb_members_v1_to_text(struct printbuf *out, struct bch_sb *sb,
 	}
 }
 
-const struct bch_sb_field_ops bch_sb_field_ops_members = {
+const struct bch_sb_field_ops bch_sb_field_ops_members_v1 = {
 	.validate	= bch2_sb_members_v1_validate,
 	.to_text	= bch2_sb_members_v1_to_text,
 };

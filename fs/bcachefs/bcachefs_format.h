@@ -1222,7 +1222,7 @@ struct bch_sb_field {
 
 #define BCH_SB_FIELDS()				\
 	x(journal,	0)			\
-	x(members,	1)			\
+	x(members_v1,	1)			\
 	x(crypt,	2)			\
 	x(replicas_v0,	3)			\
 	x(quota,	4)			\
@@ -1265,7 +1265,7 @@ struct bch_sb_field_journal_v2 {
 	}			d[];
 };
 
-/* BCH_SB_FIELD_members: */
+/* BCH_SB_FIELD_members_v1: */
 
 #define BCH_MIN_NR_NBUCKETS	(1 << 6)
 
@@ -1309,7 +1309,7 @@ enum bch_member_state {
 	BCH_MEMBER_STATE_NR
 };
 
-struct bch_sb_field_members {
+struct bch_sb_field_members_v1 {
 	struct bch_sb_field	field;
 	struct bch_member	_members[]; //Members are now variable size
 };

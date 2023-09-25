@@ -355,7 +355,7 @@ static int bch2_sb_validate(struct bch_sb_handle *disk_sb, struct printbuf *out,
 {
 	struct bch_sb *sb = disk_sb->sb;
 	struct bch_sb_field *f;
-	struct bch_sb_field_members *mi;
+	struct bch_sb_field_members_v1 *mi;
 	enum bch_opt_id opt_id;
 	u16 block_size;
 	int ret;
@@ -458,7 +458,7 @@ static int bch2_sb_validate(struct bch_sb_handle *disk_sb, struct printbuf *out,
 	}
 
 	/* members must be validated first: */
-	mi = bch2_sb_get_members(sb);
+	mi = bch2_sb_get_members_v1(sb);
 	if (!mi) {
 		prt_printf(out, "Invalid superblock: member info area missing");
 		return -BCH_ERR_invalid_sb_members_missing;
@@ -469,7 +469,7 @@ static int bch2_sb_validate(struct bch_sb_handle *disk_sb, struct printbuf *out,
 		return ret;
 
 	vstruct_for_each(sb, f) {
-		if (le32_to_cpu(f->type) == BCH_SB_FIELD_members)
+		if (le32_to_cpu(f->type) == BCH_SB_FIELD_members_v1)
 			continue;
 
 		ret = bch2_sb_field_validate(sb, f, out);

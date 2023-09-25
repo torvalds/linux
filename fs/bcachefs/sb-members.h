@@ -176,8 +176,7 @@ static inline struct bch_devs_mask bch2_online_devs(struct bch_fs *c)
 	return devs;
 }
 
+extern const struct bch_sb_field_ops bch_sb_field_ops_members_v1;
 extern const struct bch_sb_field_ops bch_sb_field_ops_members_v2;
-
-extern const struct bch_sb_field_ops bch_sb_field_ops_members;
 
 #endif /* _BCACHEFS_SB_MEMBERS_H */
