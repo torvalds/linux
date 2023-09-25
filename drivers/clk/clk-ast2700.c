@@ -322,7 +322,7 @@ static int ast2700_io_clk_init(struct platform_device *pdev)
 	/* uxclk mux selection */
 	clks[AST2700_IO_CLK_UXCLK] =
 		clk_hw_register_mux(dev, "uxclk", uxclk_sel, ARRAY_SIZE(uxclk_sel),
-				    0, clk_base + AST2700_CPU_CLK_SEL2,
+				    0, clk_base + AST2700_IO_CLK_SEL2,
 				    0, 2, 0, &ast2700_clk_lock);
 
 	val = readl(clk_base + AST2700_IO_UXCLK_CTRL);
@@ -331,7 +331,7 @@ static int ast2700_io_clk_init(struct platform_device *pdev)
 	/* huxclk mux selection */
 	clks[AST2700_IO_CLK_HUXCLK] =
 		clk_hw_register_mux(dev, "huxclk", uxclk_sel, ARRAY_SIZE(uxclk_sel),
-				    0, clk_base + AST2700_CPU_CLK_SEL2,
+				    0, clk_base + AST2700_IO_CLK_SEL2,
 				    3, 2, 0, &ast2700_clk_lock);
 
 	val = readl(clk_base + AST2700_IO_HUXCLK_CTRL);
@@ -340,31 +340,31 @@ static int ast2700_io_clk_init(struct platform_device *pdev)
 	/* AHB CLK = 200Mhz */
 	clks[AST2700_IO_CLK_AHB] =
 		clk_hw_register_divider_table(dev, "io-ahb", "io-hpll",
-					      0, clk_base + AST2700_CPU_CLK_SEL2,
+					      0, clk_base + AST2700_IO_CLK_SEL2,
 					      20, 3, 0, ast2700_clk_div_table, &ast2700_clk_lock);
 
 	/* APB CLK = 100Mhz */
 	clks[AST2700_IO_CLK_APB] =
 		clk_hw_register_divider_table(dev, "io-apb", "io-hpll",
-					      0, clk_base + AST2700_CPU_CLK_SEL1,
+					      0, clk_base + AST2700_IO_CLK_SEL1,
 					      18, 3, 0, ast2700_clk_div_table2, &ast2700_clk_lock);
 
 	//rmii
 	clks[AST2700_IO_CLK_RMII] =
 		clk_hw_register_divider_table(dev, "rmii", "io-hpll",
-					      0, clk_base + AST2700_CPU_CLK_SEL2,
+					      0, clk_base + AST2700_IO_CLK_SEL2,
 					      21, 3, 0, ast2700_rmii_div_table, &ast2700_clk_lock);
 
 	//rgmii
 	clks[AST2700_IO_CLK_RGMII] =
 		clk_hw_register_divider_table(dev, "rgmii", "io-hpll",
-					      0, clk_base + AST2700_CPU_CLK_SEL2,
+					      0, clk_base + AST2700_IO_CLK_SEL2,
 					      25, 3, 0, ast2700_rgmii_div_table, &ast2700_clk_lock);
 
 	//mac hclk
 	clks[AST2700_IO_CLK_MACHCLK] =
 		clk_hw_register_divider_table(dev, "machclk", "io-hpll",
-					      0, clk_base + AST2700_CPU_CLK_SEL2,
+					      0, clk_base + AST2700_IO_CLK_SEL2,
 					      29, 3, 0, ast2700_clk_div_table, &ast2700_clk_lock);
 
 	clks[AST2700_IO_CLK_GATE_LCLK0] =
@@ -390,18 +390,18 @@ static int ast2700_io_clk_init(struct platform_device *pdev)
 	//sd pll divn
 	clks[AST2700_IO_CLK_HPLL_DIVN] =
 		clk_hw_register_divider_table(dev, "io-hpll_divn", "io-hpll",
-					      0, clk_base + AST2700_CPU_CLK_SEL2,
+					      0, clk_base + AST2700_IO_CLK_SEL2,
 					      20, 3, 0, ast2700_clk_div_table, &ast2700_clk_lock);
 
 	clks[AST2700_IO_CLK_APLL_DIVN] =
 		clk_hw_register_divider_table(dev, "io-apll_divn", "apll",
-					      0, clk_base + AST2700_CPU_CLK_SEL2,
+					      0, clk_base + AST2700_IO_CLK_SEL2,
 					      8, 3, 0, ast2700_clk_div_table, &ast2700_clk_lock);
 
 	//sd clk
 	clks[AST2700_IO_CLK_SDCLK] =
 		clk_hw_register_mux(dev, "sdclk", sdclk_sel, ARRAY_SIZE(sdclk_sel),
-				    0, clk_base + AST2700_CPU_CLK_SEL1,
+				    0, clk_base + AST2700_IO_CLK_SEL1,
 				    13, 1, 0, &ast2700_clk_lock);
 
 	clks[AST2700_IO_CLK_GATE_SDCLK] =
@@ -437,7 +437,7 @@ static int ast2700_io_clk_init(struct platform_device *pdev)
 	//UART0
 	clks[AST2700_IO_CLK_UART0] =
 		clk_hw_register_mux(dev, "uart0clk", uartclk_sel, ARRAY_SIZE(uartclk_sel),
-				    0, clk_base + AST2700_CPU_CLK_SEL1,
+				    0, clk_base + AST2700_IO_CLK_SEL1,
 				    0, 1, 0, &ast2700_clk_lock);
 
 	clks[AST2700_IO_CLK_GATE_UART0CLK] =
@@ -448,7 +448,7 @@ static int ast2700_io_clk_init(struct platform_device *pdev)
 	//UART1
 	clks[AST2700_IO_CLK_UART1] =
 		clk_hw_register_mux(dev, "uart1clk", uartclk_sel, ARRAY_SIZE(uartclk_sel),
-				    0, clk_base + AST2700_CPU_CLK_SEL1,
+				    0, clk_base + AST2700_IO_CLK_SEL1,
 				    1, 1, 0, &ast2700_clk_lock);
 
 	clks[AST2700_IO_CLK_GATE_UART1CLK] =
@@ -459,7 +459,7 @@ static int ast2700_io_clk_init(struct platform_device *pdev)
 	//UART2
 	clks[AST2700_IO_CLK_UART2] =
 		clk_hw_register_mux(dev, "uart2clk", uartclk_sel, ARRAY_SIZE(uartclk_sel),
-				    0, clk_base + AST2700_CPU_CLK_SEL1,
+				    0, clk_base + AST2700_IO_CLK_SEL1,
 				    2, 1, 0, &ast2700_clk_lock);
 
 	clks[AST2700_IO_CLK_GATE_UART2CLK] =
@@ -470,7 +470,7 @@ static int ast2700_io_clk_init(struct platform_device *pdev)
 	//UART3
 	clks[AST2700_IO_CLK_UART3] =
 		clk_hw_register_mux(dev, "uart3clk", uartclk_sel, ARRAY_SIZE(uartclk_sel),
-				    0, clk_base + AST2700_CPU_CLK_SEL1,
+				    0, clk_base + AST2700_IO_CLK_SEL1,
 				    3, 1, 0, &ast2700_clk_lock);
 
 	clks[AST2700_IO_CLK_GATE_UART3CLK] =
@@ -562,7 +562,7 @@ static int ast2700_io_clk_init(struct platform_device *pdev)
 	//UART5
 	clks[AST2700_IO_CLK_UART5] =
 		clk_hw_register_mux(dev, "uart5clk", uartclk_sel, ARRAY_SIZE(uartclk_sel),
-				    0, clk_base + AST2700_CPU_CLK_SEL1,
+				    0, clk_base + AST2700_IO_CLK_SEL1,
 				    5, 1, 0, &ast2700_clk_lock);
 
 	clks[AST2700_IO_CLK_GATE_UART5CLK] =
@@ -573,7 +573,7 @@ static int ast2700_io_clk_init(struct platform_device *pdev)
 	//UART6
 	clks[AST2700_IO_CLK_UART6] =
 		clk_hw_register_mux(dev, "uart6clk", uartclk_sel, ARRAY_SIZE(uartclk_sel),
-				    0, clk_base + AST2700_CPU_CLK_SEL1,
+				    0, clk_base + AST2700_IO_CLK_SEL1,
 				    6, 1, 0, &ast2700_clk_lock);
 
 	clks[AST2700_IO_CLK_GATE_UART6CLK] =
@@ -584,7 +584,7 @@ static int ast2700_io_clk_init(struct platform_device *pdev)
 	//UART7
 	clks[AST2700_IO_CLK_UART7] =
 		clk_hw_register_mux(dev, "uart7clk", uartclk_sel, ARRAY_SIZE(uartclk_sel),
-				    0, clk_base + AST2700_CPU_CLK_SEL1,
+				    0, clk_base + AST2700_IO_CLK_SEL1,
 				    7, 1, 0, &ast2700_clk_lock);
 
 	clks[AST2700_IO_CLK_GATE_UART7CLK] =
@@ -595,7 +595,7 @@ static int ast2700_io_clk_init(struct platform_device *pdev)
 	//UART8
 	clks[AST2700_IO_CLK_UART8] =
 		clk_hw_register_mux(dev, "uart8clk", uartclk_sel, ARRAY_SIZE(uartclk_sel),
-				    0, clk_base + AST2700_CPU_CLK_SEL1,
+				    0, clk_base + AST2700_IO_CLK_SEL1,
 				    8, 1, 0, &ast2700_clk_lock);
 
 	clks[AST2700_IO_CLK_GATE_UART8CLK] =
@@ -606,7 +606,7 @@ static int ast2700_io_clk_init(struct platform_device *pdev)
 	//UART9
 	clks[AST2700_IO_CLK_UART9] =
 		clk_hw_register_mux(dev, "uart9clk", uartclk_sel, ARRAY_SIZE(uartclk_sel),
-				    0, clk_base + AST2700_CPU_CLK_SEL1,
+				    0, clk_base + AST2700_IO_CLK_SEL1,
 				    9, 1, 0, &ast2700_clk_lock);
 
 	clks[AST2700_IO_CLK_GATE_UART9CLK] =
@@ -617,7 +617,7 @@ static int ast2700_io_clk_init(struct platform_device *pdev)
 	//UART10
 	clks[AST2700_IO_CLK_UART10] =
 		clk_hw_register_mux(dev, "uart10clk", uartclk_sel, ARRAY_SIZE(uartclk_sel),
-				    0, clk_base + AST2700_CPU_CLK_SEL1,
+				    0, clk_base + AST2700_IO_CLK_SEL1,
 				    10, 1, 0, &ast2700_clk_lock);
 
 	clks[AST2700_IO_CLK_GATE_UART10CLK] =
@@ -628,7 +628,7 @@ static int ast2700_io_clk_init(struct platform_device *pdev)
 	//UART11
 	clks[AST2700_IO_CLK_UART11] =
 		clk_hw_register_mux(dev, "uart11clk", uartclk_sel, ARRAY_SIZE(uartclk_sel),
-				    0, clk_base + AST2700_CPU_CLK_SEL1,
+				    0, clk_base + AST2700_IO_CLK_SEL1,
 				    11, 1, 0, &ast2700_clk_lock);
 
 	clks[AST2700_IO_CLK_GATE_UART11CLK] =
@@ -639,7 +639,7 @@ static int ast2700_io_clk_init(struct platform_device *pdev)
 	//uart12: call bmc uart
 	clks[AST2700_IO_CLK_UART12] =
 		clk_hw_register_mux(dev, "uart12clk", uartclk_sel, ARRAY_SIZE(uartclk_sel),
-				    0, clk_base + AST2700_CPU_CLK_SEL1,
+				    0, clk_base + AST2700_IO_CLK_SEL1,
 				    12, 1, 0, &ast2700_clk_lock);
 
 	clks[AST2700_IO_CLK_GATE_UART12CLK] =
