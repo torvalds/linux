@@ -4723,7 +4723,7 @@ void dc_power_down_on_boot(struct dc *dc)
 		dc->hwss.power_down_on_boot(dc);
 }
 
-int dc_set_power_state(
+bool dc_set_power_state(
 	struct dc *dc,
 	enum dc_acpi_cm_power_state power_state)
 {
@@ -4731,7 +4731,7 @@ int dc_set_power_state(
 	struct display_mode_lib *dml;
 
 	if (!dc->current_state)
-		return 0;
+		return true;
 
 	switch (power_state) {
 	case DC_ACPI_CM_POWER_STATE_D0:
@@ -4758,7 +4758,7 @@ int dc_set_power_state(
 
 		ASSERT(dml);
 		if (!dml)
-			return -ENOMEM;
+			return false;
 
 		/* Preserve refcount */
 		refcount = dc->current_state->refcount;
@@ -4777,7 +4777,7 @@ int dc_set_power_state(
 		break;
 	}
 
-	return 0;
+	return true;
 }
 
 void dc_resume(struct dc *dc)
