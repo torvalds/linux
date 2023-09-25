@@ -4865,31 +4865,47 @@ toosmall:
 }
 
 static __be32
+nfsd4_encode_layout4(struct xdr_stream *xdr, const struct nfsd4_layoutget *lgp)
+{
+	const struct nfsd4_layout_ops *ops = nfsd4_layout_ops[lgp->lg_layout_type];
+	__be32 status;
+
+	/* lo_offset */
+	status = nfsd4_encode_offset4(xdr, lgp->lg_seg.offset);
+	if (status != nfs_ok)
+		return status;
+	/* lo_length */
+	status = nfsd4_encode_length4(xdr, lgp->lg_seg.length);
+	if (status != nfs_ok)
+		return status;
+	/* lo_iomode */
+	if (xdr_stream_encode_u32(xdr, lgp->lg_seg.iomode) != XDR_UNIT)
+		return nfserr_resource;
+	/* lo_content */
+	if (xdr_stream_encode_u32(xdr, lgp->lg_layout_type) != XDR_UNIT)
+		return nfserr_resource;
+	return ops->encode_layoutget(xdr, lgp);
+}
+
+static __be32
 nfsd4_encode_layoutget(struct nfsd4_compoundres *resp, __be32 nfserr,
 		union nfsd4_op_u *u)
 {
 	struct nfsd4_layoutget *lgp = &u->layoutget;
 	struct xdr_stream *xdr = resp->xdr;
-	const struct nfsd4_layout_ops *ops;
-	__be32 *p;
 
-	p = xdr_reserve_space(xdr, 36 + sizeof(stateid_opaque_t));
-	if (!p)
+	/* logr_return_on_close */
+	nfserr = nfsd4_encode_bool(xdr, true);
+	if (nfserr != nfs_ok)
+		return nfserr;
+	/* logr_stateid */
+	nfserr = nfsd4_encode_stateid4(xdr, &lgp->lg_sid);
+	if (nfserr != nfs_ok)
+		return nfserr;
+	/* logr_layout<> */
+	if (xdr_stream_encode_u32(xdr, 1) != XDR_UNIT)
 		return nfserr_resource;
-
-	*p++ = cpu_to_be32(1);	/* we always set return-on-close */
-	*p++ = cpu_to_be32(lgp->lg_sid.si_generation);
-	p = xdr_encode_opaque_fixed(p, &lgp->lg_sid.si_opaque,
-				    sizeof(stateid_opaque_t));
-
-	*p++ = cpu_to_be32(1);	/* we always return a single layout */
-	p = xdr_encode_hyper(p, lgp->lg_seg.offset);
-	p = xdr_encode_hyper(p, lgp->lg_seg.length);
-	*p++ = cpu_to_be32(lgp->lg_seg.iomode);
-	*p++ = cpu_to_be32(lgp->lg_layout_type);
-
-	ops = nfsd4_layout_ops[lgp->lg_layout_type];
-	return ops->encode_layoutget(xdr, lgp);
+	return nfsd4_encode_layout4(xdr, lgp);
 }
 
 static __be32
