@@ -2927,33 +2927,6 @@ void dcn20_fpga_init_hw(struct dc *dc)
 	if (dc->res_pool->hubbub->funcs->init_crb)
 		dc->res_pool->hubbub->funcs->init_crb(dc->res_pool->hubbub);
 }
-#ifndef TRIM_FSFT
-bool dcn20_optimize_timing_for_fsft(struct dc *dc,
-		struct dc_crtc_timing *timing,
-		unsigned int max_input_rate_in_khz)
-{
-	unsigned int old_v_front_porch;
-	unsigned int old_v_total;
-	unsigned int max_input_rate_in_100hz;
-	unsigned long long new_v_total;
-
-	max_input_rate_in_100hz = max_input_rate_in_khz * 10;
-	if (max_input_rate_in_100hz < timing->pix_clk_100hz)
-		return false;
-
-	old_v_total = timing->v_total;
-	old_v_front_porch = timing->v_front_porch;
-
-	timing->fast_transport_output_rate_100hz = timing->pix_clk_100hz;
-	timing->pix_clk_100hz = max_input_rate_in_100hz;
-
-	new_v_total = div_u64((unsigned long long)old_v_total * max_input_rate_in_100hz, timing->pix_clk_100hz);
-
-	timing->v_total = new_v_total;
-	timing->v_front_porch = old_v_front_porch + (timing->v_total - old_v_total);
-	return true;
-}
-#endif
 
 void dcn20_set_disp_pattern_generator(const struct dc *dc,
 		struct pipe_ctx *pipe_ctx,

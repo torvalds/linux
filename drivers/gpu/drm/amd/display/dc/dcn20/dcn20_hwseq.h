@@ -136,12 +136,6 @@ int dcn20_init_sys_ctx(struct dce_hwseq *hws,
 		struct dc *dc,
 		struct dc_phy_addr_space_config *pa_config);
 
-#ifndef TRIM_FSFT
-bool dcn20_optimize_timing_for_fsft(struct dc *dc,
-		struct dc_crtc_timing *timing,
-		unsigned int max_input_rate_in_khz);
-#endif
-
 void dcn20_set_disp_pattern_generator(const struct dc *dc,
 		struct pipe_ctx *pipe_ctx,
 		enum controller_dp_test_pattern test_pattern,

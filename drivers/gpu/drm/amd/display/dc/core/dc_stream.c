@@ -288,23 +288,6 @@ static void program_cursor_attributes(
 	}
 }
 
-#ifndef TRIM_FSFT
-/*
- * dc_optimize_timing_for_fsft() - dc to optimize timing
- */
-bool dc_optimize_timing_for_fsft(
-	struct dc_stream_state *pStream,
-	unsigned int max_input_rate_in_khz)
-{
-	struct dc  *dc;
-
-	dc = pStream->ctx->dc;
-
-	return (dc->hwss.optimize_timing_for_fsft &&
-		dc->hwss.optimize_timing_for_fsft(dc, &pStream->timing, max_input_rate_in_khz));
-}
-#endif
-
 static bool is_subvp_high_refresh_candidate(struct dc_stream_state *stream)
 {
 	uint32_t refresh_rate;
