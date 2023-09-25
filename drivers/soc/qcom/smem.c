@@ -1187,14 +1187,12 @@ static int qcom_smem_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int qcom_smem_remove(struct platform_device *pdev)
+static void qcom_smem_remove(struct platform_device *pdev)
 {
 	platform_device_unregister(__smem->socinfo);
 
 	hwspin_lock_free(__smem->hwlock);
 	__smem = NULL;
-
-	return 0;
 }
 
 static const struct of_device_id qcom_smem_of_match[] = {
@@ -1205,7 +1203,7 @@ MODULE_DEVICE_TABLE(of, qcom_smem_of_match);
 
 static struct platform_driver qcom_smem_driver = {
 	.probe = qcom_smem_probe,
-	.remove = qcom_smem_remove,
+	.remove_new = qcom_smem_remove,
 	.driver  = {
 		.name = "qcom-smem",
 		.of_match_table = qcom_smem_of_match,
