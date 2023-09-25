@@ -4619,12 +4619,17 @@ nfsd4_encode_write(struct nfsd4_compoundres *resp, __be32 nfserr,
 		   union nfsd4_op_u *u)
 {
 	struct nfsd4_write *write = &u->write;
+	struct xdr_stream *xdr = resp->xdr;
 
-	if (xdr_stream_encode_u32(resp->xdr, write->wr_bytes_written) < 0)
+	/* count */
+	nfserr = nfsd4_encode_count4(xdr, write->wr_bytes_written);
+	if (nfserr)
+		return nfserr;
+	/* committed */
+	if (xdr_stream_encode_u32(xdr, write->wr_how_written) != XDR_UNIT)
 		return nfserr_resource;
-	if (xdr_stream_encode_u32(resp->xdr, write->wr_how_written) < 0)
-		return nfserr_resource;
-	return nfsd4_encode_verifier4(resp->xdr, &write->wr_verifier);
+	/* writeverf */
+	return nfsd4_encode_verifier4(xdr, &write->wr_verifier);
 }
 
 static __be32
