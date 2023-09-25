@@ -251,20 +251,6 @@ static inline pte_t pte_mkhuge(pte_t pte)
 }
 #endif
 
-#ifndef pte_mkprivileged
-static inline pte_t pte_mkprivileged(pte_t pte)
-{
-	return __pte(pte_val(pte) & ~_PAGE_USER);
-}
-#endif
-
-#ifndef pte_mkuser
-static inline pte_t pte_mkuser(pte_t pte)
-{
-	return __pte(pte_val(pte) | _PAGE_USER);
-}
-#endif
-
 static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 {
 	return __pte((pte_val(pte) & _PAGE_CHG_MASK) | pgprot_val(newprot));

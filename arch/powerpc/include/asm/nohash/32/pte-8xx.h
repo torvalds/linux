@@ -122,20 +122,6 @@ static inline bool pte_user(pte_t pte)
 
 #define pte_user pte_user
 
-static inline pte_t pte_mkprivileged(pte_t pte)
-{
-	return __pte(pte_val(pte) | _PAGE_SH);
-}
-
-#define pte_mkprivileged pte_mkprivileged
-
-static inline pte_t pte_mkuser(pte_t pte)
-{
-	return __pte(pte_val(pte) & ~_PAGE_SH);
-}
-
-#define pte_mkuser pte_mkuser
-
 static inline pte_t pte_mkhuge(pte_t pte)
 {
 	return __pte(pte_val(pte) | _PAGE_SPS | _PAGE_HUGE);

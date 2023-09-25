@@ -54,7 +54,6 @@
 #define _PAGE_KERNEL_RWX	(_PAGE_BAP_SW | _PAGE_BAP_SR | _PAGE_DIRTY | _PAGE_BAP_SX)
 #define _PAGE_KERNEL_ROX	(_PAGE_BAP_SR | _PAGE_BAP_SX)
 #define _PAGE_USER		(_PAGE_BAP_UR | _PAGE_BAP_SR) /* Can be read */
-#define _PAGE_PRIVILEGED	(_PAGE_BAP_SR)
 
 #define _PAGE_SPECIAL	_PAGE_SW0
 
@@ -99,20 +98,6 @@
 #define PAGE_READONLY_X	__pgprot(_PAGE_BASE | _PAGE_USER | _PAGE_BAP_UX)
 
 #ifndef __ASSEMBLY__
-static inline pte_t pte_mkprivileged(pte_t pte)
-{
-	return __pte((pte_val(pte) & ~_PAGE_USER) | _PAGE_PRIVILEGED);
-}
-
-#define pte_mkprivileged pte_mkprivileged
-
-static inline pte_t pte_mkuser(pte_t pte)
-{
-	return __pte((pte_val(pte) & ~_PAGE_PRIVILEGED) | _PAGE_USER);
-}
-
-#define pte_mkuser pte_mkuser
-
 static inline pte_t pte_mkexec(pte_t pte)
 {
 	return __pte((pte_val(pte) & ~_PAGE_BAP_SX) | _PAGE_BAP_UX);
