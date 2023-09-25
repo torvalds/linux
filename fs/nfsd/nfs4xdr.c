@@ -4811,57 +4811,55 @@ nfsd4_encode_test_stateid(struct nfsd4_compoundres *resp, __be32 nfserr,
 
 #ifdef CONFIG_NFSD_PNFS
 static __be32
+nfsd4_encode_device_addr4(struct xdr_stream *xdr,
+			  const struct nfsd4_getdeviceinfo *gdev)
+{
+	u32 needed_len, starting_len = xdr->buf->len;
+	const struct nfsd4_layout_ops *ops;
+	__be32 status;
+
+	/* da_layout_type */
+	if (xdr_stream_encode_u32(xdr, gdev->gd_layout_type) != XDR_UNIT)
+		return nfserr_resource;
+	/* da_addr_body */
+	ops = nfsd4_layout_ops[gdev->gd_layout_type];
+	status = ops->encode_getdeviceinfo(xdr, gdev);
+	if (status != nfs_ok) {
+		/*
+		 * Don't burden the layout drivers with enforcing
+		 * gd_maxcount. Just tell the client to come back
+		 * with a bigger buffer if it's not enough.
+		 */
+		if (xdr->buf->len + XDR_UNIT > gdev->gd_maxcount)
+			goto toosmall;
+		return status;
+	}
+
+	return nfs_ok;
+
+toosmall:
+	needed_len = xdr->buf->len + XDR_UNIT;	/* notifications */
+	xdr_truncate_encode(xdr, starting_len);
+
+	status = nfsd4_encode_count4(xdr, needed_len);
+	if (status != nfs_ok)
+		return status;
+	return nfserr_toosmall;
+}
+
+static __be32
 nfsd4_encode_getdeviceinfo(struct nfsd4_compoundres *resp, __be32 nfserr,
 		union nfsd4_op_u *u)
 {
 	struct nfsd4_getdeviceinfo *gdev = &u->getdeviceinfo;
 	struct xdr_stream *xdr = resp->xdr;
-	const struct nfsd4_layout_ops *ops;
-	u32 starting_len = xdr->buf->len, needed_len;
-	__be32 *p;
 
-	p = xdr_reserve_space(xdr, 4);
-	if (!p)
-		return nfserr_resource;
-
-	*p++ = cpu_to_be32(gdev->gd_layout_type);
-
-	ops = nfsd4_layout_ops[gdev->gd_layout_type];
-	nfserr = ops->encode_getdeviceinfo(xdr, gdev);
-	if (nfserr) {
-		/*
-		 * We don't bother to burden the layout drivers with
-		 * enforcing gd_maxcount, just tell the client to
-		 * come back with a bigger buffer if it's not enough.
-		 */
-		if (xdr->buf->len + 4 > gdev->gd_maxcount)
-			goto toosmall;
+	/* gdir_device_addr */
+	nfserr = nfsd4_encode_device_addr4(xdr, gdev);
+	if (nfserr)
 		return nfserr;
-	}
-
-	if (gdev->gd_notify_types) {
-		p = xdr_reserve_space(xdr, 4 + 4);
-		if (!p)
-			return nfserr_resource;
-		*p++ = cpu_to_be32(1);			/* bitmap length */
-		*p++ = cpu_to_be32(gdev->gd_notify_types);
-	} else {
-		p = xdr_reserve_space(xdr, 4);
-		if (!p)
-			return nfserr_resource;
-		*p++ = 0;
-	}
-
-	return 0;
-toosmall:
-	dprintk("%s: maxcount too small\n", __func__);
-	needed_len = xdr->buf->len + 4 /* notifications */;
-	xdr_truncate_encode(xdr, starting_len);
-	p = xdr_reserve_space(xdr, 4);
-	if (!p)
-		return nfserr_resource;
-	*p++ = cpu_to_be32(needed_len);
-	return nfserr_toosmall;
+	/* gdir_notification */
+	return nfsd4_encode_bitmap4(xdr, gdev->gd_notify_types, 0, 0);
 }
 
 static __be32
