@@ -722,8 +722,8 @@ void bitmap_fold(unsigned long *dst, const unsigned long *orig,
  * some size '1 << order' (a power of two), aligned to that same
  * '1 << order' power of two.
  *
- * Returns 1 if REG_OP_ISFREE succeeds (region is all zero bits).
- * Returns 0 in all other cases and reg_ops.
+ * Return: 1 if REG_OP_ISFREE succeeds (region is all zero bits).
+ *	   0 in all other cases and reg_ops.
  */
 
 enum {
@@ -795,14 +795,14 @@ done:
  * a power (@order) of two, aligned to that power of two, which
  * makes the search algorithm much faster.
  *
- * Return the bit offset in bitmap of the allocated region,
+ * Return: the bit offset in bitmap of the allocated region,
  * or -errno on failure.
  */
 int bitmap_find_free_region(unsigned long *bitmap, unsigned int bits, int order)
 {
 	unsigned int pos, end;		/* scans bitmap by regions of size order */
 
-	for (pos = 0 ; (end = pos + (1U << order)) <= bits; pos = end) {
+	for (pos = 0; (end = pos + BIT(order)) <= bits; pos = end) {
 		if (!__reg_op(bitmap, pos, order, REG_OP_ISFREE))
 			continue;
 		__reg_op(bitmap, pos, order, REG_OP_ALLOC);
@@ -820,8 +820,6 @@ EXPORT_SYMBOL(bitmap_find_free_region);
  *
  * This is the complement to __bitmap_find_free_region() and releases
  * the found region (by clearing it in the bitmap).
- *
- * No return value.
  */
 void bitmap_release_region(unsigned long *bitmap, unsigned int pos, int order)
 {
@@ -837,7 +835,7 @@ EXPORT_SYMBOL(bitmap_release_region);
  *
  * Allocate (set bits in) a specified region of a bitmap.
  *
- * Return 0 on success, or %-EBUSY if specified region wasn't
+ * Return: 0 on success, or %-EBUSY if specified region wasn't
  * free (not all bits were zero).
  */
 int bitmap_allocate_region(unsigned long *bitmap, unsigned int pos, int order)
