@@ -374,6 +374,16 @@ static const struct xe_rtp_entry_sr engine_was[] = {
 	  XE_RTP_ACTIONS(SET(FF_SLICE_CS_CHICKEN2,
 			     PERF_FIX_BALANCING_CFE_DISABLE))
 	},
+	{ XE_RTP_NAME("18028616096"),
+	  XE_RTP_RULES(SUBPLATFORM(DG2, G10),
+		       FUNC(xe_rtp_match_first_render_or_compute)),
+	  XE_RTP_ACTIONS(SET(LSC_CHICKEN_BIT_0_UDW, UGM_FRAGMENT_THRESHOLD_TO_3))
+	},
+	{ XE_RTP_NAME("18028616096"),
+	  XE_RTP_RULES(SUBPLATFORM(DG2, G12),
+		       FUNC(xe_rtp_match_first_render_or_compute)),
+	  XE_RTP_ACTIONS(SET(LSC_CHICKEN_BIT_0_UDW, UGM_FRAGMENT_THRESHOLD_TO_3))
+	},
 	{ XE_RTP_NAME("16011620976, 22015475538"),
 	  XE_RTP_RULES(PLATFORM(DG2),
 		       FUNC(xe_rtp_match_first_render_or_compute)),
