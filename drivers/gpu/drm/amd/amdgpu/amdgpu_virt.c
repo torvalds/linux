@@ -1093,3 +1093,13 @@ u32 amdgpu_sriov_rreg(struct amdgpu_device *adev,
 	else
 		return RREG32(offset);
 }
+
+bool amdgpu_sriov_xnack_support(struct amdgpu_device *adev)
+{
+	bool xnack_mode = true;
+
+	if (amdgpu_sriov_vf(adev) && adev->ip_versions[GC_HWIP][0] == IP_VERSION(9, 4, 2))
+		xnack_mode = false;
+
+	return xnack_mode;
+}
