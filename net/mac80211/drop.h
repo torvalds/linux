@@ -62,6 +62,10 @@ typedef unsigned int __bitwise ieee80211_rx_result;
 	R(RX_DROP_U_SHORT_CMAC)			\
 	R(RX_DROP_U_SHORT_CMAC256)		\
 	R(RX_DROP_U_SHORT_GMAC)			\
+	R(RX_DROP_U_UNEXPECTED_VLAN_4ADDR)	\
+	R(RX_DROP_U_UNEXPECTED_STA_4ADDR)	\
+	R(RX_DROP_U_UNEXPECTED_VLAN_MCAST)	\
+	R(RX_DROP_U_NOT_PORT_CONTROL)		\
 /* this line for the trailing \ - add before this */
 
 /* having two enums allows for checking ieee80211_rx_result use with sparse */
