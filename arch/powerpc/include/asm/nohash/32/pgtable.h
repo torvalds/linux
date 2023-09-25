@@ -143,19 +143,13 @@
  * The mask covered by the RPN must be a ULL on 32-bit platforms with
  * 64-bit PTEs.
  */
-#if defined(CONFIG_PPC32) && defined(CONFIG_PTE_64BIT)
+#ifdef CONFIG_PTE_64BIT
 #define PTE_RPN_MASK	(~((1ULL << PTE_RPN_SHIFT) - 1))
 #define MAX_POSSIBLE_PHYSMEM_BITS 36
 #else
 #define PTE_RPN_MASK	(~((1UL << PTE_RPN_SHIFT) - 1))
 #define MAX_POSSIBLE_PHYSMEM_BITS 32
 #endif
-
-/*
- * _PAGE_CHG_MASK masks of bits that are to be preserved across
- * pgprot changes.
- */
-#define _PAGE_CHG_MASK	(PTE_RPN_MASK | _PAGE_DIRTY | _PAGE_ACCESSED | _PAGE_SPECIAL)
 
 #ifndef __ASSEMBLY__
 

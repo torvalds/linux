@@ -13,6 +13,12 @@ static inline pte_basic_t pte_update(struct mm_struct *mm, unsigned long addr, p
 #include <asm/nohash/32/pgtable.h>
 #endif
 
+/*
+ * _PAGE_CHG_MASK masks of bits that are to be preserved across
+ * pgprot changes.
+ */
+#define _PAGE_CHG_MASK	(PTE_RPN_MASK | _PAGE_DIRTY | _PAGE_ACCESSED | _PAGE_SPECIAL)
+
 /* Permission masks used for kernel mappings */
 #define PAGE_KERNEL	__pgprot(_PAGE_BASE | _PAGE_KERNEL_RW)
 #define PAGE_KERNEL_NC	__pgprot(_PAGE_BASE_NC | _PAGE_KERNEL_RW | _PAGE_NO_CACHE)

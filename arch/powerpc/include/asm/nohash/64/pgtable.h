@@ -75,12 +75,6 @@
 
 #define PTE_RPN_MASK	(~((1UL << PTE_RPN_SHIFT) - 1))
 
-/*
- * _PAGE_CHG_MASK masks of bits that are to be preserved across
- * pgprot changes.
- */
-#define _PAGE_CHG_MASK	(PTE_RPN_MASK | _PAGE_DIRTY | _PAGE_ACCESSED | _PAGE_SPECIAL)
-
 #define H_PAGE_4K_PFN 0
 
 #ifndef __ASSEMBLY__
