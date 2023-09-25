@@ -115,10 +115,7 @@ static inline pte_t pte_mkuser(pte_t pte)
 
 static inline pte_t pte_mkexec(pte_t pte)
 {
-	if (pte_val(pte) & _PAGE_BAP_UR)
-		return __pte((pte_val(pte) & ~_PAGE_BAP_SX) | _PAGE_BAP_UX);
-	else
-		return __pte((pte_val(pte) & ~_PAGE_BAP_UX) | _PAGE_BAP_SX);
+	return __pte((pte_val(pte) & ~_PAGE_BAP_SX) | _PAGE_BAP_UX);
 }
 #define pte_mkexec pte_mkexec
 
