@@ -19,12 +19,20 @@
 #define SDC4_STATUS			0x14
 #define SDCC_USR_CTL			0x18
 #define RGMII_IO_MACRO_CONFIG2		0x1C
+#define EMAC_WRAPPER_SGMII_PHY_CNTRL0	0x170
+#define EMAC_WRAPPER_SGMII_PHY_CNTRL1	0x174
+#define EMAC_WRAPPER_USXGMII_MUX_SEL	0x1D0
+#define RGMII_IO_MACRO_SCRATCH_2	0x44
+#define RGMII_IO_MACRO_BYPASS		0x16C
+
 #define EMAC_HW_NONE 0
 #define EMAC_HW_v2_1_1 0x20010001
 #define EMAC_HW_v2_1_2 0x20010002
 #define EMAC_HW_v2_3_0 0x20030000
 #define EMAC_HW_v2_3_1 0x20030001
 #define EMAC_HW_v3_0_0_RG 0x30000000
+#define EMAC_HW_v3_1_0 0x30010000
+#define EMAC_HW_v4_0_0 0x40000000
 #define EMAC_HW_vMAX 9
 
 struct ethqos_emac_por {
@@ -40,9 +48,13 @@ struct ethqos_emac_driver_data {
 struct qcom_ethqos {
 	struct platform_device *pdev;
 	void __iomem *rgmii_base;
-
+	void __iomem *sgmii_base;
+	void __iomem *ioaddr;
 	unsigned int rgmii_clk_rate;
 	struct clk *rgmii_clk;
+	struct clk *phyaux_clk;
+	struct clk *sgmiref_clk;
+
 	unsigned int speed;
 
 	int gpio_phy_intr_redirect;
@@ -58,6 +70,8 @@ struct qcom_ethqos {
 	struct regulator *reg_rgmii;
 	struct regulator *reg_emac_phy;
 	struct regulator *reg_rgmii_io_pads;
+
+	int curr_serdes_speed;
 };
 
 int ethqos_init_reqgulators(struct qcom_ethqos *ethqos);

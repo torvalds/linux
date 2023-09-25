@@ -254,6 +254,38 @@ config DWMAC_VISCONTI
 	help
 	  Support for ethernet controller on Visconti SoCs.
 
+config DWXGMAC_QCOM_4K
+	bool "Support for 4K Virtualization of XGMAC registers"
+	depends on (ARCH_SDXPINN || ARCH_SA525)
+	default y
+	help
+	  This selects 4K virtualization of DMA and MTL offsets for the
+	  stmmac device driver. With this config different base addresses
+	  for various MTL and DMA registers are selected. This config is
+	  only applicable for XGMAC2 HW version.
+
+config ETHQOS_QCOM_VER4
+	bool "Emac ethqos support for HW version 4"
+	depends on (ARCH_SDXPINN || ARCH_SA525)
+	default y
+	help
+	  Support for the EMAC ETHQOS core 4.
+
+	  This selects proper registers and corresponding bit mapping
+	  for the  configuration of IO Macro block. This config is
+	  only applicable for EMAC version 4.
+
+config ETHQOS_QCOM_SERDES
+	bool "Enable Serdes driver"
+	depends on STMMAC_ETH
+	default n
+	help
+	  SerDes is to provide data transmission over a single line or
+	  a differential pair in order to minimize the number of I/O pins
+	  and interconnects.
+	  Serdes driver by default comes up on 1Gbps mode in SGMII and USXGMII
+	  due to h/w limitation.
+
 endif
 
 config DWMAC_INTEL
