@@ -39,12 +39,14 @@ enum zynqmp_r5_cluster_mode {
  * struct mem_bank_data - Memory Bank description
  *
  * @addr: Start address of memory bank
+ * @da: device address
  * @size: Size of Memory bank
  * @pm_domain_id: Power-domains id of memory bank for firmware to turn on/off
  * @bank_name: name of the bank for remoteproc framework
  */
 struct mem_bank_data {
 	phys_addr_t addr;
+	u32 da;
 	size_t size;
 	u32 pm_domain_id;
 	char *bank_name;
@@ -76,18 +78,18 @@ struct mbox_info {
  * accepted for system-dt specifications and upstreamed in linux kernel
  */
 static const struct mem_bank_data zynqmp_tcm_banks_split[] = {
-	{0xffe00000UL, 0x10000UL, PD_R5_0_ATCM, "atcm0"}, /* TCM 64KB each */
-	{0xffe20000UL, 0x10000UL, PD_R5_0_BTCM, "btcm0"},
-	{0xffe90000UL, 0x10000UL, PD_R5_1_ATCM, "atcm1"},
-	{0xffeb0000UL, 0x10000UL, PD_R5_1_BTCM, "btcm1"},
+	{0xffe00000UL, 0x0, 0x10000UL, PD_R5_0_ATCM, "atcm0"}, /* TCM 64KB each */
+	{0xffe20000UL, 0x20000, 0x10000UL, PD_R5_0_BTCM, "btcm0"},
+	{0xffe90000UL, 0x0, 0x10000UL, PD_R5_1_ATCM, "atcm1"},
+	{0xffeb0000UL, 0x20000, 0x10000UL, PD_R5_1_BTCM, "btcm1"},
 };
 
 /* In lockstep mode cluster combines each 64KB TCM and makes 128KB TCM */
 static const struct mem_bank_data zynqmp_tcm_banks_lockstep[] = {
-	{0xffe00000UL, 0x20000UL, PD_R5_0_ATCM, "atcm0"}, /* TCM 128KB each */
-	{0xffe20000UL, 0x20000UL, PD_R5_0_BTCM, "btcm0"},
-	{0, 0, PD_R5_1_ATCM, ""},
-	{0, 0, PD_R5_1_BTCM, ""},
+	{0xffe00000UL, 0x0, 0x20000UL, PD_R5_0_ATCM, "atcm0"}, /* TCM 128KB each */
+	{0xffe20000UL, 0x20000, 0x20000UL, PD_R5_0_BTCM, "btcm0"},
+	{0, 0, 0, PD_R5_1_ATCM, ""},
+	{0, 0, 0, PD_R5_1_BTCM, ""},
 };
 
 /**
@@ -534,30 +536,6 @@ static int tcm_mem_map(struct rproc *rproc,
 	/* clear TCMs */
 	memset_io(va, 0, mem->len);
 
-	/*
-	 * The R5s expect their TCM banks to be at address 0x0 and 0x2000,
-	 * while on the Linux side they are at 0xffexxxxx.
-	 *
-	 * Zero out the high 12 bits of the address. This will give
-	 * expected values for TCM Banks 0A and 0B (0x0 and 0x20000).
-	 */
-	mem->da &= 0x000fffff;
-
-	/*
-	 * TCM Banks 1A and 1B still have to be translated.
-	 *
-	 * Below handle these two banks' absolute addresses (0xffe90000 and
-	 * 0xffeb0000) and convert to the expected relative addresses
-	 * (0x0 and 0x20000).
-	 */
-	if (mem->da == 0x90000 || mem->da == 0xB0000)
-		mem->da -= 0x90000;
-
-	/* if translated TCM bank address is not valid report error */
-	if (mem->da != 0x0 && mem->da != 0x20000) {
-		dev_err(&rproc->dev, "invalid TCM address: %x\n", mem->da);
-		return -EINVAL;
-	}
 	return 0;
 }
 
@@ -579,6 +557,7 @@ static int add_tcm_carveout_split_mode(struct rproc *rproc)
 	u32 pm_domain_id;
 	size_t bank_size;
 	char *bank_name;
+	u32 da;
 
 	r5_core = rproc->priv;
 	dev = r5_core->dev;
@@ -591,6 +570,7 @@ static int add_tcm_carveout_split_mode(struct rproc *rproc)
 	 */
 	for (i = 0; i < num_banks; i++) {
 		bank_addr = r5_core->tcm_banks[i]->addr;
+		da = r5_core->tcm_banks[i]->da;
 		bank_name = r5_core->tcm_banks[i]->bank_name;
 		bank_size = r5_core->tcm_banks[i]->size;
 		pm_domain_id = r5_core->tcm_banks[i]->pm_domain_id;
@@ -603,11 +583,11 @@ static int add_tcm_carveout_split_mode(struct rproc *rproc)
 			goto release_tcm_split;
 		}
 
-		dev_dbg(dev, "TCM carveout split mode %s addr=%llx, size=0x%lx",
-			bank_name, bank_addr, bank_size);
+		dev_dbg(dev, "TCM carveout split mode %s addr=%llx, da=0x%x, size=0x%lx",
+			bank_name, bank_addr, da, bank_size);
 
 		rproc_mem = rproc_mem_entry_init(dev, NULL, bank_addr,
-						 bank_size, bank_addr,
+						 bank_size, da,
 						 tcm_mem_map, tcm_mem_unmap,
 						 bank_name);
 		if (!rproc_mem) {
@@ -648,6 +628,7 @@ static int add_tcm_carveout_lockstep_mode(struct rproc *rproc)
 	struct device *dev;
 	u32 pm_domain_id;
 	char *bank_name;
+	u32 da;
 
 	r5_core = rproc->priv;
 	dev = r5_core->dev;
@@ -679,11 +660,12 @@ static int add_tcm_carveout_lockstep_mode(struct rproc *rproc)
 			continue;
 
 		bank_addr = r5_core->tcm_banks[i]->addr;
+		da = r5_core->tcm_banks[i]->da;
 		bank_name = r5_core->tcm_banks[i]->bank_name;
 
 		/* Register TCM address range, TCM map and unmap functions */
 		rproc_mem = rproc_mem_entry_init(dev, NULL, bank_addr,
-						 bank_size, bank_addr,
+						 bank_size, da,
 						 tcm_mem_map, tcm_mem_unmap,
 						 bank_name);
 		if (!rproc_mem) {
@@ -695,8 +677,8 @@ static int add_tcm_carveout_lockstep_mode(struct rproc *rproc)
 		/* If registration is success, add carveouts */
 		rproc_add_carveout(rproc, rproc_mem);
 
-		dev_dbg(dev, "TCM add carveout lockstep mode %s addr=0x%llx, size=0x%lx",
-			bank_name, bank_addr, bank_size);
+		dev_dbg(dev, "TCM carveout lockstep mode %s addr=0x%llx, da=0x%x, size=0x%lx",
+			bank_name, bank_addr, da, bank_size);
 	}
 
 	return 0;
