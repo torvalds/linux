@@ -816,6 +816,11 @@ static void sdma_v2_4_ring_emit_wreg(struct amdgpu_ring *ring,
 static int sdma_v2_4_early_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	int r;
+
+	r = sdma_v2_4_init_microcode(adev);
+	if (r)
+		return r;
 
 	adev->sdma.num_instances = SDMA_MAX_INSTANCE;
 
@@ -848,10 +853,6 @@ static int sdma_v2_4_sw_init(void *handle)
 	/* SDMA Privileged inst */
 	r = amdgpu_irq_add_id(adev, AMDGPU_IRQ_CLIENTID_LEGACY, VISLANDS30_IV_SRCID_SDMA_SRBM_WRITE,
 			      &adev->sdma.illegal_inst_irq);
-	if (r)
-		return r;
-
-	r = sdma_v2_4_init_microcode(adev);
 	if (r)
 		return r;
 
