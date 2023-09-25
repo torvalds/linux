@@ -7,3 +7,6 @@ msm_dma_iommu_mapping.ko
 qcom_dma_heaps.ko
 qcom_iommu_util.ko
 arm_smmu.ko
+clk-dummy.ko
+clk-qcom.ko
+gdsc-regulator.ko
