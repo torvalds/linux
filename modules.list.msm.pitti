@@ -2,6 +2,8 @@
 # Copyright (c) 2023, Qualcomm Innovation Center, Inc. All rights reserved.
 
 qcom-scm.ko
+qcom-mpm.ko
+rpm-smd.ko
 pinctrl-msm.ko
 pinctrl-pitti.ko
 qcom_hwspinlock.ko
