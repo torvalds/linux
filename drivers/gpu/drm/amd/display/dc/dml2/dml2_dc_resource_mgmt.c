@@ -213,6 +213,82 @@ static bool is_pipe_free(const struct pipe_ctx *pipe)
 	return false;
 }
 
+static unsigned int find_preferred_pipe_candidates(const struct dc_state *existing_state,
+	const int pipe_count,
+	const unsigned int stream_id,
+	unsigned int *preferred_pipe_candidates)
+{
+	unsigned int num_preferred_candidates = 0;
+	int i;
+
+	/* There is only one case which we consider for adding a pipe to the preferred
+	 * pipe candidate array:
+	 *
+	 * 1. If the existing stream id of the pipe is equivalent to the stream id
+	 * of the stream we are trying to achieve MPC/ODM combine for. This allows
+	 * us to minimize the changes in pipe topology during the transition.
+	 *
+	 * However this condition comes with a caveat. We need to ignore pipes that will
+	 * require a change in OPP but still have the same stream id. For example during
+	 * an MPC to ODM transiton.
+	 */
+	if (existing_state) {
+		for (i = 0; i < pipe_count; i++) {
+			if (existing_state->res_ctx.pipe_ctx[i].stream && existing_state->res_ctx.pipe_ctx[i].stream->stream_id == stream_id) {
+				if (existing_state->res_ctx.pipe_ctx[i].plane_res.hubp &&
+					existing_state->res_ctx.pipe_ctx[i].plane_res.hubp->opp_id != i)
+					continue;
+
+				preferred_pipe_candidates[num_preferred_candidates++] = i;
+			}
+		}
+	}
+
+	return num_preferred_candidates;
+}
+
+static unsigned int find_last_resort_pipe_candidates(const struct dc_state *existing_state,
+	const int pipe_count,
+	const unsigned int stream_id,
+	unsigned int *last_resort_pipe_candidates)
+{
+	unsigned int num_last_resort_candidates = 0;
+	int i;
+
+	/* There are two cases where we would like to add a given pipe into the last
+	 * candidate array:
+	 *
+	 * 1. If the pipe requires a change in OPP, for example during an MPC
+	 * to ODM transiton.
+	 *
+	 * 2. If the pipe already has an enabled OTG.
+	 */
+	if (existing_state) {
+		for (i  = 0; i < pipe_count; i++) {
+			if ((existing_state->res_ctx.pipe_ctx[i].plane_res.hubp &&
+				existing_state->res_ctx.pipe_ctx[i].plane_res.hubp->opp_id != i) ||
+				existing_state->res_ctx.pipe_ctx[i].stream_res.tg)
+				last_resort_pipe_candidates[num_last_resort_candidates++] = i;
+		}
+	}
+
+	return num_last_resort_candidates;
+}
+
+static bool is_pipe_in_candidate_array(const unsigned int pipe_idx,
+	const unsigned int *candidate_array,
+	const unsigned int candidate_array_size)
+{
+	int i;
+
+	for (i = 0; i < candidate_array_size; i++) {
+		if (candidate_array[i] == pipe_idx)
+			return true;
+	}
+
+	return false;
+}
+
 static bool find_more_pipes_for_stream(struct dml2_context *ctx,
 	struct dc_state *state, // The state we want to find a free mapping in
 	unsigned int stream_id, // The stream we want this pipe to drive
@@ -222,16 +298,18 @@ static bool find_more_pipes_for_stream(struct dml2_context *ctx,
 	const struct dc_state *existing_state) // The state (optional) that we want to minimize remapping relative to
 {
 	struct pipe_ctx *pipe = NULL;
-	unsigned int preferred_pipe_candidates[MAX_PIPES];
+	unsigned int preferred_pipe_candidates[MAX_PIPES] = {0};
+	unsigned int last_resort_pipe_candidates[MAX_PIPES] = {0};
 	unsigned int num_preferred_candidates = 0;
+	unsigned int num_last_resort_candidates = 0;
 	int i;
 
 	if (existing_state) {
-		// To minimize prioritize candidates from existing stream
-		for (i = 0; i < ctx->config.dcn_pipe_count; i++) {
-			if (existing_state->res_ctx.pipe_ctx[i].stream && existing_state->res_ctx.pipe_ctx[i].stream->stream_id == stream_id)
-				preferred_pipe_candidates[num_preferred_candidates++] = existing_state->res_ctx.pipe_ctx[i].pipe_idx;
-		}
+		num_preferred_candidates =
+			find_preferred_pipe_candidates(existing_state, ctx->config.dcn_pipe_count, stream_id, preferred_pipe_candidates);
+
+		num_last_resort_candidates =
+			find_last_resort_pipe_candidates(existing_state, ctx->config.dcn_pipe_count, stream_id, last_resort_pipe_candidates);
 	}
 
 	// First see if any of the preferred are unmapped, and choose those instead
@@ -247,11 +325,27 @@ static bool find_more_pipes_for_stream(struct dml2_context *ctx,
 
 	// We like to pair pipes starting from the higher order indicies for combining
 	for (i = ctx->config.dcn_pipe_count - 1; pipes_needed > 0 && i >= 0; i--) {
+		// Ignore any pipes that are the preferred or last resort candidate
+		if (is_pipe_in_candidate_array(i, preferred_pipe_candidates, num_preferred_candidates) ||
+			is_pipe_in_candidate_array(i, last_resort_pipe_candidates, num_last_resort_candidates))
+			continue;
+
 		pipe = &state->res_ctx.pipe_ctx[i];
 		if (!is_plane_using_pipe(pipe)) {
 			pipes_needed--;
 			// TODO: This doens't make sense really, pipe_idx should always be valid
 			pipe->pipe_idx = i;
+			assigned_pipes[(*assigned_pipe_count)++] = pipe->pipe_idx;
+		}
+	}
+
+	// Only use the last resort pipe candidates as a last resort
+	for (i = 0; pipes_needed > 0 && i < num_last_resort_candidates; i++) {
+		pipe = &state->res_ctx.pipe_ctx[last_resort_pipe_candidates[i]];
+		if (!is_plane_using_pipe(pipe)) {
+			pipes_needed--;
+			// TODO: This doens't make sense really, pipe_idx should always be valid
+			pipe->pipe_idx = last_resort_pipe_candidates[i];
 			assigned_pipes[(*assigned_pipe_count)++] = pipe->pipe_idx;
 		}
 	}
@@ -270,16 +364,18 @@ static bool find_more_free_pipes(struct dml2_context *ctx,
 	const struct dc_state *existing_state) // The state (optional) that we want to minimize remapping relative to
 {
 	struct pipe_ctx *pipe = NULL;
-	unsigned int preferred_pipe_candidates[MAX_PIPES];
+	unsigned int preferred_pipe_candidates[MAX_PIPES] = {0};
+	unsigned int last_resort_pipe_candidates[MAX_PIPES] = {0};
 	unsigned int num_preferred_candidates = 0;
+	unsigned int num_last_resort_candidates = 0;
 	int i;
 
 	if (existing_state) {
-		// To minimize prioritize candidates from existing stream
-		for (i = 0; i < ctx->config.dcn_pipe_count; i++) {
-			if (existing_state->res_ctx.pipe_ctx[i].stream && existing_state->res_ctx.pipe_ctx[i].stream->stream_id == stream_id)
-				preferred_pipe_candidates[num_preferred_candidates++] = existing_state->res_ctx.pipe_ctx[i].pipe_idx;
-		}
+		num_preferred_candidates =
+			find_preferred_pipe_candidates(existing_state, ctx->config.dcn_pipe_count, stream_id, preferred_pipe_candidates);
+
+		num_last_resort_candidates =
+			find_last_resort_pipe_candidates(existing_state, ctx->config.dcn_pipe_count, stream_id, last_resort_pipe_candidates);
 	}
 
 	// First see if any of the preferred are unmapped, and choose those instead
@@ -295,11 +391,27 @@ static bool find_more_free_pipes(struct dml2_context *ctx,
 
 	// We like to pair pipes starting from the higher order indicies for combining
 	for (i = ctx->config.dcn_pipe_count - 1; pipes_needed > 0 && i >= 0; i--) {
+		// Ignore any pipes that are the preferred or last resort candidate
+		if (is_pipe_in_candidate_array(i, preferred_pipe_candidates, num_preferred_candidates) ||
+			is_pipe_in_candidate_array(i, last_resort_pipe_candidates, num_last_resort_candidates))
+			continue;
+
 		pipe = &state->res_ctx.pipe_ctx[i];
 		if (is_pipe_free(pipe)) {
 			pipes_needed--;
 			// TODO: This doens't make sense really, pipe_idx should always be valid
 			pipe->pipe_idx = i;
+			assigned_pipes[(*assigned_pipe_count)++] = pipe->pipe_idx;
+		}
+	}
+
+	// Only use the last resort pipe candidates as a last resort
+	for (i = 0; pipes_needed > 0 && i < num_last_resort_candidates; i++) {
+		pipe = &state->res_ctx.pipe_ctx[last_resort_pipe_candidates[i]];
+		if (is_pipe_free(pipe)) {
+			pipes_needed--;
+			// TODO: This doens't make sense really, pipe_idx should always be valid
+			pipe->pipe_idx = last_resort_pipe_candidates[i];
 			assigned_pipes[(*assigned_pipe_count)++] = pipe->pipe_idx;
 		}
 	}
@@ -465,7 +577,7 @@ static struct pipe_ctx *assign_pipes_to_stream(struct dml2_context *ctx, struct 
 	struct pipe_ctx *master_pipe;
 	unsigned int pipes_needed;
 	unsigned int pipes_assigned;
-	unsigned int pipes[MAX_PIPES];
+	unsigned int pipes[MAX_PIPES] = {0};
 	unsigned int next_pipe_to_assign;
 	int odm_slice;
 
@@ -502,7 +614,7 @@ static struct pipe_ctx *assign_pipes_to_plane(struct dml2_context *ctx, struct d
 	unsigned int plane_id;
 	unsigned int pipes_needed;
 	unsigned int pipes_assigned;
-	unsigned int pipes[MAX_PIPES];
+	unsigned int pipes[MAX_PIPES] = {0};
 	unsigned int next_pipe_to_assign;
 	int odm_slice, mpc_slice;
 
