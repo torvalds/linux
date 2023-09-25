@@ -5,11 +5,8 @@
 #include <linux/of_address.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
-#include <linux/regmap.h>
-#include <linux/slab.h>
 #include <dt-bindings/clock/aspeed,ast2700-clk.h>
 #include <dt-bindings/reset/aspeed,ast2700-reset.h>
-#include "clk-aspeed.h"
 
 #define AST2700_CLK_25MHZ 25000000
 #define AST2700_CLK_24MHZ 24000000
