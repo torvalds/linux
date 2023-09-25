@@ -35,23 +35,6 @@ static inline bool pte_hashpte(pte_t pte)	{ return false; }
 static inline bool pte_ci(pte_t pte)		{ return pte_val(pte) & _PAGE_NO_CACHE; }
 static inline bool pte_exec(pte_t pte)		{ return pte_val(pte) & _PAGE_EXEC; }
 
-#ifdef CONFIG_NUMA_BALANCING
-/*
- * These work without NUMA balancing but the kernel does not care. See the
- * comment in include/linux/pgtable.h . On powerpc, this will only
- * work for user pages and always return true for kernel pages.
- */
-static inline int pte_protnone(pte_t pte)
-{
-	return pte_present(pte) && !pte_user(pte);
-}
-
-static inline int pmd_protnone(pmd_t pmd)
-{
-	return pte_protnone(pmd_pte(pmd));
-}
-#endif /* CONFIG_NUMA_BALANCING */
-
 static inline int pte_present(pte_t pte)
 {
 	return pte_val(pte) & _PAGE_PRESENT;
