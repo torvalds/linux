@@ -6087,6 +6087,13 @@ L:	linux-gpio@vger.kernel.org
 S:	Maintained
 F:	drivers/gpio/gpio-gpio-mm.c
 
+DIGITEQ AUTOMOTIVE MGB4 V4L2 DRIVER
+M:	Martin Tuma <martin.tuma@digiteqautomotive.com>
+L:	linux-media@vger.kernel.org
+S:	Maintained
+F:	Documentation/admin-guide/media/mgb4.rst
+F:	drivers/media/pci/mgb4/
+
 DIOLAN U2C-12 I2C DRIVER
 M:	Guenter Roeck <linux@roeck-us.net>
 L:	linux-i2c@vger.kernel.org
