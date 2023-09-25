@@ -338,6 +338,20 @@ struct ring *ring_buffer__ring(struct ring_buffer *rb, unsigned int idx)
 	return rb->rings[idx];
 }
 
+unsigned long ring__consumer_pos(const struct ring *r)
+{
+	/* Synchronizes with smp_store_release() in ringbuf_process_ring(). */
+	return smp_load_acquire(r->consumer_pos);
+}
+
+unsigned long ring__producer_pos(const struct ring *r)
+{
+	/* Synchronizes with smp_store_release() in __bpf_ringbuf_reserve() in
+	 * the kernel.
+	 */
+	return smp_load_acquire(r->producer_pos);
+}
+
 static void user_ringbuf_unmap_ring(struct user_ring_buffer *rb)
 {
 	if (rb->consumer_pos) {
