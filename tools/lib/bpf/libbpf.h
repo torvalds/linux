@@ -1303,6 +1303,15 @@ LIBBPF_API size_t ring__avail_data_size(const struct ring *r);
  */
 LIBBPF_API size_t ring__size(const struct ring *r);
 
+/**
+ * @brief **ring__map_fd()** returns the file descriptor underlying the given
+ * ringbuffer.
+ *
+ * @param r A ringbuffer object.
+ * @return The underlying ringbuffer file descriptor
+ */
+LIBBPF_API int ring__map_fd(const struct ring *r);
+
 struct user_ring_buffer_opts {
 	size_t sz; /* size of this struct, for forward/backward compatibility */
 };

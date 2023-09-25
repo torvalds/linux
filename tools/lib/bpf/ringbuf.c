@@ -366,6 +366,11 @@ size_t ring__size(const struct ring *r)
 	return r->mask + 1;
 }
 
+int ring__map_fd(const struct ring *r)
+{
+	return r->map_fd;
+}
+
 static void user_ringbuf_unmap_ring(struct user_ring_buffer *rb)
 {
 	if (rb->consumer_pos) {
