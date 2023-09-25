@@ -80,6 +80,7 @@ static const struct of_device_id aspeed_reset_dt_ids[] = {
 	{ .compatible = "aspeed,ast2600-reset", .data = &ast2600_reset_data, },
 	{ .compatible = "aspeed,ast2700-cpu-reset", .data = &ast2700_cpu_reset_data, },
 	{ .compatible = "aspeed,ast2700-io-reset", .data = &ast2700_io_reset_data, },
+	{ .compatible = "aspeed,ast1700-reset", .data = &ast2700_io_reset_data, },
 	{ },
 };
 
