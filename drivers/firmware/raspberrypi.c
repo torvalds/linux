@@ -378,6 +378,7 @@ EXPORT_SYMBOL_GPL(rpi_firmware_get);
 
 /**
  * devm_rpi_firmware_get - Get pointer to rpi_firmware structure.
+ * @dev:              The firmware device structure
  * @firmware_node:    Pointer to the firmware Device Tree node.
  *
  * Returns NULL is the firmware device is not ready.
