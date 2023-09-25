@@ -618,7 +618,7 @@ struct nfsd4_layoutcommit {
 	u32			lc_layout_type;	/* request */
 	u32			lc_up_len;	/* layout length */
 	void			*lc_up_layout;	/* decoded by callback */
-	u32			lc_size_chg;	/* boolean for response */
+	bool			lc_size_chg;	/* response */
 	u64			lc_newsize;	/* response */
 };
 

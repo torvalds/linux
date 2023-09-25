@@ -2357,10 +2357,10 @@ nfsd4_layoutcommit(struct svc_rqst *rqstp,
 	mutex_unlock(&ls->ls_mutex);
 
 	if (new_size > i_size_read(inode)) {
-		lcp->lc_size_chg = 1;
+		lcp->lc_size_chg = true;
 		lcp->lc_newsize = new_size;
 	} else {
-		lcp->lc_size_chg = 0;
+		lcp->lc_size_chg = false;
 	}
 
 	nfserr = ops->proc_layoutcommit(inode, lcp);
