@@ -182,18 +182,14 @@ static inline int pte_young(pte_t pte)
 }
 
 /*
- * Don't just check for any non zero bits in __PAGE_USER, since for book3e
+ * Don't just check for any non zero bits in __PAGE_READ, since for book3e
  * and PTE_64BIT, PAGE_KERNEL_X contains _PAGE_BAP_SR which is also in
- * _PAGE_USER.  Need to explicitly match _PAGE_BAP_UR bit in that case too.
+ * _PAGE_READ.  Need to explicitly match _PAGE_BAP_UR bit in that case too.
  */
 #ifndef pte_read
 static inline bool pte_read(pte_t pte)
 {
-#ifdef _PAGE_READ
 	return (pte_val(pte) & _PAGE_READ) == _PAGE_READ;
-#else
-	return (pte_val(pte) & _PAGE_USER) == _PAGE_USER;
-#endif
 }
 #endif
 
@@ -205,7 +201,7 @@ static inline bool pte_read(pte_t pte)
 static inline bool pte_access_permitted(pte_t pte, bool write)
 {
 	/*
-	 * A read-only access is controlled by _PAGE_USER bit.
+	 * A read-only access is controlled by _PAGE_READ bit.
 	 * We have _PAGE_READ set for WRITE and EXECUTE
 	 */
 	if (!pte_present(pte) || !pte_read(pte))
