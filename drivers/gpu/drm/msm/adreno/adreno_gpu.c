@@ -567,6 +567,7 @@ int adreno_hw_init(struct msm_gpu *gpu)
 		ring->cur = ring->start;
 		ring->next = ring->start;
 		ring->memptrs->rptr = 0;
+		ring->memptrs->bv_fence = ring->fctx->completed_fence;
 
 		/* Detect and clean up an impossible fence, ie. if GPU managed
 		 * to scribble something invalid, we don't want that to confuse

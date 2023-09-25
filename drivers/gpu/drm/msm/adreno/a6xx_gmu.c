@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright (c) 2017-2019 The Linux Foundation. All rights reserved. */
 
+#include <linux/bitfield.h>
 #include <linux/clk.h>
 #include <linux/interconnect.h>
 #include <linux/of_platform.h>
@@ -202,9 +203,10 @@ int a6xx_gmu_wait_for_idle(struct a6xx_gmu *gmu)
 
 static int a6xx_gmu_start(struct a6xx_gmu *gmu)
 {
+	struct a6xx_gpu *a6xx_gpu = container_of(gmu, struct a6xx_gpu, gmu);
+	struct adreno_gpu *adreno_gpu = &a6xx_gpu->base;
+	u32 mask, reset_val, val;
 	int ret;
-	u32 val;
-	u32 mask, reset_val;
 
 	val = gmu_read(gmu, REG_A6XX_GMU_CM3_DTCM_START + 0xff8);
 	if (val <= 0x20010004) {
@@ -220,7 +222,11 @@ static int a6xx_gmu_start(struct a6xx_gmu *gmu)
 	/* Set the log wptr index
 	 * note: downstream saves the value in poweroff and restores it here
 	 */
-	gmu_write(gmu, REG_A6XX_GPU_GMU_CX_GMU_PWR_COL_CP_RESP, 0);
+	if (adreno_is_a7xx(adreno_gpu))
+		gmu_write(gmu, REG_A6XX_GMU_GENERAL_9, 0);
+	else
+		gmu_write(gmu, REG_A6XX_GPU_GMU_CX_GMU_PWR_COL_CP_RESP, 0);
+
 
 	gmu_write(gmu, REG_A6XX_GMU_CM3_SYSRESET, 0);
 
@@ -520,7 +526,9 @@ static void a6xx_gmu_rpmh_init(struct a6xx_gmu *gmu)
 	if (IS_ERR(pdcptr))
 		goto err;
 
-	if (adreno_is_a650(adreno_gpu) || adreno_is_a660_family(adreno_gpu))
+	if (adreno_is_a650(adreno_gpu) ||
+	    adreno_is_a660_family(adreno_gpu) ||
+	    adreno_is_a7xx(adreno_gpu))
 		pdc_in_aop = true;
 	else if (adreno_is_a618(adreno_gpu) || adreno_is_a640_family(adreno_gpu))
 		pdc_address_offset = 0x30090;
@@ -552,7 +560,8 @@ static void a6xx_gmu_rpmh_init(struct a6xx_gmu *gmu)
 	gmu_write_rscc(gmu, REG_A6XX_RSCC_PDC_MATCH_VALUE_HI, 0x4514);
 
 	/* Load RSC sequencer uCode for sleep and wakeup */
-	if (adreno_is_a650_family(adreno_gpu)) {
+	if (adreno_is_a650_family(adreno_gpu) ||
+	    adreno_is_a7xx(adreno_gpu)) {
 		gmu_write_rscc(gmu, REG_A6XX_RSCC_SEQ_MEM_0_DRV0, 0xeaaae5a0);
 		gmu_write_rscc(gmu, REG_A6XX_RSCC_SEQ_MEM_0_DRV0 + 1, 0xe1a1ebab);
 		gmu_write_rscc(gmu, REG_A6XX_RSCC_SEQ_MEM_0_DRV0 + 2, 0xa2e0a581);
@@ -637,10 +646,17 @@ err:
 /* Set up the idle state for the GMU */
 static void a6xx_gmu_power_config(struct a6xx_gmu *gmu)
 {
+	struct a6xx_gpu *a6xx_gpu = container_of(gmu, struct a6xx_gpu, gmu);
+	struct adreno_gpu *adreno_gpu = &a6xx_gpu->base;
+
 	/* Disable GMU WB/RB buffer */
 	gmu_write(gmu, REG_A6XX_GMU_SYS_BUS_CONFIG, 0x1);
 	gmu_write(gmu, REG_A6XX_GMU_ICACHE_CONFIG, 0x1);
 	gmu_write(gmu, REG_A6XX_GMU_DCACHE_CONFIG, 0x1);
+
+	/* A7xx knows better by default! */
+	if (adreno_is_a7xx(adreno_gpu))
+		return;
 
 	gmu_write(gmu, REG_A6XX_GMU_PWR_COL_INTER_FRAME_CTRL, 0x9c40400);
 
@@ -698,7 +714,7 @@ static int a6xx_gmu_fw_load(struct a6xx_gmu *gmu)
 	u32 itcm_base = 0x00000000;
 	u32 dtcm_base = 0x00040000;
 
-	if (adreno_is_a650_family(adreno_gpu))
+	if (adreno_is_a650_family(adreno_gpu) || adreno_is_a7xx(adreno_gpu))
 		dtcm_base = 0x10004000;
 
 	if (gmu->legacy) {
@@ -747,13 +763,21 @@ static int a6xx_gmu_fw_start(struct a6xx_gmu *gmu, unsigned int state)
 {
 	struct a6xx_gpu *a6xx_gpu = container_of(gmu, struct a6xx_gpu, gmu);
 	struct adreno_gpu *adreno_gpu = &a6xx_gpu->base;
+	u32 fence_range_lower, fence_range_upper;
 	int ret;
 	u32 chipid;
 
-	if (adreno_is_a650_family(adreno_gpu)) {
+	/* Vote veto for FAL10 */
+	if (adreno_is_a650_family(adreno_gpu) || adreno_is_a7xx(adreno_gpu)) {
 		gmu_write(gmu, REG_A6XX_GPU_GMU_CX_GMU_CX_FALNEXT_INTF, 1);
 		gmu_write(gmu, REG_A6XX_GPU_GMU_CX_GMU_CX_FAL_INTF, 1);
 	}
+
+	/* Turn on TCM (Tightly Coupled Memory) retention */
+	if (adreno_is_a7xx(adreno_gpu))
+		a6xx_llc_write(a6xx_gpu, REG_A7XX_CX_MISC_TCM_RET_CNTL, 1);
+	else
+		gmu_write(gmu, REG_A6XX_GMU_GENERAL_7, 1);
 
 	if (state == GMU_WARM_BOOT) {
 		ret = a6xx_rpmh_start(gmu);
@@ -764,9 +788,6 @@ static int a6xx_gmu_fw_start(struct a6xx_gmu *gmu, unsigned int state)
 			"GMU firmware is not loaded\n"))
 			return -ENOENT;
 
-		/* Turn on register retention */
-		gmu_write(gmu, REG_A6XX_GMU_GENERAL_7, 1);
-
 		ret = a6xx_rpmh_start(gmu);
 		if (ret)
 			return ret;
@@ -776,6 +797,7 @@ static int a6xx_gmu_fw_start(struct a6xx_gmu *gmu, unsigned int state)
 			return ret;
 	}
 
+	/* Clear init result to make sure we are getting a fresh value */
 	gmu_write(gmu, REG_A6XX_GMU_CM3_FW_INIT_RESULT, 0);
 	gmu_write(gmu, REG_A6XX_GMU_CM3_BOOT_CONFIG, 0x02);
 
@@ -783,8 +805,18 @@ static int a6xx_gmu_fw_start(struct a6xx_gmu *gmu, unsigned int state)
 	gmu_write(gmu, REG_A6XX_GMU_HFI_QTBL_ADDR, gmu->hfi.iova);
 	gmu_write(gmu, REG_A6XX_GMU_HFI_QTBL_INFO, 1);
 
+	if (adreno_is_a7xx(adreno_gpu)) {
+		fence_range_upper = 0x32;
+		fence_range_lower = 0x8a0;
+	} else {
+		fence_range_upper = 0xa;
+		fence_range_lower = 0xa0;
+	}
+
 	gmu_write(gmu, REG_A6XX_GMU_AHB_FENCE_RANGE_0,
-		(1 << 31) | (0xa << 18) | (0xa0));
+		  BIT(31) |
+		  FIELD_PREP(GENMASK(30, 18), fence_range_upper) |
+		  FIELD_PREP(GENMASK(17, 0), fence_range_lower));
 
 	/*
 	 * Snapshots toggle the NMI bit which will result in a jump to the NMI
@@ -803,10 +835,17 @@ static int a6xx_gmu_fw_start(struct a6xx_gmu *gmu, unsigned int state)
 	chipid |= (adreno_gpu->chip_id << 4) & 0xf000; /* minor */
 	chipid |= (adreno_gpu->chip_id << 8) & 0x0f00; /* patchid */
 
-	gmu_write(gmu, REG_A6XX_GMU_HFI_SFR_ADDR, chipid);
+	if (adreno_is_a7xx(adreno_gpu)) {
+		gmu_write(gmu, REG_A6XX_GMU_GENERAL_10, chipid);
+		gmu_write(gmu, REG_A6XX_GMU_GENERAL_8,
+			  (gmu->log.iova & GENMASK(31, 12)) |
+			  ((gmu->log.size / SZ_4K - 1) & GENMASK(7, 0)));
+	} else {
+		gmu_write(gmu, REG_A6XX_GMU_HFI_SFR_ADDR, chipid);
 
-	gmu_write(gmu, REG_A6XX_GPU_GMU_CX_GMU_PWR_COL_CP_MSG,
-		  gmu->log.iova | (gmu->log.size / SZ_4K - 1));
+		gmu_write(gmu, REG_A6XX_GPU_GMU_CX_GMU_PWR_COL_CP_MSG,
+			  gmu->log.iova | (gmu->log.size / SZ_4K - 1));
+	}
 
 	/* Set up the lowest idle level on the GMU */
 	a6xx_gmu_power_config(gmu);
@@ -980,15 +1019,19 @@ int a6xx_gmu_resume(struct a6xx_gpu *a6xx_gpu)
 	enable_irq(gmu->gmu_irq);
 
 	/* Check to see if we are doing a cold or warm boot */
-	status = gmu_read(gmu, REG_A6XX_GMU_GENERAL_7) == 1 ?
-		GMU_WARM_BOOT : GMU_COLD_BOOT;
-
-	/*
-	 * Warm boot path does not work on newer GPUs
-	 * Presumably this is because icache/dcache regions must be restored
-	 */
-	if (!gmu->legacy)
+	if (adreno_is_a7xx(adreno_gpu)) {
+		status = a6xx_llc_read(a6xx_gpu, REG_A7XX_CX_MISC_TCM_RET_CNTL) == 1 ?
+			GMU_WARM_BOOT : GMU_COLD_BOOT;
+	} else if (gmu->legacy) {
+		status = gmu_read(gmu, REG_A6XX_GMU_GENERAL_7) == 1 ?
+			GMU_WARM_BOOT : GMU_COLD_BOOT;
+	} else {
+		/*
+		 * Warm boot path does not work on newer A6xx GPUs
+		 * Presumably this is because icache/dcache regions must be restored
+		 */
 		status = GMU_COLD_BOOT;
+	}
 
 	ret = a6xx_gmu_fw_start(gmu, status);
 	if (ret)
@@ -1600,7 +1643,8 @@ int a6xx_gmu_init(struct a6xx_gpu *a6xx_gpu, struct device_node *node)
 	 * are otherwise unused by a660.
 	 */
 	gmu->dummy.size = SZ_4K;
-	if (adreno_is_a660_family(adreno_gpu)) {
+	if (adreno_is_a660_family(adreno_gpu) ||
+	    adreno_is_a7xx(adreno_gpu)) {
 		ret = a6xx_gmu_memory_alloc(gmu, &gmu->debug, SZ_4K * 7,
 					    0x60400000, "debug");
 		if (ret)
@@ -1616,7 +1660,8 @@ int a6xx_gmu_init(struct a6xx_gpu *a6xx_gpu, struct device_node *node)
 		goto err_memory;
 
 	/* Note that a650 family also includes a660 family: */
-	if (adreno_is_a650_family(adreno_gpu)) {
+	if (adreno_is_a650_family(adreno_gpu) ||
+	    adreno_is_a7xx(adreno_gpu)) {
 		ret = a6xx_gmu_memory_alloc(gmu, &gmu->icache,
 			SZ_16M - SZ_16K, 0x04000, "icache");
 		if (ret)
@@ -1664,7 +1709,8 @@ int a6xx_gmu_init(struct a6xx_gpu *a6xx_gpu, struct device_node *node)
 		goto err_memory;
 	}
 
-	if (adreno_is_a650_family(adreno_gpu)) {
+	if (adreno_is_a650_family(adreno_gpu) ||
+	    adreno_is_a7xx(adreno_gpu)) {
 		gmu->rscc = a6xx_gmu_get_mmio(pdev, "rscc");
 		if (IS_ERR(gmu->rscc)) {
 			ret = -ENODEV;

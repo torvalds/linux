@@ -46,6 +46,7 @@ enum adreno_family {
 	ADRENO_6XX_GEN2,  /* a640 family */
 	ADRENO_6XX_GEN3,  /* a650 family */
 	ADRENO_6XX_GEN4,  /* a660 family */
+	ADRENO_7XX_GEN1,  /* a730 family */
 };
 
 #define ADRENO_QUIRK_TWO_PASS_USE_WFI		BIT(0)
@@ -391,7 +392,8 @@ static inline int adreno_is_a650_family(const struct adreno_gpu *gpu)
 {
 	if (WARN_ON_ONCE(!gpu->info))
 		return false;
-	return gpu->info->family >= ADRENO_6XX_GEN3;
+	return gpu->info->family == ADRENO_6XX_GEN3 ||
+	       gpu->info->family == ADRENO_6XX_GEN4;
 }
 
 static inline int adreno_is_a640_family(const struct adreno_gpu *gpu)
@@ -399,6 +401,12 @@ static inline int adreno_is_a640_family(const struct adreno_gpu *gpu)
 	if (WARN_ON_ONCE(!gpu->info))
 		return false;
 	return gpu->info->family == ADRENO_6XX_GEN2;
+}
+
+static inline int adreno_is_a7xx(struct adreno_gpu *gpu)
+{
+	/* Update with non-fake (i.e. non-A702) Gen 7 GPUs */
+	return gpu->info->family == ADRENO_7XX_GEN1;
 }
 
 u64 adreno_private_address_space_size(struct msm_gpu *gpu);
