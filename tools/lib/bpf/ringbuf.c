@@ -361,6 +361,11 @@ size_t ring__avail_data_size(const struct ring *r)
 	return prod_pos - cons_pos;
 }
 
+size_t ring__size(const struct ring *r)
+{
+	return r->mask + 1;
+}
+
 static void user_ringbuf_unmap_ring(struct user_ring_buffer *rb)
 {
 	if (rb->consumer_pos) {

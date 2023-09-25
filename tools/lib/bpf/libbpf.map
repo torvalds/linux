@@ -403,5 +403,6 @@ LIBBPF_1.3.0 {
 		ring__avail_data_size;
 		ring__consumer_pos;
 		ring__producer_pos;
+		ring__size;
 		ring_buffer__ring;
 } LIBBPF_1.2.0;
