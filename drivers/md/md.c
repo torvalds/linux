@@ -3921,7 +3921,7 @@ level_store(struct mddev *mddev, const char *buf, size_t len)
 		return rv;
 
 	if (mddev->pers == NULL) {
-		strncpy(mddev->clevel, buf, slen);
+		memcpy(mddev->clevel, buf, slen);
 		if (mddev->clevel[slen-1] == '\n')
 			slen--;
 		mddev->clevel[slen] = 0;
@@ -3954,7 +3954,7 @@ level_store(struct mddev *mddev, const char *buf, size_t len)
 	}
 
 	/* Now find the new personality */
-	strncpy(clevel, buf, slen);
+	memcpy(clevel, buf, slen);
 	if (clevel[slen-1] == '\n')
 		slen--;
 	clevel[slen] = 0;
@@ -4740,7 +4740,7 @@ metadata_store(struct mddev *mddev, const char *buf, size_t len)
 		size_t namelen = len-9;
 		if (namelen >= sizeof(mddev->metadata_type))
 			namelen = sizeof(mddev->metadata_type)-1;
-		strncpy(mddev->metadata_type, buf+9, namelen);
+		memcpy(mddev->metadata_type, buf+9, namelen);
 		mddev->metadata_type[namelen] = 0;
 		if (namelen && mddev->metadata_type[namelen-1] == '\n')
 			mddev->metadata_type[--namelen] = 0;
