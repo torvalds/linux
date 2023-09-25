@@ -30,6 +30,11 @@ enum amdgpu_pkg_type {
 	AMDGPU_PKG_TYPE_UNKNOWN,
 };
 
+struct amdgpu_smuio_mcm_config_info {
+	int socket_id;
+	int die_id;
+};
+
 struct amdgpu_smuio_funcs {
 	u32 (*get_rom_index_offset)(struct amdgpu_device *adev);
 	u32 (*get_rom_data_offset)(struct amdgpu_device *adev);
