@@ -156,8 +156,8 @@ static int ntfs_link(struct dentry *ode, struct inode *dir, struct dentry *de)
 	err = ntfs_link_inode(inode, de);
 
 	if (!err) {
-		dir->i_mtime = inode_set_ctime_to_ts(inode,
-						     inode_set_ctime_current(dir));
+		dir->i_mtime = inode_set_ctime_to_ts(
+			inode, inode_set_ctime_current(dir));
 		mark_inode_dirty(inode);
 		mark_inode_dirty(dir);
 		d_instantiate(de, inode);
@@ -373,7 +373,7 @@ static int ntfs_atomic_open(struct inode *dir, struct dentry *dentry,
 
 #ifdef CONFIG_NTFS3_FS_POSIX_ACL
 	if (IS_POSIXACL(dir)) {
-		/* 
+		/*
 		 * Load in cache current acl to avoid ni_lock(dir):
 		 * ntfs_create_inode -> ntfs_init_acl -> posix_acl_create ->
 		 * ntfs_get_acl -> ntfs_get_acl_ex -> ni_lock

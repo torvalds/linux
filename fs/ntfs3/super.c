@@ -488,7 +488,6 @@ static ssize_t ntfs3_label_write(struct file *file, const char __user *buffer,
 {
 	int err;
 	struct super_block *sb = pde_data(file_inode(file));
-	struct ntfs_sb_info *sbi = sb->s_fs_info;
 	ssize_t ret = count;
 	u8 *label = kmalloc(count, GFP_NOFS);
 
@@ -502,7 +501,7 @@ static ssize_t ntfs3_label_write(struct file *file, const char __user *buffer,
 	while (ret > 0 && label[ret - 1] == '\n')
 		ret -= 1;
 
-	err = ntfs_set_label(sbi, label, ret);
+	err = ntfs_set_label(sb->s_fs_info, label, ret);
 
 	if (err < 0) {
 		ntfs_err(sb, "failed (%d) to write label", err);
@@ -1082,10 +1081,10 @@ check_boot:
 
 	if (bh->b_blocknr && !sb_rdonly(sb)) {
 		/*
-	     * Alternative boot is ok but primary is not ok.
-	     * Do not update primary boot here 'cause it may be faked boot.
-	     * Let ntfs to be mounted and update boot later.
-	     */
+	 	 * Alternative boot is ok but primary is not ok.
+	 	 * Do not update primary boot here 'cause it may be faked boot.
+	 	 * Let ntfs to be mounted and update boot later.
+		 */
 		*boot2 = kmemdup(boot, sizeof(*boot), GFP_NOFS | __GFP_NOWARN);
 	}
 
@@ -1549,9 +1548,9 @@ load_root:
 
 	if (boot2) {
 		/*
-	     * Alternative boot is ok but primary is not ok.
-	     * Volume is recognized as NTFS. Update primary boot.
-	     */
+	 	 * Alternative boot is ok but primary is not ok.
+	 	 * Volume is recognized as NTFS. Update primary boot.
+		 */
 		struct buffer_head *bh0 = sb_getblk(sb, 0);
 		if (bh0) {
 			if (buffer_locked(bh0))
@@ -1785,7 +1784,6 @@ static int __init init_ntfs_fs(void)
 	if (IS_ENABLED(CONFIG_NTFS3_LZX_XPRESS))
 		pr_info("ntfs3: Read-only LZX/Xpress compression included\n");
 
-
 #ifdef CONFIG_PROC_FS
 	/* Create "/proc/fs/ntfs3" */
 	proc_info_root = proc_mkdir("fs/ntfs3", NULL);
@@ -1827,7 +1825,6 @@ static void __exit exit_ntfs_fs(void)
 	if (proc_info_root)
 		remove_proc_entry("fs/ntfs3", NULL);
 #endif
-
 }
 
 MODULE_LICENSE("GPL");

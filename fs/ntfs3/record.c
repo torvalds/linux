@@ -189,6 +189,12 @@ out:
 	return err;
 }
 
+/*
+ * mi_enum_attr - start/continue attributes enumeration in record.
+ *
+ * NOTE: mi->mrec - memory of size sbi->record_size
+ * here we sure that mi->mrec->total == sbi->record_size (see mi_read)
+ */
 struct ATTRIB *mi_enum_attr(struct mft_inode *mi, struct ATTRIB *attr)
 {
 	const struct MFT_REC *rec = mi->mrec;

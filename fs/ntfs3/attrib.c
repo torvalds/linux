@@ -1106,10 +1106,10 @@ repack:
 		}
 	}
 
-	/* 
+	/*
 	 * The code below may require additional cluster (to extend attribute list)
-	 * and / or one MFT record 
-	 * It is too complex to undo operations if -ENOSPC occurs deep inside 
+	 * and / or one MFT record
+	 * It is too complex to undo operations if -ENOSPC occurs deep inside
 	 * in 'ni_insert_nonresident'.
 	 * Return in advance -ENOSPC here if there are no free cluster and no free MFT.
 	 */
