@@ -330,6 +330,14 @@ int ring_buffer__epoll_fd(const struct ring_buffer *rb)
 	return rb->epoll_fd;
 }
 
+struct ring *ring_buffer__ring(struct ring_buffer *rb, unsigned int idx)
+{
+	if (idx >= rb->ring_cnt)
+		return errno = ERANGE, NULL;
+
+	return rb->rings[idx];
+}
+
 static void user_ringbuf_unmap_ring(struct user_ring_buffer *rb)
 {
 	if (rb->consumer_pos) {
