@@ -1286,25 +1286,7 @@ int msm_vfe_subdev_init(struct camss *camss, struct vfe_device *vfe,
 	int i, j;
 	int ret;
 
-	switch (camss->res->version) {
-	case CAMSS_8x16:
-		vfe->ops = &vfe_ops_4_1;
-		break;
-	case CAMSS_8x96:
-		vfe->ops = &vfe_ops_4_7;
-		break;
-	case CAMSS_660:
-		vfe->ops = &vfe_ops_4_8;
-		break;
-	case CAMSS_845:
-		vfe->ops = &vfe_ops_170;
-		break;
-	case CAMSS_8250:
-		vfe->ops = &vfe_ops_480;
-		break;
-	default:
-		return -EINVAL;
-	}
+	vfe->ops = res->ops;
 
 	if (!res->line_num)
 		return -EINVAL;
