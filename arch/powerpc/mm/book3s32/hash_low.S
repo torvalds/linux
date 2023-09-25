@@ -37,7 +37,7 @@
 /*
  * Load a PTE into the hash table, if possible.
  * The address is in r4, and r3 contains an access flag:
- * _PAGE_RW (0x400) if a write.
+ * _PAGE_WRITE (0x400) if a write.
  * r9 contains the SRR1 value, from which we use the MSR_PR bit.
  * SPRG_THREAD contains the physical address of the current task's thread.
  *
@@ -113,15 +113,15 @@ _GLOBAL(hash_page)
 	lwarx	r6,0,r8			/* get linux-style pte, flag word */
 #ifdef CONFIG_PPC_KUAP
 	mfsrin	r5,r4
-	rlwinm	r0,r9,28,_PAGE_RW	/* MSR[PR] => _PAGE_RW */
-	rlwinm	r5,r5,12,_PAGE_RW	/* Ks => _PAGE_RW */
+	rlwinm	r0,r9,28,_PAGE_WRITE	/* MSR[PR] => _PAGE_WRITE */
+	rlwinm	r5,r5,12,_PAGE_WRITE	/* Ks => _PAGE_WRITE */
 	andc	r5,r5,r0		/* Ks & ~MSR[PR] */
-	andc	r5,r6,r5		/* Clear _PAGE_RW when Ks = 1 && MSR[PR] = 0 */
+	andc	r5,r6,r5		/* Clear _PAGE_WRITE when Ks = 1 && MSR[PR] = 0 */
 	andc.	r5,r3,r5		/* check access & ~permission */
 #else
 	andc.	r5,r3,r6		/* check access & ~permission */
 #endif
-	rlwinm	r0,r3,32-3,24,24	/* _PAGE_RW access -> _PAGE_DIRTY */
+	rlwinm	r0,r3,32-3,24,24	/* _PAGE_WRITE access -> _PAGE_DIRTY */
 	ori	r0,r0,_PAGE_ACCESSED|_PAGE_HASHPTE
 #ifdef CONFIG_SMP
 	bne-	.Lhash_page_out		/* return if access not permitted */
@@ -307,7 +307,7 @@ Hash_msk = (((1 << Hash_bits) - 1) * 64)
 __REF
 _GLOBAL(create_hpte)
 	/* Convert linux-style PTE (r5) to low word of PPC-style PTE (r8) */
-	rlwinm	r8,r5,32-9,30,30	/* _PAGE_RW -> PP msb */
+	rlwinm	r8,r5,32-9,30,30	/* _PAGE_WRITE -> PP msb */
 	rlwinm	r0,r5,32-6,30,30	/* _PAGE_DIRTY -> PP msb */
 	and	r8,r8,r0		/* writable if _RW & _DIRTY */
 	rlwimi	r5,r5,32-1,30,30	/* _PAGE_USER -> PP msb */
