@@ -1030,7 +1030,7 @@ static int _set_performance_state(struct device *dev, struct device *pd_dev,
 	if (!pd_dev)
 		return 0;
 
-	ret = dev_pm_genpd_set_performance_state(pd_dev, pstate);
+	ret = dev_pm_domain_set_performance_state(pd_dev, pstate);
 	if (ret) {
 		dev_err(dev, "Failed to set performance state of %s: %d (%d)\n",
 			dev_name(pd_dev), pstate, ret);
