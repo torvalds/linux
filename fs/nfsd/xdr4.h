@@ -630,7 +630,7 @@ struct nfsd4_layoutreturn {
 	u32			lrf_body_len;	/* request */
 	void			*lrf_body;	/* request */
 	stateid_t		lr_sid;		/* request/response */
-	u32			lrs_present;	/* response */
+	bool			lrs_present;	/* response */
 };
 
 struct nfsd4_fallocate {

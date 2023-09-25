@@ -4931,15 +4931,15 @@ nfsd4_encode_layoutreturn(struct nfsd4_compoundres *resp, __be32 nfserr,
 {
 	struct nfsd4_layoutreturn *lrp = &u->layoutreturn;
 	struct xdr_stream *xdr = resp->xdr;
-	__be32 *p;
 
-	p = xdr_reserve_space(xdr, 4);
-	if (!p)
-		return nfserr_resource;
-	*p++ = cpu_to_be32(lrp->lrs_present);
+	/* lrs_present */
+	nfserr = nfsd4_encode_bool(xdr, lrp->lrs_present);
+	if (nfserr != nfs_ok)
+		return nfserr;
 	if (lrp->lrs_present)
+		/* lrs_stateid */
 		return nfsd4_encode_stateid4(xdr, &lrp->lr_sid);
-	return 0;
+	return nfs_ok;
 }
 #endif /* CONFIG_NFSD_PNFS */
 
