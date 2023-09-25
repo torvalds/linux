@@ -269,6 +269,13 @@ config COMMON_CLK_ASPEED
 	  The G4 and G5 series, including the ast2400 and ast2500, are supported
 	  by this driver.
 
+config CLK_AST1700
+	bool "Clock driver for AST1700"
+	depends on MACH_ASPEED_G7 || COMPILE_TEST
+	default ARCH_ASPEED
+	help
+	  This driver supports the AST1700 clocks on the Aspeed BMC platforms.
+
 config COMMON_CLK_S2MPS11
 	tristate "Clock driver for S2MPS1X/S5M8767 MFD"
 	depends on MFD_SEC_CORE || COMPILE_TEST
