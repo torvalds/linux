@@ -19,7 +19,10 @@ properties:
     maxItems: 1
 
   interrupts:
-    maxItems: 1
+    items:
+      - description: SAHARA Interrupt for Host 0
+      - description: SAHARA Interrupt for Host 1
+    minItems: 1
 
   clocks:
     items:
@@ -37,6 +40,23 @@ required:
   - interrupts
   - clocks
   - clock-names
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - fsl,imx53-sahara
+    then:
+      properties:
+        interrupts:
+          minItems: 2
+          maxItems: 2
+    else:
+      properties:
+        interrupts:
+          maxItems: 1
 
 additionalProperties: false
 
