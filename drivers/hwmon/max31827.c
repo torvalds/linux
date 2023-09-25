@@ -412,6 +412,10 @@ static int max31827_probe(struct i2c_client *client)
 		return dev_err_probe(dev, PTR_ERR(st->regmap),
 				     "Failed to allocate regmap.\n");
 
+	err = devm_regulator_get_enable(dev, "vref");
+	if (err)
+		return dev_err_probe(dev, err, "failed to enable regulator\n");
+
 	err = max31827_init_client(st);
 	if (err)
 		return err;
