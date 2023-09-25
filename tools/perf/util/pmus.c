@@ -37,6 +37,8 @@ static LIST_HEAD(other_pmus);
 static bool read_sysfs_core_pmus;
 static bool read_sysfs_all_pmus;
 
+static void pmu_read_sysfs(bool core_only);
+
 int pmu_name_len_no_suffix(const char *str, unsigned long *num)
 {
 	int orig_len, len;
@@ -124,6 +126,14 @@ struct perf_pmu *perf_pmus__find(const char *name)
 	pmu = perf_pmu__lookup(core_pmu ? &core_pmus : &other_pmus, dirfd, name);
 	close(dirfd);
 
+	if (!pmu) {
+		/*
+		 * Looking up an inidividual PMU failed. This may mean name is
+		 * an alias, so read the PMUs from sysfs and try to find again.
+		 */
+		pmu_read_sysfs(core_pmu);
+		pmu = pmu_find(name);
+	}
 	return pmu;
 }
 

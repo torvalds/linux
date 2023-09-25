@@ -960,16 +960,27 @@ perf_pmu__get_default_config(struct perf_pmu *pmu __maybe_unused)
 	return NULL;
 }
 
-const char * __weak
-pmu_find_real_name(const char *name)
+static char *pmu_find_alias_name(struct perf_pmu *pmu, int dirfd)
 {
-	return name;
-}
+	FILE *file = perf_pmu__open_file_at(pmu, dirfd, "alias");
+	char *line = NULL;
+	size_t line_len = 0;
+	ssize_t ret;
 
-const char * __weak
-pmu_find_alias_name(const char *name __maybe_unused)
-{
-	return NULL;
+	if (!file)
+		return NULL;
+
+	ret = getline(&line, &line_len, file);
+	if (ret < 0) {
+		fclose(file);
+		return NULL;
+	}
+	/* Remove trailing newline. */
+	if (ret > 0 && line[ret - 1] == '\n')
+		line[--ret] = '\0';
+
+	fclose(file);
+	return line;
 }
 
 static int pmu_max_precise(int dirfd, struct perf_pmu *pmu)
@@ -980,12 +991,10 @@ static int pmu_max_precise(int dirfd, struct perf_pmu *pmu)
 	return max_precise;
 }
 
-struct perf_pmu *perf_pmu__lookup(struct list_head *pmus, int dirfd, const char *lookup_name)
+struct perf_pmu *perf_pmu__lookup(struct list_head *pmus, int dirfd, const char *name)
 {
 	struct perf_pmu *pmu;
 	__u32 type;
-	const char *name = pmu_find_real_name(lookup_name);
-	const char *alias_name;
 
 	pmu = zalloc(sizeof(*pmu));
 	if (!pmu)
@@ -1018,18 +1027,12 @@ struct perf_pmu *perf_pmu__lookup(struct list_head *pmus, int dirfd, const char 
 	pmu->is_core = is_pmu_core(name);
 	pmu->cpus = pmu_cpumask(dirfd, name, pmu->is_core);
 
-	alias_name = pmu_find_alias_name(name);
-	if (alias_name) {
-		pmu->alias_name = strdup(alias_name);
-		if (!pmu->alias_name)
-			goto err;
-	}
-
 	pmu->type = type;
 	pmu->is_uncore = pmu_is_uncore(dirfd, name);
 	if (pmu->is_uncore)
 		pmu->id = pmu_id(name);
 	pmu->max_precise = pmu_max_precise(dirfd, pmu);
+	pmu->alias_name = pmu_find_alias_name(pmu, dirfd);
 	pmu->events_table = perf_pmu__find_events_table(pmu);
 	pmu_add_sys_aliases(pmu);
 	list_add_tail(&pmu->list, pmus);
