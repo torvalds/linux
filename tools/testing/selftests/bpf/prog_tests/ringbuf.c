@@ -92,6 +92,7 @@ static void ringbuf_subtest(void)
 	int page_size = getpagesize();
 	void *mmap_ptr, *tmp_ptr;
 	struct ring *ring;
+	int map_fd;
 	unsigned long avail_data, ring_size, cons_pos, prod_pos;
 
 	skel = test_ringbuf_lskel__open();
@@ -167,6 +168,9 @@ static void ringbuf_subtest(void)
 	ring = ring_buffer__ring(ringbuf, 0);
 	if (!ASSERT_OK_PTR(ring, "ring_buffer__ring_idx_0"))
 		goto cleanup;
+
+	map_fd = ring__map_fd(ring);
+	ASSERT_EQ(map_fd, skel->maps.ringbuf.map_fd, "ring_map_fd");
 
 	/* 2 submitted + 1 discarded records */
 	CHECK(skel->bss->avail_data != 3 * rec_sz,
