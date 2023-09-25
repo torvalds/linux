@@ -1336,6 +1336,11 @@ static void sdma_v5_0_ring_emit_reg_write_reg_wait(struct amdgpu_ring *ring,
 static int sdma_v5_0_early_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	int r;
+
+	r = sdma_v5_0_init_microcode(adev);
+	if (r)
+		return r;
 
 	sdma_v5_0_set_ring_funcs(adev);
 	sdma_v5_0_set_buffer_funcs(adev);
@@ -1364,10 +1369,6 @@ static int sdma_v5_0_sw_init(void *handle)
 	r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_SDMA1,
 			      SDMA1_5_0__SRCID__SDMA_TRAP,
 			      &adev->sdma.trap_irq);
-	if (r)
-		return r;
-
-	r = sdma_v5_0_init_microcode(adev);
 	if (r)
 		return r;
 
