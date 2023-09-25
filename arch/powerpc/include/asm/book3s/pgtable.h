@@ -9,15 +9,6 @@
 #endif
 
 #ifndef __ASSEMBLY__
-#define __HAVE_ARCH_PTEP_SET_ACCESS_FLAGS
-extern int ptep_set_access_flags(struct vm_area_struct *vma, unsigned long address,
-				 pte_t *ptep, pte_t entry, int dirty);
-
-struct file;
-extern pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
-				     unsigned long size, pgprot_t vma_prot);
-#define __HAVE_PHYS_MEM_ACCESS_PROT
-
 void __update_mmu_cache(struct vm_area_struct *vma, unsigned long address, pte_t *ptep);
 
 /*

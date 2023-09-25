@@ -207,11 +207,6 @@ static inline void __set_pte_at(struct mm_struct *mm, unsigned long addr,
 		mb();
 }
 
-
-#define __HAVE_ARCH_PTEP_SET_ACCESS_FLAGS
-extern int ptep_set_access_flags(struct vm_area_struct *vma, unsigned long address,
-				 pte_t *ptep, pte_t entry, int dirty);
-
 /*
  * Macro to mark a page protection value as "uncacheable".
  */
@@ -239,11 +234,6 @@ extern int ptep_set_access_flags(struct vm_area_struct *vma, unsigned long addre
 		(__pgprot(pgprot_val(prot) & ~_PAGE_CACHE_CTL))
 
 #define pgprot_writecombine pgprot_noncached_wc
-
-struct file;
-extern pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
-				     unsigned long size, pgprot_t vma_prot);
-#define __HAVE_PHYS_MEM_ACCESS_PROT
 
 #ifdef CONFIG_HUGETLB_PAGE
 static inline int hugepd_ok(hugepd_t hpd)
