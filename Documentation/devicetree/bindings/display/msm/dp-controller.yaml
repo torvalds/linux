@@ -114,6 +114,7 @@ properties:
 
       port@1:
         $ref: /schemas/graph.yaml#/$defs/port-base
+        unevaluatedProperties: false
         description: Output endpoint of the controller
         properties:
           endpoint:
