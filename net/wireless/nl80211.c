@@ -5636,11 +5636,10 @@ static int nl80211_parse_he_obss_pd(struct nlattr *attrs,
 
 static int nl80211_parse_fils_discovery(struct cfg80211_registered_device *rdev,
 					struct nlattr *attrs,
-					struct cfg80211_ap_settings *params)
+					struct cfg80211_fils_discovery *fd)
 {
 	struct nlattr *tb[NL80211_FILS_DISCOVERY_ATTR_MAX + 1];
 	int ret;
-	struct cfg80211_fils_discovery *fd = &params->fils_discovery;
 
 	if (!wiphy_ext_feature_isset(&rdev->wiphy,
 				     NL80211_EXT_FEATURE_FILS_DISCOVERY))
@@ -5674,12 +5673,10 @@ static int nl80211_parse_fils_discovery(struct cfg80211_registered_device *rdev,
 static int
 nl80211_parse_unsol_bcast_probe_resp(struct cfg80211_registered_device *rdev,
 				     struct nlattr *attrs,
-				     struct cfg80211_ap_settings *params)
+				     struct cfg80211_unsol_bcast_probe_resp *presp)
 {
 	struct nlattr *tb[NL80211_UNSOL_BCAST_PROBE_RESP_ATTR_MAX + 1];
 	int ret;
-	struct cfg80211_unsol_bcast_probe_resp *presp =
-					&params->unsol_bcast_probe_resp;
 
 	if (!wiphy_ext_feature_isset(&rdev->wiphy,
 				     NL80211_EXT_FEATURE_UNSOL_BCAST_PROBE_RESP))
@@ -6122,7 +6119,7 @@ static int nl80211_start_ap(struct sk_buff *skb, struct genl_info *info)
 	if (info->attrs[NL80211_ATTR_FILS_DISCOVERY]) {
 		err = nl80211_parse_fils_discovery(rdev,
 						   info->attrs[NL80211_ATTR_FILS_DISCOVERY],
-						   params);
+						   &params->fils_discovery);
 		if (err)
 			goto out;
 	}
@@ -6130,7 +6127,7 @@ static int nl80211_start_ap(struct sk_buff *skb, struct genl_info *info)
 	if (info->attrs[NL80211_ATTR_UNSOL_BCAST_PROBE_RESP]) {
 		err = nl80211_parse_unsol_bcast_probe_resp(
 			rdev, info->attrs[NL80211_ATTR_UNSOL_BCAST_PROBE_RESP],
-			params);
+			&params->unsol_bcast_probe_resp);
 		if (err)
 			goto out;
 	}
@@ -6202,7 +6199,7 @@ static int nl80211_set_beacon(struct sk_buff *skb, struct genl_info *info)
 	unsigned int link_id = nl80211_link_id(info->attrs);
 	struct net_device *dev = info->user_ptr[1];
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
-	struct cfg80211_ap_settings *params;
+	struct cfg80211_ap_update *params;
 	struct nlattr *attr;
 	int err;
 
@@ -6227,14 +6224,16 @@ static int nl80211_set_beacon(struct sk_buff *skb, struct genl_info *info)
 
 	attr = info->attrs[NL80211_ATTR_FILS_DISCOVERY];
 	if (attr) {
-		err = nl80211_parse_fils_discovery(rdev, attr, params);
+		err = nl80211_parse_fils_discovery(rdev, attr,
+						   &params->fils_discovery);
 		if (err)
 			goto out;
 	}
 
 	attr = info->attrs[NL80211_ATTR_UNSOL_BCAST_PROBE_RESP];
 	if (attr) {
-		err = nl80211_parse_unsol_bcast_probe_resp(rdev, attr, params);
+		err = nl80211_parse_unsol_bcast_probe_resp(rdev, attr,
+							   &params->unsol_bcast_probe_resp);
 		if (err)
 			goto out;
 	}

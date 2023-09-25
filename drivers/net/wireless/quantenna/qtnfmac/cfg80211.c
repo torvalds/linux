@@ -331,7 +331,7 @@ out:
 }
 
 static int qtnf_change_beacon(struct wiphy *wiphy, struct net_device *dev,
-			      struct cfg80211_ap_settings *info)
+			      struct cfg80211_ap_update *info)
 {
 	struct qtnf_vif *vif = qtnf_netdev_get_priv(dev);
 

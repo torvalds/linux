@@ -1477,7 +1477,7 @@ error:
 }
 
 static int ieee80211_change_beacon(struct wiphy *wiphy, struct net_device *dev,
-				   struct cfg80211_ap_settings *params)
+				   struct cfg80211_ap_update *params)
 
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);

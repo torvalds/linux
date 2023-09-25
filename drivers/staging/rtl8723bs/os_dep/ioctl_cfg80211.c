@@ -2319,7 +2319,7 @@ static int cfg80211_rtw_start_ap(struct wiphy *wiphy, struct net_device *ndev,
 }
 
 static int cfg80211_rtw_change_beacon(struct wiphy *wiphy, struct net_device *ndev,
-		struct cfg80211_ap_settings *info)
+		struct cfg80211_ap_update *info)
 {
 	struct adapter *adapter = rtw_netdev_priv(ndev);
 

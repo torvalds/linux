@@ -2954,7 +2954,7 @@ static int ath6kl_start_ap(struct wiphy *wiphy, struct net_device *dev,
 }
 
 static int ath6kl_change_beacon(struct wiphy *wiphy, struct net_device *dev,
-				struct cfg80211_ap_settings *params)
+				struct cfg80211_ap_update *params)
 {
 	struct ath6kl_vif *vif = netdev_priv(dev);
 
