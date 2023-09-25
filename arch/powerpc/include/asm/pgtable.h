@@ -71,6 +71,12 @@ static inline pgprot_t pte_pgprot(pte_t pte)
 	return __pgprot(pte_flags);
 }
 
+static inline pgprot_t pgprot_nx(pgprot_t prot)
+{
+	return pte_pgprot(pte_exprotect(__pte(pgprot_val(prot))));
+}
+#define pgprot_nx pgprot_nx
+
 #ifndef pmd_page_vaddr
 static inline const void *pmd_page_vaddr(pmd_t pmd)
 {
