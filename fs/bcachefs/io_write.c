@@ -1376,10 +1376,12 @@ err_get_ioref:
 	/* Fall back to COW path: */
 	goto out;
 err_bucket_stale:
-	while (--i >= 0)
+	while (i >= 0) {
 		bch2_bucket_nocow_unlock(&c->nocow_locks,
 					 buckets[i].b,
 					 BUCKET_NOCOW_LOCK_UPDATE);
+		--i;
+	}
 	for (i = 0; i < nr_buckets; i++)
 		percpu_ref_put(&bch_dev_bkey_exists(c, buckets[i].b.inode)->io_ref);
 
