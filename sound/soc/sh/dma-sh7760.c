@@ -195,9 +195,9 @@ static int camelot_prepare(struct snd_soc_component *component,
 	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct camelot_pcm *cam = &cam_pcm_data[asoc_rtd_to_cpu(rtd, 0)->id];
 
-	pr_debug("PCM data: addr 0x%08lx len %d\n",
-		 (u32)runtime->dma_addr, runtime->dma_bytes);
- 
+	pr_debug("PCM data: addr %pad len %zu\n", &runtime->dma_addr,
+		 runtime->dma_bytes);
+
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		BRGREG(BRGATXSAR) = (unsigned long)runtime->dma_area;
 		BRGREG(BRGATXTCR) = runtime->dma_bytes;
