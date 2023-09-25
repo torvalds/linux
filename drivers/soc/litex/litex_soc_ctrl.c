@@ -120,12 +120,11 @@ static int litex_soc_ctrl_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int litex_soc_ctrl_remove(struct platform_device *pdev)
+static void litex_soc_ctrl_remove(struct platform_device *pdev)
 {
 	struct litex_soc_ctrl_device *soc_ctrl_dev = platform_get_drvdata(pdev);
 
 	unregister_restart_handler(&soc_ctrl_dev->reset_nb);
-	return 0;
 }
 
 static struct platform_driver litex_soc_ctrl_driver = {
@@ -134,7 +133,7 @@ static struct platform_driver litex_soc_ctrl_driver = {
 		.of_match_table = of_match_ptr(litex_soc_ctrl_of_match)
 	},
 	.probe = litex_soc_ctrl_probe,
-	.remove = litex_soc_ctrl_remove,
+	.remove_new = litex_soc_ctrl_remove,
 };
 
 module_platform_driver(litex_soc_ctrl_driver);
