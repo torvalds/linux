@@ -93,6 +93,8 @@ dma_subsys: bus@5a000000 {
 		assigned-clocks = <&clk IMX_SC_R_UART_0 IMX_SC_PM_CLK_PER>;
 		assigned-clock-rates = <80000000>;
 		power-domains = <&pd IMX_SC_R_UART_0>;
+		dma-names = "tx","rx";
+		dmas = <&edma2 9 0 0>, <&edma2 8 0 1>;
 		status = "disabled";
 	};
 
@@ -105,6 +107,8 @@ dma_subsys: bus@5a000000 {
 		assigned-clocks = <&clk IMX_SC_R_UART_1 IMX_SC_PM_CLK_PER>;
 		assigned-clock-rates = <80000000>;
 		power-domains = <&pd IMX_SC_R_UART_1>;
+		dma-names = "tx","rx";
+		dmas = <&edma2 11 0 0>, <&edma2 10 0 1>;
 		status = "disabled";
 	};
 
@@ -117,6 +121,8 @@ dma_subsys: bus@5a000000 {
 		assigned-clocks = <&clk IMX_SC_R_UART_2 IMX_SC_PM_CLK_PER>;
 		assigned-clock-rates = <80000000>;
 		power-domains = <&pd IMX_SC_R_UART_2>;
+		dma-names = "tx","rx";
+		dmas = <&edma2 13 0 0>, <&edma2 12 0 1>;
 		status = "disabled";
 	};
 
@@ -129,6 +135,8 @@ dma_subsys: bus@5a000000 {
 		assigned-clocks = <&clk IMX_SC_R_UART_3 IMX_SC_PM_CLK_PER>;
 		assigned-clock-rates = <80000000>;
 		power-domains = <&pd IMX_SC_R_UART_3>;
+		dma-names = "tx","rx";
+		dmas = <&edma2 15 0 0>, <&edma2 14 0 1>;
 		status = "disabled";
 	};
 
