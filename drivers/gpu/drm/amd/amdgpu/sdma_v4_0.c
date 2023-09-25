@@ -1720,10 +1720,8 @@ static int sdma_v4_0_early_init(void *handle)
 	int r;
 
 	r = sdma_v4_0_init_microcode(adev);
-	if (r) {
-		DRM_ERROR("Failed to load sdma firmware!\n");
+	if (r)
 		return r;
-	}
 
 	/* TODO: Page queue breaks driver reload under SRIOV */
 	if ((amdgpu_ip_version(adev, SDMA0_HWIP, 0) == IP_VERSION(4, 0, 0)) &&

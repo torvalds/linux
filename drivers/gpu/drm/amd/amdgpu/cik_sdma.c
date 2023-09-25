@@ -943,10 +943,8 @@ static int cik_sdma_sw_init(void *handle)
 	int r, i;
 
 	r = cik_sdma_init_microcode(adev);
-	if (r) {
-		DRM_ERROR("Failed to load sdma firmware!\n");
+	if (r)
 		return r;
-	}
 
 	/* SDMA trap event */
 	r = amdgpu_irq_add_id(adev, AMDGPU_IRQ_CLIENTID_LEGACY, 224,

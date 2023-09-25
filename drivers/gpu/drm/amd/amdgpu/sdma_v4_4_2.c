@@ -1246,10 +1246,8 @@ static int sdma_v4_4_2_early_init(void *handle)
 	int r;
 
 	r = sdma_v4_4_2_init_microcode(adev);
-	if (r) {
-		DRM_ERROR("Failed to load sdma firmware!\n");
+	if (r)
 		return r;
-	}
 
 	/* TODO: Page queue breaks driver reload under SRIOV */
 	if (sdma_v4_4_2_fw_support_paging_queue(adev))

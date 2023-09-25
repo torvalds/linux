@@ -852,10 +852,8 @@ static int sdma_v2_4_sw_init(void *handle)
 		return r;
 
 	r = sdma_v2_4_init_microcode(adev);
-	if (r) {
-		DRM_ERROR("Failed to load sdma firmware!\n");
+	if (r)
 		return r;
-	}
 
 	for (i = 0; i < adev->sdma.num_instances; i++) {
 		ring = &adev->sdma.instance[i].ring;
