@@ -71,6 +71,24 @@ enum ceph_feature_type {
 struct ceph_fs_client;
 struct ceph_cap;
 
+#define MDS_AUTH_UID_ANY -1
+
+struct ceph_mds_cap_match {
+	s64 uid;  /* default to MDS_AUTH_UID_ANY */
+	u32 num_gids;
+	u32 *gids;  /* use these GIDs */
+	char *path;  /* require path to be child of this
+			(may be "" or "/" for any) */
+	char *fs_name;
+	bool root_squash;  /* default to false */
+};
+
+struct ceph_mds_cap_auth {
+	struct ceph_mds_cap_match match;
+	bool readable;
+	bool writeable;
+};
+
 /*
  * parsed info about a single inode.  pointers are into the encoded
  * on-wire structures within the mds reply message payload.
@@ -512,6 +530,9 @@ struct ceph_mds_client {
 
 	struct rw_semaphore     pool_perm_rwsem;
 	struct rb_root		pool_perm_tree;
+
+	u32			 s_cap_auths_num;
+	struct ceph_mds_cap_auth *s_cap_auths;
 
 	char nodename[__NEW_UTS_LEN + 1];
 };
