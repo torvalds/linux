@@ -4992,7 +4992,22 @@ static int msm_geni_serial_remove(struct platform_device *pdev)
 	device_remove_file(port->uport.dev, &dev_attr_ver_info);
 	debugfs_remove(port->dbg);
 
+	dev_info(&pdev->dev, "%s driver removed %d\n", __func__, true);
 	return 0;
+}
+
+/*
+ * msm_geni_serial_driver_shutdown() - shutdown callback function for uart
+ * This function will be called as part of device reboot or shutdown
+ *
+ * @pdev: pointer to platform device
+ *
+ * Return: None
+ */
+static void msm_geni_serial_driver_shutdown(struct platform_device *pdev)
+{
+	dev_info(&pdev->dev, "%s called %d\n", __func__, true);
+	msm_geni_serial_remove(pdev);
 }
 
 static void msm_geni_serial_allow_rx(struct msm_geni_serial_port *port)
@@ -5329,6 +5344,7 @@ static const struct dev_pm_ops msm_geni_serial_pm_ops = {
 
 static struct platform_driver msm_geni_serial_platform_driver = {
 	.remove = msm_geni_serial_remove,
+	.shutdown = msm_geni_serial_driver_shutdown,
 	.probe = msm_geni_serial_probe,
 	.driver = {
 		.name = "msm_geni_serial",
