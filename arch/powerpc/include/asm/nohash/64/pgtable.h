@@ -57,6 +57,7 @@
 #define IOREMAP_START	(ioremap_bot)
 #define IOREMAP_END	(KERN_IO_START + KERN_IO_SIZE - FIXADDR_SIZE)
 #define FIXADDR_SIZE	SZ_32M
+#define FIXADDR_TOP	(IOREMAP_END + FIXADDR_SIZE)
 
 /*
  * Defines the address of the vmemap area, in its own region on
