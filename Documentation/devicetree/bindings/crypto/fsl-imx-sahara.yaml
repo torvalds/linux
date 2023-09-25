@@ -21,17 +21,34 @@ properties:
   interrupts:
     maxItems: 1
 
+  clocks:
+    items:
+      - description: Sahara IPG clock
+      - description: Sahara AHB clock
+
+  clock-names:
+    items:
+      - const: ipg
+      - const: ahb
+
 required:
   - compatible
   - reg
   - interrupts
+  - clocks
+  - clock-names
 
 additionalProperties: false
 
 examples:
   - |
+    #include <dt-bindings/clock/imx27-clock.h>
+
     crypto@10025000 {
         compatible = "fsl,imx27-sahara";
         reg = <0x10025000 0x800>;
         interrupts = <75>;
+        clocks = <&clks IMX27_CLK_SAHARA_IPG_GATE>,
+                 <&clks IMX27_CLK_SAHARA_AHB_GATE>;
+        clock-names = "ipg", "ahb";
     };
