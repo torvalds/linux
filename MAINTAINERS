@@ -6342,7 +6342,7 @@ L:	netdev@vger.kernel.org
 S:	Supported
 F:	Documentation/driver-api/dpll.rst
 F:	drivers/dpll/*
-F:	include/net/dpll.h
+F:	include/linux/dpll.h
 F:	include/uapi/linux/dpll.h
 
 DRBD DRIVER
