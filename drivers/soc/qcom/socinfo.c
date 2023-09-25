@@ -787,20 +787,18 @@ static int qcom_socinfo_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int qcom_socinfo_remove(struct platform_device *pdev)
+static void qcom_socinfo_remove(struct platform_device *pdev)
 {
 	struct qcom_socinfo *qs = platform_get_drvdata(pdev);
 
 	soc_device_unregister(qs->soc_dev);
 
 	socinfo_debugfs_exit(qs);
-
-	return 0;
 }
 
 static struct platform_driver qcom_socinfo_driver = {
 	.probe = qcom_socinfo_probe,
-	.remove = qcom_socinfo_remove,
+	.remove_new = qcom_socinfo_remove,
 	.driver  = {
 		.name = "qcom-socinfo",
 	},
