@@ -10,7 +10,6 @@
 #include <linux/vmalloc.h>
 #include <linux/splice.h>
 #include <linux/compat.h>
-#include <net/checksum.h>
 #include <linux/scatterlist.h>
 #include <linux/instrumented.h>
 #include <linux/iov_iter.h>
@@ -178,13 +177,6 @@ void iov_iter_init(struct iov_iter *i, unsigned int direction,
 	};
 }
 EXPORT_SYMBOL(iov_iter_init);
-
-static __wsum csum_and_memcpy(void *to, const void *from, size_t len,
-			      __wsum sum, size_t off)
-{
-	__wsum next = csum_partial_copy_nocheck(from, to, len);
-	return csum_block_add(sum, next, off);
-}
 
 size_t _copy_to_iter(const void *addr, size_t bytes, struct iov_iter *i)
 {
@@ -1096,87 +1088,6 @@ ssize_t iov_iter_get_pages_alloc2(struct iov_iter *i,
 	return len;
 }
 EXPORT_SYMBOL(iov_iter_get_pages_alloc2);
-
-static __always_inline
-size_t copy_from_user_iter_csum(void __user *iter_from, size_t progress,
-				size_t len, void *to, void *priv2)
-{
-	__wsum next, *csum = priv2;
-
-	next = csum_and_copy_from_user(iter_from, to + progress, len);
-	*csum = csum_block_add(*csum, next, progress);
-	return next ? 0 : len;
-}
-
-static __always_inline
-size_t memcpy_from_iter_csum(void *iter_from, size_t progress,
-			     size_t len, void *to, void *priv2)
-{
-	__wsum *csum = priv2;
-
-	*csum = csum_and_memcpy(to + progress, iter_from, len, *csum, progress);
-	return 0;
-}
-
-size_t csum_and_copy_from_iter(void *addr, size_t bytes, __wsum *csum,
-			       struct iov_iter *i)
-{
-	if (WARN_ON_ONCE(!i->data_source))
-		return 0;
-	return iterate_and_advance2(i, bytes, addr, csum,
-				    copy_from_user_iter_csum,
-				    memcpy_from_iter_csum);
-}
-EXPORT_SYMBOL(csum_and_copy_from_iter);
-
-static __always_inline
-size_t copy_to_user_iter_csum(void __user *iter_to, size_t progress,
-			      size_t len, void *from, void *priv2)
-{
-	__wsum next, *csum = priv2;
-
-	next = csum_and_copy_to_user(from + progress, iter_to, len);
-	*csum = csum_block_add(*csum, next, progress);
-	return next ? 0 : len;
-}
-
-static __always_inline
-size_t memcpy_to_iter_csum(void *iter_to, size_t progress,
-			   size_t len, void *from, void *priv2)
-{
-	__wsum *csum = priv2;
-
-	*csum = csum_and_memcpy(iter_to, from + progress, len, *csum, progress);
-	return 0;
-}
-
-size_t csum_and_copy_to_iter(const void *addr, size_t bytes, void *_csstate,
-			     struct iov_iter *i)
-{
-	struct csum_state *csstate = _csstate;
-	__wsum sum;
-
-	if (WARN_ON_ONCE(i->data_source))
-		return 0;
-	if (unlikely(iov_iter_is_discard(i))) {
-		// can't use csum_memcpy() for that one - data is not copied
-		csstate->csum = csum_block_add(csstate->csum,
-					       csum_partial(addr, bytes, 0),
-					       csstate->off);
-		csstate->off += bytes;
-		return bytes;
-	}
-
-	sum = csum_shift(csstate->csum, csstate->off);
-	
-	bytes = iterate_and_advance2(i, bytes, (void *)addr, &sum,
-				     copy_to_user_iter_csum,
-				     memcpy_to_iter_csum);
-	csstate->csum = csum_shift(sum, csstate->off);
-	csstate->off += bytes;
-	return bytes;
-}
-EXPORT_SYMBOL(csum_and_copy_to_iter);
 
 size_t hash_and_copy_to_iter(const void *addr, size_t bytes, void *hashp,
 		struct iov_iter *i)
