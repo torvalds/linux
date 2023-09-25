@@ -597,7 +597,7 @@ static void read_superblock_fields(struct dm_cache_metadata *cmd,
 	cmd->discard_nr_blocks = to_dblock(le64_to_cpu(disk_super->discard_nr_blocks));
 	cmd->data_block_size = le32_to_cpu(disk_super->data_block_size);
 	cmd->cache_blocks = to_cblock(le32_to_cpu(disk_super->cache_blocks));
-	strncpy(cmd->policy_name, disk_super->policy_name, sizeof(cmd->policy_name));
+	strscpy(cmd->policy_name, disk_super->policy_name, sizeof(cmd->policy_name));
 	cmd->policy_version[0] = le32_to_cpu(disk_super->policy_version[0]);
 	cmd->policy_version[1] = le32_to_cpu(disk_super->policy_version[1]);
 	cmd->policy_version[2] = le32_to_cpu(disk_super->policy_version[2]);
@@ -707,7 +707,7 @@ static int __commit_transaction(struct dm_cache_metadata *cmd,
 	disk_super->discard_block_size = cpu_to_le64(cmd->discard_block_size);
 	disk_super->discard_nr_blocks = cpu_to_le64(from_dblock(cmd->discard_nr_blocks));
 	disk_super->cache_blocks = cpu_to_le32(from_cblock(cmd->cache_blocks));
-	strncpy(disk_super->policy_name, cmd->policy_name, sizeof(disk_super->policy_name));
+	strscpy(disk_super->policy_name, cmd->policy_name, sizeof(disk_super->policy_name));
 	disk_super->policy_version[0] = cpu_to_le32(cmd->policy_version[0]);
 	disk_super->policy_version[1] = cpu_to_le32(cmd->policy_version[1]);
 	disk_super->policy_version[2] = cpu_to_le32(cmd->policy_version[2]);
@@ -1726,7 +1726,7 @@ static int write_hints(struct dm_cache_metadata *cmd, struct dm_cache_policy *po
 	    (strlen(policy_name) > sizeof(cmd->policy_name) - 1))
 		return -EINVAL;
 
-	strncpy(cmd->policy_name, policy_name, sizeof(cmd->policy_name));
+	strscpy(cmd->policy_name, policy_name, sizeof(cmd->policy_name));
 	memcpy(cmd->policy_version, policy_version, sizeof(cmd->policy_version));
 
 	hint_size = dm_cache_policy_get_hint_size(policy);
