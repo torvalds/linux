@@ -141,6 +141,16 @@ DECLARE_HOOK(android_vh_look_around,
 		struct vm_area_struct *vma, int *referenced),
 	TP_ARGS(pvmw, folio, vma, referenced));
 
+DECLARE_HOOK(android_vh_mm_alloc_pages_direct_reclaim_enter,
+	TP_PROTO(unsigned int order),
+	TP_ARGS(order));
+DECLARE_HOOK(android_vh_mm_alloc_pages_direct_reclaim_exit,
+	TP_PROTO(unsigned long did_some_progress, int retry_times),
+	TP_ARGS(did_some_progress, retry_times));
+struct oom_control;
+DECLARE_HOOK(android_vh_mm_alloc_pages_may_oom_exit,
+	TP_PROTO(struct oom_control *oc, unsigned long did_some_progress),
+	TP_ARGS(oc, did_some_progress));
 #endif /* _TRACE_HOOK_MM_H */
 
 /* This part must be outside protection */
