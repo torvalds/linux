@@ -67,7 +67,7 @@
 #include <trace/hooks/psi.h>
 #include <trace/hooks/bl_hib.h>
 #include <trace/hooks/regmap.h>
-
+#include <trace/hooks/compaction.h>
 /*
  * Export tracepoints that act as a bare tracehook (ie: have no trace event
  * associated with them) to allow external modules to probe them.
@@ -335,3 +335,5 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_binder_transaction_received);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_free_oem_binder_struct);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_binder_special_task);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_binder_free_buf);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_compaction_exit);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_compaction_try_to_compact_pages_exit);
