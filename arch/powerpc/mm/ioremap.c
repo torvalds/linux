@@ -51,7 +51,8 @@ void __iomem *ioremap_prot(phys_addr_t addr, size_t size, unsigned long flags)
 		pte = pte_mkdirty(pte);
 
 	/* we don't want to let _PAGE_USER leak out */
-	pte = pte_mkprivileged(pte);
+	if (WARN_ON(pte_user(pte)))
+		return NULL;
 
 	if (iowa_is_active())
 		return iowa_ioremap(addr, size, pte_pgprot(pte), caller);
