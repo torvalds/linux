@@ -1505,6 +1505,8 @@ int mtd_read(struct mtd_info *mtd, loff_t from, size_t len, size_t *retlen,
 	ret = mtd_read_oob(mtd, from, &ops);
 	*retlen = ops.retlen;
 
+	WARN_ON_ONCE(*retlen != len && mtd_is_bitflip_or_eccerr(ret));
+
 	return ret;
 }
 EXPORT_SYMBOL_GPL(mtd_read);
