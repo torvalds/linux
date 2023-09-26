@@ -14,15 +14,15 @@ CertificateSerialNumber ::= INTEGER ({ x509_akid_note_serial })
 GeneralNames ::= SEQUENCE OF GeneralName
 
 GeneralName ::= CHOICE {
-	otherName			[0] ANY,
-	rfc822Name			[1] IA5String,
-	dNSName				[2] IA5String,
+	otherName			[0] IMPLICIT OtherName,
+	rfc822Name			[1] IMPLICIT IA5String,
+	dNSName				[2] IMPLICIT IA5String,
 	x400Address			[3] ANY,
 	directoryName			[4] Name ({ x509_akid_note_name }),
-	ediPartyName			[5] ANY,
-	uniformResourceIdentifier	[6] IA5String,
-	iPAddress			[7] OCTET STRING,
-	registeredID			[8] OBJECT IDENTIFIER
+	ediPartyName			[5] IMPLICIT EDIPartyName,
+	uniformResourceIdentifier	[6] IMPLICIT IA5String,
+	iPAddress			[7] IMPLICIT OCTET STRING,
+	registeredID			[8] IMPLICIT OBJECT IDENTIFIER
 	}
 
 Name ::= SEQUENCE OF RelativeDistinguishedName
@@ -32,4 +32,14 @@ RelativeDistinguishedName ::= SET OF AttributeValueAssertion
 AttributeValueAssertion ::= SEQUENCE {
 	attributeType		OBJECT IDENTIFIER ({ x509_note_OID }),
 	attributeValue		ANY ({ x509_extract_name_segment })
+	}
+
+OtherName ::= SEQUENCE {
+	type-id			OBJECT IDENTIFIER,
+	value			[0] ANY
+	}
+
+EDIPartyName ::= SEQUENCE {
+	nameAssigner		[0] ANY OPTIONAL,
+	partyName		[1] ANY
 	}
