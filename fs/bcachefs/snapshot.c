@@ -1636,9 +1636,15 @@ int bch2_propagate_key_to_snapshot_leaves(struct btree_trans *trans,
 		if (!bch2_snapshot_is_ancestor(c, id, k.k->p.snapshot) ||
 		    !bch2_snapshot_is_leaf(c, id))
 			continue;
+again:
+		ret =   btree_trans_too_many_iters(trans) ?:
+			bch2_propagate_key_to_snapshot_leaf(trans, btree, k, id, new_min_pos) ?:
+			bch2_trans_commit(trans, NULL, NULL, 0);
+		if (ret && bch2_err_matches(ret, BCH_ERR_transaction_restart)) {
+			bch2_trans_begin(trans);
+			goto again;
+		}
 
-		ret = commit_do(trans, NULL, NULL, 0,
-				bch2_propagate_key_to_snapshot_leaf(trans, btree, k, id, new_min_pos));
 		if (ret)
 			break;
 	}
