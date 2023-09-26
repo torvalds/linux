@@ -85,19 +85,6 @@
 #define wdt_mem_res(i) wdt_res(ICH_RES_MEM_OFF, i)
 #define wdt_res(b, i) (&wdt_ich_res[(b) + (i)])
 
-struct lpc_ich_priv {
-	int chipset;
-
-	int abase;		/* ACPI base */
-	int actrl_pbase;	/* ACPI control or PMC base */
-	int gbase;		/* GPIO base */
-	int gctrl;		/* GPIO control */
-
-	int abase_save;		/* Cached ACPI base value */
-	int actrl_pbase_save;		/* Cached ACPI control or PMC base value */
-	int gctrl_save;		/* Cached GPIO control value */
-};
-
 static struct resource wdt_ich_res[] = {
 	/* ACPI - TCO */
 	{
@@ -291,6 +278,19 @@ enum lpc_chipsets {
 	LPC_APL,	/* Apollo Lake SoC */
 	LPC_GLK,	/* Gemini Lake SoC */
 	LPC_COUGARMOUNTAIN,/* Cougar Mountain SoC*/
+};
+
+struct lpc_ich_priv {
+	enum lpc_chipsets chipset;
+
+	int abase;		/* ACPI base */
+	int actrl_pbase;	/* ACPI control or PMC base */
+	int gbase;		/* GPIO base */
+	int gctrl;		/* GPIO control */
+
+	int abase_save;		/* Cached ACPI base value */
+	int actrl_pbase_save;		/* Cached ACPI control or PMC base value */
+	int gctrl_save;		/* Cached GPIO control value */
 };
 
 static struct lpc_ich_info lpc_chipset_info[] = {
