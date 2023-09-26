@@ -82,6 +82,18 @@ static inline void file_free(struct file *f)
 	call_rcu(&f->f_rcuhead, file_free_rcu);
 }
 
+void release_empty_file(struct file *f)
+{
+	WARN_ON_ONCE(f->f_mode & (FMODE_BACKING | FMODE_OPENED));
+	/* Uhm, we better find out who grabs references to an unopened file. */
+	WARN_ON_ONCE(atomic_long_cmpxchg(&f->f_count, 1, 0) != 1);
+	security_file_free(f);
+	put_cred(f->f_cred);
+	if (likely(!(f->f_mode & FMODE_NOACCOUNT)))
+		percpu_counter_dec(&nr_files);
+	kmem_cache_free(filp_cachep, f);
+}
+
 /*
  * Return the total number of open files in the system
  */
