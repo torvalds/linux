@@ -998,6 +998,9 @@ void psi_account_irqtime(struct task_struct *task, u32 delta)
 	struct psi_group_cpu *groupc;
 	u64 now;
 
+	if (static_branch_likely(&psi_disabled))
+		return;
+
 	if (!task->pid)
 		return;
 
