@@ -279,6 +279,10 @@ An Intel GPU has multiple engines. There are several engine types:
   Also sometimes called 'VEBOX' in hardware documentation.
 - Compute Command Streamer (CCS). An engine that has access to the media and
   GPGPU pipelines, but not the 3D pipeline.
+- Graphics Security Controller (GSCCS). A dedicated engine for internal
+  communication with GSC controller on security related tasks like
+  High-bandwidth Digital Content Protection (HDCP), Protected Xe Path (PXP),
+  and HuC firmware authentication.
 
 The Intel GPU family is a family of integrated GPU's using Unified
 Memory Access. For having the GPU "do work", user space will feed the
