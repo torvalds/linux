@@ -197,6 +197,7 @@
 #define GCC_VS_CTRL_CLK_SRC					187
 #define GCC_VSENSOR_CLK_SRC					188
 #define GCC_WCSS_VS_CLK						189
+#define GCC_DISP_GPLL0_CLK_SRC					190
 
 /* GCC resets */
 #define GCC_CAMSS_OPE_BCR					0
@@ -232,5 +233,7 @@
 #define GCC_VENUS_BCR						30
 #define GCC_VIDEO_INTERFACE_BCR					31
 #define GCC_VS_BCR						32
+#define GCC_VENUS_CTL_AXI_CLK_ARES				33
+#define GCC_VIDEO_VENUS_CTL_CLK_ARES				34
 
 #endif
