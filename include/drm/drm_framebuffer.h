@@ -292,11 +292,6 @@ static inline void drm_framebuffer_assign(struct drm_framebuffer **p,
 	     &fb->head != (&(dev)->mode_config.fb_list);			\
 	     fb = list_next_entry(fb, head))
 
-int drm_framebuffer_plane_width(int width,
-				const struct drm_framebuffer *fb, int plane);
-int drm_framebuffer_plane_height(int height,
-				 const struct drm_framebuffer *fb, int plane);
-
 /**
  * struct drm_afbc_framebuffer - a special afbc frame buffer object
  *
