@@ -265,10 +265,12 @@ static int habmem_export_vchan(struct uhab_context *ctx,
 		HAB_HEADER_SET_TYPE(header, HAB_PAYLOAD_TYPE_EXPORT);
 		HAB_HEADER_SET_ID(header, vchan->otherend_id);
 		HAB_HEADER_SET_SESSION_ID(header, vchan->session_id);
-		ret = physical_channel_send(vchan->pchan, &header, exp);
+		ret = physical_channel_send(vchan->pchan, &header, exp,
+				HABMM_SOCKET_SEND_FLAGS_NON_BLOCKING);
 
 		if (ret != 0) {
-			pr_err("failed to export payload to the remote %d\n", ret);
+			pr_err("failed to send imp msg %d, exp_id %d, vcid %x\n",
+				ret, export_id, vchan->id);
 			return ret;
 		}
 
@@ -465,9 +467,11 @@ int hab_mem_import(struct uhab_context *ctx,
 		HAB_HEADER_SET_TYPE(header, HAB_PAYLOAD_TYPE_IMPORT);
 		HAB_HEADER_SET_ID(header, vchan->otherend_id);
 		HAB_HEADER_SET_SESSION_ID(header, vchan->session_id);
-		ret = physical_channel_send(vchan->pchan, &header, &imp_data);
+		ret = physical_channel_send(vchan->pchan, &header, &imp_data,
+				HABMM_SOCKET_SEND_FLAGS_NON_BLOCKING);
+
 		if (ret != 0) {
-			pr_err("failed to send import msg to the remote %d, exp_id %d, vcid %x\n",
+			pr_err("failed to send imp msg %d, exp_id %d, vcid %x\n",
 				ret,
 				param->exportid,
 				vchan->id);

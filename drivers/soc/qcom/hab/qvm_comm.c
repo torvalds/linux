@@ -52,13 +52,17 @@ int physical_channel_read(struct physical_channel *pchan,
 
 int physical_channel_send(struct physical_channel *pchan,
 		struct hab_header *header,
-		void *payload)
+		void *payload,
+		unsigned int flags)
 {
 	size_t sizebytes = HAB_HEADER_GET_SIZE(*header);
 	struct qvm_channel *dev  = (struct qvm_channel *)pchan->hyp_data;
 	size_t total_size = sizeof(*header) + sizebytes;
 	uint32_t buf_size = PIPE_SHMEM_SIZE;
 	int irqs_disabled = irqs_disabled();
+
+	/* Only used in virtio arch */
+	(void)flags;
 
 	if (total_size > buf_size)
 		return -EINVAL; /* too much data for ring */

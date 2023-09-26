@@ -662,7 +662,8 @@ int physical_channel_read(struct physical_channel *pchan,
 
 int physical_channel_send(struct physical_channel *pchan,
 		struct hab_header *header,
-		void *payload);
+		void *payload,
+		unsigned int flags);
 
 void physical_channel_rx_dispatch(unsigned long physical_channel);
 void physical_channel_rx_dispatch_common(unsigned long physical_channel);

@@ -259,6 +259,7 @@ static int hab_export_enqueue(struct virtual_channel *vchan,
 static int hab_send_import_ack_fail(struct virtual_channel *vchan,
 				uint32_t exp_id)
 {
+	int ret = 0;
 	uint32_t export_id = exp_id;
 	struct hab_header header = HAB_HEADER_INITIALIZER;
 
@@ -266,8 +267,15 @@ static int hab_send_import_ack_fail(struct virtual_channel *vchan,
 	HAB_HEADER_SET_TYPE(header, HAB_PAYLOAD_TYPE_IMPORT_ACK_FAIL);
 	HAB_HEADER_SET_ID(header, vchan->otherend_id);
 	HAB_HEADER_SET_SESSION_ID(header, vchan->session_id);
+	ret = physical_channel_send(vchan->pchan, &header, &export_id,
+			HABMM_SOCKET_SEND_FLAGS_NON_BLOCKING);
+	if (ret != 0)
+		pr_err("failed to send imp ack fail msg %d, exp_id %d, vcid %x\n",
+			ret,
+			export_id,
+			vchan->id);
 
-	return physical_channel_send(vchan->pchan, &header, &export_id);
+	return ret;
 }
 
 static int hab_send_import_ack(struct virtual_channel *vchan,
@@ -291,7 +299,12 @@ static int hab_send_import_ack(struct virtual_channel *vchan,
 	exp->pchan = NULL;
 	exp->vchan = NULL;
 	exp->ctx = NULL;
-	ret = physical_channel_send(vchan->pchan, &header, exp);
+	ret = physical_channel_send(vchan->pchan, &header, exp,
+			HABMM_SOCKET_SEND_FLAGS_NON_BLOCKING);
+	if (ret != 0)
+		pr_err("failed to send imp ack msg %d, vcid %x\n",
+			ret, vchan->id);
+
 	exp->pchan = vchan->pchan;
 	exp->vchan = vchan;
 	exp->ctx = vchan->ctx;
@@ -347,6 +360,8 @@ static int hab_send_export_ack(struct virtual_channel *vchan,
 				struct physical_channel *pchan,
 				struct export_desc *exp)
 {
+	int ret = 0;
+
 	struct hab_export_ack exp_ack = {
 		.export_id = exp->export_id,
 		.vcid_local = exp->vcid_local,
@@ -358,8 +373,13 @@ static int hab_send_export_ack(struct virtual_channel *vchan,
 	HAB_HEADER_SET_TYPE(header, HAB_PAYLOAD_TYPE_EXPORT_ACK);
 	HAB_HEADER_SET_ID(header, exp->vcid_local);
 	HAB_HEADER_SET_SESSION_ID(header, vchan->session_id);
+	ret = physical_channel_send(pchan, &header, &exp_ack,
+			HABMM_SOCKET_SEND_FLAGS_NON_BLOCKING);
+	if (ret != 0)
+		pr_err("failed to send exp ack msg %d, vcid %x\n",
+			ret, vchan->id);
 
-	return physical_channel_send(pchan, &header, &exp_ack);
+	return ret;
 }
 
 static int hab_receive_create_export_ack(struct physical_channel *pchan,

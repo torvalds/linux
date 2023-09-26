@@ -997,13 +997,17 @@ err_unlock:
 
 int physical_channel_send(struct physical_channel *pchan,
 			struct hab_header *header,
-			void *payload)
+			void *payload,
+			unsigned int flags)
 {
 	struct vhost_hab_pchannel *vh_pchan = pchan->hyp_data;
 	struct vhost_virtqueue *vq;
 	struct vhost_hab_dev *vh_dev;
 	struct vhost_hab_send_node *send_node;
 	size_t sizebytes = HAB_HEADER_GET_SIZE(*header);
+
+	/* Only used in virtio arch */
+	(void)flags;
 
 	if (!vh_pchan) {
 		pr_err("pchan is not ready yet\n");

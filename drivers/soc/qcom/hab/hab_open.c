@@ -25,11 +25,18 @@ void hab_open_request_init(struct hab_open_request *request,
 int hab_open_request_send(struct hab_open_request *request)
 {
 	struct hab_header header = HAB_HEADER_INITIALIZER;
+	int ret = 0;
 
 	HAB_HEADER_SET_SIZE(header, sizeof(struct hab_open_send_data));
 	HAB_HEADER_SET_TYPE(header, request->type);
 
-	return physical_channel_send(request->pchan, &header, &request->xdata);
+	ret = physical_channel_send(request->pchan, &header, &request->xdata,
+			HABMM_SOCKET_SEND_FLAGS_NON_BLOCKING);
+	if (ret != 0)
+		pr_err("pchan %s failed to send open req msg %d\n",
+			request->pchan->name, ret);
+
+	return ret;
 }
 
 /*
@@ -256,11 +263,18 @@ int hab_open_receive_cancel(struct physical_channel *pchan,
 int hab_open_cancel_notify(struct hab_open_request *request)
 {
 	struct hab_header header = HAB_HEADER_INITIALIZER;
+	int ret = 0;
 
 	HAB_HEADER_SET_SIZE(header, sizeof(struct hab_open_send_data));
 	HAB_HEADER_SET_TYPE(header, HAB_PAYLOAD_TYPE_INIT_CANCEL);
 
-	return physical_channel_send(request->pchan, &header, &request->xdata);
+	ret = physical_channel_send(request->pchan, &header, &request->xdata,
+			HABMM_SOCKET_SEND_FLAGS_NON_BLOCKING);
+	if (ret != 0)
+		pr_err("pchan %s failed to send open cancel msg %d\n",
+			request->pchan->name, ret);
+
+	return ret;
 }
 
 /*
