@@ -92,3 +92,4 @@ module_exit(exit_rc_map_fusionhdtv_mce)
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Mauro Carvalho Chehab");
+MODULE_DESCRIPTION("DViCO FUSION HDTV MCE remote controller keytable");

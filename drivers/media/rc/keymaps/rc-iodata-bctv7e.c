@@ -82,3 +82,4 @@ module_exit(exit_rc_map_iodata_bctv7e)
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Mauro Carvalho Chehab");
+MODULE_DESCRIPTION("IO-DATA BCTV7E remote controller keytable");

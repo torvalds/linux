@@ -80,3 +80,4 @@ module_exit(exit_rc_map_imon_rsc)
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Sean Young <sean@mess.org>");
+MODULE_DESCRIPTION("iMON RSC remote controller keytable");

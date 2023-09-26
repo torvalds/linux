@@ -79,3 +79,4 @@ module_exit(exit_rc_map_anysee)
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Antti Palosaari <crope@iki.fi>");
+MODULE_DESCRIPTION("Anysee remote keytable");

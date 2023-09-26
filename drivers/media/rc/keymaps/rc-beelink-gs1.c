@@ -82,3 +82,4 @@ module_exit(exit_rc_map_beelink_gs1)
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Clément Péron <peron.clem@gmail.com>");
+MODULE_DESCRIPTION("Beelink GS1 remote controller keytable");

@@ -91,3 +91,4 @@ module_exit(exit_rc_map_wetek_play2)
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Christian Hewitt <christianshewitt@gmail.com");
+MODULE_DESCRIPTION("WeTek Play 2 STB remote controller keytable");

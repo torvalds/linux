@@ -73,3 +73,4 @@ module_exit(exit_rc_map_khamsin)
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Christian Hewitt <christianshewitt@gmail.com>");
+MODULE_DESCRIPTION("KHAMSIN remote controller keytable");

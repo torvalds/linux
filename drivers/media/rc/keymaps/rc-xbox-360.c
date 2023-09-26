@@ -81,3 +81,4 @@ module_init(init_rc_map)
 module_exit(exit_rc_map)
 
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Xbox 360 Universal Media remote controller keytable");
