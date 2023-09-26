@@ -507,7 +507,7 @@ static struct wm_table lpddr5_wm_table = {
 	}
 };
 
-static DpmClocks_t dummy_clocks;
+static DpmClocks_t_dcn35 dummy_clocks;
 
 static struct dcn35_watermarks dummy_wms = { 0 };
 
@@ -597,7 +597,7 @@ static void dcn35_notify_wm_ranges(struct clk_mgr *clk_mgr_base)
 static void dcn35_get_dpm_table_from_smu(struct clk_mgr_internal *clk_mgr,
 		struct dcn35_smu_dpm_clks *smu_dpm_clks)
 {
-	DpmClocks_t *table = smu_dpm_clks->dpm_clks;
+	DpmClocks_t_dcn35 *table = smu_dpm_clks->dpm_clks;
 
 	if (!clk_mgr->smu_ver)
 		return;
@@ -627,88 +627,158 @@ static uint32_t find_max_clk_value(const uint32_t clocks[], uint32_t num_clocks)
 	return max;
 }
 
-static unsigned int find_clk_for_voltage(
-		const DpmClocks_t *clock_table,
-		const uint32_t clocks[],
-		unsigned int voltage)
+static inline bool is_valid_clock_value(uint32_t clock_value)
 {
-	int i;
-	int max_voltage = 0;
-	int clock = 0;
+	return clock_value > 1 && clock_value < 100000;
+}
 
-	for (i = 0; i < NUM_SOC_VOLTAGE_LEVELS; i++) {
-		if (clock_table->SocVoltage[i] == voltage) {
-			return clocks[i];
-		} else if (clock_table->SocVoltage[i] >= max_voltage &&
-				clock_table->SocVoltage[i] < voltage) {
-			max_voltage = clock_table->SocVoltage[i];
-			clock = clocks[i];
-		}
+static unsigned int convert_wck_ratio(uint8_t wck_ratio)
+{
+	switch (wck_ratio) {
+	case WCK_RATIO_1_2:
+		return 2;
+
+	case WCK_RATIO_1_4:
+		return 4;
+	/* Find lowest DPM, FCLK is filled in reverse order*/
+
+	default:
+			break;
 	}
 
-	ASSERT(clock);
-	return clock;
+	return 1;
 }
 
 static void dcn35_clk_mgr_helper_populate_bw_params(struct clk_mgr_internal *clk_mgr,
 						    struct integrated_info *bios_info,
-						    const DpmClocks_t *clock_table)
+						    DpmClocks_t_dcn35 *clock_table)
 {
-	int i, j;
 	struct clk_bw_params *bw_params = clk_mgr->base.bw_params;
-	uint32_t max_dispclk = 0, max_dppclk = 0;
+	struct clk_limit_table_entry def_max = bw_params->clk_table.entries[bw_params->clk_table.num_entries - 1];
+	uint32_t max_pstate = 0,  max_uclk = 0, max_fclk = 0;
+	uint32_t min_pstate = 0, max_dispclk = 0, max_dppclk = 0;
+	int i;
 
-	j = -1;
-
-	ASSERT(NUM_DF_PSTATE_LEVELS <= MAX_NUM_DPM_LVL);
-
-	/* Find lowest DPM, FCLK is filled in reverse order*/
-
-	for (i = NUM_DF_PSTATE_LEVELS - 1; i >= 0; i--) {
-		if (clock_table->DfPstateTable[i].FClk != 0) {
-			j = i;
-			break;
+	for (i = 0; i < clock_table->NumMemPstatesEnabled; i++) {
+		if (is_valid_clock_value(clock_table->MemPstateTable[i].UClk) &&
+		    clock_table->MemPstateTable[i].UClk > max_uclk) {
+			max_uclk = clock_table->MemPstateTable[i].UClk;
+			max_pstate = i;
 		}
 	}
 
-	if (j == -1) {
-		/* clock table is all 0s, just use our own hardcode */
-		ASSERT(0);
-		return;
-	}
+	/* We expect the table to contain at least one valid Uclk entry. */
+	ASSERT(is_valid_clock_value(max_uclk));
 
-	bw_params->clk_table.num_entries = j + 1;
 
 	/* dispclk and dppclk can be max at any voltage, same number of levels for both */
 	if (clock_table->NumDispClkLevelsEnabled <= NUM_DISPCLK_DPM_LEVELS &&
 	    clock_table->NumDispClkLevelsEnabled <= NUM_DPPCLK_DPM_LEVELS) {
-		max_dispclk = find_max_clk_value(clock_table->DispClocks, clock_table->NumDispClkLevelsEnabled);
-		max_dppclk = find_max_clk_value(clock_table->DppClocks, clock_table->NumDispClkLevelsEnabled);
+		max_dispclk = find_max_clk_value(clock_table->DispClocks,
+			clock_table->NumDispClkLevelsEnabled);
+		max_dppclk = find_max_clk_value(clock_table->DppClocks,
+			clock_table->NumDispClkLevelsEnabled);
 	} else {
 		ASSERT(0);
 	}
+	if (clock_table->NumFclkLevelsEnabled <= NUM_FCLK_DPM_LEVELS)
+		max_fclk = find_max_clk_value(clock_table->FclkClocks_Freq,
+			clock_table->NumFclkLevelsEnabled);
 
-	for (i = 0; i < bw_params->clk_table.num_entries; i++, j--) {
-		bw_params->clk_table.entries[i].fclk_mhz = clock_table->DfPstateTable[j].FClk;
-		bw_params->clk_table.entries[i].memclk_mhz = clock_table->DfPstateTable[j].MemClk;
-		bw_params->clk_table.entries[i].voltage = clock_table->DfPstateTable[j].Voltage;
-		switch (clock_table->DfPstateTable[j].WckRatio) {
-		case WCK_RATIO_1_2:
-			bw_params->clk_table.entries[i].wck_ratio = 2;
-			break;
-		case WCK_RATIO_1_4:
-			bw_params->clk_table.entries[i].wck_ratio = 4;
-			break;
-		default:
-			bw_params->clk_table.entries[i].wck_ratio = 1;
+	for (i = 0; i < clock_table->NumMemPstatesEnabled; i++) {
+		uint32_t min_uclk = clock_table->MemPstateTable[0].UClk;
+		int j;
+
+		for (j = 1; j < clock_table->NumMemPstatesEnabled; j++) {
+			if (is_valid_clock_value(clock_table->MemPstateTable[j].UClk) &&
+			    clock_table->MemPstateTable[j].UClk < min_uclk &&
+			    clock_table->MemPstateTable[j].Voltage <= clock_table->SocVoltage[i]) {
+				min_uclk = clock_table->MemPstateTable[j].UClk;
+				min_pstate = j;
+			}
 		}
-		bw_params->clk_table.entries[i].dcfclk_mhz = find_clk_for_voltage(clock_table, clock_table->DcfClocks, clock_table->DfPstateTable[j].Voltage);
-		bw_params->clk_table.entries[i].socclk_mhz = find_clk_for_voltage(clock_table, clock_table->SocClocks, clock_table->DfPstateTable[j].Voltage);
+
+		for (j = bw_params->clk_table.num_entries - 1; j > 0; j--)
+			if (bw_params->clk_table.entries[j].dcfclk_mhz <= clock_table->DcfClocks[i])
+			break;
+
+		bw_params->clk_table.entries[i].phyclk_mhz = bw_params->clk_table.entries[j].phyclk_mhz;
+		bw_params->clk_table.entries[i].phyclk_d18_mhz = bw_params->clk_table.entries[j].phyclk_d18_mhz;
+		bw_params->clk_table.entries[i].dtbclk_mhz = bw_params->clk_table.entries[j].dtbclk_mhz;
+		bw_params->clk_table.entries[i].fclk_mhz = max_fclk;
+		bw_params->clk_table.entries[i].memclk_mhz = clock_table->MemPstateTable[min_pstate].MemClk;
+		bw_params->clk_table.entries[i].voltage = clock_table->MemPstateTable[min_pstate].Voltage;
+		bw_params->clk_table.entries[i].dcfclk_mhz = clock_table->DcfClocks[i];
+		bw_params->clk_table.entries[i].socclk_mhz = clock_table->SocClocks[i];
 		bw_params->clk_table.entries[i].dispclk_mhz = max_dispclk;
 		bw_params->clk_table.entries[i].dppclk_mhz = max_dppclk;
-	}
+		bw_params->clk_table.entries[i].wck_ratio = convert_wck_ratio(
+			clock_table->MemPstateTable[min_pstate].WckRatio);
+		}
 
+	/* Make sure to include at least one entry at highest pstate */
+	if (max_pstate != min_pstate || i == 0) {
+		if (i > MAX_NUM_DPM_LVL - 1)
+			i = MAX_NUM_DPM_LVL - 1;
+		bw_params->clk_table.entries[i].fclk_mhz = max_fclk;
+		bw_params->clk_table.entries[i].memclk_mhz = clock_table->MemPstateTable[max_pstate].MemClk;
+		bw_params->clk_table.entries[i].voltage = clock_table->MemPstateTable[max_pstate].Voltage;
+		bw_params->clk_table.entries[i].dcfclk_mhz =
+			find_max_clk_value(clock_table->DcfClocks, NUM_DCFCLK_DPM_LEVELS);
+		bw_params->clk_table.entries[i].socclk_mhz =
+			find_max_clk_value(clock_table->SocClocks, NUM_SOCCLK_DPM_LEVELS);
+		bw_params->clk_table.entries[i].dispclk_mhz = max_dispclk;
+		bw_params->clk_table.entries[i].dppclk_mhz = max_dppclk;
+		bw_params->clk_table.entries[i].wck_ratio = convert_wck_ratio(
+			clock_table->MemPstateTable[max_pstate].WckRatio);
+		i++;
+	}
+	bw_params->clk_table.num_entries = i--;
+
+	bw_params->clk_table.entries[i].socclk_mhz =
+		find_max_clk_value(clock_table->SocClocks, NUM_SOCCLK_DPM_LEVELS);
+	bw_params->clk_table.entries[i].dispclk_mhz =
+		find_max_clk_value(clock_table->DispClocks, NUM_DISPCLK_DPM_LEVELS);
+	bw_params->clk_table.entries[i].dppclk_mhz =
+		find_max_clk_value(clock_table->DppClocks, NUM_DPPCLK_DPM_LEVELS);
+	bw_params->clk_table.entries[i].fclk_mhz =
+		find_max_clk_value(clock_table->FclkClocks_Freq, NUM_FCLK_DPM_LEVELS);
+	ASSERT(clock_table->DcfClocks[i] == find_max_clk_value(clock_table->DcfClocks, NUM_DCFCLK_DPM_LEVELS));
+	bw_params->clk_table.entries[i].phyclk_mhz = def_max.phyclk_mhz;
+	bw_params->clk_table.entries[i].phyclk_d18_mhz = def_max.phyclk_d18_mhz;
+	bw_params->clk_table.entries[i].dtbclk_mhz = def_max.dtbclk_mhz;
+	bw_params->clk_table.num_entries_per_clk.num_dcfclk_levels = clock_table->NumDcfClkLevelsEnabled;
+	bw_params->clk_table.num_entries_per_clk.num_dispclk_levels = clock_table->NumDispClkLevelsEnabled;
+	bw_params->clk_table.num_entries_per_clk.num_dppclk_levels = clock_table->NumDispClkLevelsEnabled;
+	bw_params->clk_table.num_entries_per_clk.num_fclk_levels = clock_table->NumFclkLevelsEnabled;
+	bw_params->clk_table.num_entries_per_clk.num_memclk_levels = clock_table->NumMemPstatesEnabled;
+	bw_params->clk_table.num_entries_per_clk.num_socclk_levels = clock_table->NumSocClkLevelsEnabled;
+	for (i = 0; i < bw_params->clk_table.num_entries; i++) {
+		if (!bw_params->clk_table.entries[i].fclk_mhz) {
+			bw_params->clk_table.entries[i].fclk_mhz = def_max.fclk_mhz;
+			bw_params->clk_table.entries[i].memclk_mhz = def_max.memclk_mhz;
+			bw_params->clk_table.entries[i].voltage = def_max.voltage;
+		}
+		if (!bw_params->clk_table.entries[i].dcfclk_mhz)
+			bw_params->clk_table.entries[i].dcfclk_mhz = def_max.dcfclk_mhz;
+		if (!bw_params->clk_table.entries[i].socclk_mhz)
+			bw_params->clk_table.entries[i].socclk_mhz = def_max.socclk_mhz;
+		if (!bw_params->clk_table.entries[i].dispclk_mhz)
+			bw_params->clk_table.entries[i].dispclk_mhz = def_max.dispclk_mhz;
+		if (!bw_params->clk_table.entries[i].dppclk_mhz)
+			bw_params->clk_table.entries[i].dppclk_mhz = def_max.dppclk_mhz;
+		if (!bw_params->clk_table.entries[i].fclk_mhz)
+			bw_params->clk_table.entries[i].fclk_mhz = def_max.fclk_mhz;
+		if (!bw_params->clk_table.entries[i].phyclk_mhz)
+			bw_params->clk_table.entries[i].phyclk_mhz = def_max.phyclk_mhz;
+		if (!bw_params->clk_table.entries[i].phyclk_d18_mhz)
+			bw_params->clk_table.entries[i].phyclk_d18_mhz = def_max.phyclk_d18_mhz;
+		if (!bw_params->clk_table.entries[i].dtbclk_mhz)
+			bw_params->clk_table.entries[i].dtbclk_mhz = def_max.dtbclk_mhz;
+	}
+	ASSERT(bw_params->clk_table.entries[i-1].dcfclk_mhz);
 	bw_params->vram_type = bios_info->memory_type;
+	bw_params->dram_channel_width_bytes = bios_info->memory_type == 0x22 ? 8 : 4;
 	bw_params->num_channels = bios_info->ma_channel_number ? bios_info->ma_channel_number : 4;
 
 	for (i = 0; i < WM_SET_COUNT; i++) {
@@ -938,10 +1008,10 @@ void dcn35_clk_mgr_construct(
 	}
 	ASSERT(clk_mgr->smu_wm_set.wm_set);
 
-	smu_dpm_clks.dpm_clks = (DpmClocks_t *)dm_helpers_allocate_gpu_mem(
+	smu_dpm_clks.dpm_clks = (DpmClocks_t_dcn35 *)dm_helpers_allocate_gpu_mem(
 				clk_mgr->base.base.ctx,
 				DC_MEM_ALLOC_TYPE_FRAME_BUFFER,
-				sizeof(DpmClocks_t),
+				sizeof(DpmClocks_t_dcn35),
 				&smu_dpm_clks.mc_address.quad_part);
 
 	if (smu_dpm_clks.dpm_clks == NULL) {
@@ -988,14 +1058,16 @@ void dcn35_clk_mgr_construct(
 				   "NumDispClkLevelsEnabled: %d\n"
 				   "NumSocClkLevelsEnabled: %d\n"
 				   "VcnClkLevelsEnabled: %d\n"
-				   "NumDfPst atesEnabled: %d\n"
+				   "FClkLevelsEnabled: %d\n"
+				   "NumMemPstatesEnabled: %d\n"
 				   "MinGfxClk: %d\n"
 				   "MaxGfxClk: %d\n",
 				   smu_dpm_clks.dpm_clks->NumDcfClkLevelsEnabled,
 				   smu_dpm_clks.dpm_clks->NumDispClkLevelsEnabled,
 				   smu_dpm_clks.dpm_clks->NumSocClkLevelsEnabled,
 				   smu_dpm_clks.dpm_clks->VcnClkLevelsEnabled,
-				   smu_dpm_clks.dpm_clks->NumDfPstatesEnabled,
+				   smu_dpm_clks.dpm_clks->NumFclkLevelsEnabled,
+				   smu_dpm_clks.dpm_clks->NumMemPstatesEnabled,
 				   smu_dpm_clks.dpm_clks->MinGfxClk,
 				   smu_dpm_clks.dpm_clks->MaxGfxClk);
 		for (i = 0; i < smu_dpm_clks.dpm_clks->NumDcfClkLevelsEnabled; i++) {
@@ -1011,17 +1083,23 @@ void dcn35_clk_mgr_construct(
 			DC_LOG_SMU("smu_dpm_clks.dpm_clks->SocClocks[%d] = %d\n",
 					   i, smu_dpm_clks.dpm_clks->SocClocks[i]);
 		}
-		for (i = 0; i < NUM_SOC_VOLTAGE_LEVELS; i++)
+		for (i = 0; i < smu_dpm_clks.dpm_clks->NumFclkLevelsEnabled; i++) {
+			DC_LOG_SMU("smu_dpm_clks.dpm_clks->FclkClocks_Freq[%d] = %d\n",
+					   i, smu_dpm_clks.dpm_clks->FclkClocks_Freq[i]);
+			DC_LOG_SMU("smu_dpm_clks.dpm_clks->FclkClocks_Voltage[%d] = %d\n",
+					   i, smu_dpm_clks.dpm_clks->FclkClocks_Voltage[i]);
+		}
+		for (i = 0; i < smu_dpm_clks.dpm_clks->NumSocClkLevelsEnabled; i++)
 			DC_LOG_SMU("smu_dpm_clks.dpm_clks->SocVoltage[%d] = %d\n",
 					   i, smu_dpm_clks.dpm_clks->SocVoltage[i]);
 
-		for (i = 0; i < NUM_DF_PSTATE_LEVELS; i++) {
-			DC_LOG_SMU("smu_dpm_clks.dpm_clks.DfPstateTable[%d].FClk = %d\n"
-					   "smu_dpm_clks.dpm_clks->DfPstateTable[%d].MemClk= %d\n"
-					   "smu_dpm_clks.dpm_clks->DfPstateTable[%d].Voltage = %d\n",
-					   i, smu_dpm_clks.dpm_clks->DfPstateTable[i].FClk,
-					   i, smu_dpm_clks.dpm_clks->DfPstateTable[i].MemClk,
-					   i, smu_dpm_clks.dpm_clks->DfPstateTable[i].Voltage);
+		for (i = 0; i < smu_dpm_clks.dpm_clks->NumMemPstatesEnabled; i++) {
+			DC_LOG_SMU("smu_dpm_clks.dpm_clks.MemPstateTable[%d].UClk = %d\n"
+					   "smu_dpm_clks.dpm_clks->MemPstateTable[%d].MemClk= %d\n"
+					   "smu_dpm_clks.dpm_clks->MemPstateTable[%d].Voltage = %d\n",
+					   i, smu_dpm_clks.dpm_clks->MemPstateTable[i].UClk,
+					   i, smu_dpm_clks.dpm_clks->MemPstateTable[i].MemClk,
+					   i, smu_dpm_clks.dpm_clks->MemPstateTable[i].Voltage);
 		}
 
 		if (ctx->dc_bios && ctx->dc_bios->integrated_info && ctx->dc->config.use_default_clock_table == false) {

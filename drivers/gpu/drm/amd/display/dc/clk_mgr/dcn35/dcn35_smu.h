@@ -79,7 +79,9 @@ typedef struct {
 #define NUM_SOCCLK_DPM_LEVELS   8
 #define NUM_VCN_DPM_LEVELS      8
 #define NUM_SOC_VOLTAGE_LEVELS  8
-#define NUM_DF_PSTATE_LEVELS    4
+#define NUM_VPE_DPM_LEVELS        8
+#define NUM_FCLK_DPM_LEVELS       8
+#define NUM_MEM_PSTATE_LEVELS     4
 
 typedef enum{
   WCK_RATIO_1_1 = 0,  // DDR5, Wck:ck is always 1:1;
@@ -89,12 +91,12 @@ typedef enum{
 } WCK_RATIO_e;
 
 typedef struct {
-  uint32_t FClk;
+  uint32_t UClk;
   uint32_t MemClk;
   uint32_t Voltage;
   uint8_t  WckRatio;
   uint8_t  Spare[3];
-} DfPstateTable_t;
+} MemPstateTable_t;
 
 //Freq in MHz
 //Voltage in milli volts with 2 fractional bits
@@ -105,19 +107,37 @@ typedef struct {
   uint32_t SocClocks[NUM_SOCCLK_DPM_LEVELS];
   uint32_t VClocks[NUM_VCN_DPM_LEVELS];
   uint32_t DClocks[NUM_VCN_DPM_LEVELS];
+  uint32_t VPEClocks[NUM_VPE_DPM_LEVELS];
+  uint32_t FclkClocks_Freq[NUM_FCLK_DPM_LEVELS];
+  uint32_t FclkClocks_Voltage[NUM_FCLK_DPM_LEVELS];
   uint32_t SocVoltage[NUM_SOC_VOLTAGE_LEVELS];
-  DfPstateTable_t DfPstateTable[NUM_DF_PSTATE_LEVELS];
+  MemPstateTable_t MemPstateTable[NUM_MEM_PSTATE_LEVELS];
 
   uint8_t  NumDcfClkLevelsEnabled;
   uint8_t  NumDispClkLevelsEnabled; //Applies to both Dispclk and Dppclk
   uint8_t  NumSocClkLevelsEnabled;
   uint8_t  VcnClkLevelsEnabled;     //Applies to both Vclk and Dclk
-  uint8_t  NumDfPstatesEnabled;
-  uint8_t  spare[3];
+  uint8_t  VpeClkLevelsEnabled;
+  uint8_t  NumMemPstatesEnabled;
+  uint8_t  NumFclkLevelsEnabled;
+  uint8_t  spare[2];
 
   uint32_t MinGfxClk;
   uint32_t MaxGfxClk;
-} DpmClocks_t;
+} DpmClocks_t_dcn35;
+
+
+// Throttler Status Bitmask
+
+
+
+
+
+
+
+
+
+
 
 #define TABLE_BIOS_IF            0 // Called by BIOS
 #define TABLE_WATERMARKS         1 // Called by DAL through VBIOS
@@ -139,7 +159,7 @@ struct dcn35_watermarks {
 };
 
 struct dcn35_smu_dpm_clks {
-	DpmClocks_t *dpm_clks;
+	DpmClocks_t_dcn35 *dpm_clks;
 	union large_integer mc_address;
 };
 
