@@ -60,6 +60,8 @@
 
 #define GVT_MAX_VGPU 8
 
+struct engine_mmio;
+
 /* Describe per-platform limitations. */
 struct intel_gvt_device_info {
 	u32 max_support_vgpus;
