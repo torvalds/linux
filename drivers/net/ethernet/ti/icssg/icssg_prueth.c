@@ -317,9 +317,7 @@ static int prueth_init_tx_chns(struct prueth_emac *emac)
 		}
 
 		ret = k3_udma_glue_tx_get_irq(tx_chn->tx_chn);
-		if (ret <= 0) {
-			if (!ret)
-				ret = -EINVAL;
+		if (ret < 0) {
 			netdev_err(ndev, "failed to get tx irq\n");
 			goto fail;
 		}
