@@ -511,6 +511,13 @@ static void dg1_irq_reset(struct xe_tile *tile)
 	mask_and_disable(tile, PCU_IRQ_OFFSET);
 }
 
+static void dg1_irq_reset_mstr(struct xe_tile *tile)
+{
+	struct xe_gt *mmio = tile->primary_gt;
+
+	xe_mmio_write32(mmio, GFX_MSTR_IRQ, ~0);
+}
+
 static void xe_irq_reset(struct xe_device *xe)
 {
 	struct xe_tile *tile;
@@ -525,6 +532,16 @@ static void xe_irq_reset(struct xe_device *xe)
 
 	tile = xe_device_get_root_tile(xe);
 	mask_and_disable(tile, GU_MISC_IRQ_OFFSET);
+
+	/*
+	 * The tile's top-level status register should be the last one
+	 * to be reset to avoid possible bit re-latching from lower
+	 * level interrupts.
+	 */
+	if (GRAPHICS_VERx100(xe) >= 1210) {
+		for_each_tile(tile, xe, id)
+			dg1_irq_reset_mstr(tile);
+	}
 }
 
 static void xe_irq_postinstall(struct xe_device *xe)
