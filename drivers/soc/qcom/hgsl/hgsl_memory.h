@@ -38,6 +38,7 @@ struct hgsl_mem_node {
 	void                      *vmapping;
 	uint32_t                  vmap_count;
 	uint32_t                  flags;
+	bool                      default_iocoherency;
 	char                      metainfo[HGSL_MEM_META_MAX_SIZE];
 };
 
