@@ -60,14 +60,14 @@ static const struct aspeed_rst_soc_data ast2600_reset_data = {
 	.num_resets = 64,
 };
 
-static const struct aspeed_rst_soc_data ast2700_cpu_reset_data = {
+static const struct aspeed_rst_soc_data ast2700_soc0_reset_data = {
 	.ctrl2_offset = 0x20,
-	.num_resets = ASPEED_CPU_RESET_NUMS,
+	.num_resets = ASPEED_SOC0_RESET_NUMS,
 };
 
-static const struct aspeed_rst_soc_data ast2700_io_reset_data = {
+static const struct aspeed_rst_soc_data ast2700_soc1_reset_data = {
 	.ctrl2_offset = 0x20,
-	.num_resets = ASPEED_IO_RESET_NUMS,
+	.num_resets = ASPEED_SOC1_RESET_NUMS,
 };
 
 static const struct reset_control_ops aspeed_reset_ops = {
@@ -78,9 +78,9 @@ static const struct reset_control_ops aspeed_reset_ops = {
 
 static const struct of_device_id aspeed_reset_dt_ids[] = {
 	{ .compatible = "aspeed,ast2600-reset", .data = &ast2600_reset_data, },
-	{ .compatible = "aspeed,ast2700-cpu-reset", .data = &ast2700_cpu_reset_data, },
-	{ .compatible = "aspeed,ast2700-io-reset", .data = &ast2700_io_reset_data, },
-	{ .compatible = "aspeed,ast1700-reset", .data = &ast2700_io_reset_data, },
+	{ .compatible = "aspeed,ast2700-soc0-reset", .data = &ast2700_soc0_reset_data, },
+	{ .compatible = "aspeed,ast2700-soc1-reset", .data = &ast2700_soc1_reset_data, },
+	{ .compatible = "aspeed,ast1700-reset", .data = &ast2700_soc1_reset_data, },
 	{ },
 };
 

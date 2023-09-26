@@ -128,7 +128,7 @@
 			compatible = "aspeed,ast2700-usb-vhub";
 			reg = <0x0 0x12011000 0x0 0x350>;
 			interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&cpu_clk AST2700_CPU_CLK_GATE_USB0CLK>;
+			clocks = <&soc0_clk AST2700_SOC0_CLK_GATE_USB0CLK>;
 			aspeed,vhub-downstream-ports = <7>;
 			aspeed,vhub-generic-endpoints = <21>;
 			status = "disabled";
@@ -146,7 +146,7 @@
 			reg = <0x0 0x12040000 0x0 0x100>;
 			interrupts = <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>;
 			#ports = <2>;
-			clocks = <&cpu_clk AST2700_CPU_CLK_GATE_USB0CLK>;
+			clocks = <&soc0_clk AST2700_SOC0_CLK_GATE_USB0CLK>;
 			status = "disabled";
 		};
 
@@ -154,7 +154,7 @@
 			compatible = "aspeed,ast2700-usb-vhub";
 			reg = <0x0 0x12060000 0x0 0x350>;
 			interrupts = <GIC_SPI 33 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&cpu_clk AST2700_CPU_CLK_GATE_USB0CLK>;
+			clocks = <&soc0_clk AST2700_SOC0_CLK_GATE_USB0CLK>;
 			aspeed,vhub-downstream-ports = <7>;
 			aspeed,vhub-generic-endpoints = <21>;
 			status = "disabled";
@@ -164,19 +164,19 @@
 			compatible = "aspeed,ast2700-ehci", "generic-ehci";
 			reg = <0x0 0x12061000 0x0 0x100>;
 			interrupts = <GIC_SPI 33 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&cpu_clk AST2700_CPU_CLK_GATE_USB0CLK>;
+			clocks = <&soc0_clk AST2700_SOC0_CLK_GATE_USB0CLK>;
 			status = "disabled";
 		};
 
 		rsss: crypto@12080000 {
 			compatible = "aspeed,ast2700-rsss";
 			reg = <0x0 0x12080000 0 0x1000>;
-			clocks = <&cpu_clk AST2700_CPU_CLK_GATE_RSACLK>;
+			clocks = <&soc0_clk AST2700_SOC0_CLK_GATE_RSACLK>;
 			interrupts = <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH>;
-			resets = <&cpu_rst ASPEED_RESET_RSA>,
-				 <&cpu_rst ASPEED_RESET_SHA3>,
-				 <&cpu_rst ASPEED_RESET_SM3>,
-				 <&cpu_rst ASPEED_RESET_SM4>;
+			resets = <&soc0_rst ASPEED_RESET_RSA>,
+				 <&soc0_rst ASPEED_RESET_SHA3>,
+				 <&soc0_rst ASPEED_RESET_SM3>,
+				 <&soc0_rst ASPEED_RESET_SM4>;
 			reset-names = "rsa", "sha3", "sm3", "sm4";
 			status = "disabled";
 		};
@@ -187,8 +187,8 @@
 			#address-cells = <2>;
 			#size-cells = <2>;
 			ranges = <0 0 0 0x12090000 0 0x10000>;
-			clocks = <&cpu_clk AST2700_CPU_CLK_GATE_EMMCCLK>;
-			resets = <&cpu_rst ASPEED_RESET_EMMC>;
+			clocks = <&soc0_clk AST2700_SOC0_CLK_GATE_EMMCCLK>;
+			resets = <&soc0_rst ASPEED_RESET_EMMC>;
 			status = "disable";
 
 			emmc: sdhci@12090100 {
@@ -196,7 +196,7 @@
 				reg = <0 0x100 0 0x100>;
 				sdhci,auto-cmd12;
 				interrupts = <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>;
-				clocks = <&cpu_clk AST2700_CPU_CLK_GATE_EMMCCLK>;
+				clocks = <&soc0_clk AST2700_SOC0_CLK_GATE_EMMCCLK>;
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_emmc_default>;
 				status = "disable";
@@ -209,8 +209,8 @@
 			#address-cells = <2>;
 			#size-cells = <2>;
 			ranges = <0 0 0 0x12c08000 0 0x300>;
-			clocks = <&cpu_clk AST2700_CPU_CLK_GATE_UFSCLK>;
-			resets = <&cpu_rst ASPEED_RESET_UFS>;
+			clocks = <&soc0_clk AST2700_SOC0_CLK_GATE_UFSCLK>;
+			resets = <&soc0_rst ASPEED_RESET_UFS>;
 			status = "disable";
 
 			ufs: ufshc@12c08200 {
@@ -346,20 +346,20 @@
 				interrupt-controller;
 			};
 
-			cpu_rst: reset-controller@200 {
-				compatible = "aspeed,ast2700-cpu-reset";
+			soc0_rst: reset-controller@200 {
+				compatible = "aspeed,ast2700-soc0-reset";
 				reg = <0 0x200 0 0x40>;
 				#reset-cells = <1>;
 			};
 
-			cpu_clk: clock-controller@240 {
-				compatible = "aspeed,ast2700_cpu-clk";
+			soc0_clk: clock-controller@240 {
+				compatible = "aspeed,ast2700-soc0-clk";
 				reg = <0 0x240 0 0x1c0>;
 				#clock-cells = <1>;
 			};
 
 			pinctrl0: pinctrl@400 {
-				compatible = "aspeed,ast2700-cpu-pinctrl";
+				compatible = "aspeed,ast2700-soc0-pinctrl";
 				reg = <0 0x400 0 0x100>;
 			};
 		};
@@ -389,7 +389,7 @@
 			reg = <0x0 0x12c06000 0x0 0x40>;
 			interrupts-extended = <&gic GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>, <&scu_ic0 ASPEED_AST2700_SCU_IC0_PCIE_PERST_LO_TO_HI>;
 			interrupt-names = "mctp", "pcie";
-			resets = <&cpu_rst ASPEED_RESET_MCTP0>;
+			resets = <&soc0_rst ASPEED_RESET_MCTP0>;
 			aspeed,scu = <&syscon0>;
 			aspeed,pcieh = <&pcie_phy0>;
 			status = "disabled";
@@ -400,7 +400,7 @@
 			reg = <0x0 0x12c07000 0x0 0x40>;
 			interrupts-extended = <&gic GIC_SPI 25 IRQ_TYPE_LEVEL_HIGH>, <&scu_ic1 ASPEED_AST2700_SCU_IC1_PCIE_RCRST_LO_TO_HI>;
 			interrupt-names = "mctp", "pcie";
-			resets = <&cpu_rst ASPEED_RESET_MCTP1>;
+			resets = <&soc0_rst ASPEED_RESET_MCTP1>;
 			aspeed,scu = <&syscon0>;
 			aspeed,pcieh = <&pcie_phy1>;
 			status = "disabled";
@@ -427,7 +427,7 @@
 			compatible = "aspeed,ast2600-uart";
 			reg = <0x0 0x12c18000 0x0 0x40>;
 			interrupts = <GIC_SPI 80 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&cpu_clk AST2700_CPU_CLK_APB>;
+			clocks = <&soc0_clk AST2700_SOC0_CLK_APB>;
 			virtual;
 			status = "disabled";
 		};
@@ -436,7 +436,7 @@
 			compatible = "aspeed,ast2600-uart";
 			reg = <0x0 0x12c18100 0x0 0x40>;
 			interrupts = <GIC_SPI 81 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&cpu_clk AST2700_CPU_CLK_APB>;
+			clocks = <&soc0_clk AST2700_SOC0_CLK_APB>;
 			virtual;
 			status = "disabled";
 		};
@@ -445,7 +445,7 @@
 			compatible = "aspeed,ast2600-uart";
 			reg = <0x0 0x12c18200 0x0 0x40>;
 			interrupts = <GIC_SPI 93 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&cpu_clk AST2700_CPU_CLK_APB>;
+			clocks = <&soc0_clk AST2700_SOC0_CLK_APB>;
 			virtual;
 			status = "disabled";
 		};
@@ -454,7 +454,7 @@
 			compatible = "aspeed,ast2600-uart";
 			reg = <0x0 0x12c18300 0x0 0x40>;
 			interrupts = <GIC_SPI 94 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&cpu_clk AST2700_CPU_CLK_APB>;
+			clocks = <&soc0_clk AST2700_SOC0_CLK_APB>;
 			virtual;
 			status = "disabled";
 		};
@@ -582,7 +582,7 @@
 			compatible = "ns16550a";
 			reg = <0x0 0x12c1a000 0x0 0x1000>;
 			reg-shift = <2>;
-			clocks = <&cpu_clk AST2700_CPU_CLK_GATE_UART4CLK>;
+			clocks = <&soc0_clk AST2700_SOC0_CLK_GATE_UART4CLK>;
 			interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>;
 			no-loopback-test;
 			status = "disabled";
@@ -592,8 +592,8 @@
 			compatible = "aspeed,ast2700-jtag";
 			reg= <0x0 0x12c20000 0x0 0x40>;
 			interrupts = <GIC_SPI 27 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&cpu_clk AST2700_CPU_CLK_APB>;
-			resets = <&cpu_rst ASPEED_RESET_JTAG0>;
+			clocks = <&soc0_clk AST2700_SOC0_CLK_APB>;
+			resets = <&soc0_rst ASPEED_RESET_JTAG0>;
 			status = "disabled";
 		};
 
@@ -611,19 +611,19 @@
 			compatible = "aspeed,ast2700-hace";
 			reg = <0x0 0x12070000 0x0 0x200>;
 			interrupts = <GIC_SPI 4 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&cpu_clk AST2700_CPU_CLK_GATE_YCLK>;
-			resets = <&cpu_rst ASPEED_RESET_HACE>;
+			clocks = <&soc0_clk AST2700_SOC0_CLK_GATE_YCLK>;
+			resets = <&soc0_rst ASPEED_RESET_HACE>;
 			status = "disabled";
 		};
 
 		video0: video@120a0000 {
 			compatible = "aspeed,ast2700-video-engine";
 			reg = <0x0 0x120a0000 0x0 0x1000>;
-			clocks = <&cpu_clk AST2700_CPU_CLK_GATE_VCLK>,
-				 <&cpu_clk AST2700_CPU_CLK_GATE_ECLK>;
+			clocks = <&soc0_clk AST2700_SOC0_CLK_GATE_VCLK>,
+				 <&soc0_clk AST2700_SOC0_CLK_GATE_ECLK>;
 			clock-names = "vclk", "eclk";
 			interrupts = <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>;
-			resets = <&cpu_rst ASPEED_RESET_VIDEO>;
+			resets = <&soc0_rst ASPEED_RESET_VIDEO>;
 			aspeed,scu = <&syscon0>;
 			status = "disabled";
 		};
@@ -631,11 +631,11 @@
 		video1: video@120a1000 {
 			compatible = "aspeed,ast2700-video-engine";
 			reg = <0x0 0x120a1000 0x0 0x1000>;
-			clocks = <&cpu_clk AST2700_CPU_CLK_GATE_VCLK>,
-				 <&cpu_clk AST2700_CPU_CLK_GATE_ECLK>;
+			clocks = <&soc0_clk AST2700_SOC0_CLK_GATE_VCLK>,
+				 <&soc0_clk AST2700_SOC0_CLK_GATE_ECLK>;
 			clock-names = "vclk", "eclk";
 			interrupts = <GIC_SPI 114 IRQ_TYPE_LEVEL_HIGH>;
-			resets = <&cpu_rst ASPEED_RESET_VIDEO>;
+			resets = <&soc0_rst ASPEED_RESET_VIDEO>;
 			aspeed,scu = <&syscon0>;
 			status = "disabled";
 		};
@@ -643,8 +643,8 @@
 		xdma0: xdma@12c04000 {
 			compatible = "aspeed,ast2700-xdma";
 			reg = <0x0 0x12c04000 0x0 0x100>;
-			clocks = <&cpu_clk AST2700_CPU_CLK_GATE_BCLK>;
-			resets = <&cpu_rst ASPEED_RESET_XDMA0>;
+			clocks = <&soc0_clk AST2700_SOC0_CLK_GATE_BCLK>;
+			resets = <&soc0_rst ASPEED_RESET_XDMA0>;
 			reset-names = "device";
 			interrupts-extended = <&gic GIC_SPI 5 IRQ_TYPE_LEVEL_HIGH>,
 					      <&scu_ic0 ASPEED_AST2700_SCU_IC0_PCIE_PERST_LO_TO_HI>;
@@ -656,8 +656,8 @@
 		xdma1: xdma@12c05000 {
 			compatible = "aspeed,ast2700-xdma";
 			reg = <0x0 0x12c05000 0x0 0x100>;
-			clocks = <&cpu_clk AST2700_CPU_CLK_GATE_BCLK>;
-			resets = <&cpu_rst ASPEED_RESET_XDMA1>;
+			clocks = <&soc0_clk AST2700_SOC0_CLK_GATE_BCLK>;
+			resets = <&soc0_rst ASPEED_RESET_XDMA1>;
 			reset-names = "device";
 			interrupts-extended = <&gic GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>,
 					      <&scu_ic1 ASPEED_AST2700_SCU_IC1_PCIE_RCRST_LO_TO_HI>;
@@ -679,7 +679,7 @@
 			#size-cells = <0>;
 			compatible = "aspeed,ast2700-fmc";
 			status = "disabled";
-			clocks = <&io_clk AST2700_IO_CLK_AHB>;
+			clocks = <&soc1_clk AST2700_SOC1_CLK_AHB>;
 			num-cs = <3>;
 
 			flash@0 {
@@ -712,7 +712,7 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			compatible = "aspeed,ast2700-spi";
-			clocks = <&io_clk AST2700_IO_CLK_AHB>;
+			clocks = <&soc1_clk AST2700_SOC1_CLK_AHB>;
 			status = "disabled";
 			num-cs = <2>;
 
@@ -738,7 +738,7 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			compatible = "aspeed,ast2700-spi";
-			clocks = <&io_clk AST2700_IO_CLK_AHB>;
+			clocks = <&soc1_clk AST2700_SOC1_CLK_AHB>;
 			status = "disabled";
 			num-cs = <3>;
 
@@ -768,28 +768,28 @@
 			mdio0: mdio@0 {
 				compatible = "aspeed,ast2700-mdio";
 				reg = <0 0 0 0x8>;
-				resets = <&io_rst ASPEED_RESET_MII>;
+				resets = <&soc1_rst ASPEED_RESET_MII>;
 				status = "disabled";
 			};
 
 			mdio1: mdio@8 {
 				compatible = "aspeed,ast2700-mdio";
 				reg = <0 0x8 0 0x8>;
-				resets = <&io_rst ASPEED_RESET_MII>;
+				resets = <&soc1_rst ASPEED_RESET_MII>;
 				status = "disabled";
 			};
 
 			mdio2: mdio@10 {
 				compatible = "aspeed,ast2700-mdio";
 				reg = <0 0x10 0 0x8>;
-				resets = <&io_rst ASPEED_RESET_MII>;
+				resets = <&soc1_rst ASPEED_RESET_MII>;
 				status = "disabled";
 			};
 
 			mdio3: mdio@18 {
 				compatible = "aspeed,ast2700-mdio";
 				reg = <0 0x18 0 0x8>;
-				resets = <&io_rst ASPEED_RESET_MII>;
+				resets = <&soc1_rst ASPEED_RESET_MII>;
 				status = "disabled";
 			};
 		};
@@ -800,8 +800,8 @@
 			interrupt-parent = <&intc4>;
 			interrupts-extended = <&intc4 0>;
 
-			clocks = <&io_clk AST2700_IO_CLK_GATE_MAC0CLK>;
-			resets = <&io_rst ASPEED_RESET_MAC0>;
+			clocks = <&soc1_clk AST2700_SOC1_CLK_GATE_MAC0CLK>;
+			resets = <&soc1_rst ASPEED_RESET_MAC0>;
 			status = "disabled";
 		};
 
@@ -811,8 +811,8 @@
 			interrupt-parent = <&intc4>;
 			interrupts-extended = <&intc4 1>;
 
-			clocks = <&io_clk AST2700_IO_CLK_GATE_MAC1CLK>;
-			resets = <&io_rst ASPEED_RESET_MAC1>;
+			clocks = <&soc1_clk AST2700_SOC1_CLK_GATE_MAC1CLK>;
+			resets = <&soc1_rst ASPEED_RESET_MAC1>;
 			status = "disabled";
 		};
 
@@ -822,8 +822,8 @@
 			interrupt-parent = <&intc4>;
 			interrupts-extended = <&intc4 2>;
 
-			clocks = <&io_clk AST2700_IO_CLK_GATE_MAC2CLK>;
-			resets = <&io_rst ASPEED_RESET_MAC2>;
+			clocks = <&soc1_clk AST2700_SOC1_CLK_GATE_MAC2CLK>;
+			resets = <&soc1_rst ASPEED_RESET_MAC2>;
 			status = "disabled";
 		};
 
@@ -833,8 +833,8 @@
 			#address-cells = <2>;
 			#size-cells = <2>;
 			ranges = <0 0 0 0x14080000 0 0x10000>;
-			clocks = <&io_clk AST2700_IO_CLK_GATE_SDCLK>;
-			resets = <&io_rst ASPEED_RESET_SD>;
+			clocks = <&soc1_clk AST2700_SOC1_CLK_GATE_SDCLK>;
+			resets = <&soc1_rst ASPEED_RESET_SD>;
 			status = "disable";
 
 			sdhci: sdhci@14080100 {
@@ -843,7 +843,7 @@
 				sdhci,auto-cmd12;
 				interrupt-parent = <&intc5>;
 				interrupts-extended = <&intc5 1>;
-				clocks = <&io_clk AST2700_IO_CLK_GATE_SDCLK>;
+				clocks = <&soc1_clk AST2700_SOC1_CLK_GATE_SDCLK>;
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_sd_default>;
 				status = "disable";
@@ -857,20 +857,20 @@
 			#address-cells = <2>;
 			#size-cells = <2>;
 
-			io_rst: reset-controller@14c02200 {
-				compatible = "aspeed,ast2700-io-reset";
+			soc1_rst: reset-controller@14c02200 {
+				compatible = "aspeed,ast2700-soc1-reset";
 				reg = <0 0x200 0 0x40>;
 				#reset-cells = <1>;
 			};
 
-			io_clk: clock-controller@200 {
-				compatible = "aspeed,ast2700_io-clk";
+			soc1_clk: clock-controller@200 {
+				compatible = "aspeed,ast2700-soc1-clk";
 				reg = <0 0x240 0 0x1c0>;
 				#clock-cells = <1>;
 			};
 
 			pinctrl1: pinctrl@400 {
-				compatible = "aspeed,ast2700-io-pinctrl";
+				compatible = "aspeed,ast2700-soc1-pinctrl";
 				reg = <0x0 0x400 0x0 0x100>;
 			};
 		};
@@ -879,8 +879,8 @@
 			compatible = "aspeed,ast2700-espi";
 			reg = <0 0x14c05000 0 0x1000>;
 			interrupts-extended = <&intc0 10>, <&intc0 16>;
-			clocks = <&io_clk AST2700_IO_CLK_GATE_ESPI0CLK>;
-			resets = <&io_rst ASPEED_RESET_ESPI0>;
+			clocks = <&soc1_clk AST2700_SOC1_CLK_GATE_ESPI0CLK>;
+			resets = <&soc1_rst ASPEED_RESET_ESPI0>;
 			pinctrl-names = "default";
 			pinctrl-1 = <&pinctrl_espi0_default>;
 			status = "disabled";
@@ -890,8 +890,8 @@
 			compatible = "aspeed,ast2700-espi";
 			reg = <0 0x14c06000 0 0x1000>;
 			interrupts-extended = <&intc1 10>, <&intc1 16>;
-			clocks = <&io_clk AST2700_IO_CLK_GATE_ESPI1CLK>;
-			resets = <&io_rst ASPEED_RESET_ESPI1>;
+			clocks = <&soc1_clk AST2700_SOC1_CLK_GATE_ESPI1CLK>;
+			resets = <&soc1_rst ASPEED_RESET_ESPI1>;
 			pinctrl-names = "default";
 			pinctrl-1 = <&pinctrl_espi1_default>;
 			status = "disabled";
@@ -901,8 +901,8 @@
 			compatible = "aspeed,ast2700-jtag";
 			reg= <0x0 0x14c09000 0x0 0x40>;
 			interrupts-extended = <&intc5 2>;
-			clocks = <&io_clk AST2700_IO_CLK_AHB>;
-			resets = <&io_rst ASPEED_RESET_JTAG1>;
+			clocks = <&soc1_clk AST2700_SOC1_CLK_AHB>;
+			resets = <&soc1_rst ASPEED_RESET_JTAG1>;
 			status = "disabled";
 		};
 
@@ -914,7 +914,7 @@
 			interrupts-extended = <&intc2 18>;
 			gpio-ranges = <&pinctrl1 0 0 216>;
 			ngpios = <216>;
-			clocks = <&io_clk AST2700_IO_CLK_AHB>;
+			clocks = <&soc1_clk AST2700_SOC1_CLK_AHB>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
 		};
@@ -932,8 +932,8 @@
 			#size-cells = <0>;
 			reg = <0x0 0x14c20000 0x0 0x1000>;
 			interrupts-extended = <&intc3 0>;
-			clocks = <&io_clk AST2700_IO_CLK_GATE_I3C0CLK>;
-			resets = <&io_rst ASPEED_RESET_I3C0>;
+			clocks = <&soc1_clk AST2700_SOC1_CLK_GATE_I3C0CLK>;
+			resets = <&soc1_rst ASPEED_RESET_I3C0>;
 			status = "disabled";
 		};
 
@@ -943,8 +943,8 @@
 			#size-cells = <0>;
 			reg = <0x0 0x14c21000 0x0 0x1000>;
 			interrupts-extended = <&intc3 1>;
-			clocks = <&io_clk AST2700_IO_CLK_GATE_I3C1CLK>;
-			resets = <&io_rst ASPEED_RESET_I3C1>;
+			clocks = <&soc1_clk AST2700_SOC1_CLK_GATE_I3C1CLK>;
+			resets = <&soc1_rst ASPEED_RESET_I3C1>;
 			status = "disabled";
 		};
 
@@ -954,8 +954,8 @@
 			#size-cells = <0>;
 			reg = <0x0 0x14c22000 0x0 0x1000>;
 			interrupts-extended = <&intc3 2>;
-			clocks = <&io_clk AST2700_IO_CLK_GATE_I3C2CLK>;
-			resets = <&io_rst ASPEED_RESET_I3C2>;
+			clocks = <&soc1_clk AST2700_SOC1_CLK_GATE_I3C2CLK>;
+			resets = <&soc1_rst ASPEED_RESET_I3C2>;
 			status = "disabled";
 		};
 
@@ -965,8 +965,8 @@
 			#size-cells = <0>;
 			reg = <0x0 0x14c23000 0x0 0x1000>;
 			interrupts-extended = <&intc3 3>;
-			clocks = <&io_clk AST2700_IO_CLK_GATE_I3C3CLK>;
-			resets = <&io_rst ASPEED_RESET_I3C3>;
+			clocks = <&soc1_clk AST2700_SOC1_CLK_GATE_I3C3CLK>;
+			resets = <&soc1_rst ASPEED_RESET_I3C3>;
 			status = "disabled";
 		};
 
@@ -976,8 +976,8 @@
 			#size-cells = <0>;
 			reg = <0x0 0x14c24000 0x0 0x1000>;
 			interrupts-extended = <&intc3 4>;
-			clocks = <&io_clk AST2700_IO_CLK_GATE_I3C4CLK>;
-			resets = <&io_rst ASPEED_RESET_I3C4>;
+			clocks = <&soc1_clk AST2700_SOC1_CLK_GATE_I3C4CLK>;
+			resets = <&soc1_rst ASPEED_RESET_I3C4>;
 			status = "disabled";
 		};
 
@@ -987,8 +987,8 @@
 			#size-cells = <0>;
 			reg = <0x0 0x14c25000 0x0 0x1000>;
 			interrupts-extended = <&intc3 5>;
-			clocks = <&io_clk AST2700_IO_CLK_GATE_I3C5CLK>;
-			resets = <&io_rst ASPEED_RESET_I3C5>;
+			clocks = <&soc1_clk AST2700_SOC1_CLK_GATE_I3C5CLK>;
+			resets = <&soc1_rst ASPEED_RESET_I3C5>;
 			status = "disabled";
 		};
 
@@ -998,8 +998,8 @@
 			#size-cells = <0>;
 			reg = <0x0 0x14c26000 0x0 0x1000>;
 			interrupts-extended = <&intc3 6>;
-			clocks = <&io_clk AST2700_IO_CLK_GATE_I3C6CLK>;
-			resets = <&io_rst ASPEED_RESET_I3C6>;
+			clocks = <&soc1_clk AST2700_SOC1_CLK_GATE_I3C6CLK>;
+			resets = <&soc1_rst ASPEED_RESET_I3C6>;
 			status = "disabled";
 		};
 
@@ -1009,8 +1009,8 @@
 			#size-cells = <0>;
 			reg = <0x0 0x14c27000 0x0 0x1000>;
 			interrupts-extended = <&intc3 7>;
-			clocks = <&io_clk AST2700_IO_CLK_GATE_I3C7CLK>;
-			resets = <&io_rst ASPEED_RESET_I3C7>;
+			clocks = <&soc1_clk AST2700_SOC1_CLK_GATE_I3C7CLK>;
+			resets = <&soc1_rst ASPEED_RESET_I3C7>;
 			status = "disabled";
 		};
 
@@ -1020,8 +1020,8 @@
 			#size-cells = <0>;
 			reg = <0x0 0x14c28000 0x0 0x1000>;
 			interrupts-extended = <&intc3 8>;
-			clocks = <&io_clk AST2700_IO_CLK_GATE_I3C8CLK>;
-			resets = <&io_rst ASPEED_RESET_I3C8>;
+			clocks = <&soc1_clk AST2700_SOC1_CLK_GATE_I3C8CLK>;
+			resets = <&soc1_rst ASPEED_RESET_I3C8>;
 			status = "disabled";
 		};
 
@@ -1031,8 +1031,8 @@
 			#size-cells = <0>;
 			reg = <0x0 0x14c29000 0x0 0x1000>;
 			interrupts-extended = <&intc3 9>;
-			clocks = <&io_clk AST2700_IO_CLK_GATE_I3C9CLK>;
-			resets = <&io_rst ASPEED_RESET_I3C9>;
+			clocks = <&soc1_clk AST2700_SOC1_CLK_GATE_I3C9CLK>;
+			resets = <&soc1_rst ASPEED_RESET_I3C9>;
 			status = "disabled";
 		};
 
@@ -1042,8 +1042,8 @@
 			#size-cells = <0>;
 			reg = <0x0 0x14c2a000 0x0 0x1000>;
 			interrupts-extended = <&intc3 10>;
-			clocks = <&io_clk AST2700_IO_CLK_GATE_I3C10CLK>;
-			resets = <&io_rst ASPEED_RESET_I3C10>;
+			clocks = <&soc1_clk AST2700_SOC1_CLK_GATE_I3C10CLK>;
+			resets = <&soc1_rst ASPEED_RESET_I3C10>;
 			status = "disabled";
 		};
 
@@ -1053,8 +1053,8 @@
 			#size-cells = <0>;
 			reg = <0x0 0x14c2b000 0x0 0x1000>;
 			interrupts-extended = <&intc3 11>;
-			clocks = <&io_clk AST2700_IO_CLK_GATE_I3C11CLK>;
-			resets = <&io_rst ASPEED_RESET_I3C11>;
+			clocks = <&soc1_clk AST2700_SOC1_CLK_GATE_I3C11CLK>;
+			resets = <&soc1_rst ASPEED_RESET_I3C11>;
 			status = "disabled";
 		};
 
@@ -1064,8 +1064,8 @@
 			#size-cells = <0>;
 			reg = <0x0 0x14c2c000 0x0 0x1000>;
 			interrupts-extended = <&intc3 12>;
-			clocks = <&io_clk AST2700_IO_CLK_GATE_I3C12CLK>;
-			resets = <&io_rst ASPEED_RESET_I3C12>;
+			clocks = <&soc1_clk AST2700_SOC1_CLK_GATE_I3C12CLK>;
+			resets = <&soc1_rst ASPEED_RESET_I3C12>;
 			status = "disabled";
 		};
 
@@ -1075,8 +1075,8 @@
 			#size-cells = <0>;
 			reg = <0x0 0x14c2d000 0x0 0x1000>;
 			interrupts-extended = <&intc3 13>;
-			clocks = <&io_clk AST2700_IO_CLK_GATE_I3C13CLK>;
-			resets = <&io_rst ASPEED_RESET_I3C13>;
+			clocks = <&soc1_clk AST2700_SOC1_CLK_GATE_I3C13CLK>;
+			resets = <&soc1_rst ASPEED_RESET_I3C13>;
 			status = "disabled";
 		};
 
@@ -1086,8 +1086,8 @@
 			#size-cells = <0>;
 			reg = <0x0 0x14c2e000 0x0 0x1000>;
 			interrupts-extended = <&intc3 14>;
-			clocks = <&io_clk AST2700_IO_CLK_GATE_I3C14CLK>;
-			resets = <&io_rst ASPEED_RESET_I3C14>;
+			clocks = <&soc1_clk AST2700_SOC1_CLK_GATE_I3C14CLK>;
+			resets = <&soc1_rst ASPEED_RESET_I3C14>;
 			status = "disabled";
 		};
 
@@ -1097,8 +1097,8 @@
 			#size-cells = <0>;
 			reg = <0x0 0x14c2f000 0x0 0x1000>;
 			interrupts-extended = <&intc3 15>;
-			clocks = <&io_clk AST2700_IO_CLK_GATE_I3C15CLK>;
-			resets = <&io_rst ASPEED_RESET_I3C15>;
+			clocks = <&soc1_clk AST2700_SOC1_CLK_GATE_I3C15CLK>;
+			resets = <&soc1_rst ASPEED_RESET_I3C15>;
 			status = "disabled";
 		};
 
@@ -1299,7 +1299,7 @@
 			reg = <0x0 0x14c33000 0x0 0x20>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
-			clocks = <&io_clk AST2700_IO_CLK_GATE_UART0CLK>;
+			clocks = <&soc1_clk AST2700_SOC1_CLK_GATE_UART0CLK>;
 			interrupts-extended = <&intc4 7>;
 			no-loopback-test;
 			pinctrl-names = "default";
@@ -1311,7 +1311,7 @@
 			reg = <0x0 0x14c33100 0x0 0x20>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
-			clocks = <&io_clk AST2700_IO_CLK_GATE_UART1CLK>;
+			clocks = <&soc1_clk AST2700_SOC1_CLK_GATE_UART1CLK>;
 			interrupts-extended = <&intc4 8>;
 			no-loopback-test;
 			pinctrl-names = "default";
@@ -1323,7 +1323,7 @@
 			reg = <0x0 0x14c33200 0x0 0x20>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
-			clocks = <&io_clk AST2700_IO_CLK_GATE_UART2CLK>;
+			clocks = <&soc1_clk AST2700_SOC1_CLK_GATE_UART2CLK>;
 			interrupts-extended = <&intc4 9>;
 			no-loopback-test;
 			pinctrl-names = "default";
@@ -1335,7 +1335,7 @@
 			reg = <0x0 0x14c33300 0x0 0x20>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
-			clocks = <&io_clk AST2700_IO_CLK_GATE_UART3CLK>;
+			clocks = <&soc1_clk AST2700_SOC1_CLK_GATE_UART3CLK>;
 			interrupts-extended = <&intc4 10>;
 			no-loopback-test;
 			pinctrl-names = "default";
@@ -1347,7 +1347,7 @@
 			reg = <0x0 0x14c33400 0x0 0x20>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
-			clocks = <&io_clk AST2700_IO_CLK_GATE_UART5CLK>;
+			clocks = <&soc1_clk AST2700_SOC1_CLK_GATE_UART5CLK>;
 			interrupts-extended = <&intc4 11>;
 			no-loopback-test;
 			pinctrl-names = "default";
@@ -1359,7 +1359,7 @@
 			reg = <0x0 0x14c33500 0x0 0x20>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
-			clocks = <&io_clk AST2700_IO_CLK_GATE_UART6CLK>;
+			clocks = <&soc1_clk AST2700_SOC1_CLK_GATE_UART6CLK>;
 			interrupts-extended = <&intc4 12>;
 			no-loopback-test;
 			pinctrl-names = "default";
@@ -1371,7 +1371,7 @@
 			reg = <0x0 0x14c33600 0x0 0x20>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
-			clocks = <&io_clk AST2700_IO_CLK_GATE_UART7CLK>;
+			clocks = <&soc1_clk AST2700_SOC1_CLK_GATE_UART7CLK>;
 			interrupts-extended = <&intc4 13>;
 			no-loopback-test;
 			pinctrl-names = "default";
@@ -1383,7 +1383,7 @@
 			reg = <0x0 0x14c33700 0x0 0x20>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
-			clocks = <&io_clk AST2700_IO_CLK_GATE_UART8CLK>;
+			clocks = <&soc1_clk AST2700_SOC1_CLK_GATE_UART8CLK>;
 			interrupts-extended = <&intc4 14>;
 			no-loopback-test;
 			pinctrl-names = "default";
@@ -1395,7 +1395,7 @@
 			reg = <0x0 0x14c33800 0x0 0x20>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
-			clocks = <&io_clk AST2700_IO_CLK_GATE_UART9CLK>;
+			clocks = <&soc1_clk AST2700_SOC1_CLK_GATE_UART9CLK>;
 			interrupts-extended = <&intc4 15>;
 			no-loopback-test;
 			pinctrl-names = "default";
@@ -1407,7 +1407,7 @@
 			reg = <0x0 0x14c33900 0x0 0x20>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
-			clocks = <&io_clk AST2700_IO_CLK_GATE_UART10CLK>;
+			clocks = <&soc1_clk AST2700_SOC1_CLK_GATE_UART10CLK>;
 			interrupts-extended = <&intc4 16>;
 			no-loopback-test;
 			pinctrl-names = "default";
@@ -1419,7 +1419,7 @@
 			reg = <0x0 0x14c33a00 0x0 0x20>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
-			clocks = <&io_clk AST2700_IO_CLK_GATE_UART11CLK>;
+			clocks = <&soc1_clk AST2700_SOC1_CLK_GATE_UART11CLK>;
 			interrupts-extended = <&intc4 17>;
 			no-loopback-test;
 			pinctrl-names = "default";
@@ -1431,7 +1431,7 @@
 			reg = <0x0 0x14c33b00 0x0 0x20>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
-			clocks = <&io_clk AST2700_IO_CLK_GATE_UART12CLK>;
+			clocks = <&soc1_clk AST2700_SOC1_CLK_GATE_UART12CLK>;
 			interrupts-extended = <&intc4 18>;
 			no-loopback-test;
 			pinctrl-names = "default";
@@ -1456,8 +1456,8 @@
 		compatible = "aspeed,ast2600-i2cv2";
 		aspeed,global-regs = <&i2c_global>;
 		aspeed,enable-dma;
-		clocks = <&io_clk AST2700_IO_CLK_APB>;
-		resets = <&io_rst ASPEED_RESET_I2C>;
+		clocks = <&soc1_clk AST2700_SOC1_CLK_APB>;
+		resets = <&soc1_rst ASPEED_RESET_I2C>;
 		interrupts-extended = <&intc2 0>;
 		clock-frequency = <100000>;
 		pinctrl-names = "default";
@@ -1473,8 +1473,8 @@
 		compatible = "aspeed,ast2600-i2cv2";
 		aspeed,global-regs = <&i2c_global>;
 		aspeed,enable-dma;
-		clocks = <&io_clk AST2700_IO_CLK_APB>;
-		resets = <&io_rst ASPEED_RESET_I2C>;
+		clocks = <&soc1_clk AST2700_SOC1_CLK_APB>;
+		resets = <&soc1_rst ASPEED_RESET_I2C>;
 		interrupts-extended = <&intc2 1>;
 		clock-frequency = <100000>;
 		pinctrl-names = "default";
@@ -1490,8 +1490,8 @@
 		compatible = "aspeed,ast2600-i2cv2";
 		aspeed,global-regs = <&i2c_global>;
 		aspeed,enable-dma;
-		clocks = <&io_clk AST2700_IO_CLK_APB>;
-		resets = <&io_rst ASPEED_RESET_I2C>;
+		clocks = <&soc1_clk AST2700_SOC1_CLK_APB>;
+		resets = <&soc1_rst ASPEED_RESET_I2C>;
 		interrupts-extended = <&intc2 2>;
 		clock-frequency = <100000>;
 		pinctrl-names = "default";
@@ -1506,8 +1506,8 @@
 		reg = <0x400 0x80>, <0x4A0 0x20>;
 		compatible = "aspeed,ast2600-i2cv2";
 		aspeed,global-regs = <&i2c_global>;
-		clocks = <&io_clk AST2700_IO_CLK_APB>;
-		resets = <&io_rst ASPEED_RESET_I2C>;
+		clocks = <&soc1_clk AST2700_SOC1_CLK_APB>;
+		resets = <&soc1_rst ASPEED_RESET_I2C>;
 		interrupts-extended = <&intc2 3>;
 		clock-frequency = <100000>;
 		pinctrl-names = "default";
@@ -1523,8 +1523,8 @@
 		compatible = "aspeed,ast2600-i2cv2";
 		aspeed,global-regs = <&i2c_global>;
 		aspeed,enable-dma;
-		clocks = <&io_clk AST2700_IO_CLK_APB>;
-		resets = <&io_rst ASPEED_RESET_I2C>;
+		clocks = <&soc1_clk AST2700_SOC1_CLK_APB>;
+		resets = <&soc1_rst ASPEED_RESET_I2C>;
 		clock-frequency = <100000>;
 		interrupts-extended = <&intc2 4>;
 		pinctrl-names = "default";
@@ -1540,8 +1540,8 @@
 		compatible = "aspeed,ast2600-i2cv2";
 		aspeed,global-regs = <&i2c_global>;
 		aspeed,enable-dma;
-		clocks = <&io_clk AST2700_IO_CLK_APB>;
-		resets = <&io_rst ASPEED_RESET_I2C>;
+		clocks = <&soc1_clk AST2700_SOC1_CLK_APB>;
+		resets = <&soc1_rst ASPEED_RESET_I2C>;
 		interrupts-extended = <&intc2 5>;
 		clock-frequency = <100000>;
 		pinctrl-names = "default";
@@ -1557,8 +1557,8 @@
 		compatible = "aspeed,ast2600-i2cv2";
 		aspeed,global-regs = <&i2c_global>;
 		aspeed,enable-dma;
-		clocks = <&io_clk AST2700_IO_CLK_APB>;
-		resets = <&io_rst ASPEED_RESET_I2C>;
+		clocks = <&soc1_clk AST2700_SOC1_CLK_APB>;
+		resets = <&soc1_rst ASPEED_RESET_I2C>;
 		interrupts-extended = <&intc2 6>;
 		clock-frequency = <100000>;
 		pinctrl-names = "default";
@@ -1574,8 +1574,8 @@
 		compatible = "aspeed,ast2600-i2cv2";
 		aspeed,global-regs = <&i2c_global>;
 		aspeed,enable-dma;
-		clocks = <&io_clk AST2700_IO_CLK_APB>;
-		resets = <&io_rst ASPEED_RESET_I2C>;
+		clocks = <&soc1_clk AST2700_SOC1_CLK_APB>;
+		resets = <&soc1_rst ASPEED_RESET_I2C>;
 		interrupts-extended = <&intc2 7>;
 		clock-frequency = <100000>;
 		pinctrl-names = "default";
@@ -1591,8 +1591,8 @@
 		compatible = "aspeed,ast2600-i2cv2";
 		aspeed,global-regs = <&i2c_global>;
 		aspeed,enable-dma;
-		clocks = <&io_clk AST2700_IO_CLK_APB>;
-		resets = <&io_rst ASPEED_RESET_I2C>;
+		clocks = <&soc1_clk AST2700_SOC1_CLK_APB>;
+		resets = <&soc1_rst ASPEED_RESET_I2C>;
 		interrupts-extended = <&intc2 8>;
 		clock-frequency = <100000>;
 		pinctrl-names = "default";
@@ -1608,8 +1608,8 @@
 		compatible = "aspeed,ast2600-i2cv2";
 		aspeed,global-regs = <&i2c_global>;
 		aspeed,enable-dma;
-		clocks = <&io_clk AST2700_IO_CLK_APB>;
-		resets = <&io_rst ASPEED_RESET_I2C>;
+		clocks = <&soc1_clk AST2700_SOC1_CLK_APB>;
+		resets = <&soc1_rst ASPEED_RESET_I2C>;
 		interrupts-extended = <&intc2 9>;
 		clock-frequency = <100000>;
 		pinctrl-names = "default";
@@ -1625,8 +1625,8 @@
 		compatible = "aspeed,ast2600-i2cv2";
 		aspeed,global-regs = <&i2c_global>;
 		aspeed,enable-dma;
-		clocks = <&io_clk AST2700_IO_CLK_APB>;
-		resets = <&io_rst ASPEED_RESET_I2C>;
+		clocks = <&soc1_clk AST2700_SOC1_CLK_APB>;
+		resets = <&soc1_rst ASPEED_RESET_I2C>;
 		interrupts-extended = <&intc2 10>;
 		clock-frequency = <100000>;
 		pinctrl-names = "default";
@@ -1642,8 +1642,8 @@
 		compatible = "aspeed,ast2600-i2cv2";
 		aspeed,global-regs = <&i2c_global>;
 		aspeed,enable-dma;
-		clocks = <&io_clk AST2700_IO_CLK_APB>;
-		resets = <&io_rst ASPEED_RESET_I2C>;
+		clocks = <&soc1_clk AST2700_SOC1_CLK_APB>;
+		resets = <&soc1_rst ASPEED_RESET_I2C>;
 		interrupts-extended = <&intc2 11>;
 		clock-frequency = <100000>;
 		pinctrl-names = "default";
@@ -1659,8 +1659,8 @@
 		compatible = "aspeed,ast2600-i2cv2";
 		aspeed,global-regs = <&i2c_global>;
 		aspeed,enable-dma;
-		clocks = <&io_clk AST2700_IO_CLK_APB>;
-		resets = <&io_rst ASPEED_RESET_I2C>;
+		clocks = <&soc1_clk AST2700_SOC1_CLK_APB>;
+		resets = <&soc1_rst ASPEED_RESET_I2C>;
 		interrupts-extended = <&intc2 12>;
 		clock-frequency = <100000>;
 		pinctrl-names = "default";
@@ -1676,8 +1676,8 @@
 		compatible = "aspeed,ast2600-i2cv2";
 		aspeed,global-regs = <&i2c_global>;
 		aspeed,enable-dma;
-		clocks = <&io_clk AST2700_IO_CLK_APB>;
-		resets = <&io_rst ASPEED_RESET_I2C>;
+		clocks = <&soc1_clk AST2700_SOC1_CLK_APB>;
+		resets = <&soc1_rst ASPEED_RESET_I2C>;
 		interrupts-extended = <&intc2 13>;
 		clock-frequency = <100000>;
 		pinctrl-names = "default";
@@ -1693,8 +1693,8 @@
 		compatible = "aspeed,ast2600-i2cv2";
 		aspeed,global-regs = <&i2c_global>;
 		aspeed,enable-dma;
-		clocks = <&io_clk AST2700_IO_CLK_APB>;
-		resets = <&io_rst ASPEED_RESET_I2C>;
+		clocks = <&soc1_clk AST2700_SOC1_CLK_APB>;
+		resets = <&soc1_rst ASPEED_RESET_I2C>;
 		interrupts-extended = <&intc2 14>;
 		clock-frequency = <100000>;
 		pinctrl-names = "default";
@@ -1710,8 +1710,8 @@
 		compatible = "aspeed,ast2600-i2cv2";
 		aspeed,global-regs = <&i2c_global>;
 		aspeed,enable-dma;
-		clocks = <&io_clk AST2700_IO_CLK_APB>;
-		resets = <&io_rst ASPEED_RESET_I2C>;
+		clocks = <&soc1_clk AST2700_SOC1_CLK_APB>;
+		resets = <&soc1_rst ASPEED_RESET_I2C>;
 		interrupts-extended = <&intc2 15>;
 		clock-frequency = <100000>;
 		pinctrl-names = "default";

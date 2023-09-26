@@ -33,7 +33,7 @@
 #define SCU98 0x98 /* GPIO18D6 IO Control Register */
 #define SCU9C 0x9c /* GPIO18D7 IO Control Register */
 
-struct aspeed_g7_cpu_pinctrl {
+struct aspeed_g7_soc0_pinctrl {
 	struct pinctrl_dev *pctldev;
 	struct device *dev;
 	struct irq_domain *domain;
@@ -61,7 +61,7 @@ struct aspeed_g7_group_funcfg {
  * group:    name, npins,   pins
  * function: name, ngroups, groups
  */
-struct aspeed_g7_cpu_pingroup {
+struct aspeed_g7_soc0_pingroup {
 	const char *name;
 	const char *fn_name;
 	const unsigned int *pins;
@@ -297,7 +297,7 @@ struct aspeed_g7_group_funcfg usb2bhp_cfg[] = {
 	{ .reg = SCU10, .mask = GENMASK(27, 26), .enable = 1, .val = GENMASK(27, 26) },
 };
 
-static struct aspeed_g7_cpu_pingroup aspeed_g7_cpu_pingroups[] = {
+static struct aspeed_g7_soc0_pingroup aspeed_g7_soc0_pingroups[] = {
 	{ .name = "EMMCG1", .fn_name = "EMMC", .pins = mmcg1_pins, .npins = ARRAY_SIZE(mmcg1_pins) },
 	{ .name = "EMMCG4", .fn_name = "EMMC", .pins = mmcg4_pins, .npins = ARRAY_SIZE(mmcg4_pins) },
 	{ .name = "EMMCG8", .fn_name = "EMMC", .pins = mmcg8_pins, .npins = ARRAY_SIZE(mmcg8_pins) },
@@ -351,13 +351,13 @@ static const char *const usb3b_grp[] = { "USB3BXHD", "USB3BXHPD", "USB3BD", "USB
 static const char *const usb2b_grp[] = { "USB2BXHD1", "USB2BXHPD1", "USB2BD1", "USB2BXH", "USB2BXHP", "USB2B2AH", "USB2B2AHP",
 										 "USB2BHPD0", "USB2BD0", "USB2BH", "USB2BHP" };
 
-struct aspeed_g7_cpu_func {
+struct aspeed_g7_soc0_func {
 	const char *name;
 	const unsigned int ngroups;
 	const char *const *groups;
 };
 
-static struct aspeed_g7_cpu_func aspeed_g7_cpu_funcs[] = {
+static struct aspeed_g7_soc0_func aspeed_g7_soc0_funcs[] = {
 	{	.name = "EMMC",		.ngroups = ARRAY_SIZE(mmc_grp),		.groups = mmc_grp	}, //function : 0
 	{	.name = "VGADDC",	.ngroups = ARRAY_SIZE(vgaddc_grp),	.groups = vgaddc_grp	}, //function : 1
 	{	.name = "USB3A",	.ngroups = ARRAY_SIZE(usb3a_grp),	.groups = usb3a_grp	}, //function : 2
@@ -365,7 +365,7 @@ static struct aspeed_g7_cpu_func aspeed_g7_cpu_funcs[] = {
 };
 
 /* number, name, drv_data */
-static const struct pinctrl_pin_desc aspeed_g7_cpu_pins[] = {
+static const struct pinctrl_pin_desc aspeed_g7_soc0_pins[] = {
 	PINCTRL_PIN(0, "EMMCCLK_VB1CSN_GPIO18A0"),
 	PINCTRL_PIN(1, "EMMCCMD_VB1CK_GPIO18A1"),
 	PINCTRL_PIN(2, "EMMCDAT0_VB1MOSI_GPIO18A2"),
@@ -390,76 +390,76 @@ static const struct pinctrl_pin_desc aspeed_g7_cpu_pins[] = {
 	PINCTRL_PIN(21, "USB2BDN"),
 };
 
-struct aspeed_g7_cpu_funcfg {
+struct aspeed_g7_soc0_funcfg {
 	char *fn_name;
 	u32 reg;
 	u32 mask;
 	int bit;
 };
 
-struct aspeed_g7_cpu_pincfg {
-	struct aspeed_g7_cpu_funcfg *funcfg;
+struct aspeed_g7_soc0_pincfg {
+	struct aspeed_g7_soc0_funcfg *funcfg;
 };
 
-static const struct aspeed_g7_cpu_pincfg pin_cfg[] = {
+static const struct aspeed_g7_soc0_pincfg pin_cfg[] = {
 	{
-		.funcfg = (struct aspeed_g7_cpu_funcfg[]) {
+		.funcfg = (struct aspeed_g7_soc0_funcfg[]) {
 			{	.fn_name = "EMMC", .reg = SCU00, .mask = BIT_MASK(0), .bit = 0, },
 			},
 	},
 	{
-		.funcfg = (struct aspeed_g7_cpu_funcfg[]) {
+		.funcfg = (struct aspeed_g7_soc0_funcfg[]) {
 			{	.fn_name = "EMMC", .reg = SCU00, .mask = BIT_MASK(1), .bit = 1, },
 			},
 	},
 	{
-		.funcfg = (struct aspeed_g7_cpu_funcfg[]) {
+		.funcfg = (struct aspeed_g7_soc0_funcfg[]) {
 			{	.fn_name = "EMMC", .reg = SCU00, .mask = BIT_MASK(2), .bit = 2, },
 			},
 	},
 	{
-		.funcfg = (struct aspeed_g7_cpu_funcfg[]) {
+		.funcfg = (struct aspeed_g7_soc0_funcfg[]) {
 			{	.fn_name = "EMMC", .reg = SCU00, .mask = BIT_MASK(3), .bit = 3, },
 			},
 	},
 	{
-		.funcfg = (struct aspeed_g7_cpu_funcfg[]) {
+		.funcfg = (struct aspeed_g7_soc0_funcfg[]) {
 			{	.fn_name = "EMMC", .reg = SCU00, .mask = BIT_MASK(4), .bit = 4, },
 			},
 	},
 	{
-		.funcfg = (struct aspeed_g7_cpu_funcfg[]) {
+		.funcfg = (struct aspeed_g7_soc0_funcfg[]) {
 			{	.fn_name = "EMMC", .reg = SCU00, .mask = BIT_MASK(5), .bit = 5, },
 			},
 	},
 	{
-		.funcfg = (struct aspeed_g7_cpu_funcfg[]) {
+		.funcfg = (struct aspeed_g7_soc0_funcfg[]) {
 			{	.fn_name = "EMMC", .reg = SCU00, .mask = BIT_MASK(6), .bit = 6, },
 			},
 	},
 	{
-		.funcfg = (struct aspeed_g7_cpu_funcfg[]) {
+		.funcfg = (struct aspeed_g7_soc0_funcfg[]) {
 			{	.fn_name = "EMMC", .reg = SCU00, .mask = BIT_MASK(7), .bit = 7, },
 			},
 	},
 	{
-		.funcfg = (struct aspeed_g7_cpu_funcfg[]) {
+		.funcfg = (struct aspeed_g7_soc0_funcfg[]) {
 			{	.fn_name = "EMMC", .reg = SCU00, .mask = BIT_MASK(8), .bit = 8, },
 			},
 	},
 	{
-		.funcfg = (struct aspeed_g7_cpu_funcfg[]) {
+		.funcfg = (struct aspeed_g7_soc0_funcfg[]) {
 			{	.fn_name = "EMMC", .reg = SCU00, .mask = BIT_MASK(9), .bit = 9, },
 			},
 	},
 	{
-		.funcfg = (struct aspeed_g7_cpu_funcfg[]) {
+		.funcfg = (struct aspeed_g7_soc0_funcfg[]) {
 			{	.fn_name = "EMMC", .reg = SCU00, .mask = BIT_MASK(10), .bit = 10, },
 			{	.fn_name = "VGADDC", .reg = SCU04, .mask = BIT_MASK(10), .bit = 10,	},
 			},
 	},
 	{
-		.funcfg = (struct aspeed_g7_cpu_funcfg[]) {
+		.funcfg = (struct aspeed_g7_soc0_funcfg[]) {
 			{	.fn_name = "EMMC", .reg = SCU00, .mask = BIT_MASK(11), .bit = 11, },
 			{	.fn_name = "VGADDC", .reg = SCU04, .mask = BIT_MASK(11), .bit = 11, },
 			},
@@ -467,29 +467,29 @@ static const struct aspeed_g7_cpu_pincfg pin_cfg[] = {
 };
 
 /* pinctrl_ops */
-static int aspeed_g7_cpu_get_groups_count(struct pinctrl_dev *pctldev)
+static int aspeed_g7_soc0_get_groups_count(struct pinctrl_dev *pctldev)
 {
-	return ARRAY_SIZE(aspeed_g7_cpu_pingroups);
+	return ARRAY_SIZE(aspeed_g7_soc0_pingroups);
 }
 
-static const char *aspeed_g7_cpu_get_group_name(struct pinctrl_dev *pctldev,
+static const char *aspeed_g7_soc0_get_group_name(struct pinctrl_dev *pctldev,
 						unsigned int selector)
 {
-	return aspeed_g7_cpu_pingroups[selector].name;
+	return aspeed_g7_soc0_pingroups[selector].name;
 }
 
-static int aspeed_g7_cpu_get_group_pins(struct pinctrl_dev *pctldev,
+static int aspeed_g7_soc0_get_group_pins(struct pinctrl_dev *pctldev,
 					unsigned int selector,
 					const unsigned int **pins,
 					unsigned int *npins)
 {
-	*npins = aspeed_g7_cpu_pingroups[selector].npins;
-	*pins = aspeed_g7_cpu_pingroups[selector].pins;
+	*npins = aspeed_g7_soc0_pingroups[selector].npins;
+	*pins = aspeed_g7_soc0_pingroups[selector].pins;
 
 	return 0;
 }
 
-static int aspeed_g7_cpu_dt_node_to_map(struct pinctrl_dev *pctldev,
+static int aspeed_g7_soc0_dt_node_to_map(struct pinctrl_dev *pctldev,
 					struct device_node *np_config,
 					struct pinctrl_map **map, u32 *num_maps)
 {
@@ -497,54 +497,54 @@ static int aspeed_g7_cpu_dt_node_to_map(struct pinctrl_dev *pctldev,
 					      PIN_MAP_TYPE_INVALID);
 }
 
-static void aspeed_g7_cpu_dt_free_map(struct pinctrl_dev *pctldev,
+static void aspeed_g7_soc0_dt_free_map(struct pinctrl_dev *pctldev,
 				      struct pinctrl_map *map, u32 num_maps)
 {
 	kfree(map);
 }
 
-static const struct pinctrl_ops aspeed_g7_cpu_pinctrl_ops = {
-	.get_groups_count = aspeed_g7_cpu_get_groups_count,
-	.get_group_name = aspeed_g7_cpu_get_group_name,
-	.get_group_pins = aspeed_g7_cpu_get_group_pins,
-	.dt_node_to_map = aspeed_g7_cpu_dt_node_to_map,
-	.dt_free_map = aspeed_g7_cpu_dt_free_map,
+static const struct pinctrl_ops aspeed_g7_soc0_pinctrl_ops = {
+	.get_groups_count = aspeed_g7_soc0_get_groups_count,
+	.get_group_name = aspeed_g7_soc0_get_group_name,
+	.get_group_pins = aspeed_g7_soc0_get_group_pins,
+	.dt_node_to_map = aspeed_g7_soc0_dt_node_to_map,
+	.dt_free_map = aspeed_g7_soc0_dt_free_map,
 };
 
-static int aspeed_g7_cpu_get_functions_count(struct pinctrl_dev *pctldev)
+static int aspeed_g7_soc0_get_functions_count(struct pinctrl_dev *pctldev)
 {
-	return ARRAY_SIZE(aspeed_g7_cpu_funcs);
+	return ARRAY_SIZE(aspeed_g7_soc0_funcs);
 }
 
-static const char *aspeed_g7_cpu_get_function_name(struct pinctrl_dev *pctldev,
+static const char *aspeed_g7_soc0_get_function_name(struct pinctrl_dev *pctldev,
 						   unsigned int function)
 {
-	return aspeed_g7_cpu_funcs[function].name;
+	return aspeed_g7_soc0_funcs[function].name;
 }
 
-static int aspeed_g7_cpu_get_function_groups(struct pinctrl_dev *pctldev,
+static int aspeed_g7_soc0_get_function_groups(struct pinctrl_dev *pctldev,
 					     unsigned int function,
 					     const char *const **groups,
 					     unsigned int *const ngroups)
 {
-	*ngroups = aspeed_g7_cpu_funcs[function].ngroups;
-	*groups = aspeed_g7_cpu_funcs[function].groups;
+	*ngroups = aspeed_g7_soc0_funcs[function].ngroups;
+	*groups = aspeed_g7_soc0_funcs[function].groups;
 
 	return 0;
 }
 
-static int aspeed_g7_cpu_pinmux_set_mux(struct pinctrl_dev *pctldev,
+static int aspeed_g7_soc0_pinmux_set_mux(struct pinctrl_dev *pctldev,
 					unsigned int function,
 					unsigned int group)
 {
 	int i;
 	int pin;
-	const struct aspeed_g7_cpu_pincfg *cfg;
-	const struct aspeed_g7_cpu_funcfg *funcfg;
+	const struct aspeed_g7_soc0_pincfg *cfg;
+	const struct aspeed_g7_soc0_funcfg *funcfg;
 	struct aspeed_g7_group_funcfg *groupcfg;
-	const char *target_fn_name = aspeed_g7_cpu_funcs[function].name;
-	struct aspeed_g7_cpu_pinctrl *pinctrl = pinctrl_dev_get_drvdata(pctldev);
-	struct aspeed_g7_cpu_pingroup *pingroup = &aspeed_g7_cpu_pingroups[group];
+	const char *target_fn_name = aspeed_g7_soc0_funcs[function].name;
+	struct aspeed_g7_soc0_pinctrl *pinctrl = pinctrl_dev_get_drvdata(pctldev);
+	struct aspeed_g7_soc0_pingroup *pingroup = &aspeed_g7_soc0_pingroups[group];
 
 	if (pingroup->groupcfg) {
 		groupcfg = &pingroup->groupcfg[0];
@@ -581,13 +581,13 @@ static int aspeed_g7_cpu_pinmux_set_mux(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
-static int aspeed_g7_cpu_gpio_request_enable(struct pinctrl_dev *pctldev,
+static int aspeed_g7_soc0_gpio_request_enable(struct pinctrl_dev *pctldev,
 					     struct pinctrl_gpio_range *range,
 					     unsigned int offset)
 {
-	struct aspeed_g7_cpu_pinctrl *pinctrl = pinctrl_dev_get_drvdata(pctldev);
-	const struct aspeed_g7_cpu_pincfg *cfg = &pin_cfg[offset];
-	const struct aspeed_g7_cpu_funcfg *funcfg;
+	struct aspeed_g7_soc0_pinctrl *pinctrl = pinctrl_dev_get_drvdata(pctldev);
+	const struct aspeed_g7_soc0_pincfg *cfg = &pin_cfg[offset];
+	const struct aspeed_g7_soc0_funcfg *funcfg;
 
 	if (!cfg) {
 		funcfg = &cfg->funcfg[0];
@@ -600,11 +600,11 @@ static int aspeed_g7_cpu_gpio_request_enable(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
-static void aspeed_g7_cpu_gpio_request_free(struct pinctrl_dev *pctldev,
+static void aspeed_g7_soc0_gpio_request_free(struct pinctrl_dev *pctldev,
 					    struct pinctrl_gpio_range *range,
 					    unsigned int offset)
 {
-	struct aspeed_g7_cpu_pinctrl *pinctrl = pinctrl_dev_get_drvdata(pctldev);
+	struct aspeed_g7_soc0_pinctrl *pinctrl = pinctrl_dev_get_drvdata(pctldev);
 	int virq;
 
 	virq = irq_find_mapping(pinctrl->domain, offset);
@@ -612,19 +612,19 @@ static void aspeed_g7_cpu_gpio_request_free(struct pinctrl_dev *pctldev,
 		irq_dispose_mapping(virq);
 }
 
-static const struct pinmux_ops aspeed_g7_cpu_pinmux_ops = {
-	.get_functions_count = aspeed_g7_cpu_get_functions_count,
-	.get_function_name = aspeed_g7_cpu_get_function_name,
-	.get_function_groups = aspeed_g7_cpu_get_function_groups,
-	.set_mux = aspeed_g7_cpu_pinmux_set_mux,
-	.gpio_request_enable = aspeed_g7_cpu_gpio_request_enable,
-	.gpio_disable_free = aspeed_g7_cpu_gpio_request_free,
+static const struct pinmux_ops aspeed_g7_soc0_pinmux_ops = {
+	.get_functions_count = aspeed_g7_soc0_get_functions_count,
+	.get_function_name = aspeed_g7_soc0_get_function_name,
+	.get_function_groups = aspeed_g7_soc0_get_function_groups,
+	.set_mux = aspeed_g7_soc0_pinmux_set_mux,
+	.gpio_request_enable = aspeed_g7_soc0_gpio_request_enable,
+	.gpio_disable_free = aspeed_g7_soc0_gpio_request_free,
 };
 
-static int aspeed_g7_cpu_config_get(struct pinctrl_dev *pctldev,
+static int aspeed_g7_soc0_config_get(struct pinctrl_dev *pctldev,
 				    unsigned int pin, unsigned long *config)
 {
-//	struct aspeed_g7_cpu_pinctrl *pinctrl = pinctrl_dev_get_drvdata(pctldev);
+//	struct aspeed_g7_soc0_pinctrl *pinctrl = pinctrl_dev_get_drvdata(pctldev);
 	enum pin_config_param param = pinconf_to_config_param(*config);
 	int rc = 0;
 
@@ -656,7 +656,7 @@ static int aspeed_g7_cpu_config_get(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
-static int aspeed_g7_cpu_config_set_one(struct aspeed_g7_cpu_pinctrl *pinctrl,
+static int aspeed_g7_soc0_config_set_one(struct aspeed_g7_soc0_pinctrl *pinctrl,
 					unsigned int pin, unsigned long config)
 {
 	enum pin_config_param param = pinconf_to_config_param(config);
@@ -693,16 +693,16 @@ static int aspeed_g7_cpu_config_set_one(struct aspeed_g7_cpu_pinctrl *pinctrl,
 	return 0;
 }
 
-static int aspeed_g7_cpu_config_set(struct pinctrl_dev *pctldev,
+static int aspeed_g7_soc0_config_set(struct pinctrl_dev *pctldev,
 				    unsigned int pin, unsigned long *configs,
 				    unsigned int num_configs)
 {
-	struct aspeed_g7_cpu_pinctrl *pinctrl =
+	struct aspeed_g7_soc0_pinctrl *pinctrl =
 		pinctrl_dev_get_drvdata(pctldev);
 	int rc;
 
 	while (num_configs--) {
-		rc = aspeed_g7_cpu_config_set_one(pinctrl, pin, *configs++);
+		rc = aspeed_g7_soc0_config_set_one(pinctrl, pin, *configs++);
 		if (rc)
 			return rc;
 	}
@@ -710,27 +710,27 @@ static int aspeed_g7_cpu_config_set(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
-static const struct pinconf_ops aspeed_g7_cpu_pinconf_ops = {
+static const struct pinconf_ops aspeed_g7_soc0_pinconf_ops = {
 	.is_generic = true,
-	.pin_config_get = aspeed_g7_cpu_config_get,
-	.pin_config_set = aspeed_g7_cpu_config_set,
+	.pin_config_get = aspeed_g7_soc0_config_get,
+	.pin_config_set = aspeed_g7_soc0_config_set,
 };
 
 /* pinctrl_desc */
-static struct pinctrl_desc aspeed_g7_cpu_pinctrl_desc = {
-	.name = "aspeed-g7-cpu-pinctrl",
-	.pins = aspeed_g7_cpu_pins,
-	.npins = ARRAY_SIZE(aspeed_g7_cpu_pins),
-	.pctlops = &aspeed_g7_cpu_pinctrl_ops,
-	.pmxops = &aspeed_g7_cpu_pinmux_ops,
-	.confops = &aspeed_g7_cpu_pinconf_ops,
+static struct pinctrl_desc aspeed_g7_soc0_pinctrl_desc = {
+	.name = "aspeed-g7-soc0-pinctrl",
+	.pins = aspeed_g7_soc0_pins,
+	.npins = ARRAY_SIZE(aspeed_g7_soc0_pins),
+	.pctlops = &aspeed_g7_soc0_pinctrl_ops,
+	.pmxops = &aspeed_g7_soc0_pinmux_ops,
+	.confops = &aspeed_g7_soc0_pinconf_ops,
 	.owner = THIS_MODULE,
 };
 
-static int aspeed_g7_cpu_pinctrl_probe(struct platform_device *pdev)
+static int aspeed_g7_soc0_pinctrl_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct aspeed_g7_cpu_pinctrl *pctrl;
+	struct aspeed_g7_soc0_pinctrl *pctrl;
 
 	pctrl = devm_kzalloc(dev, sizeof(*pctrl), GFP_KERNEL);
 	if (!pctrl)
@@ -741,7 +741,7 @@ static int aspeed_g7_cpu_pinctrl_probe(struct platform_device *pdev)
 
 	pctrl->regs = devm_platform_ioremap_resource(pdev, 0);
 	pctrl->pctldev =
-		devm_pinctrl_register(dev, &aspeed_g7_cpu_pinctrl_desc, pctrl);
+		devm_pinctrl_register(dev, &aspeed_g7_soc0_pinctrl_desc, pctrl);
 	if (IS_ERR(pctrl->pctldev))
 		return dev_err_probe(dev, PTR_ERR(pctrl->pctldev),
 				     "Failed to register pinctrl device\n");
@@ -749,23 +749,23 @@ static int aspeed_g7_cpu_pinctrl_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct of_device_id aspeed_g7_cpu_pinctrl_match[] = {
-	{ .compatible = "aspeed,ast2700-cpu-pinctrl" },
+static const struct of_device_id aspeed_g7_soc0_pinctrl_match[] = {
+	{ .compatible = "aspeed,ast2700-soc0-pinctrl" },
 	{}
 };
-MODULE_DEVICE_TABLE(of, aspeed_g7_cpu_pinctrl_match);
+MODULE_DEVICE_TABLE(of, aspeed_g7_soc0_pinctrl_match);
 
-static struct platform_driver aspeed_g7_cpu_pinctrl_driver = {
-	.probe = aspeed_g7_cpu_pinctrl_probe,
+static struct platform_driver aspeed_g7_soc0_pinctrl_driver = {
+	.probe = aspeed_g7_soc0_pinctrl_probe,
 	.driver = {
-		.name = "aspeed-g7-cpu-pinctrl",
-		.of_match_table = aspeed_g7_cpu_pinctrl_match,
+		.name = "aspeed-g7-soc0-pinctrl",
+		.of_match_table = aspeed_g7_soc0_pinctrl_match,
 		.suppress_bind_attrs = true,
 	},
 };
 
-static int __init aspeed_g7_cpu_pinctrl_register(void)
+static int __init aspeed_g7_soc0_pinctrl_register(void)
 {
-	return platform_driver_register(&aspeed_g7_cpu_pinctrl_driver);
+	return platform_driver_register(&aspeed_g7_soc0_pinctrl_driver);
 }
-arch_initcall(aspeed_g7_cpu_pinctrl_register);
+arch_initcall(aspeed_g7_soc0_pinctrl_register);
