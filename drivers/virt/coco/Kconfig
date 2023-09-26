@@ -2,6 +2,11 @@
 #
 # Confidential computing related collateral
 #
+
+config TSM_REPORTS
+	select CONFIGFS_FS
+	tristate
+
 source "drivers/virt/coco/efi_secret/Kconfig"
 
 source "drivers/virt/coco/sev-guest/Kconfig"
