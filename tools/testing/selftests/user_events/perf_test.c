@@ -111,16 +111,19 @@ static int clear(int *check)
 FIXTURE(user) {
 	int data_fd;
 	int check;
+	bool umount;
 };
 
 FIXTURE_SETUP(user) {
-	USER_EVENT_FIXTURE_SETUP(return);
+	USER_EVENT_FIXTURE_SETUP(return, self->umount);
 
 	self->data_fd = open(data_file, O_RDWR);
 	ASSERT_NE(-1, self->data_fd);
 }
 
 FIXTURE_TEARDOWN(user) {
+	USER_EVENT_FIXTURE_TEARDOWN(self->umount);
+
 	close(self->data_fd);
 
 	if (clear(&self->check) != 0)
