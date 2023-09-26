@@ -971,10 +971,10 @@ static int check_inode(struct btree_trans *trans,
 
 	if (do_update) {
 		ret = __write_inode(trans, &u, iter->pos.snapshot);
-		if (ret) {
+		if (ret && !bch2_err_matches(ret, BCH_ERR_transaction_restart))
 			bch_err_msg(c, ret, "in fsck updating inode");
+		if (ret)
 			return ret;
-		}
 	}
 err:
 fsck_err:
