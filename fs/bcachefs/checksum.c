@@ -535,15 +535,30 @@ static int __bch2_request_key(char *key_description, struct bch_key *key)
 	key_serial_t key_id;
 
 	key_id = request_key("user", key_description, NULL,
+			     KEY_SPEC_SESSION_KEYRING);
+	if (key_id >= 0)
+		goto got_key;
+
+	key_id = request_key("user", key_description, NULL,
 			     KEY_SPEC_USER_KEYRING);
-	if (key_id < 0)
-		return -errno;
+	if (key_id >= 0)
+		goto got_key;
+
+	key_id = request_key("user", key_description, NULL,
+			     KEY_SPEC_USER_SESSION_KEYRING);
+	if (key_id >= 0)
+		goto got_key;
+
+	return -errno;
+got_key:
 
 	if (keyctl_read(key_id, (void *) key, sizeof(*key)) != sizeof(*key))
 		return -1;
 
 	return 0;
 }
+
+#include "../crypto.h"
 #endif
 
 int bch2_request_key(struct bch_sb *sb, struct bch_key *key)
@@ -556,6 +571,20 @@ int bch2_request_key(struct bch_sb *sb, struct bch_key *key)
 
 	ret = __bch2_request_key(key_description.buf, key);
 	printbuf_exit(&key_description);
+
+#ifndef __KERNEL__
+	if (ret) {
+		char *passphrase = read_passphrase("Enter passphrase: ");
+		struct bch_encrypted_key sb_key;
+
+		bch2_passphrase_check(sb, passphrase,
+				      key, &sb_key);
+		ret = 0;
+	}
+#endif
+
+	/* stash with memfd, pass memfd fd to mount */
+
 	return ret;
 }
 
