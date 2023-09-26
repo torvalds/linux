@@ -52,6 +52,11 @@
 / {
 	/* these are used by bootloader for disabling nodes */
 	aliases {
+		ethernet0 = &fec;
+		ethernet1 = &lan1;
+		ethernet2 = &lan2;
+		ethernet3 = &lan3;
+		ethernet4 = &lan4;
 		led0 = &led0;
 		led1 = &led1;
 		led2 = &led2;
@@ -237,32 +242,36 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 
-				port@0 {
+				lan4: port@0 {
 					reg = <0>;
 					label = "lan4";
 					phy-handle = <&sw_phy0>;
 					phy-mode = "internal";
+					local-mac-address = [00 00 00 00 00 00];
 				};
 
-				port@1 {
+				lan3: port@1 {
 					reg = <1>;
 					label = "lan3";
 					phy-handle = <&sw_phy1>;
 					phy-mode = "internal";
+					local-mac-address = [00 00 00 00 00 00];
 				};
 
-				port@2 {
+				lan2: port@2 {
 					reg = <2>;
 					label = "lan2";
 					phy-handle = <&sw_phy2>;
 					phy-mode = "internal";
+					local-mac-address = [00 00 00 00 00 00];
 				};
 
-				port@3 {
+				lan1: port@3 {
 					reg = <3>;
 					label = "lan1";
 					phy-handle = <&sw_phy3>;
 					phy-mode = "internal";
+					local-mac-address = [00 00 00 00 00 00];
 				};
 
 				port@5 {
