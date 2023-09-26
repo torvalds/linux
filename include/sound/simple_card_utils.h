@@ -11,21 +11,10 @@
 #include <linux/clk.h>
 #include <sound/soc.h>
 
-/* REMOVE ME */
-#define asoc_simple_init_hp	simple_util_init_hp
-#define asoc_simple_init_mic	simple_util_init_mic
-
 #define simple_util_init_hp(card, sjack, prefix)		\
 	simple_util_init_jack(card, sjack, 1, prefix, NULL)
 #define simple_util_init_mic(card, sjack, prefix)		\
 	simple_util_init_jack(card, sjack, 0, prefix, NULL)
-
-/* REMOVE ME */
-#define asoc_simple_tdm_width_map	simple_util_tdm_width_map
-#define asoc_simple_dai			simple_util_dai
-#define asoc_simple_data		simple_util_data
-#define asoc_simple_jack		simple_util_jack
-#define asoc_simple_priv		simple_util_priv
 
 struct simple_util_tdm_width_map {
 	u8 sample_bits;
@@ -140,35 +129,6 @@ struct link_info {
 	int cpu;  /* turn for CPU / Codec */
 	struct prop_nums num[SNDRV_MAX_LINKS];
 };
-
-/* REMOVE ME */
-#define asoc_simple_parse_daifmt		simple_util_parse_daifmt
-#define asoc_simple_parse_tdm_width_map		simple_util_parse_tdm_width_map
-#define asoc_simple_set_dailink_name		simple_util_set_dailink_name
-#define asoc_simple_parse_card_name		simple_util_parse_card_name
-#define asoc_simple_parse_clk			simple_util_parse_clk
-#define asoc_simple_startup			simple_util_startup
-#define asoc_simple_shutdown			simple_util_shutdown
-#define asoc_simple_hw_params			simple_util_hw_params
-#define asoc_simple_dai_init			simple_util_dai_init
-#define asoc_simple_be_hw_params_fixup		simple_util_be_hw_params_fixup
-#define asoc_simple_parse_tdm			simple_util_parse_tdm
-#define asoc_simple_canonicalize_platform	simple_util_canonicalize_platform
-#define asoc_simple_canonicalize_cpu		simple_util_canonicalize_cpu
-#define asoc_simple_clean_reference		simple_util_clean_reference
-#define asoc_simple_parse_convert		simple_util_parse_convert
-#define asoc_simple_is_convert_required		simple_util_is_convert_required
-#define asoc_simple_parse_routing		simple_util_parse_routing
-#define asoc_simple_parse_widgets		simple_util_parse_widgets
-#define asoc_simple_parse_pin_switches		simple_util_parse_pin_switches
-#define asoc_simple_init_jack			simple_util_init_jack
-#define asoc_simple_init_aux_jacks		simple_util_init_aux_jacks
-#define asoc_simple_init_priv			simple_util_init_priv
-#define asoc_simple_remove			simple_util_remove
-#define asoc_simple_debug_info			simple_util_debug_info
-#define asoc_graph_card_probe			graph_util_card_probe
-#define asoc_graph_is_ports0			graph_util_is_ports0
-#define asoc_graph_parse_dai			graph_util_parse_dai
 
 int simple_util_parse_daifmt(struct device *dev,
 			     struct device_node *node,

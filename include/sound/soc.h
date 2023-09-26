@@ -775,11 +775,6 @@ struct snd_soc_dai_link {
 #endif
 };
 
-/* REMOVE ME */
-#define asoc_link_to_cpu	snd_soc_link_to_cpu
-#define asoc_link_to_codec	snd_soc_link_to_codec
-#define asoc_link_to_platform	snd_soc_link_to_platform
-
 static inline struct snd_soc_dai_link_component*
 snd_soc_link_to_cpu(struct snd_soc_dai_link *link, int n) {
 	return &(link)->cpus[n];
@@ -895,9 +890,6 @@ snd_soc_link_to_platform(struct snd_soc_dai_link *link, int n) {
 #define COMP_AUX(_name)			{ .name = _name }
 #define COMP_CODEC_CONF(_name)		{ .name = _name }
 #define COMP_DUMMY()			{ .name = "snd-soc-dummy", .dai_name = "snd-soc-dummy-dai", }
-
-/* REMOVE ME */
-#define asoc_dummy_dlc		snd_soc_dummy_dlc
 
 extern struct snd_soc_dai_link_component null_dailink_component[0];
 extern struct snd_soc_dai_link_component snd_soc_dummy_dlc;
@@ -1145,11 +1137,6 @@ struct snd_soc_pcm_runtime {
 	int num_components;
 	struct snd_soc_component *components[]; /* CPU/Codec/Platform */
 };
-
-/* REMOVE ME */
-#define asoc_rtd_to_cpu		snd_soc_rtd_to_cpu
-#define asoc_rtd_to_codec	snd_soc_rtd_to_codec
-#define asoc_substream_to_rtd	snd_soc_substream_to_rtd
 
 /* see soc_new_pcm_runtime()  */
 #define snd_soc_rtd_to_cpu(rtd, n)   (rtd)->dais[n]

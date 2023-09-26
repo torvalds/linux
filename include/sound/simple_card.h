@@ -12,9 +12,6 @@
 #include <sound/soc.h>
 #include <sound/simple_card_utils.h>
 
-/* REMOVE ME */
-#define asoc_simple_card_info	simple_util_info
-
 struct simple_util_info {
 	const char *name;
 	const char *card;
