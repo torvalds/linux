@@ -12,7 +12,6 @@ maintainers:
 
 allOf:
   - $ref: /schemas/pci/pci-bus.yaml#
-  - $ref: /schemas/interrupt-controller/msi-controller.yaml#
 
 properties:
   compatible:
@@ -63,20 +62,24 @@ properties:
 
   msi:
     type: object
+    $ref: /schemas/interrupt-controller/msi-controller.yaml#
+    unevaluatedProperties: false
+
     properties:
       compatible:
         items:
           - const: brcm,iproc-msi
 
+      interrupts:
+        maxItems: 4
+
+      brcm,pcie-msi-inten:
+        type: boolean
+        description:
+          Needs to be present for some older iProc platforms that require the
+          interrupt enable registers to be set explicitly to enable MSI
+
   msi-parent: true
-
-  msi-controller: true
-
-  brcm,pcie-msi-inten:
-    type: boolean
-    description: >
-      Needs to be present for some older iProc platforms that require the
-      interrupt enable registers to be set explicitly to enable MSI
 
 dependencies:
   brcm,pcie-ob-axi-offset: ["brcm,pcie-ob"]
@@ -103,6 +106,11 @@ unevaluatedProperties: false
 examples:
   - |
     #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    gic: interrupt-controller {
+        interrupt-controller;
+        #interrupt-cells = <3>;
+    };
 
     pcie@18012000 {
         compatible = "brcm,iproc-pcie";
