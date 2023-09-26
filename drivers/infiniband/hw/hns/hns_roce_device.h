@@ -146,6 +146,7 @@ enum {
 	HNS_ROCE_CAP_FLAG_SDI_MODE		= BIT(14),
 	HNS_ROCE_CAP_FLAG_STASH			= BIT(17),
 	HNS_ROCE_CAP_FLAG_CQE_INLINE		= BIT(19),
+	HNS_ROCE_CAP_FLAG_SRQ_RECORD_DB         = BIT(22),
 };
 
 #define HNS_ROCE_DB_TYPE_COUNT			2
@@ -453,6 +454,8 @@ struct hns_roce_srq {
 	spinlock_t		lock;
 	struct mutex		mutex;
 	void (*event)(struct hns_roce_srq *srq, enum hns_roce_event event);
+	struct hns_roce_db	rdb;
+	u32			cap_flags;
 };
 
 struct hns_roce_uar_table {
