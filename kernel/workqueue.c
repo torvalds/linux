@@ -6535,9 +6535,6 @@ void __init workqueue_init_early(void)
 
 	BUG_ON(!zalloc_cpumask_var_node(&pt->pod_cpus[0], GFP_KERNEL, NUMA_NO_NODE));
 
-	wq_update_pod_attrs_buf = alloc_workqueue_attrs();
-	BUG_ON(!wq_update_pod_attrs_buf);
-
 	pt->nr_pods = 1;
 	cpumask_copy(pt->pod_cpus[0], cpu_possible_mask);
 	pt->pod_node[0] = NUMA_NO_NODE;
@@ -6605,12 +6602,12 @@ static void __init wq_cpu_intensive_thresh_init(void)
 	unsigned long thresh;
 	unsigned long bogo;
 
+	pwq_release_worker = kthread_create_worker(0, "pool_workqueue_release");
+	BUG_ON(IS_ERR(pwq_release_worker));
+
 	/* if the user set it to a specific value, keep it */
 	if (wq_cpu_intensive_thresh_us != ULONG_MAX)
 		return;
-
-	pwq_release_worker = kthread_create_worker(0, "pool_workqueue_release");
-	BUG_ON(IS_ERR(pwq_release_worker));
 
 	/*
 	 * The default of 10ms is derived from the fact that most modern (as of
