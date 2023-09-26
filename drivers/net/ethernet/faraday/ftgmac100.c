@@ -111,6 +111,7 @@ struct ftgmac100 {
 	/* Misc */
 	bool need_mac_restart;
 	bool is_aspeed;
+	bool is_ast2700_rmii;
 };
 
 static int ftgmac100_reset_mac(struct ftgmac100 *priv, u32 maccr)
@@ -342,6 +343,9 @@ static void ftgmac100_start_hw(struct ftgmac100 *priv)
 	/* Vlan filtering enabled */
 	if (priv->netdev->features & NETIF_F_HW_VLAN_CTAG_RX)
 		maccr |= FTGMAC100_MACCR_RM_VLAN;
+
+	if (priv->is_ast2700_rmii)
+		maccr |= FTGMAC100_MACCR_RMII_ENABLE;
 
 	/* Hit the HW */
 	iowrite32(maccr, priv->base + FTGMAC100_OFFSET_MACCR);
@@ -1977,6 +1981,15 @@ static int ftgmac100_probe(struct platform_device *pdev)
 		    of_device_is_compatible(np, "aspeed,ast2700-mac"))
 			iowrite32(FTGMAC100_TM_DEFAULT,
 				  priv->base + FTGMAC100_OFFSET_TM);
+
+		if (of_device_is_compatible(np, "aspeed,ast2700-mac")) {
+			phy_interface_t phy_intf;
+
+			err = of_get_phy_mode(np, &phy_intf);
+			if (err)
+				phy_intf = PHY_INTERFACE_MODE_RGMII;
+			priv->is_ast2700_rmii = phy_intf == PHY_INTERFACE_MODE_RMII;
+		}
 	}
 
 	/* Default ring sizes */
