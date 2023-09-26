@@ -2543,7 +2543,7 @@ static int rx_bottom(struct r8152 *tp, int budget)
 		}
 	}
 
-	if (list_empty(&tp->rx_done))
+	if (list_empty(&tp->rx_done) || work_done >= budget)
 		goto out1;
 
 	clear_bit(RX_EPROTO, &tp->flags);
@@ -2558,6 +2558,15 @@ static int rx_bottom(struct r8152 *tp, int budget)
 		int len_used = 0;
 		struct urb *urb;
 		u8 *rx_data;
+
+		/* A bulk transfer of USB may contain may packets, so the
+		 * total packets may more than the budget. Deal with all
+		 * packets in current bulk transfer, and stop to handle the
+		 * next bulk transfer until next schedule, if budget is
+		 * exhausted.
+		 */
+		if (work_done >= budget)
+			break;
 
 		list_del_init(cursor);
 
@@ -2578,9 +2587,7 @@ static int rx_bottom(struct r8152 *tp, int budget)
 			unsigned int pkt_len, rx_frag_head_sz;
 			struct sk_buff *skb;
 
-			/* limit the skb numbers for rx_queue */
-			if (unlikely(skb_queue_len(&tp->rx_queue) >= 1000))
-				break;
+			WARN_ON_ONCE(skb_queue_len(&tp->rx_queue) >= 1000);
 
 			pkt_len = le32_to_cpu(rx_desc->opts1) & RX_LEN_MASK;
 			if (pkt_len < ETH_ZLEN)
@@ -2658,9 +2665,10 @@ submit:
 		}
 	}
 
+	/* Splice the remained list back to rx_done for next schedule */
 	if (!list_empty(&rx_queue)) {
 		spin_lock_irqsave(&tp->rx_lock, flags);
-		list_splice_tail(&rx_queue, &tp->rx_done);
+		list_splice(&rx_queue, &tp->rx_done);
 		spin_unlock_irqrestore(&tp->rx_lock, flags);
 	}
 
