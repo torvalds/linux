@@ -1197,6 +1197,16 @@ static irqreturn_t adis16475_trigger_handler(int irq, void *p)
 		switch (bit) {
 		case ADIS16475_SCAN_TEMP:
 			st->data[i++] = buffer[offset];
+			/*
+			 * The temperature channel has 16-bit storage size.
+			 * We need to perform the padding to have the buffer
+			 * elements naturally aligned in case there are any
+			 * 32-bit storage size channels enabled which have a
+			 * scan index higher than the temperature channel scan
+			 * index.
+			 */
+			if (*indio_dev->active_scan_mask & GENMASK(ADIS16475_SCAN_DELTVEL_Z, ADIS16475_SCAN_DELTANG_X))
+				st->data[i++] = 0;
 			break;
 		case ADIS16475_SCAN_DELTANG_X ... ADIS16475_SCAN_DELTVEL_Z:
 			buff_offset = ADIS16475_SCAN_DELTANG_X;
