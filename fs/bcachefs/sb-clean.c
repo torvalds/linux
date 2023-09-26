@@ -137,7 +137,7 @@ struct bch_sb_field_clean *bch2_read_superblock_clean(struct bch_fs *c)
 	int ret;
 
 	mutex_lock(&c->sb_lock);
-	sb_clean = bch2_sb_get_clean(c->disk_sb.sb);
+	sb_clean = bch2_sb_field_get(c->disk_sb.sb, clean);
 
 	if (fsck_err_on(!sb_clean, c,
 			"superblock marked clean but clean section not present")) {
@@ -359,7 +359,7 @@ void bch2_fs_mark_clean(struct bch_fs *c)
 
 	u64s = sizeof(*sb_clean) / sizeof(u64) + c->journal.entry_u64s_reserved;
 
-	sb_clean = bch2_sb_resize_clean(&c->disk_sb, u64s);
+	sb_clean = bch2_sb_field_resize(&c->disk_sb, clean, u64s);
 	if (!sb_clean) {
 		bch_err(c, "error resizing superblock while setting filesystem clean");
 		goto out;

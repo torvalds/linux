@@ -157,7 +157,7 @@ int bch2_sb_disk_groups_to_cpu(struct bch_fs *c)
 
 	lockdep_assert_held(&c->sb_lock);
 
-	groups		= bch2_sb_get_disk_groups(c->disk_sb.sb);
+	groups		= bch2_sb_field_get(c->disk_sb.sb, disk_groups);
 	nr_groups	= disk_groups_nr(groups);
 
 	if (!groups)
@@ -295,7 +295,7 @@ static int __bch2_disk_group_add(struct bch_sb_handle *sb, unsigned parent,
 				 const char *name, unsigned namelen)
 {
 	struct bch_sb_field_disk_groups *groups =
-		bch2_sb_get_disk_groups(sb->sb);
+		bch2_sb_field_get(sb->sb, disk_groups);
 	unsigned i, nr_groups = disk_groups_nr(groups);
 	struct bch_disk_group *g;
 
@@ -313,7 +313,7 @@ static int __bch2_disk_group_add(struct bch_sb_handle *sb, unsigned parent,
 			 sizeof(struct bch_disk_group) * (nr_groups + 1)) /
 			sizeof(u64);
 
-		groups = bch2_sb_resize_disk_groups(sb, u64s);
+		groups = bch2_sb_field_resize(sb, disk_groups, u64s);
 		if (!groups)
 			return -BCH_ERR_ENOSPC_disk_label_add;
 
@@ -337,7 +337,7 @@ static int __bch2_disk_group_add(struct bch_sb_handle *sb, unsigned parent,
 int bch2_disk_path_find(struct bch_sb_handle *sb, const char *name)
 {
 	struct bch_sb_field_disk_groups *groups =
-		bch2_sb_get_disk_groups(sb->sb);
+		bch2_sb_field_get(sb->sb, disk_groups);
 	int v = -1;
 
 	do {
@@ -367,7 +367,7 @@ int bch2_disk_path_find_or_create(struct bch_sb_handle *sb, const char *name)
 		if (*next == '.')
 			next++;
 
-		groups = bch2_sb_get_disk_groups(sb->sb);
+		groups = bch2_sb_field_get(sb->sb, disk_groups);
 
 		v = __bch2_disk_group_find(groups, parent, name, len);
 		if (v < 0)
@@ -385,7 +385,7 @@ int bch2_disk_path_find_or_create(struct bch_sb_handle *sb, const char *name)
 void bch2_disk_path_to_text(struct printbuf *out, struct bch_sb *sb, unsigned v)
 {
 	struct bch_sb_field_disk_groups *groups =
-		bch2_sb_get_disk_groups(sb);
+		bch2_sb_field_get(sb, disk_groups);
 	struct bch_disk_group *g;
 	unsigned nr = 0;
 	u16 path[32];

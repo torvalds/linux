@@ -58,8 +58,8 @@ blacklist_entry_try_merge(struct bch_fs *c,
 			&bl->start[i + 1],
 			sizeof(bl->start[0]) * (nr - i));
 
-		bl = bch2_sb_resize_journal_seq_blacklist(&c->disk_sb,
-							sb_blacklist_u64s(nr));
+		bl = bch2_sb_field_resize(&c->disk_sb, journal_seq_blacklist,
+					  sb_blacklist_u64s(nr));
 		BUG_ON(!bl);
 	}
 
@@ -79,7 +79,7 @@ int bch2_journal_seq_blacklist_add(struct bch_fs *c, u64 start, u64 end)
 	int ret = 0;
 
 	mutex_lock(&c->sb_lock);
-	bl = bch2_sb_get_journal_seq_blacklist(c->disk_sb.sb);
+	bl = bch2_sb_field_get(c->disk_sb.sb, journal_seq_blacklist);
 	nr = blacklist_nr_entries(bl);
 
 	for (i = 0; i < nr; i++) {
@@ -100,8 +100,8 @@ int bch2_journal_seq_blacklist_add(struct bch_fs *c, u64 start, u64 end)
 		}
 	}
 
-	bl = bch2_sb_resize_journal_seq_blacklist(&c->disk_sb,
-					sb_blacklist_u64s(nr + 1));
+	bl = bch2_sb_field_resize(&c->disk_sb, journal_seq_blacklist,
+				  sb_blacklist_u64s(nr + 1));
 	if (!bl) {
 		ret = -BCH_ERR_ENOSPC_sb_journal_seq_blacklist;
 		goto out;
@@ -158,7 +158,7 @@ bool bch2_journal_seq_is_blacklisted(struct bch_fs *c, u64 seq,
 int bch2_blacklist_table_initialize(struct bch_fs *c)
 {
 	struct bch_sb_field_journal_seq_blacklist *bl =
-		bch2_sb_get_journal_seq_blacklist(c->disk_sb.sb);
+		bch2_sb_field_get(c->disk_sb.sb, journal_seq_blacklist);
 	struct journal_seq_blacklist_table *t;
 	unsigned i, nr = blacklist_nr_entries(bl);
 
@@ -281,7 +281,7 @@ retry:
 		return;
 
 	mutex_lock(&c->sb_lock);
-	bl = bch2_sb_get_journal_seq_blacklist(c->disk_sb.sb);
+	bl = bch2_sb_field_get(c->disk_sb.sb, journal_seq_blacklist);
 	if (!bl)
 		goto out;
 
@@ -306,7 +306,7 @@ retry:
 	bch_info(c, "nr blacklist entries was %u, now %u", nr, new_nr);
 
 	if (new_nr != nr) {
-		bl = bch2_sb_resize_journal_seq_blacklist(&c->disk_sb,
+		bl = bch2_sb_field_resize(&c->disk_sb, journal_seq_blacklist,
 				new_nr ? sb_blacklist_u64s(new_nr) : 0);
 		BUG_ON(new_nr && !bl);
 

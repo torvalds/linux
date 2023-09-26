@@ -678,7 +678,7 @@ int bch2_disable_encryption(struct bch_fs *c)
 
 	mutex_lock(&c->sb_lock);
 
-	crypt = bch2_sb_get_crypt(c->disk_sb.sb);
+	crypt = bch2_sb_field_get(c->disk_sb.sb, crypt);
 	if (!crypt)
 		goto out;
 
@@ -712,7 +712,7 @@ int bch2_enable_encryption(struct bch_fs *c, bool keyed)
 	mutex_lock(&c->sb_lock);
 
 	/* Do we already have an encryption key? */
-	if (bch2_sb_get_crypt(c->disk_sb.sb))
+	if (bch2_sb_field_get(c->disk_sb.sb, crypt))
 		goto err;
 
 	ret = bch2_alloc_ciphers(c);
@@ -740,7 +740,8 @@ int bch2_enable_encryption(struct bch_fs *c, bool keyed)
 	if (ret)
 		goto err;
 
-	crypt = bch2_sb_resize_crypt(&c->disk_sb, sizeof(*crypt) / sizeof(u64));
+	crypt = bch2_sb_field_resize(&c->disk_sb, crypt,
+				     sizeof(*crypt) / sizeof(u64));
 	if (!crypt) {
 		ret = -BCH_ERR_ENOSPC_sb_crypt;
 		goto err;
@@ -781,7 +782,7 @@ int bch2_fs_encryption_init(struct bch_fs *c)
 		goto out;
 	}
 
-	crypt = bch2_sb_get_crypt(c->disk_sb.sb);
+	crypt = bch2_sb_field_get(c->disk_sb.sb, crypt);
 	if (!crypt)
 		goto out;
 

@@ -23,31 +23,19 @@ u64 bch2_upgrade_recovery_passes(struct bch_fs *c,
 				 unsigned,
 				 unsigned);
 
-struct bch_sb_field *bch2_sb_field_get(struct bch_sb *, enum bch_sb_field_type);
-struct bch_sb_field *bch2_sb_field_resize(struct bch_sb_handle *,
-					  enum bch_sb_field_type, unsigned);
-void bch2_sb_field_delete(struct bch_sb_handle *, enum bch_sb_field_type);
-
 #define field_to_type(_f, _name)					\
 	container_of_or_null(_f, struct bch_sb_field_##_name, field)
 
-#define x(_name, _nr)							\
-static inline struct bch_sb_field_##_name *				\
-bch2_sb_get_##_name(struct bch_sb *sb)					\
-{									\
-	return field_to_type(bch2_sb_field_get(sb,			\
-				BCH_SB_FIELD_##_name), _name);		\
-}									\
-									\
-static inline struct bch_sb_field_##_name *				\
-bch2_sb_resize_##_name(struct bch_sb_handle *sb, unsigned u64s)	\
-{									\
-	return field_to_type(bch2_sb_field_resize(sb,			\
-				BCH_SB_FIELD_##_name, u64s), _name);	\
-}
+struct bch_sb_field *bch2_sb_field_get_id(struct bch_sb *, enum bch_sb_field_type);
+#define bch2_sb_field_get(_sb, _name)					\
+	field_to_type(bch2_sb_field_get_id(_sb, BCH_SB_FIELD_##_name), _name)
 
-BCH_SB_FIELDS()
-#undef x
+struct bch_sb_field *bch2_sb_field_resize_id(struct bch_sb_handle *,
+					     enum bch_sb_field_type, unsigned);
+#define bch2_sb_field_resize(_sb, _name, _u64s)				\
+	field_to_type(bch2_sb_field_resize_id(_sb, BCH_SB_FIELD_##_name, _u64s), _name)
+
+void bch2_sb_field_delete(struct bch_sb_handle *, enum bch_sb_field_type);
 
 extern const char * const bch2_sb_fields[];
 

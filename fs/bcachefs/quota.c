@@ -513,12 +513,12 @@ void bch2_fs_quota_init(struct bch_fs *c)
 
 static struct bch_sb_field_quota *bch2_sb_get_or_create_quota(struct bch_sb_handle *sb)
 {
-	struct bch_sb_field_quota *sb_quota = bch2_sb_get_quota(sb->sb);
+	struct bch_sb_field_quota *sb_quota = bch2_sb_field_get(sb->sb, quota);
 
 	if (sb_quota)
 		return sb_quota;
 
-	sb_quota = bch2_sb_resize_quota(sb, sizeof(*sb_quota) / sizeof(u64));
+	sb_quota = bch2_sb_field_resize(sb, quota, sizeof(*sb_quota) / sizeof(u64));
 	if (sb_quota) {
 		unsigned qtype, qc;
 
@@ -536,7 +536,7 @@ static void bch2_sb_quota_read(struct bch_fs *c)
 	struct bch_sb_field_quota *sb_quota;
 	unsigned i, j;
 
-	sb_quota = bch2_sb_get_quota(c->disk_sb.sb);
+	sb_quota = bch2_sb_field_get(c->disk_sb.sb, quota);
 	if (!sb_quota)
 		return;
 

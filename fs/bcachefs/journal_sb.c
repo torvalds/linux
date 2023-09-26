@@ -194,7 +194,7 @@ int bch2_journal_buckets_to_sb(struct bch_fs *c, struct bch_dev *ca,
 		if (buckets[i] + 1 != buckets[i + 1])
 			nr_compacted++;
 
-	j = bch2_sb_resize_journal_v2(&ca->disk_sb,
+	j = bch2_sb_field_resize(&ca->disk_sb, journal_v2,
 			 (sizeof(*j) + sizeof(j->d[0]) * nr_compacted) / sizeof(u64));
 	if (!j)
 		return -BCH_ERR_ENOSPC_sb_journal;

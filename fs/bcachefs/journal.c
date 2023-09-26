@@ -1170,9 +1170,9 @@ int bch2_dev_journal_init(struct bch_dev *ca, struct bch_sb *sb)
 {
 	struct journal_device *ja = &ca->journal;
 	struct bch_sb_field_journal *journal_buckets =
-		bch2_sb_get_journal(sb);
+		bch2_sb_field_get(sb, journal);
 	struct bch_sb_field_journal_v2 *journal_buckets_v2 =
-		bch2_sb_get_journal_v2(sb);
+		bch2_sb_field_get(sb, journal_v2);
 	unsigned i, nr_bvecs;
 
 	ja->nr = 0;

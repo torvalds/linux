@@ -48,7 +48,7 @@ static void bch2_sb_counters_to_text(struct printbuf *out, struct bch_sb *sb,
 
 int bch2_sb_counters_to_cpu(struct bch_fs *c)
 {
-	struct bch_sb_field_counters *ctrs = bch2_sb_get_counters(c->disk_sb.sb);
+	struct bch_sb_field_counters *ctrs = bch2_sb_field_get(c->disk_sb.sb, counters);
 	unsigned int i;
 	unsigned int nr = bch2_sb_counter_nr_entries(ctrs);
 	u64 val = 0;
@@ -66,13 +66,13 @@ int bch2_sb_counters_to_cpu(struct bch_fs *c)
 
 int bch2_sb_counters_from_cpu(struct bch_fs *c)
 {
-	struct bch_sb_field_counters *ctrs = bch2_sb_get_counters(c->disk_sb.sb);
+	struct bch_sb_field_counters *ctrs = bch2_sb_field_get(c->disk_sb.sb, counters);
 	struct bch_sb_field_counters *ret;
 	unsigned int i;
 	unsigned int nr = bch2_sb_counter_nr_entries(ctrs);
 
 	if (nr < BCH_COUNTER_NR) {
-		ret = bch2_sb_resize_counters(&c->disk_sb,
+		ret = bch2_sb_field_resize(&c->disk_sb, counters,
 					       sizeof(*ctrs) / sizeof(u64) + BCH_COUNTER_NR);
 
 		if (ret) {

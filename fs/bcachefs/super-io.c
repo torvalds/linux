@@ -96,7 +96,7 @@ const char * const bch2_sb_fields[] = {
 static int bch2_sb_field_validate(struct bch_sb *, struct bch_sb_field *,
 				  struct printbuf *);
 
-struct bch_sb_field *bch2_sb_field_get(struct bch_sb *sb,
+struct bch_sb_field *bch2_sb_field_get_id(struct bch_sb *sb,
 				      enum bch_sb_field_type type)
 {
 	struct bch_sb_field *f;
@@ -151,7 +151,7 @@ static struct bch_sb_field *__bch2_sb_field_resize(struct bch_sb_handle *sb,
 void bch2_sb_field_delete(struct bch_sb_handle *sb,
 			  enum bch_sb_field_type type)
 {
-	struct bch_sb_field *f = bch2_sb_field_get(sb->sb, type);
+	struct bch_sb_field *f = bch2_sb_field_get_id(sb->sb, type);
 
 	if (f)
 		__bch2_sb_field_resize(sb, f, 0);
@@ -225,11 +225,11 @@ int bch2_sb_realloc(struct bch_sb_handle *sb, unsigned u64s)
 	return 0;
 }
 
-struct bch_sb_field *bch2_sb_field_resize(struct bch_sb_handle *sb,
+struct bch_sb_field *bch2_sb_field_resize_id(struct bch_sb_handle *sb,
 					  enum bch_sb_field_type type,
 					  unsigned u64s)
 {
-	struct bch_sb_field *f = bch2_sb_field_get(sb->sb, type);
+	struct bch_sb_field *f = bch2_sb_field_get_id(sb->sb, type);
 	ssize_t old_u64s = f ? le32_to_cpu(f->u64s) : 0;
 	ssize_t d = -old_u64s + u64s;
 
@@ -255,7 +255,7 @@ struct bch_sb_field *bch2_sb_field_resize(struct bch_sb_handle *sb,
 		}
 	}
 
-	f = bch2_sb_field_get(sb->sb, type);
+	f = bch2_sb_field_get_id(sb->sb, type);
 	f = __bch2_sb_field_resize(sb, f, u64s);
 	if (f)
 		f->type = cpu_to_le32(type);
@@ -458,7 +458,7 @@ static int bch2_sb_validate(struct bch_sb_handle *disk_sb, struct printbuf *out,
 	}
 
 	/* members must be validated first: */
-	mi = bch2_sb_get_members_v1(sb);
+	mi = bch2_sb_field_get(sb, members_v1);
 	if (!mi) {
 		prt_printf(out, "Invalid superblock: member info area missing");
 		return -BCH_ERR_invalid_sb_members_missing;
@@ -546,8 +546,8 @@ static int __copy_super(struct bch_sb_handle *dst_handle, struct bch_sb *src)
 		if ((1U << i) & BCH_SINGLE_DEVICE_SB_FIELDS)
 			continue;
 
-		src_f = bch2_sb_field_get(src, i);
-		dst_f = bch2_sb_field_get(dst, i);
+		src_f = bch2_sb_field_get_id(src, i);
+		dst_f = bch2_sb_field_get_id(dst, i);
 
 		d = (src_f ? le32_to_cpu(src_f->u64s) : 0) -
 		    (dst_f ? le32_to_cpu(dst_f->u64s) : 0);
@@ -559,7 +559,7 @@ static int __copy_super(struct bch_sb_handle *dst_handle, struct bch_sb *src)
 				return ret;
 
 			dst = dst_handle->sb;
-			dst_f = bch2_sb_field_get(dst, i);
+			dst_f = bch2_sb_field_get_id(dst, i);
 		}
 
 		dst_f = __bch2_sb_field_resize(dst_handle, dst_f,
