@@ -4185,12 +4185,21 @@ static int __iwl_mvm_mac_set_key(struct ieee80211_hw *hw,
 			 * GTK on AP interface is a TX-only key, return 0;
 			 * on IBSS they're per-station and because we're lazy
 			 * we don't support them for RX, so do the same.
-			 * CMAC/GMAC in AP/IBSS modes must be done in software.
+			 * CMAC/GMAC in AP/IBSS modes must be done in software
+			 * on older NICs.
 			 *
 			 * Except, of course, beacon protection - it must be
-			 * offloaded since we just set a beacon template.
+			 * offloaded since we just set a beacon template, and
+			 * then we must also offload the IGTK (not just BIGTK)
+			 * for firmware reasons.
+			 *
+			 * So just check for beacon protection - if we don't
+			 * have it we cannot get here with keyidx >= 6, and
+			 * if we do have it we need to send the key to FW in
+			 * all cases (CMAC/GMAC).
 			 */
-			if (keyidx < 6 &&
+			if (!wiphy_ext_feature_isset(hw->wiphy,
+						     NL80211_EXT_FEATURE_BEACON_PROTECTION) &&
 			    (key->cipher == WLAN_CIPHER_SUITE_AES_CMAC ||
 			     key->cipher == WLAN_CIPHER_SUITE_BIP_GMAC_128 ||
 			     key->cipher == WLAN_CIPHER_SUITE_BIP_GMAC_256)) {
