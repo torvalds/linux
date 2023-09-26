@@ -562,6 +562,21 @@ config MMC_SDHCI_MSM
 
 	  If unsure, say N.
 
+config MMC_SDHCI_MSM_SCALING
+	tristate "Qualcomm Technologies, Inc. clock scaling feature"
+	depends on MMC_CQHCI
+	select PM_DEVFREQ
+	select DEVFREQ_GOV_SIMPLE_ONDEMAND
+	help
+	  This change adds the use of devfreq based clock scaling to eMMC.
+	  Provide an ondemand clock scaling support similar
+	  to the cpufreq ondemand governor having two thresholds,
+	  up_threshold and down_threshold to decide whether to increase
+	  the frequency or scale it down respectively as per load to save
+	  power.
+
+	  If unsure, say N.
+
 config MMC_MXC
 	tristate "Freescale i.MX21/27/31 or MPC512x Multimedia Card support"
 	depends on ARCH_MXC || PPC_MPC512x
