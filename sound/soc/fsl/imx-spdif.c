@@ -38,7 +38,7 @@ static int imx_spdif_audio_probe(struct platform_device *pdev)
 	 */
 	data->dai.cpus		=
 	data->dai.platforms	= comp;
-	data->dai.codecs	= &asoc_dummy_dlc;
+	data->dai.codecs	= &snd_soc_dummy_dlc;
 
 	data->dai.num_cpus	= 1;
 	data->dai.num_codecs	= 1;

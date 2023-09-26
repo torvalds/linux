@@ -267,7 +267,7 @@ static int loongson_pcm_open(struct snd_soc_component *component,
 		goto pos_err;
 	}
 
-	dma_data = snd_soc_dai_get_dma_data(asoc_rtd_to_cpu(rtd, 0), substream);
+	dma_data = snd_soc_dai_get_dma_data(snd_soc_rtd_to_cpu(rtd, 0), substream);
 	prtd->dma_data = dma_data;
 
 	substream->runtime->private_data = prtd;
@@ -321,7 +321,7 @@ static int loongson_pcm_new(struct snd_soc_component *component,
 		if (!substream)
 			continue;
 
-		dma_data = snd_soc_dai_get_dma_data(asoc_rtd_to_cpu(rtd, 0),
+		dma_data = snd_soc_dai_get_dma_data(snd_soc_rtd_to_cpu(rtd, 0),
 						    substream);
 		ret = devm_request_irq(card->dev, dma_data->irq,
 				       loongson_pcm_dma_irq,

@@ -57,8 +57,8 @@ static int cz_aif1_hw_params(struct snd_pcm_substream *substream,
 			     struct snd_pcm_hw_params *params)
 {
 	int ret = 0;
-	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
-	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
+	struct snd_soc_dai *codec_dai = snd_soc_rtd_to_codec(rtd, 0);
 
 	ret = snd_soc_dai_set_pll(codec_dai, 0, RT5645_PLL1_S_MCLK,
 				  CZ_PLAT_CLK, params_rate(params) * 512);
@@ -83,7 +83,7 @@ static int cz_init(struct snd_soc_pcm_runtime *rtd)
 	struct snd_soc_card *card;
 	struct snd_soc_component *codec;
 
-	codec = asoc_rtd_to_codec(rtd, 0)->component;
+	codec = snd_soc_rtd_to_codec(rtd, 0)->component;
 	card = rtd->card;
 
 	ret = snd_soc_card_jack_new_pins(card, "Headset Jack",

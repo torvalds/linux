@@ -476,7 +476,7 @@ static snd_pcm_uframes_t mt8195_pcm_pointer(struct snd_sof_dev *sdev,
 	struct sof_ipc_stream_posn posn;
 	struct snd_sof_pcm_stream *stream;
 	struct snd_soc_component *scomp = sdev->component;
-	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 
 	spcm = snd_sof_find_spcm_dai(scomp, rtd);
 	if (!spcm) {

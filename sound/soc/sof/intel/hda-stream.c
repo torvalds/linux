@@ -38,7 +38,7 @@ static char *hda_hstream_dbg_get_stream_info_str(struct hdac_stream *hstream)
 	struct snd_soc_pcm_runtime *rtd;
 
 	if (hstream->substream)
-		rtd = asoc_substream_to_rtd(hstream->substream);
+		rtd = snd_soc_substream_to_rtd(hstream->substream);
 	else if (hstream->cstream)
 		rtd = hstream->cstream->private_data;
 	else

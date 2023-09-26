@@ -32,7 +32,7 @@ static int avs_create_dai_link(struct device *dev, const char *platform_name, in
 		return -ENOMEM;
 
 	dl->cpus->dai_name = devm_kasprintf(dev, GFP_KERNEL, "SSP%d Pin", ssp_port);
-	dl->codecs = &asoc_dummy_dlc;
+	dl->codecs = &snd_soc_dummy_dlc;
 	if (!dl->cpus->dai_name || !dl->codecs->name || !dl->codecs->dai_name)
 		return -ENOMEM;
 
