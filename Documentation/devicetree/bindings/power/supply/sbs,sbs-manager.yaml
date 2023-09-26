@@ -47,6 +47,12 @@ patternProperties:
   "^i2c@[1-4]$":
     type: object
     $ref: /schemas/i2c/i2c-controller.yaml#
+    unevaluatedProperties: false
+
+    properties:
+      reg:
+        minimum: 1
+        maximum: 4
 
 examples:
   - |
