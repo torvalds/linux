@@ -226,6 +226,49 @@ static const struct lpc_ich_gpio_info apl_gpio_info = {
 	.offsets = apl_gpio_offsets,
 };
 
+#define DNV_GPIO_NORTH		0
+#define DNV_GPIO_SOUTH		1
+
+#define DNV_GPIO_NR_DEVICES	1
+#define DNV_GPIO_NR_RESOURCES	2
+
+/* Offset data for Denverton GPIO controllers */
+static resource_size_t dnv_gpio_offsets[DNV_GPIO_NR_RESOURCES] = {
+	[DNV_GPIO_NORTH]	= 0xc20000,
+	[DNV_GPIO_SOUTH]	= 0xc50000,
+};
+
+#define DNV_GPIO_IRQ			14
+
+static struct resource dnv_gpio_resources[DNV_GPIO_NR_RESOURCES + 1] = {
+	[DNV_GPIO_NORTH] = DEFINE_RES_MEM(0, 0),
+	[DNV_GPIO_SOUTH] = DEFINE_RES_MEM(0, 0),
+	DEFINE_RES_IRQ(DNV_GPIO_IRQ),
+};
+
+static struct resource *dnv_gpio_mem_resources[DNV_GPIO_NR_RESOURCES] = {
+	[DNV_GPIO_NORTH] = &dnv_gpio_resources[DNV_GPIO_NORTH],
+	[DNV_GPIO_SOUTH] = &dnv_gpio_resources[DNV_GPIO_SOUTH],
+};
+
+static const struct mfd_cell dnv_gpio_devices[DNV_GPIO_NR_DEVICES] = {
+	{
+		.name = "denverton-pinctrl",
+		.num_resources = ARRAY_SIZE(dnv_gpio_resources),
+		.resources = dnv_gpio_resources,
+		.ignore_resource_conflicts = true,
+	},
+};
+
+static const struct lpc_ich_gpio_info dnv_gpio_info = {
+	.hid = "INTC3000",
+	.devices = dnv_gpio_devices,
+	.nr_devices = ARRAY_SIZE(dnv_gpio_devices),
+	.resources = dnv_gpio_mem_resources,
+	.nr_resources = ARRAY_SIZE(dnv_gpio_mem_resources),
+	.offsets = dnv_gpio_offsets,
+};
+
 static struct mfd_cell lpc_ich_spi_cell = {
 	.name = "intel-spi",
 	.num_resources = ARRAY_SIZE(intel_spi_res),
@@ -303,6 +346,7 @@ enum lpc_chipsets {
 	LPC_LEWISBURG,	/* Lewisburg */
 	LPC_9S,		/* 9 Series */
 	LPC_APL,	/* Apollo Lake SoC */
+	LPC_DNV,	/* Denverton SoC */
 	LPC_GLK,	/* Gemini Lake SoC */
 	LPC_COUGARMOUNTAIN,/* Cougar Mountain SoC*/
 };
@@ -648,6 +692,10 @@ static struct lpc_ich_info lpc_chipset_info[] = {
 		.gpio_info = &apl_gpio_info,
 		.spi_type = INTEL_SPI_BXT,
 	},
+	[LPC_DNV] = {
+		.name = "Denverton SoC",
+		.gpio_info = &dnv_gpio_info,
+	},
 	[LPC_GLK] = {
 		.name = "Gemini Lake SoC",
 		.spi_type = INTEL_SPI_BXT,
@@ -666,6 +714,7 @@ static struct lpc_ich_info lpc_chipset_info[] = {
  */
 static const struct pci_device_id lpc_ich_ids[] = {
 	{ PCI_VDEVICE(INTEL, 0x0f1c), LPC_BAYTRAIL},
+	{ PCI_VDEVICE(INTEL, 0x19dc), LPC_DNV},
 	{ PCI_VDEVICE(INTEL, 0x1c41), LPC_CPT},
 	{ PCI_VDEVICE(INTEL, 0x1c42), LPC_CPTD},
 	{ PCI_VDEVICE(INTEL, 0x1c43), LPC_CPTM},
