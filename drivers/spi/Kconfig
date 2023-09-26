@@ -823,6 +823,18 @@ config SPI_QCOM_GENI
 	  This driver can also be built as a module.  If so, the module
 	  will be called spi-geni-qcom.
 
+config Q2SPI_MSM_GENI
+	tristate "Qualcomm Technologies Inc.'s GENI based Q2SPI controller"
+	depends on QCOM_GENI_SE
+	help
+	  This driver supports GENI serial engine based Q2SPI controller in
+	  master mode on the Qualcomm Technologies Inc.'s SoCs. If you say
+	  yes to this option, support will be included for the built-in Q2SPI
+	  interface on the Qualcomm Technologies Inc.'s SoCs.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called q2spi-geni.
+
 config SPI_MSM_GENI
 	tristate "Qualcomm Technologies Inc.'s GENI based SPI controller"
 	depends on QCOM_GENI_SE
