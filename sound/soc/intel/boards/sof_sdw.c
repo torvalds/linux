@@ -511,12 +511,12 @@ int sdw_startup(struct snd_pcm_substream *substream)
 
 int sdw_prepare(struct snd_pcm_substream *substream)
 {
-	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 	struct sdw_stream_runtime *sdw_stream;
 	struct snd_soc_dai *dai;
 
 	/* Find stream from first CPU DAI */
-	dai = asoc_rtd_to_cpu(rtd, 0);
+	dai = snd_soc_rtd_to_cpu(rtd, 0);
 
 	sdw_stream = snd_soc_dai_get_stream(dai, substream->stream);
 	if (IS_ERR(sdw_stream)) {
@@ -529,13 +529,13 @@ int sdw_prepare(struct snd_pcm_substream *substream)
 
 int sdw_trigger(struct snd_pcm_substream *substream, int cmd)
 {
-	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 	struct sdw_stream_runtime *sdw_stream;
 	struct snd_soc_dai *dai;
 	int ret;
 
 	/* Find stream from first CPU DAI */
-	dai = asoc_rtd_to_cpu(rtd, 0);
+	dai = snd_soc_rtd_to_cpu(rtd, 0);
 
 	sdw_stream = snd_soc_dai_get_stream(dai, substream->stream);
 	if (IS_ERR(sdw_stream)) {
@@ -569,7 +569,7 @@ int sdw_trigger(struct snd_pcm_substream *substream, int cmd)
 int sdw_hw_params(struct snd_pcm_substream *substream,
 		  struct snd_pcm_hw_params *params)
 {
-	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 	int ch = params_channels(params);
 	struct snd_soc_dai *codec_dai;
 	struct snd_soc_dai *cpu_dai;
@@ -617,12 +617,12 @@ int sdw_hw_params(struct snd_pcm_substream *substream,
 
 int sdw_hw_free(struct snd_pcm_substream *substream)
 {
-	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 	struct sdw_stream_runtime *sdw_stream;
 	struct snd_soc_dai *dai;
 
 	/* Find stream from first CPU DAI */
-	dai = asoc_rtd_to_cpu(rtd, 0);
+	dai = snd_soc_rtd_to_cpu(rtd, 0);
 
 	sdw_stream = snd_soc_dai_get_stream(dai, substream->stream);
 	if (IS_ERR(sdw_stream)) {
@@ -1784,8 +1784,8 @@ HDMI:
 		cpu_dai_name = devm_kasprintf(dev, GFP_KERNEL, "SSP%d Pin", port);
 
 		ret = init_simple_dai_link(dev, dai_links + link_index, &be_id, name,
-					   1, 1, cpu_dai_name, asoc_dummy_dlc.name,
-					   asoc_dummy_dlc.dai_name, NULL, NULL);
+					   1, 1, cpu_dai_name, snd_soc_dummy_dlc.name,
+					   snd_soc_dummy_dlc.dai_name, NULL, NULL);
 		if (ret)
 			return ret;
 	}

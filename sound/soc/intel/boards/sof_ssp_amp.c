@@ -168,7 +168,7 @@ static struct snd_soc_dai_link_component dmic_component[] = {
 static int sof_hdmi_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct sof_card_private *ctx = snd_soc_card_get_drvdata(rtd->card);
-	struct snd_soc_dai *dai = asoc_rtd_to_codec(rtd, 0);
+	struct snd_soc_dai *dai = snd_soc_rtd_to_codec(rtd, 0);
 	struct sof_hdmi_pcm *pcm;
 
 	pcm = devm_kzalloc(rtd->card->dev, sizeof(*pcm), GFP_KERNEL);
@@ -233,7 +233,7 @@ sof_card_dai_links_create(struct device *dev, enum sof_ssp_codec amp_type,
 			if (!links[id].name)
 				return NULL;
 			links[id].id = fixed_be ? (HDMI_IN_BE_ID + i - 1) : id;
-			links[id].codecs = &asoc_dummy_dlc;
+			links[id].codecs = &snd_soc_dummy_dlc;
 			links[id].num_codecs = 1;
 			links[id].platforms = platform_component;
 			links[id].num_platforms = ARRAY_SIZE(platform_component);
@@ -341,7 +341,7 @@ sof_card_dai_links_create(struct device *dev, enum sof_ssp_codec amp_type,
 				if (!idisp_components[i - 1].dai_name)
 					goto devm_err;
 			} else {
-				idisp_components[i - 1] = asoc_dummy_dlc;
+				idisp_components[i - 1] = snd_soc_dummy_dlc;
 			}
 
 			links[id].codecs = &idisp_components[i - 1];
@@ -369,7 +369,7 @@ sof_card_dai_links_create(struct device *dev, enum sof_ssp_codec amp_type,
 		links[id].name = devm_kasprintf(dev, GFP_KERNEL, "SSP%d-BT", port);
 		if (!links[id].name)
 			goto devm_err;
-		links[id].codecs = &asoc_dummy_dlc;
+		links[id].codecs = &snd_soc_dummy_dlc;
 		links[id].num_codecs = 1;
 		links[id].platforms = platform_component;
 		links[id].num_platforms = ARRAY_SIZE(platform_component);

@@ -74,8 +74,8 @@ static struct catpt_stream_template *catpt_topology[] = {
 static struct catpt_stream_template *
 catpt_get_stream_template(struct snd_pcm_substream *substream)
 {
-	struct snd_soc_pcm_runtime *rtm = asoc_substream_to_rtd(substream);
-	struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(rtm, 0);
+	struct snd_soc_pcm_runtime *rtm = snd_soc_substream_to_rtd(substream);
+	struct snd_soc_dai *cpu_dai = snd_soc_rtd_to_cpu(rtm, 0);
 	enum catpt_stream_type type;
 
 	type = cpu_dai->driver->id;
@@ -593,7 +593,7 @@ static int catpt_component_pcm_construct(struct snd_soc_component *component,
 static int catpt_component_open(struct snd_soc_component *component,
 				struct snd_pcm_substream *substream)
 {
-	struct snd_soc_pcm_runtime *rtm = asoc_substream_to_rtd(substream);
+	struct snd_soc_pcm_runtime *rtm = snd_soc_substream_to_rtd(substream);
 
 	if (!rtm->dai_link->no_pcm)
 		snd_soc_set_runtime_hwparams(substream, &catpt_pcm_hardware);
@@ -604,8 +604,8 @@ static snd_pcm_uframes_t
 catpt_component_pointer(struct snd_soc_component *component,
 			struct snd_pcm_substream *substream)
 {
-	struct snd_soc_pcm_runtime *rtm = asoc_substream_to_rtd(substream);
-	struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(rtm, 0);
+	struct snd_soc_pcm_runtime *rtm = snd_soc_substream_to_rtd(substream);
+	struct snd_soc_dai *cpu_dai = snd_soc_rtd_to_cpu(rtm, 0);
 	struct catpt_stream_runtime *stream;
 	struct catpt_dev *cdev = dev_get_drvdata(component->dev);
 	u32 pos;
@@ -631,7 +631,7 @@ static const struct snd_soc_dai_ops catpt_fe_dai_ops = {
 static int catpt_dai_pcm_new(struct snd_soc_pcm_runtime *rtm,
 			     struct snd_soc_dai *dai)
 {
-	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtm, 0);
+	struct snd_soc_dai *codec_dai = snd_soc_rtd_to_codec(rtm, 0);
 	struct catpt_ssp_device_format devfmt;
 	struct catpt_dev *cdev = dev_get_drvdata(dai->dev);
 	int ret;

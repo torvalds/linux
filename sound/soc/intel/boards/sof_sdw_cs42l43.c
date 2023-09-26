@@ -41,7 +41,7 @@ static const struct snd_soc_dapm_route cs42l43_dmic_map[] = {
 
 static int cs42l43_hs_rtd_init(struct snd_soc_pcm_runtime *rtd)
 {
-	struct snd_soc_component *component = asoc_rtd_to_codec(rtd, 0)->component;
+	struct snd_soc_component *component = snd_soc_rtd_to_codec(rtd, 0)->component;
 	struct mc_private *ctx = snd_soc_card_get_drvdata(rtd->card);
 	struct snd_soc_jack *jack = &ctx->sdw_headset;
 	struct snd_soc_card *card = rtd->card;
