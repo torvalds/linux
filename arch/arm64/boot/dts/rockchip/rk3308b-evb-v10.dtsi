@@ -317,9 +317,9 @@
 	clock-frequency = <400000>;
 	status = "okay";
 
-	is31fl3236: led-controller@3c {
+	is31fl3236: led-controller@3f {
 		compatible = "issi,is31fl3236";
-		reg = <0x3c>;
+		reg = <0x3f>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 		reset-gpios = <&gpio0 RK_PB0 GPIO_ACTIVE_HIGH>;

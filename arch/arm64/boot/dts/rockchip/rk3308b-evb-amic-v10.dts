@@ -48,10 +48,6 @@
 		     &i2s_8ch_0_sdo2>;
 };
 
-&is31fl3236 {
-	reg = <0x3f>;
-};
-
 &vad {
 	status = "okay";
 	rockchip,audio-src = <&i2s_8ch_2>;
