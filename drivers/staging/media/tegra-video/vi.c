@@ -1455,17 +1455,18 @@ static int __maybe_unused vi_runtime_suspend(struct device *dev)
 }
 
 /*
- * Graph Management
+ * Find the entity matching a given fwnode in an v4l2_async_notifier list
  */
 static struct tegra_vi_graph_entity *
-tegra_vi_graph_find_entity(struct tegra_vi_channel *chan,
+tegra_vi_graph_find_entity(struct list_head *list,
 			   const struct fwnode_handle *fwnode)
 {
 	struct tegra_vi_graph_entity *entity;
 	struct v4l2_async_connection *asd;
 
-	list_for_each_entry(asd, &chan->notifier.done_list, asc_entry) {
+	list_for_each_entry(asd, list, asc_entry) {
 		entity = to_tegra_vi_graph_entity(asd);
+
 		if (entity->asd.match.fwnode == fwnode)
 			return entity;
 	}
@@ -1532,7 +1533,8 @@ static int tegra_vi_graph_build(struct tegra_vi_channel *chan,
 		}
 
 		/* find the remote entity from notifier list */
-		ent = tegra_vi_graph_find_entity(chan, link.remote_node);
+		ent = tegra_vi_graph_find_entity(&chan->notifier.done_list,
+						 link.remote_node);
 		if (!ent) {
 			dev_err(vi->dev, "no entity found for %pOF\n",
 				to_of_node(link.remote_node));
@@ -1664,7 +1666,8 @@ static int tegra_vi_graph_notify_bound(struct v4l2_async_notifier *notifier,
 	 * Locate the entity corresponding to the bound subdev and store the
 	 * subdev pointer.
 	 */
-	entity = tegra_vi_graph_find_entity(chan, subdev->fwnode);
+	entity = tegra_vi_graph_find_entity(&chan->notifier.waiting_list,
+					    subdev->fwnode);
 	if (!entity) {
 		dev_err(vi->dev, "no entity for subdev %s\n", subdev->name);
 		return -EINVAL;
@@ -1713,7 +1716,8 @@ static int tegra_vi_graph_parse_one(struct tegra_vi_channel *chan,
 
 		/* skip entities that are already processed */
 		if (device_match_fwnode(vi->dev, remote) ||
-		    tegra_vi_graph_find_entity(chan, remote)) {
+		    tegra_vi_graph_find_entity(&chan->notifier.waiting_list,
+					       remote)) {
 			fwnode_handle_put(remote);
 			continue;
 		}
