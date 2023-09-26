@@ -69,8 +69,8 @@ static int acp3x_es83xx_codec_startup(struct snd_pcm_substream *substream)
 	int ret;
 
 	runtime = substream->runtime;
-	rtd = asoc_substream_to_rtd(substream);
-	codec_dai = asoc_rtd_to_codec(rtd, 0);
+	rtd = snd_soc_substream_to_rtd(substream);
+	codec_dai = snd_soc_rtd_to_codec(rtd, 0);
 	priv = get_mach_priv(rtd->card);
 
 	if (priv->quirk & ES83XX_48_MHZ_MCLK) {
@@ -272,7 +272,7 @@ static int acp3x_es83xx_configure_mics(struct acp3x_es83xx_private *priv)
 
 static int acp3x_es83xx_init(struct snd_soc_pcm_runtime *runtime)
 {
-	struct snd_soc_component *codec = asoc_rtd_to_codec(runtime, 0)->component;
+	struct snd_soc_component *codec = snd_soc_rtd_to_codec(runtime, 0)->component;
 	struct snd_soc_card *card = runtime->card;
 	struct acp3x_es83xx_private *priv = get_mach_priv(card);
 	int ret = 0;
