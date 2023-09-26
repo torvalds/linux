@@ -34,13 +34,6 @@ properties:
     description: >
        Base address and length of the PCIe controller I/O register space
 
-  interrupt-map: true
-
-  interrupt-map-mask: true
-
-  "#interrupt-cells":
-    const: 1
-
   ranges:
     minItems: 1
     maxItems: 2
@@ -54,15 +47,7 @@ properties:
     items:
       - const: pcie-phy
 
-  bus-range: true
-
   dma-coherent: true
-
-  "#address-cells": true
-
-  "#size-cells": true
-
-  device_type: true
 
   brcm,pcie-ob:
     type: boolean
