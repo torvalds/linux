@@ -1169,29 +1169,6 @@ out:
 	return rc;
 }
 
-int xen_irq_from_pirq(unsigned pirq)
-{
-	int irq;
-
-	struct irq_info *info;
-
-	mutex_lock(&irq_mapping_update_lock);
-
-	list_for_each_entry(info, &xen_irq_list_head, list) {
-		if (info->type != IRQT_PIRQ)
-			continue;
-		irq = info->irq;
-		if (info->u.pirq.pirq == pirq)
-			goto out;
-	}
-	irq = -1;
-out:
-	mutex_unlock(&irq_mapping_update_lock);
-
-	return irq;
-}
-
-
 int xen_pirq_from_irq(unsigned irq)
 {
 	return pirq_from_irq(irq);
@@ -2031,13 +2008,6 @@ void xen_clear_irq_pending(int irq)
 		event_handler_exit(info);
 }
 EXPORT_SYMBOL(xen_clear_irq_pending);
-void xen_set_irq_pending(int irq)
-{
-	evtchn_port_t evtchn = evtchn_from_irq(irq);
-
-	if (VALID_EVTCHN(evtchn))
-		set_evtchn(evtchn);
-}
 
 bool xen_test_irq_pending(int irq)
 {
