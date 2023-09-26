@@ -2672,6 +2672,10 @@ static void xs_tcp_tls_setup_socket(struct work_struct *work)
 	rcu_read_lock();
 	lower_xprt = rcu_dereference(lower_clnt->cl_xprt);
 	rcu_read_unlock();
+
+	if (wait_on_bit_lock(&lower_xprt->state, XPRT_LOCKED, TASK_KILLABLE))
+		goto out_unlock;
+
 	status = xs_tls_handshake_sync(lower_xprt, &upper_xprt->xprtsec);
 	if (status) {
 		trace_rpc_tls_not_started(upper_clnt, upper_xprt);
@@ -2681,6 +2685,7 @@ static void xs_tcp_tls_setup_socket(struct work_struct *work)
 	status = xs_tcp_tls_finish_connecting(lower_xprt, upper_transport);
 	if (status)
 		goto out_close;
+	xprt_release_write(lower_xprt, NULL);
 
 	trace_rpc_socket_connect(upper_xprt, upper_transport->sock, 0);
 	if (!xprt_test_and_set_connected(upper_xprt)) {
@@ -2702,6 +2707,7 @@ out_unlock:
 	return;
 
 out_close:
+	xprt_release_write(lower_xprt, NULL);
 	rpc_shutdown_client(lower_clnt);
 
 	/* xprt_force_disconnect() wakes tasks with a fixed tk_status code.
