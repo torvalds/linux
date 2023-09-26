@@ -34,8 +34,6 @@ void dcn35_build_wm_range_table_fpu(struct clk_mgr *clk_mgr);
 void dcn35_update_bw_bounding_box_fpu(struct dc *dc,
 				      struct clk_bw_params *bw_params);
 
-void dcn35_patch_dpm_table(struct clk_bw_params *bw_params);
-
 int dcn35_populate_dml_pipes_from_context_fpu(struct dc *dc,
 					      struct dc_state *context,
 					      display_e2e_pipe_params_st *pipes,
