@@ -37,7 +37,7 @@ struct node_memory_type_map {
 static DEFINE_MUTEX(memory_tier_lock);
 static LIST_HEAD(memory_tiers);
 static struct node_memory_type_map node_memory_types[MAX_NUMNODES];
-static struct memory_dev_type *default_dram_type;
+struct memory_dev_type *default_dram_type;
 
 static struct bus_type memory_tier_subsys = {
 	.name = "memory_tiering",
@@ -107,6 +107,11 @@ static struct demotion_nodes *node_demotion __read_mostly;
 #endif /* CONFIG_MIGRATION */
 
 static BLOCKING_NOTIFIER_HEAD(mt_adistance_algorithms);
+
+static bool default_dram_perf_error;
+static struct node_hmem_attrs default_dram_perf;
+static int default_dram_perf_ref_nid = NUMA_NO_NODE;
+static const char *default_dram_perf_ref_source;
 
 static inline struct memory_tier *to_memory_tier(struct device *device)
 {
@@ -594,6 +599,102 @@ void clear_node_memory_type(int node, struct memory_dev_type *memtype)
 	mutex_unlock(&memory_tier_lock);
 }
 EXPORT_SYMBOL_GPL(clear_node_memory_type);
+
+static void dump_hmem_attrs(struct node_hmem_attrs *attrs, const char *prefix)
+{
+	pr_info(
+"%sread_latency: %u, write_latency: %u, read_bandwidth: %u, write_bandwidth: %u\n",
+		prefix, attrs->read_latency, attrs->write_latency,
+		attrs->read_bandwidth, attrs->write_bandwidth);
+}
+
+int mt_set_default_dram_perf(int nid, struct node_hmem_attrs *perf,
+			     const char *source)
+{
+	int rc = 0;
+
+	mutex_lock(&memory_tier_lock);
+	if (default_dram_perf_error) {
+		rc = -EIO;
+		goto out;
+	}
+
+	if (perf->read_latency + perf->write_latency == 0 ||
+	    perf->read_bandwidth + perf->write_bandwidth == 0) {
+		rc = -EINVAL;
+		goto out;
+	}
+
+	if (default_dram_perf_ref_nid == NUMA_NO_NODE) {
+		default_dram_perf = *perf;
+		default_dram_perf_ref_nid = nid;
+		default_dram_perf_ref_source = kstrdup(source, GFP_KERNEL);
+		goto out;
+	}
+
+	/*
+	 * The performance of all default DRAM nodes is expected to be
+	 * same (that is, the variation is less than 10%).  And it
+	 * will be used as base to calculate the abstract distance of
+	 * other memory nodes.
+	 */
+	if (abs(perf->read_latency - default_dram_perf.read_latency) * 10 >
+	    default_dram_perf.read_latency ||
+	    abs(perf->write_latency - default_dram_perf.write_latency) * 10 >
+	    default_dram_perf.write_latency ||
+	    abs(perf->read_bandwidth - default_dram_perf.read_bandwidth) * 10 >
+	    default_dram_perf.read_bandwidth ||
+	    abs(perf->write_bandwidth - default_dram_perf.write_bandwidth) * 10 >
+	    default_dram_perf.write_bandwidth) {
+		pr_info(
+"memory-tiers: the performance of DRAM node %d mismatches that of the reference\n"
+"DRAM node %d.\n", nid, default_dram_perf_ref_nid);
+		pr_info("  performance of reference DRAM node %d:\n",
+			default_dram_perf_ref_nid);
+		dump_hmem_attrs(&default_dram_perf, "    ");
+		pr_info("  performance of DRAM node %d:\n", nid);
+		dump_hmem_attrs(perf, "    ");
+		pr_info(
+"  disable default DRAM node performance based abstract distance algorithm.\n");
+		default_dram_perf_error = true;
+		rc = -EINVAL;
+	}
+
+out:
+	mutex_unlock(&memory_tier_lock);
+	return rc;
+}
+
+int mt_perf_to_adistance(struct node_hmem_attrs *perf, int *adist)
+{
+	if (default_dram_perf_error)
+		return -EIO;
+
+	if (default_dram_perf_ref_nid == NUMA_NO_NODE)
+		return -ENOENT;
+
+	if (perf->read_latency + perf->write_latency == 0 ||
+	    perf->read_bandwidth + perf->write_bandwidth == 0)
+		return -EINVAL;
+
+	mutex_lock(&memory_tier_lock);
+	/*
+	 * The abstract distance of a memory node is in direct proportion to
+	 * its memory latency (read + write) and inversely proportional to its
+	 * memory bandwidth (read + write).  The abstract distance, memory
+	 * latency, and memory bandwidth of the default DRAM nodes are used as
+	 * the base.
+	 */
+	*adist = MEMTIER_ADISTANCE_DRAM *
+		(perf->read_latency + perf->write_latency) /
+		(default_dram_perf.read_latency + default_dram_perf.write_latency) *
+		(default_dram_perf.read_bandwidth + default_dram_perf.write_bandwidth) /
+		(perf->read_bandwidth + perf->write_bandwidth);
+	mutex_unlock(&memory_tier_lock);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(mt_perf_to_adistance);
 
 /**
  * register_mt_adistance_algorithm() - Register memory tiering abstract distance algorithm

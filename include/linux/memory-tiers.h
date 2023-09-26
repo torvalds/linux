@@ -31,8 +31,11 @@ struct memory_dev_type {
 	struct kref kref;
 };
 
+struct node_hmem_attrs;
+
 #ifdef CONFIG_NUMA
 extern bool numa_demotion_enabled;
+extern struct memory_dev_type *default_dram_type;
 struct memory_dev_type *alloc_memory_type(int adistance);
 void put_memory_type(struct memory_dev_type *memtype);
 void init_node_memory_type(int node, struct memory_dev_type *default_type);
@@ -40,6 +43,9 @@ void clear_node_memory_type(int node, struct memory_dev_type *memtype);
 int register_mt_adistance_algorithm(struct notifier_block *nb);
 int unregister_mt_adistance_algorithm(struct notifier_block *nb);
 int mt_calc_adistance(int node, int *adist);
+int mt_set_default_dram_perf(int nid, struct node_hmem_attrs *perf,
+			     const char *source);
+int mt_perf_to_adistance(struct node_hmem_attrs *perf, int *adist);
 #ifdef CONFIG_MIGRATION
 int next_demotion_node(int node);
 void node_get_allowed_targets(pg_data_t *pgdat, nodemask_t *targets);
@@ -64,6 +70,7 @@ static inline bool node_is_toptier(int node)
 #else
 
 #define numa_demotion_enabled	false
+#define default_dram_type	NULL
 /*
  * CONFIG_NUMA implementation returns non NULL error.
  */
@@ -115,6 +122,17 @@ static inline int unregister_mt_adistance_algorithm(struct notifier_block *nb)
 static inline int mt_calc_adistance(int node, int *adist)
 {
 	return NOTIFY_DONE;
+}
+
+static inline int mt_set_default_dram_perf(int nid, struct node_hmem_attrs *perf,
+					   const char *source)
+{
+	return -EIO;
+}
+
+static inline int mt_perf_to_adistance(struct node_hmem_attrs *perf, int *adist)
+{
+	return -EIO;
 }
 #endif	/* CONFIG_NUMA */
 #endif  /* _LINUX_MEMORY_TIERS_H */
