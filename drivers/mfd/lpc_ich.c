@@ -131,21 +131,32 @@ static struct mfd_cell lpc_ich_gpio_cell = {
 	.ignore_resource_conflicts = true,
 };
 
+#define INTEL_GPIO_RESOURCE_SIZE	0x1000
+
+struct lpc_ich_gpio_info {
+	const char *hid;
+	const struct mfd_cell *devices;
+	size_t nr_devices;
+	struct resource **resources;
+	size_t nr_resources;
+	resource_size_t *offsets;
+};
+
 #define APL_GPIO_NORTH		0
 #define APL_GPIO_NORTHWEST	1
 #define APL_GPIO_WEST		2
 #define APL_GPIO_SOUTHWEST	3
+
 #define APL_GPIO_NR_DEVICES	4
+#define APL_GPIO_NR_RESOURCES	4
 
 /* Offset data for Apollo Lake GPIO controllers */
-static resource_size_t apl_gpio_offsets[APL_GPIO_NR_DEVICES] = {
+static resource_size_t apl_gpio_offsets[APL_GPIO_NR_RESOURCES] = {
 	[APL_GPIO_NORTH]	= 0xc50000,
 	[APL_GPIO_NORTHWEST]	= 0xc40000,
 	[APL_GPIO_WEST]		= 0xc70000,
 	[APL_GPIO_SOUTHWEST]	= 0xc00000,
 };
-
-#define APL_GPIO_RESOURCE_SIZE		0x1000
 
 #define APL_GPIO_IRQ			14
 
@@ -166,6 +177,13 @@ static struct resource apl_gpio_resources[APL_GPIO_NR_DEVICES][2] = {
 		DEFINE_RES_MEM(0, 0),
 		DEFINE_RES_IRQ(APL_GPIO_IRQ),
 	},
+};
+
+static struct resource *apl_gpio_mem_resources[APL_GPIO_NR_RESOURCES] = {
+	[APL_GPIO_NORTH] = &apl_gpio_resources[APL_GPIO_NORTH][0],
+	[APL_GPIO_NORTHWEST] = &apl_gpio_resources[APL_GPIO_NORTHWEST][0],
+	[APL_GPIO_WEST] = &apl_gpio_resources[APL_GPIO_WEST][0],
+	[APL_GPIO_SOUTHWEST] = &apl_gpio_resources[APL_GPIO_SOUTHWEST][0],
 };
 
 static const struct mfd_cell apl_gpio_devices[APL_GPIO_NR_DEVICES] = {
@@ -197,6 +215,15 @@ static const struct mfd_cell apl_gpio_devices[APL_GPIO_NR_DEVICES] = {
 		.resources = apl_gpio_resources[APL_GPIO_SOUTHWEST],
 		.ignore_resource_conflicts = true,
 	},
+};
+
+static const struct lpc_ich_gpio_info apl_gpio_info = {
+	.hid = "INT3452",
+	.devices = apl_gpio_devices,
+	.nr_devices = ARRAY_SIZE(apl_gpio_devices),
+	.resources = apl_gpio_mem_resources,
+	.nr_resources = ARRAY_SIZE(apl_gpio_mem_resources),
+	.offsets = apl_gpio_offsets,
 };
 
 static struct mfd_cell lpc_ich_spi_cell = {
@@ -618,6 +645,7 @@ static struct lpc_ich_info lpc_chipset_info[] = {
 	[LPC_APL] = {
 		.name = "Apollo Lake SoC",
 		.iTCO_version = 5,
+		.gpio_info = &apl_gpio_info,
 		.spi_type = INTEL_SPI_BXT,
 	},
 	[LPC_GLK] = {
@@ -1156,30 +1184,32 @@ wdt_done:
 
 static int lpc_ich_init_pinctrl(struct pci_dev *dev)
 {
+	struct lpc_ich_priv *priv = pci_get_drvdata(dev);
+	const struct lpc_ich_gpio_info *info = lpc_chipset_info[priv->chipset].gpio_info;
 	struct resource base;
 	unsigned int i;
 	int ret;
 
 	/* Check, if GPIO has been exported as an ACPI device */
-	if (acpi_dev_present("INT3452", NULL, -1))
+	if (acpi_dev_present(info->hid, NULL, -1))
 		return -EEXIST;
 
 	ret = p2sb_bar(dev->bus, 0, &base);
 	if (ret)
 		return ret;
 
-	for (i = 0; i < ARRAY_SIZE(apl_gpio_devices); i++) {
-		struct resource *mem = &apl_gpio_resources[i][0];
-		resource_size_t offset = apl_gpio_offsets[i];
+	for (i = 0; i < info->nr_resources; i++) {
+		struct resource *mem = info->resources[i];
+		resource_size_t offset = info->offsets[i];
 
 		/* Fill MEM resource */
 		mem->start = base.start + offset;
-		mem->end = base.start + offset + APL_GPIO_RESOURCE_SIZE - 1;
+		mem->end = base.start + offset + INTEL_GPIO_RESOURCE_SIZE - 1;
 		mem->flags = base.flags;
 	}
 
-	return mfd_add_devices(&dev->dev, 0, apl_gpio_devices,
-			       ARRAY_SIZE(apl_gpio_devices), NULL, 0, NULL);
+	return mfd_add_devices(&dev->dev, 0, info->devices, info->nr_devices,
+			       NULL, 0, NULL);
 }
 
 static bool lpc_ich_byt_set_writeable(void __iomem *base, void *data)
@@ -1332,7 +1362,7 @@ static int lpc_ich_probe(struct pci_dev *dev,
 			cell_added = true;
 	}
 
-	if (priv->chipset == LPC_APL) {
+	if (lpc_chipset_info[priv->chipset].gpio_info) {
 		ret = lpc_ich_init_pinctrl(dev);
 		if (!ret)
 			cell_added = true;
