@@ -606,8 +606,6 @@ void acpi_dev_remove_driver_gpios(struct acpi_device *adev);
 int devm_acpi_dev_add_driver_gpios(struct device *dev,
 				   const struct acpi_gpio_mapping *gpios);
 
-struct gpio_desc *acpi_get_and_request_gpiod(char *path, unsigned int pin, char *label);
-
 #else  /* CONFIG_GPIOLIB && CONFIG_ACPI */
 
 #include <linux/err.h>
@@ -623,12 +621,6 @@ static inline int devm_acpi_dev_add_driver_gpios(struct device *dev,
 			      const struct acpi_gpio_mapping *gpios)
 {
 	return -ENXIO;
-}
-
-static inline struct gpio_desc *acpi_get_and_request_gpiod(char *path, unsigned int pin,
-							   char *label)
-{
-	return ERR_PTR(-ENOSYS);
 }
 
 #endif /* CONFIG_GPIOLIB && CONFIG_ACPI */
