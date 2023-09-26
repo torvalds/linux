@@ -1,0 +1,52 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2023 Rockchip Electronics Co., Ltd
+ */
+
+/dts-v1/;
+
+#include "rk3308-evb-v13.dtsi"
+
+/ {
+	model = "Rockchip RK3308 evb analog mic v13 board";
+	compatible = "rockchip,rk3308-evb-amic-v13", "rockchip,rk3308";
+
+	vad_acodec_sound: vad-acodec-sound {
+		status = "okay";
+		compatible = "rockchip,multicodecs-card";
+		rockchip,card-name = "rockchip,rk3308-vad";
+		rockchip,codec-hp-det;
+		rockchip,mclk-fs = <256>;
+		rockchip,cpu = <&i2s_8ch_2>;
+		rockchip,codec = <&acodec>, <&vad>;
+	};
+};
+
+&acodec {
+	rockchip,micbias1;
+	rockchip,micbias2;
+	rockchip,en-always-grps = <1 2 3>;
+	rockchip,adc-grps-route = <1 2 3 0>;
+};
+
+&acodec_sound {
+	status = "disabled";
+};
+
+&bluetooth_sound {
+	status = "okay";
+};
+
+&i2s_2ch_0 {
+	status = "okay";
+	#sound-dai-cells = <0>;
+};
+
+&vad {
+	status = "okay";
+	rockchip,audio-src = <&i2s_8ch_2>;
+	rockchip,det-channel = <0>;
+	rockchip,buffer-time-ms = <200>;
+	rockchip,mode = <1>;
+	#sound-dai-cells = <0>;
+};

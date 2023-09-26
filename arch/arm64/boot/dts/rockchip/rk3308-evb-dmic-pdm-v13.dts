@@ -1,0 +1,92 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2023 Rockchip Electronics Co., Ltd
+ */
+
+/dts-v1/;
+
+#include "rk3308-evb-v13.dtsi"
+
+/ {
+	model = "Rockchip RK3308 evb digital-pdm mic v13 board";
+	compatible = "rockchip,rk3308-evb-dmic-pdm-v13", "rockchip,rk3308";
+
+	pdm_i2s_dais: pdm-i2s-dais {
+		status = "okay";
+		compatible = "rockchip,rk3308-multi-dais", "rockchip,multi-dais";
+		dais = <&pdm_8ch>, <&i2s_8ch_2>;
+		capture,channel-mapping = <6 2>;
+		playback,channel-mapping = <0 2>;
+		bitclock-inversion = <1 0>;
+	};
+
+	pdm-mic-array {
+		status = "disabled";
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "rockchip,pdm-mic-array";
+		simple-audio-card,cpu {
+			sound-dai = <&pdm_8ch>;
+		};
+		simple-audio-card,codec {
+			sound-dai = <&dummy_codec>;
+		};
+	};
+
+	vad-sound {
+		status = "okay";
+		compatible = "rockchip,multicodecs-card";
+		rockchip,card-name = "rockchip,rk3308-vad";
+		rockchip,cpu = <&pdm_i2s_dais>;
+		rockchip,codec = <&acodec>, <&vad>;
+	};
+};
+
+&rk_timer_rtc {
+	status = "okay";
+};
+
+&acodec_sound {
+	status = "disabled";
+};
+
+&bluetooth_sound {
+	status = "okay";
+};
+
+&i2s_2ch_0 {
+	status = "okay";
+	#sound-dai-cells = <0>;
+};
+
+&pdm_8ch {
+	status = "okay";
+	#sound-dai-cells = <0>;
+	rockchip,no-dmaengine;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pdm_m2_clk
+		     &pdm_m2_clkm
+		     &pdm_m2_sdi0
+		     &pdm_m2_sdi1
+		     &pdm_m2_sdi2
+		     &pdm_m2_sdi3>;
+};
+
+&vad {
+	status = "okay";
+	rockchip,audio-src = <&pdm_8ch>;
+	rockchip,det-channel = <0>;
+	rockchip,mode = <1>;
+	rockchip,buffer-time-ms = <200>;
+	#sound-dai-cells = <0>;
+};
+
+&i2s_8ch_2 {
+	status = "okay";
+	rockchip,no-dmaengine;
+	#sound-dai-cells = <0>;
+};
+
+&pdm_i2s_dais {
+	status = "okay";
+	#sound-dai-cells = <0>;
+};
