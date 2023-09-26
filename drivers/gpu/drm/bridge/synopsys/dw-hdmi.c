@@ -5008,6 +5008,7 @@ struct dw_hdmi *dw_hdmi_probe(struct platform_device *pdev,
 		audio.get_eld	= hdmi_audio_get_eld;
 		audio.write	= hdmi_writeb;
 		audio.read	= hdmi_readb;
+		audio.mod	= hdmi_modb;
 		hdmi->enable_audio = dw_hdmi_i2s_audio_enable;
 		hdmi->disable_audio = dw_hdmi_i2s_audio_disable;
 
