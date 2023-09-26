@@ -357,9 +357,7 @@ int bch2_inode_peek(struct btree_trans *trans,
 		    subvol_inum inum, unsigned flags)
 {
 	int ret = bch2_inode_peek_nowarn(trans, iter, inode, inum, flags);
-
-	if (ret && !bch2_err_matches(ret, BCH_ERR_transaction_restart))
-		bch_err_msg(trans->c, ret, "looking up inum %u:%llu:", inum.subvol, inum.inum);
+	bch_err_msg(trans->c, ret, "looking up inum %u:%llu:", inum.subvol, inum.inum);
 	return ret;
 }
 

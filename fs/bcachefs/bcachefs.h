@@ -293,9 +293,17 @@ do {									\
 	printk_ratelimited(KERN_ERR bch2_fmt_inum_offset(c, _inum, _offset, fmt), ##__VA_ARGS__)
 
 #define bch_err_fn(_c, _ret)						\
-	 bch_err(_c, "%s(): error %s", __func__, bch2_err_str(_ret))
+do {									\
+	if (_ret && !bch2_err_matches(_ret, BCH_ERR_transaction_restart))\
+		bch_err(_c, "%s(): error %s", __func__, bch2_err_str(_ret));\
+} while (0)
+
 #define bch_err_msg(_c, _ret, _msg, ...)				\
-	 bch_err(_c, "%s(): error " _msg " %s", __func__, ##__VA_ARGS__, bch2_err_str(_ret))
+do {									\
+	if (_ret && !bch2_err_matches(_ret, BCH_ERR_transaction_restart))\
+		bch_err(_c, "%s(): error " _msg " %s", __func__,	\
+			##__VA_ARGS__, bch2_err_str(_ret));		\
+} while (0)
 
 #define bch_verbose(c, fmt, ...)					\
 do {									\

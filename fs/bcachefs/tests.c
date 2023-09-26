@@ -45,28 +45,25 @@ static int test_delete(struct bch_fs *c, u64 nr)
 	ret = commit_do(trans, NULL, NULL, 0,
 		bch2_btree_iter_traverse(&iter) ?:
 		bch2_trans_update(trans, &iter, &k.k_i, 0));
-	if (ret) {
-		bch_err_msg(c, ret, "update error");
+	bch_err_msg(c, ret, "update error");
+	if (ret)
 		goto err;
-	}
 
 	pr_info("deleting once");
 	ret = commit_do(trans, NULL, NULL, 0,
 		bch2_btree_iter_traverse(&iter) ?:
 		bch2_btree_delete_at(trans, &iter, 0));
-	if (ret) {
-		bch_err_msg(c, ret, "delete error (first)");
+	bch_err_msg(c, ret, "delete error (first)");
+	if (ret)
 		goto err;
-	}
 
 	pr_info("deleting twice");
 	ret = commit_do(trans, NULL, NULL, 0,
 		bch2_btree_iter_traverse(&iter) ?:
 		bch2_btree_delete_at(trans, &iter, 0));
-	if (ret) {
-		bch_err_msg(c, ret, "delete error (second)");
+	bch_err_msg(c, ret, "delete error (second)");
+	if (ret)
 		goto err;
-	}
 err:
 	bch2_trans_iter_exit(trans, &iter);
 	bch2_trans_put(trans);
@@ -89,10 +86,9 @@ static int test_delete_written(struct bch_fs *c, u64 nr)
 	ret = commit_do(trans, NULL, NULL, 0,
 		bch2_btree_iter_traverse(&iter) ?:
 		bch2_trans_update(trans, &iter, &k.k_i, 0));
-	if (ret) {
-		bch_err_msg(c, ret, "update error");
+	bch_err_msg(c, ret, "update error");
+	if (ret)
 		goto err;
-	}
 
 	bch2_trans_unlock(trans);
 	bch2_journal_flush_all_pins(&c->journal);
@@ -100,10 +96,9 @@ static int test_delete_written(struct bch_fs *c, u64 nr)
 	ret = commit_do(trans, NULL, NULL, 0,
 		bch2_btree_iter_traverse(&iter) ?:
 		bch2_btree_delete_at(trans, &iter, 0));
-	if (ret) {
-		bch_err_msg(c, ret, "delete error");
+	bch_err_msg(c, ret, "delete error");
+	if (ret)
 		goto err;
-	}
 err:
 	bch2_trans_iter_exit(trans, &iter);
 	bch2_trans_put(trans);
@@ -130,10 +125,9 @@ static int test_iterate(struct bch_fs *c, u64 nr)
 		ck.k.p.snapshot = U32_MAX;
 
 		ret = bch2_btree_insert(c, BTREE_ID_xattrs, &ck.k_i, NULL, 0);
-		if (ret) {
-			bch_err_msg(c, ret, "insert error");
+		bch_err_msg(c, ret, "insert error");
+		if (ret)
 			goto err;
-		}
 	}
 
 	pr_info("iterating forwards");
@@ -146,10 +140,9 @@ static int test_iterate(struct bch_fs *c, u64 nr)
 		BUG_ON(k.k->p.offset != i++);
 		0;
 	}));
-	if (ret) {
-		bch_err_msg(c, ret, "error iterating forwards");
+	bch_err_msg(c, ret, "error iterating forwards");
+	if (ret)
 		goto err;
-	}
 
 	BUG_ON(i != nr);
 
@@ -161,10 +154,9 @@ static int test_iterate(struct bch_fs *c, u64 nr)
 			BUG_ON(k.k->p.offset != --i);
 			0;
 		}));
-	if (ret) {
-		bch_err_msg(c, ret, "error iterating backwards");
+	bch_err_msg(c, ret, "error iterating backwards");
+	if (ret)
 		goto err;
-	}
 
 	BUG_ON(i);
 err:
@@ -194,10 +186,9 @@ static int test_iterate_extents(struct bch_fs *c, u64 nr)
 		ck.k.size = 8;
 
 		ret = bch2_btree_insert(c, BTREE_ID_extents, &ck.k_i, NULL, 0);
-		if (ret) {
-			bch_err_msg(c, ret, "insert error");
+		bch_err_msg(c, ret, "insert error");
+		if (ret)
 			goto err;
-		}
 	}
 
 	pr_info("iterating forwards");
@@ -211,10 +202,9 @@ static int test_iterate_extents(struct bch_fs *c, u64 nr)
 		i = k.k->p.offset;
 		0;
 	}));
-	if (ret) {
-		bch_err_msg(c, ret, "error iterating forwards");
+	bch_err_msg(c, ret, "error iterating forwards");
+	if (ret)
 		goto err;
-	}
 
 	BUG_ON(i != nr);
 
@@ -227,10 +217,9 @@ static int test_iterate_extents(struct bch_fs *c, u64 nr)
 			i = bkey_start_offset(k.k);
 			0;
 		}));
-	if (ret) {
-		bch_err_msg(c, ret, "error iterating backwards");
+	bch_err_msg(c, ret, "error iterating backwards");
+	if (ret)
 		goto err;
-	}
 
 	BUG_ON(i);
 err:
@@ -259,10 +248,9 @@ static int test_iterate_slots(struct bch_fs *c, u64 nr)
 		ck.k.p.snapshot = U32_MAX;
 
 		ret = bch2_btree_insert(c, BTREE_ID_xattrs, &ck.k_i, NULL, 0);
-		if (ret) {
-			bch_err_msg(c, ret, "insert error");
+		bch_err_msg(c, ret, "insert error");
+		if (ret)
 			goto err;
-		}
 	}
 
 	pr_info("iterating forwards");
@@ -276,10 +264,9 @@ static int test_iterate_slots(struct bch_fs *c, u64 nr)
 		i += 2;
 		0;
 	}));
-	if (ret) {
-		bch_err_msg(c, ret, "error iterating forwards");
+	bch_err_msg(c, ret, "error iterating forwards");
+	if (ret)
 		goto err;
-	}
 
 	BUG_ON(i != nr * 2);
 
@@ -330,10 +317,9 @@ static int test_iterate_slots_extents(struct bch_fs *c, u64 nr)
 		ck.k.size = 8;
 
 		ret = bch2_btree_insert(c, BTREE_ID_extents, &ck.k_i, NULL, 0);
-		if (ret) {
-			bch_err_msg(c, ret, "insert error");
+		bch_err_msg(c, ret, "insert error");
+		if (ret)
 			goto err;
-		}
 	}
 
 	pr_info("iterating forwards");
@@ -348,10 +334,9 @@ static int test_iterate_slots_extents(struct bch_fs *c, u64 nr)
 		i += 16;
 		0;
 	}));
-	if (ret) {
-		bch_err_msg(c, ret, "error iterating forwards");
+	bch_err_msg(c, ret, "error iterating forwards");
+	if (ret)
 		goto err;
-	}
 
 	BUG_ON(i != nr);
 
@@ -371,10 +356,9 @@ static int test_iterate_slots_extents(struct bch_fs *c, u64 nr)
 		i = k.k->p.offset;
 		0;
 	}));
-	if (ret) {
-		bch_err_msg(c, ret, "error iterating forwards by slots");
+	bch_err_msg(c, ret, "error iterating forwards by slots");
+	if (ret)
 		goto err;
-	}
 	ret = 0;
 err:
 	bch2_trans_put(trans);
@@ -442,8 +426,7 @@ static int insert_test_extent(struct bch_fs *c,
 	k.k_i.k.version.lo = test_version++;
 
 	ret = bch2_btree_insert(c, BTREE_ID_extents, &k.k_i, NULL, 0);
-	if (ret)
-		bch_err_fn(c, ret);
+	bch_err_fn(c, ret);
 	return ret;
 }
 
@@ -499,8 +482,7 @@ static int insert_test_overlapping_extent(struct bch_fs *c, u64 inum, u64 start,
 	ret = bch2_trans_do(c, NULL, NULL, 0,
 		bch2_btree_insert_nonextent(trans, BTREE_ID_extents, &k.k_i,
 					    BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE));
-	if (ret)
-		bch_err_fn(c, ret);
+	bch_err_fn(c, ret);
 	return ret;
 }
 
@@ -569,12 +551,8 @@ static int test_snapshots(struct bch_fs *c, u64 nr)
 		swap(snapids[0], snapids[1]);
 
 	ret = test_snapshot_filter(c, snapids[0], snapids[1]);
-	if (ret) {
-		bch_err_msg(c, ret, "from test_snapshot_filter");
-		return ret;
-	}
-
-	return 0;
+	bch_err_msg(c, ret, "from test_snapshot_filter");
+	return ret;
 }
 
 /* perf tests */
@@ -678,8 +656,7 @@ static int rand_mixed_trans(struct btree_trans *trans,
 
 	k = bch2_btree_iter_peek(iter);
 	ret = bkey_err(k);
-	if (ret && !bch2_err_matches(ret, BCH_ERR_transaction_restart))
-		bch_err_msg(trans->c, ret, "lookup error");
+	bch_err_msg(trans->c, ret, "lookup error");
 	if (ret)
 		return ret;
 
