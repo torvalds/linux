@@ -614,6 +614,25 @@ config RANDOMIZE_BASE
 	  as a security feature that deters exploit attempts relying on
 	  knowledge of the location of kernel internals.
 
+config KERNEL_IMAGE_BASE
+	hex "Kernel image base address"
+	range 0x100000 0x1FFFFFE0000000 if !KASAN
+	range 0x100000 0x1BFFFFE0000000 if KASAN
+	default 0x3FFE0000000 if !KASAN
+	default 0x7FFFE0000000 if KASAN
+	help
+	  This is the address at which the kernel image is loaded in case
+	  Kernel Address Space Layout Randomization (KASLR) is disabled.
+
+	  In case the Protected virtualization guest support is enabled the
+	  Ultravisor imposes a virtual address limit. If the value of this
+	  option leads to the kernel image exceeding the Ultravisor limit,
+	  this option is ignored and the image is loaded below the limit.
+
+	  If the value of this option leads to the kernel image overlapping
+	  the virtual memory where other data structures are located, this
+	  option is ignored and the image is loaded above the structures.
+
 endmenu
 
 menu "Memory setup"

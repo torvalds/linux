@@ -281,8 +281,8 @@ static unsigned long get_vmem_size(unsigned long identity_size,
 
 static unsigned long setup_kernel_memory_layout(unsigned long kernel_size)
 {
-	unsigned long kernel_start, kernel_end;
 	unsigned long vmemmap_start;
+	unsigned long kernel_start;
 	unsigned long asce_limit;
 	unsigned long rte_size;
 	unsigned long pages;
@@ -294,11 +294,18 @@ static unsigned long setup_kernel_memory_layout(unsigned long kernel_size)
 	vmemmap_size = SECTION_ALIGN_UP(pages) * sizeof(struct page);
 
 	/* choose kernel address space layout: 4 or 3 levels. */
+	BUILD_BUG_ON(!IS_ALIGNED(__NO_KASLR_START_KERNEL, THREAD_SIZE));
+	BUILD_BUG_ON(__NO_KASLR_END_KERNEL > _REGION1_SIZE);
 	vsize = get_vmem_size(ident_map_size, vmemmap_size, vmalloc_size, _REGION3_SIZE);
-	if (IS_ENABLED(CONFIG_KASAN) || (vsize > _REGION2_SIZE)) {
+	if (IS_ENABLED(CONFIG_KASAN) || __NO_KASLR_END_KERNEL > _REGION2_SIZE ||
+	    (vsize > _REGION2_SIZE && kaslr_enabled())) {
 		asce_limit = _REGION1_SIZE;
-		rte_size = _REGION2_SIZE;
-		vsize = get_vmem_size(ident_map_size, vmemmap_size, vmalloc_size, _REGION2_SIZE);
+		if (__NO_KASLR_END_KERNEL > _REGION2_SIZE) {
+			rte_size = _REGION2_SIZE;
+			vsize = get_vmem_size(ident_map_size, vmemmap_size, vmalloc_size, _REGION2_SIZE);
+		} else {
+			rte_size = _REGION3_SIZE;
+		}
 	} else {
 		asce_limit = _REGION2_SIZE;
 		rte_size = _REGION3_SIZE;
@@ -308,24 +315,32 @@ static unsigned long setup_kernel_memory_layout(unsigned long kernel_size)
 	 * Forcing modules and vmalloc area under the ultravisor
 	 * secure storage limit, so that any vmalloc allocation
 	 * we do could be used to back secure guest storage.
+	 *
+	 * Assume the secure storage limit always exceeds _REGION2_SIZE,
+	 * otherwise asce_limit and rte_size would have been adjusted.
 	 */
 	vmax = adjust_to_uv_max(asce_limit);
 #ifdef CONFIG_KASAN
+	BUILD_BUG_ON(__NO_KASLR_END_KERNEL > KASAN_SHADOW_START);
 	/* force vmalloc and modules below kasan shadow */
 	vmax = min(vmax, KASAN_SHADOW_START);
 #endif
-	kernel_end = vmax;
+	vsize = min(vsize, vmax);
 	if (kaslr_enabled()) {
-		unsigned long kaslr_len, slots, pos;
+		unsigned long kernel_end, kaslr_len, slots, pos;
 
-		vsize = min(vsize, vmax);
 		kaslr_len = max(KASLR_LEN, vmax - vsize);
 		slots = DIV_ROUND_UP(kaslr_len - kernel_size, THREAD_SIZE);
 		if (get_random(slots, &pos))
 			pos = 0;
-		kernel_end -= pos * THREAD_SIZE;
+		kernel_end = vmax - pos * THREAD_SIZE;
+		kernel_start = round_down(kernel_end - kernel_size, THREAD_SIZE);
+	} else if (vmax < __NO_KASLR_END_KERNEL || vsize > __NO_KASLR_END_KERNEL) {
+		kernel_start = round_down(vmax - kernel_size, THREAD_SIZE);
+		decompressor_printk("The kernel base address is forced to %lx\n", kernel_start);
+	} else {
+		kernel_start = __NO_KASLR_START_KERNEL;
 	}
-	kernel_start = round_down(kernel_end - kernel_size, THREAD_SIZE);
 	__kaslr_offset = kernel_start;
 
 	MODULES_END = round_down(kernel_start, _SEGMENT_SIZE);
