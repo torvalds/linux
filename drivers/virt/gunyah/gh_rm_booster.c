@@ -220,7 +220,7 @@ static int gh_rm_booster_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	int ret = -ENODEV;
 
-	rm_status = kmalloc(sizeof(*rm_status), GFP_KERNEL);
+	rm_status = kzalloc(sizeof(*rm_status), GFP_KERNEL);
 	if (!rm_status)
 		return -ENOMEM;
 
