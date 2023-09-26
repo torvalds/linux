@@ -822,12 +822,12 @@ static int smu_v13_0_6_get_current_clk_freq_by_table(struct smu_context *smu,
 	return smu_v13_0_6_get_smu_metrics_data(smu, member_type, value);
 }
 
-static int smu_v13_0_6_print_clks(struct smu_context *smu, char *buf,
+static int smu_v13_0_6_print_clks(struct smu_context *smu, char *buf, int size,
 				  struct smu_13_0_dpm_table *single_dpm_table,
 				  uint32_t curr_clk, const char *clk_name)
 {
 	struct pp_clock_levels_with_latency clocks;
-	int i, ret, size = 0, level = -1;
+	int i, ret, level = -1;
 	uint32_t clk1, clk2;
 
 	ret = smu_v13_0_6_get_clk_table(smu, &clocks, single_dpm_table);
@@ -948,8 +948,8 @@ static int smu_v13_0_6_print_clk_levels(struct smu_context *smu,
 
 		single_dpm_table = &(dpm_context->dpm_tables.uclk_table);
 
-		return smu_v13_0_6_print_clks(smu, buf, single_dpm_table, now,
-					      "mclk");
+		return smu_v13_0_6_print_clks(smu, buf, size, single_dpm_table,
+					      now, "mclk");
 
 	case SMU_SOCCLK:
 		ret = smu_v13_0_6_get_current_clk_freq_by_table(smu, SMU_SOCCLK,
@@ -962,8 +962,8 @@ static int smu_v13_0_6_print_clk_levels(struct smu_context *smu,
 
 		single_dpm_table = &(dpm_context->dpm_tables.soc_table);
 
-		return smu_v13_0_6_print_clks(smu, buf, single_dpm_table, now,
-					      "socclk");
+		return smu_v13_0_6_print_clks(smu, buf, size, single_dpm_table,
+					      now, "socclk");
 
 	case SMU_FCLK:
 		ret = smu_v13_0_6_get_current_clk_freq_by_table(smu, SMU_FCLK,
@@ -976,8 +976,8 @@ static int smu_v13_0_6_print_clk_levels(struct smu_context *smu,
 
 		single_dpm_table = &(dpm_context->dpm_tables.fclk_table);
 
-		return smu_v13_0_6_print_clks(smu, buf, single_dpm_table, now,
-					      "fclk");
+		return smu_v13_0_6_print_clks(smu, buf, size, single_dpm_table,
+					      now, "fclk");
 
 	case SMU_VCLK:
 		ret = smu_v13_0_6_get_current_clk_freq_by_table(smu, SMU_VCLK,
@@ -990,8 +990,8 @@ static int smu_v13_0_6_print_clk_levels(struct smu_context *smu,
 
 		single_dpm_table = &(dpm_context->dpm_tables.vclk_table);
 
-		return smu_v13_0_6_print_clks(smu, buf, single_dpm_table, now,
-					      "vclk");
+		return smu_v13_0_6_print_clks(smu, buf, size, single_dpm_table,
+					      now, "vclk");
 
 	case SMU_DCLK:
 		ret = smu_v13_0_6_get_current_clk_freq_by_table(smu, SMU_DCLK,
@@ -1004,8 +1004,8 @@ static int smu_v13_0_6_print_clk_levels(struct smu_context *smu,
 
 		single_dpm_table = &(dpm_context->dpm_tables.dclk_table);
 
-		return smu_v13_0_6_print_clks(smu, buf, single_dpm_table, now,
-					      "dclk");
+		return smu_v13_0_6_print_clks(smu, buf, size, single_dpm_table,
+					      now, "dclk");
 
 	default:
 		break;
