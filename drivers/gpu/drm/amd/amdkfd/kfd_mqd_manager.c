@@ -99,7 +99,8 @@ void mqd_symmetrically_map_cu_mask(struct mqd_manager *mm,
 		const uint32_t *cu_mask, uint32_t cu_mask_count,
 		uint32_t *se_mask, uint32_t inst)
 {
-	struct kfd_cu_info cu_info;
+	struct amdgpu_cu_info *cu_info = &mm->dev->adev->gfx.cu_info;
+	struct amdgpu_gfx_config *gfx_info = &mm->dev->adev->gfx.config;
 	uint32_t cu_per_sh[KFD_MAX_NUM_SE][KFD_MAX_NUM_SH_PER_SE] = {0};
 	bool wgp_mode_req = KFD_GC_VERSION(mm->dev) >= IP_VERSION(10, 0, 0);
 	uint32_t en_mask = wgp_mode_req ? 0x3 : 0x1;
@@ -108,9 +109,7 @@ void mqd_symmetrically_map_cu_mask(struct mqd_manager *mm,
 	int inc = cu_inc * NUM_XCC(mm->dev->xcc_mask);
 	int xcc_inst = inst + ffs(mm->dev->xcc_mask) - 1;
 
-	amdgpu_amdkfd_get_cu_info(mm->dev->adev, &cu_info);
-
-	cu_active_per_node = cu_info.cu_active_number / mm->dev->kfd->num_nodes;
+	cu_active_per_node = cu_info->number / mm->dev->kfd->num_nodes;
 	if (cu_mask_count > cu_active_per_node)
 		cu_mask_count = cu_active_per_node;
 
@@ -118,13 +117,14 @@ void mqd_symmetrically_map_cu_mask(struct mqd_manager *mm,
 	 * Returning with no CU's enabled will hang the queue, which should be
 	 * attention grabbing.
 	 */
-	if (cu_info.num_shader_engines > KFD_MAX_NUM_SE) {
-		pr_err("Exceeded KFD_MAX_NUM_SE, chip reports %d\n", cu_info.num_shader_engines);
+	if (gfx_info->max_shader_engines > KFD_MAX_NUM_SE) {
+		pr_err("Exceeded KFD_MAX_NUM_SE, chip reports %d\n",
+		       gfx_info->max_shader_engines);
 		return;
 	}
-	if (cu_info.num_shader_arrays_per_engine > KFD_MAX_NUM_SH_PER_SE) {
+	if (gfx_info->max_sh_per_se > KFD_MAX_NUM_SH_PER_SE) {
 		pr_err("Exceeded KFD_MAX_NUM_SH, chip reports %d\n",
-			cu_info.num_shader_arrays_per_engine * cu_info.num_shader_engines);
+			gfx_info->max_sh_per_se * gfx_info->max_shader_engines);
 		return;
 	}
 
@@ -142,10 +142,10 @@ void mqd_symmetrically_map_cu_mask(struct mqd_manager *mm,
 	 * See note on Arcturus cu_bitmap layout in gfx_v9_0_get_cu_info.
 	 * See note on GFX11 cu_bitmap layout in gfx_v11_0_get_cu_info.
 	 */
-	for (se = 0; se < cu_info.num_shader_engines; se++)
-		for (sh = 0; sh < cu_info.num_shader_arrays_per_engine; sh++)
+	for (se = 0; se < gfx_info->max_shader_engines; se++)
+		for (sh = 0; sh < gfx_info->max_sh_per_se; sh++)
 			cu_per_sh[se][sh] = hweight32(
-				cu_info.cu_bitmap[xcc_inst][se % 4][sh + (se / 4) *
+				cu_info->bitmap[xcc_inst][se % 4][sh + (se / 4) *
 				cu_bitmap_sh_mul]);
 
 	/* Symmetrically map cu_mask to all SEs & SHs:
@@ -184,13 +184,13 @@ void mqd_symmetrically_map_cu_mask(struct mqd_manager *mm,
 	 *
 	 * First ensure all CUs are disabled, then enable user specified CUs.
 	 */
-	for (i = 0; i < cu_info.num_shader_engines; i++)
+	for (i = 0; i < gfx_info->max_shader_engines; i++)
 		se_mask[i] = 0;
 
 	i = inst;
 	for (cu = 0; cu < 16; cu += cu_inc) {
-		for (sh = 0; sh < cu_info.num_shader_arrays_per_engine; sh++) {
-			for (se = 0; se < cu_info.num_shader_engines; se++) {
+		for (sh = 0; sh < gfx_info->max_sh_per_se; sh++) {
+			for (se = 0; se < gfx_info->max_shader_engines; se++) {
 				if (cu_per_sh[se][sh] > cu) {
 					if (cu_mask[i / 32] & (en_mask << (i % 32)))
 						se_mask[se] |= en_mask << (cu + sh * 16);
