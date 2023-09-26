@@ -3191,7 +3191,7 @@ static void __init hugetlb_folio_init_vmemmap(struct folio *folio,
 	/* Prepare folio head */
 	__folio_clear_reserved(folio);
 	__folio_set_head(folio);
-	ret = page_ref_freeze(&folio->page, 1);
+	ret = folio_ref_freeze(folio, 1);
 	VM_BUG_ON(!ret);
 	/* Initialize the necessary tail struct pages */
 	hugetlb_folio_init_tail_vmemmap(folio, 1, nr_pages);
