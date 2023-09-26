@@ -524,7 +524,7 @@ int migrate_huge_page_move_mapping(struct address_space *mapping,
 	int expected_count;
 
 	xas_lock_irq(&xas);
-	expected_count = 2 + folio_has_private(src);
+	expected_count = folio_expected_refs(mapping, src);
 	if (!folio_ref_freeze(src, expected_count)) {
 		xas_unlock_irq(&xas);
 		return -EAGAIN;
@@ -533,11 +533,11 @@ int migrate_huge_page_move_mapping(struct address_space *mapping,
 	dst->index = src->index;
 	dst->mapping = src->mapping;
 
-	folio_get(dst);
+	folio_ref_add(dst, folio_nr_pages(dst));
 
 	xas_store(&xas, dst);
 
-	folio_ref_unfreeze(src, expected_count - 1);
+	folio_ref_unfreeze(src, expected_count - folio_nr_pages(src));
 
 	xas_unlock_irq(&xas);
 

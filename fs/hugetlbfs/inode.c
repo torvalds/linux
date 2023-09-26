@@ -334,7 +334,7 @@ static ssize_t hugetlbfs_read_iter(struct kiocb *iocb, struct iov_iter *to)
 	ssize_t retval = 0;
 
 	while (iov_iter_count(to)) {
-		struct page *page;
+		struct folio *folio;
 		size_t nr, copied, want;
 
 		/* nr is the maximum number of bytes to copy from this page */
@@ -352,18 +352,18 @@ static ssize_t hugetlbfs_read_iter(struct kiocb *iocb, struct iov_iter *to)
 		}
 		nr = nr - offset;
 
-		/* Find the page */
-		page = find_lock_page(mapping, index);
-		if (unlikely(page == NULL)) {
+		/* Find the folio */
+		folio = filemap_lock_hugetlb_folio(h, mapping, index);
+		if (IS_ERR(folio)) {
 			/*
 			 * We have a HOLE, zero out the user-buffer for the
 			 * length of the hole or request.
 			 */
 			copied = iov_iter_zero(nr, to);
 		} else {
-			unlock_page(page);
+			folio_unlock(folio);
 
-			if (!PageHWPoison(page))
+			if (!folio_test_has_hwpoisoned(folio))
 				want = nr;
 			else {
 				/*
@@ -371,19 +371,19 @@ static ssize_t hugetlbfs_read_iter(struct kiocb *iocb, struct iov_iter *to)
 				 * touching the 1st raw HWPOISON subpage after
 				 * offset.
 				 */
-				want = adjust_range_hwpoison(page, offset, nr);
+				want = adjust_range_hwpoison(&folio->page, offset, nr);
 				if (want == 0) {
-					put_page(page);
+					folio_put(folio);
 					retval = -EIO;
 					break;
 				}
 			}
 
 			/*
-			 * We have the page, copy it to user space buffer.
+			 * We have the folio, copy it to user space buffer.
 			 */
-			copied = copy_page_to_iter(page, offset, want, to);
-			put_page(page);
+			copied = copy_folio_to_iter(folio, offset, want, to);
+			folio_put(folio);
 		}
 		offset += copied;
 		retval += copied;
@@ -661,21 +661,20 @@ static void remove_inode_hugepages(struct inode *inode, loff_t lstart,
 {
 	struct hstate *h = hstate_inode(inode);
 	struct address_space *mapping = &inode->i_data;
-	const pgoff_t start = lstart >> huge_page_shift(h);
-	const pgoff_t end = lend >> huge_page_shift(h);
+	const pgoff_t end = lend >> PAGE_SHIFT;
 	struct folio_batch fbatch;
 	pgoff_t next, index;
 	int i, freed = 0;
 	bool truncate_op = (lend == LLONG_MAX);
 
 	folio_batch_init(&fbatch);
-	next = start;
+	next = lstart >> PAGE_SHIFT;
 	while (filemap_get_folios(mapping, &next, end - 1, &fbatch)) {
 		for (i = 0; i < folio_batch_count(&fbatch); ++i) {
 			struct folio *folio = fbatch.folios[i];
 			u32 hash = 0;
 
-			index = folio->index;
+			index = folio->index >> huge_page_order(h);
 			hash = hugetlb_fault_mutex_hash(mapping, index);
 			mutex_lock(&hugetlb_fault_mutex_table[hash]);
 
@@ -693,7 +692,9 @@ static void remove_inode_hugepages(struct inode *inode, loff_t lstart,
 	}
 
 	if (truncate_op)
-		(void)hugetlb_unreserve_pages(inode, start, LONG_MAX, freed);
+		(void)hugetlb_unreserve_pages(inode,
+				lstart >> huge_page_shift(h),
+				LONG_MAX, freed);
 }
 
 static void hugetlbfs_evict_inode(struct inode *inode)
@@ -741,7 +742,7 @@ static void hugetlbfs_zero_partial_page(struct hstate *h,
 	pgoff_t idx = start >> huge_page_shift(h);
 	struct folio *folio;
 
-	folio = filemap_lock_folio(mapping, idx);
+	folio = filemap_lock_hugetlb_folio(h, mapping, idx);
 	if (IS_ERR(folio))
 		return;
 
@@ -886,7 +887,7 @@ static long hugetlbfs_fallocate(struct file *file, int mode, loff_t offset,
 		mutex_lock(&hugetlb_fault_mutex_table[hash]);
 
 		/* See if already present in mapping to avoid alloc/free */
-		folio = filemap_get_folio(mapping, index);
+		folio = filemap_get_folio(mapping, index << huge_page_order(h));
 		if (!IS_ERR(folio)) {
 			folio_put(folio);
 			mutex_unlock(&hugetlb_fault_mutex_table[hash]);
