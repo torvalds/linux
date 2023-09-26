@@ -39,7 +39,7 @@
 
 #include <asm/kvm_page_track.h>
 
-#include "i915_drv.h"
+#include "gt/intel_gt.h"
 #include "intel_gvt.h"
 
 #include "debug.h"
@@ -367,11 +367,6 @@ struct intel_gvt {
 
 	struct dentry *debugfs_root;
 };
-
-static inline struct intel_gvt *to_gvt(struct drm_i915_private *i915)
-{
-	return i915->gvt;
-}
 
 enum {
 	/* Scheduling trigger by timer */
