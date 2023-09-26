@@ -109,19 +109,6 @@ mem_type_to_tile(struct xe_device *xe, u32 mem_type)
 	return &xe->tiles[mem_type == XE_PL_STOLEN ? 0 : (mem_type - XE_PL_VRAM0)];
 }
 
-/**
- * xe_bo_to_tile() - Get a tile from a BO's memory location
- * @bo: The buffer object
- *
- * Get a tile from a BO's memory location, should be called on BOs in VRAM only.
- *
- * Return: xe_tile object which is closest to the BO
- */
-struct xe_tile *xe_bo_to_tile(struct xe_bo *bo)
-{
-	return mem_type_to_tile(xe_bo_device(bo), bo->ttm.resource->mem_type);
-}
-
 static void try_add_system(struct xe_bo *bo, struct ttm_place *places,
 			   u32 bo_flags, u32 *c)
 {
