@@ -493,9 +493,6 @@ static int walt_lb_find_busiest_similar_cap_cpu(int dst_cpu, const cpumask_t *sr
 		if (cpu_rq(i)->nr_running < 2 || !cpu_rq(i)->cfs.h_nr_running)
 			continue;
 
-		if (cpu_partial_halted(dst_cpu) && !cpu_partial_halted(i))
-			continue;
-
 		util = walt_lb_cpu_util(i);
 		if (util < busiest_util)
 			continue;
