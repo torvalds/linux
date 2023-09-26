@@ -1477,7 +1477,7 @@ static int engine_init_common(struct intel_engine_cs *engine)
 	 * engines as well but BCS should be less busy engine so pick that for
 	 * GGTT updates.
 	 */
-	if (engine->id == BCS0) {
+	if (i915_ggtt_require_binder(engine->i915) && engine->id == BCS0) {
 		bce = create_ggtt_bind_context(engine);
 		if (IS_ERR(bce)) {
 			ret = PTR_ERR(bce);
