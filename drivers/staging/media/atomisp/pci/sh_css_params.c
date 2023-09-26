@@ -3733,8 +3733,8 @@ ia_css_ptr sh_css_store_sp_group_to_ddr(void)
 	if (IS_ISP2401) {
 		memcpy(buf_ptr, &sh_css_sp_group.config, 3);
 		buf_ptr += 3;
-		memcpy(buf_ptr, &sh_css_sp_group.config.enable_isys_event_queue, 2);
-		buf_ptr += 2;
+		*buf_ptr++ = sh_css_sp_group.config.enable_isys_event_queue;
+		*buf_ptr++ = sh_css_sp_group.config.disable_cont_vf;
 		memset(buf_ptr, 0, 3);
 		buf_ptr += 3; /* Padding 3 bytes for struct sh_css_sp_config*/
 	} else {
