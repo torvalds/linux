@@ -715,24 +715,25 @@ static void cxl_walk_cel(struct cxl_memdev_state *mds, size_t size, u8 *cel)
 	for (i = 0; i < cel_entries; i++) {
 		u16 opcode = le16_to_cpu(cel_entry[i].opcode);
 		struct cxl_mem_command *cmd = cxl_mem_find_command(opcode);
+		int enabled = 0;
 
-		if (!cmd && (!cxl_is_poison_command(opcode) ||
-			     !cxl_is_security_command(opcode))) {
-			dev_dbg(dev,
-				"Opcode 0x%04x unsupported by driver\n", opcode);
-			continue;
+		if (cmd) {
+			set_bit(cmd->info.id, mds->enabled_cmds);
+			enabled++;
 		}
 
-		if (cmd)
-			set_bit(cmd->info.id, mds->enabled_cmds);
-
-		if (cxl_is_poison_command(opcode))
+		if (cxl_is_poison_command(opcode)) {
 			cxl_set_poison_cmd_enabled(&mds->poison, opcode);
+			enabled++;
+		}
 
-		if (cxl_is_security_command(opcode))
+		if (cxl_is_security_command(opcode)) {
 			cxl_set_security_cmd_enabled(&mds->security, opcode);
+			enabled++;
+		}
 
-		dev_dbg(dev, "Opcode 0x%04x enabled\n", opcode);
+		dev_dbg(dev, "Opcode 0x%04x %s\n", opcode,
+			enabled ? "enabled" : "unsupported by driver");
 	}
 }
 

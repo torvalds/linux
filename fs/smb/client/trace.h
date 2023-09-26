@@ -935,6 +935,8 @@ DEFINE_EVENT(smb3_connect_class, smb3_##name,  \
 	TP_ARGS(hostname, conn_id, addr))
 
 DEFINE_SMB3_CONNECT_EVENT(connect_done);
+DEFINE_SMB3_CONNECT_EVENT(smbd_connect_done);
+DEFINE_SMB3_CONNECT_EVENT(smbd_connect_err);
 
 DECLARE_EVENT_CLASS(smb3_connect_err_class,
 	TP_PROTO(char *hostname, __u64 conn_id,

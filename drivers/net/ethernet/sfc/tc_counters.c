@@ -236,6 +236,8 @@ struct efx_tc_counter_index *efx_tc_flower_get_counter_index(
 	if (old) {
 		/* don't need our new entry */
 		kfree(ctr);
+		if (IS_ERR(old)) /* oh dear, it's actually an error */
+			return ERR_CAST(old);
 		if (!refcount_inc_not_zero(&old->ref))
 			return ERR_PTR(-EAGAIN);
 		/* existing entry found */

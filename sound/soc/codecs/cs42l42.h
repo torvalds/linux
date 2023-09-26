@@ -53,6 +53,7 @@ struct  cs42l42_private {
 	u8 stream_use;
 	bool hp_adc_up_pending;
 	bool suspended;
+	bool sdw_waiting_first_unattach;
 	bool init_done;
 };
 

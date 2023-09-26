@@ -361,7 +361,6 @@ static void virtio_gpu_complete_submit(struct virtio_gpu_submit *submit)
 	submit->buf = NULL;
 	submit->buflist = NULL;
 	submit->sync_file = NULL;
-	submit->out_fence = NULL;
 	submit->out_fence_fd = -1;
 }
 
