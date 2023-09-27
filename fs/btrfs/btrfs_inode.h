@@ -114,7 +114,9 @@ struct btrfs_inode {
 	struct mutex log_mutex;
 
 	/* used to order data wrt metadata */
-	struct btrfs_ordered_inode_tree ordered_tree;
+	spinlock_t ordered_tree_lock;
+	struct rb_root ordered_tree;
+	struct rb_node *ordered_tree_last;
 
 	/* list of all the delalloc inodes in the FS.  There are times we need
 	 * to write all the delalloc pages to disk, and this list is used
