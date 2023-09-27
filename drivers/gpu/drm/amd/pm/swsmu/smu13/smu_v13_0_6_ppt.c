@@ -2341,9 +2341,6 @@ static int mca_get_mca_entry(struct amdgpu_device *adev, enum amdgpu_mca_error_t
 			return ret;
 	}
 
-	if (ret)
-		return ret;
-
 	entry->idx = idx;
 	entry->type = type;
 
