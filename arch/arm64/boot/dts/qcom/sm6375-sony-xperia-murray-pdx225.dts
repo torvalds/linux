@@ -243,8 +243,8 @@
 		};
 
 		pm6125_l7: l7 {
-			regulator-min-microvolt = <720000>;
-			regulator-max-microvolt = <1050000>;
+			regulator-min-microvolt = <880000>;
+			regulator-max-microvolt = <880000>;
 		};
 
 		pm6125_l8: l8 {
@@ -430,6 +430,9 @@
 };
 
 &usb_1_hsphy {
+	vdda-pll-supply = <&pm6125_l7>;
+	vdda18-supply = <&pm6125_l10>;
+	vdda33-supply = <&pmr735a_l7>;
 	status = "okay";
 };
 
