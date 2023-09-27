@@ -1660,9 +1660,9 @@ static int npcm_video_ece_init(struct npcm_video *video)
 	void __iomem *regs;
 
 	ece_node = of_parse_phandle(video->dev->of_node, "nuvoton,ece", 0);
-	if (IS_ERR(ece_node)) {
+	if (!ece_node) {
 		dev_err(dev, "Failed to get ECE phandle in DTS\n");
-		return PTR_ERR(ece_node);
+		return -ENODEV;
 	}
 
 	video->ece.enable = of_device_is_available(ece_node);
