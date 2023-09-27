@@ -1482,6 +1482,7 @@ extern const struct blk_holder_ops fs_holder_ops;
 struct bdev_handle {
 	struct block_device *bdev;
 	void *holder;
+	blk_mode_t mode;
 };
 
 struct block_device *blkdev_get_by_dev(dev_t dev, blk_mode_t mode, void *holder,

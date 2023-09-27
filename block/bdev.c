@@ -844,6 +844,9 @@ struct bdev_handle *bdev_open_by_dev(dev_t dev, blk_mode_t mode, void *holder,
 	}
 	handle->bdev = bdev;
 	handle->holder = holder;
+	if (holder)
+		mode |= BLK_OPEN_EXCL;
+	handle->mode = mode;
 	return handle;
 }
 EXPORT_SYMBOL(bdev_open_by_dev);
