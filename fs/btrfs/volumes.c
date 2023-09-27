@@ -2812,6 +2812,7 @@ int btrfs_grow_device(struct btrfs_trans_handle *trans,
 	btrfs_set_super_total_bytes(super_copy,
 			round_down(old_total + diff, fs_info->sectorsize));
 	device->fs_devices->total_rw_bytes += diff;
+	atomic64_add(diff, &fs_info->free_chunk_space);
 
 	btrfs_device_set_total_bytes(device, new_size);
 	btrfs_device_set_disk_total_bytes(device, new_size);
