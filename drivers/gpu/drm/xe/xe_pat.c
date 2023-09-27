@@ -108,10 +108,18 @@ void xe_pat_init_early(struct xe_device *xe)
 		xe->pat.ops = &mtl_pat_ops;
 		xe->pat.table = mtl_pat_table;
 		xe->pat.n_entries = ARRAY_SIZE(mtl_pat_table);
-	} else if (xe->info.platform == XE_PVC || xe->info.platform == XE_DG2) {
+	} else if (xe->info.platform == XE_PVC) {
 		xe->pat.ops = &dg2_pat_ops;
 		xe->pat.table = pvc_pat_table;
 		xe->pat.n_entries = ARRAY_SIZE(pvc_pat_table);
+	} else if (xe->info.platform == XE_DG2) {
+		/*
+		 * Table is the same as previous platforms, but programming
+		 * method has changed.
+		 */
+		xe->pat.ops = &dg2_pat_ops;
+		xe->pat.table = tgl_pat_table;
+		xe->pat.n_entries = ARRAY_SIZE(tgl_pat_table);
 	} else if (GRAPHICS_VERx100(xe) <= 1210) {
 		xe->pat.ops = &tgl_pat_ops;
 		xe->pat.table = tgl_pat_table;
