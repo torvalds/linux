@@ -171,7 +171,6 @@ static int serdes_i2c_probe(struct i2c_client *client,
 	if (IS_ERR(serdes->vpower)) {
 		if (PTR_ERR(serdes->vpower) != -ENODEV)
 			return PTR_ERR(serdes->vpower);
-		dev_info(dev, "no vpower regulator found\n");
 	}
 
 	if (!IS_ERR(serdes->vpower)) {
@@ -194,8 +193,7 @@ static int serdes_i2c_probe(struct i2c_client *client,
 
 	ret = serdes_get_init_seq(serdes);
 	if (ret)
-		return dev_err_probe(dev, ret,
-				     "failed to write serdes register with i2c\n");
+		dev_err(dev, "failed to write serdes register with i2c\n");
 
 	mutex_init(&serdes->io_lock);
 	dev_set_drvdata(serdes->dev, serdes);
@@ -222,7 +220,7 @@ static int serdes_i2c_probe(struct i2c_client *client,
 	dev_info(dev, "serdes %s serdes_i2c_probe successful version %s\n",
 		 serdes->chip_data->name, MFD_SERDES_DISPLAY_VERSION);
 
-	return ret;
+	return 0;
 }
 
 static int serdes_i2c_prepare(struct device *dev)
