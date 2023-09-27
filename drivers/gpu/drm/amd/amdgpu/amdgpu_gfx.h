@@ -69,11 +69,6 @@ enum amdgpu_gfx_partition {
 
 #define NUM_XCC(x) hweight16(x)
 
-enum amdgpu_pkg_type {
-	AMDGPU_PKG_TYPE_APU = 2,
-	AMDGPU_PKG_TYPE_UNKNOWN,
-};
-
 enum amdgpu_gfx_ras_mem_id_type {
 	AMDGPU_GFX_CP_MEM = 0,
 	AMDGPU_GFX_GCEA_MEM,
