@@ -1667,6 +1667,7 @@ config FB_SM501
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
+	select FB_IOMEM_FOPS
 	help
 	  Frame buffer driver for the CRT and LCD controllers in the Silicon
 	  Motion SM501.
