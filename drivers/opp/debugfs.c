@@ -56,11 +56,11 @@ static void opp_debug_create_bw(struct dev_pm_opp *opp,
 				struct dentry *pdentry)
 {
 	struct dentry *d;
-	char name[20];
+	char name[] = "icc-path-XXXXXXXXXXX"; /* Integers can take 11 chars max */
 	int i;
 
 	for (i = 0; i < opp_table->path_count; i++) {
-		snprintf(name, sizeof(name), "icc-path-%.1d", i);
+		snprintf(name, sizeof(name), "icc-path-%d", i);
 
 		/* Create per-path directory */
 		d = debugfs_create_dir(name, pdentry);
@@ -78,7 +78,7 @@ static void opp_debug_create_clks(struct dev_pm_opp *opp,
 				  struct opp_table *opp_table,
 				  struct dentry *pdentry)
 {
-	char name[12];
+	char name[] = "rate_hz_XXXXXXXXXXX"; /* Integers can take 11 chars max */
 	int i;
 
 	if (opp_table->clk_count == 1) {
@@ -100,7 +100,7 @@ static void opp_debug_create_supplies(struct dev_pm_opp *opp,
 	int i;
 
 	for (i = 0; i < opp_table->regulator_count; i++) {
-		char name[15];
+		char name[] = "supply-XXXXXXXXXXX"; /* Integers can take 11 chars max */
 
 		snprintf(name, sizeof(name), "supply-%d", i);
 
