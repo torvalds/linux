@@ -32,6 +32,11 @@
 #define TGL_PAT_WC				REG_FIELD_PREP(TGL_MEM_TYPE_MASK, 1)
 #define TGL_PAT_UC				REG_FIELD_PREP(TGL_MEM_TYPE_MASK, 0)
 
+struct xe_pat_ops {
+	void (*program_graphics)(struct xe_gt *gt, const u32 table[], int n_entries);
+	void (*program_media)(struct xe_gt *gt, const u32 table[], int n_entries);
+};
+
 static const u32 tgl_pat_table[] = {
 	[0] = TGL_PAT_WB,
 	[1] = TGL_PAT_WC,
@@ -80,24 +85,37 @@ static void program_pat_mcr(struct xe_gt *gt, const u32 table[], int n_entries)
 	}
 }
 
-void xe_pat_init(struct xe_gt *gt)
-{
-	struct xe_device *xe = gt_to_xe(gt);
+static const struct xe_pat_ops tgl_pat_ops = {
+	.program_graphics = program_pat,
+};
 
+static const struct xe_pat_ops dg2_pat_ops = {
+	.program_graphics = program_pat_mcr,
+};
+
+/*
+ * SAMedia register offsets are adjusted by the write methods and they target
+ * registers that are not MCR, while for normal GT they are MCR
+ */
+static const struct xe_pat_ops mtl_pat_ops = {
+	.program_graphics = program_pat,
+	.program_media = program_pat_mcr,
+};
+
+void xe_pat_init_early(struct xe_device *xe)
+{
 	if (xe->info.platform == XE_METEORLAKE) {
-		/*
-		 * SAMedia register offsets are adjusted by the write methods
-		 * and they target registers that are not MCR, while for normal
-		 * GT they are MCR
-		 */
-		if (xe_gt_is_media_type(gt))
-			program_pat(gt, mtl_pat_table, ARRAY_SIZE(mtl_pat_table));
-		else
-			program_pat_mcr(gt, mtl_pat_table, ARRAY_SIZE(mtl_pat_table));
+		xe->pat.ops = &mtl_pat_ops;
+		xe->pat.table = mtl_pat_table;
+		xe->pat.n_entries = ARRAY_SIZE(mtl_pat_table);
 	} else if (xe->info.platform == XE_PVC || xe->info.platform == XE_DG2) {
-		program_pat_mcr(gt, pvc_pat_table, ARRAY_SIZE(pvc_pat_table));
+		xe->pat.ops = &dg2_pat_ops;
+		xe->pat.table = pvc_pat_table;
+		xe->pat.n_entries = ARRAY_SIZE(pvc_pat_table);
 	} else if (GRAPHICS_VERx100(xe) <= 1210) {
-		program_pat(gt, tgl_pat_table, ARRAY_SIZE(tgl_pat_table));
+		xe->pat.ops = &tgl_pat_ops;
+		xe->pat.table = tgl_pat_table;
+		xe->pat.n_entries = ARRAY_SIZE(tgl_pat_table);
 	} else {
 		/*
 		 * Going forward we expect to need new PAT settings for most
@@ -110,4 +128,17 @@ void xe_pat_init(struct xe_gt *gt)
 		drm_err(&xe->drm, "Missing PAT table for platform with graphics version %d.%02d!\n",
 			GRAPHICS_VER(xe), GRAPHICS_VERx100(xe) % 100);
 	}
+}
+
+void xe_pat_init(struct xe_gt *gt)
+{
+	struct xe_device *xe = gt_to_xe(gt);
+
+	if (!xe->pat.ops)
+		return;
+
+	if (xe_gt_is_media_type(gt))
+		xe->pat.ops->program_media(gt, xe->pat.table, xe->pat.n_entries);
+	else
+		xe->pat.ops->program_graphics(gt, xe->pat.table, xe->pat.n_entries);
 }
