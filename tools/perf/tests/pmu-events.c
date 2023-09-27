@@ -245,7 +245,7 @@ static const struct perf_pmu_test_event sys_ddr_pmu_write_cycles = {
 	},
 	.alias_str = "event=0x2b",
 	.alias_long_desc = "ddr write-cycles event",
-	.matching_pmu = "uncore_sys_ddr_pmu",
+	.matching_pmu = "uncore_sys_ddr_pmu0",
 };
 
 static const struct perf_pmu_test_event sys_ccn_pmu_read_cycles = {
@@ -259,7 +259,7 @@ static const struct perf_pmu_test_event sys_ccn_pmu_read_cycles = {
 	},
 	.alias_str = "config=0x2c",
 	.alias_long_desc = "ccn read-cycles event",
-	.matching_pmu = "uncore_sys_ccn_pmu",
+	.matching_pmu = "uncore_sys_ccn_pmu4",
 };
 
 static const struct perf_pmu_test_event *sys_events[] = {
@@ -614,6 +614,12 @@ static int __test_uncore_pmu_event_aliases(struct perf_pmu_test_pmu *test_pmu)
 			.test_event = &test_event,
 			.count = &matched_count,
 		};
+
+		if (strcmp(pmu_name, test_event.matching_pmu)) {
+			pr_debug("testing aliases uncore PMU %s: mismatched matching_pmu, %s vs %s\n",
+					pmu_name, test_event.matching_pmu, pmu_name);
+			return -1;
+		}
 
 		err = perf_pmu__find_event(pmu, event->name, &args,
 					   test_core_pmu_event_aliases_cb);
