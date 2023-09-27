@@ -1135,7 +1135,6 @@ struct bnxt_vf_info {
 	u16	vlan;
 	u16	func_qcfg_flags;
 	u32	flags;
-#define BNXT_VF_QOS		0x1
 #define BNXT_VF_SPOOFCHK	0x2
 #define BNXT_VF_LINK_FORCED	0x4
 #define BNXT_VF_LINK_UP		0x8
@@ -2014,6 +2013,7 @@ struct bnxt {
 	#define BNXT_FW_CAP_DBG_QCAPS			BIT_ULL(31)
 	#define BNXT_FW_CAP_PTP				BIT_ULL(32)
 	#define BNXT_FW_CAP_THRESHOLD_TEMP_SUPPORTED	BIT_ULL(33)
+	#define BNXT_FW_CAP_DFLT_VLAN_TPID_PCP		BIT_ULL(34)
 
 	u32			fw_dbg_cap;
 
