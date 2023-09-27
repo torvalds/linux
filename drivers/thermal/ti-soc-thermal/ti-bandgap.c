@@ -1069,7 +1069,7 @@ free_irqs:
 }
 
 static
-int ti_bandgap_remove(struct platform_device *pdev)
+void ti_bandgap_remove(struct platform_device *pdev)
 {
 	struct ti_bandgap *bgp = platform_get_drvdata(pdev);
 	int i;
@@ -1098,8 +1098,6 @@ int ti_bandgap_remove(struct platform_device *pdev)
 
 	if (TI_BANDGAP_HAS(bgp, TSHUT))
 		free_irq(gpiod_to_irq(bgp->tshut_gpiod), NULL);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -1283,7 +1281,7 @@ MODULE_DEVICE_TABLE(of, of_ti_bandgap_match);
 
 static struct platform_driver ti_bandgap_sensor_driver = {
 	.probe = ti_bandgap_probe,
-	.remove = ti_bandgap_remove,
+	.remove_new = ti_bandgap_remove,
 	.driver = {
 			.name = "ti-soc-thermal",
 			.pm = DEV_PM_OPS,
