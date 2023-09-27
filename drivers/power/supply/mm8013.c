@@ -53,7 +53,7 @@ static int mm8013_checkdevice(struct mm8013_chip *chip)
 	if (ret < 0)
 		return ret;
 
-	regmap_read(chip->regmap, REG_BATID, &val);
+	ret = regmap_read(chip->regmap, REG_BATID, &val);
 	if (ret < 0)
 		return ret;
 
