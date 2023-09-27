@@ -458,7 +458,7 @@ static void kvm_timer_update_irq(struct kvm_vcpu *vcpu, bool new_level,
 				   timer_ctx->irq.level);
 
 	if (!userspace_irqchip(vcpu->kvm)) {
-		ret = kvm_vgic_inject_irq(vcpu->kvm, vcpu->vcpu_id,
+		ret = kvm_vgic_inject_irq(vcpu->kvm, vcpu,
 					  timer_irq(timer_ctx),
 					  timer_ctx->irq.level,
 					  timer_ctx);

@@ -348,7 +348,7 @@ static void kvm_pmu_update_state(struct kvm_vcpu *vcpu)
 	pmu->irq_level = overflow;
 
 	if (likely(irqchip_in_kernel(vcpu->kvm))) {
-		int ret = kvm_vgic_inject_irq(vcpu->kvm, vcpu->vcpu_id,
+		int ret = kvm_vgic_inject_irq(vcpu->kvm, vcpu,
 					      pmu->irq_num, overflow, pmu);
 		WARN_ON(ret);
 	}
