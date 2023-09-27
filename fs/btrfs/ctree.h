@@ -9,6 +9,7 @@
 #include <linux/pagemap.h>
 #include "locking.h"
 #include "fs.h"
+#include "accessors.h"
 
 struct btrfs_trans_handle;
 struct btrfs_transaction;
@@ -464,6 +465,36 @@ int btrfs_bin_search(struct extent_buffer *eb, int first_slot,
 		     const struct btrfs_key *key, int *slot);
 
 int __pure btrfs_comp_cpu_keys(const struct btrfs_key *k1, const struct btrfs_key *k2);
+
+#ifdef __LITTLE_ENDIAN
+
+/*
+ * Compare two keys, on little-endian the disk order is same as CPU order and
+ * we can avoid the conversion.
+ */
+static inline int btrfs_comp_keys(const struct btrfs_disk_key *disk_key,
+				  const struct btrfs_key *k2)
+{
+	const struct btrfs_key *k1 = (const struct btrfs_key *)disk_key;
+
+	return btrfs_comp_cpu_keys(k1, k2);
+}
+
+#else
+
+/* Compare two keys in a memcmp fashion. */
+static inline int btrfs_comp_keys(const struct btrfs_disk_key *disk,
+				  const struct btrfs_key *k2)
+{
+	struct btrfs_key k1;
+
+	btrfs_disk_key_to_cpu(&k1, disk);
+
+	return btrfs_comp_cpu_keys(&k1, k2);
+}
+
+#endif
+
 int btrfs_previous_item(struct btrfs_root *root,
 			struct btrfs_path *path, u64 min_objectid,
 			int type);
