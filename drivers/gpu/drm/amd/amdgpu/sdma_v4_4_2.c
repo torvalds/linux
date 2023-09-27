@@ -2130,6 +2130,11 @@ static void sdma_v4_4_2_inst_query_ras_error_count(struct amdgpu_device *adev,
 {
 	struct ras_err_data *err_data = (struct ras_err_data *)ras_err_status;
 	uint32_t sdma_dev_inst = GET_INST(SDMA0, sdma_inst);
+	unsigned long ue_count = 0;
+	struct amdgpu_smuio_mcm_config_info mcm_info = {
+		.socket_id = adev->smuio.funcs->get_socket_id(adev),
+		.die_id = adev->sdma.instance[sdma_inst].aid_id,
+	};
 
 	/* sdma v4_4_2 doesn't support query ce counts */
 	amdgpu_ras_inst_query_ras_error_count(adev,
@@ -2139,7 +2144,9 @@ static void sdma_v4_4_2_inst_query_ras_error_count(struct amdgpu_device *adev,
 					ARRAY_SIZE(sdma_v4_4_2_ras_memory_list),
 					sdma_dev_inst,
 					AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE,
-					&err_data->ue_count);
+					&ue_count);
+
+	amdgpu_ras_error_statistic_ue_count(err_data, &mcm_info, ue_count);
 }
 
 static void sdma_v4_4_2_query_ras_error_count(struct amdgpu_device *adev,
