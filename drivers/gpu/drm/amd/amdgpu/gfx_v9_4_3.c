@@ -3766,6 +3766,12 @@ static void gfx_v9_4_3_inst_query_ras_err_count(struct amdgpu_device *adev,
 	unsigned long ce_count = 0, ue_count = 0;
 	uint32_t i, j, k;
 
+	/* NOTE: convert xcc_id to physical XCD ID (XCD0 or XCD1) */
+	struct amdgpu_smuio_mcm_config_info mcm_info = {
+		.socket_id = adev->smuio.funcs->get_socket_id(adev),
+		.die_id = xcc_id & 0x01 ? 1 : 0,
+	};
+
 	mutex_lock(&adev->grbm_idx_mutex);
 
 	for (i = 0; i < ARRAY_SIZE(gfx_v9_4_3_ce_reg_list); i++) {
@@ -3804,8 +3810,8 @@ static void gfx_v9_4_3_inst_query_ras_err_count(struct amdgpu_device *adev,
 	/* the caller should make sure initialize value of
 	 * err_data->ue_count and err_data->ce_count
 	 */
-	err_data->ce_count += ce_count;
-	err_data->ue_count += ue_count;
+	amdgpu_ras_error_statistic_ue_count(err_data, &mcm_info, ue_count);
+	amdgpu_ras_error_statistic_ce_count(err_data, &mcm_info, ce_count);
 }
 
 static void gfx_v9_4_3_inst_reset_ras_err_count(struct amdgpu_device *adev,
