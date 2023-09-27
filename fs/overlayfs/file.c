@@ -240,6 +240,12 @@ static loff_t ovl_llseek(struct file *file, loff_t offset, int whence)
 	return ret;
 }
 
+static void ovl_file_modified(struct file *file)
+{
+	/* Update size/mtime */
+	ovl_copyattr(file_inode(file));
+}
+
 static void ovl_file_accessed(struct file *file)
 {
 	struct inode *inode, *upperinode;
@@ -290,10 +296,8 @@ static void ovl_aio_cleanup_handler(struct ovl_aio_req *aio_req)
 	struct kiocb *orig_iocb = aio_req->orig_iocb;
 
 	if (iocb->ki_flags & IOCB_WRITE) {
-		struct inode *inode = file_inode(orig_iocb->ki_filp);
-
 		kiocb_end_write(iocb);
-		ovl_copyattr(inode);
+		ovl_file_modified(orig_iocb->ki_filp);
 	}
 
 	orig_iocb->ki_pos = iocb->ki_pos;
@@ -436,7 +440,7 @@ static ssize_t ovl_write_iter(struct kiocb *iocb, struct iov_iter *iter)
 		ret = vfs_iter_write(real.file, iter, &iocb->ki_pos, rwf);
 		file_end_write(real.file);
 		/* Update size */
-		ovl_copyattr(inode);
+		ovl_file_modified(file);
 	} else {
 		struct ovl_aio_req *aio_req;
 
@@ -526,7 +530,7 @@ static ssize_t ovl_splice_write(struct pipe_inode_info *pipe, struct file *out,
 
 	file_end_write(real.file);
 	/* Update size */
-	ovl_copyattr(inode);
+	ovl_file_modified(out);
 	revert_creds(old_cred);
 	fdput(real);
 
@@ -607,7 +611,7 @@ static long ovl_fallocate(struct file *file, int mode, loff_t offset, loff_t len
 	revert_creds(old_cred);
 
 	/* Update size */
-	ovl_copyattr(inode);
+	ovl_file_modified(file);
 
 	fdput(real);
 
@@ -691,7 +695,7 @@ static loff_t ovl_copyfile(struct file *file_in, loff_t pos_in,
 	revert_creds(old_cred);
 
 	/* Update size */
-	ovl_copyattr(inode_out);
+	ovl_file_modified(file_out);
 
 	fdput(real_in);
 	fdput(real_out);
