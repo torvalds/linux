@@ -225,6 +225,7 @@ config FB_Q40
 config FB_AMIGA
 	tristate "Amiga native chipset support"
 	depends on FB && AMIGA
+	select FB_IOMEM_FOPS
 	help
 	  This is the frame buffer device driver for the builtin graphics
 	  chipset found in Amigas.
