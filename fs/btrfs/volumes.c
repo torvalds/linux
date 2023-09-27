@@ -4722,6 +4722,7 @@ int btrfs_shrink_device(struct btrfs_device *device, u64 new_size)
 	u64 old_size = btrfs_device_get_total_bytes(device);
 	u64 diff;
 	u64 start;
+	u64 free_diff = 0;
 
 	new_size = round_down(new_size, fs_info->sectorsize);
 	start = new_size;
@@ -4747,7 +4748,19 @@ int btrfs_shrink_device(struct btrfs_device *device, u64 new_size)
 	btrfs_device_set_total_bytes(device, new_size);
 	if (test_bit(BTRFS_DEV_STATE_WRITEABLE, &device->dev_state)) {
 		device->fs_devices->total_rw_bytes -= diff;
-		atomic64_sub(diff, &fs_info->free_chunk_space);
+
+		/*
+		 * The new free_chunk_space is new_size - used, so we have to
+		 * subtract the delta of the old free_chunk_space which included
+		 * old_size - used.  If used > new_size then just subtract this
+		 * entire device's free space.
+		 */
+		if (device->bytes_used < new_size)
+			free_diff = (old_size - device->bytes_used) -
+				    (new_size - device->bytes_used);
+		else
+			free_diff = old_size - device->bytes_used;
+		atomic64_sub(free_diff, &fs_info->free_chunk_space);
 	}
 
 	/*
@@ -4882,9 +4895,10 @@ done:
 	if (ret) {
 		mutex_lock(&fs_info->chunk_mutex);
 		btrfs_device_set_total_bytes(device, old_size);
-		if (test_bit(BTRFS_DEV_STATE_WRITEABLE, &device->dev_state))
+		if (test_bit(BTRFS_DEV_STATE_WRITEABLE, &device->dev_state)) {
 			device->fs_devices->total_rw_bytes += diff;
-		atomic64_add(diff, &fs_info->free_chunk_space);
+			atomic64_add(free_diff, &fs_info->free_chunk_space);
+		}
 		mutex_unlock(&fs_info->chunk_mutex);
 	}
 	return ret;
