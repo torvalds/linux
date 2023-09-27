@@ -12,12 +12,12 @@ menuconfig INTEL_ATOMISP
 config VIDEO_ATOMISP
 	tristate "Intel Atom Image Signal Processor Driver"
 	depends on VIDEO_DEV && INTEL_ATOMISP
+	depends on IPU_BRIDGE
 	depends on MEDIA_PCI_SUPPORT
 	depends on PMIC_OPREGION
 	depends on I2C
 	select V4L2_FWNODE
 	select IOSF_MBI
-	select IPU_BRIDGE
 	select VIDEOBUF2_VMALLOC
 	select VIDEO_V4L2_SUBDEV_API
 	help
