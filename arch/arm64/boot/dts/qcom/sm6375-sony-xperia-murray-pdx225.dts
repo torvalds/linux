@@ -187,6 +187,11 @@
 	status = "okay";
 };
 
+&remoteproc_mss {
+	firmware-name = "qcom/sm6375/Sony/murray/modem.mbn";
+	status = "okay";
+};
+
 &rpm_requests {
 	regulators-0 {
 		compatible = "qcom,rpm-pm6125-regulators";
