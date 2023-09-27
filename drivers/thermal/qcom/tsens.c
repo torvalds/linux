@@ -1319,7 +1319,7 @@ static int tsens_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int tsens_remove(struct platform_device *pdev)
+static void tsens_remove(struct platform_device *pdev)
 {
 	struct tsens_priv *priv = platform_get_drvdata(pdev);
 
@@ -1327,13 +1327,11 @@ static int tsens_remove(struct platform_device *pdev)
 	tsens_disable_irq(priv);
 	if (priv->ops->disable)
 		priv->ops->disable(priv);
-
-	return 0;
 }
 
 static struct platform_driver tsens_driver = {
 	.probe = tsens_probe,
-	.remove = tsens_remove,
+	.remove_new = tsens_remove,
 	.driver = {
 		.name = "qcom-tsens",
 		.pm	= &tsens_pm_ops,
