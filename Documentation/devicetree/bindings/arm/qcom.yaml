@@ -91,24 +91,10 @@ description: |
   The 'board' element must be one of the following strings:
 
         adp
-        ap-al02-c2
-        ap-al02-c6
-        ap-al02-c7
-        ap-al02-c8
-        ap-al02-c9
-        ap-mi01.2
-        ap-mi01.3
-        ap-mi01.6
-        ap-mi01.9
         cdp
-        cp01-c1
         dragonboard
-        hk01
-        hk10-c1
-        hk10-c2
         idp
         liquid
-        rdp432-c2
         mtp
         qrd
         rb2
