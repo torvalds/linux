@@ -131,6 +131,57 @@ static const struct hwmon_chip_info bnxt_hwmon_chip_info = {
 	.info   = bnxt_hwmon_info,
 };
 
+static ssize_t temp1_shutdown_show(struct device *dev,
+				   struct device_attribute *attr, char *buf)
+{
+	struct bnxt *bp = dev_get_drvdata(dev);
+
+	return sysfs_emit(buf, "%u\n", bp->shutdown_thresh_temp * 1000);
+}
+
+static ssize_t temp1_shutdown_alarm_show(struct device *dev,
+					 struct device_attribute *attr, char *buf)
+{
+	struct bnxt *bp = dev_get_drvdata(dev);
+	u8 temp;
+	int rc;
+
+	rc = bnxt_hwrm_temp_query(bp, &temp);
+	if (rc)
+		return -EIO;
+
+	return sysfs_emit(buf, "%u\n", temp >= bp->shutdown_thresh_temp);
+}
+
+static DEVICE_ATTR_RO(temp1_shutdown);
+static DEVICE_ATTR_RO(temp1_shutdown_alarm);
+
+static struct attribute *bnxt_temp_extra_attrs[] = {
+	&dev_attr_temp1_shutdown.attr,
+	&dev_attr_temp1_shutdown_alarm.attr,
+	NULL,
+};
+
+static umode_t bnxt_temp_extra_attrs_visible(struct kobject *kobj,
+					     struct attribute *attr, int index)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct bnxt *bp = dev_get_drvdata(dev);
+
+	/* Shutdown temperature setting in NVM is optional */
+	if (!(bp->fw_cap & BNXT_FW_CAP_THRESHOLD_TEMP_SUPPORTED) ||
+	    !bp->shutdown_thresh_temp)
+		return 0;
+
+	return attr->mode;
+}
+
+static const struct attribute_group bnxt_temp_extra_group = {
+	.attrs		= bnxt_temp_extra_attrs,
+	.is_visible	= bnxt_temp_extra_attrs_visible,
+};
+__ATTRIBUTE_GROUPS(bnxt_temp_extra);
+
 void bnxt_hwmon_uninit(struct bnxt *bp)
 {
 	if (bp->hwmon_dev) {
@@ -156,7 +207,8 @@ void bnxt_hwmon_init(struct bnxt *bp)
 
 	bp->hwmon_dev = hwmon_device_register_with_info(&pdev->dev,
 							DRV_MODULE_NAME, bp,
-							&bnxt_hwmon_chip_info, NULL);
+							&bnxt_hwmon_chip_info,
+							bnxt_temp_extra_groups);
 	if (IS_ERR(bp->hwmon_dev)) {
 		bp->hwmon_dev = NULL;
 		dev_warn(&pdev->dev, "Cannot register hwmon device\n");
