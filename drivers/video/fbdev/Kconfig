@@ -689,10 +689,10 @@ config FB_NVIDIA
 	tristate "nVidia Framebuffer Support"
 	depends on FB && PCI
 	select FB_BACKLIGHT if FB_NVIDIA_BACKLIGHT
-	select FB_MODE_HELPERS
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
+	select FB_IOMEM_FOPS
 	select BITREVERSE
 	select VGASTATE
 	select VIDEO_NOMODESET
