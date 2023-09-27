@@ -265,6 +265,21 @@ static inline int rdev_stop_beacons(struct cfg802154_registered_device *rdev,
 	return ret;
 }
 
+static inline int rdev_associate(struct cfg802154_registered_device *rdev,
+				 struct wpan_dev *wpan_dev,
+				 struct ieee802154_addr *coord)
+{
+	int ret;
+
+	if (!rdev->ops->associate)
+		return -EOPNOTSUPP;
+
+	trace_802154_rdev_associate(&rdev->wpan_phy, wpan_dev, coord);
+	ret = rdev->ops->associate(&rdev->wpan_phy, wpan_dev, coord);
+	trace_802154_rdev_return_int(&rdev->wpan_phy, ret);
+	return ret;
+}
+
 #ifdef CONFIG_IEEE802154_NL802154_EXPERIMENTAL
 /* TODO this is already a nl802154, so move into ieee802154 */
 static inline void

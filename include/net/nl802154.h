@@ -78,6 +78,7 @@ enum nl802154_commands {
 	NL802154_CMD_SCAN_DONE,
 	NL802154_CMD_SEND_BEACONS,
 	NL802154_CMD_STOP_BEACONS,
+	NL802154_CMD_ASSOCIATE,
 
 	/* add new commands above here */
 
