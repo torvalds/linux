@@ -70,12 +70,15 @@ union ulong_byte_assert {
 static inline void bucket_unlock(struct bucket *b)
 {
 	BUILD_BUG_ON(!((union ulong_byte_assert) { .ulong = 1UL << BUCKET_LOCK_BITNR }).byte);
-	bit_spin_unlock(BUCKET_LOCK_BITNR, (void *) &b->lock);
+
+	clear_bit_unlock(BUCKET_LOCK_BITNR, (void *) &b->lock);
+	wake_up_bit((void *) &b->lock, BUCKET_LOCK_BITNR);
 }
 
 static inline void bucket_lock(struct bucket *b)
 {
-	bit_spin_lock(BUCKET_LOCK_BITNR, (void *) &b->lock);
+	wait_on_bit_lock((void *) &b->lock, BUCKET_LOCK_BITNR,
+			 TASK_UNINTERRUPTIBLE);
 }
 
 static inline struct bucket_array *gc_bucket_array(struct bch_dev *ca)

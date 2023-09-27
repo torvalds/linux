@@ -367,7 +367,6 @@ static inline int update_replicas(struct bch_fs *c, struct bkey_s_c k,
 	struct printbuf buf = PRINTBUF;
 
 	percpu_down_read(&c->mark_lock);
-	buf.atomic++;
 
 	idx = bch2_replicas_entry_idx(c, r);
 	if (idx < 0 &&
@@ -795,7 +794,6 @@ static int mark_stripe_bucket(struct btree_trans *trans,
 	/* * XXX doesn't handle deletion */
 
 	percpu_down_read(&c->mark_lock);
-	buf.atomic++;
 	g = PTR_GC_BUCKET(ca, ptr);
 
 	if (g->dirty_sectors ||
