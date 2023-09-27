@@ -20,6 +20,9 @@
   down_read_trylock
   drm_crtc_vblank_waitqueue
   filp_close
+  folio_add_lru
+  folio_mapping
+  folio_referenced
   for_each_kernel_tracepoint
   freq_qos_add_notifier
   freq_qos_remove_notifier
@@ -42,11 +45,14 @@
   jiffies_64_to_clock_t
   kick_process
   ktime_get_coarse_real_ts64
+  mem_cgroup_update_lru_size
   memory_cgrp_subsys
   memory_cgrp_subsys_enabled_key
   mem_cgroup_from_id
   mipi_dsi_generic_write
   mmc_wait_for_cmd
+  __mod_lruvec_state
+  __mod_zone_page_state
   nf_ct_attach
   nf_ct_delete
   nf_register_net_hook
@@ -62,6 +68,7 @@
   prepare_to_wait_exclusive
   proc_symlink
   public_key_verify_signature
+  put_pages_list
   radix_tree_lookup_slot
   radix_tree_replace_slot
   _raw_write_trylock
@@ -69,6 +76,7 @@
   register_tcf_proto_ops
   regulator_map_voltage_linear_range
   remove_proc_subtree
+  root_mem_cgroup
   rtc_read_alarm
   rtc_set_alarm
   __rtnl_link_unregister
