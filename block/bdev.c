@@ -222,31 +222,27 @@ EXPORT_SYMBOL(sync_blockdev_range);
  */
 int bdev_freeze(struct block_device *bdev)
 {
-	struct super_block *sb;
 	int error = 0;
 
 	mutex_lock(&bdev->bd_fsfreeze_mutex);
-	if (++bdev->bd_fsfreeze_count > 1)
-		goto done;
 
-	sb = get_active_super(bdev);
-	if (!sb)
-		goto sync;
-	if (sb->s_op->freeze_super)
-		error = sb->s_op->freeze_super(sb, FREEZE_HOLDER_USERSPACE);
-	else
-		error = freeze_super(sb, FREEZE_HOLDER_USERSPACE);
-	deactivate_super(sb);
-
-	if (error) {
-		bdev->bd_fsfreeze_count--;
-		goto done;
+	if (atomic_inc_return(&bdev->bd_fsfreeze_count) > 1) {
+		mutex_unlock(&bdev->bd_fsfreeze_mutex);
+		return 0;
 	}
-	bdev->bd_fsfreeze_sb = sb;
 
-sync:
-	error = sync_blockdev(bdev);
-done:
+	mutex_lock(&bdev->bd_holder_lock);
+	if (bdev->bd_holder_ops && bdev->bd_holder_ops->freeze) {
+		error = bdev->bd_holder_ops->freeze(bdev);
+		lockdep_assert_not_held(&bdev->bd_holder_lock);
+	} else {
+		mutex_unlock(&bdev->bd_holder_lock);
+		error = sync_blockdev(bdev);
+	}
+
+	if (error)
+		atomic_dec(&bdev->bd_fsfreeze_count);
+
 	mutex_unlock(&bdev->bd_fsfreeze_mutex);
 	return error;
 }
@@ -262,29 +258,32 @@ EXPORT_SYMBOL(bdev_freeze);
  */
 int bdev_thaw(struct block_device *bdev)
 {
-	struct super_block *sb;
-	int error = -EINVAL;
+	int error = -EINVAL, nr_freeze;
 
 	mutex_lock(&bdev->bd_fsfreeze_mutex);
-	if (!bdev->bd_fsfreeze_count)
+
+	/*
+	 * If this returns < 0 it means that @bd_fsfreeze_count was
+	 * already 0 and no decrement was performed.
+	 */
+	nr_freeze = atomic_dec_if_positive(&bdev->bd_fsfreeze_count);
+	if (nr_freeze < 0)
 		goto out;
 
 	error = 0;
-	if (--bdev->bd_fsfreeze_count > 0)
+	if (nr_freeze > 0)
 		goto out;
 
-	sb = bdev->bd_fsfreeze_sb;
-	if (!sb)
-		goto out;
+	mutex_lock(&bdev->bd_holder_lock);
+	if (bdev->bd_holder_ops && bdev->bd_holder_ops->thaw) {
+		error = bdev->bd_holder_ops->thaw(bdev);
+		lockdep_assert_not_held(&bdev->bd_holder_lock);
+	} else {
+		mutex_unlock(&bdev->bd_holder_lock);
+	}
 
-	if (sb->s_op->thaw_super)
-		error = sb->s_op->thaw_super(sb, FREEZE_HOLDER_USERSPACE);
-	else
-		error = thaw_super(sb, FREEZE_HOLDER_USERSPACE);
 	if (error)
-		bdev->bd_fsfreeze_count++;
-	else
-		bdev->bd_fsfreeze_sb = NULL;
+		atomic_inc(&bdev->bd_fsfreeze_count);
 out:
 	mutex_unlock(&bdev->bd_fsfreeze_mutex);
 	return error;

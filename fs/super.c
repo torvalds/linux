@@ -1440,7 +1440,7 @@ EXPORT_SYMBOL(sget_dev);
  *
  * The function must be called with bdev->bd_holder_lock and releases it.
  */
-static struct super_block *bdev_super_lock_shared(struct block_device *bdev)
+static struct super_block *bdev_super_lock(struct block_device *bdev, bool excl)
 	__releases(&bdev->bd_holder_lock)
 {
 	struct super_block *sb = bdev->bd_holder;
@@ -1454,18 +1454,25 @@ static struct super_block *bdev_super_lock_shared(struct block_device *bdev)
 	spin_lock(&sb_lock);
 	sb->s_count++;
 	spin_unlock(&sb_lock);
+
 	mutex_unlock(&bdev->bd_holder_lock);
 
-	locked = super_lock_shared(sb);
-	if (!locked || !sb->s_root || !(sb->s_flags & SB_ACTIVE)) {
-		put_super(sb);
+	locked = super_lock(sb, excl);
+
+	/*
+	 * If the superblock wasn't already SB_DYING then we hold
+	 * s_umount and can safely drop our temporary reference.
+         */
+	put_super(sb);
+
+	if (!locked)
+		return NULL;
+
+	if (!sb->s_root || !(sb->s_flags & SB_ACTIVE)) {
+		super_unlock(sb, excl);
 		return NULL;
 	}
-	/*
-	 * The superblock is active and we hold s_umount, we can drop our
-	 * temporary reference now.
-	 */
-	put_super(sb);
+
 	return sb;
 }
 
@@ -1473,7 +1480,7 @@ static void fs_bdev_mark_dead(struct block_device *bdev, bool surprise)
 {
 	struct super_block *sb;
 
-	sb = bdev_super_lock_shared(bdev);
+	sb = bdev_super_lock(bdev, false);
 	if (!sb)
 		return;
 
@@ -1491,16 +1498,74 @@ static void fs_bdev_sync(struct block_device *bdev)
 {
 	struct super_block *sb;
 
-	sb = bdev_super_lock_shared(bdev);
+	sb = bdev_super_lock(bdev, false);
 	if (!sb)
 		return;
+
 	sync_filesystem(sb);
 	super_unlock_shared(sb);
+}
+
+static struct super_block *get_bdev_super(struct block_device *bdev)
+{
+	bool active = false;
+	struct super_block *sb;
+
+	sb = bdev_super_lock(bdev, true);
+	if (sb) {
+		active = atomic_inc_not_zero(&sb->s_active);
+		super_unlock_excl(sb);
+	}
+	if (!active)
+		return NULL;
+	return sb;
+}
+
+static int fs_bdev_freeze(struct block_device *bdev)
+{
+	struct super_block *sb;
+	int error = 0;
+
+	lockdep_assert_held(&bdev->bd_fsfreeze_mutex);
+
+	sb = get_bdev_super(bdev);
+	if (!sb)
+		return -EINVAL;
+
+	if (sb->s_op->freeze_super)
+		error = sb->s_op->freeze_super(sb, FREEZE_HOLDER_USERSPACE);
+	else
+		error = freeze_super(sb, FREEZE_HOLDER_USERSPACE);
+	if (!error)
+		error = sync_blockdev(bdev);
+	deactivate_super(sb);
+	return error;
+}
+
+static int fs_bdev_thaw(struct block_device *bdev)
+{
+	struct super_block *sb;
+	int error;
+
+	lockdep_assert_held(&bdev->bd_fsfreeze_mutex);
+
+	sb = get_bdev_super(bdev);
+	if (WARN_ON_ONCE(!sb))
+		return -EINVAL;
+
+	if (sb->s_op->thaw_super)
+		error = sb->s_op->thaw_super(sb, FREEZE_HOLDER_USERSPACE);
+	else
+		error = thaw_super(sb, FREEZE_HOLDER_USERSPACE);
+	deactivate_super(sb);
+	return error;
 }
 
 const struct blk_holder_ops fs_holder_ops = {
 	.mark_dead		= fs_bdev_mark_dead,
 	.sync			= fs_bdev_sync,
+	.freeze			= fs_bdev_freeze,
+	.thaw			= fs_bdev_thaw,
 };
 EXPORT_SYMBOL_GPL(fs_holder_ops);
 
@@ -1530,15 +1595,10 @@ int setup_bdev_super(struct super_block *sb, int sb_flags,
 	}
 
 	/*
-	 * Until SB_BORN flag is set, there can be no active superblock
-	 * references and thus no filesystem freezing. get_active_super() will
-	 * just loop waiting for SB_BORN so even bdev_freeze() cannot proceed.
-	 *
-	 * It is enough to check bdev was not frozen before we set s_bdev.
+	 * It is enough to check bdev was not frozen before we set
+	 * s_bdev as freezing will wait until SB_BORN is set.
 	 */
-	mutex_lock(&bdev->bd_fsfreeze_mutex);
-	if (bdev->bd_fsfreeze_count > 0) {
-		mutex_unlock(&bdev->bd_fsfreeze_mutex);
+	if (atomic_read(&bdev->bd_fsfreeze_count) > 0) {
 		if (fc)
 			warnf(fc, "%pg: Can't mount, blockdev is frozen", bdev);
 		bdev_release(bdev_handle);
@@ -1551,7 +1611,6 @@ int setup_bdev_super(struct super_block *sb, int sb_flags,
 	if (bdev_stable_writes(bdev))
 		sb->s_iflags |= SB_I_STABLE_WRITES;
 	spin_unlock(&sb_lock);
-	mutex_unlock(&bdev->bd_fsfreeze_mutex);
 
 	snprintf(sb->s_id, sizeof(sb->s_id), "%pg", bdev);
 	shrinker_debugfs_rename(sb->s_shrink, "sb-%s:%s", sb->s_type->name,
