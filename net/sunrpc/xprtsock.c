@@ -62,6 +62,7 @@
 #include "sunrpc.h"
 
 static void xs_close(struct rpc_xprt *xprt);
+static void xs_reset_srcport(struct sock_xprt *transport);
 static void xs_set_srcport(struct sock_xprt *transport, struct socket *sock);
 static void xs_tcp_set_socket_timeouts(struct rpc_xprt *xprt,
 		struct socket *sock);
@@ -1565,8 +1566,10 @@ static void xs_tcp_state_change(struct sock *sk)
 		break;
 	case TCP_CLOSE:
 		if (test_and_clear_bit(XPRT_SOCK_CONNECTING,
-					&transport->sock_state))
+				       &transport->sock_state)) {
+			xs_reset_srcport(transport);
 			xprt_clear_connecting(xprt);
+		}
 		clear_bit(XPRT_CLOSING, &xprt->state);
 		/* Trigger the socket release */
 		xs_run_error_worker(transport, XPRT_SOCK_WAKE_DISCONNECT);
@@ -1720,6 +1723,11 @@ static void xs_set_port(struct rpc_xprt *xprt, unsigned short port)
 
 	rpc_set_port(xs_addr(xprt), port);
 	xs_update_peer_port(xprt);
+}
+
+static void xs_reset_srcport(struct sock_xprt *transport)
+{
+	transport->srcport = 0;
 }
 
 static void xs_set_srcport(struct sock_xprt *transport, struct socket *sock)
