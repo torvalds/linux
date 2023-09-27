@@ -498,9 +498,7 @@ config FB_GBE
 	bool "SGI Graphics Backend frame buffer support"
 	depends on (FB = y) && HAS_IOMEM
 	depends on SGI_IP32 || COMPILE_TEST
-	select FB_CFB_FILLRECT
-	select FB_CFB_COPYAREA
-	select FB_CFB_IMAGEBLIT
+	select FB_IOMEM_HELPERS
 	help
 	  This is the frame buffer device driver for SGI Graphics Backend.
 	  This chip is used in SGI O2 and Visual Workstation 320/540.
