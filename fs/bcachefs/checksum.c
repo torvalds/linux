@@ -362,7 +362,7 @@ struct bch_csum bch2_checksum_merge(unsigned type, struct bch_csum a,
 
 	state.type = type;
 	bch2_checksum_init(&state);
-	state.seed = (u64 __force) a.lo;
+	state.seed = le64_to_cpu(a.lo);
 
 	BUG_ON(!bch2_checksum_mergeable(type));
 
@@ -373,7 +373,7 @@ struct bch_csum bch2_checksum_merge(unsigned type, struct bch_csum a,
 				page_address(ZERO_PAGE(0)), page_len);
 		b_len -= page_len;
 	}
-	a.lo = (__le64 __force) bch2_checksum_final(&state);
+	a.lo = cpu_to_le64(bch2_checksum_final(&state));
 	a.lo ^= b.lo;
 	a.hi ^= b.hi;
 	return a;
