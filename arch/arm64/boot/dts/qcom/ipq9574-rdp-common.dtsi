@@ -8,6 +8,8 @@
 
 /dts-v1/;
 
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
 #include "ipq9574.dtsi"
 
 / {
@@ -35,6 +37,19 @@
 		regulator-boot-on;
 		regulator-always-on;
 		regulator-name = "fixed_0p925";
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+		pinctrl-0 = <&gpio_keys_default>;
+		pinctrl-names = "default";
+
+		button-wps {
+			label = "wps";
+			linux,code = <KEY_WPS_BUTTON>;
+			gpios = <&tlmm 37 GPIO_ACTIVE_LOW>;
+			debounce-interval = <60>;
+		};
 	};
 };
 
@@ -94,6 +109,13 @@
 		function = "blsp0_spi";
 		drive-strength = <8>;
 		bias-disable;
+	};
+
+	gpio_keys_default: gpio-keys-default-state {
+		pins = "gpio37";
+		function = "gpio";
+		drive-strength = <8>;
+		bias-pull-up;
 	};
 };
 
