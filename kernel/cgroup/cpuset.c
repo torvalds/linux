@@ -719,18 +719,18 @@ static inline struct cpumask *fetch_xcpus(struct cpuset *cs)
 }
 
 /*
- * cpu_exclusive_check() - check if two cpusets are exclusive
+ * cpusets_are_exclusive() - check if two cpusets are exclusive
  *
- * Return 0 if exclusive, -EINVAL if not
+ * Return true if exclusive, false if not
  */
-static inline bool cpu_exclusive_check(struct cpuset *cs1, struct cpuset *cs2)
+static inline bool cpusets_are_exclusive(struct cpuset *cs1, struct cpuset *cs2)
 {
 	struct cpumask *xcpus1 = fetch_xcpus(cs1);
 	struct cpumask *xcpus2 = fetch_xcpus(cs2);
 
 	if (cpumask_intersects(xcpus1, xcpus2))
-		return -EINVAL;
-	return 0;
+		return false;
+	return true;
 }
 
 /*
@@ -833,7 +833,7 @@ static int validate_change(struct cpuset *cur, struct cpuset *trial)
 	cpuset_for_each_child(c, css, par) {
 		if ((is_cpu_exclusive(trial) || is_cpu_exclusive(c)) &&
 		    c != cur) {
-			if (cpu_exclusive_check(trial, c))
+			if (!cpusets_are_exclusive(trial, c))
 				goto out;
 		}
 		if ((is_mem_exclusive(trial) || is_mem_exclusive(c)) &&
@@ -1875,7 +1875,7 @@ static int update_parent_effective_cpumask(struct cpuset *cs, int cmd,
 			cpuset_for_each_child(child, css, parent) {
 				if (child == cs)
 					continue;
-				if (cpu_exclusive_check(cs, child)) {
+				if (!cpusets_are_exclusive(cs, child)) {
 					exclusive = false;
 					break;
 				}
