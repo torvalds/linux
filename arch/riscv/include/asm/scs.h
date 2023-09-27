@@ -13,6 +13,11 @@
 	XIP_FIXUP_OFFSET gp
 .endm
 
+/* Load the per-CPU IRQ shadow call stack to gp. */
+.macro scs_load_irq_stack tmp
+	load_per_cpu gp, irq_shadow_call_stack_ptr, \tmp
+.endm
+
 /* Load task_scs_sp(current) to gp. */
 .macro scs_load_current
 	REG_L	gp, TASK_TI_SCS_SP(tp)
@@ -33,6 +38,8 @@ _skip_scs:
 #else /* CONFIG_SHADOW_CALL_STACK */
 
 .macro scs_load_init_stack
+.endm
+.macro scs_load_irq_stack tmp
 .endm
 .macro scs_load_current
 .endm
