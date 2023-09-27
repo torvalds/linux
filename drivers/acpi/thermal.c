@@ -928,8 +928,10 @@ static int acpi_thermal_add(struct acpi_device *device)
 	acpi_thermal_guess_offset(tz, crit_temp);
 
 	trip = kcalloc(trip_count, sizeof(*trip), GFP_KERNEL);
-	if (!trip)
-		return -ENOMEM;
+	if (!trip) {
+		result = -ENOMEM;
+		goto free_memory;
+	}
 
 	tz->trip_table = trip;
 
