@@ -373,12 +373,12 @@
 };
 
 &i2c2_bu18tl82 {
-	//route-enable;
-	use-delay-work;
+	route-enable;
+	//use-delay-work;
 };
 
 &i2c2_bu18rl82 {
-	use-delay-work;
+	//use-delay-work;
 	vpower-supply = <&lcd1_vcc12v_buck>;
 };
 
@@ -389,11 +389,11 @@
 };
 
 &i2c4_bu18tl82 {
-	use-delay-work;
+	//use-delay-work;
 };
 
 &i2c4_bu18rl82 {
-	use-delay-work;
+	//use-delay-work;
 	vpower-supply = <&lcd5_vcc12v_buck>;
 };
 
@@ -435,11 +435,11 @@
 };
 
 &i2c5_bu18tl82 {
-	use-delay-work;
+	//use-delay-work;
 };
 
 &i2c5_bu18rl82 {
-	use-delay-work;
+	//use-delay-work;
 	vpower-supply = <&lcd3_vcc12v_buck>;
 };
 
@@ -450,8 +450,8 @@
 };
 
 &i2c6_bu18tl82 {
-	//route-enable;
-	use-delay-work;
+	route-enable;
+	//use-delay-work;
 };
 
 &i2c6_bu18rl82 {
@@ -565,11 +565,11 @@
 };
 
 &route_dsi0 {
-	status = "disabled";
+	status = "okay";
 };
 
 &route_dsi1 {
-	status = "disabled";
+	status = "okay";
 };
 
 &u2phy1_otg {
