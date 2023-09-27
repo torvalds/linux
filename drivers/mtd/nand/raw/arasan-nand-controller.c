@@ -481,7 +481,7 @@ static int anfc_read_page_hw_ecc(struct nand_chip *chip, u8 *buf,
 		}
 
 		bf = nand_check_erased_ecc_chunk(raw_buf, chip->ecc.size,
-						 NULL, 0, NULL, 0,
+						 anand->hw_ecc, chip->ecc.bytes, NULL, 0,
 						 chip->ecc.strength);
 		if (bf > 0) {
 			mtd->ecc_stats.corrected += bf;
