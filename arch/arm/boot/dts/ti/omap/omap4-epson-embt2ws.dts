@@ -243,7 +243,16 @@
 		reset-gpios = <&gpio2 23 GPIO_ACTIVE_LOW>;
 	};
 
-	/* TODO: mpu9150 at control unit, seems to require quirks */
+	mpu9150: imu@68 {
+		compatible = "invensense,mpu9150";
+		reg = <0x68>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&mpu9150_pins>;
+		interrupt-parent = <&gpio2>;
+		interrupt = <7 IRQ_TYPE_LEVEL_HIGH>;
+		invensense,level-shifter;
+	};
 };
 
 &keypad {
@@ -375,6 +384,12 @@
 			OMAP4_IOPAD(0x0f8, PIN_INPUT | MUX_MODE0)       /* abe_mcbsp2_dr */
 			OMAP4_IOPAD(0x0fa, PIN_OUTPUT | MUX_MODE0)      /* abe_mcbsp2_dx */
 			OMAP4_IOPAD(0x0fc, PIN_INPUT | MUX_MODE0)       /* abe_mcbsp2_fsx */
+		>;
+	};
+
+	mpu9150_pins: pinmux-mpu9150-pins {
+		pinctrl-single,pins = <
+			OMAP4_IOPAD(0x5e, PIN_INPUT_PULLUP | MUX_MODE3)
 		>;
 	};
 
