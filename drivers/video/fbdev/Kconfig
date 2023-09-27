@@ -1305,9 +1305,10 @@ config FB_KYRO
 config FB_3DFX
 	tristate "3Dfx Banshee/Voodoo3/Voodoo5 display support"
 	depends on FB && PCI
-	select FB_CFB_IMAGEBLIT
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	select FB_IOMEM_FOPS
 	select FB_MODE_HELPERS
 	select VIDEO_NOMODESET
 	help
