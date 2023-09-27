@@ -21,6 +21,8 @@ def define_pitti():
         "drivers/iommu/qcom_iommu_util.ko",
         "drivers/irqchip/qcom-mpm.ko",
         "drivers/mailbox/qcom-ipcc.ko",
+        "drivers/mmc/host/cqhci.ko",
+        "drivers/mmc/host/sdhci-msm.ko",
         "drivers/pinctrl/qcom/pinctrl-msm.ko",
         "drivers/pinctrl/qcom/pinctrl-pitti.ko",
         "drivers/regulator/stub-regulator.ko",
