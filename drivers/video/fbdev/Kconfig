@@ -1203,10 +1203,11 @@ config FB_SAVAGE_ACCEL
 config FB_SIS
 	tristate "SiS/XGI display support"
 	depends on FB && PCI
+	select BOOT_VESA_SUPPORT if FB_SIS = y
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
-	select BOOT_VESA_SUPPORT if FB_SIS = y
+	select FB_IOMEM_FOPS
 	select FB_SIS_300 if !FB_SIS_315
 	select VIDEO_NOMODESET
 	help
