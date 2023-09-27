@@ -419,11 +419,11 @@ static const struct jh71xx_pmu_match_data jh7110_pmu = {
 };
 
 static const struct jh71xx_domain_info jh7110_aon_power_domains[] = {
-	[JH7110_PD_DPHY_TX] = {
+	[JH7110_AON_PD_DPHY_TX] = {
 		.name = "DPHY-TX",
 		.bit = 30,
 	},
-	[JH7110_PD_DPHY_RX] = {
+	[JH7110_AON_PD_DPHY_RX] = {
 		.name = "DPHY-RX",
 		.bit = 31,
 	},
