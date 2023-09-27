@@ -903,6 +903,7 @@ config FB_MATROX
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
+	select FB_IOMEM_FOPS
 	select FB_TILEBLITTING
 	select FB_MACMODES if PPC_PMAC
 	select VIDEO_NOMODESET
@@ -989,6 +990,7 @@ config FB_MATROX_I2C
 config FB_MATROX_MAVEN
 	tristate "G400 second head support"
 	depends on FB_MATROX_G && FB_MATROX_I2C
+	select FB_IOMEM_HELPERS
 	help
 	  WARNING !!! This support does not work with G450 !!!
 
