@@ -444,7 +444,7 @@ static int get_swap_writer(struct swap_map_handle *handle)
 err_rel:
 	release_swap_writer(handle);
 err_close:
-	swsusp_close(false);
+	swsusp_close();
 	return ret;
 }
 
@@ -509,7 +509,7 @@ static int swap_writer_finish(struct swap_map_handle *handle,
 	if (error)
 		free_all_swap_pages(root_swap);
 	release_swap_writer(handle);
-	swsusp_close(false);
+	swsusp_close();
 
 	return error;
 }
@@ -1569,7 +1569,7 @@ put:
  * @exclusive: Close the resume device which is exclusively opened.
  */
 
-void swsusp_close(bool exclusive)
+void swsusp_close(void)
 {
 	if (IS_ERR(hib_resume_bdev_handle)) {
 		pr_debug("Image device not initialised\n");
