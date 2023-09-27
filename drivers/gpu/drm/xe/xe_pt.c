@@ -47,39 +47,98 @@ static struct xe_pt *xe_pt_entry(struct xe_pt_dir *pt_dir, unsigned int index)
 	return container_of(pt_dir->dir.entries[index], struct xe_pt, base);
 }
 
+static u64 pde_encode_cache(enum xe_cache_level cache)
+{
+	/* FIXME: I don't think the PPAT handling is correct for MTL */
+
+	if (cache != XE_CACHE_NONE)
+		return PPAT_CACHED_PDE;
+
+	return PPAT_UNCACHED;
+}
+
+static u64 pte_encode_cache(enum xe_cache_level cache)
+{
+	/* FIXME: I don't think the PPAT handling is correct for MTL */
+	switch (cache) {
+	case XE_CACHE_NONE:
+		return PPAT_UNCACHED;
+	case XE_CACHE_WT:
+		return PPAT_DISPLAY_ELLC;
+	default:
+		return PPAT_CACHED;
+	}
+}
+
+static u64 pte_encode_ps(u32 pt_level)
+{
+	/* XXX: Does hw support 1 GiB pages? */
+	XE_WARN_ON(pt_level > 2);
+
+	if (pt_level == 1)
+		return XE_PDE_PS_2M;
+	else if (pt_level == 2)
+		return XE_PDPE_PS_1G;
+
+	return 0;
+}
+
 /**
  * xe_pde_encode() - Encode a page-table directory entry pointing to
  * another page-table.
  * @bo: The page-table bo of the page-table to point to.
  * @bo_offset: Offset in the page-table bo to point to.
- * @level: The cache level indicating the caching of @bo.
+ * @cache: The cache level indicating the caching of @bo.
  *
  * TODO: Rename.
  *
  * Return: An encoded page directory entry. No errors.
  */
 u64 xe_pde_encode(struct xe_bo *bo, u64 bo_offset,
-		  const enum xe_cache_level level)
+		  const enum xe_cache_level cache)
 {
 	u64 pde;
 
 	pde = xe_bo_addr(bo, bo_offset, XE_PAGE_SIZE);
 	pde |= XE_PAGE_PRESENT | XE_PAGE_RW;
-
-	/* FIXME: I don't think the PPAT handling is correct for MTL */
-
-	if (level != XE_CACHE_NONE)
-		pde |= PPAT_CACHED_PDE;
-	else
-		pde |= PPAT_UNCACHED;
+	pde |= pde_encode_cache(cache);
 
 	return pde;
 }
 
-static u64 __pte_encode(u64 pte, enum xe_cache_level cache,
-			struct xe_vma *vma, u32 pt_level)
+/**
+ * xe_pte_encode() - Encode a page-table entry pointing to memory.
+ * @bo: The BO representing the memory to point to.
+ * @bo_offset: The offset into @bo.
+ * @cache: The cache level indicating
+ * @pt_level: The page-table level of the page-table into which the entry
+ * is to be inserted.
+ *
+ * Return: An encoded page-table entry. No errors.
+ */
+u64 xe_pte_encode(struct xe_bo *bo, u64 bo_offset, enum xe_cache_level cache,
+		  u32 pt_level)
+{
+	u64 pte;
+
+	pte = xe_bo_addr(bo, bo_offset, XE_PAGE_SIZE);
+	pte |= XE_PAGE_PRESENT | XE_PAGE_RW;
+	pte |= pte_encode_cache(cache);
+	pte |= pte_encode_ps(pt_level);
+
+	if (xe_bo_is_vram(bo) || xe_bo_is_stolen_devmem(bo))
+		pte |= XE_PPGTT_PTE_DM;
+
+	return pte;
+}
+
+/* Like xe_pte_encode(), but with a vma and a partially-encoded pte */
+static u64 __vma_pte_encode(u64 pte, struct xe_vma *vma,
+			    enum xe_cache_level cache, u32 pt_level)
 {
 	pte |= XE_PAGE_PRESENT | XE_PAGE_RW;
+	pte |= pte_encode_cache(cache);
+	pte |= pte_encode_ps(pt_level);
 
 	if (unlikely(vma && xe_vma_read_only(vma)))
 		pte &= ~XE_PAGE_RW;
@@ -87,51 +146,7 @@ static u64 __pte_encode(u64 pte, enum xe_cache_level cache,
 	if (unlikely(vma && xe_vma_is_null(vma)))
 		pte |= XE_PTE_NULL;
 
-	/* FIXME: I don't think the PPAT handling is correct for MTL */
-
-	switch (cache) {
-	case XE_CACHE_NONE:
-		pte |= PPAT_UNCACHED;
-		break;
-	case XE_CACHE_WT:
-		pte |= PPAT_DISPLAY_ELLC;
-		break;
-	default:
-		pte |= PPAT_CACHED;
-		break;
-	}
-
-	if (pt_level == 1)
-		pte |= XE_PDE_PS_2M;
-	else if (pt_level == 2)
-		pte |= XE_PDPE_PS_1G;
-
-	/* XXX: Does hw support 1 GiB pages? */
-	XE_WARN_ON(pt_level > 2);
-
 	return pte;
-}
-
-/**
- * xe_pte_encode() - Encode a page-table entry pointing to memory.
- * @bo: The BO representing the memory to point to.
- * @offset: The offset into @bo.
- * @cache: The cache level indicating
- * @pt_level: The page-table level of the page-table into which the entry
- * is to be inserted.
- *
- * Return: An encoded page-table entry. No errors.
- */
-u64 xe_pte_encode(struct xe_bo *bo, u64 offset, enum xe_cache_level cache,
-		  u32 pt_level)
-{
-	u64 pte;
-
-	pte = xe_bo_addr(bo, offset, XE_PAGE_SIZE);
-	if (xe_bo_is_vram(bo) || xe_bo_is_stolen_devmem(bo))
-		pte |= XE_PPGTT_PTE_DM;
-
-	return __pte_encode(pte, cache, NULL, pt_level);
 }
 
 static u64 __xe_pt_empty_pte(struct xe_tile *tile, struct xe_vm *vm,
@@ -614,9 +629,9 @@ xe_pt_stage_bind_entry(struct xe_ptw *parent, pgoff_t offset,
 
 		XE_WARN_ON(xe_walk->va_curs_start != addr);
 
-		pte = __pte_encode(is_null ? 0 :
-				   xe_res_dma(curs) + xe_walk->dma_offset,
-				   xe_walk->cache, xe_walk->vma, level);
+		pte = __vma_pte_encode(is_null ? 0 :
+				       xe_res_dma(curs) + xe_walk->dma_offset,
+				       xe_walk->vma, xe_walk->cache, level);
 		pte |= xe_walk->default_pte;
 
 		/*
