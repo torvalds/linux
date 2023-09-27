@@ -1301,6 +1301,15 @@ config SXR_GPUCC_NIOBE
 	  Say Y if you want to support graphics controller devices and
 	  functionality such as 3D graphics.
 
+config SXR_CAMCC_NIOBE
+	tristate "NIOBE Camera Clock Controller"
+	depends on SXR_GCC_NIOBE
+	help
+	  Support for the camera clock controller on Qualcomm Technologies, Inc
+	  NIOBE devices.
+	  Say Y if you want to support camera devices and functionality such as
+	  capturing pictures.
+
 endif
 
 config VIRTIO_CLK
