@@ -315,6 +315,10 @@ static inline bool mac802154_is_associating(struct ieee802154_local *local)
 	return test_bit(IEEE802154_IS_ASSOCIATING, &local->ongoing);
 }
 
+int mac802154_send_disassociation_notif(struct ieee802154_sub_if_data *sdata,
+					struct ieee802154_pan_device *target,
+					u8 reason);
+
 /* interface handling */
 int ieee802154_iface_init(void);
 void ieee802154_iface_exit(void);

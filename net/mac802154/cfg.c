@@ -383,6 +383,105 @@ free_parent:
 	return ret;
 }
 
+static int mac802154_disassociate_from_parent(struct wpan_phy *wpan_phy,
+					      struct wpan_dev *wpan_dev)
+{
+	struct ieee802154_local *local = wpan_phy_priv(wpan_phy);
+	struct ieee802154_pan_device *child, *tmp;
+	struct ieee802154_sub_if_data *sdata;
+	u64 eaddr;
+	int ret;
+
+	sdata = IEEE802154_WPAN_DEV_TO_SUB_IF(wpan_dev);
+
+	/* Start by disassociating all the children and preventing new ones to
+	 * attempt associations.
+	 */
+	list_for_each_entry_safe(child, tmp, &wpan_dev->children, node) {
+		ret = mac802154_send_disassociation_notif(sdata, child,
+							  IEEE802154_COORD_WISHES_DEVICE_TO_LEAVE);
+		if (ret) {
+			eaddr = swab64((__force u64)child->extended_addr);
+			dev_err(&sdata->dev->dev,
+				"Disassociation with %8phC may have failed (%d)\n",
+				&eaddr, ret);
+		}
+
+		list_del(&child->node);
+	}
+
+	ret = mac802154_send_disassociation_notif(sdata, wpan_dev->parent,
+						  IEEE802154_DEVICE_WISHES_TO_LEAVE);
+	if (ret) {
+		eaddr = swab64((__force u64)wpan_dev->parent->extended_addr);
+		dev_err(&sdata->dev->dev,
+			"Disassociation from %8phC may have failed (%d)\n",
+			&eaddr, ret);
+	}
+
+	ret = 0;
+
+	kfree(wpan_dev->parent);
+	wpan_dev->parent = NULL;
+	wpan_dev->pan_id = cpu_to_le16(IEEE802154_PAN_ID_BROADCAST);
+	wpan_dev->short_addr = cpu_to_le16(IEEE802154_ADDR_SHORT_BROADCAST);
+
+	if (local->hw.flags & IEEE802154_HW_AFILT) {
+		ret = drv_set_pan_id(local, wpan_dev->pan_id);
+		if (ret < 0)
+			return ret;
+
+		ret = drv_set_short_addr(local, wpan_dev->short_addr);
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
+}
+
+static int mac802154_disassociate_child(struct wpan_phy *wpan_phy,
+					struct wpan_dev *wpan_dev,
+					struct ieee802154_pan_device *child)
+{
+	struct ieee802154_sub_if_data *sdata;
+	int ret;
+
+	sdata = IEEE802154_WPAN_DEV_TO_SUB_IF(wpan_dev);
+
+	ret = mac802154_send_disassociation_notif(sdata, child,
+						  IEEE802154_COORD_WISHES_DEVICE_TO_LEAVE);
+	if (ret)
+		return ret;
+
+	list_del(&child->node);
+	kfree(child);
+
+	return 0;
+}
+
+static int mac802154_disassociate(struct wpan_phy *wpan_phy,
+				  struct wpan_dev *wpan_dev,
+				  struct ieee802154_addr *target)
+{
+	u64 teaddr = swab64((__force u64)target->extended_addr);
+	struct ieee802154_pan_device *pan_device;
+
+	ASSERT_RTNL();
+
+	if (cfg802154_device_is_parent(wpan_dev, target))
+		return mac802154_disassociate_from_parent(wpan_phy, wpan_dev);
+
+	pan_device = cfg802154_device_is_child(wpan_dev, target);
+	if (pan_device)
+		return mac802154_disassociate_child(wpan_phy, wpan_dev,
+						    pan_device);
+
+	dev_err(&wpan_dev->netdev->dev,
+		"Device %8phC is not associated with us\n", &teaddr);
+
+	return -EINVAL;
+}
+
 #ifdef CONFIG_IEEE802154_NL802154_EXPERIMENTAL
 static void
 ieee802154_get_llsec_table(struct wpan_phy *wpan_phy,
@@ -595,6 +694,7 @@ const struct cfg802154_ops mac802154_config_ops = {
 	.send_beacons = mac802154_send_beacons,
 	.stop_beacons = mac802154_stop_beacons,
 	.associate = mac802154_associate,
+	.disassociate = mac802154_disassociate,
 #ifdef CONFIG_IEEE802154_NL802154_EXPERIMENTAL
 	.get_llsec_table = ieee802154_get_llsec_table,
 	.lock_llsec_table = ieee802154_lock_llsec_table,
