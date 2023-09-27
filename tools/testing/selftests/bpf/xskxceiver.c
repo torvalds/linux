@@ -1194,13 +1194,13 @@ static int receive_pkts(struct test_spec *test)
 	return TEST_PASS;
 }
 
-static int __send_pkts(struct ifobject *ifobject, struct pollfd *fds, bool timeout)
+static int __send_pkts(struct ifobject *ifobject, struct xsk_socket_info *xsk, bool timeout)
 {
 	u32 i, idx = 0, valid_pkts = 0, valid_frags = 0, buffer_len;
-	struct pkt_stream *pkt_stream = ifobject->xsk->pkt_stream;
-	struct xsk_socket_info *xsk = ifobject->xsk;
+	struct pkt_stream *pkt_stream = xsk->pkt_stream;
 	struct xsk_umem_info *umem = ifobject->umem;
 	bool use_poll = ifobject->use_poll;
+	struct pollfd fds = { };
 	int ret;
 
 	buffer_len = pkt_get_buffer_len(umem, pkt_stream->max_pkt_len);
@@ -1212,9 +1212,12 @@ static int __send_pkts(struct ifobject *ifobject, struct pollfd *fds, bool timeo
 		return TEST_CONTINUE;
 	}
 
+	fds.fd = xsk_socket__fd(xsk->xsk);
+	fds.events = POLLOUT;
+
 	while (xsk_ring_prod__reserve(&xsk->tx, BATCH_SIZE, &idx) < BATCH_SIZE) {
 		if (use_poll) {
-			ret = poll(fds, 1, POLL_TMOUT);
+			ret = poll(&fds, 1, POLL_TMOUT);
 			if (timeout) {
 				if (ret < 0) {
 					ksft_print_msg("ERROR: [%s] Poll error %d\n",
@@ -1293,7 +1296,7 @@ static int __send_pkts(struct ifobject *ifobject, struct pollfd *fds, bool timeo
 	xsk->outstanding_tx += valid_frags;
 
 	if (use_poll) {
-		ret = poll(fds, 1, POLL_TMOUT);
+		ret = poll(&fds, 1, POLL_TMOUT);
 		if (ret <= 0) {
 			if (ret == 0 && timeout)
 				return TEST_PASS;
@@ -1339,27 +1342,43 @@ static int wait_for_tx_completion(struct xsk_socket_info *xsk)
 	return TEST_PASS;
 }
 
+bool all_packets_sent(struct test_spec *test, unsigned long *bitmap)
+{
+	return bitmap_full(bitmap, test->nb_sockets);
+}
+
 static int send_pkts(struct test_spec *test, struct ifobject *ifobject)
 {
-	struct pkt_stream *pkt_stream = ifobject->xsk->pkt_stream;
 	bool timeout = !is_umem_valid(test->ifobj_rx);
-	struct pollfd fds = { };
-	u32 ret;
+	DECLARE_BITMAP(bitmap, test->nb_sockets);
+	u32 i, ret;
 
-	fds.fd = xsk_socket__fd(ifobject->xsk->xsk);
-	fds.events = POLLOUT;
+	while (!(all_packets_sent(test, bitmap))) {
+		for (i = 0; i < test->nb_sockets; i++) {
+			struct pkt_stream *pkt_stream;
 
-	while (pkt_stream->current_pkt_nb < pkt_stream->nb_pkts) {
-		ret = __send_pkts(ifobject, &fds, timeout);
-		if (ret == TEST_CONTINUE && !test->fail)
-			continue;
-		if ((ret || test->fail) && !timeout)
-			return TEST_FAILURE;
-		if (ret == TEST_PASS && timeout)
-			return ret;
+			pkt_stream = ifobject->xsk_arr[i].pkt_stream;
+			if (!pkt_stream || pkt_stream->current_pkt_nb >= pkt_stream->nb_pkts) {
+				__set_bit(i, bitmap);
+				continue;
+			}
+			ret = __send_pkts(ifobject, &ifobject->xsk_arr[i], timeout);
+			if (ret == TEST_CONTINUE && !test->fail)
+				continue;
+
+			if ((ret || test->fail) && !timeout)
+				return TEST_FAILURE;
+
+			if (ret == TEST_PASS && timeout)
+				return ret;
+
+			ret = wait_for_tx_completion(&ifobject->xsk_arr[i]);
+			if (ret)
+				return TEST_FAILURE;
+		}
 	}
 
-	return wait_for_tx_completion(ifobject->xsk);
+	return TEST_PASS;
 }
 
 static int get_xsk_stats(struct xsk_socket *xsk, struct xdp_statistics *stats)
