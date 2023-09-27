@@ -3,7 +3,7 @@
 
 #include <linux/bpf.h>
 #include <bpf/bpf_helpers.h>
-#include "xsk_xdp_metadata.h"
+#include "xsk_xdp_common.h"
 
 struct {
 	__uint(type, BPF_MAP_TYPE_XSKMAP);

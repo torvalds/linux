@@ -102,7 +102,7 @@
 #include <bpf/bpf.h>
 #include <linux/filter.h>
 #include "../kselftest.h"
-#include "xsk_xdp_metadata.h"
+#include "xsk_xdp_common.h"
 
 static const char *MAC1 = "\x00\x0A\x56\x9E\xEE\x62";
 static const char *MAC2 = "\x00\x0A\x56\x9E\xEE\x61";
