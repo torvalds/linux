@@ -552,7 +552,6 @@ static int bnxt_hwrm_func_vf_resc_cfg(struct bnxt *bp, int num_vfs, bool reset)
 		vf_rx_rings = hw_resc->max_rx_rings - bp->rx_nr_rings;
 	vf_tx_rings = hw_resc->max_tx_rings - bp->tx_nr_rings;
 	vf_vnics = hw_resc->max_vnics - bp->nr_vnics;
-	vf_vnics = min_t(u16, vf_vnics, vf_rx_rings);
 	vf_rss = hw_resc->max_rsscos_ctxs - bp->rsscos_nr_ctxs;
 
 	req->min_rsscos_ctx = cpu_to_le16(BNXT_VF_MIN_RSS_CTX);
@@ -574,11 +573,20 @@ static int bnxt_hwrm_func_vf_resc_cfg(struct bnxt *bp, int num_vfs, bool reset)
 		vf_cp_rings /= num_vfs;
 		vf_tx_rings /= num_vfs;
 		vf_rx_rings /= num_vfs;
-		vf_vnics /= num_vfs;
+		if ((bp->fw_cap & BNXT_FW_CAP_PRE_RESV_VNICS) &&
+		    vf_vnics >= pf->max_vfs) {
+			/* Take into account that FW has pre-reserved 1 VNIC for
+			 * each pf->max_vfs.
+			 */
+			vf_vnics = (vf_vnics - pf->max_vfs + num_vfs) / num_vfs;
+		} else {
+			vf_vnics /= num_vfs;
+		}
 		vf_stat_ctx /= num_vfs;
 		vf_ring_grps /= num_vfs;
 		vf_rss /= num_vfs;
 
+		vf_vnics = min_t(u16, vf_vnics, vf_rx_rings);
 		req->min_cmpl_rings = cpu_to_le16(vf_cp_rings);
 		req->min_tx_rings = cpu_to_le16(vf_tx_rings);
 		req->min_rx_rings = cpu_to_le16(vf_rx_rings);
