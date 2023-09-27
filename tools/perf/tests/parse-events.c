@@ -2514,9 +2514,14 @@ static int test__pmu_events(struct test_suite *test __maybe_unused, int subtest 
 	while ((pmu = perf_pmus__scan(pmu)) != NULL) {
 		struct stat st;
 		char path[PATH_MAX];
+		char pmu_event[PATH_MAX];
+		char *buf = NULL;
+		FILE *file;
 		struct dirent *ent;
+		size_t len = 0;
 		DIR *dir;
 		int err;
+		int n;
 
 		snprintf(path, PATH_MAX, "%s/bus/event_source/devices/%s/events/",
 			sysfs__mountpoint(), pmu->name);
@@ -2538,10 +2543,44 @@ static int test__pmu_events(struct test_suite *test __maybe_unused, int subtest 
 			struct evlist_test e = { .name = NULL, };
 			char name[2 * NAME_MAX + 1 + 12 + 3];
 			int test_ret;
+			bool is_event_parameterized = 0;
 
 			/* Names containing . are special and cannot be used directly */
 			if (strchr(ent->d_name, '.'))
 				continue;
+
+			/* exclude parametrized ones (name contains '?') */
+			n = snprintf(pmu_event, sizeof(pmu_event), "%s%s", path, ent->d_name);
+			if (n >= PATH_MAX) {
+				pr_err("pmu event name crossed PATH_MAX(%d) size\n", PATH_MAX);
+				continue;
+			}
+
+			file = fopen(pmu_event, "r");
+			if (!file) {
+				pr_debug("can't open pmu event file for '%s'\n", ent->d_name);
+				ret = combine_test_results(ret, TEST_FAIL);
+				continue;
+			}
+
+			if (getline(&buf, &len, file) < 0) {
+				pr_debug(" pmu event: %s is a null event\n", ent->d_name);
+				ret = combine_test_results(ret, TEST_FAIL);
+				fclose(file);
+				continue;
+			}
+
+			if (strchr(buf, '?'))
+				is_event_parameterized = 1;
+
+			free(buf);
+			buf = NULL;
+			fclose(file);
+
+			if (is_event_parameterized == 1) {
+				pr_debug("skipping parametrized PMU event: %s which contains ?\n", pmu_event);
+				continue;
+			}
 
 			snprintf(name, sizeof(name), "%s/event=%s/u", pmu->name, ent->d_name);
 
