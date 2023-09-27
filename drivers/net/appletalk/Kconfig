@@ -37,36 +37,6 @@ config DEV_APPLETALK
 	  on a network.  If your Linux box is connected to such a network, and wish
 	  to do IP over it, or you have a LocalTalk card and wish to use it to
 	  connect to the AppleTalk network, say Y.
-	  
-
-config COPS
-	tristate "COPS LocalTalk PC support"
-	depends on DEV_APPLETALK && ISA
-	depends on NETDEVICES
-	select NETDEV_LEGACY_INIT
-	help
-	  This allows you to use COPS AppleTalk cards to connect to LocalTalk
-	  networks. You also need version 1.3.3 or later of the netatalk
-	  package. This driver is experimental, which means that it may not
-	  work. This driver will only work if you choose "AppleTalk DDP"
-	  networking support, above.
-	  Please read the file
-	  <file:Documentation/networking/device_drivers/appletalk/cops.rst>.
-
-config COPS_DAYNA
-	bool "Dayna firmware support"
-	depends on COPS
-	help
-	  Support COPS compatible cards with Dayna style firmware (Dayna
-	  DL2000/ Daynatalk/PC (half length), COPS LT-95, Farallon PhoneNET PC
-	  III, Farallon PhoneNET PC II).
-
-config COPS_TANGENT
-	bool "Tangent firmware support"
-	depends on COPS
-	help
-	  Support COPS compatible cards with Tangent style firmware (Tangent
-	  ATB_II, Novell NL-1000, Daystar Digital LT-200.
 
 config IPDDP
 	tristate "Appletalk-IP driver support"
