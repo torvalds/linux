@@ -20,16 +20,15 @@
 #include "xe_mmio.h"
 #include "xe_wopcm.h"
 
-/* FIXME: Common file, preferably auto-gen */
-#define MTL_GGTT_PTE_PAT0	BIT_ULL(52)
-#define MTL_GGTT_PTE_PAT1	BIT_ULL(53)
+#define XELPG_GGTT_PTE_PAT0	BIT_ULL(52)
+#define XELPG_GGTT_PTE_PAT1	BIT_ULL(53)
 
 /* GuC addresses above GUC_GGTT_TOP also don't map through the GTT */
 #define GUC_GGTT_TOP	0xFEE00000
 
-u64 xe_ggtt_pte_encode(struct xe_bo *bo, u64 bo_offset)
+static u64 xelp_ggtt_pte_encode_bo(struct xe_bo *bo, u64 bo_offset,
+				   enum xe_cache_level cache)
 {
-	struct xe_device *xe = xe_bo_device(bo);
 	u64 pte;
 
 	pte = xe_bo_addr(bo, bo_offset, XE_PAGE_SIZE);
@@ -38,11 +37,25 @@ u64 xe_ggtt_pte_encode(struct xe_bo *bo, u64 bo_offset)
 	if (xe_bo_is_vram(bo) || xe_bo_is_stolen_devmem(bo))
 		pte |= XE_GGTT_PTE_DM;
 
-	/* FIXME: vfunc + pass in caching rules */
-	if (xe->info.platform == XE_METEORLAKE) {
-		pte |= MTL_GGTT_PTE_PAT0;
-		pte |= MTL_GGTT_PTE_PAT1;
-	}
+	return pte;
+}
+
+static u64 xelpg_ggtt_pte_encode_bo(struct xe_bo *bo, u64 bo_offset,
+				    enum xe_cache_level cache)
+{
+	struct xe_device *xe = xe_bo_device(bo);
+	u32 pat_index = xe->pat.idx[cache];
+	u64 pte;
+
+	pte = xelp_ggtt_pte_encode_bo(bo, bo_offset, cache);
+
+	xe_assert(xe, pat_index <= 3);
+
+	if (pat_index & BIT(0))
+		pte |= XELPG_GGTT_PTE_PAT0;
+
+	if (pat_index & BIT(1))
+		pte |= XELPG_GGTT_PTE_PAT1;
 
 	return pte;
 }
@@ -72,7 +85,8 @@ static void xe_ggtt_clear(struct xe_ggtt *ggtt, u64 start, u64 size)
 	xe_tile_assert(ggtt->tile, start < end);
 
 	if (ggtt->scratch)
-		scratch_pte = xe_ggtt_pte_encode(ggtt->scratch, 0);
+		scratch_pte = ggtt->pt_ops->pte_encode_bo(ggtt->scratch, 0,
+							  XE_CACHE_WB);
 	else
 		scratch_pte = 0;
 
@@ -101,6 +115,14 @@ static void primelockdep(struct xe_ggtt *ggtt)
 	might_lock(&ggtt->lock);
 	fs_reclaim_release(GFP_KERNEL);
 }
+
+static const struct xe_ggtt_pt_ops xelp_pt_ops = {
+	.pte_encode_bo = xelp_ggtt_pte_encode_bo,
+};
+
+static const struct xe_ggtt_pt_ops xelpg_pt_ops = {
+	.pte_encode_bo = xelpg_ggtt_pte_encode_bo,
+};
 
 int xe_ggtt_init_noalloc(struct xe_ggtt *ggtt)
 {
@@ -145,6 +167,11 @@ int xe_ggtt_init_noalloc(struct xe_ggtt *ggtt)
 	 */
 	if (ggtt->size > GUC_GGTT_TOP)
 		ggtt->size = GUC_GGTT_TOP;
+
+	if (GRAPHICS_VERx100(xe) >= 1270)
+		ggtt->pt_ops = &xelpg_pt_ops;
+	else
+		ggtt->pt_ops = &xelp_pt_ops;
 
 	drm_mm_init(&ggtt->mm, xe_wopcm_size(xe),
 		    ggtt->size - xe_wopcm_size(xe));
@@ -260,7 +287,7 @@ void xe_ggtt_printk(struct xe_ggtt *ggtt, const char *prefix)
 {
 	u64 addr, scratch_pte;
 
-	scratch_pte = xe_ggtt_pte_encode(ggtt->scratch, 0);
+	scratch_pte = ggtt->pt_ops->pte_encode_bo(ggtt->scratch, 0, XE_CACHE_WB);
 
 	printk("%sGlobal GTT:", prefix);
 	for (addr = 0; addr < ggtt->size; addr += XE_PAGE_SIZE) {
@@ -301,7 +328,7 @@ void xe_ggtt_map_bo(struct xe_ggtt *ggtt, struct xe_bo *bo)
 	u64 offset, pte;
 
 	for (offset = 0; offset < bo->size; offset += XE_PAGE_SIZE) {
-		pte = xe_ggtt_pte_encode(bo, offset);
+		pte = ggtt->pt_ops->pte_encode_bo(bo, offset, XE_CACHE_WB);
 		xe_ggtt_set_pte(ggtt, start + offset, pte);
 	}
 

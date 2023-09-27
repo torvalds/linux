@@ -8,8 +8,15 @@
 
 #include <drm/drm_mm.h>
 
+#include "xe_pt_types.h"
+
 struct xe_bo;
 struct xe_gt;
+
+struct xe_ggtt_pt_ops {
+	u64 (*pte_encode_bo)(struct xe_bo *bo, u64 bo_offset,
+			     enum xe_cache_level cache);
+};
 
 struct xe_ggtt {
 	struct xe_tile *tile;
@@ -24,6 +31,8 @@ struct xe_ggtt {
 	struct mutex lock;
 
 	u64 __iomem *gsm;
+
+	const struct xe_ggtt_pt_ops *pt_ops;
 
 	struct drm_mm mm;
 };
