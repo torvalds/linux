@@ -2682,8 +2682,6 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 
 	ib_set_device_ops(&ibdev->ib_dev, &mlx4_ib_dev_ops);
 	ibdev->ib_dev.uverbs_ex_cmd_mask |=
-		(1ull << IB_USER_VERBS_EX_CMD_MODIFY_CQ) |
-		(1ull << IB_USER_VERBS_EX_CMD_QUERY_DEVICE) |
 		(1ull << IB_USER_VERBS_EX_CMD_CREATE_CQ) |
 		(1ull << IB_USER_VERBS_EX_CMD_CREATE_QP);
 
@@ -2691,15 +2689,8 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 	    ((mlx4_ib_port_link_layer(&ibdev->ib_dev, 1) ==
 	    IB_LINK_LAYER_ETHERNET) ||
 	    (mlx4_ib_port_link_layer(&ibdev->ib_dev, 2) ==
-	    IB_LINK_LAYER_ETHERNET))) {
-		ibdev->ib_dev.uverbs_ex_cmd_mask |=
-			(1ull << IB_USER_VERBS_EX_CMD_CREATE_WQ)	  |
-			(1ull << IB_USER_VERBS_EX_CMD_MODIFY_WQ)	  |
-			(1ull << IB_USER_VERBS_EX_CMD_DESTROY_WQ)	  |
-			(1ull << IB_USER_VERBS_EX_CMD_CREATE_RWQ_IND_TBL) |
-			(1ull << IB_USER_VERBS_EX_CMD_DESTROY_RWQ_IND_TBL);
+	    IB_LINK_LAYER_ETHERNET)))
 		ib_set_device_ops(&ibdev->ib_dev, &mlx4_ib_dev_wq_ops);
-	}
 
 	if (dev->caps.flags & MLX4_DEV_CAP_FLAG_MEM_WINDOW ||
 	    dev->caps.bmme_flags & MLX4_BMME_FLAG_TYPE_2_WIN) {
@@ -2718,9 +2709,6 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 
 	if (check_flow_steering_support(dev)) {
 		ibdev->steering_support = MLX4_STEERING_MODE_DEVICE_MANAGED;
-		ibdev->ib_dev.uverbs_ex_cmd_mask	|=
-			(1ull << IB_USER_VERBS_EX_CMD_CREATE_FLOW) |
-			(1ull << IB_USER_VERBS_EX_CMD_DESTROY_FLOW);
 		ib_set_device_ops(&ibdev->ib_dev, &mlx4_ib_dev_fs_ops);
 	}
 

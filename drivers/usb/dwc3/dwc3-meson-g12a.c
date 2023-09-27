@@ -805,13 +805,16 @@ static int dwc3_meson_g12a_probe(struct platform_device *pdev)
 
 	ret = dwc3_meson_g12a_otg_init(pdev, priv);
 	if (ret)
-		goto err_phys_power;
+		goto err_plat_depopulate;
 
 	pm_runtime_set_active(dev);
 	pm_runtime_enable(dev);
 	pm_runtime_get_sync(dev);
 
 	return 0;
+
+err_plat_depopulate:
+	of_platform_depopulate(dev);
 
 err_phys_power:
 	for (i = 0 ; i < PHY_COUNT ; ++i)

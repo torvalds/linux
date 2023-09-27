@@ -112,7 +112,7 @@
  * eventually turn into it's own annotation.
  */
 .macro ANNOTATE_UNRET_END
-#ifdef CONFIG_DEBUG_ENTRY
+#if (defined(CONFIG_CPU_UNRET_ENTRY) || defined(CONFIG_CPU_SRSO))
 	ANNOTATE_RETPOLINE_SAFE
 	nop
 #endif
@@ -173,11 +173,17 @@
  * where we have a stack but before any RET instruction.
  */
 .macro UNTRAIN_RET
-#if defined(CONFIG_CPU_UNRET_ENTRY) || defined(CONFIG_CPU_IBPB_ENTRY)
+#if defined(CONFIG_CPU_UNRET_ENTRY) || defined(CONFIG_CPU_IBPB_ENTRY) || \
+	defined(CONFIG_CPU_SRSO)
 	ANNOTATE_UNRET_END
 	ALTERNATIVE_2 "",						\
 	              CALL_ZEN_UNTRAIN_RET, X86_FEATURE_UNRET,		\
 		      "call entry_ibpb", X86_FEATURE_ENTRY_IBPB
+#endif
+
+#ifdef CONFIG_CPU_SRSO
+	ALTERNATIVE_2 "", "call srso_untrain_ret", X86_FEATURE_SRSO, \
+			  "call srso_untrain_ret_alias", X86_FEATURE_SRSO_ALIAS
 #endif
 .endm
 
@@ -191,6 +197,8 @@
 
 extern void __x86_return_thunk(void);
 extern void zen_untrain_ret(void);
+extern void srso_untrain_ret(void);
+extern void srso_untrain_ret_alias(void);
 extern void entry_ibpb(void);
 
 #ifdef CONFIG_RETPOLINE
@@ -300,11 +308,11 @@ void alternative_msr_write(unsigned int msr, u64 val, unsigned int feature)
 		: "memory");
 }
 
+extern u64 x86_pred_cmd;
+
 static inline void indirect_branch_prediction_barrier(void)
 {
-	u64 val = PRED_CMD_IBPB;
-
-	alternative_msr_write(MSR_IA32_PRED_CMD, val, X86_FEATURE_USE_IBPB);
+	alternative_msr_write(MSR_IA32_PRED_CMD, x86_pred_cmd, X86_FEATURE_USE_IBPB);
 }
 
 /* The Intel SPEC CTRL MSR base value cache */

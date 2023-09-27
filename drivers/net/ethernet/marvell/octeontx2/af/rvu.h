@@ -20,6 +20,7 @@
 #define	PCI_DEVID_OCTEONTX2_RVU_AF		0xA065
 
 /* Subsystem Device ID */
+#define PCI_SUBSYS_DEVID_98XX                  0xB100
 #define PCI_SUBSYS_DEVID_96XX                  0xB200
 
 /* PCI BAR nos */
@@ -401,6 +402,16 @@ static inline bool is_rvu_96xx_B0(struct rvu *rvu)
 
 	return ((pdev->revision == 0x00) || (pdev->revision == 0x01)) &&
 		(pdev->subsystem_device == PCI_SUBSYS_DEVID_96XX);
+}
+
+static inline bool is_rvu_supports_nix1(struct rvu *rvu)
+{
+	struct pci_dev *pdev = rvu->pdev;
+
+	if (pdev->subsystem_device == PCI_SUBSYS_DEVID_98XX)
+		return true;
+
+	return false;
 }
 
 /* Function Prototypes

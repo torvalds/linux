@@ -712,8 +712,6 @@ static int llcp_sock_connect(struct socket *sock, struct sockaddr *_addr,
 	llcp_sock->local = local;
 	llcp_sock->ssap = nfc_llcp_get_local_ssap(local);
 	if (llcp_sock->ssap == LLCP_SAP_MAX) {
-		nfc_llcp_local_put(llcp_sock->local);
-		llcp_sock->local = NULL;
 		ret = -ENOMEM;
 		goto sock_llcp_nullify;
 	}
@@ -763,6 +761,7 @@ sock_llcp_release:
 
 sock_llcp_nullify:
 	llcp_sock->local = NULL;
+	llcp_sock->dev = NULL;
 
 sock_llcp_put_local:
 	nfc_llcp_local_put(local);

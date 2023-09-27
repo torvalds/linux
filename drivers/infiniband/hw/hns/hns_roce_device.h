@@ -46,8 +46,6 @@
 
 #define HNS_ROCE_IB_MIN_SQ_STRIDE		6
 
-#define HNS_ROCE_BA_SIZE			(32 * 4096)
-
 #define BA_BYTE_LEN				8
 
 /* Hardware specification only for v1 engine */

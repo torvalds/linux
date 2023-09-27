@@ -440,7 +440,7 @@ struct hns_roce_srq_context {
 #define SRQC_BYTE_60_SRQ_DB_RECORD_ADDR_S 1
 #define SRQC_BYTE_60_SRQ_DB_RECORD_ADDR_M GENMASK(31, 1)
 
-enum{
+enum {
 	V2_MPT_ST_VALID = 0x1,
 	V2_MPT_ST_FREE	= 0x2,
 };
@@ -1076,9 +1076,9 @@ struct hns_roce_v2_ud_send_wqe {
 	__le32	dmac;
 	__le32	byte_48;
 	u8	dgid[GID_LEN_V2];
-
 };
-#define	V2_UD_SEND_WQE_BYTE_4_OPCODE_S 0
+
+#define V2_UD_SEND_WQE_BYTE_4_OPCODE_S 0
 #define V2_UD_SEND_WQE_BYTE_4_OPCODE_M GENMASK(4, 0)
 
 #define	V2_UD_SEND_WQE_BYTE_4_OWNER_S 7

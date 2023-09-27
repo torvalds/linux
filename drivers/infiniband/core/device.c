@@ -600,6 +600,17 @@ struct ib_device *_ib_alloc_device(size_t size)
 	init_completion(&device->unreg_completion);
 	INIT_WORK(&device->unregistration_work, ib_unregister_work);
 
+	device->uverbs_ex_cmd_mask =
+		BIT_ULL(IB_USER_VERBS_EX_CMD_CREATE_FLOW) |
+		BIT_ULL(IB_USER_VERBS_EX_CMD_CREATE_RWQ_IND_TBL) |
+		BIT_ULL(IB_USER_VERBS_EX_CMD_CREATE_WQ) |
+		BIT_ULL(IB_USER_VERBS_EX_CMD_DESTROY_FLOW) |
+		BIT_ULL(IB_USER_VERBS_EX_CMD_DESTROY_RWQ_IND_TBL) |
+		BIT_ULL(IB_USER_VERBS_EX_CMD_DESTROY_WQ) |
+		BIT_ULL(IB_USER_VERBS_EX_CMD_MODIFY_CQ) |
+		BIT_ULL(IB_USER_VERBS_EX_CMD_MODIFY_WQ) |
+		BIT_ULL(IB_USER_VERBS_EX_CMD_QUERY_DEVICE);
+
 	return device;
 }
 EXPORT_SYMBOL(_ib_alloc_device);

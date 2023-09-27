@@ -635,9 +635,11 @@ static inline dma_addr_t sdma_mapping_addr(struct sdma_desc *d)
 static inline void make_tx_sdma_desc(
 	struct sdma_txreq *tx,
 	int type,
-	void *pinning_ctx,
 	dma_addr_t addr,
-	size_t len)
+	size_t len,
+	void *pinning_ctx,
+	void (*ctx_get)(void *),
+	void (*ctx_put)(void *))
 {
 	struct sdma_desc *desc = &tx->descp[tx->num_desc];
 
@@ -654,7 +656,11 @@ static inline void make_tx_sdma_desc(
 				<< SDMA_DESC0_PHY_ADDR_SHIFT) |
 			(((u64)len & SDMA_DESC0_BYTE_COUNT_MASK)
 				<< SDMA_DESC0_BYTE_COUNT_SHIFT);
+
 	desc->pinning_ctx = pinning_ctx;
+	desc->ctx_put = ctx_put;
+	if (pinning_ctx && ctx_get)
+		ctx_get(pinning_ctx);
 }
 
 /* helper to extend txreq */
@@ -674,32 +680,34 @@ static inline void sdma_txclean(struct hfi1_devdata *dd, struct sdma_txreq *tx)
 static inline void _sdma_close_tx(struct hfi1_devdata *dd,
 				  struct sdma_txreq *tx)
 {
-	tx->descp[tx->num_desc].qw[0] |=
-		SDMA_DESC0_LAST_DESC_FLAG;
-	tx->descp[tx->num_desc].qw[1] |=
-		dd->default_desc1;
+	u16 last_desc = tx->num_desc - 1;
+
+	tx->descp[last_desc].qw[0] |= SDMA_DESC0_LAST_DESC_FLAG;
+	tx->descp[last_desc].qw[1] |= dd->default_desc1;
 	if (tx->flags & SDMA_TXREQ_F_URGENT)
-		tx->descp[tx->num_desc].qw[1] |=
-			(SDMA_DESC1_HEAD_TO_HOST_FLAG |
-			 SDMA_DESC1_INT_REQ_FLAG);
+		tx->descp[last_desc].qw[1] |= (SDMA_DESC1_HEAD_TO_HOST_FLAG |
+					       SDMA_DESC1_INT_REQ_FLAG);
 }
 
 static inline int _sdma_txadd_daddr(
 	struct hfi1_devdata *dd,
 	int type,
-	void *pinning_ctx,
 	struct sdma_txreq *tx,
 	dma_addr_t addr,
-	u16 len)
+	u16 len,
+	void *pinning_ctx,
+	void (*ctx_get)(void *),
+	void (*ctx_put)(void *))
 {
 	int rval = 0;
 
 	make_tx_sdma_desc(
 		tx,
 		type,
-		pinning_ctx,
-		addr, len);
+		addr, len,
+		pinning_ctx, ctx_get, ctx_put);
 	WARN_ON(len > tx->tlen);
+	tx->num_desc++;
 	tx->tlen -= len;
 	/* special cases for last */
 	if (!tx->tlen) {
@@ -711,18 +719,24 @@ static inline int _sdma_txadd_daddr(
 			_sdma_close_tx(dd, tx);
 		}
 	}
-	tx->num_desc++;
 	return rval;
 }
 
 /**
  * sdma_txadd_page() - add a page to the sdma_txreq
  * @dd: the device to use for mapping
- * @pinning_ctx: context to be released at descriptor retirement
  * @tx: tx request to which the page is added
  * @page: page to map
  * @offset: offset within the page
  * @len: length in bytes
+ * @pinning_ctx: context to be stored on struct sdma_desc .pinning_ctx. Not
+ *               added if coalesce buffer is used. E.g. pointer to pinned-page
+ *               cache entry for the sdma_desc.
+ * @ctx_get: optional function to take reference to @pinning_ctx. Not called if
+ *           @pinning_ctx is NULL.
+ * @ctx_put: optional function to release reference to @pinning_ctx after
+ *           sdma_desc completes. May be called in interrupt context so must
+ *           not sleep. Not called if @pinning_ctx is NULL.
  *
  * This is used to add a page/offset/length descriptor.
  *
@@ -734,11 +748,13 @@ static inline int _sdma_txadd_daddr(
  */
 static inline int sdma_txadd_page(
 	struct hfi1_devdata *dd,
-	void *pinning_ctx,
 	struct sdma_txreq *tx,
 	struct page *page,
 	unsigned long offset,
-	u16 len)
+	u16 len,
+	void *pinning_ctx,
+	void (*ctx_get)(void *),
+	void (*ctx_put)(void *))
 {
 	dma_addr_t addr;
 	int rval;
@@ -762,7 +778,8 @@ static inline int sdma_txadd_page(
 		return -ENOSPC;
 	}
 
-	return _sdma_txadd_daddr(dd, SDMA_MAP_PAGE, pinning_ctx, tx, addr, len);
+	return _sdma_txadd_daddr(dd, SDMA_MAP_PAGE, tx, addr, len,
+				 pinning_ctx, ctx_get, ctx_put);
 }
 
 /**
@@ -796,8 +813,8 @@ static inline int sdma_txadd_daddr(
 			return rval;
 	}
 
-	return _sdma_txadd_daddr(dd, SDMA_MAP_NONE, NULL, tx,
-				 addr, len);
+	return _sdma_txadd_daddr(dd, SDMA_MAP_NONE, tx, addr, len,
+				 NULL, NULL, NULL);
 }
 
 /**
@@ -843,7 +860,8 @@ static inline int sdma_txadd_kvaddr(
 		return -ENOSPC;
 	}
 
-	return _sdma_txadd_daddr(dd, SDMA_MAP_SINGLE, NULL, tx, addr, len);
+	return _sdma_txadd_daddr(dd, SDMA_MAP_SINGLE, tx, addr, len,
+				 NULL, NULL, NULL);
 }
 
 struct iowait_work;
@@ -1094,6 +1112,4 @@ u16 sdma_get_descq_cnt(void);
 extern uint mod_num_sdma;
 
 void sdma_update_lmc(struct hfi1_devdata *dd, u64 mask, u32 lid);
-
-void system_descriptor_complete(struct hfi1_devdata *dd, struct sdma_desc *descp);
 #endif

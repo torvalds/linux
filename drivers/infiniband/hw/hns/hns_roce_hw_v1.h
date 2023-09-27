@@ -419,7 +419,7 @@ struct hns_roce_wqe_data_seg {
 
 struct hns_roce_wqe_raddr_seg {
 	__le32 rkey;
-	__le32 len;/* reserved */
+	__le32 len; /* reserved */
 	__le64 raddr;
 };
 
@@ -1041,6 +1041,11 @@ struct hns_roce_db_table {
 	int  odb_ext_mod;
 	struct hns_roce_ext_db *ext_db;
 };
+
+#define HW_SYNC_SLEEP_TIME_INTERVAL 20
+#define HW_SYNC_TIMEOUT_MSECS (25 * HW_SYNC_SLEEP_TIME_INTERVAL)
+#define BT_CMD_SYNC_SHIFT 31
+#define HNS_ROCE_BA_SIZE (32 * 4096)
 
 struct hns_roce_bt_table {
 	struct hns_roce_buf_list qpc_buf;

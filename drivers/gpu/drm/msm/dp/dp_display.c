@@ -1267,9 +1267,9 @@ static int dp_display_remove(struct platform_device *pdev)
 	dp = container_of(g_dp_display,
 			struct dp_display_private, dp_display);
 
+	component_del(&pdev->dev, &dp_display_comp_ops);
 	dp_display_deinit_sub_modules(dp);
 
-	component_del(&pdev->dev, &dp_display_comp_ops);
 	platform_set_drvdata(pdev, NULL);
 
 	return 0;

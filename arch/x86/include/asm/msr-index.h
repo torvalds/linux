@@ -60,6 +60,7 @@
 
 #define MSR_IA32_PRED_CMD		0x00000049 /* Prediction Command */
 #define PRED_CMD_IBPB			BIT(0)	   /* Indirect Branch Prediction Barrier */
+#define PRED_CMD_SBPB			BIT(7)	   /* Selective Branch Prediction Barrier */
 
 #define MSR_PPIN_CTL			0x0000004e
 #define MSR_PPIN			0x0000004f
@@ -156,6 +157,15 @@
 						 * Not susceptible to Post-Barrier
 						 * Return Stack Buffer Predictions.
 						 */
+#define ARCH_CAP_GDS_CTRL		BIT(25)	/*
+						 * CPU is vulnerable to Gather
+						 * Data Sampling (GDS) and
+						 * has controls for mitigation.
+						 */
+#define ARCH_CAP_GDS_NO			BIT(26)	/*
+						 * CPU is not vulnerable to Gather
+						 * Data Sampling (GDS).
+						 */
 
 #define MSR_IA32_FLUSH_CMD		0x0000010b
 #define L1D_FLUSH			BIT(0)	/*
@@ -174,6 +184,8 @@
 #define MSR_IA32_MCU_OPT_CTRL		0x00000123
 #define RNGDS_MITG_DIS			BIT(0)
 #define FB_CLEAR_DIS			BIT(3)	/* CPU Fill buffer clear disable */
+#define GDS_MITG_DIS			BIT(4)	/* Disable GDS mitigation */
+#define GDS_MITG_LOCKED			BIT(5)	/* GDS mitigation locked */
 
 #define MSR_IA32_SYSENTER_CS		0x00000174
 #define MSR_IA32_SYSENTER_ESP		0x00000175
@@ -497,6 +509,7 @@
 #define MSR_AMD64_DE_CFG		0xc0011029
 #define MSR_AMD64_DE_CFG_LFENCE_SERIALIZE_BIT	 1
 #define MSR_AMD64_DE_CFG_LFENCE_SERIALIZE	BIT_ULL(MSR_AMD64_DE_CFG_LFENCE_SERIALIZE_BIT)
+#define MSR_AMD64_DE_CFG_ZEN2_FP_BACKUP_FIX_BIT 9
 
 #define MSR_AMD64_BU_CFG2		0xc001102a
 #define MSR_AMD64_IBSFETCHCTL		0xc0011030
@@ -518,6 +531,7 @@
 #define MSR_AMD64_ICIBSEXTDCTL		0xc001103c
 #define MSR_AMD64_IBSOPDATA4		0xc001103d
 #define MSR_AMD64_IBS_REG_COUNT_MAX	8 /* includes MSR_AMD64_IBSBRTARGET */
+#define MSR_AMD64_VM_PAGE_FLUSH		0xc001011e
 #define MSR_AMD64_SEV_ES_GHCB		0xc0010130
 #define MSR_AMD64_SEV			0xc0010131
 #define MSR_AMD64_SEV_ENABLED_BIT	0

@@ -78,9 +78,11 @@ extern void detect_ht(struct cpuinfo_x86 *c);
 extern void check_null_seg_clears_base(struct cpuinfo_x86 *c);
 
 unsigned int aperfmperf_get_khz(int cpu);
+void cpu_select_mitigations(void);
 
 extern void x86_spec_ctrl_setup_ap(void);
 extern void update_srbds_msr(void);
+extern void update_gds_msr(void);
 
 extern u64 x86_read_arch_cap_msr(void);
 

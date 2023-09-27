@@ -7,6 +7,8 @@
 #include <net/netfilter/nf_tables_offload.h>
 #include <net/pkt_cls.h>
 
+extern unsigned int nf_tables_net_id;
+
 static struct nft_flow_rule *nft_flow_rule_alloc(int num_actions)
 {
 	struct nft_flow_rule *flow;
@@ -371,16 +373,18 @@ static void nft_indr_block_cleanup(struct flow_block_cb *block_cb)
 	struct nft_base_chain *basechain = block_cb->indr.data;
 	struct net_device *dev = block_cb->indr.dev;
 	struct netlink_ext_ack extack = {};
+	struct nftables_pernet *nft_net;
 	struct net *net = dev_net(dev);
 	struct flow_block_offload bo;
 
 	nft_flow_block_offload_init(&bo, dev_net(dev), FLOW_BLOCK_UNBIND,
 				    basechain, &extack);
-	mutex_lock(&net->nft.commit_mutex);
+	nft_net = net_generic(net, nf_tables_net_id);
+	mutex_lock(&nft_net->commit_mutex);
 	list_del(&block_cb->driver_list);
 	list_move(&block_cb->list, &bo.cb_list);
 	nft_flow_offload_unbind(&bo, basechain);
-	mutex_unlock(&net->nft.commit_mutex);
+	mutex_unlock(&nft_net->commit_mutex);
 }
 
 static int nft_indr_block_offload_cmd(struct nft_base_chain *basechain,
@@ -476,9 +480,10 @@ static int nft_flow_offload_chain(struct nft_chain *chain, u8 *ppolicy,
 static void nft_flow_rule_offload_abort(struct net *net,
 					struct nft_trans *trans)
 {
+	struct nftables_pernet *nft_net = net_generic(net, nf_tables_net_id);
 	int err = 0;
 
-	list_for_each_entry_continue_reverse(trans, &net->nft.commit_list, list) {
+	list_for_each_entry_continue_reverse(trans, &nft_net->commit_list, list) {
 		if (trans->ctx.family != NFPROTO_NETDEV)
 			continue;
 
@@ -524,11 +529,12 @@ static void nft_flow_rule_offload_abort(struct net *net,
 
 int nft_flow_rule_offload_commit(struct net *net)
 {
+	struct nftables_pernet *nft_net = net_generic(net, nf_tables_net_id);
 	struct nft_trans *trans;
 	int err = 0;
 	u8 policy;
 
-	list_for_each_entry(trans, &net->nft.commit_list, list) {
+	list_for_each_entry(trans, &nft_net->commit_list, list) {
 		if (trans->ctx.family != NFPROTO_NETDEV)
 			continue;
 
@@ -580,7 +586,7 @@ int nft_flow_rule_offload_commit(struct net *net)
 		}
 	}
 
-	list_for_each_entry(trans, &net->nft.commit_list, list) {
+	list_for_each_entry(trans, &nft_net->commit_list, list) {
 		if (trans->ctx.family != NFPROTO_NETDEV)
 			continue;
 
@@ -600,15 +606,15 @@ int nft_flow_rule_offload_commit(struct net *net)
 	return err;
 }
 
-static struct nft_chain *__nft_offload_get_chain(struct net_device *dev)
+static struct nft_chain *__nft_offload_get_chain(const struct nftables_pernet *nft_net,
+						 struct net_device *dev)
 {
 	struct nft_base_chain *basechain;
-	struct net *net = dev_net(dev);
 	struct nft_hook *hook, *found;
 	const struct nft_table *table;
 	struct nft_chain *chain;
 
-	list_for_each_entry(table, &net->nft.tables, list) {
+	list_for_each_entry(table, &nft_net->tables, list) {
 		if (table->family != NFPROTO_NETDEV)
 			continue;
 
@@ -640,19 +646,21 @@ static int nft_offload_netdev_event(struct notifier_block *this,
 				    unsigned long event, void *ptr)
 {
 	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct nftables_pernet *nft_net;
 	struct net *net = dev_net(dev);
 	struct nft_chain *chain;
 
 	if (event != NETDEV_UNREGISTER)
 		return NOTIFY_DONE;
 
-	mutex_lock(&net->nft.commit_mutex);
-	chain = __nft_offload_get_chain(dev);
+	nft_net = net_generic(net, nf_tables_net_id);
+	mutex_lock(&nft_net->commit_mutex);
+	chain = __nft_offload_get_chain(nft_net, dev);
 	if (chain)
 		nft_flow_block_chain(nft_base_chain(chain), dev,
 				     FLOW_BLOCK_UNBIND);
 
-	mutex_unlock(&net->nft.commit_mutex);
+	mutex_unlock(&nft_net->commit_mutex);
 
 	return NOTIFY_DONE;
 }
