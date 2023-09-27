@@ -132,7 +132,6 @@ static const struct xe_graphics_desc graphics_xehpc = {
 
 	.has_asid = 1,
 	.has_flat_ccs = 0,
-	.has_link_copy_engine = 1,
 	.supports_usm = 1,
 };
 
@@ -556,7 +555,6 @@ static int xe_info_init(struct xe_device *xe,
 	xe->info.has_asid = graphics_desc->has_asid;
 	xe->info.has_flat_ccs = graphics_desc->has_flat_ccs;
 	xe->info.has_range_tlb_invalidation = graphics_desc->has_range_tlb_invalidation;
-	xe->info.has_link_copy_engine = graphics_desc->has_link_copy_engine;
 
 	/*
 	 * All platforms have at least one primary GT.  Any platform with media

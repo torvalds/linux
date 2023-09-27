@@ -854,28 +854,36 @@ static void emit_clear_main_copy(struct xe_gt *gt, struct xe_bb *bb,
 	bb->len += len;
 }
 
-static u32 emit_clear_cmd_len(struct xe_device *xe)
+static bool has_service_copy_support(struct xe_gt *gt)
 {
-	if (xe->info.has_link_copy_engine)
+	/*
+	 * What we care about is whether the architecture was designed with
+	 * service copy functionality (specifically the new MEM_SET / MEM_COPY
+	 * instructions) so check the architectural engine list rather than the
+	 * actual list since these instructions are usable on BCS0 even if
+	 * all of the actual service copy engines (BCS1-BCS8) have been fused
+	 * off.
+	 */
+	return gt->info.__engine_mask & GENMASK(XE_HW_ENGINE_BCS8,
+						XE_HW_ENGINE_BCS1);
+}
+
+static u32 emit_clear_cmd_len(struct xe_gt *gt)
+{
+	if (has_service_copy_support(gt))
 		return PVC_MEM_SET_CMD_LEN_DW;
 	else
 		return XY_FAST_COLOR_BLT_DW;
 }
 
-static int emit_clear(struct xe_gt *gt, struct xe_bb *bb, u64 src_ofs,
-		      u32 size, u32 pitch, bool is_vram)
+static void emit_clear(struct xe_gt *gt, struct xe_bb *bb, u64 src_ofs,
+		       u32 size, u32 pitch, bool is_vram)
 {
-	struct xe_device *xe = gt_to_xe(gt);
-
-	if (xe->info.has_link_copy_engine) {
+	if (has_service_copy_support(gt))
 		emit_clear_link_copy(gt, bb, src_ofs, size, pitch);
-
-	} else {
+	else
 		emit_clear_main_copy(gt, bb, src_ofs, size, pitch,
 				     is_vram);
-	}
-
-	return 0;
 }
 
 /**
@@ -928,7 +936,7 @@ struct dma_fence *xe_migrate_clear(struct xe_migrate *m,
 		batch_size = 2 +
 			pte_update_size(m, clear_vram, src, &src_it,
 					&clear_L0, &clear_L0_ofs, &clear_L0_pt,
-					emit_clear_cmd_len(xe), 0,
+					emit_clear_cmd_len(gt), 0,
 					NUM_PT_PER_BLIT);
 		if (xe_device_has_flat_ccs(xe) && clear_vram)
 			batch_size += EMIT_COPY_CCS_DW;

@@ -24,7 +24,6 @@ struct xe_graphics_desc {
 
 	u8 has_asid:1;
 	u8 has_flat_ccs:1;
-	u8 has_link_copy_engine:1;
 	u8 has_range_tlb_invalidation:1;
 	u8 supports_usm:1;
 };

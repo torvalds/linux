@@ -228,8 +228,6 @@ struct xe_device {
 		u8 has_llc:1;
 		/** @has_range_tlb_invalidation: Has range based TLB invalidations */
 		u8 has_range_tlb_invalidation:1;
-		/** @has_link_copy_engines: Whether the platform has link copy engines */
-		u8 has_link_copy_engine:1;
 	} info;
 
 	/** @irq: device interrupt state */
