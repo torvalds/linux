@@ -14,6 +14,6 @@ config DM_KUNIT_TEST
 	depends on KUNIT
 
 config DRIVER_PE_KUNIT_TEST
-	bool "KUnit Tests for property entry API" if !KUNIT_ALL_TESTS
-	depends on KUNIT=y
+	tristate "KUnit Tests for property entry API" if !KUNIT_ALL_TESTS
+	depends on KUNIT
 	default KUNIT_ALL_TESTS
