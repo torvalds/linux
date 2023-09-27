@@ -137,8 +137,8 @@ static int cirrus_scodec_test_create_gpio(struct kunit *test)
 	priv->gpio_priv = dev_get_drvdata(&priv->gpio_pdev->dev);
 	if (!priv->gpio_priv) {
 		platform_device_put(priv->gpio_pdev);
-		KUNIT_FAIL(test, "Failed to get gpio private data: %d\n", ret);
-		return ret;
+		KUNIT_FAIL(test, "Failed to get gpio private data\n");
+		return -EINVAL;
 	}
 
 	return 0;
