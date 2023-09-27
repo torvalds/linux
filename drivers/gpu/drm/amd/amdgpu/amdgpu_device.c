@@ -5075,7 +5075,7 @@ int amdgpu_do_asic_reset(struct list_head *device_list_handle,
 			if (r) {
 				dev_err(tmp_adev->dev, "ASIC reset failed with error, %d for drm dev, %s",
 					 r, adev_to_drm(tmp_adev)->unique);
-				break;
+				goto out;
 			}
 		}
 
