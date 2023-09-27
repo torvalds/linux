@@ -82,6 +82,28 @@
 	.endr
 .endm
 
+#ifdef CONFIG_SMP
+#ifdef CONFIG_32BIT
+#define PER_CPU_OFFSET_SHIFT 2
+#else
+#define PER_CPU_OFFSET_SHIFT 3
+#endif
+
+.macro asm_per_cpu dst sym tmp
+	REG_L \tmp, TASK_TI_CPU_NUM(tp)
+	slli  \tmp, \tmp, PER_CPU_OFFSET_SHIFT
+	la    \dst, __per_cpu_offset
+	add   \dst, \dst, \tmp
+	REG_L \tmp, 0(\dst)
+	la    \dst, \sym
+	add   \dst, \dst, \tmp
+.endm
+#else /* CONFIG_SMP */
+.macro asm_per_cpu dst sym tmp
+	la    \dst, \sym
+.endm
+#endif /* CONFIG_SMP */
+
 	/* save all GPs except x1 ~ x5 */
 	.macro save_from_x6_to_x31
 	REG_S x6,  PT_T1(sp)
