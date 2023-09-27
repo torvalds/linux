@@ -22,6 +22,13 @@
  *     5. power control: local by pwdn gpio, remote by pocen gpio
  *     6. local pwdn on/off enable depend on MAXIM4C_LOCAL_DES_ON_OFF_EN
  *
+ * V2.02.00
+ *     1. Force all MIPI clocks running Setting in csi out enable.
+ *     2. Pattern mode force_clock_out_en default enable.
+ *
+ * V2.03.00
+ *     1. remote device add the maxim4c prefix to driver name.
+ *
  */
 #include <linux/clk.h>
 #include <linux/i2c.h>
@@ -51,7 +58,7 @@
 
 #include "maxim4c_api.h"
 
-#define DRIVER_VERSION			KERNEL_VERSION(2, 0x01, 0x00)
+#define DRIVER_VERSION			KERNEL_VERSION(2, 0x03, 0x00)
 
 #define MAXIM4C_XVCLK_FREQ		25000000
 

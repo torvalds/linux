@@ -388,7 +388,7 @@ static struct platform_driver max96715_driver = {
 	.probe		= max96715_probe,
 	.remove		= max96715_remove,
 	.driver		= {
-		.name	= "max96715",
+		.name	= "maxim4c-max96715",
 		.of_match_table = max96715_of_table,
 	},
 };
