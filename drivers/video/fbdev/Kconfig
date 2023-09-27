@@ -369,6 +369,7 @@ config FB_VGA16
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
+	select FB_IOMEM_FOPS
 	select VGASTATE
 	select FONT_8x16 if FRAMEBUFFER_CONSOLE
 	help
