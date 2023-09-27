@@ -905,7 +905,7 @@ static ssize_t idt_dbgfs_csr_write(struct file *filep, const char __user *ubuf,
 {
 	struct idt_89hpesx_dev *pdev = filep->private_data;
 	char *colon_ch, *csraddr_str, *csrval_str;
-	int ret, csraddr_len;
+	int ret;
 	u32 csraddr, csrval;
 	char *buf;
 
@@ -927,21 +927,16 @@ static ssize_t idt_dbgfs_csr_write(struct file *filep, const char __user *ubuf,
 	 * no new CSR value
 	 */
 	if (colon_ch != NULL) {
-		csraddr_len = colon_ch - buf;
-		csraddr_str =
-			kmalloc(csraddr_len + 1, GFP_KERNEL);
+		/* Copy the register address to the substring buffer */
+		csraddr_str = kmemdup_nul(buf, colon_ch - buf, GFP_KERNEL);
 		if (csraddr_str == NULL) {
 			ret = -ENOMEM;
 			goto free_buf;
 		}
-		/* Copy the register address to the substring buffer */
-		strncpy(csraddr_str, buf, csraddr_len);
-		csraddr_str[csraddr_len] = '\0';
 		/* Register value must follow the colon */
 		csrval_str = colon_ch + 1;
 	} else /* if (str_colon == NULL) */ {
 		csraddr_str = (char *)buf; /* Just to shut warning up */
-		csraddr_len = strnlen(csraddr_str, count);
 		csrval_str = NULL;
 	}
 
