@@ -195,6 +195,7 @@ static void guc_submit_fini(struct drm_device *drm, void *arg)
 	xa_destroy(&guc->submission_state.exec_queue_lookup);
 	ida_destroy(&guc->submission_state.guc_ids);
 	bitmap_free(guc->submission_state.guc_ids_bitmap);
+	mutex_destroy(&guc->submission_state.lock);
 }
 
 #define GUC_ID_MAX		65535

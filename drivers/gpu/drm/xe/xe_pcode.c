@@ -8,6 +8,8 @@
 #include <linux/delay.h>
 #include <linux/errno.h>
 
+#include <drm/drm_managed.h>
+
 #include "xe_gt.h"
 #include "xe_mmio.h"
 #include "xe_pcode_api.h"
@@ -276,7 +278,7 @@ int xe_pcode_init(struct xe_gt *gt)
  */
 int xe_pcode_probe(struct xe_gt *gt)
 {
-	mutex_init(&gt->pcode.lock);
+	drmm_mutex_init(&gt_to_xe(gt)->drm, &gt->pcode.lock);
 
 	if (!IS_DGFX(gt_to_xe(gt)))
 		return 0;
