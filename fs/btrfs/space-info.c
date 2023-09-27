@@ -345,8 +345,10 @@ static u64 calc_available_free_space(struct btrfs_fs_info *fs_info,
 			  struct btrfs_space_info *space_info,
 			  enum btrfs_reserve_flush_enum flush)
 {
+	struct btrfs_space_info *data_sinfo;
 	u64 profile;
 	u64 avail;
+	u64 data_chunk_size;
 	int factor;
 
 	if (space_info->flags & BTRFS_BLOCK_GROUP_SYSTEM)
@@ -364,6 +366,36 @@ static u64 calc_available_free_space(struct btrfs_fs_info *fs_info,
 	 */
 	factor = btrfs_bg_type_to_factor(profile);
 	avail = div_u64(avail, factor);
+	if (avail == 0)
+		return 0;
+
+	/*
+	 * Calculate the data_chunk_size, space_info->chunk_size is the
+	 * "optimal" chunk size based on the fs size.  However when we actually
+	 * allocate the chunk we will strip this down further, making it no more
+	 * than 10% of the disk or 1G, whichever is smaller.
+	 */
+	data_sinfo = btrfs_find_space_info(fs_info, BTRFS_BLOCK_GROUP_DATA);
+	data_chunk_size = min(data_sinfo->chunk_size,
+			      mult_perc(fs_info->fs_devices->total_rw_bytes, 10));
+	data_chunk_size = min_t(u64, data_chunk_size, SZ_1G);
+
+	/*
+	 * Since data allocations immediately use block groups as part of the
+	 * reservation, because we assume that data reservations will == actual
+	 * usage, we could potentially overcommit and then immediately have that
+	 * available space used by a data allocation, which could put us in a
+	 * bind when we get close to filling the file system.
+	 *
+	 * To handle this simply remove the data_chunk_size from the available
+	 * space.  If we are relatively empty this won't affect our ability to
+	 * overcommit much, and if we're very close to full it'll keep us from
+	 * getting into a position where we've given ourselves very little
+	 * metadata wiggle room.
+	 */
+	if (avail <= data_chunk_size)
+		return 0;
+	avail -= data_chunk_size;
 
 	/*
 	 * If we aren't flushing all things, let us overcommit up to
