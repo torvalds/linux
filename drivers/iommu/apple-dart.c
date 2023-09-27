@@ -666,23 +666,13 @@ static int apple_dart_attach_dev(struct iommu_domain *domain,
 	if (ret)
 		return ret;
 
-	switch (domain->type) {
-	case IOMMU_DOMAIN_DMA:
-	case IOMMU_DOMAIN_UNMANAGED:
-		ret = apple_dart_domain_add_streams(dart_domain, cfg);
-		if (ret)
-			return ret;
+	ret = apple_dart_domain_add_streams(dart_domain, cfg);
+	if (ret)
+		return ret;
 
-		for_each_stream_map(i, cfg, stream_map)
-			apple_dart_setup_translation(dart_domain, stream_map);
-		break;
-	case IOMMU_DOMAIN_BLOCKED:
-		for_each_stream_map(i, cfg, stream_map)
-			apple_dart_hw_disable_dma(stream_map);
-		break;
-	}
-
-	return ret;
+	for_each_stream_map(i, cfg, stream_map)
+		apple_dart_setup_translation(dart_domain, stream_map);
+	return 0;
 }
 
 static int apple_dart_attach_dev_identity(struct iommu_domain *domain,
@@ -707,6 +697,30 @@ static const struct iommu_domain_ops apple_dart_identity_ops = {
 static struct iommu_domain apple_dart_identity_domain = {
 	.type = IOMMU_DOMAIN_IDENTITY,
 	.ops = &apple_dart_identity_ops,
+};
+
+static int apple_dart_attach_dev_blocked(struct iommu_domain *domain,
+					 struct device *dev)
+{
+	struct apple_dart_master_cfg *cfg = dev_iommu_priv_get(dev);
+	struct apple_dart_stream_map *stream_map;
+	int i;
+
+	if (cfg->stream_maps[0].dart->force_bypass)
+		return -EINVAL;
+
+	for_each_stream_map(i, cfg, stream_map)
+		apple_dart_hw_disable_dma(stream_map);
+	return 0;
+}
+
+static const struct iommu_domain_ops apple_dart_blocked_ops = {
+	.attach_dev = apple_dart_attach_dev_blocked,
+};
+
+static struct iommu_domain apple_dart_blocked_domain = {
+	.type = IOMMU_DOMAIN_BLOCKED,
+	.ops = &apple_dart_blocked_ops,
 };
 
 static struct iommu_device *apple_dart_probe_device(struct device *dev)
@@ -738,8 +752,7 @@ static struct iommu_domain *apple_dart_domain_alloc(unsigned int type)
 {
 	struct apple_dart_domain *dart_domain;
 
-	if (type != IOMMU_DOMAIN_DMA && type != IOMMU_DOMAIN_UNMANAGED &&
-	    type != IOMMU_DOMAIN_BLOCKED)
+	if (type != IOMMU_DOMAIN_DMA && type != IOMMU_DOMAIN_UNMANAGED)
 		return NULL;
 
 	dart_domain = kzalloc(sizeof(*dart_domain), GFP_KERNEL);
@@ -747,10 +760,6 @@ static struct iommu_domain *apple_dart_domain_alloc(unsigned int type)
 		return NULL;
 
 	mutex_init(&dart_domain->init_lock);
-
-	/* no need to allocate pgtbl_ops or do any other finalization steps */
-	if (type == IOMMU_DOMAIN_BLOCKED)
-		dart_domain->finalized = true;
 
 	return &dart_domain->domain;
 }
@@ -965,6 +974,7 @@ static void apple_dart_get_resv_regions(struct device *dev,
 
 static const struct iommu_ops apple_dart_iommu_ops = {
 	.identity_domain = &apple_dart_identity_domain,
+	.blocked_domain = &apple_dart_blocked_domain,
 	.domain_alloc = apple_dart_domain_alloc,
 	.probe_device = apple_dart_probe_device,
 	.release_device = apple_dart_release_device,
