@@ -1662,41 +1662,23 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 		break;
 	}
 
-	switch (adev->asic_type) {
-	case CHIP_CARRIZO:
-	case CHIP_STONEY:
-		init_data.flags.gpu_vm_support = true;
-		break;
-	default:
-		switch (amdgpu_ip_version(adev, DCE_HWIP, 0)) {
-		case IP_VERSION(1, 0, 0):
-		case IP_VERSION(1, 0, 1):
-			/* enable S/G on PCO and RV2 */
-			if ((adev->apu_flags & AMD_APU_IS_RAVEN2) ||
-			    (adev->apu_flags & AMD_APU_IS_PICASSO))
-				init_data.flags.gpu_vm_support = true;
-			break;
-		case IP_VERSION(2, 1, 0):
-		case IP_VERSION(3, 0, 1):
-		case IP_VERSION(3, 1, 2):
-		case IP_VERSION(3, 1, 3):
-		case IP_VERSION(3, 1, 4):
-		case IP_VERSION(3, 1, 5):
-		case IP_VERSION(3, 1, 6):
-		case IP_VERSION(3, 5, 0):
-			init_data.flags.gpu_vm_support = true;
-			break;
-		default:
-			break;
-		}
-		break;
-	}
-	if (init_data.flags.gpu_vm_support &&
-	    (amdgpu_sg_display == 0))
-		init_data.flags.gpu_vm_support = false;
+	/* APU support S/G display by default except:
+	 * ASICs before Carrizo,
+	 * RAVEN1 (Users reported stability issue)
+	 */
 
-	if (init_data.flags.gpu_vm_support)
-		adev->mode_info.gpu_vm_support = true;
+	if (adev->asic_type < CHIP_CARRIZO) {
+		init_data.flags.gpu_vm_support = false;
+	} else if (adev->asic_type == CHIP_RAVEN) {
+		if (adev->apu_flags & AMD_APU_IS_RAVEN)
+			init_data.flags.gpu_vm_support = false;
+		else
+			init_data.flags.gpu_vm_support = (amdgpu_sg_display != 0);
+	} else {
+		init_data.flags.gpu_vm_support = (amdgpu_sg_display != 0) && (adev->flags & AMD_IS_APU);
+	}
+
+	init_data.flags.gpu_vm_support = adev->mode_info.gpu_vm_support;
 
 	if (amdgpu_dc_feature_mask & DC_FBC_MASK)
 		init_data.flags.fbc_support = true;
