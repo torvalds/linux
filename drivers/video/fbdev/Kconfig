@@ -1375,6 +1375,7 @@ config FB_TRIDENT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
 	select FB_DDC
+	select FB_IOMEM_FOPS
 	select FB_MODE_HELPERS
 	select VIDEO_NOMODESET
 	help

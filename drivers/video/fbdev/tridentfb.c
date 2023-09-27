@@ -1444,6 +1444,7 @@ static int tridentfb_blank(int blank_mode, struct fb_info *info)
 
 static const struct fb_ops tridentfb_ops = {
 	.owner = THIS_MODULE,
+	__FB_DEFAULT_IOMEM_OPS_RDWR,
 	.fb_setcolreg = tridentfb_setcolreg,
 	.fb_pan_display = tridentfb_pan_display,
 	.fb_blank = tridentfb_blank,
@@ -1453,6 +1454,7 @@ static const struct fb_ops tridentfb_ops = {
 	.fb_copyarea = tridentfb_copyarea,
 	.fb_imageblit = tridentfb_imageblit,
 	.fb_sync = tridentfb_sync,
+	__FB_DEFAULT_IOMEM_OPS_MMAP,
 };
 
 static int trident_pci_probe(struct pci_dev *dev,
