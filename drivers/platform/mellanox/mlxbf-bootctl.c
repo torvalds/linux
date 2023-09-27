@@ -1028,17 +1028,15 @@ static int mlxbf_bootctl_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int mlxbf_bootctl_remove(struct platform_device *pdev)
+static void mlxbf_bootctl_remove(struct platform_device *pdev)
 {
 	sysfs_remove_bin_file(&pdev->dev.kobj,
 			      &mlxbf_bootctl_bootfifo_sysfs_attr);
-
-	return 0;
 }
 
 static struct platform_driver mlxbf_bootctl_driver = {
 	.probe = mlxbf_bootctl_probe,
-	.remove = mlxbf_bootctl_remove,
+	.remove_new = mlxbf_bootctl_remove,
 	.driver = {
 		.name = "mlxbf-bootctl",
 		.dev_groups = mlxbf_bootctl_groups,
