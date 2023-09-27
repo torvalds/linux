@@ -1235,7 +1235,6 @@ static u64 pte_encode_cache(enum xe_cache_level cache)
 
 static u64 pte_encode_ps(u32 pt_level)
 {
-	/* XXX: Does hw support 1 GiB pages? */
 	XE_WARN_ON(pt_level > 2);
 
 	if (pt_level == 1)
@@ -1291,9 +1290,31 @@ static u64 xelp_pte_encode_vma(u64 pte, struct xe_vma *vma,
 	return pte;
 }
 
+static u64 xelp_pte_encode_addr(u64 addr, enum xe_cache_level cache,
+				u32 pt_level, bool devmem, u64 flags)
+{
+	u64 pte;
+
+	/* Avoid passing random bits directly as flags */
+	XE_WARN_ON(flags & ~XE_PTE_PS64);
+
+	pte = addr;
+	pte |= XE_PAGE_PRESENT | XE_PAGE_RW;
+	pte |= pte_encode_cache(cache);
+	pte |= pte_encode_ps(pt_level);
+
+	if (devmem)
+		pte |= XE_PPGTT_PTE_DM;
+
+	pte |= flags;
+
+	return pte;
+}
+
 static const struct xe_pt_ops xelp_pt_ops = {
 	.pte_encode_bo = xelp_pte_encode_bo,
 	.pte_encode_vma = xelp_pte_encode_vma,
+	.pte_encode_addr = xelp_pte_encode_addr,
 	.pde_encode_bo = xelp_pde_encode_bo,
 };
 

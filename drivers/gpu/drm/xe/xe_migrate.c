@@ -261,8 +261,7 @@ static int xe_migrate_prepare_vm(struct xe_tile *tile, struct xe_migrate *m,
 
 		level = 2;
 		ofs = map_ofs + XE_PAGE_SIZE * level + 256 * 8;
-		flags = XE_PAGE_RW | XE_PAGE_PRESENT | PPAT_CACHED |
-			XE_PPGTT_PTE_DM | XE_PDPE_PS_1G;
+		flags = vm->pt_ops->pte_encode_addr(0, XE_CACHE_WB, level, true, 0);
 
 		/*
 		 * Use 1GB pages, it shouldn't matter the physical amount of
@@ -483,7 +482,8 @@ static void emit_pte(struct xe_migrate *m,
 		ptes -= chunk;
 
 		while (chunk--) {
-			u64 addr;
+			u64 addr, flags = 0;
+			bool devmem = false;
 
 			addr = xe_res_dma(cur) & PAGE_MASK;
 			if (is_vram) {
@@ -491,13 +491,15 @@ static void emit_pte(struct xe_migrate *m,
 				if ((m->q->vm->flags & XE_VM_FLAG_64K) &&
 				    !(cur_ofs & (16 * 8 - 1))) {
 					xe_tile_assert(m->tile, IS_ALIGNED(addr, SZ_64K));
-					addr |= XE_PTE_PS64;
+					flags |= XE_PTE_PS64;
 				}
 
 				addr += vram_region_gpu_offset(bo->ttm.resource);
-				addr |= XE_PPGTT_PTE_DM;
+				devmem = true;
 			}
-			addr |= PPAT_CACHED | XE_PAGE_PRESENT | XE_PAGE_RW;
+
+			addr = m->q->vm->pt_ops->pte_encode_addr(addr, XE_CACHE_WB,
+								 0, devmem, flags);
 			bb->cs[bb->len++] = lower_32_bits(addr);
 			bb->cs[bb->len++] = upper_32_bits(addr);
 
