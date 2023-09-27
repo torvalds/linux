@@ -8,6 +8,7 @@
 #include <limits.h>
 
 #include "xsk_xdp_progs.skel.h"
+#include "xsk_xdp_common.h"
 
 #ifndef SOL_XDP
 #define SOL_XDP 283
@@ -35,7 +36,6 @@
 #define TEST_SKIP 2
 #define MAX_INTERFACES 2
 #define MAX_INTERFACE_NAME_CHARS 16
-#define MAX_SOCKETS 2
 #define MAX_TEST_NAME_SIZE 48
 #define MAX_TEARDOWN_ITER 10
 #define PKT_HDR_SIZE (sizeof(struct ethhdr) + 2) /* Just to align the data in the packet */

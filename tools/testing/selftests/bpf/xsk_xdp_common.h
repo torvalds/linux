@@ -3,6 +3,8 @@
 #ifndef XSK_XDP_COMMON_H_
 #define XSK_XDP_COMMON_H_
 
+#define MAX_SOCKETS 2
+
 struct xdp_info {
 	__u64 count;
 } __attribute__((aligned(32)));

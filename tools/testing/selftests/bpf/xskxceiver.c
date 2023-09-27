@@ -651,7 +651,7 @@ static u32 pkt_get_buffer_len(struct xsk_umem_info *umem, u32 len)
 	return ceil_u32(len, umem->frame_size) * umem->frame_size;
 }
 
-static struct pkt_stream *pkt_stream_generate(u32 nb_pkts, u32 pkt_len)
+static struct pkt_stream *__pkt_stream_generate(u32 nb_pkts, u32 pkt_len, u32 nb_start, u32 nb_off)
 {
 	struct pkt_stream *pkt_stream;
 	u32 i;
@@ -666,10 +666,15 @@ static struct pkt_stream *pkt_stream_generate(u32 nb_pkts, u32 pkt_len)
 		struct pkt *pkt = &pkt_stream->pkts[i];
 
 		pkt_set(pkt_stream, pkt, 0, pkt_len);
-		pkt->pkt_nb = i;
+		pkt->pkt_nb = nb_start + i * nb_off;
 	}
 
 	return pkt_stream;
+}
+
+static struct pkt_stream *pkt_stream_generate(u32 nb_pkts, u32 pkt_len)
+{
+	return __pkt_stream_generate(nb_pkts, pkt_len, 0, 1);
 }
 
 static struct pkt_stream *pkt_stream_clone(struct pkt_stream *pkt_stream)
@@ -719,6 +724,24 @@ static void pkt_stream_receive_half(struct test_spec *test)
 		pkt_stream->pkts[i].valid = false;
 
 	pkt_stream->nb_valid_entries /= 2;
+}
+
+static void pkt_stream_even_odd_sequence(struct test_spec *test)
+{
+	struct pkt_stream *pkt_stream;
+	u32 i;
+
+	for (i = 0; i < test->nb_sockets; i++) {
+		pkt_stream = test->ifobj_tx->xsk_arr[i].pkt_stream;
+		pkt_stream = __pkt_stream_generate(pkt_stream->nb_pkts / 2,
+						   pkt_stream->pkts[0].len, i, 2);
+		test->ifobj_tx->xsk_arr[i].pkt_stream = pkt_stream;
+
+		pkt_stream = test->ifobj_rx->xsk_arr[i].pkt_stream;
+		pkt_stream = __pkt_stream_generate(pkt_stream->nb_pkts / 2,
+						   pkt_stream->pkts[0].len, i, 2);
+		test->ifobj_rx->xsk_arr[i].pkt_stream = pkt_stream;
+	}
 }
 
 static u64 pkt_get_addr(struct pkt *pkt, struct xsk_umem_info *umem)
@@ -1584,6 +1607,7 @@ static void thread_common_ops(struct test_spec *test, struct ifobject *ifobject)
 	LIBBPF_OPTS(bpf_xdp_query_opts, opts);
 	void *bufs;
 	int ret;
+	u32 i;
 
 	if (ifobject->umem->unaligned_mode)
 		mmap_flags |= MAP_HUGETLB | MAP_HUGE_2MB;
@@ -1608,9 +1632,12 @@ static void thread_common_ops(struct test_spec *test, struct ifobject *ifobject)
 
 	xsk_populate_fill_ring(ifobject->umem, ifobject->xsk->pkt_stream, ifobject->use_fill_ring);
 
-	ret = xsk_update_xskmap(ifobject->xskmap, ifobject->xsk->xsk, 0);
-	if (ret)
-		exit_with_error(errno);
+	for (i = 0; i < test->nb_sockets; i++) {
+		ifobject->xsk = &ifobject->xsk_arr[i];
+		ret = xsk_update_xskmap(ifobject->xskmap, ifobject->xsk->xsk, i);
+		if (ret)
+			exit_with_error(errno);
+	}
 }
 
 static void *worker_testapp_validate_tx(void *arg)
@@ -2111,6 +2138,23 @@ static int testapp_xdp_metadata_copy(struct test_spec *test)
 	return testapp_validate_traffic(test);
 }
 
+static int testapp_xdp_shared_umem(struct test_spec *test)
+{
+	struct xsk_xdp_progs *skel_rx = test->ifobj_rx->xdp_progs;
+	struct xsk_xdp_progs *skel_tx = test->ifobj_tx->xdp_progs;
+
+	test->total_steps = 1;
+	test->nb_sockets = 2;
+
+	test_spec_set_xdp_prog(test, skel_rx->progs.xsk_xdp_shared_umem,
+			       skel_tx->progs.xsk_xdp_shared_umem,
+			       skel_rx->maps.xsk, skel_tx->maps.xsk);
+
+	pkt_stream_even_odd_sequence(test);
+
+	return testapp_validate_traffic(test);
+}
+
 static int testapp_poll_txq_tmout(struct test_spec *test)
 {
 	test->ifobj_tx->use_poll = true;
@@ -2412,6 +2456,7 @@ static const struct test_spec tests[] = {
 	{.name = "STAT_FILL_EMPTY", .test_func = testapp_stats_fill_empty},
 	{.name = "XDP_PROG_CLEANUP", .test_func = testapp_xdp_prog_cleanup},
 	{.name = "XDP_DROP_HALF", .test_func = testapp_xdp_drop},
+	{.name = "XDP_SHARED_UMEM", .test_func = testapp_xdp_shared_umem},
 	{.name = "XDP_METADATA_COPY", .test_func = testapp_xdp_metadata},
 	{.name = "XDP_METADATA_COPY_MULTI_BUFF", .test_func = testapp_xdp_metadata_mb},
 	{.name = "SEND_RECEIVE_9K_PACKETS", .test_func = testapp_send_receive_mb},
