@@ -2054,6 +2054,7 @@ static struct fb_ops viafb_ops = {
 	.owner = THIS_MODULE,
 	.fb_open = viafb_open,
 	.fb_release = viafb_release,
+	__FB_DEFAULT_IOMEM_OPS_RDWR,
 	.fb_check_var = viafb_check_var,
 	.fb_set_par = viafb_set_par,
 	.fb_setcolreg = viafb_setcolreg,
@@ -2065,6 +2066,7 @@ static struct fb_ops viafb_ops = {
 	.fb_cursor = viafb_cursor,
 	.fb_ioctl = viafb_ioctl,
 	.fb_sync = viafb_sync,
+	__FB_DEFAULT_IOMEM_OPS_MMAP,
 };
 
 

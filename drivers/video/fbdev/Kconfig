@@ -1240,6 +1240,7 @@ config FB_VIA
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
+	select FB_IOMEM_FOPS
 	select I2C_ALGOBIT
 	select VIDEO_NOMODESET
 	help
