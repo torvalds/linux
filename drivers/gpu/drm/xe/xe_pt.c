@@ -136,14 +136,15 @@ u64 xe_pte_encode(struct xe_bo *bo, u64 bo_offset, enum xe_cache_level cache,
 static u64 __vma_pte_encode(u64 pte, struct xe_vma *vma,
 			    enum xe_cache_level cache, u32 pt_level)
 {
-	pte |= XE_PAGE_PRESENT | XE_PAGE_RW;
+	pte |= XE_PAGE_PRESENT;
+
+	if (likely(!xe_vma_read_only(vma)))
+		pte |= XE_PAGE_RW;
+
 	pte |= pte_encode_cache(cache);
 	pte |= pte_encode_ps(pt_level);
 
-	if (unlikely(vma && xe_vma_read_only(vma)))
-		pte &= ~XE_PAGE_RW;
-
-	if (unlikely(vma && xe_vma_is_null(vma)))
+	if (unlikely(xe_vma_is_null(vma)))
 		pte |= XE_PTE_NULL;
 
 	return pte;
