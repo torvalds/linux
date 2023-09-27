@@ -15,6 +15,7 @@
 #include "xe_devcoredump_types.h"
 #include "xe_gt_types.h"
 #include "xe_platform_types.h"
+#include "xe_pt_types.h"
 #include "xe_pmu.h"
 #include "xe_step_types.h"
 
@@ -321,6 +322,7 @@ struct xe_device {
 		const u32 *table;
 		/** Number of PAT entries */
 		int n_entries;
+		u32 idx[__XE_CACHE_LEVEL_COUNT];
 	} pat;
 
 	/** @d3cold: Encapsulate d3cold related stuff */

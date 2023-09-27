@@ -17,6 +17,7 @@ enum xe_cache_level {
 	XE_CACHE_NONE,
 	XE_CACHE_WT,
 	XE_CACHE_WB,
+	__XE_CACHE_LEVEL_COUNT,
 };
 
 #define XE_VM_MAX_LEVEL 4

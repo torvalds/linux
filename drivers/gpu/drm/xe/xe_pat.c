@@ -108,10 +108,16 @@ void xe_pat_init_early(struct xe_device *xe)
 		xe->pat.ops = &xelpg_pat_ops;
 		xe->pat.table = xelpg_pat_table;
 		xe->pat.n_entries = ARRAY_SIZE(xelpg_pat_table);
+		xe->pat.idx[XE_CACHE_NONE] = 2;
+		xe->pat.idx[XE_CACHE_WT] = 1;
+		xe->pat.idx[XE_CACHE_WB] = 3;
 	} else if (xe->info.platform == XE_PVC) {
 		xe->pat.ops = &xehp_pat_ops;
 		xe->pat.table = xehpc_pat_table;
 		xe->pat.n_entries = ARRAY_SIZE(xehpc_pat_table);
+		xe->pat.idx[XE_CACHE_NONE] = 0;
+		xe->pat.idx[XE_CACHE_WT] = 2;
+		xe->pat.idx[XE_CACHE_WB] = 3;
 	} else if (xe->info.platform == XE_DG2) {
 		/*
 		 * Table is the same as previous platforms, but programming
@@ -120,10 +126,16 @@ void xe_pat_init_early(struct xe_device *xe)
 		xe->pat.ops = &xehp_pat_ops;
 		xe->pat.table = xelp_pat_table;
 		xe->pat.n_entries = ARRAY_SIZE(xelp_pat_table);
+		xe->pat.idx[XE_CACHE_NONE] = 3;
+		xe->pat.idx[XE_CACHE_WT] = 2;
+		xe->pat.idx[XE_CACHE_WB] = 0;
 	} else if (GRAPHICS_VERx100(xe) <= 1210) {
 		xe->pat.ops = &xelp_pat_ops;
 		xe->pat.table = xelp_pat_table;
 		xe->pat.n_entries = ARRAY_SIZE(xelp_pat_table);
+		xe->pat.idx[XE_CACHE_NONE] = 3;
+		xe->pat.idx[XE_CACHE_WT] = 2;
+		xe->pat.idx[XE_CACHE_WB] = 0;
 	} else {
 		/*
 		 * Going forward we expect to need new PAT settings for most
