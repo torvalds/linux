@@ -506,6 +506,7 @@ struct wpan_dev {
 	struct mutex association_lock;
 	struct ieee802154_pan_device *parent;
 	struct list_head children;
+	unsigned int max_associations;
 };
 
 #define to_phy(_dev)	container_of(_dev, struct wpan_phy, dev)
@@ -582,6 +583,13 @@ bool cfg802154_device_is_parent(struct wpan_dev *wpan_dev,
 struct ieee802154_pan_device *
 cfg802154_device_is_child(struct wpan_dev *wpan_dev,
 			  struct ieee802154_addr *target);
+
+/**
+ * cfg802154_set_max_associations - Limit the number of future associations
+ * @wpan_dev: the wpan device
+ * @max: the maximum number of devices we accept to associate
+ */
+void cfg802154_set_max_associations(struct wpan_dev *wpan_dev, unsigned int max);
 
 /**
  * cfg802154_get_free_short_addr - Get a free address among the known devices
