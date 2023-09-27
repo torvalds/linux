@@ -108,6 +108,8 @@ struct pkt_stream {
 	u32 current_pkt_nb;
 	struct pkt *pkts;
 	u32 max_pkt_len;
+	u32 nb_rx_pkts;
+	u32 nb_valid_entries;
 	bool verbatim;
 };
 
