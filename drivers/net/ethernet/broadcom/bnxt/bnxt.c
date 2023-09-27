@@ -2129,6 +2129,24 @@ static u16 bnxt_agg_ring_id_to_grp_idx(struct bnxt *bp, u16 ring_id)
 	return INVALID_HW_RING_ID;
 }
 
+#define BNXT_EVENT_THERMAL_CURRENT_TEMP(data2)				\
+	((data2) &							\
+	  ASYNC_EVENT_CMPL_ERROR_REPORT_THERMAL_EVENT_DATA2_CURRENT_TEMP_MASK)
+
+#define BNXT_EVENT_THERMAL_THRESHOLD_TEMP(data2)			\
+	(((data2) &							\
+	  ASYNC_EVENT_CMPL_ERROR_REPORT_THERMAL_EVENT_DATA2_THRESHOLD_TEMP_MASK) >>\
+	 ASYNC_EVENT_CMPL_ERROR_REPORT_THERMAL_EVENT_DATA2_THRESHOLD_TEMP_SFT)
+
+#define EVENT_DATA1_THERMAL_THRESHOLD_TYPE(data1)			\
+	((data1) &							\
+	 ASYNC_EVENT_CMPL_ERROR_REPORT_THERMAL_EVENT_DATA1_THRESHOLD_TYPE_MASK)
+
+#define EVENT_DATA1_THERMAL_THRESHOLD_DIR_INCREASING(data1)		\
+	(((data1) &							\
+	  ASYNC_EVENT_CMPL_ERROR_REPORT_THERMAL_EVENT_DATA1_TRANSITION_DIR) ==\
+	 ASYNC_EVENT_CMPL_ERROR_REPORT_THERMAL_EVENT_DATA1_TRANSITION_DIR_INCREASING)
+
 static void bnxt_event_error_report(struct bnxt *bp, u32 data1, u32 data2)
 {
 	u32 err_type = BNXT_EVENT_ERROR_REPORT_TYPE(data1);
@@ -2144,6 +2162,40 @@ static void bnxt_event_error_report(struct bnxt *bp, u32 data1, u32 data2)
 	case ASYNC_EVENT_CMPL_ERROR_REPORT_BASE_EVENT_DATA1_ERROR_TYPE_DOORBELL_DROP_THRESHOLD:
 		netdev_warn(bp->dev, "One or more MMIO doorbells dropped by the device!\n");
 		break;
+	case ASYNC_EVENT_CMPL_ERROR_REPORT_BASE_EVENT_DATA1_ERROR_TYPE_THERMAL_THRESHOLD: {
+		u32 type = EVENT_DATA1_THERMAL_THRESHOLD_TYPE(data1);
+		char *threshold_type;
+		char *dir_str;
+
+		switch (type) {
+		case ASYNC_EVENT_CMPL_ERROR_REPORT_THERMAL_EVENT_DATA1_THRESHOLD_TYPE_WARN:
+			threshold_type = "warning";
+			break;
+		case ASYNC_EVENT_CMPL_ERROR_REPORT_THERMAL_EVENT_DATA1_THRESHOLD_TYPE_CRITICAL:
+			threshold_type = "critical";
+			break;
+		case ASYNC_EVENT_CMPL_ERROR_REPORT_THERMAL_EVENT_DATA1_THRESHOLD_TYPE_FATAL:
+			threshold_type = "fatal";
+			break;
+		case ASYNC_EVENT_CMPL_ERROR_REPORT_THERMAL_EVENT_DATA1_THRESHOLD_TYPE_SHUTDOWN:
+			threshold_type = "shutdown";
+			break;
+		default:
+			netdev_err(bp->dev, "Unknown Thermal threshold type event\n");
+			return;
+		}
+		if (EVENT_DATA1_THERMAL_THRESHOLD_DIR_INCREASING(data1))
+			dir_str = "above";
+		else
+			dir_str = "below";
+		netdev_warn(bp->dev, "Chip temperature has gone %s the %s thermal threshold!\n",
+			    dir_str, threshold_type);
+		netdev_warn(bp->dev, "Temperature (In Celsius), Current: %lu, threshold: %lu\n",
+			    BNXT_EVENT_THERMAL_CURRENT_TEMP(data2),
+			    BNXT_EVENT_THERMAL_THRESHOLD_TEMP(data2));
+		bnxt_hwmon_notify_event(bp, type);
+		break;
+	}
 	default:
 		netdev_err(bp->dev, "FW reported unknown error type %u\n",
 			   err_type);

@@ -18,6 +18,31 @@
 #include "bnxt_hwrm.h"
 #include "bnxt_hwmon.h"
 
+void bnxt_hwmon_notify_event(struct bnxt *bp, u32 type)
+{
+	u32 attr;
+
+	if (!bp->hwmon_dev)
+		return;
+
+	switch (type) {
+	case ASYNC_EVENT_CMPL_ERROR_REPORT_THERMAL_EVENT_DATA1_THRESHOLD_TYPE_WARN:
+		attr = hwmon_temp_max_alarm;
+		break;
+	case ASYNC_EVENT_CMPL_ERROR_REPORT_THERMAL_EVENT_DATA1_THRESHOLD_TYPE_CRITICAL:
+		attr = hwmon_temp_crit_alarm;
+		break;
+	case ASYNC_EVENT_CMPL_ERROR_REPORT_THERMAL_EVENT_DATA1_THRESHOLD_TYPE_FATAL:
+	case ASYNC_EVENT_CMPL_ERROR_REPORT_THERMAL_EVENT_DATA1_THRESHOLD_TYPE_SHUTDOWN:
+		attr = hwmon_temp_emergency_alarm;
+		break;
+	default:
+		return;
+	}
+
+	hwmon_notify_event(&bp->pdev->dev, hwmon_temp, attr, 0);
+}
+
 static int bnxt_hwrm_temp_query(struct bnxt *bp, u8 *temp)
 {
 	struct hwrm_temp_monitor_query_output *resp;
