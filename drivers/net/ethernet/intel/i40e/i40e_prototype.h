@@ -4,10 +4,9 @@
 #ifndef _I40E_PROTOTYPE_H_
 #define _I40E_PROTOTYPE_H_
 
-#include "i40e_type.h"
-#include "i40e_alloc.h"
-#include "i40e_debug.h"
 #include <linux/avf/virtchnl.h>
+#include "i40e_debug.h"
+#include "i40e_type.h"
 
 /* Prototypes for shared code functions that are not in
  * the standard function pointer structures.  These are

@@ -4,47 +4,20 @@
 #ifndef _I40E_H_
 #define _I40E_H_
 
-#include <net/tcp.h>
-#include <net/udp.h>
-#include <linux/types.h>
-#include <linux/errno.h>
-#include <linux/module.h>
-#include <linux/pci.h>
-#include <linux/netdevice.h>
-#include <linux/ioport.h>
-#include <linux/iommu.h>
-#include <linux/slab.h>
-#include <linux/list.h>
-#include <linux/hashtable.h>
-#include <linux/string.h>
-#include <linux/in.h>
-#include <linux/ip.h>
-#include <linux/sctp.h>
-#include <linux/pkt_sched.h>
-#include <linux/ipv6.h>
-#include <net/checksum.h>
-#include <net/ip6_checksum.h>
 #include <linux/ethtool.h>
-#include <linux/if_vlan.h>
-#include <linux/if_macvlan.h>
-#include <linux/if_bridge.h>
-#include <linux/clocksource.h>
-#include <linux/net_tstamp.h>
+#include <linux/pci.h>
 #include <linux/ptp_clock_kernel.h>
-#include <net/pkt_cls.h>
-#include <net/pkt_sched.h>
-#include <net/tc_act/tc_gact.h>
-#include <net/tc_act/tc_mirred.h>
-#include <net/udp_tunnel.h>
-#include <net/xdp_sock.h>
-#include <linux/bitfield.h>
-#include "i40e_type.h"
-#include "i40e_prototype.h"
-#include <linux/net/intel/i40e_client.h>
+#include <linux/types.h>
 #include <linux/avf/virtchnl.h>
-#include "i40e_virtchnl_pf.h"
-#include "i40e_txrx.h"
+#include <linux/net/intel/i40e_client.h>
+#include <net/pkt_cls.h>
+#include <net/udp_tunnel.h>
 #include "i40e_dcb.h"
+#include "i40e_debug.h"
+#include "i40e_io.h"
+#include "i40e_prototype.h"
+#include "i40e_register.h"
+#include "i40e_txrx.h"
 
 /* Useful i40e defaults */
 #define I40E_MAX_VEB			16

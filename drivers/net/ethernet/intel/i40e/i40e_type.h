@@ -4,14 +4,9 @@
 #ifndef _I40E_TYPE_H_
 #define _I40E_TYPE_H_
 
-#include <linux/delay.h>
-#include <linux/if_ether.h>
-#include "i40e_io.h"
-#include "i40e_register.h"
+#include <uapi/linux/if_ether.h>
 #include "i40e_adminq.h"
 #include "i40e_hmc.h"
-#include "i40e_lan_hmc.h"
-#include "i40e_devids.h"
 
 #define I40E_MAX_VSI_QP			16
 #define I40E_MAX_VF_VSI			4
