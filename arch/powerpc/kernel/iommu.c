@@ -1333,13 +1333,6 @@ static bool spapr_tce_iommu_capable(struct device *dev, enum iommu_cap cap)
 	return false;
 }
 
-static struct iommu_domain *spapr_tce_iommu_domain_alloc(unsigned int type)
-{
-	if (type != IOMMU_DOMAIN_BLOCKED)
-		return NULL;
-	return &spapr_tce_blocked_domain;
-}
-
 static struct iommu_device *spapr_tce_iommu_probe_device(struct device *dev)
 {
 	struct pci_dev *pdev;
@@ -1374,8 +1367,8 @@ static struct iommu_group *spapr_tce_iommu_device_group(struct device *dev)
 
 static const struct iommu_ops spapr_tce_iommu_ops = {
 	.default_domain = &spapr_tce_platform_domain,
+	.blocked_domain = &spapr_tce_blocked_domain,
 	.capable = spapr_tce_iommu_capable,
-	.domain_alloc = spapr_tce_iommu_domain_alloc,
 	.probe_device = spapr_tce_iommu_probe_device,
 	.release_device = spapr_tce_iommu_release_device,
 	.device_group = spapr_tce_iommu_device_group,
