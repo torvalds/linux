@@ -87,6 +87,7 @@ struct xsk_socket_info {
 	struct xsk_ring_prod tx;
 	struct xsk_umem_info *umem;
 	struct xsk_socket *xsk;
+	struct pkt_stream *pkt_stream;
 	u32 outstanding_tx;
 	u32 rxqsize;
 };
@@ -120,7 +121,6 @@ struct ifobject {
 	struct xsk_umem_info *umem;
 	thread_func_t func_ptr;
 	validation_func_t validation_func;
-	struct pkt_stream *pkt_stream;
 	struct xsk_xdp_progs *xdp_progs;
 	struct bpf_map *xskmap;
 	struct bpf_program *xdp_prog;
