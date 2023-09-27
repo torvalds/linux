@@ -697,3 +697,145 @@ int mac802154_send_disassociation_notif(struct ieee802154_sub_if_data *sdata,
 	dev_dbg(&sdata->dev->dev, "DISASSOC ACK received from %8phC\n", &teaddr);
 	return 0;
 }
+
+static int
+mac802154_send_association_resp_locked(struct ieee802154_sub_if_data *sdata,
+				       struct ieee802154_pan_device *target,
+				       struct ieee802154_assoc_resp_pl *assoc_resp_pl)
+{
+	u64 teaddr = swab64((__force u64)target->extended_addr);
+	struct ieee802154_association_resp_frame frame = {};
+	struct ieee802154_local *local = sdata->local;
+	struct wpan_dev *wpan_dev = &sdata->wpan_dev;
+	struct sk_buff *skb;
+	int ret;
+
+	frame.mhr.fc.type = IEEE802154_FC_TYPE_MAC_CMD;
+	frame.mhr.fc.security_enabled = 0;
+	frame.mhr.fc.frame_pending = 0;
+	frame.mhr.fc.ack_request = 1; /* We always expect an ack here */
+	frame.mhr.fc.intra_pan = 1;
+	frame.mhr.fc.dest_addr_mode = IEEE802154_EXTENDED_ADDRESSING;
+	frame.mhr.fc.version = IEEE802154_2003_STD;
+	frame.mhr.fc.source_addr_mode = IEEE802154_EXTENDED_ADDRESSING;
+	frame.mhr.source.mode = IEEE802154_ADDR_LONG;
+	frame.mhr.source.extended_addr = wpan_dev->extended_addr;
+	frame.mhr.dest.mode = IEEE802154_ADDR_LONG;
+	frame.mhr.dest.pan_id = wpan_dev->pan_id;
+	frame.mhr.dest.extended_addr = target->extended_addr;
+	frame.mhr.seq = atomic_inc_return(&wpan_dev->dsn) & 0xFF;
+	frame.mac_pl.cmd_id = IEEE802154_CMD_ASSOCIATION_RESP;
+
+	skb = alloc_skb(IEEE802154_MAC_CMD_SKB_SZ + sizeof(*assoc_resp_pl),
+			GFP_KERNEL);
+	if (!skb)
+		return -ENOBUFS;
+
+	skb->dev = sdata->dev;
+
+	ret = ieee802154_mac_cmd_push(skb, &frame, assoc_resp_pl,
+				      sizeof(*assoc_resp_pl));
+	if (ret) {
+		kfree_skb(skb);
+		return ret;
+	}
+
+	ret = ieee802154_mlme_tx_locked(local, sdata, skb);
+	if (ret) {
+		dev_warn(&sdata->dev->dev,
+			 "No ASSOC RESP ACK received from %8phC\n", &teaddr);
+		if (ret > 0)
+			ret = (ret == IEEE802154_NO_ACK) ? -EREMOTEIO : -EIO;
+		return ret;
+	}
+
+	return 0;
+}
+
+int mac802154_process_association_req(struct ieee802154_sub_if_data *sdata,
+				      struct sk_buff *skb)
+{
+	struct wpan_dev *wpan_dev = &sdata->wpan_dev;
+	struct ieee802154_addr *src = &mac_cb(skb)->source;
+	struct ieee802154_addr *dest = &mac_cb(skb)->dest;
+	struct ieee802154_assoc_resp_pl assoc_resp_pl = {};
+	struct ieee802154_assoc_req_pl assoc_req_pl;
+	struct ieee802154_pan_device *child, *exchild;
+	struct ieee802154_addr tmp = {};
+	u64 ceaddr;
+	int ret;
+
+	if (skb->len != sizeof(assoc_req_pl))
+		return -EINVAL;
+
+	if (unlikely(src->mode != IEEE802154_EXTENDED_ADDRESSING))
+		return -EINVAL;
+
+	if (unlikely(dest->pan_id != wpan_dev->pan_id))
+		return -ENODEV;
+
+	if (dest->mode == IEEE802154_EXTENDED_ADDRESSING &&
+	    unlikely(dest->extended_addr != wpan_dev->extended_addr))
+		return -ENODEV;
+	else if (dest->mode == IEEE802154_SHORT_ADDRESSING &&
+		 unlikely(dest->short_addr != wpan_dev->short_addr))
+		return -ENODEV;
+
+	mutex_lock(&wpan_dev->association_lock);
+
+	memcpy(&assoc_req_pl, skb->data, sizeof(assoc_req_pl));
+	if (assoc_req_pl.assoc_type) {
+		dev_err(&skb->dev->dev, "Fast associations not supported yet\n");
+		ret = -EOPNOTSUPP;
+		goto unlock;
+	}
+
+	child = kzalloc(sizeof(*child), GFP_KERNEL);
+	if (!child) {
+		ret = -ENOMEM;
+		goto unlock;
+	}
+
+	child->extended_addr = src->extended_addr;
+	child->mode = IEEE802154_EXTENDED_ADDRESSING;
+	ceaddr = swab64((__force u64)child->extended_addr);
+
+	assoc_resp_pl.status = IEEE802154_ASSOCIATION_SUCCESSFUL;
+	if (assoc_req_pl.alloc_addr) {
+		assoc_resp_pl.short_addr = cfg802154_get_free_short_addr(wpan_dev);
+		child->mode = IEEE802154_SHORT_ADDRESSING;
+	} else {
+		assoc_resp_pl.short_addr = cpu_to_le16(IEEE802154_ADDR_SHORT_UNSPEC);
+	}
+	child->short_addr = assoc_resp_pl.short_addr;
+	dev_dbg(&sdata->dev->dev,
+		"Accepting ASSOC REQ from child %8phC, providing short address 0x%04x\n",
+		&ceaddr, le16_to_cpu(child->short_addr));
+
+	ret = mac802154_send_association_resp_locked(sdata, child, &assoc_resp_pl);
+	if (ret) {
+		kfree(child);
+		goto unlock;
+	}
+
+	dev_dbg(&sdata->dev->dev,
+		"Successful association with new child %8phC\n", &ceaddr);
+
+	/* Ensure this child is not already associated (might happen due to
+	 * retransmissions), in this case drop the ex structure.
+	 */
+	tmp.mode = child->mode;
+	tmp.extended_addr = child->extended_addr;
+	exchild = cfg802154_device_is_child(wpan_dev, &tmp);
+	if (exchild) {
+		dev_dbg(&sdata->dev->dev,
+			"Child %8phC was already known\n", &ceaddr);
+		list_del(&exchild->node);
+	}
+
+	list_add(&child->node, &wpan_dev->children);
+
+unlock:
+	mutex_unlock(&wpan_dev->association_lock);
+	return ret;
+}

@@ -583,4 +583,11 @@ struct ieee802154_pan_device *
 cfg802154_device_is_child(struct wpan_dev *wpan_dev,
 			  struct ieee802154_addr *target);
 
+/**
+ * cfg802154_get_free_short_addr - Get a free address among the known devices
+ * @wpan_dev: the wpan device
+ * @return: a random short address expectedly unused on our PAN
+ */
+__le16 cfg802154_get_free_short_addr(struct wpan_dev *wpan_dev);
+
 #endif /* __NET_CFG802154_H */

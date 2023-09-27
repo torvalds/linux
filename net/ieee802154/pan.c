@@ -63,3 +63,33 @@ cfg802154_device_is_child(struct wpan_dev *wpan_dev,
 	return NULL;
 }
 EXPORT_SYMBOL_GPL(cfg802154_device_is_child);
+
+__le16 cfg802154_get_free_short_addr(struct wpan_dev *wpan_dev)
+{
+	struct ieee802154_pan_device *child;
+	__le16 addr;
+
+	lockdep_assert_held(&wpan_dev->association_lock);
+
+	do {
+		get_random_bytes(&addr, 2);
+		if (addr == cpu_to_le16(IEEE802154_ADDR_SHORT_BROADCAST) ||
+		    addr == cpu_to_le16(IEEE802154_ADDR_SHORT_UNSPEC))
+			continue;
+
+		if (wpan_dev->short_addr == addr)
+			continue;
+
+		if (wpan_dev->parent && wpan_dev->parent->short_addr == addr)
+			continue;
+
+		list_for_each_entry(child, &wpan_dev->children, node)
+			if (child->short_addr == addr)
+				continue;
+
+		break;
+	} while (1);
+
+	return addr;
+}
+EXPORT_SYMBOL_GPL(cfg802154_get_free_short_addr);

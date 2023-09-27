@@ -200,10 +200,17 @@ EXPORT_SYMBOL(wpan_phy_free);
 
 static void cfg802154_free_peer_structures(struct wpan_dev *wpan_dev)
 {
+	struct ieee802154_pan_device *child, *tmp;
+
 	mutex_lock(&wpan_dev->association_lock);
 
 	kfree(wpan_dev->parent);
 	wpan_dev->parent = NULL;
+
+	list_for_each_entry_safe(child, tmp, &wpan_dev->children, node) {
+		list_del(&child->node);
+		kfree(child);
+	}
 
 	mutex_unlock(&wpan_dev->association_lock);
 }
