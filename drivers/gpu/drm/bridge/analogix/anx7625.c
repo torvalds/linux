@@ -2201,7 +2201,7 @@ static int anx7625_bridge_attach(struct drm_bridge *bridge,
 		}
 	}
 
-	device_link_add(bridge->dev->dev, dev, DL_FLAG_STATELESS);
+	device_link_add(bridge->dev->dev, dev, DL_FLAG_PM_RUNTIME);
 	ctx->bridge_attached = 1;
 
 	return 0;
