@@ -8,6 +8,7 @@
 /*
  * User space memory access functions
  */
+#include <linux/kernel.h>
 #include <linux/string.h>
 #include <asm/page.h>
 #include <asm/domain.h>
