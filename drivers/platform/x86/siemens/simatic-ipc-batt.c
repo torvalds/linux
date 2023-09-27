@@ -227,11 +227,9 @@ out:
 }
 EXPORT_SYMBOL_GPL(simatic_ipc_batt_probe);
 
-static int simatic_ipc_batt_io_remove(struct platform_device *pdev)
+static void simatic_ipc_batt_io_remove(struct platform_device *pdev)
 {
 	simatic_ipc_batt_remove(pdev, NULL);
-
-	return 0;
 }
 
 static int simatic_ipc_batt_io_probe(struct platform_device *pdev)
@@ -241,7 +239,7 @@ static int simatic_ipc_batt_io_probe(struct platform_device *pdev)
 
 static struct platform_driver simatic_ipc_batt_driver = {
 	.probe = simatic_ipc_batt_io_probe,
-	.remove = simatic_ipc_batt_io_remove,
+	.remove_new = simatic_ipc_batt_io_remove,
 	.driver = {
 		.name = KBUILD_MODNAME,
 	},
