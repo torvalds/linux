@@ -6153,6 +6153,13 @@ static void CalculateImmediateFlipBandwithSupport(
 #endif
 }
 
+static dml_uint_t MicroSecToVertLines(dml_uint_t num_us, dml_uint_t h_total, dml_float_t pixel_clock)
+{
+	dml_uint_t lines_time_in_ns = 1000.0 * (h_total * 1000.0) / (pixel_clock * 1000.0);
+
+	return dml_ceil(1000.0 * num_us / lines_time_in_ns, 1.0);
+}
+
 /// @brief Calculate the maximum vstartup for mode support and mode programming consideration
 ///         Bounded by min of actual vblank and input vblank_nom, dont want vstartup/ready to start too early if actual vbllank is huge
 static dml_uint_t CalculateMaxVStartup(
@@ -6164,12 +6171,24 @@ static dml_uint_t CalculateMaxVStartup(
 {
 	dml_uint_t vblank_size = 0;
 	dml_uint_t max_vstartup_lines = 0;
+	const dml_uint_t max_allowed_vblank_nom = 1023;
 
 	dml_float_t line_time_us = (dml_float_t) timing->HTotal[plane_idx] / timing->PixelClock[plane_idx];
 	dml_uint_t vblank_actual = timing->VTotal[plane_idx] - timing->VActive[plane_idx];
-	dml_uint_t vblank_nom_default_in_line = (dml_uint_t) dml_floor((dml_float_t) vblank_nom_default_us/line_time_us, 1.0);
-	dml_uint_t vblank_nom_input = (dml_uint_t) dml_min(timing->VBlankNom[plane_idx], vblank_nom_default_in_line);
-	dml_uint_t vblank_avail = (vblank_nom_input == 0) ? vblank_nom_default_in_line : vblank_nom_input;
+
+	dml_uint_t vblank_nom_default_in_line = MicroSecToVertLines(vblank_nom_default_us, timing->HTotal[plane_idx],
+			timing->PixelClock[plane_idx]);
+	dml_uint_t vblank_nom_input = (dml_uint_t)dml_min(vblank_actual, vblank_nom_default_in_line);
+
+	// vblank_nom should not be smaller than (VSync (VTotal - VActive - VFrontPorch) + 2)
+	// + 2 is because
+	// 1 -> VStartup_start should be 1 line before VSync
+	// 1 -> always reserve 1 line between start of VBlank to VStartup signal
+	dml_uint_t vblank_nom_vsync_capped = dml_max(vblank_nom_input,
+			timing->VTotal[plane_idx] - timing->VActive[plane_idx] - timing->VFrontPorch[plane_idx] + 2);
+	dml_uint_t vblank_nom_max_allowed_capped = dml_min(vblank_nom_vsync_capped, max_allowed_vblank_nom);
+	dml_uint_t vblank_avail = (vblank_nom_max_allowed_capped == 0) ?
+			vblank_nom_default_in_line : vblank_nom_max_allowed_capped;
 
 	vblank_size = (dml_uint_t) dml_min(vblank_actual, vblank_avail);
 
