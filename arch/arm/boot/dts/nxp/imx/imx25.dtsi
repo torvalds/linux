@@ -593,6 +593,9 @@
 		iram: sram@78000000 {
 			compatible = "mmio-sram";
 			reg = <0x78000000 0x20000>;
+			ranges = <0 0x78000000 0x20000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
 		};
 
 		emi@80000000 {
