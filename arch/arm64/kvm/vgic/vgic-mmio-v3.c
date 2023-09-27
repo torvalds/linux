@@ -1052,6 +1052,38 @@ static int match_mpidr(u64 sgi_aff, u16 sgi_cpu_mask, struct kvm_vcpu *vcpu)
 	((((reg) & ICC_SGI1R_AFFINITY_## level ##_MASK) \
 	>> ICC_SGI1R_AFFINITY_## level ##_SHIFT) << MPIDR_LEVEL_SHIFT(level))
 
+static void vgic_v3_queue_sgi(struct kvm_vcpu *vcpu, u32 sgi, bool allow_group1)
+{
+	struct vgic_irq *irq = vgic_get_irq(vcpu->kvm, vcpu, sgi);
+	unsigned long flags;
+
+	raw_spin_lock_irqsave(&irq->irq_lock, flags);
+
+	/*
+	 * An access targeting Group0 SGIs can only generate
+	 * those, while an access targeting Group1 SGIs can
+	 * generate interrupts of either group.
+	 */
+	if (!irq->group || allow_group1) {
+		if (!irq->hw) {
+			irq->pending_latch = true;
+			vgic_queue_irq_unlock(vcpu->kvm, irq, flags);
+		} else {
+			/* HW SGI? Ask the GIC to inject it */
+			int err;
+			err = irq_set_irqchip_state(irq->host_irq,
+						    IRQCHIP_STATE_PENDING,
+						    true);
+			WARN_RATELIMIT(err, "IRQ %d", irq->host_irq);
+			raw_spin_unlock_irqrestore(&irq->irq_lock, flags);
+		}
+	} else {
+		raw_spin_unlock_irqrestore(&irq->irq_lock, flags);
+	}
+
+	vgic_put_irq(vcpu->kvm, irq);
+}
+
 /**
  * vgic_v3_dispatch_sgi - handle SGI requests from VCPUs
  * @vcpu: The VCPU requesting a SGI
@@ -1070,19 +1102,30 @@ void vgic_v3_dispatch_sgi(struct kvm_vcpu *vcpu, u64 reg, bool allow_group1)
 {
 	struct kvm *kvm = vcpu->kvm;
 	struct kvm_vcpu *c_vcpu;
-	u16 target_cpus;
+	unsigned long target_cpus;
 	u64 mpidr;
-	int sgi;
-	int vcpu_id = vcpu->vcpu_id;
-	bool broadcast;
-	unsigned long c, flags;
+	u32 sgi;
+	unsigned long c;
 
-	sgi = (reg & ICC_SGI1R_SGI_ID_MASK) >> ICC_SGI1R_SGI_ID_SHIFT;
-	broadcast = reg & BIT_ULL(ICC_SGI1R_IRQ_ROUTING_MODE_BIT);
-	target_cpus = (reg & ICC_SGI1R_TARGET_LIST_MASK) >> ICC_SGI1R_TARGET_LIST_SHIFT;
+	sgi = FIELD_GET(ICC_SGI1R_SGI_ID_MASK, reg);
+
+	/* Broadcast */
+	if (unlikely(reg & BIT_ULL(ICC_SGI1R_IRQ_ROUTING_MODE_BIT))) {
+		kvm_for_each_vcpu(c, c_vcpu, kvm) {
+			/* Don't signal the calling VCPU */
+			if (c_vcpu == vcpu)
+				continue;
+
+			vgic_v3_queue_sgi(c_vcpu, sgi, allow_group1);
+		}
+
+		return;
+	}
+
 	mpidr = SGI_AFFINITY_LEVEL(reg, 3);
 	mpidr |= SGI_AFFINITY_LEVEL(reg, 2);
 	mpidr |= SGI_AFFINITY_LEVEL(reg, 1);
+	target_cpus = FIELD_GET(ICC_SGI1R_TARGET_LIST_MASK, reg);
 
 	/*
 	 * We iterate over all VCPUs to find the MPIDRs matching the request.
@@ -1091,54 +1134,19 @@ void vgic_v3_dispatch_sgi(struct kvm_vcpu *vcpu, u64 reg, bool allow_group1)
 	 * VCPUs when most of the times we just signal a single VCPU.
 	 */
 	kvm_for_each_vcpu(c, c_vcpu, kvm) {
-		struct vgic_irq *irq;
+		int level0;
 
 		/* Exit early if we have dealt with all requested CPUs */
-		if (!broadcast && target_cpus == 0)
+		if (target_cpus == 0)
 			break;
-
-		/* Don't signal the calling VCPU */
-		if (broadcast && c == vcpu_id)
+		level0 = match_mpidr(mpidr, target_cpus, c_vcpu);
+		if (level0 == -1)
 			continue;
 
-		if (!broadcast) {
-			int level0;
+		/* remove this matching VCPU from the mask */
+		target_cpus &= ~BIT(level0);
 
-			level0 = match_mpidr(mpidr, target_cpus, c_vcpu);
-			if (level0 == -1)
-				continue;
-
-			/* remove this matching VCPU from the mask */
-			target_cpus &= ~BIT(level0);
-		}
-
-		irq = vgic_get_irq(vcpu->kvm, c_vcpu, sgi);
-
-		raw_spin_lock_irqsave(&irq->irq_lock, flags);
-
-		/*
-		 * An access targeting Group0 SGIs can only generate
-		 * those, while an access targeting Group1 SGIs can
-		 * generate interrupts of either group.
-		 */
-		if (!irq->group || allow_group1) {
-			if (!irq->hw) {
-				irq->pending_latch = true;
-				vgic_queue_irq_unlock(vcpu->kvm, irq, flags);
-			} else {
-				/* HW SGI? Ask the GIC to inject it */
-				int err;
-				err = irq_set_irqchip_state(irq->host_irq,
-							    IRQCHIP_STATE_PENDING,
-							    true);
-				WARN_RATELIMIT(err, "IRQ %d", irq->host_irq);
-				raw_spin_unlock_irqrestore(&irq->irq_lock, flags);
-			}
-		} else {
-			raw_spin_unlock_irqrestore(&irq->irq_lock, flags);
-		}
-
-		vgic_put_irq(vcpu->kvm, irq);
+		vgic_v3_queue_sgi(c_vcpu, sgi, allow_group1);
 	}
 }
 
