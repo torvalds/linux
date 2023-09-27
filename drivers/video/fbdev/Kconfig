@@ -485,6 +485,7 @@ config FB_N411
 config FB_HGA
 	tristate "Hercules mono graphics support"
 	depends on FB && X86
+	select FB_IOMEM_FOPS
 	help
 	  Say Y here if you have a Hercules mono graphics card.
 
