@@ -407,6 +407,7 @@ config FB_HP300
 	bool
 	depends on (FB = y) && DIO
 	select FB_CFB_IMAGEBLIT
+	select FB_IOMEM_FOPS
 	default y
 
 config FB_TGA
