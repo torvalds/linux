@@ -137,15 +137,23 @@ static int umc_v12_0_query_error_count(struct amdgpu_device *adev,
 					uint32_t ch_inst, void *data)
 {
 	struct ras_err_data *err_data = (struct ras_err_data *)data;
+	unsigned long ue_count = 0, ce_count = 0;
+
+	/* NOTE: node_inst is converted by adev->umc.active_mask and the range is [0-3],
+	 * which can be used as die ID directly */
+	struct amdgpu_smuio_mcm_config_info mcm_info = {
+		.socket_id = adev->smuio.funcs->get_socket_id(adev),
+		.die_id = node_inst,
+	};
+
 	uint64_t umc_reg_offset =
 		get_umc_v12_0_reg_offset(adev, node_inst, umc_inst, ch_inst);
 
-	umc_v12_0_query_correctable_error_count(adev,
-					umc_reg_offset,
-					&(err_data->ce_count));
-	umc_v12_0_query_uncorrectable_error_count(adev,
-					umc_reg_offset,
-					&(err_data->ue_count));
+	umc_v12_0_query_correctable_error_count(adev, umc_reg_offset, &ce_count);
+	umc_v12_0_query_uncorrectable_error_count(adev, umc_reg_offset, &ue_count);
+
+	amdgpu_ras_error_statistic_ue_count(err_data, &mcm_info, ue_count);
+	amdgpu_ras_error_statistic_ce_count(err_data, &mcm_info, ce_count);
 
 	return 0;
 }
