@@ -340,13 +340,11 @@ static int cros_ec_sysfs_probe(struct platform_device *pd)
 	return ret;
 }
 
-static int cros_ec_sysfs_remove(struct platform_device *pd)
+static void cros_ec_sysfs_remove(struct platform_device *pd)
 {
 	struct cros_ec_dev *ec_dev = dev_get_drvdata(pd->dev.parent);
 
 	sysfs_remove_group(&ec_dev->class_dev.kobj, &cros_ec_attr_group);
-
-	return 0;
 }
 
 static struct platform_driver cros_ec_sysfs_driver = {
@@ -354,7 +352,7 @@ static struct platform_driver cros_ec_sysfs_driver = {
 		.name = DRV_NAME,
 	},
 	.probe = cros_ec_sysfs_probe,
-	.remove = cros_ec_sysfs_remove,
+	.remove_new = cros_ec_sysfs_remove,
 };
 
 module_platform_driver(cros_ec_sysfs_driver);
