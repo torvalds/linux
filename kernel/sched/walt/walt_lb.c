@@ -264,9 +264,6 @@ static inline bool _walt_can_migrate_task(struct task_struct *p, int dst_cpu,
 	if (cpu_halted(dst_cpu))
 		return false;
 
-	if (task_reject_partialhalt_cpu(p, dst_cpu))
-		return false;
-
 	return true;
 }
 
