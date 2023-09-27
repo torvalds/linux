@@ -9525,7 +9525,7 @@ static int msm_pcie_drv_suspend(struct msm_pcie_dev_t *pcie_dev,
 	struct msm_pcie_drv_info *drv_info = pcie_dev->drv_info;
 	struct msm_pcie_clk_info_t *clk_info;
 	int ret, i;
-	unsigned long irqsave_flags;
+	unsigned long irqsave_flags, cfg_irqsave_flags;
 	u32 ab = 0, ib = 0;
 
 	/* If CESTA is available then drv is always supported */
@@ -9556,9 +9556,9 @@ static int msm_pcie_drv_suspend(struct msm_pcie_dev_t *pcie_dev,
 	pcie_dev->user_suspend = true;
 	set_bit(pcie_dev->rc_idx, &pcie_drv.rc_drv_enabled);
 	spin_lock_irqsave(&pcie_dev->irq_lock, irqsave_flags);
-	spin_lock_irq(&pcie_dev->cfg_lock);
+	spin_lock_irqsave(&pcie_dev->cfg_lock, cfg_irqsave_flags);
 	pcie_dev->cfg_access = false;
-	spin_unlock_irq(&pcie_dev->cfg_lock);
+	spin_unlock_irqrestore(&pcie_dev->cfg_lock, cfg_irqsave_flags);
 	spin_unlock_irqrestore(&pcie_dev->irq_lock, irqsave_flags);
 	mutex_lock(&pcie_dev->setup_lock);
 	mutex_lock(&pcie_dev->aspm_lock);
