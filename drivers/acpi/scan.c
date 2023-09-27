@@ -2032,6 +2032,7 @@ static u32 acpi_scan_check_dep(acpi_handle handle, bool check_dep)
 		mutex_unlock(&acpi_dep_list_lock);
 	}
 
+	acpi_handle_list_free(&dep_devices);
 	return count;
 }
 

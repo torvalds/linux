@@ -578,6 +578,7 @@ static bool acpi_lpss_dep(struct acpi_device *adev, acpi_handle handle)
 {
 	struct acpi_handle_list dep_devices;
 	acpi_status status;
+	bool ret = false;
 	int i;
 
 	if (!acpi_has_method(adev->handle, "_DEP"))
@@ -591,11 +592,14 @@ static bool acpi_lpss_dep(struct acpi_device *adev, acpi_handle handle)
 	}
 
 	for (i = 0; i < dep_devices.count; i++) {
-		if (dep_devices.handles[i] == handle)
-			return true;
+		if (dep_devices.handles[i] == handle) {
+			ret = true;
+			break;
+		}
 	}
 
-	return false;
+	acpi_handle_list_free(&dep_devices);
+	return ret;
 }
 
 static void acpi_lpss_link_consumer(struct device *dev1,
