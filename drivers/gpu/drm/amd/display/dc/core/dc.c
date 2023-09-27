@@ -3585,6 +3585,7 @@ static void commit_planes_for_stream(struct dc *dc,
 	bool should_lock_all_pipes = (update_type != UPDATE_TYPE_FAST);
 	bool subvp_prev_use = false;
 	bool subvp_curr_use = false;
+	uint8_t current_stream_mask = 0;
 
 	// Once we apply the new subvp context to hardware it won't be in the
 	// dc->current_state anymore, so we have to cache it before we apply
@@ -3933,6 +3934,12 @@ static void commit_planes_for_stream(struct dc *dc,
 
 		if (pipe_ctx->stream_res.tg->funcs->program_manual_trigger)
 			pipe_ctx->stream_res.tg->funcs->program_manual_trigger(pipe_ctx->stream_res.tg);
+	}
+
+	current_stream_mask = get_stream_mask(dc, context);
+	if (current_stream_mask != context->stream_mask) {
+		context->stream_mask = current_stream_mask;
+		dc_dmub_srv_notify_stream_mask(dc->ctx->dmub_srv, current_stream_mask);
 	}
 }
 
