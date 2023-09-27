@@ -27,7 +27,9 @@ static struct gpiod_lookup_table simatic_ipc_batt_gpio_table_127e = {
 
 static int simatic_ipc_batt_apollolake_remove(struct platform_device *pdev)
 {
-	return simatic_ipc_batt_remove(pdev, &simatic_ipc_batt_gpio_table_127e);
+	simatic_ipc_batt_remove(pdev, &simatic_ipc_batt_gpio_table_127e);
+
+	return 0;
 }
 
 static int simatic_ipc_batt_apollolake_probe(struct platform_device *pdev)

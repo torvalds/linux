@@ -146,10 +146,9 @@ static const struct hwmon_chip_info simatic_ipc_batt_chip_info = {
 	.info = simatic_ipc_batt_info,
 };
 
-int simatic_ipc_batt_remove(struct platform_device *pdev, struct gpiod_lookup_table *table)
+void simatic_ipc_batt_remove(struct platform_device *pdev, struct gpiod_lookup_table *table)
 {
 	gpiod_remove_lookup_table(table);
-	return 0;
 }
 EXPORT_SYMBOL_GPL(simatic_ipc_batt_remove);
 
@@ -230,7 +229,9 @@ EXPORT_SYMBOL_GPL(simatic_ipc_batt_probe);
 
 static int simatic_ipc_batt_io_remove(struct platform_device *pdev)
 {
-	return simatic_ipc_batt_remove(pdev, NULL);
+	simatic_ipc_batt_remove(pdev, NULL);
+
+	return 0;
 }
 
 static int simatic_ipc_batt_io_probe(struct platform_device *pdev)

@@ -47,7 +47,9 @@ static struct gpiod_lookup_table simatic_ipc_batt_gpio_table_bx_59a = {
 
 static int simatic_ipc_batt_f7188x_remove(struct platform_device *pdev)
 {
-	return simatic_ipc_batt_remove(pdev, batt_lookup_table);
+	simatic_ipc_batt_remove(pdev, batt_lookup_table);
+
+	return 0;
 }
 
 static int simatic_ipc_batt_f7188x_probe(struct platform_device *pdev)
