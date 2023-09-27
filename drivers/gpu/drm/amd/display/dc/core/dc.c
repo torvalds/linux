@@ -5472,15 +5472,15 @@ bool dc_abm_save_restore(
 void dc_query_current_properties(struct dc *dc, struct dc_current_properties *properties)
 {
 	unsigned int i;
-	bool subvp_in_use = false;
+	bool subvp_sw_cursor_req = false;
 
 	for (i = 0; i < dc->current_state->stream_count; i++) {
-		if (dc->current_state->streams[i]->mall_stream_config.type != SUBVP_NONE) {
-			subvp_in_use = true;
+		if (check_subvp_sw_cursor_fallback_req(dc, dc->current_state->streams[i])) {
+			subvp_sw_cursor_req = true;
 			break;
 		}
 	}
-	properties->cursor_size_limit = subvp_in_use ? 64 : dc->caps.max_cursor_size;
+	properties->cursor_size_limit = subvp_sw_cursor_req ? 64 : dc->caps.max_cursor_size;
 }
 
 /**
