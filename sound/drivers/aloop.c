@@ -119,11 +119,13 @@ struct loopback_setup {
 	unsigned int rate_shift;
 	snd_pcm_format_t format;
 	unsigned int rate;
+	snd_pcm_access_t access;
 	unsigned int channels;
 	struct snd_ctl_elem_id active_id;
 	struct snd_ctl_elem_id format_id;
 	struct snd_ctl_elem_id rate_id;
 	struct snd_ctl_elem_id channels_id;
+	struct snd_ctl_elem_id access_id;
 };
 
 struct loopback {
@@ -366,6 +368,11 @@ static int loopback_check_format(struct loopback_cable *cable, int stream)
 			snd_ctl_notify(card, SNDRV_CTL_EVENT_MASK_VALUE,
 							&setup->channels_id);
 			setup->channels = runtime->channels;
+		}
+		if (setup->access != runtime->access) {
+			snd_ctl_notify(card, SNDRV_CTL_EVENT_MASK_VALUE,
+							&setup->access_id);
+			setup->access = runtime->access;
 		}
 	}
 	return 0;
@@ -1520,6 +1527,30 @@ static int loopback_channels_get(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+static int loopback_access_info(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_info *uinfo)
+{
+	const char * const texts[] = {"Interleaved", "Non-interleaved"};
+
+	return snd_ctl_enum_info(uinfo, 1, ARRAY_SIZE(texts), texts);
+}
+
+static int loopback_access_get(struct snd_kcontrol *kcontrol,
+			       struct snd_ctl_elem_value *ucontrol)
+{
+	struct loopback *loopback = snd_kcontrol_chip(kcontrol);
+	snd_pcm_access_t access;
+
+	mutex_lock(&loopback->cable_lock);
+	access = loopback->setup[kcontrol->id.subdevice][kcontrol->id.device].access;
+
+	ucontrol->value.enumerated.item[0] = access == SNDRV_PCM_ACCESS_RW_NONINTERLEAVED ||
+					     access == SNDRV_PCM_ACCESS_MMAP_NONINTERLEAVED;
+
+	mutex_unlock(&loopback->cable_lock);
+	return 0;
+}
+
 static const struct snd_kcontrol_new loopback_controls[]  = {
 {
 	.iface =        SNDRV_CTL_ELEM_IFACE_PCM,
@@ -1566,7 +1597,15 @@ static const struct snd_kcontrol_new loopback_controls[]  = {
 	.name =         "PCM Slave Channels",
 	.info =         loopback_channels_info,
 	.get =          loopback_channels_get
-}
+},
+#define ACCESS_IDX 6
+{
+	.access =	SNDRV_CTL_ELEM_ACCESS_READ,
+	.iface =	SNDRV_CTL_ELEM_IFACE_PCM,
+	.name =		"PCM Slave Access Mode",
+	.info =		loopback_access_info,
+	.get =		loopback_access_get,
+},
 };
 
 static int loopback_mixer_new(struct loopback *loopback, int notify)
@@ -1587,6 +1626,7 @@ static int loopback_mixer_new(struct loopback *loopback, int notify)
 			setup->notify = notify;
 			setup->rate_shift = NO_PITCH;
 			setup->format = SNDRV_PCM_FORMAT_S16_LE;
+			setup->access = SNDRV_PCM_ACCESS_RW_INTERLEAVED;
 			setup->rate = 48000;
 			setup->channels = 2;
 			for (idx = 0; idx < ARRAY_SIZE(loopback_controls);
@@ -1617,6 +1657,9 @@ static int loopback_mixer_new(struct loopback *loopback, int notify)
 					break;
 				case CHANNELS_IDX:
 					setup->channels_id = kctl->id;
+					break;
+				case ACCESS_IDX:
+					setup->access_id = kctl->id;
 					break;
 				default:
 					break;
