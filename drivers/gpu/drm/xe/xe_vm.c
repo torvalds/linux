@@ -1210,6 +1210,93 @@ static struct drm_gpuvm_ops gpuvm_ops = {
 	.vm_free = xe_vm_free,
 };
 
+static u64 pde_encode_cache(enum xe_cache_level cache)
+{
+	/* FIXME: I don't think the PPAT handling is correct for MTL */
+
+	if (cache != XE_CACHE_NONE)
+		return PPAT_CACHED_PDE;
+
+	return PPAT_UNCACHED;
+}
+
+static u64 pte_encode_cache(enum xe_cache_level cache)
+{
+	/* FIXME: I don't think the PPAT handling is correct for MTL */
+	switch (cache) {
+	case XE_CACHE_NONE:
+		return PPAT_UNCACHED;
+	case XE_CACHE_WT:
+		return PPAT_DISPLAY_ELLC;
+	default:
+		return PPAT_CACHED;
+	}
+}
+
+static u64 pte_encode_ps(u32 pt_level)
+{
+	/* XXX: Does hw support 1 GiB pages? */
+	XE_WARN_ON(pt_level > 2);
+
+	if (pt_level == 1)
+		return XE_PDE_PS_2M;
+	else if (pt_level == 2)
+		return XE_PDPE_PS_1G;
+
+	return 0;
+}
+
+static u64 xelp_pde_encode_bo(struct xe_bo *bo, u64 bo_offset,
+			      const enum xe_cache_level cache)
+{
+	u64 pde;
+
+	pde = xe_bo_addr(bo, bo_offset, XE_PAGE_SIZE);
+	pde |= XE_PAGE_PRESENT | XE_PAGE_RW;
+	pde |= pde_encode_cache(cache);
+
+	return pde;
+}
+
+static u64 xelp_pte_encode_bo(struct xe_bo *bo, u64 bo_offset,
+			      enum xe_cache_level cache, u32 pt_level)
+{
+	u64 pte;
+
+	pte = xe_bo_addr(bo, bo_offset, XE_PAGE_SIZE);
+	pte |= XE_PAGE_PRESENT | XE_PAGE_RW;
+	pte |= pte_encode_cache(cache);
+	pte |= pte_encode_ps(pt_level);
+
+	if (xe_bo_is_vram(bo) || xe_bo_is_stolen_devmem(bo))
+		pte |= XE_PPGTT_PTE_DM;
+
+	return pte;
+}
+
+static u64 xelp_pte_encode_vma(u64 pte, struct xe_vma *vma,
+			       enum xe_cache_level cache, u32 pt_level)
+{
+	pte |= XE_PAGE_PRESENT;
+
+	if (likely(!xe_vma_read_only(vma)))
+		pte |= XE_PAGE_RW;
+
+	pte |= pte_encode_cache(cache);
+	pte |= pte_encode_ps(pt_level);
+
+	if (unlikely(xe_vma_is_null(vma)))
+		pte |= XE_PTE_NULL;
+
+	return pte;
+}
+
+static const struct xe_pt_ops xelp_pt_ops = {
+	.pte_encode_bo = xelp_pte_encode_bo,
+	.pte_encode_vma = xelp_pte_encode_vma,
+	.pde_encode_bo = xelp_pde_encode_bo,
+};
+
 static void xe_vma_op_work_func(struct work_struct *w);
 static void vm_destroy_work_func(struct work_struct *w);
 
@@ -1256,6 +1343,8 @@ struct xe_vm *xe_vm_create(struct xe_device *xe, u32 flags)
 		xe_range_fence_tree_init(&vm->rftree[id]);
 
 	INIT_LIST_HEAD(&vm->extobj.list);
+
+	vm->pt_ops = &xelp_pt_ops;
 
 	if (!(flags & XE_VM_FLAG_MIGRATION))
 		xe_device_mem_access_get(xe);
@@ -1576,8 +1665,8 @@ struct xe_vm *xe_vm_lookup(struct xe_file *xef, u32 id)
 
 u64 xe_vm_pdp4_descriptor(struct xe_vm *vm, struct xe_tile *tile)
 {
-	return xe_pde_encode(vm->pt_root[tile->id]->bo, 0,
-			     XE_CACHE_WB);
+	return vm->pt_ops->pde_encode_bo(vm->pt_root[tile->id]->bo, 0,
+					 XE_CACHE_WB);
 }
 
 static struct dma_fence *

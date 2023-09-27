@@ -6,7 +6,12 @@
 #ifndef _XE_PT_TYPES_H_
 #define _XE_PT_TYPES_H_
 
+#include <linux/types.h>
+
 #include "xe_pt_walk.h"
+
+struct xe_bo;
+struct xe_vma;
 
 enum xe_cache_level {
 	XE_CACHE_NONE,
@@ -27,6 +32,15 @@ struct xe_pt {
 	/** addr: Virtual address start address of the PT. */
 	u64 addr;
 #endif
+};
+
+struct xe_pt_ops {
+	u64 (*pte_encode_bo)(struct xe_bo *bo, u64 bo_offset,
+			     enum xe_cache_level cache, u32 pt_level);
+	u64 (*pte_encode_vma)(u64 pte, struct xe_vma *vma,
+			      enum xe_cache_level cache, u32 pt_level);
+	u64 (*pde_encode_bo)(struct xe_bo *bo, u64 bo_offset,
+			     const enum xe_cache_level cache);
 };
 
 struct xe_pt_entry {
