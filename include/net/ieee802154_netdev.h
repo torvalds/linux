@@ -149,6 +149,11 @@ struct ieee802154_assoc_req_pl {
 #endif
 } __packed;
 
+struct ieee802154_assoc_resp_pl {
+	__le16 short_addr;
+	u8 status;
+} __packed;
+
 enum ieee802154_frame_version {
 	IEEE802154_2003_STD,
 	IEEE802154_2006_STD,

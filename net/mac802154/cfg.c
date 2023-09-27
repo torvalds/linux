@@ -315,6 +315,74 @@ static int mac802154_stop_beacons(struct wpan_phy *wpan_phy,
 	return mac802154_stop_beacons_locked(local, sdata);
 }
 
+static int mac802154_associate(struct wpan_phy *wpan_phy,
+			       struct wpan_dev *wpan_dev,
+			       struct ieee802154_addr *coord)
+{
+	struct ieee802154_local *local = wpan_phy_priv(wpan_phy);
+	u64 ceaddr = swab64((__force u64)coord->extended_addr);
+	struct ieee802154_sub_if_data *sdata;
+	struct ieee802154_pan_device *parent;
+	__le16 short_addr;
+	int ret;
+
+	ASSERT_RTNL();
+
+	sdata = IEEE802154_WPAN_DEV_TO_SUB_IF(wpan_dev);
+
+	if (wpan_dev->parent) {
+		dev_err(&sdata->dev->dev,
+			"Device %8phC is already associated\n", &ceaddr);
+		return -EPERM;
+	}
+
+	if (coord->mode == IEEE802154_SHORT_ADDRESSING)
+		return -EINVAL;
+
+	parent = kzalloc(sizeof(*parent), GFP_KERNEL);
+	if (!parent)
+		return -ENOMEM;
+
+	parent->pan_id = coord->pan_id;
+	parent->mode = coord->mode;
+	parent->extended_addr = coord->extended_addr;
+	parent->short_addr = cpu_to_le16(IEEE802154_ADDR_SHORT_BROADCAST);
+
+	/* Set the PAN ID hardware address filter beforehand to avoid dropping
+	 * the association response with a destination PAN ID field set to the
+	 * "new" PAN ID.
+	 */
+	if (local->hw.flags & IEEE802154_HW_AFILT) {
+		ret = drv_set_pan_id(local, coord->pan_id);
+		if (ret < 0)
+			goto free_parent;
+	}
+
+	ret = mac802154_perform_association(sdata, parent, &short_addr);
+	if (ret)
+		goto reset_panid;
+
+	if (local->hw.flags & IEEE802154_HW_AFILT) {
+		ret = drv_set_short_addr(local, short_addr);
+		if (ret < 0)
+			goto reset_panid;
+	}
+
+	wpan_dev->pan_id = coord->pan_id;
+	wpan_dev->short_addr = short_addr;
+	wpan_dev->parent = parent;
+
+	return 0;
+
+reset_panid:
+	if (local->hw.flags & IEEE802154_HW_AFILT)
+		drv_set_pan_id(local, cpu_to_le16(IEEE802154_PAN_ID_BROADCAST));
+
+free_parent:
+	kfree(parent);
+	return ret;
+}
+
 #ifdef CONFIG_IEEE802154_NL802154_EXPERIMENTAL
 static void
 ieee802154_get_llsec_table(struct wpan_phy *wpan_phy,
@@ -526,6 +594,7 @@ const struct cfg802154_ops mac802154_config_ops = {
 	.abort_scan = mac802154_abort_scan,
 	.send_beacons = mac802154_send_beacons,
 	.stop_beacons = mac802154_stop_beacons,
+	.associate = mac802154_associate,
 #ifdef CONFIG_IEEE802154_NL802154_EXPERIMENTAL
 	.get_llsec_table = ieee802154_get_llsec_table,
 	.lock_llsec_table = ieee802154_lock_llsec_table,

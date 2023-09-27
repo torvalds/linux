@@ -510,3 +510,130 @@ int mac802154_send_beacons_locked(struct ieee802154_sub_if_data *sdata,
 
 	return 0;
 }
+
+int mac802154_perform_association(struct ieee802154_sub_if_data *sdata,
+				  struct ieee802154_pan_device *coord,
+				  __le16 *short_addr)
+{
+	u64 ceaddr = swab64((__force u64)coord->extended_addr);
+	struct ieee802154_association_req_frame frame = {};
+	struct ieee802154_local *local = sdata->local;
+	struct wpan_dev *wpan_dev = &sdata->wpan_dev;
+	struct sk_buff *skb;
+	int ret;
+
+	frame.mhr.fc.type = IEEE802154_FC_TYPE_MAC_CMD;
+	frame.mhr.fc.security_enabled = 0;
+	frame.mhr.fc.frame_pending = 0;
+	frame.mhr.fc.ack_request = 1; /* We always expect an ack here */
+	frame.mhr.fc.intra_pan = 0;
+	frame.mhr.fc.dest_addr_mode = (coord->mode == IEEE802154_ADDR_LONG) ?
+		IEEE802154_EXTENDED_ADDRESSING : IEEE802154_SHORT_ADDRESSING;
+	frame.mhr.fc.version = IEEE802154_2003_STD;
+	frame.mhr.fc.source_addr_mode = IEEE802154_EXTENDED_ADDRESSING;
+	frame.mhr.source.mode = IEEE802154_ADDR_LONG;
+	frame.mhr.source.pan_id = cpu_to_le16(IEEE802154_PANID_BROADCAST);
+	frame.mhr.source.extended_addr = wpan_dev->extended_addr;
+	frame.mhr.dest.mode = coord->mode;
+	frame.mhr.dest.pan_id = coord->pan_id;
+	if (coord->mode == IEEE802154_ADDR_LONG)
+		frame.mhr.dest.extended_addr = coord->extended_addr;
+	else
+		frame.mhr.dest.short_addr = coord->short_addr;
+	frame.mhr.seq = atomic_inc_return(&wpan_dev->dsn) & 0xFF;
+	frame.mac_pl.cmd_id = IEEE802154_CMD_ASSOCIATION_REQ;
+	frame.assoc_req_pl.device_type = 1;
+	frame.assoc_req_pl.power_source = 1;
+	frame.assoc_req_pl.rx_on_when_idle = 1;
+	frame.assoc_req_pl.alloc_addr = 1;
+
+	skb = alloc_skb(IEEE802154_MAC_CMD_SKB_SZ + sizeof(frame.assoc_req_pl),
+			GFP_KERNEL);
+	if (!skb)
+		return -ENOBUFS;
+
+	skb->dev = sdata->dev;
+
+	ret = ieee802154_mac_cmd_push(skb, &frame, &frame.assoc_req_pl,
+				      sizeof(frame.assoc_req_pl));
+	if (ret) {
+		kfree_skb(skb);
+		return ret;
+	}
+
+	local->assoc_dev = coord;
+	reinit_completion(&local->assoc_done);
+	set_bit(IEEE802154_IS_ASSOCIATING, &local->ongoing);
+
+	ret = ieee802154_mlme_tx_one_locked(local, sdata, skb);
+	if (ret) {
+		if (ret > 0)
+			ret = (ret == IEEE802154_NO_ACK) ? -EREMOTEIO : -EIO;
+		dev_warn(&sdata->dev->dev,
+			 "No ASSOC REQ ACK received from %8phC\n", &ceaddr);
+		goto clear_assoc;
+	}
+
+	ret = wait_for_completion_killable_timeout(&local->assoc_done, 10 * HZ);
+	if (ret <= 0) {
+		dev_warn(&sdata->dev->dev,
+			 "No ASSOC RESP received from %8phC\n", &ceaddr);
+		ret = -ETIMEDOUT;
+		goto clear_assoc;
+	}
+
+	if (local->assoc_status != IEEE802154_ASSOCIATION_SUCCESSFUL) {
+		if (local->assoc_status == IEEE802154_PAN_AT_CAPACITY)
+			ret = -ERANGE;
+		else
+			ret = -EPERM;
+
+		dev_warn(&sdata->dev->dev,
+			 "Negative ASSOC RESP received from %8phC: %s\n", &ceaddr,
+			 local->assoc_status == IEEE802154_PAN_AT_CAPACITY ?
+			 "PAN at capacity" : "access denied");
+	}
+
+	ret = 0;
+	*short_addr = local->assoc_addr;
+
+clear_assoc:
+	clear_bit(IEEE802154_IS_ASSOCIATING, &local->ongoing);
+	local->assoc_dev = NULL;
+
+	return ret;
+}
+
+int mac802154_process_association_resp(struct ieee802154_sub_if_data *sdata,
+				       struct sk_buff *skb)
+{
+	struct ieee802154_addr *src = &mac_cb(skb)->source;
+	struct ieee802154_addr *dest = &mac_cb(skb)->dest;
+	u64 deaddr = swab64((__force u64)dest->extended_addr);
+	struct ieee802154_local *local = sdata->local;
+	struct wpan_dev *wpan_dev = &sdata->wpan_dev;
+	struct ieee802154_assoc_resp_pl resp_pl = {};
+
+	if (skb->len != sizeof(resp_pl))
+		return -EINVAL;
+
+	if (unlikely(src->mode != IEEE802154_EXTENDED_ADDRESSING ||
+		     dest->mode != IEEE802154_EXTENDED_ADDRESSING))
+		return -EINVAL;
+
+	if (unlikely(dest->extended_addr != wpan_dev->extended_addr ||
+		     src->extended_addr != local->assoc_dev->extended_addr))
+		return -ENODEV;
+
+	memcpy(&resp_pl, skb->data, sizeof(resp_pl));
+	local->assoc_addr = resp_pl.short_addr;
+	local->assoc_status = resp_pl.status;
+
+	dev_dbg(&skb->dev->dev,
+		"ASSOC RESP 0x%x received from %8phC, getting short address %04x\n",
+		local->assoc_status, &deaddr, local->assoc_addr);
+
+	complete(&local->assoc_done);
+
+	return 0;
+}
