@@ -460,7 +460,7 @@ static int cros_ec_lpc_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int cros_ec_lpc_remove(struct platform_device *pdev)
+static void cros_ec_lpc_remove(struct platform_device *pdev)
 {
 	struct cros_ec_device *ec_dev = platform_get_drvdata(pdev);
 	struct acpi_device *adev;
@@ -471,8 +471,6 @@ static int cros_ec_lpc_remove(struct platform_device *pdev)
 					   cros_ec_lpc_acpi_notify);
 
 	cros_ec_unregister(ec_dev);
-
-	return 0;
 }
 
 static const struct acpi_device_id cros_ec_lpc_acpi_device_ids[] = {
@@ -580,7 +578,7 @@ static struct platform_driver cros_ec_lpc_driver = {
 		.probe_type = PROBE_FORCE_SYNCHRONOUS,
 	},
 	.probe = cros_ec_lpc_probe,
-	.remove = cros_ec_lpc_remove,
+	.remove_new = cros_ec_lpc_remove,
 };
 
 static struct platform_device cros_ec_lpc_device = {
