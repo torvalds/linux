@@ -954,6 +954,10 @@ static int btrfs_parse_subvol_options(const char *options, char **subvol_name,
 
 			*subvol_objectid = subvolid;
 			break;
+		case Opt_err:
+			btrfs_err(NULL, "unrecognized mount option '%s'", p);
+			error = -EINVAL;
+			goto out;
 		default:
 			break;
 		}
