@@ -75,36 +75,9 @@ static struct device *system_health_monitor_devp;
 static struct workqueue_struct *shm_svc_workqueue;
 static struct qmi_handle *shm_svc_handle;
 
-/**
- * struct hma_info - Information about a Health Monitor Agent(HMA)
- * @list:		List to chain up the hma to the hma_list.
- * @subsys_name:	Name of the remote subsystem that hosts this HMA.
- * @ssrestart_string:	Remote subsystem restart string.
- * @connected:		Connect state of the HMA.
- * @sq:			Destination sockaddr of QMI client.
- * @timeout:		Timeout as registered by the HMA.
- * @check_count:	Count of the health check attempts.
- * @report_count:	Count of the health reports handled.
- * @is_in_reset:	Flag to identify if the remote subsystem is in reset.
- * @restart_nb:		Notifier block to receive subsystem restart events.
- * @restart_nb_h:	Handle to subsystem restart notifier block.
- * @rs:			Rate-limit the health check.
- * @rproc:		Remoteproc phandler to the subsystem.
- */
-struct hma_info {
-	struct list_head list;
-	char subsys_name[SUBSYS_NAME_LEN];
-	char ssrestart_string[SSRESTART_STRLEN];
-	bool connected;
-	struct sockaddr_qrtr sq;
-	uint32_t timeout;
-	atomic_t check_count;
-	atomic_t report_count;
-	atomic_t is_in_reset;
-	struct notifier_block restart_nb;
-	void *restart_nb_h;
-	struct ratelimit_state rs;
-	struct rproc *rproc;
+enum {
+	SHM_STATE_DEFAULT = 0,
+	SHM_STATE_CHECKING,
 };
 
 struct restart_work {
@@ -113,8 +86,40 @@ struct restart_work {
 	bool connected;
 	u32 sq_node;
 	u32 sq_port;
-	int check_count;
 };
+
+/**
+ * struct hma_info - Information about a Health Monitor Agent(HMA)
+ * @list:		List to chain up the hma to the hma_list.
+ * @subsys_name:	Name of the remote subsystem that hosts this HMA.
+ * @ssrestart_string:	Remote subsystem restart string.
+ * @connected:		Connect state of the HMA.
+ * @sq:			Destination sockaddr of QMI client.
+ * @timeout:		Timeout as registered by the HMA.
+ * @check_state:	The state of shm check.
+ * @is_in_reset:	Flag to identify if the remote subsystem is in reset.
+ * @restart_nb:		Notifier block to receive subsystem restart events.
+ * @restart_nb_h:	Handle to subsystem restart notifier block.
+ * @rs:			Rate-limit the health check.
+ * @rproc:		Remoteproc phandler to the subsystem.
+ * @rwp:		The work_struct to handle shm check fail.
+ */
+struct hma_info {
+	struct list_head list;
+	char subsys_name[SUBSYS_NAME_LEN];
+	char ssrestart_string[SSRESTART_STRLEN];
+	bool connected;
+	struct sockaddr_qrtr sq;
+	uint32_t timeout;
+	atomic_t check_state;
+	atomic_t is_in_reset;
+	struct notifier_block restart_nb;
+	void *restart_nb_h;
+	struct ratelimit_state rs;
+	struct rproc *rproc;
+	struct restart_work rwp;
+};
+
 static void shm_svc_restart_worker(struct work_struct *work);
 
 static DEFINE_MUTEX(hma_info_list_lock);
@@ -137,10 +142,13 @@ static int restart_notifier_cb(struct notifier_block *this,
 {
 	struct hma_info *tmp_hma_info =
 		container_of(this, struct hma_info, restart_nb);
+	struct restart_work *rwp;
 
 	if (code == QCOM_SSR_BEFORE_SHUTDOWN) {
 		atomic_set(&tmp_hma_info->is_in_reset, 1);
 		tmp_hma_info->connected = false;
+		rwp = &tmp_hma_info->rwp;
+		cancel_delayed_work(&rwp->dwork);
 		SHM_INFO_LOG("%s: %s going to shutdown\n",
 			 __func__, tmp_hma_info->ssrestart_string);
 	} else if (code == QCOM_SSR_AFTER_POWERUP) {
@@ -169,23 +177,17 @@ static void shm_svc_restart_worker(struct work_struct *work)
 		container_of(dwork, struct restart_work, dwork);
 	struct hma_info *tmp_hma_info = rwp->hmap;
 
-	if (rwp->check_count <= atomic_read(&tmp_hma_info->report_count)) {
-		SHM_INFO_LOG("%s: No Action on Health Check Attempt %d to %s\n",
-			 __func__, rwp->check_count,
-			 tmp_hma_info->subsys_name);
-		kfree(rwp);
+	if (atomic_read(&tmp_hma_info->check_state) != SHM_STATE_CHECKING) {
+		SHM_INFO_LOG("%s: %s restart worker unexpected\n",
+			 __func__, tmp_hma_info->subsys_name);
 		return;
 	}
-
-	atomic_set(&tmp_hma_info->report_count,
-		atomic_read(&tmp_hma_info->check_count));
 
 	if (!tmp_hma_info->connected || (rwp->sq_node != tmp_hma_info->sq.sq_node ||
 	    rwp->sq_port != tmp_hma_info->sq.sq_port)) {
 		SHM_INFO_LOG(
 			"%s: Connection to %s is reset. No further action\n",
 			 __func__, tmp_hma_info->subsys_name);
-		kfree(rwp);
 		return;
 	}
 
@@ -193,7 +195,6 @@ static void shm_svc_restart_worker(struct work_struct *work)
 		SHM_INFO_LOG(
 			"%s: %s is going thru restart. No further action\n",
 			 __func__, tmp_hma_info->subsys_name);
-		kfree(rwp);
 		return;
 	}
 
@@ -213,7 +214,6 @@ static void shm_svc_restart_worker(struct work_struct *work)
 			SHM_ERR("%s: Error %d restarting %s\n",
 				__func__, rc, tmp_hma_info->ssrestart_string);
 	}
-	kfree(rwp);
 }
 
 /**
@@ -228,19 +228,19 @@ static void shm_svc_restart_worker(struct work_struct *work)
 static int shm_send_health_check_ind(struct hma_info *tmp_hma_info)
 {
 	int rc;
-	struct restart_work *rwp;
+	struct restart_work *rwp = &tmp_hma_info->rwp;
 
-	if (!tmp_hma_info->connected)
+	if (!tmp_hma_info->connected || atomic_read(&tmp_hma_info->is_in_reset))
 		return 0;
 
 	/* Rate limit the health check as configured by the subsystem */
 	if (!__ratelimit(&tmp_hma_info->rs))
 		return 0;
 
-	rwp = kzalloc(sizeof(*rwp), GFP_KERNEL);
-	if (!rwp) {
-		SHM_ERR("%s: Error allocating restart work\n", __func__);
-		return -ENOMEM;
+	if (atomic_cmpxchg(&tmp_hma_info->check_state,
+		SHM_STATE_DEFAULT, SHM_STATE_CHECKING)) {
+		SHM_ERR("%s: Already checking\n", __func__);
+		return 0;
 	}
 
 	INIT_DELAYED_WORK(&rwp->dwork, shm_svc_restart_worker);
@@ -256,11 +256,10 @@ static int shm_send_health_check_ind(struct hma_info *tmp_hma_info)
 	if (rc < 0) {
 		SHM_ERR("%s: Send Error %d to %s\n",
 			__func__, rc, tmp_hma_info->subsys_name);
-		kfree(rwp);
+		atomic_set(&tmp_hma_info->check_state, SHM_STATE_DEFAULT);
 		return rc;
 	}
 
-	rwp->check_count = atomic_inc_return(&tmp_hma_info->check_count);
 	queue_delayed_work(shm_svc_workqueue, &rwp->dwork,
 			   msecs_to_jiffies(tmp_hma_info->timeout));
 	return 0;
@@ -322,8 +321,14 @@ static void shm_reg_req_handler(struct qmi_handle *qmi, struct sockaddr_qrtr *sq
 	mutex_lock(&hma_info_list_lock);
 	list_for_each_entry(tmp_hma_info, &hma_info_list, list) {
 		if (!strcmp(tmp_hma_info->subsys_name, req->name) &&
-		    !tmp_hma_info->connected) {
+		    !atomic_read(&tmp_hma_info->is_in_reset)) {
+			if (tmp_hma_info->connected)
+				SHM_ERR("%s: Duplicate HMA from %s-cur[0x%x:0x%x] new[0x%x:0x%x]\n",
+					__func__, req->name, tmp_hma_info->sq.sq_node,
+					tmp_hma_info->sq.sq_port, sq->sq_node, sq->sq_port);
+
 			tmp_hma_info->connected = true;
+			atomic_set(&tmp_hma_info->check_state, SHM_STATE_DEFAULT);
 			memcpy(&tmp_hma_info->sq, sq, sizeof(*sq));
 			if (req->timeout_valid)
 				tmp_hma_info->timeout = req->timeout;
@@ -336,10 +341,6 @@ static void shm_reg_req_handler(struct qmi_handle *qmi, struct sockaddr_qrtr *sq
 				     __func__, req->name, tmp_hma_info->timeout,
 				     sq->sq_node, sq->sq_port);
 			hma_info_found = true;
-		} else if (!strcmp(tmp_hma_info->subsys_name, req->name)) {
-			SHM_ERR("%s: Duplicate HMA from %s - cur[0x%x:0x%x] new[0x%x:0x%x]\n",
-				__func__, req->name, tmp_hma_info->sq.sq_node,
-				tmp_hma_info->sq.sq_port, sq->sq_node, sq->sq_port);
 		}
 	}
 	mutex_unlock(&hma_info_list_lock);
@@ -371,6 +372,7 @@ static void shm_chk_comp_req_handler(struct qmi_handle *qmi, struct sockaddr_qrt
 	struct hma_info *tmp_hma_info;
 	bool hma_info_found = false;
 	int rc;
+	struct restart_work *rwp;
 
 	resp = kzalloc(sizeof(*resp), GFP_KERNEL);
 	if (!resp) {
@@ -390,11 +392,18 @@ static void shm_chk_comp_req_handler(struct qmi_handle *qmi, struct sockaddr_qrt
 		    tmp_hma_info->sq.sq_node != sq->sq_node ||
 		    tmp_hma_info->sq.sq_port != sq->sq_port)
 			continue;
+		rwp = &tmp_hma_info->rwp;
 		hma_info_found = true;
 		if (req->result == HEALTH_MONITOR_CHECK_SUCCESS_V01) {
-			atomic_inc(&tmp_hma_info->report_count);
-			SHM_INFO_LOG("%s: %s Health Check Success\n",
-				 __func__, tmp_hma_info->subsys_name);
+			if (atomic_cmpxchg(&tmp_hma_info->check_state,
+				SHM_STATE_CHECKING, SHM_STATE_DEFAULT)) {
+				SHM_INFO_LOG("%s: %s Health Check Success\n",
+					__func__, tmp_hma_info->subsys_name);
+				cancel_delayed_work_sync(&rwp->dwork);
+			} else {
+				SHM_INFO_LOG("%s: %s Health Check Unexpected.\n",
+					 __func__, tmp_hma_info->subsys_name);
+			}
 		} else {
 			SHM_INFO_LOG("%s: %s Health Check Failure\n",
 				 __func__, tmp_hma_info->subsys_name);
@@ -434,8 +443,6 @@ static void shm_svc_disconnect_cb(struct qmi_handle *qmi,
 				 __func__, node, port,
 				 tmp_hma_info->subsys_name);
 			tmp_hma_info->connected = false;
-			atomic_set(&tmp_hma_info->report_count,
-				   atomic_read(&tmp_hma_info->check_count));
 			break;
 		}
 	}
