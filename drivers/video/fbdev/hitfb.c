@@ -328,8 +328,9 @@ static int hitfb_set_par(struct fb_info *info)
 
 static const struct fb_ops hitfb_ops = {
 	.owner		= THIS_MODULE,
+	__FB_DEFAULT_IOMEM_OPS_RDWR,
 	.fb_check_var	= hitfb_check_var,
-	.fb_set_par		= hitfb_set_par,
+	.fb_set_par	= hitfb_set_par,
 	.fb_setcolreg	= hitfb_setcolreg,
 	.fb_blank	= hitfb_blank,
 	.fb_sync	= hitfb_sync,
@@ -337,6 +338,7 @@ static const struct fb_ops hitfb_ops = {
 	.fb_fillrect	= hitfb_fillrect,
 	.fb_copyarea	= hitfb_copyarea,
 	.fb_imageblit	= cfb_imageblit,
+	__FB_DEFAULT_IOMEM_OPS_MMAP,
 };
 
 static int hitfb_probe(struct platform_device *dev)
