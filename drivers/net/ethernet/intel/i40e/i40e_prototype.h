@@ -6,6 +6,7 @@
 
 #include "i40e_type.h"
 #include "i40e_alloc.h"
+#include "i40e_debug.h"
 #include <linux/avf/virtchnl.h>
 
 /* Prototypes for shared code functions that are not in
