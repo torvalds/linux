@@ -718,7 +718,7 @@ int btrfs_cow_block(struct btrfs_trans_handle *trans,
 		return 0;
 	}
 
-	search_start = buf->start & ~((u64)SZ_1G - 1);
+	search_start = round_down(buf->start, SZ_1G);
 
 	/*
 	 * Before CoWing this block for later modification, check if it's
