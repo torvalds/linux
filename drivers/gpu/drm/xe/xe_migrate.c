@@ -261,7 +261,8 @@ static int xe_migrate_prepare_vm(struct xe_tile *tile, struct xe_migrate *m,
 
 		level = 2;
 		ofs = map_ofs + XE_PAGE_SIZE * level + 256 * 8;
-		flags = vm->pt_ops->pte_encode_addr(0, XE_CACHE_WB, level, true, 0);
+		flags = vm->pt_ops->pte_encode_addr(xe, 0, XE_CACHE_WB, level,
+						    true, 0);
 
 		/*
 		 * Use 1GB pages, it shouldn't matter the physical amount of
@@ -498,7 +499,8 @@ static void emit_pte(struct xe_migrate *m,
 				devmem = true;
 			}
 
-			addr = m->q->vm->pt_ops->pte_encode_addr(addr, XE_CACHE_WB,
+			addr = m->q->vm->pt_ops->pte_encode_addr(m->tile->xe,
+								 addr, XE_CACHE_WB,
 								 0, devmem, flags);
 			bb->cs[bb->len++] = lower_32_bits(addr);
 			bb->cs[bb->len++] = upper_32_bits(addr);

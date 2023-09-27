@@ -11,6 +11,7 @@
 #include "xe_pt_walk.h"
 
 struct xe_bo;
+struct xe_device;
 struct xe_vma;
 
 enum xe_cache_level {
@@ -40,7 +41,8 @@ struct xe_pt_ops {
 			     enum xe_cache_level cache, u32 pt_level);
 	u64 (*pte_encode_vma)(u64 pte, struct xe_vma *vma,
 			      enum xe_cache_level cache, u32 pt_level);
-	u64 (*pte_encode_addr)(u64 addr, enum xe_cache_level cache,
+	u64 (*pte_encode_addr)(struct xe_device *xe, u64 addr,
+			       enum xe_cache_level cache,
 			       u32 pt_level, bool devmem, u64 flags);
 	u64 (*pde_encode_bo)(struct xe_bo *bo, u64 bo_offset,
 			     const enum xe_cache_level cache);

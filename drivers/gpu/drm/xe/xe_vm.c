@@ -1210,27 +1210,38 @@ static struct drm_gpuvm_ops gpuvm_ops = {
 	.vm_free = xe_vm_free,
 };
 
-static u64 pde_encode_cache(enum xe_cache_level cache)
+static u64 pde_encode_cache(struct xe_device *xe, enum xe_cache_level cache)
 {
-	/* FIXME: I don't think the PPAT handling is correct for MTL */
+	u32 pat_index = xe->pat.idx[cache];
+	u64 pte = 0;
 
-	if (cache != XE_CACHE_NONE)
-		return PPAT_CACHED_PDE;
+	if (pat_index & BIT(0))
+		pte |= XE_PPGTT_PTE_PAT0;
 
-	return PPAT_UNCACHED;
+	if (pat_index & BIT(1))
+		pte |= XE_PPGTT_PTE_PAT1;
+
+	return pte;
 }
 
-static u64 pte_encode_cache(enum xe_cache_level cache)
+static u64 pte_encode_cache(struct xe_device *xe, enum xe_cache_level cache)
 {
-	/* FIXME: I don't think the PPAT handling is correct for MTL */
-	switch (cache) {
-	case XE_CACHE_NONE:
-		return PPAT_UNCACHED;
-	case XE_CACHE_WT:
-		return PPAT_DISPLAY_ELLC;
-	default:
-		return PPAT_CACHED;
-	}
+	u32 pat_index = xe->pat.idx[cache];
+	u64 pte = 0;
+
+	if (pat_index & BIT(0))
+		pte |= XE_PPGTT_PTE_PAT0;
+
+	if (pat_index & BIT(1))
+		pte |= XE_PPGTT_PTE_PAT1;
+
+	if (pat_index & BIT(2))
+		pte |= XE_PPGTT_PTE_PAT2;
+
+	if (pat_index & BIT(3))
+		pte |= XELPG_PPGTT_PTE_PAT3;
+
+	return pte;
 }
 
 static u64 pte_encode_ps(u32 pt_level)
@@ -1248,11 +1259,12 @@ static u64 pte_encode_ps(u32 pt_level)
 static u64 xelp_pde_encode_bo(struct xe_bo *bo, u64 bo_offset,
 			      const enum xe_cache_level cache)
 {
+	struct xe_device *xe = xe_bo_device(bo);
 	u64 pde;
 
 	pde = xe_bo_addr(bo, bo_offset, XE_PAGE_SIZE);
 	pde |= XE_PAGE_PRESENT | XE_PAGE_RW;
-	pde |= pde_encode_cache(cache);
+	pde |= pde_encode_cache(xe, cache);
 
 	return pde;
 }
@@ -1260,11 +1272,12 @@ static u64 xelp_pde_encode_bo(struct xe_bo *bo, u64 bo_offset,
 static u64 xelp_pte_encode_bo(struct xe_bo *bo, u64 bo_offset,
 			      enum xe_cache_level cache, u32 pt_level)
 {
+	struct xe_device *xe = xe_bo_device(bo);
 	u64 pte;
 
 	pte = xe_bo_addr(bo, bo_offset, XE_PAGE_SIZE);
 	pte |= XE_PAGE_PRESENT | XE_PAGE_RW;
-	pte |= pte_encode_cache(cache);
+	pte |= pte_encode_cache(xe, cache);
 	pte |= pte_encode_ps(pt_level);
 
 	if (xe_bo_is_vram(bo) || xe_bo_is_stolen_devmem(bo))
@@ -1276,12 +1289,14 @@ static u64 xelp_pte_encode_bo(struct xe_bo *bo, u64 bo_offset,
 static u64 xelp_pte_encode_vma(u64 pte, struct xe_vma *vma,
 			       enum xe_cache_level cache, u32 pt_level)
 {
+	struct xe_device *xe = xe_vma_vm(vma)->xe;
+
 	pte |= XE_PAGE_PRESENT;
 
 	if (likely(!xe_vma_read_only(vma)))
 		pte |= XE_PAGE_RW;
 
-	pte |= pte_encode_cache(cache);
+	pte |= pte_encode_cache(xe, cache);
 	pte |= pte_encode_ps(pt_level);
 
 	if (unlikely(xe_vma_is_null(vma)))
@@ -1290,7 +1305,8 @@ static u64 xelp_pte_encode_vma(u64 pte, struct xe_vma *vma,
 	return pte;
 }
 
-static u64 xelp_pte_encode_addr(u64 addr, enum xe_cache_level cache,
+static u64 xelp_pte_encode_addr(struct xe_device *xe, u64 addr,
+				enum xe_cache_level cache,
 				u32 pt_level, bool devmem, u64 flags)
 {
 	u64 pte;
@@ -1300,7 +1316,7 @@ static u64 xelp_pte_encode_addr(u64 addr, enum xe_cache_level cache,
 
 	pte = addr;
 	pte |= XE_PAGE_PRESENT | XE_PAGE_RW;
-	pte |= pte_encode_cache(cache);
+	pte |= pte_encode_cache(xe, cache);
 	pte |= pte_encode_ps(pt_level);
 
 	if (devmem)

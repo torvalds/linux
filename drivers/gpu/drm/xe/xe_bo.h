@@ -48,10 +48,10 @@
 #define XE_BO_INTERNAL_TEST		BIT(30)
 #define XE_BO_INTERNAL_64K		BIT(31)
 
-#define PPAT_UNCACHED                   GENMASK_ULL(4, 3)
-#define PPAT_CACHED_PDE                 0
-#define PPAT_CACHED                     BIT_ULL(7)
-#define PPAT_DISPLAY_ELLC               BIT_ULL(4)
+#define XELPG_PPGTT_PTE_PAT3		BIT_ULL(62)
+#define XE_PPGTT_PTE_PAT2		BIT_ULL(7)
+#define XE_PPGTT_PTE_PAT1		BIT_ULL(4)
+#define XE_PPGTT_PTE_PAT0		BIT_ULL(3)
 
 #define XE_PTE_SHIFT			12
 #define XE_PAGE_SIZE			(1 << XE_PTE_SHIFT)
