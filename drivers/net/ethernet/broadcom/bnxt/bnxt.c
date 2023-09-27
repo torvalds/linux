@@ -10280,7 +10280,7 @@ static struct attribute *bnxt_attrs[] = {
 };
 ATTRIBUTE_GROUPS(bnxt);
 
-static void bnxt_hwmon_close(struct bnxt *bp)
+static void bnxt_hwmon_uninit(struct bnxt *bp)
 {
 	if (bp->hwmon_dev) {
 		hwmon_device_unregister(bp->hwmon_dev);
@@ -10288,7 +10288,7 @@ static void bnxt_hwmon_close(struct bnxt *bp)
 	}
 }
 
-static void bnxt_hwmon_open(struct bnxt *bp)
+static void bnxt_hwmon_init(struct bnxt *bp)
 {
 	struct hwrm_temp_monitor_query_input *req;
 	struct pci_dev *pdev = bp->pdev;
@@ -10298,7 +10298,7 @@ static void bnxt_hwmon_open(struct bnxt *bp)
 	if (!rc)
 		rc = hwrm_req_send_silent(bp, req);
 	if (rc == -EACCES || rc == -EOPNOTSUPP) {
-		bnxt_hwmon_close(bp);
+		bnxt_hwmon_uninit(bp);
 		return;
 	}
 
@@ -10314,11 +10314,11 @@ static void bnxt_hwmon_open(struct bnxt *bp)
 	}
 }
 #else
-static void bnxt_hwmon_close(struct bnxt *bp)
+static void bnxt_hwmon_uninit(struct bnxt *bp)
 {
 }
 
-static void bnxt_hwmon_open(struct bnxt *bp)
+static void bnxt_hwmon_init(struct bnxt *bp)
 {
 }
 #endif
@@ -10651,7 +10651,6 @@ static int bnxt_open(struct net_device *dev)
 				bnxt_reenable_sriov(bp);
 			}
 		}
-		bnxt_hwmon_open(bp);
 	}
 
 	return rc;
@@ -10736,7 +10735,6 @@ static int bnxt_close(struct net_device *dev)
 {
 	struct bnxt *bp = netdev_priv(dev);
 
-	bnxt_hwmon_close(bp);
 	bnxt_close_nic(bp, true, true);
 	bnxt_hwrm_shutdown_link(bp);
 	bnxt_hwrm_if_change(bp, false);
@@ -12300,6 +12298,7 @@ static int bnxt_fw_init_one_p2(struct bnxt *bp)
 	if (bp->fw_cap & BNXT_FW_CAP_PTP)
 		__bnxt_hwrm_ptp_qcfg(bp);
 	bnxt_dcb_init(bp);
+	bnxt_hwmon_init(bp);
 	return 0;
 }
 
@@ -13205,6 +13204,7 @@ static void bnxt_remove_one(struct pci_dev *pdev)
 	bnxt_clear_int_mode(bp);
 	bnxt_hwrm_func_drv_unrgtr(bp);
 	bnxt_free_hwrm_resources(bp);
+	bnxt_hwmon_uninit(bp);
 	bnxt_ethtool_free(bp);
 	bnxt_dcb_free(bp);
 	kfree(bp->ptp_cfg);
@@ -13801,6 +13801,7 @@ init_err_dl:
 init_err_pci_clean:
 	bnxt_hwrm_func_drv_unrgtr(bp);
 	bnxt_free_hwrm_resources(bp);
+	bnxt_hwmon_uninit(bp);
 	bnxt_ethtool_free(bp);
 	bnxt_ptp_clear(bp);
 	kfree(bp->ptp_cfg);
