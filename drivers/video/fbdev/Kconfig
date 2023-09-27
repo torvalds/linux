@@ -793,10 +793,8 @@ config FB_I740
 config FB_I810
 	tristate "Intel 810/815 support"
 	depends on FB && PCI && X86_32 && AGP_INTEL
+	select FB_IOMEM_FOPS
 	select FB_MODE_HELPERS
-	select FB_CFB_FILLRECT
-	select FB_CFB_COPYAREA
-	select FB_CFB_IMAGEBLIT
 	select VGASTATE
 	select VIDEO_NOMODESET
 	help
