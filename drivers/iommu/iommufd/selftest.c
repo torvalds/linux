@@ -141,15 +141,9 @@ static void *mock_domain_hw_info(struct device *dev, u32 *length, u32 *type)
 	return info;
 }
 
-static struct iommu_domain *mock_domain_alloc(unsigned int iommu_domain_type)
+static struct iommu_domain *mock_domain_alloc_paging(struct device *dev)
 {
 	struct mock_iommu_domain *mock;
-
-	if (iommu_domain_type == IOMMU_DOMAIN_BLOCKED)
-		return &mock_blocking_domain;
-
-	if (iommu_domain_type != IOMMU_DOMAIN_UNMANAGED)
-		return NULL;
 
 	mock = kzalloc(sizeof(*mock), GFP_KERNEL);
 	if (!mock)
@@ -295,10 +289,11 @@ static const struct iommu_ops mock_ops = {
 	 * because it is zero.
 	 */
 	.default_domain = &mock_blocking_domain,
+	.blocked_domain = &mock_blocking_domain,
 	.owner = THIS_MODULE,
 	.pgsize_bitmap = MOCK_IO_PAGE_SIZE,
 	.hw_info = mock_domain_hw_info,
-	.domain_alloc = mock_domain_alloc,
+	.domain_alloc_paging = mock_domain_alloc_paging,
 	.capable = mock_domain_capable,
 	.device_group = generic_device_group,
 	.probe_device = mock_probe_device,
