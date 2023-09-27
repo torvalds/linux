@@ -243,7 +243,7 @@ free_parsed_glob:
 
 free_copy:
 	if (*err)
-		kfree(copy);
+		kfree(copy_start);
 
 	return filtered;
 }
