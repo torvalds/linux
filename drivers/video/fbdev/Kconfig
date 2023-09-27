@@ -309,9 +309,7 @@ config FB_OF
 config FB_CONTROL
 	bool "Apple \"control\" display support"
 	depends on (FB = y) && ((PPC_PMAC && PPC32) || COMPILE_TEST)
-	select FB_CFB_FILLRECT
-	select FB_CFB_COPYAREA
-	select FB_CFB_IMAGEBLIT
+	select FB_IOMEM_HELPERS
 	select FB_MACMODES
 	help
 	  This driver supports a frame buffer for the graphics adapter in the
