@@ -2124,12 +2124,7 @@ free_opp:
 	return ret;
 }
 
-/**
- * _opp_set_supported_hw() - Set supported platforms
- * @dev: Device for which supported-hw has to be set.
- * @versions: Array of hierarchy of versions to match.
- * @count: Number of elements in the array.
- *
+/*
  * This is required only for the V2 bindings, and it enables a platform to
  * specify the hierarchy of versions it supports. OPP layer will then enable
  * OPPs, which are available for those versions, based on its 'opp-supported-hw'
@@ -2152,14 +2147,6 @@ static int _opp_set_supported_hw(struct opp_table *opp_table,
 	return 0;
 }
 
-/**
- * _opp_put_supported_hw() - Releases resources blocked for supported hw
- * @opp_table: OPP table returned by _opp_set_supported_hw().
- *
- * This is required only for the V2 bindings, and is called for a matching
- * _opp_set_supported_hw(). Until this is called, the opp_table structure
- * will not be freed.
- */
 static void _opp_put_supported_hw(struct opp_table *opp_table)
 {
 	if (opp_table->supported_hw) {
@@ -2169,11 +2156,7 @@ static void _opp_put_supported_hw(struct opp_table *opp_table)
 	}
 }
 
-/**
- * _opp_set_prop_name() - Set prop-extn name
- * @dev: Device for which the prop-name has to be set.
- * @name: name to postfix to properties.
- *
+/*
  * This is required only for the V2 bindings, and it enables a platform to
  * specify the extn to be used for certain property names. The properties to
  * which the extension will apply are opp-microvolt and opp-microamp. OPP core
@@ -2191,14 +2174,6 @@ static int _opp_set_prop_name(struct opp_table *opp_table, const char *name)
 	return 0;
 }
 
-/**
- * _opp_put_prop_name() - Releases resources blocked for prop-name
- * @opp_table: OPP table returned by _opp_set_prop_name().
- *
- * This is required only for the V2 bindings, and is called for a matching
- * _opp_set_prop_name(). Until this is called, the opp_table structure
- * will not be freed.
- */
 static void _opp_put_prop_name(struct opp_table *opp_table)
 {
 	if (opp_table->prop_name) {
@@ -2207,12 +2182,7 @@ static void _opp_put_prop_name(struct opp_table *opp_table)
 	}
 }
 
-/**
- * _opp_set_regulators() - Set regulator names for the device
- * @dev: Device for which regulator name is being set.
- * @names: Array of pointers to the names of the regulator.
- * @count: Number of regulators.
- *
+/*
  * In order to support OPP switching, OPP layer needs to know the name of the
  * device's regulators, as the core would be required to switch voltages as
  * well.
@@ -2274,10 +2244,6 @@ free_regulators:
 	return ret;
 }
 
-/**
- * _opp_put_regulators() - Releases resources blocked for regulator
- * @opp_table: OPP table returned from _opp_set_regulators().
- */
 static void _opp_put_regulators(struct opp_table *opp_table)
 {
 	int i;
@@ -2309,11 +2275,7 @@ static void _put_clks(struct opp_table *opp_table, int count)
 	opp_table->clks = NULL;
 }
 
-/**
- * _opp_set_clknames() - Set clk names for the device
- * @dev: Device for which clk names is being set.
- * @names: Clk names.
- *
+/*
  * In order to support OPP switching, OPP layer needs to get pointers to the
  * clocks for the device. Simple cases work fine without using this routine
  * (i.e. by passing connection-id as NULL), but for a device with multiple
@@ -2397,10 +2359,6 @@ free_clks:
 	return ret;
 }
 
-/**
- * _opp_put_clknames() - Releases resources blocked for clks.
- * @opp_table: OPP table returned from _opp_set_clknames().
- */
 static void _opp_put_clknames(struct opp_table *opp_table)
 {
 	if (!opp_table->clks)
@@ -2412,11 +2370,7 @@ static void _opp_put_clknames(struct opp_table *opp_table)
 	_put_clks(opp_table, opp_table->clk_count);
 }
 
-/**
- * _opp_set_config_regulators_helper() - Register custom set regulator helper.
- * @dev: Device for which the helper is getting registered.
- * @config_regulators: Custom set regulator helper.
- *
+/*
  * This is useful to support platforms with multiple regulators per device.
  *
  * This must be called before any OPPs are initialized for the device.
@@ -2431,13 +2385,6 @@ static int _opp_set_config_regulators_helper(struct opp_table *opp_table,
 	return 0;
 }
 
-/**
- * _opp_put_config_regulators_helper() - Releases resources blocked for
- *					 config_regulators helper.
- * @opp_table: OPP table returned from _opp_set_config_regulators_helper().
- *
- * Release resources blocked for platform specific config_regulators helper.
- */
 static void _opp_put_config_regulators_helper(struct opp_table *opp_table)
 {
 	if (opp_table->config_regulators)
@@ -2463,12 +2410,7 @@ static void _detach_genpd(struct opp_table *opp_table)
 	opp_table->genpd_virt_devs = NULL;
 }
 
-/**
- * _opp_attach_genpd - Attach genpd(s) for the device and save virtual device pointer
- * @dev: Consumer device for which the genpd is getting attached.
- * @names: Null terminated array of pointers containing names of genpd to attach.
- * @virt_devs: Pointer to return the array of virtual devices.
- *
+/*
  * Multiple generic power domains for a device are supported with the help of
  * virtual genpd devices, which are created for each consumer device - genpd
  * pair. These are the device structures which are attached to the power domain
@@ -2544,13 +2486,6 @@ unlock:
 
 }
 
-/**
- * _opp_detach_genpd() - Detach genpd(s) from the device.
- * @opp_table: OPP table returned by _opp_attach_genpd().
- *
- * This detaches the genpd(s), resets the virtual device pointers, and puts the
- * OPP table.
- */
 static void _opp_detach_genpd(struct opp_table *opp_table)
 {
 	/*
@@ -2702,7 +2637,7 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_set_config);
 
 /**
  * dev_pm_opp_clear_config() - Releases resources blocked for OPP configuration.
- * @opp_table: OPP table returned from dev_pm_opp_set_config().
+ * @token: The token returned by dev_pm_opp_set_config() previously.
  *
  * This allows all device OPP configurations to be cleared at once. This must be
  * called once for each call made to dev_pm_opp_set_config(), in order to free
