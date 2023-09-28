@@ -32,6 +32,12 @@ unique_id
 .. kernel-doc:: drivers/gpu/drm/amd/pm/amdgpu_pm.c
    :doc: unique_id
 
+board_info
+----------
+
+.. kernel-doc:: drivers/gpu/drm/amd/amdgpu/amdgpu_device.c
+   :doc: board_info
+
 Accelerated Processing Units (APU) Info
 ---------------------------------------
 
