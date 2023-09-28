@@ -139,6 +139,83 @@ static void vmx_l1_guest_code(struct vmx_pages *vmx_pages)
 static void __attribute__((__flatten__)) guest_code(void *arg)
 {
 	GUEST_SYNC(1);
+
+	if (this_cpu_has(X86_FEATURE_XSAVE)) {
+		uint64_t supported_xcr0 = this_cpu_supported_xcr0();
+		uint8_t buffer[4096];
+
+		memset(buffer, 0xcc, sizeof(buffer));
+
+		set_cr4(get_cr4() | X86_CR4_OSXSAVE);
+		GUEST_ASSERT(this_cpu_has(X86_FEATURE_OSXSAVE));
+
+		xsetbv(0, xgetbv(0) | supported_xcr0);
+
+		/*
+		 * Modify state for all supported xfeatures to take them out of
+		 * their "init" state, i.e. to make them show up in XSTATE_BV.
+		 *
+		 * Note off-by-default features, e.g. AMX, are out of scope for
+		 * this particular testcase as they have a different ABI.
+		 */
+		GUEST_ASSERT(supported_xcr0 & XFEATURE_MASK_FP);
+		asm volatile ("fincstp");
+
+		GUEST_ASSERT(supported_xcr0 & XFEATURE_MASK_SSE);
+		asm volatile ("vmovdqu %0, %%xmm0" :: "m" (buffer));
+
+		if (supported_xcr0 & XFEATURE_MASK_YMM)
+			asm volatile ("vmovdqu %0, %%ymm0" :: "m" (buffer));
+
+		if (supported_xcr0 & XFEATURE_MASK_AVX512) {
+			asm volatile ("kmovq %0, %%k1" :: "r" (-1ull));
+			asm volatile ("vmovupd %0, %%zmm0" :: "m" (buffer));
+			asm volatile ("vmovupd %0, %%zmm16" :: "m" (buffer));
+		}
+
+		if (this_cpu_has(X86_FEATURE_MPX)) {
+			uint64_t bounds[2] = { 10, 0xffffffffull };
+			uint64_t output[2] = { };
+
+			GUEST_ASSERT(supported_xcr0 & XFEATURE_MASK_BNDREGS);
+			GUEST_ASSERT(supported_xcr0 & XFEATURE_MASK_BNDCSR);
+
+			/*
+			 * Don't bother trying to get BNDCSR into the INUSE
+			 * state.  MSR_IA32_BNDCFGS doesn't count as it isn't
+			 * managed via XSAVE/XRSTOR, and BNDCFGU can only be
+			 * modified by XRSTOR.  Stuffing XSTATE_BV in the host
+			 * is simpler than doing XRSTOR here in the guest.
+			 *
+			 * However, temporarily enable MPX in BNDCFGS so that
+			 * BNDMOV actually loads BND1.  If MPX isn't *fully*
+			 * enabled, all MPX instructions are treated as NOPs.
+			 *
+			 * Hand encode "bndmov (%rax),%bnd1" as support for MPX
+			 * mnemonics/registers has been removed from gcc and
+			 * clang (and was never fully supported by clang).
+			 */
+			wrmsr(MSR_IA32_BNDCFGS, BIT_ULL(0));
+			asm volatile (".byte 0x66,0x0f,0x1a,0x08" :: "a" (bounds));
+			/*
+			 * Hand encode "bndmov %bnd1, (%rax)" to sanity check
+			 * that BND1 actually got loaded.
+			 */
+			asm volatile (".byte 0x66,0x0f,0x1b,0x08" :: "a" (output));
+			wrmsr(MSR_IA32_BNDCFGS, 0);
+
+			GUEST_ASSERT_EQ(bounds[0], output[0]);
+			GUEST_ASSERT_EQ(bounds[1], output[1]);
+		}
+		if (this_cpu_has(X86_FEATURE_PKU)) {
+			GUEST_ASSERT(supported_xcr0 & XFEATURE_MASK_PKRU);
+			set_cr4(get_cr4() | X86_CR4_PKE);
+			GUEST_ASSERT(this_cpu_has(X86_FEATURE_OSPKE));
+
+			wrpkru(-1u);
+		}
+	}
+
 	GUEST_SYNC(2);
 
 	if (arg) {

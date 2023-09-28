@@ -68,6 +68,12 @@ struct xstate {
 #define XFEATURE_MASK_OPMASK		BIT_ULL(5)
 #define XFEATURE_MASK_ZMM_Hi256		BIT_ULL(6)
 #define XFEATURE_MASK_Hi16_ZMM		BIT_ULL(7)
+#define XFEATURE_MASK_PT		BIT_ULL(8)
+#define XFEATURE_MASK_PKRU		BIT_ULL(9)
+#define XFEATURE_MASK_PASID		BIT_ULL(10)
+#define XFEATURE_MASK_CET_USER		BIT_ULL(11)
+#define XFEATURE_MASK_CET_KERNEL	BIT_ULL(12)
+#define XFEATURE_MASK_LBR		BIT_ULL(15)
 #define XFEATURE_MASK_XTILE_CFG		BIT_ULL(17)
 #define XFEATURE_MASK_XTILE_DATA	BIT_ULL(18)
 
@@ -147,6 +153,7 @@ struct kvm_x86_cpu_feature {
 #define	X86_FEATURE_CLWB		KVM_X86_CPU_FEATURE(0x7, 0, EBX, 24)
 #define	X86_FEATURE_UMIP		KVM_X86_CPU_FEATURE(0x7, 0, ECX, 2)
 #define	X86_FEATURE_PKU			KVM_X86_CPU_FEATURE(0x7, 0, ECX, 3)
+#define	X86_FEATURE_OSPKE		KVM_X86_CPU_FEATURE(0x7, 0, ECX, 4)
 #define	X86_FEATURE_LA57		KVM_X86_CPU_FEATURE(0x7, 0, ECX, 16)
 #define	X86_FEATURE_RDPID		KVM_X86_CPU_FEATURE(0x7, 0, ECX, 22)
 #define	X86_FEATURE_SGX_LC		KVM_X86_CPU_FEATURE(0x7, 0, ECX, 30)
@@ -551,6 +558,13 @@ static inline void xsetbv(u32 index, u64 value)
 	u32 edx = value >> 32;
 
 	__asm__ __volatile__("xsetbv" :: "a" (eax), "d" (edx), "c" (index));
+}
+
+static inline void wrpkru(u32 pkru)
+{
+	/* Note, ECX and EDX are architecturally required to be '0'. */
+	asm volatile(".byte 0x0f,0x01,0xef\n\t"
+		     : : "a" (pkru), "c"(0), "d"(0));
 }
 
 static inline struct desc_ptr get_gdt(void)
