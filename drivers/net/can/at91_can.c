@@ -347,8 +347,8 @@ static void at91_setup_mailboxes(struct net_device *dev)
 	u32 reg_mid;
 
 	/* Due to a chip bug (errata 50.2.6.3 & 50.3.5.3) the first
-	 * mailbox is disabled. The next 11 mailboxes are used as a
-	 * reception FIFO. The last mailbox is configured with
+	 * mailbox is disabled. The next mailboxes are used as a
+	 * reception FIFO. The last of the RX mailboxes is configured with
 	 * overwrite option. The overwrite flag indicates a FIFO
 	 * overflow.
 	 */
@@ -369,7 +369,7 @@ static void at91_setup_mailboxes(struct net_device *dev)
 		at91_write(priv, AT91_MID(i), AT91_MID_MIDE);
 	}
 
-	/* The last 4 mailboxes are used for transmitting. */
+	/* The last mailboxes are used for transmitting. */
 	for (i = get_mb_tx_first(priv); i <= get_mb_tx_last(priv); i++)
 		set_mb_mode_prio(priv, i, AT91_MB_MODE_TX, 0);
 
