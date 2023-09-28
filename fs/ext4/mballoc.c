@@ -18,6 +18,7 @@
 #include <linux/backing-dev.h>
 #include <linux/freezer.h>
 #include <trace/events/ext4.h>
+#include <kunit/static_stub.h>
 
 /*
  * MUSTDO:
@@ -3956,6 +3957,10 @@ ext4_mb_mark_context(handle_t *handle, struct super_block *sb, bool state,
 	struct buffer_head *gdp_bh;
 	int err;
 	unsigned int i, already, changed = len;
+
+	KUNIT_STATIC_STUB_REDIRECT(ext4_mb_mark_context,
+				   handle, sb, state, group, blkoff, len,
+				   flags, ret_changed);
 
 	if (ret_changed)
 		*ret_changed = 0;
