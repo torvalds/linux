@@ -61,6 +61,11 @@ static ssize_t tpdm_simple_dataset_show(struct device *dev,
 			return -EINVAL;
 		return sysfs_emit(buf, "0x%x\n",
 			drvdata->dsb->patt_mask[tpdm_attr->idx]);
+	case DSB_MSR:
+		if (tpdm_attr->idx >= drvdata->dsb_msr_num)
+			return -EINVAL;
+		return sysfs_emit(buf, "0x%x\n",
+				drvdata->dsb->msr[tpdm_attr->idx]);
 	}
 	return -EINVAL;
 }
@@ -107,6 +112,12 @@ static ssize_t tpdm_simple_dataset_store(struct device *dev,
 		else
 			ret = -EINVAL;
 		break;
+	case DSB_MSR:
+		if (tpdm_attr->idx < drvdata->dsb_msr_num)
+			drvdata->dsb->msr[tpdm_attr->idx] = val;
+		else
+			ret = -EINVAL;
+		break;
 	default:
 		ret = -EINVAL;
 	}
@@ -127,6 +138,22 @@ static umode_t tpdm_dsb_is_visible(struct kobject *kobj,
 	struct tpdm_drvdata *drvdata = dev_get_drvdata(dev->parent);
 
 	if (drvdata && tpdm_has_dsb_dataset(drvdata))
+		return attr->mode;
+
+	return 0;
+}
+
+static umode_t tpdm_dsb_msr_is_visible(struct kobject *kobj,
+				       struct attribute *attr, int n)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct tpdm_drvdata *drvdata = dev_get_drvdata(dev->parent);
+	struct device_attribute *dev_attr =
+		container_of(attr, struct device_attribute, attr);
+	struct tpdm_dataset_attribute *tpdm_attr =
+		container_of(dev_attr, struct tpdm_dataset_attribute, attr);
+
+	if (tpdm_attr->idx < drvdata->dsb_msr_num)
 		return attr->mode;
 
 	return 0;
@@ -193,6 +220,15 @@ static void set_dsb_tier(struct tpdm_drvdata *drvdata)
 	writel_relaxed(val, drvdata->base + TPDM_DSB_TIER);
 }
 
+static void set_dsb_msr(struct tpdm_drvdata *drvdata)
+{
+	int i;
+
+	for (i = 0; i < drvdata->dsb_msr_num; i++)
+		writel_relaxed(drvdata->dsb->msr[i],
+			   drvdata->base + TPDM_DSB_MSR(i));
+}
+
 static void tpdm_enable_dsb(struct tpdm_drvdata *drvdata)
 {
 	u32 val, i;
@@ -215,6 +251,8 @@ static void tpdm_enable_dsb(struct tpdm_drvdata *drvdata)
 	}
 
 	set_dsb_tier(drvdata);
+
+	set_dsb_msr(drvdata);
 
 	val = readl_relaxed(drvdata->base + TPDM_DSB_CR);
 	/* Set the mode of DSB dataset */
@@ -739,6 +777,42 @@ static struct attribute *tpdm_dsb_patt_attrs[] = {
 	NULL,
 };
 
+static struct attribute *tpdm_dsb_msr_attrs[] = {
+	DSB_MSR_ATTR(0),
+	DSB_MSR_ATTR(1),
+	DSB_MSR_ATTR(2),
+	DSB_MSR_ATTR(3),
+	DSB_MSR_ATTR(4),
+	DSB_MSR_ATTR(5),
+	DSB_MSR_ATTR(6),
+	DSB_MSR_ATTR(7),
+	DSB_MSR_ATTR(8),
+	DSB_MSR_ATTR(9),
+	DSB_MSR_ATTR(10),
+	DSB_MSR_ATTR(11),
+	DSB_MSR_ATTR(12),
+	DSB_MSR_ATTR(13),
+	DSB_MSR_ATTR(14),
+	DSB_MSR_ATTR(15),
+	DSB_MSR_ATTR(16),
+	DSB_MSR_ATTR(17),
+	DSB_MSR_ATTR(18),
+	DSB_MSR_ATTR(19),
+	DSB_MSR_ATTR(20),
+	DSB_MSR_ATTR(21),
+	DSB_MSR_ATTR(22),
+	DSB_MSR_ATTR(23),
+	DSB_MSR_ATTR(24),
+	DSB_MSR_ATTR(25),
+	DSB_MSR_ATTR(26),
+	DSB_MSR_ATTR(27),
+	DSB_MSR_ATTR(28),
+	DSB_MSR_ATTR(29),
+	DSB_MSR_ATTR(30),
+	DSB_MSR_ATTR(31),
+	NULL,
+};
+
 static struct attribute *tpdm_dsb_attrs[] = {
 	&dev_attr_dsb_mode.attr,
 	&dev_attr_dsb_trig_ts.attr,
@@ -769,12 +843,19 @@ static struct attribute_group tpdm_dsb_patt_grp = {
 	.name = "dsb_patt",
 };
 
+static struct attribute_group tpdm_dsb_msr_grp = {
+	.attrs = tpdm_dsb_msr_attrs,
+	.is_visible = tpdm_dsb_msr_is_visible,
+	.name = "dsb_msr",
+};
+
 static const struct attribute_group *tpdm_attr_grps[] = {
 	&tpdm_attr_grp,
 	&tpdm_dsb_attr_grp,
 	&tpdm_dsb_edge_grp,
 	&tpdm_dsb_trig_patt_grp,
 	&tpdm_dsb_patt_grp,
+	&tpdm_dsb_msr_grp,
 	NULL,
 };
 
@@ -808,6 +889,10 @@ static int tpdm_probe(struct amba_device *adev, const struct amba_id *id)
 	ret = tpdm_datasets_setup(drvdata);
 	if (ret)
 		return ret;
+
+	if (drvdata && tpdm_has_dsb_dataset(drvdata))
+		of_property_read_u32(drvdata->dev->of_node,
+			   "qcom,dsb_msr_num", &drvdata->dsb_msr_num);
 
 	/* Set up coresight component description */
 	desc.name = coresight_alloc_device_name(&tpdm_devs, dev);
