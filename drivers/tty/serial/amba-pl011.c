@@ -421,7 +421,7 @@ static void pl011_dma_probe(struct uart_amba_port *uap)
 
 		/* We need platform data */
 		if (!plat || !plat->dma_filter) {
-			dev_info(uap->port.dev, "no DMA platform data\n");
+			dev_dbg(uap->port.dev, "no DMA platform data\n");
 			return;
 		}
 
