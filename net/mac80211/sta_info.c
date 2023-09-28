@@ -113,6 +113,23 @@ static int link_sta_info_hash_del(struct ieee80211_local *local,
 			       &link_sta->link_hash_node, link_sta_rht_params);
 }
 
+void ieee80211_purge_sta_txqs(struct sta_info *sta)
+{
+	struct ieee80211_local *local = sta->sdata->local;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(sta->sta.txq); i++) {
+		struct txq_info *txqi;
+
+		if (!sta->sta.txq[i])
+			continue;
+
+		txqi = to_txq_info(sta->sta.txq[i]);
+
+		ieee80211_txq_purge(local, txqi);
+	}
+}
+
 static void __cleanup_single_sta(struct sta_info *sta)
 {
 	int ac, i;
@@ -139,16 +156,7 @@ static void __cleanup_single_sta(struct sta_info *sta)
 		atomic_dec(&ps->num_sta_ps);
 	}
 
-	for (i = 0; i < ARRAY_SIZE(sta->sta.txq); i++) {
-		struct txq_info *txqi;
-
-		if (!sta->sta.txq[i])
-			continue;
-
-		txqi = to_txq_info(sta->sta.txq[i]);
-
-		ieee80211_txq_purge(local, txqi);
-	}
+	ieee80211_purge_sta_txqs(sta);
 
 	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
 		local->total_ps_buffered -= skb_queue_len(&sta->ps_tx_buf[ac]);

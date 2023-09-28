@@ -693,6 +693,19 @@ void __ieee80211_flush_queues(struct ieee80211_local *local,
 					IEEE80211_QUEUE_STOP_REASON_FLUSH,
 					false);
 
+	if (drop) {
+		struct sta_info *sta;
+
+		/* Purge the queues, so the frames on them won't be
+		 * sent during __ieee80211_wake_queue()
+		 */
+		list_for_each_entry(sta, &local->sta_list, list) {
+			if (sdata != sta->sdata)
+				continue;
+			ieee80211_purge_sta_txqs(sta);
+		}
+	}
+
 	drv_flush(local, sdata, queues, drop);
 
 	ieee80211_wake_queues_by_reason(&local->hw, queues,
