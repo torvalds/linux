@@ -553,6 +553,20 @@ static int btrfs_free_stale_devices(dev_t devt, struct btrfs_device *skip_device
 	return ret;
 }
 
+static struct btrfs_fs_devices *find_fsid_by_device(
+					struct btrfs_super_block *disk_super)
+{
+	struct btrfs_fs_devices *fsid_fs_devices;
+	const bool has_metadata_uuid = (btrfs_super_incompat_flags(disk_super) &
+					BTRFS_FEATURE_INCOMPAT_METADATA_UUID);
+
+	/* Find the fs_device by the usual method, if found use it. */
+	fsid_fs_devices = find_fsid(disk_super->fsid,
+		    has_metadata_uuid ? disk_super->metadata_uuid : NULL);
+
+	return fsid_fs_devices;
+}
+
 /*
  * This is only used on mount, and we are protected from competing things
  * messing with our fs_devices by the uuid_mutex, thus we do not need the
@@ -673,10 +687,7 @@ static noinline struct btrfs_device *device_list_add(const char *path,
 		return ERR_PTR(error);
 	}
 
-	if (has_metadata_uuid)
-		fs_devices = find_fsid(disk_super->fsid, disk_super->metadata_uuid);
-	else
-		fs_devices = find_fsid(disk_super->fsid, NULL);
+	fs_devices = find_fsid_by_device(disk_super);
 
 	if (!fs_devices) {
 		fs_devices = alloc_fs_devices(disk_super->fsid);
