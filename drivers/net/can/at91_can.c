@@ -750,67 +750,6 @@ static int at91_poll_rx(struct net_device *dev, int quota)
 	return received;
 }
 
-static void at91_irq_err_frame(struct net_device *dev, const u32 reg_sr)
-{
-	struct net_device_stats *stats = &dev->stats;
-	struct at91_priv *priv = netdev_priv(dev);
-	struct sk_buff *skb;
-	struct can_frame *cf = NULL;
-
-	priv->can.can_stats.bus_error++;
-
-	skb = alloc_can_err_skb(dev, &cf);
-	if (cf)
-		cf->can_id |= CAN_ERR_PROT | CAN_ERR_BUSERROR;
-
-	if (reg_sr & AT91_IRQ_CERR) {
-		netdev_dbg(dev, "CRC error\n");
-
-		stats->rx_errors++;
-		if (cf)
-			cf->data[3] |= CAN_ERR_PROT_LOC_CRC_SEQ;
-	}
-
-	if (reg_sr & AT91_IRQ_SERR) {
-		netdev_dbg(dev, "Stuff error\n");
-
-		stats->rx_errors++;
-		if (cf)
-			cf->data[2] |= CAN_ERR_PROT_STUFF;
-	}
-
-	if (reg_sr & AT91_IRQ_AERR) {
-		netdev_dbg(dev, "NACK error\n");
-
-		stats->tx_errors++;
-		if (cf) {
-			cf->can_id |= CAN_ERR_ACK;
-			cf->data[2] |= CAN_ERR_PROT_TX;
-		}
-	}
-
-	if (reg_sr & AT91_IRQ_FERR) {
-		netdev_dbg(dev, "Format error\n");
-
-		stats->rx_errors++;
-		if (cf)
-			cf->data[2] |= CAN_ERR_PROT_FORM;
-	}
-
-	if (reg_sr & AT91_IRQ_BERR) {
-		netdev_dbg(dev, "Bit error\n");
-
-		stats->tx_errors++;
-		if (cf)
-			cf->data[2] |= CAN_ERR_PROT_TX | CAN_ERR_PROT_BIT;
-	}
-
-	if (!cf)
-		return;
-
-	netif_receive_skb(skb);
-}
-
 static int at91_poll(struct napi_struct *napi, int quota)
 {
 	struct net_device *dev = napi->dev;
@@ -1059,6 +998,67 @@ static void at91_irq_err(struct net_device *dev)
 	netif_rx(skb);
 
 	priv->can.state = new_state;
+}
+
+static void at91_irq_err_frame(struct net_device *dev, const u32 reg_sr)
+{
+	struct net_device_stats *stats = &dev->stats;
+	struct at91_priv *priv = netdev_priv(dev);
+	struct sk_buff *skb;
+	struct can_frame *cf = NULL;
+
+	priv->can.can_stats.bus_error++;
+
+	skb = alloc_can_err_skb(dev, &cf);
+	if (cf)
+		cf->can_id |= CAN_ERR_PROT | CAN_ERR_BUSERROR;
+
+	if (reg_sr & AT91_IRQ_CERR) {
+		netdev_dbg(dev, "CRC error\n");
+
+		stats->rx_errors++;
+		if (cf)
+			cf->data[3] |= CAN_ERR_PROT_LOC_CRC_SEQ;
+	}
+
+	if (reg_sr & AT91_IRQ_SERR) {
+		netdev_dbg(dev, "Stuff error\n");
+
+		stats->rx_errors++;
+		if (cf)
+			cf->data[2] |= CAN_ERR_PROT_STUFF;
+	}
+
+	if (reg_sr & AT91_IRQ_AERR) {
+		netdev_dbg(dev, "NACK error\n");
+
+		stats->tx_errors++;
+		if (cf) {
+			cf->can_id |= CAN_ERR_ACK;
+			cf->data[2] |= CAN_ERR_PROT_TX;
+		}
+	}
+
+	if (reg_sr & AT91_IRQ_FERR) {
+		netdev_dbg(dev, "Format error\n");
+
+		stats->rx_errors++;
+		if (cf)
+			cf->data[2] |= CAN_ERR_PROT_FORM;
+	}
+
+	if (reg_sr & AT91_IRQ_BERR) {
+		netdev_dbg(dev, "Bit error\n");
+
+		stats->tx_errors++;
+		if (cf)
+			cf->data[2] |= CAN_ERR_PROT_TX | CAN_ERR_PROT_BIT;
+	}
+
+	if (!cf)
+		return;
+
+	netif_receive_skb(skb);
 }
 
 /* interrupt handler
