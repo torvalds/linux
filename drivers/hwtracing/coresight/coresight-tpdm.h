@@ -12,6 +12,8 @@
 /* DSB Subunit Registers */
 #define TPDM_DSB_CR		(0x780)
 #define TPDM_DSB_TIER		(0x784)
+#define TPDM_DSB_XPR(n)		(0x7C8 + (n * 4))
+#define TPDM_DSB_XPMR(n)	(0x7E8 + (n * 4))
 #define TPDM_DSB_EDCR(n)	(0x808 + (n * 4))
 #define TPDM_DSB_EDCMR(n)	(0x848 + (n * 4))
 
@@ -80,11 +82,23 @@
 #define TPDM_DSB_MAX_EDCR	16
 /* MAX number of EDCMR registers */
 #define TPDM_DSB_MAX_EDCMR	8
+/* MAX number of DSB pattern */
+#define TPDM_DSB_MAX_PATT	8
 
 #define tpdm_simple_dataset_ro(name, mem, idx)			\
 	(&((struct tpdm_dataset_attribute[]) {			\
 	   {								\
 		__ATTR(name, 0444, tpdm_simple_dataset_show, NULL),	\
+		mem,							\
+		idx,							\
+	   }								\
+	})[0].attr.attr)
+
+#define tpdm_simple_dataset_rw(name, mem, idx)			\
+	(&((struct tpdm_dataset_attribute[]) {			\
+	   {								\
+		__ATTR(name, 0644, tpdm_simple_dataset_show,		\
+		tpdm_simple_dataset_store),		\
 		mem,							\
 		idx,							\
 	   }								\
@@ -98,12 +112,22 @@
 		tpdm_simple_dataset_ro(edcmr##nr,		\
 		DSB_EDGE_CTRL_MASK, nr)
 
+#define DSB_TRIG_PATT_ATTR(nr)					\
+		tpdm_simple_dataset_rw(xpr##nr,			\
+		DSB_TRIG_PATT, nr)
+
+#define DSB_TRIG_PATT_MASK_ATTR(nr)				\
+		tpdm_simple_dataset_rw(xpmr##nr,		\
+		DSB_TRIG_PATT_MASK, nr)
+
 /**
  * struct dsb_dataset - specifics associated to dsb dataset
  * @mode:             DSB programming mode
  * @edge_ctrl_idx     Index number of the edge control
  * @edge_ctrl:        Save value for edge control
  * @edge_ctrl_mask:   Save value for edge control mask
+ * @trig_patt:        Save value for trigger pattern
+ * @trig_patt_mask:   Save value for trigger pattern mask
  * @trig_ts:          Enable/Disable trigger timestamp.
  * @trig_type:        Enable/Disable trigger type.
  */
@@ -112,6 +136,8 @@ struct dsb_dataset {
 	u32			edge_ctrl_idx;
 	u32			edge_ctrl[TPDM_DSB_MAX_EDCR];
 	u32			edge_ctrl_mask[TPDM_DSB_MAX_EDCMR];
+	u32			trig_patt[TPDM_DSB_MAX_PATT];
+	u32			trig_patt_mask[TPDM_DSB_MAX_PATT];
 	bool			trig_ts;
 	bool			trig_type;
 };
@@ -141,6 +167,8 @@ struct tpdm_drvdata {
 enum dataset_mem {
 	DSB_EDGE_CTRL,
 	DSB_EDGE_CTRL_MASK,
+	DSB_TRIG_PATT,
+	DSB_TRIG_PATT_MASK,
 };
 
 /**
