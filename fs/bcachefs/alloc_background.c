@@ -1831,29 +1831,33 @@ void bch2_do_invalidates(struct bch_fs *c)
 		bch2_write_ref_put(c, BCH_WRITE_REF_invalidate);
 }
 
-static int bch2_dev_freespace_init(struct bch_fs *c, struct bch_dev *ca,
-				   unsigned long *last_updated)
+int bch2_dev_freespace_init(struct bch_fs *c, struct bch_dev *ca,
+			    u64 bucket_start, u64 bucket_end)
 {
 	struct btree_trans *trans = bch2_trans_get(c);
 	struct btree_iter iter;
 	struct bkey_s_c k;
 	struct bkey hole;
-	struct bpos end = POS(ca->dev_idx, ca->mi.nbuckets);
+	struct bpos end = POS(ca->dev_idx, bucket_end);
 	struct bch_member *m;
+	unsigned long last_updated = jiffies;
 	int ret;
 
+	BUG_ON(bucket_start > bucket_end);
+	BUG_ON(bucket_end > ca->mi.nbuckets);
+
 	bch2_trans_iter_init(trans, &iter, BTREE_ID_alloc,
-			     POS(ca->dev_idx, ca->mi.first_bucket),
-			     BTREE_ITER_PREFETCH);
+		POS(ca->dev_idx, max_t(u64, ca->mi.first_bucket, bucket_start)),
+		BTREE_ITER_PREFETCH);
 	/*
 	 * Scan the alloc btree for every bucket on @ca, and add buckets to the
 	 * freespace/need_discard/need_gc_gens btrees as needed:
 	 */
 	while (1) {
-		if (*last_updated + HZ * 10 < jiffies) {
+		if (last_updated + HZ * 10 < jiffies) {
 			bch_info(ca, "%s: currently at %llu/%llu",
 				 __func__, iter.pos.offset, ca->mi.nbuckets);
-			*last_updated = jiffies;
+			last_updated = jiffies;
 		}
 
 		bch2_trans_begin(trans);
@@ -1935,7 +1939,6 @@ int bch2_fs_freespace_init(struct bch_fs *c)
 	unsigned i;
 	int ret = 0;
 	bool doing_init = false;
-	unsigned long last_updated = jiffies;
 
 	/*
 	 * We can crash during the device add path, so we need to check this on
@@ -1951,7 +1954,7 @@ int bch2_fs_freespace_init(struct bch_fs *c)
 			doing_init = true;
 		}
 
-		ret = bch2_dev_freespace_init(c, ca, &last_updated);
+		ret = bch2_dev_freespace_init(c, ca, 0, ca->mi.nbuckets);
 		if (ret) {
 			percpu_ref_put(&ca->ref);
 			bch_err_fn(c, ret);

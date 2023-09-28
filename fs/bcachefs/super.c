@@ -1808,9 +1808,11 @@ int bch2_dev_offline(struct bch_fs *c, struct bch_dev *ca, int flags)
 int bch2_dev_resize(struct bch_fs *c, struct bch_dev *ca, u64 nbuckets)
 {
 	struct bch_member *m;
+	u64 old_nbuckets;
 	int ret = 0;
 
 	down_write(&c->state_lock);
+	old_nbuckets = ca->mi.nbuckets;
 
 	if (nbuckets < ca->mi.nbuckets) {
 		bch_err(ca, "Cannot shrink yet");
@@ -1842,6 +1844,18 @@ int bch2_dev_resize(struct bch_fs *c, struct bch_dev *ca, u64 nbuckets)
 
 	bch2_write_super(c);
 	mutex_unlock(&c->sb_lock);
+
+	if (ca->mi.freespace_initialized) {
+		ret = bch2_dev_freespace_init(c, ca, old_nbuckets, nbuckets);
+		if (ret)
+			goto err;
+
+		/*
+		 * XXX: this is all wrong transactionally - we'll be able to do
+		 * this correctly after the disk space accounting rewrite
+		 */
+		ca->usage_base->d[BCH_DATA_free].buckets += nbuckets - old_nbuckets;
+	}
 
 	bch2_recalc_capacity(c);
 err:

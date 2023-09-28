@@ -245,6 +245,7 @@ static inline const struct bch_backpointer *alloc_v4_backpointers_c(const struct
 	return (void *) ((u64 *) &a->v + BCH_ALLOC_V4_BACKPOINTERS_START(a));
 }
 
+int bch2_dev_freespace_init(struct bch_fs *, struct bch_dev *, u64, u64);
 int bch2_fs_freespace_init(struct bch_fs *);
 
 void bch2_recalc_capacity(struct bch_fs *);
