@@ -480,6 +480,9 @@ static int acpi_thermal_get_trip_points(struct acpi_thermal *tz)
 
 	}
 
+	while (++i < ACPI_THERMAL_MAX_ACTIVE)
+		tz->trips.active[i].trip.temperature = THERMAL_TEMP_INVALID;
+
 	return count;
 }
 
