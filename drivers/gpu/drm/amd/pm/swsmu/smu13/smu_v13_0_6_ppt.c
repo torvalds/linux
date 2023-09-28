@@ -1891,13 +1891,6 @@ static bool smu_v13_0_6_is_baco_supported(struct smu_context *smu)
 	return false;
 }
 
-static int smu_v13_0_6_set_df_cstate(struct smu_context *smu,
-				     enum pp_df_cstate state)
-{
-	return smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_DFCstateControl,
-					       state, NULL);
-}
-
 static const char *const throttling_logging_label[] = {
 	[THROTTLER_PROCHOT_BIT] = "Prochot",
 	[THROTTLER_PPT_BIT] = "PPT",
@@ -2804,7 +2797,6 @@ static const struct pptable_funcs smu_v13_0_6_ppt_funcs = {
 	.get_dpm_ultimate_freq = smu_v13_0_6_get_dpm_ultimate_freq,
 	.set_soft_freq_limited_range = smu_v13_0_6_set_soft_freq_limited_range,
 	.od_edit_dpm_table = smu_v13_0_6_usr_edit_dpm_table,
-	.set_df_cstate = smu_v13_0_6_set_df_cstate,
 	.select_xgmi_plpd_policy = smu_v13_0_6_select_xgmi_plpd_policy,
 	.log_thermal_throttling_event = smu_v13_0_6_log_thermal_throttling_event,
 	.get_pp_feature_mask = smu_cmn_get_pp_feature_mask,
