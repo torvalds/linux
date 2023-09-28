@@ -884,6 +884,11 @@ static void at91_irq_err_line(struct net_device *dev, const u32 reg_sr)
 	if (unlikely(!skb))
 		return;
 
+	if (new_state != CAN_STATE_BUS_OFF) {
+		cf->can_id |= CAN_ERR_CNT;
+		cf->data[6] = bec.txerr;
+		cf->data[7] = bec.rxerr;
+	}
 
 	netif_rx(skb);
 }
