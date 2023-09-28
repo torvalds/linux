@@ -4669,6 +4669,9 @@ static int __init io_uring_init(void)
 
 	BUILD_BUG_ON(sizeof(atomic_t) != sizeof(u32));
 
+	/* top 8bits are for internal use */
+	BUILD_BUG_ON((IORING_URING_CMD_MASK & 0xff000000) != 0);
+
 	io_uring_optable_init();
 
 	/*
