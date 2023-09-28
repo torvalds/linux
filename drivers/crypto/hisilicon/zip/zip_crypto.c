@@ -25,6 +25,9 @@
 
 #define HZIP_ALG_DEFLATE			GENMASK(5, 4)
 
+static DEFINE_MUTEX(zip_algs_lock);
+static unsigned int zip_available_devs;
+
 enum hisi_zip_alg_type {
 	HZIP_ALG_TYPE_COMP = 0,
 	HZIP_ALG_TYPE_DECOMP = 1,
@@ -618,10 +621,29 @@ static void hisi_zip_unregister_deflate(struct hisi_qm *qm)
 
 int hisi_zip_register_to_crypto(struct hisi_qm *qm)
 {
-	return hisi_zip_register_deflate(qm);
+	int ret = 0;
+
+	mutex_lock(&zip_algs_lock);
+	if (zip_available_devs++)
+		goto unlock;
+
+	ret = hisi_zip_register_deflate(qm);
+	if (ret)
+		zip_available_devs--;
+
+unlock:
+	mutex_unlock(&zip_algs_lock);
+	return ret;
 }
 
 void hisi_zip_unregister_from_crypto(struct hisi_qm *qm)
 {
+	mutex_lock(&zip_algs_lock);
+	if (--zip_available_devs)
+		goto unlock;
+
 	hisi_zip_unregister_deflate(qm);
+
+unlock:
+	mutex_unlock(&zip_algs_lock);
 }
