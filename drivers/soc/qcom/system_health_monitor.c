@@ -38,7 +38,7 @@ enum {
 static int shm_debug_mask = SHM_INFO_FLAG;
 module_param_named(debug_mask, shm_debug_mask,
 		   int, 0664);
-static int shm_default_timeout_ms = 2000;
+static int shm_default_timeout_ms = 5000;
 module_param_named(default_timeout_ms, shm_default_timeout_ms,
 		   int, 0664);
 
@@ -331,7 +331,7 @@ static void shm_reg_req_handler(struct qmi_handle *qmi, struct sockaddr_qrtr *sq
 			atomic_set(&tmp_hma_info->check_state, SHM_STATE_DEFAULT);
 			memcpy(&tmp_hma_info->sq, sq, sizeof(*sq));
 			if (req->timeout_valid)
-				tmp_hma_info->timeout = req->timeout;
+				tmp_hma_info->timeout = req->timeout + shm_default_timeout_ms;
 			else
 				tmp_hma_info->timeout = shm_default_timeout_ms;
 			ratelimit_state_init(&tmp_hma_info->rs,
