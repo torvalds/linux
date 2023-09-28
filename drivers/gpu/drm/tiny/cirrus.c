@@ -727,6 +727,11 @@ static void cirrus_pci_remove(struct pci_dev *pdev)
 	drm_atomic_helper_shutdown(dev);
 }
 
+static void cirrus_pci_shutdown(struct pci_dev *pdev)
+{
+	drm_atomic_helper_shutdown(pci_get_drvdata(pdev));
+}
+
 static const struct pci_device_id pciidlist[] = {
 	{
 		.vendor    = PCI_VENDOR_ID_CIRRUS,
@@ -748,6 +753,7 @@ static struct pci_driver cirrus_pci_driver = {
 	.id_table = pciidlist,
 	.probe = cirrus_pci_probe,
 	.remove = cirrus_pci_remove,
+	.shutdown = cirrus_pci_shutdown,
 };
 
 drm_module_pci_driver(cirrus_pci_driver)

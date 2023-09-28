@@ -40,7 +40,7 @@
 #include <drm/drm_file.h>
 #include <drm/drm_gem.h>
 #include <drm/drm_managed.h>
-#include <drm/drm_gpuva_mgr.h>
+#include <drm/drm_gpuvm.h>
 
 #include "drm_crtc_internal.h"
 #include "drm_internal.h"
@@ -92,15 +92,17 @@ static int drm_clients_info(struct seq_file *m, void *data)
 	 */
 	mutex_lock(&dev->filelist_mutex);
 	list_for_each_entry_reverse(priv, &dev->filelist, lhead) {
-		struct task_struct *task;
 		bool is_current_master = drm_is_current_master(priv);
+		struct task_struct *task;
+		struct pid *pid;
 
-		rcu_read_lock(); /* locks pid_task()->comm */
-		task = pid_task(priv->pid, PIDTYPE_TGID);
+		rcu_read_lock(); /* Locks priv->pid and pid_task()->comm! */
+		pid = rcu_dereference(priv->pid);
+		task = pid_task(pid, PIDTYPE_TGID);
 		uid = task ? __task_cred(task)->euid : GLOBAL_ROOT_UID;
 		seq_printf(m, "%20s %5d %3d   %c    %c %5d %10u\n",
 			   task ? task->comm : "<unknown>",
-			   pid_vnr(priv->pid),
+			   pid_vnr(pid),
 			   priv->minor->index,
 			   is_current_master ? 'y' : 'n',
 			   priv->authenticated ? 'y' : 'n',
@@ -187,31 +189,31 @@ static const struct file_operations drm_debugfs_fops = {
 /**
  * drm_debugfs_gpuva_info - dump the given DRM GPU VA space
  * @m: pointer to the &seq_file to write
- * @mgr: the &drm_gpuva_manager representing the GPU VA space
+ * @gpuvm: the &drm_gpuvm representing the GPU VA space
  *
  * Dumps the GPU VA mappings of a given DRM GPU VA manager.
  *
  * For each DRM GPU VA space drivers should call this function from their
  * &drm_info_list's show callback.
  *
- * Returns: 0 on success, -ENODEV if the &mgr is not initialized
+ * Returns: 0 on success, -ENODEV if the &gpuvm is not initialized
  */
 int drm_debugfs_gpuva_info(struct seq_file *m,
-			   struct drm_gpuva_manager *mgr)
+			   struct drm_gpuvm *gpuvm)
 {
-	struct drm_gpuva *va, *kva = &mgr->kernel_alloc_node;
+	struct drm_gpuva *va, *kva = &gpuvm->kernel_alloc_node;
 
-	if (!mgr->name)
+	if (!gpuvm->name)
 		return -ENODEV;
 
 	seq_printf(m, "DRM GPU VA space (%s) [0x%016llx;0x%016llx]\n",
-		   mgr->name, mgr->mm_start, mgr->mm_start + mgr->mm_range);
+		   gpuvm->name, gpuvm->mm_start, gpuvm->mm_start + gpuvm->mm_range);
 	seq_printf(m, "Kernel reserved node [0x%016llx;0x%016llx]\n",
 		   kva->va.addr, kva->va.addr + kva->va.range);
 	seq_puts(m, "\n");
 	seq_puts(m, " VAs | start              | range              | end                | object             | object offset\n");
 	seq_puts(m, "-------------------------------------------------------------------------------------------------------------\n");
-	drm_gpuva_for_each_va(va, mgr) {
+	drm_gpuvm_for_each_va(va, gpuvm) {
 		if (unlikely(va == kva))
 			continue;
 

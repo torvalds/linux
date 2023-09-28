@@ -340,3 +340,10 @@ void komeda_kms_detach(struct komeda_kms_dev *kms)
 	komeda_kms_cleanup_private_objs(kms);
 	drm->dev_private = NULL;
 }
+
+void komeda_kms_shutdown(struct komeda_kms_dev *kms)
+{
+	struct drm_device *drm = &kms->base;
+
+	drm_atomic_helper_shutdown(drm);
+}

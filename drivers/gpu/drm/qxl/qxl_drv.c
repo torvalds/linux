@@ -163,6 +163,12 @@ qxl_pci_remove(struct pci_dev *pdev)
 		vga_put(pdev, VGA_RSRC_LEGACY_IO);
 }
 
+static void
+qxl_pci_shutdown(struct pci_dev *pdev)
+{
+	drm_atomic_helper_shutdown(pci_get_drvdata(pdev));
+}
+
 DEFINE_DRM_GEM_FOPS(qxl_fops);
 
 static int qxl_drm_freeze(struct drm_device *dev)
@@ -269,6 +275,7 @@ static struct pci_driver qxl_pci_driver = {
 	 .id_table = pciidlist,
 	 .probe = qxl_pci_probe,
 	 .remove = qxl_pci_remove,
+	 .shutdown = qxl_pci_shutdown,
 	 .driver.pm = &qxl_pm_ops,
 };
 

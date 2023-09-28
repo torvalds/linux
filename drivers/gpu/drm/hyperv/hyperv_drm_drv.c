@@ -178,6 +178,11 @@ static void hyperv_vmbus_remove(struct hv_device *hdev)
 	vmbus_free_mmio(hv->mem->start, hv->fb_size);
 }
 
+static void hyperv_vmbus_shutdown(struct hv_device *hdev)
+{
+	drm_atomic_helper_shutdown(hv_get_drvdata(hdev));
+}
+
 static int hyperv_vmbus_suspend(struct hv_device *hdev)
 {
 	struct drm_device *dev = hv_get_drvdata(hdev);
@@ -220,6 +225,7 @@ static struct hv_driver hyperv_hv_driver = {
 	.id_table = hyperv_vmbus_tbl,
 	.probe = hyperv_vmbus_probe,
 	.remove = hyperv_vmbus_remove,
+	.shutdown = hyperv_vmbus_shutdown,
 	.suspend = hyperv_vmbus_suspend,
 	.resume = hyperv_vmbus_resume,
 	.driver = {

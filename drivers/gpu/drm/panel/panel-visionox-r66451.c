@@ -22,7 +22,6 @@ struct visionox_r66451 {
 	struct mipi_dsi_device *dsi;
 	struct gpio_desc *reset_gpio;
 	struct regulator_bulk_data supplies[2];
-	bool prepared, enabled;
 };
 
 static inline struct visionox_r66451 *to_visionox_r66451(struct drm_panel *panel)
@@ -124,9 +123,6 @@ static int visionox_r66451_prepare(struct drm_panel *panel)
 	struct device *dev = &dsi->dev;
 	int ret;
 
-	if (ctx->prepared)
-		return 0;
-
 	ret = regulator_bulk_enable(ARRAY_SIZE(ctx->supplies),
 				    ctx->supplies);
 	if (ret < 0)
@@ -144,7 +140,6 @@ static int visionox_r66451_prepare(struct drm_panel *panel)
 
 	mipi_dsi_compression_mode(ctx->dsi, true);
 
-	ctx->prepared = true;
 	return 0;
 }
 
@@ -154,9 +149,6 @@ static int visionox_r66451_unprepare(struct drm_panel *panel)
 	struct device *dev = &ctx->dsi->dev;
 	int ret;
 
-	if (!ctx->prepared)
-		return 0;
-
 	ret = visionox_r66451_off(ctx);
 	if (ret < 0)
 		dev_err(dev, "Failed to un-initialize panel: %d\n", ret);
@@ -164,7 +156,6 @@ static int visionox_r66451_unprepare(struct drm_panel *panel)
 	gpiod_set_value_cansleep(ctx->reset_gpio, 1);
 	regulator_bulk_disable(ARRAY_SIZE(ctx->supplies), ctx->supplies);
 
-	ctx->prepared = false;
 	return 0;
 }
 
@@ -189,9 +180,6 @@ static int visionox_r66451_enable(struct drm_panel *panel)
 	struct mipi_dsi_device *dsi = ctx->dsi;
 	struct drm_dsc_picture_parameter_set pps;
 	int ret;
-
-	if (ctx->enabled)
-		return 0;
 
 	if (!dsi->dsc) {
 		dev_err(&dsi->dev, "DSC not attached to DSI\n");
@@ -219,8 +207,6 @@ static int visionox_r66451_enable(struct drm_panel *panel)
 	}
 	msleep(20);
 
-	ctx->enabled = true;
-
 	return 0;
 }
 
@@ -230,8 +216,6 @@ static int visionox_r66451_disable(struct drm_panel *panel)
 	struct mipi_dsi_device *dsi = ctx->dsi;
 	struct device *dev = &dsi->dev;
 	int ret;
-
-	ctx->enabled = false;
 
 	ret = mipi_dsi_dcs_set_display_off(dsi);
 	if (ret < 0) {

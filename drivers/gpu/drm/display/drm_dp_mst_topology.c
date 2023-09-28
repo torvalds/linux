@@ -3308,8 +3308,7 @@ int drm_dp_add_payload_part1(struct drm_dp_mst_topology_mgr *mgr,
 			     struct drm_dp_mst_atomic_payload *payload)
 {
 	struct drm_dp_mst_port *port;
-	int ret = 0;
-	bool allocate = true;
+	int ret;
 
 	/* Update mst mgr info */
 	if (mgr->payload_count == 0)
@@ -3320,27 +3319,27 @@ int drm_dp_add_payload_part1(struct drm_dp_mst_topology_mgr *mgr,
 	mgr->payload_count++;
 	mgr->next_start_slot += payload->time_slots;
 
+	payload->payload_allocation_status = DRM_DP_MST_PAYLOAD_ALLOCATION_LOCAL;
+
 	/* Allocate payload to immediate downstream facing port */
 	port = drm_dp_mst_topology_get_port_validated(mgr, payload->port);
 	if (!port) {
 		drm_dbg_kms(mgr->dev,
 			    "VCPI %d for port %p not in topology, not creating a payload to remote\n",
 			    payload->vcpi, payload->port);
-		allocate = false;
+		return -EIO;
 	}
 
-	if (allocate) {
-		ret = drm_dp_create_payload_at_dfp(mgr, payload);
-		if (ret < 0)
-			drm_warn(mgr->dev, "Failed to create MST payload for port %p: %d\n",
-				 payload->port, ret);
-
+	ret = drm_dp_create_payload_at_dfp(mgr, payload);
+	if (ret < 0) {
+		drm_dbg_kms(mgr->dev, "Failed to create MST payload for port %p: %d\n",
+			    payload->port, ret);
+		goto put_port;
 	}
 
-	payload->payload_allocation_status =
-		(!allocate || ret < 0) ? DRM_DP_MST_PAYLOAD_ALLOCATION_LOCAL :
-								DRM_DP_MST_PAYLOAD_ALLOCATION_DFP;
+	payload->payload_allocation_status = DRM_DP_MST_PAYLOAD_ALLOCATION_DFP;
 
+put_port:
 	drm_dp_mst_topology_put_port(port);
 
 	return ret;

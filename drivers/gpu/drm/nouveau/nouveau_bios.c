@@ -2093,9 +2093,11 @@ nouveau_bios_init(struct drm_device *dev)
 	if (!NVInitVBIOS(dev))
 		return -ENODEV;
 
-	ret = parse_dcb_table(dev, bios);
-	if (ret)
-		return ret;
+	if (drm->client.device.info.family < NV_DEVICE_INFO_V0_TESLA) {
+		ret = parse_dcb_table(dev, bios);
+		if (ret)
+			return ret;
+	}
 
 	if (!bios->major_version)	/* we don't run version 0 bios */
 		return 0;
