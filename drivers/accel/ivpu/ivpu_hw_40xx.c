@@ -57,8 +57,7 @@
 
 #define ICB_0_1_IRQ_MASK ((((u64)ICB_1_IRQ_MASK) << 32) | ICB_0_IRQ_MASK)
 
-#define BUTTRESS_IRQ_MASK ((REG_FLD(VPU_40XX_BUTTRESS_INTERRUPT_STAT, FREQ_CHANGE)) | \
-			   (REG_FLD(VPU_40XX_BUTTRESS_INTERRUPT_STAT, ATS_ERR)) | \
+#define BUTTRESS_IRQ_MASK ((REG_FLD(VPU_40XX_BUTTRESS_INTERRUPT_STAT, ATS_ERR)) | \
 			   (REG_FLD(VPU_40XX_BUTTRESS_INTERRUPT_STAT, CFI0_ERR)) | \
 			   (REG_FLD(VPU_40XX_BUTTRESS_INTERRUPT_STAT, CFI1_ERR)) | \
 			   (REG_FLD(VPU_40XX_BUTTRESS_INTERRUPT_STAT, IMR0_ERR)) | \
@@ -194,6 +193,14 @@ static int ivpu_pll_cmd_send(struct ivpu_device *vdev, u16 min_ratio, u16 max_ra
 static int ivpu_pll_wait_for_status_ready(struct ivpu_device *vdev)
 {
 	return REGB_POLL_FLD(VPU_40XX_BUTTRESS_VPU_STATUS, READY, 1, PLL_TIMEOUT_US);
+}
+
+static int ivpu_wait_for_clock_own_resource_ack(struct ivpu_device *vdev)
+{
+	if (ivpu_is_simics(vdev))
+		return 0;
+
+	return REGB_POLL_FLD(VPU_40XX_BUTTRESS_VPU_STATUS, CLOCK_RESOURCE_OWN_ACK, 1, TIMEOUT_US);
 }
 
 static void ivpu_pll_init_frequency_ratios(struct ivpu_device *vdev)
@@ -555,6 +562,12 @@ static int ivpu_boot_cpu_noc_qdeny_check(struct ivpu_device *vdev, u32 exp_val)
 static int ivpu_boot_pwr_domain_enable(struct ivpu_device *vdev)
 {
 	int ret;
+
+	ret = ivpu_wait_for_clock_own_resource_ack(vdev);
+	if (ret) {
+		ivpu_err(vdev, "Timed out waiting for clock own resource ACK\n");
+		return ret;
+	}
 
 	ivpu_boot_pwr_island_trickle_drive(vdev, true);
 	ivpu_boot_pwr_island_drive(vdev, true);
@@ -1046,9 +1059,6 @@ static irqreturn_t ivpu_hw_40xx_irqb_handler(struct ivpu_device *vdev, int irq)
 	if (status == 0)
 		return IRQ_NONE;
 
-	/* Disable global interrupt before handling local buttress interrupts */
-	REGB_WR32(VPU_40XX_BUTTRESS_GLOBAL_INT_MASK, 0x1);
-
 	if (REG_TEST_FLD(VPU_40XX_BUTTRESS_INTERRUPT_STAT, FREQ_CHANGE, status))
 		ivpu_dbg(vdev, IRQ, "FREQ_CHANGE");
 
@@ -1096,9 +1106,6 @@ static irqreturn_t ivpu_hw_40xx_irqb_handler(struct ivpu_device *vdev, int irq)
 	/* This must be done after interrupts are cleared at the source. */
 	REGB_WR32(VPU_40XX_BUTTRESS_INTERRUPT_STAT, status);
 
-	/* Re-enable global interrupt */
-	REGB_WR32(VPU_40XX_BUTTRESS_GLOBAL_INT_MASK, 0x0);
-
 	if (schedule_recovery)
 		ivpu_pm_schedule_recovery(vdev);
 
@@ -1110,8 +1117,13 @@ static irqreturn_t ivpu_hw_40xx_irq_handler(int irq, void *ptr)
 	struct ivpu_device *vdev = ptr;
 	irqreturn_t ret = IRQ_NONE;
 
+	REGB_WR32(VPU_40XX_BUTTRESS_GLOBAL_INT_MASK, 0x1);
+
 	ret |= ivpu_hw_40xx_irqv_handler(vdev, irq);
 	ret |= ivpu_hw_40xx_irqb_handler(vdev, irq);
+
+	/* Re-enable global interrupts to re-trigger MSI for pending interrupts */
+	REGB_WR32(VPU_40XX_BUTTRESS_GLOBAL_INT_MASK, 0x0);
 
 	if (ret & IRQ_WAKE_THREAD)
 		return IRQ_WAKE_THREAD;
