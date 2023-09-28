@@ -576,6 +576,22 @@ static inline void at91_activate_rx_mb(const struct at91_priv *priv,
 	at91_write(priv, AT91_TCR, mask);
 }
 
+static inline u32 at91_get_timestamp(const struct at91_priv *priv)
+{
+	return at91_read(priv, AT91_TIM);
+}
+
+static inline struct sk_buff *
+at91_alloc_can_err_skb(struct net_device *dev,
+		       struct can_frame **cf, u32 *timestamp)
+{
+	const struct at91_priv *priv = netdev_priv(dev);
+
+	*timestamp = at91_get_timestamp(priv);
+
+	return alloc_can_err_skb(dev, cf);
+}
+
 /**
  * at91_rx_overflow_err - send error frame due to rx overflow
  * @dev: net device
