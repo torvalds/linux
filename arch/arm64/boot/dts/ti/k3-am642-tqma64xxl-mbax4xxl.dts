@@ -19,6 +19,7 @@
 	compatible = "tq,am642-tqma6442l-mbax4xxl", "tq,am642-tqma6442l",
 		     "ti,am642";
 	model = "TQ-Systems TQMa64xxL SoM on MBax4xxL carrier board";
+	chassis-type = "embedded";
 
 	aliases {
 		ethernet0 = &cpsw_port1;
