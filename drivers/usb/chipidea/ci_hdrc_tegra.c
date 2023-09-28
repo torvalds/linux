@@ -293,14 +293,12 @@ static int tegra_usb_probe(struct platform_device *pdev)
 	usb->phy = devm_usb_get_phy_by_phandle(&pdev->dev, "nvidia,phy", 0);
 	if (IS_ERR(usb->phy))
 		return dev_err_probe(&pdev->dev, PTR_ERR(usb->phy),
-				     "failed to get PHY\n");
+				     "failed to get PHY");
 
 	usb->clk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(usb->clk)) {
-		err = PTR_ERR(usb->clk);
-		dev_err(&pdev->dev, "failed to get clock: %d\n", err);
-		return err;
-	}
+	if (IS_ERR(usb->clk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(usb->clk),
+				     "failed to get clock");
 
 	err = devm_tegra_core_dev_init_opp_table_common(&pdev->dev);
 	if (err)
@@ -316,7 +314,7 @@ static int tegra_usb_probe(struct platform_device *pdev)
 
 	err = tegra_usb_reset_controller(&pdev->dev);
 	if (err) {
-		dev_err(&pdev->dev, "failed to reset controller: %d\n", err);
+		dev_err_probe(&pdev->dev, err, "failed to reset controller");
 		goto fail_power_off;
 	}
 
@@ -347,8 +345,8 @@ static int tegra_usb_probe(struct platform_device *pdev)
 	usb->dev = ci_hdrc_add_device(&pdev->dev, pdev->resource,
 				      pdev->num_resources, &usb->data);
 	if (IS_ERR(usb->dev)) {
-		err = PTR_ERR(usb->dev);
-		dev_err(&pdev->dev, "failed to add HDRC device: %d\n", err);
+		err = dev_err_probe(&pdev->dev, PTR_ERR(usb->dev),
+				    "failed to add HDRC device");
 		goto phy_shutdown;
 	}
 
