@@ -463,6 +463,9 @@ static struct iommu_device *s390_iommu_probe_device(struct device *dev)
 	if (zdev->end_dma > ZPCI_TABLE_SIZE_RT - 1)
 		zdev->end_dma = ZPCI_TABLE_SIZE_RT - 1;
 
+	if (zdev->tlb_refresh)
+		dev->iommu->shadow_on_flush = 1;
+
 	return &zdev->iommu_dev;
 }
 
