@@ -4415,6 +4415,18 @@ array_state_store(struct mddev *mddev, const char *buf, size_t len)
 	int err = 0;
 	enum array_state st = match_word(buf, array_states);
 
+	/* No lock dependent actions */
+	switch (st) {
+	case suspended:		/* not supported yet */
+	case write_pending:	/* cannot be set */
+	case active_idle:	/* cannot be set */
+	case broken:		/* cannot be set */
+	case bad_word:
+		return -EINVAL;
+	default:
+		break;
+	}
+
 	if (mddev->pers && (st == active || st == clean) &&
 	    mddev->ro != MD_RDONLY) {
 		/* don't take reconfig_mutex when toggling between
@@ -4439,23 +4451,16 @@ array_state_store(struct mddev *mddev, const char *buf, size_t len)
 	err = mddev_lock(mddev);
 	if (err)
 		return err;
-	err = -EINVAL;
-	switch(st) {
-	case bad_word:
-		break;
-	case clear:
-		/* stopping an active array */
-		err = do_md_stop(mddev, 0, NULL);
-		break;
+
+	switch (st) {
 	case inactive:
-		/* stopping an active array */
+		/* stop an active array, return 0 otherwise */
 		if (mddev->pers)
 			err = do_md_stop(mddev, 2, NULL);
-		else
-			err = 0; /* already inactive */
 		break;
-	case suspended:
-		break; /* not supported yet */
+	case clear:
+		err = do_md_stop(mddev, 0, NULL);
+		break;
 	case readonly:
 		if (mddev->pers)
 			err = md_set_readonly(mddev, NULL);
@@ -4506,10 +4511,8 @@ array_state_store(struct mddev *mddev, const char *buf, size_t len)
 			err = do_md_run(mddev);
 		}
 		break;
-	case write_pending:
-	case active_idle:
-	case broken:
-		/* these cannot be set */
+	default:
+		err = -EINVAL;
 		break;
 	}
 
