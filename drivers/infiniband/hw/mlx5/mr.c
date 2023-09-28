@@ -1026,7 +1026,6 @@ void mlx5_mkey_cache_cleanup(struct mlx5_ib_dev *dev)
 		return;
 
 	mutex_lock(&dev->cache.rb_lock);
-	dev->cache.disable = true;
 	for (node = rb_first(root); node; node = rb_next(node)) {
 		ent = rb_entry(node, struct mlx5_cache_ent, node);
 		xa_lock_irq(&ent->mkeys);
@@ -1830,10 +1829,6 @@ static int cache_ent_find_and_store(struct mlx5_ib_dev *dev,
 	}
 
 	mutex_lock(&cache->rb_lock);
-	if (cache->disable) {
-		mutex_unlock(&cache->rb_lock);
-		return 0;
-	}
 	ent = mkey_cache_ent_from_rb_key(dev, mr->mmkey.rb_key);
 	if (ent) {
 		if (ent->rb_key.ndescs == mr->mmkey.rb_key.ndescs) {
