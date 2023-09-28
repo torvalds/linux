@@ -4,7 +4,6 @@
 #define QM_COMMON_H
 
 #define QM_DBG_READ_LEN		256
-#define QM_RESETTING		2
 
 struct qm_cqe {
 	__le32 rsvd0;
