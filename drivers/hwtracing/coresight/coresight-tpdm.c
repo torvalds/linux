@@ -51,6 +51,16 @@ static ssize_t tpdm_simple_dataset_show(struct device *dev,
 			return -EINVAL;
 		return sysfs_emit(buf, "0x%x\n",
 			drvdata->dsb->trig_patt_mask[tpdm_attr->idx]);
+	case DSB_PATT:
+		if (tpdm_attr->idx >= TPDM_DSB_MAX_PATT)
+			return -EINVAL;
+		return sysfs_emit(buf, "0x%x\n",
+			drvdata->dsb->patt_val[tpdm_attr->idx]);
+	case DSB_PATT_MASK:
+		if (tpdm_attr->idx >= TPDM_DSB_MAX_PATT)
+			return -EINVAL;
+		return sysfs_emit(buf, "0x%x\n",
+			drvdata->dsb->patt_mask[tpdm_attr->idx]);
 	}
 	return -EINVAL;
 }
@@ -82,6 +92,18 @@ static ssize_t tpdm_simple_dataset_store(struct device *dev,
 	case DSB_TRIG_PATT_MASK:
 		if (tpdm_attr->idx < TPDM_DSB_MAX_PATT)
 			drvdata->dsb->trig_patt_mask[tpdm_attr->idx] = val;
+		else
+			ret = -EINVAL;
+		break;
+	case DSB_PATT:
+		if (tpdm_attr->idx < TPDM_DSB_MAX_PATT)
+			drvdata->dsb->patt_val[tpdm_attr->idx] = val;
+		else
+			ret = -EINVAL;
+		break;
+	case DSB_PATT_MASK:
+		if (tpdm_attr->idx < TPDM_DSB_MAX_PATT)
+			drvdata->dsb->patt_mask[tpdm_attr->idx] = val;
 		else
 			ret = -EINVAL;
 		break;
@@ -141,6 +163,36 @@ static void set_dsb_mode(struct tpdm_drvdata *drvdata, u32 *val)
 		*val &= ~TPDM_DSB_CR_MODE;
 }
 
+static void set_dsb_tier(struct tpdm_drvdata *drvdata)
+{
+	u32 val;
+
+	val = readl_relaxed(drvdata->base + TPDM_DSB_TIER);
+
+	/* Clear all relevant fields */
+	val &= ~(TPDM_DSB_TIER_PATT_TSENAB | TPDM_DSB_TIER_PATT_TYPE |
+		 TPDM_DSB_TIER_XTRIG_TSENAB);
+
+	/* Set pattern timestamp type and enablement */
+	if (drvdata->dsb->patt_ts) {
+		val |= TPDM_DSB_TIER_PATT_TSENAB;
+		if (drvdata->dsb->patt_type)
+			val |= TPDM_DSB_TIER_PATT_TYPE;
+		else
+			val &= ~TPDM_DSB_TIER_PATT_TYPE;
+	} else {
+		val &= ~TPDM_DSB_TIER_PATT_TSENAB;
+	}
+
+	/* Set trigger timestamp */
+	if (drvdata->dsb->trig_ts)
+		val |= TPDM_DSB_TIER_XTRIG_TSENAB;
+	else
+		val &= ~TPDM_DSB_TIER_XTRIG_TSENAB;
+
+	writel_relaxed(val, drvdata->base + TPDM_DSB_TIER);
+}
+
 static void tpdm_enable_dsb(struct tpdm_drvdata *drvdata)
 {
 	u32 val, i;
@@ -152,18 +204,17 @@ static void tpdm_enable_dsb(struct tpdm_drvdata *drvdata)
 		writel_relaxed(drvdata->dsb->edge_ctrl_mask[i],
 			   drvdata->base + TPDM_DSB_EDCMR(i));
 	for (i = 0; i < TPDM_DSB_MAX_PATT; i++) {
+		writel_relaxed(drvdata->dsb->patt_val[i],
+			   drvdata->base + TPDM_DSB_TPR(i));
+		writel_relaxed(drvdata->dsb->patt_mask[i],
+			   drvdata->base + TPDM_DSB_TPMR(i));
 		writel_relaxed(drvdata->dsb->trig_patt[i],
 			   drvdata->base + TPDM_DSB_XPR(i));
 		writel_relaxed(drvdata->dsb->trig_patt_mask[i],
 			   drvdata->base + TPDM_DSB_XPMR(i));
 	}
-	val = readl_relaxed(drvdata->base + TPDM_DSB_TIER);
-	/* Set trigger timestamp */
-	if (drvdata->dsb->trig_ts)
-		val |= TPDM_DSB_TIER_XTRIG_TSENAB;
-	else
-		val &= ~TPDM_DSB_TIER_XTRIG_TSENAB;
-	writel_relaxed(val, drvdata->base + TPDM_DSB_TIER);
+
+	set_dsb_tier(drvdata);
 
 	val = readl_relaxed(drvdata->base + TPDM_DSB_CR);
 	/* Set the mode of DSB dataset */
@@ -483,6 +534,67 @@ static ssize_t ctrl_mask_store(struct device *dev,
 }
 static DEVICE_ATTR_WO(ctrl_mask);
 
+static ssize_t enable_ts_show(struct device *dev,
+			      struct device_attribute *attr,
+			      char *buf)
+{
+	struct tpdm_drvdata *drvdata = dev_get_drvdata(dev->parent);
+
+	return sysfs_emit(buf, "%u\n",
+			 (unsigned int)drvdata->dsb->patt_ts);
+}
+
+/*
+ * value 1: Enable/Disable DSB pattern timestamp
+ */
+static ssize_t enable_ts_store(struct device *dev,
+			       struct device_attribute *attr,
+			       const char *buf,
+			       size_t size)
+{
+	struct tpdm_drvdata *drvdata = dev_get_drvdata(dev->parent);
+	unsigned long val;
+
+	if ((kstrtoul(buf, 0, &val)) || (val & ~1UL))
+		return -EINVAL;
+
+	spin_lock(&drvdata->spinlock);
+	drvdata->dsb->patt_ts = !!val;
+	spin_unlock(&drvdata->spinlock);
+	return size;
+}
+static DEVICE_ATTR_RW(enable_ts);
+
+static ssize_t set_type_show(struct device *dev,
+			     struct device_attribute *attr,
+			     char *buf)
+{
+	struct tpdm_drvdata *drvdata = dev_get_drvdata(dev->parent);
+
+	return sysfs_emit(buf, "%u\n",
+			 (unsigned int)drvdata->dsb->patt_type);
+}
+
+/*
+ * value 1: Set DSB pattern type
+ */
+static ssize_t set_type_store(struct device *dev,
+			      struct device_attribute *attr,
+			      const char *buf, size_t size)
+{
+	struct tpdm_drvdata *drvdata = dev_get_drvdata(dev->parent);
+	unsigned long val;
+
+	if ((kstrtoul(buf, 0, &val)) || (val & ~1UL))
+		return -EINVAL;
+
+	spin_lock(&drvdata->spinlock);
+	drvdata->dsb->patt_type = val;
+	spin_unlock(&drvdata->spinlock);
+	return size;
+}
+static DEVICE_ATTR_RW(set_type);
+
 static ssize_t dsb_trig_type_show(struct device *dev,
 				  struct device_attribute *attr, char *buf)
 {
@@ -605,6 +717,28 @@ static struct attribute *tpdm_dsb_trig_patt_attrs[] = {
 	NULL,
 };
 
+static struct attribute *tpdm_dsb_patt_attrs[] = {
+	DSB_PATT_ATTR(0),
+	DSB_PATT_ATTR(1),
+	DSB_PATT_ATTR(2),
+	DSB_PATT_ATTR(3),
+	DSB_PATT_ATTR(4),
+	DSB_PATT_ATTR(5),
+	DSB_PATT_ATTR(6),
+	DSB_PATT_ATTR(7),
+	DSB_PATT_MASK_ATTR(0),
+	DSB_PATT_MASK_ATTR(1),
+	DSB_PATT_MASK_ATTR(2),
+	DSB_PATT_MASK_ATTR(3),
+	DSB_PATT_MASK_ATTR(4),
+	DSB_PATT_MASK_ATTR(5),
+	DSB_PATT_MASK_ATTR(6),
+	DSB_PATT_MASK_ATTR(7),
+	&dev_attr_enable_ts.attr,
+	&dev_attr_set_type.attr,
+	NULL,
+};
+
 static struct attribute *tpdm_dsb_attrs[] = {
 	&dev_attr_dsb_mode.attr,
 	&dev_attr_dsb_trig_ts.attr,
@@ -629,11 +763,18 @@ static struct attribute_group tpdm_dsb_trig_patt_grp = {
 	.name = "dsb_trig_patt",
 };
 
+static struct attribute_group tpdm_dsb_patt_grp = {
+	.attrs = tpdm_dsb_patt_attrs,
+	.is_visible = tpdm_dsb_is_visible,
+	.name = "dsb_patt",
+};
+
 static const struct attribute_group *tpdm_attr_grps[] = {
 	&tpdm_attr_grp,
 	&tpdm_dsb_attr_grp,
 	&tpdm_dsb_edge_grp,
 	&tpdm_dsb_trig_patt_grp,
+	&tpdm_dsb_patt_grp,
 	NULL,
 };
 
