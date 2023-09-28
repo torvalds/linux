@@ -315,11 +315,13 @@ static struct s390_domain *to_s390_domain(struct iommu_domain *dom)
 
 static bool s390_iommu_capable(struct device *dev, enum iommu_cap cap)
 {
+	struct zpci_dev *zdev = to_zpci_dev(dev);
+
 	switch (cap) {
 	case IOMMU_CAP_CACHE_COHERENCY:
 		return true;
 	case IOMMU_CAP_DEFERRED_FLUSH:
-		return true;
+		return zdev->pft != PCI_FUNC_TYPE_ISM;
 	default:
 		return false;
 	}
