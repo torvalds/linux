@@ -162,6 +162,7 @@ struct dso {
 	char		 *symsrc_filename;
 	unsigned int	 a2l_fails;
 	enum dso_space_type	kernel;
+	bool			is_kmod;
 	enum dso_swap_type	needs_swap;
 	enum dso_binary_type	symtab_type;
 	enum dso_binary_type	binary_type;
