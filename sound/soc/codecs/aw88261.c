@@ -1189,7 +1189,7 @@ static void aw88261_parse_channel_dt(struct aw88261 *aw88261)
 	u32 channel_value = AW88261_DEV_DEFAULT_CH;
 	u32 sync_enable = false;
 
-	of_property_read_u32(np, "sound-channel", &channel_value);
+	of_property_read_u32(np, "awinic,audio-channel", &channel_value);
 	of_property_read_u32(np, "sync-flag", &sync_enable);
 
 	aw_dev->channel = channel_value;
