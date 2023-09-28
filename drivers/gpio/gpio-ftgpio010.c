@@ -324,13 +324,11 @@ dis_clk:
 	return ret;
 }
 
-static int ftgpio_gpio_remove(struct platform_device *pdev)
+static void ftgpio_gpio_remove(struct platform_device *pdev)
 {
 	struct ftgpio_gpio *g = platform_get_drvdata(pdev);
 
 	clk_disable_unprepare(g->clk);
-
-	return 0;
 }
 
 static const struct of_device_id ftgpio_gpio_of_match[] = {
@@ -352,6 +350,6 @@ static struct platform_driver ftgpio_gpio_driver = {
 		.of_match_table = ftgpio_gpio_of_match,
 	},
 	.probe = ftgpio_gpio_probe,
-	.remove = ftgpio_gpio_remove,
+	.remove_new = ftgpio_gpio_remove,
 };
 builtin_platform_driver(ftgpio_gpio_driver);
