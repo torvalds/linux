@@ -2500,7 +2500,8 @@ static int gaudi2_config_spmu(struct hl_device *hdev, struct hl_debug_params *pa
 		 * set enabled events mask based on input->event_types_num
 		 */
 		event_mask = 0x80000000;
-		event_mask |= GENMASK(input->event_types_num, 0);
+		if (input->event_types_num)
+			event_mask |= GENMASK(input->event_types_num - 1, 0);
 
 		WREG32(base_reg + mmSPMU_PMCNTENSET_EL0_OFFSET, event_mask);
 	} else {
