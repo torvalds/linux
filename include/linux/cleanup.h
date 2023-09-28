@@ -7,8 +7,9 @@
 /*
  * DEFINE_FREE(name, type, free):
  *	simple helper macro that defines the required wrapper for a __free()
- *	based cleanup function. @free is an expression using '_T' to access
- *	the variable.
+ *	based cleanup function. @free is an expression using '_T' to access the
+ *	variable. @free should typically include a NULL test before calling a
+ *	function, see the example below.
  *
  * __free(name):
  *	variable attribute to add a scoped based cleanup to the variable.
@@ -17,6 +18,9 @@
  *	like a non-atomic xchg(var, NULL), such that the cleanup function will
  *	be inhibited -- provided it sanely deals with a NULL value.
  *
+ *	NOTE: this has __must_check semantics so that it is harder to accidentally
+ *	leak the resource.
+ *
  * return_ptr(p):
  *	returns p while inhibiting the __free().
  *
@@ -24,6 +28,8 @@
  *
  * DEFINE_FREE(kfree, void *, if (_T) kfree(_T))
  *
+ * void *alloc_obj(...)
+ * {
  *	struct obj *p __free(kfree) = kmalloc(...);
  *	if (!p)
  *		return NULL;
@@ -32,6 +38,24 @@
  *		return NULL;
  *
  *	return_ptr(p);
+ * }
+ *
+ * NOTE: the DEFINE_FREE()'s @free expression includes a NULL test even though
+ * kfree() is fine to be called with a NULL value. This is on purpose. This way
+ * the compiler sees the end of our alloc_obj() function as:
+ *
+ *	tmp = p;
+ *	p = NULL;
+ *	if (p)
+ *		kfree(p);
+ *	return tmp;
+ *
+ * And through the magic of value-propagation and dead-code-elimination, it
+ * eliminates the actual cleanup call and compiles into:
+ *
+ *	return p;
+ *
+ * Without the NULL test it turns into a mess and the compiler can't help us.
  */
 
 #define DEFINE_FREE(_name, _type, _free) \
@@ -39,8 +63,17 @@
 
 #define __free(_name)	__cleanup(__free_##_name)
 
+#define __get_and_null_ptr(p) \
+	({ __auto_type __ptr = &(p); \
+	   __auto_type __val = *__ptr; \
+	   *__ptr = NULL;  __val; })
+
+static inline __must_check
+const volatile void * __must_check_fn(const volatile void *val)
+{ return val; }
+
 #define no_free_ptr(p) \
-	({ __auto_type __ptr = (p); (p) = NULL; __ptr; })
+	((typeof(p)) __must_check_fn(__get_and_null_ptr(p)))
 
 #define return_ptr(p)	return no_free_ptr(p)
 

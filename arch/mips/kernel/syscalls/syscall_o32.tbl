@@ -440,3 +440,6 @@
 450	o32	set_mempolicy_home_node		sys_set_mempolicy_home_node
 451	o32	cachestat			sys_cachestat
 452	o32	fchmodat2			sys_fchmodat2
+454	o32	futex_wake			sys_futex_wake
+455	o32	futex_wait			sys_futex_wait
+456	o32	futex_requeue			sys_futex_requeue
