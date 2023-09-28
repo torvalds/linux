@@ -554,17 +554,63 @@ static int btrfs_free_stale_devices(dev_t devt, struct btrfs_device *skip_device
 }
 
 static struct btrfs_fs_devices *find_fsid_by_device(
-					struct btrfs_super_block *disk_super)
+					struct btrfs_super_block *disk_super,
+					dev_t devt, bool *same_fsid_diff_dev)
 {
 	struct btrfs_fs_devices *fsid_fs_devices;
+	struct btrfs_fs_devices *devt_fs_devices;
 	const bool has_metadata_uuid = (btrfs_super_incompat_flags(disk_super) &
 					BTRFS_FEATURE_INCOMPAT_METADATA_UUID);
+	bool found_by_devt = false;
 
 	/* Find the fs_device by the usual method, if found use it. */
 	fsid_fs_devices = find_fsid(disk_super->fsid,
 		    has_metadata_uuid ? disk_super->metadata_uuid : NULL);
 
-	return fsid_fs_devices;
+	/* The temp_fsid feature is supported only with single device filesystem. */
+	if (btrfs_super_num_devices(disk_super) != 1)
+		return fsid_fs_devices;
+
+	/* Try to find a fs_devices by matching devt. */
+	list_for_each_entry(devt_fs_devices, &fs_uuids, fs_list) {
+		struct btrfs_device *device;
+
+		list_for_each_entry(device, &devt_fs_devices->devices, dev_list) {
+			if (device->devt == devt) {
+				found_by_devt = true;
+				break;
+			}
+		}
+		if (found_by_devt)
+			break;
+	}
+
+	if (found_by_devt) {
+		/* Existing device. */
+		if (fsid_fs_devices == NULL) {
+			if (devt_fs_devices->opened == 0) {
+				/* Stale device. */
+				return NULL;
+			} else {
+				/* temp_fsid is mounting a subvol. */
+				return devt_fs_devices;
+			}
+		} else {
+			/* Regular or temp_fsid device mounting a subvol. */
+			return devt_fs_devices;
+		}
+	} else {
+		/* New device. */
+		if (fsid_fs_devices == NULL) {
+			return NULL;
+		} else {
+			/* sb::fsid is already used create a new temp_fsid. */
+			*same_fsid_diff_dev = true;
+			return NULL;
+		}
+	}
+
+	/* Not reached. */
 }
 
 /*
@@ -670,6 +716,7 @@ static noinline struct btrfs_device *device_list_add(const char *path,
 	u64 devid = btrfs_stack_device_id(&disk_super->dev_item);
 	dev_t path_devt;
 	int error;
+	bool same_fsid_diff_dev = false;
 	bool has_metadata_uuid = (btrfs_super_incompat_flags(disk_super) &
 		BTRFS_FEATURE_INCOMPAT_METADATA_UUID);
 
@@ -687,7 +734,7 @@ static noinline struct btrfs_device *device_list_add(const char *path,
 		return ERR_PTR(error);
 	}
 
-	fs_devices = find_fsid_by_device(disk_super);
+	fs_devices = find_fsid_by_device(disk_super, path_devt, &same_fsid_diff_dev);
 
 	if (!fs_devices) {
 		fs_devices = alloc_fs_devices(disk_super->fsid);
@@ -697,6 +744,13 @@ static noinline struct btrfs_device *device_list_add(const char *path,
 
 		if (IS_ERR(fs_devices))
 			return ERR_CAST(fs_devices);
+
+		if (same_fsid_diff_dev) {
+			generate_random_uuid(fs_devices->fsid);
+			fs_devices->temp_fsid = true;
+			pr_info("BTRFS: device %s using temp-fsid %pU\n",
+				path, fs_devices->fsid);
+		}
 
 		mutex_lock(&fs_devices->device_list_mutex);
 		list_add(&fs_devices->fs_list, &fs_uuids);

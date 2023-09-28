@@ -364,6 +364,8 @@ struct btrfs_fs_devices {
 	bool discardable;
 	/* The filesystem is a seed filesystem. */
 	bool seeding;
+	/* The mount needs to use a randomly generated fsid. */
+	bool temp_fsid;
 
 	struct btrfs_fs_info *fs_info;
 	/* sysfs kobjects */
