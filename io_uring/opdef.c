@@ -33,6 +33,7 @@
 #include "poll.h"
 #include "cancel.h"
 #include "rw.h"
+#include "waitid.h"
 
 static int io_no_issue(struct io_kiocb *req, unsigned int issue_flags)
 {
@@ -63,6 +64,7 @@ const struct io_issue_def io_issue_defs[] = {
 		.ioprio			= 1,
 		.iopoll			= 1,
 		.iopoll_queue		= 1,
+		.vectored		= 1,
 		.prep			= io_prep_rw,
 		.issue			= io_read,
 	},
@@ -76,6 +78,7 @@ const struct io_issue_def io_issue_defs[] = {
 		.ioprio			= 1,
 		.iopoll			= 1,
 		.iopoll_queue		= 1,
+		.vectored		= 1,
 		.prep			= io_prep_rw,
 		.issue			= io_write,
 	},
@@ -428,8 +431,20 @@ const struct io_issue_def io_issue_defs[] = {
 		.prep			= io_eopnotsupp_prep,
 #endif
 	},
+	[IORING_OP_READ_MULTISHOT] = {
+		.needs_file		= 1,
+		.unbound_nonreg_file	= 1,
+		.pollin			= 1,
+		.buffer_select		= 1,
+		.audit_skip		= 1,
+		.prep			= io_read_mshot_prep,
+		.issue			= io_read_mshot,
+	},
+	[IORING_OP_WAITID] = {
+		.prep			= io_waitid_prep,
+		.issue			= io_waitid,
+	},
 };
-
 
 const struct io_cold_def io_cold_defs[] = {
 	[IORING_OP_NOP] = {
@@ -647,6 +662,13 @@ const struct io_cold_def io_cold_defs[] = {
 		.cleanup		= io_send_zc_cleanup,
 		.fail			= io_sendrecv_fail,
 #endif
+	},
+	[IORING_OP_READ_MULTISHOT] = {
+		.name			= "READ_MULTISHOT",
+	},
+	[IORING_OP_WAITID] = {
+		.name			= "WAITID",
+		.async_size		= sizeof(struct io_waitid_async),
 	},
 };
 

@@ -13,6 +13,51 @@
 #include "rsrc.h"
 #include "uring_cmd.h"
 
+static void io_uring_cmd_del_cancelable(struct io_uring_cmd *cmd,
+		unsigned int issue_flags)
+{
+	struct io_kiocb *req = cmd_to_io_kiocb(cmd);
+	struct io_ring_ctx *ctx = req->ctx;
+
+	if (!(cmd->flags & IORING_URING_CMD_CANCELABLE))
+		return;
+
+	cmd->flags &= ~IORING_URING_CMD_CANCELABLE;
+	io_ring_submit_lock(ctx, issue_flags);
+	hlist_del(&req->hash_node);
+	io_ring_submit_unlock(ctx, issue_flags);
+}
+
+/*
+ * Mark this command as concelable, then io_uring_try_cancel_uring_cmd()
+ * will try to cancel this issued command by sending ->uring_cmd() with
+ * issue_flags of IO_URING_F_CANCEL.
+ *
+ * The command is guaranteed to not be done when calling ->uring_cmd()
+ * with IO_URING_F_CANCEL, but it is driver's responsibility to deal
+ * with race between io_uring canceling and normal completion.
+ */
+void io_uring_cmd_mark_cancelable(struct io_uring_cmd *cmd,
+		unsigned int issue_flags)
+{
+	struct io_kiocb *req = cmd_to_io_kiocb(cmd);
+	struct io_ring_ctx *ctx = req->ctx;
+
+	if (!(cmd->flags & IORING_URING_CMD_CANCELABLE)) {
+		cmd->flags |= IORING_URING_CMD_CANCELABLE;
+		io_ring_submit_lock(ctx, issue_flags);
+		hlist_add_head(&req->hash_node, &ctx->cancelable_uring_cmd);
+		io_ring_submit_unlock(ctx, issue_flags);
+	}
+}
+EXPORT_SYMBOL_GPL(io_uring_cmd_mark_cancelable);
+
+struct task_struct *io_uring_cmd_get_task(struct io_uring_cmd *cmd)
+{
+	return cmd_to_io_kiocb(cmd)->task;
+}
+EXPORT_SYMBOL_GPL(io_uring_cmd_get_task);
+
 static void io_uring_cmd_work(struct io_kiocb *req, struct io_tw_state *ts)
 {
 	struct io_uring_cmd *ioucmd = io_kiocb_to_cmd(req, struct io_uring_cmd);
@@ -56,6 +101,8 @@ void io_uring_cmd_done(struct io_uring_cmd *ioucmd, ssize_t ret, ssize_t res2,
 {
 	struct io_kiocb *req = cmd_to_io_kiocb(ioucmd);
 
+	io_uring_cmd_del_cancelable(ioucmd, issue_flags);
+
 	if (ret < 0)
 		req_set_fail(req);
 
@@ -91,7 +138,7 @@ int io_uring_cmd_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 		return -EINVAL;
 
 	ioucmd->flags = READ_ONCE(sqe->uring_cmd_flags);
-	if (ioucmd->flags & ~IORING_URING_CMD_FIXED)
+	if (ioucmd->flags & ~IORING_URING_CMD_MASK)
 		return -EINVAL;
 
 	if (ioucmd->flags & IORING_URING_CMD_FIXED) {
