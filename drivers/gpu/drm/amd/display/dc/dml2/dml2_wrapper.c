@@ -659,6 +659,9 @@ static bool dml2_validate_only(const struct dc_state *context)
 		&dml2->v20.scratch.cur_display_config,
 		&dml2->v20.scratch.mode_support_info);
 
+	if (result)
+		result = does_configuration_meet_sw_policies(dml2, &dml2->v20.scratch.cur_display_config, &dml2->v20.scratch.mode_support_info);
+
 	return (result == 1) ? true : false;
 }
 

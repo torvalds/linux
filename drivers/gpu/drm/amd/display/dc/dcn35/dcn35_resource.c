@@ -2072,6 +2072,7 @@ static bool dcn35_resource_construct(
 	dc->dml2_options.use_native_soc_bb_construction = true;
 	if (dc->config.EnableMinDispClkODM)
 		dc->dml2_options.minimize_dispclk_using_odm = true;
+	dc->dml2_options.enable_windowed_mpo_odm = dc->config.enable_windowed_mpo_odm;
 
 	dc->dml2_options.callbacks.dc = dc;
 	dc->dml2_options.callbacks.build_scaling_params = &resource_build_scaling_params;
