@@ -13,6 +13,7 @@
 #include "intel_engine_pm.h"
 #include "intel_gt.h"
 #include "intel_gt_clock_utils.h"
+#include "intel_gt_mcr.h"
 #include "intel_gt_pm.h"
 #include "intel_gt_print.h"
 #include "intel_gt_requests.h"
@@ -218,6 +219,15 @@ void intel_gt_pm_fini(struct intel_gt *gt)
 
 void intel_gt_resume_early(struct intel_gt *gt)
 {
+	/*
+	 * Sanitize steer semaphores during driver resume. This is necessary
+	 * to address observed cases of steer semaphores being
+	 * held after a suspend operation. Confirmation from the hardware team
+	 * assures the safety of this operation, as no lock acquisitions
+	 * by other agents occur during driver load/resume process.
+	 */
+	intel_gt_mcr_lock_sanitize(gt);
+
 	intel_uncore_resume_early(gt->uncore);
 	intel_gt_check_and_clear_faults(gt);
 }
