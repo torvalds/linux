@@ -411,12 +411,13 @@ static int ci_hdrc_alloc_dma_aligned_buffer(struct urb *urb, gfp_t mem_flags)
 	const unsigned int ci_hdrc_usb_dma_align = 32;
 	size_t kmalloc_size;
 
-	if (urb->num_sgs || urb->sg || urb->transfer_buffer_length == 0 ||
-	    !((uintptr_t)urb->transfer_buffer & (ci_hdrc_usb_dma_align - 1)))
+	if (urb->num_sgs || urb->sg || urb->transfer_buffer_length == 0)
+		return 0;
+	if (!((uintptr_t)urb->transfer_buffer & (ci_hdrc_usb_dma_align - 1)) && !(urb->transfer_buffer_length & 3))
 		return 0;
 
 	/* Allocate a buffer with enough padding for alignment */
-	kmalloc_size = urb->transfer_buffer_length +
+	kmalloc_size = ALIGN(urb->transfer_buffer_length, 4) +
 		       sizeof(struct ci_hdrc_dma_aligned_buffer) +
 		       ci_hdrc_usb_dma_align - 1;
 
