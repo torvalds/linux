@@ -72,10 +72,15 @@ int drv_add_interface(struct ieee80211_local *local,
 	ret = local->ops->add_interface(&local->hw, &sdata->vif);
 	trace_drv_return_int(local, ret);
 
-	if (ret == 0)
-		sdata->flags |= IEEE80211_SDATA_IN_DRIVER;
+	if (ret)
+		return ret;
 
-	return ret;
+	sdata->flags |= IEEE80211_SDATA_IN_DRIVER;
+
+	if (!local->in_reconfig)
+		drv_vif_add_debugfs(local, sdata);
+
+	return 0;
 }
 
 int drv_change_interface(struct ieee80211_local *local,
