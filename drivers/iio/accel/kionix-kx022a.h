@@ -13,6 +13,7 @@
 
 #define KX022A_REG_WHO		0x0f
 #define KX022A_ID		0xc8
+#define KX132ACR_LBZ_ID		0xd8
 
 #define KX022A_REG_CNTL2	0x19
 #define KX022A_MASK_SRST	BIT(7)
@@ -186,5 +187,6 @@ int kx022a_probe_internal(struct device *dev, const struct kx022a_chip_info *chi
 
 extern const struct kx022a_chip_info kx022a_chip_info;
 extern const struct kx022a_chip_info kx132_chip_info;
+extern const struct kx022a_chip_info kx132acr_chip_info;
 
 #endif
