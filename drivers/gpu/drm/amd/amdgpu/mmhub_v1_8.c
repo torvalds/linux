@@ -344,7 +344,7 @@ static void mmhub_v1_8_setup_vmid_config(struct amdgpu_device *adev)
 		hub = &adev->vmhub[AMDGPU_MMHUB0(j)];
 		for (i = 0; i <= 14; i++) {
 			tmp = RREG32_SOC15_OFFSET(MMHUB, j, regVM_CONTEXT1_CNTL,
-						  i);
+						  i * hub->ctx_distance);
 			tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL,
 					    ENABLE_CONTEXT, 1);
 			tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL,
