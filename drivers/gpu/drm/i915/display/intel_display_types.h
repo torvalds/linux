@@ -1475,6 +1475,9 @@ struct intel_crtc {
 
 	struct intel_crtc_state *config;
 
+	/* armed event for async flip */
+	struct drm_pending_vblank_event *flip_done_event;
+
 	/* Access to these should be protected by dev_priv->irq_lock. */
 	bool cpu_fifo_underrun_disabled;
 	bool pch_fifo_underrun_disabled;
