@@ -39,7 +39,7 @@
 #define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x3)
 #define LT6911UXC_NAME			"LT6911UXC"
 
-#define LT6911UXC_LINK_FREQ_600M	600000000
+#define LT6911UXC_LINK_FREQ_650M	650000000
 #define LT6911UXC_LINK_FREQ_400M	400000000
 #define LT6911UXC_LINK_FREQ_300M	300000000
 #define LT6911UXC_LINK_FREQ_200M	200000000
@@ -60,7 +60,7 @@ module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "debug level (0-2)");
 
 static const s64 link_freq_menu_items[] = {
-	LT6911UXC_LINK_FREQ_600M,
+	LT6911UXC_LINK_FREQ_650M,
 	LT6911UXC_LINK_FREQ_400M,
 	LT6911UXC_LINK_FREQ_300M,
 	LT6911UXC_LINK_FREQ_200M,
@@ -112,6 +112,17 @@ struct lt6911uxc_mode {
 	u32 vts_def;
 	u32 exp_def;
 	u32 mipi_freq_idx;
+};
+
+static struct rkmodule_csi_dphy_param rk3588_dcphy_param = {
+	.vendor = PHY_VENDOR_SAMSUNG,
+	.lp_vol_ref = 3,
+	.lp_hys_sw = {3, 0, 3, 0},
+	.lp_escclk_pol_sel = {1, 1, 0, 0},
+	.skew_data_cal_clk = {0, 0, 0, 0},
+	.clk_hs_term_sel = 2,
+	.data_hs_term_sel = {2, 2, 2, 2},
+	.reserved = {0},
 };
 
 static const struct v4l2_dv_timings_cap lt6911uxc_timings_cap = {
@@ -1010,6 +1021,7 @@ static long lt6911uxc_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	struct lt6911uxc *lt6911uxc = to_state(sd);
 	struct device *dev = &lt6911uxc->i2c_client->dev;
 	long ret = 0;
+	struct rkmodule_csi_dphy_param *dphy_param;
 	struct rkmodule_capture_info  *capture_info;
 
 	switch (cmd) {
@@ -1018,6 +1030,19 @@ static long lt6911uxc_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		break;
 	case RKMODULE_GET_HDMI_MODE:
 		*(int *)arg = RKMODULE_HDMIIN_MODE;
+		break;
+	case RKMODULE_SET_CSI_DPHY_PARAM:
+		dphy_param = (struct rkmodule_csi_dphy_param *)arg;
+		if (dphy_param->vendor == PHY_VENDOR_SAMSUNG)
+			rk3588_dcphy_param = *dphy_param;
+		dev_dbg(&lt6911uxc->i2c_client->dev,
+			"sensor set dphy param\n");
+		break;
+	case RKMODULE_GET_CSI_DPHY_PARAM:
+		dphy_param = (struct rkmodule_csi_dphy_param *)arg;
+		*dphy_param = rk3588_dcphy_param;
+		dev_dbg(&lt6911uxc->i2c_client->dev,
+			"sensor get dphy param\n");
 		break;
 	case RKMODULE_GET_CAPTURE_MODE:
 		capture_info = (struct rkmodule_capture_info *)arg;
@@ -1045,6 +1070,7 @@ static long lt6911uxc_compat_ioctl32(struct v4l2_subdev *sd,
 	struct rkmodule_inf *inf;
 	long ret;
 	int *seq;
+	struct rkmodule_csi_dphy_param *dphy_param;
 	struct rkmodule_capture_info  *capture_info;
 
 	switch (cmd) {
@@ -1077,6 +1103,35 @@ static long lt6911uxc_compat_ioctl32(struct v4l2_subdev *sd,
 				ret = -EFAULT;
 		}
 		kfree(seq);
+		break;
+	case RKMODULE_SET_CSI_DPHY_PARAM:
+		dphy_param = kzalloc(sizeof(*dphy_param), GFP_KERNEL);
+		if (!dphy_param) {
+			ret = -ENOMEM;
+			return ret;
+		}
+
+		ret = copy_from_user(dphy_param, up, sizeof(*dphy_param));
+		if (!ret)
+			ret = lt6911uxc_ioctl(sd, cmd, dphy_param);
+		else
+			ret = -EFAULT;
+		kfree(dphy_param);
+		break;
+	case RKMODULE_GET_CSI_DPHY_PARAM:
+		dphy_param = kzalloc(sizeof(*dphy_param), GFP_KERNEL);
+		if (!dphy_param) {
+			ret = -ENOMEM;
+			return ret;
+		}
+
+		ret = lt6911uxc_ioctl(sd, cmd, dphy_param);
+		if (!ret) {
+			ret = copy_to_user(up, dphy_param, sizeof(*dphy_param));
+			if (ret)
+				ret = -EFAULT;
+		}
+		kfree(dphy_param);
 		break;
 	case RKMODULE_GET_CAPTURE_MODE:
 		capture_info = kzalloc(sizeof(*capture_info), GFP_KERNEL);
