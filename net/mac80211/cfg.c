@@ -3158,6 +3158,12 @@ int __ieee80211_request_smps_mgd(struct ieee80211_sub_if_data *sdata,
 	old_req = link->u.mgd.req_smps;
 	link->u.mgd.req_smps = smps_mode;
 
+	/* The driver indicated that EML is enabled for the interface, which
+	 * implies that SMPS flows towards the AP should be stopped.
+	 */
+	if (sdata->vif.driver_flags & IEEE80211_VIF_EML_ACTIVE)
+		return 0;
+
 	if (old_req == smps_mode &&
 	    smps_mode != IEEE80211_SMPS_AUTOMATIC)
 		return 0;
