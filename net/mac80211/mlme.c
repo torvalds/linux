@@ -7718,7 +7718,10 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 		match = ether_addr_equal(ifmgd->auth_data->ap_addr,
 					 assoc_data->ap_addr) &&
 			ifmgd->auth_data->link_id == req->link_id;
-		ieee80211_destroy_auth_data(sdata, match);
+
+		/* Cleanup is delayed if auth_data matches */
+		if (!match)
+			ieee80211_destroy_auth_data(sdata, false);
 	}
 
 	/* prepare assoc data */
@@ -7941,11 +7944,17 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 
 	run_again(sdata, assoc_data->timeout);
 
+	/* We are associating, clean up auth_data */
+	if (ifmgd->auth_data)
+		ieee80211_destroy_auth_data(sdata, true);
+
 	return 0;
  err_clear:
-	eth_zero_addr(sdata->deflink.u.mgd.bssid);
-	ieee80211_link_info_change_notify(sdata, &sdata->deflink,
-					  BSS_CHANGED_BSSID);
+	if (!ifmgd->auth_data) {
+		eth_zero_addr(sdata->deflink.u.mgd.bssid);
+		ieee80211_link_info_change_notify(sdata, &sdata->deflink,
+						  BSS_CHANGED_BSSID);
+	}
 	ifmgd->assoc_data = NULL;
  err_free:
 	kfree(assoc_data);
