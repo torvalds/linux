@@ -141,6 +141,7 @@ struct aw_device {
 	unsigned char prof_cur;
 	unsigned char prof_index;
 	unsigned char dsp_crc_st;
+	unsigned char dsp_cfg;
 	u16 chip_id;
 
 	unsigned int channel;
@@ -150,9 +151,6 @@ struct aw_device {
 	struct device *dev;
 	struct regmap *regmap;
 	char *acf;
-
-	u32 fade_en;
-	unsigned char dsp_cfg;
 
 	u32 dsp_fw_len;
 	u32 dsp_cfg_len;
