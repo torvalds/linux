@@ -199,21 +199,11 @@ ext4_mb_mark_context_stub(handle_t *handle, struct super_block *sb, bool state,
 	return 0;
 }
 
-#define TEST_BLOCKSIZE_BITS 10
-#define TEST_CLUSTER_BITS 3
-#define TEST_BLOCKS_PER_GROUP 8192
-#define TEST_GROUP_COUNT 4
-#define TEST_DESC_SIZE 64
 #define TEST_GOAL_GROUP 1
 static int mbt_kunit_init(struct kunit *test)
 {
-	struct mbt_ext4_block_layout layout = {
-		.blocksize_bits = TEST_BLOCKSIZE_BITS,
-		.cluster_bits = TEST_CLUSTER_BITS,
-		.blocks_per_group = TEST_BLOCKS_PER_GROUP,
-		.group_count = TEST_GROUP_COUNT,
-		.desc_size = TEST_DESC_SIZE,
-	};
+	struct mbt_ext4_block_layout *layout =
+		(struct mbt_ext4_block_layout *)(test->param_value);
 	struct super_block *sb;
 	int ret;
 
@@ -221,7 +211,7 @@ static int mbt_kunit_init(struct kunit *test)
 	if (sb == NULL)
 		return -ENOMEM;
 
-	mbt_init_sb_layout(sb, &layout);
+	mbt_init_sb_layout(sb, layout);
 
 	ret = mbt_ctx_init(sb);
 	if (ret != 0) {
@@ -307,9 +297,43 @@ static void test_new_blocks_simple(struct kunit *test)
 		"unexpectedly get block when no block is available");
 }
 
+static const struct mbt_ext4_block_layout mbt_test_layouts[] = {
+	{
+		.blocksize_bits = 10,
+		.cluster_bits = 3,
+		.blocks_per_group = 8192,
+		.group_count = 4,
+		.desc_size = 64,
+	},
+	{
+		.blocksize_bits = 12,
+		.cluster_bits = 3,
+		.blocks_per_group = 8192,
+		.group_count = 4,
+		.desc_size = 64,
+	},
+	{
+		.blocksize_bits = 16,
+		.cluster_bits = 3,
+		.blocks_per_group = 8192,
+		.group_count = 4,
+		.desc_size = 64,
+	},
+};
+
+static void mbt_show_layout(const struct mbt_ext4_block_layout *layout,
+			    char *desc)
+{
+	snprintf(desc, KUNIT_PARAM_DESC_SIZE, "block_bits=%d cluster_bits=%d "
+		 "blocks_per_group=%d group_count=%d desc_size=%d\n",
+		 layout->blocksize_bits, layout->cluster_bits,
+		 layout->blocks_per_group, layout->group_count,
+		 layout->desc_size);
+}
+KUNIT_ARRAY_PARAM(mbt_layouts, mbt_test_layouts, mbt_show_layout);
 
 static struct kunit_case mbt_test_cases[] = {
-	KUNIT_CASE(test_new_blocks_simple),
+	KUNIT_CASE_PARAM(test_new_blocks_simple, mbt_layouts_gen_params),
 	{}
 };
 
