@@ -154,7 +154,7 @@ static void tcm_loop_target_queue_cmd(struct tcm_loop_cmd *tl_cmd)
 			       GFP_ATOMIC))
 		return;
 
-	target_queue_submission(se_cmd);
+	target_submit(se_cmd);
 	return;
 
 out_done:

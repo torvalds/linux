@@ -1575,14 +1575,7 @@ target_cmd_parse_cdb(struct se_cmd *cmd)
 }
 EXPORT_SYMBOL(target_cmd_parse_cdb);
 
-/**
- * target_submit - perform final initialization and submit cmd to LIO core
- * @cmd: command descriptor to submit
- *
- * target_submit_prep or something similar must have been called on the cmd,
- * and this must be called from process context.
- */
-int target_submit(struct se_cmd *cmd)
+static int __target_submit(struct se_cmd *cmd)
 {
 	sense_reason_t ret;
 
@@ -1642,7 +1635,6 @@ int target_submit(struct se_cmd *cmd)
 		transport_generic_request_failure(cmd, ret);
 	return 0;
 }
-EXPORT_SYMBOL_GPL(target_submit);
 
 sense_reason_t
 transport_generic_map_mem_to_cmd(struct se_cmd *cmd, struct scatterlist *sgl,
@@ -1904,7 +1896,7 @@ void target_queued_submit_work(struct work_struct *work)
 			se_plug = target_plug_device(se_dev);
 		}
 
-		target_submit(se_cmd);
+		__target_submit(se_cmd);
 	}
 
 	if (se_plug)
@@ -1926,6 +1918,35 @@ void target_queue_submission(struct se_cmd *se_cmd)
 	queue_work_on(cpu, target_submission_wq, &sq->work);
 }
 EXPORT_SYMBOL_GPL(target_queue_submission);
+
+/**
+ * target_submit - perform final initialization and submit cmd to LIO core
+ * @cmd: command descriptor to submit
+ *
+ * target_submit_prep or something similar must have been called on the cmd,
+ * and this must be called from process context.
+ */
+int target_submit(struct se_cmd *se_cmd)
+{
+	const struct target_core_fabric_ops *tfo = se_cmd->se_sess->se_tpg->se_tpg_tfo;
+	struct se_dev_attrib *da = &se_cmd->se_dev->dev_attrib;
+	u8 submit_type;
+
+	if (da->submit_type == TARGET_FABRIC_DEFAULT_SUBMIT)
+		submit_type = tfo->default_submit_type;
+	else if (da->submit_type == TARGET_DIRECT_SUBMIT &&
+		 tfo->direct_submit_supp)
+		submit_type = TARGET_DIRECT_SUBMIT;
+	else
+		submit_type = TARGET_QUEUE_SUBMIT;
+
+	if (submit_type == TARGET_DIRECT_SUBMIT)
+		return __target_submit(se_cmd);
+
+	target_queue_submission(se_cmd);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(target_submit);
 
 static void target_complete_tmr_failure(struct work_struct *work)
 {
