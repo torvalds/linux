@@ -31,6 +31,7 @@
 #include <linux/string.h>
 #include <linux/string_helpers.h>
 #include <linux/sysfs.h>
+#include <linux/types.h>
 
 #define GPIO_SIM_NGPIO_MAX	1024
 #define GPIO_SIM_PROP_MAX	4 /* Max 3 properties + sentinel. */
