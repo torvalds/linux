@@ -928,6 +928,7 @@ static inline void drv_mgd_prepare_tx(struct ieee80211_local *local,
 		return;
 	WARN_ON_ONCE(sdata->vif.type != NL80211_IFTYPE_STATION);
 
+	info->link_id = info->link_id < 0 ? 0 : info->link_id;
 	trace_drv_mgd_prepare_tx(local, sdata, info->duration,
 				 info->subtype, info->success);
 	if (local->ops->mgd_prepare_tx)

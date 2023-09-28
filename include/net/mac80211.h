@@ -3641,11 +3641,14 @@ enum ieee80211_reconfig_type {
  * @success: whether the frame exchange was successful, only
  *	used with the mgd_complete_tx() method, and then only
  *	valid for auth and (re)assoc.
+ * @link_id: the link id on which the frame will be TX'ed.
+ *	Only used with the mgd_prepare_tx() method.
  */
 struct ieee80211_prep_tx_info {
 	u16 duration;
 	u16 subtype;
 	u8 success:1;
+	int link_id;
 };
 
 /**

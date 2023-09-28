@@ -1584,6 +1584,7 @@ static int ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 
 	ifmgd->assoc_req_ies_len = pos - ie_start;
 
+	info.link_id = assoc_data->assoc_link_id;
 	drv_mgd_prepare_tx(local, sdata, &info);
 
 	IEEE80211_SKB_CB(skb)->flags |= IEEE80211_TX_INTFL_DONT_ENCRYPT;
@@ -2948,8 +2949,10 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 				if (link->u.mgd.have_beacon)
 					break;
 			}
-			if (link_id == IEEE80211_MLD_MAX_NUM_LINKS)
+			if (link_id == IEEE80211_MLD_MAX_NUM_LINKS) {
+				info.link_id = ffs(sdata->vif.active_links) - 1;
 				drv_mgd_prepare_tx(sdata->local, sdata, &info);
+			}
 		}
 
 		ieee80211_send_deauth_disassoc(sdata, sdata->vif.cfg.ap_addr,
@@ -3577,6 +3580,7 @@ static void ieee80211_auth_challenge(struct ieee80211_sub_if_data *sdata,
 	u32 tx_flags = 0;
 	struct ieee80211_prep_tx_info info = {
 		.subtype = IEEE80211_STYPE_AUTH,
+		.link_id = auth_data->link_id,
 	};
 
 	pos = mgmt->u.auth.variable;
@@ -6569,6 +6573,7 @@ static int ieee80211_auth(struct ieee80211_sub_if_data *sdata)
 	if (auth_data->algorithm == WLAN_AUTH_SAE)
 		info.duration = jiffies_to_msecs(IEEE80211_AUTH_TIMEOUT_SAE);
 
+	info.link_id = auth_data->link_id;
 	drv_mgd_prepare_tx(local, sdata, &info);
 
 	sdata_info(sdata, "send auth to %pM (try %d/%d)\n",
@@ -7989,6 +7994,7 @@ int ieee80211_mgd_deauth(struct ieee80211_sub_if_data *sdata,
 			   req->bssid, req->reason_code,
 			   ieee80211_get_reason_code_string(req->reason_code));
 
+		info.link_id = ifmgd->auth_data->link_id;
 		drv_mgd_prepare_tx(sdata->local, sdata, &info);
 		ieee80211_send_deauth_disassoc(sdata, req->bssid, req->bssid,
 					       IEEE80211_STYPE_DEAUTH,
@@ -8009,6 +8015,7 @@ int ieee80211_mgd_deauth(struct ieee80211_sub_if_data *sdata,
 			   req->bssid, req->reason_code,
 			   ieee80211_get_reason_code_string(req->reason_code));
 
+		info.link_id = ifmgd->assoc_data->assoc_link_id;
 		drv_mgd_prepare_tx(sdata->local, sdata, &info);
 		ieee80211_send_deauth_disassoc(sdata, req->bssid, req->bssid,
 					       IEEE80211_STYPE_DEAUTH,
