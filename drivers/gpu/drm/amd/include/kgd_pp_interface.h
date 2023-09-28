@@ -1127,4 +1127,19 @@ struct gpu_metrics_v3_0 {
 	/* Metrics table alpha filter time constant [us] */
 	uint32_t			time_filter_alphavalue;
 };
+
+struct amdgpu_pmmetrics_header {
+	uint16_t structure_size;
+	uint16_t pad;
+	uint32_t mp1_ip_discovery_version;
+	uint32_t pmfw_version;
+	uint32_t pmmetrics_version;
+};
+
+struct amdgpu_pm_metrics {
+	struct amdgpu_pmmetrics_header common_header;
+
+	uint8_t data[];
+};
+
 #endif
