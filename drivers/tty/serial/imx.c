@@ -1451,8 +1451,10 @@ static int imx_uart_startup(struct uart_port *port)
 	imx_uart_writel(sport, ucr4 & ~UCR4_DREN, UCR4);
 
 	/* Can we enable the DMA support? */
-	if (!uart_console(port) && imx_uart_dma_init(sport) == 0)
+	if (!uart_console(port) && imx_uart_dma_init(sport) == 0) {
+		lockdep_set_subclass(&port->lock, 1);
 		dma_is_inited = 1;
+	}
 
 	uart_port_lock_irqsave(&sport->port, &flags);
 
