@@ -985,9 +985,15 @@ int ath11k_core_check_dt(struct ath11k_base *ab)
 	return 0;
 }
 
+enum ath11k_bdf_name_type {
+	ATH11K_BDF_NAME_FULL,
+	ATH11K_BDF_NAME_BUS_NAME,
+	ATH11K_BDF_NAME_CHIP_ID,
+};
+
 static int __ath11k_core_create_board_name(struct ath11k_base *ab, char *name,
 					   size_t name_len, bool with_variant,
-					   bool bus_type_mode)
+					   enum ath11k_bdf_name_type name_type)
 {
 	/* strlen(',variant=') + strlen(ab->qmi.target.bdf_ext) */
 	char variant[9 + ATH11K_QMI_BDF_EXT_STR_LENGTH] = { 0 };
@@ -998,11 +1004,8 @@ static int __ath11k_core_create_board_name(struct ath11k_base *ab, char *name,
 
 	switch (ab->id.bdf_search) {
 	case ATH11K_BDF_SEARCH_BUS_AND_BOARD:
-		if (bus_type_mode)
-			scnprintf(name, name_len,
-				  "bus=%s",
-				  ath11k_bus_str(ab->hif.bus));
-		else
+		switch (name_type) {
+		case ATH11K_BDF_NAME_FULL:
 			scnprintf(name, name_len,
 				  "bus=%s,vendor=%04x,device=%04x,subsystem-vendor=%04x,subsystem-device=%04x,qmi-chip-id=%d,qmi-board-id=%d%s",
 				  ath11k_bus_str(ab->hif.bus),
@@ -1012,6 +1015,19 @@ static int __ath11k_core_create_board_name(struct ath11k_base *ab, char *name,
 				  ab->qmi.target.chip_id,
 				  ab->qmi.target.board_id,
 				  variant);
+			break;
+		case ATH11K_BDF_NAME_BUS_NAME:
+			scnprintf(name, name_len,
+				  "bus=%s",
+				  ath11k_bus_str(ab->hif.bus));
+			break;
+		case ATH11K_BDF_NAME_CHIP_ID:
+			scnprintf(name, name_len,
+				  "bus=%s,qmi-chip-id=%d",
+				  ath11k_bus_str(ab->hif.bus),
+				  ab->qmi.target.chip_id);
+			break;
+		}
 		break;
 	default:
 		scnprintf(name, name_len,
@@ -1030,19 +1046,29 @@ static int __ath11k_core_create_board_name(struct ath11k_base *ab, char *name,
 static int ath11k_core_create_board_name(struct ath11k_base *ab, char *name,
 					 size_t name_len)
 {
-	return __ath11k_core_create_board_name(ab, name, name_len, true, false);
+	return __ath11k_core_create_board_name(ab, name, name_len, true,
+					       ATH11K_BDF_NAME_FULL);
 }
 
 static int ath11k_core_create_fallback_board_name(struct ath11k_base *ab, char *name,
 						  size_t name_len)
 {
-	return __ath11k_core_create_board_name(ab, name, name_len, false, false);
+	return __ath11k_core_create_board_name(ab, name, name_len, false,
+					       ATH11K_BDF_NAME_FULL);
 }
 
 static int ath11k_core_create_bus_type_board_name(struct ath11k_base *ab, char *name,
 						  size_t name_len)
 {
-	return __ath11k_core_create_board_name(ab, name, name_len, false, true);
+	return __ath11k_core_create_board_name(ab, name, name_len, false,
+					       ATH11K_BDF_NAME_BUS_NAME);
+}
+
+static int ath11k_core_create_chip_id_board_name(struct ath11k_base *ab, char *name,
+						 size_t name_len)
+{
+	return __ath11k_core_create_board_name(ab, name, name_len, false,
+					       ATH11K_BDF_NAME_CHIP_ID);
 }
 
 const struct firmware *ath11k_core_firmware_request(struct ath11k_base *ab,
@@ -1289,16 +1315,21 @@ int ath11k_core_fetch_board_data_api_1(struct ath11k_base *ab,
 #define BOARD_NAME_SIZE 200
 int ath11k_core_fetch_bdf(struct ath11k_base *ab, struct ath11k_board_data *bd)
 {
-	char boardname[BOARD_NAME_SIZE], fallback_boardname[BOARD_NAME_SIZE];
+	char *boardname = NULL, *fallback_boardname = NULL, *chip_id_boardname = NULL;
 	char *filename, filepath[100];
-	int ret;
+	int ret = 0;
 
 	filename = ATH11K_BOARD_API2_FILE;
+	boardname = kzalloc(BOARD_NAME_SIZE, GFP_KERNEL);
+	if (!boardname) {
+		ret = -ENOMEM;
+		goto exit;
+	}
 
-	ret = ath11k_core_create_board_name(ab, boardname, sizeof(boardname));
+	ret = ath11k_core_create_board_name(ab, boardname, BOARD_NAME_SIZE);
 	if (ret) {
 		ath11k_err(ab, "failed to create board name: %d", ret);
-		return ret;
+		goto exit;
 	}
 
 	ab->bd_api = 2;
@@ -1307,13 +1338,19 @@ int ath11k_core_fetch_bdf(struct ath11k_base *ab, struct ath11k_board_data *bd)
 						 ATH11K_BD_IE_BOARD_NAME,
 						 ATH11K_BD_IE_BOARD_DATA);
 	if (!ret)
-		goto success;
+		goto exit;
+
+	fallback_boardname = kzalloc(BOARD_NAME_SIZE, GFP_KERNEL);
+	if (!fallback_boardname) {
+		ret = -ENOMEM;
+		goto exit;
+	}
 
 	ret = ath11k_core_create_fallback_board_name(ab, fallback_boardname,
-						     sizeof(fallback_boardname));
+						     BOARD_NAME_SIZE);
 	if (ret) {
 		ath11k_err(ab, "failed to create fallback board name: %d", ret);
-		return ret;
+		goto exit;
 	}
 
 	ret = ath11k_core_fetch_board_data_api_n(ab, bd, fallback_boardname,
@@ -1321,7 +1358,28 @@ int ath11k_core_fetch_bdf(struct ath11k_base *ab, struct ath11k_board_data *bd)
 						 ATH11K_BD_IE_BOARD_NAME,
 						 ATH11K_BD_IE_BOARD_DATA);
 	if (!ret)
-		goto success;
+		goto exit;
+
+	chip_id_boardname = kzalloc(BOARD_NAME_SIZE, GFP_KERNEL);
+	if (!chip_id_boardname) {
+		ret = -ENOMEM;
+		goto exit;
+	}
+
+	ret = ath11k_core_create_chip_id_board_name(ab, chip_id_boardname,
+						    BOARD_NAME_SIZE);
+	if (ret) {
+		ath11k_err(ab, "failed to create chip id board name: %d", ret);
+		goto exit;
+	}
+
+	ret = ath11k_core_fetch_board_data_api_n(ab, bd, chip_id_boardname,
+						 ATH11K_BD_IE_BOARD,
+						 ATH11K_BD_IE_BOARD_NAME,
+						 ATH11K_BD_IE_BOARD_DATA);
+
+	if (!ret)
+		goto exit;
 
 	ab->bd_api = 1;
 	ret = ath11k_core_fetch_board_data_api_1(ab, bd, ATH11K_DEFAULT_BOARD_FILE);
@@ -1334,14 +1392,22 @@ int ath11k_core_fetch_bdf(struct ath11k_base *ab, struct ath11k_board_data *bd)
 			ath11k_err(ab, "failed to fetch board data for %s from %s\n",
 				   fallback_boardname, filepath);
 
+		ath11k_err(ab, "failed to fetch board data for %s from %s\n",
+			   chip_id_boardname, filepath);
+
 		ath11k_err(ab, "failed to fetch board.bin from %s\n",
 			   ab->hw_params.fw.dir);
-		return ret;
 	}
 
-success:
-	ath11k_dbg(ab, ATH11K_DBG_BOOT, "using board api %d\n", ab->bd_api);
-	return 0;
+exit:
+	kfree(boardname);
+	kfree(fallback_boardname);
+	kfree(chip_id_boardname);
+
+	if (!ret)
+		ath11k_dbg(ab, ATH11K_DBG_BOOT, "using board api %d\n", ab->bd_api);
+
+	return ret;
 }
 
 int ath11k_core_fetch_regdb(struct ath11k_base *ab, struct ath11k_board_data *bd)

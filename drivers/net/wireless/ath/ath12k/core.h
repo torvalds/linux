@@ -771,6 +771,10 @@ struct ath12k_base {
 	u64 fw_soc_drop_count;
 	bool static_window_map;
 
+	struct work_struct rfkill_work;
+	/* true means radio is on */
+	bool rfkill_radio_on;
+
 	/* must be last */
 	u8 drv_priv[] __aligned(sizeof(void *));
 };

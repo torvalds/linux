@@ -47,7 +47,7 @@ struct wcn36xx_fw_msg_status_rsp {
 struct wcn36xx_hal_ind_msg {
 	struct list_head list;
 	size_t msg_len;
-	u8 msg[];
+	u8 msg[] __counted_by(msg_len);
 };
 
 struct wcn36xx;
