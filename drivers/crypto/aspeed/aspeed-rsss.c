@@ -4,6 +4,7 @@
  */
 
 #include <linux/clk.h>
+#include <linux/dma-mapping.h>
 #include <linux/platform_device.h>
 #include <linux/of.h>
 #include "aspeed-rsss.h"
@@ -33,7 +34,7 @@ static void aspeed_rsss_register(struct aspeed_rsss_dev *rsss_dev)
 		}
 
 		if (rc)
-			RSSS_DBG(rsss_dev, "Failed to register %s\n", cra_name);
+			RSSS_DBG(rsss_dev, "Failed to register [%d] %s\n", i, cra_name);
 	}
 }
 
@@ -114,6 +115,12 @@ static int aspeed_rsss_probe(struct platform_device *pdev)
 			      dev_name(dev), rsss_dev);
 	if (rc) {
 		dev_err(dev, "Failed to request irq.\n");
+		return rc;
+	}
+
+	rc = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(64));
+	if (rc) {
+		dev_warn(&pdev->dev, "No suitable DMA available\n");
 		return rc;
 	}
 

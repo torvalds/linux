@@ -40,7 +40,7 @@
 #define ASPEED_SHA3_SRC_LEN		0xe8c
 #define ASPEED_SHA3_DST_LO		0xe90
 #define ASPEED_SHA3_DST_HI		0xe94
-#define ASPEED_SHA3_STATUS		0xe98
+#define ASPEED_SHA3_BUSY_STS		0xe98
 #define ASPEED_SHA3_ENG_STS		0xe9c
 
 /* RSSS interrupt status */
@@ -106,10 +106,14 @@
 #define SHA3_FLAGS_FINUP		BIT(0xa)
 #define SHA3_FLAGS_MASK			(0xff)
 
+#define SHA3_STS			BIT(0)
+
 #define SG_LAST_LIST			BIT(31)
 
 #define SHA_OP_UPDATE			1
 #define SHA_OP_FINAL			2
+
+#define ASPEED_HASH_SRC_DMA_BUF_LEN	0xa000
 
 #define ASPEED_RSSS_POLLING_TIME	100
 #define ASPEED_RSSS_TIMEOUT		100000	/* 100 ms */
@@ -119,8 +123,8 @@ struct aspeed_rsss_dev;
 typedef int (*aspeed_rsss_fn_t)(struct aspeed_rsss_dev *);
 
 struct aspeed_sg_list {
+	__le64 phy_addr;
 	__le32 len;
-	__le32 phy_addr;
 };
 
 struct aspeed_engine_rsa {
@@ -142,18 +146,26 @@ struct aspeed_engine_sha3 {
 	unsigned long			flags;
 	struct ahash_request		*req;
 
-	/* input buffer */
+	/* input buffer for SG */
 	void				*ahash_src_addr;
 	dma_addr_t			ahash_src_dma_addr;
 
-	dma_addr_t			src_dma;
-	dma_addr_t			digest_dma;
+	/* input buffer for remain */
+	void				*buffer_addr;
+	dma_addr_t			buffer_dma_addr;
 
+	/* output buffer */
+	void				*digest_addr;
+	dma_addr_t			digest_dma_addr;
+
+	dma_addr_t			src_dma;
 	size_t				src_length;
 
 	/* callback func */
 	aspeed_rsss_fn_t		resume;
 	aspeed_rsss_fn_t		dma_prepare;
+
+	unsigned			sg_mode:1;
 };
 
 struct aspeed_rsss_dev {
@@ -232,13 +244,9 @@ struct aspeed_sha3_reqctx {
 	size_t				ivsize;
 
 	/* remain data buffer */
-	u8				buffer[SHA3_512_BLOCK_SIZE * 2];
-	dma_addr_t			buffer_dma_addr;
 	size_t				bufcnt;		/* buffer counter */
 
 	/* output buffer */
-	u8				digest[SHA3_512_DIGEST_SIZE] __aligned(64);
-	dma_addr_t			digest_dma_addr;
 	u64				digcnt[2];
 };
 
