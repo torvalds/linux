@@ -156,6 +156,10 @@ void xe_pm_init(struct xe_device *xe)
 {
 	struct pci_dev *pdev = to_pci_dev(xe->drm.dev);
 
+	/* For now suspend/resume is only allowed with GuC */
+	if (!xe_device_uc_enabled(xe))
+		return;
+
 	drmm_mutex_init(&xe->drm, &xe->d3cold.lock);
 
 	xe->d3cold.capable = xe_pm_pci_d3cold_capable(pdev);

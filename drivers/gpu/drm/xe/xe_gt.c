@@ -641,10 +641,6 @@ int xe_gt_suspend(struct xe_gt *gt)
 {
 	int err;
 
-	/* For now suspend/resume is only allowed with GuC */
-	if (!xe_device_uc_enabled(gt_to_xe(gt)))
-		return -ENODEV;
-
 	xe_gt_sanitize(gt);
 
 	xe_device_mem_access_get(gt_to_xe(gt));
