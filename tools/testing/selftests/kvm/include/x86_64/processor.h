@@ -922,6 +922,15 @@ static inline bool kvm_pmu_has(struct kvm_x86_pmu_feature feature)
 	       !kvm_cpu_has(feature.anti_feature);
 }
 
+static __always_inline uint64_t kvm_cpu_supported_xcr0(void)
+{
+	if (!kvm_cpu_has_p(X86_PROPERTY_SUPPORTED_XCR0_LO))
+		return 0;
+
+	return kvm_cpu_property(X86_PROPERTY_SUPPORTED_XCR0_LO) |
+	       ((uint64_t)kvm_cpu_property(X86_PROPERTY_SUPPORTED_XCR0_HI) << 32);
+}
+
 static inline size_t kvm_cpuid2_size(int nr_entries)
 {
 	return sizeof(struct kvm_cpuid2) +

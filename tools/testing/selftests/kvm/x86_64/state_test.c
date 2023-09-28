@@ -230,6 +230,7 @@ static void __attribute__((__flatten__)) guest_code(void *arg)
 
 int main(int argc, char *argv[])
 {
+	uint64_t *xstate_bv, saved_xstate_bv;
 	vm_vaddr_t nested_gva = 0;
 	struct kvm_cpuid2 empty_cpuid = {};
 	struct kvm_regs regs1, regs2;
@@ -294,11 +295,24 @@ int main(int argc, char *argv[])
 		 * allow KVM_SET_XSAVE regardless of guest CPUID.  Manually
 		 * load only XSAVE state, MSRs in particular have a much more
 		 * convoluted ABI.
+		 *
+		 * Load two versions of XSAVE state: one with the actual guest
+		 * XSAVE state, and one with all supported features forced "on"
+		 * in xstate_bv, e.g. to ensure that KVM allows loading all
+		 * supported features, even if something goes awry in saving
+		 * the original snapshot.
 		 */
+		xstate_bv = (void *)&((uint8_t *)state->xsave->region)[512];
+		saved_xstate_bv = *xstate_bv;
+
 		vcpuN = __vm_vcpu_add(vm, vcpu->id + 1);
+		vcpu_xsave_set(vcpuN, state->xsave);
+		*xstate_bv = kvm_cpu_supported_xcr0();
 		vcpu_xsave_set(vcpuN, state->xsave);
 
 		vcpu_init_cpuid(vcpuN, &empty_cpuid);
+		vcpu_xsave_set(vcpuN, state->xsave);
+		*xstate_bv = saved_xstate_bv;
 		vcpu_xsave_set(vcpuN, state->xsave);
 
 		kvm_x86_state_cleanup(state);
