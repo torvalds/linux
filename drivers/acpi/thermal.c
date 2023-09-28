@@ -111,7 +111,6 @@ struct acpi_thermal {
 	volatile u8 zombie;
 	struct acpi_thermal_trips trips;
 	struct thermal_trip *trip_table;
-	struct acpi_handle_list devices;
 	struct thermal_zone_device *thermal_zone;
 	int kelvin_offset;	/* in millidegrees */
 	struct work_struct thermal_check_work;
