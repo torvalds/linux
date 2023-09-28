@@ -119,19 +119,19 @@ with.
 If a pin was registered with multiple parent pins, they behave like a
 multiple output multiplexer. In this case output of a
 ``DPLL_CMD_PIN_GET`` would contain multiple pin-parent nested
-attributes with current state related to each parent, like:
+attributes with current state related to each parent, like::
 
-'pin': [{{
-  'clock-id': 282574471561216,
-  'module-name': 'ice',
-  'capabilities': 4,
-  'id': 13,
-  'parent-pin': [
-  {'parent-id': 2, 'state': 'connected'},
-  {'parent-id': 3, 'state': 'disconnected'}
-  ],
-  'type': 'synce-eth-port'
-  }}]
+        'pin': [{{
+          'clock-id': 282574471561216,
+          'module-name': 'ice',
+          'capabilities': 4,
+          'id': 13,
+          'parent-pin': [
+          {'parent-id': 2, 'state': 'connected'},
+          {'parent-id': 3, 'state': 'disconnected'}
+          ],
+          'type': 'synce-eth-port'
+          }}]
 
 Only one child pin can provide its signal to the parent MUX-type pin at
 a time, the selection is done by requesting change of a child pin state
