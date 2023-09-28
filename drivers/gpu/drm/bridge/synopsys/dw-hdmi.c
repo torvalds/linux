@@ -2425,9 +2425,6 @@ static void hdmi_av_composer(struct dw_hdmi *hdmi,
 
 	vmode->previous_pixelclock = vmode->mpixelclock;
 	vmode->mpixelclock = mode->crtc_clock * 1000;
-	if ((mode->flags & DRM_MODE_FLAG_3D_MASK) ==
-		DRM_MODE_FLAG_3D_FRAME_PACKING)
-		vmode->mpixelclock *= 2;
 	dev_dbg(hdmi->dev, "final pixclk = %d\n", vmode->mpixelclock);
 
 	vmode->previous_tmdsclock = vmode->mtmdsclock;
