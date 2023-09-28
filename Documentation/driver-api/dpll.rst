@@ -425,6 +425,7 @@ The simplest implementation is in the OCP TimeCard driver. The ops
 structures are defined like this:
 
 .. code-block:: c
+
 	static const struct dpll_device_ops dpll_ops = {
 		.lock_status_get = ptp_ocp_dpll_lock_status_get,
 		.mode_get = ptp_ocp_dpll_mode_get,
@@ -442,6 +443,7 @@ structures are defined like this:
 The registration part is then looks like this part:
 
 .. code-block:: c
+
         clkid = pci_get_dsn(pdev);
         bp->dpll = dpll_device_get(clkid, 0, THIS_MODULE);
         if (IS_ERR(bp->dpll)) {
@@ -472,6 +474,7 @@ The registration part is then looks like this part:
 In the error path we have to rewind every allocation in the reverse order:
 
 .. code-block:: c
+
         while (i) {
                 --i;
                 dpll_pin_unregister(bp->dpll, bp->sma[i].dpll_pin, &dpll_pins_ops, &bp->sma[i]);
