@@ -14,7 +14,6 @@
 
 struct mlx5_sf_dev_table {
 	struct xarray devices;
-	unsigned int max_sfs;
 	phys_addr_t base_address;
 	u64 sf_bar_length;
 	struct notifier_block nb;
@@ -110,12 +109,6 @@ static void mlx5_sf_dev_add(struct mlx5_core_dev *dev, u16 sf_index, u16 fn_id, 
 	sf_dev->parent_mdev = dev;
 	sf_dev->fn_id = fn_id;
 
-	if (!table->max_sfs) {
-		mlx5_adev_idx_free(id);
-		kfree(sf_dev);
-		err = -EOPNOTSUPP;
-		goto add_err;
-	}
 	sf_dev->bar_base_addr = table->base_address + (sf_index * table->sf_bar_length);
 
 	trace_mlx5_sf_dev_add(dev, sf_dev, id);
@@ -296,7 +289,6 @@ static void mlx5_sf_dev_destroy_active_work(struct mlx5_sf_dev_table *table)
 void mlx5_sf_dev_table_create(struct mlx5_core_dev *dev)
 {
 	struct mlx5_sf_dev_table *table;
-	unsigned int max_sfs;
 	int err;
 
 	if (!mlx5_sf_dev_supported(dev))
@@ -310,13 +302,8 @@ void mlx5_sf_dev_table_create(struct mlx5_core_dev *dev)
 
 	table->nb.notifier_call = mlx5_sf_dev_state_change_handler;
 	table->dev = dev;
-	if (MLX5_CAP_GEN(dev, max_num_sf))
-		max_sfs = MLX5_CAP_GEN(dev, max_num_sf);
-	else
-		max_sfs = 1 << MLX5_CAP_GEN(dev, log_max_sf);
 	table->sf_bar_length = 1 << (MLX5_CAP_GEN(dev, log_min_sf_size) + 12);
 	table->base_address = pci_resource_start(dev->pdev, 2);
-	table->max_sfs = max_sfs;
 	xa_init(&table->devices);
 	mutex_init(&table->table_lock);
 	dev->priv.sf_dev_table = table;
@@ -332,7 +319,6 @@ void mlx5_sf_dev_table_create(struct mlx5_core_dev *dev)
 	err = mlx5_sf_dev_vhca_arm_all(table);
 	if (err)
 		goto arm_err;
-	mlx5_core_dbg(dev, "SF DEV: max sf devices=%d\n", max_sfs);
 	return;
 
 arm_err:
@@ -340,7 +326,6 @@ arm_err:
 add_active_err:
 	mlx5_vhca_event_notifier_unregister(dev, &table->nb);
 vhca_err:
-	table->max_sfs = 0;
 	kfree(table);
 	dev->priv.sf_dev_table = NULL;
 table_err:

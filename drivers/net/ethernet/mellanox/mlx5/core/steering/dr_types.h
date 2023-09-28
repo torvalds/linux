@@ -1064,6 +1064,7 @@ struct mlx5dr_action_sampler {
 
 struct mlx5dr_action_dest_tbl {
 	u8 is_fw_tbl:1;
+	u8 is_wire_ft:1;
 	union {
 		struct mlx5dr_table *tbl;
 		struct {
