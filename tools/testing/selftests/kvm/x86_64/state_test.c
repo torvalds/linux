@@ -231,9 +231,9 @@ static void __attribute__((__flatten__)) guest_code(void *arg)
 int main(int argc, char *argv[])
 {
 	vm_vaddr_t nested_gva = 0;
-
+	struct kvm_cpuid2 empty_cpuid = {};
 	struct kvm_regs regs1, regs2;
-	struct kvm_vcpu *vcpu;
+	struct kvm_vcpu *vcpu, *vcpuN;
 	struct kvm_vm *vm;
 	struct kvm_x86_state *state;
 	struct ucall uc;
@@ -286,6 +286,21 @@ int main(int argc, char *argv[])
 		/* Restore state in a new VM.  */
 		vcpu = vm_recreate_with_one_vcpu(vm);
 		vcpu_load_state(vcpu, state);
+
+		/*
+		 * Restore XSAVE state in a dummy vCPU, first without doing
+		 * KVM_SET_CPUID2, and then with an empty guest CPUID.  Except
+		 * for off-by-default xfeatures, e.g. AMX, KVM is supposed to
+		 * allow KVM_SET_XSAVE regardless of guest CPUID.  Manually
+		 * load only XSAVE state, MSRs in particular have a much more
+		 * convoluted ABI.
+		 */
+		vcpuN = __vm_vcpu_add(vm, vcpu->id + 1);
+		vcpu_xsave_set(vcpuN, state->xsave);
+
+		vcpu_init_cpuid(vcpuN, &empty_cpuid);
+		vcpu_xsave_set(vcpuN, state->xsave);
+
 		kvm_x86_state_cleanup(state);
 
 		memset(&regs2, 0, sizeof(regs2));
