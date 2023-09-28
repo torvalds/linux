@@ -14,6 +14,7 @@
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
+#include <linux/property.h>
 #include <linux/regmap.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
@@ -41,6 +42,7 @@
 
 #define RTQ9128_CHSTAT_VAL_MASK	GENMASK(1, 0)
 #define RTQ9128_DOLEN_MASK	GENMASK(7, 6)
+#define RTQ9128_TDMSRCIN_MASK	GENMASK(5, 4)
 #define RTQ9128_AUDBIT_MASK	GENMASK(5, 4)
 #define RTQ9128_AUDFMT_MASK	GENMASK(3, 0)
 #define RTQ9128_MSMUTE_MASK	BIT(0)
@@ -59,6 +61,7 @@ struct rtq9128_data {
 	struct gpio_desc *enable;
 	int tdm_slots;
 	int tdm_slot_width;
+	bool tdm_input_data2_select;
 };
 
 struct rtq9128_init_reg {
@@ -484,7 +487,7 @@ static int rtq9128_dai_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mas
 	struct rtq9128_data *data = snd_soc_dai_get_drvdata(dai);
 	struct snd_soc_component *comp = dai->component;
 	struct device *dev = dai->dev;
-	unsigned int mask, start_loc;
+	unsigned int mask, start_loc, srcin_select;
 	int i, frame_length, ret;
 
 	dev_dbg(dev, "%s: slot %d slot_width %d, tx/rx mask 0x%x 0x%x\n", __func__, slots,
@@ -528,6 +531,14 @@ static int rtq9128_dai_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mas
 			dev_err(dev, "Failed to assign rx_loc %d (%d)\n", i, ret);
 			return ret;
 		}
+	}
+
+	srcin_select = data->tdm_input_data2_select ? RTQ9128_TDMSRCIN_MASK : 0;
+	ret = snd_soc_component_update_bits(comp, RTQ9128_REG_SDO_SEL, RTQ9128_TDMSRCIN_MASK,
+					    srcin_select);
+	if (ret < 0) {
+		dev_err(dev, "Failed to configure TDM source input select\n");
+		return ret;
 	}
 
 	data->tdm_slots = slots;
@@ -671,6 +682,9 @@ static int rtq9128_probe(struct i2c_client *i2c)
 		return dev_err_probe(dev, PTR_ERR(data->enable), "Failed to get 'enable' gpio\n");
 	else if (data->enable)
 		usleep_range(10000, 11000);
+
+	data->tdm_input_data2_select = device_property_read_bool(dev,
+								 "richtek,tdm-input-data2-select");
 
 	i2c_set_clientdata(i2c, data);
 
