@@ -955,7 +955,8 @@ static inline void drv_mgd_complete_tx(struct ieee80211_local *local,
 
 static inline void
 drv_mgd_protect_tdls_discover(struct ieee80211_local *local,
-			      struct ieee80211_sub_if_data *sdata)
+			      struct ieee80211_sub_if_data *sdata,
+			      int link_id)
 {
 	might_sleep();
 	lockdep_assert_wiphy(local->hw.wiphy);
@@ -964,9 +965,12 @@ drv_mgd_protect_tdls_discover(struct ieee80211_local *local,
 		return;
 	WARN_ON_ONCE(sdata->vif.type != NL80211_IFTYPE_STATION);
 
+	link_id = link_id > 0 ? link_id : 0;
+
 	trace_drv_mgd_protect_tdls_discover(local, sdata);
 	if (local->ops->mgd_protect_tdls_discover)
-		local->ops->mgd_protect_tdls_discover(&local->hw, &sdata->vif);
+		local->ops->mgd_protect_tdls_discover(&local->hw, &sdata->vif,
+						      link_id);
 	trace_drv_return_void(local);
 }
 
