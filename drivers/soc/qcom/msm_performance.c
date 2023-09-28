@@ -80,11 +80,6 @@ static ssize_t set_cpu_max_freq(struct kobject *kobj,
 	size_t count);
 static ssize_t get_cpu_total_instruction(struct kobject *kobj,
 	struct kobj_attribute *attr, char *buf);
-static ssize_t get_core_ctl_register(struct kobject *kobj,
-	struct kobj_attribute *attr, char *buf);
-static ssize_t set_core_ctl_register(struct kobject *kobj,
-	struct kobj_attribute *attr, const char *buf,
-	size_t count);
 static ssize_t get_game_start_pid(struct kobject *kobj,
 	struct kobj_attribute *attr, char *buf);
 static ssize_t set_game_start_pid(struct kobject *kobj,
@@ -126,9 +121,16 @@ static struct kobj_attribute cpu_max_freq_attr =
 	__ATTR(cpu_max_freq, 0644, get_cpu_max_freq, set_cpu_max_freq);
 static struct kobj_attribute inst_attr =
 	__ATTR(inst, 0444, get_cpu_total_instruction, NULL);
+#if IS_ENABLED(CONFIG_SCHED_WALT)
+static ssize_t get_core_ctl_register(struct kobject *kobj,
+	struct kobj_attribute *attr, char *buf);
+static ssize_t set_core_ctl_register(struct kobject *kobj,
+	struct kobj_attribute *attr, const char *buf,
+	size_t count);
 static struct kobj_attribute core_ctl_register_attr =
 	__ATTR(core_ctl_register, 0644, get_core_ctl_register,
 	set_core_ctl_register);
+#endif
 static struct kobj_attribute evnt_gplaf_pid_attr =
 	__ATTR(evnt_gplaf_pid, 0644, get_game_start_pid, set_game_start_pid);
 static struct kobj_attribute splh_notif_attr =
@@ -176,7 +178,9 @@ static struct attribute *param_attrs[] = {
 	&cpu_min_freq_attr.attr,
 	&cpu_max_freq_attr.attr,
 	&inst_attr.attr,
+#if IS_ENABLED(CONFIG_SCHED_WALT)
 	&core_ctl_register_attr.attr,
+#endif
 	&evnt_gplaf_pid_attr.attr,
 	NULL,
 };
@@ -856,6 +860,7 @@ static int init_events_group(void)
 	return 0;
 }
 
+#if IS_ENABLED(CONFIG_SCHED_WALT)
 static void nr_notify_userspace(struct work_struct *work)
 {
 	sysfs_notify(notify_kobj, NULL, "aggr_top_load");
@@ -931,6 +936,7 @@ static ssize_t set_core_ctl_register(struct kobject *kobj,
 
 	return count;
 }
+#endif
 
 void  msm_perf_events_update(enum evt_update_t update_typ,
 			enum gfx_evt_t evt_typ, pid_t pid,
