@@ -674,6 +674,22 @@ static const struct platform_features spr_features = {
 	.rapl_msrs = RAPL_PKG_ALL | RAPL_DRAM_ALL,
 };
 
+static const struct platform_features srf_features = {
+	.has_msr_misc_feature_control = 1,
+	.has_msr_misc_pwr_mgmt = 1,
+	.has_nhm_msrs = 1,
+	.has_config_tdp = 1,
+	.bclk_freq = BCLK_100MHZ,
+	.supported_cstates = CC1 | CC6 | PC2 | PC6,
+	.cst_limit = CST_LIMIT_SKX,
+	.has_msr_core_c1_res = 1,
+	.has_msr_module_c6_res_ms = 1,
+	.has_irtl_msrs = 1,
+	.has_cst_prewake_bit = 1,
+	.trl_msrs = TRL_BASE | TRL_CORECOUNT,
+	.rapl_msrs = RAPL_PKG_ALL | RAPL_DRAM_ALL,
+};
+
 static const struct platform_features slv_features = {
 	.has_nhm_msrs = 1,
 	.bclk_freq = BCLK_SLV,
@@ -848,6 +864,7 @@ static const struct platform_data turbostat_pdata[] = {
 	{ INTEL_FAM6_ATOM_TREMONT, &tmt_features },
 	{ INTEL_FAM6_ATOM_TREMONT_L, &tmt_features },
 	{ INTEL_FAM6_ATOM_GRACEMONT, &adl_features },
+	{ INTEL_FAM6_ATOM_CRESTMONT_X, &srf_features },
 	{ INTEL_FAM6_XEON_PHI_KNL, &knl_features },
 	{ INTEL_FAM6_XEON_PHI_KNM, &knl_features },
 	/*
