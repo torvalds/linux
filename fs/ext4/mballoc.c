@@ -6388,7 +6388,7 @@ static void ext4_mb_clear_bb(handle_t *handle, struct inode *inode,
 		ext4_error(sb, "Freeing blocks in system zone - "
 			   "Block = %llu, count = %lu", block, count);
 		/* err = 0. ext4_std_error should be a no op */
-		goto error_return;
+		goto error_out;
 	}
 	flags |= EXT4_FREE_BLOCKS_VALIDATED;
 
@@ -6412,31 +6412,39 @@ do_more:
 		flags &= ~EXT4_FREE_BLOCKS_VALIDATED;
 	}
 	count_clusters = EXT4_NUM_B2C(sbi, count);
-	bitmap_bh = ext4_read_block_bitmap(sb, block_group);
-	if (IS_ERR(bitmap_bh)) {
-		err = PTR_ERR(bitmap_bh);
-		bitmap_bh = NULL;
-		goto error_return;
-	}
-	gdp = ext4_get_group_desc(sb, block_group, &gd_bh);
-	if (!gdp) {
-		err = -EIO;
-		goto error_return;
-	}
+	trace_ext4_mballoc_free(sb, inode, block_group, bit, count_clusters);
+
+	/* __GFP_NOFAIL: retry infinitely, ignore TIF_MEMDIE and memcg limit. */
+	err = ext4_mb_load_buddy_gfp(sb, block_group, &e4b,
+				     GFP_NOFS|__GFP_NOFAIL);
+	if (err)
+		goto error_out;
 
 	if (!(flags & EXT4_FREE_BLOCKS_VALIDATED) &&
 	    !ext4_inode_block_valid(inode, block, count)) {
 		ext4_error(sb, "Freeing blocks in system zone - "
 			   "Block = %llu, count = %lu", block, count);
 		/* err = 0. ext4_std_error should be a no op */
-		goto error_return;
+		goto error_clean;
+	}
+
+	bitmap_bh = ext4_read_block_bitmap(sb, block_group);
+	if (IS_ERR(bitmap_bh)) {
+		err = PTR_ERR(bitmap_bh);
+		bitmap_bh = NULL;
+		goto error_clean;
+	}
+	gdp = ext4_get_group_desc(sb, block_group, &gd_bh);
+	if (!gdp) {
+		err = -EIO;
+		goto error_clean;
 	}
 
 	BUFFER_TRACE(bitmap_bh, "getting write access");
 	err = ext4_journal_get_write_access(handle, sb, bitmap_bh,
 					    EXT4_JTR_NONE);
 	if (err)
-		goto error_return;
+		goto error_clean;
 
 	/*
 	 * We are about to modify some metadata.  Call the journal APIs
@@ -6446,7 +6454,7 @@ do_more:
 	BUFFER_TRACE(gd_bh, "get_write_access");
 	err = ext4_journal_get_write_access(handle, sb, gd_bh, EXT4_JTR_NONE);
 	if (err)
-		goto error_return;
+		goto error_clean;
 #ifdef AGGRESSIVE_CHECK
 	{
 		int i;
@@ -6454,13 +6462,30 @@ do_more:
 			BUG_ON(!mb_test_bit(bit + i, bitmap_bh->b_data));
 	}
 #endif
-	trace_ext4_mballoc_free(sb, inode, block_group, bit, count_clusters);
+	ext4_lock_group(sb, block_group);
+	mb_clear_bits(bitmap_bh->b_data, bit, count_clusters);
+	ret = ext4_free_group_clusters(sb, gdp) + count_clusters;
+	ext4_free_group_clusters_set(sb, gdp, ret);
+	ext4_block_bitmap_csum_set(sb, gdp, bitmap_bh);
+	ext4_group_desc_csum_set(sb, block_group, gdp);
+	ext4_unlock_group(sb, block_group);
 
-	/* __GFP_NOFAIL: retry infinitely, ignore TIF_MEMDIE and memcg limit. */
-	err = ext4_mb_load_buddy_gfp(sb, block_group, &e4b,
-				     GFP_NOFS|__GFP_NOFAIL);
-	if (err)
-		goto error_return;
+	if (sbi->s_log_groups_per_flex) {
+		ext4_group_t flex_group = ext4_flex_group(sbi, block_group);
+		atomic64_add(count_clusters,
+			     &sbi_array_rcu_deref(sbi, s_flex_groups,
+						  flex_group)->free_clusters);
+	}
+
+	/* We dirtied the bitmap block */
+	BUFFER_TRACE(bitmap_bh, "dirtied bitmap block");
+	err = ext4_handle_dirty_metadata(handle, NULL, bitmap_bh);
+
+	/* And the group descriptor block */
+	BUFFER_TRACE(gd_bh, "dirtied group descriptor block");
+	ret = ext4_handle_dirty_metadata(handle, NULL, gd_bh);
+	if (!err)
+		err = ret;
 
 	/*
 	 * We need to make sure we don't reuse the freed block until after the
@@ -6484,13 +6509,8 @@ do_more:
 		new_entry->efd_tid = handle->h_transaction->t_tid;
 
 		ext4_lock_group(sb, block_group);
-		mb_clear_bits(bitmap_bh->b_data, bit, count_clusters);
 		ext4_mb_free_metadata(handle, &e4b, new_entry);
 	} else {
-		/* need to update group_info->bb_free and bitmap
-		 * with group lock held. generate_buddy look at
-		 * them with group lock_held
-		 */
 		if (test_opt(sb, DISCARD)) {
 			err = ext4_issue_discard(sb, block_group, bit,
 						 count_clusters, NULL);
@@ -6503,22 +6523,10 @@ do_more:
 			EXT4_MB_GRP_CLEAR_TRIMMED(e4b.bd_info);
 
 		ext4_lock_group(sb, block_group);
-		mb_clear_bits(bitmap_bh->b_data, bit, count_clusters);
 		mb_free_blocks(inode, &e4b, bit, count_clusters);
 	}
 
-	ret = ext4_free_group_clusters(sb, gdp) + count_clusters;
-	ext4_free_group_clusters_set(sb, gdp, ret);
-	ext4_block_bitmap_csum_set(sb, gdp, bitmap_bh);
-	ext4_group_desc_csum_set(sb, block_group, gdp);
 	ext4_unlock_group(sb, block_group);
-
-	if (sbi->s_log_groups_per_flex) {
-		ext4_group_t flex_group = ext4_flex_group(sbi, block_group);
-		atomic64_add(count_clusters,
-			     &sbi_array_rcu_deref(sbi, s_flex_groups,
-						  flex_group)->free_clusters);
-	}
 
 	/*
 	 * on a bigalloc file system, defer the s_freeclusters_counter
@@ -6532,28 +6540,20 @@ do_more:
 				   count_clusters);
 	}
 
-	ext4_mb_unload_buddy(&e4b);
-
-	/* We dirtied the bitmap block */
-	BUFFER_TRACE(bitmap_bh, "dirtied bitmap block");
-	err = ext4_handle_dirty_metadata(handle, NULL, bitmap_bh);
-
-	/* And the group descriptor block */
-	BUFFER_TRACE(gd_bh, "dirtied group descriptor block");
-	ret = ext4_handle_dirty_metadata(handle, NULL, gd_bh);
-	if (!err)
-		err = ret;
-
 	if (overflow && !err) {
 		block += count;
 		count = overflow;
+		ext4_mb_unload_buddy(&e4b);
 		put_bh(bitmap_bh);
 		/* The range changed so it's no longer validated */
 		flags &= ~EXT4_FREE_BLOCKS_VALIDATED;
 		goto do_more;
 	}
-error_return:
+
+error_clean:
+	ext4_mb_unload_buddy(&e4b);
 	brelse(bitmap_bh);
+error_out:
 	ext4_std_error(sb, err);
 }
 
