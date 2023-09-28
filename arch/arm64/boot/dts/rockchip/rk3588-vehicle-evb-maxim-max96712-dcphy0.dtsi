@@ -12,6 +12,42 @@
 		clock-frequency = <25000000>;
 		clock-output-names = "max96712-dcphy0-osc";
 	};
+
+	max96712_dcphy0_vcc1v2: max96712-dcphy0-vcc1v2 {
+		compatible = "regulator-fixed";
+		regulator-name = "max96712_dcphy0_vcc1v2";
+		regulator-boot-on;
+		regulator-always-on;
+		regulator-min-microvolt = <1200000>;
+		regulator-max-microvolt = <1200000>;
+		startup-delay-us = <850>;
+		vin-supply = <&vcc5v0_sys>;
+	};
+
+	max96712_dcphy0_vcc1v8: max96712-dcphy0-vcc1v8 {
+		compatible = "regulator-fixed";
+		regulator-name = "max96712_dcphy0_vcc1v8";
+		regulator-boot-on;
+		regulator-always-on;
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		startup-delay-us = <200>;
+		vin-supply = <&vcc_3v3_s3>;
+	};
+
+	max96712_dcphy0_poc: max96712-dcphy0-poc {
+		compatible = "regulator-fixed";
+		regulator-name = "max96712_dcphy0_poc";
+		regulator-boot-on;
+		regulator-always-on;
+		regulator-min-microvolt = <12000000>;
+		regulator-max-microvolt = <12000000>;
+		enable-active-high;
+		gpio = <&gpio3 RK_PA6 GPIO_ACTIVE_HIGH>;
+		startup-delay-us = <1050>;
+		off-on-delay-us = <515000>;
+		vin-supply = <&vcc12v_dcin>;
+	};
 };
 
 &mipi_dcphy0 {
@@ -64,8 +100,10 @@
 		power-domains = <&power RK3588_PD_VI>;
 		rockchip,grf = <&sys_grf>;
 		pwdn-gpios = <&gpio4 RK_PA4 GPIO_ACTIVE_HIGH>;
-		pocen-gpios = <&gpio3 RK_PA6 GPIO_ACTIVE_HIGH>;
 		lock-gpios = <&gpio4 RK_PA2 GPIO_ACTIVE_HIGH>;
+		vcc1v2-supply = <&max96712_dcphy0_vcc1v2>;
+		vcc1v8-supply = <&max96712_dcphy0_vcc1v8>;
+		poc-supply = <&max96712_dcphy0_poc>;
 
 		rockchip,camera-module-index = <0>;
 		rockchip,camera-module-facing = "back";
