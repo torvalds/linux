@@ -901,7 +901,7 @@ static struct xe_vma *xe_vma_create(struct xe_vm *vm,
 			vma->tile_mask |= 0x1 << id;
 	}
 
-	if (vm->xe->info.platform == XE_PVC)
+	if (GRAPHICS_VER(vm->xe) >= 20 || vm->xe->info.platform == XE_PVC)
 		vma->gpuva.flags |= XE_VMA_ATOMIC_PTE_BIT;
 
 	if (bo) {
