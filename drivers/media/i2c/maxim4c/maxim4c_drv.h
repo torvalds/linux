@@ -10,6 +10,7 @@
 #include <linux/workqueue.h>
 #include <linux/rk-camera-module.h>
 #include <linux/mfd/core.h>
+#include <linux/regulator/consumer.h>
 #include <media/media-entity.h>
 #include <media/v4l2-async.h>
 #include <media/v4l2-ctrls.h>
@@ -27,6 +28,8 @@
 #define MAXIM4C_REG_CHIP_ID		0x0D
 #define MAX96712_CHIP_ID		0xA0
 #define MAX96722_CHIP_ID		0xA1
+
+#define MAXIM4C_NUM_SUPPLIES 2
 
 enum {
 	MAXIM4C_HOT_PLUG_OUT = 0,
@@ -57,8 +60,9 @@ typedef struct maxim4c {
 	struct i2c_client *client;
 	struct clk *xvclk;
 	struct gpio_desc *pwdn_gpio;
-	struct gpio_desc *pocen_gpio;
 	struct gpio_desc *lock_gpio;
+	struct regulator_bulk_data supplies[MAXIM4C_NUM_SUPPLIES];
+	struct regulator *poc_regulator;
 
 	struct mutex mutex;
 
