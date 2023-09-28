@@ -6650,35 +6650,39 @@ int ext4_group_add_blocks(handle_t *handle, struct super_block *sb,
 		ext4_warning(sb, "too many blocks added to group %u",
 			     block_group);
 		err = -EINVAL;
-		goto error_return;
+		goto error_out;
 	}
 
-	bitmap_bh = ext4_read_block_bitmap(sb, block_group);
-	if (IS_ERR(bitmap_bh)) {
-		err = PTR_ERR(bitmap_bh);
-		bitmap_bh = NULL;
-		goto error_return;
-	}
-
-	desc = ext4_get_group_desc(sb, block_group, &gd_bh);
-	if (!desc) {
-		err = -EIO;
-		goto error_return;
-	}
+	err = ext4_mb_load_buddy(sb, block_group, &e4b);
+	if (err)
+		goto error_out;
 
 	if (!ext4_sb_block_valid(sb, NULL, block, count)) {
 		ext4_error(sb, "Adding blocks in system zones - "
 			   "Block = %llu, count = %lu",
 			   block, count);
 		err = -EINVAL;
-		goto error_return;
+		goto error_clean;
+	}
+
+	bitmap_bh = ext4_read_block_bitmap(sb, block_group);
+	if (IS_ERR(bitmap_bh)) {
+		err = PTR_ERR(bitmap_bh);
+		bitmap_bh = NULL;
+		goto error_clean;
+	}
+
+	desc = ext4_get_group_desc(sb, block_group, &gd_bh);
+	if (!desc) {
+		err = -EIO;
+		goto error_clean;
 	}
 
 	BUFFER_TRACE(bitmap_bh, "getting write access");
 	err = ext4_journal_get_write_access(handle, sb, bitmap_bh,
 					    EXT4_JTR_NONE);
 	if (err)
-		goto error_return;
+		goto error_clean;
 
 	/*
 	 * We are about to modify some metadata.  Call the journal APIs
@@ -6688,7 +6692,7 @@ int ext4_group_add_blocks(handle_t *handle, struct super_block *sb,
 	BUFFER_TRACE(gd_bh, "get_write_access");
 	err = ext4_journal_get_write_access(handle, sb, gd_bh, EXT4_JTR_NONE);
 	if (err)
-		goto error_return;
+		goto error_clean;
 
 	for (i = 0, clusters_freed = 0; i < cluster_count; i++) {
 		BUFFER_TRACE(bitmap_bh, "clear bit");
@@ -6701,26 +6705,14 @@ int ext4_group_add_blocks(handle_t *handle, struct super_block *sb,
 		}
 	}
 
-	err = ext4_mb_load_buddy(sb, block_group, &e4b);
-	if (err)
-		goto error_return;
-
-	/*
-	 * need to update group_info->bb_free and bitmap
-	 * with group lock held. generate_buddy look at
-	 * them with group lock_held
-	 */
 	ext4_lock_group(sb, block_group);
 	mb_clear_bits(bitmap_bh->b_data, bit, cluster_count);
-	mb_free_blocks(NULL, &e4b, bit, cluster_count);
 	free_clusters_count = clusters_freed +
 		ext4_free_group_clusters(sb, desc);
 	ext4_free_group_clusters_set(sb, desc, free_clusters_count);
 	ext4_block_bitmap_csum_set(sb, desc, bitmap_bh);
 	ext4_group_desc_csum_set(sb, block_group, desc);
 	ext4_unlock_group(sb, block_group);
-	percpu_counter_add(&sbi->s_freeclusters_counter,
-			   clusters_freed);
 
 	if (sbi->s_log_groups_per_flex) {
 		ext4_group_t flex_group = ext4_flex_group(sbi, block_group);
@@ -6728,8 +6720,6 @@ int ext4_group_add_blocks(handle_t *handle, struct super_block *sb,
 			     &sbi_array_rcu_deref(sbi, s_flex_groups,
 						  flex_group)->free_clusters);
 	}
-
-	ext4_mb_unload_buddy(&e4b);
 
 	/* We dirtied the bitmap block */
 	BUFFER_TRACE(bitmap_bh, "dirtied bitmap block");
@@ -6741,8 +6731,16 @@ int ext4_group_add_blocks(handle_t *handle, struct super_block *sb,
 	if (!err)
 		err = ret;
 
-error_return:
+	ext4_lock_group(sb, block_group);
+	mb_free_blocks(NULL, &e4b, bit, cluster_count);
+	ext4_unlock_group(sb, block_group);
+	percpu_counter_add(&sbi->s_freeclusters_counter,
+			   clusters_freed);
+
+error_clean:
 	brelse(bitmap_bh);
+	ext4_mb_unload_buddy(&e4b);
+error_out:
 	ext4_std_error(sb, err);
 	return err;
 }
