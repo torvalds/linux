@@ -126,6 +126,41 @@ void btrfs_update_delayed_refs_rsv(struct btrfs_trans_handle *trans)
 }
 
 /*
+ * Adjust the size of the delayed refs block reserve for 1 block group item
+ * update.
+ */
+void btrfs_inc_delayed_refs_rsv_bg_updates(struct btrfs_fs_info *fs_info)
+{
+	struct btrfs_block_rsv *delayed_rsv = &fs_info->delayed_refs_rsv;
+
+	spin_lock(&delayed_rsv->lock);
+	/*
+	 * Updating a block group item does not result in new nodes/leaves and
+	 * does not require changing the free space tree, only the extent tree
+	 * or the block group tree, so this is all we need.
+	 */
+	delayed_rsv->size += btrfs_calc_metadata_size(fs_info, 1);
+	delayed_rsv->full = false;
+	spin_unlock(&delayed_rsv->lock);
+}
+
+/*
+ * Adjust the size of the delayed refs block reserve to release space for 1
+ * block group item update.
+ */
+void btrfs_dec_delayed_refs_rsv_bg_updates(struct btrfs_fs_info *fs_info)
+{
+	struct btrfs_block_rsv *delayed_rsv = &fs_info->delayed_refs_rsv;
+	const u64 num_bytes = btrfs_calc_metadata_size(fs_info, 1);
+	u64 released;
+
+	released = btrfs_block_rsv_release(fs_info, delayed_rsv, num_bytes, NULL);
+	if (released > 0)
+		trace_btrfs_space_reservation(fs_info, "delayed_refs_rsv",
+					      0, released, 0);
+}
+
+/*
  * Transfer bytes to our delayed refs rsv.
  *
  * @fs_info:   the filesystem
