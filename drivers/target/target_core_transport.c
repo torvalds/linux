@@ -1907,7 +1907,7 @@ void target_queued_submit_work(struct work_struct *work)
  * target_queue_submission - queue the cmd to run on the LIO workqueue
  * @se_cmd: command descriptor to submit
  */
-void target_queue_submission(struct se_cmd *se_cmd)
+static void target_queue_submission(struct se_cmd *se_cmd)
 {
 	struct se_device *se_dev = se_cmd->se_dev;
 	int cpu = se_cmd->cpuid;
@@ -1917,7 +1917,6 @@ void target_queue_submission(struct se_cmd *se_cmd)
 	llist_add(&se_cmd->se_cmd_list, &sq->cmd_list);
 	queue_work_on(cpu, target_submission_wq, &sq->work);
 }
-EXPORT_SYMBOL_GPL(target_queue_submission);
 
 /**
  * target_submit - perform final initialization and submit cmd to LIO core
