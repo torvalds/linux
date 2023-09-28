@@ -1489,7 +1489,7 @@ static int omap_gpio_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int omap_gpio_remove(struct platform_device *pdev)
+static void omap_gpio_remove(struct platform_device *pdev)
 {
 	struct gpio_bank *bank = platform_get_drvdata(pdev);
 
@@ -1498,8 +1498,6 @@ static int omap_gpio_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 	if (bank->dbck_flag)
 		clk_unprepare(bank->dbck);
-
-	return 0;
 }
 
 static int __maybe_unused omap_gpio_runtime_suspend(struct device *dev)
@@ -1560,7 +1558,7 @@ static const struct dev_pm_ops gpio_pm_ops = {
 
 static struct platform_driver omap_gpio_driver = {
 	.probe		= omap_gpio_probe,
-	.remove		= omap_gpio_remove,
+	.remove_new	= omap_gpio_remove,
 	.driver		= {
 		.name	= "omap_gpio",
 		.pm	= &gpio_pm_ops,
