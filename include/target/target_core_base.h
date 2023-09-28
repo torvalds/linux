@@ -108,6 +108,15 @@
 #define SE_MODE_PAGE_BUF			512
 #define SE_SENSE_BUF				96
 
+enum target_submit_type {
+	/* Use the fabric driver's default submission type */
+	TARGET_FABRIC_DEFAULT_SUBMIT,
+	/* Submit from the calling context */
+	TARGET_DIRECT_SUBMIT,
+	/* Defer submission to the LIO workqueue */
+	TARGET_QUEUE_SUBMIT,
+};
+
 /* struct se_hba->hba_flags */
 enum hba_flags_table {
 	HBA_FLAGS_INTERNAL_USE	= 0x01,
