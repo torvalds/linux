@@ -77,8 +77,11 @@ int drv_add_interface(struct ieee80211_local *local,
 
 	sdata->flags |= IEEE80211_SDATA_IN_DRIVER;
 
-	if (!local->in_reconfig)
+	if (!local->in_reconfig) {
 		drv_vif_add_debugfs(local, sdata);
+		/* initially vif is not MLD */
+		ieee80211_link_debugfs_drv_add(&sdata->deflink);
+	}
 
 	return 0;
 }
