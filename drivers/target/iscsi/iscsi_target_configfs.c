@@ -1589,5 +1589,5 @@ const struct target_core_fabric_ops iscsi_ops = {
 	.tfc_tpg_nacl_auth_attrs	= lio_target_nacl_auth_attrs,
 	.tfc_tpg_nacl_param_attrs	= lio_target_nacl_param_attrs,
 
-	.write_pending_must_be_called	= true,
+	.write_pending_must_be_called	= 1,
 };
