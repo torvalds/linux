@@ -56,6 +56,8 @@ static void ieee80211_mesh_housekeeping_timer(struct timer_list *t)
  *
  * This function checks if the mesh configuration of a mesh point matches the
  * local mesh configuration, i.e. if both nodes belong to the same mesh network.
+ *
+ * Returns: %true if both nodes belong to the same mesh
  */
 bool mesh_matches_local(struct ieee80211_sub_if_data *sdata,
 			struct ieee802_11_elems *ie)
@@ -119,6 +121,8 @@ bool mesh_matches_local(struct ieee80211_sub_if_data *sdata,
  * mesh_peer_accepts_plinks - check if an mp is willing to establish peer links
  *
  * @ie: information elements of a management frame from the mesh peer
+ *
+ * Returns: %true if the mesh peer is willing to establish peer links
  */
 bool mesh_peer_accepts_plinks(struct ieee802_11_elems *ie)
 {
@@ -858,7 +862,7 @@ bool ieee80211_mesh_xmit_fast(struct ieee80211_sub_if_data *sdata,
  * @meshsa:	source address in the mesh.  Same as TA, as frame is
  *              locally originated.
  *
- * Return the length of the 802.11 (does not include a mesh control header)
+ * Returns: the length of the 802.11 frame header (excludes mesh control header)
  */
 int ieee80211_fill_mesh_addresses(struct ieee80211_hdr *hdr, __le16 *fc,
 				  const u8 *meshda, const u8 *meshsa)
@@ -891,7 +895,7 @@ int ieee80211_fill_mesh_addresses(struct ieee80211_hdr *hdr, __le16 *fc,
  * @addr6:	2nd address in the ae header, which corresponds to addr6 of the
  *              mesh frame
  *
- * Return the header length.
+ * Returns: the header length
  */
 unsigned int ieee80211_new_mesh_header(struct ieee80211_sub_if_data *sdata,
 				       struct ieee80211s_hdr *meshhdr,

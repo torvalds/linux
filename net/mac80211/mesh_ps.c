@@ -15,6 +15,8 @@
 /**
  * mps_qos_null_get - create pre-addressed QoS Null frame for mesh powersave
  * @sta: the station to get the frame for
+ *
+ * Returns: A newly allocated SKB
  */
 static struct sk_buff *mps_qos_null_get(struct sta_info *sta)
 {
@@ -77,6 +79,8 @@ static void mps_qos_null_tx(struct sta_info *sta)
  *
  * sets the non-peer power mode and triggers the driver PS (re-)configuration
  * Return BSS_CHANGED_BEACON if a beacon update is necessary.
+ *
+ * Returns: BSS_CHANGED_BEACON if a beacon update is in order.
  */
 u64 ieee80211_mps_local_status_update(struct ieee80211_sub_if_data *sdata)
 {
@@ -147,7 +151,7 @@ u64 ieee80211_mps_local_status_update(struct ieee80211_sub_if_data *sdata)
  *
  * @sta: mesh STA
  * @pm: the power mode to set
- * Return BSS_CHANGED_BEACON if a beacon update is in order.
+ * Returns: BSS_CHANGED_BEACON if a beacon update is in order.
  */
 u64 ieee80211_mps_set_sta_local_pm(struct sta_info *sta,
 				   enum nl80211_mesh_power_mode pm)
