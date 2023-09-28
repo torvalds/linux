@@ -21,3 +21,25 @@ Description:
 
 		Accepts only one value -  1.
 		1 : Reset the dataset of the tpdm
+
+What:		/sys/bus/coresight/devices/<tpdm-name>/dsb_trig_type
+Date:		March 2023
+KernelVersion	6.7
+Contact:	Jinlong Mao (QUIC) <quic_jinlmao@quicinc.com>, Tao Zhang (QUIC) <quic_taozha@quicinc.com>
+Description:
+		(RW) Set/Get the trigger type of the DSB for tpdm.
+
+		Accepts only one of the 2 values -  0 or 1.
+		0 : Set the DSB trigger type to false
+		1 : Set the DSB trigger type to true
+
+What:		/sys/bus/coresight/devices/<tpdm-name>/dsb_trig_ts
+Date:		March 2023
+KernelVersion	6.7
+Contact:	Jinlong Mao (QUIC) <quic_jinlmao@quicinc.com>, Tao Zhang (QUIC) <quic_taozha@quicinc.com>
+Description:
+		(RW) Set/Get the trigger timestamp of the DSB for tpdm.
+
+		Accepts only one of the 2 values -  0 or 1.
+		0 : Set the DSB trigger type to false
+		1 : Set the DSB trigger type to true
