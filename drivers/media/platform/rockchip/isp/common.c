@@ -169,8 +169,10 @@ void rkisp_update_regs(struct rkisp_device *dev, u32 start, u32 end)
 				continue;
 		}
 
-		if (hw->unite == ISP_UNITE_ONE && dev->unite_index == ISP_UNITE_RIGHT)
+		if (hw->unite == ISP_UNITE_ONE && dev->unite_index == ISP_UNITE_RIGHT) {
 			val = dev->sw_base_addr + i + RKISP_ISP_SW_MAX_SIZE;
+			flag = dev->sw_base_addr + i + RKISP_ISP_SW_MAX_SIZE + RKISP_ISP_SW_REG_SIZE;
+		}
 
 		if (*flag == SW_REG_CACHE) {
 			if ((i == ISP3X_MAIN_RESIZE_CTRL ||

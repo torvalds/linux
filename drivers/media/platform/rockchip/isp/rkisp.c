@@ -1570,6 +1570,7 @@ static void rkisp_config_cmsk_dual(struct rkisp_device *dev,
 			left.win[0].win_en &= ~BIT(i);
 			left.win[1].win_en &= ~BIT(i);
 			left.win[2].win_en &= ~BIT(i);
+			right.win[i].h_offs = right.win[i].h_offs - w;
 		} else {
 			/* cmsk window at dual isp */
 			left.win[i].h_size = ALIGN(w - h_offs, 8);
