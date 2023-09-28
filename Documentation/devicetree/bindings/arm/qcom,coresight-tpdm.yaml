@@ -52,6 +52,15 @@ properties:
     $ref: /schemas/types.yaml#/definitions/uint8
     enum: [32, 64]
 
+  qcom,dsb-msrs-num:
+    description:
+      Specifies the number of DSB(Discrete Single Bit) MSR(mux select register)
+      registers supported by the monitor. If this property is not configured
+      or set to 0, it means this DSB TPDM doesn't support MSR.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 0
+    maximum: 32
+
   clocks:
     maxItems: 1
 
@@ -86,6 +95,7 @@ examples:
       reg = <0x0684c000 0x1000>;
 
       qcom,dsb-element-size = /bits/ 8 <32>;
+      qcom,dsb-msrs-num = <16>;
 
       clocks = <&aoss_qmp>;
       clock-names = "apb_pclk";
