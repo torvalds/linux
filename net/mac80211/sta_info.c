@@ -1275,6 +1275,8 @@ static int _sta_info_move_state(struct sta_info *sta,
 				enum ieee80211_sta_state new_state,
 				bool recalc)
 {
+	struct ieee80211_local *local = sta->local;
+
 	might_sleep();
 
 	if (sta->sta_state == new_state)
@@ -1350,6 +1352,24 @@ static int _sta_info_move_state(struct sta_info *sta,
 		} else if (sta->sta_state == IEEE80211_STA_AUTHORIZED) {
 			ieee80211_vif_dec_num_mcast(sta->sdata);
 			clear_bit(WLAN_STA_AUTHORIZED, &sta->_flags);
+
+			/*
+			 * If we have encryption offload, flush (station) queues
+			 * (after ensuring concurrent TX completed) so we won't
+			 * transmit anything later unencrypted if/when keys are
+			 * also removed, which might otherwise happen depending
+			 * on how the hardware offload works.
+			 */
+			if (local->ops->set_key) {
+				synchronize_net();
+				if (local->ops->flush_sta)
+					drv_flush_sta(local, sta->sdata, sta);
+				else
+					ieee80211_flush_queues(local,
+							       sta->sdata,
+							       false);
+			}
+
 			ieee80211_clear_fast_xmit(sta);
 			ieee80211_clear_fast_rx(sta);
 		}
@@ -1413,18 +1433,6 @@ static void __sta_info_destroy_part2(struct sta_info *sta, bool recalc)
 	if (sta->sta_state == IEEE80211_STA_AUTHORIZED) {
 		ret = _sta_info_move_state(sta, IEEE80211_STA_ASSOC, recalc);
 		WARN_ON_ONCE(ret);
-	}
-
-	/* Flush queues before removing keys, as that might remove them
-	 * from hardware, and then depending on the offload method, any
-	 * frames sitting on hardware queues might be sent out without
-	 * any encryption at all.
-	 */
-	if (local->ops->set_key) {
-		if (local->ops->flush_sta)
-			drv_flush_sta(local, sta->sdata, sta);
-		else
-			ieee80211_flush_queues(local, sta->sdata, false);
 	}
 
 	/* now keys can no longer be reached */
