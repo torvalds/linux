@@ -644,7 +644,7 @@ int bch2_fs_recovery(struct bch_fs *c)
 {
 	struct bch_sb_field_clean *clean = NULL;
 	struct jset *last_journal_entry = NULL;
-	u64 last_seq, blacklist_seq, journal_seq;
+	u64 last_seq = 0, blacklist_seq, journal_seq;
 	bool write_sb = false;
 	int ret = 0;
 
