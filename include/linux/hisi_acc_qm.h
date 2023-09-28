@@ -145,6 +145,13 @@ enum qm_vf_state {
 	QM_NOT_READY,
 };
 
+enum qm_misc_ctl_bits {
+	QM_DRIVER_REMOVING = 0x0,
+	QM_RST_SCHED,
+	QM_RESETTING,
+	QM_MODULE_PARAM,
+};
+
 enum qm_cap_bits {
 	QM_SUPPORT_DB_ISOLATION = 0x0,
 	QM_SUPPORT_FUNC_QOS,
