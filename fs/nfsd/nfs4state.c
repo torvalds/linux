@@ -59,7 +59,7 @@
 
 #define NFSDDBG_FACILITY                NFSDDBG_PROC
 
-#define all_ones {{~0,~0},~0}
+#define all_ones {{ ~0, ~0}, ~0}
 static const stateid_t one_stateid = {
 	.si_generation = ~0,
 	.si_opaque = all_ones,
@@ -298,7 +298,7 @@ find_or_allocate_block(struct nfs4_lockowner *lo, struct knfsd_fh *fh,
 
 	nbl = find_blocked_lock(lo, fh, nn);
 	if (!nbl) {
-		nbl= kmalloc(sizeof(*nbl), GFP_KERNEL);
+		nbl = kmalloc(sizeof(*nbl), GFP_KERNEL);
 		if (nbl) {
 			INIT_LIST_HEAD(&nbl->nbl_list);
 			INIT_LIST_HEAD(&nbl->nbl_lru);
