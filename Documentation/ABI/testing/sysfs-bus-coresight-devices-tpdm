@@ -57,3 +57,54 @@ Description:
 		Bit[3] : Set to 0 for low performance mode.
 				 Set to 1 for high performance mode.
 		Bit[4:8] : Select byte lane for high performance mode.
+
+What:		/sys/bus/coresight/devices/<tpdm-name>/dsb_edge/ctrl_idx
+Date:		March 2023
+KernelVersion	6.7
+Contact:	Jinlong Mao (QUIC) <quic_jinlmao@quicinc.com>, Tao Zhang (QUIC) <quic_taozha@quicinc.com>
+Description:
+		(RW) Set/Get the index number of the edge detection for the DSB
+		subunit TPDM. Since there are at most 256 edge detections, this
+		value ranges from 0 to 255.
+
+What:		/sys/bus/coresight/devices/<tpdm-name>/dsb_edge/ctrl_val
+Date:		March 2023
+KernelVersion	6.7
+Contact:	Jinlong Mao (QUIC) <quic_jinlmao@quicinc.com>, Tao Zhang (QUIC) <quic_taozha@quicinc.com>
+Description:
+		Write a data to control the edge detection corresponding to
+		the index number. Before writing data to this sysfs file,
+		"ctrl_idx" should be written first to configure the index
+		number of the edge detection which needs to be controlled.
+
+		Accepts only one of the following values.
+		0 - Rising edge detection
+		1 - Falling edge detection
+		2 - Rising and falling edge detection (toggle detection)
+
+
+What:		/sys/bus/coresight/devices/<tpdm-name>/dsb_edge/ctrl_mask
+Date:		March 2023
+KernelVersion	6.7
+Contact:	Jinlong Mao (QUIC) <quic_jinlmao@quicinc.com>, Tao Zhang (QUIC) <quic_taozha@quicinc.com>
+Description:
+		Write a data to mask the edge detection corresponding to the index
+		number. Before writing data to this sysfs file, "ctrl_idx" should
+		be written first to configure the index number of the edge detection
+		which needs to be masked.
+
+		Accepts only one of the 2 values -  0 or 1.
+
+What:		/sys/bus/coresight/devices/<tpdm-name>/dsb_edge/edcr[0:15]
+Date:		March 2023
+KernelVersion	6.7
+Contact:	Jinlong Mao (QUIC) <quic_jinlmao@quicinc.com>, Tao Zhang (QUIC) <quic_taozha@quicinc.com>
+Description:
+		Read a set of the edge control value of the DSB in TPDM.
+
+What:		/sys/bus/coresight/devices/<tpdm-name>/dsb_edge/edcmr[0:7]
+Date:		March 2023
+KernelVersion	6.7
+Contact:	Jinlong Mao (QUIC) <quic_jinlmao@quicinc.com>, Tao Zhang (QUIC) <quic_taozha@quicinc.com>
+Description:
+		Read a set of the edge control mask of the DSB in TPDM.

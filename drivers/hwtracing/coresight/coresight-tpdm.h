@@ -12,6 +12,8 @@
 /* DSB Subunit Registers */
 #define TPDM_DSB_CR		(0x780)
 #define TPDM_DSB_TIER		(0x784)
+#define TPDM_DSB_EDCR(n)	(0x808 + (n * 4))
+#define TPDM_DSB_EDCMR(n)	(0x848 + (n * 4))
 
 /* Enable bit for DSB subunit */
 #define TPDM_DSB_CR_ENA		BIT(0)
@@ -36,6 +38,16 @@
 #define TPDM_DSB_MODE_PERF		BIT(3)
 /* High performance mode */
 #define TPDM_DSB_MODE_HPBYTESEL(val)	(val & GENMASK(8, 4))
+
+#define EDCRS_PER_WORD			16
+#define EDCR_TO_WORD_IDX(r)		((r) / EDCRS_PER_WORD)
+#define EDCR_TO_WORD_SHIFT(r)		((r % EDCRS_PER_WORD) * 2)
+#define EDCR_TO_WORD_VAL(val, r)	(val << EDCR_TO_WORD_SHIFT(r))
+#define EDCR_TO_WORD_MASK(r)		EDCR_TO_WORD_VAL(0x3, r)
+
+#define EDCMRS_PER_WORD				32
+#define EDCMR_TO_WORD_IDX(r)		((r) / EDCMRS_PER_WORD)
+#define EDCMR_TO_WORD_SHIFT(r)		((r) % EDCMRS_PER_WORD)
 
 /* TPDM integration test registers */
 #define TPDM_ITATBCNTRL		(0xEF0)
@@ -63,14 +75,43 @@
 #define TPDM_PIDR0_DS_IMPDEF	BIT(0)
 #define TPDM_PIDR0_DS_DSB	BIT(1)
 
+#define TPDM_DSB_MAX_LINES	256
+/* MAX number of EDCR registers */
+#define TPDM_DSB_MAX_EDCR	16
+/* MAX number of EDCMR registers */
+#define TPDM_DSB_MAX_EDCMR	8
+
+#define tpdm_simple_dataset_ro(name, mem, idx)			\
+	(&((struct tpdm_dataset_attribute[]) {			\
+	   {								\
+		__ATTR(name, 0444, tpdm_simple_dataset_show, NULL),	\
+		mem,							\
+		idx,							\
+	   }								\
+	})[0].attr.attr)
+
+#define DSB_EDGE_CTRL_ATTR(nr)					\
+		tpdm_simple_dataset_ro(edcr##nr,		\
+		DSB_EDGE_CTRL, nr)
+
+#define DSB_EDGE_CTRL_MASK_ATTR(nr)				\
+		tpdm_simple_dataset_ro(edcmr##nr,		\
+		DSB_EDGE_CTRL_MASK, nr)
+
 /**
  * struct dsb_dataset - specifics associated to dsb dataset
  * @mode:             DSB programming mode
+ * @edge_ctrl_idx     Index number of the edge control
+ * @edge_ctrl:        Save value for edge control
+ * @edge_ctrl_mask:   Save value for edge control mask
  * @trig_ts:          Enable/Disable trigger timestamp.
  * @trig_type:        Enable/Disable trigger type.
  */
 struct dsb_dataset {
 	u32			mode;
+	u32			edge_ctrl_idx;
+	u32			edge_ctrl[TPDM_DSB_MAX_EDCR];
+	u32			edge_ctrl_mask[TPDM_DSB_MAX_EDCMR];
 	bool			trig_ts;
 	bool			trig_type;
 };
@@ -94,6 +135,25 @@ struct tpdm_drvdata {
 	bool			enable;
 	unsigned long		datasets;
 	struct dsb_dataset	*dsb;
+};
+
+/* Enumerate members of various datasets */
+enum dataset_mem {
+	DSB_EDGE_CTRL,
+	DSB_EDGE_CTRL_MASK,
+};
+
+/**
+ * struct tpdm_dataset_attribute - Record the member variables and
+ * index number of datasets that need to be operated by sysfs file
+ * @attr:       The device attribute
+ * @mem:        The member in the dataset data structure
+ * @idx:        The index number of the array data
+ */
+struct tpdm_dataset_attribute {
+	struct device_attribute attr;
+	enum dataset_mem mem;
+	u32 idx;
 };
 
 #endif  /* _CORESIGHT_CORESIGHT_TPDM_H */
