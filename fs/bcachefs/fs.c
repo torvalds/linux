@@ -1595,7 +1595,7 @@ static struct bch_fs *bch2_path_to_fs(const char *path)
 static char **split_devs(const char *_dev_name, unsigned *nr)
 {
 	char *dev_name = NULL, **devs = NULL, *s;
-	size_t i, nr_devs = 0;
+	size_t i = 0, nr_devs = 0;
 
 	dev_name = kstrdup(_dev_name, GFP_KERNEL);
 	if (!dev_name)
@@ -1610,9 +1610,7 @@ static char **split_devs(const char *_dev_name, unsigned *nr)
 		return NULL;
 	}
 
-	for (i = 0, s = dev_name;
-	     s;
-	     (s = strchr(s, ':')) && (*s++ = '\0'))
+	while ((s = strsep(&dev_name, ":")))
 		devs[i++] = s;
 
 	*nr = nr_devs;
