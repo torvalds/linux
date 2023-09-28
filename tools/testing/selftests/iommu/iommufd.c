@@ -114,6 +114,7 @@ TEST_F(iommufd, cmd_length)
 
 	TEST_LENGTH(iommu_destroy, IOMMU_DESTROY);
 	TEST_LENGTH(iommu_hw_info, IOMMU_GET_HW_INFO);
+	TEST_LENGTH(iommu_hwpt_alloc, IOMMU_HWPT_ALLOC);
 	TEST_LENGTH(iommu_ioas_alloc, IOMMU_IOAS_ALLOC);
 	TEST_LENGTH(iommu_ioas_iova_ranges, IOMMU_IOAS_IOVA_RANGES);
 	TEST_LENGTH(iommu_ioas_allow_iovas, IOMMU_IOAS_ALLOW_IOVAS);
@@ -1404,13 +1405,28 @@ TEST_F(iommufd_mock_domain, alloc_hwpt)
 	int i;
 
 	for (i = 0; i != variant->mock_domains; i++) {
+		uint32_t hwpt_id[2];
 		uint32_t stddev_id;
-		uint32_t hwpt_id;
 
-		test_cmd_hwpt_alloc(self->idev_ids[i], self->ioas_id, &hwpt_id);
-		test_cmd_mock_domain(hwpt_id, &stddev_id, NULL, NULL);
+		test_err_hwpt_alloc(EOPNOTSUPP,
+				    self->idev_ids[i], self->ioas_id,
+				    ~IOMMU_HWPT_ALLOC_NEST_PARENT, &hwpt_id[0]);
+		test_cmd_hwpt_alloc(self->idev_ids[i], self->ioas_id,
+				    0, &hwpt_id[0]);
+		test_cmd_hwpt_alloc(self->idev_ids[i], self->ioas_id,
+				    IOMMU_HWPT_ALLOC_NEST_PARENT, &hwpt_id[1]);
+
+		/* Do a hw_pagetable rotation test */
+		test_cmd_mock_domain_replace(self->stdev_ids[i], hwpt_id[0]);
+		EXPECT_ERRNO(EBUSY, _test_ioctl_destroy(self->fd, hwpt_id[0]));
+		test_cmd_mock_domain_replace(self->stdev_ids[i], hwpt_id[1]);
+		EXPECT_ERRNO(EBUSY, _test_ioctl_destroy(self->fd, hwpt_id[1]));
+		test_cmd_mock_domain_replace(self->stdev_ids[i], self->ioas_id);
+		test_ioctl_destroy(hwpt_id[1]);
+
+		test_cmd_mock_domain(hwpt_id[0], &stddev_id, NULL, NULL);
 		test_ioctl_destroy(stddev_id);
-		test_ioctl_destroy(hwpt_id);
+		test_ioctl_destroy(hwpt_id[0]);
 	}
 }
 

@@ -103,10 +103,11 @@ static int _test_cmd_mock_domain_replace(int fd, __u32 stdev_id, __u32 pt_id,
 							   pt_id, NULL))
 
 static int _test_cmd_hwpt_alloc(int fd, __u32 device_id, __u32 pt_id,
-					 __u32 *hwpt_id)
+				__u32 flags, __u32 *hwpt_id)
 {
 	struct iommu_hwpt_alloc cmd = {
 		.size = sizeof(cmd),
+		.flags = flags,
 		.dev_id = device_id,
 		.pt_id = pt_id,
 	};
@@ -120,8 +121,12 @@ static int _test_cmd_hwpt_alloc(int fd, __u32 device_id, __u32 pt_id,
 	return 0;
 }
 
-#define test_cmd_hwpt_alloc(device_id, pt_id, hwpt_id) \
-	ASSERT_EQ(0, _test_cmd_hwpt_alloc(self->fd, device_id, pt_id, hwpt_id))
+#define test_cmd_hwpt_alloc(device_id, pt_id, flags, hwpt_id) \
+	ASSERT_EQ(0, _test_cmd_hwpt_alloc(self->fd, device_id, \
+					  pt_id, flags, hwpt_id))
+#define test_err_hwpt_alloc(_errno, device_id, pt_id, flags, hwpt_id) \
+	EXPECT_ERRNO(_errno, _test_cmd_hwpt_alloc(self->fd, device_id, \
+						  pt_id, flags, hwpt_id))
 
 static int _test_cmd_access_replace_ioas(int fd, __u32 access_id,
 					 unsigned int ioas_id)
