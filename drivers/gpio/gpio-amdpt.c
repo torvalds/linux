@@ -122,13 +122,11 @@ static int pt_gpio_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int pt_gpio_remove(struct platform_device *pdev)
+static void pt_gpio_remove(struct platform_device *pdev)
 {
 	struct pt_gpio_chip *pt_gpio = platform_get_drvdata(pdev);
 
 	gpiochip_remove(&pt_gpio->gc);
-
-	return 0;
 }
 
 static const struct acpi_device_id pt_gpio_acpi_match[] = {
@@ -145,7 +143,7 @@ static struct platform_driver pt_gpio_driver = {
 		.acpi_match_table = ACPI_PTR(pt_gpio_acpi_match),
 	},
 	.probe = pt_gpio_probe,
-	.remove = pt_gpio_remove,
+	.remove_new = pt_gpio_remove,
 };
 
 module_platform_driver(pt_gpio_driver);
