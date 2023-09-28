@@ -1575,12 +1575,14 @@ target_cmd_parse_cdb(struct se_cmd *cmd)
 }
 EXPORT_SYMBOL(target_cmd_parse_cdb);
 
-/*
- * Used by fabric module frontends to queue tasks directly.
- * May only be used from process context.
+/**
+ * target_submit - perform final initialization and submit cmd to LIO core
+ * @cmd: command descriptor to submit
+ *
+ * target_submit_prep or something similar must have been called on the cmd,
+ * and this must be called from process context.
  */
-int transport_handle_cdb_direct(
-	struct se_cmd *cmd)
+int target_submit(struct se_cmd *cmd)
 {
 	sense_reason_t ret;
 
@@ -1640,7 +1642,7 @@ int transport_handle_cdb_direct(
 		transport_generic_request_failure(cmd, ret);
 	return 0;
 }
-EXPORT_SYMBOL(transport_handle_cdb_direct);
+EXPORT_SYMBOL_GPL(target_submit);
 
 sense_reason_t
 transport_generic_map_mem_to_cmd(struct se_cmd *cmd, struct scatterlist *sgl,
@@ -1806,19 +1808,6 @@ generic_fail:
 	return -EIO;
 }
 EXPORT_SYMBOL_GPL(target_submit_prep);
-
-/**
- * target_submit - perform final initialization and submit cmd to LIO core
- * @se_cmd: command descriptor to submit
- *
- * target_submit_prep must have been called on the cmd, and this must be
- * called from process context.
- */
-void target_submit(struct se_cmd *se_cmd)
-{
-	transport_handle_cdb_direct(se_cmd);
-}
-EXPORT_SYMBOL_GPL(target_submit);
 
 /**
  * target_submit_cmd - lookup unpacked lun and submit uninitialized se_cmd
