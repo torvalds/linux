@@ -140,7 +140,7 @@ static void vmw_resource_release(struct kref *kref)
 		if (res->coherent)
 			vmw_bo_dirty_release(res->backup);
 		ttm_bo_unreserve(bo);
-		vmw_bo_unreference(&res->backup);
+		vmw_user_bo_unref(&res->backup);
 	}
 
 	if (likely(res->hw_destroy != NULL)) {
@@ -330,10 +330,10 @@ static int vmw_resource_buf_alloc(struct vmw_resource *res,
 		return 0;
 	}
 
-	ret = vmw_bo_create(res->dev_priv, res->backup_size,
-			    res->func->backup_placement,
-			    interruptible, false,
-			    &vmw_bo_bo_free, &backup);
+	ret = vmw_gem_object_create(res->dev_priv, res->backup_size,
+				    res->func->backup_placement,
+				    interruptible, false,
+				    &vmw_bo_bo_free, &backup);
 	if (unlikely(ret != 0))
 		goto out_no_bo;
 
@@ -452,11 +452,11 @@ void vmw_resource_unreserve(struct vmw_resource *res,
 			vmw_resource_mob_detach(res);
 			if (res->coherent)
 				vmw_bo_dirty_release(res->backup);
-			vmw_bo_unreference(&res->backup);
+			vmw_user_bo_unref(&res->backup);
 		}
 
 		if (new_backup) {
-			res->backup = vmw_bo_reference(new_backup);
+			res->backup = vmw_user_bo_ref(new_backup);
 
 			/*
 			 * The validation code should already have added a
@@ -544,7 +544,7 @@ out_no_reserve:
 	ttm_bo_put(val_buf->bo);
 	val_buf->bo = NULL;
 	if (backup_dirty)
-		vmw_bo_unreference(&res->backup);
+		vmw_user_bo_unref(&res->backup);
 
 	return ret;
 }
@@ -719,7 +719,7 @@ int vmw_resource_validate(struct vmw_resource *res, bool intr,
 		goto out_no_validate;
 	else if (!res->func->needs_backup && res->backup) {
 		WARN_ON_ONCE(vmw_resource_mob_attached(res));
-		vmw_bo_unreference(&res->backup);
+		vmw_user_bo_unref(&res->backup);
 	}
 
 	return 0;
