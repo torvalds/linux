@@ -232,6 +232,7 @@ static int qrtr_bcast_enqueue(struct qrtr_node *node, struct sk_buff *skb,
 			      struct sockaddr_qrtr *to, unsigned int flags);
 static struct qrtr_sock *qrtr_port_lookup(int port);
 static void qrtr_port_put(struct qrtr_sock *ipc);
+static void qrtr_handle_del_proc(struct sk_buff *skb);
 
 static void qrtr_log_tx_msg(struct qrtr_node *node, struct qrtr_hdr_v1 *hdr,
 			    struct sk_buff *skb)
@@ -1287,6 +1288,8 @@ static void qrtr_node_rx_work(struct kthread_work *work)
 		} else if (cb->dst_node != qrtr_local_nid &&
 			   cb->type == QRTR_TYPE_DATA) {
 			qrtr_fwd_pkt(skb, cb);
+		} else if (cb->type == QRTR_TYPE_DEL_PROC) {
+			qrtr_handle_del_proc(skb);
 		} else {
 			ipc = qrtr_port_lookup(cb->dst_port);
 			if (!ipc) {
@@ -1297,6 +1300,21 @@ static void qrtr_node_rx_work(struct kthread_work *work)
 			}
 		}
 	}
+}
+
+static void qrtr_handle_del_proc(struct sk_buff *skb)
+{
+	struct sockaddr_qrtr src = {AF_QIPCRTR, 0, QRTR_PORT_CTRL};
+	struct sockaddr_qrtr dst = {AF_QIPCRTR, qrtr_local_nid, QRTR_PORT_CTRL};
+	struct qrtr_ctrl_pkt pkt = {0,};
+
+	skb_copy_bits(skb, 0, &pkt, sizeof(pkt));
+	src.sq_node = le32_to_cpu(pkt.proc.node);
+
+	memset(&pkt, 0, sizeof(pkt));
+	pkt.cmd = cpu_to_le32(QRTR_TYPE_BYE);
+	skb_store_bits(skb, 0, &pkt, sizeof(pkt));
+	qrtr_local_enqueue(NULL, skb, QRTR_TYPE_BYE, &src, &dst, 0);
 }
 
 static void qrtr_hello_work(struct kthread_work *work)
