@@ -53,9 +53,11 @@ static char *pci_fmt3_names[] = {
 };
 
 static char *pci_sw_names[] = {
-	"Allocated pages",
 	"Mapped pages",
 	"Unmapped pages",
+	"Global RPCITs",
+	"Sync Map RPCITs",
+	"Sync RPCITs",
 };
 
 static void pci_fmb_show(struct seq_file *m, char *name[], int length,
@@ -69,10 +71,14 @@ static void pci_fmb_show(struct seq_file *m, char *name[], int length,
 
 static void pci_sw_counter_show(struct seq_file *m)
 {
-	struct zpci_dev *zdev = m->private;
-	atomic64_t *counter = &zdev->allocated_pages;
+	struct zpci_iommu_ctrs  *ctrs = zpci_get_iommu_ctrs(m->private);
+	atomic64_t *counter;
 	int i;
 
+	if (!ctrs)
+		return;
+
+	counter = &ctrs->mapped_pages;
 	for (i = 0; i < ARRAY_SIZE(pci_sw_names); i++, counter++)
 		seq_printf(m, "%26s:\t%llu\n", pci_sw_names[i],
 			   atomic64_read(counter));

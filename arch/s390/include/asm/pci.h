@@ -159,13 +159,6 @@ struct zpci_dev {
 	unsigned long	*dma_table;
 	int		tlb_refresh;
 
-	spinlock_t	iommu_bitmap_lock;
-	unsigned long	*iommu_bitmap;
-	unsigned long	*lazy_bitmap;
-	unsigned long	iommu_size;
-	unsigned long	iommu_pages;
-	unsigned int	next_bit;
-
 	struct iommu_device iommu_dev;  /* IOMMU core handle */
 
 	char res_name[16];

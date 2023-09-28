@@ -124,7 +124,11 @@ int zpci_register_ioat(struct zpci_dev *zdev, u8 dmaas,
 
 	WARN_ON_ONCE(iota & 0x3fff);
 	fib.pba = base;
-	fib.pal = limit;
+	/* Work around off by one in ISM virt device */
+	if (zdev->pft == PCI_FUNC_TYPE_ISM && limit > base)
+		fib.pal = limit + (1 << 12);
+	else
+		fib.pal = limit;
 	fib.iota = iota | ZPCI_IOTA_RTTO_FLAG;
 	fib.gd = zdev->gisa;
 	cc = zpci_mod_fc(req, &fib, status);
@@ -582,7 +586,6 @@ int pcibios_device_add(struct pci_dev *pdev)
 		pdev->no_vf_scan = 1;
 
 	pdev->dev.groups = zpci_attr_groups;
-	pdev->dev.dma_ops = &s390_pci_dma_ops;
 	zpci_map_resources(pdev);
 
 	for (i = 0; i < PCI_STD_NUM_BARS; i++) {
@@ -756,8 +759,6 @@ int zpci_hot_reset_device(struct zpci_dev *zdev)
 	if (zdev->dma_table)
 		rc = zpci_register_ioat(zdev, 0, zdev->start_dma, zdev->end_dma,
 					virt_to_phys(zdev->dma_table), &status);
-	else
-		rc = zpci_dma_init_device(zdev);
 	if (rc) {
 		zpci_disable_device(zdev);
 		return rc;
@@ -865,11 +866,6 @@ int zpci_deconfigure_device(struct zpci_dev *zdev)
 	if (zdev->zbus->bus)
 		zpci_bus_remove_device(zdev, false);
 
-	if (zdev->dma_table) {
-		rc = zpci_dma_exit_device(zdev);
-		if (rc)
-			return rc;
-	}
 	if (zdev_enabled(zdev)) {
 		rc = zpci_disable_device(zdev);
 		if (rc)
@@ -918,8 +914,6 @@ void zpci_release_device(struct kref *kref)
 	if (zdev->zbus->bus)
 		zpci_bus_remove_device(zdev, false);
 
-	if (zdev->dma_table)
-		zpci_dma_exit_device(zdev);
 	if (zdev_enabled(zdev))
 		zpci_disable_device(zdev);
 
@@ -1109,10 +1103,6 @@ static int __init pci_base_init(void)
 	if (rc)
 		goto out_irq;
 
-	rc = zpci_dma_init();
-	if (rc)
-		goto out_dma;
-
 	rc = clp_scan_pci_devices();
 	if (rc)
 		goto out_find;
@@ -1122,8 +1112,6 @@ static int __init pci_base_init(void)
 	return 0;
 
 out_find:
-	zpci_dma_exit();
-out_dma:
 	zpci_irq_exit();
 out_irq:
 	zpci_mem_exit();
