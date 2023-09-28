@@ -28,6 +28,13 @@ properties:
   enable-gpios:
     maxItems: 1
 
+  richtek,tdm-input-data2-select:
+    type: boolean
+    description:
+      By default, if TDM mode is used, TDM data input will select 'DATA1' pin
+      as the data source. This option will configure TDM data input source from
+      'DATA1' to 'DATA2' pin.
+
   '#sound-dai-cells':
     const: 0
 
