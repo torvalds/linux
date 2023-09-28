@@ -1075,7 +1075,7 @@ static int call_rcu_chain_init(void)
 	if (call_rcu_chains <= 0)
 		return 0;
 	call_rcu_chain = kcalloc(call_rcu_chains, sizeof(*call_rcu_chain), GFP_KERNEL);
-	if (!call_rcu_chains)
+	if (!call_rcu_chain)
 		return -ENOMEM;
 	for (i = 0; i < call_rcu_chains; i++) {
 		call_rcu_chain[i].crc_stop = false;
