@@ -40,6 +40,11 @@ struct sprd_pwm_chip {
 	struct sprd_pwm_chn chn[SPRD_PWM_CHN_NUM];
 };
 
+static inline struct sprd_pwm_chip* sprd_pwm_from_chip(struct pwm_chip *chip)
+{
+	return container_of(chip, struct sprd_pwm_chip, chip);
+}
+
 /*
  * The list of clocks required by PWM channels, and each channel has 2 clocks:
  * enable clock and pwm clock.
@@ -69,8 +74,7 @@ static void sprd_pwm_write(struct sprd_pwm_chip *spc, u32 hwid,
 static int sprd_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
 			      struct pwm_state *state)
 {
-	struct sprd_pwm_chip *spc =
-		container_of(chip, struct sprd_pwm_chip, chip);
+	struct sprd_pwm_chip *spc = sprd_pwm_from_chip(chip);
 	struct sprd_pwm_chn *chn = &spc->chn[pwm->hwpwm];
 	u32 val, duty, prescale;
 	u64 tmp;
@@ -162,8 +166,7 @@ static int sprd_pwm_config(struct sprd_pwm_chip *spc, struct pwm_device *pwm,
 static int sprd_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 			  const struct pwm_state *state)
 {
-	struct sprd_pwm_chip *spc =
-		container_of(chip, struct sprd_pwm_chip, chip);
+	struct sprd_pwm_chip *spc = sprd_pwm_from_chip(chip);
 	struct sprd_pwm_chn *chn = &spc->chn[pwm->hwpwm];
 	struct pwm_state *cstate = &pwm->state;
 	int ret;
