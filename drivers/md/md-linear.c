@@ -69,6 +69,19 @@ static struct linear_conf *linear_conf(struct mddev *mddev, int raid_disks)
 	if (!conf)
 		return NULL;
 
+	/*
+	 * conf->raid_disks is copy of mddev->raid_disks. The reason to
+	 * keep a copy of mddev->raid_disks in struct linear_conf is,
+	 * mddev->raid_disks may not be consistent with pointers number of
+	 * conf->disks[] when it is updated in linear_add() and used to
+	 * iterate old conf->disks[] earray in linear_congested().
+	 * Here conf->raid_disks is always consitent with number of
+	 * pointers in conf->disks[] array, and mddev->private is updated
+	 * with rcu_assign_pointer() in linear_addr(), such race can be
+	 * avoided.
+	 */
+	conf->raid_disks = raid_disks;
+
 	cnt = 0;
 	conf->array_sectors = 0;
 
@@ -111,19 +124,6 @@ static struct linear_conf *linear_conf(struct mddev *mddev, int raid_disks)
 		conf->disks[i].end_sector =
 			conf->disks[i-1].end_sector +
 			conf->disks[i].rdev->sectors;
-
-	/*
-	 * conf->raid_disks is copy of mddev->raid_disks. The reason to
-	 * keep a copy of mddev->raid_disks in struct linear_conf is,
-	 * mddev->raid_disks may not be consistent with pointers number of
-	 * conf->disks[] when it is updated in linear_add() and used to
-	 * iterate old conf->disks[] earray in linear_congested().
-	 * Here conf->raid_disks is always consitent with number of
-	 * pointers in conf->disks[] array, and mddev->private is updated
-	 * with rcu_assign_pointer() in linear_addr(), such race can be
-	 * avoided.
-	 */
-	conf->raid_disks = raid_disks;
 
 	return conf;
 
