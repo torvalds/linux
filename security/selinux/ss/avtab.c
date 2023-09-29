@@ -67,8 +67,7 @@ static inline u32 avtab_hash(const struct avtab_key *keyp, u32 mask)
 }
 
 static struct avtab_node*
-avtab_insert_node(struct avtab *h, u32 hvalue,
-		  struct avtab_node *prev,
+avtab_insert_node(struct avtab *h, struct avtab_node **dst,
 		  const struct avtab_key *key, const struct avtab_datum *datum)
 {
 	struct avtab_node *newnode;
@@ -90,15 +89,8 @@ avtab_insert_node(struct avtab *h, u32 hvalue,
 		newnode->datum.u.data = datum->u.data;
 	}
 
-	if (prev) {
-		newnode->next = prev->next;
-		prev->next = newnode;
-	} else {
-		struct avtab_node **n = &h->htable[hvalue];
-
-		newnode->next = *n;
-		*n = newnode;
-	}
+	newnode->next = *dst;
+	*dst = newnode;
 
 	h->nel++;
 	return newnode;
@@ -138,7 +130,8 @@ static int avtab_insert(struct avtab *h, const struct avtab_key *key,
 			break;
 	}
 
-	newnode = avtab_insert_node(h, hvalue, prev, key, datum);
+	newnode = avtab_insert_node(h, prev ? &prev->next : &h->htable[hvalue],
+				    key, datum);
 	if (!newnode)
 		return -ENOMEM;
 
@@ -178,7 +171,8 @@ struct avtab_node *avtab_insert_nonunique(struct avtab *h,
 		    key->target_class < cur->key.target_class)
 			break;
 	}
-	return avtab_insert_node(h, hvalue, prev, key, datum);
+	return avtab_insert_node(h, prev ? &prev->next : &h->htable[hvalue],
+				 key, datum);
 }
 
 /* This search function returns a node pointer, and can be used in
