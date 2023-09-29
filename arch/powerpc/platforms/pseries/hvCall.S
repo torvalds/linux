@@ -184,8 +184,6 @@ _GLOBAL_TOC(plpar_hcall)
 plpar_hcall_trace:
 	HCALL_INST_PRECALL(R5)
 
-	mr	r0,r4
-
 	mr	r4,r5
 	mr	r5,r6
 	mr	r6,r7
@@ -294,8 +292,6 @@ _GLOBAL_TOC(plpar_hcall9)
 #ifdef CONFIG_TRACEPOINTS
 plpar_hcall9_trace:
 	HCALL_INST_PRECALL(R5)
-
-	mr	r0,r4
 
 	mr	r4,r5
 	mr	r5,r6
