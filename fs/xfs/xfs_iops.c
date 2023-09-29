@@ -584,6 +584,11 @@ xfs_vn_getattr(
 		}
 	}
 
+	if ((request_mask & STATX_CHANGE_COOKIE) && IS_I_VERSION(inode)) {
+		stat->change_cookie = inode_query_iversion(inode);
+		stat->result_mask |= STATX_CHANGE_COOKIE;
+	}
+
 	/*
 	 * Note: If you add another clause to set an attribute flag, please
 	 * update attributes_mask below.
