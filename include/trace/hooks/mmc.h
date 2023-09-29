@@ -7,11 +7,20 @@
 #define _TRACE_HOOK_MMC_H
 #include <trace/hooks/vendor_hooks.h>
 struct mmc_host;
+struct mmc_card;
 
 /*
  * Following tracepoints are not exported in tracefs and provide a
  * mechanism for vendor modules to hook and extend functionality
  */
+DECLARE_HOOK(android_vh_mmc_blk_mq_rw_recovery,
+	TP_PROTO(struct mmc_card *card),
+	TP_ARGS(card));
+
+DECLARE_HOOK(android_vh_sd_update_bus_speed_mode,
+	TP_PROTO(struct mmc_card *card),
+	TP_ARGS(card));
+
 DECLARE_RESTRICTED_HOOK(android_rvh_mmc_suspend,
 	TP_PROTO(struct mmc_host *host),
 	TP_ARGS(host), 1);
