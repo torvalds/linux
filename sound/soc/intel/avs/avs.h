@@ -121,6 +121,7 @@ struct avs_dev {
 	struct avs_mods_info *mods_info;
 	struct ida **mod_idas;
 	struct mutex modres_mutex;
+	void *modcfg_buf;		/* module configuration buffer */
 	struct ida ppl_ida;
 	struct list_head fw_list;
 	int *core_refs;		/* reference count per core */
