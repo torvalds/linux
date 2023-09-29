@@ -561,8 +561,7 @@ static void cxl_memdev_security_shutdown(struct device *dev)
 	struct cxl_memdev *cxlmd = to_cxl_memdev(dev);
 	struct cxl_memdev_state *mds = to_cxl_memdev_state(cxlmd->cxlds);
 
-	if (mds->security.poll)
-		cancel_delayed_work_sync(&mds->security.poll_dwork);
+	cancel_delayed_work_sync(&mds->security.poll_dwork);
 }
 
 static void cxl_memdev_shutdown(struct device *dev)
