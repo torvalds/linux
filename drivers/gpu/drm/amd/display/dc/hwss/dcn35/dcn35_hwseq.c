@@ -629,12 +629,8 @@ void dcn35_power_down_on_boot(struct dc *dc)
 	if (dc->clk_mgr->funcs->set_low_power_state)
 		dc->clk_mgr->funcs->set_low_power_state(dc->clk_mgr);
 
-	if (dc->clk_mgr->clks.pwr_state == DCN_PWR_STATE_LOW_POWER) {
-		if (!dc->idle_optimizations_allowed) {
-			dc_dmub_srv_notify_idle(dc, true);
-			dc->idle_optimizations_allowed = true;
-		}
-	}
+	if (dc->clk_mgr->clks.pwr_state == DCN_PWR_STATE_LOW_POWER)
+		dc_allow_idle_optimizations(dc, true);
 }
 
 bool dcn35_apply_idle_power_optimizations(struct dc *dc, bool enable)

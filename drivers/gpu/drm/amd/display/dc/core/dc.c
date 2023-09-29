@@ -4884,6 +4884,9 @@ void dc_allow_idle_optimizations(struct dc *dc, bool allow)
 	if (dc->debug.disable_idle_power_optimizations)
 		return;
 
+	if (dc->caps.ips_support && dc->config.disable_ips)
+		return;
+
 	if (dc->clk_mgr != NULL && dc->clk_mgr->funcs->is_smu_present)
 		if (!dc->clk_mgr->funcs->is_smu_present(dc->clk_mgr))
 			return;
@@ -4893,6 +4896,26 @@ void dc_allow_idle_optimizations(struct dc *dc, bool allow)
 
 	if (dc->hwss.apply_idle_power_optimizations && dc->hwss.apply_idle_power_optimizations(dc, allow))
 		dc->idle_optimizations_allowed = allow;
+}
+
+bool dc_dmub_is_ips_idle_state(struct dc *dc)
+{
+	uint32_t idle_state = 0;
+
+	if (dc->debug.disable_idle_power_optimizations)
+		return false;
+
+	if (!dc->caps.ips_support || dc->config.disable_ips)
+		return false;
+
+	if (dc->hwss.get_idle_state)
+		idle_state = dc->hwss.get_idle_state(dc);
+
+	if ((idle_state & DMUB_IPS1_ALLOW_MASK) ||
+		(idle_state & DMUB_IPS2_ALLOW_MASK))
+		return true;
+
+	return false;
 }
 
 /* set min and max memory clock to lowest and highest DPM level, respectively */

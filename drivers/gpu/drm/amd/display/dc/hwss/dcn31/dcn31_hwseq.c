@@ -585,7 +585,9 @@ void dcn31_reset_hw_ctx_wrap(
 			struct clock_source *old_clk = pipe_ctx_old->clock_source;
 
 			/* Reset pipe which is seamless boot stream. */
-			if (!pipe_ctx_old->plane_state) {
+			if (!pipe_ctx_old->plane_state &&
+				dc->res_pool->hubbub->funcs->program_det_size &&
+				dc->res_pool->hubbub->funcs->wait_for_det_apply) {
 				dc->res_pool->hubbub->funcs->program_det_size(
 					dc->res_pool->hubbub, pipe_ctx_old->plane_res.hubp->inst, 0);
 				/* Wait det size changed. */
