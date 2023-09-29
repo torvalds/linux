@@ -62,7 +62,7 @@ the fdtable structure -
    be held.
 
 4. To look up the file structure given an fd, a reader
-   must use either lookup_fd_rcu() or files_lookup_fd_rcu() APIs. These
+   must use either lookup_fdget_rcu() or files_lookup_fdget_rcu() APIs. These
    take care of barrier requirements due to lock-free lookup.
 
    An example::
@@ -70,43 +70,22 @@ the fdtable structure -
 	struct file *file;
 
 	rcu_read_lock();
-	file = lookup_fd_rcu(fd);
+	file = lookup_fdget_rcu(fd);
+	rcu_read_unlock();
 	if (file) {
 		...
+                fput(file);
 	}
 	....
-	rcu_read_unlock();
 
-5. Handling of the file structures is special. Since the look-up
-   of the fd (fget()/fget_light()) are lock-free, it is possible
-   that look-up may race with the last put() operation on the
-   file structure. This is avoided using atomic_long_inc_not_zero()
-   on ->f_count::
-
-	rcu_read_lock();
-	file = files_lookup_fd_rcu(files, fd);
-	if (file) {
-		if (atomic_long_inc_not_zero(&file->f_count))
-			*fput_needed = 1;
-		else
-		/* Didn't get the reference, someone's freed */
-			file = NULL;
-	}
-	rcu_read_unlock();
-	....
-	return file;
-
-   atomic_long_inc_not_zero() detects if refcounts is already zero or
-   goes to zero during increment. If it does, we fail
-   fget()/fget_light().
-
-6. Since both fdtable and file structures can be looked up
+5. Since both fdtable and file structures can be looked up
    lock-free, they must be installed using rcu_assign_pointer()
    API. If they are looked up lock-free, rcu_dereference()
    must be used. However it is advisable to use files_fdtable()
-   and lookup_fd_rcu()/files_lookup_fd_rcu() which take care of these issues.
+   and lookup_fdget_rcu()/files_lookup_fdget_rcu() which take care of these
+   issues.
 
-7. While updating, the fdtable pointer must be looked up while
+6. While updating, the fdtable pointer must be looked up while
    holding files->file_lock. If ->file_lock is dropped, then
    another thread expand the files thereby creating a new
    fdtable and making the earlier fdtable pointer stale.
@@ -126,3 +105,19 @@ the fdtable structure -
    Since locate_fd() can drop ->file_lock (and reacquire ->file_lock),
    the fdtable pointer (fdt) must be loaded after locate_fd().
 
+On newer kernels rcu based file lookup has been switched to rely on
+SLAB_TYPESAFE_BY_RCU instead of call_rcu(). It isn't sufficient anymore
+to just acquire a reference to the file in question under rcu using
+atomic_long_inc_not_zero() since the file might have already been
+recycled and someone else might have bumped the reference. In other
+words, callers might see reference count bumps from newer users. For
+this is reason it is necessary to verify that the pointer is the same
+before and after the reference count increment. This pattern can be seen
+in get_file_rcu() and __files_get_rcu().
+
+In addition, it isn't possible to access or check fields in struct file
+without first aqcuiring a reference on it under rcu lookup. Not doing
+that was always very dodgy and it was only usable for non-pointer data
+in struct file. With SLAB_TYPESAFE_BY_RCU it is necessary that callers
+either first acquire a reference or they must hold the files_lock of the
+fdtable.

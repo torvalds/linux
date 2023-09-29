@@ -308,11 +308,9 @@ again:
 	rcu_read_lock();
 	for (;; curr_fd++) {
 		struct file *f;
-		f = task_lookup_next_fd_rcu(curr_task, &curr_fd);
+		f = task_lookup_next_fdget_rcu(curr_task, &curr_fd);
 		if (!f)
 			break;
-		if (!get_file_rcu(f))
-			continue;
 
 		/* set info->fd */
 		info->fd = curr_fd;

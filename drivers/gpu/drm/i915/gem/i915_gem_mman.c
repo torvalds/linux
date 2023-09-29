@@ -916,9 +916,7 @@ static struct file *mmap_singleton(struct drm_i915_private *i915)
 	struct file *file;
 
 	rcu_read_lock();
-	file = READ_ONCE(i915->gem.mmap_singleton);
-	if (file && !get_file_rcu(file))
-		file = NULL;
+	file = get_file_rcu(&i915->gem.mmap_singleton);
 	rcu_read_unlock();
 	if (file)
 		return file;
