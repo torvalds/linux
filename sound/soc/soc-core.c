@@ -1445,8 +1445,8 @@ static int soc_probe_component(struct snd_soc_card *card,
 	if (component->card) {
 		if (component->card != card) {
 			dev_err(component->dev,
-				"Trying to bind component to card \"%s\" but is already bound to card \"%s\"\n",
-				card->name, component->card->name);
+				"Trying to bind component \"%s\" to card \"%s\" but is already bound to card \"%s\"\n",
+				component->name, card->name, component->card->name);
 			return -ENODEV;
 		}
 		return 0;
