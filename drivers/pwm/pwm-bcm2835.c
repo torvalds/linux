@@ -146,39 +146,21 @@ static int bcm2835_pwm_probe(struct platform_device *pdev)
 	if (IS_ERR(pc->base))
 		return PTR_ERR(pc->base);
 
-	pc->clk = devm_clk_get(&pdev->dev, NULL);
+	pc->clk = devm_clk_get_enabled(&pdev->dev, NULL);
 	if (IS_ERR(pc->clk))
 		return dev_err_probe(&pdev->dev, PTR_ERR(pc->clk),
 				     "clock not found\n");
-
-	ret = clk_prepare_enable(pc->clk);
-	if (ret)
-		return ret;
 
 	pc->chip.dev = &pdev->dev;
 	pc->chip.ops = &bcm2835_pwm_ops;
 	pc->chip.npwm = 2;
 
-	platform_set_drvdata(pdev, pc);
-
-	ret = pwmchip_add(&pc->chip);
+	ret = devm_pwmchip_add(&pdev->dev, &pc->chip);
 	if (ret < 0)
-		goto add_fail;
+		return dev_err_probe(&pdev->dev, ret,
+				     "failed to add pwmchip\n");
 
 	return 0;
-
-add_fail:
-	clk_disable_unprepare(pc->clk);
-	return ret;
-}
-
-static void bcm2835_pwm_remove(struct platform_device *pdev)
-{
-	struct bcm2835_pwm *pc = platform_get_drvdata(pdev);
-
-	pwmchip_remove(&pc->chip);
-
-	clk_disable_unprepare(pc->clk);
 }
 
 static const struct of_device_id bcm2835_pwm_of_match[] = {
@@ -193,7 +175,6 @@ static struct platform_driver bcm2835_pwm_driver = {
 		.of_match_table = bcm2835_pwm_of_match,
 	},
 	.probe = bcm2835_pwm_probe,
-	.remove_new = bcm2835_pwm_remove,
 };
 module_platform_driver(bcm2835_pwm_driver);
 
