@@ -517,23 +517,28 @@ static void emit_copy_ccs(struct xe_gt *gt, struct xe_bb *bb,
 			  u64 src_ofs, bool src_is_indirect,
 			  u32 size)
 {
+	struct xe_device *xe = gt_to_xe(gt);
 	u32 *cs = bb->cs + bb->len;
 	u32 num_ccs_blks;
-	u32 mocs = gt->mocs.uc_index;
+	u32 mocs;
 
 	num_ccs_blks = DIV_ROUND_UP(xe_device_ccs_bytes(gt_to_xe(gt), size),
 				    NUM_CCS_BYTES_PER_BLOCK);
 	xe_gt_assert(gt, num_ccs_blks <= NUM_CCS_BLKS_PER_XFER);
+
+	if (GRAPHICS_VERx100(xe) >= 2000)
+		mocs = FIELD_PREP(XE2_XY_CTRL_SURF_MOCS_INDEX_MASK, gt->mocs.uc_index);
+	else
+		mocs = FIELD_PREP(XY_CTRL_SURF_MOCS_MASK, gt->mocs.uc_index);
+
 	*cs++ = XY_CTRL_SURF_COPY_BLT |
 		(src_is_indirect ? 0x0 : 0x1) << SRC_ACCESS_TYPE_SHIFT |
 		(dst_is_indirect ? 0x0 : 0x1) << DST_ACCESS_TYPE_SHIFT |
 		((num_ccs_blks - 1) & CCS_SIZE_MASK) << CCS_SIZE_SHIFT;
 	*cs++ = lower_32_bits(src_ofs);
-	*cs++ = upper_32_bits(src_ofs) |
-		FIELD_PREP(XY_CTRL_SURF_MOCS_MASK, mocs);
+	*cs++ = upper_32_bits(src_ofs) | mocs;
 	*cs++ = lower_32_bits(dst_ofs);
-	*cs++ = upper_32_bits(dst_ofs) |
-		FIELD_PREP(XY_CTRL_SURF_MOCS_MASK, mocs);
+	*cs++ = upper_32_bits(dst_ofs) | mocs;
 
 	bb->len = cs - bb->cs;
 }
@@ -544,24 +549,27 @@ static void emit_copy(struct xe_gt *gt, struct xe_bb *bb,
 		      unsigned int pitch)
 {
 	struct xe_device *xe = gt_to_xe(gt);
+	u32 mocs = 0;
+	u32 tile_y = 0;
 
 	xe_gt_assert(gt, size / pitch <= S16_MAX);
 	xe_gt_assert(gt, pitch / 4 <= S16_MAX);
 	xe_gt_assert(gt, pitch <= U16_MAX);
 
-	bb->cs[bb->len++] = XY_FAST_COPY_BLT_CMD | (10 - 2);
+	if (GRAPHICS_VER(xe) >= 20)
+		mocs = FIELD_PREP(XE2_XY_FAST_COPY_BLT_MOCS_INDEX_MASK, gt->mocs.uc_index);
+
 	if (GRAPHICS_VERx100(xe) >= 1250)
-		bb->cs[bb->len++] = XY_FAST_COPY_BLT_DEPTH_32 | pitch |
-				    XY_FAST_COPY_BLT_D1_SRC_TILE4 |
-				    XY_FAST_COPY_BLT_D1_DST_TILE4;
-	else
-		bb->cs[bb->len++] = XY_FAST_COPY_BLT_DEPTH_32 | pitch;
+		tile_y = XY_FAST_COPY_BLT_D1_SRC_TILE4 | XY_FAST_COPY_BLT_D1_DST_TILE4;
+
+	bb->cs[bb->len++] = XY_FAST_COPY_BLT_CMD | (10 - 2);
+	bb->cs[bb->len++] = XY_FAST_COPY_BLT_DEPTH_32 | pitch | tile_y | mocs;
 	bb->cs[bb->len++] = 0;
 	bb->cs[bb->len++] = (size / pitch) << 16 | pitch / 4;
 	bb->cs[bb->len++] = lower_32_bits(dst_ofs);
 	bb->cs[bb->len++] = upper_32_bits(dst_ofs);
 	bb->cs[bb->len++] = 0;
-	bb->cs[bb->len++] = pitch;
+	bb->cs[bb->len++] = pitch | mocs;
 	bb->cs[bb->len++] = lower_32_bits(src_ofs);
 	bb->cs[bb->len++] = upper_32_bits(src_ofs);
 }
@@ -812,8 +820,8 @@ err_sync:
 static void emit_clear_link_copy(struct xe_gt *gt, struct xe_bb *bb, u64 src_ofs,
 				 u32 size, u32 pitch)
 {
+	struct xe_device *xe = gt_to_xe(gt);
 	u32 *cs = bb->cs + bb->len;
-	u32 mocs = gt->mocs.uc_index;
 	u32 len = PVC_MEM_SET_CMD_LEN_DW;
 
 	*cs++ = PVC_MEM_SET_CMD | PVC_MEM_SET_MATRIX | (len - 2);
@@ -822,7 +830,10 @@ static void emit_clear_link_copy(struct xe_gt *gt, struct xe_bb *bb, u64 src_ofs
 	*cs++ = pitch - 1;
 	*cs++ = lower_32_bits(src_ofs);
 	*cs++ = upper_32_bits(src_ofs);
-	*cs++ = FIELD_PREP(PVC_MEM_SET_MOCS_INDEX_MASK, mocs);
+	if (GRAPHICS_VERx100(xe) >= 2000)
+		*cs++ = FIELD_PREP(XE2_MEM_SET_MOCS_INDEX_MASK, gt->mocs.uc_index);
+	else
+		*cs++ = FIELD_PREP(PVC_MEM_SET_MOCS_INDEX_MASK, gt->mocs.uc_index);
 
 	xe_gt_assert(gt, cs - bb->cs == len + bb->len);
 
@@ -835,15 +846,18 @@ static void emit_clear_main_copy(struct xe_gt *gt, struct xe_bb *bb,
 	struct xe_device *xe = gt_to_xe(gt);
 	u32 *cs = bb->cs + bb->len;
 	u32 len = XY_FAST_COLOR_BLT_DW;
-	u32 mocs = gt->mocs.uc_index;
 
 	if (GRAPHICS_VERx100(xe) < 1250)
 		len = 11;
 
 	*cs++ = XY_FAST_COLOR_BLT_CMD | XY_FAST_COLOR_BLT_DEPTH_32 |
 		(len - 2);
-	*cs++ = FIELD_PREP(XY_FAST_COLOR_BLT_MOCS_MASK, mocs) |
-		(pitch - 1);
+	if (GRAPHICS_VERx100(xe) >= 2000)
+		*cs++ = FIELD_PREP(XE2_XY_FAST_COLOR_BLT_MOCS_INDEX_MASK, gt->mocs.uc_index) |
+			(pitch - 1);
+	else
+		*cs++ = FIELD_PREP(XY_FAST_COLOR_BLT_MOCS_MASK, gt->mocs.uc_index) |
+			(pitch - 1);
 	*cs++ = 0;
 	*cs++ = (size / pitch) << 16 | pitch / 4;
 	*cs++ = lower_32_bits(src_ofs);
