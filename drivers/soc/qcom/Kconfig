@@ -972,6 +972,16 @@ config QCOM_CDSP_RM
 	  to improve RPC latency. The driver also registers cooling devices for
 	  CDSP subsystem and implements Cx ipeak limit management.
 
+config QCOM_FSA4480_I2C
+	tristate "Fairchild FSA4480 chip with I2C"
+	select REGMAP_I2C
+	depends on I2C
+	help
+	  Support for the Fairchild FSA4480 IC switch chip controlled
+	  using I2C. This driver provides common support
+	  for accessing the device, switching between USB and Audio
+	  modes, changing orientation.
+
 config CDSPRM_VTCM_DYNAMIC_DEBUG
 	bool "Enable for VTCM parition test enablement"
 	help
