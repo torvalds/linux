@@ -4123,6 +4123,37 @@ nfsd4_encode_open_read_delegation4(struct xdr_stream *xdr, struct nfsd4_open *op
 }
 
 static __be32
+nfsd4_encode_nfs_space_limit4(struct xdr_stream *xdr, u64 filesize)
+{
+	/* limitby */
+	if (xdr_stream_encode_u32(xdr, NFS4_LIMIT_SIZE) != XDR_UNIT)
+		return nfserr_resource;
+	/* filesize */
+	return nfsd4_encode_uint64_t(xdr, filesize);
+}
+
+static __be32
+nfsd4_encode_open_write_delegation4(struct xdr_stream *xdr,
+				    struct nfsd4_open *open)
+{
+	__be32 status;
+
+	/* stateid */
+	status = nfsd4_encode_stateid4(xdr, &open->op_delegate_stateid);
+	if (status != nfs_ok)
+		return status;
+	/* recall */
+	status = nfsd4_encode_bool(xdr, open->op_recall);
+	if (status != nfs_ok)
+		return status;
+	/* space_limit */
+	status = nfsd4_encode_nfs_space_limit4(xdr, 0);
+	if (status != nfs_ok)
+		return status;
+	return nfsd4_encode_open_nfsace4(xdr);
+}
+
+static __be32
 nfsd4_encode_open(struct nfsd4_compoundres *resp, __be32 nfserr,
 		  union nfsd4_op_u *u)
 {
@@ -4156,32 +4187,8 @@ nfsd4_encode_open(struct nfsd4_compoundres *resp, __be32 nfserr,
 		/* read */
 		return nfsd4_encode_open_read_delegation4(xdr, open);
 	case NFS4_OPEN_DELEGATE_WRITE:
-		nfserr = nfsd4_encode_stateid4(xdr, &open->op_delegate_stateid);
-		if (nfserr)
-			return nfserr;
-
-		p = xdr_reserve_space(xdr, XDR_UNIT * 8);
-		if (!p)
-			return nfserr_resource;
-		*p++ = cpu_to_be32(open->op_recall);
-
-		/*
-		 * Always flush on close
-		 *
-		 * TODO: space_limit's in delegations
-		 */
-		*p++ = cpu_to_be32(NFS4_LIMIT_SIZE);
-		*p++ = xdr_zero;
-		*p++ = xdr_zero;
-
-		/*
-		 * TODO: ACE's in delegations
-		 */
-		*p++ = cpu_to_be32(NFS4_ACE_ACCESS_ALLOWED_ACE_TYPE);
-		*p++ = cpu_to_be32(0);
-		*p++ = cpu_to_be32(0);
-		*p++ = cpu_to_be32(0);   /* XXX: is NULL principal ok? */
-		break;
+		/* write */
+		return nfsd4_encode_open_write_delegation4(xdr, open);
 	case NFS4_OPEN_DELEGATE_NONE_EXT: /* 4.1 */
 		switch (open->op_why_no_deleg) {
 		case WND4_CONTENTION:
