@@ -479,7 +479,7 @@ static const struct regmap_config aw200xx_regmap_config = {
 	.num_ranges = ARRAY_SIZE(aw200xx_ranges),
 	.rd_table = &aw200xx_readable_table,
 	.wr_table = &aw200xx_writeable_table,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 
 static int aw200xx_probe(struct i2c_client *client)
