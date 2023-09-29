@@ -1734,7 +1734,8 @@ xe_vm_unbind_vma(struct xe_vma *vma, struct xe_exec_queue *q,
 		if (!(vma->tile_present & BIT(id)))
 			goto next;
 
-		fence = __xe_pt_unbind_vma(tile, vma, q, first_op ? syncs : NULL,
+		fence = __xe_pt_unbind_vma(tile, vma, q ? q : vm->q[id],
+					   first_op ? syncs : NULL,
 					   first_op ? num_syncs : 0);
 		if (IS_ERR(fence)) {
 			err = PTR_ERR(fence);
