@@ -121,7 +121,6 @@ const struct bkey_ops bch2_bkey_ops[] = {
 };
 
 const struct bkey_ops bch2_bkey_null_ops = {
-	.min_val_size = U8_MAX,
 };
 
 int bch2_bkey_val_invalid(struct bch_fs *c, struct bkey_s_c k,
