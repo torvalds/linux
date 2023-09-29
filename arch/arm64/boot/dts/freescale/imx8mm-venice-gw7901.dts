@@ -644,7 +644,6 @@
 		pinctrl-0 = <&pinctrl_ksz>;
 		interrupt-parent = <&gpio4>;
 		interrupts = <18 IRQ_TYPE_EDGE_FALLING>;
-		phy-mode = "rgmii-id";
 
 		ports {
 			#address-cells = <1>;
