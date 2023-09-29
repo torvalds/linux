@@ -4154,6 +4154,27 @@ nfsd4_encode_open_write_delegation4(struct xdr_stream *xdr,
 }
 
 static __be32
+nfsd4_encode_open_none_delegation4(struct xdr_stream *xdr,
+				   struct nfsd4_open *open)
+{
+	__be32 status = nfs_ok;
+
+	/* ond_why */
+	if (xdr_stream_encode_u32(xdr, open->op_why_no_deleg) != XDR_UNIT)
+		return nfserr_resource;
+	switch (open->op_why_no_deleg) {
+	case WND4_CONTENTION:
+		/* ond_server_will_push_deleg */
+		status = nfsd4_encode_bool(xdr, false);
+		break;
+	case WND4_RESOURCE:
+		/* ond_server_will_signal_avail */
+		status = nfsd4_encode_bool(xdr, false);
+	}
+	return status;
+}
+
+static __be32
 nfsd4_encode_open(struct nfsd4_compoundres *resp, __be32 nfserr,
 		  union nfsd4_op_u *u)
 {
@@ -4189,24 +4210,9 @@ nfsd4_encode_open(struct nfsd4_compoundres *resp, __be32 nfserr,
 	case NFS4_OPEN_DELEGATE_WRITE:
 		/* write */
 		return nfsd4_encode_open_write_delegation4(xdr, open);
-	case NFS4_OPEN_DELEGATE_NONE_EXT: /* 4.1 */
-		switch (open->op_why_no_deleg) {
-		case WND4_CONTENTION:
-		case WND4_RESOURCE:
-			p = xdr_reserve_space(xdr, 8);
-			if (!p)
-				return nfserr_resource;
-			*p++ = cpu_to_be32(open->op_why_no_deleg);
-			/* deleg signaling not supported yet: */
-			*p++ = cpu_to_be32(0);
-			break;
-		default:
-			p = xdr_reserve_space(xdr, 4);
-			if (!p)
-				return nfserr_resource;
-			*p++ = cpu_to_be32(open->op_why_no_deleg);
-		}
-		break;
+	case NFS4_OPEN_DELEGATE_NONE_EXT:
+		/* od_whynone */
+		return nfsd4_encode_open_none_delegation4(xdr, open);
 	default:
 		BUG();
 	}
