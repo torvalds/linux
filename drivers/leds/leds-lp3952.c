@@ -204,7 +204,7 @@ static const struct regmap_config lp3952_regmap = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.max_register = REG_MAX,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 
 static int lp3952_probe(struct i2c_client *client)
