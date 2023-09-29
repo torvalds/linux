@@ -3753,6 +3753,7 @@ static void psy_changed_notifier_work(struct work_struct *w)
 	union power_supply_propval val;
 	enum power_supply_typec_mode typec_mode;
 	int ret;
+	int usb_extcon_state;
 
 	ret = usbpd_get_psy_iio_property(pd,
 			POWER_SUPPLY_PROP_TYPEC_MODE, &val);
@@ -3790,7 +3791,6 @@ static void psy_changed_notifier_work(struct work_struct *w)
 			pd->typec_mode = typec_mode;
 			queue_work(pd->wq, &pd->start_periph_work);
 		}
-
 		return;
 	}
 
@@ -3823,8 +3823,28 @@ static void psy_changed_notifier_work(struct work_struct *w)
 		return;
 	}
 
-	if (pd->typec_mode == typec_mode)
+	if (pd->typec_mode == typec_mode) {
+		if (!((pd->current_dr == DR_NONE) || (pd->current_dr == DR_UFP)))
+			return;
+
+		usb_extcon_state = extcon_get_state(pd->extcon, EXTCON_USB);
+
+		if (usb_extcon_state == 0) {
+			ret = usbpd_get_psy_iio_property(pd, POWER_SUPPLY_PROP_REAL_TYPE,
+								&val);
+			if (ret) {
+				usbpd_err(&pd->dev, "Unable to read USB PROP_REAL_TYPE: %d\n",
+						ret);
+				return;
+			}
+
+			if (val.intval == POWER_SUPPLY_TYPE_USB ||
+					val.intval == POWER_SUPPLY_TYPE_USB_CDP ||
+					val.intval == QTI_POWER_SUPPLY_TYPE_USB_FLOAT)
+				queue_work(pd->wq, &pd->start_periph_work);
+		}
 		return;
+	}
 
 	pd->typec_mode = typec_mode;
 
