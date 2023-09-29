@@ -4175,12 +4175,42 @@ nfsd4_encode_open_none_delegation4(struct xdr_stream *xdr,
 }
 
 static __be32
+nfsd4_encode_open_delegation4(struct xdr_stream *xdr, struct nfsd4_open *open)
+{
+	__be32 status;
+
+	/* delegation_type */
+	if (xdr_stream_encode_u32(xdr, open->op_delegate_type) != XDR_UNIT)
+		return nfserr_resource;
+	switch (open->op_delegate_type) {
+	case NFS4_OPEN_DELEGATE_NONE:
+		status = nfs_ok;
+		break;
+	case NFS4_OPEN_DELEGATE_READ:
+		/* read */
+		status = nfsd4_encode_open_read_delegation4(xdr, open);
+		break;
+	case NFS4_OPEN_DELEGATE_WRITE:
+		/* write */
+		status = nfsd4_encode_open_write_delegation4(xdr, open);
+		break;
+	case NFS4_OPEN_DELEGATE_NONE_EXT:
+		/* od_whynone */
+		status = nfsd4_encode_open_none_delegation4(xdr, open);
+		break;
+	default:
+		status = nfserr_serverfault;
+	}
+
+	return status;
+}
+
+static __be32
 nfsd4_encode_open(struct nfsd4_compoundres *resp, __be32 nfserr,
 		  union nfsd4_op_u *u)
 {
 	struct nfsd4_open *open = &u->open;
 	struct xdr_stream *xdr = resp->xdr;
-	__be32 *p;
 
 	nfserr = nfsd4_encode_stateid4(xdr, &open->op_stateid);
 	if (nfserr)
@@ -4196,28 +4226,8 @@ nfsd4_encode_open(struct nfsd4_compoundres *resp, __be32 nfserr,
 	if (nfserr)
 		return nfserr;
 
-	p = xdr_reserve_space(xdr, 4);
-	if (!p)
-		return nfserr_resource;
-
-	*p++ = cpu_to_be32(open->op_delegate_type);
-	switch (open->op_delegate_type) {
-	case NFS4_OPEN_DELEGATE_NONE:
-		break;
-	case NFS4_OPEN_DELEGATE_READ:
-		/* read */
-		return nfsd4_encode_open_read_delegation4(xdr, open);
-	case NFS4_OPEN_DELEGATE_WRITE:
-		/* write */
-		return nfsd4_encode_open_write_delegation4(xdr, open);
-	case NFS4_OPEN_DELEGATE_NONE_EXT:
-		/* od_whynone */
-		return nfsd4_encode_open_none_delegation4(xdr, open);
-	default:
-		BUG();
-	}
-	/* XXX save filehandle here */
-	return 0;
+	/* delegation */
+	return nfsd4_encode_open_delegation4(xdr, open);
 }
 
 static __be32
