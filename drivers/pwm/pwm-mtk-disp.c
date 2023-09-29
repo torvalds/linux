@@ -246,32 +246,23 @@ static int mtk_disp_pwm_probe(struct platform_device *pdev)
 
 	mdp->clk_main = devm_clk_get(&pdev->dev, "main");
 	if (IS_ERR(mdp->clk_main))
-		return PTR_ERR(mdp->clk_main);
+		return dev_err_probe(&pdev->dev, PTR_ERR(mdp->clk_main),
+				     "Failed to get main clock\n");
 
 	mdp->clk_mm = devm_clk_get(&pdev->dev, "mm");
 	if (IS_ERR(mdp->clk_mm))
-		return PTR_ERR(mdp->clk_mm);
+		return dev_err_probe(&pdev->dev, PTR_ERR(mdp->clk_mm),
+				     "Failed to get mm clock\n");
 
 	mdp->chip.dev = &pdev->dev;
 	mdp->chip.ops = &mtk_disp_pwm_ops;
 	mdp->chip.npwm = 1;
 
-	ret = pwmchip_add(&mdp->chip);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "pwmchip_add() failed: %pe\n", ERR_PTR(ret));
-		return ret;
-	}
-
-	platform_set_drvdata(pdev, mdp);
+	ret = devm_pwmchip_add(&pdev->dev, &mdp->chip);
+	if (ret < 0)
+		return dev_err_probe(&pdev->dev, ret, "pwmchip_add() failed\n");
 
 	return 0;
-}
-
-static void mtk_disp_pwm_remove(struct platform_device *pdev)
-{
-	struct mtk_disp_pwm *mdp = platform_get_drvdata(pdev);
-
-	pwmchip_remove(&mdp->chip);
 }
 
 static const struct mtk_pwm_data mt2701_pwm_data = {
@@ -319,7 +310,6 @@ static struct platform_driver mtk_disp_pwm_driver = {
 		.of_match_table = mtk_disp_pwm_of_match,
 	},
 	.probe = mtk_disp_pwm_probe,
-	.remove_new = mtk_disp_pwm_remove,
 };
 module_platform_driver(mtk_disp_pwm_driver);
 
