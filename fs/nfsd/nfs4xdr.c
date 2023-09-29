@@ -4212,20 +4212,23 @@ nfsd4_encode_open(struct nfsd4_compoundres *resp, __be32 nfserr,
 	struct nfsd4_open *open = &u->open;
 	struct xdr_stream *xdr = resp->xdr;
 
+	/* stateid */
 	nfserr = nfsd4_encode_stateid4(xdr, &open->op_stateid);
-	if (nfserr)
+	if (nfserr != nfs_ok)
 		return nfserr;
+	/* cinfo */
 	nfserr = nfsd4_encode_change_info4(xdr, &open->op_cinfo);
-	if (nfserr)
+	if (nfserr != nfs_ok)
 		return nfserr;
-	if (xdr_stream_encode_u32(xdr, open->op_rflags) < 0)
-		return nfserr_resource;
-
+	/* rflags */
+	nfserr = nfsd4_encode_uint32_t(xdr, open->op_rflags);
+	if (nfserr != nfs_ok)
+		return nfserr;
+	/* attrset */
 	nfserr = nfsd4_encode_bitmap4(xdr, open->op_bmval[0],
 				      open->op_bmval[1], open->op_bmval[2]);
-	if (nfserr)
+	if (nfserr != nfs_ok)
 		return nfserr;
-
 	/* delegation */
 	return nfsd4_encode_open_delegation4(xdr, open);
 }
