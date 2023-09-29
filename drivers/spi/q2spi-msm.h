@@ -192,6 +192,7 @@ if (q2spi_ptr) { \
 #define DATA_BYTES_PER_LINE	(64)
 #define CHUNK_SIZE (16)
 
+static unsigned int q2spi_max_speed;
 /* global storage for device Major number */
 static int q2spi_cdev_major;
 static int q2spi_alloc_count;
