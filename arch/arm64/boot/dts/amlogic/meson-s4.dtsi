@@ -148,6 +148,11 @@
 				interrupts = <GIC_SPI 22 IRQ_TYPE_EDGE_RISING>;
 				status = "disabled";
 			};
+
+			hwrng: rng@440788 {
+				compatible = "amlogic,meson-s4-rng";
+				reg = <0x0 0x440788 0x0 0x0c>;
+			};
 		};
 	};
 };
