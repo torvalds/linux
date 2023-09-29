@@ -13,3 +13,11 @@ qcom-ipcc.ko
 clk-dummy.ko
 clk-qcom.ko
 gdsc-regulator.ko
+arm_smmu.ko
+iommu-logger.ko
+qcom_iommu_util.ko
+mem-hooks.ko
+mem_buf_dev.ko
+mem_buf.ko
+qcom_dma_heaps.ko
+msm_dma_iommu_mapping.ko
