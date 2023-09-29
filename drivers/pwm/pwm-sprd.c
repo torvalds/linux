@@ -242,10 +242,8 @@ static int sprd_pwm_clk_init(struct sprd_pwm_chip *spc)
 		chn->clk_rate = clk_get_rate(clk_pwm);
 	}
 
-	if (!i) {
-		dev_err(spc->dev, "no available PWM channels\n");
-		return -ENODEV;
-	}
+	if (!i)
+		return dev_err_probe(spc->dev, -ENODEV, "no available PWM channels\n");
 
 	spc->num_pwms = i;
 
@@ -266,7 +264,6 @@ static int sprd_pwm_probe(struct platform_device *pdev)
 		return PTR_ERR(spc->base);
 
 	spc->dev = &pdev->dev;
-	platform_set_drvdata(pdev, spc);
 
 	ret = sprd_pwm_clk_init(spc);
 	if (ret)
@@ -276,18 +273,11 @@ static int sprd_pwm_probe(struct platform_device *pdev)
 	spc->chip.ops = &sprd_pwm_ops;
 	spc->chip.npwm = spc->num_pwms;
 
-	ret = pwmchip_add(&spc->chip);
+	ret = devm_pwmchip_add(&pdev->dev, &spc->chip);
 	if (ret)
 		dev_err(&pdev->dev, "failed to add PWM chip\n");
 
 	return ret;
-}
-
-static void sprd_pwm_remove(struct platform_device *pdev)
-{
-	struct sprd_pwm_chip *spc = platform_get_drvdata(pdev);
-
-	pwmchip_remove(&spc->chip);
 }
 
 static const struct of_device_id sprd_pwm_of_match[] = {
@@ -302,7 +292,6 @@ static struct platform_driver sprd_pwm_driver = {
 		.of_match_table = sprd_pwm_of_match,
 	},
 	.probe = sprd_pwm_probe,
-	.remove_new = sprd_pwm_remove,
 };
 
 module_platform_driver(sprd_pwm_driver);
