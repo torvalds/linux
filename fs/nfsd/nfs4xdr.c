@@ -3994,28 +3994,26 @@ nfsd4_encode_lock_owner4(struct xdr_stream *xdr, const clientid_t *clientid,
 	return nfsd4_encode_opaque(xdr, owner->data, owner->len);
 }
 
-/*
-* Including all fields other than the name, a LOCK4denied structure requires
-*   8(clientid) + 4(namelen) + 8(offset) + 8(length) + 4(type) = 32 bytes.
-*/
 static __be32
-nfsd4_encode_lock_denied(struct xdr_stream *xdr, struct nfsd4_lock_denied *ld)
+nfsd4_encode_lock4denied(struct xdr_stream *xdr,
+			 const struct nfsd4_lock_denied *ld)
 {
-	__be32 *p, status;
+	__be32 status;
 
-	p = xdr_reserve_space(xdr, XDR_UNIT * 5);
-	if (!p)
-		return nfserr_resource;
-
-	p = xdr_encode_hyper(p, ld->ld_start);
-	p = xdr_encode_hyper(p, ld->ld_length);
-	*p++ = cpu_to_be32(ld->ld_type);
-	status = nfsd4_encode_lock_owner4(xdr, &ld->ld_clientid,
-					  &ld->ld_owner);
+	/* offset */
+	status = nfsd4_encode_offset4(xdr, ld->ld_start);
 	if (status != nfs_ok)
 		return status;
-
-	return nfserr_denied;
+	/* length */
+	status = nfsd4_encode_length4(xdr, ld->ld_length);
+	if (status != nfs_ok)
+		return status;
+	/* locktype */
+	if (xdr_stream_encode_u32(xdr, ld->ld_type) != XDR_UNIT)
+		return nfserr_resource;
+	/* owner */
+	return nfsd4_encode_lock_owner4(xdr, &ld->ld_clientid,
+					&ld->ld_owner);
 }
 
 static __be32
@@ -4024,13 +4022,21 @@ nfsd4_encode_lock(struct nfsd4_compoundres *resp, __be32 nfserr,
 {
 	struct nfsd4_lock *lock = &u->lock;
 	struct xdr_stream *xdr = resp->xdr;
+	__be32 status;
 
-	if (!nfserr)
-		nfserr = nfsd4_encode_stateid4(xdr, &lock->lk_resp_stateid);
-	else if (nfserr == nfserr_denied)
-		nfserr = nfsd4_encode_lock_denied(xdr, &lock->lk_denied);
-
-	return nfserr;
+	switch (nfserr) {
+	case nfs_ok:
+		/* resok4 */
+		status = nfsd4_encode_stateid4(xdr, &lock->lk_resp_stateid);
+		break;
+	case nfserr_denied:
+		/* denied */
+		status = nfsd4_encode_lock4denied(xdr, &lock->lk_denied);
+		break;
+	default:
+		return nfserr;
+	}
+	return status != nfs_ok ? status : nfserr;
 }
 
 static __be32
@@ -4039,9 +4045,14 @@ nfsd4_encode_lockt(struct nfsd4_compoundres *resp, __be32 nfserr,
 {
 	struct nfsd4_lockt *lockt = &u->lockt;
 	struct xdr_stream *xdr = resp->xdr;
+	__be32 status;
 
-	if (nfserr == nfserr_denied)
-		nfsd4_encode_lock_denied(xdr, &lockt->lt_denied);
+	if (nfserr == nfserr_denied) {
+		/* denied */
+		status = nfsd4_encode_lock4denied(xdr, &lockt->lt_denied);
+		if (status != nfs_ok)
+			return status;
+	}
 	return nfserr;
 }
 
