@@ -287,9 +287,18 @@ int bch2_truncate(struct bch_fs *c, subvol_inum inum, u64 new_i_size, u64 *i_sec
 	op.v.inum	= cpu_to_le64(inum.inum);
 	op.v.new_i_size	= cpu_to_le64(new_i_size);
 
-	return bch2_trans_run(c,
+	/*
+	 * Logged ops aren't atomic w.r.t. snapshot creation: creating a
+	 * snapshot while they're in progress, then crashing, will result in the
+	 * resume only proceeding in one of the snapshots
+	 */
+	down_read(&c->snapshot_create_lock);
+	int ret = bch2_trans_run(c,
 		bch2_logged_op_start(trans, &op.k_i) ?:
 		__bch2_resume_logged_op_truncate(trans, &op.k_i, i_sectors_delta));
+	up_read(&c->snapshot_create_lock);
+
+	return ret;
 }
 
 /* finsert/fcollapse: */
@@ -491,7 +500,16 @@ int bch2_fcollapse_finsert(struct bch_fs *c, subvol_inum inum,
 	op.v.src_offset	= cpu_to_le64(offset);
 	op.v.pos	= cpu_to_le64(insert ? U64_MAX : offset);
 
-	return bch2_trans_run(c,
+	/*
+	 * Logged ops aren't atomic w.r.t. snapshot creation: creating a
+	 * snapshot while they're in progress, then crashing, will result in the
+	 * resume only proceeding in one of the snapshots
+	 */
+	down_read(&c->snapshot_create_lock);
+	int ret = bch2_trans_run(c,
 		bch2_logged_op_start(trans, &op.k_i) ?:
 		__bch2_resume_logged_op_finsert(trans, &op.k_i, i_sectors_delta));
+	up_read(&c->snapshot_create_lock);
+
+	return ret;
 }

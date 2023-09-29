@@ -746,6 +746,7 @@ struct bch_fs {
 	struct snapshot_table __rcu *snapshots;
 	size_t			snapshot_table_size;
 	struct mutex		snapshot_table_lock;
+	struct rw_semaphore	snapshot_create_lock;
 
 	struct work_struct	snapshot_delete_work;
 	struct work_struct	snapshot_wait_for_pagecache_and_delete_work;

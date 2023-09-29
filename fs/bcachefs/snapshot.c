@@ -1447,6 +1447,8 @@ int bch2_delete_dead_snapshots(struct bch_fs *c)
 		}
 	}
 
+	down_write(&c->snapshot_create_lock);
+
 	for_each_btree_key(trans, iter, BTREE_ID_snapshots,
 			   POS_MIN, 0, k, ret) {
 		u32 snapshot = k.k->p.offset;
@@ -1456,6 +1458,9 @@ int bch2_delete_dead_snapshots(struct bch_fs *c)
 			snapshot_list_add(c, &deleted_interior, snapshot);
 	}
 	bch2_trans_iter_exit(trans, &iter);
+
+	if (ret)
+		goto err_create_lock;
 
 	/*
 	 * Fixing children of deleted snapshots can't be done completely
@@ -1467,14 +1472,14 @@ int bch2_delete_dead_snapshots(struct bch_fs *c)
 				  NULL, NULL, BTREE_INSERT_NOFAIL,
 		bch2_fix_child_of_deleted_snapshot(trans, &iter, k, &deleted_interior));
 	if (ret)
-		goto err;
+		goto err_create_lock;
 
 	darray_for_each(deleted, i) {
 		ret = commit_do(trans, NULL, NULL, 0,
 			bch2_snapshot_node_delete(trans, *i));
 		if (ret) {
 			bch_err_msg(c, ret, "deleting snapshot %u", *i);
-			goto err;
+			goto err_create_lock;
 		}
 	}
 
@@ -1483,11 +1488,13 @@ int bch2_delete_dead_snapshots(struct bch_fs *c)
 			bch2_snapshot_node_delete(trans, *i));
 		if (ret) {
 			bch_err_msg(c, ret, "deleting snapshot %u", *i);
-			goto err;
+			goto err_create_lock;
 		}
 	}
 
 	clear_bit(BCH_FS_HAVE_DELETED_SNAPSHOTS, &c->flags);
+err_create_lock:
+	up_write(&c->snapshot_create_lock);
 err:
 	darray_exit(&deleted_interior);
 	darray_exit(&deleted);

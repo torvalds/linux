@@ -318,8 +318,8 @@ err:
 	return ret;
 }
 
-static long bch2_ioctl_subvolume_create(struct bch_fs *c, struct file *filp,
-				struct bch_ioctl_subvolume arg)
+static long __bch2_ioctl_subvolume_create(struct bch_fs *c, struct file *filp,
+					  struct bch_ioctl_subvolume arg)
 {
 	struct inode *dir;
 	struct bch_inode_info *inode;
@@ -438,6 +438,16 @@ err1:
 	up_read(&c->vfs_sb->s_umount);
 
 	return error;
+}
+
+static long bch2_ioctl_subvolume_create(struct bch_fs *c, struct file *filp,
+					struct bch_ioctl_subvolume arg)
+{
+	down_write(&c->snapshot_create_lock);
+	long ret = __bch2_ioctl_subvolume_create(c, filp, arg);
+	up_write(&c->snapshot_create_lock);
+
+	return ret;
 }
 
 static long bch2_ioctl_subvolume_destroy(struct bch_fs *c, struct file *filp,
