@@ -57,6 +57,8 @@
 
 #define XY_FAST_COPY_BLT_CMD		(2 << 29 | 0x42 << 22)
 #define   XY_FAST_COPY_BLT_DEPTH_32	(3<<24)
+#define   XY_FAST_COPY_BLT_D1_SRC_TILE4	REG_BIT(31)
+#define   XY_FAST_COPY_BLT_D1_DST_TILE4	REG_BIT(30)
 
 #define	PVC_MEM_SET_CMD		(2 << 29 | 0x5b << 22)
 #define   PVC_MEM_SET_CMD_LEN_DW	7
