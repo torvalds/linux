@@ -3118,8 +3118,7 @@ static int vm_bind_ioctl_ops_execute(struct xe_vm *vm,
 
 	lockdep_assert_held_write(&vm->lock);
 
-	list_for_each_entry(op, ops_list, link)
-		last_op = op;
+	last_op = list_last_entry(ops_list, struct xe_vma_op, link);
 
 	if (!async) {
 		err = xe_vma_op_execute(vm, last_op);
