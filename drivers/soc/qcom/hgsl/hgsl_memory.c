@@ -132,21 +132,23 @@ static int hgsl_mem_mmap(struct dma_buf *dmabuf, struct vm_area_struct *vma)
 
 	vm_flags_set(vma, VM_DONTDUMP | VM_DONTEXPAND | VM_DONTCOPY);
 	vma->vm_private_data = mem_node;
-	cache_mode = mem_node->flags & GSL_MEMFLAGS_CACHEMODE_MASK;
-	switch (cache_mode) {
-	case GSL_MEMFLAGS_WRITECOMBINE:
-	case GSL_MEMFLAGS_UNCACHED:
-		vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
-		break;
-	case GSL_MEMFLAGS_WRITETHROUGH:
-		vma->vm_page_prot = pgprot_writethroughcache(vma->vm_page_prot);
-		break;
-	case GSL_MEMFLAGS_WRITEBACK:
-		vma->vm_page_prot = pgprot_writebackcache(vma->vm_page_prot);
-		break;
-	default:
-		LOGE("invalid cache mode");
-		return -EINVAL;
+	if (!mem_node->default_iocoherency) {
+		cache_mode = mem_node->flags & GSL_MEMFLAGS_CACHEMODE_MASK;
+		switch (cache_mode) {
+		case GSL_MEMFLAGS_WRITECOMBINE:
+		case GSL_MEMFLAGS_UNCACHED:
+			vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
+			break;
+		case GSL_MEMFLAGS_WRITETHROUGH:
+			vma->vm_page_prot = pgprot_writethroughcache(vma->vm_page_prot);
+			break;
+		case GSL_MEMFLAGS_WRITEBACK:
+			vma->vm_page_prot = pgprot_writebackcache(vma->vm_page_prot);
+			break;
+		default:
+			LOGE("invalid cache mode");
+			return -EINVAL;
+		}
 	}
 
 	for (i = 0; i < page_count; i++) {
@@ -250,16 +252,20 @@ static void hgsl_mem_dma_buf_release(struct dma_buf *dmabuf)
 static int hgsl_mem_dma_buf_vmap(struct dma_buf *dmabuf, struct iosys_map *map)
 {
 	struct hgsl_mem_node *mem_node = dmabuf->priv;
+	pgprot_t prot = PAGE_KERNEL;
 
 	if (mem_node->flags & GSL_MEMFLAGS_PROTECTED)
 		return -EINVAL;
 
 	mutex_lock(&hgsl_map_global_lock);
+	if (!mem_node->default_iocoherency)
+		prot = pgprot_writecombine(prot);
+
 	if (IS_ERR_OR_NULL(mem_node->vmapping))
 		mem_node->vmapping = vmap(mem_node->pages,
-			    mem_node->page_count,
-			    VM_IOREMAP,
-			    pgprot_writecombine(PAGE_KERNEL));
+				mem_node->page_count,
+				VM_IOREMAP,
+				prot);
 
 	if (!IS_ERR_OR_NULL(mem_node->vmapping))
 		mem_node->vmap_count++;
