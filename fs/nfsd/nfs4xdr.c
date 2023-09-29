@@ -3980,6 +3980,20 @@ nfsd4_encode_getfh(struct nfsd4_compoundres *resp, __be32 nfserr,
 	return nfsd4_encode_nfs_fh4(xdr, &fhp->fh_handle);
 }
 
+static __be32
+nfsd4_encode_lock_owner4(struct xdr_stream *xdr, const clientid_t *clientid,
+			 const struct xdr_netobj *owner)
+{
+	__be32 status;
+
+	/* clientid */
+	status = nfsd4_encode_clientid4(xdr, clientid);
+	if (status != nfs_ok)
+		return status;
+	/* owner */
+	return nfsd4_encode_opaque(xdr, owner->data, owner->len);
+}
+
 /*
 * Including all fields other than the name, a LOCK4denied structure requires
 *   8(clientid) + 4(namelen) + 8(offset) + 8(length) + 4(type) = 32 bytes.
@@ -3987,23 +4001,20 @@ nfsd4_encode_getfh(struct nfsd4_compoundres *resp, __be32 nfserr,
 static __be32
 nfsd4_encode_lock_denied(struct xdr_stream *xdr, struct nfsd4_lock_denied *ld)
 {
-	struct xdr_netobj *conf = &ld->ld_owner;
-	__be32 *p;
+	__be32 *p, status;
 
-	p = xdr_reserve_space(xdr, 32 + XDR_LEN(conf->len));
+	p = xdr_reserve_space(xdr, XDR_UNIT * 5);
 	if (!p)
 		return nfserr_resource;
 
 	p = xdr_encode_hyper(p, ld->ld_start);
 	p = xdr_encode_hyper(p, ld->ld_length);
 	*p++ = cpu_to_be32(ld->ld_type);
-	if (conf->len) {
-		p = xdr_encode_opaque_fixed(p, &ld->ld_clientid, 8);
-		p = xdr_encode_opaque(p, conf->data, conf->len);
-	}  else {  /* non - nfsv4 lock in conflict, no clientid nor owner */
-		p = xdr_encode_hyper(p, (u64)0); /* clientid */
-		*p++ = cpu_to_be32(0); /* length of owner name */
-	}
+	status = nfsd4_encode_lock_owner4(xdr, &ld->ld_clientid,
+					  &ld->ld_owner);
+	if (status != nfs_ok)
+		return status;
+
 	return nfserr_denied;
 }
 
