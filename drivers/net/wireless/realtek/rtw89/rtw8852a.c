@@ -2115,7 +2115,7 @@ const struct rtw89_chip_info rtw8852a_chip_info = {
 				  BIT(NL80211_BAND_5GHZ),
 	.support_bw160		= false,
 	.support_unii4		= false,
-	.support_ul_tb_ctrl     = false,
+	.ul_tb_waveform_ctrl	= false,
 	.hw_sec_hdr		= false,
 	.rf_path_num		= 2,
 	.tx_nss			= 2,

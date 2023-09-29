@@ -3649,7 +3649,7 @@ struct rtw89_chip_info {
 	u8 support_bands;
 	bool support_bw160;
 	bool support_unii4;
-	bool support_ul_tb_ctrl;
+	bool ul_tb_waveform_ctrl;
 	bool hw_sec_hdr;
 	u8 rf_path_num;
 	u8 tx_nss;

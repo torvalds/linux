@@ -2904,7 +2904,7 @@ void rtw89_phy_ul_tb_assoc(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
 						       rtwvif->sub_entity_idx);
 	struct rtw89_phy_ul_tb_info *ul_tb_info = &rtwdev->ul_tb_info;
 
-	if (!chip->support_ul_tb_ctrl)
+	if (!chip->ul_tb_waveform_ctrl)
 		return;
 
 	rtwvif->def_tri_idx =
@@ -2948,24 +2948,64 @@ void rtw89_phy_ul_tb_ctrl_check(struct rtw89_dev *rtwdev,
 	if (!vif->cfg.assoc)
 		return;
 
-	if (stats->rx_tf_periodic > UL_TB_TF_CNT_L2H_TH)
-		ul_tb_data->high_tf_client = true;
-	else if (stats->rx_tf_periodic < UL_TB_TF_CNT_H2L_TH)
-		ul_tb_data->low_tf_client = true;
+	if (rtwdev->chip->ul_tb_waveform_ctrl) {
+		if (stats->rx_tf_periodic > UL_TB_TF_CNT_L2H_TH)
+			ul_tb_data->high_tf_client = true;
+		else if (stats->rx_tf_periodic < UL_TB_TF_CNT_H2L_TH)
+			ul_tb_data->low_tf_client = true;
 
-	ul_tb_data->valid = true;
-	ul_tb_data->def_tri_idx = rtwvif->def_tri_idx;
-	ul_tb_data->dyn_tb_bedge_en = rtwvif->dyn_tb_bedge_en;
+		ul_tb_data->valid = true;
+		ul_tb_data->def_tri_idx = rtwvif->def_tri_idx;
+		ul_tb_data->dyn_tb_bedge_en = rtwvif->dyn_tb_bedge_en;
+	}
+}
+
+static void rtw89_phy_ul_tb_waveform_ctrl(struct rtw89_dev *rtwdev,
+					  struct rtw89_phy_ul_tb_check_data *ul_tb_data)
+{
+	struct rtw89_phy_ul_tb_info *ul_tb_info = &rtwdev->ul_tb_info;
+
+	if (!rtwdev->chip->ul_tb_waveform_ctrl)
+		return;
+
+	if (ul_tb_data->dyn_tb_bedge_en) {
+		if (ul_tb_data->high_tf_client) {
+			rtw89_phy_write32_mask(rtwdev, R_BANDEDGE, B_BANDEDGE_EN, 0);
+			rtw89_debug(rtwdev, RTW89_DBG_UL_TB,
+				    "[ULTB] Turn off if_bandedge\n");
+		} else if (ul_tb_data->low_tf_client) {
+			rtw89_phy_write32_mask(rtwdev, R_BANDEDGE, B_BANDEDGE_EN,
+					       ul_tb_info->def_if_bandedge);
+			rtw89_debug(rtwdev, RTW89_DBG_UL_TB,
+				    "[ULTB] Set to default if_bandedge = %d\n",
+				    ul_tb_info->def_if_bandedge);
+		}
+	}
+
+	if (ul_tb_info->dyn_tb_tri_en) {
+		if (ul_tb_data->high_tf_client) {
+			rtw89_phy_write32_mask(rtwdev, R_DCFO_OPT,
+					       B_TXSHAPE_TRIANGULAR_CFG, 0);
+			rtw89_debug(rtwdev, RTW89_DBG_UL_TB,
+				    "[ULTB] Turn off Tx triangle\n");
+		} else if (ul_tb_data->low_tf_client) {
+			rtw89_phy_write32_mask(rtwdev, R_DCFO_OPT,
+					       B_TXSHAPE_TRIANGULAR_CFG,
+					       ul_tb_data->def_tri_idx);
+			rtw89_debug(rtwdev, RTW89_DBG_UL_TB,
+				    "[ULTB] Set to default tx_shap_idx = %d\n",
+				    ul_tb_data->def_tri_idx);
+		}
+	}
 }
 
 void rtw89_phy_ul_tb_ctrl_track(struct rtw89_dev *rtwdev)
 {
 	const struct rtw89_chip_info *chip = rtwdev->chip;
-	struct rtw89_phy_ul_tb_info *ul_tb_info = &rtwdev->ul_tb_info;
 	struct rtw89_phy_ul_tb_check_data ul_tb_data = {};
 	struct rtw89_vif *rtwvif;
 
-	if (!chip->support_ul_tb_ctrl)
+	if (!chip->ul_tb_waveform_ctrl)
 		return;
 
 	if (rtwdev->total_sta_assoc != 1)
@@ -2977,35 +3017,7 @@ void rtw89_phy_ul_tb_ctrl_track(struct rtw89_dev *rtwdev)
 	if (!ul_tb_data.valid)
 		return;
 
-	if (ul_tb_data.dyn_tb_bedge_en) {
-		if (ul_tb_data.high_tf_client) {
-			rtw89_phy_write32_mask(rtwdev, R_BANDEDGE, B_BANDEDGE_EN, 0);
-			rtw89_debug(rtwdev, RTW89_DBG_UL_TB,
-				    "[ULTB] Turn off if_bandedge\n");
-		} else if (ul_tb_data.low_tf_client) {
-			rtw89_phy_write32_mask(rtwdev, R_BANDEDGE, B_BANDEDGE_EN,
-					       ul_tb_info->def_if_bandedge);
-			rtw89_debug(rtwdev, RTW89_DBG_UL_TB,
-				    "[ULTB] Set to default if_bandedge = %d\n",
-				    ul_tb_info->def_if_bandedge);
-		}
-	}
-
-	if (ul_tb_info->dyn_tb_tri_en) {
-		if (ul_tb_data.high_tf_client) {
-			rtw89_phy_write32_mask(rtwdev, R_DCFO_OPT,
-					       B_TXSHAPE_TRIANGULAR_CFG, 0);
-			rtw89_debug(rtwdev, RTW89_DBG_UL_TB,
-				    "[ULTB] Turn off Tx triangle\n");
-		} else if (ul_tb_data.low_tf_client) {
-			rtw89_phy_write32_mask(rtwdev, R_DCFO_OPT,
-					       B_TXSHAPE_TRIANGULAR_CFG,
-					       ul_tb_data.def_tri_idx);
-			rtw89_debug(rtwdev, RTW89_DBG_UL_TB,
-				    "[ULTB] Set to default tx_shap_idx = %d\n",
-				    ul_tb_data.def_tri_idx);
-		}
-	}
+	rtw89_phy_ul_tb_waveform_ctrl(rtwdev, &ul_tb_data);
 }
 
 static void rtw89_phy_ul_tb_info_init(struct rtw89_dev *rtwdev)
@@ -3013,7 +3025,7 @@ static void rtw89_phy_ul_tb_info_init(struct rtw89_dev *rtwdev)
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 	struct rtw89_phy_ul_tb_info *ul_tb_info = &rtwdev->ul_tb_info;
 
-	if (!chip->support_ul_tb_ctrl)
+	if (!chip->ul_tb_waveform_ctrl)
 		return;
 
 	ul_tb_info->dyn_tb_tri_en = true;
