@@ -265,10 +265,8 @@ static int cros_ec_pwm_probe(struct platform_device *pdev)
 	struct pwm_chip *chip;
 	int ret;
 
-	if (!ec) {
-		dev_err(dev, "no parent EC device\n");
-		return -EINVAL;
-	}
+	if (!ec)
+		return dev_err_probe(dev, -EINVAL, "no parent EC device\n");
 
 	ec_pwm = devm_kzalloc(dev, sizeof(*ec_pwm), GFP_KERNEL);
 	if (!ec_pwm)
@@ -289,10 +287,8 @@ static int cros_ec_pwm_probe(struct platform_device *pdev)
 		chip->npwm = CROS_EC_PWM_DT_COUNT;
 	} else {
 		ret = cros_ec_num_pwms(ec_pwm);
-		if (ret < 0) {
-			dev_err(dev, "Couldn't find PWMs: %d\n", ret);
-			return ret;
-		}
+		if (ret < 0)
+			return dev_err_probe(dev, ret, "Couldn't find PWMs\n");
 		chip->npwm = ret;
 	}
 
@@ -303,23 +299,11 @@ static int cros_ec_pwm_probe(struct platform_device *pdev)
 
 	dev_dbg(dev, "Probed %u PWMs\n", chip->npwm);
 
-	ret = pwmchip_add(chip);
-	if (ret < 0) {
-		dev_err(dev, "cannot register PWM: %d\n", ret);
-		return ret;
-	}
+	ret = devm_pwmchip_add(dev, chip);
+	if (ret < 0)
+		return dev_err_probe(dev, ret, "cannot register PWM\n");
 
-	platform_set_drvdata(pdev, ec_pwm);
-
-	return ret;
-}
-
-static void cros_ec_pwm_remove(struct platform_device *dev)
-{
-	struct cros_ec_pwm_device *ec_pwm = platform_get_drvdata(dev);
-	struct pwm_chip *chip = &ec_pwm->chip;
-
-	pwmchip_remove(chip);
+	return 0;
 }
 
 #ifdef CONFIG_OF
@@ -333,7 +317,6 @@ MODULE_DEVICE_TABLE(of, cros_ec_pwm_of_match);
 
 static struct platform_driver cros_ec_pwm_driver = {
 	.probe = cros_ec_pwm_probe,
-	.remove_new = cros_ec_pwm_remove,
 	.driver = {
 		.name = "cros-ec-pwm",
 		.of_match_table = of_match_ptr(cros_ec_pwm_of_match),
