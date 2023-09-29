@@ -3174,12 +3174,6 @@ limits_failed:
 }
 EXPORT_SYMBOL(vm_brk_flags);
 
-int vm_brk(unsigned long addr, unsigned long len)
-{
-	return vm_brk_flags(addr, len, 0);
-}
-EXPORT_SYMBOL(vm_brk);
-
 /* Release all mmaps. */
 void exit_mmap(struct mm_struct *mm)
 {
