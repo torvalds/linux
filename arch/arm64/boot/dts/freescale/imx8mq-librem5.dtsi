@@ -1001,7 +1001,7 @@
 	};
 
 	regulator@3e {
-		compatible = "tps65132";
+		compatible = "ti,tps65132";
 		reg = <0x3e>;
 
 		reg_lcd_avdd: outp {
