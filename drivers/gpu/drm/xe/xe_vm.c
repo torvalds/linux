@@ -17,6 +17,7 @@
 #include <linux/mm.h>
 #include <linux/swap.h>
 
+#include "xe_assert.h"
 #include "xe_bo.h"
 #include "xe_device.h"
 #include "xe_drm_client.h"
@@ -1312,7 +1313,7 @@ static u64 xelp_pte_encode_addr(struct xe_device *xe, u64 addr,
 	u64 pte;
 
 	/* Avoid passing random bits directly as flags */
-	XE_WARN_ON(flags & ~XE_PTE_PS64);
+	xe_assert(xe, !(flags & ~XE_PTE_PS64));
 
 	pte = addr;
 	pte |= XE_PAGE_PRESENT | XE_PAGE_RW;
