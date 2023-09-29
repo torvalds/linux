@@ -349,6 +349,7 @@
   device_get_child_node_count
   device_get_dma_attr
   device_get_match_data
+  device_get_named_child_node
   device_get_next_child_node
   device_initialize
   device_link_add
@@ -2054,8 +2055,11 @@
   tcpm_pd_transmit_complete
   tcpm_port_clean
   tcpm_port_is_toggling
+  tcpm_register_port
   tcpm_sink_frs
   tcpm_sourcing_vbus
+  tcpm_tcpc_reset
+  tcpm_unregister_port
   tcpm_vbus_change
   thermal_cdev_update
   thermal_cooling_device_unregister
