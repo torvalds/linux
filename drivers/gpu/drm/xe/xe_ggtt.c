@@ -263,7 +263,7 @@ static void ggtt_invalidate_gt_tlb(struct xe_gt *gt)
 	} else if (xe_device_uc_enabled(gt_to_xe(gt))) {
 		struct xe_device *xe = gt_to_xe(gt);
 
-		if (xe->info.platform == XE_PVC) {
+		if (xe->info.platform == XE_PVC || GRAPHICS_VER(xe) >= 20) {
 			xe_mmio_write32(gt, PVC_GUC_TLB_INV_DESC1,
 					PVC_GUC_TLB_INV_DESC1_INVALIDATE);
 			xe_mmio_write32(gt, PVC_GUC_TLB_INV_DESC0,
