@@ -184,7 +184,6 @@ _GLOBAL_TOC(plpar_hcall)
 plpar_hcall_trace:
 	HCALL_INST_PRECALL(R5)
 
-	std	r4,STK_PARAM(R4)(r1)
 	mr	r0,r4
 
 	mr	r4,r5
@@ -196,7 +195,7 @@ plpar_hcall_trace:
 
 	HVSC
 
-	ld	r12,STK_PARAM(R4)(r1)
+	ld	r12,STACK_FRAME_MIN_SIZE+STK_PARAM(R4)(r1)
 	std	r4,0(r12)
 	std	r5,8(r12)
 	std	r6,16(r12)
@@ -296,7 +295,6 @@ _GLOBAL_TOC(plpar_hcall9)
 plpar_hcall9_trace:
 	HCALL_INST_PRECALL(R5)
 
-	std	r4,STK_PARAM(R4)(r1)
 	mr	r0,r4
 
 	mr	r4,r5
