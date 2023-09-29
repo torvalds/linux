@@ -34,7 +34,7 @@ struct mlxsw_env {
 	u8 num_of_slots; /* Including the main board. */
 	u8 max_eeprom_len; /* Maximum module EEPROM transaction length. */
 	struct mutex line_cards_lock; /* Protects line cards. */
-	struct mlxsw_env_line_card *line_cards[];
+	struct mlxsw_env_line_card *line_cards[] __counted_by(num_of_slots);
 };
 
 static bool __mlxsw_env_linecard_is_active(struct mlxsw_env *mlxsw_env,
