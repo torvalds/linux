@@ -608,7 +608,7 @@ struct rdma_hw_stats {
 	const struct rdma_stat_desc *descs;
 	unsigned long	*is_disabled;
 	int		num_counters;
-	u64		value[];
+	u64		value[] __counted_by(num_counters);
 };
 
 #define RDMA_HW_STATS_DEFAULT_LIFESPAN 10
