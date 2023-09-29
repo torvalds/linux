@@ -9,6 +9,8 @@
 #ifndef __SOUND_SOC_INTEL_AVS_REGS_H
 #define __SOUND_SOC_INTEL_AVS_REGS_H
 
+#include <linux/sizes.h>
+
 #define AZX_PCIREG_PGCTL		0x44
 #define AZX_PCIREG_CGCTL		0x48
 #define AZX_PGCTL_LSRMD_MASK		BIT(4)
@@ -59,7 +61,7 @@
 #define AVS_FW_REG_STATUS(adev)		(AVS_FW_REG_BASE(adev) + 0x0)
 #define AVS_FW_REG_ERROR_CODE(adev)	(AVS_FW_REG_BASE(adev) + 0x4)
 
-#define AVS_WINDOW_CHUNK_SIZE		PAGE_SIZE
+#define AVS_WINDOW_CHUNK_SIZE		SZ_4K
 #define AVS_FW_REGS_SIZE		AVS_WINDOW_CHUNK_SIZE
 #define AVS_FW_REGS_WINDOW		0
 /* DSP -> HOST communication window */
