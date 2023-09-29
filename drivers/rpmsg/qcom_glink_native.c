@@ -1049,6 +1049,7 @@ static void qcom_glink_handle_intent_req(struct qcom_glink *glink,
 static int qcom_glink_rx_defer(struct qcom_glink *glink, size_t extra)
 {
 	struct glink_defer_cmd *dcmd;
+	unsigned long flags;
 
 	extra = ALIGN(extra, 8);
 
@@ -1065,9 +1066,9 @@ static int qcom_glink_rx_defer(struct qcom_glink *glink, size_t extra)
 
 	qcom_glink_rx_peak(glink, &dcmd->msg, 0, sizeof(dcmd->msg) + extra);
 
-	spin_lock(&glink->rx_lock);
+	spin_lock_irqsave(&glink->rx_lock, flags);
 	list_add_tail(&dcmd->node, &glink->rx_queue);
-	spin_unlock(&glink->rx_lock);
+	spin_unlock_irqrestore(&glink->rx_lock, flags);
 
 	queue_work(system_highpri_wq, &glink->rx_work);
 	qcom_glink_rx_advance(glink, sizeof(dcmd->msg) + extra);
@@ -1186,7 +1187,7 @@ static int qcom_glink_rx_data(struct qcom_glink *glink, size_t avail)
 			spin_unlock_irqrestore(&channel->intent_lock, flags);
 		}
 
-		spin_lock(&channel->recv_lock);
+		spin_lock_irqsave(&channel->recv_lock, flags);
 		if (channel->ept.cb) {
 			ret = channel->ept.cb(channel->ept.rpdev,
 					intent->data,
@@ -1203,7 +1204,7 @@ static int qcom_glink_rx_data(struct qcom_glink *glink, size_t avail)
 		} else {
 			CH_ERR(channel, "callback not present\n");
 		}
-		spin_unlock(&channel->recv_lock);
+		spin_unlock_irqrestore(&channel->recv_lock, flags);
 
 		if (qcom_glink_is_wakeup(true)) {
 			pr_info("%s[%d:%d] %s: wakeup packet size:%d\n",
@@ -1296,7 +1297,7 @@ static int qcom_glink_rx_data_zero_copy(struct qcom_glink *glink, size_t avail)
 	list_add_tail(&intent->node, &channel->defer_intents);
 	spin_unlock_irqrestore(&channel->intent_lock, flags);
 
-	spin_lock(&channel->recv_lock);
+	spin_lock_irqsave(&channel->recv_lock, flags);
 	if (channel->ept.cb) {
 		ret = channel->ept.cb(channel->ept.rpdev, intent->data,
 				intent->offset,
@@ -1311,7 +1312,7 @@ static int qcom_glink_rx_data_zero_copy(struct qcom_glink *glink, size_t avail)
 	} else {
 		CH_ERR(channel, "callback not present\n");
 	}
-	spin_unlock(&channel->recv_lock);
+	spin_unlock_irqrestore(&channel->recv_lock, flags);
 
 	if (qcom_glink_is_wakeup(true)) {
 		pr_info("%s[%d:%d] %s: wakeup packet size:%d\n", channel->name,
@@ -1401,10 +1402,11 @@ static void qcom_glink_handle_intent(struct qcom_glink *glink,
 static int qcom_glink_rx_open_ack(struct qcom_glink *glink, unsigned int lcid)
 {
 	struct glink_channel *channel;
+	unsigned long flags;
 
-	spin_lock(&glink->idr_lock);
+	spin_lock_irqsave(&glink->idr_lock, flags);
 	channel = idr_find(&glink->lcids, lcid);
-	spin_unlock(&glink->idr_lock);
+	spin_unlock_irqrestore(&glink->idr_lock, flags);
 	if (!channel) {
 		dev_err(glink->dev, "Invalid open ack packet\n");
 		return -EINVAL;
