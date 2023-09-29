@@ -1903,9 +1903,6 @@ static int ccs_set_stream(struct v4l2_subdev *subdev, int enable)
 	struct i2c_client *client = v4l2_get_subdevdata(&sensor->src->sd);
 	int rval;
 
-	if (sensor->streaming == enable)
-		return 0;
-
 	if (!enable) {
 		ccs_stop_streaming(sensor);
 		sensor->streaming = false;
