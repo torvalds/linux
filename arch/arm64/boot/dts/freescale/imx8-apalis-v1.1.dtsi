@@ -264,7 +264,7 @@
 			reset-assert-us = <2>;
 			reset-deassert-us = <2>;
 			reset-gpios = <&lsio_gpio1 11 GPIO_ACTIVE_LOW>;
-			reset-names = "phy-reset";
+			reset-names = "phy";
 		};
 	};
 };
