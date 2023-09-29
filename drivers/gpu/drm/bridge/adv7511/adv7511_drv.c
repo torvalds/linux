@@ -121,7 +121,7 @@ static const struct regmap_config adv7511_regmap_config = {
 	.val_bits = 8,
 
 	.max_register = 0xff,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.reg_defaults_raw = adv7511_register_defaults,
 	.num_reg_defaults_raw = ARRAY_SIZE(adv7511_register_defaults),
 
@@ -1068,7 +1068,7 @@ static const struct regmap_config adv7511_cec_regmap_config = {
 	.val_bits = 8,
 
 	.max_register = 0xff,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.volatile_reg = adv7511_cec_register_volatile,
 };
 
