@@ -4078,6 +4078,49 @@ nfsd4_encode_link(struct nfsd4_compoundres *resp, __be32 nfserr,
 	return nfsd4_encode_change_info4(xdr, &link->li_cinfo);
 }
 
+/*
+ * This implementation does not yet support returning an ACE in an
+ * OPEN that offers a delegation.
+ */
+static __be32
+nfsd4_encode_open_nfsace4(struct xdr_stream *xdr)
+{
+	__be32 status;
+
+	/* type */
+	status = nfsd4_encode_acetype4(xdr, NFS4_ACE_ACCESS_ALLOWED_ACE_TYPE);
+	if (status != nfs_ok)
+		return nfserr_resource;
+	/* flag */
+	status = nfsd4_encode_aceflag4(xdr, 0);
+	if (status != nfs_ok)
+		return nfserr_resource;
+	/* access mask */
+	status = nfsd4_encode_acemask4(xdr, 0);
+	if (status != nfs_ok)
+		return nfserr_resource;
+	/* who - empty for now */
+	if (xdr_stream_encode_u32(xdr, 0) != XDR_UNIT)
+		return nfserr_resource;
+	return nfs_ok;
+}
+
+static __be32
+nfsd4_encode_open_read_delegation4(struct xdr_stream *xdr, struct nfsd4_open *open)
+{
+	__be32 status;
+
+	/* stateid */
+	status = nfsd4_encode_stateid4(xdr, &open->op_delegate_stateid);
+	if (status != nfs_ok)
+		return status;
+	/* recall */
+	status = nfsd4_encode_bool(xdr, open->op_recall);
+	if (status != nfs_ok)
+		return status;
+	/* permissions */
+	return nfsd4_encode_open_nfsace4(xdr);
+}
 
 static __be32
 nfsd4_encode_open(struct nfsd4_compoundres *resp, __be32 nfserr,
@@ -4110,22 +4153,8 @@ nfsd4_encode_open(struct nfsd4_compoundres *resp, __be32 nfserr,
 	case NFS4_OPEN_DELEGATE_NONE:
 		break;
 	case NFS4_OPEN_DELEGATE_READ:
-		nfserr = nfsd4_encode_stateid4(xdr, &open->op_delegate_stateid);
-		if (nfserr)
-			return nfserr;
-		p = xdr_reserve_space(xdr, 20);
-		if (!p)
-			return nfserr_resource;
-		*p++ = cpu_to_be32(open->op_recall);
-
-		/*
-		 * TODO: ACE's in delegations
-		 */
-		*p++ = cpu_to_be32(NFS4_ACE_ACCESS_ALLOWED_ACE_TYPE);
-		*p++ = cpu_to_be32(0);
-		*p++ = cpu_to_be32(0);
-		*p++ = cpu_to_be32(0);   /* XXX: is NULL principal ok? */
-		break;
+		/* read */
+		return nfsd4_encode_open_read_delegation4(xdr, open);
 	case NFS4_OPEN_DELEGATE_WRITE:
 		nfserr = nfsd4_encode_stateid4(xdr, &open->op_delegate_stateid);
 		if (nfserr)

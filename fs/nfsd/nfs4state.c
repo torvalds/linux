@@ -5688,11 +5688,11 @@ nfs4_open_delegation(struct nfsd4_open *open, struct nfs4_ol_stateid *stp,
 	struct path path;
 
 	cb_up = nfsd4_cb_channel_good(oo->oo_owner.so_client);
-	open->op_recall = 0;
+	open->op_recall = false;
 	switch (open->op_claim_type) {
 		case NFS4_OPEN_CLAIM_PREVIOUS:
 			if (!cb_up)
-				open->op_recall = 1;
+				open->op_recall = true;
 			break;
 		case NFS4_OPEN_CLAIM_NULL:
 			parent = currentfh;
@@ -5746,7 +5746,7 @@ out_no_deleg:
 	if (open->op_claim_type == NFS4_OPEN_CLAIM_PREVIOUS &&
 	    open->op_delegate_type != NFS4_OPEN_DELEGATE_NONE) {
 		dprintk("NFSD: WARNING: refusing delegation reclaim\n");
-		open->op_recall = 1;
+		open->op_recall = true;
 	}
 
 	/* 4.1 client asking for a delegation? */

@@ -380,9 +380,9 @@ struct nfsd4_open {
 	u32		op_deleg_want;      /* request */
 	stateid_t	op_stateid;         /* response */
 	__be32		op_xdr_error;       /* see nfsd4_open_omfg() */
-	u32		op_recall;          /* recall */
 	struct nfsd4_change_info  op_cinfo; /* response */
 	u32		op_rflags;          /* response */
+	bool		op_recall;          /* response */
 	bool		op_truncate;        /* used during processing */
 	bool		op_created;         /* used during processing */
 	struct nfs4_openowner *op_openowner; /* used during processing */
