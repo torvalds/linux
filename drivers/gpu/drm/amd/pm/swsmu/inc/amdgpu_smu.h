@@ -253,6 +253,7 @@ struct smu_table {
 	uint64_t mc_address;
 	void *cpu_addr;
 	struct amdgpu_bo *bo;
+	uint32_t version;
 };
 
 enum smu_perf_level_designation {
@@ -1251,6 +1252,15 @@ struct pptable_funcs {
 	 * Return: Size of &table
 	 */
 	ssize_t (*get_gpu_metrics)(struct smu_context *smu, void **table);
+
+	/**
+	 * @get_pm_metrics: Get one snapshot of power management metrics from
+	 * PMFW.
+	 *
+	 * Return: Size of the metrics sample
+	 */
+	ssize_t (*get_pm_metrics)(struct smu_context *smu, void *pm_metrics,
+				  size_t size);
 
 	/**
 	 * @enable_mgpu_fan_boost: Enable multi-GPU fan boost.

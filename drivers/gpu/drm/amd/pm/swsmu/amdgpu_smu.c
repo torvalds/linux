@@ -3189,6 +3189,20 @@ static ssize_t smu_sys_get_gpu_metrics(void *handle, void **table)
 	return smu->ppt_funcs->get_gpu_metrics(smu, table);
 }
 
+static ssize_t smu_sys_get_pm_metrics(void *handle, void *pm_metrics,
+				      size_t size)
+{
+	struct smu_context *smu = handle;
+
+	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
+		return -EOPNOTSUPP;
+
+	if (!smu->ppt_funcs->get_pm_metrics)
+		return -EOPNOTSUPP;
+
+	return smu->ppt_funcs->get_pm_metrics(smu, pm_metrics, size);
+}
+
 static int smu_enable_mgpu_fan_boost(void *handle)
 {
 	struct smu_context *smu = handle;
@@ -3330,6 +3344,7 @@ static const struct amd_pm_funcs swsmu_pm_funcs = {
 	.set_df_cstate                    = smu_set_df_cstate,
 	.set_xgmi_pstate                  = smu_set_xgmi_pstate,
 	.get_gpu_metrics                  = smu_sys_get_gpu_metrics,
+	.get_pm_metrics                   = smu_sys_get_pm_metrics,
 	.set_watermarks_for_clock_ranges     = smu_set_watermarks_for_clock_ranges,
 	.display_disable_memory_clock_switch = smu_display_disable_memory_clock_switch,
 	.get_max_sustainable_clocks_by_dc    = smu_get_max_sustainable_clocks_by_dc,
