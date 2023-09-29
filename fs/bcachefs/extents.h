@@ -520,6 +520,7 @@ static inline bool bkey_extent_is_allocation(const struct bkey *k)
 	case KEY_TYPE_reflink_v:
 	case KEY_TYPE_inline_data:
 	case KEY_TYPE_indirect_inline_data:
+	case KEY_TYPE_error:
 		return true;
 	default:
 		return false;
