@@ -60,10 +60,10 @@
 
 #define	PVC_MEM_SET_CMD		(2 << 29 | 0x5b << 22)
 #define   PVC_MEM_SET_CMD_LEN_DW	7
-#define   PVC_MS_MATRIX			REG_BIT(17)
-#define   PVC_MS_DATA_FIELD		GENMASK(31, 24)
+#define   PVC_MEM_SET_MATRIX		REG_BIT(17)
+#define   PVC_MEM_SET_DATA_FIELD	GENMASK(31, 24)
 /* Bspec lists field as [6:0], but index alone is from [6:1] */
-#define   PVC_MS_MOCS_INDEX_MASK	GENMASK(6, 1)
+#define   PVC_MEM_SET_MOCS_INDEX_MASK	GENMASK(6, 1)
 
 #define GFX_OP_PIPE_CONTROL(len)	((0x3<<29)|(0x3<<27)|(0x2<<24)|((len)-2))
 

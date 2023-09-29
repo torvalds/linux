@@ -809,13 +809,13 @@ static void emit_clear_link_copy(struct xe_gt *gt, struct xe_bb *bb, u64 src_ofs
 	u32 mocs = gt->mocs.uc_index;
 	u32 len = PVC_MEM_SET_CMD_LEN_DW;
 
-	*cs++ = PVC_MEM_SET_CMD | PVC_MS_MATRIX | (len - 2);
+	*cs++ = PVC_MEM_SET_CMD | PVC_MEM_SET_MATRIX | (len - 2);
 	*cs++ = pitch - 1;
 	*cs++ = (size / pitch) - 1;
 	*cs++ = pitch - 1;
 	*cs++ = lower_32_bits(src_ofs);
 	*cs++ = upper_32_bits(src_ofs);
-	*cs++ = FIELD_PREP(PVC_MS_MOCS_INDEX_MASK, mocs);
+	*cs++ = FIELD_PREP(PVC_MEM_SET_MOCS_INDEX_MASK, mocs);
 
 	xe_gt_assert(gt, cs - bb->cs == len + bb->len);
 
