@@ -43,6 +43,7 @@
 };
 
 &soc {
+	dma-noncoherent;
 	interrupt-parent = <&plic>;
 
 	plic: interrupt-controller@12c00000 {
