@@ -1282,9 +1282,9 @@ static void qcom_battmgr_enable_worker(struct work_struct *work)
 {
 	struct qcom_battmgr *battmgr = container_of(work, struct qcom_battmgr, enable_work);
 	struct qcom_battmgr_enable_request req = {
-		.hdr.owner = PMIC_GLINK_OWNER_BATTMGR,
-		.hdr.type = PMIC_GLINK_NOTIFY,
-		.hdr.opcode = BATTMGR_REQUEST_NOTIFICATION,
+		.hdr.owner = cpu_to_le32(PMIC_GLINK_OWNER_BATTMGR),
+		.hdr.type = cpu_to_le32(PMIC_GLINK_NOTIFY),
+		.hdr.opcode = cpu_to_le32(BATTMGR_REQUEST_NOTIFICATION),
 	};
 	int ret;
 
