@@ -29,7 +29,7 @@ static const struct xe_rtp_entry_sr gt_tunings[] = {
 
 static const struct xe_rtp_entry_sr lrc_tunings[] = {
 	{ XE_RTP_NAME("Tuning: ganged timer, also known as 16011163337"),
-	  XE_RTP_RULES(GRAPHICS_VERSION_RANGE(1200, 1210)),
+	  XE_RTP_RULES(GRAPHICS_VERSION_RANGE(1200, 1210), ENGINE_CLASS(RENDER)),
 	  /* read verification is ignored due to 1608008084. */
 	  XE_RTP_ACTIONS(FIELD_SET_NO_READ_MASK(FF_MODE2,
 						FF_MODE2_GS_TIMER_MASK,
@@ -39,19 +39,19 @@ static const struct xe_rtp_entry_sr lrc_tunings[] = {
 	/* DG2 */
 
 	{ XE_RTP_NAME("Tuning: L3 cache"),
-	  XE_RTP_RULES(PLATFORM(DG2)),
+	  XE_RTP_RULES(PLATFORM(DG2), ENGINE_CLASS(RENDER)),
 	  XE_RTP_ACTIONS(FIELD_SET(XEHP_L3SQCREG5, L3_PWM_TIMER_INIT_VAL_MASK,
 				   REG_FIELD_PREP(L3_PWM_TIMER_INIT_VAL_MASK, 0x7f)))
 	},
 	{ XE_RTP_NAME("Tuning: TDS gang timer"),
-	  XE_RTP_RULES(PLATFORM(DG2)),
+	  XE_RTP_RULES(PLATFORM(DG2), ENGINE_CLASS(RENDER)),
 	  /* read verification is ignored as in i915 - need to check enabling */
 	  XE_RTP_ACTIONS(FIELD_SET_NO_READ_MASK(XEHP_FF_MODE2,
 						FF_MODE2_TDS_TIMER_MASK,
 						FF_MODE2_TDS_TIMER_128))
 	},
 	{ XE_RTP_NAME("Tuning: TBIMR fast clip"),
-	  XE_RTP_RULES(PLATFORM(DG2)),
+	  XE_RTP_RULES(PLATFORM(DG2), ENGINE_CLASS(RENDER)),
 	  XE_RTP_ACTIONS(SET(CHICKEN_RASTER_2, TBIMR_FAST_CLIP))
 	},
 	{}
