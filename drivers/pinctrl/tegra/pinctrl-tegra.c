@@ -636,6 +636,14 @@ static void tegra_pinconf_group_dbg_show(struct pinctrl_dev *pctldev,
 		seq_printf(s, "\n\t%s=%u",
 			   strip_prefix(cfg_params[i].property), val);
 	}
+
+	if (g->mux_reg >= 0) {
+		/* read pinmux function and dump to seq_file */
+		val = pmx_readl(pmx, g->mux_bank, g->mux_reg);
+		val = g->funcs[(val >> g->mux_bit) & 0x3];
+
+		seq_printf(s, "\n\tfunction=%s", pmx->functions[val].name);
+	}
 }
 
 static void tegra_pinconf_config_dbg_show(struct pinctrl_dev *pctldev,
