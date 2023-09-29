@@ -84,7 +84,7 @@ static const struct regmap_config regmap = {
 	.rd_table = &rd_table,
 	.volatile_table = &volatile_table,
 
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.num_reg_defaults_raw = FXL6408_REG_INT_STS + 1,
 };
 
