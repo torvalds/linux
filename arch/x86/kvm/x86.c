@@ -3790,8 +3790,12 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		data &= ~(u64)0x100;	/* ignore ignne emulation enable */
 		data &= ~(u64)0x8;	/* ignore TLB cache disable */
 
-		/* Handle McStatusWrEn */
-		if (data & ~BIT_ULL(18)) {
+		/*
+		 * Allow McStatusWrEn and TscFreqSel. (Linux guests from v3.2
+		 * through at least v6.6 whine if TscFreqSel is clear,
+		 * depending on F/M/S.
+		 */
+		if (data & ~(BIT_ULL(18) | BIT_ULL(24))) {
 			kvm_pr_unimpl_wrmsr(vcpu, msr, data);
 			return 1;
 		}
