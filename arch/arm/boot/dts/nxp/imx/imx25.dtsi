@@ -529,7 +529,6 @@
 				compatible = "fsl,imx25-wdt", "fsl,imx21-wdt";
 				reg = <0x53fdc000 0x4000>;
 				clocks = <&clks 126>;
-				clock-names = "";
 				interrupts = <55>;
 			};
 
