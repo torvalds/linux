@@ -1265,7 +1265,7 @@ __xe_pt_bind_vma(struct xe_tile *tile, struct xe_vma *vma, struct xe_exec_queue 
 
 	vm_dbg(&xe_vma_vm(vma)->xe->drm,
 	       "Preparing bind, with range [%llx...%llx) engine %p.\n",
-	       xe_vma_start(vma), xe_vma_end(vma) - 1, q);
+	       xe_vma_start(vma), xe_vma_end(vma), q);
 
 	err = xe_pt_prepare_bind(tile, vma, entries, &num_entries, rebind);
 	if (err)
@@ -1618,7 +1618,7 @@ __xe_pt_unbind_vma(struct xe_tile *tile, struct xe_vma *vma, struct xe_exec_queu
 
 	vm_dbg(&xe_vma_vm(vma)->xe->drm,
 	       "Preparing unbind, with range [%llx...%llx) engine %p.\n",
-	       xe_vma_start(vma), xe_vma_end(vma) - 1, q);
+	       xe_vma_start(vma), xe_vma_end(vma), q);
 
 	num_entries = xe_pt_stage_unbind(tile, vma, entries);
 	xe_tile_assert(tile, num_entries <= ARRAY_SIZE(entries));
