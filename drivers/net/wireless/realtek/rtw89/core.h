@@ -3045,6 +3045,8 @@ struct rtw89_vif {
 	bool is_hesta;
 	bool last_a_ctrl;
 	bool dyn_tb_bedge_en;
+	bool pre_pwr_diff_en;
+	bool pwr_diff_en;
 	u8 def_tri_idx;
 	u32 tdls_peer;
 	struct work_struct update_beacon_work;
@@ -3650,6 +3652,7 @@ struct rtw89_chip_info {
 	bool support_bw160;
 	bool support_unii4;
 	bool ul_tb_waveform_ctrl;
+	bool ul_tb_pwr_diff;
 	bool hw_sec_hdr;
 	u8 rf_path_num;
 	u8 tx_nss;
@@ -5203,6 +5206,30 @@ enum rtw89_bandwidth nl_to_rtw89_bandwidth(enum nl80211_chan_width width)
 		return RTW89_CHANNEL_WIDTH_80;
 	case NL80211_CHAN_WIDTH_160:
 		return RTW89_CHANNEL_WIDTH_160;
+	}
+}
+
+static inline
+enum nl80211_he_ru_alloc rtw89_he_rua_to_ru_alloc(u16 rua)
+{
+	switch (rua) {
+	default:
+		WARN(1, "Invalid RU allocation: %d\n", rua);
+		fallthrough;
+	case 0 ... 36:
+		return NL80211_RATE_INFO_HE_RU_ALLOC_26;
+	case 37 ... 52:
+		return NL80211_RATE_INFO_HE_RU_ALLOC_52;
+	case 53 ... 60:
+		return NL80211_RATE_INFO_HE_RU_ALLOC_106;
+	case 61 ... 64:
+		return NL80211_RATE_INFO_HE_RU_ALLOC_242;
+	case 65 ... 66:
+		return NL80211_RATE_INFO_HE_RU_ALLOC_484;
+	case 67:
+		return NL80211_RATE_INFO_HE_RU_ALLOC_996;
+	case 68:
+		return NL80211_RATE_INFO_HE_RU_ALLOC_2x996;
 	}
 }
 

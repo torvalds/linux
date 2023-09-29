@@ -1689,8 +1689,8 @@ static void rtw89_stats_trigger_frame(struct rtw89_dev *rtwdev,
 {
 	struct rtw89_vif *rtwvif = (struct rtw89_vif *)vif->drv_priv;
 	struct ieee80211_trigger *tf = (struct ieee80211_trigger *)skb->data;
-	u8 *pos, *end, type;
-	u16 aid;
+	u8 *pos, *end, type, tf_bw;
+	u16 aid, tf_rua;
 
 	if (!ether_addr_equal(vif->bss_conf.bssid, tf->ta) ||
 	    rtwvif->wifi_role != RTW89_WIFI_ROLE_STATION ||
@@ -1698,7 +1698,7 @@ static void rtw89_stats_trigger_frame(struct rtw89_dev *rtwdev,
 		return;
 
 	type = le64_get_bits(tf->common_info, IEEE80211_TRIGGER_TYPE_MASK);
-	if (type != IEEE80211_TRIGGER_TYPE_BASIC)
+	if (type != IEEE80211_TRIGGER_TYPE_BASIC && type != IEEE80211_TRIGGER_TYPE_MU_BAR)
 		return;
 
 	end = (u8 *)tf + skb->len;
@@ -1706,17 +1706,24 @@ static void rtw89_stats_trigger_frame(struct rtw89_dev *rtwdev,
 
 	while (end - pos >= RTW89_TF_BASIC_USER_INFO_SZ) {
 		aid = RTW89_GET_TF_USER_INFO_AID12(pos);
+		tf_rua = RTW89_GET_TF_USER_INFO_RUA(pos);
+		tf_bw = le64_get_bits(tf->common_info, IEEE80211_TRIGGER_ULBW_MASK);
 		rtw89_debug(rtwdev, RTW89_DBG_TXRX,
-			    "[TF] aid: %d, ul_mcs: %d, rua: %d\n",
+			    "[TF] aid: %d, ul_mcs: %d, rua: %d, bw: %d\n",
 			    aid, RTW89_GET_TF_USER_INFO_UL_MCS(pos),
-			    RTW89_GET_TF_USER_INFO_RUA(pos));
+			    tf_rua, tf_bw);
 
 		if (aid == RTW89_TF_PAD)
 			break;
 
 		if (aid == vif->cfg.aid) {
+			enum nl80211_he_ru_alloc rua = rtw89_he_rua_to_ru_alloc(tf_rua >> 1);
+
 			rtwvif->stats.rx_tf_acc++;
 			rtwdev->stats.rx_tf_acc++;
+			if (tf_bw == IEEE80211_TRIGGER_ULBW_160_80P80MHZ &&
+			    rua <= NL80211_RATE_INFO_HE_RU_ALLOC_106)
+				rtwvif->pwr_diff_en = true;
 			break;
 		}
 

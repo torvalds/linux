@@ -2116,6 +2116,7 @@ const struct rtw89_chip_info rtw8852a_chip_info = {
 	.support_bw160		= false,
 	.support_unii4		= false,
 	.ul_tb_waveform_ctrl	= false,
+	.ul_tb_pwr_diff		= false,
 	.hw_sec_hdr		= false,
 	.rf_path_num		= 2,
 	.tx_nss			= 2,

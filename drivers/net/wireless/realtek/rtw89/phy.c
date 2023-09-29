@@ -2934,6 +2934,61 @@ struct rtw89_phy_ul_tb_check_data {
 	u8 def_tri_idx;
 };
 
+struct rtw89_phy_power_diff {
+	u32 q_00;
+	u32 q_11;
+	u32 q_matrix_en;
+	u32 ultb_1t_norm_160;
+	u32 ultb_2t_norm_160;
+	u32 com1_norm_1sts;
+	u32 com2_resp_1sts_path;
+};
+
+static void rtw89_phy_ofdma_power_diff(struct rtw89_dev *rtwdev,
+				       struct rtw89_vif *rtwvif)
+{
+	static const struct rtw89_phy_power_diff table[2] = {
+		{0x0, 0x0, 0x0, 0x0, 0xf4, 0x3, 0x3},
+		{0xb50, 0xb50, 0x1, 0xc, 0x0, 0x1, 0x1},
+	};
+	const struct rtw89_phy_power_diff *param;
+	u32 reg;
+
+	if (!rtwdev->chip->ul_tb_pwr_diff)
+		return;
+
+	if (rtwvif->pwr_diff_en == rtwvif->pre_pwr_diff_en) {
+		rtwvif->pwr_diff_en = false;
+		return;
+	}
+
+	rtwvif->pre_pwr_diff_en = rtwvif->pwr_diff_en;
+	param = &table[rtwvif->pwr_diff_en];
+
+	rtw89_phy_write32_mask(rtwdev, R_Q_MATRIX_00, B_Q_MATRIX_00_REAL,
+			       param->q_00);
+	rtw89_phy_write32_mask(rtwdev, R_Q_MATRIX_11, B_Q_MATRIX_11_REAL,
+			       param->q_11);
+	rtw89_phy_write32_mask(rtwdev, R_CUSTOMIZE_Q_MATRIX,
+			       B_CUSTOMIZE_Q_MATRIX_EN, param->q_matrix_en);
+
+	reg = rtw89_mac_reg_by_idx(rtwdev, R_AX_PWR_UL_TB_1T, rtwvif->mac_idx);
+	rtw89_write32_mask(rtwdev, reg, B_AX_PWR_UL_TB_1T_NORM_BW160,
+			   param->ultb_1t_norm_160);
+
+	reg = rtw89_mac_reg_by_idx(rtwdev, R_AX_PWR_UL_TB_2T, rtwvif->mac_idx);
+	rtw89_write32_mask(rtwdev, reg, B_AX_PWR_UL_TB_2T_NORM_BW160,
+			   param->ultb_2t_norm_160);
+
+	reg = rtw89_mac_reg_by_idx(rtwdev, R_AX_PATH_COM1, rtwvif->mac_idx);
+	rtw89_write32_mask(rtwdev, reg, B_AX_PATH_COM1_NORM_1STS,
+			   param->com1_norm_1sts);
+
+	reg = rtw89_mac_reg_by_idx(rtwdev, R_AX_PATH_COM2, rtwvif->mac_idx);
+	rtw89_write32_mask(rtwdev, reg, B_AX_PATH_COM2_RESP_1STS_PATH,
+			   param->com2_resp_1sts_path);
+}
+
 static
 void rtw89_phy_ul_tb_ctrl_check(struct rtw89_dev *rtwdev,
 				struct rtw89_vif *rtwvif,
@@ -2958,6 +3013,8 @@ void rtw89_phy_ul_tb_ctrl_check(struct rtw89_dev *rtwdev,
 		ul_tb_data->def_tri_idx = rtwvif->def_tri_idx;
 		ul_tb_data->dyn_tb_bedge_en = rtwvif->dyn_tb_bedge_en;
 	}
+
+	rtw89_phy_ofdma_power_diff(rtwdev, rtwvif);
 }
 
 static void rtw89_phy_ul_tb_waveform_ctrl(struct rtw89_dev *rtwdev,
@@ -3005,7 +3062,7 @@ void rtw89_phy_ul_tb_ctrl_track(struct rtw89_dev *rtwdev)
 	struct rtw89_phy_ul_tb_check_data ul_tb_data = {};
 	struct rtw89_vif *rtwvif;
 
-	if (!chip->ul_tb_waveform_ctrl)
+	if (!chip->ul_tb_waveform_ctrl && !chip->ul_tb_pwr_diff)
 		return;
 
 	if (rtwdev->total_sta_assoc != 1)
