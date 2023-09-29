@@ -353,7 +353,6 @@ static int sclp_mem_notifier(struct notifier_block *nb,
 		sclp_mem_change_state(start, size, 0);
 		break;
 	default:
-		rc = -EINVAL;
 		break;
 	}
 	mutex_unlock(&sclp_mem_mutex);
