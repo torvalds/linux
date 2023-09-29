@@ -659,8 +659,6 @@ static int ad2s1210_probe(struct spi_device *spi)
 		return -ENOMEM;
 	st = iio_priv(indio_dev);
 
-	spi_set_drvdata(spi, indio_dev);
-
 	mutex_init(&st->lock);
 	st->sdev = spi;
 	st->hysteresis = true;
