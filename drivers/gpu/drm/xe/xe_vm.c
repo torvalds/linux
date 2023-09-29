@@ -2345,7 +2345,7 @@ static void print_op(struct xe_device *xe, struct drm_gpuva_op *op)
 		vma = gpuva_to_vma(op->remap.unmap->va);
 		vm_dbg(&xe->drm, "REMAP:UNMAP: addr=0x%016llx, range=0x%016llx, keep=%d",
 		       (ULL)xe_vma_start(vma), (ULL)xe_vma_size(vma),
-		       op->unmap.keep ? 1 : 0);
+		       op->remap.unmap->keep ? 1 : 0);
 		if (op->remap.prev)
 			vm_dbg(&xe->drm,
 			       "REMAP:PREV: addr=0x%016llx, range=0x%016llx",
