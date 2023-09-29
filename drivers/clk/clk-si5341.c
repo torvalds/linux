@@ -1260,7 +1260,7 @@ static int si5341_wait_device_ready(struct i2c_client *client)
 static const struct regmap_config si5341_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.ranges = si5341_regmap_ranges,
 	.num_ranges = ARRAY_SIZE(si5341_regmap_ranges),
 	.max_register = SI5341_REGISTER_MAX,
