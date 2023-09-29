@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2023, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/io.h>
@@ -814,7 +815,7 @@ static int qmp_shim_send_data(struct mbox_chan *chan, void *data)
 
 	mbox->tx_pkt.size = pkt->size;
 	memcpy(mbox->tx_pkt.data, pkt->data, pkt->size);
-	schedule_work(&mbox->tx_work);
+	queue_work(system_highpri_wq, &mbox->tx_work);
 	return 0;
 }
 
