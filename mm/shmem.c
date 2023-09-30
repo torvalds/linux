@@ -146,9 +146,8 @@ static unsigned long shmem_default_max_inodes(void)
 #endif
 
 static int shmem_swapin_folio(struct inode *inode, pgoff_t index,
-			     struct folio **foliop, enum sgp_type sgp,
-			     gfp_t gfp, struct vm_area_struct *vma,
-			     vm_fault_t *fault_type);
+			struct folio **foliop, enum sgp_type sgp, gfp_t gfp,
+			struct mm_struct *fault_mm, vm_fault_t *fault_type);
 
 static inline struct shmem_sb_info *SHMEM_SB(struct super_block *sb)
 {
@@ -760,12 +759,10 @@ static unsigned long shmem_unused_huge_shrink(struct shmem_sb_info *sbinfo,
  */
 static int shmem_add_to_page_cache(struct folio *folio,
 				   struct address_space *mapping,
-				   pgoff_t index, void *expected, gfp_t gfp,
-				   struct mm_struct *charge_mm)
+				   pgoff_t index, void *expected, gfp_t gfp)
 {
 	XA_STATE_ORDER(xas, &mapping->i_pages, index, folio_order(folio));
 	long nr = folio_nr_pages(folio);
-	int error;
 
 	VM_BUG_ON_FOLIO(index != round_down(index, nr), folio);
 	VM_BUG_ON_FOLIO(!folio_test_locked(folio), folio);
@@ -776,16 +773,7 @@ static int shmem_add_to_page_cache(struct folio *folio,
 	folio->mapping = mapping;
 	folio->index = index;
 
-	if (!folio_test_swapcache(folio)) {
-		error = mem_cgroup_charge(folio, charge_mm, gfp);
-		if (error) {
-			if (folio_test_pmd_mappable(folio)) {
-				count_vm_event(THP_FILE_FALLBACK);
-				count_vm_event(THP_FILE_FALLBACK_CHARGE);
-			}
-			goto error;
-		}
-	}
+	gfp &= GFP_RECLAIM_MASK;
 	folio_throttle_swaprate(folio, gfp);
 
 	do {
@@ -813,15 +801,12 @@ unlock:
 	} while (xas_nomem(&xas, gfp));
 
 	if (xas_error(&xas)) {
-		error = xas_error(&xas);
-		goto error;
+		folio->mapping = NULL;
+		folio_ref_sub(folio, nr);
+		return xas_error(&xas);
 	}
 
 	return 0;
-error:
-	folio->mapping = NULL;
-	folio_ref_sub(folio, nr);
-	return error;
 }
 
 /*
@@ -1324,10 +1309,8 @@ static int shmem_unuse_swap_entries(struct inode *inode,
 
 		if (!xa_is_value(folio))
 			continue;
-		error = shmem_swapin_folio(inode, indices[i],
-					  &folio, SGP_CACHE,
-					  mapping_gfp_mask(mapping),
-					  NULL, NULL);
+		error = shmem_swapin_folio(inode, indices[i], &folio, SGP_CACHE,
+					mapping_gfp_mask(mapping), NULL, NULL);
 		if (error == 0) {
 			folio_unlock(folio);
 			folio_put(folio);
@@ -1810,12 +1793,11 @@ static void shmem_set_folio_swapin_error(struct inode *inode, pgoff_t index,
  */
 static int shmem_swapin_folio(struct inode *inode, pgoff_t index,
 			     struct folio **foliop, enum sgp_type sgp,
-			     gfp_t gfp, struct vm_area_struct *vma,
+			     gfp_t gfp, struct mm_struct *fault_mm,
 			     vm_fault_t *fault_type)
 {
 	struct address_space *mapping = inode->i_mapping;
 	struct shmem_inode_info *info = SHMEM_I(inode);
-	struct mm_struct *charge_mm = vma ? vma->vm_mm : NULL;
 	struct swap_info_struct *si;
 	struct folio *folio = NULL;
 	swp_entry_t swap;
@@ -1843,7 +1825,7 @@ static int shmem_swapin_folio(struct inode *inode, pgoff_t index,
 		if (fault_type) {
 			*fault_type |= VM_FAULT_MAJOR;
 			count_vm_event(PGMAJFAULT);
-			count_memcg_event_mm(charge_mm, PGMAJFAULT);
+			count_memcg_event_mm(fault_mm, PGMAJFAULT);
 		}
 		/* Here we actually start the io */
 		folio = shmem_swapin(swap, gfp, info, index);
@@ -1880,8 +1862,7 @@ static int shmem_swapin_folio(struct inode *inode, pgoff_t index,
 	}
 
 	error = shmem_add_to_page_cache(folio, mapping, index,
-					swp_to_radix_entry(swap), gfp,
-					charge_mm);
+					swp_to_radix_entry(swap), gfp);
 	if (error)
 		goto failed;
 
@@ -1929,7 +1910,7 @@ static int shmem_get_folio_gfp(struct inode *inode, pgoff_t index,
 	struct address_space *mapping = inode->i_mapping;
 	struct shmem_inode_info *info = SHMEM_I(inode);
 	struct shmem_sb_info *sbinfo;
-	struct mm_struct *charge_mm;
+	struct mm_struct *fault_mm;
 	struct folio *folio;
 	pgoff_t hindex;
 	gfp_t huge_gfp;
@@ -1946,7 +1927,7 @@ repeat:
 	}
 
 	sbinfo = SHMEM_SB(inode->i_sb);
-	charge_mm = vma ? vma->vm_mm : NULL;
+	fault_mm = vma ? vma->vm_mm : NULL;
 
 	folio = filemap_get_entry(mapping, index);
 	if (folio && vma && userfaultfd_minor(vma)) {
@@ -1958,7 +1939,7 @@ repeat:
 
 	if (xa_is_value(folio)) {
 		error = shmem_swapin_folio(inode, index, &folio,
-					  sgp, gfp, vma, fault_type);
+					   sgp, gfp, fault_mm, fault_type);
 		if (error == -EEXIST)
 			goto repeat;
 
@@ -2044,9 +2025,16 @@ alloc_nohuge:
 	if (sgp == SGP_WRITE)
 		__folio_set_referenced(folio);
 
-	error = shmem_add_to_page_cache(folio, mapping, hindex,
-					NULL, gfp & GFP_RECLAIM_MASK,
-					charge_mm);
+	error = mem_cgroup_charge(folio, fault_mm, gfp);
+	if (error) {
+		if (folio_test_pmd_mappable(folio)) {
+			count_vm_event(THP_FILE_FALLBACK);
+			count_vm_event(THP_FILE_FALLBACK_CHARGE);
+		}
+		goto unacct;
+	}
+
+	error = shmem_add_to_page_cache(folio, mapping, hindex, NULL, gfp);
 	if (error)
 		goto unacct;
 
@@ -2644,8 +2632,10 @@ int shmem_mfill_atomic_pte(pmd_t *dst_pmd,
 	if (unlikely(pgoff >= max_off))
 		goto out_release;
 
-	ret = shmem_add_to_page_cache(folio, mapping, pgoff, NULL,
-				      gfp & GFP_RECLAIM_MASK, dst_vma->vm_mm);
+	ret = mem_cgroup_charge(folio, dst_vma->vm_mm, gfp);
+	if (ret)
+		goto out_release;
+	ret = shmem_add_to_page_cache(folio, mapping, pgoff, NULL, gfp);
 	if (ret)
 		goto out_release;
 
