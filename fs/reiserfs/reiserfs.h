@@ -1165,7 +1165,7 @@ static inline int bmap_would_wrap(unsigned bmap_nr)
 	return bmap_nr > ((1LL << 16) - 1);
 }
 
-extern const struct xattr_handler *reiserfs_xattr_handlers[];
+extern const struct xattr_handler * const reiserfs_xattr_handlers[];
 
 /*
  * this says about version of key of all items (but stat data) the
