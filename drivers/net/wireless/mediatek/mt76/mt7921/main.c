@@ -682,6 +682,38 @@ static void mt7921_bss_info_changed(struct ieee80211_hw *hw,
 	mt792x_mutex_release(dev);
 }
 
+static void
+mt7921_regd_set_6ghz_power_type(struct ieee80211_vif *vif)
+{
+	struct mt792x_vif *mvif = (struct mt792x_vif *)vif->drv_priv;
+	struct mt792x_phy *phy = mvif->phy;
+	struct mt792x_dev *dev = phy->dev;
+
+	if (hweight64(dev->mt76.vif_mask) > 1) {
+		phy->power_type = MT_AP_DEFAULT;
+		goto out;
+	}
+
+	switch (vif->bss_conf.power_type) {
+	case IEEE80211_REG_SP_AP:
+		phy->power_type = MT_AP_SP;
+		break;
+	case IEEE80211_REG_VLP_AP:
+		phy->power_type = MT_AP_VLP;
+		break;
+	case IEEE80211_REG_LPI_AP:
+		phy->power_type = MT_AP_LPI;
+		break;
+	case IEEE80211_REG_UNSET_AP:
+	default:
+		phy->power_type = MT_AP_DEFAULT;
+		break;
+	}
+
+out:
+	mt7921_mcu_set_clc(dev, dev->mt76.alpha2, dev->country_ie_env);
+}
+
 int mt7921_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 		       struct ieee80211_sta *sta)
 {
@@ -716,6 +748,8 @@ int mt7921_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 				    MT76_STA_INFO_STATE_NONE);
 	if (ret)
 		return ret;
+
+	mt7921_regd_set_6ghz_power_type(vif);
 
 	mt76_connac_power_save_sched(&dev->mphy, &dev->pm);
 
