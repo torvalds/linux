@@ -1067,6 +1067,7 @@ acpi_status acpi_os_execute(acpi_execute_type type,
 	struct acpi_os_dpc *dpc;
 	struct workqueue_struct *queue;
 	int ret;
+
 	ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
 			  "Scheduling function [%p(%p)] for deferred execution.\n",
 			  function, context));
@@ -1522,6 +1523,7 @@ acpi_cpu_flags acpi_os_acquire_lock(acpi_spinlock lockp)
 	__acquires(lockp)
 {
 	acpi_cpu_flags flags;
+
 	spin_lock_irqsave(lockp, flags);
 	return flags;
 }
@@ -1708,6 +1710,7 @@ acpi_status acpi_os_prepare_sleep(u8 sleep_state, u32 pm1a_control,
 				  u32 pm1b_control)
 {
 	int rc = 0;
+
 	if (__acpi_os_prepare_sleep)
 		rc = __acpi_os_prepare_sleep(sleep_state,
 					     pm1a_control, pm1b_control);
@@ -1730,6 +1733,7 @@ acpi_status acpi_os_prepare_extended_sleep(u8 sleep_state, u32 val_a,
 				  u32 val_b)
 {
 	int rc = 0;
+
 	if (__acpi_os_prepare_extended_sleep)
 		rc = __acpi_os_prepare_extended_sleep(sleep_state,
 					     val_a, val_b);
