@@ -877,8 +877,6 @@ static void vcn_v4_0_enable_clock_gating(struct amdgpu_device *adev, int inst)
 		| UVD_SUVD_CGC_CTRL__IME_MODE_MASK
 		| UVD_SUVD_CGC_CTRL__SITE_MODE_MASK);
 	WREG32_SOC15(VCN, inst, regUVD_SUVD_CGC_CTRL, data);
-
-	return;
 }
 
 static void vcn_v4_0_enable_ras(struct amdgpu_device *adev, int inst_idx,

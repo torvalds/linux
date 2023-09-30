@@ -173,8 +173,6 @@ static void nbio_v7_9_sdma_doorbell_range(struct amdgpu_device *adev, int instan
 	default:
 		break;
 	}
-
-	return;
 }
 
 static void nbio_v7_9_vcn_doorbell_range(struct amdgpu_device *adev, bool use_doorbell,
@@ -556,7 +554,6 @@ const struct amdgpu_nbio_funcs nbio_v7_9_funcs = {
 static void nbio_v7_9_query_ras_error_count(struct amdgpu_device *adev,
 					void *ras_error_status)
 {
-	return;
 }
 
 static void nbio_v7_9_handle_ras_controller_intr_no_bifring(struct amdgpu_device *adev)

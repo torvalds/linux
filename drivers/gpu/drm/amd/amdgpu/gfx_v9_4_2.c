@@ -746,8 +746,6 @@ void gfx_v9_4_2_init_golden_registers(struct amdgpu_device *adev,
 			 die_id);
 		break;
 	}
-
-	return;
 }
 
 void gfx_v9_4_2_debug_trap_config_init(struct amdgpu_device *adev,

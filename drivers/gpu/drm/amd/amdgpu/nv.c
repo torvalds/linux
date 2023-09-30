@@ -1115,8 +1115,6 @@ static void nv_common_get_clockgating_state(void *handle, u64 *flags)
 	adev->hdp.funcs->get_clock_gating_state(adev, flags);
 
 	adev->smuio.funcs->get_clock_gating_state(adev, flags);
-
-	return;
 }
 
 static const struct amd_ip_funcs nv_common_ip_funcs = {
