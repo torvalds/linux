@@ -34,6 +34,16 @@
 #include "umsch_mm_4_0_api_def.h"
 #include "umsch_mm_v4_0.h"
 
+#define regUVD_IPX_DLDO_CONFIG                             0x0064
+#define regUVD_IPX_DLDO_CONFIG_BASE_IDX                    1
+#define regUVD_IPX_DLDO_STATUS                             0x0065
+#define regUVD_IPX_DLDO_STATUS_BASE_IDX                    1
+
+#define UVD_IPX_DLDO_CONFIG__ONO0_PWR_CONFIG__SHIFT        0x00000002
+#define UVD_IPX_DLDO_CONFIG__ONO0_PWR_CONFIG_MASK          0x0000000cUL
+#define UVD_IPX_DLDO_STATUS__ONO0_PWR_STATUS__SHIFT        0x00000001
+#define UVD_IPX_DLDO_STATUS__ONO0_PWR_STATUS_MASK          0x00000002UL
+
 static int umsch_mm_v4_0_load_microcode(struct amdgpu_umsch_mm *umsch)
 {
 	struct amdgpu_device *adev = umsch->ring.adev;
@@ -49,6 +59,14 @@ static int umsch_mm_v4_0_load_microcode(struct amdgpu_umsch_mm *umsch)
 		goto err_free_ucode_bo;
 
 	umsch->cmd_buf_curr_ptr = umsch->cmd_buf_ptr;
+
+	if (amdgpu_ip_version(adev, VCN_HWIP, 0) == IP_VERSION(4, 0, 5)) {
+		WREG32_SOC15(VCN, 0, regUVD_IPX_DLDO_CONFIG,
+			1 << UVD_IPX_DLDO_CONFIG__ONO0_PWR_CONFIG__SHIFT);
+		SOC15_WAIT_ON_RREG(VCN, 0, regUVD_IPX_DLDO_STATUS,
+			0 << UVD_IPX_DLDO_STATUS__ONO0_PWR_STATUS__SHIFT,
+			UVD_IPX_DLDO_STATUS__ONO0_PWR_STATUS_MASK);
+	}
 
 	data = RREG32_SOC15(VCN, 0, regUMSCH_MES_RESET_CTRL);
 	data = REG_SET_FIELD(data, UMSCH_MES_RESET_CTRL, MES_CORE_SOFT_RESET, 0);
@@ -228,6 +246,14 @@ static int umsch_mm_v4_0_ring_stop(struct amdgpu_umsch_mm *umsch)
 	data = RREG32_SOC15(VCN, 0, regVCN_UMSCH_RB_DB_CTRL);
 	data = REG_SET_FIELD(data, VCN_UMSCH_RB_DB_CTRL, EN, 0);
 	WREG32_SOC15(VCN, 0, regVCN_UMSCH_RB_DB_CTRL, data);
+
+	if (amdgpu_ip_version(adev, VCN_HWIP, 0) == IP_VERSION(4, 0, 5)) {
+		WREG32_SOC15(VCN, 0, regUVD_IPX_DLDO_CONFIG,
+			2 << UVD_IPX_DLDO_CONFIG__ONO0_PWR_CONFIG__SHIFT);
+		SOC15_WAIT_ON_RREG(VCN, 0, regUVD_IPX_DLDO_STATUS,
+			1 << UVD_IPX_DLDO_STATUS__ONO0_PWR_STATUS__SHIFT,
+			UVD_IPX_DLDO_STATUS__ONO0_PWR_STATUS_MASK);
+	}
 
 	return 0;
 }
