@@ -2148,87 +2148,99 @@ int shmem_get_folio(struct inode *inode, pgoff_t index, struct folio **foliop,
  * entry unconditionally - even if something else had already woken the
  * target.
  */
-static int synchronous_wake_function(wait_queue_entry_t *wait, unsigned mode, int sync, void *key)
+static int synchronous_wake_function(wait_queue_entry_t *wait,
+			unsigned int mode, int sync, void *key)
 {
 	int ret = default_wake_function(wait, mode, sync, key);
 	list_del_init(&wait->entry);
 	return ret;
 }
 
+/*
+ * Trinity finds that probing a hole which tmpfs is punching can
+ * prevent the hole-punch from ever completing: which in turn
+ * locks writers out with its hold on i_rwsem.  So refrain from
+ * faulting pages into the hole while it's being punched.  Although
+ * shmem_undo_range() does remove the additions, it may be unable to
+ * keep up, as each new page needs its own unmap_mapping_range() call,
+ * and the i_mmap tree grows ever slower to scan if new vmas are added.
+ *
+ * It does not matter if we sometimes reach this check just before the
+ * hole-punch begins, so that one fault then races with the punch:
+ * we just need to make racing faults a rare case.
+ *
+ * The implementation below would be much simpler if we just used a
+ * standard mutex or completion: but we cannot take i_rwsem in fault,
+ * and bloating every shmem inode for this unlikely case would be sad.
+ */
+static vm_fault_t shmem_falloc_wait(struct vm_fault *vmf, struct inode *inode)
+{
+	struct shmem_falloc *shmem_falloc;
+	struct file *fpin = NULL;
+	vm_fault_t ret = 0;
+
+	spin_lock(&inode->i_lock);
+	shmem_falloc = inode->i_private;
+	if (shmem_falloc &&
+	    shmem_falloc->waitq &&
+	    vmf->pgoff >= shmem_falloc->start &&
+	    vmf->pgoff < shmem_falloc->next) {
+		wait_queue_head_t *shmem_falloc_waitq;
+		DEFINE_WAIT_FUNC(shmem_fault_wait, synchronous_wake_function);
+
+		ret = VM_FAULT_NOPAGE;
+		fpin = maybe_unlock_mmap_for_io(vmf, NULL);
+		shmem_falloc_waitq = shmem_falloc->waitq;
+		prepare_to_wait(shmem_falloc_waitq, &shmem_fault_wait,
+				TASK_UNINTERRUPTIBLE);
+		spin_unlock(&inode->i_lock);
+		schedule();
+
+		/*
+		 * shmem_falloc_waitq points into the shmem_fallocate()
+		 * stack of the hole-punching task: shmem_falloc_waitq
+		 * is usually invalid by the time we reach here, but
+		 * finish_wait() does not dereference it in that case;
+		 * though i_lock needed lest racing with wake_up_all().
+		 */
+		spin_lock(&inode->i_lock);
+		finish_wait(shmem_falloc_waitq, &shmem_fault_wait);
+	}
+	spin_unlock(&inode->i_lock);
+	if (fpin) {
+		fput(fpin);
+		ret = VM_FAULT_RETRY;
+	}
+	return ret;
+}
+
 static vm_fault_t shmem_fault(struct vm_fault *vmf)
 {
-	struct vm_area_struct *vma = vmf->vma;
-	struct inode *inode = file_inode(vma->vm_file);
+	struct inode *inode = file_inode(vmf->vma->vm_file);
 	gfp_t gfp = mapping_gfp_mask(inode->i_mapping);
 	struct folio *folio = NULL;
+	vm_fault_t ret = 0;
 	int err;
-	vm_fault_t ret = VM_FAULT_LOCKED;
 
 	/*
 	 * Trinity finds that probing a hole which tmpfs is punching can
-	 * prevent the hole-punch from ever completing: which in turn
-	 * locks writers out with its hold on i_rwsem.  So refrain from
-	 * faulting pages into the hole while it's being punched.  Although
-	 * shmem_undo_range() does remove the additions, it may be unable to
-	 * keep up, as each new page needs its own unmap_mapping_range() call,
-	 * and the i_mmap tree grows ever slower to scan if new vmas are added.
-	 *
-	 * It does not matter if we sometimes reach this check just before the
-	 * hole-punch begins, so that one fault then races with the punch:
-	 * we just need to make racing faults a rare case.
-	 *
-	 * The implementation below would be much simpler if we just used a
-	 * standard mutex or completion: but we cannot take i_rwsem in fault,
-	 * and bloating every shmem inode for this unlikely case would be sad.
+	 * prevent the hole-punch from ever completing: noted in i_private.
 	 */
 	if (unlikely(inode->i_private)) {
-		struct shmem_falloc *shmem_falloc;
-
-		spin_lock(&inode->i_lock);
-		shmem_falloc = inode->i_private;
-		if (shmem_falloc &&
-		    shmem_falloc->waitq &&
-		    vmf->pgoff >= shmem_falloc->start &&
-		    vmf->pgoff < shmem_falloc->next) {
-			struct file *fpin;
-			wait_queue_head_t *shmem_falloc_waitq;
-			DEFINE_WAIT_FUNC(shmem_fault_wait, synchronous_wake_function);
-
-			ret = VM_FAULT_NOPAGE;
-			fpin = maybe_unlock_mmap_for_io(vmf, NULL);
-			if (fpin)
-				ret = VM_FAULT_RETRY;
-
-			shmem_falloc_waitq = shmem_falloc->waitq;
-			prepare_to_wait(shmem_falloc_waitq, &shmem_fault_wait,
-					TASK_UNINTERRUPTIBLE);
-			spin_unlock(&inode->i_lock);
-			schedule();
-
-			/*
-			 * shmem_falloc_waitq points into the shmem_fallocate()
-			 * stack of the hole-punching task: shmem_falloc_waitq
-			 * is usually invalid by the time we reach here, but
-			 * finish_wait() does not dereference it in that case;
-			 * though i_lock needed lest racing with wake_up_all().
-			 */
-			spin_lock(&inode->i_lock);
-			finish_wait(shmem_falloc_waitq, &shmem_fault_wait);
-			spin_unlock(&inode->i_lock);
-
-			if (fpin)
-				fput(fpin);
+		ret = shmem_falloc_wait(vmf, inode);
+		if (ret)
 			return ret;
-		}
-		spin_unlock(&inode->i_lock);
 	}
 
+	WARN_ON_ONCE(vmf->page != NULL);
 	err = shmem_get_folio_gfp(inode, vmf->pgoff, &folio, SGP_CACHE,
 				  gfp, vmf, &ret);
 	if (err)
 		return vmf_error(err);
-	if (folio)
+	if (folio) {
 		vmf->page = folio_file_page(folio, vmf->pgoff);
+		ret |= VM_FAULT_LOCKED;
+	}
 	return ret;
 }
 
