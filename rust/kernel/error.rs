@@ -37,7 +37,7 @@ pub mod code {
     declare_err!(E2BIG, "Argument list too long.");
     declare_err!(ENOEXEC, "Exec format error.");
     declare_err!(EBADF, "Bad file number.");
-    declare_err!(ECHILD, "Exec format error.");
+    declare_err!(ECHILD, "No child processes.");
     declare_err!(EAGAIN, "Try again.");
     declare_err!(ENOMEM, "Out of memory.");
     declare_err!(EACCES, "Permission denied.");
