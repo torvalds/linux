@@ -173,9 +173,6 @@ static bool cap11xx_volatile_reg(struct device *dev, unsigned int reg)
 	case CAP11XX_REG_SENOR_DELTA(3):
 	case CAP11XX_REG_SENOR_DELTA(4):
 	case CAP11XX_REG_SENOR_DELTA(5):
-	case CAP11XX_REG_PRODUCT_ID:
-	case CAP11XX_REG_MANUFACTURER_ID:
-	case CAP11XX_REG_REVISION:
 		return true;
 	}
 
