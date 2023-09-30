@@ -1328,8 +1328,6 @@ int emu_soc_asic_init(struct amdgpu_device *adev);
 	for (i = ffs(inst_mask); i-- != 0; \
 	     i = ffs(inst_mask & BIT_MASK_UPPER(i + 1)))
 
-#define MIN(X, Y) ((X) < (Y) ? (X) : (Y))
-
 /* Common functions */
 bool amdgpu_device_has_job_running(struct amdgpu_device *adev);
 bool amdgpu_device_should_recover_gpu(struct amdgpu_device *adev);

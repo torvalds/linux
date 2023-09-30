@@ -2089,8 +2089,6 @@ static int sienna_cichlid_display_disable_memory_clock_switch(struct smu_context
 	return ret;
 }
 
-#define MAX(a, b)	((a) > (b) ? (a) : (b))
-
 static int sienna_cichlid_update_pcie_parameters(struct smu_context *smu,
 						 uint8_t pcie_gen_cap,
 						 uint8_t pcie_width_cap)
@@ -2106,12 +2104,12 @@ static int sienna_cichlid_update_pcie_parameters(struct smu_context *smu,
 	GET_PPTABLE_MEMBER(PcieGenSpeed, &table_member1);
 	GET_PPTABLE_MEMBER(PcieLaneCount, &table_member2);
 
-	min_gen_speed = MAX(0, table_member1[0]);
-	max_gen_speed = MIN(pcie_gen_cap, table_member1[1]);
+	min_gen_speed = max_t(uint8_t, 0, table_member1[0]);
+	max_gen_speed = min(pcie_gen_cap, table_member1[1]);
 	min_gen_speed = min_gen_speed > max_gen_speed ?
 			max_gen_speed : min_gen_speed;
-	min_lane_width = MAX(1, table_member2[0]);
-	max_lane_width = MIN(pcie_width_cap, table_member2[1]);
+	min_lane_width = max_t(uint8_t, 1, table_member2[0]);
+	max_lane_width = min(pcie_width_cap, table_member2[1]);
 	min_lane_width = min_lane_width > max_lane_width ?
 			 max_lane_width : min_lane_width;
 

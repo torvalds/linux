@@ -1174,7 +1174,7 @@ smu_v11_0_set_fan_speed_pwm(struct smu_context *smu, uint32_t speed)
 	uint32_t duty100, duty;
 	uint64_t tmp64;
 
-	speed = MIN(speed, 255);
+	speed = min_t(uint32_t, speed, 255);
 
 	duty100 = REG_GET_FIELD(RREG32_SOC15(THM, 0, mmCG_FDO_CTRL1),
 				CG_FDO_CTRL1, FMAX_DUTY100);
@@ -1249,7 +1249,7 @@ int smu_v11_0_get_fan_speed_pwm(struct smu_context *smu,
 
 	tmp64 = (uint64_t)duty * 255;
 	do_div(tmp64, duty100);
-	*speed = MIN((uint32_t)tmp64, 255);
+	*speed = min_t(uint32_t, tmp64, 255);
 
 	return 0;
 }

@@ -1170,7 +1170,7 @@ int smu_v13_0_set_fan_speed_pwm(struct smu_context *smu,
 	uint32_t duty100, duty;
 	uint64_t tmp64;
 
-	speed = MIN(speed, 255);
+	speed = min_t(uint32_t, speed, 255);
 
 	if (smu_v13_0_auto_fan_control(smu, 0))
 		return -EINVAL;

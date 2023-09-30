@@ -6600,7 +6600,7 @@ static int si_dpm_get_fan_speed_pwm(void *handle,
 
 	tmp64 = (u64)duty * 255;
 	do_div(tmp64, duty100);
-	*speed = MIN((u32)tmp64, 255);
+	*speed = min_t(u32, tmp64, 255);
 
 	return 0;
 }

@@ -1998,7 +1998,6 @@ static int smu_v13_0_0_get_thermal_temperature_range(struct smu_context *smu,
 	return 0;
 }
 
-#define MAX(a, b)	((a) > (b) ? (a) : (b))
 static ssize_t smu_v13_0_0_get_gpu_metrics(struct smu_context *smu,
 					   void **table)
 {
@@ -2022,12 +2021,12 @@ static ssize_t smu_v13_0_0_get_gpu_metrics(struct smu_context *smu,
 	gpu_metrics->temperature_mem = metrics->AvgTemperature[TEMP_MEM];
 	gpu_metrics->temperature_vrgfx = metrics->AvgTemperature[TEMP_VR_GFX];
 	gpu_metrics->temperature_vrsoc = metrics->AvgTemperature[TEMP_VR_SOC];
-	gpu_metrics->temperature_vrmem = MAX(metrics->AvgTemperature[TEMP_VR_MEM0],
+	gpu_metrics->temperature_vrmem = max(metrics->AvgTemperature[TEMP_VR_MEM0],
 					     metrics->AvgTemperature[TEMP_VR_MEM1]);
 
 	gpu_metrics->average_gfx_activity = metrics->AverageGfxActivity;
 	gpu_metrics->average_umc_activity = metrics->AverageUclkActivity;
-	gpu_metrics->average_mm_activity = MAX(metrics->Vcn0ActivityPercentage,
+	gpu_metrics->average_mm_activity = max(metrics->Vcn0ActivityPercentage,
 					       metrics->Vcn1ActivityPercentage);
 
 	gpu_metrics->average_socket_power = metrics->AverageSocketPower;
@@ -2286,7 +2285,7 @@ static int smu_v13_0_0_get_fan_speed_pwm(struct smu_context *smu,
 	}
 
 	/* Convert the PMFW output which is in percent to pwm(255) based */
-	*speed = MIN(*speed * 255 / 100, 255);
+	*speed = min(*speed * 255 / 100, (uint32_t)255);
 
 	return 0;
 }
