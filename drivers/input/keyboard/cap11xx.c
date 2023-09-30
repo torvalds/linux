@@ -187,7 +187,7 @@ static const struct regmap_config cap11xx_regmap_config = {
 	.reg_defaults = cap11xx_reg_defaults,
 
 	.num_reg_defaults = ARRAY_SIZE(cap11xx_reg_defaults),
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.volatile_reg = cap11xx_volatile_reg,
 };
 
