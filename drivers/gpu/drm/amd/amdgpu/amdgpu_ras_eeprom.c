@@ -149,7 +149,7 @@
 				       RAS_TABLE_HEADER_SIZE - \
 				       RAS_TABLE_V2_1_INFO_SIZE) / RAS_TABLE_RECORD_SIZE)
 
-#define to_amdgpu_device(x) (container_of(x, struct amdgpu_ras, eeprom_control))->adev
+#define to_amdgpu_device(x) ((container_of(x, struct amdgpu_ras, eeprom_control))->adev)
 
 static bool __is_ras_eeprom_supported(struct amdgpu_device *adev)
 {
