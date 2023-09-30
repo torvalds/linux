@@ -13,7 +13,7 @@
 
 static int hfsplus_removexattr(struct inode *inode, const char *name);
 
-const struct xattr_handler *hfsplus_xattr_handlers[] = {
+const struct xattr_handler * const hfsplus_xattr_handlers[] = {
 	&hfsplus_xattr_osx_handler,
 	&hfsplus_xattr_user_handler,
 	&hfsplus_xattr_trusted_handler,
