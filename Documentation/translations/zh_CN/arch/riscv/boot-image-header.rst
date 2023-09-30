@@ -1,6 +1,6 @@
-.. include:: ../disclaimer-zh_CN.rst
+.. include:: ../../disclaimer-zh_CN.rst
 
-:Original: Documentation/riscv/boot-image-header.rst
+:Original: Documentation/arch/riscv/boot-image-header.rst
 
 :翻译:
 

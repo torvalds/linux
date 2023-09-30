@@ -10,7 +10,7 @@
 
 /*
  * Interface for probing hardware capabilities from userspace, see
- * Documentation/riscv/hwprobe.rst for more information.
+ * Documentation/arch/riscv/hwprobe.rst for more information.
  */
 struct riscv_hwprobe {
 	__s64 key;

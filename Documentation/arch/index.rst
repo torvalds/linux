@@ -20,7 +20,7 @@ implementation.
    openrisc/index
    parisc/index
    ../powerpc/index
-   ../riscv/index
+   riscv/index
    s390/index
    sh/index
    sparc/index
