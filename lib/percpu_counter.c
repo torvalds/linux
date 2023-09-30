@@ -278,6 +278,59 @@ int __percpu_counter_compare(struct percpu_counter *fbc, s64 rhs, s32 batch)
 }
 EXPORT_SYMBOL(__percpu_counter_compare);
 
+/*
+ * Compare counter, and add amount if the total is within limit.
+ * Return true if amount was added, false if it would exceed limit.
+ */
+bool __percpu_counter_limited_add(struct percpu_counter *fbc,
+				  s64 limit, s64 amount, s32 batch)
+{
+	s64 count;
+	s64 unknown;
+	unsigned long flags;
+	bool good;
+
+	if (amount > limit)
+		return false;
+
+	local_irq_save(flags);
+	unknown = batch * num_online_cpus();
+	count = __this_cpu_read(*fbc->counters);
+
+	/* Skip taking the lock when safe */
+	if (abs(count + amount) <= batch &&
+	    fbc->count + unknown <= limit) {
+		this_cpu_add(*fbc->counters, amount);
+		local_irq_restore(flags);
+		return true;
+	}
+
+	raw_spin_lock(&fbc->lock);
+	count = fbc->count + amount;
+
+	/* Skip percpu_counter_sum() when safe */
+	if (count + unknown > limit) {
+		s32 *pcount;
+		int cpu;
+
+		for_each_cpu_or(cpu, cpu_online_mask, cpu_dying_mask) {
+			pcount = per_cpu_ptr(fbc->counters, cpu);
+			count += *pcount;
+		}
+	}
+
+	good = count <= limit;
+	if (good) {
+		count = __this_cpu_read(*fbc->counters);
+		fbc->count += count + amount;
+		__this_cpu_sub(*fbc->counters, count);
+	}
+
+	raw_spin_unlock(&fbc->lock);
+	local_irq_restore(flags);
+	return good;
+}
+
 static int __init percpu_counter_startup(void)
 {
 	int ret;

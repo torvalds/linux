@@ -217,15 +217,15 @@ static int shmem_inode_acct_blocks(struct inode *inode, long pages)
 
 	might_sleep();	/* when quotas */
 	if (sbinfo->max_blocks) {
-		if (percpu_counter_compare(&sbinfo->used_blocks,
-					   sbinfo->max_blocks - pages) > 0)
+		if (!percpu_counter_limited_add(&sbinfo->used_blocks,
+						sbinfo->max_blocks, pages))
 			goto unacct;
 
 		err = dquot_alloc_block_nodirty(inode, pages);
-		if (err)
+		if (err) {
+			percpu_counter_sub(&sbinfo->used_blocks, pages);
 			goto unacct;
-
-		percpu_counter_add(&sbinfo->used_blocks, pages);
+		}
 	} else {
 		err = dquot_alloc_block_nodirty(inode, pages);
 		if (err)
