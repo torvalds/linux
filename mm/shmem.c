@@ -1921,14 +1921,13 @@ unlock:
  * vm. If we swap it in we mark it dirty since we also free the swap
  * entry since a page cannot live in both the swap and page cache.
  *
- * vma, vmf, and fault_type are only supplied by shmem_fault:
- * otherwise they are NULL.
+ * vmf and fault_type are only supplied by shmem_fault: otherwise they are NULL.
  */
 static int shmem_get_folio_gfp(struct inode *inode, pgoff_t index,
 		struct folio **foliop, enum sgp_type sgp, gfp_t gfp,
-		struct vm_area_struct *vma, struct vm_fault *vmf,
-		vm_fault_t *fault_type)
+		struct vm_fault *vmf, vm_fault_t *fault_type)
 {
+	struct vm_area_struct *vma = vmf ? vmf->vma : NULL;
 	struct address_space *mapping = inode->i_mapping;
 	struct shmem_inode_info *info = SHMEM_I(inode);
 	struct shmem_sb_info *sbinfo;
@@ -2141,7 +2140,7 @@ int shmem_get_folio(struct inode *inode, pgoff_t index, struct folio **foliop,
 		enum sgp_type sgp)
 {
 	return shmem_get_folio_gfp(inode, index, foliop, sgp,
-			mapping_gfp_mask(inode->i_mapping), NULL, NULL, NULL);
+			mapping_gfp_mask(inode->i_mapping), NULL, NULL);
 }
 
 /*
@@ -2225,7 +2224,7 @@ static vm_fault_t shmem_fault(struct vm_fault *vmf)
 	}
 
 	err = shmem_get_folio_gfp(inode, vmf->pgoff, &folio, SGP_CACHE,
-				  gfp, vma, vmf, &ret);
+				  gfp, vmf, &ret);
 	if (err)
 		return vmf_error(err);
 	if (folio)
@@ -4893,7 +4892,7 @@ struct folio *shmem_read_folio_gfp(struct address_space *mapping,
 
 	BUG_ON(!shmem_mapping(mapping));
 	error = shmem_get_folio_gfp(inode, index, &folio, SGP_CACHE,
-				  gfp, NULL, NULL, NULL);
+				    gfp, NULL, NULL);
 	if (error)
 		return ERR_PTR(error);
 
