@@ -1087,9 +1087,20 @@ static int secref_whitelist(const struct sectioncheck *mismatch,
 				    "*_console")))
 		return 0;
 
-	/* symbols in data sections that may refer to meminit/exit sections */
+	/* symbols in data sections that may refer to meminit sections */
 	if (match(fromsec, PATTERNS(DATA_SECTIONS)) &&
-	    match(tosec, PATTERNS(ALL_XXXINIT_SECTIONS, ALL_EXIT_SECTIONS)) &&
+	    match(tosec, PATTERNS(ALL_XXXINIT_SECTIONS, ALL_XXXEXIT_SECTIONS)) &&
+	    match(fromsym, PATTERNS("*driver")))
+		return 0;
+
+	/*
+	 * symbols in data sections must not refer to .exit.*, but there are
+	 * quite a few offenders, so hide these unless for W=1 builds until
+	 * these are fixed.
+	 */
+	if (!extra_warn &&
+	    match(fromsec, PATTERNS(DATA_SECTIONS)) &&
+	    match(tosec, PATTERNS(EXIT_SECTIONS)) &&
 	    match(fromsym, PATTERNS("*driver")))
 		return 0;
 
