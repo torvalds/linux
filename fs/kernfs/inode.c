@@ -445,7 +445,7 @@ static const struct xattr_handler kernfs_user_xattr_handler = {
 	.set = kernfs_vfs_user_xattr_set,
 };
 
-const struct xattr_handler *kernfs_xattr_handlers[] = {
+const struct xattr_handler * const kernfs_xattr_handlers[] = {
 	&kernfs_trusted_xattr_handler,
 	&kernfs_security_xattr_handler,
 	&kernfs_user_xattr_handler,
