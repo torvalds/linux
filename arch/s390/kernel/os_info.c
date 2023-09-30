@@ -81,6 +81,9 @@ void __init os_info_init(void)
 	os_info_entry_add_val(OS_INFO_VMEMMAP, (unsigned long)vmemmap);
 	os_info_entry_add_val(OS_INFO_AMODE31_START, AMODE31_START);
 	os_info_entry_add_val(OS_INFO_AMODE31_END, AMODE31_END);
+	os_info_entry_add_val(OS_INFO_IMAGE_START, (unsigned long)_stext);
+	os_info_entry_add_val(OS_INFO_IMAGE_END, (unsigned long)_end);
+	os_info_entry_add_val(OS_INFO_IMAGE_PHYS, __pa_symbol(_stext));
 	os_info.csum = os_info_csum(&os_info);
 	abs_lc = get_abs_lowcore();
 	abs_lc->os_info = __pa(&os_info);
