@@ -4503,18 +4503,21 @@ void __ath10k_scan_finish(struct ath10k *ar)
 		break;
 	case ATH10K_SCAN_RUNNING:
 	case ATH10K_SCAN_ABORTING:
+		if (ar->scan.is_roc && ar->scan.roc_notify)
+			ieee80211_remain_on_channel_expired(ar->hw);
+		fallthrough;
+	case ATH10K_SCAN_STARTING:
 		if (!ar->scan.is_roc) {
 			struct cfg80211_scan_info info = {
-				.aborted = (ar->scan.state ==
-					    ATH10K_SCAN_ABORTING),
+				.aborted = ((ar->scan.state ==
+					    ATH10K_SCAN_ABORTING) ||
+					    (ar->scan.state ==
+					    ATH10K_SCAN_STARTING)),
 			};
 
 			ieee80211_scan_completed(ar->hw, &info);
-		} else if (ar->scan.roc_notify) {
-			ieee80211_remain_on_channel_expired(ar->hw);
 		}
-		fallthrough;
-	case ATH10K_SCAN_STARTING:
+
 		ar->scan.state = ATH10K_SCAN_IDLE;
 		ar->scan_channel = NULL;
 		ar->scan.roc_freq = 0;
