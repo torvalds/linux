@@ -1578,7 +1578,7 @@ acpi_os_create_cache(char *name, u16 size, u16 depth, acpi_cache_t **cache)
 acpi_status acpi_os_purge_cache(acpi_cache_t *cache)
 {
 	kmem_cache_shrink(cache);
-	return (AE_OK);
+	return AE_OK;
 }
 
 /*******************************************************************************
@@ -1597,7 +1597,7 @@ acpi_status acpi_os_purge_cache(acpi_cache_t *cache)
 acpi_status acpi_os_delete_cache(acpi_cache_t *cache)
 {
 	kmem_cache_destroy(cache);
-	return (AE_OK);
+	return AE_OK;
 }
 
 /*******************************************************************************
@@ -1617,7 +1617,7 @@ acpi_status acpi_os_delete_cache(acpi_cache_t *cache)
 acpi_status acpi_os_release_object(acpi_cache_t *cache, void *object)
 {
 	kmem_cache_free(cache, object);
-	return (AE_OK);
+	return AE_OK;
 }
 #endif
 
