@@ -1494,7 +1494,7 @@ static const struct xattr_handler gfs2_xattr_trusted_handler = {
 	.set    = gfs2_xattr_set,
 };
 
-const struct xattr_handler *gfs2_xattr_handlers_max[] = {
+const struct xattr_handler * const gfs2_xattr_handlers_max[] = {
 	/* GFS2_FS_FORMAT_MAX */
 	&gfs2_xattr_trusted_handler,
 
@@ -1504,4 +1504,4 @@ const struct xattr_handler *gfs2_xattr_handlers_max[] = {
 	NULL,
 };
 
-const struct xattr_handler **gfs2_xattr_handlers_min = gfs2_xattr_handlers_max + 1;
+const struct xattr_handler * const *gfs2_xattr_handlers_min = gfs2_xattr_handlers_max + 1;

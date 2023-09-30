@@ -60,8 +60,8 @@ extern const struct export_operations gfs2_export_ops;
 extern const struct super_operations gfs2_super_ops;
 extern const struct dentry_operations gfs2_dops;
 
-extern const struct xattr_handler *gfs2_xattr_handlers_max[];
-extern const struct xattr_handler **gfs2_xattr_handlers_min;
+extern const struct xattr_handler * const gfs2_xattr_handlers_max[];
+extern const struct xattr_handler * const *gfs2_xattr_handlers_min;
 
 #endif /* __SUPER_DOT_H__ */
 
