@@ -4554,7 +4554,8 @@ static void ath12k_mac_copy_eht_ppe_thresh(struct ath12k_wmi_ppe_threshold_arg *
 	}
 }
 
-static void ath12k_mac_copy_eht_cap(struct ath12k_band_cap *band_cap,
+static void ath12k_mac_copy_eht_cap(struct ath12k *ar,
+				    struct ath12k_band_cap *band_cap,
 				    struct ieee80211_he_cap_elem *he_cap_elem,
 				    int iftype,
 				    struct ieee80211_sta_eht_cap *eht_cap)
@@ -4562,6 +4563,10 @@ static void ath12k_mac_copy_eht_cap(struct ath12k_band_cap *band_cap,
 	struct ieee80211_eht_cap_elem_fixed *eht_cap_elem = &eht_cap->eht_cap_elem;
 
 	memset(eht_cap, 0, sizeof(struct ieee80211_sta_eht_cap));
+
+	if (!(test_bit(WMI_TLV_SERVICE_11BE, ar->ab->wmi_ab.svc_map)))
+		return;
+
 	eht_cap->has_eht = true;
 	memcpy(eht_cap_elem->mac_cap_info, band_cap->eht_cap_mac_info,
 	       sizeof(eht_cap_elem->mac_cap_info));
@@ -4627,7 +4632,7 @@ static int ath12k_mac_copy_sband_iftype_data(struct ath12k *ar,
 			data[idx].he_6ghz_capa.capa =
 				ath12k_mac_setup_he_6ghz_cap(cap, band_cap);
 		}
-		ath12k_mac_copy_eht_cap(band_cap, &he_cap->he_cap_elem, i,
+		ath12k_mac_copy_eht_cap(ar, band_cap, &he_cap->he_cap_elem, i,
 					&data[idx].eht_cap);
 		idx++;
 	}
@@ -5847,6 +5852,59 @@ static void ath12k_mac_op_remove_chanctx(struct ieee80211_hw *hw,
 	mutex_unlock(&ar->conf_mutex);
 }
 
+static enum wmi_phy_mode
+ath12k_mac_check_down_grade_phy_mode(struct ath12k *ar,
+				     enum wmi_phy_mode mode,
+				     enum nl80211_band band,
+				     enum nl80211_iftype type)
+{
+	struct ieee80211_sta_eht_cap *eht_cap;
+	enum wmi_phy_mode down_mode;
+
+	if (mode < MODE_11BE_EHT20)
+		return mode;
+
+	eht_cap = &ar->mac.iftype[band][type].eht_cap;
+	if (eht_cap->has_eht)
+		return mode;
+
+	switch (mode) {
+	case MODE_11BE_EHT20:
+		down_mode = MODE_11AX_HE20;
+		break;
+	case MODE_11BE_EHT40:
+		down_mode = MODE_11AX_HE40;
+		break;
+	case MODE_11BE_EHT80:
+		down_mode = MODE_11AX_HE80;
+		break;
+	case MODE_11BE_EHT80_80:
+		down_mode = MODE_11AX_HE80_80;
+		break;
+	case MODE_11BE_EHT160:
+	case MODE_11BE_EHT160_160:
+	case MODE_11BE_EHT320:
+		down_mode = MODE_11AX_HE160;
+		break;
+	case MODE_11BE_EHT20_2G:
+		down_mode = MODE_11AX_HE20_2G;
+		break;
+	case MODE_11BE_EHT40_2G:
+		down_mode = MODE_11AX_HE40_2G;
+		break;
+	default:
+		down_mode = mode;
+		break;
+	}
+
+	ath12k_dbg(ar->ab, ATH12K_DBG_MAC,
+		   "mac vdev start phymode %s downgrade to %s\n",
+		   ath12k_mac_phymode_str(mode),
+		   ath12k_mac_phymode_str(down_mode));
+
+	return down_mode;
+}
+
 static int
 ath12k_mac_vdev_start_restart(struct ath12k_vif *arvif,
 			      struct ieee80211_chanctx_conf *ctx,
@@ -5873,6 +5931,9 @@ ath12k_mac_vdev_start_restart(struct ath12k_vif *arvif,
 	arg.band_center_freq2 = chandef->center_freq2;
 	arg.mode = ath12k_phymodes[chandef->chan->band][chandef->width];
 
+	arg.mode = ath12k_mac_check_down_grade_phy_mode(ar, arg.mode,
+							chandef->chan->band,
+							arvif->vif->type);
 	arg.min_power = 0;
 	arg.max_power = chandef->chan->max_power * 2;
 	arg.max_reg_power = chandef->chan->max_reg_power * 2;
