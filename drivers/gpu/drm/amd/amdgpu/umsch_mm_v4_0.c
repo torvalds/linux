@@ -217,7 +217,8 @@ static int umsch_mm_v4_0_ring_start(struct amdgpu_umsch_mm *umsch)
 	data = REG_SET_FIELD(data, VCN_UMSCH_RB_DB_CTRL, EN, 1);
 	WREG32_SOC15(VCN, 0, regVCN_UMSCH_RB_DB_CTRL, data);
 
-	adev->nbio.funcs->vcn_doorbell_range(adev, ring->use_doorbell, ring->doorbell_index, 0);
+	adev->nbio.funcs->vcn_doorbell_range(adev, ring->use_doorbell,
+		(adev->doorbell_index.vcn.vcn_ring0_1 << 1), 0);
 
 	WREG32_SOC15(VCN, 0, regVCN_UMSCH_RB_BASE_LO, lower_32_bits(ring->gpu_addr));
 	WREG32_SOC15(VCN, 0, regVCN_UMSCH_RB_BASE_HI, upper_32_bits(ring->gpu_addr));

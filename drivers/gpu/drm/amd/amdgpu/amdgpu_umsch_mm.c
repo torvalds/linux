@@ -553,7 +553,7 @@ int amdgpu_umsch_mm_ring_init(struct amdgpu_umsch_mm *umsch)
 	struct amdgpu_ring *ring = &umsch->ring;
 
 	ring->vm_hub = AMDGPU_MMHUB0(0);
-	ring->use_doorbell = 0;
+	ring->use_doorbell = true;
 	ring->no_scheduler = true;
 	ring->doorbell_index = (AMDGPU_NAVI10_DOORBELL64_VCN0_1 << 1) + 6;
 
