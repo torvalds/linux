@@ -167,7 +167,7 @@
  * following events occur.
  * a) Expiration of hardware timer whose expiration time is set to maximum
  * coalescing delay of matching coalesce rule.
- * b) Coalescing buffer in hardware reaches it's limit.
+ * b) Coalescing buffer in hardware reaches its limit.
  * c) Packet doesn't match any of the configured coalesce rules.
  *
  * User needs to configure following parameters for creating a coalesce
@@ -326,7 +326,7 @@
 /**
  * DOC: Multi-Link Operation
  *
- * In Multi-Link Operation, a connection between to MLDs utilizes multiple
+ * In Multi-Link Operation, a connection between two MLDs utilizes multiple
  * links. To use this in nl80211, various commands and responses now need
  * to or will include the new %NL80211_ATTR_MLO_LINKS attribute.
  * Additionally, various commands that need to operate on a specific link
