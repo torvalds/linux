@@ -314,7 +314,7 @@ static const struct regmap_config twl4030_regmap_config[4] = {
 
 		.reg_defaults = twl4030_49_defaults,
 		.num_reg_defaults = ARRAY_SIZE(twl4030_49_defaults),
-		.cache_type = REGCACHE_RBTREE,
+		.cache_type = REGCACHE_MAPLE,
 	},
 	{
 		/* Address 0x4a */
