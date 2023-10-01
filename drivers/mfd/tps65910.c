@@ -281,7 +281,7 @@ static const struct regmap_config tps65910_regmap_config = {
 	.val_bits = 8,
 	.volatile_reg = is_volatile_reg,
 	.max_register = TPS65910_MAX_REGISTER - 1,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 
 static int tps65910_ck32k_init(struct tps65910 *tps65910,
