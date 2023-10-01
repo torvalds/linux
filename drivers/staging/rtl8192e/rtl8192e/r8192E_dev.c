@@ -485,10 +485,10 @@ bool rtl92e_start_adapter(struct net_device *dev)
 start:
 	rtl92e_reset_desc_ring(dev);
 	priv->rf_mode = RF_OP_By_SW_3wire;
-	if (priv->rst_progress == RESET_TYPE_NORESET) {
-		rtl92e_writeb(dev, ANAPAR, 0x37);
-		mdelay(500);
-	}
+
+	rtl92e_writeb(dev, ANAPAR, 0x37);
+	mdelay(500);
+
 	priv->fw_info->status = FW_STATUS_0_INIT;
 
 	ulRegRead = rtl92e_readl(dev, CPU_GEN);
@@ -518,21 +518,20 @@ start:
 	}
 
 	priv->loopback_mode = RTL819X_NO_LOOPBACK;
-	if (priv->rst_progress == RESET_TYPE_NORESET) {
-		ulRegRead = rtl92e_readl(dev, CPU_GEN);
-		if (priv->loopback_mode == RTL819X_NO_LOOPBACK)
-			ulRegRead = (ulRegRead & CPU_GEN_NO_LOOPBACK_MSK) |
-				    CPU_GEN_NO_LOOPBACK_SET;
-		else if (priv->loopback_mode == RTL819X_MAC_LOOPBACK)
-			ulRegRead |= CPU_CCK_LOOPBACK;
-		else
-			netdev_err(dev, "%s: Invalid loopback mode setting.\n",
-				   __func__);
+	ulRegRead = rtl92e_readl(dev, CPU_GEN);
+	if (priv->loopback_mode == RTL819X_NO_LOOPBACK)
+		ulRegRead = (ulRegRead & CPU_GEN_NO_LOOPBACK_MSK) |
+			    CPU_GEN_NO_LOOPBACK_SET;
+	else if (priv->loopback_mode == RTL819X_MAC_LOOPBACK)
+		ulRegRead |= CPU_CCK_LOOPBACK;
+	else
+		netdev_err(dev, "%s: Invalid loopback mode setting.\n",
+			   __func__);
 
-		rtl92e_writel(dev, CPU_GEN, ulRegRead);
+	rtl92e_writel(dev, CPU_GEN, ulRegRead);
 
-		udelay(500);
-	}
+	udelay(500);
+
 	_rtl92e_hwconfig(dev);
 	rtl92e_writeb(dev, CMDR, CR_RE | CR_TE);
 
@@ -567,8 +566,7 @@ start:
 
 	rtl92e_writeb(dev, ACK_TIMEOUT, 0x30);
 
-	if (priv->rst_progress == RESET_TYPE_NORESET)
-		rtl92e_set_wireless_mode(dev, priv->rtllib->mode);
+	rtl92e_set_wireless_mode(dev, priv->rtllib->mode);
 	rtl92e_cam_reset(dev);
 	{
 		u8 SECR_value = 0x0;
@@ -607,12 +605,10 @@ start:
 		}
 	}
 
-	if (priv->rst_progress == RESET_TYPE_NORESET) {
-		rtStatus = rtl92e_config_rf(dev);
-		if (!rtStatus) {
-			netdev_info(dev, "RF Config failed\n");
-			return rtStatus;
-		}
+	rtStatus = rtl92e_config_rf(dev);
+	if (!rtStatus) {
+		netdev_info(dev, "RF Config failed\n");
+		return rtStatus;
 	}
 
 	rtl92e_set_bb_reg(dev, rFPGA0_RFMOD, bCCKEn, 0x1);
@@ -634,39 +630,37 @@ start:
 	else
 		priv->rf_mode = RF_OP_By_SW_3wire;
 
-	if (priv->rst_progress == RESET_TYPE_NORESET) {
-		rtl92e_dm_init_txpower_tracking(dev);
+	rtl92e_dm_init_txpower_tracking(dev);
 
-		if (priv->ic_cut >= IC_VersionCut_D) {
-			tmpRegA = rtl92e_get_bb_reg(dev, rOFDM0_XATxIQImbalance,
-						    bMaskDWord);
-			rtl92e_get_bb_reg(dev, rOFDM0_XCTxIQImbalance, bMaskDWord);
+	if (priv->ic_cut >= IC_VersionCut_D) {
+		tmpRegA = rtl92e_get_bb_reg(dev, rOFDM0_XATxIQImbalance,
+					    bMaskDWord);
+		rtl92e_get_bb_reg(dev, rOFDM0_XCTxIQImbalance, bMaskDWord);
 
-			for (i = 0; i < TX_BB_GAIN_TABLE_LEN; i++) {
-				if (tmpRegA == dm_tx_bb_gain[i]) {
-					priv->rfa_txpowertrackingindex = i;
-					priv->rfa_txpowertrackingindex_real = i;
-					priv->rfa_txpowertracking_default =
-						 priv->rfa_txpowertrackingindex;
-					break;
-				}
+		for (i = 0; i < TX_BB_GAIN_TABLE_LEN; i++) {
+			if (tmpRegA == dm_tx_bb_gain[i]) {
+				priv->rfa_txpowertrackingindex = i;
+				priv->rfa_txpowertrackingindex_real = i;
+				priv->rfa_txpowertracking_default =
+					 priv->rfa_txpowertrackingindex;
+				break;
 			}
-
-			TempCCk = rtl92e_get_bb_reg(dev, rCCK0_TxFilter1,
-						    bMaskByte2);
-
-			for (i = 0; i < CCK_TX_BB_GAIN_TABLE_LEN; i++) {
-				if (TempCCk == dm_cck_tx_bb_gain[i][0]) {
-					priv->cck_present_attn_20m_def = i;
-					break;
-				}
-			}
-			priv->cck_present_attn_40m_def = 0;
-			priv->cck_present_attn_diff = 0;
-			priv->cck_present_attn =
-				  priv->cck_present_attn_20m_def;
-			priv->btxpower_tracking = false;
 		}
+
+		TempCCk = rtl92e_get_bb_reg(dev, rCCK0_TxFilter1,
+					    bMaskByte2);
+
+		for (i = 0; i < CCK_TX_BB_GAIN_TABLE_LEN; i++) {
+			if (TempCCk == dm_cck_tx_bb_gain[i][0]) {
+				priv->cck_present_attn_20m_def = i;
+				break;
+			}
+		}
+		priv->cck_present_attn_40m_def = 0;
+		priv->cck_present_attn_diff = 0;
+		priv->cck_present_attn =
+			  priv->cck_present_attn_20m_def;
+		priv->btxpower_tracking = false;
 	}
 	rtl92e_irq_enable(dev);
 end:

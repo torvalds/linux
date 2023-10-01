@@ -370,7 +370,6 @@ struct r8192_priv {
 	u8		framesync;
 	u32		reset_count;
 
-	enum reset_type rst_progress;
 	u16		tx_counter;
 	u16		rx_ctr;
 	bool		reset_in_progress;
