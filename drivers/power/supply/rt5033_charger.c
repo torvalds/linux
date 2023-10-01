@@ -29,7 +29,7 @@ struct rt5033_charger {
 	struct device			*dev;
 	struct regmap			*regmap;
 	struct power_supply		*psy;
-	struct rt5033_charger_data	*chg;
+	struct rt5033_charger_data	chg;
 	struct extcon_dev		*edev;
 	struct notifier_block		extcon_nb;
 	struct work_struct		extcon_work;
@@ -131,7 +131,7 @@ static int rt5033_get_charger_const_voltage(struct rt5033_charger *charger)
 
 static inline int rt5033_init_const_charge(struct rt5033_charger *charger)
 {
-	struct rt5033_charger_data *chg = charger->chg;
+	struct rt5033_charger_data *chg = &charger->chg;
 	int ret;
 	unsigned int val;
 	u8 reg_data;
@@ -205,7 +205,7 @@ static inline int rt5033_init_const_charge(struct rt5033_charger *charger)
 
 static inline int rt5033_init_fast_charge(struct rt5033_charger *charger)
 {
-	struct rt5033_charger_data *chg = charger->chg;
+	struct rt5033_charger_data *chg = &charger->chg;
 	int ret;
 	unsigned int val;
 	u8 reg_data;
@@ -250,7 +250,7 @@ static inline int rt5033_init_fast_charge(struct rt5033_charger *charger)
 
 static inline int rt5033_init_pre_charge(struct rt5033_charger *charger)
 {
-	struct rt5033_charger_data *chg = charger->chg;
+	struct rt5033_charger_data *chg = &charger->chg;
 	int ret;
 	unsigned int val;
 	u8 reg_data;
@@ -550,21 +550,16 @@ static int rt5033_charger_get_property(struct power_supply *psy,
 	return 0;
 }
 
-static struct rt5033_charger_data *rt5033_charger_dt_init(
-						struct rt5033_charger *charger)
+static int rt5033_charger_dt_init(struct rt5033_charger *charger)
 {
-	struct rt5033_charger_data *chg;
+	struct rt5033_charger_data *chg = &charger->chg;
 	struct power_supply_battery_info *info;
 	int ret;
 
-	chg = devm_kzalloc(charger->dev, sizeof(*chg), GFP_KERNEL);
-	if (!chg)
-		return ERR_PTR(-ENOMEM);
-
 	ret = power_supply_get_battery_info(charger->psy, &info);
 	if (ret)
-		return ERR_PTR(dev_err_probe(charger->dev, -EINVAL,
-			       "missing battery info\n"));
+		return dev_err_probe(charger->dev, -EINVAL,
+				     "missing battery info\n");
 
 	/* Assign data. Validity will be checked in the init functions. */
 	chg->pre_uamp = info->precharge_current_ua;
@@ -573,7 +568,7 @@ static struct rt5033_charger_data *rt5033_charger_dt_init(
 	chg->pre_uvolt = info->precharge_voltage_max_uv;
 	chg->const_uvolt = info->constant_charge_voltage_max_uv;
 
-	return chg;
+	return 0;
 }
 
 static void rt5033_charger_extcon_work(struct work_struct *work)
@@ -690,9 +685,9 @@ static int rt5033_charger_probe(struct platform_device *pdev)
 		return dev_err_probe(&pdev->dev, PTR_ERR(charger->psy),
 				     "Failed to register power supply\n");
 
-	charger->chg = rt5033_charger_dt_init(charger);
-	if (IS_ERR_OR_NULL(charger->chg))
-		return PTR_ERR(charger->chg);
+	ret = rt5033_charger_dt_init(charger);
+	if (ret)
+		return ret;
 
 	ret = rt5033_charger_reg_init(charger);
 	if (ret)
