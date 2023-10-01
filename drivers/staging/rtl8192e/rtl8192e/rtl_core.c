@@ -958,7 +958,7 @@ static enum reset_type _rtl92e_rx_check_stuck(struct net_device *dev)
 	return RESET_TYPE_NORESET;
 }
 
-static enum reset_type _rtl92e_if_check_reset(struct net_device *dev)
+static void _rtl92e_if_check_reset(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	enum reset_type TxResetType = RESET_TYPE_NORESET;
@@ -979,112 +979,8 @@ static enum reset_type _rtl92e_if_check_reset(struct net_device *dev)
 		   RxResetType == RESET_TYPE_SILENT) {
 		netdev_info(dev, "%s(): TxResetType is %d, RxResetType is %d\n",
 			    __func__, TxResetType, RxResetType);
-		return RESET_TYPE_SILENT;
-	} else {
-		return RESET_TYPE_NORESET;
 	}
-}
-
-static void _rtl92e_if_silent_reset(struct net_device *dev)
-{
-	struct r8192_priv *priv = rtllib_priv(dev);
-	u8	reset_times = 0;
-	int reset_status = 0;
-	struct rtllib_device *ieee = priv->rtllib;
-	unsigned long flag;
-
-	if (priv->rst_progress == RESET_TYPE_NORESET) {
-		priv->rst_progress = RESET_TYPE_SILENT;
-
-		spin_lock_irqsave(&priv->rf_ps_lock, flag);
-		if (priv->rf_change_in_progress) {
-			spin_unlock_irqrestore(&priv->rf_ps_lock, flag);
-			goto END;
-		}
-		priv->rf_change_in_progress = true;
-		priv->reset_in_progress = true;
-		spin_unlock_irqrestore(&priv->rf_ps_lock, flag);
-
-RESET_START:
-
-		mutex_lock(&priv->wx_mutex);
-
-		if (priv->rtllib->link_state == MAC80211_LINKED)
-			rtl92e_leisure_ps_leave(dev);
-
-		if (priv->up) {
-			netdev_info(dev, "%s():the driver is not up.\n",
-				    __func__);
-			mutex_unlock(&priv->wx_mutex);
-			return;
-		}
-		priv->up = 0;
-
-		mdelay(1000);
-
-		if (!netif_queue_stopped(dev))
-			netif_stop_queue(dev);
-
-		rtl92e_irq_disable(dev);
-		del_timer_sync(&priv->watch_dog_timer);
-		_rtl92e_cancel_deferred_work(priv);
-		rtl92e_dm_deinit(dev);
-		rtllib_stop_scan_syncro(ieee);
-
-		if (ieee->link_state == MAC80211_LINKED) {
-			mutex_lock(&ieee->wx_mutex);
-			netdev_info(dev, "ieee->link_state is MAC80211_LINKED\n");
-			del_timer_sync(&ieee->associate_timer);
-			cancel_delayed_work(&ieee->associate_retry_wq);
-			rtllib_stop_scan(ieee);
-			netif_carrier_off(dev);
-			mutex_unlock(&ieee->wx_mutex);
-		} else {
-			netdev_info(dev, "ieee->link_state is NOT LINKED\n");
-			rtllib_softmac_stop_protocol(priv->rtllib, 0, true);
-		}
-
-		rtl92e_dm_backup_state(dev);
-
-		mutex_unlock(&priv->wx_mutex);
-		reset_status = _rtl92e_up(dev, true);
-
-		if (reset_status == -1) {
-			if (reset_times < 3) {
-				reset_times++;
-				goto RESET_START;
-			} else {
-				netdev_warn(dev, "%s():	Reset Failed\n",
-					    __func__);
-			}
-		}
-
-		ieee->is_silent_reset = 1;
-
-		spin_lock_irqsave(&priv->rf_ps_lock, flag);
-		priv->rf_change_in_progress = false;
-		spin_unlock_irqrestore(&priv->rf_ps_lock, flag);
-
-		rtl92e_enable_hw_security_config(dev);
-
-		if (ieee->link_state == MAC80211_LINKED && ieee->iw_mode ==
-		    IW_MODE_INFRA) {
-			ieee->set_chan(ieee->dev,
-				       ieee->current_network.channel);
-
-			schedule_work(&ieee->associate_complete_wq);
-
-		}
-
-		rtl92e_cam_restore(dev);
-		rtl92e_dm_restore_state(dev);
-END:
-		priv->rst_progress = RESET_TYPE_NORESET;
-		priv->reset_count++;
-		priv->reset_in_progress = false;
-
-		rtl92e_writeb(dev, UFWP, 1);
-	}
+	return;
 }
 
 static void _rtl92e_update_rxcounts(struct r8192_priv *priv, u32 *TotalRxBcnNum,
@@ -1114,7 +1010,6 @@ static void _rtl92e_watchdog_wq_cb(void *data)
 				  struct r8192_priv, watch_dog_wq);
 	struct net_device *dev = priv->rtllib->dev;
 	struct rtllib_device *ieee = priv->rtllib;
-	enum reset_type ResetType = RESET_TYPE_NORESET;
 	static u8 check_reset_cnt;
 	unsigned long flags;
 	struct rt_pwr_save_ctrl *psc = (struct rt_pwr_save_ctrl *)
@@ -1232,13 +1127,11 @@ static void _rtl92e_watchdog_wq_cb(void *data)
 	spin_lock_irqsave(&priv->tx_lock, flags);
 	if ((check_reset_cnt++ >= 3) && (!ieee->is_roaming) &&
 	    (!priv->rf_change_in_progress) && (!psc->bSwRfProcessing)) {
-		ResetType = _rtl92e_if_check_reset(dev);
+		_rtl92e_if_check_reset(dev);
 		check_reset_cnt = 3;
 	}
 	spin_unlock_irqrestore(&priv->tx_lock, flags);
 
-	if ((priv->force_reset || ResetType == RESET_TYPE_SILENT))
-		_rtl92e_if_silent_reset(dev);
 	priv->force_reset = false;
 	priv->reset_in_progress = false;
 }
