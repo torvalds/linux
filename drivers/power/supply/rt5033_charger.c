@@ -678,11 +678,11 @@ static int rt5033_charger_probe(struct platform_device *pdev)
 	psy_cfg.of_node = pdev->dev.of_node;
 	psy_cfg.drv_data = charger;
 
-	charger->psy = devm_power_supply_register(&pdev->dev,
+	charger->psy = devm_power_supply_register(charger->dev,
 						  &rt5033_charger_desc,
 						  &psy_cfg);
 	if (IS_ERR(charger->psy))
-		return dev_err_probe(&pdev->dev, PTR_ERR(charger->psy),
+		return dev_err_probe(charger->dev, PTR_ERR(charger->psy),
 				     "Failed to register power supply\n");
 
 	ret = rt5033_charger_dt_init(charger);
@@ -701,22 +701,22 @@ static int rt5033_charger_probe(struct platform_device *pdev)
 	np_edev = of_get_parent(np_conn);
 	charger->edev = extcon_find_edev_by_node(np_edev);
 	if (IS_ERR(charger->edev)) {
-		dev_warn(&pdev->dev, "no extcon device found in device-tree\n");
+		dev_warn(charger->dev, "no extcon device found in device-tree\n");
 		goto out;
 	}
 
-	ret = devm_work_autocancel(&pdev->dev, &charger->extcon_work,
+	ret = devm_work_autocancel(charger->dev, &charger->extcon_work,
 				   rt5033_charger_extcon_work);
 	if (ret) {
-		dev_err(&pdev->dev, "failed to initialize extcon work\n");
+		dev_err(charger->dev, "failed to initialize extcon work\n");
 		return ret;
 	}
 
 	charger->extcon_nb.notifier_call = rt5033_charger_extcon_notifier;
-	ret = devm_extcon_register_notifier_all(&pdev->dev, charger->edev,
+	ret = devm_extcon_register_notifier_all(charger->dev, charger->edev,
 						&charger->extcon_nb);
 	if (ret) {
-		dev_err(&pdev->dev, "failed to register extcon notifier\n");
+		dev_err(charger->dev, "failed to register extcon notifier\n");
 		return ret;
 	}
 out:
