@@ -975,12 +975,7 @@ static enum reset_type _rtl92e_if_check_reset(struct net_device *dev)
 	    (priv->rtllib->link_state == MAC80211_LINKED))
 		RxResetType = _rtl92e_rx_check_stuck(dev);
 
-	if (TxResetType == RESET_TYPE_NORMAL ||
-	    RxResetType == RESET_TYPE_NORMAL) {
-		netdev_info(dev, "%s(): TxResetType is %d, RxResetType is %d\n",
-			    __func__, TxResetType, RxResetType);
-		return RESET_TYPE_NORMAL;
-	} else if (TxResetType == RESET_TYPE_SILENT ||
+	if (TxResetType == RESET_TYPE_SILENT ||
 		   RxResetType == RESET_TYPE_SILENT) {
 		netdev_info(dev, "%s(): TxResetType is %d, RxResetType is %d\n",
 			    __func__, TxResetType, RxResetType);
