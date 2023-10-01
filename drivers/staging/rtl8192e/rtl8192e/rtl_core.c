@@ -1237,11 +1237,6 @@ static void _rtl92e_watchdog_wq_cb(void *data)
 	}
 	spin_unlock_irqrestore(&priv->tx_lock, flags);
 
-	if (ResetType == RESET_TYPE_NORMAL) {
-		priv->rst_progress = RESET_TYPE_NORMAL;
-		return;
-	}
-
 	if ((priv->force_reset || ResetType == RESET_TYPE_SILENT))
 		_rtl92e_if_silent_reset(dev);
 	priv->force_reset = false;

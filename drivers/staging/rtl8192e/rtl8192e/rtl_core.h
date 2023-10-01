@@ -132,7 +132,6 @@ enum rt_customer_id {
 
 enum reset_type {
 	RESET_TYPE_NORESET = 0x00,
-	RESET_TYPE_NORMAL = 0x01,
 	RESET_TYPE_SILENT = 0x02
 };
 
