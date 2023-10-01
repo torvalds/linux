@@ -1072,6 +1072,14 @@ static void __intel_display_device_info_runtime_init(struct drm_i915_private *i9
 			display_runtime->has_dsc = 0;
 	}
 
+	if (DISPLAY_VER(i915) >= 20) {
+		u32 cap = intel_de_read(i915, XE2LPD_DE_CAP);
+
+		if (REG_FIELD_GET(XE2LPD_DE_CAP_DSC_MASK, cap) ==
+		    XE2LPD_DE_CAP_DSC_REMOVED)
+			display_runtime->has_dsc = 0;
+	}
+
 	return;
 
 display_fused_off:
