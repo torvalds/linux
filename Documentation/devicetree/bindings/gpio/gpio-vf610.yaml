@@ -59,7 +59,8 @@ properties:
       - const: port
 
   gpio-ranges:
-    maxItems: 1
+    minItems: 1
+    maxItems: 4
 
 patternProperties:
   "^.+-hog(-[0-9]+)?$":
