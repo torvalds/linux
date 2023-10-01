@@ -46,7 +46,7 @@ struct bch_disk_group_cpu {
 struct bch_disk_groups_cpu {
 	struct rcu_head			rcu;
 	unsigned			nr;
-	struct bch_disk_group_cpu	entries[];
+	struct bch_disk_group_cpu	entries[] __counted_by(nr);
 };
 
 #endif /* _BCACHEFS_SUPER_TYPES_H */
