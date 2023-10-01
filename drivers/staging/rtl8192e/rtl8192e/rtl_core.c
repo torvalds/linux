@@ -754,7 +754,6 @@ static void _rtl92e_init_priv_variable(struct net_device *dev)
 	priv->rfa_txpowertrackingindex = 0;
 	priv->rfc_txpowertrackingindex = 0;
 	priv->cck_pwr_enl = 6;
-	priv->force_reset = false;
 	memset(priv->rtllib->swcamtable, 0, sizeof(struct sw_cam_table) * 32);
 	priv->rx_ctr = 0;
 	priv->rtllib->wx_set_enc = 0;
@@ -1130,8 +1129,6 @@ static void _rtl92e_watchdog_wq_cb(void *data)
 		check_reset_cnt = 3;
 	}
 	spin_unlock_irqrestore(&priv->tx_lock, flags);
-
-	priv->force_reset = false;
 }
 
 static void _rtl92e_watchdog_timer_cb(struct timer_list *t)
