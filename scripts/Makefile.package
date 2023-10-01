@@ -94,8 +94,6 @@ rpm-pkg srcrpm-pkg binrpm-pkg: rpmbuild/SPECS/kernel.spec
 	$(if $(filter a b, $(build-type)), \
 		--target $(UTS_MACHINE)-linux --build-in-place --noprep --define='_smp_mflags %{nil}' \
 		$$(rpm -q rpm >/dev/null 2>&1 || echo --nodeps)) \
-	$(if $(filter b, $(build-type)), \
-		--without devel) \
 	$(RPMOPTS))
 
 # deb-pkg srcdeb-pkg bindeb-pkg
