@@ -198,11 +198,19 @@ static int qcom_cpufreq_kryo_name_version(struct device *cpu_dev,
 	case QCOM_ID_IPQ9554:
 	case QCOM_ID_IPQ9570:
 	case QCOM_ID_IPQ9574:
+	case QCOM_ID_MSM8953:
+	case QCOM_ID_APQ8053:
+	case QCOM_ID_SDM450:
+	case QCOM_ID_SDA450:
 		drv->versions = 1 << (unsigned int)(*speedbin);
 		break;
 	case QCOM_ID_MSM8996SG:
 	case QCOM_ID_APQ8096SG:
 		drv->versions = 1 << ((unsigned int)(*speedbin) + 4);
+		break;
+	case QCOM_ID_SDM632:
+	case QCOM_ID_SDA632:
+		drv->versions = 1 << ((unsigned int)(*speedbin) + 8);
 		break;
 	default:
 		BUG();
@@ -400,6 +408,12 @@ static const struct qcom_cpufreq_match_data match_data_kryo = {
 	.get_version = qcom_cpufreq_kryo_name_version,
 };
 
+static const struct qcom_cpufreq_match_data match_data_kryo_cpr = {
+	.get_version = qcom_cpufreq_kryo_name_version,
+	.pd_names = (const char *[]) { "perf" },
+	.num_pd_names = 1,
+};
+
 static const struct qcom_cpufreq_match_data match_data_krait = {
 	.get_version = qcom_cpufreq_krait_name_version,
 };
@@ -589,6 +603,9 @@ static const struct of_device_id qcom_cpufreq_match_list[] __initconst __maybe_u
 	{ .compatible = "qcom,apq8096", .data = &match_data_kryo },
 	{ .compatible = "qcom,msm8909", .data = &match_data_msm8909 },
 	{ .compatible = "qcom,msm8996", .data = &match_data_kryo },
+	{ .compatible = "qcom,msm8953", .data = &match_data_kryo_cpr },
+	{ .compatible = "qcom,sdm450", .data = &match_data_kryo_cpr },
+	{ .compatible = "qcom,sdm632", .data = &match_data_kryo_cpr },
 	{ .compatible = "qcom,qcs404", .data = &match_data_qcs404 },
 	{ .compatible = "qcom,ipq5332", .data = &match_data_kryo },
 	{ .compatible = "qcom,ipq6018", .data = &match_data_ipq6018 },
