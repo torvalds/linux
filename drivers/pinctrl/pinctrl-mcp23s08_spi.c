@@ -143,22 +143,17 @@ static int mcp23s08_spi_regmap_init(struct mcp23s08 *mcp, struct device *dev,
 
 static int mcp23s08_probe(struct spi_device *spi)
 {
-	struct device *dev = &spi->dev;
 	struct mcp23s08_driver_data *data;
+	struct device *dev = &spi->dev;
 	unsigned long spi_present_mask;
-	const void *match;
-	unsigned int addr;
 	unsigned int ngpio = 0;
+	unsigned int type;
+	unsigned int addr;
 	int chips;
-	int type;
 	int ret;
 	u32 v;
 
-	match = device_get_match_data(dev);
-	if (match)
-		type = (int)(uintptr_t)match;
-	else
-		type = spi_get_device_id(spi)->driver_data;
+	type = (uintptr_t)spi_get_device_match_data(spi);
 
 	ret = device_property_read_u32(dev, "microchip,spi-present-mask", &v);
 	if (ret) {
