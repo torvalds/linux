@@ -3644,8 +3644,10 @@ static struct clk_branch gcc_usb30_master_clk = {
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data) {
 			.name = "gcc_usb30_master_clk",
+			/* Actual parent of this clock is usb30_master_clk_src
+			 * but we specify another to work around FSM dependency */
 			.parent_hws = (const struct clk_hw*[]){
-				&usb30_master_clk_src.clkr.hw,
+				&gcc_pcnoc_usb3_axi_clk.clkr.hw,
 			},
 			.num_parents = 1,
 			.ops = &clk_branch2_ops,
