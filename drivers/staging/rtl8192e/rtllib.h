@@ -1339,7 +1339,6 @@ struct rtllib_device {
 	u8 active_channel_map[MAX_CHANNEL_NUMBER+1];
 
 	u8   bss_start_channel;
-	u8   ibss_maxjoin_chal;
 
 	int rate;       /* current rate */
 	int basic_rate;

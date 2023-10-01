@@ -73,19 +73,16 @@ void dot11d_channel_map(u8 channel_plan, struct rtllib_device *ieee)
 		for (i = 12; i <= 14; i++)
 			GET_DOT11D_INFO(ieee)->channel_map[i] = 2;
 		ieee->bss_start_channel = 10;
-		ieee->ibss_maxjoin_chal = 11;
 		break;
 
 	case COUNTRY_CODE_WORLD_WIDE_13:
 		for (i = 12; i <= 13; i++)
 			GET_DOT11D_INFO(ieee)->channel_map[i] = 2;
 		ieee->bss_start_channel = 10;
-		ieee->ibss_maxjoin_chal = 11;
 		break;
 
 	default:
 		ieee->bss_start_channel = 1;
-		ieee->ibss_maxjoin_chal = 14;
 		break;
 	}
 }
