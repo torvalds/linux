@@ -456,7 +456,7 @@ static const struct regmap_config tps6586x_regmap_config = {
 	.val_bits = 8,
 	.max_register = TPS6586X_MAX_REGISTER,
 	.volatile_reg = is_volatile_reg,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 
 static int tps6586x_power_off_handler(struct sys_off_data *data)
