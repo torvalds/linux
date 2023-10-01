@@ -372,7 +372,6 @@ struct r8192_priv {
 
 	u16		tx_counter;
 	u16		rx_ctr;
-	bool		reset_in_progress;
 	bool		force_reset;
 	bool		force_lps;
 };

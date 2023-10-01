@@ -1132,7 +1132,6 @@ static void _rtl92e_watchdog_wq_cb(void *data)
 	spin_unlock_irqrestore(&priv->tx_lock, flags);
 
 	priv->force_reset = false;
-	priv->reset_in_progress = false;
 }
 
 static void _rtl92e_watchdog_timer_cb(struct timer_list *t)
@@ -1218,8 +1217,7 @@ static void _rtl92e_hard_data_xmit(struct sk_buff *skb, struct net_device *dev,
 				    MAX_DEV_ADDR_SIZE);
 	u8 queue_index = tcb_desc->queue_index;
 
-	if ((priv->rtllib->rf_power_state == rf_off) || !priv->up ||
-	     priv->reset_in_progress) {
+	if ((priv->rtllib->rf_power_state == rf_off) || !priv->up) {
 		kfree_skb(skb);
 		return;
 	}
@@ -1252,7 +1250,7 @@ static int _rtl92e_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	if (queue_index != TXCMD_QUEUE) {
 		if ((priv->rtllib->rf_power_state == rf_off) ||
-		     !priv->up || priv->reset_in_progress) {
+		     !priv->up) {
 			kfree_skb(skb);
 			return 0;
 		}

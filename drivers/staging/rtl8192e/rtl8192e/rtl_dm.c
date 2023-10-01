@@ -530,11 +530,6 @@ static void _rtl92e_dm_tx_power_tracking_callback_tssi(struct net_device *dev)
 			if (Pwr_Flag == 0) {
 				mdelay(1);
 
-				if (priv->reset_in_progress) {
-					rtl92e_writeb(dev, Pw_Track_Flag, 0);
-					rtl92e_writeb(dev, FW_Busy_Flag, 0);
-					return;
-				}
 				if (priv->rtllib->rf_power_state != rf_on) {
 					rtl92e_writeb(dev, Pw_Track_Flag, 0);
 					rtl92e_writeb(dev, FW_Busy_Flag, 0);
