@@ -337,7 +337,7 @@ static const struct regmap_config ili9322_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.max_register = 0x44,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.writeable_reg = ili9322_writeable_reg,
 };
 
