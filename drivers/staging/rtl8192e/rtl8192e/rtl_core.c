@@ -588,7 +588,7 @@ void rtl92e_set_wireless_mode(struct net_device *dev, u8 wireless_mode)
 	_rtl92e_refresh_support_rate(priv);
 }
 
-static int _rtl92e_sta_up(struct net_device *dev, bool is_silent_reset)
+static int _rtl92e_sta_up(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rt_pwr_save_ctrl *psc = (struct rt_pwr_save_ctrl *)
@@ -1709,7 +1709,7 @@ static void _rtl92e_cancel_deferred_work(struct r8192_priv *priv)
 
 static int _rtl92e_up(struct net_device *dev, bool is_silent_reset)
 {
-	if (_rtl92e_sta_up(dev, is_silent_reset) == -1)
+	if (_rtl92e_sta_up(dev) == -1)
 		return -1;
 	return 0;
 }
