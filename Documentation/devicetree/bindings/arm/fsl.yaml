@@ -1440,12 +1440,19 @@ properties:
               - fsl,lx2162a-qds
           - const: fsl,lx2160a
 
-      - description: SolidRun LX2160A based Boards
+      - description: SolidRun LX2160A CEX-7 based Boards
         items:
           - enum:
               - solidrun,clearfog-cx
               - solidrun,honeycomb
           - const: solidrun,lx2160a-cex7
+          - const: fsl,lx2160a
+
+      - description: SolidRun LX2162A SoM based Boards
+        items:
+          - enum:
+              - solidrun,lx2162a-clearfog
+          - const: solidrun,lx2162a-som
           - const: fsl,lx2160a
 
       - description: S32G2 based Boards
