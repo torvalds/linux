@@ -1211,7 +1211,6 @@ struct rtllib_device {
 	bool	bForcedBgMode;
 
 	u8 hwsec_active;
-	bool is_silent_reset;
 	bool is_roaming;
 	bool ieee_up;
 	bool cannot_notify;

@@ -1298,10 +1298,8 @@ static void rtllib_associate_complete_wq(void *data)
 
 	netdev_info(ieee->dev, "Associated successfully with %pM\n",
 		    ieee->current_network.bssid);
-	if (!ieee->is_silent_reset) {
-		netdev_info(ieee->dev, "normal associate\n");
-		notify_wx_assoc_event(ieee);
-	}
+	netdev_info(ieee->dev, "normal associate\n");
+	notify_wx_assoc_event(ieee);
 
 	netif_carrier_on(ieee->dev);
 	ieee->is_roaming = false;
@@ -1334,10 +1332,6 @@ static void rtllib_associate_complete_wq(void *data)
 	psc->LpsIdleCount = 0;
 	ieee->link_change(ieee->dev);
 
-	if (ieee->is_silent_reset) {
-		netdev_info(ieee->dev, "silent reset associate\n");
-		ieee->is_silent_reset = false;
-	}
 }
 
 static void rtllib_sta_send_associnfo(struct rtllib_device *ieee)
