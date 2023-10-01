@@ -75,12 +75,6 @@ int mscode_note_digest_algo(void *context, size_t hdrlen,
 
 	oid = look_up_OID(value, vlen);
 	switch (oid) {
-	case OID_md4:
-		ctx->digest_algo = "md4";
-		break;
-	case OID_md5:
-		ctx->digest_algo = "md5";
-		break;
 	case OID_sha1:
 		ctx->digest_algo = "sha1";
 		break;

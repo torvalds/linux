@@ -227,12 +227,6 @@ int pkcs7_sig_note_digest_algo(void *context, size_t hdrlen,
 	struct pkcs7_parse_context *ctx = context;
 
 	switch (ctx->last_oid) {
-	case OID_md4:
-		ctx->sinfo->sig->hash_algo = "md4";
-		break;
-	case OID_md5:
-		ctx->sinfo->sig->hash_algo = "md5";
-		break;
 	case OID_sha1:
 		ctx->sinfo->sig->hash_algo = "sha1";
 		break;
