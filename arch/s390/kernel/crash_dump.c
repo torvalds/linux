@@ -507,7 +507,7 @@ static void loads_init(Elf64_Phdr *phdr)
 		phdr->p_filesz = end - start;
 		phdr->p_type = PT_LOAD;
 		phdr->p_offset = start;
-		phdr->p_vaddr = start;
+		phdr->p_vaddr = (unsigned long)__va(start);
 		phdr->p_paddr = start;
 		phdr->p_memsz = end - start;
 		phdr->p_flags = PF_R | PF_W | PF_X;
