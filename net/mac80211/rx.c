@@ -2474,6 +2474,15 @@ ieee80211_drop_unencrypted_mgmt(struct ieee80211_rx_data *rx)
 			return RX_DROP_U_UNPROT_UNICAST_PUB_ACTION;
 	}
 
+	/*
+	 * Drop robust action frames before assoc regardless of MFP state,
+	 * after assoc we also have decided on MFP or not.
+	 */
+	if (ieee80211_is_action(fc) &&
+	    ieee80211_is_robust_mgmt_frame(rx->skb) &&
+	    (!rx->sta || !test_sta_flag(rx->sta, WLAN_STA_ASSOC)))
+		return RX_DROP_U_UNPROT_ROBUST_ACTION;
+
 	return RX_CONTINUE;
 }
 
