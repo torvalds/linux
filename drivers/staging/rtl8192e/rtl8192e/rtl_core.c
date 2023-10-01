@@ -61,7 +61,7 @@ static short _rtl92e_pci_initdescring(struct net_device *dev);
 static void _rtl92e_irq_tx_tasklet(struct tasklet_struct *t);
 static void _rtl92e_irq_rx_tasklet(struct tasklet_struct *t);
 static void _rtl92e_cancel_deferred_work(struct r8192_priv *priv);
-static int _rtl92e_up(struct net_device *dev, bool is_silent_reset);
+static int _rtl92e_up(struct net_device *dev);
 static int _rtl92e_try_up(struct net_device *dev);
 static int _rtl92e_down(struct net_device *dev, bool shutdownrf);
 static void _rtl92e_restart(void *data);
@@ -1707,7 +1707,7 @@ static void _rtl92e_cancel_deferred_work(struct r8192_priv *priv)
 	cancel_work_sync(&priv->qos_activate);
 }
 
-static int _rtl92e_up(struct net_device *dev, bool is_silent_reset)
+static int _rtl92e_up(struct net_device *dev)
 {
 	if (_rtl92e_sta_up(dev) == -1)
 		return -1;
@@ -1731,7 +1731,7 @@ static int _rtl92e_try_up(struct net_device *dev)
 
 	if (priv->up == 1)
 		return -1;
-	return _rtl92e_up(dev, false);
+	return _rtl92e_up(dev);
 }
 
 static int _rtl92e_close(struct net_device *dev)
@@ -1770,7 +1770,7 @@ void rtl92e_commit(struct net_device *dev)
 	rtllib_softmac_stop_protocol(priv->rtllib, 0, true);
 	rtl92e_irq_disable(dev);
 	rtl92e_stop_adapter(dev, true);
-	_rtl92e_up(dev, false);
+	_rtl92e_up(dev);
 }
 
 static void _rtl92e_restart(void *data)
