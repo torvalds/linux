@@ -44,7 +44,7 @@ TRACE_EVENT(mptcp_subflow_get_send,
 		ssk = mptcp_subflow_tcp_sock(subflow);
 		if (ssk && sk_fullsock(ssk)) {
 			__entry->snd_wnd = tcp_sk(ssk)->snd_wnd;
-			__entry->pace = ssk->sk_pacing_rate;
+			__entry->pace = READ_ONCE(ssk->sk_pacing_rate);
 		} else {
 			__entry->snd_wnd = 0;
 			__entry->pace = 0;

@@ -684,7 +684,7 @@ static struct sk_buff *xsk_build_skb(struct xdp_sock *xs,
 	}
 
 	skb->dev = dev;
-	skb->priority = xs->sk.sk_priority;
+	skb->priority = READ_ONCE(xs->sk.sk_priority);
 	skb->mark = READ_ONCE(xs->sk.sk_mark);
 	skb->destructor = xsk_destruct_skb;
 	xsk_set_destructor_arg(skb);
