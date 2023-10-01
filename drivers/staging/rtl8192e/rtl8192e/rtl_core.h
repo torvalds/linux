@@ -368,7 +368,6 @@ struct r8192_priv {
 	u32		continue_diff_count;
 	bool		bswitch_fsync;
 	u8		framesync;
-	u32		reset_count;
 
 	u16		tx_counter;
 	u16		rx_ctr;

@@ -1088,7 +1088,6 @@ static void _rtl92e_dm_ctrl_initgain_byrssi_driver(struct net_device *dev)
 static void _rtl92e_dm_ctrl_initgain_byrssi_false_alarm(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
-	static u32 reset_cnt;
 	u8 i;
 
 	if (!dm_digtable.dig_enable_flag)
@@ -1108,10 +1107,8 @@ static void _rtl92e_dm_ctrl_initgain_byrssi_false_alarm(struct net_device *dev)
 		(priv->undecorated_smoothed_pwdb < dm_digtable.rssi_high_thresh))
 		return;
 	if (priv->undecorated_smoothed_pwdb <= dm_digtable.rssi_low_thresh) {
-		if (dm_digtable.dig_state == DM_STA_DIG_OFF &&
-			(priv->reset_count == reset_cnt))
+		if (dm_digtable.dig_state == DM_STA_DIG_OFF)
 			return;
-		reset_cnt = priv->reset_count;
 
 		dm_digtable.dig_highpwr_state = DM_STA_DIG_MAX;
 		dm_digtable.dig_state = DM_STA_DIG_OFF;
@@ -1136,15 +1133,10 @@ static void _rtl92e_dm_ctrl_initgain_byrssi_false_alarm(struct net_device *dev)
 	if (priv->undecorated_smoothed_pwdb >= dm_digtable.rssi_high_thresh) {
 		u8 reset_flag = 0;
 
-		if (dm_digtable.dig_state == DM_STA_DIG_ON &&
-		    (priv->reset_count == reset_cnt)) {
+		if (dm_digtable.dig_state == DM_STA_DIG_ON) {
 			_rtl92e_dm_ctrl_initgain_byrssi_highpwr(dev);
 			return;
 		}
-		if (priv->reset_count != reset_cnt)
-			reset_flag = 1;
-
-		reset_cnt = priv->reset_count;
 
 		dm_digtable.dig_state = DM_STA_DIG_ON;
 
@@ -1175,7 +1167,6 @@ static void _rtl92e_dm_ctrl_initgain_byrssi_false_alarm(struct net_device *dev)
 static void _rtl92e_dm_ctrl_initgain_byrssi_highpwr(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
-	static u32 reset_cnt_highpwr;
 
 	if ((priv->undecorated_smoothed_pwdb >
 	     dm_digtable.rssi_high_power_lowthresh) &&
@@ -1185,8 +1176,7 @@ static void _rtl92e_dm_ctrl_initgain_byrssi_highpwr(struct net_device *dev)
 
 	if (priv->undecorated_smoothed_pwdb >=
 	    dm_digtable.rssi_high_power_highthresh) {
-		if (dm_digtable.dig_highpwr_state == DM_STA_DIG_ON &&
-			(priv->reset_count == reset_cnt_highpwr))
+		if (dm_digtable.dig_highpwr_state == DM_STA_DIG_ON)
 			return;
 		dm_digtable.dig_highpwr_state = DM_STA_DIG_ON;
 
@@ -1195,8 +1185,7 @@ static void _rtl92e_dm_ctrl_initgain_byrssi_highpwr(struct net_device *dev)
 		else
 			rtl92e_writeb(dev, rOFDM0_RxDetector1, 0x43);
 	} else {
-		if (dm_digtable.dig_highpwr_state == DM_STA_DIG_OFF &&
-			(priv->reset_count == reset_cnt_highpwr))
+		if (dm_digtable.dig_highpwr_state == DM_STA_DIG_OFF)
 			return;
 		dm_digtable.dig_highpwr_state = DM_STA_DIG_OFF;
 
@@ -1210,7 +1199,6 @@ static void _rtl92e_dm_ctrl_initgain_byrssi_highpwr(struct net_device *dev)
 				rtl92e_writeb(dev, rOFDM0_RxDetector1, 0x44);
 		}
 	}
-	reset_cnt_highpwr = priv->reset_count;
 }
 
 static void _rtl92e_dm_initial_gain(struct net_device *dev)
@@ -1218,11 +1206,9 @@ static void _rtl92e_dm_initial_gain(struct net_device *dev)
 	struct r8192_priv *priv = rtllib_priv(dev);
 	u8 initial_gain = 0;
 	static u8 initialized, force_write;
-	static u32 reset_cnt;
 
 	if (dm_digtable.dig_algorithm_switch) {
 		initialized = 0;
-		reset_cnt = 0;
 	}
 
 	if (rtllib_act_scanning(priv->rtllib, true)) {
@@ -1249,11 +1235,6 @@ static void _rtl92e_dm_initial_gain(struct net_device *dev)
 		dm_digtable.pre_ig_value = 0;
 	}
 
-	if (priv->reset_count != reset_cnt) {
-		force_write = 1;
-		reset_cnt = priv->reset_count;
-	}
-
 	if (dm_digtable.pre_ig_value != rtl92e_readb(dev, rOFDM0_XAAGCCore1))
 		force_write = 1;
 
@@ -1274,11 +1255,9 @@ static void _rtl92e_dm_pd_th(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	static u8 initialized, force_write;
-	static u32 reset_cnt;
 
 	if (dm_digtable.dig_algorithm_switch) {
 		initialized = 0;
-		reset_cnt = 0;
 	}
 
 	if (dm_digtable.pre_sta_connect_state == dm_digtable.cur_sta_connect_state) {
@@ -1305,11 +1284,6 @@ static void _rtl92e_dm_pd_th(struct net_device *dev)
 		}
 	} else {
 		dm_digtable.curpd_thstate = DIG_PD_AT_LOW_POWER;
-	}
-
-	if (priv->reset_count != reset_cnt) {
-		force_write = 1;
-		reset_cnt = priv->reset_count;
 	}
 
 	if ((dm_digtable.prepd_thstate != dm_digtable.curpd_thstate) ||
@@ -1340,13 +1314,10 @@ static void _rtl92e_dm_pd_th(struct net_device *dev)
 
 static void _rtl92e_dm_cs_ratio(struct net_device *dev)
 {
-	struct r8192_priv *priv = rtllib_priv(dev);
 	static u8 initialized, force_write;
-	static u32 reset_cnt;
 
 	if (dm_digtable.dig_algorithm_switch) {
 		initialized = 0;
-		reset_cnt = 0;
 	}
 
 	if (dm_digtable.pre_sta_connect_state == dm_digtable.cur_sta_connect_state) {
@@ -1362,11 +1333,6 @@ static void _rtl92e_dm_cs_ratio(struct net_device *dev)
 		}
 	} else {
 		dm_digtable.curcs_ratio_state = DIG_CS_RATIO_LOWER;
-	}
-
-	if (priv->reset_count != reset_cnt) {
-		force_write = 1;
-		reset_cnt = priv->reset_count;
 	}
 
 	if ((dm_digtable.precs_ratio_state != dm_digtable.curcs_ratio_state) ||
@@ -1982,7 +1948,6 @@ static void _rtl92e_dm_check_fsync(struct net_device *dev)
 #define	RegC38_Fsync_AP_BCM		2
 	struct r8192_priv *priv = rtllib_priv(dev);
 	static u8 reg_c38_State = RegC38_Default;
-	static u32 reset_cnt;
 
 	if (priv->rtllib->link_state == MAC80211_LINKED &&
 	    priv->rtllib->ht_info->IOTPeer == HT_IOT_PEER_BROADCOM) {
@@ -2065,12 +2030,6 @@ static void _rtl92e_dm_check_fsync(struct net_device *dev)
 				reg_c38_State = RegC38_Default;
 			}
 		}
-	}
-	if (priv->reset_count != reset_cnt) {
-		rtl92e_writeb(dev, rOFDM0_RxDetector3,
-			       priv->framesync);
-		reg_c38_State = RegC38_Default;
-		reset_cnt = priv->reset_count;
 	}
 }
 
