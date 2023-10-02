@@ -317,12 +317,6 @@ struct drm_i915_private {
 
 	struct i915_hwmon *hwmon;
 
-	/* Abstract the submission mechanism (legacy ringbuffer or execlists) away */
-	struct intel_gt *gt0;
-
-	/*
-	 * i915->gt[0] == i915->gt0
-	 */
 	struct intel_gt *gt[I915_MAX_GT];
 
 	struct kobject *sysfs_gt;
@@ -384,7 +378,7 @@ static inline struct drm_i915_private *pdev_to_i915(struct pci_dev *pdev)
 
 static inline struct intel_gt *to_gt(const struct drm_i915_private *i915)
 {
-	return i915->gt0;
+	return i915->gt[0];
 }
 
 /* Simple iterator over all initialised engines */

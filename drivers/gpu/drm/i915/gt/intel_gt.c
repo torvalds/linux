@@ -68,7 +68,7 @@ int intel_root_gt_init_early(struct drm_i915_private *i915)
 	if (!gt)
 		return -ENOMEM;
 
-	i915->gt0 = gt;
+	i915->gt[0] = gt;
 
 	gt->i915 = i915;
 	gt->uncore = &i915->uncore;
@@ -916,8 +916,6 @@ int intel_gt_probe_all(struct drm_i915_private *i915)
 	ret = intel_gt_tile_setup(gt, phys_addr);
 	if (ret)
 		return ret;
-
-	i915->gt[0] = gt;
 
 	if (!HAS_EXTRA_GT_LIST(i915))
 		return 0;
