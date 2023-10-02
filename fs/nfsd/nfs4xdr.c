@@ -4853,22 +4853,35 @@ nfsd4_encode_sequence(struct nfsd4_compoundres *resp, __be32 nfserr,
 {
 	struct nfsd4_sequence *seq = &u->sequence;
 	struct xdr_stream *xdr = resp->xdr;
-	__be32 *p;
 
-	p = xdr_reserve_space(xdr, NFS4_MAX_SESSIONID_LEN + 20);
-	if (!p)
-		return nfserr_resource;
-	p = xdr_encode_opaque_fixed(p, seq->sessionid.data,
-					NFS4_MAX_SESSIONID_LEN);
-	*p++ = cpu_to_be32(seq->seqid);
-	*p++ = cpu_to_be32(seq->slotid);
+	/* sr_sessionid */
+	nfserr = nfsd4_encode_sessionid4(xdr, &seq->sessionid);
+	if (nfserr != nfs_ok)
+		return nfserr;
+	/* sr_sequenceid */
+	nfserr = nfsd4_encode_sequenceid4(xdr, seq->seqid);
+	if (nfserr != nfs_ok)
+		return nfserr;
+	/* sr_slotid */
+	nfserr = nfsd4_encode_slotid4(xdr, seq->slotid);
+	if (nfserr != nfs_ok)
+		return nfserr;
 	/* Note slotid's are numbered from zero: */
-	*p++ = cpu_to_be32(seq->maxslots - 1); /* sr_highest_slotid */
-	*p++ = cpu_to_be32(seq->maxslots - 1); /* sr_target_highest_slotid */
-	*p++ = cpu_to_be32(seq->status_flags);
+	/* sr_highest_slotid */
+	nfserr = nfsd4_encode_slotid4(xdr, seq->maxslots - 1);
+	if (nfserr != nfs_ok)
+		return nfserr;
+	/* sr_target_highest_slotid */
+	nfserr = nfsd4_encode_slotid4(xdr, seq->maxslots - 1);
+	if (nfserr != nfs_ok)
+		return nfserr;
+	/* sr_status_flags */
+	nfserr = nfsd4_encode_uint32_t(xdr, seq->status_flags);
+	if (nfserr != nfs_ok)
+		return nfserr;
 
 	resp->cstate.data_offset = xdr->buf->len; /* DRC cache data pointer */
-	return 0;
+	return nfs_ok;
 }
 
 static __be32
