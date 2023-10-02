@@ -134,7 +134,7 @@ int rtllib_wx_set_wap(struct rtllib_device *ieee,
 	}
 
 	if (ifup)
-		rtllib_stop_protocol(ieee, true);
+		rtllib_stop_protocol(ieee);
 
 	/* just to avoid to give inconsistent infos in the
 	 * get wx method. not really needed otherwise
@@ -277,7 +277,7 @@ int rtllib_wx_set_mode(struct rtllib_device *ieee, struct iw_request_info *a,
 	if (!ieee->proto_started) {
 		ieee->iw_mode = wrqu->mode;
 	} else {
-		rtllib_stop_protocol(ieee, true);
+		rtllib_stop_protocol(ieee);
 		ieee->iw_mode = wrqu->mode;
 		rtllib_start_protocol(ieee);
 	}
@@ -401,7 +401,7 @@ int rtllib_wx_set_essid(struct rtllib_device *ieee,
 	}
 
 	if (proto_started)
-		rtllib_stop_protocol(ieee, true);
+		rtllib_stop_protocol(ieee);
 
 	/* this is just to be sure that the GET wx callback
 	 * has consistent infos. not needed otherwise

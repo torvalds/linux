@@ -2283,21 +2283,19 @@ void rtllib_softmac_stop_protocol(struct rtllib_device *ieee)
 {
 	rtllib_stop_scan_syncro(ieee);
 	mutex_lock(&ieee->wx_mutex);
-	rtllib_stop_protocol(ieee, true);
+	rtllib_stop_protocol(ieee);
 	mutex_unlock(&ieee->wx_mutex);
 }
 EXPORT_SYMBOL(rtllib_softmac_stop_protocol);
 
-void rtllib_stop_protocol(struct rtllib_device *ieee, u8 shutdown)
+void rtllib_stop_protocol(struct rtllib_device *ieee)
 {
 	if (!ieee->proto_started)
 		return;
 
-	if (shutdown) {
-		ieee->proto_started = 0;
-		ieee->proto_stoppping = 1;
-		ieee->rtllib_ips_leave(ieee->dev);
-	}
+	ieee->proto_started = 0;
+	ieee->proto_stoppping = 1;
+	ieee->rtllib_ips_leave(ieee->dev);
 
 	del_timer_sync(&ieee->associate_timer);
 	mutex_unlock(&ieee->wx_mutex);
@@ -2315,10 +2313,9 @@ void rtllib_stop_protocol(struct rtllib_device *ieee, u8 shutdown)
 		rtllib_disassociate(ieee);
 	}
 
-	if (shutdown) {
-		RemoveAllTS(ieee);
-		ieee->proto_stoppping = 0;
-	}
+	RemoveAllTS(ieee);
+	ieee->proto_stoppping = 0;
+
 	kfree(ieee->assocreq_ies);
 	ieee->assocreq_ies = NULL;
 	ieee->assocreq_ies_len = 0;
