@@ -5815,7 +5815,7 @@ static int __access_remote_vm(struct mm_struct *mm, unsigned long addr,
 		struct page *page = get_user_page_vma_remote(mm, addr,
 							     gup_flags, &vma);
 
-		if (IS_ERR_OR_NULL(page)) {
+		if (IS_ERR(page)) {
 			/* We might need to expand the stack to access it */
 			vma = vma_lookup(mm, addr);
 			if (!vma) {
@@ -5828,7 +5828,6 @@ static int __access_remote_vm(struct mm_struct *mm, unsigned long addr,
 				/* Try again if stack expansion worked */
 				continue;
 			}
-
 
 			/*
 			 * Check if this is a VM_IO | VM_PFNMAP VMA, which
