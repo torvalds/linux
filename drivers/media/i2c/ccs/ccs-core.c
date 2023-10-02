@@ -3553,6 +3553,12 @@ static int ccs_probe(struct i2c_client *client)
 	sensor->pll.ext_clk_freq_hz = sensor->hwcfg.ext_clk;
 	sensor->pll.scale_n = CCS_LIM(sensor, SCALER_N_MIN);
 
+	rval = ccs_get_mbus_formats(sensor);
+	if (rval) {
+		rval = -ENODEV;
+		goto out_cleanup;
+	}
+
 	rval = ccs_init_subdev(sensor, sensor->scaler, " scaler", 2,
 			       MEDIA_ENT_F_PROC_VIDEO_SCALER);
 	if (rval)
@@ -3573,12 +3579,6 @@ static int ccs_probe(struct i2c_client *client)
 	rval = ccs_call_quirk(sensor, init);
 	if (rval)
 		goto out_cleanup;
-
-	rval = ccs_get_mbus_formats(sensor);
-	if (rval) {
-		rval = -ENODEV;
-		goto out_cleanup;
-	}
 
 	rval = ccs_init_late_controls(sensor);
 	if (rval) {
