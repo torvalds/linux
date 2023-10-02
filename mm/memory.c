@@ -3481,6 +3481,7 @@ static vm_fault_t do_wp_page(struct vm_fault *vmf)
 		 * sunglasses. Hit it.
 		 */
 		page_move_anon_rmap(vmf->page, vma);
+		SetPageAnonExclusive(vmf->page);
 		folio_unlock(folio);
 reuse:
 		if (unlikely(unshare)) {

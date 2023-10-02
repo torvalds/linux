@@ -5652,8 +5652,10 @@ retry_avoidcopy:
 	 * owner and can reuse this page.
 	 */
 	if (folio_mapcount(old_folio) == 1 && folio_test_anon(old_folio)) {
-		if (!PageAnonExclusive(&old_folio->page))
+		if (!PageAnonExclusive(&old_folio->page)) {
 			page_move_anon_rmap(&old_folio->page, vma);
+			SetPageAnonExclusive(&old_folio->page);
+		}
 		if (likely(!unshare))
 			set_huge_ptep_writable(vma, haddr, ptep);
 
