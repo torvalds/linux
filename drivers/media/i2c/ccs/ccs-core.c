@@ -2958,16 +2958,10 @@ static int ccs_register_subdev(struct ccs_sensor *sensor,
 	if (!sink_ssd)
 		return 0;
 
-	rval = media_entity_pads_init(&ssd->sd.entity, ssd->npads, ssd->pads);
-	if (rval) {
-		dev_err(&client->dev, "media_entity_pads_init failed\n");
-		return rval;
-	}
-
 	rval = v4l2_device_register_subdev(sensor->src->sd.v4l2_dev, &ssd->sd);
 	if (rval) {
 		dev_err(&client->dev, "v4l2_device_register_subdev failed\n");
-		goto out_media_entity_cleanup;
+		return rval;
 	}
 
 	rval = media_create_pad_link(&ssd->sd.entity, source_pad,
@@ -2975,18 +2969,11 @@ static int ccs_register_subdev(struct ccs_sensor *sensor,
 				     link_flags);
 	if (rval) {
 		dev_err(&client->dev, "media_create_pad_link failed\n");
-		goto out_v4l2_device_unregister_subdev;
+		v4l2_device_unregister_subdev(&ssd->sd);
+		return rval;
 	}
 
 	return 0;
-
-out_v4l2_device_unregister_subdev:
-	v4l2_device_unregister_subdev(&ssd->sd);
-
-out_media_entity_cleanup:
-	media_entity_cleanup(&ssd->sd.entity);
-
-	return rval;
 }
 
 static void ccs_unregistered(struct v4l2_subdev *subdev)
@@ -3031,6 +3018,10 @@ out_err:
 static void ccs_cleanup(struct ccs_sensor *sensor)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&sensor->src->sd);
+	unsigned int i;
+
+	for (i = 0; i < sensor->ssds_used; i++)
+		media_entity_cleanup(&sensor->ssds[i].sd.entity);
 
 	device_remove_file(&client->dev, &dev_attr_nvm);
 	device_remove_file(&client->dev, &dev_attr_ident);
@@ -3038,14 +3029,15 @@ static void ccs_cleanup(struct ccs_sensor *sensor)
 	ccs_free_controls(sensor);
 }
 
-static void ccs_init_subdev(struct ccs_sensor *sensor,
-			    struct ccs_subdev *ssd, const char *name,
-			    unsigned short num_pads, u32 function)
+static int ccs_init_subdev(struct ccs_sensor *sensor,
+			   struct ccs_subdev *ssd, const char *name,
+			   unsigned short num_pads, u32 function)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&sensor->src->sd);
+	int rval;
 
 	if (!ssd)
-		return;
+		return 0;
 
 	if (ssd != sensor->src)
 		v4l2_subdev_init(&ssd->sd, &ccs_ops);
@@ -3072,12 +3064,20 @@ static void ccs_init_subdev(struct ccs_sensor *sensor,
 
 	ssd->sd.entity.ops = &ccs_entity_ops;
 
+	rval = media_entity_pads_init(&ssd->sd.entity, ssd->npads, ssd->pads);
+	if (rval) {
+		dev_err(&client->dev, "media_entity_pads_init failed\n");
+		return rval;
+	}
+
 	if (ssd == sensor->src)
-		return;
+		return 0;
 
 	ssd->sd.owner = THIS_MODULE;
 	ssd->sd.dev = &client->dev;
 	v4l2_set_subdevdata(&ssd->sd, client);
+
+	return 0;
 }
 
 static int ccs_init_cfg(struct v4l2_subdev *sd,
@@ -3553,12 +3553,18 @@ static int ccs_probe(struct i2c_client *client)
 	sensor->pll.ext_clk_freq_hz = sensor->hwcfg.ext_clk;
 	sensor->pll.scale_n = CCS_LIM(sensor, SCALER_N_MIN);
 
-	ccs_init_subdev(sensor, sensor->scaler, " scaler", 2,
-			MEDIA_ENT_F_PROC_VIDEO_SCALER);
-	ccs_init_subdev(sensor, sensor->binner, " binner", 2,
-			MEDIA_ENT_F_PROC_VIDEO_SCALER);
-	ccs_init_subdev(sensor, sensor->pixel_array, " pixel_array", 1,
-			MEDIA_ENT_F_CAM_SENSOR);
+	rval = ccs_init_subdev(sensor, sensor->scaler, " scaler", 2,
+			       MEDIA_ENT_F_PROC_VIDEO_SCALER);
+	if (rval)
+		goto out_cleanup;
+	rval = ccs_init_subdev(sensor, sensor->binner, " binner", 2,
+			       MEDIA_ENT_F_PROC_VIDEO_SCALER);
+	if (rval)
+		goto out_cleanup;
+	rval = ccs_init_subdev(sensor, sensor->pixel_array, " pixel_array", 1,
+			       MEDIA_ENT_F_CAM_SENSOR);
+	if (rval)
+		goto out_cleanup;
 
 	rval = ccs_init_controls(sensor);
 	if (rval < 0)
@@ -3591,14 +3597,9 @@ static int ccs_probe(struct i2c_client *client)
 	sensor->streaming = false;
 	sensor->dev_init_done = true;
 
-	rval = media_entity_pads_init(&sensor->src->sd.entity, 2,
-				 sensor->src->pads);
-	if (rval < 0)
-		goto out_media_entity_cleanup;
-
 	rval = ccs_write_msr_regs(sensor);
 	if (rval)
-		goto out_media_entity_cleanup;
+		goto out_cleanup;
 
 	pm_runtime_set_active(&client->dev);
 	pm_runtime_get_noresume(&client->dev);
@@ -3617,9 +3618,6 @@ static int ccs_probe(struct i2c_client *client)
 out_disable_runtime_pm:
 	pm_runtime_put_noidle(&client->dev);
 	pm_runtime_disable(&client->dev);
-
-out_media_entity_cleanup:
-	media_entity_cleanup(&sensor->src->sd.entity);
 
 out_cleanup:
 	ccs_cleanup(sensor);
@@ -3653,10 +3651,9 @@ static void ccs_remove(struct i2c_client *client)
 		ccs_power_off(&client->dev);
 	pm_runtime_set_suspended(&client->dev);
 
-	for (i = 0; i < sensor->ssds_used; i++) {
+	for (i = 0; i < sensor->ssds_used; i++)
 		v4l2_device_unregister_subdev(&sensor->ssds[i].sd);
-		media_entity_cleanup(&sensor->ssds[i].sd.entity);
-	}
+
 	ccs_cleanup(sensor);
 	mutex_destroy(&sensor->mutex);
 	kfree(sensor->ccs_limits);
