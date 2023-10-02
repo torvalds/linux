@@ -141,6 +141,267 @@ static int kvm_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu)
 	return RESUME_GUEST;
 }
 
+static int _kvm_getcsr(struct kvm_vcpu *vcpu, unsigned int id, u64 *val)
+{
+	unsigned long gintc;
+	struct loongarch_csrs *csr = vcpu->arch.csr;
+
+	if (get_gcsr_flag(id) & INVALID_GCSR)
+		return -EINVAL;
+
+	if (id == LOONGARCH_CSR_ESTAT) {
+		/* ESTAT IP0~IP7 get from GINTC */
+		gintc = kvm_read_sw_gcsr(csr, LOONGARCH_CSR_GINTC) & 0xff;
+		*val = kvm_read_sw_gcsr(csr, LOONGARCH_CSR_ESTAT) | (gintc << 2);
+		return 0;
+	}
+
+	/*
+	 * Get software CSR state since software state is consistent
+	 * with hardware for synchronous ioctl
+	 */
+	*val = kvm_read_sw_gcsr(csr, id);
+
+	return 0;
+}
+
+static int _kvm_setcsr(struct kvm_vcpu *vcpu, unsigned int id, u64 val)
+{
+	int ret = 0, gintc;
+	struct loongarch_csrs *csr = vcpu->arch.csr;
+
+	if (get_gcsr_flag(id) & INVALID_GCSR)
+		return -EINVAL;
+
+	if (id == LOONGARCH_CSR_ESTAT) {
+		/* ESTAT IP0~IP7 inject through GINTC */
+		gintc = (val >> 2) & 0xff;
+		kvm_set_sw_gcsr(csr, LOONGARCH_CSR_GINTC, gintc);
+
+		gintc = val & ~(0xffUL << 2);
+		kvm_set_sw_gcsr(csr, LOONGARCH_CSR_ESTAT, gintc);
+
+		return ret;
+	}
+
+	kvm_write_sw_gcsr(csr, id, val);
+
+	return ret;
+}
+
+static int kvm_get_one_reg(struct kvm_vcpu *vcpu,
+		const struct kvm_one_reg *reg, u64 *v)
+{
+	int id, ret = 0;
+	u64 type = reg->id & KVM_REG_LOONGARCH_MASK;
+
+	switch (type) {
+	case KVM_REG_LOONGARCH_CSR:
+		id = KVM_GET_IOC_CSR_IDX(reg->id);
+		ret = _kvm_getcsr(vcpu, id, v);
+		break;
+	case KVM_REG_LOONGARCH_CPUCFG:
+		id = KVM_GET_IOC_CPUCFG_IDX(reg->id);
+		if (id >= 0 && id < KVM_MAX_CPUCFG_REGS)
+			*v = vcpu->arch.cpucfg[id];
+		else
+			ret = -EINVAL;
+		break;
+	case KVM_REG_LOONGARCH_KVM:
+		switch (reg->id) {
+		case KVM_REG_LOONGARCH_COUNTER:
+			*v = drdtime() + vcpu->kvm->arch.time_offset;
+			break;
+		default:
+			ret = -EINVAL;
+			break;
+		}
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+
+	return ret;
+}
+
+static int kvm_get_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg)
+{
+	int ret = 0;
+	u64 v, size = reg->id & KVM_REG_SIZE_MASK;
+
+	switch (size) {
+	case KVM_REG_SIZE_U64:
+		ret = kvm_get_one_reg(vcpu, reg, &v);
+		if (ret)
+			return ret;
+		ret = put_user(v, (u64 __user *)(long)reg->addr);
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+
+	return ret;
+}
+
+static int kvm_set_one_reg(struct kvm_vcpu *vcpu,
+			const struct kvm_one_reg *reg, u64 v)
+{
+	int id, ret = 0;
+	u64 type = reg->id & KVM_REG_LOONGARCH_MASK;
+
+	switch (type) {
+	case KVM_REG_LOONGARCH_CSR:
+		id = KVM_GET_IOC_CSR_IDX(reg->id);
+		ret = _kvm_setcsr(vcpu, id, v);
+		break;
+	case KVM_REG_LOONGARCH_CPUCFG:
+		id = KVM_GET_IOC_CPUCFG_IDX(reg->id);
+		if (id >= 0 && id < KVM_MAX_CPUCFG_REGS)
+			vcpu->arch.cpucfg[id] = (u32)v;
+		else
+			ret = -EINVAL;
+		break;
+	case KVM_REG_LOONGARCH_KVM:
+		switch (reg->id) {
+		case KVM_REG_LOONGARCH_COUNTER:
+			/*
+			 * gftoffset is relative with board, not vcpu
+			 * only set for the first time for smp system
+			 */
+			if (vcpu->vcpu_id == 0)
+				vcpu->kvm->arch.time_offset = (signed long)(v - drdtime());
+			break;
+		case KVM_REG_LOONGARCH_VCPU_RESET:
+			kvm_reset_timer(vcpu);
+			memset(&vcpu->arch.irq_pending, 0, sizeof(vcpu->arch.irq_pending));
+			memset(&vcpu->arch.irq_clear, 0, sizeof(vcpu->arch.irq_clear));
+			break;
+		default:
+			ret = -EINVAL;
+			break;
+		}
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+
+	return ret;
+}
+
+static int kvm_set_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg)
+{
+	int ret = 0;
+	u64 v, size = reg->id & KVM_REG_SIZE_MASK;
+
+	switch (size) {
+	case KVM_REG_SIZE_U64:
+		ret = get_user(v, (u64 __user *)(long)reg->addr);
+		if (ret)
+			return ret;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return kvm_set_one_reg(vcpu, reg, v);
+}
+
+int kvm_arch_vcpu_ioctl_get_sregs(struct kvm_vcpu *vcpu, struct kvm_sregs *sregs)
+{
+	return -ENOIOCTLCMD;
+}
+
+int kvm_arch_vcpu_ioctl_set_sregs(struct kvm_vcpu *vcpu, struct kvm_sregs *sregs)
+{
+	return -ENOIOCTLCMD;
+}
+
+int kvm_arch_vcpu_ioctl_get_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(vcpu->arch.gprs); i++)
+		regs->gpr[i] = vcpu->arch.gprs[i];
+
+	regs->pc = vcpu->arch.pc;
+
+	return 0;
+}
+
+int kvm_arch_vcpu_ioctl_set_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
+{
+	int i;
+
+	for (i = 1; i < ARRAY_SIZE(vcpu->arch.gprs); i++)
+		vcpu->arch.gprs[i] = regs->gpr[i];
+
+	vcpu->arch.gprs[0] = 0; /* zero is special, and cannot be set. */
+	vcpu->arch.pc = regs->pc;
+
+	return 0;
+}
+
+static int kvm_vcpu_ioctl_enable_cap(struct kvm_vcpu *vcpu,
+				     struct kvm_enable_cap *cap)
+{
+	/* FPU is enabled by default, will support LSX/LASX later. */
+	return -EINVAL;
+}
+
+long kvm_arch_vcpu_ioctl(struct file *filp,
+			 unsigned int ioctl, unsigned long arg)
+{
+	long r;
+	void __user *argp = (void __user *)arg;
+	struct kvm_vcpu *vcpu = filp->private_data;
+
+	/*
+	 * Only software CSR should be modified
+	 *
+	 * If any hardware CSR register is modified, vcpu_load/vcpu_put pair
+	 * should be used. Since CSR registers owns by this vcpu, if switch
+	 * to other vcpus, other vcpus need reload CSR registers.
+	 *
+	 * If software CSR is modified, bit KVM_LARCH_HWCSR_USABLE should
+	 * be clear in vcpu->arch.aux_inuse, and vcpu_load will check
+	 * aux_inuse flag and reload CSR registers form software.
+	 */
+
+	switch (ioctl) {
+	case KVM_SET_ONE_REG:
+	case KVM_GET_ONE_REG: {
+		struct kvm_one_reg reg;
+
+		r = -EFAULT;
+		if (copy_from_user(&reg, argp, sizeof(reg)))
+			break;
+		if (ioctl == KVM_SET_ONE_REG) {
+			r = kvm_set_reg(vcpu, &reg);
+			vcpu->arch.aux_inuse &= ~KVM_LARCH_HWCSR_USABLE;
+		} else
+			r = kvm_get_reg(vcpu, &reg);
+		break;
+	}
+	case KVM_ENABLE_CAP: {
+		struct kvm_enable_cap cap;
+
+		r = -EFAULT;
+		if (copy_from_user(&cap, argp, sizeof(cap)))
+			break;
+		r = kvm_vcpu_ioctl_enable_cap(vcpu, &cap);
+		break;
+	}
+	default:
+		r = -ENOIOCTLCMD;
+		break;
+	}
+
+	return r;
+}
+
 int kvm_arch_vcpu_precreate(struct kvm *kvm, unsigned int id)
 {
 	return 0;
