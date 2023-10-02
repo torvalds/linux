@@ -28,6 +28,7 @@
 #include "amdgpu.h"
 #include "amdgpu_gfx.h"
 #include "amdgpu_dma_buf.h"
+#include <drm/ttm/ttm_tt.h>
 #include <linux/module.h>
 #include <linux/dma-buf.h>
 #include "amdgpu_xgmi.h"
@@ -783,11 +784,23 @@ void amdgpu_amdkfd_unlock_kfd(struct amdgpu_device *adev)
 
 u64 amdgpu_amdkfd_xcp_memory_size(struct amdgpu_device *adev, int xcp_id)
 {
-	u64 tmp;
 	s8 mem_id = KFD_XCP_MEM_ID(adev, xcp_id);
+	u64 tmp;
 
 	if (adev->gmc.num_mem_partitions && xcp_id >= 0 && mem_id >= 0) {
-		tmp = adev->gmc.mem_partitions[mem_id].size;
+		if (adev->gmc.is_app_apu && adev->gmc.num_mem_partitions == 1) {
+			/* In NPS1 mode, we should restrict the vram reporting
+			 * tied to the ttm_pages_limit which is 1/2 of the system
+			 * memory. For other partition modes, the HBM is uniformly
+			 * divided already per numa node reported. If user wants to
+			 * go beyond the default ttm limit and maximize the ROCm
+			 * allocations, they can go up to max ttm and sysmem limits.
+			 */
+
+			tmp = (ttm_tt_pages_limit() << PAGE_SHIFT) / num_online_nodes();
+		} else {
+			tmp = adev->gmc.mem_partitions[mem_id].size;
+		}
 		do_div(tmp, adev->xcp_mgr->num_xcp_per_mem_partition);
 		return ALIGN_DOWN(tmp, PAGE_SIZE);
 	} else {

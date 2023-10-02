@@ -1816,15 +1816,14 @@ static void
 gmc_v9_0_init_acpi_mem_ranges(struct amdgpu_device *adev,
 			      struct amdgpu_mem_partition_info *mem_ranges)
 {
-	int num_ranges = 0, ret, mem_groups;
 	struct amdgpu_numa_info numa_info;
 	int node_ids[MAX_MEM_RANGES];
+	int num_ranges = 0, ret;
 	int num_xcc, xcc_id;
 	uint32_t xcc_mask;
 
 	num_xcc = NUM_XCC(adev->gfx.xcc_mask);
 	xcc_mask = (1U << num_xcc) - 1;
-	mem_groups = hweight32(adev->aid_mask);
 
 	for_each_inst(xcc_id, xcc_mask)	{
 		ret = amdgpu_acpi_get_mem_info(adev, xcc_id, &numa_info);
@@ -1849,12 +1848,6 @@ gmc_v9_0_init_acpi_mem_ranges(struct amdgpu_device *adev,
 	}
 
 	adev->gmc.num_mem_partitions = num_ranges;
-
-	/* If there is only partition, don't use entire size */
-	if (adev->gmc.num_mem_partitions == 1) {
-		mem_ranges[0].size = mem_ranges[0].size * (mem_groups - 1);
-		do_div(mem_ranges[0].size, mem_groups);
-	}
 }
 
 static void
