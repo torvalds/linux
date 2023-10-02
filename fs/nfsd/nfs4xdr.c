@@ -4783,6 +4783,44 @@ nfsd4_encode_exchange_id(struct nfsd4_compoundres *resp, __be32 nfserr,
 }
 
 static __be32
+nfsd4_encode_channel_attrs4(struct xdr_stream *xdr,
+			    const struct nfsd4_channel_attrs *attrs)
+{
+	__be32 status;
+
+	/* ca_headerpadsize */
+	status = nfsd4_encode_count4(xdr, 0);
+	if (status != nfs_ok)
+		return status;
+	/* ca_maxrequestsize */
+	status = nfsd4_encode_count4(xdr, attrs->maxreq_sz);
+	if (status != nfs_ok)
+		return status;
+	/* ca_maxresponsesize */
+	status = nfsd4_encode_count4(xdr, attrs->maxresp_sz);
+	if (status != nfs_ok)
+		return status;
+	/* ca_maxresponsesize_cached */
+	status = nfsd4_encode_count4(xdr, attrs->maxresp_cached);
+	if (status != nfs_ok)
+		return status;
+	/* ca_maxoperations */
+	status = nfsd4_encode_count4(xdr, attrs->maxops);
+	if (status != nfs_ok)
+		return status;
+	/* ca_maxrequests */
+	status = nfsd4_encode_count4(xdr, attrs->maxreqs);
+	if (status != nfs_ok)
+		return status;
+	/* ca_rdma_ird<1> */
+	if (xdr_stream_encode_u32(xdr, attrs->nr_rdma_attrs) != XDR_UNIT)
+		return nfserr_resource;
+	if (attrs->nr_rdma_attrs)
+		return nfsd4_encode_uint32_t(xdr, attrs->rdma_attrs);
+	return nfs_ok;
+}
+
+static __be32
 nfsd4_encode_create_session(struct nfsd4_compoundres *resp, __be32 nfserr,
 			    union nfsd4_op_u *u)
 {
@@ -4798,42 +4836,12 @@ nfsd4_encode_create_session(struct nfsd4_compoundres *resp, __be32 nfserr,
 	*p++ = cpu_to_be32(sess->seqid);
 	*p++ = cpu_to_be32(sess->flags);
 
-	p = xdr_reserve_space(xdr, 28);
-	if (!p)
-		return nfserr_resource;
-	*p++ = cpu_to_be32(0); /* headerpadsz */
-	*p++ = cpu_to_be32(sess->fore_channel.maxreq_sz);
-	*p++ = cpu_to_be32(sess->fore_channel.maxresp_sz);
-	*p++ = cpu_to_be32(sess->fore_channel.maxresp_cached);
-	*p++ = cpu_to_be32(sess->fore_channel.maxops);
-	*p++ = cpu_to_be32(sess->fore_channel.maxreqs);
-	*p++ = cpu_to_be32(sess->fore_channel.nr_rdma_attrs);
-
-	if (sess->fore_channel.nr_rdma_attrs) {
-		p = xdr_reserve_space(xdr, 4);
-		if (!p)
-			return nfserr_resource;
-		*p++ = cpu_to_be32(sess->fore_channel.rdma_attrs);
-	}
-
-	p = xdr_reserve_space(xdr, 28);
-	if (!p)
-		return nfserr_resource;
-	*p++ = cpu_to_be32(0); /* headerpadsz */
-	*p++ = cpu_to_be32(sess->back_channel.maxreq_sz);
-	*p++ = cpu_to_be32(sess->back_channel.maxresp_sz);
-	*p++ = cpu_to_be32(sess->back_channel.maxresp_cached);
-	*p++ = cpu_to_be32(sess->back_channel.maxops);
-	*p++ = cpu_to_be32(sess->back_channel.maxreqs);
-	*p++ = cpu_to_be32(sess->back_channel.nr_rdma_attrs);
-
-	if (sess->back_channel.nr_rdma_attrs) {
-		p = xdr_reserve_space(xdr, 4);
-		if (!p)
-			return nfserr_resource;
-		*p++ = cpu_to_be32(sess->back_channel.rdma_attrs);
-	}
-	return 0;
+	/* csr_fore_chan_attrs */
+	nfserr = nfsd4_encode_channel_attrs4(xdr, &sess->fore_channel);
+	if (nfserr != nfs_ok)
+		return nfserr;
+	/* csr_back_chan_attrs */
+	return nfsd4_encode_channel_attrs4(xdr, &sess->back_channel);
 }
 
 static __be32
