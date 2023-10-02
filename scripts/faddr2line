@@ -179,6 +179,11 @@ __faddr2line() {
 			local cur_sym_elf_size=${fields[2]}
 			local cur_sym_name=${fields[7]:-}
 
+			# is_mapping_symbol(cur_sym_name)
+			if [[ ${cur_sym_name} =~ ^(\.L|L0|\$) ]]; then
+				continue
+			fi
+
 			if [[ $cur_sym_addr = $sym_addr ]] &&
 			   [[ $cur_sym_elf_size = $sym_elf_size ]] &&
 			   [[ $cur_sym_name = $sym_name ]]; then
