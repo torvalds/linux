@@ -458,6 +458,44 @@ void kvm_lose_fpu(struct kvm_vcpu *vcpu)
 	preempt_enable();
 }
 
+int kvm_vcpu_ioctl_interrupt(struct kvm_vcpu *vcpu, struct kvm_interrupt *irq)
+{
+	int intr = (int)irq->irq;
+
+	if (intr > 0)
+		kvm_queue_irq(vcpu, intr);
+	else if (intr < 0)
+		kvm_dequeue_irq(vcpu, -intr);
+	else {
+		kvm_err("%s: invalid interrupt ioctl %d\n", __func__, irq->irq);
+		return -EINVAL;
+	}
+
+	kvm_vcpu_kick(vcpu);
+
+	return 0;
+}
+
+long kvm_arch_vcpu_async_ioctl(struct file *filp,
+			       unsigned int ioctl, unsigned long arg)
+{
+	void __user *argp = (void __user *)arg;
+	struct kvm_vcpu *vcpu = filp->private_data;
+
+	if (ioctl == KVM_INTERRUPT) {
+		struct kvm_interrupt irq;
+
+		if (copy_from_user(&irq, argp, sizeof(irq)))
+			return -EFAULT;
+
+		kvm_debug("[%d] %s: irq: %d\n", vcpu->vcpu_id, __func__, irq.irq);
+
+		return kvm_vcpu_ioctl_interrupt(vcpu, &irq);
+	}
+
+	return -ENOIOCTLCMD;
+}
+
 int kvm_arch_vcpu_precreate(struct kvm *kvm, unsigned int id)
 {
 	return 0;
