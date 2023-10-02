@@ -752,7 +752,6 @@ static void _rtl92e_init_priv_variable(struct net_device *dev)
 	priv->bcck_in_ch14 = false;
 	priv->cck_present_attn = 0;
 	priv->rfa_txpowertrackingindex = 0;
-	priv->rfc_txpowertrackingindex = 0;
 	priv->cck_pwr_enl = 6;
 	memset(priv->rtllib->swcamtable, 0, sizeof(struct sw_cam_table) * 32);
 	priv->rx_ctr = 0;
