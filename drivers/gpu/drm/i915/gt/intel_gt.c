@@ -62,7 +62,13 @@ void intel_gt_common_init_early(struct intel_gt *gt)
 /* Preliminary initialization of Tile 0 */
 int intel_root_gt_init_early(struct drm_i915_private *i915)
 {
-	struct intel_gt *gt = to_gt(i915);
+	struct intel_gt *gt;
+
+	gt = drmm_kzalloc(&i915->drm, sizeof(*gt), GFP_KERNEL);
+	if (!gt)
+		return -ENOMEM;
+
+	i915->gt0 = gt;
 
 	gt->i915 = i915;
 	gt->uncore = &i915->uncore;
