@@ -161,7 +161,6 @@ static	void	_rtl92e_dm_bandwidth_autoswitch(struct net_device *dev);
 
 static	void	_rtl92e_dm_check_tx_power_tracking(struct net_device *dev);
 
-static void _rtl92e_dm_bb_initialgain_restore(struct net_device *dev);
 static void _rtl92e_dm_dig_init(struct net_device *dev);
 static void _rtl92e_dm_ctrl_initgain_byrssi(struct net_device *dev);
 static void _rtl92e_dm_ctrl_initgain_byrssi_highpwr(struct net_device *dev);
@@ -913,64 +912,6 @@ void rtl92e_dm_cck_txpower_adjust(struct net_device *dev, bool binch14)
 		_rtl92e_dm_cck_tx_power_adjust_tssi(dev, binch14);
 	else
 		_rtl92e_dm_cck_tx_power_adjust_thermal_meter(dev, binch14);
-}
-
-static void _rtl92e_dm_tx_power_reset_recovery(struct net_device *dev)
-{
-	struct r8192_priv *priv = rtllib_priv(dev);
-
-	rtl92e_set_bb_reg(dev, rOFDM0_XATxIQImbalance, bMaskDWord,
-			  dm_tx_bb_gain[priv->rfa_txpowertrackingindex]);
-	rtl92e_dm_cck_txpower_adjust(dev, priv->bcck_in_ch14);
-
-	rtl92e_set_bb_reg(dev, rOFDM0_XCTxIQImbalance, bMaskDWord,
-			  dm_tx_bb_gain[priv->rfc_txpowertrackingindex]);
-}
-
-void rtl92e_dm_restore_state(struct net_device *dev)
-{
-	struct r8192_priv *priv = rtllib_priv(dev);
-	u32	reg_ratr = priv->rate_adaptive.last_ratr;
-	u32 ratr_value;
-
-	if (!priv->up)
-		return;
-
-	if (priv->rate_adaptive.rate_adaptive_disabled)
-		return;
-	if (priv->rtllib->mode != WIRELESS_MODE_N_24G)
-		return;
-	ratr_value = reg_ratr;
-	ratr_value &= ~(RATE_ALL_OFDM_2SS);
-	rtl92e_writel(dev, RATR0, ratr_value);
-	rtl92e_writeb(dev, UFWP, 1);
-	if (priv->tx_pwr_tracking_init && priv->btxpower_tracking)
-		_rtl92e_dm_tx_power_reset_recovery(dev);
-
-	_rtl92e_dm_bb_initialgain_restore(dev);
-}
-
-static void _rtl92e_dm_bb_initialgain_restore(struct net_device *dev)
-{
-	struct r8192_priv *priv = rtllib_priv(dev);
-	u32 bit_mask = 0x7f;
-
-	if (dm_digtable.dig_algorithm == DIG_ALGO_BY_RSSI)
-		return;
-
-	rtl92e_set_bb_reg(dev, UFWP, bMaskByte1, 0x8);
-	rtl92e_set_bb_reg(dev, rOFDM0_XAAGCCore1, bit_mask,
-			  (u32)priv->initgain_backup.xaagccore1);
-	rtl92e_set_bb_reg(dev, rOFDM0_XBAGCCore1, bit_mask,
-			  (u32)priv->initgain_backup.xbagccore1);
-	rtl92e_set_bb_reg(dev, rOFDM0_XCAGCCore1, bit_mask,
-			  (u32)priv->initgain_backup.xcagccore1);
-	rtl92e_set_bb_reg(dev, rOFDM0_XDAGCCore1, bit_mask,
-			  (u32)priv->initgain_backup.xdagccore1);
-	bit_mask  = bMaskByte2;
-	rtl92e_set_bb_reg(dev, rCCK0_CCA, bit_mask,
-			  (u32)priv->initgain_backup.cca);
-	rtl92e_set_bb_reg(dev, UFWP, bMaskByte1, 0x1);
 }
 
 static void _rtl92e_dm_dig_init(struct net_device *dev)

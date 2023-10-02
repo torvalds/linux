@@ -178,7 +178,6 @@ void    rtl92e_dm_txpower_tracking_wq(void *data);
 
 void rtl92e_dm_cck_txpower_adjust(struct net_device *dev, bool binch14);
 
-void    rtl92e_dm_restore_state(struct net_device *dev);
 void    rtl92e_dm_init_edca_turbo(struct net_device *dev);
 void    rtl92e_dm_rf_pathcheck_wq(void *data);
 void rtl92e_dm_init_txpower_tracking(struct net_device *dev);
