@@ -569,6 +569,209 @@ void kvm_arch_vcpu_destroy(struct kvm_vcpu *vcpu)
 	}
 }
 
+static int _kvm_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
+{
+	bool migrated;
+	struct kvm_context *context;
+	struct loongarch_csrs *csr = vcpu->arch.csr;
+
+	/*
+	 * Have we migrated to a different CPU?
+	 * If so, any old guest TLB state may be stale.
+	 */
+	migrated = (vcpu->arch.last_sched_cpu != cpu);
+
+	/*
+	 * Was this the last vCPU to run on this CPU?
+	 * If not, any old guest state from this vCPU will have been clobbered.
+	 */
+	context = per_cpu_ptr(vcpu->kvm->arch.vmcs, cpu);
+	if (migrated || (context->last_vcpu != vcpu))
+		vcpu->arch.aux_inuse &= ~KVM_LARCH_HWCSR_USABLE;
+	context->last_vcpu = vcpu;
+
+	/* Restore timer state regardless */
+	kvm_restore_timer(vcpu);
+
+	/* Control guest page CCA attribute */
+	change_csr_gcfg(CSR_GCFG_MATC_MASK, CSR_GCFG_MATC_ROOT);
+
+	/* Don't bother restoring registers multiple times unless necessary */
+	if (vcpu->arch.aux_inuse & KVM_LARCH_HWCSR_USABLE)
+		return 0;
+
+	write_csr_gcntc((ulong)vcpu->kvm->arch.time_offset);
+
+	/* Restore guest CSR registers */
+	kvm_restore_hw_gcsr(csr, LOONGARCH_CSR_CRMD);
+	kvm_restore_hw_gcsr(csr, LOONGARCH_CSR_PRMD);
+	kvm_restore_hw_gcsr(csr, LOONGARCH_CSR_EUEN);
+	kvm_restore_hw_gcsr(csr, LOONGARCH_CSR_MISC);
+	kvm_restore_hw_gcsr(csr, LOONGARCH_CSR_ECFG);
+	kvm_restore_hw_gcsr(csr, LOONGARCH_CSR_ERA);
+	kvm_restore_hw_gcsr(csr, LOONGARCH_CSR_BADV);
+	kvm_restore_hw_gcsr(csr, LOONGARCH_CSR_BADI);
+	kvm_restore_hw_gcsr(csr, LOONGARCH_CSR_EENTRY);
+	kvm_restore_hw_gcsr(csr, LOONGARCH_CSR_TLBIDX);
+	kvm_restore_hw_gcsr(csr, LOONGARCH_CSR_TLBEHI);
+	kvm_restore_hw_gcsr(csr, LOONGARCH_CSR_TLBELO0);
+	kvm_restore_hw_gcsr(csr, LOONGARCH_CSR_TLBELO1);
+	kvm_restore_hw_gcsr(csr, LOONGARCH_CSR_ASID);
+	kvm_restore_hw_gcsr(csr, LOONGARCH_CSR_PGDL);
+	kvm_restore_hw_gcsr(csr, LOONGARCH_CSR_PGDH);
+	kvm_restore_hw_gcsr(csr, LOONGARCH_CSR_PWCTL0);
+	kvm_restore_hw_gcsr(csr, LOONGARCH_CSR_PWCTL1);
+	kvm_restore_hw_gcsr(csr, LOONGARCH_CSR_STLBPGSIZE);
+	kvm_restore_hw_gcsr(csr, LOONGARCH_CSR_RVACFG);
+	kvm_restore_hw_gcsr(csr, LOONGARCH_CSR_CPUID);
+	kvm_restore_hw_gcsr(csr, LOONGARCH_CSR_KS0);
+	kvm_restore_hw_gcsr(csr, LOONGARCH_CSR_KS1);
+	kvm_restore_hw_gcsr(csr, LOONGARCH_CSR_KS2);
+	kvm_restore_hw_gcsr(csr, LOONGARCH_CSR_KS3);
+	kvm_restore_hw_gcsr(csr, LOONGARCH_CSR_KS4);
+	kvm_restore_hw_gcsr(csr, LOONGARCH_CSR_KS5);
+	kvm_restore_hw_gcsr(csr, LOONGARCH_CSR_KS6);
+	kvm_restore_hw_gcsr(csr, LOONGARCH_CSR_KS7);
+	kvm_restore_hw_gcsr(csr, LOONGARCH_CSR_TMID);
+	kvm_restore_hw_gcsr(csr, LOONGARCH_CSR_CNTC);
+	kvm_restore_hw_gcsr(csr, LOONGARCH_CSR_TLBRENTRY);
+	kvm_restore_hw_gcsr(csr, LOONGARCH_CSR_TLBRBADV);
+	kvm_restore_hw_gcsr(csr, LOONGARCH_CSR_TLBRERA);
+	kvm_restore_hw_gcsr(csr, LOONGARCH_CSR_TLBRSAVE);
+	kvm_restore_hw_gcsr(csr, LOONGARCH_CSR_TLBRELO0);
+	kvm_restore_hw_gcsr(csr, LOONGARCH_CSR_TLBRELO1);
+	kvm_restore_hw_gcsr(csr, LOONGARCH_CSR_TLBREHI);
+	kvm_restore_hw_gcsr(csr, LOONGARCH_CSR_TLBRPRMD);
+	kvm_restore_hw_gcsr(csr, LOONGARCH_CSR_DMWIN0);
+	kvm_restore_hw_gcsr(csr, LOONGARCH_CSR_DMWIN1);
+	kvm_restore_hw_gcsr(csr, LOONGARCH_CSR_DMWIN2);
+	kvm_restore_hw_gcsr(csr, LOONGARCH_CSR_DMWIN3);
+	kvm_restore_hw_gcsr(csr, LOONGARCH_CSR_LLBCTL);
+
+	/* Restore Root.GINTC from unused Guest.GINTC register */
+	write_csr_gintc(csr->csrs[LOONGARCH_CSR_GINTC]);
+
+	/*
+	 * We should clear linked load bit to break interrupted atomics. This
+	 * prevents a SC on the next vCPU from succeeding by matching a LL on
+	 * the previous vCPU.
+	 */
+	if (vcpu->kvm->created_vcpus > 1)
+		set_gcsr_llbctl(CSR_LLBCTL_WCLLB);
+
+	vcpu->arch.aux_inuse |= KVM_LARCH_HWCSR_USABLE;
+
+	return 0;
+}
+
+void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
+{
+	unsigned long flags;
+
+	local_irq_save(flags);
+	if (vcpu->arch.last_sched_cpu != cpu) {
+		kvm_debug("[%d->%d]KVM vCPU[%d] switch\n",
+				vcpu->arch.last_sched_cpu, cpu, vcpu->vcpu_id);
+		/*
+		 * Migrate the timer interrupt to the current CPU so that it
+		 * always interrupts the guest and synchronously triggers a
+		 * guest timer interrupt.
+		 */
+		kvm_migrate_count(vcpu);
+	}
+
+	/* Restore guest state to registers */
+	_kvm_vcpu_load(vcpu, cpu);
+	local_irq_restore(flags);
+}
+
+static int _kvm_vcpu_put(struct kvm_vcpu *vcpu, int cpu)
+{
+	struct loongarch_csrs *csr = vcpu->arch.csr;
+
+	kvm_lose_fpu(vcpu);
+
+	/*
+	 * Update CSR state from hardware if software CSR state is stale,
+	 * most CSR registers are kept unchanged during process context
+	 * switch except CSR registers like remaining timer tick value and
+	 * injected interrupt state.
+	 */
+	if (vcpu->arch.aux_inuse & KVM_LARCH_SWCSR_LATEST)
+		goto out;
+
+	kvm_save_hw_gcsr(csr, LOONGARCH_CSR_CRMD);
+	kvm_save_hw_gcsr(csr, LOONGARCH_CSR_PRMD);
+	kvm_save_hw_gcsr(csr, LOONGARCH_CSR_EUEN);
+	kvm_save_hw_gcsr(csr, LOONGARCH_CSR_MISC);
+	kvm_save_hw_gcsr(csr, LOONGARCH_CSR_ECFG);
+	kvm_save_hw_gcsr(csr, LOONGARCH_CSR_ERA);
+	kvm_save_hw_gcsr(csr, LOONGARCH_CSR_BADV);
+	kvm_save_hw_gcsr(csr, LOONGARCH_CSR_BADI);
+	kvm_save_hw_gcsr(csr, LOONGARCH_CSR_EENTRY);
+	kvm_save_hw_gcsr(csr, LOONGARCH_CSR_TLBIDX);
+	kvm_save_hw_gcsr(csr, LOONGARCH_CSR_TLBEHI);
+	kvm_save_hw_gcsr(csr, LOONGARCH_CSR_TLBELO0);
+	kvm_save_hw_gcsr(csr, LOONGARCH_CSR_TLBELO1);
+	kvm_save_hw_gcsr(csr, LOONGARCH_CSR_ASID);
+	kvm_save_hw_gcsr(csr, LOONGARCH_CSR_PGDL);
+	kvm_save_hw_gcsr(csr, LOONGARCH_CSR_PGDH);
+	kvm_save_hw_gcsr(csr, LOONGARCH_CSR_PWCTL0);
+	kvm_save_hw_gcsr(csr, LOONGARCH_CSR_PWCTL1);
+	kvm_save_hw_gcsr(csr, LOONGARCH_CSR_STLBPGSIZE);
+	kvm_save_hw_gcsr(csr, LOONGARCH_CSR_RVACFG);
+	kvm_save_hw_gcsr(csr, LOONGARCH_CSR_CPUID);
+	kvm_save_hw_gcsr(csr, LOONGARCH_CSR_PRCFG1);
+	kvm_save_hw_gcsr(csr, LOONGARCH_CSR_PRCFG2);
+	kvm_save_hw_gcsr(csr, LOONGARCH_CSR_PRCFG3);
+	kvm_save_hw_gcsr(csr, LOONGARCH_CSR_KS0);
+	kvm_save_hw_gcsr(csr, LOONGARCH_CSR_KS1);
+	kvm_save_hw_gcsr(csr, LOONGARCH_CSR_KS2);
+	kvm_save_hw_gcsr(csr, LOONGARCH_CSR_KS3);
+	kvm_save_hw_gcsr(csr, LOONGARCH_CSR_KS4);
+	kvm_save_hw_gcsr(csr, LOONGARCH_CSR_KS5);
+	kvm_save_hw_gcsr(csr, LOONGARCH_CSR_KS6);
+	kvm_save_hw_gcsr(csr, LOONGARCH_CSR_KS7);
+	kvm_save_hw_gcsr(csr, LOONGARCH_CSR_TMID);
+	kvm_save_hw_gcsr(csr, LOONGARCH_CSR_CNTC);
+	kvm_save_hw_gcsr(csr, LOONGARCH_CSR_LLBCTL);
+	kvm_save_hw_gcsr(csr, LOONGARCH_CSR_TLBRENTRY);
+	kvm_save_hw_gcsr(csr, LOONGARCH_CSR_TLBRBADV);
+	kvm_save_hw_gcsr(csr, LOONGARCH_CSR_TLBRERA);
+	kvm_save_hw_gcsr(csr, LOONGARCH_CSR_TLBRSAVE);
+	kvm_save_hw_gcsr(csr, LOONGARCH_CSR_TLBRELO0);
+	kvm_save_hw_gcsr(csr, LOONGARCH_CSR_TLBRELO1);
+	kvm_save_hw_gcsr(csr, LOONGARCH_CSR_TLBREHI);
+	kvm_save_hw_gcsr(csr, LOONGARCH_CSR_TLBRPRMD);
+	kvm_save_hw_gcsr(csr, LOONGARCH_CSR_DMWIN0);
+	kvm_save_hw_gcsr(csr, LOONGARCH_CSR_DMWIN1);
+	kvm_save_hw_gcsr(csr, LOONGARCH_CSR_DMWIN2);
+	kvm_save_hw_gcsr(csr, LOONGARCH_CSR_DMWIN3);
+
+	vcpu->arch.aux_inuse |= KVM_LARCH_SWCSR_LATEST;
+
+out:
+	kvm_save_timer(vcpu);
+	/* Save Root.GINTC into unused Guest.GINTC register */
+	csr->csrs[LOONGARCH_CSR_GINTC] = read_csr_gintc();
+
+	return 0;
+}
+
+void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu)
+{
+	int cpu;
+	unsigned long flags;
+
+	local_irq_save(flags);
+	cpu = smp_processor_id();
+	vcpu->arch.last_sched_cpu = cpu;
+
+	/* Save guest state in registers */
+	_kvm_vcpu_put(vcpu, cpu);
+	local_irq_restore(flags);
+}
+
 int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu)
 {
 	int r = -EINTR;
