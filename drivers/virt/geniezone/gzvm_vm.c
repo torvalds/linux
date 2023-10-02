@@ -16,159 +16,11 @@
 static DEFINE_MUTEX(gzvm_list_lock);
 static LIST_HEAD(gzvm_list);
 
-/**
- * hva_to_pa_fast() - converts hva to pa in generic fast way
- * @hva: Host virtual address.
- *
- * Return: 0 if translation error
- */
-static u64 hva_to_pa_fast(u64 hva)
-{
-	struct page *page[1];
-
-	u64 pfn;
-
-	if (get_user_page_fast_only(hva, 0, page)) {
-		pfn = page_to_phys(page[0]);
-		put_page((struct page *)page);
-		return pfn;
-	} else {
-		return 0;
-	}
-}
-
-/**
- * hva_to_pa_slow() - note that this function may sleep
- * @hva: Host virtual address.
- *
- * Return: 0 if translation error
- */
-static u64 hva_to_pa_slow(u64 hva)
-{
-	struct page *page;
-	int npages;
-	u64 pfn;
-
-	npages = get_user_pages_unlocked(hva, 1, &page, 0);
-	if (npages != 1)
-		return 0;
-
-	pfn = page_to_phys(page);
-	put_page(page);
-
-	return pfn;
-}
-
-static u64 gzvm_gfn_to_hva_memslot(struct gzvm_memslot *memslot, u64 gfn)
+u64 gzvm_gfn_to_hva_memslot(struct gzvm_memslot *memslot, u64 gfn)
 {
 	u64 offset = gfn - memslot->base_gfn;
 
 	return memslot->userspace_addr + offset * PAGE_SIZE;
-}
-
-static u64 __gzvm_gfn_to_pfn_memslot(struct gzvm_memslot *memslot, u64 gfn)
-{
-	u64 hva, pa;
-
-	hva = gzvm_gfn_to_hva_memslot(memslot, gfn);
-
-	pa = gzvm_hva_to_pa_arch(hva);
-	if (pa != 0)
-		return PHYS_PFN(pa);
-
-	pa = hva_to_pa_fast(hva);
-	if (pa)
-		return PHYS_PFN(pa);
-
-	pa = hva_to_pa_slow(hva);
-	if (pa)
-		return PHYS_PFN(pa);
-
-	return 0;
-}
-
-/**
- * gzvm_gfn_to_pfn_memslot() - Translate gfn (guest ipa) to pfn (host pa),
- *			       result is in @pfn
- * @memslot: Pointer to struct gzvm_memslot.
- * @gfn: Guest frame number.
- * @pfn: Host page frame number.
- *
- * Return:
- * * 0			- Succeed
- * * -EFAULT		- Failed to convert
- */
-static int gzvm_gfn_to_pfn_memslot(struct gzvm_memslot *memslot, u64 gfn,
-				   u64 *pfn)
-{
-	u64 __pfn;
-
-	if (!memslot)
-		return -EFAULT;
-
-	__pfn = __gzvm_gfn_to_pfn_memslot(memslot, gfn);
-	if (__pfn == 0) {
-		*pfn = 0;
-		return -EFAULT;
-	}
-
-	*pfn = __pfn;
-
-	return 0;
-}
-
-/**
- * fill_constituents() - Populate pa to buffer until full
- * @consti: Pointer to struct mem_region_addr_range.
- * @consti_cnt: Constituent count.
- * @max_nr_consti: Maximum number of constituent count.
- * @gfn: Guest frame number.
- * @total_pages: Total page numbers.
- * @slot: Pointer to struct gzvm_memslot.
- *
- * Return: how many pages we've fill in, negative if error
- */
-static int fill_constituents(struct mem_region_addr_range *consti,
-			     int *consti_cnt, int max_nr_consti, u64 gfn,
-			     u32 total_pages, struct gzvm_memslot *slot)
-{
-	u64 pfn, prev_pfn, gfn_end;
-	int nr_pages = 1;
-	int i = 0;
-
-	if (unlikely(total_pages == 0))
-		return -EINVAL;
-	gfn_end = gfn + total_pages;
-
-	/* entry 0 */
-	if (gzvm_gfn_to_pfn_memslot(slot, gfn, &pfn) != 0)
-		return -EFAULT;
-	consti[0].address = PFN_PHYS(pfn);
-	consti[0].pg_cnt = 1;
-	gfn++;
-	prev_pfn = pfn;
-
-	while (i < max_nr_consti && gfn < gfn_end) {
-		if (gzvm_gfn_to_pfn_memslot(slot, gfn, &pfn) != 0)
-			return -EFAULT;
-		if (pfn == (prev_pfn + 1)) {
-			consti[i].pg_cnt++;
-		} else {
-			i++;
-			if (i >= max_nr_consti)
-				break;
-			consti[i].address = PFN_PHYS(pfn);
-			consti[i].pg_cnt = 1;
-		}
-		prev_pfn = pfn;
-		gfn++;
-		nr_pages++;
-	}
-	if (i != max_nr_consti)
-		i++;
-	*consti_cnt = i;
-
-	return nr_pages;
 }
 
 /**
@@ -183,44 +35,24 @@ register_memslot_addr_range(struct gzvm *gzvm, struct gzvm_memslot *memslot)
 {
 	struct gzvm_memory_region_ranges *region;
 	u32 buf_size = PAGE_SIZE * 2;
-	int max_nr_consti, remain_pages;
-	u64 gfn, gfn_end;
+	u64 gfn;
 
 	region = alloc_pages_exact(buf_size, GFP_KERNEL);
 	if (!region)
 		return -ENOMEM;
-	max_nr_consti = (buf_size - sizeof(*region)) /
-			sizeof(struct mem_region_addr_range);
 
 	region->slot = memslot->slot_id;
-	remain_pages = memslot->npages;
+	region->total_pages = memslot->npages;
 	gfn = memslot->base_gfn;
-	gfn_end = gfn + remain_pages;
-	while (gfn < gfn_end) {
-		int nr_pages;
+	region->gpa = PFN_PHYS(gfn);
 
-		nr_pages = fill_constituents(region->constituents,
-					     &region->constituent_cnt,
-					     max_nr_consti, gfn,
-					     remain_pages, memslot);
-		if (nr_pages < 0) {
-			pr_err("Failed to fill constituents\n");
-			free_pages_exact(region, buf_size);
-			return nr_pages;
-		}
-		region->gpa = PFN_PHYS(gfn);
-		region->total_pages = nr_pages;
-
-		remain_pages -= nr_pages;
-		gfn += nr_pages;
-
-		if (gzvm_arch_set_memregion(gzvm->vm_id, buf_size,
-					    virt_to_phys(region))) {
-			pr_err("Failed to register memregion to hypervisor\n");
-			free_pages_exact(region, buf_size);
-			return -EFAULT;
-		}
+	if (gzvm_arch_set_memregion(gzvm->vm_id, buf_size,
+				    virt_to_phys(region))) {
+		pr_err("Failed to register memregion to hypervisor\n");
+		free_pages_exact(region, buf_size);
+		return -EFAULT;
 	}
+
 	free_pages_exact(region, buf_size);
 	return 0;
 }

@@ -162,6 +162,122 @@ static int gzvm_vm_ioctl_get_pvmfw_size(struct gzvm *gzvm,
 }
 
 /**
+ * fill_constituents() - Populate pa to buffer until full
+ * @consti: Pointer to struct mem_region_addr_range.
+ * @consti_cnt: Constituent count.
+ * @max_nr_consti: Maximum number of constituent count.
+ * @gfn: Guest frame number.
+ * @total_pages: Total page numbers.
+ * @slot: Pointer to struct gzvm_memslot.
+ *
+ * Return: how many pages we've fill in, negative if error
+ */
+static int fill_constituents(struct mem_region_addr_range *consti,
+			     int *consti_cnt, int max_nr_consti, u64 gfn,
+			     u32 total_pages, struct gzvm_memslot *slot)
+{
+	u64 pfn, prev_pfn, gfn_end;
+	int nr_pages = 1;
+	int i = 0;
+
+	if (unlikely(total_pages == 0))
+		return -EINVAL;
+	gfn_end = gfn + total_pages;
+
+	/* entry 0 */
+	if (gzvm_gfn_to_pfn_memslot(slot, gfn, &pfn) != 0)
+		return -EFAULT;
+	consti[0].address = PFN_PHYS(pfn);
+	consti[0].pg_cnt = 1;
+	gfn++;
+	prev_pfn = pfn;
+
+	while (i < max_nr_consti && gfn < gfn_end) {
+		if (gzvm_gfn_to_pfn_memslot(slot, gfn, &pfn) != 0)
+			return -EFAULT;
+		if (pfn == (prev_pfn + 1)) {
+			consti[i].pg_cnt++;
+		} else {
+			i++;
+			if (i >= max_nr_consti)
+				break;
+			consti[i].address = PFN_PHYS(pfn);
+			consti[i].pg_cnt = 1;
+		}
+		prev_pfn = pfn;
+		gfn++;
+		nr_pages++;
+	}
+	if (i != max_nr_consti)
+		i++;
+	*consti_cnt = i;
+
+	return nr_pages;
+}
+
+/**
+ * populate_mem_region() - Iterate all mem slot and populate pa to buffer until it's full
+ * @gzvm: Pointer to struct gzvm.
+ *
+ * Return: 0 if it is successful, negative if error
+ */
+static int populate_mem_region(struct gzvm *gzvm)
+{
+	int slot_cnt = 0;
+
+	while (slot_cnt < GZVM_MAX_MEM_REGION && gzvm->memslot[slot_cnt].npages != 0) {
+		struct gzvm_memslot *memslot = &gzvm->memslot[slot_cnt];
+		struct gzvm_memory_region_ranges *region;
+		int max_nr_consti, remain_pages;
+		u64 gfn, gfn_end;
+		u32 buf_size;
+
+		buf_size = PAGE_SIZE * 2;
+		region = alloc_pages_exact(buf_size, GFP_KERNEL);
+		if (!region)
+			return -ENOMEM;
+
+		max_nr_consti = (buf_size - sizeof(*region)) /
+				sizeof(struct mem_region_addr_range);
+
+		region->slot = memslot->slot_id;
+		remain_pages = memslot->npages;
+		gfn = memslot->base_gfn;
+		gfn_end = gfn + remain_pages;
+
+		while (gfn < gfn_end) {
+			int nr_pages;
+
+			nr_pages = fill_constituents(region->constituents,
+						     &region->constituent_cnt,
+						     max_nr_consti, gfn,
+						     remain_pages, memslot);
+
+			if (nr_pages < 0) {
+				pr_err("Failed to fill constituents\n");
+				free_pages_exact(region, buf_size);
+				return -EFAULT;
+			}
+
+			region->gpa = PFN_PHYS(gfn);
+			region->total_pages = nr_pages;
+			remain_pages -= nr_pages;
+			gfn += nr_pages;
+
+			if (gzvm_arch_set_memregion(gzvm->vm_id, buf_size,
+						    virt_to_phys(region))) {
+				pr_err("Failed to register memregion to hypervisor\n");
+				free_pages_exact(region, buf_size);
+				return -EFAULT;
+			}
+		}
+		free_pages_exact(region, buf_size);
+		++slot_cnt;
+	}
+	return 0;
+}
+
+/**
  * gzvm_vm_ioctl_cap_pvm() - Proceed GZVM_CAP_PROTECTED_VM's subcommands
  * @gzvm: Pointer to struct gzvm.
  * @cap: Pointer to struct gzvm_enable_cap.
@@ -182,6 +298,10 @@ static int gzvm_vm_ioctl_cap_pvm(struct gzvm *gzvm,
 	case GZVM_CAP_PVM_SET_PVMFW_GPA:
 		fallthrough;
 	case GZVM_CAP_PVM_SET_PROTECTED_VM:
+		/* To improve performance for protected VM, we have to populate VM's memory
+		 * before VM booting
+		 */
+		populate_mem_region(gzvm);
 		ret = gzvm_vm_arch_enable_cap(gzvm, cap, &res);
 		return ret;
 	case GZVM_CAP_PVM_GET_PVMFW_SIZE:
