@@ -31,6 +31,7 @@ def define_pitti():
         "drivers/soc/qcom/rpm_master_stat.ko",
         "drivers/soc/qcom/smem.ko",
         "drivers/soc/qcom/socinfo.ko",
+        "drivers/soc/qcom/wcd_usbss_i2c.ko",
     ]
 
     _pitti_consolidate_in_tree_modules = _pitti_in_tree_modules + [
