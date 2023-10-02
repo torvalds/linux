@@ -13,6 +13,7 @@
 #include <linux/security.h>
 #include <linux/mm.h>
 #include <linux/fs.h>
+#include <linux/backing-file.h>
 #include "overlayfs.h"
 
 #include "../internal.h"	/* for sb_init_dio_done_wq */

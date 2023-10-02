@@ -2575,9 +2575,6 @@ struct file *dentry_open(const struct path *path, int flags,
 			 const struct cred *creds);
 struct file *dentry_create(const struct path *path, int flags, umode_t mode,
 			   const struct cred *cred);
-struct file *backing_file_open(const struct path *user_path, int flags,
-			       const struct path *real_path,
-			       const struct cred *cred);
 struct path *backing_file_user_path(struct file *f);
 
 /*

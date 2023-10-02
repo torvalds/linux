@@ -1184,44 +1184,6 @@ struct file *kernel_file_open(const struct path *path, int flags,
 }
 EXPORT_SYMBOL_GPL(kernel_file_open);
 
-/**
- * backing_file_open - open a backing file for kernel internal use
- * @user_path:	path that the user reuqested to open
- * @flags:	open flags
- * @real_path:	path of the backing file
- * @cred:	credentials for open
- *
- * Open a backing file for a stackable filesystem (e.g., overlayfs).
- * @user_path may be on the stackable filesystem and @real_path on the
- * underlying filesystem.  In this case, we want to be able to return the
- * @user_path of the stackable filesystem. This is done by embedding the
- * returned file into a container structure that also stores the stacked
- * file's path, which can be retrieved using backing_file_user_path().
- */
-struct file *backing_file_open(const struct path *user_path, int flags,
-			       const struct path *real_path,
-			       const struct cred *cred)
-{
-	struct file *f;
-	int error;
-
-	f = alloc_empty_backing_file(flags, cred);
-	if (IS_ERR(f))
-		return f;
-
-	path_get(user_path);
-	*backing_file_user_path(f) = *user_path;
-	f->f_path = *real_path;
-	error = do_dentry_open(f, d_inode(real_path->dentry), NULL);
-	if (error) {
-		fput(f);
-		f = ERR_PTR(error);
-	}
-
-	return f;
-}
-EXPORT_SYMBOL_GPL(backing_file_open);
-
 #define WILL_CREATE(flags)	(flags & (O_CREAT | __O_TMPFILE))
 #define O_PATH_FLAGS		(O_DIRECTORY | O_NOFOLLOW | O_PATH | O_CLOEXEC)
 
