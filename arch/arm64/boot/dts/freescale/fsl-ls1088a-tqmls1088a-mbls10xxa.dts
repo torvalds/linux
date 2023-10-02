@@ -1,0 +1,64 @@
+// SPDX-License-Identifier: (GPL-2.0-or-later OR MIT)
+/*
+ * Copyright (c) 2018-2023 TQ-Systems GmbH <linux@ew.tq-group.com>,
+ * D-82229 Seefeld, Germany.
+ * Author: Gregor Herburger, Timo Herbrecher
+ *
+ */
+
+/dts-v1/;
+
+#include <dt-bindings/gpio/gpio.h>
+
+#include "fsl-ls1088a-tqmls1088a.dtsi"
+#include "tqmls10xxa-mbls10xxa.dtsi"
+
+/ {
+	model = "TQ-Systems GmbH LS1088A TQMLS1088A SoM on MBLS10xxA board";
+	compatible = "tq,ls1088a-tqmls1088a-mbls10xxa", "tq,ls1088a-tqmls1088a",
+		     "fsl,ls1088a";
+
+	aliases {
+		dpmac1 = &dpmac1;
+		dpmac2 = &dpmac2;
+		dpmac3 = &dpmac3;
+		dpmac4 = &dpmac4;
+		dpmac5 = &dpmac5;
+		dpmac6 = &dpmac6;
+		dpmac7 = &dpmac7;
+		dpmac8 = &dpmac8;
+		dpmac9 = &dpmac9;
+		dpmac10 = &dpmac10;
+		qsgmii-s1-p1 = &qsgmii1_phy1;
+		qsgmii-s1-p2 = &qsgmii1_phy2;
+		qsgmii-s1-p3 = &qsgmii1_phy3;
+		qsgmii-s1-p4 = &qsgmii1_phy4;
+		qsgmii-s2-p1 = &qsgmii2_phy1;
+		qsgmii-s2-p2 = &qsgmii2_phy2;
+		qsgmii-s2-p3 = &qsgmii2_phy3;
+		qsgmii-s2-p4 = &qsgmii2_phy4;
+		rgmii-s1 = &rgmii_phy1;
+		rgmii-s2 = &rgmii_phy2;
+		serial0 = &duart0;
+		serial1 = &duart1;
+	};
+
+	chosen {
+		stdout-path = &duart1;
+	};
+};
+
+&esdhc {
+	cd-gpios = <&gpio3 12 GPIO_ACTIVE_LOW>;
+	wp-gpios = <&gpio3 13 GPIO_ACTIVE_HIGH>;
+};
+
+&sfp1_i2c {
+	status = "okay";
+};
+
+&sfp2_i2c {
+	status = "okay";
+};
+
+#include "tqmls1088a-mbls10xxa-mc.dtsi"
