@@ -589,7 +589,6 @@ static struct ctl_table sve_default_vl_table[] = {
 		.proc_handler	= vec_proc_do_default_vl,
 		.extra1		= &vl_info[ARM64_VEC_SVE],
 	},
-	{ }
 };
 
 static int __init sve_sysctl_init(void)
@@ -613,7 +612,6 @@ static struct ctl_table sme_default_vl_table[] = {
 		.proc_handler	= vec_proc_do_default_vl,
 		.extra1		= &vl_info[ARM64_VEC_SME],
 	},
-	{ }
 };
 
 static int __init sme_sysctl_init(void)

@@ -724,7 +724,6 @@ static struct ctl_table tagged_addr_sysctl_table[] = {
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= SYSCTL_ONE,
 	},
-	{ }
 };
 
 static int __init tagged_addr_init(void)
