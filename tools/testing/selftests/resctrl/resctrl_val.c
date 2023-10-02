@@ -482,7 +482,7 @@ void ctrlc_handler(int signum, siginfo_t *info, void *ptr)
  */
 int signal_handler_register(void)
 {
-	struct sigaction sigact;
+	struct sigaction sigact = {};
 	int ret = 0;
 
 	sigact.sa_sigaction = ctrlc_handler;
@@ -504,7 +504,7 @@ int signal_handler_register(void)
  */
 void signal_handler_unregister(void)
 {
-	struct sigaction sigact;
+	struct sigaction sigact = {};
 
 	sigact.sa_handler = SIG_DFL;
 	sigemptyset(&sigact.sa_mask);
