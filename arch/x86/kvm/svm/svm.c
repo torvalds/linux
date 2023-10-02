@@ -691,7 +691,7 @@ static int svm_hardware_enable(void)
 	 */
 	if (boot_cpu_has(X86_FEATURE_V_TSC_AUX)) {
 		struct sev_es_save_area *hostsa;
-		u32 msr_hi;
+		u32 __maybe_unused msr_hi;
 
 		hostsa = (struct sev_es_save_area *)(page_address(sd->save_area) + 0x400);
 
