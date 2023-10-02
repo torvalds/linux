@@ -65,6 +65,14 @@ enum reg2_op {
 	revbd_op	= 0x0f,
 	revh2w_op	= 0x10,
 	revhd_op	= 0x11,
+	iocsrrdb_op     = 0x19200,
+	iocsrrdh_op     = 0x19201,
+	iocsrrdw_op     = 0x19202,
+	iocsrrdd_op     = 0x19203,
+	iocsrwrb_op     = 0x19204,
+	iocsrwrh_op     = 0x19205,
+	iocsrwrw_op     = 0x19206,
+	iocsrwrd_op     = 0x19207,
 };
 
 enum reg2i5_op {
@@ -318,6 +326,13 @@ struct reg2bstrd_format {
 	unsigned int opcode : 10;
 };
 
+struct reg2csr_format {
+	unsigned int rd : 5;
+	unsigned int rj : 5;
+	unsigned int csr : 14;
+	unsigned int opcode : 8;
+};
+
 struct reg3_format {
 	unsigned int rd : 5;
 	unsigned int rj : 5;
@@ -346,6 +361,7 @@ union loongarch_instruction {
 	struct reg2i14_format	reg2i14_format;
 	struct reg2i16_format	reg2i16_format;
 	struct reg2bstrd_format	reg2bstrd_format;
+	struct reg2csr_format   reg2csr_format;
 	struct reg3_format	reg3_format;
 	struct reg3sa2_format	reg3sa2_format;
 };
