@@ -226,52 +226,17 @@ config ZSMALLOC_CHAIN_SIZE
 
 	  For more information, see zsmalloc documentation.
 
-menu "SLAB allocator options"
-
-choice
-	prompt "Choose SLAB allocator"
-	default SLUB
-	help
-	   This option allows to select a slab allocator.
-
-config SLAB_DEPRECATED
-	bool "SLAB (DEPRECATED)"
-	depends on !PREEMPT_RT
-	help
-	  Deprecated and scheduled for removal in a few cycles. Replaced by
-	  SLUB.
-
-	  If you cannot migrate to SLUB, please contact linux-mm@kvack.org
-	  and the people listed in the SLAB ALLOCATOR section of MAINTAINERS
-	  file, explaining why.
-
-	  The regular slab allocator that is established and known to work
-	  well in all environments. It organizes cache hot objects in
-	  per cpu and per node queues.
+menu "Slab allocator options"
 
 config SLUB
-	bool "SLUB (Unqueued Allocator)"
-	help
-	   SLUB is a slab allocator that minimizes cache line usage
-	   instead of managing queues of cached objects (SLAB approach).
-	   Per cpu caching is realized using slabs of objects instead
-	   of queues of objects. SLUB can use memory efficiently
-	   and has enhanced diagnostics. SLUB is the default choice for
-	   a slab allocator.
-
-endchoice
-
-config SLAB
-	bool
-	default y
-	depends on SLAB_DEPRECATED
+	def_bool y
 
 config SLUB_TINY
-	bool "Configure SLUB for minimal memory footprint"
-	depends on SLUB && EXPERT
+	bool "Configure for minimal memory footprint"
+	depends on EXPERT
 	select SLAB_MERGE_DEFAULT
 	help
-	   Configures the SLUB allocator in a way to achieve minimal memory
+	   Configures the slab allocator in a way to achieve minimal memory
 	   footprint, sacrificing scalability, debugging and other features.
 	   This is intended only for the smallest system that had used the
 	   SLOB allocator and is not recommended for systems with more than
@@ -282,7 +247,6 @@ config SLUB_TINY
 config SLAB_MERGE_DEFAULT
 	bool "Allow slab caches to be merged"
 	default y
-	depends on SLAB || SLUB
 	help
 	  For reduced kernel memory fragmentation, slab caches can be
 	  merged when they share the same size and other characteristics.
@@ -296,7 +260,7 @@ config SLAB_MERGE_DEFAULT
 
 config SLAB_FREELIST_RANDOM
 	bool "Randomize slab freelist"
-	depends on SLAB || (SLUB && !SLUB_TINY)
+	depends on !SLUB_TINY
 	help
 	  Randomizes the freelist order used on creating new pages. This
 	  security feature reduces the predictability of the kernel slab
@@ -304,21 +268,19 @@ config SLAB_FREELIST_RANDOM
 
 config SLAB_FREELIST_HARDENED
 	bool "Harden slab freelist metadata"
-	depends on SLAB || (SLUB && !SLUB_TINY)
+	depends on !SLUB_TINY
 	help
 	  Many kernel heap attacks try to target slab cache metadata and
 	  other infrastructure. This options makes minor performance
 	  sacrifices to harden the kernel slab allocator against common
-	  freelist exploit methods. Some slab implementations have more
-	  sanity-checking than others. This option is most effective with
-	  CONFIG_SLUB.
+	  freelist exploit methods.
 
 config SLUB_STATS
 	default n
-	bool "Enable SLUB performance statistics"
-	depends on SLUB && SYSFS && !SLUB_TINY
+	bool "Enable performance statistics"
+	depends on SYSFS && !SLUB_TINY
 	help
-	  SLUB statistics are useful to debug SLUBs allocation behavior in
+	  The statistics are useful to debug slab allocation behavior in
 	  order find ways to optimize the allocator. This should never be
 	  enabled for production use since keeping statistics slows down
 	  the allocator by a few percentage points. The slabinfo command
@@ -328,8 +290,8 @@ config SLUB_STATS
 
 config SLUB_CPU_PARTIAL
 	default y
-	depends on SLUB && SMP && !SLUB_TINY
-	bool "SLUB per cpu partial cache"
+	depends on SMP && !SLUB_TINY
+	bool "Enable per cpu partial caches"
 	help
 	  Per cpu partial caches accelerate objects allocation and freeing
 	  that is local to a processor at the price of more indeterminism
@@ -339,7 +301,7 @@ config SLUB_CPU_PARTIAL
 
 config RANDOM_KMALLOC_CACHES
 	default n
-	depends on SLUB && !SLUB_TINY
+	depends on !SLUB_TINY
 	bool "Randomize slab caches for normal kmalloc"
 	help
 	  A hardening feature that creates multiple copies of slab caches for
@@ -354,7 +316,7 @@ config RANDOM_KMALLOC_CACHES
 	  limited degree of memory and CPU overhead that relates to hardware and
 	  system workload.
 
-endmenu # SLAB allocator options
+endmenu # Slab allocator options
 
 config SHUFFLE_PAGE_ALLOCATOR
 	bool "Page allocator randomization"
