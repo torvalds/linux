@@ -104,8 +104,8 @@ static int ovl_revalidate_real(struct dentry *d, unsigned int flags, bool weak)
 static int ovl_dentry_revalidate_common(struct dentry *dentry,
 					unsigned int flags, bool weak)
 {
-	struct ovl_entry *oe = OVL_E(dentry);
-	struct ovl_path *lowerstack = ovl_lowerstack(oe);
+	struct ovl_entry *oe;
+	struct ovl_path *lowerstack;
 	struct inode *inode = d_inode_rcu(dentry);
 	struct dentry *upper;
 	unsigned int i;
@@ -115,6 +115,8 @@ static int ovl_dentry_revalidate_common(struct dentry *dentry,
 	if (!inode)
 		return -ECHILD;
 
+	oe = OVL_I_E(inode);
+	lowerstack = ovl_lowerstack(oe);
 	upper = ovl_i_dentry_upper(inode);
 	if (upper)
 		ret = ovl_revalidate_real(upper, flags, weak);
