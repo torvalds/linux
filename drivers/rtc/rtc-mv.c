@@ -282,7 +282,7 @@ out:
 	return ret;
 }
 
-static int __exit mv_rtc_remove(struct platform_device *pdev)
+static void __exit mv_rtc_remove(struct platform_device *pdev)
 {
 	struct rtc_plat_data *pdata = platform_get_drvdata(pdev);
 
@@ -291,8 +291,6 @@ static int __exit mv_rtc_remove(struct platform_device *pdev)
 
 	if (!IS_ERR(pdata->clk))
 		clk_disable_unprepare(pdata->clk);
-
-	return 0;
 }
 
 #ifdef CONFIG_OF
@@ -310,7 +308,7 @@ MODULE_DEVICE_TABLE(of, rtc_mv_of_match_table);
  * triggering a section mismatch warning.
  */
 static struct platform_driver mv_rtc_driver __refdata = {
-	.remove		= __exit_p(mv_rtc_remove),
+	.remove_new	= __exit_p(mv_rtc_remove),
 	.driver		= {
 		.name	= "rtc-mv",
 		.of_match_table = of_match_ptr(rtc_mv_of_match_table),
