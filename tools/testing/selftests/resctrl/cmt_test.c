@@ -80,9 +80,6 @@ int cmt_resctrl_val(int cpu_no, int n, const char * const *benchmark_cmd)
 	size_t span;
 	int ret, i;
 
-	if (!validate_resctrl_feature_request(CMT_STR))
-		return -1;
-
 	ret = get_cbm_mask("L3", cbm_mask);
 	if (ret)
 		return ret;
