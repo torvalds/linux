@@ -3557,45 +3557,6 @@ int ice_clear_phy_tstamp(struct ice_hw *hw, u8 block, u8 idx)
 }
 
 /**
- * ice_is_phy_rclk_present - check recovered clk presence
- * @hw: pointer to the hw struct
- *
- * Check if the PHY Recovered Clock device is present in the netlist
- * Return:
- * * true - device found in netlist
- * * false - device not found
- */
-bool ice_is_phy_rclk_present(struct ice_hw *hw)
-{
-	if (ice_find_netlist_node(hw, ICE_AQC_LINK_TOPO_NODE_TYPE_CLK_CTRL,
-				  ICE_AQC_GET_LINK_TOPO_NODE_NR_C827, NULL) &&
-	    ice_find_netlist_node(hw, ICE_AQC_LINK_TOPO_NODE_TYPE_CLK_CTRL,
-				  ICE_AQC_GET_LINK_TOPO_NODE_NR_E822_PHY, NULL))
-		return false;
-
-	return true;
-}
-
-/**
- * ice_is_clock_mux_present_e810t
- * @hw: pointer to the hw struct
- *
- * Check if the Clock Multiplexer device is present in the netlist
- * Return:
- * * true - device found in netlist
- * * false - device not found
- */
-bool ice_is_clock_mux_present_e810t(struct ice_hw *hw)
-{
-	if (ice_find_netlist_node(hw, ICE_AQC_LINK_TOPO_NODE_TYPE_CLK_MUX,
-				  ICE_AQC_GET_LINK_TOPO_NODE_NR_GEN_CLK_MUX,
-				  NULL))
-		return false;
-
-	return true;
-}
-
-/**
  * ice_get_pf_c827_idx - find and return the C827 index for the current pf
  * @hw: pointer to the hw struct
  * @idx: index of the found C827 PHY
@@ -3706,33 +3667,6 @@ int ice_get_phy_tx_tstamp_ready(struct ice_hw *hw, u8 block, u64 *tstamp_ready)
 	default:
 		return -EOPNOTSUPP;
 	}
-}
-
-/**
- * ice_is_cgu_present - check for CGU presence
- * @hw: pointer to the hw struct
- *
- * Check if the Clock Generation Unit (CGU) device is present in the netlist
- * Return:
- * * true - cgu is present
- * * false - cgu is not present
- */
-bool ice_is_cgu_present(struct ice_hw *hw)
-{
-	if (!ice_find_netlist_node(hw, ICE_AQC_LINK_TOPO_NODE_TYPE_CLK_CTRL,
-				   ICE_AQC_GET_LINK_TOPO_NODE_NR_ZL30632_80032,
-				   NULL)) {
-		hw->cgu_part_number = ICE_AQC_GET_LINK_TOPO_NODE_NR_ZL30632_80032;
-		return true;
-	} else if (!ice_find_netlist_node(hw,
-					  ICE_AQC_LINK_TOPO_NODE_TYPE_CLK_CTRL,
-					  ICE_AQC_GET_LINK_TOPO_NODE_NR_SI5383_5384,
-					  NULL)) {
-		hw->cgu_part_number = ICE_AQC_GET_LINK_TOPO_NODE_NR_SI5383_5384;
-		return true;
-	}
-
-	return false;
 }
 
 /**
