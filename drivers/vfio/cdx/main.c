@@ -74,7 +74,7 @@ static int vfio_cdx_bm_ctrl(struct vfio_device *core_vdev, u32 flags,
 	struct vfio_device_feature_bus_master ops;
 	int ret;
 
-	if (!vdev->flags & BME_SUPPORT)
+	if (!(vdev->flags & BME_SUPPORT))
 		return -ENOTTY;
 
 	ret = vfio_check_feature(flags, argsz, VFIO_DEVICE_FEATURE_SET,
