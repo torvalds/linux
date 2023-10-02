@@ -668,7 +668,13 @@ static const struct of_device_id sh_rtc_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, sh_rtc_of_match);
 
-static struct platform_driver sh_rtc_platform_driver = {
+/*
+ * sh_rtc_remove() lives in .exit.text. For drivers registered via
+ * module_platform_driver_probe() this is ok because they cannot get unbound at
+ * runtime. So mark the driver struct with __refdata to prevent modpost
+ * triggering a section mismatch warning.
+ */
+static struct platform_driver sh_rtc_platform_driver __refdata = {
 	.driver		= {
 		.name	= DRV_NAME,
 		.pm	= &sh_rtc_pm_ops,
