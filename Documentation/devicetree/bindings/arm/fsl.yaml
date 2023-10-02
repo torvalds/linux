@@ -1429,6 +1429,13 @@ properties:
               - fsl,ls1088a-rdb
           - const: fsl,ls1088a
 
+      - description: TQ-Systems LS1088A based Boards
+        items:
+          - enum:
+              - tq,ls1088a-tqmls1088a-mbls10xxa
+          - const: tq,ls1088a-tqmls1088a
+          - const: fsl,ls1088a
+
       - description: LS2080A based Boards
         items:
           - enum:
