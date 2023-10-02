@@ -941,15 +941,19 @@ enum {
 
 	TCA_FQ_HORIZON_DROP,	/* drop packets beyond horizon, or cap their EDT */
 
+	TCA_FQ_PRIOMAP,		/* prio2band */
+
 	__TCA_FQ_MAX
 };
 
 #define TCA_FQ_MAX	(__TCA_FQ_MAX - 1)
 
+#define FQ_BANDS 3
+
 struct tc_fq_qd_stats {
 	__u64	gc_flows;
-	__u64	highprio_packets;
-	__u64	tcp_retrans;
+	__u64	highprio_packets;	/* obsolete */
+	__u64	tcp_retrans;		/* obsolete */
 	__u64	throttled;
 	__u64	flows_plimit;
 	__u64	pkts_too_long;
@@ -963,6 +967,9 @@ struct tc_fq_qd_stats {
 	__u64	horizon_drops;
 	__u64	horizon_caps;
 	__u64	fastpath_packets;
+	__u64	band_drops[FQ_BANDS];
+	__u32	band_pkt_count[FQ_BANDS];
+	__u32	pad;
 };
 
 /* Heavy-Hitter Filter */
