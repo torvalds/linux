@@ -1376,7 +1376,7 @@ vm_fault_t do_huge_pmd_wp_page(struct vm_fault *vmf)
 	if (folio_ref_count(folio) == 1) {
 		pmd_t entry;
 
-		page_move_anon_rmap(page, vma);
+		folio_move_anon_rmap(folio, vma);
 		SetPageAnonExclusive(page);
 		folio_unlock(folio);
 reuse:

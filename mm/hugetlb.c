@@ -5653,7 +5653,7 @@ retry_avoidcopy:
 	 */
 	if (folio_mapcount(old_folio) == 1 && folio_test_anon(old_folio)) {
 		if (!PageAnonExclusive(&old_folio->page)) {
-			page_move_anon_rmap(&old_folio->page, vma);
+			folio_move_anon_rmap(old_folio, vma);
 			SetPageAnonExclusive(&old_folio->page);
 		}
 		if (likely(!unshare))

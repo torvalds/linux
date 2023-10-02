@@ -3480,7 +3480,7 @@ static vm_fault_t do_wp_page(struct vm_fault *vmf)
 		 * and the folio is locked, it's dark out, and we're wearing
 		 * sunglasses. Hit it.
 		 */
-		page_move_anon_rmap(vmf->page, vma);
+		folio_move_anon_rmap(folio, vma);
 		SetPageAnonExclusive(vmf->page);
 		folio_unlock(folio);
 reuse:
