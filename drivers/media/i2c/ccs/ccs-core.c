@@ -3038,9 +3038,9 @@ static void ccs_cleanup(struct ccs_sensor *sensor)
 	ccs_free_controls(sensor);
 }
 
-static void ccs_create_subdev(struct ccs_sensor *sensor,
-			      struct ccs_subdev *ssd, const char *name,
-			      unsigned short num_pads, u32 function)
+static void ccs_init_subdev(struct ccs_sensor *sensor,
+			    struct ccs_subdev *ssd, const char *name,
+			    unsigned short num_pads, u32 function)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&sensor->src->sd);
 
@@ -3553,12 +3553,12 @@ static int ccs_probe(struct i2c_client *client)
 	sensor->pll.ext_clk_freq_hz = sensor->hwcfg.ext_clk;
 	sensor->pll.scale_n = CCS_LIM(sensor, SCALER_N_MIN);
 
-	ccs_create_subdev(sensor, sensor->scaler, " scaler", 2,
-			  MEDIA_ENT_F_PROC_VIDEO_SCALER);
-	ccs_create_subdev(sensor, sensor->binner, " binner", 2,
-			  MEDIA_ENT_F_PROC_VIDEO_SCALER);
-	ccs_create_subdev(sensor, sensor->pixel_array, " pixel_array", 1,
-			  MEDIA_ENT_F_CAM_SENSOR);
+	ccs_init_subdev(sensor, sensor->scaler, " scaler", 2,
+			MEDIA_ENT_F_PROC_VIDEO_SCALER);
+	ccs_init_subdev(sensor, sensor->binner, " binner", 2,
+			MEDIA_ENT_F_PROC_VIDEO_SCALER);
+	ccs_init_subdev(sensor, sensor->pixel_array, " pixel_array", 1,
+			MEDIA_ENT_F_CAM_SENSOR);
 
 	rval = ccs_init_controls(sensor);
 	if (rval < 0)
