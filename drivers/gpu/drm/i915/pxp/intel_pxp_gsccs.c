@@ -111,7 +111,7 @@ gsccs_send_message(struct intel_pxp *pxp,
 
 	ret = intel_gsc_uc_heci_cmd_submit_nonpriv(&gt->uc.gsc,
 						   exec_res->ce, &pkt, exec_res->bb_vaddr,
-						   GSC_REPLY_LATENCY_MS);
+						   GSC_HECI_REPLY_LATENCY_MS);
 	if (ret) {
 		drm_err(&i915->drm, "failed to send gsc PXP msg (%d)\n", ret);
 		goto unlock;

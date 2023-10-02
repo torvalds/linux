@@ -9,6 +9,7 @@
 #include <drm/i915_component.h>
 
 #include "gem/i915_gem_lmem.h"
+#include "gt/intel_gt_print.h"
 
 #include "i915_drv.h"
 #include "gt/intel_gt.h"
@@ -155,7 +156,8 @@ static int i915_pxp_tee_component_bind(struct device *i915_kdev,
 {
 	struct drm_i915_private *i915 = kdev_to_i915(i915_kdev);
 	struct intel_pxp *pxp = i915->pxp;
-	struct intel_uc *uc = &pxp->ctrl_gt->uc;
+	struct intel_gt *gt = pxp->ctrl_gt;
+	struct intel_uc *uc = &gt->uc;
 	intel_wakeref_t wakeref;
 	int ret = 0;
 
@@ -175,7 +177,7 @@ static int i915_pxp_tee_component_bind(struct device *i915_kdev,
 			/* load huc via pxp */
 			ret = intel_huc_fw_load_and_auth_via_gsc(&uc->huc);
 			if (ret < 0)
-				drm_err(&i915->drm, "failed to load huc via gsc %d\n", ret);
+				gt_probe_error(gt, "failed to load huc via gsc %d\n", ret);
 		}
 	}
 

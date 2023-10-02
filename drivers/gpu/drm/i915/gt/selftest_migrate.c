@@ -710,7 +710,7 @@ static int threaded_migrate(struct intel_migrate *migrate,
 		thread[i].tsk = tsk;
 	}
 
-	msleep(10); /* start all threads before we kthread_stop() */
+	msleep(10 * n_cpus); /* start all threads before we kthread_stop() */
 
 	for (i = 0; i < n_cpus; ++i) {
 		struct task_struct *tsk = thread[i].tsk;
