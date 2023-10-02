@@ -28,8 +28,8 @@ struct handshake_x509 {
 		__u32 privkey:1;
 	} _present;
 
-	__u32 cert;
-	__u32 privkey;
+	__s32 cert;
+	__s32 privkey;
 };
 
 /* ============== HANDSHAKE_CMD_ACCEPT ============== */
@@ -65,7 +65,7 @@ struct handshake_accept_rsp {
 		__u32 peername_len;
 	} _present;
 
-	__u32 sockfd;
+	__s32 sockfd;
 	enum handshake_msg_type message_type;
 	__u32 timeout;
 	enum handshake_auth auth_mode;
@@ -104,7 +104,7 @@ struct handshake_done_req {
 	} _present;
 
 	__u32 status;
-	__u32 sockfd;
+	__s32 sockfd;
 	unsigned int n_remote_auth;
 	__u32 *remote_auth;
 };
@@ -122,7 +122,7 @@ handshake_done_req_set_status(struct handshake_done_req *req, __u32 status)
 	req->status = status;
 }
 static inline void
-handshake_done_req_set_sockfd(struct handshake_done_req *req, __u32 sockfd)
+handshake_done_req_set_sockfd(struct handshake_done_req *req, __s32 sockfd)
 {
 	req->_present.sockfd = 1;
 	req->sockfd = sockfd;
