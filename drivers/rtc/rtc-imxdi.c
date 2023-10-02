@@ -851,7 +851,13 @@ static const struct of_device_id dryice_dt_ids[] = {
 
 MODULE_DEVICE_TABLE(of, dryice_dt_ids);
 
-static struct platform_driver dryice_rtc_driver = {
+/*
+ * dryice_rtc_remove() lives in .exit.text. For drivers registered via
+ * module_platform_driver_probe() this is ok because they cannot get unbound at
+ * runtime. So mark the driver struct with __refdata to prevent modpost
+ * triggering a section mismatch warning.
+ */
+static struct platform_driver dryice_rtc_driver __refdata = {
 	.driver = {
 		   .name = "imxdi_rtc",
 		   .of_match_table = dryice_dt_ids,
