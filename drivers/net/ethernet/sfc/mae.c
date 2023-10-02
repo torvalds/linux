@@ -1736,9 +1736,60 @@ static int efx_mae_insert_lhs_outer_rule(struct efx_nic *efx,
 	return 0;
 }
 
+static int efx_mae_populate_match_criteria(MCDI_DECLARE_STRUCT_PTR(match_crit),
+					   const struct efx_tc_match *match);
+
+static int efx_mae_insert_lhs_action_rule(struct efx_nic *efx,
+					  struct efx_tc_lhs_rule *rule,
+					  u32 prio)
+{
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_MAE_ACTION_RULE_INSERT_IN_LEN(MAE_FIELD_MASK_VALUE_PAIRS_V2_LEN));
+	MCDI_DECLARE_BUF(outbuf, MC_CMD_MAE_ACTION_RULE_INSERT_OUT_LEN);
+	struct efx_tc_lhs_action *act = &rule->lhs_act;
+	MCDI_DECLARE_STRUCT_PTR(match_crit);
+	MCDI_DECLARE_STRUCT_PTR(response);
+	size_t outlen;
+	int rc;
+
+	match_crit = _MCDI_DWORD(inbuf, MAE_ACTION_RULE_INSERT_IN_MATCH_CRITERIA);
+	response = _MCDI_DWORD(inbuf, MAE_ACTION_RULE_INSERT_IN_RESPONSE);
+	MCDI_STRUCT_SET_DWORD(response, MAE_ACTION_RULE_RESPONSE_ASL_ID,
+			      MC_CMD_MAE_ACTION_SET_LIST_ALLOC_OUT_ACTION_SET_LIST_ID_NULL);
+	MCDI_STRUCT_SET_DWORD(response, MAE_ACTION_RULE_RESPONSE_AS_ID,
+			      MC_CMD_MAE_ACTION_SET_ALLOC_OUT_ACTION_SET_ID_NULL);
+	EFX_POPULATE_DWORD_5(*_MCDI_STRUCT_DWORD(response, MAE_ACTION_RULE_RESPONSE_LOOKUP_CONTROL),
+			     MAE_ACTION_RULE_RESPONSE_DO_CT, !!act->zone,
+			     MAE_ACTION_RULE_RESPONSE_DO_RECIRC,
+			     act->rid && !act->zone,
+			     MAE_ACTION_RULE_RESPONSE_CT_VNI_MODE,
+			     MAE_CT_VNI_MODE_ZERO,
+			     MAE_ACTION_RULE_RESPONSE_RECIRC_ID,
+			     act->rid ? act->rid->fw_id : 0,
+			     MAE_ACTION_RULE_RESPONSE_CT_DOMAIN,
+			     act->zone ? act->zone->zone : 0);
+	MCDI_STRUCT_SET_DWORD(response, MAE_ACTION_RULE_RESPONSE_COUNTER_ID,
+			      act->count ? act->count->cnt->fw_id :
+			      MC_CMD_MAE_COUNTER_ALLOC_OUT_COUNTER_ID_NULL);
+	MCDI_SET_DWORD(inbuf, MAE_ACTION_RULE_INSERT_IN_PRIO, prio);
+	rc = efx_mae_populate_match_criteria(match_crit, &rule->match);
+	if (rc)
+		return rc;
+
+	rc = efx_mcdi_rpc(efx, MC_CMD_MAE_ACTION_RULE_INSERT, inbuf, sizeof(inbuf),
+			  outbuf, sizeof(outbuf), &outlen);
+	if (rc)
+		return rc;
+	if (outlen < sizeof(outbuf))
+		return -EIO;
+	rule->fw_id = MCDI_DWORD(outbuf, MAE_ACTION_RULE_INSERT_OUT_AR_ID);
+	return 0;
+}
+
 int efx_mae_insert_lhs_rule(struct efx_nic *efx, struct efx_tc_lhs_rule *rule,
 			    u32 prio)
 {
+	if (rule->is_ar)
+		return efx_mae_insert_lhs_action_rule(efx, rule, prio);
 	return efx_mae_insert_lhs_outer_rule(efx, rule, prio);
 }
 
@@ -1772,6 +1823,8 @@ static int efx_mae_remove_lhs_outer_rule(struct efx_nic *efx,
 
 int efx_mae_remove_lhs_rule(struct efx_nic *efx, struct efx_tc_lhs_rule *rule)
 {
+	if (rule->is_ar)
+		return efx_mae_delete_rule(efx, rule->fw_id);
 	return efx_mae_remove_lhs_outer_rule(efx, rule);
 }
 

@@ -208,6 +208,7 @@ struct efx_tc_lhs_rule {
 	struct efx_tc_lhs_action lhs_act;
 	struct rhash_head linkage;
 	u32 fw_id;
+	bool is_ar; /* Action Rule (for OR-AR-CT-AR sequence) */
 };
 
 enum efx_tc_rule_prios {
