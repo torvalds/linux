@@ -3355,6 +3355,44 @@ static vm_fault_t wp_page_shared(struct vm_fault *vmf, struct folio *folio)
 	return ret;
 }
 
+static bool wp_can_reuse_anon_folio(struct folio *folio,
+				    struct vm_area_struct *vma)
+{
+	/*
+	 * We have to verify under folio lock: these early checks are
+	 * just an optimization to avoid locking the folio and freeing
+	 * the swapcache if there is little hope that we can reuse.
+	 *
+	 * KSM doesn't necessarily raise the folio refcount.
+	 */
+	if (folio_test_ksm(folio) || folio_ref_count(folio) > 3)
+		return false;
+	if (!folio_test_lru(folio))
+		/*
+		 * We cannot easily detect+handle references from
+		 * remote LRU caches or references to LRU folios.
+		 */
+		lru_add_drain();
+	if (folio_ref_count(folio) > 1 + folio_test_swapcache(folio))
+		return false;
+	if (!folio_trylock(folio))
+		return false;
+	if (folio_test_swapcache(folio))
+		folio_free_swap(folio);
+	if (folio_test_ksm(folio) || folio_ref_count(folio) != 1) {
+		folio_unlock(folio);
+		return false;
+	}
+	/*
+	 * Ok, we've got the only folio reference from our mapping
+	 * and the folio is locked, it's dark out, and we're wearing
+	 * sunglasses. Hit it.
+	 */
+	folio_move_anon_rmap(folio, vma);
+	folio_unlock(folio);
+	return true;
+}
+
 /*
  * This routine handles present pages, when
  * * users try to write to a shared page (FAULT_FLAG_WRITE)
@@ -3441,49 +3479,14 @@ static vm_fault_t do_wp_page(struct vm_fault *vmf)
 	/*
 	 * Private mapping: create an exclusive anonymous page copy if reuse
 	 * is impossible. We might miss VM_WRITE for FOLL_FORCE handling.
+	 *
+	 * If we encounter a page that is marked exclusive, we must reuse
+	 * the page without further checks.
 	 */
-	if (folio && folio_test_anon(folio)) {
-		/*
-		 * If the page is exclusive to this process we must reuse the
-		 * page without further checks.
-		 */
-		if (PageAnonExclusive(vmf->page))
-			goto reuse;
-
-		/*
-		 * We have to verify under folio lock: these early checks are
-		 * just an optimization to avoid locking the folio and freeing
-		 * the swapcache if there is little hope that we can reuse.
-		 *
-		 * KSM doesn't necessarily raise the folio refcount.
-		 */
-		if (folio_test_ksm(folio) || folio_ref_count(folio) > 3)
-			goto copy;
-		if (!folio_test_lru(folio))
-			/*
-			 * We cannot easily detect+handle references from
-			 * remote LRU caches or references to LRU folios.
-			 */
-			lru_add_drain();
-		if (folio_ref_count(folio) > 1 + folio_test_swapcache(folio))
-			goto copy;
-		if (!folio_trylock(folio))
-			goto copy;
-		if (folio_test_swapcache(folio))
-			folio_free_swap(folio);
-		if (folio_test_ksm(folio) || folio_ref_count(folio) != 1) {
-			folio_unlock(folio);
-			goto copy;
-		}
-		/*
-		 * Ok, we've got the only folio reference from our mapping
-		 * and the folio is locked, it's dark out, and we're wearing
-		 * sunglasses. Hit it.
-		 */
-		folio_move_anon_rmap(folio, vma);
-		SetPageAnonExclusive(vmf->page);
-		folio_unlock(folio);
-reuse:
+	if (folio && folio_test_anon(folio) &&
+	    (PageAnonExclusive(vmf->page) || wp_can_reuse_anon_folio(folio, vma))) {
+		if (!PageAnonExclusive(vmf->page))
+			SetPageAnonExclusive(vmf->page);
 		if (unlikely(unshare)) {
 			pte_unmap_unlock(vmf->pte, vmf->ptl);
 			return 0;
@@ -3491,7 +3494,6 @@ reuse:
 		wp_page_reuse(vmf);
 		return 0;
 	}
-copy:
 	/*
 	 * Ok, we need to copy. Oh, well..
 	 */
