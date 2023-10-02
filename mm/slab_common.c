@@ -71,10 +71,8 @@ static int __init setup_slab_merge(char *str)
 	return 1;
 }
 
-#ifdef CONFIG_SLUB
 __setup_param("slub_nomerge", slub_nomerge, setup_slab_nomerge, 0);
 __setup_param("slub_merge", slub_merge, setup_slab_merge, 0);
-#endif
 
 __setup("slab_nomerge", setup_slab_nomerge);
 __setup("slab_merge", setup_slab_merge);
@@ -195,10 +193,6 @@ struct kmem_cache *find_mergeable(unsigned int size, unsigned int align,
 			continue;
 
 		if (s->size - size >= sizeof(void *))
-			continue;
-
-		if (IS_ENABLED(CONFIG_SLAB) && align &&
-			(align > s->align || s->align % align))
 			continue;
 
 		return s;
@@ -1222,12 +1216,8 @@ void cache_random_seq_destroy(struct kmem_cache *cachep)
 }
 #endif /* CONFIG_SLAB_FREELIST_RANDOM */
 
-#if defined(CONFIG_SLAB) || defined(CONFIG_SLUB_DEBUG)
-#ifdef CONFIG_SLAB
-#define SLABINFO_RIGHTS (0600)
-#else
+#ifdef CONFIG_SLUB_DEBUG
 #define SLABINFO_RIGHTS (0400)
-#endif
 
 static void print_slabinfo_header(struct seq_file *m)
 {
@@ -1235,18 +1225,10 @@ static void print_slabinfo_header(struct seq_file *m)
 	 * Output format version, so at least we can change it
 	 * without _too_ many complaints.
 	 */
-#ifdef CONFIG_DEBUG_SLAB
-	seq_puts(m, "slabinfo - version: 2.1 (statistics)\n");
-#else
 	seq_puts(m, "slabinfo - version: 2.1\n");
-#endif
 	seq_puts(m, "# name            <active_objs> <num_objs> <objsize> <objperslab> <pagesperslab>");
 	seq_puts(m, " : tunables <limit> <batchcount> <sharedfactor>");
 	seq_puts(m, " : slabdata <active_slabs> <num_slabs> <sharedavail>");
-#ifdef CONFIG_DEBUG_SLAB
-	seq_puts(m, " : globalstat <listallocs> <maxobjs> <grown> <reaped> <error> <maxfreeable> <nodeallocs> <remotefrees> <alienoverflow>");
-	seq_puts(m, " : cpustat <allochit> <allocmiss> <freehit> <freemiss>");
-#endif
 	seq_putc(m, '\n');
 }
 
@@ -1370,7 +1352,7 @@ static int __init slab_proc_init(void)
 }
 module_init(slab_proc_init);
 
-#endif /* CONFIG_SLAB || CONFIG_SLUB_DEBUG */
+#endif /* CONFIG_SLUB_DEBUG */
 
 static __always_inline __realloc_size(2) void *
 __do_krealloc(const void *p, size_t new_size, gfp_t flags)

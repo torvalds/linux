@@ -42,21 +42,6 @@ typedef union {
 struct slab {
 	unsigned long __page_flags;
 
-#if defined(CONFIG_SLAB)
-
-	struct kmem_cache *slab_cache;
-	union {
-		struct {
-			struct list_head slab_list;
-			void *freelist;	/* array of free object indexes */
-			void *s_mem;	/* first object */
-		};
-		struct rcu_head rcu_head;
-	};
-	unsigned int active;
-
-#elif defined(CONFIG_SLUB)
-
 	struct kmem_cache *slab_cache;
 	union {
 		struct {
@@ -91,10 +76,6 @@ struct slab {
 	};
 	unsigned int __unused;
 
-#else
-#error "Unexpected slab allocator configured"
-#endif
-
 	atomic_t __page_refcount;
 #ifdef CONFIG_MEMCG
 	unsigned long memcg_data;
@@ -111,7 +92,7 @@ SLAB_MATCH(memcg_data, memcg_data);
 #endif
 #undef SLAB_MATCH
 static_assert(sizeof(struct slab) <= sizeof(struct page));
-#if defined(system_has_freelist_aba) && defined(CONFIG_SLUB)
+#if defined(system_has_freelist_aba)
 static_assert(IS_ALIGNED(offsetof(struct slab, freelist), sizeof(freelist_aba_t)));
 #endif
 
@@ -228,13 +209,7 @@ static inline size_t slab_size(const struct slab *slab)
 	return PAGE_SIZE << slab_order(slab);
 }
 
-#ifdef CONFIG_SLAB
-#include <linux/slab_def.h>
-#endif
-
-#ifdef CONFIG_SLUB
 #include <linux/slub_def.h>
-#endif
 
 #include <linux/memcontrol.h>
 #include <linux/fault-inject.h>
@@ -320,26 +295,16 @@ static inline bool is_kmalloc_cache(struct kmem_cache *s)
 			 SLAB_CACHE_DMA32 | SLAB_PANIC | \
 			 SLAB_TYPESAFE_BY_RCU | SLAB_DEBUG_OBJECTS )
 
-#if defined(CONFIG_DEBUG_SLAB)
-#define SLAB_DEBUG_FLAGS (SLAB_RED_ZONE | SLAB_POISON | SLAB_STORE_USER)
-#elif defined(CONFIG_SLUB_DEBUG)
+#ifdef CONFIG_SLUB_DEBUG
 #define SLAB_DEBUG_FLAGS (SLAB_RED_ZONE | SLAB_POISON | SLAB_STORE_USER | \
 			  SLAB_TRACE | SLAB_CONSISTENCY_CHECKS)
 #else
 #define SLAB_DEBUG_FLAGS (0)
 #endif
 
-#if defined(CONFIG_SLAB)
-#define SLAB_CACHE_FLAGS (SLAB_MEM_SPREAD | SLAB_NOLEAKTRACE | \
-			  SLAB_RECLAIM_ACCOUNT | SLAB_TEMPORARY | \
-			  SLAB_ACCOUNT | SLAB_NO_MERGE)
-#elif defined(CONFIG_SLUB)
 #define SLAB_CACHE_FLAGS (SLAB_NOLEAKTRACE | SLAB_RECLAIM_ACCOUNT | \
 			  SLAB_TEMPORARY | SLAB_ACCOUNT | \
 			  SLAB_NO_USER_FLAGS | SLAB_KMALLOC | SLAB_NO_MERGE)
-#else
-#define SLAB_CACHE_FLAGS (SLAB_NOLEAKTRACE)
-#endif
 
 /* Common flags available with current configuration */
 #define CACHE_CREATE_MASK (SLAB_CORE_FLAGS | SLAB_DEBUG_FLAGS | SLAB_CACHE_FLAGS)
@@ -672,18 +637,14 @@ size_t __ksize(const void *objp);
 
 static inline size_t slab_ksize(const struct kmem_cache *s)
 {
-#ifndef CONFIG_SLUB
-	return s->object_size;
-
-#else /* CONFIG_SLUB */
-# ifdef CONFIG_SLUB_DEBUG
+#ifdef CONFIG_SLUB_DEBUG
 	/*
 	 * Debugging requires use of the padding between object
 	 * and whatever may come after it.
 	 */
 	if (s->flags & (SLAB_RED_ZONE | SLAB_POISON))
 		return s->object_size;
-# endif
+#endif
 	if (s->flags & SLAB_KASAN)
 		return s->object_size;
 	/*
@@ -697,7 +658,6 @@ static inline size_t slab_ksize(const struct kmem_cache *s)
 	 * Else we can use all the padding etc for the allocation
 	 */
 	return s->size;
-#endif
 }
 
 static inline struct kmem_cache *slab_pre_alloc_hook(struct kmem_cache *s,
@@ -775,23 +735,6 @@ static inline void slab_post_alloc_hook(struct kmem_cache *s,
  * The slab lists for all objects.
  */
 struct kmem_cache_node {
-#ifdef CONFIG_SLAB
-	raw_spinlock_t list_lock;
-	struct list_head slabs_partial;	/* partial list first, better asm code */
-	struct list_head slabs_full;
-	struct list_head slabs_free;
-	unsigned long total_slabs;	/* length of all slab lists */
-	unsigned long free_slabs;	/* length of free slab list only */
-	unsigned long free_objects;
-	unsigned int free_limit;
-	unsigned int colour_next;	/* Per-node cache coloring */
-	struct array_cache *shared;	/* shared per node */
-	struct alien_cache **alien;	/* on other nodes */
-	unsigned long next_reap;	/* updated without locking */
-	int free_touched;		/* updated without locking */
-#endif
-
-#ifdef CONFIG_SLUB
 	spinlock_t list_lock;
 	unsigned long nr_partial;
 	struct list_head partial;
@@ -800,8 +743,6 @@ struct kmem_cache_node {
 	atomic_long_t total_objects;
 	struct list_head full;
 #endif
-#endif
-
 };
 
 static inline struct kmem_cache_node *get_node(struct kmem_cache *s, int node)
@@ -818,7 +759,7 @@ static inline struct kmem_cache_node *get_node(struct kmem_cache *s, int node)
 		 if ((__n = get_node(__s, __node)))
 
 
-#if defined(CONFIG_SLAB) || defined(CONFIG_SLUB_DEBUG)
+#ifdef CONFIG_SLUB_DEBUG
 void dump_unreclaimable_slab(void);
 #else
 static inline void dump_unreclaimable_slab(void)
