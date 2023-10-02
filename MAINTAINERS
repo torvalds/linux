@@ -1585,6 +1585,17 @@ F:	arch/arm/include/asm/arch_timer.h
 F:	arch/arm64/include/asm/arch_timer.h
 F:	drivers/clocksource/arm_arch_timer.c
 
+ARM GENERIC INTERRUPT CONTROLLER DRIVERS
+M:	Marc Zyngier <maz@kernel.org>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+S:	Maintained
+F:	Documentation/devicetree/bindings/interrupt-controller/arm,gic*
+F:	arch/arm/include/asm/arch_gicv3.h
+F:	arch/arm64/include/asm/arch_gicv3.h
+F:	drivers/irqchip/irq-gic*.[ch]
+F:	include/linux/irqchip/arm-gic*.h
+F:	include/linux/irqchip/arm-vgic-info.h
+
 ARM HDLCD DRM DRIVER
 M:	Liviu Dudau <liviu.dudau@arm.com>
 S:	Supported
