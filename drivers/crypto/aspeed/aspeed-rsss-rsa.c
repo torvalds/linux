@@ -512,6 +512,7 @@ void aspeed_rsss_rsa_exit(struct aspeed_rsss_dev *rsss_dev)
 int aspeed_rsss_rsa_init(struct aspeed_rsss_dev *rsss_dev)
 {
 	struct aspeed_engine_rsa *rsa_engine;
+	u32 val;
 	int rc;
 
 	rc = reset_control_deassert(rsss_dev->reset_rsa);
@@ -544,7 +545,8 @@ int aspeed_rsss_rsa_init(struct aspeed_rsss_dev *rsss_dev)
 	ast_rsss_write(rsss_dev, RSA_OPERATION, ASPEED_RSSS_CTRL);
 
 	/* Enable RSA interrupt */
-	ast_rsss_write(rsss_dev, RSA_INT_EN, ASPEED_RSSS_INT_EN);
+	val = ast_rsss_read(rsss_dev, ASPEED_RSSS_INT_EN);
+	ast_rsss_write(rsss_dev, val | RSA_INT_EN, ASPEED_RSSS_INT_EN);
 
 	dev_info(rsss_dev->dev, "Aspeed RSSS RSA initialized\n");
 

@@ -762,6 +762,7 @@ void aspeed_rsss_sha3_exit(struct aspeed_rsss_dev *rsss_dev)
 int aspeed_rsss_sha3_init(struct aspeed_rsss_dev *rsss_dev)
 {
 	struct aspeed_engine_sha3 *sha3_engine;
+	u32 val;
 	int rc;
 
 	rc = reset_control_deassert(rsss_dev->reset_sha3);
@@ -823,7 +824,8 @@ int aspeed_rsss_sha3_init(struct aspeed_rsss_dev *rsss_dev)
 	sha3_engine->sg_mode = 0;
 
 	/* Enable SHA3 interrupt */
-	ast_rsss_write(rsss_dev, SHA3_INT_EN, ASPEED_RSSS_INT_EN);
+	val = ast_rsss_read(rsss_dev, ASPEED_RSSS_INT_EN);
+	ast_rsss_write(rsss_dev, val | SHA3_INT_EN, ASPEED_RSSS_INT_EN);
 	dev_info(rsss_dev->dev, "Aspeed RSSS SHA3 interrupt mode.\n");
 
 	dev_info(rsss_dev->dev, "Aspeed RSSS SHA3 initialized (%s mode)\n",
