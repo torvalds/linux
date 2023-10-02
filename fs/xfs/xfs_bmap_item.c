@@ -490,6 +490,7 @@ xfs_bui_item_recover(
 	struct list_head		*capture_list)
 {
 	struct xfs_bmap_intent		fake = { };
+	struct xfs_trans_res		resv;
 	struct xfs_bui_log_item		*buip = BUI_ITEM(lip);
 	struct xfs_trans		*tp;
 	struct xfs_inode		*ip = NULL;
@@ -515,7 +516,8 @@ xfs_bui_item_recover(
 		return error;
 
 	/* Allocate transaction and do the work. */
-	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_itruncate,
+	resv = xlog_recover_resv(&M_RES(mp)->tr_itruncate);
+	error = xfs_trans_alloc(mp, &resv,
 			XFS_EXTENTADD_SPACE_RES(mp, XFS_DATA_FORK), 0, 0, &tp);
 	if (error)
 		goto err_rele;

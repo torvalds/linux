@@ -58,7 +58,12 @@ struct kvm_mmu_page {
 
 	bool tdp_mmu_page;
 	bool unsync;
-	u8 mmu_valid_gen;
+	union {
+		u8 mmu_valid_gen;
+
+		/* Only accessed under slots_lock.  */
+		bool tdp_mmu_scheduled_root_to_zap;
+	};
 
 	 /*
 	  * The shadow page can't be replaced by an equivalent huge page
@@ -100,13 +105,7 @@ struct kvm_mmu_page {
 		struct kvm_rmap_head parent_ptes; /* rmap pointers to parent sptes */
 		tdp_ptep_t ptep;
 	};
-	union {
-		DECLARE_BITMAP(unsync_child_bitmap, 512);
-		struct {
-			struct work_struct tdp_mmu_async_work;
-			void *tdp_mmu_async_data;
-		};
-	};
+	DECLARE_BITMAP(unsync_child_bitmap, 512);
 
 	/*
 	 * Tracks shadow pages that, if zapped, would allow KVM to create an NX

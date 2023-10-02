@@ -21,6 +21,7 @@ FILES=(
   "include/uapi/linux/perf_event.h"
   "include/uapi/linux/prctl.h"
   "include/uapi/linux/sched.h"
+  "include/uapi/linux/seccomp.h"
   "include/uapi/linux/stat.h"
   "include/uapi/linux/usbdevice_fs.h"
   "include/uapi/linux/vhost.h"

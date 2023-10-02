@@ -103,23 +103,16 @@ void btrfs_update_delayed_refs_rsv(struct btrfs_trans_handle *trans)
  * Transfer bytes to our delayed refs rsv.
  *
  * @fs_info:   the filesystem
- * @src:       source block rsv to transfer from
  * @num_bytes: number of bytes to transfer
  *
- * This transfers up to the num_bytes amount from the src rsv to the
+ * This transfers up to the num_bytes amount, previously reserved, to the
  * delayed_refs_rsv.  Any extra bytes are returned to the space info.
  */
 void btrfs_migrate_to_delayed_refs_rsv(struct btrfs_fs_info *fs_info,
-				       struct btrfs_block_rsv *src,
 				       u64 num_bytes)
 {
 	struct btrfs_block_rsv *delayed_refs_rsv = &fs_info->delayed_refs_rsv;
 	u64 to_free = 0;
-
-	spin_lock(&src->lock);
-	src->reserved -= num_bytes;
-	src->size -= num_bytes;
-	spin_unlock(&src->lock);
 
 	spin_lock(&delayed_refs_rsv->lock);
 	if (delayed_refs_rsv->size > delayed_refs_rsv->reserved) {
@@ -163,6 +156,8 @@ int btrfs_delayed_refs_rsv_refill(struct btrfs_fs_info *fs_info,
 	struct btrfs_block_rsv *block_rsv = &fs_info->delayed_refs_rsv;
 	u64 limit = btrfs_calc_delayed_ref_bytes(fs_info, 1);
 	u64 num_bytes = 0;
+	u64 refilled_bytes;
+	u64 to_free;
 	int ret = -ENOSPC;
 
 	spin_lock(&block_rsv->lock);
@@ -178,9 +173,38 @@ int btrfs_delayed_refs_rsv_refill(struct btrfs_fs_info *fs_info,
 	ret = btrfs_reserve_metadata_bytes(fs_info, block_rsv, num_bytes, flush);
 	if (ret)
 		return ret;
-	btrfs_block_rsv_add_bytes(block_rsv, num_bytes, false);
-	trace_btrfs_space_reservation(fs_info, "delayed_refs_rsv",
-				      0, num_bytes, 1);
+
+	/*
+	 * We may have raced with someone else, so check again if we the block
+	 * reserve is still not full and release any excess space.
+	 */
+	spin_lock(&block_rsv->lock);
+	if (block_rsv->reserved < block_rsv->size) {
+		u64 needed = block_rsv->size - block_rsv->reserved;
+
+		if (num_bytes >= needed) {
+			block_rsv->reserved += needed;
+			block_rsv->full = true;
+			to_free = num_bytes - needed;
+			refilled_bytes = needed;
+		} else {
+			block_rsv->reserved += num_bytes;
+			to_free = 0;
+			refilled_bytes = num_bytes;
+		}
+	} else {
+		to_free = num_bytes;
+		refilled_bytes = 0;
+	}
+	spin_unlock(&block_rsv->lock);
+
+	if (to_free > 0)
+		btrfs_space_info_free_bytes_may_use(fs_info, block_rsv->space_info,
+						    to_free);
+
+	if (refilled_bytes > 0)
+		trace_btrfs_space_reservation(fs_info, "delayed_refs_rsv", 0,
+					      refilled_bytes, 1);
 	return 0;
 }
 

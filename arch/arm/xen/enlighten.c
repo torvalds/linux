@@ -207,7 +207,7 @@ static void xen_power_off(void)
 
 static irqreturn_t xen_arm_callback(int irq, void *arg)
 {
-	xen_hvm_evtchn_do_upcall();
+	xen_evtchn_do_upcall();
 	return IRQ_HANDLED;
 }
 
