@@ -239,13 +239,13 @@ examples:
         interrupt-controller;
         #interrupt-cells = <4>;
 
-        pmi8998_lsid0: pmic@2 {
+        pmic@2 {
             compatible = "qcom,pmi8998", "qcom,spmi-pmic";
             reg = <0x2 SPMI_USID>;
             #address-cells = <1>;
             #size-cells = <0>;
 
-            pmi8998_gpio: gpio@c000 {
+            gpio@c000 {
                 compatible = "qcom,pmi8998-gpio", "qcom,spmi-gpio";
                 reg = <0xc000>;
                 gpio-controller;
@@ -330,7 +330,7 @@ examples:
             };
         };
 
-        pm6150_gpio: gpio@c000 {
+        gpio@c000 {
             compatible = "qcom,pm6150-gpio", "qcom,spmi-gpio";
             reg = <0xc000>;
             gpio-controller;
